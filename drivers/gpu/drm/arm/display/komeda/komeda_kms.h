@@ -15,7 +15,9 @@
 #include <video/videomode.h>
 #include <video/display_timing.h>
 
-/** struct komeda_plane - komeda instance of drm_plane */
+/**
+ * struct komeda_plane - komeda instance of drm_plane
+ */
 struct komeda_plane {
 	/** @base: &drm_plane */
 	struct drm_plane base;
@@ -70,9 +72,14 @@ struct komeda_crtc {
 	 * merge into the master.
 	 */
 	struct komeda_pipeline *slave;
+
+	/** @disable_done: this flip_done is for tracing the disable */
+	struct completion *disable_done;
 };
 
-/** struct komeda_crtc_state */
+/**
+ * struct komeda_crtc_state
+ */
 struct komeda_crtc_state {
 	/** @base: &drm_crtc_state */
 	struct drm_crtc_state base;
@@ -80,7 +87,15 @@ struct komeda_crtc_state {
 	/* private properties */
 
 	/* computed state which are used by validate/check */
+	/**
+	 * @affected_pipes:
+	 * the affected pipelines in once display instance
+	 */
 	u32 affected_pipes;
+	/**
+	 * @active_pipes:
+	 * the active pipelines in once display instance
+	 */
 	u32 active_pipes;
 };
 
@@ -108,7 +123,7 @@ int komeda_kms_add_crtcs(struct komeda_kms_dev *kms, struct komeda_dev *mdev);
 int komeda_kms_add_planes(struct komeda_kms_dev *kms, struct komeda_dev *mdev);
 int komeda_kms_add_private_objs(struct komeda_kms_dev *kms,
 				struct komeda_dev *mdev);
-void komeda_kms_cleanup_private_objs(struct komeda_dev *mdev);
+void komeda_kms_cleanup_private_objs(struct komeda_kms_dev *kms);
 
 void komeda_crtc_handle_event(struct komeda_crtc   *kcrtc,
 			      struct komeda_events *evts);

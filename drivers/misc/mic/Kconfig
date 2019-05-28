@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Intel MIC & related support"
 
 comment "Intel MIC Bus Driver"
 
 config INTEL_MIC_BUS
 	tristate "Intel MIC Bus Driver"
-	depends on 64BIT && PCI && X86 && X86_DEV_DMA_OPS
+	depends on 64BIT && PCI && X86
 	help
 	  This option is selected by any driver which registers a
 	  device or driver on the MIC Bus, such as CONFIG_INTEL_MIC_HOST,
@@ -21,7 +22,7 @@ comment "SCIF Bus Driver"
 
 config SCIF_BUS
 	tristate "SCIF Bus Driver"
-	depends on 64BIT && PCI && X86 && X86_DEV_DMA_OPS
+	depends on 64BIT && PCI && X86
 	help
 	  This option is selected by any driver which registers a
 	  device or driver on the SCIF Bus, such as CONFIG_INTEL_MIC_HOST

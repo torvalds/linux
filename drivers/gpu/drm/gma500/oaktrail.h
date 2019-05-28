@@ -17,6 +17,8 @@
  *
  **************************************************************************/
 
+struct psb_intel_mode_device;
+
 /* MID device specific descriptors */
 
 struct oaktrail_timing_info {

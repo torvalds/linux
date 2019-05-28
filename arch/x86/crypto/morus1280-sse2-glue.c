@@ -12,6 +12,7 @@
  */
 
 #include <crypto/internal/aead.h>
+#include <crypto/internal/simd.h>
 #include <crypto/morus1280_glue.h>
 #include <linux/module.h>
 #include <asm/fpu/api.h>
@@ -35,7 +36,9 @@ asmlinkage void crypto_morus1280_sse2_dec_tail(void *state, const void *src,
 asmlinkage void crypto_morus1280_sse2_final(void *state, void *tag_xor,
 					    u64 assoclen, u64 cryptlen);
 
-MORUS1280_DECLARE_ALGS(sse2, "morus1280-sse2", 350);
+MORUS1280_DECLARE_ALG(sse2, "morus1280-sse2", 350);
+
+static struct simd_aead_alg *simd_alg;
 
 static int __init crypto_morus1280_sse2_module_init(void)
 {
@@ -43,14 +46,13 @@ static int __init crypto_morus1280_sse2_module_init(void)
 	    !cpu_has_xfeatures(XFEATURE_MASK_SSE, NULL))
 		return -ENODEV;
 
-	return crypto_register_aeads(crypto_morus1280_sse2_algs,
-				     ARRAY_SIZE(crypto_morus1280_sse2_algs));
+	return simd_register_aeads_compat(&crypto_morus1280_sse2_alg, 1,
+					  &simd_alg);
 }
 
 static void __exit crypto_morus1280_sse2_module_exit(void)
 {
-	crypto_unregister_aeads(crypto_morus1280_sse2_algs,
-				ARRAY_SIZE(crypto_morus1280_sse2_algs));
+	simd_unregister_aeads(&crypto_morus1280_sse2_alg, 1, &simd_alg);
 }
 
 module_init(crypto_morus1280_sse2_module_init);

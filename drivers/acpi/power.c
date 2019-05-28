@@ -535,12 +535,12 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
 	/*
 	 * Try to execute _DSW first.
 	 *
-	 * Three agruments are needed for the _DSW object:
+	 * Three arguments are needed for the _DSW object:
 	 * Argument 0: enable/disable the wake capabilities
 	 * Argument 1: target system state
 	 * Argument 2: target device state
 	 * When _DSW object is called to disable the wake capabilities, maybe
-	 * the first argument is filled. The values of the other two agruments
+	 * the first argument is filled. The values of the other two arguments
 	 * are meaningless.
 	 */
 	in_arg[0].type = ACPI_TYPE_INTEGER;

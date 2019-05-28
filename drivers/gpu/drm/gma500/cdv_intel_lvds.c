@@ -20,17 +20,16 @@
  *	Jesse Barnes <jesse.barnes@intel.com>
  */
 
-#include <linux/i2c.h>
 #include <linux/dmi.h>
-#include <drm/drmP.h>
+#include <linux/i2c.h>
+#include <linux/pm_runtime.h>
 
+#include "cdv_device.h"
 #include "intel_bios.h"
+#include "power.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "power.h"
-#include <linux/pm_runtime.h>
-#include "cdv_device.h"
 
 /**
  * LVDS I2C backlight control macros
@@ -593,6 +592,9 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	u32 lvds;
 	int pipe;
 	u8 pin;
+
+	if (!dev_priv->lvds_enabled_in_vbt)
+		return;
 
 	pin = GMBUS_PORT_PANEL;
 	if (!lvds_is_present_in_vbt(dev, &pin)) {

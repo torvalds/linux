@@ -52,7 +52,6 @@ struct kbl_codec_private {
 
 enum {
 	KBL_DPCM_AUDIO_PB = 0,
-	KBL_DPCM_AUDIO_CP,
 	KBL_DPCM_AUDIO_ECHO_REF_CP,
 	KBL_DPCM_AUDIO_REF_CP,
 	KBL_DPCM_AUDIO_DMIC_CP,
@@ -60,6 +59,7 @@ enum {
 	KBL_DPCM_AUDIO_HDMI2_PB,
 	KBL_DPCM_AUDIO_HDMI3_PB,
 	KBL_DPCM_AUDIO_HS_PB,
+	KBL_DPCM_AUDIO_CP,
 };
 
 static int platform_clock_control(struct snd_soc_dapm_widget *w,
@@ -311,6 +311,12 @@ static int kabylake_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 	da7219_aad_jack_det(component, &ctx->kabylake_headset);
 
+	return 0;
+}
+
+static int kabylake_dmic_init(struct snd_soc_pcm_runtime *rtd)
+{
+	int ret;
 	ret = snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "SoC DMIC");
 	if (ret)
 		dev_err(rtd->dev, "SoC DMIC - Ignore suspend failed %d\n", ret);
@@ -581,20 +587,6 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.dpcm_playback = 1,
 		.ops = &kabylake_da7219_fe_ops,
 	},
-	[KBL_DPCM_AUDIO_CP] = {
-		.name = "Kbl Audio Capture Port",
-		.stream_name = "Audio Record",
-		.cpu_dai_name = "System Pin",
-		.platform_name = "0000:00:1f.3",
-		.dynamic = 1,
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.nonatomic = 1,
-		.trigger = {
-			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
-		.dpcm_capture = 1,
-		.ops = &kabylake_da7219_fe_ops,
-	},
 	[KBL_DPCM_AUDIO_ECHO_REF_CP] = {
 		.name = "Kbl Audio Echo Reference cap",
 		.stream_name = "Echoreference Capture",
@@ -690,6 +682,20 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.ops = &kabylake_da7219_fe_ops,
 
 	},
+	[KBL_DPCM_AUDIO_CP] = {
+		.name = "Kbl Audio Capture Port",
+		.stream_name = "Audio Record",
+		.cpu_dai_name = "System Pin",
+		.platform_name = "0000:00:1f.3",
+		.dynamic = 1,
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.nonatomic = 1,
+		.trigger = {
+			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
+		.dpcm_capture = 1,
+		.ops = &kabylake_da7219_fe_ops,
+	},
 
 	/* Back End DAI links */
 	{
@@ -733,6 +739,7 @@ static struct snd_soc_dai_link kabylake_dais[] = {
 		.cpu_dai_name = "DMIC01 Pin",
 		.codec_name = "dmic-codec",
 		.codec_dai_name = "dmic-hifi",
+		.init = kabylake_dmic_init,
 		.platform_name = "0000:00:1f.3",
 		.be_hw_params_fixup = kabylake_dmic_fixup,
 		.ignore_suspend = 1,
@@ -790,20 +797,6 @@ static struct snd_soc_dai_link kabylake_max98_927_373_dais[] = {
 		.trigger = {
 			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
 		.dpcm_playback = 1,
-		.ops = &kabylake_da7219_fe_ops,
-	},
-	[KBL_DPCM_AUDIO_CP] = {
-		.name = "Kbl Audio Capture Port",
-		.stream_name = "Audio Record",
-		.cpu_dai_name = "System Pin",
-		.platform_name = "0000:00:1f.3",
-		.dynamic = 1,
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.nonatomic = 1,
-		.trigger = {
-			SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
-		.dpcm_capture = 1,
 		.ops = &kabylake_da7219_fe_ops,
 	},
 	[KBL_DPCM_AUDIO_ECHO_REF_CP] = {
@@ -911,6 +904,7 @@ static struct snd_soc_dai_link kabylake_max98_927_373_dais[] = {
 		.cpu_dai_name = "DMIC01 Pin",
 		.codec_name = "dmic-codec",
 		.codec_dai_name = "dmic-hifi",
+		.init = kabylake_dmic_init,
 		.platform_name = "0000:00:1f.3",
 		.be_hw_params_fixup = kabylake_dmic_fixup,
 		.ignore_suspend = 1,

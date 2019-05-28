@@ -90,32 +90,35 @@ struct komeda_component {
 	u32 __iomem *reg;
 	/** @id: component id */
 	u32 id;
-	/** @hw_ic: component hw id,
-	 *  which is initialized by chip and used by chip only
+	/**
+	 * @hw_id: component hw id,
+	 * which is initialized by chip and used by chip only
 	 */
 	u32 hw_id;
 
 	/**
 	 * @max_active_inputs:
-	 * @max_active_outpus:
+	 * @max_active_outputs:
 	 *
-	 * maximum number of inputs/outputs that can be active in the same time
+	 * maximum number of inputs/outputs that can be active at the same time
 	 * Note:
 	 * the number isn't the bit number of @supported_inputs or
 	 * @supported_outputs, but may be less than it, since component may not
 	 * support enabling all @supported_inputs/outputs at the same time.
 	 */
 	u8 max_active_inputs;
+	/** @max_active_outputs: maximum number of outputs */
 	u8 max_active_outputs;
 	/**
 	 * @supported_inputs:
 	 * @supported_outputs:
 	 *
-	 * bitmask of BIT(component->id) for the supported inputs/outputs
+	 * bitmask of BIT(component->id) for the supported inputs/outputs,
 	 * describes the possibilities of how a component is linked into a
 	 * pipeline.
 	 */
 	u32 supported_inputs;
+	/** @supported_outputs: bitmask of supported output componenet ids */
 	u32 supported_outputs;
 
 	/**
@@ -134,7 +137,8 @@ struct komeda_component {
 struct komeda_component_output {
 	/** @component: indicate which component the data comes from */
 	struct komeda_component *component;
-	/** @output_port:
+	/**
+	 * @output_port:
 	 * the output port of the &komeda_component_output.component
 	 */
 	u8 output_port;
@@ -150,11 +154,12 @@ struct komeda_component_output {
 struct komeda_component_state {
 	/** @obj: tracking component_state by drm_atomic_state */
 	struct drm_private_state obj;
+	/** @component: backpointer to the component */
 	struct komeda_component *component;
 	/**
 	 * @binding_user:
-	 * currently bound user, the user can be crtc/plane/wb_conn, which is
-	 * valid decided by @component and @inputs
+	 * currently bound user, the user can be @crtc, @plane or @wb_conn,
+	 * which is valid decided by @component and @inputs
 	 *
 	 * -  Layer: its user always is plane.
 	 * -  compiz/improc/timing_ctrlr: the user is crtc.
@@ -162,20 +167,24 @@ struct komeda_component_state {
 	 * -  scaler: plane when input is layer, wb_conn if input is compiz.
 	 */
 	union {
+		/** @crtc: backpointer for user crtc */
 		struct drm_crtc *crtc;
+		/** @plane: backpointer for user plane */
 		struct drm_plane *plane;
+		/** @wb_conn: backpointer for user wb_connector  */
 		struct drm_connector *wb_conn;
 		void *binding_user;
 	};
+
 	/**
 	 * @active_inputs:
 	 *
 	 * active_inputs is bitmask of @inputs index
 	 *
-	 * -  active_inputs = changed_active_inputs + unchanged_active_inputs
-	 * -  affected_inputs = old->active_inputs + new->active_inputs;
+	 * -  active_inputs = changed_active_inputs | unchanged_active_inputs
+	 * -  affected_inputs = old->active_inputs | new->active_inputs;
 	 * -  disabling_inputs = affected_inputs ^ active_inputs;
-	 * -  changed_inputs = disabling_inputs + changed_active_inputs;
+	 * -  changed_inputs = disabling_inputs | changed_active_inputs;
 	 *
 	 * NOTE:
 	 * changed_inputs doesn't include all active_input but only
@@ -183,7 +192,9 @@ struct komeda_component_state {
 	 * level for dirty update.
 	 */
 	u16 active_inputs;
+	/** @changed_active_inputs: bitmask of the changed @active_inputs */
 	u16 changed_active_inputs;
+	/** @affected_inputs: bitmask for affected @inputs */
 	u16 affected_inputs;
 	/**
 	 * @inputs:
@@ -278,6 +289,22 @@ struct komeda_timing_ctrlr_state {
 	struct komeda_component_state base;
 };
 
+/* Why define A separated structure but not use plane_state directly ?
+ * 1. Komeda supports layer_split which means a plane_state can be split and
+ *    handled by two layers, one layer only handle half of plane image.
+ * 2. Fix up the user properties according to HW's capabilities, like user
+ *    set rotation to R180, but HW only supports REFLECT_X+Y. the rot here is
+ *    after drm_rotation_simplify()
+ */
+struct komeda_data_flow_cfg {
+	struct komeda_component_output input;
+	u16 in_x, in_y, in_w, in_h;
+	u32 out_x, out_y, out_w, out_h;
+	u32 rot;
+	int blending_zorder;
+	u8 pixel_blend_mode, layer_alpha;
+};
+
 /** struct komeda_pipeline_funcs */
 struct komeda_pipeline_funcs {
 	/* dump_register: Optional, dump registers to seq_file */
@@ -303,14 +330,23 @@ struct komeda_pipeline {
 	int id;
 	/** @avail_comps: available components mask of pipeline */
 	u32 avail_comps;
+	/** @n_layers: the number of layer on @layers */
 	int n_layers;
+	/** @layers: the pipeline layers */
 	struct komeda_layer *layers[KOMEDA_PIPELINE_MAX_LAYERS];
+	/** @n_scalers: the number of scaler on @scalers */
 	int n_scalers;
+	/** @scalers: the pipeline scalers */
 	struct komeda_scaler *scalers[KOMEDA_PIPELINE_MAX_SCALERS];
+	/** @compiz: compositor */
 	struct komeda_compiz *compiz;
+	/** @wb_layer: writeback layer */
 	struct komeda_layer  *wb_layer;
+	/** @improc: post image processor */
 	struct komeda_improc *improc;
+	/** @ctrlr: timing controller */
 	struct komeda_timing_ctrlr *ctrlr;
+	/** @funcs: chip pipeline functions */
 	struct komeda_pipeline_funcs *funcs; /* private pipeline functions */
 
 	/** @of_node: pipeline dt node */
@@ -331,6 +367,7 @@ struct komeda_pipeline {
 struct komeda_pipeline_state {
 	/** @obj: tracking pipeline_state by drm_atomic_state */
 	struct drm_private_state obj;
+	/** @pipe: backpointer to the pipeline */
 	struct komeda_pipeline *pipe;
 	/** @crtc: currently bound crtc */
 	struct drm_crtc *crtc;
@@ -381,5 +418,27 @@ komeda_component_add(struct komeda_pipeline *pipe,
 
 void komeda_component_destroy(struct komeda_dev *mdev,
 			      struct komeda_component *c);
+
+struct komeda_plane_state;
+struct komeda_crtc_state;
+struct komeda_crtc;
+
+int komeda_build_layer_data_flow(struct komeda_layer *layer,
+				 struct komeda_plane_state *kplane_st,
+				 struct komeda_crtc_state *kcrtc_st,
+				 struct komeda_data_flow_cfg *dflow);
+int komeda_build_display_data_flow(struct komeda_crtc *kcrtc,
+				   struct komeda_crtc_state *kcrtc_st);
+
+int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
+				       struct komeda_crtc_state *kcrtc_st);
+
+struct komeda_pipeline_state *
+komeda_pipeline_get_old_state(struct komeda_pipeline *pipe,
+			      struct drm_atomic_state *state);
+void komeda_pipeline_disable(struct komeda_pipeline *pipe,
+			     struct drm_atomic_state *old_state);
+void komeda_pipeline_update(struct komeda_pipeline *pipe,
+			    struct drm_atomic_state *old_state);
 
 #endif /* _KOMEDA_PIPELINE_H_*/

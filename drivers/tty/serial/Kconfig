@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Serial device configuration
 #
@@ -369,7 +370,6 @@ config SERIAL_MAX310X
 	depends on SPI_MASTER
 	select SERIAL_CORE
 	select REGMAP_SPI if SPI_MASTER
-	default n
 	help
 	  This selects support for an advanced UART from Maxim (Dallas).
 	  Supported ICs are MAX3107, MAX3108, MAX3109, MAX14830.
@@ -652,7 +652,6 @@ config SERIAL_MUX_CONSOLE
 config PDC_CONSOLE
 	bool "PDC software console support"
 	depends on PARISC && !SERIAL_MUX && VT
-	default n
 	help
 	  Saying Y here will enable the software based PDC console to be 
 	  used as the system console.  This is useful for machines in 
@@ -1095,6 +1094,30 @@ config SERIAL_OMAP_CONSOLE
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
 
+config SERIAL_SIFIVE
+	tristate "SiFive UART support"
+	depends on OF
+	select SERIAL_CORE
+	help
+	  Select this option if you are building a kernel for a device that
+	  contains a SiFive UART IP block.  This type of UART is present on
+	  SiFive FU540 SoCs, among others.
+
+config SERIAL_SIFIVE_CONSOLE
+	bool "Console on SiFive UART"
+	depends on SERIAL_SIFIVE=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Select this option if you would like to use a SiFive UART as the
+	  system console.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttySIFx". (Try "man bootparam" or see the documentation of
+	  your boot loader about how to pass options to the kernel at
+	  boot time.)
+
 config SERIAL_LANTIQ
 	bool "Lantiq serial driver"
 	depends on LANTIQ
@@ -1109,7 +1132,6 @@ config SERIAL_QE
 	depends on QUICC_ENGINE
 	select SERIAL_CORE
 	select FW_LOADER
-	default n
 	help
 	  This driver supports the QE serial ports on Freescale embedded
 	  PowerPC that contain a QUICC Engine.
@@ -1581,6 +1603,32 @@ config SERIAL_RDA_CONSOLE
 	help
 	  Say 'Y' here if you wish to use the RDA8810PL UART as the system
 	  console. Only earlycon is implemented currently.
+
+config SERIAL_MILBEAUT_USIO
+	tristate "Milbeaut USIO/UART serial port support"
+	depends on ARCH_MILBEAUT || (COMPILE_TEST && OF)
+	default ARCH_MILBEAUT
+	select SERIAL_CORE
+	help
+	  This selects the USIO/UART IP found in Socionext Milbeaut SoCs.
+
+config SERIAL_MILBEAUT_USIO_PORTS
+	int "Maximum number of CSIO/UART ports (1-8)"
+	range 1 8
+	depends on SERIAL_MILBEAUT_USIO
+	default "4"
+
+config SERIAL_MILBEAUT_USIO_CONSOLE
+	bool "Support for console on MILBEAUT USIO/UART serial port"
+	depends on SERIAL_MILBEAUT_USIO=y
+	default y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Say 'Y' here if you wish to use a USIO/UART of Socionext Milbeaut
+	  SoCs as the system console (the system console is the device which
+	  receives all kernel messages and warnings and which allows logins in
+	  single user mode).
 
 endmenu
 

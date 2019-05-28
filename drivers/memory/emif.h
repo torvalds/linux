@@ -537,6 +537,9 @@
 #define MCONNID_SHIFT					0
 #define MCONNID_MASK					(0xff << 0)
 
+/* READ_WRITE_LEVELING_CONTROL */
+#define RDWRLVLFULL_START				0x80000000
+
 /* DDR_PHY_CTRL_1 - EMIF4D */
 #define DLL_SLAVE_DLY_CTRL_SHIFT_4D			4
 #define DLL_SLAVE_DLY_CTRL_MASK_4D			(0xFF << 4)
@@ -598,6 +601,7 @@ extern struct emif_regs_amx3 ti_emif_regs_amx3;
 
 void ti_emif_save_context(void);
 void ti_emif_restore_context(void);
+void ti_emif_run_hw_leveling(void);
 void ti_emif_enter_sr(void);
 void ti_emif_exit_sr(void);
 void ti_emif_abort_sr(void);

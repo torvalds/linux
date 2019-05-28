@@ -82,13 +82,13 @@
 
 /**
  * frwr_is_supported - Check if device supports FRWR
- * @ia: interface adapter to check
+ * @device: interface adapter to check
  *
  * Returns true if device supports FRWR, otherwise false
  */
-bool frwr_is_supported(struct rpcrdma_ia *ia)
+bool frwr_is_supported(struct ib_device *device)
 {
-	struct ib_device_attr *attrs = &ia->ri_device->attrs;
+	struct ib_device_attr *attrs = &device->attrs;
 
 	if (!(attrs->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
 		goto out_not_supported;
@@ -98,7 +98,7 @@ bool frwr_is_supported(struct rpcrdma_ia *ia)
 
 out_not_supported:
 	pr_info("rpcrdma: 'frwr' mode is not supported by device %s\n",
-		ia->ri_device->name);
+		device->name);
 	return false;
 }
 
@@ -131,7 +131,7 @@ frwr_mr_recycle_worker(struct work_struct *work)
 
 	if (mr->mr_dir != DMA_NONE) {
 		trace_xprtrdma_mr_unmap(mr);
-		ib_dma_unmap_sg(r_xprt->rx_ia.ri_device,
+		ib_dma_unmap_sg(r_xprt->rx_ia.ri_id->device,
 				mr->mr_sg, mr->mr_nents, mr->mr_dir);
 		mr->mr_dir = DMA_NONE;
 	}
@@ -194,12 +194,11 @@ out_list_err:
  * frwr_open - Prepare an endpoint for use with FRWR
  * @ia: interface adapter this endpoint will use
  * @ep: endpoint to prepare
- * @cdata: transport parameters
  *
  * On success, sets:
  *	ep->rep_attr.cap.max_send_wr
  *	ep->rep_attr.cap.max_recv_wr
- *	cdata->max_requests
+ *	ep->rep_max_requests
  *	ia->ri_max_segs
  *
  * And these FRWR-related fields:
@@ -208,10 +207,9 @@ out_list_err:
  *
  * On failure, a negative errno is returned.
  */
-int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
-	      struct rpcrdma_create_data_internal *cdata)
+int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep)
 {
-	struct ib_device_attr *attrs = &ia->ri_device->attrs;
+	struct ib_device_attr *attrs = &ia->ri_id->device->attrs;
 	int max_qp_wr, depth, delta;
 
 	ia->ri_mrtype = IB_MR_TYPE_MEM_REG;
@@ -253,24 +251,23 @@ int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
 		} while (delta > 0);
 	}
 
-	max_qp_wr = ia->ri_device->attrs.max_qp_wr;
+	max_qp_wr = ia->ri_id->device->attrs.max_qp_wr;
 	max_qp_wr -= RPCRDMA_BACKWARD_WRS;
 	max_qp_wr -= 1;
 	if (max_qp_wr < RPCRDMA_MIN_SLOT_TABLE)
 		return -ENOMEM;
-	if (cdata->max_requests > max_qp_wr)
-		cdata->max_requests = max_qp_wr;
-	ep->rep_attr.cap.max_send_wr = cdata->max_requests * depth;
+	if (ep->rep_max_requests > max_qp_wr)
+		ep->rep_max_requests = max_qp_wr;
+	ep->rep_attr.cap.max_send_wr = ep->rep_max_requests * depth;
 	if (ep->rep_attr.cap.max_send_wr > max_qp_wr) {
-		cdata->max_requests = max_qp_wr / depth;
-		if (!cdata->max_requests)
+		ep->rep_max_requests = max_qp_wr / depth;
+		if (!ep->rep_max_requests)
 			return -EINVAL;
-		ep->rep_attr.cap.max_send_wr = cdata->max_requests *
-					       depth;
+		ep->rep_attr.cap.max_send_wr = ep->rep_max_requests * depth;
 	}
 	ep->rep_attr.cap.max_send_wr += RPCRDMA_BACKWARD_WRS;
 	ep->rep_attr.cap.max_send_wr += 1; /* for ib_drain_sq */
-	ep->rep_attr.cap.max_recv_wr = cdata->max_requests;
+	ep->rep_attr.cap.max_recv_wr = ep->rep_max_requests;
 	ep->rep_attr.cap.max_recv_wr += RPCRDMA_BACKWARD_WRS;
 	ep->rep_attr.cap.max_recv_wr += 1; /* for ib_drain_rq */
 
@@ -300,15 +297,6 @@ size_t frwr_maxpages(struct rpcrdma_xprt *r_xprt)
 		     (ia->ri_max_segs - 2) * ia->ri_max_frwr_depth);
 }
 
-static void
-__frwr_sendcompletion_flush(struct ib_wc *wc, const char *wr)
-{
-	if (wc->status != IB_WC_WR_FLUSH_ERR)
-		pr_err("rpcrdma: %s: %s (%u/0x%x)\n",
-		       wr, ib_wc_status_msg(wc->status),
-		       wc->status, wc->vendor_err);
-}
-
 /**
  * frwr_wc_fastreg - Invoked by RDMA provider for a flushed FastReg WC
  * @cq:	completion queue (ignored)
@@ -323,10 +311,8 @@ frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
 			container_of(cqe, struct rpcrdma_frwr, fr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	if (wc->status != IB_WC_SUCCESS) {
+	if (wc->status != IB_WC_SUCCESS)
 		frwr->fr_state = FRWR_FLUSHED_FR;
-		__frwr_sendcompletion_flush(wc, "fastreg");
-	}
 	trace_xprtrdma_wc_fastreg(wc, frwr);
 }
 
@@ -344,10 +330,8 @@ frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
 						 fr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	if (wc->status != IB_WC_SUCCESS) {
+	if (wc->status != IB_WC_SUCCESS)
 		frwr->fr_state = FRWR_FLUSHED_LI;
-		__frwr_sendcompletion_flush(wc, "localinv");
-	}
 	trace_xprtrdma_wc_li(wc, frwr);
 }
 
@@ -366,12 +350,10 @@ frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 						 fr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	if (wc->status != IB_WC_SUCCESS) {
+	if (wc->status != IB_WC_SUCCESS)
 		frwr->fr_state = FRWR_FLUSHED_LI;
-		__frwr_sendcompletion_flush(wc, "localinv");
-	}
-	complete(&frwr->fr_linv_done);
 	trace_xprtrdma_wc_li_wake(wc, frwr);
+	complete(&frwr->fr_linv_done);
 }
 
 /**
@@ -436,7 +418,8 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 	}
 	mr->mr_dir = rpcrdma_data_dir(writing);
 
-	mr->mr_nents = ib_dma_map_sg(ia->ri_device, mr->mr_sg, i, mr->mr_dir);
+	mr->mr_nents =
+		ib_dma_map_sg(ia->ri_id->device, mr->mr_sg, i, mr->mr_dir);
 	if (!mr->mr_nents)
 		goto out_dmamap_err;
 
@@ -466,7 +449,7 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 	return seg;
 
 out_dmamap_err:
-	frwr->fr_state = FRWR_IS_INVALID;
+	mr->mr_dir = DMA_NONE;
 	trace_xprtrdma_frwr_sgerr(mr, i);
 	rpcrdma_mr_put(mr);
 	return ERR_PTR(-EIO);

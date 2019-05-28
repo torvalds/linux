@@ -38,17 +38,9 @@ static void psp_set_funcs(struct amdgpu_device *adev);
 static int psp_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct psp_context *psp = &adev->psp;
 
 	psp_set_funcs(adev);
-
-	return 0;
-}
-
-static int psp_sw_init(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct psp_context *psp = &adev->psp;
-	int ret;
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
@@ -66,6 +58,15 @@ static int psp_sw_init(void *handle)
 	}
 
 	psp->adev = adev;
+
+	return 0;
+}
+
+static int psp_sw_init(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct psp_context *psp = &adev->psp;
+	int ret;
 
 	ret = psp_init_microcode(psp);
 	if (ret) {
@@ -876,13 +877,16 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	if (!psp->cmd)
 		return -ENOMEM;
 
-	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
-					AMDGPU_GEM_DOMAIN_GTT,
-					&psp->fw_pri_bo,
-					&psp->fw_pri_mc_addr,
-					&psp->fw_pri_buf);
-	if (ret)
-		goto failed;
+	/* this fw pri bo is not used under SRIOV */
+	if (!amdgpu_sriov_vf(psp->adev)) {
+		ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
+					      AMDGPU_GEM_DOMAIN_GTT,
+					      &psp->fw_pri_bo,
+					      &psp->fw_pri_mc_addr,
+					      &psp->fw_pri_buf);
+		if (ret)
+			goto failed;
+	}
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_FENCE_BUFFER_SIZE, PAGE_SIZE,
 					AMDGPU_GEM_DOMAIN_VRAM,

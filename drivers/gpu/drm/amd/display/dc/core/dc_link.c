@@ -514,6 +514,40 @@ static void link_disconnect_remap(struct dc_sink *prev_sink, struct dc_link *lin
 }
 
 
+static void read_edp_current_link_settings_on_detect(struct dc_link *link)
+{
+	union lane_count_set lane_count_set = { {0} };
+	uint8_t link_bw_set;
+	uint8_t link_rate_set;
+
+	// Read DPCD 00101h to find out the number of lanes currently set
+	core_link_read_dpcd(link, DP_LANE_COUNT_SET,
+			&lane_count_set.raw, sizeof(lane_count_set));
+	link->cur_link_settings.lane_count = lane_count_set.bits.LANE_COUNT_SET;
+
+	// Read DPCD 00100h to find if standard link rates are set
+	core_link_read_dpcd(link, DP_LINK_BW_SET,
+			&link_bw_set, sizeof(link_bw_set));
+
+	if (link_bw_set == 0) {
+		/* If standard link rates are not being used,
+		 * Read DPCD 00115h to find the link rate set used
+		 */
+		core_link_read_dpcd(link, DP_LINK_RATE_SET,
+				&link_rate_set, sizeof(link_rate_set));
+
+		if (link_rate_set < link->dpcd_caps.edp_supported_link_rates_count) {
+			link->cur_link_settings.link_rate =
+				link->dpcd_caps.edp_supported_link_rates[link_rate_set];
+			link->cur_link_settings.link_rate_set = link_rate_set;
+			link->cur_link_settings.use_link_rate_set = true;
+		}
+	} else {
+		link->cur_link_settings.link_rate = link_bw_set;
+		link->cur_link_settings.use_link_rate_set = false;
+	}
+}
+
 static bool detect_dp(
 	struct dc_link *link,
 	struct display_sink_capability *sink_caps,
@@ -648,9 +682,14 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		return false;
 	}
 
-	if (link->connector_signal == SIGNAL_TYPE_EDP &&
-			link->local_sink)
-		return true;
+	if (link->connector_signal == SIGNAL_TYPE_EDP) {
+		/* On detect, we want to make sure current link settings are
+		 * up to date, especially if link was powered on by GOP.
+		 */
+		read_edp_current_link_settings_on_detect(link);
+		if (link->local_sink)
+			return true;
+	}
 
 	if (link->connector_signal == SIGNAL_TYPE_LVDS &&
 			link->local_sink)
@@ -1396,13 +1435,19 @@ static enum dc_status enable_link_dp(
 	/* get link settings for video mode timing */
 	decide_link_settings(stream, &link_settings);
 
-	/* If link settings are different than current and link already enabled
-	 * then need to disable before programming to new rate.
-	 */
-	if (link->link_status.link_active &&
-		(link->cur_link_settings.lane_count != link_settings.lane_count ||
-		 link->cur_link_settings.link_rate != link_settings.link_rate)) {
-		dp_disable_link_phy(link, pipe_ctx->stream->signal);
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP) {
+		/* If link settings are different than current and link already enabled
+		 * then need to disable before programming to new rate.
+		 */
+		if (link->link_status.link_active &&
+			(link->cur_link_settings.lane_count != link_settings.lane_count ||
+			 link->cur_link_settings.link_rate != link_settings.link_rate)) {
+			dp_disable_link_phy(link, pipe_ctx->stream->signal);
+		}
+
+		/*in case it is not on*/
+		link->dc->hwss.edp_power_control(link, true);
+		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	}
 
 	pipe_ctx->stream_res.pix_clk_params.requested_sym_clk =
@@ -1448,14 +1493,8 @@ static enum dc_status enable_link_edp(
 		struct pipe_ctx *pipe_ctx)
 {
 	enum dc_status status;
-	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct dc_link *link = stream->link;
-	/*in case it is not on*/
-	link->dc->hwss.edp_power_control(link, true);
-	link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 
 	status = enable_link_dp(state, pipe_ctx);
-
 
 	return status;
 }

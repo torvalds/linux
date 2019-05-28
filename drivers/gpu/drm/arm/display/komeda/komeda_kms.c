@@ -26,10 +26,10 @@ static int komeda_gem_cma_dumb_create(struct drm_file *file,
 				      struct drm_device *dev,
 				      struct drm_mode_create_dumb *args)
 {
-	u32 alignment = 16; /* TODO get alignment from dev */
+	struct komeda_dev *mdev = dev->dev_private;
+	u32 pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
 
-	args->pitch = ALIGN(DIV_ROUND_UP(args->width * args->bpp, 8),
-			    alignment);
+	args->pitch = ALIGN(pitch, mdev->chip.bus_width);
 
 	return drm_gem_cma_dumb_create_internal(file, dev, args);
 }
@@ -100,9 +100,37 @@ static const struct drm_mode_config_helper_funcs komeda_mode_config_helpers = {
 	.atomic_commit_tail = komeda_kms_commit_tail,
 };
 
+static int komeda_kms_check(struct drm_device *dev,
+			    struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_st, *new_crtc_st;
+	int i, err;
+
+	err = drm_atomic_helper_check_modeset(dev, state);
+	if (err)
+		return err;
+
+	/* komeda need to re-calculate resource assumption in every commit
+	 * so need to add all affected_planes (even unchanged) to
+	 * drm_atomic_state.
+	 */
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_st, new_crtc_st, i) {
+		err = drm_atomic_add_affected_planes(state, crtc);
+		if (err)
+			return err;
+	}
+
+	err = drm_atomic_helper_check_planes(dev, state);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static const struct drm_mode_config_funcs komeda_mode_config_funcs = {
 	.fb_create		= komeda_fb_create,
-	.atomic_check		= drm_atomic_helper_check,
+	.atomic_check		= komeda_kms_check,
 	.atomic_commit		= drm_atomic_helper_commit,
 };
 
@@ -184,6 +212,7 @@ uninstall_irq:
 	drm_irq_uninstall(drm);
 cleanup_mode_config:
 	drm_mode_config_cleanup(drm);
+	komeda_kms_cleanup_private_objs(kms);
 free_kms:
 	kfree(kms);
 	return ERR_PTR(err);
@@ -198,7 +227,7 @@ void komeda_kms_detach(struct komeda_kms_dev *kms)
 	drm_dev_unregister(drm);
 	drm_irq_uninstall(drm);
 	component_unbind_all(mdev->dev, drm);
-	komeda_kms_cleanup_private_objs(mdev);
+	komeda_kms_cleanup_private_objs(kms);
 	drm_mode_config_cleanup(drm);
 	drm->dev_private = NULL;
 	drm_dev_put(drm);

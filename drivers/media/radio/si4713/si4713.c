@@ -1272,7 +1272,7 @@ static int si4713_g_modulator(struct v4l2_subdev *sd, struct v4l2_modulator *vm)
 	if (vm->index > 0)
 		return -EINVAL;
 
-	strncpy(vm->name, "FM Modulator", 32);
+	strscpy(vm->name, "FM Modulator", sizeof(vm->name));
 	vm->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LOW |
 		V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_CONTROLS;
 

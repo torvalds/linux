@@ -23,6 +23,7 @@
 #include "xfs_cksum.h"
 #include "xfs_sysfs.h"
 #include "xfs_sb.h"
+#include "xfs_health.h"
 
 kmem_zone_t	*xfs_log_ticket_zone;
 
@@ -861,7 +862,7 @@ xfs_log_write_unmount_record(
 	 * recalculated during log recovery at next mount.  Refer to
 	 * xlog_check_unmount_rec for more details.
 	 */
-	if (XFS_TEST_ERROR((mp->m_flags & XFS_MOUNT_BAD_SUMMARY), mp,
+	if (XFS_TEST_ERROR(xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS), mp,
 			XFS_ERRTAG_FORCE_SUMMARY_RECALC)) {
 		xfs_alert(mp, "%s: will fix summary counters at next mount",
 				__func__);

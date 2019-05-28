@@ -60,7 +60,7 @@ static int iio_loop_trigger_set_state(struct iio_trigger *trig, bool state)
 	if (state) {
 		loop_trig->task = kthread_run(iio_loop_thread,
 					      trig, trig->name);
-		if (unlikely(IS_ERR(loop_trig->task))) {
+		if (IS_ERR(loop_trig->task)) {
 			dev_err(&trig->dev,
 				"failed to create trigger loop thread\n");
 			return PTR_ERR(loop_trig->task);

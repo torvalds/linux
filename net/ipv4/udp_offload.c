@@ -352,6 +352,7 @@ static struct sk_buff *udp_gro_receive_segment(struct list_head *head,
 	struct sk_buff *pp = NULL;
 	struct udphdr *uh2;
 	struct sk_buff *p;
+	unsigned int ulen;
 
 	/* requires non zero csum, for symmetry with GSO */
 	if (!uh->check) {
@@ -359,6 +360,12 @@ static struct sk_buff *udp_gro_receive_segment(struct list_head *head,
 		return NULL;
 	}
 
+	/* Do not deal with padded or malicious packets, sorry ! */
+	ulen = ntohs(uh->len);
+	if (ulen <= sizeof(*uh) || ulen != skb_gro_len(skb)) {
+		NAPI_GRO_CB(skb)->flush = 1;
+		return NULL;
+	}
 	/* pull encapsulating udp header */
 	skb_gro_pull(skb, sizeof(struct udphdr));
 	skb_gro_postpull_rcsum(skb, uh, sizeof(struct udphdr));
@@ -377,12 +384,13 @@ static struct sk_buff *udp_gro_receive_segment(struct list_head *head,
 
 		/* Terminate the flow on len mismatch or if it grow "too much".
 		 * Under small packet flood GRO count could elsewhere grow a lot
-		 * leading to execessive truesize values
+		 * leading to excessive truesize values.
+		 * On len mismatch merge the first packet shorter than gso_size,
+		 * otherwise complete the GRO packet.
 		 */
-		if (!skb_gro_receive(p, skb) &&
+		if (ulen > ntohs(uh2->len) || skb_gro_receive(p, skb) ||
+		    ulen != ntohs(uh2->len) ||
 		    NAPI_GRO_CB(p)->count >= UDP_GRO_CNT_MAX)
-			pp = p;
-		else if (uh->len != uh2->len)
 			pp = p;
 
 		return pp;

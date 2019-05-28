@@ -335,20 +335,6 @@ static int bcm2835_spi_transfer_one_irq(struct spi_master *master,
 	return 1;
 }
 
-/*
- * DMA support
- *
- * this implementation has currently a few issues in so far as it does
- * not work arrount limitations of the HW.
- *
- * the main one being that DMA transfers are limited to 16 bit
- * (so 0 to 65535 bytes) by the SPI HW due to BCM2835_SPI_DLEN
- *
- * there may be a few more border-cases we may need to address as well
- * but unfortunately this would mean splitting up the scatter-gather
- * list making it slightly unpractical...
- */
-
 /**
  * bcm2835_spi_transfer_prologue() - transfer first few bytes without DMA
  * @master: SPI master
@@ -630,19 +616,6 @@ static bool bcm2835_spi_can_dma(struct spi_master *master,
 	if (tfr->len < BCM2835_SPI_DMA_MIN_LENGTH)
 		return false;
 
-	/* BCM2835_SPI_DLEN has defined a max transfer size as
-	 * 16 bit, so max is 65535
-	 * we can revisit this by using an alternative transfer
-	 * method - ideally this would get done without any more
-	 * interaction...
-	 */
-	if (tfr->len > 65535) {
-		dev_warn_once(&spi->dev,
-			      "transfer size of %d too big for dma-transfer\n",
-			      tfr->len);
-		return false;
-	}
-
 	/* return OK */
 	return true;
 }
@@ -707,7 +680,6 @@ static void bcm2835_dma_init(struct spi_master *master, struct device *dev)
 
 	/* all went well, so set can_dma */
 	master->can_dma = bcm2835_spi_can_dma;
-	master->max_dma_len = 65535; /* limitation by BCM2835_SPI_DLEN */
 	/* need to do TX AND RX DMA, so we need dummy buffers */
 	master->flags = SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX;
 
@@ -844,6 +816,17 @@ static int bcm2835_spi_prepare_message(struct spi_master *master,
 	struct spi_device *spi = msg->spi;
 	struct bcm2835_spi *bs = spi_master_get_devdata(master);
 	u32 cs = bcm2835_rd(bs, BCM2835_SPI_CS);
+	int ret;
+
+	/*
+	 * DMA transfers are limited to 16 bit (0 to 65535 bytes) by the SPI HW
+	 * due to DLEN. Split up transfers (32-bit FIFO aligned) if the limit is
+	 * exceeded.
+	 */
+	ret = spi_split_transfers_maxsize(master, msg, 65532,
+					  GFP_KERNEL | GFP_DMA);
+	if (ret)
+		return ret;
 
 	cs &= ~(BCM2835_SPI_CS_CPOL | BCM2835_SPI_CS_CPHA);
 

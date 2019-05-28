@@ -536,7 +536,7 @@ static void h5_unslip_one_byte(struct h5 *h5, unsigned char c)
 	skb_put_data(h5->rx_skb, byte, 1);
 	h5->rx_pending--;
 
-	BT_DBG("unsliped 0x%02hhx, rx_pending %zu", *byte, h5->rx_pending);
+	BT_DBG("unslipped 0x%02hhx, rx_pending %zu", *byte, h5->rx_pending);
 }
 
 static void h5_reset_rx(struct h5 *h5)

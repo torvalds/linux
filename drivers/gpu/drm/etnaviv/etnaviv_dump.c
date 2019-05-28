@@ -118,7 +118,6 @@ void etnaviv_core_dump(struct etnaviv_gpu *gpu)
 	unsigned int n_obj, n_bomap_pages;
 	size_t file_size, mmu_size;
 	__le64 *bomap, *bomap_start;
-	unsigned long flags;
 
 	/* Only catch the first event, or when manually re-armed */
 	if (!etnaviv_dump_core)
@@ -135,13 +134,11 @@ void etnaviv_core_dump(struct etnaviv_gpu *gpu)
 		    mmu_size + gpu->buffer.size;
 
 	/* Add in the active command buffers */
-	spin_lock_irqsave(&gpu->sched.job_list_lock, flags);
 	list_for_each_entry(s_job, &gpu->sched.ring_mirror_list, node) {
 		submit = to_etnaviv_submit(s_job);
 		file_size += submit->cmdbuf.size;
 		n_obj++;
 	}
-	spin_unlock_irqrestore(&gpu->sched.job_list_lock, flags);
 
 	/* Add in the active buffer objects */
 	list_for_each_entry(vram, &gpu->mmu->mappings, mmu_node) {
@@ -183,14 +180,12 @@ void etnaviv_core_dump(struct etnaviv_gpu *gpu)
 			      gpu->buffer.size,
 			      etnaviv_cmdbuf_get_va(&gpu->buffer));
 
-	spin_lock_irqsave(&gpu->sched.job_list_lock, flags);
 	list_for_each_entry(s_job, &gpu->sched.ring_mirror_list, node) {
 		submit = to_etnaviv_submit(s_job);
 		etnaviv_core_dump_mem(&iter, ETDUMP_BUF_CMD,
 				      submit->cmdbuf.vaddr, submit->cmdbuf.size,
 				      etnaviv_cmdbuf_get_va(&submit->cmdbuf));
 	}
-	spin_unlock_irqrestore(&gpu->sched.job_list_lock, flags);
 
 	/* Reserve space for the bomap */
 	if (n_bomap_pages) {

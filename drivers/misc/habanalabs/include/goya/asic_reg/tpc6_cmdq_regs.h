@@ -136,4 +136,3 @@
 #define mmTPC6_CMDQ_CQ_BUF_RDATA                                     0xF8930C
 
 #endif /* ASIC_REG_TPC6_CMDQ_REGS_H_ */
-

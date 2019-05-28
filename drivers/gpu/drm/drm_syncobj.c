@@ -475,20 +475,19 @@ static int drm_syncobj_fd_to_handle(struct drm_file *file_private,
 				    int fd, u32 *handle)
 {
 	struct drm_syncobj *syncobj;
-	struct file *file;
+	struct fd f = fdget(fd);
 	int ret;
 
-	file = fget(fd);
-	if (!file)
+	if (!f.file)
 		return -EINVAL;
 
-	if (file->f_op != &drm_syncobj_file_fops) {
-		fput(file);
+	if (f.file->f_op != &drm_syncobj_file_fops) {
+		fdput(f);
 		return -EINVAL;
 	}
 
 	/* take a reference to put in the idr */
-	syncobj = file->private_data;
+	syncobj = f.file->private_data;
 	drm_syncobj_get(syncobj);
 
 	idr_preload(GFP_KERNEL);
@@ -503,7 +502,7 @@ static int drm_syncobj_fd_to_handle(struct drm_file *file_private,
 	} else
 		drm_syncobj_put(syncobj);
 
-	fput(file);
+	fdput(f);
 	return ret;
 }
 
@@ -740,8 +739,8 @@ drm_syncobj_transfer_ioctl(struct drm_device *dev, void *data,
 	struct drm_syncobj_transfer *args = data;
 	int ret;
 
-	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
-		return -ENODEV;
+	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ_TIMELINE))
+		return -EOPNOTSUPP;
 
 	if (args->pad)
 		return -EINVAL;
@@ -1091,8 +1090,8 @@ drm_syncobj_timeline_wait_ioctl(struct drm_device *dev, void *data,
 	struct drm_syncobj **syncobjs;
 	int ret = 0;
 
-	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
-		return -ENODEV;
+	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ_TIMELINE))
+		return -EOPNOTSUPP;
 
 	if (args->flags & ~(DRM_SYNCOBJ_WAIT_FLAGS_WAIT_ALL |
 			    DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT |
@@ -1195,7 +1194,7 @@ drm_syncobj_timeline_signal_ioctl(struct drm_device *dev, void *data,
 	uint32_t i, j;
 	int ret;
 
-	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
+	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ_TIMELINE))
 		return -EOPNOTSUPP;
 
 	if (args->pad != 0)
@@ -1266,8 +1265,8 @@ int drm_syncobj_query_ioctl(struct drm_device *dev, void *data,
 	uint32_t i;
 	int ret;
 
-	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ))
-		return -ENODEV;
+	if (!drm_core_check_feature(dev, DRIVER_SYNCOBJ_TIMELINE))
+		return -EOPNOTSUPP;
 
 	if (args->pad != 0)
 		return -EINVAL;

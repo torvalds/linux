@@ -120,6 +120,7 @@ struct dc_link {
 	/* MST record stream using this link */
 	struct link_flags {
 		bool dp_keep_receiver_powered;
+		bool dp_skip_DID2;
 	} wa_flags;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 

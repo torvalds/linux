@@ -115,6 +115,7 @@ struct uprobes_state {
 	struct xol_area		*xol_area;
 };
 
+extern void __init uprobes_init(void);
 extern int set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
 extern int set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
 extern bool is_swbp_insn(uprobe_opcode_t *insn);
@@ -153,6 +154,10 @@ extern void arch_uprobe_copy_ixol(struct page *page, unsigned long vaddr,
 #else /* !CONFIG_UPROBES */
 struct uprobes_state {
 };
+
+static inline void uprobes_init(void)
+{
+}
 
 #define uprobe_get_trap_addr(regs)	instruction_pointer(regs)
 

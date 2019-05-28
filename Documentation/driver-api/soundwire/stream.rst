@@ -201,7 +201,7 @@ Bus implements below API for allocate a stream which needs to be called once
 per stream. From ASoC DPCM framework, this stream state maybe linked to
 .startup() operation.
 
-  .. code-block:: c
+.. code-block:: c
 
   int sdw_alloc_stream(char * stream_name);
 
@@ -228,7 +228,7 @@ the respective Master(s) and Slave(s) associated with stream. These APIs can
 only be invoked once by respective Master(s) and Slave(s). From ASoC DPCM
 framework, this stream state is linked to .hw_params() operation.
 
-  .. code-block:: c
+.. code-block:: c
 
   int sdw_stream_add_master(struct sdw_bus * bus,
 		struct sdw_stream_config * stream_config,
@@ -274,7 +274,7 @@ Bus implements below API for PREPARE state which needs to be called once per
 stream. From ASoC DPCM framework, this stream state is linked to
 .prepare() operation.
 
-  .. code-block:: c
+.. code-block:: c
 
   int sdw_prepare_stream(struct sdw_stream_runtime * stream);
 
@@ -304,7 +304,7 @@ Bus implements below API for ENABLE state which needs to be called once per
 stream. From ASoC DPCM framework, this stream state is linked to
 .trigger() start operation.
 
-  .. code-block:: c
+.. code-block:: c
 
   int sdw_enable_stream(struct sdw_stream_runtime * stream);
 
@@ -332,7 +332,7 @@ Bus implements below API for DISABLED state which needs to be called once
 per stream. From ASoC DPCM framework, this stream state is linked to
 .trigger() stop operation.
 
-  .. code-block:: c
+.. code-block:: c
 
   int sdw_disable_stream(struct sdw_stream_runtime * stream);
 
@@ -357,7 +357,7 @@ Bus implements below API for DEPREPARED state which needs to be called once
 per stream. From ASoC DPCM framework, this stream state is linked to
 .trigger() stop operation.
 
-  .. code-block:: c
+.. code-block:: c
 
   int sdw_deprepare_stream(struct sdw_stream_runtime * stream);
 
@@ -382,7 +382,7 @@ Bus implements below APIs for RELEASE state which needs to be called by
 all the Master(s) and Slave(s) associated with stream. From ASoC DPCM
 framework, this stream state is linked to .hw_free() operation.
 
-  .. code-block:: c
+.. code-block:: c
 
   int sdw_stream_remove_master(struct sdw_bus * bus,
 		struct sdw_stream_runtime * stream);
@@ -395,7 +395,7 @@ stream assigned as part of ALLOCATED state.
 
 In .shutdown() the data structure maintaining stream state are freed up.
 
-  .. code-block:: c
+.. code-block:: c
 
   void sdw_release_stream(struct sdw_stream_runtime * stream);
 

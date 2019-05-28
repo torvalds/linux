@@ -3460,7 +3460,18 @@ static void vega20_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 		return ;
 
 	data->vce_power_gated = bgate;
-	vega20_enable_disable_vce_dpm(hwmgr, !bgate);
+	if (bgate) {
+		vega20_enable_disable_vce_dpm(hwmgr, !bgate);
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
+						AMD_IP_BLOCK_TYPE_VCE,
+						AMD_PG_STATE_GATE);
+	} else {
+		amdgpu_device_ip_set_powergating_state(hwmgr->adev,
+						AMD_IP_BLOCK_TYPE_VCE,
+						AMD_PG_STATE_UNGATE);
+		vega20_enable_disable_vce_dpm(hwmgr, !bgate);
+	}
+
 }
 
 static void vega20_power_gate_uvd(struct pp_hwmgr *hwmgr, bool bgate)

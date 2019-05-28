@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/nfs/inode.c
  *
@@ -885,10 +886,14 @@ struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 		spin_lock(&inode->i_lock);
 		res = __nfs_find_lock_context(ctx);
 		if (res == NULL) {
-			list_add_tail_rcu(&new->list, &ctx->lock_context.list);
-			new->open_context = ctx;
-			res = new;
-			new = NULL;
+			new->open_context = get_nfs_open_context(ctx);
+			if (new->open_context) {
+				list_add_tail_rcu(&new->list,
+						&ctx->lock_context.list);
+				res = new;
+				new = NULL;
+			} else
+				res = ERR_PTR(-EBADF);
 		}
 		spin_unlock(&inode->i_lock);
 		kfree(new);
@@ -906,6 +911,7 @@ void nfs_put_lock_context(struct nfs_lock_context *l_ctx)
 		return;
 	list_del_rcu(&l_ctx->list);
 	spin_unlock(&inode->i_lock);
+	put_nfs_open_context(ctx);
 	kfree_rcu(l_ctx, rcu_head);
 }
 EXPORT_SYMBOL_GPL(nfs_put_lock_context);
@@ -2055,17 +2061,11 @@ struct inode *nfs_alloc_inode(struct super_block *sb)
 }
 EXPORT_SYMBOL_GPL(nfs_alloc_inode);
 
-static void nfs_i_callback(struct rcu_head *head)
+void nfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(nfs_inode_cachep, NFS_I(inode));
 }
-
-void nfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, nfs_i_callback);
-}
-EXPORT_SYMBOL_GPL(nfs_destroy_inode);
+EXPORT_SYMBOL_GPL(nfs_free_inode);
 
 static inline void nfs4_init_once(struct nfs_inode *nfsi)
 {

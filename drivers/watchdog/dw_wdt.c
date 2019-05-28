@@ -238,15 +238,13 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct watchdog_device *wdd;
 	struct dw_wdt *dw_wdt;
-	struct resource *mem;
 	int ret;
 
 	dw_wdt = devm_kzalloc(dev, sizeof(*dw_wdt), GFP_KERNEL);
 	if (!dw_wdt)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dw_wdt->regs = devm_ioremap_resource(dev, mem);
+	dw_wdt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dw_wdt->regs))
 		return PTR_ERR(dw_wdt->regs);
 

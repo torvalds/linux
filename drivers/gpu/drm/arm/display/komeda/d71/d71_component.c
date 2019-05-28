@@ -391,7 +391,7 @@ static void d71_compiz_dump(struct komeda_component *c, struct seq_file *sf)
 	seq_printf(sf, "CU_USER_HIGH:\t\t0x%X\n", v[1]);
 }
 
-struct komeda_component_funcs d71_compiz_funcs = {
+static struct komeda_component_funcs d71_compiz_funcs = {
 	.update		= d71_compiz_update,
 	.disable	= d71_component_disable,
 	.dump_register	= d71_compiz_dump,
@@ -467,7 +467,7 @@ static void d71_improc_dump(struct komeda_component *c, struct seq_file *sf)
 		seq_printf(sf, "IPS_RGB_YUV_COEFF%u:\t0x%X\n", i, v[i]);
 }
 
-struct komeda_component_funcs d71_improc_funcs = {
+static struct komeda_component_funcs d71_improc_funcs = {
 	.update		= d71_improc_update,
 	.disable	= d71_component_disable,
 	.dump_register	= d71_improc_dump,
@@ -543,7 +543,8 @@ static void d71_timing_ctrlr_update(struct komeda_component *c,
 	malidp_write32(reg, BLK_CONTROL, value);
 }
 
-void d71_timing_ctrlr_dump(struct komeda_component *c, struct seq_file *sf)
+static void d71_timing_ctrlr_dump(struct komeda_component *c,
+				  struct seq_file *sf)
 {
 	u32 v[8], i;
 
@@ -579,7 +580,7 @@ void d71_timing_ctrlr_dump(struct komeda_component *c, struct seq_file *sf)
 	seq_printf(sf, "BS_USER:\t\t0x%X\n", v[4]);
 }
 
-struct komeda_component_funcs d71_timing_ctrlr_funcs = {
+static struct komeda_component_funcs d71_timing_ctrlr_funcs = {
 	.update		= d71_timing_ctrlr_update,
 	.disable	= d71_timing_ctrlr_disable,
 	.dump_register	= d71_timing_ctrlr_dump,

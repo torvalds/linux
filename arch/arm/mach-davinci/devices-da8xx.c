@@ -17,6 +17,7 @@
 #include <linux/dma-contiguous.h>
 #include <linux/dmaengine.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/serial_8250.h>

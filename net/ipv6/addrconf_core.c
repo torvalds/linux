@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 library code, needed by static components when full IPv6 support is
  * not configured or static.
@@ -5,7 +6,7 @@
 
 #include <linux/export.h>
 #include <net/ipv6.h>
-#include <net/addrconf.h>
+#include <net/ipv6_stubs.h>
 #include <net/ip.h>
 
 /* if ipv6 module registers this function is used by xfrm to force all
@@ -144,33 +145,42 @@ static struct fib6_table *eafnosupport_fib6_get_table(struct net *net, u32 id)
 	return NULL;
 }
 
-static struct fib6_info *
+static int
 eafnosupport_fib6_table_lookup(struct net *net, struct fib6_table *table,
-			       int oif, struct flowi6 *fl6, int flags)
+			       int oif, struct flowi6 *fl6,
+			       struct fib6_result *res, int flags)
 {
-	return NULL;
+	return -EAFNOSUPPORT;
 }
 
-static struct fib6_info *
+static int
 eafnosupport_fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
-			 int flags)
+			 struct fib6_result *res, int flags)
 {
-	return NULL;
+	return -EAFNOSUPPORT;
 }
 
-static struct fib6_info *
-eafnosupport_fib6_multipath_select(const struct net *net, struct fib6_info *f6i,
-				   struct flowi6 *fl6, int oif,
-				   const struct sk_buff *skb, int strict)
+static void
+eafnosupport_fib6_select_path(const struct net *net, struct fib6_result *res,
+			      struct flowi6 *fl6, int oif, bool have_oif_match,
+			      const struct sk_buff *skb, int strict)
 {
-	return f6i;
 }
 
 static u32
-eafnosupport_ip6_mtu_from_fib6(struct fib6_info *f6i, struct in6_addr *daddr,
-			       struct in6_addr *saddr)
+eafnosupport_ip6_mtu_from_fib6(const struct fib6_result *res,
+			       const struct in6_addr *daddr,
+			       const struct in6_addr *saddr)
 {
 	return 0;
+}
+
+static int eafnosupport_fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
+				     struct fib6_config *cfg, gfp_t gfp_flags,
+				     struct netlink_ext_ack *extack)
+{
+	NL_SET_ERR_MSG(extack, "IPv6 support not enabled in kernel");
+	return -EAFNOSUPPORT;
 }
 
 const struct ipv6_stub *ipv6_stub __read_mostly = &(struct ipv6_stub) {
@@ -179,8 +189,9 @@ const struct ipv6_stub *ipv6_stub __read_mostly = &(struct ipv6_stub) {
 	.fib6_get_table    = eafnosupport_fib6_get_table,
 	.fib6_table_lookup = eafnosupport_fib6_table_lookup,
 	.fib6_lookup       = eafnosupport_fib6_lookup,
-	.fib6_multipath_select = eafnosupport_fib6_multipath_select,
+	.fib6_select_path  = eafnosupport_fib6_select_path,
 	.ip6_mtu_from_fib6 = eafnosupport_ip6_mtu_from_fib6,
+	.fib6_nh_init	   = eafnosupport_fib6_nh_init,
 };
 EXPORT_SYMBOL_GPL(ipv6_stub);
 

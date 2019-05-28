@@ -281,30 +281,13 @@ static umode_t tmp108_is_visible(const void *data, enum hwmon_sensor_types type,
 	}
 }
 
-static u32 tmp108_chip_config[] = {
-	HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL,
-	0
-};
-
-static const struct hwmon_channel_info tmp108_chip = {
-	.type = hwmon_chip,
-	.config = tmp108_chip_config,
-};
-
-static u32 tmp108_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN | HWMON_T_MIN_HYST
-		| HWMON_T_MAX_HYST | HWMON_T_MIN_ALARM | HWMON_T_MAX_ALARM,
-	0
-};
-
-static const struct hwmon_channel_info tmp108_temp = {
-	.type = hwmon_temp,
-	.config = tmp108_temp_config,
-};
-
 static const struct hwmon_channel_info *tmp108_info[] = {
-	&tmp108_chip,
-	&tmp108_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MIN |
+			   HWMON_T_MIN_HYST | HWMON_T_MAX_HYST |
+			   HWMON_T_MIN_ALARM | HWMON_T_MAX_ALARM),
 	NULL
 };
 

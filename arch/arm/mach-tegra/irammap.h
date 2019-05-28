@@ -17,7 +17,7 @@
 #ifndef __MACH_TEGRA_IRAMMAP_H
 #define __MACH_TEGRA_IRAMMAP_H
 
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 /* The first 1K of IRAM is permanently reserved for the CPU reset handler */
 #define TEGRA_IRAM_RESET_HANDLER_OFFSET	0

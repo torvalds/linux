@@ -10,6 +10,7 @@
 #include <linux/lockdep.h>
 
 static void rcu_exp_handler(void *unused);
+static int rcu_print_task_exp_stall(struct rcu_node *rnp);
 
 /*
  * Record the start of an expedited grace period.
@@ -633,7 +634,7 @@ static void rcu_exp_handler(void *unused)
 		raw_spin_lock_irqsave_rcu_node(rnp, flags);
 		if (rnp->expmask & rdp->grpmask) {
 			rdp->deferred_qs = true;
-			WRITE_ONCE(t->rcu_read_unlock_special.b.exp_hint, true);
+			t->rcu_read_unlock_special.b.exp_hint = true;
 		}
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
@@ -648,7 +649,7 @@ static void rcu_exp_handler(void *unused)
 	 *
 	 * If the CPU is fully enabled (or if some buggy RCU-preempt
 	 * read-side critical section is being used from idle), just
-	 * invoke rcu_preempt_defer_qs() to immediately report the
+	 * invoke rcu_preempt_deferred_qs() to immediately report the
 	 * quiescent state.  We cannot use rcu_read_unlock_special()
 	 * because we are in an interrupt handler, which will cause that
 	 * function to take an early exit without doing anything.
@@ -668,6 +669,27 @@ static void rcu_exp_handler(void *unused)
 /* PREEMPT=y, so no PREEMPT=n expedited grace period to clean up after. */
 static void sync_sched_exp_online_cleanup(int cpu)
 {
+}
+
+/*
+ * Scan the current list of tasks blocked within RCU read-side critical
+ * sections, printing out the tid of each that is blocking the current
+ * expedited grace period.
+ */
+static int rcu_print_task_exp_stall(struct rcu_node *rnp)
+{
+	struct task_struct *t;
+	int ndetected = 0;
+
+	if (!rnp->exp_tasks)
+		return 0;
+	t = list_entry(rnp->exp_tasks->prev,
+		       struct task_struct, rcu_node_entry);
+	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
+		pr_cont(" P%d", t->pid);
+		ndetected++;
+	}
+	return ndetected;
 }
 
 #else /* #ifdef CONFIG_PREEMPT_RCU */
@@ -707,6 +729,16 @@ static void sync_sched_exp_online_cleanup(int cpu)
 		return;
 	ret = smp_call_function_single(cpu, rcu_exp_handler, NULL, 0);
 	WARN_ON_ONCE(ret);
+}
+
+/*
+ * Because preemptible RCU does not exist, we never have to check for
+ * tasks blocked within RCU read-side critical sections that are
+ * blocking the current expedited grace period.
+ */
+static int rcu_print_task_exp_stall(struct rcu_node *rnp)
+{
+	return 0;
 }
 
 #endif /* #else #ifdef CONFIG_PREEMPT_RCU */

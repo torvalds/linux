@@ -35,12 +35,6 @@ static bool wm8400_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-int wm8400_block_read(struct wm8400 *wm8400, u8 reg, int count, u16 *data)
-{
-	return regmap_bulk_read(wm8400->regmap, reg, data, count);
-}
-EXPORT_SYMBOL_GPL(wm8400_block_read);
-
 static int wm8400_register_codec(struct wm8400 *wm8400)
 {
 	const struct mfd_cell cell = {

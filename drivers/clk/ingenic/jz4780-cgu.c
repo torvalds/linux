@@ -17,6 +17,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <dt-bindings/clock/jz4780-cgu.h>
 #include "cgu.h"

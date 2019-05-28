@@ -1439,7 +1439,6 @@ myri10ge_tx_done(struct myri10ge_slice_state *ss, int mcp_index)
 			tx->queue_active = 0;
 			put_be32(htonl(1), tx->send_stop);
 			mb();
-			mmiowb();
 		}
 		__netif_tx_unlock(dev_queue);
 	}
@@ -2861,7 +2860,6 @@ again:
 		tx->queue_active = 1;
 		put_be32(htonl(1), tx->send_go);
 		mb();
-		mmiowb();
 	}
 	tx->pkt_start++;
 	if ((avail - count) < MXGEFW_MAX_SEND_DESC) {

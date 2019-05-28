@@ -85,16 +85,18 @@ leads to a few additional requirements:
 - The userspace side must be fully reviewed and tested to the standards of that
   userspace project. For e.g. mesa this means piglit testcases and review on the
   mailing list. This is again to ensure that the new interface actually gets the
-  job done.
+  job done.  The userspace-side reviewer should also provide at least an
+  Acked-by on the kernel uAPI patch indicating that they've looked at how the
+  kernel side is implementing the new feature being used.
 
 - The userspace patches must be against the canonical upstream, not some vendor
   fork. This is to make sure that no one cheats on the review and testing
   requirements by doing a quick fork.
 
 - The kernel patch can only be merged after all the above requirements are met,
-  but it **must** be merged **before** the userspace patches land. uAPI always flows
-  from the kernel, doing things the other way round risks divergence of the uAPI
-  definitions and header files.
+  but it **must** be merged to either drm-next or drm-misc-next **before** the
+  userspace patches land. uAPI always flows from the kernel, doing things the
+  other way round risks divergence of the uAPI definitions and header files.
 
 These are fairly steep requirements, but have grown out from years of shared
 pain and experience with uAPI added hastily, and almost always regretted about

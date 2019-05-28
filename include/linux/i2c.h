@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* ------------------------------------------------------------------------- */
 /*									     */
 /* i2c.h - definitions for the i2c-bus interface			     */
@@ -5,20 +6,7 @@
 /* ------------------------------------------------------------------------- */
 /*   Copyright (C) 1995-2000 Simon G. Vogl
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-    MA 02110-1301 USA.							     */
+ */
 /* ------------------------------------------------------------------------- */
 
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and
@@ -470,6 +458,9 @@ extern struct i2c_client *
 i2c_new_dummy(struct i2c_adapter *adap, u16 address);
 
 extern struct i2c_client *
+devm_i2c_new_dummy_device(struct device *dev, struct i2c_adapter *adap, u16 address);
+
+extern struct i2c_client *
 i2c_new_secondary_device(struct i2c_client *client,
 				const char *name,
 				u16 default_addr);
@@ -499,9 +490,13 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  * @master_xfer: Issue a set of i2c transactions to the given I2C adapter
  *   defined by the msgs array, with num messages available to transfer via
  *   the adapter specified by adap.
+ * @master_xfer_atomic: same as @master_xfer. Yet, only using atomic context
+ *   so e.g. PMICs can be accessed very late before shutdown. Optional.
  * @smbus_xfer: Issue smbus transactions to the given I2C adapter. If this
  *   is not present, then the bus layer will try and convert the SMBus calls
  *   into I2C transfers instead.
+ * @smbus_xfer_atomic: same as @smbus_xfer. Yet, only using atomic context
+ *   so e.g. PMICs can be accessed very late before shutdown. Optional.
  * @functionality: Return the flags that this algorithm/adapter pair supports
  *   from the I2C_FUNC_* flags.
  * @reg_slave: Register given client to I2C slave mode of this adapter
@@ -512,25 +507,33 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  * be addressed using the same bus algorithms - i.e. bit-banging or the PCF8584
  * to name two of the most common.
  *
- * The return codes from the @master_xfer field should indicate the type of
- * error code that occurred during the transfer, as documented in the kernel
- * Documentation file Documentation/i2c/fault-codes.
+ * The return codes from the @master_xfer{_atomic} fields should indicate the
+ * type of error code that occurred during the transfer, as documented in the
+ * Kernel Documentation file Documentation/i2c/fault-codes.
  */
 struct i2c_algorithm {
-	/* If an adapter algorithm can't do I2C-level access, set master_xfer
-	   to NULL. If an adapter algorithm can do SMBus access, set
-	   smbus_xfer. If set to NULL, the SMBus protocol is simulated
-	   using common I2C messages */
-	/* master_xfer should return the number of messages successfully
-	   processed, or a negative value on error */
+	/*
+	 * If an adapter algorithm can't do I2C-level access, set master_xfer
+	 * to NULL. If an adapter algorithm can do SMBus access, set
+	 * smbus_xfer. If set to NULL, the SMBus protocol is simulated
+	 * using common I2C messages.
+	 *
+	 * master_xfer should return the number of messages successfully
+	 * processed, or a negative value on error
+	 */
 	int (*master_xfer)(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			   int num);
-	int (*smbus_xfer) (struct i2c_adapter *adap, u16 addr,
-			   unsigned short flags, char read_write,
-			   u8 command, int size, union i2c_smbus_data *data);
+	int (*master_xfer_atomic)(struct i2c_adapter *adap,
+				   struct i2c_msg *msgs, int num);
+	int (*smbus_xfer)(struct i2c_adapter *adap, u16 addr,
+			  unsigned short flags, char read_write,
+			  u8 command, int size, union i2c_smbus_data *data);
+	int (*smbus_xfer_atomic)(struct i2c_adapter *adap, u16 addr,
+				 unsigned short flags, char read_write,
+				 u8 command, int size, union i2c_smbus_data *data);
 
 	/* To determine what the adapter supports */
-	u32 (*functionality) (struct i2c_adapter *);
+	u32 (*functionality)(struct i2c_adapter *adap);
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 	int (*reg_slave)(struct i2c_client *client);
@@ -682,7 +685,8 @@ struct i2c_adapter {
 	int retries;
 	struct device dev;		/* the adapter device */
 	unsigned long locked_flags;	/* owned by the I2C core */
-#define I2C_ALF_IS_SUSPENDED	0
+#define I2C_ALF_IS_SUSPENDED		0
+#define I2C_ALF_SUSPEND_REPORTED	1
 
 	int nr;
 	char name[48];

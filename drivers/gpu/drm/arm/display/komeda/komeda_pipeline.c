@@ -62,7 +62,7 @@ void komeda_pipeline_destroy(struct komeda_dev *mdev,
 	devm_kfree(mdev->dev, pipe);
 }
 
-struct komeda_component **
+static struct komeda_component **
 komeda_pipeline_get_component_pos(struct komeda_pipeline *pipe, int id)
 {
 	struct komeda_dev *mdev = pipe->mdev;

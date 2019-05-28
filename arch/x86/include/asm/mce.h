@@ -210,16 +210,6 @@ static inline void cmci_rediscover(void) {}
 static inline void cmci_recheck(void) {}
 #endif
 
-#ifdef CONFIG_X86_MCE_AMD
-void mce_amd_feature_init(struct cpuinfo_x86 *c);
-int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr);
-#else
-static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
-static inline int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr) { return -EINVAL; };
-#endif
-
-static inline void mce_hygon_feature_init(struct cpuinfo_x86 *c) { return mce_amd_feature_init(c); }
-
 int mce_available(struct cpuinfo_x86 *c);
 bool mce_is_memory_error(struct mce *m);
 bool mce_is_correctable(struct mce *m);
@@ -345,12 +335,19 @@ extern bool amd_mce_is_memory_error(struct mce *m);
 extern int mce_threshold_create_device(unsigned int cpu);
 extern int mce_threshold_remove_device(unsigned int cpu);
 
+void mce_amd_feature_init(struct cpuinfo_x86 *c);
+int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr);
+
 #else
 
-static inline int mce_threshold_create_device(unsigned int cpu) { return 0; };
-static inline int mce_threshold_remove_device(unsigned int cpu) { return 0; };
-static inline bool amd_mce_is_memory_error(struct mce *m) { return false; };
-
+static inline int mce_threshold_create_device(unsigned int cpu)		{ return 0; };
+static inline int mce_threshold_remove_device(unsigned int cpu)		{ return 0; };
+static inline bool amd_mce_is_memory_error(struct mce *m)		{ return false; };
+static inline void mce_amd_feature_init(struct cpuinfo_x86 *c)		{ }
+static inline int
+umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)	{ return -EINVAL; };
 #endif
+
+static inline void mce_hygon_feature_init(struct cpuinfo_x86 *c)	{ return mce_amd_feature_init(c); }
 
 #endif /* _ASM_X86_MCE_H */

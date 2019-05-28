@@ -678,7 +678,8 @@ static u32 mvs_64xx_spi_read_data(struct mvs_info *mvi)
 static void mvs_64xx_spi_write_data(struct mvs_info *mvi, u32 data)
 {
 	void __iomem *regs = mvi->regs_ex;
-	 iow32(SPI_DATA_REG_64XX, data);
+
+	iow32(SPI_DATA_REG_64XX, data);
 }
 
 

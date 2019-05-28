@@ -58,7 +58,7 @@ static int validate_dimm(struct nvdimm_drvdata *ndd)
 
 	rc = nvdimm_check_config_data(ndd->dev);
 	if (rc)
-		dev_dbg(ndd->dev, "%pf: %s error: %d\n",
+		dev_dbg(ndd->dev, "%ps: %s error: %d\n",
 				__builtin_return_address(0), __func__, rc);
 	return rc;
 }

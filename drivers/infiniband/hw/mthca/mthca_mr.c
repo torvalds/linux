@@ -60,7 +60,7 @@ struct mthca_mpt_entry {
 	__be64 mtt_seg;
 	__be32 mtt_sz;		/* Arbel only */
 	u32    reserved[2];
-} __attribute__((packed));
+} __packed;
 
 #define MTHCA_MPT_FLAG_SW_OWNS       (0xfUL << 28)
 #define MTHCA_MPT_FLAG_MIO           (1 << 17)

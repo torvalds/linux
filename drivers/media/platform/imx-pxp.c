@@ -1025,8 +1025,8 @@ static irqreturn_t pxp_irq_handler(int irq, void *dev_id)
 static int pxp_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, MEM2MEM_NAME, sizeof(cap->card));
+	strscpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver));
+	strscpy(cap->card, MEM2MEM_NAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 			"platform:%s", MEM2MEM_NAME);
 	return 0;

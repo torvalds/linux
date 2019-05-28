@@ -30,6 +30,8 @@
  * SOFTWARE.
  */
 
+#include <rdma/uverbs_ioctl.h>
+
 #include "iw_cxgb4.h"
 
 static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
@@ -968,7 +970,7 @@ int c4iw_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	return !err || err == -ENODATA ? npolled : err;
 }
 
-int c4iw_destroy_cq(struct ib_cq *ib_cq)
+int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct c4iw_cq *chp;
 	struct c4iw_ucontext *ucontext;
@@ -976,12 +978,12 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq)
 	pr_debug("ib_cq %p\n", ib_cq);
 	chp = to_c4iw_cq(ib_cq);
 
-	remove_handle(chp->rhp, &chp->rhp->cqidr, chp->cq.cqid);
+	xa_erase_irq(&chp->rhp->cqs, chp->cq.cqid);
 	atomic_dec(&chp->refcnt);
 	wait_event(chp->wait, !atomic_read(&chp->refcnt));
 
-	ucontext = ib_cq->uobject ? to_c4iw_ucontext(ib_cq->uobject->context)
-				  : NULL;
+	ucontext = rdma_udata_to_drv_context(udata, struct c4iw_ucontext,
+					     ibucontext);
 	destroy_cq(&chp->rhp->rdev, &chp->cq,
 		   ucontext ? &ucontext->uctx : &chp->cq.rdev->uctx,
 		   chp->destroy_skb, chp->wr_waitp);
@@ -992,7 +994,6 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq)
 
 struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,
-			     struct ib_ucontext *ib_context,
 			     struct ib_udata *udata)
 {
 	int entries = attr->cqe;
@@ -1001,10 +1002,11 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	struct c4iw_cq *chp;
 	struct c4iw_create_cq ucmd;
 	struct c4iw_create_cq_resp uresp;
-	struct c4iw_ucontext *ucontext = NULL;
 	int ret, wr_len;
 	size_t memsize, hwentries;
 	struct c4iw_mm_entry *mm, *mm2;
+	struct c4iw_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct c4iw_ucontext, ibucontext);
 
 	pr_debug("ib_dev %p entries %d\n", ibdev, entries);
 	if (attr->flags)
@@ -1015,8 +1017,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	if (vector >= rhp->rdev.lldi.nciq)
 		return ERR_PTR(-EINVAL);
 
-	if (ib_context) {
-		ucontext = to_c4iw_ucontext(ib_context);
+	if (udata) {
 		if (udata->inlen < sizeof(ucmd))
 			ucontext->is_32b_cqe = 1;
 	}
@@ -1068,7 +1069,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	/*
 	 * memsize must be a multiple of the page size if its a user cq.
 	 */
-	if (ucontext)
+	if (udata)
 		memsize = roundup(memsize, PAGE_SIZE);
 
 	chp->cq.size = hwentries;
@@ -1088,7 +1089,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 	spin_lock_init(&chp->comp_handler_lock);
 	atomic_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);
-	ret = insert_handle(rhp, &rhp->cqidr, chp, chp->cq.cqid);
+	ret = xa_insert_irq(&rhp->cqs, chp->cq.cqid, chp, GFP_KERNEL);
 	if (ret)
 		goto err_destroy_cq;
 
@@ -1143,7 +1144,7 @@ err_free_mm2:
 err_free_mm:
 	kfree(mm);
 err_remove_handle:
-	remove_handle(rhp, &rhp->cqidr, chp->cq.cqid);
+	xa_erase_irq(&rhp->cqs, chp->cq.cqid);
 err_destroy_cq:
 	destroy_cq(&chp->rhp->rdev, &chp->cq,
 		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx,

@@ -40,8 +40,8 @@
  */
 #define GASKET_END_OF_ATTR_ARRAY                                               \
 	{                                                                      \
-		.attr = __ATTR(GASKET_ARRAY_END_TOKEN, S_IRUGO, NULL, NULL),   \
-		.data.attr_type = 0,                                           \
+		.attr = __ATTR_NULL,				\
+		.data.attr_type = 0,				\
 	}
 
 /*

@@ -69,10 +69,6 @@
 #define NAMEI_RA_BLOCKS  4
 #define NAMEI_RA_SIZE        (NAMEI_RA_CHUNKS * NAMEI_RA_BLOCKS)
 
-static unsigned char ocfs2_filetype_table[] = {
-	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
-};
-
 static int ocfs2_do_extend_dir(struct super_block *sb,
 			       handle_t *handle,
 			       struct inode *dir,
@@ -1718,7 +1714,7 @@ int __ocfs2_add_entry(handle_t *handle,
 				de->rec_len = cpu_to_le16(OCFS2_DIR_REC_LEN(de->name_len));
 				de = de1;
 			}
-			de->file_type = OCFS2_FT_UNKNOWN;
+			de->file_type = FT_UNKNOWN;
 			if (blkno) {
 				de->inode = cpu_to_le64(blkno);
 				ocfs2_set_de_type(de, inode->i_mode);
@@ -1803,13 +1799,9 @@ static int ocfs2_dir_foreach_blk_id(struct inode *inode,
 		}
 		offset += le16_to_cpu(de->rec_len);
 		if (le64_to_cpu(de->inode)) {
-			unsigned char d_type = DT_UNKNOWN;
-
-			if (de->file_type < OCFS2_FT_MAX)
-				d_type = ocfs2_filetype_table[de->file_type];
-
 			if (!dir_emit(ctx, de->name, de->name_len,
-				      le64_to_cpu(de->inode), d_type))
+				      le64_to_cpu(de->inode),
+				      fs_ftype_to_dtype(de->file_type)))
 				goto out;
 		}
 		ctx->pos += le16_to_cpu(de->rec_len);
@@ -1900,14 +1892,10 @@ static int ocfs2_dir_foreach_blk_el(struct inode *inode,
 				break;
 			}
 			if (le64_to_cpu(de->inode)) {
-				unsigned char d_type = DT_UNKNOWN;
-
-				if (de->file_type < OCFS2_FT_MAX)
-					d_type = ocfs2_filetype_table[de->file_type];
 				if (!dir_emit(ctx, de->name,
 						de->name_len,
 						le64_to_cpu(de->inode),
-						d_type)) {
+					fs_ftype_to_dtype(de->file_type))) {
 					brelse(bh);
 					return 0;
 				}

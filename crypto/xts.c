@@ -137,8 +137,12 @@ static void crypt_done(struct crypto_async_request *areq, int err)
 {
 	struct skcipher_request *req = areq->data;
 
-	if (!err)
+	if (!err) {
+		struct rctx *rctx = skcipher_request_ctx(req);
+
+		rctx->subreq.base.flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 		err = xor_tweak_post(req);
+	}
 
 	skcipher_request_complete(req, err);
 }
@@ -359,7 +363,7 @@ static void __exit crypto_module_exit(void)
 	crypto_unregister_template(&crypto_tmpl);
 }
 
-module_init(crypto_module_init);
+subsys_initcall(crypto_module_init);
 module_exit(crypto_module_exit);
 
 MODULE_LICENSE("GPL");

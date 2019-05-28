@@ -177,6 +177,7 @@ static inline void zf_set_timer(unsigned short new, unsigned char n)
 	switch (n) {
 	case WD1:
 		zf_writew(COUNTER_1, new);
+		/* fall through */
 	case WD2:
 		zf_writeb(COUNTER_2, new > 0xff ? 0xff : new);
 	default:
@@ -318,7 +319,7 @@ static long zf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
 	case WDIOC_KEEPALIVE:
-		zf_ping(0);
+		zf_ping(NULL);
 		break;
 	default:
 		return -ENOTTY;
@@ -333,7 +334,7 @@ static int zf_open(struct inode *inode, struct file *file)
 	if (nowayout)
 		__module_get(THIS_MODULE);
 	zf_timer_on();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int zf_close(struct inode *inode, struct file *file)

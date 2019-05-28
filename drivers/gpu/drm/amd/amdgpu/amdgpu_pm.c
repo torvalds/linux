@@ -144,7 +144,7 @@ static ssize_t amdgpu_get_dpm_state(struct device *dev,
 	struct amdgpu_device *adev = ddev->dev_private;
 	enum amd_pm_state_type pm;
 
-	if (adev->smu.ppt_funcs->get_current_power_state)
+	if (is_support_sw_smu(adev) && adev->smu.ppt_funcs->get_current_power_state)
 		pm = amdgpu_smu_get_current_power_state(adev);
 	else if (adev->powerplay.pp_funcs->get_current_power_state)
 		pm = amdgpu_dpm_get_current_power_state(adev);
@@ -341,6 +341,16 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 
 	if (current_level == level)
 		return count;
+
+	/* profile_exit setting is valid only when current mode is in profile mode */
+	if (!(current_level & (AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD |
+	    AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK |
+	    AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK |
+	    AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)) &&
+	    (level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)) {
+		pr_err("Currently not in any profile mode!\n");
+		return -EINVAL;
+	}
 
 	if (is_support_sw_smu(adev)) {
 		mutex_lock(&adev->pm.mutex);

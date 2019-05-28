@@ -22,7 +22,7 @@
  * LPAT conversion table
  *
  * @lpat_table: the temperature_raw mapping table structure
- * @raw: the raw value, used as a key to get the temerature from the
+ * @raw: the raw value, used as a key to get the temperature from the
  *       above mapping table
  *
  * A positive converted temperature value will be returned on success,

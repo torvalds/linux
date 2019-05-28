@@ -15,6 +15,7 @@
 #include <linux/string.h>
 
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 
 #include <asm/neon.h>
 #include <asm/simd.h>
@@ -36,7 +37,7 @@ static int crct10dif_update(struct shash_desc *desc, const u8 *data,
 {
 	u16 *crc = shash_desc_ctx(desc);
 
-	if (length >= CRC_T10DIF_PMULL_CHUNK_SIZE && may_use_simd()) {
+	if (length >= CRC_T10DIF_PMULL_CHUNK_SIZE && crypto_simd_usable()) {
 		kernel_neon_begin();
 		*crc = crc_t10dif_pmull(*crc, data, length);
 		kernel_neon_end();

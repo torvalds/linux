@@ -36,7 +36,7 @@ static unsigned int clip_offset(struct drm_rect *clip,
 void drm_fb_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
 		   struct drm_rect *clip)
 {
-	unsigned int cpp = drm_format_plane_cpp(fb->format->format, 0);
+	unsigned int cpp = fb->format->cpp[0];
 	size_t len = (clip->x2 - clip->x1) * cpp;
 	unsigned int y, lines = clip->y2 - clip->y1;
 
@@ -63,7 +63,7 @@ void drm_fb_memcpy_dstclip(void __iomem *dst, void *vaddr,
 			   struct drm_framebuffer *fb,
 			   struct drm_rect *clip)
 {
-	unsigned int cpp = drm_format_plane_cpp(fb->format->format, 0);
+	unsigned int cpp = fb->format->cpp[0];
 	unsigned int offset = clip_offset(clip, fb->pitches[0], cpp);
 	size_t len = (clip->x2 - clip->x1) * cpp;
 	unsigned int y, lines = clip->y2 - clip->y1;

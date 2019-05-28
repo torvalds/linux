@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * I2C bus driver for ADT7316/7/8 ADT7516/7/9 digital temperature
  * sensor, ADC and DAC
  *
  * Copyright 2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>

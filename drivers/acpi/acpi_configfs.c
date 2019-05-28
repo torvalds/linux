@@ -109,7 +109,7 @@ static ssize_t acpi_table_signature_show(struct config_item *cfg, char *str)
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%.*s\n", ACPI_NAME_SIZE, h->signature);
+	return sprintf(str, "%.*s\n", ACPI_NAMESEG_SIZE, h->signature);
 }
 
 static ssize_t acpi_table_length_show(struct config_item *cfg, char *str)
@@ -170,7 +170,7 @@ static ssize_t acpi_table_asl_compiler_id_show(struct config_item *cfg,
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%.*s\n", ACPI_NAME_SIZE, h->asl_compiler_id);
+	return sprintf(str, "%.*s\n", ACPI_NAMESEG_SIZE, h->asl_compiler_id);
 }
 
 static ssize_t acpi_table_asl_compiler_revision_show(struct config_item *cfg,

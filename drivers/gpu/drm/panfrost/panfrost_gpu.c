@@ -2,8 +2,10 @@
 /* Copyright 2018 Marty E. Plummer <hanetzer@startmail.com> */
 /* Copyright 2019 Linaro, Ltd., Rob Herring <robh@kernel.org> */
 /* Copyright 2019 Collabora ltd. */
+#include <linux/bitfield.h>
 #include <linux/bitmap.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -276,13 +278,13 @@ static void panfrost_gpu_init_features(struct panfrost_device *pfdev)
 		 pfdev->features.hw_issues);
 
 	dev_info(pfdev->dev, "Features: L2:0x%08x Shader:0x%08x Tiler:0x%08x Mem:0x%0x MMU:0x%08x AS:0x%x JS:0x%x",
-		 gpu_read(pfdev, GPU_L2_FEATURES),
-		 gpu_read(pfdev, GPU_CORE_FEATURES),
-		 gpu_read(pfdev, GPU_TILER_FEATURES),
-		 gpu_read(pfdev, GPU_MEM_FEATURES),
-		 gpu_read(pfdev, GPU_MMU_FEATURES),
-		 gpu_read(pfdev, GPU_AS_PRESENT),
-		 gpu_read(pfdev, GPU_JS_PRESENT));
+		 pfdev->features.l2_features,
+		 pfdev->features.core_features,
+		 pfdev->features.tiler_features,
+		 pfdev->features.mem_features,
+		 pfdev->features.mmu_features,
+		 pfdev->features.as_present,
+		 pfdev->features.js_present);
 
 	dev_info(pfdev->dev, "shader_present=0x%0llx l2_present=0x%0llx",
 		 pfdev->features.shader_present, pfdev->features.l2_present);
@@ -331,6 +333,9 @@ int panfrost_gpu_init(struct panfrost_device *pfdev)
 		return err;
 
 	panfrost_gpu_init_features(pfdev);
+
+	dma_set_mask_and_coherent(pfdev->dev,
+		DMA_BIT_MASK(FIELD_GET(0xff00, pfdev->features.mmu_features)));
 
 	irq = platform_get_irq_byname(to_platform_device(pfdev->dev), "gpu");
 	if (irq <= 0)

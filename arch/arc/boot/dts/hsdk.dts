@@ -18,8 +18,8 @@
 	model = "snps,hsdk";
 	compatible = "snps,hsdk";
 
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xf0005000,115200n8 console=ttyS0,115200n8 debug print-fatal-signals=1";
@@ -105,7 +105,7 @@
 		#size-cells = <1>;
 		interrupt-parent = <&idu_intc>;
 
-		ranges = <0x00000000 0xf0000000 0x10000000>;
+		ranges = <0x00000000 0x0 0xf0000000 0x10000000>;
 
 		cgu_rst: reset-controller@8a0 {
 			compatible = "snps,hsdk-reset";
@@ -269,9 +269,10 @@
 	};
 
 	memory@80000000 {
-		#address-cells = <1>;
-		#size-cells = <1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		device_type = "memory";
-		reg = <0x80000000 0x40000000>;  /* 1 GiB */
+		reg = <0x0 0x80000000 0x0 0x40000000>;  /* 1 GB lowmem */
+		/*     0x1 0x00000000 0x0 0x40000000>;     1 GB highmem */
 	};
 };

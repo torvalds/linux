@@ -375,7 +375,7 @@ static struct taskstats *mk_reply(struct sk_buff *skb, int type, u32 pid)
 			? TASKSTATS_TYPE_AGGR_PID
 			: TASKSTATS_TYPE_AGGR_TGID;
 
-	na = nla_nest_start(skb, aggr);
+	na = nla_nest_start_noflag(skb, aggr);
 	if (!na)
 		goto err;
 
@@ -649,16 +649,40 @@ err:
 static const struct genl_ops taskstats_ops[] = {
 	{
 		.cmd		= TASKSTATS_CMD_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit		= taskstats_user_cmd,
-		.policy		= taskstats_cmd_get_policy,
-		.flags		= GENL_ADMIN_PERM,
+		/* policy enforced later */
+		.flags		= GENL_ADMIN_PERM | GENL_CMD_CAP_HASPOL,
 	},
 	{
 		.cmd		= CGROUPSTATS_CMD_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit		= cgroupstats_user_cmd,
-		.policy		= cgroupstats_cmd_get_policy,
+		/* policy enforced later */
+		.flags		= GENL_CMD_CAP_HASPOL,
 	},
 };
+
+static int taskstats_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
+			      struct genl_info *info)
+{
+	const struct nla_policy *policy = NULL;
+
+	switch (ops->cmd) {
+	case TASKSTATS_CMD_GET:
+		policy = taskstats_cmd_get_policy;
+		break;
+	case CGROUPSTATS_CMD_GET:
+		policy = cgroupstats_cmd_get_policy;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return nlmsg_validate_deprecated(info->nlhdr, GENL_HDRLEN,
+					 TASKSTATS_CMD_ATTR_MAX, policy,
+					 info->extack);
+}
 
 static struct genl_family family __ro_after_init = {
 	.name		= TASKSTATS_GENL_NAME,
@@ -667,6 +691,7 @@ static struct genl_family family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.ops		= taskstats_ops,
 	.n_ops		= ARRAY_SIZE(taskstats_ops),
+	.pre_doit	= taskstats_pre_doit,
 };
 
 /* Needed early in initialization */

@@ -87,7 +87,7 @@ extern unsigned long pdc_result2[NUM_PDC_RESULT];
 
 /* Firmware needs to be initially set to narrow to determine the 
  * actual firmware width. */
-int parisc_narrow_firmware __read_mostly = 1;
+int parisc_narrow_firmware __ro_after_init = 1;
 #endif
 
 /* On most currently-supported platforms, IODC I/O calls are 32-bit calls

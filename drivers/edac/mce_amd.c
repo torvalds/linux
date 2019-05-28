@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 #include <linux/slab.h>
 
@@ -1004,7 +1005,7 @@ static inline void amd_decode_err_code(u16 ec)
 /*
  * Filter out unwanted MCE signatures here.
  */
-static bool amd_filter_mce(struct mce *m)
+static bool ignore_mce(struct mce *m)
 {
 	/*
 	 * NB GART TLB error reporting is disabled by default.
@@ -1038,7 +1039,7 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	unsigned int fam = x86_family(m->cpuid);
 	int ecc;
 
-	if (amd_filter_mce(m))
+	if (ignore_mce(m))
 		return NOTIFY_STOP;
 
 	pr_emerg(HW_ERR "%s\n", decode_error_status(m));

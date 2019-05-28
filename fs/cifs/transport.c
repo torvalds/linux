@@ -33,7 +33,7 @@
 #include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <linux/mempool.h>
-#include <linux/signal.h>
+#include <linux/sched/signal.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
@@ -104,7 +104,10 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 {
 #ifdef CONFIG_CIFS_STATS2
 	__le16 command = midEntry->server->vals->lock_cmd;
+	__u16 smb_cmd = le16_to_cpu(midEntry->command);
 	unsigned long now;
+	unsigned long roundtrip_time;
+	struct TCP_Server_Info *server = midEntry->server;
 #endif
 	midEntry->mid_state = MID_FREE;
 	atomic_dec(&midCount);
@@ -114,6 +117,23 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 		cifs_small_buf_release(midEntry->resp_buf);
 #ifdef CONFIG_CIFS_STATS2
 	now = jiffies;
+	if (now < midEntry->when_alloc)
+		cifs_dbg(VFS, "invalid mid allocation time\n");
+	roundtrip_time = now - midEntry->when_alloc;
+
+	if (smb_cmd < NUMBER_OF_SMB2_COMMANDS) {
+		if (atomic_read(&server->num_cmds[smb_cmd]) == 0) {
+			server->slowest_cmd[smb_cmd] = roundtrip_time;
+			server->fastest_cmd[smb_cmd] = roundtrip_time;
+		} else {
+			if (server->slowest_cmd[smb_cmd] < roundtrip_time)
+				server->slowest_cmd[smb_cmd] = roundtrip_time;
+			else if (server->fastest_cmd[smb_cmd] > roundtrip_time)
+				server->fastest_cmd[smb_cmd] = roundtrip_time;
+		}
+		cifs_stats_inc(&server->num_cmds[smb_cmd]);
+		server->time_per_cmd[smb_cmd] += roundtrip_time;
+	}
 	/*
 	 * commands taking longer than one second (default) can be indications
 	 * that something is wrong, unless it is quite a slow link or a very
@@ -131,11 +151,10 @@ DeleteMidQEntry(struct mid_q_entry *midEntry)
 		 * smb2slowcmd[NUMBER_OF_SMB2_COMMANDS] counts by command
 		 * NB: le16_to_cpu returns unsigned so can not be negative below
 		 */
-		if (le16_to_cpu(midEntry->command) < NUMBER_OF_SMB2_COMMANDS)
-			cifs_stats_inc(&midEntry->server->smb2slowcmd[le16_to_cpu(midEntry->command)]);
+		if (smb_cmd < NUMBER_OF_SMB2_COMMANDS)
+			cifs_stats_inc(&server->smb2slowcmd[smb_cmd]);
 
-		trace_smb3_slow_rsp(le16_to_cpu(midEntry->command),
-			       midEntry->mid, midEntry->pid,
+		trace_smb3_slow_rsp(smb_cmd, midEntry->mid, midEntry->pid,
 			       midEntry->when_sent, midEntry->when_received);
 		if (cifsFYI & CIFS_TIMER) {
 			pr_debug(" CIFS slow rsp: cmd %d mid %llu",
@@ -300,7 +319,7 @@ __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	__be32 rfc1002_marker;
 
 	if (cifs_rdma_enabled(server) && server->smbd_conn) {
-		rc = smbd_send(server, rqst);
+		rc = smbd_send(server, num_rqst, rqst);
 		goto smbd_done;
 	}
 
@@ -510,7 +529,7 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 		return -EAGAIN;
 
 	spin_lock(&server->req_lock);
-	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_ASYNC_OP) {
+	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_NON_BLOCKING) {
 		/* oplock breaks must not be held up */
 		server->in_flight++;
 		*credits -= 1;
@@ -819,7 +838,7 @@ SendReceiveNoRsp(const unsigned int xid, struct cifs_ses *ses,
 
 	iov[0].iov_base = in_buf;
 	iov[0].iov_len = get_rfc1002_length(in_buf) + 4;
-	flags |= CIFS_NO_RESP;
+	flags |= CIFS_NO_RSP_BUF;
 	rc = SendReceive2(xid, ses, iov, 1, &resp_buf_type, flags, &rsp_iov);
 	cifs_dbg(NOISY, "SendRcvNoRsp flags %d rc %d\n", flags, rc);
 
@@ -1054,8 +1073,11 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 
 	mutex_unlock(&ses->server->srv_mutex);
 
-	if (rc < 0) {
-		/* Sending failed for some reason - return credits back */
+	/*
+	 * If sending failed for some reason or it is an oplock break that we
+	 * will not receive a response to - return credits back
+	 */
+	if (rc < 0 || (flags & CIFS_NO_SRV_RSP)) {
 		for (i = 0; i < num_rqst; i++)
 			add_credits(ses->server, &credits[i], optype);
 		goto out;
@@ -1075,9 +1097,6 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP))
 		smb311_update_preauth_hash(ses, rqst[0].rq_iov,
 					   rqst[0].rq_nvec);
-
-	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_ASYNC_OP)
-		goto out;
 
 	for (i = 0; i < num_rqst; i++) {
 		rc = wait_for_response(ses->server, midQ[i]);
@@ -1132,7 +1151,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 						     flags & CIFS_LOG_ERROR);
 
 		/* mark it so buf will not be freed by cifs_delete_mid */
-		if ((flags & CIFS_NO_RESP) == 0)
+		if ((flags & CIFS_NO_RSP_BUF) == 0)
 			midQ[i]->resp_buf = NULL;
 
 	}
@@ -1281,9 +1300,6 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	mutex_unlock(&ses->server->srv_mutex);
 
 	if (rc < 0)
-		goto out;
-
-	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_ASYNC_OP)
 		goto out;
 
 	rc = wait_for_response(ses->server, midQ);

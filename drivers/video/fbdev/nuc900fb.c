@@ -455,7 +455,7 @@ static int nuc900fb_cpufreq_transition(struct notifier_block *nb,
 	struct fb_info *fbinfo;
 	long delta_f;
 	info = container_of(nb, struct nuc900fb_info, freq_transition);
-	fbinfo = platform_get_drvdata(to_platform_device(info->dev));
+	fbinfo = dev_get_drvdata(info->dev);
 
 	delta_f = info->clk_rate - clk_get_rate(info->clk);
 

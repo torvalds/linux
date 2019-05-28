@@ -557,14 +557,9 @@ static void _dpu_plane_setup_scaler(struct dpu_plane *pdpu,
 		struct dpu_plane_state *pstate,
 		const struct dpu_format *fmt, bool color_fill)
 {
-	uint32_t chroma_subsmpl_h, chroma_subsmpl_v;
+	const struct drm_format_info *info = drm_format_info(fmt->base.pixel_format);
 
 	/* don't chroma subsample if decimating */
-	chroma_subsmpl_h =
-		drm_format_horz_chroma_subsampling(fmt->base.pixel_format);
-	chroma_subsmpl_v =
-		drm_format_vert_chroma_subsampling(fmt->base.pixel_format);
-
 	/* update scaler. calculate default config for QSEED3 */
 	_dpu_plane_setup_scaler3(pdpu, pstate,
 			drm_rect_width(&pdpu->pipe_cfg.src_rect),
@@ -572,7 +567,7 @@ static void _dpu_plane_setup_scaler(struct dpu_plane *pdpu,
 			drm_rect_width(&pdpu->pipe_cfg.dst_rect),
 			drm_rect_height(&pdpu->pipe_cfg.dst_rect),
 			&pstate->scaler3_cfg, fmt,
-			chroma_subsmpl_h, chroma_subsmpl_v);
+			info->hsub, info->vsub);
 }
 
 /**
@@ -780,7 +775,6 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	struct dpu_plane_state *pstate = to_dpu_plane_state(new_state);
 	struct dpu_hw_fmt_layout layout;
 	struct drm_gem_object *obj;
-	struct msm_gem_object *msm_obj;
 	struct dma_fence *fence;
 	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
 	int ret;
@@ -799,8 +793,7 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	 *       implicit fence and fb prepare by hand here.
 	 */
 	obj = msm_framebuffer_bo(new_state->fb, 0);
-	msm_obj = to_msm_bo(obj);
-	fence = reservation_object_get_excl_rcu(msm_obj->resv);
+	fence = reservation_object_get_excl_rcu(obj->resv);
 	if (fence)
 		drm_atomic_set_fence_for_plane(new_state, fence);
 

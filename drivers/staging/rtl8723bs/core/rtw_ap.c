@@ -782,12 +782,8 @@ void start_bss_network(struct adapter *padapter, u8 *pbuf)
 	/* check if there is wps ie, */
 	/* if there is wpsie in beacon, the hostapd will update beacon twice when stating hostapd, */
 	/* and at first time the security ie (RSN/WPA IE) will not include in beacon. */
-	if (NULL == rtw_get_wps_ie(
-		pnetwork->IEs+_FIXED_IE_LENGTH_,
-		pnetwork->IELength-_FIXED_IE_LENGTH_,
-		NULL,
-		NULL
-	))
+	if (!rtw_get_wps_ie(pnetwork->IEs+_FIXED_IE_LENGTH_,
+			    pnetwork->IELength-_FIXED_IE_LENGTH_, NULL, NULL))
 		pmlmeext->bstart_bss = true;
 
 	/* todo: update wmm, ht cap */
@@ -2340,8 +2336,8 @@ void rtw_ap_restore_network(struct adapter *padapter)
 			Update_RA_Entry(padapter, psta);
 			/* pairwise key */
 			/* per sta pairwise key and settings */
-			if ((padapter->securitypriv.dot11PrivacyAlgrthm == _TKIP_) ||
-				(padapter->securitypriv.dot11PrivacyAlgrthm == _AES_)) {
+			if ((psecuritypriv->dot11PrivacyAlgrthm == _TKIP_) ||
+				(psecuritypriv->dot11PrivacyAlgrthm == _AES_)) {
 				rtw_setstakey_cmd(padapter, psta, true, false);
 			}
 		}

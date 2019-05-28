@@ -1855,7 +1855,7 @@ void ath10k_ce_dump_registers(struct ath10k *ar,
 	struct ath10k_ce_crash_data ce_data;
 	u32 addr, id;
 
-	lockdep_assert_held(&ar->data_lock);
+	lockdep_assert_held(&ar->dump_mutex);
 
 	ath10k_err(ar, "Copy Engine register dump:\n");
 

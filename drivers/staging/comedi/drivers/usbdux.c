@@ -1691,6 +1691,8 @@ static void usbdux_detach(struct comedi_device *dev)
 	usbdux_free_usb_buffers(dev);
 
 	mutex_unlock(&devpriv->mut);
+
+	mutex_destroy(&devpriv->mut);
 }
 
 static struct comedi_driver usbdux_driver = {

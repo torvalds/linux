@@ -664,7 +664,7 @@ static void __exit serpent_mod_fini(void)
 	crypto_unregister_algs(srp_algs, ARRAY_SIZE(srp_algs));
 }
 
-module_init(serpent_mod_init);
+subsys_initcall(serpent_mod_init);
 module_exit(serpent_mod_fini);
 
 MODULE_LICENSE("GPL");

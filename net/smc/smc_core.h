@@ -229,6 +229,24 @@ struct smc_link_group {
 	};
 };
 
+struct smc_clc_msg_local;
+
+struct smc_init_info {
+	u8			is_smcd;
+	unsigned short		vlan_id;
+	int			srv_first_contact;
+	int			cln_first_contact;
+	/* SMC-R */
+	struct smc_clc_msg_local *ib_lcl;
+	struct smc_ib_device	*ib_dev;
+	u8			ib_gid[SMC_GID_SIZE];
+	u8			ib_port;
+	u32			ib_clcqpn;
+	/* SMC-D */
+	u64			ism_gid;
+	struct smcd_dev		*ism_dev;
+};
+
 /* Find the connection associated with the given alert token in the link group.
  * To use rbtrees we have to implement our own search core.
  * Requires @conns_lock
@@ -281,13 +299,10 @@ void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_device(struct smc_connection *conn);
-int smc_vlan_by_tcpsk(struct socket *clcsock, unsigned short *vlan_id);
+int smc_vlan_by_tcpsk(struct socket *clcsock, struct smc_init_info *ini);
 
 void smc_conn_free(struct smc_connection *conn);
-int smc_conn_create(struct smc_sock *smc, bool is_smcd, int srv_first_contact,
-		    struct smc_ib_device *smcibdev, u8 ibport, u32 clcqpn,
-		    struct smc_clc_msg_local *lcl, struct smcd_dev *smcd,
-		    u64 peer_gid);
+int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini);
 void smcd_conn_free(struct smc_connection *conn);
 void smc_lgr_schedule_free_work_fast(struct smc_link_group *lgr);
 void smc_core_exit(void);

@@ -40,6 +40,11 @@ enum hwmon_chip_attributes {
 	hwmon_chip_register_tz,
 	hwmon_chip_update_interval,
 	hwmon_chip_alarms,
+	hwmon_chip_samples,
+	hwmon_chip_curr_samples,
+	hwmon_chip_in_samples,
+	hwmon_chip_power_samples,
+	hwmon_chip_temp_samples,
 };
 
 #define HWMON_C_TEMP_RESET_HISTORY	BIT(hwmon_chip_temp_reset_history)
@@ -49,6 +54,11 @@ enum hwmon_chip_attributes {
 #define HWMON_C_REGISTER_TZ		BIT(hwmon_chip_register_tz)
 #define HWMON_C_UPDATE_INTERVAL		BIT(hwmon_chip_update_interval)
 #define HWMON_C_ALARMS			BIT(hwmon_chip_alarms)
+#define HWMON_C_SAMPLES			BIT(hwmon_chip_samples)
+#define HWMON_C_CURR_SAMPLES		BIT(hwmon_chip_curr_samples)
+#define HWMON_C_IN_SAMPLES		BIT(hwmon_chip_in_samples)
+#define HWMON_C_POWER_SAMPLES		BIT(hwmon_chip_power_samples)
+#define HWMON_C_TEMP_SAMPLES		BIT(hwmon_chip_temp_samples)
 
 enum hwmon_temp_attributes {
 	hwmon_temp_input = 0,
@@ -364,6 +374,14 @@ struct hwmon_channel_info {
 	enum hwmon_sensor_types type;
 	const u32 *config;
 };
+
+#define HWMON_CHANNEL_INFO(stype, ...)	\
+	(&(struct hwmon_channel_info) {	\
+		.type = hwmon_##stype,	\
+		.config = (u32 []) {	\
+			__VA_ARGS__, 0	\
+		}			\
+	})
 
 /**
  * Chip configuration

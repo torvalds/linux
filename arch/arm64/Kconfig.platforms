@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Platform selection"
 
 config ARCH_ACTIONS
@@ -6,6 +7,11 @@ config ARCH_ACTIONS
 	select PINCTRL
 	help
 	  This enables support for the Actions Semiconductor S900 SoC family.
+
+config ARCH_AGILEX
+	bool "Intel's Agilex SoCFPGA Family"
+	help
+	  This enables support for Intel's Agilex SoCFPGA Family.
 
 config ARCH_SUNXI
 	bool "Allwinner sunxi 64-bit SoC Family"
@@ -82,6 +88,11 @@ config ARCH_EXYNOS
 config ARCH_K3
 	bool "Texas Instruments Inc. K3 multicore SoC architecture"
 	select PM_GENERIC_DOMAINS if PM
+	select MAILBOX
+	select TI_MESSAGE_MANAGER
+	select TI_SCI_PROTOCOL
+	select TI_SCI_INTR_IRQCHIP
+	select TI_SCI_INTA_IRQCHIP
 	help
 	  This enables support for Texas Instruments' K3 multicore SoC
 	  architecture.
@@ -210,6 +221,7 @@ config ARCH_SYNQUACER
 config ARCH_TEGRA
 	bool "NVIDIA Tegra SoC Family"
 	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_GIC_PM
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select TIMER_OF

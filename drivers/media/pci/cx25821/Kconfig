@@ -1,9 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_CX25821
 	tristate "Conexant cx25821 support"
 	depends on VIDEO_DEV && PCI && I2C
 	select I2C_ALGOBIT
 	select VIDEOBUF2_DMA_SG
-	---help---
+	help
 	  This is a video4linux driver for Conexant 25821 based
 	  TV cards.
 
@@ -14,7 +15,7 @@ config VIDEO_CX25821_ALSA
 	tristate "Conexant 25821 DMA audio support"
 	depends on VIDEO_CX25821 && SND
 	select SND_PCM
-	---help---
+	help
 	  This is a video4linux driver for direct (DMA) audio on
 	  Conexant 25821 based capture cards using ALSA.
 

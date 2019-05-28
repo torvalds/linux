@@ -59,7 +59,6 @@
         "BriefDescription": "Number of Packed Double-Precision FP arithmetic instructions (Use operation multiplier of 8)",
         "Counter": "0,1,2,3",
         "EventName": "FP_ARITH_INST_RETIRED.512B_PACKED_DOUBLE",
-        "PublicDescription": "Number of Packed Double-Precision FP arithmetic instructions (Use operation multiplier of 8).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -69,7 +68,6 @@
         "BriefDescription": "Number of Packed Single-Precision FP arithmetic instructions (Use operation multiplier of 16)",
         "Counter": "0,1,2,3",
         "EventName": "FP_ARITH_INST_RETIRED.512B_PACKED_SINGLE",
-        "PublicDescription": "Number of Packed Single-Precision FP arithmetic instructions (Use operation multiplier of 16).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },

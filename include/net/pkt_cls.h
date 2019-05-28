@@ -100,6 +100,11 @@ int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 		 struct tcf_result *res, bool compat_mode);
 
 #else
+static inline bool tcf_block_shared(struct tcf_block *block)
+{
+	return false;
+}
+
 static inline
 int tcf_block_get(struct tcf_block **p_block,
 		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
@@ -368,30 +373,6 @@ static inline bool tcf_exts_has_actions(struct tcf_exts *exts)
 	return exts->nr_actions;
 #else
 	return false;
-#endif
-}
-
-/**
- * tcf_exts_has_one_action - check if exactly one action is present
- * @exts: tc filter extensions handle
- *
- * Returns true if exactly one action is present.
- */
-static inline bool tcf_exts_has_one_action(struct tcf_exts *exts)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	return exts->nr_actions == 1;
-#else
-	return false;
-#endif
-}
-
-static inline struct tc_action *tcf_exts_first_action(struct tcf_exts *exts)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	return exts->actions[0];
-#else
-	return NULL;
 #endif
 }
 
@@ -784,12 +765,14 @@ tc_cls_flower_offload_flow_rule(struct tc_cls_flower_offload *tc_flow_cmd)
 enum tc_matchall_command {
 	TC_CLSMATCHALL_REPLACE,
 	TC_CLSMATCHALL_DESTROY,
+	TC_CLSMATCHALL_STATS,
 };
 
 struct tc_cls_matchall_offload {
 	struct tc_cls_common_offload common;
 	enum tc_matchall_command command;
-	struct tcf_exts *exts;
+	struct flow_rule *rule;
+	struct flow_stats stats;
 	unsigned long cookie;
 };
 

@@ -485,12 +485,12 @@ static int catu_disable(struct coresight_device *csdev, void *__unused)
 	return rc;
 }
 
-const struct coresight_ops_helper catu_helper_ops = {
+static const struct coresight_ops_helper catu_helper_ops = {
 	.enable = catu_enable,
 	.disable = catu_disable,
 };
 
-const struct coresight_ops catu_ops = {
+static const struct coresight_ops catu_ops = {
 	.helper_ops = &catu_helper_ops,
 };
 
@@ -557,8 +557,9 @@ static int catu_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->csdev = coresight_register(&catu_desc);
 	if (IS_ERR(drvdata->csdev))
 		ret = PTR_ERR(drvdata->csdev);
+	else
+		pm_runtime_put(&adev->dev);
 out:
-	pm_runtime_put(&adev->dev);
 	return ret;
 }
 

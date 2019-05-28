@@ -11,7 +11,7 @@
 #include "btf.h"
 #include "bpf.h"
 #include "libbpf.h"
-#include "libbpf_util.h"
+#include "libbpf_internal.h"
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -23,6 +23,8 @@
 		((k) == BTF_KIND_VOLATILE) || \
 		((k) == BTF_KIND_CONST) || \
 		((k) == BTF_KIND_RESTRICT))
+
+#define IS_VAR(k) ((k) == BTF_KIND_VAR)
 
 static struct btf_type btf_void;
 
@@ -212,6 +214,10 @@ static int btf_type_size(struct btf_type *t)
 		return base_size + vlen * sizeof(struct btf_member);
 	case BTF_KIND_FUNC_PROTO:
 		return base_size + vlen * sizeof(struct btf_param);
+	case BTF_KIND_VAR:
+		return base_size + sizeof(struct btf_var);
+	case BTF_KIND_DATASEC:
+		return base_size + vlen * sizeof(struct btf_var_secinfo);
 	default:
 		pr_debug("Unsupported BTF_KIND:%u\n", BTF_INFO_KIND(t->info));
 		return -EINVAL;
@@ -283,6 +289,7 @@ __s64 btf__resolve_size(const struct btf *btf, __u32 type_id)
 		case BTF_KIND_STRUCT:
 		case BTF_KIND_UNION:
 		case BTF_KIND_ENUM:
+		case BTF_KIND_DATASEC:
 			size = t->size;
 			goto done;
 		case BTF_KIND_PTR:
@@ -292,6 +299,7 @@ __s64 btf__resolve_size(const struct btf *btf, __u32 type_id)
 		case BTF_KIND_VOLATILE:
 		case BTF_KIND_CONST:
 		case BTF_KIND_RESTRICT:
+		case BTF_KIND_VAR:
 			type_id = t->type;
 			break;
 		case BTF_KIND_ARRAY:
@@ -326,7 +334,8 @@ int btf__resolve_type(const struct btf *btf, __u32 type_id)
 	t = btf__type_by_id(btf, type_id);
 	while (depth < MAX_RESOLVE_DEPTH &&
 	       !btf_type_is_void_or_null(t) &&
-	       IS_MODIFIER(BTF_INFO_KIND(t->info))) {
+	       (IS_MODIFIER(BTF_INFO_KIND(t->info)) ||
+		IS_VAR(BTF_INFO_KIND(t->info)))) {
 		type_id = t->type;
 		t = btf__type_by_id(btf, type_id);
 		depth++;
@@ -406,6 +415,92 @@ done:
 	}
 
 	return btf;
+}
+
+static int compare_vsi_off(const void *_a, const void *_b)
+{
+	const struct btf_var_secinfo *a = _a;
+	const struct btf_var_secinfo *b = _b;
+
+	return a->offset - b->offset;
+}
+
+static int btf_fixup_datasec(struct bpf_object *obj, struct btf *btf,
+			     struct btf_type *t)
+{
+	__u32 size = 0, off = 0, i, vars = BTF_INFO_VLEN(t->info);
+	const char *name = btf__name_by_offset(btf, t->name_off);
+	const struct btf_type *t_var;
+	struct btf_var_secinfo *vsi;
+	struct btf_var *var;
+	int ret;
+
+	if (!name) {
+		pr_debug("No name found in string section for DATASEC kind.\n");
+		return -ENOENT;
+	}
+
+	ret = bpf_object__section_size(obj, name, &size);
+	if (ret || !size || (t->size && t->size != size)) {
+		pr_debug("Invalid size for section %s: %u bytes\n", name, size);
+		return -ENOENT;
+	}
+
+	t->size = size;
+
+	for (i = 0, vsi = (struct btf_var_secinfo *)(t + 1);
+	     i < vars; i++, vsi++) {
+		t_var = btf__type_by_id(btf, vsi->type);
+		var = (struct btf_var *)(t_var + 1);
+
+		if (BTF_INFO_KIND(t_var->info) != BTF_KIND_VAR) {
+			pr_debug("Non-VAR type seen in section %s\n", name);
+			return -EINVAL;
+		}
+
+		if (var->linkage == BTF_VAR_STATIC)
+			continue;
+
+		name = btf__name_by_offset(btf, t_var->name_off);
+		if (!name) {
+			pr_debug("No name found in string section for VAR kind\n");
+			return -ENOENT;
+		}
+
+		ret = bpf_object__variable_offset(obj, name, &off);
+		if (ret) {
+			pr_debug("No offset found in symbol table for VAR %s\n", name);
+			return -ENOENT;
+		}
+
+		vsi->offset = off;
+	}
+
+	qsort(t + 1, vars, sizeof(*vsi), compare_vsi_off);
+	return 0;
+}
+
+int btf__finalize_data(struct bpf_object *obj, struct btf *btf)
+{
+	int err = 0;
+	__u32 i;
+
+	for (i = 1; i <= btf->nr_types; i++) {
+		struct btf_type *t = btf->types[i];
+
+		/* Loader needs to fix up some of the things compiler
+		 * couldn't get its hands on while emitting BTF. This
+		 * is section size and global variable offset. We use
+		 * the info from the ELF itself for this purpose.
+		 */
+		if (BTF_INFO_KIND(t->info) == BTF_KIND_DATASEC) {
+			err = btf_fixup_datasec(obj, btf, t);
+			if (err)
+				break;
+		}
+	}
+
+	return err;
 }
 
 int btf__load(struct btf *btf)
@@ -1259,8 +1354,16 @@ static struct btf_dedup *btf_dedup_new(struct btf *btf, struct btf_ext *btf_ext,
 	}
 	/* special BTF "void" type is made canonical immediately */
 	d->map[0] = 0;
-	for (i = 1; i <= btf->nr_types; i++)
-		d->map[i] = BTF_UNPROCESSED_ID;
+	for (i = 1; i <= btf->nr_types; i++) {
+		struct btf_type *t = d->btf->types[i];
+		__u16 kind = BTF_INFO_KIND(t->info);
+
+		/* VAR and DATASEC are never deduped and are self-canonical */
+		if (kind == BTF_KIND_VAR || kind == BTF_KIND_DATASEC)
+			d->map[i] = i;
+		else
+			d->map[i] = BTF_UNPROCESSED_ID;
+	}
 
 	d->hypot_map = malloc(sizeof(__u32) * (1 + btf->nr_types));
 	if (!d->hypot_map) {
@@ -1851,6 +1954,8 @@ static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 	case BTF_KIND_UNION:
 	case BTF_KIND_FUNC:
 	case BTF_KIND_FUNC_PROTO:
+	case BTF_KIND_VAR:
+	case BTF_KIND_DATASEC:
 		return 0;
 
 	case BTF_KIND_INT:
@@ -2604,6 +2709,7 @@ static int btf_dedup_remap_type(struct btf_dedup *d, __u32 type_id)
 	case BTF_KIND_PTR:
 	case BTF_KIND_TYPEDEF:
 	case BTF_KIND_FUNC:
+	case BTF_KIND_VAR:
 		r = btf_dedup_remap_type_id(d, t->type);
 		if (r < 0)
 			return r;
@@ -2654,6 +2760,20 @@ static int btf_dedup_remap_type(struct btf_dedup *d, __u32 type_id)
 				return r;
 			param->type = r;
 			param++;
+		}
+		break;
+	}
+
+	case BTF_KIND_DATASEC: {
+		struct btf_var_secinfo *var = (struct btf_var_secinfo *)(t + 1);
+		__u16 vlen = BTF_INFO_VLEN(t->info);
+
+		for (i = 0; i < vlen; i++) {
+			r = btf_dedup_remap_type_id(d, var->type);
+			if (r < 0)
+				return r;
+			var->type = r;
+			var++;
 		}
 		break;
 	}

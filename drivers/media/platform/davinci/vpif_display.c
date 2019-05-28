@@ -987,8 +987,8 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	} else {
 		std_info->l5 = std_info->vsize - (bt->vfrontporch - 1);
 	}
-	strncpy(std_info->name, "Custom timings BT656/1120",
-			VPIF_MAX_NAME);
+	strscpy(std_info->name, "Custom timings BT656/1120",
+		sizeof(std_info->name));
 	std_info->width = bt->width;
 	std_info->height = bt->height;
 	std_info->frm_fmt = bt->interlaced ? 0 : 1;

@@ -49,6 +49,9 @@
 #define PF_MBX_ATQLEN_ATQLEN_M			ICE_M(0x3FF, 0)
 #define PF_MBX_ATQLEN_ATQENABLE_M		BIT(31)
 #define PF_MBX_ATQT				0x0022E300
+#define PRTDCB_GENS				0x00083020
+#define PRTDCB_GENS_DCBX_STATUS_S		0
+#define PRTDCB_GENS_DCBX_STATUS_M		ICE_M(0x7, 0)
 #define GLFLXP_RXDID_FLAGS(_i, _j)		(0x0045D000 + ((_i) * 4 + (_j) * 256))
 #define GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_S	0
 #define GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_M	ICE_M(0x3F, 0)
@@ -106,6 +109,16 @@
 #define VPGEN_VFRTRIG_VFSWR_M			BIT(0)
 #define PFHMC_ERRORDATA				0x00520500
 #define PFHMC_ERRORINFO				0x00520400
+#define GLINT_CTL				0x0016CC54
+#define GLINT_CTL_DIS_AUTOMASK_M		BIT(0)
+#define GLINT_CTL_ITR_GRAN_200_S		16
+#define GLINT_CTL_ITR_GRAN_200_M		ICE_M(0xF, 16)
+#define GLINT_CTL_ITR_GRAN_100_S		20
+#define GLINT_CTL_ITR_GRAN_100_M		ICE_M(0xF, 20)
+#define GLINT_CTL_ITR_GRAN_50_S			24
+#define GLINT_CTL_ITR_GRAN_50_M			ICE_M(0xF, 24)
+#define GLINT_CTL_ITR_GRAN_25_S			28
+#define GLINT_CTL_ITR_GRAN_25_M			ICE_M(0xF, 28)
 #define GLINT_DYN_CTL(_INT)			(0x00160000 + ((_INT) * 4))
 #define GLINT_DYN_CTL_INTENA_M			BIT(0)
 #define GLINT_DYN_CTL_CLEARPBA_M		BIT(1)
@@ -150,11 +163,15 @@
 #define PFINT_OICR_ENA				0x0016C900
 #define QINT_RQCTL(_QRX)			(0x00150000 + ((_QRX) * 4))
 #define QINT_RQCTL_MSIX_INDX_S			0
+#define QINT_RQCTL_MSIX_INDX_M			ICE_M(0x7FF, 0)
 #define QINT_RQCTL_ITR_INDX_S			11
+#define QINT_RQCTL_ITR_INDX_M			ICE_M(0x3, 11)
 #define QINT_RQCTL_CAUSE_ENA_M			BIT(30)
 #define QINT_TQCTL(_DBQM)			(0x00140000 + ((_DBQM) * 4))
 #define QINT_TQCTL_MSIX_INDX_S			0
+#define QINT_TQCTL_MSIX_INDX_M			ICE_M(0x7FF, 0)
 #define QINT_TQCTL_ITR_INDX_S			11
+#define QINT_TQCTL_ITR_INDX_M			ICE_M(0x3, 11)
 #define QINT_TQCTL_CAUSE_ENA_M			BIT(30)
 #define VPINT_ALLOC(_VF)			(0x001D1000 + ((_VF) * 4))
 #define VPINT_ALLOC_FIRST_S			0
@@ -168,6 +185,8 @@
 #define VPINT_ALLOC_PCI_LAST_S			12
 #define VPINT_ALLOC_PCI_LAST_M			ICE_M(0x7FF, 12)
 #define VPINT_ALLOC_PCI_VALID_M			BIT(31)
+#define VPINT_MBX_CTL(_VSI)			(0x0016A000 + ((_VSI) * 4))
+#define VPINT_MBX_CTL_CAUSE_ENA_M		BIT(30)
 #define GLLAN_RCTL_0				0x002941F8
 #define QRX_CONTEXT(_i, _QRX)			(0x00280000 + ((_i) * 8192 + (_QRX) * 4))
 #define QRX_CTRL(_QRX)				(0x00120000 + ((_QRX) * 4))
@@ -306,11 +325,16 @@
 #define GLPRT_PTC64L(_i)			(0x00380B80 + ((_i) * 8))
 #define GLPRT_PTC9522H(_i)			(0x00380D04 + ((_i) * 8))
 #define GLPRT_PTC9522L(_i)			(0x00380D00 + ((_i) * 8))
+#define GLPRT_PXOFFRXC(_i, _j)			(0x00380500 + ((_i) * 8 + (_j) * 64))
+#define GLPRT_PXOFFTXC(_i, _j)			(0x00380F40 + ((_i) * 8 + (_j) * 64))
+#define GLPRT_PXONRXC(_i, _j)			(0x00380300 + ((_i) * 8 + (_j) * 64))
+#define GLPRT_PXONTXC(_i, _j)			(0x00380D40 + ((_i) * 8 + (_j) * 64))
 #define GLPRT_RFC(_i)				(0x00380AC0 + ((_i) * 8))
 #define GLPRT_RJC(_i)				(0x00380B00 + ((_i) * 8))
 #define GLPRT_RLEC(_i)				(0x00380140 + ((_i) * 8))
 #define GLPRT_ROC(_i)				(0x00380240 + ((_i) * 8))
 #define GLPRT_RUC(_i)				(0x00380200 + ((_i) * 8))
+#define GLPRT_RXON2OFFCNT(_i, _j)		(0x00380700 + ((_i) * 8 + (_j) * 64))
 #define GLPRT_TDOLD(_i)				(0x00381280 + ((_i) * 8))
 #define GLPRT_UPRCH(_i)				(0x00381304 + ((_i) * 8))
 #define GLPRT_UPRCL(_i)				(0x00381300 + ((_i) * 8))

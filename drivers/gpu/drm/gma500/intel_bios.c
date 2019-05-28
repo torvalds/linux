@@ -18,13 +18,13 @@
  *    Eric Anholt <eric@anholt.net>
  *
  */
-#include <drm/drmP.h>
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
+#include <drm/drm_dp_helper.h>
+
+#include "intel_bios.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "intel_bios.h"
 
 #define	SLAVE_ADDR1	0x70
 #define	SLAVE_ADDR2	0x72
@@ -435,6 +435,9 @@ parse_driver_features(struct drm_psb_private *dev_priv,
 
 	if (driver->lvds_config == BDB_DRIVER_FEATURE_EDP)
 		dev_priv->edp.support = 1;
+
+	dev_priv->lvds_enabled_in_vbt = driver->lvds_config != 0;
+	DRM_DEBUG_KMS("LVDS VBT config bits: 0x%x\n", driver->lvds_config);
 
 	/* This bit means to use 96Mhz for DPLL_A or not */
 	if (driver->primary_lfp_id)

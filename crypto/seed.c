@@ -470,7 +470,7 @@ static void __exit seed_fini(void)
 	crypto_unregister_alg(&seed_alg);
 }
 
-module_init(seed_init);
+subsys_initcall(seed_init);
 module_exit(seed_fini);
 
 MODULE_DESCRIPTION("SEED Cipher Algorithm");

@@ -722,7 +722,7 @@ ssize_t parport_read (struct parport *port, void *buffer, size_t len)
 		if (parport_negotiate (port, IEEE1284_MODE_NIBBLE)) {
 			return -EIO;
 		}
-		/* fall through to NIBBLE */
+		/* fall through - to NIBBLE */
 	case IEEE1284_MODE_NIBBLE:
 		DPRINTK (KERN_DEBUG "%s: Using nibble mode\n", port->name);
 		fn = port->ops->nibble_read_data;

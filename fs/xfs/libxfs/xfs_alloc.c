@@ -2042,6 +2042,7 @@ xfs_alloc_space_available(
 	xfs_extlen_t		alloc_len, longest;
 	xfs_extlen_t		reservation; /* blocks that are still reserved */
 	int			available;
+	xfs_extlen_t		agflcount;
 
 	if (flags & XFS_ALLOC_FLAG_FREEING)
 		return true;
@@ -2054,8 +2055,13 @@ xfs_alloc_space_available(
 	if (longest < alloc_len)
 		return false;
 
-	/* do we have enough free space remaining for the allocation? */
-	available = (int)(pag->pagf_freeblks + pag->pagf_flcount -
+	/*
+	 * Do we have enough free space remaining for the allocation? Don't
+	 * account extra agfl blocks because we are about to defer free them,
+	 * making them unavailable until the current transaction commits.
+	 */
+	agflcount = min_t(xfs_extlen_t, pag->pagf_flcount, min_free);
+	available = (int)(pag->pagf_freeblks + agflcount -
 			  reservation - min_free - args->minleft);
 	if (available < (int)max(args->total, alloc_len))
 		return false;
@@ -2236,6 +2242,9 @@ xfs_alloc_fix_freelist(
 	xfs_agblock_t		bno;	/* freelist block */
 	xfs_extlen_t		need;	/* total blocks needed in freelist */
 	int			error = 0;
+
+	/* deferred ops (AGFL block frees) require permanent transactions */
+	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 
 	if (!pag->pagf_init) {
 		error = xfs_alloc_read_agf(mp, tp, args->agno, flags, &agbp);

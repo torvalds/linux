@@ -20,6 +20,8 @@
 
 #define PLL_NUM_OFFSET		0x10
 #define PLL_DENOM_OFFSET	0x20
+#define PLL_IMX7_NUM_OFFSET	0x20
+#define PLL_IMX7_DENOM_OFFSET	0x30
 
 #define PLL_VF610_NUM_OFFSET	0x20
 #define PLL_VF610_DENOM_OFFSET	0x30
@@ -49,6 +51,8 @@ struct clk_pllv3 {
 	u32		div_mask;
 	u32		div_shift;
 	unsigned long	ref_clock;
+	u32		num_offset;
+	u32		denom_offset;
 };
 
 #define to_clk_pllv3(_hw) container_of(_hw, struct clk_pllv3, hw)
@@ -219,8 +223,8 @@ static unsigned long clk_pllv3_av_recalc_rate(struct clk_hw *hw,
 					      unsigned long parent_rate)
 {
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 mfn = readl_relaxed(pll->base + PLL_NUM_OFFSET);
-	u32 mfd = readl_relaxed(pll->base + PLL_DENOM_OFFSET);
+	u32 mfn = readl_relaxed(pll->base + pll->num_offset);
+	u32 mfd = readl_relaxed(pll->base + pll->denom_offset);
 	u32 div = readl_relaxed(pll->base) & pll->div_mask;
 	u64 temp64 = (u64)parent_rate;
 
@@ -289,8 +293,8 @@ static int clk_pllv3_av_set_rate(struct clk_hw *hw, unsigned long rate,
 	val &= ~pll->div_mask;
 	val |= div;
 	writel_relaxed(val, pll->base);
-	writel_relaxed(mfn, pll->base + PLL_NUM_OFFSET);
-	writel_relaxed(mfd, pll->base + PLL_DENOM_OFFSET);
+	writel_relaxed(mfn, pll->base + pll->num_offset);
+	writel_relaxed(mfd, pll->base + pll->denom_offset);
 
 	return clk_pllv3_wait_lock(pll);
 }
@@ -352,8 +356,8 @@ static unsigned long clk_pllv3_vf610_recalc_rate(struct clk_hw *hw,
 	struct clk_pllv3 *pll = to_clk_pllv3(hw);
 	struct clk_pllv3_vf610_mf mf;
 
-	mf.mfn = readl_relaxed(pll->base + PLL_VF610_NUM_OFFSET);
-	mf.mfd = readl_relaxed(pll->base + PLL_VF610_DENOM_OFFSET);
+	mf.mfn = readl_relaxed(pll->base + pll->num_offset);
+	mf.mfd = readl_relaxed(pll->base + pll->denom_offset);
 	mf.mfi = (readl_relaxed(pll->base) & pll->div_mask) ? 22 : 20;
 
 	return clk_pllv3_vf610_mf_to_rate(parent_rate, mf);
@@ -382,8 +386,8 @@ static int clk_pllv3_vf610_set_rate(struct clk_hw *hw, unsigned long rate,
 		val |= pll->div_mask;	/* set bit for mfi=22 */
 	writel_relaxed(val, pll->base);
 
-	writel_relaxed(mf.mfn, pll->base + PLL_VF610_NUM_OFFSET);
-	writel_relaxed(mf.mfd, pll->base + PLL_VF610_DENOM_OFFSET);
+	writel_relaxed(mf.mfn, pll->base + pll->num_offset);
+	writel_relaxed(mf.mfd, pll->base + pll->denom_offset);
 
 	return clk_pllv3_wait_lock(pll);
 }
@@ -426,6 +430,8 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 		return ERR_PTR(-ENOMEM);
 
 	pll->power_bit = BM_PLL_POWER;
+	pll->num_offset = PLL_NUM_OFFSET;
+	pll->denom_offset = PLL_DENOM_OFFSET;
 
 	switch (type) {
 	case IMX_PLLV3_SYS:
@@ -433,13 +439,20 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 		break;
 	case IMX_PLLV3_SYS_VF610:
 		ops = &clk_pllv3_vf610_ops;
+		pll->num_offset = PLL_VF610_NUM_OFFSET;
+		pll->denom_offset = PLL_VF610_DENOM_OFFSET;
 		break;
 	case IMX_PLLV3_USB_VF610:
 		pll->div_shift = 1;
+		/* fall through */
 	case IMX_PLLV3_USB:
 		ops = &clk_pllv3_ops;
 		pll->powerup_set = true;
 		break;
+	case IMX_PLLV3_AV_IMX7:
+		pll->num_offset = PLL_IMX7_NUM_OFFSET;
+		pll->denom_offset = PLL_IMX7_DENOM_OFFSET;
+		/* fall through */
 	case IMX_PLLV3_AV:
 		ops = &clk_pllv3_av_ops;
 		break;
@@ -454,6 +467,8 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 		break;
 	case IMX_PLLV3_DDR_IMX7:
 		pll->power_bit = IMX7_DDR_PLL_POWER;
+		pll->num_offset = PLL_IMX7_NUM_OFFSET;
+		pll->denom_offset = PLL_IMX7_DENOM_OFFSET;
 		ops = &clk_pllv3_av_ops;
 		break;
 	default:

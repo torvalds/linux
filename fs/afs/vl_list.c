@@ -232,18 +232,16 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 		if (bs.status > NR__dns_lookup_status)
 			bs.status = NR__dns_lookup_status;
 
+		/* See if we can update an old server record */
 		server = NULL;
-		if (previous) {
-			/* See if we can update an old server record */
-			for (i = 0; i < previous->nr_servers; i++) {
-				struct afs_vlserver *p = previous->servers[i].server;
+		for (i = 0; i < previous->nr_servers; i++) {
+			struct afs_vlserver *p = previous->servers[i].server;
 
-				if (p->name_len == bs.name_len &&
-				    p->port == bs.port &&
-				    strncasecmp(b, p->name, bs.name_len) == 0) {
-					server = afs_get_vlserver(p);
-					break;
-				}
+			if (p->name_len == bs.name_len &&
+			    p->port == bs.port &&
+			    strncasecmp(b, p->name, bs.name_len) == 0) {
+				server = afs_get_vlserver(p);
+				break;
 			}
 		}
 

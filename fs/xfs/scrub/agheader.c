@@ -514,6 +514,7 @@ xchk_agf(
 {
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_agf		*agf;
+	struct xfs_perag	*pag;
 	xfs_agnumber_t		agno;
 	xfs_agblock_t		agbno;
 	xfs_agblock_t		eoag;
@@ -585,6 +586,16 @@ xchk_agf(
 		fl_count = xfs_agfl_size(mp) - agfl_first + agfl_last + 1;
 	if (agfl_count != 0 && fl_count != agfl_count)
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
+
+	/* Do the incore counters match? */
+	pag = xfs_perag_get(mp, agno);
+	if (pag->pagf_freeblks != be32_to_cpu(agf->agf_freeblks))
+		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
+	if (pag->pagf_flcount != be32_to_cpu(agf->agf_flcount))
+		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
+	if (pag->pagf_btreeblks != be32_to_cpu(agf->agf_btreeblks))
+		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
+	xfs_perag_put(pag);
 
 	xchk_agf_xref(sc);
 out:
@@ -811,6 +822,7 @@ xchk_agi(
 {
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_agi		*agi;
+	struct xfs_perag	*pag;
 	xfs_agnumber_t		agno;
 	xfs_agblock_t		agbno;
 	xfs_agblock_t		eoag;
@@ -880,6 +892,14 @@ xchk_agi(
 
 	if (agi->agi_pad32 != cpu_to_be32(0))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
+
+	/* Do the incore counters match? */
+	pag = xfs_perag_get(mp, agno);
+	if (pag->pagi_count != be32_to_cpu(agi->agi_count))
+		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
+	if (pag->pagi_freecount != be32_to_cpu(agi->agi_freecount))
+		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
+	xfs_perag_put(pag);
 
 	xchk_agi_xref(sc);
 out:

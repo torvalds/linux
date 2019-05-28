@@ -1,20 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Asymmetric public-key algorithm definitions
  *
  * See Documentation/crypto/asymmetric-keys.txt
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #ifndef _LINUX_PUBLIC_KEY_H
 #define _LINUX_PUBLIC_KEY_H
 
 #include <linux/keyctl.h>
+#include <linux/oid_registry.h>
 
 /*
  * Cryptographic data for the public-key subtype of the asymmetric key type.
@@ -25,6 +22,9 @@
 struct public_key {
 	void *key;
 	u32 keylen;
+	enum OID algo;
+	void *params;
+	u32 paramlen;
 	bool key_is_private;
 	const char *id_type;
 	const char *pkey_algo;

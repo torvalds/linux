@@ -333,7 +333,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	struct axp288_extcon_info *info;
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
-	const char *name;
+	struct acpi_device *adev;
 	int ret, i, pirq;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
@@ -357,9 +357,10 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 
-		name = acpi_dev_get_first_match_name("INT3496", NULL, -1);
-		if (name) {
-			info->id_extcon = extcon_get_extcon_dev(name);
+		adev = acpi_dev_get_first_match_dev("INT3496", NULL, -1);
+		if (adev) {
+			info->id_extcon = extcon_get_extcon_dev(acpi_dev_name(adev));
+			put_device(&adev->dev);
 			if (!info->id_extcon)
 				return -EPROBE_DEFER;
 

@@ -171,7 +171,7 @@ static inline bool gpmi_check_ecc(struct gpmi_nand_data *this)
 	struct bch_geometry *geo = &this->bch_geometry;
 
 	/* Do the sanity check. */
-	if (GPMI_IS_MX23(this) || GPMI_IS_MX28(this)) {
+	if (GPMI_IS_MXS(this)) {
 		/* The mx23/mx28 only support the GF13. */
 		if (geo->gf_len == 14)
 			return false;
@@ -204,7 +204,8 @@ static int set_geometry_by_ecc_info(struct gpmi_nand_data *this,
 	default:
 		dev_err(this->dev,
 			"unsupported nand chip. ecc bits : %d, ecc size : %d\n",
-			chip->ecc_strength_ds, chip->ecc_step_ds);
+			chip->base.eccreq.strength,
+			chip->base.eccreq.step_size);
 		return -EINVAL;
 	}
 	geo->ecc_chunk_size = ecc_step;
@@ -417,11 +418,13 @@ int common_nfc_set_geometry(struct gpmi_nand_data *this)
 
 	if ((of_property_read_bool(this->dev->of_node, "fsl,use-minimum-ecc"))
 				|| legacy_set_geometry(this)) {
-		if (!(chip->ecc_strength_ds > 0 && chip->ecc_step_ds > 0))
+		if (!(chip->base.eccreq.strength > 0 &&
+		      chip->base.eccreq.step_size > 0))
 			return -EINVAL;
 
-		return set_geometry_by_ecc_info(this, chip->ecc_strength_ds,
-						chip->ecc_step_ds);
+		return set_geometry_by_ecc_info(this,
+						chip->base.eccreq.strength,
+						chip->base.eccreq.step_size);
 	}
 
 	return 0;
@@ -1602,7 +1605,7 @@ static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 	unsigned int search_area_size_in_strides;
 	unsigned int stride;
 	unsigned int page;
-	uint8_t *buffer = chip->data_buf;
+	u8 *buffer = nand_get_data_buf(chip);
 	int saved_chip_number;
 	int found_an_ncb_fingerprint = false;
 
@@ -1664,7 +1667,7 @@ static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 	unsigned int block;
 	unsigned int stride;
 	unsigned int page;
-	uint8_t      *buffer = chip->data_buf;
+	u8 *buffer = nand_get_data_buf(chip);
 	int saved_chip_number;
 	int status;
 
@@ -1753,7 +1756,7 @@ static int mx23_boot_init(struct gpmi_nand_data  *this)
 	dev_dbg(dev, "Transcribing bad block marks...\n");
 
 	/* Compute the number of blocks in the entire medium. */
-	block_count = chip->chipsize >> chip->phys_erase_shift;
+	block_count = nanddev_eraseblocks_per_target(&chip->base);
 
 	/*
 	 * Loop over all the blocks in the medium, transcribing block marks as

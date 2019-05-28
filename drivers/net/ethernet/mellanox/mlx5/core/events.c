@@ -21,6 +21,7 @@ struct mlx5_event_nb {
 static int any_notifier(struct notifier_block *, unsigned long, void *);
 static int temp_warn(struct notifier_block *, unsigned long, void *);
 static int port_module(struct notifier_block *, unsigned long, void *);
+static int pcie_core(struct notifier_block *, unsigned long, void *);
 
 /* handler which forwards the event to events->nh, driver notifiers */
 static int forward_event(struct notifier_block *, unsigned long, void *);
@@ -30,6 +31,7 @@ static struct mlx5_nb events_nbs_ref[] = {
 	{.nb.notifier_call = any_notifier,  .event_type = MLX5_EVENT_TYPE_NOTIFY_ANY },
 	{.nb.notifier_call = temp_warn,     .event_type = MLX5_EVENT_TYPE_TEMP_WARN_EVENT },
 	{.nb.notifier_call = port_module,   .event_type = MLX5_EVENT_TYPE_PORT_MODULE_EVENT },
+	{.nb.notifier_call = pcie_core,     .event_type = MLX5_EVENT_TYPE_GENERAL_EVENT },
 
 	/* Events to be forwarded (as is) to mlx5 core interfaces (mlx5e/mlx5_ib) */
 	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_PORT_CHANGE },
@@ -51,11 +53,14 @@ static struct mlx5_nb events_nbs_ref[] = {
 
 struct mlx5_events {
 	struct mlx5_core_dev *dev;
+	struct workqueue_struct *wq;
 	struct mlx5_event_nb  notifiers[ARRAY_SIZE(events_nbs_ref)];
 	/* driver notifier chain */
 	struct atomic_notifier_head nh;
 	/* port module events stats */
 	struct mlx5_pme_stats pme_stats;
+	/*pcie_core*/
+	struct work_struct pcie_core_work;
 };
 
 static const char *eqe_type_str(u8 type)
@@ -249,6 +254,69 @@ static int port_module(struct notifier_block *nb, unsigned long type, void *data
 	return NOTIFY_OK;
 }
 
+enum {
+	MLX5_PCI_POWER_COULD_NOT_BE_READ = 0x0,
+	MLX5_PCI_POWER_SUFFICIENT_REPORTED = 0x1,
+	MLX5_PCI_POWER_INSUFFICIENT_REPORTED = 0x2,
+};
+
+static void mlx5_pcie_event(struct work_struct *work)
+{
+	u32 out[MLX5_ST_SZ_DW(mpein_reg)] = {0};
+	u32 in[MLX5_ST_SZ_DW(mpein_reg)] = {0};
+	struct mlx5_events *events;
+	struct mlx5_core_dev *dev;
+	u8 power_status;
+	u16 pci_power;
+
+	events = container_of(work, struct mlx5_events, pcie_core_work);
+	dev  = events->dev;
+
+	if (!MLX5_CAP_MCAM_FEATURE(dev, pci_status_and_power))
+		return;
+
+	mlx5_core_access_reg(dev, in, sizeof(in), out, sizeof(out),
+			     MLX5_REG_MPEIN, 0, 0);
+	power_status = MLX5_GET(mpein_reg, out, pwr_status);
+	pci_power = MLX5_GET(mpein_reg, out, pci_power);
+
+	switch (power_status) {
+	case MLX5_PCI_POWER_COULD_NOT_BE_READ:
+		mlx5_core_info_rl(dev,
+				  "PCIe slot power capability was not advertised.\n");
+		break;
+	case MLX5_PCI_POWER_INSUFFICIENT_REPORTED:
+		mlx5_core_warn_rl(dev,
+				  "Detected insufficient power on the PCIe slot (%uW).\n",
+				  pci_power);
+		break;
+	case MLX5_PCI_POWER_SUFFICIENT_REPORTED:
+		mlx5_core_info_rl(dev,
+				  "PCIe slot advertised sufficient power (%uW).\n",
+				  pci_power);
+		break;
+	}
+}
+
+static int pcie_core(struct notifier_block *nb, unsigned long type, void *data)
+{
+	struct mlx5_event_nb    *event_nb = mlx5_nb_cof(nb,
+							struct mlx5_event_nb,
+							nb);
+	struct mlx5_events      *events   = event_nb->ctx;
+	struct mlx5_eqe         *eqe      = data;
+
+	switch (eqe->sub_type) {
+	case MLX5_GENERAL_SUBTYPE_PCI_POWER_CHANGE_EVENT:
+			queue_work(events->wq, &events->pcie_core_work);
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
 void mlx5_get_pme_stats(struct mlx5_core_dev *dev, struct mlx5_pme_stats *stats)
 {
 	*stats = dev->priv.events->pme_stats;
@@ -277,11 +345,17 @@ int mlx5_events_init(struct mlx5_core_dev *dev)
 	ATOMIC_INIT_NOTIFIER_HEAD(&events->nh);
 	events->dev = dev;
 	dev->priv.events = events;
+	events->wq = create_singlethread_workqueue("mlx5_events");
+	if (!events->wq)
+		return -ENOMEM;
+	INIT_WORK(&events->pcie_core_work, mlx5_pcie_event);
+
 	return 0;
 }
 
 void mlx5_events_cleanup(struct mlx5_core_dev *dev)
 {
+	destroy_workqueue(dev->priv.events->wq);
 	kvfree(dev->priv.events);
 }
 
@@ -304,6 +378,7 @@ void mlx5_events_stop(struct mlx5_core_dev *dev)
 
 	for (i = ARRAY_SIZE(events_nbs_ref) - 1; i >= 0 ; i--)
 		mlx5_eq_notifier_unregister(dev, &events->notifiers[i].nb);
+	flush_workqueue(events->wq);
 }
 
 int mlx5_notifier_register(struct mlx5_core_dev *dev, struct notifier_block *nb)

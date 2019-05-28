@@ -236,6 +236,7 @@ static int cros_ec_cec_get_notifier(struct device *dev,
 				return -EPROBE_DEFER;
 
 			*notify = cec_notifier_get_conn(d, m->conn);
+			put_device(d);
 			return 0;
 		}
 	}

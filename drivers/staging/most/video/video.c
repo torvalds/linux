@@ -453,7 +453,8 @@ static void comp_v4l2_dev_release(struct v4l2_device *v4l2_dev)
 }
 
 static int comp_probe_channel(struct most_interface *iface, int channel_idx,
-			      struct most_channel_config *ccfg, char *name)
+			      struct most_channel_config *ccfg, char *name,
+			      char *args)
 {
 	int ret;
 	struct most_video_dev *mdev = get_comp_dev(iface, channel_idx);

@@ -220,7 +220,7 @@ static void __exit crypto_null_mod_fini(void)
 	crypto_unregister_skcipher(&skcipher_null);
 }
 
-module_init(crypto_null_mod_init);
+subsys_initcall(crypto_null_mod_init);
 module_exit(crypto_null_mod_fini);
 
 MODULE_LICENSE("GPL");

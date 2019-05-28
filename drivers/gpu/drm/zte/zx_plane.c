@@ -199,7 +199,6 @@ static void zx_vl_plane_atomic_update(struct drm_plane *plane,
 	u32 dst_x, dst_y, dst_w, dst_h;
 	uint32_t format;
 	int fmt;
-	int num_planes;
 	int i;
 
 	if (!fb)
@@ -218,13 +217,12 @@ static void zx_vl_plane_atomic_update(struct drm_plane *plane,
 	dst_h = drm_rect_height(dst);
 
 	/* Set up data address registers for Y, Cb and Cr planes */
-	num_planes = drm_format_num_planes(format);
 	paddr_reg = layer + VL_Y;
-	for (i = 0; i < num_planes; i++) {
+	for (i = 0; i < fb->format->num_planes; i++) {
 		cma_obj = drm_fb_cma_get_gem_obj(fb, i);
 		paddr = cma_obj->paddr + fb->offsets[i];
 		paddr += src_y * fb->pitches[i];
-		paddr += src_x * drm_format_plane_cpp(format, i);
+		paddr += src_x * fb->format->cpp[i];
 		zx_writel(paddr_reg, paddr);
 		paddr_reg += 4;
 	}

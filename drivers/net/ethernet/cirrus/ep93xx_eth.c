@@ -25,7 +25,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
-#include <mach/hardware.h>
+#include <linux/platform_data/eth-ep93xx.h>
 
 #define DRV_MODULE_NAME		"ep93xx-eth"
 #define DRV_MODULE_VERSION	"0.1"

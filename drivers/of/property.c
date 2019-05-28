@@ -659,7 +659,7 @@ EXPORT_SYMBOL(of_graph_get_next_endpoint);
  *
  * Return: An 'endpoint' node pointer which is identified by reg and at the same
  * is the child of a port node identified by port_reg. reg and port_reg are
- * ignored when they are -1.
+ * ignored when they are -1. Use of_node_put() on the pointer when done.
  */
 struct device_node *of_graph_get_endpoint_by_regs(
 	const struct device_node *parent, int port_reg, int reg)

@@ -42,6 +42,26 @@ static inline void write_mmu_entryhi(int value)
 	mtcr("cr<4, 15>", value);
 }
 
+static inline unsigned long read_mmu_msa0(void)
+{
+	return mfcr("cr<30, 15>");
+}
+
+static inline void write_mmu_msa0(unsigned long value)
+{
+	mtcr("cr<30, 15>", value);
+}
+
+static inline unsigned long read_mmu_msa1(void)
+{
+	return mfcr("cr<31, 15>");
+}
+
+static inline void write_mmu_msa1(unsigned long value)
+{
+	mtcr("cr<31, 15>", value);
+}
+
 /*
  * TLB operations.
  */
@@ -70,18 +90,16 @@ static inline void tlb_invalid_indexed(void)
 	mtcr("cr<8, 15>", 0x02000000);
 }
 
-/* setup hardrefil pgd */
-static inline unsigned long get_pgd(void)
-{
-	return mfcr("cr<29, 15>");
-}
-
 static inline void setup_pgd(unsigned long pgd, bool kernel)
 {
 	if (kernel)
-		mtcr("cr<28, 15>", pgd);
+		mtcr("cr<28, 15>", pgd | BIT(0));
 	else
-		mtcr("cr<29, 15>", pgd);
+		mtcr("cr<29, 15>", pgd | BIT(0));
 }
 
+static inline unsigned long get_pgd(void)
+{
+	return mfcr("cr<29, 15>") & ~BIT(0);
+}
 #endif /* __ASM_CSKY_CKMMUV2_H */

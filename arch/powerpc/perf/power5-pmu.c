@@ -618,7 +618,7 @@ static struct power_pmu power5_pmu = {
 	.flags			= PPMU_HAS_SSLOT,
 };
 
-static int __init init_power5_pmu(void)
+int init_power5_pmu(void)
 {
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power5"))
@@ -626,5 +626,3 @@ static int __init init_power5_pmu(void)
 
 	return register_power_pmu(&power5_pmu);
 }
-
-early_initcall(init_power5_pmu);

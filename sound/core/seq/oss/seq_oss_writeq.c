@@ -116,7 +116,7 @@ snd_seq_oss_writeq_sync(struct seq_oss_writeq *q)
 		rec->t.code = SEQ_SYNCTIMER;
 		rec->t.time = time;
 		q->sync_event_put = 1;
-		snd_seq_kernel_client_enqueue_blocking(dp->cseq, &ev, NULL, 0, 0);
+		snd_seq_kernel_client_enqueue(dp->cseq, &ev, NULL, true);
 	}
 
 	wait_event_interruptible_timeout(q->sync_sleep, ! q->sync_event_put, HZ);

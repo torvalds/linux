@@ -14,7 +14,7 @@
 #include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/err.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <mach-se/mach/se7722.h>
 
 #define IRQ01_BASE_ADDR	0x11800000

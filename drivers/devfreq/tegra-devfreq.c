@@ -573,10 +573,7 @@ static int tegra_governor_get_target(struct devfreq *devfreq,
 static int tegra_governor_event_handler(struct devfreq *devfreq,
 					unsigned int event, void *data)
 {
-	struct tegra_devfreq *tegra;
-	int ret = 0;
-
-	tegra = dev_get_drvdata(devfreq->dev.parent);
+	struct tegra_devfreq *tegra = dev_get_drvdata(devfreq->dev.parent);
 
 	switch (event) {
 	case DEVFREQ_GOV_START:
@@ -600,7 +597,7 @@ static int tegra_governor_event_handler(struct devfreq *devfreq,
 		break;
 	}
 
-	return ret;
+	return 0;
 }
 
 static struct devfreq_governor tegra_devfreq_governor = {

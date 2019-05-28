@@ -103,9 +103,38 @@ struct komeda_dev_funcs {
 	int (*enable_irq)(struct komeda_dev *mdev);
 	/** @disable_irq: disable irq */
 	int (*disable_irq)(struct komeda_dev *mdev);
+	/** @on_off_vblank: notify HW to on/off vblank */
+	void (*on_off_vblank)(struct komeda_dev *mdev,
+			      int master_pipe, bool on);
 
 	/** @dump_register: Optional, dump registers to seq_file */
 	void (*dump_register)(struct komeda_dev *mdev, struct seq_file *seq);
+	/**
+	 * @change_opmode:
+	 *
+	 * Notify HW to switch to a new display operation mode.
+	 */
+	int (*change_opmode)(struct komeda_dev *mdev, int new_mode);
+	/** @flush: Notify the HW to flush or kickoff the update */
+	void (*flush)(struct komeda_dev *mdev,
+		      int master_pipe, u32 active_pipes);
+};
+
+/*
+ * DISPLAY_MODE describes how many display been enabled, and which will be
+ * passed to CHIP by &komeda_dev_funcs->change_opmode(), then CHIP can do the
+ * pipeline resources assignment according to this usage hint.
+ * -   KOMEDA_MODE_DISP0: Only one display enabled, pipeline-0 work as master.
+ * -   KOMEDA_MODE_DISP1: Only one display enabled, pipeline-0 work as master.
+ * -   KOMEDA_MODE_DUAL_DISP: Dual display mode, both display has been enabled.
+ * And D71 supports assign two pipelines to one single display on mode
+ * KOMEDA_MODE_DISP0/DISP1
+ */
+enum {
+	KOMEDA_MODE_INACTIVE	= 0,
+	KOMEDA_MODE_DISP0	= BIT(0),
+	KOMEDA_MODE_DISP1	= BIT(1),
+	KOMEDA_MODE_DUAL_DISP	= KOMEDA_MODE_DISP0 | KOMEDA_MODE_DISP1,
 };
 
 /**
@@ -116,21 +145,31 @@ struct komeda_dev_funcs {
  * control-abilites of device.
  */
 struct komeda_dev {
+	/** @dev: the base device structure */
 	struct device *dev;
+	/** @reg_base: the base address of komeda io space */
 	u32 __iomem   *reg_base;
 
+	/** @chip: the basic chip information */
 	struct komeda_chip_info chip;
 	/** @fmt_tbl: initialized by &komeda_dev_funcs->init_format_table */
 	struct komeda_format_caps_table fmt_tbl;
 	/** @pclk: APB clock for register access */
 	struct clk *pclk;
-	/** @mck: HW main engine clk */
+	/** @mclk: HW main engine clk */
 	struct clk *mclk;
 
 	/** @irq: irq number */
 	int irq;
 
+	/** @lock: used to protect dpmode */
+	struct mutex lock;
+	/** @dpmode: current display mode */
+	u32 dpmode;
+
+	/** @n_pipelines: the number of pipe in @pipelines */
 	int n_pipelines;
+	/** @pipelines: the komeda pipelines */
 	struct komeda_pipeline *pipelines[KOMEDA_MAX_PIPELINES];
 
 	/** @funcs: chip funcs to access to HW */
@@ -143,6 +182,7 @@ struct komeda_dev {
 	 */
 	void *chip_data;
 
+	/** @debugfs_root: root directory of komeda debugfs */
 	struct dentry *debugfs_root;
 };
 
@@ -157,5 +197,7 @@ d71_identify(u32 __iomem *reg, struct komeda_chip_info *chip);
 
 struct komeda_dev *komeda_dev_create(struct device *dev);
 void komeda_dev_destroy(struct komeda_dev *mdev);
+
+struct komeda_dev *dev_to_mdev(struct device *dev);
 
 #endif /*_KOMEDA_DEV_H_*/

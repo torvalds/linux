@@ -175,6 +175,7 @@ struct clk *tegra_clk_register_mc(const char *name, const char *parent_name,
 				  void __iomem *reg, spinlock_t *lock)
 {
 	return clk_register_divider_table(NULL, name, parent_name,
-					  CLK_IS_CRITICAL, reg, 16, 1, 0,
+					  CLK_IS_CRITICAL,
+					  reg, 16, 1, CLK_DIVIDER_READ_ONLY,
 					  mc_div_table, lock);
 }

@@ -106,8 +106,8 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 
 	ctx->cs_sequence = 1;
 	spin_lock_init(&ctx->cs_lock);
-	atomic_set(&ctx->thread_restore_token, 1);
-	ctx->thread_restore_wait_token = 0;
+	atomic_set(&ctx->thread_ctx_switch_token, 1);
+	ctx->thread_ctx_switch_wait_token = 0;
 
 	if (is_kernel_ctx) {
 		ctx->asid = HL_KERNEL_ASID_ID; /* KMD gets ASID 0 */

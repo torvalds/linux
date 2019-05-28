@@ -8,6 +8,7 @@
 #include <linux/linkage.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
+#include <uapi/linux/audit.h>
 
 static inline int
 syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
@@ -27,6 +28,11 @@ syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
 	*args   = regs->er6;
 }
 
+static inline int
+syscall_get_arch(struct task_struct *task)
+{
+	return AUDIT_ARCH_H8300;
+}
 
 
 /* Misc syscall related bits */

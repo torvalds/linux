@@ -662,8 +662,8 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 	/* initialize modification & checksum data space */
 	memset(mod, 0, sizeof(*mod));
 
-	err = nlmsg_parse(nlh, sizeof(struct rtcanmsg), tb, CGW_MAX,
-			  cgw_policy, NULL);
+	err = nlmsg_parse_deprecated(nlh, sizeof(struct rtcanmsg), tb,
+				     CGW_MAX, cgw_policy, NULL);
 	if (err < 0)
 		return err;
 

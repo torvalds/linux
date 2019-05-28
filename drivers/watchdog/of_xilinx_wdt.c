@@ -151,43 +151,46 @@ static u32 xwdt_selftest(struct xwdt_device *xdev)
 		return XWT_TIMER_FAILED;
 }
 
+static void xwdt_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int xwdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int rc;
 	u32 pfreq = 0, enable_once = 0;
-	struct resource *res;
 	struct xwdt_device *xdev;
 	struct watchdog_device *xilinx_wdt_wdd;
 
-	xdev = devm_kzalloc(&pdev->dev, sizeof(*xdev), GFP_KERNEL);
+	xdev = devm_kzalloc(dev, sizeof(*xdev), GFP_KERNEL);
 	if (!xdev)
 		return -ENOMEM;
 
 	xilinx_wdt_wdd = &xdev->xilinx_wdt_wdd;
 	xilinx_wdt_wdd->info = &xilinx_wdt_ident;
 	xilinx_wdt_wdd->ops = &xilinx_wdt_ops;
-	xilinx_wdt_wdd->parent = &pdev->dev;
+	xilinx_wdt_wdd->parent = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xdev->base = devm_ioremap_resource(&pdev->dev, res);
+	xdev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xdev->base))
 		return PTR_ERR(xdev->base);
 
-	rc = of_property_read_u32(pdev->dev.of_node, "xlnx,wdt-interval",
+	rc = of_property_read_u32(dev->of_node, "xlnx,wdt-interval",
 				  &xdev->wdt_interval);
 	if (rc)
-		dev_warn(&pdev->dev,
-			 "Parameter \"xlnx,wdt-interval\" not found\n");
+		dev_warn(dev, "Parameter \"xlnx,wdt-interval\" not found\n");
 
-	rc = of_property_read_u32(pdev->dev.of_node, "xlnx,wdt-enable-once",
+	rc = of_property_read_u32(dev->of_node, "xlnx,wdt-enable-once",
 				  &enable_once);
 	if (rc)
-		dev_warn(&pdev->dev,
+		dev_warn(dev,
 			 "Parameter \"xlnx,wdt-enable-once\" not found\n");
 
 	watchdog_set_nowayout(xilinx_wdt_wdd, enable_once);
 
-	xdev->clk = devm_clk_get(&pdev->dev, NULL);
+	xdev->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(xdev->clk)) {
 		if (PTR_ERR(xdev->clk) != -ENOENT)
 			return PTR_ERR(xdev->clk);
@@ -198,10 +201,10 @@ static int xwdt_probe(struct platform_device *pdev)
 		 */
 		xdev->clk = NULL;
 
-		rc = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+		rc = of_property_read_u32(dev->of_node, "clock-frequency",
 					  &pfreq);
 		if (rc)
-			dev_warn(&pdev->dev,
+			dev_warn(dev,
 				 "The watchdog clock freq cannot be obtained\n");
 	} else {
 		pfreq = clk_get_rate(xdev->clk);
@@ -220,42 +223,32 @@ static int xwdt_probe(struct platform_device *pdev)
 
 	rc = clk_prepare_enable(xdev->clk);
 	if (rc) {
-		dev_err(&pdev->dev, "unable to enable clock\n");
+		dev_err(dev, "unable to enable clock\n");
 		return rc;
 	}
+	rc = devm_add_action_or_reset(dev, xwdt_clk_disable_unprepare,
+				      xdev->clk);
+	if (rc)
+		return rc;
 
 	rc = xwdt_selftest(xdev);
 	if (rc == XWT_TIMER_FAILED) {
-		dev_err(&pdev->dev, "SelfTest routine error\n");
-		goto err_clk_disable;
+		dev_err(dev, "SelfTest routine error\n");
+		return rc;
 	}
 
-	rc = watchdog_register_device(xilinx_wdt_wdd);
+	rc = devm_watchdog_register_device(dev, xilinx_wdt_wdd);
 	if (rc) {
-		dev_err(&pdev->dev, "Cannot register watchdog (err=%d)\n", rc);
-		goto err_clk_disable;
+		dev_err(dev, "Cannot register watchdog (err=%d)\n", rc);
+		return rc;
 	}
 
 	clk_disable(xdev->clk);
 
-	dev_info(&pdev->dev, "Xilinx Watchdog Timer at %p with timeout %ds\n",
+	dev_info(dev, "Xilinx Watchdog Timer at %p with timeout %ds\n",
 		 xdev->base, xilinx_wdt_wdd->timeout);
 
 	platform_set_drvdata(pdev, xdev);
-
-	return 0;
-err_clk_disable:
-	clk_disable_unprepare(xdev->clk);
-
-	return rc;
-}
-
-static int xwdt_remove(struct platform_device *pdev)
-{
-	struct xwdt_device *xdev = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(&xdev->xilinx_wdt_wdd);
-	clk_disable_unprepare(xdev->clk);
 
 	return 0;
 }
@@ -305,7 +298,6 @@ MODULE_DEVICE_TABLE(of, xwdt_of_match);
 
 static struct platform_driver xwdt_driver = {
 	.probe       = xwdt_probe,
-	.remove      = xwdt_remove,
 	.driver = {
 		.name  = WATCHDOG_NAME,
 		.of_match_table = xwdt_of_match,

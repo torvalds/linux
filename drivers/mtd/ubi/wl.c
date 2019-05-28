@@ -1475,7 +1475,7 @@ static bool scrub_possible(struct ubi_device *ubi, struct ubi_wl_entry *e)
  */
 int ubi_bitflip_check(struct ubi_device *ubi, int pnum, int force)
 {
-	int err;
+	int err = 0;
 	struct ubi_wl_entry *e;
 
 	if (pnum < 0 || pnum >= ubi->peb_count) {

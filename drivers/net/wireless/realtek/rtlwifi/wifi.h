@@ -2138,7 +2138,6 @@ struct rtl_stats {
 	u8 packet_report_type;
 
 	u32 macid;
-	u8 wake_match;
 	u32 bt_rx_rssi_percentage;
 	u32 macid_valid_entry[2];
 };

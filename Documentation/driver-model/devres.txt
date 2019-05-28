@@ -271,6 +271,9 @@ GPIO
   devm_gpio_request_one()
   devm_gpio_free()
 
+I2C
+  devm_i2c_new_dummy_device()
+
 IIO
   devm_iio_device_alloc()
   devm_iio_device_free()

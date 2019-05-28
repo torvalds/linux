@@ -275,7 +275,7 @@ static int _gb_sdio_send(struct gb_sdio_host *host, struct mmc_data *data,
 		return -ENOMEM;
 
 	request = operation->request->payload;
-	request->data_flags = (data->flags >> 8);
+	request->data_flags = data->flags >> 8;
 	request->data_blocks = cpu_to_le16(nblocks);
 	request->data_blksz = cpu_to_le16(data->blksz);
 
@@ -329,7 +329,7 @@ static int _gb_sdio_recv(struct gb_sdio_host *host, struct mmc_data *data,
 		return -ENOMEM;
 
 	request = operation->request->payload;
-	request->data_flags = (data->flags >> 8);
+	request->data_flags = data->flags >> 8;
 	request->data_blocks = cpu_to_le16(nblocks);
 	request->data_blksz = cpu_to_le16(data->blksz);
 
@@ -602,9 +602,9 @@ static void gb_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		vdd = 1 << (ios->vdd - GB_SDIO_VDD_SHIFT);
 	request.vdd = cpu_to_le32(vdd);
 
-	request.bus_mode = (ios->bus_mode == MMC_BUSMODE_OPENDRAIN ?
+	request.bus_mode = ios->bus_mode == MMC_BUSMODE_OPENDRAIN ?
 			    GB_SDIO_BUSMODE_OPENDRAIN :
-			    GB_SDIO_BUSMODE_PUSHPULL);
+			    GB_SDIO_BUSMODE_PUSHPULL;
 
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:

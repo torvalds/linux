@@ -71,15 +71,9 @@ spufs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void spufs_i_callback(struct rcu_head *head)
+static void spufs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(spufs_inode_cache, SPUFS_I(inode));
-}
-
-static void spufs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, spufs_i_callback);
 }
 
 static void
@@ -739,7 +733,7 @@ spufs_fill_super(struct super_block *sb, void *data, int silent)
 	struct spufs_sb_info *info;
 	static const struct super_operations s_ops = {
 		.alloc_inode = spufs_alloc_inode,
-		.destroy_inode = spufs_destroy_inode,
+		.free_inode = spufs_free_inode,
 		.statfs = simple_statfs,
 		.evict_inode = spufs_evict_inode,
 		.show_options = spufs_show_options,

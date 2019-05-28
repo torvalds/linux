@@ -47,7 +47,6 @@ u32 crc32c(u32 crc, const void *address, unsigned int length)
 	int err;
 
 	shash->tfm = tfm;
-	shash->flags = 0;
 	*ctx = crc;
 
 	err = crypto_shash_update(shash, address, length);

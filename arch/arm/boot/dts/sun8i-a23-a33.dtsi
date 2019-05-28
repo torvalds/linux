@@ -161,14 +161,18 @@
 			#dma-cells = <1>;
 		};
 
-		nfc: nand@1c03000 {
-			compatible = "allwinner,sun4i-a10-nand";
+		nfc: nand-controller@1c03000 {
+			compatible = "allwinner,sun8i-a23-nand-controller";
 			reg = <0x01c03000 0x1000>;
 			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_NAND>, <&ccu CLK_NAND>;
 			clock-names = "ahb", "mod";
 			resets = <&ccu RST_BUS_NAND>;
 			reset-names = "ahb";
+			dmas = <&dma 5>;
+			dma-names = "rxtx";
+			pinctrl-names = "default";
+			pinctrl-0 = <&nand_pins &nand_cs0_pin &nand_rb0_pin>;
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -183,6 +187,7 @@
 			clock-names = "ahb",
 				      "tcon-ch0";
 			clock-output-names = "tcon-pixel-clock";
+			#clock-cells = <0>;
 			resets = <&ccu RST_BUS_LCD>;
 			reset-names = "lcd";
 			status = "disabled";
@@ -192,19 +197,14 @@
 				#size-cells = <0>;
 
 				tcon0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <0>;
 
-					tcon0_in_drc0: endpoint@0 {
-						reg = <0>;
+					tcon0_in_drc0: endpoint {
 						remote-endpoint = <&drc0_out_tcon0>;
 					};
 				};
 
 				tcon0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 				};
 			};
@@ -279,6 +279,7 @@
 			phys = <&usbphy 0>;
 			phy-names = "usb";
 			extcon = <&usbphy 0>;
+			dr_mode = "otg";
 			status = "disabled";
 		};
 
@@ -306,7 +307,6 @@
 			clocks = <&ccu CLK_BUS_EHCI>;
 			resets = <&ccu RST_BUS_EHCI>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -317,7 +317,6 @@
 			clocks = <&ccu CLK_BUS_OHCI>, <&ccu CLK_USB_OHCI>;
 			resets = <&ccu RST_BUS_OHCI>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -396,25 +395,25 @@
 				function = "nand0";
 			};
 
-			nand_pins_cs0: nand-pins-cs0 {
+			nand_cs0_pin: nand-cs0-pin {
 				pins = "PC4";
 				function = "nand0";
 				bias-pull-up;
 			};
 
-			nand_pins_cs1: nand-pins-cs1 {
+			nand_cs1_pin: nand-cs1-pin {
 				pins = "PC3";
 				function = "nand0";
 				bias-pull-up;
 			};
 
-			nand_pins_rb0: nand-pins-rb0 {
+			nand_rb0_pin: nand-rb0-pin {
 				pins = "PC6";
 				function = "nand0";
 				bias-pull-up;
 			};
 
-			nand_pins_rb1: nand-pins-rb1 {
+			nand_rb1_pin: nand-rb1-pin {
 				pins = "PC7";
 				function = "nand0";
 				bias-pull-up;
@@ -602,7 +601,7 @@
 		};
 
 		gic: interrupt-controller@1c81000 {
-			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
+			compatible = "arm,gic-400";
 			reg = <0x01c81000 0x1000>,
 			      <0x01c82000 0x2000>,
 			      <0x01c84000 0x2000>,
@@ -627,12 +626,9 @@
 				#size-cells = <0>;
 
 				fe0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 
-					fe0_out_be0: endpoint@0 {
-						reg = <0>;
+					fe0_out_be0: endpoint {
 						remote-endpoint = <&be0_in_fe0>;
 					};
 				};
@@ -654,23 +650,17 @@
 				#size-cells = <0>;
 
 				be0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <0>;
 
-					be0_in_fe0: endpoint@0 {
-						reg = <0>;
+					be0_in_fe0: endpoint {
 						remote-endpoint = <&fe0_out_be0>;
 					};
 				};
 
 				be0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 
-					be0_out_drc0: endpoint@0 {
-						reg = <0>;
+					be0_out_drc0: endpoint {
 						remote-endpoint = <&drc0_in_be0>;
 					};
 				};
@@ -694,23 +684,17 @@
 				#size-cells = <0>;
 
 				drc0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <0>;
 
-					drc0_in_be0: endpoint@0 {
-						reg = <0>;
+					drc0_in_be0: endpoint {
 						remote-endpoint = <&be0_out_drc0>;
 					};
 				};
 
 				drc0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 
-					drc0_out_tcon0: endpoint@0 {
-						reg = <0>;
+					drc0_out_tcon0: endpoint {
 						remote-endpoint = <&tcon0_in_drc0>;
 					};
 				};
@@ -799,6 +783,20 @@
 			status = "disabled";
 		};
 
+		r_i2c: i2c@1f02400 {
+			compatible = "allwinner,sun8i-a23-i2c",
+				     "allwinner,sun6i-a31-i2c";
+			reg = <0x01f02400 0x400>;
+			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&r_i2c_pins>;
+			clocks = <&apb0_gates 6>;
+			resets = <&apb0_rst 6>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		r_pio: pinctrl@1f02c00 {
 			compatible = "allwinner,sun8i-a23-r-pinctrl";
 			reg = <0x01f02c00 0x400>;
@@ -810,6 +808,12 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
+
+			r_i2c_pins: r-i2c-pins {
+				pins = "PL0", "PL1";
+				function = "s_i2c";
+				bias-pull-up;
+			};
 
 			r_rsb_pins: r-rsb-pins {
 				pins = "PL0", "PL1";

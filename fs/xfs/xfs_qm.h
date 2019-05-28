@@ -113,12 +113,8 @@ xfs_quota_inode(xfs_mount_t *mp, uint dq_flags)
 	return NULL;
 }
 
-extern void	xfs_trans_mod_dquot(struct xfs_trans *,
-					struct xfs_dquot *, uint, long);
-extern int	xfs_trans_reserve_quota_bydquots(struct xfs_trans *,
-			struct xfs_mount *, struct xfs_dquot *,
-			struct xfs_dquot *, struct xfs_dquot *,
-			long, long, uint);
+extern void	xfs_trans_mod_dquot(struct xfs_trans *tp, struct xfs_dquot *dqp,
+				    uint field, int64_t delta);
 extern void	xfs_trans_dqjoin(struct xfs_trans *, struct xfs_dquot *);
 extern void	xfs_trans_log_dquot(struct xfs_trans *, struct xfs_dquot *);
 

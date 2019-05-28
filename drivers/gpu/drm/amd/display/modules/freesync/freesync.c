@@ -437,10 +437,8 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 			inserted_frame_duration_in_us = last_render_time_in_us /
 							frames_to_insert;
 
-		if (inserted_frame_duration_in_us <
-			(1000000 / in_out_vrr->max_refresh_in_uhz))
-			inserted_frame_duration_in_us =
-				(1000000 / in_out_vrr->max_refresh_in_uhz);
+		if (inserted_frame_duration_in_us < in_out_vrr->min_duration_in_us)
+			inserted_frame_duration_in_us = in_out_vrr->min_duration_in_us;
 
 		/* Cache the calculated variables */
 		in_out_vrr->btr.inserted_duration_in_us =

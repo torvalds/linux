@@ -97,8 +97,7 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 		 * modify-write and shift based on the packing index.
 		 */
 		dev_dbg(gasket_dev->dev,
-			"Setting up interrupt index %d with index 0x%llx and "
-			"packing %d\n",
+			"Setting up interrupt index %d with index 0x%llx and packing %d\n",
 			interrupt_data->interrupts[i].index,
 			interrupt_data->interrupts[i].reg,
 			interrupt_data->interrupts[i].packing);
@@ -120,8 +119,7 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 				break;
 			default:
 				dev_dbg(gasket_dev->dev,
-					"Found interrupt description with "
-					"unknown enum %d\n",
+					"Found interrupt description with unknown enum %d\n",
 					interrupt_data->interrupts[i].packing);
 				return;
 			}

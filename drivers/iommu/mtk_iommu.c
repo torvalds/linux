@@ -632,16 +632,20 @@ static int mtk_iommu_probe(struct platform_device *pdev)
 		if (!larbnode)
 			return -EINVAL;
 
-		if (!of_device_is_available(larbnode))
+		if (!of_device_is_available(larbnode)) {
+			of_node_put(larbnode);
 			continue;
+		}
 
 		ret = of_property_read_u32(larbnode, "mediatek,larb-id", &id);
 		if (ret)/* The id is consecutive if there is no this property */
 			id = i;
 
 		plarbdev = of_find_device_by_node(larbnode);
-		if (!plarbdev)
+		if (!plarbdev) {
+			of_node_put(larbnode);
 			return -EPROBE_DEFER;
+		}
 		data->smi_imu.larb_imu[id].dev = &plarbdev->dev;
 
 		component_match_add_release(dev, &match, release_of,

@@ -178,7 +178,7 @@ static int sc1200wdt_open(struct inode *inode, struct file *file)
 	sc1200wdt_start();
 	pr_info("Watchdog enabled, timeout = %d min(s)", timeout);
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 

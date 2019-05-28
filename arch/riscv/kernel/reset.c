@@ -12,11 +12,15 @@
  */
 
 #include <linux/reboot.h>
-#include <linux/export.h>
 #include <asm/sbi.h>
 
-void (*pm_power_off)(void) = machine_power_off;
-EXPORT_SYMBOL(pm_power_off);
+static void default_power_off(void)
+{
+	sbi_shutdown();
+	while (1);
+}
+
+void (*pm_power_off)(void) = default_power_off;
 
 void machine_restart(char *cmd)
 {
@@ -26,11 +30,10 @@ void machine_restart(char *cmd)
 
 void machine_halt(void)
 {
-	machine_power_off();
+	pm_power_off();
 }
 
 void machine_power_off(void)
 {
-	sbi_shutdown();
-	while (1);
+	pm_power_off();
 }

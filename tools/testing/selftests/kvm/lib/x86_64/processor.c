@@ -229,8 +229,6 @@ void sregs_dump(FILE *stream, struct kvm_sregs *sregs,
 
 void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot)
 {
-	int rc;
-
 	TEST_ASSERT(vm->mode == VM_MODE_P52V48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
 
@@ -549,7 +547,6 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 	struct pageDirectoryPointerEntry *pdpe;
 	struct pageDirectoryEntry *pde;
 	struct pageTableEntry *pte;
-	void *hva;
 
 	TEST_ASSERT(vm->mode == VM_MODE_P52V48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
@@ -582,6 +579,7 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 unmapped_gva:
 	TEST_ASSERT(false, "No mapping for vm virtual address, "
 		    "gva: 0x%lx", gva);
+	exit(EXIT_FAILURE);
 }
 
 static void kvm_setup_gdt(struct kvm_vm *vm, struct kvm_dtable *dt, int gdt_memslot,
@@ -1030,6 +1028,14 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 			    nested_size, sizeof(state->nested_));
 	}
 
+	/*
+	 * When KVM exits to userspace with KVM_EXIT_IO, KVM guarantees
+	 * guest state is consistent only after userspace re-enters the
+	 * kernel with KVM_RUN.  Complete IO prior to migrating state
+	 * to a new VM.
+	 */
+	vcpu_run_complete_io(vm, vcpuid);
+
 	nmsrs = kvm_get_num_msrs(vm);
 	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
 	list->nmsrs = nmsrs;
@@ -1093,12 +1099,6 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int r;
 
-	if (state->nested.size) {
-		r = ioctl(vcpu->fd, KVM_SET_NESTED_STATE, &state->nested);
-		TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_NESTED_STATE, r: %i",
-			r);
-	}
-
 	r = ioctl(vcpu->fd, KVM_SET_XSAVE, &state->xsave);
         TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_XSAVE, r: %i",
                 r);
@@ -1130,4 +1130,10 @@ void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *s
 	r = ioctl(vcpu->fd, KVM_SET_REGS, &state->regs);
         TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_REGS, r: %i",
                 r);
+
+	if (state->nested.size) {
+		r = ioctl(vcpu->fd, KVM_SET_NESTED_STATE, &state->nested);
+		TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_NESTED_STATE, r: %i",
+			r);
+	}
 }

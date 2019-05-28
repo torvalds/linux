@@ -1896,8 +1896,13 @@ set_fan_speed_rpm_failed:
 static int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 				     uint32_t pstate)
 {
-	/* send msg to SMU to set pstate */
-	return 0;
+	int ret = 0;
+	mutex_lock(&(smu->mutex));
+	ret = smu_send_smc_msg_with_param(smu,
+					  SMU_MSG_SetXgmiMode,
+					  pstate ? XGMI_STATE_D0 : XGMI_STATE_D3);
+	mutex_unlock(&(smu->mutex));
+	return ret;
 }
 
 static const struct smu_funcs smu_v11_0_funcs = {

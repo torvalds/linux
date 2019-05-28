@@ -181,7 +181,7 @@ void acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
 			acpi_processor_ppc_ost(pr->handle, 0);
 	}
 	if (ret >= 0)
-		cpufreq_update_policy(pr->id);
+		cpufreq_update_limits(pr->id);
 }
 
 int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)

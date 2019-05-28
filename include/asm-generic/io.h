@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Generic I/O port emulation.
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 #ifndef __ASM_GENERIC_IO_H
 #define __ASM_GENERIC_IO_H
@@ -19,11 +15,8 @@
 #include <asm-generic/iomap.h>
 #endif
 
+#include <asm/mmiowb.h>
 #include <asm-generic/pci_iomap.h>
-
-#ifndef mmiowb
-#define mmiowb() do {} while (0)
-#endif
 
 #ifndef __io_br
 #define __io_br()      barrier()
@@ -49,7 +42,7 @@
 
 /* serialize device access against a spin_unlock, usually handled there. */
 #ifndef __io_aw
-#define __io_aw()      barrier()
+#define __io_aw()      mmiowb_set_pending()
 #endif
 
 #ifndef __io_pbw

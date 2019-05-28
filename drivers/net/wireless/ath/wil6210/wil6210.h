@@ -185,6 +185,7 @@ struct RGF_ICR {
 
 /* registers - FW addresses */
 #define RGF_USER_USAGE_1		(0x880004)
+#define RGF_USER_USAGE_2		(0x880008)
 #define RGF_USER_USAGE_6		(0x880018)
 	#define BIT_USER_OOB_MODE		BIT(31)
 	#define BIT_USER_OOB_R2_MODE		BIT(30)
@@ -367,6 +368,7 @@ struct RGF_ICR {
 	#define REVISION_ID_SPARROW_D0	(0x3)
 
 #define RGF_OTP_MAC_TALYN_MB		(0x8a0304)
+#define RGF_OTP_OEM_MAC			(0x8a0334)
 #define RGF_OTP_MAC			(0x8a0620)
 
 /* Talyn-MB */
@@ -566,10 +568,11 @@ struct wil_status_ring {
 	bool is_rx;
 	u8 desc_rdy_pol; /* Expected descriptor ready bit polarity */
 	struct wil_ring_rx_data rx_data;
+	u32 invalid_buff_id_cnt; /* relevant only for RX */
 };
 
 #define WIL_STA_TID_NUM (16)
-#define WIL_MCS_MAX (12) /* Maximum MCS supported */
+#define WIL_MCS_MAX (15) /* Maximum MCS supported */
 
 struct wil_net_stats {
 	unsigned long	rx_packets;
@@ -660,7 +663,6 @@ enum { /* for wil6210_priv.status */
 	wil_status_suspending, /* suspend in progress */
 	wil_status_suspended, /* suspend completed, device is suspended */
 	wil_status_resuming, /* resume in progress */
-	wil_status_collecting_dumps, /* crashdump collection in progress */
 	wil_status_last /* keep last */
 };
 
@@ -992,6 +994,8 @@ struct wil6210_priv {
 	struct wil_txrx_ops txrx_ops;
 
 	struct mutex mutex; /* for wil6210_priv access in wil_{up|down} */
+	/* for synchronizing device memory access while reset or suspend */
+	struct rw_semaphore mem_lock;
 	/* statistics */
 	atomic_t isr_count_rx, isr_count_tx;
 	/* debugfs */
@@ -1060,6 +1064,7 @@ struct wil6210_priv {
 #define vif_to_wil(v) (v->wil)
 #define vif_to_ndev(v) (v->ndev)
 #define vif_to_wdev(v) (&v->wdev)
+#define GET_MAX_VIFS(wil) min_t(int, (wil)->max_vifs, WIL_MAX_VIFS)
 
 static inline struct wil6210_vif *wdev_to_vif(struct wil6210_priv *wil,
 					      struct wireless_dev *wdev)
@@ -1176,6 +1181,8 @@ void wil_memcpy_fromio_32(void *dst, const volatile void __iomem *src,
 			  size_t count);
 void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 			size_t count);
+int wil_mem_access_lock(struct wil6210_priv *wil);
+void wil_mem_access_unlock(struct wil6210_priv *wil);
 
 struct wil6210_vif *
 wil_vif_alloc(struct wil6210_priv *wil, const char *name,

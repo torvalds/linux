@@ -161,7 +161,7 @@ static int nv_tco_open(struct inode *inode, struct file *file)
 	/* Reload and activate timer */
 	tco_timer_keepalive();
 	tco_timer_start();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int nv_tco_release(struct inode *inode, struct file *file)

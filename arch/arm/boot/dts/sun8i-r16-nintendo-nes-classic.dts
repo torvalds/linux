@@ -34,8 +34,6 @@
 
 	/* 2Gb Macronix MX30LF2G18AC (3V) */
 	nand@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		reg = <0>;
 		allwinner,rb = <0>;
 		nand-ecc-mode = "hw";

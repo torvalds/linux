@@ -160,9 +160,9 @@ nfp_fl_get_tun_from_act_l4_port(struct nfp_app *app,
 	struct nfp_flower_priv *priv = app->priv;
 
 	switch (tun->key.tp_dst) {
-	case htons(NFP_FL_VXLAN_PORT):
+	case htons(IANA_VXLAN_UDP_PORT):
 		return NFP_FL_TUNNEL_VXLAN;
-	case htons(NFP_FL_GENEVE_PORT):
+	case htons(GENEVE_UDP_PORT):
 		if (priv->flower_ext_feats & NFP_FL_FEATS_GENEVE)
 			return NFP_FL_TUNNEL_GENEVE;
 		/* FALLTHROUGH */
@@ -582,60 +582,23 @@ static u32 nfp_fl_csum_l4_to_flag(u8 ip_proto)
 	}
 }
 
-static int
-nfp_fl_pedit(const struct flow_action_entry *act,
-	     struct tc_cls_flower_offload *flow,
-	     char *nfp_action, int *a_len, u32 *csum_updated)
-{
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+struct nfp_flower_pedit_acts {
 	struct nfp_fl_set_ipv6_addr set_ip6_dst, set_ip6_src;
 	struct nfp_fl_set_ipv6_tc_hl_fl set_ip6_tc_hl_fl;
 	struct nfp_fl_set_ip4_ttl_tos set_ip_ttl_tos;
 	struct nfp_fl_set_ip4_addrs set_ip_addr;
-	enum flow_action_mangle_base htype;
 	struct nfp_fl_set_tport set_tport;
 	struct nfp_fl_set_eth set_eth;
+};
+
+static int
+nfp_fl_commit_mangle(struct tc_cls_flower_offload *flow, char *nfp_action,
+		     int *a_len, struct nfp_flower_pedit_acts *set_act,
+		     u32 *csum_updated)
+{
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
 	size_t act_size = 0;
 	u8 ip_proto = 0;
-	u32 offset;
-	int err;
-
-	memset(&set_ip6_tc_hl_fl, 0, sizeof(set_ip6_tc_hl_fl));
-	memset(&set_ip_ttl_tos, 0, sizeof(set_ip_ttl_tos));
-	memset(&set_ip6_dst, 0, sizeof(set_ip6_dst));
-	memset(&set_ip6_src, 0, sizeof(set_ip6_src));
-	memset(&set_ip_addr, 0, sizeof(set_ip_addr));
-	memset(&set_tport, 0, sizeof(set_tport));
-	memset(&set_eth, 0, sizeof(set_eth));
-
-	htype = act->mangle.htype;
-	offset = act->mangle.offset;
-
-	switch (htype) {
-	case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
-		err = nfp_fl_set_eth(act, offset, &set_eth);
-		break;
-	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
-		err = nfp_fl_set_ip4(act, offset, &set_ip_addr,
-				     &set_ip_ttl_tos);
-		break;
-	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
-		err = nfp_fl_set_ip6(act, offset, &set_ip6_dst,
-				     &set_ip6_src, &set_ip6_tc_hl_fl);
-		break;
-	case TCA_PEDIT_KEY_EX_HDR_TYPE_TCP:
-		err = nfp_fl_set_tport(act, offset, &set_tport,
-				       NFP_FL_ACTION_OPCODE_SET_TCP);
-		break;
-	case TCA_PEDIT_KEY_EX_HDR_TYPE_UDP:
-		err = nfp_fl_set_tport(act, offset, &set_tport,
-				       NFP_FL_ACTION_OPCODE_SET_UDP);
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-	if (err)
-		return err;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
 		struct flow_match_basic match;
@@ -644,77 +607,82 @@ nfp_fl_pedit(const struct flow_action_entry *act,
 		ip_proto = match.key->ip_proto;
 	}
 
-	if (set_eth.head.len_lw) {
-		act_size = sizeof(set_eth);
-		memcpy(nfp_action, &set_eth, act_size);
+	if (set_act->set_eth.head.len_lw) {
+		act_size = sizeof(set_act->set_eth);
+		memcpy(nfp_action, &set_act->set_eth, act_size);
 		*a_len += act_size;
 	}
-	if (set_ip_ttl_tos.head.len_lw) {
+
+	if (set_act->set_ip_ttl_tos.head.len_lw) {
 		nfp_action += act_size;
-		act_size = sizeof(set_ip_ttl_tos);
-		memcpy(nfp_action, &set_ip_ttl_tos, act_size);
+		act_size = sizeof(set_act->set_ip_ttl_tos);
+		memcpy(nfp_action, &set_act->set_ip_ttl_tos, act_size);
 		*a_len += act_size;
 
 		/* Hardware will automatically fix IPv4 and TCP/UDP checksum. */
 		*csum_updated |= TCA_CSUM_UPDATE_FLAG_IPV4HDR |
 				nfp_fl_csum_l4_to_flag(ip_proto);
 	}
-	if (set_ip_addr.head.len_lw) {
+
+	if (set_act->set_ip_addr.head.len_lw) {
 		nfp_action += act_size;
-		act_size = sizeof(set_ip_addr);
-		memcpy(nfp_action, &set_ip_addr, act_size);
+		act_size = sizeof(set_act->set_ip_addr);
+		memcpy(nfp_action, &set_act->set_ip_addr, act_size);
 		*a_len += act_size;
 
 		/* Hardware will automatically fix IPv4 and TCP/UDP checksum. */
 		*csum_updated |= TCA_CSUM_UPDATE_FLAG_IPV4HDR |
 				nfp_fl_csum_l4_to_flag(ip_proto);
 	}
-	if (set_ip6_tc_hl_fl.head.len_lw) {
+
+	if (set_act->set_ip6_tc_hl_fl.head.len_lw) {
 		nfp_action += act_size;
-		act_size = sizeof(set_ip6_tc_hl_fl);
-		memcpy(nfp_action, &set_ip6_tc_hl_fl, act_size);
+		act_size = sizeof(set_act->set_ip6_tc_hl_fl);
+		memcpy(nfp_action, &set_act->set_ip6_tc_hl_fl, act_size);
 		*a_len += act_size;
 
 		/* Hardware will automatically fix TCP/UDP checksum. */
 		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
 	}
-	if (set_ip6_dst.head.len_lw && set_ip6_src.head.len_lw) {
+
+	if (set_act->set_ip6_dst.head.len_lw &&
+	    set_act->set_ip6_src.head.len_lw) {
 		/* TC compiles set src and dst IPv6 address as a single action,
 		 * the hardware requires this to be 2 separate actions.
 		 */
 		nfp_action += act_size;
-		act_size = sizeof(set_ip6_src);
-		memcpy(nfp_action, &set_ip6_src, act_size);
+		act_size = sizeof(set_act->set_ip6_src);
+		memcpy(nfp_action, &set_act->set_ip6_src, act_size);
 		*a_len += act_size;
 
-		act_size = sizeof(set_ip6_dst);
-		memcpy(&nfp_action[sizeof(set_ip6_src)], &set_ip6_dst,
-		       act_size);
-		*a_len += act_size;
-
-		/* Hardware will automatically fix TCP/UDP checksum. */
-		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
-	} else if (set_ip6_dst.head.len_lw) {
-		nfp_action += act_size;
-		act_size = sizeof(set_ip6_dst);
-		memcpy(nfp_action, &set_ip6_dst, act_size);
+		act_size = sizeof(set_act->set_ip6_dst);
+		memcpy(&nfp_action[sizeof(set_act->set_ip6_src)],
+		       &set_act->set_ip6_dst, act_size);
 		*a_len += act_size;
 
 		/* Hardware will automatically fix TCP/UDP checksum. */
 		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
-	} else if (set_ip6_src.head.len_lw) {
+	} else if (set_act->set_ip6_dst.head.len_lw) {
 		nfp_action += act_size;
-		act_size = sizeof(set_ip6_src);
-		memcpy(nfp_action, &set_ip6_src, act_size);
+		act_size = sizeof(set_act->set_ip6_dst);
+		memcpy(nfp_action, &set_act->set_ip6_dst, act_size);
+		*a_len += act_size;
+
+		/* Hardware will automatically fix TCP/UDP checksum. */
+		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
+	} else if (set_act->set_ip6_src.head.len_lw) {
+		nfp_action += act_size;
+		act_size = sizeof(set_act->set_ip6_src);
+		memcpy(nfp_action, &set_act->set_ip6_src, act_size);
 		*a_len += act_size;
 
 		/* Hardware will automatically fix TCP/UDP checksum. */
 		*csum_updated |= nfp_fl_csum_l4_to_flag(ip_proto);
 	}
-	if (set_tport.head.len_lw) {
+	if (set_act->set_tport.head.len_lw) {
 		nfp_action += act_size;
-		act_size = sizeof(set_tport);
-		memcpy(nfp_action, &set_tport, act_size);
+		act_size = sizeof(set_act->set_tport);
+		memcpy(nfp_action, &set_act->set_tport, act_size);
 		*a_len += act_size;
 
 		/* Hardware will automatically fix TCP/UDP checksum. */
@@ -725,7 +693,40 @@ nfp_fl_pedit(const struct flow_action_entry *act,
 }
 
 static int
-nfp_flower_output_action(struct nfp_app *app, const struct flow_action_entry *act,
+nfp_fl_pedit(const struct flow_action_entry *act,
+	     struct tc_cls_flower_offload *flow, char *nfp_action, int *a_len,
+	     u32 *csum_updated, struct nfp_flower_pedit_acts *set_act)
+{
+	enum flow_action_mangle_base htype;
+	u32 offset;
+
+	htype = act->mangle.htype;
+	offset = act->mangle.offset;
+
+	switch (htype) {
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_ETH:
+		return nfp_fl_set_eth(act, offset, &set_act->set_eth);
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP4:
+		return nfp_fl_set_ip4(act, offset, &set_act->set_ip_addr,
+				      &set_act->set_ip_ttl_tos);
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_IP6:
+		return nfp_fl_set_ip6(act, offset, &set_act->set_ip6_dst,
+				      &set_act->set_ip6_src,
+				      &set_act->set_ip6_tc_hl_fl);
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_TCP:
+		return nfp_fl_set_tport(act, offset, &set_act->set_tport,
+					NFP_FL_ACTION_OPCODE_SET_TCP);
+	case TCA_PEDIT_KEY_EX_HDR_TYPE_UDP:
+		return nfp_fl_set_tport(act, offset, &set_act->set_tport,
+					NFP_FL_ACTION_OPCODE_SET_UDP);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int
+nfp_flower_output_action(struct nfp_app *app,
+			 const struct flow_action_entry *act,
 			 struct nfp_fl_payload *nfp_fl, int *a_len,
 			 struct net_device *netdev, bool last,
 			 enum nfp_flower_tun_type *tun_type, int *tun_out_cnt,
@@ -775,7 +776,8 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		       struct nfp_fl_payload *nfp_fl, int *a_len,
 		       struct net_device *netdev,
 		       enum nfp_flower_tun_type *tun_type, int *tun_out_cnt,
-		       int *out_cnt, u32 *csum_updated)
+		       int *out_cnt, u32 *csum_updated,
+		       struct nfp_flower_pedit_acts *set_act)
 {
 	struct nfp_fl_set_ipv4_udp_tun *set_tun;
 	struct nfp_fl_pre_tunnel *pre_tun;
@@ -860,7 +862,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 		return 0;
 	case FLOW_ACTION_MANGLE:
 		if (nfp_fl_pedit(act, flow, &nfp_fl->action_data[*a_len],
-				 a_len, csum_updated))
+				 a_len, csum_updated, set_act))
 			return -EOPNOTSUPP;
 		break;
 	case FLOW_ACTION_CSUM:
@@ -880,12 +882,49 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 	return 0;
 }
 
+static bool nfp_fl_check_mangle_start(struct flow_action *flow_act,
+				      int current_act_idx)
+{
+	struct flow_action_entry current_act;
+	struct flow_action_entry prev_act;
+
+	current_act = flow_act->entries[current_act_idx];
+	if (current_act.id != FLOW_ACTION_MANGLE)
+		return false;
+
+	if (current_act_idx == 0)
+		return true;
+
+	prev_act = flow_act->entries[current_act_idx - 1];
+
+	return prev_act.id != FLOW_ACTION_MANGLE;
+}
+
+static bool nfp_fl_check_mangle_end(struct flow_action *flow_act,
+				    int current_act_idx)
+{
+	struct flow_action_entry current_act;
+	struct flow_action_entry next_act;
+
+	current_act = flow_act->entries[current_act_idx];
+	if (current_act.id != FLOW_ACTION_MANGLE)
+		return false;
+
+	if (current_act_idx == flow_act->num_entries)
+		return true;
+
+	next_act = flow_act->entries[current_act_idx + 1];
+
+	return next_act.id != FLOW_ACTION_MANGLE;
+}
+
 int nfp_flower_compile_action(struct nfp_app *app,
 			      struct tc_cls_flower_offload *flow,
 			      struct net_device *netdev,
 			      struct nfp_fl_payload *nfp_flow)
 {
 	int act_len, act_cnt, err, tun_out_cnt, out_cnt, i;
+	struct nfp_flower_pedit_acts set_act;
 	enum nfp_flower_tun_type tun_type;
 	struct flow_action_entry *act;
 	u32 csum_updated = 0;
@@ -899,12 +938,18 @@ int nfp_flower_compile_action(struct nfp_app *app,
 	out_cnt = 0;
 
 	flow_action_for_each(i, act, &flow->rule->action) {
+		if (nfp_fl_check_mangle_start(&flow->rule->action, i))
+			memset(&set_act, 0, sizeof(set_act));
 		err = nfp_flower_loop_action(app, act, flow, nfp_flow, &act_len,
 					     netdev, &tun_type, &tun_out_cnt,
-					     &out_cnt, &csum_updated);
+					     &out_cnt, &csum_updated, &set_act);
 		if (err)
 			return err;
 		act_cnt++;
+		if (nfp_fl_check_mangle_end(&flow->rule->action, i))
+			nfp_fl_commit_mangle(flow,
+					     &nfp_flow->action_data[act_len],
+					     &act_len, &set_act, &csum_updated);
 	}
 
 	/* We optimise when the action list is small, this can unfortunately

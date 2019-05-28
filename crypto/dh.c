@@ -236,7 +236,7 @@ static void dh_exit(void)
 	crypto_unregister_kpp(&dh);
 }
 
-module_init(dh_init);
+subsys_initcall(dh_init);
 module_exit(dh_exit);
 MODULE_ALIAS_CRYPTO("dh");
 MODULE_LICENSE("GPL");

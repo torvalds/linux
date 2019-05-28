@@ -16,6 +16,7 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  **************************************************************************/
+struct drm_device;
 
 extern int mid_chip_setup(struct drm_device *dev);
 

@@ -2302,6 +2302,9 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 					   sb_size,
 					   GFP_KERNEL,
 					   &urb->transfer_dma);
+		if (!usbvision->sbuf[buf_idx].data)
+			return -ENOMEM;
+
 		urb->dev = dev;
 		urb->context = usbvision;
 		urb->pipe = usb_rcvisocpipe(dev, usbvision->video_endp);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "CPU Frequency scaling"
 
 config CPU_FREQ
@@ -25,10 +26,6 @@ config CPU_FREQ_GOV_COMMON
 	select CPU_FREQ_GOV_ATTR_SET
 	select IRQ_WORK
 	bool
-
-config CPU_FREQ_BOOST_SW
-	bool
-	depends on THERMAL
 
 config CPU_FREQ_STAT
 	bool "CPU frequency transition statistics"

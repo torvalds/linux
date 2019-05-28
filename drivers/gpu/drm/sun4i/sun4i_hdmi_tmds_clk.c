@@ -11,6 +11,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 
 #include "sun4i_hdmi.h"
 

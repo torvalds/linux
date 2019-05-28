@@ -67,6 +67,7 @@ properties:
 
 patternProperties:
   '^cpu@[0-9a-f]+$':
+    type: object
     properties:
       device_type:
         const: cpu

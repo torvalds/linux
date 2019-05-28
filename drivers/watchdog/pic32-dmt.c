@@ -168,69 +168,60 @@ static struct watchdog_device pic32_dmt_wdd = {
 	.ops		= &pic32_dmt_fops,
 };
 
+static void pic32_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int pic32_dmt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int ret;
 	struct pic32_dmt *dmt;
-	struct resource *mem;
 	struct watchdog_device *wdd = &pic32_dmt_wdd;
 
-	dmt = devm_kzalloc(&pdev->dev, sizeof(*dmt), GFP_KERNEL);
+	dmt = devm_kzalloc(dev, sizeof(*dmt), GFP_KERNEL);
 	if (!dmt)
 		return -ENOMEM;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dmt->regs = devm_ioremap_resource(&pdev->dev, mem);
+	dmt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dmt->regs))
 		return PTR_ERR(dmt->regs);
 
-	dmt->clk = devm_clk_get(&pdev->dev, NULL);
+	dmt->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(dmt->clk)) {
-		dev_err(&pdev->dev, "clk not found\n");
+		dev_err(dev, "clk not found\n");
 		return PTR_ERR(dmt->clk);
 	}
 
 	ret = clk_prepare_enable(dmt->clk);
 	if (ret)
 		return ret;
+	ret = devm_add_action_or_reset(dev, pic32_clk_disable_unprepare,
+				       dmt->clk);
+	if (ret)
+		return ret;
 
 	wdd->timeout = pic32_dmt_get_timeout_secs(dmt);
 	if (!wdd->timeout) {
-		dev_err(&pdev->dev,
-			"failed to read watchdog register timeout\n");
-		ret = -EINVAL;
-		goto out_disable_clk;
+		dev_err(dev, "failed to read watchdog register timeout\n");
+		return -EINVAL;
 	}
 
-	dev_info(&pdev->dev, "timeout %d\n", wdd->timeout);
+	dev_info(dev, "timeout %d\n", wdd->timeout);
 
 	wdd->bootstatus = pic32_dmt_bootstatus(dmt) ? WDIOF_CARDRESET : 0;
 
 	watchdog_set_nowayout(wdd, WATCHDOG_NOWAYOUT);
 	watchdog_set_drvdata(wdd, dmt);
 
-	ret = watchdog_register_device(wdd);
+	ret = devm_watchdog_register_device(dev, wdd);
 	if (ret) {
-		dev_err(&pdev->dev, "watchdog register failed, err %d\n", ret);
-		goto out_disable_clk;
+		dev_err(dev, "watchdog register failed, err %d\n", ret);
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, wdd);
-	return 0;
-
-out_disable_clk:
-	clk_disable_unprepare(dmt->clk);
-	return ret;
-}
-
-static int pic32_dmt_remove(struct platform_device *pdev)
-{
-	struct watchdog_device *wdd = platform_get_drvdata(pdev);
-	struct pic32_dmt *dmt = watchdog_get_drvdata(wdd);
-
-	watchdog_unregister_device(wdd);
-	clk_disable_unprepare(dmt->clk);
-
 	return 0;
 }
 
@@ -242,7 +233,6 @@ MODULE_DEVICE_TABLE(of, pic32_dmt_of_ids);
 
 static struct platform_driver pic32_dmt_driver = {
 	.probe		= pic32_dmt_probe,
-	.remove		= pic32_dmt_remove,
 	.driver		= {
 		.name		= "pic32-dmt",
 		.of_match_table = of_match_ptr(pic32_dmt_of_ids),

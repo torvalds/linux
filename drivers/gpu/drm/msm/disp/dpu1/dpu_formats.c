@@ -1040,10 +1040,11 @@ int dpu_format_check_modified_format(
 		const struct drm_mode_fb_cmd2 *cmd,
 		struct drm_gem_object **bos)
 {
-	int ret, i, num_base_fmt_planes;
+	const struct drm_format_info *info;
 	const struct dpu_format *fmt;
 	struct dpu_hw_fmt_layout layout;
 	uint32_t bos_total_size = 0;
+	int ret, i;
 
 	if (!msm_fmt || !cmd || !bos) {
 		DRM_ERROR("invalid arguments\n");
@@ -1051,14 +1052,16 @@ int dpu_format_check_modified_format(
 	}
 
 	fmt = to_dpu_format(msm_fmt);
-	num_base_fmt_planes = drm_format_num_planes(fmt->base.pixel_format);
+	info = drm_format_info(fmt->base.pixel_format);
+	if (!info)
+		return -EINVAL;
 
 	ret = dpu_format_get_plane_sizes(fmt, cmd->width, cmd->height,
 			&layout, cmd->pitches);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < num_base_fmt_planes; i++) {
+	for (i = 0; i < info->num_planes; i++) {
 		if (!bos[i]) {
 			DRM_ERROR("invalid handle for plane %d\n", i);
 			return -EINVAL;

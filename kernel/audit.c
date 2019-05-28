@@ -2220,7 +2220,7 @@ static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
 	if (!audit_enabled)
 		return;
 
-	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
+	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_LOGIN);
 	if (!ab)
 		return;
 

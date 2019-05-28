@@ -150,7 +150,7 @@ static int rc32434_wdt_open(struct inode *inode, struct file *file)
 	rc32434_wdt_start();
 	rc32434_wdt_ping();
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int rc32434_wdt_release(struct inode *inode, struct file *file)

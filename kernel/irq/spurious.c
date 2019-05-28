@@ -212,9 +212,9 @@ static void __report_bad_irq(struct irq_desc *desc, irqreturn_t action_ret)
 	 */
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	for_each_action_of_desc(desc, action) {
-		printk(KERN_ERR "[<%p>] %pf", action->handler, action->handler);
+		printk(KERN_ERR "[<%p>] %ps", action->handler, action->handler);
 		if (action->thread_fn)
-			printk(KERN_CONT " threaded [<%p>] %pf",
+			printk(KERN_CONT " threaded [<%p>] %ps",
 					action->thread_fn, action->thread_fn);
 		printk(KERN_CONT "\n");
 	}

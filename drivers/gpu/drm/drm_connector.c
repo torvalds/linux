@@ -1051,6 +1051,12 @@ int drm_connector_create_standard_properties(struct drm_device *dev)
 		return -ENOMEM;
 	dev->mode_config.non_desktop_property = prop;
 
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB,
+				   "HDR_OUTPUT_METADATA", 0);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.hdr_output_metadata_property = prop;
+
 	return 0;
 }
 
@@ -1409,12 +1415,6 @@ EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
  *
  *	The driver may place further restrictions within these minimum
  *	and maximum bounds.
- *
- *	The semantics for the vertical blank timestamp differ when
- *	variable refresh rate is active. The vertical blank timestamp
- *	is defined to be an estimate using the current mode's fixed
- *	refresh rate timings. The semantics for the page-flip event
- *	timestamp remain the same.
  */
 
 /**

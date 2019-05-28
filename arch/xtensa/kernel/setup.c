@@ -651,6 +651,9 @@ c_show(struct seq_file *f, void *slot)
 #if XCHAL_HAVE_S32C1I
 		     "s32c1i "
 #endif
+#if XCHAL_HAVE_EXCLUSIVE
+		     "exclusive "
+#endif
 		     "\n");
 
 	/* Registers. */

@@ -36,6 +36,8 @@ extern unsigned long ppc_proc_freq;
 extern unsigned long ppc_tb_freq;
 #define DEFAULT_TB_FREQ		125000000UL
 
+extern bool tb_invalid;
+
 struct div_result {
 	u64 result_high;
 	u64 result_low;

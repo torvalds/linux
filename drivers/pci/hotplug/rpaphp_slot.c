@@ -21,6 +21,7 @@
 /* free up the memory used by a slot */
 void dealloc_slot_struct(struct slot *slot)
 {
+	of_node_put(slot->dn);
 	kfree(slot->name);
 	kfree(slot);
 }
@@ -36,7 +37,7 @@ struct slot *alloc_slot_struct(struct device_node *dn,
 	slot->name = kstrdup(drc_name, GFP_KERNEL);
 	if (!slot->name)
 		goto error_slot;
-	slot->dn = dn;
+	slot->dn = of_node_get(dn);
 	slot->index = drc_index;
 	slot->power_domain = power_domain;
 	slot->hotplug_slot.ops = &rpaphp_hotplug_slot_ops;

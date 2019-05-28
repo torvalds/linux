@@ -22,7 +22,7 @@
 
 #include <mach/hardware.h>
 #include <asm/io.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <mach/mux.h>
 #include <mach/tc.h>

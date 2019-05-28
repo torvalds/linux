@@ -138,11 +138,6 @@ cc-disable-warning = $(call try-run,\
 # Usage:  EXTRA_CFLAGS += $(call cc-ifversion, -lt, 0402, -O1)
 cc-ifversion = $(shell [ $(CONFIG_GCC_VERSION)0 $(1) $(2)000 ] && echo $(3) || echo $(4))
 
-# cc-ldoption
-# Usage: ldflags += $(call cc-ldoption, -Wl$(comma)--hash-style=both)
-cc-ldoption = $(call try-run,\
-	$(CC) $(1) $(KBUILD_CPPFLAGS) $(CC_OPTION_CFLAGS) -nostdlib -x c /dev/null -o "$$TMP",$(1),$(2))
-
 # ld-option
 # Usage: KBUILD_LDFLAGS += $(call ld-option, -X, -Y)
 ld-option = $(call try-run, $(LD) $(KBUILD_LDFLAGS) $(1) -v,$(1),$(2),$(3))
@@ -191,14 +186,6 @@ clean := -f $(srctree)/scripts/Makefile.clean obj
 # Usage:
 # $(Q)$(MAKE) $(hdr-inst)=dir
 hdr-inst := -f $(srctree)/scripts/Makefile.headersinst obj
-
-# Prefix -I with $(srctree) if it is not an absolute path.
-# skip if -I has no parameter
-addtree = $(if $(patsubst -I%,%,$(1)), \
-$(if $(filter-out -I/% -I./% -I../%,$(1)),$(patsubst -I%,-I$(srctree)/%,$(1)),$(1)),$(1))
-
-# Find all -I options and call addtree
-flags = $(foreach o,$($(1)),$(if $(filter -I%,$(o)),$(call addtree,$(o)),$(o)))
 
 # echo command.
 # Short version is used, if $(quiet) equals `quiet_', otherwise full one.

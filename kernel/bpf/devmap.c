@@ -164,6 +164,9 @@ static void dev_map_free(struct bpf_map *map)
 	bpf_clear_redirect_map(map);
 	synchronize_rcu();
 
+	/* Make sure prior __dev_map_entry_free() have completed. */
+	rcu_barrier();
+
 	/* To ensure all pending flush operations have completed wait for flush
 	 * bitmap to indicate all flush_needed bits to be zero on _all_ cpus.
 	 * Because the above synchronize_rcu() ensures the map is disconnected

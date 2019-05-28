@@ -726,7 +726,7 @@ static const struct tegra_mc_client tegra30_mc_clients[] = {
 		},
 	}, {
 		.id = 0x34,
-		.name = "fdcwr2",
+		.name = "fdcdwr2",
 		.swgroup = TEGRA_SWGROUP_NV2,
 		.smmu = {
 			.reg = 0x22c,
@@ -999,7 +999,7 @@ const struct tegra_mc_soc tegra30_mc_soc = {
 	.smmu = &tegra30_smmu_soc,
 	.intmask = MC_INT_INVALID_SMMU_PAGE | MC_INT_SECURITY_VIOLATION |
 		   MC_INT_DECERR_EMEM,
-	.reset_ops = &terga_mc_reset_ops_common,
+	.reset_ops = &tegra_mc_reset_ops_common,
 	.resets = tegra30_mc_resets,
 	.num_resets = ARRAY_SIZE(tegra30_mc_resets),
 };

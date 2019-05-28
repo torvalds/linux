@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/reset.h>
 
 #include <sound/dmaengine_pcm.h>
@@ -44,20 +45,41 @@ static const struct of_device_id stm32_sai_ids[] = {
 	{}
 };
 
-static int stm32_sai_sync_conf_client(struct stm32_sai_data *sai, int synci)
+static int stm32_sai_pclk_disable(struct device *dev)
 {
+	struct stm32_sai_data *sai = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(sai->pclk);
+
+	return 0;
+}
+
+static int stm32_sai_pclk_enable(struct device *dev)
+{
+	struct stm32_sai_data *sai = dev_get_drvdata(dev);
 	int ret;
 
-	/* Enable peripheral clock to allow GCR register access */
 	ret = clk_prepare_enable(sai->pclk);
 	if (ret) {
 		dev_err(&sai->pdev->dev, "failed to enable clock: %d\n", ret);
 		return ret;
 	}
 
+	return 0;
+}
+
+static int stm32_sai_sync_conf_client(struct stm32_sai_data *sai, int synci)
+{
+	int ret;
+
+	/* Enable peripheral clock to allow GCR register access */
+	ret = stm32_sai_pclk_enable(&sai->pdev->dev);
+	if (ret)
+		return ret;
+
 	writel_relaxed(FIELD_PREP(SAI_GCR_SYNCIN_MASK, (synci - 1)), sai->base);
 
-	clk_disable_unprepare(sai->pclk);
+	stm32_sai_pclk_disable(&sai->pdev->dev);
 
 	return 0;
 }
@@ -68,11 +90,9 @@ static int stm32_sai_sync_conf_provider(struct stm32_sai_data *sai, int synco)
 	int ret;
 
 	/* Enable peripheral clock to allow GCR register access */
-	ret = clk_prepare_enable(sai->pclk);
-	if (ret) {
-		dev_err(&sai->pdev->dev, "failed to enable clock: %d\n", ret);
+	ret = stm32_sai_pclk_enable(&sai->pdev->dev);
+	if (ret)
 		return ret;
-	}
 
 	dev_dbg(&sai->pdev->dev, "Set %pOFn%s as synchro provider\n",
 		sai->pdev->dev.of_node,
@@ -83,13 +103,13 @@ static int stm32_sai_sync_conf_provider(struct stm32_sai_data *sai, int synco)
 		dev_err(&sai->pdev->dev, "%pOFn%s already set as sync provider\n",
 			sai->pdev->dev.of_node,
 			prev_synco == STM_SAI_SYNC_OUT_A ? "A" : "B");
-		clk_disable_unprepare(sai->pclk);
+			stm32_sai_pclk_disable(&sai->pdev->dev);
 		return -EINVAL;
 	}
 
 	writel_relaxed(FIELD_PREP(SAI_GCR_SYNCOUT_MASK, synco), sai->base);
 
-	clk_disable_unprepare(sai->pclk);
+	stm32_sai_pclk_disable(&sai->pdev->dev);
 
 	return 0;
 }
@@ -195,12 +215,54 @@ static int stm32_sai_probe(struct platform_device *pdev)
 	return devm_of_platform_populate(&pdev->dev);
 }
 
+#ifdef CONFIG_PM_SLEEP
+/*
+ * When pins are shared by two sai sub instances, pins have to be defined
+ * in sai parent node. In this case, pins state is not managed by alsa fw.
+ * These pins are managed in suspend/resume callbacks.
+ */
+static int stm32_sai_suspend(struct device *dev)
+{
+	struct stm32_sai_data *sai = dev_get_drvdata(dev);
+	int ret;
+
+	ret = stm32_sai_pclk_enable(dev);
+	if (ret)
+		return ret;
+
+	sai->gcr = readl_relaxed(sai->base);
+	stm32_sai_pclk_disable(dev);
+
+	return pinctrl_pm_select_sleep_state(dev);
+}
+
+static int stm32_sai_resume(struct device *dev)
+{
+	struct stm32_sai_data *sai = dev_get_drvdata(dev);
+	int ret;
+
+	ret = stm32_sai_pclk_enable(dev);
+	if (ret)
+		return ret;
+
+	writel_relaxed(sai->gcr, sai->base);
+	stm32_sai_pclk_disable(dev);
+
+	return pinctrl_pm_select_default_state(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops stm32_sai_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(stm32_sai_suspend, stm32_sai_resume)
+};
+
 MODULE_DEVICE_TABLE(of, stm32_sai_ids);
 
 static struct platform_driver stm32_sai_driver = {
 	.driver = {
 		.name = "st,stm32-sai",
 		.of_match_table = stm32_sai_ids,
+		.pm = &stm32_sai_pm_ops,
 	},
 	.probe = stm32_sai_probe,
 };

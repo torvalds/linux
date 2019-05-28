@@ -49,8 +49,6 @@ void save_stack_trace(struct stack_trace *trace)
 	unsigned long *sp = (unsigned long *)current_stack_pointer;
 
 	unwind_stack(current, NULL, sp,  &save_stack_ops, trace);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL_GPL(save_stack_trace);
 
@@ -84,7 +82,5 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 	unsigned long *sp = (unsigned long *)tsk->thread.sp;
 
 	unwind_stack(current, NULL, sp,  &save_stack_ops_nosched, trace);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);

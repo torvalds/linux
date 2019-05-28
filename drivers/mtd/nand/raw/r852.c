@@ -45,7 +45,6 @@ static inline void r852_write_reg(struct r852_device *dev,
 						int address, uint8_t value)
 {
 	writeb(value, dev->mmio + address);
-	mmiowb();
 }
 
 
@@ -61,7 +60,6 @@ static inline void r852_write_reg_dword(struct r852_device *dev,
 							int address, uint32_t value)
 {
 	writel(cpu_to_le32(value), dev->mmio + address);
-	mmiowb();
 }
 
 /* returns pointer to our private structure */

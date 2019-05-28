@@ -240,6 +240,7 @@ int nf_queue(struct sk_buff *skb, struct nf_hook_state *state,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(nf_queue);
 
 static unsigned int nf_iterate(struct sk_buff *skb,
 			       struct nf_hook_state *state,

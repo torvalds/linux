@@ -308,4 +308,17 @@ union diag318_info {
 int diag204(unsigned long subcode, unsigned long size, void *addr);
 int diag224(void *ptr);
 int diag26c(void *req, void *resp, enum diag26c_sc subcode);
+
+struct hypfs_diag0c_entry;
+
+struct diag_ops {
+	int (*diag210)(struct diag210 *addr);
+	int (*diag26c)(void *req, void *resp, enum diag26c_sc subcode);
+	int (*diag14)(unsigned long rx, unsigned long ry1, unsigned long subcode);
+	void (*diag0c)(struct hypfs_diag0c_entry *entry);
+	void (*diag308_reset)(void);
+};
+
+extern struct diag_ops diag_dma_ops;
+extern struct diag210 *__diag210_tmp_dma;
 #endif /* _ASM_S390_DIAG_H */

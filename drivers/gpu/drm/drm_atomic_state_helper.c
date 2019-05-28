@@ -57,6 +57,29 @@
  */
 
 /**
+ * __drm_atomic_helper_crtc_reset - reset state on CRTC
+ * @crtc: drm CRTC
+ * @crtc_state: CRTC state to assign
+ *
+ * Initializes the newly allocated @crtc_state and assigns it to
+ * the &drm_crtc->state pointer of @crtc, usually required when
+ * initializing the drivers or when called from the &drm_crtc_funcs.reset
+ * hook.
+ *
+ * This is useful for drivers that subclass the CRTC state.
+ */
+void
+__drm_atomic_helper_crtc_reset(struct drm_crtc *crtc,
+			       struct drm_crtc_state *crtc_state)
+{
+	if (crtc_state)
+		crtc_state->crtc = crtc;
+
+	crtc->state = crtc_state;
+}
+EXPORT_SYMBOL(__drm_atomic_helper_crtc_reset);
+
+/**
  * drm_atomic_helper_crtc_reset - default &drm_crtc_funcs.reset hook for CRTCs
  * @crtc: drm CRTC
  *
@@ -65,14 +88,13 @@
  */
 void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc)
 {
-	if (crtc->state)
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
-
-	kfree(crtc->state);
-	crtc->state = kzalloc(sizeof(*crtc->state), GFP_KERNEL);
+	struct drm_crtc_state *crtc_state =
+		kzalloc(sizeof(*crtc->state), GFP_KERNEL);
 
 	if (crtc->state)
-		crtc->state->crtc = crtc;
+		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
+
+	__drm_atomic_helper_crtc_reset(crtc, crtc_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_crtc_reset);
 
@@ -314,7 +336,7 @@ EXPORT_SYMBOL(drm_atomic_helper_plane_destroy_state);
  * @conn_state: connector state to assign
  *
  * Initializes the newly allocated @conn_state and assigns it to
- * the &drm_conector->state pointer of @connector, usually required when
+ * the &drm_connector->state pointer of @connector, usually required when
  * initializing the drivers or when called from the &drm_connector_funcs.reset
  * hook.
  *
@@ -369,6 +391,9 @@ __drm_atomic_helper_connector_duplicate_state(struct drm_connector *connector,
 		drm_connector_get(connector);
 	state->commit = NULL;
 
+	if (state->hdr_output_metadata)
+		drm_property_blob_get(state->hdr_output_metadata);
+
 	/* Don't copy over a writeback job, they are used only once */
 	state->writeback_job = NULL;
 }
@@ -416,6 +441,8 @@ __drm_atomic_helper_connector_destroy_state(struct drm_connector_state *state)
 
 	if (state->writeback_job)
 		drm_writeback_cleanup_job(state->writeback_job);
+
+	drm_property_blob_put(state->hdr_output_metadata);
 }
 EXPORT_SYMBOL(__drm_atomic_helper_connector_destroy_state);
 

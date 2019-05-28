@@ -57,7 +57,6 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
 
 #define RPI_DSI_DRIVER_NAME "rpi-ts-dsi"
 

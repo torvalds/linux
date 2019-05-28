@@ -77,7 +77,7 @@
         "UMask": "0x1",
         "EventName": "UOPS.MS_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "This event counts the cycles where 1 or more uops are issued by the micro-sequencer (MS), including microcode assists and inserted flows, and written to the IQ. ",
+        "BriefDescription": "This event counts the cycles where 1 or more uops are issued by the micro-sequencer (MS), including microcode assists and inserted flows, and written to the IQ.",
         "CounterMask": "1"
     }
 ]

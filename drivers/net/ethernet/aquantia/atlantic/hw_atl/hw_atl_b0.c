@@ -259,7 +259,13 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 
 		hw_atl_rpo_lro_time_base_divider_set(self, 0x61AU);
 		hw_atl_rpo_lro_inactive_interval_set(self, 0);
-		hw_atl_rpo_lro_max_coalescing_interval_set(self, 2);
+		/* the LRO timebase divider is 5 uS (0x61a),
+		 * which is multiplied by 50(0x32)
+		 * to get a maximum coalescing interval of 250 uS,
+		 * which is the default value
+		 */
+		hw_atl_rpo_lro_max_coalescing_interval_set(self, 50);
+
 
 		hw_atl_rpo_lro_qsessions_lim_set(self, 1U);
 
@@ -273,6 +279,10 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 
 		hw_atl_rpo_lro_en_set(self,
 				      aq_nic_cfg->is_lro ? 0xFFFFFFFFU : 0U);
+		hw_atl_itr_rsc_en_set(self,
+				      aq_nic_cfg->is_lro ? 0xFFFFFFFFU : 0U);
+
+		hw_atl_itr_rsc_delay_set(self, 1U);
 	}
 	return aq_hw_err_from_flags(self);
 }
@@ -378,10 +388,10 @@ err_exit:
 static int hw_atl_b0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 {
 	static u32 aq_hw_atl_igcr_table_[4][2] = {
-		{ 0x20000000U, 0x20000000U }, /* AQ_IRQ_INVALID */
-		{ 0x20000080U, 0x20000080U }, /* AQ_IRQ_LEGACY */
-		{ 0x20000021U, 0x20000025U }, /* AQ_IRQ_MSI */
-		{ 0x20000022U, 0x20000026U }  /* AQ_IRQ_MSIX */
+		[AQ_HW_IRQ_INVALID] = { 0x20000000U, 0x20000000U },
+		[AQ_HW_IRQ_LEGACY]  = { 0x20000080U, 0x20000080U },
+		[AQ_HW_IRQ_MSI]     = { 0x20000021U, 0x20000025U },
+		[AQ_HW_IRQ_MSIX]    = { 0x20000022U, 0x20000026U },
 	};
 
 	int err = 0;
@@ -432,6 +442,11 @@ static int hw_atl_b0_hw_init(struct aq_hw_s *self, u8 *mac_addr)
 	hw_atl_reg_gen_irq_map_set(self,
 				   ((HW_ATL_B0_ERR_INT << 0x18) | (1U << 0x1F)) |
 			    ((HW_ATL_B0_ERR_INT << 0x10) | (1U << 0x17)), 0U);
+
+	/* Enable link interrupt */
+	if (aq_nic_cfg->link_irq_vec)
+		hw_atl_reg_gen_irq_map_set(self, BIT(7) |
+					   aq_nic_cfg->link_irq_vec, 3U);
 
 	hw_atl_b0_hw_offload_set(self, aq_nic_cfg);
 
@@ -654,8 +669,6 @@ err_exit:
 static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 					struct aq_ring_s *ring)
 {
-	struct device *ndev = aq_nic_get_dev(ring->aq_nic);
-
 	for (; ring->hw_head != ring->sw_tail;
 		ring->hw_head = aq_ring_next_dx(ring, ring->hw_head)) {
 		struct aq_ring_buff_s *buff = NULL;
@@ -696,8 +709,6 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 			buff->is_ip_cso = 0U;
 			buff->is_cso_err = 0U;
 		}
-
-		dma_unmap_page(ndev, buff->pa, buff->len, DMA_FROM_DEVICE);
 
 		if ((rx_stat & BIT(0)) || rxd_wb->type & 0x1000U) {
 			/* MAC error or DMA error */

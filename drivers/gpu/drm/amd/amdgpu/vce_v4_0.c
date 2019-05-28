@@ -244,13 +244,18 @@ static int vce_v4_0_sriov_start(struct amdgpu_device *adev)
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_SWAP_CNTL1), 0);
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_LMI_VM_CTRL), 0);
 
+		offset = AMDGPU_VCE_FIRMWARE_OFFSET;
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+			uint32_t low = adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].tmr_mc_addr_lo;
+			uint32_t hi = adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].tmr_mc_addr_hi;
+			uint64_t tmr_mc_addr = (uint64_t)(hi) << 32 | low;
+
 			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
-						mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
-						adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 8);
+						mmVCE_LMI_VCPU_CACHE_40BIT_BAR0), tmr_mc_addr >> 8);
 			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
 						mmVCE_LMI_VCPU_CACHE_64BIT_BAR0),
-						(adev->firmware.ucode[AMDGPU_UCODE_ID_VCE].mc_addr >> 40) & 0xff);
+						(tmr_mc_addr >> 40) & 0xff);
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET0), 0);
 		} else {
 			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
 						mmVCE_LMI_VCPU_CACHE_40BIT_BAR0),
@@ -258,6 +263,9 @@ static int vce_v4_0_sriov_start(struct amdgpu_device *adev)
 			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
 						mmVCE_LMI_VCPU_CACHE_64BIT_BAR0),
 						(adev->vce.gpu_addr >> 40) & 0xff);
+			MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET0),
+						offset & ~0x0f000000);
+
 		}
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0,
 						mmVCE_LMI_VCPU_CACHE_40BIT_BAR1),
@@ -272,10 +280,7 @@ static int vce_v4_0_sriov_start(struct amdgpu_device *adev)
 						mmVCE_LMI_VCPU_CACHE_64BIT_BAR2),
 						(adev->vce.gpu_addr >> 40) & 0xff);
 
-		offset = AMDGPU_VCE_FIRMWARE_OFFSET;
 		size = VCE_V4_0_FW_SIZE;
-		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_OFFSET0),
-					offset & ~0x0f000000);
 		MMSCH_V1_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CACHE_SIZE0), size);
 
 		offset = (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) ? offset + size : 0;
@@ -382,6 +387,7 @@ static int vce_v4_0_start(struct amdgpu_device *adev)
 static int vce_v4_0_stop(struct amdgpu_device *adev)
 {
 
+	/* Disable VCPU */
 	WREG32_P(SOC15_REG_OFFSET(VCE, 0, mmVCE_VCPU_CNTL), 0, ~0x200001);
 
 	/* hold on ECPU */
@@ -389,8 +395,8 @@ static int vce_v4_0_stop(struct amdgpu_device *adev)
 			VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
 			~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
 
-	/* clear BUSY flag */
-	WREG32_P(SOC15_REG_OFFSET(VCE, 0, mmVCE_STATUS), 0, ~VCE_STATUS__JOB_BUSY_MASK);
+	/* clear VCE_STATUS */
+	WREG32(SOC15_REG_OFFSET(VCE, 0, mmVCE_STATUS), 0);
 
 	/* Set Clock-Gating off */
 	/* if (adev->cg_flags & AMD_CG_SUPPORT_VCE_MGCG)
@@ -922,6 +928,7 @@ static int vce_v4_0_set_clockgating_state(void *handle,
 
 	return 0;
 }
+#endif
 
 static int vce_v4_0_set_powergating_state(void *handle,
 					  enum amd_powergating_state state)
@@ -935,16 +942,11 @@ static int vce_v4_0_set_powergating_state(void *handle,
 	 */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!(adev->pg_flags & AMD_PG_SUPPORT_VCE))
-		return 0;
-
 	if (state == AMD_PG_STATE_GATE)
-		/* XXX do we need a vce_v4_0_stop()? */
-		return 0;
+		return vce_v4_0_stop(adev);
 	else
 		return vce_v4_0_start(adev);
 }
-#endif
 
 static void vce_v4_0_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_job *job,
 					struct amdgpu_ib *ib, uint32_t flags)
@@ -1059,7 +1061,7 @@ const struct amd_ip_funcs vce_v4_0_ip_funcs = {
 	.soft_reset = NULL /* vce_v4_0_soft_reset */,
 	.post_soft_reset = NULL /* vce_v4_0_post_soft_reset */,
 	.set_clockgating_state = vce_v4_0_set_clockgating_state,
-	.set_powergating_state = NULL /* vce_v4_0_set_powergating_state */,
+	.set_powergating_state = vce_v4_0_set_powergating_state,
 };
 
 static const struct amdgpu_ring_funcs vce_v4_0_ring_vm_funcs = {

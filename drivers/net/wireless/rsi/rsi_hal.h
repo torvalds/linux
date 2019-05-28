@@ -70,6 +70,21 @@
 #define RSI_WATCH_DOG_DELAY_TIMER_2		0x16f
 #define RSI_WATCH_DOG_TIMER_ENABLE		0x170
 
+/* Watchdog timer addresses for 9116 */
+#define NWP_AHB_BASE_ADDR		0x41300000
+#define NWP_WWD_INTERRUPT_TIMER		(NWP_AHB_BASE_ADDR + 0x300)
+#define NWP_WWD_SYSTEM_RESET_TIMER	(NWP_AHB_BASE_ADDR + 0x304)
+#define NWP_WWD_WINDOW_TIMER		(NWP_AHB_BASE_ADDR + 0x308)
+#define NWP_WWD_TIMER_SETTINGS		(NWP_AHB_BASE_ADDR + 0x30C)
+#define NWP_WWD_MODE_AND_RSTART		(NWP_AHB_BASE_ADDR + 0x310)
+#define NWP_WWD_RESET_BYPASS		(NWP_AHB_BASE_ADDR + 0x314)
+#define NWP_FSM_INTR_MASK_REG		(NWP_AHB_BASE_ADDR + 0x104)
+
+/* Watchdog timer values */
+#define NWP_WWD_INT_TIMER_CLKS		5
+#define NWP_WWD_SYS_RESET_TIMER_CLKS	4
+#define NWP_WWD_TIMER_DISABLE		0xAA0001
+
 #define RSI_ULP_WRITE_0			00
 #define RSI_ULP_WRITE_2			02
 #define RSI_ULP_WRITE_50		50
@@ -113,9 +128,18 @@
 #define BBP_INFO_40MHZ 0x6
 
 #define FW_FLASH_OFFSET			0x820
-#define LMAC_VER_OFFSET			(FW_FLASH_OFFSET + 0x200)
+#define LMAC_VER_OFFSET_9113		(FW_FLASH_OFFSET + 0x200)
+#define LMAC_VER_OFFSET_9116		0x22C2
 #define MAX_DWORD_ALIGN_BYTES		64
 #define RSI_COMMON_REG_SIZE		2
+#define RSI_9116_REG_SIZE		4
+#define FW_ALIGN_SIZE			4
+#define RSI_9116_FW_MAGIC_WORD		0x5aa5
+
+#define MEM_ACCESS_CTRL_FROM_HOST	0x41300000
+#define RAM_384K_ACCESS_FROM_TA		(BIT(2) | BIT(3) | BIT(4) | BIT(5) | \
+					 BIT(20) | BIT(21) | BIT(22) | \
+					 BIT(23) | BIT(24) | BIT(25))
 
 struct bl_header {
 	__le32 flags;
@@ -129,6 +153,24 @@ struct ta_metadata {
 	char *name;
 	unsigned int address;
 };
+
+#define RSI_BL_CTRL_LEN_MASK			0xFFFFFF
+#define RSI_BL_CTRL_SPI_32BIT_MODE		BIT(27)
+#define RSI_BL_CTRL_REL_TA_SOFTRESET		BIT(28)
+#define RSI_BL_CTRL_START_FROM_ROM_PC		BIT(29)
+#define RSI_BL_CTRL_SPI_8BIT_MODE		BIT(30)
+#define RSI_BL_CTRL_LAST_ENTRY			BIT(31)
+struct bootload_entry {
+	__le32 control;
+	__le32 dst_addr;
+} __packed;
+
+struct bootload_ds {
+	__le16 fixed_pattern;
+	__le16 offset;
+	__le32 reserved;
+	struct bootload_entry bl_entry[7];
+} __packed;
 
 struct rsi_mgmt_desc {
 	__le16 len_qno;

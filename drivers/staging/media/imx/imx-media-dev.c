@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * V4L2 Media Controller Driver for Freescale i.MX5/6 SOC
  *
  * Copyright (c) 2016 Mentor Graphics Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/delay.h>
 #include <linux/fs.h>
@@ -50,12 +46,14 @@ int imx_media_add_async_subdev(struct imx_media_dev *imxmd,
 	int ret;
 
 	if (fwnode) {
-		asd = v4l2_async_notifier_add_fwnode_subdev(
-			&imxmd->notifier, fwnode, sizeof(*imxasd));
+		asd = v4l2_async_notifier_add_fwnode_subdev(&imxmd->notifier,
+							    fwnode,
+							    sizeof(*imxasd));
 	} else {
 		devname = dev_name(&pdev->dev);
-		asd = v4l2_async_notifier_add_devname_subdev(
-			&imxmd->notifier, devname, sizeof(*imxasd));
+		asd = v4l2_async_notifier_add_devname_subdev(&imxmd->notifier,
+							     devname,
+							     sizeof(*imxasd));
 	}
 
 	if (IS_ERR(asd)) {
@@ -266,10 +264,9 @@ static int imx_media_alloc_pad_vdev_lists(struct imx_media_dev *imxmd)
 
 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
 		entity = &sd->entity;
-		vdev_lists = devm_kcalloc(
-			imxmd->md.dev,
-			entity->num_pads, sizeof(*vdev_lists),
-			GFP_KERNEL);
+		vdev_lists = devm_kcalloc(imxmd->md.dev,
+					  entity->num_pads, sizeof(*vdev_lists),
+					  GFP_KERNEL);
 		if (!vdev_lists)
 			return -ENOMEM;
 
@@ -477,13 +474,6 @@ static int imx_media_probe(struct platform_device *pdev)
 		goto cleanup;
 	}
 
-	ret = imx_media_add_internal_subdevs(imxmd);
-	if (ret) {
-		v4l2_err(&imxmd->v4l2_dev,
-			 "add_internal_subdevs failed with %d\n", ret);
-		goto cleanup;
-	}
-
 	ret = imx_media_dev_notifier_register(imxmd);
 	if (ret)
 		goto del_int;
@@ -491,7 +481,7 @@ static int imx_media_probe(struct platform_device *pdev)
 	return 0;
 
 del_int:
-	imx_media_remove_internal_subdevs(imxmd);
+	imx_media_remove_ipu_internal_subdevs(imxmd);
 cleanup:
 	v4l2_async_notifier_cleanup(&imxmd->notifier);
 	v4l2_device_unregister(&imxmd->v4l2_dev);
@@ -508,7 +498,7 @@ static int imx_media_remove(struct platform_device *pdev)
 	v4l2_info(&imxmd->v4l2_dev, "Removing imx-media\n");
 
 	v4l2_async_notifier_unregister(&imxmd->notifier);
-	imx_media_remove_internal_subdevs(imxmd);
+	imx_media_remove_ipu_internal_subdevs(imxmd);
 	v4l2_async_notifier_cleanup(&imxmd->notifier);
 	media_device_unregister(&imxmd->md);
 	v4l2_device_unregister(&imxmd->v4l2_dev);

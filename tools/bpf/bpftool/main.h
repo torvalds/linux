@@ -73,6 +73,7 @@ static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_LIRC_MODE2]		= "lirc_mode2",
 	[BPF_PROG_TYPE_SK_REUSEPORT]		= "sk_reuseport",
 	[BPF_PROG_TYPE_FLOW_DISSECTOR]		= "flow_dissector",
+	[BPF_PROG_TYPE_CGROUP_SYSCTL]		= "cgroup_sysctl",
 };
 
 extern const char * const map_type_name[];
@@ -149,6 +150,7 @@ int do_perf(int argc, char **arg);
 int do_net(int argc, char **arg);
 int do_tracelog(int argc, char **arg);
 int do_feature(int argc, char **argv);
+int do_btf(int argc, char **argv);
 
 int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what);
 int prog_parse_fd(int *argc, char ***argv);

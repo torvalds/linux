@@ -404,6 +404,7 @@ static int nb8800_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int dma_len;
 	unsigned int align;
 	unsigned int next;
+	bool xmit_more;
 
 	if (atomic_read(&priv->tx_free) <= NB8800_DESC_LOW) {
 		netif_stop_queue(dev);
@@ -423,9 +424,10 @@ static int nb8800_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
+	xmit_more = netdev_xmit_more();
 	if (atomic_dec_return(&priv->tx_free) <= NB8800_DESC_LOW) {
 		netif_stop_queue(dev);
-		skb->xmit_more = 0;
+		xmit_more = false;
 	}
 
 	next = priv->tx_next;
@@ -450,7 +452,7 @@ static int nb8800_xmit(struct sk_buff *skb, struct net_device *dev)
 	desc->n_addr = priv->tx_bufs[next].dma_desc;
 	desc->config = DESC_BTS(2) | DESC_DS | DESC_EOF | dma_len;
 
-	if (!skb->xmit_more)
+	if (!xmit_more)
 		desc->config |= DESC_EOC;
 
 	txb->skb = skb;
@@ -468,7 +470,7 @@ static int nb8800_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	priv->tx_next = next;
 
-	if (!skb->xmit_more) {
+	if (!xmit_more) {
 		smp_wmb();
 		priv->tx_chain->ready = true;
 		priv->tx_chain = NULL;
@@ -1461,7 +1463,7 @@ static int nb8800_probe(struct platform_device *pdev)
 	dev->irq = irq;
 
 	mac = of_get_mac_address(pdev->dev.of_node);
-	if (mac)
+	if (!IS_ERR(mac))
 		ether_addr_copy(dev->dev_addr, mac);
 
 	if (!is_valid_ether_addr(dev->dev_addr))

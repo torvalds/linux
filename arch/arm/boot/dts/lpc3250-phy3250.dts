@@ -134,6 +134,7 @@
 &mac {
 	phy-mode = "rmii";
 	use-iram;
+	status = "okay";
 };
 
 /* Here, choose exactly one from: ohci, usbd */
@@ -201,8 +202,6 @@
 };
 
 &ssp0 {
-	#address-cells = <1>;
-	#size-cells = <0>;
 	num-cs = <1>;
 	cs-gpios = <&gpio 3 5 0>;
 	status = "okay";

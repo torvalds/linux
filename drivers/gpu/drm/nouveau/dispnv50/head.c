@@ -306,7 +306,7 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 			asyh->set.or = head->func->or != NULL;
 		}
 
-		if (asyh->state.mode_changed)
+		if (asyh->state.mode_changed || asyh->state.connectors_changed)
 			nv50_head_atomic_check_mode(head, asyh);
 
 		if (asyh->state.color_mgmt_changed ||
@@ -413,20 +413,11 @@ nv50_head_atomic_duplicate_state(struct drm_crtc *crtc)
 	asyh->ovly = armh->ovly;
 	asyh->dither = armh->dither;
 	asyh->procamp = armh->procamp;
+	asyh->or = armh->or;
 	asyh->dp = armh->dp;
 	asyh->clr.mask = 0;
 	asyh->set.mask = 0;
 	return &asyh->state;
-}
-
-static void
-__drm_atomic_helper_crtc_reset(struct drm_crtc *crtc,
-			       struct drm_crtc_state *state)
-{
-	if (crtc->state)
-		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
-	crtc->state = state;
-	crtc->state->crtc = crtc;
 }
 
 static void
@@ -436,6 +427,9 @@ nv50_head_reset(struct drm_crtc *crtc)
 
 	if (WARN_ON(!(asyh = kzalloc(sizeof(*asyh), GFP_KERNEL))))
 		return;
+
+	if (crtc->state)
+		nv50_head_atomic_destroy_state(crtc, crtc->state);
 
 	__drm_atomic_helper_crtc_reset(crtc, &asyh->state);
 }

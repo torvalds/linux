@@ -638,3 +638,38 @@ in your dentry operations instead.
 	inode to d_splice_alias() will also do the right thing (equivalent of
 	d_add(dentry, NULL); return NULL;), so that kind of special cases
 	also doesn't need a separate treatment.
+--
+[strongly recommended]
+	take the RCU-delayed parts of ->destroy_inode() into a new method -
+	->free_inode().  If ->destroy_inode() becomes empty - all the better,
+	just get rid of it.  Synchronous work (e.g. the stuff that can't
+	be done from an RCU callback, or any WARN_ON() where we want the
+	stack trace) *might* be movable to ->evict_inode(); however,
+	that goes only for the things that are not needed to balance something
+	done by ->alloc_inode().  IOW, if it's cleaning up the stuff that
+	might have accumulated over the life of in-core inode, ->evict_inode()
+	might be a fit.
+
+	Rules for inode destruction:
+		* if ->destroy_inode() is non-NULL, it gets called
+		* if ->free_inode() is non-NULL, it gets scheduled by call_rcu()
+		* combination of NULL ->destroy_inode and NULL ->free_inode is
+		  treated as NULL/free_inode_nonrcu, to preserve the compatibility.
+
+	Note that the callback (be it via ->free_inode() or explicit call_rcu()
+	in ->destroy_inode()) is *NOT* ordered wrt superblock destruction;
+	as the matter of fact, the superblock and all associated structures
+	might be already gone.  The filesystem driver is guaranteed to be still
+	there, but that's it.  Freeing memory in the callback is fine; doing
+	more than that is possible, but requires a lot of care and is best
+	avoided.
+--
+[mandatory]
+	DCACHE_RCUACCESS is gone; having an RCU delay on dentry freeing is the
+	default.  DCACHE_NORCU opts out, and only d_alloc_pseudo() has any
+	business doing so.
+--
+[mandatory]
+	d_alloc_pseudo() is internal-only; uses outside of alloc_file_pseudo() are
+	very suspect (and won't work in modules).  Such uses are very likely to
+	be misspelled d_alloc_anon().

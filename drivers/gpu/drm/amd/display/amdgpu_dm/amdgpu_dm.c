@@ -364,6 +364,7 @@ static void dm_vupdate_high_irq(void *interrupt_params)
 	struct amdgpu_device *adev = irq_params->adev;
 	struct amdgpu_crtc *acrtc;
 	struct dm_crtc_state *acrtc_state;
+	unsigned long flags;
 
 	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VUPDATE);
 
@@ -379,8 +380,25 @@ static void dm_vupdate_high_irq(void *interrupt_params)
 		 * page-flip completion events that have been queued to us
 		 * if a pageflip happened inside front-porch.
 		 */
-		if (amdgpu_dm_vrr_active(acrtc_state))
+		if (amdgpu_dm_vrr_active(acrtc_state)) {
 			drm_crtc_handle_vblank(&acrtc->base);
+
+			/* BTR processing for pre-DCE12 ASICs */
+			if (acrtc_state->stream &&
+			    adev->family < AMDGPU_FAMILY_AI) {
+				spin_lock_irqsave(&adev->ddev->event_lock, flags);
+				mod_freesync_handle_v_update(
+				    adev->dm.freesync_module,
+				    acrtc_state->stream,
+				    &acrtc_state->vrr_params);
+
+				dc_stream_adjust_vmin_vmax(
+				    adev->dm.dc,
+				    acrtc_state->stream,
+				    &acrtc_state->vrr_params.adjust);
+				spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
+			}
+		}
 	}
 }
 
@@ -390,6 +408,7 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	struct amdgpu_device *adev = irq_params->adev;
 	struct amdgpu_crtc *acrtc;
 	struct dm_crtc_state *acrtc_state;
+	unsigned long flags;
 
 	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VBLANK);
 
@@ -412,9 +431,10 @@ static void dm_crtc_high_irq(void *interrupt_params)
 		 */
 		amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
 
-		if (acrtc_state->stream &&
+		if (acrtc_state->stream && adev->family >= AMDGPU_FAMILY_AI &&
 		    acrtc_state->vrr_params.supported &&
 		    acrtc_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE) {
+			spin_lock_irqsave(&adev->ddev->event_lock, flags);
 			mod_freesync_handle_v_update(
 				adev->dm.freesync_module,
 				acrtc_state->stream,
@@ -424,6 +444,7 @@ static void dm_crtc_high_irq(void *interrupt_params)
 				adev->dm.dc,
 				acrtc_state->stream,
 				&acrtc_state->vrr_params.adjust);
+			spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 		}
 	}
 }
@@ -533,6 +554,8 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	if (amdgpu_dc_feature_mask & DC_FBC_MASK)
 		init_data.flags.fbc_support = true;
+
+	init_data.flags.power_down_display_on_boot = true;
 
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
@@ -3438,6 +3461,8 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 		dc_stream_retain(state->stream);
 	}
 
+	state->active_planes = cur->active_planes;
+	state->interrupts_enabled = cur->interrupts_enabled;
 	state->vrr_params = cur->vrr_params;
 	state->vrr_infopacket = cur->vrr_infopacket;
 	state->abm_level = cur->abm_level;
@@ -3862,7 +3887,20 @@ static void dm_crtc_helper_disable(struct drm_crtc *crtc)
 {
 }
 
-static bool does_crtc_have_active_plane(struct drm_crtc_state *new_crtc_state)
+static bool does_crtc_have_active_cursor(struct drm_crtc_state *new_crtc_state)
+{
+	struct drm_device *dev = new_crtc_state->crtc->dev;
+	struct drm_plane *plane;
+
+	drm_for_each_plane_mask(plane, dev, new_crtc_state->plane_mask) {
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
+			return true;
+	}
+
+	return false;
+}
+
+static int count_crtc_active_planes(struct drm_crtc_state *new_crtc_state)
 {
 	struct drm_atomic_state *state = new_crtc_state->state;
 	struct drm_plane *plane;
@@ -3891,7 +3929,32 @@ static bool does_crtc_have_active_plane(struct drm_crtc_state *new_crtc_state)
 		num_active += (new_plane_state->fb != NULL);
 	}
 
-	return num_active > 0;
+	return num_active;
+}
+
+/*
+ * Sets whether interrupts should be enabled on a specific CRTC.
+ * We require that the stream be enabled and that there exist active
+ * DC planes on the stream.
+ */
+static void
+dm_update_crtc_interrupt_state(struct drm_crtc *crtc,
+			       struct drm_crtc_state *new_crtc_state)
+{
+	struct dm_crtc_state *dm_new_crtc_state =
+		to_dm_crtc_state(new_crtc_state);
+
+	dm_new_crtc_state->active_planes = 0;
+	dm_new_crtc_state->interrupts_enabled = false;
+
+	if (!dm_new_crtc_state->stream)
+		return;
+
+	dm_new_crtc_state->active_planes =
+		count_crtc_active_planes(new_crtc_state);
+
+	dm_new_crtc_state->interrupts_enabled =
+		dm_new_crtc_state->active_planes > 0;
 }
 
 static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
@@ -3901,6 +3964,14 @@ static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	struct dc *dc = adev->dm.dc;
 	struct dm_crtc_state *dm_crtc_state = to_dm_crtc_state(state);
 	int ret = -EINVAL;
+
+	/*
+	 * Update interrupt state for the CRTC. This needs to happen whenever
+	 * the CRTC has changed or whenever any of its planes have changed.
+	 * Atomic check satisfies both of these requirements since the CRTC
+	 * is added to the state by DRM during drm_atomic_helper_check_planes.
+	 */
+	dm_update_crtc_interrupt_state(crtc, state);
 
 	if (unlikely(!dm_crtc_state->stream &&
 		     modeset_required(state, NULL, dm_crtc_state->stream))) {
@@ -3912,9 +3983,13 @@ static int dm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	if (!dm_crtc_state->stream)
 		return 0;
 
-	/* We want at least one hardware plane enabled to use the stream. */
+	/*
+	 * We want at least one hardware plane enabled to use
+	 * the stream with a cursor enabled.
+	 */
 	if (state->enable && state->active &&
-	    !does_crtc_have_active_plane(state))
+	    does_crtc_have_active_cursor(state) &&
+	    dm_crtc_state->active_planes == 0)
 		return -EINVAL;
 
 	if (dc_validate_stream(dc, dm_crtc_state->stream) == DC_OK)
@@ -4188,6 +4263,7 @@ static const uint32_t rgb_formats[] = {
 	DRM_FORMAT_ABGR2101010,
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGB565,
 };
 
 static const uint32_t overlay_formats[] = {
@@ -4196,6 +4272,7 @@ static const uint32_t overlay_formats[] = {
 	DRM_FORMAT_RGBA8888,
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGB565
 };
 
 static const u32 cursor_formats[] = {
@@ -4999,8 +5076,10 @@ static void update_freesync_state_on_stream(
 	struct dc_plane_state *surface,
 	u32 flip_timestamp_in_us)
 {
-	struct mod_vrr_params vrr_params = new_crtc_state->vrr_params;
+	struct mod_vrr_params vrr_params;
 	struct dc_info_packet vrr_infopacket = {0};
+	struct amdgpu_device *adev = dm->adev;
+	unsigned long flags;
 
 	if (!new_stream)
 		return;
@@ -5013,6 +5092,9 @@ static void update_freesync_state_on_stream(
 	if (!new_stream->timing.h_total || !new_stream->timing.v_total)
 		return;
 
+	spin_lock_irqsave(&adev->ddev->event_lock, flags);
+	vrr_params = new_crtc_state->vrr_params;
+
 	if (surface) {
 		mod_freesync_handle_preflip(
 			dm->freesync_module,
@@ -5020,6 +5102,12 @@ static void update_freesync_state_on_stream(
 			new_stream,
 			flip_timestamp_in_us,
 			&vrr_params);
+
+		if (adev->family < AMDGPU_FAMILY_AI &&
+		    amdgpu_dm_vrr_active(new_crtc_state)) {
+			mod_freesync_handle_v_update(dm->freesync_module,
+						     new_stream, &vrr_params);
+		}
 	}
 
 	mod_freesync_build_vrr_infopacket(
@@ -5051,6 +5139,8 @@ static void update_freesync_state_on_stream(
 			      new_crtc_state->base.crtc->base.id,
 			      (int)new_crtc_state->base.vrr_enabled,
 			      (int)vrr_params.state);
+
+	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 }
 
 static void pre_update_freesync_state_on_stream(
@@ -5058,8 +5148,10 @@ static void pre_update_freesync_state_on_stream(
 	struct dm_crtc_state *new_crtc_state)
 {
 	struct dc_stream_state *new_stream = new_crtc_state->stream;
-	struct mod_vrr_params vrr_params = new_crtc_state->vrr_params;
+	struct mod_vrr_params vrr_params;
 	struct mod_freesync_config config = new_crtc_state->freesync_config;
+	struct amdgpu_device *adev = dm->adev;
+	unsigned long flags;
 
 	if (!new_stream)
 		return;
@@ -5070,6 +5162,9 @@ static void pre_update_freesync_state_on_stream(
 	 */
 	if (!new_stream->timing.h_total || !new_stream->timing.v_total)
 		return;
+
+	spin_lock_irqsave(&adev->ddev->event_lock, flags);
+	vrr_params = new_crtc_state->vrr_params;
 
 	if (new_crtc_state->vrr_supported &&
 	    config.min_refresh_in_uhz &&
@@ -5091,6 +5186,7 @@ static void pre_update_freesync_state_on_stream(
 			sizeof(vrr_params.adjust)) != 0);
 
 	new_crtc_state->vrr_params = vrr_params;
+	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 }
 
 static void amdgpu_dm_handle_vrr_transition(struct dm_crtc_state *old_state,
@@ -5123,6 +5219,22 @@ static void amdgpu_dm_handle_vrr_transition(struct dm_crtc_state *old_state,
 	}
 }
 
+static void amdgpu_dm_commit_cursors(struct drm_atomic_state *state)
+{
+	struct drm_plane *plane;
+	struct drm_plane_state *old_plane_state, *new_plane_state;
+	int i;
+
+	/*
+	 * TODO: Make this per-stream so we don't issue redundant updates for
+	 * commits with multiple streams.
+	 */
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state,
+				       new_plane_state, i)
+		if (plane->type == DRM_PLANE_TYPE_CURSOR)
+			handle_cursor_update(plane, old_plane_state);
+}
+
 static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				    struct dc_state *dc_state,
 				    struct drm_device *dev,
@@ -5130,7 +5242,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				    struct drm_crtc *pcrtc,
 				    bool wait_for_vblank)
 {
-	uint32_t i, r;
+	uint32_t i;
 	uint64_t timestamp_ns;
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
@@ -5141,6 +5253,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	struct dm_crtc_state *dm_old_crtc_state =
 			to_dm_crtc_state(drm_atomic_get_old_crtc_state(state, pcrtc));
 	int planes_count = 0, vpos, hpos;
+	long r;
 	unsigned long flags;
 	struct amdgpu_bo *abo;
 	uint64_t tiling_flags;
@@ -5161,6 +5274,14 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		dm_error("Failed to allocate update bundle\n");
 		goto cleanup;
 	}
+
+	/*
+	 * Disable the cursor first if we're disabling all the planes.
+	 * It'll remain on the screen after the planes are re-enabled
+	 * if we don't.
+	 */
+	if (acrtc_state->active_planes == 0)
+		amdgpu_dm_commit_cursors(state);
 
 	/* update planes when needed */
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
@@ -5205,22 +5326,28 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			continue;
 		}
 
+		abo = gem_to_amdgpu_bo(fb->obj[0]);
+
+		/*
+		 * Wait for all fences on this FB. Do limited wait to avoid
+		 * deadlock during GPU reset when this fence will not signal
+		 * but we hold reservation lock for the BO.
+		 */
+		r = reservation_object_wait_timeout_rcu(abo->tbo.resv, true,
+							false,
+							msecs_to_jiffies(5000));
+		if (unlikely(r <= 0))
+			DRM_ERROR("Waiting for fences timed out or interrupted!");
+
 		/*
 		 * TODO This might fail and hence better not used, wait
 		 * explicitly on fences instead
 		 * and in general should be called for
 		 * blocking commit to as per framework helpers
 		 */
-		abo = gem_to_amdgpu_bo(fb->obj[0]);
 		r = amdgpu_bo_reserve(abo, true);
-		if (unlikely(r != 0)) {
+		if (unlikely(r != 0))
 			DRM_ERROR("failed to reserve buffer before flip\n");
-			WARN_ON(1);
-		}
-
-		/* Wait for all fences on this FB */
-		WARN_ON(reservation_object_wait_timeout_rcu(abo->tbo.resv, true, false,
-									    MAX_SCHEDULE_TIMEOUT) < 0);
 
 		amdgpu_bo_get_tiling_flags(abo, &tiling_flags);
 
@@ -5329,7 +5456,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		}
 	}
 
-	if (planes_count) {
+	/* Update the planes if changed or disable if we don't have any. */
+	if (planes_count || acrtc_state->active_planes == 0) {
 		if (new_pcrtc_state->mode_changed) {
 			bundle->stream_update.src = acrtc_state->stream->src;
 			bundle->stream_update.dst = acrtc_state->stream->dst;
@@ -5352,12 +5480,69 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		mutex_unlock(&dm->dc_lock);
 	}
 
-	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i)
-		if (plane->type == DRM_PLANE_TYPE_CURSOR)
-			handle_cursor_update(plane, old_plane_state);
+	/*
+	 * Update cursor state *after* programming all the planes.
+	 * This avoids redundant programming in the case where we're going
+	 * to be disabling a single plane - those pipes are being disabled.
+	 */
+	if (acrtc_state->active_planes)
+		amdgpu_dm_commit_cursors(state);
 
 cleanup:
 	kfree(bundle);
+}
+
+/*
+ * Enable interrupts on CRTCs that are newly active, undergone
+ * a modeset, or have active planes again.
+ *
+ * Done in two passes, based on the for_modeset flag:
+ * Pass 1: For CRTCs going through modeset
+ * Pass 2: For CRTCs going from 0 to n active planes
+ *
+ * Interrupts can only be enabled after the planes are programmed,
+ * so this requires a two-pass approach since we don't want to
+ * just defer the interrupts until after commit planes every time.
+ */
+static void amdgpu_dm_enable_crtc_interrupts(struct drm_device *dev,
+					     struct drm_atomic_state *state,
+					     bool for_modeset)
+{
+	struct amdgpu_device *adev = dev->dev_private;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
+	int i;
+
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
+				      new_crtc_state, i) {
+		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+		struct dm_crtc_state *dm_new_crtc_state =
+			to_dm_crtc_state(new_crtc_state);
+		struct dm_crtc_state *dm_old_crtc_state =
+			to_dm_crtc_state(old_crtc_state);
+		bool modeset = drm_atomic_crtc_needs_modeset(new_crtc_state);
+		bool run_pass;
+
+		run_pass = (for_modeset && modeset) ||
+			   (!for_modeset && !modeset &&
+			    !dm_old_crtc_state->interrupts_enabled);
+
+		if (!run_pass)
+			continue;
+
+		if (!dm_new_crtc_state->interrupts_enabled)
+			continue;
+
+		manage_dm_interrupts(adev, acrtc, true);
+
+#ifdef CONFIG_DEBUG_FS
+		/* The stream has changed so CRC capture needs to re-enabled. */
+		if (dm_new_crtc_state->crc_enabled) {
+			dm_new_crtc_state->crc_enabled = false;
+			amdgpu_dm_crtc_set_crc_source(crtc, "auto");
+		}
+#endif
+	}
 }
 
 /*
@@ -5384,30 +5569,41 @@ static int amdgpu_dm_atomic_commit(struct drm_device *dev,
 	int i;
 
 	/*
-	 * We evade vblanks and pflips on crtc that
-	 * should be changed. We do it here to flush & disable
-	 * interrupts before drm_swap_state is called in drm_atomic_helper_commit
-	 * it will update crtc->dm_crtc_state->stream pointer which is used in
-	 * the ISRs.
+	 * We evade vblank and pflip interrupts on CRTCs that are undergoing
+	 * a modeset, being disabled, or have no active planes.
+	 *
+	 * It's done in atomic commit rather than commit tail for now since
+	 * some of these interrupt handlers access the current CRTC state and
+	 * potentially the stream pointer itself.
+	 *
+	 * Since the atomic state is swapped within atomic commit and not within
+	 * commit tail this would leave to new state (that hasn't been committed yet)
+	 * being accesssed from within the handlers.
+	 *
+	 * TODO: Fix this so we can do this in commit tail and not have to block
+	 * in atomic check.
 	 */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		struct dm_crtc_state *dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 		struct dm_crtc_state *dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
-		if (drm_atomic_crtc_needs_modeset(new_crtc_state)
-		    && dm_old_crtc_state->stream) {
+		if (dm_old_crtc_state->interrupts_enabled &&
+		    (!dm_new_crtc_state->interrupts_enabled ||
+		     drm_atomic_crtc_needs_modeset(new_crtc_state))) {
 			/*
-			 * If the stream is removed and CRC capture was
-			 * enabled on the CRTC the extra vblank reference
-			 * needs to be dropped since CRC capture will be
-			 * disabled.
+			 * Drop the extra vblank reference added by CRC
+			 * capture if applicable.
 			 */
-			if (!dm_new_crtc_state->stream
-			    && dm_new_crtc_state->crc_enabled) {
+			if (dm_new_crtc_state->crc_enabled)
 				drm_crtc_vblank_put(crtc);
+
+			/*
+			 * Only keep CRC capture enabled if there's
+			 * still a stream for the CRTC.
+			 */
+			if (!dm_new_crtc_state->stream)
 				dm_new_crtc_state->crc_enabled = false;
-			}
 
 			manage_dm_interrupts(adev, acrtc, false);
 		}
@@ -5623,46 +5819,25 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		mutex_unlock(&dm->dc_lock);
 	}
 
-	/* Update freesync state before amdgpu_dm_handle_vrr_transition(). */
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
-		pre_update_freesync_state_on_stream(dm, dm_new_crtc_state);
-	}
-
+	/* Count number of newly disabled CRTCs for dropping PM refs later. */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
-			new_crtc_state, i) {
-		/*
-		 * loop to enable interrupts on newly arrived crtc
-		 */
-		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-		bool modeset_needed;
-
+				      new_crtc_state, i) {
 		if (old_crtc_state->active && !new_crtc_state->active)
 			crtc_disable_count++;
 
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 
+		/* Update freesync active state. */
+		pre_update_freesync_state_on_stream(dm, dm_new_crtc_state);
+
 		/* Handle vrr on->off / off->on transitions */
 		amdgpu_dm_handle_vrr_transition(dm_old_crtc_state,
 						dm_new_crtc_state);
-
-		modeset_needed = modeset_required(
-				new_crtc_state,
-				dm_new_crtc_state->stream,
-				dm_old_crtc_state->stream);
-
-		if (dm_new_crtc_state->stream == NULL || !modeset_needed)
-			continue;
-
-		manage_dm_interrupts(adev, acrtc, true);
-
-#ifdef CONFIG_DEBUG_FS
-		/* The stream has changed so CRC capture needs to re-enabled. */
-		if (dm_new_crtc_state->crc_enabled)
-			amdgpu_dm_crtc_set_crc_source(crtc, "auto");
-#endif
 	}
+
+	/* Enable interrupts for CRTCs going through a modeset. */
+	amdgpu_dm_enable_crtc_interrupts(dev, state, true);
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, j)
 		if (new_crtc_state->pageflip_flags & DRM_MODE_PAGE_FLIP_ASYNC)
@@ -5677,6 +5852,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 						dm, crtc, wait_for_vblank);
 	}
 
+	/* Enable interrupts for CRTCs going from 0 to n active planes. */
+	amdgpu_dm_enable_crtc_interrupts(dev, state, false);
 
 	/*
 	 * send vblank event on all events not handled in flip and

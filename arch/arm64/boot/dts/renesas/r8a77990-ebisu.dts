@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for the ebisu board
  *
@@ -19,7 +19,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=dhcp";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -337,6 +337,15 @@
 &i2c0 {
 	status = "okay";
 
+	io_expander: gpio@20 {
+		compatible = "onnn,pca9654";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <22 IRQ_TYPE_LEVEL_LOW>;
+	};
+
 	hdmi-encoder@39 {
 		compatible = "adi,adv7511w";
 		reg = <0x39>;
@@ -398,7 +407,7 @@
 		};
 
 		port@a {
-			reg = <0xa>;
+			reg = <10>;
 
 			adv7482_txa: endpoint {
 				clock-lanes = <0>;
@@ -440,6 +449,28 @@
 	};
 };
 
+&i2c_dvfs {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	pmic: pmic@30 {
+		pinctrl-0 = <&irq0_pins>;
+		pinctrl-names = "default";
+
+		compatible = "rohm,bd9571mwv";
+		reg = <0x30>;
+		interrupt-parent = <&intc_ex>;
+		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		rohm,ddr-backup-power = <0x1>;
+		rohm,rstbmode-level;
+	};
+};
+
 &lvds0 {
 	status = "okay";
 
@@ -458,6 +489,13 @@
 };
 
 &lvds1 {
+	/*
+	 * Even though the LVDS1 output is not connected, the encoder must be
+	 * enabled to supply a pixel clock to the DU for the DPAD output when
+	 * LVDS0 is in use.
+	 */
+	status = "okay";
+
 	clocks = <&cpg CPG_MOD 727>,
 		 <&x13_clk>,
 		 <&extal_clk>;
@@ -493,6 +531,11 @@
 	du_pins: du {
 		groups = "du_rgb888", "du_sync", "du_disp", "du_clk_out_0";
 		function = "du";
+	};
+
+	irq0_pins: irq0 {
+		groups = "intc_ex_irq0";
+		function = "intc_ex";
 	};
 
 	pwm3_pins: pwm3 {
@@ -647,6 +690,10 @@
 };
 
 &vin4 {
+	status = "okay";
+};
+
+&vin5 {
 	status = "okay";
 };
 

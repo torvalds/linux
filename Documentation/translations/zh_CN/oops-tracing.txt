@@ -16,7 +16,7 @@ Documentation/admin-guide/bug-hunting.rst 的中文翻译
 
 中文版维护者： 杨瑞 Dave Young <hidave.darkstar@gmail.com>
 中文版翻译者： 杨瑞 Dave Young <hidave.darkstar@gmail.com>
-中文版校译者： 李阳 Li Yang <leo@zh-kernel.org>
+中文版校译者： 李阳 Li Yang <leoyang.li@nxp.com>
                王聪 Wang Cong <xiyou.wangcong@gmail.com>
 
 以下为正文

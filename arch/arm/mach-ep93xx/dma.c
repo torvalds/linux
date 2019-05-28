@@ -26,7 +26,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/platform_data/dma-ep93xx.h>
-#include <mach/hardware.h>
+#include "hardware.h"
 
 #include "soc.h"
 

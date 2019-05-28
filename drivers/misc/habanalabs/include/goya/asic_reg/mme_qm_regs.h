@@ -176,4 +176,3 @@
 #define mmMME_QM_CQ_BUF_RDATA                                        0xD830C
 
 #endif /* ASIC_REG_MME_QM_REGS_H_ */
-

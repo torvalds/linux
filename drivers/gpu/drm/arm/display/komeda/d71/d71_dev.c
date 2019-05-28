@@ -243,6 +243,56 @@ static int d71_disable_irq(struct komeda_dev *mdev)
 	return 0;
 }
 
+static void d71_on_off_vblank(struct komeda_dev *mdev, int master_pipe, bool on)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+	struct d71_pipeline *pipe = d71->pipes[master_pipe];
+
+	malidp_write32_mask(pipe->dou_addr, BLK_IRQ_MASK,
+			    DOU_IRQ_PL0, on ? DOU_IRQ_PL0 : 0);
+}
+
+static int to_d71_opmode(int core_mode)
+{
+	switch (core_mode) {
+	case KOMEDA_MODE_DISP0:
+		return DO0_ACTIVE_MODE;
+	case KOMEDA_MODE_DISP1:
+		return DO1_ACTIVE_MODE;
+	case KOMEDA_MODE_DUAL_DISP:
+		return DO01_ACTIVE_MODE;
+	case KOMEDA_MODE_INACTIVE:
+		return INACTIVE_MODE;
+	default:
+		WARN(1, "Unknown operation mode");
+		return INACTIVE_MODE;
+	}
+}
+
+static int d71_change_opmode(struct komeda_dev *mdev, int new_mode)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+	u32 opmode = to_d71_opmode(new_mode);
+	int ret;
+
+	malidp_write32_mask(d71->gcu_addr, BLK_CONTROL, 0x7, opmode);
+
+	ret = dp_wait_cond(((malidp_read32(d71->gcu_addr, BLK_CONTROL) & 0x7) == opmode),
+			   100, 1000, 10000);
+
+	return ret > 0 ? 0 : -ETIMEDOUT;
+}
+
+static void d71_flush(struct komeda_dev *mdev,
+		      int master_pipe, u32 active_pipes)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+	u32 reg_offset = (master_pipe == 0) ?
+			 GCU_CONFIG_VALID0 : GCU_CONFIG_VALID1;
+
+	malidp_write32(d71->gcu_addr, reg_offset, GCU_CONFIG_CVAL);
+}
+
 static int d71_reset(struct d71_dev *d71)
 {
 	u32 __iomem *gcu = d71->gcu_addr;
@@ -459,6 +509,9 @@ static struct komeda_dev_funcs d71_chip_funcs = {
 	.irq_handler	= d71_irq_handler,
 	.enable_irq	= d71_enable_irq,
 	.disable_irq	= d71_disable_irq,
+	.on_off_vblank	= d71_on_off_vblank,
+	.change_opmode	= d71_change_opmode,
+	.flush		= d71_flush,
 };
 
 struct komeda_dev_funcs *
@@ -467,6 +520,7 @@ d71_identify(u32 __iomem *reg_base, struct komeda_chip_info *chip)
 	chip->arch_id	= malidp_read32(reg_base, GLB_ARCH_ID);
 	chip->core_id	= malidp_read32(reg_base, GLB_CORE_ID);
 	chip->core_info	= malidp_read32(reg_base, GLB_CORE_INFO);
+	chip->bus_width	= D71_BUS_WIDTH_16_BYTES;
 
 	return &d71_chip_funcs;
 }

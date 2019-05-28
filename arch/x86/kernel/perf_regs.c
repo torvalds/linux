@@ -59,18 +59,34 @@ static unsigned int pt_regs_offset[PERF_REG_X86_MAX] = {
 
 u64 perf_reg_value(struct pt_regs *regs, int idx)
 {
+	struct x86_perf_regs *perf_regs;
+
+	if (idx >= PERF_REG_X86_XMM0 && idx < PERF_REG_X86_XMM_MAX) {
+		perf_regs = container_of(regs, struct x86_perf_regs, regs);
+		if (!perf_regs->xmm_regs)
+			return 0;
+		return perf_regs->xmm_regs[idx - PERF_REG_X86_XMM0];
+	}
+
 	if (WARN_ON_ONCE(idx >= ARRAY_SIZE(pt_regs_offset)))
 		return 0;
 
 	return regs_get_register(regs, pt_regs_offset[idx]);
 }
 
-#define REG_RESERVED (~((1ULL << PERF_REG_X86_MAX) - 1ULL))
-
 #ifdef CONFIG_X86_32
+#define REG_NOSUPPORT ((1ULL << PERF_REG_X86_R8) | \
+		       (1ULL << PERF_REG_X86_R9) | \
+		       (1ULL << PERF_REG_X86_R10) | \
+		       (1ULL << PERF_REG_X86_R11) | \
+		       (1ULL << PERF_REG_X86_R12) | \
+		       (1ULL << PERF_REG_X86_R13) | \
+		       (1ULL << PERF_REG_X86_R14) | \
+		       (1ULL << PERF_REG_X86_R15))
+
 int perf_reg_validate(u64 mask)
 {
-	if (!mask || mask & REG_RESERVED)
+	if (!mask || (mask & REG_NOSUPPORT))
 		return -EINVAL;
 
 	return 0;
@@ -96,10 +112,7 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 
 int perf_reg_validate(u64 mask)
 {
-	if (!mask || mask & REG_RESERVED)
-		return -EINVAL;
-
-	if (mask & REG_NOSUPPORT)
+	if (!mask || (mask & REG_NOSUPPORT))
 		return -EINVAL;
 
 	return 0;

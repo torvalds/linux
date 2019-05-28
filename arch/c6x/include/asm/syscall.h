@@ -11,6 +11,7 @@
 #ifndef __ASM_C6X_SYSCALL_H
 #define __ASM_C6X_SYSCALL_H
 
+#include <uapi/linux/audit.h>
 #include <linux/err.h>
 #include <linux/sched.h>
 
@@ -67,6 +68,12 @@ static inline void syscall_set_arguments(struct task_struct *task,
 	regs->b6 = *args++;
 	regs->a8 = *args++;
 	regs->a9 = *args;
+}
+
+static inline int syscall_get_arch(struct task_struct *task)
+{
+	return IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
+		? AUDIT_ARCH_C6XBE : AUDIT_ARCH_C6X;
 }
 
 #endif /* __ASM_C6X_SYSCALLS_H */

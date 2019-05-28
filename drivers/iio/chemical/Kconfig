@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Chemical sensors
 #
@@ -12,14 +13,14 @@ config ATLAS_PH_SENSOR
 	select IIO_TRIGGERED_BUFFER
 	select IRQ_WORK
 	help
-	 Say Y here to build I2C interface support for the following
-	 Atlas Scientific OEM SM sensors:
+	  Say Y here to build I2C interface support for the following
+	  Atlas Scientific OEM SM sensors:
 	    * pH SM sensor
 	    * EC SM sensor
 	    * ORP SM sensor
 
-	 To compile this driver as module, choose M here: the
-	 module will be called atlas-ph-sensor.
+	  To compile this driver as module, choose M here: the
+	  module will be called atlas-ph-sensor.
 
 config BME680
 	tristate "Bosch Sensortec BME680 sensor driver"
@@ -47,8 +48,8 @@ config BME680_SPI
 config CCS811
 	tristate "AMS CCS811 VOC sensor"
 	depends on I2C
-    select IIO_BUFFER
-    select IIO_TRIGGERED_BUFFER
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say Y here to build I2C interface support for the AMS
 	  CCS811 VOC (Volatile Organic Compounds) sensor
@@ -64,12 +65,26 @@ config IAQCORE
 config PMS7003
 	tristate "Plantower PMS7003 particulate matter sensor"
 	depends on SERIAL_DEV_BUS
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say Y here to build support for the Plantower PMS7003 particulate
 	  matter sensor.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called pms7003.
+
+config SENSIRION_SGP30
+	tristate "Sensirion SGPxx gas sensors"
+	depends on I2C
+	select CRC8
+	help
+	  Say Y here to build I2C interface support for the following
+	  Sensirion SGP gas sensors:
+	    * SGP30 gas sensor
+	    * SGPC3 low power gas sensor
+
+	  To compile this driver as module, choose M here: the
+	  module will be called sgp30.
 
 config SPS30
 	tristate "SPS30 particulate matter sensor"

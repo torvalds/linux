@@ -600,7 +600,7 @@ static void clean_keys(struct mlx5_ib_dev *dev, int c)
 
 static void mlx5_mr_cache_debugfs_cleanup(struct mlx5_ib_dev *dev)
 {
-	if (!mlx5_debugfs_root || dev->rep)
+	if (!mlx5_debugfs_root || dev->is_rep)
 		return;
 
 	debugfs_remove_recursive(dev->cache.root);
@@ -614,7 +614,7 @@ static void mlx5_mr_cache_debugfs_init(struct mlx5_ib_dev *dev)
 	struct dentry *dir;
 	int i;
 
-	if (!mlx5_debugfs_root || dev->rep)
+	if (!mlx5_debugfs_root || dev->is_rep)
 		return;
 
 	cache->root = debugfs_create_dir("mr_cache", dev->mdev->priv.dbg_root);
@@ -677,7 +677,7 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 			   MLX5_IB_UMR_OCTOWORD;
 		ent->access_mode = MLX5_MKC_ACCESS_MODE_MTT;
 		if ((dev->mdev->profile->mask & MLX5_PROF_MASK_MR_CACHE) &&
-		    !dev->rep &&
+		    !dev->is_rep &&
 		    mlx5_core_is_pf(dev->mdev))
 			ent->limit = dev->mdev->profile->mr_cache[i].limit;
 		else
@@ -1159,8 +1159,8 @@ static void set_mr_fields(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr,
 	mr->access_flags = access_flags;
 }
 
-static struct ib_mr *mlx5_ib_get_memic_mr(struct ib_pd *pd, u64 memic_addr,
-					  u64 length, int acc)
+static struct ib_mr *mlx5_ib_get_dm_mr(struct ib_pd *pd, u64 start_addr,
+				       u64 length, int acc, int mode)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
@@ -1182,9 +1182,8 @@ static struct ib_mr *mlx5_ib_get_memic_mr(struct ib_pd *pd, u64 memic_addr,
 
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 
-	MLX5_SET(mkc, mkc, access_mode_1_0, MLX5_MKC_ACCESS_MODE_MEMIC & 0x3);
-	MLX5_SET(mkc, mkc, access_mode_4_2,
-		 (MLX5_MKC_ACCESS_MODE_MEMIC >> 2) & 0x7);
+	MLX5_SET(mkc, mkc, access_mode_1_0, mode & 0x3);
+	MLX5_SET(mkc, mkc, access_mode_4_2, (mode >> 2) & 0x7);
 	MLX5_SET(mkc, mkc, a, !!(acc & IB_ACCESS_REMOTE_ATOMIC));
 	MLX5_SET(mkc, mkc, rw, !!(acc & IB_ACCESS_REMOTE_WRITE));
 	MLX5_SET(mkc, mkc, rr, !!(acc & IB_ACCESS_REMOTE_READ));
@@ -1194,8 +1193,7 @@ static struct ib_mr *mlx5_ib_get_memic_mr(struct ib_pd *pd, u64 memic_addr,
 	MLX5_SET64(mkc, mkc, len, length);
 	MLX5_SET(mkc, mkc, pd, to_mpd(pd)->pdn);
 	MLX5_SET(mkc, mkc, qpn, 0xffffff);
-	MLX5_SET64(mkc, mkc, start_addr,
-		   memic_addr - pci_resource_start(dev->mdev->pdev, 0));
+	MLX5_SET64(mkc, mkc, start_addr, start_addr);
 
 	err = mlx5_core_create_mkey(mdev, &mr->mmkey, in, inlen);
 	if (err)
@@ -1237,15 +1235,31 @@ struct ib_mr *mlx5_ib_reg_dm_mr(struct ib_pd *pd, struct ib_dm *dm,
 				struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_ib_dm *mdm = to_mdm(dm);
-	u64 memic_addr;
+	struct mlx5_core_dev *dev = to_mdev(dm->device)->mdev;
+	u64 start_addr = mdm->dev_addr + attr->offset;
+	int mode;
 
-	if (attr->access_flags & ~MLX5_IB_DM_ALLOWED_ACCESS)
+	switch (mdm->type) {
+	case MLX5_IB_UAPI_DM_TYPE_MEMIC:
+		if (attr->access_flags & ~MLX5_IB_DM_MEMIC_ALLOWED_ACCESS)
+			return ERR_PTR(-EINVAL);
+
+		mode = MLX5_MKC_ACCESS_MODE_MEMIC;
+		start_addr -= pci_resource_start(dev->pdev, 0);
+		break;
+	case MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM:
+	case MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_SW_ICM:
+		if (attr->access_flags & ~MLX5_IB_DM_SW_ICM_ALLOWED_ACCESS)
+			return ERR_PTR(-EINVAL);
+
+		mode = MLX5_MKC_ACCESS_MODE_SW_ICM;
+		break;
+	default:
 		return ERR_PTR(-EINVAL);
+	}
 
-	memic_addr = mdm->dev_addr + attr->offset;
-
-	return mlx5_ib_get_memic_mr(pd, memic_addr, attr->length,
-				    attr->access_flags);
+	return mlx5_ib_get_dm_mr(pd, start_addr, attr->length,
+				 attr->access_flags, mode);
 }
 
 struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
@@ -1623,15 +1637,14 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		kfree(mr);
 }
 
-int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
+int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
 	dereg_mr(to_mdev(ibmr->device), to_mmr(ibmr));
 	return 0;
 }
 
-struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
-			       enum ib_mr_type mr_type,
-			       u32 max_num_sg)
+struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
+			       u32 max_num_sg, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);

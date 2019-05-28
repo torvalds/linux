@@ -650,4 +650,3 @@
 #define MME1_RTR_NON_LIN_SCRAMB_EN_MASK                              0x1
 
 #endif /* ASIC_REG_MME1_RTR_MASKS_H_ */
-

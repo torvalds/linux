@@ -11,11 +11,11 @@
 
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/poly1305.h>
 #include <linux/crypto.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm/fpu/api.h>
 #include <asm/simd.h>
 
 struct poly1305_simd_desc_ctx {
@@ -126,7 +126,7 @@ static int poly1305_simd_update(struct shash_desc *desc,
 	unsigned int bytes;
 
 	/* kernel_fpu_begin/end is costly, use fallback for small updates */
-	if (srclen <= 288 || !may_use_simd())
+	if (srclen <= 288 || !crypto_simd_usable())
 		return crypto_poly1305_update(desc, src, srclen);
 
 	kernel_fpu_begin();

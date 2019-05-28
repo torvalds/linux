@@ -20,6 +20,7 @@
 #define _ASM_RISCV_IO_H
 
 #include <linux/types.h>
+#include <asm/mmiowb.h>
 
 extern void __iomem *ioremap(phys_addr_t offset, unsigned long size);
 
@@ -100,18 +101,6 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 #endif
 
 /*
- * FIXME: I'm flip-flopping on whether or not we should keep this or enforce
- * the ordering with I/O on spinlocks like PowerPC does.  The worry is that
- * drivers won't get this correct, but I also don't want to introduce a fence
- * into the lock code that otherwise only uses AMOs (and is essentially defined
- * by the ISA to be correct).   For now I'm leaving this here: "o,w" is
- * sufficient to ensure that all writes to the device have completed before the
- * write to the spinlock is allowed to commit.  I surmised this from reading
- * "ACQUIRES VS I/O ACCESSES" in memory-barriers.txt.
- */
-#define mmiowb()	__asm__ __volatile__ ("fence o,w" : : : "memory");
-
-/*
  * Unordered I/O memory access primitives.  These are even more relaxed than
  * the relaxed versions, as they don't even order accesses between successive
  * operations to the I/O regions.
@@ -165,7 +154,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 #define __io_br()	do {} while (0)
 #define __io_ar(v)	__asm__ __volatile__ ("fence i,r" : : : "memory");
 #define __io_bw()	__asm__ __volatile__ ("fence w,o" : : : "memory");
-#define __io_aw()	do {} while (0)
+#define __io_aw()	mmiowb_set_pending()
 
 #define readb(c)	({ u8  __v; __io_br(); __v = readb_cpu(c); __io_ar(__v); __v; })
 #define readw(c)	({ u16 __v; __io_br(); __v = readw_cpu(c); __io_ar(__v); __v; })

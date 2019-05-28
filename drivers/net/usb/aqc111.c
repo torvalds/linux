@@ -437,7 +437,7 @@ static int aqc111_change_mtu(struct net_device *net, int new_mtu)
 	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 			   2, &reg16);
 
-	if (dev->net->mtu > 12500 && dev->net->mtu <= 16334) {
+	if (dev->net->mtu > 12500) {
 		memcpy(buf, &AQC111_BULKIN_SIZE[2], 5);
 		/* RX bulk configuration */
 		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QCTRL,
@@ -451,7 +451,7 @@ static int aqc111_change_mtu(struct net_device *net, int new_mtu)
 		reg16 = 0x1020;
 	else if (dev->net->mtu <= 12500)
 		reg16 = 0x1420;
-	else if (dev->net->mtu <= 16334)
+	else
 		reg16 = 0x1A20;
 
 	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_PAUSE_WATERLVL_LOW,

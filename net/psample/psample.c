@@ -100,6 +100,7 @@ static int psample_nl_cmd_get_group_dumpit(struct sk_buff *msg,
 static const struct genl_ops psample_nl_ops[] = {
 	{
 		.cmd = PSAMPLE_CMD_GET_GROUP,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.dumpit = psample_nl_cmd_get_group_dumpit,
 		/* can be retrieved by unprivileged users */
 	}

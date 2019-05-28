@@ -484,7 +484,6 @@ static struct omap_hwmod_class_sysconfig dm81xx_gpio_sysc = {
 static struct omap_hwmod_class dm81xx_gpio_hwmod_class = {
 	.name	= "gpio",
 	.sysc	= &dm81xx_gpio_sysc,
-	.rev	= 2,
 };
 
 static struct omap_hwmod_opt_clk gpio1_opt_clks[] = {

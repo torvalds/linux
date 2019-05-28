@@ -508,6 +508,14 @@ static void kvm_timer_vcpu_load_nogic(struct kvm_vcpu *vcpu)
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 
 	/*
+	 * Update the timer output so that it is likely to match the
+	 * state we're about to restore. If the timer expires between
+	 * this point and the register restoration, we'll take the
+	 * interrupt anyway.
+	 */
+	kvm_timer_update_irq(vcpu, kvm_timer_should_fire(vtimer), vtimer);
+
+	/*
 	 * When using a userspace irqchip with the architected timers and a
 	 * host interrupt controller that doesn't support an active state, we
 	 * must still prevent continuously exiting from the guest, and
@@ -730,7 +738,6 @@ static void kvm_timer_init_interrupt(void *info)
 int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
 {
 	struct arch_timer_context *timer;
-	bool level;
 
 	switch (regid) {
 	case KVM_REG_ARM_TIMER_CTL:
@@ -757,10 +764,6 @@ int kvm_arm_timer_set_reg(struct kvm_vcpu *vcpu, u64 regid, u64 value)
 	default:
 		return -1;
 	}
-
-	level = kvm_timer_should_fire(timer);
-	kvm_timer_update_irq(vcpu, level, timer);
-	timer_emulate(timer);
 
 	return 0;
 }
@@ -812,7 +815,7 @@ static u64 kvm_arm_timer_read(struct kvm_vcpu *vcpu,
 
 	switch (treg) {
 	case TIMER_REG_TVAL:
-		val = kvm_phys_timer_read() - timer->cntvoff - timer->cnt_cval;
+		val = timer->cnt_cval - kvm_phys_timer_read() + timer->cntvoff;
 		break;
 
 	case TIMER_REG_CTL:
@@ -858,7 +861,7 @@ static void kvm_arm_timer_write(struct kvm_vcpu *vcpu,
 {
 	switch (treg) {
 	case TIMER_REG_TVAL:
-		timer->cnt_cval = val - kvm_phys_timer_read() - timer->cntvoff;
+		timer->cnt_cval = kvm_phys_timer_read() - timer->cntvoff + val;
 		break;
 
 	case TIMER_REG_CTL:

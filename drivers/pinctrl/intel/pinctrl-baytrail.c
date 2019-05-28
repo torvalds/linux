@@ -1710,6 +1710,8 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 #ifdef CONFIG_PM_SLEEP
 	vg->saved_context = devm_kcalloc(&vg->pdev->dev, gc->ngpio,
 				       sizeof(*vg->saved_context), GFP_KERNEL);
+	if (!vg->saved_context)
+		return -ENOMEM;
 #endif
 	ret = devm_gpiochip_add_data(&vg->pdev->dev, gc, vg);
 	if (ret) {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -9,22 +10,6 @@
  * These functions work with the state functions in sctp_sm_statefuns.c
  * to implement the state operations.  These functions implement the
  * steps which require modifying existing data structures.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -1684,7 +1669,6 @@ static struct sctp_cookie_param *sctp_pack_cookie(
 
 		/* Sign the message.  */
 		desc->tfm = sctp_sk(ep->base.sk)->hmac;
-		desc->flags = 0;
 
 		err = crypto_shash_setkey(desc->tfm, ep->secret_key,
 					  sizeof(ep->secret_key)) ?:
@@ -1755,7 +1739,6 @@ struct sctp_association *sctp_unpack_cookie(
 		int err;
 
 		desc->tfm = sctp_sk(ep->base.sk)->hmac;
-		desc->flags = 0;
 
 		err = crypto_shash_setkey(desc->tfm, ep->secret_key,
 					  sizeof(ep->secret_key)) ?:

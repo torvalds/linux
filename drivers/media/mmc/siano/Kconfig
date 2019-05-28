@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Siano Mobile Silicon Digital TV device configuration
 #
@@ -9,5 +10,5 @@ config SMS_SDIO_DRV
 	depends on !RC_CORE || RC_CORE
 	select MEDIA_COMMON_OPTIONS
 	select SMS_SIANO_MDTV
-	---help---
+	help
 	  Choose if you would like to have Siano's support for SDIO interface

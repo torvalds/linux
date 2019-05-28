@@ -21,6 +21,8 @@
 #ifndef _ASM_HEXAGON_SYSCALL_H
 #define _ASM_HEXAGON_SYSCALL_H
 
+#include <uapi/linux/audit.h>
+
 typedef long (*syscall_fn)(unsigned long, unsigned long,
 	unsigned long, unsigned long,
 	unsigned long, unsigned long);
@@ -41,4 +43,10 @@ static inline void syscall_get_arguments(struct task_struct *task,
 {
 	memcpy(args, &(&regs->r00)[0], 6 * sizeof(args[0]));
 }
+
+static inline int syscall_get_arch(struct task_struct *task)
+{
+	return AUDIT_ARCH_HEXAGON;
+}
+
 #endif

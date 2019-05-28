@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.26"
+#define DC_VER "3.2.27"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -204,6 +204,7 @@ struct dc_config {
 	bool optimize_edp_link_rate;
 	bool disable_fractional_pwm;
 	bool allow_seamless_boot_optimization;
+	bool power_down_display_on_boot;
 };
 
 enum visual_confirm {
@@ -610,6 +611,9 @@ struct dc_plane_state {
 	/* private to DC core */
 	struct dc_plane_status status;
 	struct dc_context *ctx;
+
+	/* HACK: Workaround for forcing full reprogramming under some conditions */
+	bool force_full_update;
 
 	/* private to dc_surface.c */
 	enum dc_irq_source irq_source;

@@ -34,10 +34,6 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 {
 	unsigned long addr, pfn;
 	struct page *page;
-	void *va;
-
-	if (!(vma->vm_flags & VM_EXEC))
-		return;
 
 	pfn = pte_pfn(*pte);
 	if (unlikely(!pfn_valid(pfn)))
@@ -47,14 +43,9 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	if (page == ZERO_PAGE(0))
 		return;
 
-	va = page_address(page);
-	addr = (unsigned long) va;
-
-	if (va == NULL && PageHighMem(page))
-		addr = (unsigned long) kmap_atomic(page);
+	addr = (unsigned long) kmap_atomic(page);
 
 	cache_wbinv_range(addr, addr + PAGE_SIZE);
 
-	if (va == NULL && PageHighMem(page))
-		kunmap_atomic((void *) addr);
+	kunmap_atomic((void *) addr);
 }

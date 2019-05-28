@@ -1,18 +1,9 @@
-/******************************************************************************
+// SPDX-License-Identifier: GPL-2.0
+/*
  * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- *****************************************************************************/
-
+ * Contact Information: wlanfae <wlanfae@realtek.com>
+ */
 #include "rtl_core.h"
 #include "r8192E_hw.h"
 #include "r8192E_cmdpkt.h"
@@ -20,7 +11,6 @@
 bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 			 u32 len)
 {
-
 	bool				rt_status = true;
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u16				frag_length = 0, frag_offset = 0;

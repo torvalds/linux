@@ -136,32 +136,40 @@ static const struct of_device_id meson_gxbb_wdt_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, meson_gxbb_wdt_dt_ids);
 
+static void meson_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct meson_gxbb_wdt *data;
-	struct resource *res;
 	int ret;
 
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	data->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->reg_base))
 		return PTR_ERR(data->reg_base);
 
-	data->clk = devm_clk_get(&pdev->dev, NULL);
+	data->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(data->clk))
 		return PTR_ERR(data->clk);
 
 	ret = clk_prepare_enable(data->clk);
 	if (ret)
 		return ret;
+	ret = devm_add_action_or_reset(dev, meson_clk_disable_unprepare,
+				       data->clk);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, data);
 
-	data->wdt_dev.parent = &pdev->dev;
+	data->wdt_dev.parent = dev;
 	data->wdt_dev.info = &meson_gxbb_wdt_info;
 	data->wdt_dev.ops = &meson_gxbb_wdt_ops;
 	data->wdt_dev.max_hw_heartbeat_ms = GXBB_WDT_TCNT_SETUP_MASK;
@@ -178,37 +186,12 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 
 	meson_gxbb_wdt_set_timeout(&data->wdt_dev, data->wdt_dev.timeout);
 
-	ret = watchdog_register_device(&data->wdt_dev);
-	if (ret) {
-		clk_disable_unprepare(data->clk);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int meson_gxbb_wdt_remove(struct platform_device *pdev)
-{
-	struct meson_gxbb_wdt *data = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(&data->wdt_dev);
-
-	clk_disable_unprepare(data->clk);
-
-	return 0;
-}
-
-static void meson_gxbb_wdt_shutdown(struct platform_device *pdev)
-{
-	struct meson_gxbb_wdt *data = platform_get_drvdata(pdev);
-
-	meson_gxbb_wdt_stop(&data->wdt_dev);
+	watchdog_stop_on_reboot(&data->wdt_dev);
+	return devm_watchdog_register_device(dev, &data->wdt_dev);
 }
 
 static struct platform_driver meson_gxbb_wdt_driver = {
 	.probe	= meson_gxbb_wdt_probe,
-	.remove	= meson_gxbb_wdt_remove,
-	.shutdown = meson_gxbb_wdt_shutdown,
 	.driver = {
 		.name = "meson-gxbb-wdt",
 		.pm = &meson_gxbb_wdt_pm_ops,

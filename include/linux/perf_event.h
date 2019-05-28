@@ -30,6 +30,7 @@ struct perf_guest_info_callbacks {
 	int				(*is_in_guest)(void);
 	int				(*is_user_mode)(void);
 	unsigned long			(*get_guest_ip)(void);
+	void				(*handle_intel_pt_intr)(void);
 };
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
@@ -240,7 +241,6 @@ struct perf_event;
 #define PERF_PMU_CAP_NO_INTERRUPT		0x01
 #define PERF_PMU_CAP_NO_NMI			0x02
 #define PERF_PMU_CAP_AUX_NO_SG			0x04
-#define PERF_PMU_CAP_AUX_SW_DOUBLEBUF		0x08
 #define PERF_PMU_CAP_EXCLUSIVE			0x10
 #define PERF_PMU_CAP_ITRACE			0x20
 #define PERF_PMU_CAP_HETEROGENEOUS_CPUS		0x40
@@ -464,7 +464,7 @@ enum perf_addr_filter_action_t {
 /**
  * struct perf_addr_filter - address range filter definition
  * @entry:	event's filter list linkage
- * @inode:	object file's inode for file-based filters
+ * @path:	object file's path for file-based filters
  * @offset:	filter range offset
  * @size:	filter range size (size==0 means single address trigger)
  * @action:	filter/start/stop
@@ -888,6 +888,9 @@ extern void perf_sched_cb_dec(struct pmu *pmu);
 extern void perf_sched_cb_inc(struct pmu *pmu);
 extern int perf_event_task_disable(void);
 extern int perf_event_task_enable(void);
+
+extern void perf_pmu_resched(struct pmu *pmu);
+
 extern int perf_event_refresh(struct perf_event *event, int refresh);
 extern void perf_event_update_userpage(struct perf_event *event);
 extern int perf_event_release_kernel(struct perf_event *event);
@@ -1055,12 +1058,18 @@ static inline void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned lo
 #endif
 
 /*
- * Take a snapshot of the regs. Skip ip and frame pointer to
- * the nth caller. We only need a few of the regs:
+ * When generating a perf sample in-line, instead of from an interrupt /
+ * exception, we lack a pt_regs. This is typically used from software events
+ * like: SW_CONTEXT_SWITCHES, SW_MIGRATIONS and the tie-in with tracepoints.
+ *
+ * We typically don't need a full set, but (for x86) do require:
  * - ip for PERF_SAMPLE_IP
  * - cs for user_mode() tests
- * - bp for callchains
- * - eflags, for future purposes, just in case
+ * - sp for PERF_SAMPLE_CALLCHAIN
+ * - eflags for MISC bits and CALLCHAIN (see: perf_hw_regs())
+ *
+ * NOTE: assumes @regs is otherwise already 0 filled; this is important for
+ * things like PERF_SAMPLE_REGS_INTR.
  */
 static inline void perf_fetch_caller_regs(struct pt_regs *regs)
 {

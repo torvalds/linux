@@ -946,7 +946,8 @@ static u32 mvs_94xx_spi_read_data(struct mvs_info *mvi)
 static void mvs_94xx_spi_write_data(struct mvs_info *mvi, u32 data)
 {
 	void __iomem *regs = mvi->regs_ex - 0x10200;
-	 mw32(SPI_RD_DATA_REG_94XX, data);
+
+	mw32(SPI_RD_DATA_REG_94XX, data);
 }
 
 

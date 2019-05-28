@@ -901,6 +901,109 @@ static void hclge_dbg_fd_tcam(struct hclge_dev *hdev)
 	}
 }
 
+static void hclge_dbg_dump_rst_info(struct hclge_dev *hdev)
+{
+	dev_info(&hdev->pdev->dev, "PF reset count: %d\n",
+		 hdev->rst_stats.pf_rst_cnt);
+	dev_info(&hdev->pdev->dev, "FLR reset count: %d\n",
+		 hdev->rst_stats.flr_rst_cnt);
+	dev_info(&hdev->pdev->dev, "CORE reset count: %d\n",
+		 hdev->rst_stats.core_rst_cnt);
+	dev_info(&hdev->pdev->dev, "GLOBAL reset count: %d\n",
+		 hdev->rst_stats.global_rst_cnt);
+	dev_info(&hdev->pdev->dev, "IMP reset count: %d\n",
+		 hdev->rst_stats.imp_rst_cnt);
+	dev_info(&hdev->pdev->dev, "reset done count: %d\n",
+		 hdev->rst_stats.reset_done_cnt);
+	dev_info(&hdev->pdev->dev, "HW reset done count: %d\n",
+		 hdev->rst_stats.hw_reset_done_cnt);
+	dev_info(&hdev->pdev->dev, "reset count: %d\n",
+		 hdev->rst_stats.reset_cnt);
+}
+
+/* hclge_dbg_dump_ncl_config: print specified range of NCL_CONFIG file
+ * @hdev: pointer to struct hclge_dev
+ * @cmd_buf: string that contains offset and length
+ */
+static void hclge_dbg_dump_ncl_config(struct hclge_dev *hdev, char *cmd_buf)
+{
+#define HCLGE_MAX_NCL_CONFIG_OFFSET	4096
+#define HCLGE_MAX_NCL_CONFIG_LENGTH	(20 + 24 * 4)
+#define HCLGE_CMD_DATA_NUM		6
+
+	struct hclge_desc desc[5];
+	u32 byte_offset;
+	int bd_num = 5;
+	int offset;
+	int length;
+	int data0;
+	int ret;
+	int i;
+	int j;
+
+	ret = sscanf(cmd_buf, "%x %x", &offset, &length);
+	if (ret != 2 || offset >= HCLGE_MAX_NCL_CONFIG_OFFSET ||
+	    length > HCLGE_MAX_NCL_CONFIG_OFFSET - offset) {
+		dev_err(&hdev->pdev->dev, "Invalid offset or length.\n");
+		return;
+	}
+	if (offset < 0 || length <= 0) {
+		dev_err(&hdev->pdev->dev, "Non-positive offset or length.\n");
+		return;
+	}
+
+	dev_info(&hdev->pdev->dev, "offset |    data\n");
+
+	while (length > 0) {
+		data0 = offset;
+		if (length >= HCLGE_MAX_NCL_CONFIG_LENGTH)
+			data0 |= HCLGE_MAX_NCL_CONFIG_LENGTH << 16;
+		else
+			data0 |= length << 16;
+		ret = hclge_dbg_cmd_send(hdev, desc, data0, bd_num,
+					 HCLGE_OPC_QUERY_NCL_CONFIG);
+		if (ret)
+			return;
+
+		byte_offset = offset;
+		for (i = 0; i < bd_num; i++) {
+			for (j = 0; j < HCLGE_CMD_DATA_NUM; j++) {
+				if (i == 0 && j == 0)
+					continue;
+
+				dev_info(&hdev->pdev->dev, "0x%04x | 0x%08x\n",
+					 byte_offset,
+					 le32_to_cpu(desc[i].data[j]));
+				byte_offset += sizeof(u32);
+				length -= sizeof(u32);
+				if (length <= 0)
+					return;
+			}
+		}
+		offset += HCLGE_MAX_NCL_CONFIG_LENGTH;
+	}
+}
+
+/* hclge_dbg_dump_mac_tnl_status: print message about mac tnl interrupt
+ * @hdev: pointer to struct hclge_dev
+ */
+static void hclge_dbg_dump_mac_tnl_status(struct hclge_dev *hdev)
+{
+#define HCLGE_BILLION_NANO_SECONDS 1000000000
+
+	struct hclge_mac_tnl_stats stats;
+	unsigned long rem_nsec;
+
+	dev_info(&hdev->pdev->dev, "Recently generated mac tnl interruption:\n");
+
+	while (kfifo_get(&hdev->mac_tnl_log, &stats)) {
+		rem_nsec = do_div(stats.time, HCLGE_BILLION_NANO_SECONDS);
+		dev_info(&hdev->pdev->dev, "[%07lu.%03lu]status = 0x%x\n",
+			 (unsigned long)stats.time, rem_nsec / 1000,
+			 stats.status);
+	}
+}
+
 int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -924,6 +1027,13 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf)
 		hclge_dbg_dump_mng_table(hdev);
 	} else if (strncmp(cmd_buf, "dump reg", 8) == 0) {
 		hclge_dbg_dump_reg_cmd(hdev, cmd_buf);
+	} else if (strncmp(cmd_buf, "dump reset info", 15) == 0) {
+		hclge_dbg_dump_rst_info(hdev);
+	} else if (strncmp(cmd_buf, "dump ncl_config", 15) == 0) {
+		hclge_dbg_dump_ncl_config(hdev,
+					  &cmd_buf[sizeof("dump ncl_config")]);
+	} else if (strncmp(cmd_buf, "dump mac tnl status", 19) == 0) {
+		hclge_dbg_dump_mac_tnl_status(hdev);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;

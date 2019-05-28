@@ -12,6 +12,8 @@
  * GNU General Public License for more details.
  */
 
+#define dev_fmt(fmt)	"VFIO: " fmt
+
 #include <linux/device.h>
 #include <linux/acpi.h>
 #include <linux/iommu.h>
@@ -63,7 +65,7 @@ static int vfio_platform_acpi_probe(struct vfio_platform_device *vdev,
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev) {
-		pr_err("VFIO: ACPI companion device not found for %s\n",
+		dev_err(dev, "ACPI companion device not found for %s\n",
 			vdev->name);
 		return -ENODEV;
 	}
@@ -638,7 +640,7 @@ static int vfio_platform_of_probe(struct vfio_platform_device *vdev,
 	ret = device_property_read_string(dev, "compatible",
 					  &vdev->compat);
 	if (ret)
-		pr_err("VFIO: Cannot retrieve compat for %s\n", vdev->name);
+		dev_err(dev, "Cannot retrieve compat for %s\n", vdev->name);
 
 	return ret;
 }
@@ -680,14 +682,14 @@ int vfio_platform_probe_common(struct vfio_platform_device *vdev,
 
 	ret = vfio_platform_get_reset(vdev);
 	if (ret && vdev->reset_required) {
-		pr_err("VFIO: No reset function found for device %s\n",
-		       vdev->name);
+		dev_err(dev, "No reset function found for device %s\n",
+			vdev->name);
 		return ret;
 	}
 
 	group = vfio_iommu_group_get(dev);
 	if (!group) {
-		pr_err("VFIO: No IOMMU group for device %s\n", vdev->name);
+		dev_err(dev, "No IOMMU group for device %s\n", vdev->name);
 		ret = -EINVAL;
 		goto put_reset;
 	}

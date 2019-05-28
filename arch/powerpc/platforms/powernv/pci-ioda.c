@@ -847,11 +847,11 @@ static int pnv_ioda_deconfigure_pe(struct pnv_phb *phb, struct pnv_ioda_pe *pe)
 	rc = opal_pci_set_peltv(phb->opal_id, pe->pe_number,
 				pe->pe_number, OPAL_REMOVE_PE_FROM_DOMAIN);
 	if (rc)
-		pe_warn(pe, "OPAL error %ld remove self from PELTV\n", rc);
+		pe_warn(pe, "OPAL error %lld remove self from PELTV\n", rc);
 	rc = opal_pci_set_pe(phb->opal_id, pe->pe_number, pe->rid,
 			     bcomp, dcomp, fcomp, OPAL_UNMAP_PE);
 	if (rc)
-		pe_err(pe, "OPAL error %ld trying to setup PELT table\n", rc);
+		pe_err(pe, "OPAL error %lld trying to setup PELT table\n", rc);
 
 	pe->pbus = NULL;
 	pe->pdev = NULL;
@@ -1174,11 +1174,12 @@ static struct pnv_ioda_pe *pnv_ioda_setup_bus_PE(struct pci_bus *bus, bool all)
 	pe->rid = bus->busn_res.start << 8;
 
 	if (all)
-		pe_info(pe, "Secondary bus %d..%d associated with PE#%x\n",
-			bus->busn_res.start, bus->busn_res.end, pe->pe_number);
+		pe_info(pe, "Secondary bus %pad..%pad associated with PE#%x\n",
+			&bus->busn_res.start, &bus->busn_res.end,
+			pe->pe_number);
 	else
-		pe_info(pe, "Secondary bus %d associated with PE#%x\n",
-			bus->busn_res.start, pe->pe_number);
+		pe_info(pe, "Secondary bus %pad associated with PE#%x\n",
+			&bus->busn_res.start, pe->pe_number);
 
 	if (pnv_ioda_configure_pe(phb, pe)) {
 		/* XXX What do we do here ? */
@@ -1448,7 +1449,7 @@ static void pnv_pci_ioda2_release_dma_pe(struct pci_dev *dev, struct pnv_ioda_pe
 	tbl = pe->table_group.tables[0];
 	rc = pnv_pci_ioda2_unset_window(&pe->table_group, 0);
 	if (rc)
-		pe_warn(pe, "OPAL error %ld release DMA window\n", rc);
+		pe_warn(pe, "OPAL error %lld release DMA window\n", rc);
 
 	pnv_pci_ioda2_set_bypass(pe, false);
 	if (pe->table_group.group) {
@@ -1836,7 +1837,7 @@ static bool pnv_pci_ioda_iommu_bypass_supported(struct pci_dev *pdev,
 	struct pnv_ioda_pe *pe;
 
 	if (WARN_ON(!pdn || pdn->pe_number == IODA_INVALID_PE))
-		return -ENODEV;
+		return false;
 
 	pe = &phb->ioda.pe_array[pdn->pe_number];
 	if (pe->tce_bypass_enabled) {
@@ -1859,7 +1860,7 @@ static bool pnv_pci_ioda_iommu_bypass_supported(struct pci_dev *pdev,
 		/* Configure the bypass mode */
 		s64 rc = pnv_pci_ioda_dma_64bit_bypass(pe);
 		if (rc)
-			return rc;
+			return false;
 		/* 4GB offset bypasses 32-bit space */
 		pdev->dev.archdata.dma_offset = (1ULL << 32);
 		return true;
@@ -2286,8 +2287,8 @@ found:
 					      __pa(addr) + tce32_segsz * i,
 					      tce32_segsz, IOMMU_PAGE_SIZE_4K);
 		if (rc) {
-			pe_err(pe, " Failed to configure 32-bit TCE table,"
-			       " err %ld\n", rc);
+			pe_err(pe, " Failed to configure 32-bit TCE table, err %lld\n",
+			       rc);
 			goto fail;
 		}
 	}
@@ -2332,9 +2333,9 @@ static long pnv_pci_ioda2_set_window(struct iommu_table_group *table_group,
 	const __u64 start_addr = tbl->it_offset << tbl->it_page_shift;
 	const __u64 win_size = tbl->it_size << tbl->it_page_shift;
 
-	pe_info(pe, "Setting up window#%d %llx..%llx pg=%x\n", num,
-			start_addr, start_addr + win_size - 1,
-			IOMMU_PAGE_SIZE(tbl));
+	pe_info(pe, "Setting up window#%d %llx..%llx pg=%lx\n",
+		num, start_addr, start_addr + win_size - 1,
+		IOMMU_PAGE_SIZE(tbl));
 
 	/*
 	 * Map TCE table through TVT. The TVE index is the PE number
@@ -2348,7 +2349,7 @@ static long pnv_pci_ioda2_set_window(struct iommu_table_group *table_group,
 			size << 3,
 			IOMMU_PAGE_SIZE(tbl));
 	if (rc) {
-		pe_err(pe, "Failed to configure TCE table, err %ld\n", rc);
+		pe_err(pe, "Failed to configure TCE table, err %lld\n", rc);
 		return rc;
 	}
 
@@ -3450,7 +3451,7 @@ static void pnv_pci_ioda2_release_pe_dma(struct pnv_ioda_pe *pe)
 #ifdef CONFIG_IOMMU_API
 	rc = pnv_pci_ioda2_unset_window(&pe->table_group, 0);
 	if (rc)
-		pe_warn(pe, "OPAL error %ld release DMA window\n", rc);
+		pe_warn(pe, "OPAL error %lld release DMA window\n", rc);
 #endif
 
 	pnv_pci_ioda2_set_bypass(pe, false);
@@ -3484,7 +3485,7 @@ static void pnv_ioda_free_pe_seg(struct pnv_ioda_pe *pe,
 					phb->ioda.reserved_pe_idx, win, 0, idx);
 
 		if (rc != OPAL_SUCCESS)
-			pe_warn(pe, "Error %ld unmapping (%d) segment#%d\n",
+			pe_warn(pe, "Error %lld unmapping (%d) segment#%d\n",
 				rc, win, idx);
 
 		map[idx] = IODA_INVALID_PE;

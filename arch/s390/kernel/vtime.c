@@ -37,7 +37,7 @@ static inline u64 get_vtimer(void)
 {
 	u64 timer;
 
-	asm volatile("stpt %0" : "=m" (timer));
+	asm volatile("stpt %0" : "=Q" (timer));
 	return timer;
 }
 
@@ -48,7 +48,7 @@ static inline void set_vtimer(u64 expires)
 	asm volatile(
 		"	stpt	%0\n"	/* Store current cpu timer value */
 		"	spt	%1"	/* Set new value imm. afterwards */
-		: "=m" (timer) : "m" (expires));
+		: "=Q" (timer) : "Q" (expires));
 	S390_lowcore.system_timer += S390_lowcore.last_update_timer - timer;
 	S390_lowcore.last_update_timer = expires;
 }
@@ -135,8 +135,8 @@ static int do_account_vtime(struct task_struct *tsk)
 #else
 		"	stck	%1"	/* Store current tod clock value */
 #endif
-		: "=m" (S390_lowcore.last_update_timer),
-		  "=m" (S390_lowcore.last_update_clock));
+		: "=Q" (S390_lowcore.last_update_timer),
+		  "=Q" (S390_lowcore.last_update_clock));
 	clock = S390_lowcore.last_update_clock - clock;
 	timer -= S390_lowcore.last_update_timer;
 

@@ -310,7 +310,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	if (flags & TEP_FIELD_IS_DYNAMIC) {
 		unsigned long long tmp_val;
 
-		tmp_val = tep_read_number(fmtf->event->pevent,
+		tmp_val = tep_read_number(fmtf->event->tep,
 					  data + offset, len);
 		offset = tmp_val;
 		len = offset >> 16;
@@ -354,7 +354,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 			unsigned long long value_int;
 
 			value_int = tep_read_number(
-					fmtf->event->pevent,
+					fmtf->event->tep,
 					data + offset + i * len, len);
 
 			if (!(flags & TEP_FIELD_IS_SIGNED))

@@ -807,6 +807,7 @@ enum mac80211_tx_info_flags {
  * @IEEE80211_TX_CTRL_RATE_INJECT: This frame is injected with rate information
  * @IEEE80211_TX_CTRL_AMSDU: This frame is an A-MSDU frame
  * @IEEE80211_TX_CTRL_FAST_XMIT: This frame is going through the fast_xmit path
+ * @IEEE80211_TX_CTRL_SKIP_MPATH_LOOKUP: This frame skips mesh path lookup
  *
  * These flags are used in tx_info->control.flags.
  */
@@ -816,6 +817,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTRL_RATE_INJECT		= BIT(2),
 	IEEE80211_TX_CTRL_AMSDU			= BIT(3),
 	IEEE80211_TX_CTRL_FAST_XMIT		= BIT(4),
+	IEEE80211_TX_CTRL_SKIP_MPATH_LOOKUP	= BIT(5),
 };
 
 /*
@@ -1697,6 +1699,7 @@ struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif);
  * @IEEE80211_KEY_FLAG_PUT_MIC_SPACE: This flag should be set by the driver for
  *	a TKIP key if it only requires MIC space. Do not set together with
  *	@IEEE80211_KEY_FLAG_GENERATE_MMIC on the same key.
+ * @IEEE80211_KEY_FLAG_NO_AUTO_TX: Key needs explicit Tx activation.
  */
 enum ieee80211_key_flags {
 	IEEE80211_KEY_FLAG_GENERATE_IV_MGMT	= BIT(0),
@@ -1708,6 +1711,7 @@ enum ieee80211_key_flags {
 	IEEE80211_KEY_FLAG_RX_MGMT		= BIT(6),
 	IEEE80211_KEY_FLAG_RESERVE_TAILROOM	= BIT(7),
 	IEEE80211_KEY_FLAG_PUT_MIC_SPACE	= BIT(8),
+	IEEE80211_KEY_FLAG_NO_AUTO_TX		= BIT(9),
 };
 
 /**
@@ -1888,6 +1892,24 @@ struct ieee80211_sta_rates {
 };
 
 /**
+ * struct ieee80211_sta_txpwr - station txpower configuration
+ *
+ * Used to configure txpower for station.
+ *
+ * @power: indicates the tx power, in dBm, to be used when sending data frames
+ *	to the STA.
+ * @type: In particular if TPC %type is NL80211_TX_POWER_LIMITED then tx power
+ *	will be less than or equal to specified from userspace, whereas if TPC
+ *	%type is NL80211_TX_POWER_AUTOMATIC then it indicates default tx power.
+ *	NL80211_TX_POWER_FIXED is not a valid configuration option for
+ *	per peer TPC.
+ */
+struct ieee80211_sta_txpwr {
+	s16 power;
+	enum nl80211_tx_power_setting type;
+};
+
+/**
  * struct ieee80211_sta - station table entry
  *
  * A station table entry represents a station we are possibly
@@ -1973,6 +1995,7 @@ struct ieee80211_sta {
 	bool support_p2p_ps;
 	u16 max_rc_amsdu_len;
 	u16 max_tid_amsdu_len[IEEE80211_NUM_TIDS];
+	struct ieee80211_sta_txpwr txpwr;
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS + 1];
 
@@ -2243,6 +2266,9 @@ struct ieee80211_txq {
  * @IEEE80211_HW_SUPPORTS_ONLY_HE_MULTI_BSSID: Hardware supports multi BSSID
  *	only for HE APs. Applies if @IEEE80211_HW_SUPPORTS_MULTI_BSSID is set.
  *
+ * @IEEE80211_HW_EXT_KEY_ID_NATIVE: Driver and hardware are supporting Extended
+ *	Key ID and can handle two unicast keys per station for Rx and Tx.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2294,6 +2320,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_TX_STATUS_NO_AMPDU_LEN,
 	IEEE80211_HW_SUPPORTS_MULTI_BSSID,
 	IEEE80211_HW_SUPPORTS_ONLY_HE_MULTI_BSSID,
+	IEEE80211_HW_EXT_KEY_ID_NATIVE,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -3794,6 +3821,9 @@ struct ieee80211_ops {
 #endif
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, struct ieee80211_sta *sta);
+	int (*sta_set_txpwr)(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_sta *sta);
 	int (*sta_state)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta,
 			 enum ieee80211_sta_state old_state,
@@ -6231,8 +6261,6 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @ac: AC number to return packets from.
  *
- * Should only be called between calls to ieee80211_txq_schedule_start()
- * and ieee80211_txq_schedule_end().
  * Returns the next txq if successful, %NULL if no queue is eligible. If a txq
  * is returned, it should be returned with ieee80211_return_txq() after the
  * driver has finished scheduling it.
@@ -6240,38 +6268,23 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac);
 
 /**
- * ieee80211_return_txq - return a TXQ previously acquired by ieee80211_next_txq()
- *
- * @hw: pointer as obtained from ieee80211_alloc_hw()
- * @txq: pointer obtained from station or virtual interface
- *
- * Should only be called between calls to ieee80211_txq_schedule_start()
- * and ieee80211_txq_schedule_end().
- */
-void ieee80211_return_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq);
-
-/**
- * ieee80211_txq_schedule_start - acquire locks for safe scheduling of an AC
+ * ieee80211_txq_schedule_start - start new scheduling round for TXQs
  *
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @ac: AC number to acquire locks for
  *
- * Acquire locks needed to schedule TXQs from the given AC. Should be called
- * before ieee80211_next_txq() or ieee80211_return_txq().
+ * Should be called before ieee80211_next_txq() or ieee80211_return_txq().
+ * The driver must not call multiple TXQ scheduling rounds concurrently.
  */
-void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac)
-	__acquires(txq_lock);
+void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac);
 
-/**
- * ieee80211_txq_schedule_end - release locks for safe scheduling of an AC
- *
- * @hw: pointer as obtained from ieee80211_alloc_hw()
- * @ac: AC number to acquire locks for
- *
- * Release locks previously acquired by ieee80211_txq_schedule_end().
- */
-void ieee80211_txq_schedule_end(struct ieee80211_hw *hw, u8 ac)
-	__releases(txq_lock);
+/* (deprecated) */
+static inline void ieee80211_txq_schedule_end(struct ieee80211_hw *hw, u8 ac)
+{
+}
+
+void __ieee80211_schedule_txq(struct ieee80211_hw *hw,
+			      struct ieee80211_txq *txq, bool force);
 
 /**
  * ieee80211_schedule_txq - schedule a TXQ for transmission
@@ -6279,12 +6292,34 @@ void ieee80211_txq_schedule_end(struct ieee80211_hw *hw, u8 ac)
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @txq: pointer obtained from station or virtual interface
  *
- * Schedules a TXQ for transmission if it is not already scheduled. Takes a
- * lock, which means it must *not* be called between
- * ieee80211_txq_schedule_start() and ieee80211_txq_schedule_end()
+ * Schedules a TXQ for transmission if it is not already scheduled,
+ * even if mac80211 does not have any packets buffered.
+ *
+ * The driver may call this function if it has buffered packets for
+ * this TXQ internally.
  */
-void ieee80211_schedule_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
-	__acquires(txq_lock) __releases(txq_lock);
+static inline void
+ieee80211_schedule_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
+{
+	__ieee80211_schedule_txq(hw, txq, true);
+}
+
+/**
+ * ieee80211_return_txq - return a TXQ previously acquired by ieee80211_next_txq()
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @txq: pointer obtained from station or virtual interface
+ * @force: schedule txq even if mac80211 does not have any buffered packets.
+ *
+ * The driver may set force=true if it has buffered packets for this TXQ
+ * internally.
+ */
+static inline void
+ieee80211_return_txq(struct ieee80211_hw *hw, struct ieee80211_txq *txq,
+		     bool force)
+{
+	__ieee80211_schedule_txq(hw, txq, force);
+}
 
 /**
  * ieee80211_txq_may_transmit - check whether TXQ is allowed to transmit

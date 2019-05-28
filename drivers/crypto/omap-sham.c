@@ -1055,7 +1055,6 @@ static int omap_sham_finish_hmac(struct ahash_request *req)
 	SHASH_DESC_ON_STACK(shash, bctx->shash);
 
 	shash->tfm = bctx->shash;
-	shash->flags = 0; /* not CRYPTO_TFM_REQ_MAY_SLEEP */
 
 	return crypto_shash_init(shash) ?:
 	       crypto_shash_update(shash, bctx->opad, bs) ?:
@@ -1226,7 +1225,6 @@ static int omap_sham_shash_digest(struct crypto_shash *tfm, u32 flags,
 	SHASH_DESC_ON_STACK(shash, tfm);
 
 	shash->tfm = tfm;
-	shash->flags = flags & CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_digest(shash, data, len, out);
 }

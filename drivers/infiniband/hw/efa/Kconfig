@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+# Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+#
+# Amazon fabric device configuration
+#
+
+config INFINIBAND_EFA
+	tristate "Amazon Elastic Fabric Adapter (EFA) support"
+	depends on PCI_MSI && 64BIT && !CPU_BIG_ENDIAN
+	depends on INFINIBAND_USER_ACCESS
+	help
+	  This driver supports Amazon Elastic Fabric Adapter (EFA).
+
+	  To compile this driver as a module, choose M here.
+	  The module will be called efa.

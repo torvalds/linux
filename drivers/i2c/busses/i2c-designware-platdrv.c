@@ -344,6 +344,11 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	else
 		i2c_dw_configure_master(dev);
 
+	/* Optional interface clock */
+	dev->pclk = devm_clk_get_optional(&pdev->dev, "pclk");
+	if (IS_ERR(dev->pclk))
+		return PTR_ERR(dev->pclk);
+
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!i2c_dw_prepare_clk(dev, true)) {
 		u64 clk_khz;

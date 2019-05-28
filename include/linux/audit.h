@@ -86,6 +86,29 @@ struct audit_field {
 	u32				op;
 };
 
+enum audit_ntp_type {
+	AUDIT_NTP_OFFSET,
+	AUDIT_NTP_FREQ,
+	AUDIT_NTP_STATUS,
+	AUDIT_NTP_TAI,
+	AUDIT_NTP_TICK,
+	AUDIT_NTP_ADJUST,
+
+	AUDIT_NTP_NVALS /* count */
+};
+
+#ifdef CONFIG_AUDITSYSCALL
+struct audit_ntp_val {
+	long long oldval, newval;
+};
+
+struct audit_ntp_data {
+	struct audit_ntp_val vals[AUDIT_NTP_NVALS];
+};
+#else
+struct audit_ntp_data {};
+#endif
+
 extern int is_audit_feature_set(int which);
 
 extern int __init audit_register_class(int class, unsigned *list);
@@ -365,6 +388,8 @@ extern void __audit_log_capset(const struct cred *new, const struct cred *old);
 extern void __audit_mmap_fd(int fd, int flags);
 extern void __audit_log_kern_module(char *name);
 extern void __audit_fanotify(unsigned int response);
+extern void __audit_tk_injoffset(struct timespec64 offset);
+extern void __audit_ntp_log(const struct audit_ntp_data *ad);
 
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -465,6 +490,39 @@ static inline void audit_fanotify(unsigned int response)
 {
 	if (!audit_dummy_context())
 		__audit_fanotify(response);
+}
+
+static inline void audit_tk_injoffset(struct timespec64 offset)
+{
+	/* ignore no-op events */
+	if (offset.tv_sec == 0 && offset.tv_nsec == 0)
+		return;
+
+	if (!audit_dummy_context())
+		__audit_tk_injoffset(offset);
+}
+
+static inline void audit_ntp_init(struct audit_ntp_data *ad)
+{
+	memset(ad, 0, sizeof(*ad));
+}
+
+static inline void audit_ntp_set_old(struct audit_ntp_data *ad,
+				     enum audit_ntp_type type, long long val)
+{
+	ad->vals[type].oldval = val;
+}
+
+static inline void audit_ntp_set_new(struct audit_ntp_data *ad,
+				     enum audit_ntp_type type, long long val)
+{
+	ad->vals[type].newval = val;
+}
+
+static inline void audit_ntp_log(const struct audit_ntp_data *ad)
+{
+	if (!audit_dummy_context())
+		__audit_ntp_log(ad);
 }
 
 extern int audit_n_rules;
@@ -578,6 +636,23 @@ static inline void audit_log_kern_module(char *name)
 }
 
 static inline void audit_fanotify(unsigned int response)
+{ }
+
+static inline void audit_tk_injoffset(struct timespec64 offset)
+{ }
+
+static inline void audit_ntp_init(struct audit_ntp_data *ad)
+{ }
+
+static inline void audit_ntp_set_old(struct audit_ntp_data *ad,
+				     enum audit_ntp_type type, long long val)
+{ }
+
+static inline void audit_ntp_set_new(struct audit_ntp_data *ad,
+				     enum audit_ntp_type type, long long val)
+{ }
+
+static inline void audit_ntp_log(const struct audit_ntp_data *ad)
 { }
 
 static inline void audit_ptrace(struct task_struct *t)
