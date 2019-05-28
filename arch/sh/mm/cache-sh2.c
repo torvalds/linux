@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/sh/mm/cache-sh2.c
  *
  * Copyright (C) 2002 Paul Mundt
  * Copyright (C) 2008 Yoshinori Sato
- *
- * Released under the terms of the GNU GPL v2.0.
  */
 
 #include <linux/init.h>
