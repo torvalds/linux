@@ -806,20 +806,20 @@ int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	return 0;
 }
 
-struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
-			     const struct ib_cq_init_attr *attr,
-			     struct ib_udata *udata)
+int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		   struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	struct qedr_ucontext *ctx = rdma_udata_to_drv_context(
 		udata, struct qedr_ucontext, ibucontext);
 	struct qed_rdma_destroy_cq_out_params destroy_oparams;
 	struct qed_rdma_destroy_cq_in_params destroy_iparams;
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
 	struct qed_rdma_create_cq_in_params params;
-	struct qedr_create_cq_ureq ureq;
+	struct qedr_create_cq_ureq ureq = {};
 	int vector = attr->comp_vector;
 	int entries = attr->cqe;
-	struct qedr_cq *cq;
+	struct qedr_cq *cq = get_qedr_cq(ibcq);
 	int chain_entries;
 	int page_cnt;
 	u64 pbl_ptr;
@@ -834,18 +834,13 @@ struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 		DP_ERR(dev,
 		       "create cq: the number of entries %d is too high. Must be equal or below %d.\n",
 		       entries, QEDR_MAX_CQES);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
 
 	chain_entries = qedr_align_cq_entries(entries);
 	chain_entries = min_t(int, chain_entries, QEDR_MAX_CQES);
 
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq)
-		return ERR_PTR(-ENOMEM);
-
 	if (udata) {
-		memset(&ureq, 0, sizeof(ureq));
 		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq))) {
 			DP_ERR(dev,
 			       "create cq: problem copying data from user space\n");
@@ -923,7 +918,7 @@ struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 		 "create cq: icid=0x%0x, addr=%p, size(entries)=0x%0x\n",
 		 cq->icid, cq, params.cq_size);
 
-	return &cq->ibcq;
+	return 0;
 
 err3:
 	destroy_iparams.icid = cq->icid;
@@ -938,8 +933,7 @@ err1:
 	if (udata)
 		ib_umem_release(cq->q.umem);
 err0:
-	kfree(cq);
-	return ERR_PTR(-EINVAL);
+	return -EINVAL;
 }
 
 int qedr_resize_cq(struct ib_cq *ibcq, int new_cnt, struct ib_udata *udata)
@@ -969,7 +963,7 @@ void qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 
 	/* GSIs CQs are handled by driver, so they don't exist in the FW */
 	if (cq->cq_type == QEDR_CQ_TYPE_GSI)
-		goto done;
+		return;
 
 	iparams.icid = cq->icid;
 	dev->ops->rdma_destroy_cq(dev->rdma_ctx, &iparams, &oparams);
@@ -1008,10 +1002,6 @@ void qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	 * Since the destroy CQ ramrod has also been received on the EQ we can
 	 * be certain that there's no event handler in process.
 	 */
-done:
-	cq->sig = ~cq->sig;
-
-	kfree(cq);
 }
 
 static inline int get_gid_info_from_table(struct ib_qp *ibqp,

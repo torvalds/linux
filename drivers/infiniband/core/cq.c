@@ -147,23 +147,26 @@ struct ib_cq *__ib_alloc_cq_user(struct ib_device *dev, void *private,
 	struct ib_cq *cq;
 	int ret = -ENOMEM;
 
-	cq = dev->ops.create_cq(dev, &cq_attr, NULL);
-	if (IS_ERR(cq))
-		return cq;
+	cq = rdma_zalloc_drv_obj(dev, ib_cq);
+	if (!cq)
+		return ERR_PTR(ret);
 
 	cq->device = dev;
-	cq->uobject = NULL;
-	cq->event_handler = NULL;
 	cq->cq_context = private;
 	cq->poll_ctx = poll_ctx;
 	atomic_set(&cq->usecnt, 0);
 
 	cq->wc = kmalloc_array(IB_POLL_BATCH, sizeof(*cq->wc), GFP_KERNEL);
 	if (!cq->wc)
-		goto out_destroy_cq;
+		goto out_free_cq;
 
 	cq->res.type = RDMA_RESTRACK_CQ;
 	rdma_restrack_set_task(&cq->res, caller);
+
+	ret = dev->ops.create_cq(cq, &cq_attr, NULL);
+	if (ret)
+		goto out_free_wc;
+
 	rdma_restrack_kadd(&cq->res);
 
 	switch (cq->poll_ctx) {
@@ -186,16 +189,18 @@ struct ib_cq *__ib_alloc_cq_user(struct ib_device *dev, void *private,
 		break;
 	default:
 		ret = -EINVAL;
-		goto out_free_wc;
+		goto out_destroy_cq;
 	}
 
 	return cq;
 
+out_destroy_cq:
+	rdma_restrack_del(&cq->res);
+	cq->device->ops.destroy_cq(cq, udata);
 out_free_wc:
 	kfree(cq->wc);
-	rdma_restrack_del(&cq->res);
-out_destroy_cq:
-	cq->device->ops.destroy_cq(cq, udata);
+out_free_cq:
+	kfree(cq);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(__ib_alloc_cq_user);
@@ -224,8 +229,9 @@ void ib_free_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 		WARN_ON_ONCE(1);
 	}
 
-	kfree(cq->wc);
 	rdma_restrack_del(&cq->res);
 	cq->device->ops.destroy_cq(cq, udata);
+	kfree(cq->wc);
+	kfree(cq);
 }
 EXPORT_SYMBOL(ib_free_cq_user);

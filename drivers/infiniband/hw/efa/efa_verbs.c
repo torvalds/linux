@@ -859,8 +859,6 @@ void efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	efa_destroy_cq_idx(dev, cq->cq_idx);
 	dma_unmap_single(&dev->pdev->dev, cq->dma_addr, cq->size,
 			 DMA_FROM_DEVICE);
-
-	kfree(cq);
 }
 
 static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
@@ -876,17 +874,20 @@ static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 	return 0;
 }
 
-static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
-				  int vector, struct ib_ucontext *ibucontext,
-				  struct ib_udata *udata)
+int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		  struct ib_udata *udata)
 {
+	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(
+		udata, struct efa_ucontext, ibucontext);
 	struct efa_ibv_create_cq_resp resp = {};
 	struct efa_com_create_cq_params params;
 	struct efa_com_create_cq_result result;
+	struct ib_device *ibdev = ibcq->device;
 	struct efa_dev *dev = to_edev(ibdev);
 	struct efa_ibv_create_cq cmd = {};
+	struct efa_cq *cq = to_ecq(ibcq);
 	bool cq_entry_inserted = false;
-	struct efa_cq *cq;
+	int entries = attr->cqe;
 	int err;
 
 	ibdev_dbg(ibdev, "create_cq entries %d\n", entries);
@@ -944,19 +945,13 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 		goto err_out;
 	}
 
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq) {
-		err = -ENOMEM;
-		goto err_out;
-	}
-
-	cq->ucontext = to_eucontext(ibucontext);
+	cq->ucontext = ucontext;
 	cq->size = PAGE_ALIGN(cmd.cq_entry_size * entries * cmd.num_sub_cqs);
 	cq->cpu_addr = efa_zalloc_mapped(dev, &cq->dma_addr, cq->size,
 					 DMA_FROM_DEVICE);
 	if (!cq->cpu_addr) {
 		err = -ENOMEM;
-		goto err_free_cq;
+		goto err_out;
 	}
 
 	params.uarn = cq->ucontext->uarn;
@@ -975,8 +970,8 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 
 	err = cq_mmap_entries_setup(dev, cq, &resp);
 	if (err) {
-		ibdev_dbg(ibdev,
-			  "Could not setup cq[%u] mmap entries\n", cq->cq_idx);
+		ibdev_dbg(ibdev, "Could not setup cq[%u] mmap entries\n",
+			  cq->cq_idx);
 		goto err_destroy_cq;
 	}
 
@@ -992,11 +987,10 @@ static struct ib_cq *do_create_cq(struct ib_device *ibdev, int entries,
 		}
 	}
 
-	ibdev_dbg(ibdev,
-		  "Created cq[%d], cq depth[%u]. dma[%pad] virt[0x%p]\n",
+	ibdev_dbg(ibdev, "Created cq[%d], cq depth[%u]. dma[%pad] virt[0x%p]\n",
 		  cq->cq_idx, result.actual_depth, &cq->dma_addr, cq->cpu_addr);
 
-	return &cq->ibcq;
+	return 0;
 
 err_destroy_cq:
 	efa_destroy_cq_idx(dev, cq->cq_idx);
@@ -1005,23 +999,9 @@ err_free_mapped:
 			 DMA_FROM_DEVICE);
 	if (!cq_entry_inserted)
 		free_pages_exact(cq->cpu_addr, cq->size);
-err_free_cq:
-	kfree(cq);
 err_out:
 	atomic64_inc(&dev->stats.sw_stats.create_cq_err);
-	return ERR_PTR(err);
-}
-
-struct ib_cq *efa_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_udata *udata)
-{
-	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(udata,
-								  struct efa_ucontext,
-								  ibucontext);
-
-	return do_create_cq(ibdev, attr->cqe, attr->comp_vector,
-			    &ucontext->ibucontext, udata);
+	return err;
 }
 
 static int umem_to_page_list(struct efa_dev *dev,

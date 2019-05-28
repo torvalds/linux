@@ -166,42 +166,36 @@ static void send_complete(struct work_struct *work)
 
 /**
  * rvt_create_cq - create a completion queue
- * @ibdev: the device this completion queue is attached to
+ * @ibcq: Allocated CQ
  * @attr: creation attributes
  * @udata: user data for libibverbs.so
  *
  * Called by ib_create_cq() in the generic verbs code.
  *
- * Return: pointer to the completion queue or negative errno values
- * for failure.
+ * Return: 0 on success
  */
-struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_udata *udata)
+int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		  struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
-	struct rvt_cq *cq;
+	struct rvt_cq *cq = container_of(ibcq, struct rvt_cq, ibcq);
 	struct rvt_cq_wc *wc;
-	struct ib_cq *ret;
 	u32 sz;
 	unsigned int entries = attr->cqe;
 	int comp_vector = attr->comp_vector;
+	int err;
 
 	if (attr->flags)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (entries < 1 || entries > rdi->dparms.props.max_cqe)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (comp_vector < 0)
 		comp_vector = 0;
 
 	comp_vector = comp_vector % rdi->ibdev.num_comp_vectors;
-
-	/* Allocate the completion queue structure. */
-	cq = kzalloc_node(sizeof(*cq), GFP_KERNEL, rdi->dparms.node);
-	if (!cq)
-		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * Allocate the completion queue entries and head/tail pointers.
@@ -218,36 +212,29 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 	wc = udata ?
 		vmalloc_user(sz) :
 		vzalloc_node(sz, rdi->dparms.node);
-	if (!wc) {
-		ret = ERR_PTR(-ENOMEM);
-		goto bail_cq;
-	}
-
+	if (!wc)
+		return -ENOMEM;
 	/*
 	 * Return the address of the WC as the offset to mmap.
 	 * See rvt_mmap() for details.
 	 */
 	if (udata && udata->outlen >= sizeof(__u64)) {
-		int err;
-
 		cq->ip = rvt_create_mmap_info(rdi, sz, udata, wc);
 		if (!cq->ip) {
-			ret = ERR_PTR(-ENOMEM);
+			err = -ENOMEM;
 			goto bail_wc;
 		}
 
 		err = ib_copy_to_udata(udata, &cq->ip->offset,
 				       sizeof(cq->ip->offset));
-		if (err) {
-			ret = ERR_PTR(err);
+		if (err)
 			goto bail_ip;
-		}
 	}
 
 	spin_lock_irq(&rdi->n_cqs_lock);
 	if (rdi->n_cqs_allocated == rdi->dparms.props.max_cq) {
 		spin_unlock_irq(&rdi->n_cqs_lock);
-		ret = ERR_PTR(-ENOMEM);
+		err = -ENOMEM;
 		goto bail_ip;
 	}
 
@@ -279,19 +266,14 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 	INIT_WORK(&cq->comptask, send_complete);
 	cq->queue = wc;
 
-	ret = &cq->ibcq;
-
 	trace_rvt_create_cq(cq, attr);
-	goto done;
+	return 0;
 
 bail_ip:
 	kfree(cq->ip);
 bail_wc:
 	vfree(wc);
-bail_cq:
-	kfree(cq);
-done:
-	return ret;
+	return err;
 }
 
 /**
@@ -314,7 +296,6 @@ void rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		kref_put(&cq->ip->ref, rvt_release_mmap_info);
 	else
 		vfree(cq->queue);
-	kfree(cq);
 }
 
 /**

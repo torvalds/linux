@@ -1010,18 +1010,21 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	attr.comp_vector = cmd->comp_vector;
 	attr.flags = cmd->flags;
 
-	cq = ib_dev->ops.create_cq(ib_dev, &attr, &attrs->driver_udata);
-	if (IS_ERR(cq)) {
-		ret = PTR_ERR(cq);
+	cq = rdma_zalloc_drv_obj(ib_dev, ib_cq);
+	if (!cq) {
+		ret = -ENOMEM;
 		goto err_file;
 	}
-
 	cq->device        = ib_dev;
 	cq->uobject       = &obj->uobject;
 	cq->comp_handler  = ib_uverbs_comp_handler;
 	cq->event_handler = ib_uverbs_cq_event_handler;
 	cq->cq_context    = ev_file ? &ev_file->ev_queue : NULL;
 	atomic_set(&cq->usecnt, 0);
+
+	ret = ib_dev->ops.create_cq(cq, &attr, &attrs->driver_udata);
+	if (ret)
+		goto err_free;
 
 	obj->uobject.object = cq;
 	memset(&resp, 0, sizeof resp);
@@ -1043,7 +1046,9 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 
 err_cb:
 	ib_destroy_cq(cq);
-
+	cq = NULL;
+err_free:
+	kfree(cq);
 err_file:
 	if (ev_file)
 		ib_uverbs_release_ucq(attrs->ufile, ev_file, obj);

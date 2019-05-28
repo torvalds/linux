@@ -884,14 +884,14 @@ static void notify_soft_wc_handler(struct work_struct *work)
 	cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
 
-struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
-				const struct ib_cq_init_attr *attr,
-				struct ib_udata *udata)
+int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		      struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	int vector = attr->comp_vector;
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	struct mlx5_ib_cq *cq;
+	struct mlx5_ib_cq *cq = to_mcq(ibcq);
 	int uninitialized_var(index);
 	int uninitialized_var(inlen);
 	u32 *cqb = NULL;
@@ -903,18 +903,14 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 
 	if (entries < 0 ||
 	    (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz))))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (check_cq_create_flags(attr->flags))
-		return ERR_PTR(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	entries = roundup_pow_of_two(entries + 1);
 	if (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz)))
-		return ERR_PTR(-EINVAL);
-
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq)
-		return ERR_PTR(-ENOMEM);
+		return -EINVAL;
 
 	cq->ibcq.cqe = entries - 1;
 	mutex_init(&cq->resize_mutex);
@@ -929,13 +925,13 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 		err = create_cq_user(dev, udata, cq, entries, &cqb, &cqe_size,
 				     &index, &inlen);
 		if (err)
-			goto err_create;
+			return err;
 	} else {
 		cqe_size = cache_line_size() == 128 ? 128 : 64;
 		err = create_cq_kernel(dev, cq, entries, cqe_size, &cqb,
 				       &index, &inlen);
 		if (err)
-			goto err_create;
+			return err;
 
 		INIT_WORK(&cq->notify_work, notify_soft_wc_handler);
 	}
@@ -980,7 +976,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 
 
 	kvfree(cqb);
-	return &cq->ibcq;
+	return 0;
 
 err_cmd:
 	mlx5_core_destroy_cq(dev->mdev, &cq->mcq);
@@ -991,11 +987,7 @@ err_cqb:
 		destroy_cq_user(cq, udata);
 	else
 		destroy_cq_kernel(dev, cq);
-
-err_create:
-	kfree(cq);
-
-	return ERR_PTR(err);
+	return err;
 }
 
 void mlx5_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
@@ -1008,8 +1000,6 @@ void mlx5_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 		destroy_cq_user(mcq, udata);
 	else
 		destroy_cq_kernel(dev, mcq);
-
-	kfree(mcq);
 }
 
 static int is_equal_rsn(struct mlx5_cqe64 *cqe64, u32 rsn)

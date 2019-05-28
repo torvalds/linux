@@ -4891,17 +4891,18 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	if (ret)
 		goto error0;
 
-	devr->c0 = mlx5_ib_create_cq(&dev->ib_dev, &cq_attr, NULL);
-	if (IS_ERR(devr->c0)) {
-		ret = PTR_ERR(devr->c0);
+	devr->c0 = rdma_zalloc_drv_obj(ibdev, ib_cq);
+	if (!devr->c0) {
+		ret = -ENOMEM;
 		goto error1;
 	}
-	devr->c0->device        = &dev->ib_dev;
-	devr->c0->uobject       = NULL;
-	devr->c0->comp_handler  = NULL;
-	devr->c0->event_handler = NULL;
-	devr->c0->cq_context    = NULL;
+
+	devr->c0->device = &dev->ib_dev;
 	atomic_set(&devr->c0->usecnt, 0);
+
+	ret = mlx5_ib_create_cq(devr->c0, &cq_attr, NULL);
+	if (ret)
+		goto err_create_cq;
 
 	devr->x0 = mlx5_ib_alloc_xrcd(&dev->ib_dev, NULL);
 	if (IS_ERR(devr->x0)) {
@@ -4994,6 +4995,8 @@ error3:
 	mlx5_ib_dealloc_xrcd(devr->x0, NULL);
 error2:
 	mlx5_ib_destroy_cq(devr->c0, NULL);
+err_create_cq:
+	kfree(devr->c0);
 error1:
 	mlx5_ib_dealloc_pd(devr->p0, NULL);
 error0:
@@ -5012,6 +5015,7 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	mlx5_ib_dealloc_xrcd(devr->x0, NULL);
 	mlx5_ib_dealloc_xrcd(devr->x1, NULL);
 	mlx5_ib_destroy_cq(devr->c0, NULL);
+	kfree(devr->c0);
 	mlx5_ib_dealloc_pd(devr->p0, NULL);
 	kfree(devr->p0);
 
@@ -6182,6 +6186,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.resize_cq = mlx5_ib_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, mlx5_ib_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, mlx5_ib_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, mlx5_ib_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_srq, mlx5_ib_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, mlx5_ib_ucontext, ibucontext),

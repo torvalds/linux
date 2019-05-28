@@ -778,45 +778,34 @@ err1:
 	return err;
 }
 
-static struct ib_cq *rxe_create_cq(struct ib_device *dev,
-				   const struct ib_cq_init_attr *attr,
-				   struct ib_udata *udata)
+static int rxe_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+			 struct ib_udata *udata)
 {
 	int err;
+	struct ib_device *dev = ibcq->device;
 	struct rxe_dev *rxe = to_rdev(dev);
-	struct rxe_cq *cq;
+	struct rxe_cq *cq = to_rcq(ibcq);
 	struct rxe_create_cq_resp __user *uresp = NULL;
 
 	if (udata) {
 		if (udata->outlen < sizeof(*uresp))
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 		uresp = udata->outbuf;
 	}
 
 	if (attr->flags)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	err = rxe_cq_chk_attr(rxe, NULL, attr->cqe, attr->comp_vector);
 	if (err)
-		goto err1;
-
-	cq = rxe_alloc(&rxe->cq_pool);
-	if (!cq) {
-		err = -ENOMEM;
-		goto err1;
-	}
+		return err;
 
 	err = rxe_cq_from_init(rxe, cq, attr->cqe, attr->comp_vector, udata,
 			       uresp);
 	if (err)
-		goto err2;
+		return err;
 
-	return &cq->ibcq;
-
-err2:
-	rxe_drop_ref(cq);
-err1:
-	return ERR_PTR(err);
+	return rxe_add_to_pool(&rxe->cq_pool, &cq->pelem);
 }
 
 static void rxe_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
@@ -1160,6 +1149,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.resize_cq = rxe_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, rxe_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, rxe_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, rxe_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_srq, rxe_srq, ibsrq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, rxe_ucontext, ibuc),

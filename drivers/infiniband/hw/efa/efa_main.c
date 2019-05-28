@@ -224,6 +224,7 @@ static const struct ib_device_ops efa_dev_ops = {
 	.reg_user_mr = efa_reg_mr,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, efa_ah, ibah),
+	INIT_RDMA_OBJ_SIZE(ib_cq, efa_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, efa_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, efa_ucontext, ibucontext),
 };

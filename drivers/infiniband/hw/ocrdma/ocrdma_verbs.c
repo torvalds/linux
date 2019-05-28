@@ -977,12 +977,12 @@ err:
 	return status;
 }
 
-struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev,
-			       const struct ib_cq_init_attr *attr,
-			       struct ib_udata *udata)
+int ocrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		     struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
-	struct ocrdma_cq *cq;
+	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
 	struct ocrdma_ucontext *uctx = rdma_udata_to_drv_context(
 		udata, struct ocrdma_ucontext, ibucontext);
@@ -991,16 +991,13 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev,
 	struct ocrdma_create_cq_ureq ureq;
 
 	if (attr->flags)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (udata) {
 		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
-			return ERR_PTR(-EFAULT);
+			return -EFAULT;
 	} else
 		ureq.dpp_cq = 0;
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq)
-		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&cq->cq_lock);
 	spin_lock_init(&cq->comp_handler_lock);
@@ -1011,10 +1008,9 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev,
 		pd_id = uctx->cntxt_pd->id;
 
 	status = ocrdma_mbx_create_cq(dev, cq, entries, ureq.dpp_cq, pd_id);
-	if (status) {
-		kfree(cq);
-		return ERR_PTR(status);
-	}
+	if (status)
+		return status;
+
 	if (udata) {
 		status = ocrdma_copy_cq_uresp(dev, cq, udata);
 		if (status)
@@ -1022,12 +1018,11 @@ struct ib_cq *ocrdma_create_cq(struct ib_device *ibdev,
 	}
 	cq->phase = OCRDMA_CQE_VALID;
 	dev->cq_tbl[cq->id] = cq;
-	return &cq->ibcq;
+	return 0;
 
 ctx_err:
 	ocrdma_mbx_destroy_cq(dev, cq);
-	kfree(cq);
-	return ERR_PTR(status);
+	return status;
 }
 
 int ocrdma_resize_cq(struct ib_cq *ibcq, int new_cnt,
@@ -1095,8 +1090,6 @@ void ocrdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 				ocrdma_get_db_addr(dev, pdid),
 				dev->nic_info.db_page_size);
 	}
-
-	kfree(cq);
 }
 
 static int ocrdma_add_qpn_map(struct ocrdma_dev *dev, struct ocrdma_qp *qp)

@@ -50,9 +50,8 @@ int qedr_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
 int qedr_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 void qedr_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 
-struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
-			     const struct ib_cq_init_attr *attr,
-			     struct ib_udata *udata);
+int qedr_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		   struct ib_udata *udata);
 int qedr_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
 void qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);

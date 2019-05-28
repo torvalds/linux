@@ -299,15 +299,15 @@ static void hns_roce_ib_free_cq_buf(struct hns_roce_dev *hr_dev,
 			  &buf->hr_buf);
 }
 
-struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
-				    const struct ib_cq_init_attr *attr,
-				    struct ib_udata *udata)
+int hns_roce_ib_create_cq(struct ib_cq *ib_cq,
+			  const struct ib_cq_init_attr *attr,
+			  struct ib_udata *udata)
 {
-	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
+	struct hns_roce_dev *hr_dev = to_hr_dev(ib_cq->device);
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_cq ucmd;
 	struct hns_roce_ib_create_cq_resp resp = {};
-	struct hns_roce_cq *hr_cq = NULL;
+	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
 	struct hns_roce_uar *uar = NULL;
 	int vector = attr->comp_vector;
 	int cq_entries = attr->cqe;
@@ -318,12 +318,8 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	if (cq_entries < 1 || cq_entries > hr_dev->caps.max_cqes) {
 		dev_err(dev, "Creat CQ failed. entries=%d, max=%d\n",
 			cq_entries, hr_dev->caps.max_cqes);
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
-
-	hr_cq = kzalloc(sizeof(*hr_cq), GFP_KERNEL);
-	if (!hr_cq)
-		return ERR_PTR(-ENOMEM);
 
 	if (hr_dev->caps.min_cqes)
 		cq_entries = max(cq_entries, hr_dev->caps.min_cqes);
@@ -415,7 +411,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 			goto err_cqc;
 	}
 
-	return &hr_cq->ib_cq;
+	return 0;
 
 err_cqc:
 	hns_roce_free_cq(hr_dev, hr_cq);
@@ -438,8 +434,7 @@ err_db:
 		hns_roce_free_db(hr_dev, &hr_cq->db);
 
 err_cq:
-	kfree(hr_cq);
-	return ERR_PTR(ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(hns_roce_ib_create_cq);
 
@@ -471,8 +466,6 @@ void hns_roce_ib_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 		if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)
 			hns_roce_free_db(hr_dev, &hr_cq->db);
 	}
-
-	kfree(hr_cq);
 }
 EXPORT_SYMBOL_GPL(hns_roce_ib_destroy_cq);
 

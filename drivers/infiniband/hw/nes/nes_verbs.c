@@ -1374,16 +1374,17 @@ static int nes_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 /**
  * nes_create_cq
  */
-static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
+static int nes_create_cq(struct ib_cq *ibcq,
 				   const struct ib_cq_init_attr *attr,
 				   struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	u64 u64temp;
 	struct nes_vnic *nesvnic = to_nesvnic(ibdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
-	struct nes_cq *nescq;
+	struct nes_cq *nescq = to_nescq(ibcq);
 	struct nes_ucontext *nes_ucontext = NULL;
 	struct nes_cqp_request *cqp_request;
 	void *mem = NULL;
@@ -1399,22 +1400,15 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 	int ret;
 
 	if (attr->flags)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (entries > nesadapter->max_cqe)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_cqs,
 			nesadapter->max_cq, &cq_num, &nesadapter->next_cq, NES_RESOURCE_CQ);
-	if (err) {
-		return ERR_PTR(err);
-	}
-
-	nescq = kzalloc(sizeof(struct nes_cq), GFP_KERNEL);
-	if (!nescq) {
-		nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (err)
+		return err;
 
 	nescq->hw_cq.cq_size = max(entries + 1, 5);
 	nescq->hw_cq.cq_number = cq_num;
@@ -1424,10 +1418,10 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 		struct nes_ucontext *nes_ucontext = rdma_udata_to_drv_context(
 			udata, struct nes_ucontext, ibucontext);
 
-		if (ib_copy_from_udata(&req, udata, sizeof (struct nes_create_cq_req))) {
+		if (ib_copy_from_udata(&req, udata,
+				       sizeof(struct nes_create_cq_req))) {
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
-			kfree(nescq);
-			return ERR_PTR(-EFAULT);
+			return -EFAULT;
 		}
 		nesvnic->mcrq_ucontext = nes_ucontext;
 		nes_ucontext->mcrqf = req.mcrqf;
@@ -1441,8 +1435,6 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 			nescq->mcrqf = nes_ucontext->mcrqf;
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 		}
-		nes_debug(NES_DBG_CQ, "CQ Virtual Address = %08lX, size = %u.\n",
-				(unsigned long)req.user_cq_buffer, entries);
 		err = 1;
 		list_for_each_entry(nespbl, &nes_ucontext->cq_reg_mem_list, list) {
 			if (nespbl->user_base == (unsigned long )req.user_cq_buffer) {
@@ -1455,8 +1447,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 		}
 		if (err) {
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
-			kfree(nescq);
-			return ERR_PTR(-EFAULT);
+			return -EFAULT;
 		}
 
 		pbl_entries = nespbl->pbl_size >> 3;
@@ -1472,15 +1463,11 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 		if (!mem) {
 			printk(KERN_ERR PFX "Unable to allocate pci memory for cq\n");
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
-			kfree(nescq);
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 		}
 
 		nescq->hw_cq.cq_vbase = mem;
 		nescq->hw_cq.cq_head = 0;
-		nes_debug(NES_DBG_CQ, "CQ%u virtual address @ %p, phys = 0x%08X\n",
-				nescq->hw_cq.cq_number, nescq->hw_cq.cq_vbase,
-				(u32)nescq->hw_cq.cq_pbase);
 	}
 
 	nescq->hw_cq.ce_handler = nes_iwarp_ce_handler;
@@ -1500,8 +1487,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 		}
 
 		nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
-		kfree(nescq);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 	cqp_request->waiting = 1;
 	cqp_wqe = &cqp_request->cqp_wqe;
@@ -1528,8 +1514,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 					kfree(nespbl);
 				}
 				nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
-				kfree(nescq);
-				return ERR_PTR(-ENOMEM);
+				return -ENOMEM;
 			} else {
 				opcode |= (NES_CQP_CQ_VIRT | NES_CQP_CQ_4KB_CHUNK);
 				nescq->virtual_cq = 2;
@@ -1550,8 +1535,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 					kfree(nespbl);
 				}
 				nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
-				kfree(nescq);
-				return ERR_PTR(-ENOMEM);
+				return -ENOMEM;
 			} else {
 				opcode |= NES_CQP_CQ_VIRT;
 				nescq->virtual_cq = 1;
@@ -1607,8 +1591,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 			kfree(nespbl);
 		}
 		nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
-		kfree(nescq);
-		return ERR_PTR(-EIO);
+		return -EIO;
 	}
 	nes_put_cqp_request(nesdev, cqp_request);
 
@@ -1620,16 +1603,15 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 		resp.cq_id = nescq->hw_cq.cq_number;
 		resp.cq_size = nescq->hw_cq.cq_size;
 		resp.mmap_db_index = 0;
-		if (ib_copy_to_udata(udata, &resp, sizeof resp - sizeof resp.reserved)) {
+		if (ib_copy_to_udata(udata, &resp,
+				     sizeof(resp) - sizeof(resp.reserved))) {
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
-			kfree(nescq);
-			return ERR_PTR(-EFAULT);
+			return -EFAULT;
 		}
 	}
 
-	return &nescq->ibcq;
+	return 0;
 }
-
 
 /**
  * nes_destroy_cq
@@ -1700,7 +1682,6 @@ static void nes_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	if (nescq->cq_mem_size)
 		pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size,
 				    nescq->hw_cq.cq_vbase, nescq->hw_cq.cq_pbase);
-	kfree(nescq);
 }
 
 /**
@@ -3584,6 +3565,7 @@ static const struct ib_device_ops nes_dev_ops = {
 	.reg_user_mr = nes_reg_user_mr,
 	.req_notify_cq = nes_req_notify_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, nes_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_cq, nes_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, nes_ucontext, ibucontext),
 };
 

@@ -85,8 +85,8 @@ struct rxe_cqe {
 };
 
 struct rxe_cq {
-	struct rxe_pool_entry	pelem;
 	struct ib_cq		ibcq;
+	struct rxe_pool_entry	pelem;
 	struct rxe_queue	*queue;
 	spinlock_t		cq_lock;
 	u8			notify;

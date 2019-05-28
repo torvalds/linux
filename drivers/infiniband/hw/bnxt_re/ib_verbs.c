@@ -2534,16 +2534,14 @@ void bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	atomic_dec(&rdev->cq_count);
 	nq->budget--;
 	kfree(cq->cql);
-	kfree(cq);
 }
 
-struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
-				const struct ib_cq_init_attr *attr,
-				struct ib_udata *udata)
+int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		      struct ib_udata *udata)
 {
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibcq->device, ibdev);
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
-	struct bnxt_re_cq *cq = NULL;
+	struct bnxt_re_cq *cq = container_of(ibcq, struct bnxt_re_cq, ib_cq);
 	int rc, entries;
 	int cqe = attr->cqe;
 	struct bnxt_qplib_nq *nq = NULL;
@@ -2552,11 +2550,8 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	/* Validate CQ fields */
 	if (cqe < 1 || cqe > dev_attr->max_cq_wqes) {
 		dev_err(rdev_to_dev(rdev), "Failed to create CQ -max exceeded");
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 	}
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq)
-		return ERR_PTR(-ENOMEM);
 
 	cq->rdev = rdev;
 	cq->qplib_cq.cq_handle = (u64)(unsigned long)(&cq->qplib_cq);
@@ -2634,15 +2629,14 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 		}
 	}
 
-	return &cq->ib_cq;
+	return 0;
 
 c2fail:
 	if (udata)
 		ib_umem_release(cq->umem);
 fail:
 	kfree(cq->cql);
-	kfree(cq);
-	return ERR_PTR(rc);
+	return rc;
 }
 
 static u8 __req_to_ib_wc_status(u8 qstatus)

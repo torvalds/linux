@@ -92,20 +92,19 @@ int pvrdma_req_notify_cq(struct ib_cq *ibcq,
 
 /**
  * pvrdma_create_cq - create completion queue
- * @ibdev: the device
+ * @ibcq: Allocated CQ
  * @attr: completion queue attributes
  * @udata: user data
  *
- * @return: ib_cq completion queue pointer on success,
- *          otherwise returns negative errno.
+ * @return: 0 on success
  */
-struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
-			       const struct ib_cq_init_attr *attr,
-			       struct ib_udata *udata)
+int pvrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		     struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	struct pvrdma_dev *dev = to_vdev(ibdev);
-	struct pvrdma_cq *cq;
+	struct pvrdma_cq *cq = to_vcq(ibcq);
 	int ret;
 	int npages;
 	unsigned long flags;
@@ -113,7 +112,7 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 	union pvrdma_cmd_resp rsp;
 	struct pvrdma_cmd_create_cq *cmd = &req.create_cq;
 	struct pvrdma_cmd_create_cq_resp *resp = &rsp.create_cq_resp;
-	struct pvrdma_create_cq_resp cq_resp = {0};
+	struct pvrdma_create_cq_resp cq_resp = {};
 	struct pvrdma_create_cq ucmd;
 	struct pvrdma_ucontext *context = rdma_udata_to_drv_context(
 		udata, struct pvrdma_ucontext, ibucontext);
@@ -122,16 +121,10 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 
 	entries = roundup_pow_of_two(entries);
 	if (entries < 1 || entries > dev->dsr->caps.max_cqe)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (!atomic_add_unless(&dev->num_cqs, 1, dev->dsr->caps.max_cq))
-		return ERR_PTR(-ENOMEM);
-
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq) {
-		atomic_dec(&dev->num_cqs);
-		return ERR_PTR(-ENOMEM);
-	}
+		return -ENOMEM;
 
 	cq->ibcq.cqe = entries;
 	cq->is_kernel = !udata;
@@ -211,11 +204,11 @@ struct ib_cq *pvrdma_create_cq(struct ib_device *ibdev,
 			dev_warn(&dev->pdev->dev,
 				 "failed to copy back udata\n");
 			pvrdma_destroy_cq(&cq->ibcq, udata);
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 		}
 	}
 
-	return &cq->ibcq;
+	return 0;
 
 err_page_dir:
 	pvrdma_page_dir_cleanup(dev, &cq->pdir);
@@ -224,9 +217,7 @@ err_umem:
 		ib_umem_release(cq->umem);
 err_cq:
 	atomic_dec(&dev->num_cqs);
-	kfree(cq);
-
-	return ERR_PTR(ret);
+	return ret;
 }
 
 static void pvrdma_free_cq(struct pvrdma_dev *dev, struct pvrdma_cq *cq)
@@ -239,7 +230,6 @@ static void pvrdma_free_cq(struct pvrdma_dev *dev, struct pvrdma_cq *cq)
 		ib_umem_release(cq->umem);
 
 	pvrdma_page_dir_cleanup(dev, &cq->pdir);
-	kfree(cq);
 }
 
 /**

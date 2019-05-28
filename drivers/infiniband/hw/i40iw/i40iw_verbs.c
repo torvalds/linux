@@ -1075,27 +1075,27 @@ static void i40iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	cq = &iwcq->sc_cq;
 	i40iw_cq_wq_destroy(iwdev, cq);
 	cq_free_resources(iwdev, iwcq);
-	kfree(iwcq);
 	i40iw_rem_devusecount(iwdev);
 }
 
 /**
  * i40iw_create_cq - create cq
- * @ibdev: device pointer from stack
+ * @ibcq: CQ allocated
  * @attr: attributes for cq
  * @udata: user data
  */
-static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
-				     const struct ib_cq_init_attr *attr,
-				     struct ib_udata *udata)
+static int i40iw_create_cq(struct ib_cq *ibcq,
+			   const struct ib_cq_init_attr *attr,
+			   struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
-	struct i40iw_cq *iwcq;
+	struct i40iw_cq *iwcq = to_iwcq(ibcq);
 	struct i40iw_pbl *iwpbl;
 	u32 cq_num = 0;
 	struct i40iw_sc_cq *cq;
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
-	struct i40iw_cq_init_info info;
+	struct i40iw_cq_init_info info = {};
 	enum i40iw_status_code status;
 	struct i40iw_cqp_request *cqp_request;
 	struct cqp_commands_info *cqp_info;
@@ -1105,22 +1105,16 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 	int entries = attr->cqe;
 
 	if (iwdev->closing)
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	if (entries > iwdev->max_cqe)
-		return ERR_PTR(-EINVAL);
-
-	iwcq = kzalloc(sizeof(*iwcq), GFP_KERNEL);
-	if (!iwcq)
-		return ERR_PTR(-ENOMEM);
-
-	memset(&info, 0, sizeof(info));
+		return -EINVAL;
 
 	err_code = i40iw_alloc_resource(iwdev, iwdev->allocated_cqs,
 					iwdev->max_cq, &cq_num,
 					&iwdev->next_cq);
 	if (err_code)
-		goto error;
+		return err_code;
 
 	cq = &iwcq->sc_cq;
 	cq->back_cq = (void *)iwcq;
@@ -1227,15 +1221,13 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 	}
 
 	i40iw_add_devusecount(iwdev);
-	return (struct ib_cq *)iwcq;
+	return 0;
 
 cq_destroy:
 	i40iw_cq_wq_destroy(iwdev, cq);
 cq_free_resources:
 	cq_free_resources(iwdev, iwcq);
-error:
-	kfree(iwcq);
-	return ERR_PTR(err_code);
+	return err_code;
 }
 
 /**
@@ -2693,6 +2685,7 @@ static const struct ib_device_ops i40iw_dev_ops = {
 	.reg_user_mr = i40iw_reg_user_mr,
 	.req_notify_cq = i40iw_req_notify_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, i40iw_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_cq, i40iw_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, i40iw_ucontext, ibucontext),
 };
 

@@ -1916,21 +1916,28 @@ struct ib_cq *__ib_create_cq(struct ib_device *device,
 			     const char *caller)
 {
 	struct ib_cq *cq;
+	int ret;
 
-	cq = device->ops.create_cq(device, cq_attr, NULL);
+	cq = rdma_zalloc_drv_obj(device, ib_cq);
+	if (!cq)
+		return ERR_PTR(-ENOMEM);
 
-	if (!IS_ERR(cq)) {
-		cq->device        = device;
-		cq->uobject       = NULL;
-		cq->comp_handler  = comp_handler;
-		cq->event_handler = event_handler;
-		cq->cq_context    = cq_context;
-		atomic_set(&cq->usecnt, 0);
-		cq->res.type = RDMA_RESTRACK_CQ;
-		rdma_restrack_set_task(&cq->res, caller);
-		rdma_restrack_kadd(&cq->res);
+	cq->device = device;
+	cq->uobject = NULL;
+	cq->comp_handler = comp_handler;
+	cq->event_handler = event_handler;
+	cq->cq_context = cq_context;
+	atomic_set(&cq->usecnt, 0);
+	cq->res.type = RDMA_RESTRACK_CQ;
+	rdma_restrack_set_task(&cq->res, caller);
+
+	ret = device->ops.create_cq(cq, cq_attr, NULL);
+	if (ret) {
+		kfree(cq);
+		return ERR_PTR(ret);
 	}
 
+	rdma_restrack_kadd(&cq->res);
 	return cq;
 }
 EXPORT_SYMBOL(__ib_create_cq);
@@ -1950,6 +1957,7 @@ int ib_destroy_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 
 	rdma_restrack_del(&cq->res);
 	cq->device->ops.destroy_cq(cq, udata);
+	kfree(cq);
 	return 0;
 }
 EXPORT_SYMBOL(ib_destroy_cq_user);

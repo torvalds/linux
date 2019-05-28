@@ -100,16 +100,16 @@ static void iwch_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	wait_event(chp->wait, !atomic_read(&chp->refcnt));
 
 	cxio_destroy_cq(&chp->rhp->rdev, &chp->cq);
-	kfree(chp);
 }
 
-static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
-				    const struct ib_cq_init_attr *attr,
-				    struct ib_udata *udata)
+static int iwch_create_cq(struct ib_cq *ibcq,
+			  const struct ib_cq_init_attr *attr,
+			  struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
-	struct iwch_dev *rhp;
-	struct iwch_cq *chp;
+	struct iwch_dev *rhp = to_iwch_dev(ibcq->device);
+	struct iwch_cq *chp = to_iwch_cq(ibcq);
 	struct iwch_create_cq_resp uresp;
 	struct iwch_create_cq_req ureq;
 	static int warned;
@@ -117,19 +117,13 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 
 	pr_debug("%s ib_dev %p entries %d\n", __func__, ibdev, entries);
 	if (attr->flags)
-		return ERR_PTR(-EINVAL);
-
-	rhp = to_iwch_dev(ibdev);
-	chp = kzalloc(sizeof(*chp), GFP_KERNEL);
-	if (!chp)
-		return ERR_PTR(-ENOMEM);
+		return -EINVAL;
 
 	if (udata) {
 		if (!t3a_device(rhp)) {
-			if (ib_copy_from_udata(&ureq, udata, sizeof(ureq))) {
-				kfree(chp);
-				return ERR_PTR(-EFAULT);
-			}
+			if (ib_copy_from_udata(&ureq, udata, sizeof(ureq)))
+				return  -EFAULT;
+
 			chp->user_rptr_addr = (u32 __user *)(unsigned long)ureq.user_rptr_addr;
 		}
 	}
@@ -150,10 +144,9 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 	entries = roundup_pow_of_two(entries);
 	chp->cq.size_log2 = ilog2(entries);
 
-	if (cxio_create_cq(&rhp->rdev, &chp->cq, !udata)) {
-		kfree(chp);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (cxio_create_cq(&rhp->rdev, &chp->cq, !udata))
+		return -ENOMEM;
+
 	chp->rhp = rhp;
 	chp->ibcq.cqe = 1 << chp->cq.size_log2;
 	spin_lock_init(&chp->lock);
@@ -162,8 +155,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 	init_waitqueue_head(&chp->wait);
 	if (xa_store_irq(&rhp->cqs, chp->cq.cqid, chp, GFP_KERNEL)) {
 		cxio_destroy_cq(&chp->rhp->rdev, &chp->cq);
-		kfree(chp);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	if (udata) {
@@ -174,7 +166,7 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 		mm = kmalloc(sizeof(*mm), GFP_KERNEL);
 		if (!mm) {
 			iwch_destroy_cq(&chp->ibcq, udata);
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 		}
 		uresp.cqid = chp->cq.cqid;
 		uresp.size_log2 = chp->cq.size_log2;
@@ -200,14 +192,14 @@ static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,
 		if (ib_copy_to_udata(udata, &uresp, resplen)) {
 			kfree(mm);
 			iwch_destroy_cq(&chp->ibcq, udata);
-			return ERR_PTR(-EFAULT);
+			return -EFAULT;
 		}
 		insert_mmap(ucontext, mm);
 	}
 	pr_debug("created cqid 0x%0x chp %p size 0x%0x, dma_addr %pad\n",
 		 chp->cq.cqid, chp, (1 << chp->cq.size_log2),
 		 &chp->cq.dma_addr);
-	return &chp->ibcq;
+	return 0;
 }
 
 static int iwch_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
@@ -1277,6 +1269,7 @@ static const struct ib_device_ops iwch_dev_ops = {
 	.reg_user_mr = iwch_reg_user_mr,
 	.req_notify_cq = iwch_arm_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, iwch_pd, ibpd),
+	INIT_RDMA_OBJ_SIZE(ib_cq, iwch_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, iwch_ucontext, ibucontext),
 };
 

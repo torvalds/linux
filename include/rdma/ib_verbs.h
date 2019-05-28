@@ -2458,9 +2458,8 @@ struct ib_device_ops {
 	int (*query_qp)(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 			int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
 	int (*destroy_qp)(struct ib_qp *qp, struct ib_udata *udata);
-	struct ib_cq *(*create_cq)(struct ib_device *device,
-				   const struct ib_cq_init_attr *attr,
-				   struct ib_udata *udata);
+	int (*create_cq)(struct ib_cq *cq, const struct ib_cq_init_attr *attr,
+			 struct ib_udata *udata);
 	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 	void (*destroy_cq)(struct ib_cq *cq, struct ib_udata *udata);
 	int (*resize_cq)(struct ib_cq *cq, int cqe, struct ib_udata *udata);
@@ -2601,6 +2600,7 @@ struct ib_device_ops {
 	int (*iw_destroy_listen)(struct iw_cm_id *cm_id);
 
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
+	DECLARE_RDMA_OBJ_SIZE(ib_cq);
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
 	DECLARE_RDMA_OBJ_SIZE(ib_srq);
 	DECLARE_RDMA_OBJ_SIZE(ib_ucontext);
