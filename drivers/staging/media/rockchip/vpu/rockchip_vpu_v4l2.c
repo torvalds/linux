@@ -36,8 +36,13 @@ rockchip_vpu_get_formats(const struct rockchip_vpu_ctx *ctx,
 {
 	const struct rockchip_vpu_fmt *formats;
 
-	formats = ctx->dev->variant->enc_fmts;
-	*num_fmts = ctx->dev->variant->num_enc_fmts;
+	if (rockchip_vpu_is_encoder_ctx(ctx)) {
+		formats = ctx->dev->variant->enc_fmts;
+		*num_fmts = ctx->dev->variant->num_enc_fmts;
+	} else {
+		formats = ctx->dev->variant->dec_fmts;
+		*num_fmts = ctx->dev->variant->num_dec_fmts;
+	}
 
 	return formats;
 }
@@ -331,6 +336,22 @@ void rockchip_vpu_reset_fmts(struct rockchip_vpu_ctx *ctx)
 	rockchip_vpu_reset_raw_fmt(ctx);
 }
 
+static void
+rockchip_vpu_update_requires_request(struct rockchip_vpu_ctx *ctx,
+				     u32 fourcc)
+{
+	switch (fourcc) {
+	case V4L2_PIX_FMT_JPEG:
+		ctx->fh.m2m_ctx->out_q_ctx.q.requires_requests = false;
+		break;
+	case V4L2_PIX_FMT_MPEG2_SLICE:
+		ctx->fh.m2m_ctx->out_q_ctx.q.requires_requests = true;
+		break;
+	default:
+		break;
+	}
+}
+
 static int
 vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 {
@@ -386,6 +407,8 @@ vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 	ctx->dst_fmt.ycbcr_enc = pix_mp->ycbcr_enc;
 	ctx->dst_fmt.xfer_func = pix_mp->xfer_func;
 	ctx->dst_fmt.quantization = pix_mp->quantization;
+
+	rockchip_vpu_update_requires_request(ctx, pix_mp->pixelformat);
 
 	vpu_debug(0, "OUTPUT codec mode: %d\n", ctx->vpu_src_fmt->codec_mode);
 	vpu_debug(0, "fmt - w: %d, h: %d\n",
@@ -455,6 +478,8 @@ static int vidioc_s_fmt_cap_mplane(struct file *file, void *priv,
 	vpu_debug(0, "CAPTURE codec mode: %d\n", ctx->vpu_dst_fmt->codec_mode);
 	vpu_debug(0, "fmt - w: %d, h: %d\n",
 		  pix_mp->width, pix_mp->height);
+
+	rockchip_vpu_update_requires_request(ctx, pix_mp->pixelformat);
 
 	return 0;
 }
