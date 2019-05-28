@@ -32,7 +32,7 @@
 		};
 	};
 
-	mpcore {
+	mpcore@18310000 {
 		compatible = "simple-bus";
 		ranges = <0x00000000 0x18310000 0x00008000>;
 		#address-cells = <1>;
