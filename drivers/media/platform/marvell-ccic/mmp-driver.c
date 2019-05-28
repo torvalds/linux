@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/platform_data/i2c-gpio.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -330,7 +329,6 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam->calc_dphy = mmpcam_calc_dphy;
 	mcam->dev = &pdev->dev;
 	mcam->use_smbus = 0;
-	mcam->mclk_min = pdata->mclk_min;
 	mcam->mclk_src = pdata->mclk_src;
 	mcam->mclk_div = pdata->mclk_div;
 	mcam->bus_type = pdata->bus_type;
