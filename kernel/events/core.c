@@ -10036,6 +10036,12 @@ void perf_pmu_unregister(struct pmu *pmu)
 }
 EXPORT_SYMBOL_GPL(perf_pmu_unregister);
 
+static inline bool has_extended_regs(struct perf_event *event)
+{
+	return (event->attr.sample_regs_user & PERF_REG_EXTENDED_MASK) ||
+	       (event->attr.sample_regs_intr & PERF_REG_EXTENDED_MASK);
+}
+
 static int perf_try_init_event(struct pmu *pmu, struct perf_event *event)
 {
 	struct perf_event_context *ctx = NULL;
@@ -10067,12 +10073,16 @@ static int perf_try_init_event(struct pmu *pmu, struct perf_event *event)
 		perf_event_ctx_unlock(event->group_leader, ctx);
 
 	if (!ret) {
+		if (!(pmu->capabilities & PERF_PMU_CAP_EXTENDED_REGS) &&
+		    has_extended_regs(event))
+			ret = -EOPNOTSUPP;
+
 		if (pmu->capabilities & PERF_PMU_CAP_NO_EXCLUDE &&
-				event_has_any_exclude_flag(event)) {
-			if (event->destroy)
-				event->destroy(event);
+		    event_has_any_exclude_flag(event))
 			ret = -EINVAL;
-		}
+
+		if (ret && event->destroy)
+			event->destroy(event);
 	}
 
 	if (ret)
