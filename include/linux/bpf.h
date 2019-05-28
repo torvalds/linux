@@ -552,6 +552,56 @@ _out:							\
 		_ret;					\
 	 })
 
+/* To be used by __cgroup_bpf_run_filter_skb for EGRESS BPF progs
+ * so BPF programs can request cwr for TCP packets.
+ *
+ * Current cgroup skb programs can only return 0 or 1 (0 to drop the
+ * packet. This macro changes the behavior so the low order bit
+ * indicates whether the packet should be dropped (0) or not (1)
+ * and the next bit is a congestion notification bit. This could be
+ * used by TCP to call tcp_enter_cwr()
+ *
+ * Hence, new allowed return values of CGROUP EGRESS BPF programs are:
+ *   0: drop packet
+ *   1: keep packet
+ *   2: drop packet and cn
+ *   3: keep packet and cn
+ *
+ * This macro then converts it to one of the NET_XMIT or an error
+ * code that is then interpreted as drop packet (and no cn):
+ *   0: NET_XMIT_SUCCESS  skb should be transmitted
+ *   1: NET_XMIT_DROP     skb should be dropped and cn
+ *   2: NET_XMIT_CN       skb should be transmitted and cn
+ *   3: -EPERM            skb should be dropped
+ */
+#define BPF_PROG_CGROUP_INET_EGRESS_RUN_ARRAY(array, ctx, func)		\
+	({						\
+		struct bpf_prog_array_item *_item;	\
+		struct bpf_prog *_prog;			\
+		struct bpf_prog_array *_array;		\
+		u32 ret;				\
+		u32 _ret = 1;				\
+		u32 _cn = 0;				\
+		preempt_disable();			\
+		rcu_read_lock();			\
+		_array = rcu_dereference(array);	\
+		_item = &_array->items[0];		\
+		while ((_prog = READ_ONCE(_item->prog))) {		\
+			bpf_cgroup_storage_set(_item->cgroup_storage);	\
+			ret = func(_prog, ctx);		\
+			_ret &= (ret & 1);		\
+			_cn |= (ret & 2);		\
+			_item++;			\
+		}					\
+		rcu_read_unlock();			\
+		preempt_enable();			\
+		if (_ret)				\
+			_ret = (_cn ? NET_XMIT_CN : NET_XMIT_SUCCESS);	\
+		else					\
+			_ret = (_cn ? NET_XMIT_DROP : -EPERM);		\
+		_ret;					\
+	})
+
 #define BPF_PROG_RUN_ARRAY(array, ctx, func)		\
 	__BPF_PROG_RUN_ARRAY(array, ctx, func, false)
 
