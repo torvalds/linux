@@ -114,11 +114,11 @@ void intel_wakeref_auto(struct intel_wakeref_auto *wf, unsigned long timeout)
 
 	if (!refcount_inc_not_zero(&wf->count)) {
 		spin_lock_irqsave(&wf->lock, flags);
-		if (!refcount_read(&wf->count)) {
+		if (!refcount_inc_not_zero(&wf->count)) {
 			GEM_BUG_ON(wf->wakeref);
 			wf->wakeref = intel_runtime_pm_get_if_in_use(wf->i915);
+			refcount_set(&wf->count, 1);
 		}
-		refcount_inc(&wf->count);
 		spin_unlock_irqrestore(&wf->lock, flags);
 	}
 
