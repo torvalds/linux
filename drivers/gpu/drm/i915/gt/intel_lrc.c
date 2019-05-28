@@ -447,7 +447,7 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 		__i915_request_unsubmit(rq);
 		unwind_wa_tail(rq);
 
-		GEM_BUG_ON(rq->hw_context->active);
+		GEM_BUG_ON(rq->hw_context->inflight);
 
 		/*
 		 * Push the request back into the queue for later resubmission.
@@ -516,11 +516,11 @@ execlists_user_end(struct intel_engine_execlists *execlists)
 static inline void
 execlists_context_schedule_in(struct i915_request *rq)
 {
-	GEM_BUG_ON(rq->hw_context->active);
+	GEM_BUG_ON(rq->hw_context->inflight);
 
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_IN);
 	intel_engine_context_in(rq->engine);
-	rq->hw_context->active = rq->engine;
+	rq->hw_context->inflight = rq->engine;
 }
 
 static void kick_siblings(struct i915_request *rq)
@@ -535,7 +535,7 @@ static void kick_siblings(struct i915_request *rq)
 static inline void
 execlists_context_schedule_out(struct i915_request *rq, unsigned long status)
 {
-	rq->hw_context->active = NULL;
+	rq->hw_context->inflight = NULL;
 	intel_engine_context_out(rq->engine);
 	execlists_context_status_change(rq, status);
 	trace_i915_request_out(rq);
@@ -778,7 +778,7 @@ static bool virtual_matches(const struct virtual_engine *ve,
 			    const struct i915_request *rq,
 			    const struct intel_engine_cs *engine)
 {
-	const struct intel_engine_cs *active;
+	const struct intel_engine_cs *inflight;
 
 	if (!(rq->execution_mask & engine->mask)) /* We peeked too soon! */
 		return false;
@@ -792,8 +792,8 @@ static bool virtual_matches(const struct virtual_engine *ve,
 	 * we reuse the register offsets). This is a very small
 	 * hystersis on the greedy seelction algorithm.
 	 */
-	active = READ_ONCE(ve->context.active);
-	if (active && active != engine)
+	inflight = READ_ONCE(ve->context.inflight);
+	if (inflight && inflight != engine)
 		return false;
 
 	return true;
@@ -981,7 +981,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				u32 *regs = ve->context.lrc_reg_state;
 				unsigned int n;
 
-				GEM_BUG_ON(READ_ONCE(ve->context.active));
+				GEM_BUG_ON(READ_ONCE(ve->context.inflight));
 				virtual_update_register_offsets(regs, engine);
 
 				if (!list_empty(&ve->context.signals))
@@ -1459,7 +1459,7 @@ static void execlists_context_unpin(struct intel_context *ce)
 	 * had the chance to run yet; let it run before we teardown the
 	 * reference it may use.
 	 */
-	engine = READ_ONCE(ce->active);
+	engine = READ_ONCE(ce->inflight);
 	if (unlikely(engine)) {
 		unsigned long flags;
 
@@ -1467,7 +1467,7 @@ static void execlists_context_unpin(struct intel_context *ce)
 		process_csb(engine);
 		spin_unlock_irqrestore(&engine->timeline.lock, flags);
 
-		GEM_BUG_ON(READ_ONCE(ce->active));
+		GEM_BUG_ON(READ_ONCE(ce->inflight));
 	}
 
 	i915_gem_context_unpin_hw_id(ce->gem_context);
@@ -3062,7 +3062,7 @@ static void virtual_context_destroy(struct kref *kref)
 	unsigned int n;
 
 	GEM_BUG_ON(ve->request);
-	GEM_BUG_ON(ve->context.active);
+	GEM_BUG_ON(ve->context.inflight);
 
 	for (n = 0; n < ve->num_siblings; n++) {
 		struct intel_engine_cs *sibling = ve->siblings[n];

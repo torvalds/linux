@@ -37,7 +37,7 @@ struct intel_context {
 
 	struct i915_gem_context *gem_context;
 	struct intel_engine_cs *engine;
-	struct intel_engine_cs *active;
+	struct intel_engine_cs *inflight;
 
 	struct list_head signal_link;
 	struct list_head signals;
