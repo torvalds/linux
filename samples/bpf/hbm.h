@@ -29,4 +29,10 @@ struct hbm_queue_stats {
 	unsigned long long bytes_total;
 	unsigned long long firstPacketTime;
 	unsigned long long lastPacketTime;
+	unsigned long long pkts_ecn_ce;
+	unsigned long long returnValCount[4];
+	unsigned long long sum_cwnd;
+	unsigned long long sum_rtt;
+	unsigned long long sum_cwnd_cnt;
+	long long sum_credit;
 };

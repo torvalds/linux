@@ -316,6 +316,14 @@ static int run_bpf_prog(char *prog, int cg_id)
 		double percent_pkts, percent_bytes;
 		char fname[100];
 		FILE *fout;
+		int k;
+		static const char *returnValNames[] = {
+			"DROP_PKT",
+			"ALLOW_PKT",
+			"DROP_PKT_CWR",
+			"ALLOW_PKT_CWR"
+		};
+#define RET_VAL_COUNT 4
 
 // Future support of ingress
 //		if (!outFlag)
@@ -350,6 +358,31 @@ static int run_bpf_prog(char *prog, int cg_id)
 			(qstats.bytes_total + 1);
 		fprintf(fout, "pkts_dropped_percent:%6.2f\n", percent_pkts);
 		fprintf(fout, "bytes_dropped_percent:%6.2f\n", percent_bytes);
+
+		// ECN CE markings
+		percent_pkts = (qstats.pkts_ecn_ce * 100.0) /
+			(qstats.pkts_total + 1);
+		fprintf(fout, "pkts_ecn_ce:%6.2f (%d)\n", percent_pkts,
+			(int)qstats.pkts_ecn_ce);
+
+		// Average cwnd
+		fprintf(fout, "avg cwnd:%d\n",
+			(int)(qstats.sum_cwnd / (qstats.sum_cwnd_cnt + 1)));
+		// Average rtt
+		fprintf(fout, "avg rtt:%d\n",
+			(int)(qstats.sum_rtt / (qstats.pkts_total + 1)));
+		// Average credit
+		fprintf(fout, "avg credit:%d\n",
+			(int)(qstats.sum_credit /
+			      (1500 * ((int)qstats.pkts_total) + 1)));
+
+		// Return values stats
+		for (k = 0; k < RET_VAL_COUNT; k++) {
+			percent_pkts = (qstats.returnValCount[k] * 100.0) /
+				(qstats.pkts_total + 1);
+			fprintf(fout, "%s:%6.2f (%d)\n", returnValNames[k],
+				percent_pkts, (int)qstats.returnValCount[k]);
+		}
 		fclose(fout);
 	}
 

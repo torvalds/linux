@@ -62,11 +62,12 @@ int _hbm_out_cg(struct __sk_buff *skb)
 	unsigned int queue_index = 0;
 	unsigned long long curtime;
 	int credit;
-	signed long long delta = 0, zero = 0;
+	signed long long delta = 0, new_credit;
 	int max_credit = MAX_CREDIT;
 	bool congestion_flag = false;
 	bool drop_flag = false;
 	bool cwr_flag = false;
+	bool ecn_ce_flag = false;
 	struct hbm_vqueue *qdp;
 	struct hbm_queue_stats *qsp = NULL;
 	int rv = ALLOW_PKT;
@@ -99,9 +100,11 @@ int _hbm_out_cg(struct __sk_buff *skb)
 	 */
 	if (delta > 0) {
 		qdp->lasttime = curtime;
-		credit += CREDIT_PER_NS(delta, qdp->rate);
-		if (credit > MAX_CREDIT)
+		new_credit = credit + CREDIT_PER_NS(delta, qdp->rate);
+		if (new_credit > MAX_CREDIT)
 			credit = MAX_CREDIT;
+		else
+			credit = new_credit;
 	}
 	credit -= len;
 	qdp->credit = credit;
@@ -139,7 +142,9 @@ int _hbm_out_cg(struct __sk_buff *skb)
 	}
 
 	if (congestion_flag) {
-		if (!bpf_skb_ecn_set_ce(skb)) {
+		if (bpf_skb_ecn_set_ce(skb)) {
+			ecn_ce_flag = true;
+		} else {
 			if (pkti.is_tcp) {
 				unsigned int rand = bpf_get_prandom_u32();
 
@@ -155,16 +160,17 @@ int _hbm_out_cg(struct __sk_buff *skb)
 		}
 	}
 
-	if (drop_flag)
-		rv = DROP_PKT;
 	if (qsp != NULL)
 		if (qsp->no_cn)
 			cwr_flag = false;
 
-	hbm_update_stats(qsp, len, curtime, congestion_flag, drop_flag);
+	hbm_update_stats(qsp, len, curtime, congestion_flag, drop_flag,
+			 cwr_flag, ecn_ce_flag, &pkti, credit);
 
-	if (rv == DROP_PKT)
+	if (drop_flag) {
 		__sync_add_and_fetch(&(qdp->credit), len);
+		rv = DROP_PKT;
+	}
 
 	if (cwr_flag)
 		rv |= 2;
