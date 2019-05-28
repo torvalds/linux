@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
+
 /*
-    cx25840.h - definition for cx25840/1/2/3 inputs
-
-    Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
-
-*/
+ *   cx25840.h - definition for cx25840/1/2/3 inputs
+ *
+ *   Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
+ */
 
 #ifndef _CX25840_H_
 #define _CX25840_H_
@@ -38,8 +38,10 @@ enum cx25840_video_input {
 	CX25840_COMPOSITE7,
 	CX25840_COMPOSITE8,
 
-	/* S-Video inputs consist of one luma input (In1-In8) ORed with one
-	   chroma input (In5-In8) */
+	/*
+	 * S-Video inputs consist of one luma input (In1-In8) ORed with one
+	 * chroma input (In5-In8)
+	 */
 	CX25840_SVIDEO_LUMA1 = 0x10,
 	CX25840_SVIDEO_LUMA2 = 0x20,
 	CX25840_SVIDEO_LUMA3 = 0x30,
@@ -243,13 +245,16 @@ enum cx23885_io_pad {
 	CX23885_PAD_GPIO16,
 };
 
-/* pvr150_workaround activates a workaround for a hardware bug that is
-   present in Hauppauge PVR-150 (and possibly PVR-500) cards that have
-   certain NTSC tuners (tveeprom tuner model numbers 85, 99 and 112). The
-   audio autodetect fails on some channels for these models and the workaround
-   is to select the audio standard explicitly. Many thanks to Hauppauge for
-   providing this information.
-   This platform data only needs to be supplied by the ivtv driver. */
+/*
+ * pvr150_workaround activates a workaround for a hardware bug that is
+ * present in Hauppauge PVR-150 (and possibly PVR-500) cards that have
+ * certain NTSC tuners (tveeprom tuner model numbers 85, 99 and 112). The
+ * audio autodetect fails on some channels for these models and the workaround
+ * is to select the audio standard explicitly. Many thanks to Hauppauge for
+ * providing this information.
+ *
+ * This platform data only needs to be supplied by the ivtv driver.
+ */
 struct cx25840_platform_data {
 	int pvr150_workaround;
 };
