@@ -34,7 +34,6 @@ static int fb_notifier_callback(struct notifier_block *self,
 	switch (event) {
 	case FB_EVENT_BLANK:
 	case FB_EVENT_MODE_CHANGE:
-	case FB_EVENT_MODE_CHANGE_ALL:
 	case FB_EARLY_EVENT_BLANK:
 	case FB_R_EARLY_EVENT_BLANK:
 		break;
