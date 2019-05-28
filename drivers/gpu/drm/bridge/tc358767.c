@@ -822,7 +822,7 @@ err:
 	return ret;
 }
 
-static int tc_main_link_setup(struct tc_data *tc)
+static int tc_main_link_enable(struct tc_data *tc)
 {
 	struct drm_dp_aux *aux = &tc->aux;
 	struct device *dev = tc->dev;
@@ -836,6 +836,8 @@ static int tc_main_link_setup(struct tc_data *tc)
 	/* display mode should be set at this point */
 	if (!tc->mode)
 		return -EINVAL;
+
+	dev_dbg(tc->dev, "link enable\n");
 
 	tc_write(DP0_SRCCTRL, tc_srcctrl(tc));
 	/* SSCG and BW27 on DP1 must be set to the same as on DP0 */
@@ -1006,6 +1008,20 @@ err:
 	return ret;
 }
 
+static int tc_main_link_disable(struct tc_data *tc)
+{
+	int ret;
+
+	dev_dbg(tc->dev, "link disable\n");
+
+	tc_write(DP0_SRCCTRL, 0);
+	tc_write(DP0CTL, 0);
+
+	return 0;
+err:
+	return ret;
+}
+
 static int tc_stream_enable(struct tc_data *tc)
 {
 	int ret;
@@ -1084,15 +1100,16 @@ static void tc_bridge_enable(struct drm_bridge *bridge)
 	struct tc_data *tc = bridge_to_tc(bridge);
 	int ret;
 
-	ret = tc_main_link_setup(tc);
+	ret = tc_main_link_enable(tc);
 	if (ret < 0) {
-		dev_err(tc->dev, "main link setup error: %d\n", ret);
+		dev_err(tc->dev, "main link enable error: %d\n", ret);
 		return;
 	}
 
 	ret = tc_stream_enable(tc);
 	if (ret < 0) {
 		dev_err(tc->dev, "main link stream start error: %d\n", ret);
+		tc_main_link_disable(tc);
 		return;
 	}
 
@@ -1109,6 +1126,10 @@ static void tc_bridge_disable(struct drm_bridge *bridge)
 	ret = tc_stream_disable(tc);
 	if (ret < 0)
 		dev_err(tc->dev, "main link stream stop error: %d\n", ret);
+
+	ret = tc_main_link_disable(tc);
+	if (ret < 0)
+		dev_err(tc->dev, "main link disable error: %d\n", ret);
 }
 
 static void tc_bridge_post_disable(struct drm_bridge *bridge)
