@@ -18,7 +18,7 @@ config PINCTRL_BCM281XX
 
 config PINCTRL_BCM2835
 	bool "Broadcom BCM2835 GPIO (with PINCONF) driver"
-	depends on ARCH_BCM2835 || ARCH_BRCMSTB || COMPILE_TEST
+	depends on OF && (ARCH_BCM2835 || ARCH_BRCMSTB || COMPILE_TEST)
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
