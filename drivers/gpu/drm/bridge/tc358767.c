@@ -980,34 +980,42 @@ static int tc_main_link_enable(struct tc_data *tc)
 	if (ret < 0)
 		goto err_dpcd_write;
 
-	/* Wait */
-	timeout = 100;
-	do {
-		udelay(1);
-		/* Read DPCD 0x202-0x207 */
-		ret = drm_dp_dpcd_read_link_status(aux, tmp + 2);
-		if (ret < 0)
-			goto err_dpcd_read;
-	} while ((--timeout) &&
-		 !(drm_dp_channel_eq_ok(tmp + 2,  tc->link.base.num_lanes)));
+	/* Check link status */
+	ret = drm_dp_dpcd_read_link_status(aux, tmp);
+	if (ret < 0)
+		goto err_dpcd_read;
 
-	if (timeout == 0) {
-		/* Read DPCD 0x200-0x201 */
-		ret = drm_dp_dpcd_read(aux, DP_SINK_COUNT, tmp, 2);
-		if (ret < 0)
-			goto err_dpcd_read;
-		dev_err(dev, "channel(s) EQ not ok\n");
-		dev_info(dev, "0x0200 SINK_COUNT: 0x%02x\n", tmp[0]);
-		dev_info(dev, "0x0201 DEVICE_SERVICE_IRQ_VECTOR: 0x%02x\n",
-			 tmp[1]);
-		dev_info(dev, "0x0202 LANE0_1_STATUS: 0x%02x\n", tmp[2]);
-		dev_info(dev, "0x0204 LANE_ALIGN_STATUS_UPDATED: 0x%02x\n",
-			 tmp[4]);
-		dev_info(dev, "0x0205 SINK_STATUS: 0x%02x\n", tmp[5]);
-		dev_info(dev, "0x0206 ADJUST_REQUEST_LANE0_1: 0x%02x\n",
-			 tmp[6]);
+	ret = 0;
 
-		return -EAGAIN;
+	value = tmp[0] & DP_CHANNEL_EQ_BITS;
+
+	if (value != DP_CHANNEL_EQ_BITS) {
+		dev_err(tc->dev, "Lane 0 failed: %x\n", value);
+		ret = -ENODEV;
+	}
+
+	if (tc->link.base.num_lanes == 2) {
+		value = (tmp[0] >> 4) & DP_CHANNEL_EQ_BITS;
+
+		if (value != DP_CHANNEL_EQ_BITS) {
+			dev_err(tc->dev, "Lane 1 failed: %x\n", value);
+			ret = -ENODEV;
+		}
+
+		if (!(tmp[2] & DP_INTERLANE_ALIGN_DONE)) {
+			dev_err(tc->dev, "Interlane align failed\n");
+			ret = -ENODEV;
+		}
+	}
+
+	if (ret) {
+		dev_err(dev, "0x0202 LANE0_1_STATUS:            0x%02x\n", tmp[0]);
+		dev_err(dev, "0x0203 LANE2_3_STATUS             0x%02x\n", tmp[1]);
+		dev_err(dev, "0x0204 LANE_ALIGN_STATUS_UPDATED: 0x%02x\n", tmp[2]);
+		dev_err(dev, "0x0205 SINK_STATUS:               0x%02x\n", tmp[3]);
+		dev_err(dev, "0x0206 ADJUST_REQUEST_LANE0_1:    0x%02x\n", tmp[4]);
+		dev_err(dev, "0x0207 ADJUST_REQUEST_LANE2_3:    0x%02x\n", tmp[5]);
+		goto err;
 	}
 
 	return 0;
