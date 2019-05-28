@@ -601,6 +601,7 @@ __setup("hugepagesz=", hugepage_setup_sz);
 
 static int __init hugetlbpage_init(void)
 {
+	bool configured = false;
 	int psize;
 
 	if (hugetlb_disabled) {
@@ -651,10 +652,15 @@ static int __init hugetlbpage_init(void)
 			pgtable_cache_add(pdshift - shift);
 		else if (IS_ENABLED(CONFIG_PPC_FSL_BOOK3E) || IS_ENABLED(CONFIG_PPC_8xx))
 			pgtable_cache_add(PTE_T_ORDER);
+
+		configured = true;
 	}
 
-	if (IS_ENABLED(CONFIG_HUGETLB_PAGE_SIZE_VARIABLE))
-		hugetlbpage_init_default();
+	if (configured) {
+		if (IS_ENABLED(CONFIG_HUGETLB_PAGE_SIZE_VARIABLE))
+			hugetlbpage_init_default();
+	} else
+		pr_info("Failed to initialize. Disabling HugeTLB");
 
 	return 0;
 }
