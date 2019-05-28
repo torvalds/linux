@@ -1335,6 +1335,19 @@ static bool rcu_advance_cbs(struct rcu_node *rnp, struct rcu_data *rdp)
 }
 
 /*
+ * Move and classify callbacks, but only if doing so won't require
+ * that the RCU grace-period kthread be awakened.
+ */
+static void __maybe_unused rcu_advance_cbs_nowake(struct rcu_node *rnp,
+						  struct rcu_data *rdp)
+{
+	raw_lockdep_assert_held_rcu_node(rnp);
+	if (!rcu_seq_state(rcu_seq_current(&rnp->gp_seq)))
+		return;
+	WARN_ON_ONCE(rcu_advance_cbs(rnp, rdp));
+}
+
+/*
  * Update CPU-local rcu_data state to record the beginnings and ends of
  * grace periods.  The caller must hold the ->lock of the leaf rcu_node
  * structure corresponding to the current CPU, and must have irqs disabled.
@@ -2118,6 +2131,8 @@ static void rcu_do_batch(struct rcu_data *rdp)
 			      rcu_segcblist_n_lazy_cbs(&rdp->cblist),
 			      rcu_segcblist_n_cbs(&rdp->cblist), bl);
 	rcu_segcblist_extract_done_cbs(&rdp->cblist, &rcl);
+	if (offloaded)
+		rdp->qlen_last_fqs_check = rcu_segcblist_n_cbs(&rdp->cblist);
 	rcu_nocb_unlock_irqrestore(rdp, flags);
 
 	/* Invoke callbacks. */
