@@ -828,8 +828,8 @@ int f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 			int save_len = fstr->len;
 
 			err = fscrypt_fname_disk_to_usr(d->inode,
-						(u32)de->hash_code, 0,
-						&de_name, fstr);
+						(u32)le32_to_cpu(de->hash_code),
+						0, &de_name, fstr);
 			if (err)
 				goto out;
 
