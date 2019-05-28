@@ -587,8 +587,16 @@ int cgroup_bpf_prog_query(const union bpf_attr *attr,
  * The program type passed in via @type must be suitable for network
  * filtering. No further check is performed to assert that.
  *
- * This function will return %-EPERM if any if an attached program was found
- * and if it returned != 1 during execution. In all other cases, 0 is returned.
+ * For egress packets, this function can return:
+ *   NET_XMIT_SUCCESS    (0)	- continue with packet output
+ *   NET_XMIT_DROP       (1)	- drop packet and notify TCP to call cwr
+ *   NET_XMIT_CN         (2)	- continue with packet output and notify TCP
+ *				  to call cwr
+ *   -EPERM			- drop packet
+ *
+ * For ingress packets, this function will return -EPERM if any
+ * attached program was found and if it returned != 1 during execution.
+ * Otherwise 0 is returned.
  */
 int __cgroup_bpf_run_filter_skb(struct sock *sk,
 				struct sk_buff *skb,
@@ -614,12 +622,19 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 	/* compute pointers for the bpf prog */
 	bpf_compute_and_save_data_end(skb, &saved_data_end);
 
-	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], skb,
-				 __bpf_prog_run_save_cb);
+	if (type == BPF_CGROUP_INET_EGRESS) {
+		ret = BPF_PROG_CGROUP_INET_EGRESS_RUN_ARRAY(
+			cgrp->bpf.effective[type], skb, __bpf_prog_run_save_cb);
+	} else {
+		ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], skb,
+					  __bpf_prog_run_save_cb);
+		ret = (ret == 1 ? 0 : -EPERM);
+	}
 	bpf_restore_data_end(skb, saved_data_end);
 	__skb_pull(skb, offset);
 	skb->sk = save_sk;
-	return ret == 1 ? 0 : -EPERM;
+
+	return ret;
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_skb);
 
