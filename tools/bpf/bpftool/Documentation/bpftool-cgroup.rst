@@ -113,6 +113,10 @@ OPTIONS
 	-f, --bpffs
 		  Show file names of pinned programs.
 
+	-d, --debug
+		  Print all logs available from libbpf, including debug-level
+		  information.
+
 EXAMPLES
 ========
 |
