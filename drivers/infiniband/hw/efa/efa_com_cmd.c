@@ -3,7 +3,6 @@
  * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
-#include "efa.h"
 #include "efa_com.h"
 #include "efa_com_cmd.h"
 
