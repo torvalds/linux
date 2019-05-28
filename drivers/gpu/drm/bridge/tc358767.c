@@ -205,7 +205,7 @@ struct tc_data {
 	/* display edid */
 	struct edid		*edid;
 	/* current mode */
-	const struct drm_display_mode	*mode;
+	struct drm_display_mode	mode;
 
 	u32			rev;
 	u8			assr;
@@ -1032,12 +1032,12 @@ static int tc_stream_enable(struct tc_data *tc)
 	/* PXL PLL setup */
 	if (tc_test_pattern) {
 		ret = tc_pxl_pll_en(tc, clk_get_rate(tc->refclk),
-				    1000 * tc->mode->clock);
+				    1000 * tc->mode.clock);
 		if (ret)
 			goto err;
 	}
 
-	ret = tc_set_video_mode(tc, tc->mode);
+	ret = tc_set_video_mode(tc, &tc->mode);
 	if (ret)
 		return ret;
 
@@ -1180,7 +1180,7 @@ static void tc_bridge_mode_set(struct drm_bridge *bridge,
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 
-	tc->mode = mode;
+	tc->mode = *mode;
 }
 
 static int tc_connector_get_modes(struct drm_connector *connector)
