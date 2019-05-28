@@ -1716,8 +1716,6 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 
 static int unbind_console(struct fb_info *fb_info)
 {
-	struct fb_event event;
-	int ret;
 	int i = fb_info->node;
 
 	if (i < 0 || i >= FB_MAX || registered_fb[i] != fb_info)
@@ -1725,12 +1723,11 @@ static int unbind_console(struct fb_info *fb_info)
 
 	console_lock();
 	lock_fb_info(fb_info);
-	event.info = fb_info;
-	ret = fb_notifier_call_chain(FB_EVENT_FB_UNBIND, &event);
+	fbcon_fb_unbind(fb_info);
 	unlock_fb_info(fb_info);
 	console_unlock();
 
-	return ret;
+	return 0;
 }
 
 static int __unlink_framebuffer(struct fb_info *fb_info);
