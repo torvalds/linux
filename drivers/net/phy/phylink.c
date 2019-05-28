@@ -42,6 +42,8 @@ struct phylink {
 	struct net_device *netdev;
 	const struct phylink_mac_ops *ops;
 	struct phylink_config *config;
+	struct device *dev;
+	unsigned int old_link_state:1;
 
 	unsigned long phylink_disable_state; /* bitmask of disables */
 	struct phy_device *phydev;
@@ -404,7 +406,8 @@ static void phylink_mac_link_up(struct phylink *pl,
 			     pl->phy_state.interface,
 			     pl->phydev);
 
-	netif_carrier_on(ndev);
+	if (ndev)
+		netif_carrier_on(ndev);
 
 	netdev_info(ndev,
 		    "Link is Up - %s/%s - flow control %s\n",
@@ -417,7 +420,8 @@ static void phylink_mac_link_down(struct phylink *pl)
 {
 	struct net_device *ndev = pl->netdev;
 
-	netif_carrier_off(ndev);
+	if (ndev)
+		netif_carrier_off(ndev);
 	pl->ops->mac_link_down(pl->config, pl->link_an_mode,
 			       pl->phy_state.interface);
 	netdev_info(ndev, "Link is Down\n");
@@ -428,6 +432,7 @@ static void phylink_resolve(struct work_struct *w)
 	struct phylink *pl = container_of(w, struct phylink, resolve);
 	struct phylink_link_state link_state;
 	struct net_device *ndev = pl->netdev;
+	int link_changed;
 
 	mutex_lock(&pl->state_mutex);
 	if (pl->phylink_disable_state) {
@@ -470,7 +475,13 @@ static void phylink_resolve(struct work_struct *w)
 		}
 	}
 
-	if (link_state.link != netif_carrier_ok(ndev)) {
+	if (pl->netdev)
+		link_changed = (link_state.link != netif_carrier_ok(ndev));
+	else
+		link_changed = (link_state.link != pl->old_link_state);
+
+	if (link_changed) {
+		pl->old_link_state = link_state.link;
 		if (!link_state.link)
 			phylink_mac_link_down(pl);
 		else
@@ -571,6 +582,8 @@ struct phylink *phylink_create(struct phylink_config *config,
 	pl->config = config;
 	if (config->type == PHYLINK_NETDEV) {
 		pl->netdev = to_net_dev(config->dev);
+	} else if (config->type == PHYLINK_DEV) {
+		pl->dev = config->dev;
 	} else {
 		kfree(pl);
 		return ERR_PTR(-EINVAL);
@@ -910,7 +923,8 @@ void phylink_start(struct phylink *pl)
 		    phy_modes(pl->link_config.interface));
 
 	/* Always set the carrier off */
-	netif_carrier_off(pl->netdev);
+	if (pl->netdev)
+		netif_carrier_off(pl->netdev);
 
 	/* Apply the link configuration to the MAC when starting. This allows
 	 * a fixed-link to start with the correct parameters, and also
@@ -1255,7 +1269,8 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 		switch (pl->link_an_mode) {
 		case MLO_AN_PHY:
 			/* Silently mark the carrier down, and then trigger a resolve */
-			netif_carrier_off(pl->netdev);
+			if (pl->netdev)
+				netif_carrier_off(pl->netdev);
 			phylink_run_resolve(pl);
 			break;
 

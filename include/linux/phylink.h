@@ -56,6 +56,7 @@ struct phylink_link_state {
 
 enum phylink_op_type {
 	PHYLINK_NETDEV = 0,
+	PHYLINK_DEV,
 };
 
 /**
