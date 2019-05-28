@@ -146,7 +146,7 @@ static int snor_wait_busy(int timeout)
 
 		sfc_delay(1);
 	}
-	PRINT_SFC_E("%s  error %x\n", __func__, timeout);
+	rkflash_print_error("%s  error %x\n", __func__, timeout);
 
 	return SFC_BUSY_TIMEOUT;
 }
@@ -431,8 +431,8 @@ int snor_read(struct SFNOR_DEV *p_dev, u32 sec, u32 n_sec, void *p_data)
 		len = size < SFC_MAX_IOSIZE ? size : SFC_MAX_IOSIZE;
 		ret = snor_read_data(p_dev, addr, p_buf, len);
 		if (ret != SFC_OK) {
-			PRINT_SFC_E("snor_read_data %x ret= %x\n",
-				    addr >> 9, ret);
+			rkflash_print_error("snor_read_data %x ret= %x\n",
+					    addr >> 9, ret);
 			goto out;
 		}
 
@@ -470,8 +470,8 @@ int snor_write(struct SFNOR_DEV *p_dev, u32 sec, u32 n_sec, void *p_data)
 			ret = snor_erase(p_dev, sec << 9, (blk_size == 8) ?
 				ERASE_SECTOR : ERASE_BLOCK64K);
 			if (ret != SFC_OK) {
-				PRINT_SFC_E("snor_erase %x ret= %x\n",
-					    sec, ret);
+				rkflash_print_error("snor_erase %x ret= %x\n",
+						    sec, ret);
 				goto out;
 			}
 		}
@@ -479,7 +479,7 @@ int snor_write(struct SFNOR_DEV *p_dev, u32 sec, u32 n_sec, void *p_data)
 		      (blk_size - offset) : n_sec;
 		ret = snor_prog(p_dev, sec << 9, p_buf, len << 9);
 		if (ret != SFC_OK) {
-			PRINT_SFC_E("snor_prog %x ret= %x\n", sec, ret);
+			rkflash_print_error("snor_prog %x ret= %x\n", sec, ret);
 			goto out;
 		}
 		n_sec -= len;
@@ -531,13 +531,13 @@ u32 snor_get_capacity(struct SFNOR_DEV *p_dev)
 
 static void snor_print_spi_chip_info(struct SFNOR_DEV *p_dev)
 {
-	PRINT_SFC_I("addr_mode: %x\n", p_dev->addr_mode);
-	PRINT_SFC_I("read_lines: %x\n", p_dev->read_lines);
-	PRINT_SFC_I("prog_lines: %x\n", p_dev->prog_lines);
-	PRINT_SFC_I("read_cmd: %x\n", p_dev->read_cmd);
-	PRINT_SFC_I("prog_cmd: %x\n", p_dev->prog_cmd);
-	PRINT_SFC_I("blk_erase_cmd: %x\n", p_dev->blk_erase_cmd);
-	PRINT_SFC_I("sec_erase_cmd: %x\n", p_dev->sec_erase_cmd);
+	rkflash_print_info("addr_mode: %x\n", p_dev->addr_mode);
+	rkflash_print_info("read_lines: %x\n", p_dev->read_lines);
+	rkflash_print_info("prog_lines: %x\n", p_dev->prog_lines);
+	rkflash_print_info("read_cmd: %x\n", p_dev->read_cmd);
+	rkflash_print_info("prog_cmd: %x\n", p_dev->prog_cmd);
+	rkflash_print_info("blk_erase_cmd: %x\n", p_dev->blk_erase_cmd);
+	rkflash_print_info("sec_erase_cmd: %x\n", p_dev->sec_erase_cmd);
 }
 
 static struct flash_info *snor_get_flash_info(u8 *flash_id)
@@ -577,8 +577,8 @@ int snor_init(struct SFNOR_DEV *p_dev)
 
 	memset(p_dev, 0, sizeof(struct SFNOR_DEV));
 	snor_read_id(id_byte);
-	PRINT_SFC_E("sfc nor id: %x %x %x\n",
-		    id_byte[0], id_byte[1], id_byte[2]);
+	rkflash_print_info("sfc nor id: %x %x %x\n",
+			   id_byte[0], id_byte[1], id_byte[2]);
 	if (0xFF == id_byte[0] || 0x00 == id_byte[0]) {
 		err = SFC_ERROR;
 		goto err_out;
