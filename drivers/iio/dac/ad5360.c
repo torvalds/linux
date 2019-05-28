@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Analog devices AD5360, AD5361, AD5362, AD5363, AD5370, AD5371, AD5373
  * multi-channel Digital to Analog Converters driver
  *
  * Copyright 2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/device.h>
