@@ -81,7 +81,6 @@
 #define VMW_RES_SHADER ttm_driver_type4
 
 struct vmw_fpriv {
-	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
 	bool gb_aware; /* user-space is guest-backed aware */
 };
@@ -393,10 +392,6 @@ struct vmw_sw_context{
 struct vmw_legacy_display;
 struct vmw_overlay;
 
-struct vmw_master {
-	struct ttm_lock lock;
-};
-
 struct vmw_vga_topology_state {
 	uint32_t width;
 	uint32_t height;
@@ -559,11 +554,8 @@ struct vmw_private {
 	spinlock_t svga_lock;
 
 	/**
-	 * Master management.
+	 * PM management.
 	 */
-
-	struct vmw_master *active_master;
-	struct vmw_master fbdev_master;
 	struct notifier_block pm_nb;
 	bool refuse_hibernation;
 	bool suspend_locked;
@@ -630,11 +622,6 @@ static inline struct vmw_private *vmw_priv(struct drm_device *dev)
 static inline struct vmw_fpriv *vmw_fpriv(struct drm_file *file_priv)
 {
 	return (struct vmw_fpriv *)file_priv->driver_priv;
-}
-
-static inline struct vmw_master *vmw_master(struct drm_master *master)
-{
-	return (struct vmw_master *) master->driver_priv;
 }
 
 /*
@@ -1102,7 +1089,6 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 int vmw_kms_write_svga(struct vmw_private *vmw_priv,
 		       unsigned width, unsigned height, unsigned pitch,
 		       unsigned bpp, unsigned depth);
-void vmw_kms_idle_workqueues(struct vmw_master *vmaster);
 bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
 				uint32_t pitch,
 				uint32_t height);
