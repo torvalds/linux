@@ -1692,7 +1692,21 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	bool enable_execlist;
 	int ret;
 
+	(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(1);
+	if (IS_COFFEELAKE(vgpu->gvt->dev_priv))
+		(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(2);
 	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (data & _MASKED_BIT_ENABLE(1)) {
+		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
+		return 0;
+	}
+
+	if (IS_COFFEELAKE(vgpu->gvt->dev_priv) &&
+	    data & _MASKED_BIT_ENABLE(2)) {
+		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
+		return 0;
+	}
 
 	/* when PPGTT mode enabled, we will check if guest has called
 	 * pvinfo, if not, we will treat this guest as non-gvtg-aware
