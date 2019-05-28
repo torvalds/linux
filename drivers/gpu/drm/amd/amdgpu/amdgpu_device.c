@@ -1541,6 +1541,17 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 
+	/* Read BIOS */
+	if (!amdgpu_get_bios(adev))
+		return -EINVAL;
+
+	r = amdgpu_atombios_init(adev);
+	if (r) {
+		dev_err(adev->dev, "amdgpu_atombios_init failed\n");
+		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL, 0, 0);
+		return r;
+	}
+
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if ((amdgpu_ip_block_mask & (1 << i)) == 0) {
 			DRM_ERROR("disabled ip block: %d <%s>\n",
@@ -2589,19 +2600,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		/* post the asic on emulation mode */
 		emu_soc_asic_init(adev);
 		goto fence_driver_init;
-	}
-
-	/* Read BIOS */
-	if (!amdgpu_get_bios(adev)) {
-		r = -EINVAL;
-		goto failed;
-	}
-
-	r = amdgpu_atombios_init(adev);
-	if (r) {
-		dev_err(adev->dev, "amdgpu_atombios_init failed\n");
-		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL, 0, 0);
-		goto failed;
 	}
 
 	/* detect if we are with an SRIOV vbios */
