@@ -922,7 +922,7 @@ struct amdgpu_device {
 	const struct amdgpu_df_funcs	*df_funcs;
 
 	/* delayed work_func for deferring clockgating during resume */
-	struct delayed_work     late_init_work;
+	struct delayed_work     delayed_init_work;
 
 	struct amdgpu_virt	virt;
 	/* firmware VRAM reservation */

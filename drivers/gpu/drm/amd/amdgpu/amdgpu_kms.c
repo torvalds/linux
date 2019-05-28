@@ -974,7 +974,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	int r, pasid;
 
 	/* Ensure IB tests are run on ring */
-	flush_delayed_work(&adev->late_init_work);
+	flush_delayed_work(&adev->delayed_init_work);
 
 	file_priv->driver_priv = NULL;
 
