@@ -978,11 +978,13 @@ get_tmds_link_bandwidth(struct drm_connector *connector)
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct dcb_output *dcb = nv_connector->detected_encoder->dcb;
 	struct drm_display_info *info = NULL;
-	const unsigned duallink_scale =
+	unsigned duallink_scale =
 		nouveau_duallink && nv_encoder->dcb->duallink_possible ? 2 : 1;
 
-	if (drm_detect_hdmi_monitor(nv_connector->edid))
+	if (drm_detect_hdmi_monitor(nv_connector->edid)) {
 		info = &nv_connector->base.display_info;
+		duallink_scale = 1;
+	}
 
 	if (info) {
 		if (nouveau_hdmimhz > 0)
@@ -1003,6 +1005,7 @@ get_tmds_link_bandwidth(struct drm_connector *connector)
 		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_FERMI)
 			return 225000;
 	}
+
 	if (dcb->location != DCB_LOC_ON_CHIP ||
 	    drm->client.device.info.chipset >= 0x46)
 		return 165000 * duallink_scale;
