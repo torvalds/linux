@@ -8169,6 +8169,52 @@ static void hclge_info_show(struct hclge_dev *hdev)
 	dev_info(dev, "PF info end.\n");
 }
 
+static int hclge_init_nic_client_instance(struct hnae3_ae_dev *ae_dev,
+					  struct hclge_vport *vport)
+{
+	struct hnae3_client *client = vport->nic.client;
+	struct hclge_dev *hdev = ae_dev->priv;
+	int ret;
+
+	ret = client->ops->init_instance(&vport->nic);
+	if (ret)
+		return ret;
+
+	set_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state);
+	hnae3_set_client_init_flag(client, ae_dev, 1);
+
+	if (netif_msg_drv(&hdev->vport->nic))
+		hclge_info_show(hdev);
+
+	return 0;
+}
+
+static int hclge_init_roce_client_instance(struct hnae3_ae_dev *ae_dev,
+					   struct hclge_vport *vport)
+{
+	struct hnae3_client *client = vport->roce.client;
+	struct hclge_dev *hdev = ae_dev->priv;
+	int ret;
+
+	if (!hnae3_dev_roce_supported(hdev) || !hdev->roce_client ||
+	    !hdev->nic_client)
+		return 0;
+
+	client = hdev->roce_client;
+	ret = hclge_init_roce_base_info(vport);
+	if (ret)
+		return ret;
+
+	ret = client->ops->init_instance(&vport->roce);
+	if (ret)
+		return ret;
+
+	set_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state);
+	hnae3_set_client_init_flag(client, ae_dev, 1);
+
+	return 0;
+}
+
 static int hclge_init_client_instance(struct hnae3_client *client,
 				      struct hnae3_ae_dev *ae_dev)
 {
@@ -8184,33 +8230,13 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 
 			hdev->nic_client = client;
 			vport->nic.client = client;
-			ret = client->ops->init_instance(&vport->nic);
+			ret = hclge_init_nic_client_instance(ae_dev, vport);
 			if (ret)
 				goto clear_nic;
 
-			hnae3_set_client_init_flag(client, ae_dev, 1);
-			set_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state);
-
-			if (netif_msg_drv(&hdev->vport->nic))
-				hclge_info_show(hdev);
-
-			if (hdev->roce_client &&
-			    hnae3_dev_roce_supported(hdev)) {
-				struct hnae3_client *rc = hdev->roce_client;
-
-				ret = hclge_init_roce_base_info(vport);
-				if (ret)
-					goto clear_roce;
-
-				ret = rc->ops->init_instance(&vport->roce);
-				if (ret)
-					goto clear_roce;
-
-				set_bit(HCLGE_STATE_ROCE_REGISTERED,
-					&hdev->state);
-				hnae3_set_client_init_flag(hdev->roce_client,
-							   ae_dev, 1);
-			}
+			ret = hclge_init_roce_client_instance(ae_dev, vport);
+			if (ret)
+				goto clear_roce;
 
 			break;
 		case HNAE3_CLIENT_UNIC:
@@ -8230,19 +8256,9 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 				vport->roce.client = client;
 			}
 
-			if (hdev->roce_client && hdev->nic_client) {
-				ret = hclge_init_roce_base_info(vport);
-				if (ret)
-					goto clear_roce;
-
-				ret = client->ops->init_instance(&vport->roce);
-				if (ret)
-					goto clear_roce;
-
-				set_bit(HCLGE_STATE_ROCE_REGISTERED,
-					&hdev->state);
-				hnae3_set_client_init_flag(client, ae_dev, 1);
-			}
+			ret = hclge_init_roce_client_instance(ae_dev, vport);
+			if (ret)
+				goto clear_roce;
 
 			break;
 		default:
