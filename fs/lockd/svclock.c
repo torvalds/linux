@@ -406,7 +406,7 @@ static void nlmsvc_locks_release_private(struct file_lock *fl)
 	nlmsvc_put_lockowner((struct nlm_lockowner *)fl->fl_owner);
 }
 
-const struct file_lock_operations nlmsvc_lock_ops = {
+static const struct file_lock_operations nlmsvc_lock_ops = {
 	.fl_copy_lock = nlmsvc_locks_copy_lock,
 	.fl_release_private = nlmsvc_locks_release_private,
 };

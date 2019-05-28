@@ -54,7 +54,7 @@ nlmclnt_get_lockowner(struct nlm_lockowner *lockowner)
 	return lockowner;
 }
 
-void nlmclnt_put_lockowner(struct nlm_lockowner *lockowner)
+static void nlmclnt_put_lockowner(struct nlm_lockowner *lockowner)
 {
 	if (!refcount_dec_and_lock(&lockowner->count, &lockowner->host->h_lock))
 		return;
