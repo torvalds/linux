@@ -4090,15 +4090,19 @@ int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 		kvmppc_check_need_tlb_flush(kvm, pcpu, nested);
 	}
 
-	trace_hardirqs_on();
 	guest_enter_irqoff();
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
 
 	this_cpu_disable_ftrace();
 
+	/* Tell lockdep that we're about to enable interrupts */
+	trace_hardirqs_on();
+
 	trap = kvmhv_p9_guest_entry(vcpu, time_limit, lpcr);
 	vcpu->arch.trap = trap;
+
+	trace_hardirqs_off();
 
 	this_cpu_enable_ftrace();
 
@@ -4109,7 +4113,6 @@ int kvmhv_run_single_vcpu(struct kvm_run *kvm_run,
 		isync();
 	}
 
-	trace_hardirqs_off();
 	set_irq_happened(trap);
 
 	kvmppc_set_host_core(pcpu);
