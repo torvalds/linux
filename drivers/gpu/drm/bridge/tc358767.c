@@ -874,7 +874,6 @@ static int tc_main_link_enable(struct tc_data *tc)
 	if (tc->link.base.num_lanes == 2)
 		dp_phy_ctrl |= PHY_2LANE;
 	tc_write(DP_PHY_CTRL, dp_phy_ctrl);
-	msleep(100);
 
 	/* PLL setup */
 	tc_write(DP0_PLLCTRL, PLLUPDATE | PLLEN);
