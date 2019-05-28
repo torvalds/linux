@@ -77,12 +77,14 @@ struct cxusb_state {
 	struct mutex stream_mutex;
 	u8 last_lock;
 	int (*fe_read_status)(struct dvb_frontend *fe,
-		enum fe_status *status);
+			      enum fe_status *status);
 };
 
 enum cxusb_open_type {
-	CXUSB_OPEN_INIT, CXUSB_OPEN_NONE,
-	CXUSB_OPEN_ANALOG, CXUSB_OPEN_DIGITAL
+	CXUSB_OPEN_INIT,
+	CXUSB_OPEN_NONE,
+	CXUSB_OPEN_ANALOG,
+	CXUSB_OPEN_DIGITAL
 };
 
 struct cxusb_medion_auxbuf {
