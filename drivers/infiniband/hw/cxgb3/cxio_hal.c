@@ -303,17 +303,15 @@ err1:
 	return -ENOMEM;
 }
 
-int cxio_destroy_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq)
+void cxio_destroy_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq)
 {
-	int err;
-	err = cxio_hal_clear_cq_ctx(rdev_p, cq->cqid);
+	cxio_hal_clear_cq_ctx(rdev_p, cq->cqid);
 	kfree(cq->sw_queue);
 	dma_free_coherent(&(rdev_p->rnic_info.pdev->dev),
 			  (1UL << (cq->size_log2))
 			  * sizeof(struct t3_cqe) + 1, cq->queue,
 			  dma_unmap_addr(cq, mapping));
 	cxio_hal_put_cqid(rdev_p->rscp, cq->cqid);
-	return err;
 }
 
 int cxio_destroy_qp(struct cxio_rdev *rdev_p, struct t3_wq *wq,

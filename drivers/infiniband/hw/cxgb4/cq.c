@@ -34,14 +34,13 @@
 
 #include "iw_cxgb4.h"
 
-static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
-		      struct c4iw_dev_ucontext *uctx, struct sk_buff *skb,
-		      struct c4iw_wr_wait *wr_waitp)
+static void destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
+		       struct c4iw_dev_ucontext *uctx, struct sk_buff *skb,
+		       struct c4iw_wr_wait *wr_waitp)
 {
 	struct fw_ri_res_wr *res_wr;
 	struct fw_ri_res *res;
 	int wr_len;
-	int ret;
 
 	wr_len = sizeof(*res_wr) + sizeof(*res);
 	set_wr_txq(skb, CPL_PRIORITY_CONTROL, 0);
@@ -59,14 +58,13 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	res->u.cq.iqid = cpu_to_be32(cq->cqid);
 
 	c4iw_init_wr_wait(wr_waitp);
-	ret = c4iw_ref_send_wait(rdev, skb, wr_waitp, 0, 0, __func__);
+	c4iw_ref_send_wait(rdev, skb, wr_waitp, 0, 0, __func__);
 
 	kfree(cq->sw_queue);
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
 			  cq->memsize, cq->queue,
 			  dma_unmap_addr(cq, mapping));
 	c4iw_put_cqid(rdev, cq->cqid, uctx);
-	return ret;
 }
 
 static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
@@ -970,7 +968,7 @@ int c4iw_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	return !err || err == -ENODATA ? npolled : err;
 }
 
-int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
+void c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct c4iw_cq *chp;
 	struct c4iw_ucontext *ucontext;
@@ -989,7 +987,6 @@ int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 		   chp->destroy_skb, chp->wr_waitp);
 	c4iw_put_wr_wait(chp->wr_waitp);
 	kfree(chp);
-	return 0;
 }
 
 struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,

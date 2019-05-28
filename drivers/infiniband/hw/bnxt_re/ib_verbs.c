@@ -2517,9 +2517,8 @@ int bnxt_re_post_recv(struct ib_qp *ib_qp, const struct ib_recv_wr *wr,
 }
 
 /* Completion Queues */
-int bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
+void bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
-	int rc;
 	struct bnxt_re_cq *cq;
 	struct bnxt_qplib_nq *nq;
 	struct bnxt_re_dev *rdev;
@@ -2528,20 +2527,14 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	rdev = cq->rdev;
 	nq = cq->qplib_cq.nq;
 
-	rc = bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
-	if (rc) {
-		dev_err(rdev_to_dev(rdev), "Failed to destroy HW CQ");
-		return rc;
-	}
-	if (!IS_ERR_OR_NULL(cq->umem))
+	bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
+	if (!cq->umem)
 		ib_umem_release(cq->umem);
 
 	atomic_dec(&rdev->cq_count);
 	nq->budget--;
 	kfree(cq->cql);
 	kfree(cq);
-
-	return 0;
 }
 
 struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,

@@ -819,14 +819,13 @@ err1:
 	return ERR_PTR(err);
 }
 
-static int rxe_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+static void rxe_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct rxe_cq *cq = to_rcq(ibcq);
 
 	rxe_cq_disable(cq);
 
 	rxe_drop_ref(cq);
-	return 0;
 }
 
 static int rxe_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)

@@ -1070,7 +1070,7 @@ static void ocrdma_flush_cq(struct ocrdma_cq *cq)
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 }
 
-int ocrdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+void ocrdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
 	struct ocrdma_eq *eq = NULL;
@@ -1080,14 +1080,13 @@ int ocrdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 
 	dev->cq_tbl[cq->id] = NULL;
 	indx = ocrdma_get_eq_table_index(dev, cq->eqn);
-	BUG_ON(indx == -EINVAL);
 
 	eq = &dev->eq_tbl[indx];
 	irq = ocrdma_get_irq(dev, eq);
 	synchronize_irq(irq);
 	ocrdma_flush_cq(cq);
 
-	(void)ocrdma_mbx_destroy_cq(dev, cq);
+	ocrdma_mbx_destroy_cq(dev, cq);
 	if (cq->ucontext) {
 		pdid = cq->ucontext->cntxt_pd->id;
 		ocrdma_del_mmap(cq->ucontext, (u64) cq->pa,
@@ -1098,7 +1097,6 @@ int ocrdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	}
 
 	kfree(cq);
-	return 0;
 }
 
 static int ocrdma_add_qpn_map(struct ocrdma_dev *dev, struct ocrdma_qp *qp)

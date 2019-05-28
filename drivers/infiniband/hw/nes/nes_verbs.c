@@ -1634,7 +1634,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev,
 /**
  * nes_destroy_cq
  */
-static int nes_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
+static void nes_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct nes_cq *nescq;
 	struct nes_device *nesdev;
@@ -1644,7 +1644,6 @@ static int nes_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	struct nes_cqp_request cqp_request = {};
 	unsigned long flags;
 	u32 opcode = 0;
-	int ret;
 
 	nescq = to_nescq(ib_cq);
 	nesvnic = to_nesvnic(ib_cq->device);
@@ -1656,6 +1655,7 @@ static int nes_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	/* Send DestroyCQ request to CQP */
 	INIT_LIST_HEAD(&cqp_request.list);
 	init_waitqueue_head(&cqp_request.waitq);
+
 	cqp_request.waiting = 1;
 	cqp_wqe = &cqp_request.cqp_wqe;
 	opcode = NES_CQP_DESTROY_CQ | (nescq->hw_cq.cq_size << 16);
@@ -1689,30 +1689,18 @@ static int nes_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	/* Wait for CQP */
 	nes_debug(NES_DBG_CQ, "Waiting for destroy iWARP CQ%u to complete.\n",
 			nescq->hw_cq.cq_number);
-	ret = wait_event_timeout(cqp_request.waitq, cqp_request.request_done,
-				 NES_EVENT_TIMEOUT);
-	nes_debug(NES_DBG_CQ, "Destroy iWARP CQ%u completed, wait_event_timeout ret = %u,"
-			" CQP Major:Minor codes = 0x%04X:0x%04X.\n",
-			nescq->hw_cq.cq_number, ret, cqp_request.major_code,
-			cqp_request.minor_code);
-	if (!ret) {
-		nes_debug(NES_DBG_CQ, "iWARP CQ%u destroy timeout expired\n",
-					nescq->hw_cq.cq_number);
-		ret = -ETIME;
-	} else if (cqp_request.major_code) {
-		nes_debug(NES_DBG_CQ, "iWARP CQ%u destroy failed\n",
-					nescq->hw_cq.cq_number);
-		ret = -EIO;
-	} else {
-		ret = 0;
-	}
+	wait_event_timeout(cqp_request.waitq, cqp_request.request_done,
+			   NES_EVENT_TIMEOUT);
+	nes_debug(
+		NES_DBG_CQ,
+		"Destroy iWARP CQ%u completed CQP Major:Minor codes = 0x%04X:0x%04X.\n",
+		nescq->hw_cq.cq_number, cqp_request.major_code,
+		cqp_request.minor_code);
 
 	if (nescq->cq_mem_size)
 		pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size,
 				    nescq->hw_cq.cq_vbase, nescq->hw_cq.cq_pbase);
 	kfree(nescq);
-
-	return ret;
 }
 
 /**

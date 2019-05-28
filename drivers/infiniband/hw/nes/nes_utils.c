@@ -588,9 +588,7 @@ struct nes_cqp_request *nes_get_cqp_request(struct nes_device *nesdev)
 		cqp_request->callback = 0;
 		nes_debug(NES_DBG_CQP, "Got cqp request %p from the available list \n",
 				cqp_request);
-	} else
-		printk(KERN_ERR PFX "%s: Could not allocated a CQP request.\n",
-			   __func__);
+	}
 
 	return cqp_request;
 }

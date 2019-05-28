@@ -804,7 +804,7 @@ out:
 	return ret;
 }
 
-static int mthca_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
+static void mthca_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	if (udata) {
 		struct mthca_ucontext *context =
@@ -824,8 +824,6 @@ static int mthca_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 	}
 	mthca_free_cq(to_mdev(cq->device), to_mcq(cq));
 	kfree(cq);
-
-	return 0;
 }
 
 static inline u32 convert_access(int acc)

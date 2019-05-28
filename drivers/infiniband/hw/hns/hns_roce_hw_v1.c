@@ -865,8 +865,7 @@ alloc_pd_failed:
 	kfree(pd);
 
 alloc_mem_failed:
-	if (hns_roce_ib_destroy_cq(cq, NULL))
-		dev_err(dev, "Destroy cq for create_lp_qp failed!\n");
+	hns_roce_ib_destroy_cq(cq, NULL);
 
 	return ret;
 }
@@ -894,10 +893,7 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 				i, ret);
 	}
 
-	ret = hns_roce_ib_destroy_cq(&free_mr->mr_free_cq->ib_cq, NULL);
-	if (ret)
-		dev_err(dev, "Destroy cq for mr_free failed(%d)!\n", ret);
-
+	hns_roce_ib_destroy_cq(&free_mr->mr_free_cq->ib_cq, NULL);
 	hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd, NULL);
 }
 
@@ -3654,7 +3650,7 @@ int hns_roce_v1_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	return 0;
 }
 
-static int hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+static void hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibcq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ibcq);
@@ -3663,7 +3659,6 @@ static int hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	u32 cqe_cnt_cur;
 	u32 cq_buf_size;
 	int wait_time = 0;
-	int ret = 0;
 
 	hns_roce_free_cq(hr_dev, hr_cq);
 
@@ -3685,7 +3680,6 @@ static int hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		if (wait_time > HNS_ROCE_MAX_FREE_CQ_WAIT_CNT) {
 			dev_warn(dev, "Destroy cq 0x%lx timeout!\n",
 				hr_cq->cqn);
-			ret = -ETIMEDOUT;
 			break;
 		}
 		wait_time++;
@@ -3702,8 +3696,6 @@ static int hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	}
 
 	kfree(hr_cq);
-
-	return ret;
 }
 
 static void set_eq_cons_index_v1(struct hns_roce_eq *eq, int req_not)

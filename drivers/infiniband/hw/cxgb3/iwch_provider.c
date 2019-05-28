@@ -88,7 +88,7 @@ static int iwch_alloc_ucontext(struct ib_ucontext *ucontext,
 	return 0;
 }
 
-static int iwch_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
+static void iwch_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct iwch_cq *chp;
 
@@ -101,7 +101,6 @@ static int iwch_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 
 	cxio_destroy_cq(&chp->rhp->rdev, &chp->cq);
 	kfree(chp);
-	return 0;
 }
 
 static struct ib_cq *iwch_create_cq(struct ib_device *ibdev,

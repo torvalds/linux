@@ -955,14 +955,13 @@ int qedr_resize_cq(struct ib_cq *ibcq, int new_cnt, struct ib_udata *udata)
 #define QEDR_DESTROY_CQ_MAX_ITERATIONS		(10)
 #define QEDR_DESTROY_CQ_ITER_DURATION		(10)
 
-int qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
+void qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibcq->device);
 	struct qed_rdma_destroy_cq_out_params oparams;
 	struct qed_rdma_destroy_cq_in_params iparams;
 	struct qedr_cq *cq = get_qedr_cq(ibcq);
 	int iter;
-	int rc;
 
 	DP_DEBUG(dev, QEDR_MSG_CQ, "destroy cq %p (icid=%d)\n", cq, cq->icid);
 
@@ -973,10 +972,7 @@ int qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		goto done;
 
 	iparams.icid = cq->icid;
-	rc = dev->ops->rdma_destroy_cq(dev->rdma_ctx, &iparams, &oparams);
-	if (rc)
-		return rc;
-
+	dev->ops->rdma_destroy_cq(dev->rdma_ctx, &iparams, &oparams);
 	dev->ops->common->chain_free(dev->cdev, &cq->pbl);
 
 	if (udata) {
@@ -1007,9 +1003,6 @@ int qedr_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		iter--;
 	}
 
-	if (oparams.num_cq_notif != cq->cnq_notif)
-		goto err;
-
 	/* Note that we don't need to have explicit code to wait for the
 	 * completion of the event handler because it is invoked from the EQ.
 	 * Since the destroy CQ ramrod has also been received on the EQ we can
@@ -1019,15 +1012,6 @@ done:
 	cq->sig = ~cq->sig;
 
 	kfree(cq);
-
-	return 0;
-
-err:
-	DP_ERR(dev,
-	       "CQ %p (icid=%d) not freed, expecting %d ints but got %d ints\n",
-	       cq, cq->icid, oparams.num_cq_notif, cq->cnq_notif);
-
-	return -EINVAL;
 }
 
 static inline int get_gid_info_from_table(struct ib_qp *ibqp,

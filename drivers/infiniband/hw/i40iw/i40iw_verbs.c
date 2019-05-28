@@ -1064,7 +1064,7 @@ void i40iw_cq_wq_destroy(struct i40iw_device *iwdev, struct i40iw_sc_cq *cq)
  * @ib_cq: cq pointer
  * @udata: user data or NULL for kernel object
  */
-static int i40iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
+static void i40iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct i40iw_cq *iwcq;
 	struct i40iw_device *iwdev;
@@ -1077,7 +1077,6 @@ static int i40iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	cq_free_resources(iwdev, iwcq);
 	kfree(iwcq);
 	i40iw_rem_devusecount(iwdev);
-	return 0;
 }
 
 /**

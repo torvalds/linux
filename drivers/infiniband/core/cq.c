@@ -207,8 +207,6 @@ EXPORT_SYMBOL(__ib_alloc_cq_user);
  */
 void ib_free_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 {
-	int ret;
-
 	if (WARN_ON_ONCE(atomic_read(&cq->usecnt)))
 		return;
 
@@ -228,7 +226,6 @@ void ib_free_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 
 	kfree(cq->wc);
 	rdma_restrack_del(&cq->res);
-	ret = cq->device->ops.destroy_cq(cq, udata);
-	WARN_ON_ONCE(ret);
+	cq->device->ops.destroy_cq(cq, udata);
 }
 EXPORT_SYMBOL(ib_free_cq_user);

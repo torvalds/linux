@@ -604,11 +604,9 @@ struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev,
 	return cq;
 }
 
-int usnic_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
+void usnic_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
-	usnic_dbg("\n");
 	kfree(cq);
-	return 0;
 }
 
 struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,

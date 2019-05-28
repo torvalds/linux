@@ -443,40 +443,36 @@ err_cq:
 }
 EXPORT_SYMBOL_GPL(hns_roce_ib_create_cq);
 
-int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
+void hns_roce_ib_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_cq->device);
 	struct hns_roce_cq *hr_cq = to_hr_cq(ib_cq);
-	int ret = 0;
 
 	if (hr_dev->hw->destroy_cq) {
-		ret = hr_dev->hw->destroy_cq(ib_cq, udata);
-	} else {
-		hns_roce_free_cq(hr_dev, hr_cq);
-		hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
-
-		if (udata) {
-			ib_umem_release(hr_cq->umem);
-
-			if (hr_cq->db_en == 1)
-				hns_roce_db_unmap_user(
-					rdma_udata_to_drv_context(
-						udata,
-						struct hns_roce_ucontext,
-						ibucontext),
-					&hr_cq->db);
-		} else {
-			/* Free the buff of stored cq */
-			hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf,
-						ib_cq->cqe);
-			if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)
-				hns_roce_free_db(hr_dev, &hr_cq->db);
-		}
-
-		kfree(hr_cq);
+		hr_dev->hw->destroy_cq(ib_cq, udata);
+		return;
 	}
 
-	return ret;
+	hns_roce_free_cq(hr_dev, hr_cq);
+	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
+
+	if (udata) {
+		ib_umem_release(hr_cq->umem);
+
+		if (hr_cq->db_en == 1)
+			hns_roce_db_unmap_user(rdma_udata_to_drv_context(
+						       udata,
+						       struct hns_roce_ucontext,
+						       ibucontext),
+					       &hr_cq->db);
+	} else {
+		/* Free the buff of stored cq */
+		hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf, ib_cq->cqe);
+		if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)
+			hns_roce_free_db(hr_dev, &hr_cq->db);
+	}
+
+	kfree(hr_cq);
 }
 EXPORT_SYMBOL_GPL(hns_roce_ib_destroy_cq);
 
