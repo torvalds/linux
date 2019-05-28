@@ -855,7 +855,7 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
 
 	if (likely(!size)) {
 		skb = sk->sk_tx_skb_cache;
-		if (skb && !skb_cloned(skb)) {
+		if (skb) {
 			skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
 			sk->sk_tx_skb_cache = NULL;
 			pskb_trim(skb, 0);

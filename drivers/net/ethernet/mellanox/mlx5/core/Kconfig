@@ -8,6 +8,7 @@ config MLX5_CORE
 	select NET_DEVLINK
 	imply PTP_1588_CLOCK
 	imply VXLAN
+	imply MLXFW
 	default n
 	---help---
 	  Core driver for low level functionality of the ConnectX-4 and
