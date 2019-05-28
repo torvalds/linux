@@ -2,6 +2,7 @@
 config VIDEO_CAFE_CCIC
 	tristate "Marvell 88ALP01 (Cafe) CMOS Camera Controller support"
 	depends on PCI && I2C && VIDEO_V4L2
+	depends on COMMON_CLK
 	select VIDEO_OV7670
 	select VIDEOBUF2_VMALLOC
 	select VIDEOBUF2_DMA_CONTIG
@@ -15,6 +16,7 @@ config VIDEO_MMP_CAMERA
 	tristate "Marvell Armada 610 integrated camera controller support"
 	depends on I2C && VIDEO_V4L2
 	depends on ARCH_MMP || COMPILE_TEST
+	depends on COMMON_CLK
 	select VIDEO_OV7670
 	select I2C_GPIO
 	select VIDEOBUF2_VMALLOC

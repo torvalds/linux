@@ -8,6 +8,7 @@
 #define _MCAM_CORE_H
 
 #include <linux/list.h>
+#include <linux/clk-provider.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
@@ -125,6 +126,8 @@ struct mcam_camera {
 
 	/* clock tree support */
 	struct clk *clk[NR_MCAM_CLK];
+	struct clk_hw mclk_hw;
+	struct clk *mclk;
 
 	/*
 	 * Callbacks from the core to the platform code.

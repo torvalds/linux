@@ -20,9 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
 #include <linux/io.h>
-#include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/pm.h>
 #include <linux/clk.h>
@@ -36,7 +34,6 @@ MODULE_LICENSE("GPL");
 static char *mcam_clks[] = {"axi", "func", "phy"};
 
 struct mmp_camera {
-	void __iomem *power_regs;
 	struct platform_device *pdev;
 	struct mcam_camera mcam;
 	struct list_head devlist;
@@ -90,94 +87,6 @@ static struct mmp_camera *mmpcam_find_device(struct platform_device *pdev)
 	}
 	mutex_unlock(&mmpcam_devices_lock);
 	return NULL;
-}
-
-
-
-
-/*
- * Power-related registers; this almost certainly belongs
- * somewhere else.
- *
- * ARMADA 610 register manual, sec 7.2.1, p1842.
- */
-#define CPU_SUBSYS_PMU_BASE	0xd4282800
-#define REG_CCIC_DCGCR		0x28	/* CCIC dyn clock gate ctrl reg */
-#define REG_CCIC_CRCR		0x50	/* CCIC clk reset ctrl reg	*/
-
-static void mcam_clk_enable(struct mcam_camera *mcam)
-{
-	unsigned int i;
-
-	for (i = 0; i < NR_MCAM_CLK; i++) {
-		if (!IS_ERR(mcam->clk[i]))
-			clk_prepare_enable(mcam->clk[i]);
-	}
-}
-
-static void mcam_clk_disable(struct mcam_camera *mcam)
-{
-	int i;
-
-	for (i = NR_MCAM_CLK - 1; i >= 0; i--) {
-		if (!IS_ERR(mcam->clk[i]))
-			clk_disable_unprepare(mcam->clk[i]);
-	}
-}
-
-/*
- * Power control.
- */
-static void mmpcam_power_up_ctlr(struct mmp_camera *cam)
-{
-	iowrite32(0x3f, cam->power_regs + REG_CCIC_DCGCR);
-	iowrite32(0x3805b, cam->power_regs + REG_CCIC_CRCR);
-	mdelay(1);
-}
-
-static int mmpcam_power_up(struct mcam_camera *mcam)
-{
-	struct mmp_camera *cam = mcam_to_cam(mcam);
-	struct mmp_camera_platform_data *pdata;
-
-/*
- * Turn on power and clocks to the controller.
- */
-	mmpcam_power_up_ctlr(cam);
-	mcam_clk_enable(mcam);
-/*
- * Provide power to the sensor.
- */
-	mcam_reg_write(mcam, REG_CLKCTRL, 0x60000002);
-	pdata = cam->pdev->dev.platform_data;
-	gpio_set_value(pdata->sensor_power_gpio, 1);
-	mdelay(5);
-	mcam_reg_clear_bit(mcam, REG_CTRL1, 0x10000000);
-	gpio_set_value(pdata->sensor_reset_gpio, 0); /* reset is active low */
-	mdelay(5);
-	gpio_set_value(pdata->sensor_reset_gpio, 1); /* reset is active low */
-	mdelay(5);
-
-	return 0;
-}
-
-static void mmpcam_power_down(struct mcam_camera *mcam)
-{
-	struct mmp_camera *cam = mcam_to_cam(mcam);
-	struct mmp_camera_platform_data *pdata;
-/*
- * Turn off clocks and set reset lines
- */
-	iowrite32(0, cam->power_regs + REG_CCIC_DCGCR);
-	iowrite32(0, cam->power_regs + REG_CCIC_CRCR);
-/*
- * Shut down the sensor.
- */
-	pdata = cam->pdev->dev.platform_data;
-	gpio_set_value(pdata->sensor_power_gpio, 0);
-	gpio_set_value(pdata->sensor_reset_gpio, 0);
-
-	mcam_clk_disable(mcam);
 }
 
 /*
@@ -325,8 +234,6 @@ static int mmpcam_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&cam->devlist);
 
 	mcam = &cam->mcam;
-	mcam->plat_power_up = mmpcam_power_up;
-	mcam->plat_power_down = mmpcam_power_down;
 	mcam->calc_dphy = mmpcam_calc_dphy;
 	mcam->dev = &pdev->dev;
 	pdata = pdev->dev.platform_data;
@@ -364,33 +271,6 @@ static int mmpcam_probe(struct platform_device *pdev)
 	if (IS_ERR(mcam->regs))
 		return PTR_ERR(mcam->regs);
 	mcam->regs_size = resource_size(res);
-	/*
-	 * Power/clock memory is elsewhere; get it too.  Perhaps this
-	 * should really be managed outside of this driver?
-	 */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	cam->power_regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(cam->power_regs))
-		return PTR_ERR(cam->power_regs);
-	/*
-	 * Sensor GPIO pins.
-	 */
-	ret = devm_gpio_request(&pdev->dev, pdata->sensor_power_gpio,
-							"cam-power");
-	if (ret) {
-		dev_err(&pdev->dev, "Can't get sensor power gpio %d",
-				pdata->sensor_power_gpio);
-		return ret;
-	}
-	gpio_direction_output(pdata->sensor_power_gpio, 0);
-	ret = devm_gpio_request(&pdev->dev, pdata->sensor_reset_gpio,
-							"cam-reset");
-	if (ret) {
-		dev_err(&pdev->dev, "Can't get sensor reset gpio %d",
-				pdata->sensor_reset_gpio);
-		return ret;
-	}
-	gpio_direction_output(pdata->sensor_reset_gpio, 0);
 
 	mcam_init_clk(mcam);
 
@@ -408,14 +288,21 @@ static int mmpcam_probe(struct platform_device *pdev)
 	fwnode_handle_put(ep);
 
 	/*
-	 * Power the device up and hand it off to the core.
+	 * Register the device with the core.
 	 */
-	ret = mmpcam_power_up(mcam);
-	if (ret)
-		return ret;
 	ret = mccic_register(mcam);
 	if (ret)
-		goto out_power_down;
+		return ret;
+
+	/*
+	 * Add OF clock provider.
+	 */
+	ret = of_clk_add_provider(pdev->dev.of_node, of_clk_src_simple_get,
+								mcam->mclk);
+	if (ret) {
+		dev_err(&pdev->dev, "can't add DT clock provider\n");
+		goto out;
+	}
 
 	/*
 	 * Finally, set up our IRQ now that the core is ready to
@@ -424,7 +311,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		ret = -ENODEV;
-		goto out_unregister;
+		goto out;
 	}
 	cam->irq = res->start;
 	ret = devm_request_irq(&pdev->dev, cam->irq, mmpcam_irq, IRQF_SHARED,
@@ -434,10 +321,10 @@ static int mmpcam_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-out_unregister:
+out:
+	fwnode_handle_put(mcam->asd.match.fwnode);
 	mccic_shutdown(mcam);
-out_power_down:
-	mmpcam_power_down(mcam);
+
 	return ret;
 }
 
@@ -448,7 +335,6 @@ static int mmpcam_remove(struct mmp_camera *cam)
 
 	mmpcam_remove_device(cam);
 	mccic_shutdown(mcam);
-	mmpcam_power_down(mcam);
 	return 0;
 }
 
@@ -480,12 +366,6 @@ static int mmpcam_resume(struct platform_device *pdev)
 {
 	struct mmp_camera *cam = mmpcam_find_device(pdev);
 
-	/*
-	 * Power up unconditionally just in case the core tries to
-	 * touch a register even if nothing was active before; trust
-	 * me, it's better this way.
-	 */
-	mmpcam_power_up_ctlr(cam);
 	return mccic_resume(&cam->mcam);
 }
 
