@@ -145,9 +145,15 @@ ext2_xattr_header_valid(struct ext2_xattr_header *header)
 }
 
 static bool
-ext2_xattr_entry_valid(struct ext2_xattr_entry *entry, size_t end_offs)
+ext2_xattr_entry_valid(struct ext2_xattr_entry *entry,
+		       char *end, size_t end_offs)
 {
+	struct ext2_xattr_entry *next;
 	size_t size;
+
+	next = EXT2_XATTR_NEXT(entry);
+	if ((char *)next >= end)
+		return false;
 
 	if (entry->e_value_block != 0)
 		return false;
@@ -214,17 +220,14 @@ bad_block:
 	/* find named attribute */
 	entry = FIRST_ENTRY(bh);
 	while (!IS_LAST_ENTRY(entry)) {
-		struct ext2_xattr_entry *next =
-			EXT2_XATTR_NEXT(entry);
-		if ((char *)next >= end)
-			goto bad_block;
-		if (!ext2_xattr_entry_valid(entry, inode->i_sb->s_blocksize))
+		if (!ext2_xattr_entry_valid(entry, end,
+		    inode->i_sb->s_blocksize))
 			goto bad_block;
 		if (name_index == entry->e_name_index &&
 		    name_len == entry->e_name_len &&
 		    memcmp(name, entry->e_name, name_len) == 0)
 			goto found;
-		entry = next;
+		entry = EXT2_XATTR_NEXT(entry);
 	}
 	if (ext2_xattr_cache_insert(ea_block_cache, bh))
 		ea_idebug(inode, "cache insert failed");
@@ -299,13 +302,10 @@ bad_block:
 	/* check the on-disk data structure */
 	entry = FIRST_ENTRY(bh);
 	while (!IS_LAST_ENTRY(entry)) {
-		struct ext2_xattr_entry *next = EXT2_XATTR_NEXT(entry);
-
-		if ((char *)next >= end)
+		if (!ext2_xattr_entry_valid(entry, end,
+		    inode->i_sb->s_blocksize))
 			goto bad_block;
-		if (!ext2_xattr_entry_valid(entry, inode->i_sb->s_blocksize))
-			goto bad_block;
-		entry = next;
+		entry = EXT2_XATTR_NEXT(entry);
 	}
 	if (ext2_xattr_cache_insert(ea_block_cache, bh))
 		ea_idebug(inode, "cache insert failed");
@@ -390,7 +390,7 @@ ext2_xattr_set(struct inode *inode, int name_index, const char *name,
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *bh = NULL;
 	struct ext2_xattr_header *header = NULL;
-	struct ext2_xattr_entry *here, *last;
+	struct ext2_xattr_entry *here = NULL, *last = NULL;
 	size_t name_len, free, min_offs = sb->s_blocksize;
 	int not_found = 1, error;
 	char *end;
@@ -444,10 +444,7 @@ bad_block:
 		 */
 		last = FIRST_ENTRY(bh);
 		while (!IS_LAST_ENTRY(last)) {
-			struct ext2_xattr_entry *next = EXT2_XATTR_NEXT(last);
-			if ((char *)next >= end)
-				goto bad_block;
-			if (!ext2_xattr_entry_valid(last, sb->s_blocksize))
+			if (!ext2_xattr_entry_valid(last, end, sb->s_blocksize))
 				goto bad_block;
 			if (last->e_value_size) {
 				size_t offs = le16_to_cpu(last->e_value_offs);
@@ -465,7 +462,7 @@ bad_block:
 				if (not_found <= 0)
 					here = last;
 			}
-			last = next;
+			last = EXT2_XATTR_NEXT(last);
 		}
 		if (not_found > 0)
 			here = last;
@@ -476,7 +473,6 @@ bad_block:
 		/* We will use a new extended attribute block. */
 		free = sb->s_blocksize -
 			sizeof(struct ext2_xattr_header) - sizeof(__u32);
-		here = last = NULL;  /* avoid gcc uninitialized warning. */
 	}
 
 	if (not_found) {
