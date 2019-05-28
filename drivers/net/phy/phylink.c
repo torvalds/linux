@@ -41,6 +41,7 @@ struct phylink {
 	/* private: */
 	struct net_device *netdev;
 	const struct phylink_mac_ops *ops;
+	struct phylink_config *config;
 
 	unsigned long phylink_disable_state; /* bitmask of disables */
 	struct phy_device *phydev;
@@ -111,7 +112,7 @@ static const char *phylink_an_mode_str(unsigned int mode)
 static int phylink_validate(struct phylink *pl, unsigned long *supported,
 			    struct phylink_link_state *state)
 {
-	pl->ops->validate(pl->netdev, supported, state);
+	pl->ops->validate(pl->config, supported, state);
 
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
 }
@@ -299,7 +300,7 @@ static void phylink_mac_config(struct phylink *pl,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS, state->advertising,
 		   state->pause, state->link, state->an_enabled);
 
-	pl->ops->mac_config(pl->netdev, pl->link_an_mode, state);
+	pl->ops->mac_config(pl->config, pl->link_an_mode, state);
 }
 
 static void phylink_mac_config_up(struct phylink *pl,
@@ -313,12 +314,11 @@ static void phylink_mac_an_restart(struct phylink *pl)
 {
 	if (pl->link_config.an_enabled &&
 	    phy_interface_mode_is_8023z(pl->link_config.interface))
-		pl->ops->mac_an_restart(pl->netdev);
+		pl->ops->mac_an_restart(pl->config);
 }
 
 static int phylink_get_mac_state(struct phylink *pl, struct phylink_link_state *state)
 {
-	struct net_device *ndev = pl->netdev;
 
 	linkmode_copy(state->advertising, pl->link_config.advertising);
 	linkmode_zero(state->lp_advertising);
@@ -330,7 +330,7 @@ static int phylink_get_mac_state(struct phylink *pl, struct phylink_link_state *
 	state->an_complete = 0;
 	state->link = 1;
 
-	return pl->ops->mac_link_state(ndev, state);
+	return pl->ops->mac_link_state(pl->config, state);
 }
 
 /* The fixed state is... fixed except for the link state,
@@ -400,7 +400,7 @@ static void phylink_mac_link_up(struct phylink *pl,
 {
 	struct net_device *ndev = pl->netdev;
 
-	pl->ops->mac_link_up(ndev, pl->link_an_mode,
+	pl->ops->mac_link_up(pl->config, pl->link_an_mode,
 			     pl->phy_state.interface,
 			     pl->phydev);
 
@@ -418,7 +418,7 @@ static void phylink_mac_link_down(struct phylink *pl)
 	struct net_device *ndev = pl->netdev;
 
 	netif_carrier_off(ndev);
-	pl->ops->mac_link_down(ndev, pl->link_an_mode,
+	pl->ops->mac_link_down(pl->config, pl->link_an_mode,
 			       pl->phy_state.interface);
 	netdev_info(ndev, "Link is Down\n");
 }
@@ -553,7 +553,7 @@ static int phylink_register_sfp(struct phylink *pl,
  * Returns a pointer to a &struct phylink, or an error-pointer value. Users
  * must use IS_ERR() to check for errors from this function.
  */
-struct phylink *phylink_create(struct net_device *ndev,
+struct phylink *phylink_create(struct phylink_config *config,
 			       struct fwnode_handle *fwnode,
 			       phy_interface_t iface,
 			       const struct phylink_mac_ops *ops)
@@ -567,7 +567,15 @@ struct phylink *phylink_create(struct net_device *ndev,
 
 	mutex_init(&pl->state_mutex);
 	INIT_WORK(&pl->resolve, phylink_resolve);
-	pl->netdev = ndev;
+
+	pl->config = config;
+	if (config->type == PHYLINK_NETDEV) {
+		pl->netdev = to_net_dev(config->dev);
+	} else {
+		kfree(pl);
+		return ERR_PTR(-EINVAL);
+	}
+
 	pl->phy_state.interface = iface;
 	pl->link_interface = iface;
 	if (iface == PHY_INTERFACE_MODE_MOCA)
