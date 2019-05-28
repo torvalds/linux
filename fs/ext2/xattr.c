@@ -166,6 +166,21 @@ ext2_xattr_entry_valid(struct ext2_xattr_entry *entry,
 	return true;
 }
 
+static int
+ext2_xattr_cmp_entry(int name_index, size_t name_len, const char *name,
+		     struct ext2_xattr_entry *entry)
+{
+	int cmp;
+
+	cmp = name_index - entry->e_name_index;
+	if (!cmp)
+		cmp = name_len - entry->e_name_len;
+	if (!cmp)
+		cmp = memcmp(name, entry->e_name, name_len);
+
+	return cmp;
+}
+
 /*
  * ext2_xattr_get()
  *
@@ -452,13 +467,9 @@ bad_block:
 					min_offs = offs;
 			}
 			if (not_found > 0) {
-				not_found = name_index - last->e_name_index;
-				if (!not_found)
-					not_found = name_len - last->e_name_len;
-				if (!not_found) {
-					not_found = memcmp(name, last->e_name,
-							   name_len);
-				}
+				not_found = ext2_xattr_cmp_entry(name_index,
+								 name_len,
+								 name, last);
 				if (not_found <= 0)
 					here = last;
 			}
