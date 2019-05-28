@@ -72,7 +72,7 @@ struct cgroup_bpf {
 	u32 flags[MAX_BPF_ATTACH_TYPE];
 
 	/* temp storage for effective prog array used by prog_attach/detach */
-	struct bpf_prog_array __rcu *inactive;
+	struct bpf_prog_array *inactive;
 
 	/* reference counter used to detach bpf programs after cgroup removal */
 	struct percpu_ref refcnt;
