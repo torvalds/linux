@@ -6,6 +6,7 @@ config OLPC_XO175_EC
 	tristate "OLPC XO 1.75 Embedded Controller"
 	depends on ARCH_MMP || COMPILE_TEST
 	depends on SPI_SLAVE
+	depends on INPUT
 	select OLPC_EC
 	help
 	  Include support for the OLPC XO Embedded Controller (EC). The EC
