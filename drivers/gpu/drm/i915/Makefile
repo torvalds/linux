@@ -88,6 +88,7 @@ i915-y += $(gt-y)
 # GEM (Graphics Execution Management) code
 obj-y += gem/
 gem-y += \
+	gem/i915_gem_busy.o \
 	gem/i915_gem_clflush.o \
 	gem/i915_gem_context.o \
 	gem/i915_gem_dmabuf.o \
