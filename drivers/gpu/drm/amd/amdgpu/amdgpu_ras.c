@@ -128,6 +128,12 @@ const char *ras_block_string[] = {
 #define AMDGPU_RAS_FLAG_INIT_NEED_RESET		2
 #define RAS_DEFAULT_FLAGS (AMDGPU_RAS_FLAG_INIT_BY_VBIOS)
 
+static int amdgpu_ras_reserve_vram(struct amdgpu_device *adev,
+		uint64_t offset, uint64_t size,
+		struct amdgpu_bo **bo_ptr);
+static int amdgpu_ras_release_vram(struct amdgpu_device *adev,
+		struct amdgpu_bo **bo_ptr);
+
 static void amdgpu_ras_self_test(struct amdgpu_device *adev)
 {
 	/* TODO */
@@ -307,6 +313,7 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
 	struct ras_debug_if data;
+	struct amdgpu_bo *bo;
 	int ret = 0;
 
 	ret = amdgpu_ras_debugfs_ctrl_parse_data(f, buf, size, pos, &data);
@@ -324,7 +331,16 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 		ret = amdgpu_ras_feature_enable(adev, &data.head, 1);
 		break;
 	case 2:
+		ret = amdgpu_ras_reserve_vram(adev,
+				data.inject.address, PAGE_SIZE, &bo);
+		/* This address might be used already on failure. In fact we can
+		 * perform an injection in such case.
+		 */
+		if (ret)
+			break;
+		data.inject.address = amdgpu_bo_gpu_offset(bo);
 		ret = amdgpu_ras_error_inject(adev, &data.inject);
+		amdgpu_ras_release_vram(adev, &bo);
 		break;
 	default:
 		ret = -EINVAL;
