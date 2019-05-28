@@ -172,6 +172,7 @@ bail:
 static int kvmppc_xive_native_reset_mapped(struct kvm *kvm, unsigned long irq)
 {
 	struct kvmppc_xive *xive = kvm->arch.xive;
+	pgoff_t esb_pgoff = KVM_XIVE_ESB_PAGE_OFFSET + irq * 2;
 
 	if (irq >= KVMPPC_XIVE_NR_IRQS)
 		return -EINVAL;
@@ -185,7 +186,7 @@ static int kvmppc_xive_native_reset_mapped(struct kvm *kvm, unsigned long irq)
 	mutex_lock(&xive->mapping_lock);
 	if (xive->mapping)
 		unmap_mapping_range(xive->mapping,
-				    irq * (2ull << PAGE_SHIFT),
+				    esb_pgoff << PAGE_SHIFT,
 				    2ull << PAGE_SHIFT, 1);
 	mutex_unlock(&xive->mapping_lock);
 	return 0;
