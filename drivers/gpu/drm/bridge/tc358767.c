@@ -877,14 +877,6 @@ static int tc_main_link_setup(struct tc_data *tc)
 	tc_write(DP1_PLLCTRL, PLLUPDATE | PLLEN);
 	tc_wait_pll_lock(tc);
 
-	/* PXL PLL setup */
-	if (tc_test_pattern) {
-		ret = tc_pxl_pll_en(tc, clk_get_rate(tc->refclk),
-				    1000 * tc->mode->clock);
-		if (ret)
-			goto err;
-	}
-
 	/* Reset/Enable Main Links */
 	dp_phy_ctrl |= DP_PHY_RST | PHY_M1_RST | PHY_M0_RST;
 	tc_write(DP_PHY_CTRL, dp_phy_ctrl);
@@ -1021,6 +1013,14 @@ static int tc_stream_enable(struct tc_data *tc)
 
 	dev_dbg(tc->dev, "enable video stream\n");
 
+	/* PXL PLL setup */
+	if (tc_test_pattern) {
+		ret = tc_pxl_pll_en(tc, clk_get_rate(tc->refclk),
+				    1000 * tc->mode->clock);
+		if (ret)
+			goto err;
+	}
+
 	ret = tc_set_video_mode(tc, tc->mode);
 	if (ret)
 		return ret;
@@ -1064,6 +1064,8 @@ static int tc_stream_disable(struct tc_data *tc)
 	dev_dbg(tc->dev, "disable video stream\n");
 
 	tc_write(DP0CTL, 0);
+
+	tc_pxl_pll_dis(tc);
 
 	return 0;
 err:
@@ -1390,8 +1392,6 @@ static int tc_remove(struct i2c_client *client)
 
 	drm_bridge_remove(&tc->bridge);
 	drm_dp_aux_unregister(&tc->aux);
-
-	tc_pxl_pll_dis(tc);
 
 	return 0;
 }
