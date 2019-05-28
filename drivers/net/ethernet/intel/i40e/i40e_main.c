@@ -6410,6 +6410,50 @@ static int i40e_resume_port_tx(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_update_dcb_config
+ * @hw: pointer to the HW struct
+ * @enable_mib_change: enable MIB change event
+ *
+ * Update DCB configuration from the firmware
+ **/
+static enum i40e_status_code
+i40e_update_dcb_config(struct i40e_hw *hw, bool enable_mib_change)
+{
+	struct i40e_lldp_variables lldp_cfg;
+	i40e_status ret;
+
+	if (!hw->func_caps.dcb)
+		return I40E_NOT_SUPPORTED;
+
+	/* Read LLDP NVM area */
+	ret = i40e_read_lldp_cfg(hw, &lldp_cfg);
+	if (ret)
+		return I40E_ERR_NOT_READY;
+
+	/* Get DCBX status */
+	ret = i40e_get_dcbx_status(hw, &hw->dcbx_status);
+	if (ret)
+		return ret;
+
+	/* Check the DCBX Status */
+	if (hw->dcbx_status == I40E_DCBX_STATUS_DONE ||
+	    hw->dcbx_status == I40E_DCBX_STATUS_IN_PROGRESS) {
+		/* Get current DCBX configuration */
+		ret = i40e_get_dcb_config(hw);
+		if (ret)
+			return ret;
+	} else if (hw->dcbx_status == I40E_DCBX_STATUS_DISABLED) {
+		return I40E_ERR_NOT_READY;
+	}
+
+	/* Configure the LLDP MIB change event */
+	if (enable_mib_change)
+		ret = i40e_aq_cfg_lldp_mib_change_event(hw, true, NULL);
+
+	return ret;
+}
+
+/**
  * i40e_init_pf_dcb - Initialize DCB configuration
  * @pf: PF being configured
  *
@@ -6425,11 +6469,13 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 	 * Also do not enable DCBx if FW LLDP agent is disabled
 	 */
 	if ((pf->hw_features & I40E_HW_NO_DCB_SUPPORT) ||
-	    (pf->flags & I40E_FLAG_DISABLE_FW_LLDP))
+	    (pf->flags & I40E_FLAG_DISABLE_FW_LLDP)) {
+		dev_info(&pf->pdev->dev, "DCB is not supported or FW LLDP is disabled\n");
+		err = I40E_NOT_SUPPORTED;
 		goto out;
+	}
 
-	/* Get the initial DCB configuration */
-	err = i40e_init_dcb(hw, true);
+	err = i40e_update_dcb_config(hw, true);
 	if (!err) {
 		/* Device/Function is not DCBX capable */
 		if ((!hw->func_caps.dcb) ||
@@ -14400,6 +14446,11 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, pf);
 	pci_save_state(pdev);
+
+	dev_info(&pdev->dev,
+		 (pf->flags & I40E_FLAG_DISABLE_FW_LLDP) ?
+			"FW LLDP is disabled\n" :
+			"FW LLDP is enabled\n");
 
 	/* Enable FW to write default DCB config on link-up */
 	i40e_aq_set_dcb_parameters(hw, true, NULL);
