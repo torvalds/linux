@@ -22,7 +22,9 @@
  */
 
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
+#include "i915_scatterlist.h"
 
 /**
  * DOC: fence register handling

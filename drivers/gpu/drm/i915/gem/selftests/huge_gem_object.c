@@ -4,6 +4,8 @@
  * Copyright © 2016 Intel Corporation
  */
 
+#include "i915_scatterlist.h"
+
 #include "huge_gem_object.h"
 
 static void huge_free_pages(struct drm_i915_gem_object *obj,

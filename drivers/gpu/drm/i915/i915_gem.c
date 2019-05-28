@@ -50,6 +50,7 @@
 #include "gt/intel_workarounds.h"
 
 #include "i915_drv.h"
+#include "i915_scatterlist.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 
@@ -1083,34 +1084,6 @@ void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv)
 		GEM_BUG_ON(i915_vma_has_userfault(reg->vma));
 		reg->dirty = true;
 	}
-}
-
-bool i915_sg_trim(struct sg_table *orig_st)
-{
-	struct sg_table new_st;
-	struct scatterlist *sg, *new_sg;
-	unsigned int i;
-
-	if (orig_st->nents == orig_st->orig_nents)
-		return false;
-
-	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL | __GFP_NOWARN))
-		return false;
-
-	new_sg = new_st.sgl;
-	for_each_sg(orig_st->sgl, sg, orig_st->nents, i) {
-		sg_set_page(new_sg, sg_page(sg), sg->length, 0);
-		sg_dma_address(new_sg) = sg_dma_address(sg);
-		sg_dma_len(new_sg) = sg_dma_len(sg);
-
-		new_sg = sg_next(new_sg);
-	}
-	GEM_BUG_ON(new_sg); /* Should walk exactly nents and hit the end */
-
-	sg_free_table(orig_st);
-
-	*orig_st = new_st;
-	return true;
 }
 
 static unsigned long to_wait_timeout(s64 timeout_ns)
@@ -2370,7 +2343,6 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-#include "selftests/scatterlist.c"
 #include "selftests/mock_gem_device.c"
 #include "selftests/i915_gem.c"
 #endif

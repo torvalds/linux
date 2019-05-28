@@ -4,6 +4,7 @@
  * Copyright © 2016 Intel Corporation
  */
 
+#include "i915_drv.h"
 #include "i915_selftest.h"
 
 #include "mock_dmabuf.h"

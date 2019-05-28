@@ -15,6 +15,7 @@
 
 #include "i915_drv.h"
 #include "i915_gem_object.h"
+#include "i915_scatterlist.h"
 
 static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 {

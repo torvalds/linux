@@ -26,6 +26,7 @@
 
 #include "gem/selftests/mock_context.h"
 
+#include "i915_scatterlist.h"
 #include "i915_selftest.h"
 
 #include "mock_gem_device.h"

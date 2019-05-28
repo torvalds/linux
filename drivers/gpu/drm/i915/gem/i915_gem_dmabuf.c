@@ -10,6 +10,7 @@
 
 #include "i915_drv.h"
 #include "i915_gem_object.h"
+#include "i915_scatterlist.h"
 
 static struct drm_i915_gem_object *dma_buf_to_obj(struct dma_buf *buf)
 {

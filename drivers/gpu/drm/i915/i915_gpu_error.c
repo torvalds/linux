@@ -40,6 +40,7 @@
 
 #include "i915_drv.h"
 #include "i915_gpu_error.h"
+#include "i915_scatterlist.h"
 #include "intel_atomic.h"
 #include "intel_csr.h"
 #include "intel_overlay.h"

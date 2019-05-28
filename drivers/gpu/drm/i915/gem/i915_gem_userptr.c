@@ -14,6 +14,7 @@
 
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
+#include "i915_scatterlist.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
 

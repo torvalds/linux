@@ -13,6 +13,7 @@
 #include "i915_drv.h"
 #include "i915_gem.h"
 #include "i915_gem_object.h"
+#include "i915_scatterlist.h"
 #include "i915_utils.h"
 
 #define QUIET (__GFP_NORETRY | __GFP_NOWARN)

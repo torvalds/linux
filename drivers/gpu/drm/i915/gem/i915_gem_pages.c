@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 #include "i915_gem_object.h"
+#include "i915_scatterlist.h"
 
 void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 				 struct sg_table *pages,

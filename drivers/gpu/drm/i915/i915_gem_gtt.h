@@ -40,6 +40,7 @@
 
 #include "gt/intel_reset.h"
 #include "i915_request.h"
+#include "i915_scatterlist.h"
 #include "i915_selftest.h"
 #include "i915_timeline.h"
 
@@ -162,7 +163,8 @@ typedef u64 gen8_ppgtt_pml4e_t;
 #define GEN8_PDE_IPS_64K BIT(11)
 #define GEN8_PDE_PS_2M   BIT(7)
 
-struct sg_table;
+#define for_each_sgt_dma(__dmap, __iter, __sgt) \
+	__for_each_sgt_dma(__dmap, __iter, __sgt, I915_GTT_PAGE_SIZE)
 
 struct intel_remapped_plane_info {
 	/* in gtt pages */
