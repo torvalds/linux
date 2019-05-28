@@ -2902,7 +2902,8 @@ static int hclge_notify_roce_client(struct hclge_dev *hdev,
 	int ret = 0;
 	u16 i;
 
-	if (!client)
+	if (!test_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state) ||
+	    !client)
 		return 0;
 
 	if (!client->ops->reset_notify)
@@ -8205,6 +8206,8 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 				if (ret)
 					goto clear_roce;
 
+				set_bit(HCLGE_STATE_ROCE_REGISTERED,
+					&hdev->state);
 				hnae3_set_client_init_flag(hdev->roce_client,
 							   ae_dev, 1);
 			}
@@ -8236,6 +8239,8 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 				if (ret)
 					goto clear_roce;
 
+				set_bit(HCLGE_STATE_ROCE_REGISTERED,
+					&hdev->state);
 				hnae3_set_client_init_flag(client, ae_dev, 1);
 			}
 
@@ -8267,6 +8272,7 @@ static void hclge_uninit_client_instance(struct hnae3_client *client,
 	for (i = 0; i < hdev->num_vmdq_vport + 1; i++) {
 		vport = &hdev->vport[i];
 		if (hdev->roce_client) {
+			clear_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state);
 			hdev->roce_client->ops->uninit_instance(&vport->roce,
 								0);
 			hdev->roce_client = NULL;
