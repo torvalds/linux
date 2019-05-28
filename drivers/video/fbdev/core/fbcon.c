@@ -3149,17 +3149,16 @@ void fbcon_fb_unregistered(struct fb_info *info)
 		do_unregister_con_driver(&fb_con);
 }
 
-/* called with console_lock held */
-static void fbcon_remap_all(int idx)
+void fbcon_remap_all(struct fb_info *info)
 {
-	int i;
+	int i, idx = info->node;
 
-	WARN_CONSOLE_UNLOCKED();
-
+	console_lock();
 	if (deferred_takeover) {
 		for (i = first_fb_vc; i <= last_fb_vc; i++)
 			con2fb_map_boot[i] = idx;
 		fbcon_map_override();
+		console_unlock();
 		return;
 	}
 
@@ -3172,6 +3171,7 @@ static void fbcon_remap_all(int idx)
 		       first_fb_vc + 1, last_fb_vc + 1);
 		info_idx = idx;
 	}
+	console_unlock();
 }
 
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
@@ -3336,10 +3336,6 @@ static int fbcon_event_notify(struct notifier_block *self,
 	case FB_EVENT_GET_CONSOLE_MAP:
 		con2fb = event->data;
 		con2fb->framebuffer = con2fb_map[con2fb->console - 1];
-		break;
-	case FB_EVENT_REMAP_ALL_CONSOLE:
-		idx = info->node;
-		fbcon_remap_all(idx);
 		break;
 	}
 	return ret;
