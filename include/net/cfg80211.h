@@ -4170,6 +4170,8 @@ struct sta_opmode_info {
 	u8 rx_nss;
 };
 
+#define VENDOR_CMD_RAW_DATA ((const struct nla_policy *)ERR_PTR(-ENODATA))
+
 /**
  * struct wiphy_vendor_command - vendor command definition
  * @info: vendor command identifying information, as used in nl80211
@@ -4180,6 +4182,10 @@ struct sta_opmode_info {
  * @dumpit: dump callback, for transferring bigger/multiple items. The
  *	@storage points to cb->args[5], ie. is preserved over the multiple
  *	dumpit calls.
+ * @policy: policy pointer for attributes within %NL80211_ATTR_VENDOR_DATA.
+ *	Set this to %VENDOR_CMD_RAW_DATA if no policy can be given and the
+ *	attribute is just raw data (e.g. a firmware command).
+ * @maxattr: highest attribute number in policy
  * It's recommended to not have the same sub command with both @doit and
  * @dumpit, so that userspace can assume certain ones are get and others
  * are used with dump requests.
@@ -4192,6 +4198,8 @@ struct wiphy_vendor_command {
 	int (*dumpit)(struct wiphy *wiphy, struct wireless_dev *wdev,
 		      struct sk_buff *skb, const void *data, int data_len,
 		      unsigned long *storage);
+	const struct nla_policy *policy;
+	unsigned int maxattr;
 };
 
 /**

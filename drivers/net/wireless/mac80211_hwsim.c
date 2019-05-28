@@ -457,6 +457,8 @@ static struct wiphy_vendor_command mac80211_hwsim_vendor_commands[] = {
 			  .subcmd = QCA_NL80211_SUBCMD_TEST },
 		.flags = WIPHY_VENDOR_CMD_NEED_NETDEV,
 		.doit = mac80211_hwsim_vendor_cmd_test,
+		.policy = hwsim_vendor_test_policy,
+		.maxattr = QCA_WLAN_VENDOR_ATTR_MAX,
 	}
 };
 

@@ -12669,6 +12669,29 @@ static int nl80211_crit_protocol_stop(struct sk_buff *skb,
 	return 0;
 }
 
+static int nl80211_vendor_check_policy(const struct wiphy_vendor_command *vcmd,
+				       struct nlattr *attr,
+				       struct netlink_ext_ack *extack)
+{
+	if (vcmd->policy == VENDOR_CMD_RAW_DATA) {
+		if (attr->nla_type & NLA_F_NESTED) {
+			NL_SET_ERR_MSG_ATTR(extack, attr,
+					    "unexpected nested data");
+			return -EINVAL;
+		}
+
+		return 0;
+	}
+
+	if (!(attr->nla_type & NLA_F_NESTED)) {
+		NL_SET_ERR_MSG_ATTR(extack, attr, "expected nested data");
+		return -EINVAL;
+	}
+
+	return nl80211_validate_nested(attr, vcmd->maxattr, vcmd->policy,
+				       extack);
+}
+
 static int nl80211_vendor_cmd(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
@@ -12727,11 +12750,16 @@ static int nl80211_vendor_cmd(struct sk_buff *skb, struct genl_info *info)
 		if (info->attrs[NL80211_ATTR_VENDOR_DATA]) {
 			data = nla_data(info->attrs[NL80211_ATTR_VENDOR_DATA]);
 			len = nla_len(info->attrs[NL80211_ATTR_VENDOR_DATA]);
+
+			err = nl80211_vendor_check_policy(vcmd,
+					info->attrs[NL80211_ATTR_VENDOR_DATA],
+					info->extack);
+			if (err)
+				return err;
 		}
 
 		rdev->cur_cmd_info = info;
-		err = rdev->wiphy.vendor_commands[i].doit(&rdev->wiphy, wdev,
-							  data, len);
+		err = vcmd->doit(&rdev->wiphy, wdev, data, len);
 		rdev->cur_cmd_info = NULL;
 		return err;
 	}
@@ -12818,6 +12846,13 @@ static int nl80211_prepare_vendor_dump(struct sk_buff *skb,
 	if (attrbuf[NL80211_ATTR_VENDOR_DATA]) {
 		data = nla_data(attrbuf[NL80211_ATTR_VENDOR_DATA]);
 		data_len = nla_len(attrbuf[NL80211_ATTR_VENDOR_DATA]);
+
+		err = nl80211_vendor_check_policy(
+				&(*rdev)->wiphy.vendor_commands[vcmd_idx],
+				attrbuf[NL80211_ATTR_VENDOR_DATA],
+				cb->extack);
+		if (err)
+			return err;
 	}
 
 	/* 0 is the first index - add 1 to parse only once */
