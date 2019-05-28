@@ -527,7 +527,7 @@ static void cleanup_status_page(struct intel_engine_cs *engine)
 		i915_vma_unpin(vma);
 
 	i915_gem_object_unpin_map(vma->obj);
-	__i915_gem_object_release_unless_active(vma->obj);
+	i915_gem_object_put(vma->obj);
 }
 
 static int pin_ggtt_status_page(struct intel_engine_cs *engine,

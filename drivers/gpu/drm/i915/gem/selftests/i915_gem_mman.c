@@ -354,8 +354,8 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 
 	i915_request_add(rq);
 
-	__i915_gem_object_release_unless_active(obj);
 	i915_vma_unpin(vma);
+	i915_gem_object_put(obj); /* leave it only alive via its active ref */
 
 	return err;
 }

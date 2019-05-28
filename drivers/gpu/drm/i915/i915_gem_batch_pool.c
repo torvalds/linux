@@ -55,7 +55,7 @@ void i915_gem_batch_pool_fini(struct i915_gem_batch_pool *pool)
 		list_for_each_entry_safe(obj, next,
 					 &pool->cache_list[n],
 					 batch_pool_link)
-			__i915_gem_object_release_unless_active(obj);
+			i915_gem_object_put(obj);
 
 		INIT_LIST_HEAD(&pool->cache_list[n]);
 	}

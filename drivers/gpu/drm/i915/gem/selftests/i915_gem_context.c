@@ -318,13 +318,13 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 	if (err)
 		goto skip_request;
 
-	i915_gem_object_set_active_reference(batch->obj);
+	i915_request_add(rq);
+
 	i915_vma_unpin(batch);
 	i915_vma_close(batch);
+	i915_vma_put(batch);
 
 	i915_vma_unpin(vma);
-
-	i915_request_add(rq);
 
 	return 0;
 
@@ -802,9 +802,9 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 	if (err)
 		goto skip_request;
 
-	i915_gem_object_set_active_reference(batch->obj);
 	i915_vma_unpin(batch);
 	i915_vma_close(batch);
+	i915_vma_put(batch);
 
 	i915_vma_unpin(vma);
 
@@ -820,6 +820,7 @@ err_request:
 	i915_request_add(rq);
 err_batch:
 	i915_vma_unpin(batch);
+	i915_vma_put(batch);
 err_vma:
 	i915_vma_unpin(vma);
 
@@ -1365,9 +1366,9 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	if (err)
 		goto skip_request;
 
-	i915_gem_object_set_active_reference(obj);
 	i915_vma_unpin(vma);
 	i915_vma_close(vma);
+	i915_vma_put(vma);
 
 	i915_request_add(rq);
 

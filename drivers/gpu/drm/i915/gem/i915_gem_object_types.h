@@ -120,14 +120,6 @@ struct drm_i915_gem_object {
 	struct list_head batch_pool_link;
 	I915_SELFTEST_DECLARE(struct list_head st_link);
 
-	unsigned long flags;
-
-	/**
-	 * Have we taken a reference for the object for incomplete GPU
-	 * activity?
-	 */
-#define I915_BO_ACTIVE_REF 0
-
 	/*
 	 * Is the object to be mapped as read-only to the GPU
 	 * Only honoured if hardware has relevant pte bit

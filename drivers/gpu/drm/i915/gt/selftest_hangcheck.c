@@ -120,15 +120,8 @@ static int move_to_active(struct i915_vma *vma,
 	i915_vma_lock(vma);
 	err = i915_vma_move_to_active(vma, rq, flags);
 	i915_vma_unlock(vma);
-	if (err)
-		return err;
 
-	if (!i915_gem_object_has_active_reference(vma->obj)) {
-		i915_gem_object_get(vma->obj);
-		i915_gem_object_set_active_reference(vma->obj);
-	}
-
-	return 0;
+	return err;
 }
 
 static struct i915_request *

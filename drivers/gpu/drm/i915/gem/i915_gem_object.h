@@ -161,30 +161,8 @@ i915_gem_object_needs_async_cancel(const struct drm_i915_gem_object *obj)
 static inline bool
 i915_gem_object_is_active(const struct drm_i915_gem_object *obj)
 {
-	return obj->active_count;
+	return READ_ONCE(obj->active_count);
 }
-
-static inline bool
-i915_gem_object_has_active_reference(const struct drm_i915_gem_object *obj)
-{
-	return test_bit(I915_BO_ACTIVE_REF, &obj->flags);
-}
-
-static inline void
-i915_gem_object_set_active_reference(struct drm_i915_gem_object *obj)
-{
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
-	__set_bit(I915_BO_ACTIVE_REF, &obj->flags);
-}
-
-static inline void
-i915_gem_object_clear_active_reference(struct drm_i915_gem_object *obj)
-{
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
-	__clear_bit(I915_BO_ACTIVE_REF, &obj->flags);
-}
-
-void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj);
 
 static inline bool
 i915_gem_object_is_framebuffer(const struct drm_i915_gem_object *obj)

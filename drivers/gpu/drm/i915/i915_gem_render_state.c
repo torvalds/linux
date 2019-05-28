@@ -230,6 +230,6 @@ err_unpin:
 err_vma:
 	i915_vma_close(so.vma);
 err_obj:
-	__i915_gem_object_release_unless_active(so.obj);
+	i915_gem_object_put(so.obj);
 	return err;
 }

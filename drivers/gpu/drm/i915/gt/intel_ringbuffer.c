@@ -1302,10 +1302,9 @@ intel_engine_create_ring(struct intel_engine_cs *engine,
 void intel_ring_free(struct kref *ref)
 {
 	struct intel_ring *ring = container_of(ref, typeof(*ring), ref);
-	struct drm_i915_gem_object *obj = ring->vma->obj;
 
 	i915_vma_close(ring->vma);
-	__i915_gem_object_release_unless_active(obj);
+	i915_vma_put(ring->vma);
 
 	i915_timeline_put(ring->timeline);
 	kfree(ring);

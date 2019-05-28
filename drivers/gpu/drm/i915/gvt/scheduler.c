@@ -600,7 +600,7 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 				i915_vma_unpin(bb->vma);
 				i915_vma_close(bb->vma);
 			}
-			__i915_gem_object_release_unless_active(bb->obj);
+			i915_gem_object_put(bb->obj);
 		}
 		list_del(&bb->list);
 		kfree(bb);

@@ -155,7 +155,7 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 		list_del(&lut->ctx_link);
 
 		i915_lut_handle_free(lut);
-		__i915_gem_object_release_unless_active(obj);
+		i915_gem_object_put(obj);
 	}
 
 	mutex_unlock(&i915->drm.struct_mutex);
@@ -345,17 +345,6 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	 */
 	atomic_inc(&to_i915(obj->base.dev)->mm.free_count);
 	call_rcu(&obj->rcu, __i915_gem_free_object_rcu);
-}
-
-void __i915_gem_object_release_unless_active(struct drm_i915_gem_object *obj)
-{
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
-
-	if (!i915_gem_object_has_active_reference(obj) &&
-	    i915_gem_object_is_active(obj))
-		i915_gem_object_set_active_reference(obj);
-	else
-		i915_gem_object_put(obj);
 }
 
 static inline enum fb_op_origin

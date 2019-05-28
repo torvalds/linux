@@ -365,7 +365,7 @@ static int igt_gem_coherency(void *arg)
 						}
 					}
 
-					__i915_gem_object_release_unless_active(obj);
+					i915_gem_object_put(obj);
 				}
 			}
 		}
@@ -377,7 +377,7 @@ unlock:
 	return err;
 
 put_object:
-	__i915_gem_object_release_unless_active(obj);
+	i915_gem_object_put(obj);
 	goto unlock;
 }
 

@@ -976,8 +976,6 @@ static int gpu_write(struct i915_vma *vma,
 	if (err)
 		goto err_request;
 
-	i915_gem_object_set_active_reference(batch->obj);
-
 	i915_vma_lock(vma);
 	err = i915_gem_object_set_to_gtt_domain(vma->obj, false);
 	if (err == 0)
@@ -996,6 +994,7 @@ err_request:
 err_batch:
 	i915_vma_unpin(batch);
 	i915_vma_close(batch);
+	i915_vma_put(batch);
 
 	return err;
 }

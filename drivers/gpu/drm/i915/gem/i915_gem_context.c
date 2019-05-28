@@ -112,7 +112,7 @@ static void lut_close(struct i915_gem_context *ctx)
 		radix_tree_iter_delete(&ctx->handles_vma, &iter, slot);
 
 		vma->open_count--;
-		__i915_gem_object_release_unless_active(vma->obj);
+		i915_vma_put(vma);
 	}
 	rcu_read_unlock();
 }
