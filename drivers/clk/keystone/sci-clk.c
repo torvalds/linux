@@ -280,8 +280,8 @@ static int _sci_clk_build(struct sci_clk_provider *provider,
 	int i;
 	int ret = 0;
 
-	name = kasprintf(GFP_KERNEL, "%s:%d:%d", dev_name(provider->dev),
-			 sci_clk->dev_id, sci_clk->clk_id);
+	name = kasprintf(GFP_KERNEL, "clk:%d:%d", sci_clk->dev_id,
+			 sci_clk->clk_id);
 
 	init.name = name;
 
@@ -306,8 +306,7 @@ static int _sci_clk_build(struct sci_clk_provider *provider,
 		for (i = 0; i < sci_clk->num_parents; i++) {
 			char *parent_name;
 
-			parent_name = kasprintf(GFP_KERNEL, "%s:%d:%d",
-						dev_name(provider->dev),
+			parent_name = kasprintf(GFP_KERNEL, "clk:%d:%d",
 						sci_clk->dev_id,
 						sci_clk->clk_id + 1 + i);
 			if (!parent_name) {
