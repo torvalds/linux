@@ -1216,17 +1216,8 @@ static void tc_connector_set_polling(struct tc_data *tc,
 			    DRM_CONNECTOR_POLL_DISCONNECT;
 }
 
-static struct drm_encoder *
-tc_connector_best_encoder(struct drm_connector *connector)
-{
-	struct tc_data *tc = connector_to_tc(connector);
-
-	return tc->bridge.encoder;
-}
-
 static const struct drm_connector_helper_funcs tc_connector_helper_funcs = {
 	.get_modes = tc_connector_get_modes,
-	.best_encoder = tc_connector_best_encoder,
 };
 
 static const struct drm_connector_funcs tc_connector_funcs = {
