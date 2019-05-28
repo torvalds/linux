@@ -1164,100 +1164,6 @@ static struct device_type dsa_type = {
 	.name	= "dsa",
 };
 
-static void dsa_slave_phylink_validate(struct phylink_config *config,
-				       unsigned long *supported,
-				       struct phylink_link_state *state)
-{
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->phylink_validate)
-		return;
-
-	ds->ops->phylink_validate(ds, dp->index, supported, state);
-}
-
-static int dsa_slave_phylink_mac_link_state(struct phylink_config *config,
-					    struct phylink_link_state *state)
-{
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct dsa_switch *ds = dp->ds;
-
-	/* Only called for SGMII and 802.3z */
-	if (!ds->ops->phylink_mac_link_state)
-		return -EOPNOTSUPP;
-
-	return ds->ops->phylink_mac_link_state(ds, dp->index, state);
-}
-
-static void dsa_slave_phylink_mac_config(struct phylink_config *config,
-					 unsigned int mode,
-					 const struct phylink_link_state *state)
-{
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->phylink_mac_config)
-		return;
-
-	ds->ops->phylink_mac_config(ds, dp->index, mode, state);
-}
-
-static void dsa_slave_phylink_mac_an_restart(struct phylink_config *config)
-{
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->phylink_mac_an_restart)
-		return;
-
-	ds->ops->phylink_mac_an_restart(ds, dp->index);
-}
-
-static void dsa_slave_phylink_mac_link_down(struct phylink_config *config,
-					    unsigned int mode,
-					    phy_interface_t interface)
-{
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct net_device *dev = dp->slave;
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->phylink_mac_link_down) {
-		if (ds->ops->adjust_link && dev->phydev)
-			ds->ops->adjust_link(ds, dp->index, dev->phydev);
-		return;
-	}
-
-	ds->ops->phylink_mac_link_down(ds, dp->index, mode, interface);
-}
-
-static void dsa_slave_phylink_mac_link_up(struct phylink_config *config,
-					  unsigned int mode,
-					  phy_interface_t interface,
-					  struct phy_device *phydev)
-{
-	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
-	struct net_device *dev = dp->slave;
-	struct dsa_switch *ds = dp->ds;
-
-	if (!ds->ops->phylink_mac_link_up) {
-		if (ds->ops->adjust_link && dev->phydev)
-			ds->ops->adjust_link(ds, dp->index, dev->phydev);
-		return;
-	}
-
-	ds->ops->phylink_mac_link_up(ds, dp->index, mode, interface, phydev);
-}
-
-static const struct phylink_mac_ops dsa_slave_phylink_mac_ops = {
-	.validate = dsa_slave_phylink_validate,
-	.mac_link_state = dsa_slave_phylink_mac_link_state,
-	.mac_config = dsa_slave_phylink_mac_config,
-	.mac_an_restart = dsa_slave_phylink_mac_an_restart,
-	.mac_link_down = dsa_slave_phylink_mac_link_down,
-	.mac_link_up = dsa_slave_phylink_mac_link_up,
-};
-
 void dsa_port_phylink_mac_change(struct dsa_switch *ds, int port, bool up)
 {
 	const struct dsa_port *dp = dsa_to_port(ds, port);
@@ -1309,7 +1215,7 @@ static int dsa_slave_phy_setup(struct net_device *slave_dev)
 	dp->pl_config.type = PHYLINK_NETDEV;
 
 	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(port_dn), mode,
-				&dsa_slave_phylink_mac_ops);
+				&dsa_port_phylink_mac_ops);
 	if (IS_ERR(dp->pl)) {
 		netdev_err(slave_dev,
 			   "error creating PHYLINK: %ld\n", PTR_ERR(dp->pl));
