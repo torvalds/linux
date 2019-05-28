@@ -1138,6 +1138,9 @@ static void phy_sysfs_create_links(struct phy_device *phydev)
 	struct net_device *dev = phydev->attached_dev;
 	int err;
 
+	if (!dev)
+		return;
+
 	err = sysfs_create_link(&phydev->mdio.dev.kobj, &dev->dev.kobj,
 				"attached_dev");
 	if (err)
@@ -1176,9 +1179,9 @@ static void phy_sysfs_create_links(struct phy_device *phydev)
 int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		      u32 flags, phy_interface_t interface)
 {
-	struct module *ndev_owner = dev->dev.parent->driver->owner;
 	struct mii_bus *bus = phydev->mdio.bus;
 	struct device *d = &phydev->mdio.dev;
+	struct module *ndev_owner = NULL;
 	bool using_genphy = false;
 	int err;
 
@@ -1187,8 +1190,10 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 * our own module->refcnt here, otherwise we would not be able to
 	 * unload later on.
 	 */
+	if (dev)
+		ndev_owner = dev->dev.parent->driver->owner;
 	if (ndev_owner != bus->owner && !try_module_get(bus->owner)) {
-		dev_err(&dev->dev, "failed to get the bus module\n");
+		phydev_err(phydev, "failed to get the bus module\n");
 		return -EIO;
 	}
 
@@ -1207,7 +1212,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	}
 
 	if (!try_module_get(d->driver->owner)) {
-		dev_err(&dev->dev, "failed to get the device driver module\n");
+		phydev_err(phydev, "failed to get the device driver module\n");
 		err = -EIO;
 		goto error_put_device;
 	}
@@ -1228,8 +1233,10 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	}
 
 	phydev->phy_link_change = phy_link_change;
-	phydev->attached_dev = dev;
-	dev->phydev = phydev;
+	if (dev) {
+		phydev->attached_dev = dev;
+		dev->phydev = phydev;
+	}
 
 	/* Some Ethernet drivers try to connect to a PHY device before
 	 * calling register_netdevice() -> netdev_register_kobject() and
@@ -1252,7 +1259,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	/* Initial carrier state is off as the phy is about to be
 	 * (re)initialized.
 	 */
-	netif_carrier_off(phydev->attached_dev);
+	if (dev)
+		netif_carrier_off(phydev->attached_dev);
 
 	/* Do initial configuration here, now that
 	 * we have certain key parameters
@@ -1358,16 +1366,19 @@ EXPORT_SYMBOL_GPL(phy_driver_is_genphy_10g);
 void phy_detach(struct phy_device *phydev)
 {
 	struct net_device *dev = phydev->attached_dev;
-	struct module *ndev_owner = dev->dev.parent->driver->owner;
+	struct module *ndev_owner = NULL;
 	struct mii_bus *bus;
 
 	if (phydev->sysfs_links) {
-		sysfs_remove_link(&dev->dev.kobj, "phydev");
+		if (dev)
+			sysfs_remove_link(&dev->dev.kobj, "phydev");
 		sysfs_remove_link(&phydev->mdio.dev.kobj, "attached_dev");
 	}
 	phy_suspend(phydev);
-	phydev->attached_dev->phydev = NULL;
-	phydev->attached_dev = NULL;
+	if (dev) {
+		phydev->attached_dev->phydev = NULL;
+		phydev->attached_dev = NULL;
+	}
 	phydev->phylink = NULL;
 
 	phy_led_triggers_unregister(phydev);
@@ -1390,6 +1401,8 @@ void phy_detach(struct phy_device *phydev)
 	bus = phydev->mdio.bus;
 
 	put_device(&phydev->mdio.dev);
+	if (dev)
+		ndev_owner = dev->dev.parent->driver->owner;
 	if (ndev_owner != bus->owner)
 		module_put(bus->owner);
 
