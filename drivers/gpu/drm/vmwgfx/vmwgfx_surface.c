@@ -915,12 +915,6 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 		if (unlikely(drm_is_render_client(file_priv)))
 			require_exist = true;
 
-		if (READ_ONCE(vmw_fpriv(file_priv)->locked_master)) {
-			DRM_ERROR("Locked master refused legacy "
-				  "surface reference.\n");
-			return -EACCES;
-		}
-
 		handle = u_handle;
 	}
 
