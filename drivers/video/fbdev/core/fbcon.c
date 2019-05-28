@@ -3019,8 +3019,8 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 		fbcon_modechanged(info);
 }
 
-static int fbcon_mode_deleted(struct fb_info *info,
-			      struct fb_videomode *mode)
+int fbcon_mode_deleted(struct fb_info *info,
+		       struct fb_videomode *mode)
 {
 	struct fb_info *fb_info;
 	struct fbcon_display *p;
@@ -3262,7 +3262,7 @@ static void fbcon_fb_blanked(struct fb_info *info, int blank)
 	ops->blank_state = blank;
 }
 
-static void fbcon_new_modelist(struct fb_info *info)
+void fbcon_new_modelist(struct fb_info *info)
 {
 	int i;
 	struct vc_data *vc;
@@ -3324,7 +3324,6 @@ static int fbcon_event_notify(struct notifier_block *self,
 {
 	struct fb_event *event = data;
 	struct fb_info *info = event->info;
-	struct fb_videomode *mode;
 	struct fb_con2fbmap *con2fb;
 	struct fb_blit_caps *caps;
 	int idx, ret = 0;
@@ -3335,10 +3334,6 @@ static int fbcon_event_notify(struct notifier_block *self,
 		break;
 	case FB_EVENT_MODE_CHANGE_ALL:
 		fbcon_set_all_vcs(info);
-		break;
-	case FB_EVENT_MODE_DELETE:
-		mode = event->data;
-		ret = fbcon_mode_deleted(info, mode);
 		break;
 	case FB_EVENT_SET_CONSOLE_MAP:
 		/* called with console lock held */
@@ -3352,9 +3347,6 @@ static int fbcon_event_notify(struct notifier_block *self,
 		break;
 	case FB_EVENT_BLANK:
 		fbcon_fb_blanked(info, *(int *)event->data);
-		break;
-	case FB_EVENT_NEW_MODELIST:
-		fbcon_new_modelist(info);
 		break;
 	case FB_EVENT_GET_REQ:
 		caps = event->data;
