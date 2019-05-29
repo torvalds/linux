@@ -357,8 +357,10 @@ static void __rate_control_send_low(struct ieee80211_hw *hw,
 		break;
 	}
 	WARN_ONCE(i == sband->n_bitrates,
-		  "no supported rates (0x%x) in rate_mask 0x%x with flags 0x%x\n",
+		  "no supported rates for sta %pM (0x%x, band %d) in rate_mask 0x%x with flags 0x%x\n",
+		  sta ? sta->addr : NULL,
 		  sta ? sta->supp_rates[sband->band] : -1,
+		  sband->band,
 		  rate_mask, rate_flags);
 
 	info->control.rates[0].count =
