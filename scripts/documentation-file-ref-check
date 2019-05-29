@@ -127,7 +127,7 @@ while (<IN>) {
 		if ($f =~ m/tools/) {
 			my $path = $f;
 			$path =~ s,(.*)/.*,$1,;
-			next if (grep -e, glob("$path/$ref $path/$fulref"));
+			next if (grep -e, glob("$path/$ref $path/../$ref $path/$fulref"));
 		}
 
 		# Discard known false-positives
