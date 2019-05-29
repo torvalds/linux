@@ -116,7 +116,7 @@ Kernel internal mitigation modes
  off      Mitigation is disabled. Either the CPU is not affected or
           mds=off is supplied on the kernel command line
 
- full     Mitigation is eanbled. CPU is affected and MD_CLEAR is
+ full     Mitigation is enabled. CPU is affected and MD_CLEAR is
           advertised in CPUID.
 
  vmwerv	  Mitigation is enabled. CPU is affected and MD_CLEAR is not
