@@ -617,7 +617,7 @@ static int stmmac_test_flowctrl_validate(struct sk_buff *skb,
 	tpriv->ok = true;
 	complete(&tpriv->comp);
 out:
-	kfree(skb);
+	kfree_skb(skb);
 	return 0;
 }
 
