@@ -1861,6 +1861,21 @@ static int rbd_osd_setup_stat(struct ceph_osd_request *osd_req, int which)
 	return 0;
 }
 
+static int rbd_osd_setup_copyup(struct ceph_osd_request *osd_req, int which,
+				u32 bytes)
+{
+	struct rbd_obj_request *obj_req = osd_req->r_priv;
+	int ret;
+
+	ret = osd_req_op_cls_init(osd_req, which, "rbd", "copyup");
+	if (ret)
+		return ret;
+
+	osd_req_op_cls_request_data_bvecs(osd_req, which, obj_req->copyup_bvecs,
+					  obj_req->copyup_bvec_count, bytes);
+	return 0;
+}
+
 static int count_write_ops(struct rbd_obj_request *obj_req)
 {
 	return 2; /* setallochint + write/writefull */
@@ -2560,14 +2575,10 @@ static int rbd_obj_issue_copyup_empty_snapc(struct rbd_obj_request *obj_req,
 	if (IS_ERR(osd_req))
 		return PTR_ERR(osd_req);
 
-	ret = osd_req_op_cls_init(osd_req, 0, "rbd", "copyup");
+	ret = rbd_osd_setup_copyup(osd_req, 0, bytes);
 	if (ret)
 		return ret;
 
-	osd_req_op_cls_request_data_bvecs(osd_req, 0,
-					  obj_req->copyup_bvecs,
-					  obj_req->copyup_bvec_count,
-					  bytes);
 	rbd_osd_format_write(osd_req);
 
 	ret = ceph_osdc_alloc_messages(osd_req, GFP_NOIO);
@@ -2604,15 +2615,9 @@ static int rbd_obj_issue_copyup_ops(struct rbd_obj_request *obj_req, u32 bytes)
 		return PTR_ERR(osd_req);
 
 	if (bytes != MODS_ONLY) {
-		ret = osd_req_op_cls_init(osd_req, which, "rbd",
-					  "copyup");
+		ret = rbd_osd_setup_copyup(osd_req, which++, bytes);
 		if (ret)
 			return ret;
-
-		osd_req_op_cls_request_data_bvecs(osd_req, which++,
-						  obj_req->copyup_bvecs,
-						  obj_req->copyup_bvec_count,
-						  bytes);
 	}
 
 	switch (img_req->op_type) {
