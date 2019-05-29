@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+#include "arm64/rockchip/rk3326-863-lp3-v10.dts"
+
+/ {
+	model = "Rockchip rk3326 863 avb board (AArch32)";
+	compatible = "rockchip,rk3326-863-lp3-v10-avb-aarch32", "rockchip,rk3326";
+};
