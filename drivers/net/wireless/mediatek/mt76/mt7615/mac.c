@@ -504,23 +504,20 @@ static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt7615_sta *sta,
 {
 	struct ieee80211_supported_band *sband;
 	int i, idx, count, final_idx = 0;
-	bool fixed_rate, final_mpdu, ack_timeout;
+	bool fixed_rate, ack_timeout;
 	bool probe, ampdu, cck = false;
 	u32 final_rate, final_rate_flags, final_nss, txs;
-	u8 pid;
 
 	fixed_rate = info->status.rates[0].count;
 	probe = !!(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
 
 	txs = le32_to_cpu(txs_data[1]);
-	final_mpdu = txs & MT_TXS1_ACKED_MPDU;
 	ampdu = !fixed_rate && (txs & MT_TXS1_AMPDU);
 
 	txs = le32_to_cpu(txs_data[3]);
 	count = FIELD_GET(MT_TXS3_TX_COUNT, txs);
 
 	txs = le32_to_cpu(txs_data[0]);
-	pid = FIELD_GET(MT_TXS0_PID, txs);
 	final_rate = FIELD_GET(MT_TXS0_TX_RATE, txs);
 	ack_timeout = txs & MT_TXS0_ACK_TIMEOUT;
 

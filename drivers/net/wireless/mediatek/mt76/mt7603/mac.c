@@ -909,7 +909,6 @@ mt7603_fill_txs(struct mt7603_dev *dev, struct mt7603_sta *sta,
 	int final_idx = 0;
 	u32 final_rate;
 	u32 final_rate_flags;
-	bool final_mpdu;
 	bool ack_timeout;
 	bool fixed_rate;
 	bool probe;
@@ -917,7 +916,6 @@ mt7603_fill_txs(struct mt7603_dev *dev, struct mt7603_sta *sta,
 	bool cck = false;
 	int count;
 	u32 txs;
-	u8 pid;
 	int idx;
 	int i;
 
@@ -925,9 +923,7 @@ mt7603_fill_txs(struct mt7603_dev *dev, struct mt7603_sta *sta,
 	probe = !!(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
 
 	txs = le32_to_cpu(txs_data[4]);
-	final_mpdu = txs & MT_TXS4_ACKED_MPDU;
 	ampdu = !fixed_rate && (txs & MT_TXS4_AMPDU);
-	pid = FIELD_GET(MT_TXS4_PID, txs);
 	count = FIELD_GET(MT_TXS4_TX_COUNT, txs);
 
 	txs = le32_to_cpu(txs_data[0]);
