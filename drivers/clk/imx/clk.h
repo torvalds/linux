@@ -70,6 +70,9 @@ struct imx_pll14xx_clk {
 #define imx_clk_pfd(name, parent_name, reg, idx) \
 	imx_clk_hw_pfd(name, parent_name, reg, idx)->clk
 
+#define imx_clk_gate_exclusive(name, parent, reg, shift, exclusive_mask) \
+	imx_clk_hw_gate_exclusive(name, parent, reg, shift, exclusive_mask)->clk
+
 struct clk *imx_clk_pll14xx(const char *name, const char *parent_name,
 		 void __iomem *base, const struct imx_pll14xx_clk *pll_clk);
 
@@ -123,7 +126,7 @@ struct clk_hw *imx_obtain_fixed_clock_hw(
 struct clk_hw *imx_obtain_fixed_clk_hw(struct device_node *np,
 				       const char *name);
 
-struct clk *imx_clk_gate_exclusive(const char *name, const char *parent,
+struct clk_hw *imx_clk_hw_gate_exclusive(const char *name, const char *parent,
 	 void __iomem *reg, u8 shift, u32 exclusive_mask);
 
 struct clk_hw *imx_clk_hw_pfd(const char *name, const char *parent_name,
