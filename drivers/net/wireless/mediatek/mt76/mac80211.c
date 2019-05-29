@@ -854,3 +854,27 @@ void mt76_insert_ccmp_hdr(struct sk_buff *skb, u8 key_id)
 	status->flag &= ~RX_FLAG_IV_STRIPPED;
 }
 EXPORT_SYMBOL_GPL(mt76_insert_ccmp_hdr);
+
+int mt76_get_rate(struct mt76_dev *dev,
+		  struct ieee80211_supported_band *sband,
+		  int idx, bool cck)
+{
+	int i, offset = 0, len = sband->n_bitrates;
+
+	if (cck) {
+		if (sband == &dev->sband_5g.sband)
+			return 0;
+
+		idx &= ~BIT(2); /* short preamble */
+	} else if (sband == &dev->sband_2g.sband) {
+		offset = 4;
+	}
+
+	for (i = offset; i < len; i++) {
+		if ((sband->bitrates[i].hw_value & GENMASK(7, 0)) == idx)
+			return i;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76_get_rate);
