@@ -1170,11 +1170,12 @@ static void rtw_phy_set_tx_power_limit(struct rtw_dev *rtwdev, u8 regd, u8 band,
 				       u8 bw, u8 rs, u8 ch, s8 pwr_limit)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
+	u8 max_power_index = rtwdev->chip->max_power_index;
 	s8 ww;
 	int ch_idx;
 
 	pwr_limit = clamp_t(s8, pwr_limit,
-			    -RTW_MAX_POWER_INDEX, RTW_MAX_POWER_INDEX);
+			    -max_power_index, max_power_index);
 	ch_idx = rtw_channel_to_idx(band, ch);
 
 	if (regd >= RTW_REGD_MAX || bw >= RTW_CHANNEL_WIDTH_MAX ||
@@ -1204,16 +1205,17 @@ rtw_xref_5g_txpwr_lmt(struct rtw_dev *rtwdev, u8 regd,
 		      u8 bw, u8 ch_idx, u8 rs_ht, u8 rs_vht)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
+	u8 max_power_index = rtwdev->chip->max_power_index;
 	s8 lmt_ht = hal->tx_pwr_limit_5g[regd][bw][rs_ht][ch_idx];
 	s8 lmt_vht = hal->tx_pwr_limit_5g[regd][bw][rs_vht][ch_idx];
 
 	if (lmt_ht == lmt_vht)
 		return;
 
-	if (lmt_ht == RTW_MAX_POWER_INDEX)
+	if (lmt_ht == max_power_index)
 		hal->tx_pwr_limit_5g[regd][bw][rs_ht][ch_idx] = lmt_vht;
 
-	else if (lmt_vht == RTW_MAX_POWER_INDEX)
+	else if (lmt_vht == max_power_index)
 		hal->tx_pwr_limit_5g[regd][bw][rs_vht][ch_idx] = lmt_ht;
 }
 
@@ -1546,14 +1548,14 @@ static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 {
 	struct rtw_hal *hal = &rtwdev->hal;
 	u8 *cch_by_bw = hal->cch_by_bw;
-	s8 power_limit = RTW_MAX_POWER_INDEX;
+	s8 power_limit = (s8)rtwdev->chip->max_power_index;
 	u8 rs;
 	int ch_idx;
 	u8 cur_bw, cur_ch;
 	s8 cur_lmt;
 
 	if (regd > RTW_REGD_WW)
-		return RTW_MAX_POWER_INDEX;
+		return power_limit;
 
 	if (rate >= DESC_RATE1M && rate <= DESC_RATE11M)
 		rs = RTW_RATE_SECTION_CCK;
@@ -1598,7 +1600,7 @@ static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 err:
 	WARN(1, "invalid arguments, band=%d, bw=%d, path=%d, rate=%d, ch=%d\n",
 	     band, bw, rf_path, rate, channel);
-	return RTW_MAX_POWER_INDEX;
+	return (s8)rtwdev->chip->max_power_index;
 }
 
 static u8
@@ -1785,22 +1787,25 @@ void rtw_phy_tx_power_limit_config(struct rtw_hal *hal)
 				__rtw_phy_tx_power_limit_config(hal, regd, bw, rs);
 }
 
-static void rtw_phy_init_tx_power_limit(struct rtw_hal *hal,
+static void rtw_phy_init_tx_power_limit(struct rtw_dev *rtwdev,
 					u8 regd, u8 bw, u8 rs)
 {
+	struct rtw_hal *hal = &rtwdev->hal;
+	s8 max_power_index = (s8)rtwdev->chip->max_power_index;
 	u8 ch;
 
 	/* 2.4G channels */
 	for (ch = 0; ch < RTW_MAX_CHANNEL_NUM_2G; ch++)
-		hal->tx_pwr_limit_2g[regd][bw][rs][ch] = RTW_MAX_POWER_INDEX;
+		hal->tx_pwr_limit_2g[regd][bw][rs][ch] = max_power_index;
 
 	/* 5G channels */
 	for (ch = 0; ch < RTW_MAX_CHANNEL_NUM_5G; ch++)
-		hal->tx_pwr_limit_5g[regd][bw][rs][ch] = RTW_MAX_POWER_INDEX;
+		hal->tx_pwr_limit_5g[regd][bw][rs][ch] = max_power_index;
 }
 
-void rtw_phy_init_tx_power(struct rtw_hal *hal)
+void rtw_phy_init_tx_power(struct rtw_dev *rtwdev)
 {
+	struct rtw_hal *hal = &rtwdev->hal;
 	u8 regd, path, rate, rs, bw;
 
 	/* init tx power by rate offset */
@@ -1815,5 +1820,6 @@ void rtw_phy_init_tx_power(struct rtw_hal *hal)
 	for (regd = 0; regd < RTW_REGD_MAX; regd++)
 		for (bw = 0; bw < RTW_CHANNEL_WIDTH_MAX; bw++)
 			for (rs = 0; rs < RTW_RATE_SECTION_MAX; rs++)
-				rtw_phy_init_tx_power_limit(hal, regd, bw, rs);
+				rtw_phy_init_tx_power_limit(rtwdev, regd, bw,
+							    rs);
 }
