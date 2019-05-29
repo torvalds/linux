@@ -74,6 +74,17 @@ struct clk * __init imx_obtain_fixed_clock(
 	return clk;
 }
 
+struct clk_hw * __init imx_obtain_fixed_clock_hw(
+			const char *name, unsigned long rate)
+{
+	struct clk *clk;
+
+	clk = imx_obtain_fixed_clock_from_dt(name);
+	if (IS_ERR(clk))
+		clk = imx_clk_fixed(name, rate);
+	return __clk_get_hw(clk);
+}
+
 struct clk_hw * __init imx_obtain_fixed_clk_hw(struct device_node *np,
 					       const char *name)
 {
