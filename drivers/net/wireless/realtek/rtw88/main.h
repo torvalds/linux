@@ -289,10 +289,16 @@ enum rtw_trx_desc_rate {
 };
 
 enum rtw_regulatory_domains {
-	RTW_REGD_FCC	= 0,
-	RTW_REGD_MKK	= 1,
-	RTW_REGD_ETSI	= 2,
-	RTW_REGD_WW	= 3,
+	RTW_REGD_FCC		= 0,
+	RTW_REGD_MKK		= 1,
+	RTW_REGD_ETSI		= 2,
+	RTW_REGD_IC		= 3,
+	RTW_REGD_KCC		= 4,
+	RTW_REGD_ACMA		= 5,
+	RTW_REGD_CHILE		= 6,
+	RTW_REGD_UKRAINE	= 7,
+	RTW_REGD_MEXICO		= 8,
+	RTW_REGD_WW,
 
 	RTW_REGD_MAX
 };
