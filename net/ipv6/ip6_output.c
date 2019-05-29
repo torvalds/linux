@@ -659,6 +659,103 @@ void ip6_fraglist_prepare(struct sk_buff *skb,
 }
 EXPORT_SYMBOL(ip6_fraglist_prepare);
 
+void ip6_frag_init(struct sk_buff *skb, unsigned int hlen, unsigned int mtu,
+		   unsigned short needed_tailroom, int hdr_room, u8 *prevhdr,
+		   u8 nexthdr, __be32 frag_id, struct ip6_frag_state *state)
+{
+	state->prevhdr = prevhdr;
+	state->nexthdr = nexthdr;
+	state->frag_id = frag_id;
+
+	state->hlen = hlen;
+	state->mtu = mtu;
+
+	state->left = skb->len - hlen;	/* Space per frame */
+	state->ptr = hlen;		/* Where to start from */
+
+	state->hroom = hdr_room;
+	state->troom = needed_tailroom;
+
+	state->offset = 0;
+}
+EXPORT_SYMBOL(ip6_frag_init);
+
+struct sk_buff *ip6_frag_next(struct sk_buff *skb, struct ip6_frag_state *state)
+{
+	u8 *prevhdr = state->prevhdr, *fragnexthdr_offset;
+	struct sk_buff *frag;
+	struct frag_hdr *fh;
+	unsigned int len;
+
+	len = state->left;
+	/* IF: it doesn't fit, use 'mtu' - the data space left */
+	if (len > state->mtu)
+		len = state->mtu;
+	/* IF: we are not sending up to and including the packet end
+	   then align the next start on an eight byte boundary */
+	if (len < state->left)
+		len &= ~7;
+
+	/* Allocate buffer */
+	frag = alloc_skb(len + state->hlen + sizeof(struct frag_hdr) +
+			 state->hroom + state->troom, GFP_ATOMIC);
+	if (!frag)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 *	Set up data on packet
+	 */
+
+	ip6_copy_metadata(frag, skb);
+	skb_reserve(frag, state->hroom);
+	skb_put(frag, len + state->hlen + sizeof(struct frag_hdr));
+	skb_reset_network_header(frag);
+	fh = (struct frag_hdr *)(skb_network_header(frag) + state->hlen);
+	frag->transport_header = (frag->network_header + state->hlen +
+				  sizeof(struct frag_hdr));
+
+	/*
+	 *	Charge the memory for the fragment to any owner
+	 *	it might possess
+	 */
+	if (skb->sk)
+		skb_set_owner_w(frag, skb->sk);
+
+	/*
+	 *	Copy the packet header into the new buffer.
+	 */
+	skb_copy_from_linear_data(skb, skb_network_header(frag), state->hlen);
+
+	fragnexthdr_offset = skb_network_header(frag);
+	fragnexthdr_offset += prevhdr - skb_network_header(skb);
+	*fragnexthdr_offset = NEXTHDR_FRAGMENT;
+
+	/*
+	 *	Build fragment header.
+	 */
+	fh->nexthdr = state->nexthdr;
+	fh->reserved = 0;
+	fh->identification = state->frag_id;
+
+	/*
+	 *	Copy a block of the IP datagram.
+	 */
+	BUG_ON(skb_copy_bits(skb, state->ptr, skb_transport_header(frag),
+			     len));
+	state->left -= len;
+
+	fh->frag_off = htons(state->offset);
+	if (state->left > 0)
+		fh->frag_off |= htons(IP6_MF);
+	ipv6_hdr(frag)->payload_len = htons(frag->len - sizeof(struct ipv6hdr));
+
+	state->ptr += len;
+	state->offset += len;
+
+	return frag;
+}
+EXPORT_SYMBOL(ip6_frag_next);
+
 int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		 int (*output)(struct net *, struct sock *, struct sk_buff *))
 {
@@ -666,11 +763,10 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	struct rt6_info *rt = (struct rt6_info *)skb_dst(skb);
 	struct ipv6_pinfo *np = skb->sk && !dev_recursion_level() ?
 				inet6_sk(skb->sk) : NULL;
-	struct frag_hdr *fh;
-	unsigned int mtu, hlen, left, len, nexthdr_offset;
-	int hroom, troom;
+	struct ip6_frag_state state;
+	unsigned int mtu, hlen, nexthdr_offset;
+	int hroom, err = 0;
 	__be32 frag_id;
-	int ptr, offset = 0, err = 0;
 	u8 *prevhdr, nexthdr = 0;
 
 	err = ip6_find_1stfragopt(skb, &prevhdr);
@@ -792,89 +888,24 @@ slow_path_clean:
 	}
 
 slow_path:
-	left = skb->len - hlen;		/* Space per frame */
-	ptr = hlen;			/* Where to start from */
-
 	/*
 	 *	Fragment the datagram.
 	 */
 
-	troom = rt->dst.dev->needed_tailroom;
+	ip6_frag_init(skb, hlen, mtu, rt->dst.dev->needed_tailroom,
+		      LL_RESERVED_SPACE(rt->dst.dev), prevhdr, nexthdr, frag_id,
+		      &state);
 
 	/*
 	 *	Keep copying data until we run out.
 	 */
-	while (left > 0)	{
-		u8 *fragnexthdr_offset;
 
-		len = left;
-		/* IF: it doesn't fit, use 'mtu' - the data space left */
-		if (len > mtu)
-			len = mtu;
-		/* IF: we are not sending up to and including the packet end
-		   then align the next start on an eight byte boundary */
-		if (len < left)	{
-			len &= ~7;
-		}
-
-		/* Allocate buffer */
-		frag = alloc_skb(len + hlen + sizeof(struct frag_hdr) +
-				 hroom + troom, GFP_ATOMIC);
-		if (!frag) {
-			err = -ENOMEM;
+	while (state.left > 0) {
+		frag = ip6_frag_next(skb, &state);
+		if (IS_ERR(frag)) {
+			err = PTR_ERR(frag);
 			goto fail;
 		}
-
-		/*
-		 *	Set up data on packet
-		 */
-
-		ip6_copy_metadata(frag, skb);
-		skb_reserve(frag, hroom);
-		skb_put(frag, len + hlen + sizeof(struct frag_hdr));
-		skb_reset_network_header(frag);
-		fh = (struct frag_hdr *)(skb_network_header(frag) + hlen);
-		frag->transport_header = (frag->network_header + hlen +
-					  sizeof(struct frag_hdr));
-
-		/*
-		 *	Charge the memory for the fragment to any owner
-		 *	it might possess
-		 */
-		if (skb->sk)
-			skb_set_owner_w(frag, skb->sk);
-
-		/*
-		 *	Copy the packet header into the new buffer.
-		 */
-		skb_copy_from_linear_data(skb, skb_network_header(frag), hlen);
-
-		fragnexthdr_offset = skb_network_header(frag);
-		fragnexthdr_offset += prevhdr - skb_network_header(skb);
-		*fragnexthdr_offset = NEXTHDR_FRAGMENT;
-
-		/*
-		 *	Build fragment header.
-		 */
-		fh->nexthdr = nexthdr;
-		fh->reserved = 0;
-		fh->identification = frag_id;
-
-		/*
-		 *	Copy a block of the IP datagram.
-		 */
-		BUG_ON(skb_copy_bits(skb, ptr, skb_transport_header(frag),
-				     len));
-		left -= len;
-
-		fh->frag_off = htons(offset);
-		if (left > 0)
-			fh->frag_off |= htons(IP6_MF);
-		ipv6_hdr(frag)->payload_len = htons(frag->len -
-						    sizeof(struct ipv6hdr));
-
-		ptr += len;
-		offset += len;
 
 		/*
 		 *	Put this fragment into the sending queue.
