@@ -8,6 +8,14 @@ use warnings;
 use strict;
 use Getopt::Long qw(:config no_auto_abbrev);
 
+# NOTE: only add things here when the file was gone, but the text wants
+# to mention a past documentation file, for example, to give credits for
+# the original work.
+my %false_positives = (
+	"Documentation/scsi/scsi_mid_low_api.txt" => "Documentation/Configure.help",
+	"drivers/vhost/vhost.c" => "Documentation/virtual/lguest/lguest.c",
+);
+
 my $scriptname = $0;
 $scriptname =~ s,.*/([^/]+/),$1,;
 
@@ -120,6 +128,11 @@ while (<IN>) {
 			my $path = $f;
 			$path =~ s,(.*)/.*,$1,;
 			next if (grep -e, glob("$path/$ref $path/$fulref"));
+		}
+
+		# Discard known false-positives
+		if (defined($false_positives{$f})) {
+			next if ($false_positives{$f} eq $fulref);
 		}
 
 		if ($fix) {
