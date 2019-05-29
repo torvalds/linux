@@ -222,6 +222,7 @@ static const struct ethtool_ops ipoib_ethtool_ops = {
 	.get_strings		= ipoib_get_strings,
 	.get_ethtool_stats	= ipoib_get_ethtool_stats,
 	.get_sset_count		= ipoib_get_sset_count,
+	.get_link		= ethtool_op_get_link,
 };
 
 void ipoib_set_ethtool_ops(struct net_device *dev)
