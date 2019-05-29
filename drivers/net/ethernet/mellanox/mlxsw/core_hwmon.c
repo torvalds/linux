@@ -214,38 +214,18 @@ static ssize_t mlxsw_hwmon_module_temp_show(struct device *dev,
 	struct mlxsw_hwmon_attr *mlwsw_hwmon_attr =
 			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
-	char mtbr_pl[MLXSW_REG_MTBR_LEN] = {0};
-	u16 temp;
+	char mtmp_pl[MLXSW_REG_MTMP_LEN];
+	unsigned int temp;
 	u8 module;
 	int err;
 
 	module = mlwsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
-	mlxsw_reg_mtbr_pack(mtbr_pl, MLXSW_REG_MTBR_BASE_MODULE_INDEX + module,
-			    1);
-	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtbr), mtbr_pl);
-	if (err) {
-		dev_err(dev, "Failed to query module temperature sensor\n");
+	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN + module,
+			    false, false);
+	err = mlxsw_reg_query(mlxsw_hwmon->core, MLXSW_REG(mtmp), mtmp_pl);
+	if (err)
 		return err;
-	}
-
-	mlxsw_reg_mtbr_temp_unpack(mtbr_pl, 0, &temp, NULL);
-	/* Update status and temperature cache. */
-	switch (temp) {
-	case MLXSW_REG_MTBR_NO_CONN: /* fall-through */
-	case MLXSW_REG_MTBR_NO_TEMP_SENS: /* fall-through */
-	case MLXSW_REG_MTBR_INDEX_NA:
-		temp = 0;
-		break;
-	case MLXSW_REG_MTBR_BAD_SENS_INFO:
-		/* Untrusted cable is connected. Reading temperature from its
-		 * sensor is faulty.
-		 */
-		temp = 0;
-		break;
-	default:
-		temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
-		break;
-	}
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
 
 	return sprintf(buf, "%u\n", temp);
 }
