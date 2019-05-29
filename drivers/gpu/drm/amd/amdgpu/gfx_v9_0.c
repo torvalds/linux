@@ -1794,9 +1794,7 @@ static int gfx_v9_0_sw_fini(void *handle)
 
 	gfx_v9_0_mec_fini(adev);
 	gfx_v9_0_ngg_fini(adev);
-	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj,
-				&adev->gfx.rlc.clear_state_gpu_addr,
-				(void **)&adev->gfx.rlc.cs_ptr);
+	amdgpu_bo_unref(&adev->gfx.rlc.clear_state_obj);
 	if (adev->asic_type == CHIP_RAVEN) {
 		amdgpu_bo_free_kernel(&adev->gfx.rlc.cp_table_obj,
 				&adev->gfx.rlc.cp_table_gpu_addr,
