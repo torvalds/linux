@@ -442,7 +442,7 @@ const char *sja1105_static_config_error_msg[] = {
 		"vl-forwarding-parameters-table.partspc.",
 };
 
-sja1105_config_valid_t
+static sja1105_config_valid_t
 static_config_check_memory_size(const struct sja1105_table *tables)
 {
 	const struct sja1105_l2_forwarding_params_entry *l2_fwd_params;
