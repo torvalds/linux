@@ -1752,7 +1752,7 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 	}
 
 	rpriv->netdev = netdev;
-	rep->rep_if[REP_ETH].priv = rpriv;
+	rep->rep_data[REP_ETH].priv = rpriv;
 	INIT_LIST_HEAD(&rpriv->vport_sqs_list);
 
 	if (rep->vport == MLX5_VPORT_UPLINK) {
@@ -1826,16 +1826,17 @@ static void *mlx5e_vport_rep_get_proto_dev(struct mlx5_eswitch_rep *rep)
 	return rpriv->netdev;
 }
 
+static const struct mlx5_eswitch_rep_ops rep_ops = {
+	.load = mlx5e_vport_rep_load,
+	.unload = mlx5e_vport_rep_unload,
+	.get_proto_dev = mlx5e_vport_rep_get_proto_dev
+};
+
 void mlx5e_rep_register_vport_reps(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_eswitch *esw = mdev->priv.eswitch;
-	struct mlx5_eswitch_rep_if rep_if = {};
 
-	rep_if.load = mlx5e_vport_rep_load;
-	rep_if.unload = mlx5e_vport_rep_unload;
-	rep_if.get_proto_dev = mlx5e_vport_rep_get_proto_dev;
-
-	mlx5_eswitch_register_vport_reps(esw, &rep_if, REP_ETH);
+	mlx5_eswitch_register_vport_reps(esw, &rep_ops, REP_ETH);
 }
 
 void mlx5e_rep_unregister_vport_reps(struct mlx5_core_dev *mdev)

@@ -173,6 +173,7 @@ struct mlx5_esw_offload {
 	struct mutex peer_mutex;
 	DECLARE_HASHTABLE(encap_tbl, 8);
 	DECLARE_HASHTABLE(mod_hdr_tbl, 8);
+	const struct mlx5_eswitch_rep_ops *rep_ops[NUM_REP_TYPES];
 	u8 inline_mode;
 	u64 num_flows;
 	u8 encap;

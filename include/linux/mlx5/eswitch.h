@@ -29,17 +29,19 @@ enum {
 };
 
 struct mlx5_eswitch_rep;
-struct mlx5_eswitch_rep_if {
-	int		       (*load)(struct mlx5_core_dev *dev,
-				       struct mlx5_eswitch_rep *rep);
-	void		       (*unload)(struct mlx5_eswitch_rep *rep);
-	void		       *(*get_proto_dev)(struct mlx5_eswitch_rep *rep);
-	void			*priv;
-	atomic_t		state;
+struct mlx5_eswitch_rep_ops {
+	int (*load)(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep);
+	void (*unload)(struct mlx5_eswitch_rep *rep);
+	void *(*get_proto_dev)(struct mlx5_eswitch_rep *rep);
+};
+
+struct mlx5_eswitch_rep_data {
+	void *priv;
+	atomic_t state;
 };
 
 struct mlx5_eswitch_rep {
-	struct mlx5_eswitch_rep_if rep_if[NUM_REP_TYPES];
+	struct mlx5_eswitch_rep_data rep_data[NUM_REP_TYPES];
 	u16		       vport;
 	u8		       hw_id[ETH_ALEN];
 	u16		       vlan;
@@ -47,7 +49,7 @@ struct mlx5_eswitch_rep {
 };
 
 void mlx5_eswitch_register_vport_reps(struct mlx5_eswitch *esw,
-				      struct mlx5_eswitch_rep_if *rep_if,
+				      const struct mlx5_eswitch_rep_ops *ops,
 				      u8 rep_type);
 void mlx5_eswitch_unregister_vport_reps(struct mlx5_eswitch *esw, u8 rep_type);
 void *mlx5_eswitch_get_proto_dev(struct mlx5_eswitch *esw,
