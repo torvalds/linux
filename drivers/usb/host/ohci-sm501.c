@@ -49,7 +49,7 @@ static const struct hc_driver ohci_sm501_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq =			ohci_irq,
-	.flags =		HCD_USB11 | HCD_MEMORY | HCD_LOCAL_MEM,
+	.flags =		HCD_USB11 | HCD_MEMORY,
 
 	/*
 	 * basic lifecycle operations
@@ -153,7 +153,8 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 	 * fine. This is however not always the case - buffers may be allocated
 	 * using kmalloc() - so the usb core needs to be told that it must copy
 	 * data into our local memory if the buffers happen to be placed in
-	 * regular memory. The HCD_LOCAL_MEM flag does just that.
+	 * regular memory. A non-null hcd->localmem_pool initialized by the
+	 * the call to usb_hcd_setup_local_mem() below does just that.
 	 */
 
 	if (usb_hcd_setup_local_mem(hcd, mem->start,
