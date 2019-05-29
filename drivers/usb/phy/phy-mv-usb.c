@@ -401,7 +401,6 @@ static void mv_otg_update_state(struct mv_otg *mvotg)
 static void mv_otg_work(struct work_struct *work)
 {
 	struct mv_otg *mvotg;
-	struct usb_phy *phy;
 	struct usb_otg *otg;
 	int old_state;
 
@@ -409,7 +408,6 @@ static void mv_otg_work(struct work_struct *work)
 
 run:
 	/* work queue is single thread, or we need spin_lock to protect */
-	phy = &mvotg->phy;
 	otg = mvotg->phy.otg;
 	old_state = otg->state;
 
