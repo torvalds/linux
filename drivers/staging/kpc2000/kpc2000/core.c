@@ -313,24 +313,24 @@ static long kp2000_cdev_ioctl(struct file *filp, unsigned int ioctl_num,
 	case KP2000_IOCTL_GET_PCIE_ERROR_REG:       return readq(pcard->sysinfo_regs_base + REG_PCIE_ERROR_COUNT);
 
 	case KP2000_IOCTL_GET_EVERYTHING: {
-		struct kp2000_regs temp;
+		struct kp2000_regs regs;
 		int ret;
 
-		memset(&temp, 0, sizeof(temp));
-		temp.card_id = pcard->card_id;
-		temp.build_version = pcard->build_version;
-		temp.build_datestamp = pcard->build_datestamp;
-		temp.build_timestamp = pcard->build_timestamp;
-		temp.hw_rev = pcard->hardware_revision;
-		temp.ssid = pcard->ssid;
-		temp.ddna = pcard->ddna;
-		temp.cpld_reg = readq(pcard->sysinfo_regs_base + REG_CPLD_CONFIG);
+		memset(&regs, 0, sizeof(regs));
+		regs.card_id = pcard->card_id;
+		regs.build_version = pcard->build_version;
+		regs.build_datestamp = pcard->build_datestamp;
+		regs.build_timestamp = pcard->build_timestamp;
+		regs.hw_rev = pcard->hardware_revision;
+		regs.ssid = pcard->ssid;
+		regs.ddna = pcard->ddna;
+		regs.cpld_reg = readq(pcard->sysinfo_regs_base + REG_CPLD_CONFIG);
 
-		ret = copy_to_user((void*)ioctl_param, (void*)&temp, sizeof(temp));
+		ret = copy_to_user((void*)ioctl_param, (void*)&regs, sizeof(regs));
 		if (ret)
 			return -EFAULT;
 
-		return sizeof(temp);
+		return sizeof(regs);
 		}
 
 	default:
