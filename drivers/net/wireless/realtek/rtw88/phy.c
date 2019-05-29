@@ -1603,40 +1603,51 @@ err:
 	return (s8)rtwdev->chip->max_power_index;
 }
 
-static u8
-rtw_phy_get_tx_power_index(struct rtw_dev *rtwdev, u8 rf_path, u8 rate,
-			   enum rtw_bandwidth bandwidth, u8 channel, u8 regd)
+void rtw_get_tx_power_params(struct rtw_dev *rtwdev, u8 path, u8 rate, u8 bw,
+			     u8 ch, u8 regd, struct rtw_power_params *pwr_param)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_txpwr_idx *pwr_idx;
-	u8 tx_power;
-	u8 group;
-	u8 band;
-	s8 offset, limit;
+	u8 group, band;
+	u8 *base = &pwr_param->pwr_base;
+	s8 *offset = &pwr_param->pwr_offset;
+	s8 *limit = &pwr_param->pwr_limit;
 
-	pwr_idx = &rtwdev->efuse.txpwr_idx_table[rf_path];
-	group = rtw_get_channel_group(channel);
+	pwr_idx = &rtwdev->efuse.txpwr_idx_table[path];
+	group = rtw_get_channel_group(ch);
 
 	/* base power index for 2.4G/5G */
-	if (channel <= 14) {
+	if (ch <= 14) {
 		band = PHY_BAND_2G;
-		tx_power = rtw_phy_get_2g_tx_power_index(rtwdev,
-							 &pwr_idx->pwr_idx_2g,
-							 bandwidth, rate, group);
-		offset = hal->tx_pwr_by_rate_offset_2g[rf_path][rate];
+		*base = rtw_phy_get_2g_tx_power_index(rtwdev,
+						      &pwr_idx->pwr_idx_2g,
+						      bw, rate, group);
+		*offset = hal->tx_pwr_by_rate_offset_2g[path][rate];
 	} else {
 		band = PHY_BAND_5G;
-		tx_power = rtw_phy_get_5g_tx_power_index(rtwdev,
-							 &pwr_idx->pwr_idx_5g,
-							 bandwidth, rate, group);
-		offset = hal->tx_pwr_by_rate_offset_5g[rf_path][rate];
+		*base = rtw_phy_get_5g_tx_power_index(rtwdev,
+						      &pwr_idx->pwr_idx_5g,
+						      bw, rate, group);
+		*offset = hal->tx_pwr_by_rate_offset_5g[path][rate];
 	}
 
-	limit = rtw_phy_get_tx_power_limit(rtwdev, band, bandwidth, rf_path,
-					   rate, channel, regd);
+	*limit = rtw_phy_get_tx_power_limit(rtwdev, band, bw, path,
+					    rate, ch, regd);
+}
 
-	if (offset > limit)
-		offset = limit;
+u8
+rtw_phy_get_tx_power_index(struct rtw_dev *rtwdev, u8 rf_path, u8 rate,
+			   enum rtw_bandwidth bandwidth, u8 channel, u8 regd)
+{
+	struct rtw_power_params pwr_param = {0};
+	u8 tx_power;
+	s8 offset;
+
+	rtw_get_tx_power_params(rtwdev, rf_path, rate, bandwidth,
+				channel, regd, &pwr_param);
+
+	tx_power = pwr_param.pwr_base;
+	offset = min_t(s8, pwr_param.pwr_offset, pwr_param.pwr_limit);
 
 	tx_power += offset;
 

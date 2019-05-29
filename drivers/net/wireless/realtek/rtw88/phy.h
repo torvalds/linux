@@ -105,6 +105,17 @@ static inline int rtw_check_supported_rfe(struct rtw_dev *rtwdev)
 
 void rtw_phy_dig_write(struct rtw_dev *rtwdev, u8 igi);
 
+struct rtw_power_params {
+	u8 pwr_base;
+	s8 pwr_offset;
+	s8 pwr_limit;
+};
+
+void
+rtw_get_tx_power_params(struct rtw_dev *rtwdev, u8 path,
+			u8 rate, u8 bw, u8 ch, u8 regd,
+			struct rtw_power_params *pwr_param);
+
 #define	MASKBYTE0		0xff
 #define	MASKBYTE1		0xff00
 #define	MASKBYTE2		0xff0000
