@@ -28,6 +28,7 @@
 #define ITCT_CLR_EN_MSK			(0x1 << ITCT_CLR_EN_OFF)
 #define ITCT_DEV_OFF			0
 #define ITCT_DEV_MSK			(0x7ff << ITCT_DEV_OFF)
+#define SAS_AXI_USER3			0x50
 #define IO_SATA_BROKEN_MSG_ADDR_LO	0x58
 #define IO_SATA_BROKEN_MSG_ADDR_HI	0x5c
 #define SATA_INITI_D2H_STORE_ADDR_LO	0x60
@@ -554,6 +555,7 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 	/* Global registers init */
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE,
 			 (u32)((1ULL << hisi_hba->queue_count) - 1));
+	hisi_sas_write32(hisi_hba, SAS_AXI_USER3, 0);
 	hisi_sas_write32(hisi_hba, CFG_MAX_TAG, 0xfff0400);
 	hisi_sas_write32(hisi_hba, HGC_SAS_TXFAIL_RETRY_CTRL, 0x108);
 	hisi_sas_write32(hisi_hba, CFG_AGING_TIME, 0x1);
