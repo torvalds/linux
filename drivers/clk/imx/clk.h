@@ -76,6 +76,9 @@ struct imx_pll14xx_clk {
 #define imx_clk_fixup_divider(name, parent, reg, shift, width, fixup) \
 	imx_clk_hw_fixup_divider(name, parent, reg, shift, width, fixup)->clk
 
+#define imx_clk_fixup_mux(name, reg, shift, width, parents, num_parents, fixup) \
+	imx_clk_hw_fixup_mux(name, reg, shift, width, parents, num_parents, fixup)->clk
+
 struct clk *imx_clk_pll14xx(const char *name, const char *parent_name,
 		 void __iomem *base, const struct imx_pll14xx_clk *pll_clk);
 
