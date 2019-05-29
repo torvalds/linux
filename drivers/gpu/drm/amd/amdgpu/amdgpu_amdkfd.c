@@ -668,6 +668,13 @@ bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid)
 	return false;
 }
 
+bool amdgpu_amdkfd_have_atomics_support(struct kgd_dev *kgd)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	return adev->have_atomics_support;
+}
+
 #ifndef CONFIG_HSA_AMD
 bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm)
 {

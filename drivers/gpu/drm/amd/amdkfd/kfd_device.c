@@ -504,17 +504,15 @@ struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
 	 * 32 and 64-bit requests are possible and must be
 	 * supported.
 	 */
-	ret = pci_enable_atomic_ops_to_root(pdev,
-			PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
-			PCI_EXP_DEVCAP2_ATOMIC_COMP64);
-	if (device_info->needs_pci_atomics && ret < 0) {
+	kfd->pci_atomic_requested = amdgpu_amdkfd_have_atomics_support(kgd);
+	if (device_info->needs_pci_atomics &&
+	    !kfd->pci_atomic_requested) {
 		dev_info(kfd_device,
 			 "skipped device %x:%x, PCI rejects atomics\n",
 			 pdev->vendor, pdev->device);
 		kfree(kfd);
 		return NULL;
-	} else if (!ret)
-		kfd->pci_atomic_requested = true;
+	}
 
 	kfd->kgd = kgd;
 	kfd->device_info = device_info;
