@@ -1244,8 +1244,6 @@ struct drm_connector {
 	 */
 	struct llist_node free_node;
 
-	/* HDR metdata */
-	struct hdr_output_metadata hdr_output_metadata;
 	struct hdr_sink_metadata hdr_sink_metadata;
 };
 
