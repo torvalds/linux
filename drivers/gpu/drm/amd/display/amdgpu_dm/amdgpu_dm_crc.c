@@ -30,6 +30,13 @@
 #include "amdgpu_dm.h"
 #include "dc.h"
 
+static const char *const pipe_crc_sources[] = {
+	"none",
+	"crtc",
+	"dprx",
+	"auto",
+};
+
 static enum amdgpu_dm_pipe_crc_source dm_parse_crc_source(const char *source)
 {
 	if (!source || !strcmp(source, "none"))
@@ -40,6 +47,13 @@ static enum amdgpu_dm_pipe_crc_source dm_parse_crc_source(const char *source)
 		return AMDGPU_DM_PIPE_CRC_SOURCE_DPRX;
 
 	return AMDGPU_DM_PIPE_CRC_SOURCE_INVALID;
+}
+
+const char *const *amdgpu_dm_crtc_get_crc_sources(struct drm_crtc *crtc,
+						  size_t *count)
+{
+	*count = ARRAY_SIZE(pipe_crc_sources);
+	return pipe_crc_sources;
 }
 
 int
