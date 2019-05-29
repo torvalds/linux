@@ -257,6 +257,11 @@ void swsusp_show_speed(ktime_t start, ktime_t stop,
 		(kps % 1000) / 10);
 }
 
+__weak int arch_resume_nosmt(void)
+{
+	return 0;
+}
+
 /**
  * create_image - Create a hibernation image.
  * @platform_mode: Whether or not to use the platform driver.
@@ -323,6 +328,10 @@ static int create_image(int platform_mode)
 
  Enable_cpus:
 	suspend_enable_secondary_cpus();
+
+	/* Allow architectures to do nosmt-specific post-resume dances */
+	if (!in_suspend)
+		error = arch_resume_nosmt();
 
  Platform_finish:
 	platform_finish(platform_mode);
