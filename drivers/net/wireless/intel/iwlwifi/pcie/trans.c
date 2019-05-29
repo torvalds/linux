@@ -3546,7 +3546,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 			hw_step |= ENABLE_WFPM;
 			iwl_write_umac_prph_no_grab(trans, WFPM_CTRL_REG,
 						    hw_step);
-			hw_step = iwl_read_prph_no_grab(trans, AUX_MISC_REG);
+			hw_step = iwl_read_prph_no_grab(trans,
+							CNVI_AUX_MISC_CHIP);
 			hw_step = (hw_step >> HW_STEP_LOCATION_BITS) & 0xF;
 			if (hw_step == 0x3)
 				trans->hw_rev = (trans->hw_rev & 0xFFFFFFF3) |
