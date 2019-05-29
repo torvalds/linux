@@ -38,6 +38,7 @@ my $min_version;
 
 my $pdf = 1;
 my $virtualenv = 1;
+my $version_check = 0;
 
 #
 # List of required texlive packages on Fedora and OpenSuse
@@ -277,20 +278,22 @@ sub check_sphinx()
 
 	die "$sphinx didn't return its version" if (!$cur_version);
 
-	printf "Sphinx version %s (minimal: %s, recommended >= %s)\n",
-		$cur_version, $min_version, $rec_version;
-
 	if ($cur_version lt $min_version) {
-		print "Warning: Sphinx version should be >= $min_version\n\n";
+		printf "ERROR: Sphinx version is %s. It should be >= %s (recommended >= %s)\n",
+		       $cur_version, $min_version, $rec_version;;
 		$need_sphinx = 1;
 		return;
 	}
 
 	if ($cur_version lt $rec_version) {
+		printf "Sphinx version %s\n", $cur_version;
 		print "Warning: It is recommended at least Sphinx version $rec_version.\n";
-		print "         To upgrade, use:\n\n";
 		$rec_sphinx_upgrade = 1;
+		return;
 	}
+
+	# On version check mode, just assume Sphinx has all mandatory deps
+	exit (0) if ($version_check);
 }
 
 #
@@ -575,14 +578,18 @@ sub check_distros()
 
 sub check_needs()
 {
-	if ($system_release) {
-		print "Detected OS: $system_release.\n";
-	} else {
-		print "Unknown OS\n";
-	}
-
 	# Check for needed programs/tools
 	check_sphinx();
+
+	if ($system_release) {
+		print "Detected OS: $system_release.\n\n";
+	} else {
+		print "Unknown OS\n\n";
+	}
+
+	print "To upgrade Sphinx, use:\n\n" if ($rec_sphinx_upgrade);
+
+	# Check for needed programs/tools
 	check_perl_module("Pod::Usage", 0);
 	check_program("make", 0);
 	check_program("gcc", 0);
@@ -601,13 +608,14 @@ sub check_needs()
 	}
 	if ($need_sphinx || $rec_sphinx_upgrade) {
 		my $min_activate = "$ENV{'PWD'}/${virtenv_prefix}${min_version}/bin/activate";
-                my @activates = glob "$ENV{'PWD'}/${virtenv_prefix}*/bin/activate";
+		my @activates = glob "$ENV{'PWD'}/${virtenv_prefix}*/bin/activate";
 
-                @activates = sort {$b cmp $a} @activates;
+		@activates = sort {$b cmp $a} @activates;
 
-		if (scalar @activates > 0 && $activates[0] ge $min_activate) {
-			printf "\nNeed to activate virtualenv with:\n";
+		if ($need_sphinx && scalar @activates > 0 && $activates[0] ge $min_activate) {
+			printf "\nNeed to activate a compatible Sphinx version on virtualenv with:\n";
 			printf "\t. $activates[0]\n";
+			exit (1);
 		} else {
 			my $rec_activate = "$virtenv_dir/bin/activate";
 			my $virtualenv = findprog("virtualenv-3");
@@ -646,8 +654,14 @@ while (@ARGV) {
 		$virtualenv = 0;
 	} elsif ($arg eq "--no-pdf"){
 		$pdf = 0;
+	} elsif ($arg eq "--version-check"){
+		$version_check = 1;
 	} else {
-		print "Usage:\n\t$0 <--no-virtualenv> <--no-pdf>\n\n";
+		print "Usage:\n\t$0 <--no-virtualenv> <--no-pdf> <--version-check>\n\n";
+		print "Where:\n";
+		print "\t--no-virtualenv\t- Recommend installing Sphinx instead of using a virtualenv\n";
+		print "\t--version-check\t- if version is compatible, don't check for missing dependencies\n";
+		print "\t--no-pdf\t- don't check for dependencies required to build PDF docs\n\n";
 		exit -1;
 	}
 }
