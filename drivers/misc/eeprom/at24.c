@@ -511,13 +511,11 @@ static int at24_make_dummy_client(struct at24_data *at24, unsigned int index,
 				  struct regmap_config *regmap_config)
 {
 	struct i2c_client *base_client, *dummy_client;
-	unsigned short int addr;
 	struct regmap *regmap;
 	struct device *dev;
 
 	base_client = at24->client[0].client;
 	dev = &base_client->dev;
-	addr = base_client->addr + index;
 
 	dummy_client = devm_i2c_new_dummy_device(dev, base_client->adapter,
 						 base_client->addr + index);
