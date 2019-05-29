@@ -385,12 +385,8 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
  * @hdev: habanalabs device structure.
  *
  * This function does the following:
- * - Allocate max_asid zeroed hop0 pgts so no mapping is available.
- * - Enable MMU in H/W.
- * - Invalidate the MMU cache.
  * - Create a pool of pages for pgt_infos.
- *
- * This function depends on DMA QMAN to be working!
+ * - Create a shadow table for pgt
  *
  * Return: 0 for success, non-zero for failure.
  */

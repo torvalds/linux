@@ -745,6 +745,7 @@ again:
 
 	if (hard_reset) {
 		hl_vm_fini(hdev);
+		hl_mmu_fini(hdev);
 		hl_eq_reset(hdev, &hdev->event_queue);
 	}
 
@@ -769,6 +770,13 @@ again:
 			dev_crit(hdev->dev,
 				"kernel ctx was alive during hard reset, something is terribly wrong\n");
 			rc = -EBUSY;
+			goto out_err;
+		}
+
+		rc = hl_mmu_init(hdev);
+		if (rc) {
+			dev_err(hdev->dev,
+				"Failed to initialize MMU S/W after hard reset\n");
 			goto out_err;
 		}
 
@@ -943,11 +951,18 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto cq_fini;
 	}
 
+	/* MMU S/W must be initialized before kernel context is created */
+	rc = hl_mmu_init(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to initialize MMU S/W structures\n");
+		goto eq_fini;
+	}
+
 	/* Allocate the kernel context */
 	hdev->kernel_ctx = kzalloc(sizeof(*hdev->kernel_ctx), GFP_KERNEL);
 	if (!hdev->kernel_ctx) {
 		rc = -ENOMEM;
-		goto eq_fini;
+		goto mmu_fini;
 	}
 
 	hdev->user_ctx = NULL;
@@ -995,8 +1010,6 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto out_disabled;
 	}
 
-	/* After test_queues, KMD can start sending messages to device CPU */
-
 	rc = device_late_init(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "Failed late initialization\n");
@@ -1042,6 +1055,8 @@ release_ctx:
 			"kernel ctx is still alive on initialization failure\n");
 free_ctx:
 	kfree(hdev->kernel_ctx);
+mmu_fini:
+	hl_mmu_fini(hdev);
 eq_fini:
 	hl_eq_fini(hdev, &hdev->event_queue);
 cq_fini:
@@ -1145,6 +1160,8 @@ void hl_device_fini(struct hl_device *hdev)
 	hdev->asic_funcs->hw_fini(hdev, true);
 
 	hl_vm_fini(hdev);
+
+	hl_mmu_fini(hdev);
 
 	hl_eq_fini(hdev, &hdev->event_queue);
 
