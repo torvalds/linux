@@ -21,7 +21,7 @@
 #include <linux/export.h>
 #include <linux/log2.h>
 
-#include <nal-h264.h>
+#include "nal-h264.h"
 
 /*
  * See Rec. ITU-T H.264 (04/2017) Table 7-1 – NAL unit type codes, syntax
