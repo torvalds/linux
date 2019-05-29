@@ -4105,7 +4105,7 @@ static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
 	}
 }
 
-static void r8168_pll_power_down(struct rtl8169_private *tp)
+static void rtl_pll_power_down(struct rtl8169_private *tp)
 {
 	if (r8168_check_dash(tp))
 		return;
@@ -4145,7 +4145,7 @@ static void r8168_pll_power_down(struct rtl8169_private *tp)
 	}
 }
 
-static void r8168_pll_power_up(struct rtl8169_private *tp)
+static void rtl_pll_power_up(struct rtl8169_private *tp)
 {
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_33:
@@ -4176,28 +4176,6 @@ static void r8168_pll_power_up(struct rtl8169_private *tp)
 	phy_resume(tp->phydev);
 	/* give MAC/PHY some time to resume */
 	msleep(20);
-}
-
-static void rtl_pll_power_down(struct rtl8169_private *tp)
-{
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_02 ... RTL_GIGA_MAC_VER_06:
-	case RTL_GIGA_MAC_VER_13 ... RTL_GIGA_MAC_VER_15:
-		break;
-	default:
-		r8168_pll_power_down(tp);
-	}
-}
-
-static void rtl_pll_power_up(struct rtl8169_private *tp)
-{
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_02 ... RTL_GIGA_MAC_VER_06:
-	case RTL_GIGA_MAC_VER_13 ... RTL_GIGA_MAC_VER_15:
-		break;
-	default:
-		r8168_pll_power_up(tp);
-	}
 }
 
 static void rtl_init_rxcfg(struct rtl8169_private *tp)
