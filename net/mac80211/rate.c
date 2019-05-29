@@ -892,10 +892,10 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 		info->control.rates[i].count = 0;
 	}
 
-	if (ieee80211_hw_check(&sdata->local->hw, HAS_RATE_CONTROL))
+	if (rate_control_send_low(sta ? &sta->sta : NULL, txrc))
 		return;
 
-	if (rate_control_send_low(sta ? &sta->sta : NULL, txrc))
+	if (ieee80211_hw_check(&sdata->local->hw, HAS_RATE_CONTROL))
 		return;
 
 	if (sta && test_sta_flag(sta, WLAN_STA_RATE_CONTROL)) {
