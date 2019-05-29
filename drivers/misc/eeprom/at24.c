@@ -566,7 +566,6 @@ static int at24_probe(struct i2c_client *client)
 	unsigned int i, num_addresses;
 	struct at24_data *at24;
 	struct regmap *regmap;
-	size_t at24_size;
 	bool writable;
 	u8 test_byte;
 	int err;
@@ -650,8 +649,8 @@ static int at24_probe(struct i2c_client *client)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	at24_size = sizeof(*at24) + num_addresses * sizeof(struct at24_client);
-	at24 = devm_kzalloc(dev, at24_size, GFP_KERNEL);
+	at24 = devm_kzalloc(dev, struct_size(at24, client, num_addresses),
+			    GFP_KERNEL);
 	if (!at24)
 		return -ENOMEM;
 
