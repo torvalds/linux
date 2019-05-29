@@ -28,10 +28,7 @@ unsigned int  count_pages(unsigned long iov_base, size_t iov_len)
 static inline
 unsigned int  count_parts_for_sge(struct scatterlist *sg)
 {
-	unsigned int sg_length = sg_dma_len(sg);
-
-	sg_length += (0x80000-1);
-	return (sg_length / 0x80000);
+	return DIV_ROUND_UP(sg_dma_len(sg), 0x80000);
 }
 
 /**********  Transfer Helpers  **********/
