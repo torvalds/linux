@@ -1139,7 +1139,7 @@ struct cap_msg_args {
 	u64			flush_tid, oldest_flush_tid, size, max_size;
 	u64			xattr_version;
 	struct ceph_buffer	*xattr_buf;
-	struct timespec64	atime, mtime, ctime;
+	struct timespec64	atime, mtime, ctime, btime;
 	int			op, caps, wanted, dirty;
 	u32			seq, issue_seq, mseq, time_warp_seq;
 	u32			flags;
@@ -1160,7 +1160,6 @@ static int send_cap_msg(struct cap_msg_args *arg)
 	struct ceph_msg *msg;
 	void *p;
 	size_t extra_len;
-	struct timespec64 zerotime = {0};
 	struct ceph_osd_client *osdc = &arg->session->s_mdsc->fsc->client->osdc;
 
 	dout("send_cap_msg %s %llx %llx caps %s wanted %s dirty %s"
@@ -1251,7 +1250,7 @@ static int send_cap_msg(struct cap_msg_args *arg)
 	 * We just zero these out for now, as the MDS ignores them unless
 	 * the requisite feature flags are set (which we don't do yet).
 	 */
-	ceph_encode_timespec64(p, &zerotime);
+	ceph_encode_timespec64(p, &arg->btime);
 	p += sizeof(struct ceph_timespec);
 	ceph_encode_64(&p, 0);
 
@@ -1379,6 +1378,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	arg.mtime = inode->i_mtime;
 	arg.atime = inode->i_atime;
 	arg.ctime = inode->i_ctime;
+	arg.btime = ci->i_btime;
 
 	arg.op = op;
 	arg.caps = cap->implemented;
@@ -1438,6 +1438,7 @@ static inline int __send_flush_snap(struct inode *inode,
 	arg.atime = capsnap->atime;
 	arg.mtime = capsnap->mtime;
 	arg.ctime = capsnap->ctime;
+	arg.btime = capsnap->btime;
 
 	arg.op = CEPH_CAP_OP_FLUSHSNAP;
 	arg.caps = capsnap->issued;
@@ -3044,6 +3045,7 @@ struct cap_extra_info {
 	u64 nsubdirs;
 	/* currently issued */
 	int issued;
+	struct timespec64 btime;
 };
 
 /*
@@ -3130,6 +3132,7 @@ static void handle_cap_grant(struct inode *inode,
 		inode->i_mode = le32_to_cpu(grant->mode);
 		inode->i_uid = make_kuid(&init_user_ns, le32_to_cpu(grant->uid));
 		inode->i_gid = make_kgid(&init_user_ns, le32_to_cpu(grant->gid));
+		ci->i_btime = extra_info->btime;
 		dout("%p mode 0%o uid.gid %d.%d\n", inode, inode->i_mode,
 		     from_kuid(&init_user_ns, inode->i_uid),
 		     from_kgid(&init_user_ns, inode->i_gid));
@@ -3851,17 +3854,20 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		}
 	}
 
-	if (msg_version >= 11) {
+	if (msg_version >= 9) {
 		struct ceph_timespec *btime;
 		u64 change_attr;
-		u32 flags;
 
-		/* version >= 9 */
 		if (p + sizeof(*btime) > end)
 			goto bad;
 		btime = p;
+		ceph_decode_timespec64(&extra_info.btime, btime);
 		p += sizeof(*btime);
 		ceph_decode_64_safe(&p, end, change_attr, bad);
+	}
+
+	if (msg_version >= 11) {
+		u32 flags;
 		/* version >= 10 */
 		ceph_decode_32_safe(&p, end, flags, bad);
 		/* version >= 11 */

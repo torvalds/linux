@@ -606,6 +606,7 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 	capsnap->mtime = inode->i_mtime;
 	capsnap->atime = inode->i_atime;
 	capsnap->ctime = inode->i_ctime;
+	capsnap->btime = ci->i_btime;
 	capsnap->time_warp_seq = ci->i_time_warp_seq;
 	capsnap->truncate_size = ci->i_truncate_size;
 	capsnap->truncate_seq = ci->i_truncate_seq;
