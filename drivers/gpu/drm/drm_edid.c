@@ -4570,7 +4570,7 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 	 * extensions which tell otherwise.
 	 */
 	if ((info->bpc == 0) && (edid->revision < 4) &&
-	    (edid->input & DRM_EDID_DIGITAL_TYPE_DVI)) {
+	    (edid->input & DRM_EDID_DIGITAL_DFP_1_X)) {
 		info->bpc = 8;
 		DRM_DEBUG("%s: Assigning DFP sink color depth as %d bpc.\n",
 			  connector->name, info->bpc);
