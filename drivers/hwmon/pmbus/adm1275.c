@@ -14,6 +14,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
+#include <linux/log2.h>
 #include "pmbus.h"
 
 enum chips { adm1075, adm1272, adm1275, adm1276, adm1278, adm1293, adm1294 };
@@ -68,6 +70,10 @@ enum chips { adm1075, adm1272, adm1275, adm1276, adm1278, adm1293, adm1294 };
 
 #define ADM1075_VAUX_OV_WARN		BIT(7)
 #define ADM1075_VAUX_UV_WARN		BIT(6)
+
+#define ADM1275_PWR_AVG_MASK		GENMASK(13, 11)
+#define ADM1275_VI_AVG_MASK		GENMASK(10, 8)
+#define ADM1275_SAMPLES_AVG_MAX	128
 
 struct adm1275_data {
 	int id;
@@ -155,6 +161,32 @@ static const struct coefficients adm1293_coefficients[] = {
 	[18] = { 7658, 0, -3 },		/* power, 21V, irange200 */
 };
 
+static inline int adm1275_read_pmon_config(struct i2c_client *client, u16 mask)
+{
+	int ret;
+
+	ret = i2c_smbus_read_word_data(client, ADM1275_PMON_CONFIG);
+	if (ret < 0)
+		return ret;
+
+	return FIELD_GET(mask, (u16)ret);
+}
+
+static inline int adm1275_write_pmon_config(struct i2c_client *client, u16 mask,
+					    u16 word)
+{
+	int ret;
+
+	ret = i2c_smbus_read_word_data(client, ADM1275_PMON_CONFIG);
+	if (ret < 0)
+		return ret;
+
+	word = FIELD_PREP(mask, word) | (ret & ~mask);
+	ret = i2c_smbus_write_word_data(client, ADM1275_PMON_CONFIG, word);
+
+	return ret;
+}
+
 static int adm1275_read_word_data(struct i2c_client *client, int page, int reg)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
@@ -233,6 +265,19 @@ static int adm1275_read_word_data(struct i2c_client *client, int page, int reg)
 		if (!data->have_temp_max)
 			return -ENXIO;
 		break;
+	case PMBUS_VIRT_POWER_SAMPLES:
+		ret = adm1275_read_pmon_config(client, ADM1275_PWR_AVG_MASK);
+		if (ret < 0)
+			break;
+		ret = BIT(ret);
+		break;
+	case PMBUS_VIRT_IN_SAMPLES:
+	case PMBUS_VIRT_CURR_SAMPLES:
+		ret = adm1275_read_pmon_config(client, ADM1275_VI_AVG_MASK);
+		if (ret < 0)
+			break;
+		ret = BIT(ret);
+		break;
 	default:
 		ret = -ENODATA;
 		break;
@@ -276,6 +321,17 @@ static int adm1275_write_word_data(struct i2c_client *client, int page, int reg,
 		break;
 	case PMBUS_VIRT_RESET_TEMP_HISTORY:
 		ret = pmbus_write_word_data(client, 0, ADM1278_PEAK_TEMP, 0);
+		break;
+	case PMBUS_VIRT_POWER_SAMPLES:
+		word = clamp_val(word, 1, ADM1275_SAMPLES_AVG_MAX);
+		ret = adm1275_write_pmon_config(client, ADM1275_PWR_AVG_MASK,
+						ilog2(word));
+		break;
+	case PMBUS_VIRT_IN_SAMPLES:
+	case PMBUS_VIRT_CURR_SAMPLES:
+		word = clamp_val(word, 1, ADM1275_SAMPLES_AVG_MAX);
+		ret = adm1275_write_pmon_config(client, ADM1275_VI_AVG_MASK,
+						ilog2(word));
 		break;
 	default:
 		ret = -ENODATA;
@@ -430,7 +486,8 @@ static int adm1275_probe(struct i2c_client *client,
 	info->format[PSC_CURRENT_OUT] = direct;
 	info->format[PSC_POWER] = direct;
 	info->format[PSC_TEMPERATURE] = direct;
-	info->func[0] = PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT;
+	info->func[0] = PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
+			PMBUS_HAVE_SAMPLES;
 
 	info->read_word_data = adm1275_read_word_data;
 	info->read_byte_data = adm1275_read_byte_data;
