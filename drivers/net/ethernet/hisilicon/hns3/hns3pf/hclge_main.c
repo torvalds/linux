@@ -2427,7 +2427,8 @@ static void hclge_mbx_task_schedule(struct hclge_dev *hdev)
 
 static void hclge_reset_task_schedule(struct hclge_dev *hdev)
 {
-	if (!test_and_set_bit(HCLGE_STATE_RST_SERVICE_SCHED, &hdev->state))
+	if (!test_bit(HCLGE_STATE_REMOVING, &hdev->state) &&
+	    !test_and_set_bit(HCLGE_STATE_RST_SERVICE_SCHED, &hdev->state))
 		schedule_work(&hdev->rst_service_task);
 }
 
@@ -2873,6 +2874,10 @@ int hclge_notify_client(struct hclge_dev *hdev,
 	struct hnae3_client *client = hdev->nic_client;
 	u16 i;
 
+	if (!test_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state) ||
+	    !client)
+		return 0;
+
 	if (!client->ops->reset_notify)
 		return -EOPNOTSUPP;
 
@@ -2898,7 +2903,8 @@ static int hclge_notify_roce_client(struct hclge_dev *hdev,
 	int ret = 0;
 	u16 i;
 
-	if (!client)
+	if (!test_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state) ||
+	    !client)
 		return 0;
 
 	if (!client->ops->reset_notify)
@@ -3192,6 +3198,8 @@ static int hclge_reset_prepare_down(struct hclge_dev *hdev)
 
 static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 {
+#define HCLGE_RESET_SYNC_TIME 100
+
 	u32 reg_val;
 	int ret = 0;
 
@@ -3200,7 +3208,7 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		/* There is no mechanism for PF to know if VF has stopped IO
 		 * for now, just wait 100 ms for VF to stop IO
 		 */
-		msleep(100);
+		msleep(HCLGE_RESET_SYNC_TIME);
 		ret = hclge_func_reset_cmd(hdev, 0);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
@@ -3220,7 +3228,7 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		/* There is no mechanism for PF to know if VF has stopped IO
 		 * for now, just wait 100 ms for VF to stop IO
 		 */
-		msleep(100);
+		msleep(HCLGE_RESET_SYNC_TIME);
 		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
 		set_bit(HNAE3_FLR_DOWN, &hdev->flr_state);
 		hdev->rst_stats.flr_rst_cnt++;
@@ -3234,6 +3242,10 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 		break;
 	}
 
+	/* inform hardware that preparatory work is done */
+	msleep(HCLGE_RESET_SYNC_TIME);
+	hclge_write_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG,
+			HCLGE_NIC_CMQ_ENABLE);
 	dev_info(&hdev->pdev->dev, "prepare wait ok\n");
 
 	return ret;
@@ -5682,7 +5694,6 @@ static void hclge_fd_build_arfs_rule(const struct hclge_fd_rule_tuples *tuples,
 static int hclge_add_fd_entry_by_arfs(struct hnae3_handle *handle, u16 queue_id,
 				      u16 flow_id, struct flow_keys *fkeys)
 {
-#ifdef CONFIG_RFS_ACCEL
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_fd_rule_tuples new_tuples;
 	struct hclge_dev *hdev = vport->back;
@@ -5758,7 +5769,6 @@ static int hclge_add_fd_entry_by_arfs(struct hnae3_handle *handle, u16 queue_id,
 	}
 
 	return rule->location;
-#endif
 }
 
 static void hclge_rfs_filter_expire(struct hclge_dev *hdev)
@@ -8166,6 +8176,52 @@ static void hclge_info_show(struct hclge_dev *hdev)
 	dev_info(dev, "PF info end.\n");
 }
 
+static int hclge_init_nic_client_instance(struct hnae3_ae_dev *ae_dev,
+					  struct hclge_vport *vport)
+{
+	struct hnae3_client *client = vport->nic.client;
+	struct hclge_dev *hdev = ae_dev->priv;
+	int ret;
+
+	ret = client->ops->init_instance(&vport->nic);
+	if (ret)
+		return ret;
+
+	set_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state);
+	hnae3_set_client_init_flag(client, ae_dev, 1);
+
+	if (netif_msg_drv(&hdev->vport->nic))
+		hclge_info_show(hdev);
+
+	return 0;
+}
+
+static int hclge_init_roce_client_instance(struct hnae3_ae_dev *ae_dev,
+					   struct hclge_vport *vport)
+{
+	struct hnae3_client *client = vport->roce.client;
+	struct hclge_dev *hdev = ae_dev->priv;
+	int ret;
+
+	if (!hnae3_dev_roce_supported(hdev) || !hdev->roce_client ||
+	    !hdev->nic_client)
+		return 0;
+
+	client = hdev->roce_client;
+	ret = hclge_init_roce_base_info(vport);
+	if (ret)
+		return ret;
+
+	ret = client->ops->init_instance(&vport->roce);
+	if (ret)
+		return ret;
+
+	set_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state);
+	hnae3_set_client_init_flag(client, ae_dev, 1);
+
+	return 0;
+}
+
 static int hclge_init_client_instance(struct hnae3_client *client,
 				      struct hnae3_ae_dev *ae_dev)
 {
@@ -8181,30 +8237,13 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 
 			hdev->nic_client = client;
 			vport->nic.client = client;
-			ret = client->ops->init_instance(&vport->nic);
+			ret = hclge_init_nic_client_instance(ae_dev, vport);
 			if (ret)
 				goto clear_nic;
 
-			hnae3_set_client_init_flag(client, ae_dev, 1);
-
-			if (netif_msg_drv(&hdev->vport->nic))
-				hclge_info_show(hdev);
-
-			if (hdev->roce_client &&
-			    hnae3_dev_roce_supported(hdev)) {
-				struct hnae3_client *rc = hdev->roce_client;
-
-				ret = hclge_init_roce_base_info(vport);
-				if (ret)
-					goto clear_roce;
-
-				ret = rc->ops->init_instance(&vport->roce);
-				if (ret)
-					goto clear_roce;
-
-				hnae3_set_client_init_flag(hdev->roce_client,
-							   ae_dev, 1);
-			}
+			ret = hclge_init_roce_client_instance(ae_dev, vport);
+			if (ret)
+				goto clear_roce;
 
 			break;
 		case HNAE3_CLIENT_UNIC:
@@ -8224,17 +8263,9 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 				vport->roce.client = client;
 			}
 
-			if (hdev->roce_client && hdev->nic_client) {
-				ret = hclge_init_roce_base_info(vport);
-				if (ret)
-					goto clear_roce;
-
-				ret = client->ops->init_instance(&vport->roce);
-				if (ret)
-					goto clear_roce;
-
-				hnae3_set_client_init_flag(client, ae_dev, 1);
-			}
+			ret = hclge_init_roce_client_instance(ae_dev, vport);
+			if (ret)
+				goto clear_roce;
 
 			break;
 		default:
@@ -8264,6 +8295,7 @@ static void hclge_uninit_client_instance(struct hnae3_client *client,
 	for (i = 0; i < hdev->num_vmdq_vport + 1; i++) {
 		vport = &hdev->vport[i];
 		if (hdev->roce_client) {
+			clear_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state);
 			hdev->roce_client->ops->uninit_instance(&vport->roce,
 								0);
 			hdev->roce_client = NULL;
@@ -8272,6 +8304,7 @@ static void hclge_uninit_client_instance(struct hnae3_client *client,
 		if (client->type == HNAE3_CLIENT_ROCE)
 			return;
 		if (hdev->nic_client && client->ops->uninit_instance) {
+			clear_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state);
 			client->ops->uninit_instance(&vport->nic, 0);
 			hdev->nic_client = NULL;
 			vport->nic.client = NULL;
@@ -8353,6 +8386,7 @@ static void hclge_state_init(struct hclge_dev *hdev)
 static void hclge_state_uninit(struct hclge_dev *hdev)
 {
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
+	set_bit(HCLGE_STATE_REMOVING, &hdev->state);
 
 	if (hdev->service_timer.function)
 		del_timer_sync(&hdev->service_timer);
