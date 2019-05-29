@@ -1684,6 +1684,30 @@ nbd_device_policy[NBD_DEVICE_ATTR_MAX + 1] = {
 	[NBD_DEVICE_CONNECTED]		=	{ .type = NLA_U8 },
 };
 
+static int nbd_genl_size_set(struct genl_info *info, struct nbd_device *nbd)
+{
+	struct nbd_config *config = nbd->config;
+	u64 bsize = config->blksize;
+	u64 bytes = config->bytesize;
+
+	if (info->attrs[NBD_ATTR_SIZE_BYTES])
+		bytes = nla_get_u64(info->attrs[NBD_ATTR_SIZE_BYTES]);
+
+	if (info->attrs[NBD_ATTR_BLOCK_SIZE_BYTES]) {
+		bsize = nla_get_u64(info->attrs[NBD_ATTR_BLOCK_SIZE_BYTES]);
+		if (!bsize)
+			bsize = NBD_DEF_BLKSIZE;
+		if (!nbd_is_valid_blksize(bsize)) {
+			printk(KERN_ERR "Invalid block size %llu\n", bsize);
+			return -EINVAL;
+		}
+	}
+
+	if (bytes != config->bytesize || bsize != config->blksize)
+		nbd_size_set(nbd, bsize, div64_u64(bytes, bsize));
+	return 0;
+}
+
 static int nbd_genl_connect(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nbd_device *nbd = NULL;
@@ -1771,22 +1795,10 @@ again:
 	refcount_set(&nbd->config_refs, 1);
 	set_bit(NBD_BOUND, &config->runtime_flags);
 
-	if (info->attrs[NBD_ATTR_SIZE_BYTES]) {
-		u64 bytes = nla_get_u64(info->attrs[NBD_ATTR_SIZE_BYTES]);
-		nbd_size_set(nbd, config->blksize,
-			     div64_u64(bytes, config->blksize));
-	}
-	if (info->attrs[NBD_ATTR_BLOCK_SIZE_BYTES]) {
-		u64 bsize =
-			nla_get_u64(info->attrs[NBD_ATTR_BLOCK_SIZE_BYTES]);
-		if (!bsize)
-			bsize = NBD_DEF_BLKSIZE;
-		if (!nbd_is_valid_blksize(bsize)) {
-			ret = -EINVAL;
-			goto out;
-		}
-		nbd_size_set(nbd, bsize, div64_u64(config->bytesize, bsize));
-	}
+	ret = nbd_genl_size_set(info, nbd);
+	if (ret)
+		goto out;
+
 	if (info->attrs[NBD_ATTR_TIMEOUT]) {
 		u64 timeout = nla_get_u64(info->attrs[NBD_ATTR_TIMEOUT]);
 		nbd->tag_set.timeout = timeout * HZ;
@@ -1954,6 +1966,10 @@ static int nbd_genl_reconfigure(struct sk_buff *skb, struct genl_info *info)
 		ret = -EINVAL;
 		goto out;
 	}
+
+	ret = nbd_genl_size_set(info, nbd);
+	if (ret)
+		goto out;
 
 	if (info->attrs[NBD_ATTR_TIMEOUT]) {
 		u64 timeout = nla_get_u64(info->attrs[NBD_ATTR_TIMEOUT]);
