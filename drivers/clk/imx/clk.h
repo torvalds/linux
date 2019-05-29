@@ -56,6 +56,9 @@ struct imx_pll14xx_clk {
 #define imx_clk_busy_mux(name, reg, shift, width, busy_reg, busy_shift, parent_names, num_parents) \
 	imx_clk_hw_busy_mux(name, reg, shift, width, busy_reg, busy_shift, parent_names, num_parents)->clk
 
+#define imx_clk_cpu(name, parent_name, div, mux, pll, step) \
+	imx_clk_hw_cpu(name, parent_name, div, mux, pll, step)->clk
+
 struct clk *imx_clk_pll14xx(const char *name, const char *parent_name,
 		 void __iomem *base, const struct imx_pll14xx_clk *pll_clk);
 
@@ -384,7 +387,7 @@ static inline struct clk_hw *imx_clk_hw_mux_flags(const char *name,
 				   reg, shift, width, 0, &imx_ccm_lock);
 }
 
-struct clk *imx_clk_cpu(const char *name, const char *parent_name,
+struct clk_hw *imx_clk_hw_cpu(const char *name, const char *parent_name,
 		struct clk *div, struct clk *mux, struct clk *pll,
 		struct clk *step);
 
