@@ -166,11 +166,29 @@ static const struct snd_soc_ops aif1_ops = {
 	.shutdown = aif1_shutdown,
 };
 
-static struct snd_soc_dai_link_component platform_component[] = {
-	{
-		.name = "0000:00:0e.0"
-	}
-};
+SND_SOC_DAILINK_DEF(ssp5_pin,
+	DAILINK_COMP_ARRAY(COMP_CPU("SSP5 Pin")));
+
+SND_SOC_DAILINK_DEF(ssp5_codec,
+	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-104C5122:00", "pcm512x-hifi")));
+
+SND_SOC_DAILINK_DEF(platform,
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("0000:00:0e.0")));
+
+SND_SOC_DAILINK_DEF(idisp1_pin,
+	DAILINK_COMP_ARRAY(COMP_CPU("iDisp1 Pin")));
+SND_SOC_DAILINK_DEF(idisp1_codec,
+	DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D2", "intel-hdmi-hifi1")));
+
+SND_SOC_DAILINK_DEF(idisp2_pin,
+	DAILINK_COMP_ARRAY(COMP_CPU("iDisp2 Pin")));
+SND_SOC_DAILINK_DEF(idisp2_codec,
+	DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D2", "intel-hdmi-hifi2")));
+
+SND_SOC_DAILINK_DEF(idisp3_pin,
+	DAILINK_COMP_ARRAY(COMP_CPU("iDisp3 Pin")));
+SND_SOC_DAILINK_DEF(idisp3_codec,
+	DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D2", "intel-hdmi-hifi3")));
 
 static struct snd_soc_dai_link dailink[] = {
 	/* CODEC<->CODEC link */
@@ -178,12 +196,7 @@ static struct snd_soc_dai_link dailink[] = {
 	{
 		.name = "SSP5-Codec",
 		.id = 0,
-		.cpu_dai_name = "SSP5 Pin",
-		.platforms = platform_component,
-		.num_platforms = ARRAY_SIZE(platform_component),
 		.no_pcm = 1,
-		.codec_dai_name = "pcm512x-hifi",
-		.codec_name = "i2c-104C5122:00",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 						| SND_SOC_DAIFMT_CBS_CFS,
 		.init = init,
@@ -191,43 +204,32 @@ static struct snd_soc_dai_link dailink[] = {
 		.nonatomic = true,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(ssp5_pin, ssp5_codec, platform),
 	},
 #if IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
 	{
 		.name = "iDisp1",
 		.id = 1,
-		.cpu_dai_name = "iDisp1 Pin",
-		.codec_name = "ehdaudio0D2",
-		.codec_dai_name = "intel-hdmi-hifi1",
-		.platforms = platform_component,
-		.num_platforms = ARRAY_SIZE(platform_component),
 		.init = broxton_hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
+		SND_SOC_DAILINK_REG(idisp1_pin, idisp1_codec, platform),
 	},
 	{
 		.name = "iDisp2",
 		.id = 2,
-		.cpu_dai_name = "iDisp2 Pin",
-		.codec_name = "ehdaudio0D2",
-		.codec_dai_name = "intel-hdmi-hifi2",
-		.platforms = platform_component,
-		.num_platforms = ARRAY_SIZE(platform_component),
 		.init = broxton_hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
+		SND_SOC_DAILINK_REG(idisp2_pin, idisp2_codec, platform),
 	},
 	{
 		.name = "iDisp3",
 		.id = 3,
-		.cpu_dai_name = "iDisp3 Pin",
-		.codec_name = "ehdaudio0D2",
-		.codec_dai_name = "intel-hdmi-hifi3",
-		.platforms = platform_component,
-		.num_platforms = ARRAY_SIZE(platform_component),
 		.init = broxton_hdmi_init,
 		.dpcm_playback = 1,
 		.no_pcm = 1,
+		SND_SOC_DAILINK_REG(idisp3_pin, idisp3_codec, platform),
 	},
 #endif
 };
@@ -277,7 +279,7 @@ static int bxt_pcm512x_probe(struct platform_device *pdev)
 
 	/* fix index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(dailink); i++) {
-		if (!strcmp(dailink[i].codec_name, "i2c-104C5122:00")) {
+		if (!strcmp(dailink[i].codecs->name, "i2c-104C5122:00")) {
 			dai_index = i;
 			break;
 		}
@@ -289,7 +291,7 @@ static int bxt_pcm512x_probe(struct platform_device *pdev)
 		snprintf(codec_name, sizeof(codec_name),
 			 "%s%s", "i2c-", acpi_dev_name(adev));
 		put_device(&adev->dev);
-		dailink[dai_index].codec_name = codec_name;
+		dailink[dai_index].codecs->name = codec_name;
 	}
 
 	snd_soc_card_set_drvdata(card, ctx);
