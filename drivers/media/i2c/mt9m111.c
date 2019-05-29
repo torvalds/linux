@@ -13,6 +13,7 @@
 #include <linux/log2.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 #include <linux/v4l2-mediabus.h>
 #include <linux/module.h>
 #include <linux/property.h>
@@ -243,6 +244,7 @@ struct mt9m111 {
 	int power_count;
 	const struct mt9m111_datafmt *fmt;
 	int lastpage;	/* PageMap cache value */
+	struct regulator *regulator;
 	bool is_streaming;
 	/* user point of view - 0: falling 1: rising edge */
 	unsigned int pclk_sample:1;
@@ -982,6 +984,12 @@ static int mt9m111_power_on(struct mt9m111 *mt9m111)
 	if (ret < 0)
 		return ret;
 
+	if (mt9m111->regulator) {
+		ret = regulator_enable(mt9m111->regulator);
+		if (ret < 0)
+			return ret;
+	}
+
 	ret = mt9m111_resume(mt9m111);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to resume the sensor: %d\n", ret);
@@ -994,6 +1002,8 @@ static int mt9m111_power_on(struct mt9m111 *mt9m111)
 static void mt9m111_power_off(struct mt9m111 *mt9m111)
 {
 	mt9m111_suspend(mt9m111);
+	if (mt9m111->regulator)
+		regulator_disable(mt9m111->regulator);
 	v4l2_clk_disable(mt9m111->clk);
 }
 
@@ -1255,6 +1265,13 @@ static int mt9m111_probe(struct i2c_client *client,
 	mt9m111->clk = v4l2_clk_get(&client->dev, "mclk");
 	if (IS_ERR(mt9m111->clk))
 		return PTR_ERR(mt9m111->clk);
+
+	mt9m111->regulator = devm_regulator_get(&client->dev, "vdd");
+	if (IS_ERR(mt9m111->regulator)) {
+		dev_err(&client->dev, "regulator not found: %ld\n",
+			PTR_ERR(mt9m111->regulator));
+		return PTR_ERR(mt9m111->regulator);
+	}
 
 	/* Default HIGHPOWER context */
 	mt9m111->ctx = &context_b;
