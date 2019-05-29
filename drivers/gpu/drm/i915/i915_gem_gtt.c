@@ -1749,9 +1749,12 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 {
 	struct gen6_hw_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
 	struct i915_page_table *pt;
+	intel_wakeref_t wakeref;
 	u64 from = start;
 	unsigned int pde;
 	bool flush = false;
+
+	wakeref = intel_runtime_pm_get(vm->i915);
 
 	gen6_for_each_pde(pt, &ppgtt->base.pd, start, length, pde) {
 		const unsigned int count = gen6_pte_count(start, length);
@@ -1778,12 +1781,15 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 
 	if (flush) {
 		mark_tlbs_dirty(&ppgtt->base);
-		gen6_ggtt_invalidate(ppgtt->base.vm.i915);
+		gen6_ggtt_invalidate(vm->i915);
 	}
+
+	intel_runtime_pm_put(vm->i915, wakeref);
 
 	return 0;
 
 unwind_out:
+	intel_runtime_pm_put(vm->i915, wakeref);
 	gen6_ppgtt_clear_range(vm, from, start - from);
 	return -ENOMEM;
 }
