@@ -10,6 +10,7 @@ extern spinlock_t imx_ccm_lock;
 void imx_check_clocks(struct clk *clks[], unsigned int count);
 void imx_check_clk_hws(struct clk_hw *clks[], unsigned int count);
 void imx_register_uart_clocks(struct clk ** const clks[]);
+void imx_register_uart_clocks_hws(struct clk_hw ** const hws[]);
 void imx_mmdc_mask_handshake(void __iomem *ccm_base, unsigned int chn);
 
 extern void imx_cscmr1_fixup(u32 *val);
@@ -48,6 +49,12 @@ struct imx_pll14xx_clk {
 	int rate_count;
 	int flags;
 };
+
+#define imx_clk_busy_divider(name, parent_name, reg, shift, width, busy_reg, busy_shift) \
+	imx_clk_hw_busy_divider(name, parent_name, reg, shift, width, busy_reg, busy_shift)->clk
+
+#define imx_clk_busy_mux(name, reg, shift, width, busy_reg, busy_shift, parent_names, num_parents) \
+	imx_clk_hw_busy_mux(name, reg, shift, width, busy_reg, busy_shift, parent_names, num_parents)->clk
 
 struct clk *imx_clk_pll14xx(const char *name, const char *parent_name,
 		 void __iomem *base, const struct imx_pll14xx_clk *pll_clk);
@@ -111,11 +118,11 @@ struct clk *imx_clk_pfd(const char *name, const char *parent_name,
 struct clk_hw *imx_clk_pfdv2(const char *name, const char *parent_name,
 			     void __iomem *reg, u8 idx);
 
-struct clk *imx_clk_busy_divider(const char *name, const char *parent_name,
+struct clk_hw *imx_clk_hw_busy_divider(const char *name, const char *parent_name,
 				 void __iomem *reg, u8 shift, u8 width,
 				 void __iomem *busy_reg, u8 busy_shift);
 
-struct clk *imx_clk_busy_mux(const char *name, void __iomem *reg, u8 shift,
+struct clk_hw *imx_clk_hw_busy_mux(const char *name, void __iomem *reg, u8 shift,
 			     u8 width, void __iomem *busy_reg, u8 busy_shift,
 			     const char * const *parent_names, int num_parents);
 
