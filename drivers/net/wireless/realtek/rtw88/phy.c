@@ -1466,15 +1466,6 @@ static u8 rtw_phy_get_5g_tx_power_index(struct rtw_dev *rtwdev,
 	return tx_power;
 }
 
-static s8 __rtw_phy_get_tx_power_limit(struct rtw_hal *hal,
-				       u8 bw, u8 rs, u8 ch, u8 regd)
-{
-	if (regd > RTW_REGD_WW)
-		return RTW_MAX_POWER_INDEX;
-
-	return hal->tx_pwr_limit_2g[regd][bw][rs][ch];
-}
-
 static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 				     enum rtw_bandwidth bw, u8 rf_path,
 				     u8 rate, u8 channel, u8 regd)
@@ -1483,6 +1474,9 @@ static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 	s8 power_limit;
 	u8 rs;
 	int ch_idx;
+
+	if (regd > RTW_REGD_WW)
+		return RTW_MAX_POWER_INDEX;
 
 	if (rate >= DESC_RATE1M && rate <= DESC_RATE11M)
 		rs = RTW_RATE_SECTION_CCK;
@@ -1503,7 +1497,10 @@ static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 	if (ch_idx < 0)
 		goto err;
 
-	power_limit = __rtw_phy_get_tx_power_limit(hal, bw, rs, ch_idx, regd);
+	if (channel <= RTW_MAX_CHANNEL_NUM_2G)
+		power_limit = hal->tx_pwr_limit_2g[regd][bw][rs][ch_idx];
+	else
+		power_limit = hal->tx_pwr_limit_5g[regd][bw][rs][ch_idx];
 
 	return power_limit;
 
