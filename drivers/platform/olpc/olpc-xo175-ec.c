@@ -507,6 +507,7 @@ static int olpc_xo175_ec_cmd(u8 cmd, u8 *inbuf, size_t inlen, u8 *resp,
 		nr_bytes = resp_len;
 	} else {
 		nr_bytes = (size_t)ret;
+		ret = 0;
 	}
 	resp_len = min(resp_len, nr_bytes);
 
