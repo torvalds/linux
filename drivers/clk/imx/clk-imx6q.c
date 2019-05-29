@@ -280,12 +280,6 @@ static void mmdc_ch1_disable(void __iomem *ccm_base)
 	clk_set_parent(clk[IMX6QDL_CLK_PERIPH2_CLK2_SEL],
 		       clk[IMX6QDL_CLK_PLL3_USB_OTG]);
 
-	/*
-	 * Handshake with mmdc_ch1 module must be masked when changing
-	 * periph2_clk_sel.
-	 */
-	clk_set_parent(clk[IMX6QDL_CLK_PERIPH2], clk[IMX6QDL_CLK_PERIPH2_CLK2]);
-
 	/* Disable pll3_sw_clk by selecting the bypass clock source */
 	reg = readl_relaxed(ccm_base + CCM_CCSR);
 	reg |= CCSR_PLL3_SW_CLK_SEL;
@@ -300,8 +294,6 @@ static void mmdc_ch1_reenable(void __iomem *ccm_base)
 	reg = readl_relaxed(ccm_base + CCM_CCSR);
 	reg &= ~CCSR_PLL3_SW_CLK_SEL;
 	writel_relaxed(reg, ccm_base + CCM_CCSR);
-
-	clk_set_parent(clk[IMX6QDL_CLK_PERIPH2], clk[IMX6QDL_CLK_PERIPH2_PRE]);
 }
 
 /*
