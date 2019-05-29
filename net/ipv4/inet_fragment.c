@@ -193,10 +193,12 @@ void fqdir_exit(struct fqdir *fqdir)
 {
 	fqdir->high_thresh = 0; /* prevent creation of new frags */
 
-	/* paired with READ_ONCE() in inet_frag_kill() :
-	 * We want to prevent rhashtable_remove_fast() calls
+	fqdir->dead = true;
+
+	/* call_rcu is supposed to provide memory barrier semantics,
+	 * separating the setting of fqdir->dead with the destruction
+	 * work.  This implicit barrier is paired with inet_frag_kill().
 	 */
-	smp_store_release(&fqdir->dead, true);
 
 	INIT_RCU_WORK(&fqdir->destroy_rwork, fqdir_rwork_fn);
 	queue_rcu_work(system_wq, &fqdir->destroy_rwork);
@@ -214,10 +216,12 @@ void inet_frag_kill(struct inet_frag_queue *fq)
 
 		fq->flags |= INET_FRAG_COMPLETE;
 		rcu_read_lock();
-		/* This READ_ONCE() is paired with smp_store_release()
-		 * in inet_frags_exit_net().
+		/* The RCU read lock provides a memory barrier
+		 * guaranteeing that if fqdir->dead is false then
+		 * the hash table destruction will not start until
+		 * after we unlock.  Paired with inet_frags_exit_net().
 		 */
-		if (!READ_ONCE(fqdir->dead)) {
+		if (!fqdir->dead) {
 			rhashtable_remove_fast(&fqdir->rhashtable, &fq->node,
 					       fqdir->f->rhash_params);
 			refcount_dec(&fq->refcnt);
