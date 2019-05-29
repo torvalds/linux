@@ -154,6 +154,31 @@ struct frag_hdr {
 #define	IP6_MF		0x0001
 #define	IP6_OFFSET	0xFFF8
 
+struct ip6_fraglist_iter {
+	struct ipv6hdr	*tmp_hdr;
+	struct sk_buff	*frag_list;
+	struct sk_buff	*frag;
+	int		offset;
+	unsigned int	hlen;
+	__be32		frag_id;
+	u8		nexthdr;
+};
+
+int ip6_fraglist_init(struct sk_buff *skb, unsigned int hlen, u8 *prevhdr,
+		      u8 nexthdr, __be32 frag_id,
+		      struct ip6_fraglist_iter *iter);
+void ip6_fraglist_prepare(struct sk_buff *skb, struct ip6_fraglist_iter *iter);
+
+static inline struct sk_buff *ip6_fraglist_next(struct ip6_fraglist_iter *iter)
+{
+	struct sk_buff *skb = iter->frag;
+
+	iter->frag = skb->next;
+	skb_mark_not_on_list(skb);
+
+	return skb;
+}
+
 #define IP6_REPLY_MARK(net, mark) \
 	((net)->ipv6.sysctl.fwmark_reflect ? (mark) : 0)
 

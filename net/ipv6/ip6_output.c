@@ -592,6 +592,73 @@ static void ip6_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	skb_copy_secmark(to, from);
 }
 
+int ip6_fraglist_init(struct sk_buff *skb, unsigned int hlen, u8 *prevhdr,
+		      u8 nexthdr, __be32 frag_id,
+		      struct ip6_fraglist_iter *iter)
+{
+	unsigned int first_len;
+	struct frag_hdr *fh;
+
+	/* BUILD HEADER */
+	*prevhdr = NEXTHDR_FRAGMENT;
+	iter->tmp_hdr = kmemdup(skb_network_header(skb), hlen, GFP_ATOMIC);
+	if (!iter->tmp_hdr)
+		return -ENOMEM;
+
+	iter->frag_list = skb_shinfo(skb)->frag_list;
+	iter->frag = iter->frag_list;
+	skb_frag_list_init(skb);
+
+	iter->offset = 0;
+	iter->hlen = hlen;
+	iter->frag_id = frag_id;
+	iter->nexthdr = nexthdr;
+
+	__skb_pull(skb, hlen);
+	fh = __skb_push(skb, sizeof(struct frag_hdr));
+	__skb_push(skb, hlen);
+	skb_reset_network_header(skb);
+	memcpy(skb_network_header(skb), iter->tmp_hdr, hlen);
+
+	fh->nexthdr = nexthdr;
+	fh->reserved = 0;
+	fh->frag_off = htons(IP6_MF);
+	fh->identification = frag_id;
+
+	first_len = skb_pagelen(skb);
+	skb->data_len = first_len - skb_headlen(skb);
+	skb->len = first_len;
+	ipv6_hdr(skb)->payload_len = htons(first_len - sizeof(struct ipv6hdr));
+
+	return 0;
+}
+EXPORT_SYMBOL(ip6_fraglist_init);
+
+void ip6_fraglist_prepare(struct sk_buff *skb,
+			  struct ip6_fraglist_iter *iter)
+{
+	struct sk_buff *frag = iter->frag;
+	unsigned int hlen = iter->hlen;
+	struct frag_hdr *fh;
+
+	frag->ip_summed = CHECKSUM_NONE;
+	skb_reset_transport_header(frag);
+	fh = __skb_push(frag, sizeof(struct frag_hdr));
+	__skb_push(frag, hlen);
+	skb_reset_network_header(frag);
+	memcpy(skb_network_header(frag), iter->tmp_hdr, hlen);
+	iter->offset += skb->len - hlen - sizeof(struct frag_hdr);
+	fh->nexthdr = iter->nexthdr;
+	fh->reserved = 0;
+	fh->frag_off = htons(iter->offset);
+	if (frag->next)
+		fh->frag_off |= htons(IP6_MF);
+	fh->identification = iter->frag_id;
+	ipv6_hdr(frag)->payload_len = htons(frag->len - sizeof(struct ipv6hdr));
+	ip6_copy_metadata(frag, skb);
+}
+EXPORT_SYMBOL(ip6_fraglist_prepare);
+
 int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		 int (*output)(struct net *, struct sock *, struct sk_buff *))
 {
@@ -599,7 +666,6 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	struct rt6_info *rt = (struct rt6_info *)skb_dst(skb);
 	struct ipv6_pinfo *np = skb->sk && !dev_recursion_level() ?
 				inet6_sk(skb->sk) : NULL;
-	struct ipv6hdr *tmp_hdr;
 	struct frag_hdr *fh;
 	unsigned int mtu, hlen, left, len, nexthdr_offset;
 	int hroom, troom;
@@ -651,6 +717,7 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	hroom = LL_RESERVED_SPACE(rt->dst.dev);
 	if (skb_has_frag_list(skb)) {
 		unsigned int first_len = skb_pagelen(skb);
+		struct ip6_fraglist_iter iter;
 		struct sk_buff *frag2;
 
 		if (first_len - hlen > mtu ||
@@ -678,74 +745,29 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 			skb->truesize -= frag->truesize;
 		}
 
-		err = 0;
-		offset = 0;
-		/* BUILD HEADER */
-
-		*prevhdr = NEXTHDR_FRAGMENT;
-		tmp_hdr = kmemdup(skb_network_header(skb), hlen, GFP_ATOMIC);
-		if (!tmp_hdr) {
-			err = -ENOMEM;
+		err = ip6_fraglist_init(skb, hlen, prevhdr, nexthdr, frag_id,
+					&iter);
+		if (err < 0)
 			goto fail;
-		}
-		frag = skb_shinfo(skb)->frag_list;
-		skb_frag_list_init(skb);
-
-		__skb_pull(skb, hlen);
-		fh = __skb_push(skb, sizeof(struct frag_hdr));
-		__skb_push(skb, hlen);
-		skb_reset_network_header(skb);
-		memcpy(skb_network_header(skb), tmp_hdr, hlen);
-
-		fh->nexthdr = nexthdr;
-		fh->reserved = 0;
-		fh->frag_off = htons(IP6_MF);
-		fh->identification = frag_id;
-
-		first_len = skb_pagelen(skb);
-		skb->data_len = first_len - skb_headlen(skb);
-		skb->len = first_len;
-		ipv6_hdr(skb)->payload_len = htons(first_len -
-						   sizeof(struct ipv6hdr));
 
 		for (;;) {
 			/* Prepare header of the next frame,
 			 * before previous one went down. */
-			if (frag) {
-				frag->ip_summed = CHECKSUM_NONE;
-				skb_reset_transport_header(frag);
-				fh = __skb_push(frag, sizeof(struct frag_hdr));
-				__skb_push(frag, hlen);
-				skb_reset_network_header(frag);
-				memcpy(skb_network_header(frag), tmp_hdr,
-				       hlen);
-				offset += skb->len - hlen - sizeof(struct frag_hdr);
-				fh->nexthdr = nexthdr;
-				fh->reserved = 0;
-				fh->frag_off = htons(offset);
-				if (frag->next)
-					fh->frag_off |= htons(IP6_MF);
-				fh->identification = frag_id;
-				ipv6_hdr(frag)->payload_len =
-						htons(frag->len -
-						      sizeof(struct ipv6hdr));
-				ip6_copy_metadata(frag, skb);
-			}
+			if (iter.frag)
+				ip6_fraglist_prepare(skb, &iter);
 
 			err = output(net, sk, skb);
 			if (!err)
 				IP6_INC_STATS(net, ip6_dst_idev(&rt->dst),
 					      IPSTATS_MIB_FRAGCREATES);
 
-			if (err || !frag)
+			if (err || !iter.frag)
 				break;
 
-			skb = frag;
-			frag = skb->next;
-			skb_mark_not_on_list(skb);
+			skb = ip6_fraglist_next(&iter);
 		}
 
-		kfree(tmp_hdr);
+		kfree(iter.tmp_hdr);
 
 		if (err == 0) {
 			IP6_INC_STATS(net, ip6_dst_idev(&rt->dst),
@@ -753,7 +775,7 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 			return 0;
 		}
 
-		kfree_skb_list(frag);
+		kfree_skb_list(iter.frag_list);
 
 		IP6_INC_STATS(net, ip6_dst_idev(&rt->dst),
 			      IPSTATS_MIB_FRAGFAILS);
