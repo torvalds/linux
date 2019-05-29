@@ -539,9 +539,32 @@ int goya_late_init(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int rc;
 
+	goya_fetch_psoc_frequency(hdev);
+
+	rc = goya_mmu_clear_pgt_range(hdev);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed to clear MMU page tables range %d\n", rc);
+		return rc;
+	}
+
+	rc = goya_mmu_set_dram_default_page(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to set DRAM default page %d\n", rc);
+		return rc;
+	}
+
+	rc = goya_init_cpu_queues(hdev);
+	if (rc)
+		return rc;
+
+	rc = goya_test_cpu_queue(hdev);
+	if (rc)
+		return rc;
+
 	rc = goya_armcp_info_get(hdev);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to get armcp info\n");
+		dev_err(hdev->dev, "Failed to get armcp info %d\n", rc);
 		return rc;
 	}
 
@@ -553,33 +576,15 @@ int goya_late_init(struct hl_device *hdev)
 
 	rc = hl_fw_send_pci_access_msg(hdev, ARMCP_PACKET_ENABLE_PCI_ACCESS);
 	if (rc) {
-		dev_err(hdev->dev, "Failed to enable PCI access from CPU\n");
+		dev_err(hdev->dev,
+			"Failed to enable PCI access from CPU %d\n", rc);
 		return rc;
 	}
 
 	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR,
 			GOYA_ASYNC_EVENT_ID_INTS_REGISTER);
 
-	goya_fetch_psoc_frequency(hdev);
-
-	rc = goya_mmu_clear_pgt_range(hdev);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to clear MMU page tables range\n");
-		goto disable_pci_access;
-	}
-
-	rc = goya_mmu_set_dram_default_page(hdev);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to set DRAM default page\n");
-		goto disable_pci_access;
-	}
-
 	return 0;
-
-disable_pci_access:
-	hl_fw_send_pci_access_msg(hdev, ARMCP_PACKET_DISABLE_PCI_ACCESS);
-
-	return rc;
 }
 
 /*
@@ -1000,7 +1005,7 @@ int goya_init_cpu_queues(struct hl_device *hdev)
 
 	if (err) {
 		dev_err(hdev->dev,
-			"Failed to communicate with ARM CPU (ArmCP timeout)\n");
+			"Failed to setup communication with device CPU\n");
 		return -EIO;
 	}
 
@@ -2465,13 +2470,6 @@ static int goya_hw_init(struct hl_device *hdev)
 	if (rc)
 		goto disable_queues;
 
-	rc = goya_init_cpu_queues(hdev);
-	if (rc) {
-		dev_err(hdev->dev, "failed to initialize CPU H/W queues %d\n",
-			rc);
-		goto disable_msix;
-	}
-
 	/*
 	 * Check if we managed to set the DMA mask to more then 32 bits. If so,
 	 * let's try to increase it again because in Goya we set the initial
@@ -2481,7 +2479,7 @@ static int goya_hw_init(struct hl_device *hdev)
 	if (hdev->dma_mask > 32) {
 		rc = hl_pci_set_dma_mask(hdev, 48);
 		if (rc)
-			goto disable_pci_access;
+			goto disable_msix;
 	}
 
 	/* Perform read from the device to flush all MSI-X configuration */
@@ -2489,8 +2487,6 @@ static int goya_hw_init(struct hl_device *hdev)
 
 	return 0;
 
-disable_pci_access:
-	hl_fw_send_pci_access_msg(hdev, ARMCP_PACKET_DISABLE_PCI_ACCESS);
 disable_msix:
 	goya_disable_msix(hdev);
 disable_queues:
@@ -2971,10 +2967,6 @@ int goya_test_queues(struct hl_device *hdev)
 		if (rc)
 			ret_val = -EINVAL;
 	}
-
-	rc = goya_test_cpu_queue(hdev);
-	if (rc)
-		ret_val = -EINVAL;
 
 	return ret_val;
 }

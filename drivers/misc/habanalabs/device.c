@@ -326,7 +326,15 @@ static int device_late_init(struct hl_device *hdev)
 {
 	int rc;
 
-	INIT_DELAYED_WORK(&hdev->work_freq, set_freq_to_low_job);
+	if (hdev->asic_funcs->late_init) {
+		rc = hdev->asic_funcs->late_init(hdev);
+		if (rc) {
+			dev_err(hdev->dev,
+				"failed late initialization for the H/W\n");
+			return rc;
+		}
+	}
+
 	hdev->high_pll = hdev->asic_prop.high_pll;
 
 	/* force setting to low frequency */
@@ -337,17 +345,9 @@ static int device_late_init(struct hl_device *hdev)
 	else
 		hdev->asic_funcs->set_pll_profile(hdev, PLL_LAST);
 
-	if (hdev->asic_funcs->late_init) {
-		rc = hdev->asic_funcs->late_init(hdev);
-		if (rc) {
-			dev_err(hdev->dev,
-				"failed late initialization for the H/W\n");
-			return rc;
-		}
-	}
-
+	INIT_DELAYED_WORK(&hdev->work_freq, set_freq_to_low_job);
 	schedule_delayed_work(&hdev->work_freq,
-			usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
+	usecs_to_jiffies(HL_PLL_LOW_JOB_FREQ_USEC));
 
 	if (hdev->heartbeat) {
 		INIT_DELAYED_WORK(&hdev->work_heartbeat, hl_device_heartbeat);
