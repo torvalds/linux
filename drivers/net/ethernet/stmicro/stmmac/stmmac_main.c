@@ -4243,9 +4243,8 @@ int stmmac_dvr_probe(struct device *device,
 	u32 queue, maxq;
 	int ret = 0;
 
-	ndev = alloc_etherdev_mqs(sizeof(struct stmmac_priv),
-				  MTL_MAX_TX_QUEUES,
-				  MTL_MAX_RX_QUEUES);
+	ndev = devm_alloc_etherdev_mqs(device, sizeof(struct stmmac_priv),
+				       MTL_MAX_TX_QUEUES, MTL_MAX_RX_QUEUES);
 	if (!ndev)
 		return -ENOMEM;
 
@@ -4277,8 +4276,7 @@ int stmmac_dvr_probe(struct device *device,
 	priv->wq = create_singlethread_workqueue("stmmac_wq");
 	if (!priv->wq) {
 		dev_err(priv->device, "failed to create workqueue\n");
-		ret = -ENOMEM;
-		goto error_wq;
+		return -ENOMEM;
 	}
 
 	INIT_WORK(&priv->service_task, stmmac_service_task);
@@ -4434,8 +4432,6 @@ error_mdio_register:
 	}
 error_hw_init:
 	destroy_workqueue(priv->wq);
-error_wq:
-	free_netdev(ndev);
 
 	return ret;
 }
@@ -4472,7 +4468,6 @@ int stmmac_dvr_remove(struct device *dev)
 		stmmac_mdio_unregister(ndev);
 	destroy_workqueue(priv->wq);
 	mutex_destroy(&priv->lock);
-	free_netdev(ndev);
 
 	return 0;
 }
