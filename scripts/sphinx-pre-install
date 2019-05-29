@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict;
 
-# Copyright (c) 2017 Mauro Carvalho Chehab <mchehab@kernel.org>
+# Copyright (c) 2017-2019 Mauro Carvalho Chehab <mchehab@kernel.org>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -15,6 +15,7 @@ use strict;
 
 my $conf = "Documentation/conf.py";
 my $requirement_file = "Documentation/sphinx/requirements.txt";
+my $virtenv_prefix = "sphinx_";
 
 #
 # Static vars
@@ -28,7 +29,8 @@ my $need_symlink = 0;
 my $need_sphinx = 0;
 my $rec_sphinx_upgrade = 0;
 my $install = "";
-my $virtenv_dir = "sphinx_";
+my $virtenv_dir = "";
+my $min_version;
 
 #
 # Command line arguments
@@ -229,7 +231,6 @@ sub get_sphinx_fname()
 
 sub check_sphinx()
 {
-	my $min_version;
 	my $rec_version;
 	my $cur_version;
 
@@ -255,7 +256,7 @@ sub check_sphinx()
 
 	die "Can't get recommended sphinx version from $requirement_file" if (!$min_version);
 
-	$virtenv_dir .= $rec_version;
+	$virtenv_dir = $virtenv_prefix . $rec_version;
 
 	my $sphinx = get_sphinx_fname();
 	return if ($sphinx eq "");
@@ -612,18 +613,23 @@ sub check_needs()
 		       which("sphinx-build-3");
 	}
 	if ($need_sphinx || $rec_sphinx_upgrade) {
-		my $activate = "$virtenv_dir/bin/activate";
-		if (-e "$ENV{'PWD'}/$activate") {
+		my $min_activate = "$ENV{'PWD'}/${virtenv_prefix}${min_version}/bin/activate";
+                my @activates = glob "$ENV{'PWD'}/${virtenv_prefix}*/bin/activate";
+
+                @activates = sort {$b cmp $a} @activates;
+
+		if (scalar @activates > 0 && $activates[0] ge $min_activate) {
 			printf "\nNeed to activate virtualenv with:\n";
-			printf "\t. $activate\n";
+			printf "\t. $activates[0]\n";
 		} else {
+			my $rec_activate = "$virtenv_dir/bin/activate";
 			my $virtualenv = findprog("virtualenv-3");
 			$virtualenv = findprog("virtualenv-3.5") if (!$virtualenv);
 			$virtualenv = findprog("virtualenv") if (!$virtualenv);
 			$virtualenv = "virtualenv" if (!$virtualenv);
 
 			printf "\t$virtualenv $virtenv_dir\n";
-			printf "\t. $activate\n";
+			printf "\t. $rec_activate\n";
 			printf "\tpip install -r $requirement_file\n";
 
 			$need++ if (!$rec_sphinx_upgrade);
