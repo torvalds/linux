@@ -505,7 +505,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 
 	obj->efile.fd = -1;
 	/*
-	 * Caller of this function should also calls
+	 * Caller of this function should also call
 	 * bpf_object__elf_finish() after data collection to return
 	 * obj_buf to user. If not, we should duplicate the buffer to
 	 * avoid user freeing them before elf finish.
@@ -574,8 +574,7 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 		}
 
 		obj->efile.elf = elf_begin(obj->efile.fd,
-				LIBBPF_ELF_C_READ_MMAP,
-				NULL);
+					   LIBBPF_ELF_C_READ_MMAP, NULL);
 	}
 
 	if (!obj->efile.elf) {
@@ -594,9 +593,9 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 	ep = &obj->efile.ehdr;
 
 	/* Old LLVM set e_machine to EM_NONE */
-	if ((ep->e_type != ET_REL) || (ep->e_machine && (ep->e_machine != EM_BPF))) {
-		pr_warning("%s is not an eBPF object file\n",
-			obj->path);
+	if (ep->e_type != ET_REL ||
+	    (ep->e_machine && ep->e_machine != EM_BPF)) {
+		pr_warning("%s is not an eBPF object file\n", obj->path);
 		err = -LIBBPF_ERRNO__FORMAT;
 		goto errout;
 	}
@@ -1438,7 +1437,7 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 			}
 
 			if (map_idx >= nr_maps) {
-				pr_warning("bpf relocation: map_idx %d large than %d\n",
+				pr_warning("bpf relocation: map_idx %d larger than %d\n",
 					   (int)map_idx, (int)nr_maps - 1);
 				return -LIBBPF_ERRNO__RELOC;
 			}
@@ -1797,7 +1796,7 @@ err_out:
 			}
 		}
 
-		pr_debug("create map %s: fd=%d\n", map->name, *pfd);
+		pr_debug("created map %s: fd=%d\n", map->name, *pfd);
 	}
 
 	return 0;
