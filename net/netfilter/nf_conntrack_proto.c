@@ -121,10 +121,8 @@ const struct nf_conntrack_l4proto *nf_ct_l4proto_find(u8 l4proto)
 };
 EXPORT_SYMBOL_GPL(nf_ct_l4proto_find);
 
-static unsigned int nf_confirm(struct sk_buff *skb,
-			       unsigned int protoff,
-			       struct nf_conn *ct,
-			       enum ip_conntrack_info ctinfo)
+unsigned int nf_confirm(struct sk_buff *skb, unsigned int protoff,
+			struct nf_conn *ct, enum ip_conntrack_info ctinfo)
 {
 	const struct nf_conn_help *help;
 
@@ -155,6 +153,7 @@ static unsigned int nf_confirm(struct sk_buff *skb,
 	/* We've seen it coming out the other side: confirm it */
 	return nf_conntrack_confirm(skb);
 }
+EXPORT_SYMBOL_GPL(nf_confirm);
 
 static unsigned int ipv4_confirm(void *priv,
 				 struct sk_buff *skb,
