@@ -14,7 +14,7 @@
 #include <linux/version.h>
 #include "rk1608_dphy.h"
 
-#define RK1608_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define RK1608_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
 
 #define RK1608_OP_TRY_MAX		3
 #define RK1608_OP_TRY_DELAY		10
@@ -225,7 +225,8 @@ struct msg_out_size_head {
 	u32 mipi_clk;
 	u16 line_length_pclk;
 	u16 frame_length_lines;
-	u8 mipi_lane;
+	u16 mipi_lane;
+	u16 reserved;
 };
 
 struct msg_set_output_size {

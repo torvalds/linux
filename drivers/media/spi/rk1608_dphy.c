@@ -123,7 +123,7 @@ static int rk1608_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	struct rk1608_dphy *pdata = to_state(sd);
 
-	if (code->index > pdata->fmt_inf_num)
+	if (code->index >= pdata->fmt_inf_num)
 		return -EINVAL;
 
 	code->code = pdata->fmt_inf[code->index].mf.code;
@@ -137,7 +137,7 @@ static int rk1608_enum_frame_sizes(struct v4l2_subdev *sd,
 {
 	struct rk1608_dphy *pdata = to_state(sd);
 
-	if (fse->index > pdata->fmt_inf_num)
+	if (fse->index >= pdata->fmt_inf_num)
 		return -EINVAL;
 
 	if (fse->code != pdata->fmt_inf[fse->index].mf.code)
@@ -239,6 +239,12 @@ static int rk1608_g_frame_interval(struct v4l2_subdev *sd,
 			 g_frame_interval,
 			 fi);
 
+	return 0;
+}
+
+static int rk1608_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
 	return 0;
 }
 
@@ -458,6 +464,7 @@ static const struct v4l2_subdev_internal_ops dphy_subdev_internal_ops = {
 static const struct v4l2_subdev_video_ops rk1608_subdev_video_ops = {
 	.s_stream	= rk1608_s_stream,
 	.g_frame_interval = rk1608_g_frame_interval,
+	.s_frame_interval = rk1608_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops rk1608_subdev_pad_ops = {
@@ -561,6 +568,16 @@ static int rk1608_dphy_dt_property(struct rk1608_dphy *dphy)
 				&dphy->fmt_inf[idx].mf.height);
 			if (ret)
 				dev_warn(dphy->dev, "Can not get height!");
+
+			ret = of_property_read_u32(node, "hactive",
+				&dphy->fmt_inf[idx].hactive);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get hactive!");
+
+			ret = of_property_read_u32(node, "vactive",
+				&dphy->fmt_inf[idx].vactive);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get vactive!");
 
 			ret = of_property_read_u32(node, "htotal",
 				&dphy->fmt_inf[idx].htotal);

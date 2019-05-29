@@ -13,6 +13,8 @@ struct rk1608_chinf {
 struct rk1608_fmt_inf {
 	u32 data_type;
 	u32 mipi_lane;
+	u32 hactive;
+	u32 vactive;
 	u32 htotal;
 	u32 vtotal;
 	struct v4l2_mbus_framefmt mf;

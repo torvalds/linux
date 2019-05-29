@@ -583,9 +583,9 @@ static int rk1608_msg_set_output_size(struct rk1608_state *pdata,
 	msg->head.msg_head.type = id_msg_set_output_size_t;
 	msg->head.msg_head.id.camera_id = id;
 	msg->head.msg_head.mux.sync = 1;
-	msg->head.width = fmt_inf->mf.width;
-	msg->head.height = fmt_inf->mf.height;
-	msg->head.mipi_clk = pdata->dphy[id]->link_freqs;
+	msg->head.width = fmt_inf->hactive;
+	msg->head.height = fmt_inf->vactive;
+	msg->head.mipi_clk = 2 * pdata->dphy[id]->link_freqs;
 	msg->head.line_length_pclk = fmt_inf->htotal;
 	msg->head.frame_length_lines = fmt_inf->vtotal;
 	msg->head.mipi_lane = fmt_inf->mipi_lane;
@@ -978,6 +978,7 @@ static int rk1608_s_stream(struct v4l2_subdev *sd, int enable)
 	int ret;
 	struct rk1608_state *pdata = to_state(sd);
 
+	pdata->msg_num = 0;
 	if (enable) {
 		v4l2_subdev_call(pdata->sensor[sd->grp_id], core, s_power, enable);
 		ret = rk1608_stream_on(pdata);
