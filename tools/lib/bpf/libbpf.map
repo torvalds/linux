@@ -124,3 +124,8 @@ LIBBPF_0.0.1 {
 	local:
 		*;
 };
+
+LIBBPF_0.0.2 {
+	global:
+		bpf_probe_prog_type;
+} LIBBPF_0.0.1;
