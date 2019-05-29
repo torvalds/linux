@@ -1943,12 +1943,27 @@ static u16 truncate_or_zero_opcode(struct rbd_obj_request *obj_req)
 					  CEPH_OSD_OP_ZERO;
 }
 
+static void __rbd_osd_setup_discard_ops(struct ceph_osd_request *osd_req,
+					int which)
+{
+	struct rbd_obj_request *obj_req = osd_req->r_priv;
+
+	if (rbd_obj_is_entire(obj_req) && !obj_req->num_img_extents) {
+		rbd_assert(obj_req->flags & RBD_OBJ_FLAG_DELETION);
+		osd_req_op_init(osd_req, which, CEPH_OSD_OP_DELETE, 0);
+	} else {
+		osd_req_op_extent_init(osd_req, which,
+				       truncate_or_zero_opcode(obj_req),
+				       obj_req->ex.oe_off, obj_req->ex.oe_len,
+				       0, 0);
+	}
+}
+
 static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 {
 	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	struct ceph_osd_request *osd_req;
-	u64 off = obj_req->ex.oe_off;
-	u64 next_off = obj_req->ex.oe_off + obj_req->ex.oe_len;
+	u64 off, next_off;
 	int ret;
 
 	/*
@@ -1961,10 +1976,17 @@ static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 	 */
 	if (rbd_dev->opts->alloc_size != rbd_dev->layout.object_size ||
 	    !rbd_obj_is_tail(obj_req)) {
-		off = round_up(off, rbd_dev->opts->alloc_size);
-		next_off = round_down(next_off, rbd_dev->opts->alloc_size);
+		off = round_up(obj_req->ex.oe_off, rbd_dev->opts->alloc_size);
+		next_off = round_down(obj_req->ex.oe_off + obj_req->ex.oe_len,
+				      rbd_dev->opts->alloc_size);
 		if (off >= next_off)
 			return 1;
+
+		dout("%s %p %llu~%llu -> %llu~%llu\n", __func__,
+		     obj_req, obj_req->ex.oe_off, obj_req->ex.oe_len,
+		     off, next_off - off);
+		obj_req->ex.oe_off = off;
+		obj_req->ex.oe_len = next_off - off;
 	}
 
 	/* reverse map the entire object onto the parent */
@@ -1979,19 +2001,8 @@ static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
 	if (IS_ERR(osd_req))
 		return PTR_ERR(osd_req);
 
-	if (rbd_obj_is_entire(obj_req) && !obj_req->num_img_extents) {
-		rbd_assert(obj_req->flags & RBD_OBJ_FLAG_DELETION);
-		osd_req_op_init(osd_req, 0, CEPH_OSD_OP_DELETE, 0);
-	} else {
-		dout("%s %p %llu~%llu -> %llu~%llu\n", __func__,
-		     obj_req, obj_req->ex.oe_off, obj_req->ex.oe_len,
-		     off, next_off - off);
-		osd_req_op_extent_init(osd_req, 0,
-				       truncate_or_zero_opcode(obj_req),
-				       off, next_off - off, 0, 0);
-	}
-
 	obj_req->write_state = RBD_OBJ_WRITE_START;
+	__rbd_osd_setup_discard_ops(osd_req, 0);
 	rbd_osd_format_write(osd_req);
 	return 0;
 }
