@@ -863,7 +863,7 @@ static ssize_t allegro_mbox_read(struct allegro_dev *dev,
 	 * Skip the header, as was already read to get the size of the body.
 	 */
 	body_no_wrap = min((size_t)header->length,
-			   (mbox->size - (head + sizeof(*header))));
+			   (size_t)(mbox->size - (head + sizeof(*header))));
 	regmap_bulk_read(dev->sram, mbox->data + head + sizeof(*header),
 			 dst + sizeof(*header), body_no_wrap / 4);
 	regmap_bulk_read(dev->sram, mbox->data,
@@ -1846,7 +1846,7 @@ static void allegro_copy_fw_codec(struct allegro_dev *dev,
 		     lower_32_bits(icache_offset));
 
 	dcache_offset =
-	    (dev->firmware.paddr & 0xffffffff00000000UL) - MCU_CACHE_OFFSET;
+	    (dev->firmware.paddr & 0xffffffff00000000ULL) - MCU_CACHE_OFFSET;
 	v4l2_dbg(2, debug, &dev->v4l2_dev,
 		 "dcache_offset: msb = 0x%x, lsb = 0x%x\n",
 		 upper_32_bits(dcache_offset), lower_32_bits(dcache_offset));
