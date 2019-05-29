@@ -41,7 +41,7 @@ void rtw_phy_cfg_bb(struct rtw_dev *rtwdev, const struct rtw_table *tbl,
 		    u32 addr, u32 data);
 void rtw_phy_cfg_rf(struct rtw_dev *rtwdev, const struct rtw_table *tbl,
 		    u32 addr, u32 data);
-void rtw_hw_init_tx_power(struct rtw_hal *hal);
+void rtw_phy_init_tx_power(struct rtw_hal *hal);
 void rtw_phy_load_tables(struct rtw_dev *rtwdev);
 void rtw_phy_set_tx_power_level(struct rtw_dev *rtwdev, u8 channel);
 void rtw_phy_tx_power_by_rate_config(struct rtw_hal *hal);
