@@ -15,4 +15,4 @@ vmlinux
 System.map
 "
 STOP_SHIP_TRACEPRINTK=1
-ABI_DEFINITION=abi_gki_aarch64.out
+ABI_DEFINITION=abi_gki_aarch64.xml
