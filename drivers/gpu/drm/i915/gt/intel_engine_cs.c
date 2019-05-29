@@ -953,30 +953,12 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 	}
 }
 
-static inline u32
-intel_sseu_fls_subslice(const struct sseu_dev_info *sseu, u32 slice)
-{
-	u32 subslice;
-	int i;
-
-	for (i = sseu->ss_stride - 1; i >= 0; i--) {
-		subslice = fls(sseu->subslice_mask[slice * sseu->ss_stride +
-						   i]);
-		if (subslice) {
-			subslice += i * BITS_PER_BYTE;
-			break;
-		}
-	}
-
-	return subslice;
-}
-
 u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
 {
 	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	u32 mcr_s_ss_select;
 	u32 slice = fls(sseu->slice_mask);
-	u32 subslice = intel_sseu_fls_subslice(sseu, slice);
+	u32 subslice = fls(sseu->subslice_mask[slice]);
 
 	if (IS_GEN(dev_priv, 10))
 		mcr_s_ss_select = GEN8_MCR_SLICE(slice) |
@@ -1052,7 +1034,6 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	struct intel_uncore *uncore = engine->uncore;
 	u32 mmio_base = engine->mmio_base;
 	int slice;
@@ -1070,8 +1051,7 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 
 		instdone->slice_common =
 			intel_uncore_read(uncore, GEN7_SC_INSTDONE);
-		for_each_instdone_slice_subslice(dev_priv, sseu, slice,
-						 subslice) {
+		for_each_instdone_slice_subslice(dev_priv, slice, subslice) {
 			instdone->sampler[slice][subslice] =
 				read_subslice_reg(dev_priv, slice, subslice,
 						  GEN7_SAMPLER_INSTDONE);
