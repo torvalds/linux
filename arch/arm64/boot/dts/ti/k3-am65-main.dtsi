@@ -466,6 +466,19 @@
 		msi-map = <0x0 &gic_its 0x0 0x10000>;
 	};
 
+	pcie0_ep: pcie-ep@5500000 {
+		compatible = "ti,am654-pcie-ep";
+		reg =  <0x0 0x5500000 0x0 0x1000>, <0x0 0x5501000 0x0 0x1000>, <0x0 0x10000000 0x0 0x8000000>, <0x0 0x5506000 0x0 0x1000>;
+		reg-names = "app", "dbics", "addr_space", "atu";
+		power-domains = <&k3_pds 120>;
+		ti,syscon-pcie-mode = <&pcie0_mode>;
+		num-ib-windows = <16>;
+		num-ob-windows = <16>;
+		max-link-speed = <3>;
+		dma-coherent;
+		interrupts = <GIC_SPI 340 IRQ_TYPE_EDGE_RISING>;
+	};
+
 	pcie1_rc: pcie@5600000 {
 		compatible = "ti,am654-pcie-rc";
 		reg =  <0x0 0x5600000 0x0 0x1000>, <0x0 0x5601000 0x0 0x1000>, <0x0 0x18000000 0x0 0x2000>, <0x0 0x5606000 0x0 0x1000>;
@@ -483,5 +496,18 @@
 		dma-coherent;
 		interrupts = <GIC_SPI 355 IRQ_TYPE_EDGE_RISING>;
 		msi-map = <0x0 &gic_its 0x10000 0x10000>;
+	};
+
+	pcie1_ep: pcie-ep@5600000 {
+		compatible = "ti,am654-pcie-ep";
+		reg =  <0x0 0x5600000 0x0 0x1000>, <0x0 0x5601000 0x0 0x1000>, <0x0 0x18000000 0x0 0x4000000>, <0x0 0x5606000 0x0 0x1000>;
+		reg-names = "app", "dbics", "addr_space", "atu";
+		power-domains = <&k3_pds 121>;
+		ti,syscon-pcie-mode = <&pcie1_mode>;
+		num-ib-windows = <16>;
+		num-ob-windows = <16>;
+		max-link-speed = <3>;
+		dma-coherent;
+		interrupts = <GIC_SPI 355 IRQ_TYPE_EDGE_RISING>;
 	};
 };
