@@ -648,6 +648,26 @@ tcp_fastopen_blackhole_timeout_sec - INTEGER
 	0 to disable the blackhole detection.
 	By default, it is set to 1hr.
 
+tcp_fastopen_key - list of comma separated 32-digit hexadecimal INTEGERs
+	The list consists of a primary key and an optional backup key. The
+	primary key is used for both creating and validating cookies, while the
+	optional backup key is only used for validating cookies. The purpose of
+	the backup key is to maximize TFO validation when keys are rotated.
+
+	A randomly chosen primary key may be configured by the kernel if
+	the tcp_fastopen sysctl is set to 0x400 (see above), or if the
+	TCP_FASTOPEN setsockopt() optname is set and a key has not been
+	previously configured via sysctl. If keys are configured via
+	setsockopt() by using the TCP_FASTOPEN_KEY optname, then those
+	per-socket keys will be used instead of any keys that are specified via
+	sysctl.
+
+	A key is specified as 4 8-digit hexadecimal integers which are separated
+	by a '-' as: xxxxxxxx-xxxxxxxx-xxxxxxxx-xxxxxxxx. Leading zeros may be
+	omitted. A primary and a backup key may be specified by separating them
+	by a comma. If only one key is specified, it becomes the primary key and
+	any previously configured backup keys are removed.
+
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
 	will be retransmitted. Should not be higher than 127. Default value
