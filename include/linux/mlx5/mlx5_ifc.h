@@ -155,7 +155,7 @@ enum {
 	MLX5_CMD_OP_QUERY_XRQ_DC_PARAMS_ENTRY     = 0x725,
 	MLX5_CMD_OP_SET_XRQ_DC_PARAMS_ENTRY       = 0x726,
 	MLX5_CMD_OP_QUERY_XRQ_ERROR_PARAMS        = 0x727,
-	MLX5_CMD_OP_QUERY_HOST_PARAMS             = 0x740,
+	MLX5_CMD_OP_QUERY_ESW_FUNCTIONS           = 0x740,
 	MLX5_CMD_OP_QUERY_VPORT_STATE             = 0x750,
 	MLX5_CMD_OP_MODIFY_VPORT_STATE            = 0x751,
 	MLX5_CMD_OP_QUERY_ESW_VPORT_CONTEXT       = 0x752,
@@ -9721,7 +9721,7 @@ struct mlx5_ifc_host_params_context_bits {
 	u8         reserved_at_80[0x180];
 };
 
-struct mlx5_ifc_query_host_params_in_bits {
+struct mlx5_ifc_query_esw_functions_in_bits {
 	u8         opcode[0x10];
 	u8         reserved_at_10[0x10];
 
@@ -9731,7 +9731,7 @@ struct mlx5_ifc_query_host_params_in_bits {
 	u8         reserved_at_40[0x40];
 };
 
-struct mlx5_ifc_query_host_params_out_bits {
+struct mlx5_ifc_query_esw_functions_out_bits {
 	u8         status[0x8];
 	u8         reserved_at_8[0x18];
 

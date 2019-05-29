@@ -1686,13 +1686,41 @@ static int eswitch_vport_event(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static int query_esw_functions(struct mlx5_core_dev *dev,
+			       u32 *out, int outlen)
+{
+	u32 in[MLX5_ST_SZ_DW(query_esw_functions_in)] = {0};
+
+	MLX5_SET(query_esw_functions_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_ESW_FUNCTIONS);
+
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
+}
+
+int mlx5_esw_query_functions(struct mlx5_core_dev *dev, u16 *num_vfs)
+{
+	u32 out[MLX5_ST_SZ_DW(query_esw_functions_out)] = {0};
+	int err;
+
+	err = query_esw_functions(dev, out, sizeof(out));
+	if (err)
+		return err;
+
+	*num_vfs = MLX5_GET(query_esw_functions_out, out,
+			    host_params_context.host_num_of_vfs);
+	esw_debug(dev, "host_num_of_vfs=%d\n", *num_vfs);
+
+	return 0;
+}
+
 /* Public E-Switch API */
 #define ESW_ALLOWED(esw) ((esw) && MLX5_ESWITCH_MANAGER((esw)->dev))
 
 int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 {
-	int vf_nvports = 0, total_nvports = 0;
 	struct mlx5_vport *vport;
+	int total_nvports = 0;
+	u16 vf_nvports = 0;
 	int err;
 	int i, enabled_events;
 
@@ -1712,7 +1740,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 
 	if (mode == SRIOV_OFFLOADS) {
 		if (mlx5_core_is_ecpf_esw_manager(esw->dev)) {
-			err = mlx5_query_host_params_num_vfs(esw->dev, &vf_nvports);
+			err = mlx5_esw_query_functions(esw->dev, &vf_nvports);
 			if (err)
 				return err;
 			total_nvports = esw->total_vports;

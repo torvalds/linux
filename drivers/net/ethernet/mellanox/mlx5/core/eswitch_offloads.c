@@ -41,7 +41,6 @@
 #include "en.h"
 #include "fs_core.h"
 #include "lib/devcom.h"
-#include "ecpf.h"
 #include "lib/eq.h"
 
 /* There are two match-all miss flows, one for unicast dst mac and
@@ -1782,55 +1781,77 @@ static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 		esw_prio_tag_acls_cleanup(esw);
 }
 
-static void esw_host_params_event_handler(struct work_struct *work)
+static void esw_functions_changed_event_handler(struct work_struct *work)
 {
 	struct mlx5_host_work *host_work;
 	struct mlx5_eswitch *esw;
-	int err, num_vf = 0;
+	u16 num_vfs = 0;
+	int err;
 
 	host_work = container_of(work, struct mlx5_host_work, work);
 	esw = host_work->esw;
 
-	err = mlx5_query_host_params_num_vfs(esw->dev, &num_vf);
-	if (err || num_vf == esw->host_info.num_vfs)
+	err = mlx5_esw_query_functions(esw->dev, &num_vfs);
+	if (err || num_vfs == esw->esw_funcs.num_vfs)
 		goto out;
 
 	/* Number of VFs can only change from "0 to x" or "x to 0". */
-	if (esw->host_info.num_vfs > 0) {
-		esw_offloads_unload_vf_reps(esw, esw->host_info.num_vfs);
+	if (esw->esw_funcs.num_vfs > 0) {
+		esw_offloads_unload_vf_reps(esw, esw->esw_funcs.num_vfs);
 	} else {
-		err = esw_offloads_load_vf_reps(esw, num_vf);
+		err = esw_offloads_load_vf_reps(esw, num_vfs);
 
 		if (err)
 			goto out;
 	}
 
-	esw->host_info.num_vfs = num_vf;
+	esw->esw_funcs.num_vfs = num_vfs;
 
 out:
 	kfree(host_work);
 }
 
-static int esw_host_params_event(struct notifier_block *nb,
-				 unsigned long type, void *data)
+static int esw_functions_changed_event(struct notifier_block *nb,
+				       unsigned long type, void *data)
 {
+	struct mlx5_esw_functions *esw_funcs;
 	struct mlx5_host_work *host_work;
-	struct mlx5_host_info *host_info;
 	struct mlx5_eswitch *esw;
 
 	host_work = kzalloc(sizeof(*host_work), GFP_ATOMIC);
 	if (!host_work)
 		return NOTIFY_DONE;
 
-	host_info = mlx5_nb_cof(nb, struct mlx5_host_info, nb);
-	esw = container_of(host_info, struct mlx5_eswitch, host_info);
+	esw_funcs = mlx5_nb_cof(nb, struct mlx5_esw_functions, nb);
+	esw = container_of(esw_funcs, struct mlx5_eswitch, esw_funcs);
 
 	host_work->esw = esw;
 
-	INIT_WORK(&host_work->work, esw_host_params_event_handler);
+	INIT_WORK(&host_work->work, esw_functions_changed_event_handler);
 	queue_work(esw->work_queue, &host_work->work);
 
 	return NOTIFY_OK;
+}
+
+static void esw_functions_changed_event_init(struct mlx5_eswitch *esw,
+					     u16 vf_nvports)
+{
+	if (!mlx5_core_is_ecpf_esw_manager(esw->dev))
+		return;
+
+	MLX5_NB_INIT(&esw->esw_funcs.nb, esw_functions_changed_event,
+		     ESW_FUNCTIONS_CHANGED);
+	mlx5_eq_notifier_register(esw->dev, &esw->esw_funcs.nb);
+	esw->esw_funcs.num_vfs = vf_nvports;
+}
+
+static void esw_functions_changed_event_cleanup(struct mlx5_eswitch *esw)
+{
+	if (!mlx5_core_is_ecpf_esw_manager(esw->dev))
+		return;
+
+	mlx5_eq_notifier_unregister(esw->dev, &esw->esw_funcs.nb);
+	flush_workqueue(esw->work_queue);
 }
 
 int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
@@ -1848,12 +1869,7 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
 
 	esw_offloads_devcom_init(esw);
 
-	if (mlx5_core_is_ecpf_esw_manager(esw->dev)) {
-		MLX5_NB_INIT(&esw->host_info.nb, esw_host_params_event,
-			     HOST_PARAMS_CHANGE);
-		mlx5_eq_notifier_register(esw->dev, &esw->host_info.nb);
-		esw->host_info.num_vfs = vf_nvports;
-	}
+	esw_functions_changed_event_init(esw, vf_nvports);
 
 	mlx5_rdma_enable_roce(esw->dev);
 
@@ -1887,13 +1903,12 @@ void esw_offloads_cleanup(struct mlx5_eswitch *esw)
 {
 	u16 num_vfs;
 
-	if (mlx5_core_is_ecpf_esw_manager(esw->dev)) {
-		mlx5_eq_notifier_unregister(esw->dev, &esw->host_info.nb);
-		flush_workqueue(esw->work_queue);
-		num_vfs = esw->host_info.num_vfs;
-	} else {
+	esw_functions_changed_event_cleanup(esw);
+
+	if (mlx5_core_is_ecpf_esw_manager(esw->dev))
+		num_vfs = esw->esw_funcs.num_vfs;
+	else
 		num_vfs = esw->dev->priv.sriov.num_vfs;
-	}
 
 	mlx5_rdma_disable_roce(esw->dev);
 	esw_offloads_devcom_cleanup(esw);

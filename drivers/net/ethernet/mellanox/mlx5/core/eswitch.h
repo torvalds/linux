@@ -190,7 +190,7 @@ struct mlx5_host_work {
 	struct mlx5_eswitch	*esw;
 };
 
-struct mlx5_host_info {
+struct mlx5_esw_functions {
 	struct mlx5_nb		nb;
 	u16			num_vfs;
 };
@@ -219,7 +219,7 @@ struct mlx5_eswitch {
 	int                     mode;
 	int                     nvports;
 	u16                     manager_vport;
-	struct mlx5_host_info	host_info;
+	struct mlx5_esw_functions esw_funcs;
 };
 
 void esw_offloads_cleanup(struct mlx5_eswitch *esw);
@@ -385,6 +385,8 @@ bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0,
 			 struct mlx5_core_dev *dev1);
 bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 			       struct mlx5_core_dev *dev1);
+
+int mlx5_esw_query_functions(struct mlx5_core_dev *dev, u16 *num_vfs);
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 
