@@ -561,6 +561,54 @@ static int ip_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	return ip_do_fragment(net, sk, skb, output);
 }
 
+void ip_fraglist_init(struct sk_buff *skb, struct iphdr *iph,
+		      unsigned int hlen, struct ip_fraglist_iter *iter)
+{
+	unsigned int first_len = skb_pagelen(skb);
+
+	iter->frag_list = skb_shinfo(skb)->frag_list;
+	iter->frag = iter->frag_list;
+	skb_frag_list_init(skb);
+
+	iter->offset = 0;
+	iter->iph = iph;
+	iter->hlen = hlen;
+
+	skb->data_len = first_len - skb_headlen(skb);
+	skb->len = first_len;
+	iph->tot_len = htons(first_len);
+	iph->frag_off = htons(IP_MF);
+	ip_send_check(iph);
+}
+EXPORT_SYMBOL(ip_fraglist_init);
+
+void ip_fraglist_prepare(struct sk_buff *skb, struct ip_fraglist_iter *iter)
+{
+	unsigned int hlen = iter->hlen;
+	struct iphdr *iph = iter->iph;
+	struct sk_buff *frag;
+
+	frag = iter->frag;
+	frag->ip_summed = CHECKSUM_NONE;
+	skb_reset_transport_header(frag);
+	__skb_push(frag, hlen);
+	skb_reset_network_header(frag);
+	memcpy(skb_network_header(frag), iph, hlen);
+	iter->iph = ip_hdr(frag);
+	iph = iter->iph;
+	iph->tot_len = htons(frag->len);
+	ip_copy_metadata(frag, skb);
+	if (iter->offset == 0)
+		ip_options_fragment(frag);
+	iter->offset += skb->len - hlen;
+	iph->frag_off = htons(iter->offset >> 3);
+	if (frag->next)
+		iph->frag_off |= htons(IP_MF);
+	/* Ready, complete checksum */
+	ip_send_check(iph);
+}
+EXPORT_SYMBOL(ip_fraglist_prepare);
+
 /*
  *	This IP datagram is too large to be sent in one piece.  Break it up into
  *	smaller pieces (each of size equal to IP header plus
@@ -578,6 +626,7 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 	int offset;
 	__be16 not_last_frag;
 	struct rtable *rt = skb_rtable(skb);
+	struct ip_fraglist_iter iter;
 	int err = 0;
 
 	/* for offloaded checksums cleanup checksum before fragmentation */
@@ -642,49 +691,22 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		}
 
 		/* Everything is OK. Generate! */
-
-		err = 0;
-		offset = 0;
-		frag = skb_shinfo(skb)->frag_list;
-		skb_frag_list_init(skb);
-		skb->data_len = first_len - skb_headlen(skb);
-		skb->len = first_len;
-		iph->tot_len = htons(first_len);
-		iph->frag_off = htons(IP_MF);
-		ip_send_check(iph);
+		ip_fraglist_init(skb, iph, hlen, &iter);
 
 		for (;;) {
 			/* Prepare header of the next frame,
 			 * before previous one went down. */
-			if (frag) {
-				frag->ip_summed = CHECKSUM_NONE;
-				skb_reset_transport_header(frag);
-				__skb_push(frag, hlen);
-				skb_reset_network_header(frag);
-				memcpy(skb_network_header(frag), iph, hlen);
-				iph = ip_hdr(frag);
-				iph->tot_len = htons(frag->len);
-				ip_copy_metadata(frag, skb);
-				if (offset == 0)
-					ip_options_fragment(frag);
-				offset += skb->len - hlen;
-				iph->frag_off = htons(offset>>3);
-				if (frag->next)
-					iph->frag_off |= htons(IP_MF);
-				/* Ready, complete checksum */
-				ip_send_check(iph);
-			}
+			if (iter.frag)
+				ip_fraglist_prepare(skb, &iter);
 
 			err = output(net, sk, skb);
 
 			if (!err)
 				IP_INC_STATS(net, IPSTATS_MIB_FRAGCREATES);
-			if (err || !frag)
+			if (err || !iter.frag)
 				break;
 
-			skb = frag;
-			frag = skb->next;
-			skb_mark_not_on_list(skb);
+			skb = ip_fraglist_next(&iter);
 		}
 
 		if (err == 0) {
@@ -692,7 +714,7 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 			return 0;
 		}
 
-		kfree_skb_list(frag);
+		kfree_skb_list(iter.frag_list);
 
 		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
 		return err;
