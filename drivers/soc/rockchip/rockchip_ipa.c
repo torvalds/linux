@@ -6,11 +6,12 @@
 #include <linux/of.h>
 #include <linux/thermal.h>
 #include <soc/rockchip/rockchip_ipa.h>
+#include <soc/rockchip/rockchip_opp_select.h>
 #include <trace/events/thermal.h>
 
 #define FALLBACK_STATIC_TEMPERATURE 55000
 
-int rockchip_ipa_power_model_init(struct device *dev,
+int rockchip_ipa_power_model_init(struct device *dev, char *lkg_name,
 				  struct ipa_power_model_data **data)
 {
 	struct device_node *model_node;
@@ -57,6 +58,7 @@ int rockchip_ipa_power_model_init(struct device *dev,
 		ret = -EINVAL;
 		goto err;
 	}
+	rockchip_of_get_leakage(dev, lkg_name, &model_data->leakage);
 	of_property_read_u32(model_node, "ref-leakage",
 			     &model_data->ref_leakage);
 	*data = model_data;
