@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HID driver for the apple ir device
  *
@@ -12,15 +13,6 @@
  * Copyright (C) 2010, 2012 Bastien Nocera <hadess@hadess.net>
  * Copyright (C) 2013 Benjamin Tissoires <benjamin.tissoires@gmail.com>
  * Copyright (C) 2013 Red Hat Inc. All Rights Reserved
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/device.h>
