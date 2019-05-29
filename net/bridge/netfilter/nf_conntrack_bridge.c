@@ -163,6 +163,31 @@ static unsigned int nf_ct_br_defrag4(struct sk_buff *skb,
 	return NF_STOLEN;
 }
 
+static unsigned int nf_ct_br_defrag6(struct sk_buff *skb,
+				     const struct nf_hook_state *state)
+{
+	u16 zone_id = NF_CT_DEFAULT_ZONE_ID;
+	enum ip_conntrack_info ctinfo;
+	struct br_input_skb_cb cb;
+	const struct nf_conn *ct;
+	int err;
+
+	ct = nf_ct_get(skb, &ctinfo);
+	if (ct)
+		zone_id = nf_ct_zone_id(nf_ct_zone(ct), CTINFO2DIR(ctinfo));
+
+	br_skb_cb_save(skb, &cb, sizeof(struct inet6_skb_parm));
+
+	err = nf_ipv6_br_defrag(state->net, skb,
+				IP_DEFRAG_CONNTRACK_BRIDGE_IN + zone_id);
+	/* queued */
+	if (err == -EINPROGRESS)
+		return NF_STOLEN;
+
+	br_skb_cb_restore(skb, &cb, IP6CB(skb)->frag_max_size);
+	return err == 0 ? NF_ACCEPT : NF_DROP;
+}
+
 static int nf_ct_br_ip_check(const struct sk_buff *skb)
 {
 	const struct iphdr *iph;
@@ -177,6 +202,23 @@ static int nf_ct_br_ip_check(const struct sk_buff *skb)
 	len = ntohs(iph->tot_len);
 	if (skb->len < nhoff + len ||
 	    len < (iph->ihl * 4))
+                return -1;
+
+	return 0;
+}
+
+static int nf_ct_br_ipv6_check(const struct sk_buff *skb)
+{
+	const struct ipv6hdr *hdr;
+	int nhoff, len;
+
+	nhoff = skb_network_offset(skb);
+	hdr = ipv6_hdr(skb);
+	if (hdr->version != 6)
+		return -1;
+
+	len = ntohs(hdr->payload_len) + sizeof(struct ipv6hdr) + nhoff;
+	if (skb->len < len)
 		return -1;
 
 	return 0;
@@ -212,7 +254,19 @@ static unsigned int nf_ct_bridge_pre(void *priv, struct sk_buff *skb,
 		ret = nf_ct_br_defrag4(skb, &bridge_state);
 		break;
 	case htons(ETH_P_IPV6):
-		/* fall through */
+		if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
+			return NF_ACCEPT;
+
+		len = sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len);
+		if (pskb_trim_rcsum(skb, len))
+			return NF_ACCEPT;
+
+		if (nf_ct_br_ipv6_check(skb))
+			return NF_ACCEPT;
+
+		bridge_state.pf = NFPROTO_IPV6;
+		ret = nf_ct_br_defrag6(skb, &bridge_state);
+		break;
 	default:
 		nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 		return NF_ACCEPT;
@@ -254,7 +308,8 @@ nf_ct_bridge_refrag(struct sk_buff *skb, const struct nf_hook_state *state,
 		nf_br_ip_fragment(state->net, state->sk, skb, &data, output);
 		break;
 	case htons(ETH_P_IPV6):
-		return NF_ACCEPT;
+		nf_br_ip6_fragment(state->net, state->sk, skb, &data, output);
+		break;
 	default:
 		WARN_ON_ONCE(1);
 		return NF_DROP;
