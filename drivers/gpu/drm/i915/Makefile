@@ -90,6 +90,7 @@ obj-y += gem/
 gem-y += \
 	gem/i915_gem_busy.o \
 	gem/i915_gem_clflush.o \
+	gem/i915_gem_client_blt.o \
 	gem/i915_gem_context.o \
 	gem/i915_gem_dmabuf.o \
 	gem/i915_gem_domain.o \
@@ -97,6 +98,7 @@ gem-y += \
 	gem/i915_gem_fence.o \
 	gem/i915_gem_internal.o \
 	gem/i915_gem_object.o \
+	gem/i915_gem_object_blt.o \
 	gem/i915_gem_mman.o \
 	gem/i915_gem_pages.o \
 	gem/i915_gem_phys.o \

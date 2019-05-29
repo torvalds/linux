@@ -180,6 +180,7 @@
 #define GFX_OP_DRAWRECT_INFO_I965  ((0x7900<<16)|0x2)
 
 #define COLOR_BLT_CMD			(2<<29 | 0x40<<22 | (5-2))
+#define XY_COLOR_BLT_CMD		(2 << 29 | 0x50 << 22)
 #define SRC_COPY_BLT_CMD		((2<<29)|(0x43<<22)|4)
 #define XY_SRC_COPY_BLT_CMD		((2<<29)|(0x53<<22)|6)
 #define XY_MONO_SRC_COPY_IMM_BLT	((2<<29)|(0x71<<22)|5)
