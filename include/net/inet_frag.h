@@ -3,6 +3,7 @@
 #define __NET_FRAG_H__
 
 #include <linux/rhashtable-types.h>
+#include <linux/completion.h>
 
 /* Per netns frag queues directory */
 struct fqdir {
@@ -104,30 +105,14 @@ struct inet_frags {
 	struct kmem_cache	*frags_cachep;
 	const char		*frags_cache_name;
 	struct rhashtable_params rhash_params;
+	refcount_t		refcnt;
+	struct completion	completion;
 };
 
 int inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
-static inline int fqdir_init(struct fqdir **fqdirp, struct inet_frags *f,
-			     struct net *net)
-{
-	struct fqdir *fqdir = kzalloc(sizeof(*fqdir), GFP_KERNEL);
-	int res;
-
-	if (!fqdir)
-		return -ENOMEM;
-	fqdir->f = f;
-	fqdir->net = net;
-	res = rhashtable_init(&fqdir->rhashtable, &fqdir->f->rhash_params);
-	if (res < 0) {
-		kfree(fqdir);
-		return res;
-	}
-	*fqdirp = fqdir;
-	return 0;
-}
-
+int fqdir_init(struct fqdir **fqdirp, struct inet_frags *f, struct net *net);
 void fqdir_exit(struct fqdir *fqdir);
 
 void inet_frag_kill(struct inet_frag_queue *q);
