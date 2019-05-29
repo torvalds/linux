@@ -3106,7 +3106,10 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 {
 	struct snd_soc_dapm_context *dapm;
 
-	component->name = fmt_single_name(dev, &component->id);
+	if (driver->name)
+		component->name = kstrdup(driver->name, GFP_KERNEL);
+	else
+		component->name = fmt_single_name(dev, &component->id);
 	if (!component->name) {
 		dev_err(dev, "ASoC: Failed to allocate name\n");
 		return -ENOMEM;
