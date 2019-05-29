@@ -141,6 +141,10 @@ print "Auto-fixing broken references. Please double-check the results\n";
 foreach my $ref (keys %broken_ref) {
 	my $new =$ref;
 
+	my $basedir = ".";
+	# On translations, only seek inside the translations directory
+	$basedir  = $1 if ($ref =~ m,(Documentation/translations/[^/]+),);
+
 	# get just the basename
 	$new =~ s,.*/,,;
 
@@ -161,18 +165,18 @@ foreach my $ref (keys %broken_ref) {
 	# usual reason for breakage: file renamed to .rst
 	if (!$f) {
 		$new =~ s/\.txt$/.rst/;
-		$f=qx(find . -iname $new) if ($new);
+		$f=qx(find $basedir -iname $new) if ($new);
 	}
 
 	# usual reason for breakage: use dash or underline
 	if (!$f) {
 		$new =~ s/[-_]/[-_]/g;
-		$f=qx(find . -iname $new) if ($new);
+		$f=qx(find $basedir -iname $new) if ($new);
 	}
 
 	# Wild guess: seek for the same name on another place
 	if (!$f) {
-		$f = qx(find . -iname $new) if ($new);
+		$f = qx(find $basedir -iname $new) if ($new);
 	}
 
 	my @find = split /\s+/, $f;
