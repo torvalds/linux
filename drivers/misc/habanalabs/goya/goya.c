@@ -986,9 +986,9 @@ int goya_init_cpu_queues(struct hl_device *hdev)
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_3, upper_32_bits(eq->bus_address));
 
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_8,
-			lower_32_bits(hdev->cpu_accessible_dma_address));
+			lower_32_bits(VA_CPU_ACCESSIBLE_MEM_ADDR));
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_9,
-			upper_32_bits(hdev->cpu_accessible_dma_address));
+			upper_32_bits(VA_CPU_ACCESSIBLE_MEM_ADDR));
 
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_5, HL_QUEUE_SIZE_IN_BYTES);
 	WREG32(mmPSOC_GLOBAL_CONF_SCRATCHPAD_4, HL_EQ_SIZE_IN_BYTES);
@@ -3011,7 +3011,13 @@ static void goya_dma_pool_free(struct hl_device *hdev, void *vaddr,
 void *goya_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 					dma_addr_t *dma_handle)
 {
-	return hl_fw_cpu_accessible_dma_pool_alloc(hdev, size, dma_handle);
+	void *vaddr;
+
+	vaddr = hl_fw_cpu_accessible_dma_pool_alloc(hdev, size, dma_handle);
+	*dma_handle = (*dma_handle) - hdev->cpu_accessible_dma_address +
+			VA_CPU_ACCESSIBLE_MEM_ADDR;
+
+	return vaddr;
 }
 
 void goya_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
@@ -4667,6 +4673,14 @@ static int goya_mmu_add_mappings_for_device_cpu(struct hl_device *hdev)
 		}
 	}
 
+	goya_mmu_prepare_reg(hdev, mmCPU_IF_ARUSER_OVR, HL_KERNEL_ASID_ID);
+	goya_mmu_prepare_reg(hdev, mmCPU_IF_AWUSER_OVR, HL_KERNEL_ASID_ID);
+	WREG32(mmCPU_IF_ARUSER_OVR_EN, 0x7FF);
+	WREG32(mmCPU_IF_AWUSER_OVR_EN, 0x7FF);
+
+	/* Make sure configuration is flushed to device */
+	RREG32(mmCPU_IF_AWUSER_OVR_EN);
+
 	goya->device_cpu_mmu_mappings_done = true;
 
 	return 0;
@@ -4701,6 +4715,9 @@ void goya_mmu_remove_device_cpu_mappings(struct hl_device *hdev)
 
 	if (!goya->device_cpu_mmu_mappings_done)
 		return;
+
+	WREG32(mmCPU_IF_ARUSER_OVR_EN, 0);
+	WREG32(mmCPU_IF_AWUSER_OVR_EN, 0);
 
 	if (!(hdev->cpu_accessible_dma_address & (PAGE_SIZE_2MB - 1))) {
 		if (hl_mmu_unmap(hdev->kernel_ctx, VA_CPU_ACCESSIBLE_MEM_ADDR,
