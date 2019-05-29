@@ -2713,6 +2713,13 @@ enum ieee80211_tdls_actioncode {
 #define WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT	BIT(5)
 #define WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT	BIT(6)
 
+/*
+ * When set, indicates that the AP is able to tolerate 26-tone RU UL
+ * OFDMA transmissions using HE TB PPDU from OBSS (not falsely classify the
+ * 26-tone RU UL OFDMA transmissions as radar pulses).
+ */
+#define WLAN_EXT_CAPA10_OBSS_NARROW_BW_RU_TOLERANCE_SUPPORT BIT(7)
+
 /* Defines support for enhanced multi-bssid advertisement*/
 #define WLAN_EXT_CAPA11_EMA_SUPPORT	BIT(1)
 
