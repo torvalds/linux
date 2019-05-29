@@ -320,10 +320,8 @@ struct hl_cs_job;
 #define HL_EQ_LENGTH			64
 #define HL_EQ_SIZE_IN_BYTES		(HL_EQ_LENGTH * HL_EQ_ENTRY_SIZE)
 
-/* KMD <-> ArmCP shared memory size (EQ + PQ + 2MB for packets) */
-#define HL_CPU_ACCESSIBLE_MEM_SIZE	(HL_EQ_SIZE_IN_BYTES + \
-					 HL_QUEUE_SIZE_IN_BYTES + \
-					 SZ_2M)
+/* KMD <-> ArmCP shared memory size */
+#define HL_CPU_ACCESSIBLE_MEM_SIZE	SZ_2M
 
 /**
  * struct hl_hw_queue - describes a H/W transport queue.

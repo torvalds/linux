@@ -355,7 +355,7 @@ static int mmu_show(struct seq_file *s, void *data)
 	struct hl_debugfs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
-	struct hl_ctx *ctx = hdev->user_ctx;
+	struct hl_ctx *ctx;
 
 	u64 hop0_addr = 0, hop0_pte_addr = 0, hop0_pte = 0,
 		hop1_addr = 0, hop1_pte_addr = 0, hop1_pte = 0,
@@ -366,6 +366,11 @@ static int mmu_show(struct seq_file *s, void *data)
 
 	if (!hdev->mmu_enable)
 		return 0;
+
+	if (dev_entry->mmu_asid == HL_KERNEL_ASID_ID)
+		ctx = hdev->kernel_ctx;
+	else
+		ctx = hdev->user_ctx;
 
 	if (!ctx) {
 		dev_err(hdev->dev, "no ctx available\n");
