@@ -7,6 +7,8 @@
 
 #include "debug.h"
 
+#define RTW_MAX_POWER_INDEX		0x7F
+
 extern u8 rtw_cck_rates[];
 extern u8 rtw_ofdm_rates[];
 extern u8 rtw_ht_1s_rates[];
@@ -27,11 +29,6 @@ bool rtw_phy_write_rf_reg(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
 			  u32 addr, u32 mask, u32 data);
 bool rtw_phy_write_rf_reg_mix(struct rtw_dev *rtwdev, enum rtw_rf_path rf_path,
 			      u32 addr, u32 mask, u32 data);
-void phy_store_tx_power_by_rate(void *adapter, u32 band, u32 rfpath, u32 txnum,
-				u32 regaddr, u32 bitmask, u32 data);
-void phy_set_tx_power_limit(struct rtw_dev *rtwdev, u8 regd, u8 band,
-			    u8 bw, u8 rs, u8 ch, s8 pwr_limit);
-void phy_set_tx_power_index_by_rs(void *adapter, u8 ch, u8 path, u8 rs);
 void rtw_phy_setup_phy_cond(struct rtw_dev *rtwdev, u32 pkg);
 void rtw_parse_tbl_phy_cond(struct rtw_dev *rtwdev, const struct rtw_table *tbl);
 void rtw_parse_tbl_bb_pg(struct rtw_dev *rtwdev, const struct rtw_table *tbl);
