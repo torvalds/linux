@@ -10,50 +10,6 @@
 #include "igc.h"
 
 /**
- * igc_set_pcie_completion_timeout - set pci-e completion timeout
- * @hw: pointer to the HW structure
- */
-static s32 igc_set_pcie_completion_timeout(struct igc_hw *hw)
-{
-	u32 gcr = rd32(IGC_GCR);
-	u16 pcie_devctl2;
-	s32 ret_val = 0;
-
-	/* only take action if timeout value is defaulted to 0 */
-	if (gcr & IGC_GCR_CMPL_TMOUT_MASK)
-		goto out;
-
-	/* if capabilities version is type 1 we can write the
-	 * timeout of 10ms to 200ms through the GCR register
-	 */
-	if (!(gcr & IGC_GCR_CAP_VER2)) {
-		gcr |= IGC_GCR_CMPL_TMOUT_10ms;
-		goto out;
-	}
-
-	/* for version 2 capabilities we need to write the config space
-	 * directly in order to set the completion timeout value for
-	 * 16ms to 55ms
-	 */
-	ret_val = igc_read_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
-					&pcie_devctl2);
-	if (ret_val)
-		goto out;
-
-	pcie_devctl2 |= PCIE_DEVICE_CONTROL2_16ms;
-
-	ret_val = igc_write_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
-					 &pcie_devctl2);
-out:
-	/* disable completion timeout resend */
-	gcr &= ~IGC_GCR_CMPL_TMOUT_RESEND;
-
-	wr32(IGC_GCR, gcr);
-
-	return ret_val;
-}
-
-/**
  * igc_reset_hw_base - Reset hardware
  * @hw: pointer to the HW structure
  *
@@ -71,11 +27,6 @@ static s32 igc_reset_hw_base(struct igc_hw *hw)
 	ret_val = igc_disable_pcie_master(hw);
 	if (ret_val)
 		hw_dbg("PCI-E Master disable polling has failed.\n");
-
-	/* set the completion timeout for interface */
-	ret_val = igc_set_pcie_completion_timeout(hw);
-	if (ret_val)
-		hw_dbg("PCI-E Set completion timeout has failed.\n");
 
 	hw_dbg("Masking off all interrupts\n");
 	wr32(IGC_IMC, 0xffffffff);
