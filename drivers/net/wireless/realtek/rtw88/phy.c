@@ -1670,12 +1670,11 @@ void rtw_phy_tx_power_by_rate_config(struct rtw_hal *hal)
 static void
 __rtw_phy_tx_power_limit_config(struct rtw_hal *hal, u8 regd, u8 bw, u8 rs)
 {
-	s8 base, orig;
+	s8 base;
 	u8 ch;
 
 	for (ch = 0; ch < RTW_MAX_CHANNEL_NUM_2G; ch++) {
 		base = hal->tx_pwr_by_rate_base_2g[0][rs];
-		orig = hal->tx_pwr_limit_2g[regd][bw][rs][ch];
 		hal->tx_pwr_limit_2g[regd][bw][rs][ch] -= base;
 	}
 
