@@ -27,8 +27,7 @@ Sphinx Install
 ==============
 
 The ReST markups currently used by the Documentation/ files are meant to be
-built with ``Sphinx`` version 1.3 or higher. If you desire to build
-PDF output, it is recommended to use version 1.4.6 or higher.
+built with ``Sphinx`` version 1.3 or higher.
 
 There's a script that checks for the Sphinx requirements. Please see
 :ref:`sphinx-pre-install` for further details.
@@ -56,13 +55,13 @@ or ``virtualenv``, depending on how your distribution packaged Python 3.
       those expressions are written using LaTeX notation. It needs texlive
       installed with amdfonts and amsmath in order to evaluate them.
 
-In summary, if you want to install Sphinx version 1.4.9, you should do::
+In summary, if you want to install Sphinx version 1.7.9, you should do::
 
-       $ virtualenv sphinx_1.4
-       $ . sphinx_1.4/bin/activate
-       (sphinx_1.4) $ pip install -r Documentation/sphinx/requirements.txt
+       $ virtualenv sphinx_1.7.9
+       $ . sphinx_1.7.9/bin/activate
+       (sphinx_1.7.9) $ pip install -r Documentation/sphinx/requirements.txt
 
-After running ``. sphinx_1.4/bin/activate``, the prompt will change,
+After running ``. sphinx_1.7.9/bin/activate``, the prompt will change,
 in order to indicate that you're using the new environment. If you
 open a new shell, you need to rerun this command to enter again at
 the virtual environment before building the documentation.
@@ -105,8 +104,8 @@ command line options for your distro::
 	You should run:
 
 		sudo dnf install -y texlive-luatex85
-		/usr/bin/virtualenv sphinx_1.4
-		. sphinx_1.4/bin/activate
+		/usr/bin/virtualenv sphinx_1.7.9
+		. sphinx_1.7.9/bin/activate
 		pip install -r Documentation/sphinx/requirements.txt
 
 	Can't build as 1 mandatory dependency is missing at ./scripts/sphinx-pre-install line 468.
