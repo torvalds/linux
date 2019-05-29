@@ -1159,10 +1159,10 @@ static void __init pnv_power9_idle_init(void)
 			pnv_deepest_stop_psscr_mask);
 	}
 
-	pr_info("cpuidle-powernv: First stop level that may lose SPRs = 0x%lld\n",
+	pr_info("cpuidle-powernv: First stop level that may lose SPRs = 0x%llx\n",
 		pnv_first_spr_loss_level);
 
-	pr_info("cpuidle-powernv: First stop level that may lose timebase = 0x%lld\n",
+	pr_info("cpuidle-powernv: First stop level that may lose timebase = 0x%llx\n",
 		pnv_first_tb_loss_level);
 }
 
