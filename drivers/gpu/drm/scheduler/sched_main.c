@@ -353,6 +353,7 @@ EXPORT_SYMBOL(drm_sched_increase_karma);
  * drm_sched_stop - stop the scheduler
  *
  * @sched: scheduler instance
+ * @bad: job which caused the time out
  *
  * Stop the scheduler and also removes and frees all completed jobs.
  * Note: bad job will not be freed as it might be used later and so it's
@@ -422,6 +423,7 @@ EXPORT_SYMBOL(drm_sched_stop);
  * drm_sched_job_recovery - recover jobs after a reset
  *
  * @sched: scheduler instance
+ * @full_recovery: proceed with complete sched restart
  *
  */
 void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
