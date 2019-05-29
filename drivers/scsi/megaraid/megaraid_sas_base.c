@@ -64,7 +64,7 @@
  * Will be set in megasas_init_mfi if user does not provide
  */
 static unsigned int max_sectors;
-module_param_named(max_sectors, max_sectors, int, 0);
+module_param_named(max_sectors, max_sectors, int, S_IRUGO);
 MODULE_PARM_DESC(max_sectors,
 	"Maximum number of sectors per IO command");
 
