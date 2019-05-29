@@ -465,8 +465,8 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 	struct snd_soc_pcm_runtime *rtd;
 	struct hdac_ext_link *link;
 	const char *name;
-#endif
 	int stream_tag;
+#endif
 
 	/* set internal flag for BE */
 	list_for_each_entry(s, &bus->stream_list, list) {
@@ -474,7 +474,6 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 		hda_stream = container_of(stream, struct sof_intel_hda_stream,
 					  hda_stream);
 		hda_stream->hw_params_upon_resume = 1;
-		stream_tag = hdac_stream(stream)->stream_tag;
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 		/*
 		 * clear and release stream. This should already be taken care
@@ -488,6 +487,7 @@ int hda_dsp_set_hw_params_upon_resume(struct snd_sof_dev *sdev)
 			link = snd_hdac_ext_bus_get_link(bus, name);
 			if (!link)
 				return -EINVAL;
+			stream_tag = hdac_stream(stream)->stream_tag;
 			snd_hdac_ext_link_clear_stream_id(link, stream_tag);
 			snd_hdac_ext_stream_release(stream,
 						    HDAC_EXT_STREAM_TYPE_LINK);
