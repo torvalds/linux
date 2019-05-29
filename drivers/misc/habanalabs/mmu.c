@@ -241,8 +241,9 @@ static int dram_default_mapping_init(struct hl_ctx *ctx)
 		hop2_pte_addr, hop3_pte_addr, pte_val;
 	int rc, i, j, hop3_allocated = 0;
 
-	if (!hdev->dram_supports_virtual_memory ||
-			!hdev->dram_default_page_mapping)
+	if ((!hdev->dram_supports_virtual_memory) ||
+			(!hdev->dram_default_page_mapping) ||
+			(ctx->asid == HL_KERNEL_ASID_ID))
 		return 0;
 
 	num_of_hop3 = prop->dram_size_for_default_page_mapping;
@@ -340,8 +341,9 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
 		hop2_pte_addr, hop3_pte_addr;
 	int i, j;
 
-	if (!hdev->dram_supports_virtual_memory ||
-			!hdev->dram_default_page_mapping)
+	if ((!hdev->dram_supports_virtual_memory) ||
+			(!hdev->dram_default_page_mapping) ||
+			(ctx->asid == HL_KERNEL_ASID_ID))
 		return;
 
 	num_of_hop3 = prop->dram_size_for_default_page_mapping;

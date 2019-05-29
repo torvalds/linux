@@ -36,6 +36,8 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
+	} else {
+		hl_mmu_ctx_fini(ctx);
 	}
 }
 
@@ -119,6 +121,11 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 
 	if (is_kernel_ctx) {
 		ctx->asid = HL_KERNEL_ASID_ID; /* KMD gets ASID 0 */
+		rc = hl_mmu_ctx_init(ctx);
+		if (rc) {
+			dev_err(hdev->dev, "Failed to init mmu ctx module\n");
+			goto mem_ctx_err;
+		}
 	} else {
 		ctx->asid = hl_asid_alloc(hdev);
 		if (!ctx->asid) {
