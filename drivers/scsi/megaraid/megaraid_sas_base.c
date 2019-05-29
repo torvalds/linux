@@ -64,45 +64,45 @@
  * Will be set in megasas_init_mfi if user does not provide
  */
 static unsigned int max_sectors;
-module_param_named(max_sectors, max_sectors, int, S_IRUGO);
+module_param_named(max_sectors, max_sectors, int, 0444);
 MODULE_PARM_DESC(max_sectors,
 	"Maximum number of sectors per IO command");
 
 static int msix_disable;
-module_param(msix_disable, int, S_IRUGO);
+module_param(msix_disable, int, 0444);
 MODULE_PARM_DESC(msix_disable, "Disable MSI-X interrupt handling. Default: 0");
 
 static unsigned int msix_vectors;
-module_param(msix_vectors, int, S_IRUGO);
+module_param(msix_vectors, int, 0444);
 MODULE_PARM_DESC(msix_vectors, "MSI-X max vector count. Default: Set by FW");
 
 static int allow_vf_ioctls;
-module_param(allow_vf_ioctls, int, S_IRUGO);
+module_param(allow_vf_ioctls, int, 0444);
 MODULE_PARM_DESC(allow_vf_ioctls, "Allow ioctls in SR-IOV VF mode. Default: 0");
 
 static unsigned int throttlequeuedepth = MEGASAS_THROTTLE_QUEUE_DEPTH;
-module_param(throttlequeuedepth, int, S_IRUGO);
+module_param(throttlequeuedepth, int, 0444);
 MODULE_PARM_DESC(throttlequeuedepth,
 	"Adapter queue depth when throttled due to I/O timeout. Default: 16");
 
 unsigned int resetwaittime = MEGASAS_RESET_WAIT_TIME;
-module_param(resetwaittime, int, S_IRUGO);
+module_param(resetwaittime, int, 0444);
 MODULE_PARM_DESC(resetwaittime, "Wait time in (1-180s) after I/O timeout before resetting adapter. Default: 180s");
 
 int smp_affinity_enable = 1;
-module_param(smp_affinity_enable, int, S_IRUGO);
+module_param(smp_affinity_enable, int, 0444);
 MODULE_PARM_DESC(smp_affinity_enable, "SMP affinity feature enable/disable Default: enable(1)");
 
 int rdpq_enable = 1;
-module_param(rdpq_enable, int, S_IRUGO);
+module_param(rdpq_enable, int, 0444);
 MODULE_PARM_DESC(rdpq_enable, "Allocate reply queue in chunks for large queue depth enable/disable Default: enable(1)");
 
 unsigned int dual_qdepth_disable;
-module_param(dual_qdepth_disable, int, S_IRUGO);
+module_param(dual_qdepth_disable, int, 0444);
 MODULE_PARM_DESC(dual_qdepth_disable, "Disable dual queue depth feature. Default: 0");
 
 unsigned int scmd_timeout = MEGASAS_DEFAULT_CMD_TIMEOUT;
-module_param(scmd_timeout, int, S_IRUGO);
+module_param(scmd_timeout, int, 0444);
 MODULE_PARM_DESC(scmd_timeout, "scsi command timeout (10-90s), default 90s. See megasas_reset_timer.");
 
 MODULE_LICENSE("GPL");

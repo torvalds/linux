@@ -58,7 +58,7 @@
 
 #define LB_PENDING_CMDS_DEFAULT 4
 static unsigned int lb_pending_cmds = LB_PENDING_CMDS_DEFAULT;
-module_param(lb_pending_cmds, int, S_IRUGO);
+module_param(lb_pending_cmds, int, 0444);
 MODULE_PARM_DESC(lb_pending_cmds, "Change raid-1 load balancing outstanding "
 	"threshold. Valid Values are 1-128. Default: 4");
 
