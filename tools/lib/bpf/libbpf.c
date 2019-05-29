@@ -1430,8 +1430,7 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 				if (maps[map_idx].libbpf_type != type)
 					continue;
 				if (type != LIBBPF_MAP_UNSPEC ||
-				    (type == LIBBPF_MAP_UNSPEC &&
-				     maps[map_idx].offset == sym.st_value)) {
+				    maps[map_idx].offset == sym.st_value) {
 					pr_debug("relocation: find map %zd (%s) for insn %u\n",
 						 map_idx, maps[map_idx].name, insn_idx);
 					break;
@@ -2354,7 +2353,6 @@ struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 		snprintf(tmp_name, sizeof(tmp_name), "%lx-%lx",
 			 (unsigned long)obj_buf,
 			 (unsigned long)obj_buf_sz);
-		tmp_name[sizeof(tmp_name) - 1] = '\0';
 		name = tmp_name;
 	}
 	pr_debug("loading object '%s' from buffer\n",
