@@ -336,6 +336,8 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 		asyw->xlut.handle = wndw->wndw.vram.handle;
 		asyw->xlut.i.buffer = !asyw->xlut.i.buffer;
 		asyw->set.xlut = true;
+	} else {
+		asyw->clr.xlut = armw->xlut.handle != 0;
 	}
 
 	/* Handle setting base SET_OUTPUT_LUT_LO_ENABLE_USE_CORE_LUT. */
