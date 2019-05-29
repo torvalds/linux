@@ -1831,77 +1831,77 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 		.irq_msk = BIT(SAS_ECC_INTR_DQE_ECC_MB_OFF),
 		.msk = HGC_DQE_ECC_MB_ADDR_MSK,
 		.shift = HGC_DQE_ECC_MB_ADDR_OFF,
-		.msg = "hgc_dqe_eccbad_intr found: ram addr is 0x%08X\n",
+		.msg = "hgc_dqe_eccbad_intr",
 		.reg = HGC_DQE_ECC_ADDR,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_IOST_ECC_MB_OFF),
 		.msk = HGC_IOST_ECC_MB_ADDR_MSK,
 		.shift = HGC_IOST_ECC_MB_ADDR_OFF,
-		.msg = "hgc_iost_eccbad_intr found: ram addr is 0x%08X\n",
+		.msg = "hgc_iost_eccbad_intr",
 		.reg = HGC_IOST_ECC_ADDR,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_ITCT_ECC_MB_OFF),
 		.msk = HGC_ITCT_ECC_MB_ADDR_MSK,
 		.shift = HGC_ITCT_ECC_MB_ADDR_OFF,
-		.msg = "hgc_itct_eccbad_intr found: ram addr is 0x%08X\n",
+		.msg = "hgc_itct_eccbad_intr",
 		.reg = HGC_ITCT_ECC_ADDR,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_IOSTLIST_ECC_MB_OFF),
 		.msk = HGC_LM_DFX_STATUS2_IOSTLIST_MSK,
 		.shift = HGC_LM_DFX_STATUS2_IOSTLIST_OFF,
-		.msg = "hgc_iostl_eccbad_intr found: mem addr is 0x%08X\n",
+		.msg = "hgc_iostl_eccbad_intr",
 		.reg = HGC_LM_DFX_STATUS2,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_ITCTLIST_ECC_MB_OFF),
 		.msk = HGC_LM_DFX_STATUS2_ITCTLIST_MSK,
 		.shift = HGC_LM_DFX_STATUS2_ITCTLIST_OFF,
-		.msg = "hgc_itctl_eccbad_intr found: mem addr is 0x%08X\n",
+		.msg = "hgc_itctl_eccbad_intr",
 		.reg = HGC_LM_DFX_STATUS2,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_CQE_ECC_MB_OFF),
 		.msk = HGC_CQE_ECC_MB_ADDR_MSK,
 		.shift = HGC_CQE_ECC_MB_ADDR_OFF,
-		.msg = "hgc_cqe_eccbad_intr found: ram address is 0x%08X\n",
+		.msg = "hgc_cqe_eccbad_intr",
 		.reg = HGC_CQE_ECC_ADDR,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM0_ECC_MB_OFF),
 		.msk = HGC_RXM_DFX_STATUS14_MEM0_MSK,
 		.shift = HGC_RXM_DFX_STATUS14_MEM0_OFF,
-		.msg = "rxm_mem0_eccbad_intr found: mem addr is 0x%08X\n",
+		.msg = "rxm_mem0_eccbad_intr",
 		.reg = HGC_RXM_DFX_STATUS14,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM1_ECC_MB_OFF),
 		.msk = HGC_RXM_DFX_STATUS14_MEM1_MSK,
 		.shift = HGC_RXM_DFX_STATUS14_MEM1_OFF,
-		.msg = "rxm_mem1_eccbad_intr found: mem addr is 0x%08X\n",
+		.msg = "rxm_mem1_eccbad_intr",
 		.reg = HGC_RXM_DFX_STATUS14,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM2_ECC_MB_OFF),
 		.msk = HGC_RXM_DFX_STATUS14_MEM2_MSK,
 		.shift = HGC_RXM_DFX_STATUS14_MEM2_OFF,
-		.msg = "rxm_mem2_eccbad_intr found: mem addr is 0x%08X\n",
+		.msg = "rxm_mem2_eccbad_intr",
 		.reg = HGC_RXM_DFX_STATUS14,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM3_ECC_MB_OFF),
 		.msk = HGC_RXM_DFX_STATUS15_MEM3_MSK,
 		.shift = HGC_RXM_DFX_STATUS15_MEM3_OFF,
-		.msg = "rxm_mem3_eccbad_intr found: mem addr is 0x%08X\n",
+		.msg = "rxm_mem3_eccbad_intr",
 		.reg = HGC_RXM_DFX_STATUS15,
 	},
 	{
 		.irq_msk = BIT(SAS_ECC_INTR_OOO_RAM_ECC_MB_OFF),
 		.msk = AM_ROB_ECC_ERR_ADDR_MSK,
 		.shift = AM_ROB_ECC_ERR_ADDR_OFF,
-		.msg = "ooo_ram_eccbad_intr found: ROB_ECC_ERR_ADDR=0x%08X\n",
+		.msg = "ooo_ram_eccbad_intr",
 		.reg = AM_ROB_ECC_ERR_ADDR,
 	},
 };
@@ -1920,7 +1920,8 @@ static void multi_bit_ecc_error_process_v3_hw(struct hisi_hba *hisi_hba,
 			val = hisi_sas_read32(hisi_hba, ecc_error->reg);
 			val &= ecc_error->msk;
 			val >>= ecc_error->shift;
-			dev_err(dev, ecc_error->msg, irq_value, val);
+			dev_err(dev, "%s (0x%x) found: mem addr is 0x%08X\n",
+				ecc_error->msg, irq_value, val);
 			queue_work(hisi_hba->wq, &hisi_hba->rst_work);
 		}
 	}
