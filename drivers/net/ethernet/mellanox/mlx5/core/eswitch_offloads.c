@@ -1836,7 +1836,7 @@ static int esw_functions_changed_event(struct notifier_block *nb,
 static void esw_functions_changed_event_init(struct mlx5_eswitch *esw,
 					     u16 vf_nvports)
 {
-	if (!mlx5_core_is_ecpf_esw_manager(esw->dev))
+	if (!mlx5_eswitch_is_funcs_handler(esw->dev))
 		return;
 
 	MLX5_NB_INIT(&esw->esw_funcs.nb, esw_functions_changed_event,
@@ -1847,7 +1847,7 @@ static void esw_functions_changed_event_init(struct mlx5_eswitch *esw,
 
 static void esw_functions_changed_event_cleanup(struct mlx5_eswitch *esw)
 {
-	if (!mlx5_core_is_ecpf_esw_manager(esw->dev))
+	if (!mlx5_eswitch_is_funcs_handler(esw->dev))
 		return;
 
 	mlx5_eq_notifier_unregister(esw->dev, &esw->esw_funcs.nb);
@@ -1905,7 +1905,7 @@ void esw_offloads_cleanup(struct mlx5_eswitch *esw)
 
 	esw_functions_changed_event_cleanup(esw);
 
-	if (mlx5_core_is_ecpf_esw_manager(esw->dev))
+	if (mlx5_eswitch_is_funcs_handler(esw->dev))
 		num_vfs = esw->esw_funcs.num_vfs;
 	else
 		num_vfs = esw->dev->priv.sriov.num_vfs;

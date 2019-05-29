@@ -406,6 +406,18 @@ static inline u16 mlx5_eswitch_manager_vport(struct mlx5_core_dev *dev)
 		MLX5_VPORT_ECPF : MLX5_VPORT_PF;
 }
 
+static inline bool mlx5_eswitch_is_funcs_handler(struct mlx5_core_dev *dev)
+{
+	/* Ideally device should have the functions changed supported
+	 * capability regardless of it being ECPF or PF wherever such
+	 * event should be processed such as on eswitch manager device.
+	 * However, some ECPF based device might not have this capability
+	 * set. Hence OR for ECPF check to cover such device.
+	 */
+	return MLX5_CAP_ESW(dev, esw_functions_changed) ||
+	       mlx5_core_is_ecpf_esw_manager(dev);
+}
+
 static inline int mlx5_eswitch_uplink_idx(struct mlx5_eswitch *esw)
 {
 	/* Uplink always locate at the last element of the array.*/
@@ -500,6 +512,7 @@ static inline void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw) {}
 static inline int  mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode) { return 0; }
 static inline void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw) {}
 static inline bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0, struct mlx5_core_dev *dev1) { return true; }
+static inline bool mlx5_eswitch_is_funcs_handler(struct mlx5_core_dev *dev) { return false; }
 
 #define FDB_MAX_CHAIN 1
 #define FDB_SLOW_PATH_CHAIN (FDB_MAX_CHAIN + 1)
