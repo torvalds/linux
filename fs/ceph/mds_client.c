@@ -150,14 +150,13 @@ static int parse_reply_info_in(void **p, void *end,
 			info->pool_ns_data = *p;
 			*p += info->pool_ns_len;
 		}
-		/* btime, change_attr */
-		{
-			struct ceph_timespec btime;
-			u64 change_attr;
-			ceph_decode_need(p, end, sizeof(btime), bad);
-			ceph_decode_copy(p, &btime, sizeof(btime));
-			ceph_decode_64_safe(p, end, change_attr, bad);
-		}
+
+		/* btime */
+		ceph_decode_need(p, end, sizeof(info->btime), bad);
+		ceph_decode_copy(p, &info->btime, sizeof(info->btime));
+
+		/* change attribute */
+		ceph_decode_skip_64(p, end, bad);
 
 		/* dir pin */
 		if (struct_v >= 2) {
@@ -204,6 +203,12 @@ static int parse_reply_info_in(void **p, void *end,
 				info->pool_ns_data = *p;
 				*p += info->pool_ns_len;
 			}
+		}
+
+		if (features & CEPH_FEATURE_FS_BTIME) {
+			ceph_decode_need(p, end, sizeof(info->btime), bad);
+			ceph_decode_copy(p, &info->btime, sizeof(info->btime));
+			ceph_decode_skip_64(p, end, bad);
 		}
 
 		info->dir_pin = -ENODATA;

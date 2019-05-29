@@ -69,6 +69,7 @@ struct ceph_mds_reply_info_in {
 	u64 max_bytes;
 	u64 max_files;
 	s32 dir_pin;
+	struct ceph_timespec btime;
 	struct ceph_timespec snap_btime;
 };
 
