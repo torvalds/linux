@@ -988,9 +988,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	case IB_QPT_UC:
 	case IB_QPT_RC:
 	case IB_QPT_UD:
-		sz = sizeof(struct rvt_sge) *
-			init_attr->cap.max_send_sge +
-			sizeof(struct rvt_swqe);
+		sz = struct_size(swq, sg_list, init_attr->cap.max_send_sge);
 		swq = vzalloc_node(array_size(sz, sqsize), rdi->dparms.node);
 		if (!swq)
 			return ERR_PTR(-ENOMEM);
