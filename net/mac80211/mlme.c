@@ -4955,7 +4955,12 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			basic_rates = BIT(min_rate_index);
 		}
 
-		new_sta->sta.supp_rates[cbss->channel->band] = rates;
+		if (rates)
+			new_sta->sta.supp_rates[cbss->channel->band] = rates;
+		else
+			sdata_info(sdata,
+				   "No rates found, keeping mandatory only\n");
+
 		sdata->vif.bss_conf.basic_rates = basic_rates;
 
 		/* cf. IEEE 802.11 9.2.12 */

@@ -886,11 +886,6 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(txrc->skb);
 	int i;
 
-	if (sta && test_sta_flag(sta, WLAN_STA_RATE_CONTROL)) {
-		ista = &sta->sta;
-		priv_sta = sta->rate_ctrl_priv;
-	}
-
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		info->control.rates[i].idx = -1;
 		info->control.rates[i].flags = 0;
@@ -900,8 +895,13 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	if (ieee80211_hw_check(&sdata->local->hw, HAS_RATE_CONTROL))
 		return;
 
-	if (rate_control_send_low(ista, txrc))
+	if (rate_control_send_low(sta ? &sta->sta : NULL, txrc))
 		return;
+
+	if (sta && test_sta_flag(sta, WLAN_STA_RATE_CONTROL)) {
+		ista = &sta->sta;
+		priv_sta = sta->rate_ctrl_priv;
+	}
 
 	if (ista) {
 		spin_lock_bh(&sta->rate_ctrl_lock);
