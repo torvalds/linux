@@ -920,6 +920,11 @@ bpf_object__init_maps(struct bpf_object *obj, int flags)
 		map_name = elf_strptr(obj->efile.elf,
 				      obj->efile.strtabidx,
 				      sym.st_name);
+		if (!map_name) {
+			pr_warning("failed to get map #%d name sym string for obj %s\n",
+				   map_idx, obj->path);
+			return -LIBBPF_ERRNO__FORMAT;
+		}
 
 		obj->maps[map_idx].libbpf_type = LIBBPF_MAP_UNSPEC;
 		obj->maps[map_idx].offset = sym.st_value;
