@@ -272,6 +272,30 @@ struct {
 
 Two uint64_t for the time of first sample and the time of last sample.
 
+	HEADER_SAMPLE_TOPOLOGY = 22,
+
+Physical memory map and its node assignments.
+
+The format of data in MEM_TOPOLOGY is as follows:
+
+   0 - version          | for future changes
+   8 - block_size_bytes | /sys/devices/system/memory/block_size_bytes
+  16 - count            | number of nodes
+
+For each node we store map of physical indexes:
+
+  32 - node id          | node index
+  40 - size             | size of bitmap
+  48 - bitmap           | bitmap of memory indexes that belongs to node
+                        | /sys/devices/system/node/node<NODE>/memory<INDEX>
+
+The MEM_TOPOLOGY can be displayed with following command:
+
+$ perf report --header-only -I
+...
+# memory nodes (nr 1, block size 0x8000000):
+#    0 [7G]: 0-23,32-69
+
         HEADER_BPF_PROG_INFO = 25,
 
 struct bpf_prog_info_linear, which contains detailed information about
