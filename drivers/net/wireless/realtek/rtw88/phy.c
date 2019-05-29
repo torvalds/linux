@@ -1084,11 +1084,10 @@ static void phy_get_rate_values_of_txpwr_by_rate(struct rtw_dev *rtwdev,
 	}
 }
 
-static void phy_store_tx_power_by_rate(void *adapter,
+static void phy_store_tx_power_by_rate(struct rtw_dev *rtwdev,
 				       u32 band, u32 rfpath, u32 txnum,
 				       u32 regaddr, u32 bitmask, u32 data)
 {
-	struct rtw_dev *rtwdev = adapter;
 	struct rtw_hal *hal = &rtwdev->hal;
 	u8 rate_num = 0;
 	u8 rate;
@@ -1515,10 +1514,9 @@ err:
 }
 
 static
-u8 phy_get_tx_power_index(void *adapter, u8 rf_path, u8 rate,
+u8 phy_get_tx_power_index(struct rtw_dev *rtwdev, u8 rf_path, u8 rate,
 			  enum rtw_bandwidth bandwidth, u8 channel, u8 regd)
 {
-	struct rtw_dev *rtwdev = adapter;
 	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_txpwr_idx *pwr_idx;
 	u8 tx_power;
@@ -1558,9 +1556,9 @@ u8 phy_get_tx_power_index(void *adapter, u8 rf_path, u8 rate,
 	return tx_power;
 }
 
-static void phy_set_tx_power_index_by_rs(void *adapter, u8 ch, u8 path, u8 rs)
+static void phy_set_tx_power_index_by_rs(struct rtw_dev *rtwdev,
+					 u8 ch, u8 path, u8 rs)
 {
-	struct rtw_dev *rtwdev = adapter;
 	struct rtw_hal *hal = &rtwdev->hal;
 	u8 regd = rtwdev->regd.txpwr_regd;
 	u8 *rates;
@@ -1578,7 +1576,7 @@ static void phy_set_tx_power_index_by_rs(void *adapter, u8 ch, u8 path, u8 rs)
 	bw = hal->current_band_width;
 	for (i = 0; i < size; i++) {
 		rate = rates[i];
-		pwr_idx = phy_get_tx_power_index(adapter, path, rate, bw, ch,
+		pwr_idx = phy_get_tx_power_index(rtwdev, path, rate, bw, ch,
 						 regd);
 		hal->tx_pwr_tbl[path][rate] = pwr_idx;
 	}
