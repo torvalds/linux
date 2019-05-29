@@ -826,6 +826,10 @@ struct drm_format_modifier {
 };
 
 /**
+ * struct drm_mode_create_blob - Create New block property
+ * @data: Pointer to data to copy.
+ * @length: Length of data to copy.
+ * @blob_id: new property ID.
  * Create a new 'blob' data property, copying length bytes from data pointer,
  * and returning new blob ID.
  */
@@ -839,6 +843,8 @@ struct drm_mode_create_blob {
 };
 
 /**
+ * struct drm_mode_destroy_blob - Destroy user blob
+ * @blob_id: blob_id to destroy
  * Destroy a user-created blob property.
  */
 struct drm_mode_destroy_blob {
@@ -846,6 +852,12 @@ struct drm_mode_destroy_blob {
 };
 
 /**
+ * struct drm_mode_create_lease - Create lease
+ * @object_ids: Pointer to array of object ids.
+ * @object_count: Number of object ids.
+ * @flags: flags for new FD.
+ * @lessee_id: unique identifier for lessee.
+ * @fd: file descriptor to new drm_master file.
  * Lease mode resources, creating another drm_master.
  */
 struct drm_mode_create_lease {
@@ -863,6 +875,10 @@ struct drm_mode_create_lease {
 };
 
 /**
+ * struct drm_mode_list_lessees - List lessees
+ * @count_lessees: Number of lessees.
+ * @pad: pad.
+ * @lessees_ptr: Pointer to lessess.
  * List lesses from a drm_master
  */
 struct drm_mode_list_lessees {
@@ -883,6 +899,10 @@ struct drm_mode_list_lessees {
 };
 
 /**
+ * struct drm_mode_get_lease - Get Lease
+ * @count_objects: Number of leased objects.
+ * @pad: pad.
+ * @objects_ptr: Pointer to objects.
  * Get leased objects
  */
 struct drm_mode_get_lease {
@@ -903,6 +923,8 @@ struct drm_mode_get_lease {
 };
 
 /**
+ * struct drm_mode_revoke_lease - Revoke lease
+ * @lessee_id: Unique ID of lessee.
  * Revoke lease
  */
 struct drm_mode_revoke_lease {
