@@ -2790,16 +2790,24 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		return err;
 	}
 	case TCP_FASTOPEN_KEY: {
-		__u8 key[TCP_FASTOPEN_KEY_LENGTH];
+		__u8 key[TCP_FASTOPEN_KEY_BUF_LENGTH];
+		__u8 *backup_key = NULL;
 
-		if (optlen != sizeof(key))
+		/* Allow a backup key as well to facilitate key rotation
+		 * First key is the active one.
+		 */
+		if (optlen != TCP_FASTOPEN_KEY_LENGTH &&
+		    optlen != TCP_FASTOPEN_KEY_BUF_LENGTH)
 			return -EINVAL;
 
 		if (copy_from_user(key, optval, optlen))
 			return -EFAULT;
 
-		return tcp_fastopen_reset_cipher(net, sk, key, NULL,
-						 sizeof(key));
+		if (optlen == TCP_FASTOPEN_KEY_BUF_LENGTH)
+			backup_key = key + TCP_FASTOPEN_KEY_LENGTH;
+
+		return tcp_fastopen_reset_cipher(net, sk, key, backup_key,
+						 TCP_FASTOPEN_KEY_LENGTH);
 	}
 	default:
 		/* fallthru */
@@ -3453,21 +3461,23 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		return 0;
 
 	case TCP_FASTOPEN_KEY: {
-		__u8 key[TCP_FASTOPEN_KEY_LENGTH];
+		__u8 key[TCP_FASTOPEN_KEY_BUF_LENGTH];
 		struct tcp_fastopen_context *ctx;
+		unsigned int key_len = 0;
 
 		if (get_user(len, optlen))
 			return -EFAULT;
 
 		rcu_read_lock();
 		ctx = rcu_dereference(icsk->icsk_accept_queue.fastopenq.ctx);
-		if (ctx)
-			memcpy(key, ctx->key, sizeof(key));
-		else
-			len = 0;
+		if (ctx) {
+			key_len = tcp_fastopen_context_len(ctx) *
+					TCP_FASTOPEN_KEY_LENGTH;
+			memcpy(&key[0], &ctx->key[0], key_len);
+		}
 		rcu_read_unlock();
 
-		len = min_t(unsigned int, len, sizeof(key));
+		len = min_t(unsigned int, len, key_len);
 		if (put_user(len, optlen))
 			return -EFAULT;
 		if (copy_to_user(optval, key, len))
