@@ -50,6 +50,21 @@ static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 
 	speed_grade = (cell_value & OCOTP_CFG3_SPEED_GRADE_MASK) >> OCOTP_CFG3_SPEED_GRADE_SHIFT;
 	mkt_segment = (cell_value & OCOTP_CFG3_MKT_SEGMENT_MASK) >> OCOTP_CFG3_MKT_SEGMENT_SHIFT;
+
+	/*
+	 * Early samples without fuses written report "0 0" which means
+	 * consumer segment and minimum speed grading.
+	 *
+	 * According to datasheet minimum speed grading is not supported for
+	 * consumer parts so clamp to 1 to avoid warning for "no OPPs"
+	 *
+	 * Applies to 8mq and 8mm.
+	 */
+	if (mkt_segment == 0 && speed_grade == 0 && (
+			!strcmp(match->compatible, "fsl,imx8mm") ||
+			!strcmp(match->compatible, "fsl,imx8mq")))
+		speed_grade = 1;
+
 	supported_hw[0] = BIT(speed_grade);
 	supported_hw[1] = BIT(mkt_segment);
 	dev_info(&pdev->dev, "cpu speed grade %d mkt segment %d supported-hw %#x %#x\n",
