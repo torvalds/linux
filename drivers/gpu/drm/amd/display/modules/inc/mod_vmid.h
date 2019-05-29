@@ -41,4 +41,6 @@ struct mod_vmid *mod_vmid_create(
 		unsigned int num_vmid,
 		struct dc_virtual_addr_space_config *va_config);
 
+void mod_vmid_destroy(struct mod_vmid *mod_vmid);
+
 #endif /* MOD_VMID_H_ */

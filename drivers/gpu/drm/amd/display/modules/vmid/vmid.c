@@ -156,3 +156,12 @@ fail_alloc_context:
 fail_dc_null:
 	return NULL;
 }
+
+void mod_vmid_destroy(struct mod_vmid *mod_vmid)
+{
+	if (mod_vmid != NULL) {
+		struct core_vmid *core_vmid = MOD_VMID_TO_CORE(mod_vmid);
+
+		kfree(core_vmid);
+	}
+}
