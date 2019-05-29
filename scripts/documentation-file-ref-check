@@ -165,13 +165,22 @@ foreach my $ref (keys %broken_ref) {
 
 	# usual reason for breakage: DT file moved around
 	if ($ref =~ /devicetree/) {
-		my $search = $new;
-		$search =~ s,^.*/,,;
-		$f = qx(find Documentation/devicetree/ -iname "*$search*") if ($search);
+		# usual reason for breakage: DT file renamed to .yaml
 		if (!$f) {
-			# Manufacturer name may have changed
-			$search =~ s/^.*,//;
+			my $new_ref = $ref;
+			$new_ref =~ s/\.txt$/.yaml/;
+			$f=$new_ref if (-f $new_ref);
+		}
+
+		if (!$f) {
+			my $search = $new;
+			$search =~ s,^.*/,,;
 			$f = qx(find Documentation/devicetree/ -iname "*$search*") if ($search);
+			if (!$f) {
+				# Manufacturer name may have changed
+				$search =~ s/^.*,//;
+				$f = qx(find Documentation/devicetree/ -iname "*$search*") if ($search);
+			}
 		}
 	}
 
