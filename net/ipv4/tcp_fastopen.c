@@ -111,25 +111,38 @@ error:		kfree(ctx);
 	return err;
 }
 
-static bool __tcp_fastopen_cookie_gen(struct sock *sk, const void *path,
-				      struct tcp_fastopen_cookie *foc)
+static bool __tcp_fastopen_cookie_gen_cipher(struct request_sock *req,
+					     struct sk_buff *syn,
+					     struct crypto_cipher *tfm,
+					     struct tcp_fastopen_cookie *foc)
 {
-	struct tcp_fastopen_context *ctx;
-	bool ok = false;
+	if (req->rsk_ops->family == AF_INET) {
+		const struct iphdr *iph = ip_hdr(syn);
+		__be32 path[4] = { iph->saddr, iph->daddr, 0, 0 };
 
-	rcu_read_lock();
-
-	ctx = rcu_dereference(inet_csk(sk)->icsk_accept_queue.fastopenq.ctx);
-	if (!ctx)
-		ctx = rcu_dereference(sock_net(sk)->ipv4.tcp_fastopen_ctx);
-
-	if (ctx) {
-		crypto_cipher_encrypt_one(ctx->tfm, foc->val, path);
+		crypto_cipher_encrypt_one(tfm, foc->val, (void *)path);
 		foc->len = TCP_FASTOPEN_COOKIE_SIZE;
-		ok = true;
+		return true;
 	}
-	rcu_read_unlock();
-	return ok;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (req->rsk_ops->family == AF_INET6) {
+		const struct ipv6hdr *ip6h = ipv6_hdr(syn);
+		struct tcp_fastopen_cookie tmp;
+		struct in6_addr *buf;
+		int i;
+
+		crypto_cipher_encrypt_one(tfm, tmp.val,
+					  (void *)&ip6h->saddr);
+		buf = &tmp.addr;
+		for (i = 0; i < 4; i++)
+			buf->s6_addr32[i] ^= ip6h->daddr.s6_addr32[i];
+		crypto_cipher_encrypt_one(tfm, foc->val, (void *)buf);
+		foc->len = TCP_FASTOPEN_COOKIE_SIZE;
+		return true;
+	}
+#endif
+	return false;
 }
 
 /* Generate the fastopen cookie by doing aes128 encryption on both
@@ -143,29 +156,17 @@ static bool tcp_fastopen_cookie_gen(struct sock *sk,
 				    struct sk_buff *syn,
 				    struct tcp_fastopen_cookie *foc)
 {
-	if (req->rsk_ops->family == AF_INET) {
-		const struct iphdr *iph = ip_hdr(syn);
+	struct tcp_fastopen_context *ctx;
+	bool ok = false;
 
-		__be32 path[4] = { iph->saddr, iph->daddr, 0, 0 };
-		return __tcp_fastopen_cookie_gen(sk, path, foc);
-	}
-
-#if IS_ENABLED(CONFIG_IPV6)
-	if (req->rsk_ops->family == AF_INET6) {
-		const struct ipv6hdr *ip6h = ipv6_hdr(syn);
-		struct tcp_fastopen_cookie tmp;
-
-		if (__tcp_fastopen_cookie_gen(sk, &ip6h->saddr, &tmp)) {
-			struct in6_addr *buf = &tmp.addr;
-			int i;
-
-			for (i = 0; i < 4; i++)
-				buf->s6_addr32[i] ^= ip6h->daddr.s6_addr32[i];
-			return __tcp_fastopen_cookie_gen(sk, buf, foc);
-		}
-	}
-#endif
-	return false;
+	rcu_read_lock();
+	ctx = rcu_dereference(inet_csk(sk)->icsk_accept_queue.fastopenq.ctx);
+	if (!ctx)
+		ctx = rcu_dereference(sock_net(sk)->ipv4.tcp_fastopen_ctx);
+	if (ctx)
+		ok = __tcp_fastopen_cookie_gen_cipher(req, syn, ctx->tfm, foc);
+	rcu_read_unlock();
+	return ok;
 }
 
 
