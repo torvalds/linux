@@ -2798,7 +2798,8 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		if (copy_from_user(key, optval, optlen))
 			return -EFAULT;
 
-		return tcp_fastopen_reset_cipher(net, sk, key, sizeof(key));
+		return tcp_fastopen_reset_cipher(net, sk, key, NULL,
+						 sizeof(key));
 	}
 	default:
 		/* fallthru */
