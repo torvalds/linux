@@ -340,6 +340,7 @@ struct drm_i915_display_funcs {
 	 * involved with the same commit.
 	 */
 	void (*load_luts)(const struct intel_crtc_state *crtc_state);
+	void (*read_luts)(struct intel_crtc_state *crtc_state);
 };
 
 struct intel_csr {
