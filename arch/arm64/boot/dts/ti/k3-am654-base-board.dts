@@ -255,3 +255,27 @@
 		ti,adc-channels = <0 1 2 3 4 5 6 7>;
 	};
 };
+
+&serdes0 {
+	status = "disabled";
+};
+
+&serdes1 {
+	status = "disabled";
+};
+
+&pcie0_rc {
+	status = "disabled";
+};
+
+&pcie0_ep {
+	status = "disabled";
+};
+
+&pcie1_rc {
+	status = "disabled";
+};
+
+&pcie1_ep {
+	status = "disabled";
+};
