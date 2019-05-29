@@ -497,8 +497,7 @@ static struct bpf_object *bpf_object__new(const char *path,
 
 	strcpy(obj->path, path);
 	/* Using basename() GNU version which doesn't modify arg. */
-	strncpy(obj->name, basename((void *)path),
-		sizeof(obj->name) - 1);
+	strncpy(obj->name, basename((void *)path), sizeof(obj->name) - 1);
 	end = strchr(obj->name, '.');
 	if (end)
 		*end = 0;
@@ -578,15 +577,13 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 	}
 
 	if (!obj->efile.elf) {
-		pr_warning("failed to open %s as ELF file\n",
-				obj->path);
+		pr_warning("failed to open %s as ELF file\n", obj->path);
 		err = -LIBBPF_ERRNO__LIBELF;
 		goto errout;
 	}
 
 	if (!gelf_getehdr(obj->efile.elf, &obj->efile.ehdr)) {
-		pr_warning("failed to get EHDR from %s\n",
-				obj->path);
+		pr_warning("failed to get EHDR from %s\n", obj->path);
 		err = -LIBBPF_ERRNO__FORMAT;
 		goto errout;
 	}
@@ -622,18 +619,15 @@ static int bpf_object__check_endianness(struct bpf_object *obj)
 }
 
 static int
-bpf_object__init_license(struct bpf_object *obj,
-			 void *data, size_t size)
+bpf_object__init_license(struct bpf_object *obj, void *data, size_t size)
 {
-	memcpy(obj->license, data,
-	       min(size, sizeof(obj->license) - 1));
+	memcpy(obj->license, data, min(size, sizeof(obj->license) - 1));
 	pr_debug("license of %s is %s\n", obj->path, obj->license);
 	return 0;
 }
 
 static int
-bpf_object__init_kversion(struct bpf_object *obj,
-			  void *data, size_t size)
+bpf_object__init_kversion(struct bpf_object *obj, void *data, size_t size)
 {
 	__u32 kver;
 
@@ -643,8 +637,7 @@ bpf_object__init_kversion(struct bpf_object *obj,
 	}
 	memcpy(&kver, data, sizeof(kver));
 	obj->kern_version = kver;
-	pr_debug("kernel version of %s is %x\n", obj->path,
-		 obj->kern_version);
+	pr_debug("kernel version of %s is %x\n", obj->path, obj->kern_version);
 	return 0;
 }
 
@@ -800,8 +793,7 @@ bpf_object__init_internal_map(struct bpf_object *obj, struct bpf_map *map,
 	def->key_size = sizeof(int);
 	def->value_size = data->d_size;
 	def->max_entries = 1;
-	def->map_flags = type == LIBBPF_MAP_RODATA ?
-			 BPF_F_RDONLY_PROG : 0;
+	def->map_flags = type == LIBBPF_MAP_RODATA ? BPF_F_RDONLY_PROG : 0;
 	if (data_buff) {
 		*data_buff = malloc(data->d_size);
 		if (!*data_buff) {
@@ -816,8 +808,7 @@ bpf_object__init_internal_map(struct bpf_object *obj, struct bpf_map *map,
 	return 0;
 }
 
-static int
-bpf_object__init_maps(struct bpf_object *obj, int flags)
+static int bpf_object__init_maps(struct bpf_object *obj, int flags)
 {
 	int i, map_idx, map_def_sz = 0, nr_syms, nr_maps = 0, nr_maps_glob = 0;
 	bool strict = !(flags & MAPS_RELAX_COMPAT);
@@ -1098,8 +1089,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 
 	/* Elf is corrupted/truncated, avoid calling elf_strptr. */
 	if (!elf_rawdata(elf_getscn(elf, ep->e_shstrndx), NULL)) {
-		pr_warning("failed to get e_shstrndx from %s\n",
-			   obj->path);
+		pr_warning("failed to get e_shstrndx from %s\n", obj->path);
 		return -LIBBPF_ERRNO__FORMAT;
 	}
 
@@ -1340,8 +1330,7 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 	size_t nr_maps = obj->nr_maps;
 	int i, nrels;
 
-	pr_debug("collecting relocating info for: '%s'\n",
-		 prog->section_name);
+	pr_debug("collecting relocating info for: '%s'\n", prog->section_name);
 	nrels = shdr->sh_size / shdr->sh_entsize;
 
 	prog->reloc_desc = malloc(sizeof(*prog->reloc_desc) * nrels);
@@ -1366,9 +1355,7 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 			return -LIBBPF_ERRNO__FORMAT;
 		}
 
-		if (!gelf_getsym(symbols,
-				 GELF_R_SYM(rel.r_info),
-				 &sym)) {
+		if (!gelf_getsym(symbols, GELF_R_SYM(rel.r_info), &sym)) {
 			pr_warning("relocation: symbol %"PRIx64" not found\n",
 				   GELF_R_SYM(rel.r_info));
 			return -LIBBPF_ERRNO__FORMAT;
@@ -1817,18 +1804,14 @@ check_btf_ext_reloc_err(struct bpf_program *prog, int err,
 	if (btf_prog_info) {
 		/*
 		 * Some info has already been found but has problem
-		 * in the last btf_ext reloc.  Must have to error
-		 * out.
+		 * in the last btf_ext reloc. Must have to error out.
 		 */
 		pr_warning("Error in relocating %s for sec %s.\n",
 			   info_name, prog->section_name);
 		return err;
 	}
 
-	/*
-	 * Have problem loading the very first info.  Ignore
-	 * the rest.
-	 */
+	/* Have problem loading the very first info. Ignore the rest. */
 	pr_warning("Cannot find %s for main program sec %s. Ignore all %s.\n",
 		   info_name, prog->section_name, info_name);
 	return 0;
@@ -2032,9 +2015,7 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 			return -LIBBPF_ERRNO__RELOC;
 		}
 
-		err = bpf_program__collect_reloc(prog,
-						 shdr, data,
-						 obj);
+		err = bpf_program__collect_reloc(prog, shdr, data, obj);
 		if (err)
 			return err;
 	}
@@ -2354,8 +2335,7 @@ struct bpf_object *bpf_object__open_buffer(void *obj_buf,
 			 (unsigned long)obj_buf_sz);
 		name = tmp_name;
 	}
-	pr_debug("loading object '%s' from buffer\n",
-		 name);
+	pr_debug("loading object '%s' from buffer\n", name);
 
 	return __bpf_object__open(name, obj_buf, obj_buf_sz, true, true);
 }
