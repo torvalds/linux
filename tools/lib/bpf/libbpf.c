@@ -565,12 +565,12 @@ static int bpf_object__elf_init(struct bpf_object *obj)
 	} else {
 		obj->efile.fd = open(obj->path, O_RDONLY);
 		if (obj->efile.fd < 0) {
-			char errmsg[STRERR_BUFSIZE];
-			char *cp = libbpf_strerror_r(errno, errmsg,
-						     sizeof(errmsg));
+			char errmsg[STRERR_BUFSIZE], *cp;
 
+			err = -errno;
+			cp = libbpf_strerror_r(err, errmsg, sizeof(errmsg));
 			pr_warning("failed to open %s: %s\n", obj->path, cp);
-			return -errno;
+			return err;
 		}
 
 		obj->efile.elf = elf_begin(obj->efile.fd,
