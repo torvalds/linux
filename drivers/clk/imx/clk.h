@@ -64,6 +64,9 @@ struct imx_pll14xx_clk {
 	clk_hw_register_gate2(dev, name, parent_name, flags, reg, bit_idx, \
 				cgr_val, clk_gate_flags, lock, share_count)->clk
 
+#define imx_clk_pllv3(type, name, parent_name, base, div_mask) \
+	imx_clk_hw_pllv3(type, name, parent_name, base, div_mask)->clk
+
 struct clk *imx_clk_pll14xx(const char *name, const char *parent_name,
 		 void __iomem *base, const struct imx_pll14xx_clk *pll_clk);
 
@@ -96,7 +99,7 @@ enum imx_pllv3_type {
 	IMX_PLLV3_AV_IMX7,
 };
 
-struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
+struct clk_hw *imx_clk_hw_pllv3(enum imx_pllv3_type type, const char *name,
 		const char *parent_name, void __iomem *base, u32 div_mask);
 
 struct clk_hw *imx_clk_pllv4(const char *name, const char *parent_name,
