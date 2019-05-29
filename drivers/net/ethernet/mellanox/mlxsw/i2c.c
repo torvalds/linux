@@ -509,8 +509,20 @@ mlxsw_i2c_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	if (!mbox)
 		return -ENOMEM;
 
+	err = mlxsw_cmd_query_fw(mlxsw_core, mbox);
+	if (err)
+		goto mbox_put;
+
+	mlxsw_i2c->bus_info.fw_rev.major =
+		mlxsw_cmd_mbox_query_fw_fw_rev_major_get(mbox);
+	mlxsw_i2c->bus_info.fw_rev.minor =
+		mlxsw_cmd_mbox_query_fw_fw_rev_minor_get(mbox);
+	mlxsw_i2c->bus_info.fw_rev.subminor =
+		mlxsw_cmd_mbox_query_fw_fw_rev_subminor_get(mbox);
+
 	err = mlxsw_core_resources_query(mlxsw_core, mbox, res);
 
+mbox_put:
 	mlxsw_cmd_mbox_free(mbox);
 	return err;
 }
