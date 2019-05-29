@@ -1531,8 +1531,8 @@ static int mask_virtual_engine(struct drm_i915_private *i915,
 
 	for (n = 0; n < nsibling; n++) {
 		request[n] = i915_request_create(ve);
-		if (IS_ERR(request)) {
-			err = PTR_ERR(request);
+		if (IS_ERR(request[n])) {
+			err = PTR_ERR(request[n]);
 			nsibling = n;
 			goto out;
 		}
