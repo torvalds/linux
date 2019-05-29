@@ -349,8 +349,11 @@ static int
 bpf_program__init(void *data, size_t size, char *section_name, int idx,
 		  struct bpf_program *prog)
 {
-	if (size < sizeof(struct bpf_insn)) {
-		pr_warning("corrupted section '%s'\n", section_name);
+	const size_t bpf_insn_sz = sizeof(struct bpf_insn);
+
+	if (size == 0 || size % bpf_insn_sz) {
+		pr_warning("corrupted section '%s', size: %zu\n",
+			   section_name, size);
 		return -EINVAL;
 	}
 
@@ -376,9 +379,8 @@ bpf_program__init(void *data, size_t size, char *section_name, int idx,
 			   section_name);
 		goto errout;
 	}
-	prog->insns_cnt = size / sizeof(struct bpf_insn);
-	memcpy(prog->insns, data,
-	       prog->insns_cnt * sizeof(struct bpf_insn));
+	prog->insns_cnt = size / bpf_insn_sz;
+	memcpy(prog->insns, data, size);
 	prog->idx = idx;
 	prog->instances.fds = NULL;
 	prog->instances.nr = -1;
