@@ -128,10 +128,7 @@ int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int port, bool enabled)
 		u16 flags;
 
 		if (i == upstream)
-			/* CPU port needs to see this port's RX VID
-			 * as tagged egress.
-			 */
-			flags = 0;
+			continue;
 		else if (i == port)
 			/* The RX VID is pvid on this port */
 			flags = BRIDGE_VLAN_INFO_UNTAGGED |
@@ -150,6 +147,20 @@ int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int port, bool enabled)
 			return err;
 		}
 	}
+
+	/* CPU port needs to see this port's RX VID
+	 * as tagged egress.
+	 */
+	if (enabled)
+		err = dsa_port_vid_add(upstream_dp, rx_vid, 0);
+	else
+		err = dsa_port_vid_del(upstream_dp, rx_vid);
+	if (err) {
+		dev_err(ds->dev, "Failed to apply RX VID %d to port %d: %d\n",
+			rx_vid, port, err);
+		return err;
+	}
+
 	/* Finally apply the TX VID on this port and on the CPU port */
 	if (enabled)
 		err = dsa_port_vid_add(dp, tx_vid, BRIDGE_VLAN_INFO_UNTAGGED);
