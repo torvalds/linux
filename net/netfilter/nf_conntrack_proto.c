@@ -16,6 +16,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_bridge.h>
 #include <net/netfilter/nf_log.h>
 
 #include <linux/ip.h>
@@ -442,12 +443,14 @@ static int nf_ct_tcp_fixup(struct nf_conn *ct, void *_nfproto)
 	return 0;
 }
 
+static struct nf_ct_bridge_info *nf_ct_bridge_info;
+
 static int nf_ct_netns_do_get(struct net *net, u8 nfproto)
 {
 	struct nf_conntrack_net *cnet = net_generic(net, nf_conntrack_net_id);
-	bool fixup_needed = false;
+	bool fixup_needed = false, retry = true;
 	int err = 0;
-
+retry:
 	mutex_lock(&nf_ct_proto_mutex);
 
 	switch (nfproto) {
@@ -487,6 +490,32 @@ static int nf_ct_netns_do_get(struct net *net, u8 nfproto)
 			fixup_needed = true;
 		break;
 #endif
+	case NFPROTO_BRIDGE:
+		if (!nf_ct_bridge_info) {
+			if (!retry) {
+				err = -EPROTO;
+				goto out_unlock;
+			}
+			mutex_unlock(&nf_ct_proto_mutex);
+			request_module("nf_conntrack_bridge");
+			retry = false;
+			goto retry;
+		}
+		if (!try_module_get(nf_ct_bridge_info->me)) {
+			err = -EPROTO;
+			goto out_unlock;
+		}
+		cnet->users_bridge++;
+		if (cnet->users_bridge > 1)
+			goto out_unlock;
+
+		err = nf_register_net_hooks(net, nf_ct_bridge_info->ops,
+					    nf_ct_bridge_info->ops_size);
+		if (err)
+			cnet->users_bridge = 0;
+		else
+			fixup_needed = true;
+		break;
 	default:
 		err = -EPROTO;
 		break;
@@ -519,8 +548,16 @@ static void nf_ct_netns_do_put(struct net *net, u8 nfproto)
 						ARRAY_SIZE(ipv6_conntrack_ops));
 		break;
 #endif
-	}
+	case NFPROTO_BRIDGE:
+		if (!nf_ct_bridge_info)
+			break;
+		if (cnet->users_bridge && (--cnet->users_bridge == 0))
+			nf_unregister_net_hooks(net, nf_ct_bridge_info->ops,
+						nf_ct_bridge_info->ops_size);
 
+		module_put(nf_ct_bridge_info->me);
+		break;
+	}
 	mutex_unlock(&nf_ct_proto_mutex);
 }
 
@@ -559,6 +596,24 @@ void nf_ct_netns_put(struct net *net, uint8_t nfproto)
 	}
 }
 EXPORT_SYMBOL_GPL(nf_ct_netns_put);
+
+void nf_ct_bridge_register(struct nf_ct_bridge_info *info)
+{
+	WARN_ON(nf_ct_bridge_info);
+	mutex_lock(&nf_ct_proto_mutex);
+	nf_ct_bridge_info = info;
+	mutex_unlock(&nf_ct_proto_mutex);
+}
+EXPORT_SYMBOL_GPL(nf_ct_bridge_register);
+
+void nf_ct_bridge_unregister(struct nf_ct_bridge_info *info)
+{
+	WARN_ON(!nf_ct_bridge_info);
+	mutex_lock(&nf_ct_proto_mutex);
+	nf_ct_bridge_info = NULL;
+	mutex_unlock(&nf_ct_proto_mutex);
+}
+EXPORT_SYMBOL_GPL(nf_ct_bridge_unregister);
 
 int nf_conntrack_proto_init(void)
 {

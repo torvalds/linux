@@ -49,6 +49,7 @@ union nf_conntrack_expect_proto {
 struct nf_conntrack_net {
 	unsigned int users4;
 	unsigned int users6;
+	unsigned int users_bridge;
 };
 
 #include <linux/types.h>
