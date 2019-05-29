@@ -2169,7 +2169,7 @@ void update_dchubp_dpp(
 				pipe_ctx,
 				pipe_ctx->stream->output_color_space,
 				pipe_ctx->stream->csc_color_matrix.matrix,
-				hubp->opp_id);
+				pipe_ctx->stream_res.opp->inst);
 	}
 
 	if (plane_state->update_flags.bits.full_update ||

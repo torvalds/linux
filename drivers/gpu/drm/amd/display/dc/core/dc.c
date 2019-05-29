@@ -457,7 +457,7 @@ bool dc_stream_program_csc_matrix(struct dc *dc, struct dc_stream_state *stream)
 					pipes,
 					stream->output_color_space,
 					stream->csc_color_matrix.matrix,
-					pipes->plane_res.hubp ? pipes->plane_res.hubp->opp_id : 0);
+					pipes->stream_res.opp->inst);
 			ret = true;
 		}
 	}
