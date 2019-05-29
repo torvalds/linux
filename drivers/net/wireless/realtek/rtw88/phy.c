@@ -1170,6 +1170,7 @@ static void rtw_phy_set_tx_power_limit(struct rtw_dev *rtwdev, u8 regd, u8 band,
 				       u8 bw, u8 rs, u8 ch, s8 pwr_limit)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
+	s8 ww;
 	int ch_idx;
 
 	pwr_limit = clamp_t(s8, pwr_limit,
@@ -1184,10 +1185,17 @@ static void rtw_phy_set_tx_power_limit(struct rtw_dev *rtwdev, u8 regd, u8 band,
 		return;
 	}
 
-	if (band == PHY_BAND_2G)
+	if (band == PHY_BAND_2G) {
 		hal->tx_pwr_limit_2g[regd][bw][rs][ch_idx] = pwr_limit;
-	else if (band == PHY_BAND_5G)
+		ww = hal->tx_pwr_limit_2g[RTW_REGD_WW][bw][rs][ch_idx];
+		ww = min_t(s8, ww, pwr_limit);
+		hal->tx_pwr_limit_2g[RTW_REGD_WW][bw][rs][ch_idx] = ww;
+	} else if (band == PHY_BAND_5G) {
 		hal->tx_pwr_limit_5g[regd][bw][rs][ch_idx] = pwr_limit;
+		ww = hal->tx_pwr_limit_5g[RTW_REGD_WW][bw][rs][ch_idx];
+		ww = min_t(s8, ww, pwr_limit);
+		hal->tx_pwr_limit_5g[RTW_REGD_WW][bw][rs][ch_idx] = ww;
+	}
 }
 
 void rtw_parse_tbl_txpwr_lmt(struct rtw_dev *rtwdev,
