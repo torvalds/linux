@@ -715,7 +715,9 @@ struct mlx5_ifc_qos_cap_bits {
 };
 
 struct mlx5_ifc_debug_cap_bits {
-	u8         reserved_at_0[0x20];
+	u8         core_dump_general[0x1];
+	u8         core_dump_qp[0x1];
+	u8         reserved_at_2[0x1e];
 
 	u8         reserved_at_20[0x2];
 	u8         stall_detect[0x1];
@@ -2531,6 +2533,7 @@ union mlx5_ifc_hca_cap_union_bits {
 	struct mlx5_ifc_e_switch_cap_bits e_switch_cap;
 	struct mlx5_ifc_vector_calc_cap_bits vector_calc_cap;
 	struct mlx5_ifc_qos_cap_bits qos_cap;
+	struct mlx5_ifc_debug_cap_bits debug_cap;
 	struct mlx5_ifc_fpga_cap_bits fpga_cap;
 	u8         reserved_at_0[0x8000];
 };
@@ -8544,6 +8547,18 @@ struct mlx5_ifc_qcam_reg_bits {
 	} qos_feature_cap_mask;
 
 	u8         reserved_at_1c0[0x80];
+};
+
+struct mlx5_ifc_core_dump_reg_bits {
+	u8         reserved_at_0[0x18];
+	u8         core_dump_type[0x8];
+
+	u8         reserved_at_20[0x30];
+	u8         vhca_id[0x10];
+
+	u8         reserved_at_60[0x8];
+	u8         qpn[0x18];
+	u8         reserved_at_80[0x180];
 };
 
 struct mlx5_ifc_pcap_reg_bits {
