@@ -7107,18 +7107,23 @@ exit:
 static bool
 ath10k_mac_bitrate_mask_has_single_rate(struct ath10k *ar,
 					enum nl80211_band band,
-					const struct cfg80211_bitrate_mask *mask)
+					const struct cfg80211_bitrate_mask *mask,
+					int *vht_num_rates)
 {
 	int num_rates = 0;
-	int i;
+	int i, tmp;
 
 	num_rates += hweight32(mask->control[band].legacy);
 
 	for (i = 0; i < ARRAY_SIZE(mask->control[band].ht_mcs); i++)
 		num_rates += hweight8(mask->control[band].ht_mcs[i]);
 
-	for (i = 0; i < ARRAY_SIZE(mask->control[band].vht_mcs); i++)
-		num_rates += hweight16(mask->control[band].vht_mcs[i]);
+	*vht_num_rates = 0;
+	for (i = 0; i < ARRAY_SIZE(mask->control[band].vht_mcs); i++) {
+		tmp = hweight16(mask->control[band].vht_mcs[i]);
+		num_rates += tmp;
+		*vht_num_rates += tmp;
+	}
 
 	return num_rates == 1;
 }
@@ -7176,13 +7181,16 @@ static int
 ath10k_mac_bitrate_mask_get_single_rate(struct ath10k *ar,
 					enum nl80211_band band,
 					const struct cfg80211_bitrate_mask *mask,
-					u8 *rate, u8 *nss)
+					u8 *rate, u8 *nss, bool vht_only)
 {
 	int rate_idx;
 	int i;
 	u16 bitrate;
 	u8 preamble;
 	u8 hw_rate;
+
+	if (vht_only)
+		goto next;
 
 	if (hweight32(mask->control[band].legacy) == 1) {
 		rate_idx = ffs(mask->control[band].legacy) - 1;
@@ -7217,6 +7225,7 @@ ath10k_mac_bitrate_mask_get_single_rate(struct ath10k *ar,
 		}
 	}
 
+next:
 	for (i = 0; i < ARRAY_SIZE(mask->control[band].vht_mcs); i++) {
 		if (hweight16(mask->control[band].vht_mcs[i]) == 1) {
 			*nss = i + 1;
@@ -7278,7 +7287,8 @@ static int ath10k_mac_set_fixed_rate_params(struct ath10k_vif *arvif,
 static bool
 ath10k_mac_can_set_bitrate_mask(struct ath10k *ar,
 				enum nl80211_band band,
-				const struct cfg80211_bitrate_mask *mask)
+				const struct cfg80211_bitrate_mask *mask,
+				bool allow_pfr)
 {
 	int i;
 	u16 vht_mcs;
@@ -7297,10 +7307,31 @@ ath10k_mac_can_set_bitrate_mask(struct ath10k *ar,
 		case BIT(10) - 1:
 			break;
 		default:
-			ath10k_warn(ar, "refusing bitrate mask with missing 0-7 VHT MCS rates\n");
+			if (!allow_pfr)
+				ath10k_warn(ar, "refusing bitrate mask with missing 0-7 VHT MCS rates\n");
 			return false;
 		}
 	}
+
+	return true;
+}
+
+static bool ath10k_mac_set_vht_bitrate_mask_fixup(struct ath10k *ar,
+						  struct ath10k_vif *arvif,
+						  struct ieee80211_sta *sta)
+{
+	int err;
+	u8 rate = arvif->vht_pfr;
+
+	/* skip non vht and multiple rate peers */
+	if (!sta->vht_cap.vht_supported || arvif->vht_num_rates != 1)
+		return false;
+
+	err = ath10k_wmi_peer_set_param(ar, arvif->vdev_id, sta->addr,
+					WMI_PEER_PARAM_FIXED_RATE, rate);
+	if (err)
+		ath10k_warn(ar, "failed to eanble STA %pM peer fixed rate: %d\n",
+			    sta->addr, err);
 
 	return true;
 }
@@ -7315,11 +7346,34 @@ static void ath10k_mac_set_bitrate_mask_iter(void *data,
 	if (arsta->arvif != arvif)
 		return;
 
+	if (ath10k_mac_set_vht_bitrate_mask_fixup(ar, arvif, sta))
+		return;
+
 	spin_lock_bh(&ar->data_lock);
 	arsta->changed |= IEEE80211_RC_SUPP_RATES_CHANGED;
 	spin_unlock_bh(&ar->data_lock);
 
 	ieee80211_queue_work(ar->hw, &arsta->update_wk);
+}
+
+static void ath10k_mac_clr_bitrate_mask_iter(void *data,
+					     struct ieee80211_sta *sta)
+{
+	struct ath10k_vif *arvif = data;
+	struct ath10k_sta *arsta = (struct ath10k_sta *)sta->drv_priv;
+	struct ath10k *ar = arvif->ar;
+	int err;
+
+	/* clear vht peers only */
+	if (arsta->arvif != arvif || !sta->vht_cap.vht_supported)
+		return;
+
+	err = ath10k_wmi_peer_set_param(ar, arvif->vdev_id, sta->addr,
+					WMI_PEER_PARAM_FIXED_RATE,
+					WMI_FIXED_RATE_NONE);
+	if (err)
+		ath10k_warn(ar, "failed to clear STA %pM peer fixed rate: %d\n",
+			    sta->addr, err);
 }
 
 static int ath10k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
@@ -7338,6 +7392,9 @@ static int ath10k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 	u8 ldpc;
 	int single_nss;
 	int ret;
+	int vht_num_rates, allow_pfr;
+	u8 vht_pfr;
+	bool update_bitrate_mask = true;
 
 	if (ath10k_mac_vif_chan(vif, &def))
 		return -EPERM;
@@ -7351,9 +7408,21 @@ static int ath10k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 	if (sgi == NL80211_TXRATE_FORCE_LGI)
 		return -EINVAL;
 
-	if (ath10k_mac_bitrate_mask_has_single_rate(ar, band, mask)) {
+	allow_pfr = test_bit(ATH10K_FW_FEATURE_PEER_FIXED_RATE,
+			     ar->normal_mode_fw.fw_file.fw_features);
+	if (allow_pfr) {
+		mutex_lock(&ar->conf_mutex);
+		ieee80211_iterate_stations_atomic(ar->hw,
+						  ath10k_mac_clr_bitrate_mask_iter,
+						  arvif);
+		mutex_unlock(&ar->conf_mutex);
+	}
+
+	if (ath10k_mac_bitrate_mask_has_single_rate(ar, band, mask,
+						    &vht_num_rates)) {
 		ret = ath10k_mac_bitrate_mask_get_single_rate(ar, band, mask,
-							      &rate, &nss);
+							      &rate, &nss,
+							      false);
 		if (ret) {
 			ath10k_warn(ar, "failed to get single rate for vdev %i: %d\n",
 				    arvif->vdev_id, ret);
@@ -7369,12 +7438,30 @@ static int ath10k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 			  max(ath10k_mac_max_ht_nss(ht_mcs_mask),
 			      ath10k_mac_max_vht_nss(vht_mcs_mask)));
 
-		if (!ath10k_mac_can_set_bitrate_mask(ar, band, mask))
-			return -EINVAL;
+		if (!ath10k_mac_can_set_bitrate_mask(ar, band, mask,
+						     allow_pfr)) {
+			u8 vht_nss;
+
+			if (!allow_pfr || vht_num_rates != 1)
+				return -EINVAL;
+
+			/* Reach here, firmware supports peer fixed rate and has
+			 * single vht rate, and don't update vif birate_mask, as
+			 * the rate only for specific peer.
+			 */
+			ath10k_mac_bitrate_mask_get_single_rate(ar, band, mask,
+								&vht_pfr,
+								&vht_nss,
+								true);
+			update_bitrate_mask = false;
+		}
 
 		mutex_lock(&ar->conf_mutex);
 
-		arvif->bitrate_mask = *mask;
+		if (update_bitrate_mask)
+			arvif->bitrate_mask = *mask;
+		arvif->vht_num_rates = vht_num_rates;
+		arvif->vht_pfr = vht_pfr;
 		ieee80211_iterate_stations_atomic(ar->hw,
 						  ath10k_mac_set_bitrate_mask_iter,
 						  arvif);

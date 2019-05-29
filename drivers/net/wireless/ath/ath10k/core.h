@@ -579,6 +579,10 @@ struct ath10k_vif {
 	struct work_struct ap_csa_work;
 	struct delayed_work connection_loss_work;
 	struct cfg80211_bitrate_mask bitrate_mask;
+
+	/* For setting VHT peer fixed rate, protected by conf_mutex */
+	int vht_num_rates;
+	u8 vht_pfr;
 };
 
 struct ath10k_vif_iter {
@@ -769,6 +773,9 @@ enum ath10k_fw_features {
 
 	/* Firmware sends only one chan_info event per channel */
 	ATH10K_FW_FEATURE_SINGLE_CHAN_INFO_PER_CHANNEL = 20,
+
+	/* Firmware allows setting peer fixed rate */
+	ATH10K_FW_FEATURE_PEER_FIXED_RATE = 21,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
