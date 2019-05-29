@@ -1,14 +1,17 @@
 device-tree bindings for rockchip VPU codec
 
 Rockchip (Video Processing Unit) present in various Rockchip platforms,
-such as RK3288 and RK3399.
+such as RK3288, RK3328 and RK3399.
 
 Required properties:
 - compatible: value should be one of the following
 		"rockchip,rk3288-vpu";
+		"rockchip,rk3328-vpu";
 		"rockchip,rk3399-vpu";
 - interrupts: encoding and decoding interrupt specifiers
-- interrupt-names: should be "vepu" and "vdpu"
+- interrupt-names: should be
+		"vepu", "vdpu" on RK3288 and RK3399,
+		"vdpu" on RK3328.
 - clocks: phandle to VPU aclk, hclk clocks
 - clock-names: should be "aclk" and "hclk"
 - power-domains: phandle to power domain node
@@ -25,5 +28,16 @@ SoC-specific DT entry:
 		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
 		clock-names = "aclk", "hclk";
 		power-domains = <&power RK3288_PD_VIDEO>;
+		iommus = <&vpu_mmu>;
+	};
+
+	vpu: video-codec@ff350000 {
+		compatible = "rockchip,rk3328-vpu";
+		reg = <0x0 0xff350000 0x0 0x800>;
+		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vdpu";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3328_PD_VPU>;
 		iommus = <&vpu_mmu>;
 	};
