@@ -86,6 +86,7 @@ enum ice_media_type {
 enum ice_vsi_type {
 	ICE_VSI_PF = 0,
 	ICE_VSI_VF,
+	ICE_VSI_LB = 6,
 };
 
 struct ice_link_status {

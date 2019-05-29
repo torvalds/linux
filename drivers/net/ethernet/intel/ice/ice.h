@@ -46,13 +46,20 @@ extern const char ice_drv_ver[];
 #define ICE_REQ_DESC_MULTIPLE	32
 #define ICE_MIN_NUM_DESC	ICE_REQ_DESC_MULTIPLE
 #define ICE_MAX_NUM_DESC	8160
-/* set default number of Rx/Tx descriptors to the minimum between
- * ICE_MAX_NUM_DESC and the number of descriptors to fill up an entire page
+#define ICE_DFLT_MIN_RX_DESC	512
+/* if the default number of Rx descriptors between ICE_MAX_NUM_DESC and the
+ * number of descriptors to fill up an entire page is greater than or equal to
+ * ICE_DFLT_MIN_RX_DESC set it based on page size, otherwise set it to
+ * ICE_DFLT_MIN_RX_DESC
  */
-#define ICE_DFLT_NUM_RX_DESC	min_t(u16, ICE_MAX_NUM_DESC, \
-				      ALIGN(PAGE_SIZE / \
-					    sizeof(union ice_32byte_rx_desc), \
-					    ICE_REQ_DESC_MULTIPLE))
+#define ICE_DFLT_NUM_RX_DESC \
+	min_t(u16, ICE_MAX_NUM_DESC, \
+	      max_t(u16, ALIGN(PAGE_SIZE / sizeof(union ice_32byte_rx_desc), \
+			       ICE_REQ_DESC_MULTIPLE), \
+		    ICE_DFLT_MIN_RX_DESC))
+/* set default number of Tx descriptors to the minimum between ICE_MAX_NUM_DESC
+ * and the number of descriptors to fill up an entire page
+ */
 #define ICE_DFLT_NUM_TX_DESC	min_t(u16, ICE_MAX_NUM_DESC, \
 				      ALIGN(PAGE_SIZE / \
 					    sizeof(struct ice_tx_desc), \
@@ -160,7 +167,7 @@ struct ice_tc_cfg {
 
 struct ice_res_tracker {
 	u16 num_entries;
-	u16 search_hint;
+	u16 end;
 	u16 list[1];
 };
 
@@ -182,6 +189,7 @@ struct ice_sw {
 };
 
 enum ice_state {
+	__ICE_TESTING,
 	__ICE_DOWN,
 	__ICE_NEEDS_RESTART,
 	__ICE_PREPARED_FOR_RESET,	/* set by driver when prepared */
@@ -244,8 +252,7 @@ struct ice_vsi {
 	u32 rx_buf_failed;
 	u32 rx_page_failed;
 	int num_q_vectors;
-	int sw_base_vector;		/* Irq base for OS reserved vectors */
-	int hw_base_vector;		/* HW (absolute) index of a vector */
+	int base_vector;		/* IRQ base for OS reserved vectors */
 	enum ice_vsi_type type;
 	u16 vsi_num;			/* HW (absolute) index of this VSI */
 	u16 idx;			/* software index in pf->vsi[] */
@@ -340,10 +347,12 @@ struct ice_pf {
 
 	/* OS reserved IRQ details */
 	struct msix_entry *msix_entries;
-	struct ice_res_tracker *sw_irq_tracker;
-
-	/* HW reserved Interrupts for this PF */
-	struct ice_res_tracker *hw_irq_tracker;
+	struct ice_res_tracker *irq_tracker;
+	/* First MSIX vector used by SR-IOV VFs. Calculated by subtracting the
+	 * number of MSIX vectors needed for all SR-IOV VFs from the number of
+	 * MSIX vectors allowed on this PF.
+	 */
+	u16 sriov_base_vector;
 
 	struct ice_vsi **vsi;		/* VSIs created by the driver */
 	struct ice_sw *first_sw;	/* first switch created by firmware */
@@ -365,10 +374,8 @@ struct ice_pf {
 	struct mutex sw_mutex;		/* lock for protecting VSI alloc flow */
 	u32 msg_enable;
 	u32 hw_csum_rx_error;
-	u32 sw_oicr_idx;	/* Other interrupt cause SW vector index */
+	u32 oicr_idx;		/* Other interrupt cause MSIX vector index */
 	u32 num_avail_sw_msix;	/* remaining MSIX SW vectors left unclaimed */
-	u32 hw_oicr_idx;	/* Other interrupt cause vector HW index */
-	u32 num_avail_hw_msix;	/* remaining HW MSIX vectors left unclaimed */
 	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
 	u16 num_lan_tx;		/* num LAN Tx queues setup */
 	u16 num_lan_rx;		/* num LAN Rx queues setup */
@@ -392,6 +399,7 @@ struct ice_pf {
 	unsigned long tx_timeout_last_recovery;
 	u32 tx_timeout_recovery_level;
 	char int_name[ICE_INT_NAME_STR_LEN];
+	u32 sw_int_count;
 };
 
 struct ice_netdev_priv {
@@ -409,7 +417,7 @@ ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 		    struct ice_q_vector *q_vector)
 {
 	u32 vector = (vsi && q_vector) ? q_vector->reg_idx :
-				((struct ice_pf *)hw->back)->hw_oicr_idx;
+				((struct ice_pf *)hw->back)->oicr_idx;
 	int itr = ICE_ITR_NONE;
 	u32 val;
 
@@ -444,9 +452,13 @@ ice_find_vsi_by_type(struct ice_pf *pf, enum ice_vsi_type type)
 	return NULL;
 }
 
+int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
+int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
 void ice_set_ethtool_ops(struct net_device *netdev);
 int ice_up(struct ice_vsi *vsi);
 int ice_down(struct ice_vsi *vsi);
+int ice_vsi_cfg(struct ice_vsi *vsi);
+struct ice_vsi *ice_lb_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi);
 int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);
@@ -455,5 +467,7 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
 int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked);
 void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked);
 #endif /* CONFIG_DCB */
+int ice_open(struct net_device *netdev);
+int ice_stop(struct net_device *netdev);
 
 #endif /* _ICE_H_ */
