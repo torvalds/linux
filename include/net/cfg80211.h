@@ -5750,6 +5750,26 @@ void cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
  */
 void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
 
+/**
+ * cfg80211_bss_iter - iterate all BSS entries
+ *
+ * This function iterates over the BSS entries associated with the given wiphy
+ * and calls the callback for the iterated BSS. The iterator function is not
+ * allowed to call functions that might modify the internal state of the BSS DB.
+ *
+ * @wiphy: the wiphy
+ * @chandef: if given, the iterator function will be called only if the channel
+ *     of the currently iterated BSS is a subset of the given channel.
+ * @iter: the iterator function to call
+ * @iter_data: an argument to the iterator function
+ */
+void cfg80211_bss_iter(struct wiphy *wiphy,
+		       struct cfg80211_chan_def *chandef,
+		       void (*iter)(struct wiphy *wiphy,
+				    struct cfg80211_bss *bss,
+				    void *data),
+		       void *iter_data);
+
 static inline enum nl80211_bss_scan_width
 cfg80211_chandef_to_scan_width(const struct cfg80211_chan_def *chandef)
 {
