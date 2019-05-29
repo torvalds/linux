@@ -231,7 +231,7 @@ static const char * const mds_strings[] = {
 	[MDS_MITIGATION_VMWERV]	= "Vulnerable: Clear CPU buffers attempted, no microcode",
 };
 
-static void mds_select_mitigation(void)
+static void __init mds_select_mitigation(void)
 {
 	if (!boot_cpu_has_bug(X86_BUG_MDS) || cpu_mitigations_off()) {
 		mds_mitigation = MDS_MITIGATION_OFF;
@@ -682,12 +682,14 @@ static void update_indir_branch_cond(void)
 static void update_mds_branch_idle(void)
 {
 	/*
-	 * Enable the idle clearing on CPUs which are affected only by
-	 * MDBDS and not any other MDS variant. The other variants cannot
-	 * be mitigated when SMT is enabled, so clearing the buffers on
-	 * idle would be a window dressing exercise.
+	 * Enable the idle clearing if SMT is active on CPUs which are
+	 * affected only by MSBDS and not any other MDS variant.
+	 *
+	 * The other variants cannot be mitigated when SMT is enabled, so
+	 * clearing the buffers on idle just to prevent the Store Buffer
+	 * repartitioning leak would be a window dressing exercise.
 	 */
-	if (!boot_cpu_has(X86_BUG_MSBDS_ONLY))
+	if (!boot_cpu_has_bug(X86_BUG_MSBDS_ONLY))
 		return;
 
 	if (sched_smt_active())
@@ -719,7 +721,7 @@ void arch_smt_update(void)
 		break;
 	}
 
-	switch(mds_mitigation) {
+	switch (mds_mitigation) {
 	case MDS_MITIGATION_FULL:
 	case MDS_MITIGATION_VMWERV:
 		if (sched_smt_active() && !boot_cpu_has(X86_BUG_MSBDS_ONLY))
@@ -1129,7 +1131,7 @@ static void __init l1tf_select_mitigation(void)
 		pr_info("You may make it effective by booting the kernel with mem=%llu parameter.\n",
 				half_pa);
 		pr_info("However, doing so will make a part of your RAM unusable.\n");
-		pr_info("Reading https://www.kernel.org/doc/html/latest/admin-guide/l1tf.html might help you decide.\n");
+		pr_info("Reading https://www.kernel.org/doc/html/latest/admin-guide/hw-vuln/l1tf.html might help you decide.\n");
 		return;
 	}
 
