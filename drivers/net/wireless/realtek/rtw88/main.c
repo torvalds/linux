@@ -198,14 +198,19 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 {
 	struct ieee80211_channel *channel = chandef->chan;
 	enum nl80211_chan_width width = chandef->width;
+	u8 *cch_by_bw = chan_params->cch_by_bw;
 	u32 primary_freq, center_freq;
 	u8 center_chan;
 	u8 bandwidth = RTW_CHANNEL_WIDTH_20;
 	u8 primary_chan_idx = 0;
+	u8 i;
 
 	center_chan = channel->hw_value;
 	primary_freq = channel->center_freq;
 	center_freq = chandef->center_freq1;
+
+	/* assign the center channel used while 20M bw is selected */
+	cch_by_bw[RTW_CHANNEL_WIDTH_20] = channel->hw_value;
 
 	switch (width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -233,6 +238,10 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 				primary_chan_idx = 3;
 				center_chan -= 6;
 			}
+			/* assign the center channel used
+			 * while 40M bw is selected
+			 */
+			cch_by_bw[RTW_CHANNEL_WIDTH_40] = center_chan + 4;
 		} else {
 			if (center_freq - primary_freq == 10) {
 				primary_chan_idx = 2;
@@ -241,6 +250,10 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 				primary_chan_idx = 4;
 				center_chan += 6;
 			}
+			/* assign the center channel used
+			 * while 40M bw is selected
+			 */
+			cch_by_bw[RTW_CHANNEL_WIDTH_40] = center_chan - 4;
 		}
 		break;
 	default:
@@ -251,6 +264,12 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 	chan_params->center_chan = center_chan;
 	chan_params->bandwidth = bandwidth;
 	chan_params->primary_chan_idx = primary_chan_idx;
+
+	/* assign the center channel used while current bw is selected */
+	cch_by_bw[bandwidth] = center_chan;
+
+	for (i = bandwidth + 1; i <= RTW_MAX_CHANNEL_WIDTH; i++)
+		cch_by_bw[i] = 0;
 }
 
 void rtw_set_channel(struct rtw_dev *rtwdev)
@@ -260,6 +279,7 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_channel_params ch_param;
 	u8 center_chan, bandwidth, primary_chan_idx;
+	u8 i;
 
 	rtw_get_channel_params(&hw->conf.chandef, &ch_param);
 	if (WARN(ch_param.center_chan == 0, "Invalid channel\n"))
@@ -272,6 +292,10 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 	hal->current_band_width = bandwidth;
 	hal->current_channel = center_chan;
 	hal->current_band_type = center_chan > 14 ? RTW_BAND_5G : RTW_BAND_2G;
+
+	for (i = RTW_CHANNEL_WIDTH_20; i <= RTW_MAX_CHANNEL_WIDTH; i++)
+		hal->cch_by_bw[i] = ch_param.cch_by_bw[i];
+
 	chip->ops->set_channel(rtwdev, center_chan, bandwidth, primary_chan_idx);
 
 	rtw_phy_set_tx_power_level(rtwdev, center_chan);

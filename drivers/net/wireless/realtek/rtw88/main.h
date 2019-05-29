@@ -62,6 +62,9 @@ enum rtw_supported_band {
 	RTW_BAND_MAX,
 };
 
+/* now, support upto 80M bw */
+#define RTW_MAX_CHANNEL_WIDTH RTW_CHANNEL_WIDTH_80
+
 enum rtw_bandwidth {
 	RTW_CHANNEL_WIDTH_20	= 0,
 	RTW_CHANNEL_WIDTH_40	= 1,
@@ -413,6 +416,10 @@ struct rtw_channel_params {
 	u8 center_chan;
 	u8 bandwidth;
 	u8 primary_chan_idx;
+	/* center channel by different available bandwidth,
+	 * val of (bw > current bandwidth) is invalid
+	 */
+	u8 cch_by_bw[RTW_MAX_CHANNEL_WIDTH + 1];
 };
 
 struct rtw_hw_reg {
@@ -984,6 +991,12 @@ struct rtw_hal {
 	u8 current_channel;
 	u8 current_band_width;
 	u8 current_band_type;
+
+	/* center channel for different available bandwidth,
+	 * val of (bw > current_band_width) is invalid
+	 */
+	u8 cch_by_bw[RTW_MAX_CHANNEL_WIDTH + 1];
+
 	u8 sec_ch_offset;
 	u8 rf_type;
 	u8 rf_path_num;

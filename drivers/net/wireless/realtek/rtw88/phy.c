@@ -1198,6 +1198,70 @@ static void rtw_phy_set_tx_power_limit(struct rtw_dev *rtwdev, u8 regd, u8 band,
 	}
 }
 
+/* cross-reference 5G power limits if values are not assigned */
+static void
+rtw_xref_5g_txpwr_lmt(struct rtw_dev *rtwdev, u8 regd,
+		      u8 bw, u8 ch_idx, u8 rs_ht, u8 rs_vht)
+{
+	struct rtw_hal *hal = &rtwdev->hal;
+	s8 lmt_ht = hal->tx_pwr_limit_5g[regd][bw][rs_ht][ch_idx];
+	s8 lmt_vht = hal->tx_pwr_limit_5g[regd][bw][rs_vht][ch_idx];
+
+	if (lmt_ht == lmt_vht)
+		return;
+
+	if (lmt_ht == RTW_MAX_POWER_INDEX)
+		hal->tx_pwr_limit_5g[regd][bw][rs_ht][ch_idx] = lmt_vht;
+
+	else if (lmt_vht == RTW_MAX_POWER_INDEX)
+		hal->tx_pwr_limit_5g[regd][bw][rs_vht][ch_idx] = lmt_ht;
+}
+
+/* cross-reference power limits for ht and vht */
+static void
+rtw_xref_txpwr_lmt_by_rs(struct rtw_dev *rtwdev, u8 regd, u8 bw, u8 ch_idx)
+{
+	u8 rs_idx, rs_ht, rs_vht;
+	u8 rs_cmp[2][2] = {{RTW_RATE_SECTION_HT_1S, RTW_RATE_SECTION_VHT_1S},
+			   {RTW_RATE_SECTION_HT_2S, RTW_RATE_SECTION_VHT_2S} };
+
+	for (rs_idx = 0; rs_idx < 2; rs_idx++) {
+		rs_ht = rs_cmp[rs_idx][0];
+		rs_vht = rs_cmp[rs_idx][1];
+
+		rtw_xref_5g_txpwr_lmt(rtwdev, regd, bw, ch_idx, rs_ht, rs_vht);
+	}
+}
+
+/* cross-reference power limits for 5G channels */
+static void
+rtw_xref_5g_txpwr_lmt_by_ch(struct rtw_dev *rtwdev, u8 regd, u8 bw)
+{
+	u8 ch_idx;
+
+	for (ch_idx = 0; ch_idx < RTW_MAX_CHANNEL_NUM_5G; ch_idx++)
+		rtw_xref_txpwr_lmt_by_rs(rtwdev, regd, bw, ch_idx);
+}
+
+/* cross-reference power limits for 20/40M bandwidth */
+static void
+rtw_xref_txpwr_lmt_by_bw(struct rtw_dev *rtwdev, u8 regd)
+{
+	u8 bw;
+
+	for (bw = RTW_CHANNEL_WIDTH_20; bw <= RTW_CHANNEL_WIDTH_40; bw++)
+		rtw_xref_5g_txpwr_lmt_by_ch(rtwdev, regd, bw);
+}
+
+/* cross-reference power limits */
+static void rtw_xref_txpwr_lmt(struct rtw_dev *rtwdev)
+{
+	u8 regd;
+
+	for (regd = 0; regd < RTW_REGD_MAX; regd++)
+		rtw_xref_txpwr_lmt_by_bw(rtwdev, regd);
+}
+
 void rtw_parse_tbl_txpwr_lmt(struct rtw_dev *rtwdev,
 			     const struct rtw_table *tbl)
 {
@@ -1210,6 +1274,8 @@ void rtw_parse_tbl_txpwr_lmt(struct rtw_dev *rtwdev,
 		rtw_phy_set_tx_power_limit(rtwdev, p->regd, p->band,
 					   p->bw, p->rs, p->ch, p->txpwr_lmt);
 	}
+
+	rtw_xref_txpwr_lmt(rtwdev);
 }
 
 void rtw_phy_cfg_mac(struct rtw_dev *rtwdev, const struct rtw_table *tbl,
@@ -1479,9 +1545,12 @@ static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 				     u8 rate, u8 channel, u8 regd)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
-	s8 power_limit;
+	u8 *cch_by_bw = hal->cch_by_bw;
+	s8 power_limit = RTW_MAX_POWER_INDEX;
 	u8 rs;
 	int ch_idx;
+	u8 cur_bw, cur_ch;
+	s8 cur_lmt;
 
 	if (regd > RTW_REGD_WW)
 		return RTW_MAX_POWER_INDEX;
@@ -1501,14 +1570,28 @@ static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 	else
 		goto err;
 
-	ch_idx = rtw_channel_to_idx(band, channel);
-	if (ch_idx < 0)
-		goto err;
+	/* only 20M BW with cck and ofdm */
+	if (rs == RTW_RATE_SECTION_CCK || rs == RTW_RATE_SECTION_OFDM)
+		bw = RTW_CHANNEL_WIDTH_20;
 
-	if (channel <= RTW_MAX_CHANNEL_NUM_2G)
-		power_limit = hal->tx_pwr_limit_2g[regd][bw][rs][ch_idx];
-	else
-		power_limit = hal->tx_pwr_limit_5g[regd][bw][rs][ch_idx];
+	/* only 20/40M BW with ht */
+	if (rs == RTW_RATE_SECTION_HT_1S || rs == RTW_RATE_SECTION_HT_2S)
+		bw = min_t(u8, bw, RTW_CHANNEL_WIDTH_40);
+
+	/* select min power limit among [20M BW ~ current BW] */
+	for (cur_bw = RTW_CHANNEL_WIDTH_20; cur_bw <= bw; cur_bw++) {
+		cur_ch = cch_by_bw[cur_bw];
+
+		ch_idx = rtw_channel_to_idx(band, cur_ch);
+		if (ch_idx < 0)
+			goto err;
+
+		cur_lmt = cur_ch <= RTW_MAX_CHANNEL_NUM_2G ?
+			hal->tx_pwr_limit_2g[regd][cur_bw][rs][ch_idx] :
+			hal->tx_pwr_limit_5g[regd][cur_bw][rs][ch_idx];
+
+		power_limit = min_t(s8, cur_lmt, power_limit);
+	}
 
 	return power_limit;
 
@@ -1692,6 +1775,9 @@ __rtw_phy_tx_power_limit_config(struct rtw_hal *hal, u8 regd, u8 bw, u8 rs)
 void rtw_phy_tx_power_limit_config(struct rtw_hal *hal)
 {
 	u8 regd, bw, rs;
+
+	/* default at channel 1 */
+	hal->cch_by_bw[RTW_CHANNEL_WIDTH_20] = 1;
 
 	for (regd = 0; regd < RTW_REGD_MAX; regd++)
 		for (bw = 0; bw < RTW_CHANNEL_WIDTH_MAX; bw++)
