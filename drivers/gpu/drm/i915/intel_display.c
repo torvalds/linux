@@ -8661,6 +8661,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		pipe_config->cgm_mode = I915_READ(CGM_PIPE_MODE(crtc->pipe));
 
 	i9xx_get_pipe_color_config(pipe_config);
+	intel_color_get_config(pipe_config);
 
 	if (INTEL_GEN(dev_priv) < 4)
 		pipe_config->double_wide = tmp & PIPECONF_DOUBLE_WIDE;
@@ -9758,6 +9759,7 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	pipe_config->csc_mode = I915_READ(PIPE_CSC_MODE(crtc->pipe));
 
 	i9xx_get_pipe_color_config(pipe_config);
+	intel_color_get_config(pipe_config);
 
 	if (I915_READ(PCH_TRANSCONF(crtc->pipe)) & TRANS_ENABLE) {
 		struct intel_shared_dpll *pll;
@@ -10205,6 +10207,8 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	} else {
 		i9xx_get_pipe_color_config(pipe_config);
 	}
+
+	intel_color_get_config(pipe_config);
 
 	power_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
 	WARN_ON(power_domain_mask & BIT_ULL(power_domain));
