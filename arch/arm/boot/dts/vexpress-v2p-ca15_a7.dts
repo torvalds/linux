@@ -680,3 +680,12 @@
 				<0 3 &gic 0 39 4>;
 	};
 };
+
+&nor_flash {
+	/*
+	 * Unfortunately, accessing the flash disturbs the CPU idle states
+	 * (suspend) and CPU hotplug of this platform. For this reason, flash
+	 * hardware access is disabled by default on this platform alone.
+	 */
+	status = "disabled";
+};
