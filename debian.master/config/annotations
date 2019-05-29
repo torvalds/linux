@@ -7933,7 +7933,7 @@ CONFIG_WILC1000_HW_OOB_INTR                     policy<{'amd64': 'y', 'arm64': '
 CONFIG_KS7010                                   policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
 CONFIG_DRM_VBOXVIDEO                            policy<{'amd64': 'm', 'i386': 'm'}>
 CONFIG_PI433                                    policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
-CONFIG_XIL_AXIS_FIFO                            policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
+CONFIG_XIL_AXIS_FIFO                            policy<{'amd64': 'n', 'arm64': 'm', 'armhf': 'm', 'i386': 'n', 'ppc64el': 'm'}>
 #
 CONFIG_STAGING                                  flag<REVIEW>
 CONFIG_DRM_VBOXVIDEO                            note<LP:1718679> flag<REVIEW>
