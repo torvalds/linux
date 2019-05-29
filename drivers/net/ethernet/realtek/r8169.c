@@ -2314,50 +2314,45 @@ static bool rtl_fw_format_ok(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 	const struct firmware *fw = rtl_fw->fw;
 	struct fw_info *fw_info = (struct fw_info *)fw->data;
 	struct rtl_fw_phy_action *pa = &rtl_fw->phy_action;
-	char *version = rtl_fw->version;
-	bool rc = false;
 
 	if (fw->size < FW_OPCODE_SIZE)
-		goto out;
+		return false;
 
 	if (!fw_info->magic) {
 		size_t i, size, start;
 		u8 checksum = 0;
 
 		if (fw->size < sizeof(*fw_info))
-			goto out;
+			return false;
 
 		for (i = 0; i < fw->size; i++)
 			checksum += fw->data[i];
 		if (checksum != 0)
-			goto out;
+			return false;
 
 		start = le32_to_cpu(fw_info->fw_start);
 		if (start > fw->size)
-			goto out;
+			return false;
 
 		size = le32_to_cpu(fw_info->fw_len);
 		if (size > (fw->size - start) / FW_OPCODE_SIZE)
-			goto out;
+			return false;
 
-		memcpy(version, fw_info->version, RTL_VER_SIZE);
+		strscpy(rtl_fw->version, fw_info->version, RTL_VER_SIZE);
 
 		pa->code = (__le32 *)(fw->data + start);
 		pa->size = size;
 	} else {
 		if (fw->size % FW_OPCODE_SIZE)
-			goto out;
+			return false;
 
-		strlcpy(version, tp->fw_name, RTL_VER_SIZE);
+		strscpy(rtl_fw->version, tp->fw_name, RTL_VER_SIZE);
 
 		pa->code = (__le32 *)fw->data;
 		pa->size = fw->size / FW_OPCODE_SIZE;
 	}
-	version[RTL_VER_SIZE - 1] = 0;
 
-	rc = true;
-out:
-	return rc;
+	return true;
 }
 
 static bool rtl_fw_data_ok(struct rtl8169_private *tp, struct net_device *dev,
