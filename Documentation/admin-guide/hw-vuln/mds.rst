@@ -32,11 +32,12 @@ Related CVEs
 
 The following CVE entries are related to the MDS vulnerability:
 
-   ==============  =====  ==============================================
+   ==============  =====  ===================================================
    CVE-2018-12126  MSBDS  Microarchitectural Store Buffer Data Sampling
    CVE-2018-12130  MFBDS  Microarchitectural Fill Buffer Data Sampling
    CVE-2018-12127  MLPDS  Microarchitectural Load Port Data Sampling
-   ==============  =====  ==============================================
+   CVE-2019-11091  MDSUM  Microarchitectural Data Sampling Uncacheable Memory
+   ==============  =====  ===================================================
 
 Problem
 -------

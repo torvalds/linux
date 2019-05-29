@@ -12,6 +12,7 @@ on internal buffers in Intel CPUs. The variants are:
  - Microarchitectural Store Buffer Data Sampling (MSBDS) (CVE-2018-12126)
  - Microarchitectural Fill Buffer Data Sampling (MFBDS) (CVE-2018-12130)
  - Microarchitectural Load Port Data Sampling (MLPDS) (CVE-2018-12127)
+ - Microarchitectural Data Sampling Uncacheable Memory (MDSUM) (CVE-2019-11091)
 
 MSBDS leaks Store Buffer Entries which can be speculatively forwarded to a
 dependent load (store-to-load forwarding) as an optimization. The forward
@@ -38,6 +39,10 @@ faulting or assisting loads under certain conditions, which again can be
 exploited eventually. Load ports are shared between Hyper-Threads so cross
 thread leakage is possible.
 
+MDSUM is a special case of MSBDS, MFBDS and MLPDS. An uncacheable load from
+memory that takes a fault or assist can leave data in a microarchitectural
+structure that may later be observed using one of the same methods used by
+MSBDS, MFBDS or MLPDS.
 
 Exposure assumptions
 --------------------
