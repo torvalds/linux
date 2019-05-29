@@ -472,7 +472,7 @@ static int goya_early_init(struct hl_device *hdev)
 
 	prop->dram_pci_bar_size = pci_resource_len(pdev, DDR_BAR_ID);
 
-	rc = hl_pci_init(hdev, 39);
+	rc = hl_pci_init(hdev, 48);
 	if (rc)
 		return rc;
 
@@ -668,6 +668,9 @@ static int goya_sw_init(struct hl_device *hdev)
 		rc = -ENOMEM;
 		goto free_dma_pool;
 	}
+
+	dev_dbg(hdev->dev, "cpu accessible memory at bus address 0x%llx\n",
+		hdev->cpu_accessible_dma_address);
 
 	hdev->cpu_accessible_dma_pool = gen_pool_create(ilog2(32), -1);
 	if (!hdev->cpu_accessible_dma_pool) {
@@ -2481,25 +2484,11 @@ static int goya_hw_init(struct hl_device *hdev)
 	if (rc)
 		goto disable_queues;
 
-	/*
-	 * Check if we managed to set the DMA mask to more then 32 bits. If so,
-	 * let's try to increase it again because in Goya we set the initial
-	 * dma mask to less then 39 bits so that the allocation of the memory
-	 * area for the device's cpu will be under 39 bits
-	 */
-	if (hdev->dma_mask > 32) {
-		rc = hl_pci_set_dma_mask(hdev, 48);
-		if (rc)
-			goto disable_msix;
-	}
-
 	/* Perform read from the device to flush all MSI-X configuration */
 	val = RREG32(mmPCIE_DBI_DEVICE_ID_VENDOR_ID_REG);
 
 	return 0;
 
-disable_msix:
-	goya_disable_msix(hdev);
 disable_queues:
 	goya_disable_internal_queues(hdev);
 	goya_disable_external_queues(hdev);
