@@ -138,7 +138,6 @@ static void ipoib_get_strings(struct net_device __always_unused *dev,
 			p += ETH_GSTRING_LEN;
 		}
 		break;
-	case ETH_SS_TEST:
 	default:
 		break;
 	}
@@ -149,7 +148,6 @@ static int ipoib_get_sset_count(struct net_device __always_unused *dev,
 	switch (sset) {
 	case ETH_SS_STATS:
 		return IPOIB_GLOBAL_STATS_LEN;
-	case ETH_SS_TEST:
 	default:
 		break;
 	}
