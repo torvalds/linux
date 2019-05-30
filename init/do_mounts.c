@@ -658,8 +658,6 @@ int __init init_rootfs(void)
 		(!root_fs_names || strstr(root_fs_names, "tmpfs"))) {
 		err = shmem_init();
 		is_tmpfs = true;
-	} else {
-		err = init_ramfs_fs();
 	}
 
 	if (err)
