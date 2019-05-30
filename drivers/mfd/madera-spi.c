@@ -39,6 +39,12 @@ static int madera_spi_probe(struct spi_device *spi)
 		type = id->driver_data;
 
 	switch (type) {
+	case CS47L15:
+		if (IS_ENABLED(CONFIG_MFD_CS47L15)) {
+			regmap_16bit_config = &cs47l15_16bit_spi_regmap;
+			regmap_32bit_config = &cs47l15_32bit_spi_regmap;
+		}
+		break;
 	case CS47L35:
 		if (IS_ENABLED(CONFIG_MFD_CS47L35)) {
 			regmap_16bit_config = &cs47l35_16bit_spi_regmap;
@@ -112,6 +118,7 @@ static int madera_spi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id madera_spi_ids[] = {
+	{ "cs47l15", CS47L15 },
 	{ "cs47l35", CS47L35 },
 	{ "cs47l85", CS47L85 },
 	{ "cs47l90", CS47L90 },

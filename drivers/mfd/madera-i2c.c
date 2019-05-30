@@ -39,6 +39,12 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 		type = id->driver_data;
 
 	switch (type) {
+	case CS47L15:
+		if (IS_ENABLED(CONFIG_MFD_CS47L15)) {
+			regmap_16bit_config = &cs47l15_16bit_i2c_regmap;
+			regmap_32bit_config = &cs47l15_32bit_i2c_regmap;
+		}
+		break;
 	case CS47L35:
 		if (IS_ENABLED(CONFIG_MFD_CS47L35)) {
 			regmap_16bit_config = &cs47l35_16bit_i2c_regmap;
@@ -113,6 +119,7 @@ static int madera_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id madera_i2c_id[] = {
+	{ "cs47l15", CS47L15 },
 	{ "cs47l35", CS47L35 },
 	{ "cs47l85", CS47L85 },
 	{ "cs47l90", CS47L90 },
