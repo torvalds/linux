@@ -29,6 +29,8 @@
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
 
+#define PHY_STATE_TIME	HZ
+
 #define PHY_STATE_STR(_state)			\
 	case PHY_##_state:			\
 		return __stringify(_state);	\
@@ -478,12 +480,12 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 }
 EXPORT_SYMBOL(phy_mii_ioctl);
 
-static void phy_queue_state_machine(struct phy_device *phydev,
-				    unsigned int secs)
+void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies)
 {
 	mod_delayed_work(system_power_efficient_wq, &phydev->state_queue,
-			 secs * HZ);
+			 jiffies);
 }
+EXPORT_SYMBOL(phy_queue_state_machine);
 
 static void phy_trigger_machine(struct phy_device *phydev)
 {
@@ -772,8 +774,13 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 	if (phydev->drv->did_interrupt && !phydev->drv->did_interrupt(phydev))
 		return IRQ_NONE;
 
-	/* reschedule state queue work to run as soon as possible */
-	phy_trigger_machine(phydev);
+	if (phydev->drv->handle_interrupt) {
+		if (phydev->drv->handle_interrupt(phydev))
+			goto phy_err;
+	} else {
+		/* reschedule state queue work to run as soon as possible */
+		phy_trigger_machine(phydev);
+	}
 
 	if (phy_clear_interrupt(phydev))
 		goto phy_err;
@@ -799,10 +806,10 @@ static int phy_enable_interrupts(struct phy_device *phydev)
 }
 
 /**
- * phy_request_interrupt - request interrupt for a PHY device
+ * phy_request_interrupt - request and enable interrupt for a PHY device
  * @phydev: target phy_device struct
  *
- * Description: Request the interrupt for the given PHY.
+ * Description: Request and enable the interrupt for the given PHY.
  *   If this fails, then we set irq to PHY_POLL.
  *   This should only be called with a valid IRQ number.
  */
@@ -817,9 +824,29 @@ void phy_request_interrupt(struct phy_device *phydev)
 		phydev_warn(phydev, "Error %d requesting IRQ %d, falling back to polling\n",
 			    err, phydev->irq);
 		phydev->irq = PHY_POLL;
+	} else {
+		if (phy_enable_interrupts(phydev)) {
+			phydev_warn(phydev, "Can't enable interrupt, falling back to polling\n");
+			phy_free_interrupt(phydev);
+			phydev->irq = PHY_POLL;
+		}
 	}
 }
 EXPORT_SYMBOL(phy_request_interrupt);
+
+/**
+ * phy_free_interrupt - disable and free interrupt for a PHY device
+ * @phydev: target phy_device struct
+ *
+ * Description: Disable and free the interrupt for the given PHY.
+ *   This should only be called with a valid IRQ number.
+ */
+void phy_free_interrupt(struct phy_device *phydev)
+{
+	phy_disable_interrupts(phydev);
+	free_irq(phydev->irq, phydev);
+}
+EXPORT_SYMBOL(phy_free_interrupt);
 
 /**
  * phy_stop - Bring down the PHY link, and stop checking the status
@@ -834,9 +861,6 @@ void phy_stop(struct phy_device *phydev)
 	}
 
 	mutex_lock(&phydev->lock);
-
-	if (phy_interrupt_is_valid(phydev))
-		phy_disable_interrupts(phydev);
 
 	phydev->state = PHY_HALTED;
 
@@ -864,8 +888,6 @@ EXPORT_SYMBOL(phy_stop);
  */
 void phy_start(struct phy_device *phydev)
 {
-	int err;
-
 	mutex_lock(&phydev->lock);
 
 	if (phydev->state != PHY_READY && phydev->state != PHY_HALTED) {
@@ -876,13 +898,6 @@ void phy_start(struct phy_device *phydev)
 
 	/* if phy was suspended, bring the physical link up again */
 	__phy_resume(phydev);
-
-	/* make sure interrupts are enabled for the PHY */
-	if (phy_interrupt_is_valid(phydev)) {
-		err = phy_enable_interrupts(phydev);
-		if (err < 0)
-			goto out;
-	}
 
 	phydev->state = PHY_UP;
 
