@@ -184,7 +184,7 @@ static int journal_wait_on_commit_record(journal_t *journal,
 /*
  * write the filemap data using writepage() address_space_operations.
  * We don't do block allocation here even for delalloc. We don't
- * use writepages() because with dealyed allocation we may be doing
+ * use writepages() because with delayed allocation we may be doing
  * block allocation in writepages().
  */
 static int journal_submit_inode_data_buffers(struct address_space *mapping)
