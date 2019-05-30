@@ -29,7 +29,7 @@
 
 static void update_ht_cap(struct _adapter *padapter, u8 *pie, uint ie_len);
 
-static sint _init_mlme_priv(struct _adapter *padapter)
+int r8712_init_mlme_priv(struct _adapter *padapter)
 {
 	sint	i;
 	u8	*pbuf;
@@ -203,11 +203,6 @@ uint r8712_get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
 u8 *r8712_get_capability_from_ie(u8 *ie)
 {
 	return ie + 8 + 2;
-}
-
-int r8712_init_mlme_priv(struct _adapter *padapter)
-{
-	return _init_mlme_priv(padapter);
 }
 
 void r8712_free_mlme_priv(struct mlme_priv *pmlmepriv)
