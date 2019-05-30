@@ -29,6 +29,8 @@
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
 
+#define PHY_STATE_TIME	HZ
+
 #define PHY_STATE_STR(_state)			\
 	case PHY_##_state:			\
 		return __stringify(_state);	\
@@ -478,12 +480,12 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 }
 EXPORT_SYMBOL(phy_mii_ioctl);
 
-static void phy_queue_state_machine(struct phy_device *phydev,
-				    unsigned int secs)
+void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies)
 {
 	mod_delayed_work(system_power_efficient_wq, &phydev->state_queue,
-			 secs * HZ);
+			 jiffies);
 }
+EXPORT_SYMBOL(phy_queue_state_machine);
 
 static void phy_trigger_machine(struct phy_device *phydev)
 {
