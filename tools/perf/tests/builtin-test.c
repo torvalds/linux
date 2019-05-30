@@ -290,6 +290,10 @@ static struct test generic_tests[] = {
 		.func = test__mem2node,
 	},
 	{
+		.desc = "map_groups__merge_in",
+		.func = test__map_groups__merge_in,
+	},
+	{
 		.func = NULL,
 	},
 };

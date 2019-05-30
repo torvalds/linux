@@ -1606,6 +1606,7 @@ struct perf_script {
 	bool			show_namespace_events;
 	bool			show_lost_events;
 	bool			show_round_events;
+	bool			show_bpf_events;
 	bool			allocated;
 	bool			per_event_dump;
 	struct cpu_map		*cpus;
@@ -2318,6 +2319,41 @@ process_finished_round_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+static int
+process_bpf_events(struct perf_tool *tool __maybe_unused,
+		   union perf_event *event,
+		   struct perf_sample *sample,
+		   struct machine *machine)
+{
+	struct thread *thread;
+	struct perf_script *script = container_of(tool, struct perf_script, tool);
+	struct perf_session *session = script->session;
+	struct perf_evsel *evsel = perf_evlist__id2evsel(session->evlist, sample->id);
+
+	if (machine__process_ksymbol(machine, event, sample) < 0)
+		return -1;
+
+	if (!evsel->attr.sample_id_all) {
+		perf_event__fprintf(event, stdout);
+		return 0;
+	}
+
+	thread = machine__findnew_thread(machine, sample->pid, sample->tid);
+	if (thread == NULL) {
+		pr_debug("problem processing MMAP event, skipping it.\n");
+		return -1;
+	}
+
+	if (!filter_cpu(sample)) {
+		perf_sample__fprintf_start(sample, thread, evsel,
+					   event->header.type, stdout);
+		perf_event__fprintf(event, stdout);
+	}
+
+	thread__put(thread);
+	return 0;
+}
+
 static void sig_handler(int sig __maybe_unused)
 {
 	session_done = 1;
@@ -2419,6 +2455,10 @@ static int __cmd_script(struct perf_script *script)
 	if (script->show_round_events) {
 		script->tool.ordered_events = false;
 		script->tool.finished_round = process_finished_round_event;
+	}
+	if (script->show_bpf_events) {
+		script->tool.ksymbol   = process_bpf_events;
+		script->tool.bpf_event = process_bpf_events;
 	}
 
 	if (perf_script__setup_per_event_dump(script)) {
@@ -3297,6 +3337,7 @@ static int parse_call_trace(const struct option *opt __maybe_unused,
 	parse_output_fields(NULL, "-ip,-addr,-event,-period,+callindent", 0);
 	itrace_parse_synth_opts(opt, "cewp", 0);
 	symbol_conf.nanosecs = true;
+	symbol_conf.pad_output_len_dso = 50;
 	return 0;
 }
 
@@ -3438,6 +3479,8 @@ int cmd_script(int argc, const char **argv)
 		    "Show lost events (if recorded)"),
 	OPT_BOOLEAN('\0', "show-round-events", &script.show_round_events,
 		    "Show round events (if recorded)"),
+	OPT_BOOLEAN('\0', "show-bpf-events", &script.show_bpf_events,
+		    "Show bpf related events (if recorded)"),
 	OPT_BOOLEAN('\0', "per-event-dump", &script.per_event_dump,
 		    "Dump trace output to files named by the monitored events"),
 	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),

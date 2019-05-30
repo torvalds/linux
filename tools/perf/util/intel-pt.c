@@ -1859,7 +1859,6 @@ static int intel_pt_sync_switch(struct intel_pt *pt, int cpu, pid_t tid,
 
 	switch (ptq->switch_state) {
 	case INTEL_PT_SS_NOT_TRACING:
-		ptq->next_tid = -1;
 		break;
 	case INTEL_PT_SS_UNKNOWN:
 	case INTEL_PT_SS_TRACING:
@@ -1879,12 +1878,13 @@ static int intel_pt_sync_switch(struct intel_pt *pt, int cpu, pid_t tid,
 		ptq->switch_state = INTEL_PT_SS_TRACING;
 		break;
 	case INTEL_PT_SS_EXPECTING_SWITCH_IP:
-		ptq->next_tid = tid;
 		intel_pt_log("ERROR: cpu %d expecting switch ip\n", cpu);
 		break;
 	default:
 		break;
 	}
+
+	ptq->next_tid = -1;
 
 	return 1;
 }
@@ -1914,6 +1914,44 @@ static int intel_pt_process_switch(struct intel_pt *pt,
 	return machine__set_current_tid(pt->machine, cpu, -1, tid);
 }
 
+static int intel_pt_context_switch_in(struct intel_pt *pt,
+				      struct perf_sample *sample)
+{
+	pid_t pid = sample->pid;
+	pid_t tid = sample->tid;
+	int cpu = sample->cpu;
+
+	if (pt->sync_switch) {
+		struct intel_pt_queue *ptq;
+
+		ptq = intel_pt_cpu_to_ptq(pt, cpu);
+		if (ptq && ptq->sync_switch) {
+			ptq->next_tid = -1;
+			switch (ptq->switch_state) {
+			case INTEL_PT_SS_NOT_TRACING:
+			case INTEL_PT_SS_UNKNOWN:
+			case INTEL_PT_SS_TRACING:
+				break;
+			case INTEL_PT_SS_EXPECTING_SWITCH_EVENT:
+			case INTEL_PT_SS_EXPECTING_SWITCH_IP:
+				ptq->switch_state = INTEL_PT_SS_TRACING;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+	/*
+	 * If the current tid has not been updated yet, ensure it is now that
+	 * a "switch in" event has occurred.
+	 */
+	if (machine__get_current_tid(pt->machine, cpu) == tid)
+		return 0;
+
+	return machine__set_current_tid(pt->machine, cpu, pid, tid);
+}
+
 static int intel_pt_context_switch(struct intel_pt *pt, union perf_event *event,
 				   struct perf_sample *sample)
 {
@@ -1925,7 +1963,7 @@ static int intel_pt_context_switch(struct intel_pt *pt, union perf_event *event,
 
 	if (pt->have_sched_switch == 3) {
 		if (!out)
-			return 0;
+			return intel_pt_context_switch_in(pt, sample);
 		if (event->header.type != PERF_RECORD_SWITCH_CPU_WIDE) {
 			pr_err("Expecting CPU-wide context switch event\n");
 			return -EINVAL;
@@ -2588,7 +2626,8 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	} else {
 		itrace_synth_opts__set_default(&pt->synth_opts,
 				session->itrace_synth_opts->default_no_sample);
-		if (use_browser != -1) {
+		if (!session->itrace_synth_opts->default_no_sample &&
+		    !session->itrace_synth_opts->inject) {
 			pt->synth_opts.branches = false;
 			pt->synth_opts.callchain = true;
 		}
