@@ -626,7 +626,9 @@ static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 	struct bpf_sk_storage_map *smap;
 	unsigned int i;
 	u32 nbuckets;
+	u32 pages;
 	u64 cost;
+	int ret;
 
 	smap = kzalloc(sizeof(*smap), GFP_USER | __GFP_NOWARN);
 	if (!smap)
@@ -635,13 +637,19 @@ static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 
 	smap->bucket_log = ilog2(roundup_pow_of_two(num_possible_cpus()));
 	nbuckets = 1U << smap->bucket_log;
+	cost = sizeof(*smap->buckets) * nbuckets + sizeof(*smap);
+	pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
+
+	ret = bpf_map_precharge_memlock(pages);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
 	smap->buckets = kvcalloc(sizeof(*smap->buckets), nbuckets,
 				 GFP_USER | __GFP_NOWARN);
 	if (!smap->buckets) {
 		kfree(smap);
 		return ERR_PTR(-ENOMEM);
 	}
-	cost = sizeof(*smap->buckets) * nbuckets + sizeof(*smap);
 
 	for (i = 0; i < nbuckets; i++) {
 		INIT_HLIST_HEAD(&smap->buckets[i].list);
@@ -651,7 +659,7 @@ static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 	smap->elem_size = sizeof(struct bpf_sk_storage_elem) + attr->value_size;
 	smap->cache_idx = (unsigned int)atomic_inc_return(&cache_idx) %
 		BPF_SK_STORAGE_CACHE_SIZE;
-	smap->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
+	smap->map.pages = pages;
 
 	return &smap->map;
 }
