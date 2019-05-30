@@ -1264,6 +1264,7 @@ static int map_queues_cpsch(struct device_queue_manager *dqm)
 		return 0;
 
 	retval = pm_send_runlist(&dqm->packets, &dqm->queues);
+	pr_debug("%s sent runlist\n", __func__);
 	if (retval) {
 		pr_err("failed to execute runlist\n");
 		return retval;
@@ -1301,7 +1302,7 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 				KFD_FENCE_COMPLETED);
 	/* should be timed out */
 	retval = amdkfd_fence_wait_timeout(dqm->fence_addr, KFD_FENCE_COMPLETED,
-				QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS);
+				queue_preemption_timeout_ms);
 	if (retval)
 		return retval;
 
@@ -1785,6 +1786,9 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	case CHIP_RAVEN:
 		device_queue_manager_init_v9(&dqm->asic_ops);
 		break;
+	case CHIP_NAVI10:
+		device_queue_manager_init_v10_navi10(&dqm->asic_ops);
+		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",
 		     dev->device_info->asic_family);
@@ -1876,12 +1880,13 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 	int r = 0;
 
 	r = dqm->dev->kfd2kgd->hqd_dump(dqm->dev->kgd,
-		KFD_CIK_HIQ_PIPE, KFD_CIK_HIQ_QUEUE, &dump, &n_regs);
+					KFD_CIK_HIQ_PIPE, KFD_CIK_HIQ_QUEUE,
+					&dump, &n_regs);
 	if (!r) {
 		seq_printf(m, "  HIQ on MEC %d Pipe %d Queue %d\n",
-				KFD_CIK_HIQ_PIPE/get_pipes_per_mec(dqm)+1,
-				KFD_CIK_HIQ_PIPE%get_pipes_per_mec(dqm),
-				KFD_CIK_HIQ_QUEUE);
+			   KFD_CIK_HIQ_PIPE/get_pipes_per_mec(dqm)+1,
+			   KFD_CIK_HIQ_PIPE%get_pipes_per_mec(dqm),
+			   KFD_CIK_HIQ_QUEUE);
 		seq_reg_dump(m, dump, n_regs);
 
 		kfree(dump);

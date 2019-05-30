@@ -693,6 +693,14 @@ MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (defau
 bool hws_gws_support;
 module_param(hws_gws_support, bool, 0444);
 MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supported (Default), true = supported)");
+
+/**
+  * DOC: queue_preemption_timeout_ms (int)
+  * queue preemption timeout in ms (1 = Minimum, 9000 = default)
+  */
+int queue_preemption_timeout_ms;
+module_param(queue_preemption_timeout_ms, int, 0644);
+MODULE_PARM_DESC(queue_preemption_timeout_ms, "queue preemption timeout in ms (1 = Minimum, 9000 = default)");
 #endif
 
 /**

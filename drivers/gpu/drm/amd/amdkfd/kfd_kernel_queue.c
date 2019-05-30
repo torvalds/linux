@@ -332,6 +332,9 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 	case CHIP_RAVEN:
 		kernel_queue_init_v9(&kq->ops_asic_specific);
 		break;
+	case CHIP_NAVI10:
+		kernel_queue_init_v10(&kq->ops_asic_specific);
+		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",
 		     dev->device_info->asic_family);
