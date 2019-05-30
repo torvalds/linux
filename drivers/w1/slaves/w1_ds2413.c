@@ -33,6 +33,7 @@ static ssize_t state_read(struct file *filp, struct kobject *kobj,
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
 	unsigned int retries = W1_F3A_RETRIES;
 	ssize_t bytes_read = -EIO;
+	u8 state;
 
 	dev_dbg(&sl->dev,
 		"Reading %s kobj: %p, off: %0#10x, count: %zu, buff addr: %p",
@@ -53,12 +54,13 @@ next:
 	while (retries--) {
 		w1_write_8(sl->master, W1_F3A_FUNC_PIO_ACCESS_READ);
 
-		*buf = w1_read_8(sl->master);
-		if ((*buf & 0x0F) == ((~*buf >> 4) & 0x0F)) {
+		state = w1_read_8(sl->master);
+		if ((state & 0x0F) == ((~state >> 4) & 0x0F)) {
 			/* complement is correct */
+			*buf = state;
 			bytes_read = 1;
 			goto out;
-		} else if (*buf == W1_F3A_INVALID_PIO_STATE) {
+		} else if (state == W1_F3A_INVALID_PIO_STATE) {
 			/* slave didn't respond, try to select it again */
 			dev_warn(&sl->dev, "slave device did not respond to PIO_ACCESS_READ, " \
 					    "reselecting, retries left: %d\n", retries);
