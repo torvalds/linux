@@ -55,7 +55,7 @@ struct armada8k_pcie {
 #define PCIE_ARUSER_REG			(PCIE_VENDOR_REGS_OFFSET + 0x5C)
 #define PCIE_AWUSER_REG			(PCIE_VENDOR_REGS_OFFSET + 0x60)
 /*
- * AR/AW Cache defauls: Normal memory, Write-Back, Read / Write
+ * AR/AW Cache defaults: Normal memory, Write-Back, Read / Write
  * allocate
  */
 #define ARCACHE_DEFAULT_VALUE		0x3511
