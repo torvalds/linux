@@ -30,6 +30,18 @@
 
 #define KEY_MAX_DESC_SIZE 4096
 
+static const unsigned char keyrings_capabilities[1] = {
+	[0] = (KEYCTL_CAPS0_CAPABILITIES |
+	       (IS_ENABLED(CONFIG_PERSISTENT_KEYRINGS)	? KEYCTL_CAPS0_PERSISTENT_KEYRINGS : 0) |
+	       (IS_ENABLED(CONFIG_KEY_DH_OPERATIONS)	? KEYCTL_CAPS0_DIFFIE_HELLMAN : 0) |
+	       (IS_ENABLED(CONFIG_ASYMMETRIC_KEY_TYPE)	? KEYCTL_CAPS0_PUBLIC_KEY : 0) |
+	       (IS_ENABLED(CONFIG_BIG_KEYS)		? KEYCTL_CAPS0_BIG_KEY : 0) |
+	       KEYCTL_CAPS0_INVALIDATE |
+	       KEYCTL_CAPS0_RESTRICT_KEYRING |
+	       KEYCTL_CAPS0_MOVE
+	       ),
+};
+
 static int key_get_type_from_user(char *type,
 				  const char __user *_type,
 				  unsigned len)
@@ -1679,6 +1691,26 @@ error:
 }
 
 /*
+ * Get keyrings subsystem capabilities.
+ */
+long keyctl_capabilities(unsigned char __user *_buffer, size_t buflen)
+{
+	size_t size = buflen;
+
+	if (size > 0) {
+		if (size > sizeof(keyrings_capabilities))
+			size = sizeof(keyrings_capabilities);
+		if (copy_to_user(_buffer, keyrings_capabilities, size) != 0)
+			return -EFAULT;
+		if (size < buflen &&
+		    clear_user(_buffer + size, buflen - size) != 0)
+			return -EFAULT;
+	}
+
+	return sizeof(keyrings_capabilities);
+}
+
+/*
  * The key control system call
  */
 SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
@@ -1823,6 +1855,9 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 					   (key_serial_t)arg3,
 					   (key_serial_t)arg4,
 					   (unsigned int)arg5);
+
+	case KEYCTL_CAPABILITIES:
+		return keyctl_capabilities((unsigned char __user *)arg2, (size_t)arg3);
 
 	default:
 		return -EOPNOTSUPP;

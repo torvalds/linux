@@ -329,6 +329,8 @@ static inline long keyctl_pkey_e_d_s(int op,
 }
 #endif
 
+extern long keyctl_capabilities(unsigned char __user *_buffer, size_t buflen);
+
 /*
  * Debugging key validation
  */
