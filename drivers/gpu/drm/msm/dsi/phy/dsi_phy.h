@@ -21,6 +21,9 @@
 #define dsi_phy_read(offset) msm_readl((offset))
 #define dsi_phy_write(offset, data) msm_writel((data), (offset))
 
+/* v3.0.0 10nm implementation that requires the old timings settings */
+#define V3_0_0_10NM_OLD_TIMINGS_QUIRK	BIT(0)
+
 struct msm_dsi_phy_ops {
 	int (*init) (struct msm_dsi_phy *phy);
 	int (*enable)(struct msm_dsi_phy *phy, int src_pll_id,
@@ -41,6 +44,7 @@ struct msm_dsi_phy_cfg {
 	bool src_pll_truthtable[DSI_MAX][DSI_MAX];
 	const resource_size_t io_start[DSI_MAX];
 	const int num_dsi_phy;
+	const int quirks;
 };
 
 extern const struct msm_dsi_phy_cfg dsi_phy_28nm_hpm_cfgs;
