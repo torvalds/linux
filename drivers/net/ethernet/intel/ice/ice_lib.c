@@ -321,10 +321,10 @@ static void ice_vsi_set_num_qs(struct ice_vsi *vsi, u16 vf_id)
 		vsi->alloc_rxq = vf->num_vf_qs;
 		/* pf->num_vf_msix includes (VF miscellaneous vector +
 		 * data queue interrupts). Since vsi->num_q_vectors is number
-		 * of queues vectors, subtract 1 from the original vector
-		 * count
+		 * of queues vectors, subtract 1 (ICE_NONQ_VECS_VF) from the
+		 * original vector count
 		 */
-		vsi->num_q_vectors = pf->num_vf_msix - 1;
+		vsi->num_q_vectors = pf->num_vf_msix - ICE_NONQ_VECS_VF;
 		break;
 	case ICE_VSI_LB:
 		vsi->alloc_txq = 1;
@@ -1836,8 +1836,73 @@ ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector)
 }
 
 /**
+ * ice_cfg_txq_interrupt - configure interrupt on Tx queue
+ * @vsi: the VSI being configured
+ * @txq: Tx queue being mapped to MSI-X vector
+ * @msix_idx: MSI-X vector index within the function
+ * @itr_idx: ITR index of the interrupt cause
+ *
+ * Configure interrupt on Tx queue by associating Tx queue to MSI-X vector
+ * within the function space.
+ */
+#ifdef CONFIG_PCI_IOV
+void
+ice_cfg_txq_interrupt(struct ice_vsi *vsi, u16 txq, u16 msix_idx, u16 itr_idx)
+#else
+static void
+ice_cfg_txq_interrupt(struct ice_vsi *vsi, u16 txq, u16 msix_idx, u16 itr_idx)
+#endif /* CONFIG_PCI_IOV */
+{
+	struct ice_pf *pf = vsi->back;
+	struct ice_hw *hw = &pf->hw;
+	u32 val;
+
+	itr_idx = (itr_idx << QINT_TQCTL_ITR_INDX_S) & QINT_TQCTL_ITR_INDX_M;
+
+	val = QINT_TQCTL_CAUSE_ENA_M | itr_idx |
+	      ((msix_idx << QINT_TQCTL_MSIX_INDX_S) & QINT_TQCTL_MSIX_INDX_M);
+
+	wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), val);
+}
+
+/**
+ * ice_cfg_rxq_interrupt - configure interrupt on Rx queue
+ * @vsi: the VSI being configured
+ * @rxq: Rx queue being mapped to MSI-X vector
+ * @msix_idx: MSI-X vector index within the function
+ * @itr_idx: ITR index of the interrupt cause
+ *
+ * Configure interrupt on Rx queue by associating Rx queue to MSI-X vector
+ * within the function space.
+ */
+#ifdef CONFIG_PCI_IOV
+void
+ice_cfg_rxq_interrupt(struct ice_vsi *vsi, u16 rxq, u16 msix_idx, u16 itr_idx)
+#else
+static void
+ice_cfg_rxq_interrupt(struct ice_vsi *vsi, u16 rxq, u16 msix_idx, u16 itr_idx)
+#endif /* CONFIG_PCI_IOV */
+{
+	struct ice_pf *pf = vsi->back;
+	struct ice_hw *hw = &pf->hw;
+	u32 val;
+
+	itr_idx = (itr_idx << QINT_RQCTL_ITR_INDX_S) & QINT_RQCTL_ITR_INDX_M;
+
+	val = QINT_RQCTL_CAUSE_ENA_M | itr_idx |
+	      ((msix_idx << QINT_RQCTL_MSIX_INDX_S) & QINT_RQCTL_MSIX_INDX_M);
+
+	wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), val);
+
+	ice_flush(hw);
+}
+
+/**
  * ice_vsi_cfg_msix - MSIX mode Interrupt Config in the HW
  * @vsi: the VSI being configured
+ *
+ * This configures MSIX mode interrupts for the PF VSI, and should not be used
+ * for the VF VSI.
  */
 void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 {
@@ -1850,8 +1915,7 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 		struct ice_q_vector *q_vector = vsi->q_vectors[i];
 		u16 reg_idx = q_vector->reg_idx;
 
-		if (vsi->type != ICE_VSI_VF)
-			ice_cfg_itr(hw, q_vector);
+		ice_cfg_itr(hw, q_vector);
 
 		wr32(hw, GLINT_RATE(reg_idx),
 		     ice_intrl_usec_to_reg(q_vector->intrl, hw->intrl_gran));
@@ -1868,43 +1932,17 @@ void ice_vsi_cfg_msix(struct ice_vsi *vsi)
 		 * tracked for this PF.
 		 */
 		for (q = 0; q < q_vector->num_ring_tx; q++) {
-			int itr_idx = (q_vector->tx.itr_idx <<
-				       QINT_TQCTL_ITR_INDX_S) &
-				QINT_TQCTL_ITR_INDX_M;
-			u32 val;
-
-			if (vsi->type == ICE_VSI_VF)
-				val = QINT_TQCTL_CAUSE_ENA_M | itr_idx |
-				      (((i + 1) << QINT_TQCTL_MSIX_INDX_S) &
-				       QINT_TQCTL_MSIX_INDX_M);
-			else
-				val = QINT_TQCTL_CAUSE_ENA_M | itr_idx |
-				      ((reg_idx << QINT_TQCTL_MSIX_INDX_S) &
-				       QINT_TQCTL_MSIX_INDX_M);
-			wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), val);
+			ice_cfg_txq_interrupt(vsi, txq, reg_idx,
+					      q_vector->tx.itr_idx);
 			txq++;
 		}
 
 		for (q = 0; q < q_vector->num_ring_rx; q++) {
-			int itr_idx = (q_vector->rx.itr_idx <<
-				       QINT_RQCTL_ITR_INDX_S) &
-				QINT_RQCTL_ITR_INDX_M;
-			u32 val;
-
-			if (vsi->type == ICE_VSI_VF)
-				val = QINT_RQCTL_CAUSE_ENA_M | itr_idx |
-					(((i + 1) << QINT_RQCTL_MSIX_INDX_S) &
-					 QINT_RQCTL_MSIX_INDX_M);
-			else
-				val = QINT_RQCTL_CAUSE_ENA_M | itr_idx |
-					((reg_idx << QINT_RQCTL_MSIX_INDX_S) &
-					 QINT_RQCTL_MSIX_INDX_M);
-			wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), val);
+			ice_cfg_rxq_interrupt(vsi, rxq, reg_idx,
+					      q_vector->rx.itr_idx);
 			rxq++;
 		}
 	}
-
-	ice_flush(hw);
 }
 
 /**
@@ -2307,6 +2345,56 @@ ice_vsi_add_rem_eth_mac(struct ice_vsi *vsi, bool add_rule)
 	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
 }
 
+#define ICE_ETH_P_LLDP	0x88CC
+
+/**
+ * ice_cfg_sw_lldp - Config switch rules for LLDP packet handling
+ * @vsi: the VSI being configured
+ * @tx: bool to determine Tx or Rx rule
+ * @create: bool to determine create or remove Rule
+ */
+void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create)
+{
+	struct ice_fltr_list_entry *list;
+	struct ice_pf *pf = vsi->back;
+	LIST_HEAD(tmp_add_list);
+	enum ice_status status;
+
+	list = devm_kzalloc(&pf->pdev->dev, sizeof(*list), GFP_KERNEL);
+	if (!list)
+		return;
+
+	list->fltr_info.lkup_type = ICE_SW_LKUP_ETHERTYPE;
+	list->fltr_info.vsi_handle = vsi->idx;
+	list->fltr_info.l_data.ethertype_mac.ethertype = ICE_ETH_P_LLDP;
+
+	if (tx) {
+		list->fltr_info.fltr_act = ICE_DROP_PACKET;
+		list->fltr_info.flag = ICE_FLTR_TX;
+		list->fltr_info.src_id = ICE_SRC_ID_VSI;
+	} else {
+		list->fltr_info.fltr_act = ICE_FWD_TO_VSI;
+		list->fltr_info.flag = ICE_FLTR_RX;
+		list->fltr_info.src_id = ICE_SRC_ID_LPORT;
+	}
+
+	INIT_LIST_HEAD(&list->list_entry);
+	list_add(&list->list_entry, &tmp_add_list);
+
+	if (create)
+		status = ice_add_eth_mac(&pf->hw, &tmp_add_list);
+	else
+		status = ice_remove_eth_mac(&pf->hw, &tmp_add_list);
+
+	if (status)
+		dev_err(&pf->pdev->dev,
+			"Fail %s %s LLDP rule on VSI %i error: %d\n",
+			create ? "adding" : "removing", tx ? "TX" : "RX",
+			vsi->vsi_num, status);
+
+	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
+}
+
 /**
  * ice_vsi_setup - Set up a VSI by a given type
  * @pf: board private structure
@@ -2327,6 +2415,7 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 {
 	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
 	struct device *dev = &pf->pdev->dev;
+	enum ice_status status;
 	struct ice_vsi *vsi;
 	int ret, i;
 
@@ -2434,12 +2523,12 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	for (i = 0; i < vsi->tc_cfg.numtc; i++)
 		max_txqs[i] = pf->num_lan_tx;
 
-	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
-			      max_txqs);
-	if (ret) {
+	status = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
+				 max_txqs);
+	if (status) {
 		dev_err(&pf->pdev->dev,
 			"VSI %d failed lan queue config, error %d\n",
-			vsi->vsi_num, ret);
+			vsi->vsi_num, status);
 		goto unroll_vector_base;
 	}
 
@@ -2448,9 +2537,21 @@ ice_vsi_setup(struct ice_pf *pf, struct ice_port_info *pi,
 	 * out PAUSE or PFC frames. If enabled, FW can still send FC frames.
 	 * The rule is added once for PF VSI in order to create appropriate
 	 * recipe, since VSI/VSI list is ignored with drop action...
+	 * Also add rules to handle LLDP Tx and Rx packets.  Tx LLDP packets
+	 * need to be dropped so that VFs cannot send LLDP packets to reconfig
+	 * DCB settings in the HW.  Also, if the FW DCBX engine is not running
+	 * then Rx LLDP packets need to be redirected up the stack.
 	 */
-	if (vsi->type == ICE_VSI_PF)
+	if (vsi->type == ICE_VSI_PF) {
 		ice_vsi_add_rem_eth_mac(vsi, true);
+
+		/* Tx LLDP packets */
+		ice_cfg_sw_lldp(vsi, true, true);
+
+		/* Rx LLDP packets */
+		if (!test_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags))
+			ice_cfg_sw_lldp(vsi, false, true);
+	}
 
 	return vsi;
 
@@ -2734,6 +2835,21 @@ void ice_vsi_dis_irq(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_napi_del - Remove NAPI handler for the VSI
+ * @vsi: VSI for which NAPI handler is to be removed
+ */
+void ice_napi_del(struct ice_vsi *vsi)
+{
+	int v_idx;
+
+	if (!vsi->netdev)
+		return;
+
+	ice_for_each_q_vector(vsi, v_idx)
+		netif_napi_del(&vsi->q_vectors[v_idx]->napi);
+}
+
+/**
  * ice_vsi_release - Delete a VSI and free its resources
  * @vsi: the VSI being removed
  *
@@ -2775,8 +2891,15 @@ int ice_vsi_release(struct ice_vsi *vsi)
 		pf->num_avail_sw_msix += vsi->num_q_vectors;
 	}
 
-	if (vsi->type == ICE_VSI_PF)
+	if (vsi->type == ICE_VSI_PF) {
 		ice_vsi_add_rem_eth_mac(vsi, false);
+		ice_cfg_sw_lldp(vsi, true, false);
+		/* The Rx rule will only exist to remove if the LLDP FW
+		 * engine is currently stopped
+		 */
+		if (!test_bit(ICE_FLAG_ENABLE_FW_LLDP, pf->flags))
+			ice_cfg_sw_lldp(vsi, false, false);
+	}
 
 	ice_remove_vsi_fltr(&pf->hw, vsi->idx);
 	ice_rm_vsi_lan_cfg(vsi->port_info, vsi->idx);
@@ -2815,6 +2938,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 {
 	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
 	struct ice_vf *vf = NULL;
+	enum ice_status status;
 	struct ice_pf *pf;
 	int ret, i;
 
@@ -2908,12 +3032,12 @@ int ice_vsi_rebuild(struct ice_vsi *vsi)
 	for (i = 0; i < vsi->tc_cfg.numtc; i++)
 		max_txqs[i] = pf->num_lan_tx;
 
-	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
-			      max_txqs);
-	if (ret) {
+	status = ice_cfg_vsi_lan(vsi->port_info, vsi->idx, vsi->tc_cfg.ena_tc,
+				 max_txqs);
+	if (status) {
 		dev_err(&pf->pdev->dev,
 			"VSI %d failed lan queue config, error %d\n",
-			vsi->vsi_num, ret);
+			vsi->vsi_num, status);
 		goto err_vectors;
 	}
 	return 0;
@@ -2935,7 +3059,7 @@ err_vsi:
 
 /**
  * ice_is_reset_in_progress - check for a reset in progress
- * @state: pf state field
+ * @state: PF state field
  */
 bool ice_is_reset_in_progress(unsigned long *state)
 {

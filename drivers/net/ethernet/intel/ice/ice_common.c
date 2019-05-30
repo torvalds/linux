@@ -304,6 +304,8 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 	hw_link_info->an_info = link_data.an_info;
 	hw_link_info->ext_info = link_data.ext_info;
 	hw_link_info->max_frame_size = le16_to_cpu(link_data.max_frame_size);
+	hw_link_info->fec_info = link_data.cfg & ICE_AQ_FEC_MASK;
+	hw_link_info->topo_media_conflict = link_data.topo_media_conflict;
 	hw_link_info->pacing = link_data.cfg & ICE_AQ_CFG_PACING_M;
 
 	/* update fc info */
@@ -497,7 +499,7 @@ static enum ice_status ice_get_fw_log_cfg(struct ice_hw *hw)
 	if (!status) {
 		u16 i;
 
-		/* Save fw logging information into the hw structure */
+		/* Save FW logging information into the HW structure */
 		for (i = 0; i < ICE_AQC_FW_LOG_ID_MAX; i++) {
 			u16 v, m, flgs;
 
@@ -679,17 +681,17 @@ out:
  */
 void ice_output_fw_log(struct ice_hw *hw, struct ice_aq_desc *desc, void *buf)
 {
-	ice_debug(hw, ICE_DBG_AQ_MSG, "[ FW Log Msg Start ]\n");
-	ice_debug_array(hw, ICE_DBG_AQ_MSG, 16, 1, (u8 *)buf,
+	ice_debug(hw, ICE_DBG_FW_LOG, "[ FW Log Msg Start ]\n");
+	ice_debug_array(hw, ICE_DBG_FW_LOG, 16, 1, (u8 *)buf,
 			le16_to_cpu(desc->datalen));
-	ice_debug(hw, ICE_DBG_AQ_MSG, "[ FW Log Msg End ]\n");
+	ice_debug(hw, ICE_DBG_FW_LOG, "[ FW Log Msg End ]\n");
 }
 
 /**
  * ice_get_itr_intrl_gran - determine int/intrl granularity
  * @hw: pointer to the HW struct
  *
- * Determines the itr/intrl granularities based on the maximum aggregate
+ * Determines the ITR/intrl granularities based on the maximum aggregate
  * bandwidth according to the device's configuration during power-on.
  */
 static void ice_get_itr_intrl_gran(struct ice_hw *hw)
@@ -860,6 +862,10 @@ err_unroll_cqinit:
 /**
  * ice_deinit_hw - unroll initialization operations done by ice_init_hw
  * @hw: pointer to the hardware structure
+ *
+ * This should be called only during nominal operation, not as a result of
+ * ice_init_hw() failing since ice_init_hw() will take care of unrolling
+ * applicable initializations if it fails for any reason.
  */
 void ice_deinit_hw(struct ice_hw *hw)
 {
@@ -1996,36 +2002,37 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
  */
 enum ice_status ice_update_link_info(struct ice_port_info *pi)
 {
-	struct ice_aqc_get_phy_caps_data *pcaps;
-	struct ice_phy_info *phy_info;
+	struct ice_link_status *li;
 	enum ice_status status;
-	struct ice_hw *hw;
 
 	if (!pi)
 		return ICE_ERR_PARAM;
 
-	hw = pi->hw;
+	li = &pi->phy.link_info;
 
-	pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps), GFP_KERNEL);
-	if (!pcaps)
-		return ICE_ERR_NO_MEMORY;
-
-	phy_info = &pi->phy;
 	status = ice_aq_get_link_info(pi, true, NULL, NULL);
 	if (status)
-		goto out;
+		return status;
 
-	if (phy_info->link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
+	if (li->link_info & ICE_AQ_MEDIA_AVAILABLE) {
+		struct ice_aqc_get_phy_caps_data *pcaps;
+		struct ice_hw *hw;
+
+		hw = pi->hw;
+		pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps),
+				     GFP_KERNEL);
+		if (!pcaps)
+			return ICE_ERR_NO_MEMORY;
+
 		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG,
 					     pcaps, NULL);
-		if (status)
-			goto out;
+		if (!status)
+			memcpy(li->module_type, &pcaps->module_type,
+			       sizeof(li->module_type));
 
-		memcpy(phy_info->link_info.module_type, &pcaps->module_type,
-		       sizeof(phy_info->link_info.module_type));
+		devm_kfree(ice_hw_to_dev(hw), pcaps);
 	}
-out:
-	devm_kfree(ice_hw_to_dev(hw), pcaps);
+
 	return status;
 }
 
@@ -2127,6 +2134,74 @@ ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool ena_auto_link_update)
 out:
 	devm_kfree(ice_hw_to_dev(hw), pcaps);
 	return status;
+}
+
+/**
+ * ice_copy_phy_caps_to_cfg - Copy PHY ability data to configuration data
+ * @caps: PHY ability structure to copy date from
+ * @cfg: PHY configuration structure to copy data to
+ *
+ * Helper function to copy AQC PHY get ability data to PHY set configuration
+ * data structure
+ */
+void
+ice_copy_phy_caps_to_cfg(struct ice_aqc_get_phy_caps_data *caps,
+			 struct ice_aqc_set_phy_cfg_data *cfg)
+{
+	if (!caps || !cfg)
+		return;
+
+	cfg->phy_type_low = caps->phy_type_low;
+	cfg->phy_type_high = caps->phy_type_high;
+	cfg->caps = caps->caps;
+	cfg->low_power_ctrl = caps->low_power_ctrl;
+	cfg->eee_cap = caps->eee_cap;
+	cfg->eeer_value = caps->eeer_value;
+	cfg->link_fec_opt = caps->link_fec_options;
+}
+
+/**
+ * ice_cfg_phy_fec - Configure PHY FEC data based on FEC mode
+ * @cfg: PHY configuration data to set FEC mode
+ * @fec: FEC mode to configure
+ *
+ * Caller should copy ice_aqc_get_phy_caps_data.caps ICE_AQC_PHY_EN_AUTO_FEC
+ * (bit 7) and ice_aqc_get_phy_caps_data.link_fec_options to cfg.caps
+ * ICE_AQ_PHY_ENA_AUTO_FEC (bit 7) and cfg.link_fec_options before calling.
+ */
+void
+ice_cfg_phy_fec(struct ice_aqc_set_phy_cfg_data *cfg, enum ice_fec_mode fec)
+{
+	switch (fec) {
+	case ICE_FEC_BASER:
+		/* Clear auto FEC and RS bits, and AND BASE-R ability
+		 * bits and OR request bits.
+		 */
+		cfg->caps &= ~ICE_AQC_PHY_EN_AUTO_FEC;
+		cfg->link_fec_opt &= ICE_AQC_PHY_FEC_10G_KR_40G_KR4_EN |
+				     ICE_AQC_PHY_FEC_25G_KR_CLAUSE74_EN;
+		cfg->link_fec_opt |= ICE_AQC_PHY_FEC_10G_KR_40G_KR4_REQ |
+				     ICE_AQC_PHY_FEC_25G_KR_REQ;
+		break;
+	case ICE_FEC_RS:
+		/* Clear auto FEC and BASE-R bits, and AND RS ability
+		 * bits and OR request bits.
+		 */
+		cfg->caps &= ~ICE_AQC_PHY_EN_AUTO_FEC;
+		cfg->link_fec_opt &= ICE_AQC_PHY_FEC_25G_RS_CLAUSE91_EN;
+		cfg->link_fec_opt |= ICE_AQC_PHY_FEC_25G_RS_528_REQ |
+				     ICE_AQC_PHY_FEC_25G_RS_544_REQ;
+		break;
+	case ICE_FEC_NONE:
+		/* Clear auto FEC and all FEC option bits. */
+		cfg->caps &= ~ICE_AQC_PHY_EN_AUTO_FEC;
+		cfg->link_fec_opt &= ~ICE_AQC_PHY_FEC_MASK;
+		break;
+	case ICE_FEC_AUTO:
+		/* AND auto FEC bit, and all caps bits. */
+		cfg->caps &= ICE_AQC_PHY_CAPS_MASK;
+		break;
+	}
 }
 
 /**
@@ -2624,7 +2699,7 @@ do_aq:
 			ice_debug(hw, ICE_DBG_SCHED, "VM%d disable failed %d\n",
 				  vmvf_num, hw->adminq.sq_last_status);
 		else
-			ice_debug(hw, ICE_DBG_SCHED, "disable Q %d failed %d\n",
+			ice_debug(hw, ICE_DBG_SCHED, "disable queue %d failed %d\n",
 				  le16_to_cpu(qg_list[0].q_id[0]),
 				  hw->adminq.sq_last_status);
 	}

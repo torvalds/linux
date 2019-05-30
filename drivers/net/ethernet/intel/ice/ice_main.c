@@ -109,6 +109,67 @@ static void ice_check_for_hang_subtask(struct ice_pf *pf)
 }
 
 /**
+ * ice_init_mac_fltr - Set initial MAC filters
+ * @pf: board private structure
+ *
+ * Set initial set of MAC filters for PF VSI; configure filters for permanent
+ * address and broadcast address. If an error is encountered, netdevice will be
+ * unregistered.
+ */
+static int ice_init_mac_fltr(struct ice_pf *pf)
+{
+	LIST_HEAD(tmp_add_list);
+	u8 broadcast[ETH_ALEN];
+	struct ice_vsi *vsi;
+	int status;
+
+	vsi = ice_find_vsi_by_type(pf, ICE_VSI_PF);
+	if (!vsi)
+		return -EINVAL;
+
+	/* To add a MAC filter, first add the MAC to a list and then
+	 * pass the list to ice_add_mac.
+	 */
+
+	 /* Add a unicast MAC filter so the VSI can get its packets */
+	status = ice_add_mac_to_list(vsi, &tmp_add_list,
+				     vsi->port_info->mac.perm_addr);
+	if (status)
+		goto unregister;
+
+	/* VSI needs to receive broadcast traffic, so add the broadcast
+	 * MAC address to the list as well.
+	 */
+	eth_broadcast_addr(broadcast);
+	status = ice_add_mac_to_list(vsi, &tmp_add_list, broadcast);
+	if (status)
+		goto free_mac_list;
+
+	/* Program MAC filters for entries in tmp_add_list */
+	status = ice_add_mac(&pf->hw, &tmp_add_list);
+	if (status)
+		status = -ENOMEM;
+
+free_mac_list:
+	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
+
+unregister:
+	/* We aren't useful with no MAC filters, so unregister if we
+	 * had an error
+	 */
+	if (status && vsi->netdev->reg_state == NETREG_REGISTERED) {
+		dev_err(&pf->pdev->dev,
+			"Could not add MAC filters error %d. Unregistering device\n",
+			status);
+		unregister_netdev(vsi->netdev);
+		free_netdev(vsi->netdev);
+		vsi->netdev = NULL;
+	}
+
+	return status;
+}
+
+/**
  * ice_add_mac_to_sync_list - creates list of MAC addresses to be synced
  * @netdev: the net device on which the sync is happening
  * @addr: MAC address to sync
@@ -563,7 +624,11 @@ static void ice_reset_subtask(struct ice_pf *pf)
  */
 void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 {
+	struct ice_aqc_get_phy_caps_data *caps;
+	enum ice_status status;
+	const char *fec_req;
 	const char *speed;
+	const char *fec;
 	const char *fc;
 
 	if (!vsi)
@@ -580,6 +645,12 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 	}
 
 	switch (vsi->port_info->phy.link_info.link_speed) {
+	case ICE_AQ_LINK_SPEED_100GB:
+		speed = "100 G";
+		break;
+	case ICE_AQ_LINK_SPEED_50GB:
+		speed = "50 G";
+		break;
 	case ICE_AQ_LINK_SPEED_40GB:
 		speed = "40 G";
 		break;
@@ -611,13 +682,13 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 
 	switch (vsi->port_info->fc.current_mode) {
 	case ICE_FC_FULL:
-		fc = "RX/TX";
+		fc = "Rx/Tx";
 		break;
 	case ICE_FC_TX_PAUSE:
-		fc = "TX";
+		fc = "Tx";
 		break;
 	case ICE_FC_RX_PAUSE:
-		fc = "RX";
+		fc = "Rx";
 		break;
 	case ICE_FC_NONE:
 		fc = "None";
@@ -627,8 +698,47 @@ void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 		break;
 	}
 
-	netdev_info(vsi->netdev, "NIC Link is up %sbps, Flow Control: %s\n",
-		    speed, fc);
+	/* Get FEC mode based on negotiated link info */
+	switch (vsi->port_info->phy.link_info.fec_info) {
+	case ICE_AQ_LINK_25G_RS_528_FEC_EN:
+		/* fall through */
+	case ICE_AQ_LINK_25G_RS_544_FEC_EN:
+		fec = "RS-FEC";
+		break;
+	case ICE_AQ_LINK_25G_KR_FEC_EN:
+		fec = "FC-FEC/BASE-R";
+		break;
+	default:
+		fec = "NONE";
+		break;
+	}
+
+	/* Get FEC mode requested based on PHY caps last SW configuration */
+	caps = devm_kzalloc(&vsi->back->pdev->dev, sizeof(*caps), GFP_KERNEL);
+	if (!caps) {
+		fec_req = "Unknown";
+		goto done;
+	}
+
+	status = ice_aq_get_phy_caps(vsi->port_info, false,
+				     ICE_AQC_REPORT_SW_CFG, caps, NULL);
+	if (status)
+		netdev_info(vsi->netdev, "Get phy capability failed.\n");
+
+	if (caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_528_REQ ||
+	    caps->link_fec_options & ICE_AQC_PHY_FEC_25G_RS_544_REQ)
+		fec_req = "RS-FEC";
+	else if (caps->link_fec_options & ICE_AQC_PHY_FEC_10G_KR_40G_KR4_REQ ||
+		 caps->link_fec_options & ICE_AQC_PHY_FEC_25G_KR_REQ)
+		fec_req = "FC-FEC/BASE-R";
+	else
+		fec_req = "NONE";
+
+	devm_kfree(&vsi->back->pdev->dev, caps);
+
+done:
+	netdev_info(vsi->netdev, "NIC Link is up %sbps, Requested FEC: %s, FEC: %s, Flow Control: %s\n",
+		    speed, fec_req, fec, fc);
 }
 
 /**
@@ -660,7 +770,7 @@ static void ice_vsi_link_event(struct ice_vsi *vsi, bool link_up)
 
 /**
  * ice_link_event - process the link event
- * @pf: pf that the link event is associated with
+ * @pf: PF that the link event is associated with
  * @pi: port_info for the port that the link event is associated with
  * @link_up: true if the physical link is up and false if it is down
  * @link_speed: current link speed received from the link event
@@ -770,7 +880,7 @@ static int ice_init_link_events(struct ice_port_info *pi)
 
 /**
  * ice_handle_link_event - handle link event via ARQ
- * @pf: pf that the link event is associated with
+ * @pf: PF that the link event is associated with
  * @event: event structure containing link status info
  */
 static int
@@ -1650,21 +1760,6 @@ skip_req_irq:
 }
 
 /**
- * ice_napi_del - Remove NAPI handler for the VSI
- * @vsi: VSI for which NAPI handler is to be removed
- */
-static void ice_napi_del(struct ice_vsi *vsi)
-{
-	int v_idx;
-
-	if (!vsi->netdev)
-		return;
-
-	ice_for_each_q_vector(vsi, v_idx)
-		netif_napi_del(&vsi->q_vectors[v_idx]->napi);
-}
-
-/**
  * ice_napi_add - register NAPI handler for the VSI
  * @vsi: VSI for which NAPI handler is to be registered
  *
@@ -1900,8 +1995,6 @@ ice_vlan_rx_kill_vid(struct net_device *netdev, __always_unused __be16 proto,
  */
 static int ice_setup_pf_sw(struct ice_pf *pf)
 {
-	LIST_HEAD(tmp_add_list);
-	u8 broadcast[ETH_ALEN];
 	struct ice_vsi *vsi;
 	int status = 0;
 
@@ -1926,37 +2019,11 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 	 */
 	ice_napi_add(vsi);
 
-	/* To add a MAC filter, first add the MAC to a list and then
-	 * pass the list to ice_add_mac.
-	 */
-
-	 /* Add a unicast MAC filter so the VSI can get its packets */
-	status = ice_add_mac_to_list(vsi, &tmp_add_list,
-				     vsi->port_info->mac.perm_addr);
+	status = ice_init_mac_fltr(pf);
 	if (status)
 		goto unroll_napi_add;
 
-	/* VSI needs to receive broadcast traffic, so add the broadcast
-	 * MAC address to the list as well.
-	 */
-	eth_broadcast_addr(broadcast);
-	status = ice_add_mac_to_list(vsi, &tmp_add_list, broadcast);
-	if (status)
-		goto free_mac_list;
-
-	/* program MAC filters for entries in tmp_add_list */
-	status = ice_add_mac(&pf->hw, &tmp_add_list);
-	if (status) {
-		dev_err(&pf->pdev->dev, "Could not add MAC filters\n");
-		status = -ENOMEM;
-		goto free_mac_list;
-	}
-
-	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
 	return status;
-
-free_mac_list:
-	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
 
 unroll_napi_add:
 	if (vsi) {
@@ -2234,7 +2301,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	if (!pf)
 		return -ENOMEM;
 
-	/* set up for high or low dma */
+	/* set up for high or low DMA */
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (err)
 		err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
@@ -2350,7 +2417,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 
 	err = ice_setup_pf_sw(pf);
 	if (err) {
-		dev_err(dev, "probe failed due to setup pf switch:%d\n", err);
+		dev_err(dev, "probe failed due to setup PF switch:%d\n", err);
 		goto err_alloc_sw_unroll;
 	}
 
@@ -2607,7 +2674,7 @@ static int __init ice_module_init(void)
 
 	status = pci_register_driver(&ice_driver);
 	if (status) {
-		pr_err("failed to register pci driver, err %d\n", status);
+		pr_err("failed to register PCI driver, err %d\n", status);
 		destroy_workqueue(ice_wq);
 	}
 
@@ -2707,21 +2774,21 @@ free_lists:
 	ice_free_fltr_list(&pf->pdev->dev, &a_mac_list);
 
 	if (err) {
-		netdev_err(netdev, "can't set mac %pM. filter update failed\n",
+		netdev_err(netdev, "can't set MAC %pM. filter update failed\n",
 			   mac);
 		return err;
 	}
 
 	/* change the netdev's MAC address */
 	memcpy(netdev->dev_addr, mac, netdev->addr_len);
-	netdev_dbg(vsi->netdev, "updated mac address to %pM\n",
+	netdev_dbg(vsi->netdev, "updated MAC address to %pM\n",
 		   netdev->dev_addr);
 
 	/* write new MAC address to the firmware */
 	flags = ICE_AQC_MAN_MAC_UPDATE_LAA_WOL;
 	status = ice_aq_manage_mac_write(hw, mac, flags, NULL);
 	if (status) {
-		netdev_err(netdev, "can't set mac %pM. write to firmware failed.\n",
+		netdev_err(netdev, "can't set MAC %pM. write to firmware failed.\n",
 			   mac);
 	}
 	return 0;
@@ -3647,7 +3714,7 @@ static int ice_pf_ena_all_vsi(struct ice_pf *pf, bool locked)
 }
 
 /**
- * ice_vsi_rebuild_all - rebuild all VSIs in pf
+ * ice_vsi_rebuild_all - rebuild all VSIs in PF
  * @pf: the PF
  */
 static int ice_vsi_rebuild_all(struct ice_pf *pf)
@@ -3717,7 +3784,7 @@ static int ice_vsi_replay_all(struct ice_pf *pf)
 
 /**
  * ice_rebuild - rebuild after reset
- * @pf: pf to rebuild
+ * @pf: PF to rebuild
  */
 static void ice_rebuild(struct ice_pf *pf)
 {
@@ -3729,7 +3796,7 @@ static void ice_rebuild(struct ice_pf *pf)
 	if (test_bit(__ICE_DOWN, pf->state))
 		goto clear_recovery;
 
-	dev_dbg(dev, "rebuilding pf\n");
+	dev_dbg(dev, "rebuilding PF\n");
 
 	ret = ice_init_all_ctrlq(hw);
 	if (ret) {
@@ -3840,16 +3907,16 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 	u8 count = 0;
 
 	if (new_mtu == netdev->mtu) {
-		netdev_warn(netdev, "mtu is already %u\n", netdev->mtu);
+		netdev_warn(netdev, "MTU is already %u\n", netdev->mtu);
 		return 0;
 	}
 
 	if (new_mtu < netdev->min_mtu) {
-		netdev_err(netdev, "new mtu invalid. min_mtu is %d\n",
+		netdev_err(netdev, "new MTU invalid. min_mtu is %d\n",
 			   netdev->min_mtu);
 		return -EINVAL;
 	} else if (new_mtu > netdev->max_mtu) {
-		netdev_err(netdev, "new mtu invalid. max_mtu is %d\n",
+		netdev_err(netdev, "new MTU invalid. max_mtu is %d\n",
 			   netdev->min_mtu);
 		return -EINVAL;
 	}
@@ -3865,7 +3932,7 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 	} while (count < 100);
 
 	if (count == 100) {
-		netdev_err(netdev, "can't change mtu. Device is busy\n");
+		netdev_err(netdev, "can't change MTU. Device is busy\n");
 		return -EBUSY;
 	}
 
@@ -3877,13 +3944,13 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 
 		err = ice_down(vsi);
 		if (err) {
-			netdev_err(netdev, "change mtu if_up err %d\n", err);
+			netdev_err(netdev, "change MTU if_up err %d\n", err);
 			return err;
 		}
 
 		err = ice_up(vsi);
 		if (err) {
-			netdev_err(netdev, "change mtu if_up err %d\n", err);
+			netdev_err(netdev, "change MTU if_up err %d\n", err);
 			return err;
 		}
 	}
