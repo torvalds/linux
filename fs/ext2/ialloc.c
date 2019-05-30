@@ -509,6 +509,7 @@ repeat_in_this_group:
 	/*
 	 * Scanned all blockgroups.
 	 */
+	brelse(bitmap_bh);
 	err = -ENOSPC;
 	goto fail;
 got:
