@@ -1007,6 +1007,10 @@ static int smu_hw_init(void *handle)
 	if (ret)
 		goto failed;
 
+	ret = smu_register_irq_handler(smu);
+	if (ret)
+		goto failed;
+
 	mutex_unlock(&smu->mutex);
 
 	if (!smu->pm_enabled)
@@ -1050,6 +1054,9 @@ static int smu_hw_fini(void *handle)
 
 	kfree(table_context->od8_settings);
 	table_context->od8_settings = NULL;
+
+	kfree(smu->irq_source);
+	smu->irq_source = NULL;
 
 	ret = smu_fini_fb_allocations(smu);
 	if (ret)

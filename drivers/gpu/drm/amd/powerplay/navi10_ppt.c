@@ -476,6 +476,8 @@ static int navi10_store_powerplay_table(struct smu_context *smu)
 	memcpy(table_context->driver_pptable, &powerplay_table->smc_pptable,
 	       sizeof(PPTable_t));
 
+	table_context->thermal_controller_type = powerplay_table->thermal_controller_type;
+
 	return 0;
 }
 

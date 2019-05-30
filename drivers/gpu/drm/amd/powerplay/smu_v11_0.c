@@ -1131,6 +1131,8 @@ static int smu_v11_0_set_thermal_range(struct smu_context *smu,
 	val = RREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL);
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, MAX_IH_CREDIT, 5);
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTH_MASK, 0);
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTL_MASK, 0);
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES));
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES));
 	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
@@ -1181,6 +1183,7 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 		ret = smu_v11_0_enable_thermal_alert(smu);
 		if (ret)
 			return ret;
+
 		ret = smu_set_thermal_fan_table(smu);
 		if (ret)
 			return ret;
@@ -1662,6 +1665,81 @@ static int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 	return ret;
 }
 
+#define THM_11_0__SRCID__THM_DIG_THERM_L2H		0		/* ASIC_TEMP > CG_THERMAL_INT.DIG_THERM_INTH  */
+#define THM_11_0__SRCID__THM_DIG_THERM_H2L		1		/* ASIC_TEMP < CG_THERMAL_INT.DIG_THERM_INTL  */
+
+static int smu_v11_0_irq_process(struct amdgpu_device *adev,
+				 struct amdgpu_irq_src *source,
+				 struct amdgpu_iv_entry *entry)
+{
+	uint32_t client_id = entry->client_id;
+	uint32_t src_id = entry->src_id;
+
+	if (client_id == SOC15_IH_CLIENTID_THM) {
+		switch (src_id) {
+		case THM_11_0__SRCID__THM_DIG_THERM_L2H:
+			pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
+				PCI_BUS_NUM(adev->pdev->devfn),
+				PCI_SLOT(adev->pdev->devfn),
+				PCI_FUNC(adev->pdev->devfn));
+		break;
+		case THM_11_0__SRCID__THM_DIG_THERM_H2L:
+			pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
+				PCI_BUS_NUM(adev->pdev->devfn),
+				PCI_SLOT(adev->pdev->devfn),
+				PCI_FUNC(adev->pdev->devfn));
+		break;
+		default:
+			pr_warn("GPU under temperature range unknown src id (%d), detected on PCIe %d:%d.%d!\n",
+				src_id,
+				PCI_BUS_NUM(adev->pdev->devfn),
+				PCI_SLOT(adev->pdev->devfn),
+				PCI_FUNC(adev->pdev->devfn));
+		break;
+
+		}
+	}
+
+	return 0;
+}
+
+static const struct amdgpu_irq_src_funcs smu_v11_0_irq_funcs =
+{
+	.process = smu_v11_0_irq_process,
+};
+
+static int smu_v11_0_register_irq_handler(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_irq_src *irq_src = smu->irq_source;
+	int ret = 0;
+
+	/* already register */
+	if (irq_src)
+		return 0;
+
+	irq_src = kzalloc(sizeof(struct amdgpu_irq_src), GFP_KERNEL);
+	if (!irq_src)
+		return -ENOMEM;
+	smu->irq_source = irq_src;
+
+	irq_src->funcs = &smu_v11_0_irq_funcs;
+
+	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_THM,
+				THM_11_0__SRCID__THM_DIG_THERM_L2H,
+				irq_src);
+	if (ret)
+		return ret;
+
+	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_THM,
+				THM_11_0__SRCID__THM_DIG_THERM_H2L,
+				irq_src);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1711,6 +1789,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.set_fan_speed_rpm = smu_v11_0_set_fan_speed_rpm,
 	.set_xgmi_pstate = smu_v11_0_set_xgmi_pstate,
 	.gfx_off_control = smu_v11_0_gfx_off_control,
+	.register_irq_handler = smu_v11_0_register_irq_handler,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

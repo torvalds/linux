@@ -497,6 +497,7 @@ struct mclock_latency_table {
 struct smu_context
 {
 	struct amdgpu_device            *adev;
+	struct amdgpu_irq_src		*irq_source;
 
 	const struct smu_funcs		*funcs;
 	const struct pptable_funcs	*ppt_funcs;
@@ -687,6 +688,7 @@ struct smu_funcs
 	int (*set_fan_speed_rpm)(struct smu_context *smu, uint32_t speed);
 	int (*set_xgmi_pstate)(struct smu_context *smu, uint32_t pstate);
 	int (*gfx_off_control)(struct smu_context *smu, bool enable);
+	int (*register_irq_handler)(struct smu_context *smu);
 };
 
 #define smu_init_microcode(smu) \
@@ -895,6 +897,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->get_current_clk_freq_by_table ? (smu)->ppt_funcs->get_current_clk_freq_by_table((smu), (clk_type), (value)) : 0)
 #define smu_get_thermal_temperature_range(smu, range) \
 	((smu)->ppt_funcs->get_thermal_temperature_range? (smu)->ppt_funcs->get_thermal_temperature_range((smu), (range)) : 0)
+#define smu_register_irq_handler(smu) \
+	((smu)->funcs->register_irq_handler ? (smu)->funcs->register_irq_handler(smu) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
