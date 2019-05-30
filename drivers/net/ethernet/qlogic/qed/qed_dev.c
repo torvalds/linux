@@ -1138,12 +1138,12 @@ qed_llh_add_protocol_filter(struct qed_dev *cdev,
 	if (rc)
 		goto err;
 
+	rc = qed_llh_abs_ppfid(cdev, ppfid, &abs_ppfid);
+	if (rc)
+		goto err;
+
 	/* Configure the LLH only in case of a new the filter */
 	if (ref_cnt == 1) {
-		rc = qed_llh_abs_ppfid(cdev, ppfid, &abs_ppfid);
-		if (rc)
-			goto err;
-
 		rc = qed_llh_protocol_filter_to_hilo(cdev, type,
 						     source_port_or_eth_type,
 						     dest_port, &high, &low);
@@ -1195,12 +1195,12 @@ void qed_llh_remove_mac_filter(struct qed_dev *cdev,
 	if (rc)
 		goto err;
 
+	rc = qed_llh_abs_ppfid(cdev, ppfid, &abs_ppfid);
+	if (rc)
+		goto err;
+
 	/* Remove from the LLH in case the filter is not in use */
 	if (!ref_cnt) {
-		rc = qed_llh_abs_ppfid(cdev, ppfid, &abs_ppfid);
-		if (rc)
-			goto err;
-
 		rc = qed_llh_remove_filter(p_hwfn, p_ptt, abs_ppfid,
 					   filter_idx);
 		if (rc)
@@ -1253,12 +1253,12 @@ void qed_llh_remove_protocol_filter(struct qed_dev *cdev,
 	if (rc)
 		goto err;
 
+	rc = qed_llh_abs_ppfid(cdev, ppfid, &abs_ppfid);
+	if (rc)
+		goto err;
+
 	/* Remove from the LLH in case the filter is not in use */
 	if (!ref_cnt) {
-		rc = qed_llh_abs_ppfid(cdev, ppfid, &abs_ppfid);
-		if (rc)
-			goto err;
-
 		rc = qed_llh_remove_filter(p_hwfn, p_ptt, abs_ppfid,
 					   filter_idx);
 		if (rc)
