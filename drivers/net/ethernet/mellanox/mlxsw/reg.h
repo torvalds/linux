@@ -8039,13 +8039,15 @@ MLXSW_ITEM32(reg, mtcap, sensor_count, 0x00, 0, 7);
 
 MLXSW_REG_DEFINE(mtmp, MLXSW_REG_MTMP_ID, MLXSW_REG_MTMP_LEN);
 
+#define MLXSW_REG_MTMP_MODULE_INDEX_MIN 64
+#define MLXSW_REG_MTMP_GBOX_INDEX_MIN 256
 /* reg_mtmp_sensor_index
  * Sensors index to access.
  * 64-127 of sensor_index are mapped to the SFP+/QSFP modules sequentially
  * (module 0 is mapped to sensor_index 64).
  * Access: Index
  */
-MLXSW_ITEM32(reg, mtmp, sensor_index, 0x00, 0, 7);
+MLXSW_ITEM32(reg, mtmp, sensor_index, 0x00, 0, 12);
 
 /* Convert to milli degrees Celsius */
 #define MLXSW_REG_MTMP_TEMP_TO_MC(val) (val * 125)
@@ -8107,7 +8109,7 @@ MLXSW_ITEM32(reg, mtmp, temperature_threshold_lo, 0x10, 0, 16);
  */
 MLXSW_ITEM_BUF(reg, mtmp, sensor_name, 0x18, MLXSW_REG_MTMP_SENSOR_NAME_SIZE);
 
-static inline void mlxsw_reg_mtmp_pack(char *payload, u8 sensor_index,
+static inline void mlxsw_reg_mtmp_pack(char *payload, u16 sensor_index,
 				       bool max_temp_enable,
 				       bool max_temp_reset)
 {
@@ -8156,7 +8158,7 @@ MLXSW_REG_DEFINE(mtbr, MLXSW_REG_MTBR_ID, MLXSW_REG_MTBR_LEN);
  * 64-127 are mapped to the SFP+/QSFP modules sequentially).
  * Access: Index
  */
-MLXSW_ITEM32(reg, mtbr, base_sensor_index, 0x00, 0, 7);
+MLXSW_ITEM32(reg, mtbr, base_sensor_index, 0x00, 0, 12);
 
 /* reg_mtbr_num_rec
  * Request: Number of records to read
@@ -8183,7 +8185,7 @@ MLXSW_ITEM32_INDEXED(reg, mtbr, rec_max_temp, MLXSW_REG_MTBR_BASE_LEN, 16,
 MLXSW_ITEM32_INDEXED(reg, mtbr, rec_temp, MLXSW_REG_MTBR_BASE_LEN, 0, 16,
 		     MLXSW_REG_MTBR_REC_LEN, 0x00, false);
 
-static inline void mlxsw_reg_mtbr_pack(char *payload, u8 base_sensor_index,
+static inline void mlxsw_reg_mtbr_pack(char *payload, u16 base_sensor_index,
 				       u8 num_rec)
 {
 	MLXSW_REG_ZERO(mtbr, payload);
@@ -9041,6 +9043,57 @@ static inline void mlxsw_reg_mprs_pack(char *payload, u16 parsing_depth,
 	mlxsw_reg_mprs_parsing_depth_set(payload, parsing_depth);
 	mlxsw_reg_mprs_parsing_en_set(payload, true);
 	mlxsw_reg_mprs_vxlan_udp_dport_set(payload, vxlan_udp_dport);
+}
+
+/* MGPIR - Management General Peripheral Information Register
+ * ----------------------------------------------------------
+ * MGPIR register allows software to query the hardware and
+ * firmware general information of peripheral entities.
+ */
+#define MLXSW_REG_MGPIR_ID 0x9100
+#define MLXSW_REG_MGPIR_LEN 0xA0
+
+MLXSW_REG_DEFINE(mgpir, MLXSW_REG_MGPIR_ID, MLXSW_REG_MGPIR_LEN);
+
+enum mlxsw_reg_mgpir_device_type {
+	MLXSW_REG_MGPIR_DEVICE_TYPE_NONE,
+	MLXSW_REG_MGPIR_DEVICE_TYPE_GEARBOX_DIE,
+};
+
+/* device_type
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgpir, device_type, 0x00, 24, 4);
+
+/* devices_per_flash
+ * Number of devices of device_type per flash (can be shared by few devices).
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgpir, devices_per_flash, 0x00, 16, 8);
+
+/* num_of_devices
+ * Number of devices of device_type.
+ * Access: RO
+ */
+MLXSW_ITEM32(reg, mgpir, num_of_devices, 0x00, 0, 8);
+
+static inline void mlxsw_reg_mgpir_pack(char *payload)
+{
+	MLXSW_REG_ZERO(mgpir, payload);
+}
+
+static inline void
+mlxsw_reg_mgpir_unpack(char *payload, u8 *num_of_devices,
+		       enum mlxsw_reg_mgpir_device_type *device_type,
+		       u8 *devices_per_flash)
+{
+	if (num_of_devices)
+		*num_of_devices = mlxsw_reg_mgpir_num_of_devices_get(payload);
+	if (device_type)
+		*device_type = mlxsw_reg_mgpir_device_type_get(payload);
+	if (devices_per_flash)
+		*devices_per_flash =
+				mlxsw_reg_mgpir_devices_per_flash_get(payload);
 }
 
 /* TNGCR - Tunneling NVE General Configuration Register
@@ -10058,6 +10111,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mcda),
 	MLXSW_REG(mgpc),
 	MLXSW_REG(mprs),
+	MLXSW_REG(mgpir),
 	MLXSW_REG(tngcr),
 	MLXSW_REG(tnumt),
 	MLXSW_REG(tnqcr),

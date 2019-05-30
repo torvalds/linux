@@ -1098,6 +1098,12 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 			goto err_register_params;
 	}
 
+	if (mlxsw_driver->init) {
+		err = mlxsw_driver->init(mlxsw_core, mlxsw_bus_info);
+		if (err)
+			goto err_driver_init;
+	}
+
 	err = mlxsw_hwmon_init(mlxsw_core, mlxsw_bus_info, &mlxsw_core->hwmon);
 	if (err)
 		goto err_hwmon_init;
@@ -1107,22 +1113,17 @@ __mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
 	if (err)
 		goto err_thermal_init;
 
-	if (mlxsw_driver->init) {
-		err = mlxsw_driver->init(mlxsw_core, mlxsw_bus_info);
-		if (err)
-			goto err_driver_init;
-	}
-
 	if (mlxsw_driver->params_register && !reload)
 		devlink_params_publish(devlink);
 
 	return 0;
 
-err_driver_init:
-	mlxsw_thermal_fini(mlxsw_core->thermal);
 err_thermal_init:
 	mlxsw_hwmon_fini(mlxsw_core->hwmon);
 err_hwmon_init:
+	if (mlxsw_core->driver->fini)
+		mlxsw_core->driver->fini(mlxsw_core);
+err_driver_init:
 	if (mlxsw_driver->params_unregister && !reload)
 		mlxsw_driver->params_unregister(mlxsw_core);
 err_register_params:
@@ -1187,10 +1188,10 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 
 	if (mlxsw_core->driver->params_unregister && !reload)
 		devlink_params_unpublish(devlink);
-	if (mlxsw_core->driver->fini)
-		mlxsw_core->driver->fini(mlxsw_core);
 	mlxsw_thermal_fini(mlxsw_core->thermal);
 	mlxsw_hwmon_fini(mlxsw_core->hwmon);
+	if (mlxsw_core->driver->fini)
+		mlxsw_core->driver->fini(mlxsw_core);
 	if (mlxsw_core->driver->params_unregister && !reload)
 		mlxsw_core->driver->params_unregister(mlxsw_core);
 	if (!reload)

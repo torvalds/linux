@@ -449,39 +449,31 @@ static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
 	struct mlxsw_thermal_module *tz = tzdev->devdata;
 	struct mlxsw_thermal *thermal = tz->parent;
 	struct device *dev = thermal->bus_info->dev;
-	char mtbr_pl[MLXSW_REG_MTBR_LEN];
-	u16 temp;
+	char mtmp_pl[MLXSW_REG_MTMP_LEN];
+	unsigned int temp;
 	int err;
 
 	/* Read module temperature. */
-	mlxsw_reg_mtbr_pack(mtbr_pl, MLXSW_REG_MTBR_BASE_MODULE_INDEX +
-			    tz->module, 1);
-	err = mlxsw_reg_query(thermal->core, MLXSW_REG(mtbr), mtbr_pl);
-	if (err)
-		return err;
-
-	mlxsw_reg_mtbr_temp_unpack(mtbr_pl, 0, &temp, NULL);
-	/* Update temperature. */
-	switch (temp) {
-	case MLXSW_REG_MTBR_NO_CONN: /* fall-through */
-	case MLXSW_REG_MTBR_NO_TEMP_SENS: /* fall-through */
-	case MLXSW_REG_MTBR_INDEX_NA: /* fall-through */
-	case MLXSW_REG_MTBR_BAD_SENS_INFO:
+	mlxsw_reg_mtmp_pack(mtmp_pl, MLXSW_REG_MTMP_MODULE_INDEX_MIN +
+			    tz->module, false, false);
+	err = mlxsw_reg_query(thermal->core, MLXSW_REG(mtmp), mtmp_pl);
+	if (err) {
+		/* Do not return error - in case of broken module's sensor
+		 * it will cause error message flooding.
+		 */
 		temp = 0;
-		break;
-	default:
-		temp = MLXSW_REG_MTMP_TEMP_TO_MC(temp);
-		/* Reset all trip point. */
-		mlxsw_thermal_module_trips_reset(tz);
-		/* Update trip points. */
-		err = mlxsw_thermal_module_trips_update(dev, thermal->core,
-							tz);
-		if (err)
-			return err;
-		break;
+		*p_temp = (int) temp;
+		return 0;
 	}
-
+	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
 	*p_temp = (int) temp;
+
+	if (!temp)
+		return 0;
+
+	/* Update trip points. */
+	mlxsw_thermal_module_trips_update(dev, thermal->core, tz);
+
 	return 0;
 }
 
