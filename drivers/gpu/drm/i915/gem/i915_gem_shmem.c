@@ -80,9 +80,7 @@ rebuild_st:
 	sg_page_sizes = 0;
 	for (i = 0; i < page_count; i++) {
 		const unsigned int shrink[] = {
-			(I915_SHRINK_BOUND |
-			 I915_SHRINK_UNBOUND |
-			 I915_SHRINK_PURGEABLE),
+			I915_SHRINK_BOUND | I915_SHRINK_UNBOUND,
 			0,
 		}, *s = shrink;
 		gfp_t gfp = noreclaim;

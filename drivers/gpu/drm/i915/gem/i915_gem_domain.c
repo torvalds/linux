@@ -462,7 +462,6 @@ err_unpin_global:
 static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct list_head *list;
 	struct i915_vma *vma;
 
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
@@ -476,10 +475,15 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 	}
 	mutex_unlock(&i915->ggtt.vm.mutex);
 
-	spin_lock(&i915->mm.obj_lock);
-	list = obj->bind_count ? &i915->mm.bound_list : &i915->mm.unbound_list;
-	list_move_tail(&obj->mm.link, list);
-	spin_unlock(&i915->mm.obj_lock);
+	if (obj->mm.madv == I915_MADV_WILLNEED) {
+		struct list_head *list;
+
+		spin_lock(&i915->mm.obj_lock);
+		list = obj->bind_count ?
+			&i915->mm.bound_list : &i915->mm.unbound_list;
+		list_move_tail(&obj->mm.link, list);
+		spin_unlock(&i915->mm.obj_lock);
+	}
 }
 
 void

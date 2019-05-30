@@ -717,7 +717,8 @@ i915_vma_remove(struct i915_vma *vma)
 		struct drm_i915_gem_object *obj = vma->obj;
 
 		spin_lock(&i915->mm.obj_lock);
-		if (--obj->bind_count == 0)
+		if (--obj->bind_count == 0 &&
+		    obj->mm.madv == I915_MADV_WILLNEED)
 			list_move_tail(&obj->mm.link, &i915->mm.unbound_list);
 		spin_unlock(&i915->mm.obj_lock);
 

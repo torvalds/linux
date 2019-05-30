@@ -1095,7 +1095,7 @@ int
 i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_madvise *args = data;
 	struct drm_i915_gem_object *obj;
 	int err;
@@ -1118,7 +1118,7 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 	if (i915_gem_object_has_pages(obj) &&
 	    i915_gem_object_is_tiled(obj) &&
-	    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
+	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
 		if (obj->mm.madv == I915_MADV_WILLNEED) {
 			GEM_BUG_ON(!obj->mm.quirked);
 			__i915_gem_object_unpin_pages(obj);
@@ -1133,6 +1133,20 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 	if (obj->mm.madv != __I915_MADV_PURGED)
 		obj->mm.madv = args->madv;
+
+	if (i915_gem_object_has_pages(obj)) {
+		struct list_head *list;
+
+		spin_lock(&i915->mm.obj_lock);
+		if (obj->mm.madv != I915_MADV_WILLNEED)
+			list = &i915->mm.purge_list;
+		else if (obj->bind_count)
+			list = &i915->mm.bound_list;
+		else
+			list = &i915->mm.unbound_list;
+		list_move_tail(&obj->mm.link, list);
+		spin_unlock(&i915->mm.obj_lock);
+	}
 
 	/* if the object is no longer attached, discard its backing storage */
 	if (obj->mm.madv == I915_MADV_DONTNEED &&
@@ -1750,6 +1764,7 @@ static void i915_gem_init__mm(struct drm_i915_private *i915)
 
 	init_llist_head(&i915->mm.free_list);
 
+	INIT_LIST_HEAD(&i915->mm.purge_list);
 	INIT_LIST_HEAD(&i915->mm.unbound_list);
 	INIT_LIST_HEAD(&i915->mm.bound_list);
 	INIT_LIST_HEAD(&i915->mm.fence_list);
@@ -1844,6 +1859,7 @@ int i915_gem_freeze_late(struct drm_i915_private *i915)
 			i915_gem_object_unlock(obj);
 		}
 	}
+	GEM_BUG_ON(!list_empty(&i915->mm.purge_list));
 
 	return 0;
 }

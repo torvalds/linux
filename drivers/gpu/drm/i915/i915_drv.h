@@ -864,6 +864,10 @@ struct i915_gem_mm {
 	 * not actually have any pages attached.
 	 */
 	struct list_head unbound_list;
+	/**
+	 * List of objects which are purgeable. May be active.
+	 */
+	struct list_head purge_list;
 
 	/** List of all objects in gtt_space, currently mmaped by userspace.
 	 * All objects within this list must also be on bound_list.
@@ -2865,12 +2869,12 @@ unsigned long i915_gem_shrink(struct drm_i915_private *i915,
 			      unsigned long target,
 			      unsigned long *nr_scanned,
 			      unsigned flags);
-#define I915_SHRINK_PURGEABLE	BIT(0)
-#define I915_SHRINK_UNBOUND	BIT(1)
-#define I915_SHRINK_BOUND	BIT(2)
-#define I915_SHRINK_ACTIVE	BIT(3)
-#define I915_SHRINK_VMAPS	BIT(4)
-#define I915_SHRINK_WRITEBACK	BIT(5)
+#define I915_SHRINK_UNBOUND	BIT(0)
+#define I915_SHRINK_BOUND	BIT(1)
+#define I915_SHRINK_ACTIVE	BIT(2)
+#define I915_SHRINK_VMAPS	BIT(3)
+#define I915_SHRINK_WRITEBACK	BIT(4)
+
 unsigned long i915_gem_shrink_all(struct drm_i915_private *i915);
 void i915_gem_shrinker_register(struct drm_i915_private *i915);
 void i915_gem_shrinker_unregister(struct drm_i915_private *i915);

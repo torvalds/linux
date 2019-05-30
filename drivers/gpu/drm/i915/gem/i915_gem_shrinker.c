@@ -144,6 +144,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 		struct list_head *list;
 		unsigned int bit;
 	} phases[] = {
+		{ &i915->mm.purge_list, ~0u },
 		{ &i915->mm.unbound_list, I915_SHRINK_UNBOUND },
 		{ &i915->mm.bound_list, I915_SHRINK_BOUND },
 		{ NULL, 0 },
@@ -226,10 +227,6 @@ i915_gem_shrink(struct drm_i915_private *i915,
 						       mm.link))) {
 			list_move_tail(&obj->mm.link, &still_in_list);
 
-			if (flags & I915_SHRINK_PURGEABLE &&
-			    obj->mm.madv != I915_MADV_DONTNEED)
-				continue;
-
 			if (flags & I915_SHRINK_VMAPS &&
 			    !is_vmalloc_addr(obj->mm.mapping))
 				continue;
@@ -237,6 +234,10 @@ i915_gem_shrink(struct drm_i915_private *i915,
 			if (!(flags & I915_SHRINK_ACTIVE) &&
 			    (i915_gem_object_is_active(obj) ||
 			     i915_gem_object_is_framebuffer(obj)))
+				continue;
+
+			if (!(flags & I915_SHRINK_BOUND) &&
+			    READ_ONCE(obj->bind_count))
 				continue;
 
 			if (!can_release_pages(obj))
@@ -324,6 +325,11 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 			count += obj->base.size >> PAGE_SHIFT;
 			num_objects++;
 		}
+	list_for_each_entry(obj, &i915->mm.purge_list, mm.link)
+		if (!i915_gem_object_is_active(obj) && can_release_pages(obj)) {
+			count += obj->base.size >> PAGE_SHIFT;
+			num_objects++;
+		}
 	spin_unlock(&i915->mm.obj_lock);
 
 	/* Update our preferred vmscan batch size for the next pass.
@@ -361,15 +367,7 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 				&sc->nr_scanned,
 				I915_SHRINK_BOUND |
 				I915_SHRINK_UNBOUND |
-				I915_SHRINK_PURGEABLE |
 				I915_SHRINK_WRITEBACK);
-	if (sc->nr_scanned < sc->nr_to_scan)
-		freed += i915_gem_shrink(i915,
-					 sc->nr_to_scan - sc->nr_scanned,
-					 &sc->nr_scanned,
-					 I915_SHRINK_BOUND |
-					 I915_SHRINK_UNBOUND |
-					 I915_SHRINK_WRITEBACK);
 	if (sc->nr_scanned < sc->nr_to_scan && current_is_kswapd()) {
 		intel_wakeref_t wakeref;
 

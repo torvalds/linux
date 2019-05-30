@@ -164,6 +164,7 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 	struct list_head *phases[] = {
 		&i915->mm.unbound_list,
 		&i915->mm.bound_list,
+		&i915->mm.purge_list,
 		NULL
 	}, **phase;
 

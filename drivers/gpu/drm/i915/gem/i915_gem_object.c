@@ -333,8 +333,17 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	if (obj->mm.quirked)
 		__i915_gem_object_unpin_pages(obj);
 
-	if (discard_backing_storage(obj))
+	if (discard_backing_storage(obj)) {
+		struct drm_i915_private *i915 = to_i915(obj->base.dev);
+
 		obj->mm.madv = I915_MADV_DONTNEED;
+
+		if (i915_gem_object_has_pages(obj)) {
+			spin_lock(&i915->mm.obj_lock);
+			list_move_tail(&obj->mm.link, &i915->mm.purge_list);
+			spin_unlock(&i915->mm.obj_lock);
+		}
+	}
 
 	/*
 	 * Before we free the object, make sure any pure RCU-only
