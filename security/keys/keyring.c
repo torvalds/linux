@@ -100,7 +100,7 @@ EXPORT_SYMBOL(key_type_keyring);
  * Semaphore to serialise link/link calls to prevent two link calls in parallel
  * introducing a cycle.
  */
-static DECLARE_RWSEM(keyring_serialise_link_sem);
+static DEFINE_MUTEX(keyring_serialise_link_lock);
 
 /*
  * Publish the name of a keyring so that it can be found by name (if it has
@@ -1206,7 +1206,7 @@ int __key_link_begin(struct key *keyring,
 		     const struct keyring_index_key *index_key,
 		     struct assoc_array_edit **_edit)
 	__acquires(&keyring->sem)
-	__acquires(&keyring_serialise_link_sem)
+	__acquires(&keyring_serialise_link_lock)
 {
 	struct assoc_array_edit *edit;
 	int ret;
@@ -1228,7 +1228,7 @@ int __key_link_begin(struct key *keyring,
 	/* serialise link/link calls to prevent parallel calls causing a cycle
 	 * when linking two keyring in opposite orders */
 	if (index_key->type == &key_type_keyring)
-		down_write(&keyring_serialise_link_sem);
+		mutex_lock(&keyring_serialise_link_lock);
 
 	/* Create an edit script that will insert/replace the key in the
 	 * keyring tree.
@@ -1260,7 +1260,7 @@ error_cancel:
 	assoc_array_cancel_edit(edit);
 error_sem:
 	if (index_key->type == &key_type_keyring)
-		up_write(&keyring_serialise_link_sem);
+		mutex_unlock(&keyring_serialise_link_lock);
 error_krsem:
 	up_write(&keyring->sem);
 	kleave(" = %d", ret);
@@ -1307,13 +1307,13 @@ void __key_link_end(struct key *keyring,
 		    const struct keyring_index_key *index_key,
 		    struct assoc_array_edit *edit)
 	__releases(&keyring->sem)
-	__releases(&keyring_serialise_link_sem)
+	__releases(&keyring_serialise_link_lock)
 {
 	BUG_ON(index_key->type == NULL);
 	kenter("%d,%s,", keyring->serial, index_key->type->name);
 
 	if (index_key->type == &key_type_keyring)
-		up_write(&keyring_serialise_link_sem);
+		mutex_unlock(&keyring_serialise_link_lock);
 
 	if (edit) {
 		if (!edit->dead_leaf) {
