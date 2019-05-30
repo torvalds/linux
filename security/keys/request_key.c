@@ -343,7 +343,7 @@ static int construct_alloc_key(struct keyring_search_context *ctx,
 			       struct key_user *user,
 			       struct key **_key)
 {
-	struct assoc_array_edit *edit;
+	struct assoc_array_edit *edit = NULL;
 	struct key *key;
 	key_perm_t perm;
 	key_ref_t key_ref;
@@ -372,6 +372,9 @@ static int construct_alloc_key(struct keyring_search_context *ctx,
 	set_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags);
 
 	if (dest_keyring) {
+		ret = __key_link_lock(dest_keyring, &ctx->index_key);
+		if (ret < 0)
+			goto link_lock_failed;
 		ret = __key_link_begin(dest_keyring, &ctx->index_key, &edit);
 		if (ret < 0)
 			goto link_prealloc_failed;
@@ -423,6 +426,8 @@ link_check_failed:
 	return ret;
 
 link_prealloc_failed:
+	__key_link_end(dest_keyring, &ctx->index_key, edit);
+link_lock_failed:
 	mutex_unlock(&user->cons_lock);
 	key_put(key);
 	kleave(" = %d [prelink]", ret);

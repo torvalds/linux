@@ -500,7 +500,7 @@ int key_instantiate_and_link(struct key *key,
 			     struct key *authkey)
 {
 	struct key_preparsed_payload prep;
-	struct assoc_array_edit *edit;
+	struct assoc_array_edit *edit = NULL;
 	int ret;
 
 	memset(&prep, 0, sizeof(prep));
@@ -515,9 +515,13 @@ int key_instantiate_and_link(struct key *key,
 	}
 
 	if (keyring) {
-		ret = __key_link_begin(keyring, &key->index_key, &edit);
+		ret = __key_link_lock(keyring, &key->index_key);
 		if (ret < 0)
 			goto error;
+
+		ret = __key_link_begin(keyring, &key->index_key, &edit);
+		if (ret < 0)
+			goto error_link_end;
 
 		if (keyring->restrict_link && keyring->restrict_link->check) {
 			struct key_restriction *keyres = keyring->restrict_link;
@@ -570,7 +574,7 @@ int key_reject_and_link(struct key *key,
 			struct key *keyring,
 			struct key *authkey)
 {
-	struct assoc_array_edit *edit;
+	struct assoc_array_edit *edit = NULL;
 	int ret, awaken, link_ret = 0;
 
 	key_check(key);
@@ -583,7 +587,12 @@ int key_reject_and_link(struct key *key,
 		if (keyring->restrict_link)
 			return -EPERM;
 
-		link_ret = __key_link_begin(keyring, &key->index_key, &edit);
+		link_ret = __key_link_lock(keyring, &key->index_key);
+		if (link_ret == 0) {
+			link_ret = __key_link_begin(keyring, &key->index_key, &edit);
+			if (link_ret < 0)
+				__key_link_end(keyring, &key->index_key, edit);
+		}
 	}
 
 	mutex_lock(&key_construction_mutex);
@@ -810,7 +819,7 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 		.description	= description,
 	};
 	struct key_preparsed_payload prep;
-	struct assoc_array_edit *edit;
+	struct assoc_array_edit *edit = NULL;
 	const struct cred *cred = current_cred();
 	struct key *keyring, *key = NULL;
 	key_ref_t key_ref;
@@ -860,10 +869,16 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 	}
 	index_key.desc_len = strlen(index_key.description);
 
-	ret = __key_link_begin(keyring, &index_key, &edit);
+	ret = __key_link_lock(keyring, &index_key);
 	if (ret < 0) {
 		key_ref = ERR_PTR(ret);
 		goto error_free_prep;
+	}
+
+	ret = __key_link_begin(keyring, &index_key, &edit);
+	if (ret < 0) {
+		key_ref = ERR_PTR(ret);
+		goto error_link_end;
 	}
 
 	if (restrict_link && restrict_link->check) {
