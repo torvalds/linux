@@ -885,18 +885,6 @@ static bool navi10_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
-static int navi10_set_thermal_fan_table(struct smu_context *smu)
-{
-	int ret;
-	struct smu_table_context *table_context = &smu->smu_table;
-	PPTable_t *pptable = table_context->driver_pptable;
-
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetFanTemperatureTarget,
-			(uint32_t)pptable->FanTargetTemperature);
-
-	return ret;
-}
-
 static int navi10_get_fan_speed_percent(struct smu_context *smu,
 					uint32_t *speed)
 {
@@ -1309,7 +1297,6 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.force_dpm_limit_value = navi10_force_dpm_limit_value,
 	.unforce_dpm_levels = navi10_unforce_dpm_levels,
 	.is_dpm_running = navi10_is_dpm_running,
-	.set_thermal_fan_table = navi10_set_thermal_fan_table,
 	.get_fan_speed_percent = navi10_get_fan_speed_percent,
 	.get_power_profile_mode = navi10_get_power_profile_mode,
 	.set_power_profile_mode = navi10_set_power_profile_mode,
