@@ -25,7 +25,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/timekeeping.h>
+#include <linux/ktime.h>
 #include <linux/vmalloc.h>
 #include <media/drv-intf/cx25840.h>
 #include <media/tuner.h>
@@ -1622,8 +1622,7 @@ int cxusb_medion_analog_init(struct dvb_usb_device *dvbdev)
 	/* TODO: setup audio samples insertion */
 
 	ret = v4l2_subdev_call(cxdev->cx25840, core, s_io_pin_config,
-			       sizeof(cxusub_medion_pin_config) /
-			       sizeof(cxusub_medion_pin_config[0]),
+			       ARRAY_SIZE(cxusub_medion_pin_config),
 			       cxusub_medion_pin_config);
 	if (ret != 0)
 		dev_warn(&dvbdev->udev->dev,
