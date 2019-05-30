@@ -454,6 +454,8 @@ struct pptable_funcs {
 	int (*conv_profile_to_workload)(struct smu_context *smu, int power_profile);
 	enum amd_dpm_forced_level (*get_performance_level)(struct smu_context *smu);
 	int (*force_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
+	int (*dpm_set_uvd_enable)(struct smu_context *smu, bool enable);
+	int (*dpm_set_vce_enable)(struct smu_context *smu, bool enable);
 	int (*pre_display_config_changed)(struct smu_context *smu);
 	int (*display_config_changed)(struct smu_context *smu);
 	int (*apply_clocks_adjust_rules)(struct smu_context *smu);
@@ -540,8 +542,6 @@ struct smu_funcs
 	int (*update_od8_settings)(struct smu_context *smu,
 				   uint32_t index,
 				   uint32_t value);
-	int (*dpm_set_uvd_enable)(struct smu_context *smu, bool enable);
-	int (*dpm_set_vce_enable)(struct smu_context *smu, bool enable);
 	uint32_t (*get_sclk)(struct smu_context *smu, bool low);
 	uint32_t (*get_mclk)(struct smu_context *smu, bool low);
 	int (*get_current_rpm)(struct smu_context *smu, uint32_t *speed);
@@ -730,9 +730,9 @@ struct smu_funcs
 #define smu_conv_profile_to_workload(smu, type) \
 	((smu)->ppt_funcs->conv_profile_to_workload ? (smu)->ppt_funcs->conv_profile_to_workload((smu), (type)) : 0)
 #define smu_dpm_set_uvd_enable(smu, enable) \
-	((smu)->funcs->dpm_set_uvd_enable ? (smu)->funcs->dpm_set_uvd_enable((smu), (enable)) : 0)
+	((smu)->ppt_funcs->dpm_set_uvd_enable ? (smu)->ppt_funcs->dpm_set_uvd_enable((smu), (enable)) : 0)
 #define smu_dpm_set_vce_enable(smu, enable) \
-	((smu)->funcs->dpm_set_vce_enable ? (smu)->funcs->dpm_set_vce_enable((smu), (enable)) : 0)
+	((smu)->ppt_funcs->dpm_set_vce_enable ? (smu)->ppt_funcs->dpm_set_vce_enable((smu), (enable)) : 0)
 #define smu_get_sclk(smu, low) \
 	((smu)->funcs->get_sclk ? (smu)->funcs->get_sclk((smu), (low)) : 0)
 #define smu_get_mclk(smu, low) \

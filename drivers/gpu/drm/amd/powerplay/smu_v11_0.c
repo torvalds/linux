@@ -1678,28 +1678,6 @@ static int smu_v11_0_update_od8_settings(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v11_0_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
-{
-	if (!smu_feature_is_supported(smu, FEATURE_DPM_UVD_BIT))
-		return 0;
-
-	if (enable == smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT))
-		return 0;
-
-	return smu_feature_set_enabled(smu, FEATURE_DPM_UVD_BIT, enable);
-}
-
-static int smu_v11_0_dpm_set_vce_enable(struct smu_context *smu, bool enable)
-{
-	if (!smu_feature_is_supported(smu, FEATURE_DPM_VCE_BIT))
-		return 0;
-
-	if (enable == smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT))
-		return 0;
-
-	return smu_feature_set_enabled(smu, FEATURE_DPM_VCE_BIT, enable);
-}
-
 static int smu_v11_0_get_current_rpm(struct smu_context *smu,
 				     uint32_t *current_rpm)
 {
@@ -1919,8 +1897,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_mclk = smu_v11_0_dpm_get_mclk,
 	.set_od8_default_settings = smu_v11_0_set_od8_default_settings,
 	.update_od8_settings = smu_v11_0_update_od8_settings,
-	.dpm_set_uvd_enable = smu_v11_0_dpm_set_uvd_enable,
-	.dpm_set_vce_enable = smu_v11_0_dpm_set_vce_enable,
 	.get_current_rpm = smu_v11_0_get_current_rpm,
 	.get_fan_control_mode = smu_v11_0_get_fan_control_mode,
 	.set_fan_control_mode = smu_v11_0_set_fan_control_mode,

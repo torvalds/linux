@@ -2599,6 +2599,28 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 	return ret;
 }
 
+static int vega20_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
+{
+	if (!smu_feature_is_supported(smu, FEATURE_DPM_UVD_BIT))
+		return 0;
+
+	if (enable == smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT))
+		return 0;
+
+	return smu_feature_set_enabled(smu, FEATURE_DPM_UVD_BIT, enable);
+}
+
+static int vega20_dpm_set_vce_enable(struct smu_context *smu, bool enable)
+{
+	if (!smu_feature_is_supported(smu, FEATURE_DPM_VCE_BIT))
+		return 0;
+
+	if (enable == smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT))
+		return 0;
+
+	return smu_feature_set_enabled(smu, FEATURE_DPM_VCE_BIT, enable);
+}
+
 static int vega20_get_enabled_smc_features(struct smu_context *smu,
 		uint64_t *features_enabled)
 {
@@ -2775,6 +2797,8 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.update_specified_od8_value = vega20_update_specified_od8_value,
 	.set_od_percentage = vega20_set_od_percentage,
 	.od_edit_dpm_table = vega20_odn_edit_dpm_table,
+	.dpm_set_uvd_enable = vega20_dpm_set_uvd_enable,
+	.dpm_set_vce_enable = vega20_dpm_set_vce_enable,
 	.pre_display_config_changed = vega20_pre_display_config_changed,
 	.display_config_changed = vega20_display_config_changed,
 	.apply_clocks_adjust_rules = vega20_apply_clocks_adjust_rules,
