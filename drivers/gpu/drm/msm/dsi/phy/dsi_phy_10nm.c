@@ -221,3 +221,21 @@ const struct msm_dsi_phy_cfg dsi_phy_10nm_cfgs = {
 	.io_start = { 0xae94400, 0xae96400 },
 	.num_dsi_phy = 2,
 };
+
+const struct msm_dsi_phy_cfg dsi_phy_10nm_8998_cfgs = {
+	.type = MSM_DSI_PHY_10NM,
+	.src_pll_truthtable = { {false, false}, {true, false} },
+	.reg_cfg = {
+		.num = 1,
+		.regs = {
+			{"vdds", 36000, 32},
+		},
+	},
+	.ops = {
+		.enable = dsi_10nm_phy_enable,
+		.disable = dsi_10nm_phy_disable,
+		.init = dsi_10nm_phy_init,
+	},
+	.io_start = { 0xc994400, 0xc996400 },
+	.num_dsi_phy = 2,
+};
