@@ -47,4 +47,11 @@ extern const struct regmap_config cs47l90_32bit_spi_regmap;
 extern const struct regmap_config cs47l90_16bit_i2c_regmap;
 extern const struct regmap_config cs47l90_32bit_i2c_regmap;
 int cs47l90_patch(struct madera *madera);
+
+extern const struct regmap_config cs47l92_16bit_spi_regmap;
+extern const struct regmap_config cs47l92_32bit_spi_regmap;
+extern const struct regmap_config cs47l92_16bit_i2c_regmap;
+extern const struct regmap_config cs47l92_32bit_i2c_regmap;
+int cs47l92_patch(struct madera *madera);
+
 #endif
