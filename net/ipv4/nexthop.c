@@ -836,7 +836,7 @@ static int nh_create_ipv6(struct net *net,  struct nexthop *nh,
 		.fc_encap = cfg->nh_encap,
 		.fc_encap_type = cfg->nh_encap_type,
 	};
-	int err = -EINVAL;
+	int err;
 
 	if (!ipv6_addr_any(&cfg->gw.ipv6))
 		fib6_cfg.fc_flags |= RTF_GATEWAY;
