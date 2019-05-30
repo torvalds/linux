@@ -248,8 +248,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		GEM_BUG_ON(!atomic_read(&i915->mm.free_count));
 		atomic_dec(&i915->mm.free_count);
 
-		if (on)
-			cond_resched();
+		cond_resched();
 	}
 	intel_runtime_pm_put(i915, wakeref);
 }
