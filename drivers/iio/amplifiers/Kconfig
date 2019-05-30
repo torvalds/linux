@@ -17,6 +17,7 @@ config AD8366
 	  from Analog Devices:
 	    AD8366 Dual-Digital Variable Gain Amplifier (VGA)
 	    ADA4961 BiCMOS RF Digital Gain Amplifier (DGA)
+	    ADL5240 Digitally controlled variable gain amplifier (VGA)
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad8366.
