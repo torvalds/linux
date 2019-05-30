@@ -59,6 +59,7 @@
 #define KFD_MMAP_TYPE_DOORBELL	(0x3ULL << KFD_MMAP_TYPE_SHIFT)
 #define KFD_MMAP_TYPE_EVENTS	(0x2ULL << KFD_MMAP_TYPE_SHIFT)
 #define KFD_MMAP_TYPE_RESERVED_MEM	(0x1ULL << KFD_MMAP_TYPE_SHIFT)
+#define KFD_MMAP_TYPE_MMIO	(0x0ULL << KFD_MMAP_TYPE_SHIFT)
 
 #define KFD_MMAP_GPU_ID_SHIFT (46 - PAGE_SHIFT)
 #define KFD_MMAP_GPU_ID_MASK (((1ULL << KFD_GPU_ID_HASH_WIDTH) - 1) \
@@ -160,6 +161,11 @@ extern int noretry;
  */
 extern int halt_if_hws_hang;
 
+/*
+ * Whether MEC FW support GWS barriers
+ */
+extern bool hws_gws_support;
+
 enum cache_policy {
 	cache_policy_coherent,
 	cache_policy_noncoherent
@@ -188,6 +194,7 @@ struct kfd_device_info {
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
 	unsigned int num_sdma_engines;
+	unsigned int num_xgmi_sdma_engines;
 	unsigned int num_sdma_queues_per_engine;
 };
 
@@ -258,7 +265,7 @@ struct kfd_dev {
 	bool interrupts_active;
 
 	/* Debug manager */
-	struct kfd_dbgmgr           *dbgmgr;
+	struct kfd_dbgmgr *dbgmgr;
 
 	/* Firmware versions */
 	uint16_t mec_fw_version;
@@ -282,6 +289,9 @@ struct kfd_dev {
 
 	/* Compute Profile ref. count */
 	atomic_t compute_profile;
+
+	/* Global GWS resource shared b/t processes*/
+	void *gws;
 };
 
 enum kfd_mempool {
@@ -329,7 +339,8 @@ enum kfd_queue_type  {
 	KFD_QUEUE_TYPE_COMPUTE,
 	KFD_QUEUE_TYPE_SDMA,
 	KFD_QUEUE_TYPE_HIQ,
-	KFD_QUEUE_TYPE_DIQ
+	KFD_QUEUE_TYPE_DIQ,
+	KFD_QUEUE_TYPE_SDMA_XGMI
 };
 
 enum kfd_queue_format {
@@ -444,6 +455,9 @@ struct queue_properties {
  *
  * @device: The kfd device that created this queue.
  *
+ * @gws: Pointing to gws kgd_mem if this is a gws control queue; NULL
+ * otherwise.
+ *
  * This structure represents user mode compute queues.
  * It contains all the necessary data to handle such queues.
  *
@@ -465,6 +479,7 @@ struct queue {
 
 	struct kfd_process	*process;
 	struct kfd_dev		*device;
+	void *gws;
 };
 
 /*
@@ -475,6 +490,7 @@ enum KFD_MQD_TYPE {
 	KFD_MQD_TYPE_HIQ,		/* for hiq */
 	KFD_MQD_TYPE_CP,		/* for cp queues and diq */
 	KFD_MQD_TYPE_SDMA,		/* for sdma queues */
+	KFD_MQD_TYPE_DIQ,		/* for diq */
 	KFD_MQD_TYPE_MAX
 };
 
@@ -819,8 +835,6 @@ void uninit_queue(struct queue *q);
 void print_queue_properties(struct queue_properties *q);
 void print_queue(struct queue *q);
 
-struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
-					struct kfd_dev *dev);
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
 struct mqd_manager *mqd_manager_init_cik_hawaii(enum KFD_MQD_TYPE type,
@@ -859,6 +873,8 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
 int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
+int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
+			void *gws);
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 						unsigned int qid);
 int pqm_get_wave_state(struct process_queue_manager *pqm,

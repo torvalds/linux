@@ -75,6 +75,20 @@ struct amdgpu_dpm_thermal {
 	int                min_temp;
 	/* high temperature threshold */
 	int                max_temp;
+	/* edge max emergency(shutdown) temp */
+	int                max_edge_emergency_temp;
+	/* hotspot low temperature threshold */
+	int                min_hotspot_temp;
+	/* hotspot high temperature critical threshold */
+	int                max_hotspot_crit_temp;
+	/* hotspot max emergency(shutdown) temp */
+	int                max_hotspot_emergency_temp;
+	/* memory low temperature threshold */
+	int                min_mem_temp;
+	/* memory high temperature critical threshold */
+	int                max_mem_crit_temp;
+	/* memory max emergency(shutdown) temp */
+	int                max_mem_emergency_temp;
 	/* was last interrupt low to high or high to low */
 	bool               high_to_low;
 	/* interrupt source */

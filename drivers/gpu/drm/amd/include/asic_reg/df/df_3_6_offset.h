@@ -30,4 +30,22 @@
 #define mmDF_CS_UMC_AON0_DramBaseAddress0								0x0044
 #define mmDF_CS_UMC_AON0_DramBaseAddress0_BASE_IDX							0
 
+#define smnPerfMonCtlLo0					0x01d440UL
+#define smnPerfMonCtlHi0					0x01d444UL
+#define smnPerfMonCtlLo1					0x01d450UL
+#define smnPerfMonCtlHi1					0x01d454UL
+#define smnPerfMonCtlLo2					0x01d460UL
+#define smnPerfMonCtlHi2					0x01d464UL
+#define smnPerfMonCtlLo3					0x01d470UL
+#define smnPerfMonCtlHi3					0x01d474UL
+
+#define smnPerfMonCtrLo0					0x01d448UL
+#define smnPerfMonCtrHi0					0x01d44cUL
+#define smnPerfMonCtrLo1					0x01d458UL
+#define smnPerfMonCtrHi1					0x01d45cUL
+#define smnPerfMonCtrLo2					0x01d468UL
+#define smnPerfMonCtrHi2					0x01d46cUL
+#define smnPerfMonCtrLo3					0x01d478UL
+#define smnPerfMonCtrHi3					0x01d47cUL
+
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2019 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,25 +20,27 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef PP_THERMAL_H
-#define PP_THERMAL_H
+#ifndef __AMDGPU_DMA_BUF_H__
+#define __AMDGPU_DMA_BUF_H__
 
-#include "power_state.h"
+#include <drm/drm_gem.h>
 
-static const struct PP_TemperatureRange SMU7ThermalWithDelayPolicy[] =
-{
-	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
-	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
-};
+struct sg_table *amdgpu_gem_prime_get_sg_table(struct drm_gem_object *obj);
+struct drm_gem_object *
+amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
+				 struct dma_buf_attachment *attach,
+				 struct sg_table *sg);
+struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
+					struct drm_gem_object *gobj,
+					int flags);
+struct drm_gem_object *amdgpu_gem_prime_import(struct drm_device *dev,
+					    struct dma_buf *dma_buf);
+struct reservation_object *amdgpu_gem_prime_res_obj(struct drm_gem_object *);
+void *amdgpu_gem_prime_vmap(struct drm_gem_object *obj);
+void amdgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+int amdgpu_gem_prime_mmap(struct drm_gem_object *obj,
+			  struct vm_area_struct *vma);
 
-static const struct PP_TemperatureRange SMU7ThermalPolicy[] =
-{
-	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
-	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
-};
-
-#define CTF_OFFSET_EDGE			5
-#define CTF_OFFSET_HOTSPOT		5
-#define CTF_OFFSET_HBM			5
+extern const struct dma_buf_ops amdgpu_dmabuf_ops;
 
 #endif

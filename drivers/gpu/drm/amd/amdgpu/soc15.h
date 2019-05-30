@@ -42,7 +42,17 @@ struct soc15_reg_golden {
 	u32	or_mask;
 };
 
+struct soc15_reg_entry {
+	uint32_t hwip;
+	uint32_t inst;
+	uint32_t seg;
+	uint32_t reg_offset;
+	uint32_t reg_value;
+};
+
 #define SOC15_REG_ENTRY(ip, inst, reg)	ip##_HWIP, inst, reg##_BASE_IDX, reg
+
+#define SOC15_REG_ENTRY_OFFSET(entry)	(adev->reg_offset[entry.hwip][entry.inst][entry.seg] + entry.reg_offset)
 
 #define SOC15_REG_GOLDEN_VALUE(ip, inst, reg, and_mask, or_mask) \
 	{ ip##_HWIP, inst, reg##_BASE_IDX, reg, and_mask, or_mask }

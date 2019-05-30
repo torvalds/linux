@@ -36,6 +36,9 @@
 #define smnMP0_FW_INTF			0x30101c0
 #define smnMP1_PUB_CTRL			0x3010b14
 
+#define TEMP_RANGE_MIN			(0)
+#define TEMP_RANGE_MAX			(80 * 1000)
+
 struct smu_11_0_max_sustainable_clocks {
 	uint32_t display_clock;
 	uint32_t phy_clock;

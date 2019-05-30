@@ -480,7 +480,7 @@ static const struct dc_debug_options debug_defaults = {
 		.disable_clock_gate = true,
 };
 
-struct clock_source *dce120_clock_source_create(
+static struct clock_source *dce120_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
 	enum clock_source_id id,
@@ -503,14 +503,14 @@ struct clock_source *dce120_clock_source_create(
 	return NULL;
 }
 
-void dce120_clock_source_destroy(struct clock_source **clk_src)
+static void dce120_clock_source_destroy(struct clock_source **clk_src)
 {
 	kfree(TO_DCE110_CLK_SRC(*clk_src));
 	*clk_src = NULL;
 }
 
 
-bool dce120_hw_sequencer_create(struct dc *dc)
+static bool dce120_hw_sequencer_create(struct dc *dc)
 {
 	/* All registers used by dce11.2 match those in dce11 in offset and
 	 * structure
@@ -837,7 +837,8 @@ static const struct resource_funcs dce120_res_pool_funcs = {
 	.link_enc_create = dce120_link_encoder_create,
 	.validate_bandwidth = dce112_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
-	.add_stream_to_ctx = dce112_add_stream_to_ctx
+	.add_stream_to_ctx = dce112_add_stream_to_ctx,
+	.find_first_free_match_stream_enc_for_link = dce110_find_first_free_match_stream_enc_for_link
 };
 
 static void bw_calcs_data_update_from_pplib(struct dc *dc)

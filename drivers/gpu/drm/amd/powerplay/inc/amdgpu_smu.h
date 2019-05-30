@@ -401,8 +401,12 @@ struct smu_context
 	uint32_t workload_setting[WORKLOAD_POLICY_MAX];
 	uint32_t power_profile_mode;
 	uint32_t default_power_profile_mode;
+	bool pm_enabled;
 
 	uint32_t smc_if_version;
+
+	unsigned long metrics_time;
+	void *metrics_table;
 };
 
 struct pptable_funcs {
@@ -458,6 +462,8 @@ struct pptable_funcs {
 				      uint32_t *mclk_mask,
 				      uint32_t *soc_mask);
 	int (*set_cpu_power_state)(struct smu_context *smu);
+	int (*set_ppfeature_status)(struct smu_context *smu, uint64_t ppfeatures);
+	int (*get_ppfeature_status)(struct smu_context *smu, char *buf);
 };
 
 struct smu_funcs
@@ -727,7 +733,10 @@ struct smu_funcs
 	((smu)->funcs->get_mclk ? (smu)->funcs->get_mclk((smu), (low)) : 0)
 #define smu_set_xgmi_pstate(smu, pstate) \
 		((smu)->funcs->set_xgmi_pstate ? (smu)->funcs->set_xgmi_pstate((smu), (pstate)) : 0)
-
+#define smu_set_ppfeature_status(smu, ppfeatures) \
+	((smu)->ppt_funcs->set_ppfeature_status ? (smu)->ppt_funcs->set_ppfeature_status((smu), (ppfeatures)) : -EINVAL)
+#define smu_get_ppfeature_status(smu, buf) \
+	((smu)->ppt_funcs->get_ppfeature_status ? (smu)->ppt_funcs->get_ppfeature_status((smu), (buf)) : -EINVAL)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
@@ -767,4 +776,5 @@ extern int smu_dpm_set_power_gate(struct smu_context *smu,uint32_t block_type, b
 extern int smu_handle_task(struct smu_context *smu,
 			   enum amd_dpm_forced_level level,
 			   enum amd_pp_task task_id);
+int smu_get_smc_version(struct smu_context *smu, uint32_t *if_version, uint32_t *smu_version);
 #endif

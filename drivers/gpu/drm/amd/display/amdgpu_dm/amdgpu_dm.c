@@ -29,6 +29,7 @@
 #include "dm_services_types.h"
 #include "dc.h"
 #include "dc/inc/core_types.h"
+#include "dal_asic_id.h"
 
 #include "vid.h"
 #include "amdgpu.h"
@@ -615,6 +616,10 @@ error:
 static void amdgpu_dm_fini(struct amdgpu_device *adev)
 {
 	amdgpu_dm_destroy_drm_device(&adev->dm);
+
+	/* DC Destroy TODO: Replace destroy DAL */
+	if (adev->dm.dc)
+		dc_destroy(&adev->dm.dc);
 	/*
 	 * TODO: pageflip, vlank interrupt
 	 *
@@ -629,9 +634,6 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 		mod_freesync_destroy(adev->dm.freesync_module);
 		adev->dm.freesync_module = NULL;
 	}
-	/* DC Destroy TODO: Replace destroy DAL */
-	if (adev->dm.dc)
-		dc_destroy(&adev->dm.dc);
 
 	mutex_destroy(&adev->dm.dc_lock);
 
@@ -640,7 +642,7 @@ static void amdgpu_dm_fini(struct amdgpu_device *adev)
 
 static int load_dmcu_fw(struct amdgpu_device *adev)
 {
-	const char *fw_name_dmcu;
+	const char *fw_name_dmcu = NULL;
 	int r;
 	const struct dmcu_firmware_header_v1_0 *hdr;
 
@@ -663,7 +665,14 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 		return 0;
 	case CHIP_RAVEN:
-		fw_name_dmcu = FIRMWARE_RAVEN_DMCU;
+#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+		if (ASICREV_IS_PICASSO(adev->external_rev_id))
+			fw_name_dmcu = FIRMWARE_RAVEN_DMCU;
+		else if (ASICREV_IS_RAVEN2(adev->external_rev_id))
+			fw_name_dmcu = FIRMWARE_RAVEN_DMCU;
+		else
+#endif
+			return 0;
 		break;
 	default:
 		DRM_ERROR("Unsupported ASIC type: 0x%X\n", adev->asic_type);
@@ -2584,7 +2593,7 @@ fill_plane_buffer_attributes(struct amdgpu_device *adev,
 		address->type = PLN_ADDR_TYPE_GRAPHICS;
 		address->grph.addr.low_part = lower_32_bits(afb->address);
 		address->grph.addr.high_part = upper_32_bits(afb->address);
-	} else {
+	} else if (format < SURFACE_PIXEL_FORMAT_INVALID) {
 		uint64_t chroma_addr = afb->address + fb->offsets[1];
 
 		plane_size->video.luma_size.x = 0;
@@ -2959,16 +2968,16 @@ static void update_stream_scaling_settings(const struct drm_display_mode *mode,
 }
 
 static enum dc_color_depth
-convert_color_depth_from_display_info(const struct drm_connector *connector)
+convert_color_depth_from_display_info(const struct drm_connector *connector,
+				      const struct drm_connector_state *state)
 {
-	struct dm_connector_state *dm_conn_state =
-		to_dm_connector_state(connector->state);
 	uint32_t bpc = connector->display_info.bpc;
 
-	/* TODO: Remove this when there's support for max_bpc in drm */
-	if (dm_conn_state && bpc > dm_conn_state->max_bpc)
-		/* Round down to nearest even number. */
-		bpc = dm_conn_state->max_bpc - (dm_conn_state->max_bpc & 1);
+	if (state) {
+		bpc = state->max_bpc;
+		/* Round down to the nearest even number. */
+		bpc = bpc - (bpc & 1);
+	}
 
 	switch (bpc) {
 	case 0:
@@ -3086,11 +3095,12 @@ static void adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_
 
 }
 
-static void
-fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
-					     const struct drm_display_mode *mode_in,
-					     const struct drm_connector *connector,
-					     const struct dc_stream_state *old_stream)
+static void fill_stream_properties_from_drm_display_mode(
+	struct dc_stream_state *stream,
+	const struct drm_display_mode *mode_in,
+	const struct drm_connector *connector,
+	const struct drm_connector_state *connector_state,
+	const struct dc_stream_state *old_stream)
 {
 	struct dc_crtc_timing *timing_out = &stream->timing;
 	const struct drm_display_info *info = &connector->display_info;
@@ -3113,7 +3123,7 @@ fill_stream_properties_from_drm_display_mode(struct dc_stream_state *stream,
 
 	timing_out->timing_3d_format = TIMING_3D_FORMAT_NONE;
 	timing_out->display_color_depth = convert_color_depth_from_display_info(
-			connector);
+		connector, connector_state);
 	timing_out->scan_type = SCANNING_TYPE_NODATA;
 	timing_out->hdmi_vic = 0;
 
@@ -3310,6 +3320,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 {
 	struct drm_display_mode *preferred_mode = NULL;
 	struct drm_connector *drm_connector;
+	const struct drm_connector_state *con_state =
+		dm_state ? &dm_state->base : NULL;
 	struct dc_stream_state *stream = NULL;
 	struct drm_display_mode mode = *drm_mode;
 	bool native_mode_found = false;
@@ -3382,10 +3394,10 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	*/
 	if (!scale || mode_refresh != preferred_refresh)
 		fill_stream_properties_from_drm_display_mode(stream,
-			&mode, &aconnector->base, NULL);
+			&mode, &aconnector->base, con_state, NULL);
 	else
 		fill_stream_properties_from_drm_display_mode(stream,
-			&mode, &aconnector->base, old_stream);
+			&mode, &aconnector->base, con_state, old_stream);
 
 	update_stream_scaling_settings(&mode, dm_state, stream);
 
@@ -3610,9 +3622,6 @@ int amdgpu_dm_connector_atomic_set_property(struct drm_connector *connector,
 	} else if (property == adev->mode_info.underscan_property) {
 		dm_new_state->underscan_enable = val;
 		ret = 0;
-	} else if (property == adev->mode_info.max_bpc_property) {
-		dm_new_state->max_bpc = val;
-		ret = 0;
 	} else if (property == adev->mode_info.abm_level_property) {
 		dm_new_state->abm_level = val;
 		ret = 0;
@@ -3657,9 +3666,6 @@ int amdgpu_dm_connector_atomic_get_property(struct drm_connector *connector,
 		ret = 0;
 	} else if (property == adev->mode_info.underscan_property) {
 		*val = dm_state->underscan_enable;
-		ret = 0;
-	} else if (property == adev->mode_info.max_bpc_property) {
-		*val = dm_state->max_bpc;
 		ret = 0;
 	} else if (property == adev->mode_info.abm_level_property) {
 		*val = dm_state->abm_level;
@@ -3717,7 +3723,6 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 		state->underscan_enable = false;
 		state->underscan_hborder = 0;
 		state->underscan_vborder = 0;
-		state->max_bpc = 8;
 
 		__drm_atomic_helper_connector_reset(connector, &state->base);
 	}
@@ -3743,7 +3748,6 @@ amdgpu_dm_connector_atomic_duplicate_state(struct drm_connector *connector)
 	new_state->underscan_enable = state->underscan_enable;
 	new_state->underscan_hborder = state->underscan_hborder;
 	new_state->underscan_vborder = state->underscan_vborder;
-	new_state->max_bpc = state->max_bpc;
 
 	return &new_state->base;
 }
@@ -4585,6 +4589,15 @@ static void amdgpu_dm_connector_ddc_get_modes(struct drm_connector *connector,
 		amdgpu_dm_connector->num_modes =
 				drm_add_edid_modes(connector, edid);
 
+		/* sorting the probed modes before calling function
+		 * amdgpu_dm_get_native_mode() since EDID can have
+		 * more than one preferred mode. The modes that are
+		 * later in the probed mode list could be of higher
+		 * and preferred resolution. For example, 3840x2160
+		 * resolution in base EDID preferred timing and 4096x2160
+		 * preferred resolution in DID extension block later.
+		 */
+		drm_mode_sort(&connector->probed_modes);
 		amdgpu_dm_get_native_mode(connector);
 	} else {
 		amdgpu_dm_connector->num_modes = 0;
@@ -4664,9 +4677,12 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 	drm_object_attach_property(&aconnector->base.base,
 				adev->mode_info.underscan_vborder_property,
 				0);
-	drm_object_attach_property(&aconnector->base.base,
-				adev->mode_info.max_bpc_property,
-				0);
+
+	drm_connector_attach_max_bpc_property(&aconnector->base, 8, 16);
+
+	/* This defaults to the max in the range, but we want 8bpc. */
+	aconnector->base.state->max_bpc = 8;
+	aconnector->base.state->max_requested_bpc = 8;
 
 	if (connector_type == DRM_MODE_CONNECTOR_eDP &&
 	    dc_is_dmcu_initialized(adev->dm.dc)) {
@@ -4945,12 +4961,12 @@ static int get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
 	int x, y;
 	int xorigin = 0, yorigin = 0;
 
-	if (!crtc || !plane->state->fb) {
-		position->enable = false;
-		position->x = 0;
-		position->y = 0;
+	position->enable = false;
+	position->x = 0;
+	position->y = 0;
+
+	if (!crtc || !plane->state->fb)
 		return 0;
-	}
 
 	if ((plane->state->crtc_w > amdgpu_crtc->max_cursor_width) ||
 	    (plane->state->crtc_h > amdgpu_crtc->max_cursor_height)) {
@@ -4963,6 +4979,10 @@ static int get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	x = plane->state->crtc_x;
 	y = plane->state->crtc_y;
+
+	if (x <= -amdgpu_crtc->max_cursor_width ||
+	    y <= -amdgpu_crtc->max_cursor_height)
+		return 0;
 
 	if (crtc->primary->state) {
 		/* avivo cursor are offset into the total surface */

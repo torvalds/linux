@@ -31,7 +31,7 @@
 
 struct clk_mgr {
 	struct dc_context *ctx;
-	const struct clk_mgr_funcs *funcs;
+	struct clk_mgr_funcs *funcs;
 
 	struct dc_clocks clks;
 };
@@ -44,6 +44,12 @@ struct clk_mgr_funcs {
 	int (*get_dp_ref_clk_frequency)(struct clk_mgr *clk_mgr);
 
 	void (*init_clocks)(struct clk_mgr *clk_mgr);
+
+	/* Returns actual clk that's set */
+	int (*set_dispclk)(struct clk_mgr *clk_mgr, int requested_dispclk_khz);
+	int (*set_dprefclk)(struct clk_mgr *clk_mgr);
 };
+
+
 
 #endif /* __DAL_CLK_MGR_H__ */

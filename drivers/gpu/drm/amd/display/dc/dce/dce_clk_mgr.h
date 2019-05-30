@@ -39,6 +39,11 @@
 #define CLK_COMMON_REG_LIST_DCN_BASE() \
 	SR(DENTIST_DISPCLK_CNTL)
 
+#define VBIOS_SMU_MSG_BOX_REG_LIST_RV() \
+	.MP1_SMN_C2PMSG_91 = mmMP1_SMN_C2PMSG_91, \
+	.MP1_SMN_C2PMSG_83 = mmMP1_SMN_C2PMSG_83, \
+	.MP1_SMN_C2PMSG_67 = mmMP1_SMN_C2PMSG_67
+
 #define CLK_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
@@ -50,23 +55,39 @@
 	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, mask_sh),\
 	CLK_SF(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_CHG_DONE, mask_sh)
 
+#define CLK_MASK_SH_LIST_RV1(mask_sh) \
+	CLK_COMMON_MASK_SH_LIST_DCN_COMMON_BASE(mask_sh),\
+	CLK_SF(MP1_SMN_C2PMSG_67, CONTENT, mask_sh),\
+	CLK_SF(MP1_SMN_C2PMSG_83, CONTENT, mask_sh),\
+	CLK_SF(MP1_SMN_C2PMSG_91, CONTENT, mask_sh),
+
+
 #define CLK_REG_FIELD_LIST(type) \
 	type DPREFCLK_SRC_SEL; \
 	type DENTIST_DPREFCLK_WDIVIDER; \
 	type DENTIST_DISPCLK_WDIVIDER; \
 	type DENTIST_DISPCLK_CHG_DONE;
 
+#define VBIOS_SMU_REG_FIELD_LIST(type) \
+	type CONTENT;
+
 struct clk_mgr_shift {
 	CLK_REG_FIELD_LIST(uint8_t)
+	VBIOS_SMU_REG_FIELD_LIST(uint32_t)
 };
 
 struct clk_mgr_mask {
 	CLK_REG_FIELD_LIST(uint32_t)
+	VBIOS_SMU_REG_FIELD_LIST(uint32_t)
 };
 
 struct clk_mgr_registers {
 	uint32_t DPREFCLK_CNTL;
 	uint32_t DENTIST_DISPCLK_CNTL;
+
+	uint32_t MP1_SMN_C2PMSG_67;
+	uint32_t MP1_SMN_C2PMSG_83;
+	uint32_t MP1_SMN_C2PMSG_91;
 };
 
 struct state_dependent_clocks {
@@ -168,6 +189,8 @@ void dce110_fill_display_configs(
 	struct dm_pp_display_configuration *pp_display_cfg);
 
 int dce112_set_clock(struct clk_mgr *dccg, int requested_clk_khz);
+int dce112_set_dispclk(struct clk_mgr *clk_mgr, int requested_clk_khz);
+int dce112_set_dprefclk(struct clk_mgr *clk_mgr);
 
 struct clk_mgr *dce_clk_mgr_create(
 	struct dc_context *ctx,
