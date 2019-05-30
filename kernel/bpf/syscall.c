@@ -188,19 +188,6 @@ void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr)
 	map->numa_node = bpf_map_attr_numa_node(attr);
 }
 
-int bpf_map_precharge_memlock(u32 pages)
-{
-	struct user_struct *user = get_current_user();
-	unsigned long memlock_limit, cur;
-
-	memlock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-	cur = atomic_long_read(&user->locked_vm);
-	free_uid(user);
-	if (cur + pages > memlock_limit)
-		return -EPERM;
-	return 0;
-}
-
 static int bpf_charge_memlock(struct user_struct *user, u32 pages)
 {
 	unsigned long memlock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
@@ -214,29 +201,40 @@ static int bpf_charge_memlock(struct user_struct *user, u32 pages)
 
 static void bpf_uncharge_memlock(struct user_struct *user, u32 pages)
 {
-	atomic_long_sub(pages, &user->locked_vm);
+	if (user)
+		atomic_long_sub(pages, &user->locked_vm);
 }
 
-static int bpf_map_init_memlock(struct bpf_map *map)
+int bpf_map_charge_init(struct bpf_map_memory *mem, u32 pages)
 {
 	struct user_struct *user = get_current_user();
 	int ret;
 
-	ret = bpf_charge_memlock(user, map->memory.pages);
+	ret = bpf_charge_memlock(user, pages);
 	if (ret) {
 		free_uid(user);
 		return ret;
 	}
-	map->memory.user = user;
-	return ret;
+
+	mem->pages = pages;
+	mem->user = user;
+
+	return 0;
 }
 
-static void bpf_map_release_memlock(struct bpf_map *map)
+void bpf_map_charge_finish(struct bpf_map_memory *mem)
 {
-	struct user_struct *user = map->memory.user;
+	bpf_uncharge_memlock(mem->user, mem->pages);
+	free_uid(mem->user);
+}
 
-	bpf_uncharge_memlock(user, map->memory.pages);
-	free_uid(user);
+void bpf_map_charge_move(struct bpf_map_memory *dst,
+			 struct bpf_map_memory *src)
+{
+	*dst = *src;
+
+	/* Make sure src will not be used for the redundant uncharging. */
+	memset(src, 0, sizeof(struct bpf_map_memory));
 }
 
 int bpf_map_charge_memlock(struct bpf_map *map, u32 pages)
@@ -304,11 +302,13 @@ void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock)
 static void bpf_map_free_deferred(struct work_struct *work)
 {
 	struct bpf_map *map = container_of(work, struct bpf_map, work);
+	struct bpf_map_memory mem;
 
-	bpf_map_release_memlock(map);
+	bpf_map_charge_move(&mem, &map->memory);
 	security_bpf_map_free(map);
 	/* implementation dependent freeing */
 	map->ops->map_free(map);
+	bpf_map_charge_finish(&mem);
 }
 
 static void bpf_map_put_uref(struct bpf_map *map)
@@ -550,6 +550,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 static int map_create(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
+	struct bpf_map_memory mem;
 	struct bpf_map *map;
 	int f_flags;
 	int err;
@@ -574,7 +575,7 @@ static int map_create(union bpf_attr *attr)
 
 	err = bpf_obj_name_cpy(map->name, attr->map_name);
 	if (err)
-		goto free_map_nouncharge;
+		goto free_map;
 
 	atomic_set(&map->refcnt, 1);
 	atomic_set(&map->usercnt, 1);
@@ -584,20 +585,20 @@ static int map_create(union bpf_attr *attr)
 
 		if (!attr->btf_value_type_id) {
 			err = -EINVAL;
-			goto free_map_nouncharge;
+			goto free_map;
 		}
 
 		btf = btf_get_by_fd(attr->btf_fd);
 		if (IS_ERR(btf)) {
 			err = PTR_ERR(btf);
-			goto free_map_nouncharge;
+			goto free_map;
 		}
 
 		err = map_check_btf(map, btf, attr->btf_key_type_id,
 				    attr->btf_value_type_id);
 		if (err) {
 			btf_put(btf);
-			goto free_map_nouncharge;
+			goto free_map;
 		}
 
 		map->btf = btf;
@@ -609,15 +610,11 @@ static int map_create(union bpf_attr *attr)
 
 	err = security_bpf_map_alloc(map);
 	if (err)
-		goto free_map_nouncharge;
-
-	err = bpf_map_init_memlock(map);
-	if (err)
-		goto free_map_sec;
+		goto free_map;
 
 	err = bpf_map_alloc_id(map);
 	if (err)
-		goto free_map;
+		goto free_map_sec;
 
 	err = bpf_map_new_fd(map, f_flags);
 	if (err < 0) {
@@ -633,13 +630,13 @@ static int map_create(union bpf_attr *attr)
 
 	return err;
 
-free_map:
-	bpf_map_release_memlock(map);
 free_map_sec:
 	security_bpf_map_free(map);
-free_map_nouncharge:
+free_map:
 	btf_put(map->btf);
+	bpf_map_charge_move(&mem, &map->memory);
 	map->ops->map_free(map);
+	bpf_map_charge_finish(&mem);
 	return err;
 }
 

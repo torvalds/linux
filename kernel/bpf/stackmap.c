@@ -89,6 +89,7 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 {
 	u32 value_size = attr->value_size;
 	struct bpf_stack_map *smap;
+	struct bpf_map_memory mem;
 	u64 cost, n_buckets;
 	int err;
 
@@ -118,38 +119,41 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	cost = n_buckets * sizeof(struct stack_map_bucket *) + sizeof(*smap);
 	if (cost >= U32_MAX - PAGE_SIZE)
 		return ERR_PTR(-E2BIG);
-
-	smap = bpf_map_area_alloc(cost, bpf_map_attr_numa_node(attr));
-	if (!smap)
-		return ERR_PTR(-ENOMEM);
-
-	err = -E2BIG;
 	cost += n_buckets * (value_size + sizeof(struct stack_map_bucket));
 	if (cost >= U32_MAX - PAGE_SIZE)
-		goto free_smap;
+		return ERR_PTR(-E2BIG);
+
+	err = bpf_map_charge_init(&mem,
+				  round_up(cost, PAGE_SIZE) >> PAGE_SHIFT);
+	if (err)
+		return ERR_PTR(err);
+
+	smap = bpf_map_area_alloc(cost, bpf_map_attr_numa_node(attr));
+	if (!smap) {
+		bpf_map_charge_finish(&mem);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	bpf_map_init_from_attr(&smap->map, attr);
 	smap->map.value_size = value_size;
 	smap->n_buckets = n_buckets;
-	smap->map.memory.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
-
-	err = bpf_map_precharge_memlock(smap->map.memory.pages);
-	if (err)
-		goto free_smap;
 
 	err = get_callchain_buffers(sysctl_perf_event_max_stack);
 	if (err)
-		goto free_smap;
+		goto free_charge;
 
 	err = prealloc_elems_and_freelist(smap);
 	if (err)
 		goto put_buffers;
 
+	bpf_map_charge_move(&smap->map.memory, &mem);
+
 	return &smap->map;
 
 put_buffers:
 	put_callchain_buffers();
-free_smap:
+free_charge:
+	bpf_map_charge_finish(&mem);
 	bpf_map_area_free(smap);
 	return ERR_PTR(err);
 }
