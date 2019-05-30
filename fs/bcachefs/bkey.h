@@ -41,10 +41,7 @@ struct bkey_s {
 
 #define bkey_next(_k)		vstruct_next(_k)
 
-static inline unsigned bkey_val_u64s(const struct bkey *k)
-{
-	return k->u64s - BKEY_U64s;
-}
+#define bkey_val_u64s(_k)	((_k)->u64s - BKEY_U64s)
 
 static inline size_t bkey_val_bytes(const struct bkey *k)
 {

@@ -1651,6 +1651,10 @@ static bool bch2_extent_merge_inline(struct bch_fs *c,
 
 	EBUG_ON(bkey_written(b, m));
 
+	if (bkey_val_u64s(l) > BKEY_EXTENT_VAL_U64s_MAX ||
+	    bkey_val_u64s(r) > BKEY_EXTENT_VAL_U64s_MAX)
+		return BCH_MERGE_NOMERGE;
+
 	/*
 	 * We need to save copies of both l and r, because we might get a
 	 * partial merge (which modifies both) and then fails to repack
