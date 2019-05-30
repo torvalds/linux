@@ -112,7 +112,7 @@ function create_package {
         sudo rm -rf ../linux-image-*.deb
  
         export CONCURRENCY_LEVEL=`expr $PROCESSORS + 1`
-        fakeroot make-kpkg --initrd --revision=1.2 kernel_image
+        make deb-pkg
 
         [ $? -ne 0 ] && do_exit 1 "Make-kpkg failed"
 }
