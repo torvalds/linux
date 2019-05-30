@@ -29,6 +29,7 @@
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
 #include "ta_ras_if.h"
+#include "amdgpu_ras_eeprom.h"
 
 enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__UMC = 0,
@@ -333,6 +334,8 @@ struct amdgpu_ras {
 	struct mutex recovery_lock;
 
 	uint32_t flags;
+
+	struct amdgpu_ras_eeprom_control eeprom_control;
 };
 
 struct ras_fs_data {
