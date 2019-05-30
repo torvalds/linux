@@ -108,12 +108,9 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 	/* make sure page count doesn't overflow */
 	cost = (u64) dtab->map.max_entries * sizeof(struct bpf_dtab_netdev *);
 	cost += dev_map_bitmap_size(attr) * num_possible_cpus();
-	if (cost >= U32_MAX - PAGE_SIZE)
-		goto free_dtab;
 
 	/* if map size is larger than memlock limit, reject it */
-	err = bpf_map_charge_init(&dtab->map.memory,
-				  round_up(cost, PAGE_SIZE) >> PAGE_SHIFT);
+	err = bpf_map_charge_init(&dtab->map.memory, cost);
 	if (err)
 		goto free_dtab;
 

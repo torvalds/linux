@@ -626,7 +626,6 @@ static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 	struct bpf_sk_storage_map *smap;
 	unsigned int i;
 	u32 nbuckets;
-	u32 pages;
 	u64 cost;
 	int ret;
 
@@ -638,9 +637,8 @@ static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 	smap->bucket_log = ilog2(roundup_pow_of_two(num_possible_cpus()));
 	nbuckets = 1U << smap->bucket_log;
 	cost = sizeof(*smap->buckets) * nbuckets + sizeof(*smap);
-	pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
 
-	ret = bpf_map_charge_init(&smap->map.memory, pages);
+	ret = bpf_map_charge_init(&smap->map.memory, cost);
 	if (ret < 0) {
 		kfree(smap);
 		return ERR_PTR(ret);

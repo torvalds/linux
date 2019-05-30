@@ -37,12 +37,9 @@ static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 
 	cost = (u64)m->map.max_entries * sizeof(struct xdp_sock *);
 	cost += sizeof(struct list_head) * num_possible_cpus();
-	if (cost >= U32_MAX - PAGE_SIZE)
-		goto free_m;
 
 	/* Notice returns -EPERM on if map size is larger than memlock limit */
-	err = bpf_map_charge_init(&m->map.memory,
-				  round_up(cost, PAGE_SIZE) >> PAGE_SHIFT);
+	err = bpf_map_charge_init(&m->map.memory, cost);
 	if (err)
 		goto free_m;
 

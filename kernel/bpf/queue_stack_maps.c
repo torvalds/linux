@@ -73,10 +73,6 @@ static struct bpf_map *queue_stack_map_alloc(union bpf_attr *attr)
 
 	size = (u64) attr->max_entries + 1;
 	cost = queue_size = sizeof(*qs) + size * attr->value_size;
-	if (cost >= U32_MAX - PAGE_SIZE)
-		return ERR_PTR(-E2BIG);
-
-	cost = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
 
 	ret = bpf_map_charge_init(&mem, cost);
 	if (ret < 0)

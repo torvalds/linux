@@ -117,14 +117,8 @@ static struct bpf_map *array_map_alloc(union bpf_attr *attr)
 
 	/* make sure there is no u32 overflow later in round_up() */
 	cost = array_size;
-	if (cost >= U32_MAX - PAGE_SIZE)
-		return ERR_PTR(-ENOMEM);
-	if (percpu) {
+	if (percpu)
 		cost += (u64)attr->max_entries * elem_size * num_possible_cpus();
-		if (cost >= U32_MAX - PAGE_SIZE)
-			return ERR_PTR(-ENOMEM);
-	}
-	cost = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
 
 	ret = bpf_map_charge_init(&mem, cost);
 	if (ret < 0)
