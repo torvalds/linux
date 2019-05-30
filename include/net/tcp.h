@@ -1614,7 +1614,8 @@ void tcp_free_fastopen_req(struct tcp_sock *tp);
 void tcp_fastopen_destroy_cipher(struct sock *sk);
 void tcp_fastopen_ctx_destroy(struct net *net);
 int tcp_fastopen_reset_cipher(struct net *net, struct sock *sk,
-			      void *key, unsigned int len);
+			      void *primary_key, void *backup_key,
+			      unsigned int len);
 void tcp_fastopen_add_skb(struct sock *sk, struct sk_buff *skb);
 struct sock *tcp_try_fastopen(struct sock *sk, struct sk_buff *skb,
 			      struct request_sock *req,
@@ -1625,11 +1626,14 @@ bool tcp_fastopen_cookie_check(struct sock *sk, u16 *mss,
 			     struct tcp_fastopen_cookie *cookie);
 bool tcp_fastopen_defer_connect(struct sock *sk, int *err);
 #define TCP_FASTOPEN_KEY_LENGTH 16
+#define TCP_FASTOPEN_KEY_MAX 2
+#define TCP_FASTOPEN_KEY_BUF_LENGTH \
+	(TCP_FASTOPEN_KEY_LENGTH * TCP_FASTOPEN_KEY_MAX)
 
 /* Fastopen key context */
 struct tcp_fastopen_context {
-	struct crypto_cipher	*tfm;
-	__u8			key[TCP_FASTOPEN_KEY_LENGTH];
+	struct crypto_cipher	*tfm[TCP_FASTOPEN_KEY_MAX];
+	__u8			key[TCP_FASTOPEN_KEY_BUF_LENGTH];
 	struct rcu_head		rcu;
 };
 
@@ -1638,6 +1642,37 @@ void tcp_fastopen_active_disable(struct sock *sk);
 bool tcp_fastopen_active_should_disable(struct sock *sk);
 void tcp_fastopen_active_disable_ofo_check(struct sock *sk);
 void tcp_fastopen_active_detect_blackhole(struct sock *sk, bool expired);
+
+/* Caller needs to wrap with rcu_read_(un)lock() */
+static inline
+struct tcp_fastopen_context *tcp_fastopen_get_ctx(const struct sock *sk)
+{
+	struct tcp_fastopen_context *ctx;
+
+	ctx = rcu_dereference(inet_csk(sk)->icsk_accept_queue.fastopenq.ctx);
+	if (!ctx)
+		ctx = rcu_dereference(sock_net(sk)->ipv4.tcp_fastopen_ctx);
+	return ctx;
+}
+
+static inline
+bool tcp_fastopen_cookie_match(const struct tcp_fastopen_cookie *foc,
+			       const struct tcp_fastopen_cookie *orig)
+{
+	if (orig->len == TCP_FASTOPEN_COOKIE_SIZE &&
+	    orig->len == foc->len &&
+	    !memcmp(orig->val, foc->val, foc->len))
+		return true;
+	return false;
+}
+
+static inline
+int tcp_fastopen_context_len(const struct tcp_fastopen_context *ctx)
+{
+	if (ctx->tfm[1])
+		return 2;
+	return 1;
+}
 
 /* Latencies incurred by various limits for a sender. They are
  * chronograph-like stats that are mutually exclusive.
