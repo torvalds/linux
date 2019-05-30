@@ -114,7 +114,7 @@ static struct sk_buff *stmmac_test_get_udp_skb(struct stmmac_priv *priv,
 	}
 
 	if (attr->vlan) {
-		u16 *tag, *proto;
+		__be16 *tag, *proto;
 
 		if (!attr->remove_sa) {
 			tag = (void *)ehdr + ETH_HLEN;
@@ -617,7 +617,7 @@ static int stmmac_test_flowctrl_validate(struct sk_buff *skb,
 	tpriv->ok = true;
 	complete(&tpriv->comp);
 out:
-	kfree(skb);
+	kfree_skb(skb);
 	return 0;
 }
 
