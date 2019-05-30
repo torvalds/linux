@@ -1740,8 +1740,11 @@ static void dcn20_reset_back_end_for_pipe(
 		else if (pipe_ctx->stream_res.audio) {
 			dc->hwss.disable_audio_stream(pipe_ctx, FREE_ACQUIRED_RESOURCE);
 		}
-
 	}
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	else if (pipe_ctx->stream_res.dsc)
+		dp_set_dsc_enable(pipe_ctx, false);
+#endif
 
 	/* by upper caller loop, parent pipe: pipe0, will be reset last.
 	 * back end share by all pipes and will be disable only when disable
