@@ -742,6 +742,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 cleanup_gem:
 	i915_gem_suspend(dev_priv);
+	i915_gem_fini_hw(dev_priv);
 	i915_gem_fini(dev_priv);
 cleanup_modeset:
 	intel_modeset_cleanup(dev);
@@ -1690,7 +1691,6 @@ static void i915_driver_cleanup_hw(struct drm_i915_private *dev_priv)
 		pci_disable_msi(pdev);
 
 	pm_qos_remove_request(&dev_priv->pm_qos);
-	i915_ggtt_cleanup_hw(dev_priv);
 }
 
 /**
@@ -1914,6 +1914,7 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 out_cleanup_hw:
 	i915_driver_cleanup_hw(dev_priv);
+	i915_ggtt_cleanup_hw(dev_priv);
 out_cleanup_mmio:
 	i915_driver_cleanup_mmio(dev_priv);
 out_runtime_pm_put:
@@ -1965,20 +1966,28 @@ void i915_driver_unload(struct drm_device *dev)
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	i915_reset_error_state(dev_priv);
 
-	i915_gem_fini(dev_priv);
+	i915_gem_fini_hw(dev_priv);
 
 	intel_power_domains_fini_hw(dev_priv);
 
 	i915_driver_cleanup_hw(dev_priv);
-	i915_driver_cleanup_mmio(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
-	intel_runtime_pm_cleanup(dev_priv);
 }
 
 static void i915_driver_release(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	disable_rpm_wakeref_asserts(dev_priv);
+
+	i915_gem_fini(dev_priv);
+
+	i915_ggtt_cleanup_hw(dev_priv);
+	i915_driver_cleanup_mmio(dev_priv);
+
+	enable_rpm_wakeref_asserts(dev_priv);
+	intel_runtime_pm_cleanup(dev_priv);
 
 	i915_driver_cleanup_early(dev_priv);
 	i915_driver_destroy(dev_priv);

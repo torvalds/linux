@@ -1664,7 +1664,7 @@ err_uc_misc:
 	return ret;
 }
 
-void i915_gem_fini(struct drm_i915_private *dev_priv)
+void i915_gem_fini_hw(struct drm_i915_private *dev_priv)
 {
 	GEM_BUG_ON(dev_priv->gt.awake);
 
@@ -1679,6 +1679,14 @@ void i915_gem_fini(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uc_fini_hw(dev_priv);
 	intel_uc_fini(dev_priv);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+	i915_gem_drain_freed_objects(dev_priv);
+}
+
+void i915_gem_fini(struct drm_i915_private *dev_priv)
+{
+	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_engines_cleanup(dev_priv);
 	i915_gem_contexts_fini(dev_priv);
 	i915_gem_fini_scratch(dev_priv);
