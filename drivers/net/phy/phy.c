@@ -799,10 +799,10 @@ static int phy_enable_interrupts(struct phy_device *phydev)
 }
 
 /**
- * phy_request_interrupt - request interrupt for a PHY device
+ * phy_request_interrupt - request and enable interrupt for a PHY device
  * @phydev: target phy_device struct
  *
- * Description: Request the interrupt for the given PHY.
+ * Description: Request and enable the interrupt for the given PHY.
  *   If this fails, then we set irq to PHY_POLL.
  *   This should only be called with a valid IRQ number.
  */
@@ -817,9 +817,29 @@ void phy_request_interrupt(struct phy_device *phydev)
 		phydev_warn(phydev, "Error %d requesting IRQ %d, falling back to polling\n",
 			    err, phydev->irq);
 		phydev->irq = PHY_POLL;
+	} else {
+		if (phy_enable_interrupts(phydev)) {
+			phydev_warn(phydev, "Can't enable interrupt, falling back to polling\n");
+			phy_free_interrupt(phydev);
+			phydev->irq = PHY_POLL;
+		}
 	}
 }
 EXPORT_SYMBOL(phy_request_interrupt);
+
+/**
+ * phy_free_interrupt - disable and free interrupt for a PHY device
+ * @phydev: target phy_device struct
+ *
+ * Description: Disable and free the interrupt for the given PHY.
+ *   This should only be called with a valid IRQ number.
+ */
+void phy_free_interrupt(struct phy_device *phydev)
+{
+	phy_disable_interrupts(phydev);
+	free_irq(phydev->irq, phydev);
+}
+EXPORT_SYMBOL(phy_free_interrupt);
 
 /**
  * phy_stop - Bring down the PHY link, and stop checking the status
@@ -834,9 +854,6 @@ void phy_stop(struct phy_device *phydev)
 	}
 
 	mutex_lock(&phydev->lock);
-
-	if (phy_interrupt_is_valid(phydev))
-		phy_disable_interrupts(phydev);
 
 	phydev->state = PHY_HALTED;
 
@@ -864,8 +881,6 @@ EXPORT_SYMBOL(phy_stop);
  */
 void phy_start(struct phy_device *phydev)
 {
-	int err;
-
 	mutex_lock(&phydev->lock);
 
 	if (phydev->state != PHY_READY && phydev->state != PHY_HALTED) {
@@ -876,13 +891,6 @@ void phy_start(struct phy_device *phydev)
 
 	/* if phy was suspended, bring the physical link up again */
 	__phy_resume(phydev);
-
-	/* make sure interrupts are enabled for the PHY */
-	if (phy_interrupt_is_valid(phydev)) {
-		err = phy_enable_interrupts(phydev);
-		if (err < 0)
-			goto out;
-	}
 
 	phydev->state = PHY_UP;
 

@@ -1016,7 +1016,7 @@ void phy_disconnect(struct phy_device *phydev)
 		phy_stop(phydev);
 
 	if (phy_interrupt_is_valid(phydev))
-		free_irq(phydev->irq, phydev);
+		phy_free_interrupt(phydev);
 
 	phydev->adjust_link = NULL;
 
