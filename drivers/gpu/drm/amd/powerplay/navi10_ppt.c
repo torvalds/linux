@@ -111,6 +111,51 @@ static int navi10_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(PHYCLK, PPCLK_PHYCLK),
 };
 
+static int navi10_feature_mask_map[SMU_FEATURE_COUNT] = {
+	FEA_MAP(DPM_PREFETCHER),
+	FEA_MAP(DPM_GFXCLK),
+	FEA_MAP(DPM_GFX_PACE),
+	FEA_MAP(DPM_UCLK),
+	FEA_MAP(DPM_SOCCLK),
+	FEA_MAP(DPM_MP0CLK),
+	FEA_MAP(DPM_LINK),
+	FEA_MAP(DPM_DCEFCLK),
+	FEA_MAP(MEM_VDDCI_SCALING),
+	FEA_MAP(MEM_MVDD_SCALING),
+	FEA_MAP(DS_GFXCLK),
+	FEA_MAP(DS_SOCCLK),
+	FEA_MAP(DS_LCLK),
+	FEA_MAP(DS_DCEFCLK),
+	FEA_MAP(DS_UCLK),
+	FEA_MAP(GFX_ULV),
+	FEA_MAP(FW_DSTATE),
+	FEA_MAP(GFXOFF),
+	FEA_MAP(BACO),
+	FEA_MAP(VCN_PG),
+	FEA_MAP(JPEG_PG),
+	FEA_MAP(USB_PG),
+	FEA_MAP(RSMU_SMN_CG),
+	FEA_MAP(PPT),
+	FEA_MAP(TDC),
+	FEA_MAP(GFX_EDC),
+	FEA_MAP(APCC_PLUS),
+	FEA_MAP(GTHR),
+	FEA_MAP(ACDC),
+	FEA_MAP(VR0HOT),
+	FEA_MAP(VR1HOT),
+	FEA_MAP(FW_CTF),
+	FEA_MAP(FAN_CONTROL),
+	FEA_MAP(THERMAL),
+	FEA_MAP(GFX_DCS),
+	FEA_MAP(RM),
+	FEA_MAP(LED_DISPLAY),
+	FEA_MAP(GFX_SS),
+	FEA_MAP(OUT_OF_BAND_MONITOR),
+	FEA_MAP(TEMP_DEPENDENT_VMIN),
+	FEA_MAP(MMHUB_PG),
+	FEA_MAP(ATHUB_PG),
+};
+
 static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
@@ -132,6 +177,19 @@ static int navi10_get_smu_clk_index(struct smu_context *smc, uint32_t index)
 
 	val = navi10_clk_map[index];
 	if (val >= PPCLK_COUNT)
+		return -EINVAL;
+
+	return val;
+}
+
+static int navi10_get_smu_feature_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_FEATURE_COUNT)
+		return -EINVAL;
+
+	val = navi10_feature_mask_map[index];
+	if (val > 64)
 		return -EINVAL;
 
 	return val;
@@ -163,8 +221,8 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_FAN_CONTROL_BIT)
 				| FEATURE_MASK(FEATURE_THERMAL_BIT)
 				| FEATURE_MASK(FEATURE_LED_DISPLAY_BIT)
-				| FEATURE_MASK(FEATURE_MMHUB_PG)
-				| FEATURE_MASK(FEATURE_ATHUB_PG)
+				| FEATURE_MASK(FEATURE_MMHUB_PG_BIT)
+				| FEATURE_MASK(FEATURE_ATHUB_PG_BIT)
 				| FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT);
 
 	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
@@ -353,6 +411,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.append_powerplay_table = navi10_append_powerplay_table,
 	.get_smu_msg_index = navi10_get_smu_msg_index,
 	.get_smu_clk_index = navi10_get_smu_clk_index,
+	.get_smu_feature_index = navi10_get_smu_feature_index,
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
 };

@@ -153,6 +153,55 @@ static int vega20_clk_map[SMU_CLK_COUNT] = {
 	CLK_MAP(FCLK, PPCLK_FCLK),
 };
 
+static int vega20_feature_mask_map[SMU_FEATURE_COUNT] = {
+	FEA_MAP(DPM_PREFETCHER),
+	FEA_MAP(DPM_GFXCLK),
+	FEA_MAP(DPM_UCLK),
+	FEA_MAP(DPM_SOCCLK),
+	FEA_MAP(DPM_UVD),
+	FEA_MAP(DPM_VCE),
+	FEA_MAP(ULV),
+	FEA_MAP(DPM_MP0CLK),
+	FEA_MAP(DPM_LINK),
+	FEA_MAP(DPM_DCEFCLK),
+	FEA_MAP(DS_GFXCLK),
+	FEA_MAP(DS_SOCCLK),
+	FEA_MAP(DS_LCLK),
+	FEA_MAP(PPT),
+	FEA_MAP(TDC),
+	FEA_MAP(THERMAL),
+	FEA_MAP(GFX_PER_CU_CG),
+	FEA_MAP(RM),
+	FEA_MAP(DS_DCEFCLK),
+	FEA_MAP(ACDC),
+	FEA_MAP(VR0HOT),
+	FEA_MAP(VR1HOT),
+	FEA_MAP(FW_CTF),
+	FEA_MAP(LED_DISPLAY),
+	FEA_MAP(FAN_CONTROL),
+	FEA_MAP(GFX_EDC),
+	FEA_MAP(GFXOFF),
+	FEA_MAP(CG),
+	FEA_MAP(DPM_FCLK),
+	FEA_MAP(DS_FCLK),
+	FEA_MAP(DS_MP1CLK),
+	FEA_MAP(DS_MP0CLK),
+	FEA_MAP(XGMI),
+};
+
+static int vega20_get_smu_feature_index(struct smu_context *smc, uint32_t index)
+{
+	int val;
+	if (index >= SMU_FEATURE_COUNT)
+		return -EINVAL;
+
+	val = vega20_feature_mask_map[index];
+	if (val > 64)
+		return -EINVAL;
+
+	return val;
+}
+
 static int vega20_get_smu_clk_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
@@ -565,7 +614,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* socclk */
 	single_dpm_table = &(dpm_table->soc_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_SOCCLK);
 		if (ret) {
@@ -581,7 +630,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* gfxclk */
 	single_dpm_table = &(dpm_table->gfx_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_GFXCLK);
 		if (ret) {
@@ -597,7 +646,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* memclk */
 	single_dpm_table = &(dpm_table->mem_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_UCLK);
 		if (ret) {
@@ -613,7 +662,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* eclk */
 	single_dpm_table = &(dpm_table->eclk_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_VCE_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_ECLK);
 		if (ret) {
 			pr_err("[SetupDefaultDpmTable] failed to get eclk dpm levels!");
@@ -628,7 +677,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* vclk */
 	single_dpm_table = &(dpm_table->vclk_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_VCLK);
 		if (ret) {
 			pr_err("[SetupDefaultDpmTable] failed to get vclk dpm levels!");
@@ -643,7 +692,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* dclk */
 	single_dpm_table = &(dpm_table->dclk_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table, PPCLK_DCLK);
 		if (ret) {
 			pr_err("[SetupDefaultDpmTable] failed to get dclk dpm levels!");
@@ -658,7 +707,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* dcefclk */
 	single_dpm_table = &(dpm_table->dcef_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_DCEFCLK);
 		if (ret) {
@@ -674,7 +723,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* pixclk */
 	single_dpm_table = &(dpm_table->pixel_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_PIXCLK);
 		if (ret) {
@@ -689,7 +738,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* dispclk */
 	single_dpm_table = &(dpm_table->display_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_DISPCLK);
 		if (ret) {
@@ -704,7 +753,7 @@ static int vega20_set_default_dpm_table(struct smu_context *smu)
 	/* phyclk */
 	single_dpm_table = &(dpm_table->phy_table);
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_PHYCLK);
 		if (ret) {
@@ -1034,7 +1083,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 
 	dpm_table = smu->smu_dpm.dpm_context;
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT) &&
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_GFXCLK_MASK)) {
 		single_dpm_table = &(dpm_table->gfx_table);
 		freq = max ? single_dpm_table->dpm_state.soft_max_level :
@@ -1049,7 +1098,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT) &&
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_UCLK_MASK)) {
 		single_dpm_table = &(dpm_table->mem_table);
 		freq = max ? single_dpm_table->dpm_state.soft_max_level :
@@ -1064,7 +1113,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT) &&
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_SOCCLK_MASK)) {
 		single_dpm_table = &(dpm_table->soc_table);
 		freq = max ? single_dpm_table->dpm_state.soft_max_level :
@@ -1079,7 +1128,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_FCLK_BIT) &&
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_FCLK_MASK)) {
 		single_dpm_table = &(dpm_table->fclk_table);
 		freq = max ? single_dpm_table->dpm_state.soft_max_level :
@@ -1094,7 +1143,7 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT) &&
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
 	    (feature_mask & FEATURE_DPM_DCEFCLK_MASK)) {
 		single_dpm_table = &(dpm_table->dcef_table);
 		freq = single_dpm_table->dpm_state.hard_min_level;
@@ -1360,7 +1409,7 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 
 	od8_settings = (struct vega20_od8_settings *)table_context->od8_settings;
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_LIMITS] &&
 		    table_context->od_settings_max[OD8_SETTING_GFXCLK_FMAX] > 0 &&
 		    table_context->od_settings_min[OD8_SETTING_GFXCLK_FMIN] > 0 &&
@@ -1433,7 +1482,7 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_UCLK_MAX] &&
 		    table_context->od_settings_min[OD8_SETTING_UCLK_FMAX] > 0 &&
 		    table_context->od_settings_max[OD8_SETTING_UCLK_FMAX] > 0 &&
@@ -1457,7 +1506,7 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 			od_table->OverDrivePct;
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_FAN_CONTROL_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_FAN_CONTROL_BIT)) {
 		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_ACOUSTIC_LIMIT] &&
 		    table_context->od_settings_min[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
 		    table_context->od_settings_max[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
@@ -1481,7 +1530,7 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_THERMAL_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_THERMAL_BIT)) {
 		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_TEMPERATURE_FAN] &&
 		    table_context->od_settings_min[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
 		    table_context->od_settings_max[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
@@ -1838,7 +1887,7 @@ vega20_set_uclk_to_highest_dpm_level(struct smu_context *smu,
 	if (!smu_dpm_ctx->dpm_context)
 		return -EINVAL;
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		if (dpm_table->count <= 0) {
 			pr_err("[%s] Dpm table has no entry!", __func__);
 				return -EINVAL;
@@ -1901,8 +1950,8 @@ static int vega20_display_config_changed(struct smu_context *smu)
 	}
 
 	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&
-	    smu_feature_is_supported(smu, FEATURE_DPM_DCEFCLK_BIT) &&
-	    smu_feature_is_supported(smu, FEATURE_DPM_SOCCLK_BIT)) {
+	    smu_feature_is_supported(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) &&
+	    smu_feature_is_supported(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		smu_send_smc_msg_with_param(smu,
 					    SMU_MSG_NumOfDisplays,
 					    smu->display_config->num_display);
@@ -2071,11 +2120,11 @@ vega20_notify_smc_dispaly_config(struct smu_context *smu)
 	min_clocks.dcef_clock_in_sr = smu->display_config->min_dcef_deep_sleep_set_clk;
 	min_clocks.memory_clock = smu->display_config->min_mem_set_clock;
 
-	if (smu_feature_is_supported(smu, FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_feature_is_supported(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		clock_req.clock_type = amd_pp_dcef_clock;
 		clock_req.clock_freq_in_khz = min_clocks.dcef_clock * 10;
 		if (!smu->funcs->display_clock_voltage_request(smu, &clock_req)) {
-			if (smu_feature_is_supported(smu, FEATURE_DS_DCEFCLK_BIT)) {
+			if (smu_feature_is_supported(smu, SMU_FEATURE_DS_DCEFCLK_BIT)) {
 				ret = smu_send_smc_msg_with_param(smu,
 								  SMU_MSG_SetMinDeepSleepDcefclk,
 								  min_clocks.dcef_clock_in_sr/100);
@@ -2089,7 +2138,7 @@ vega20_notify_smc_dispaly_config(struct smu_context *smu)
 		}
 	}
 
-	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		memtable->dpm_state.hard_min_level = min_clocks.memory_clock/100;
 		ret = smu_send_smc_msg_with_param(smu,
 						  SMU_MSG_SetHardMinByFreq,
@@ -2382,14 +2431,14 @@ static int vega20_set_od_percentage(struct smu_context *smu,
 	case OD_SCLK:
 		single_dpm_table = &(dpm_table->gfx_table);
 		golden_dpm_table = &(golden_table->gfx_table);
-		feature_enabled = smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT);
+		feature_enabled = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT);
 		clk_id = PPCLK_GFXCLK;
 		index = OD8_SETTING_GFXCLK_FMAX;
 		break;
 	case OD_MCLK:
 		single_dpm_table = &(dpm_table->mem_table);
 		golden_dpm_table = &(golden_table->mem_table);
-		feature_enabled = smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT);
+		feature_enabled = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT);
 		clk_id = PPCLK_UCLK;
 		index = OD8_SETTING_UCLK_FMAX;
 		break;
@@ -2633,7 +2682,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 			table_context->od_gfxclk_update = false;
 			single_dpm_table = &(dpm_table->gfx_table);
 
-			if (smu_feature_is_enabled(smu, FEATURE_DPM_GFXCLK_BIT)) {
+			if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 				ret = vega20_set_single_dpm_table(smu, single_dpm_table,
 								  PPCLK_GFXCLK);
 				if (ret) {
@@ -2664,24 +2713,24 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 
 static int vega20_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 {
-	if (!smu_feature_is_supported(smu, FEATURE_DPM_UVD_BIT))
+	if (!smu_feature_is_supported(smu, SMU_FEATURE_DPM_UVD_BIT))
 		return 0;
 
-	if (enable == smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT))
+	if (enable == smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT))
 		return 0;
 
-	return smu_feature_set_enabled(smu, FEATURE_DPM_UVD_BIT, enable);
+	return smu_feature_set_enabled(smu, SMU_FEATURE_DPM_UVD_BIT, enable);
 }
 
 static int vega20_dpm_set_vce_enable(struct smu_context *smu, bool enable)
 {
-	if (!smu_feature_is_supported(smu, FEATURE_DPM_VCE_BIT))
+	if (!smu_feature_is_supported(smu, SMU_FEATURE_DPM_VCE_BIT))
 		return 0;
 
-	if (enable == smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT))
+	if (enable == smu_feature_is_enabled(smu, SMU_FEATURE_DPM_VCE_BIT))
 		return 0;
 
-	return smu_feature_set_enabled(smu, FEATURE_DPM_VCE_BIT, enable);
+	return smu_feature_set_enabled(smu, SMU_FEATURE_DPM_VCE_BIT, enable);
 }
 
 static int vega20_get_enabled_smc_features(struct smu_context *smu,
@@ -2843,11 +2892,11 @@ static int vega20_read_sensor(struct smu_context *smu,
 
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_UVD_POWER:
-		*(uint32_t *)data = smu_feature_is_enabled(smu, FEATURE_DPM_UVD_BIT) ? 1 : 0;
+		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT) ? 1 : 0;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_VCE_POWER:
-		*(uint32_t *)data = smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT) ? 1 : 0;
+		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_VCE_BIT) ? 1 : 0;
 		*size = 4;
 		break;
 	default:
@@ -2875,6 +2924,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.append_powerplay_table = vega20_append_powerplay_table,
 	.get_smu_msg_index = vega20_get_smu_msg_index,
 	.get_smu_clk_index = vega20_get_smu_clk_index,
+	.get_smu_feature_index = vega20_get_smu_feature_index,
 	.run_afll_btc = vega20_run_btc_afll,
 	.get_allowed_feature_mask = vega20_get_allowed_feature_mask,
 	.get_current_power_state = vega20_get_current_power_state,

@@ -243,6 +243,63 @@ enum smu_clk_type
 	SMU_CLK_COUNT,
 };
 
+enum smu_feature_mask
+{
+	SMU_FEATURE_DPM_PREFETCHER_BIT,
+	SMU_FEATURE_DPM_GFXCLK_BIT,
+	SMU_FEATURE_DPM_UCLK_BIT,
+	SMU_FEATURE_DPM_SOCCLK_BIT,
+	SMU_FEATURE_DPM_UVD_BIT,
+	SMU_FEATURE_DPM_VCE_BIT,
+	SMU_FEATURE_ULV_BIT,
+	SMU_FEATURE_DPM_MP0CLK_BIT,
+	SMU_FEATURE_DPM_LINK_BIT,
+	SMU_FEATURE_DPM_DCEFCLK_BIT,
+	SMU_FEATURE_DS_GFXCLK_BIT,
+	SMU_FEATURE_DS_SOCCLK_BIT,
+	SMU_FEATURE_DS_LCLK_BIT,
+	SMU_FEATURE_PPT_BIT,
+	SMU_FEATURE_TDC_BIT,
+	SMU_FEATURE_THERMAL_BIT,
+	SMU_FEATURE_GFX_PER_CU_CG_BIT,
+	SMU_FEATURE_RM_BIT,
+	SMU_FEATURE_DS_DCEFCLK_BIT,
+	SMU_FEATURE_ACDC_BIT,
+	SMU_FEATURE_VR0HOT_BIT,
+	SMU_FEATURE_VR1HOT_BIT,
+	SMU_FEATURE_FW_CTF_BIT,
+	SMU_FEATURE_LED_DISPLAY_BIT,
+	SMU_FEATURE_FAN_CONTROL_BIT,
+	SMU_FEATURE_GFX_EDC_BIT,
+	SMU_FEATURE_GFXOFF_BIT,
+	SMU_FEATURE_CG_BIT,
+	SMU_FEATURE_DPM_FCLK_BIT,
+	SMU_FEATURE_DS_FCLK_BIT,
+	SMU_FEATURE_DS_MP1CLK_BIT,
+	SMU_FEATURE_DS_MP0CLK_BIT,
+	SMU_FEATURE_XGMI_BIT,
+	SMU_FEATURE_DPM_GFX_PACE_BIT,
+	SMU_FEATURE_MEM_VDDCI_SCALING_BIT,
+	SMU_FEATURE_MEM_MVDD_SCALING_BIT,
+	SMU_FEATURE_DS_UCLK_BIT,
+	SMU_FEATURE_GFX_ULV_BIT,
+	SMU_FEATURE_FW_DSTATE_BIT,
+	SMU_FEATURE_BACO_BIT,
+	SMU_FEATURE_VCN_PG_BIT,
+	SMU_FEATURE_JPEG_PG_BIT,
+	SMU_FEATURE_USB_PG_BIT,
+	SMU_FEATURE_RSMU_SMN_CG_BIT,
+	SMU_FEATURE_APCC_PLUS_BIT,
+	SMU_FEATURE_GTHR_BIT,
+	SMU_FEATURE_GFX_DCS_BIT,
+	SMU_FEATURE_GFX_SS_BIT,
+	SMU_FEATURE_OUT_OF_BAND_MONITOR_BIT,
+	SMU_FEATURE_TEMP_DEPENDENT_VMIN_BIT,
+	SMU_FEATURE_MMHUB_PG_BIT,
+	SMU_FEATURE_ATHUB_PG_BIT,
+	SMU_FEATURE_COUNT,
+};
+
 enum smu_memory_pool_size
 {
     SMU_MEMORY_POOL_SIZE_ZERO   = 0,
@@ -437,6 +494,7 @@ struct pptable_funcs {
 	int (*append_powerplay_table)(struct smu_context *smu);
 	int (*get_smu_msg_index)(struct smu_context *smu, uint32_t index);
 	int (*get_smu_clk_index)(struct smu_context *smu, uint32_t index);
+	int (*get_smu_feature_index)(struct smu_context *smu, uint32_t index);
 	int (*run_afll_btc)(struct smu_context *smu);
 	int (*get_allowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	enum amd_pm_state_type (*get_current_power_state)(struct smu_context *smu);
@@ -723,6 +781,8 @@ struct smu_funcs
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)
 #define smu_clk_get_index(smu, msg) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_clk_index? (smu)->ppt_funcs->get_smu_clk_index((smu), (msg)) : -EINVAL) : -EINVAL)
+#define smu_feature_get_index(smu, msg) \
+	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_feature_index? (smu)->ppt_funcs->get_smu_feature_index((smu), (msg)) : -EINVAL) : -EINVAL)
 #define smu_run_afll_btc(smu) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->run_afll_btc? (smu)->ppt_funcs->run_afll_btc((smu)) : 0) : 0)
 #define smu_get_allowed_feature_mask(smu, feature_mask, num) \
@@ -779,10 +839,14 @@ extern const struct amd_ip_funcs smu_ip_funcs;
 extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
 extern int smu_feature_init_dpm(struct smu_context *smu);
 
-extern int smu_feature_is_enabled(struct smu_context *smu, int feature_id);
-extern int smu_feature_set_enabled(struct smu_context *smu, int feature_id, bool enable);
-extern int smu_feature_is_supported(struct smu_context *smu, int feature_id);
-extern int smu_feature_set_supported(struct smu_context *smu, int feature_id, bool enable);
+extern int smu_feature_is_enabled(struct smu_context *smu,
+				  enum smu_feature_mask mask);
+extern int smu_feature_set_enabled(struct smu_context *smu,
+				   enum smu_feature_mask mask, bool enable);
+extern int smu_feature_is_supported(struct smu_context *smu,
+				    enum smu_feature_mask mask);
+extern int smu_feature_set_supported(struct smu_context *smu,
+				     enum smu_feature_mask mask, bool enable);
 
 int smu_update_table_with_arg(struct smu_context *smu, uint16_t table_id, uint16_t exarg,
 		     void *table_data, bool drv2smu);

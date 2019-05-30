@@ -43,6 +43,9 @@
 #define CLK_MAP(clk, index) \
 	[SMU_##clk] = index
 
+#define FEA_MAP(fea) \
+	[SMU_FEATURE_##fea##_BIT] = FEATURE_##fea##_BIT
+
 struct smu_11_0_max_sustainable_clocks {
 	uint32_t display_clock;
 	uint32_t phy_clock;

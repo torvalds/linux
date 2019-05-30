@@ -90,8 +90,8 @@
 #define FEATURE_OUT_OF_BAND_MONITOR_BIT 38
 #define FEATURE_TEMP_DEPENDENT_VMIN_BIT 39
 
-#define FEATURE_MMHUB_PG                40 
-#define FEATURE_ATHUB_PG                41
+#define FEATURE_MMHUB_PG_BIT            40
+#define FEATURE_ATHUB_PG_BIT            41
 #define FEATURE_SPARE_42_BIT            42
 #define FEATURE_SPARE_43_BIT            43
 #define FEATURE_SPARE_44_BIT            44
