@@ -772,8 +772,13 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 	if (phydev->drv->did_interrupt && !phydev->drv->did_interrupt(phydev))
 		return IRQ_NONE;
 
-	/* reschedule state queue work to run as soon as possible */
-	phy_trigger_machine(phydev);
+	if (phydev->drv->handle_interrupt) {
+		if (phydev->drv->handle_interrupt(phydev))
+			goto phy_err;
+	} else {
+		/* reschedule state queue work to run as soon as possible */
+		phy_trigger_machine(phydev);
+	}
 
 	if (phy_clear_interrupt(phydev))
 		goto phy_err;
