@@ -2343,15 +2343,10 @@ static void *get_srq_wqe(struct hns_roce_srq *srq, int n)
 
 static void hns_roce_free_srq_wqe(struct hns_roce_srq *srq, int wqe_index)
 {
-	u32 bitmap_num;
-	int bit_num;
-
 	/* always called with interrupts disabled. */
 	spin_lock(&srq->lock);
 
-	bitmap_num = wqe_index / (sizeof(u64) * 8);
-	bit_num = wqe_index % (sizeof(u64) * 8);
-	srq->idx_que.bitmap[bitmap_num] |= (1ULL << bit_num);
+	bitmap_clear(srq->idx_que.bitmap, wqe_index, 1);
 	srq->tail++;
 
 	spin_unlock(&srq->lock);
@@ -5976,18 +5971,19 @@ out:
 	return ret;
 }
 
-static int find_empty_entry(struct hns_roce_idx_que *idx_que)
+static int find_empty_entry(struct hns_roce_idx_que *idx_que,
+			    unsigned long size)
 {
-	int bit_num;
-	int i;
+	int wqe_idx;
 
-	/* bitmap[i] is set zero if all bits are allocated */
-	for (i = 0; idx_que->bitmap[i] == 0; ++i)
-		;
-	bit_num = ffs(idx_que->bitmap[i]);
-	idx_que->bitmap[i] &= ~(1ULL << (bit_num - 1));
+	if (unlikely(bitmap_full(idx_que->bitmap, size)))
+		return -ENOSPC;
 
-	return i * BITS_PER_LONG_LONG + (bit_num - 1);
+	wqe_idx = find_first_zero_bit(idx_que->bitmap, size);
+
+	bitmap_set(idx_que->bitmap, wqe_idx, 1);
+
+	return wqe_idx;
 }
 
 static void fill_idx_queue(struct hns_roce_idx_que *idx_que,
@@ -6033,7 +6029,13 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 			break;
 		}
 
-		wqe_idx = find_empty_entry(&srq->idx_que);
+		wqe_idx = find_empty_entry(&srq->idx_que, srq->max);
+		if (wqe_idx < 0) {
+			ret = -ENOMEM;
+			*bad_wr = wr;
+			break;
+		}
+
 		fill_idx_queue(&srq->idx_que, ind, wqe_idx);
 		wqe = get_srq_wqe(srq, wqe_idx);
 		dseg = (struct hns_roce_v2_wqe_data_seg *)wqe;
