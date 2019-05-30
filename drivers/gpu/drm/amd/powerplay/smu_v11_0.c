@@ -1275,7 +1275,8 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 
 	if (!smu->pm_enabled)
 		return -EINVAL;
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) ||
+	    smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		switch (clk_type) {
 		case amd_pp_dcef_clock:
 			clk_select = SMU_DCEFCLK;
@@ -1289,6 +1290,9 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 		case amd_pp_phy_clock:
 			clk_select = SMU_PHYCLK;
 			break;
+		case amd_pp_mem_clock:
+			clk_select = SMU_UCLK;
+			break;
 		default:
 			pr_info("[%s] Invalid Clock Type!", __func__);
 			ret = -EINVAL;
@@ -1298,8 +1302,10 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 		if (ret)
 			goto failed;
 
+		mutex_lock(&smu->mutex);
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinByFreq,
 			(smu_clk_get_index(smu, clk_select) << 16) | clk_freq);
+		mutex_unlock(&smu->mutex);
 	}
 
 failed:
