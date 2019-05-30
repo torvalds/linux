@@ -786,7 +786,6 @@ static void goya_init_dma_ch(struct hl_device *hdev, int dma_id)
 	else
 		sob_addr = CFG_BASE + mmSYNC_MNGR_SOB_OBJ_1007;
 
-	WREG32(mmDMA_CH_0_WR_COMP_ADDR_LO + reg_off, lower_32_bits(sob_addr));
 	WREG32(mmDMA_CH_0_WR_COMP_ADDR_HI + reg_off, upper_32_bits(sob_addr));
 	WREG32(mmDMA_CH_0_WR_COMP_WDATA + reg_off, 0x80000001);
 }
@@ -4560,10 +4559,12 @@ release_cb:
 int goya_context_switch(struct hl_device *hdev, u32 asid)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u64 addr = prop->sram_base_address;
+	u64 addr = prop->sram_base_address, sob_addr;
 	u32 size = hdev->pldm ? 0x10000 : prop->sram_size;
 	u64 val = 0x7777777777777777ull;
-	int rc;
+	int rc, dma_id;
+	u32 channel_off = mmDMA_CH_1_WR_COMP_ADDR_LO -
+					mmDMA_CH_0_WR_COMP_ADDR_LO;
 
 	rc = goya_memset_device_memory(hdev, addr, size, val, false);
 	if (rc) {
@@ -4571,7 +4572,19 @@ int goya_context_switch(struct hl_device *hdev, u32 asid)
 		return rc;
 	}
 
+	/* we need to reset registers that the user is allowed to change */
+	sob_addr = CFG_BASE + mmSYNC_MNGR_SOB_OBJ_1007;
+	WREG32(mmDMA_CH_0_WR_COMP_ADDR_LO, lower_32_bits(sob_addr));
+
+	for (dma_id = 1 ; dma_id < NUMBER_OF_EXT_HW_QUEUES ; dma_id++) {
+		sob_addr = CFG_BASE + mmSYNC_MNGR_SOB_OBJ_1000 +
+							(dma_id - 1) * 4;
+		WREG32(mmDMA_CH_0_WR_COMP_ADDR_LO + channel_off * dma_id,
+						lower_32_bits(sob_addr));
+	}
+
 	WREG32(mmTPC_PLL_CLK_RLX_0, 0x200020);
+
 	goya_mmu_prepare(hdev, asid);
 
 	goya_clear_sm_regs(hdev);
