@@ -141,7 +141,7 @@ static int vimc_sen_set_fmt(struct v4l2_subdev *sd,
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		/* Do not change the format while stream is on */
-		if (vsen->frame)
+		if (vsen->ved.stream)
 			return -EBUSY;
 
 		mf = &vsen->mbus_format;
@@ -196,10 +196,6 @@ static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 		u32 pixelformat = vsen->ved.stream->producer_pixfmt;
 		const struct v4l2_format_info *pix_info;
 		unsigned int frame_size;
-
-		if (vsen->kthread_sen)
-			/* tpg is already executing */
-			return 0;
 
 		/* Calculate the frame size */
 		pix_info = v4l2_format_info(pixelformat);

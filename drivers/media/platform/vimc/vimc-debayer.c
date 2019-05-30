@@ -270,7 +270,7 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		/* Do not change the format while stream is on */
-		if (vdeb->src_frame)
+		if (vdeb->ved.stream)
 			return -EBUSY;
 
 		sink_fmt = &vdeb->sink_fmt;
@@ -336,9 +336,6 @@ static int vimc_deb_s_stream(struct v4l2_subdev *sd, int enable)
 		u32 src_pixelformat = vdeb->ved.stream->producer_pixfmt;
 		const struct v4l2_format_info *pix_info;
 		unsigned int frame_size;
-
-		if (vdeb->src_frame)
-			return 0;
 
 		/* We only support translating bayer to RGB24 */
 		if (src_pixelformat != V4L2_PIX_FMT_RGB24) {
