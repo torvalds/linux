@@ -231,16 +231,12 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 		cp_new->dscpmaskshift = dscpmaskshift;
 		cp_new->dscpstatemask = dscpstatemask;
 		cp_new->mode |= CTINFO_MODE_DSCP;
-	} else {
-		cp_new->mode &= ~CTINFO_MODE_DSCP;
 	}
 
 	if (tb[TCA_CTINFO_PARMS_CPMARK_MASK]) {
 		cp_new->cpmarkmask =
 				nla_get_u32(tb[TCA_CTINFO_PARMS_CPMARK_MASK]);
 		cp_new->mode |= CTINFO_MODE_CPMARK;
-	} else {
-		cp_new->mode &= ~CTINFO_MODE_CPMARK;
 	}
 
 	spin_lock_bh(&ci->tcf_lock);
