@@ -327,7 +327,6 @@ static int smu_v11_0_setup_pptable(struct smu_context *smu)
 	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
 	version_major = le16_to_cpu(hdr->header.header_version_major);
 	version_minor = le16_to_cpu(hdr->header.header_version_minor);
-
 	if (version_major == 2 && smu->smu_table.boot_values.pp_table_id > 0) {
 		switch (version_minor) {
 		case 0:
@@ -900,8 +899,9 @@ static int smu_v11_0_notify_display_change(struct smu_context *smu)
 
 	if (!smu->pm_enabled)
 		return ret;
-	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT))
-	    ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1);
+	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
+	    smu->adev->gmc.vram_type == AMDGPU_VRAM_TYPE_HBM)
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1);
 
 	return ret;
 }
