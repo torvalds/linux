@@ -272,6 +272,8 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
 	struct bpf_cgroup_storage_map *map;
+	u32 pages;
+	int ret;
 
 	if (attr->key_size != sizeof(struct bpf_cgroup_storage_key))
 		return ERR_PTR(-EINVAL);
@@ -290,13 +292,18 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 		/* max_entries is not used and enforced to be 0 */
 		return ERR_PTR(-EINVAL);
 
+	pages = round_up(sizeof(struct bpf_cgroup_storage_map), PAGE_SIZE) >>
+		PAGE_SHIFT;
+	ret = bpf_map_precharge_memlock(pages);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
 	map = kmalloc_node(sizeof(struct bpf_cgroup_storage_map),
 			   __GFP_ZERO | GFP_USER, numa_node);
 	if (!map)
 		return ERR_PTR(-ENOMEM);
 
-	map->map.pages = round_up(sizeof(struct bpf_cgroup_storage_map),
-				  PAGE_SIZE) >> PAGE_SHIFT;
+	map->map.pages = pages;
 
 	/* copy mandatory map attributes */
 	bpf_map_init_from_attr(&map->map, attr);
