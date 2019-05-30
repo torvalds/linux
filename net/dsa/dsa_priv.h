@@ -163,6 +163,23 @@ int dsa_port_vid_add(struct dsa_port *dp, u16 vid, u16 flags);
 int dsa_port_vid_del(struct dsa_port *dp, u16 vid);
 int dsa_port_link_register_of(struct dsa_port *dp);
 void dsa_port_link_unregister_of(struct dsa_port *dp);
+void dsa_port_phylink_validate(struct phylink_config *config,
+			       unsigned long *supported,
+			       struct phylink_link_state *state);
+int dsa_port_phylink_mac_link_state(struct phylink_config *config,
+				    struct phylink_link_state *state);
+void dsa_port_phylink_mac_config(struct phylink_config *config,
+				 unsigned int mode,
+				 const struct phylink_link_state *state);
+void dsa_port_phylink_mac_an_restart(struct phylink_config *config);
+void dsa_port_phylink_mac_link_down(struct phylink_config *config,
+				    unsigned int mode,
+				    phy_interface_t interface);
+void dsa_port_phylink_mac_link_up(struct phylink_config *config,
+				  unsigned int mode,
+				  phy_interface_t interface,
+				  struct phy_device *phydev);
+extern const struct phylink_mac_ops dsa_port_phylink_mac_ops;
 
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;

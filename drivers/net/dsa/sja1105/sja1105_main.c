@@ -734,15 +734,16 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	return sja1105_clocking_setup_port(priv, port);
 }
 
-static void sja1105_adjust_link(struct dsa_switch *ds, int port,
-				struct phy_device *phydev)
+static void sja1105_mac_config(struct dsa_switch *ds, int port,
+			       unsigned int link_an_mode,
+			       const struct phylink_link_state *state)
 {
 	struct sja1105_private *priv = ds->priv;
 
-	if (!phydev->link)
+	if (!state->link)
 		sja1105_adjust_port_config(priv, port, 0, false);
 	else
-		sja1105_adjust_port_config(priv, port, phydev->speed, true);
+		sja1105_adjust_port_config(priv, port, state->speed, true);
 }
 
 static void sja1105_phylink_validate(struct dsa_switch *ds, int port,
@@ -1515,9 +1516,9 @@ static int sja1105_set_ageing_time(struct dsa_switch *ds,
 static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_tag_protocol	= sja1105_get_tag_protocol,
 	.setup			= sja1105_setup,
-	.adjust_link		= sja1105_adjust_link,
 	.set_ageing_time	= sja1105_set_ageing_time,
 	.phylink_validate	= sja1105_phylink_validate,
+	.phylink_mac_config	= sja1105_mac_config,
 	.get_strings		= sja1105_get_strings,
 	.get_ethtool_stats	= sja1105_get_ethtool_stats,
 	.get_sset_count		= sja1105_get_sset_count,
