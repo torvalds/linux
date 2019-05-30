@@ -3536,8 +3536,7 @@ __cold
 static inline void assfail(const char *expr, const char *file, int line)
 {
 	if (IS_ENABLED(CONFIG_BTRFS_ASSERT)) {
-		pr_err("assertion failed: %s, file: %s, line: %d\n",
-		       expr, file, line);
+		pr_err("assertion failed: %s, in %s:%d\n", expr, file, line);
 		BUG();
 	}
 }
