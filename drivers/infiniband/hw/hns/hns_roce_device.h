@@ -489,7 +489,7 @@ struct hns_roce_idx_que {
 	u32				buf_size;
 	struct ib_umem			*umem;
 	struct hns_roce_mtt		mtt;
-	u64				*bitmap;
+	unsigned long			*bitmap;
 };
 
 struct hns_roce_srq {
