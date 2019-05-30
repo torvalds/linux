@@ -45,6 +45,8 @@ static struct monitor_dev_profile mali_mdevp = {
 	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
 };
 
+static struct devfreq_simple_ondemand_data ondemand_data;
+
 static int
 mali_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 {
@@ -226,6 +228,7 @@ static void mali_devfreq_exit(struct device *dev)
 
 int mali_devfreq_init(struct mali_device *mdev)
 {
+	struct device_node *np = mdev->dev->of_node;
 #ifdef CONFIG_DEVFREQ_THERMAL
 	struct devfreq_cooling_power *callbacks = NULL;
 	_mali_osk_device_data data;
@@ -254,8 +257,13 @@ int mali_devfreq_init(struct mali_device *mdev)
 	if (mali_devfreq_init_freq_table(mdev, dp))
 		return -EFAULT;
 
+	of_property_read_u32(np, "upthreshold",
+			     &ondemand_data.upthreshold);
+	of_property_read_u32(np, "downdifferential",
+			     &ondemand_data.downdifferential);
+
 	mdev->devfreq = devfreq_add_device(mdev->dev, dp,
-					   "simple_ondemand", NULL);
+					   "simple_ondemand", &ondemand_data);
 	if (IS_ERR(mdev->devfreq)) {
 		mali_devfreq_term_freq_table(mdev);
 		return PTR_ERR(mdev->devfreq);
