@@ -25,10 +25,11 @@ enum dc_status core_link_read_dpcd(
 	uint8_t *data,
 	uint32_t size)
 {
-	if (!dm_helpers_dp_read_dpcd(link->ctx,
-			link,
-			address, data, size))
-			return DC_ERROR_UNEXPECTED;
+	if (!link->aux_access_disabled &&
+			!dm_helpers_dp_read_dpcd(link->ctx,
+			link, address, data, size)) {
+		return DC_ERROR_UNEXPECTED;
+	}
 
 	return DC_OK;
 }
@@ -39,10 +40,11 @@ enum dc_status core_link_write_dpcd(
 	const uint8_t *data,
 	uint32_t size)
 {
-	if (!dm_helpers_dp_write_dpcd(link->ctx,
-			link,
-			address, data, size))
-				return DC_ERROR_UNEXPECTED;
+	if (!link->aux_access_disabled &&
+			!dm_helpers_dp_write_dpcd(link->ctx,
+			link, address, data, size)) {
+		return DC_ERROR_UNEXPECTED;
+	}
 
 	return DC_OK;
 }
@@ -203,21 +205,21 @@ void dp_disable_link_phy_mst(struct dc_link *link, enum signal_type signal)
 
 bool dp_set_hw_training_pattern(
 	struct dc_link *link,
-	enum hw_dp_training_pattern pattern)
+	enum dc_dp_training_pattern pattern)
 {
 	enum dp_test_pattern test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 
 	switch (pattern) {
-	case HW_DP_TRAINING_PATTERN_1:
+	case DP_TRAINING_PATTERN_SEQUENCE_1:
 		test_pattern = DP_TEST_PATTERN_TRAINING_PATTERN1;
 		break;
-	case HW_DP_TRAINING_PATTERN_2:
+	case DP_TRAINING_PATTERN_SEQUENCE_2:
 		test_pattern = DP_TEST_PATTERN_TRAINING_PATTERN2;
 		break;
-	case HW_DP_TRAINING_PATTERN_3:
+	case DP_TRAINING_PATTERN_SEQUENCE_3:
 		test_pattern = DP_TEST_PATTERN_TRAINING_PATTERN3;
 		break;
-	case HW_DP_TRAINING_PATTERN_4:
+	case DP_TRAINING_PATTERN_SEQUENCE_4:
 		test_pattern = DP_TEST_PATTERN_TRAINING_PATTERN4;
 		break;
 	default:

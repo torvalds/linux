@@ -83,6 +83,7 @@ struct dc_link {
 	bool is_hpd_filter_disabled;
 	bool dp_ss_off;
 	bool link_state_valid;
+	bool aux_access_disabled;
 
 	/* caps is the same as reported_link_cap. link_traing use
 	 * reported_link_cap. Will clean up.  TODO
@@ -92,6 +93,7 @@ struct dc_link {
 	struct dc_link_settings cur_link_settings;
 	struct dc_lane_settings cur_lane_setting;
 	struct dc_link_settings preferred_link_setting;
+	struct dc_link_training_overrides preferred_training_settings;
 
 	uint8_t ddc_hw_inst;
 
@@ -217,6 +219,10 @@ void dc_link_dp_set_drive_settings(
 	struct dc_link *link,
 	struct link_training_settings *lt_settings);
 
+bool dc_link_dp_perform_link_training_skip_aux(
+	struct dc_link *link,
+	const struct dc_link_settings *link_setting);
+
 enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
 	const struct dc_link_settings *link_setting,
@@ -251,6 +257,11 @@ void dc_link_perform_link_training(struct dc *dc,
 void dc_link_set_preferred_link_settings(struct dc *dc,
 					 struct dc_link_settings *link_setting,
 					 struct dc_link *link);
+void dc_link_set_preferred_training_settings(struct dc *dc,
+					struct dc_link_settings *link_setting,
+					struct dc_link_training_overrides *lt_overrides,
+					struct dc_link *link,
+					bool skip_immediate_retrain);
 void dc_link_enable_hpd(const struct dc_link *link);
 void dc_link_disable_hpd(const struct dc_link *link);
 void dc_link_set_test_pattern(struct dc_link *link,

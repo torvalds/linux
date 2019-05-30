@@ -1189,6 +1189,9 @@ static bool construct(
 	link->ctx = dc_ctx;
 	link->link_index = init_params->link_index;
 
+	memset(&link->preferred_training_settings, 0, sizeof(struct dc_link_training_overrides));
+	memset(&link->preferred_link_setting, 0, sizeof(struct dc_link_settings));
+
 	link->link_id = bios->funcs->get_connector_id(bios, init_params->connector_index);
 
 	if (link->link_id.type != OBJECT_TYPE_CONNECTOR) {
@@ -1467,6 +1470,9 @@ static enum dc_status enable_link_dp(
 	struct dc_link *link = stream->link;
 	struct dc_link_settings link_settings = {0};
 	enum dp_panel_mode panel_mode;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	bool fec_enable;
+#endif
 
 	/* get link settings for video mode timing */
 	decide_link_settings(stream, &link_settings);
@@ -1511,10 +1517,20 @@ static enum dc_status enable_link_dp(
 			skip_video_pattern = false;
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	dp_set_fec_ready(link, true);
+	if (link->preferred_training_settings.fec_enable != NULL)
+		fec_enable = *link->preferred_training_settings.fec_enable;
+	else
+		fec_enable = true;
+
+	dp_set_fec_ready(link, fec_enable);
 #endif
 
-	if (perform_link_training_with_retries(
+	if (link->aux_access_disabled) {
+		dc_link_dp_perform_link_training_skip_aux(link, &link_settings);
+
+		link->cur_link_settings = link_settings;
+		status = DC_OK;
+	} else if (perform_link_training_with_retries(
 			link,
 			&link_settings,
 			skip_video_pattern,
@@ -1526,7 +1542,7 @@ static enum dc_status enable_link_dp(
 		status = DC_FAIL_DP_LINK_TRAINING;
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	dp_set_fec_enable(link, true);
+	dp_set_fec_enable(link, fec_enable);
 #endif
 	return status;
 }
@@ -3014,6 +3030,29 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 		dp_retrain_link_dp_test(link, &store_settings, false);
 }
 
+void dc_link_set_preferred_training_settings(struct dc *dc,
+						 struct dc_link_settings *link_setting,
+						 struct dc_link_training_overrides *lt_overrides,
+						 struct dc_link *link,
+						 bool skip_immediate_retrain)
+{
+	if (lt_overrides != NULL)
+		link->preferred_training_settings = *lt_overrides;
+	else
+		memset(&link->preferred_training_settings, 0, sizeof(link->preferred_training_settings));
+
+	if (link_setting != NULL) {
+		link->preferred_link_setting = *link_setting;
+	} else {
+		link->preferred_link_setting.lane_count = LANE_COUNT_UNKNOWN;
+		link->preferred_link_setting.link_rate = LINK_RATE_UNKNOWN;
+	}
+
+	/* Retrain now, or wait until next stream update to apply */
+	if (skip_immediate_retrain == false)
+		dc_link_set_preferred_link_settings(dc, &link->preferred_link_setting, link);
+}
+
 void dc_link_enable_hpd(const struct dc_link *link)
 {
 	dc_link_dp_enable_hpd(link);
@@ -3023,7 +3062,6 @@ void dc_link_disable_hpd(const struct dc_link *link)
 {
 	dc_link_dp_disable_hpd(link);
 }
-
 
 void dc_link_set_test_pattern(struct dc_link *link,
 			      enum dp_test_pattern test_pattern,
