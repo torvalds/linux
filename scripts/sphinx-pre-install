@@ -632,7 +632,7 @@ sub check_needs()
 	}
 	printf "\n";
 
-	print "All optional dependenties are met.\n" if (!$optional);
+	print "All optional dependencies are met.\n" if (!$optional);
 
 	if ($need == 1) {
 		die "Can't build as $need mandatory dependency is missing";
