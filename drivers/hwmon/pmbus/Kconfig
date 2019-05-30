@@ -154,6 +154,15 @@ config SENSORS_MAX8688
 	  This driver can also be built as a module. If so, the module will
 	  be called max8688.
 
+config SENSORS_PXE1610
+	tristate "Infineon PXE1610"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  PXE1610.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called pxe1610.
+
 config SENSORS_TPS40422
 	tristate "TI TPS40422"
 	help
