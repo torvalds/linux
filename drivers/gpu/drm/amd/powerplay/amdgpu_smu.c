@@ -865,10 +865,7 @@ static int smu_hw_init(void *handle)
 	if (!smu->pm_enabled)
 		adev->pm.dpm_enabled = false;
 	else
-		adev->pm.dpm_enabled = true;
-	/* TODO: will set dpm_enabled flag while VCN and DAL DPM is workable */
-	if (adev->asic_type != CHIP_NAVI10)
-		adev->pm.dpm_enabled = true;
+		adev->pm.dpm_enabled = true;	/* TODO: will set dpm_enabled flag while VCN and DAL DPM is workable */
 
 	pr_info("SMU is initialized successfully!\n");
 

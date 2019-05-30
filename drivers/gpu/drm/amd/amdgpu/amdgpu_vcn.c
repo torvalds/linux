@@ -249,7 +249,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 
 	if (fences == 0) {
 		amdgpu_gfx_off_ctrl(adev, true);
-		if (adev->pm.dpm_enabled)
+		if (adev->asic_type != CHIP_NAVI10 && adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, false);
 		else
 			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
@@ -266,7 +266,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 
 	if (set_clocks) {
 		amdgpu_gfx_off_ctrl(adev, false);
-		if (adev->pm.dpm_enabled)
+		if (adev->asic_type != CHIP_NAVI10 && adev->pm.dpm_enabled)
 			amdgpu_dpm_enable_uvd(adev, true);
 		else
 			amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
