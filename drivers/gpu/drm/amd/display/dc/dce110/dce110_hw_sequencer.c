@@ -939,26 +939,12 @@ void hwss_edp_backlight_control(
 		edp_receiver_ready_T9(link);
 }
 
-// Static helper function which calls the correct function
-// based on pp_smu version
-static void set_pme_wa_enable_by_version(struct dc *dc)
-{
-	struct pp_smu_funcs *pp_smu = NULL;
-
-	if (dc->res_pool->pp_smu)
-		pp_smu = dc->res_pool->pp_smu;
-
-	if (pp_smu) {
-		if (pp_smu->ctx.ver == PP_SMU_VER_RV && pp_smu->rv_funcs.set_pme_wa_enable)
-			pp_smu->rv_funcs.set_pme_wa_enable(&(pp_smu->ctx));
-	}
-}
-
 void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
 	/* notify audio driver for audio modes of monitor */
 	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
 	struct pp_smu_funcs *pp_smu = NULL;
+	struct clk_mgr *clk_mgr = core_dc->clk_mgr;
 	unsigned int i, num_audio = 1;
 
 	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == true)
@@ -976,9 +962,9 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 
 		pipe_ctx->stream_res.audio->funcs->az_enable(pipe_ctx->stream_res.audio);
 
-		if (num_audio >= 1 && pp_smu != NULL)
+		if (num_audio >= 1 && clk_mgr->funcs->enable_pme_wa)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
-			set_pme_wa_enable_by_version(core_dc);
+			clk_mgr->funcs->enable_pme_wa(clk_mgr);
 		/* un-mute audio */
 		/* TODO: audio should be per stream rather than per link */
 		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
@@ -992,6 +978,7 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct pp_smu_funcs *pp_smu = NULL;
+	struct clk_mgr *clk_mgr = dc->clk_mgr;
 
 	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == false)
 		return;
@@ -1020,9 +1007,9 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 			update_audio_usage(&dc->current_state->res_ctx, dc->res_pool, pipe_ctx->stream_res.audio, false);
 			pipe_ctx->stream_res.audio = NULL;
 		}
-		if (pp_smu != NULL)
+		if (clk_mgr->funcs->enable_pme_wa)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
-			set_pme_wa_enable_by_version(dc);
+			clk_mgr->funcs->enable_pme_wa(clk_mgr);
 
 		/* TODO: notify audio driver for if audio modes list changed
 		 * add audio mode list change flag */
