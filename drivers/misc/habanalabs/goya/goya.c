@@ -3920,6 +3920,11 @@ void goya_update_eq_ci(struct hl_device *hdev, u32 val)
 
 void goya_restore_phase_topology(struct hl_device *hdev)
 {
+
+}
+
+static void goya_clear_sm_regs(struct hl_device *hdev)
+{
 	int i, num_of_sob_in_longs, num_of_mon_in_longs;
 
 	num_of_sob_in_longs =
@@ -4568,6 +4573,8 @@ int goya_context_switch(struct hl_device *hdev, u32 asid)
 
 	WREG32(mmTPC_PLL_CLK_RLX_0, 0x200020);
 	goya_mmu_prepare(hdev, asid);
+
+	goya_clear_sm_regs(hdev);
 
 	return 0;
 }
