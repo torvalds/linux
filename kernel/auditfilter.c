@@ -1220,7 +1220,6 @@ int audit_comparator(u32 left, u32 op, u32 right)
 	case Audit_bittest:
 		return ((left & right) == right);
 	default:
-		BUG();
 		return 0;
 	}
 }
@@ -1243,7 +1242,6 @@ int audit_uid_comparator(kuid_t left, u32 op, kuid_t right)
 	case Audit_bitmask:
 	case Audit_bittest:
 	default:
-		BUG();
 		return 0;
 	}
 }
@@ -1266,7 +1264,6 @@ int audit_gid_comparator(kgid_t left, u32 op, kgid_t right)
 	case Audit_bitmask:
 	case Audit_bittest:
 	default:
-		BUG();
 		return 0;
 	}
 }
