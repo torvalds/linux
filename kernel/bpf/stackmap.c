@@ -131,9 +131,9 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	bpf_map_init_from_attr(&smap->map, attr);
 	smap->map.value_size = value_size;
 	smap->n_buckets = n_buckets;
-	smap->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
+	smap->map.memory.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
 
-	err = bpf_map_precharge_memlock(smap->map.pages);
+	err = bpf_map_precharge_memlock(smap->map.memory.pages);
 	if (err)
 		goto free_smap;
 

@@ -49,8 +49,8 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 		goto free_stab;
 	}
 
-	stab->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
-	err = bpf_map_precharge_memlock(stab->map.pages);
+	stab->map.memory.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
+	err = bpf_map_precharge_memlock(stab->map.memory.pages);
 	if (err)
 		goto free_stab;
 

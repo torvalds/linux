@@ -303,7 +303,7 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 	if (!map)
 		return ERR_PTR(-ENOMEM);
 
-	map->map.pages = pages;
+	map->map.memory.pages = pages;
 
 	/* copy mandatory map attributes */
 	bpf_map_init_from_attr(&map->map, attr);

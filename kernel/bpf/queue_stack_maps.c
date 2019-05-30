@@ -89,7 +89,7 @@ static struct bpf_map *queue_stack_map_alloc(union bpf_attr *attr)
 
 	bpf_map_init_from_attr(&qs->map, attr);
 
-	qs->map.pages = cost;
+	qs->map.memory.pages = cost;
 	qs->size = size;
 
 	raw_spin_lock_init(&qs->lock);

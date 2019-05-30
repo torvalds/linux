@@ -108,10 +108,10 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 	cost += cpu_map_bitmap_size(attr) * num_possible_cpus();
 	if (cost >= U32_MAX - PAGE_SIZE)
 		goto free_cmap;
-	cmap->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
+	cmap->map.memory.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
 
 	/* Notice returns -EPERM on if map size is larger than memlock limit */
-	ret = bpf_map_precharge_memlock(cmap->map.pages);
+	ret = bpf_map_precharge_memlock(cmap->map.memory.pages);
 	if (ret) {
 		err = ret;
 		goto free_cmap;

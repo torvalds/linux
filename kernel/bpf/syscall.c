@@ -222,19 +222,20 @@ static int bpf_map_init_memlock(struct bpf_map *map)
 	struct user_struct *user = get_current_user();
 	int ret;
 
-	ret = bpf_charge_memlock(user, map->pages);
+	ret = bpf_charge_memlock(user, map->memory.pages);
 	if (ret) {
 		free_uid(user);
 		return ret;
 	}
-	map->user = user;
+	map->memory.user = user;
 	return ret;
 }
 
 static void bpf_map_release_memlock(struct bpf_map *map)
 {
-	struct user_struct *user = map->user;
-	bpf_uncharge_memlock(user, map->pages);
+	struct user_struct *user = map->memory.user;
+
+	bpf_uncharge_memlock(user, map->memory.pages);
 	free_uid(user);
 }
 
@@ -242,17 +243,17 @@ int bpf_map_charge_memlock(struct bpf_map *map, u32 pages)
 {
 	int ret;
 
-	ret = bpf_charge_memlock(map->user, pages);
+	ret = bpf_charge_memlock(map->memory.user, pages);
 	if (ret)
 		return ret;
-	map->pages += pages;
+	map->memory.pages += pages;
 	return ret;
 }
 
 void bpf_map_uncharge_memlock(struct bpf_map *map, u32 pages)
 {
-	bpf_uncharge_memlock(map->user, pages);
-	map->pages -= pages;
+	bpf_uncharge_memlock(map->memory.user, pages);
+	map->memory.pages -= pages;
 }
 
 static int bpf_map_alloc_id(struct bpf_map *map)
@@ -395,7 +396,7 @@ static void bpf_map_show_fdinfo(struct seq_file *m, struct file *filp)
 		   map->value_size,
 		   map->max_entries,
 		   map->map_flags,
-		   map->pages * 1ULL << PAGE_SHIFT,
+		   map->memory.pages * 1ULL << PAGE_SHIFT,
 		   map->id,
 		   READ_ONCE(map->frozen));
 

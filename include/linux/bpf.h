@@ -66,6 +66,11 @@ struct bpf_map_ops {
 				     u64 imm, u32 *off);
 };
 
+struct bpf_map_memory {
+	u32 pages;
+	struct user_struct *user;
+};
+
 struct bpf_map {
 	/* The first two cachelines with read-mostly members of which some
 	 * are also accessed in fast-path (e.g. ops, max_entries).
@@ -86,7 +91,7 @@ struct bpf_map {
 	u32 btf_key_type_id;
 	u32 btf_value_type_id;
 	struct btf *btf;
-	u32 pages;
+	struct bpf_map_memory memory;
 	bool unpriv_array;
 	bool frozen; /* write-once */
 	/* 48 bytes hole */
@@ -94,8 +99,7 @@ struct bpf_map {
 	/* The 3rd and 4th cacheline with misc members to avoid false sharing
 	 * particularly with refcounting.
 	 */
-	struct user_struct *user ____cacheline_aligned;
-	atomic_t refcnt;
+	atomic_t refcnt ____cacheline_aligned;
 	atomic_t usercnt;
 	struct work_struct work;
 	char name[BPF_OBJ_NAME_LEN];
