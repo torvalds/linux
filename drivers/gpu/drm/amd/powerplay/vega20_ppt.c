@@ -1802,7 +1802,7 @@ static int vega20_get_power_profile_mode(struct smu_context *smu, char *buf)
 		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 		workload_type = smu_workload_get_type(smu, i);
 		result = smu_update_table(smu,
-					  TABLE_ACTIVITY_MONITOR_COEFF | workload_type << 16,
+					  SMU_TABLE_ACTIVITY_MONITOR_COEFF | workload_type << 16,
 					  (void *)(&activity_monitor), false);
 		if (result) {
 			pr_err("[%s] Failed to get activity monitor!", __func__);
@@ -1888,7 +1888,7 @@ static int vega20_set_power_profile_mode(struct smu_context *smu, long *input, u
 
 	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
 		ret = smu_update_table(smu,
-				       TABLE_ACTIVITY_MONITOR_COEFF | WORKLOAD_PPLIB_CUSTOM_BIT << 16,
+				       SMU_TABLE_ACTIVITY_MONITOR_COEFF | WORKLOAD_PPLIB_CUSTOM_BIT << 16,
 				       (void *)(&activity_monitor), false);
 		if (ret) {
 			pr_err("[%s] Failed to get activity monitor!", __func__);
@@ -1943,7 +1943,7 @@ static int vega20_set_power_profile_mode(struct smu_context *smu, long *input, u
 		}
 
 		ret = smu_update_table(smu,
-				       TABLE_ACTIVITY_MONITOR_COEFF | WORKLOAD_PPLIB_CUSTOM_BIT << 16,
+				       SMU_TABLE_ACTIVITY_MONITOR_COEFF | WORKLOAD_PPLIB_CUSTOM_BIT << 16,
 				       (void *)(&activity_monitor), true);
 		if (ret) {
 			pr_err("[%s] Failed to set activity monitor!", __func__);
@@ -2767,7 +2767,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 		break;
 
 	case PP_OD_RESTORE_DEFAULT_TABLE:
-		ret = smu_update_table(smu, TABLE_OVERDRIVE, table_context->overdrive_table, false);
+		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, table_context->overdrive_table, false);
 		if (ret) {
 			pr_err("Failed to export over drive table!\n");
 			return ret;
@@ -2776,7 +2776,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 		break;
 
 	case PP_OD_COMMIT_DPM_TABLE:
-		ret = smu_update_table(smu, TABLE_OVERDRIVE, table_context->overdrive_table, true);
+		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, table_context->overdrive_table, true);
 		if (ret) {
 			pr_err("Failed to import over drive table!\n");
 			return ret;
