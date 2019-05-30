@@ -16,7 +16,6 @@
  * GNU General Public License for more details.
  */
 
-#include <asm/cpu_device_id.h>
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -29,6 +28,7 @@
 #include "../../codecs/hdac_hdmi.h"
 #include "../../codecs/da7219.h"
 #include "../../codecs/da7219-aad.h"
+#include "../common/soc-intel-quirks.h"
 
 #define BXT_DIALOG_CODEC_DAI	"da7219-hifi"
 #define BXT_MAXIM_CODEC_DAI	"HiFi"
@@ -568,11 +568,6 @@ static struct snd_soc_dai_link broxton_dais[] = {
 	},
 };
 
-static const struct x86_cpu_id glk_ids[] = {
-	{ X86_VENDOR_INTEL, 6, 0x7A }, /* Geminilake CPU_ID */
-	{}
-};
-
 #define NAME_SIZE	32
 static int bxt_card_late_probe(struct snd_soc_card *card)
 {
@@ -582,7 +577,7 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 	int err, i = 0;
 	char jack_name[NAME_SIZE];
 
-	if (x86_match_cpu(glk_ids))
+	if (soc_intel_is_glk())
 		snd_soc_dapm_add_routes(&card->dapm, gemini_map,
 					ARRAY_SIZE(gemini_map));
 	else
@@ -645,7 +640,7 @@ static int broxton_audio_probe(struct platform_device *pdev)
 
 	broxton_audio_card.dev = &pdev->dev;
 	snd_soc_card_set_drvdata(&broxton_audio_card, ctx);
-	if (x86_match_cpu(glk_ids)) {
+	if (soc_intel_is_glk()) {
 		unsigned int i;
 
 		broxton_audio_card.name = "glkda7219max";

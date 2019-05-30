@@ -30,8 +30,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <asm/cpu_device_id.h>
-#include <asm/intel-family.h>
 #include <asm/platform_sst_audio.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
@@ -40,6 +38,7 @@
 #include <sound/soc-acpi.h>
 #include "../atom/sst-atom-controls.h"
 #include "../common/sst-dsp.h"
+#include "../common/soc-intel-quirks.h"
 
 /* jd-inv + terminating entry */
 #define MAX_NO_PROPS 2
@@ -430,11 +429,6 @@ static struct snd_soc_card byt_cht_es8316_card = {
 	.resume_post = byt_cht_es8316_resume,
 };
 
-static const struct x86_cpu_id baytrail_cpu_ids[] = {
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT }, /* Valleyview */
-	{}
-};
-
 static const struct acpi_gpio_params first_gpio = { 0, 0, false };
 
 static const struct acpi_gpio_mapping byt_cht_es8316_gpios[] = {
@@ -506,8 +500,8 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	dmi_id = dmi_first_match(byt_cht_es8316_quirk_table);
 	if (dmi_id) {
 		quirk = (unsigned long)dmi_id->driver_data;
-	} else if (x86_match_cpu(baytrail_cpu_ids) &&
-	    mach->mach_params.acpi_ipc_irq_index == 0) {
+	} else if (soc_intel_is_byt() &&
+		   mach->mach_params.acpi_ipc_irq_index == 0) {
 		/* On BYTCR default to SSP0, internal-mic-in2-map, mono-spk */
 		quirk = BYT_CHT_ES8316_SSP0 | BYT_CHT_ES8316_INTMIC_IN2_MAP |
 			BYT_CHT_ES8316_MONO_SPEAKER;
