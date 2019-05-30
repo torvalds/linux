@@ -21,6 +21,7 @@
 struct ad8366_state {
 	struct spi_device	*spi;
 	struct regulator	*reg;
+	struct mutex            lock; /* protect sensor state */
 	unsigned char		ch[2];
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
@@ -58,7 +59,7 @@ static int ad8366_read_raw(struct iio_dev *indio_dev,
 	int ret;
 	unsigned code;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	switch (m) {
 	case IIO_CHAN_INFO_HARDWAREGAIN:
 		code = st->ch[chan->channel];
@@ -73,7 +74,7 @@ static int ad8366_read_raw(struct iio_dev *indio_dev,
 	default:
 		ret = -EINVAL;
 	}
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 };
@@ -99,7 +100,7 @@ static int ad8366_write_raw(struct iio_dev *indio_dev,
 
 	code = (code - 4500) / 253;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	switch (mask) {
 	case IIO_CHAN_INFO_HARDWAREGAIN:
 		st->ch[chan->channel] = code;
@@ -108,7 +109,7 @@ static int ad8366_write_raw(struct iio_dev *indio_dev,
 	default:
 		ret = -EINVAL;
 	}
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -151,6 +152,7 @@ static int ad8366_probe(struct spi_device *spi)
 	}
 
 	spi_set_drvdata(spi, indio_dev);
+	mutex_init(&st->lock);
 	st->spi = spi;
 
 	indio_dev->dev.parent = &spi->dev;
