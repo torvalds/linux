@@ -5,6 +5,8 @@
  * Copyright (C) 2019 Renesas Electronics Corp.
  */
 
+#include <dt-bindings/gpio/gpio.h>
+
 / {
 	aliases {
 		serial0 = &scif2;
