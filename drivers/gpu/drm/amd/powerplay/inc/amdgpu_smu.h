@@ -638,7 +638,7 @@ struct smu_funcs
 	int (*send_smc_msg)(struct smu_context *smu, uint16_t msg);
 	int (*send_smc_msg_with_param)(struct smu_context *smu, uint16_t msg, uint32_t param);
 	int (*read_smc_arg)(struct smu_context *smu, uint32_t *arg);
-	int (*init_display)(struct smu_context *smu);
+	int (*init_display_count)(struct smu_context *smu, uint32_t count);
 	int (*set_allowed_mask)(struct smu_context *smu);
 	int (*get_enabled_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	int (*update_feature_enable_state)(struct smu_context *smu, uint32_t feature_id, bool enabled);
@@ -752,8 +752,8 @@ struct smu_funcs
 	((smu)->funcs->read_smc_arg? (smu)->funcs->read_smc_arg((smu), (arg)) : 0)
 #define smu_alloc_dpm_context(smu) \
 	((smu)->ppt_funcs->alloc_dpm_context ? (smu)->ppt_funcs->alloc_dpm_context((smu)) : 0)
-#define smu_init_display(smu) \
-	((smu)->funcs->init_display ? (smu)->funcs->init_display((smu)) : 0)
+#define smu_init_display_count(smu, count) \
+	((smu)->funcs->init_display_count ? (smu)->funcs->init_display_count((smu), (count)) : 0)
 #define smu_feature_set_allowed_mask(smu) \
 	((smu)->funcs->set_allowed_mask? (smu)->funcs->set_allowed_mask((smu)) : 0)
 #define smu_feature_get_enabled_mask(smu, mask, num) \
@@ -947,4 +947,6 @@ int smu_set_hard_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 			    uint32_t min, uint32_t max);
 enum amd_dpm_forced_level smu_get_performance_level(struct smu_context *smu);
 int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level);
+int smu_set_display_count(struct smu_context *smu, uint32_t count);
+
 #endif

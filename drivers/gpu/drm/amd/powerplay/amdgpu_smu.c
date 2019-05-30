@@ -802,7 +802,7 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		return 0;
 	}
 
-	ret = smu_init_display(smu);
+	ret = smu_init_display_count(smu, 0);
 	if (ret)
 		return ret;
 
@@ -1465,6 +1465,17 @@ int smu_force_performance_level(struct smu_context *smu, enum amd_dpm_forced_lev
 	ret = smu_handle_task(smu, level,
 			      AMD_PP_TASK_READJUST_POWER_STATE);
 
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
+int smu_set_display_count(struct smu_context *smu, uint32_t count)
+{
+	int ret = 0;
+
+	mutex_lock(&smu->mutex);
+	ret = smu_init_display_count(smu, count);
 	mutex_unlock(&smu->mutex);
 
 	return ret;

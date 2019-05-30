@@ -765,13 +765,13 @@ static int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 	return ret;
 }
 
-static int smu_v11_0_init_display(struct smu_context *smu)
+static int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 {
 	int ret = 0;
 
 	if (!smu->pm_enabled)
 		return ret;
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, 0);
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, count);
 	return ret;
 }
 
@@ -1686,7 +1686,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.write_watermarks_table = smu_v11_0_write_watermarks_table,
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
-	.init_display = smu_v11_0_init_display,
+	.init_display_count = smu_v11_0_init_display_count,
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
 	.system_features_control = smu_v11_0_system_features_control,
