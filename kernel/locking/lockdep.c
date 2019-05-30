@@ -4160,7 +4160,7 @@ __lock_release(struct lockdep_map *lock, unsigned long ip)
 	 * So we're all set to release this lock.. wait what lock? We don't
 	 * own any locks, you've been drinking again?
 	 */
-	if (DEBUG_LOCKS_WARN_ON(depth <= 0)) {
+	if (depth <= 0) {
 		print_unlock_imbalance_bug(curr, lock, ip);
 		return 0;
 	}
