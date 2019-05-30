@@ -537,8 +537,6 @@ struct smu_funcs
 	int (*set_od8_default_settings)(struct smu_context *smu,
 					bool initialize);
 	int (*conv_power_profile_to_pplib_workload)(int power_profile);
-	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
-	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
 	int (*update_od8_settings)(struct smu_context *smu,
 				   uint32_t index,
 				   uint32_t value);
@@ -663,9 +661,9 @@ struct smu_funcs
 #define smu_read_sensor(smu, sensor, data, size) \
 	((smu)->funcs->read_sensor? (smu)->funcs->read_sensor((smu), (sensor), (data), (size)) : 0)
 #define smu_get_power_profile_mode(smu, buf) \
-	((smu)->funcs->get_power_profile_mode ? (smu)->funcs->get_power_profile_mode((smu), buf) : 0)
+	((smu)->ppt_funcs->get_power_profile_mode ? (smu)->ppt_funcs->get_power_profile_mode((smu), buf) : 0)
 #define smu_set_power_profile_mode(smu, param, param_size) \
-	((smu)->funcs->set_power_profile_mode ? (smu)->funcs->set_power_profile_mode((smu), (param), (param_size)) : 0)
+	((smu)->ppt_funcs->set_power_profile_mode ? (smu)->ppt_funcs->set_power_profile_mode((smu), (param), (param_size)) : 0)
 #define smu_get_performance_level(smu) \
 	((smu)->ppt_funcs->get_performance_level ? (smu)->ppt_funcs->get_performance_level((smu)) : 0)
 #define smu_force_performance_level(smu, level) \

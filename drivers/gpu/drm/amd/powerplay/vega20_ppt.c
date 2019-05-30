@@ -1527,6 +1527,201 @@ static int vega20_conv_profile_to_workload(struct smu_context *smu, int power_pr
 	return pplib_workload;
 }
 
+static int vega20_get_power_profile_mode(struct smu_context *smu, char *buf)
+{
+	DpmActivityMonitorCoeffInt_t activity_monitor;
+	uint32_t i, size = 0;
+	uint16_t workload_type = 0;
+	static const char *profile_name[] = {
+					"BOOTUP_DEFAULT",
+					"3D_FULL_SCREEN",
+					"POWER_SAVING",
+					"VIDEO",
+					"VR",
+					"COMPUTE",
+					"CUSTOM"};
+	static const char *title[] = {
+			"PROFILE_INDEX(NAME)",
+			"CLOCK_TYPE(NAME)",
+			"FPS",
+			"UseRlcBusy",
+			"MinActiveFreqType",
+			"MinActiveFreq",
+			"BoosterFreqType",
+			"BoosterFreq",
+			"PD_Data_limit_c",
+			"PD_Data_error_coeff",
+			"PD_Data_error_rate_coeff"};
+	int result = 0;
+
+	if (!smu->pm_enabled || !buf)
+		return -EINVAL;
+
+	size += sprintf(buf + size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
+			title[0], title[1], title[2], title[3], title[4], title[5],
+			title[6], title[7], title[8], title[9], title[10]);
+
+	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
+		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+		workload_type = smu_conv_profile_to_workload(smu, i);
+		result = smu_update_table(smu,
+					  TABLE_ACTIVITY_MONITOR_COEFF | workload_type << 16,
+					  (void *)(&activity_monitor), false);
+		if (result) {
+			pr_err("[%s] Failed to get activity monitor!", __func__);
+			return result;
+		}
+
+		size += sprintf(buf + size, "%2d %14s%s:\n",
+			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			0,
+			"GFXCLK",
+			activity_monitor.Gfx_FPS,
+			activity_monitor.Gfx_UseRlcBusy,
+			activity_monitor.Gfx_MinActiveFreqType,
+			activity_monitor.Gfx_MinActiveFreq,
+			activity_monitor.Gfx_BoosterFreqType,
+			activity_monitor.Gfx_BoosterFreq,
+			activity_monitor.Gfx_PD_Data_limit_c,
+			activity_monitor.Gfx_PD_Data_error_coeff,
+			activity_monitor.Gfx_PD_Data_error_rate_coeff);
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			1,
+			"SOCCLK",
+			activity_monitor.Soc_FPS,
+			activity_monitor.Soc_UseRlcBusy,
+			activity_monitor.Soc_MinActiveFreqType,
+			activity_monitor.Soc_MinActiveFreq,
+			activity_monitor.Soc_BoosterFreqType,
+			activity_monitor.Soc_BoosterFreq,
+			activity_monitor.Soc_PD_Data_limit_c,
+			activity_monitor.Soc_PD_Data_error_coeff,
+			activity_monitor.Soc_PD_Data_error_rate_coeff);
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			2,
+			"UCLK",
+			activity_monitor.Mem_FPS,
+			activity_monitor.Mem_UseRlcBusy,
+			activity_monitor.Mem_MinActiveFreqType,
+			activity_monitor.Mem_MinActiveFreq,
+			activity_monitor.Mem_BoosterFreqType,
+			activity_monitor.Mem_BoosterFreq,
+			activity_monitor.Mem_PD_Data_limit_c,
+			activity_monitor.Mem_PD_Data_error_coeff,
+			activity_monitor.Mem_PD_Data_error_rate_coeff);
+
+		size += sprintf(buf + size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
+			" ",
+			3,
+			"FCLK",
+			activity_monitor.Fclk_FPS,
+			activity_monitor.Fclk_UseRlcBusy,
+			activity_monitor.Fclk_MinActiveFreqType,
+			activity_monitor.Fclk_MinActiveFreq,
+			activity_monitor.Fclk_BoosterFreqType,
+			activity_monitor.Fclk_BoosterFreq,
+			activity_monitor.Fclk_PD_Data_limit_c,
+			activity_monitor.Fclk_PD_Data_error_coeff,
+			activity_monitor.Fclk_PD_Data_error_rate_coeff);
+	}
+
+	return size;
+}
+
+static int vega20_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
+{
+	DpmActivityMonitorCoeffInt_t activity_monitor;
+	int workload_type = 0, ret = 0;
+
+	smu->power_profile_mode = input[size];
+
+	if (!smu->pm_enabled)
+		return ret;
+	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
+		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
+		return -EINVAL;
+	}
+
+	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		ret = smu_update_table(smu,
+				       TABLE_ACTIVITY_MONITOR_COEFF | WORKLOAD_PPLIB_CUSTOM_BIT << 16,
+				       (void *)(&activity_monitor), false);
+		if (ret) {
+			pr_err("[%s] Failed to get activity monitor!", __func__);
+			return ret;
+		}
+
+		switch (input[0]) {
+		case 0: /* Gfxclk */
+			activity_monitor.Gfx_FPS = input[1];
+			activity_monitor.Gfx_UseRlcBusy = input[2];
+			activity_monitor.Gfx_MinActiveFreqType = input[3];
+			activity_monitor.Gfx_MinActiveFreq = input[4];
+			activity_monitor.Gfx_BoosterFreqType = input[5];
+			activity_monitor.Gfx_BoosterFreq = input[6];
+			activity_monitor.Gfx_PD_Data_limit_c = input[7];
+			activity_monitor.Gfx_PD_Data_error_coeff = input[8];
+			activity_monitor.Gfx_PD_Data_error_rate_coeff = input[9];
+			break;
+		case 1: /* Socclk */
+			activity_monitor.Soc_FPS = input[1];
+			activity_monitor.Soc_UseRlcBusy = input[2];
+			activity_monitor.Soc_MinActiveFreqType = input[3];
+			activity_monitor.Soc_MinActiveFreq = input[4];
+			activity_monitor.Soc_BoosterFreqType = input[5];
+			activity_monitor.Soc_BoosterFreq = input[6];
+			activity_monitor.Soc_PD_Data_limit_c = input[7];
+			activity_monitor.Soc_PD_Data_error_coeff = input[8];
+			activity_monitor.Soc_PD_Data_error_rate_coeff = input[9];
+			break;
+		case 2: /* Uclk */
+			activity_monitor.Mem_FPS = input[1];
+			activity_monitor.Mem_UseRlcBusy = input[2];
+			activity_monitor.Mem_MinActiveFreqType = input[3];
+			activity_monitor.Mem_MinActiveFreq = input[4];
+			activity_monitor.Mem_BoosterFreqType = input[5];
+			activity_monitor.Mem_BoosterFreq = input[6];
+			activity_monitor.Mem_PD_Data_limit_c = input[7];
+			activity_monitor.Mem_PD_Data_error_coeff = input[8];
+			activity_monitor.Mem_PD_Data_error_rate_coeff = input[9];
+			break;
+		case 3: /* Fclk */
+			activity_monitor.Fclk_FPS = input[1];
+			activity_monitor.Fclk_UseRlcBusy = input[2];
+			activity_monitor.Fclk_MinActiveFreqType = input[3];
+			activity_monitor.Fclk_MinActiveFreq = input[4];
+			activity_monitor.Fclk_BoosterFreqType = input[5];
+			activity_monitor.Fclk_BoosterFreq = input[6];
+			activity_monitor.Fclk_PD_Data_limit_c = input[7];
+			activity_monitor.Fclk_PD_Data_error_coeff = input[8];
+			activity_monitor.Fclk_PD_Data_error_rate_coeff = input[9];
+			break;
+		}
+
+		ret = smu_update_table(smu,
+				       TABLE_ACTIVITY_MONITOR_COEFF | WORKLOAD_PPLIB_CUSTOM_BIT << 16,
+				       (void *)(&activity_monitor), true);
+		if (ret) {
+			pr_err("[%s] Failed to set activity monitor!", __func__);
+			return ret;
+		}
+	}
+
+	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+	workload_type = smu_conv_profile_to_workload(smu, smu->power_profile_mode);
+	smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+				    1 << workload_type);
+
+	return ret;
+}
+
 static int
 vega20_get_profiling_clk_mask(struct smu_context *smu,
 			      enum amd_dpm_forced_level level,
@@ -2573,6 +2768,8 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.set_default_od8_settings = vega20_set_default_od8_setttings,
 	.get_od_percentage = vega20_get_od_percentage,
 	.conv_profile_to_workload = vega20_conv_profile_to_workload,
+	.get_power_profile_mode = vega20_get_power_profile_mode,
+	.set_power_profile_mode = vega20_set_power_profile_mode,
 	.get_performance_level = vega20_get_performance_level,
 	.force_performance_level = vega20_force_performance_level,
 	.update_specified_od8_value = vega20_update_specified_od8_value,
