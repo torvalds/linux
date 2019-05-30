@@ -44,25 +44,6 @@ void i915_gem_object_free(struct drm_i915_gem_object *obj)
 	return kmem_cache_free(global.slab_objects, obj);
 }
 
-/* some bookkeeping */
-static void i915_gem_info_add_obj(struct drm_i915_private *i915,
-				  u64 size)
-{
-	spin_lock(&i915->mm.object_stat_lock);
-	i915->mm.object_count++;
-	i915->mm.object_memory += size;
-	spin_unlock(&i915->mm.object_stat_lock);
-}
-
-static void i915_gem_info_remove_obj(struct drm_i915_private *i915,
-				     u64 size)
-{
-	spin_lock(&i915->mm.object_stat_lock);
-	i915->mm.object_count--;
-	i915->mm.object_memory -= size;
-	spin_unlock(&i915->mm.object_stat_lock);
-}
-
 static void
 frontbuffer_retire(struct i915_active_request *active,
 		   struct i915_request *request)
@@ -98,8 +79,6 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	obj->mm.madv = I915_MADV_WILLNEED;
 	INIT_RADIX_TREE(&obj->mm.get_page.radix, GFP_KERNEL | __GFP_NOWARN);
 	mutex_init(&obj->mm.get_page.lock);
-
-	i915_gem_info_add_obj(to_i915(obj->base.dev), obj->base.size);
 }
 
 /**
@@ -163,11 +142,14 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 
 static bool discard_backing_storage(struct drm_i915_gem_object *obj)
 {
-	/* If we are the last user of the backing storage (be it shmemfs
+	/*
+	 * If we are the last user of the backing storage (be it shmemfs
 	 * pages or stolen etc), we know that the pages are going to be
 	 * immediately released. In this case, we can then skip copying
 	 * back the contents from the GPU.
 	 */
+	if (!i915_gem_object_is_shrinkable(obj))
+		return false;
 
 	if (obj->mm.madv != I915_MADV_WILLNEED)
 		return false;
@@ -208,13 +190,15 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		GEM_BUG_ON(!list_empty(&obj->vma.list));
 		GEM_BUG_ON(!RB_EMPTY_ROOT(&obj->vma.tree));
 
-		/* This serializes freeing with the shrinker. Since the free
+		/*
+		 * This serializes freeing with the shrinker. Since the free
 		 * is delayed, first by RCU then by the workqueue, we want the
 		 * shrinker to be able to free pages of unreferenced objects,
 		 * or else we may oom whilst there are plenty of deferred
 		 * freed objects.
 		 */
-		if (i915_gem_object_has_pages(obj)) {
+		if (i915_gem_object_has_pages(obj) &&
+		    i915_gem_object_is_shrinkable(obj)) {
 			spin_lock(&i915->mm.obj_lock);
 			list_del_init(&obj->mm.link);
 			spin_unlock(&i915->mm.obj_lock);
@@ -240,7 +224,6 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 		reservation_object_fini(&obj->__builtin_resv);
 		drm_gem_object_release(&obj->base);
-		i915_gem_info_remove_obj(i915, obj->base.size);
 
 		bitmap_free(obj->bit_17);
 		i915_gem_object_free(obj);

@@ -475,7 +475,8 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 	}
 	mutex_unlock(&i915->ggtt.vm.mutex);
 
-	if (obj->mm.madv == I915_MADV_WILLNEED) {
+	if (i915_gem_object_is_shrinkable(obj) &&
+	    obj->mm.madv == I915_MADV_WILLNEED) {
 		struct list_head *list;
 
 		spin_lock(&i915->mm.obj_lock);

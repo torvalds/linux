@@ -690,7 +690,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	mutex_unlock(&ggtt->vm.mutex);
 
 	spin_lock(&dev_priv->mm.obj_lock);
-	list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);
+	GEM_BUG_ON(i915_gem_object_is_shrinkable(obj));
 	obj->bind_count++;
 	spin_unlock(&dev_priv->mm.obj_lock);
 

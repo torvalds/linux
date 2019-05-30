@@ -926,10 +926,9 @@ struct i915_gem_mm {
 	/** Bit 6 swizzling required for Y tiling */
 	u32 bit_6_swizzle_y;
 
-	/* accounting, useful for userland debugging */
-	spinlock_t object_stat_lock;
-	u64 object_memory;
-	u32 object_count;
+	/* shrinker accounting, also useful for userland debugging */
+	u64 shrink_memory;
+	u32 shrink_count;
 };
 
 #define I915_IDLE_ENGINES_TIMEOUT (200) /* in ms */

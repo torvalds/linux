@@ -110,7 +110,8 @@ static void __i915_vma_retire(struct i915_active *ref)
 	 * so that we don't steal from recently used but inactive objects
 	 * (unless we are forced to ofc!)
 	 */
-	obj_bump_mru(obj);
+	if (i915_gem_object_is_shrinkable(obj))
+		obj_bump_mru(obj);
 
 	i915_gem_object_put(obj); /* and drop the active reference */
 }
@@ -677,11 +678,14 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		struct drm_i915_gem_object *obj = vma->obj;
 
 		spin_lock(&dev_priv->mm.obj_lock);
-		list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);
-		obj->bind_count++;
-		spin_unlock(&dev_priv->mm.obj_lock);
 
+		if (i915_gem_object_is_shrinkable(obj))
+			list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);
+
+		obj->bind_count++;
 		assert_bind_count(obj);
+
+		spin_unlock(&dev_priv->mm.obj_lock);
 	}
 
 	return 0;
@@ -717,9 +721,13 @@ i915_vma_remove(struct i915_vma *vma)
 		struct drm_i915_gem_object *obj = vma->obj;
 
 		spin_lock(&i915->mm.obj_lock);
+
+		GEM_BUG_ON(obj->bind_count == 0);
 		if (--obj->bind_count == 0 &&
+		    i915_gem_object_is_shrinkable(obj) &&
 		    obj->mm.madv == I915_MADV_WILLNEED)
 			list_move_tail(&obj->mm.link, &i915->mm.unbound_list);
+
 		spin_unlock(&i915->mm.obj_lock);
 
 		/*

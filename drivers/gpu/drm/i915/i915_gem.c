@@ -1137,15 +1137,17 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	if (i915_gem_object_has_pages(obj)) {
 		struct list_head *list;
 
-		spin_lock(&i915->mm.obj_lock);
-		if (obj->mm.madv != I915_MADV_WILLNEED)
-			list = &i915->mm.purge_list;
-		else if (obj->bind_count)
-			list = &i915->mm.bound_list;
-		else
-			list = &i915->mm.unbound_list;
-		list_move_tail(&obj->mm.link, list);
-		spin_unlock(&i915->mm.obj_lock);
+		if (i915_gem_object_is_shrinkable(obj)) {
+			spin_lock(&i915->mm.obj_lock);
+			if (obj->mm.madv != I915_MADV_WILLNEED)
+				list = &i915->mm.purge_list;
+			else if (obj->bind_count)
+				list = &i915->mm.bound_list;
+			else
+				list = &i915->mm.unbound_list;
+			list_move_tail(&obj->mm.link, list);
+			spin_unlock(&i915->mm.obj_lock);
+		}
 	}
 
 	/* if the object is no longer attached, discard its backing storage */
@@ -1758,7 +1760,6 @@ i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
 
 static void i915_gem_init__mm(struct drm_i915_private *i915)
 {
-	spin_lock_init(&i915->mm.object_stat_lock);
 	spin_lock_init(&i915->mm.obj_lock);
 	spin_lock_init(&i915->mm.free_lock);
 
@@ -1808,7 +1809,7 @@ void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
 	i915_gem_drain_freed_objects(dev_priv);
 	GEM_BUG_ON(!llist_empty(&dev_priv->mm.free_list));
 	GEM_BUG_ON(atomic_read(&dev_priv->mm.free_count));
-	WARN_ON(dev_priv->mm.object_count);
+	WARN_ON(dev_priv->mm.shrink_count);
 
 	cleanup_srcu_struct(&dev_priv->gpu_error.reset_backoff_srcu);
 

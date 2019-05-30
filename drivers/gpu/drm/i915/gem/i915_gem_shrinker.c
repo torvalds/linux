@@ -309,30 +309,14 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 {
 	struct drm_i915_private *i915 =
 		container_of(shrinker, struct drm_i915_private, mm.shrinker);
-	struct drm_i915_gem_object *obj;
-	unsigned long num_objects = 0;
-	unsigned long count = 0;
+	unsigned long num_objects;
+	unsigned long count;
 
-	spin_lock(&i915->mm.obj_lock);
-	list_for_each_entry(obj, &i915->mm.unbound_list, mm.link)
-		if (can_release_pages(obj)) {
-			count += obj->base.size >> PAGE_SHIFT;
-			num_objects++;
-		}
+	count = READ_ONCE(i915->mm.shrink_memory) >> PAGE_SHIFT;
+	num_objects = READ_ONCE(i915->mm.shrink_count);
 
-	list_for_each_entry(obj, &i915->mm.bound_list, mm.link)
-		if (!i915_gem_object_is_active(obj) && can_release_pages(obj)) {
-			count += obj->base.size >> PAGE_SHIFT;
-			num_objects++;
-		}
-	list_for_each_entry(obj, &i915->mm.purge_list, mm.link)
-		if (!i915_gem_object_is_active(obj) && can_release_pages(obj)) {
-			count += obj->base.size >> PAGE_SHIFT;
-			num_objects++;
-		}
-	spin_unlock(&i915->mm.obj_lock);
-
-	/* Update our preferred vmscan batch size for the next pass.
+	/*
+	 * Update our preferred vmscan batch size for the next pass.
 	 * Our rough guess for an effective batch size is roughly 2
 	 * available GEM objects worth of pages. That is we don't want
 	 * the shrinker to fire, until it is worth the cost of freeing an
