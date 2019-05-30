@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * debugfs interface for sunrpc
  *
  * (c) 2014 Jeff Layton <jlayton@primarydata.com>
