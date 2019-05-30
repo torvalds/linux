@@ -303,10 +303,24 @@ void dcn2_init_clocks(struct clk_mgr *clk_mgr)
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
 }
 
+void dcn2_enable_pme_wa(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	struct pp_smu_funcs_nv *pp_smu = NULL;
+
+	if (clk_mgr->pp_smu) {
+		pp_smu = &clk_mgr->pp_smu->nv_funcs;
+
+		if (pp_smu->set_pme_wa_enable)
+			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
+	}
+}
+
 static struct clk_mgr_funcs dcn2_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = dcn2_update_clocks,
-	.init_clocks = dcn2_init_clocks
+	.init_clocks = dcn2_init_clocks,
+	.enable_pme_wa = dcn2_enable_pme_wa
 };
 
 

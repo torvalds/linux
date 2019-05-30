@@ -215,9 +215,23 @@ static void rv1_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 }
 
+static void rv1_enable_pme_wa(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	struct pp_smu_funcs_rv *pp_smu = NULL;
+
+	if (clk_mgr->pp_smu) {
+		pp_smu = &clk_mgr->pp_smu->rv_funcs;
+
+		if (pp_smu->set_pme_wa_enable)
+			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
+	}
+}
+
 static struct clk_mgr_funcs rv1_clk_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = rv1_update_clocks,
+	.enable_pme_wa = rv1_enable_pme_wa,
 };
 
 static struct clk_mgr_internal_funcs rv1_clk_internal_funcs = {
