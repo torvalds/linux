@@ -702,7 +702,14 @@ static void __perf_evsel__config_callchain(struct perf_evsel *evsel,
 		if (!function) {
 			perf_evsel__set_sample_bit(evsel, REGS_USER);
 			perf_evsel__set_sample_bit(evsel, STACK_USER);
-			attr->sample_regs_user |= PERF_REGS_MASK;
+			if (opts->sample_user_regs && DWARF_MINIMAL_REGS != PERF_REGS_MASK) {
+				attr->sample_regs_user |= DWARF_MINIMAL_REGS;
+				pr_warning("WARNING: The use of --call-graph=dwarf may require all the user registers, "
+					   "specifying a subset with --user-regs may render DWARF unwinding unreliable, "
+					   "so the minimal registers set (IP, SP) is explicitly forced.\n");
+			} else {
+				attr->sample_regs_user |= PERF_REGS_MASK;
+			}
 			attr->sample_stack_user = param->dump_size;
 			attr->exclude_callchain_user = 1;
 		} else {
