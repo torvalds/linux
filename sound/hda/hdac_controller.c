@@ -239,9 +239,9 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 	timeout = jiffies + msecs_to_jiffies(1000);
 
 	for (loopcounter = 0;; loopcounter++) {
+		spin_lock_irq(&bus->reg_lock);
 		if (bus->polling_mode)
 			snd_hdac_bus_update_rirb(bus);
-		spin_lock_irq(&bus->reg_lock);
 		if (!bus->rirb.cmds[addr]) {
 			if (res)
 				*res = bus->rirb.res[addr]; /* the last value */
