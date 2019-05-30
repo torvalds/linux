@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * AD8366 SPI Dual-Digital Variable Gain Amplifier (VGA)
+ * AD8366 and similar Gain Amplifiers
+ * This driver supports the following gain amplifiers:
+ *   AD8366 Dual-Digital Variable Gain Amplifier (VGA)
+ *   ADA4961 BiCMOS RF Digital Gain Amplifier (DGA)
  *
  * Copyright 2012-2019 Analog Devices Inc.
  */
@@ -11,6 +14,7 @@
 #include <linux/sysfs.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/consumer.h>
+#include <linux/gpio/consumer.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/bitrev.h>
@@ -20,6 +24,7 @@
 
 enum ad8366_type {
 	ID_AD8366,
+	ID_ADA4961,
 };
 
 struct ad8366_info {
@@ -31,6 +36,7 @@ struct ad8366_state {
 	struct spi_device	*spi;
 	struct regulator	*reg;
 	struct mutex            lock; /* protect sensor state */
+	struct gpio_desc	*reset_gpio;
 	unsigned char		ch[2];
 	enum ad8366_type	type;
 	struct ad8366_info	*info;
@@ -45,6 +51,10 @@ static struct ad8366_info ad8366_infos[] = {
 	[ID_AD8366] = {
 		.gain_min = 4500,
 		.gain_max = 20500,
+	},
+	[ID_ADA4961] = {
+		.gain_min = -6000,
+		.gain_max = 15000,
 	},
 };
 
@@ -61,6 +71,9 @@ static int ad8366_write(struct iio_dev *indio_dev,
 
 		st->data[0] = ch_b >> 4;
 		st->data[1] = (ch_b << 4) | (ch_a >> 2);
+		break;
+	case ID_ADA4961:
+		st->data[0] = ch_a & 0x1F;
 		break;
 	}
 
@@ -89,6 +102,9 @@ static int ad8366_read_raw(struct iio_dev *indio_dev,
 		switch (st->type) {
 		case ID_AD8366:
 			gain = code * 253 + 4500;
+			break;
+		case ID_ADA4961:
+			gain = 15000 - code * 1000;
 			break;
 		}
 
@@ -130,6 +146,9 @@ static int ad8366_write_raw(struct iio_dev *indio_dev,
 	case ID_AD8366:
 		code = (gain - 4500) / 253;
 		break;
+	case ID_ADA4961:
+		code = (15000 - gain) / 1000;
+		break;
 	}
 
 	mutex_lock(&st->lock);
@@ -164,6 +183,10 @@ static const struct iio_chan_spec ad8366_channels[] = {
 	AD8366_CHAN(1),
 };
 
+static const struct iio_chan_spec ada4961_channels[] = {
+	AD8366_CHAN(0),
+};
+
 static int ad8366_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -192,6 +215,12 @@ static int ad8366_probe(struct spi_device *spi)
 	case ID_AD8366:
 		indio_dev->channels = ad8366_channels;
 		indio_dev->num_channels = ARRAY_SIZE(ad8366_channels);
+		break;
+	case ID_ADA4961:
+		st->reset_gpio = devm_gpiod_get(&spi->dev, "reset",
+			GPIOD_OUT_HIGH);
+		indio_dev->channels = ada4961_channels;
+		indio_dev->num_channels = ARRAY_SIZE(ada4961_channels);
 		break;
 	default:
 		dev_err(&spi->dev, "Invalid device ID\n");
@@ -238,6 +267,7 @@ static int ad8366_remove(struct spi_device *spi)
 
 static const struct spi_device_id ad8366_id[] = {
 	{"ad8366",  ID_AD8366},
+	{"ada4961", ID_ADA4961},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad8366_id);
@@ -254,5 +284,5 @@ static struct spi_driver ad8366_driver = {
 module_spi_driver(ad8366_driver);
 
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
-MODULE_DESCRIPTION("Analog Devices AD8366 VGA");
+MODULE_DESCRIPTION("Analog Devices AD8366 and similar Gain Amplifiers");
 MODULE_LICENSE("GPL v2");
