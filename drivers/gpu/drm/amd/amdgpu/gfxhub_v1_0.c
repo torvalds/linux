@@ -146,12 +146,12 @@ static void gfxhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, PDE_FAULT_CLASSIFICATION, 0);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, CONTEXT1_IDENTITY_ACCESS_MODE, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, IDENTITY_MODE_FRAGMENT_SIZE, 0);
-	WREG32_SOC15(GC, 0, mmVM_L2_CNTL, tmp);
+	WREG32_SOC15_RLC(GC, 0, mmVM_L2_CNTL, tmp);
 
 	tmp = RREG32_SOC15(GC, 0, mmVM_L2_CNTL2);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS, 1);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL2, INVALIDATE_L2_CACHE, 1);
-	WREG32_SOC15(GC, 0, mmVM_L2_CNTL2, tmp);
+	WREG32_SOC15_RLC(GC, 0, mmVM_L2_CNTL2, tmp);
 
 	tmp = mmVM_L2_CNTL3_DEFAULT;
 	if (adev->gmc.translate_further) {
@@ -163,12 +163,12 @@ static void gfxhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL3,
 				    L2_CACHE_BIGK_FRAGMENT_SIZE, 6);
 	}
-	WREG32_SOC15(GC, 0, mmVM_L2_CNTL3, tmp);
+	WREG32_SOC15_RLC(GC, 0, mmVM_L2_CNTL3, tmp);
 
 	tmp = mmVM_L2_CNTL4_DEFAULT;
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PDE_REQUEST_PHYSICAL, 0);
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_PTE_REQUEST_PHYSICAL, 0);
-	WREG32_SOC15(GC, 0, mmVM_L2_CNTL4, tmp);
+	WREG32_SOC15_RLC(GC, 0, mmVM_L2_CNTL4, tmp);
 }
 
 static void gfxhub_v1_0_enable_system_domain(struct amdgpu_device *adev)
