@@ -171,6 +171,7 @@ static int omap_hwspinlock_remove(struct platform_device *pdev)
 
 static const struct of_device_id omap_hwspinlock_of_match[] = {
 	{ .compatible = "ti,omap4-hwspinlock", },
+	{ .compatible = "ti,am654-hwspinlock", },
 	{ /* end */ },
 };
 MODULE_DEVICE_TABLE(of, omap_hwspinlock_of_match);
