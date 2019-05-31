@@ -345,6 +345,7 @@ static void free_trace_uprobe(struct trace_uprobe *tu)
 	path_put(&tu->path);
 	kfree(tu->tp.call.class->system);
 	kfree(tu->tp.call.name);
+	kfree(tu->tp.call.print_fmt);
 	kfree(tu->filename);
 	kfree(tu);
 }
@@ -591,6 +592,10 @@ static int trace_uprobe_create(int argc, const char **argv)
 		if (ret)
 			goto error;
 	}
+
+	ret = traceprobe_set_print_fmt(&tu->tp, is_ret_probe(tu));
+	if (ret < 0)
+		goto error;
 
 	ret = register_trace_uprobe(tu);
 	if (!ret)
@@ -1362,21 +1367,15 @@ static int register_uprobe_event(struct trace_uprobe *tu)
 
 	init_trace_event_call(tu, call);
 
-	if (traceprobe_set_print_fmt(&tu->tp, is_ret_probe(tu)) < 0)
-		return -ENOMEM;
-
 	ret = register_trace_event(&call->event);
-	if (!ret) {
-		kfree(call->print_fmt);
+	if (!ret)
 		return -ENODEV;
-	}
 
 	ret = trace_add_event_call(call);
 
 	if (ret) {
 		pr_info("Failed to register uprobe event: %s\n",
 			trace_event_name(call));
-		kfree(call->print_fmt);
 		unregister_trace_event(&call->event);
 	}
 
@@ -1385,15 +1384,8 @@ static int register_uprobe_event(struct trace_uprobe *tu)
 
 static int unregister_uprobe_event(struct trace_uprobe *tu)
 {
-	int ret;
-
 	/* tu->event is unregistered in trace_remove_event_call() */
-	ret = trace_remove_event_call(&tu->tp.call);
-	if (ret)
-		return ret;
-	kfree(tu->tp.call.print_fmt);
-	tu->tp.call.print_fmt = NULL;
-	return 0;
+	return trace_remove_event_call(&tu->tp.call);
 }
 
 #ifdef CONFIG_PERF_EVENTS
@@ -1451,9 +1443,6 @@ void destroy_local_trace_uprobe(struct trace_event_call *event_call)
 	struct trace_uprobe *tu;
 
 	tu = container_of(event_call, struct trace_uprobe, tp.call);
-
-	kfree(tu->tp.call.print_fmt);
-	tu->tp.call.print_fmt = NULL;
 
 	free_trace_uprobe(tu);
 }
