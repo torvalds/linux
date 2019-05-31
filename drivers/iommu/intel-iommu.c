@@ -1649,15 +1649,11 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 
 	spin_lock_irqsave(&device_domain_lock, flags);
 	list_for_each_entry_safe(info, tmp, &device_domain_list, global) {
-		struct dmar_domain *domain;
-
 		if (info->iommu != iommu)
 			continue;
 
 		if (!info->dev || !info->domain)
 			continue;
-
-		domain = info->domain;
 
 		__dmar_remove_one_dev_info(info);
 	}
