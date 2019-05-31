@@ -288,6 +288,11 @@
 		groups = "audio_clkout1_a";
 		function = "audio_clk";
 	};
+
+	usb30_pins: usb30 {
+		groups = "usb30", "usb30_id";
+		function = "usb30";
+	};
 };
 
 &rcar_sound {
@@ -359,5 +364,17 @@
 
 &usb2_phy0 {
 	renesas,no-otg-pins;
+	status = "okay";
+};
+
+&usb3_peri0 {
+	companion = <&xhci0>;
+	status = "okay";
+};
+
+&xhci0 {
+	pinctrl-0 = <&usb30_pins>;
+	pinctrl-names = "default";
+
 	status = "okay";
 };
