@@ -16,6 +16,7 @@
  *    -l	Also limit flows doing loopback
  *    -n <#>	To create cgroup \"/hbm#\" and attach prog
  *		Default is /hbm1
+ *    --no_cn   Do not return cn notifications
  *    -r <rate>	Rate limit in Mbps
  *    -s	Get HBM stats (marked, dropped, etc.)
  *    -t <time>	Exit after specified seconds (default is 0)
@@ -42,6 +43,7 @@
 
 #include <linux/bpf.h>
 #include <bpf/bpf.h>
+#include <getopt.h>
 
 #include "bpf_load.h"
 #include "bpf_rlimit.h"
@@ -59,6 +61,7 @@ bool stats_flag;
 bool loopback_flag;
 bool debugFlag;
 bool work_conserving_flag;
+bool no_cn_flag;
 
 static void Usage(void);
 static void read_trace_pipe2(void);
@@ -185,6 +188,7 @@ static int run_bpf_prog(char *prog, int cg_id)
 	qstats.rate = rate;
 	qstats.stats = stats_flag ? 1 : 0;
 	qstats.loopback = loopback_flag ? 1 : 0;
+	qstats.no_cn = no_cn_flag ? 1 : 0;
 	if (bpf_map_update_elem(map_fd, &key, &qstats, BPF_ANY)) {
 		printf("ERROR: Could not update map element\n");
 		goto err;
@@ -312,6 +316,14 @@ static int run_bpf_prog(char *prog, int cg_id)
 		double percent_pkts, percent_bytes;
 		char fname[100];
 		FILE *fout;
+		int k;
+		static const char *returnValNames[] = {
+			"DROP_PKT",
+			"ALLOW_PKT",
+			"DROP_PKT_CWR",
+			"ALLOW_PKT_CWR"
+		};
+#define RET_VAL_COUNT 4
 
 // Future support of ingress
 //		if (!outFlag)
@@ -346,6 +358,31 @@ static int run_bpf_prog(char *prog, int cg_id)
 			(qstats.bytes_total + 1);
 		fprintf(fout, "pkts_dropped_percent:%6.2f\n", percent_pkts);
 		fprintf(fout, "bytes_dropped_percent:%6.2f\n", percent_bytes);
+
+		// ECN CE markings
+		percent_pkts = (qstats.pkts_ecn_ce * 100.0) /
+			(qstats.pkts_total + 1);
+		fprintf(fout, "pkts_ecn_ce:%6.2f (%d)\n", percent_pkts,
+			(int)qstats.pkts_ecn_ce);
+
+		// Average cwnd
+		fprintf(fout, "avg cwnd:%d\n",
+			(int)(qstats.sum_cwnd / (qstats.sum_cwnd_cnt + 1)));
+		// Average rtt
+		fprintf(fout, "avg rtt:%d\n",
+			(int)(qstats.sum_rtt / (qstats.pkts_total + 1)));
+		// Average credit
+		fprintf(fout, "avg credit:%d\n",
+			(int)(qstats.sum_credit /
+			      (1500 * ((int)qstats.pkts_total) + 1)));
+
+		// Return values stats
+		for (k = 0; k < RET_VAL_COUNT; k++) {
+			percent_pkts = (qstats.returnValCount[k] * 100.0) /
+				(qstats.pkts_total + 1);
+			fprintf(fout, "%s:%6.2f (%d)\n", returnValNames[k],
+				percent_pkts, (int)qstats.returnValCount[k]);
+		}
 		fclose(fout);
 	}
 
@@ -366,14 +403,15 @@ static void Usage(void)
 {
 	printf("This program loads a cgroup skb BPF program to enforce\n"
 	       "cgroup output (egress) bandwidth limits.\n\n"
-	       "USAGE: hbm [-o] [-d]  [-l] [-n <id>] [-r <rate>] [-s]\n"
-	       "           [-t <secs>] [-w] [-h] [prog]\n"
+	       "USAGE: hbm [-o] [-d]  [-l] [-n <id>] [--no_cn] [-r <rate>]\n"
+	       "           [-s] [-t <secs>] [-w] [-h] [prog]\n"
 	       "  Where:\n"
 	       "    -o         indicates egress direction (default)\n"
 	       "    -d         print BPF trace debug buffer\n"
 	       "    -l         also limit flows using loopback\n"
 	       "    -n <#>     to create cgroup \"/hbm#\" and attach prog\n"
 	       "               Default is /hbm1\n"
+	       "    --no_cn    disable CN notifcations\n"
 	       "    -r <rate>  Rate in Mbps\n"
 	       "    -s         Update HBM stats\n"
 	       "    -t <time>  Exit after specified seconds (default is 0)\n"
@@ -393,9 +431,16 @@ int main(int argc, char **argv)
 	int  k;
 	int cg_id = 1;
 	char *optstring = "iodln:r:st:wh";
+	struct option loptions[] = {
+		{"no_cn", 0, NULL, 1},
+		{NULL, 0, NULL, 0}
+	};
 
-	while ((k = getopt(argc, argv, optstring)) != -1) {
+	while ((k = getopt_long(argc, argv, optstring, loptions, NULL)) != -1) {
 		switch (k) {
+		case 1:
+			no_cn_flag = true;
+			break;
 		case'o':
 			break;
 		case 'd':

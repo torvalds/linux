@@ -128,16 +128,8 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 	return -EINVAL;
 }
 
-static int ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb)
+static int __ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	int ret;
-
-	ret = BPF_CGROUP_RUN_PROG_INET_EGRESS(sk, skb);
-	if (ret) {
-		kfree_skb(skb);
-		return ret;
-	}
-
 #if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
 	/* Policy lookup after SNAT yielded a new policy */
 	if (skb_dst(skb)->xfrm) {
@@ -152,6 +144,22 @@ static int ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 		return ip6_fragment(net, sk, skb, ip6_finish_output2);
 	else
 		return ip6_finish_output2(net, sk, skb);
+}
+
+static int ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff *skb)
+{
+	int ret;
+
+	ret = BPF_CGROUP_RUN_PROG_INET_EGRESS(sk, skb);
+	switch (ret) {
+	case NET_XMIT_SUCCESS:
+		return __ip6_finish_output(net, sk, skb);
+	case NET_XMIT_CN:
+		return __ip6_finish_output(net, sk, skb) ? : ret;
+	default:
+		kfree_skb(skb);
+		return ret;
+	}
 }
 
 int ip6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
