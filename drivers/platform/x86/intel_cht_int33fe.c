@@ -43,11 +43,33 @@ struct cht_int33fe_data {
 	struct i2c_client *max17047;
 	struct i2c_client *fusb302;
 	struct i2c_client *pi3usb30532;
-	/* Contain a list-head must be per device */
-	struct device_connection connections[4];
 
 	struct fwnode_handle *dp;
 	struct fwnode_handle *mux;
+};
+
+static const struct software_node nodes[];
+
+static const struct software_node_ref_args pi3usb30532_ref = {
+	&nodes[INT33FE_NODE_PI3USB30532]
+};
+
+static const struct software_node_ref_args dp_ref = {
+	&nodes[INT33FE_NODE_DISPLAYPORT]
+};
+
+static struct software_node_ref_args mux_ref;
+
+static const struct software_node_reference usb_connector_refs[] = {
+	{ "orientation-switch", 1, &pi3usb30532_ref},
+	{ "mode-switch", 1, &pi3usb30532_ref},
+	{ "displayport", 1, &dp_ref},
+	{ }
+};
+
+static const struct software_node_reference fusb302_refs[] = {
+	{ "usb-role-switch", 1, &mux_ref},
+	{ }
 };
 
 /*
@@ -113,12 +135,12 @@ static const struct property_entry usb_connector_props[] = {
 };
 
 static const struct software_node nodes[] = {
-	{ "fusb302", NULL, fusb302_props },
+	{ "fusb302", NULL, fusb302_props, fusb302_refs },
 	{ "max17047", NULL, max17047_props },
 	{ "pi3usb30532" },
 	{ "displayport" },
 	{ "usb-role-switch" },
-	{ "connector", &nodes[0], usb_connector_props },
+	{ "connector", &nodes[0], usb_connector_props, usb_connector_refs },
 	{ }
 };
 
@@ -152,6 +174,7 @@ static int cht_int33fe_setup_mux(struct cht_int33fe_data *data)
 
 	data->mux = fwnode_handle_get(dev->fwnode);
 	put_device(dev);
+	mux_ref.node = to_software_node(data->mux);
 
 	return 0;
 }
@@ -190,6 +213,7 @@ static void cht_int33fe_remove_nodes(struct cht_int33fe_data *data)
 
 	if (data->mux) {
 		fwnode_handle_put(data->mux);
+		mux_ref.node = NULL;
 		data->mux = NULL;
 	}
 
@@ -343,18 +367,6 @@ static int cht_int33fe_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_remove_nodes;
 
-	data->connections[0].endpoint[0] = "port0";
-	data->connections[0].endpoint[1] = "i2c-pi3usb30532-switch";
-	data->connections[0].id = "orientation-switch";
-	data->connections[1].endpoint[0] = "port0";
-	data->connections[1].endpoint[1] = "i2c-pi3usb30532-mux";
-	data->connections[1].id = "mode-switch";
-	data->connections[2].endpoint[0] = "i2c-fusb302";
-	data->connections[2].endpoint[1] = "intel_xhci_usb_sw-role-switch";
-	data->connections[2].id = "usb-role-switch";
-
-	device_connections_add(data->connections);
-
 	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_FUSB302]);
 	if (!fwnode) {
 		ret = -ENODEV;
@@ -400,8 +412,6 @@ out_unregister_fusb302:
 out_unregister_max17047:
 	i2c_unregister_device(data->max17047);
 
-	device_connections_remove(data->connections);
-
 out_remove_nodes:
 	cht_int33fe_remove_nodes(data);
 
@@ -416,7 +426,6 @@ static int cht_int33fe_remove(struct platform_device *pdev)
 	i2c_unregister_device(data->fusb302);
 	i2c_unregister_device(data->max17047);
 
-	device_connections_remove(data->connections);
 	cht_int33fe_remove_nodes(data);
 
 	return 0;
