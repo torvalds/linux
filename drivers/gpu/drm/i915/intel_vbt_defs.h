@@ -116,6 +116,10 @@ struct bdb_header {
 #define BDB_MIPI_SEQUENCE	 53
 #define BDB_SKIP		254 /* VBIOS private block, ignore */
 
+/*
+ * Block 1 - General Bit Definitions
+ */
+
 struct bdb_general_features {
         /* bits 1 */
 	u8 panel_fitting:2;
@@ -156,6 +160,10 @@ struct bdb_general_features {
 	u8 dp_ssc_dongle_supported:1;
 	u8 rsvd11:2; /* finish byte */
 } __packed;
+
+/*
+ * Block 2 - General Bytes Definition
+ */
 
 /* pre-915 */
 #define GPIO_PIN_DVI_LVDS	0x03 /* "DVI/LVDS DDC GPIO pins" */
@@ -447,6 +455,10 @@ struct bdb_general_definitions {
 	u8 devices[0];
 } __packed;
 
+/*
+ * Block 40 - LFP Data Block
+ */
+
 /* Mask for DRRS / Panel Channel / SSC / BLT control bits extraction */
 #define MODE_MASK		0x3
 
@@ -476,6 +488,10 @@ struct bdb_lvds_options {
 	u32 blt_control_type_bits;
 } __packed;
 
+/*
+ * Block 41 - LFP Data Table Pointers
+ */
+
 /* LFP pointer table contains entries to the struct below */
 struct lvds_lfp_data_ptr {
 	u16 fp_timing_offset; /* offsets are from start of bdb */
@@ -490,6 +506,10 @@ struct bdb_lvds_lfp_data_ptrs {
 	u8 lvds_entries; /* followed by one or more lvds_data_ptr structs */
 	struct lvds_lfp_data_ptr ptr[16];
 } __packed;
+
+/*
+ * Block 42 - LFP Data Tables
+ */
 
 /* LFP data has 3 blocks per entry */
 struct lvds_fp_timing {
@@ -557,9 +577,17 @@ struct bdb_lvds_lfp_data {
 	struct lvds_lfp_data_entry data[16];
 } __packed;
 
+/*
+ * Block 23 - SDVO LVDS Panel DTDs
+ */
+
 struct bdb_sdvo_panel_dtds {
 	struct lvds_dvo_timing dtds[4];
 } __packed;
+
+/*
+ * Block 43 - LFP Backlight Control Data Block
+ */
 
 #define BDB_BACKLIGHT_TYPE_NONE	0
 #define BDB_BACKLIGHT_TYPE_PWM	2
@@ -586,6 +614,10 @@ struct bdb_lfp_backlight_data {
 	struct lfp_backlight_control_method backlight_control[16];
 } __packed;
 
+/*
+ * Block 22 - SDVO LVDS General Options
+ */
+
 struct bdb_sdvo_lvds_options {
 	u8 panel_backlight;
 	u8 h40_set_panel_type;
@@ -602,6 +634,9 @@ struct bdb_sdvo_lvds_options {
 	u8 panel_misc_bits_4;
 } __packed;
 
+/*
+ * Block 12 - Driver Features Data Block
+ */
 
 #define BDB_DRIVER_FEATURE_NO_LVDS		0
 #define BDB_DRIVER_FEATURE_INT_LVDS		1
@@ -662,6 +697,10 @@ struct bdb_driver_features {
 	u16 pc_feature_valid:1;
 } __packed;
 
+/*
+ * Block 27 - eDP VBT Block
+ */
+
 #define EDP_18BPP	0
 #define EDP_24BPP	1
 #define EDP_30BPP	2
@@ -714,6 +753,10 @@ struct bdb_edp {
 	struct edp_full_link_params full_link_params[16];	/* 199 */
 } __packed;
 
+/*
+ * Block 9 - SRD Feature Block
+ */
+
 struct psr_table {
 	/* Feature bits */
 	u8 full_link:1;
@@ -737,10 +780,10 @@ struct bdb_psr {
 	struct psr_table psr_table[16];
 } __packed;
 
-/* Block 52 contains MIPI configuration block
- * 6 * bdb_mipi_config, followed by 6 pps data block
- * block below
+/*
+ * Block 52 - MIPI Configuration Block
  */
+
 #define MAX_MIPI_CONFIGURATIONS	6
 
 struct bdb_mipi_config {
@@ -748,13 +791,13 @@ struct bdb_mipi_config {
 	struct mipi_pps_data pps[MAX_MIPI_CONFIGURATIONS];
 } __packed;
 
-/* Block 53 contains MIPI sequences as needed by the panel
- * for enabling it. This block can be variable in size and
- * can be maximum of 6 blocks
+/*
+ * Block 53 - MIPI Sequence Block
  */
+
 struct bdb_mipi_sequence {
 	u8 version;
-	u8 data[0];
+	u8 data[0]; /* up to 6 variable length blocks */
 } __packed;
 
 #endif /* _INTEL_VBT_DEFS_H_ */
