@@ -490,7 +490,7 @@ static const struct capture_fmt raw_fmts[] = {
 		.bpp = { 8 },
 		.mplanes = 1,
 	}, {
-		.fourcc = V4L2_PIX_FMT_SRGGB8,
+		.fourcc = V4L2_PIX_FMT_SRGGB10,
 		.fmt_type = FMT_BAYER,
 		.bpp = { 10 },
 		.mplanes = 1,
@@ -644,7 +644,7 @@ static struct stream_config rkisp1_sp_stream_config = {
 
 static struct stream_config rkisp1_raw_stream_config = {
 	.fmts = raw_fmts,
-	.fmt_size = ARRAY_SIZE(mp_fmts),
+	.fmt_size = ARRAY_SIZE(raw_fmts),
 };
 
 static const
