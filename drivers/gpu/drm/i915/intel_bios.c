@@ -1239,6 +1239,21 @@ static u8 translate_iboost(u8 val)
 	return mapping[val];
 }
 
+static enum port get_port_by_ddc_pin(struct drm_i915_private *i915, u8 ddc_pin)
+{
+	const struct ddi_vbt_port_info *info;
+	enum port port;
+
+	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
+		info = &i915->vbt.ddi_port_info[port];
+
+		if (info->child && ddc_pin == info->alternate_ddc_pin)
+			return port;
+	}
+
+	return PORT_NONE;
+}
+
 static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 			     enum port port)
 {
@@ -1248,13 +1263,8 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 	if (!info->alternate_ddc_pin)
 		return;
 
-	for (p = PORT_A; p < I915_MAX_PORTS; p++) {
-		struct ddi_vbt_port_info *i = &dev_priv->vbt.ddi_port_info[p];
-
-		if (p == port || !i->child ||
-		    info->alternate_ddc_pin != i->alternate_ddc_pin)
-			continue;
-
+	p = get_port_by_ddc_pin(dev_priv, info->alternate_ddc_pin);
+	if (p != PORT_NONE) {
 		DRM_DEBUG_KMS("port %c trying to use the same DDC pin (0x%x) as port %c, "
 			      "disabling port %c DVI/HDMI support\n",
 			      port_name(port), info->alternate_ddc_pin,
@@ -1275,6 +1285,21 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 	}
 }
 
+static enum port get_port_by_aux_ch(struct drm_i915_private *i915, u8 aux_ch)
+{
+	const struct ddi_vbt_port_info *info;
+	enum port port;
+
+	for (port = PORT_A; port < I915_MAX_PORTS; port++) {
+		info = &i915->vbt.ddi_port_info[port];
+
+		if (info->child && aux_ch == info->alternate_aux_channel)
+			return port;
+	}
+
+	return PORT_NONE;
+}
+
 static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 			    enum port port)
 {
@@ -1284,13 +1309,8 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 	if (!info->alternate_aux_channel)
 		return;
 
-	for (p = PORT_A; p < I915_MAX_PORTS; p++) {
-		struct ddi_vbt_port_info *i = &dev_priv->vbt.ddi_port_info[p];
-
-		if (p == port || !i->child ||
-		    info->alternate_aux_channel != i->alternate_aux_channel)
-			continue;
-
+	p = get_port_by_aux_ch(dev_priv, info->alternate_aux_channel);
+	if (p != PORT_NONE) {
 		DRM_DEBUG_KMS("port %c trying to use the same AUX CH (0x%x) as port %c, "
 			      "disabling port %c DP support\n",
 			      port_name(port), info->alternate_aux_channel,
