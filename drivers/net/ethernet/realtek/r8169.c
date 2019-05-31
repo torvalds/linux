@@ -655,11 +655,6 @@ struct rtl8169_private {
 	const struct rtl_coalesce_info *coalesce_info;
 	struct clk *clk;
 
-	struct mdio_ops {
-		void (*write)(struct rtl8169_private *, int, int);
-		int (*read)(struct rtl8169_private *, int);
-	} mdio_ops;
-
 	struct jumbo_ops {
 		void (*enable)(struct rtl8169_private *);
 		void (*disable)(struct rtl8169_private *);
@@ -1019,12 +1014,36 @@ static int r8168dp_2_mdio_read(struct rtl8169_private *tp, int reg)
 
 static void rtl_writephy(struct rtl8169_private *tp, int location, int val)
 {
-	tp->mdio_ops.write(tp, location, val);
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_27:
+		r8168dp_1_mdio_write(tp, location, val);
+		break;
+	case RTL_GIGA_MAC_VER_28:
+	case RTL_GIGA_MAC_VER_31:
+		r8168dp_2_mdio_write(tp, location, val);
+		break;
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
+		r8168g_mdio_write(tp, location, val);
+		break;
+	default:
+		r8169_mdio_write(tp, location, val);
+		break;
+	}
 }
 
 static int rtl_readphy(struct rtl8169_private *tp, int location)
 {
-	return tp->mdio_ops.read(tp, location);
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_27:
+		return r8168dp_1_mdio_read(tp, location);
+	case RTL_GIGA_MAC_VER_28:
+	case RTL_GIGA_MAC_VER_31:
+		return r8168dp_2_mdio_read(tp, location);
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
+		return r8168g_mdio_read(tp, location);
+	default:
+		return r8169_mdio_read(tp, location);
+	}
 }
 
 static void rtl_patchphy(struct rtl8169_private *tp, int reg_addr, int value)
@@ -4057,31 +4076,6 @@ static int rtl8169_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return -ENODEV;
 
 	return phy_mii_ioctl(tp->phydev, ifr, cmd);
-}
-
-static void rtl_init_mdio_ops(struct rtl8169_private *tp)
-{
-	struct mdio_ops *ops = &tp->mdio_ops;
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_27:
-		ops->write	= r8168dp_1_mdio_write;
-		ops->read	= r8168dp_1_mdio_read;
-		break;
-	case RTL_GIGA_MAC_VER_28:
-	case RTL_GIGA_MAC_VER_31:
-		ops->write	= r8168dp_2_mdio_write;
-		ops->read	= r8168dp_2_mdio_read;
-		break;
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
-		ops->write	= r8168g_mdio_write;
-		ops->read	= r8168g_mdio_read;
-		break;
-	default:
-		ops->write	= r8169_mdio_write;
-		ops->read	= r8169_mdio_read;
-		break;
-	}
 }
 
 static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
@@ -7136,7 +7130,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	rtl_init_mdio_ops(tp);
 	rtl_init_jumbo_ops(tp);
 
 	chipset = tp->mac_version;
