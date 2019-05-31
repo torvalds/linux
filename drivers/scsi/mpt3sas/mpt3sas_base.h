@@ -1422,6 +1422,9 @@ struct MPT3SAS_ADAPTER {
 	u8		is_gen35_ioc;
 	u8		is_aero_ioc;
 	PUT_SMID_IO_FP_HIP put_smid_scsi_io;
+	PUT_SMID_IO_FP_HIP put_smid_fast_path;
+	PUT_SMID_IO_FP_HIP put_smid_hi_priority;
+	PUT_SMID_DEFAULT put_smid_default;
 
 };
 
