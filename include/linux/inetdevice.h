@@ -26,7 +26,7 @@ struct in_device {
 	struct net_device	*dev;
 	refcount_t		refcnt;
 	int			dead;
-	struct in_ifaddr	*ifa_list;	/* IP ifaddr chain		*/
+	struct in_ifaddr	__rcu *ifa_list;/* IP ifaddr chain		*/
 
 	struct ip_mc_list __rcu	*mc_list;	/* IP multicast filter chain    */
 	struct ip_mc_list __rcu	* __rcu *mc_hash;
@@ -136,7 +136,7 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 
 struct in_ifaddr {
 	struct hlist_node	hash;
-	struct in_ifaddr	*ifa_next;
+	struct in_ifaddr	__rcu *ifa_next;
 	struct in_device	*ifa_dev;
 	struct rcu_head		rcu_head;
 	__be32			ifa_local;
@@ -206,22 +206,13 @@ static __inline__ bool bad_mask(__be32 mask, __be32 addr)
 	return false;
 }
 
-#define for_primary_ifa(in_dev)	{ struct in_ifaddr *ifa; \
-  for (ifa = (in_dev)->ifa_list; ifa && !(ifa->ifa_flags&IFA_F_SECONDARY); ifa = ifa->ifa_next)
-
-#define for_ifa(in_dev)	{ struct in_ifaddr *ifa; \
-  for (ifa = (in_dev)->ifa_list; ifa; ifa = ifa->ifa_next)
-
-
-#define endfor_ifa(in_dev) }
-
 #define in_dev_for_each_ifa_rtnl(ifa, in_dev)			\
-	for (ifa = (in_dev)->ifa_list; ifa;			\
-	     ifa = ifa->ifa_next)
+	for (ifa = rtnl_dereference((in_dev)->ifa_list); ifa;	\
+	     ifa = rtnl_dereference(ifa->ifa_next))
 
 #define in_dev_for_each_ifa_rcu(ifa, in_dev)			\
-	for (ifa = (in_dev)->ifa_list; ifa;			\
-	     ifa = ifa->ifa_next)
+	for (ifa = rcu_dereference((in_dev)->ifa_list); ifa;	\
+	     ifa = rcu_dereference(ifa->ifa_next))
 
 static inline struct in_device *__in_dev_get_rcu(const struct net_device *dev)
 {

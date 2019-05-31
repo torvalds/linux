@@ -2194,13 +2194,13 @@ static int ath6kl_wow_suspend_vif(struct ath6kl_vif *vif,
 	if (!in_dev)
 		return 0;
 
-	ifa = in_dev->ifa_list;
+	ifa = rtnl_dereference(in_dev->ifa_list);
 	memset(&ips, 0, sizeof(ips));
 
 	/* Configure IP addr only if IP address count < MAX_IP_ADDRS */
 	while (index < MAX_IP_ADDRS && ifa) {
 		ips[index] = ifa->ifa_local;
-		ifa = ifa->ifa_next;
+		ifa = rtnl_dereference(ifa->ifa_next);
 		index++;
 	}
 

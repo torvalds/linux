@@ -70,9 +70,13 @@ net_open(struct net_device *dev)
 		for (i = 0; i < ETH_ALEN; i++)
 			dev->dev_addr[i] = 0xfc;
 		if ((in_dev = dev->ip_ptr) != NULL) {
-			struct in_ifaddr *ifa = in_dev->ifa_list;
+			const struct in_ifaddr *ifa;
+
+			rcu_read_lock();
+			ifa = rcu_dereference(in_dev->ifa_list);
 			if (ifa != NULL)
 				memcpy(dev->dev_addr + (ETH_ALEN - sizeof(ifa->ifa_local)), &ifa->ifa_local, sizeof(ifa->ifa_local));
+			rcu_read_unlock();
 		}
 	} else
 		memcpy(dev->dev_addr, card->mac_addr, ETH_ALEN);

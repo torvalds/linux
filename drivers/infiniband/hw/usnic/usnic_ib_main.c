@@ -427,11 +427,16 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	if (netif_carrier_ok(us_ibdev->netdev))
 		usnic_fwd_carrier_up(us_ibdev->ufdev);
 
-	ind = in_dev_get(netdev);
-	if (ind->ifa_list)
-		usnic_fwd_add_ipaddr(us_ibdev->ufdev,
-				     ind->ifa_list->ifa_address);
-	in_dev_put(ind);
+	rcu_read_lock();
+	ind = __in_dev_get_rcu(netdev);
+	if (ind) {
+		const struct in_ifaddr *ifa;
+
+		ifa = rcu_dereference(ind->ifa_list);
+		if (ifa)
+			usnic_fwd_add_ipaddr(us_ibdev->ufdev, ifa->ifa_address);
+	}
+	rcu_read_unlock();
 
 	usnic_mac_ip_to_gid(us_ibdev->netdev->perm_addr,
 				us_ibdev->ufdev->inaddr, &gid.raw[0]);
