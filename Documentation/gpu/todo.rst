@@ -289,6 +289,9 @@ drm_fb_helper tasks
   these igt tests need to be fixed: kms_fbcon_fbt@psr and
   kms_fbcon_fbt@psr-suspend.
 
+- The max connector argument for drm_fb_helper_init() and
+  drm_fb_helper_fbdev_setup() isn't used anymore and can be removed.
+
 Core refactorings
 =================
 
