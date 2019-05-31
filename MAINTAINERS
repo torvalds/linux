@@ -560,7 +560,7 @@ S:	Supported
 F:	drivers/iio/accel/adxl372.c
 F:	drivers/iio/accel/adxl372_spi.c
 F:	drivers/iio/accel/adxl372_i2c.c
-F:	Documentation/devicetree/bindings/iio/accel/adxl372.txt
+F:	Documentation/devicetree/bindings/iio/accel/adi,adxl372.yaml
 
 AF9013 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
