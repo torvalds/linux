@@ -251,6 +251,12 @@ static inline bool trace_probe_is_registered(struct trace_probe *tp)
 int trace_probe_init(struct trace_probe *tp, const char *event,
 		     const char *group);
 void trace_probe_cleanup(struct trace_probe *tp);
+int trace_probe_register_event_call(struct trace_probe *tp);
+static inline int trace_probe_unregister_event_call(struct trace_probe *tp)
+{
+	/* tp->event is unregistered in trace_remove_event_call() */
+	return trace_remove_event_call(&tp->call);
+}
 
 /* Check the name is good for event/group/fields */
 static inline bool is_good_name(const char *name)

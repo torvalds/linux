@@ -920,3 +920,19 @@ int trace_probe_init(struct trace_probe *tp, const char *event,
 
 	return 0;
 }
+
+int trace_probe_register_event_call(struct trace_probe *tp)
+{
+	struct trace_event_call *call = &tp->call;
+	int ret;
+
+	ret = register_trace_event(&call->event);
+	if (!ret)
+		return -ENODEV;
+
+	ret = trace_add_event_call(call);
+	if (ret)
+		unregister_trace_event(&call->event);
+
+	return ret;
+}

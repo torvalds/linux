@@ -1393,28 +1393,14 @@ static inline void init_trace_event_call(struct trace_kprobe *tk,
 
 static int register_kprobe_event(struct trace_kprobe *tk)
 {
-	struct trace_event_call *call = &tk->tp.call;
-	int ret = 0;
+	init_trace_event_call(tk, &tk->tp.call);
 
-	init_trace_event_call(tk, call);
-
-	ret = register_trace_event(&call->event);
-	if (!ret)
-		return -ENODEV;
-
-	ret = trace_add_event_call(call);
-	if (ret) {
-		pr_info("Failed to register kprobe event: %s\n",
-			trace_event_name(call));
-		unregister_trace_event(&call->event);
-	}
-	return ret;
+	return trace_probe_register_event_call(&tk->tp);
 }
 
 static int unregister_kprobe_event(struct trace_kprobe *tk)
 {
-	/* tp->event is unregistered in trace_remove_event_call() */
-	return trace_remove_event_call(&tk->tp.call);
+	return trace_probe_unregister_event_call(&tk->tp);
 }
 
 #ifdef CONFIG_PERF_EVENTS

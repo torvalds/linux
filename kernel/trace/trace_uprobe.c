@@ -1345,30 +1345,14 @@ static inline void init_trace_event_call(struct trace_uprobe *tu,
 
 static int register_uprobe_event(struct trace_uprobe *tu)
 {
-	struct trace_event_call *call = &tu->tp.call;
-	int ret = 0;
+	init_trace_event_call(tu, &tu->tp.call);
 
-	init_trace_event_call(tu, call);
-
-	ret = register_trace_event(&call->event);
-	if (!ret)
-		return -ENODEV;
-
-	ret = trace_add_event_call(call);
-
-	if (ret) {
-		pr_info("Failed to register uprobe event: %s\n",
-			trace_event_name(call));
-		unregister_trace_event(&call->event);
-	}
-
-	return ret;
+	return trace_probe_register_event_call(&tu->tp);
 }
 
 static int unregister_uprobe_event(struct trace_uprobe *tu)
 {
-	/* tu->event is unregistered in trace_remove_event_call() */
-	return trace_remove_event_call(&tu->tp.call);
+	return trace_probe_unregister_event_call(&tu->tp);
 }
 
 #ifdef CONFIG_PERF_EVENTS
