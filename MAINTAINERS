@@ -11071,6 +11071,15 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/ethernet/qlogic/netxen/
 
+NEXTHOP
+M:	David Ahern <dsahern@kernel.org>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	include/net/nexthop.h
+F:	include/uapi/linux/nexthop.h
+F:	include/net/netns/nexthop.h
+F:	net/ipv4/nexthop.c
+
 NFC SUBSYSTEM
 L:	netdev@vger.kernel.org
 S:	Orphan
