@@ -626,3 +626,20 @@ int goya_debug_coresight(struct hl_device *hdev, void *data)
 
 	return rc;
 }
+
+void goya_halt_coresight(struct hl_device *hdev)
+{
+	struct hl_debug_params params = {};
+	int i, rc;
+
+	for (i = GOYA_ETF_FIRST ; i <= GOYA_ETF_LAST ; i++) {
+		params.reg_idx = i;
+		rc = goya_config_etf(hdev, &params);
+		if (rc)
+			dev_err(hdev->dev, "halt ETF failed, %d/%d\n", rc, i);
+	}
+
+	rc = goya_config_etr(hdev, &params);
+	if (rc)
+		dev_err(hdev->dev, "halt ETR failed, %d\n", rc);
+}
