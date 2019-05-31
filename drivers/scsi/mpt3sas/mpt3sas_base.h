@@ -1147,6 +1147,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  *	path functions resulting in Null pointer reference followed by kernel
  *	crash. To avoid the above race condition we use mutex syncrhonization
  *	which ensures the syncrhonization between cli/sysfs_show path.
+ * @atomic_desc_capable: Atomic Request Descriptor support.
  */
 struct MPT3SAS_ADAPTER {
 	struct list_head list;
@@ -1412,6 +1413,7 @@ struct MPT3SAS_ADAPTER {
 	u8		hide_drives;
 	spinlock_t	diag_trigger_lock;
 	u8		diag_trigger_active;
+	u8		atomic_desc_capable;
 	BASE_READ_REG	base_readl;
 	struct SL_WH_MASTER_TRIGGER_T diag_trigger_master;
 	struct SL_WH_EVENT_TRIGGERS_T diag_trigger_event;
