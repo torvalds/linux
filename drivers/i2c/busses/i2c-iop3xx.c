@@ -38,7 +38,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include "i2c-iop3xx.h"
 
@@ -71,17 +71,16 @@ iop3xx_i2c_enable(struct i2c_algo_iop3xx_data *iop3xx_adap)
 
 	/*
 	 * Every time unit enable is asserted, GPOD needs to be cleared
-	 * on IOP3XX to avoid data corruption on the bus.
+	 * on IOP3XX to avoid data corruption on the bus. We use the
+	 * gpiod_set_raw_value() to make sure the 0 hits the hardware
+	 * GPOD register. These descriptors are only passed along to
+	 * the device if this is necessary.
 	 */
-#if defined(CONFIG_ARCH_IOP32X) || defined(CONFIG_ARCH_IOP33X)
-	if (iop3xx_adap->id == 0) {
-		gpio_set_value(7, 0);
-		gpio_set_value(6, 0);
-	} else {
-		gpio_set_value(5, 0);
-		gpio_set_value(4, 0);
-	}
-#endif
+	if (iop3xx_adap->gpio_scl)
+		gpiod_set_raw_value(iop3xx_adap->gpio_scl, 0);
+	if (iop3xx_adap->gpio_sda)
+		gpiod_set_raw_value(iop3xx_adap->gpio_sda, 0);
+
 	/* NB SR bits not same position as CR IE bits :-( */
 	iop3xx_adap->SR_enabled =
 		IOP3XX_ISR_ALD | IOP3XX_ISR_BERRD |
@@ -433,6 +432,17 @@ iop3xx_i2c_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto free_adapter;
 	}
+
+	adapter_data->gpio_scl = devm_gpiod_get_optional(&pdev->dev,
+							 "scl",
+							 GPIOD_ASIS);
+	if (IS_ERR(adapter_data->gpio_scl))
+		return PTR_ERR(adapter_data->gpio_scl);
+	adapter_data->gpio_sda = devm_gpiod_get_optional(&pdev->dev,
+							 "sda",
+							 GPIOD_ASIS);
+	if (IS_ERR(adapter_data->gpio_sda))
+		return PTR_ERR(adapter_data->gpio_sda);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {

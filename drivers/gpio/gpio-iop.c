@@ -40,6 +40,7 @@ static int iop3xx_gpio_probe(struct platform_device *pdev)
 
 	gc->base = 0;
 	gc->owner = THIS_MODULE;
+	gc->label = "gpio-iop";
 
 	return devm_gpiochip_add_data(&pdev->dev, gc, NULL);
 }
