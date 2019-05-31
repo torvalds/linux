@@ -54,6 +54,10 @@ struct phylink {
 
 	/* The link configuration settings */
 	struct phylink_link_state link_config;
+
+	/* The current settings */
+	phy_interface_t cur_interface;
+
 	struct gpio_desc *link_gpio;
 	struct timer_list link_poll;
 	void (*get_fixed_state)(struct net_device *dev,
@@ -419,6 +423,7 @@ static void phylink_mac_link_up(struct phylink *pl,
 {
 	struct net_device *ndev = pl->netdev;
 
+	pl->cur_interface = link_state.interface;
 	pl->ops->mac_link_up(pl->config, pl->link_an_mode,
 			     pl->phy_state.interface,
 			     pl->phydev);
@@ -440,7 +445,7 @@ static void phylink_mac_link_down(struct phylink *pl)
 	if (ndev)
 		netif_carrier_off(ndev);
 	pl->ops->mac_link_down(pl->config, pl->link_an_mode,
-			       pl->phy_state.interface);
+			       pl->cur_interface);
 	phylink_info(pl, "Link is Down\n");
 }
 

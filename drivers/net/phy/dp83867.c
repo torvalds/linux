@@ -26,11 +26,19 @@
 
 /* Extended Registers */
 #define DP83867_CFG4            0x0031
+#define DP83867_CFG4_SGMII_ANEG_MASK (BIT(5) | BIT(6))
+#define DP83867_CFG4_SGMII_ANEG_TIMER_11MS   (3 << 5)
+#define DP83867_CFG4_SGMII_ANEG_TIMER_800US  (2 << 5)
+#define DP83867_CFG4_SGMII_ANEG_TIMER_2US    (1 << 5)
+#define DP83867_CFG4_SGMII_ANEG_TIMER_16MS   (0 << 5)
+
 #define DP83867_RGMIICTL	0x0032
 #define DP83867_STRAP_STS1	0x006E
 #define DP83867_STRAP_STS2	0x006f
 #define DP83867_RGMIIDCTL	0x0086
 #define DP83867_IO_MUX_CFG	0x0170
+#define DP83867_10M_SGMII_CFG   0x016F
+#define DP83867_10M_SGMII_RATE_ADAPT_MASK BIT(7)
 
 #define DP83867_SW_RESET	BIT(15)
 #define DP83867_SW_RESTART	BIT(14)
@@ -321,15 +329,14 @@ static int dp83867_config_init(struct phy_device *phydev)
 		ret = phy_write(phydev, MII_DP83867_PHYCTRL, val);
 		if (ret)
 			return ret;
-	}
 
-	/* If rgmii mode with no internal delay is selected, we do NOT use
-	 * aligned mode as one might expect.  Instead we use the PHY's default
-	 * based on pin strapping.  And the "mode 0" default is to *use*
-	 * internal delay with a value of 7 (2.00 ns).
-	 */
-	if ((phydev->interface >= PHY_INTERFACE_MODE_RGMII_ID) &&
-	    (phydev->interface <= PHY_INTERFACE_MODE_RGMII_RXID)) {
+		/* If rgmii mode with no internal delay is selected, we do NOT use
+		 * aligned mode as one might expect.  Instead we use the PHY's default
+		 * based on pin strapping.  And the "mode 0" default is to *use*
+		 * internal delay with a value of 7 (2.00 ns).
+		 *
+		 * Set up RGMII delays
+		 */
 		val = phy_read_mmd(phydev, DP83867_DEVADDR, DP83867_RGMIICTL);
 
 		val &= ~(DP83867_RGMII_TX_CLK_DELAY_EN | DP83867_RGMII_RX_CLK_DELAY_EN);
@@ -356,6 +363,33 @@ static int dp83867_config_init(struct phy_device *phydev)
 		phy_modify_mmd(phydev, DP83867_DEVADDR, DP83867_IO_MUX_CFG,
 			       DP83867_IO_MUX_CFG_IO_IMPEDANCE_MASK,
 			       dp83867->io_impedance);
+
+	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
+		/* For support SPEED_10 in SGMII mode
+		 * DP83867_10M_SGMII_RATE_ADAPT bit
+		 * has to be cleared by software. That
+		 * does not affect SPEED_100 and
+		 * SPEED_1000.
+		 */
+		ret = phy_modify_mmd(phydev, DP83867_DEVADDR,
+				     DP83867_10M_SGMII_CFG,
+				     DP83867_10M_SGMII_RATE_ADAPT_MASK,
+				     0);
+		if (ret)
+			return ret;
+
+		/* After reset SGMII Autoneg timer is set to 2us (bits 6 and 5
+		 * are 01). That is not enough to finalize autoneg on some
+		 * devices. Increase this timer duration to maximum 16ms.
+		 */
+		ret = phy_modify_mmd(phydev, DP83867_DEVADDR,
+				     DP83867_CFG4,
+				     DP83867_CFG4_SGMII_ANEG_MASK,
+				     DP83867_CFG4_SGMII_ANEG_TIMER_16MS);
+
+		if (ret)
+			return ret;
+	}
 
 	/* Enable Interrupt output INT_OE in CFG3 register */
 	if (phy_interrupt_is_valid(phydev)) {
@@ -396,7 +430,7 @@ static int dp83867_phy_reset(struct phy_device *phydev)
 
 	usleep_range(10, 20);
 
-	return dp83867_config_init(phydev);
+	return 0;
 }
 
 static struct phy_driver dp83867_driver[] = {
