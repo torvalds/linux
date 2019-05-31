@@ -197,6 +197,16 @@ static int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs);
 static int kretprobe_dispatcher(struct kretprobe_instance *ri,
 				struct pt_regs *regs);
 
+static void free_trace_kprobe(struct trace_kprobe *tk)
+{
+	if (tk) {
+		trace_probe_cleanup(&tk->tp);
+		kfree(tk->symbol);
+		free_percpu(tk->nhit);
+		kfree(tk);
+	}
+}
+
 /*
  * Allocate new trace_probe and initialize it (including kprobes).
  */
@@ -235,47 +245,15 @@ static struct trace_kprobe *alloc_trace_kprobe(const char *group,
 
 	tk->rp.maxactive = maxactive;
 
-	if (!event || !group) {
-		ret = -EINVAL;
-		goto error;
-	}
-
-	tk->tp.call.class = &tk->tp.class;
-	tk->tp.call.name = kstrdup(event, GFP_KERNEL);
-	if (!tk->tp.call.name)
-		goto error;
-
-	tk->tp.class.system = kstrdup(group, GFP_KERNEL);
-	if (!tk->tp.class.system)
+	ret = trace_probe_init(&tk->tp, event, group);
+	if (ret < 0)
 		goto error;
 
 	dyn_event_init(&tk->devent, &trace_kprobe_ops);
-	INIT_LIST_HEAD(&tk->tp.files);
 	return tk;
 error:
-	kfree(tk->tp.call.name);
-	kfree(tk->symbol);
-	free_percpu(tk->nhit);
-	kfree(tk);
+	free_trace_kprobe(tk);
 	return ERR_PTR(ret);
-}
-
-static void free_trace_kprobe(struct trace_kprobe *tk)
-{
-	int i;
-
-	if (!tk)
-		return;
-
-	for (i = 0; i < tk->tp.nr_args; i++)
-		traceprobe_free_probe_arg(&tk->tp.args[i]);
-
-	kfree(tk->tp.call.class->system);
-	kfree(tk->tp.call.name);
-	kfree(tk->tp.call.print_fmt);
-	kfree(tk->symbol);
-	free_percpu(tk->nhit);
-	kfree(tk);
 }
 
 static struct trace_kprobe *find_trace_kprobe(const char *event,
@@ -1400,7 +1378,6 @@ static struct trace_event_functions kprobe_funcs = {
 static inline void init_trace_event_call(struct trace_kprobe *tk,
 					 struct trace_event_call *call)
 {
-	INIT_LIST_HEAD(&call->class->fields);
 	if (trace_kprobe_is_return(tk)) {
 		call->event.funcs = &kretprobe_funcs;
 		call->class->define_fields = kretprobe_event_define_fields;

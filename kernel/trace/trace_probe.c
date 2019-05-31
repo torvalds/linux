@@ -884,3 +884,39 @@ int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	}
 	return 0;
 }
+
+
+void trace_probe_cleanup(struct trace_probe *tp)
+{
+	int i;
+
+	for (i = 0; i < tp->nr_args; i++)
+		traceprobe_free_probe_arg(&tp->args[i]);
+
+	kfree(tp->call.class->system);
+	kfree(tp->call.name);
+	kfree(tp->call.print_fmt);
+}
+
+int trace_probe_init(struct trace_probe *tp, const char *event,
+		     const char *group)
+{
+	if (!event || !group)
+		return -EINVAL;
+
+	tp->call.class = &tp->class;
+	tp->call.name = kstrdup(event, GFP_KERNEL);
+	if (!tp->call.name)
+		return -ENOMEM;
+
+	tp->class.system = kstrdup(group, GFP_KERNEL);
+	if (!tp->class.system) {
+		kfree(tp->call.name);
+		tp->call.name = NULL;
+		return -ENOMEM;
+	}
+	INIT_LIST_HEAD(&tp->files);
+	INIT_LIST_HEAD(&tp->class.fields);
+
+	return 0;
+}

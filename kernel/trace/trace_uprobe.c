@@ -300,25 +300,17 @@ static struct trace_uprobe *
 alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 {
 	struct trace_uprobe *tu;
-
-	if (!event || !group)
-		return ERR_PTR(-EINVAL);
+	int ret;
 
 	tu = kzalloc(SIZEOF_TRACE_UPROBE(nargs), GFP_KERNEL);
 	if (!tu)
 		return ERR_PTR(-ENOMEM);
 
-	tu->tp.call.class = &tu->tp.class;
-	tu->tp.call.name = kstrdup(event, GFP_KERNEL);
-	if (!tu->tp.call.name)
-		goto error;
-
-	tu->tp.class.system = kstrdup(group, GFP_KERNEL);
-	if (!tu->tp.class.system)
+	ret = trace_probe_init(&tu->tp, event, group);
+	if (ret < 0)
 		goto error;
 
 	dyn_event_init(&tu->devent, &trace_uprobe_ops);
-	INIT_LIST_HEAD(&tu->tp.files);
 	tu->consumer.handler = uprobe_dispatcher;
 	if (is_ret)
 		tu->consumer.ret_handler = uretprobe_dispatcher;
@@ -326,26 +318,18 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 	return tu;
 
 error:
-	kfree(tu->tp.call.name);
 	kfree(tu);
 
-	return ERR_PTR(-ENOMEM);
+	return ERR_PTR(ret);
 }
 
 static void free_trace_uprobe(struct trace_uprobe *tu)
 {
-	int i;
-
 	if (!tu)
 		return;
 
-	for (i = 0; i < tu->tp.nr_args; i++)
-		traceprobe_free_probe_arg(&tu->tp.args[i]);
-
 	path_put(&tu->path);
-	kfree(tu->tp.call.class->system);
-	kfree(tu->tp.call.name);
-	kfree(tu->tp.call.print_fmt);
+	trace_probe_cleanup(&tu->tp);
 	kfree(tu->filename);
 	kfree(tu);
 }
@@ -1351,7 +1335,6 @@ static struct trace_event_functions uprobe_funcs = {
 static inline void init_trace_event_call(struct trace_uprobe *tu,
 					 struct trace_event_call *call)
 {
-	INIT_LIST_HEAD(&call->class->fields);
 	call->event.funcs = &uprobe_funcs;
 	call->class->define_fields = uprobe_event_define_fields;
 
