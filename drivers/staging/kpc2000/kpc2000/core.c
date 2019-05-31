@@ -127,6 +127,58 @@ static ssize_t cpld_reconfigure(struct device *dev,
 }
 static DEVICE_ATTR(cpld_reconfigure, 0220, NULL, cpld_reconfigure);
 
+static ssize_t irq_mask_reg_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
+	u64 val;
+
+	val = readq(pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
+	return sprintf(buf, "%016llx\n", val);
+}
+static DEVICE_ATTR_RO(irq_mask_reg);
+
+static ssize_t irq_active_reg_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
+	u64 val;
+
+	val = readq(pcard->sysinfo_regs_base + REG_INTERRUPT_ACTIVE);
+	return sprintf(buf, "%016llx\n", val);
+}
+static DEVICE_ATTR_RO(irq_active_reg);
+
+static ssize_t pcie_error_count_reg_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
+	u64 val;
+
+	val = readq(pcard->sysinfo_regs_base + REG_PCIE_ERROR_COUNT);
+	return sprintf(buf, "%016llx\n", val);
+}
+static DEVICE_ATTR_RO(pcie_error_count_reg);
+
+static ssize_t core_table_offset_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%08x\n", pcard->core_table_offset);
+}
+static DEVICE_ATTR_RO(core_table_offset);
+
+static ssize_t core_table_length_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct kp2000_device *pcard = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%08x\n", pcard->core_table_length);
+}
+static DEVICE_ATTR_RO(core_table_length);
+
 static const struct attribute *kp_attr_list[] = {
 	&dev_attr_ssid.attr,
 	&dev_attr_ddna.attr,
@@ -137,6 +189,11 @@ static const struct attribute *kp_attr_list[] = {
 	&dev_attr_build_time.attr,
 	&dev_attr_cpld_reg.attr,
 	&dev_attr_cpld_reconfigure.attr,
+	&dev_attr_irq_mask_reg.attr,
+	&dev_attr_irq_active_reg.attr,
+	&dev_attr_pcie_error_count_reg.attr,
+	&dev_attr_core_table_offset.attr,
+	&dev_attr_core_table_length.attr,
 	NULL,
 };
 
