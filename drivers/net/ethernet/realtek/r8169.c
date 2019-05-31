@@ -655,11 +655,6 @@ struct rtl8169_private {
 	const struct rtl_coalesce_info *coalesce_info;
 	struct clk *clk;
 
-	struct jumbo_ops {
-		void (*enable)(struct rtl8169_private *);
-		void (*disable)(struct rtl8169_private *);
-	} jumbo_ops;
-
 	void (*hw_start)(struct rtl8169_private *tp);
 	bool (*tso_csum)(struct rtl8169_private *, struct sk_buff *, u32 *);
 
@@ -4196,24 +4191,6 @@ static void rtl8169_init_ring_indexes(struct rtl8169_private *tp)
 	tp->dirty_tx = tp->cur_tx = tp->cur_rx = 0;
 }
 
-static void rtl_hw_jumbo_enable(struct rtl8169_private *tp)
-{
-	if (tp->jumbo_ops.enable) {
-		rtl_unlock_config_regs(tp);
-		tp->jumbo_ops.enable(tp);
-		rtl_lock_config_regs(tp);
-	}
-}
-
-static void rtl_hw_jumbo_disable(struct rtl8169_private *tp)
-{
-	if (tp->jumbo_ops.disable) {
-		rtl_unlock_config_regs(tp);
-		tp->jumbo_ops.disable(tp);
-		rtl_lock_config_regs(tp);
-	}
-}
-
 static void r8168c_hw_jumbo_enable(struct rtl8169_private *tp)
 {
 	RTL_W8(tp, Config3, RTL_R8(tp, Config3) | Jumbo_En0);
@@ -4280,55 +4257,56 @@ static void r8168b_1_hw_jumbo_disable(struct rtl8169_private *tp)
 	RTL_W8(tp, Config4, RTL_R8(tp, Config4) & ~(1 << 0));
 }
 
-static void rtl_init_jumbo_ops(struct rtl8169_private *tp)
+static void rtl_hw_jumbo_enable(struct rtl8169_private *tp)
 {
-	struct jumbo_ops *ops = &tp->jumbo_ops;
-
+	rtl_unlock_config_regs(tp);
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_11:
-		ops->disable	= r8168b_0_hw_jumbo_disable;
-		ops->enable	= r8168b_0_hw_jumbo_enable;
+		r8168b_0_hw_jumbo_enable(tp);
 		break;
 	case RTL_GIGA_MAC_VER_12:
 	case RTL_GIGA_MAC_VER_17:
-		ops->disable	= r8168b_1_hw_jumbo_disable;
-		ops->enable	= r8168b_1_hw_jumbo_enable;
+		r8168b_1_hw_jumbo_enable(tp);
 		break;
-	case RTL_GIGA_MAC_VER_18: /* Wild guess. Needs info from Realtek. */
-	case RTL_GIGA_MAC_VER_19:
-	case RTL_GIGA_MAC_VER_20:
-	case RTL_GIGA_MAC_VER_21: /* Wild guess. Needs info from Realtek. */
-	case RTL_GIGA_MAC_VER_22:
-	case RTL_GIGA_MAC_VER_23:
-	case RTL_GIGA_MAC_VER_24:
-	case RTL_GIGA_MAC_VER_25:
-	case RTL_GIGA_MAC_VER_26:
-		ops->disable	= r8168c_hw_jumbo_disable;
-		ops->enable	= r8168c_hw_jumbo_enable;
+	case RTL_GIGA_MAC_VER_18 ... RTL_GIGA_MAC_VER_26:
+		r8168c_hw_jumbo_enable(tp);
 		break;
-	case RTL_GIGA_MAC_VER_27:
-	case RTL_GIGA_MAC_VER_28:
-		ops->disable	= r8168dp_hw_jumbo_disable;
-		ops->enable	= r8168dp_hw_jumbo_enable;
+	case RTL_GIGA_MAC_VER_27 ... RTL_GIGA_MAC_VER_28:
+		r8168dp_hw_jumbo_enable(tp);
 		break;
-	case RTL_GIGA_MAC_VER_31: /* Wild guess. Needs info from Realtek. */
-	case RTL_GIGA_MAC_VER_32:
-	case RTL_GIGA_MAC_VER_33:
-	case RTL_GIGA_MAC_VER_34:
-		ops->disable	= r8168e_hw_jumbo_disable;
-		ops->enable	= r8168e_hw_jumbo_enable;
+	case RTL_GIGA_MAC_VER_31 ... RTL_GIGA_MAC_VER_34:
+		r8168e_hw_jumbo_enable(tp);
 		break;
-
-	/*
-	 * No action needed for jumbo frames with 8169.
-	 * No jumbo for 810x at all.
-	 */
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
 	default:
-		ops->disable	= NULL;
-		ops->enable	= NULL;
 		break;
 	}
+	rtl_lock_config_regs(tp);
+}
+
+static void rtl_hw_jumbo_disable(struct rtl8169_private *tp)
+{
+	rtl_unlock_config_regs(tp);
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_11:
+		r8168b_0_hw_jumbo_disable(tp);
+		break;
+	case RTL_GIGA_MAC_VER_12:
+	case RTL_GIGA_MAC_VER_17:
+		r8168b_1_hw_jumbo_disable(tp);
+		break;
+	case RTL_GIGA_MAC_VER_18 ... RTL_GIGA_MAC_VER_26:
+		r8168c_hw_jumbo_disable(tp);
+		break;
+	case RTL_GIGA_MAC_VER_27 ... RTL_GIGA_MAC_VER_28:
+		r8168dp_hw_jumbo_disable(tp);
+		break;
+	case RTL_GIGA_MAC_VER_31 ... RTL_GIGA_MAC_VER_34:
+		r8168e_hw_jumbo_disable(tp);
+		break;
+	default:
+		break;
+	}
+	rtl_lock_config_regs(tp);
 }
 
 DECLARE_RTL_COND(rtl_chipcmd_cond)
@@ -7129,8 +7107,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rtl_hw_reset(tp);
 
 	pci_set_master(pdev);
-
-	rtl_init_jumbo_ops(tp);
 
 	chipset = tp->mac_version;
 
