@@ -7873,7 +7873,7 @@ search:
 		 */
 		if (!block_group_bits(block_group, flags)) {
 			u64 extra = BTRFS_BLOCK_GROUP_DUP |
-				BTRFS_BLOCK_GROUP_RAID1 |
+				BTRFS_BLOCK_GROUP_RAID1_MASK |
 				BTRFS_BLOCK_GROUP_RAID5 |
 				BTRFS_BLOCK_GROUP_RAID6 |
 				BTRFS_BLOCK_GROUP_RAID10;
@@ -9564,7 +9564,7 @@ static u64 update_block_group_flags(struct btrfs_fs_info *fs_info, u64 flags)
 
 	stripped = BTRFS_BLOCK_GROUP_RAID0 |
 		BTRFS_BLOCK_GROUP_RAID5 | BTRFS_BLOCK_GROUP_RAID6 |
-		BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID10;
+		BTRFS_BLOCK_GROUP_RAID1_MASK | BTRFS_BLOCK_GROUP_RAID10;
 
 	if (num_devices == 1) {
 		stripped |= BTRFS_BLOCK_GROUP_DUP;
@@ -9575,7 +9575,7 @@ static u64 update_block_group_flags(struct btrfs_fs_info *fs_info, u64 flags)
 			return stripped;
 
 		/* turn mirroring into duplication */
-		if (flags & (BTRFS_BLOCK_GROUP_RAID1 |
+		if (flags & (BTRFS_BLOCK_GROUP_RAID1_MASK |
 			     BTRFS_BLOCK_GROUP_RAID10))
 			return stripped | BTRFS_BLOCK_GROUP_DUP;
 	} else {
@@ -10445,7 +10445,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 	list_for_each_entry_rcu(space_info, &info->space_info, list) {
 		if (!(get_alloc_profile(info, space_info->flags) &
 		      (BTRFS_BLOCK_GROUP_RAID10 |
-		       BTRFS_BLOCK_GROUP_RAID1 |
+		       BTRFS_BLOCK_GROUP_RAID1_MASK |
 		       BTRFS_BLOCK_GROUP_RAID5 |
 		       BTRFS_BLOCK_GROUP_RAID6 |
 		       BTRFS_BLOCK_GROUP_DUP)))
