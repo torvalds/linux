@@ -69,6 +69,7 @@ enum ocelot_target {
 	QSYS,
 	REW,
 	SYS,
+	S2,
 	HSIO,
 	TARGET_MAX,
 };
@@ -335,6 +336,13 @@ enum ocelot_reg {
 	SYS_CM_DATA_RD,
 	SYS_CM_OP,
 	SYS_CM_DATA,
+	S2_CORE_UPDATE_CTRL = S2 << TARGET_OFFSET,
+	S2_CORE_MV_CFG,
+	S2_CACHE_ENTRY_DAT,
+	S2_CACHE_MASK_DAT,
+	S2_CACHE_ACTION_DAT,
+	S2_CACHE_CNT_DAT,
+	S2_CACHE_TG_DAT,
 };
 
 enum ocelot_regfield {
