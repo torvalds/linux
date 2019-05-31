@@ -2189,59 +2189,19 @@ intel_bios_is_port_hpd_inverted(const struct drm_i915_private *i915,
 
 /**
  * intel_bios_is_lspcon_present - if LSPCON is attached on %port
- * @dev_priv:	i915 device instance
+ * @i915:	i915 device instance
  * @port:	port to check
  *
  * Return true if LSPCON is present on this port
  */
 bool
-intel_bios_is_lspcon_present(struct drm_i915_private *dev_priv,
-				enum port port)
+intel_bios_is_lspcon_present(const struct drm_i915_private *i915,
+			     enum port port)
 {
-	const struct child_device_config *child;
-	int i;
+	const struct child_device_config *child =
+		i915->vbt.ddi_port_info[port].child;
 
-	if (!HAS_LSPCON(dev_priv))
-		return false;
-
-	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
-		child = dev_priv->vbt.child_dev + i;
-
-		if (!child->lspcon)
-			continue;
-
-		switch (child->dvo_port) {
-		case DVO_PORT_DPA:
-		case DVO_PORT_HDMIA:
-			if (port == PORT_A)
-				return true;
-			break;
-		case DVO_PORT_DPB:
-		case DVO_PORT_HDMIB:
-			if (port == PORT_B)
-				return true;
-			break;
-		case DVO_PORT_DPC:
-		case DVO_PORT_HDMIC:
-			if (port == PORT_C)
-				return true;
-			break;
-		case DVO_PORT_DPD:
-		case DVO_PORT_HDMID:
-			if (port == PORT_D)
-				return true;
-			break;
-		case DVO_PORT_DPF:
-		case DVO_PORT_HDMIF:
-			if (port == PORT_F)
-				return true;
-			break;
-		default:
-			break;
-		}
-	}
-
-	return false;
+	return HAS_LSPCON(i915) && child && child->lspcon;
 }
 
 enum aux_ch intel_bios_port_aux_ch(struct drm_i915_private *dev_priv,
