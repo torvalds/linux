@@ -1251,7 +1251,7 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 	for (p = PORT_A; p < I915_MAX_PORTS; p++) {
 		struct ddi_vbt_port_info *i = &dev_priv->vbt.ddi_port_info[p];
 
-		if (p == port || !i->present ||
+		if (p == port || !i->child ||
 		    info->alternate_ddc_pin != i->alternate_ddc_pin)
 			continue;
 
@@ -1287,7 +1287,7 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 	for (p = PORT_A; p < I915_MAX_PORTS; p++) {
 		struct ddi_vbt_port_info *i = &dev_priv->vbt.ddi_port_info[p];
 
-		if (p == port || !i->present ||
+		if (p == port || !i->child ||
 		    info->alternate_aux_channel != i->alternate_aux_channel)
 			continue;
 
@@ -1395,13 +1395,11 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 
 	info = &dev_priv->vbt.ddi_port_info[port];
 
-	if (info->present) {
+	if (info->child) {
 		DRM_DEBUG_KMS("More than one child device for port %c in VBT, using the first.\n",
 			      port_name(port));
 		return;
 	}
-
-	info->present = true;
 
 	is_dvi = child->device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING;
 	is_dp = child->device_type & DEVICE_TYPE_DISPLAYPORT_OUTPUT;
@@ -1530,6 +1528,8 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("VBT DP max link rate for port %c: %d\n",
 			      port_name(port), info->dp_max_link_rate);
 	}
+
+	info->child = child;
 }
 
 static void parse_ddi_ports(struct drm_i915_private *dev_priv, u8 bdb_version)
