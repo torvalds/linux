@@ -50,6 +50,24 @@
 		#iommu-cells = <1>;
 	};
 
+	cbass_main_navss: interconnect0 {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		main_navss_intr: interrupt-controller1 {
+			compatible = "ti,sci-intr";
+			ti,intr-trigger-type = <4>;
+			interrupt-controller;
+			interrupt-parent = <&gic500>;
+			#interrupt-cells = <2>;
+			ti,sci = <&dmsc>;
+			ti,sci-dst-id = <14>;
+			ti,sci-rm-range-girq = <0>, <2>;
+		};
+	};
+
 	secure_proxy_main: mailbox@32c00000 {
 		compatible = "ti,am654-secure-proxy";
 		#mbox-cells = <1>;
