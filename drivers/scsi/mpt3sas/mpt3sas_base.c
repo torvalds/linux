@@ -3323,6 +3323,35 @@ _base_get_msix_index(struct MPT3SAS_ADAPTER *ioc,
 }
 
 /**
+ * _base_get_high_iops_msix_index - get the msix index of
+ *				high iops queues
+ * @ioc: per adapter object
+ * @scmd: scsi_cmnd object
+ *
+ * Returns: msix index of high iops reply queues.
+ * i.e. high iops reply queue on which IO request's
+ * reply should be posted by the HBA firmware.
+ */
+static inline u8
+_base_get_high_iops_msix_index(struct MPT3SAS_ADAPTER *ioc,
+	struct scsi_cmnd *scmd)
+{
+	/**
+	 * Round robin the IO interrupts among the high iops
+	 * reply queues in terms of batch count 16 when outstanding
+	 * IOs on the target device is >=8.
+	 */
+	if (atomic_read(&scmd->device->device_busy) >
+	    MPT3SAS_DEVICE_HIGH_IOPS_DEPTH)
+		return base_mod64((
+		    atomic64_add_return(1, &ioc->high_iops_outstanding) /
+		    MPT3SAS_HIGH_IOPS_BATCH_COUNT),
+		    MPT3SAS_HIGH_IOPS_REPLY_QUEUES);
+
+	return _base_get_msix_index(ioc, scmd);
+}
+
+/**
  * mpt3sas_base_get_smid - obtain a free smid from internal queue
  * @ioc: per adapter object
  * @cb_idx: callback index
@@ -6707,6 +6736,7 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		ioc->build_sg_scmd = &_base_build_sg_scmd;
 		ioc->build_sg = &_base_build_sg;
 		ioc->build_zero_len_sge = &_base_build_zero_len_sge;
+		ioc->get_msix_index_for_smlio = &_base_get_msix_index;
 		break;
 	case MPI25_VERSION:
 	case MPI26_VERSION:
@@ -6721,7 +6751,11 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 		ioc->build_nvme_prp = &_base_build_nvme_prp;
 		ioc->build_zero_len_sge = &_base_build_zero_len_sge_ieee;
 		ioc->sge_size_ieee = sizeof(Mpi2IeeeSgeSimple64_t);
-
+		if (ioc->high_iops_queues)
+			ioc->get_msix_index_for_smlio =
+					&_base_get_high_iops_msix_index;
+		else
+			ioc->get_msix_index_for_smlio = &_base_get_msix_index;
 		break;
 	}
 	if (ioc->atomic_desc_capable) {

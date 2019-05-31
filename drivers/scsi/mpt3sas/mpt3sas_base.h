@@ -356,7 +356,9 @@ struct mpt3sas_nvme_cmd {
 #define VIRTUAL_IO_FAILED_RETRY			(0x32010081)
 
 /* High IOPs definitions */
+#define MPT3SAS_DEVICE_HIGH_IOPS_DEPTH		8
 #define MPT3SAS_HIGH_IOPS_REPLY_QUEUES		8
+#define MPT3SAS_HIGH_IOPS_BATCH_COUNT		16
 #define MPT3SAS_GEN35_MAX_MSIX_QUEUES		128
 
 /* OEM Specific Flags will come from OEM specific header files */
@@ -928,6 +930,12 @@ typedef void (*PUT_SMID_IO_FP_HIP) (struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	u16 funcdep);
 typedef void (*PUT_SMID_DEFAULT) (struct MPT3SAS_ADAPTER *ioc, u16 smid);
 typedef u32 (*BASE_READ_REG) (const volatile void __iomem *addr);
+/*
+ * To get high iops reply queue's msix index when high iops mode is enabled
+ * else get the msix index of general reply queues.
+ */
+typedef u8 (*GET_MSIX_INDEX) (struct MPT3SAS_ADAPTER *ioc,
+	struct scsi_cmnd *scmd);
 
 /* IOC Facts and Port Facts converted from little endian to cpu */
 union mpi3_version_union {
@@ -1029,6 +1037,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @cpu_msix_table: table for mapping cpus to msix index
  * @cpu_msix_table_sz: table size
  * @total_io_cnt: Gives total IO count, used to load balance the interrupts
+ * @high_iops_outstanding: used to load balance the interrupts
+ *				within high iops reply queues
  * @msix_load_balance: Enables load balancing of interrupts across
  * the multiple MSIXs
  * @schedule_dead_ioc_flush_running_cmds: callback to flush pending commands
@@ -1152,6 +1162,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  *	crash. To avoid the above race condition we use mutex syncrhonization
  *	which ensures the syncrhonization between cli/sysfs_show path.
  * @atomic_desc_capable: Atomic Request Descriptor support.
+ * @GET_MSIX_INDEX: Get the msix index of high iops queues.
  */
 struct MPT3SAS_ADAPTER {
 	struct list_head list;
@@ -1211,6 +1222,7 @@ struct MPT3SAS_ADAPTER {
 	MPT3SAS_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
 	u32             non_operational_loop;
 	atomic64_t      total_io_cnt;
+	atomic64_t	high_iops_outstanding;
 	bool            msix_load_balance;
 	u16		thresh_hold;
 	u8		high_iops_queues;
@@ -1432,7 +1444,7 @@ struct MPT3SAS_ADAPTER {
 	PUT_SMID_IO_FP_HIP put_smid_fast_path;
 	PUT_SMID_IO_FP_HIP put_smid_hi_priority;
 	PUT_SMID_DEFAULT put_smid_default;
-
+	GET_MSIX_INDEX get_msix_index_for_smlio;
 };
 
 typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
