@@ -32,7 +32,7 @@ static int igt_fill_blt(void *arg)
 
 		obj = i915_gem_object_create_internal(i915, sz);
 		if (IS_ERR(obj)) {
-			err = PTR_ERR(vaddr);
+			err = PTR_ERR(obj);
 			goto err_flush;
 		}
 
