@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Pentium 4/Xeon CPU on demand clock modulation/speed scaling
  *	(C) 2002 - 2003 Dominik Brodowski <linux@brodo.de>
@@ -6,18 +7,12 @@
  *	(C) 2002 Tora T. Engstad
  *	All Rights Reserved
  *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
- *
  *      The author(s) of this software shall not be held liable for damages
  *      of any nature resulting due to the use of this software. This
  *      software is provided AS-IS with no warranties.
  *
  *	Date		Errata			Description
  *	20020525	N44, O17	12.5% or 25% DC causes lockup
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

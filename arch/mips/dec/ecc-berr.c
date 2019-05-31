@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Bus error event handling code for systems equipped with ECC
  *	handling logic, i.e. DECstation/DECsystem 5000/200 (KN02),
@@ -5,11 +6,6 @@
  *	5900/260 (KN05) systems.
  *
  *	Copyright (c) 2003, 2005  Maciej W. Rozycki
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/init.h>

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 nvkm-y += nvkm/engine/falcon.o
 nvkm-y += nvkm/engine/xtensa.o
 

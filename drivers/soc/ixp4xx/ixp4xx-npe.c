@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel IXP4xx Network Processor Engine driver for Linux
  *
  * Copyright (C) 2007 Krzysztof Halasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  *
  * The code is based on publicly available information:
  * - Intel IXP4xx Developer's Manual and other e-papers

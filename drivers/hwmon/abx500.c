@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson 2010 - 2013
  * Author: Martin Persson <martin.persson@stericsson.com>
  *         Hongbo Zhang <hongbo.zhang@linaro.org>
- * License Terms: GNU General Public License v2
  *
  * ABX500 does not provide auto ADC, so to monitor the required temperatures,
  * a periodic work is used. It is more important to not wake up the CPU than
