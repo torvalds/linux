@@ -844,6 +844,7 @@ static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
 
 int traceprobe_set_print_fmt(struct trace_probe *tp, bool is_return)
 {
+	struct trace_event_call *call = trace_probe_event_call(tp);
 	int len;
 	char *print_fmt;
 
@@ -855,7 +856,7 @@ int traceprobe_set_print_fmt(struct trace_probe *tp, bool is_return)
 
 	/* Second: actually write the @print_fmt */
 	__set_print_fmt(tp, print_fmt, len + 1, is_return);
-	tp->call.print_fmt = print_fmt;
+	call->print_fmt = print_fmt;
 
 	return 0;
 }
@@ -888,31 +889,34 @@ int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 
 void trace_probe_cleanup(struct trace_probe *tp)
 {
+	struct trace_event_call *call = trace_probe_event_call(tp);
 	int i;
 
 	for (i = 0; i < tp->nr_args; i++)
 		traceprobe_free_probe_arg(&tp->args[i]);
 
-	kfree(tp->call.class->system);
-	kfree(tp->call.name);
-	kfree(tp->call.print_fmt);
+	kfree(call->class->system);
+	kfree(call->name);
+	kfree(call->print_fmt);
 }
 
 int trace_probe_init(struct trace_probe *tp, const char *event,
 		     const char *group)
 {
+	struct trace_event_call *call = trace_probe_event_call(tp);
+
 	if (!event || !group)
 		return -EINVAL;
 
-	tp->call.class = &tp->class;
-	tp->call.name = kstrdup(event, GFP_KERNEL);
-	if (!tp->call.name)
+	call->class = &tp->class;
+	call->name = kstrdup(event, GFP_KERNEL);
+	if (!call->name)
 		return -ENOMEM;
 
 	tp->class.system = kstrdup(group, GFP_KERNEL);
 	if (!tp->class.system) {
-		kfree(tp->call.name);
-		tp->call.name = NULL;
+		kfree(call->name);
+		call->name = NULL;
 		return -ENOMEM;
 	}
 	INIT_LIST_HEAD(&tp->files);
@@ -923,7 +927,7 @@ int trace_probe_init(struct trace_probe *tp, const char *event,
 
 int trace_probe_register_event_call(struct trace_probe *tp)
 {
-	struct trace_event_call *call = &tp->call;
+	struct trace_event_call *call = trace_probe_event_call(tp);
 	int ret;
 
 	ret = register_trace_event(&call->event);

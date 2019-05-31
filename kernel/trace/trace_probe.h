@@ -276,6 +276,12 @@ static inline const char *trace_probe_group_name(struct trace_probe *tp)
 	return tp->call.class->system;
 }
 
+static inline struct trace_event_call *
+	trace_probe_event_call(struct trace_probe *tp)
+{
+	return &tp->call;
+}
+
 static inline int trace_probe_unregister_event_call(struct trace_probe *tp)
 {
 	/* tp->event is unregistered in trace_remove_event_call() */

@@ -821,7 +821,7 @@ static void __uprobe_trace_func(struct trace_uprobe *tu,
 	struct ring_buffer *buffer;
 	void *data;
 	int size, esize;
-	struct trace_event_call *call = &tu->tp.call;
+	struct trace_event_call *call = trace_probe_event_call(&tu->tp);
 
 	WARN_ON(call != trace_file->event_call);
 
@@ -1113,7 +1113,7 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 			       unsigned long func, struct pt_regs *regs,
 			       struct uprobe_cpu_buffer *ucb, int dsize)
 {
-	struct trace_event_call *call = &tu->tp.call;
+	struct trace_event_call *call = trace_probe_event_call(&tu->tp);
 	struct uprobe_trace_entry_head *entry;
 	struct hlist_head *head;
 	void *data;
@@ -1316,9 +1316,10 @@ static struct trace_event_functions uprobe_funcs = {
 	.trace		= print_uprobe_event
 };
 
-static inline void init_trace_event_call(struct trace_uprobe *tu,
-					 struct trace_event_call *call)
+static inline void init_trace_event_call(struct trace_uprobe *tu)
 {
+	struct trace_event_call *call = trace_probe_event_call(&tu->tp);
+
 	call->event.funcs = &uprobe_funcs;
 	call->class->define_fields = uprobe_event_define_fields;
 
@@ -1329,7 +1330,7 @@ static inline void init_trace_event_call(struct trace_uprobe *tu,
 
 static int register_uprobe_event(struct trace_uprobe *tu)
 {
-	init_trace_event_call(tu, &tu->tp.call);
+	init_trace_event_call(tu);
 
 	return trace_probe_register_event_call(&tu->tp);
 }
@@ -1376,14 +1377,14 @@ create_local_trace_uprobe(char *name, unsigned long offs,
 	tu->path = path;
 	tu->ref_ctr_offset = ref_ctr_offset;
 	tu->filename = kstrdup(name, GFP_KERNEL);
-	init_trace_event_call(tu, &tu->tp.call);
+	init_trace_event_call(tu);
 
 	if (traceprobe_set_print_fmt(&tu->tp, is_ret_probe(tu)) < 0) {
 		ret = -ENOMEM;
 		goto error;
 	}
 
-	return &tu->tp.call;
+	return trace_probe_event_call(&tu->tp);
 error:
 	free_trace_uprobe(tu);
 	return ERR_PTR(ret);
