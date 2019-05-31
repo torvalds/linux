@@ -950,7 +950,7 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *mem_res;
 	struct csi_state *state;
-	int ret = -ENOMEM;
+	int ret;
 
 	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
