@@ -2,7 +2,6 @@
 #ifndef KP2000_PCIE_H
 #define KP2000_PCIE_H
 #include <linux/types.h>
-#include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include "../kpc.h"
 #include "dma_common_defs.h"
@@ -50,7 +49,6 @@
 
 struct kp2000_device {
 	struct pci_dev		*pdev;
-	struct miscdevice	miscdev;
 	char			name[16];
 
 	unsigned int		card_num;
