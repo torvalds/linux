@@ -355,6 +355,10 @@ struct mpt3sas_nvme_cmd {
 
 #define VIRTUAL_IO_FAILED_RETRY			(0x32010081)
 
+/* High IOPs definitions */
+#define MPT3SAS_HIGH_IOPS_REPLY_QUEUES		8
+#define MPT3SAS_GEN35_MAX_MSIX_QUEUES		128
+
 /* OEM Specific Flags will come from OEM specific header files */
 struct Mpi2ManufacturingPage10_t {
 	MPI2_CONFIG_PAGE_HEADER	Header;		/* 00h */
@@ -1209,6 +1213,7 @@ struct MPT3SAS_ADAPTER {
 	atomic64_t      total_io_cnt;
 	bool            msix_load_balance;
 	u16		thresh_hold;
+	u8		high_iops_queues;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;

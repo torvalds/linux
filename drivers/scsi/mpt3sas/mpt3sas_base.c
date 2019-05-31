@@ -2913,6 +2913,34 @@ _base_assign_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_check_and_enable_high_iops_queues - enable high iops mode
+ * @ ioc - per adapter object
+ * @ hba_msix_vector_count - msix vectors supported by HBA
+ *
+ * Enable high iops queues only if
+ *  - HBA is a SEA/AERO controller and
+ *  - MSI-Xs vector supported by the HBA is 128 and
+ *  - total CPU count in the system >=16 and
+ *  - loaded driver with default max_msix_vectors module parameter and
+ *  - system booted in non kdump mode
+ *
+ * returns nothing.
+ */
+static void
+_base_check_and_enable_high_iops_queues(struct MPT3SAS_ADAPTER *ioc,
+		int hba_msix_vector_count)
+{
+
+	if (!reset_devices && ioc->is_aero_ioc &&
+	    hba_msix_vector_count == MPT3SAS_GEN35_MAX_MSIX_QUEUES &&
+	    num_online_cpus() >= MPT3SAS_HIGH_IOPS_REPLY_QUEUES &&
+	    max_msix_vectors == -1)
+		ioc->high_iops_queues = MPT3SAS_HIGH_IOPS_REPLY_QUEUES;
+	else
+		ioc->high_iops_queues = 0;
+}
+
+/**
  * _base_disable_msix - disables msix
  * @ioc: per adapter object
  *
@@ -2948,11 +2976,14 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 	if (_base_check_enable_msix(ioc) != 0)
 		goto try_ioapic;
 
-	ioc->reply_queue_count = min_t(int, ioc->cpu_count,
-		ioc->msix_vector_count);
+	ioc_info(ioc, "MSI-X vectors supported: %d\n", ioc->msix_vector_count);
+	pr_info("\t no of cores: %d, max_msix_vectors: %d\n",
+		ioc->cpu_count, max_msix_vectors);
 
-	ioc_info(ioc, "MSI-X vectors supported: %d, no of cores: %d, max_msix_vectors: %d\n",
-		 ioc->msix_vector_count, ioc->cpu_count, max_msix_vectors);
+	_base_check_and_enable_high_iops_queues(ioc, ioc->msix_vector_count);
+	ioc->reply_queue_count =
+		min_t(int, ioc->cpu_count + ioc->high_iops_queues,
+		ioc->msix_vector_count);
 
 	if (!ioc->rdpq_array_enable && max_msix_vectors == -1)
 		local_max_msix_vectors = (reset_devices) ? 1 : 8;
@@ -2991,11 +3022,15 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 		}
 	}
 
+	ioc_info(ioc, "High IOPs queues : %s\n",
+			ioc->high_iops_queues ? "enabled" : "disabled");
+
 	return 0;
 
 /* failback to io_apic interrupt routing */
  try_ioapic:
-
+	ioc->high_iops_queues = 0;
+	ioc_info(ioc, "High IOPs queues : disabled\n");
 	ioc->reply_queue_count = 1;
 	r = pci_alloc_irq_vectors(ioc->pdev, 1, 1, PCI_IRQ_LEGACY);
 	if (r < 0) {
