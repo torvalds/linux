@@ -464,6 +464,8 @@ static i915_reg_t force_nonpriv_white_list[] = {
 	_MMIO(0x2690),
 	_MMIO(0x2694),
 	_MMIO(0x2698),
+	_MMIO(0x2754),
+	_MMIO(0x28a0),
 	_MMIO(0x4de0),
 	_MMIO(0x4de4),
 	_MMIO(0x4dfc),
@@ -1690,7 +1692,21 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	bool enable_execlist;
 	int ret;
 
+	(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(1);
+	if (IS_COFFEELAKE(vgpu->gvt->dev_priv))
+		(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(2);
 	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (data & _MASKED_BIT_ENABLE(1)) {
+		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
+		return 0;
+	}
+
+	if (IS_COFFEELAKE(vgpu->gvt->dev_priv) &&
+	    data & _MASKED_BIT_ENABLE(2)) {
+		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
+		return 0;
+	}
 
 	/* when PPGTT mode enabled, we will check if guest has called
 	 * pvinfo, if not, we will treat this guest as non-gvtg-aware
@@ -1770,6 +1786,21 @@ static int ring_reset_ctl_write(struct intel_vgpu *vgpu,
 		data &= ~RESET_CTL_READY_TO_RESET;
 
 	vgpu_vreg(vgpu, offset) = data;
+	return 0;
+}
+
+static int csfe_chicken1_mmio_write(struct intel_vgpu *vgpu,
+				    unsigned int offset, void *p_data,
+				    unsigned int bytes)
+{
+	u32 data = *(u32 *)p_data;
+
+	(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(0x18);
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (data & _MASKED_BIT_ENABLE(0x10) || data & _MASKED_BIT_ENABLE(0x8))
+		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
+
 	return 0;
 }
 
@@ -3059,7 +3090,10 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_MMIO(_PLANE_KEYMSK_1(PIPE_C)), D_SKL_PLUS);
 
 	MMIO_D(_MMIO(0x44500), D_SKL_PLUS);
-	MMIO_DFH(GEN9_CSFE_CHICKEN1_RCS, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
+#define CSFE_CHICKEN1_REG(base) _MMIO((base) + 0xD4)
+	MMIO_RING_DFH(CSFE_CHICKEN1_REG, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
+		      NULL, csfe_chicken1_mmio_write);
+#undef CSFE_CHICKEN1_REG
 	MMIO_DFH(GEN8_HDC_CHICKEN1, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
 		 NULL, NULL);
 	MMIO_DFH(GEN9_WM_CHICKEN3, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
