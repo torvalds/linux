@@ -272,6 +272,7 @@ static void free_trace_kprobe(struct trace_kprobe *tk)
 
 	kfree(tk->tp.call.class->system);
 	kfree(tk->tp.call.name);
+	kfree(tk->tp.call.print_fmt);
 	kfree(tk->symbol);
 	free_percpu(tk->nhit);
 	kfree(tk);
@@ -729,6 +730,10 @@ static int trace_kprobe_create(int argc, const char *argv[])
 		if (ret)
 			goto error;	/* This can be -ENOMEM */
 	}
+
+	ret = traceprobe_set_print_fmt(&tk->tp, is_return);
+	if (ret < 0)
+		goto error;
 
 	ret = register_trace_kprobe(tk);
 	if (ret) {
@@ -1416,18 +1421,14 @@ static int register_kprobe_event(struct trace_kprobe *tk)
 
 	init_trace_event_call(tk, call);
 
-	if (traceprobe_set_print_fmt(&tk->tp, trace_kprobe_is_return(tk)) < 0)
-		return -ENOMEM;
 	ret = register_trace_event(&call->event);
-	if (!ret) {
-		kfree(call->print_fmt);
+	if (!ret)
 		return -ENODEV;
-	}
+
 	ret = trace_add_event_call(call);
 	if (ret) {
 		pr_info("Failed to register kprobe event: %s\n",
 			trace_event_name(call));
-		kfree(call->print_fmt);
 		unregister_trace_event(&call->event);
 	}
 	return ret;
@@ -1435,13 +1436,8 @@ static int register_kprobe_event(struct trace_kprobe *tk)
 
 static int unregister_kprobe_event(struct trace_kprobe *tk)
 {
-	int ret;
-
 	/* tp->event is unregistered in trace_remove_event_call() */
-	ret = trace_remove_event_call(&tk->tp.call);
-	if (!ret)
-		kfree(tk->tp.call.print_fmt);
-	return ret;
+	return trace_remove_event_call(&tk->tp.call);
 }
 
 #ifdef CONFIG_PERF_EVENTS
@@ -1479,10 +1475,8 @@ create_local_trace_kprobe(char *func, void *addr, unsigned long offs,
 	}
 
 	ret = __register_trace_kprobe(tk);
-	if (ret < 0) {
-		kfree(tk->tp.call.print_fmt);
+	if (ret < 0)
 		goto error;
-	}
 
 	return &tk->tp.call;
 error:
@@ -1503,7 +1497,6 @@ void destroy_local_trace_kprobe(struct trace_event_call *event_call)
 
 	__unregister_trace_kprobe(tk);
 
-	kfree(tk->tp.call.print_fmt);
 	free_trace_kprobe(tk);
 }
 #endif /* CONFIG_PERF_EVENTS */
