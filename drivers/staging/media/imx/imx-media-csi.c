@@ -193,8 +193,8 @@ static int csi_get_upstream_endpoint(struct csi_priv *priv,
 
 	/* get source pad of entity directly upstream from src */
 	pad = imx_media_pipeline_pad(src, 0, 0, true);
-	if (IS_ERR(pad))
-		return PTR_ERR(pad);
+	if (!pad)
+		return -ENODEV;
 
 	sd = media_entity_to_v4l2_subdev(pad->entity);
 
