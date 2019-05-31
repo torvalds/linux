@@ -220,7 +220,7 @@ lpfc_nvmet_cmd_template(void)
 	/* Word 12, 13, 14, 15 - is zero */
 }
 
-struct lpfc_nvmet_rcv_ctx *
+static struct lpfc_nvmet_rcv_ctx *
 lpfc_nvmet_get_ctx_for_xri(struct lpfc_hba *phba, u16 xri)
 {
 	struct lpfc_nvmet_rcv_ctx *ctxp;
@@ -242,7 +242,7 @@ lpfc_nvmet_get_ctx_for_xri(struct lpfc_hba *phba, u16 xri)
 	return NULL;
 }
 
-struct lpfc_nvmet_rcv_ctx *
+static struct lpfc_nvmet_rcv_ctx *
 lpfc_nvmet_get_ctx_for_oxid(struct lpfc_hba *phba, u16 oxid, u32 sid)
 {
 	struct lpfc_nvmet_rcv_ctx *ctxp;
