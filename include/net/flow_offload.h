@@ -1,6 +1,7 @@
 #ifndef _NET_FLOW_OFFLOAD_H
 #define _NET_FLOW_OFFLOAD_H
 
+#include <linux/kernel.h>
 #include <net/flow_dissector.h>
 
 struct flow_match {
