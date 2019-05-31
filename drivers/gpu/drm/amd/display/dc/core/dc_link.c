@@ -3023,8 +3023,10 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe->stream && pipe->stream->link) {
-			if (pipe->stream->link == link)
+			if (pipe->stream->link == link) {
+				link_stream = pipe->stream;
 				break;
+			}
 		}
 	}
 
@@ -3032,14 +3034,11 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 	if (i == MAX_PIPES)
 		return;
 
-	link_stream = link->dc->current_state->res_ctx.pipe_ctx[i].stream;
-
 	/* Cannot retrain link if backend is off */
 	if (link_stream->dpms_off)
 		return;
 
-	if (link_stream)
-		decide_link_settings(link_stream, &store_settings);
+	decide_link_settings(link_stream, &store_settings);
 
 	if ((store_settings.lane_count != LANE_COUNT_UNKNOWN) &&
 		(store_settings.link_rate != LINK_RATE_UNKNOWN))
