@@ -324,7 +324,7 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 {
 	spinlock_t *lock = &hr_dev->bt_cmd_lock;
 	struct device *dev = hr_dev->dev;
-	unsigned long end = 0;
+	long end;
 	unsigned long flags;
 	struct hns_roce_hem_iter iter;
 	void __iomem *bt_cmd;
@@ -375,7 +375,7 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 		bt_cmd = hr_dev->reg_base + ROCEE_BT_CMD_H_REG;
 
 		end = HW_SYNC_TIMEOUT_MSECS;
-		while (end) {
+		while (end > 0) {
 			if (!(readl(bt_cmd) >> BT_CMD_SYNC_SHIFT))
 				break;
 
