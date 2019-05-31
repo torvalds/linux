@@ -986,13 +986,21 @@ static int mt9m111_power_on(struct mt9m111 *mt9m111)
 
 	ret = regulator_enable(mt9m111->regulator);
 	if (ret < 0)
-		return ret;
+		goto out_clk_disable;
 
 	ret = mt9m111_resume(mt9m111);
-	if (ret < 0) {
-		dev_err(&client->dev, "Failed to resume the sensor: %d\n", ret);
-		v4l2_clk_disable(mt9m111->clk);
-	}
+	if (ret < 0)
+		goto out_regulator_disable;
+
+	return 0;
+
+out_regulator_disable:
+	regulator_disable(mt9m111->regulator);
+
+out_clk_disable:
+	v4l2_clk_disable(mt9m111->clk);
+
+	dev_err(&client->dev, "Failed to resume the sensor: %d\n", ret);
 
 	return ret;
 }
