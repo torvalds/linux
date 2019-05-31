@@ -540,7 +540,8 @@ static int caam_probe(struct platform_device *pdev)
 	ctrlpriv->caam_ipg = clk;
 
 	if (!of_machine_is_compatible("fsl,imx7d") &&
-	    !of_machine_is_compatible("fsl,imx7s")) {
+	    !of_machine_is_compatible("fsl,imx7s") &&
+	    !of_machine_is_compatible("fsl,imx7ulp")) {
 		clk = caam_drv_identify_clk(&pdev->dev, "mem");
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
@@ -562,7 +563,8 @@ static int caam_probe(struct platform_device *pdev)
 
 	if (!of_machine_is_compatible("fsl,imx6ul") &&
 	    !of_machine_is_compatible("fsl,imx7d") &&
-	    !of_machine_is_compatible("fsl,imx7s")) {
+	    !of_machine_is_compatible("fsl,imx7s") &&
+	    !of_machine_is_compatible("fsl,imx7ulp")) {
 		clk = caam_drv_identify_clk(&pdev->dev, "emi_slow");
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
