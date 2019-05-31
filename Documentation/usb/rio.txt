@@ -76,69 +76,29 @@ Additional Information and userspace tools
 Requirements
 ============
 
-A host with a USB port.  Ideally, either a UHCI (Intel) or OHCI
-(Compaq and others) hardware port should work.
+A host with a USB port running a Linux kernel with RIO 500 support enabled.
 
-A Linux development kernel (2.3.x) with USB support enabled or a
-backported version to linux-2.2.x.  See http://www.linux-usb.org for
-more information on accomplishing this.
+The driver is a module called rio500, which should be automatically loaded
+as you plug in your device. If that fails you can manually load it with
 
-A Linux kernel with RIO 500 support enabled.
+  modprobe rio500
 
-'lspci' which is only needed to determine the type of USB hardware
-available in your machine.
-
-Configuration
-
-Using `lspci -v`, determine the type of USB hardware available.
-
-  If you see something like::
-
-    USB Controller: ......
-    Flags: .....
-    I/O ports at ....
-
-  Then you have a UHCI based controller.
-
-  If you see something like::
-
-     USB Controller: .....
-     Flags: ....
-     Memory at .....
-
-  Then you have a OHCI based controller.
-
-Using `make menuconfig` or your preferred method for configuring the
-kernel, select 'Support for USB', 'OHCI/UHCI' depending on your
-hardware (determined from the steps above), 'USB Diamond Rio500 support', and
-'Preliminary USB device filesystem'.  Compile and install the modules
-(you may need to execute `depmod -a` to update the module
-dependencies).
-
-Add a device for the USB rio500::
+Udev should automatically create a device node as soon as plug in your device.
+If that fails, you can manually add a device for the USB rio500::
 
   mknod /dev/usb/rio500 c 180 64
 
-Set appropriate permissions for /dev/usb/rio500 (don't forget about
-group and world permissions).  Both read and write permissions are
+In that case, set appropriate permissions for /dev/usb/rio500 (don't forget
+about group and world permissions).  Both read and write permissions are
 required for proper operation.
-
-Load the appropriate modules (if compiled as modules):
-
-  OHCI::
-
-    modprobe usbcore
-    modprobe usb-ohci
-    modprobe rio500
-
-  UHCI::
-
-    modprobe usbcore
-    modprobe usb-uhci  (or uhci)
-    modprobe rio500
 
 That's it.  The Rio500 Utils at: http://rio500.sourceforge.net should
 be able to access the rio500.
+
+Limits
+======
+
+You can use only a single rio500 device at a time with your computer.
 
 Bugs
 ====
