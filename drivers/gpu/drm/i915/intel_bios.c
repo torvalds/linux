@@ -76,13 +76,13 @@ static u32 get_blocksize(const void *block_data)
 }
 
 static const void *
-find_section(const void *_bdb, int section_id)
+find_section(const void *_bdb, enum bdb_block_id section_id)
 {
 	const struct bdb_header *bdb = _bdb;
 	const u8 *base = _bdb;
 	int index = 0;
 	u32 total, current_size;
-	u8 current_id;
+	enum bdb_block_id current_id;
 
 	/* skip to first section */
 	index += bdb->header_size;

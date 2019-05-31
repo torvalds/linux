@@ -80,41 +80,42 @@ struct bdb_header {
  * an ID and size in the first 3 bytes (ID in first, size in next 2).
  * Known types are listed below.
  */
-#define BDB_GENERAL_FEATURES	  1
-#define BDB_GENERAL_DEFINITIONS	  2
-#define BDB_OLD_TOGGLE_LIST	  3
-#define BDB_MODE_SUPPORT_LIST	  4
-#define BDB_GENERIC_MODE_TABLE	  5
-#define BDB_EXT_MMIO_REGS	  6
-#define BDB_SWF_IO		  7
-#define BDB_SWF_MMIO		  8
-#define BDB_PSR			  9
-#define BDB_MODE_REMOVAL_TABLE	 10
-#define BDB_CHILD_DEVICE_TABLE	 11
-#define BDB_DRIVER_FEATURES	 12
-#define BDB_DRIVER_PERSISTENCE	 13
-#define BDB_EXT_TABLE_PTRS	 14
-#define BDB_DOT_CLOCK_OVERRIDE	 15
-#define BDB_DISPLAY_SELECT	 16
-/* 17 rsvd */
-#define BDB_DRIVER_ROTATION	 18
-#define BDB_DISPLAY_REMOVE	 19
-#define BDB_OEM_CUSTOM		 20
-#define BDB_EFP_LIST		 21 /* workarounds for VGA hsync/vsync */
-#define BDB_SDVO_LVDS_OPTIONS	 22
-#define BDB_SDVO_PANEL_DTDS	 23
-#define BDB_SDVO_LVDS_PNP_IDS	 24
-#define BDB_SDVO_LVDS_POWER_SEQ	 25
-#define BDB_TV_OPTIONS		 26
-#define BDB_EDP			 27
-#define BDB_LVDS_OPTIONS	 40
-#define BDB_LVDS_LFP_DATA_PTRS	 41
-#define BDB_LVDS_LFP_DATA	 42
-#define BDB_LVDS_BACKLIGHT	 43
-#define BDB_LVDS_POWER		 44
-#define BDB_MIPI_CONFIG		 52
-#define BDB_MIPI_SEQUENCE	 53
-#define BDB_SKIP		254 /* VBIOS private block, ignore */
+enum bdb_block_id {
+	BDB_GENERAL_FEATURES		= 1,
+	BDB_GENERAL_DEFINITIONS		= 2,
+	BDB_OLD_TOGGLE_LIST		= 3,
+	BDB_MODE_SUPPORT_LIST		= 4,
+	BDB_GENERIC_MODE_TABLE		= 5,
+	BDB_EXT_MMIO_REGS		= 6,
+	BDB_SWF_IO			= 7,
+	BDB_SWF_MMIO			= 8,
+	BDB_PSR				= 9,
+	BDB_MODE_REMOVAL_TABLE		= 10,
+	BDB_CHILD_DEVICE_TABLE		= 11,
+	BDB_DRIVER_FEATURES		= 12,
+	BDB_DRIVER_PERSISTENCE		= 13,
+	BDB_EXT_TABLE_PTRS		= 14,
+	BDB_DOT_CLOCK_OVERRIDE		= 15,
+	BDB_DISPLAY_SELECT		= 16,
+	BDB_DRIVER_ROTATION		= 18,
+	BDB_DISPLAY_REMOVE		= 19,
+	BDB_OEM_CUSTOM			= 20,
+	BDB_EFP_LIST			= 21, /* workarounds for VGA hsync/vsync */
+	BDB_SDVO_LVDS_OPTIONS		= 22,
+	BDB_SDVO_PANEL_DTDS		= 23,
+	BDB_SDVO_LVDS_PNP_IDS		= 24,
+	BDB_SDVO_LVDS_POWER_SEQ		= 25,
+	BDB_TV_OPTIONS			= 26,
+	BDB_EDP				= 27,
+	BDB_LVDS_OPTIONS		= 40,
+	BDB_LVDS_LFP_DATA_PTRS		= 41,
+	BDB_LVDS_LFP_DATA		= 42,
+	BDB_LVDS_BACKLIGHT		= 43,
+	BDB_LVDS_POWER			= 44,
+	BDB_MIPI_CONFIG			= 52,
+	BDB_MIPI_SEQUENCE		= 53,
+	BDB_SKIP			= 254, /* VBIOS private block, ignore */
+};
 
 /*
  * Block 1 - General Bit Definitions
