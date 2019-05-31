@@ -731,27 +731,6 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
 	det->height = MIN_HEIGHT;
 	video->v4l2_input_status = V4L2_IN_ST_NO_SIGNAL;
 
-	/*
-	 * Since we need max buffer size for detection, free the second source
-	 * buffer first.
-	 */
-	if (video->srcs[1].size)
-		aspeed_video_free_buf(video, &video->srcs[1]);
-
-	if (video->srcs[0].size < VE_MAX_SRC_BUFFER_SIZE) {
-		if (video->srcs[0].size)
-			aspeed_video_free_buf(video, &video->srcs[0]);
-
-		if (!aspeed_video_alloc_buf(video, &video->srcs[0],
-					    VE_MAX_SRC_BUFFER_SIZE)) {
-			dev_err(video->dev,
-				"Failed to allocate source buffers\n");
-			return;
-		}
-	}
-
-	aspeed_video_write(video, VE_SRC0_ADDR, video->srcs[0].dma);
-
 	do {
 		if (tries) {
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -871,20 +850,14 @@ static void aspeed_video_set_resolution(struct aspeed_video *video)
 
 	size *= 4;
 
-	if (size == video->srcs[0].size / 2) {
-		aspeed_video_write(video, VE_SRC1_ADDR,
-				   video->srcs[0].dma + size);
-	} else if (size == video->srcs[0].size) {
-		if (!aspeed_video_alloc_buf(video, &video->srcs[1], size))
-			goto err_mem;
-
-		aspeed_video_write(video, VE_SRC1_ADDR, video->srcs[1].dma);
-	} else {
-		aspeed_video_free_buf(video, &video->srcs[0]);
+	if (size != video->srcs[0].size) {
+		if (video->srcs[0].size)
+			aspeed_video_free_buf(video, &video->srcs[0]);
+		if (video->srcs[1].size)
+			aspeed_video_free_buf(video, &video->srcs[1]);
 
 		if (!aspeed_video_alloc_buf(video, &video->srcs[0], size))
 			goto err_mem;
-
 		if (!aspeed_video_alloc_buf(video, &video->srcs[1], size))
 			goto err_mem;
 
