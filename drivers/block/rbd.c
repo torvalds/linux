@@ -1819,12 +1819,6 @@ static void rbd_osd_setup_data(struct ceph_osd_request *osd_req, int which)
 	}
 }
 
-static int rbd_obj_setup_read(struct rbd_obj_request *obj_req)
-{
-	obj_req->read_state = RBD_OBJ_READ_START;
-	return 0;
-}
-
 static int rbd_osd_setup_stat(struct ceph_osd_request *osd_req, int which)
 {
 	struct page **pages;
@@ -1863,6 +1857,12 @@ static int rbd_osd_setup_copyup(struct ceph_osd_request *osd_req, int which,
 	return 0;
 }
 
+static int rbd_obj_init_read(struct rbd_obj_request *obj_req)
+{
+	obj_req->read_state = RBD_OBJ_READ_START;
+	return 0;
+}
+
 static void __rbd_osd_setup_write_ops(struct ceph_osd_request *osd_req,
 				      int which)
 {
@@ -1884,7 +1884,7 @@ static void __rbd_osd_setup_write_ops(struct ceph_osd_request *osd_req,
 	rbd_osd_setup_data(osd_req, which);
 }
 
-static int rbd_obj_setup_write(struct rbd_obj_request *obj_req)
+static int rbd_obj_init_write(struct rbd_obj_request *obj_req)
 {
 	int ret;
 
@@ -1922,7 +1922,7 @@ static void __rbd_osd_setup_discard_ops(struct ceph_osd_request *osd_req,
 	}
 }
 
-static int rbd_obj_setup_discard(struct rbd_obj_request *obj_req)
+static int rbd_obj_init_discard(struct rbd_obj_request *obj_req)
 {
 	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	u64 off, next_off;
@@ -1991,7 +1991,7 @@ static void __rbd_osd_setup_zeroout_ops(struct ceph_osd_request *osd_req,
 				       0, 0);
 }
 
-static int rbd_obj_setup_zeroout(struct rbd_obj_request *obj_req)
+static int rbd_obj_init_zeroout(struct rbd_obj_request *obj_req)
 {
 	int ret;
 
@@ -2062,16 +2062,16 @@ static int __rbd_img_fill_request(struct rbd_img_request *img_req)
 	for_each_obj_request_safe(img_req, obj_req, next_obj_req) {
 		switch (img_req->op_type) {
 		case OBJ_OP_READ:
-			ret = rbd_obj_setup_read(obj_req);
+			ret = rbd_obj_init_read(obj_req);
 			break;
 		case OBJ_OP_WRITE:
-			ret = rbd_obj_setup_write(obj_req);
+			ret = rbd_obj_init_write(obj_req);
 			break;
 		case OBJ_OP_DISCARD:
-			ret = rbd_obj_setup_discard(obj_req);
+			ret = rbd_obj_init_discard(obj_req);
 			break;
 		case OBJ_OP_ZEROOUT:
-			ret = rbd_obj_setup_zeroout(obj_req);
+			ret = rbd_obj_init_zeroout(obj_req);
 			break;
 		default:
 			BUG();
