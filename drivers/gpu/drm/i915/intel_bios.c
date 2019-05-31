@@ -1242,8 +1242,7 @@ static u8 translate_iboost(u8 val)
 static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 			     enum port port)
 {
-	const struct ddi_vbt_port_info *info =
-		&dev_priv->vbt.ddi_port_info[port];
+	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
 	enum port p;
 
 	if (!info->alternate_ddc_pin)
@@ -1258,8 +1257,8 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 
 		DRM_DEBUG_KMS("port %c trying to use the same DDC pin (0x%x) as port %c, "
 			      "disabling port %c DVI/HDMI support\n",
-			      port_name(p), i->alternate_ddc_pin,
-			      port_name(port), port_name(p));
+			      port_name(port), info->alternate_ddc_pin,
+			      port_name(p), port_name(port));
 
 		/*
 		 * If we have multiple ports supposedly sharing the
@@ -1267,20 +1266,19 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 		 * port. Otherwise they share the same ddc bin and
 		 * system couldn't communicate with them separately.
 		 *
-		 * Due to parsing the ports in child device order,
-		 * a later device will always clobber an earlier one.
+		 * Give child device order the priority, first come first
+		 * served.
 		 */
-		i->supports_dvi = false;
-		i->supports_hdmi = false;
-		i->alternate_ddc_pin = 0;
+		info->supports_dvi = false;
+		info->supports_hdmi = false;
+		info->alternate_ddc_pin = 0;
 	}
 }
 
 static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 			    enum port port)
 {
-	const struct ddi_vbt_port_info *info =
-		&dev_priv->vbt.ddi_port_info[port];
+	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
 	enum port p;
 
 	if (!info->alternate_aux_channel)
@@ -1295,8 +1293,8 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 
 		DRM_DEBUG_KMS("port %c trying to use the same AUX CH (0x%x) as port %c, "
 			      "disabling port %c DP support\n",
-			      port_name(p), i->alternate_aux_channel,
-			      port_name(port), port_name(p));
+			      port_name(port), info->alternate_aux_channel,
+			      port_name(p), port_name(port));
 
 		/*
 		 * If we have multiple ports supposedlt sharing the
@@ -1304,11 +1302,11 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 		 * port. Otherwise they share the same aux channel
 		 * and system couldn't communicate with them separately.
 		 *
-		 * Due to parsing the ports in child device order,
-		 * a later device will always clobber an earlier one.
+		 * Give child device order the priority, first come first
+		 * served.
 		 */
-		i->supports_dp = false;
-		i->alternate_aux_channel = 0;
+		info->supports_dp = false;
+		info->alternate_aux_channel = 0;
 	}
 }
 
