@@ -902,7 +902,6 @@ static int mipi_csis_subdev_init(struct v4l2_subdev *mipi_sd,
 	return ret;
 }
 
-
 static int mipi_csis_dump_regs_show(struct seq_file *m, void *private)
 {
 	struct csi_state *state = m->private;
