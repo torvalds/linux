@@ -217,6 +217,9 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 {
 	struct hdac_stream *hstream = &stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
+	u32 dma_start = SOF_HDA_SD_CTL_DMA_START;
+	int ret;
+	u32 run;
 
 	/* cmd must be for audio stream */
 	switch (cmd) {
@@ -234,6 +237,16 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 					SOF_HDA_SD_CTL_DMA_START |
 					SOF_HDA_CL_DMA_SD_INT_MASK);
 
+		ret = snd_sof_dsp_read_poll_timeout(sdev,
+					HDA_DSP_HDA_BAR,
+					sd_offset, run,
+					((run &	dma_start) == dma_start),
+					HDA_DSP_REG_POLL_INTERVAL_US,
+					HDA_DSP_STREAM_RUN_TIMEOUT);
+
+		if (ret)
+			return ret;
+
 		hstream->running = true;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -243,6 +256,15 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 					sd_offset,
 					SOF_HDA_SD_CTL_DMA_START |
 					SOF_HDA_CL_DMA_SD_INT_MASK, 0x0);
+
+		ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_HDA_BAR,
+						sd_offset, run,
+						!(run &	dma_start),
+						HDA_DSP_REG_POLL_INTERVAL_US,
+						HDA_DSP_STREAM_RUN_TIMEOUT);
+
+		if (ret)
+			return ret;
 
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, sd_offset +
 				  SOF_HDA_ADSP_REG_CL_SD_STS,
