@@ -913,6 +913,10 @@ int hl_mmu_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size)
 		return -EFAULT;
 	}
 
+	WARN_ONCE((phys_addr & (real_page_size - 1)),
+		"Mapping 0x%llx with page size of 0x%x is erroneous! Address must be divisible by page size",
+		phys_addr, real_page_size);
+
 	npages = page_size / real_page_size;
 	real_virt_addr = virt_addr;
 	real_phys_addr = phys_addr;
