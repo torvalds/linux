@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* imm.c   --  low level driver for the IOMEGA MatchMaker
  * parallel port SCSI host adapter.
  * 

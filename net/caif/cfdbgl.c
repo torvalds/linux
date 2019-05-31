@@ -26,7 +26,7 @@ struct cflayer *cfdbgl_create(u8 channel_id, struct dev_info *dev_info)
 	cfsrvl_init(dbg, channel_id, dev_info, false);
 	dbg->layer.receive = cfdbgl_receive;
 	dbg->layer.transmit = cfdbgl_transmit;
-	snprintf(dbg->layer.name, CAIF_LAYER_NAME_SZ - 1, "dbg%d", channel_id);
+	snprintf(dbg->layer.name, CAIF_LAYER_NAME_SZ, "dbg%d", channel_id);
 	return &dbg->layer;
 }
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config USB_STKWEBCAM
 	tristate "USB Syntek DC1125 Camera support"
 	depends on VIDEO_V4L2

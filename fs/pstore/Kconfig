@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PSTORE
 	tristate "Persistent store support"
 	select CRYPTO if PSTORE_COMPRESS

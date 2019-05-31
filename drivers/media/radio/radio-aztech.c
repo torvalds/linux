@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * radio-aztech.c - Aztech radio card driver
  *

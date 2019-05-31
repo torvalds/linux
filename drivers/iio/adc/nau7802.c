@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the Nuvoton NAU7802 ADC
  *
  * Copyright 2013 Free Electrons
- *
- * Licensed under the GPLv2 or later.
  */
 
 #include <linux/delay.h>
