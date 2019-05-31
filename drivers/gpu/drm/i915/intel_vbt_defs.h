@@ -670,7 +670,7 @@ struct bdb_edp {
 
 struct bdb_lvds_options {
 	u8 panel_type;
-	u8 rsvd1;
+	u8 panel_type2;						/* 212 */
 	/* LVDS capabilities, stored in a dword */
 	u8 pfit_mode:2;
 	u8 pfit_text_mode_enhanced:1;
@@ -692,6 +692,9 @@ struct bdb_lvds_options {
 	u32 dps_panel_type_bits;
 	/* LVDS backlight control type bits stored here */
 	u32 blt_control_type_bits;
+
+	u16 lcdvcc_s0_enable;					/* 200 */
+	u32 rotation;						/* 228 */
 } __packed;
 
 /*
