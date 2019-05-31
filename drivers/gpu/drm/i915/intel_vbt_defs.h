@@ -477,7 +477,7 @@ struct bdb_lvds_options {
 } __packed;
 
 /* LFP pointer table contains entries to the struct below */
-struct bdb_lvds_lfp_data_ptr {
+struct lvds_lfp_data_ptr {
 	u16 fp_timing_offset; /* offsets are from start of bdb */
 	u8 fp_table_size;
 	u16 dvo_timing_offset;
@@ -488,7 +488,7 @@ struct bdb_lvds_lfp_data_ptr {
 
 struct bdb_lvds_lfp_data_ptrs {
 	u8 lvds_entries; /* followed by one or more lvds_data_ptr structs */
-	struct bdb_lvds_lfp_data_ptr ptr[16];
+	struct lvds_lfp_data_ptr ptr[16];
 } __packed;
 
 /* LFP data has 3 blocks per entry */
@@ -547,20 +547,24 @@ struct lvds_pnp_id {
 	u8 mfg_year;
 } __packed;
 
-struct bdb_lvds_lfp_data_entry {
+struct lvds_lfp_data_entry {
 	struct lvds_fp_timing fp_timing;
 	struct lvds_dvo_timing dvo_timing;
 	struct lvds_pnp_id pnp_id;
 } __packed;
 
 struct bdb_lvds_lfp_data {
-	struct bdb_lvds_lfp_data_entry data[16];
+	struct lvds_lfp_data_entry data[16];
+} __packed;
+
+struct bdb_sdvo_panel_dtds {
+	struct lvds_dvo_timing dtds[4];
 } __packed;
 
 #define BDB_BACKLIGHT_TYPE_NONE	0
 #define BDB_BACKLIGHT_TYPE_PWM	2
 
-struct bdb_lfp_backlight_data_entry {
+struct lfp_backlight_data_entry {
 	u8 type:2;
 	u8 active_low_pwm:1;
 	u8 obsolete1:5;
@@ -570,16 +574,16 @@ struct bdb_lfp_backlight_data_entry {
 	u8 obsolete3;
 } __packed;
 
-struct bdb_lfp_backlight_control_method {
+struct lfp_backlight_control_method {
 	u8 type:4;
 	u8 controller:4;
 } __packed;
 
 struct bdb_lfp_backlight_data {
 	u8 entry_size;
-	struct bdb_lfp_backlight_data_entry data[16];
+	struct lfp_backlight_data_entry data[16];
 	u8 level[16];
-	struct bdb_lfp_backlight_control_method backlight_control[16];
+	struct lfp_backlight_control_method backlight_control[16];
 } __packed;
 
 struct bdb_sdvo_lvds_options {

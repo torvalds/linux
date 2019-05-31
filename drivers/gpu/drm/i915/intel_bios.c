@@ -302,7 +302,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 		    const struct bdb_header *bdb)
 {
 	const struct bdb_lfp_backlight_data *backlight_data;
-	const struct bdb_lfp_backlight_data_entry *entry;
+	const struct lfp_backlight_data_entry *entry;
 	int panel_type = dev_priv->vbt.panel_type;
 
 	backlight_data = find_section(bdb, BDB_LVDS_BACKLIGHT);
@@ -327,7 +327,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 	dev_priv->vbt.backlight.type = INTEL_BACKLIGHT_DISPLAY_DDI;
 	if (bdb->version >= 191 &&
 	    get_blocksize(backlight_data) >= sizeof(*backlight_data)) {
-		const struct bdb_lfp_backlight_control_method *method;
+		const struct lfp_backlight_control_method *method;
 
 		method = &backlight_data->backlight_control[panel_type];
 		dev_priv->vbt.backlight.type = method->type;
@@ -351,7 +351,7 @@ static void
 parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 		      const struct bdb_header *bdb)
 {
-	const struct lvds_dvo_timing *dvo_timing;
+	const struct bdb_sdvo_panel_dtds *dtds;
 	struct drm_display_mode *panel_fixed_mode;
 	int index;
 
@@ -371,15 +371,15 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 		index = sdvo_lvds_options->panel_type;
 	}
 
-	dvo_timing = find_section(bdb, BDB_SDVO_PANEL_DTDS);
-	if (!dvo_timing)
+	dtds = find_section(bdb, BDB_SDVO_PANEL_DTDS);
+	if (!dtds)
 		return;
 
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode), GFP_KERNEL);
 	if (!panel_fixed_mode)
 		return;
 
-	fill_detail_timing_data(panel_fixed_mode, dvo_timing + index);
+	fill_detail_timing_data(panel_fixed_mode, &dtds->dtds[index]);
 
 	dev_priv->vbt.sdvo_lvds_vbt_mode = panel_fixed_mode;
 
