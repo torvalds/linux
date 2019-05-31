@@ -147,6 +147,7 @@ static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 {
 	int en_encap = !!(ft->flags & MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT);
 	int en_decap = !!(ft->flags & MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
+	int term = !!(ft->flags & MLX5_FLOW_TABLE_TERMINATION);
 	u32 out[MLX5_ST_SZ_DW(create_flow_table_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(create_flow_table_in)]   = {0};
 	struct mlx5_core_dev *dev = ns->dev;
@@ -167,6 +168,8 @@ static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 		 en_decap);
 	MLX5_SET(create_flow_table_in, in, flow_table_context.reformat_en,
 		 en_encap);
+	MLX5_SET(create_flow_table_in, in, flow_table_context.termination_table,
+		 term);
 
 	switch (ft->op_mod) {
 	case FS_FT_OP_MOD_NORMAL:

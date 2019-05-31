@@ -91,7 +91,7 @@ struct mlx5e_rep_priv {
 static inline
 struct mlx5e_rep_priv *mlx5e_rep_to_rep_priv(struct mlx5_eswitch_rep *rep)
 {
-	return (struct mlx5e_rep_priv *)rep->rep_if[REP_ETH].priv;
+	return rep->rep_data[REP_ETH].priv;
 }
 
 struct mlx5e_neigh {
