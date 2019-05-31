@@ -220,64 +220,6 @@ enum aux_ch {
 
 #define aux_ch_name(a) ((a) + 'A')
 
-enum intel_display_power_domain {
-	POWER_DOMAIN_DISPLAY_CORE,
-	POWER_DOMAIN_PIPE_A,
-	POWER_DOMAIN_PIPE_B,
-	POWER_DOMAIN_PIPE_C,
-	POWER_DOMAIN_PIPE_A_PANEL_FITTER,
-	POWER_DOMAIN_PIPE_B_PANEL_FITTER,
-	POWER_DOMAIN_PIPE_C_PANEL_FITTER,
-	POWER_DOMAIN_TRANSCODER_A,
-	POWER_DOMAIN_TRANSCODER_B,
-	POWER_DOMAIN_TRANSCODER_C,
-	POWER_DOMAIN_TRANSCODER_EDP,
-	POWER_DOMAIN_TRANSCODER_EDP_VDSC,
-	POWER_DOMAIN_TRANSCODER_DSI_A,
-	POWER_DOMAIN_TRANSCODER_DSI_C,
-	POWER_DOMAIN_PORT_DDI_A_LANES,
-	POWER_DOMAIN_PORT_DDI_B_LANES,
-	POWER_DOMAIN_PORT_DDI_C_LANES,
-	POWER_DOMAIN_PORT_DDI_D_LANES,
-	POWER_DOMAIN_PORT_DDI_E_LANES,
-	POWER_DOMAIN_PORT_DDI_F_LANES,
-	POWER_DOMAIN_PORT_DDI_A_IO,
-	POWER_DOMAIN_PORT_DDI_B_IO,
-	POWER_DOMAIN_PORT_DDI_C_IO,
-	POWER_DOMAIN_PORT_DDI_D_IO,
-	POWER_DOMAIN_PORT_DDI_E_IO,
-	POWER_DOMAIN_PORT_DDI_F_IO,
-	POWER_DOMAIN_PORT_DSI,
-	POWER_DOMAIN_PORT_CRT,
-	POWER_DOMAIN_PORT_OTHER,
-	POWER_DOMAIN_VGA,
-	POWER_DOMAIN_AUDIO,
-	POWER_DOMAIN_AUX_A,
-	POWER_DOMAIN_AUX_B,
-	POWER_DOMAIN_AUX_C,
-	POWER_DOMAIN_AUX_D,
-	POWER_DOMAIN_AUX_E,
-	POWER_DOMAIN_AUX_F,
-	POWER_DOMAIN_AUX_IO_A,
-	POWER_DOMAIN_AUX_TBT1,
-	POWER_DOMAIN_AUX_TBT2,
-	POWER_DOMAIN_AUX_TBT3,
-	POWER_DOMAIN_AUX_TBT4,
-	POWER_DOMAIN_GMBUS,
-	POWER_DOMAIN_MODESET,
-	POWER_DOMAIN_GT_IRQ,
-	POWER_DOMAIN_INIT,
-
-	POWER_DOMAIN_NUM,
-};
-
-#define POWER_DOMAIN_PIPE(pipe) ((pipe) + POWER_DOMAIN_PIPE_A)
-#define POWER_DOMAIN_PIPE_PANEL_FITTER(pipe) \
-		((pipe) + POWER_DOMAIN_PIPE_A_PANEL_FITTER)
-#define POWER_DOMAIN_TRANSCODER(tran) \
-	((tran) == TRANSCODER_EDP ? POWER_DOMAIN_TRANSCODER_EDP : \
-	 (tran) + POWER_DOMAIN_TRANSCODER_A)
-
 /* Used by dp and fdi links */
 struct intel_link_m_n {
 	u32 tu;
@@ -363,30 +305,6 @@ struct intel_link_m_n {
 #define for_each_connector_on_encoder(dev, __encoder, intel_connector) \
 	list_for_each_entry((intel_connector), &(dev)->mode_config.connector_list, base.head) \
 		for_each_if((intel_connector)->base.encoder == (__encoder))
-
-#define for_each_power_domain(domain, mask)				\
-	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
-		for_each_if(BIT_ULL(domain) & (mask))
-
-#define for_each_power_well(__dev_priv, __power_well)				\
-	for ((__power_well) = (__dev_priv)->power_domains.power_wells;	\
-	     (__power_well) - (__dev_priv)->power_domains.power_wells <	\
-		(__dev_priv)->power_domains.power_well_count;		\
-	     (__power_well)++)
-
-#define for_each_power_well_reverse(__dev_priv, __power_well)			\
-	for ((__power_well) = (__dev_priv)->power_domains.power_wells +		\
-			      (__dev_priv)->power_domains.power_well_count - 1;	\
-	     (__power_well) - (__dev_priv)->power_domains.power_wells >= 0;	\
-	     (__power_well)--)
-
-#define for_each_power_domain_well(__dev_priv, __power_well, __domain_mask)	\
-	for_each_power_well(__dev_priv, __power_well)				\
-		for_each_if((__power_well)->desc->domains & (__domain_mask))
-
-#define for_each_power_domain_well_reverse(__dev_priv, __power_well, __domain_mask) \
-	for_each_power_well_reverse(__dev_priv, __power_well)		        \
-		for_each_if((__power_well)->desc->domains & (__domain_mask))
 
 #define for_each_old_intel_plane_in_state(__state, plane, old_plane_state, __i) \
 	for ((__i) = 0; \
