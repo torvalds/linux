@@ -860,6 +860,10 @@ static int sa1100_serial_resume(struct platform_device *dev)
 static int sa1100_serial_add_one_port(struct sa1100_port *sport, struct platform_device *dev)
 {
 	sport->port.dev = &dev->dev;
+
+	// mctrl_gpio_init() requires that the GPIO driver supports interrupts,
+	// but we need to support GPIO drivers for hardware that has no such
+	// interrupts.  Use mctrl_gpio_init_noauto() instead.
 	sport->gpios = mctrl_gpio_init_noauto(sport->port.dev, 0);
 	if (IS_ERR(sport->gpios)) {
 		int err = PTR_ERR(sport->gpios);
