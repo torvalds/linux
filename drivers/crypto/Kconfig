@@ -541,6 +541,7 @@ config CRYPTO_DEV_ATMEL_SHA204A
 	depends on I2C
 	select CRYPTO_DEV_ATMEL_I2C
 	select HW_RANDOM
+	select CRC16
 	help
 	  Microhip / Atmel SHA accelerator and RNG.
 	  Select this if you want to use the Microchip / Atmel SHA204A
