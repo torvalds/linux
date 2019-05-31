@@ -984,11 +984,9 @@ static int mt9m111_power_on(struct mt9m111 *mt9m111)
 	if (ret < 0)
 		return ret;
 
-	if (mt9m111->regulator) {
-		ret = regulator_enable(mt9m111->regulator);
-		if (ret < 0)
-			return ret;
-	}
+	ret = regulator_enable(mt9m111->regulator);
+	if (ret < 0)
+		return ret;
 
 	ret = mt9m111_resume(mt9m111);
 	if (ret < 0) {
@@ -1002,8 +1000,7 @@ static int mt9m111_power_on(struct mt9m111 *mt9m111)
 static void mt9m111_power_off(struct mt9m111 *mt9m111)
 {
 	mt9m111_suspend(mt9m111);
-	if (mt9m111->regulator)
-		regulator_disable(mt9m111->regulator);
+	regulator_disable(mt9m111->regulator);
 	v4l2_clk_disable(mt9m111->clk);
 }
 
