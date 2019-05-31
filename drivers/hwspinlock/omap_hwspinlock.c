@@ -140,6 +140,9 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	if (ret)
 		goto reg_fail;
 
+	dev_dbg(&pdev->dev, "Registered %d locks with HwSpinlock core\n",
+		num_locks);
+
 	return 0;
 
 reg_fail:
