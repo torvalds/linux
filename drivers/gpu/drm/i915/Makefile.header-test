@@ -25,6 +25,7 @@ header_test := \
 	intel_crt.h \
 	intel_csr.h \
 	intel_ddi.h \
+	intel_display_power.h \
 	intel_dp.h \
 	intel_dp_aux_backlight.h \
 	intel_dp_link_training.h \

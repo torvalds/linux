@@ -70,6 +70,7 @@
 #include "intel_bios.h"
 #include "intel_device_info.h"
 #include "intel_display.h"
+#include "intel_display_power.h"
 #include "intel_dpll_mgr.h"
 #include "intel_frontbuffer.h"
 #include "intel_opregion.h"

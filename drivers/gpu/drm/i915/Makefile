@@ -159,6 +159,7 @@ i915-y += intel_audio.o \
 	  intel_combo_phy.o \
 	  intel_connector.o \
 	  intel_display.o \
+	  intel_display_power.o \
 	  intel_dpio_phy.o \
 	  intel_dpll_mgr.o \
 	  intel_fbc.o \
