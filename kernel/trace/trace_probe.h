@@ -55,7 +55,6 @@
 /* Flags for trace_probe */
 #define TP_FLAG_TRACE		1
 #define TP_FLAG_PROFILE		2
-#define TP_FLAG_REGISTERED	4
 
 /* data_loc: data location, compatible with u32 */
 #define make_data_loc(len, offs)	\
@@ -259,11 +258,6 @@ static inline void trace_probe_clear_flag(struct trace_probe *tp,
 static inline bool trace_probe_is_enabled(struct trace_probe *tp)
 {
 	return trace_probe_test_flag(tp, TP_FLAG_TRACE | TP_FLAG_PROFILE);
-}
-
-static inline bool trace_probe_is_registered(struct trace_probe *tp)
-{
-	return trace_probe_test_flag(tp, TP_FLAG_REGISTERED);
 }
 
 static inline const char *trace_probe_name(struct trace_probe *tp)
