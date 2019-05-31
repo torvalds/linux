@@ -6,6 +6,7 @@
 
 #include "ocelot_tc.h"
 #include "ocelot_police.h"
+#include "ocelot_ace.h"
 #include <net/pkt_cls.h>
 
 static int ocelot_setup_tc_cls_matchall(struct ocelot_port *port,
@@ -101,10 +102,7 @@ static int ocelot_setup_tc_block_cb(enum tc_setup_type type,
 
 		return ocelot_setup_tc_cls_matchall(port, type_data, ingress);
 	case TC_SETUP_CLSFLOWER:
-		netdev_dbg(port->dev, "tc_block_cb: TC_SETUP_CLSFLOWER %s\n",
-			   ingress ? "ingress" : "egress");
-
-		return -EOPNOTSUPP;
+		return 0;
 	default:
 		netdev_dbg(port->dev, "tc_block_cb: type %d %s\n",
 			   type,
@@ -134,6 +132,7 @@ static int ocelot_setup_tc_block(struct ocelot_port *port,
 				 struct tc_block_offload *f)
 {
 	tc_setup_cb_t *cb;
+	int ret;
 
 	netdev_dbg(port->dev, "tc_block command %d, binder_type %d\n",
 		   f->command, f->binder_type);
@@ -149,9 +148,14 @@ static int ocelot_setup_tc_block(struct ocelot_port *port,
 
 	switch (f->command) {
 	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block, cb, port,
-					     port, f->extack);
+		ret = tcf_block_cb_register(f->block, cb, port,
+					    port, f->extack);
+		if (ret)
+			return ret;
+
+		return ocelot_setup_tc_block_flower_bind(port, f);
 	case TC_BLOCK_UNBIND:
+		ocelot_setup_tc_block_flower_unbind(port, f);
 		tcf_block_cb_unregister(f->block, cb, port);
 		return 0;
 	default:

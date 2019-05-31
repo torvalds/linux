@@ -224,4 +224,9 @@ int ocelot_ace_rule_stats_update(struct ocelot_ace_rule *rule);
 int ocelot_ace_init(struct ocelot *ocelot);
 void ocelot_ace_deinit(void);
 
+int ocelot_setup_tc_block_flower_bind(struct ocelot_port *port,
+				      struct tc_block_offload *f);
+void ocelot_setup_tc_block_flower_unbind(struct ocelot_port *port,
+					 struct tc_block_offload *f);
+
 #endif /* _MSCC_OCELOT_ACE_H_ */
