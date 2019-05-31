@@ -290,34 +290,27 @@ static inline int __enable_trace_kprobe(struct trace_kprobe *tk)
 static int
 enable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
 {
-	struct event_file_link *link;
+	bool enabled = trace_probe_is_enabled(&tk->tp);
 	int ret = 0;
 
 	if (file) {
-		link = kmalloc(sizeof(*link), GFP_KERNEL);
-		if (!link) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		link->file = file;
-		list_add_tail_rcu(&link->list, &tk->tp.files);
-
-		tk->tp.flags |= TP_FLAG_TRACE;
-		ret = __enable_trace_kprobe(tk);
-		if (ret) {
-			list_del_rcu(&link->list);
-			kfree(link);
-			tk->tp.flags &= ~TP_FLAG_TRACE;
-		}
-
-	} else {
-		tk->tp.flags |= TP_FLAG_PROFILE;
-		ret = __enable_trace_kprobe(tk);
+		ret = trace_probe_add_file(&tk->tp, file);
 		if (ret)
+			return ret;
+	} else
+		tk->tp.flags |= TP_FLAG_PROFILE;
+
+	if (enabled)
+		return 0;
+
+	ret = __enable_trace_kprobe(tk);
+	if (ret) {
+		if (file)
+			trace_probe_remove_file(&tk->tp, file);
+		else
 			tk->tp.flags &= ~TP_FLAG_PROFILE;
 	}
- out:
+
 	return ret;
 }
 
@@ -328,54 +321,34 @@ enable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
 static int
 disable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
 {
-	struct event_file_link *link = NULL;
-	int wait = 0;
+	struct trace_probe *tp = &tk->tp;
 	int ret = 0;
 
 	if (file) {
-		link = find_event_file_link(&tk->tp, file);
-		if (!link) {
-			ret = -EINVAL;
+		if (!trace_probe_get_file_link(tp, file))
+			return -ENOENT;
+		if (!trace_probe_has_single_file(tp))
 			goto out;
-		}
-
-		list_del_rcu(&link->list);
-		wait = 1;
-		if (!list_empty(&tk->tp.files))
-			goto out;
-
-		tk->tp.flags &= ~TP_FLAG_TRACE;
+		tp->flags &= ~TP_FLAG_TRACE;
 	} else
-		tk->tp.flags &= ~TP_FLAG_PROFILE;
+		tp->flags &= ~TP_FLAG_PROFILE;
 
-	if (!trace_probe_is_enabled(&tk->tp) && trace_probe_is_registered(&tk->tp)) {
+	if (!trace_probe_is_enabled(tp) && trace_probe_is_registered(tp)) {
 		if (trace_kprobe_is_return(tk))
 			disable_kretprobe(&tk->rp);
 		else
 			disable_kprobe(&tk->rp.kp);
-		wait = 1;
 	}
 
-	/*
-	 * if tk is not added to any list, it must be a local trace_kprobe
-	 * created with perf_event_open. We don't need to wait for these
-	 * trace_kprobes
-	 */
-	if (list_empty(&tk->devent.list))
-		wait = 0;
  out:
-	if (wait) {
+	if (file)
 		/*
-		 * Synchronize with kprobe_trace_func/kretprobe_trace_func
-		 * to ensure disabled (all running handlers are finished).
-		 * This is not only for kfree(), but also the caller,
-		 * trace_remove_event_call() supposes it for releasing
-		 * event_call related objects, which will be accessed in
-		 * the kprobe_trace_func/kretprobe_trace_func.
+		 * Synchronization is done in below function. For perf event,
+		 * file == NULL and perf_trace_event_unreg() calls
+		 * tracepoint_synchronize_unregister() to ensure synchronize
+		 * event. We don't need to care about it.
 		 */
-		synchronize_rcu();
-		kfree(link);	/* Ignored if link == NULL */
-	}
+		trace_probe_remove_file(tp, file);
 
 	return ret;
 }
@@ -1044,7 +1017,7 @@ kprobe_trace_func(struct trace_kprobe *tk, struct pt_regs *regs)
 {
 	struct event_file_link *link;
 
-	list_for_each_entry_rcu(link, &tk->tp.files, list)
+	trace_probe_for_each_link_rcu(link, &tk->tp)
 		__kprobe_trace_func(tk, regs, link->file);
 }
 NOKPROBE_SYMBOL(kprobe_trace_func);
@@ -1094,7 +1067,7 @@ kretprobe_trace_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 {
 	struct event_file_link *link;
 
-	list_for_each_entry_rcu(link, &tk->tp.files, list)
+	trace_probe_for_each_link_rcu(link, &tk->tp)
 		__kretprobe_trace_func(tk, ri, regs, link->file);
 }
 NOKPROBE_SYMBOL(kretprobe_trace_func);

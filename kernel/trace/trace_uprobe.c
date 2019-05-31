@@ -863,7 +863,7 @@ static int uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs,
 		return 0;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(link, &tu->tp.files, list)
+	trace_probe_for_each_link_rcu(link, &tu->tp)
 		__uprobe_trace_func(tu, 0, regs, ucb, dsize, link->file);
 	rcu_read_unlock();
 
@@ -877,7 +877,7 @@ static void uretprobe_trace_func(struct trace_uprobe *tu, unsigned long func,
 	struct event_file_link *link;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(link, &tu->tp.files, list)
+	trace_probe_for_each_link_rcu(link, &tu->tp)
 		__uprobe_trace_func(tu, func, regs, ucb, dsize, link->file);
 	rcu_read_unlock();
 }
@@ -924,21 +924,15 @@ probe_event_enable(struct trace_uprobe *tu, struct trace_event_file *file,
 		   filter_func_t filter)
 {
 	bool enabled = trace_probe_is_enabled(&tu->tp);
-	struct event_file_link *link = NULL;
 	int ret;
 
 	if (file) {
 		if (tu->tp.flags & TP_FLAG_PROFILE)
 			return -EINTR;
 
-		link = kmalloc(sizeof(*link), GFP_KERNEL);
-		if (!link)
-			return -ENOMEM;
-
-		link->file = file;
-		list_add_tail_rcu(&link->list, &tu->tp.files);
-
-		tu->tp.flags |= TP_FLAG_TRACE;
+		ret = trace_probe_add_file(&tu->tp, file);
+		if (ret < 0)
+			return ret;
 	} else {
 		if (tu->tp.flags & TP_FLAG_TRACE)
 			return -EINTR;
@@ -973,13 +967,11 @@ probe_event_enable(struct trace_uprobe *tu, struct trace_event_file *file,
 	uprobe_buffer_disable();
 
  err_flags:
-	if (file) {
-		list_del(&link->list);
-		kfree(link);
-		tu->tp.flags &= ~TP_FLAG_TRACE;
-	} else {
+	if (file)
+		trace_probe_remove_file(&tu->tp, file);
+	else
 		tu->tp.flags &= ~TP_FLAG_PROFILE;
-	}
+
 	return ret;
 }
 
@@ -990,26 +982,18 @@ probe_event_disable(struct trace_uprobe *tu, struct trace_event_file *file)
 		return;
 
 	if (file) {
-		struct event_file_link *link;
-
-		link = find_event_file_link(&tu->tp, file);
-		if (!link)
+		if (trace_probe_remove_file(&tu->tp, file) < 0)
 			return;
 
-		list_del_rcu(&link->list);
-		/* synchronize with u{,ret}probe_trace_func */
-		synchronize_rcu();
-		kfree(link);
-
-		if (!list_empty(&tu->tp.files))
+		if (trace_probe_is_enabled(&tu->tp))
 			return;
-	}
+	} else
+		tu->tp.flags &= ~TP_FLAG_PROFILE;
 
 	WARN_ON(!uprobe_filter_is_empty(&tu->filter));
 
 	uprobe_unregister(tu->inode, tu->offset, &tu->consumer);
 	tu->inode = NULL;
-	tu->tp.flags &= file ? ~TP_FLAG_TRACE : ~TP_FLAG_PROFILE;
 
 	uprobe_buffer_disable();
 }
