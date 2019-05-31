@@ -38,3 +38,4 @@ libbpf.pc
 libbpf.so.*
 test_hashmap
 test_btf_dump
+xdping
