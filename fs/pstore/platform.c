@@ -583,7 +583,8 @@ int pstore_register(struct pstore_info *psi)
 		return -EINVAL;
 	}
 
-	allocate_buf_for_compression();
+	if (psi->flags & PSTORE_FLAGS_DMESG)
+		allocate_buf_for_compression();
 
 	if (pstore_is_mounted())
 		pstore_get_records(0);
