@@ -289,8 +289,8 @@ static bool trace_uprobe_match(const char *system, const char *event,
 {
 	struct trace_uprobe *tu = to_trace_uprobe(ev);
 
-	return strcmp(trace_event_name(&tu->tp.call), event) == 0 &&
-		(!system || strcmp(tu->tp.call.class->system, system) == 0);
+	return strcmp(trace_probe_name(&tu->tp), event) == 0 &&
+	    (!system || strcmp(trace_probe_group_name(&tu->tp), system) == 0);
 }
 
 /*
@@ -340,8 +340,8 @@ static struct trace_uprobe *find_probe_event(const char *event, const char *grou
 	struct trace_uprobe *tu;
 
 	for_each_trace_uprobe(tu, pos)
-		if (strcmp(trace_event_name(&tu->tp.call), event) == 0 &&
-		    strcmp(tu->tp.call.class->system, group) == 0)
+		if (strcmp(trace_probe_name(&tu->tp), event) == 0 &&
+		    strcmp(trace_probe_group_name(&tu->tp), group) == 0)
 			return tu;
 
 	return NULL;
@@ -376,8 +376,8 @@ static struct trace_uprobe *find_old_trace_uprobe(struct trace_uprobe *new)
 	struct trace_uprobe *tmp, *old = NULL;
 	struct inode *new_inode = d_real_inode(new->path.dentry);
 
-	old = find_probe_event(trace_event_name(&new->tp.call),
-				new->tp.call.class->system);
+	old = find_probe_event(trace_probe_name(&new->tp),
+				trace_probe_group_name(&new->tp));
 
 	for_each_trace_uprobe(tmp, pos) {
 		if ((old ? old != tmp : true) &&
@@ -624,8 +624,8 @@ static int trace_uprobe_show(struct seq_file *m, struct dyn_event *ev)
 	char c = is_ret_probe(tu) ? 'r' : 'p';
 	int i;
 
-	seq_printf(m, "%c:%s/%s %s:0x%0*lx", c, tu->tp.call.class->system,
-			trace_event_name(&tu->tp.call), tu->filename,
+	seq_printf(m, "%c:%s/%s %s:0x%0*lx", c, trace_probe_group_name(&tu->tp),
+			trace_probe_name(&tu->tp), tu->filename,
 			(int)(sizeof(void *) * 2), tu->offset);
 
 	if (tu->ref_ctr_offset)
@@ -695,7 +695,7 @@ static int probes_profile_seq_show(struct seq_file *m, void *v)
 
 	tu = to_trace_uprobe(ev);
 	seq_printf(m, "  %s %-44s %15lu\n", tu->filename,
-			trace_event_name(&tu->tp.call), tu->nhit);
+			trace_probe_name(&tu->tp), tu->nhit);
 	return 0;
 }
 
@@ -896,12 +896,12 @@ print_uprobe_event(struct trace_iterator *iter, int flags, struct trace_event *e
 
 	if (is_ret_probe(tu)) {
 		trace_seq_printf(s, "%s: (0x%lx <- 0x%lx)",
-				 trace_event_name(&tu->tp.call),
+				 trace_probe_name(&tu->tp),
 				 entry->vaddr[1], entry->vaddr[0]);
 		data = DATAOF_TRACE_ENTRY(entry, true);
 	} else {
 		trace_seq_printf(s, "%s: (0x%lx)",
-				 trace_event_name(&tu->tp.call),
+				 trace_probe_name(&tu->tp),
 				 entry->vaddr[0]);
 		data = DATAOF_TRACE_ENTRY(entry, false);
 	}
