@@ -298,7 +298,7 @@ enable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
 		if (ret)
 			return ret;
 	} else
-		tk->tp.flags |= TP_FLAG_PROFILE;
+		trace_probe_set_flag(&tk->tp, TP_FLAG_PROFILE);
 
 	if (enabled)
 		return 0;
@@ -308,7 +308,7 @@ enable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
 		if (file)
 			trace_probe_remove_file(&tk->tp, file);
 		else
-			tk->tp.flags &= ~TP_FLAG_PROFILE;
+			trace_probe_clear_flag(&tk->tp, TP_FLAG_PROFILE);
 	}
 
 	return ret;
@@ -329,9 +329,9 @@ disable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
 			return -ENOENT;
 		if (!trace_probe_has_single_file(tp))
 			goto out;
-		tp->flags &= ~TP_FLAG_TRACE;
+		trace_probe_clear_flag(tp, TP_FLAG_TRACE);
 	} else
-		tp->flags &= ~TP_FLAG_PROFILE;
+		trace_probe_clear_flag(tp, TP_FLAG_PROFILE);
 
 	if (!trace_probe_is_enabled(tp) && trace_probe_is_registered(tp)) {
 		if (trace_kprobe_is_return(tk))
@@ -408,7 +408,7 @@ static int __register_trace_kprobe(struct trace_kprobe *tk)
 		ret = register_kprobe(&tk->rp.kp);
 
 	if (ret == 0)
-		tk->tp.flags |= TP_FLAG_REGISTERED;
+		trace_probe_set_flag(&tk->tp, TP_FLAG_REGISTERED);
 	return ret;
 }
 
@@ -420,7 +420,7 @@ static void __unregister_trace_kprobe(struct trace_kprobe *tk)
 			unregister_kretprobe(&tk->rp);
 		else
 			unregister_kprobe(&tk->rp.kp);
-		tk->tp.flags &= ~TP_FLAG_REGISTERED;
+		trace_probe_clear_flag(&tk->tp, TP_FLAG_REGISTERED);
 		/* Cleanup kprobe for reuse */
 		if (tk->rp.kp.symbol_name)
 			tk->rp.kp.addr = NULL;
@@ -1313,10 +1313,10 @@ static int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
 
 	raw_cpu_inc(*tk->nhit);
 
-	if (tk->tp.flags & TP_FLAG_TRACE)
+	if (trace_probe_test_flag(&tk->tp, TP_FLAG_TRACE))
 		kprobe_trace_func(tk, regs);
 #ifdef CONFIG_PERF_EVENTS
-	if (tk->tp.flags & TP_FLAG_PROFILE)
+	if (trace_probe_test_flag(&tk->tp, TP_FLAG_PROFILE))
 		ret = kprobe_perf_func(tk, regs);
 #endif
 	return ret;
@@ -1330,10 +1330,10 @@ kretprobe_dispatcher(struct kretprobe_instance *ri, struct pt_regs *regs)
 
 	raw_cpu_inc(*tk->nhit);
 
-	if (tk->tp.flags & TP_FLAG_TRACE)
+	if (trace_probe_test_flag(&tk->tp, TP_FLAG_TRACE))
 		kretprobe_trace_func(tk, ri, regs);
 #ifdef CONFIG_PERF_EVENTS
-	if (tk->tp.flags & TP_FLAG_PROFILE)
+	if (trace_probe_test_flag(&tk->tp, TP_FLAG_PROFILE))
 		kretprobe_perf_func(tk, ri, regs);
 #endif
 	return 0;	/* We don't tweek kernel, so just return 0 */

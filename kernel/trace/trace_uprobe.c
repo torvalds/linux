@@ -927,17 +927,17 @@ probe_event_enable(struct trace_uprobe *tu, struct trace_event_file *file,
 	int ret;
 
 	if (file) {
-		if (tu->tp.flags & TP_FLAG_PROFILE)
+		if (trace_probe_test_flag(&tu->tp, TP_FLAG_PROFILE))
 			return -EINTR;
 
 		ret = trace_probe_add_file(&tu->tp, file);
 		if (ret < 0)
 			return ret;
 	} else {
-		if (tu->tp.flags & TP_FLAG_TRACE)
+		if (trace_probe_test_flag(&tu->tp, TP_FLAG_TRACE))
 			return -EINTR;
 
-		tu->tp.flags |= TP_FLAG_PROFILE;
+		trace_probe_set_flag(&tu->tp, TP_FLAG_PROFILE);
 	}
 
 	WARN_ON(!uprobe_filter_is_empty(&tu->filter));
@@ -970,7 +970,7 @@ probe_event_enable(struct trace_uprobe *tu, struct trace_event_file *file,
 	if (file)
 		trace_probe_remove_file(&tu->tp, file);
 	else
-		tu->tp.flags &= ~TP_FLAG_PROFILE;
+		trace_probe_clear_flag(&tu->tp, TP_FLAG_PROFILE);
 
 	return ret;
 }
@@ -988,7 +988,7 @@ probe_event_disable(struct trace_uprobe *tu, struct trace_event_file *file)
 		if (trace_probe_is_enabled(&tu->tp))
 			return;
 	} else
-		tu->tp.flags &= ~TP_FLAG_PROFILE;
+		trace_probe_clear_flag(&tu->tp, TP_FLAG_PROFILE);
 
 	WARN_ON(!uprobe_filter_is_empty(&tu->filter));
 
@@ -1266,11 +1266,11 @@ static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs)
 	ucb = uprobe_buffer_get();
 	store_trace_args(ucb->buf, &tu->tp, regs, esize, dsize);
 
-	if (tu->tp.flags & TP_FLAG_TRACE)
+	if (trace_probe_test_flag(&tu->tp, TP_FLAG_TRACE))
 		ret |= uprobe_trace_func(tu, regs, ucb, dsize);
 
 #ifdef CONFIG_PERF_EVENTS
-	if (tu->tp.flags & TP_FLAG_PROFILE)
+	if (trace_probe_test_flag(&tu->tp, TP_FLAG_PROFILE))
 		ret |= uprobe_perf_func(tu, regs, ucb, dsize);
 #endif
 	uprobe_buffer_put(ucb);
@@ -1301,11 +1301,11 @@ static int uretprobe_dispatcher(struct uprobe_consumer *con,
 	ucb = uprobe_buffer_get();
 	store_trace_args(ucb->buf, &tu->tp, regs, esize, dsize);
 
-	if (tu->tp.flags & TP_FLAG_TRACE)
+	if (trace_probe_test_flag(&tu->tp, TP_FLAG_TRACE))
 		uretprobe_trace_func(tu, func, regs, ucb, dsize);
 
 #ifdef CONFIG_PERF_EVENTS
-	if (tu->tp.flags & TP_FLAG_PROFILE)
+	if (trace_probe_test_flag(&tu->tp, TP_FLAG_PROFILE))
 		uretprobe_perf_func(tu, func, regs, ucb, dsize);
 #endif
 	uprobe_buffer_put(ucb);

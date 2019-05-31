@@ -238,14 +238,32 @@ struct event_file_link {
 	struct list_head		list;
 };
 
+static inline bool trace_probe_test_flag(struct trace_probe *tp,
+					 unsigned int flag)
+{
+	return !!(tp->flags & flag);
+}
+
+static inline void trace_probe_set_flag(struct trace_probe *tp,
+					unsigned int flag)
+{
+	tp->flags |= flag;
+}
+
+static inline void trace_probe_clear_flag(struct trace_probe *tp,
+					  unsigned int flag)
+{
+	tp->flags &= ~flag;
+}
+
 static inline bool trace_probe_is_enabled(struct trace_probe *tp)
 {
-	return !!(tp->flags & (TP_FLAG_TRACE | TP_FLAG_PROFILE));
+	return trace_probe_test_flag(tp, TP_FLAG_TRACE | TP_FLAG_PROFILE);
 }
 
 static inline bool trace_probe_is_registered(struct trace_probe *tp)
 {
-	return !!(tp->flags & TP_FLAG_REGISTERED);
+	return trace_probe_test_flag(tp, TP_FLAG_REGISTERED);
 }
 
 static inline int trace_probe_unregister_event_call(struct trace_probe *tp)
