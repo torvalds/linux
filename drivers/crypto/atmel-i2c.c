@@ -34,7 +34,7 @@ static void atmel_i2c_checksum(struct atmel_i2c_cmd *cmd)
 {
 	u8 *data = &cmd->count;
 	size_t len = cmd->count - CRC_SIZE;
-	u16 *__crc16 = (u16 *)(data + len);
+	__le16 *__crc16 = (__le16 *)(data + len);
 
 	*__crc16 = cpu_to_le16(bitrev16(crc16(0, data, len)));
 }
@@ -48,7 +48,7 @@ void atmel_i2c_init_read_cmd(struct atmel_i2c_cmd *cmd)
 	 * (UserExtra, Selector, LockValue, LockConfig).
 	 */
 	cmd->param1 = CONFIG_ZONE;
-	cmd->param2 = DEVICE_LOCK_ADDR;
+	cmd->param2 = cpu_to_le16(DEVICE_LOCK_ADDR);
 	cmd->count = READ_COUNT;
 
 	atmel_i2c_checksum(cmd);

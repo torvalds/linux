@@ -8,6 +8,7 @@
 #define __ATMEL_I2C_H__
 
 #include <linux/hw_random.h>
+#include <linux/types.h>
 
 #define ATMEL_ECC_PRIORITY		300
 
@@ -50,7 +51,7 @@ struct atmel_i2c_cmd {
 	u8 count;
 	u8 opcode;
 	u8 param1;
-	u16 param2;
+	__le16 param2;
 	u8 data[MAX_RSP_SIZE];
 	u8 msecs;
 	u16 rxsize;
