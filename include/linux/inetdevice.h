@@ -186,7 +186,7 @@ __be32 inet_confirm_addr(struct net *net, struct in_device *in_dev, __be32 dst,
 struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, __be32 prefix,
 				    __be32 mask);
 struct in_ifaddr *inet_lookup_ifaddr_rcu(struct net *net, __be32 addr);
-static __inline__ bool inet_ifa_match(__be32 addr, struct in_ifaddr *ifa)
+static inline bool inet_ifa_match(__be32 addr, const struct in_ifaddr *ifa)
 {
 	return !((addr^ifa->ifa_address)&ifa->ifa_mask);
 }
@@ -214,6 +214,14 @@ static __inline__ bool bad_mask(__be32 mask, __be32 addr)
 
 
 #define endfor_ifa(in_dev) }
+
+#define in_dev_for_each_ifa_rtnl(ifa, in_dev)			\
+	for (ifa = (in_dev)->ifa_list; ifa;			\
+	     ifa = ifa->ifa_next)
+
+#define in_dev_for_each_ifa_rcu(ifa, in_dev)			\
+	for (ifa = (in_dev)->ifa_list; ifa;			\
+	     ifa = ifa->ifa_next)
 
 static inline struct in_device *__in_dev_get_rcu(const struct net_device *dev)
 {
