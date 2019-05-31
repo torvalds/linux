@@ -42,8 +42,8 @@ int blk_mq_map_queues(struct blk_mq_queue_map *qmap)
 		/*
 		 * First do sequential mapping between CPUs and queues.
 		 * In case we still have CPUs to map, and we have some number of
-		 * threads per cores then map sibling threads to the same queue for
-		 * performace optimizations.
+		 * threads per cores then map sibling threads to the same queue
+		 * for performance optimizations.
 		 */
 		if (cpu < nr_queues) {
 			map[cpu] = cpu_to_queue_index(qmap, nr_queues, cpu);
