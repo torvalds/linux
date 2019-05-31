@@ -295,7 +295,9 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	struct hdac_stream *hstream = &stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 	int ret, timeout = HDA_DSP_STREAM_RESET_TIMEOUT;
+	u32 dma_start = SOF_HDA_SD_CTL_DMA_START;
 	u32 val, mask;
+	u32 run;
 
 	if (!stream) {
 		dev_err(sdev->dev, "error: no stream available\n");
@@ -316,6 +318,16 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
 				SOF_HDA_CL_DMA_SD_INT_MASK |
 				SOF_HDA_SD_CTL_DMA_START, 0);
+
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_HDA_BAR,
+					    sd_offset, run,
+					    !(run & dma_start),
+					    HDA_DSP_REG_POLL_INTERVAL_US,
+					    HDA_DSP_STREAM_RUN_TIMEOUT);
+
+	if (ret)
+		return ret;
+
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 				sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
 				SOF_HDA_CL_DMA_SD_INT_MASK,
@@ -368,6 +380,16 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
 				SOF_HDA_CL_DMA_SD_INT_MASK |
 				SOF_HDA_SD_CTL_DMA_START, 0);
+
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_HDA_BAR,
+					    sd_offset, run,
+					    !(run & dma_start),
+					    HDA_DSP_REG_POLL_INTERVAL_US,
+					    HDA_DSP_STREAM_RUN_TIMEOUT);
+
+	if (ret)
+		return ret;
+
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 				sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
 				SOF_HDA_CL_DMA_SD_INT_MASK,
