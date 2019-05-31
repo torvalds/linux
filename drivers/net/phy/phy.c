@@ -409,6 +409,7 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 	struct mii_ioctl_data *mii_data = if_mii(ifr);
 	u16 val = mii_data->val_in;
 	bool change_autoneg = false;
+	int prtad, devad;
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
@@ -416,14 +417,29 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 		/* fall through */
 
 	case SIOCGMIIREG:
-		mii_data->val_out = mdiobus_read(phydev->mdio.bus,
-						 mii_data->phy_id,
-						 mii_data->reg_num);
+		if (mdio_phy_id_is_c45(mii_data->phy_id)) {
+			prtad = mdio_phy_id_prtad(mii_data->phy_id);
+			devad = mdio_phy_id_devad(mii_data->phy_id);
+			devad = MII_ADDR_C45 | devad << 16 | mii_data->reg_num;
+		} else {
+			prtad = mii_data->phy_id;
+			devad = mii_data->reg_num;
+		}
+		mii_data->val_out = mdiobus_read(phydev->mdio.bus, prtad,
+						 devad);
 		return 0;
 
 	case SIOCSMIIREG:
-		if (mii_data->phy_id == phydev->mdio.addr) {
-			switch (mii_data->reg_num) {
+		if (mdio_phy_id_is_c45(mii_data->phy_id)) {
+			prtad = mdio_phy_id_prtad(mii_data->phy_id);
+			devad = mdio_phy_id_devad(mii_data->phy_id);
+			devad = MII_ADDR_C45 | devad << 16 | mii_data->reg_num;
+		} else {
+			prtad = mii_data->phy_id;
+			devad = mii_data->reg_num;
+		}
+		if (prtad == phydev->mdio.addr) {
+			switch (devad) {
 			case MII_BMCR:
 				if ((val & (BMCR_RESET | BMCR_ANENABLE)) == 0) {
 					if (phydev->autoneg == AUTONEG_ENABLE)
@@ -456,11 +472,10 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 			}
 		}
 
-		mdiobus_write(phydev->mdio.bus, mii_data->phy_id,
-			      mii_data->reg_num, val);
+		mdiobus_write(phydev->mdio.bus, prtad, devad, val);
 
-		if (mii_data->phy_id == phydev->mdio.addr &&
-		    mii_data->reg_num == MII_BMCR &&
+		if (prtad == phydev->mdio.addr &&
+		    devad == MII_BMCR &&
 		    val & BMCR_RESET)
 			return phy_init_hw(phydev);
 
