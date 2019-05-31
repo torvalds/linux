@@ -456,6 +456,211 @@ struct bdb_general_definitions {
 } __packed;
 
 /*
+ * Block 9 - SRD Feature Block
+ */
+
+struct psr_table {
+	/* Feature bits */
+	u8 full_link:1;
+	u8 require_aux_to_wakeup:1;
+	u8 feature_bits_rsvd:6;
+
+	/* Wait times */
+	u8 idle_frames:4;
+	u8 lines_to_wait:3;
+	u8 wait_times_rsvd:1;
+
+	/* TP wake up time in multiple of 100 */
+	u16 tp1_wakeup_time;
+	u16 tp2_tp3_wakeup_time;
+
+	/* PSR2 TP2/TP3 wakeup time for 16 panels */
+	u32 psr2_tp2_tp3_wakeup_time;
+} __packed;
+
+struct bdb_psr {
+	struct psr_table psr_table[16];
+} __packed;
+
+/*
+ * Block 12 - Driver Features Data Block
+ */
+
+#define BDB_DRIVER_FEATURE_NO_LVDS		0
+#define BDB_DRIVER_FEATURE_INT_LVDS		1
+#define BDB_DRIVER_FEATURE_SDVO_LVDS		2
+#define BDB_DRIVER_FEATURE_INT_SDVO_LVDS	3
+
+struct bdb_driver_features {
+	u8 boot_dev_algorithm:1;
+	u8 block_display_switch:1;
+	u8 allow_display_switch:1;
+	u8 hotplug_dvo:1;
+	u8 dual_view_zoom:1;
+	u8 int15h_hook:1;
+	u8 sprite_in_clone:1;
+	u8 primary_lfp_id:1;
+
+	u16 boot_mode_x;
+	u16 boot_mode_y;
+	u8 boot_mode_bpp;
+	u8 boot_mode_refresh;
+
+	u16 enable_lfp_primary:1;
+	u16 selective_mode_pruning:1;
+	u16 dual_frequency:1;
+	u16 render_clock_freq:1; /* 0: high freq; 1: low freq */
+	u16 nt_clone_support:1;
+	u16 power_scheme_ui:1; /* 0: CUI; 1: 3rd party */
+	u16 sprite_display_assign:1; /* 0: secondary; 1: primary */
+	u16 cui_aspect_scaling:1;
+	u16 preserve_aspect_ratio:1;
+	u16 sdvo_device_power_down:1;
+	u16 crt_hotplug:1;
+	u16 lvds_config:2;
+	u16 tv_hotplug:1;
+	u16 hdmi_config:2;
+
+	u8 static_display:1;
+	u8 reserved2:7;
+	u16 legacy_crt_max_x;
+	u16 legacy_crt_max_y;
+	u8 legacy_crt_max_refresh;
+
+	u8 hdmi_termination;
+	u8 custom_vbt_version;
+	/* Driver features data block */
+	u16 rmpm_enabled:1;
+	u16 s2ddt_enabled:1;
+	u16 dpst_enabled:1;
+	u16 bltclt_enabled:1;
+	u16 adb_enabled:1;
+	u16 drrs_enabled:1;
+	u16 grs_enabled:1;
+	u16 gpmt_enabled:1;
+	u16 tbt_enabled:1;
+	u16 psr_enabled:1;
+	u16 ips_enabled:1;
+	u16 reserved3:4;
+	u16 pc_feature_valid:1;
+} __packed;
+
+/*
+ * Block 22 - SDVO LVDS General Options
+ */
+
+struct bdb_sdvo_lvds_options {
+	u8 panel_backlight;
+	u8 h40_set_panel_type;
+	u8 panel_type;
+	u8 ssc_clk_freq;
+	u16 als_low_trip;
+	u16 als_high_trip;
+	u8 sclalarcoeff_tab_row_num;
+	u8 sclalarcoeff_tab_row_size;
+	u8 coefficient[8];
+	u8 panel_misc_bits_1;
+	u8 panel_misc_bits_2;
+	u8 panel_misc_bits_3;
+	u8 panel_misc_bits_4;
+} __packed;
+
+/*
+ * Block 23 - SDVO LVDS Panel DTDs
+ */
+
+struct lvds_dvo_timing {
+	u16 clock;		/**< In 10khz */
+	u8 hactive_lo;
+	u8 hblank_lo;
+	u8 hblank_hi:4;
+	u8 hactive_hi:4;
+	u8 vactive_lo;
+	u8 vblank_lo;
+	u8 vblank_hi:4;
+	u8 vactive_hi:4;
+	u8 hsync_off_lo;
+	u8 hsync_pulse_width_lo;
+	u8 vsync_pulse_width_lo:4;
+	u8 vsync_off_lo:4;
+	u8 vsync_pulse_width_hi:2;
+	u8 vsync_off_hi:2;
+	u8 hsync_pulse_width_hi:2;
+	u8 hsync_off_hi:2;
+	u8 himage_lo;
+	u8 vimage_lo;
+	u8 vimage_hi:4;
+	u8 himage_hi:4;
+	u8 h_border;
+	u8 v_border;
+	u8 rsvd1:3;
+	u8 digital:2;
+	u8 vsync_positive:1;
+	u8 hsync_positive:1;
+	u8 non_interlaced:1;
+} __packed;
+
+struct bdb_sdvo_panel_dtds {
+	struct lvds_dvo_timing dtds[4];
+} __packed;
+
+/*
+ * Block 27 - eDP VBT Block
+ */
+
+#define EDP_18BPP	0
+#define EDP_24BPP	1
+#define EDP_30BPP	2
+#define EDP_RATE_1_62	0
+#define EDP_RATE_2_7	1
+#define EDP_LANE_1	0
+#define EDP_LANE_2	1
+#define EDP_LANE_4	3
+#define EDP_PREEMPHASIS_NONE	0
+#define EDP_PREEMPHASIS_3_5dB	1
+#define EDP_PREEMPHASIS_6dB	2
+#define EDP_PREEMPHASIS_9_5dB	3
+#define EDP_VSWING_0_4V		0
+#define EDP_VSWING_0_6V		1
+#define EDP_VSWING_0_8V		2
+#define EDP_VSWING_1_2V		3
+
+
+struct edp_fast_link_params {
+	u8 rate:4;
+	u8 lanes:4;
+	u8 preemphasis:4;
+	u8 vswing:4;
+} __packed;
+
+struct edp_pwm_delays {
+	u16 pwm_on_to_backlight_enable;
+	u16 backlight_disable_to_pwm_off;
+} __packed;
+
+struct edp_full_link_params {
+	u8 preemphasis:4;
+	u8 vswing:4;
+} __packed;
+
+struct bdb_edp {
+	struct edp_power_seq power_seqs[16];
+	u32 color_depth;
+	struct edp_fast_link_params fast_link_params[16];
+	u32 sdrrs_msa_timing_delay;
+
+	/* ith bit indicates enabled/disabled for (i+1)th panel */
+	u16 edp_s3d_feature;					/* 162 */
+	u16 edp_t3_optimization;				/* 165 */
+	u64 edp_vswing_preemph;					/* 173 */
+	u16 fast_link_training;					/* 182 */
+	u16 dpcd_600h_write_required;				/* 185 */
+	struct edp_pwm_delays pwm_delays[16];			/* 186 */
+	u16 full_link_params_provided;				/* 199 */
+	struct edp_full_link_params full_link_params[16];	/* 199 */
+} __packed;
+
+/*
  * Block 40 - LFP Data Block
  */
 
@@ -528,37 +733,6 @@ struct lvds_fp_timing {
 	u16 terminator;
 } __packed;
 
-struct lvds_dvo_timing {
-	u16 clock;		/**< In 10khz */
-	u8 hactive_lo;
-	u8 hblank_lo;
-	u8 hblank_hi:4;
-	u8 hactive_hi:4;
-	u8 vactive_lo;
-	u8 vblank_lo;
-	u8 vblank_hi:4;
-	u8 vactive_hi:4;
-	u8 hsync_off_lo;
-	u8 hsync_pulse_width_lo;
-	u8 vsync_pulse_width_lo:4;
-	u8 vsync_off_lo:4;
-	u8 vsync_pulse_width_hi:2;
-	u8 vsync_off_hi:2;
-	u8 hsync_pulse_width_hi:2;
-	u8 hsync_off_hi:2;
-	u8 himage_lo;
-	u8 vimage_lo;
-	u8 vimage_hi:4;
-	u8 himage_hi:4;
-	u8 h_border;
-	u8 v_border;
-	u8 rsvd1:3;
-	u8 digital:2;
-	u8 vsync_positive:1;
-	u8 hsync_positive:1;
-	u8 non_interlaced:1;
-} __packed;
-
 struct lvds_pnp_id {
 	u16 mfg_name;
 	u16 product_code;
@@ -575,14 +749,6 @@ struct lvds_lfp_data_entry {
 
 struct bdb_lvds_lfp_data {
 	struct lvds_lfp_data_entry data[16];
-} __packed;
-
-/*
- * Block 23 - SDVO LVDS Panel DTDs
- */
-
-struct bdb_sdvo_panel_dtds {
-	struct lvds_dvo_timing dtds[4];
 } __packed;
 
 /*
@@ -612,172 +778,6 @@ struct bdb_lfp_backlight_data {
 	struct lfp_backlight_data_entry data[16];
 	u8 level[16];
 	struct lfp_backlight_control_method backlight_control[16];
-} __packed;
-
-/*
- * Block 22 - SDVO LVDS General Options
- */
-
-struct bdb_sdvo_lvds_options {
-	u8 panel_backlight;
-	u8 h40_set_panel_type;
-	u8 panel_type;
-	u8 ssc_clk_freq;
-	u16 als_low_trip;
-	u16 als_high_trip;
-	u8 sclalarcoeff_tab_row_num;
-	u8 sclalarcoeff_tab_row_size;
-	u8 coefficient[8];
-	u8 panel_misc_bits_1;
-	u8 panel_misc_bits_2;
-	u8 panel_misc_bits_3;
-	u8 panel_misc_bits_4;
-} __packed;
-
-/*
- * Block 12 - Driver Features Data Block
- */
-
-#define BDB_DRIVER_FEATURE_NO_LVDS		0
-#define BDB_DRIVER_FEATURE_INT_LVDS		1
-#define BDB_DRIVER_FEATURE_SDVO_LVDS		2
-#define BDB_DRIVER_FEATURE_INT_SDVO_LVDS	3
-
-struct bdb_driver_features {
-	u8 boot_dev_algorithm:1;
-	u8 block_display_switch:1;
-	u8 allow_display_switch:1;
-	u8 hotplug_dvo:1;
-	u8 dual_view_zoom:1;
-	u8 int15h_hook:1;
-	u8 sprite_in_clone:1;
-	u8 primary_lfp_id:1;
-
-	u16 boot_mode_x;
-	u16 boot_mode_y;
-	u8 boot_mode_bpp;
-	u8 boot_mode_refresh;
-
-	u16 enable_lfp_primary:1;
-	u16 selective_mode_pruning:1;
-	u16 dual_frequency:1;
-	u16 render_clock_freq:1; /* 0: high freq; 1: low freq */
-	u16 nt_clone_support:1;
-	u16 power_scheme_ui:1; /* 0: CUI; 1: 3rd party */
-	u16 sprite_display_assign:1; /* 0: secondary; 1: primary */
-	u16 cui_aspect_scaling:1;
-	u16 preserve_aspect_ratio:1;
-	u16 sdvo_device_power_down:1;
-	u16 crt_hotplug:1;
-	u16 lvds_config:2;
-	u16 tv_hotplug:1;
-	u16 hdmi_config:2;
-
-	u8 static_display:1;
-	u8 reserved2:7;
-	u16 legacy_crt_max_x;
-	u16 legacy_crt_max_y;
-	u8 legacy_crt_max_refresh;
-
-	u8 hdmi_termination;
-	u8 custom_vbt_version;
-	/* Driver features data block */
-	u16 rmpm_enabled:1;
-	u16 s2ddt_enabled:1;
-	u16 dpst_enabled:1;
-	u16 bltclt_enabled:1;
-	u16 adb_enabled:1;
-	u16 drrs_enabled:1;
-	u16 grs_enabled:1;
-	u16 gpmt_enabled:1;
-	u16 tbt_enabled:1;
-	u16 psr_enabled:1;
-	u16 ips_enabled:1;
-	u16 reserved3:4;
-	u16 pc_feature_valid:1;
-} __packed;
-
-/*
- * Block 27 - eDP VBT Block
- */
-
-#define EDP_18BPP	0
-#define EDP_24BPP	1
-#define EDP_30BPP	2
-#define EDP_RATE_1_62	0
-#define EDP_RATE_2_7	1
-#define EDP_LANE_1	0
-#define EDP_LANE_2	1
-#define EDP_LANE_4	3
-#define EDP_PREEMPHASIS_NONE	0
-#define EDP_PREEMPHASIS_3_5dB	1
-#define EDP_PREEMPHASIS_6dB	2
-#define EDP_PREEMPHASIS_9_5dB	3
-#define EDP_VSWING_0_4V		0
-#define EDP_VSWING_0_6V		1
-#define EDP_VSWING_0_8V		2
-#define EDP_VSWING_1_2V		3
-
-
-struct edp_fast_link_params {
-	u8 rate:4;
-	u8 lanes:4;
-	u8 preemphasis:4;
-	u8 vswing:4;
-} __packed;
-
-struct edp_pwm_delays {
-	u16 pwm_on_to_backlight_enable;
-	u16 backlight_disable_to_pwm_off;
-} __packed;
-
-struct edp_full_link_params {
-	u8 preemphasis:4;
-	u8 vswing:4;
-} __packed;
-
-struct bdb_edp {
-	struct edp_power_seq power_seqs[16];
-	u32 color_depth;
-	struct edp_fast_link_params fast_link_params[16];
-	u32 sdrrs_msa_timing_delay;
-
-	/* ith bit indicates enabled/disabled for (i+1)th panel */
-	u16 edp_s3d_feature;					/* 162 */
-	u16 edp_t3_optimization;				/* 165 */
-	u64 edp_vswing_preemph;					/* 173 */
-	u16 fast_link_training;					/* 182 */
-	u16 dpcd_600h_write_required;				/* 185 */
-	struct edp_pwm_delays pwm_delays[16];			/* 186 */
-	u16 full_link_params_provided;				/* 199 */
-	struct edp_full_link_params full_link_params[16];	/* 199 */
-} __packed;
-
-/*
- * Block 9 - SRD Feature Block
- */
-
-struct psr_table {
-	/* Feature bits */
-	u8 full_link:1;
-	u8 require_aux_to_wakeup:1;
-	u8 feature_bits_rsvd:6;
-
-	/* Wait times */
-	u8 idle_frames:4;
-	u8 lines_to_wait:3;
-	u8 wait_times_rsvd:1;
-
-	/* TP wake up time in multiple of 100 */
-	u16 tp1_wakeup_time;
-	u16 tp2_tp3_wakeup_time;
-
-	/* PSR2 TP2/TP3 wakeup time for 16 panels */
-	u32 psr2_tp2_tp3_wakeup_time;
-} __packed;
-
-struct bdb_psr {
-	struct psr_table psr_table[16];
 } __packed;
 
 /*
