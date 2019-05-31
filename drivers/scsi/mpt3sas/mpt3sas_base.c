@@ -4439,6 +4439,7 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi2ConfigReply_t mpi_reply;
 	u32 iounit_pg1_flags;
+	Mpi2IOCPage1_t ioc_pg1;
 
 	ioc->nvme_abort_timeout = 30;
 	mpt3sas_config_get_manufacturing_pg0(ioc, &mpi_reply, &ioc->manu_pg0);
@@ -4470,6 +4471,21 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 			ioc->nvme_abort_timeout = NVME_TASK_ABORT_MAX_TIMEOUT;
 		else
 			ioc->nvme_abort_timeout = ioc->manu_pg11.NVMeAbortTO;
+	}
+	if (ioc->high_iops_queues) {
+		mpt3sas_config_get_ioc_pg1(ioc, &mpi_reply, &ioc_pg1);
+		pr_info(
+		"%s Enable interrupt coalescing only for first reply queue group(8)\n",
+		ioc->name);
+		/* If 31st bit is zero then interrupt coalescing is enabled
+		 * for all reply descriptor post queues. If 31st bit is set
+		 * to one then user can enable/disable interrupt coalescing
+		 * on per reply descriptor post queue group(8) basis. So to
+		 * enable interrupt coalescing only on first reply descriptor
+		 * post queue group 31st bit and zeroth bit is enabled.
+		 */
+		ioc_pg1.ProductSpecific = cpu_to_le32(0x80000001);
+		mpt3sas_config_set_ioc_pg1(ioc, &mpi_reply, &ioc_pg1);
 	}
 
 	mpt3sas_config_get_bios_pg2(ioc, &mpi_reply, &ioc->bios_pg2);
