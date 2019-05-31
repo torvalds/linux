@@ -579,24 +579,6 @@ static bool brcmf_fws_ifidx_match(struct sk_buff *skb, void *arg)
 	return ifidx == *(int *)arg;
 }
 
-static void brcmf_fws_psq_flush(struct brcmf_fws_info *fws, struct pktq *q,
-				int ifidx)
-{
-	bool (*matchfn)(struct sk_buff *, void *) = NULL;
-	struct sk_buff *skb;
-	int prec;
-
-	if (ifidx != -1)
-		matchfn = brcmf_fws_ifidx_match;
-	for (prec = 0; prec < q->num_prec; prec++) {
-		skb = brcmu_pktq_pdeq_match(q, prec, matchfn, &ifidx);
-		while (skb) {
-			brcmu_pkt_buf_free_skb(skb);
-			skb = brcmu_pktq_pdeq_match(q, prec, matchfn, &ifidx);
-		}
-	}
-}
-
 static void brcmf_fws_hanger_init(struct brcmf_fws_hanger *hanger)
 {
 	int i;
@@ -666,6 +648,28 @@ static inline int brcmf_fws_hanger_poppkt(struct brcmf_fws_hanger *h,
 		h->popped++;
 	}
 	return 0;
+}
+
+static void brcmf_fws_psq_flush(struct brcmf_fws_info *fws, struct pktq *q,
+				int ifidx)
+{
+	bool (*matchfn)(struct sk_buff *, void *) = NULL;
+	struct sk_buff *skb;
+	int prec;
+	u32 hslot;
+
+	if (ifidx != -1)
+		matchfn = brcmf_fws_ifidx_match;
+	for (prec = 0; prec < q->num_prec; prec++) {
+		skb = brcmu_pktq_pdeq_match(q, prec, matchfn, &ifidx);
+		while (skb) {
+			hslot = brcmf_skb_htod_tag_get_field(skb, HSLOT);
+			brcmf_fws_hanger_poppkt(&fws->hanger, hslot, &skb,
+						true);
+			brcmu_pkt_buf_free_skb(skb);
+			skb = brcmu_pktq_pdeq_match(q, prec, matchfn, &ifidx);
+		}
+	}
 }
 
 static int brcmf_fws_hanger_mark_suppressed(struct brcmf_fws_hanger *h,
@@ -2168,6 +2172,8 @@ void brcmf_fws_del_interface(struct brcmf_if *ifp)
 	brcmf_fws_lock(fws);
 	ifp->fws_desc = NULL;
 	brcmf_dbg(TRACE, "deleting %s\n", entry->name);
+	brcmf_fws_macdesc_cleanup(fws, &fws->desc.iface[ifp->ifidx],
+				  ifp->ifidx);
 	brcmf_fws_macdesc_deinit(entry);
 	brcmf_fws_cleanup(fws, ifp->ifidx);
 	brcmf_fws_unlock(fws);

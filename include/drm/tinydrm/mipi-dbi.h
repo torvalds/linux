@@ -42,7 +42,7 @@ struct mipi_dbi {
 	struct spi_device *spi;
 	bool enabled;
 	struct mutex cmdlock;
-	int (*command)(struct mipi_dbi *mipi, u8 cmd, u8 *param, size_t num);
+	int (*command)(struct mipi_dbi *mipi, u8 *cmd, u8 *param, size_t num);
 	const u8 *read_commands;
 	struct gpio_desc *dc;
 	u16 *tx_buf;
@@ -79,6 +79,7 @@ u32 mipi_dbi_spi_cmd_max_speed(struct spi_device *spi, size_t len);
 
 int mipi_dbi_command_read(struct mipi_dbi *mipi, u8 cmd, u8 *val);
 int mipi_dbi_command_buf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len);
+int mipi_dbi_command_stackbuf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len);
 int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 		      struct drm_clip_rect *clip, bool swap);
 /**
@@ -96,7 +97,7 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 #define mipi_dbi_command(mipi, cmd, seq...) \
 ({ \
 	u8 d[] = { seq }; \
-	mipi_dbi_command_buf(mipi, cmd, d, ARRAY_SIZE(d)); \
+	mipi_dbi_command_stackbuf(mipi, cmd, d, ARRAY_SIZE(d)); \
 })
 
 #ifdef CONFIG_DEBUG_FS

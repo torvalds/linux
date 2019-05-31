@@ -305,14 +305,18 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	if (ret)
 		goto dev_destroy;
 
-	v3d_irq_init(v3d);
-
-	ret = drm_dev_register(drm, 0);
+	ret = v3d_irq_init(v3d);
 	if (ret)
 		goto gem_destroy;
 
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		goto irq_disable;
+
 	return 0;
 
+irq_disable:
+	v3d_irq_disable(v3d);
 gem_destroy:
 	v3d_gem_destroy(drm);
 dev_destroy:
