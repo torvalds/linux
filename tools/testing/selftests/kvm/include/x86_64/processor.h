@@ -303,6 +303,8 @@ static inline unsigned long get_xmm(int n)
 	return 0;
 }
 
+bool is_intel_cpu(void);
+
 struct kvm_x86_state;
 struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid);
 void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid,
