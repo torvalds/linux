@@ -5756,7 +5756,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 static void r8169_csum_workaround(struct rtl8169_private *tp,
 				  struct sk_buff *skb)
 {
-	if (skb_shinfo(skb)->gso_size) {
+	if (skb_is_gso(skb)) {
 		netdev_features_t features = tp->dev->features;
 		struct sk_buff *segs, *nskb;
 
@@ -5779,11 +5779,8 @@ static void r8169_csum_workaround(struct rtl8169_private *tp,
 
 		rtl8169_start_xmit(skb, tp->dev);
 	} else {
-		struct net_device_stats *stats;
-
 drop:
-		stats = &tp->dev->stats;
-		stats->tx_dropped++;
+		tp->dev->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
 	}
 }
