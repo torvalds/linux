@@ -103,6 +103,27 @@ static int mpt3sas_fwfault_debug;
 MODULE_PARM_DESC(mpt3sas_fwfault_debug,
 	" enable detection of firmware fault and halt firmware - (default=0)");
 
+static int perf_mode = -1;
+module_param(perf_mode, int, 0);
+MODULE_PARM_DESC(perf_mode,
+	"Performance mode (only for Aero/Sea Generation), options:\n\t\t"
+	"0 - balanced: high iops mode is enabled &\n\t\t"
+	"interrupt coalescing is enabled only on high iops queues,\n\t\t"
+	"1 - iops: high iops mode is disabled &\n\t\t"
+	"interrupt coalescing is enabled on all queues,\n\t\t"
+	"2 - latency: high iops mode is disabled &\n\t\t"
+	"interrupt coalescing is enabled on all queues with timeout value 0xA,\n"
+	"\t\tdefault - on Intel architecture, default perf_mode is\n\t\t"
+	" 'balanced' and in others architectures the default mode is 'latency'"
+	);
+
+enum mpt3sas_perf_mode {
+	MPT_PERF_MODE_DEFAULT	= -1,
+	MPT_PERF_MODE_BALANCED	= 0,
+	MPT_PERF_MODE_IOPS	= 1,
+	MPT_PERF_MODE_LATENCY	= 2,
+};
+
 static int
 _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc);
 
@@ -2959,6 +2980,42 @@ static void
 _base_check_and_enable_high_iops_queues(struct MPT3SAS_ADAPTER *ioc,
 		int hba_msix_vector_count)
 {
+	enum pci_bus_speed speed = PCI_SPEED_UNKNOWN;
+
+	if (perf_mode == MPT_PERF_MODE_IOPS ||
+	    perf_mode == MPT_PERF_MODE_LATENCY) {
+		ioc->high_iops_queues = 0;
+		return;
+	}
+
+	if (perf_mode == MPT_PERF_MODE_DEFAULT) {
+
+#if defined(CONFIG_X86)
+		/*
+		 * Use global variable boot_cpu_data.x86_vendor to
+		 * determine whether the architecture is Intel or not.
+		 */
+		if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) {
+			ioc->high_iops_queues = 0;
+			return;
+		}
+#else
+		ioc->high_iops_queues = 0;
+		return;
+#endif
+		speed = pcie_get_speed_cap(ioc->pdev);
+		dev_info(&ioc->pdev->dev, "PCIe device speed is %s\n",
+		     speed == PCIE_SPEED_2_5GT ? "2.5GHz" :
+		     speed == PCIE_SPEED_5_0GT ? "5.0GHz" :
+		     speed == PCIE_SPEED_8_0GT ? "8.0GHz" :
+		     speed == PCIE_SPEED_16_0GT ? "16.0GHz" :
+		     "Unknown");
+
+		if (speed < PCIE_SPEED_16_0GT) {
+			ioc->high_iops_queues = 0;
+			return;
+		}
+	}
 
 	if (!reset_devices && ioc->is_aero_ioc &&
 	    hba_msix_vector_count == MPT3SAS_GEN35_MAX_MSIX_QUEUES &&
@@ -3034,8 +3091,9 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 	ioc_info(ioc, "MSI-X vectors supported: %d\n", ioc->msix_vector_count);
 	pr_info("\t no of cores: %d, max_msix_vectors: %d\n",
 		ioc->cpu_count, max_msix_vectors);
-
-	_base_check_and_enable_high_iops_queues(ioc, ioc->msix_vector_count);
+	if (ioc->is_aero_ioc)
+		_base_check_and_enable_high_iops_queues(ioc,
+			ioc->msix_vector_count);
 	ioc->reply_queue_count =
 		min_t(int, ioc->cpu_count + ioc->high_iops_queues,
 		ioc->msix_vector_count);
@@ -4431,6 +4489,70 @@ out:
 }
 
 /**
+ * _base_update_ioc_page1_inlinewith_perf_mode - Update IOC Page1 fields
+ *    according to performance mode.
+ * @ioc : per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_update_ioc_page1_inlinewith_perf_mode(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi2IOCPage1_t ioc_pg1;
+	Mpi2ConfigReply_t mpi_reply;
+
+	mpt3sas_config_get_ioc_pg1(ioc, &mpi_reply, &ioc->ioc_pg1_copy);
+	memcpy(&ioc_pg1, &ioc->ioc_pg1_copy, sizeof(Mpi2IOCPage1_t));
+
+	switch (perf_mode) {
+	case MPT_PERF_MODE_DEFAULT:
+	case MPT_PERF_MODE_BALANCED:
+		if (ioc->high_iops_queues) {
+			ioc_info(ioc,
+				"Enable interrupt coalescing only for first\t"
+				"%d reply queues\n",
+				MPT3SAS_HIGH_IOPS_REPLY_QUEUES);
+			/*
+			 * If 31st bit is zero then interrupt coalescing is
+			 * enabled for all reply descriptor post queues.
+			 * If 31st bit is set to one then user can
+			 * enable/disable interrupt coalescing on per reply
+			 * descriptor post queue group(8) basis. So to enable
+			 * interrupt coalescing only on first reply descriptor
+			 * post queue group 31st bit and zero th bit is enabled.
+			 */
+			ioc_pg1.ProductSpecific = cpu_to_le32(0x80000000 |
+			    ((1 << MPT3SAS_HIGH_IOPS_REPLY_QUEUES/8) - 1));
+			mpt3sas_config_set_ioc_pg1(ioc, &mpi_reply, &ioc_pg1);
+			ioc_info(ioc, "performance mode: balanced\n");
+			return;
+		}
+	case MPT_PERF_MODE_LATENCY:
+		/*
+		 * Enable interrupt coalescing on all reply queues
+		 * with timeout value 0xA
+		 */
+		ioc_pg1.CoalescingTimeout = cpu_to_le32(0xa);
+		ioc_pg1.Flags |= cpu_to_le32(MPI2_IOCPAGE1_REPLY_COALESCING);
+		ioc_pg1.ProductSpecific = 0;
+		mpt3sas_config_set_ioc_pg1(ioc, &mpi_reply, &ioc_pg1);
+		ioc_info(ioc, "performance mode: latency\n");
+		break;
+	case MPT_PERF_MODE_IOPS:
+		/*
+		 * Enable interrupt coalescing on all reply queues.
+		 */
+		ioc_info(ioc,
+		    "performance mode: iops with coalescing timeout: 0x%x\n",
+		    le32_to_cpu(ioc_pg1.CoalescingTimeout));
+		ioc_pg1.Flags |= cpu_to_le32(MPI2_IOCPAGE1_REPLY_COALESCING);
+		ioc_pg1.ProductSpecific = 0;
+		mpt3sas_config_set_ioc_pg1(ioc, &mpi_reply, &ioc_pg1);
+		break;
+	}
+}
+
+/**
  * _base_static_config_pages - static start of day config pages
  * @ioc: per adapter object
  */
@@ -4439,7 +4561,6 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi2ConfigReply_t mpi_reply;
 	u32 iounit_pg1_flags;
-	Mpi2IOCPage1_t ioc_pg1;
 
 	ioc->nvme_abort_timeout = 30;
 	mpt3sas_config_get_manufacturing_pg0(ioc, &mpi_reply, &ioc->manu_pg0);
@@ -4472,21 +4593,6 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 		else
 			ioc->nvme_abort_timeout = ioc->manu_pg11.NVMeAbortTO;
 	}
-	if (ioc->high_iops_queues) {
-		mpt3sas_config_get_ioc_pg1(ioc, &mpi_reply, &ioc_pg1);
-		pr_info(
-		"%s Enable interrupt coalescing only for first reply queue group(8)\n",
-		ioc->name);
-		/* If 31st bit is zero then interrupt coalescing is enabled
-		 * for all reply descriptor post queues. If 31st bit is set
-		 * to one then user can enable/disable interrupt coalescing
-		 * on per reply descriptor post queue group(8) basis. So to
-		 * enable interrupt coalescing only on first reply descriptor
-		 * post queue group 31st bit and zeroth bit is enabled.
-		 */
-		ioc_pg1.ProductSpecific = cpu_to_le32(0x80000001);
-		mpt3sas_config_set_ioc_pg1(ioc, &mpi_reply, &ioc_pg1);
-	}
 
 	mpt3sas_config_get_bios_pg2(ioc, &mpi_reply, &ioc->bios_pg2);
 	mpt3sas_config_get_bios_pg3(ioc, &mpi_reply, &ioc->bios_pg3);
@@ -4513,6 +4619,8 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 
 	if (ioc->iounit_pg8.NumSensors)
 		ioc->temp_sensors_count = ioc->iounit_pg8.NumSensors;
+	if (ioc->is_aero_ioc)
+		_base_update_ioc_page1_inlinewith_perf_mode(ioc);
 }
 
 /**
