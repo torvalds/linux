@@ -560,6 +560,52 @@ software_node_get_named_child_node(const struct fwnode_handle *fwnode,
 	return NULL;
 }
 
+static int
+software_node_get_reference_args(const struct fwnode_handle *fwnode,
+				 const char *propname, const char *nargs_prop,
+				 unsigned int nargs, unsigned int index,
+				 struct fwnode_reference_args *args)
+{
+	struct swnode *swnode = to_swnode(fwnode);
+	const struct software_node_reference *ref;
+	const struct property_entry *prop;
+	struct fwnode_handle *refnode;
+	int i;
+
+	if (!swnode || !swnode->node->references)
+		return -ENOENT;
+
+	for (ref = swnode->node->references; ref->name; ref++)
+		if (!strcmp(ref->name, propname))
+			break;
+
+	if (!ref->name || index > (ref->nrefs - 1))
+		return -ENOENT;
+
+	refnode = software_node_fwnode(ref->refs[index].node);
+	if (!refnode)
+		return -ENOENT;
+
+	if (nargs_prop) {
+		prop = property_entry_get(swnode->node->properties, nargs_prop);
+		if (!prop)
+			return -EINVAL;
+
+		nargs = prop->value.u32_data;
+	}
+
+	if (nargs > NR_FWNODE_REFERENCE_ARGS)
+		return -EINVAL;
+
+	args->fwnode = software_node_get(refnode);
+	args->nargs = nargs;
+
+	for (i = 0; i < nargs; i++)
+		args->args[i] = ref->refs[index].args[i];
+
+	return 0;
+}
+
 static const struct fwnode_operations software_node_ops = {
 	.get = software_node_get,
 	.put = software_node_put,
@@ -569,6 +615,7 @@ static const struct fwnode_operations software_node_ops = {
 	.get_parent = software_node_get_parent,
 	.get_next_child_node = software_node_get_next_child,
 	.get_named_child_node = software_node_get_named_child_node,
+	.get_reference_args = software_node_get_reference_args
 };
 
 /* -------------------------------------------------------------------------- */
