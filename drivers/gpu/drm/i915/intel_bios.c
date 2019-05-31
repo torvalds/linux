@@ -1445,8 +1445,9 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv,
 	if (bdb_version >= 209)
 		info->supports_tbt = child->tbt;
 
-	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d TCUSB:%d TBT:%d\n",
-		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt,
+	DRM_DEBUG_KMS("Port %c VBT info: CRT:%d DVI:%d HDMI:%d DP:%d eDP:%d LSPCON:%d USB-Type-C:%d TBT:%d\n",
+		      port_name(port), is_crt, is_dvi, is_hdmi, is_dp, is_edp,
+		      HAS_LSPCON(dev_priv) && child->lspcon,
 		      info->supports_typec_usb, info->supports_tbt);
 
 	if (is_edp && is_dvi)
