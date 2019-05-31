@@ -90,7 +90,7 @@ static int pm_notifier(struct notifier_block *nb,
 
 static bool switch_to_kernel_context_sync(struct drm_i915_private *i915)
 {
-	bool result = true;
+	bool result = !i915_terminally_wedged(i915);
 
 	do {
 		if (i915_gem_wait_for_idle(i915,
