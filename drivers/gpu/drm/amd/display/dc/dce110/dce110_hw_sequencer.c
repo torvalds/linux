@@ -969,10 +969,10 @@ static void set_pme_wa_enable_by_version(struct dc *dc)
 
 	if (pp_smu) {
 		if (pp_smu->ctx.ver == PP_SMU_VER_RV && pp_smu->rv_funcs.set_pme_wa_enable)
-			pp_smu->rv_funcs.set_pme_wa_enable(&(pp_smu->ctx));
+			pp_smu->rv_funcs.set_pme_wa_enable(&(pp_smu->rv_funcs.pp_smu));
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 		else if (pp_smu->ctx.ver == PP_SMU_VER_NV && pp_smu->nv_funcs.set_pme_wa_enable)
-			pp_smu->nv_funcs.set_pme_wa_enable(&(pp_smu->ctx));
+			pp_smu->nv_funcs.set_pme_wa_enable(&(pp_smu->nv_funcs.pp_smu));
 #endif
 	}
 }
