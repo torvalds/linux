@@ -630,12 +630,10 @@ static bool is_tmpfs;
 static struct dentry *rootfs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
-	void *fill = ramfs_fill_super;
-
 	if (IS_ENABLED(CONFIG_TMPFS) && is_tmpfs)
-		fill = shmem_fill_super;
+		return mount_nodev(fs_type, flags, data, shmem_fill_super);
 
-	return mount_nodev(fs_type, flags, data, fill);
+	return ramfs_mount(fs_type, flags, dev_name, data);
 }
 
 struct file_system_type rootfs_fs_type = {
