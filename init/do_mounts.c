@@ -631,7 +631,7 @@ static struct dentry *rootfs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
 	if (IS_ENABLED(CONFIG_TMPFS) && is_tmpfs)
-		return mount_nodev(fs_type, flags, data, shmem_fill_super);
+		return shmem_mount(fs_type, flags, dev_name, data);
 
 	return ramfs_mount(fs_type, flags, dev_name, data);
 }

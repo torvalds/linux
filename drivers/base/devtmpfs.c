@@ -71,7 +71,7 @@ static struct dentry *dev_mount(struct file_system_type *fs_type, int flags,
 		      const char *dev_name, void *data)
 {
 #ifdef CONFIG_TMPFS
-	return mount_nodev(fs_type, flags, data, shmem_fill_super);
+	return shmem_mount(fs_type, flags, dev_name, data);
 #else
 	return ramfs_mount(fs_type, flags, dev_name, data);
 #endif
