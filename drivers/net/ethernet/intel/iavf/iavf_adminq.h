@@ -6,10 +6,10 @@
 
 #include "iavf_osdep.h"
 #include "iavf_status.h"
-#include "i40e_adminq_cmd.h"
+#include "iavf_adminq_cmd.h"
 
 #define IAVF_ADMINQ_DESC(R, i)   \
-	(&(((struct i40e_aq_desc *)((R).desc_buf.va))[i]))
+	(&(((struct iavf_aq_desc *)((R).desc_buf.va))[i]))
 
 #define IAVF_ADMINQ_DESC_ALIGNMENT 4096
 
@@ -39,22 +39,22 @@ struct iavf_adminq_ring {
 };
 
 /* ASQ transaction details */
-struct i40e_asq_cmd_details {
-	void *callback; /* cast from type I40E_ADMINQ_CALLBACK */
+struct iavf_asq_cmd_details {
+	void *callback; /* cast from type IAVF_ADMINQ_CALLBACK */
 	u64 cookie;
 	u16 flags_ena;
 	u16 flags_dis;
 	bool async;
 	bool postpone;
-	struct i40e_aq_desc *wb_desc;
+	struct iavf_aq_desc *wb_desc;
 };
 
-#define I40E_ADMINQ_DETAILS(R, i)   \
-	(&(((struct i40e_asq_cmd_details *)((R).cmd_buf.va))[i]))
+#define IAVF_ADMINQ_DETAILS(R, i)   \
+	(&(((struct iavf_asq_cmd_details *)((R).cmd_buf.va))[i]))
 
 /* ARQ event information */
-struct i40e_arq_event_info {
-	struct i40e_aq_desc desc;
+struct iavf_arq_event_info {
+	struct iavf_aq_desc desc;
 	u16 msg_len;
 	u16 buf_len;
 	u8 *msg_buf;
@@ -79,45 +79,45 @@ struct iavf_adminq_info {
 	struct mutex arq_mutex; /* Receive queue lock */
 
 	/* last status values on send and receive queues */
-	enum i40e_admin_queue_err asq_last_status;
-	enum i40e_admin_queue_err arq_last_status;
+	enum iavf_admin_queue_err asq_last_status;
+	enum iavf_admin_queue_err arq_last_status;
 };
 
 /**
- * i40e_aq_rc_to_posix - convert errors to user-land codes
+ * iavf_aq_rc_to_posix - convert errors to user-land codes
  * aq_ret: AdminQ handler error code can override aq_rc
  * aq_rc: AdminQ firmware error code to convert
  **/
-static inline int i40e_aq_rc_to_posix(int aq_ret, int aq_rc)
+static inline int iavf_aq_rc_to_posix(int aq_ret, int aq_rc)
 {
 	int aq_to_posix[] = {
-		0,           /* I40E_AQ_RC_OK */
-		-EPERM,      /* I40E_AQ_RC_EPERM */
-		-ENOENT,     /* I40E_AQ_RC_ENOENT */
-		-ESRCH,      /* I40E_AQ_RC_ESRCH */
-		-EINTR,      /* I40E_AQ_RC_EINTR */
-		-EIO,        /* I40E_AQ_RC_EIO */
-		-ENXIO,      /* I40E_AQ_RC_ENXIO */
-		-E2BIG,      /* I40E_AQ_RC_E2BIG */
-		-EAGAIN,     /* I40E_AQ_RC_EAGAIN */
-		-ENOMEM,     /* I40E_AQ_RC_ENOMEM */
-		-EACCES,     /* I40E_AQ_RC_EACCES */
-		-EFAULT,     /* I40E_AQ_RC_EFAULT */
-		-EBUSY,      /* I40E_AQ_RC_EBUSY */
-		-EEXIST,     /* I40E_AQ_RC_EEXIST */
-		-EINVAL,     /* I40E_AQ_RC_EINVAL */
-		-ENOTTY,     /* I40E_AQ_RC_ENOTTY */
-		-ENOSPC,     /* I40E_AQ_RC_ENOSPC */
-		-ENOSYS,     /* I40E_AQ_RC_ENOSYS */
-		-ERANGE,     /* I40E_AQ_RC_ERANGE */
-		-EPIPE,      /* I40E_AQ_RC_EFLUSHED */
-		-ESPIPE,     /* I40E_AQ_RC_BAD_ADDR */
-		-EROFS,      /* I40E_AQ_RC_EMODE */
-		-EFBIG,      /* I40E_AQ_RC_EFBIG */
+		0,           /* IAVF_AQ_RC_OK */
+		-EPERM,      /* IAVF_AQ_RC_EPERM */
+		-ENOENT,     /* IAVF_AQ_RC_ENOENT */
+		-ESRCH,      /* IAVF_AQ_RC_ESRCH */
+		-EINTR,      /* IAVF_AQ_RC_EINTR */
+		-EIO,        /* IAVF_AQ_RC_EIO */
+		-ENXIO,      /* IAVF_AQ_RC_ENXIO */
+		-E2BIG,      /* IAVF_AQ_RC_E2BIG */
+		-EAGAIN,     /* IAVF_AQ_RC_EAGAIN */
+		-ENOMEM,     /* IAVF_AQ_RC_ENOMEM */
+		-EACCES,     /* IAVF_AQ_RC_EACCES */
+		-EFAULT,     /* IAVF_AQ_RC_EFAULT */
+		-EBUSY,      /* IAVF_AQ_RC_EBUSY */
+		-EEXIST,     /* IAVF_AQ_RC_EEXIST */
+		-EINVAL,     /* IAVF_AQ_RC_EINVAL */
+		-ENOTTY,     /* IAVF_AQ_RC_ENOTTY */
+		-ENOSPC,     /* IAVF_AQ_RC_ENOSPC */
+		-ENOSYS,     /* IAVF_AQ_RC_ENOSYS */
+		-ERANGE,     /* IAVF_AQ_RC_ERANGE */
+		-EPIPE,      /* IAVF_AQ_RC_EFLUSHED */
+		-ESPIPE,     /* IAVF_AQ_RC_BAD_ADDR */
+		-EROFS,      /* IAVF_AQ_RC_EMODE */
+		-EFBIG,      /* IAVF_AQ_RC_EFBIG */
 	};
 
 	/* aq_rc is invalid if AQ timed out */
-	if (aq_ret == I40E_ERR_ADMIN_QUEUE_TIMEOUT)
+	if (aq_ret == IAVF_ERR_ADMIN_QUEUE_TIMEOUT)
 		return -EAGAIN;
 
 	if (!((u32)aq_rc < (sizeof(aq_to_posix) / sizeof((aq_to_posix)[0]))))
@@ -127,9 +127,9 @@ static inline int i40e_aq_rc_to_posix(int aq_ret, int aq_rc)
 }
 
 /* general information */
-#define I40E_AQ_LARGE_BUF	512
-#define I40E_ASQ_CMD_TIMEOUT	250000  /* usecs */
+#define IAVF_AQ_LARGE_BUF	512
+#define IAVF_ASQ_CMD_TIMEOUT	250000  /* usecs */
 
-void iavf_fill_default_direct_cmd_desc(struct i40e_aq_desc *desc, u16 opcode);
+void iavf_fill_default_direct_cmd_desc(struct iavf_aq_desc *desc, u16 opcode);
 
 #endif /* _IAVF_ADMINQ_H_ */

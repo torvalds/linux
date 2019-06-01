@@ -280,10 +280,10 @@ static int iavf_get_link_ksettings(struct net_device *netdev,
 	cmd->base.port = PORT_NONE;
 	/* Set speed and duplex */
 	switch (adapter->link_speed) {
-	case I40E_LINK_SPEED_40GB:
+	case IAVF_LINK_SPEED_40GB:
 		cmd->base.speed = SPEED_40000;
 		break;
-	case I40E_LINK_SPEED_25GB:
+	case IAVF_LINK_SPEED_25GB:
 #ifdef SPEED_25000
 		cmd->base.speed = SPEED_25000;
 #else
@@ -291,16 +291,16 @@ static int iavf_get_link_ksettings(struct net_device *netdev,
 			    "Speed is 25G, display not supported by this version of ethtool.\n");
 #endif
 		break;
-	case I40E_LINK_SPEED_20GB:
+	case IAVF_LINK_SPEED_20GB:
 		cmd->base.speed = SPEED_20000;
 		break;
-	case I40E_LINK_SPEED_10GB:
+	case IAVF_LINK_SPEED_10GB:
 		cmd->base.speed = SPEED_10000;
 		break;
-	case I40E_LINK_SPEED_1GB:
+	case IAVF_LINK_SPEED_1GB:
 		cmd->base.speed = SPEED_1000;
 		break;
-	case I40E_LINK_SPEED_100MB:
+	case IAVF_LINK_SPEED_100MB:
 		cmd->base.speed = SPEED_100;
 		break;
 	default:
