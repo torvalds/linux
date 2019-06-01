@@ -156,7 +156,8 @@ static void nft_exthdr_tcp_set_eval(const struct nft_expr *expr,
 		if (i + optl > tcphdr_len || priv->len + priv->offset > optl)
 			return;
 
-		if (!skb_make_writable(pkt->skb, pkt->xt.thoff + i + priv->len))
+		if (skb_ensure_writable(pkt->skb,
+					pkt->xt.thoff + i + priv->len))
 			return;
 
 		tcph = nft_tcp_header_pointer(pkt, sizeof(buff), buff,

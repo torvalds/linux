@@ -186,7 +186,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 		return NF_DROP;
 	}
 
-	if (!skb_make_writable(skb, skb->len)) {
+	if (skb_ensure_writable(skb, skb->len)) {
 		nf_ct_helper_log(skb, ct, "cannot mangle packet");
 		return NF_DROP;
 	}
