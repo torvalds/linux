@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mpx-mini-test.c: routines to test Intel MPX (Memory Protection eXtentions)
  *
@@ -5,10 +6,6 @@
  * "Ren, Qiaowei" <qiaowei.ren@intel.com>
  * "Wei, Gang" <gang.wei@intel.com>
  * "Hansen, Dave" <dave.hansen@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2.
  */
 
 /*
