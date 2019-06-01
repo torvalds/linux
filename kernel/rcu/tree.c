@@ -1341,10 +1341,11 @@ static bool rcu_advance_cbs(struct rcu_node *rnp, struct rcu_data *rdp)
 static void __maybe_unused rcu_advance_cbs_nowake(struct rcu_node *rnp,
 						  struct rcu_data *rdp)
 {
-	raw_lockdep_assert_held_rcu_node(rnp);
-	if (!rcu_seq_state(rcu_seq_current(&rnp->gp_seq)))
+	if (!rcu_seq_state(rcu_seq_current(&rnp->gp_seq)) ||
+	    !raw_spin_trylock_rcu_node(rnp))
 		return;
 	WARN_ON_ONCE(rcu_advance_cbs(rnp, rdp));
+	raw_spin_unlock_rcu_node(rnp);
 }
 
 /*
