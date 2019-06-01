@@ -762,7 +762,7 @@ bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len)
 void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct drm_device *dev = msm_dsi->dev;
+	struct drm_device *dev;
 	struct msm_drm_private *priv;
 	struct msm_kms *kms;
 	struct drm_encoder *encoder;
@@ -774,7 +774,17 @@ void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags)
 	 * (generally the case when we're connected to a drm_panel of the type
 	 * mipi_dsi_device), this would be NULL. In such cases, try to set the
 	 * encoder mode in the DSI connector's detect() op.
+	 *
+	 * msm_dsi pointer is assigned to a valid dsi device only when
+	 * msm_dsi_manager_register() succeeds. When panel hasnt probed yet
+	 * dsi_mgr_setup_components() could potentially return -EDEFER and
+	 * assign the msm_dsi->dev to NULL. When the panel now probes and calls
+	 * mipi_dsi_attach(), this will call msm_dsi_manager_attach_dsi_device()
+	 * which will result in a NULL pointer dereference
 	 */
+
+	dev = msm_dsi ? msm_dsi->dev : NULL;
+
 	if (!dev)
 		return;
 
