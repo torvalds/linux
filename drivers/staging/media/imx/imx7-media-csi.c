@@ -217,9 +217,9 @@ static void imx7_csi_hw_reset(struct imx7_csi *csi)
 	imx7_csi_reg_write(csi, CSICR3_RESET_VAL, CSI_CSICR3);
 }
 
-static unsigned long imx7_csi_irq_clear(struct imx7_csi *csi)
+static u32 imx7_csi_irq_clear(struct imx7_csi *csi)
 {
-	unsigned long isr;
+	u32 isr;
 
 	isr = imx7_csi_reg_read(csi, CSI_CSISR);
 	imx7_csi_reg_write(csi, isr, CSI_CSISR);
@@ -245,7 +245,7 @@ static void imx7_csi_init_interface(struct imx7_csi *csi)
 
 static void imx7_csi_hw_enable_irq(struct imx7_csi *csi)
 {
-	unsigned long cr1 = imx7_csi_reg_read(csi, CSI_CSICR1);
+	u32 cr1 = imx7_csi_reg_read(csi, CSI_CSICR1);
 
 	cr1 |= BIT_SOF_INTEN;
 	cr1 |= BIT_RFF_OR_INT;
@@ -261,7 +261,7 @@ static void imx7_csi_hw_enable_irq(struct imx7_csi *csi)
 
 static void imx7_csi_hw_disable_irq(struct imx7_csi *csi)
 {
-	unsigned long cr1 = imx7_csi_reg_read(csi, CSI_CSICR1);
+	u32 cr1 = imx7_csi_reg_read(csi, CSI_CSICR1);
 
 	cr1 &= ~BIT_SOF_INTEN;
 	cr1 &= ~BIT_RFF_OR_INT;
@@ -274,7 +274,7 @@ static void imx7_csi_hw_disable_irq(struct imx7_csi *csi)
 
 static void imx7_csi_hw_enable(struct imx7_csi *csi)
 {
-	unsigned long cr = imx7_csi_reg_read(csi, CSI_CSICR18);
+	u32 cr = imx7_csi_reg_read(csi, CSI_CSICR18);
 
 	cr |= BIT_CSI_HW_ENABLE;
 
@@ -283,7 +283,7 @@ static void imx7_csi_hw_enable(struct imx7_csi *csi)
 
 static void imx7_csi_hw_disable(struct imx7_csi *csi)
 {
-	unsigned long cr = imx7_csi_reg_read(csi, CSI_CSICR18);
+	u32 cr = imx7_csi_reg_read(csi, CSI_CSICR18);
 
 	cr &= ~BIT_CSI_HW_ENABLE;
 
@@ -292,7 +292,7 @@ static void imx7_csi_hw_disable(struct imx7_csi *csi)
 
 static void imx7_csi_dma_reflash(struct imx7_csi *csi)
 {
-	unsigned long cr3 = imx7_csi_reg_read(csi, CSI_CSICR18);
+	u32 cr3 = imx7_csi_reg_read(csi, CSI_CSICR18);
 
 	cr3 = imx7_csi_reg_read(csi, CSI_CSICR3);
 	cr3 |= BIT_DMA_REFLASH_RFF;
@@ -301,7 +301,7 @@ static void imx7_csi_dma_reflash(struct imx7_csi *csi)
 
 static void imx7_csi_rx_fifo_clear(struct imx7_csi *csi)
 {
-	unsigned long cr1;
+	u32 cr1;
 
 	cr1 = imx7_csi_reg_read(csi, CSI_CSICR1);
 	imx7_csi_reg_write(csi, cr1 & ~BIT_FCC, CSI_CSICR1);
@@ -319,7 +319,7 @@ static void imx7_csi_buf_stride_set(struct imx7_csi *csi, u32 stride)
 
 static void imx7_csi_deinterlace_enable(struct imx7_csi *csi, bool enable)
 {
-	unsigned long cr18 = imx7_csi_reg_read(csi, CSI_CSICR18);
+	u32 cr18 = imx7_csi_reg_read(csi, CSI_CSICR18);
 
 	if (enable)
 		cr18 |= BIT_DEINTERLACE_EN;
@@ -331,8 +331,8 @@ static void imx7_csi_deinterlace_enable(struct imx7_csi *csi, bool enable)
 
 static void imx7_csi_dmareq_rff_enable(struct imx7_csi *csi)
 {
-	unsigned long cr3 = imx7_csi_reg_read(csi, CSI_CSICR3);
-	unsigned long cr2 = imx7_csi_reg_read(csi, CSI_CSICR2);
+	u32 cr3 = imx7_csi_reg_read(csi, CSI_CSICR3);
+	u32 cr2 = imx7_csi_reg_read(csi, CSI_CSICR2);
 
 	/* Burst Type of DMA Transfer from RxFIFO. INCR16 */
 	cr2 |= 0xC0000000;
@@ -348,7 +348,7 @@ static void imx7_csi_dmareq_rff_enable(struct imx7_csi *csi)
 
 static void imx7_csi_dmareq_rff_disable(struct imx7_csi *csi)
 {
-	unsigned long cr3 = imx7_csi_reg_read(csi, CSI_CSICR3);
+	u32 cr3 = imx7_csi_reg_read(csi, CSI_CSICR3);
 
 	cr3 &= ~BIT_DMA_REQ_EN_RFF;
 	cr3 &= ~BIT_HRESP_ERR_EN;
@@ -647,7 +647,7 @@ static void imx7_csi_vb2_buf_done(struct imx7_csi *csi)
 static irqreturn_t imx7_csi_irq_handler(int irq, void *data)
 {
 	struct imx7_csi *csi =  data;
-	unsigned long status;
+	u32 status;
 
 	spin_lock(&csi->irqlock);
 
