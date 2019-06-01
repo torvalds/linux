@@ -696,30 +696,57 @@ check_err()
 
 bpf_tunnel_test()
 {
+	local errors=0
+
 	echo "Testing GRE tunnel..."
 	test_gre
+	errors=$(( $errors + $? ))
+
 	echo "Testing IP6GRE tunnel..."
 	test_ip6gre
+	errors=$(( $errors + $? ))
+
 	echo "Testing IP6GRETAP tunnel..."
 	test_ip6gretap
+	errors=$(( $errors + $? ))
+
 	echo "Testing ERSPAN tunnel..."
 	test_erspan v2
+	errors=$(( $errors + $? ))
+
 	echo "Testing IP6ERSPAN tunnel..."
 	test_ip6erspan v2
+	errors=$(( $errors + $? ))
+
 	echo "Testing VXLAN tunnel..."
 	test_vxlan
+	errors=$(( $errors + $? ))
+
 	echo "Testing IP6VXLAN tunnel..."
 	test_ip6vxlan
+	errors=$(( $errors + $? ))
+
 	echo "Testing GENEVE tunnel..."
 	test_geneve
+	errors=$(( $errors + $? ))
+
 	echo "Testing IP6GENEVE tunnel..."
 	test_ip6geneve
+	errors=$(( $errors + $? ))
+
 	echo "Testing IPIP tunnel..."
 	test_ipip
+	errors=$(( $errors + $? ))
+
 	echo "Testing IPIP6 tunnel..."
 	test_ipip6
+	errors=$(( $errors + $? ))
+
 	echo "Testing IPSec tunnel..."
 	test_xfrm_tunnel
+	errors=$(( $errors + $? ))
+
+	return $errors
 }
 
 trap cleanup 0 3 6
@@ -728,4 +755,9 @@ trap cleanup_exit 2 9
 cleanup
 bpf_tunnel_test
 
+if [ $? -ne 0 ]; then
+	echo -e "$(basename $0): ${RED}FAIL${NC}"
+	exit 1
+fi
+echo -e "$(basename $0): ${GREEN}PASS${NC}"
 exit 0

@@ -22,13 +22,23 @@
 DEFINE_STATIC_KEY_FALSE(cgroup_bpf_enabled_key);
 EXPORT_SYMBOL(cgroup_bpf_enabled_key);
 
-/**
- * cgroup_bpf_put() - put references of all bpf programs
- * @cgrp: the cgroup to modify
- */
-void cgroup_bpf_put(struct cgroup *cgrp)
+void cgroup_bpf_offline(struct cgroup *cgrp)
 {
+	cgroup_get(cgrp);
+	percpu_ref_kill(&cgrp->bpf.refcnt);
+}
+
+/**
+ * cgroup_bpf_release() - put references of all bpf programs and
+ *                        release all cgroup bpf data
+ * @work: work structure embedded into the cgroup to modify
+ */
+static void cgroup_bpf_release(struct work_struct *work)
+{
+	struct cgroup *cgrp = container_of(work, struct cgroup,
+					   bpf.release_work);
 	enum bpf_cgroup_storage_type stype;
+	struct bpf_prog_array *old_array;
 	unsigned int type;
 
 	for (type = 0; type < ARRAY_SIZE(cgrp->bpf.progs); type++) {
@@ -45,8 +55,27 @@ void cgroup_bpf_put(struct cgroup *cgrp)
 			kfree(pl);
 			static_branch_dec(&cgroup_bpf_enabled_key);
 		}
-		bpf_prog_array_free(cgrp->bpf.effective[type]);
+		old_array = rcu_dereference_protected(
+				cgrp->bpf.effective[type],
+				percpu_ref_is_dying(&cgrp->bpf.refcnt));
+		bpf_prog_array_free(old_array);
 	}
+
+	percpu_ref_exit(&cgrp->bpf.refcnt);
+	cgroup_put(cgrp);
+}
+
+/**
+ * cgroup_bpf_release_fn() - callback used to schedule releasing
+ *                           of bpf cgroup data
+ * @ref: percpu ref counter structure
+ */
+static void cgroup_bpf_release_fn(struct percpu_ref *ref)
+{
+	struct cgroup *cgrp = container_of(ref, struct cgroup, bpf.refcnt);
+
+	INIT_WORK(&cgrp->bpf.release_work, cgroup_bpf_release);
+	queue_work(system_wq, &cgrp->bpf.release_work);
 }
 
 /* count number of elements in the list.
@@ -101,7 +130,7 @@ static bool hierarchy_allows_attach(struct cgroup *cgrp,
  */
 static int compute_effective_progs(struct cgroup *cgrp,
 				   enum bpf_attach_type type,
-				   struct bpf_prog_array __rcu **array)
+				   struct bpf_prog_array **array)
 {
 	enum bpf_cgroup_storage_type stype;
 	struct bpf_prog_array *progs;
@@ -139,17 +168,16 @@ static int compute_effective_progs(struct cgroup *cgrp,
 		}
 	} while ((p = cgroup_parent(p)));
 
-	rcu_assign_pointer(*array, progs);
+	*array = progs;
 	return 0;
 }
 
 static void activate_effective_progs(struct cgroup *cgrp,
 				     enum bpf_attach_type type,
-				     struct bpf_prog_array __rcu *array)
+				     struct bpf_prog_array *old_array)
 {
-	struct bpf_prog_array __rcu *old_array;
-
-	old_array = xchg(&cgrp->bpf.effective[type], array);
+	rcu_swap_protected(cgrp->bpf.effective[type], old_array,
+			   lockdep_is_held(&cgroup_mutex));
 	/* free prog array after grace period, since __cgroup_bpf_run_*()
 	 * might be still walking the array
 	 */
@@ -166,8 +194,13 @@ int cgroup_bpf_inherit(struct cgroup *cgrp)
  * that array below is variable length
  */
 #define	NR ARRAY_SIZE(cgrp->bpf.effective)
-	struct bpf_prog_array __rcu *arrays[NR] = {};
-	int i;
+	struct bpf_prog_array *arrays[NR] = {};
+	int ret, i;
+
+	ret = percpu_ref_init(&cgrp->bpf.refcnt, cgroup_bpf_release_fn, 0,
+			      GFP_KERNEL);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < NR; i++)
 		INIT_LIST_HEAD(&cgrp->bpf.progs[i]);
@@ -183,6 +216,9 @@ int cgroup_bpf_inherit(struct cgroup *cgrp)
 cleanup:
 	for (i = 0; i < NR; i++)
 		bpf_prog_array_free(arrays[i]);
+
+	percpu_ref_exit(&cgrp->bpf.refcnt);
+
 	return -ENOMEM;
 }
 
@@ -444,10 +480,14 @@ int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 	enum bpf_attach_type type = attr->query.attach_type;
 	struct list_head *progs = &cgrp->bpf.progs[type];
 	u32 flags = cgrp->bpf.flags[type];
+	struct bpf_prog_array *effective;
 	int cnt, ret = 0, i;
 
+	effective = rcu_dereference_protected(cgrp->bpf.effective[type],
+					      lockdep_is_held(&cgroup_mutex));
+
 	if (attr->query.query_flags & BPF_F_QUERY_EFFECTIVE)
-		cnt = bpf_prog_array_length(cgrp->bpf.effective[type]);
+		cnt = bpf_prog_array_length(effective);
 	else
 		cnt = prog_list_length(progs);
 
@@ -464,8 +504,7 @@ int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
 	}
 
 	if (attr->query.query_flags & BPF_F_QUERY_EFFECTIVE) {
-		return bpf_prog_array_copy_to_user(cgrp->bpf.effective[type],
-						   prog_ids, cnt);
+		return bpf_prog_array_copy_to_user(effective, prog_ids, cnt);
 	} else {
 		struct bpf_prog_list *pl;
 		u32 id;
@@ -548,8 +587,16 @@ int cgroup_bpf_prog_query(const union bpf_attr *attr,
  * The program type passed in via @type must be suitable for network
  * filtering. No further check is performed to assert that.
  *
- * This function will return %-EPERM if any if an attached program was found
- * and if it returned != 1 during execution. In all other cases, 0 is returned.
+ * For egress packets, this function can return:
+ *   NET_XMIT_SUCCESS    (0)	- continue with packet output
+ *   NET_XMIT_DROP       (1)	- drop packet and notify TCP to call cwr
+ *   NET_XMIT_CN         (2)	- continue with packet output and notify TCP
+ *				  to call cwr
+ *   -EPERM			- drop packet
+ *
+ * For ingress packets, this function will return -EPERM if any
+ * attached program was found and if it returned != 1 during execution.
+ * Otherwise 0 is returned.
  */
 int __cgroup_bpf_run_filter_skb(struct sock *sk,
 				struct sk_buff *skb,
@@ -575,12 +622,19 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 	/* compute pointers for the bpf prog */
 	bpf_compute_and_save_data_end(skb, &saved_data_end);
 
-	ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], skb,
-				 __bpf_prog_run_save_cb);
+	if (type == BPF_CGROUP_INET_EGRESS) {
+		ret = BPF_PROG_CGROUP_INET_EGRESS_RUN_ARRAY(
+			cgrp->bpf.effective[type], skb, __bpf_prog_run_save_cb);
+	} else {
+		ret = BPF_PROG_RUN_ARRAY(cgrp->bpf.effective[type], skb,
+					  __bpf_prog_run_save_cb);
+		ret = (ret == 1 ? 0 : -EPERM);
+	}
 	bpf_restore_data_end(skb, saved_data_end);
 	__skb_pull(skb, offset);
 	skb->sk = save_sk;
-	return ret == 1 ? 0 : -EPERM;
+
+	return ret;
 }
 EXPORT_SYMBOL(__cgroup_bpf_run_filter_skb);
 

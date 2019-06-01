@@ -164,3 +164,12 @@ LIBBPF_0.0.3 {
 		bpf_map_freeze;
 		btf__finalize_data;
 } LIBBPF_0.0.2;
+
+LIBBPF_0.0.4 {
+	global:
+		btf_dump__dump_type;
+		btf_dump__free;
+		btf_dump__new;
+		btf__parse_elf;
+		bpf_object__load_xattr;
+} LIBBPF_0.0.3;

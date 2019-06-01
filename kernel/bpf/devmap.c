@@ -108,13 +108,9 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 	/* make sure page count doesn't overflow */
 	cost = (u64) dtab->map.max_entries * sizeof(struct bpf_dtab_netdev *);
 	cost += dev_map_bitmap_size(attr) * num_possible_cpus();
-	if (cost >= U32_MAX - PAGE_SIZE)
-		goto free_dtab;
 
-	dtab->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
-
-	/* if map size is larger than memlock limit, reject it early */
-	err = bpf_map_precharge_memlock(dtab->map.pages);
+	/* if map size is larger than memlock limit, reject it */
+	err = bpf_map_charge_init(&dtab->map.memory, cost);
 	if (err)
 		goto free_dtab;
 
@@ -125,19 +121,21 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 						__alignof__(unsigned long),
 						GFP_KERNEL | __GFP_NOWARN);
 	if (!dtab->flush_needed)
-		goto free_dtab;
+		goto free_charge;
 
 	dtab->netdev_map = bpf_map_area_alloc(dtab->map.max_entries *
 					      sizeof(struct bpf_dtab_netdev *),
 					      dtab->map.numa_node);
 	if (!dtab->netdev_map)
-		goto free_dtab;
+		goto free_charge;
 
 	spin_lock(&dev_map_lock);
 	list_add_tail_rcu(&dtab->list, &dev_map_list);
 	spin_unlock(&dev_map_lock);
 
 	return &dtab->map;
+free_charge:
+	bpf_map_charge_finish(&dtab->map.memory);
 free_dtab:
 	free_percpu(dtab->flush_needed);
 	kfree(dtab);

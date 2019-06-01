@@ -3,7 +3,7 @@
 
 BPF_VERSION = 0
 BPF_PATCHLEVEL = 0
-BPF_EXTRAVERSION = 3
+BPF_EXTRAVERSION = 4
 
 MAKEFLAGS += --no-print-directory
 
@@ -204,6 +204,16 @@ check_abi: $(OUTPUT)libbpf.so
 		     "versioned symbols in $^ ($(VERSIONED_SYM_COUNT))." \
 		     "Please make sure all LIBBPF_API symbols are"	 \
 		     "versioned in $(VERSION_SCRIPT)." >&2;		 \
+		readelf -s --wide $(OUTPUT)libbpf-in.o |		 \
+		    awk '/GLOBAL/ && /DEFAULT/ && !/UND/ {print $$8}'|   \
+		    sort -u > $(OUTPUT)libbpf_global_syms.tmp;		 \
+		readelf -s --wide $(OUTPUT)libbpf.so |			 \
+		    grep -Eo '[^ ]+@LIBBPF_' | cut -d@ -f1 |		 \
+		    sort -u > $(OUTPUT)libbpf_versioned_syms.tmp; 	 \
+		diff -u $(OUTPUT)libbpf_global_syms.tmp			 \
+		     $(OUTPUT)libbpf_versioned_syms.tmp;		 \
+		rm $(OUTPUT)libbpf_global_syms.tmp			 \
+		   $(OUTPUT)libbpf_versioned_syms.tmp;			 \
 		exit 1;							 \
 	fi
 

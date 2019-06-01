@@ -67,29 +67,28 @@ static int queue_stack_map_alloc_check(union bpf_attr *attr)
 static struct bpf_map *queue_stack_map_alloc(union bpf_attr *attr)
 {
 	int ret, numa_node = bpf_map_attr_numa_node(attr);
+	struct bpf_map_memory mem = {0};
 	struct bpf_queue_stack *qs;
 	u64 size, queue_size, cost;
 
 	size = (u64) attr->max_entries + 1;
 	cost = queue_size = sizeof(*qs) + size * attr->value_size;
-	if (cost >= U32_MAX - PAGE_SIZE)
-		return ERR_PTR(-E2BIG);
 
-	cost = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
-
-	ret = bpf_map_precharge_memlock(cost);
+	ret = bpf_map_charge_init(&mem, cost);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
 	qs = bpf_map_area_alloc(queue_size, numa_node);
-	if (!qs)
+	if (!qs) {
+		bpf_map_charge_finish(&mem);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	memset(qs, 0, sizeof(*qs));
 
 	bpf_map_init_from_attr(&qs->map, attr);
 
-	qs->map.pages = cost;
+	bpf_map_charge_move(&qs->map.memory, &mem);
 	qs->size = size;
 
 	raw_spin_lock_init(&qs->lock);

@@ -66,6 +66,11 @@ struct bpf_map_ops {
 				     u64 imm, u32 *off);
 };
 
+struct bpf_map_memory {
+	u32 pages;
+	struct user_struct *user;
+};
+
 struct bpf_map {
 	/* The first two cachelines with read-mostly members of which some
 	 * are also accessed in fast-path (e.g. ops, max_entries).
@@ -86,7 +91,7 @@ struct bpf_map {
 	u32 btf_key_type_id;
 	u32 btf_value_type_id;
 	struct btf *btf;
-	u32 pages;
+	struct bpf_map_memory memory;
 	bool unpriv_array;
 	bool frozen; /* write-once */
 	/* 48 bytes hole */
@@ -94,8 +99,7 @@ struct bpf_map {
 	/* The 3rd and 4th cacheline with misc members to avoid false sharing
 	 * particularly with refcounting.
 	 */
-	struct user_struct *user ____cacheline_aligned;
-	atomic_t refcnt;
+	atomic_t refcnt ____cacheline_aligned;
 	atomic_t usercnt;
 	struct work_struct work;
 	char name[BPF_OBJ_NAME_LEN];
@@ -370,6 +374,7 @@ struct bpf_prog_aux {
 	u32 id;
 	u32 func_cnt; /* used by non-func prog as the number of func progs */
 	u32 func_idx; /* 0 for non-func prog, the index in func array for func prog */
+	bool verifier_zext; /* Zero extensions has been inserted by verifier. */
 	bool offload_requested;
 	struct bpf_prog **func;
 	void *jit_data; /* JIT specific data. arch dependent */
@@ -513,17 +518,17 @@ struct bpf_prog_array {
 };
 
 struct bpf_prog_array *bpf_prog_array_alloc(u32 prog_cnt, gfp_t flags);
-void bpf_prog_array_free(struct bpf_prog_array __rcu *progs);
-int bpf_prog_array_length(struct bpf_prog_array __rcu *progs);
-int bpf_prog_array_copy_to_user(struct bpf_prog_array __rcu *progs,
+void bpf_prog_array_free(struct bpf_prog_array *progs);
+int bpf_prog_array_length(struct bpf_prog_array *progs);
+int bpf_prog_array_copy_to_user(struct bpf_prog_array *progs,
 				__u32 __user *prog_ids, u32 cnt);
 
-void bpf_prog_array_delete_safe(struct bpf_prog_array __rcu *progs,
+void bpf_prog_array_delete_safe(struct bpf_prog_array *progs,
 				struct bpf_prog *old_prog);
-int bpf_prog_array_copy_info(struct bpf_prog_array __rcu *array,
+int bpf_prog_array_copy_info(struct bpf_prog_array *array,
 			     u32 *prog_ids, u32 request_cnt,
 			     u32 *prog_cnt);
-int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
+int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 			struct bpf_prog *exclude_prog,
 			struct bpf_prog *include_prog,
 			struct bpf_prog_array **new_array);
@@ -550,6 +555,56 @@ _out:							\
 		preempt_enable();			\
 		_ret;					\
 	 })
+
+/* To be used by __cgroup_bpf_run_filter_skb for EGRESS BPF progs
+ * so BPF programs can request cwr for TCP packets.
+ *
+ * Current cgroup skb programs can only return 0 or 1 (0 to drop the
+ * packet. This macro changes the behavior so the low order bit
+ * indicates whether the packet should be dropped (0) or not (1)
+ * and the next bit is a congestion notification bit. This could be
+ * used by TCP to call tcp_enter_cwr()
+ *
+ * Hence, new allowed return values of CGROUP EGRESS BPF programs are:
+ *   0: drop packet
+ *   1: keep packet
+ *   2: drop packet and cn
+ *   3: keep packet and cn
+ *
+ * This macro then converts it to one of the NET_XMIT or an error
+ * code that is then interpreted as drop packet (and no cn):
+ *   0: NET_XMIT_SUCCESS  skb should be transmitted
+ *   1: NET_XMIT_DROP     skb should be dropped and cn
+ *   2: NET_XMIT_CN       skb should be transmitted and cn
+ *   3: -EPERM            skb should be dropped
+ */
+#define BPF_PROG_CGROUP_INET_EGRESS_RUN_ARRAY(array, ctx, func)		\
+	({						\
+		struct bpf_prog_array_item *_item;	\
+		struct bpf_prog *_prog;			\
+		struct bpf_prog_array *_array;		\
+		u32 ret;				\
+		u32 _ret = 1;				\
+		u32 _cn = 0;				\
+		preempt_disable();			\
+		rcu_read_lock();			\
+		_array = rcu_dereference(array);	\
+		_item = &_array->items[0];		\
+		while ((_prog = READ_ONCE(_item->prog))) {		\
+			bpf_cgroup_storage_set(_item->cgroup_storage);	\
+			ret = func(_prog, ctx);		\
+			_ret &= (ret & 1);		\
+			_cn |= (ret & 2);		\
+			_item++;			\
+		}					\
+		rcu_read_unlock();			\
+		preempt_enable();			\
+		if (_ret)				\
+			_ret = (_cn ? NET_XMIT_CN : NET_XMIT_SUCCESS);	\
+		else					\
+			_ret = (_cn ? NET_XMIT_DROP : -EPERM);		\
+		_ret;					\
+	})
 
 #define BPF_PROG_RUN_ARRAY(array, ctx, func)		\
 	__BPF_PROG_RUN_ARRAY(array, ctx, func, false)
@@ -595,9 +650,12 @@ struct bpf_map *__bpf_map_get(struct fd f);
 struct bpf_map * __must_check bpf_map_inc(struct bpf_map *map, bool uref);
 void bpf_map_put_with_uref(struct bpf_map *map);
 void bpf_map_put(struct bpf_map *map);
-int bpf_map_precharge_memlock(u32 pages);
 int bpf_map_charge_memlock(struct bpf_map *map, u32 pages);
 void bpf_map_uncharge_memlock(struct bpf_map *map, u32 pages);
+int bpf_map_charge_init(struct bpf_map_memory *mem, size_t size);
+void bpf_map_charge_finish(struct bpf_map_memory *mem);
+void bpf_map_charge_move(struct bpf_map_memory *dst,
+			 struct bpf_map_memory *src);
 void *bpf_map_area_alloc(size_t size, int numa_node);
 void bpf_map_area_free(void *base);
 void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr);

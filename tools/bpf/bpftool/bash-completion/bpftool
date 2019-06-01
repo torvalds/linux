@@ -71,6 +71,12 @@ _bpftool_get_prog_tags()
         command sed -n 's/.*"tag": "\(.*\)",$/\1/p' )" -- "$cur" ) )
 }
 
+_bpftool_get_btf_ids()
+{
+    COMPREPLY+=( $( compgen -W "$( bpftool -jp prog 2>&1 | \
+        command sed -n 's/.*"btf_id": \(.*\),\?$/\1/p' )" -- "$cur" ) )
+}
+
 _bpftool_get_obj_map_names()
 {
     local obj
@@ -181,7 +187,7 @@ _bpftool()
 
     # Deal with options
     if [[ ${words[cword]} == -* ]]; then
-        local c='--version --json --pretty --bpffs --mapcompat'
+        local c='--version --json --pretty --bpffs --mapcompat --debug'
         COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
         return 0
     fi
@@ -635,14 +641,30 @@ _bpftool()
                                 map)
                                     _bpftool_get_map_ids
                                     ;;
+                                dump)
+                                    _bpftool_get_btf_ids
+                                    ;;
                             esac
                             return 0
                             ;;
+                        format)
+                            COMPREPLY=( $( compgen -W "c raw" -- "$cur" ) )
+                            ;;
                         *)
-                            if [[ $cword == 6 ]] && [[ ${words[3]} == "map" ]]; then
-                                 COMPREPLY+=( $( compgen -W 'key value kv all' -- \
-                                     "$cur" ) )
-                            fi
+                            # emit extra options
+                            case ${words[3]} in
+                                id|file)
+                                    _bpftool_once_attr 'format'
+                                    ;;
+                                map|prog)
+                                    if [[ ${words[3]} == "map" ]] && [[ $cword == 6 ]]; then
+                                        COMPREPLY+=( $( compgen -W "key value kv all" -- "$cur" ) )
+                                    fi
+                                    _bpftool_once_attr 'format'
+                                    ;;
+                                *)
+                                    ;;
+                            esac
                             return 0
                             ;;
                     esac

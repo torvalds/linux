@@ -28,13 +28,6 @@
  * are established and verdicts are decided.
  */
 
-#define bpf_printk(fmt, ...)					\
-({								\
-	       char ____fmt[] = fmt;				\
-	       bpf_trace_printk(____fmt, sizeof(____fmt),	\
-				##__VA_ARGS__);			\
-})
-
 struct bpf_map_def SEC("maps") sock_map = {
 	.type = TEST_MAP_TYPE,
 	.key_size = sizeof(int),
