@@ -1224,7 +1224,7 @@ static int ov13858_set_ctrl(struct v4l2_ctrl *ctrl)
 					 ov13858->exposure->minimum,
 					 max, ov13858->exposure->step, max);
 		break;
-	};
+	}
 
 	/*
 	 * Applying V4L2 control value only happens
@@ -1262,7 +1262,7 @@ static int ov13858_set_ctrl(struct v4l2_ctrl *ctrl)
 			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
 			 ctrl->id, ctrl->val);
 		break;
-	};
+	}
 
 	pm_runtime_put(&client->dev);
 
