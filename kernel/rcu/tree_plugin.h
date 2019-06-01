@@ -2135,6 +2135,7 @@ module_param(rcu_nocb_gp_stride, int, 0444);
 static void __init rcu_organize_nocb_kthreads(void)
 {
 	int cpu;
+	bool firsttime = true;
 	int ls = rcu_nocb_gp_stride;
 	int nl = 0;  /* Next GP kthread. */
 	struct rcu_data *rdp;
@@ -2160,10 +2161,15 @@ static void __init rcu_organize_nocb_kthreads(void)
 			nl = DIV_ROUND_UP(rdp->cpu + 1, ls) * ls;
 			rdp->nocb_gp_rdp = rdp;
 			rdp_gp = rdp;
+			if (!firsttime && dump_tree)
+				pr_cont("\n");
+			firsttime = false;
+			pr_alert("%s: No-CB GP kthread CPU %d:", __func__, cpu);
 		} else {
 			/* Another CB kthread, link to previous GP kthread. */
 			rdp->nocb_gp_rdp = rdp_gp;
 			rdp_prev->nocb_next_cb_rdp = rdp;
+			pr_alert(" %d", cpu);
 		}
 		rdp_prev = rdp;
 	}
