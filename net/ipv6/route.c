@@ -1268,10 +1268,9 @@ static struct rt6_info *ip6_rt_pcpu_alloc(const struct fib6_result *res)
 /* It should be called with rcu_read_lock() acquired */
 static struct rt6_info *rt6_get_pcpu_route(const struct fib6_result *res)
 {
-	struct rt6_info *pcpu_rt, **p;
+	struct rt6_info *pcpu_rt;
 
-	p = this_cpu_ptr(res->nh->rt6i_pcpu);
-	pcpu_rt = *p;
+	pcpu_rt = this_cpu_read(*res->nh->rt6i_pcpu);
 
 	if (pcpu_rt)
 		ip6_hold_safe(NULL, &pcpu_rt);
