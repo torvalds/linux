@@ -29,6 +29,7 @@
 #include <linux/sched/task.h>
 #include <uapi/linux/mount.h>
 #include <linux/fs_context.h>
+#include <linux/shmem_fs.h>
 
 #include "pnode.h"
 #include "internal.h"
@@ -3740,6 +3741,7 @@ void __init mnt_init(void)
 	fs_kobj = kobject_create_and_add("fs", NULL);
 	if (!fs_kobj)
 		printk(KERN_WARNING "%s: kobj create error\n", __func__);
+	shmem_init();
 	init_rootfs();
 	init_mount_tree();
 }

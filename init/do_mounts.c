@@ -643,14 +643,9 @@ struct file_system_type rootfs_fs_type = {
 	.kill_sb	= kill_litter_super,
 };
 
-int __init init_rootfs(void)
+void __init init_rootfs(void)
 {
-	int err = 0;
-
 	if (IS_ENABLED(CONFIG_TMPFS) && !saved_root_name[0] &&
-		(!root_fs_names || strstr(root_fs_names, "tmpfs"))) {
-		err = shmem_init();
+		(!root_fs_names || strstr(root_fs_names, "tmpfs")))
 		is_tmpfs = true;
-	}
-	return err;
 }
