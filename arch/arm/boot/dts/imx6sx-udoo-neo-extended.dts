@@ -16,3 +16,7 @@
 		reg = <0x80000000 0x40000000>;
 	};
 };
+
+&i2c4 { /* Onboard Motion sensors */
+	status = "okay";
+};
