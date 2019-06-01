@@ -10,6 +10,7 @@ Contents
 ========
 
 - `Enabling the driver and kconfig options`_
+- `Devlink health reporters`_
 
 Enabling the driver and kconfig options
 ================================================
@@ -99,3 +100,74 @@ Enabling the driver and kconfig options
 - CONFIG_PTP_1588_CLOCK: When chosen, mlx5 ptp support will be enabled
 - CONFIG_VXLAN: When chosen, mlx5 vxaln support will be enabled.
 - CONFIG_MLXFW: When chosen, mlx5 firmware flashing support will be enabled (via devlink and ethtool).
+
+
+Devlink health reporters
+========================
+
+tx reporter
+-----------
+The tx reporter is responsible of two error scenarios:
+
+- TX timeout
+    Report on kernel tx timeout detection.
+    Recover by searching lost interrupts.
+- TX error completion
+    Report on error tx completion.
+    Recover by flushing the TX queue and reset it.
+
+TX reporter also support Diagnose callback, on which it provides
+real time information of its send queues status.
+
+User commands examples:
+
+- Diagnose send queues status::
+
+    $ devlink health diagnose pci/0000:82:00.0 reporter tx
+
+- Show number of tx errors indicated, number of recover flows ended successfully,
+  is autorecover enabled and graceful period from last recover::
+
+    $ devlink health show pci/0000:82:00.0 reporter tx
+
+fw reporter
+-----------
+The fw reporter implements diagnose and dump callbacks.
+It follows symptoms of fw error such as fw syndrome by triggering
+fw core dump and storing it into the dump buffer.
+The fw reporter diagnose command can be triggered any time by the user to check
+current fw status.
+
+User commands examples:
+
+- Check fw heath status::
+
+    $ devlink health diagnose pci/0000:82:00.0 reporter fw
+
+- Read FW core dump if already stored or trigger new one::
+
+    $ devlink health dump show pci/0000:82:00.0 reporter fw
+
+NOTE: This command can run only on the PF which has fw tracer ownership,
+running it on other PF or any VF will return "Operation not permitted".
+
+fw fatal reporter
+-----------------
+The fw fatal reporter implements dump and recover callbacks.
+It follows fatal errors indications by CR-space dump and recover flow.
+The CR-space dump uses vsc interface which is valid even if the FW command
+interface is not functional, which is the case in most FW fatal errors.
+The recover function runs recover flow which reloads the driver and triggers fw
+reset if needed.
+
+User commands examples:
+
+- Run fw recover flow manually::
+
+    $ devlink health recover pci/0000:82:00.0 reporter fw_fatal
+
+- Read FW CR-space dump if already strored or trigger new one::
+
+    $ devlink health dump show pci/0000:82:00.1 reporter fw_fatal
+
+NOTE: This command can run only on PF.
