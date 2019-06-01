@@ -195,10 +195,16 @@ struct imx7_csi {
 	struct completion last_eof_completion;
 };
 
-#define imx7_csi_reg_read(_csi, _offset) \
-	__raw_readl((_csi)->regbase + (_offset))
-#define imx7_csi_reg_write(_csi, _val, _offset) \
-	__raw_writel(_val, (_csi)->regbase + (_offset))
+static u32 imx7_csi_reg_read(struct imx7_csi *csi, unsigned int offset)
+{
+	return readl(csi->regbase + offset);
+}
+
+static void imx7_csi_reg_write(struct imx7_csi *csi, unsigned int value,
+			       unsigned int offset)
+{
+	writel(value, csi->regbase + offset);
+}
 
 static void imx7_csi_hw_reset(struct imx7_csi *csi)
 {
