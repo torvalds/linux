@@ -20,3 +20,7 @@
 &i2c4 { /* Onboard Motion sensors */
 	status = "okay";
 };
+
+&uart3 { /* Bluetooth */
+	status = "okay";
+};
