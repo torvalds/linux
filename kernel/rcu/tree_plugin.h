@@ -2028,7 +2028,7 @@ static void __init rcu_organize_nocb_kthreads(void)
 	if (!cpumask_available(rcu_nocb_mask))
 		return;
 	if (ls == -1) {
-		ls = int_sqrt(nr_cpu_ids);
+		ls = nr_cpu_ids / int_sqrt(nr_cpu_ids);
 		rcu_nocb_gp_stride = ls;
 	}
 
