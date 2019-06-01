@@ -1805,9 +1805,10 @@ static void nocb_cb_wait(struct rcu_data *rdp)
 	local_bh_enable();
 	lockdep_assert_irqs_enabled();
 	rcu_nocb_lock_irqsave(rdp, flags);
-	raw_spin_lock_rcu_node(rnp); /* irqs already disabled. */
-	needwake_gp = rcu_advance_cbs(rdp->mynode, rdp);
-	raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
+	if (raw_spin_trylock_rcu_node(rnp)) { /* irqs already disabled. */
+		needwake_gp = rcu_advance_cbs(rdp->mynode, rdp);
+		raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
+	}
 	if (rcu_segcblist_ready_cbs(&rdp->cblist)) {
 		rcu_nocb_unlock_irqrestore(rdp, flags);
 		if (needwake_gp)
