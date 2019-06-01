@@ -15,6 +15,10 @@
 #ifndef MTK_ETH_H
 #define MTK_ETH_H
 
+#include <linux/dma-mapping.h>
+#include <linux/netdevice.h>
+#include <linux/of_net.h>
+#include <linux/u64_stats_sync.h>
 #include <linux/refcount.h>
 
 #define MTK_QDMA_PAGE_SIZE	2048
@@ -372,6 +376,7 @@
 #define SYSCFG0_SGMII_MASK	(3 << 8)
 #define SYSCFG0_SGMII_GMAC1	((2 << 8) & GENMASK(9, 8))
 #define SYSCFG0_SGMII_GMAC2	((3 << 8) & GENMASK(9, 8))
+#define SYSCFG0_SGMII_GMAC2_V2  ((1 << 8) & GENMASK(9, 8))
 
 /* ethernet subsystem clock register */
 #define ETHSYS_CLKCFG0		0x2c
@@ -567,7 +572,7 @@ struct mtk_rx_ring {
 #define MTK_SGMII			BIT(8)
 #define MTK_GMAC1_SGMII			(BIT(9) | MTK_SGMII)
 #define MTK_GMAC2_SGMII			(BIT(10) | MTK_SGMII)
-#define MTK_DUAL_GMAC_SHARED_SGMII	(BIT(11) | MTK_GMAC1_SGMII | \
+#define MTK_GMAC_SHARED_SGMII		(BIT(11) | MTK_GMAC1_SGMII | \
 					 MTK_GMAC2_SGMII)
 #define MTK_HWLRO			BIT(12)
 #define MTK_SHARED_INT			BIT(13)
@@ -575,6 +580,8 @@ struct mtk_rx_ring {
 
 /* struct mtk_eth_data -	This is the structure holding all differences
  *				among various plaforms
+ * @ana_rgc3:                   The offset for register ANA_RGC3 related to
+ *				sgmiisys syscon
  * @caps			Flags shown the extra capability for the SoC
  * @required_clks		Flags shown the bitmap for required clocks on
  *				the target SoC
@@ -582,6 +589,7 @@ struct mtk_rx_ring {
  *				the extra setup for those pins used by GMAC.
  */
 struct mtk_soc_data {
+	u32             ana_rgc3;
 	u32		caps;
 	u32		required_clks;
 	bool		required_pctl;
@@ -589,6 +597,26 @@ struct mtk_soc_data {
 
 /* currently no SoC has more than 2 macs */
 #define MTK_MAX_DEVS			2
+
+#define MTK_SGMII_PHYSPEED_AN          BIT(31)
+#define MTK_SGMII_PHYSPEED_MASK        GENMASK(0, 2)
+#define MTK_SGMII_PHYSPEED_1000        BIT(0)
+#define MTK_SGMII_PHYSPEED_2500        BIT(1)
+#define MTK_HAS_FLAGS(flags, _x)       (((flags) & (_x)) == (_x))
+
+/* struct mtk_sgmii -  This is the structure holding sgmii regmap and its
+ *                     characteristics
+ * @regmap:            The register map pointing at the range used to setup
+ *                     SGMII modes
+ * @flags:             The enum refers to which mode the sgmii wants to run on
+ * @ana_rgc3:          The offset refers to register ANA_RGC3 related to regmap
+ */
+
+struct mtk_sgmii {
+	struct regmap   *regmap[MTK_MAX_DEVS];
+	u32             flags[MTK_MAX_DEVS];
+	u32             ana_rgc3;
+};
 
 /* struct mtk_eth -	This is the main datasructure for holding the state
  *			of the driver
@@ -605,8 +633,6 @@ struct mtk_soc_data {
  * @msg_enable:		Ethtool msg level
  * @ethsys:		The register map pointing at the range used to setup
  *			MII modes
- * @sgmiisys:		The register map pointing at the range used to setup
- *			SGMII modes
  * @pctl:		The register map pointing at the range used to setup
  *			GMAC port drive/slew values
  * @dma_refcnt:		track how many netdevs are using the DMA engine
@@ -638,7 +664,7 @@ struct mtk_eth {
 	u32				msg_enable;
 	unsigned long			sysclk;
 	struct regmap			*ethsys;
-	struct regmap			*sgmiisys;
+	struct mtk_sgmii                *sgmii;
 	struct regmap			*pctl;
 	bool				hwlro;
 	refcount_t			dma_refcnt;
@@ -688,5 +714,10 @@ void mtk_stats_update_mac(struct mtk_mac *mac);
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
 u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
+
+int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *np,
+		   u32 ana_rgc3);
+int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id);
+int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id);
 
 #endif /* MTK_ETH_H */
