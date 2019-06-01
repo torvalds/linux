@@ -331,6 +331,7 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_DS_GFXCLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_DCEFCLK_BIT)
 				| FEATURE_MASK(FEATURE_FW_DSTATE_BIT)
+				| FEATURE_MASK(FEATURE_BACO_BIT)
 				| FEATURE_MASK(FEATURE_ACDC_BIT);
 
 	if (adev->pm.pp_feature & PP_MCLK_DPM_MASK)
