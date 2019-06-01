@@ -1194,10 +1194,8 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	}
 
 	csi->regbase = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(csi->regbase)) {
-		dev_err(dev, "Failed platform resources map\n");
+	if (IS_ERR(csi->regbase))
 		return PTR_ERR(csi->regbase);
-	}
 
 	spin_lock_init(&csi->irqlock);
 	mutex_init(&csi->lock);
