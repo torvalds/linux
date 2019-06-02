@@ -786,10 +786,10 @@ static inline int sja1105et_fdb_index(int bin, int way)
 	return bin * SJA1105ET_FDB_BIN_SIZE + way;
 }
 
-static int sja1105_is_fdb_entry_in_bin(struct sja1105_private *priv, int bin,
-				       const u8 *addr, u16 vid,
-				       struct sja1105_l2_lookup_entry *match,
-				       int *last_unused)
+static int sja1105et_is_fdb_entry_in_bin(struct sja1105_private *priv, int bin,
+					 const u8 *addr, u16 vid,
+					 struct sja1105_l2_lookup_entry *match,
+					 int *last_unused)
 {
 	int way;
 
@@ -818,8 +818,8 @@ static int sja1105_is_fdb_entry_in_bin(struct sja1105_private *priv, int bin,
 	return -1;
 }
 
-static int sja1105_fdb_add(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid)
+int sja1105et_fdb_add(struct dsa_switch *ds, int port,
+		      const unsigned char *addr, u16 vid)
 {
 	struct sja1105_l2_lookup_entry l2_lookup = {0};
 	struct sja1105_private *priv = ds->priv;
@@ -827,10 +827,10 @@ static int sja1105_fdb_add(struct dsa_switch *ds, int port,
 	int last_unused = -1;
 	int bin, way;
 
-	bin = sja1105_fdb_hash(priv, addr, vid);
+	bin = sja1105et_fdb_hash(priv, addr, vid);
 
-	way = sja1105_is_fdb_entry_in_bin(priv, bin, addr, vid,
-					  &l2_lookup, &last_unused);
+	way = sja1105et_is_fdb_entry_in_bin(priv, bin, addr, vid,
+					    &l2_lookup, &last_unused);
 	if (way >= 0) {
 		/* We have an FDB entry. Is our port in the destination
 		 * mask? If yes, we need to do nothing. If not, we need
@@ -874,17 +874,17 @@ static int sja1105_fdb_add(struct dsa_switch *ds, int port,
 					    true);
 }
 
-static int sja1105_fdb_del(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid)
+int sja1105et_fdb_del(struct dsa_switch *ds, int port,
+		      const unsigned char *addr, u16 vid)
 {
 	struct sja1105_l2_lookup_entry l2_lookup = {0};
 	struct sja1105_private *priv = ds->priv;
 	int index, bin, way;
 	bool keep;
 
-	bin = sja1105_fdb_hash(priv, addr, vid);
-	way = sja1105_is_fdb_entry_in_bin(priv, bin, addr, vid,
-					  &l2_lookup, NULL);
+	bin = sja1105et_fdb_hash(priv, addr, vid);
+	way = sja1105et_is_fdb_entry_in_bin(priv, bin, addr, vid,
+					    &l2_lookup, NULL);
 	if (way < 0)
 		return 0;
 	index = sja1105et_fdb_index(bin, way);
@@ -903,6 +903,34 @@ static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 
 	return sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
 					    index, &l2_lookup, keep);
+}
+
+int sja1105pqrs_fdb_add(struct dsa_switch *ds, int port,
+			const unsigned char *addr, u16 vid)
+{
+	return -EOPNOTSUPP;
+}
+
+int sja1105pqrs_fdb_del(struct dsa_switch *ds, int port,
+			const unsigned char *addr, u16 vid)
+{
+	return -EOPNOTSUPP;
+}
+
+static int sja1105_fdb_add(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid)
+{
+	struct sja1105_private *priv = ds->priv;
+
+	return priv->info->fdb_add_cmd(ds, port, addr, vid);
+}
+
+static int sja1105_fdb_del(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid)
+{
+	struct sja1105_private *priv = ds->priv;
+
+	return priv->info->fdb_del_cmd(ds, port, addr, vid);
 }
 
 static int sja1105_fdb_dump(struct dsa_switch *ds, int port,

@@ -552,7 +552,7 @@ static u8 sja1105_crc8_add(u8 crc, u8 byte, u8 poly)
  * is also received as argument in the Koopman notation that the switch
  * hardware stores it in.
  */
-u8 sja1105_fdb_hash(struct sja1105_private *priv, const u8 *addr, u16 vid)
+u8 sja1105et_fdb_hash(struct sja1105_private *priv, const u8 *addr, u16 vid)
 {
 	struct sja1105_l2_lookup_params_entry *l2_lookup_params =
 		priv->static_config.tables[BLK_IDX_L2_LOOKUP_PARAMS].entries;
