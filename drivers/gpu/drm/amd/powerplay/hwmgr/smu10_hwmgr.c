@@ -35,6 +35,7 @@
 #include "smu10_hwmgr.h"
 #include "power_state.h"
 #include "soc15_common.h"
+#include "smu10.h"
 
 #define SMU10_MAX_DEEPSLEEP_DIVIDER_ID     5
 #define SMU10_MINIMUM_ENGINE_CLOCK         800   /* 8Mhz, the low boundary of engine clock allowed on this chip */
@@ -113,11 +114,6 @@ static int smu10_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 	smu10_data->need_min_deep_sleep_dcefclk = true;
 	smu10_data->num_active_display = 0;
 	smu10_data->deep_sleep_dcefclk = 0;
-
-	if (hwmgr->feature_mask & PP_GFXOFF_MASK)
-		smu10_data->gfx_off_controled_by_driver = true;
-	else
-		smu10_data->gfx_off_controled_by_driver = false;
 
 	phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SclkDeepSleep);
@@ -209,18 +205,13 @@ static int smu10_set_clock_limit(struct pp_hwmgr *hwmgr, const void *input)
 	return 0;
 }
 
-static inline uint32_t convert_10k_to_mhz(uint32_t clock)
-{
-	return (clock + 99) / 100;
-}
-
 static int smu10_set_min_deep_sleep_dcefclk(struct pp_hwmgr *hwmgr, uint32_t clock)
 {
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 
 	if (smu10_data->need_min_deep_sleep_dcefclk &&
-		smu10_data->deep_sleep_dcefclk != convert_10k_to_mhz(clock)) {
-		smu10_data->deep_sleep_dcefclk = convert_10k_to_mhz(clock);
+		smu10_data->deep_sleep_dcefclk != clock) {
+		smu10_data->deep_sleep_dcefclk = clock;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetMinDeepSleepDcefclk,
 					smu10_data->deep_sleep_dcefclk);
@@ -233,8 +224,8 @@ static int smu10_set_hard_min_dcefclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t c
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 
 	if (smu10_data->dcf_actual_hard_min_freq &&
-		smu10_data->dcf_actual_hard_min_freq != convert_10k_to_mhz(clock)) {
-		smu10_data->dcf_actual_hard_min_freq = convert_10k_to_mhz(clock);
+		smu10_data->dcf_actual_hard_min_freq != clock) {
+		smu10_data->dcf_actual_hard_min_freq = clock;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetHardMinDcefclkByFreq,
 					smu10_data->dcf_actual_hard_min_freq);
@@ -247,8 +238,8 @@ static int smu10_set_hard_min_fclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t cloc
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 
 	if (smu10_data->f_actual_hard_min_freq &&
-		smu10_data->f_actual_hard_min_freq != convert_10k_to_mhz(clock)) {
-		smu10_data->f_actual_hard_min_freq = convert_10k_to_mhz(clock);
+		smu10_data->f_actual_hard_min_freq != clock) {
+		smu10_data->f_actual_hard_min_freq = clock;
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetHardMinFclkByFreq,
 					smu10_data->f_actual_hard_min_freq);
@@ -330,9 +321,9 @@ static bool smu10_is_gfx_on(struct pp_hwmgr *hwmgr)
 
 static int smu10_disable_gfx_off(struct pp_hwmgr *hwmgr)
 {
-	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	if (smu10_data->gfx_off_controled_by_driver) {
+	if (adev->pm.pp_feature & PP_GFXOFF_MASK) {
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DisableGfxOff);
 
 		/* confirm gfx is back to "on" state */
@@ -350,9 +341,9 @@ static int smu10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 static int smu10_enable_gfx_off(struct pp_hwmgr *hwmgr)
 {
-	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	if (smu10_data->gfx_off_controled_by_driver)
+	if (adev->pm.pp_feature & PP_GFXOFF_MASK)
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableGfxOff);
 
 	return 0;
@@ -577,7 +568,6 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 				enum amd_dpm_forced_level level)
 {
 	struct smu10_hwmgr *data = hwmgr->backend;
-	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t min_sclk = hwmgr->display_config->min_core_set_clock;
 	uint32_t min_mclk = hwmgr->display_config->min_mem_set_clock/100;
 
@@ -585,11 +575,6 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 		pr_info("smu firmware version too old, can not set dpm level\n");
 		return 0;
 	}
-
-	/* Disable UMDPSTATE support on rv2 temporarily */
-	if ((adev->asic_type == CHIP_RAVEN) &&
-	    (adev->rev_id >= 8))
-		return 0;
 
 	if (min_sclk < data->gfx_min_freq_limit)
 		min_sclk = data->gfx_min_freq_limit;
@@ -1205,6 +1190,94 @@ static void smu10_powergate_vcn(struct pp_hwmgr *hwmgr, bool bgate)
 	}
 }
 
+static int conv_power_profile_to_pplib_workload(int power_profile)
+{
+	int pplib_workload = 0;
+
+	switch (power_profile) {
+	case PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT:
+		pplib_workload = WORKLOAD_DEFAULT_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
+		pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_POWERSAVING:
+		pplib_workload = WORKLOAD_PPLIB_POWER_SAVING_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_VIDEO:
+		pplib_workload = WORKLOAD_PPLIB_VIDEO_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_VR:
+		pplib_workload = WORKLOAD_PPLIB_VR_BIT;
+		break;
+	case PP_SMC_POWER_PROFILE_COMPUTE:
+		pplib_workload = WORKLOAD_PPLIB_COMPUTE_BIT;
+		break;
+	}
+
+	return pplib_workload;
+}
+
+static int smu10_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
+{
+	uint32_t i, size = 0;
+	static const uint8_t
+		profile_mode_setting[6][4] = {{70, 60, 0, 0,},
+						{70, 60, 1, 3,},
+						{90, 60, 0, 0,},
+						{70, 60, 0, 0,},
+						{70, 90, 0, 0,},
+						{30, 60, 0, 6,},
+						};
+	static const char *profile_name[6] = {
+					"BOOTUP_DEFAULT",
+					"3D_FULL_SCREEN",
+					"POWER_SAVING",
+					"VIDEO",
+					"VR",
+					"COMPUTE"};
+	static const char *title[6] = {"NUM",
+			"MODE_NAME",
+			"BUSY_SET_POINT",
+			"FPS",
+			"USE_RLC_BUSY",
+			"MIN_ACTIVE_LEVEL"};
+
+	if (!buf)
+		return -EINVAL;
+
+	size += sprintf(buf + size, "%s %16s %s %s %s %s\n",title[0],
+			title[1], title[2], title[3], title[4], title[5]);
+
+	for (i = 0; i <= PP_SMC_POWER_PROFILE_COMPUTE; i++)
+		size += sprintf(buf + size, "%3d %14s%s: %14d %3d %10d %14d\n",
+			i, profile_name[i], (i == hwmgr->power_profile_mode) ? "*" : " ",
+			profile_mode_setting[i][0], profile_mode_setting[i][1],
+			profile_mode_setting[i][2], profile_mode_setting[i][3]);
+
+	return size;
+}
+
+static int smu10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint32_t size)
+{
+	int workload_type = 0;
+
+	if (input[size] > PP_SMC_POWER_PROFILE_COMPUTE) {
+		pr_err("Invalid power profile mode %ld\n", input[size]);
+		return -EINVAL;
+	}
+	hwmgr->power_profile_mode = input[size];
+
+	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
+	workload_type =
+		conv_power_profile_to_pplib_workload(hwmgr->power_profile_mode);
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ActiveProcessNotify,
+						1 << workload_type);
+
+	return 0;
+}
+
+
 static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.backend_init = smu10_hwmgr_backend_init,
 	.backend_fini = smu10_hwmgr_backend_fini,
@@ -1246,6 +1319,8 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.powergate_sdma = smu10_powergate_sdma,
 	.set_hard_min_dcefclk_by_freq = smu10_set_hard_min_dcefclk_by_freq,
 	.set_hard_min_fclk_by_freq = smu10_set_hard_min_fclk_by_freq,
+	.get_power_profile_mode = smu10_get_power_profile_mode,
+	.set_power_profile_mode = smu10_set_power_profile_mode,
 };
 
 int smu10_init_function_pointers(struct pp_hwmgr *hwmgr)

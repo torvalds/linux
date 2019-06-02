@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-ep93xx/ts72xx.c
  * Technologic Systems TS72xx SBC support.
  *
  * Copyright (C) 2006 Lennert Buytenhek <buytenh@wantstofly.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -22,9 +18,10 @@
 #include <linux/spi/mmc_spi.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_data/spi-ep93xx.h>
+#include <linux/gpio/machine.h>
 
-#include <mach/gpio-ep93xx.h>
-#include <mach/hardware.h>
+#include "gpio-ep93xx.h"
+#include "hardware.h"
 #include <mach/irqs.h>
 
 #include <asm/mach-types.h>
@@ -269,13 +266,15 @@ static struct spi_board_info bk3_spi_board_info[] __initdata = {
  * The all work is performed automatically by !SPI_FRAME (SFRM1) and
  * goes through CPLD
  */
-static int bk3_spi_chipselects[] __initdata = {
-	EP93XX_GPIO_LINE_F(3),
+static struct gpiod_lookup_table bk3_spi_cs_gpio_table = {
+	.dev_id = "ep93xx-spi.0",
+	.table = {
+		GPIO_LOOKUP("F", 3, "cs", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct ep93xx_spi_info bk3_spi_master __initdata = {
-	.chipselect	= bk3_spi_chipselects,
-	.num_chipselect = ARRAY_SIZE(bk3_spi_chipselects),
 	.use_dma	= 1,
 };
 
@@ -316,13 +315,17 @@ static struct spi_board_info ts72xx_spi_devices[] __initdata = {
 	},
 };
 
-static int ts72xx_spi_chipselects[] __initdata = {
-	EP93XX_GPIO_LINE_F(2),		/* DIO_17 */
+static struct gpiod_lookup_table ts72xx_spi_cs_gpio_table = {
+	.dev_id = "ep93xx-spi.0",
+	.table = {
+		/* DIO_17 */
+		GPIO_LOOKUP("F", 2, "cs", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct ep93xx_spi_info ts72xx_spi_info __initdata = {
-	.chipselect	= ts72xx_spi_chipselects,
-	.num_chipselect	= ARRAY_SIZE(ts72xx_spi_chipselects),
+	/* Intentionally left blank */
 };
 
 static void __init ts72xx_init_machine(void)
@@ -339,6 +342,7 @@ static void __init ts72xx_init_machine(void)
 	if (board_is_ts7300())
 		platform_device_register(&ts73xx_fpga_device);
 #endif
+	gpiod_add_lookup_table(&ts72xx_spi_cs_gpio_table);
 	ep93xx_register_spi(&ts72xx_spi_info, ts72xx_spi_devices,
 			    ARRAY_SIZE(ts72xx_spi_devices));
 }
@@ -398,6 +402,7 @@ static void __init bk3_init_machine(void)
 
 	ep93xx_register_eth(&ts72xx_eth_data, 1);
 
+	gpiod_add_lookup_table(&bk3_spi_cs_gpio_table);
 	ep93xx_register_spi(&bk3_spi_master, bk3_spi_board_info,
 			    ARRAY_SIZE(bk3_spi_board_info));
 

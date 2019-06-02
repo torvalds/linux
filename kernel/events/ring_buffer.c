@@ -610,8 +610,7 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
 	 * PMU requests more than one contiguous chunks of memory
 	 * for SW double buffering
 	 */
-	if ((event->pmu->capabilities & PERF_PMU_CAP_AUX_SW_DOUBLEBUF) &&
-	    !overwrite) {
+	if (!overwrite) {
 		if (!max_order)
 			return -EINVAL;
 

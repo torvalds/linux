@@ -1483,7 +1483,8 @@ static int exynos_dsi_create_connector(struct drm_encoder *encoder)
 	ret = drm_connector_init(drm, connector, &exynos_dsi_connector_funcs,
 				 DRM_MODE_CONNECTOR_DSI);
 	if (ret) {
-		DRM_ERROR("Failed to initialize connector with drm\n");
+		DRM_DEV_ERROR(dsi->dev,
+			      "Failed to initialize connector with drm\n");
 		return ret;
 	}
 
@@ -1527,7 +1528,9 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 		int ret = exynos_dsi_create_connector(encoder);
 
 		if (ret) {
-			DRM_ERROR("failed to create connector ret = %d\n", ret);
+			DRM_DEV_ERROR(dsi->dev,
+				      "failed to create connector ret = %d\n",
+				      ret);
 			drm_encoder_cleanup(encoder);
 			return ret;
 		}

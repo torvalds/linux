@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* audit.h -- Auditing support
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * Written by Rickard E. (Rik) Faith <faith@redhat.com>
- *
  */
 #ifndef _LINUX_AUDIT_H_
 #define _LINUX_AUDIT_H_
@@ -85,6 +71,29 @@ struct audit_field {
 	};
 	u32				op;
 };
+
+enum audit_ntp_type {
+	AUDIT_NTP_OFFSET,
+	AUDIT_NTP_FREQ,
+	AUDIT_NTP_STATUS,
+	AUDIT_NTP_TAI,
+	AUDIT_NTP_TICK,
+	AUDIT_NTP_ADJUST,
+
+	AUDIT_NTP_NVALS /* count */
+};
+
+#ifdef CONFIG_AUDITSYSCALL
+struct audit_ntp_val {
+	long long oldval, newval;
+};
+
+struct audit_ntp_data {
+	struct audit_ntp_val vals[AUDIT_NTP_NVALS];
+};
+#else
+struct audit_ntp_data {};
+#endif
 
 extern int is_audit_feature_set(int which);
 
@@ -365,6 +374,8 @@ extern void __audit_log_capset(const struct cred *new, const struct cred *old);
 extern void __audit_mmap_fd(int fd, int flags);
 extern void __audit_log_kern_module(char *name);
 extern void __audit_fanotify(unsigned int response);
+extern void __audit_tk_injoffset(struct timespec64 offset);
+extern void __audit_ntp_log(const struct audit_ntp_data *ad);
 
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 {
@@ -465,6 +476,39 @@ static inline void audit_fanotify(unsigned int response)
 {
 	if (!audit_dummy_context())
 		__audit_fanotify(response);
+}
+
+static inline void audit_tk_injoffset(struct timespec64 offset)
+{
+	/* ignore no-op events */
+	if (offset.tv_sec == 0 && offset.tv_nsec == 0)
+		return;
+
+	if (!audit_dummy_context())
+		__audit_tk_injoffset(offset);
+}
+
+static inline void audit_ntp_init(struct audit_ntp_data *ad)
+{
+	memset(ad, 0, sizeof(*ad));
+}
+
+static inline void audit_ntp_set_old(struct audit_ntp_data *ad,
+				     enum audit_ntp_type type, long long val)
+{
+	ad->vals[type].oldval = val;
+}
+
+static inline void audit_ntp_set_new(struct audit_ntp_data *ad,
+				     enum audit_ntp_type type, long long val)
+{
+	ad->vals[type].newval = val;
+}
+
+static inline void audit_ntp_log(const struct audit_ntp_data *ad)
+{
+	if (!audit_dummy_context())
+		__audit_ntp_log(ad);
 }
 
 extern int audit_n_rules;
@@ -578,6 +622,23 @@ static inline void audit_log_kern_module(char *name)
 }
 
 static inline void audit_fanotify(unsigned int response)
+{ }
+
+static inline void audit_tk_injoffset(struct timespec64 offset)
+{ }
+
+static inline void audit_ntp_init(struct audit_ntp_data *ad)
+{ }
+
+static inline void audit_ntp_set_old(struct audit_ntp_data *ad,
+				     enum audit_ntp_type type, long long val)
+{ }
+
+static inline void audit_ntp_set_new(struct audit_ntp_data *ad,
+				     enum audit_ntp_type type, long long val)
+{ }
+
+static inline void audit_ntp_log(const struct audit_ntp_data *ad)
 { }
 
 static inline void audit_ptrace(struct task_struct *t)

@@ -19,6 +19,8 @@ And these documents for the required sub-node binding details:
   [4] Clock: ../clock/cirrus,lochnagar.txt
   [5] Pinctrl: ../pinctrl/cirrus,lochnagar.txt
   [6] Regulator: ../regulator/cirrus,lochnagar.txt
+  [7] Sound: ../sound/cirrus,lochnagar.txt
+  [8] Hardware Monitor: ../hwmon/cirrus,lochnagar.txt
 
 Required properties:
 
@@ -40,6 +42,11 @@ Optional sub-nodes:
 
   - Bindings for the regulator components, see [6]. Only available on
     Lochnagar 2.
+
+  - lochnagar-sc : Binding for the sound card components, see [7].
+                   Only available on Lochnagar 2.
+  - lochnagar-hwmon : Binding for the hardware monitor components, see [8].
+                      Only available on Lochnagar 2.
 
 Optional properties:
 
@@ -63,6 +70,16 @@ lochnagar: lochnagar@22 {
 
 	lochnagar-pinctrl {
 		compatible = "cirrus,lochnagar-pinctrl";
+		...
+	};
+
+	lochnagar-sc {
+		compatible = "cirrus,lochnagar2-soundcard";
+		...
+	};
+
+	lochnagar-hwmon {
+		compatible = "cirrus,lochnagar2-hwmon";
 		...
 	};
 };

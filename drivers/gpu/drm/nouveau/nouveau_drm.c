@@ -631,7 +631,8 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	/* We need to check that the chipset is supported before booting
 	 * fbdev off the hardware, as there's no way to put it back.
 	 */
-	ret = nvkm_device_pci_new(pdev, NULL, "error", true, false, 0, &device);
+	ret = nvkm_device_pci_new(pdev, nouveau_config, "error",
+				  true, false, 0, &device);
 	if (ret)
 		return ret;
 
@@ -802,10 +803,15 @@ fail_display:
 static int
 nouveau_do_resume(struct drm_device *dev, bool runtime)
 {
+	int ret = 0;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	NV_DEBUG(drm, "resuming object tree...\n");
-	nvif_client_resume(&drm->master.base);
+	ret = nvif_client_resume(&drm->master.base);
+	if (ret) {
+		NV_ERROR(drm, "Client resume failed with error: %d\n", ret);
+		return ret;
+	}
 
 	NV_DEBUG(drm, "resuming fence...\n");
 	if (drm->fence && nouveau_fence(drm)->resume)
@@ -925,6 +931,7 @@ nouveau_pmops_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct nouveau_drm *drm = nouveau_drm(drm_dev);
 	struct nvif_device *device = &nouveau_drm(drm_dev)->client.device;
 	int ret;
 
@@ -941,6 +948,10 @@ nouveau_pmops_runtime_resume(struct device *dev)
 	pci_set_master(pdev);
 
 	ret = nouveau_do_resume(drm_dev, true);
+	if (ret) {
+		NV_ERROR(drm, "resume failed with: %d\n", ret);
+		return ret;
+	}
 
 	/* do magic */
 	nvif_mask(&device->object, 0x088488, (1 << 25), (1 << 25));
@@ -1094,8 +1105,11 @@ nouveau_driver_fops = {
 static struct drm_driver
 driver_stub = {
 	.driver_features =
-		DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER |
-		DRIVER_KMS_LEGACY_CONTEXT,
+		DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME | DRIVER_RENDER
+#if defined(CONFIG_NOUVEAU_LEGACY_CTX_SUPPORT)
+		| DRIVER_KMS_LEGACY_CONTEXT
+#endif
+		,
 
 	.open = nouveau_drm_open,
 	.postclose = nouveau_drm_postclose,

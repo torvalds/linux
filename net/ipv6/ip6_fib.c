@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Linux INET6 implementation
  *	Forwarding Information Database
  *
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  *
  *	Changes:
  *	Yuji SEKIYA @USAGI:	Support default route on router node;
@@ -162,7 +158,7 @@ struct fib6_info *fib6_info_alloc(gfp_t gfp_flags)
 	}
 
 	INIT_LIST_HEAD(&f6i->fib6_siblings);
-	atomic_inc(&f6i->fib6_ref);
+	refcount_set(&f6i->fib6_ref, 1);
 
 	return f6i;
 }
@@ -175,10 +171,7 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 	WARN_ON(f6i->fib6_node);
 
 	bucket = rcu_dereference_protected(f6i->rt6i_exception_bucket, 1);
-	if (bucket) {
-		f6i->rt6i_exception_bucket = NULL;
-		kfree(bucket);
-	}
+	kfree(bucket);
 
 	if (f6i->rt6i_pcpu) {
 		int cpu;
@@ -199,10 +192,7 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 		free_percpu(f6i->rt6i_pcpu);
 	}
 
-	lwtstate_put(f6i->fib6_nh.nh_lwtstate);
-
-	if (f6i->fib6_nh.nh_dev)
-		dev_put(f6i->fib6_nh.nh_dev);
+	fib6_nh_release(&f6i->fib6_nh);
 
 	ip_fib_metrics_put(f6i->fib6_metrics);
 
@@ -357,10 +347,11 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 }
 
 /* called with rcu lock held; no reference taken on fib6_info */
-struct fib6_info *fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
-			      int flags)
+int fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
+		struct fib6_result *res, int flags)
 {
-	return fib6_table_lookup(net, net->ipv6.fib6_main_tbl, oif, fl6, flags);
+	return fib6_table_lookup(net, net->ipv6.fib6_main_tbl, oif, fl6,
+				 res, flags);
 }
 
 static void __net_init fib6_tables_init(struct net *net)
@@ -851,8 +842,8 @@ insert_above:
 
 		RCU_INIT_POINTER(in->parent, pn);
 		in->leaf = fn->leaf;
-		atomic_inc(&rcu_dereference_protected(in->leaf,
-				lockdep_is_held(&table->tb6_lock))->fib6_ref);
+		fib6_info_hold(rcu_dereference_protected(in->leaf,
+				lockdep_is_held(&table->tb6_lock)));
 
 		/* update parent pointer */
 		if (dir)
@@ -909,6 +900,12 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 {
 	int cpu;
 
+	/* Make sure rt6_make_pcpu_route() wont add other percpu routes
+	 * while we are cleaning them here.
+	 */
+	f6i->fib6_destroying = 1;
+	mb(); /* paired with the cmpxchg() in rt6_make_pcpu_route() */
+
 	/* release the reference to this fib entry from
 	 * all of its cached pcpu routes
 	 */
@@ -921,9 +918,7 @@ static void fib6_drop_pcpu_from(struct fib6_info *f6i,
 		if (pcpu_rt) {
 			struct fib6_info *from;
 
-			from = rcu_dereference_protected(pcpu_rt->from,
-					     lockdep_is_held(&table->tb6_lock));
-			rcu_assign_pointer(pcpu_rt->from, NULL);
+			from = xchg((__force struct fib6_info **)&pcpu_rt->from, NULL);
 			fib6_info_release(from);
 		}
 	}
@@ -934,7 +929,10 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 {
 	struct fib6_table *table = rt->fib6_table;
 
-	if (atomic_read(&rt->fib6_ref) != 1) {
+	if (rt->rt6i_pcpu)
+		fib6_drop_pcpu_from(rt, table);
+
+	if (refcount_read(&rt->fib6_ref) != 1) {
 		/* This route is used as dummy address holder in some split
 		 * nodes. It is not leaked, but it still holds other resources,
 		 * which must be released in time. So, scan ascendant nodes
@@ -947,7 +945,7 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 			struct fib6_info *new_leaf;
 			if (!(fn->fn_flags & RTN_RTINFO) && leaf == rt) {
 				new_leaf = fib6_find_prefix(net, table, fn);
-				atomic_inc(&new_leaf->fib6_ref);
+				fib6_info_hold(new_leaf);
 
 				rcu_assign_pointer(fn->leaf, new_leaf);
 				fib6_info_release(rt);
@@ -955,9 +953,6 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 			fn = rcu_dereference_protected(fn->parent,
 				    lockdep_is_held(&table->tb6_lock));
 		}
-
-		if (rt->rt6i_pcpu)
-			fib6_drop_pcpu_from(rt, table);
 	}
 }
 
@@ -1113,7 +1108,7 @@ add:
 			return err;
 
 		rcu_assign_pointer(rt->fib6_next, iter);
-		atomic_inc(&rt->fib6_ref);
+		fib6_info_hold(rt);
 		rcu_assign_pointer(rt->fib6_node, fn);
 		rcu_assign_pointer(*ins, rt);
 		if (!info->skip_notify)
@@ -1141,7 +1136,7 @@ add:
 		if (err)
 			return err;
 
-		atomic_inc(&rt->fib6_ref);
+		fib6_info_hold(rt);
 		rcu_assign_pointer(rt->fib6_node, fn);
 		rt->fib6_next = iter->fib6_next;
 		rcu_assign_pointer(*ins, rt);
@@ -1283,7 +1278,7 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 			if (!sfn)
 				goto failure;
 
-			atomic_inc(&info->nl_net->ipv6.fib6_null_entry->fib6_ref);
+			fib6_info_hold(info->nl_net->ipv6.fib6_null_entry);
 			rcu_assign_pointer(sfn->leaf,
 					   info->nl_net->ipv6.fib6_null_entry);
 			sfn->fn_flags = RTN_ROOT;
@@ -1326,7 +1321,7 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 				rcu_assign_pointer(fn->leaf,
 					    info->nl_net->ipv6.fib6_null_entry);
 			} else {
-				atomic_inc(&rt->fib6_ref);
+				fib6_info_hold(rt);
 				rcu_assign_pointer(fn->leaf, rt);
 			}
 		}
@@ -2297,6 +2292,7 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 {
 	struct fib6_info *rt = v;
 	struct ipv6_route_iter *iter = seq->private;
+	unsigned int flags = rt->fib6_flags;
 	const struct net_device *dev;
 
 	seq_printf(seq, "%pi6 %02x ", &rt->fib6_dst.addr, rt->fib6_dst.plen);
@@ -2306,15 +2302,17 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 #else
 	seq_puts(seq, "00000000000000000000000000000000 00 ");
 #endif
-	if (rt->fib6_flags & RTF_GATEWAY)
-		seq_printf(seq, "%pi6", &rt->fib6_nh.nh_gw);
-	else
+	if (rt->fib6_nh.fib_nh_gw_family) {
+		flags |= RTF_GATEWAY;
+		seq_printf(seq, "%pi6", &rt->fib6_nh.fib_nh_gw6);
+	} else {
 		seq_puts(seq, "00000000000000000000000000000000");
+	}
 
-	dev = rt->fib6_nh.nh_dev;
+	dev = rt->fib6_nh.fib_nh_dev;
 	seq_printf(seq, " %08x %08x %08x %08x %8s\n",
-		   rt->fib6_metric, atomic_read(&rt->fib6_ref), 0,
-		   rt->fib6_flags, dev ? dev->name : "");
+		   rt->fib6_metric, refcount_read(&rt->fib6_ref), 0,
+		   flags, dev ? dev->name : "");
 	iter->w.leaf = NULL;
 	return 0;
 }

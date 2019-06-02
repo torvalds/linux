@@ -1,15 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PHYTEC phyCORE-LPC3250 board
  *
  * Copyright (C) 2015-2019 Vladimir Zapolskiy <vz@mleia.com>
  * Copyright 2012 Roland Stigge <stigge@antcom.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /dts-v1/;
@@ -134,6 +128,7 @@
 &mac {
 	phy-mode = "rmii";
 	use-iram;
+	status = "okay";
 };
 
 /* Here, choose exactly one from: ohci, usbd */
@@ -201,8 +196,6 @@
 };
 
 &ssp0 {
-	#address-cells = <1>;
-	#size-cells = <0>;
 	num-cs = <1>;
 	cs-gpios = <&gpio 3 5 0>;
 	status = "okay";

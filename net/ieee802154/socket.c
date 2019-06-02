@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IEEE802154.4 socket interface
  *
  * Copyright 2007, 2008 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Written by:
  * Sergey Lapin <slapin@ossfans.org>
@@ -164,10 +156,6 @@ static int ieee802154_sock_ioctl(struct socket *sock, unsigned int cmd,
 	struct sock *sk = sock->sk;
 
 	switch (cmd) {
-	case SIOCGSTAMP:
-		return sock_get_timestamp(sk, (struct timeval __user *)arg);
-	case SIOCGSTAMPNS:
-		return sock_get_timestampns(sk, (struct timespec __user *)arg);
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
 		return ieee802154_dev_ioctl(sk, (struct ifreq __user *)arg,
@@ -426,6 +414,7 @@ static const struct proto_ops ieee802154_raw_ops = {
 	.getname	   = sock_no_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = ieee802154_sock_ioctl,
+	.gettstamp	   = sock_gettstamp,
 	.listen		   = sock_no_listen,
 	.shutdown	   = sock_no_shutdown,
 	.setsockopt	   = sock_common_setsockopt,
@@ -988,6 +977,7 @@ static const struct proto_ops ieee802154_dgram_ops = {
 	.getname	   = sock_no_getname,
 	.poll		   = datagram_poll,
 	.ioctl		   = ieee802154_sock_ioctl,
+	.gettstamp	   = sock_gettstamp,
 	.listen		   = sock_no_listen,
 	.shutdown	   = sock_no_shutdown,
 	.setsockopt	   = sock_common_setsockopt,

@@ -70,11 +70,12 @@ static struct watchdog_ops tqmx86_wdt_ops = {
 
 static int tqmx86_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct tqmx86_wdt *priv;
 	struct resource *res;
 	int err;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -82,14 +83,13 @@ static int tqmx86_wdt_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	priv->io_base = devm_ioport_map(&pdev->dev, res->start,
-					resource_size(res));
+	priv->io_base = devm_ioport_map(dev, res->start, resource_size(res));
 	if (!priv->io_base)
 		return -ENOMEM;
 
 	watchdog_set_drvdata(&priv->wdd, priv);
 
-	priv->wdd.parent = &pdev->dev;
+	priv->wdd.parent = dev;
 	priv->wdd.info = &tqmx86_wdt_info;
 	priv->wdd.ops = &tqmx86_wdt_ops;
 	priv->wdd.min_timeout = 1;
@@ -97,16 +97,16 @@ static int tqmx86_wdt_probe(struct platform_device *pdev)
 	priv->wdd.max_hw_heartbeat_ms = 4096*1000;
 	priv->wdd.timeout = WDT_TIMEOUT;
 
-	watchdog_init_timeout(&priv->wdd, timeout, &pdev->dev);
+	watchdog_init_timeout(&priv->wdd, timeout, dev);
 	watchdog_set_nowayout(&priv->wdd, WATCHDOG_NOWAYOUT);
 
 	tqmx86_wdt_set_timeout(&priv->wdd, priv->wdd.timeout);
 
-	err = devm_watchdog_register_device(&pdev->dev, &priv->wdd);
+	err = devm_watchdog_register_device(dev, &priv->wdd);
 	if (err)
 		return err;
 
-	dev_info(&pdev->dev, "TQMx86 watchdog\n");
+	dev_info(dev, "TQMx86 watchdog\n");
 
 	return 0;
 }

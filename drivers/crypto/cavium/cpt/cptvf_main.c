@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/interrupt.h>
@@ -641,7 +638,7 @@ static void cptvf_write_vq_saddr(struct cpt_vf *cptvf, u64 val)
 	cpt_write_csr64(cptvf->reg_base, CPTX_VQX_SADDR(0, 0), vqx_saddr.u);
 }
 
-void cptvf_device_init(struct cpt_vf *cptvf)
+static void cptvf_device_init(struct cpt_vf *cptvf)
 {
 	u64 base_addr = 0;
 

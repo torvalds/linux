@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * eCryptfs: Linux filesystem encryption layer
  * In-kernel key management code.  Includes functions to parse and
@@ -8,21 +9,6 @@
  *   Author(s): Michael A. Halcrow <mhalcrow@us.ibm.com>
  *              Michael C. Thompson <mcthomps@us.ibm.com>
  *              Trevor S. Highland <trevor.highland@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
  */
 
 #include <crypto/hash.h>
@@ -769,7 +755,6 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 	}
 
 	s->hash_desc->tfm = s->hash_tfm;
-	s->hash_desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	rc = crypto_shash_digest(s->hash_desc,
 				 (u8 *)s->auth_tok->token.password.session_key_encryption_key,

@@ -69,7 +69,6 @@ __u16 crc_t10dif_update(__u16 crc, const unsigned char *buffer, size_t len)
 
 	rcu_read_lock();
 	desc.shash.tfm = rcu_dereference(crct10dif_tfm);
-	desc.shash.flags = 0;
 	*(__u16 *)desc.ctx = crc;
 
 	err = crypto_shash_update(&desc.shash, buffer, len);

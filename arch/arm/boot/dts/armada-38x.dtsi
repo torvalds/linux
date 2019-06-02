@@ -415,6 +415,8 @@
 				reg = <0x20300 0x34>, <0x20704 0x4>, <0x18260 0x4>;
 				clocks = <&coreclk 2>, <&refclk>;
 				clock-names = "nbclk", "fixed";
+				interrupts-extended = <&gic GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>,
+						      <&gic GIC_SPI  9 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			cpurst: cpurst@20800 {

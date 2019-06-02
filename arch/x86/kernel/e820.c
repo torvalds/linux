@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Low level x86 E820 memory map handling functions.
  *
@@ -73,12 +74,13 @@ EXPORT_SYMBOL(pci_mem_start);
  * This function checks if any part of the range <start,end> is mapped
  * with type.
  */
-bool e820__mapped_any(u64 start, u64 end, enum e820_type type)
+static bool _e820__mapped_any(struct e820_table *table,
+			      u64 start, u64 end, enum e820_type type)
 {
 	int i;
 
-	for (i = 0; i < e820_table->nr_entries; i++) {
-		struct e820_entry *entry = &e820_table->entries[i];
+	for (i = 0; i < table->nr_entries; i++) {
+		struct e820_entry *entry = &table->entries[i];
 
 		if (type && entry->type != type)
 			continue;
@@ -87,6 +89,17 @@ bool e820__mapped_any(u64 start, u64 end, enum e820_type type)
 		return 1;
 	}
 	return 0;
+}
+
+bool e820__mapped_raw_any(u64 start, u64 end, enum e820_type type)
+{
+	return _e820__mapped_any(e820_table_firmware, start, end, type);
+}
+EXPORT_SYMBOL_GPL(e820__mapped_raw_any);
+
+bool e820__mapped_any(u64 start, u64 end, enum e820_type type)
+{
+	return _e820__mapped_any(e820_table, start, end, type);
 }
 EXPORT_SYMBOL_GPL(e820__mapped_any);
 

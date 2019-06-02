@@ -11,11 +11,11 @@ size_t ipl_block_get_ascii_vmparm(char *dest, size_t size,
 	char has_lowercase = 0;
 
 	len = 0;
-	if ((ipb->ipl_info.ccw.vm_flags & DIAG308_VM_FLAGS_VP_VALID) &&
-	    (ipb->ipl_info.ccw.vm_parm_len > 0)) {
+	if ((ipb->ccw.vm_flags & IPL_PB0_CCW_VM_FLAG_VP) &&
+	    (ipb->ccw.vm_parm_len > 0)) {
 
-		len = min_t(size_t, size - 1, ipb->ipl_info.ccw.vm_parm_len);
-		memcpy(dest, ipb->ipl_info.ccw.vm_parm, len);
+		len = min_t(size_t, size - 1, ipb->ccw.vm_parm_len);
+		memcpy(dest, ipb->ccw.vm_parm, len);
 		/* If at least one character is lowercase, we assume mixed
 		 * case; otherwise we convert everything to lowercase.
 		 */

@@ -95,10 +95,10 @@ struct resource_funcs {
 	void (*link_init)(struct dc_link *link);
 	struct link_encoder *(*link_enc_create)(
 			const struct encoder_init_data *init);
-
 	bool (*validate_bandwidth)(
 					struct dc *dc,
-					struct dc_state *context);
+					struct dc_state *context,
+					bool fast_validate);
 
 	enum dc_status (*validate_global)(
 		struct dc *dc,
@@ -144,8 +144,7 @@ struct resource_pool {
 	struct stream_encoder *stream_enc[MAX_PIPES * 2];
 	struct hubbub *hubbub;
 	struct mpc *mpc;
-	struct pp_smu_funcs_rv *pp_smu;
-	struct pp_smu_display_requirement_rv pp_smu_req;
+	struct pp_smu_funcs *pp_smu;
 	struct dce_aux *engines[MAX_PIPES];
 	struct dce_i2c_hw *hw_i2cs[MAX_PIPES];
 	struct dce_i2c_sw *sw_i2cs[MAX_PIPES];
@@ -154,7 +153,12 @@ struct resource_pool {
 	unsigned int pipe_count;
 	unsigned int underlay_pipe_index;
 	unsigned int stream_enc_count;
-	unsigned int ref_clock_inKhz;
+
+	struct {
+		unsigned int xtalin_clock_inKhz;
+		unsigned int dccg_ref_clock_inKhz;
+		unsigned int dchub_ref_clock_inKhz;
+	} ref_clocks;
 	unsigned int timing_generator_count;
 
 	/*
@@ -262,18 +266,22 @@ struct dcn_bw_output {
 	struct dcn_watermark_set watermarks;
 };
 
-union bw_context {
+union bw_output {
 	struct dcn_bw_output dcn;
 	struct dce_bw_output dce;
 };
 
+struct bw_context {
+	union bw_output bw;
+	struct display_mode_lib dml;
+};
 /**
  * struct dc_state - The full description of a state requested by a user
  *
  * @streams: Stream properties
  * @stream_status: The planes on a given stream
  * @res_ctx: Persistent state of resources
- * @bw: The output from bandwidth and watermark calculations
+ * @bw_ctx: The output from bandwidth and watermark calculations and the DML
  * @pp_display_cfg: PowerPlay clocks and settings
  * @dcn_bw_vars: non-stack memory to support bandwidth calculations
  *
@@ -285,7 +293,7 @@ struct dc_state {
 
 	struct resource_context res_ctx;
 
-	union bw_context bw;
+	struct bw_context bw_ctx;
 
 	/* Note: these are big structures, do *not* put on stack! */
 	struct dm_pp_display_configuration pp_display_cfg;
@@ -293,7 +301,11 @@ struct dc_state {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 
-	struct clk_mgr *dccg;
+	struct clk_mgr *clk_mgr;
+
+	struct {
+		bool full_update_needed : 1;
+	} commit_hints;
 
 	struct kref refcount;
 };

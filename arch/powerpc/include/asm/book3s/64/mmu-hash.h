@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_
 #define _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_
 /*
@@ -5,11 +6,6 @@
  *
  * Dave Engebretsen & Mike Corrigan <{engebret|mikejc}@us.ibm.com>
  *   PPC64 rework.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <asm/page.h>
@@ -588,7 +584,8 @@ extern void slb_set_size(u16 size);
 #endif
 
 #define MAX_VMALLOC_CTX_CNT	1
-#define MAX_MEMMAP_CTX_CNT	1
+#define MAX_IO_CTX_CNT		1
+#define MAX_VMEMMAP_CTX_CNT	1
 
 /*
  * 256MB segment
@@ -601,13 +598,10 @@ extern void slb_set_size(u16 size);
  * would give a protovsid of 0x1fffffffff. That will result in a VSID 0
  * because of the modulo operation in vsid scramble.
  *
- * We add one extra context to MIN_USER_CONTEXT so that we can map kernel
- * context easily. The +1 is to map the unused 0xe region mapping.
  */
 #define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 2)
 #define MIN_USER_CONTEXT	(MAX_KERNEL_CTX_CNT + MAX_VMALLOC_CTX_CNT + \
-				 MAX_MEMMAP_CTX_CNT + 2)
-
+				 MAX_IO_CTX_CNT + MAX_VMEMMAP_CTX_CNT)
 /*
  * For platforms that support on 65bit VA we limit the context bits
  */
@@ -657,8 +651,8 @@ extern void slb_set_size(u16 size);
 
 /* 4 bits per slice and we have one slice per 1TB */
 #define SLICE_ARRAY_SIZE	(H_PGTABLE_RANGE >> 41)
-#define TASK_SLICE_ARRAY_SZ(x)	((x)->context.slb_addr_limit >> 41)
-
+#define LOW_SLICE_ARRAY_SZ	(BITS_PER_LONG / BITS_PER_BYTE)
+#define TASK_SLICE_ARRAY_SZ(x)	((x)->hash_context->slb_addr_limit >> 41)
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_PPC_SUBPAGE_PROT
@@ -687,11 +681,40 @@ struct subpage_prot_table {
 #define SBP_L3_SHIFT		(SBP_L2_SHIFT + SBP_L2_BITS)
 
 extern void subpage_prot_free(struct mm_struct *mm);
-extern void subpage_prot_init_new_context(struct mm_struct *mm);
 #else
 static inline void subpage_prot_free(struct mm_struct *mm) {}
-static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
 #endif /* CONFIG_PPC_SUBPAGE_PROT */
+
+/*
+ * One bit per slice. We have lower slices which cover 256MB segments
+ * upto 4G range. That gets us 16 low slices. For the rest we track slices
+ * in 1TB size.
+ */
+struct slice_mask {
+	u64 low_slices;
+	DECLARE_BITMAP(high_slices, SLICE_NUM_HIGH);
+};
+
+struct hash_mm_context {
+	u16 user_psize; /* page size index */
+
+	/* SLB page size encodings*/
+	unsigned char low_slices_psize[LOW_SLICE_ARRAY_SZ];
+	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
+	unsigned long slb_addr_limit;
+#ifdef CONFIG_PPC_64K_PAGES
+	struct slice_mask mask_64k;
+#endif
+	struct slice_mask mask_4k;
+#ifdef CONFIG_HUGETLB_PAGE
+	struct slice_mask mask_16m;
+	struct slice_mask mask_16g;
+#endif
+
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+	struct subpage_prot_table *spt;
+#endif /* CONFIG_PPC_SUBPAGE_PROT */
+};
 
 #if 0
 /*
@@ -747,7 +770,7 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 	/*
 	 * Bad address. We return VSID 0 for that
 	 */
-	if ((ea & ~REGION_MASK) >= H_PGTABLE_RANGE)
+	if ((ea & EA_MASK)  >= H_PGTABLE_RANGE)
 		return 0;
 
 	if (!mmu_has_feature(MMU_FTR_68_BIT_VA))
@@ -774,28 +797,29 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
  * 0x00002 -  [ 0xc002000000000000 - 0xc003ffffffffffff]
  * 0x00003 -  [ 0xc004000000000000 - 0xc005ffffffffffff]
  * 0x00004 -  [ 0xc006000000000000 - 0xc007ffffffffffff]
-
- * 0x00005 -  [ 0xd000000000000000 - 0xd001ffffffffffff ]
- * 0x00006 -  Not used - Can map 0xe000000000000000 range.
- * 0x00007 -  [ 0xf000000000000000 - 0xf001ffffffffffff ]
  *
- * So we can compute the context from the region (top nibble) by
- * subtracting 11, or 0xc - 1.
+ * vmap, IO, vmemap
+ *
+ * 0x00005 -  [ 0xc008000000000000 - 0xc009ffffffffffff]
+ * 0x00006 -  [ 0xc00a000000000000 - 0xc00bffffffffffff]
+ * 0x00007 -  [ 0xc00c000000000000 - 0xc00dffffffffffff]
+ *
  */
 static inline unsigned long get_kernel_context(unsigned long ea)
 {
-	unsigned long region_id = REGION_ID(ea);
+	unsigned long region_id = get_region_id(ea);
 	unsigned long ctx;
 	/*
-	 * For linear mapping we do support multiple context
+	 * Depending on Kernel config, kernel region can have one context
+	 * or more.
 	 */
-	if (region_id == KERNEL_REGION_ID) {
+	if (region_id == LINEAR_MAP_REGION_ID) {
 		/*
 		 * We already verified ea to be not beyond the addr limit.
 		 */
-		ctx =  1 + ((ea & ~REGION_MASK) >> MAX_EA_BITS_PER_CONTEXT);
+		ctx =  1 + ((ea & EA_MASK) >> MAX_EA_BITS_PER_CONTEXT);
 	} else
-		ctx = (region_id - 0xc) + MAX_KERNEL_CTX_CNT;
+		ctx = region_id + MAX_KERNEL_CTX_CNT - 1;
 	return ctx;
 }
 

@@ -12,6 +12,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 

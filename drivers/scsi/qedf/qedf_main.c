@@ -124,21 +124,24 @@ static bool qedf_initiate_fipvlan_req(struct qedf_ctx *qedf)
 {
 	int rc;
 
-	if (atomic_read(&qedf->link_state) != QEDF_LINK_UP) {
-		QEDF_ERR(&(qedf->dbg_ctx), "Link not up.\n");
-		return  false;
-	}
-
 	while (qedf->fipvlan_retries--) {
+		/* This is to catch if link goes down during fipvlan retries */
+		if (atomic_read(&qedf->link_state) == QEDF_LINK_DOWN) {
+			QEDF_ERR(&qedf->dbg_ctx, "Link not up.\n");
+			return false;
+		}
+
 		if (qedf->vlan_id > 0)
 			return true;
+
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
 			   "Retry %d.\n", qedf->fipvlan_retries);
 		init_completion(&qedf->fipvlan_compl);
 		qedf_fcoe_send_vlan_req(qedf);
 		rc = wait_for_completion_timeout(&qedf->fipvlan_compl,
 		    1 * HZ);
-		if (rc > 0) {
+		if (rc > 0 &&
+		    (atomic_read(&qedf->link_state) == QEDF_LINK_UP)) {
 			fcoe_ctlr_link_up(&qedf->ctlr);
 			return true;
 		}
@@ -153,12 +156,19 @@ static void qedf_handle_link_update(struct work_struct *work)
 	    container_of(work, struct qedf_ctx, link_update.work);
 	int rc;
 
-	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC, "Entered.\n");
+	QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC, "Entered. link_state=%d.\n",
+		  atomic_read(&qedf->link_state));
 
 	if (atomic_read(&qedf->link_state) == QEDF_LINK_UP) {
 		rc = qedf_initiate_fipvlan_req(qedf);
 		if (rc)
 			return;
+
+		if (atomic_read(&qedf->link_state) != QEDF_LINK_UP) {
+			qedf->vlan_id = 0;
+			return;
+		}
+
 		/*
 		 * If we get here then we never received a repsonse to our
 		 * fip vlan request so set the vlan_id to the default and
@@ -185,7 +195,9 @@ static void qedf_handle_link_update(struct work_struct *work)
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
 		    "Calling fcoe_ctlr_link_down().\n");
 		fcoe_ctlr_link_down(&qedf->ctlr);
-		qedf_wait_for_upload(qedf);
+		if (qedf_wait_for_upload(qedf) == false)
+			QEDF_ERR(&qedf->dbg_ctx,
+				 "Could not upload all sessions.\n");
 		/* Reset the number of FIP VLAN retries */
 		qedf->fipvlan_retries = qedf_fipvlan_retries;
 	}
@@ -615,50 +627,113 @@ static struct scsi_transport_template *qedf_fc_vport_transport_template;
 static int qedf_eh_abort(struct scsi_cmnd *sc_cmd)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
-	struct fc_rport_libfc_priv *rp = rport->dd_data;
-	struct qedf_rport *fcport;
 	struct fc_lport *lport;
 	struct qedf_ctx *qedf;
 	struct qedf_ioreq *io_req;
+	struct fc_rport_libfc_priv *rp = rport->dd_data;
+	struct fc_rport_priv *rdata;
+	struct qedf_rport *fcport = NULL;
 	int rc = FAILED;
+	int wait_count = 100;
+	int refcount = 0;
 	int rval;
-
-	if (fc_remote_port_chkready(rport)) {
-		QEDF_ERR(NULL, "rport not ready\n");
-		goto out;
-	}
+	int got_ref = 0;
 
 	lport = shost_priv(sc_cmd->device->host);
 	qedf = (struct qedf_ctx *)lport_priv(lport);
 
-	if ((lport->state != LPORT_ST_READY) || !(lport->link_up)) {
-		QEDF_ERR(&(qedf->dbg_ctx), "link not ready.\n");
+	/* rport and tgt are allocated together, so tgt should be non-NULL */
+	fcport = (struct qedf_rport *)&rp[1];
+	rdata = fcport->rdata;
+	if (!rdata || !kref_get_unless_zero(&rdata->kref)) {
+		QEDF_ERR(&qedf->dbg_ctx, "stale rport, sc_cmd=%p\n", sc_cmd);
+		rc = 1;
 		goto out;
 	}
 
-	fcport = (struct qedf_rport *)&rp[1];
 
 	io_req = (struct qedf_ioreq *)sc_cmd->SCp.ptr;
 	if (!io_req) {
-		QEDF_ERR(&(qedf->dbg_ctx), "io_req is NULL.\n");
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "sc_cmd not queued with lld, sc_cmd=%p op=0x%02x, port_id=%06x\n",
+			 sc_cmd, sc_cmd->cmnd[0],
+			 rdata->ids.port_id);
 		rc = SUCCESS;
-		goto out;
+		goto drop_rdata_kref;
 	}
 
-	QEDF_ERR(&(qedf->dbg_ctx), "Aborting io_req sc_cmd=%p xid=0x%x "
-		  "fp_idx=%d.\n", sc_cmd, io_req->xid, io_req->fp_idx);
+	rval = kref_get_unless_zero(&io_req->refcount);	/* ID: 005 */
+	if (rval)
+		got_ref = 1;
+
+	/* If we got a valid io_req, confirm it belongs to this sc_cmd. */
+	if (!rval || io_req->sc_cmd != sc_cmd) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "Freed/Incorrect io_req, io_req->sc_cmd=%p, sc_cmd=%p, port_id=%06x, bailing out.\n",
+			 io_req->sc_cmd, sc_cmd, rdata->ids.port_id);
+
+		goto drop_rdata_kref;
+	}
+
+	if (fc_remote_port_chkready(rport)) {
+		refcount = kref_read(&io_req->refcount);
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "rport not ready, io_req=%p, xid=0x%x sc_cmd=%p op=0x%02x, refcount=%d, port_id=%06x\n",
+			 io_req, io_req->xid, sc_cmd, sc_cmd->cmnd[0],
+			 refcount, rdata->ids.port_id);
+
+		goto drop_rdata_kref;
+	}
+
+	rc = fc_block_scsi_eh(sc_cmd);
+	if (rc)
+		goto drop_rdata_kref;
+
+	if (test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "Connection uploading, xid=0x%x., port_id=%06x\n",
+			 io_req->xid, rdata->ids.port_id);
+		while (io_req->sc_cmd && (wait_count != 0)) {
+			msleep(100);
+			wait_count--;
+		}
+		if (wait_count) {
+			QEDF_ERR(&qedf->dbg_ctx, "ABTS succeeded\n");
+			rc = SUCCESS;
+		} else {
+			QEDF_ERR(&qedf->dbg_ctx, "ABTS failed\n");
+			rc = FAILED;
+		}
+		goto drop_rdata_kref;
+	}
+
+	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
+		QEDF_ERR(&qedf->dbg_ctx, "link not ready.\n");
+		goto drop_rdata_kref;
+	}
+
+	QEDF_ERR(&qedf->dbg_ctx,
+		 "Aborting io_req=%p sc_cmd=%p xid=0x%x fp_idx=%d, port_id=%06x.\n",
+		 io_req, sc_cmd, io_req->xid, io_req->fp_idx,
+		 rdata->ids.port_id);
 
 	if (qedf->stop_io_on_error) {
 		qedf_stop_all_io(qedf);
 		rc = SUCCESS;
-		goto out;
+		goto drop_rdata_kref;
 	}
 
 	init_completion(&io_req->abts_done);
 	rval = qedf_initiate_abts(io_req, true);
 	if (rval) {
 		QEDF_ERR(&(qedf->dbg_ctx), "Failed to queue ABTS.\n");
-		goto out;
+		/*
+		 * If we fail to queue the ABTS then return this command to
+		 * the SCSI layer as it will own and free the xid
+		 */
+		rc = SUCCESS;
+		qedf_scsi_done(qedf, io_req, DID_ERROR);
+		goto drop_rdata_kref;
 	}
 
 	wait_for_completion(&io_req->abts_done);
@@ -684,38 +759,68 @@ static int qedf_eh_abort(struct scsi_cmnd *sc_cmd)
 		QEDF_ERR(&(qedf->dbg_ctx), "ABTS failed, xid=0x%x.\n",
 			  io_req->xid);
 
+drop_rdata_kref:
+	kref_put(&rdata->kref, fc_rport_destroy);
 out:
+	if (got_ref)
+		kref_put(&io_req->refcount, qedf_release_cmd);
 	return rc;
 }
 
 static int qedf_eh_target_reset(struct scsi_cmnd *sc_cmd)
 {
-	QEDF_ERR(NULL, "TARGET RESET Issued...");
+	QEDF_ERR(NULL, "%d:0:%d:%lld: TARGET RESET Issued...",
+		 sc_cmd->device->host->host_no, sc_cmd->device->id,
+		 sc_cmd->device->lun);
 	return qedf_initiate_tmf(sc_cmd, FCP_TMF_TGT_RESET);
 }
 
 static int qedf_eh_device_reset(struct scsi_cmnd *sc_cmd)
 {
-	QEDF_ERR(NULL, "LUN RESET Issued...\n");
+	QEDF_ERR(NULL, "%d:0:%d:%lld: LUN RESET Issued... ",
+		 sc_cmd->device->host->host_no, sc_cmd->device->id,
+		 sc_cmd->device->lun);
 	return qedf_initiate_tmf(sc_cmd, FCP_TMF_LUN_RESET);
 }
 
-void qedf_wait_for_upload(struct qedf_ctx *qedf)
+bool qedf_wait_for_upload(struct qedf_ctx *qedf)
 {
-	while (1) {
+	struct qedf_rport *fcport = NULL;
+	int wait_cnt = 120;
+
+	while (wait_cnt--) {
 		if (atomic_read(&qedf->num_offloads))
-			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-			    "Waiting for all uploads to complete.\n");
+			QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
+				  "Waiting for all uploads to complete num_offloads = 0x%x.\n",
+				  atomic_read(&qedf->num_offloads));
 		else
-			break;
+			return true;
 		msleep(500);
 	}
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(fcport, &qedf->fcports, peers) {
+		if (fcport && test_bit(QEDF_RPORT_SESSION_READY,
+				       &fcport->flags)) {
+			if (fcport->rdata)
+				QEDF_ERR(&qedf->dbg_ctx,
+					 "Waiting for fcport %p portid=%06x.\n",
+					 fcport, fcport->rdata->ids.port_id);
+			} else {
+				QEDF_ERR(&qedf->dbg_ctx,
+					 "Waiting for fcport %p.\n", fcport);
+			}
+	}
+	rcu_read_unlock();
+	return false;
+
 }
 
 /* Performs soft reset of qedf_ctx by simulating a link down/up */
-static void qedf_ctx_soft_reset(struct fc_lport *lport)
+void qedf_ctx_soft_reset(struct fc_lport *lport)
 {
 	struct qedf_ctx *qedf;
+	struct qed_link_output if_link;
 
 	if (lport->vport) {
 		QEDF_ERR(NULL, "Cannot issue host reset on NPIV port.\n");
@@ -726,11 +831,32 @@ static void qedf_ctx_soft_reset(struct fc_lport *lport)
 
 	/* For host reset, essentially do a soft link up/down */
 	atomic_set(&qedf->link_state, QEDF_LINK_DOWN);
+	QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
+		  "Queuing link down work.\n");
 	queue_delayed_work(qedf->link_update_wq, &qedf->link_update,
 	    0);
-	qedf_wait_for_upload(qedf);
+
+	if (qedf_wait_for_upload(qedf) == false) {
+		QEDF_ERR(&qedf->dbg_ctx, "Could not upload all sessions.\n");
+		WARN_ON(atomic_read(&qedf->num_offloads));
+	}
+
+	/* Before setting link up query physical link state */
+	qed_ops->common->get_link(qedf->cdev, &if_link);
+	/* Bail if the physical link is not up */
+	if (!if_link.link_up) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
+			  "Physical link is not up.\n");
+		return;
+	}
+	/* Flush and wait to make sure link down is processed */
+	flush_delayed_work(&qedf->link_update);
+	msleep(500);
+
 	atomic_set(&qedf->link_state, QEDF_LINK_UP);
 	qedf->vlan_id  = 0;
+	QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_DISC,
+		  "Queue link up work.\n");
 	queue_delayed_work(qedf->link_update_wq, &qedf->link_update,
 	    0);
 }
@@ -740,22 +866,6 @@ static int qedf_eh_host_reset(struct scsi_cmnd *sc_cmd)
 {
 	struct fc_lport *lport;
 	struct qedf_ctx *qedf;
-	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
-	struct fc_rport_libfc_priv *rp = rport->dd_data;
-	struct qedf_rport *fcport = (struct qedf_rport *)&rp[1];
-	int rval;
-
-	rval = fc_remote_port_chkready(rport);
-
-	if (rval) {
-		QEDF_ERR(NULL, "device_reset rport not ready\n");
-		return FAILED;
-	}
-
-	if (fcport == NULL) {
-		QEDF_ERR(NULL, "device_reset: rport is NULL\n");
-		return FAILED;
-	}
 
 	lport = shost_priv(sc_cmd->device->host);
 	qedf = lport_priv(lport);
@@ -907,8 +1017,10 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 		    "Dropping FCoE frame to %06x.\n", ntoh24(fh->fh_d_id));
 		kfree_skb(skb);
 		rdata = fc_rport_lookup(lport, ntoh24(fh->fh_d_id));
-		if (rdata)
+		if (rdata) {
 			rdata->retries = lport->max_rport_retry_count;
+			kref_put(&rdata->kref, fc_rport_destroy);
+		}
 		return -EINVAL;
 	}
 	/* End NPIV filtering */
@@ -1031,7 +1143,12 @@ static int qedf_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	if (qedf_dump_frames)
 		print_hex_dump(KERN_WARNING, "fcoe: ", DUMP_PREFIX_OFFSET, 16,
 		    1, skb->data, skb->len, false);
-	qed_ops->ll2->start_xmit(qedf->cdev, skb, 0);
+	rc = qed_ops->ll2->start_xmit(qedf->cdev, skb, 0);
+	if (rc) {
+		QEDF_ERR(&qedf->dbg_ctx, "start_xmit failed rc = %d.\n", rc);
+		kfree_skb(skb);
+		return rc;
+	}
 
 	return 0;
 }
@@ -1224,6 +1341,8 @@ static void qedf_upload_connection(struct qedf_ctx *qedf,
 static void qedf_cleanup_fcport(struct qedf_ctx *qedf,
 	struct qedf_rport *fcport)
 {
+	struct fc_rport_priv *rdata = fcport->rdata;
+
 	QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_CONN, "Cleaning up portid=%06x.\n",
 	    fcport->rdata->ids.port_id);
 
@@ -1235,6 +1354,7 @@ static void qedf_cleanup_fcport(struct qedf_ctx *qedf,
 	qedf_free_sq(qedf, fcport);
 	fcport->rdata = NULL;
 	fcport->qedf = NULL;
+	kref_put(&rdata->kref, fc_rport_destroy);
 }
 
 /**
@@ -1310,6 +1430,8 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 			break;
 		}
 
+		/* Initial reference held on entry, so this can't fail */
+		kref_get(&rdata->kref);
 		fcport->rdata = rdata;
 		fcport->rport = rport;
 
@@ -1369,11 +1491,15 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 		 */
 		fcport = (struct qedf_rport *)&rp[1];
 
+		spin_lock_irqsave(&fcport->rport_lock, flags);
 		/* Only free this fcport if it is offloaded already */
-		if (test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
-			set_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags);
+		if (test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags) &&
+		    !test_bit(QEDF_RPORT_UPLOADING_CONNECTION,
+		    &fcport->flags)) {
+			set_bit(QEDF_RPORT_UPLOADING_CONNECTION,
+				&fcport->flags);
+			spin_unlock_irqrestore(&fcport->rport_lock, flags);
 			qedf_cleanup_fcport(qedf, fcport);
-
 			/*
 			 * Remove fcport to list of qedf_ctx list of offloaded
 			 * ports
@@ -1385,8 +1511,9 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 			clear_bit(QEDF_RPORT_UPLOADING_CONNECTION,
 			    &fcport->flags);
 			atomic_dec(&qedf->num_offloads);
+		} else {
+			spin_unlock_irqrestore(&fcport->rport_lock, flags);
 		}
-
 		break;
 
 	case RPORT_EV_NONE:
@@ -1498,11 +1625,15 @@ static int qedf_lport_setup(struct qedf_ctx *qedf)
 	fc_set_wwnn(lport, qedf->wwnn);
 	fc_set_wwpn(lport, qedf->wwpn);
 
-	fcoe_libfc_config(lport, &qedf->ctlr, &qedf_lport_template, 0);
+	if (fcoe_libfc_config(lport, &qedf->ctlr, &qedf_lport_template, 0)) {
+		QEDF_ERR(&qedf->dbg_ctx,
+			 "fcoe_libfc_config failed.\n");
+		return -ENOMEM;
+	}
 
 	/* Allocate the exchange manager */
-	fc_exch_mgr_alloc(lport, FC_CLASS_3, qedf->max_scsi_xid + 1,
-	    qedf->max_els_xid, NULL);
+	fc_exch_mgr_alloc(lport, FC_CLASS_3, FCOE_PARAMS_NUM_TASKS,
+			  0xfffe, NULL);
 
 	if (fc_lport_init_stats(lport))
 		return -ENOMEM;
@@ -1625,14 +1756,15 @@ static int qedf_vport_create(struct fc_vport *vport, bool disabled)
 	vport_qedf->wwpn = vn_port->wwpn;
 
 	vn_port->host->transportt = qedf_fc_vport_transport_template;
-	vn_port->host->can_queue = QEDF_MAX_ELS_XID;
+	vn_port->host->can_queue = FCOE_PARAMS_NUM_TASKS;
 	vn_port->host->max_lun = qedf_max_lun;
 	vn_port->host->sg_tablesize = QEDF_MAX_BDS_PER_CMD;
 	vn_port->host->max_cmd_len = QEDF_MAX_CDB_LEN;
 
 	rc = scsi_add_host(vn_port->host, &vport->dev);
 	if (rc) {
-		QEDF_WARN(&(base_qedf->dbg_ctx), "Error adding Scsi_Host.\n");
+		QEDF_WARN(&base_qedf->dbg_ctx,
+			  "Error adding Scsi_Host rc=0x%x.\n", rc);
 		goto err2;
 	}
 
@@ -2155,7 +2287,8 @@ static int qedf_setup_int(struct qedf_ctx *qedf)
 	    QEDF_SIMD_HANDLER_NUM, qedf_simd_int_handler);
 	qedf->int_info.used_cnt = 1;
 
-	QEDF_ERR(&qedf->dbg_ctx, "Only MSI-X supported. Failing probe.\n");
+	QEDF_ERR(&qedf->dbg_ctx,
+		 "Cannot load driver due to a lack of MSI-X vectors.\n");
 	return -EINVAL;
 }
 
@@ -2355,6 +2488,13 @@ static int qedf_ll2_rx(void *cookie, struct sk_buff *skb,
 {
 	struct qedf_ctx *qedf = (struct qedf_ctx *)cookie;
 	struct qedf_skb_work *skb_work;
+
+	if (atomic_read(&qedf->link_state) == QEDF_LINK_DOWN) {
+		QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_LL2,
+			  "Dropping frame as link state is down.\n");
+		kfree_skb(skb);
+		return 0;
+	}
 
 	skb_work = kzalloc(sizeof(struct qedf_skb_work), GFP_ATOMIC);
 	if (!skb_work) {
@@ -2990,6 +3130,8 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 			goto err0;
 		}
 
+		fc_disc_init(lport);
+
 		/* Initialize qedf_ctx */
 		qedf = lport_priv(lport);
 		qedf->lport = lport;
@@ -3005,6 +3147,7 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 		pci_set_drvdata(pdev, qedf);
 		init_completion(&qedf->fipvlan_compl);
 		mutex_init(&qedf->stats_mutex);
+		mutex_init(&qedf->flush_mutex);
 
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_INFO,
 		   "QLogic FastLinQ FCoE Module qedf %s, "
@@ -3181,11 +3324,6 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	sprintf(host_buf, "host_%d", host->host_no);
 	qed_ops->common->set_name(qedf->cdev, host_buf);
 
-
-	/* Set xid max values */
-	qedf->max_scsi_xid = QEDF_MAX_SCSI_XID;
-	qedf->max_els_xid = QEDF_MAX_ELS_XID;
-
 	/* Allocate cmd mgr */
 	qedf->cmd_mgr = qedf_cmd_mgr_alloc(qedf);
 	if (!qedf->cmd_mgr) {
@@ -3196,12 +3334,15 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 
 	if (mode != QEDF_MODE_RECOVERY) {
 		host->transportt = qedf_fc_transport_template;
-		host->can_queue = QEDF_MAX_ELS_XID;
 		host->max_lun = qedf_max_lun;
 		host->max_cmd_len = QEDF_MAX_CDB_LEN;
+		host->can_queue = FCOE_PARAMS_NUM_TASKS;
 		rc = scsi_add_host(host, &pdev->dev);
-		if (rc)
+		if (rc) {
+			QEDF_WARN(&qedf->dbg_ctx,
+				  "Error adding Scsi_Host rc=0x%x.\n", rc);
 			goto err6;
+		}
 	}
 
 	memset(&params, 0, sizeof(params));
@@ -3377,7 +3518,9 @@ static void __qedf_remove(struct pci_dev *pdev, int mode)
 		fcoe_ctlr_link_down(&qedf->ctlr);
 	else
 		fc_fabric_logoff(qedf->lport);
-	qedf_wait_for_upload(qedf);
+
+	if (qedf_wait_for_upload(qedf) == false)
+		QEDF_ERR(&qedf->dbg_ctx, "Could not upload all sessions.\n");
 
 #ifdef CONFIG_DEBUG_FS
 	qedf_dbg_host_exit(&(qedf->dbg_ctx));

@@ -65,9 +65,6 @@
 extern int qxl_num_crtc;
 extern int qxl_max_ioctls;
 
-#define DRM_FILE_OFFSET 0x100000000ULL
-#define DRM_FILE_PAGE_OFFSET (DRM_FILE_OFFSET >> PAGE_SHIFT)
-
 #define QXL_INTERRUPT_MASK (\
 	QXL_INTERRUPT_DISPLAY |\
 	QXL_INTERRUPT_CURSOR |\

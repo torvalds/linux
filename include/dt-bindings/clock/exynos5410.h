@@ -36,6 +36,7 @@
 #define CLK_UART0		257
 #define CLK_UART1		258
 #define CLK_UART2		259
+#define CLK_UART3		260
 #define CLK_I2C0		261
 #define CLK_I2C1		262
 #define CLK_I2C2		263
@@ -44,7 +45,7 @@
 #define CLK_USI1		266
 #define CLK_USI2		267
 #define CLK_USI3		268
-#define CLK_UART3		260
+#define CLK_TSADC		270
 #define CLK_PWM			279
 #define CLK_MCT			315
 #define CLK_WDT			316

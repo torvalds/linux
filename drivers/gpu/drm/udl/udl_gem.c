@@ -203,7 +203,7 @@ int udl_gem_mmap(struct drm_file *file, struct drm_device *dev,
 {
 	struct udl_gem_object *gobj;
 	struct drm_gem_object *obj;
-	struct udl_device *udl = dev->dev_private;
+	struct udl_device *udl = to_udl(dev);
 	int ret = 0;
 
 	mutex_lock(&udl->gem_lock);

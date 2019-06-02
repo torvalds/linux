@@ -134,6 +134,11 @@ static inline void mlx5_wq_cyc_update_db_record(struct mlx5_wq_cyc *wq)
 	*wq->db = cpu_to_be32(wq->wqe_ctr);
 }
 
+static inline u16 mlx5_wq_cyc_get_ctr_wrap_cnt(struct mlx5_wq_cyc *wq, u16 ctr)
+{
+	return ctr >> wq->fbc.log_sz;
+}
+
 static inline u16 mlx5_wq_cyc_ctr2ix(struct mlx5_wq_cyc *wq, u16 ctr)
 {
 	return ctr & wq->fbc.sz_m1;
@@ -241,6 +246,13 @@ static inline int mlx5_wq_ll_missing(struct mlx5_wq_ll *wq)
 static inline void *mlx5_wq_ll_get_wqe(struct mlx5_wq_ll *wq, u16 ix)
 {
 	return mlx5_frag_buf_get_wqe(&wq->fbc, ix);
+}
+
+static inline u16 mlx5_wq_ll_get_wqe_next_ix(struct mlx5_wq_ll *wq, u16 ix)
+{
+	struct mlx5_wqe_srq_next_seg *wqe = mlx5_wq_ll_get_wqe(wq, ix);
+
+	return be16_to_cpu(wqe->next_wqe_index);
 }
 
 static inline void mlx5_wq_ll_push(struct mlx5_wq_ll *wq, u16 head_next)

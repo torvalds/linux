@@ -52,7 +52,7 @@
 #define DT2811_ADCSR_ADBUSY		BIT(5)	/* r      1=A/D busy */
 #define DT2811_ADCSR_CLRERROR		BIT(4)
 #define DT2811_ADCSR_DMAENB		BIT(3)	/* r/w    1=dma ena */
-#define DT2811_ADCSR_INTENB		BIT(2)	/* r/w    1=interupts ena */
+#define DT2811_ADCSR_INTENB		BIT(2)	/* r/w    1=interrupts ena */
 #define DT2811_ADCSR_ADMODE(x)		(((x) & 0x3) << 0)
 
 #define DT2811_ADGCR_REG		0x01	/* r/w  A/D Gain/Channel */

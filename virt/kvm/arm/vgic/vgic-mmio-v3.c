@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VGICv3 MMIO handling functions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/irqchip/arm-gic-v3.h>
@@ -199,6 +191,9 @@ static void vgic_mmio_write_v3r_ctlr(struct kvm_vcpu *vcpu,
 		return;
 
 	vgic_cpu->lpis_enabled = val & GICR_CTLR_ENABLE_LPIS;
+
+	if (was_enabled && !vgic_cpu->lpis_enabled)
+		vgic_flush_pending_lpis(vcpu);
 
 	if (!was_enabled && vgic_cpu->lpis_enabled)
 		vgic_enable_lpis(vcpu);

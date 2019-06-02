@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_COBALT
 	tristate "Cisco Cobalt support"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
@@ -11,7 +12,7 @@ config VIDEO_COBALT
 	select VIDEO_ADV7511
 	select VIDEO_ADV7842
 	select VIDEOBUF2_DMA_SG
-	---help---
+	help
 	  This is a video4linux driver for the Cisco PCIe Cobalt card.
 
 	  This board is sadly not available outside of Cisco, but it is

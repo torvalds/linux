@@ -32,8 +32,6 @@ struct hl_eq_entry {
 #define EQ_CTL_EVENT_TYPE_SHIFT		16
 #define EQ_CTL_EVENT_TYPE_MASK		0x03FF0000
 
-#define EVENT_QUEUE_MSIX_IDX		5
-
 enum pq_init_status {
 	PQ_INIT_STATUS_NA = 0,
 	PQ_INIT_STATUS_READY_FOR_CP,

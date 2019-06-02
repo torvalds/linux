@@ -5,15 +5,6 @@
  * Authors:
  *    Rafael Antognolli <rafael.antognolli@intel.com>
  *    Scott  Bauer      <scott.bauer@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _UAPI_SED_OPAL_H
@@ -58,7 +49,7 @@ struct opal_key {
 struct opal_lr_act {
 	struct opal_key key;
 	__u32 sum;
-	__u8    num_lrs;
+	__u8 num_lrs;
 	__u8 lr[OPAL_MAX_LRS];
 	__u8 align[2]; /* Align to 8 byte boundary */
 };

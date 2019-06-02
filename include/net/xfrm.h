@@ -132,6 +132,17 @@ struct xfrm_state_offload {
 	u8			flags;
 };
 
+struct xfrm_mode {
+	u8 encap;
+	u8 family;
+	u8 flags;
+};
+
+/* Flags for xfrm_mode. */
+enum {
+	XFRM_MODE_FLAG_TUNNEL = 1,
+};
+
 /* Full description of state of transformer. */
 struct xfrm_state {
 	possible_net_t		xs_net;
@@ -219,7 +230,7 @@ struct xfrm_state {
 	struct xfrm_stats	stats;
 
 	struct xfrm_lifetime_cur curlft;
-	struct tasklet_hrtimer	mtimer;
+	struct hrtimer		mtimer;
 
 	struct xfrm_state_offload xso;
 
@@ -234,9 +245,9 @@ struct xfrm_state {
 	/* Reference to data common to all the instances of this
 	 * transformer. */
 	const struct xfrm_type	*type;
-	struct xfrm_mode	*inner_mode;
-	struct xfrm_mode	*inner_mode_iaf;
-	struct xfrm_mode	*outer_mode;
+	struct xfrm_mode	inner_mode;
+	struct xfrm_mode	inner_mode_iaf;
+	struct xfrm_mode	outer_mode;
 
 	const struct xfrm_type_offload	*type_offload;
 
@@ -295,7 +306,8 @@ struct xfrm_replay {
 };
 
 struct xfrm_if_cb {
-	struct xfrm_if	*(*decode_session)(struct sk_buff *skb);
+	struct xfrm_if	*(*decode_session)(struct sk_buff *skb,
+					   unsigned short family);
 };
 
 void xfrm_if_register_cb(const struct xfrm_if_cb *ifcb);
@@ -315,13 +327,6 @@ struct xfrm_policy_afinfo {
 					     xfrm_address_t *saddr,
 					     xfrm_address_t *daddr,
 					     u32 mark);
-	void			(*decode_session)(struct sk_buff *skb,
-						  struct flowi *fl,
-						  int reverse);
-	int			(*get_tos)(const struct flowi *fl);
-	int			(*init_path)(struct xfrm_dst *path,
-					     struct dst_entry *dst,
-					     int nfheader_len);
 	int			(*fill_dst)(struct xfrm_dst *xdst,
 					    struct net_device *dev,
 					    const struct flowi *fl);
@@ -347,7 +352,6 @@ struct xfrm_state_afinfo {
 	struct module			*owner;
 	const struct xfrm_type		*type_map[IPPROTO_MAX];
 	const struct xfrm_type_offload	*type_offload_map[IPPROTO_MAX];
-	struct xfrm_mode		*mode_map[XFRM_MODE_MAX];
 
 	int			(*init_flags)(struct xfrm_state *x);
 	void			(*init_tempsel)(struct xfrm_selector *sel,
@@ -422,78 +426,6 @@ struct xfrm_type_offload {
 int xfrm_register_type_offload(const struct xfrm_type_offload *type, unsigned short family);
 int xfrm_unregister_type_offload(const struct xfrm_type_offload *type, unsigned short family);
 
-struct xfrm_mode {
-	/*
-	 * Remove encapsulation header.
-	 *
-	 * The IP header will be moved over the top of the encapsulation
-	 * header.
-	 *
-	 * On entry, the transport header shall point to where the IP header
-	 * should be and the network header shall be set to where the IP
-	 * header currently is.  skb->data shall point to the start of the
-	 * payload.
-	 */
-	int (*input2)(struct xfrm_state *x, struct sk_buff *skb);
-
-	/*
-	 * This is the actual input entry point.
-	 *
-	 * For transport mode and equivalent this would be identical to
-	 * input2 (which does not need to be set).  While tunnel mode
-	 * and equivalent would set this to the tunnel encapsulation function
-	 * xfrm4_prepare_input that would in turn call input2.
-	 */
-	int (*input)(struct xfrm_state *x, struct sk_buff *skb);
-
-	/*
-	 * Add encapsulation header.
-	 *
-	 * On exit, the transport header will be set to the start of the
-	 * encapsulation header to be filled in by x->type->output and
-	 * the mac header will be set to the nextheader (protocol for
-	 * IPv4) field of the extension header directly preceding the
-	 * encapsulation header, or in its absence, that of the top IP
-	 * header.  The value of the network header will always point
-	 * to the top IP header while skb->data will point to the payload.
-	 */
-	int (*output2)(struct xfrm_state *x,struct sk_buff *skb);
-
-	/*
-	 * This is the actual output entry point.
-	 *
-	 * For transport mode and equivalent this would be identical to
-	 * output2 (which does not need to be set).  While tunnel mode
-	 * and equivalent would set this to a tunnel encapsulation function
-	 * (xfrm4_prepare_output or xfrm6_prepare_output) that would in turn
-	 * call output2.
-	 */
-	int (*output)(struct xfrm_state *x, struct sk_buff *skb);
-
-	/*
-	 * Adjust pointers into the packet and do GSO segmentation.
-	 */
-	struct sk_buff *(*gso_segment)(struct xfrm_state *x, struct sk_buff *skb, netdev_features_t features);
-
-	/*
-	 * Adjust pointers into the packet when IPsec is done at layer2.
-	 */
-	void (*xmit)(struct xfrm_state *x, struct sk_buff *skb);
-
-	struct xfrm_state_afinfo *afinfo;
-	struct module *owner;
-	unsigned int encap;
-	int flags;
-};
-
-/* Flags for xfrm_mode. */
-enum {
-	XFRM_MODE_FLAG_TUNNEL = 1,
-};
-
-int xfrm_register_mode(struct xfrm_mode *mode, int family);
-int xfrm_unregister_mode(struct xfrm_mode *mode, int family);
-
 static inline int xfrm_af2proto(unsigned int family)
 {
 	switch(family) {
@@ -506,13 +438,13 @@ static inline int xfrm_af2proto(unsigned int family)
 	}
 }
 
-static inline struct xfrm_mode *xfrm_ip2inner_mode(struct xfrm_state *x, int ipproto)
+static inline const struct xfrm_mode *xfrm_ip2inner_mode(struct xfrm_state *x, int ipproto)
 {
 	if ((ipproto == IPPROTO_IPIP && x->props.family == AF_INET) ||
 	    (ipproto == IPPROTO_IPV6 && x->props.family == AF_INET6))
-		return x->inner_mode;
+		return &x->inner_mode;
 	else
-		return x->inner_mode_iaf;
+		return &x->inner_mode_iaf;
 }
 
 struct xfrm_tmpl {
@@ -1404,6 +1336,23 @@ static inline int xfrm_state_kern(const struct xfrm_state *x)
 	return atomic_read(&x->tunnel_users);
 }
 
+static inline bool xfrm_id_proto_valid(u8 proto)
+{
+	switch (proto) {
+	case IPPROTO_AH:
+	case IPPROTO_ESP:
+	case IPPROTO_COMP:
+#if IS_ENABLED(CONFIG_IPV6)
+	case IPPROTO_ROUTING:
+	case IPPROTO_DSTOPTS:
+#endif
+		return true;
+	default:
+		return false;
+	}
+}
+
+/* IPSEC_PROTO_ANY only matches 3 IPsec protocols, 0 could match all. */
 static inline int xfrm_id_proto_match(u8 proto, u8 userproto)
 {
 	return (!userproto || proto == userproto ||
@@ -1605,7 +1554,6 @@ int xfrm_init_replay(struct xfrm_state *x);
 int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload);
 int xfrm_init_state(struct xfrm_state *x);
-int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type);
 int xfrm_input_resume(struct sk_buff *skb, int nexthdr);
 int xfrm_trans_queue(struct sk_buff *skb,
@@ -1613,7 +1561,11 @@ int xfrm_trans_queue(struct sk_buff *skb,
 				   struct sk_buff *));
 int xfrm_output_resume(struct sk_buff *skb, int err);
 int xfrm_output(struct sock *sk, struct sk_buff *skb);
-int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb);
+
+#if IS_ENABLED(CONFIG_NET_PKTGEN)
+int pktgen_xfrm_outer_mode_output(struct xfrm_state *x, struct sk_buff *skb);
+#endif
+
 void xfrm_local_error(struct sk_buff *skb, int mtu);
 int xfrm4_extract_header(struct sk_buff *skb);
 int xfrm4_extract_input(struct xfrm_state *x, struct sk_buff *skb);
@@ -1632,10 +1584,8 @@ static inline int xfrm4_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 }
 
 int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb);
-int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm4_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int xfrm4_output_finish(struct sock *sk, struct sk_buff *skb);
-int xfrm4_rcv_cb(struct sk_buff *skb, u8 protocol, int err);
 int xfrm4_protocol_register(struct xfrm4_protocol *handler, unsigned char protocol);
 int xfrm4_protocol_deregister(struct xfrm4_protocol *handler, unsigned char protocol);
 int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
@@ -1651,7 +1601,6 @@ int xfrm6_rcv(struct sk_buff *skb);
 int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		     xfrm_address_t *saddr, u8 proto);
 void xfrm6_local_error(struct sk_buff *skb, u32 mtu);
-int xfrm6_rcv_cb(struct sk_buff *skb, u8 protocol, int err);
 int xfrm6_protocol_register(struct xfrm6_protocol *handler, unsigned char protocol);
 int xfrm6_protocol_deregister(struct xfrm6_protocol *handler, unsigned char protocol);
 int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family);
@@ -1659,7 +1608,6 @@ int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family)
 __be32 xfrm6_tunnel_alloc_spi(struct net *net, xfrm_address_t *saddr);
 __be32 xfrm6_tunnel_spi_lookup(struct net *net, const xfrm_address_t *saddr);
 int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb);
-int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm6_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int xfrm6_output_finish(struct sock *sk, struct sk_buff *skb);
 int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
@@ -2051,7 +1999,7 @@ static inline int xfrm_tunnel_check(struct sk_buff *skb, struct xfrm_state *x,
 			tunnel = true;
 		break;
 	}
-	if (tunnel && !(x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL))
+	if (tunnel && !(x->outer_mode.flags & XFRM_MODE_FLAG_TUNNEL))
 		return -EINVAL;
 
 	return 0;

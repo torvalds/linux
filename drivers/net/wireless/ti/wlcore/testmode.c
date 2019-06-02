@@ -372,8 +372,8 @@ int wl1271_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	u32 nla_cmd;
 	int err;
 
-	err = nla_parse(tb, WL1271_TM_ATTR_MAX, data, len, wl1271_tm_policy,
-			NULL);
+	err = nla_parse_deprecated(tb, WL1271_TM_ATTR_MAX, data, len,
+				   wl1271_tm_policy, NULL);
 	if (err)
 		return err;
 

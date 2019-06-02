@@ -43,7 +43,33 @@
  */
 #define AMDGPU_GMC_HOLE_MASK	0x0000ffffffffffffULL
 
+/*
+ * Ring size as power of two for the log of recent faults.
+ */
+#define AMDGPU_GMC_FAULT_RING_ORDER	8
+#define AMDGPU_GMC_FAULT_RING_SIZE	(1 << AMDGPU_GMC_FAULT_RING_ORDER)
+
+/*
+ * Hash size as power of two for the log of recent faults
+ */
+#define AMDGPU_GMC_FAULT_HASH_ORDER	8
+#define AMDGPU_GMC_FAULT_HASH_SIZE	(1 << AMDGPU_GMC_FAULT_HASH_ORDER)
+
+/*
+ * Number of IH timestamp ticks until a fault is considered handled
+ */
+#define AMDGPU_GMC_FAULT_TIMEOUT	5000ULL
+
 struct firmware;
+
+/*
+ * GMC page fault information
+ */
+struct amdgpu_gmc_fault {
+	uint64_t	timestamp;
+	uint64_t	next:AMDGPU_GMC_FAULT_RING_ORDER;
+	uint64_t	key:52;
+};
 
 /*
  * VMHUB structures, functions & helpers
@@ -71,12 +97,6 @@ struct amdgpu_gmc_funcs {
 	/* Change the VMID -> PASID mapping */
 	void (*emit_pasid_mapping)(struct amdgpu_ring *ring, unsigned vmid,
 				   unsigned pasid);
-	/* write pte/pde updates using the cpu */
-	int (*set_pte_pde)(struct amdgpu_device *adev,
-			   void *cpu_pt_addr, /* cpu addr of page table */
-			   uint32_t gpu_page_idx, /* pte/pde to update */
-			   uint64_t addr, /* addr to write into pte/pde */
-			   uint64_t flags); /* access flags */
 	/* enable/disable PRT support */
 	void (*set_prt)(struct amdgpu_device *adev, bool enable);
 	/* set pte flags based per asic */
@@ -147,15 +167,22 @@ struct amdgpu_gmc {
 	struct kfd_vm_fault_info *vm_fault_info;
 	atomic_t		vm_fault_info_updated;
 
+	struct amdgpu_gmc_fault	fault_ring[AMDGPU_GMC_FAULT_RING_SIZE];
+	struct {
+		uint64_t	idx:AMDGPU_GMC_FAULT_RING_ORDER;
+	} fault_hash[AMDGPU_GMC_FAULT_HASH_SIZE];
+	uint64_t		last_fault:AMDGPU_GMC_FAULT_RING_ORDER;
+
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 
 	struct amdgpu_xgmi xgmi;
+	struct amdgpu_irq_src	ecc_irq;
+	struct ras_common_if    *ras_if;
 };
 
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid, type) (adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (type))
 #define amdgpu_gmc_emit_flush_gpu_tlb(r, vmid, addr) (r)->adev->gmc.gmc_funcs->emit_flush_gpu_tlb((r), (vmid), (addr))
 #define amdgpu_gmc_emit_pasid_mapping(r, vmid, pasid) (r)->adev->gmc.gmc_funcs->emit_pasid_mapping((r), (vmid), (pasid))
-#define amdgpu_gmc_set_pte_pde(adev, pt, idx, addr, flags) (adev)->gmc.gmc_funcs->set_pte_pde((adev), (pt), (idx), (addr), (flags))
 #define amdgpu_gmc_get_vm_pde(adev, level, dst, flags) (adev)->gmc.gmc_funcs->get_vm_pde((adev), (level), (dst), (flags))
 #define amdgpu_gmc_get_pte_flags(adev, flags) (adev)->gmc.gmc_funcs->get_vm_pte_flags((adev),(flags))
 
@@ -189,6 +216,9 @@ static inline uint64_t amdgpu_gmc_sign_extend(uint64_t addr)
 
 void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 			       uint64_t *addr, uint64_t *flags);
+int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
+				uint32_t gpu_page_idx, uint64_t addr,
+				uint64_t flags);
 uint64_t amdgpu_gmc_pd_addr(struct amdgpu_bo *bo);
 uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo);
 void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
@@ -197,5 +227,7 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev,
 			      struct amdgpu_gmc *mc);
 void amdgpu_gmc_agp_location(struct amdgpu_device *adev,
 			     struct amdgpu_gmc *mc);
+bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,
+			      uint16_t pasid, uint64_t timestamp);
 
 #endif

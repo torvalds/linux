@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RadioTrack II driver
  * Copyright 1998 Ben Pfaff

@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  PARISC TLB and cache flushing support
  *  Copyright (C) 2000-2001 Hewlett-Packard (John Marvin)
  *  Copyright (C) 2001 Matthew Wilcox (willy at parisc-linux.org)
  *  Copyright (C) 2002 Richard Hirst (rhirst with parisc-linux.org)
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2, or (at your option)
- *    any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 /*
@@ -311,39 +298,6 @@ fdsync:
 	nop
 ENDPROC_CFI(flush_data_cache_local)
 
-/* Macros to serialize TLB purge operations on SMP.  */
-
-	.macro	tlb_lock	la,flags,tmp
-#ifdef CONFIG_SMP
-98:
-#if __PA_LDCW_ALIGNMENT > 4
-	load32		pa_tlb_lock + __PA_LDCW_ALIGNMENT-1, \la
-	depi		0,31,__PA_LDCW_ALIGN_ORDER, \la
-#else
-	load32		pa_tlb_lock, \la
-#endif
-	rsm		PSW_SM_I,\flags
-1:	LDCW		0(\la),\tmp
-	cmpib,<>,n	0,\tmp,3f
-2:	ldw		0(\la),\tmp
-	cmpb,<>		%r0,\tmp,1b
-	nop
-	b,n		2b
-3:
-99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
-#endif
-	.endm
-
-	.macro	tlb_unlock	la,flags,tmp
-#ifdef CONFIG_SMP
-98:	ldi		1,\tmp
-	sync
-	stw		\tmp,0(\la)
-	mtsm		\flags
-99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
-#endif
-	.endm
-
 /* Clear page using kernel mapping.  */
 
 ENTRY_CFI(clear_page_asm)
@@ -601,10 +555,8 @@ ENTRY_CFI(copy_user_page_asm)
 	pdtlb,l		%r0(%r28)
 	pdtlb,l		%r0(%r29)
 #else
-	tlb_lock	%r20,%r21,%r22
 0:	pdtlb		%r0(%r28)
 1:	pdtlb		%r0(%r29)
-	tlb_unlock	%r20,%r21,%r22
 	ALTERNATIVE(0b, 0b+4, ALT_COND_NO_SMP, INSN_PxTLB)
 	ALTERNATIVE(1b, 1b+4, ALT_COND_NO_SMP, INSN_PxTLB)
 #endif
@@ -743,9 +695,7 @@ ENTRY_CFI(clear_user_page_asm)
 #ifdef CONFIG_PA20
 	pdtlb,l		%r0(%r28)
 #else
-	tlb_lock	%r20,%r21,%r22
 0:	pdtlb		%r0(%r28)
-	tlb_unlock	%r20,%r21,%r22
 	ALTERNATIVE(0b, 0b+4, ALT_COND_NO_SMP, INSN_PxTLB)
 #endif
 
@@ -821,9 +771,7 @@ ENTRY_CFI(flush_dcache_page_asm)
 #ifdef CONFIG_PA20
 	pdtlb,l		%r0(%r28)
 #else
-	tlb_lock	%r20,%r21,%r22
 0:	pdtlb		%r0(%r28)
-	tlb_unlock	%r20,%r21,%r22
 	ALTERNATIVE(0b, 0b+4, ALT_COND_NO_SMP, INSN_PxTLB)
 #endif
 
@@ -882,9 +830,7 @@ ENTRY_CFI(purge_dcache_page_asm)
 #ifdef CONFIG_PA20
 	pdtlb,l		%r0(%r28)
 #else
-	tlb_lock	%r20,%r21,%r22
 0:	pdtlb		%r0(%r28)
-	tlb_unlock	%r20,%r21,%r22
 	ALTERNATIVE(0b, 0b+4, ALT_COND_NO_SMP, INSN_PxTLB)
 #endif
 
@@ -948,10 +894,8 @@ ENTRY_CFI(flush_icache_page_asm)
 1:	pitlb,l         %r0(%sr4,%r28)
 	ALTERNATIVE(1b, 1b+4, ALT_COND_NO_SPLIT_TLB, INSN_NOP)
 #else
-	tlb_lock        %r20,%r21,%r22
 0:	pdtlb		%r0(%r28)
 1:	pitlb           %r0(%sr4,%r28)
-	tlb_unlock      %r20,%r21,%r22
 	ALTERNATIVE(0b, 0b+4, ALT_COND_NO_SMP, INSN_PxTLB)
 	ALTERNATIVE(1b, 1b+4, ALT_COND_NO_SMP, INSN_PxTLB)
 	ALTERNATIVE(1b, 1b+4, ALT_COND_NO_SPLIT_TLB, INSN_NOP)

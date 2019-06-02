@@ -673,7 +673,8 @@ static void netsec_process_tx(struct netsec_priv *priv)
 }
 
 static void *netsec_alloc_rx_data(struct netsec_priv *priv,
-				  dma_addr_t *dma_handle, u16 *desc_len)
+				  dma_addr_t *dma_handle, u16 *desc_len,
+				  bool napi)
 {
 	size_t total_len = SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	size_t payload_len = NETSEC_RX_BUF_SZ;
@@ -682,7 +683,7 @@ static void *netsec_alloc_rx_data(struct netsec_priv *priv,
 
 	total_len += SKB_DATA_ALIGN(payload_len + NETSEC_SKB_PAD);
 
-	buf = napi_alloc_frag(total_len);
+	buf = napi ? napi_alloc_frag(total_len) : netdev_alloc_frag(total_len);
 	if (!buf)
 		return NULL;
 
@@ -765,7 +766,8 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 		/* allocate a fresh buffer and map it to the hardware.
 		 * This will eventually replace the old buffer in the hardware
 		 */
-		buf_addr = netsec_alloc_rx_data(priv, &dma_handle, &desc_len);
+		buf_addr = netsec_alloc_rx_data(priv, &dma_handle, &desc_len,
+						true);
 		if (unlikely(!buf_addr))
 			break;
 
@@ -1069,7 +1071,8 @@ static int netsec_setup_rx_dring(struct netsec_priv *priv)
 		void *buf;
 		u16 len;
 
-		buf = netsec_alloc_rx_data(priv, &dma_handle, &len);
+		buf = netsec_alloc_rx_data(priv, &dma_handle, &len,
+					   false);
 		if (!buf) {
 			netsec_uninit_pkt_dring(priv, NETSEC_RING_RX);
 			goto err_out;

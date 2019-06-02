@@ -94,7 +94,7 @@ static inline u64 notrace cyc_to_ns(u64 cyc, u32 mult, u32 shift)
 unsigned long long notrace sched_clock(void)
 {
 	u64 cyc, res;
-	unsigned long seq;
+	unsigned int seq;
 	struct clock_read_data *rd;
 
 	do {
@@ -231,7 +231,7 @@ sched_clock_register(u64 (*read)(void), int bits, unsigned long rate)
 	if (irqtime > 0 || (irqtime == -1 && rate >= 1000000))
 		enable_sched_clock_irqtime();
 
-	pr_debug("Registered %pF as sched_clock source\n", read);
+	pr_debug("Registered %pS as sched_clock source\n", read);
 }
 
 void __init generic_sched_clock_init(void)
@@ -267,7 +267,7 @@ void __init generic_sched_clock_init(void)
  */
 static u64 notrace suspended_sched_clock_read(void)
 {
-	unsigned long seq = raw_read_seqcount(&cd.seq);
+	unsigned int seq = raw_read_seqcount(&cd.seq);
 
 	return cd.read_data[seq & 1].epoch_cyc;
 }

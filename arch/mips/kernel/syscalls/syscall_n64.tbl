@@ -338,3 +338,13 @@
 327	n64	rseq				sys_rseq
 328	n64	io_pgetevents			sys_io_pgetevents
 # 329 through 423 are reserved to sync up with other architectures
+424	n64	pidfd_send_signal		sys_pidfd_send_signal
+425	n64	io_uring_setup			sys_io_uring_setup
+426	n64	io_uring_enter			sys_io_uring_enter
+427	n64	io_uring_register		sys_io_uring_register
+428	n64	open_tree			sys_open_tree
+429	n64	move_mount			sys_move_mount
+430	n64	fsopen				sys_fsopen
+431	n64	fsconfig			sys_fsconfig
+432	n64	fsmount				sys_fsmount
+433	n64	fspick				sys_fspick

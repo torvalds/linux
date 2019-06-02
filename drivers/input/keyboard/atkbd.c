@@ -401,6 +401,8 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 		if  (ps2_handle_response(&atkbd->ps2dev, data))
 			goto out;
 
+	pm_wakeup_event(&serio->dev, 0);
+
 	if (!atkbd->enabled)
 		goto out;
 

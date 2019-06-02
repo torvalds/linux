@@ -4153,8 +4153,6 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	writeq(val64, &tx_fifo->List_Control);
 
-	mmiowb();
-
 	put_off++;
 	if (put_off == fifo->tx_curr_put_info.fifo_len + 1)
 		put_off = 0;

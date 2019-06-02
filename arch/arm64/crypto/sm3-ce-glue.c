@@ -12,6 +12,7 @@
 #include <asm/simd.h>
 #include <asm/unaligned.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/sm3.h>
 #include <crypto/sm3_base.h>
 #include <linux/cpufeature.h>
@@ -28,7 +29,7 @@ asmlinkage void sm3_ce_transform(struct sm3_state *sst, u8 const *src,
 static int sm3_ce_update(struct shash_desc *desc, const u8 *data,
 			 unsigned int len)
 {
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return crypto_sm3_update(desc, data, len);
 
 	kernel_neon_begin();
@@ -40,7 +41,7 @@ static int sm3_ce_update(struct shash_desc *desc, const u8 *data,
 
 static int sm3_ce_final(struct shash_desc *desc, u8 *out)
 {
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return crypto_sm3_finup(desc, NULL, 0, out);
 
 	kernel_neon_begin();
@@ -53,7 +54,7 @@ static int sm3_ce_final(struct shash_desc *desc, u8 *out)
 static int sm3_ce_finup(struct shash_desc *desc, const u8 *data,
 			unsigned int len, u8 *out)
 {
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return crypto_sm3_finup(desc, data, len, out);
 
 	kernel_neon_begin();

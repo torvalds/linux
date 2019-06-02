@@ -334,10 +334,8 @@ static int vctrl_init_vtable(struct platform_device *pdev)
 		ctrl_uV = regulator_list_voltage(ctrl_reg, i);
 
 		if (ctrl_uV < vrange_ctrl->min_uV ||
-		    ctrl_uV > vrange_ctrl->max_uV) {
+		    ctrl_uV > vrange_ctrl->max_uV)
 			rdesc->n_voltages--;
-			continue;
-		}
 	}
 
 	if (rdesc->n_voltages == 0) {

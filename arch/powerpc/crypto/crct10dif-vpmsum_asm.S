@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Calculate a CRC T10DIF  with vpmsum acceleration
  *
@@ -6,12 +7,6 @@
  *
  * crc32-vpmsum is
  * Copyright (C) 2015 Anton Blanchard <anton@au.ibm.com>, IBM
- * and is available under the GPL v2 or later.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 	.section	.rodata
 .balign 16

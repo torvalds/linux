@@ -366,10 +366,9 @@ void drm_sched_increase_karma(struct drm_sched_job *bad)
 EXPORT_SYMBOL(drm_sched_increase_karma);
 
 /**
- * drm_sched_hw_job_reset - stop the scheduler if it contains the bad job
+ * drm_sched_stop - stop the scheduler
  *
  * @sched: scheduler instance
- * @bad: bad scheduler job
  *
  */
 void drm_sched_stop(struct drm_gpu_scheduler *sched)

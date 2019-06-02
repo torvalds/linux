@@ -420,9 +420,7 @@ int kxsd9_common_probe(struct device *dev,
 	indio_dev->available_scan_masks = kxsd9_scan_masks;
 
 	/* Read the mounting matrix, if present */
-	ret = of_iio_read_mount_matrix(dev,
-				       "mount-matrix",
-				       &st->orientation);
+	ret = iio_read_mount_matrix(dev, "mount-matrix", &st->orientation);
 	if (ret)
 		return ret;
 

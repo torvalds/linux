@@ -76,8 +76,8 @@ static int hnae3_get_client_init_flag(struct hnae3_client *client,
 	return inited;
 }
 
-static int hnae3_match_n_instantiate(struct hnae3_client *client,
-				     struct hnae3_ae_dev *ae_dev, bool is_reg)
+static int hnae3_init_client_instance(struct hnae3_client *client,
+				      struct hnae3_ae_dev *ae_dev)
 {
 	int ret;
 
@@ -87,23 +87,27 @@ static int hnae3_match_n_instantiate(struct hnae3_client *client,
 		return 0;
 	}
 
-	/* now, (un-)instantiate client by calling lower layer */
-	if (is_reg) {
-		ret = ae_dev->ops->init_client_instance(client, ae_dev);
-		if (ret)
-			dev_err(&ae_dev->pdev->dev,
-				"fail to instantiate client, ret = %d\n", ret);
+	ret = ae_dev->ops->init_client_instance(client, ae_dev);
+	if (ret)
+		dev_err(&ae_dev->pdev->dev,
+			"fail to instantiate client, ret = %d\n", ret);
 
-		return ret;
-	}
+	return ret;
+}
+
+static void hnae3_uninit_client_instance(struct hnae3_client *client,
+					 struct hnae3_ae_dev *ae_dev)
+{
+	/* check if this client matches the type of ae_dev */
+	if (!(hnae3_client_match(client->type, ae_dev->dev_type) &&
+	      hnae3_get_bit(ae_dev->flag, HNAE3_DEV_INITED_B)))
+		return;
 
 	if (hnae3_get_client_init_flag(client, ae_dev)) {
 		ae_dev->ops->uninit_client_instance(client, ae_dev);
 
 		hnae3_set_client_init_flag(client, ae_dev, 0);
 	}
-
-	return 0;
 }
 
 int hnae3_register_client(struct hnae3_client *client)
@@ -129,7 +133,7 @@ int hnae3_register_client(struct hnae3_client *client)
 		/* if the client could not be initialized on current port, for
 		 * any error reasons, move on to next available port
 		 */
-		ret = hnae3_match_n_instantiate(client, ae_dev, true);
+		ret = hnae3_init_client_instance(client, ae_dev);
 		if (ret)
 			dev_err(&ae_dev->pdev->dev,
 				"match and instantiation failed for port, ret = %d\n",
@@ -153,7 +157,7 @@ void hnae3_unregister_client(struct hnae3_client *client)
 	mutex_lock(&hnae3_common_lock);
 	/* un-initialize the client on every matched port */
 	list_for_each_entry(ae_dev, &hnae3_ae_dev_list, node) {
-		hnae3_match_n_instantiate(client, ae_dev, false);
+		hnae3_uninit_client_instance(client, ae_dev);
 	}
 
 	list_del(&client->node);
@@ -205,7 +209,7 @@ void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo)
 		 * initialize the figure out client instance
 		 */
 		list_for_each_entry(client, &hnae3_client_list, node) {
-			ret = hnae3_match_n_instantiate(client, ae_dev, true);
+			ret = hnae3_init_client_instance(client, ae_dev);
 			if (ret)
 				dev_err(&ae_dev->pdev->dev,
 					"match and instantiation failed, ret = %d\n",
@@ -243,7 +247,7 @@ void hnae3_unregister_ae_algo(struct hnae3_ae_algo *ae_algo)
 		 * un-initialize the figure out client instance
 		 */
 		list_for_each_entry(client, &hnae3_client_list, node)
-			hnae3_match_n_instantiate(client, ae_dev, false);
+			hnae3_uninit_client_instance(client, ae_dev);
 
 		ae_algo->ops->uninit_ae_dev(ae_dev);
 		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 0);
@@ -301,7 +305,7 @@ int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev)
 	 * initialize the figure out client instance
 	 */
 	list_for_each_entry(client, &hnae3_client_list, node) {
-		ret = hnae3_match_n_instantiate(client, ae_dev, true);
+		ret = hnae3_init_client_instance(client, ae_dev);
 		if (ret)
 			dev_err(&ae_dev->pdev->dev,
 				"match and instantiation failed, ret = %d\n",
@@ -343,7 +347,7 @@ void hnae3_unregister_ae_dev(struct hnae3_ae_dev *ae_dev)
 			continue;
 
 		list_for_each_entry(client, &hnae3_client_list, node)
-			hnae3_match_n_instantiate(client, ae_dev, false);
+			hnae3_uninit_client_instance(client, ae_dev);
 
 		ae_algo->ops->uninit_ae_dev(ae_dev);
 		hnae3_set_bit(ae_dev->flag, HNAE3_DEV_INITED_B, 0);

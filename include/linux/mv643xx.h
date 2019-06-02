@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * mv643xx.h - MV-643XX Internal registers definition file.
  *
  * Copyright 2002 Momentum Computer, Inc.
  * 	Author: Matthew Dharm <mdharm@momenco.com>
  * Copyright 2002 GALILEO TECHNOLOGY, LTD. 
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #ifndef __ASM_MV643XX_H
 #define __ASM_MV643XX_H

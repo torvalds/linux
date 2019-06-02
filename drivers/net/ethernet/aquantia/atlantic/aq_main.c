@@ -23,7 +23,16 @@ MODULE_VERSION(AQ_CFG_DRV_VERSION);
 MODULE_AUTHOR(AQ_CFG_DRV_AUTHOR);
 MODULE_DESCRIPTION(AQ_CFG_DRV_DESC);
 
+static const char aq_ndev_driver_name[] = AQ_CFG_DRV_NAME;
+
 static const struct net_device_ops aq_ndev_ops;
+
+static struct workqueue_struct *aq_ndev_wq;
+
+void aq_ndev_schedule_work(struct work_struct *work)
+{
+	queue_work(aq_ndev_wq, work);
+}
 
 struct net_device *aq_ndev_alloc(void)
 {
@@ -209,3 +218,35 @@ static const struct net_device_ops aq_ndev_ops = {
 	.ndo_vlan_rx_add_vid = aq_ndo_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = aq_ndo_vlan_rx_kill_vid,
 };
+
+static int __init aq_ndev_init_module(void)
+{
+	int ret;
+
+	aq_ndev_wq = create_singlethread_workqueue(aq_ndev_driver_name);
+	if (!aq_ndev_wq) {
+		pr_err("Failed to create workqueue\n");
+		return -ENOMEM;
+	}
+
+	ret = aq_pci_func_register_driver();
+	if (ret) {
+		destroy_workqueue(aq_ndev_wq);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void __exit aq_ndev_exit_module(void)
+{
+	aq_pci_func_unregister_driver();
+
+	if (aq_ndev_wq) {
+		destroy_workqueue(aq_ndev_wq);
+		aq_ndev_wq = NULL;
+	}
+}
+
+module_init(aq_ndev_init_module);
+module_exit(aq_ndev_exit_module);

@@ -292,6 +292,7 @@
 				      "tcon-ch0",
 				      "tcon-ch1";
 			clock-output-names = "tcon0-pixel-clock";
+			#clock-cells = <0>;
 
 			ports {
 				#address-cells = <1>;
@@ -340,6 +341,7 @@
 				      "tcon-ch0",
 				      "tcon-ch1";
 			clock-output-names = "tcon1-pixel-clock";
+			#clock-cells = <0>;
 
 			ports {
 				#address-cells = <1>;
@@ -491,8 +493,6 @@
 				};
 
 				hdmi_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 				};
 			};
@@ -508,6 +508,7 @@
 			phys = <&usbphy 0>;
 			phy-names = "usb";
 			extcon = <&usbphy 0>;
+			dr_mode = "otg";
 			status = "disabled";
 		};
 
@@ -542,7 +543,6 @@
 			clocks = <&ccu CLK_AHB1_EHCI0>;
 			resets = <&ccu RST_AHB1_EHCI0>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -553,7 +553,6 @@
 			clocks = <&ccu CLK_AHB1_OHCI0>, <&ccu CLK_USB_OHCI0>;
 			resets = <&ccu RST_AHB1_OHCI0>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -564,7 +563,6 @@
 			clocks = <&ccu CLK_AHB1_EHCI1>;
 			resets = <&ccu RST_AHB1_EHCI1>;
 			phys = <&usbphy 2>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -575,7 +573,6 @@
 			clocks = <&ccu CLK_AHB1_OHCI1>, <&ccu CLK_USB_OHCI1>;
 			resets = <&ccu RST_AHB1_OHCI1>;
 			phys = <&usbphy 2>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -1029,7 +1026,7 @@
 		};
 
 		gic: interrupt-controller@1c81000 {
-			compatible = "arm,cortex-a7-gic", "arm,cortex-a15-gic";
+			compatible = "arm,gic-400";
 			reg = <0x01c81000 0x1000>,
 			      <0x01c82000 0x2000>,
 			      <0x01c84000 0x2000>,
@@ -1229,12 +1226,9 @@
 				};
 
 				be0_out: port@1 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <1>;
 
-					be0_out_drc0: endpoint@0 {
-						reg = <0>;
+					be0_out_drc0: endpoint {
 						remote-endpoint = <&drc0_in_be0>;
 					};
 				};
@@ -1259,12 +1253,9 @@
 				#size-cells = <0>;
 
 				drc0_in: port@0 {
-					#address-cells = <1>;
-					#size-cells = <0>;
 					reg = <0>;
 
-					drc0_in_be0: endpoint@0 {
-						reg = <0>;
+					drc0_in_be0: endpoint {
 						remote-endpoint = <&be0_out_drc0>;
 					};
 				};
@@ -1380,7 +1371,6 @@
 			gpio-controller;
 			interrupt-controller;
 			#interrupt-cells = <3>;
-			#size-cells = <0>;
 			#gpio-cells = <3>;
 
 			s_ir_rx_pin: s-ir-rx-pin {

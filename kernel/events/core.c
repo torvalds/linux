@@ -2478,6 +2478,16 @@ static void ctx_resched(struct perf_cpu_context *cpuctx,
 	perf_pmu_enable(cpuctx->ctx.pmu);
 }
 
+void perf_pmu_resched(struct pmu *pmu)
+{
+	struct perf_cpu_context *cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
+	struct perf_event_context *task_ctx = cpuctx->task_ctx;
+
+	perf_ctx_lock(cpuctx, task_ctx);
+	ctx_resched(cpuctx, task_ctx, EVENT_ALL|EVENT_CPU);
+	perf_ctx_unlock(cpuctx, task_ctx);
+}
+
 /*
  * Cross CPU call to install and enable a performance event
  *
@@ -11917,7 +11927,7 @@ static void __init perf_event_init_all_cpus(void)
 	}
 }
 
-void perf_swevent_init_cpu(unsigned int cpu)
+static void perf_swevent_init_cpu(unsigned int cpu)
 {
 	struct swevent_htable *swhash = &per_cpu(swevent_htable, cpu);
 

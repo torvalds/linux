@@ -578,7 +578,7 @@ static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
 		    && pci_dev->current_state != PCI_UNKNOWN) {
 			WARN_ONCE(pci_dev->current_state != prev,
-				"PCI PM: Device state not saved by %pF\n",
+				"PCI PM: Device state not saved by %pS\n",
 				drv->suspend);
 		}
 	}
@@ -605,7 +605,7 @@ static int pci_legacy_suspend_late(struct device *dev, pm_message_t state)
 		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
 		    && pci_dev->current_state != PCI_UNKNOWN) {
 			WARN_ONCE(pci_dev->current_state != prev,
-				"PCI PM: Device state not saved by %pF\n",
+				"PCI PM: Device state not saved by %pS\n",
 				drv->suspend_late);
 			goto Fixup;
 		}
@@ -734,6 +734,8 @@ static int pci_pm_suspend(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
+	pci_dev->skip_bus_pm = false;
+
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend(dev, PMSG_SUSPEND);
 
@@ -773,7 +775,7 @@ static int pci_pm_suspend(struct device *dev)
 		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
 		    && pci_dev->current_state != PCI_UNKNOWN) {
 			WARN_ONCE(pci_dev->current_state != prev,
-				"PCI PM: State of device not saved by %pF\n",
+				"PCI PM: State of device not saved by %pS\n",
 				pm->suspend);
 		}
 	}
@@ -821,13 +823,26 @@ static int pci_pm_suspend_noirq(struct device *dev)
 		if (!pci_dev->state_saved && pci_dev->current_state != PCI_D0
 		    && pci_dev->current_state != PCI_UNKNOWN) {
 			WARN_ONCE(pci_dev->current_state != prev,
-				"PCI PM: State of device not saved by %pF\n",
+				"PCI PM: State of device not saved by %pS\n",
 				pm->suspend_noirq);
 			goto Fixup;
 		}
 	}
 
-	if (!pci_dev->state_saved) {
+	if (pci_dev->skip_bus_pm) {
+		/*
+		 * The function is running for the second time in a row without
+		 * going through full resume, which is possible only during
+		 * suspend-to-idle in a spurious wakeup case.  Moreover, the
+		 * device was originally left in D0, so its power state should
+		 * not be changed here and the device register values saved
+		 * originally should be restored on resume again.
+		 */
+		pci_dev->state_saved = true;
+	} else if (pci_dev->state_saved) {
+		if (pci_dev->current_state == PCI_D0)
+			pci_dev->skip_bus_pm = true;
+	} else {
 		pci_save_state(pci_dev);
 		if (pci_power_manageable(pci_dev))
 			pci_prepare_to_sleep(pci_dev);
@@ -1260,11 +1275,11 @@ static int pci_pm_runtime_suspend(struct device *dev)
 		 * log level.
 		 */
 		if (error == -EBUSY || error == -EAGAIN) {
-			dev_dbg(dev, "can't suspend now (%pf returned %d)\n",
+			dev_dbg(dev, "can't suspend now (%ps returned %d)\n",
 				pm->runtime_suspend, error);
 			return error;
 		} else if (error) {
-			dev_err(dev, "can't suspend (%pf returned %d)\n",
+			dev_err(dev, "can't suspend (%ps returned %d)\n",
 				pm->runtime_suspend, error);
 			return error;
 		}
@@ -1276,7 +1291,7 @@ static int pci_pm_runtime_suspend(struct device *dev)
 	    && !pci_dev->state_saved && pci_dev->current_state != PCI_D0
 	    && pci_dev->current_state != PCI_UNKNOWN) {
 		WARN_ONCE(pci_dev->current_state != prev,
-			"PCI PM: State of device not saved by %pF\n",
+			"PCI PM: State of device not saved by %pS\n",
 			pm->runtime_suspend);
 		return 0;
 	}

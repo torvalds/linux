@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
 	Copyright (C) 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2009 Bartlomiej Zolnierkiewicz
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef RT2800LIB_H
@@ -195,9 +184,10 @@ void rt2800_process_rxwi(struct queue_entry *entry, struct rxdone_entry_desc *tx
 
 void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 			 bool match);
-void rt2800_txdone(struct rt2x00_dev *rt2x00dev);
+void rt2800_txdone(struct rt2x00_dev *rt2x00dev, unsigned int quota);
 void rt2800_txdone_nostatus(struct rt2x00_dev *rt2x00dev);
 bool rt2800_txstatus_timeout(struct rt2x00_dev *rt2x00dev);
+bool rt2800_txstatus_pending(struct rt2x00_dev *rt2x00dev);
 
 void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc);
 void rt2800_clear_beacon(struct queue_entry *entry);

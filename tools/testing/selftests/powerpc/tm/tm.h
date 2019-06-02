@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2015, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #ifndef _SELFTESTS_POWERPC_TM_TM_H

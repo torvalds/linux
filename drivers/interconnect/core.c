@@ -90,18 +90,7 @@ static int icc_summary_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int icc_summary_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, icc_summary_show, inode->i_private);
-}
-
-static const struct file_operations icc_summary_fops = {
-	.open		= icc_summary_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(icc_summary);
 
 static struct icc_node *node_find(const int id)
 {

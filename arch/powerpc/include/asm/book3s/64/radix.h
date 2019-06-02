@@ -72,19 +72,17 @@
  * |                              |
  * |                              |
  * |                              |
- * +------------------------------+  Kernel IO map end (0xc010000000000000)
+ * +------------------------------+  Kernel vmemmap end (0xc010000000000000)
  * |                              |
+ * |           512TB		  |
  * |                              |
- * |      1/2 of virtual map      |
+ * +------------------------------+  Kernel IO map end/vmemap start
  * |                              |
+ * |           512TB		  |
  * |                              |
- * +------------------------------+  Kernel IO map start
+ * +------------------------------+  Kernel vmap end/ IO map start
  * |                              |
- * |      1/4 of virtual map      |
- * |                              |
- * +------------------------------+  Kernel vmemap start
- * |                              |
- * |     1/4 of virtual map       |
+ * |           512TB		  |
  * |                              |
  * +------------------------------+  Kernel virt start (0xc008000000000000)
  * |                              |
@@ -93,24 +91,24 @@
  * +------------------------------+  Kernel linear (0xc.....)
  */
 
-#define RADIX_KERN_VIRT_START ASM_CONST(0xc008000000000000)
-#define RADIX_KERN_VIRT_SIZE  ASM_CONST(0x0008000000000000)
-
+#define RADIX_KERN_VIRT_START	ASM_CONST(0xc008000000000000)
 /*
- * The vmalloc space starts at the beginning of that region, and
- * occupies a quarter of it on radix config.
- * (we keep a quarter for the virtual memmap)
+ * 49 =  MAX_EA_BITS_PER_CONTEXT (hash specific). To make sure we pick
+ * the same value as hash.
  */
+#define RADIX_KERN_MAP_SIZE	(1UL << 49)
+
 #define RADIX_VMALLOC_START	RADIX_KERN_VIRT_START
-#define RADIX_VMALLOC_SIZE	(RADIX_KERN_VIRT_SIZE >> 2)
+#define RADIX_VMALLOC_SIZE	RADIX_KERN_MAP_SIZE
 #define RADIX_VMALLOC_END	(RADIX_VMALLOC_START + RADIX_VMALLOC_SIZE)
-/*
- * Defines the address of the vmemap area, in its own region on
- * hash table CPUs.
- */
-#define RADIX_VMEMMAP_BASE		(RADIX_VMALLOC_END)
 
-#define RADIX_KERN_IO_START	(RADIX_KERN_VIRT_START + (RADIX_KERN_VIRT_SIZE >> 1))
+#define RADIX_KERN_IO_START	RADIX_VMALLOC_END
+#define RADIX_KERN_IO_SIZE	RADIX_KERN_MAP_SIZE
+#define RADIX_KERN_IO_END	(RADIX_KERN_IO_START + RADIX_KERN_IO_SIZE)
+
+#define RADIX_VMEMMAP_START	RADIX_KERN_IO_END
+#define RADIX_VMEMMAP_SIZE	RADIX_KERN_MAP_SIZE
+#define RADIX_VMEMMAP_END	(RADIX_VMEMMAP_START + RADIX_VMEMMAP_SIZE)
 
 #ifndef __ASSEMBLY__
 #define RADIX_PTE_TABLE_SIZE	(sizeof(pte_t) << RADIX_PTE_INDEX_SIZE)

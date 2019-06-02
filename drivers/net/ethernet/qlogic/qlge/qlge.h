@@ -2181,7 +2181,6 @@ static inline void ql_write32(const struct ql_adapter *qdev, int reg, u32 val)
 static inline void ql_write_db_reg(u32 val, void __iomem *addr)
 {
 	writel(val, addr);
-	mmiowb();
 }
 
 /*

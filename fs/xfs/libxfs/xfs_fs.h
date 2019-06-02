@@ -124,7 +124,7 @@ typedef struct xfs_flock64 {
 /*
  * Output for XFS_IOC_FSGEOMETRY_V1
  */
-typedef struct xfs_fsop_geom_v1 {
+struct xfs_fsop_geom_v1 {
 	__u32		blocksize;	/* filesystem (data) block size */
 	__u32		rtextsize;	/* realtime extent size		*/
 	__u32		agblocks;	/* fsblocks in an AG		*/
@@ -145,12 +145,39 @@ typedef struct xfs_fsop_geom_v1 {
 	__u32		logsectsize;	/* log sector size, bytes	*/
 	__u32		rtsectsize;	/* realtime sector size, bytes	*/
 	__u32		dirblocksize;	/* directory block size, bytes	*/
-} xfs_fsop_geom_v1_t;
+};
+
+/*
+ * Output for XFS_IOC_FSGEOMETRY_V4
+ */
+struct xfs_fsop_geom_v4 {
+	__u32		blocksize;	/* filesystem (data) block size */
+	__u32		rtextsize;	/* realtime extent size		*/
+	__u32		agblocks;	/* fsblocks in an AG		*/
+	__u32		agcount;	/* number of allocation groups	*/
+	__u32		logblocks;	/* fsblocks in the log		*/
+	__u32		sectsize;	/* (data) sector size, bytes	*/
+	__u32		inodesize;	/* inode size in bytes		*/
+	__u32		imaxpct;	/* max allowed inode space(%)	*/
+	__u64		datablocks;	/* fsblocks in data subvolume	*/
+	__u64		rtblocks;	/* fsblocks in realtime subvol	*/
+	__u64		rtextents;	/* rt extents in realtime subvol*/
+	__u64		logstart;	/* starting fsblock of the log	*/
+	unsigned char	uuid[16];	/* unique id of the filesystem	*/
+	__u32		sunit;		/* stripe unit, fsblocks	*/
+	__u32		swidth;		/* stripe width, fsblocks	*/
+	__s32		version;	/* structure version		*/
+	__u32		flags;		/* superblock version flags	*/
+	__u32		logsectsize;	/* log sector size, bytes	*/
+	__u32		rtsectsize;	/* realtime sector size, bytes	*/
+	__u32		dirblocksize;	/* directory block size, bytes	*/
+	__u32		logsunit;	/* log stripe unit, bytes	*/
+};
 
 /*
  * Output for XFS_IOC_FSGEOMETRY
  */
-typedef struct xfs_fsop_geom {
+struct xfs_fsop_geom {
 	__u32		blocksize;	/* filesystem (data) block size */
 	__u32		rtextsize;	/* realtime extent size		*/
 	__u32		agblocks;	/* fsblocks in an AG		*/
@@ -171,8 +198,18 @@ typedef struct xfs_fsop_geom {
 	__u32		logsectsize;	/* log sector size, bytes	*/
 	__u32		rtsectsize;	/* realtime sector size, bytes	*/
 	__u32		dirblocksize;	/* directory block size, bytes	*/
-	__u32		logsunit;	/* log stripe unit, bytes */
-} xfs_fsop_geom_t;
+	__u32		logsunit;	/* log stripe unit, bytes	*/
+	uint32_t	sick;		/* o: unhealthy fs & rt metadata */
+	uint32_t	checked;	/* o: checked fs & rt metadata	*/
+	__u64		reserved[17];	/* reserved space		*/
+};
+
+#define XFS_FSOP_GEOM_SICK_COUNTERS	(1 << 0)  /* summary counters */
+#define XFS_FSOP_GEOM_SICK_UQUOTA	(1 << 1)  /* user quota */
+#define XFS_FSOP_GEOM_SICK_GQUOTA	(1 << 2)  /* group quota */
+#define XFS_FSOP_GEOM_SICK_PQUOTA	(1 << 3)  /* project quota */
+#define XFS_FSOP_GEOM_SICK_RT_BITMAP	(1 << 4)  /* realtime bitmap */
+#define XFS_FSOP_GEOM_SICK_RT_SUMMARY	(1 << 5)  /* realtime summary */
 
 /* Output for XFS_FS_COUNTS */
 typedef struct xfs_fsop_counts {
@@ -188,28 +225,30 @@ typedef struct xfs_fsop_resblks {
 	__u64  resblks_avail;
 } xfs_fsop_resblks_t;
 
-#define XFS_FSOP_GEOM_VERSION	0
+#define XFS_FSOP_GEOM_VERSION		0
+#define XFS_FSOP_GEOM_VERSION_V5	5
 
-#define XFS_FSOP_GEOM_FLAGS_ATTR	0x0001	/* attributes in use	*/
-#define XFS_FSOP_GEOM_FLAGS_NLINK	0x0002	/* 32-bit nlink values	*/
-#define XFS_FSOP_GEOM_FLAGS_QUOTA	0x0004	/* quotas enabled	*/
-#define XFS_FSOP_GEOM_FLAGS_IALIGN	0x0008	/* inode alignment	*/
-#define XFS_FSOP_GEOM_FLAGS_DALIGN	0x0010	/* large data alignment */
-#define XFS_FSOP_GEOM_FLAGS_SHARED	0x0020	/* read-only shared	*/
-#define XFS_FSOP_GEOM_FLAGS_EXTFLG	0x0040	/* special extent flag	*/
-#define XFS_FSOP_GEOM_FLAGS_DIRV2	0x0080	/* directory version 2	*/
-#define XFS_FSOP_GEOM_FLAGS_LOGV2	0x0100	/* log format version 2	*/
-#define XFS_FSOP_GEOM_FLAGS_SECTOR	0x0200	/* sector sizes >1BB	*/
-#define XFS_FSOP_GEOM_FLAGS_ATTR2	0x0400	/* inline attributes rework */
-#define XFS_FSOP_GEOM_FLAGS_PROJID32	0x0800	/* 32-bit project IDs	*/
-#define XFS_FSOP_GEOM_FLAGS_DIRV2CI	0x1000	/* ASCII only CI names	*/
-#define XFS_FSOP_GEOM_FLAGS_LAZYSB	0x4000	/* lazy superblock counters */
-#define XFS_FSOP_GEOM_FLAGS_V5SB	0x8000	/* version 5 superblock */
-#define XFS_FSOP_GEOM_FLAGS_FTYPE	0x10000	/* inode directory types */
-#define XFS_FSOP_GEOM_FLAGS_FINOBT	0x20000	/* free inode btree */
-#define XFS_FSOP_GEOM_FLAGS_SPINODES	0x40000	/* sparse inode chunks	*/
-#define XFS_FSOP_GEOM_FLAGS_RMAPBT	0x80000	/* reverse mapping btree */
-#define XFS_FSOP_GEOM_FLAGS_REFLINK	0x100000 /* files can share blocks */
+#define XFS_FSOP_GEOM_FLAGS_ATTR	(1 << 0)  /* attributes in use	   */
+#define XFS_FSOP_GEOM_FLAGS_NLINK	(1 << 1)  /* 32-bit nlink values   */
+#define XFS_FSOP_GEOM_FLAGS_QUOTA	(1 << 2)  /* quotas enabled	   */
+#define XFS_FSOP_GEOM_FLAGS_IALIGN	(1 << 3)  /* inode alignment	   */
+#define XFS_FSOP_GEOM_FLAGS_DALIGN	(1 << 4)  /* large data alignment  */
+#define XFS_FSOP_GEOM_FLAGS_SHARED	(1 << 5)  /* read-only shared	   */
+#define XFS_FSOP_GEOM_FLAGS_EXTFLG	(1 << 6)  /* special extent flag   */
+#define XFS_FSOP_GEOM_FLAGS_DIRV2	(1 << 7)  /* directory version 2   */
+#define XFS_FSOP_GEOM_FLAGS_LOGV2	(1 << 8)  /* log format version 2  */
+#define XFS_FSOP_GEOM_FLAGS_SECTOR	(1 << 9)  /* sector sizes >1BB	   */
+#define XFS_FSOP_GEOM_FLAGS_ATTR2	(1 << 10) /* inline attributes rework */
+#define XFS_FSOP_GEOM_FLAGS_PROJID32	(1 << 11) /* 32-bit project IDs	   */
+#define XFS_FSOP_GEOM_FLAGS_DIRV2CI	(1 << 12) /* ASCII only CI names   */
+	/*  -- Do not use --		(1 << 13)    SGI parent pointers   */
+#define XFS_FSOP_GEOM_FLAGS_LAZYSB	(1 << 14) /* lazy superblock counters */
+#define XFS_FSOP_GEOM_FLAGS_V5SB	(1 << 15) /* version 5 superblock  */
+#define XFS_FSOP_GEOM_FLAGS_FTYPE	(1 << 16) /* inode directory types */
+#define XFS_FSOP_GEOM_FLAGS_FINOBT	(1 << 17) /* free inode btree	   */
+#define XFS_FSOP_GEOM_FLAGS_SPINODES	(1 << 18) /* sparse inode chunks   */
+#define XFS_FSOP_GEOM_FLAGS_RMAPBT	(1 << 19) /* reverse mapping btree */
+#define XFS_FSOP_GEOM_FLAGS_REFLINK	(1 << 20) /* files can share blocks */
 
 /*
  * Minimum and maximum sizes need for growth checks.
@@ -236,6 +275,31 @@ typedef struct xfs_fsop_resblks {
 #define XFS_MAX_DBLOCKS(s) ((xfs_rfsblock_t)(s)->sb_agcount * (s)->sb_agblocks)
 #define XFS_MIN_DBLOCKS(s) ((xfs_rfsblock_t)((s)->sb_agcount - 1) *	\
 			 (s)->sb_agblocks + XFS_MIN_AG_BLOCKS)
+
+/*
+ * Output for XFS_IOC_AG_GEOMETRY
+ */
+struct xfs_ag_geometry {
+	uint32_t	ag_number;	/* i/o: AG number */
+	uint32_t	ag_length;	/* o: length in blocks */
+	uint32_t	ag_freeblks;	/* o: free space */
+	uint32_t	ag_icount;	/* o: inodes allocated */
+	uint32_t	ag_ifree;	/* o: inodes free */
+	uint32_t	ag_sick;	/* o: sick things in ag */
+	uint32_t	ag_checked;	/* o: checked metadata in ag */
+	uint32_t	ag_reserved32;	/* o: zero */
+	uint64_t	ag_reserved[12];/* o: zero */
+};
+#define XFS_AG_GEOM_SICK_SB	(1 << 0)  /* superblock */
+#define XFS_AG_GEOM_SICK_AGF	(1 << 1)  /* AGF header */
+#define XFS_AG_GEOM_SICK_AGFL	(1 << 2)  /* AGFL header */
+#define XFS_AG_GEOM_SICK_AGI	(1 << 3)  /* AGI header */
+#define XFS_AG_GEOM_SICK_BNOBT	(1 << 4)  /* free space by block */
+#define XFS_AG_GEOM_SICK_CNTBT	(1 << 5)  /* free space by length */
+#define XFS_AG_GEOM_SICK_INOBT	(1 << 6)  /* inode index */
+#define XFS_AG_GEOM_SICK_FINOBT	(1 << 7)  /* free inode index */
+#define XFS_AG_GEOM_SICK_RMAPBT	(1 << 8)  /* reverse mappings */
+#define XFS_AG_GEOM_SICK_REFCNTBT (1 << 9)  /* reference counts */
 
 /*
  * Structures for XFS_IOC_FSGROWFSDATA, XFS_IOC_FSGROWFSLOG & XFS_IOC_FSGROWFSRT
@@ -285,12 +349,24 @@ typedef struct xfs_bstat {
 #define	bs_projid	bs_projid_lo	/* (previously just bs_projid)	*/
 	__u16		bs_forkoff;	/* inode fork offset in bytes	*/
 	__u16		bs_projid_hi;	/* higher part of project id	*/
-	unsigned char	bs_pad[6];	/* pad space, unused		*/
+	uint16_t	bs_sick;	/* sick inode metadata		*/
+	uint16_t	bs_checked;	/* checked inode metadata	*/
+	unsigned char	bs_pad[2];	/* pad space, unused		*/
 	__u32		bs_cowextsize;	/* cow extent size		*/
 	__u32		bs_dmevmask;	/* DMIG event mask		*/
 	__u16		bs_dmstate;	/* DMIG state info		*/
 	__u16		bs_aextents;	/* attribute number of extents	*/
 } xfs_bstat_t;
+
+/* bs_sick flags */
+#define XFS_BS_SICK_INODE	(1 << 0)  /* inode core */
+#define XFS_BS_SICK_BMBTD	(1 << 1)  /* data fork */
+#define XFS_BS_SICK_BMBTA	(1 << 2)  /* attr fork */
+#define XFS_BS_SICK_BMBTC	(1 << 3)  /* cow fork */
+#define XFS_BS_SICK_DIR		(1 << 4)  /* directory */
+#define XFS_BS_SICK_XATTR	(1 << 5)  /* extended attributes */
+#define XFS_BS_SICK_SYMLINK	(1 << 6)  /* symbolic link remote target */
+#define XFS_BS_SICK_PARENT	(1 << 7)  /* parent pointers */
 
 /*
  * Project quota id helpers (previously projid was 16bit only
@@ -502,9 +578,10 @@ struct xfs_scrub_metadata {
 #define XFS_SCRUB_TYPE_UQUOTA	21	/* user quotas */
 #define XFS_SCRUB_TYPE_GQUOTA	22	/* group quotas */
 #define XFS_SCRUB_TYPE_PQUOTA	23	/* project quotas */
+#define XFS_SCRUB_TYPE_FSCOUNTERS 24	/* fs summary counters */
 
 /* Number of scrub subcommands. */
-#define XFS_SCRUB_TYPE_NR	24
+#define XFS_SCRUB_TYPE_NR	25
 
 /* i: Repair this metadata. */
 #define XFS_SCRUB_IFLAG_REPAIR		(1 << 0)
@@ -590,6 +667,7 @@ struct xfs_scrub_metadata {
 #define XFS_IOC_FREE_EOFBLOCKS	_IOR ('X', 58, struct xfs_fs_eofblocks)
 /*	XFS_IOC_GETFSMAP ------ hoisted 59         */
 #define XFS_IOC_SCRUB_METADATA	_IOWR('X', 60, struct xfs_scrub_metadata)
+#define XFS_IOC_AG_GEOMETRY	_IOWR('X', 61, struct xfs_ag_geometry)
 
 /*
  * ioctl commands that replace IRIX syssgi()'s
@@ -620,8 +698,9 @@ struct xfs_scrub_metadata {
 #define XFS_IOC_FSSETDM_BY_HANDLE    _IOW ('X', 121, struct xfs_fsop_setdm_handlereq)
 #define XFS_IOC_ATTRLIST_BY_HANDLE   _IOW ('X', 122, struct xfs_fsop_attrlist_handlereq)
 #define XFS_IOC_ATTRMULTI_BY_HANDLE  _IOW ('X', 123, struct xfs_fsop_attrmulti_handlereq)
-#define XFS_IOC_FSGEOMETRY	     _IOR ('X', 124, struct xfs_fsop_geom)
+#define XFS_IOC_FSGEOMETRY_V4	     _IOR ('X', 124, struct xfs_fsop_geom_v4)
 #define XFS_IOC_GOINGDOWN	     _IOR ('X', 125, uint32_t)
+#define XFS_IOC_FSGEOMETRY	     _IOR ('X', 126, struct xfs_fsop_geom)
 /*	XFS_IOC_GETFSUUID ---------- deprecated 140	 */
 
 

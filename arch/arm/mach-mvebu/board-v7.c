@@ -136,7 +136,6 @@ static void __init i2c_quirk(void)
 
 		of_update_property(np, new_compat);
 	}
-	return;
 }
 
 static void __init mvebu_dt_init(void)

@@ -335,6 +335,43 @@ void amdgpu_amdkfd_free_gtt_mem(struct kgd_dev *kgd, void *mem_obj)
 	amdgpu_bo_unref(&(bo));
 }
 
+uint32_t amdgpu_amdkfd_get_fw_version(struct kgd_dev *kgd,
+				      enum kgd_engine_type type)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
+
+	switch (type) {
+	case KGD_ENGINE_PFP:
+		return adev->gfx.pfp_fw_version;
+
+	case KGD_ENGINE_ME:
+		return adev->gfx.me_fw_version;
+
+	case KGD_ENGINE_CE:
+		return adev->gfx.ce_fw_version;
+
+	case KGD_ENGINE_MEC1:
+		return adev->gfx.mec_fw_version;
+
+	case KGD_ENGINE_MEC2:
+		return adev->gfx.mec2_fw_version;
+
+	case KGD_ENGINE_RLC:
+		return adev->gfx.rlc_fw_version;
+
+	case KGD_ENGINE_SDMA1:
+		return adev->sdma.instance[0].fw_version;
+
+	case KGD_ENGINE_SDMA2:
+		return adev->sdma.instance[1].fw_version;
+
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+
 void amdgpu_amdkfd_get_local_mem_info(struct kgd_dev *kgd,
 				      struct kfd_local_mem_info *mem_info)
 {
@@ -638,6 +675,10 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 }
 
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
+{
+}
+
+void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
 {
 }
 #endif

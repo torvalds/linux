@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sun4i-ss-cipher.c - hardware cryptographic accelerator for Allwinner A20 SoC
  *
@@ -8,11 +9,6 @@
  * Add support also for DES and 3DES in CBC and ECB mode.
  *
  * You could find the datasheet in Documentation/arm/sunxi/README
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include "sun4i-ss.h"
 
@@ -40,11 +36,6 @@ static int sun4i_ss_opti_poll(struct skcipher_request *areq)
 
 	if (!areq->cryptlen)
 		return 0;
-
-	if (!areq->iv) {
-		dev_err_ratelimited(ss->dev, "ERROR: Empty IV\n");
-		return -EINVAL;
-	}
 
 	if (!areq->src || !areq->dst) {
 		dev_err_ratelimited(ss->dev, "ERROR: Some SGs are NULL\n");
@@ -134,6 +125,8 @@ static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 	struct scatterlist *out_sg = areq->dst;
 	unsigned int ivsize = crypto_skcipher_ivsize(tfm);
 	struct sun4i_cipher_req_ctx *ctx = skcipher_request_ctx(areq);
+	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
+	struct sun4i_ss_alg_template *algt;
 	u32 mode = ctx->mode;
 	/* when activating SS, the default FIFO space is SS_RX_DEFAULT(32) */
 	u32 rx_cnt = SS_RX_DEFAULT;
@@ -153,19 +146,19 @@ static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 	unsigned int obo = 0;	/* offset in bufo*/
 	unsigned int obl = 0;	/* length of data in bufo */
 	unsigned long flags;
+	bool need_fallback;
 
 	if (!areq->cryptlen)
 		return 0;
-
-	if (!areq->iv) {
-		dev_err_ratelimited(ss->dev, "ERROR: Empty IV\n");
-		return -EINVAL;
-	}
 
 	if (!areq->src || !areq->dst) {
 		dev_err_ratelimited(ss->dev, "ERROR: Some SGs are NULL\n");
 		return -EINVAL;
 	}
+
+	algt = container_of(alg, struct sun4i_ss_alg_template, alg.crypto);
+	if (areq->cryptlen % algt->alg.crypto.base.cra_blocksize)
+		need_fallback = true;
 
 	/*
 	 * if we have only SGs with size multiple of 4,
@@ -182,8 +175,23 @@ static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
 		out_sg = sg_next(out_sg);
 	}
 
-	if (no_chunk == 1)
+	if (no_chunk == 1 && !need_fallback)
 		return sun4i_ss_opti_poll(areq);
+
+	if (need_fallback) {
+		SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, op->fallback_tfm);
+		skcipher_request_set_sync_tfm(subreq, op->fallback_tfm);
+		skcipher_request_set_callback(subreq, areq->base.flags, NULL,
+					      NULL);
+		skcipher_request_set_crypt(subreq, areq->src, areq->dst,
+					   areq->cryptlen, areq->iv);
+		if (ctx->mode & SS_DECRYPTION)
+			err = crypto_skcipher_decrypt(subreq);
+		else
+			err = crypto_skcipher_encrypt(subreq);
+		skcipher_request_zero(subreq);
+		return err;
+	}
 
 	spin_lock_irqsave(&ss->slock, flags);
 
@@ -458,6 +466,7 @@ int sun4i_ss_cipher_init(struct crypto_tfm *tfm)
 {
 	struct sun4i_tfm_ctx *op = crypto_tfm_ctx(tfm);
 	struct sun4i_ss_alg_template *algt;
+	const char *name = crypto_tfm_alg_name(tfm);
 
 	memset(op, 0, sizeof(struct sun4i_tfm_ctx));
 
@@ -468,7 +477,20 @@ int sun4i_ss_cipher_init(struct crypto_tfm *tfm)
 	crypto_skcipher_set_reqsize(__crypto_skcipher_cast(tfm),
 				    sizeof(struct sun4i_cipher_req_ctx));
 
+	op->fallback_tfm = crypto_alloc_sync_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
+	if (IS_ERR(op->fallback_tfm)) {
+		dev_err(op->ss->dev, "ERROR: Cannot allocate fallback for %s %ld\n",
+			name, PTR_ERR(op->fallback_tfm));
+		return PTR_ERR(op->fallback_tfm);
+	}
+
 	return 0;
+}
+
+void sun4i_ss_cipher_exit(struct crypto_tfm *tfm)
+{
+	struct sun4i_tfm_ctx *op = crypto_tfm_ctx(tfm);
+	crypto_free_sync_skcipher(op->fallback_tfm);
 }
 
 /* check and set the AES key, prepare the mode to be used */
@@ -495,7 +517,11 @@ int sun4i_ss_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	}
 	op->keylen = keylen;
 	memcpy(op->key, key, keylen);
-	return 0;
+
+	crypto_sync_skcipher_clear_flags(op->fallback_tfm, CRYPTO_TFM_REQ_MASK);
+	crypto_sync_skcipher_set_flags(op->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);
+
+	return crypto_sync_skcipher_setkey(op->fallback_tfm, key, keylen);
 }
 
 /* check and set the DES key, prepare the mode to be used */
@@ -525,7 +551,11 @@ int sun4i_ss_des_setkey(struct crypto_skcipher *tfm, const u8 *key,
 
 	op->keylen = keylen;
 	memcpy(op->key, key, keylen);
-	return 0;
+
+	crypto_sync_skcipher_clear_flags(op->fallback_tfm, CRYPTO_TFM_REQ_MASK);
+	crypto_sync_skcipher_set_flags(op->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);
+
+	return crypto_sync_skcipher_setkey(op->fallback_tfm, key, keylen);
 }
 
 /* check and set the 3DES key, prepare the mode to be used */
@@ -533,14 +563,18 @@ int sun4i_ss_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			 unsigned int keylen)
 {
 	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
-	struct sun4i_ss_ctx *ss = op->ss;
+	int err;
 
-	if (unlikely(keylen != 3 * DES_KEY_SIZE)) {
-		dev_err(ss->dev, "Invalid keylen %u\n", keylen);
-		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
+	err = des3_verify_key(tfm, key);
+	if (unlikely(err))
+		return err;
+
 	op->keylen = keylen;
 	memcpy(op->key, key, keylen);
-	return 0;
+
+	crypto_sync_skcipher_clear_flags(op->fallback_tfm, CRYPTO_TFM_REQ_MASK);
+	crypto_sync_skcipher_set_flags(op->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);
+
+	return crypto_sync_skcipher_setkey(op->fallback_tfm, key, keylen);
+
 }

@@ -393,6 +393,7 @@ static void vmw_cmdbuf_ctx_process(struct vmw_cmdbuf_man *man,
 			__vmw_cmdbuf_header_free(entry);
 			break;
 		case SVGA_CB_STATUS_COMMAND_ERROR:
+			WARN_ONCE(true, "Command buffer error.\n");
 			entry->cb_header->status = SVGA_CB_STATUS_NONE;
 			list_add_tail(&entry->list, &man->error);
 			schedule_work(&man->work);
@@ -511,17 +512,14 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 		container_of(work, struct vmw_cmdbuf_man, work);
 	struct vmw_cmdbuf_header *entry, *next;
 	uint32_t dummy;
-	bool restart[SVGA_CB_CONTEXT_MAX];
 	bool send_fence = false;
 	struct list_head restart_head[SVGA_CB_CONTEXT_MAX];
 	int i;
 	struct vmw_cmdbuf_context *ctx;
 	bool global_block = false;
 
-	for_each_cmdbuf_ctx(man, i, ctx) {
+	for_each_cmdbuf_ctx(man, i, ctx)
 		INIT_LIST_HEAD(&restart_head[i]);
-		restart[i] = false;
-	}
 
 	mutex_lock(&man->error_mutex);
 	spin_lock(&man->lock);
@@ -533,23 +531,23 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 		const char *cmd_name;
 
 		list_del_init(&entry->list);
-		restart[entry->cb_context] = true;
 		global_block = true;
 
 		if (!vmw_cmd_describe(header, &error_cmd_size, &cmd_name)) {
-			DRM_ERROR("Unknown command causing device error.\n");
-			DRM_ERROR("Command buffer offset is %lu\n",
-				  (unsigned long) cb_hdr->errorOffset);
+			VMW_DEBUG_USER("Unknown command causing device error.\n");
+			VMW_DEBUG_USER("Command buffer offset is %lu\n",
+				       (unsigned long) cb_hdr->errorOffset);
 			__vmw_cmdbuf_header_free(entry);
 			send_fence = true;
 			continue;
 		}
 
-		DRM_ERROR("Command \"%s\" causing device error.\n", cmd_name);
-		DRM_ERROR("Command buffer offset is %lu\n",
-			  (unsigned long) cb_hdr->errorOffset);
-		DRM_ERROR("Command size is %lu\n",
-			  (unsigned long) error_cmd_size);
+		VMW_DEBUG_USER("Command \"%s\" causing device error.\n",
+			       cmd_name);
+		VMW_DEBUG_USER("Command buffer offset is %lu\n",
+			       (unsigned long) cb_hdr->errorOffset);
+		VMW_DEBUG_USER("Command size is %lu\n",
+			       (unsigned long) error_cmd_size);
 
 		new_start_offset = cb_hdr->errorOffset + error_cmd_size;
 

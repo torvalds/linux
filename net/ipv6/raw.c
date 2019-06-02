@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	RAW sockets for IPv6
  *	Linux INET6 implementation
@@ -11,11 +12,6 @@
  *	Hideaki YOSHIFUJI	:	sin6_scope_id support
  *	YOSHIFUJI,H.@USAGI	:	raw checksum (RFC2292(bis) compliance)
  *	Kazunori MIYAZAWA @USAGI:	change process style to use ip6_append_data
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/errno.h>
@@ -287,7 +283,9 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			/* Binding to link-local address requires an interface */
 			if (!sk->sk_bound_dev_if)
 				goto out_unlock;
+		}
 
+		if (sk->sk_bound_dev_if) {
 			err = -ENODEV;
 			dev = dev_get_by_index_rcu(sock_net(sk),
 						   sk->sk_bound_dev_if);
@@ -1356,6 +1354,7 @@ const struct proto_ops inet6_sockraw_ops = {
 	.getname	   = inet6_getname,
 	.poll		   = datagram_poll,		/* ok		*/
 	.ioctl		   = inet6_ioctl,		/* must change  */
+	.gettstamp	   = sock_gettstamp,
 	.listen		   = sock_no_listen,		/* ok		*/
 	.shutdown	   = inet_shutdown,		/* ok		*/
 	.setsockopt	   = sock_common_setsockopt,	/* ok		*/

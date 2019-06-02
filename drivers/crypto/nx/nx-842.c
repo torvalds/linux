@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API for the NX-842 hardware compression.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Copyright (C) IBM Corporation, 2011-2015
  *
@@ -353,7 +344,7 @@ static int decompress(struct nx842_crypto_ctx *ctx,
 	unsigned int adj_slen = slen;
 	u8 *src = p->in, *dst = p->out;
 	u16 padding = be16_to_cpu(g->padding);
-	int ret, spadding = 0, dpadding = 0;
+	int ret, spadding = 0;
 	ktime_t timeout;
 
 	if (!slen || !required_len)
@@ -413,7 +404,6 @@ usesw:
 		spadding = 0;
 		dst = p->out;
 		dlen = p->oremain;
-		dpadding = 0;
 		if (dlen < required_len) { /* have ignore bytes */
 			dst = ctx->dbounce;
 			dlen = BOUNCE_BUFFER_SIZE;

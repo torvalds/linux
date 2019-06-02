@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* drivers/gpu/drm/exynos/exynos7_drm_decon.c
  *
  * Copyright (C) 2014 Samsung Electronics Co.Ltd
  * Authors:
  *	Akshu Agarwal <akshua@gmail.com>
  *	Ajay Kumar <ajaykumar.rs@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
@@ -99,15 +94,13 @@ static void decon_wait_for_vblank(struct exynos_drm_crtc *crtc)
 	if (!wait_event_timeout(ctx->wait_vsync_queue,
 				!atomic_read(&ctx->wait_vsync_event),
 				HZ/20))
-		DRM_DEBUG_KMS("vblank wait timed out.\n");
+		DRM_DEV_DEBUG_KMS(ctx->dev, "vblank wait timed out.\n");
 }
 
 static void decon_clear_channels(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	unsigned int win, ch_enabled = 0;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* Check if any channel is enabled. */
 	for (win = 0; win < WINDOWS_NR; win++) {
@@ -315,7 +308,7 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 		break;
 	}
 
-	DRM_DEBUG_KMS("cpp = %d\n", fb->format->cpp[0]);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "cpp = %d\n", fb->format->cpp[0]);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -422,9 +415,9 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	writel(state->src.x, ctx->regs + VIDW_OFFSET_X(win));
 	writel(state->src.y, ctx->regs + VIDW_OFFSET_Y(win));
 
-	DRM_DEBUG_KMS("start addr = 0x%lx\n",
+	DRM_DEV_DEBUG_KMS(ctx->dev, "start addr = 0x%lx\n",
 			(unsigned long)val);
-	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
+	DRM_DEV_DEBUG_KMS(ctx->dev, "ovl_width = %d, ovl_height = %d\n",
 			state->crtc.w, state->crtc.h);
 
 	val = VIDOSDxA_TOPLEFT_X(state->crtc.x) |
@@ -442,7 +435,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	writel(val, ctx->regs + VIDOSD_B(win));
 
-	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
+	DRM_DEV_DEBUG_KMS(ctx->dev, "osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
 			state->crtc.x, state->crtc.y, last_x, last_y);
 
 	/* OSD alpha */
@@ -622,7 +615,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 	ret = decon_ctx_initialize(ctx, drm_dev);
 	if (ret) {
-		DRM_ERROR("decon_ctx_initialize failed.\n");
+		DRM_DEV_ERROR(dev, "decon_ctx_initialize failed.\n");
 		return ret;
 	}
 
@@ -802,25 +795,29 @@ static int exynos7_decon_resume(struct device *dev)
 
 	ret = clk_prepare_enable(ctx->pclk);
 	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the pclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the pclk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->aclk);
 	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the aclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the aclk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->eclk);
 	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the eclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the eclk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->vclk);
 	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the vclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the vclk [%d]\n",
+			      ret);
 		return ret;
 	}
 

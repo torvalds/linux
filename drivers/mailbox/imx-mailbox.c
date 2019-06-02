@@ -264,7 +264,6 @@ static int imx_mu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct resource *iomem;
 	struct imx_mu_priv *priv;
 	unsigned int i;
 	int ret;
@@ -275,8 +274,7 @@ static int imx_mu_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, iomem);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 

@@ -14,6 +14,8 @@
 #include <linux/syscalls.h>
 #include <linux/error-injection.h>
 
+#include <asm/tlb.h>
+
 #include "trace_probe.h"
 #include "trace.h"
 
@@ -163,12 +165,18 @@ BPF_CALL_3(bpf_probe_write_user, void *, unsafe_ptr, const void *, src,
 	 * access_ok() should prevent writing to non-user memory, but in
 	 * some situations (nommu, temporary switch, etc) access_ok() does
 	 * not provide enough validation, hence the check on KERNEL_DS.
+	 *
+	 * nmi_uaccess_okay() ensures the probe is not run in an interim
+	 * state, when the task or mm are switched. This is specifically
+	 * required to prevent the use of temporary mm.
 	 */
 
 	if (unlikely(in_interrupt() ||
 		     current->flags & (PF_KTHREAD | PF_EXITING)))
 		return -EPERM;
 	if (unlikely(uaccess_kernel()))
+		return -EPERM;
+	if (unlikely(!nmi_uaccess_okay()))
 		return -EPERM;
 	if (!access_ok(unsafe_ptr, size))
 		return -EPERM;
@@ -569,6 +577,12 @@ tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_map_update_elem_proto;
 	case BPF_FUNC_map_delete_elem:
 		return &bpf_map_delete_elem_proto;
+	case BPF_FUNC_map_push_elem:
+		return &bpf_map_push_elem_proto;
+	case BPF_FUNC_map_pop_elem:
+		return &bpf_map_pop_elem_proto;
+	case BPF_FUNC_map_peek_elem:
+		return &bpf_map_peek_elem_proto;
 	case BPF_FUNC_probe_read:
 		return &bpf_probe_read_proto;
 	case BPF_FUNC_ktime_get_ns:
@@ -909,6 +923,27 @@ const struct bpf_verifier_ops raw_tracepoint_verifier_ops = {
 const struct bpf_prog_ops raw_tracepoint_prog_ops = {
 };
 
+static bool raw_tp_writable_prog_is_valid_access(int off, int size,
+						 enum bpf_access_type type,
+						 const struct bpf_prog *prog,
+						 struct bpf_insn_access_aux *info)
+{
+	if (off == 0) {
+		if (size != sizeof(u64) || type != BPF_READ)
+			return false;
+		info->reg_type = PTR_TO_TP_BUFFER;
+	}
+	return raw_tp_prog_is_valid_access(off, size, type, prog, info);
+}
+
+const struct bpf_verifier_ops raw_tracepoint_writable_verifier_ops = {
+	.get_func_proto  = raw_tp_prog_func_proto,
+	.is_valid_access = raw_tp_writable_prog_is_valid_access,
+};
+
+const struct bpf_prog_ops raw_tracepoint_writable_prog_ops = {
+};
+
 static bool pe_prog_is_valid_access(int off, int size, enum bpf_access_type type,
 				    const struct bpf_prog *prog,
 				    struct bpf_insn_access_aux *info)
@@ -1198,6 +1233,9 @@ static int __bpf_probe_register(struct bpf_raw_event_map *btp, struct bpf_prog *
 	if (prog->aux->max_ctx_offset > btp->num_args * sizeof(u64))
 		return -EINVAL;
 
+	if (prog->aux->max_tp_access > btp->writable_size)
+		return -EINVAL;
+
 	return tracepoint_probe_register(tp, (void *)btp->bpf_func, prog);
 }
 
@@ -1259,7 +1297,8 @@ int bpf_get_perf_event_info(const struct perf_event *event, u32 *prog_id,
 }
 
 #ifdef CONFIG_MODULES
-int bpf_event_notify(struct notifier_block *nb, unsigned long op, void *module)
+static int bpf_event_notify(struct notifier_block *nb, unsigned long op,
+			    void *module)
 {
 	struct bpf_trace_module *btm, *tmp;
 	struct module *mod = module;
@@ -1298,7 +1337,7 @@ static struct notifier_block bpf_module_nb = {
 	.notifier_call = bpf_event_notify,
 };
 
-int __init bpf_event_init(void)
+static int __init bpf_event_init(void)
 {
 	register_module_notifier(&bpf_module_nb);
 	return 0;

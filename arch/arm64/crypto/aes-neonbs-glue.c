@@ -288,7 +288,7 @@ static int ctr_encrypt_sync(struct skcipher_request *req)
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct aesbs_ctr_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return aes_ctr_encrypt_fallback(&ctx->fallback, req);
 
 	return ctr_encrypt(req);
@@ -304,6 +304,8 @@ static int __xts_crypt(struct skcipher_request *req,
 	int err;
 
 	err = skcipher_walk_virt(&walk, req, false);
+	if (err)
+		return err;
 
 	kernel_neon_begin();
 	neon_aes_ecb_encrypt(walk.iv, walk.iv, ctx->twkey, ctx->key.rounds, 1);
@@ -440,7 +442,7 @@ static int __init aes_init(void)
 	int err;
 	int i;
 
-	if (!(elf_hwcap & HWCAP_ASIMD))
+	if (!cpu_have_named_feature(ASIMD))
 		return -ENODEV;
 
 	err = crypto_register_skciphers(aes_algs, ARRAY_SIZE(aes_algs));

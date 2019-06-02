@@ -1,24 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  Bluetooth HCI UART driver for Broadcom devices
  *
  *  Copyright (C) 2015  Intel Corporation
- *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/kernel.h>
@@ -228,9 +213,15 @@ static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 	int err;
 
 	if (powered && !dev->res_enabled) {
-		err = regulator_bulk_enable(BCM_NUM_SUPPLIES, dev->supplies);
-		if (err)
-			return err;
+		/* Intel Macs use bcm_apple_get_resources() and don't
+		 * have regulator supplies configured.
+		 */
+		if (dev->supplies[0].supply) {
+			err = regulator_bulk_enable(BCM_NUM_SUPPLIES,
+						    dev->supplies);
+			if (err)
+				return err;
+		}
 
 		/* LPO clock needs to be 32.768 kHz */
 		err = clk_set_rate(dev->lpo_clk, 32768);
@@ -259,7 +250,13 @@ static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 	if (!powered && dev->res_enabled) {
 		clk_disable_unprepare(dev->txco_clk);
 		clk_disable_unprepare(dev->lpo_clk);
-		regulator_bulk_disable(BCM_NUM_SUPPLIES, dev->supplies);
+
+		/* Intel Macs use bcm_apple_get_resources() and don't
+		 * have regulator supplies configured.
+		 */
+		if (dev->supplies[0].supply)
+			regulator_bulk_disable(BCM_NUM_SUPPLIES,
+					       dev->supplies);
 	}
 
 	/* wait for device to power on and come out of reset */

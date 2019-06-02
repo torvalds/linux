@@ -25,16 +25,23 @@
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  */
-#include <linux/i2c.h>
-#include <linux/slab.h>
+
 #include <linux/delay.h>
 #include <linux/export.h>
+#include <linux/i2c.h>
+#include <linux/slab.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
-#include "intel_drv.h"
 #include <drm/i915_drm.h>
+
 #include "i915_drv.h"
+#include "intel_connector.h"
+#include "intel_drv.h"
+#include "intel_hdmi.h"
+#include "intel_panel.h"
+#include "intel_sdvo.h"
 #include "intel_sdvo_regs.h"
 
 #define SDVO_TMDS_MASK (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1)
@@ -978,39 +985,148 @@ static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 				    &tx_rate, 1);
 }
 
-static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
-					 const struct intel_crtc_state *pipe_config,
-					 const struct drm_connector_state *conn_state)
+static ssize_t intel_sdvo_read_infoframe(struct intel_sdvo *intel_sdvo,
+					 unsigned int if_index,
+					 u8 *data, unsigned int length)
 {
-	const struct drm_display_mode *adjusted_mode =
-		&pipe_config->base.adjusted_mode;
-	u8 sdvo_data[HDMI_INFOFRAME_SIZE(AVI)];
-	union hdmi_infoframe frame;
-	int ret;
-	ssize_t len;
+	u8 set_buf_index[2] = { if_index, 0 };
+	u8 hbuf_size, tx_rate, av_split;
+	int i;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
-						       conn_state->connector,
-						       adjusted_mode);
-	if (ret < 0) {
-		DRM_ERROR("couldn't fill AVI infoframe\n");
-		return false;
+	if (!intel_sdvo_get_value(intel_sdvo,
+				  SDVO_CMD_GET_HBUF_AV_SPLIT,
+				  &av_split, 1))
+		return -ENXIO;
+
+	if (av_split < if_index)
+		return 0;
+
+	if (!intel_sdvo_get_value(intel_sdvo,
+				  SDVO_CMD_GET_HBUF_TXRATE,
+				  &tx_rate, 1))
+		return -ENXIO;
+
+	if (tx_rate == SDVO_HBUF_TX_DISABLED)
+		return 0;
+
+	if (!intel_sdvo_set_value(intel_sdvo,
+				  SDVO_CMD_SET_HBUF_INDEX,
+				  set_buf_index, 2))
+		return -ENXIO;
+
+	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HBUF_INFO,
+				  &hbuf_size, 1))
+		return -ENXIO;
+
+	/* Buffer size is 0 based, hooray! */
+	hbuf_size++;
+
+	DRM_DEBUG_KMS("reading sdvo hbuf: %i, hbuf_size %i, hbuf_size: %i\n",
+		      if_index, length, hbuf_size);
+
+	hbuf_size = min_t(unsigned int, length, hbuf_size);
+
+	for (i = 0; i < hbuf_size; i += 8) {
+		if (!intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_GET_HBUF_DATA, NULL, 0))
+			return -ENXIO;
+		if (!intel_sdvo_read_response(intel_sdvo, &data[i],
+					      min_t(unsigned int, 8, hbuf_size - i)))
+			return -ENXIO;
 	}
 
-	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+	return hbuf_size;
+}
+
+static bool intel_sdvo_compute_avi_infoframe(struct intel_sdvo *intel_sdvo,
+					     struct intel_crtc_state *crtc_state,
+					     struct drm_connector_state *conn_state)
+{
+	struct hdmi_avi_infoframe *frame = &crtc_state->infoframes.avi.avi;
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
+	int ret;
+
+	if (!crtc_state->has_hdmi_sink)
+		return true;
+
+	crtc_state->infoframes.enable |=
+		intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_AVI);
+
+	ret = drm_hdmi_avi_infoframe_from_display_mode(frame,
+						       conn_state->connector,
+						       adjusted_mode);
+	if (ret)
+		return false;
+
+	drm_hdmi_avi_infoframe_quant_range(frame,
 					   conn_state->connector,
 					   adjusted_mode,
-					   pipe_config->limited_color_range ?
+					   crtc_state->limited_color_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
 					   HDMI_QUANTIZATION_RANGE_FULL);
 
-	len = hdmi_infoframe_pack(&frame, sdvo_data, sizeof(sdvo_data));
-	if (len < 0)
+	ret = hdmi_avi_infoframe_check(frame);
+	if (WARN_ON(ret))
+		return false;
+
+	return true;
+}
+
+static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
+					 const struct intel_crtc_state *crtc_state)
+{
+	u8 sdvo_data[HDMI_INFOFRAME_SIZE(AVI)];
+	const union hdmi_infoframe *frame = &crtc_state->infoframes.avi;
+	ssize_t len;
+
+	if ((crtc_state->infoframes.enable &
+	     intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_AVI)) == 0)
+		return true;
+
+	if (WARN_ON(frame->any.type != HDMI_INFOFRAME_TYPE_AVI))
+		return false;
+
+	len = hdmi_infoframe_pack_only(frame, sdvo_data, sizeof(sdvo_data));
+	if (WARN_ON(len < 0))
 		return false;
 
 	return intel_sdvo_write_infoframe(intel_sdvo, SDVO_HBUF_INDEX_AVI_IF,
 					  SDVO_HBUF_TX_VSYNC,
 					  sdvo_data, sizeof(sdvo_data));
+}
+
+static void intel_sdvo_get_avi_infoframe(struct intel_sdvo *intel_sdvo,
+					 struct intel_crtc_state *crtc_state)
+{
+	u8 sdvo_data[HDMI_INFOFRAME_SIZE(AVI)];
+	union hdmi_infoframe *frame = &crtc_state->infoframes.avi;
+	ssize_t len;
+	int ret;
+
+	if (!crtc_state->has_hdmi_sink)
+		return;
+
+	len = intel_sdvo_read_infoframe(intel_sdvo, SDVO_HBUF_INDEX_AVI_IF,
+					sdvo_data, sizeof(sdvo_data));
+	if (len < 0) {
+		DRM_DEBUG_KMS("failed to read AVI infoframe\n");
+		return;
+	} else if (len == 0) {
+		return;
+	}
+
+	crtc_state->infoframes.enable |=
+		intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_AVI);
+
+	ret = hdmi_infoframe_unpack(frame, sdvo_data, sizeof(sdvo_data));
+	if (ret) {
+		DRM_DEBUG_KMS("Failed to unpack AVI infoframe\n");
+		return;
+	}
+
+	if (frame->any.type != HDMI_INFOFRAME_TYPE_AVI)
+		DRM_DEBUG_KMS("Found the wrong infoframe type 0x%x (expected 0x%02x)\n",
+			      frame->any.type, HDMI_INFOFRAME_TYPE_AVI);
 }
 
 static bool intel_sdvo_set_tv_format(struct intel_sdvo *intel_sdvo,
@@ -1193,6 +1309,12 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 	if (intel_sdvo_connector->is_hdmi)
 		adjusted_mode->picture_aspect_ratio = conn_state->picture_aspect_ratio;
 
+	if (!intel_sdvo_compute_avi_infoframe(intel_sdvo,
+					      pipe_config, conn_state)) {
+		DRM_DEBUG_KMS("bad AVI infoframe\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -1315,8 +1437,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
 		intel_sdvo_set_colorimetry(intel_sdvo,
 					   SDVO_COLORIMETRY_RGB256);
-		intel_sdvo_set_avi_infoframe(intel_sdvo,
-					     crtc_state, conn_state);
+		intel_sdvo_set_avi_infoframe(intel_sdvo, crtc_state);
 	} else
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_DVI);
 
@@ -1507,6 +1628,10 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 		}
 	}
 
+	WARN(encoder_pixel_multiplier != pipe_config->pixel_multiplier,
+	     "SDVO pixel multiplier mismatch, port: %i, encoder: %i\n",
+	     pipe_config->pixel_multiplier, encoder_pixel_multiplier);
+
 	if (sdvox & HDMI_COLOR_RANGE_16_235)
 		pipe_config->limited_color_range = true;
 
@@ -1519,9 +1644,7 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 			pipe_config->has_hdmi_sink = true;
 	}
 
-	WARN(encoder_pixel_multiplier != pipe_config->pixel_multiplier,
-	     "SDVO pixel multiplier mismatch, port: %i, encoder: %i\n",
-	     pipe_config->pixel_multiplier, encoder_pixel_multiplier);
+	intel_sdvo_get_avi_infoframe(intel_sdvo, pipe_config);
 }
 
 static void intel_disable_sdvo(struct intel_encoder *encoder,

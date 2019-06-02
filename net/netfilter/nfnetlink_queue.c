@@ -351,7 +351,7 @@ static int nfqnl_put_bridge(struct nf_queue_entry *entry, struct sk_buff *skb)
 	if (skb_vlan_tag_present(entskb)) {
 		struct nlattr *nest;
 
-		nest = nla_nest_start(skb, NFQA_VLAN | NLA_F_NESTED);
+		nest = nla_nest_start(skb, NFQA_VLAN);
 		if (!nest)
 			goto nla_put_failure;
 
@@ -582,7 +582,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	if (nfqnl_put_bridge(entry, skb) < 0)
 		goto nla_put_failure;
 
-	if (entskb->tstamp) {
+	if (entry->state.hook <= NF_INET_FORWARD && entskb->tstamp) {
 		struct nfqnl_msg_packet_timestamp ts;
 		struct timespec64 kts = ktime_to_timespec64(entskb->tstamp);
 
@@ -1139,8 +1139,9 @@ static int nfqa_parse_bridge(struct nf_queue_entry *entry,
 		struct nlattr *tb[NFQA_VLAN_MAX + 1];
 		int err;
 
-		err = nla_parse_nested(tb, NFQA_VLAN_MAX, nfqa[NFQA_VLAN],
-				       nfqa_vlan_policy, NULL);
+		err = nla_parse_nested_deprecated(tb, NFQA_VLAN_MAX,
+						  nfqa[NFQA_VLAN],
+						  nfqa_vlan_policy, NULL);
 		if (err < 0)
 			return err;
 

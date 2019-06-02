@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -7,18 +8,12 @@
  *
  *		IPv4 specific functions
  *
- *
  *		code split from:
  *		linux/ipv4/tcp.c
  *		linux/ipv4/tcp_input.c
  *		linux/ipv4/tcp_output.c
  *
  *		See tcp.c for author information
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -1673,7 +1668,9 @@ bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb)
 	if (TCP_SKB_CB(tail)->end_seq != TCP_SKB_CB(skb)->seq ||
 	    TCP_SKB_CB(tail)->ip_dsfield != TCP_SKB_CB(skb)->ip_dsfield ||
 	    ((TCP_SKB_CB(tail)->tcp_flags |
-	      TCP_SKB_CB(skb)->tcp_flags) & TCPHDR_URG) ||
+	      TCP_SKB_CB(skb)->tcp_flags) & (TCPHDR_SYN | TCPHDR_RST | TCPHDR_URG)) ||
+	    !((TCP_SKB_CB(tail)->tcp_flags &
+	      TCP_SKB_CB(skb)->tcp_flags) & TCPHDR_ACK) ||
 	    ((TCP_SKB_CB(tail)->tcp_flags ^
 	      TCP_SKB_CB(skb)->tcp_flags) & (TCPHDR_ECE | TCPHDR_CWR)) ||
 #ifdef CONFIG_TLS_DEVICE
@@ -1692,6 +1689,15 @@ bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb)
 		if (after(TCP_SKB_CB(skb)->ack_seq, TCP_SKB_CB(tail)->ack_seq))
 			TCP_SKB_CB(tail)->ack_seq = TCP_SKB_CB(skb)->ack_seq;
 
+		/* We have to update both TCP_SKB_CB(tail)->tcp_flags and
+		 * thtail->fin, so that the fast path in tcp_rcv_established()
+		 * is not entered if we append a packet with a FIN.
+		 * SYN, RST, URG are not present.
+		 * ACK is set on both packets.
+		 * PSH : we do not really care in TCP stack,
+		 *       at least for 'GRO' packets.
+		 */
+		thtail->fin |= th->fin;
 		TCP_SKB_CB(tail)->tcp_flags |= TCP_SKB_CB(skb)->tcp_flags;
 
 		if (TCP_SKB_CB(skb)->has_rxtstamp) {
@@ -1774,6 +1780,7 @@ static void tcp_v4_fill_cb(struct sk_buff *skb, const struct iphdr *iph,
 int tcp_v4_rcv(struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb->dev);
+	struct sk_buff *skb_to_free;
 	int sdif = inet_sdif(skb);
 	const struct iphdr *iph;
 	const struct tcphdr *th;
@@ -1905,11 +1912,17 @@ process:
 	tcp_segs_in(tcp_sk(sk), skb);
 	ret = 0;
 	if (!sock_owned_by_user(sk)) {
+		skb_to_free = sk->sk_rx_skb_cache;
+		sk->sk_rx_skb_cache = NULL;
 		ret = tcp_v4_do_rcv(sk, skb);
-	} else if (tcp_add_backlog(sk, skb)) {
-		goto discard_and_relse;
+	} else {
+		if (tcp_add_backlog(sk, skb))
+			goto discard_and_relse;
+		skb_to_free = NULL;
 	}
 	bh_unlock_sock(sk);
+	if (skb_to_free)
+		__kfree_skb(skb_to_free);
 
 put_and_return:
 	if (refcounted)

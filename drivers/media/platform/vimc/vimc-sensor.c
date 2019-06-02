@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vimc-sensor.c Virtual Media Controller Driver
  *
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/component.h>
@@ -65,32 +55,11 @@ static int vimc_sen_init_cfg(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int vimc_sen_enum_mbus_code(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
-				   struct v4l2_subdev_mbus_code_enum *code)
-{
-	const struct vimc_pix_map *vpix = vimc_pix_map_by_index(code->index);
-
-	if (!vpix)
-		return -EINVAL;
-
-	code->code = vpix->code;
-
-	return 0;
-}
-
 static int vimc_sen_enum_frame_size(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_pad_config *cfg,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
-	const struct vimc_pix_map *vpix;
-
 	if (fse->index)
-		return -EINVAL;
-
-	/* Only accept code in the pix map table */
-	vpix = vimc_pix_map_by_code(fse->code);
-	if (!vpix)
 		return -EINVAL;
 
 	fse->min_width = VIMC_FRAME_MIN_WIDTH;
@@ -117,14 +86,17 @@ static int vimc_sen_get_fmt(struct v4l2_subdev *sd,
 
 static void vimc_sen_tpg_s_format(struct vimc_sen_device *vsen)
 {
-	const struct vimc_pix_map *vpix =
-				vimc_pix_map_by_code(vsen->mbus_format.code);
+	u32 pixelformat = vsen->ved.stream->producer_pixfmt;
+	const struct v4l2_format_info *pix_info;
+
+	pix_info = v4l2_format_info(pixelformat);
 
 	tpg_reset_source(&vsen->tpg, vsen->mbus_format.width,
 			 vsen->mbus_format.height, vsen->mbus_format.field);
-	tpg_s_bytesperline(&vsen->tpg, 0, vsen->mbus_format.width * vpix->bpp);
+	tpg_s_bytesperline(&vsen->tpg, 0,
+			   vsen->mbus_format.width * pix_info->bpp[0]);
 	tpg_s_buf_height(&vsen->tpg, vsen->mbus_format.height);
-	tpg_s_fourcc(&vsen->tpg, vpix->pixelformat);
+	tpg_s_fourcc(&vsen->tpg, pixelformat);
 	/* TODO: add support for V4L2_FIELD_ALTERNATE */
 	tpg_s_field(&vsen->tpg, vsen->mbus_format.field, false);
 	tpg_s_colorspace(&vsen->tpg, vsen->mbus_format.colorspace);
@@ -135,13 +107,6 @@ static void vimc_sen_tpg_s_format(struct vimc_sen_device *vsen)
 
 static void vimc_sen_adjust_fmt(struct v4l2_mbus_framefmt *fmt)
 {
-	const struct vimc_pix_map *vpix;
-
-	/* Only accept code in the pix map table */
-	vpix = vimc_pix_map_by_code(fmt->code);
-	if (!vpix)
-		fmt->code = fmt_default.code;
-
 	fmt->width = clamp_t(u32, fmt->width, VIMC_FRAME_MIN_WIDTH,
 			     VIMC_FRAME_MAX_WIDTH) & ~1;
 	fmt->height = clamp_t(u32, fmt->height, VIMC_FRAME_MIN_HEIGHT,
@@ -160,6 +125,9 @@ static int vimc_sen_set_fmt(struct v4l2_subdev *sd,
 {
 	struct vimc_sen_device *vsen = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *mf;
+
+	if (!vimc_mbus_code_supported(fmt->format.code))
+		fmt->format.code = fmt_default.code;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		/* Do not change the format while stream is on */
@@ -193,7 +161,7 @@ static int vimc_sen_set_fmt(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_pad_ops vimc_sen_pad_ops = {
 	.init_cfg		= vimc_sen_init_cfg,
-	.enum_mbus_code		= vimc_sen_enum_mbus_code,
+	.enum_mbus_code		= vimc_enum_mbus_code,
 	.enum_frame_size	= vimc_sen_enum_frame_size,
 	.get_fmt		= vimc_sen_get_fmt,
 	.set_fmt		= vimc_sen_set_fmt,
@@ -215,7 +183,8 @@ static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 				container_of(sd, struct vimc_sen_device, sd);
 
 	if (enable) {
-		const struct vimc_pix_map *vpix;
+		u32 pixelformat = vsen->ved.stream->producer_pixfmt;
+		const struct v4l2_format_info *pix_info;
 		unsigned int frame_size;
 
 		if (vsen->kthread_sen)
@@ -223,8 +192,8 @@ static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 			return 0;
 
 		/* Calculate the frame size */
-		vpix = vimc_pix_map_by_code(vsen->mbus_format.code);
-		frame_size = vsen->mbus_format.width * vpix->bpp *
+		pix_info = v4l2_format_info(pixelformat);
+		frame_size = vsen->mbus_format.width * pix_info->bpp[0] *
 			     vsen->mbus_format.height;
 
 		/*
@@ -301,6 +270,20 @@ static const struct v4l2_ctrl_ops vimc_sen_ctrl_ops = {
 	.s_ctrl = vimc_sen_s_ctrl,
 };
 
+static void vimc_sen_release(struct v4l2_subdev *sd)
+{
+	struct vimc_sen_device *vsen =
+				container_of(sd, struct vimc_sen_device, sd);
+
+	v4l2_ctrl_handler_free(&vsen->hdl);
+	tpg_free(&vsen->tpg);
+	kfree(vsen);
+}
+
+static const struct v4l2_subdev_internal_ops vimc_sen_int_ops = {
+	.release = vimc_sen_release,
+};
+
 static void vimc_sen_comp_unbind(struct device *comp, struct device *master,
 				 void *master_data)
 {
@@ -309,9 +292,6 @@ static void vimc_sen_comp_unbind(struct device *comp, struct device *master,
 				container_of(ved, struct vimc_sen_device, ved);
 
 	vimc_ent_sd_unregister(ved, &vsen->sd);
-	v4l2_ctrl_handler_free(&vsen->hdl);
-	tpg_free(&vsen->tpg);
-	kfree(vsen);
 }
 
 /* Image Processing Controls */
@@ -371,7 +351,7 @@ static int vimc_sen_comp_bind(struct device *comp, struct device *master,
 				   pdata->entity_name,
 				   MEDIA_ENT_F_CAM_SENSOR, 1,
 				   (const unsigned long[1]) {MEDIA_PAD_FL_SOURCE},
-				   &vimc_sen_ops);
+				   &vimc_sen_int_ops, &vimc_sen_ops);
 	if (ret)
 		goto err_free_hdl;
 

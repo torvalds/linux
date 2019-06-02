@@ -1339,7 +1339,7 @@ static int usdhi6_stop_cmd(struct usdhi6_host *host)
 			host->wait = USDHI6_WAIT_FOR_STOP;
 			return 0;
 		}
-		/* Unsupported STOP command */
+		/* fall through - Unsupported STOP command. */
 	default:
 		dev_err(mmc_dev(host->mmc),
 			"unsupported stop CMD%d for CMD%d\n",
@@ -1687,7 +1687,7 @@ static void usdhi6_timeout_work(struct work_struct *work)
 	switch (host->wait) {
 	default:
 		dev_err(mmc_dev(host->mmc), "Invalid state %u\n", host->wait);
-		/* mrq can be NULL in this actually impossible case */
+		/* fall through - mrq can be NULL, but is impossible. */
 	case USDHI6_WAIT_FOR_CMD:
 		usdhi6_error_code(host);
 		if (mrq)
@@ -1709,10 +1709,7 @@ static void usdhi6_timeout_work(struct work_struct *work)
 			host->offset, data->blocks, data->blksz, data->sg_len,
 			sg_dma_len(sg), sg->offset);
 		usdhi6_sg_unmap(host, true);
-		/*
-		 * If USDHI6_WAIT_FOR_DATA_END times out, we have already unmapped
-		 * the page
-		 */
+		/* fall through - page unmapped in USDHI6_WAIT_FOR_DATA_END. */
 	case USDHI6_WAIT_FOR_DATA_END:
 		usdhi6_error_code(host);
 		data->error = -ETIMEDOUT;

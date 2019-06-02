@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PPP async serial channel driver for Linux.
  *
  * Copyright 1999 Paul Mackerras.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  * This driver provides the encapsulation and framing for sending
  * and receiving PPP frames over async serial lines.  It relies on

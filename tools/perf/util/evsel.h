@@ -50,6 +50,7 @@ enum term_type {
 	PERF_EVSEL__CONFIG_TERM_OVERWRITE,
 	PERF_EVSEL__CONFIG_TERM_DRV_CFG,
 	PERF_EVSEL__CONFIG_TERM_BRANCH,
+	PERF_EVSEL__CONFIG_TERM_PERCORE,
 };
 
 struct perf_evsel_config_term {
@@ -67,6 +68,7 @@ struct perf_evsel_config_term {
 		bool	overwrite;
 		char	*branch;
 		unsigned long max_events;
+		bool	percore;
 	} val;
 	bool weak;
 };
@@ -74,6 +76,11 @@ struct perf_evsel_config_term {
 struct perf_stat_evsel;
 
 typedef int (perf_evsel__sb_cb_t)(union perf_event *event, void *data);
+
+enum perf_tool_event {
+	PERF_TOOL_NONE		= 0,
+	PERF_TOOL_DURATION_TIME = 1,
+};
 
 /** struct perf_evsel - event selector
  *
@@ -121,6 +128,7 @@ struct perf_evsel {
 	unsigned int		sample_size;
 	int			id_pos;
 	int			is_pos;
+	enum perf_tool_event	tool_event;
 	bool			uniquified_name;
 	bool			snapshot;
 	bool 			supported;
@@ -152,6 +160,7 @@ struct perf_evsel {
 	struct perf_evsel	**metric_events;
 	bool			collect_stat;
 	bool			weak_group;
+	bool			percore;
 	const char		*pmu_name;
 	struct {
 		perf_evsel__sb_cb_t	*cb;

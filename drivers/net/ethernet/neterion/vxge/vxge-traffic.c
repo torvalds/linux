@@ -1399,11 +1399,7 @@ static void __vxge_hw_non_offload_db_post(struct __vxge_hw_fifo *fifo,
 		VXGE_HW_NODBW_GET_NO_SNOOP(no_snoop),
 		&fifo->nofl_db->control_0);
 
-	mmiowb();
-
 	writeq(txdl_ptr, &fifo->nofl_db->txdl_ptr);
-
-	mmiowb();
 }
 
 /**

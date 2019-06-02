@@ -69,23 +69,6 @@ by and on behalf of the VM's process may not be freed/unaccounted when
 the VM is shut down.
 
 
-It is important to note that althought VM ioctls may only be issued from
-the process that created the VM, a VM's lifecycle is associated with its
-file descriptor, not its creator (process).  In other words, the VM and
-its resources, *including the associated address space*, are not freed
-until the last reference to the VM's file descriptor has been released.
-For example, if fork() is issued after ioctl(KVM_CREATE_VM), the VM will
-not be freed until both the parent (original) process and its child have
-put their references to the VM's file descriptor.
-
-Because a VM's resources are not freed until the last reference to its
-file descriptor is released, creating additional references to a VM via
-via fork(), dup(), etc... without careful consideration is strongly
-discouraged and may have unwanted side effects, e.g. memory allocated
-by and on behalf of the VM's process may not be freed/unaccounted when
-the VM is shut down.
-
-
 3. Extensions
 -------------
 
@@ -321,7 +304,7 @@ cpu's hardware control block.
 4.8 KVM_GET_DIRTY_LOG (vm ioctl)
 
 Capability: basic
-Architectures: x86
+Architectures: all
 Type: vm ioctl
 Parameters: struct kvm_dirty_log (in/out)
 Returns: 0 on success, -1 on error
@@ -347,7 +330,7 @@ They must be less than the value that KVM_CHECK_EXTENSION returns for
 the KVM_CAP_MULTI_ADDRESS_SPACE capability.
 
 The bits in the dirty bitmap are cleared before the ioctl returns, unless
-KVM_CAP_MANUAL_DIRTY_LOG_PROTECT is enabled.  For more information,
+KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 is enabled.  For more information,
 see the description of the capability.
 
 4.9 KVM_SET_MEMORY_ALIAS
@@ -1117,9 +1100,8 @@ struct kvm_userspace_memory_region {
 This ioctl allows the user to create, modify or delete a guest physical
 memory slot.  Bits 0-15 of "slot" specify the slot id and this value
 should be less than the maximum number of user memory slots supported per
-VM.  The maximum allowed slots can be queried using KVM_CAP_NR_MEMSLOTS,
-if this capability is supported by the architecture.  Slots may not
-overlap in guest physical address space.
+VM.  The maximum allowed slots can be queried using KVM_CAP_NR_MEMSLOTS.
+Slots may not overlap in guest physical address space.
 
 If KVM_CAP_MULTI_ADDRESS_SPACE is available, bits 16-31 of "slot"
 specifies the address space which is being modified.  They must be
@@ -1901,6 +1883,12 @@ Architectures: all
 Type: vcpu ioctl
 Parameters: struct kvm_one_reg (in)
 Returns: 0 on success, negative value on failure
+Errors:
+  ENOENT:   no such register
+  EINVAL:   invalid register ID, or no such register
+  EPERM:    (arm64) register access not allowed before vcpu finalization
+(These error codes are indicative only: do not rely on a specific error
+code being returned in a specific situation.)
 
 struct kvm_one_reg {
        __u64 id;
@@ -1985,6 +1973,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TLB3PS            | 32
   PPC   | KVM_REG_PPC_EPTCFG            | 32
   PPC   | KVM_REG_PPC_ICP_STATE         | 64
+  PPC   | KVM_REG_PPC_VP_STATE          | 128
   PPC   | KVM_REG_PPC_TB_OFFSET         | 64
   PPC   | KVM_REG_PPC_SPMC1             | 32
   PPC   | KVM_REG_PPC_SPMC2             | 32
@@ -2137,6 +2126,37 @@ contains elements ranging from 32 to 128 bits. The index is a 32bit
 value in the kvm_regs structure seen as a 32bit array.
   0x60x0 0000 0010 <index into the kvm_regs struct:16>
 
+Specifically:
+    Encoding            Register  Bits  kvm_regs member
+----------------------------------------------------------------
+  0x6030 0000 0010 0000 X0          64  regs.regs[0]
+  0x6030 0000 0010 0002 X1          64  regs.regs[1]
+    ...
+  0x6030 0000 0010 003c X30         64  regs.regs[30]
+  0x6030 0000 0010 003e SP          64  regs.sp
+  0x6030 0000 0010 0040 PC          64  regs.pc
+  0x6030 0000 0010 0042 PSTATE      64  regs.pstate
+  0x6030 0000 0010 0044 SP_EL1      64  sp_el1
+  0x6030 0000 0010 0046 ELR_EL1     64  elr_el1
+  0x6030 0000 0010 0048 SPSR_EL1    64  spsr[KVM_SPSR_EL1] (alias SPSR_SVC)
+  0x6030 0000 0010 004a SPSR_ABT    64  spsr[KVM_SPSR_ABT]
+  0x6030 0000 0010 004c SPSR_UND    64  spsr[KVM_SPSR_UND]
+  0x6030 0000 0010 004e SPSR_IRQ    64  spsr[KVM_SPSR_IRQ]
+  0x6060 0000 0010 0050 SPSR_FIQ    64  spsr[KVM_SPSR_FIQ]
+  0x6040 0000 0010 0054 V0         128  fp_regs.vregs[0]    (*)
+  0x6040 0000 0010 0058 V1         128  fp_regs.vregs[1]    (*)
+    ...
+  0x6040 0000 0010 00d0 V31        128  fp_regs.vregs[31]   (*)
+  0x6020 0000 0010 00d4 FPSR        32  fp_regs.fpsr
+  0x6020 0000 0010 00d5 FPCR        32  fp_regs.fpcr
+
+(*) These encodings are not accepted for SVE-enabled vcpus.  See
+    KVM_ARM_VCPU_INIT.
+
+    The equivalent register content can be accessed via bits [127:0] of
+    the corresponding SVE Zn registers instead for vcpus that have SVE
+    enabled (see below).
+
 arm64 CCSIDR registers are demultiplexed by CSSELR value:
   0x6020 0000 0011 00 <csselr:8>
 
@@ -2145,6 +2165,64 @@ arm64 system registers have the following id bit patterns:
 
 arm64 firmware pseudo-registers have the following bit pattern:
   0x6030 0000 0014 <regno:16>
+
+arm64 SVE registers have the following bit patterns:
+  0x6080 0000 0015 00 <n:5> <slice:5>   Zn bits[2048*slice + 2047 : 2048*slice]
+  0x6050 0000 0015 04 <n:4> <slice:5>   Pn bits[256*slice + 255 : 256*slice]
+  0x6050 0000 0015 060 <slice:5>        FFR bits[256*slice + 255 : 256*slice]
+  0x6060 0000 0015 ffff                 KVM_REG_ARM64_SVE_VLS pseudo-register
+
+Access to register IDs where 2048 * slice >= 128 * max_vq will fail with
+ENOENT.  max_vq is the vcpu's maximum supported vector length in 128-bit
+quadwords: see (**) below.
+
+These registers are only accessible on vcpus for which SVE is enabled.
+See KVM_ARM_VCPU_INIT for details.
+
+In addition, except for KVM_REG_ARM64_SVE_VLS, these registers are not
+accessible until the vcpu's SVE configuration has been finalized
+using KVM_ARM_VCPU_FINALIZE(KVM_ARM_VCPU_SVE).  See KVM_ARM_VCPU_INIT
+and KVM_ARM_VCPU_FINALIZE for more information about this procedure.
+
+KVM_REG_ARM64_SVE_VLS is a pseudo-register that allows the set of vector
+lengths supported by the vcpu to be discovered and configured by
+userspace.  When transferred to or from user memory via KVM_GET_ONE_REG
+or KVM_SET_ONE_REG, the value of this register is of type
+__u64[KVM_ARM64_SVE_VLS_WORDS], and encodes the set of vector lengths as
+follows:
+
+__u64 vector_lengths[KVM_ARM64_SVE_VLS_WORDS];
+
+if (vq >= SVE_VQ_MIN && vq <= SVE_VQ_MAX &&
+    ((vector_lengths[(vq - KVM_ARM64_SVE_VQ_MIN) / 64] >>
+		((vq - KVM_ARM64_SVE_VQ_MIN) % 64)) & 1))
+	/* Vector length vq * 16 bytes supported */
+else
+	/* Vector length vq * 16 bytes not supported */
+
+(**) The maximum value vq for which the above condition is true is
+max_vq.  This is the maximum vector length available to the guest on
+this vcpu, and determines which register slices are visible through
+this ioctl interface.
+
+(See Documentation/arm64/sve.txt for an explanation of the "vq"
+nomenclature.)
+
+KVM_REG_ARM64_SVE_VLS is only accessible after KVM_ARM_VCPU_INIT.
+KVM_ARM_VCPU_INIT initialises it to the best set of vector lengths that
+the host supports.
+
+Userspace may subsequently modify it if desired until the vcpu's SVE
+configuration is finalized using KVM_ARM_VCPU_FINALIZE(KVM_ARM_VCPU_SVE).
+
+Apart from simply removing all vector lengths from the host set that
+exceed some value, support for arbitrarily chosen sets of vector lengths
+is hardware-dependent and may not be available.  Attempting to configure
+an invalid set of vector lengths via KVM_SET_ONE_REG will fail with
+EINVAL.
+
+After the vcpu's SVE configuration is finalized, further attempts to
+write this register will fail with EPERM.
 
 
 MIPS registers are mapped using the lower 32 bits.  The upper 16 of that is
@@ -2198,6 +2276,12 @@ Architectures: all
 Type: vcpu ioctl
 Parameters: struct kvm_one_reg (in and out)
 Returns: 0 on success, negative value on failure
+Errors include:
+  ENOENT:   no such register
+  EINVAL:   invalid register ID, or no such register
+  EPERM:    (arm64) register access not allowed before vcpu finalization
+(These error codes are indicative only: do not rely on a specific error
+code being returned in a specific situation.)
 
 This ioctl allows to receive the value of a single register implemented
 in a vcpu. The register to read is indicated by the "id" field of the
@@ -2690,6 +2774,49 @@ Possible features:
 	- KVM_ARM_VCPU_PMU_V3: Emulate PMUv3 for the CPU.
 	  Depends on KVM_CAP_ARM_PMU_V3.
 
+	- KVM_ARM_VCPU_PTRAUTH_ADDRESS: Enables Address Pointer authentication
+	  for arm64 only.
+	  Depends on KVM_CAP_ARM_PTRAUTH_ADDRESS.
+	  If KVM_CAP_ARM_PTRAUTH_ADDRESS and KVM_CAP_ARM_PTRAUTH_GENERIC are
+	  both present, then both KVM_ARM_VCPU_PTRAUTH_ADDRESS and
+	  KVM_ARM_VCPU_PTRAUTH_GENERIC must be requested or neither must be
+	  requested.
+
+	- KVM_ARM_VCPU_PTRAUTH_GENERIC: Enables Generic Pointer authentication
+	  for arm64 only.
+	  Depends on KVM_CAP_ARM_PTRAUTH_GENERIC.
+	  If KVM_CAP_ARM_PTRAUTH_ADDRESS and KVM_CAP_ARM_PTRAUTH_GENERIC are
+	  both present, then both KVM_ARM_VCPU_PTRAUTH_ADDRESS and
+	  KVM_ARM_VCPU_PTRAUTH_GENERIC must be requested or neither must be
+	  requested.
+
+	- KVM_ARM_VCPU_SVE: Enables SVE for the CPU (arm64 only).
+	  Depends on KVM_CAP_ARM_SVE.
+	  Requires KVM_ARM_VCPU_FINALIZE(KVM_ARM_VCPU_SVE):
+
+	   * After KVM_ARM_VCPU_INIT:
+
+	      - KVM_REG_ARM64_SVE_VLS may be read using KVM_GET_ONE_REG: the
+	        initial value of this pseudo-register indicates the best set of
+	        vector lengths possible for a vcpu on this host.
+
+	   * Before KVM_ARM_VCPU_FINALIZE(KVM_ARM_VCPU_SVE):
+
+	      - KVM_RUN and KVM_GET_REG_LIST are not available;
+
+	      - KVM_GET_ONE_REG and KVM_SET_ONE_REG cannot be used to access
+	        the scalable archietctural SVE registers
+	        KVM_REG_ARM64_SVE_ZREG(), KVM_REG_ARM64_SVE_PREG() or
+	        KVM_REG_ARM64_SVE_FFR;
+
+	      - KVM_REG_ARM64_SVE_VLS may optionally be written using
+	        KVM_SET_ONE_REG, to modify the set of vector lengths available
+	        for the vcpu.
+
+	   * After KVM_ARM_VCPU_FINALIZE(KVM_ARM_VCPU_SVE):
+
+	      - the KVM_REG_ARM64_SVE_VLS pseudo-register is immutable, and can
+	        no longer be written using KVM_SET_ONE_REG.
 
 4.83 KVM_ARM_PREFERRED_TARGET
 
@@ -3809,8 +3936,8 @@ to I/O ports.
 
 4.117 KVM_CLEAR_DIRTY_LOG (vm ioctl)
 
-Capability: KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
-Architectures: x86
+Capability: KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2
+Architectures: x86, arm, arm64, mips
 Type: vm ioctl
 Parameters: struct kvm_dirty_log (in)
 Returns: 0 on success, -1 on error
@@ -3830,8 +3957,9 @@ The ioctl clears the dirty status of pages in a memory slot, according to
 the bitmap that is passed in struct kvm_clear_dirty_log's dirty_bitmap
 field.  Bit 0 of the bitmap corresponds to page "first_page" in the
 memory slot, and num_pages is the size in bits of the input bitmap.
-Both first_page and num_pages must be a multiple of 64.  For each bit
-that is set in the input bitmap, the corresponding page is marked "clean"
+first_page must be a multiple of 64; num_pages must also be a multiple of
+64 unless first_page + num_pages is the size of the memory slot.  For each
+bit that is set in the input bitmap, the corresponding page is marked "clean"
 in KVM's dirty bitmap, and dirty tracking is re-enabled for that page
 (for example via write-protection, or by clearing the dirty bit in
 a page table entry).
@@ -3841,10 +3969,10 @@ the address space for which you want to return the dirty bitmap.
 They must be less than the value that KVM_CHECK_EXTENSION returns for
 the KVM_CAP_MULTI_ADDRESS_SPACE capability.
 
-This ioctl is mostly useful when KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
+This ioctl is mostly useful when KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2
 is enabled; for more information, see the description of the capability.
 However, it can always be used as long as KVM_CHECK_EXTENSION confirms
-that KVM_CAP_MANUAL_DIRTY_LOG_PROTECT is present.
+that KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 is present.
 
 4.118 KVM_GET_SUPPORTED_HV_CPUID
 
@@ -3902,6 +4030,40 @@ number of valid entries in the 'entries' array, which is then filled.
 
 'index' and 'flags' fields in 'struct kvm_cpuid_entry2' are currently reserved,
 userspace should not expect to get any particular value there.
+
+4.119 KVM_ARM_VCPU_FINALIZE
+
+Architectures: arm, arm64
+Type: vcpu ioctl
+Parameters: int feature (in)
+Returns: 0 on success, -1 on error
+Errors:
+  EPERM:     feature not enabled, needs configuration, or already finalized
+  EINVAL:    feature unknown or not present
+
+Recognised values for feature:
+  arm64      KVM_ARM_VCPU_SVE (requires KVM_CAP_ARM_SVE)
+
+Finalizes the configuration of the specified vcpu feature.
+
+The vcpu must already have been initialised, enabling the affected feature, by
+means of a successful KVM_ARM_VCPU_INIT call with the appropriate flag set in
+features[].
+
+For affected vcpu features, this is a mandatory step that must be performed
+before the vcpu is fully usable.
+
+Between KVM_ARM_VCPU_INIT and KVM_ARM_VCPU_FINALIZE, the feature may be
+configured by use of ioctls such as KVM_SET_ONE_REG.  The exact configuration
+that should be performaned and how to do it are feature-dependent.
+
+Other calls that depend on a particular feature being finalized, such as
+KVM_RUN, KVM_GET_REG_LIST, KVM_GET_ONE_REG and KVM_SET_ONE_REG, will fail with
+-EPERM unless the feature has already been finalized by means of a
+KVM_ARM_VCPU_FINALIZE call.
+
+See KVM_ARM_VCPU_INIT for details of vcpu features that require finalization
+using this ioctl.
 
 5. The kvm_run structure
 ------------------------
@@ -4504,6 +4666,15 @@ struct kvm_sync_regs {
         struct kvm_vcpu_events events;
 };
 
+6.75 KVM_CAP_PPC_IRQ_XIVE
+
+Architectures: ppc
+Target: vcpu
+Parameters: args[0] is the XIVE device fd
+            args[1] is the XIVE CPU number (server ID) for this vcpu
+
+This capability connects the vcpu to an in-kernel XIVE device.
+
 7. Capabilities that can be enabled on VMs
 ------------------------------------------
 
@@ -4797,9 +4968,9 @@ and injected exceptions.
 * For the new DR6 bits, note that bit 16 is set iff the #DB exception
   will clear DR6.RTM.
 
-7.18 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT
+7.18 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2
 
-Architectures: all
+Architectures: x86, arm, arm64, mips
 Parameters: args[0] whether feature should be enabled or not
 
 With this capability enabled, KVM_GET_DIRTY_LOG will not automatically
@@ -4820,6 +4991,11 @@ while userspace can see false reports of dirty pages.  Manual reprotection
 helps reducing this time, improving guest performance and reducing the
 number of dirty log false positives.
 
+KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 was previously available under the name
+KVM_CAP_MANUAL_DIRTY_LOG_PROTECT, but the implementation had bugs that make
+it hard or impossible to use it correctly.  The availability of
+KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 signals that those bugs are fixed.
+Userspace should not try to use KVM_CAP_MANUAL_DIRTY_LOG_PROTECT.
 
 8. Other capabilities.
 ----------------------

@@ -499,16 +499,16 @@ static void _rtl_pci_tx_chk_waitq(struct ieee80211_hw *hw)
 
 			memset(&tcb_desc, 0, sizeof(struct rtl_tcb_desc));
 
-			spin_lock_bh(&rtlpriv->locks.waitq_lock);
+			spin_lock(&rtlpriv->locks.waitq_lock);
 			if (!skb_queue_empty(&mac->skb_waitq[tid]) &&
 			    (ring->entries - skb_queue_len(&ring->queue) >
 			     rtlhal->max_earlymode_num)) {
 				skb = skb_dequeue(&mac->skb_waitq[tid]);
 			} else {
-				spin_unlock_bh(&rtlpriv->locks.waitq_lock);
+				spin_unlock(&rtlpriv->locks.waitq_lock);
 				break;
 			}
-			spin_unlock_bh(&rtlpriv->locks.waitq_lock);
+			spin_unlock(&rtlpriv->locks.waitq_lock);
 
 			/* Some macaddr can't do early mode. like
 			 * multicast/broadcast/no_qos data

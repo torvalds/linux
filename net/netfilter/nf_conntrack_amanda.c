@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Amanda extension for IP connection tracking
  *
  * (C) 2002 by Brian J. Murrell <netfilter@interlinx.bc.ca>
  * based on HW's ip_conntrack_irc.c as well as other modules
  * (C) 2006 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -28,11 +24,13 @@
 static unsigned int master_timeout __read_mostly = 300;
 static char *ts_algo = "kmp";
 
+#define HELPER_NAME "amanda"
+
 MODULE_AUTHOR("Brian J. Murrell <netfilter@interlinx.bc.ca>");
 MODULE_DESCRIPTION("Amanda connection tracking module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ip_conntrack_amanda");
-MODULE_ALIAS_NFCT_HELPER("amanda");
+MODULE_ALIAS_NFCT_HELPER(HELPER_NAME);
 
 module_param(master_timeout, uint, 0600);
 MODULE_PARM_DESC(master_timeout, "timeout for the master connection");
@@ -179,13 +177,14 @@ static const struct nf_conntrack_expect_policy amanda_exp_policy = {
 
 static struct nf_conntrack_helper amanda_helper[2] __read_mostly = {
 	{
-		.name			= "amanda",
+		.name			= HELPER_NAME,
 		.me			= THIS_MODULE,
 		.help			= amanda_help,
 		.tuple.src.l3num	= AF_INET,
 		.tuple.src.u.udp.port	= cpu_to_be16(10080),
 		.tuple.dst.protonum	= IPPROTO_UDP,
 		.expect_policy		= &amanda_exp_policy,
+		.nat_mod_name		= NF_NAT_HELPER_NAME(HELPER_NAME),
 	},
 	{
 		.name			= "amanda",
@@ -195,6 +194,7 @@ static struct nf_conntrack_helper amanda_helper[2] __read_mostly = {
 		.tuple.src.u.udp.port	= cpu_to_be16(10080),
 		.tuple.dst.protonum	= IPPROTO_UDP,
 		.expect_policy		= &amanda_exp_policy,
+		.nat_mod_name		= NF_NAT_HELPER_NAME(HELPER_NAME),
 	},
 };
 

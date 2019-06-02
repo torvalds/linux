@@ -98,7 +98,7 @@ static int s3c_hwmon_read_ch(struct device *dev,
 static ssize_t s3c_hwmon_show_raw(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct s3c_hwmon *adc = platform_get_drvdata(to_platform_device(dev));
+	struct s3c_hwmon *adc = dev_get_drvdata(dev);
 	struct sensor_device_attribute *sa = to_sensor_dev_attr(attr);
 	int ret;
 
@@ -164,7 +164,7 @@ static ssize_t s3c_hwmon_ch_show(struct device *dev,
 				 char *buf)
 {
 	struct sensor_device_attribute *sen_attr = to_sensor_dev_attr(attr);
-	struct s3c_hwmon *hwmon = platform_get_drvdata(to_platform_device(dev));
+	struct s3c_hwmon *hwmon = dev_get_drvdata(dev);
 	struct s3c_hwmon_pdata *pdata = dev_get_platdata(dev);
 	struct s3c_hwmon_chcfg *cfg;
 	int ret;

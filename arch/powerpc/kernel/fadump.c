@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Firmware Assisted dump: A robust mechanism to get reliable kernel crash
  * dump with assistance from firmware. This approach does not use kexec,
@@ -5,20 +6,6 @@
  * memory contents. The most of the code implementation has been adapted
  * from phyp assisted dump implementation written by Linas Vepstas and
  * Manish Ahuja
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright 2011 IBM Corporation
  * Author: Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>
@@ -36,6 +23,7 @@
 #include <linux/sysfs.h>
 #include <linux/slab.h>
 #include <linux/cma.h>
+#include <linux/hugetlb.h>
 
 #include <asm/debugfs.h>
 #include <asm/page.h>

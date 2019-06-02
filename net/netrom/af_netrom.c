@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  * Copyright Alan Cox GW4PTS (alan@lxorguk.ukuu.org.uk)
@@ -1199,7 +1196,6 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
 	void __user *argp = (void __user *)arg;
-	int ret;
 
 	switch (cmd) {
 	case TIOCOUTQ: {
@@ -1224,18 +1220,6 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		release_sock(sk);
 		return put_user(amount, (int __user *)argp);
 	}
-
-	case SIOCGSTAMP:
-		lock_sock(sk);
-		ret = sock_get_timestamp(sk, argp);
-		release_sock(sk);
-		return ret;
-
-	case SIOCGSTAMPNS:
-		lock_sock(sk);
-		ret = sock_get_timestampns(sk, argp);
-		release_sock(sk);
-		return ret;
 
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
@@ -1362,6 +1346,7 @@ static const struct proto_ops nr_proto_ops = {
 	.getname	=	nr_getname,
 	.poll		=	datagram_poll,
 	.ioctl		=	nr_ioctl,
+	.gettstamp	=	sock_gettstamp,
 	.listen		=	nr_listen,
 	.shutdown	=	sock_no_shutdown,
 	.setsockopt	=	nr_setsockopt,

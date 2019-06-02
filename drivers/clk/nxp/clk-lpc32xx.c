@@ -1,16 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015 Vladimir Zapolskiy <vz@mleia.com>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/regmap.h>
 
@@ -1085,13 +1080,12 @@ struct clk_hw_proto {
 	};
 };
 
-#define LPC32XX_DEFINE_FIXED(_idx, _rate, _flags)			\
+#define LPC32XX_DEFINE_FIXED(_idx, _rate)			\
 [CLK_PREFIX(_idx)] = {							\
 	.type = CLK_FIXED,						\
 	{								\
 		.f = {							\
 			.fixed_rate = (_rate),				\
-			.flags = (_flags),				\
 		},							\
 	},								\
 }
@@ -1225,7 +1219,7 @@ struct clk_hw_proto {
 }
 
 static struct clk_hw_proto clk_hw_proto[LPC32XX_CLK_HW_MAX] = {
-	LPC32XX_DEFINE_FIXED(RTC, 32768, 0),
+	LPC32XX_DEFINE_FIXED(RTC, 32768),
 	LPC32XX_DEFINE_PLL(PLL397X, pll_397x, HCLKPLL_CTRL, BIT(1)),
 	LPC32XX_DEFINE_PLL(HCLK_PLL, hclk_pll, HCLKPLL_CTRL, PLL_CTRL_ENABLE),
 	LPC32XX_DEFINE_PLL(USB_PLL, usb_pll, USB_CTRL, PLL_CTRL_ENABLE),
@@ -1468,7 +1462,7 @@ static struct clk * __init lpc32xx_clk_register(u32 id)
 		struct clk_fixed_rate *fixed = &clk_hw->f;
 
 		clk = clk_register_fixed_rate(NULL, lpc32xx_clk->name,
-			parents[0], fixed->flags, fixed->fixed_rate);
+			parents[0], 0, fixed->fixed_rate);
 		break;
 	}
 	default:

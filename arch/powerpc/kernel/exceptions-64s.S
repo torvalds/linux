@@ -19,6 +19,7 @@
 #include <asm/cpuidle.h>
 #include <asm/head-64.h>
 #include <asm/feature-fixups.h>
+#include <asm/kup.h>
 
 /*
  * There are a few constraints to be concerned with.
@@ -120,7 +121,9 @@ EXC_VIRT_NONE(0x4000, 0x100)
 	mfspr	r10,SPRN_SRR1 ;						\
 	rlwinm.	r10,r10,47-31,30,31 ;					\
 	beq-	1f ;							\
-	cmpwi	cr3,r10,2 ;						\
+	cmpwi	cr1,r10,2 ;						\
+	mfspr	r3,SPRN_SRR1 ;						\
+	bltlr	cr1 ;	/* no state loss, return to idle caller */	\
 	BRANCH_TO_C000(r10, system_reset_idle_common) ;			\
 1:									\
 	KVMTEST_PR(n) ;							\
@@ -144,8 +147,11 @@ TRAMP_KVM(PACA_EXNMI, 0x100)
 
 #ifdef CONFIG_PPC_P7_NAP
 EXC_COMMON_BEGIN(system_reset_idle_common)
-	mfspr	r12,SPRN_SRR1
-	b	pnv_powersave_wakeup
+	/*
+	 * This must be a direct branch (without linker branch stub) because
+	 * we can not use TOC at this point as r2 may not be restored yet.
+	 */
+	b	idle_return_gpr_loss
 #endif
 
 /*
@@ -309,6 +315,7 @@ TRAMP_REAL_BEGIN(machine_check_common_early)
 	mfspr	r11,SPRN_DSISR		/* Save DSISR */
 	std	r11,_DSISR(r1)
 	std	r9,_CCR(r1)		/* Save CR in stackframe */
+	kuap_save_amr_and_lock r9, r10, cr1
 	/* Save r9 through r13 from EXMC save area to stack frame. */
 	EXCEPTION_PROLOG_COMMON_2(PACA_EXMC)
 	mfmsr	r11			/* get MSR value */
@@ -427,17 +434,17 @@ EXC_COMMON_BEGIN(machine_check_idle_common)
 	 * Then decrement MCE nesting after finishing with the stack.
 	 */
 	ld	r3,_MSR(r1)
+	ld	r4,_LINK(r1)
 
 	lhz	r11,PACA_IN_MCE(r13)
 	subi	r11,r11,1
 	sth	r11,PACA_IN_MCE(r13)
 
-	/* Turn off the RI bit because SRR1 is used by idle wakeup code. */
-	/* Recoverability could be improved by reducing the use of SRR1. */
-	li	r11,0
-	mtmsrd	r11,1
-
-	b	pnv_powersave_wakeup_mce
+	mtlr	r4
+	rlwinm	r10,r3,47-31,30,31
+	cmpwi	cr1,r10,2
+	bltlr	cr1	/* no state loss, return to idle caller */
+	b	idle_return_gpr_loss
 #endif
 	/*
 	 * Handle machine check early in real mode. We come here with
@@ -1109,6 +1116,7 @@ TRAMP_REAL_BEGIN(hmi_exception_early)
 	mfspr	r11,SPRN_HSRR0		/* Save HSRR0 */
 	mfspr	r12,SPRN_HSRR1		/* Save HSRR1 */
 	EXCEPTION_PROLOG_COMMON_1()
+	/* We don't touch AMR here, we never go to virtual mode */
 	EXCEPTION_PROLOG_COMMON_2(PACA_EXGEN)
 	EXCEPTION_PROLOG_COMMON_3(0xe60)
 	addi	r3,r1,STACK_FRAME_OVERHEAD

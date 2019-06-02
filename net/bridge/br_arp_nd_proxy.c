@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Handle bridge arp/nd proxy/suppress
  *
@@ -6,11 +7,6 @@
  *
  *  Authors:
  *	Roopa Prabhu <roopa@cumulusnetworks.com>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -21,6 +17,7 @@
 #include <linux/if_vlan.h>
 #include <linux/inetdevice.h>
 #include <net/addrconf.h>
+#include <net/ipv6_stubs.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ip6_checksum.h>
 #endif
@@ -130,7 +127,7 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 	u8 *arpptr, *sha;
 	__be32 sip, tip;
 
-	BR_INPUT_SKB_CB(skb)->proxyarp_replied = false;
+	BR_INPUT_SKB_CB(skb)->proxyarp_replied = 0;
 
 	if ((dev->flags & IFF_NOARP) ||
 	    !pskb_may_pull(skb, arp_hdr_len(dev)))
@@ -160,7 +157,7 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 			return;
 		if (ipv4_is_zeronet(sip) || sip == tip) {
 			/* prevent flooding to neigh suppress ports */
-			BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
+			BR_INPUT_SKB_CB(skb)->proxyarp_replied = 1;
 			return;
 		}
 	}
@@ -180,7 +177,7 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 		/* its our local ip, so don't proxy reply
 		 * and don't forward to neigh suppress ports
 		 */
-		BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
+		BR_INPUT_SKB_CB(skb)->proxyarp_replied = 1;
 		return;
 	}
 
@@ -216,7 +213,7 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 			 */
 			if (replied ||
 			    br_opt_get(br, BROPT_NEIGH_SUPPRESS_ENABLED))
-				BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
+				BR_INPUT_SKB_CB(skb)->proxyarp_replied = 1;
 		}
 
 		neigh_release(n);
@@ -392,7 +389,7 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 	struct ipv6hdr *iphdr;
 	struct neighbour *n;
 
-	BR_INPUT_SKB_CB(skb)->proxyarp_replied = false;
+	BR_INPUT_SKB_CB(skb)->proxyarp_replied = 0;
 
 	if (p && (p->flags & BR_NEIGH_SUPPRESS))
 		return;
@@ -400,7 +397,7 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 	if (msg->icmph.icmp6_type == NDISC_NEIGHBOUR_ADVERTISEMENT &&
 	    !msg->icmph.icmp6_solicited) {
 		/* prevent flooding to neigh suppress ports */
-		BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
+		BR_INPUT_SKB_CB(skb)->proxyarp_replied = 1;
 		return;
 	}
 
@@ -413,7 +410,7 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 
 	if (ipv6_addr_any(saddr) || !ipv6_addr_cmp(saddr, daddr)) {
 		/* prevent flooding to neigh suppress ports */
-		BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
+		BR_INPUT_SKB_CB(skb)->proxyarp_replied = 1;
 		return;
 	}
 
@@ -431,7 +428,7 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 		/* its our own ip, so don't proxy reply
 		 * and don't forward to arp suppress ports
 		 */
-		BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
+		BR_INPUT_SKB_CB(skb)->proxyarp_replied = 1;
 		return;
 	}
 
@@ -464,7 +461,7 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 			 */
 			if (replied ||
 			    br_opt_get(br, BROPT_NEIGH_SUPPRESS_ENABLED))
-				BR_INPUT_SKB_CB(skb)->proxyarp_replied = true;
+				BR_INPUT_SKB_CB(skb)->proxyarp_replied = 1;
 		}
 		neigh_release(n);
 	}

@@ -1,2 +1,3 @@
+# SPDX-License-Identifier: GPL-2.0
 nvkm-y += nvkm/subdev/iccsense/base.o
 nvkm-y += nvkm/subdev/iccsense/gf100.o

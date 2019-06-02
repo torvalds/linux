@@ -1,8 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #ifndef _LINUX_BPF_H
 #define _LINUX_BPF_H 1
@@ -36,6 +33,7 @@ struct bpf_map_ops {
 	void (*map_free)(struct bpf_map *map);
 	int (*map_get_next_key)(struct bpf_map *map, void *key, void *next_key);
 	void (*map_release_uref)(struct bpf_map *map);
+	void *(*map_lookup_elem_sys_only)(struct bpf_map *map, void *key);
 
 	/* funcs callable from userspace and from eBPF programs */
 	void *(*map_lookup_elem)(struct bpf_map *map, void *key);
@@ -57,6 +55,12 @@ struct bpf_map_ops {
 			     const struct btf *btf,
 			     const struct btf_type *key_type,
 			     const struct btf_type *value_type);
+
+	/* Direct value access helpers. */
+	int (*map_direct_value_addr)(const struct bpf_map *map,
+				     u64 *imm, u32 off);
+	int (*map_direct_value_meta)(const struct bpf_map *map,
+				     u64 imm, u32 *off);
 };
 
 struct bpf_map {
@@ -81,7 +85,8 @@ struct bpf_map {
 	struct btf *btf;
 	u32 pages;
 	bool unpriv_array;
-	/* 51 bytes hole */
+	bool frozen; /* write-once */
+	/* 48 bytes hole */
 
 	/* The 3rd and 4th cacheline with misc members to avoid false sharing
 	 * particularly with refcounting.
@@ -177,6 +182,7 @@ enum bpf_arg_type {
 	ARG_PTR_TO_MAP_KEY,	/* pointer to stack used as map key */
 	ARG_PTR_TO_MAP_VALUE,	/* pointer to stack used as map value */
 	ARG_PTR_TO_UNINIT_MAP_VALUE,	/* pointer to valid memory used to store a map value */
+	ARG_PTR_TO_MAP_VALUE_OR_NULL,	/* pointer to stack used as map value or NULL */
 
 	/* the following constraints used to prototype bpf_memcmp() and other
 	 * functions that access data on eBPF program stack
@@ -195,6 +201,9 @@ enum bpf_arg_type {
 	ARG_ANYTHING,		/* any (initialized) argument is ok */
 	ARG_PTR_TO_SPIN_LOCK,	/* pointer to bpf_spin_lock */
 	ARG_PTR_TO_SOCK_COMMON,	/* pointer to sock_common */
+	ARG_PTR_TO_INT,		/* pointer to int */
+	ARG_PTR_TO_LONG,	/* pointer to long */
+	ARG_PTR_TO_SOCKET,	/* pointer to bpf_sock (fullsock) */
 };
 
 /* type of values returned from helper functions */
@@ -205,6 +214,7 @@ enum bpf_return_type {
 	RET_PTR_TO_MAP_VALUE_OR_NULL,	/* returns a pointer to map elem value or NULL */
 	RET_PTR_TO_SOCKET_OR_NULL,	/* returns a pointer to a socket or NULL */
 	RET_PTR_TO_TCP_SOCK_OR_NULL,	/* returns a pointer to a tcp_sock or NULL */
+	RET_PTR_TO_SOCK_COMMON_OR_NULL,	/* returns a pointer to a sock_common or NULL */
 };
 
 /* eBPF function prototype used by verifier to allow BPF_CALLs from eBPF programs
@@ -262,6 +272,7 @@ enum bpf_reg_type {
 	PTR_TO_SOCK_COMMON_OR_NULL, /* reg points to sock_common or NULL */
 	PTR_TO_TCP_SOCK,	 /* reg points to struct tcp_sock */
 	PTR_TO_TCP_SOCK_OR_NULL, /* reg points to struct tcp_sock or NULL */
+	PTR_TO_TP_BUFFER,	 /* reg points to a writable raw tp's buffer */
 };
 
 /* The information passed from prog-specific *_is_valid_access
@@ -351,6 +362,7 @@ struct bpf_prog_aux {
 	u32 used_map_cnt;
 	u32 max_ctx_offset;
 	u32 max_pkt_offset;
+	u32 max_tp_access;
 	u32 stack_depth;
 	u32 id;
 	u32 func_cnt; /* used by non-func prog as the number of func progs */
@@ -420,7 +432,37 @@ struct bpf_array {
 	};
 };
 
+#define BPF_COMPLEXITY_LIMIT_INSNS      1000000 /* yes. 1M insns */
 #define MAX_TAIL_CALL_CNT 32
+
+#define BPF_F_ACCESS_MASK	(BPF_F_RDONLY |		\
+				 BPF_F_RDONLY_PROG |	\
+				 BPF_F_WRONLY |		\
+				 BPF_F_WRONLY_PROG)
+
+#define BPF_MAP_CAN_READ	BIT(0)
+#define BPF_MAP_CAN_WRITE	BIT(1)
+
+static inline u32 bpf_map_flags_to_cap(struct bpf_map *map)
+{
+	u32 access_flags = map->map_flags & (BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG);
+
+	/* Combination of BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG is
+	 * not possible.
+	 */
+	if (access_flags & BPF_F_RDONLY_PROG)
+		return BPF_MAP_CAN_READ;
+	else if (access_flags & BPF_F_WRONLY_PROG)
+		return BPF_MAP_CAN_WRITE;
+	else
+		return BPF_MAP_CAN_READ | BPF_MAP_CAN_WRITE;
+}
+
+static inline bool bpf_map_flags_access_ok(u32 access_flags)
+{
+	return (access_flags & (BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG)) !=
+	       (BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG);
+}
 
 struct bpf_event_entry {
 	struct perf_event *event;
@@ -444,14 +486,6 @@ typedef u32 (*bpf_convert_ctx_access_t)(enum bpf_access_type type,
 
 u64 bpf_event_output(struct bpf_map *map, u64 flags, void *meta, u64 meta_size,
 		     void *ctx, u64 ctx_size, bpf_ctx_copy_t ctx_copy);
-
-int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
-			  union bpf_attr __user *uattr);
-int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
-			  union bpf_attr __user *uattr);
-int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
-				     const union bpf_attr *kattr,
-				     union bpf_attr __user *uattr);
 
 /* an array of programs to be executed under rcu_lock.
  *
@@ -510,7 +544,7 @@ int bpf_prog_array_copy(struct bpf_prog_array __rcu *old_array,
 		}					\
 _out:							\
 		rcu_read_unlock();			\
-		preempt_enable_no_resched();		\
+		preempt_enable();			\
 		_ret;					\
 	 })
 
@@ -643,6 +677,13 @@ static inline int bpf_map_attr_numa_node(const union bpf_attr *attr)
 struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type type);
 int array_map_alloc_check(union bpf_attr *attr);
 
+int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
+			  union bpf_attr __user *uattr);
+int bpf_prog_test_run_skb(struct bpf_prog *prog, const union bpf_attr *kattr,
+			  union bpf_attr __user *uattr);
+int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
+				     const union bpf_attr *kattr,
+				     union bpf_attr __user *uattr);
 #else /* !CONFIG_BPF_SYSCALL */
 static inline struct bpf_prog *bpf_prog_get(u32 ufd)
 {
@@ -753,6 +794,27 @@ static inline struct bpf_prog *bpf_prog_get_type_path(const char *name,
 				enum bpf_prog_type type)
 {
 	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline int bpf_prog_test_run_xdp(struct bpf_prog *prog,
+					const union bpf_attr *kattr,
+					union bpf_attr __user *uattr)
+{
+	return -ENOTSUPP;
+}
+
+static inline int bpf_prog_test_run_skb(struct bpf_prog *prog,
+					const union bpf_attr *kattr,
+					union bpf_attr __user *uattr)
+{
+	return -ENOTSUPP;
+}
+
+static inline int bpf_prog_test_run_flow_dissector(struct bpf_prog *prog,
+						   const union bpf_attr *kattr,
+						   union bpf_attr __user *uattr)
+{
+	return -ENOTSUPP;
 }
 #endif /* CONFIG_BPF_SYSCALL */
 
@@ -929,6 +991,8 @@ extern const struct bpf_func_proto bpf_sk_redirect_map_proto;
 extern const struct bpf_func_proto bpf_spin_lock_proto;
 extern const struct bpf_func_proto bpf_spin_unlock_proto;
 extern const struct bpf_func_proto bpf_get_local_storage_proto;
+extern const struct bpf_func_proto bpf_strtol_proto;
+extern const struct bpf_func_proto bpf_strtoul_proto;
 
 /* Shared helpers among cBPF and eBPF. */
 void bpf_user_rnd_init_once(void);

@@ -7,7 +7,7 @@
  * Free Software Foundation.
  */
 #include <linux/dma-mapping.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include "../hardware.h"
 #include "devices-common.h"

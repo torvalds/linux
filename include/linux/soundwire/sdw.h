@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
-// Copyright(c) 2015-17 Intel Corporation.
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
+/* Copyright(c) 2015-17 Intel Corporation. */
 
 #ifndef __SOUNDWIRE_H
 #define __SOUNDWIRE_H
@@ -36,7 +36,7 @@ struct sdw_slave;
 #define SDW_FRAME_CTRL_BITS		48
 #define SDW_MAX_DEVICES			11
 
-#define SDW_VALID_PORT_RANGE(n)		(n <= 14 && n >= 1)
+#define SDW_VALID_PORT_RANGE(n)		((n) <= 14 && (n) >= 1)
 
 #define SDW_DAI_ID_RANGE_START		100
 #define SDW_DAI_ID_RANGE_END		200
@@ -470,14 +470,14 @@ struct sdw_bus_params {
 struct sdw_slave_ops {
 	int (*read_prop)(struct sdw_slave *sdw);
 	int (*interrupt_callback)(struct sdw_slave *slave,
-			struct sdw_slave_intr_status *status);
+				  struct sdw_slave_intr_status *status);
 	int (*update_status)(struct sdw_slave *slave,
-			enum sdw_slave_status status);
+			     enum sdw_slave_status status);
 	int (*bus_config)(struct sdw_slave *slave,
-			struct sdw_bus_params *params);
+			  struct sdw_bus_params *params);
 	int (*port_prep)(struct sdw_slave *slave,
-			struct sdw_prepare_ch *prepare_ch,
-			enum sdw_port_prep_ops pre_ops);
+			 struct sdw_prepare_ch *prepare_ch,
+			 enum sdw_port_prep_ops pre_ops);
 };
 
 /**

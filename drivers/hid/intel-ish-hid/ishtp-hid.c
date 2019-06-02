@@ -14,8 +14,8 @@
  */
 
 #include <linux/hid.h>
+#include <linux/intel-ish-client-if.h>
 #include <uapi/linux/input.h>
-#include "ishtp/client.h"
 #include "ishtp-hid.h"
 
 /**
@@ -59,10 +59,46 @@ static void ishtp_hid_close(struct hid_device *hid)
 {
 }
 
-static int ishtp_raw_request(struct hid_device *hdev, unsigned char reportnum,
-	__u8 *buf, size_t len, unsigned char rtype, int reqtype)
+static int ishtp_raw_request(struct hid_device *hid, unsigned char reportnum,
+			     __u8 *buf, size_t len, unsigned char rtype,
+			     int reqtype)
 {
-	return 0;
+	struct ishtp_hid_data *hid_data =  hid->driver_data;
+	char *ishtp_buf = NULL;
+	size_t ishtp_buf_len;
+	unsigned int header_size = sizeof(struct hostif_msg);
+
+	if (rtype == HID_OUTPUT_REPORT)
+		return -EINVAL;
+
+	hid_data->request_done = false;
+	switch (reqtype) {
+	case HID_REQ_GET_REPORT:
+		hid_data->raw_buf = buf;
+		hid_data->raw_buf_size = len;
+		hid_data->raw_get_req = true;
+
+		hid_ishtp_get_report(hid, reportnum, rtype);
+		break;
+	case HID_REQ_SET_REPORT:
+		/*
+		 * Spare 7 bytes for 64b accesses through
+		 * get/put_unaligned_le64()
+		 */
+		ishtp_buf_len = len + header_size;
+		ishtp_buf = kzalloc(ishtp_buf_len + 7, GFP_KERNEL);
+		if (!ishtp_buf)
+			return -ENOMEM;
+
+		memcpy(ishtp_buf + header_size, buf, len);
+		hid_ishtp_set_feature(hid, ishtp_buf, ishtp_buf_len, reportnum);
+		kfree(ishtp_buf);
+		break;
+	}
+
+	hid_hw_wait(hid);
+
+	return len;
 }
 
 /**
@@ -87,6 +123,7 @@ static void ishtp_hid_request(struct hid_device *hid, struct hid_report *rep,
 	hid_data->request_done = false;
 	switch (reqtype) {
 	case HID_REQ_GET_REPORT:
+		hid_data->raw_get_req = false;
 		hid_ishtp_get_report(hid, rep->id, rep->type);
 		break;
 	case HID_REQ_SET_REPORT:
@@ -116,7 +153,6 @@ static void ishtp_hid_request(struct hid_device *hid, struct hid_report *rep,
 static int ishtp_wait_for_response(struct hid_device *hid)
 {
 	struct ishtp_hid_data *hid_data =  hid->driver_data;
-	struct ishtp_cl_data *client_data = hid_data->client_data;
 	int rv;
 
 	hid_ishtp_trace(client_data,  "%s hid %p\n", __func__, hid);
@@ -204,7 +240,8 @@ int ishtp_hid_probe(unsigned int cur_hid_dev,
 
 	hid->ll_driver = &ishtp_hid_ll_driver;
 	hid->bus = BUS_INTEL_ISHTP;
-	hid->dev.parent = &client_data->cl_device->dev;
+	hid->dev.parent = ishtp_device(client_data->cl_device);
+
 	hid->version = le16_to_cpu(ISH_HID_VERSION);
 	hid->vendor = le16_to_cpu(client_data->hid_devices[cur_hid_dev].vid);
 	hid->product = le16_to_cpu(client_data->hid_devices[cur_hid_dev].pid);

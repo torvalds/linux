@@ -161,7 +161,6 @@ static int hmac_sha256(u8 *key, u8 ksize, char *plaintext, u8 psize, u8 *output)
 	}
 
 	shash->tfm = tfm;
-	shash->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	ret = crypto_shash_digest(shash, plaintext, psize, output);
 

@@ -20,6 +20,7 @@
 #include <linux/clkdev.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>

@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * OMAP GPIO handling defines and functions
  *
  * Copyright (C) 2003-2005 Nokia Corporation
  *
  * Written by Juha Yrjölä <juha.yrjola@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 #ifndef __ASM_ARCH_OMAP_GPIO_H
@@ -199,8 +185,6 @@ struct omap_gpio_platform_data {
 	bool loses_context;	/* whether the bank would ever lose context */
 	bool is_mpuio;		/* whether the bank is of type MPUIO */
 	u32 non_wakeup_gpios;
-
-	u32 quirks;		/* Version specific quirks mask */
 
 	struct omap_gpio_reg_offs *regs;
 

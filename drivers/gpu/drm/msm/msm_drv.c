@@ -39,9 +39,10 @@
  *           MSM_GEM_INFO ioctl.
  * - 1.4.0 - softpin, MSM_RELOC_BO_DUMP, and GEM_INFO support to set/get
  *           GEM object's debug name
+ * - 1.5.0 - Add SUBMITQUERY_QUERY ioctl
  */
 #define MSM_VERSION_MAJOR	1
-#define MSM_VERSION_MINOR	4
+#define MSM_VERSION_MINOR	5
 #define MSM_VERSION_PATCHLEVEL	0
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
@@ -456,6 +457,9 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	mdss = priv->mdss;
 
 	priv->wq = alloc_ordered_workqueue("msm", 0);
+
+	INIT_WORK(&priv->free_work, msm_gem_free_work);
+	init_llist_head(&priv->free_list);
 
 	INIT_LIST_HEAD(&priv->inactive_list);
 
@@ -964,6 +968,11 @@ static int msm_ioctl_submitqueue_new(struct drm_device *dev, void *data,
 		args->flags, &args->id);
 }
 
+static int msm_ioctl_submitqueue_query(struct drm_device *dev, void *data,
+		struct drm_file *file)
+{
+	return msm_submitqueue_query(dev, file->driver_priv, data);
+}
 
 static int msm_ioctl_submitqueue_close(struct drm_device *dev, void *data,
 		struct drm_file *file)
@@ -984,6 +993,7 @@ static const struct drm_ioctl_desc msm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MSM_GEM_MADVISE,  msm_ioctl_gem_madvise,  DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(MSM_SUBMITQUEUE_NEW,   msm_ioctl_submitqueue_new,   DRM_AUTH|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(MSM_SUBMITQUEUE_CLOSE, msm_ioctl_submitqueue_close, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(MSM_SUBMITQUEUE_QUERY, msm_ioctl_submitqueue_query, DRM_AUTH|DRM_RENDER_ALLOW),
 };
 
 static const struct vm_operations_struct vm_ops = {
@@ -1019,7 +1029,7 @@ static struct drm_driver msm_driver = {
 	.irq_uninstall      = msm_irq_uninstall,
 	.enable_vblank      = msm_enable_vblank,
 	.disable_vblank     = msm_disable_vblank,
-	.gem_free_object    = msm_gem_free_object,
+	.gem_free_object_unlocked = msm_gem_free_object,
 	.gem_vm_ops         = &vm_ops,
 	.dumb_create        = msm_gem_dumb_create,
 	.dumb_map_offset    = msm_gem_dumb_map_offset,
@@ -1027,7 +1037,6 @@ static struct drm_driver msm_driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export   = drm_gem_prime_export,
 	.gem_prime_import   = drm_gem_prime_import,
-	.gem_prime_res_obj  = msm_gem_prime_res_obj,
 	.gem_prime_pin      = msm_gem_prime_pin,
 	.gem_prime_unpin    = msm_gem_prime_unpin,
 	.gem_prime_get_sg_table = msm_gem_prime_get_sg_table,

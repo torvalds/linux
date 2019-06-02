@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Helper to resolve issues with configs that have SPI enabled but I2C
 # modular, meaning we can't build the codec driver in with I2C support.
 # We use an ordered list of conditional defaults to pick the appropriate
@@ -94,6 +95,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_JZ4725B_CODEC
 	select SND_SOC_LM4857 if I2C
 	select SND_SOC_LM49453 if I2C
+	select SND_SOC_LOCHNAGAR_SC if MFD_LOCHNAGAR
 	select SND_SOC_MAX98088 if I2C
 	select SND_SOC_MAX98090 if I2C
 	select SND_SOC_MAX98095 if I2C
@@ -179,8 +181,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TLV320AIC23_SPI if SPI_MASTER
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
 	select SND_SOC_TLV320AIC31XX if I2C
-	select SND_SOC_TLV320AIC32X4_I2C if I2C
-	select SND_SOC_TLV320AIC32X4_SPI if SPI_MASTER
+	select SND_SOC_TLV320AIC32X4_I2C if I2C && COMMON_CLK
+	select SND_SOC_TLV320AIC32X4_SPI if SPI_MASTER && COMMON_CLK
 	select SND_SOC_TLV320AIC3X if I2C
 	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TLV320DAC33 if I2C
@@ -688,6 +690,13 @@ config SND_SOC_ISABELLE
 config SND_SOC_LM49453
 	tristate
 
+config SND_SOC_LOCHNAGAR_SC
+	tristate "Lochnagar Sound Card"
+	depends on MFD_LOCHNAGAR
+	help
+	  This driver support the sound card functionality of the Cirrus
+	  Logic Lochnagar audio development board.
+
 config SND_SOC_MAX98088
 	tristate "Maxim MAX98088/9 Low-Power, Stereo Audio Codec"
 	depends on I2C
@@ -1097,15 +1106,18 @@ config SND_SOC_TLV320AIC31XX
 
 config SND_SOC_TLV320AIC32X4
 	tristate
+	depends on COMMON_CLK
 
 config SND_SOC_TLV320AIC32X4_I2C
 	tristate "Texas Instruments TLV320AIC32x4 audio CODECs - I2C"
 	depends on I2C
+	depends on COMMON_CLK
 	select SND_SOC_TLV320AIC32X4
 
 config SND_SOC_TLV320AIC32X4_SPI
 	tristate "Texas Instruments TLV320AIC32x4 audio CODECs - SPI"
 	depends on SPI_MASTER
+	depends on COMMON_CLK
 	select SND_SOC_TLV320AIC32X4
 
 config SND_SOC_TLV320AIC3X

@@ -66,6 +66,22 @@
 
 #define SDHCI_VNDR_TUN_CTRL0_0				0x1c0
 #define SDHCI_VNDR_TUN_CTRL0_TUN_HW_TAP			0x20000
+#define SDHCI_VNDR_TUN_CTRL0_START_TAP_VAL_MASK		0x03fc0000
+#define SDHCI_VNDR_TUN_CTRL0_START_TAP_VAL_SHIFT	18
+#define SDHCI_VNDR_TUN_CTRL0_MUL_M_MASK			0x00001fc0
+#define SDHCI_VNDR_TUN_CTRL0_MUL_M_SHIFT		6
+#define SDHCI_VNDR_TUN_CTRL0_TUN_ITER_MASK		0x000e000
+#define SDHCI_VNDR_TUN_CTRL0_TUN_ITER_SHIFT		13
+#define TRIES_128					2
+#define TRIES_256					4
+#define SDHCI_VNDR_TUN_CTRL0_TUN_WORD_SEL_MASK		0x7
+
+#define SDHCI_TEGRA_VNDR_TUN_CTRL1_0			0x1c4
+#define SDHCI_TEGRA_VNDR_TUN_STATUS0			0x1C8
+#define SDHCI_TEGRA_VNDR_TUN_STATUS1			0x1CC
+#define SDHCI_TEGRA_VNDR_TUN_STATUS1_TAP_MASK		0xFF
+#define SDHCI_TEGRA_VNDR_TUN_STATUS1_END_TAP_SHIFT	0x8
+#define TUNING_WORD_BIT_SIZE				32
 
 #define SDHCI_TEGRA_AUTO_CAL_CONFIG			0x1e4
 #define SDHCI_AUTO_CAL_START				BIT(31)
@@ -90,6 +106,7 @@
 #define NVQUIRK_HAS_PADCALIB				BIT(6)
 #define NVQUIRK_NEEDS_PAD_CONTROL			BIT(7)
 #define NVQUIRK_DIS_CARD_CLK_CONFIG_TAP			BIT(8)
+#define NVQUIRK_CQHCI_DCMD_R1B_CMD_TIMING		BIT(9)
 
 /* SDMMC CQE Base Address for Tegra Host Ver 4.1 and Higher */
 #define SDHCI_TEGRA_CQE_BASE_ADDR			0xF000
@@ -97,6 +114,8 @@
 struct sdhci_tegra_soc_data {
 	const struct sdhci_pltfm_data *pdata;
 	u32 nvquirks;
+	u8 min_tap_delay;
+	u8 max_tap_delay;
 };
 
 /* Magic pull up and pull down pad calibration offsets */
@@ -136,6 +155,8 @@ struct sdhci_tegra {
 	u32 default_trim;
 	u32 dqs_trim;
 	bool enable_hwcq;
+	unsigned long curr_clk_rate;
+	u8 tuned_tap_delay;
 };
 
 static u16 tegra_sdhci_readw(struct sdhci_host *host, int reg)
@@ -241,6 +262,7 @@ static void tegra210_sdhci_writew(struct sdhci_host *host, u16 val, int reg)
 
 	if (is_tuning_cmd) {
 		udelay(1);
+		sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 		tegra_sdhci_configure_card_clk(host, clk_enabled);
 	}
 }
@@ -722,6 +744,7 @@ static void tegra_sdhci_set_clock(struct sdhci_host *host, unsigned int clock)
 	 */
 	host_clk = tegra_host->ddr_signaling ? clock * 2 : clock;
 	clk_set_rate(pltfm_host->clk, host_clk);
+	tegra_host->curr_clk_rate = host_clk;
 	if (tegra_host->ddr_signaling)
 		host->max_clk = host_clk;
 	else
@@ -770,6 +793,159 @@ static void tegra_sdhci_hs400_dll_cal(struct sdhci_host *host)
 			"HS400 delay line calibration timed out\n");
 }
 
+static void tegra_sdhci_tap_correction(struct sdhci_host *host, u8 thd_up,
+				       u8 thd_low, u8 fixed_tap)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
+	u32 val, tun_status;
+	u8 word, bit, edge1, tap, window;
+	bool tap_result;
+	bool start_fail = false;
+	bool start_pass = false;
+	bool end_pass = false;
+	bool first_fail = false;
+	bool first_pass = false;
+	u8 start_pass_tap = 0;
+	u8 end_pass_tap = 0;
+	u8 first_fail_tap = 0;
+	u8 first_pass_tap = 0;
+	u8 total_tuning_words = host->tuning_loop_count / TUNING_WORD_BIT_SIZE;
+
+	/*
+	 * Read auto-tuned results and extract good valid passing window by
+	 * filtering out un-wanted bubble/partial/merged windows.
+	 */
+	for (word = 0; word < total_tuning_words; word++) {
+		val = sdhci_readl(host, SDHCI_VNDR_TUN_CTRL0_0);
+		val &= ~SDHCI_VNDR_TUN_CTRL0_TUN_WORD_SEL_MASK;
+		val |= word;
+		sdhci_writel(host, val, SDHCI_VNDR_TUN_CTRL0_0);
+		tun_status = sdhci_readl(host, SDHCI_TEGRA_VNDR_TUN_STATUS0);
+		bit = 0;
+		while (bit < TUNING_WORD_BIT_SIZE) {
+			tap = word * TUNING_WORD_BIT_SIZE + bit;
+			tap_result = tun_status & (1 << bit);
+			if (!tap_result && !start_fail) {
+				start_fail = true;
+				if (!first_fail) {
+					first_fail_tap = tap;
+					first_fail = true;
+				}
+
+			} else if (tap_result && start_fail && !start_pass) {
+				start_pass_tap = tap;
+				start_pass = true;
+				if (!first_pass) {
+					first_pass_tap = tap;
+					first_pass = true;
+				}
+
+			} else if (!tap_result && start_fail && start_pass &&
+				   !end_pass) {
+				end_pass_tap = tap - 1;
+				end_pass = true;
+			} else if (tap_result && start_pass && start_fail &&
+				   end_pass) {
+				window = end_pass_tap - start_pass_tap;
+				/* discard merged window and bubble window */
+				if (window >= thd_up || window < thd_low) {
+					start_pass_tap = tap;
+					end_pass = false;
+				} else {
+					/* set tap at middle of valid window */
+					tap = start_pass_tap + window / 2;
+					tegra_host->tuned_tap_delay = tap;
+					return;
+				}
+			}
+
+			bit++;
+		}
+	}
+
+	if (!first_fail) {
+		WARN_ON("no edge detected, continue with hw tuned delay.\n");
+	} else if (first_pass) {
+		/* set tap location at fixed tap relative to the first edge */
+		edge1 = first_fail_tap + (first_pass_tap - first_fail_tap) / 2;
+		if (edge1 - 1 > fixed_tap)
+			tegra_host->tuned_tap_delay = edge1 - fixed_tap;
+		else
+			tegra_host->tuned_tap_delay = edge1 + fixed_tap;
+	}
+}
+
+static void tegra_sdhci_post_tuning(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
+	const struct sdhci_tegra_soc_data *soc_data = tegra_host->soc_data;
+	u32 avg_tap_dly, val, min_tap_dly, max_tap_dly;
+	u8 fixed_tap, start_tap, end_tap, window_width;
+	u8 thdupper, thdlower;
+	u8 num_iter;
+	u32 clk_rate_mhz, period_ps, bestcase, worstcase;
+
+	/* retain HW tuned tap to use incase if no correction is needed */
+	val = sdhci_readl(host, SDHCI_TEGRA_VENDOR_CLOCK_CTRL);
+	tegra_host->tuned_tap_delay = (val & SDHCI_CLOCK_CTRL_TAP_MASK) >>
+				      SDHCI_CLOCK_CTRL_TAP_SHIFT;
+	if (soc_data->min_tap_delay && soc_data->max_tap_delay) {
+		min_tap_dly = soc_data->min_tap_delay;
+		max_tap_dly = soc_data->max_tap_delay;
+		clk_rate_mhz = tegra_host->curr_clk_rate / USEC_PER_SEC;
+		period_ps = USEC_PER_SEC / clk_rate_mhz;
+		bestcase = period_ps / min_tap_dly;
+		worstcase = period_ps / max_tap_dly;
+		/*
+		 * Upper and Lower bound thresholds used to detect merged and
+		 * bubble windows
+		 */
+		thdupper = (2 * worstcase + bestcase) / 2;
+		thdlower = worstcase / 4;
+		/*
+		 * fixed tap is used when HW tuning result contains single edge
+		 * and tap is set at fixed tap delay relative to the first edge
+		 */
+		avg_tap_dly = (period_ps * 2) / (min_tap_dly + max_tap_dly);
+		fixed_tap = avg_tap_dly / 2;
+
+		val = sdhci_readl(host, SDHCI_TEGRA_VNDR_TUN_STATUS1);
+		start_tap = val & SDHCI_TEGRA_VNDR_TUN_STATUS1_TAP_MASK;
+		end_tap = (val >> SDHCI_TEGRA_VNDR_TUN_STATUS1_END_TAP_SHIFT) &
+			  SDHCI_TEGRA_VNDR_TUN_STATUS1_TAP_MASK;
+		window_width = end_tap - start_tap;
+		num_iter = host->tuning_loop_count;
+		/*
+		 * partial window includes edges of the tuning range.
+		 * merged window includes more taps so window width is higher
+		 * than upper threshold.
+		 */
+		if (start_tap == 0 || (end_tap == (num_iter - 1)) ||
+		    (end_tap == num_iter - 2) || window_width >= thdupper) {
+			pr_debug("%s: Apply tuning correction\n",
+				 mmc_hostname(host->mmc));
+			tegra_sdhci_tap_correction(host, thdupper, thdlower,
+						   fixed_tap);
+		}
+	}
+
+	tegra_sdhci_set_tap(host, tegra_host->tuned_tap_delay);
+}
+
+static int tegra_sdhci_execute_hw_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	int err;
+
+	err = sdhci_execute_tuning(mmc, opcode);
+	if (!err && !host->tuning_err)
+		tegra_sdhci_post_tuning(host);
+
+	return err;
+}
+
 static void tegra_sdhci_set_uhs_signaling(struct sdhci_host *host,
 					  unsigned timing)
 {
@@ -778,16 +954,22 @@ static void tegra_sdhci_set_uhs_signaling(struct sdhci_host *host,
 	bool set_default_tap = false;
 	bool set_dqs_trim = false;
 	bool do_hs400_dll_cal = false;
+	u8 iter = TRIES_256;
+	u32 val;
 
+	tegra_host->ddr_signaling = false;
 	switch (timing) {
 	case MMC_TIMING_UHS_SDR50:
+		break;
 	case MMC_TIMING_UHS_SDR104:
 	case MMC_TIMING_MMC_HS200:
 		/* Don't set default tap on tunable modes. */
+		iter = TRIES_128;
 		break;
 	case MMC_TIMING_MMC_HS400:
 		set_dqs_trim = true;
 		do_hs400_dll_cal = true;
+		iter = TRIES_128;
 		break;
 	case MMC_TIMING_MMC_DDR52:
 	case MMC_TIMING_UHS_DDR50:
@@ -799,11 +981,25 @@ static void tegra_sdhci_set_uhs_signaling(struct sdhci_host *host,
 		break;
 	}
 
+	val = sdhci_readl(host, SDHCI_VNDR_TUN_CTRL0_0);
+	val &= ~(SDHCI_VNDR_TUN_CTRL0_TUN_ITER_MASK |
+		 SDHCI_VNDR_TUN_CTRL0_START_TAP_VAL_MASK |
+		 SDHCI_VNDR_TUN_CTRL0_MUL_M_MASK);
+	val |= (iter << SDHCI_VNDR_TUN_CTRL0_TUN_ITER_SHIFT |
+		0 << SDHCI_VNDR_TUN_CTRL0_START_TAP_VAL_SHIFT |
+		1 << SDHCI_VNDR_TUN_CTRL0_MUL_M_SHIFT);
+	sdhci_writel(host, val, SDHCI_VNDR_TUN_CTRL0_0);
+	sdhci_writel(host, 0, SDHCI_TEGRA_VNDR_TUN_CTRL1_0);
+
+	host->tuning_loop_count = (iter == TRIES_128) ? 128 : 256;
+
 	sdhci_set_uhs_signaling(host, timing);
 
 	tegra_sdhci_pad_autocalib(host);
 
-	if (set_default_tap)
+	if (tegra_host->tuned_tap_delay && !set_default_tap)
+		tegra_sdhci_set_tap(host, tegra_host->tuned_tap_delay);
+	else
 		tegra_sdhci_set_tap(host, tegra_host->default_tap);
 
 	if (set_dqs_trim)
@@ -928,23 +1124,86 @@ static void tegra_sdhci_voltage_switch(struct sdhci_host *host)
 		tegra_host->pad_calib_required = true;
 }
 
+static void tegra_cqhci_writel(struct cqhci_host *cq_host, u32 val, int reg)
+{
+	struct mmc_host *mmc = cq_host->mmc;
+	u8 ctrl;
+	ktime_t timeout;
+	bool timed_out;
+
+	/*
+	 * During CQE resume/unhalt, CQHCI driver unhalts CQE prior to
+	 * cqhci_host_ops enable where SDHCI DMA and BLOCK_SIZE registers need
+	 * to be re-configured.
+	 * Tegra CQHCI/SDHCI prevents write access to block size register when
+	 * CQE is unhalted. So handling CQE resume sequence here to configure
+	 * SDHCI block registers prior to exiting CQE halt state.
+	 */
+	if (reg == CQHCI_CTL && !(val & CQHCI_HALT) &&
+	    cqhci_readl(cq_host, CQHCI_CTL) & CQHCI_HALT) {
+		sdhci_cqe_enable(mmc);
+		writel(val, cq_host->mmio + reg);
+		timeout = ktime_add_us(ktime_get(), 50);
+		while (1) {
+			timed_out = ktime_compare(ktime_get(), timeout) > 0;
+			ctrl = cqhci_readl(cq_host, CQHCI_CTL);
+			if (!(ctrl & CQHCI_HALT) || timed_out)
+				break;
+		}
+		/*
+		 * CQE usually resumes very quick, but incase if Tegra CQE
+		 * doesn't resume retry unhalt.
+		 */
+		if (timed_out)
+			writel(val, cq_host->mmio + reg);
+	} else {
+		writel(val, cq_host->mmio + reg);
+	}
+}
+
+static void sdhci_tegra_update_dcmd_desc(struct mmc_host *mmc,
+					 struct mmc_request *mrq, u64 *data)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(mmc_priv(mmc));
+	struct sdhci_tegra *tegra_host = sdhci_pltfm_priv(pltfm_host);
+	const struct sdhci_tegra_soc_data *soc_data = tegra_host->soc_data;
+
+	if (soc_data->nvquirks & NVQUIRK_CQHCI_DCMD_R1B_CMD_TIMING &&
+	    mrq->cmd->flags & MMC_RSP_R1B)
+		*data |= CQHCI_CMD_TIMING(1);
+}
+
 static void sdhci_tegra_cqe_enable(struct mmc_host *mmc)
 {
 	struct cqhci_host *cq_host = mmc->cqe_private;
-	u32 cqcfg = 0;
+	u32 val;
 
 	/*
-	 * Tegra SDMMC Controller design prevents write access to BLOCK_COUNT
-	 * registers when CQE is enabled.
+	 * Tegra CQHCI/SDMMC design prevents write access to sdhci block size
+	 * register when CQE is enabled and unhalted.
+	 * CQHCI driver enables CQE prior to activation, so disable CQE before
+	 * programming block size in sdhci controller and enable it back.
 	 */
-	cqcfg = cqhci_readl(cq_host, CQHCI_CFG);
-	if (cqcfg & CQHCI_ENABLE)
-		cqhci_writel(cq_host, (cqcfg & ~CQHCI_ENABLE), CQHCI_CFG);
+	if (!cq_host->activated) {
+		val = cqhci_readl(cq_host, CQHCI_CFG);
+		if (val & CQHCI_ENABLE)
+			cqhci_writel(cq_host, (val & ~CQHCI_ENABLE),
+				     CQHCI_CFG);
+		sdhci_cqe_enable(mmc);
+		if (val & CQHCI_ENABLE)
+			cqhci_writel(cq_host, val, CQHCI_CFG);
+	}
 
-	sdhci_cqe_enable(mmc);
-
-	if (cqcfg & CQHCI_ENABLE)
-		cqhci_writel(cq_host, cqcfg, CQHCI_CFG);
+	/*
+	 * CMD CRC errors are seen sometimes with some eMMC devices when status
+	 * command is sent during transfer of last data block which is the
+	 * default case as send status command block counter (CBC) is 1.
+	 * Recommended fix to set CBC to 0 allowing send status command only
+	 * when data lines are idle.
+	 */
+	val = cqhci_readl(cq_host, CQHCI_SSC1);
+	val &= ~CQHCI_SSC1_CBC_MASK;
+	cqhci_writel(cq_host, val, CQHCI_SSC1);
 }
 
 static void sdhci_tegra_dumpregs(struct mmc_host *mmc)
@@ -966,9 +1225,11 @@ static u32 sdhci_tegra_cqhci_irq(struct sdhci_host *host, u32 intmask)
 }
 
 static const struct cqhci_host_ops sdhci_tegra_cqhci_ops = {
+	.write_l    = tegra_cqhci_writel,
 	.enable	= sdhci_tegra_cqe_enable,
 	.disable = sdhci_cqe_disable,
 	.dumpregs = sdhci_tegra_dumpregs,
+	.update_dcmd_desc = sdhci_tegra_update_dcmd_desc,
 };
 
 static const struct sdhci_ops tegra_sdhci_ops = {
@@ -1109,6 +1370,8 @@ static const struct sdhci_tegra_soc_data soc_data_tegra210 = {
 		    NVQUIRK_DIS_CARD_CLK_CONFIG_TAP |
 		    NVQUIRK_ENABLE_SDR50 |
 		    NVQUIRK_ENABLE_SDR104,
+	.min_tap_delay = 106,
+	.max_tap_delay = 185,
 };
 
 static const struct sdhci_ops tegra186_sdhci_ops = {
@@ -1148,10 +1411,25 @@ static const struct sdhci_tegra_soc_data soc_data_tegra186 = {
 		    NVQUIRK_HAS_PADCALIB |
 		    NVQUIRK_DIS_CARD_CLK_CONFIG_TAP |
 		    NVQUIRK_ENABLE_SDR50 |
+		    NVQUIRK_ENABLE_SDR104 |
+		    NVQUIRK_CQHCI_DCMD_R1B_CMD_TIMING,
+	.min_tap_delay = 84,
+	.max_tap_delay = 136,
+};
+
+static const struct sdhci_tegra_soc_data soc_data_tegra194 = {
+	.pdata = &sdhci_tegra186_pdata,
+	.nvquirks = NVQUIRK_NEEDS_PAD_CONTROL |
+		    NVQUIRK_HAS_PADCALIB |
+		    NVQUIRK_DIS_CARD_CLK_CONFIG_TAP |
+		    NVQUIRK_ENABLE_SDR50 |
 		    NVQUIRK_ENABLE_SDR104,
+	.min_tap_delay = 96,
+	.max_tap_delay = 139,
 };
 
 static const struct of_device_id sdhci_tegra_dt_match[] = {
+	{ .compatible = "nvidia,tegra194-sdhci", .data = &soc_data_tegra194 },
 	{ .compatible = "nvidia,tegra186-sdhci", .data = &soc_data_tegra186 },
 	{ .compatible = "nvidia,tegra210-sdhci", .data = &soc_data_tegra210 },
 	{ .compatible = "nvidia,tegra124-sdhci", .data = &soc_data_tegra124 },
@@ -1250,6 +1528,10 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 	host->mmc_host_ops.hs400_enhanced_strobe =
 			tegra_sdhci_hs400_enhanced_strobe;
 
+	if (!host->ops->platform_execute_tuning)
+		host->mmc_host_ops.execute_tuning =
+				tegra_sdhci_execute_hw_tuning;
+
 	rc = mmc_of_parse(host->mmc);
 	if (rc)
 		goto err_parse_dt;
@@ -1329,11 +1611,67 @@ static int sdhci_tegra_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int __maybe_unused sdhci_tegra_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	int ret;
+
+	if (host->mmc->caps2 & MMC_CAP2_CQE) {
+		ret = cqhci_suspend(host->mmc);
+		if (ret)
+			return ret;
+	}
+
+	ret = sdhci_suspend_host(host);
+	if (ret) {
+		cqhci_resume(host->mmc);
+		return ret;
+	}
+
+	clk_disable_unprepare(pltfm_host->clk);
+	return 0;
+}
+
+static int __maybe_unused sdhci_tegra_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	int ret;
+
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret)
+		return ret;
+
+	ret = sdhci_resume_host(host);
+	if (ret)
+		goto disable_clk;
+
+	if (host->mmc->caps2 & MMC_CAP2_CQE) {
+		ret = cqhci_resume(host->mmc);
+		if (ret)
+			goto suspend_host;
+	}
+
+	return 0;
+
+suspend_host:
+	sdhci_suspend_host(host);
+disable_clk:
+	clk_disable_unprepare(pltfm_host->clk);
+	return ret;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(sdhci_tegra_dev_pm_ops, sdhci_tegra_suspend,
+			 sdhci_tegra_resume);
+
 static struct platform_driver sdhci_tegra_driver = {
 	.driver		= {
 		.name	= "sdhci-tegra",
 		.of_match_table = sdhci_tegra_dt_match,
-		.pm	= &sdhci_pltfm_pmops,
+		.pm	= &sdhci_tegra_dev_pm_ops,
 	},
 	.probe		= sdhci_tegra_probe,
 	.remove		= sdhci_tegra_remove,

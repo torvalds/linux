@@ -345,6 +345,7 @@ enum {
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
 	GLF_INODE_CREATING		= 16, /* Inode creation occurring */
+	GLF_REVOKES			= 17, /* Glock has revokes in queue */
 };
 
 struct gfs2_glock {
@@ -374,7 +375,6 @@ struct gfs2_glock {
 	struct list_head gl_lru;
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
-	atomic_t gl_revokes;
 	struct delayed_work gl_work;
 	union {
 		/* For inode and iopen glocks only */
@@ -535,7 +535,7 @@ struct gfs2_jdesc {
 	unsigned long jd_flags;
 #define JDF_RECOVERY 1
 	unsigned int jd_jid;
-	unsigned int jd_blocks;
+	u32 jd_blocks;
 	int jd_recover_error;
 	/* Replay stuff */
 
@@ -621,6 +621,7 @@ enum {
 	SDF_SKIP_DLM_UNLOCK	= 8,
 	SDF_FORCE_AIL_FLUSH     = 9,
 	SDF_AIL1_IO_ERROR	= 10,
+	SDF_FS_FROZEN           = 11,
 };
 
 enum gfs2_freeze_state {
@@ -809,8 +810,8 @@ struct gfs2_sbd {
 	atomic_t sd_log_pinned;
 	unsigned int sd_log_num_revoke;
 
-	struct list_head sd_log_le_revoke;
-	struct list_head sd_log_le_ordered;
+	struct list_head sd_log_revokes;
+	struct list_head sd_log_ordered;
 	spinlock_t sd_ordered_lock;
 
 	atomic_t sd_log_thresh1;

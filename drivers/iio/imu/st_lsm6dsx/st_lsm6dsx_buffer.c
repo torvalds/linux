@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_lsm6dsx FIFO buffer library driver
  *
@@ -13,9 +14,9 @@
  * (e.g. Gx, Gy, Gz, Ax, Ay, Az), then data are repeated depending on the
  * value of the decimation factor and ODR set for each FIFO data set.
  *
- * LSM6DSO: The FIFO buffer can be configured to store data from gyroscope and
- * accelerometer. Each sample is queued with a tag (1B) indicating data source
- * (gyroscope, accelerometer, hw timer).
+ * LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR: The FIFO buffer can be configured to
+ * store data from gyroscope and accelerometer. Each sample is queued with
+ * a tag (1B) indicating data source (gyroscope, accelerometer, hw timer).
  *
  * FIFO supported modes:
  *  - BYPASS: FIFO disabled
@@ -26,8 +27,6 @@
  *
  * Lorenzo Bianconi <lorenzo.bianconi@st.com>
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -506,7 +505,7 @@ st_lsm6dsx_push_tagged_data(struct st_lsm6dsx_hw *hw, u8 tag,
 }
 
 /**
- * st_lsm6dsx_read_tagged_fifo() - LSM6DSO read FIFO routine
+ * st_lsm6dsx_read_tagged_fifo() - tagged hw FIFO read routine
  * @hw: Pointer to instance of struct st_lsm6dsx_hw.
  *
  * Read samples from the hw FIFO and push them to IIO buffers.
@@ -517,7 +516,6 @@ int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw)
 {
 	u16 pattern_len = hw->sip * ST_LSM6DSX_TAGGED_SAMPLE_SIZE;
 	u16 fifo_len, fifo_diff_mask;
-	struct st_lsm6dsx_sensor *acc_sensor, *gyro_sensor;
 	u8 iio_buff[ST_LSM6DSX_IIO_BUFF_SIZE], tag;
 	bool reset_ts = false;
 	int i, err, read_len;
@@ -538,9 +536,6 @@ int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw)
 		   ST_LSM6DSX_TAGGED_SAMPLE_SIZE;
 	if (!fifo_len)
 		return 0;
-
-	acc_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_ACC]);
-	gyro_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_GYRO]);
 
 	for (read_len = 0; read_len < fifo_len; read_len += pattern_len) {
 		err = st_lsm6dsx_read_block(hw,

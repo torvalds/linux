@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API.
  *
@@ -14,12 +15,6 @@
  *
  * Adapted for Linux Kernel Crypto  by Aaron Grothe 
  * ajgrothe@yahoo.com, February 22, 2005
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 #include <crypto/internal/hash.h>
 #include <linux/init.h>
@@ -677,7 +672,7 @@ MODULE_ALIAS_CRYPTO("tgr192");
 MODULE_ALIAS_CRYPTO("tgr160");
 MODULE_ALIAS_CRYPTO("tgr128");
 
-module_init(tgr192_mod_init);
+subsys_initcall(tgr192_mod_init);
 module_exit(tgr192_mod_fini);
 
 MODULE_LICENSE("GPL");

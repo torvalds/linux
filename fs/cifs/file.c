@@ -2443,7 +2443,6 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	rc = file_write_and_wait_range(file, start, end);
 	if (rc)
 		return rc;
-	inode_lock(inode);
 
 	xid = get_xid();
 
@@ -2468,7 +2467,6 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	}
 
 	free_xid(xid);
-	inode_unlock(inode);
 	return rc;
 }
 
@@ -2480,12 +2478,10 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct TCP_Server_Info *server;
 	struct cifsFileInfo *smbfile = file->private_data;
 	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
-	struct inode *inode = file->f_mapping->host;
 
 	rc = file_write_and_wait_range(file, start, end);
 	if (rc)
 		return rc;
-	inode_lock(inode);
 
 	xid = get_xid();
 
@@ -2502,7 +2498,6 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 
 	free_xid(xid);
-	inode_unlock(inode);
 	return rc;
 }
 
@@ -2877,7 +2872,6 @@ static void collect_uncached_write_data(struct cifs_aio_ctx *ctx)
 	struct cifs_tcon *tcon;
 	struct cifs_sb_info *cifs_sb;
 	struct dentry *dentry = ctx->cfile->dentry;
-	unsigned int i;
 	int rc;
 
 	tcon = tlink_tcon(ctx->cfile->tlink);
@@ -2940,10 +2934,6 @@ restart_loop:
 		list_del_init(&wdata->list);
 		kref_put(&wdata->refcount, cifs_uncached_writedata_release);
 	}
-
-	if (!ctx->direct_io)
-		for (i = 0; i < ctx->npages; i++)
-			put_page(ctx->bv[i].bv_page);
 
 	cifs_stats_bytes_written(tcon, ctx->total_len);
 	set_bit(CIFS_INO_INVALID_MAPPING, &CIFS_I(dentry->d_inode)->flags);
@@ -3226,7 +3216,9 @@ cifs_read_allocate_pages(struct cifs_readdata *rdata, unsigned int nr_pages)
 	}
 
 	if (rc) {
-		for (i = 0; i < nr_pages; i++) {
+		unsigned int nr_page_failed = i;
+
+		for (i = 0; i < nr_page_failed; i++) {
 			put_page(rdata->pages[i]);
 			rdata->pages[i] = NULL;
 		}
@@ -3582,7 +3574,6 @@ collect_uncached_read_data(struct cifs_aio_ctx *ctx)
 	struct iov_iter *to = &ctx->iter;
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
-	unsigned int i;
 	int rc;
 
 	tcon = tlink_tcon(ctx->cfile->tlink);
@@ -3666,15 +3657,8 @@ again:
 		kref_put(&rdata->refcount, cifs_uncached_readdata_release);
 	}
 
-	if (!ctx->direct_io) {
-		for (i = 0; i < ctx->npages; i++) {
-			if (ctx->should_dirty)
-				set_page_dirty(ctx->bv[i].bv_page);
-			put_page(ctx->bv[i].bv_page);
-		}
-
+	if (!ctx->direct_io)
 		ctx->total_len = ctx->len - iov_iter_count(to);
-	}
 
 	/* mask nodata case */
 	if (rc == -ENODATA)

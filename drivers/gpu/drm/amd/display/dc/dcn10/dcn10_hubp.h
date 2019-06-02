@@ -34,6 +34,7 @@
 #define HUBP_REG_LIST_DCN(id)\
 	SRI(DCHUBP_CNTL, HUBP, id),\
 	SRI(HUBPREQ_DEBUG_DB, HUBP, id),\
+	SRI(HUBPREQ_DEBUG, HUBP, id),\
 	SRI(DCSURF_ADDR_CONFIG, HUBP, id),\
 	SRI(DCSURF_TILING_CONFIG, HUBP, id),\
 	SRI(DCSURF_SURFACE_PITCH, HUBPREQ, id),\
@@ -138,6 +139,7 @@
 #define HUBP_COMMON_REG_VARIABLE_LIST \
 	uint32_t DCHUBP_CNTL; \
 	uint32_t HUBPREQ_DEBUG_DB; \
+	uint32_t HUBPREQ_DEBUG; \
 	uint32_t DCSURF_ADDR_CONFIG; \
 	uint32_t DCSURF_TILING_CONFIG; \
 	uint32_t DCSURF_SURFACE_PITCH; \
@@ -247,7 +249,7 @@
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
 /* Mask/shift struct generation macro for all ASICs (including those with reduced functionality) */
-#define HUBP_MASK_SH_LIST_DCN(mask_sh)\
+#define HUBP_MASK_SH_LIST_DCN_COMMON(mask_sh)\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_BLANK_EN, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_TTU_DISABLE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_UNDERFLOW_STATUS, mask_sh),\
@@ -331,7 +333,6 @@
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, META_CHUNK_SIZE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, MIN_META_CHUNK_SIZE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, DPTE_GROUP_SIZE, mask_sh),\
-	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, MPTE_GROUP_SIZE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, SWATH_HEIGHT, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, PTE_ROW_HEIGHT_LINEAR, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, CHUNK_SIZE_C, mask_sh),\
@@ -339,7 +340,6 @@
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, META_CHUNK_SIZE_C, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, MIN_META_CHUNK_SIZE_C, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, DPTE_GROUP_SIZE_C, mask_sh),\
-	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, MPTE_GROUP_SIZE_C, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, SWATH_HEIGHT_C, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, PTE_ROW_HEIGHT_LINEAR_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_BLANK_OFFSET_0, REFCYC_H_BLANK_END, mask_sh),\
@@ -372,6 +372,11 @@
 	HUBP_SF(HUBPREQ0_DCN_SURF0_TTU_CNTL0, QoS_RAMP_DISABLE, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_SURF0_TTU_CNTL1, REFCYC_PER_REQ_DELIVERY_PRE, mask_sh),\
 	HUBP_SF(HUBP0_HUBP_CLK_CNTL, HUBP_CLOCK_ENABLE, mask_sh)
+
+#define HUBP_MASK_SH_LIST_DCN(mask_sh)\
+	HUBP_MASK_SH_LIST_DCN_COMMON(mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, MPTE_GROUP_SIZE, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, MPTE_GROUP_SIZE_C, mask_sh)
 
 /* Mask/shift struct generation macro for ASICs with VM */
 #define HUBP_MASK_SH_LIST_DCN_VM(mask_sh)\
@@ -595,6 +600,9 @@
 	type AGP_BASE;\
 	type AGP_BOT;\
 	type AGP_TOP;\
+	type DCN_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM;\
+	type DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB;\
+	type DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB;\
 	/* todo:  get these from GVM instead of reading registers ourselves */\
 	type PAGE_DIRECTORY_ENTRY_HI32;\
 	type PAGE_DIRECTORY_ENTRY_LO32;\
@@ -742,5 +750,7 @@ enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);
 
 void hubp1_vready_workaround(struct hubp *hubp,
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
+
+void hubp1_init(struct hubp *hubp);
 
 #endif

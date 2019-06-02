@@ -85,6 +85,7 @@
 /* ICFBSCR */
 #define TCYC17	0x0f		/* 17*Tcyc delay 1st bit between SDA and SCL */
 
+#define RCAR_MIN_DMA_LEN	8
 
 #define RCAR_BUS_PHASE_START	(MDBS | MIE | ESG)
 #define RCAR_BUS_PHASE_DATA	(MDBS | MIE)
@@ -398,7 +399,7 @@ static void rcar_i2c_dma_callback(void *data)
 	rcar_i2c_dma_unmap(priv);
 }
 
-static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
+static bool rcar_i2c_dma(struct rcar_i2c_priv *priv)
 {
 	struct device *dev = rcar_i2c_priv_to_dev(priv);
 	struct i2c_msg *msg = priv->msg;
@@ -412,9 +413,9 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	int len;
 
 	/* Do various checks to see if DMA is feasible at all */
-	if (IS_ERR(chan) || msg->len < 8 || !(msg->flags & I2C_M_DMA_SAFE) ||
-	    (read && priv->flags & ID_P_NO_RXDMA))
-		return;
+	if (IS_ERR(chan) || msg->len < RCAR_MIN_DMA_LEN ||
+	    !(msg->flags & I2C_M_DMA_SAFE) || (read && priv->flags & ID_P_NO_RXDMA))
+		return false;
 
 	if (read) {
 		/*
@@ -434,7 +435,7 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	dma_addr = dma_map_single(chan->device->dev, buf, len, dir);
 	if (dma_mapping_error(chan->device->dev, dma_addr)) {
 		dev_dbg(dev, "dma map failed, using PIO\n");
-		return;
+		return false;
 	}
 
 	sg_dma_len(&priv->sg) = len;
@@ -448,7 +449,7 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	if (!txdesc) {
 		dev_dbg(dev, "dma prep slave sg failed, using PIO\n");
 		rcar_i2c_cleanup_dma(priv);
-		return;
+		return false;
 	}
 
 	txdesc->callback = rcar_i2c_dma_callback;
@@ -458,7 +459,7 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 	if (dma_submit_error(cookie)) {
 		dev_dbg(dev, "submitting dma failed, using PIO\n");
 		rcar_i2c_cleanup_dma(priv);
-		return;
+		return false;
 	}
 
 	/* Enable DMA Master Received/Transmitted */
@@ -468,6 +469,7 @@ static void rcar_i2c_dma(struct rcar_i2c_priv *priv)
 		rcar_i2c_write(priv, ICDMAER, TMDMAE);
 
 	dma_async_issue_pending(chan);
+	return true;
 }
 
 static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
@@ -476,6 +478,10 @@ static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 
 	/* FIXME: sometimes, unknown interrupt happened. Do nothing */
 	if (!(msr & MDE))
+		return;
+
+	/* Check if DMA can be enabled and take over */
+	if (priv->pos == 1 && rcar_i2c_dma(priv))
 		return;
 
 	if (priv->pos < msg->len) {
@@ -488,13 +494,6 @@ static void rcar_i2c_irq_send(struct rcar_i2c_priv *priv, u32 msr)
 		 */
 		rcar_i2c_write(priv, ICRXTX, msg->buf[priv->pos]);
 		priv->pos++;
-
-		/*
-		 * Try to use DMA to transmit the rest of the data if
-		 * address transfer phase just finished.
-		 */
-		if (msr & MAT)
-			rcar_i2c_dma(priv);
 	} else {
 		/*
 		 * The last data was pushed to ICRXTX on _PREV_ empty irq.
@@ -920,6 +919,9 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct i2c_timings i2c_t;
 	int irq, ret;
+
+	/* Otherwise logic will break because some bytes must always use PIO */
+	BUILD_BUG_ON_MSG(RCAR_MIN_DMA_LEN < 3, "Invalid min DMA length");
 
 	priv = devm_kzalloc(dev, sizeof(struct rcar_i2c_priv), GFP_KERNEL);
 	if (!priv)

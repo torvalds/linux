@@ -562,14 +562,12 @@ static void ni6501_detach(struct comedi_device *dev)
 	if (!devpriv)
 		return;
 
-	mutex_lock(&devpriv->mut);
+	mutex_destroy(&devpriv->mut);
 
 	usb_set_intfdata(intf, NULL);
 
 	kfree(devpriv->usb_rx_buf);
 	kfree(devpriv->usb_tx_buf);
-
-	mutex_unlock(&devpriv->mut);
 }
 
 static struct comedi_driver ni6501_driver = {

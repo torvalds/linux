@@ -26,7 +26,7 @@ static void load_and_attach_program(void)
 	struct bpf_object *obj;
 
 	ret = bpf_flow_load(&obj, cfg_path_name, cfg_section_name,
-			    cfg_map_name, &prog_fd);
+			    cfg_map_name, NULL, &prog_fd, NULL);
 	if (ret)
 		error(1, 0, "bpf_flow_load %s", cfg_path_name);
 
@@ -52,7 +52,7 @@ static void detach_program(void)
 	sprintf(command, "rm -r %s", cfg_pin_path);
 	ret = system(command);
 	if (ret)
-		error(1, errno, command);
+		error(1, errno, "%s", command);
 }
 
 static void parse_opts(int argc, char **argv)

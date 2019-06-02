@@ -200,17 +200,10 @@ void chcr_verify_tag(struct aead_request *req, u8 *input, int *err)
 
 static int chcr_inc_wrcount(struct chcr_dev *dev)
 {
-	int err = 0;
-
-	spin_lock_bh(&dev->lock_chcr_dev);
 	if (dev->state == CHCR_DETACH)
-		err = 1;
-	else
-		atomic_inc(&dev->inflight);
-
-	spin_unlock_bh(&dev->lock_chcr_dev);
-
-	return err;
+		return 1;
+	atomic_inc(&dev->inflight);
+	return 0;
 }
 
 static inline void chcr_dec_wrcount(struct chcr_dev *dev)
@@ -1101,8 +1094,8 @@ static int chcr_final_cipher_iv(struct ablkcipher_request *req,
 	int ret = 0;
 
 	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR)
-		ctr_add_iv(iv, req->info, (reqctx->processed /
-			   AES_BLOCK_SIZE));
+		ctr_add_iv(iv, req->info, DIV_ROUND_UP(reqctx->processed,
+						       AES_BLOCK_SIZE));
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_XTS)
 		ret = chcr_update_tweak(req, iv, 1);
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_CBC) {
@@ -2130,7 +2123,6 @@ static int chcr_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 	 * ipad in hmacctx->ipad and opad in hmacctx->opad location
 	 */
 	shash->tfm = hmacctx->base_hash;
-	shash->flags = crypto_shash_get_flags(hmacctx->base_hash);
 	if (keylen > bs) {
 		err = crypto_shash_digest(shash, key, keylen,
 					  hmacctx->ipad);
@@ -3517,7 +3509,6 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 		SHASH_DESC_ON_STACK(shash, base_hash);
 
 		shash->tfm = base_hash;
-		shash->flags = crypto_shash_get_flags(base_hash);
 		bs = crypto_shash_blocksize(base_hash);
 		align = KEYCTX_ALIGN_PAD(max_authsize);
 		o_ptr =  actx->h_iopad + param.result_size + align;

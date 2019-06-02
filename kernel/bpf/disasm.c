@@ -205,10 +205,11 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			 * part of the ldimm64 insn is accessible.
 			 */
 			u64 imm = ((u64)(insn + 1)->imm << 32) | (u32)insn->imm;
-			bool map_ptr = insn->src_reg == BPF_PSEUDO_MAP_FD;
+			bool is_ptr = insn->src_reg == BPF_PSEUDO_MAP_FD ||
+				      insn->src_reg == BPF_PSEUDO_MAP_VALUE;
 			char tmp[64];
 
-			if (map_ptr && !allow_ptr_leaks)
+			if (is_ptr && !allow_ptr_leaks)
 				imm = 0;
 
 			verbose(cbs->private_data, "(%02x) r%d = %s\n",

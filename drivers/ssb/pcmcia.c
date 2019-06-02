@@ -338,7 +338,6 @@ static void ssb_pcmcia_write8(struct ssb_device *dev, u16 offset, u8 value)
 	err = select_core_and_segment(dev, &offset);
 	if (likely(!err))
 		writeb(value, bus->mmio + offset);
-	mmiowb();
 	spin_unlock_irqrestore(&bus->bar_lock, flags);
 }
 
@@ -352,7 +351,6 @@ static void ssb_pcmcia_write16(struct ssb_device *dev, u16 offset, u16 value)
 	err = select_core_and_segment(dev, &offset);
 	if (likely(!err))
 		writew(value, bus->mmio + offset);
-	mmiowb();
 	spin_unlock_irqrestore(&bus->bar_lock, flags);
 }
 
@@ -368,7 +366,6 @@ static void ssb_pcmcia_write32(struct ssb_device *dev, u16 offset, u32 value)
 		writew((value & 0x0000FFFF), bus->mmio + offset);
 		writew(((value & 0xFFFF0000) >> 16), bus->mmio + offset + 2);
 	}
-	mmiowb();
 	spin_unlock_irqrestore(&bus->bar_lock, flags);
 }
 
@@ -424,7 +421,6 @@ static void ssb_pcmcia_block_write(struct ssb_device *dev, const void *buffer,
 		WARN_ON(1);
 	}
 unlock:
-	mmiowb();
 	spin_unlock_irqrestore(&bus->bar_lock, flags);
 }
 #endif /* CONFIG_SSB_BLOCKIO */

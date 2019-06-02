@@ -3,6 +3,7 @@ config UNICORE32
 	def_bool y
 	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
+	select ARCH_HAS_KEEPINITRD
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select HAVE_KERNEL_GZIP
@@ -20,6 +21,7 @@ config UNICORE32
 	select GENERIC_IOMAP
 	select MODULES_USE_ELF_REL
 	select NEED_DMA_MAP_STATE
+	select MMU_GATHER_NO_RANGE if MMU
 	help
 	  UniCore-32 is 32-bit Instruction Set Architecture,
 	  including a series of low-power-consumption RISC chip
@@ -37,12 +39,6 @@ config STACKTRACE_SUPPORT
 
 config LOCKDEP_SUPPORT
 	def_bool y
-
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
 
 config ARCH_HAS_ILOG2_U32
 	bool
@@ -195,7 +191,6 @@ config I2C_EEPROM_AT24
 
 config LCD_BACKLIGHT
 	tristate "LCD Backlight support"
-	select BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_PWM
 
 endmenu

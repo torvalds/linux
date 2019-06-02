@@ -97,7 +97,7 @@ The DT schema project must be installed in order to validate the DT schema
 binding documents and validate DTS files using the DT schema. The DT schema
 project can be installed with pip:
 
-`pip3 install git+https://github.com/robherring/yaml-bindings.git@master`
+`pip3 install git+https://github.com/devicetree-org/dt-schema.git@master`
 
 dtc must also be built with YAML output support enabled. This requires that
 libyaml and its headers be installed on the host system.

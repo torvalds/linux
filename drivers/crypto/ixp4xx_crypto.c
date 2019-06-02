@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel IXP4xx NPE-C crypto driver
  *
  * Copyright (C) 2008 Christian Hohnstaedt <chohnstaedt@innominate.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
- *
  */
 
 #include <linux/platform_device.h>
@@ -30,8 +26,8 @@
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
 
-#include <mach/npe.h>
-#include <mach/qmgr.h>
+#include <linux/soc/ixp4xx/npe.h>
+#include <linux/soc/ixp4xx/qmgr.h>
 
 #define MAX_KEYLEN 32
 
@@ -758,14 +754,6 @@ static int setup_cipher(struct crypto_tfm *tfm, int encrypt,
 			return -EINVAL;
 		}
 		cipher_cfg |= keylen_cfg;
-	} else if (cipher_cfg & MOD_3DES) {
-		const u32 *K = (const u32 *)key;
-		if (unlikely(!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
-			     !((K[2] ^ K[4]) | (K[3] ^ K[5]))))
-		{
-			*flags |= CRYPTO_TFM_RES_BAD_KEY_SCHED;
-			return -EINVAL;
-		}
 	} else {
 		u32 tmp[DES_EXPKEY_WORDS];
 		if (des_ekey(tmp, key) == 0) {
@@ -857,6 +845,19 @@ out:
 	if (!atomic_dec_and_test(&ctx->configuring))
 		wait_for_completion(&ctx->completion);
 	return ret;
+}
+
+static int ablk_des3_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+			    unsigned int key_len)
+{
+	u32 flags = crypto_ablkcipher_get_flags(tfm);
+	int err;
+
+	err = __des3_verify_key(&flags, key);
+	if (unlikely(err))
+		crypto_ablkcipher_set_flags(tfm, flags);
+
+	return ablk_setkey(tfm, key, key_len);
 }
 
 static int ablk_rfc3686_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
@@ -1175,6 +1176,43 @@ badkey:
 	return -EINVAL;
 }
 
+static int des3_aead_setkey(struct crypto_aead *tfm, const u8 *key,
+			    unsigned int keylen)
+{
+	struct ixp_ctx *ctx = crypto_aead_ctx(tfm);
+	u32 flags = CRYPTO_TFM_RES_BAD_KEY_LEN;
+	struct crypto_authenc_keys keys;
+	int err;
+
+	err = crypto_authenc_extractkeys(&keys, key, keylen);
+	if (unlikely(err))
+		goto badkey;
+
+	err = -EINVAL;
+	if (keys.authkeylen > sizeof(ctx->authkey))
+		goto badkey;
+
+	if (keys.enckeylen != DES3_EDE_KEY_SIZE)
+		goto badkey;
+
+	flags = crypto_aead_get_flags(tfm);
+	err = __des3_verify_key(&flags, keys.enckey);
+	if (unlikely(err))
+		goto badkey;
+
+	memcpy(ctx->authkey, keys.authkey, keys.authkeylen);
+	memcpy(ctx->enckey, keys.enckey, keys.enckeylen);
+	ctx->authkey_len = keys.authkeylen;
+	ctx->enckey_len = keys.enckeylen;
+
+	memzero_explicit(&keys, sizeof(keys));
+	return aead_setup(tfm, crypto_aead_authsize(tfm));
+badkey:
+	crypto_aead_set_flags(tfm, flags);
+	memzero_explicit(&keys, sizeof(keys));
+	return err;
+}
+
 static int aead_encrypt(struct aead_request *req)
 {
 	return aead_perform(req, 1, req->assoclen, req->cryptlen, req->iv);
@@ -1220,6 +1258,7 @@ static struct ixp_alg ixp4xx_algos[] = {
 			.min_keysize	= DES3_EDE_KEY_SIZE,
 			.max_keysize	= DES3_EDE_KEY_SIZE,
 			.ivsize		= DES3_EDE_BLOCK_SIZE,
+			.setkey		= ablk_des3_setkey,
 			}
 		}
 	},
@@ -1232,6 +1271,7 @@ static struct ixp_alg ixp4xx_algos[] = {
 		.cra_u		= { .ablkcipher = {
 			.min_keysize	= DES3_EDE_KEY_SIZE,
 			.max_keysize	= DES3_EDE_KEY_SIZE,
+			.setkey		= ablk_des3_setkey,
 			}
 		}
 	},
@@ -1313,6 +1353,7 @@ static struct ixp_aead_alg ixp4xx_aeads[] = {
 		},
 		.ivsize		= DES3_EDE_BLOCK_SIZE,
 		.maxauthsize	= MD5_DIGEST_SIZE,
+		.setkey		= des3_aead_setkey,
 	},
 	.hash = &hash_alg_md5,
 	.cfg_enc = CIPH_ENCR | MOD_3DES | MOD_CBC_ENC | KEYLEN_192,
@@ -1337,6 +1378,7 @@ static struct ixp_aead_alg ixp4xx_aeads[] = {
 		},
 		.ivsize		= DES3_EDE_BLOCK_SIZE,
 		.maxauthsize	= SHA1_DIGEST_SIZE,
+		.setkey		= des3_aead_setkey,
 	},
 	.hash = &hash_alg_sha1,
 	.cfg_enc = CIPH_ENCR | MOD_3DES | MOD_CBC_ENC | KEYLEN_192,
@@ -1443,7 +1485,7 @@ static int __init ixp_module_init(void)
 		/* authenc */
 		cra->base.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY |
 				      CRYPTO_ALG_ASYNC;
-		cra->setkey = aead_setkey;
+		cra->setkey = cra->setkey ?: aead_setkey;
 		cra->setauthsize = aead_setauthsize;
 		cra->encrypt = aead_encrypt;
 		cra->decrypt = aead_decrypt;

@@ -49,9 +49,11 @@ Required properties:
 
 Optional properties:
 - dual_emac_res_vlan	: Specifies VID to be used to segregate the ports
-- mac-address		: See ethernet.txt file in the same directory
 - phy_id		: Specifies slave phy id (deprecated, use phy-handle)
 - phy-handle		: See ethernet.txt file in the same directory
+
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Slave sub-nodes:
 - fixed-link		: See fixed-link.txt file in the same directory

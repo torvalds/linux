@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 
 #define PHY_CTRL0			0x0
 #define PHY_CTRL0_REF_SSP_EN		BIT(2)
@@ -24,6 +25,7 @@ struct imx8mq_usb_phy {
 	struct phy *phy;
 	struct clk *clk;
 	void __iomem *base;
+	struct regulator *vbus;
 };
 
 static int imx8mq_usb_phy_init(struct phy *phy)
@@ -55,6 +57,11 @@ static int imx8mq_usb_phy_init(struct phy *phy)
 static int imx8mq_phy_power_on(struct phy *phy)
 {
 	struct imx8mq_usb_phy *imx_phy = phy_get_drvdata(phy);
+	int ret;
+
+	ret = regulator_enable(imx_phy->vbus);
+	if (ret)
+		return ret;
 
 	return clk_prepare_enable(imx_phy->clk);
 }
@@ -64,6 +71,7 @@ static int imx8mq_phy_power_off(struct phy *phy)
 	struct imx8mq_usb_phy *imx_phy = phy_get_drvdata(phy);
 
 	clk_disable_unprepare(imx_phy->clk);
+	regulator_disable(imx_phy->vbus);
 
 	return 0;
 }
@@ -100,6 +108,10 @@ static int imx8mq_usb_phy_probe(struct platform_device *pdev)
 	imx_phy->phy = devm_phy_create(dev, NULL, &imx8mq_usb_phy_ops);
 	if (IS_ERR(imx_phy->phy))
 		return PTR_ERR(imx_phy->phy);
+
+	imx_phy->vbus = devm_regulator_get(dev, "vbus");
+	if (IS_ERR(imx_phy->vbus))
+		return PTR_ERR(imx_phy->vbus);
 
 	phy_set_drvdata(imx_phy->phy, imx_phy);
 

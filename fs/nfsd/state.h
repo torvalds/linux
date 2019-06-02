@@ -70,6 +70,7 @@ struct nfsd4_callback {
 	int cb_seq_status;
 	int cb_status;
 	bool cb_need_restart;
+	bool cb_holds_slot;
 };
 
 struct nfsd4_callback_ops {
@@ -367,7 +368,7 @@ struct nfs4_client {
 struct nfs4_client_reclaim {
 	struct list_head	cr_strhash;	/* hash by cr_name */
 	struct nfs4_client	*cr_clp;	/* pointer to associated clp */
-	char			cr_recdir[HEXDIR_LEN]; /* recover dir */
+	struct xdr_netobj	cr_name;	/* recovery dir name */
 };
 
 /* A reasonable value for REPLAY_ISIZE was estimated as follows:  
@@ -619,7 +620,7 @@ void nfs4_put_stid(struct nfs4_stid *s);
 void nfs4_inc_and_copy_stateid(stateid_t *dst, struct nfs4_stid *stid);
 void nfs4_remove_reclaim_record(struct nfs4_client_reclaim *, struct nfsd_net *);
 extern void nfs4_release_reclaim(struct nfsd_net *);
-extern struct nfs4_client_reclaim *nfsd4_find_reclaim_client(const char *recdir,
+extern struct nfs4_client_reclaim *nfsd4_find_reclaim_client(struct xdr_netobj name,
 							struct nfsd_net *nn);
 extern __be32 nfs4_check_open_reclaim(clientid_t *clid,
 		struct nfsd4_compound_state *cstate, struct nfsd_net *nn);
@@ -634,9 +635,9 @@ extern void nfsd4_destroy_callback_queue(void);
 extern void nfsd4_shutdown_callback(struct nfs4_client *);
 extern void nfsd4_shutdown_copy(struct nfs4_client *clp);
 extern void nfsd4_prepare_cb_recall(struct nfs4_delegation *dp);
-extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(const char *name,
+extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(struct xdr_netobj name,
 							struct nfsd_net *nn);
-extern bool nfs4_has_reclaimed_state(const char *name, struct nfsd_net *nn);
+extern bool nfs4_has_reclaimed_state(struct xdr_netobj name, struct nfsd_net *nn);
 
 struct nfs4_file *find_file(struct knfsd_fh *fh);
 void put_nfs4_file(struct nfs4_file *fi);

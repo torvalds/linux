@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DesignWare High-Definition Multimedia Interface (HDMI) driver
  *
  * Copyright (C) 2013-2015 Mentor Graphics Inc.
  * Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  * Copyright (C) 2010, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 #include <linux/module.h>
 #include <linux/irq.h>
@@ -1046,6 +1041,10 @@ static bool dw_hdmi_support_scdc(struct dw_hdmi *hdmi)
 	if (hdmi->version < 0x200a)
 		return false;
 
+	/* Disable if no DDC bus */
+	if (!hdmi->ddc)
+		return false;
+
 	/* Disable if SCDC is not supported, or if an HF-VSDB block is absent */
 	if (!display->hdmi.scdc.supported ||
 	    !display->hdmi.scdc.scrambling.supported)
@@ -1684,13 +1683,13 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 			 * Source Devices compliant shall set the
 			 * Source Version = 1.
 			 */
-			drm_scdc_readb(&hdmi->i2c->adap, SCDC_SINK_VERSION,
+			drm_scdc_readb(hdmi->ddc, SCDC_SINK_VERSION,
 				       &bytes);
-			drm_scdc_writeb(&hdmi->i2c->adap, SCDC_SOURCE_VERSION,
+			drm_scdc_writeb(hdmi->ddc, SCDC_SOURCE_VERSION,
 				min_t(u8, bytes, SCDC_MIN_SOURCE_VERSION));
 
 			/* Enabled Scrambling in the Sink */
-			drm_scdc_set_scrambling(&hdmi->i2c->adap, 1);
+			drm_scdc_set_scrambling(hdmi->ddc, 1);
 
 			/*
 			 * To activate the scrambler feature, you must ensure
@@ -1706,7 +1705,7 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 			hdmi_writeb(hdmi, 0, HDMI_FC_SCRAMBLER_CTRL);
 			hdmi_writeb(hdmi, (u8)~HDMI_MC_SWRSTZ_TMDSSWRST_REQ,
 				    HDMI_MC_SWRSTZ);
-			drm_scdc_set_scrambling(&hdmi->i2c->adap, 0);
+			drm_scdc_set_scrambling(hdmi->ddc, 0);
 		}
 	}
 
@@ -1800,6 +1799,8 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 	 * iteration for others.
 	 * The Amlogic Meson GX SoCs (v2.01a) have been identified as needing
 	 * the workaround with a single iteration.
+	 * The Rockchip RK3288 SoC (v2.00a) and RK3328/RK3399 SoCs (v2.11a) have
+	 * been identified as needing the workaround with a single iteration.
 	 */
 
 	switch (hdmi->version) {
@@ -1808,7 +1809,9 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 		break;
 	case 0x131a:
 	case 0x132a:
+	case 0x200a:
 	case 0x201a:
+	case 0x211a:
 	case 0x212a:
 		count = 1;
 		break;

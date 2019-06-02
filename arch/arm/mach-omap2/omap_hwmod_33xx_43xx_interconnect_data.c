@@ -122,30 +122,6 @@ struct omap_hwmod_ocp_if am33xx_l4_per__dcan1 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4 per/ls -> GPIO2 */
-struct omap_hwmod_ocp_if am33xx_l4_per__gpio1 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_gpio1_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4 per/ls -> gpio3 */
-struct omap_hwmod_ocp_if am33xx_l4_per__gpio2 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_gpio2_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* l4 per/ls -> gpio4 */
-struct omap_hwmod_ocp_if am33xx_l4_per__gpio3 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_gpio3_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 struct omap_hwmod_ocp_if am33xx_cpgmac0__mdio = {
 	.master		= &am33xx_cpgmac0_hwmod,
 	.slave		= &am33xx_mdio_hwmod,
@@ -188,21 +164,6 @@ struct omap_hwmod_ocp_if am33xx_l3_s__gpmc = {
 	.user		= OCP_USER_MPU,
 };
 
-/* i2c2 */
-struct omap_hwmod_ocp_if am33xx_l4_per__i2c2 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_i2c2_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-struct omap_hwmod_ocp_if am33xx_l4_per__i2c3 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_i2c3_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l4 ls -> mailbox */
 struct omap_hwmod_ocp_if am33xx_l4_per__mailbox = {
 	.master		= &am33xx_l4_ls_hwmod,
@@ -232,30 +193,6 @@ struct omap_hwmod_ocp_if am33xx_l4_ls__mcasp1 = {
 	.master		= &am33xx_l4_ls_hwmod,
 	.slave		= &am33xx_mcasp1_hwmod,
 	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 ls -> mmc0 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__mmc0 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_mmc0_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 ls -> mmc1 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__mmc1 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_mmc1_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l3 s -> mmc2 */
-struct omap_hwmod_ocp_if am33xx_l3_s__mmc2 = {
-	.master		= &am33xx_l3_s_hwmod,
-	.slave		= &am33xx_mmc2_hwmod,
-	.clk		= "l3s_gclk",
 	.user		= OCP_USER_MPU,
 };
 
@@ -352,46 +289,6 @@ struct omap_hwmod_ocp_if am33xx_l3_main__tptc2 = {
 	.master		= &am33xx_l3_main_hwmod,
 	.slave		= &am33xx_tptc2_hwmod,
 	.clk		= "l3_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 ls -> uart2 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__uart2 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_uart2_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 ls -> uart3 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__uart3 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_uart3_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 ls -> uart4 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__uart4 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_uart4_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 ls -> uart5 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__uart5 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_uart5_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 ls -> uart6 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__uart6 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_uart6_hwmod,
-	.clk		= "l4ls_gclk",
 	.user		= OCP_USER_MPU,
 };
 

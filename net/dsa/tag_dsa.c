@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * net/dsa/tag_dsa.c - (Non-ethertype) DSA tagging
  * Copyright (c) 2008-2009 Marvell Semiconductor
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/etherdevice.h>
@@ -154,9 +150,16 @@ static int dsa_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 	return 0;
 }
 
-const struct dsa_device_ops dsa_netdev_ops = {
+static const struct dsa_device_ops dsa_netdev_ops = {
+	.name	= "dsa",
+	.proto	= DSA_TAG_PROTO_DSA,
 	.xmit	= dsa_xmit,
 	.rcv	= dsa_rcv,
 	.flow_dissect   = dsa_tag_flow_dissect,
 	.overhead = DSA_HLEN,
 };
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_DSA);
+
+module_dsa_tag_driver(dsa_netdev_ops);

@@ -473,7 +473,6 @@ static struct drm_driver etnaviv_drm_driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export   = drm_gem_prime_export,
 	.gem_prime_import   = drm_gem_prime_import,
-	.gem_prime_res_obj  = etnaviv_gem_prime_res_obj,
 	.gem_prime_pin      = etnaviv_gem_prime_pin,
 	.gem_prime_unpin    = etnaviv_gem_prime_unpin,
 	.gem_prime_get_sg_table = etnaviv_gem_prime_get_sg_table,
@@ -515,6 +514,9 @@ static int etnaviv_bind(struct device *dev)
 	}
 	drm->dev_private = priv;
 
+	dev->dma_parms = &priv->dma_parms;
+	dma_set_max_seg_size(dev, SZ_2G);
+
 	mutex_init(&priv->gem_lock);
 	INIT_LIST_HEAD(&priv->gem_list);
 	priv->num_gpus = 0;
@@ -551,6 +553,8 @@ static void etnaviv_unbind(struct device *dev)
 	drm_dev_unregister(drm);
 
 	component_unbind_all(dev, drm);
+
+	dev->dma_parms = NULL;
 
 	drm->dev_private = NULL;
 	kfree(priv);

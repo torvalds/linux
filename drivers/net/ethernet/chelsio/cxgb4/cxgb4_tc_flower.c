@@ -197,6 +197,9 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		fs->val.ivlan = vlan_tci;
 		fs->mask.ivlan = vlan_tci_mask;
 
+		fs->val.ivlan_vld = 1;
+		fs->mask.ivlan_vld = 1;
+
 		/* Chelsio adapters use ivlan_vld bit to match vlan packets
 		 * as 802.1Q. Also, when vlan tag is present in packets,
 		 * ethtype match is used then to match on ethtype of inner
@@ -207,8 +210,6 @@ static void cxgb4_process_flow_match(struct net_device *dev,
 		 * ethtype value with ethtype of inner header.
 		 */
 		if (fs->val.ethtype == ETH_P_8021Q) {
-			fs->val.ivlan_vld = 1;
-			fs->mask.ivlan_vld = 1;
 			fs->val.ethtype = 0;
 			fs->mask.ethtype = 0;
 		}
@@ -687,11 +688,8 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 
 	ret = ctx.result;
 	/* Check if hw returned error for filter creation */
-	if (ret) {
-		netdev_err(dev, "%s: filter creation err %d\n",
-			   __func__, ret);
+	if (ret)
 		goto free_entry;
-	}
 
 	ch_flower->tc_flower_cookie = cls->cookie;
 	ch_flower->filter_id = ctx.tid;

@@ -122,9 +122,9 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 }
 
 /*
- * __init_v4l2_vb2_buffer() - initialize the v4l2_vb2_buffer struct
+ * __init_vb2_v4l2_buffer() - initialize the vb2_v4l2_buffer struct
  */
-static void __init_v4l2_vb2_buffer(struct vb2_buffer *vb)
+static void __init_vb2_v4l2_buffer(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
@@ -368,6 +368,12 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 	if (ret)
 		return ret;
 
+	if (!is_prepare && (b->flags & V4L2_BUF_FLAG_REQUEST_FD) &&
+	    vb->state != VB2_BUF_STATE_DEQUEUED) {
+		dprintk(1, "%s: buffer is not in dequeued state\n", opname);
+		return -EINVAL;
+	}
+
 	if (!vb->prepared) {
 		/* Copy relevant information provided by the userspace */
 		memset(vbuf->planes, 0,
@@ -381,6 +387,10 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		return 0;
 
 	if (!(b->flags & V4L2_BUF_FLAG_REQUEST_FD)) {
+		if (q->requires_requests) {
+			dprintk(1, "%s: queue requires requests\n", opname);
+			return -EBADR;
+		}
 		if (q->uses_requests) {
 			dprintk(1, "%s: queue uses requests\n", opname);
 			return -EBUSY;
@@ -388,7 +398,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		return 0;
 	} else if (!q->supports_requests) {
 		dprintk(1, "%s: queue does not support requests\n", opname);
-		return -EACCES;
+		return -EBADR;
 	} else if (q->uses_qbuf) {
 		dprintk(1, "%s: queue does not use requests\n", opname);
 		return -EBUSY;
@@ -418,11 +428,6 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		     q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) &&
 		    !q->ops->buf_out_validate))
 		return -EINVAL;
-
-	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
-		dprintk(1, "%s: buffer is not in dequeued state\n", opname);
-		return -EINVAL;
-	}
 
 	if (b->request_fd < 0) {
 		dprintk(1, "%s: request_fd < 0\n", opname);
@@ -543,7 +548,6 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 		break;
 	case VB2_BUF_STATE_PREPARING:
 	case VB2_BUF_STATE_DEQUEUED:
-	case VB2_BUF_STATE_REQUEUEING:
 		/* nothing */
 		break;
 	}
@@ -592,7 +596,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb, struct vb2_plane *planes)
 
 static const struct vb2_buf_ops v4l2_buf_ops = {
 	.verify_planes_array	= __verify_planes_array_core,
-	.init_buffer		= __init_v4l2_vb2_buffer,
+	.init_buffer		= __init_vb2_v4l2_buffer,
 	.fill_user_buffer	= __fill_v4l2_buffer,
 	.fill_vb2_buffer	= __fill_vb2_buffer,
 	.copy_timestamp		= __copy_timestamp,

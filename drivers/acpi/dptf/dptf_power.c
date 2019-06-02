@@ -31,8 +31,7 @@ static ssize_t name##_show(struct device *dev,\
 			   struct device_attribute *attr,\
 			   char *buf)\
 {\
-	struct platform_device *pdev = to_platform_device(dev);\
-	struct acpi_device *acpi_dev = platform_get_drvdata(pdev);\
+	struct acpi_device *acpi_dev = dev_get_drvdata(dev);\
 	unsigned long long val;\
 	acpi_status status;\
 \

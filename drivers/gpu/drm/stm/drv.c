@@ -129,6 +129,40 @@ static void drv_unload(struct drm_device *ddev)
 	drm_mode_config_cleanup(ddev);
 }
 
+static __maybe_unused int drv_suspend(struct device *dev)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct ltdc_device *ldev = ddev->dev_private;
+	struct drm_atomic_state *state;
+
+	drm_kms_helper_poll_disable(ddev);
+	state = drm_atomic_helper_suspend(ddev);
+	if (IS_ERR(state)) {
+		drm_kms_helper_poll_enable(ddev);
+		return PTR_ERR(state);
+	}
+	ldev->suspend_state = state;
+	ltdc_suspend(ddev);
+
+	return 0;
+}
+
+static __maybe_unused int drv_resume(struct device *dev)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct ltdc_device *ldev = ddev->dev_private;
+
+	ltdc_resume(ddev);
+	drm_atomic_helper_resume(ddev, ldev->suspend_state);
+	drm_kms_helper_poll_enable(ddev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops drv_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(drv_suspend, drv_resume)
+};
+
 static int stm_drm_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -186,6 +220,7 @@ static struct platform_driver stm_drm_platform_driver = {
 	.driver = {
 		.name = "stm32-display",
 		.of_match_table = drv_dt_ids,
+		.pm = &drv_pm_ops,
 	},
 };
 

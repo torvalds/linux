@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Copyright (C) 2004 - 2010 Vladislav Bolkhovitin <vst@vlnb.net>
  *  Copyright (C) 2004 - 2005 Leonid Stoljar
@@ -9,16 +10,6 @@
  *  Copyright (C) 2010-2011 Nicholas A. Bellinger <nab@kernel.org>
  *
  *  Additional file for the target driver support.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
  */
 /*
  * This is the global def file that is useful for including from the
@@ -29,6 +20,7 @@
 #define __QLA_TARGET_H
 
 #include "qla_def.h"
+#include "qla_dsd.h"
 
 /*
  * Must be changed on any change in any initiator visible interfaces or
@@ -224,12 +216,7 @@ struct ctio_to_2xxx {
 	uint16_t reserved_1[3];
 	uint16_t scsi_status;
 	uint32_t transfer_length;
-	uint32_t dseg_0_address;	/* Data segment 0 address. */
-	uint32_t dseg_0_length;		/* Data segment 0 length. */
-	uint32_t dseg_1_address;	/* Data segment 1 address. */
-	uint32_t dseg_1_length;		/* Data segment 1 length. */
-	uint32_t dseg_2_address;	/* Data segment 2 address. */
-	uint32_t dseg_2_length;		/* Data segment 2 length. */
+	struct dsd32 dsd[3];
 } __packed;
 #define ATIO_PATH_INVALID       0x07
 #define ATIO_CANT_PROV_CAP      0x16
@@ -429,10 +416,7 @@ struct ctio7_to_24xx {
 			uint32_t reserved2;
 			uint32_t transfer_length;
 			uint32_t reserved3;
-			/* Data segment 0 address. */
-			uint32_t dseg_0_address[2];
-			/* Data segment 0 length. */
-			uint32_t dseg_0_length;
+			struct dsd64 dsd;
 		} status0;
 		struct {
 			uint16_t sense_length;
@@ -526,10 +510,10 @@ struct ctio_crc2_to_fw {
 	uint32_t reserved5;
 	__le32 transfer_length;		/* total fc transfer length */
 	uint32_t reserved6;
-	__le32 crc_context_address[2];/* Data segment address. */
+	__le64	 crc_context_address __packed; /* Data segment address. */
 	uint16_t crc_context_len;	/* Data segment length. */
 	uint16_t reserved_1;		/* MUST be set to 0. */
-} __packed;
+};
 
 /* CTIO Type CRC_x Status IOCB */
 struct ctio_crc_from_fw {
@@ -855,7 +839,7 @@ enum trace_flags {
 	TRC_CTIO_ERR = BIT_11,
 	TRC_CTIO_DONE = BIT_12,
 	TRC_CTIO_ABORTED =  BIT_13,
-	TRC_CTIO_STRANGE= BIT_14,
+	TRC_CTIO_STRANGE = BIT_14,
 	TRC_CMD_DONE = BIT_15,
 	TRC_CMD_CHK_STOP = BIT_16,
 	TRC_CMD_FREE = BIT_17,
@@ -889,10 +873,14 @@ struct qla_tgt_cmd {
 	unsigned int term_exchg:1;
 	unsigned int cmd_sent_to_fw:1;
 	unsigned int cmd_in_wq:1;
-	unsigned int aborted:1;
-	unsigned int data_work:1;
-	unsigned int data_work_free:1;
-	unsigned int released:1;
+
+	/*
+	 * This variable may be set from outside the LIO and I/O completion
+	 * callback functions. Do not declare this member variable as a
+	 * bitfield to avoid a read-modify-write operation when this variable
+	 * is set.
+	 */
+	unsigned int aborted;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */
@@ -1103,7 +1091,5 @@ extern void qlt_do_generation_tick(struct scsi_qla_host *, int *);
 
 void qlt_send_resp_ctio(struct qla_qpair *, struct qla_tgt_cmd *, uint8_t,
     uint8_t, uint8_t, uint8_t);
-extern void qlt_abort_cmd_on_host_reset(struct scsi_qla_host *,
-    struct qla_tgt_cmd *);
 
 #endif /* __QLA_TARGET_H */

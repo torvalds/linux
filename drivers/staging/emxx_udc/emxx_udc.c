@@ -136,7 +136,7 @@ static void _nbu2ss_ep0_complete(struct usb_ep *_ep, struct usb_request *_req)
 	struct usb_ctrlrequest	*p_ctrl;
 	struct nbu2ss_udc *udc;
 
-	if ((!_ep) || (!_req))
+	if (!_ep || !_req)
 		return;
 
 	udc = (struct nbu2ss_udc *)_req->context;
@@ -459,22 +459,22 @@ static void _nbu2ss_dma_map_single(struct nbu2ss_udc *udc,
 		if (req->unaligned) {
 			req->req.dma = ep->phys_buf;
 		} else {
-			req->req.dma = dma_map_single(
-				udc->gadget.dev.parent,
-				req->req.buf,
-				req->req.length,
-				(direct == USB_DIR_IN)
-				? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			req->req.dma = dma_map_single(udc->gadget.dev.parent,
+						      req->req.buf,
+						      req->req.length,
+						      (direct == USB_DIR_IN)
+						      ? DMA_TO_DEVICE
+						      : DMA_FROM_DEVICE);
 		}
 		req->mapped = 1;
 	} else {
 		if (!req->unaligned)
-			dma_sync_single_for_device(
-				udc->gadget.dev.parent,
-				req->req.dma,
-				req->req.length,
-				(direct == USB_DIR_IN)
-				? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			dma_sync_single_for_device(udc->gadget.dev.parent,
+						   req->req.dma,
+						   req->req.length,
+						   (direct == USB_DIR_IN)
+						   ? DMA_TO_DEVICE
+						   : DMA_FROM_DEVICE);
 
 		req->mapped = 0;
 	}
@@ -940,8 +940,8 @@ static int _nbu2ss_epn_out_transfer(struct nbu2ss_udc *udc,
 
 	/*-------------------------------------------------------------*/
 	/* Receive Length */
-	i_recv_length
-		= _nbu2ss_readl(&preg->EP_REGS[num].EP_LEN_DCNT) & EPN_LDATA;
+	i_recv_length =
+		_nbu2ss_readl(&preg->EP_REGS[num].EP_LEN_DCNT) & EPN_LDATA;
 
 	if (i_recv_length != 0) {
 		result = _nbu2ss_epn_out_data(udc, ep, req, i_recv_length);
@@ -1414,12 +1414,11 @@ static inline int _nbu2ss_req_feature(struct nbu2ss_udc *udc, bool bset)
 			if (selector == USB_ENDPOINT_HALT) {
 				ep_adrs = wIndex & 0xFF;
 				if (!bset) {
-					_nbu2ss_endpoint_toggle_reset(
-						udc, ep_adrs);
+					_nbu2ss_endpoint_toggle_reset(udc,
+								      ep_adrs);
 				}
 
-				_nbu2ss_set_endpoint_stall(
-					udc, ep_adrs, bset);
+				_nbu2ss_set_endpoint_stall(udc, ep_adrs, bset);
 
 				result = 0;
 			}
@@ -1496,10 +1495,10 @@ static int std_req_get_status(struct nbu2ss_udc *udc)
 	case USB_RECIP_DEVICE:
 		if (udc->ctrl.wIndex == 0x0000) {
 			if (udc->gadget.is_selfpowered)
-				status_data |= (1 << USB_DEVICE_SELF_POWERED);
+				status_data |= BIT(USB_DEVICE_SELF_POWERED);
 
 			if (udc->remote_wakeup)
-				status_data |= (1 << USB_DEVICE_REMOTE_WAKEUP);
+				status_data |= BIT(USB_DEVICE_REMOTE_WAKEUP);
 
 			result = 0;
 		}
@@ -1511,7 +1510,7 @@ static int std_req_get_status(struct nbu2ss_udc *udc)
 			result = _nbu2ss_get_ep_stall(udc, ep_adrs);
 
 			if (result > 0)
-				status_data |= (1 << USB_ENDPOINT_HALT);
+				status_data |= BIT(USB_ENDPOINT_HALT);
 		}
 		break;
 
@@ -2423,13 +2422,13 @@ static int nbu2ss_ep_enable(struct usb_ep *_ep,
 	struct nbu2ss_ep	*ep;
 	struct nbu2ss_udc	*udc;
 
-	if ((!_ep) || (!desc)) {
+	if (!_ep || !desc) {
 		pr_err(" *** %s, bad param\n", __func__);
 		return -EINVAL;
 	}
 
 	ep = container_of(_ep, struct nbu2ss_ep, ep);
-	if ((!ep->udc)) {
+	if (!ep->udc) {
 		pr_err(" *** %s, ep == NULL !!\n", __func__);
 		return -EINVAL;
 	}
@@ -2545,7 +2544,7 @@ static int nbu2ss_ep_queue(struct usb_ep *_ep,
 	int			result = -EINVAL;
 
 	/* catch various bogus parameters */
-	if ((!_ep) || (!_req)) {
+	if (!_ep || !_req) {
 		if (!_ep)
 			pr_err("udc: %s --- _ep == NULL\n", __func__);
 
@@ -2595,9 +2594,9 @@ static int nbu2ss_ep_queue(struct usb_ep *_ep,
 
 	if (req->unaligned) {
 		if (!ep->virt_buf)
-			ep->virt_buf = dma_alloc_coherent(
-				NULL, PAGE_SIZE,
-				&ep->phys_buf, GFP_ATOMIC | GFP_DMA);
+			ep->virt_buf = dma_alloc_coherent(NULL, PAGE_SIZE,
+							  &ep->phys_buf,
+							  GFP_ATOMIC | GFP_DMA);
 		if (ep->epnum > 0)  {
 			if (ep->direct == USB_DIR_IN)
 				memcpy(ep->virt_buf, req->req.buf,
@@ -2647,7 +2646,7 @@ static int nbu2ss_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	unsigned long flags;
 
 	/* catch various bogus parameters */
-	if ((!_ep) || (!_req)) {
+	if (!_ep || !_req) {
 		/* pr_err("%s, bad param(1)\n", __func__); */
 		return -EINVAL;
 	}

@@ -39,12 +39,12 @@
 #define VI6_WFP_IRQ_STA_DFE		(1 << 1)
 #define VI6_WFP_IRQ_STA_FRE		(1 << 0)
 
-#define VI6_DISP_IRQ_ENB		0x0078
+#define VI6_DISP_IRQ_ENB(n)		(0x0078 + (n) * 60)
 #define VI6_DISP_IRQ_ENB_DSTE		(1 << 8)
 #define VI6_DISP_IRQ_ENB_MAEE		(1 << 5)
 #define VI6_DISP_IRQ_ENB_LNEE(n)	(1 << (n))
 
-#define VI6_DISP_IRQ_STA		0x007c
+#define VI6_DISP_IRQ_STA(n)		(0x007c + (n) * 60)
 #define VI6_DISP_IRQ_STA_DST		(1 << 8)
 #define VI6_DISP_IRQ_STA_MAE		(1 << 5)
 #define VI6_DISP_IRQ_STA_LNE(n)		(1 << (n))
@@ -307,7 +307,7 @@
 #define VI6_WPF_DSTM_ADDR_C0		0x1028
 #define VI6_WPF_DSTM_ADDR_C1		0x102c
 
-#define VI6_WPF_WRBCK_CTRL		0x1034
+#define VI6_WPF_WRBCK_CTRL(n)		(0x1034 + (n) * 0x100)
 #define VI6_WPF_WRBCK_CTRL_WBMD		(1 << 0)
 
 /* -----------------------------------------------------------------------------

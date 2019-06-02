@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Aeroflex Gaisler GRETH 10/100/1G Ethernet MAC.
  *
@@ -11,11 +12,6 @@
  *
  * The Gigabit version supports scatter/gather DMA, any alignment of
  * buffers and checksum offloading.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  *
  * Contributors: Kristoffer Glembo
  *               Daniel Hellstrom
@@ -613,7 +609,6 @@ static irqreturn_t greth_interrupt(int irq, void *dev_id)
 		napi_schedule(&greth->napi);
 	}
 
-	mmiowb();
 	spin_unlock(&greth->devlock);
 
 	return retval;
@@ -1459,7 +1454,7 @@ static int greth_of_probe(struct platform_device *ofdev)
 		const u8 *addr;
 
 		addr = of_get_mac_address(ofdev->dev.of_node);
-		if (addr) {
+		if (!IS_ERR(addr)) {
 			for (i = 0; i < 6; i++)
 				macaddr[i] = (unsigned int) addr[i];
 		} else {

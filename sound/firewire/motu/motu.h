@@ -130,6 +130,7 @@ extern const struct snd_motu_protocol snd_motu_protocol_v2;
 extern const struct snd_motu_protocol snd_motu_protocol_v3;
 
 extern const struct snd_motu_spec snd_motu_spec_traveler;
+extern const struct snd_motu_spec snd_motu_spec_8pre;
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,

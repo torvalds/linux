@@ -168,7 +168,6 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 
 static int __die(const char *str, int err, struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
 	static int die_counter;
 	int ret;
 
@@ -181,9 +180,6 @@ static int __die(const char *str, int err, struct pt_regs *regs)
 		return ret;
 
 	print_modules();
-	pr_emerg("Process %.*s (pid: %d, stack limit = 0x%p)\n",
-		 TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk),
-		 end_of_stack(tsk));
 	show_regs(regs);
 
 	if (!user_mode(regs))
@@ -256,7 +252,10 @@ void arm64_force_sig_fault(int signo, int code, void __user *addr,
 			   const char *str)
 {
 	arm64_show_signal(signo, str);
-	force_sig_fault(signo, code, addr, current);
+	if (signo == SIGKILL)
+		force_sig(SIGKILL, current);
+	else
+		force_sig_fault(signo, code, addr, current);
 }
 
 void arm64_force_sig_mceerr(int code, void __user *addr, short lsb,
@@ -462,6 +461,9 @@ static void user_cache_maint_handler(unsigned int esr, struct pt_regs *regs)
 	case ESR_ELx_SYS64_ISS_CRM_DC_CVAC:	/* DC CVAC, gets promoted */
 		__user_cache_maint("dc civac", address, ret);
 		break;
+	case ESR_ELx_SYS64_ISS_CRM_DC_CVADP:	/* DC CVADP */
+		__user_cache_maint("sys 3, c7, c13, 1", address, ret);
+		break;
 	case ESR_ELx_SYS64_ISS_CRM_DC_CVAP:	/* DC CVAP */
 		__user_cache_maint("sys 3, c7, c12, 1", address, ret);
 		break;
@@ -496,7 +498,7 @@ static void cntvct_read_handler(unsigned int esr, struct pt_regs *regs)
 {
 	int rt = ESR_ELx_SYS64_ISS_RT(esr);
 
-	pt_regs_write_reg(regs, rt, arch_counter_get_cntvct());
+	pt_regs_write_reg(regs, rt, arch_timer_read_counter());
 	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);
 }
 
@@ -668,7 +670,7 @@ static void compat_cntvct_read_handler(unsigned int esr, struct pt_regs *regs)
 {
 	int rt = (esr & ESR_ELx_CP15_64_ISS_RT_MASK) >> ESR_ELx_CP15_64_ISS_RT_SHIFT;
 	int rt2 = (esr & ESR_ELx_CP15_64_ISS_RT2_MASK) >> ESR_ELx_CP15_64_ISS_RT2_SHIFT;
-	u64 val = arch_counter_get_cntvct();
+	u64 val = arch_timer_read_counter();
 
 	pt_regs_write_reg(regs, rt, lower_32_bits(val));
 	pt_regs_write_reg(regs, rt2, upper_32_bits(val));
@@ -950,9 +952,6 @@ int is_valid_bugaddr(unsigned long addr)
 
 static int bug_handler(struct pt_regs *regs, unsigned int esr)
 {
-	if (user_mode(regs))
-		return DBG_HOOK_ERROR;
-
 	switch (report_bug(regs->pc, regs)) {
 	case BUG_TRAP_TYPE_BUG:
 		die("Oops - BUG", regs, 0);
@@ -972,9 +971,8 @@ static int bug_handler(struct pt_regs *regs, unsigned int esr)
 }
 
 static struct break_hook bug_break_hook = {
-	.esr_val = 0xf2000000 | BUG_BRK_IMM,
-	.esr_mask = 0xffffffff,
 	.fn = bug_handler,
+	.imm = BUG_BRK_IMM,
 };
 
 #ifdef CONFIG_KASAN_SW_TAGS
@@ -991,9 +989,6 @@ static int kasan_handler(struct pt_regs *regs, unsigned int esr)
 	size_t size = KASAN_ESR_SIZE(esr);
 	u64 addr = regs->regs[0];
 	u64 pc = regs->pc;
-
-	if (user_mode(regs))
-		return DBG_HOOK_ERROR;
 
 	kasan_report(addr, size, write, pc);
 
@@ -1019,13 +1014,10 @@ static int kasan_handler(struct pt_regs *regs, unsigned int esr)
 	return DBG_HOOK_HANDLED;
 }
 
-#define KASAN_ESR_VAL (0xf2000000 | KASAN_BRK_IMM)
-#define KASAN_ESR_MASK 0xffffff00
-
 static struct break_hook kasan_break_hook = {
-	.esr_val = KASAN_ESR_VAL,
-	.esr_mask = KASAN_ESR_MASK,
-	.fn = kasan_handler,
+	.fn	= kasan_handler,
+	.imm	= KASAN_BRK_IMM,
+	.mask	= KASAN_BRK_MASK,
 };
 #endif
 
@@ -1037,7 +1029,9 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
 		struct pt_regs *regs)
 {
 #ifdef CONFIG_KASAN_SW_TAGS
-	if ((esr & KASAN_ESR_MASK) == KASAN_ESR_VAL)
+	unsigned int comment = esr & ESR_ELx_BRK64_ISS_COMMENT_MASK;
+
+	if ((comment & ~KASAN_BRK_MASK) == KASAN_BRK_IMM)
 		return kasan_handler(regs, esr) != DBG_HOOK_HANDLED;
 #endif
 	return bug_handler(regs, esr) != DBG_HOOK_HANDLED;
@@ -1046,8 +1040,8 @@ int __init early_brk64(unsigned long addr, unsigned int esr,
 /* This registration must happen early, before debug_traps_init(). */
 void __init trap_init(void)
 {
-	register_break_hook(&bug_break_hook);
+	register_kernel_break_hook(&bug_break_hook);
 #ifdef CONFIG_KASAN_SW_TAGS
-	register_break_hook(&kasan_break_hook);
+	register_kernel_break_hook(&kasan_break_hook);
 #endif
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Syscall interface to knfsd.
  *
@@ -439,7 +440,7 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 			return rv;
 		if (newthreads < 0)
 			return -EINVAL;
-		rv = nfsd_svc(newthreads, net);
+		rv = nfsd_svc(newthreads, net, file->f_cred);
 		if (rv < 0)
 			return rv;
 	} else
@@ -537,14 +538,14 @@ out_free:
 }
 
 static ssize_t
-nfsd_print_version_support(char *buf, int remaining, const char *sep,
-		unsigned vers, int minor)
+nfsd_print_version_support(struct nfsd_net *nn, char *buf, int remaining,
+		const char *sep, unsigned vers, int minor)
 {
 	const char *format = minor < 0 ? "%s%c%u" : "%s%c%u.%u";
-	bool supported = !!nfsd_vers(vers, NFSD_TEST);
+	bool supported = !!nfsd_vers(nn, vers, NFSD_TEST);
 
 	if (vers == 4 && minor >= 0 &&
-	    !nfsd_minorversion(minor, NFSD_TEST))
+	    !nfsd_minorversion(nn, minor, NFSD_TEST))
 		supported = false;
 	if (minor == 0 && supported)
 		/*
@@ -599,20 +600,20 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 			switch(num) {
 			case 2:
 			case 3:
-				nfsd_vers(num, cmd);
+				nfsd_vers(nn, num, cmd);
 				break;
 			case 4:
 				if (*minorp == '.') {
-					if (nfsd_minorversion(minor, cmd) < 0)
+					if (nfsd_minorversion(nn, minor, cmd) < 0)
 						return -EINVAL;
-				} else if ((cmd == NFSD_SET) != nfsd_vers(num, NFSD_TEST)) {
+				} else if ((cmd == NFSD_SET) != nfsd_vers(nn, num, NFSD_TEST)) {
 					/*
 					 * Either we have +4 and no minors are enabled,
 					 * or we have -4 and at least one minor is enabled.
 					 * In either case, propagate 'cmd' to all minors.
 					 */
 					minor = 0;
-					while (nfsd_minorversion(minor, cmd) >= 0)
+					while (nfsd_minorversion(nn, minor, cmd) >= 0)
 						minor++;
 				}
 				break;
@@ -624,7 +625,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 		/* If all get turned off, turn them back on, as
 		 * having no versions is BAD
 		 */
-		nfsd_reset_versions();
+		nfsd_reset_versions(nn);
 	}
 
 	/* Now write current state into reply buffer */
@@ -633,12 +634,12 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 	remaining = SIMPLE_TRANSACTION_LIMIT;
 	for (num=2 ; num <= 4 ; num++) {
 		int minor;
-		if (!nfsd_vers(num, NFSD_AVAIL))
+		if (!nfsd_vers(nn, num, NFSD_AVAIL))
 			continue;
 
 		minor = -1;
 		do {
-			len = nfsd_print_version_support(buf, remaining,
+			len = nfsd_print_version_support(nn, buf, remaining,
 					sep, num, minor);
 			if (len >= remaining)
 				goto out;
@@ -717,7 +718,7 @@ static ssize_t __write_ports_names(char *buf, struct net *net)
  * a socket of a supported family/protocol, and we use it as an
  * nfsd listener.
  */
-static ssize_t __write_ports_addfd(char *buf, struct net *net)
+static ssize_t __write_ports_addfd(char *buf, struct net *net, const struct cred *cred)
 {
 	char *mesg = buf;
 	int fd, err;
@@ -736,7 +737,7 @@ static ssize_t __write_ports_addfd(char *buf, struct net *net)
 	if (err != 0)
 		return err;
 
-	err = svc_addsock(nn->nfsd_serv, fd, buf, SIMPLE_TRANSACTION_LIMIT);
+	err = svc_addsock(nn->nfsd_serv, fd, buf, SIMPLE_TRANSACTION_LIMIT, cred);
 	if (err < 0) {
 		nfsd_destroy(net);
 		return err;
@@ -751,7 +752,7 @@ static ssize_t __write_ports_addfd(char *buf, struct net *net)
  * A transport listener is added by writing it's transport name and
  * a port number.
  */
-static ssize_t __write_ports_addxprt(char *buf, struct net *net)
+static ssize_t __write_ports_addxprt(char *buf, struct net *net, const struct cred *cred)
 {
 	char transport[16];
 	struct svc_xprt *xprt;
@@ -769,12 +770,12 @@ static ssize_t __write_ports_addxprt(char *buf, struct net *net)
 		return err;
 
 	err = svc_create_xprt(nn->nfsd_serv, transport, net,
-				PF_INET, port, SVC_SOCK_ANONYMOUS);
+				PF_INET, port, SVC_SOCK_ANONYMOUS, cred);
 	if (err < 0)
 		goto out_err;
 
 	err = svc_create_xprt(nn->nfsd_serv, transport, net,
-				PF_INET6, port, SVC_SOCK_ANONYMOUS);
+				PF_INET6, port, SVC_SOCK_ANONYMOUS, cred);
 	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_close;
 
@@ -799,10 +800,10 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size,
 		return __write_ports_names(buf, net);
 
 	if (isdigit(buf[0]))
-		return __write_ports_addfd(buf, net);
+		return __write_ports_addfd(buf, net, file->f_cred);
 
 	if (isalpha(buf[0]))
-		return __write_ports_addxprt(buf, net);
+		return __write_ports_addxprt(buf, net, file->f_cred);
 
 	return -EINVAL;
 }
@@ -1239,9 +1240,12 @@ static __net_init int nfsd_init_net(struct net *net)
 	retval = nfsd_idmap_init(net);
 	if (retval)
 		goto out_idmap_error;
+	nn->nfsd_versions = NULL;
+	nn->nfsd4_minorversions = NULL;
 	nn->nfsd4_lease = 90;	/* default lease time */
 	nn->nfsd4_grace = 90;
 	nn->somebody_reclaimed = false;
+	nn->track_reclaim_completes = false;
 	nn->clverifier_counter = prandom_u32();
 	nn->clientid_counter = prandom_u32();
 	nn->s2s_cp_cl_id = nn->clientid_counter++;
@@ -1260,6 +1264,7 @@ static __net_exit void nfsd_exit_net(struct net *net)
 {
 	nfsd_idmap_shutdown(net);
 	nfsd_export_shutdown(net);
+	nfsd_netns_free_versions(net_generic(net, nfsd_net_id));
 }
 
 static struct pernet_operations nfsd_net_ops = {

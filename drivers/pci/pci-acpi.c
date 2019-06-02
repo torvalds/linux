@@ -119,7 +119,7 @@ phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
 }
 
 static acpi_status decode_type0_hpx_record(union acpi_object *record,
-					   struct hotplug_params *hpx)
+					   struct hpp_type0 *hpx0)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -132,16 +132,14 @@ static acpi_status decode_type0_hpx_record(union acpi_object *record,
 		for (i = 2; i < 6; i++)
 			if (fields[i].type != ACPI_TYPE_INTEGER)
 				return AE_ERROR;
-		hpx->t0 = &hpx->type0_data;
-		hpx->t0->revision        = revision;
-		hpx->t0->cache_line_size = fields[2].integer.value;
-		hpx->t0->latency_timer   = fields[3].integer.value;
-		hpx->t0->enable_serr     = fields[4].integer.value;
-		hpx->t0->enable_perr     = fields[5].integer.value;
+		hpx0->revision        = revision;
+		hpx0->cache_line_size = fields[2].integer.value;
+		hpx0->latency_timer   = fields[3].integer.value;
+		hpx0->enable_serr     = fields[4].integer.value;
+		hpx0->enable_perr     = fields[5].integer.value;
 		break;
 	default:
-		printk(KERN_WARNING
-		       "%s: Type 0 Revision %d record not supported\n",
+		pr_warn("%s: Type 0 Revision %d record not supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
@@ -149,7 +147,7 @@ static acpi_status decode_type0_hpx_record(union acpi_object *record,
 }
 
 static acpi_status decode_type1_hpx_record(union acpi_object *record,
-					   struct hotplug_params *hpx)
+					   struct hpp_type1 *hpx1)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -162,15 +160,13 @@ static acpi_status decode_type1_hpx_record(union acpi_object *record,
 		for (i = 2; i < 5; i++)
 			if (fields[i].type != ACPI_TYPE_INTEGER)
 				return AE_ERROR;
-		hpx->t1 = &hpx->type1_data;
-		hpx->t1->revision      = revision;
-		hpx->t1->max_mem_read  = fields[2].integer.value;
-		hpx->t1->avg_max_split = fields[3].integer.value;
-		hpx->t1->tot_max_split = fields[4].integer.value;
+		hpx1->revision      = revision;
+		hpx1->max_mem_read  = fields[2].integer.value;
+		hpx1->avg_max_split = fields[3].integer.value;
+		hpx1->tot_max_split = fields[4].integer.value;
 		break;
 	default:
-		printk(KERN_WARNING
-		       "%s: Type 1 Revision %d record not supported\n",
+		pr_warn("%s: Type 1 Revision %d record not supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
@@ -178,7 +174,7 @@ static acpi_status decode_type1_hpx_record(union acpi_object *record,
 }
 
 static acpi_status decode_type2_hpx_record(union acpi_object *record,
-					   struct hotplug_params *hpx)
+					   struct hpp_type2 *hpx2)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -191,44 +187,101 @@ static acpi_status decode_type2_hpx_record(union acpi_object *record,
 		for (i = 2; i < 18; i++)
 			if (fields[i].type != ACPI_TYPE_INTEGER)
 				return AE_ERROR;
-		hpx->t2 = &hpx->type2_data;
-		hpx->t2->revision      = revision;
-		hpx->t2->unc_err_mask_and      = fields[2].integer.value;
-		hpx->t2->unc_err_mask_or       = fields[3].integer.value;
-		hpx->t2->unc_err_sever_and     = fields[4].integer.value;
-		hpx->t2->unc_err_sever_or      = fields[5].integer.value;
-		hpx->t2->cor_err_mask_and      = fields[6].integer.value;
-		hpx->t2->cor_err_mask_or       = fields[7].integer.value;
-		hpx->t2->adv_err_cap_and       = fields[8].integer.value;
-		hpx->t2->adv_err_cap_or        = fields[9].integer.value;
-		hpx->t2->pci_exp_devctl_and    = fields[10].integer.value;
-		hpx->t2->pci_exp_devctl_or     = fields[11].integer.value;
-		hpx->t2->pci_exp_lnkctl_and    = fields[12].integer.value;
-		hpx->t2->pci_exp_lnkctl_or     = fields[13].integer.value;
-		hpx->t2->sec_unc_err_sever_and = fields[14].integer.value;
-		hpx->t2->sec_unc_err_sever_or  = fields[15].integer.value;
-		hpx->t2->sec_unc_err_mask_and  = fields[16].integer.value;
-		hpx->t2->sec_unc_err_mask_or   = fields[17].integer.value;
+		hpx2->revision      = revision;
+		hpx2->unc_err_mask_and      = fields[2].integer.value;
+		hpx2->unc_err_mask_or       = fields[3].integer.value;
+		hpx2->unc_err_sever_and     = fields[4].integer.value;
+		hpx2->unc_err_sever_or      = fields[5].integer.value;
+		hpx2->cor_err_mask_and      = fields[6].integer.value;
+		hpx2->cor_err_mask_or       = fields[7].integer.value;
+		hpx2->adv_err_cap_and       = fields[8].integer.value;
+		hpx2->adv_err_cap_or        = fields[9].integer.value;
+		hpx2->pci_exp_devctl_and    = fields[10].integer.value;
+		hpx2->pci_exp_devctl_or     = fields[11].integer.value;
+		hpx2->pci_exp_lnkctl_and    = fields[12].integer.value;
+		hpx2->pci_exp_lnkctl_or     = fields[13].integer.value;
+		hpx2->sec_unc_err_sever_and = fields[14].integer.value;
+		hpx2->sec_unc_err_sever_or  = fields[15].integer.value;
+		hpx2->sec_unc_err_mask_and  = fields[16].integer.value;
+		hpx2->sec_unc_err_mask_or   = fields[17].integer.value;
 		break;
 	default:
-		printk(KERN_WARNING
-		       "%s: Type 2 Revision %d record not supported\n",
+		pr_warn("%s: Type 2 Revision %d record not supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
 	return AE_OK;
 }
 
-static acpi_status acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
+static void parse_hpx3_register(struct hpx_type3 *hpx3_reg,
+				union acpi_object *reg_fields)
+{
+	hpx3_reg->device_type            = reg_fields[0].integer.value;
+	hpx3_reg->function_type          = reg_fields[1].integer.value;
+	hpx3_reg->config_space_location  = reg_fields[2].integer.value;
+	hpx3_reg->pci_exp_cap_id         = reg_fields[3].integer.value;
+	hpx3_reg->pci_exp_cap_ver        = reg_fields[4].integer.value;
+	hpx3_reg->pci_exp_vendor_id      = reg_fields[5].integer.value;
+	hpx3_reg->dvsec_id               = reg_fields[6].integer.value;
+	hpx3_reg->dvsec_rev              = reg_fields[7].integer.value;
+	hpx3_reg->match_offset           = reg_fields[8].integer.value;
+	hpx3_reg->match_mask_and         = reg_fields[9].integer.value;
+	hpx3_reg->match_value            = reg_fields[10].integer.value;
+	hpx3_reg->reg_offset             = reg_fields[11].integer.value;
+	hpx3_reg->reg_mask_and           = reg_fields[12].integer.value;
+	hpx3_reg->reg_mask_or            = reg_fields[13].integer.value;
+}
+
+static acpi_status program_type3_hpx_record(struct pci_dev *dev,
+					   union acpi_object *record,
+					   const struct hotplug_program_ops *hp_ops)
+{
+	union acpi_object *fields = record->package.elements;
+	u32 desc_count, expected_length, revision;
+	union acpi_object *reg_fields;
+	struct hpx_type3 hpx3;
+	int i;
+
+	revision = fields[1].integer.value;
+	switch (revision) {
+	case 1:
+		desc_count = fields[2].integer.value;
+		expected_length = 3 + desc_count * 14;
+
+		if (record->package.count != expected_length)
+			return AE_ERROR;
+
+		for (i = 2; i < expected_length; i++)
+			if (fields[i].type != ACPI_TYPE_INTEGER)
+				return AE_ERROR;
+
+		for (i = 0; i < desc_count; i++) {
+			reg_fields = fields + 3 + i * 14;
+			parse_hpx3_register(&hpx3, reg_fields);
+			hp_ops->program_type3(dev, &hpx3);
+		}
+
+		break;
+	default:
+		printk(KERN_WARNING
+			"%s: Type 3 Revision %d record not supported\n",
+			__func__, revision);
+		return AE_ERROR;
+	}
+	return AE_OK;
+}
+
+static acpi_status acpi_run_hpx(struct pci_dev *dev, acpi_handle handle,
+				const struct hotplug_program_ops *hp_ops)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *package, *record, *fields;
+	struct hpp_type0 hpx0;
+	struct hpp_type1 hpx1;
+	struct hpp_type2 hpx2;
 	u32 type;
 	int i;
-
-	/* Clear the return buffer with zeros */
-	memset(hpx, 0, sizeof(struct hotplug_params));
 
 	status = acpi_evaluate_object(handle, "_HPX", NULL, &buffer);
 	if (ACPI_FAILURE(status))
@@ -257,22 +310,33 @@ static acpi_status acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
 		type = fields[0].integer.value;
 		switch (type) {
 		case 0:
-			status = decode_type0_hpx_record(record, hpx);
+			memset(&hpx0, 0, sizeof(hpx0));
+			status = decode_type0_hpx_record(record, &hpx0);
 			if (ACPI_FAILURE(status))
 				goto exit;
+			hp_ops->program_type0(dev, &hpx0);
 			break;
 		case 1:
-			status = decode_type1_hpx_record(record, hpx);
+			memset(&hpx1, 0, sizeof(hpx1));
+			status = decode_type1_hpx_record(record, &hpx1);
 			if (ACPI_FAILURE(status))
 				goto exit;
+			hp_ops->program_type1(dev, &hpx1);
 			break;
 		case 2:
-			status = decode_type2_hpx_record(record, hpx);
+			memset(&hpx2, 0, sizeof(hpx2));
+			status = decode_type2_hpx_record(record, &hpx2);
+			if (ACPI_FAILURE(status))
+				goto exit;
+			hp_ops->program_type2(dev, &hpx2);
+			break;
+		case 3:
+			status = program_type3_hpx_record(dev, record, hp_ops);
 			if (ACPI_FAILURE(status))
 				goto exit;
 			break;
 		default:
-			printk(KERN_ERR "%s: Type %d record not supported\n",
+			pr_err("%s: Type %d record not supported\n",
 			       __func__, type);
 			status = AE_ERROR;
 			goto exit;
@@ -283,14 +347,16 @@ static acpi_status acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
 	return status;
 }
 
-static acpi_status acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
+static acpi_status acpi_run_hpp(struct pci_dev *dev, acpi_handle handle,
+				const struct hotplug_program_ops *hp_ops)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *package, *fields;
+	struct hpp_type0 hpp0;
 	int i;
 
-	memset(hpp, 0, sizeof(struct hotplug_params));
+	memset(&hpp0, 0, sizeof(hpp0));
 
 	status = acpi_evaluate_object(handle, "_HPP", NULL, &buffer);
 	if (ACPI_FAILURE(status))
@@ -311,12 +377,13 @@ static acpi_status acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 		}
 	}
 
-	hpp->t0 = &hpp->type0_data;
-	hpp->t0->revision        = 1;
-	hpp->t0->cache_line_size = fields[0].integer.value;
-	hpp->t0->latency_timer   = fields[1].integer.value;
-	hpp->t0->enable_serr     = fields[2].integer.value;
-	hpp->t0->enable_perr     = fields[3].integer.value;
+	hpp0.revision        = 1;
+	hpp0.cache_line_size = fields[0].integer.value;
+	hpp0.latency_timer   = fields[1].integer.value;
+	hpp0.enable_serr     = fields[2].integer.value;
+	hpp0.enable_perr     = fields[3].integer.value;
+
+	hp_ops->program_type0(dev, &hpp0);
 
 exit:
 	kfree(buffer.pointer);
@@ -328,7 +395,8 @@ exit:
  * @dev - the pci_dev for which we want parameters
  * @hpp - allocated by the caller
  */
-int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
+int pci_acpi_program_hp_params(struct pci_dev *dev,
+			       const struct hotplug_program_ops *hp_ops)
 {
 	acpi_status status;
 	acpi_handle handle, phandle;
@@ -351,10 +419,10 @@ int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
 	 * this pci dev.
 	 */
 	while (handle) {
-		status = acpi_run_hpx(handle, hpp);
+		status = acpi_run_hpx(dev, handle, hp_ops);
 		if (ACPI_SUCCESS(status))
 			return 0;
-		status = acpi_run_hpp(handle, hpp);
+		status = acpi_run_hpp(dev, handle, hp_ops);
 		if (ACPI_SUCCESS(status))
 			return 0;
 		if (acpi_is_root_bridge(handle))
@@ -366,7 +434,6 @@ int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
 	}
 	return -ENODEV;
 }
-EXPORT_SYMBOL_GPL(pci_get_hp_params);
 
 /**
  * pciehp_is_native - Check whether a hotplug port is handled by the OS
@@ -666,7 +733,8 @@ static bool acpi_pci_need_resume(struct pci_dev *dev)
 	if (!adev || !acpi_device_power_manageable(adev))
 		return false;
 
-	if (device_may_wakeup(&dev->dev) != !!adev->wakeup.prepare_count)
+	if (adev->wakeup.flags.valid &&
+	    device_may_wakeup(&dev->dev) != !!adev->wakeup.prepare_count)
 		return true;
 
 	if (acpi_target_system_state() == ACPI_STATE_S0)

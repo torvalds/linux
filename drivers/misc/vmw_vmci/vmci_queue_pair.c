@@ -659,7 +659,8 @@ static int qp_host_get_user_memory(u64 produce_uva,
 	int err = VMCI_SUCCESS;
 
 	retval = get_user_pages_fast((uintptr_t) produce_uva,
-				     produce_q->kernel_if->num_pages, 1,
+				     produce_q->kernel_if->num_pages,
+				     FOLL_WRITE,
 				     produce_q->kernel_if->u.h.header_page);
 	if (retval < (int)produce_q->kernel_if->num_pages) {
 		pr_debug("get_user_pages_fast(produce) failed (retval=%d)",
@@ -671,7 +672,8 @@ static int qp_host_get_user_memory(u64 produce_uva,
 	}
 
 	retval = get_user_pages_fast((uintptr_t) consume_uva,
-				     consume_q->kernel_if->num_pages, 1,
+				     consume_q->kernel_if->num_pages,
+				     FOLL_WRITE,
 				     consume_q->kernel_if->u.h.header_page);
 	if (retval < (int)consume_q->kernel_if->num_pages) {
 		pr_debug("get_user_pages_fast(consume) failed (retval=%d)",

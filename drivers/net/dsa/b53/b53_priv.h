@@ -139,7 +139,6 @@ struct b53_device {
 	unsigned int num_vlans;
 	struct b53_vlan *vlans;
 	bool vlan_enabled;
-	bool vlan_filtering_enabled;
 	unsigned int num_ports;
 	struct b53_port *ports;
 };

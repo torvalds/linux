@@ -200,7 +200,7 @@ static int acq_open(struct inode *inode, struct file *file)
 
 	/* Activate */
 	acq_keepalive();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int acq_close(struct inode *inode, struct file *file)

@@ -32,10 +32,13 @@ CFLAGS_intel_fbdev.o = $(call cc-disable-warning, override-init)
 subdir-ccflags-y += \
 	$(call as-instr,movntdqa (%eax)$(comma)%xmm0,-DCONFIG_AS_MOVNTDQA)
 
+# Extra header tests
+include $(src)/Makefile.header-test
+
 # Please keep these build lists sorted!
 
 # core driver code
-i915-y := i915_drv.o \
+i915-y += i915_drv.o \
 	  i915_irq.o \
 	  i915_memcpy.o \
 	  i915_mm.o \
@@ -46,6 +49,7 @@ i915-y := i915_drv.o \
 	  i915_sw_fence.o \
 	  i915_syncmap.o \
 	  i915_sysfs.o \
+	  i915_user_extensions.o \
 	  intel_csr.o \
 	  intel_device_info.o \
 	  intel_pm.o \
@@ -77,6 +81,7 @@ i915-y += \
 	  i915_gem_tiling.o \
 	  i915_gem_userptr.o \
 	  i915_gemfs.o \
+	  i915_globals.o \
 	  i915_query.o \
 	  i915_request.o \
 	  i915_scheduler.o \
@@ -84,6 +89,7 @@ i915-y += \
 	  i915_trace_points.o \
 	  i915_vma.o \
 	  intel_breadcrumbs.o \
+	  intel_context.o \
 	  intel_engine_cs.o \
 	  intel_hangcheck.o \
 	  intel_lrc.o \

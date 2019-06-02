@@ -345,6 +345,11 @@
 		status = "disabled";
 	};
 
+	clock-measure@8758 {
+		compatible = "amlogic,meson8-clk-measure";
+		reg = <0x8758 0x1c>;
+	};
+
 	pinctrl_cbus: pinctrl@9880 {
 		compatible = "amlogic,meson8-cbus-pinctrl";
 		reg = <0x9880 0x10>;
@@ -534,6 +539,11 @@
 
 &pwm_cd {
 	compatible = "amlogic,meson8-pwm", "amlogic,meson8b-pwm";
+};
+
+&rtc {
+	compatible = "amlogic,meson8-rtc";
+	resets = <&reset RESET_RTC>;
 };
 
 &saradc {

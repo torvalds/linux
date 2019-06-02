@@ -28,6 +28,7 @@
 #include "util.h"
 #include "trans.h"
 #include "dir.h"
+#include "lops.h"
 
 struct workqueue_struct *gfs2_freeze_wq;
 
@@ -531,7 +532,7 @@ static int freeze_go_xmote_bh(struct gfs2_glock *gl, struct gfs2_holder *gh)
 	if (test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
 		j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
 
-		error = gfs2_find_jhead(sdp->sd_jdesc, &head);
+		error = gfs2_find_jhead(sdp->sd_jdesc, &head, false);
 		if (error)
 			gfs2_consist(sdp);
 		if (!(head.lh_flags & GFS2_LOG_HEAD_UNMOUNT))

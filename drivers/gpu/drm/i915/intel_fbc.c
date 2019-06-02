@@ -40,8 +40,10 @@
 
 #include <drm/drm_fourcc.h>
 
-#include "intel_drv.h"
 #include "i915_drv.h"
+#include "intel_drv.h"
+#include "intel_fbc.h"
+#include "intel_frontbuffer.h"
 
 static inline bool fbc_supported(struct drm_i915_private *dev_priv)
 {
@@ -108,7 +110,7 @@ static void i8xx_fbc_deactivate(struct drm_i915_private *dev_priv)
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
 	/* Wait for compressing bit to clear */
-	if (intel_wait_for_register(dev_priv,
+	if (intel_wait_for_register(&dev_priv->uncore,
 				    FBC_STATUS, FBC_STAT_COMPRESSING, 0,
 				    10)) {
 		DRM_DEBUG_KMS("FBC idle timed out\n");
@@ -1276,6 +1278,10 @@ static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
 		return !!i915_modparams.enable_fbc;
 
 	if (!HAS_FBC(dev_priv))
+		return 0;
+
+	/* https://bugs.freedesktop.org/show_bug.cgi?id=108085 */
+	if (IS_GEMINILAKE(dev_priv))
 		return 0;
 
 	if (IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9)

@@ -28,7 +28,9 @@
 #include <asm/processor.h>
 #include <asm/csr.h>
 
-typedef unsigned long mm_segment_t;
+typedef struct {
+	unsigned long seg;
+} mm_segment_t;
 
 /*
  * low level task data that entry.S needs immediate access to

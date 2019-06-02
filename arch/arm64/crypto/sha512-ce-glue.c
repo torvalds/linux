@@ -13,6 +13,7 @@
 #include <asm/simd.h>
 #include <asm/unaligned.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/sha.h>
 #include <crypto/sha512_base.h>
 #include <linux/cpufeature.h>
@@ -31,7 +32,7 @@ asmlinkage void sha512_block_data_order(u64 *digest, u8 const *src, int blocks);
 static int sha512_ce_update(struct shash_desc *desc, const u8 *data,
 			    unsigned int len)
 {
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return sha512_base_do_update(desc, data, len,
 				(sha512_block_fn *)sha512_block_data_order);
 
@@ -46,7 +47,7 @@ static int sha512_ce_update(struct shash_desc *desc, const u8 *data,
 static int sha512_ce_finup(struct shash_desc *desc, const u8 *data,
 			   unsigned int len, u8 *out)
 {
-	if (!may_use_simd()) {
+	if (!crypto_simd_usable()) {
 		if (len)
 			sha512_base_do_update(desc, data, len,
 				(sha512_block_fn *)sha512_block_data_order);
@@ -65,7 +66,7 @@ static int sha512_ce_finup(struct shash_desc *desc, const u8 *data,
 
 static int sha512_ce_final(struct shash_desc *desc, u8 *out)
 {
-	if (!may_use_simd()) {
+	if (!crypto_simd_usable()) {
 		sha512_base_do_finalize(desc,
 				(sha512_block_fn *)sha512_block_data_order);
 		return sha512_base_finish(desc, out);

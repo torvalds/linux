@@ -2,8 +2,8 @@
 /*
  * DMA support use of SYS DMAC with SDHI SD/SDIO controller
  *
- * Copyright (C) 2016-17 Renesas Electronics Corporation
- * Copyright (C) 2016-17 Sang Engineering, Wolfram Sang
+ * Copyright (C) 2016-19 Renesas Electronics Corporation
+ * Copyright (C) 2016-19 Sang Engineering, Wolfram Sang
  * Copyright (C) 2017 Horms Solutions, Simon Horman
  * Copyright (C) 2010-2011 Guennadi Liakhovetski
  */
@@ -65,7 +65,7 @@ static const struct renesas_sdhi_of_data of_rcar_gen2_compatible = {
 	.scc_offset	= 0x0300,
 	.taps		= rcar_gen2_scc_taps,
 	.taps_num	= ARRAY_SIZE(rcar_gen2_scc_taps),
-	.max_blk_count  = 0xffffffff,
+	.max_blk_count	= UINT_MAX / TMIO_MAX_BLK_SIZE,
 };
 
 /* Definitions for sampling clocks */

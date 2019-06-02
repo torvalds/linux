@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2011 Alexander Stein <alexander.stein@systec-electronic.com>
  *
@@ -5,16 +6,6 @@
  * It reports up to two temperatures (its own plus an external one).
  *
  * This driver is based on lm95241.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/err.h>
@@ -91,19 +82,6 @@ static const unsigned short normal_i2c[] = {
 #define MANUFACTURER_ID		0x01
 #define LM95235_REVISION	0xB1
 #define LM95245_REVISION	0xB3
-
-static const u8 lm95245_reg_address[] = {
-	LM95245_REG_R_LOCAL_TEMPH_S,
-	LM95245_REG_R_LOCAL_TEMPL_S,
-	LM95245_REG_R_REMOTE_TEMPH_S,
-	LM95245_REG_R_REMOTE_TEMPL_S,
-	LM95245_REG_R_REMOTE_TEMPH_U,
-	LM95245_REG_R_REMOTE_TEMPL_U,
-	LM95245_REG_RW_LOCAL_OS_TCRIT_LIMIT,
-	LM95245_REG_RW_REMOTE_TCRIT_LIMIT,
-	LM95245_REG_RW_COMMON_HYSTERESIS,
-	LM95245_REG_R_STATUS1,
-};
 
 /* Client data (each client gets its own) */
 struct lm95245_data {
@@ -545,32 +523,16 @@ static const struct regmap_config lm95245_regmap_config = {
 	.use_single_write = true,
 };
 
-static const u32 lm95245_chip_config[] = {
-	HWMON_C_UPDATE_INTERVAL,
-	0
-};
-
-static const struct hwmon_channel_info lm95245_chip = {
-	.type = hwmon_chip,
-	.config = lm95245_chip_config,
-};
-
-static const u32 lm95245_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_CRIT_ALARM,
-	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST | HWMON_T_CRIT |
-		HWMON_T_CRIT_HYST | HWMON_T_FAULT | HWMON_T_MAX_ALARM |
-		HWMON_T_CRIT_ALARM | HWMON_T_TYPE | HWMON_T_OFFSET,
-	0
-};
-
-static const struct hwmon_channel_info lm95245_temp = {
-	.type = hwmon_temp,
-	.config = lm95245_temp_config,
-};
-
 static const struct hwmon_channel_info *lm95245_info[] = {
-	&lm95245_chip,
-	&lm95245_temp,
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_CRIT_HYST |
+			   HWMON_T_CRIT_ALARM,
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_FAULT |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM |
+			   HWMON_T_TYPE | HWMON_T_OFFSET),
 	NULL
 };
 
@@ -623,7 +585,7 @@ static const struct i2c_device_id lm95245_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lm95245_id);
 
-static const struct of_device_id lm95245_of_match[] = {
+static const struct of_device_id __maybe_unused lm95245_of_match[] = {
 	{ .compatible = "national,lm95235" },
 	{ .compatible = "national,lm95245" },
 	{ },

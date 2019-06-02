@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TLB support routines.
  *
@@ -305,8 +306,8 @@ local_flush_tlb_all (void)
 	ia64_srlz_i();			/* srlz.i implies srlz.d */
 }
 
-void
-flush_tlb_range (struct vm_area_struct *vma, unsigned long start,
+static void
+__flush_tlb_range (struct vm_area_struct *vma, unsigned long start,
 		 unsigned long end)
 {
 	struct mm_struct *mm = vma->vm_mm;
@@ -342,6 +343,25 @@ flush_tlb_range (struct vm_area_struct *vma, unsigned long start,
 	} while (start < end);
 	preempt_enable();
 	ia64_srlz_i();			/* srlz.i implies srlz.d */
+}
+
+void flush_tlb_range(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end)
+{
+	if (unlikely(end - start >= 1024*1024*1024*1024UL
+			|| REGION_NUMBER(start) != REGION_NUMBER(end - 1))) {
+		/*
+		 * If we flush more than a tera-byte or across regions, we're
+		 * probably better off just flushing the entire TLB(s).  This
+		 * should be very rare and is not worth optimizing for.
+		 */
+		flush_tlb_all();
+	} else {
+		/* flush the address range from the tlb */
+		__flush_tlb_range(vma, start, end);
+		/* flush the virt. page-table area mapping the addr range */
+		__flush_tlb_range(vma, ia64_thash(start), ia64_thash(end));
+	}
 }
 EXPORT_SYMBOL(flush_tlb_range);
 

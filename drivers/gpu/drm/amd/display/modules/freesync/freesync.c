@@ -37,6 +37,8 @@
 #define RENDER_TIMES_MAX_COUNT 10
 /* Threshold to exit BTR (to avoid frequent enter-exits at the lower limit) */
 #define BTR_EXIT_MARGIN 2000
+/* Threshold to change BTR multiplier (to avoid frequent changes) */
+#define BTR_DRIFT_MARGIN 2000
 /*Threshold to exit fixed refresh rate*/
 #define FIXED_REFRESH_EXIT_MARGIN_IN_HZ 4
 /* Number of consecutive frames to check before entering/exiting fixed refresh*/
@@ -47,6 +49,93 @@ struct core_freesync {
 	struct mod_freesync public;
 	struct dc *dc;
 };
+
+void setFieldWithMask(unsigned char *dest, unsigned int mask, unsigned int value)
+{
+	unsigned int shift = 0;
+
+	if (!mask || !dest)
+		return;
+
+	while (!((mask >> shift) & 1))
+		shift++;
+
+	//reset
+	*dest = *dest & ~mask;
+	//set
+	//dont let value span past mask
+	value = value & (mask >> shift);
+	//insert value
+	*dest = *dest | (value << shift);
+}
+
+// VTEM Byte Offset
+#define VRR_VTEM_PB0		0
+#define VRR_VTEM_PB1		1
+#define VRR_VTEM_PB2		2
+#define VRR_VTEM_PB3		3
+#define VRR_VTEM_PB4		4
+#define VRR_VTEM_PB5		5
+#define VRR_VTEM_PB6		6
+
+#define VRR_VTEM_MD0		7
+#define VRR_VTEM_MD1		8
+#define VRR_VTEM_MD2		9
+#define VRR_VTEM_MD3		10
+
+
+// VTEM Byte Masks
+//PB0
+#define MASK__VRR_VTEM_PB0__RESERVED0  0x01
+#define MASK__VRR_VTEM_PB0__SYNC       0x02
+#define MASK__VRR_VTEM_PB0__VFR        0x04
+#define MASK__VRR_VTEM_PB0__AFR        0x08
+#define MASK__VRR_VTEM_PB0__DS_TYPE    0x30
+	//0: Periodic pseudo-static EM Data Set
+	//1: Periodic dynamic EM Data Set
+	//2: Unique EM Data Set
+	//3: Reserved
+#define MASK__VRR_VTEM_PB0__END        0x40
+#define MASK__VRR_VTEM_PB0__NEW        0x80
+
+//PB1
+#define MASK__VRR_VTEM_PB1__RESERVED1 0xFF
+
+//PB2
+#define MASK__VRR_VTEM_PB2__ORGANIZATION_ID 0xFF
+	//0: This is a Vendor Specific EM Data Set
+	//1: This EM Data Set is defined by This Specification (HDMI 2.1 r102.clean)
+	//2: This EM Data Set is defined by CTA-861-G
+	//3: This EM Data Set is defined by VESA
+//PB3
+#define MASK__VRR_VTEM_PB3__DATA_SET_TAG_MSB    0xFF
+//PB4
+#define MASK__VRR_VTEM_PB4__DATA_SET_TAG_LSB    0xFF
+//PB5
+#define MASK__VRR_VTEM_PB5__DATA_SET_LENGTH_MSB 0xFF
+//PB6
+#define MASK__VRR_VTEM_PB6__DATA_SET_LENGTH_LSB 0xFF
+
+
+
+//PB7-27 (20 bytes):
+//PB7 = MD0
+#define MASK__VRR_VTEM_MD0__VRR_EN         0x01
+#define MASK__VRR_VTEM_MD0__M_CONST        0x02
+#define MASK__VRR_VTEM_MD0__RESERVED2      0x0C
+#define MASK__VRR_VTEM_MD0__FVA_FACTOR_M1  0xF0
+
+//MD1
+#define MASK__VRR_VTEM_MD1__BASE_VFRONT    0xFF
+
+//MD2
+#define MASK__VRR_VTEM_MD2__BASE_REFRESH_RATE_98  0x03
+#define MASK__VRR_VTEM_MD2__RB                    0x04
+#define MASK__VRR_VTEM_MD2__RESERVED3             0xF8
+
+//MD3
+#define MASK__VRR_VTEM_MD3__BASE_REFRESH_RATE_07  0xFF
+
 
 #define MOD_FREESYNC_TO_CORE(mod_freesync)\
 		container_of(mod_freesync, struct core_freesync, public)
@@ -248,6 +337,7 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 	unsigned int frames_to_insert = 0;
 	unsigned int min_frame_duration_in_ns = 0;
 	unsigned int max_render_time_in_us = in_out_vrr->max_duration_in_us;
+	unsigned int delta_from_mid_point_delta_in_us;
 
 	min_frame_duration_in_ns = ((unsigned int) (div64_u64(
 		(1000000000ULL * 1000000),
@@ -318,10 +408,27 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		/* Choose number of frames to insert based on how close it
 		 * can get to the mid point of the variable range.
 		 */
-		if (delta_from_mid_point_in_us_1 < delta_from_mid_point_in_us_2)
+		if (delta_from_mid_point_in_us_1 < delta_from_mid_point_in_us_2) {
 			frames_to_insert = mid_point_frames_ceil;
-		else
+			delta_from_mid_point_delta_in_us = delta_from_mid_point_in_us_2 -
+					delta_from_mid_point_in_us_1;
+		} else {
 			frames_to_insert = mid_point_frames_floor;
+			delta_from_mid_point_delta_in_us = delta_from_mid_point_in_us_1 -
+					delta_from_mid_point_in_us_2;
+		}
+
+		/* Prefer current frame multiplier when BTR is enabled unless it drifts
+		 * too far from the midpoint
+		 */
+		if (in_out_vrr->btr.frames_to_insert != 0 &&
+				delta_from_mid_point_delta_in_us < BTR_DRIFT_MARGIN) {
+			if (((last_render_time_in_us / in_out_vrr->btr.frames_to_insert) <
+					in_out_vrr->max_duration_in_us) &&
+				((last_render_time_in_us / in_out_vrr->btr.frames_to_insert) >
+					in_out_vrr->min_duration_in_us))
+				frames_to_insert = in_out_vrr->btr.frames_to_insert;
+		}
 
 		/* Either we've calculated the number of frames to insert,
 		 * or we need to insert min duration frames
@@ -330,10 +437,8 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 			inserted_frame_duration_in_us = last_render_time_in_us /
 							frames_to_insert;
 
-		if (inserted_frame_duration_in_us <
-			(1000000 / in_out_vrr->max_refresh_in_uhz))
-			inserted_frame_duration_in_us =
-				(1000000 / in_out_vrr->max_refresh_in_uhz);
+		if (inserted_frame_duration_in_us < in_out_vrr->min_duration_in_us)
+			inserted_frame_duration_in_us = in_out_vrr->min_duration_in_us;
 
 		/* Cache the calculated variables */
 		in_out_vrr->btr.inserted_duration_in_us =
@@ -469,16 +574,14 @@ static void build_vrr_infopacket_header_vtem(enum signal_type signal,
 	// HB0, HB1, HB2 indicates PacketType VTEMPacket
 	infopacket->hb0 = 0x7F;
 	infopacket->hb1 = 0xC0;
-	infopacket->hb2 = 0x00;
-	/* HB3 Bit Fields
-	 * Reserved :1 = 0
-	 * Sync     :1 = 0
-	 * VFR      :1 = 1
-	 * Ds_Type  :2 = 0
-	 * End      :1 = 0
-	 * New      :1 = 0
-	 */
-	infopacket->hb3 = 0x20;
+	infopacket->hb2 = 0x00; //sequence_index
+
+	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB0], MASK__VRR_VTEM_PB0__VFR, 1);
+	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB2], MASK__VRR_VTEM_PB2__ORGANIZATION_ID, 1);
+	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB3], MASK__VRR_VTEM_PB3__DATA_SET_TAG_MSB, 0);
+	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB4], MASK__VRR_VTEM_PB4__DATA_SET_TAG_LSB, 1);
+	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB5], MASK__VRR_VTEM_PB5__DATA_SET_LENGTH_MSB, 0);
+	setFieldWithMask(&infopacket->sb[VRR_VTEM_PB6], MASK__VRR_VTEM_PB6__DATA_SET_LENGTH_LSB, 4);
 }
 
 static void build_vrr_infopacket_header_v1(enum signal_type signal,
@@ -583,45 +686,36 @@ static void build_vrr_vtem_infopacket_data(const struct dc_stream_state *stream,
 		const struct mod_vrr_params *vrr,
 		struct dc_info_packet *infopacket)
 {
-	/* dc_info_packet to VtemPacket Translation of Bit-fields,
-	 * SB[6]
-	 * unsigned char VRR_EN        :1
-	 * unsigned char M_CONST       :1
-	 * unsigned char Reserved2     :2
-	 * unsigned char FVA_Factor_M1 :4
-	 * SB[7]
-	 * unsigned char Base_Vfront   :8
-	 * SB[8]
-	 * unsigned char Base_Refresh_Rate_98 :2
-	 * unsigned char RB                   :1
-	 * unsigned char Reserved3            :5
-	 * SB[9]
-	 * unsigned char Base_RefreshRate_07  :8
-	 */
 	unsigned int fieldRateInHz;
 
 	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
-				vrr->state == VRR_STATE_ACTIVE_FIXED){
-		infopacket->sb[6] |= 0x80; //VRR_EN Bit = 1
+				vrr->state == VRR_STATE_ACTIVE_FIXED) {
+		setFieldWithMask(&infopacket->sb[VRR_VTEM_MD0], MASK__VRR_VTEM_MD0__VRR_EN, 1);
 	} else {
-		infopacket->sb[6] &= 0x7F; //VRR_EN Bit = 0
+		setFieldWithMask(&infopacket->sb[VRR_VTEM_MD0], MASK__VRR_VTEM_MD0__VRR_EN, 0);
 	}
 
 	if (!stream->timing.vic) {
-		infopacket->sb[7] = stream->timing.v_front_porch;
+		setFieldWithMask(&infopacket->sb[VRR_VTEM_MD1], MASK__VRR_VTEM_MD1__BASE_VFRONT,
+				stream->timing.v_front_porch);
+
 
 		/* TODO: In dal2, we check mode flags for a reduced blanking timing.
 		 * Need a way to relay that information to this function.
 		 * if("ReducedBlanking")
 		 * {
-		 *   infopacket->sb[8] |= 0x20; //Set 3rd bit to 1
+		 *   setFieldWithMask(&infopacket->sb[VRR_VTEM_MD2], MASK__VRR_VTEM_MD2__RB, 1;
 		 * }
 		 */
-		fieldRateInHz = (stream->timing.pix_clk_100hz * 100)/
-				(stream->timing.h_total * stream->timing.v_total);
 
-		infopacket->sb[8] |= ((fieldRateInHz & 0x300) >> 2);
-		infopacket->sb[9] |= fieldRateInHz & 0xFF;
+		//TODO: DAL2 does FixPoint and rounding. Here we might need to account for that
+		fieldRateInHz = (stream->timing.pix_clk_100hz * 100)/
+			(stream->timing.h_total * stream->timing.v_total);
+
+		setFieldWithMask(&infopacket->sb[VRR_VTEM_MD2],  MASK__VRR_VTEM_MD2__BASE_REFRESH_RATE_98,
+				fieldRateInHz >> 8);
+		setFieldWithMask(&infopacket->sb[VRR_VTEM_MD3], MASK__VRR_VTEM_MD3__BASE_REFRESH_RATE_07,
+				fieldRateInHz);
 
 	}
 	infopacket->valid = true;
@@ -744,6 +838,8 @@ static void build_vrr_infopacket_vtem(const struct dc_stream_state *stream,
 		struct dc_info_packet *infopacket)
 {
 	//VTEM info packet for HdmiVrr
+
+	memset(infopacket, 0, sizeof(struct dc_info_packet));
 
 	//VTEM Packet is structured differently
 	build_vrr_infopacket_header_vtem(stream->signal, infopacket);

@@ -27,7 +27,7 @@
 #include <linux/irqchip/arm-vic.h>
 #include <linux/gpio/machine.h>
 
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include "lm.h"
 #include "impd1.h"
 

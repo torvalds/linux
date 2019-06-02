@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * RTC subsystem, dev interface
  *
@@ -5,11 +6,7 @@
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * based on arch/arm/common/rtctime.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -60,7 +57,7 @@ static void rtc_uie_task(struct work_struct *work)
 	} else if (rtc->oldsecs != tm.tm_sec) {
 		num = (tm.tm_sec + 60 - rtc->oldsecs) % 60;
 		rtc->oldsecs = tm.tm_sec;
-		rtc->uie_timer.expires = jiffies + HZ - (HZ/10);
+		rtc->uie_timer.expires = jiffies + HZ - (HZ / 10);
 		rtc->uie_timer_active = 1;
 		rtc->uie_task_active = 0;
 		add_timer(&rtc->uie_timer);
@@ -71,6 +68,7 @@ static void rtc_uie_task(struct work_struct *work)
 	if (num)
 		rtc_handle_legacy_irq(rtc, num, RTC_UF);
 }
+
 static void rtc_uie_timer(struct timer_list *t)
 {
 	struct rtc_device *rtc = from_timer(rtc, t, uie_timer);
@@ -202,14 +200,14 @@ static __poll_t rtc_dev_poll(struct file *file, poll_table *wait)
 }
 
 static long rtc_dev_ioctl(struct file *file,
-		unsigned int cmd, unsigned long arg)
+			  unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
 	struct rtc_device *rtc = file->private_data;
 	const struct rtc_class_ops *ops = rtc->ops;
 	struct rtc_time tm;
 	struct rtc_wkalrm alarm;
-	void __user *uarg = (void __user *) arg;
+	void __user *uarg = (void __user *)arg;
 
 	err = mutex_lock_interruptible(&rtc->ops_lock);
 	if (err)
@@ -233,7 +231,7 @@ static long rtc_dev_ioctl(struct file *file,
 
 	case RTC_PIE_ON:
 		if (rtc->irq_freq > rtc->max_user_freq &&
-				!capable(CAP_SYS_RESOURCE))
+		    !capable(CAP_SYS_RESOURCE))
 			err = -EACCES;
 		break;
 	}
@@ -390,8 +388,9 @@ static long rtc_dev_ioctl(struct file *file,
 			err = ops->ioctl(rtc->dev.parent, cmd, arg);
 			if (err == -ENOIOCTLCMD)
 				err = -ENOTTY;
-		} else
+		} else {
 			err = -ENOTTY;
+		}
 		break;
 	}
 
@@ -403,6 +402,7 @@ done:
 static int rtc_dev_fasync(int fd, struct file *file, int on)
 {
 	struct rtc_device *rtc = file->private_data;
+
 	return fasync_helper(fd, file, on, &rtc->async_queue);
 }
 

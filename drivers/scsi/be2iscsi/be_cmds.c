@@ -963,7 +963,7 @@ int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
  * @ctrl: ptr to ctrl_info
  * @cq: Completion Queue
  * @dq: Default Queue
- * @lenght: ring size
+ * @length: ring size
  * @entry_size: size of each entry in DEFQ
  * @is_header: Header or Data DEFQ
  * @ulp_num: Bind to which ULP

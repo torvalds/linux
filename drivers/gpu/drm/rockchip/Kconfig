@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_ROCKCHIP
 	tristate "DRM Support for Rockchip"
 	depends on DRM && ROCKCHIP_IOMMU
@@ -77,4 +78,12 @@ config ROCKCHIP_RGB
 	  Some Rockchip CRTCs, like rv1108, can directly output parallel
 	  and serial RGB format to panel or connect to a conversion chip.
 	  say Y to enable its driver.
+
+config ROCKCHIP_RK3066_HDMI
+	bool "Rockchip specific extensions for RK3066 HDMI"
+	depends on DRM_ROCKCHIP
+	help
+	  This selects support for Rockchip SoC specific extensions
+	  for the RK3066 HDMI driver. If you want to enable
+	  HDMI on RK3066 based SoC, you should select this option.
 endif

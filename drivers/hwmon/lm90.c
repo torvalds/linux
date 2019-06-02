@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * lm90.c - Part of lm_sensors, Linux kernel modules for hardware
  *          monitoring
@@ -68,20 +69,6 @@
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
  * concern all supported chipsets, unless mentioned otherwise.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -236,7 +223,7 @@ static const struct i2c_device_id lm90_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lm90_id);
 
-static const struct of_device_id lm90_of_match[] = {
+static const struct of_device_id __maybe_unused lm90_of_match[] = {
 	{
 		.compatible = "adi,adm1032",
 		.data = (void *)adm1032
@@ -1720,16 +1707,6 @@ static void lm90_regulator_disable(void *regulator)
 	regulator_disable(regulator);
 }
 
-static const u32 lm90_chip_config[] = {
-	HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL | HWMON_C_ALARMS,
-	0
-};
-
-static const struct hwmon_channel_info lm90_chip_info = {
-	.type = hwmon_chip,
-	.config = lm90_chip_config,
-};
-
 
 static const struct hwmon_ops lm90_ops = {
 	.is_visible = lm90_is_visible,
@@ -1792,7 +1769,8 @@ static int lm90_probe(struct i2c_client *client,
 	data->chip.ops = &lm90_ops;
 	data->chip.info = data->info;
 
-	data->info[0] = &lm90_chip_info;
+	data->info[0] = HWMON_CHANNEL_INFO(chip,
+		HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL | HWMON_C_ALARMS);
 	data->info[1] = &data->temp_info;
 
 	info = &data->temp_info;

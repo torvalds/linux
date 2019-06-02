@@ -24,19 +24,21 @@ TEST_FILE=$(mktemp)
 
 # This represents
 #
-# TEST_ID:TEST_COUNT:ENABLED
+# TEST_ID:TEST_COUNT:ENABLED:TARGET
 #
 # TEST_ID: is the test id number
 # TEST_COUNT: number of times we should run the test
 # ENABLED: 1 if enabled, 0 otherwise
+# TARGET: test target file required on the test_sysctl module
 #
 # Once these are enabled please leave them as-is. Write your own test,
 # we have tons of space.
-ALL_TESTS="0001:1:1"
-ALL_TESTS="$ALL_TESTS 0002:1:1"
-ALL_TESTS="$ALL_TESTS 0003:1:1"
-ALL_TESTS="$ALL_TESTS 0004:1:1"
-ALL_TESTS="$ALL_TESTS 0005:3:1"
+ALL_TESTS="0001:1:1:int_0001"
+ALL_TESTS="$ALL_TESTS 0002:1:1:string_0001"
+ALL_TESTS="$ALL_TESTS 0003:1:1:int_0002"
+ALL_TESTS="$ALL_TESTS 0004:1:1:uint_0001"
+ALL_TESTS="$ALL_TESTS 0005:3:1:int_0003"
+ALL_TESTS="$ALL_TESTS 0006:50:1:bitmap_0001"
 
 test_modprobe()
 {
@@ -149,6 +151,9 @@ reset_vals()
 		string_0001)
 			VAL="(none)"
 			;;
+		bitmap_0001)
+			VAL=""
+			;;
 		*)
 			;;
 	esac
@@ -157,8 +162,10 @@ reset_vals()
 
 set_orig()
 {
-	if [ ! -z $TARGET ]; then
-		echo "${ORIG}" > "${TARGET}"
+	if [ ! -z $TARGET ] && [ ! -z $ORIG ]; then
+		if [ -f ${TARGET} ]; then
+			echo "${ORIG}" > "${TARGET}"
+		fi
 	fi
 }
 
@@ -177,9 +184,25 @@ verify()
 	return 0
 }
 
+# proc files get read a page at a time, which can confuse diff,
+# and get you incorrect results on proc files with long data. To use
+# diff against them you must first extract the output to a file, and
+# then compare against that file.
+verify_diff_proc_file()
+{
+	TMP_DUMP_FILE=$(mktemp)
+	cat $1 > $TMP_DUMP_FILE
+
+	if ! diff -w -q $TMP_DUMP_FILE $2; then
+		return 1
+	else
+		return 0
+	fi
+}
+
 verify_diff_w()
 {
-	echo "$TEST_STR" | diff -q -w -u - $1
+	echo "$TEST_STR" | diff -q -w -u - $1 > /dev/null
 	return $?
 }
 
@@ -600,9 +623,70 @@ run_stringtests()
 	test_rc
 }
 
+target_exists()
+{
+	TARGET="${SYSCTL}/$1"
+	TEST_ID="$2"
+
+	if [ ! -f ${TARGET} ] ; then
+		echo "Target for test $TEST_ID: $TARGET not exist, skipping test ..."
+		return 0
+	fi
+	return 1
+}
+
+run_bitmaptest() {
+	# Total length of bitmaps string to use, a bit under
+	# the maximum input size of the test node
+	LENGTH=$((RANDOM % 65000))
+
+	# First bit to set
+	BIT=$((RANDOM % 1024))
+
+	# String containing our list of bits to set
+	TEST_STR=$BIT
+
+	# build up the string
+	while [ "${#TEST_STR}" -le "$LENGTH" ]; do
+		# Make sure next entry is discontiguous,
+		# skip ahead at least 2
+		BIT=$((BIT + $((2 + RANDOM % 10))))
+
+		# Add new bit to the list
+		TEST_STR="${TEST_STR},${BIT}"
+
+		# Randomly make it a range
+		if [ "$((RANDOM % 2))" -eq "1" ]; then
+			RANGE_END=$((BIT + $((1 + RANDOM % 10))))
+			TEST_STR="${TEST_STR}-${RANGE_END}"
+			BIT=$RANGE_END
+		fi
+	done
+
+	echo -n "Checking bitmap handler... "
+	TEST_FILE=$(mktemp)
+	echo -n "$TEST_STR" > $TEST_FILE
+
+	cat $TEST_FILE > $TARGET 2> /dev/null
+	if [ $? -ne 0 ]; then
+		echo "FAIL" >&2
+		rc=1
+		test_rc
+	fi
+
+	if ! verify_diff_proc_file "$TARGET" "$TEST_FILE"; then
+		echo "FAIL" >&2
+		rc=1
+	else
+		echo "ok"
+		rc=0
+	fi
+	test_rc
+}
+
 sysctl_test_0001()
 {
-	TARGET="${SYSCTL}/int_0001"
+	TARGET="${SYSCTL}/$(get_test_target 0001)"
 	reset_vals
 	ORIG=$(cat "${TARGET}")
 	TEST_STR=$(( $ORIG + 1 ))
@@ -614,7 +698,7 @@ sysctl_test_0001()
 
 sysctl_test_0002()
 {
-	TARGET="${SYSCTL}/string_0001"
+	TARGET="${SYSCTL}/$(get_test_target 0002)"
 	reset_vals
 	ORIG=$(cat "${TARGET}")
 	TEST_STR="Testing sysctl"
@@ -627,7 +711,7 @@ sysctl_test_0002()
 
 sysctl_test_0003()
 {
-	TARGET="${SYSCTL}/int_0002"
+	TARGET="${SYSCTL}/$(get_test_target 0003)"
 	reset_vals
 	ORIG=$(cat "${TARGET}")
 	TEST_STR=$(( $ORIG + 1 ))
@@ -640,7 +724,7 @@ sysctl_test_0003()
 
 sysctl_test_0004()
 {
-	TARGET="${SYSCTL}/uint_0001"
+	TARGET="${SYSCTL}/$(get_test_target 0004)"
 	reset_vals
 	ORIG=$(cat "${TARGET}")
 	TEST_STR=$(( $ORIG + 1 ))
@@ -653,11 +737,19 @@ sysctl_test_0004()
 
 sysctl_test_0005()
 {
-	TARGET="${SYSCTL}/int_0003"
+	TARGET="${SYSCTL}/$(get_test_target 0005)"
 	reset_vals
 	ORIG=$(cat "${TARGET}")
 
 	run_limit_digit_int_array
+}
+
+sysctl_test_0006()
+{
+	TARGET="${SYSCTL}/bitmap_0001"
+	reset_vals
+	ORIG=""
+	run_bitmaptest
 }
 
 list_tests()
@@ -673,9 +765,8 @@ list_tests()
 	echo "0003 x $(get_test_count 0003) - tests proc_dointvec()"
 	echo "0004 x $(get_test_count 0004) - tests proc_douintvec()"
 	echo "0005 x $(get_test_count 0005) - tests proc_douintvec() array"
+	echo "0006 x $(get_test_count 0006) - tests proc_do_large_bitmap()"
 }
-
-test_reqs
 
 usage()
 {
@@ -724,25 +815,35 @@ function get_test_count()
 {
 	test_num $1
 	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
-	LAST_TWO=${TEST_DATA#*:*}
-	echo ${LAST_TWO%:*}
+	echo ${TEST_DATA} | awk -F":" '{print $2}'
 }
 
 function get_test_enabled()
 {
 	test_num $1
 	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
-	echo ${TEST_DATA#*:*:}
+	echo ${TEST_DATA} | awk -F":" '{print $3}'
+}
+
+function get_test_target()
+{
+	test_num $1
+	TEST_DATA=$(echo $ALL_TESTS | awk '{print $'$1'}')
+	echo ${TEST_DATA} | awk -F":" '{print $4}'
 }
 
 function run_all_tests()
 {
 	for i in $ALL_TESTS ; do
-		TEST_ID=${i%:*:*}
+		TEST_ID=${i%:*:*:*}
 		ENABLED=$(get_test_enabled $TEST_ID)
 		TEST_COUNT=$(get_test_count $TEST_ID)
+		TEST_TARGET=$(get_test_target $TEST_ID)
+		if target_exists $TEST_TARGET $TEST_ID; then
+			continue
+		fi
 		if [[ $ENABLED -eq "1" ]]; then
-			test_case $TEST_ID $TEST_COUNT
+			test_case $TEST_ID $TEST_COUNT $TEST_TARGET
 		fi
 	done
 }
@@ -775,12 +876,14 @@ function watch_case()
 
 function test_case()
 {
-	NUM_TESTS=$DEFAULT_NUM_TESTS
-	if [ $# -eq 2 ]; then
-		NUM_TESTS=$2
-	fi
+	NUM_TESTS=$2
 
 	i=0
+
+	if target_exists $3 $1; then
+		continue
+	fi
+
 	while [ $i -lt $NUM_TESTS ]; do
 		test_num $1
 		watch_log $i ${TEST_NAME}_test_$1 noclear
@@ -803,15 +906,15 @@ function parse_args()
 		elif [[ "$1" = "-t" ]]; then
 			shift
 			test_num $1
-			test_case $1 $(get_test_count $1)
+			test_case $1 $(get_test_count $1) $(get_test_target $1)
 		elif [[ "$1" = "-c" ]]; then
 			shift
 			test_num $1
 			test_num $2
-			test_case $1 $2
+			test_case $1 $2 $(get_test_target $1)
 		elif [[ "$1" = "-s" ]]; then
 			shift
-			test_case $1 1
+			test_case $1 1 $(get_test_target $1)
 		elif [[ "$1" = "-l" ]]; then
 			list_tests
 		elif [[ "$1" = "-h" || "$1" = "--help" ]]; then
@@ -825,8 +928,8 @@ function parse_args()
 test_reqs
 allow_user_defaults
 check_production_sysctl_writes_strict
-test_modprobe
 load_req_mod
+test_modprobe
 
 trap "test_finish" EXIT
 

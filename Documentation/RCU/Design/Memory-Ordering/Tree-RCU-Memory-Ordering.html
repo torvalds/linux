@@ -34,12 +34,11 @@ Similarly, any code that happens before the beginning of a given RCU grace
 period is guaranteed to see the effects of all accesses following the end
 of that grace period that are within RCU read-side critical sections.
 
-<p>This guarantee is particularly pervasive for <tt>synchronize_sched()</tt>,
-for which RCU-sched read-side critical sections include any region
+<p>Note well that RCU-sched read-side critical sections include any region
 of code for which preemption is disabled.
 Given that each individual machine instruction can be thought of as
 an extremely small region of preemption-disabled code, one can think of
-<tt>synchronize_sched()</tt> as <tt>smp_mb()</tt> on steroids.
+<tt>synchronize_rcu()</tt> as <tt>smp_mb()</tt> on steroids.
 
 <p>RCU updaters use this guarantee by splitting their updates into
 two phases, one of which is executed before the grace period and

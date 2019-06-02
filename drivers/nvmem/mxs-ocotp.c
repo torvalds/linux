@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale MXS On-Chip OTP driver
  *
  * Copyright (C) 2015 Stefan Wahren <stefan.wahren@i2se.com>
  *
  * Based on the driver from Huang Shijie and Christoph G. Baumann
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -145,7 +135,6 @@ static int mxs_ocotp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct mxs_data *data;
 	struct mxs_ocotp *otp;
-	struct resource *res;
 	const struct of_device_id *match;
 	int ret;
 
@@ -157,8 +146,7 @@ static int mxs_ocotp_probe(struct platform_device *pdev)
 	if (!otp)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	otp->base = devm_ioremap_resource(dev, res);
+	otp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(otp->base))
 		return PTR_ERR(otp->base);
 

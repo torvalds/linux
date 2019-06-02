@@ -60,6 +60,7 @@ fault_injection=%d     Enable fault injection in all supported types with
                        specified injection rate. Supported injection type:
                        Type_Name                Type_Value
                        FAULT_KMALLOC            0x000000001
+                       FAULT_READ_IO            0x000000002
 (no)user_xattr         Setup Extended User Attributes. Note: xattr is enabled
                        by default if CONFIG_EROFS_FS_XATTR is selected.
 (no)acl                Setup POSIX Access Control List. Note: acl is enabled

@@ -178,7 +178,9 @@ void fuse_finish_open(struct inode *inode, struct file *file)
 
 	if (!(ff->open_flags & FOPEN_KEEP_CACHE))
 		invalidate_inode_pages2(inode->i_mapping);
-	if (ff->open_flags & FOPEN_NONSEEKABLE)
+	if (ff->open_flags & FOPEN_STREAM)
+		stream_open(inode, file);
+	else if (ff->open_flags & FOPEN_NONSEEKABLE)
 		nonseekable_open(inode, file);
 	if (fc->atomic_o_trunc && (file->f_flags & O_TRUNC)) {
 		struct fuse_inode *fi = get_fuse_inode(inode);
@@ -462,7 +464,7 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.fh = ff->fh;
-	inarg.fsync_flags = datasync ? 1 : 0;
+	inarg.fsync_flags = datasync ? FUSE_FSYNC_FDATASYNC : 0;
 	args.in.h.opcode = opcode;
 	args.in.h.nodeid = get_node_id(inode);
 	args.in.numargs = 1;
@@ -1586,7 +1588,7 @@ __acquires(fi->lock)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	size_t crop = i_size_read(inode);
+	loff_t crop = i_size_read(inode);
 	struct fuse_req *req;
 
 	while (fi->writectr >= 0 && !list_empty(&fi->queued_writes)) {
@@ -2576,8 +2578,13 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 #if BITS_PER_LONG == 32
 	inarg.flags |= FUSE_IOCTL_32BIT;
 #else
-	if (flags & FUSE_IOCTL_COMPAT)
+	if (flags & FUSE_IOCTL_COMPAT) {
 		inarg.flags |= FUSE_IOCTL_32BIT;
+#ifdef CONFIG_X86_X32
+		if (in_x32_syscall())
+			inarg.flags |= FUSE_IOCTL_COMPAT_X32;
+#endif
+	}
 #endif
 
 	/* assume all the iovs returned by client always fits in a page */
@@ -3042,6 +3049,13 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 
 			fuse_sync_writes(inode);
 		}
+	}
+
+	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
+	    offset + length > i_size_read(inode)) {
+		err = inode_newsize_ok(inode, offset + length);
+		if (err)
+			return err;
 	}
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE))

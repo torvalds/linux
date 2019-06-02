@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Bridge per vlan tunnel port dst_metadata netlink control interface
  *
  *	Authors:
  *	Roopa Prabhu		<roopa@cumulusnetworks.com>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -97,7 +93,7 @@ static int br_fill_vlan_tinfo(struct sk_buff *skb, u16 vid,
 	__be32 tid = tunnel_id_to_key32(tunnel_id);
 	struct nlattr *tmap;
 
-	tmap = nla_nest_start(skb, IFLA_BRIDGE_VLAN_TUNNEL_INFO);
+	tmap = nla_nest_start_noflag(skb, IFLA_BRIDGE_VLAN_TUNNEL_INFO);
 	if (!tmap)
 		return -EMSGSIZE;
 	if (nla_put_u32(skb, IFLA_BRIDGE_VLAN_TUNNEL_ID,
@@ -230,8 +226,8 @@ int br_parse_vlan_tunnel_info(struct nlattr *attr,
 
 	memset(tinfo, 0, sizeof(*tinfo));
 
-	err = nla_parse_nested(tb, IFLA_BRIDGE_VLAN_TUNNEL_MAX, attr,
-			       vlan_tunnel_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, IFLA_BRIDGE_VLAN_TUNNEL_MAX,
+					  attr, vlan_tunnel_policy, NULL);
 	if (err < 0)
 		return err;
 
