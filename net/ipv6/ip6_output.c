@@ -613,8 +613,7 @@ int ip6_fraglist_init(struct sk_buff *skb, unsigned int hlen, u8 *prevhdr,
 	if (!iter->tmp_hdr)
 		return -ENOMEM;
 
-	iter->frag_list = skb_shinfo(skb)->frag_list;
-	iter->frag = iter->frag_list;
+	iter->frag = skb_shinfo(skb)->frag_list;
 	skb_frag_list_init(skb);
 
 	iter->offset = 0;
@@ -879,7 +878,7 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 			return 0;
 		}
 
-		kfree_skb_list(iter.frag_list);
+		kfree_skb_list(iter.frag);
 
 		IP6_INC_STATS(net, ip6_dst_idev(&rt->dst),
 			      IPSTATS_MIB_FRAGFAILS);

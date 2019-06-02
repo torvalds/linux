@@ -156,7 +156,6 @@ struct frag_hdr {
 
 struct ip6_fraglist_iter {
 	struct ipv6hdr	*tmp_hdr;
-	struct sk_buff	*frag_list;
 	struct sk_buff	*frag;
 	int		offset;
 	unsigned int	hlen;

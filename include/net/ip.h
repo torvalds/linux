@@ -167,7 +167,6 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		   int (*output)(struct net *, struct sock *, struct sk_buff *));
 
 struct ip_fraglist_iter {
-	struct sk_buff	*frag_list;
 	struct sk_buff	*frag;
 	struct iphdr	*iph;
 	int		offset;

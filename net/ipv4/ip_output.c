@@ -575,8 +575,7 @@ void ip_fraglist_init(struct sk_buff *skb, struct iphdr *iph,
 {
 	unsigned int first_len = skb_pagelen(skb);
 
-	iter->frag_list = skb_shinfo(skb)->frag_list;
-	iter->frag = iter->frag_list;
+	iter->frag = skb_shinfo(skb)->frag_list;
 	skb_frag_list_init(skb);
 
 	iter->offset = 0;
@@ -845,7 +844,7 @@ int ip_do_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 			return 0;
 		}
 
-		kfree_skb_list(iter.frag_list);
+		kfree_skb_list(iter.frag);
 
 		IP_INC_STATS(net, IPSTATS_MIB_FRAGFAILS);
 		return err;

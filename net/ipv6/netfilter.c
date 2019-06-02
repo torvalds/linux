@@ -194,7 +194,7 @@ int br_ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 		if (!err)
 			return 0;
 
-		kfree_skb_list(iter.frag_list);
+		kfree_skb_list(iter.frag);
 		return err;
 	}
 slow_path:
