@@ -181,6 +181,9 @@ static void finish_session(struct snd_tscm *tscm)
 {
 	__be32 reg;
 
+	amdtp_stream_stop(&tscm->rx_stream);
+	amdtp_stream_stop(&tscm->tx_stream);
+
 	reg = 0;
 	snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 			   TSCM_ADDR_BASE + TSCM_OFFSET_START_STREAMING,
@@ -354,9 +357,6 @@ int snd_tscm_stream_reserve_duplex(struct snd_tscm *tscm, unsigned int rate)
 		return err;
 
 	if (tscm->substreams_counter == 0 || rate != curr_rate) {
-		amdtp_stream_stop(&tscm->rx_stream);
-		amdtp_stream_stop(&tscm->tx_stream);
-
 		finish_session(tscm);
 
 		fw_iso_resources_free(&tscm->tx_resources);
@@ -397,12 +397,8 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 		return 0;
 
 	if (amdtp_streaming_error(&tscm->rx_stream) ||
-	    amdtp_streaming_error(&tscm->tx_stream)) {
-		amdtp_stream_stop(&tscm->rx_stream);
-		amdtp_stream_stop(&tscm->tx_stream);
-
+	    amdtp_streaming_error(&tscm->tx_stream))
 		finish_session(tscm);
-	}
 
 	if (generation != fw_parent_device(tscm->unit)->card->generation) {
 		err = fw_iso_resources_update(&tscm->tx_resources);
@@ -452,9 +448,6 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 
 	return 0;
 error:
-	amdtp_stream_stop(&tscm->rx_stream);
-	amdtp_stream_stop(&tscm->tx_stream);
-
 	finish_session(tscm);
 
 	return err;
@@ -462,12 +455,8 @@ error:
 
 void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm)
 {
-	if (tscm->substreams_counter == 0) {
-		amdtp_stream_stop(&tscm->tx_stream);
-		amdtp_stream_stop(&tscm->rx_stream);
-
+	if (tscm->substreams_counter == 0)
 		finish_session(tscm);
-	}
 }
 
 void snd_tscm_stream_lock_changed(struct snd_tscm *tscm)
