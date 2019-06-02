@@ -97,8 +97,6 @@ static struct spi_board_info p2kr0_board_info[] = {
 #define KP_SPI_REG_STATUS_RXFFE 0x40
 #define KP_SPI_REG_STATUS_RXFFF 0x80
 
-
-
 /******************
  * SPI Structures *
  ******************/
@@ -111,7 +109,6 @@ struct kp_spi {
 	unsigned int        pin_dir:1;
 };
 
-
 struct kp_spi_controller_state {
 	void __iomem   *base;
 	unsigned long   phys;
@@ -119,7 +116,6 @@ struct kp_spi_controller_state {
 	int             word_len;
 	s64             conf_cache;
 };
-
 
 union kp_spi_config {
 	/* use this to access individual elements */
@@ -141,8 +137,6 @@ union kp_spi_config {
 	u32 reg;
 };
 
-
-
 union kp_spi_status {
 	struct __attribute__((packed)) spi_status_bitfield {
 		unsigned int rx    :  1; /* Rx Status       */
@@ -158,8 +152,6 @@ union kp_spi_status {
 	u32 reg;
 };
 
-
-
 union kp_spi_ffctrl {
 	struct __attribute__((packed)) spi_ffctrl_bitfield {
 		unsigned int ffstart :  1; /* FIFO Start */
@@ -167,8 +159,6 @@ union kp_spi_ffctrl {
 	} bitfield;
 	u32 reg;
 };
-
-
 
 /***************
  * SPI Helpers *
@@ -445,8 +435,6 @@ kp_spi_cleanup(struct spi_device *spidev)
 	}
 }
 
-
-
 /******************
  * Probe / Remove *
  ******************/
@@ -537,7 +525,6 @@ kp_spi_remove(struct platform_device *pldev)
 	spi_unregister_master(master);
 	return 0;
 }
-
 
 static struct platform_driver kp_spi_driver = {
 	.driver = {
