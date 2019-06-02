@@ -12,11 +12,6 @@
 #include "wifi.h"
 #include <linux/wireless.h>
 
-#define MGMT_QUEUE_NUM 5
-
-#define ETH_TYPE_LEN		2
-#define PAYLOAD_TYPE_LEN	1
-
 #ifdef CONFIG_88EU_AP_MODE
 
 #define RTL_IOCTL_HOSTAPD (SIOCIWFIRSTPRIV + 28)
