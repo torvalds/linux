@@ -195,12 +195,49 @@ static void finish_session(struct snd_tscm *tscm)
 			   TSCM_ADDR_BASE + TSCM_OFFSET_ISOC_RX_ON,
 			   &reg, sizeof(reg), 0);
 
+	// Unregister channels.
+	reg = cpu_to_be32(0x00000000);
+	snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
+			   TSCM_ADDR_BASE + TSCM_OFFSET_ISOC_TX_CH,
+			   &reg, sizeof(reg), 0);
+	reg = cpu_to_be32(0x00000000);
+	snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
+			   TSCM_ADDR_BASE + TSCM_OFFSET_UNKNOWN,
+			   &reg, sizeof(reg), 0);
+	reg = cpu_to_be32(0x00000000);
+	snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
+			   TSCM_ADDR_BASE + TSCM_OFFSET_ISOC_RX_CH,
+			   &reg, sizeof(reg), 0);
 }
 
 static int begin_session(struct snd_tscm *tscm)
 {
 	__be32 reg;
 	int err;
+
+	// Register the isochronous channel for transmitting stream.
+	reg = cpu_to_be32(tscm->tx_resources.channel);
+	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
+				 TSCM_ADDR_BASE + TSCM_OFFSET_ISOC_TX_CH,
+				 &reg, sizeof(reg), 0);
+	if (err < 0)
+		return err;
+
+	// Unknown.
+	reg = cpu_to_be32(0x00000002);
+	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
+				 TSCM_ADDR_BASE + TSCM_OFFSET_UNKNOWN,
+				 &reg, sizeof(reg), 0);
+	if (err < 0)
+		return err;
+
+	// Register the isochronous channel for receiving stream.
+	reg = cpu_to_be32(tscm->rx_resources.channel);
+	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
+				 TSCM_ADDR_BASE + TSCM_OFFSET_ISOC_RX_CH,
+				 &reg, sizeof(reg), 0);
+	if (err < 0)
+		return err;
 
 	reg = cpu_to_be32(0x00000001);
 	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
@@ -216,7 +253,7 @@ static int begin_session(struct snd_tscm *tscm)
 	if (err < 0)
 		return err;
 
-	/* Set an option for unknown purpose. */
+	// Set an option for unknown purpose.
 	reg = cpu_to_be32(0x00002000);
 	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 				 TSCM_ADDR_BASE + TSCM_OFFSET_SET_OPTION,
@@ -224,7 +261,7 @@ static int begin_session(struct snd_tscm *tscm)
 	if (err < 0)
 		return err;
 
-	/* Start multiplexing PCM samples on packets. */
+	// Start multiplexing PCM samples on packets.
 	reg = cpu_to_be32(0x00000001);
 	return snd_fw_transaction(tscm->unit,
 				  TCODE_WRITE_QUADLET_REQUEST,
@@ -234,30 +271,13 @@ static int begin_session(struct snd_tscm *tscm)
 
 static void release_resources(struct snd_tscm *tscm)
 {
-	__be32 reg;
-
-	/* Unregister channels. */
-	reg = cpu_to_be32(0x00000000);
-	snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
-			   TSCM_ADDR_BASE + TSCM_OFFSET_ISOC_TX_CH,
-			   &reg, sizeof(reg), 0);
-	reg = cpu_to_be32(0x00000000);
-	snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
-			   TSCM_ADDR_BASE + TSCM_OFFSET_UNKNOWN,
-			   &reg, sizeof(reg), 0);
-	reg = cpu_to_be32(0x00000000);
-	snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
-			   TSCM_ADDR_BASE + TSCM_OFFSET_ISOC_RX_CH,
-			   &reg, sizeof(reg), 0);
-
-	/* Release isochronous resources. */
+	// Release isochronous resources.
 	fw_iso_resources_free(&tscm->tx_resources);
 	fw_iso_resources_free(&tscm->rx_resources);
 }
 
 static int keep_resources(struct snd_tscm *tscm, unsigned int rate)
 {
-	__be32 reg;
 	int err;
 
 	/* Keep resources for in-stream. */
@@ -279,30 +299,6 @@ static int keep_resources(struct snd_tscm *tscm, unsigned int rate)
 			fw_parent_device(tscm->unit)->max_speed);
 	if (err < 0)
 		return err;
-
-	/* Register the isochronous channel for transmitting stream. */
-	reg = cpu_to_be32(tscm->tx_resources.channel);
-	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
-				 TSCM_ADDR_BASE + TSCM_OFFSET_ISOC_TX_CH,
-				 &reg, sizeof(reg), 0);
-	if (err < 0)
-		goto error;
-
-	/* Unknown */
-	reg = cpu_to_be32(0x00000002);
-	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
-				 TSCM_ADDR_BASE + TSCM_OFFSET_UNKNOWN,
-				 &reg, sizeof(reg), 0);
-	if (err < 0)
-		goto error;
-
-	/* Register the isochronous channel for receiving stream. */
-	reg = cpu_to_be32(tscm->rx_resources.channel);
-	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
-				 TSCM_ADDR_BASE + TSCM_OFFSET_ISOC_RX_CH,
-				 &reg, sizeof(reg), 0);
-	if (err < 0)
-		goto error;
 
 	return 0;
 error:
