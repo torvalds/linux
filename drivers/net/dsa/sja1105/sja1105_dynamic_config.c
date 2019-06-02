@@ -44,17 +44,63 @@ struct sja1105_dyn_cmd {
 	u64 index;
 };
 
+enum sja1105_hostcmd {
+	SJA1105_HOSTCMD_SEARCH = 1,
+	SJA1105_HOSTCMD_READ = 2,
+	SJA1105_HOSTCMD_WRITE = 3,
+	SJA1105_HOSTCMD_INVALIDATE = 4,
+};
+
 static void
 sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 				  enum packing_op op)
 {
 	u8 *p = buf + SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
 	const int size = SJA1105_SIZE_DYN_CMD;
+	u64 lockeds = 0;
+	u64 hostcmd;
 
 	sja1105_packing(p, &cmd->valid,    31, 31, size, op);
 	sja1105_packing(p, &cmd->rdwrset,  30, 30, size, op);
 	sja1105_packing(p, &cmd->errors,   29, 29, size, op);
+	sja1105_packing(p, &lockeds,       28, 28, size, op);
 	sja1105_packing(p, &cmd->valident, 27, 27, size, op);
+
+	/* VALIDENT is supposed to indicate "keep or not", but in SJA1105 E/T,
+	 * using it to delete a management route was unsupported. UM10944
+	 * said about it:
+	 *
+	 *   In case of a write access with the MGMTROUTE flag set,
+	 *   the flag will be ignored. It will always be found cleared
+	 *   for read accesses with the MGMTROUTE flag set.
+	 *
+	 * SJA1105 P/Q/R/S keeps the same behavior w.r.t. VALIDENT, but there
+	 * is now another flag called HOSTCMD which does more stuff (quoting
+	 * from UM11040):
+	 *
+	 *   A write request is accepted only when HOSTCMD is set to write host
+	 *   or invalid. A read request is accepted only when HOSTCMD is set to
+	 *   search host or read host.
+	 *
+	 * So it is possible to translate a RDWRSET/VALIDENT combination into
+	 * HOSTCMD so that we keep the dynamic command API in place, and
+	 * at the same time achieve compatibility with the management route
+	 * command structure.
+	 */
+	if (cmd->rdwrset == SPI_READ) {
+		if (cmd->search)
+			hostcmd = SJA1105_HOSTCMD_SEARCH;
+		else
+			hostcmd = SJA1105_HOSTCMD_READ;
+	} else {
+		/* SPI_WRITE */
+		if (cmd->valident)
+			hostcmd = SJA1105_HOSTCMD_WRITE;
+		else
+			hostcmd = SJA1105_HOSTCMD_INVALIDATE;
+	}
+	sja1105_packing(p, &hostcmd, 25, 23, size, op);
+
 	/* Hack - The hardware takes the 'index' field within
 	 * struct sja1105_l2_lookup_entry as the index on which this command
 	 * will operate. However it will ignore everything else, so 'index'
@@ -65,7 +111,6 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	 */
 	sja1105_packing(buf, &cmd->index, 15, 6,
 			SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY, op);
-	/* TODO hostcmd */
 }
 
 static void
@@ -319,9 +364,9 @@ struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_L2_LOOKUP] = {
 		.entry_packing = sja1105pqrs_l2_lookup_entry_packing,
 		.cmd_packing = sja1105pqrs_l2_lookup_cmd_packing,
-		.access = (OP_READ | OP_WRITE | OP_DEL),
+		.access = (OP_READ | OP_WRITE | OP_DEL | OP_SEARCH),
 		.max_entry_count = SJA1105_MAX_L2_LOOKUP_COUNT,
-		.packed_size = SJA1105ET_SIZE_L2_LOOKUP_DYN_CMD,
+		.packed_size = SJA1105PQRS_SIZE_L2_LOOKUP_DYN_CMD,
 		.addr = 0x24,
 	},
 	[BLK_IDX_L2_POLICING] = {0},
@@ -403,7 +448,7 @@ int sja1105_dynamic_config_read(struct sja1105_private *priv,
 
 	ops = &priv->info->dyn_ops[blk_idx];
 
-	if (index >= ops->max_entry_count)
+	if (index >= 0 && index >= ops->max_entry_count)
 		return -ERANGE;
 	if (index < 0 && !(ops->access & OP_SEARCH))
 		return -EOPNOTSUPP;
@@ -426,6 +471,7 @@ int sja1105_dynamic_config_read(struct sja1105_private *priv,
 		cmd.index = index;
 		cmd.search = false;
 	}
+	cmd.valident = true;
 	ops->cmd_packing(packed_buf, &cmd, PACK);
 
 	if (cmd.search)
