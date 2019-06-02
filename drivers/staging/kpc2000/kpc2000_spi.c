@@ -105,7 +105,6 @@ struct kp_spi {
 	u64 __iomem        *base;
 	unsigned long       phys;
 	struct device      *dev;
-	int                 fifo_depth;
 	unsigned int        pin_dir:1;
 };
 
