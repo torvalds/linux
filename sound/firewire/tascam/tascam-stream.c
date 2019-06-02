@@ -166,7 +166,7 @@ static int set_stream_formats(struct snd_tscm *tscm, unsigned int rate)
 	__be32 reg;
 	int err;
 
-	/* Set an option for unknown purpose. */
+	// Set an option for unknown purpose.
 	reg = cpu_to_be32(0x00200000);
 	err = snd_fw_transaction(tscm->unit, TCODE_WRITE_QUADLET_REQUEST,
 				 TSCM_ADDR_BASE + TSCM_OFFSET_SET_OPTION,
@@ -174,11 +174,7 @@ static int set_stream_formats(struct snd_tscm *tscm, unsigned int rate)
 	if (err < 0)
 		return err;
 
-	err = enable_data_channels(tscm);
-	if (err < 0)
-		return err;
-
-	return set_clock(tscm, rate, INT_MAX);
+	return enable_data_channels(tscm);
 }
 
 static void finish_session(struct snd_tscm *tscm)
@@ -348,38 +344,66 @@ void snd_tscm_stream_destroy_duplex(struct snd_tscm *tscm)
 	fw_iso_resources_destroy(&tscm->tx_resources);
 }
 
-int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
+int snd_tscm_stream_reserve_duplex(struct snd_tscm *tscm, unsigned int rate)
 {
 	unsigned int curr_rate;
+	int err;
+
+	err = snd_tscm_stream_get_rate(tscm, &curr_rate);
+	if (err < 0)
+		return err;
+
+	if (tscm->substreams_counter == 0 || rate != curr_rate) {
+		amdtp_stream_stop(&tscm->rx_stream);
+		amdtp_stream_stop(&tscm->tx_stream);
+
+		finish_session(tscm);
+
+		fw_iso_resources_free(&tscm->tx_resources);
+		fw_iso_resources_free(&tscm->rx_resources);
+
+		err = set_clock(tscm, rate, INT_MAX);
+		if (err < 0)
+			return err;
+
+		err = keep_resources(tscm, rate, &tscm->tx_stream);
+		if (err < 0)
+			return err;
+
+		err = keep_resources(tscm, rate, &tscm->rx_stream);
+		if (err < 0) {
+			fw_iso_resources_free(&tscm->tx_resources);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+void snd_tscm_stream_release_duplex(struct snd_tscm *tscm)
+{
+	if (tscm->substreams_counter == 0) {
+		fw_iso_resources_free(&tscm->tx_resources);
+		fw_iso_resources_free(&tscm->rx_resources);
+	}
+}
+
+int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
+{
 	int err;
 
 	if (tscm->substreams_counter == 0)
 		return 0;
 
-	err = snd_tscm_stream_get_rate(tscm, &curr_rate);
-	if (err < 0)
-		return err;
-	if (curr_rate != rate ||
-	    amdtp_streaming_error(&tscm->rx_stream) ||
+	if (amdtp_streaming_error(&tscm->rx_stream) ||
 	    amdtp_streaming_error(&tscm->tx_stream)) {
-		finish_session(tscm);
-
 		amdtp_stream_stop(&tscm->rx_stream);
 		amdtp_stream_stop(&tscm->tx_stream);
 
-		fw_iso_resources_free(&tscm->tx_resources);
-		fw_iso_resources_free(&tscm->rx_resources);
+		finish_session(tscm);
 	}
 
 	if (!amdtp_stream_running(&tscm->rx_stream)) {
-		err = keep_resources(tscm, rate, &tscm->tx_stream);
-		if (err < 0)
-			goto error;
-
-		err = keep_resources(tscm, rate, &tscm->rx_stream);
-		if (err < 0)
-			goto error;
-
 		err = set_stream_formats(tscm, rate);
 		if (err < 0)
 			goto error;
@@ -422,24 +446,17 @@ error:
 
 	finish_session(tscm);
 
-	fw_iso_resources_free(&tscm->tx_resources);
-	fw_iso_resources_free(&tscm->rx_resources);
-
 	return err;
 }
 
 void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm)
 {
-	if (tscm->substreams_counter > 0)
-		return;
+	if (tscm->substreams_counter == 0) {
+		amdtp_stream_stop(&tscm->tx_stream);
+		amdtp_stream_stop(&tscm->rx_stream);
 
-	amdtp_stream_stop(&tscm->tx_stream);
-	amdtp_stream_stop(&tscm->rx_stream);
-
-	finish_session(tscm);
-
-	fw_iso_resources_free(&tscm->tx_resources);
-	fw_iso_resources_free(&tscm->rx_resources);
+		finish_session(tscm);
+	}
 }
 
 void snd_tscm_stream_lock_changed(struct snd_tscm *tscm)
