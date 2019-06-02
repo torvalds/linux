@@ -1299,7 +1299,7 @@ static int hugetlbfs_get_tree(struct fs_context *fc)
 	int err = hugetlbfs_validate(fc);
 	if (err)
 		return err;
-	return vfs_get_super(fc, vfs_get_independent_super, hugetlbfs_fill_super);
+	return get_tree_nodev(fc, hugetlbfs_fill_super);
 }
 
 static void hugetlbfs_fs_context_free(struct fs_context *fc)

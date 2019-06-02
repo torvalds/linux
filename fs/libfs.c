@@ -270,7 +270,7 @@ static int pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
 
 static int pseudo_fs_get_tree(struct fs_context *fc)
 {
-	return vfs_get_super(fc, vfs_get_independent_super, pseudo_fs_fill_super);
+	return get_tree_nodev(fc, pseudo_fs_fill_super);
 }
 
 static void pseudo_fs_free(struct fs_context *fc)
