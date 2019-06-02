@@ -156,6 +156,10 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 		if (err < 0)
 			return err;
 
+		err = ff->spec->protocol->allocate_resources(ff, rate);
+		if (err < 0)
+			goto error;
+
 		err = ff->spec->protocol->begin_session(ff, rate);
 		if (err < 0)
 			goto error;

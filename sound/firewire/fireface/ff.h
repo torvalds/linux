@@ -113,6 +113,7 @@ struct snd_ff_protocol {
 	int (*get_clock)(struct snd_ff *ff, unsigned int *rate,
 			 enum snd_ff_clock_src *src);
 	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
+	int (*allocate_resources)(struct snd_ff *ff, unsigned int rate);
 	int (*begin_session)(struct snd_ff *ff, unsigned int rate);
 	void (*finish_session)(struct snd_ff *ff);
 	void (*dump_status)(struct snd_ff *ff, struct snd_info_buffer *buffer);
