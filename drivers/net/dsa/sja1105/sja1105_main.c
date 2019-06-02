@@ -1006,7 +1006,21 @@ static int sja1105_fdb_add(struct dsa_switch *ds, int port,
 			   const unsigned char *addr, u16 vid)
 {
 	struct sja1105_private *priv = ds->priv;
+	int rc;
 
+	/* Since we make use of VLANs even when the bridge core doesn't tell us
+	 * to, translate these FDB entries into the correct dsa_8021q ones.
+	 */
+	if (!dsa_port_is_vlan_filtering(&ds->ports[port])) {
+		unsigned int upstream = dsa_upstream_port(priv->ds, port);
+		u16 tx_vid = dsa_8021q_tx_vid(ds, port);
+		u16 rx_vid = dsa_8021q_rx_vid(ds, port);
+
+		rc = priv->info->fdb_add_cmd(ds, port, addr, tx_vid);
+		if (rc < 0)
+			return rc;
+		return priv->info->fdb_add_cmd(ds, upstream, addr, rx_vid);
+	}
 	return priv->info->fdb_add_cmd(ds, port, addr, vid);
 }
 
@@ -1014,7 +1028,21 @@ static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 			   const unsigned char *addr, u16 vid)
 {
 	struct sja1105_private *priv = ds->priv;
+	int rc;
 
+	/* Since we make use of VLANs even when the bridge core doesn't tell us
+	 * to, translate these FDB entries into the correct dsa_8021q ones.
+	 */
+	if (!dsa_port_is_vlan_filtering(&ds->ports[port])) {
+		unsigned int upstream = dsa_upstream_port(priv->ds, port);
+		u16 tx_vid = dsa_8021q_tx_vid(ds, port);
+		u16 rx_vid = dsa_8021q_rx_vid(ds, port);
+
+		rc = priv->info->fdb_del_cmd(ds, port, addr, tx_vid);
+		if (rc < 0)
+			return rc;
+		return priv->info->fdb_del_cmd(ds, upstream, addr, rx_vid);
+	}
 	return priv->info->fdb_del_cmd(ds, port, addr, vid);
 }
 
@@ -1049,6 +1077,15 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 		if (!(l2_lookup.destports & BIT(port)))
 			continue;
 		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
+
+		/* We need to hide the dsa_8021q VLAN from the user.
+		 * Convert the TX VID into the pvid that is active in
+		 * standalone and non-vlan_filtering modes, aka 1.
+		 * The RX VID is applied on the CPU port, which is not seen by
+		 * the bridge core anyway, so there's nothing to hide.
+		 */
+		if (!dsa_port_is_vlan_filtering(&ds->ports[port]))
+			l2_lookup.vlanid = 1;
 		cb(macaddr, l2_lookup.vlanid, false, data);
 	}
 	return 0;
