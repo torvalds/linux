@@ -33,6 +33,9 @@ int snd_ff_stream_get_multiplier_mode(enum cip_sfc sfc,
 
 static inline void finish_session(struct snd_ff *ff)
 {
+	amdtp_stream_stop(&ff->tx_stream);
+	amdtp_stream_stop(&ff->rx_stream);
+
 	ff->spec->protocol->finish_session(ff);
 	ff->spec->protocol->switch_fetching_mode(ff, false);
 }
@@ -112,9 +115,6 @@ int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate)
 		enum snd_ff_stream_mode mode;
 		int i;
 
-		amdtp_stream_stop(&ff->tx_stream);
-		amdtp_stream_stop(&ff->rx_stream);
-
 		finish_session(ff);
 
 		fw_iso_resources_free(&ff->tx_resources);
@@ -165,12 +165,8 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 		return 0;
 
 	if (amdtp_streaming_error(&ff->tx_stream) ||
-	    amdtp_streaming_error(&ff->rx_stream)) {
-		amdtp_stream_stop(&ff->tx_stream);
-		amdtp_stream_stop(&ff->rx_stream);
-
+	    amdtp_streaming_error(&ff->rx_stream))
 		finish_session(ff);
-	}
 
 	/*
 	 * Regardless of current source of clock signal, drivers transfer some
@@ -214,9 +210,6 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 
 	return 0;
 error:
-	amdtp_stream_stop(&ff->tx_stream);
-	amdtp_stream_stop(&ff->rx_stream);
-
 	finish_session(ff);
 
 	return err;
@@ -224,12 +217,8 @@ error:
 
 void snd_ff_stream_stop_duplex(struct snd_ff *ff)
 {
-	if (ff->substreams_counter > 0)
-		return;
-
-	amdtp_stream_stop(&ff->tx_stream);
-	amdtp_stream_stop(&ff->rx_stream);
-	finish_session(ff);
+	if (ff->substreams_counter == 0)
+		finish_session(ff);
 }
 
 void snd_ff_stream_update_duplex(struct snd_ff *ff)
