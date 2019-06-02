@@ -276,34 +276,24 @@ static void release_resources(struct snd_tscm *tscm)
 	fw_iso_resources_free(&tscm->rx_resources);
 }
 
-static int keep_resources(struct snd_tscm *tscm, unsigned int rate)
+static int keep_resources(struct snd_tscm *tscm, unsigned int rate,
+			  struct amdtp_stream *stream)
 {
+	struct fw_iso_resources *resources;
 	int err;
 
-	/* Keep resources for in-stream. */
-	err = amdtp_tscm_set_parameters(&tscm->tx_stream, rate);
-	if (err < 0)
-		return err;
-	err = fw_iso_resources_allocate(&tscm->tx_resources,
-			amdtp_stream_get_max_payload(&tscm->tx_stream),
-			fw_parent_device(tscm->unit)->max_speed);
-	if (err < 0)
-		goto error;
+	if (stream == &tscm->tx_stream)
+		resources = &tscm->tx_resources;
+	else
+		resources = &tscm->rx_resources;
 
-	/* Keep resources for out-stream. */
-	err = amdtp_tscm_set_parameters(&tscm->rx_stream, rate);
-	if (err < 0)
-		return err;
-	err = fw_iso_resources_allocate(&tscm->rx_resources,
-			amdtp_stream_get_max_payload(&tscm->rx_stream),
-			fw_parent_device(tscm->unit)->max_speed);
+	err = amdtp_tscm_set_parameters(stream, rate);
 	if (err < 0)
 		return err;
 
-	return 0;
-error:
-	release_resources(tscm);
-	return err;
+	return fw_iso_resources_allocate(resources,
+				amdtp_stream_get_max_payload(stream),
+				fw_parent_device(tscm->unit)->max_speed);
 }
 
 int snd_tscm_stream_init_duplex(struct snd_tscm *tscm)
@@ -388,7 +378,11 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 	}
 
 	if (!amdtp_stream_running(&tscm->rx_stream)) {
-		err = keep_resources(tscm, rate);
+		err = keep_resources(tscm, rate, &tscm->tx_stream);
+		if (err < 0)
+			goto error;
+
+		err = keep_resources(tscm, rate, &tscm->rx_stream);
 		if (err < 0)
 			goto error;
 
