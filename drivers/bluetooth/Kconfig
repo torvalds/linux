@@ -52,6 +52,17 @@ config BT_HCIBTUSB_BCM
 
 	  Say Y here to compile support for Broadcom protocol.
 
+config BT_HCIBTUSB_MTK
+	bool "MediaTek protocol support"
+	depends on BT_HCIBTUSB
+	default n
+	help
+	  The MediaTek protocol support enables firmware download
+	  support and chip initialization for MediaTek Bluetooth
+	  USB controllers.
+
+	  Say Y here to compile support for MediaTek protocol.
+
 config BT_HCIBTUSB_RTL
 	bool "Realtek protocol support"
 	depends on BT_HCIBTUSB
