@@ -202,7 +202,8 @@ struct rcu_data {
 	struct timer_list nocb_timer;	/* Enforce finite deferral. */
 
 	/* The following fields are used by GP kthread, hence own cacheline. */
-	bool nocb_gp_sleep ____cacheline_internodealigned_in_smp;
+	raw_spinlock_t nocb_gp_lock ____cacheline_internodealigned_in_smp;
+	bool nocb_gp_sleep;
 					/* Is the nocb GP thread asleep? */
 	struct swait_queue_head nocb_gp_wq; /* For nocb kthreads to sleep on. */
 	bool nocb_cb_sleep;		/* Is the nocb CB thread asleep? */

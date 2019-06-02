@@ -1604,9 +1604,9 @@ static void wake_nocb_gp(struct rcu_data *rdp, bool force,
 		del_timer(&rdp->nocb_timer);
 		rcu_nocb_unlock_irqrestore(rdp, flags);
 		smp_mb(); /* enqueue before ->nocb_gp_sleep. */
-		rcu_nocb_lock_irqsave(rdp_gp, flags);
+		raw_spin_lock_irqsave(&rdp_gp->nocb_gp_lock, flags);
 		WRITE_ONCE(rdp_gp->nocb_gp_sleep, false);
-		rcu_nocb_unlock_irqrestore(rdp_gp, flags);
+		raw_spin_unlock_irqrestore(&rdp_gp->nocb_gp_lock, flags);
 		wake_up_process(rdp_gp->nocb_gp_kthread);
 	} else {
 		rcu_nocb_unlock_irqrestore(rdp, flags);
@@ -1761,9 +1761,9 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 		trace_rcu_this_gp(rnp, my_rdp, wait_gp_seq, TPS("EndWait"));
 	}
 	if (!rcu_nocb_poll) {
-		rcu_nocb_lock_irqsave(my_rdp, flags);
+		raw_spin_lock_irqsave(&my_rdp->nocb_gp_lock, flags);
 		WRITE_ONCE(my_rdp->nocb_gp_sleep, true);
-		rcu_nocb_unlock_irqrestore(my_rdp, flags);
+		raw_spin_unlock_irqrestore(&my_rdp->nocb_gp_lock, flags);
 	}
 	WARN_ON(signal_pending(current));
 }
@@ -1943,6 +1943,7 @@ static void __init rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp)
 	init_swait_queue_head(&rdp->nocb_cb_wq);
 	init_swait_queue_head(&rdp->nocb_gp_wq);
 	raw_spin_lock_init(&rdp->nocb_lock);
+	raw_spin_lock_init(&rdp->nocb_gp_lock);
 	timer_setup(&rdp->nocb_timer, do_nocb_deferred_wakeup_timer, 0);
 }
 
