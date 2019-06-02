@@ -429,12 +429,11 @@ const struct snd_ff_protocol snd_ff_protocol_ff800 = {
 #define FF400_TX_PACKET_FORMAT	0x00008010050cull
 #define FF400_ISOC_COMM_STOP	0x000080100510ull
 
-/*
- * Fireface 400 manages isochronous channel number in 3 bit field. Therefore,
- * we can allocate between 0 and 7 channel.
- */
-static int keep_resources(struct snd_ff *ff, unsigned int rate)
+// Fireface 400 manages isochronous channel number in 3 bit field. Therefore,
+// we can allocate between 0 and 7 channel.
+static int ff400_allocate_resources(struct snd_ff *ff, unsigned int rate)
 {
+	__le32 reg;
 	enum snd_ff_stream_mode mode;
 	int i;
 	int err;
@@ -447,11 +446,20 @@ static int keep_resources(struct snd_ff *ff, unsigned int rate)
 	if (i >= CIP_SFC_COUNT)
 		return -EINVAL;
 
+	// Set the number of data blocks transferred in a second.
+	reg = cpu_to_le32(rate);
+	err = snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
+				 FF400_STF, &reg, sizeof(reg), 0);
+	if (err < 0)
+		return err;
+
+	msleep(100);
+
 	err = snd_ff_stream_get_multiplier_mode(i, &mode);
 	if (err < 0)
 		return err;
 
-	/* Keep resources for in-stream. */
+	// Keep resources for in-stream.
 	ff->tx_resources.channels_mask = 0x00000000000000ffuLL;
 	err = fw_iso_resources_allocate(&ff->tx_resources,
 			amdtp_stream_get_max_payload(&ff->tx_stream),
@@ -459,7 +467,7 @@ static int keep_resources(struct snd_ff *ff, unsigned int rate)
 	if (err < 0)
 		return err;
 
-	/* Keep resources for out-stream. */
+	// Keep resources for out-stream.
 	ff->rx_resources.channels_mask = 0x00000000000000ffuLL;
 	err = fw_iso_resources_allocate(&ff->rx_resources,
 			amdtp_stream_get_max_payload(&ff->rx_stream),
@@ -474,19 +482,6 @@ static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
 {
 	__le32 reg;
 	int err;
-
-	err = keep_resources(ff, rate);
-	if (err < 0)
-		return err;
-
-	/* Set the number of data blocks transferred in a second. */
-	reg = cpu_to_le32(rate);
-	err = snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
-				 FF400_STF, &reg, sizeof(reg), 0);
-	if (err < 0)
-		return err;
-
-	msleep(100);
 
 	/*
 	 * Set isochronous channel and the number of quadlets of received
@@ -589,6 +584,7 @@ const struct snd_ff_protocol snd_ff_protocol_ff400 = {
 	.fill_midi_msg		= former_fill_midi_msg,
 	.get_clock		= former_get_clock,
 	.switch_fetching_mode	= former_switch_fetching_mode,
+	.allocate_resources	= ff400_allocate_resources,
 	.begin_session		= ff400_begin_session,
 	.finish_session		= ff400_finish_session,
 	.dump_status		= former_dump_status,
