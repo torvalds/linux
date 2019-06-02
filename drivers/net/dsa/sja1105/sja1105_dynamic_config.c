@@ -502,7 +502,7 @@ int sja1105_dynamic_config_read(struct sja1105_private *priv,
 		 * So don't error out in that case.
 		 */
 		if (!cmd.valident && blk_idx != BLK_IDX_MGMT_ROUTE)
-			return -EINVAL;
+			return -ENOENT;
 		cpu_relax();
 	} while (cmd.valid && --retries);
 

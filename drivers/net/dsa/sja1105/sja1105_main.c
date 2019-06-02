@@ -948,7 +948,7 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 		rc = sja1105_dynamic_config_read(priv, BLK_IDX_L2_LOOKUP,
 						 i, &l2_lookup);
 		/* No fdb entry at i, not an issue */
-		if (rc == -EINVAL)
+		if (rc == -ENOENT)
 			continue;
 		if (rc) {
 			dev_err(dev, "Failed to dump FDB: %d\n", rc);
