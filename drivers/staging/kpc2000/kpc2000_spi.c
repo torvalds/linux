@@ -162,20 +162,6 @@ union kp_spi_ffctrl {
 /***************
  * SPI Helpers *
  ***************/
-	static inline int
-kp_spi_bytes_per_word(int word_len)
-{
-	if (word_len <= 8){
-		return 1;
-	}
-	else if (word_len <= 16) {
-		return 2;
-	}
-	else { /* word_len <= 32 */
-		return 4;
-	}
-}
-
 	static inline u64
 kp_spi_read_reg(struct kp_spi_controller_state *cs, int idx)
 {
