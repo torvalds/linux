@@ -1475,6 +1475,8 @@ static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
 	if (!timeout) {
 		/* Clean up the management route so that a follow-up
 		 * frame may not match on it by mistake.
+		 * This is only hardware supported on P/Q/R/S - on E/T it is
+		 * a no-op and we are silently discarding the -EOPNOTSUPP.
 		 */
 		sja1105_dynamic_config_write(priv, BLK_IDX_MGMT_ROUTE,
 					     slot, &mgmt_route, false);

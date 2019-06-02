@@ -161,6 +161,36 @@ static size_t sja1105et_mgmt_route_entry_packing(void *buf, void *entry_ptr,
 	return size;
 }
 
+static void
+sja1105pqrs_mgmt_route_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				   enum packing_op op)
+{
+	u8 *p = buf + SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
+	u64 mgmtroute = 1;
+
+	sja1105pqrs_l2_lookup_cmd_packing(buf, cmd, op);
+	if (op == PACK)
+		sja1105_pack(p, &mgmtroute, 26, 26, SJA1105_SIZE_DYN_CMD);
+}
+
+static size_t sja1105pqrs_mgmt_route_entry_packing(void *buf, void *entry_ptr,
+						   enum packing_op op)
+{
+	const size_t size = SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
+	struct sja1105_mgmt_entry *entry = entry_ptr;
+
+	/* In P/Q/R/S, enfport got renamed to mgmtvalid, but its purpose
+	 * is the same (driver uses it to confirm that frame was sent).
+	 * So just keep the name from E/T.
+	 */
+	sja1105_packing(buf, &entry->tsreg,     71, 71, size, op);
+	sja1105_packing(buf, &entry->takets,    70, 70, size, op);
+	sja1105_packing(buf, &entry->macaddr,   69, 22, size, op);
+	sja1105_packing(buf, &entry->destports, 21, 17, size, op);
+	sja1105_packing(buf, &entry->enfport,   16, 16, size, op);
+	return size;
+}
+
 /* In E/T, entry is at addresses 0x27-0x28. There is a 4 byte gap at 0x29,
  * and command is at 0x2a. Similarly in P/Q/R/S there is a 1 register gap
  * between entry (0x2d, 0x2e) and command (0x30).
@@ -359,13 +389,21 @@ struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_XMII_PARAMS] = {0},
 };
 
-/* SJA1105P/Q/R/S: Second generation: TODO */
+/* SJA1105P/Q/R/S: Second generation */
 struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_L2_LOOKUP] = {
 		.entry_packing = sja1105pqrs_l2_lookup_entry_packing,
 		.cmd_packing = sja1105pqrs_l2_lookup_cmd_packing,
 		.access = (OP_READ | OP_WRITE | OP_DEL | OP_SEARCH),
 		.max_entry_count = SJA1105_MAX_L2_LOOKUP_COUNT,
+		.packed_size = SJA1105PQRS_SIZE_L2_LOOKUP_DYN_CMD,
+		.addr = 0x24,
+	},
+	[BLK_IDX_MGMT_ROUTE] = {
+		.entry_packing = sja1105pqrs_mgmt_route_entry_packing,
+		.cmd_packing = sja1105pqrs_mgmt_route_cmd_packing,
+		.access = (OP_READ | OP_WRITE | OP_DEL | OP_SEARCH),
+		.max_entry_count = SJA1105_NUM_PORTS,
 		.packed_size = SJA1105PQRS_SIZE_L2_LOOKUP_DYN_CMD,
 		.addr = 0x24,
 	},
