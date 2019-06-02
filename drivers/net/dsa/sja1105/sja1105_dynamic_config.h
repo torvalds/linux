@@ -7,6 +7,9 @@
 #include "sja1105.h"
 #include <linux/packing.h>
 
+/* Special index that can be used for sja1105_dynamic_config_read */
+#define SJA1105_SEARCH		-1
+
 struct sja1105_dyn_cmd;
 
 struct sja1105_dynamic_table_ops {

@@ -36,6 +36,7 @@
 	SJA1105PQRS_SIZE_MAC_CONFIG_DYN_CMD
 
 struct sja1105_dyn_cmd {
+	bool search;
 	u64 valid;
 	u64 rdwrset;
 	u64 errors;
@@ -248,6 +249,7 @@ sja1105et_general_params_entry_packing(void *buf, void *entry_ptr,
 #define OP_READ		BIT(0)
 #define OP_WRITE	BIT(1)
 #define OP_DEL		BIT(2)
+#define OP_SEARCH	BIT(3)
 
 /* SJA1105E/T: First generation */
 struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN] = {
@@ -367,6 +369,24 @@ struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_XMII_PARAMS] = {0},
 };
 
+/* Provides read access to the settings through the dynamic interface
+ * of the switch.
+ * @blk_idx	is used as key to select from the sja1105_dynamic_table_ops.
+ *		The selection is limited by the hardware in respect to which
+ *		configuration blocks can be read through the dynamic interface.
+ * @index	is used to retrieve a particular table entry. If negative,
+ *		(and if the @blk_idx supports the searching operation) a search
+ *		is performed by the @entry parameter.
+ * @entry	Type-casted to an unpacked structure that holds a table entry
+ *		of the type specified in @blk_idx.
+ *		Usually an output argument. If @index is negative, then this
+ *		argument is used as input/output: it should be pre-populated
+ *		with the element to search for. Entries which support the
+ *		search operation will have an "index" field (not the @index
+ *		argument to this function) and that is where the found index
+ *		will be returned (or left unmodified - thus negative - if not
+ *		found).
+ */
 int sja1105_dynamic_config_read(struct sja1105_private *priv,
 				enum sja1105_blk_idx blk_idx,
 				int index, void *entry)
@@ -385,6 +405,8 @@ int sja1105_dynamic_config_read(struct sja1105_private *priv,
 
 	if (index >= ops->max_entry_count)
 		return -ERANGE;
+	if (index < 0 && !(ops->access & OP_SEARCH))
+		return -EOPNOTSUPP;
 	if (!(ops->access & OP_READ))
 		return -EOPNOTSUPP;
 	if (ops->packed_size > SJA1105_MAX_DYN_CMD_SIZE)
@@ -396,8 +418,18 @@ int sja1105_dynamic_config_read(struct sja1105_private *priv,
 
 	cmd.valid = true; /* Trigger action on table entry */
 	cmd.rdwrset = SPI_READ; /* Action is read */
-	cmd.index = index;
+	if (index < 0) {
+		/* Avoid copying a signed negative number to an u64 */
+		cmd.index = 0;
+		cmd.search = true;
+	} else {
+		cmd.index = index;
+		cmd.search = false;
+	}
 	ops->cmd_packing(packed_buf, &cmd, PACK);
+
+	if (cmd.search)
+		ops->entry_packing(packed_buf, entry, PACK);
 
 	/* Send SPI write operation: read config table entry */
 	rc = sja1105_spi_send_packed_buf(priv, SPI_WRITE, ops->addr,
@@ -455,6 +487,8 @@ int sja1105_dynamic_config_write(struct sja1105_private *priv,
 	ops = &priv->info->dyn_ops[blk_idx];
 
 	if (index >= ops->max_entry_count)
+		return -ERANGE;
+	if (index < 0)
 		return -ERANGE;
 	if (!(ops->access & OP_WRITE))
 		return -EOPNOTSUPP;
