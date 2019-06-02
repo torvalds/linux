@@ -293,27 +293,6 @@ static int former_fill_midi_msg(struct snd_ff *ff,
 
 #define FF800_TX_PACKET_ISOC_CH	0x0000801c0008
 
-static int allocate_rx_resources(struct snd_ff *ff)
-{
-	u32 data;
-	__le32 reg;
-	int err;
-
-	// Controllers should allocate isochronous resources for rx stream.
-	err = fw_iso_resources_allocate(&ff->rx_resources,
-				amdtp_stream_get_max_payload(&ff->rx_stream),
-				fw_parent_device(ff->unit)->max_speed);
-	if (err < 0)
-		return err;
-
-	// Set isochronous channel and the number of quadlets of rx packets.
-	data = ff->rx_stream.data_block_quadlets << 3;
-	data = (data << 8) | ff->rx_resources.channel;
-	reg = cpu_to_le32(data);
-	return snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
-				FF800_RX_PACKET_FORMAT, &reg, sizeof(reg), 0);
-}
-
 static int allocate_tx_resources(struct snd_ff *ff)
 {
 	__le32 reg;
@@ -355,8 +334,9 @@ static int allocate_tx_resources(struct snd_ff *ff)
 	return 0;
 }
 
-static int ff800_begin_session(struct snd_ff *ff, unsigned int rate)
+static int ff800_allocate_resources(struct snd_ff *ff, unsigned int rate)
 {
+	u32 data;
 	__le32 reg;
 	int err;
 
@@ -371,13 +351,30 @@ static int ff800_begin_session(struct snd_ff *ff, unsigned int rate)
 	// Let's sleep for a bit.
 	msleep(100);
 
-	err = allocate_rx_resources(ff);
+	// Controllers should allocate isochronous resources for rx stream.
+	err = fw_iso_resources_allocate(&ff->rx_resources,
+				amdtp_stream_get_max_payload(&ff->rx_stream),
+				fw_parent_device(ff->unit)->max_speed);
 	if (err < 0)
 		return err;
 
-	err = allocate_tx_resources(ff);
+	// Set isochronous channel and the number of quadlets of rx packets.
+	// This should be done before the allocation of tx resources to avoid
+	// periodical noise.
+	data = ff->rx_stream.data_block_quadlets << 3;
+	data = (data << 8) | ff->rx_resources.channel;
+	reg = cpu_to_le32(data);
+	err = snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
+				 FF800_RX_PACKET_FORMAT, &reg, sizeof(reg), 0);
 	if (err < 0)
 		return err;
+
+	return allocate_tx_resources(ff);
+}
+
+static int ff800_begin_session(struct snd_ff *ff, unsigned int rate)
+{
+	__le32 reg;
 
 	reg = cpu_to_le32(0x80000000);
 	reg |= cpu_to_le32(ff->tx_stream.data_block_quadlets);
@@ -420,6 +417,7 @@ const struct snd_ff_protocol snd_ff_protocol_ff800 = {
 	.fill_midi_msg		= former_fill_midi_msg,
 	.get_clock		= former_get_clock,
 	.switch_fetching_mode	= former_switch_fetching_mode,
+	.allocate_resources	= ff800_allocate_resources,
 	.begin_session		= ff800_begin_session,
 	.finish_session		= ff800_finish_session,
 	.dump_status		= former_dump_status,
