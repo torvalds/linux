@@ -374,7 +374,14 @@ static int ff800_allocate_resources(struct snd_ff *ff, unsigned int rate)
 
 static int ff800_begin_session(struct snd_ff *ff, unsigned int rate)
 {
+	unsigned int generation = ff->rx_resources.generation;
 	__le32 reg;
+
+	if (generation != fw_parent_device(ff->unit)->card->generation) {
+		int err = fw_iso_resources_update(&ff->rx_resources);
+		if (err < 0)
+			return err;
+	}
 
 	reg = cpu_to_le32(0x80000000);
 	reg |= cpu_to_le32(ff->tx_stream.data_block_quadlets);
@@ -480,13 +487,22 @@ static int ff400_allocate_resources(struct snd_ff *ff, unsigned int rate)
 
 static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
 {
+	unsigned int generation = ff->rx_resources.generation;
 	__le32 reg;
 	int err;
 
-	/*
-	 * Set isochronous channel and the number of quadlets of received
-	 * packets.
-	 */
+	if (generation != fw_parent_device(ff->unit)->card->generation) {
+		err = fw_iso_resources_update(&ff->tx_resources);
+		if (err < 0)
+			return err;
+
+		err = fw_iso_resources_update(&ff->rx_resources);
+		if (err < 0)
+			return err;
+	}
+
+	// Set isochronous channel and the number of quadlets of received
+	// packets.
 	reg = cpu_to_le32(((ff->rx_stream.data_block_quadlets << 3) << 8) |
 			  ff->rx_resources.channel);
 	err = snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
@@ -494,11 +510,9 @@ static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
 	if (err < 0)
 		return err;
 
-	/*
-	 * Set isochronous channel and the number of quadlets of transmitted
-	 * packet.
-	 */
-	/* TODO: investigate the purpose of this 0x80. */
+	// Set isochronous channel and the number of quadlets of transmitted
+	// packet.
+	// TODO: investigate the purpose of this 0x80.
 	reg = cpu_to_le32((0x80 << 24) |
 			  (ff->tx_resources.channel << 5) |
 			  (ff->tx_stream.data_block_quadlets));
@@ -507,7 +521,7 @@ static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
 	if (err < 0)
 		return err;
 
-	/* Allow to transmit packets. */
+	// Allow to transmit packets.
 	reg = cpu_to_le32(0x00000001);
 	return snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
 				 FF400_ISOC_COMM_START, &reg, sizeof(reg), 0);

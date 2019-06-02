@@ -175,6 +175,7 @@ static int latter_allocate_resources(struct snd_ff *ff, unsigned int rate)
 
 static int latter_begin_session(struct snd_ff *ff, unsigned int rate)
 {
+	unsigned int generation = ff->rx_resources.generation;
 	unsigned int flag;
 	u32 data;
 	__le32 reg;
@@ -188,6 +189,16 @@ static int latter_begin_session(struct snd_ff *ff, unsigned int rate)
 		flag = 0x8c;
 	else
 		return -EINVAL;
+
+	if (generation != fw_parent_device(ff->unit)->card->generation) {
+		err = fw_iso_resources_update(&ff->tx_resources);
+		if (err < 0)
+			return err;
+
+		err = fw_iso_resources_update(&ff->rx_resources);
+		if (err < 0)
+			return err;
+	}
 
 	data = (ff->tx_resources.channel << 8) | ff->rx_resources.channel;
 	reg = cpu_to_le32(data);

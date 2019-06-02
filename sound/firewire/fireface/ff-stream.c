@@ -234,15 +234,12 @@ void snd_ff_stream_stop_duplex(struct snd_ff *ff)
 
 void snd_ff_stream_update_duplex(struct snd_ff *ff)
 {
-	/* The device discontinue to transfer packets.  */
+	// The device discontinue to transfer packets.
 	amdtp_stream_pcm_abort(&ff->tx_stream);
 	amdtp_stream_stop(&ff->tx_stream);
 
 	amdtp_stream_pcm_abort(&ff->rx_stream);
 	amdtp_stream_stop(&ff->rx_stream);
-
-	fw_iso_resources_update(&ff->tx_resources);
-	fw_iso_resources_update(&ff->rx_resources);
 }
 
 void snd_ff_stream_lock_changed(struct snd_ff *ff)
