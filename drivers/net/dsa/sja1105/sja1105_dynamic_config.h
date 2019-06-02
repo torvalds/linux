@@ -7,13 +7,7 @@
 #include "sja1105.h"
 #include <linux/packing.h>
 
-struct sja1105_dyn_cmd {
-	u64 valid;
-	u64 rdwrset;
-	u64 errors;
-	u64 valident;
-	u64 index;
-};
+struct sja1105_dyn_cmd;
 
 struct sja1105_dynamic_table_ops {
 	/* This returns size_t just to keep same prototype as the
