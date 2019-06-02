@@ -211,8 +211,12 @@ static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		unsigned int rate = params_rate(hw_params);
+
 		mutex_lock(&ff->mutex);
-		ff->substreams_counter++;
+		err = snd_ff_stream_reserve_duplex(ff, rate);
+		if (err >= 0)
+			++ff->substreams_counter;
 		mutex_unlock(&ff->mutex);
 	}
 
@@ -231,8 +235,12 @@ static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		unsigned int rate = params_rate(hw_params);
+
 		mutex_lock(&ff->mutex);
-		ff->substreams_counter++;
+		err = snd_ff_stream_reserve_duplex(ff, rate);
+		if (err >= 0)
+			++ff->substreams_counter;
 		mutex_unlock(&ff->mutex);
 	}
 
@@ -246,9 +254,10 @@ static int pcm_capture_hw_free(struct snd_pcm_substream *substream)
 	mutex_lock(&ff->mutex);
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		ff->substreams_counter--;
+		--ff->substreams_counter;
 
 	snd_ff_stream_stop_duplex(ff);
+	snd_ff_stream_release_duplex(ff);
 
 	mutex_unlock(&ff->mutex);
 
@@ -262,9 +271,10 @@ static int pcm_playback_hw_free(struct snd_pcm_substream *substream)
 	mutex_lock(&ff->mutex);
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		ff->substreams_counter--;
+		--ff->substreams_counter;
 
 	snd_ff_stream_stop_duplex(ff);
+	snd_ff_stream_release_duplex(ff);
 
 	mutex_unlock(&ff->mutex);
 
