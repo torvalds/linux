@@ -572,7 +572,7 @@ sba_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 	u64 pa; /* physical address */
 	register unsigned ci; /* coherent index */
 
-	pa = virt_to_phys(vba);
+	pa = lpa(vba);
 	pa &= IOVP_MASK;
 
 	asm("lci 0(%1), %0" : "=r" (ci) : "r" (vba));
