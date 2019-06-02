@@ -903,8 +903,8 @@ int sja1105et_fdb_del(struct dsa_switch *ds, int port,
 	 * need to completely evict the FDB entry.
 	 * Otherwise we just write it back.
 	 */
-	if (l2_lookup.destports & BIT(port))
-		l2_lookup.destports &= ~BIT(port);
+	l2_lookup.destports &= ~BIT(port);
+
 	if (l2_lookup.destports)
 		keep = true;
 	else
