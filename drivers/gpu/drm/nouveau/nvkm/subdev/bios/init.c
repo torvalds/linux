@@ -1946,6 +1946,17 @@ init_reset_begun(struct nvbios_init *init)
 }
 
 /**
+ * INIT_RESET_END - opcode 0x8d
+ *
+ */
+static void
+init_reset_end(struct nvbios_init *init)
+{
+	trace("RESET_END\n");
+	init->offset += 1;
+}
+
+/**
  * INIT_GPIO - opcode 0x8e
  *
  */
@@ -2272,7 +2283,7 @@ static struct nvbios_init_opcode {
 	[0x7a] = { init_zm_reg },
 	[0x87] = { init_ram_restrict_pll },
 	[0x8c] = { init_reset_begun },
-	[0x8d] = { init_reserved },
+	[0x8d] = { init_reset_end },
 	[0x8e] = { init_gpio },
 	[0x8f] = { init_ram_restrict_zm_reg_group },
 	[0x90] = { init_copy_zm_reg },
