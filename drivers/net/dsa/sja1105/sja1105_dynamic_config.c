@@ -62,7 +62,7 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	 * such that our API doesn't need to ask for a full-blown entry
 	 * structure when e.g. a delete is requested.
 	 */
-	sja1105_packing(buf, &cmd->index, 29, 20,
+	sja1105_packing(buf, &cmd->index, 15, 6,
 			SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY, op);
 	/* TODO hostcmd */
 }
