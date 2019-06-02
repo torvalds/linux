@@ -145,16 +145,19 @@ bc_forwarding_disable()
 {
 	sysctl_set net.ipv4.conf.all.bc_forwarding 0
 	sysctl_set net.ipv4.conf.$rp1.bc_forwarding 0
+	sysctl_set net.ipv4.conf.$rp2.bc_forwarding 0
 }
 
 bc_forwarding_enable()
 {
 	sysctl_set net.ipv4.conf.all.bc_forwarding 1
 	sysctl_set net.ipv4.conf.$rp1.bc_forwarding 1
+	sysctl_set net.ipv4.conf.$rp2.bc_forwarding 1
 }
 
 bc_forwarding_restore()
 {
+	sysctl_restore net.ipv4.conf.$rp2.bc_forwarding
 	sysctl_restore net.ipv4.conf.$rp1.bc_forwarding
 	sysctl_restore net.ipv4.conf.all.bc_forwarding
 }
@@ -171,7 +174,7 @@ ping_test_from()
 	log_info "ping $dip, expected reply from $from"
 	ip vrf exec $(master_name_get $oif) \
 		$PING -I $oif $dip -c 10 -i 0.1 -w $PING_TIMEOUT -b 2>&1 \
-		| grep $from &> /dev/null
+		| grep "bytes from $from" > /dev/null
 	check_err_fail $fail $?
 }
 
