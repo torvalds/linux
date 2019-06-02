@@ -502,13 +502,13 @@ kp_spi_probe(struct platform_device *pldev)
 	}
 
 	switch ((drvdata->card_id & 0xFFFF0000) >> 16){
-		case PCI_DEVICE_ID_DAKTRONICS_KADOKA_P2KR0:
-			NEW_SPI_DEVICE_FROM_BOARD_INFO_TABLE(p2kr0_board_info);
-			break;
-		default:
-			dev_err(&pldev->dev, "Unknown hardware, cant know what partition table to use!\n");
-			goto free_master;
-			break;
+	case PCI_DEVICE_ID_DAKTRONICS_KADOKA_P2KR0:
+		NEW_SPI_DEVICE_FROM_BOARD_INFO_TABLE(p2kr0_board_info);
+		break;
+	default:
+		dev_err(&pldev->dev, "Unknown hardware, cant know what partition table to use!\n");
+		goto free_master;
+		break;
 	}
 
 	return status;
