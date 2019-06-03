@@ -655,18 +655,7 @@ struct rtl8169_private {
 	const struct rtl_coalesce_info *coalesce_info;
 	struct clk *clk;
 
-	struct mdio_ops {
-		void (*write)(struct rtl8169_private *, int, int);
-		int (*read)(struct rtl8169_private *, int);
-	} mdio_ops;
-
-	struct jumbo_ops {
-		void (*enable)(struct rtl8169_private *);
-		void (*disable)(struct rtl8169_private *);
-	} jumbo_ops;
-
 	void (*hw_start)(struct rtl8169_private *tp);
-	bool (*tso_csum)(struct rtl8169_private *, struct sk_buff *, u32 *);
 
 	struct {
 		DECLARE_BITMAP(flags, RTL_FLAG_MAX);
@@ -1019,12 +1008,36 @@ static int r8168dp_2_mdio_read(struct rtl8169_private *tp, int reg)
 
 static void rtl_writephy(struct rtl8169_private *tp, int location, int val)
 {
-	tp->mdio_ops.write(tp, location, val);
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_27:
+		r8168dp_1_mdio_write(tp, location, val);
+		break;
+	case RTL_GIGA_MAC_VER_28:
+	case RTL_GIGA_MAC_VER_31:
+		r8168dp_2_mdio_write(tp, location, val);
+		break;
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
+		r8168g_mdio_write(tp, location, val);
+		break;
+	default:
+		r8169_mdio_write(tp, location, val);
+		break;
+	}
 }
 
 static int rtl_readphy(struct rtl8169_private *tp, int location)
 {
-	return tp->mdio_ops.read(tp, location);
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_27:
+		return r8168dp_1_mdio_read(tp, location);
+	case RTL_GIGA_MAC_VER_28:
+	case RTL_GIGA_MAC_VER_31:
+		return r8168dp_2_mdio_read(tp, location);
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
+		return r8168g_mdio_read(tp, location);
+	default:
+		return r8169_mdio_read(tp, location);
+	}
 }
 
 static void rtl_patchphy(struct rtl8169_private *tp, int reg_addr, int value)
@@ -4059,31 +4072,6 @@ static int rtl8169_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return phy_mii_ioctl(tp->phydev, ifr, cmd);
 }
 
-static void rtl_init_mdio_ops(struct rtl8169_private *tp)
-{
-	struct mdio_ops *ops = &tp->mdio_ops;
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_27:
-		ops->write	= r8168dp_1_mdio_write;
-		ops->read	= r8168dp_1_mdio_read;
-		break;
-	case RTL_GIGA_MAC_VER_28:
-	case RTL_GIGA_MAC_VER_31:
-		ops->write	= r8168dp_2_mdio_write;
-		ops->read	= r8168dp_2_mdio_read;
-		break;
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
-		ops->write	= r8168g_mdio_write;
-		ops->read	= r8168g_mdio_read;
-		break;
-	default:
-		ops->write	= r8169_mdio_write;
-		ops->read	= r8169_mdio_read;
-		break;
-	}
-}
-
 static void rtl_wol_suspend_quirk(struct rtl8169_private *tp)
 {
 	switch (tp->mac_version) {
@@ -4202,24 +4190,6 @@ static void rtl8169_init_ring_indexes(struct rtl8169_private *tp)
 	tp->dirty_tx = tp->cur_tx = tp->cur_rx = 0;
 }
 
-static void rtl_hw_jumbo_enable(struct rtl8169_private *tp)
-{
-	if (tp->jumbo_ops.enable) {
-		rtl_unlock_config_regs(tp);
-		tp->jumbo_ops.enable(tp);
-		rtl_lock_config_regs(tp);
-	}
-}
-
-static void rtl_hw_jumbo_disable(struct rtl8169_private *tp)
-{
-	if (tp->jumbo_ops.disable) {
-		rtl_unlock_config_regs(tp);
-		tp->jumbo_ops.disable(tp);
-		rtl_lock_config_regs(tp);
-	}
-}
-
 static void r8168c_hw_jumbo_enable(struct rtl8169_private *tp)
 {
 	RTL_W8(tp, Config3, RTL_R8(tp, Config3) | Jumbo_En0);
@@ -4286,55 +4256,56 @@ static void r8168b_1_hw_jumbo_disable(struct rtl8169_private *tp)
 	RTL_W8(tp, Config4, RTL_R8(tp, Config4) & ~(1 << 0));
 }
 
-static void rtl_init_jumbo_ops(struct rtl8169_private *tp)
+static void rtl_hw_jumbo_enable(struct rtl8169_private *tp)
 {
-	struct jumbo_ops *ops = &tp->jumbo_ops;
-
+	rtl_unlock_config_regs(tp);
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_11:
-		ops->disable	= r8168b_0_hw_jumbo_disable;
-		ops->enable	= r8168b_0_hw_jumbo_enable;
+		r8168b_0_hw_jumbo_enable(tp);
 		break;
 	case RTL_GIGA_MAC_VER_12:
 	case RTL_GIGA_MAC_VER_17:
-		ops->disable	= r8168b_1_hw_jumbo_disable;
-		ops->enable	= r8168b_1_hw_jumbo_enable;
+		r8168b_1_hw_jumbo_enable(tp);
 		break;
-	case RTL_GIGA_MAC_VER_18: /* Wild guess. Needs info from Realtek. */
-	case RTL_GIGA_MAC_VER_19:
-	case RTL_GIGA_MAC_VER_20:
-	case RTL_GIGA_MAC_VER_21: /* Wild guess. Needs info from Realtek. */
-	case RTL_GIGA_MAC_VER_22:
-	case RTL_GIGA_MAC_VER_23:
-	case RTL_GIGA_MAC_VER_24:
-	case RTL_GIGA_MAC_VER_25:
-	case RTL_GIGA_MAC_VER_26:
-		ops->disable	= r8168c_hw_jumbo_disable;
-		ops->enable	= r8168c_hw_jumbo_enable;
+	case RTL_GIGA_MAC_VER_18 ... RTL_GIGA_MAC_VER_26:
+		r8168c_hw_jumbo_enable(tp);
 		break;
-	case RTL_GIGA_MAC_VER_27:
-	case RTL_GIGA_MAC_VER_28:
-		ops->disable	= r8168dp_hw_jumbo_disable;
-		ops->enable	= r8168dp_hw_jumbo_enable;
+	case RTL_GIGA_MAC_VER_27 ... RTL_GIGA_MAC_VER_28:
+		r8168dp_hw_jumbo_enable(tp);
 		break;
-	case RTL_GIGA_MAC_VER_31: /* Wild guess. Needs info from Realtek. */
-	case RTL_GIGA_MAC_VER_32:
-	case RTL_GIGA_MAC_VER_33:
-	case RTL_GIGA_MAC_VER_34:
-		ops->disable	= r8168e_hw_jumbo_disable;
-		ops->enable	= r8168e_hw_jumbo_enable;
+	case RTL_GIGA_MAC_VER_31 ... RTL_GIGA_MAC_VER_34:
+		r8168e_hw_jumbo_enable(tp);
 		break;
-
-	/*
-	 * No action needed for jumbo frames with 8169.
-	 * No jumbo for 810x at all.
-	 */
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
 	default:
-		ops->disable	= NULL;
-		ops->enable	= NULL;
 		break;
 	}
+	rtl_lock_config_regs(tp);
+}
+
+static void rtl_hw_jumbo_disable(struct rtl8169_private *tp)
+{
+	rtl_unlock_config_regs(tp);
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_11:
+		r8168b_0_hw_jumbo_disable(tp);
+		break;
+	case RTL_GIGA_MAC_VER_12:
+	case RTL_GIGA_MAC_VER_17:
+		r8168b_1_hw_jumbo_disable(tp);
+		break;
+	case RTL_GIGA_MAC_VER_18 ... RTL_GIGA_MAC_VER_26:
+		r8168c_hw_jumbo_disable(tp);
+		break;
+	case RTL_GIGA_MAC_VER_27 ... RTL_GIGA_MAC_VER_28:
+		r8168dp_hw_jumbo_disable(tp);
+		break;
+	case RTL_GIGA_MAC_VER_31 ... RTL_GIGA_MAC_VER_34:
+		r8168e_hw_jumbo_disable(tp);
+		break;
+	default:
+		break;
+	}
+	rtl_lock_config_regs(tp);
 }
 
 DECLARE_RTL_COND(rtl_chipcmd_cond)
@@ -5808,8 +5779,7 @@ static int msdn_giant_send_check(struct sk_buff *skb)
 	return ret;
 }
 
-static bool rtl8169_tso_csum_v1(struct rtl8169_private *tp,
-				struct sk_buff *skb, u32 *opts)
+static void rtl8169_tso_csum_v1(struct sk_buff *skb, u32 *opts)
 {
 	u32 mss = skb_shinfo(skb)->gso_size;
 
@@ -5826,8 +5796,6 @@ static bool rtl8169_tso_csum_v1(struct rtl8169_private *tp,
 		else
 			WARN_ON_ONCE(1);
 	}
-
-	return true;
 }
 
 static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
@@ -5917,6 +5885,18 @@ static bool rtl_tx_slots_avail(struct rtl8169_private *tp,
 	return slots_avail > nr_frags;
 }
 
+/* Versions RTL8102e and from RTL8168c onwards support csum_v2 */
+static bool rtl_chip_supports_csum_v2(struct rtl8169_private *tp)
+{
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_02 ... RTL_GIGA_MAC_VER_06:
+	case RTL_GIGA_MAC_VER_10 ... RTL_GIGA_MAC_VER_17:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
@@ -5939,9 +5919,13 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	opts[1] = cpu_to_le32(rtl8169_tx_vlan_tag(skb));
 	opts[0] = DescOwn;
 
-	if (!tp->tso_csum(tp, skb, opts)) {
-		r8169_csum_workaround(tp, skb);
-		return NETDEV_TX_OK;
+	if (rtl_chip_supports_csum_v2(tp)) {
+		if (!rtl8169_tso_csum_v2(tp, skb, opts)) {
+			r8169_csum_workaround(tp, skb);
+			return NETDEV_TX_OK;
+		}
+	} else {
+		rtl8169_tso_csum_v1(skb, opts);
 	}
 
 	len = skb_headlen(skb);
@@ -6979,18 +6963,6 @@ static void rtl_hw_initialize(struct rtl8169_private *tp)
 	}
 }
 
-/* Versions RTL8102e and from RTL8168c onwards support csum_v2 */
-static bool rtl_chip_supports_csum_v2(struct rtl8169_private *tp)
-{
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_02 ... RTL_GIGA_MAC_VER_06:
-	case RTL_GIGA_MAC_VER_10 ... RTL_GIGA_MAC_VER_17:
-		return false;
-	default:
-		return true;
-	}
-}
-
 static int rtl_jumbo_max(struct rtl8169_private *tp)
 {
 	/* Non-GBit versions don't support jumbo frames */
@@ -7136,9 +7108,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	rtl_init_mdio_ops(tp);
-	rtl_init_jumbo_ops(tp);
-
 	chipset = tp->mac_version;
 
 	rc = rtl_alloc_irq(tp);
@@ -7189,12 +7158,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/* Disallow toggling */
 		dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_RX;
 
-	if (rtl_chip_supports_csum_v2(tp)) {
-		tp->tso_csum = rtl8169_tso_csum_v2;
+	if (rtl_chip_supports_csum_v2(tp))
 		dev->hw_features |= NETIF_F_IPV6_CSUM | NETIF_F_TSO6;
-	} else {
-		tp->tso_csum = rtl8169_tso_csum_v1;
-	}
 
 	dev->hw_features |= NETIF_F_RXALL;
 	dev->hw_features |= NETIF_F_RXFCS;
