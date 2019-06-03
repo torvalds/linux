@@ -703,14 +703,14 @@ struct i2c_adapter {
 };
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 
-static inline void *i2c_get_adapdata(const struct i2c_adapter *dev)
+static inline void *i2c_get_adapdata(const struct i2c_adapter *adap)
 {
-	return dev_get_drvdata(&dev->dev);
+	return dev_get_drvdata(&adap->dev);
 }
 
-static inline void i2c_set_adapdata(struct i2c_adapter *dev, void *data)
+static inline void i2c_set_adapdata(struct i2c_adapter *adap, void *data)
 {
-	dev_set_drvdata(&dev->dev, data);
+	dev_set_drvdata(&adap->dev, data);
 }
 
 static inline struct i2c_adapter *
