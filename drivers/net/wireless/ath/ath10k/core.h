@@ -1208,6 +1208,7 @@ struct ath10k {
 	struct ath10k_radar_found_info last_radar_info;
 	struct work_struct radar_confirmation_work;
 	struct ath10k_bus_params bus_param;
+	struct completion peer_delete_done;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
