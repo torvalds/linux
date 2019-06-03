@@ -48,6 +48,7 @@
 #define SOF_IPC_FW_READY			SOF_GLB_TYPE(0x7U)
 #define SOF_IPC_GLB_DAI_MSG			SOF_GLB_TYPE(0x8U)
 #define SOF_IPC_GLB_TRACE_MSG			SOF_GLB_TYPE(0x9U)
+#define SOF_IPC_GLB_GDB_DEBUG                   SOF_GLB_TYPE(0xAU)
 
 /*
  * DSP Command Message Types
@@ -78,6 +79,7 @@
 #define SOF_IPC_COMP_GET_VALUE			SOF_CMD_TYPE(0x002)
 #define SOF_IPC_COMP_SET_DATA			SOF_CMD_TYPE(0x003)
 #define SOF_IPC_COMP_GET_DATA			SOF_CMD_TYPE(0x004)
+#define SOF_IPC_COMP_NOTIFICATION		SOF_CMD_TYPE(0x005)
 
 /* DAI messages */
 #define SOF_IPC_DAI_CONFIG			SOF_CMD_TYPE(0x001)
@@ -151,6 +153,27 @@ struct sof_ipc_reply {
 struct sof_ipc_compound_hdr {
 	struct sof_ipc_cmd_hdr hdr;
 	uint32_t count;		/**< count of 0 means end of compound sequence */
+}  __packed;
+
+/**
+ * OOPS header architecture specific data.
+ */
+struct sof_ipc_dsp_oops_arch_hdr {
+	uint32_t arch;		/* Identifier of architecture */
+	uint32_t totalsize;	/* Total size of oops message */
+}  __packed;
+
+/**
+ * OOPS header platform specific data.
+ */
+struct sof_ipc_dsp_oops_plat_hdr {
+	uint32_t configidhi;	/* ConfigID hi 32bits */
+	uint32_t configidlo;	/* ConfigID lo 32bits */
+	uint32_t numaregs;	/* Special regs num */
+	uint32_t stackoffset;	/* Offset to stack pointer from beginning of
+				 * oops message
+				 */
+	uint32_t stackptr;	/* Stack ptr */
 }  __packed;
 
 /** @}*/
