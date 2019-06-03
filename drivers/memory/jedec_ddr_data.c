@@ -10,8 +10,9 @@
  * published by the Free Software Foundation.
  */
 
-#include <memory/jedec_ddr.h>
-#include <linux/module.h>
+#include <linux/export.h>
+
+#include "jedec_ddr.h"
 
 /* LPDDR2 addressing details from JESD209-2 section 2.4 */
 const struct lpddr2_addressing

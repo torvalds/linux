@@ -9,8 +9,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef __LINUX_JEDEC_DDR_H
-#define __LINUX_JEDEC_DDR_H
+#ifndef __JEDEC_DDR_H
+#define __JEDEC_DDR_H
 
 #include <linux/types.h>
 
@@ -172,4 +172,4 @@ extern const struct lpddr2_timings
 	lpddr2_jedec_timings[NUM_DDR_TIMING_TABLE_ENTRIES];
 extern const struct lpddr2_min_tck lpddr2_jedec_min_tck;
 
-#endif /* __LINUX_JEDEC_DDR_H */
+#endif /* __JEDEC_DDR_H */
