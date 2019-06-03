@@ -397,7 +397,7 @@ static int hclge_tm_port_shaper_cfg(struct hclge_dev *hdev)
 	u8 ir_u, ir_b, ir_s;
 	int ret;
 
-	ret = hclge_shaper_para_calc(HCLGE_ETHER_MAX_RATE,
+	ret = hclge_shaper_para_calc(hdev->hw.mac.speed,
 				     HCLGE_SHAPER_LVL_PORT,
 				     &ir_b, &ir_u, &ir_s);
 	if (ret)
