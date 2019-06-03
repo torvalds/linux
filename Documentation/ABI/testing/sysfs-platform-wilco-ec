@@ -7,3 +7,34 @@ Description:
 		want to run their device headless or with a dock.
 
 		Input should be parseable by kstrtou8() to 0 or 1.
+
+What:          /sys/bus/platform/devices/GOOG000C\:00/build_date
+Date:          May 2019
+KernelVersion: 5.3
+Description:
+               Display Wilco Embedded Controller firmware build date.
+               Output will a MM/DD/YY string.
+
+What:          /sys/bus/platform/devices/GOOG000C\:00/build_revision
+Date:          May 2019
+KernelVersion: 5.3
+Description:
+               Display Wilco Embedded Controller build revision.
+               Output will a version string be similar to the example below:
+               d2592cae0
+
+What:          /sys/bus/platform/devices/GOOG000C\:00/model_number
+Date:          May 2019
+KernelVersion: 5.3
+Description:
+               Display Wilco Embedded Controller model number.
+               Output will a version string be similar to the example below:
+               08B6
+
+What:          /sys/bus/platform/devices/GOOG000C\:00/version
+Date:          May 2019
+KernelVersion: 5.3
+Description:
+               Display Wilco Embedded Controller firmware version.
+               The format of the string is x.y.z. Where x is major, y is minor
+               and z is the build number. For example: 95.00.06
