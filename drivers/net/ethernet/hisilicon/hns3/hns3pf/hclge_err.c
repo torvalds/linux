@@ -87,25 +87,25 @@ static const struct hclge_hw_error hclge_msix_sram_ecc_int[] = {
 
 static const struct hclge_hw_error hclge_igu_int[] = {
 	{ .int_msk = BIT(0), .msg = "igu_rx_buf0_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(2), .msg = "igu_rx_buf1_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_igu_egu_tnl_int[] = {
 	{ .int_msk = BIT(0), .msg = "rx_buf_overflow",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(1), .msg = "rx_stp_fifo_overflow",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(2), .msg = "rx_stp_fifo_undeflow",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(3), .msg = "tx_buf_overflow",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(4), .msg = "tx_buf_underrun",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(5), .msg = "rx_stp_buf_overflow",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
@@ -413,13 +413,13 @@ static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st2[] = {
 
 static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st3[] = {
 	{ .int_msk = BIT(4), .msg = "gro_bd_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(5), .msg = "gro_context_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(6), .msg = "rx_stash_cfg_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(7), .msg = "axi_rd_fbd_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
