@@ -31,7 +31,6 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 	u32 hipci;
-	u32 hipcctl;
 	u32 hipcida;
 	u32 hipctdr;
 	u32 hipctdd;
@@ -40,14 +39,12 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 	bool ipc_irq = false;
 
 	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
-	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCCTL);
 	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDR);
 	hipctdd = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDD);
 	hipci = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR);
 
 	/* reply message from DSP */
-	if (hipcida & CNL_DSP_REG_HIPCIDA_DONE &&
-	    hipcctl & CNL_DSP_REG_HIPCCTL_DONE) {
+	if (hipcida & CNL_DSP_REG_HIPCIDA_DONE) {
 		msg_ext = hipci & CNL_DSP_REG_HIPCIDR_MSG_MASK;
 		msg = hipcida & CNL_DSP_REG_HIPCIDA_MSG_MASK;
 
