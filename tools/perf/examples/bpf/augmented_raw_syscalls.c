@@ -21,8 +21,14 @@
 /* bpf-output associated map */
 bpf_map(__augmented_syscalls__, PERF_EVENT_ARRAY, int, u32, __NR_CPUS__);
 
+/*
+ * string_args_len: one per syscall arg, 0 means not a string or don't copy it,
+ * 		    PATH_MAX for copying everything, any other value to limit
+ * 		    it a la 'strace -s strsize'.
+ */
 struct syscall {
 	bool	enabled;
+	u16	string_args_len[6];
 };
 
 bpf_map(syscalls, ARRAY, int, struct syscall, 512);
@@ -45,81 +51,6 @@ struct augmented_filename {
 	char		value[PATH_MAX];
 };
 
-/* syscalls where the first arg is a string */
-#define SYS_OPEN                 2
-#define SYS_STAT                 4
-#define SYS_LSTAT                6
-#define SYS_ACCESS              21
-#define SYS_EXECVE              59
-#define SYS_TRUNCATE            76
-#define SYS_CHDIR               80
-#define SYS_RENAME              82
-#define SYS_MKDIR               83
-#define SYS_RMDIR               84
-#define SYS_CREAT               85
-#define SYS_LINK                86
-#define SYS_UNLINK              87
-#define SYS_SYMLINK             88
-#define SYS_READLINK            89
-#define SYS_CHMOD               90
-#define SYS_CHOWN               92
-#define SYS_LCHOWN              94
-#define SYS_MKNOD              133
-#define SYS_STATFS             137
-#define SYS_PIVOT_ROOT         155
-#define SYS_CHROOT             161
-#define SYS_ACCT               163
-#define SYS_SWAPON             167
-#define SYS_SWAPOFF            168
-#define SYS_DELETE_MODULE      176
-#define SYS_SETXATTR           188
-#define SYS_LSETXATTR          189
-#define SYS_GETXATTR           191
-#define SYS_LGETXATTR          192
-#define SYS_LISTXATTR          194
-#define SYS_LLISTXATTR         195
-#define SYS_REMOVEXATTR        197
-#define SYS_LREMOVEXATTR       198
-#define SYS_MQ_OPEN            240
-#define SYS_MQ_UNLINK          241
-#define SYS_ADD_KEY            248
-#define SYS_REQUEST_KEY        249
-#define SYS_SYMLINKAT          266
-#define SYS_MEMFD_CREATE       319
-
-/* syscalls where the second arg is a string */
-
-#define SYS_PWRITE64            18
-#define SYS_EXECVE              59
-#define SYS_RENAME              82
-#define SYS_QUOTACTL           179
-#define SYS_FSETXATTR          190
-#define SYS_FGETXATTR          193
-#define SYS_FREMOVEXATTR       199
-#define SYS_MQ_TIMEDSEND       242
-#define SYS_REQUEST_KEY        249
-#define SYS_INOTIFY_ADD_WATCH  254
-#define SYS_OPENAT             257
-#define SYS_MKDIRAT            258
-#define SYS_MKNODAT            259
-#define SYS_FCHOWNAT           260
-#define SYS_FUTIMESAT          261
-#define SYS_NEWFSTATAT         262
-#define SYS_UNLINKAT           263
-#define SYS_RENAMEAT           264
-#define SYS_LINKAT             265
-#define SYS_READLINKAT         267
-#define SYS_FCHMODAT           268
-#define SYS_FACCESSAT          269
-#define SYS_UTIMENSAT          280
-#define SYS_NAME_TO_HANDLE_AT  303
-#define SYS_FINIT_MODULE       313
-#define SYS_RENAMEAT2          316
-#define SYS_EXECVEAT           322
-#define SYS_STATX              332
-#define SYS_MOVE_MOUNT         429
-#define SYS_FSPICK             433
-
 pid_filter(pids_filtered);
 
 struct augmented_args_filename {
@@ -133,7 +64,7 @@ SEC("raw_syscalls:sys_enter")
 int sys_enter(struct syscall_enter_args *args)
 {
 	struct augmented_args_filename *augmented_args;
-	unsigned int len = sizeof(*augmented_args);
+	unsigned int len = sizeof(*augmented_args), filename_len;
 	const void *filename_arg = NULL;
 	struct syscall *syscall;
 	int key = 0;
@@ -191,104 +122,69 @@ int sys_enter(struct syscall_enter_args *args)
 	 * 	 after the ctx memory access to prevent their down stream merging.
 	 */
 	/*
-	 * This table of what args are strings will be provided by userspace,
-	 * in the syscalls map, i.e. we will already have to do the lookup to
-	 * see if this specific syscall is filtered, so we can as well get more
-	 * info about what syscall args are strings or pointers, and how many
-	 * bytes to copy, per arg, etc.
+	 * For now copy just the first string arg, we need to improve the protocol
+	 * and have more than one.
 	 *
-	 * For now hard code it, till we have all the basic mechanisms in place
-	 * to automate everything and make the kernel part be completely driven
-	 * by information obtained in userspace for each kernel version and
-	 * processor architecture, making the kernel part the same no matter what
-	 * kernel version or processor architecture it runs on.
-	 */
-	switch (augmented_args->args.syscall_nr) {
-	case SYS_ACCT:
-	case SYS_ADD_KEY:
-	case SYS_CHDIR:
-	case SYS_CHMOD:
-	case SYS_CHOWN:
-	case SYS_CHROOT:
-	case SYS_CREAT:
-	case SYS_DELETE_MODULE:
-	case SYS_EXECVE:
-	case SYS_GETXATTR:
-	case SYS_LCHOWN:
-	case SYS_LGETXATTR:
-	case SYS_LINK:
-	case SYS_LISTXATTR:
-	case SYS_LLISTXATTR:
-	case SYS_LREMOVEXATTR:
-	case SYS_LSETXATTR:
-	case SYS_LSTAT:
-	case SYS_MEMFD_CREATE:
-	case SYS_MKDIR:
-	case SYS_MKNOD:
-	case SYS_MQ_OPEN:
-	case SYS_MQ_UNLINK:
-	case SYS_PIVOT_ROOT:
-	case SYS_READLINK:
-	case SYS_REMOVEXATTR:
-	case SYS_RENAME:
-	case SYS_REQUEST_KEY:
-	case SYS_RMDIR:
-	case SYS_SETXATTR:
-	case SYS_STAT:
-	case SYS_STATFS:
-	case SYS_SWAPOFF:
-	case SYS_SWAPON:
-	case SYS_SYMLINK:
-	case SYS_SYMLINKAT:
-	case SYS_TRUNCATE:
-	case SYS_UNLINK:
-	case SYS_ACCESS:
-	case SYS_OPEN:	 filename_arg = (const void *)args->args[0];
+	 * Using the unrolled loop is not working, only when we do it manually,
+	 * check this out later...
+
+	u8 arg;
+#pragma clang loop unroll(full)
+	for (arg = 0; arg < 6; ++arg) {
+		if (syscall->string_args_len[arg] != 0) {
+			filename_len = syscall->string_args_len[arg];
+			filename_arg = (const void *)args->args[arg];
 			__asm__ __volatile__("": : :"memory");
-			 break;
-	case SYS_EXECVEAT:
-	case SYS_FACCESSAT:
-	case SYS_FCHMODAT:
-	case SYS_FCHOWNAT:
-	case SYS_FGETXATTR:
-	case SYS_FINIT_MODULE:
-	case SYS_FREMOVEXATTR:
-	case SYS_FSETXATTR:
-	case SYS_FSPICK:
-	case SYS_FUTIMESAT:
-	case SYS_INOTIFY_ADD_WATCH:
-	case SYS_LINKAT:
-	case SYS_MKDIRAT:
-	case SYS_MKNODAT:
-	// case SYS_MOVE_MOUNT:
-	// For now don't copy move_mount first string arg, as it has two and
-	// 'perf trace's syscall_arg__scnprintf_filename() will use the one
-	// copied here, the first, for both args, duplicating the first and
-	// ignoring the second.
-	//
-	// We need to copy both here and make syscall_arg__scnprintf_filename
-	// skip the first when reading the second, using the size of the first, etc.
-	// Shouldn't be difficult, but now its perf/urgent time, lets wait for
-	// the next devel window.
-	case SYS_MQ_TIMEDSEND:
-	case SYS_NAME_TO_HANDLE_AT:
-	case SYS_NEWFSTATAT:
-	case SYS_PWRITE64:
-	case SYS_QUOTACTL:
-	case SYS_READLINKAT:
-	case SYS_RENAMEAT:
-	case SYS_RENAMEAT2:
-	case SYS_STATX:
-	case SYS_UNLINKAT:
-	case SYS_UTIMENSAT:
-	case SYS_OPENAT: filename_arg = (const void *)args->args[1];
-			 break;
+			break;
+		}
 	}
 
-	if (filename_arg != NULL) {
+	verifier log:
+
+; if (syscall->string_args_len[arg] != 0) {
+37: (69) r3 = *(u16 *)(r0 +2)
+ R0=map_value(id=0,off=0,ks=4,vs=14,imm=0) R1_w=inv0 R2_w=map_value(id=0,off=2,ks=4,vs=14,imm=0) R6=ctx(id=0,off=0,imm=0) R7=map_value(id=0,off=0,ks=4,vs=4168,imm=0) R10=fp0,call_-1 fp-8=mmmmmmmm
+; if (syscall->string_args_len[arg] != 0) {
+38: (55) if r3 != 0x0 goto pc+5
+ R0=map_value(id=0,off=0,ks=4,vs=14,imm=0) R1=inv0 R2=map_value(id=0,off=2,ks=4,vs=14,imm=0) R3=inv0 R6=ctx(id=0,off=0,imm=0) R7=map_value(id=0,off=0,ks=4,vs=4168,imm=0) R10=fp0,call_-1 fp-8=mmmmmmmm
+39: (b7) r1 = 1
+; if (syscall->string_args_len[arg] != 0) {
+40: (bf) r2 = r0
+41: (07) r2 += 4
+42: (69) r3 = *(u16 *)(r0 +4)
+ R0=map_value(id=0,off=0,ks=4,vs=14,imm=0) R1_w=inv1 R2_w=map_value(id=0,off=4,ks=4,vs=14,imm=0) R3_w=inv0 R6=ctx(id=0,off=0,imm=0) R7=map_value(id=0,off=0,ks=4,vs=4168,imm=0) R10=fp0,call_-1 fp-8=mmmmmmmm
+; if (syscall->string_args_len[arg] != 0) {
+43: (15) if r3 == 0x0 goto pc+32
+ R0=map_value(id=0,off=0,ks=4,vs=14,imm=0) R1=inv1 R2=map_value(id=0,off=4,ks=4,vs=14,imm=0) R3=inv(id=0,umax_value=65535,var_off=(0x0; 0xffff)) R6=ctx(id=0,off=0,imm=0) R7=map_value(id=0,off=0,ks=4,vs=4168,imm=0) R10=fp0,call_-1 fp-8=mmmmmmmm
+; filename_arg = (const void *)args->args[arg];
+44: (67) r1 <<= 3
+45: (bf) r3 = r6
+46: (0f) r3 += r1
+47: (b7) r5 = 64
+48: (79) r3 = *(u64 *)(r3 +16)
+dereference of modified ctx ptr R3 off=8 disallowed
+processed 46 insns (limit 1000000) max_states_per_insn 0 total_states 12 peak_states 12 mark_read 7
+	*/
+
+#define __loop_iter(arg) \
+	if (syscall->string_args_len[arg] != 0) { \
+		filename_len = syscall->string_args_len[arg]; \
+		filename_arg = (const void *)args->args[arg];
+#define loop_iter_first() __loop_iter(0); }
+#define loop_iter(arg) else __loop_iter(arg); }
+#define loop_iter_last(arg) else __loop_iter(arg); __asm__ __volatile__("": : :"memory"); }
+
+	loop_iter_first()
+	loop_iter(1)
+	loop_iter(2)
+	loop_iter(3)
+	loop_iter(4)
+	loop_iter_last(5)
+
+	if (filename_arg != NULL && filename_len <= sizeof(augmented_args->filename.value)) {
 		augmented_args->filename.reserved = 0;
 		augmented_args->filename.size = probe_read_str(&augmented_args->filename.value,
-							      sizeof(augmented_args->filename.value),
+							      filename_len,
 							      filename_arg);
 		if (augmented_args->filename.size < sizeof(augmented_args->filename.value)) {
 			len -= sizeof(augmented_args->filename.value) - augmented_args->filename.size;
