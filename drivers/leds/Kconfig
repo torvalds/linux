@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config LEDS_GPIO_REGISTER
 	bool
 	help

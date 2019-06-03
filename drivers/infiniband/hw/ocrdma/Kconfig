@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_OCRDMA
 	tristate "Emulex One Connect HCA support"
 	depends on ETHERNET && NETDEVICES && PCI && INET && (IPV6 || IPV6=n)

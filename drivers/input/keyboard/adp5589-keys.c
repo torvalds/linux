@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Description:  keypad driver for ADP5589, ADP5585
  *		 I2C QWERTY Keypad and IO Expander
  * Bugs: Enter bugs at http://blackfin.uclinux.org/
  *
  * Copyright (C) 2010-2011 Analog Devices Inc.
- * Licensed under the GPL-2.
  */
 
 #include <linux/module.h>

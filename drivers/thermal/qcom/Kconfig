@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config QCOM_TSENS
 	tristate "Qualcomm TSENS Temperature Alarm"
 	depends on QCOM_QFPROM

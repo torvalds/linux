@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Ext3 configs are here for backward compatibility with old configs which may
 # have EXT3_FS set but not EXT4_FS set and thus would result in non-bootable
 # kernels after the removal of ext3 driver.

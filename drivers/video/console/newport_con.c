@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * newport_con.c: Abscon for newport hardware
  * 

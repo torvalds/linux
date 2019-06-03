@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Analog Devices AD7303 DAC driver
  *
  * Copyright 2013 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef __IIO_ADC_AD7303_H__

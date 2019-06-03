@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 occ-hwmon-common-objs := common.o sysfs.o
 occ-p8-hwmon-objs := p8_i2c.o
 occ-p9-hwmon-objs := p9_sbe.o

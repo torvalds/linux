@@ -456,8 +456,9 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		}
 		break;
 	}
-	/* function 4 has additional index. */
-	case 4: {
+	/* functions 4 and 0x8000001d have additional index. */
+	case 4:
+	case 0x8000001d: {
 		int i, cache_type;
 
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
@@ -701,8 +702,7 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		entry->ecx = entry->edx = 0;
 		break;
 	case 0x8000001a:
-		break;
-	case 0x8000001d:
+	case 0x8000001e:
 		break;
 	/*Add support for Centaur's CPUID instruction*/
 	case 0xC0000000:

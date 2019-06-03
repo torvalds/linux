@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_SOC_XTFPGA_I2S
 	tristate "XTFPGA I2S master"
 	select REGMAP_MMIO

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DVB_B2C2_FLEXCOP
 	tristate
 	depends on DVB_CORE && I2C

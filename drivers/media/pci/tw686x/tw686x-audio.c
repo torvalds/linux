@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 VanguardiaSur - www.vanguardiasur.com.ar
  *
@@ -7,10 +8,6 @@
  * Based on:
  * Driver for Intersil|Techwell TW6869 based DVR cards
  * (c) 2011-12 liran <jli11@intersil.com> [Intersil|Techwell China]
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
