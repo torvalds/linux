@@ -82,6 +82,7 @@
 #define IMX7D_REG_ADC_INT_STATUS_CHANNEL_CONV_TIME_OUT		0xf0000
 
 #define IMX7D_ADC_TIMEOUT		msecs_to_jiffies(100)
+#define IMX7D_ADC_INPUT_CLK		24000000
 
 enum imx7d_adc_clk_pre_div {
 	IMX7D_ADC_ANALOG_CLK_PRE_DIV_4,
@@ -276,13 +277,11 @@ static void imx7d_adc_channel_set(struct imx7d_adc *info)
 
 static u32 imx7d_adc_get_sample_rate(struct imx7d_adc *info)
 {
-	/* input clock is always 24MHz */
-	u32 input_clk = 24000000;
 	u32 analogue_core_clk;
 	u32 core_time_unit = info->adc_feature.core_time_unit;
 	u32 tmp;
 
-	analogue_core_clk = input_clk / info->pre_div_num;
+	analogue_core_clk = IMX7D_ADC_INPUT_CLK / info->pre_div_num;
 	tmp = (core_time_unit + 1) * 6;
 
 	return analogue_core_clk / tmp;
