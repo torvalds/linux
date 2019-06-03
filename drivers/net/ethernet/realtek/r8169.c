@@ -2492,10 +2492,15 @@ static void rtl_fw_write_firmware(struct rtl8169_private *tp,
 	}
 }
 
+static void rtl_fw_release_firmware(struct rtl_fw *rtl_fw)
+{
+	release_firmware(rtl_fw->fw);
+}
+
 static void rtl_release_firmware(struct rtl8169_private *tp)
 {
 	if (tp->rtl_fw) {
-		release_firmware(tp->rtl_fw->fw);
+		rtl_fw_release_firmware(tp->rtl_fw);
 		kfree(tp->rtl_fw);
 		tp->rtl_fw = NULL;
 	}
@@ -4249,18 +4254,39 @@ static void rtl_hw_reset(struct rtl8169_private *tp)
 	rtl_udelay_loop_wait_low(tp, &rtl_chipcmd_cond, 100, 100);
 }
 
+static int rtl_fw_request_firmware(struct rtl_fw *rtl_fw)
+{
+	int rc;
+
+	rc = request_firmware(&rtl_fw->fw, rtl_fw->fw_name, rtl_fw->dev);
+	if (rc < 0)
+		goto out;
+
+	if (!rtl_fw_format_ok(rtl_fw) || !rtl_fw_data_ok(rtl_fw)) {
+		release_firmware(rtl_fw->fw);
+		goto out;
+	}
+
+	return 0;
+out:
+	dev_err(rtl_fw->dev, "Unable to load firmware %s (%d)\n",
+		rtl_fw->fw_name, rc);
+	return rc;
+}
+
 static void rtl_request_firmware(struct rtl8169_private *tp)
 {
 	struct rtl_fw *rtl_fw;
-	int rc = -ENOMEM;
 
 	/* firmware loaded already or no firmware available */
 	if (tp->rtl_fw || !tp->fw_name)
 		return;
 
 	rtl_fw = kzalloc(sizeof(*rtl_fw), GFP_KERNEL);
-	if (!rtl_fw)
-		goto err_warn;
+	if (!rtl_fw) {
+		netif_warn(tp, ifup, tp->dev, "Unable to load firmware, out of memory\n");
+		return;
+	}
 
 	rtl_fw->phy_write = rtl_writephy;
 	rtl_fw->phy_read = rtl_readphy;
@@ -4269,26 +4295,10 @@ static void rtl_request_firmware(struct rtl8169_private *tp)
 	rtl_fw->fw_name = tp->fw_name;
 	rtl_fw->dev = tp_to_dev(tp);
 
-	rc = request_firmware(&rtl_fw->fw, tp->fw_name, tp_to_dev(tp));
-	if (rc < 0)
-		goto err_free;
-
-	if (!rtl_fw_format_ok(rtl_fw) || !rtl_fw_data_ok(rtl_fw)) {
-		dev_err(rtl_fw->dev, "invalid firmware\n");
-		goto err_release_firmware;
-	}
-
-	tp->rtl_fw = rtl_fw;
-
-	return;
-
-err_release_firmware:
-	release_firmware(rtl_fw->fw);
-err_free:
-	kfree(rtl_fw);
-err_warn:
-	netif_warn(tp, ifup, tp->dev, "unable to load firmware patch %s (%d)\n",
-		   tp->fw_name, rc);
+	if (rtl_fw_request_firmware(rtl_fw))
+		kfree(rtl_fw);
+	else
+		tp->rtl_fw = rtl_fw;
 }
 
 static void rtl_rx_close(struct rtl8169_private *tp)
