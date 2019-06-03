@@ -672,10 +672,6 @@ int tls_device_decrypted(struct sock *sk, struct sk_buff *skb)
 	int is_encrypted = !is_decrypted;
 	struct sk_buff *skb_iter;
 
-	/* Skip if it is already decrypted */
-	if (ctx->sw.decrypted)
-		return 0;
-
 	/* Check if all the data is decrypted already */
 	skb_walk_frags(skb, skb_iter) {
 		is_decrypted &= skb_iter->decrypted;
