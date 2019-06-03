@@ -3281,17 +3281,17 @@ static int ena_calc_queue_size(struct pci_dev *pdev,
 static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct ena_com_dev_get_features_ctx get_feat_ctx;
-	static int version_printed;
-	struct net_device *netdev;
-	struct ena_adapter *adapter;
 	struct ena_llq_configurations llq_config;
 	struct ena_com_dev *ena_dev = NULL;
-	char *queue_type_str;
-	static int adapters_found;
+	struct ena_adapter *adapter;
+	static int version_printed;
 	int io_queue_num, bars, rc;
-	int queue_size;
+	struct net_device *netdev;
+	static int adapters_found;
+	char *queue_type_str;
 	u16 tx_sgl_size = 0;
 	u16 rx_sgl_size = 0;
+	int queue_size;
 	bool wd_state;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
