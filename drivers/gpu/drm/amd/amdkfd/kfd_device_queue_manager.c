@@ -995,8 +995,11 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	if (retval)
 		goto out_deallocate_doorbell;
 
+	if (!q->properties.is_active)
+		return 0;
+
 	retval = mqd_mgr->load_mqd(mqd_mgr, q->mqd, 0, 0, &q->properties,
-				NULL);
+				current->mm);
 	if (retval)
 		goto out_uninit_mqd;
 
