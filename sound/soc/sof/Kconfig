@@ -10,7 +10,7 @@ if SND_SOC_SOF_TOPLEVEL
 
 config SND_SOC_SOF_PCI
 	tristate "SOF PCI enumeration support"
-	depends on PCI
+	depends on PCI || COMPILE_TEST
 	select SND_SOC_SOF
 	select SND_SOC_ACPI if ACPI
 	select SND_SOC_SOF_OPTIONS
@@ -129,6 +129,14 @@ config SND_SOC_SOF_DEBUG_ENABLE_DEBUGFS_CACHE
 	  before the audio DSP is suspended. This will increase the suspend
 	  latency and therefore should be used for debug purposes only.
 	  Say Y if you want to enable caching the memory windows.
+	  If unsure, select "N".
+
+config SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST
+	bool "SOF enable IPC flood test"
+	help
+	  This option enables the IPC flood test which can be used to flood
+	  the DSP with test IPCs and gather stats about response times.
+	  Say Y if you want to enable IPC flood test.
 	  If unsure, select "N".
 
 endif ## SND_SOC_SOF_DEBUG

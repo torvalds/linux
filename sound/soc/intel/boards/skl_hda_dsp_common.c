@@ -12,7 +12,6 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "../../codecs/hdac_hdmi.h"
-#include "../skylake/skl.h"
 #include "skl_hda_dsp_common.h"
 
 #define NAME_SIZE	32
