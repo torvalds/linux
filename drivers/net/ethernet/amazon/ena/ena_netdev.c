@@ -3287,7 +3287,6 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ena_llq_configurations llq_config;
 	struct ena_com_dev *ena_dev = NULL;
 	struct ena_adapter *adapter;
-	static int version_printed;
 	int io_queue_num, bars, rc;
 	struct net_device *netdev;
 	static int adapters_found;
@@ -3299,8 +3298,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
-	if (version_printed++ == 0)
-		dev_info(&pdev->dev, "%s", version);
+	dev_info_once(&pdev->dev, "%s", version);
 
 	rc = pci_enable_device_mem(pdev);
 	if (rc) {
