@@ -501,7 +501,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 		goto out10;
 
 	/*
-	 * Step 12: Enable IRQs in HW
+	 * Step 11: Enable IRQs in HW
 	 */
 	writel(KPC_DMA_CARD_IRQ_ENABLE | KPC_DMA_CARD_USER_INTERRUPT_MODE,
 	       pcard->dma_common_regs);
