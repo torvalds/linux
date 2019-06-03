@@ -16,7 +16,7 @@ Intel(R) Management Engine Interface (Intel(R) MEI)
         Table of Contents
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
    mei
    mei-client-bus
