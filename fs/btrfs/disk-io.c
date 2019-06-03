@@ -371,30 +371,20 @@ static int btrfs_check_super_csum(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_super_block *disk_sb =
 		(struct btrfs_super_block *)raw_disk_sb;
-	u16 csum_type = btrfs_super_csum_type(disk_sb);
+	u32 crc = ~(u32)0;
+	char result[BTRFS_CSUM_SIZE];
 
-	if (!btrfs_supported_super_csum(csum_type)) {
-		btrfs_err(fs_info, "unsupported checksum algorithm %u",
-			  csum_type);
+	/*
+	 * The super_block structure does not span the whole
+	 * BTRFS_SUPER_INFO_SIZE range, we expect that the unused space is
+	 * filled with zeros and is included in the checksum.
+	 */
+	crc = btrfs_csum_data(raw_disk_sb + BTRFS_CSUM_SIZE,
+			      crc, BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE);
+	btrfs_csum_final(crc, result);
+
+	if (memcmp(disk_sb->csum, result, btrfs_super_csum_size(disk_sb)))
 		return 1;
-	}
-
-	if (csum_type == BTRFS_CSUM_TYPE_CRC32) {
-		u32 crc = ~(u32)0;
-		char result[sizeof(crc)];
-
-		/*
-		 * The super_block structure does not span the whole
-		 * BTRFS_SUPER_INFO_SIZE range, we expect that the unused space
-		 * is filled with zeros and is included in the checksum.
-		 */
-		crc = btrfs_csum_data(raw_disk_sb + BTRFS_CSUM_SIZE,
-				crc, BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE);
-		btrfs_csum_final(crc, result);
-
-		if (memcmp(raw_disk_sb, result, sizeof(result)))
-			return 1;
-	}
 
 	return 0;
 }
@@ -2611,6 +2601,7 @@ int open_ctree(struct super_block *sb,
 	u32 stripesize;
 	u64 generation;
 	u64 features;
+	u16 csum_type;
 	struct btrfs_key location;
 	struct buffer_head *bh;
 	struct btrfs_super_block *disk_super;
@@ -2820,11 +2811,10 @@ int open_ctree(struct super_block *sb,
 	 * Verify the type first, if that or the the checksum value are
 	 * corrupted, we'll find out
 	 */
-	if (!btrfs_supported_super_csum(btrfs_super_csum_type(
-				 (struct btrfs_super_block *) bh->b_data))) {
+	csum_type = btrfs_super_csum_type((struct btrfs_super_block *)bh->b_data);
+	if (!btrfs_supported_super_csum(csum_type)) {
 		btrfs_err(fs_info, "unsupported checksum algorithm: %u",
-			  btrfs_super_csum_type((struct btrfs_super_block *)
-						bh->b_data));
+			  csum_type);
 		err = -EINVAL;
 		brelse(bh);
 		goto fail_alloc;
