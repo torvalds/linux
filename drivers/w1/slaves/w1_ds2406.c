@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * w1_ds2406.c - w1 family 12 (DS2406) driver
  * based on w1_ds2413.c by Mariusz Bialonczyk <manio@skyboo.net>
  *
  * Copyright (c) 2014 Scott Alfter <scott@alfter.us>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2. See the file COPYING for more details.
  */
 
 #include <linux/kernel.h>
