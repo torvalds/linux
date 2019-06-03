@@ -32,6 +32,8 @@
 #ifndef _ENA_ADMIN_H_
 #define _ENA_ADMIN_H_
 
+#define ENA_ADMIN_EXTRA_PROPERTIES_STRING_LEN 32
+#define ENA_ADMIN_EXTRA_PROPERTIES_COUNT     32
 
 enum ena_admin_aq_opcode {
 	ENA_ADMIN_CREATE_SQ                         = 1,
@@ -60,6 +62,8 @@ enum ena_admin_aq_feature_id {
 	ENA_ADMIN_MAX_QUEUES_NUM                    = 2,
 	ENA_ADMIN_HW_HINTS                          = 3,
 	ENA_ADMIN_LLQ                               = 4,
+	ENA_ADMIN_EXTRA_PROPERTIES_STRINGS          = 5,
+	ENA_ADMIN_EXTRA_PROPERTIES_FLAGS            = 6,
 	ENA_ADMIN_RSS_HASH_FUNCTION                 = 10,
 	ENA_ADMIN_STATELESS_OFFLOAD_CONFIG          = 11,
 	ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG      = 12,
@@ -560,6 +564,14 @@ struct ena_admin_set_feature_mtu_desc {
 	u32 mtu;
 };
 
+struct ena_admin_get_extra_properties_strings_desc {
+	u32 count;
+};
+
+struct ena_admin_get_extra_properties_flags_desc {
+	u32 flags;
+};
+
 struct ena_admin_set_feature_host_attr_desc {
 	/* host OS info base address in OS memory. host info is 4KB of
 	 * physically contiguous
@@ -864,6 +876,10 @@ struct ena_admin_get_feat_resp {
 		struct ena_admin_feature_intr_moder_desc intr_moderation;
 
 		struct ena_admin_ena_hw_hints hw_hints;
+
+		struct ena_admin_get_extra_properties_strings_desc extra_properties_strings;
+
+		struct ena_admin_get_extra_properties_flags_desc extra_properties_flags;
 	} u;
 };
 
