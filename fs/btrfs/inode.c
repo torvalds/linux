@@ -1932,17 +1932,19 @@ int btrfs_bio_fits_in_stripe(struct page *page, size_t size, struct bio *bio,
 	u64 length = 0;
 	u64 map_length;
 	int ret;
+	struct btrfs_io_geometry geom;
 
 	if (bio_flags & EXTENT_BIO_COMPRESSED)
 		return 0;
 
 	length = bio->bi_iter.bi_size;
 	map_length = length;
-	ret = btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
-			      NULL, 0);
+	ret = btrfs_get_io_geometry(fs_info, btrfs_op(bio), logical, map_length,
+				    &geom);
 	if (ret < 0)
 		return ret;
-	if (map_length < length + size)
+
+	if (geom.len < length + size)
 		return 1;
 	return 0;
 }
@@ -8308,22 +8310,21 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip)
 	struct bio *orig_bio = dip->orig_bio;
 	u64 start_sector = orig_bio->bi_iter.bi_sector;
 	u64 file_offset = dip->logical_offset;
-	u64 map_length;
 	int async_submit = 0;
 	u64 submit_len;
 	int clone_offset = 0;
 	int clone_len;
 	int ret;
 	blk_status_t status;
+	struct btrfs_io_geometry geom;
 
-	map_length = orig_bio->bi_iter.bi_size;
-	submit_len = map_length;
-	ret = btrfs_map_block(fs_info, btrfs_op(orig_bio), start_sector << 9,
-			      &map_length, NULL, 0);
+	submit_len = orig_bio->bi_iter.bi_size;
+	ret = btrfs_get_io_geometry(fs_info, btrfs_op(orig_bio),
+				    start_sector << 9, submit_len, &geom);
 	if (ret)
 		return -EIO;
 
-	if (map_length >= submit_len) {
+	if (geom.len >= submit_len) {
 		bio = orig_bio;
 		dip->flags |= BTRFS_DIO_ORIG_BIO_SUBMITTED;
 		goto submit;
@@ -8336,10 +8337,10 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip)
 		async_submit = 1;
 
 	/* bio split */
-	ASSERT(map_length <= INT_MAX);
+	ASSERT(geom.len <= INT_MAX);
 	atomic_inc(&dip->pending_bios);
 	do {
-		clone_len = min_t(int, submit_len, map_length);
+		clone_len = min_t(int, submit_len, geom.len);
 
 		/*
 		 * This will never fail as it's passing GPF_NOFS and
@@ -8376,9 +8377,8 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip)
 		start_sector += clone_len >> 9;
 		file_offset += clone_len;
 
-		map_length = submit_len;
-		ret = btrfs_map_block(fs_info, btrfs_op(orig_bio),
-				      start_sector << 9, &map_length, NULL, 0);
+		ret = btrfs_get_io_geometry(fs_info, btrfs_op(orig_bio),
+				      start_sector << 9, submit_len, &geom);
 		if (ret)
 			goto out_err;
 	} while (submit_len > 0);

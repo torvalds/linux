@@ -5930,7 +5930,7 @@ static bool need_full_stripe(enum btrfs_map_op op)
  * usually shouldn't happen unless @logical is corrupted, 0 otherwise.
  */
 int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
-		      u64 logical, u64 len, struct btrfs_io_geometry *io_geom)
+			u64 logical, u64 len, struct btrfs_io_geometry *io_geom)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
@@ -6037,77 +6037,29 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 	int patch_the_first_stripe_for_dev_replace = 0;
 	u64 physical_to_patch_in_first_stripe = 0;
 	u64 raid56_full_stripe_start = (u64)-1;
+	struct btrfs_io_geometry geom;
+
+	ASSERT(bbio_ret);
 
 	if (op == BTRFS_MAP_DISCARD)
 		return __btrfs_map_block_for_discard(fs_info, logical,
 						     *length, bbio_ret);
 
+	ret = btrfs_get_io_geometry(fs_info, op, logical, *length, &geom);
+	if (ret < 0)
+		return ret;
+
 	em = btrfs_get_chunk_map(fs_info, logical, *length);
-	if (IS_ERR(em))
-		return PTR_ERR(em);
-
+	ASSERT(em);
 	map = em->map_lookup;
-	offset = logical - em->start;
 
-	stripe_len = map->stripe_len;
-	stripe_nr = offset;
-	/*
-	 * stripe_nr counts the total number of stripes we have to stride
-	 * to get to this block
-	 */
-	stripe_nr = div64_u64(stripe_nr, stripe_len);
+	*length = geom.len;
+	offset = geom.offset;
+	stripe_len = geom.stripe_len;
+	stripe_nr = geom.stripe_nr;
+	stripe_offset = geom.stripe_offset;
+	raid56_full_stripe_start = geom.raid56_stripe_offset;
 	data_stripes = nr_data_stripes(map);
-
-	stripe_offset = stripe_nr * stripe_len;
-	if (offset < stripe_offset) {
-		btrfs_crit(fs_info,
-			   "stripe math has gone wrong, stripe_offset=%llu, offset=%llu, start=%llu, logical=%llu, stripe_len=%llu",
-			   stripe_offset, offset, em->start, logical,
-			   stripe_len);
-		free_extent_map(em);
-		return -EINVAL;
-	}
-
-	/* stripe_offset is the offset of this block in its stripe*/
-	stripe_offset = offset - stripe_offset;
-
-	/* if we're here for raid56, we need to know the stripe aligned start */
-	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		unsigned long full_stripe_len = stripe_len * data_stripes;
-		raid56_full_stripe_start = offset;
-
-		/* allow a write of a full stripe, but make sure we don't
-		 * allow straddling of stripes
-		 */
-		raid56_full_stripe_start = div64_u64(raid56_full_stripe_start,
-				full_stripe_len);
-		raid56_full_stripe_start *= full_stripe_len;
-	}
-
-	if (map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK) {
-		u64 max_len;
-		/* For writes to RAID[56], allow a full stripeset across all disks.
-		   For other RAID types and for RAID[56] reads, just allow a single
-		   stripe (on a single disk). */
-		if ((map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) &&
-		    (op == BTRFS_MAP_WRITE)) {
-			max_len = stripe_len * data_stripes -
-				(offset - raid56_full_stripe_start);
-		} else {
-			/* we limit the length of each bio to what fits in a stripe */
-			max_len = stripe_len - stripe_offset;
-		}
-		*length = min_t(u64, em->len - offset, max_len);
-	} else {
-		*length = em->len - offset;
-	}
-
-	/*
-	 * This is for when we're called from btrfs_bio_fits_in_stripe and all
-	 * it cares about is the length
-	 */
-	if (!bbio_ret)
-		goto out;
 
 	down_read(&dev_replace->rwsem);
 	dev_replace_is_ongoing = btrfs_dev_replace_is_ongoing(dev_replace);
