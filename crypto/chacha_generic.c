@@ -36,7 +36,7 @@ static void chacha_docrypt(u32 *state, u8 *dst, const u8 *src,
 }
 
 static int chacha_stream_xor(struct skcipher_request *req,
-			     struct chacha_ctx *ctx, u8 *iv)
+			     const struct chacha_ctx *ctx, const u8 *iv)
 {
 	struct skcipher_walk walk;
 	u32 state[16];
@@ -60,7 +60,7 @@ static int chacha_stream_xor(struct skcipher_request *req,
 	return err;
 }
 
-void crypto_chacha_init(u32 *state, struct chacha_ctx *ctx, u8 *iv)
+void crypto_chacha_init(u32 *state, const struct chacha_ctx *ctx, const u8 *iv)
 {
 	state[0]  = 0x61707865; /* "expa" */
 	state[1]  = 0x3320646e; /* "nd 3" */
