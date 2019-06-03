@@ -26,23 +26,6 @@
 
 static LIST_HEAD(crypto_template_list);
 
-static inline int crypto_set_driver_name(struct crypto_alg *alg)
-{
-	static const char suffix[] = "-generic";
-	char *driver_name = alg->cra_driver_name;
-	int len;
-
-	if (*driver_name)
-		return 0;
-
-	len = strlcpy(driver_name, alg->cra_name, CRYPTO_MAX_ALG_NAME);
-	if (len + sizeof(suffix) > CRYPTO_MAX_ALG_NAME)
-		return -ENAMETOOLONG;
-
-	memcpy(driver_name + len, suffix, sizeof(suffix));
-	return 0;
-}
-
 static inline void crypto_check_module_sig(struct module *mod)
 {
 	if (fips_enabled && mod && !module_sig_ok(mod))
@@ -53,6 +36,9 @@ static inline void crypto_check_module_sig(struct module *mod)
 static int crypto_check_alg(struct crypto_alg *alg)
 {
 	crypto_check_module_sig(alg->cra_module);
+
+	if (!alg->cra_name[0] || !alg->cra_driver_name[0])
+		return -EINVAL;
 
 	if (alg->cra_alignmask & (alg->cra_alignmask + 1))
 		return -EINVAL;
@@ -79,7 +65,7 @@ static int crypto_check_alg(struct crypto_alg *alg)
 
 	refcount_set(&alg->cra_refcnt, 1);
 
-	return crypto_set_driver_name(alg);
+	return 0;
 }
 
 static void crypto_free_instance(struct crypto_instance *inst)
