@@ -195,15 +195,17 @@ static inline int ena_com_update_dev_comp_head(struct ena_com_io_cq *io_cq)
 	u16 unreported_comp, head;
 	bool need_update;
 
-	head = io_cq->head;
-	unreported_comp = head - io_cq->last_head_update;
-	need_update = unreported_comp > (io_cq->q_depth / ENA_COMP_HEAD_THRESH);
+	if (unlikely(io_cq->cq_head_db_reg)) {
+		head = io_cq->head;
+		unreported_comp = head - io_cq->last_head_update;
+		need_update = unreported_comp > (io_cq->q_depth / ENA_COMP_HEAD_THRESH);
 
-	if (io_cq->cq_head_db_reg && need_update) {
-		pr_debug("Write completion queue doorbell for queue %d: head: %d\n",
-			 io_cq->qid, head);
-		writel(head, io_cq->cq_head_db_reg);
-		io_cq->last_head_update = head;
+		if (unlikely(need_update)) {
+			pr_debug("Write completion queue doorbell for queue %d: head: %d\n",
+				 io_cq->qid, head);
+			writel(head, io_cq->cq_head_db_reg);
+			io_cq->last_head_update = head;
+		}
 	}
 
 	return 0;
