@@ -2123,8 +2123,8 @@ static void ibmvscsi_do_work(struct ibmvscsi_host_data *hostdata)
 
 	spin_lock_irqsave(hostdata->host->host_lock, flags);
 	switch (hostdata->action) {
-	case IBMVSCSI_HOST_ACTION_NONE:
 	case IBMVSCSI_HOST_ACTION_UNBLOCK:
+		rc = 0;
 		break;
 	case IBMVSCSI_HOST_ACTION_RESET:
 		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
@@ -2142,8 +2142,10 @@ static void ibmvscsi_do_work(struct ibmvscsi_host_data *hostdata)
 		if (!rc)
 			rc = ibmvscsi_send_crq(hostdata, 0xC001000000000000LL, 0);
 		break;
+	case IBMVSCSI_HOST_ACTION_NONE:
 	default:
-		break;
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+		return;
 	}
 
 	hostdata->action = IBMVSCSI_HOST_ACTION_NONE;
