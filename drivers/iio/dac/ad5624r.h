@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AD5624R SPI DAC driver
  *
  * Copyright 2010-2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 #ifndef SPI_AD5624R_H_
 #define SPI_AD5624R_H_

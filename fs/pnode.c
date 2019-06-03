@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/pnode.c
  *
  * (C) Copyright IBM Corporation 2005.
- *	Released under GPL v2.
  *	Author : Ram Pai (linuxram@us.ibm.com)
- *
  */
 #include <linux/mnt_namespace.h>
 #include <linux/mount.h>

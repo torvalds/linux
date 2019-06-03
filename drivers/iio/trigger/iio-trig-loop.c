@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2016 Jonathan Cameron <jic23@kernel.org>
- *
- * Licensed under the GPL-2.
  *
  * Based on a mashup of the hrtimer trigger and continuous sampling proposal of
  * Gregor Boirie <gregor.boirie@parrot.com>
