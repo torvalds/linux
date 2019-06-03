@@ -23,6 +23,21 @@ struct btrfs_pending_bios {
 	struct bio *tail;
 };
 
+struct btrfs_io_geometry {
+	/* remaining bytes before crossing a stripe */
+	u64 len;
+	/* offset of logical address in chunk */
+	u64 offset;
+	/* length of single IO stripe */
+	u64 stripe_len;
+	/* number of stripe where address falls */
+	u64 stripe_nr;
+	/* offset of address in stripe */
+	u64 stripe_offset;
+	/* offset of raid56 stripe into the chunk */
+	u64 raid56_stripe_offset;
+};
+
 /*
  * Use sequence counter to get consistent device stat data on
  * 32-bit processors.
@@ -413,6 +428,8 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
 		     struct btrfs_bio **bbio_ret);
+int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
+			  u64 logical, u64 len, struct btrfs_io_geometry *io_geom);
 int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 		     u64 physical, u64 **logical, int *naddrs, int *stripe_len);
 int btrfs_read_sys_array(struct btrfs_fs_info *fs_info);
