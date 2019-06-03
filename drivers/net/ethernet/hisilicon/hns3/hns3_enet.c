@@ -1920,9 +1920,9 @@ static pci_ers_result_t hns3_error_detected(struct pci_dev *pdev,
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;
 
-	if (!ae_dev) {
+	if (!ae_dev || !ae_dev->ops) {
 		dev_err(&pdev->dev,
-			"Can't recover - error happened during device init\n");
+			"Can't recover - error happened before device initialized\n");
 		return PCI_ERS_RESULT_NONE;
 	}
 
@@ -1940,6 +1940,9 @@ static pci_ers_result_t hns3_slot_reset(struct pci_dev *pdev)
 	struct device *dev = &pdev->dev;
 
 	dev_info(dev, "requesting reset due to PCI error\n");
+
+	if (!ae_dev || !ae_dev->ops)
+		return PCI_ERS_RESULT_NONE;
 
 	/* request the reset */
 	if (ae_dev->ops->reset_event) {
