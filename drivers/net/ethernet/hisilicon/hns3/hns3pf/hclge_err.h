@@ -47,9 +47,9 @@
 #define HCLGE_NCSI_ERR_INT_TYPE	0x9
 #define HCLGE_MAC_COMMON_ERR_INT_EN		0x107FF
 #define HCLGE_MAC_COMMON_ERR_INT_EN_MASK	0x107FF
-#define HCLGE_MAC_TNL_INT_EN			GENMASK(7, 0)
-#define HCLGE_MAC_TNL_INT_EN_MASK		GENMASK(7, 0)
-#define HCLGE_MAC_TNL_INT_CLR			GENMASK(7, 0)
+#define HCLGE_MAC_TNL_INT_EN			GENMASK(9, 0)
+#define HCLGE_MAC_TNL_INT_EN_MASK		GENMASK(9, 0)
+#define HCLGE_MAC_TNL_INT_CLR			GENMASK(9, 0)
 #define HCLGE_PPU_MPF_ABNORMAL_INT0_EN		GENMASK(31, 0)
 #define HCLGE_PPU_MPF_ABNORMAL_INT0_EN_MASK	GENMASK(31, 0)
 #define HCLGE_PPU_MPF_ABNORMAL_INT1_EN		GENMASK(31, 0)
@@ -119,7 +119,8 @@ struct hclge_hw_error {
 };
 
 int hclge_config_mac_tnl_int(struct hclge_dev *hdev, bool en);
-int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state);
+int hclge_config_nic_hw_error(struct hclge_dev *hdev, bool state);
+int hclge_config_rocee_ras_interrupt(struct hclge_dev *hdev, bool en);
 pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev);
 int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 			       unsigned long *reset_requests);

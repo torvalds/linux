@@ -87,25 +87,25 @@ static const struct hclge_hw_error hclge_msix_sram_ecc_int[] = {
 
 static const struct hclge_hw_error hclge_igu_int[] = {
 	{ .int_msk = BIT(0), .msg = "igu_rx_buf0_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(2), .msg = "igu_rx_buf1_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_igu_egu_tnl_int[] = {
 	{ .int_msk = BIT(0), .msg = "rx_buf_overflow",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(1), .msg = "rx_stp_fifo_overflow",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(2), .msg = "rx_stp_fifo_undeflow",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(3), .msg = "tx_buf_overflow",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(4), .msg = "tx_buf_underrun",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(5), .msg = "rx_stp_buf_overflow",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
@@ -413,13 +413,13 @@ static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st2[] = {
 
 static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st3[] = {
 	{ .int_msk = BIT(4), .msg = "gro_bd_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(5), .msg = "gro_context_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(6), .msg = "rx_stash_cfg_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ .int_msk = BIT(7), .msg = "axi_rd_fbd_ecc_mbit_err",
-	  .reset_level = HNAE3_CORE_RESET },
+	  .reset_level = HNAE3_GLOBAL_RESET },
 	{ /* sentinel */ }
 };
 
@@ -1098,8 +1098,6 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 	/* query all main PF RAS errors */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_MPF_RAS_INT,
 				   true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
 	if (ret) {
 		dev_err(dev, "query all mpf ras int cmd failed (%d)\n", ret);
@@ -1262,8 +1260,6 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 
 	/* clear all main PF RAS errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
 	if (ret)
 		dev_err(dev, "clear all mpf ras int cmd failed (%d)\n", ret);
@@ -1293,8 +1289,6 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 	/* query all PF RAS errors */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_PF_RAS_INT,
 				   true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
 	if (ret) {
 		dev_err(dev, "query all pf ras int cmd failed (%d)\n", ret);
@@ -1348,8 +1342,6 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 
 	/* clear all PF RAS errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
 	if (ret)
 		dev_err(dev, "clear all pf ras int cmd failed (%d)\n", ret);
@@ -1501,7 +1493,7 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 	return reset_type;
 }
 
-static int hclge_config_rocee_ras_interrupt(struct hclge_dev *hdev, bool en)
+int hclge_config_rocee_ras_interrupt(struct hclge_dev *hdev, bool en)
 {
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_desc desc;
@@ -1574,10 +1566,9 @@ static const struct hclge_hw_blk hw_blk[] = {
 	{ /* sentinel */ }
 };
 
-int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state)
+int hclge_config_nic_hw_error(struct hclge_dev *hdev, bool state)
 {
 	const struct hclge_hw_blk *module = hw_blk;
-	struct device *dev = &hdev->pdev->dev;
 	int ret = 0;
 
 	while (module->name) {
@@ -1588,10 +1579,6 @@ int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state)
 		}
 		module++;
 	}
-
-	ret = hclge_config_rocee_ras_interrupt(hdev, state);
-	if (ret)
-		dev_err(dev, "fail(%d) to configure ROCEE err int\n", ret);
 
 	return ret;
 }
@@ -1667,8 +1654,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	/* query all main PF MSIx errors */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_ALL_MPF_MSIX_INT,
 				   true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], mpf_bd_num);
 	if (ret) {
 		dev_err(dev, "query all mpf msix int cmd failed (%d)\n",
@@ -1700,8 +1685,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 
 	/* clear all main PF MSIx errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], mpf_bd_num);
 	if (ret) {
 		dev_err(dev, "clear all mpf msix int cmd failed (%d)\n",
@@ -1713,8 +1696,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	memset(desc, 0, bd_num * sizeof(struct hclge_desc));
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT,
 				   true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], pf_bd_num);
 	if (ret) {
 		dev_err(dev, "query all pf msix int cmd failed (%d)\n",
@@ -1753,8 +1734,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 
 	/* clear all PF MSIx errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], pf_bd_num);
 	if (ret) {
 		dev_err(dev, "clear all pf msix int cmd failed (%d)\n",
@@ -1783,7 +1762,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 		ret = hclge_clear_mac_tnl_int(hdev);
 		if (ret)
 			dev_err(dev, "clear mac tnl int failed (%d)\n", ret);
-		set_bit(HNAE3_NONE_RESET, reset_requests);
 	}
 
 msi_error:
