@@ -951,8 +951,8 @@ static void __iommu_dma_free(struct device *dev, size_t size, void *cpu_addr)
 
 	if (pages)
 		__iommu_dma_free_pages(pages, count);
-	if (page && !dma_release_from_contiguous(dev, page, count))
-		__free_pages(page, get_order(alloc_size));
+	if (page)
+		dma_free_contiguous(dev, page, alloc_size);
 }
 
 static void iommu_dma_free(struct device *dev, size_t size, void *cpu_addr,
@@ -970,12 +970,7 @@ static void *iommu_dma_alloc_pages(struct device *dev, size_t size,
 	struct page *page = NULL;
 	void *cpu_addr;
 
-	if (gfpflags_allow_blocking(gfp))
-		page = dma_alloc_from_contiguous(dev, alloc_size >> PAGE_SHIFT,
-						 get_order(alloc_size),
-						 gfp & __GFP_NOWARN);
-	if (!page)
-		page = alloc_pages(gfp, get_order(alloc_size));
+	page = dma_alloc_contiguous(dev, alloc_size, gfp);
 	if (!page)
 		return NULL;
 
@@ -997,8 +992,7 @@ static void *iommu_dma_alloc_pages(struct device *dev, size_t size,
 	memset(cpu_addr, 0, alloc_size);
 	return cpu_addr;
 out_free_pages:
-	if (!dma_release_from_contiguous(dev, page, alloc_size >> PAGE_SHIFT))
-		__free_pages(page, get_order(alloc_size));
+	dma_free_contiguous(dev, page, alloc_size);
 	return NULL;
 }
 
