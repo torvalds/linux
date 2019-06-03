@@ -1053,7 +1053,7 @@ static void hclge_dbg_dump_mac_tnl_status(struct hclge_dev *hdev)
 
 	while (kfifo_get(&hdev->mac_tnl_log, &stats)) {
 		rem_nsec = do_div(stats.time, HCLGE_BILLION_NANO_SECONDS);
-		dev_info(&hdev->pdev->dev, "[%07lu.%03lu]status = 0x%x\n",
+		dev_info(&hdev->pdev->dev, "[%07lu.%03lu] status = 0x%x\n",
 			 (unsigned long)stats.time, rem_nsec / 1000,
 			 stats.status);
 	}
