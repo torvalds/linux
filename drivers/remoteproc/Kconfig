@@ -15,7 +15,7 @@ if REMOTEPROC
 
 config IMX_REMOTEPROC
 	tristate "IMX6/7 remoteproc support"
-	depends on SOC_IMX6SX || SOC_IMX7D
+	depends on ARCH_MXC
 	help
 	  Say y here to support iMX's remote processors (Cortex M4
 	  on iMX7D) via the remote processor framework.
