@@ -1489,11 +1489,9 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 
 	/* osd_state, osd_weight, osd_addrs->client_addr */
 	ceph_decode_need(p, end, 3*sizeof(u32) +
-			 map->max_osd*((struct_v >= 5 ? sizeof(u32) :
-							sizeof(u8)) +
-				       sizeof(*map->osd_weight) +
-				       sizeof(*map->osd_addr)), e_inval);
-
+			 map->max_osd*(struct_v >= 5 ? sizeof(u32) :
+						       sizeof(u8)) +
+				       sizeof(*map->osd_weight), e_inval);
 	if (ceph_decode_32(p) != map->max_osd)
 		goto e_inval;
 
@@ -1514,9 +1512,11 @@ static int osdmap_decode(void **p, void *end, struct ceph_osdmap *map)
 	if (ceph_decode_32(p) != map->max_osd)
 		goto e_inval;
 
-	ceph_decode_copy(p, map->osd_addr, map->max_osd*sizeof(*map->osd_addr));
-	for (i = 0; i < map->max_osd; i++)
-		ceph_decode_addr(&map->osd_addr[i]);
+	for (i = 0; i < map->max_osd; i++) {
+		err = ceph_decode_entity_addr(p, end, &map->osd_addr[i]);
+		if (err)
+			goto bad;
+	}
 
 	/* pg_temp */
 	err = decode_pg_temp(p, end, map);
