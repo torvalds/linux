@@ -298,8 +298,7 @@ struct i2c_driver {
 
 /**
  * struct i2c_client - represent an I2C slave device
- * @flags: I2C_CLIENT_TEN indicates the device uses a ten bit chip address;
- *	I2C_CLIENT_PEC indicates it uses SMBus Packet Error Checking
+ * @flags: see I2C_CLIENT_* for possible flags
  * @addr: Address used on the I2C bus connected to the parent adapter.
  * @name: Indicates the type of the device, usually a chip name that's
  *	generic enough to hide second-sourcing and compatible revisions.
@@ -317,6 +316,15 @@ struct i2c_driver {
  */
 struct i2c_client {
 	unsigned short flags;		/* div., see below		*/
+#define I2C_CLIENT_PEC		0x04	/* Use Packet Error Checking */
+#define I2C_CLIENT_TEN		0x10	/* we have a ten bit chip address */
+					/* Must equal I2C_M_TEN below */
+#define I2C_CLIENT_SLAVE	0x20	/* we are the slave */
+#define I2C_CLIENT_HOST_NOTIFY	0x40	/* We want to use I2C host notify */
+#define I2C_CLIENT_WAKE		0x80	/* for board_info; true iff can wake */
+#define I2C_CLIENT_SCCB		0x9000	/* Use Omnivision SCCB protocol */
+					/* Must match I2C_M_STOP|IGNORE_NAK */
+
 	unsigned short addr;		/* chip address - NOTE: 7bit	*/
 					/* addresses are stored in the	*/
 					/* _LOWER_ 7 bits		*/
@@ -802,16 +810,6 @@ static inline void i2c_mark_adapter_resumed(struct i2c_adapter *adap)
 	clear_bit(I2C_ALF_IS_SUSPENDED, &adap->locked_flags);
 	i2c_unlock_bus(adap, I2C_LOCK_ROOT_ADAPTER);
 }
-
-/*flags for the client struct: */
-#define I2C_CLIENT_PEC		0x04	/* Use Packet Error Checking */
-#define I2C_CLIENT_TEN		0x10	/* we have a ten bit chip address */
-					/* Must equal I2C_M_TEN below */
-#define I2C_CLIENT_SLAVE	0x20	/* we are the slave */
-#define I2C_CLIENT_HOST_NOTIFY	0x40	/* We want to use I2C host notify */
-#define I2C_CLIENT_WAKE		0x80	/* for board_info; true iff can wake */
-#define I2C_CLIENT_SCCB		0x9000	/* Use Omnivision SCCB protocol */
-					/* Must match I2C_M_STOP|IGNORE_NAK */
 
 /* i2c adapter classes (bitmask) */
 #define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */
