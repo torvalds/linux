@@ -317,7 +317,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	/*
 	 * Step 1: Allocate a struct for the pcard
 	 */
-	pcard = kzalloc(sizeof(struct kp2000_device), GFP_KERNEL);
+	pcard = kzalloc(sizeof(*pcard), GFP_KERNEL);
 	if (!pcard)
 		return -ENOMEM;
 	dev_dbg(&pdev->dev, "probe: allocated struct kp2000_device @ %p\n",
