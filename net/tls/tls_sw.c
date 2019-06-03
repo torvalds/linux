@@ -1492,9 +1492,11 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 
 	if (!ctx->decrypted) {
 #ifdef CONFIG_TLS_DEVICE
-		err = tls_device_decrypted(sk, skb);
-		if (err < 0)
-			return err;
+		if (tls_ctx->rx_conf == TLS_HW) {
+			err = tls_device_decrypted(sk, skb);
+			if (err < 0)
+				return err;
+		}
 #endif
 		/* Still not decrypted after tls_device */
 		if (!ctx->decrypted) {
