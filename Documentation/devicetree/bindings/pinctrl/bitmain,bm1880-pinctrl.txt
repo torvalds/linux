@@ -100,6 +100,17 @@ Optional Properties:
                   Valid values are:
                   <0>  - Slow
                   <1>  - Fast
+- drive-strength: Integer. Selects the drive strength for the specified
+                  pins in mA.
+                  Valid values are:
+                  <4>
+                  <8>
+                  <12>
+                  <16>
+                  <20>
+                  <24>
+                  <28>
+                  <32>
 
 Example:
         pinctrl: pinctrl@400 {
