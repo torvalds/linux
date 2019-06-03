@@ -497,11 +497,8 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 	info->dev = dev;
 
 	info->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(info->regs)) {
-		ret = PTR_ERR(info->regs);
-		dev_err(dev, "Failed to remap adc memory, err = %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(info->regs))
+		return PTR_ERR(info->regs);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
