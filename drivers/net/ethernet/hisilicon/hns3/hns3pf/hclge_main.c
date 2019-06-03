@@ -8202,10 +8202,16 @@ static int hclge_init_nic_client_instance(struct hnae3_ae_dev *ae_dev,
 	set_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state);
 	hnae3_set_client_init_flag(client, ae_dev, 1);
 
+	/* Enable nic hw error interrupts */
+	ret = hclge_config_nic_hw_error(hdev, true);
+	if (ret)
+		dev_err(&ae_dev->pdev->dev,
+			"fail(%d) to enable hw error interrupts\n", ret);
+
 	if (netif_msg_drv(&hdev->vport->nic))
 		hclge_info_show(hdev);
 
-	return 0;
+	return ret;
 }
 
 static int hclge_init_roce_client_instance(struct hnae3_ae_dev *ae_dev,
@@ -8285,7 +8291,13 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 		}
 	}
 
-	return 0;
+	/* Enable roce ras interrupts */
+	ret = hclge_config_rocee_ras_interrupt(hdev, true);
+	if (ret)
+		dev_err(&ae_dev->pdev->dev,
+			"fail(%d) to enable roce ras interrupts\n", ret);
+
+	return ret;
 
 clear_nic:
 	hdev->nic_client = NULL;
@@ -8589,13 +8601,6 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		goto err_mdiobus_unreg;
 	}
 
-	ret = hclge_hw_error_set_state(hdev, true);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"fail(%d) to enable hw error interrupts\n", ret);
-		goto err_mdiobus_unreg;
-	}
-
 	INIT_KFIFO(hdev->mac_tnl_log);
 
 	hclge_dcb_ops_set(hdev);
@@ -8719,13 +8724,24 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	}
 
 	/* Re-enable the hw error interrupts because
-	 * the interrupts get disabled on core/global reset.
+	 * the interrupts get disabled on global reset.
 	 */
-	ret = hclge_hw_error_set_state(hdev, true);
+	ret = hclge_config_nic_hw_error(hdev, true);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"fail(%d) to re-enable HNS hw error interrupts\n", ret);
+			"fail(%d) to re-enable NIC hw error interrupts\n",
+			ret);
 		return ret;
+	}
+
+	if (hdev->roce_client) {
+		ret = hclge_config_rocee_ras_interrupt(hdev, true);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"fail(%d) to re-enable roce ras interrupts\n",
+				ret);
+			return ret;
+		}
 	}
 
 	hclge_reset_vport_state(hdev);
@@ -8752,8 +8768,11 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 	hclge_enable_vector(&hdev->misc_vector, false);
 	synchronize_irq(hdev->misc_vector.vector_irq);
 
+	/* Disable all hw interrupts */
 	hclge_config_mac_tnl_int(hdev, false);
-	hclge_hw_error_set_state(hdev, false);
+	hclge_config_nic_hw_error(hdev, false);
+	hclge_config_rocee_ras_interrupt(hdev, false);
+
 	hclge_cmd_uninit(hdev);
 	hclge_misc_irq_uninit(hdev);
 	hclge_pci_uninit(hdev);
