@@ -7025,6 +7025,12 @@ static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
 	u8 vf_byte_off;
 	int ret;
 
+	/* if vf vlan table is full, firmware will close vf vlan filter, it
+	 * is unable and unnecessary to add new vlan id to vf vlan filter
+	 */
+	if (test_bit(vfid, hdev->vf_vlan_full) && !is_kill)
+		return 0;
+
 	hclge_cmd_setup_basic_desc(&desc[0],
 				   HCLGE_OPC_VLAN_FILTER_VF_CFG, false);
 	hclge_cmd_setup_basic_desc(&desc[1],
@@ -7060,6 +7066,7 @@ static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, int vfid,
 			return 0;
 
 		if (req0->resp_code == HCLGE_VF_VLAN_NO_ENTRY) {
+			set_bit(vfid, hdev->vf_vlan_full);
 			dev_warn(&hdev->pdev->dev,
 				 "vf vlan table is full, vf vlan filter is disabled\n");
 			return 0;
@@ -8621,6 +8628,7 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	hclge_stats_clear(hdev);
 	memset(hdev->vlan_table, 0, sizeof(hdev->vlan_table));
+	memset(hdev->vf_vlan_full, 0, sizeof(hdev->vf_vlan_full));
 
 	ret = hclge_cmd_init(hdev);
 	if (ret) {
