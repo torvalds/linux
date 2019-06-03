@@ -688,4 +688,13 @@ config CHARGER_UCS1002
 	  Say Y to enable support for Microchip UCS1002 Programmable
 	  USB Port Power Controller with Charger Emulation.
 
+config CHARGER_BD70528
+	tristate "ROHM bd70528 charger driver"
+	depends on MFD_ROHM_BD70528
+	default n
+	help
+	 Say Y here to enable support for getting battery status
+	 information and altering charger configurations from charger
+	 block of the ROHM BD70528 Power Management IC.
+
 endif # POWER_SUPPLY
