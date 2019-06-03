@@ -151,13 +151,11 @@ static void cnl_ipc_dsp_done(struct snd_sof_dev *sdev)
 static int cnl_ipc_send_msg(struct snd_sof_dev *sdev,
 			    struct snd_sof_ipc_msg *msg)
 {
-	u32 cmd = msg->header;
-
 	/* send the message */
 	sof_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
 			  msg->msg_size);
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR,
-			  cmd | CNL_DSP_REG_HIPCIDR_BUSY);
+			  CNL_DSP_REG_HIPCIDR_BUSY);
 
 	return 0;
 }
