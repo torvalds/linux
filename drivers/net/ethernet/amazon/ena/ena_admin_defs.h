@@ -524,6 +524,11 @@ struct ena_admin_feature_llq_desc {
 
 	/* the stride control the driver selected to use */
 	u16 descriptors_stride_ctrl_enabled;
+
+	/* Maximum size in bytes taken by llq entries in a single tx burst.
+	 * Set to 0 when there is no such limit.
+	 */
+	u32 max_tx_burst_size;
 };
 
 struct ena_admin_queue_feature_desc {
