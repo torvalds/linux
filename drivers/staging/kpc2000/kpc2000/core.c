@@ -319,7 +319,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	 * Step 1: Allocate a struct for the pcard
 	 */
 	pcard = kzalloc(sizeof(struct kp2000_device), GFP_KERNEL);
-	if (NULL == pcard) {
+	if (!pcard) {
 		dev_err(&pdev->dev,
 			"probe: failed to allocate private card data\n");
 		return -ENOMEM;
@@ -363,7 +363,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	reg_bar_phys_len = pci_resource_len(pcard->pdev, REG_BAR);
 
 	pcard->regs_bar_base = ioremap_nocache(reg_bar_phys_addr, PAGE_SIZE);
-	if (NULL == pcard->regs_bar_base) {
+	if (!pcard->regs_bar_base) {
 		dev_err(&pcard->pdev->dev,
 			"probe: REG_BAR could not remap memory to virtual space\n");
 		err = -ENODEV;
@@ -396,7 +396,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 
 	pcard->dma_bar_base = ioremap_nocache(dma_bar_phys_addr,
 					      dma_bar_phys_len);
-	if (NULL == pcard->dma_bar_base) {
+	if (!pcard->dma_bar_base) {
 		dev_err(&pcard->pdev->dev,
 			"probe: DMA_BAR could not remap memory to virtual space\n");
 		err = -ENODEV;
@@ -546,7 +546,7 @@ static void kp2000_pcie_remove(struct pci_dev *pdev)
 
 	dev_dbg(&pdev->dev, "kp2000_pcie_remove(pdev=%p)\n", pdev);
 
-	if (pcard == NULL)
+	if (!pcard)
 		return;
 
 	mutex_lock(&pcard->sem);
@@ -555,12 +555,12 @@ static void kp2000_pcie_remove(struct pci_dev *pdev)
 	sysfs_remove_files(&(pdev->dev.kobj), kp_attr_list);
 	free_irq(pcard->pdev->irq, pcard);
 	pci_disable_msi(pcard->pdev);
-	if (pcard->dma_bar_base != NULL) {
+	if (pcard->dma_bar_base) {
 		iounmap(pcard->dma_bar_base);
 		pci_release_region(pdev, DMA_BAR);
 		pcard->dma_bar_base = NULL;
 	}
-	if (pcard->regs_bar_base != NULL) {
+	if (pcard->regs_bar_base) {
 		iounmap(pcard->regs_bar_base);
 		pci_release_region(pdev, REG_BAR);
 		pcard->regs_bar_base = NULL;
