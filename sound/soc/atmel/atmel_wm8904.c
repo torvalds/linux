@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * atmel_wm8904 - Atmel ASoC driver for boards with WM8904 codec.
  *
  * Copyright (C) 2012 Atmel
  *
  * Author: Bo Shen <voice.shen@atmel.com>
- *
- * GPLv2 or later
  */
 
 #include <linux/clk.h>

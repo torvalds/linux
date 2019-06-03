@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/net/ethernet/ibm/emac/emac.h
  *
@@ -15,12 +16,6 @@
  *      Matt Porter <mporter@kernel.crashing.org>
  *      Armin Kuster <akuster@mvista.com>
  * 	Copyright 2002-2004 MontaVista Software Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 #ifndef __IBM_NEWEMAC_H
 #define __IBM_NEWEMAC_H

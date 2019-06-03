@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AD7792/AD7793 SPI ADC driver
  *
  * Copyright 2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 #ifndef __LINUX_PLATFORM_DATA_AD7793_H__
 #define __LINUX_PLATFORM_DATA_AD7793_H__

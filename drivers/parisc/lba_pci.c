@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 **
 **  PCI Lower Bus Adapter (LBA) manager
@@ -5,10 +6,6 @@
 **	(c) Copyright 1999,2000 Grant Grundler
 **	(c) Copyright 1999,2000 Hewlett-Packard Company
 **
-**	This program is free software; you can redistribute it and/or modify
-**	it under the terms of the GNU General Public License as published by
-**      the Free Software Foundation; either version 2 of the License, or
-**      (at your option) any later version.
 **
 **
 ** This module primarily provides access to PCI bus (config/IOport
