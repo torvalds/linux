@@ -229,7 +229,9 @@ static void setup_panel_mode(
 {
 	uint32_t value;
 
-	ASSERT(REG(DP_DPHY_INTERNAL_CTRL));
+	if (!REG(DP_DPHY_INTERNAL_CTRL))
+		return;
+
 	value = REG_READ(DP_DPHY_INTERNAL_CTRL);
 
 	switch (panel_mode) {
