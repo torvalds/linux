@@ -1493,7 +1493,7 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 	return reset_type;
 }
 
-static int hclge_config_rocee_ras_interrupt(struct hclge_dev *hdev, bool en)
+int hclge_config_rocee_ras_interrupt(struct hclge_dev *hdev, bool en)
 {
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_desc desc;
@@ -1566,10 +1566,9 @@ static const struct hclge_hw_blk hw_blk[] = {
 	{ /* sentinel */ }
 };
 
-int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state)
+int hclge_config_nic_hw_error(struct hclge_dev *hdev, bool state)
 {
 	const struct hclge_hw_blk *module = hw_blk;
-	struct device *dev = &hdev->pdev->dev;
 	int ret = 0;
 
 	while (module->name) {
@@ -1580,10 +1579,6 @@ int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state)
 		}
 		module++;
 	}
-
-	ret = hclge_config_rocee_ras_interrupt(hdev, state);
-	if (ret)
-		dev_err(dev, "fail(%d) to configure ROCEE err int\n", ret);
 
 	return ret;
 }
