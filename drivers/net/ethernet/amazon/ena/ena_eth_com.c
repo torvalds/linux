@@ -82,6 +82,17 @@ static inline int ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq
 	dst_tail_mask = io_sq->tail & (io_sq->q_depth - 1);
 	dst_offset = dst_tail_mask * llq_info->desc_list_entry_size;
 
+	if (is_llq_max_tx_burst_exists(io_sq)) {
+		if (unlikely(!io_sq->entries_in_tx_burst_left)) {
+			pr_err("Error: trying to send more packets than tx burst allows\n");
+			return -ENOSPC;
+		}
+
+		io_sq->entries_in_tx_burst_left--;
+		pr_debug("decreasing entries_in_tx_burst_left of queue %d to %d\n",
+			 io_sq->qid, io_sq->entries_in_tx_burst_left);
+	}
+
 	/* Make sure everything was written into the bounce buffer before
 	 * writing the bounce buffer to the device
 	 */
@@ -272,23 +283,6 @@ static inline u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 	}
 
 	return count;
-}
-
-static inline bool ena_com_meta_desc_changed(struct ena_com_io_sq *io_sq,
-					     struct ena_com_tx_ctx *ena_tx_ctx)
-{
-	int rc;
-
-	if (ena_tx_ctx->meta_valid) {
-		rc = memcmp(&io_sq->cached_tx_meta,
-			    &ena_tx_ctx->ena_meta,
-			    sizeof(struct ena_com_tx_meta));
-
-		if (unlikely(rc != 0))
-			return true;
-	}
-
-	return false;
 }
 
 static inline int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,

@@ -115,7 +115,7 @@ static int ena_com_admin_init_sq(struct ena_com_admin_queue *queue)
 					 GFP_KERNEL);
 
 	if (!sq->entries) {
-		pr_err("memory allocation failed");
+		pr_err("memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -137,7 +137,7 @@ static int ena_com_admin_init_cq(struct ena_com_admin_queue *queue)
 					 GFP_KERNEL);
 
 	if (!cq->entries) {
-		pr_err("memory allocation failed");
+		pr_err("memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -160,7 +160,7 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *dev,
 					   GFP_KERNEL);
 
 	if (!aenq->entries) {
-		pr_err("memory allocation failed");
+		pr_err("memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -285,7 +285,7 @@ static inline int ena_com_init_comp_ctxt(struct ena_com_admin_queue *queue)
 
 	queue->comp_ctx = devm_kzalloc(queue->q_dmadev, size, GFP_KERNEL);
 	if (unlikely(!queue->comp_ctx)) {
-		pr_err("memory allocation failed");
+		pr_err("memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -356,7 +356,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 		}
 
 		if (!io_sq->desc_addr.virt_addr) {
-			pr_err("memory allocation failed");
+			pr_err("memory allocation failed\n");
 			return -ENOMEM;
 		}
 	}
@@ -382,7 +382,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 				devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
 
 		if (!io_sq->bounce_buf_ctrl.base_buffer) {
-			pr_err("bounce buffer memory allocation failed");
+			pr_err("bounce buffer memory allocation failed\n");
 			return -ENOMEM;
 		}
 
@@ -396,6 +396,10 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 		       0x0, io_sq->llq_info.desc_list_entry_size);
 		io_sq->llq_buf_ctrl.descs_left_in_line =
 			io_sq->llq_info.descs_num_before_header;
+
+		if (io_sq->llq_info.max_entries_in_tx_burst > 0)
+			io_sq->entries_in_tx_burst_left =
+				io_sq->llq_info.max_entries_in_tx_burst;
 	}
 
 	io_sq->tail = 0;
@@ -436,7 +440,7 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
 	}
 
 	if (!io_cq->cdesc_addr.virt_addr) {
-		pr_err("memory allocation failed");
+		pr_err("memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -727,6 +731,9 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 		       supported_feat, llq_info->descs_num_before_header);
 	}
 
+	llq_info->max_entries_in_tx_burst =
+		(u16)(llq_features->max_tx_burst_size /	llq_default_cfg->llq_ring_entry_size_value);
+
 	rc = ena_com_set_llq(ena_dev);
 	if (rc)
 		pr_err("Cannot set LLQ configuration: %d\n", rc);
@@ -755,16 +762,26 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 		admin_queue->stats.no_completion++;
 		spin_unlock_irqrestore(&admin_queue->q_lock, flags);
 
-		if (comp_ctx->status == ENA_CMD_COMPLETED)
-			pr_err("The ena device have completion but the driver didn't receive any MSI-X interrupt (cmd %d)\n",
-			       comp_ctx->cmd_opcode);
-		else
-			pr_err("The ena device doesn't send any completion for the admin cmd %d status %d\n",
+		if (comp_ctx->status == ENA_CMD_COMPLETED) {
+			pr_err("The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d), autopolling mode is %s\n",
+			       comp_ctx->cmd_opcode,
+			       admin_queue->auto_polling ? "ON" : "OFF");
+			/* Check if fallback to polling is enabled */
+			if (admin_queue->auto_polling)
+				admin_queue->polling = true;
+		} else {
+			pr_err("The ena device doesn't send a completion for the admin cmd %d status %d\n",
 			       comp_ctx->cmd_opcode, comp_ctx->status);
-
-		admin_queue->running_state = false;
-		ret = -ETIME;
-		goto err;
+		}
+		/* Check if shifted to polling mode.
+		 * This will happen if there is a completion without an interrupt
+		 * and autopolling mode is enabled. Continuing normal execution in such case
+		 */
+		if (!admin_queue->polling) {
+			admin_queue->running_state = false;
+			ret = -ETIME;
+			goto err;
+		}
 	}
 
 	ret = ena_com_comp_status_to_errno(comp_ctx->comp_status);
@@ -822,7 +839,7 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	}
 
 	if (read_resp->reg_off != offset) {
-		pr_err("Read failure: wrong offset provided");
+		pr_err("Read failure: wrong offset provided\n");
 		ret = ENA_MMIO_READ_TIMEOUT;
 	} else {
 		ret = read_resp->reg_val;
@@ -1643,6 +1660,12 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling)
 	ena_dev->admin_queue.polling = polling;
 }
 
+void ena_com_set_admin_auto_polling_mode(struct ena_com_dev *ena_dev,
+					 bool polling)
+{
+	ena_dev->admin_queue.auto_polling = polling;
+}
+
 int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
 {
 	struct ena_com_mmio_read *mmio_read = &ena_dev->mmio_read;
@@ -1868,6 +1891,62 @@ int ena_com_get_link_params(struct ena_com_dev *ena_dev,
 			    struct ena_admin_get_feat_resp *resp)
 {
 	return ena_com_get_feature(ena_dev, resp, ENA_ADMIN_LINK_CONFIG);
+}
+
+int ena_com_extra_properties_strings_init(struct ena_com_dev *ena_dev)
+{
+	struct ena_admin_get_feat_resp resp;
+	struct ena_extra_properties_strings *extra_properties_strings =
+			&ena_dev->extra_properties_strings;
+	u32 rc;
+
+	extra_properties_strings->size = ENA_ADMIN_EXTRA_PROPERTIES_COUNT *
+		ENA_ADMIN_EXTRA_PROPERTIES_STRING_LEN;
+
+	extra_properties_strings->virt_addr =
+		dma_alloc_coherent(ena_dev->dmadev,
+				   extra_properties_strings->size,
+				   &extra_properties_strings->dma_addr,
+				   GFP_KERNEL);
+	if (unlikely(!extra_properties_strings->virt_addr)) {
+		pr_err("Failed to allocate extra properties strings\n");
+		return 0;
+	}
+
+	rc = ena_com_get_feature_ex(ena_dev, &resp,
+				    ENA_ADMIN_EXTRA_PROPERTIES_STRINGS,
+				    extra_properties_strings->dma_addr,
+				    extra_properties_strings->size);
+	if (rc) {
+		pr_debug("Failed to get extra properties strings\n");
+		goto err;
+	}
+
+	return resp.u.extra_properties_strings.count;
+err:
+	ena_com_delete_extra_properties_strings(ena_dev);
+	return 0;
+}
+
+void ena_com_delete_extra_properties_strings(struct ena_com_dev *ena_dev)
+{
+	struct ena_extra_properties_strings *extra_properties_strings =
+				&ena_dev->extra_properties_strings;
+
+	if (extra_properties_strings->virt_addr) {
+		dma_free_coherent(ena_dev->dmadev,
+				  extra_properties_strings->size,
+				  extra_properties_strings->virt_addr,
+				  extra_properties_strings->dma_addr);
+		extra_properties_strings->virt_addr = NULL;
+	}
+}
+
+int ena_com_get_extra_properties_flags(struct ena_com_dev *ena_dev,
+				       struct ena_admin_get_feat_resp *resp)
+{
+	return ena_com_get_feature(ena_dev, resp,
+				   ENA_ADMIN_EXTRA_PROPERTIES_FLAGS);
 }
 
 int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
@@ -2913,8 +2992,8 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 			    struct ena_admin_feature_llq_desc *llq_features,
 			    struct ena_llq_configurations *llq_default_cfg)
 {
+	struct ena_com_llq_info *llq_info = &ena_dev->llq_info;
 	int rc;
-	int size;
 
 	if (!llq_features->max_llq_num) {
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
@@ -2925,12 +3004,10 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 	if (rc)
 		return rc;
 
-	/* Validate the descriptor is not too big */
-	size = ena_dev->tx_max_header_size;
-	size += ena_dev->llq_info.descs_num_before_header *
-		sizeof(struct ena_eth_io_tx_desc);
+	ena_dev->tx_max_header_size = llq_info->desc_list_entry_size -
+		(llq_info->descs_num_before_header * sizeof(struct ena_eth_io_tx_desc));
 
-	if (unlikely(ena_dev->llq_info.desc_list_entry_size < size)) {
+	if (unlikely(ena_dev->tx_max_header_size == 0)) {
 		pr_err("the size of the LLQ entry is smaller than needed\n");
 		return -EINVAL;
 	}

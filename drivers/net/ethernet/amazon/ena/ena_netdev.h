@@ -208,26 +208,24 @@ struct ena_stats_tx {
 struct ena_stats_rx {
 	u64 cnt;
 	u64 bytes;
+	u64 rx_copybreak_pkt;
+	u64 csum_good;
 	u64 refil_partial;
 	u64 bad_csum;
 	u64 page_alloc_fail;
 	u64 skb_alloc_fail;
 	u64 dma_mapping_err;
 	u64 bad_desc_num;
-	u64 rx_copybreak_pkt;
 	u64 bad_req_id;
 	u64 empty_rx_ring;
 	u64 csum_unchecked;
 };
 
 struct ena_ring {
-	union {
-		/* Holds the empty requests for TX/RX
-		 * out of order completions
-		 */
-		u16 *free_tx_ids;
-		u16 *free_rx_ids;
-	};
+	/* Holds the empty requests for TX/RX
+	 * out of order completions
+	 */
+	u16 *free_ids;
 
 	union {
 		struct ena_tx_buffer *tx_buffer_info;
@@ -364,6 +362,8 @@ struct ena_adapter {
 	u32 last_monitored_tx_qid;
 
 	enum ena_regs_reset_reason_types reset_reason;
+
+	u8 ena_extra_properties_count;
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);

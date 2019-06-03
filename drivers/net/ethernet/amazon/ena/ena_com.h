@@ -159,6 +159,7 @@ struct ena_com_llq_info {
 	u16 desc_list_entry_size;
 	u16 descs_num_before_header;
 	u16 descs_per_entry;
+	u16 max_entries_in_tx_burst;
 };
 
 struct ena_com_io_cq {
@@ -238,6 +239,7 @@ struct ena_com_io_sq {
 	u8 phase;
 	u8 desc_entry_size;
 	u8 dma_addr_bits;
+	u16 entries_in_tx_burst_left;
 } ____cacheline_aligned;
 
 struct ena_com_admin_cq {
@@ -280,6 +282,9 @@ struct ena_com_admin_queue {
 
 	/* Indicate if the admin queue should poll for completion */
 	bool polling;
+
+	/* Define if fallback to polling mode should occur */
+	bool auto_polling;
 
 	u16 curr_cmd_id;
 
@@ -345,6 +350,12 @@ struct ena_host_attribute {
 	dma_addr_t host_info_dma_addr;
 };
 
+struct ena_extra_properties_strings {
+	u8 *virt_addr;
+	dma_addr_t dma_addr;
+	u32 size;
+};
+
 /* Each ena_dev is a PCI function. */
 struct ena_com_dev {
 	struct ena_com_admin_queue admin_queue;
@@ -373,6 +384,7 @@ struct ena_com_dev {
 	struct ena_intr_moder_entry *intr_moder_tbl;
 
 	struct ena_com_llq_info llq_info;
+	struct ena_extra_properties_strings extra_properties_strings;
 };
 
 struct ena_com_dev_get_features_ctx {
@@ -536,6 +548,17 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling);
  */
 bool ena_com_get_ena_admin_polling_mode(struct ena_com_dev *ena_dev);
 
+/* ena_com_set_admin_auto_polling_mode - Enable autoswitch to polling mode
+ * @ena_dev: ENA communication layer struct
+ * @polling: Enable/Disable polling mode
+ *
+ * Set the autopolling mode.
+ * If autopolling is on:
+ * In case of missing interrupt when data is available switch to polling.
+ */
+void ena_com_set_admin_auto_polling_mode(struct ena_com_dev *ena_dev,
+					 bool polling);
+
 /* ena_com_admin_q_comp_intr_handler - admin queue interrupt handler
  * @ena_dev: ENA communication layer struct
  *
@@ -593,6 +616,31 @@ int ena_com_validate_version(struct ena_com_dev *ena_dev);
  */
 int ena_com_get_link_params(struct ena_com_dev *ena_dev,
 			    struct ena_admin_get_feat_resp *resp);
+
+/* ena_com_extra_properties_strings_init - Initialize the extra properties strings buffer.
+ * @ena_dev: ENA communication layer struct
+ *
+ * Initialize the extra properties strings buffer.
+ */
+int ena_com_extra_properties_strings_init(struct ena_com_dev *ena_dev);
+
+/* ena_com_delete_extra_properties_strings - Free the extra properties strings buffer.
+ * @ena_dev: ENA communication layer struct
+ *
+ * Free the allocated extra properties strings buffer.
+ */
+void ena_com_delete_extra_properties_strings(struct ena_com_dev *ena_dev);
+
+/* ena_com_get_extra_properties_flags - Retrieve extra properties flags.
+ * @ena_dev: ENA communication layer struct
+ * @resp: Extra properties flags.
+ *
+ * Retrieve the extra properties flags.
+ *
+ * @return - 0 on Success negative value otherwise.
+ */
+int ena_com_get_extra_properties_flags(struct ena_com_dev *ena_dev,
+				       struct ena_admin_get_feat_resp *resp);
 
 /* ena_com_get_dma_width - Retrieve physical dma address width the device
  * supports.
