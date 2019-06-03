@@ -40,6 +40,7 @@
 
 #define STK3310_CHIP_ID_VAL			0x13
 #define STK3311_CHIP_ID_VAL			0x1D
+#define STK3335_CHIP_ID_VAL			0x51
 #define STK3310_PSINT_EN			0x01
 #define STK3310_PS_MAX_VAL			0xFFFF
 
@@ -454,7 +455,8 @@ static int stk3310_init(struct iio_dev *indio_dev)
 		return ret;
 
 	if (chipid != STK3310_CHIP_ID_VAL &&
-	    chipid != STK3311_CHIP_ID_VAL) {
+	    chipid != STK3311_CHIP_ID_VAL &&
+	    chipid != STK3335_CHIP_ID_VAL) {
 		dev_err(&client->dev, "invalid chip id: 0x%x\n", chipid);
 		return -ENODEV;
 	}
@@ -666,6 +668,7 @@ static SIMPLE_DEV_PM_OPS(stk3310_pm_ops, stk3310_suspend, stk3310_resume);
 static const struct i2c_device_id stk3310_i2c_id[] = {
 	{"STK3310", 0},
 	{"STK3311", 0},
+	{"STK3335", 0},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, stk3310_i2c_id);
@@ -673,6 +676,7 @@ MODULE_DEVICE_TABLE(i2c, stk3310_i2c_id);
 static const struct acpi_device_id stk3310_acpi_id[] = {
 	{"STK3310", 0},
 	{"STK3311", 0},
+	{"STK3335", 0},
 	{}
 };
 
