@@ -53,14 +53,9 @@ static inline int smp_get_base_cpu(int cpu)
 	return cpu - (cpu % (smp_cpu_mtid + 1));
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 extern int smp_rescan_cpus(void);
 extern void __noreturn cpu_die(void);
 extern void __cpu_die(unsigned int cpu);
 extern int __cpu_disable(void);
-#else
-static inline int smp_rescan_cpus(void) { return 0; }
-static inline void cpu_die(void) { }
-#endif
 
 #endif /* __ASM_SMP_H */

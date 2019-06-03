@@ -413,11 +413,6 @@ config NR_CPUS
 
 config HOTPLUG_CPU
 	def_bool y
-	prompt "Support for hot-pluggable CPUs"
-	help
-	  Say Y here to be able to turn CPUs off and on. CPUs
-	  can be controlled through /sys/devices/system/cpu/cpu#.
-	  Say N if you want to disable CPU hotplug.
 
 # Some NUMA nodes have memory ranges that span
 # other nodes.	Even though a pfn is valid and
