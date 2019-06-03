@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* IRC extension for TCP NAT alteration.
  *
  * (C) 2000-2001 by Harald Welte <laforge@gnumonks.org>
  * (C) 2004 Rusty Russell <rusty@rustcorp.com.au> IBM Corporation
  * based on a copy of RR's ip_nat_ftp.c
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

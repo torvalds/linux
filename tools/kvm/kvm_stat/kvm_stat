@@ -575,8 +575,12 @@ class TracepointProvider(Provider):
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
         self.fields = [field for field in self._get_available_fields()
-                       if self.is_field_wanted(fields_filter, field) or
-                       ARCH.tracepoint_is_child(field)]
+                       if self.is_field_wanted(fields_filter, field)]
+        # add parents for child fields - otherwise we won't see any output!
+        for field in self._fields:
+            parent = ARCH.tracepoint_is_child(field)
+            if (parent and parent not in self._fields):
+                self.fields.append(parent)
 
     @staticmethod
     def _get_online_cpus():
@@ -735,8 +739,12 @@ class DebugfsProvider(Provider):
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
         self._fields = [field for field in self._get_available_fields()
-                        if self.is_field_wanted(fields_filter, field) or
-                        ARCH.debugfs_is_child(field)]
+                        if self.is_field_wanted(fields_filter, field)]
+        # add parents for child fields - otherwise we won't see any output!
+        for field in self._fields:
+            parent = ARCH.debugfs_is_child(field)
+            if (parent and parent not in self._fields):
+                self.fields.append(parent)
 
     @property
     def fields(self):

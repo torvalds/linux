@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Define the pci_ops for the PCIC on Toshiba TX4927, TX4938, etc.
  *
@@ -9,11 +10,6 @@
  * 2003-2005 (c) MontaVista Software, Inc.
  * Copyright (C) 2004 by Ralf Baechle (ralf@linux-mips.org)
  * (C) Copyright TOSHIBA CORPORATION 2000-2001, 2004-2007
- *
- * This program is free software; you can redistribute	it and/or modify it
- * under  the terms of	the GNU General	 Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/interrupt.h>

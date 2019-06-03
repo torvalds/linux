@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	include/asm-mips/dec/ecc.h
  *
@@ -6,11 +7,6 @@
  *	DECsystem 5900 (KN03), 5900/260 (KN05) systems.
  *
  *	Copyright (C) 2003  Maciej W. Rozycki
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 #ifndef __ASM_MIPS_DEC_ECC_H
 #define __ASM_MIPS_DEC_ECC_H
