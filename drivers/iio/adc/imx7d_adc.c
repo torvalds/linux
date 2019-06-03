@@ -531,9 +531,7 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 	indio_dev->channels = imx7d_adc_iio_channels;
 	indio_dev->num_channels = ARRAY_SIZE(imx7d_adc_iio_channels);
 
-	ret = devm_request_irq(dev, irq,
-			       imx7d_adc_isr, 0,
-			       dev_name(dev), info);
+	ret = devm_request_irq(dev, irq, imx7d_adc_isr, 0, dev_name(dev), info);
 	if (ret < 0) {
 		dev_err(dev, "Failed requesting irq, irq = %d\n", irq);
 		return ret;
