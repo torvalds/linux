@@ -1509,7 +1509,7 @@ static inline int velocity_get_ip(struct velocity_info *vptr)
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(vptr->netdev);
 	if (in_dev != NULL) {
-		ifa = (struct in_ifaddr *) in_dev->ifa_list;
+		ifa = rcu_dereference(in_dev->ifa_list);
 		if (ifa != NULL) {
 			memcpy(vptr->ip_addr, &ifa->ifa_address, 4);
 			res = 0;

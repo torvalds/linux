@@ -3268,7 +3268,7 @@ static void mwifiex_set_auto_arp_mef_entry(struct mwifiex_private *priv,
 			in_dev = __in_dev_get_rtnl(adapter->priv[i]->netdev);
 			if (!in_dev)
 				continue;
-			ifa = in_dev->ifa_list;
+			ifa = rtnl_dereference(in_dev->ifa_list);
 			if (!ifa || !ifa->ifa_local)
 				continue;
 			ips[i] = ifa->ifa_local;

@@ -1773,8 +1773,11 @@ static enum i40iw_status_code i40iw_add_mqh_4(
 		if ((((rdma_vlan_dev_vlan_id(dev) < I40IW_NO_VLAN) &&
 		      (rdma_vlan_dev_real_dev(dev) == iwdev->netdev)) ||
 		    (dev == iwdev->netdev)) && (dev->flags & IFF_UP)) {
+			const struct in_ifaddr *ifa;
+
 			idev = in_dev_get(dev);
-			for_ifa(idev) {
+
+			in_dev_for_each_ifa_rtnl(ifa, idev) {
 				i40iw_debug(&iwdev->sc_dev,
 					    I40IW_DEBUG_CM,
 					    "Allocating child CM Listener forIP=%pI4, vlan_id=%d, MAC=%pM\n",
@@ -1819,7 +1822,7 @@ static enum i40iw_status_code i40iw_add_mqh_4(
 					cm_parent_listen_node->cm_core->stats_listen_nodes_created--;
 				}
 			}
-			endfor_ifa(idev);
+
 			in_dev_put(idev);
 		}
 	}
