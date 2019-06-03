@@ -228,11 +228,11 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	}
 
 	size = sizeof(u16) * tx_ring->ring_size;
-	tx_ring->free_tx_ids = vzalloc_node(size, node);
-	if (!tx_ring->free_tx_ids) {
-		tx_ring->free_tx_ids = vzalloc(size);
-		if (!tx_ring->free_tx_ids)
-			goto err_free_tx_ids;
+	tx_ring->free_ids = vzalloc_node(size, node);
+	if (!tx_ring->free_ids) {
+		tx_ring->free_ids = vzalloc(size);
+		if (!tx_ring->free_ids)
+			goto err_tx_free_ids;
 	}
 
 	size = tx_ring->tx_max_header_size;
@@ -245,7 +245,7 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 
 	/* Req id ring for TX out of order completions */
 	for (i = 0; i < tx_ring->ring_size; i++)
-		tx_ring->free_tx_ids[i] = i;
+		tx_ring->free_ids[i] = i;
 
 	/* Reset tx statistics */
 	memset(&tx_ring->tx_stats, 0x0, sizeof(tx_ring->tx_stats));
@@ -256,9 +256,9 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	return 0;
 
 err_push_buf_intermediate_buf:
-	vfree(tx_ring->free_tx_ids);
-	tx_ring->free_tx_ids = NULL;
-err_free_tx_ids:
+	vfree(tx_ring->free_ids);
+	tx_ring->free_ids = NULL;
+err_tx_free_ids:
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
 err_tx_buffer_info:
@@ -278,8 +278,8 @@ static void ena_free_tx_resources(struct ena_adapter *adapter, int qid)
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
 
-	vfree(tx_ring->free_tx_ids);
-	tx_ring->free_tx_ids = NULL;
+	vfree(tx_ring->free_ids);
+	tx_ring->free_ids = NULL;
 
 	vfree(tx_ring->push_buf_intermediate_buf);
 	tx_ring->push_buf_intermediate_buf = NULL;
@@ -377,10 +377,10 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 	}
 
 	size = sizeof(u16) * rx_ring->ring_size;
-	rx_ring->free_rx_ids = vzalloc_node(size, node);
-	if (!rx_ring->free_rx_ids) {
-		rx_ring->free_rx_ids = vzalloc(size);
-		if (!rx_ring->free_rx_ids) {
+	rx_ring->free_ids = vzalloc_node(size, node);
+	if (!rx_ring->free_ids) {
+		rx_ring->free_ids = vzalloc(size);
+		if (!rx_ring->free_ids) {
 			vfree(rx_ring->rx_buffer_info);
 			rx_ring->rx_buffer_info = NULL;
 			return -ENOMEM;
@@ -389,7 +389,7 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 
 	/* Req id ring for receiving RX pkts out of order */
 	for (i = 0; i < rx_ring->ring_size; i++)
-		rx_ring->free_rx_ids[i] = i;
+		rx_ring->free_ids[i] = i;
 
 	/* Reset rx statistics */
 	memset(&rx_ring->rx_stats, 0x0, sizeof(rx_ring->rx_stats));
@@ -415,8 +415,8 @@ static void ena_free_rx_resources(struct ena_adapter *adapter,
 	vfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
 
-	vfree(rx_ring->free_rx_ids);
-	rx_ring->free_rx_ids = NULL;
+	vfree(rx_ring->free_ids);
+	rx_ring->free_ids = NULL;
 }
 
 /* ena_setup_all_rx_resources - allocate I/O Rx queues resources for all queues
@@ -531,7 +531,7 @@ static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 	for (i = 0; i < num; i++) {
 		struct ena_rx_buffer *rx_info;
 
-		req_id = rx_ring->free_rx_ids[next_to_use];
+		req_id = rx_ring->free_ids[next_to_use];
 		rc = validate_rx_req_id(rx_ring, req_id);
 		if (unlikely(rc < 0))
 			break;
@@ -797,7 +797,7 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
 
-		tx_ring->free_tx_ids[next_to_clean] = req_id;
+		tx_ring->free_ids[next_to_clean] = req_id;
 		next_to_clean = ENA_TX_RING_IDX_NEXT(next_to_clean,
 						     tx_ring->ring_size);
 	}
@@ -911,7 +911,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 
 		skb_put(skb, len);
 		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
-		rx_ring->free_rx_ids[*next_to_clean] = req_id;
+		rx_ring->free_ids[*next_to_clean] = req_id;
 		*next_to_clean = ENA_RX_RING_IDX_ADD(*next_to_clean, descs,
 						     rx_ring->ring_size);
 		return skb;
@@ -935,7 +935,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 
 		rx_info->page = NULL;
 
-		rx_ring->free_rx_ids[*next_to_clean] = req_id;
+		rx_ring->free_ids[*next_to_clean] = req_id;
 		*next_to_clean =
 			ENA_RX_RING_IDX_NEXT(*next_to_clean,
 					     rx_ring->ring_size);
@@ -1088,7 +1088,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		/* exit if we failed to retrieve a buffer */
 		if (unlikely(!skb)) {
 			for (i = 0; i < ena_rx_ctx.descs; i++) {
-				rx_ring->free_tx_ids[next_to_clean] =
+				rx_ring->free_ids[next_to_clean] =
 					rx_ring->ena_bufs[i].req_id;
 				next_to_clean =
 					ENA_RX_RING_IDX_NEXT(next_to_clean,
@@ -2152,7 +2152,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_tx_timestamp(skb);
 
 	next_to_use = tx_ring->next_to_use;
-	req_id = tx_ring->free_tx_ids[next_to_use];
+	req_id = tx_ring->free_ids[next_to_use];
 	tx_info = &tx_ring->tx_buffer_info[req_id];
 	tx_info->num_of_bufs = 0;
 

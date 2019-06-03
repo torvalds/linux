@@ -221,13 +221,10 @@ struct ena_stats_rx {
 };
 
 struct ena_ring {
-	union {
-		/* Holds the empty requests for TX/RX
-		 * out of order completions
-		 */
-		u16 *free_tx_ids;
-		u16 *free_rx_ids;
-	};
+	/* Holds the empty requests for TX/RX
+	 * out of order completions
+	 */
+	u16 *free_ids;
 
 	union {
 		struct ena_tx_buffer *tx_buffer_info;
