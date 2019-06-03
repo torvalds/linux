@@ -2298,19 +2298,21 @@ static void __rtl_writephy_batch(struct rtl8169_private *tp,
 
 #define rtl_writephy_batch(tp, a) __rtl_writephy_batch(tp, a, ARRAY_SIZE(a))
 
-#define PHY_READ		0x00000000
-#define PHY_DATA_OR		0x10000000
-#define PHY_DATA_AND		0x20000000
-#define PHY_BJMPN		0x30000000
-#define PHY_MDIO_CHG		0x40000000
-#define PHY_CLEAR_READCOUNT	0x70000000
-#define PHY_WRITE		0x80000000
-#define PHY_READCOUNT_EQ_SKIP	0x90000000
-#define PHY_COMP_EQ_SKIPN	0xa0000000
-#define PHY_COMP_NEQ_SKIPN	0xb0000000
-#define PHY_WRITE_PREVIOUS	0xc0000000
-#define PHY_SKIPN		0xd0000000
-#define PHY_DELAY_MS		0xe0000000
+enum rtl_fw_opcode {
+	PHY_READ		= 0x0,
+	PHY_DATA_OR		= 0x1,
+	PHY_DATA_AND		= 0x2,
+	PHY_BJMPN		= 0x3,
+	PHY_MDIO_CHG		= 0x4,
+	PHY_CLEAR_READCOUNT	= 0x7,
+	PHY_WRITE		= 0x8,
+	PHY_READCOUNT_EQ_SKIP	= 0x9,
+	PHY_COMP_EQ_SKIPN	= 0xa,
+	PHY_COMP_NEQ_SKIPN	= 0xb,
+	PHY_WRITE_PREVIOUS	= 0xc,
+	PHY_SKIPN		= 0xd,
+	PHY_DELAY_MS		= 0xe,
+};
 
 struct fw_info {
 	u32	magic;
@@ -2378,7 +2380,7 @@ static bool rtl_fw_data_ok(struct rtl8169_private *tp, struct net_device *dev,
 		u32 action = le32_to_cpu(pa->code[index]);
 		u32 regno = (action & 0x0fff0000) >> 16;
 
-		switch(action & 0xf0000000) {
+		switch (action >> 28) {
 		case PHY_READ:
 		case PHY_DATA_OR:
 		case PHY_DATA_AND:
@@ -2453,11 +2455,12 @@ static void rtl_fw_write_firmware(struct rtl8169_private *tp,
 		u32 action = le32_to_cpu(pa->code[index]);
 		u32 data = action & 0x0000ffff;
 		u32 regno = (action & 0x0fff0000) >> 16;
+		enum rtl_fw_opcode opcode = action >> 28;
 
 		if (!action)
 			break;
 
-		switch(action & 0xf0000000) {
+		switch (opcode) {
 		case PHY_READ:
 			predata = fw_read(tp, regno);
 			count++;
@@ -2517,9 +2520,6 @@ static void rtl_fw_write_firmware(struct rtl8169_private *tp,
 			mdelay(data);
 			index++;
 			break;
-
-		default:
-			BUG();
 		}
 	}
 }
