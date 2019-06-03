@@ -107,6 +107,7 @@ enum {
 	MLX5_REG_FPGA_CAP	 = 0x4022,
 	MLX5_REG_FPGA_CTRL	 = 0x4023,
 	MLX5_REG_FPGA_ACCESS_REG = 0x4024,
+	MLX5_REG_CORE_DUMP	 = 0x402e,
 	MLX5_REG_PCAP		 = 0x5001,
 	MLX5_REG_PMTU		 = 0x5003,
 	MLX5_REG_PTYS		 = 0x5004,
@@ -646,6 +647,7 @@ struct mlx5_clock {
 
 struct mlx5_fw_tracer;
 struct mlx5_vxlan;
+struct mlx5_geneve;
 
 struct mlx5_core_dev {
 	struct device *device;
@@ -680,6 +682,7 @@ struct mlx5_core_dev {
 	u32			issi;
 	struct mlx5e_resources  mlx5e_res;
 	struct mlx5_vxlan       *vxlan;
+	struct mlx5_geneve      *geneve;
 	struct {
 		struct mlx5_rsvd_gids	reserved_gids;
 		u32			roce_en;

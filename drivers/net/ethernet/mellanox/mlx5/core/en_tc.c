@@ -53,6 +53,7 @@
 #include "en/port.h"
 #include "en/tc_tun.h"
 #include "lib/devcom.h"
+#include "lib/geneve.h"
 
 struct mlx5_nic_flow_attr {
 	u32 action;
@@ -126,7 +127,7 @@ struct mlx5e_tc_flow {
 };
 
 struct mlx5e_tc_flow_parse_attr {
-	struct ip_tunnel_info tun_info[MLX5_MAX_FLOW_FWD_VPORTS];
+	const struct ip_tunnel_info *tun_info[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct net_device *filter_dev;
 	struct mlx5_flow_spec spec;
 	int num_mod_hdr_actions;
@@ -799,7 +800,7 @@ mlx5e_tc_add_nic_flow(struct mlx5e_priv *priv,
 	}
 
 	if (attr->match_level != MLX5_MATCH_NONE)
-		parse_attr->spec.match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
+		parse_attr->spec.match_criteria_enable |= MLX5_MATCH_OUTER_HEADERS;
 
 	flow->rule[0] = mlx5_add_flow_rules(priv->fs.tc.t, &parse_attr->spec,
 					    &flow_act, dest, dest_ix);
@@ -1063,6 +1064,19 @@ err_max_prio_chain:
 	return err;
 }
 
+static bool mlx5_flow_has_geneve_opt(struct mlx5e_tc_flow *flow)
+{
+	struct mlx5_flow_spec *spec = &flow->esw_attr->parse_attr->spec;
+	void *headers_v = MLX5_ADDR_OF(fte_match_param,
+				       spec->match_value,
+				       misc_parameters_3);
+	u32 geneve_tlv_opt_0_data = MLX5_GET(fte_match_set_misc3,
+					     headers_v,
+					     geneve_tlv_option_0_data);
+
+	return !!geneve_tlv_opt_0_data;
+}
+
 static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 				  struct mlx5e_tc_flow *flow)
 {
@@ -1083,6 +1097,9 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 		else
 			mlx5e_tc_unoffload_fdb_rules(esw, flow, attr);
 	}
+
+	if (mlx5_flow_has_geneve_opt(flow))
+		mlx5_geneve_tlv_option_del(priv->mdev->geneve);
 
 	mlx5_eswitch_del_vlan_action(esw, attr);
 
@@ -1339,7 +1356,6 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 	void *headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 				       outer_headers);
 	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
-	struct flow_match_control enc_control;
 	int err;
 
 	err = mlx5e_tc_tun_parse(filter_dev, priv, spec, f,
@@ -1350,9 +1366,7 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 		return err;
 	}
 
-	flow_rule_match_enc_control(rule, &enc_control);
-
-	if (enc_control.key->addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
 		struct flow_match_ipv4_addrs match;
 
 		flow_rule_match_enc_ipv4_addrs(rule, &match);
@@ -1372,7 +1386,7 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 
 		MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ethertype);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype, ETH_P_IP);
-	} else if (enc_control.key->addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
+	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS)) {
 		struct flow_match_ipv6_addrs match;
 
 		flow_rule_match_enc_ipv6_addrs(rule, &match);
@@ -1497,29 +1511,21 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 	      BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_TCP) |
 	      BIT(FLOW_DISSECTOR_KEY_IP)  |
-	      BIT(FLOW_DISSECTOR_KEY_ENC_IP))) {
+	      BIT(FLOW_DISSECTOR_KEY_ENC_IP) |
+	      BIT(FLOW_DISSECTOR_KEY_ENC_OPTS))) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported key");
 		netdev_warn(priv->netdev, "Unsupported key used: 0x%x\n",
 			    dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
 
-	if ((flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) ||
-	     flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID) ||
-	     flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) &&
-	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_CONTROL)) {
-		struct flow_match_control match;
-
-		flow_rule_match_enc_control(rule, &match);
-		switch (match.key->addr_type) {
-		case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
-		case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
-			if (parse_tunnel_attr(priv, spec, f, filter_dev, tunnel_match_level))
-				return -EOPNOTSUPP;
-			break;
-		default:
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS) ||
+	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) ||
+	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_KEYID) ||
+	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS) ||
+	    flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_OPTS)) {
+		if (parse_tunnel_attr(priv, spec, f, filter_dev, tunnel_match_level))
 			return -EOPNOTSUPP;
-		}
 
 		/* In decap flow, header pointers should point to the inner
 		 * headers, outer header were already set by parse_tunnel_attr
@@ -2581,21 +2587,21 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv,
 }
 
 struct encap_key {
-	struct ip_tunnel_key *ip_tun_key;
-	int tunnel_type;
+	const struct ip_tunnel_key *ip_tun_key;
+	struct mlx5e_tc_tunnel *tc_tunnel;
 };
 
 static inline int cmp_encap_info(struct encap_key *a,
 				 struct encap_key *b)
 {
 	return memcmp(a->ip_tun_key, b->ip_tun_key, sizeof(*a->ip_tun_key)) ||
-	       a->tunnel_type != b->tunnel_type;
+	       a->tc_tunnel->tunnel_type != b->tc_tunnel->tunnel_type;
 }
 
 static inline int hash_encap_info(struct encap_key *key)
 {
 	return jhash(key->ip_tun_key, sizeof(*key->ip_tun_key),
-		     key->tunnel_type);
+		     key->tc_tunnel->tunnel_type);
 }
 
 
@@ -2625,7 +2631,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
-	struct ip_tunnel_info *tun_info;
+	const struct ip_tunnel_info *tun_info;
 	struct encap_key key, e_key;
 	struct mlx5e_encap_entry *e;
 	unsigned short family;
@@ -2634,17 +2640,17 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	int err = 0;
 
 	parse_attr = attr->parse_attr;
-	tun_info = &parse_attr->tun_info[out_index];
+	tun_info = parse_attr->tun_info[out_index];
 	family = ip_tunnel_info_af(tun_info);
 	key.ip_tun_key = &tun_info->key;
-	key.tunnel_type = mlx5e_tc_tun_get_type(mirred_dev);
+	key.tc_tunnel = mlx5e_get_tc_tun(mirred_dev);
 
 	hash_key = hash_encap_info(&key);
 
 	hash_for_each_possible_rcu(esw->offloads.encap_tbl, e,
 				   encap_hlist, hash_key) {
-		e_key.ip_tun_key = &e->tun_info.key;
-		e_key.tunnel_type = e->tunnel_type;
+		e_key.ip_tun_key = &e->tun_info->key;
+		e_key.tc_tunnel = e->tunnel;
 		if (!cmp_encap_info(&e_key, &key)) {
 			found = true;
 			break;
@@ -2659,7 +2665,7 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	if (!e)
 		return -ENOMEM;
 
-	e->tun_info = *tun_info;
+	e->tun_info = tun_info;
 	err = mlx5e_tc_tun_init_encap_attr(mirred_dev, priv, e, extack);
 	if (err)
 		goto out_err;
@@ -2898,7 +2904,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 			} else if (encap) {
 				parse_attr->mirred_ifindex[attr->out_count] =
 					out_dev->ifindex;
-				parse_attr->tun_info[attr->out_count] = *info;
+				parse_attr->tun_info[attr->out_count] = info;
 				encap = false;
 				attr->dests[attr->out_count].flags |=
 					MLX5_ESW_DEST_ENCAP;

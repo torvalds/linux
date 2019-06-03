@@ -106,10 +106,10 @@ static int mlx5_rdma_enable_roce_steering(struct mlx5_core_dev *dev)
 
 	return 0;
 
-destroy_flow_table:
-	mlx5_destroy_flow_table(ft);
 destroy_flow_group:
 	mlx5_destroy_flow_group(fg);
+destroy_flow_table:
+	mlx5_destroy_flow_table(ft);
 free:
 	kvfree(spec);
 	kvfree(flow_group_in);
