@@ -110,7 +110,7 @@ static void xtensa_stack(struct snd_sof_dev *sdev, void *oops, u32 *stack,
 			 u32 stack_words)
 {
 	struct sof_ipc_dsp_oops_xtensa *xoops = oops;
-	u32 stack_ptr = xoops->stack;
+	u32 stack_ptr = xoops->plat_hdr.stackptr;
 	/* 4 * 8chars + 3 ws + 1 terminating NUL */
 	unsigned char buf[4 * 8 + 3 + 1];
 	int i;
