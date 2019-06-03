@@ -230,6 +230,8 @@ static inline void ceph_decode_addr(struct ceph_entity_addr *a)
 	WARN_ON(a->in_addr.ss_family == 512);
 }
 
+extern int ceph_decode_entity_addr(void **p, void *end,
+				   struct ceph_entity_addr *addr);
 /*
  * encoders
  */
