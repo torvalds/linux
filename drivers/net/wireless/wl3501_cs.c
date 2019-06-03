@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * WL3501 Wireless LAN PCMCIA Card Driver for Linux
  * Written originally for Linux 2.0.30 by Fox Chen, mhchen@golf.ccl.itri.org.tw

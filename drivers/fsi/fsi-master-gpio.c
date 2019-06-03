@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * A FSI master controller, using a simple GPIO bit-banging interface
  */

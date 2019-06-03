@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* leo.c: LEO frame buffer driver
  *
  * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)

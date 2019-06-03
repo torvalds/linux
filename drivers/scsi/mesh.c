@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SCSI low-level driver for the MESH (Macintosh Enhanced SCSI Hardware)
  * bus adaptor found on Power Macintosh computers.

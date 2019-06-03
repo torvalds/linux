@@ -457,8 +457,9 @@ static void sun6i_dsi_setup_inst_loop(struct sun6i_dsi *dsi,
 	u16 delay = 50 - 1;
 
 	if (device->mode_flags & MIPI_DSI_MODE_VIDEO_BURST) {
-		delay = (mode->htotal - mode->hdisplay) * 150;
-		delay /= (mode->clock / 1000) * 8;
+		u32 hsync_porch = (mode->htotal - mode->hdisplay) * 150;
+
+		delay = (hsync_porch / ((mode->clock / 1000) * 8));
 		delay -= 50;
 	}
 

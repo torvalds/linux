@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # ALSA ISA drivers
 
 config SND_WSS_LIB

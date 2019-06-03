@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ARCH_ROCKCHIP
 	bool "Rockchip RK2928 and RK3xxx SOCs"
 	depends on ARCH_MULTI_V7
