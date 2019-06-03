@@ -840,6 +840,7 @@ static const struct file_operations wdt_fops = {
 	.owner	= THIS_MODULE,
 	.read	= wdt_read,
 	.unlocked_ioctl = wdt_unlocked_ioctl,
+	.compat_ioctl = compat_ptr_ioctl,
 	.write	= wdt_write,
 	.open	= wdt_open,
 	.release = wdt_release,

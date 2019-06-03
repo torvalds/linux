@@ -361,6 +361,7 @@ static const struct file_operations zf_fops = {
 	.llseek		= no_llseek,
 	.write		= zf_write,
 	.unlocked_ioctl = zf_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= zf_open,
 	.release	= zf_close,
 };

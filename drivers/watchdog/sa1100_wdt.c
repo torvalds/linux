@@ -141,6 +141,7 @@ static const struct file_operations sa1100dog_fops = {
 	.llseek		= no_llseek,
 	.write		= sa1100dog_write,
 	.unlocked_ioctl	= sa1100dog_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= sa1100dog_open,
 	.release	= sa1100dog_release,
 };

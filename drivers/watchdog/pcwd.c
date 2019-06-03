@@ -752,6 +752,7 @@ static const struct file_operations pcwd_fops = {
 	.llseek		= no_llseek,
 	.write		= pcwd_write,
 	.unlocked_ioctl	= pcwd_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= pcwd_open,
 	.release	= pcwd_close,
 };
