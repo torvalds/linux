@@ -329,3 +329,12 @@ DRM_IOCTL_MODESET_CTL
     mode setting, since on many devices the vertical blank counter is
     reset to 0 at some point during modeset. Modern drivers should not
     call this any more since with kernel mode setting it is a no-op.
+
+Userspace API Structures
+========================
+
+.. kernel-doc:: include/uapi/drm/drm_mode.h
+   :doc: overview
+
+.. kernel-doc:: include/uapi/drm/drm_mode.h
+   :internal:
