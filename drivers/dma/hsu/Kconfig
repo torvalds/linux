@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # DMA engine configuration for hsu
 config HSU_DMA
 	tristate

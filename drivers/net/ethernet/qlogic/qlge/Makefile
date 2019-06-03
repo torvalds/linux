@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Makefile for the Qlogic 10GbE PCI Express ethernet driver
 #

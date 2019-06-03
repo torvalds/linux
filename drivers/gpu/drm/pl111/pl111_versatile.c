@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/amba/clcd-regs.h>
 #include <linux/device.h>
 #include <linux/of.h>

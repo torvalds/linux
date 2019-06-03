@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # File: drivers/crypto/bcm/Makefile
 #
 # Makefile for crypto acceleration files for Broadcom SPU driver

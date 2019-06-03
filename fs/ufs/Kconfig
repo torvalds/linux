@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config UFS_FS
 	tristate "UFS file system support (read only)"
 	depends on BLOCK

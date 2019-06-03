@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 	.align	32
 	.globl	__flushw_user
 	.type	__flushw_user,#function
