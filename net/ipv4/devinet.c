@@ -1763,7 +1763,7 @@ static int in_dev_dump_addr(struct in_device *in_dev, struct sk_buff *skb,
 	int ip_idx = 0;
 	int err;
 
-	in_dev_for_each_ifa_rcu(ifa, in_dev) {
+	in_dev_for_each_ifa_rtnl(ifa, in_dev) {
 		if (ip_idx < s_ip_idx) {
 			ip_idx++;
 			continue;
