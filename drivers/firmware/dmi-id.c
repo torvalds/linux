@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Export SMBIOS/DMI info via sysfs to userspace
  *
  * Copyright 2007, Lennart Poettering
- *
- * Licensed under GPLv2
  */
 
 #include <linux/module.h>

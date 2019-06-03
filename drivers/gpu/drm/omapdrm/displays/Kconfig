@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "OMAPDRM External Display Device Drivers"
 
 config DRM_OMAP_ENCODER_OPA362

@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) STMicroelectronics 2016
  *
  * Author: Benjamin Gaignard <benjamin.gaignard@st.com>
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef _STM32_TIMER_TRIGGER_H_

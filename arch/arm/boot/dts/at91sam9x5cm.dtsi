@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91sam9x5cm.dtsi - Device Tree Include file for AT91SAM9x5 CPU Module
  *
  *  Copyright (C) 2012 Atmel,
  *                2012 Nicolas Ferre <nicolas.ferre@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 / {

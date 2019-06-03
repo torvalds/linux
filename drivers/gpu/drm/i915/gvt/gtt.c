@@ -1076,8 +1076,10 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 	} else {
 		int type = get_next_pt_type(we->type);
 
-		if (!gtt_type_is_pt(type))
+		if (!gtt_type_is_pt(type)) {
+			ret = -EINVAL;
 			goto err;
+		}
 
 		spt = ppgtt_alloc_spt_gfn(vgpu, type, ops->get_pfn(we), ips);
 		if (IS_ERR(spt)) {

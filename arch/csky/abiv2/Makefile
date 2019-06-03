@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 obj-y				+= cacheflush.o
 obj-$(CONFIG_CPU_HAS_FPU)	+= fpu.o
 obj-y				+= memcmp.o
