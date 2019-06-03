@@ -6679,9 +6679,7 @@ M:	Paul Bolle <pebolle@tiscali.nl>
 L:	gigaset307x-common@lists.sourceforge.net
 W:	http://gigaset307x.sourceforge.net/
 S:	Odd Fixes
-F:	Documentation/isdn/README.gigaset
-F:	drivers/isdn/gigaset/
-F:	include/uapi/linux/gigaset_dev.h
+F:	drivers/staging/isdn/gigaset/
 
 GNSS SUBSYSTEM
 M:	Johan Hovold <johan@kernel.org>
@@ -8362,18 +8360,26 @@ S:	Supported
 W:	http://www.linux-iscsi.org
 F:	drivers/infiniband/ulp/isert
 
-ISDN SUBSYSTEM
+ISDN/mISDN SUBSYSTEM
 M:	Karsten Keil <isdn@linux-pingi.de>
 L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 L:	netdev@vger.kernel.org
 W:	http://www.isdn4linux.de
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kkeil/isdn-2.6.git
 S:	Maintained
+F:	drivers/isdn/mISDN
+F:	drivers/isdn/hardware
+
+ISDN/CAPI SUBSYSTEM
+M:	Karsten Keil <isdn@linux-pingi.de>
+L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
+L:	netdev@vger.kernel.org
+W:	http://www.isdn4linux.de
+S:	Odd Fixes
 F:	Documentation/isdn/
-F:	drivers/isdn/
-F:	include/linux/isdn.h
+F:	drivers/isdn/capi/
+F:	drivers/staging/isdn/
+F:	net/bluetooth/cmtp/
 F:	include/linux/isdn/
-F:	include/uapi/linux/isdn.h
 F:	include/uapi/linux/isdn/
 
 IT87 HARDWARE MONITORING DRIVER
