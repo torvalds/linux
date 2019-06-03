@@ -491,7 +491,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	/*
 	 * Step 9: Setup sysfs attributes
 	 */
-	err = sysfs_create_files(&(pdev->dev.kobj), kp_attr_list);
+	err = sysfs_create_files(&pdev->dev.kobj, kp_attr_list);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add sysfs files: %d\n", err);
 		goto out9;
@@ -515,7 +515,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	return 0;
 
 out10:
-	sysfs_remove_files(&(pdev->dev.kobj), kp_attr_list);
+	sysfs_remove_files(&pdev->dev.kobj, kp_attr_list);
 out9:
 	free_irq(pcard->pdev->irq, pcard);
 out8b:
@@ -552,7 +552,7 @@ static void kp2000_pcie_remove(struct pci_dev *pdev)
 	mutex_lock(&pcard->sem);
 	kp2000_remove_cores(pcard);
 	mfd_remove_devices(PCARD_TO_DEV(pcard));
-	sysfs_remove_files(&(pdev->dev.kobj), kp_attr_list);
+	sysfs_remove_files(&pdev->dev.kobj, kp_attr_list);
 	free_irq(pcard->pdev->irq, pcard);
 	pci_disable_msi(pcard->pdev);
 	if (pcard->dma_bar_base) {
