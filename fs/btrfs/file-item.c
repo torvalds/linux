@@ -8,6 +8,7 @@
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/sched/mm.h>
+#include <crypto/hash.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -432,6 +433,7 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 		       u64 file_start, int contig)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	struct btrfs_ordered_sum *sums;
 	struct btrfs_ordered_extent *ordered = NULL;
 	char *data;
@@ -465,6 +467,8 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 	sums->bytenr = (u64)bio->bi_iter.bi_sector << 9;
 	index = 0;
 
+	shash->tfm = fs_info->csum_shash;
+
 	bio_for_each_segment(bvec, bio, iter) {
 		if (!contig)
 			offset = page_offset(bvec.bv_page) + bvec.bv_offset;
@@ -479,8 +483,6 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 						 - 1);
 
 		for (i = 0; i < nr_sectors; i++) {
-			u32 tmp;
-
 			if (offset >= ordered->file_offset + ordered->len ||
 				offset < ordered->file_offset) {
 				unsigned long bytes_left;
@@ -506,15 +508,13 @@ blk_status_t btrfs_csum_one_bio(struct inode *inode, struct bio *bio,
 				index = 0;
 			}
 
-			memset(&sums->sums[index], 0xff, csum_size);
+			crypto_shash_init(shash);
 			data = kmap_atomic(bvec.bv_page);
-			tmp = btrfs_csum_data(data + bvec.bv_offset
-						+ (i * fs_info->sectorsize),
-						*(u32 *)&sums->sums[index],
-						fs_info->sectorsize);
+			crypto_shash_update(shash, data + bvec.bv_offset
+					    + (i * fs_info->sectorsize),
+					    fs_info->sectorsize);
 			kunmap_atomic(data);
-			btrfs_csum_final(tmp,
-					(char *)(sums->sums + index));
+			crypto_shash_final(shash, (char *)(sums->sums + index));
 			index += csum_size;
 			offset += fs_info->sectorsize;
 			this_sum_bytes += fs_info->sectorsize;

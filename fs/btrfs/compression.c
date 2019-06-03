@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
 #include <linux/log2.h>
+#include <crypto/hash.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -58,29 +59,33 @@ static int check_compressed_csum(struct btrfs_inode *inode,
 				 u64 disk_start)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	const u16 csum_size = btrfs_super_csum_size(fs_info->super_copy);
 	int ret;
 	struct page *page;
 	unsigned long i;
 	char *kaddr;
-	u32 csum;
+	u8 csum[BTRFS_CSUM_SIZE];
 	u8 *cb_sum = cb->sums;
 
 	if (inode->flags & BTRFS_INODE_NODATASUM)
 		return 0;
 
+	shash->tfm = fs_info->csum_shash;
+
 	for (i = 0; i < cb->nr_pages; i++) {
 		page = cb->compressed_pages[i];
-		csum = ~(u32)0;
 
+		crypto_shash_init(shash);
 		kaddr = kmap_atomic(page);
-		csum = btrfs_csum_data(kaddr, csum, PAGE_SIZE);
-		btrfs_csum_final(csum, (u8 *)&csum);
+		crypto_shash_update(shash, kaddr, PAGE_SIZE);
 		kunmap_atomic(kaddr);
+		crypto_shash_final(shash, (u8 *)&csum);
 
 		if (memcmp(&csum, cb_sum, csum_size)) {
-			btrfs_print_data_csum_error(inode, disk_start, csum,
-					*(u32 *)cb_sum, cb->mirror_num);
+			btrfs_print_data_csum_error(inode, disk_start,
+						    *(u32 *)csum, *(u32 *)cb_sum,
+						    cb->mirror_num);
 			ret = -EIO;
 			goto fail;
 		}
