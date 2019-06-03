@@ -1001,6 +1001,9 @@ static inline void ena_rx_checksum(struct ena_ring *rx_ring,
 
 		if (likely(ena_rx_ctx->l4_csum_checked)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
+			u64_stats_update_begin(&rx_ring->syncp);
+			rx_ring->rx_stats.csum_good++;
+			u64_stats_update_end(&rx_ring->syncp);
 		} else {
 			u64_stats_update_begin(&rx_ring->syncp);
 			rx_ring->rx_stats.csum_unchecked++;

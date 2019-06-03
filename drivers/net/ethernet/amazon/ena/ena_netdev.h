@@ -208,13 +208,14 @@ struct ena_stats_tx {
 struct ena_stats_rx {
 	u64 cnt;
 	u64 bytes;
+	u64 rx_copybreak_pkt;
+	u64 csum_good;
 	u64 refil_partial;
 	u64 bad_csum;
 	u64 page_alloc_fail;
 	u64 skb_alloc_fail;
 	u64 dma_mapping_err;
 	u64 bad_desc_num;
-	u64 rx_copybreak_pkt;
 	u64 bad_req_id;
 	u64 empty_rx_ring;
 	u64 csum_unchecked;
