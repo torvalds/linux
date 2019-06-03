@@ -915,7 +915,7 @@ static void hci_req_directed_advertising(struct hci_request *req,
 				    sizeof(cp), &cp);
 		}
 
-		__hci_req_enable_ext_advertising(req);
+		__hci_req_enable_ext_advertising(req, 0x00);
 	} else {
 		struct hci_cp_le_set_adv_param cp;
 
