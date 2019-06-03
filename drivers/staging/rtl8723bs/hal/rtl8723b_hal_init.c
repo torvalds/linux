@@ -217,7 +217,7 @@ void _8051Reset8723(struct adapter *padapter)
 	DBG_8192C("%s: Finish\n", __func__);
 }
 
-u8 g_fwdl_chksum_fail = 0;
+u8 g_fwdl_chksum_fail;
 
 static s32 polling_fwdl_chksum(
 	struct adapter *adapter, u32 min_cnt, u32 timeout_ms
@@ -262,7 +262,7 @@ exit:
 	return ret;
 }
 
-u8 g_fwdl_wintint_rdy_fail = 0;
+u8 g_fwdl_wintint_rdy_fail;
 
 static s32 _FWFreeToGo(struct adapter *adapter, u32 min_cnt, u32 timeout_ms)
 {
