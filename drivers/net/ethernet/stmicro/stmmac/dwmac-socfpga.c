@@ -251,6 +251,9 @@ static int socfpga_dwmac_set_phy_mode(struct socfpga_dwmac *dwmac)
 	case PHY_INTERFACE_MODE_SGMII:
 		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
 		break;
+	case PHY_INTERFACE_MODE_RMII:
+		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RMII;
+		break;
 	default:
 		dev_err(dwmac->dev, "bad phy mode %d\n", phymode);
 		return -EINVAL;
