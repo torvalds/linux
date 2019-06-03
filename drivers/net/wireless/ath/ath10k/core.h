@@ -645,6 +645,7 @@ struct ath10k_debug {
 	u32 nf_cal_period;
 	void *cal_data;
 	u32 enable_extd_tx_stats;
+	u8 fw_dbglog_mode;
 };
 
 enum ath10k_state {

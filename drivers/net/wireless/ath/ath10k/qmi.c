@@ -620,6 +620,51 @@ out:
 	return ret;
 }
 
+int ath10k_qmi_set_fw_log_mode(struct ath10k *ar, u8 fw_log_mode)
+{
+	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
+	struct wlfw_ini_resp_msg_v01 resp = {};
+	struct ath10k_qmi *qmi = ar_snoc->qmi;
+	struct wlfw_ini_req_msg_v01 req = {};
+	struct qmi_txn txn;
+	int ret;
+
+	req.enablefwlog_valid = 1;
+	req.enablefwlog = fw_log_mode;
+
+	ret = qmi_txn_init(&qmi->qmi_hdl, &txn, wlfw_ini_resp_msg_v01_ei,
+			   &resp);
+	if (ret < 0)
+		goto out;
+
+	ret = qmi_send_request(&qmi->qmi_hdl, NULL, &txn,
+			       QMI_WLFW_INI_REQ_V01,
+			       WLFW_INI_REQ_MSG_V01_MAX_MSG_LEN,
+			       wlfw_ini_req_msg_v01_ei, &req);
+	if (ret < 0) {
+		qmi_txn_cancel(&txn);
+		ath10k_err(ar, "fail to send fw log reqest: %d\n", ret);
+		goto out;
+	}
+
+	ret = qmi_txn_wait(&txn, ATH10K_QMI_TIMEOUT * HZ);
+	if (ret < 0)
+		goto out;
+
+	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
+		ath10k_err(ar, "fw log request rejectedr: %d\n",
+			   resp.resp.error);
+		ret = -EINVAL;
+		goto out;
+	}
+	ath10k_dbg(ar, ATH10K_DBG_QMI, "qmi fw log request completed, mode: %d\n",
+		   fw_log_mode);
+	return 0;
+
+out:
+	return ret;
+}
+
 static int
 ath10k_qmi_ind_register_send_sync_msg(struct ath10k_qmi *qmi)
 {
