@@ -1191,12 +1191,6 @@ hdmi_content_type_get_name(enum hdmi_content_type content_type)
 	return "Invalid";
 }
 
-/**
- * hdmi_avi_infoframe_log() - log info of HDMI AVI infoframe
- * @level: logging level
- * @dev: device
- * @frame: HDMI AVI infoframe
- */
 static void hdmi_avi_infoframe_log(const char *level,
 				   struct device *dev,
 				   const struct hdmi_avi_infoframe *frame)
@@ -1268,12 +1262,6 @@ static const char *hdmi_spd_sdi_get_name(enum hdmi_spd_sdi sdi)
 	return "Reserved";
 }
 
-/**
- * hdmi_spd_infoframe_log() - log info of HDMI SPD infoframe
- * @level: logging level
- * @dev: device
- * @frame: HDMI SPD infoframe
- */
 static void hdmi_spd_infoframe_log(const char *level,
 				   struct device *dev,
 				   const struct hdmi_spd_infoframe *frame)
@@ -1404,12 +1392,6 @@ hdmi_audio_coding_type_ext_get_name(enum hdmi_audio_coding_type_ext ctx)
 	return "Reserved";
 }
 
-/**
- * hdmi_audio_infoframe_log() - log info of HDMI AUDIO infoframe
- * @level: logging level
- * @dev: device
- * @frame: HDMI AUDIO infoframe
- */
 static void hdmi_audio_infoframe_log(const char *level,
 				     struct device *dev,
 				     const struct hdmi_audio_infoframe *frame)
@@ -1437,12 +1419,6 @@ static void hdmi_audio_infoframe_log(const char *level,
 			frame->downmix_inhibit ? "Yes" : "No");
 }
 
-/**
- * hdmi_drm_infoframe_log() - log info of HDMI DRM infoframe
- * @level: logging level
- * @dev: device
- * @frame: HDMI DRM infoframe
- */
 static void hdmi_drm_infoframe_log(const char *level,
 				   struct device *dev,
 				   const struct hdmi_drm_infoframe *frame)
@@ -1500,12 +1476,6 @@ hdmi_3d_structure_get_name(enum hdmi_3d_structure s3d_struct)
 	return "Reserved";
 }
 
-/**
- * hdmi_vendor_infoframe_log() - log info of HDMI VENDOR infoframe
- * @level: logging level
- * @dev: device
- * @frame: HDMI VENDOR infoframe
- */
 static void
 hdmi_vendor_any_infoframe_log(const char *level,
 			      struct device *dev,
