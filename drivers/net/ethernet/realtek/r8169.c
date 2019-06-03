@@ -677,6 +677,8 @@ struct rtl8169_private {
 		rtl_fw_write_t mac_mcu_write;
 		rtl_fw_read_t mac_mcu_read;
 		const struct firmware *fw;
+		const char *fw_name;
+		struct device *dev;
 
 #define RTL_VER_SIZE		32
 
@@ -2324,7 +2326,7 @@ struct fw_info {
 
 #define FW_OPCODE_SIZE	sizeof(typeof(*((struct rtl_fw_phy_action *)0)->code))
 
-static bool rtl_fw_format_ok(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
+static bool rtl_fw_format_ok(struct rtl_fw *rtl_fw)
 {
 	const struct firmware *fw = rtl_fw->fw;
 	struct fw_info *fw_info = (struct fw_info *)fw->data;
@@ -2361,7 +2363,7 @@ static bool rtl_fw_format_ok(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 		if (fw->size % FW_OPCODE_SIZE)
 			return false;
 
-		strscpy(rtl_fw->version, tp->fw_name, RTL_VER_SIZE);
+		strscpy(rtl_fw->version, rtl_fw->fw_name, RTL_VER_SIZE);
 
 		pa->code = (__le32 *)fw->data;
 		pa->size = fw->size / FW_OPCODE_SIZE;
@@ -2370,10 +2372,9 @@ static bool rtl_fw_format_ok(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 	return true;
 }
 
-static bool rtl_fw_data_ok(struct rtl8169_private *tp, struct net_device *dev,
-			   struct rtl_fw_phy_action *pa)
+static bool rtl_fw_data_ok(struct rtl_fw *rtl_fw)
 {
-	bool rc = false;
+	struct rtl_fw_phy_action *pa = &rtl_fw->phy_action;
 	size_t index;
 
 	for (index = 0; index < pa->size; index++) {
@@ -2392,54 +2393,30 @@ static bool rtl_fw_data_ok(struct rtl8169_private *tp, struct net_device *dev,
 			break;
 
 		case PHY_BJMPN:
-			if (regno > index) {
-				netif_err(tp, ifup, tp->dev,
-					  "Out of range of firmware\n");
+			if (regno > index)
 				goto out;
-			}
 			break;
 		case PHY_READCOUNT_EQ_SKIP:
-			if (index + 2 >= pa->size) {
-				netif_err(tp, ifup, tp->dev,
-					  "Out of range of firmware\n");
+			if (index + 2 >= pa->size)
 				goto out;
-			}
 			break;
 		case PHY_COMP_EQ_SKIPN:
 		case PHY_COMP_NEQ_SKIPN:
 		case PHY_SKIPN:
-			if (index + 1 + regno >= pa->size) {
-				netif_err(tp, ifup, tp->dev,
-					  "Out of range of firmware\n");
+			if (index + 1 + regno >= pa->size)
 				goto out;
-			}
 			break;
 
 		default:
-			netif_err(tp, ifup, tp->dev,
-				  "Invalid action 0x%08x\n", action);
-			goto out;
+			dev_err(rtl_fw->dev, "Invalid action 0x%08x\n", action);
+			return false;
 		}
 	}
-	rc = true;
+
+	return true;
 out:
-	return rc;
-}
-
-static int rtl_check_firmware(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
-{
-	struct net_device *dev = tp->dev;
-	int rc = -EINVAL;
-
-	if (!rtl_fw_format_ok(tp, rtl_fw)) {
-		netif_err(tp, ifup, dev, "invalid firmware\n");
-		goto out;
-	}
-
-	if (rtl_fw_data_ok(tp, dev, &rtl_fw->phy_action))
-		rc = 0;
-out:
-	return rc;
+	dev_err(rtl_fw->dev, "Out of range of firmware\n");
+	return false;
 }
 
 static void rtl_fw_write_firmware(struct rtl8169_private *tp,
@@ -4289,14 +4266,17 @@ static void rtl_request_firmware(struct rtl8169_private *tp)
 	rtl_fw->phy_read = rtl_readphy;
 	rtl_fw->mac_mcu_write = mac_mcu_write;
 	rtl_fw->mac_mcu_read = mac_mcu_read;
+	rtl_fw->fw_name = tp->fw_name;
+	rtl_fw->dev = tp_to_dev(tp);
 
 	rc = request_firmware(&rtl_fw->fw, tp->fw_name, tp_to_dev(tp));
 	if (rc < 0)
 		goto err_free;
 
-	rc = rtl_check_firmware(tp, rtl_fw);
-	if (rc < 0)
+	if (!rtl_fw_format_ok(rtl_fw) || !rtl_fw_data_ok(rtl_fw)) {
+		dev_err(rtl_fw->dev, "invalid firmware\n");
 		goto err_release_firmware;
+	}
 
 	tp->rtl_fw = rtl_fw;
 
