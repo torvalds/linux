@@ -105,8 +105,6 @@ struct imx7d_adc_feature {
 	enum imx7d_adc_average_num avg_num;
 
 	u32 core_time_unit;	/* impact the sample rate */
-
-	bool average_en;
 };
 
 struct imx7d_adc {
@@ -184,7 +182,6 @@ static void imx7d_adc_feature_config(struct imx7d_adc *info)
 	info->adc_feature.clk_pre_div = IMX7D_ADC_ANALOG_CLK_PRE_DIV_4;
 	info->adc_feature.avg_num = IMX7D_ADC_AVERAGE_NUM_32;
 	info->adc_feature.core_time_unit = 1;
-	info->adc_feature.average_en = true;
 }
 
 static void imx7d_adc_sample_rate_set(struct imx7d_adc *info)
@@ -245,9 +242,8 @@ static void imx7d_adc_channel_set(struct imx7d_adc *info)
 
 	/* the channel choose single conversion, and enable average mode */
 	cfg1 |= (IMX7D_REG_ADC_CH_CFG1_CHANNEL_EN |
-		 IMX7D_REG_ADC_CH_CFG1_CHANNEL_SINGLE);
-	if (info->adc_feature.average_en)
-		cfg1 |= IMX7D_REG_ADC_CH_CFG1_CHANNEL_AVG_EN;
+		 IMX7D_REG_ADC_CH_CFG1_CHANNEL_SINGLE |
+		 IMX7D_REG_ADC_CH_CFG1_CHANNEL_AVG_EN);
 
 	/*
 	 * physical channel 0 chose logical channel A
