@@ -120,6 +120,7 @@ static int lz4hc_decompress_crypto(struct crypto_tfm *tfm, const u8 *src,
 
 static struct crypto_alg alg_lz4hc = {
 	.cra_name		= "lz4hc",
+	.cra_driver_name	= "lz4hc-generic",
 	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
 	.cra_ctxsize		= sizeof(struct lz4hc_ctx),
 	.cra_module		= THIS_MODULE,

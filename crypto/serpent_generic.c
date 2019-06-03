@@ -641,6 +641,7 @@ static struct crypto_alg srp_algs[2] = { {
 	.cia_decrypt		=	serpent_decrypt } }
 }, {
 	.cra_name		=	"tnepres",
+	.cra_driver_name	=	"tnepres-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	SERPENT_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct serpent_ctx),

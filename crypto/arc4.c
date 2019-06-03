@@ -115,6 +115,7 @@ static int ecb_arc4_crypt(struct skcipher_request *req)
 
 static struct crypto_alg arc4_cipher = {
 	.cra_name		=	"arc4",
+	.cra_driver_name	=	"arc4-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	ARC4_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct arc4_ctx),
@@ -132,6 +133,7 @@ static struct crypto_alg arc4_cipher = {
 
 static struct skcipher_alg arc4_skcipher = {
 	.base.cra_name		=	"ecb(arc4)",
+	.base.cra_driver_name	=	"ecb(arc4)-generic",
 	.base.cra_priority	=	100,
 	.base.cra_blocksize	=	ARC4_BLOCK_SIZE,
 	.base.cra_ctxsize	=	sizeof(struct arc4_ctx),

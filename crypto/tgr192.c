@@ -635,9 +635,10 @@ static struct shash_alg tgr_algs[3] = { {
 	.final		=	tgr192_final,
 	.descsize	=	sizeof(struct tgr192_ctx),
 	.base		=	{
-		.cra_name	=	"tgr192",
-		.cra_blocksize	=	TGR192_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"tgr192",
+		.cra_driver_name =	"tgr192-generic",
+		.cra_blocksize	 =	TGR192_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 }, {
 	.digestsize	=	TGR160_DIGEST_SIZE,
@@ -646,9 +647,10 @@ static struct shash_alg tgr_algs[3] = { {
 	.final		=	tgr160_final,
 	.descsize	=	sizeof(struct tgr192_ctx),
 	.base		=	{
-		.cra_name	=	"tgr160",
-		.cra_blocksize	=	TGR192_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"tgr160",
+		.cra_driver_name =	"tgr160-generic",
+		.cra_blocksize	 =	TGR192_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 }, {
 	.digestsize	=	TGR128_DIGEST_SIZE,
@@ -657,9 +659,10 @@ static struct shash_alg tgr_algs[3] = { {
 	.final		=	tgr128_final,
 	.descsize	=	sizeof(struct tgr192_ctx),
 	.base		=	{
-		.cra_name	=	"tgr128",
-		.cra_blocksize	=	TGR192_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"tgr128",
+		.cra_driver_name =	"tgr128-generic",
+		.cra_blocksize	 =	TGR192_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 } };
 

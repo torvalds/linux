@@ -221,6 +221,7 @@ static void xeta_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 
 static struct crypto_alg tea_algs[3] = { {
 	.cra_name		=	"tea",
+	.cra_driver_name	=	"tea-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	TEA_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct tea_ctx),
@@ -234,6 +235,7 @@ static struct crypto_alg tea_algs[3] = { {
 	.cia_decrypt		=	tea_decrypt } }
 }, {
 	.cra_name		=	"xtea",
+	.cra_driver_name	=	"xtea-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	XTEA_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct xtea_ctx),
@@ -247,6 +249,7 @@ static struct crypto_alg tea_algs[3] = { {
 	.cia_decrypt		=	xtea_decrypt } }
 }, {
 	.cra_name		=	"xeta",
+	.cra_driver_name	=	"xeta-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	XTEA_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct xtea_ctx),

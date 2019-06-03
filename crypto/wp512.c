@@ -1126,9 +1126,10 @@ static struct shash_alg wp_algs[3] = { {
 	.final		=	wp512_final,
 	.descsize	=	sizeof(struct wp512_ctx),
 	.base		=	{
-		.cra_name	=	"wp512",
-		.cra_blocksize	=	WP512_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"wp512",
+		.cra_driver_name =	"wp512-generic",
+		.cra_blocksize	 =	WP512_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 }, {
 	.digestsize	=	WP384_DIGEST_SIZE,
@@ -1137,9 +1138,10 @@ static struct shash_alg wp_algs[3] = { {
 	.final		=	wp384_final,
 	.descsize	=	sizeof(struct wp512_ctx),
 	.base		=	{
-		.cra_name	=	"wp384",
-		.cra_blocksize	=	WP512_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"wp384",
+		.cra_driver_name =	"wp384-generic",
+		.cra_blocksize	 =	WP512_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 }, {
 	.digestsize	=	WP256_DIGEST_SIZE,
@@ -1148,9 +1150,10 @@ static struct shash_alg wp_algs[3] = { {
 	.final		=	wp256_final,
 	.descsize	=	sizeof(struct wp512_ctx),
 	.base		=	{
-		.cra_name	=	"wp256",
-		.cra_blocksize	=	WP512_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"wp256",
+		.cra_driver_name =	"wp256-generic",
+		.cra_blocksize	 =	WP512_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 } };
 
