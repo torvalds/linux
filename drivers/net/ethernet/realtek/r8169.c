@@ -2451,7 +2451,7 @@ static void rtl_fw_write_firmware(struct rtl8169_private *tp,
 	int predata = 0, count = 0;
 	size_t index;
 
-	for (index = 0; index < pa->size; ) {
+	for (index = 0; index < pa->size; index++) {
 		u32 action = le32_to_cpu(pa->code[index]);
 		u32 data = action & 0x0000ffff;
 		u32 regno = (action & 0x0fff0000) >> 16;
@@ -2464,18 +2464,15 @@ static void rtl_fw_write_firmware(struct rtl8169_private *tp,
 		case PHY_READ:
 			predata = fw_read(tp, regno);
 			count++;
-			index++;
 			break;
 		case PHY_DATA_OR:
 			predata |= data;
-			index++;
 			break;
 		case PHY_DATA_AND:
 			predata &= data;
-			index++;
 			break;
 		case PHY_BJMPN:
-			index -= regno;
+			index -= (regno + 1);
 			break;
 		case PHY_MDIO_CHG:
 			if (data == 0) {
@@ -2486,39 +2483,33 @@ static void rtl_fw_write_firmware(struct rtl8169_private *tp,
 				fw_read = rtl_fw->mac_mcu_read;
 			}
 
-			index++;
 			break;
 		case PHY_CLEAR_READCOUNT:
 			count = 0;
-			index++;
 			break;
 		case PHY_WRITE:
 			fw_write(tp, regno, data);
-			index++;
 			break;
 		case PHY_READCOUNT_EQ_SKIP:
-			index += (count == data) ? 2 : 1;
+			if (count == data)
+				index++;
 			break;
 		case PHY_COMP_EQ_SKIPN:
 			if (predata == data)
 				index += regno;
-			index++;
 			break;
 		case PHY_COMP_NEQ_SKIPN:
 			if (predata != data)
 				index += regno;
-			index++;
 			break;
 		case PHY_WRITE_PREVIOUS:
 			fw_write(tp, regno, predata);
-			index++;
 			break;
 		case PHY_SKIPN:
-			index += regno + 1;
+			index += regno;
 			break;
 		case PHY_DELAY_MS:
 			mdelay(data);
-			index++;
 			break;
 		}
 	}
