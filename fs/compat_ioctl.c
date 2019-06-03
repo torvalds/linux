@@ -198,8 +198,6 @@ static int ppp_scompress(struct file *file, unsigned int cmd,
 
 #define COMPATIBLE_IOCTL(cmd) XFORM((u32)cmd),
 static unsigned int ioctl_pointer[] = {
-/* Little t */
-COMPATIBLE_IOCTL(TIOCOUTQ)
 #ifdef CONFIG_BLOCK
 /* Big S */
 COMPATIBLE_IOCTL(SCSI_IOCTL_GET_IDLUN)
