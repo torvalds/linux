@@ -73,6 +73,7 @@ struct btrfs_ref;
 
 /* four bytes for CRC32 */
 static const int btrfs_csum_sizes[] = { 4 };
+static const char *btrfs_csum_names[] = { "crc32c" };
 
 #define BTRFS_EMPTY_DIR_SIZE 0
 
@@ -1162,6 +1163,8 @@ struct btrfs_fs_info {
 	/* Block groups and devices containing active swapfiles. */
 	spinlock_t swapfile_pins_lock;
 	struct rb_root swapfile_pins;
+
+	struct crypto_shash *csum_shash;
 
 #ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	spinlock_t ref_verify_lock;
@@ -2454,6 +2457,11 @@ static inline int btrfs_super_csum_size(const struct btrfs_super_block *s)
 	return btrfs_csum_sizes[t];
 }
 
+static inline const char *btrfs_super_csum_name(u16 csum_type)
+{
+	/* csum type is validated at mount time */
+	return btrfs_csum_names[csum_type];
+}
 
 /*
  * The leaf data grows from end-to-front in the node.
