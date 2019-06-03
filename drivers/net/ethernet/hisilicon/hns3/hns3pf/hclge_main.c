@@ -2706,15 +2706,6 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 		return HCLGE_VECTOR0_EVENT_RST;
 	}
 
-	if (BIT(HCLGE_VECTOR0_CORERESET_INT_B) & rst_src_reg) {
-		dev_info(&hdev->pdev->dev, "core reset interrupt\n");
-		set_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state);
-		set_bit(HNAE3_CORE_RESET, &hdev->reset_pending);
-		*clearval = BIT(HCLGE_VECTOR0_CORERESET_INT_B);
-		hdev->rst_stats.core_rst_cnt++;
-		return HCLGE_VECTOR0_EVENT_RST;
-	}
-
 	/* check for vector0 msix event source */
 	if (msix_src_reg & HCLGE_VECTOR0_REG_MSIX_MASK) {
 		dev_dbg(&hdev->pdev->dev, "received event 0x%x\n",
@@ -2941,10 +2932,6 @@ static int hclge_reset_wait(struct hclge_dev *hdev)
 		reg = HCLGE_GLOBAL_RESET_REG;
 		reg_bit = HCLGE_GLOBAL_RESET_BIT;
 		break;
-	case HNAE3_CORE_RESET:
-		reg = HCLGE_GLOBAL_RESET_REG;
-		reg_bit = HCLGE_CORE_RESET_BIT;
-		break;
 	case HNAE3_FUNC_RESET:
 		reg = HCLGE_FUN_RST_ING;
 		reg_bit = HCLGE_FUN_RST_ING_B;
@@ -3076,12 +3063,6 @@ static void hclge_do_reset(struct hclge_dev *hdev)
 		hclge_write_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG, val);
 		dev_info(&pdev->dev, "Global Reset requested\n");
 		break;
-	case HNAE3_CORE_RESET:
-		val = hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG);
-		hnae3_set_bit(val, HCLGE_CORE_RESET_BIT, 1);
-		hclge_write_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG, val);
-		dev_info(&pdev->dev, "Core Reset requested\n");
-		break;
 	case HNAE3_FUNC_RESET:
 		dev_info(&pdev->dev, "PF Reset requested\n");
 		/* schedule again to check later */
@@ -3128,16 +3109,10 @@ static enum hnae3_reset_type hclge_get_reset_level(struct hclge_dev *hdev,
 		rst_level = HNAE3_IMP_RESET;
 		clear_bit(HNAE3_IMP_RESET, addr);
 		clear_bit(HNAE3_GLOBAL_RESET, addr);
-		clear_bit(HNAE3_CORE_RESET, addr);
 		clear_bit(HNAE3_FUNC_RESET, addr);
 	} else if (test_bit(HNAE3_GLOBAL_RESET, addr)) {
 		rst_level = HNAE3_GLOBAL_RESET;
 		clear_bit(HNAE3_GLOBAL_RESET, addr);
-		clear_bit(HNAE3_CORE_RESET, addr);
-		clear_bit(HNAE3_FUNC_RESET, addr);
-	} else if (test_bit(HNAE3_CORE_RESET, addr)) {
-		rst_level = HNAE3_CORE_RESET;
-		clear_bit(HNAE3_CORE_RESET, addr);
 		clear_bit(HNAE3_FUNC_RESET, addr);
 	} else if (test_bit(HNAE3_FUNC_RESET, addr)) {
 		rst_level = HNAE3_FUNC_RESET;
@@ -3164,9 +3139,6 @@ static void hclge_clear_reset_cause(struct hclge_dev *hdev)
 		break;
 	case HNAE3_GLOBAL_RESET:
 		clearval = BIT(HCLGE_VECTOR0_GLOBALRESET_INT_B);
-		break;
-	case HNAE3_CORE_RESET:
-		clearval = BIT(HCLGE_VECTOR0_CORERESET_INT_B);
 		break;
 	default:
 		break;
