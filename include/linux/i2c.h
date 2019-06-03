@@ -1,16 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* ------------------------------------------------------------------------- */
-/*									     */
-/* i2c.h - definitions for the i2c-bus interface			     */
-/*									     */
-/* ------------------------------------------------------------------------- */
-/*   Copyright (C) 1995-2000 Simon G. Vogl
-
+/*
+ * i2c.h - definitions for the Linux i2c bus interface
+ * Copyright (C) 1995-2000 Simon G. Vogl
+ * Copyright (C) 2013-2019 Wolfram Sang <wsa@the-dreams.de>
+ *
+ * With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and
+ * Frodo Looijaard <frodol@dds.nl>
  */
-/* ------------------------------------------------------------------------- */
-
-/* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and
-   Frodo Looijaard <frodol@dds.nl> */
 #ifndef _LINUX_I2C_H
 #define _LINUX_I2C_H
 
