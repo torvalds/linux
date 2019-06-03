@@ -12,7 +12,6 @@
 #include <linux/cdev.h>
 #include <linux/rwsem.h>
 #include <linux/uaccess.h>
-#include <asm/io.h>
 #include <linux/io.h>
 #include <linux/mfd/core.h>
 #include <linux/platform_device.h>
