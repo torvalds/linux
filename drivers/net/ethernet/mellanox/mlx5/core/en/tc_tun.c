@@ -40,20 +40,15 @@ static int get_route_and_out_devs(struct mlx5e_priv *priv,
 	/* if the egress device isn't on the same HW e-switch or
 	 * it's a LAG device, use the uplink
 	 */
+	*route_dev = dev;
 	if (!netdev_port_same_parent_id(priv->netdev, real_dev) ||
-	    dst_is_lag_dev) {
-		*route_dev = dev;
+	    dst_is_lag_dev || is_vlan_dev(*route_dev))
 		*out_dev = uplink_dev;
-	} else {
-		*route_dev = dev;
-		if (is_vlan_dev(*route_dev))
-			*out_dev = uplink_dev;
-		else if (mlx5e_eswitch_rep(dev) &&
-			 mlx5e_is_valid_eswitch_fwd_dev(priv, dev))
-			*out_dev = *route_dev;
-		else
-			return -EOPNOTSUPP;
-	}
+	else if (mlx5e_eswitch_rep(dev) &&
+		 mlx5e_is_valid_eswitch_fwd_dev(priv, dev))
+		*out_dev = *route_dev;
+	else
+		return -EOPNOTSUPP;
 
 	if (!(mlx5e_eswitch_rep(*out_dev) &&
 	      mlx5e_is_uplink_rep(netdev_priv(*out_dev))))
