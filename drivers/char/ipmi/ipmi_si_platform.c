@@ -444,6 +444,7 @@ void ipmi_remove_platform_device_by_name(char *name)
 		struct platform_device *pdev = to_platform_device(dev);
 
 		platform_device_unregister(pdev);
+		put_device(dev);
 	}
 }
 
