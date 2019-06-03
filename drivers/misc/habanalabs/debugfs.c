@@ -500,6 +500,7 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 {
 	struct hl_ctx *ctx = hdev->user_ctx;
 	u64 hop_addr, hop_pte_addr, hop_pte;
+	u64 offset_mask = HOP4_MASK | OFFSET_MASK;
 	int rc = 0;
 
 	if (!ctx) {
@@ -542,12 +543,14 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 			goto not_mapped;
 		hop_pte_addr = get_hop4_pte_addr(ctx, hop_addr, virt_addr);
 		hop_pte = hdev->asic_funcs->read_pte(hdev, hop_pte_addr);
+
+		offset_mask = OFFSET_MASK;
 	}
 
 	if (!(hop_pte & PAGE_PRESENT_MASK))
 		goto not_mapped;
 
-	*phys_addr = (hop_pte & PTE_PHYS_ADDR_MASK) | (virt_addr & OFFSET_MASK);
+	*phys_addr = (hop_pte & ~offset_mask) | (virt_addr & offset_mask);
 
 	goto out;
 
