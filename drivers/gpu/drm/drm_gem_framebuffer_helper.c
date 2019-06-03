@@ -284,6 +284,9 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
  * There is no need for &drm_plane_helper_funcs.cleanup_fb hook for simple
  * gem based framebuffer drivers which have their buffers always pinned in
  * memory.
+ *
+ * See drm_atomic_set_fence_for_plane() for a discussion of implicit and
+ * explicit fencing in atomic modeset updates.
  */
 int drm_gem_fb_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *state)
@@ -314,6 +317,9 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_prepare_fb);
  * &dma_buf attached, extracts the exclusive fence and attaches it to plane
  * state for the atomic helper to wait on. Drivers can use this as their
  * &drm_simple_display_pipe_funcs.prepare_fb callback.
+ *
+ * See drm_atomic_set_fence_for_plane() for a discussion of implicit and
+ * explicit fencing in atomic modeset updates.
  */
 int drm_gem_fb_simple_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
 					      struct drm_plane_state *plane_state)
