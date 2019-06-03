@@ -603,8 +603,10 @@ static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 	sg_set_buf(&sg[0], buf,
 		   rxm->full_len + TLS_HEADER_SIZE +
 		   TLS_CIPHER_AES_GCM_128_IV_SIZE);
-	skb_copy_bits(skb, offset, buf,
-		      TLS_HEADER_SIZE + TLS_CIPHER_AES_GCM_128_IV_SIZE);
+	err = skb_copy_bits(skb, offset, buf,
+			    TLS_HEADER_SIZE + TLS_CIPHER_AES_GCM_128_IV_SIZE);
+	if (err)
+		goto free_buf;
 
 	/* We are interested only in the decrypted data not the auth */
 	err = decrypt_skb(sk, skb, sg);
@@ -618,8 +620,11 @@ static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 	if (skb_pagelen(skb) > offset) {
 		copy = min_t(int, skb_pagelen(skb) - offset, data_len);
 
-		if (skb->decrypted)
-			skb_store_bits(skb, offset, buf, copy);
+		if (skb->decrypted) {
+			err = skb_store_bits(skb, offset, buf, copy);
+			if (err)
+				goto free_buf;
+		}
 
 		offset += copy;
 		buf += copy;
@@ -642,8 +647,11 @@ static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 		copy = min_t(int, skb_iter->len - frag_pos,
 			     data_len + rxm->offset - offset);
 
-		if (skb_iter->decrypted)
-			skb_store_bits(skb_iter, frag_pos, buf, copy);
+		if (skb_iter->decrypted) {
+			err = skb_store_bits(skb_iter, frag_pos, buf, copy);
+			if (err)
+				goto free_buf;
+		}
 
 		offset += copy;
 		buf += copy;
