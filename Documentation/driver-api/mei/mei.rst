@@ -1,5 +1,4 @@
-Intel(R) Management Engine Interface (Intel(R) MEI)
-===================================================
+.. SPDX-License-Identifier: GPL-2.0
 
 Introduction
 ============
@@ -70,6 +69,8 @@ user to access it.
 
 A code snippet for an application communicating with Intel AMTHI client:
 
+.. code-block:: C
+
 	struct mei_connect_client_data data;
 	fd = open(MEI_DEVICE);
 
@@ -93,8 +94,8 @@ A code snippet for an application communicating with Intel AMTHI client:
 	close(fd);
 
 
-IOCTL
-=====
+IOCTLs
+======
 
 The Intel MEI Driver supports the following IOCTL commands:
 	IOCTL_MEI_CONNECT_CLIENT	Connect to firmware Feature (client).
@@ -114,8 +115,7 @@ The Intel MEI Driver supports the following IOCTL commands:
 
 	error returns:
 		EINVAL	Wrong IOCTL Number
-		ENODEV	Device or Connection is not initialized or ready.
-			(e.g. Wrong UUID)
+		ENODEV	Device or Connection is not initialized or ready. (e.g. Wrong UUID)
 		ENOMEM	Unable to allocate memory to client internal data.
 		EFAULT	Fatal Error (e.g. Unable to access user input data)
 		EBUSY	Connection Already Open
@@ -241,26 +241,10 @@ watchdog is 120 seconds.
 If the Intel AMT is not enabled in the firmware then the watchdog client won't enumerate
 on the me client bus and watchdog devices won't be exposed.
 
-
 Supported Chipsets
 ==================
+82X38/X48 Express and newer
 
-7 Series Chipset Family
-6 Series Chipset Family
-5 Series Chipset Family
-4 Series Chipset Family
-Mobile 4 Series Chipset Family
-ICH9
-82946GZ/GL
-82G35 Express
-82Q963/Q965
-82P965/G965
-Mobile PM965/GM965
-Mobile GME965/GLE960
-82Q35 Express
-82G33/G31/P35/P31 Express
-82Q33 Express
-82X38/X48 Express
 
 ---
 linux-mei@linux.intel.com

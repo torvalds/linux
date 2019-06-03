@@ -1,3 +1,6 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+==============================================
 Intel(R) Management Engine (ME) Client bus API
 ==============================================
 
@@ -22,22 +25,24 @@ MEI CL bus API
 
 A driver implementation for an MEI Client is very similar to existing bus
 based device drivers. The driver registers itself as an MEI CL bus driver through
-the mei_cl_driver structure:
+the ``struct mei_cl_driver`` structure:
 
-struct mei_cl_driver {
-	struct device_driver driver;
-	const char *name;
+.. code-block:: C
 
-	const struct mei_cl_device_id *id_table;
+        struct mei_cl_driver {
+                struct device_driver driver;
+                const char *name;
 
-	int (*probe)(struct mei_cl_device *dev, const struct mei_cl_id *id);
-	int (*remove)(struct mei_cl_device *dev);
-};
+                const struct mei_cl_device_id *id_table;
 
-struct mei_cl_id {
-	char name[MEI_NAME_SIZE];
-	kernel_ulong_t driver_info;
-};
+                int (*probe)(struct mei_cl_device *dev, const struct mei_cl_id *id);
+                int (*remove)(struct mei_cl_device *dev);
+        };
+
+        struct mei_cl_id {
+                char name[MEI_NAME_SIZE];
+                kernel_ulong_t driver_info;
+        };
 
 The mei_cl_id structure allows the driver to bind itself against a device name.
 
@@ -61,58 +66,62 @@ Example
 As a theoretical example let's pretend the ME comes with a "contact" NFC IP.
 The driver init and exit routines for this device would look like:
 
-#define CONTACT_DRIVER_NAME "contact"
+.. code-block:: C
 
-static struct mei_cl_device_id contact_mei_cl_tbl[] = {
-	{ CONTACT_DRIVER_NAME, },
+	#define CONTACT_DRIVER_NAME "contact"
 
-	/* required last entry */
-	{ }
-};
-MODULE_DEVICE_TABLE(mei_cl, contact_mei_cl_tbl);
+	static struct mei_cl_device_id contact_mei_cl_tbl[] = {
+		{ CONTACT_DRIVER_NAME, },
 
-static struct mei_cl_driver contact_driver = {
-	.id_table = contact_mei_tbl,
-	.name = CONTACT_DRIVER_NAME,
+		/* required last entry */
+		{ }
+	};
+	MODULE_DEVICE_TABLE(mei_cl, contact_mei_cl_tbl);
 
-	.probe = contact_probe,
-	.remove = contact_remove,
-};
+	static struct mei_cl_driver contact_driver = {
+		.id_table = contact_mei_tbl,
+		.name = CONTACT_DRIVER_NAME,
 
-static int contact_init(void)
-{
-	int r;
+		.probe = contact_probe,
+		.remove = contact_remove,
+	};
 
-	r = mei_cl_driver_register(&contact_driver);
-	if (r) {
-		pr_err(CONTACT_DRIVER_NAME ": driver registration failed\n");
-		return r;
+	static int contact_init(void)
+	{
+		int r;
+
+		r = mei_cl_driver_register(&contact_driver);
+		if (r) {
+			pr_err(CONTACT_DRIVER_NAME ": driver registration failed\n");
+			return r;
+		}
+
+		return 0;
 	}
 
-	return 0;
-}
+	static void __exit contact_exit(void)
+	{
+		mei_cl_driver_unregister(&contact_driver);
+	}
 
-static void __exit contact_exit(void)
-{
-	mei_cl_driver_unregister(&contact_driver);
-}
-
-module_init(contact_init);
-module_exit(contact_exit);
+	module_init(contact_init);
+	module_exit(contact_exit);
 
 And the driver's simplified probe routine would look like that:
 
-int contact_probe(struct mei_cl_device *dev, struct mei_cl_device_id *id)
-{
-	struct contact_driver *contact;
+.. code-block:: C
 
-	[...]
-	mei_cl_enable_device(dev);
+	int contact_probe(struct mei_cl_device *dev, struct mei_cl_device_id *id)
+	{
+		struct contact_driver *contact;
 
-	mei_cl_register_event_cb(dev, contact_event_cb, contact);
+		[...]
+		mei_cl_enable_device(dev);
 
-	return 0;
-}
+		mei_cl_register_event_cb(dev, contact_event_cb, contact);
+
+		return 0;
+	}
 
 In the probe routine the driver first enable the MEI device and then registers
 an ME bus event handler which is as close as it can get to registering a
@@ -122,20 +131,22 @@ the pending events:
 
 #define MAX_NFC_PAYLOAD 128
 
-static void contact_event_cb(struct mei_cl_device *dev, u32 events,
-			     void *context)
-{
-	struct contact_driver *contact = context;
+.. code-block:: C
 
-	if (events & BIT(MEI_EVENT_RX)) {
-		u8 payload[MAX_NFC_PAYLOAD];
-		int payload_size;
+	static void contact_event_cb(struct mei_cl_device *dev, u32 events,
+				     void *context)
+	{
+		struct contact_driver *contact = context;
 
-		payload_size = mei_recv(dev, payload, MAX_NFC_PAYLOAD);
-		if (payload_size <= 0)
-			return;
+		if (events & BIT(MEI_EVENT_RX)) {
+			u8 payload[MAX_NFC_PAYLOAD];
+			int payload_size;
 
-		/* Hook to the NFC subsystem */
-		nfc_hci_recv_frame(contact->hdev, payload, payload_size);
+			payload_size = mei_recv(dev, payload, MAX_NFC_PAYLOAD);
+			if (payload_size <= 0)
+				return;
+
+			/* Hook to the NFC subsystem */
+			nfc_hci_recv_frame(contact->hdev, payload, payload_size);
+		}
 	}
-}
