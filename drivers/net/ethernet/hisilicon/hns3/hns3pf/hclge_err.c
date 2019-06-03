@@ -1783,7 +1783,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 		ret = hclge_clear_mac_tnl_int(hdev);
 		if (ret)
 			dev_err(dev, "clear mac tnl int failed (%d)\n", ret);
-		set_bit(HNAE3_NONE_RESET, reset_requests);
 	}
 
 msi_error:
