@@ -62,7 +62,7 @@ static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
 }
 
 static int chacha_neon_stream_xor(struct skcipher_request *req,
-				  struct chacha_ctx *ctx, u8 *iv)
+				  const struct chacha_ctx *ctx, const u8 *iv)
 {
 	struct skcipher_walk walk;
 	u32 state[16];
