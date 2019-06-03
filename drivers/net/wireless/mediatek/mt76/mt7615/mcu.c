@@ -882,6 +882,7 @@ int mt7615_mcu_set_wtbl_key(struct mt7615_dev *dev, int wcid,
 		if (cipher == MT_CIPHER_NONE && key)
 			return -EOPNOTSUPP;
 
+		req.key.rkv = 1;
 		req.key.cipher_id = cipher;
 		req.key.key_id = key->keyidx;
 		req.key.key_len = key->keylen;

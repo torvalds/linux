@@ -95,7 +95,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 
 	dev->vif_mask |= BIT(mvif->idx);
 	dev->omac_mask |= BIT(mvif->omac_idx);
-	idx = MT7615_WTBL_RESERVED - 1 - mvif->idx;
+	idx = MT7615_WTBL_RESERVED - mvif->idx;
 	mvif->sta.wcid.idx = idx;
 	mvif->sta.wcid.hw_key_idx = -1;
 

@@ -62,16 +62,11 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 		 MT_AGG_ARCR_RATE_DOWN_RATIO_EN |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_DOWN_RATIO, 1) |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_UP_EXTRA_TH, 4)));
-
-	dev->mt76.global_wcid.idx = MT7615_WTBL_RESERVED;
-	dev->mt76.global_wcid.hw_key_idx = -1;
-	rcu_assign_pointer(dev->mt76.wcid[MT7615_WTBL_RESERVED],
-			   &dev->mt76.global_wcid);
 }
 
 static int mt7615_init_hardware(struct mt7615_dev *dev)
 {
-	int ret;
+	int ret, idx;
 
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
 
@@ -97,6 +92,15 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 	mt7615_phy_init(dev);
 	mt7615_mcu_ctrl_pm_state(dev, 0);
 	mt7615_mcu_del_wtbl_all(dev);
+
+	/* Beacon and mgmt frames should occupy wcid 0 */
+	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7615_WTBL_STA - 1);
+	if (idx)
+		return -ENOSPC;
+
+	dev->mt76.global_wcid.idx = idx;
+	dev->mt76.global_wcid.hw_key_idx = -1;
+	rcu_assign_pointer(dev->mt76.wcid[idx], &dev->mt76.global_wcid);
 
 	return 0;
 }
