@@ -446,19 +446,15 @@ static inline struct tls_context *tls_get_ctx(const struct sock *sk)
 }
 
 static inline void tls_advance_record_sn(struct sock *sk,
-					 struct cipher_context *ctx,
-					 int version)
+					 struct tls_prot_info *prot,
+					 struct cipher_context *ctx)
 {
-	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_prot_info *prot = &tls_ctx->prot_info;
-
 	if (tls_bigint_increment(ctx->rec_seq, prot->rec_seq_size))
 		tls_err_abort(sk, EBADMSG);
 
-	if (version != TLS_1_3_VERSION) {
+	if (prot->version != TLS_1_3_VERSION)
 		tls_bigint_increment(ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
 				     prot->iv_size);
-	}
 }
 
 static inline void tls_fill_prepend(struct tls_context *ctx,
