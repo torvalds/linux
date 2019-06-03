@@ -20,3 +20,4 @@ Intel(R) Management Engine Interface (Intel(R) MEI)
 
    mei
    mei-client-bus
+   iamt
