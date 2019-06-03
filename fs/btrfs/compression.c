@@ -84,8 +84,7 @@ static int check_compressed_csum(struct btrfs_inode *inode,
 
 		if (memcmp(&csum, cb_sum, csum_size)) {
 			btrfs_print_data_csum_error(inode, disk_start,
-						    *(u32 *)csum, *(u32 *)cb_sum,
-						    cb->mirror_num);
+					csum, cb_sum, cb->mirror_num);
 			ret = -EIO;
 			goto fail;
 		}
