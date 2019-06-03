@@ -66,6 +66,9 @@ void dml20_rq_dlg_get_dlg_reg(
 		const unsigned int num_pipes,
 		const unsigned int pipe_idx,
 		const bool cstate_en,
-		const bool pstate_en);
+		const bool pstate_en,
+		const bool vm_en,
+		const bool ignore_viewport_pos,
+		const bool immediate_flip_support);
 
 #endif

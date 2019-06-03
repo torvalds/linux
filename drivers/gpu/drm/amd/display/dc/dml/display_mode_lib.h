@@ -50,7 +50,10 @@ struct dml_funcs {
 			const unsigned int num_pipes,
 			const unsigned int pipe_idx,
 			const bool cstate_en,
-			const bool pstate_en);
+			const bool pstate_en,
+			const bool vm_en,
+			const bool ignore_viewport_pos,
+			const bool immediate_flip_support);
 	void (*rq_dlg_get_rq_reg)(
 		struct display_mode_lib *mode_lib,
 		display_rq_regs_st *rq_regs,

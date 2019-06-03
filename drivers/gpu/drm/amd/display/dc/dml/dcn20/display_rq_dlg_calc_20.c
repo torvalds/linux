@@ -1567,7 +1567,10 @@ void dml20_rq_dlg_get_dlg_reg(struct display_mode_lib *mode_lib,
 		const unsigned int num_pipes,
 		const unsigned int pipe_idx,
 		const bool cstate_en,
-		const bool pstate_en)
+		const bool pstate_en,
+		const bool vm_en,
+		const bool ignore_viewport_pos,
+		const bool immediate_flip_support)
 {
 	display_rq_params_st rq_param = {0};
 	display_dlg_sys_params_st dlg_sys_param = {0};

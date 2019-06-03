@@ -204,14 +204,7 @@ static void enc2_stream_encoder_stop_hdmi_info_packets(
 }
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-struct dc_info_packet_128 {
-	bool valid;
-	uint8_t hb0;
-	uint8_t hb1;
-	uint8_t hb2;
-	uint8_t hb3;
-	uint8_t sb[128];
-};
+
 
 /* Update GSP7 SDP 128 byte long */
 static void enc2_send_gsp7_128_info_packet(
