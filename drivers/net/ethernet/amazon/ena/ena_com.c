@@ -115,7 +115,7 @@ static int ena_com_admin_init_sq(struct ena_com_admin_queue *queue)
 					 GFP_KERNEL);
 
 	if (!sq->entries) {
-		pr_err("memory allocation failed");
+		pr_err("memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -137,7 +137,7 @@ static int ena_com_admin_init_cq(struct ena_com_admin_queue *queue)
 					 GFP_KERNEL);
 
 	if (!cq->entries) {
-		pr_err("memory allocation failed");
+		pr_err("memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -160,7 +160,7 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *dev,
 					   GFP_KERNEL);
 
 	if (!aenq->entries) {
-		pr_err("memory allocation failed");
+		pr_err("memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -285,7 +285,7 @@ static inline int ena_com_init_comp_ctxt(struct ena_com_admin_queue *queue)
 
 	queue->comp_ctx = devm_kzalloc(queue->q_dmadev, size, GFP_KERNEL);
 	if (unlikely(!queue->comp_ctx)) {
-		pr_err("memory allocation failed");
+		pr_err("memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -356,7 +356,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 		}
 
 		if (!io_sq->desc_addr.virt_addr) {
-			pr_err("memory allocation failed");
+			pr_err("memory allocation failed\n");
 			return -ENOMEM;
 		}
 	}
@@ -382,7 +382,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 				devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
 
 		if (!io_sq->bounce_buf_ctrl.base_buffer) {
-			pr_err("bounce buffer memory allocation failed");
+			pr_err("bounce buffer memory allocation failed\n");
 			return -ENOMEM;
 		}
 
@@ -440,7 +440,7 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
 	}
 
 	if (!io_cq->cdesc_addr.virt_addr) {
-		pr_err("memory allocation failed");
+		pr_err("memory allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -829,7 +829,7 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	}
 
 	if (read_resp->reg_off != offset) {
-		pr_err("Read failure: wrong offset provided");
+		pr_err("Read failure: wrong offset provided\n");
 		ret = ENA_MMIO_READ_TIMEOUT;
 	} else {
 		ret = read_resp->reg_val;
