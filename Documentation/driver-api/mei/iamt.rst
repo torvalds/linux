@@ -27,62 +27,57 @@ starting with Release 6.0) over HTTP/S or WS-Management protocol over
 HTTP/S that are received from a remote management console application.
 
 For more information about Intel AMT:
-http://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide
+https://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide/default.htm
 
 
 Intel AMT Applications
-======================
+----------------------
 
-	1) Intel Local Management Service (Intel LMS)
+    1) Intel Local Management Service (Intel LMS)
 
-	   Applications running locally on the platform communicate with Intel AMT Release
-	   2.0 and later releases in the same way that network applications do via SOAP
-	   over HTTP (deprecated starting with Release 6.0) or with WS-Management over
-	   SOAP over HTTP. This means that some Intel AMT features can be accessed from a
-	   local application using the same network interface as a remote application
-	   communicating with Intel AMT over the network.
+       Applications running locally on the platform communicate with Intel AMT Release
+       2.0 and later releases in the same way that network applications do via SOAP
+       over HTTP (deprecated starting with Release 6.0) or with WS-Management over
+       SOAP over HTTP. This means that some Intel AMT features can be accessed from a
+       local application using the same network interface as a remote application
+       communicating with Intel AMT over the network.
 
-	   When a local application sends a message addressed to the local Intel AMT host
-	   name, the Intel LMS, which listens for traffic directed to the host name,
-	   intercepts the message and routes it to the Intel MEI.
-	   For more information:
-	   http://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide
-	   Under "About Intel AMT" => "Local Access"
+       When a local application sends a message addressed to the local Intel AMT host
+       name, the Intel LMS, which listens for traffic directed to the host name,
+       intercepts the message and routes it to the Intel MEI.
+       For more information:
+       https://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide/default.htm
+       Under "About Intel AMT" => "Local Access"
 
-	   For downloading Intel LMS:
-	   http://software.intel.com/en-us/articles/download-the-latest-intel-amt-open-source-drivers/
+       For downloading Intel LMS:
+       https://github.com/intel/lms
 
-	   The Intel LMS opens a connection using the Intel MEI driver to the Intel LMS
-	   firmware feature using a defined UUID and then communicates with the feature
-	   using a protocol called Intel AMT Port Forwarding Protocol (Intel APF protocol).
-	   The protocol is used to maintain multiple sessions with Intel AMT from a
-	   single application.
+       The Intel LMS opens a connection using the Intel MEI driver to the Intel LMS
+       firmware feature using a defined GUID and then communicates with the feature
+       using a protocol called Intel AMT Port Forwarding Protocol (Intel APF protocol).
+       The protocol is used to maintain multiple sessions with Intel AMT from a
+       single application.
 
-	   See the protocol specification in the Intel AMT Software Development Kit (SDK)
-	   http://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide
-	   Under "SDK Resources" => "Intel(R) vPro(TM) Gateway (MPS)"
-	   => "Information for Intel(R) vPro(TM) Gateway Developers"
-	   => "Description of the Intel AMT Port Forwarding (APF) Protocol"
+       See the protocol specification in the Intel AMT Software Development Kit (SDK)
+       https://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide/default.htm
+       Under "SDK Resources" => "Intel(R) vPro(TM) Gateway (MPS)"
+       => "Information for Intel(R) vPro(TM) Gateway Developers"
+       => "Description of the Intel AMT Port Forwarding (APF) Protocol"
 
-	2) Intel AMT Remote configuration using a Local Agent
+    2) Intel AMT Remote configuration using a Local Agent
 
-	   A Local Agent enables IT personnel to configure Intel AMT out-of-the-box
-	   without requiring installing additional data to enable setup. The remote
-	   configuration process may involve an ISV-developed remote configuration
-	   agent that runs on the host.
-	   For more information:
-	   http://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide
-	   Under "Setup and Configuration of Intel AMT" =>
-	   "SDK Tools Supporting Setup and Configuration" =>
-	   "Using the Local Agent Sample"
-
-	   An open source Intel AMT configuration utility,	implementing a local agent
-	   that accesses the Intel MEI driver, can be found here:
-	   http://software.intel.com/en-us/articles/download-the-latest-intel-amt-open-source-drivers/
-
+       A Local Agent enables IT personnel to configure Intel AMT out-of-the-box
+       without requiring installing additional data to enable setup. The remote
+       configuration process may involve an ISV-developed remote configuration
+       agent that runs on the host.
+       For more information:
+       https://software.intel.com/sites/manageability/AMT_Implementation_and_Reference_Guide/default.htm
+       Under "Setup and Configuration of Intel AMT" =>
+       "SDK Tools Supporting Setup and Configuration" =>
+       "Using the Local Agent Sample"
 
 Intel AMT OS Health Watchdog
-============================
+----------------------------
 
 The Intel AMT Watchdog is an OS Health (Hang/Crash) watchdog.
 Whenever the OS hangs or crashes, Intel AMT will send an event
@@ -90,10 +85,10 @@ to any subscriber to this event. This mechanism means that
 IT knows when a platform crashes even when there is a hard failure on the host.
 
 The Intel AMT Watchdog is composed of two parts:
-	1) Firmware feature - receives the heartbeats
-	   and sends an event when the heartbeats stop.
-	2) Intel MEI iAMT watchdog driver - connects to the watchdog feature,
-	   configures the watchdog and sends the heartbeats.
+    1) Firmware feature - receives the heartbeats
+       and sends an event when the heartbeats stop.
+    2) Intel MEI iAMT watchdog driver - connects to the watchdog feature,
+       configures the watchdog and sends the heartbeats.
 
 The Intel iAMT watchdog MEI driver uses the kernel watchdog API to configure
 the Intel AMT Watchdog and to send heartbeats to it. The default timeout of the
