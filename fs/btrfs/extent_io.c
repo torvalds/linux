@@ -1537,8 +1537,8 @@ out:
 }
 
 /**
- * find_first_clear_extent_bit - finds the first range that has @bits not set
- * and that starts after @start
+ * find_first_clear_extent_bit - find the first range that has @bits not set.
+ * This range could start before @start.
  *
  * @tree - the tree to search
  * @start - the offset at/after which the found extent should start
@@ -1578,12 +1578,52 @@ void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
 				goto out;
 			}
 		}
+		/*
+		 * At this point 'node' either contains 'start' or start is
+		 * before 'node'
+		 */
 		state = rb_entry(node, struct extent_state, rb_node);
-		if (in_range(start, state->start, state->end - state->start + 1) &&
-			(state->state & bits)) {
-			start = state->end + 1;
+
+		if (in_range(start, state->start, state->end - state->start + 1)) {
+			if (state->state & bits) {
+				/*
+				 * |--range with bits sets--|
+				 *    |
+				 *    start
+				 */
+				start = state->end + 1;
+			} else {
+				/*
+				 * 'start' falls within a range that doesn't
+				 * have the bits set, so take its start as
+				 * the beginning of the desired range
+				 *
+				 * |--range with bits cleared----|
+				 *      |
+				 *      start
+				 */
+				*start_ret = state->start;
+				break;
+			}
 		} else {
-			*start_ret = start;
+			/*
+			 * |---prev range---|---hole/unset---|---node range---|
+			 *                          |
+			 *                        start
+			 *
+			 *                        or
+			 *
+			 * |---hole/unset--||--first node--|
+			 * 0   |
+			 *    start
+			 */
+			if (prev) {
+				state = rb_entry(prev, struct extent_state,
+						 rb_node);
+				*start_ret = state->end + 1;
+			} else {
+				*start_ret = 0;
+			}
 			break;
 		}
 	}
