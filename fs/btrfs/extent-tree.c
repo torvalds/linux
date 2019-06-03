@@ -11179,12 +11179,17 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 		find_first_clear_extent_bit(&device->alloc_state, start,
 					    &start, &end,
 					    CHUNK_TRIMMED | CHUNK_ALLOCATED);
+
+		/* Ensure we skip the reserved area in the first 1M */
+		start = max_t(u64, start, SZ_1M);
+
 		/*
 		 * If find_first_clear_extent_bit find a range that spans the
 		 * end of the device it will set end to -1, in this case it's up
 		 * to the caller to trim the value to the size of the device.
 		 */
 		end = min(end, device->total_bytes - 1);
+
 		len = end - start + 1;
 
 		/* We didn't find any extents */
