@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Apple Onboard Audio driver for Onyx codec
  *
  * Copyright 2006 Johannes Berg <johannes@sipsolutions.net>
- *
- * GPL v2, can be found in COPYING.
- *
  *
  * This is a driver for the pcm3052 codec chip (codenamed Onyx)
  * that is present in newer Apple hardware (with digital output).
@@ -29,7 +27,6 @@
  *	 having just a single card on a system, and making the
  *	 'card' pointer accessible to anyone who needs it instead
  *	 of hiding it in the aoa_snd_* functions...
- *
  */
 #include <linux/delay.h>
 #include <linux/module.h>
