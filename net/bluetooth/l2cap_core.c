@@ -168,11 +168,18 @@ static struct l2cap_chan *l2cap_get_chan_by_ident(struct l2cap_conn *conn,
 	return c;
 }
 
-static struct l2cap_chan *__l2cap_global_chan_by_addr(__le16 psm, bdaddr_t *src)
+static struct l2cap_chan *__l2cap_global_chan_by_addr(__le16 psm, bdaddr_t *src,
+						      u8 src_type)
 {
 	struct l2cap_chan *c;
 
 	list_for_each_entry(c, &chan_list, global_l) {
+		if (src_type == BDADDR_BREDR && c->src_type != BDADDR_BREDR)
+			continue;
+
+		if (src_type != BDADDR_BREDR && c->src_type == BDADDR_BREDR)
+			continue;
+
 		if (c->sport == psm && !bacmp(&c->src, src))
 			return c;
 	}
@@ -185,7 +192,7 @@ int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm)
 
 	write_lock(&chan_list_lock);
 
-	if (psm && __l2cap_global_chan_by_addr(psm, src)) {
+	if (psm && __l2cap_global_chan_by_addr(psm, src, chan->src_type)) {
 		err = -EADDRINUSE;
 		goto done;
 	}
@@ -209,7 +216,8 @@ int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm)
 
 		err = -EINVAL;
 		for (p = start; p <= end; p += incr)
-			if (!__l2cap_global_chan_by_addr(cpu_to_le16(p), src)) {
+			if (!__l2cap_global_chan_by_addr(cpu_to_le16(p), src,
+							 chan->src_type)) {
 				chan->psm   = cpu_to_le16(p);
 				chan->sport = cpu_to_le16(p);
 				err = 0;
