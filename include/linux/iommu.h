@@ -25,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <uapi/linux/iommu.h>
 
 #define IOMMU_READ	(1 << 0)
 #define IOMMU_WRITE	(1 << 1)
@@ -49,6 +50,7 @@ struct device;
 struct iommu_domain;
 struct notifier_block;
 struct iommu_sva;
+struct iommu_fault_event;
 
 /* iommu fault flags */
 #define IOMMU_FAULT_READ	0x0
@@ -58,6 +60,7 @@ typedef int (*iommu_fault_handler_t)(struct iommu_domain *,
 			struct device *, unsigned long, int, void *);
 typedef int (*iommu_mm_exit_handler_t)(struct device *dev, struct iommu_sva *,
 				       void *);
+typedef int (*iommu_dev_fault_handler_t)(struct iommu_fault *, void *);
 
 struct iommu_domain_geometry {
 	dma_addr_t aperture_start; /* First address that can be mapped    */
@@ -301,6 +304,41 @@ struct iommu_device {
 	struct device *dev;
 };
 
+/**
+ * struct iommu_fault_event - Generic fault event
+ *
+ * Can represent recoverable faults such as a page requests or
+ * unrecoverable faults such as DMA or IRQ remapping faults.
+ *
+ * @fault: fault descriptor
+ */
+struct iommu_fault_event {
+	struct iommu_fault fault;
+};
+
+/**
+ * struct iommu_fault_param - per-device IOMMU fault data
+ * @handler: Callback function to handle IOMMU faults at device level
+ * @data: handler private data
+ */
+struct iommu_fault_param {
+	iommu_dev_fault_handler_t handler;
+	void *data;
+};
+
+/**
+ * struct iommu_param - collection of per-device IOMMU data
+ *
+ * @fault_param: IOMMU detected device fault reporting data
+ *
+ * TODO: migrate other per device data pointers under iommu_dev_data, e.g.
+ *	struct iommu_group	*iommu_group;
+ *	struct iommu_fwspec	*iommu_fwspec;
+ */
+struct iommu_param {
+	struct iommu_fault_param *fault_param;
+};
+
 int  iommu_device_register(struct iommu_device *iommu);
 void iommu_device_unregister(struct iommu_device *iommu);
 int  iommu_device_sysfs_add(struct iommu_device *iommu,
@@ -504,6 +542,7 @@ struct iommu_ops {};
 struct iommu_group {};
 struct iommu_fwspec {};
 struct iommu_device {};
+struct iommu_fault_param {};
 
 static inline bool iommu_present(struct bus_type *bus)
 {
