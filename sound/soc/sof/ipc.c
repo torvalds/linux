@@ -763,16 +763,19 @@ int snd_sof_ipc_valid(struct snd_sof_dev *sdev)
 		}
 	}
 
-	if (ready->debug.bits.build) {
+	if (ready->flags & SOF_IPC_INFO_BUILD) {
 		dev_info(sdev->dev,
 			 "Firmware debug build %d on %s-%s - options:\n"
 			 " GDB: %s\n"
 			 " lock debug: %s\n"
 			 " lock vdebug: %s\n",
 			 v->build, v->date, v->time,
-			 ready->debug.bits.gdb ? "enabled" : "disabled",
-			 ready->debug.bits.locks ? "enabled" : "disabled",
-			 ready->debug.bits.locks_verbose ? "enabled" : "disabled");
+			 ready->flags & SOF_IPC_INFO_GDB ?
+				"enabled" : "disabled",
+			 ready->flags & SOF_IPC_INFO_LOCKS ?
+				"enabled" : "disabled",
+			 ready->flags & SOF_IPC_INFO_LOCKSV ?
+				"enabled" : "disabled");
 	}
 
 	/* copy the fw_version into debugfs at first boot */
