@@ -1098,8 +1098,6 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 	/* query all main PF RAS errors */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_MPF_RAS_INT,
 				   true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
 	if (ret) {
 		dev_err(dev, "query all mpf ras int cmd failed (%d)\n", ret);
@@ -1262,8 +1260,6 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 
 	/* clear all main PF RAS errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
 	if (ret)
 		dev_err(dev, "clear all mpf ras int cmd failed (%d)\n", ret);
@@ -1293,8 +1289,6 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 	/* query all PF RAS errors */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_PF_RAS_INT,
 				   true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
 	if (ret) {
 		dev_err(dev, "query all pf ras int cmd failed (%d)\n", ret);
@@ -1348,8 +1342,6 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 
 	/* clear all PF RAS errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
 	if (ret)
 		dev_err(dev, "clear all pf ras int cmd failed (%d)\n", ret);
@@ -1667,8 +1659,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	/* query all main PF MSIx errors */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_ALL_MPF_MSIX_INT,
 				   true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], mpf_bd_num);
 	if (ret) {
 		dev_err(dev, "query all mpf msix int cmd failed (%d)\n",
@@ -1700,8 +1690,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 
 	/* clear all main PF MSIx errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], mpf_bd_num);
 	if (ret) {
 		dev_err(dev, "clear all mpf msix int cmd failed (%d)\n",
@@ -1713,8 +1701,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	memset(desc, 0, bd_num * sizeof(struct hclge_desc));
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT,
 				   true);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], pf_bd_num);
 	if (ret) {
 		dev_err(dev, "query all pf msix int cmd failed (%d)\n",
@@ -1753,8 +1739,6 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 
 	/* clear all PF MSIx errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
-	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
-
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], pf_bd_num);
 	if (ret) {
 		dev_err(dev, "clear all pf msix int cmd failed (%d)\n",

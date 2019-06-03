@@ -173,7 +173,11 @@ static bool hclge_is_special_opcode(u16 opcode)
 			     HCLGE_OPC_STATS_MAC,
 			     HCLGE_OPC_STATS_MAC_ALL,
 			     HCLGE_OPC_QUERY_32_BIT_REG,
-			     HCLGE_OPC_QUERY_64_BIT_REG};
+			     HCLGE_OPC_QUERY_64_BIT_REG,
+			     HCLGE_QUERY_CLEAR_MPF_RAS_INT,
+			     HCLGE_QUERY_CLEAR_PF_RAS_INT,
+			     HCLGE_QUERY_CLEAR_ALL_MPF_MSIX_INT,
+			     HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(spec_opcode); i++) {
