@@ -7401,10 +7401,6 @@ static void hclge_add_vport_vlan_table(struct hclge_vport *vport, u16 vlan_id,
 {
 	struct hclge_vport_vlan_cfg *vlan;
 
-	/* vlan 0 is reserved */
-	if (!vlan_id)
-		return;
-
 	vlan = kzalloc(sizeof(*vlan), GFP_KERNEL);
 	if (!vlan)
 		return;
@@ -7496,6 +7492,43 @@ void hclge_uninit_vport_vlan_table(struct hclge_dev *hdev)
 			kfree(vlan);
 		}
 	}
+	mutex_unlock(&hdev->vport_cfg_mutex);
+}
+
+static void hclge_restore_vlan_table(struct hnae3_handle *handle)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_vport_vlan_cfg *vlan, *tmp;
+	struct hclge_dev *hdev = vport->back;
+	u16 vlan_proto, qos;
+	u16 state, vlan_id;
+	int i;
+
+	mutex_lock(&hdev->vport_cfg_mutex);
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		vport = &hdev->vport[i];
+		vlan_proto = vport->port_base_vlan_cfg.vlan_info.vlan_proto;
+		vlan_id = vport->port_base_vlan_cfg.vlan_info.vlan_tag;
+		qos = vport->port_base_vlan_cfg.vlan_info.qos;
+		state = vport->port_base_vlan_cfg.state;
+
+		if (state != HNAE3_PORT_BASE_VLAN_DISABLE) {
+			hclge_set_vlan_filter_hw(hdev, htons(vlan_proto),
+						 vport->vport_id, vlan_id, qos,
+						 false);
+			continue;
+		}
+
+		list_for_each_entry_safe(vlan, tmp, &vport->vlan_list, node) {
+			if (vlan->hd_tbl_status)
+				hclge_set_vlan_filter_hw(hdev,
+							 htons(ETH_P_8021Q),
+							 vport->vport_id,
+							 vlan->vlan_id, 0,
+							 false);
+		}
+	}
+
 	mutex_unlock(&hdev->vport_cfg_mutex);
 }
 
@@ -9206,6 +9239,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_timer_task = hclge_set_timer_task,
 	.mac_connect_phy = hclge_mac_connect_phy,
 	.mac_disconnect_phy = hclge_mac_disconnect_phy,
+	.restore_vlan_table = hclge_restore_vlan_table,
 };
 
 static struct hnae3_ae_algo ae_algo = {

@@ -1548,14 +1548,10 @@ static int hns3_vlan_rx_add_vid(struct net_device *netdev,
 				__be16 proto, u16 vid)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret = -EIO;
 
 	if (h->ae_algo->ops->set_vlan_filter)
 		ret = h->ae_algo->ops->set_vlan_filter(h, proto, vid, false);
-
-	if (!ret)
-		set_bit(vid, priv->active_vlans);
 
 	return ret;
 }
@@ -1564,32 +1560,10 @@ static int hns3_vlan_rx_kill_vid(struct net_device *netdev,
 				 __be16 proto, u16 vid)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret = -EIO;
 
 	if (h->ae_algo->ops->set_vlan_filter)
 		ret = h->ae_algo->ops->set_vlan_filter(h, proto, vid, true);
-
-	if (!ret)
-		clear_bit(vid, priv->active_vlans);
-
-	return ret;
-}
-
-static int hns3_restore_vlan(struct net_device *netdev)
-{
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	int ret = 0;
-	u16 vid;
-
-	for_each_set_bit(vid, priv->active_vlans, VLAN_N_VID) {
-		ret = hns3_vlan_rx_add_vid(netdev, htons(ETH_P_8021Q), vid);
-		if (ret) {
-			netdev_err(netdev, "Restore vlan: %d filter, ret:%d\n",
-				   vid, ret);
-			return ret;
-		}
-	}
 
 	return ret;
 }
@@ -4301,12 +4275,8 @@ static int hns3_reset_notify_restore_enet(struct hnae3_handle *handle)
 	vlan_filter_enable = netdev->flags & IFF_PROMISC ? false : true;
 	hns3_enable_vlan_filter(netdev, vlan_filter_enable);
 
-	/* Hardware table is only clear when pf resets */
-	if (!(handle->flags & HNAE3_SUPPORT_VF)) {
-		ret = hns3_restore_vlan(netdev);
-		if (ret)
-			return ret;
-	}
+	if (handle->ae_algo->ops->restore_vlan_table)
+		handle->ae_algo->ops->restore_vlan_table(handle);
 
 	return hns3_restore_fd_rules(netdev);
 }
