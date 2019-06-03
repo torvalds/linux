@@ -49,7 +49,7 @@ patternProperties:
     description: Aeroflex Gaisler AB
   "^al,.*":
     description: Annapurna Labs
-  "^allegro,.*"
+  "^allegro,.*":
     description: Allegro DVT
   "^allo,.*":
     description: Allo.com
