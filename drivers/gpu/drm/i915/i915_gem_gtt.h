@@ -248,25 +248,28 @@ struct i915_page_dma {
 
 struct i915_page_table {
 	struct i915_page_dma base;
-	unsigned int used_ptes;
+	atomic_t used_ptes;
 };
 
 struct i915_page_directory {
 	struct i915_page_dma base;
 
 	struct i915_page_table *page_table[I915_PDES]; /* PDEs */
-	unsigned int used_pdes;
+	atomic_t used_pdes;
+	spinlock_t lock;
 };
 
 struct i915_page_directory_pointer {
 	struct i915_page_dma base;
 	struct i915_page_directory **page_directory;
-	unsigned int used_pdpes;
+	atomic_t used_pdpes;
+	spinlock_t lock;
 };
 
 struct i915_pml4 {
 	struct i915_page_dma base;
 	struct i915_page_directory_pointer *pdps[GEN8_PML4ES_PER_PML4];
+	spinlock_t lock;
 };
 
 struct i915_vma_ops {
