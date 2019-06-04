@@ -451,6 +451,8 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 		return -ENOMEM;
 
 	scontrol->comp_id = sdev->next_comp_id;
+	scontrol->min_volume_step = le32_to_cpu(mc->min);
+	scontrol->max_volume_step = le32_to_cpu(mc->max);
 	scontrol->num_channels = le32_to_cpu(mc->num_channels);
 
 	/* set cmd for mixer control */
