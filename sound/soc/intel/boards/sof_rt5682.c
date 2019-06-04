@@ -10,8 +10,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/dmi.h>
-#include <asm/cpu_device_id.h>
-#include <asm/intel-family.h>
 #include <sound/core.h>
 #include <sound/jack.h>
 #include <sound/pcm.h>
@@ -21,6 +19,7 @@
 #include <sound/soc-acpi.h>
 #include "../../codecs/rt5682.h"
 #include "../../codecs/hdac_hdmi.h"
+#include "../common/soc-intel-quirks.h"
 
 #define NAME_SIZE 32
 
@@ -304,12 +303,6 @@ static struct snd_soc_card sof_audio_card_rt5682 = {
 	.late_probe = sof_card_late_probe,
 };
 
-static const struct x86_cpu_id legacy_cpi_ids[] = {
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT }, /* Baytrail */
-	{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_AIRMONT }, /* Cherrytrail */
-	{}
-};
-
 static struct snd_soc_dai_link_component rt5682_component[] = {
 	{
 		.name = "i2c-10EC5682:00",
@@ -498,7 +491,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	if (x86_match_cpu(legacy_cpi_ids)) {
+	if (soc_intel_is_byt() || soc_intel_is_cht()) {
 		is_legacy_cpu = 1;
 		dmic_num = 0;
 		hdmi_num = 0;
