@@ -26,9 +26,11 @@ size_t cpu_map__fprintf(struct cpu_map *map, FILE *fp);
 int cpu_map__get_socket_id(int cpu);
 int cpu_map__get_socket(struct cpu_map *map, int idx, void *data);
 int cpu_map__get_die_id(int cpu);
+int cpu_map__get_die(struct cpu_map *map, int idx, void *data);
 int cpu_map__get_core_id(int cpu);
 int cpu_map__get_core(struct cpu_map *map, int idx, void *data);
 int cpu_map__build_socket_map(struct cpu_map *cpus, struct cpu_map **sockp);
+int cpu_map__build_die_map(struct cpu_map *cpus, struct cpu_map **diep);
 int cpu_map__build_core_map(struct cpu_map *cpus, struct cpu_map **corep);
 const struct cpu_map *cpu_map__online(void); /* thread unsafe */
 
@@ -44,7 +46,12 @@ static inline int cpu_map__socket(struct cpu_map *sock, int s)
 
 static inline int cpu_map__id_to_socket(int id)
 {
-	return id >> 16;
+	return id >> 24;
+}
+
+static inline int cpu_map__id_to_die(int id)
+{
+	return (id >> 16) & 0xff;
 }
 
 static inline int cpu_map__id_to_cpu(int id)
