@@ -39,6 +39,16 @@ static const char * const mlxfw_fsm_state_err_str[] = {
 		"unknown error"
 };
 
+static void mlxfw_status_notify(struct mlxfw_dev *mlxfw_dev,
+				const char *msg, const char *comp_name,
+				u32 done_bytes, u32 total_bytes)
+{
+	if (!mlxfw_dev->ops->status_notify)
+		return;
+	mlxfw_dev->ops->status_notify(mlxfw_dev, msg, comp_name,
+				      done_bytes, total_bytes);
+}
+
 static int mlxfw_fsm_state_wait(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 				enum mlxfw_fsm_state fsm_state,
 				struct netlink_ext_ack *extack)
@@ -85,10 +95,13 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 	u16 comp_max_write_size;
 	u8 comp_align_bits;
 	u32 comp_max_size;
+	char comp_name[8];
 	u16 block_size;
 	u8 *block_ptr;
 	u32 offset;
 	int err;
+
+	sprintf(comp_name, "%u", comp->index);
 
 	err = mlxfw_dev->ops->component_query(mlxfw_dev, comp->index,
 					      &comp_max_size, &comp_align_bits,
@@ -108,6 +121,7 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 					       comp_align_bits);
 
 	pr_debug("Component update\n");
+	mlxfw_status_notify(mlxfw_dev, "Updating component", comp_name, 0, 0);
 	err = mlxfw_dev->ops->fsm_component_update(mlxfw_dev, fwhandle,
 						   comp->index,
 						   comp->data_size);
@@ -120,6 +134,8 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 		goto err_out;
 
 	pr_debug("Component download\n");
+	mlxfw_status_notify(mlxfw_dev, "Downloading component",
+			    comp_name, 0, comp->data_size);
 	for (offset = 0;
 	     offset < MLXFW_ALIGN_UP(comp->data_size, comp_align_bits);
 	     offset += comp_max_write_size) {
@@ -131,9 +147,13 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 							 offset);
 		if (err)
 			goto err_out;
+		mlxfw_status_notify(mlxfw_dev, "Downloading component",
+				    comp_name, offset + block_size,
+				    comp->data_size);
 	}
 
 	pr_debug("Component verify\n");
+	mlxfw_status_notify(mlxfw_dev, "Verifying component", comp_name, 0, 0);
 	err = mlxfw_dev->ops->fsm_component_verify(mlxfw_dev, fwhandle,
 						   comp->index);
 	if (err)
@@ -203,6 +223,8 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 		return PTR_ERR(mfa2_file);
 
 	pr_info("Initialize firmware flash process\n");
+	mlxfw_status_notify(mlxfw_dev, "Initializing firmware flash process",
+			    NULL, 0, 0);
 	err = mlxfw_dev->ops->fsm_lock(mlxfw_dev, &fwhandle);
 	if (err) {
 		pr_err("Could not lock the firmware FSM\n");
@@ -220,6 +242,7 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 		goto err_flash_components;
 
 	pr_debug("Activate image\n");
+	mlxfw_status_notify(mlxfw_dev, "Activating image", NULL, 0, 0);
 	err = mlxfw_dev->ops->fsm_activate(mlxfw_dev, fwhandle);
 	if (err) {
 		pr_err("Could not activate the downloaded image\n");
@@ -236,6 +259,7 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	mlxfw_dev->ops->fsm_release(mlxfw_dev, fwhandle);
 
 	pr_info("Firmware flash done.\n");
+	mlxfw_status_notify(mlxfw_dev, "Firmware flash done", NULL, 0, 0);
 	mlxfw_mfa2_file_fini(mfa2_file);
 	return 0;
 

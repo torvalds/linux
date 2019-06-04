@@ -58,6 +58,10 @@ struct mlxfw_dev_ops {
 	void (*fsm_cancel)(struct mlxfw_dev *mlxfw_dev, u32 fwhandle);
 
 	void (*fsm_release)(struct mlxfw_dev *mlxfw_dev, u32 fwhandle);
+
+	void (*status_notify)(struct mlxfw_dev *mlxfw_dev,
+			      const char *msg, const char *comp_name,
+			      u32 done_bytes, u32 total_bytes);
 };
 
 struct mlxfw_dev {
