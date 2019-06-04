@@ -174,7 +174,7 @@
 				compatible = "arm,idle-state";
 				idle-state-name = "standalone-power-collapse";
 				arm,psci-suspend-param = <0x00000004>;
-				entry-latency-us = <40>;
+				entry-latency-us = <130>;
 				exit-latency-us = <80>;
 				min-residency-us = <300>;
 			};
