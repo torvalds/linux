@@ -130,7 +130,7 @@ if is_enabled CONFIG_MODULES; then
 fi
 
 if [ "$ARCH" != "um" ]; then
-	$MAKE -f $srctree/Makefile headers_check
+	$MAKE -f $srctree/Makefile headers
 	$MAKE -f $srctree/Makefile headers_install INSTALL_HDR_PATH="$libc_headers_dir/usr"
 fi
 
