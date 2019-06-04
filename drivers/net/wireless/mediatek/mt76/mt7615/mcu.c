@@ -1129,10 +1129,10 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		/* pky_type: 0 for bcn, 1 for tim */
 		.pkt_type = 0,
 	};
-	u16 tim_off, tim_len;
 	struct sk_buff *skb;
+	u16 tim_off;
 
-	skb = ieee80211_beacon_get_tim(mt76_hw(dev), vif, &tim_off, &tim_len);
+	skb = ieee80211_beacon_get_tim(mt76_hw(dev), vif, &tim_off, NULL);
 	if (!skb)
 		return -EINVAL;
 
