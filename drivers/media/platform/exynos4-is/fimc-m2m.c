@@ -236,9 +236,8 @@ static int fimc_m2m_querycap(struct file *file, void *fh,
 				     struct v4l2_capability *cap)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	unsigned int caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE;
 
-	__fimc_vidioc_querycap(&fimc->pdev->dev, cap, caps);
+	__fimc_vidioc_querycap(&fimc->pdev->dev, cap);
 	return 0;
 }
 
@@ -736,6 +735,7 @@ int fimc_register_m2m_device(struct fimc_dev *fimc,
 	vfd->release = video_device_release_empty;
 	vfd->lock = &fimc->lock;
 	vfd->vfl_dir = VFL_DIR_M2M;
+	vfd->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE;
 	set_bit(V4L2_FL_QUIRK_INVERTED_CROP, &vfd->flags);
 
 	snprintf(vfd->name, sizeof(vfd->name), "fimc.%d.m2m", fimc->id);

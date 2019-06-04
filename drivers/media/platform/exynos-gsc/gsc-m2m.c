@@ -298,8 +298,6 @@ static int gsc_m2m_querycap(struct file *file, void *fh,
 	strscpy(cap->card, GSC_MODULE_NAME " gscaler", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(&gsc->pdev->dev));
-	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -763,6 +761,8 @@ int gsc_register_m2m_device(struct gsc_dev *gsc)
 	gsc->vdev.lock		= &gsc->lock;
 	gsc->vdev.vfl_dir	= VFL_DIR_M2M;
 	gsc->vdev.v4l2_dev	= &gsc->v4l2_dev;
+	gsc->vdev.device_caps	= V4L2_CAP_STREAMING |
+				  V4L2_CAP_VIDEO_M2M_MPLANE;
 	snprintf(gsc->vdev.name, sizeof(gsc->vdev.name), "%s.%d:m2m",
 					GSC_MODULE_NAME, gsc->id);
 

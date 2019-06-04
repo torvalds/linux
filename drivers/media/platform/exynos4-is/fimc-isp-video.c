@@ -349,7 +349,7 @@ static int isp_video_querycap(struct file *file, void *priv,
 {
 	struct fimc_isp *isp = video_drvdata(file);
 
-	__fimc_vidioc_querycap(&isp->pdev->dev, cap, V4L2_CAP_STREAMING);
+	__fimc_vidioc_querycap(&isp->pdev->dev, cap);
 	return 0;
 }
 
@@ -614,6 +614,7 @@ int fimc_isp_video_device_register(struct fimc_isp *isp,
 	vdev->minor = -1;
 	vdev->release = video_device_release_empty;
 	vdev->lock = &isp->video_lock;
+	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE_MPLANE;
 
 	iv->pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_pads_init(&vdev->entity, 1, &iv->pad);
