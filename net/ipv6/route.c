@@ -3113,7 +3113,7 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 				goto out;
 			}
 		}
-		goto set_dev;
+		goto pcpu_alloc;
 	}
 
 	if (cfg->fc_flags & RTF_GATEWAY) {
@@ -3145,17 +3145,18 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 	    !netif_carrier_ok(dev))
 		fib6_nh->fib_nh_flags |= RTNH_F_LINKDOWN;
 
+	err = fib_nh_common_init(&fib6_nh->nh_common, cfg->fc_encap,
+				 cfg->fc_encap_type, cfg, gfp_flags, extack);
+	if (err)
+		goto out;
+
+pcpu_alloc:
 	fib6_nh->rt6i_pcpu = alloc_percpu_gfp(struct rt6_info *, gfp_flags);
 	if (!fib6_nh->rt6i_pcpu) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	err = fib_nh_common_init(&fib6_nh->nh_common, cfg->fc_encap,
-				 cfg->fc_encap_type, cfg, gfp_flags, extack);
-	if (err)
-		goto out;
-set_dev:
 	fib6_nh->fib_nh_dev = dev;
 	fib6_nh->fib_nh_oif = dev->ifindex;
 	err = 0;
