@@ -130,6 +130,8 @@ void intel_pt_decoder_free(struct intel_pt_decoder *decoder);
 
 const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder);
 
+int intel_pt_fast_forward(struct intel_pt_decoder *decoder, uint64_t timestamp);
+
 unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 				     unsigned char *buf_b, size_t len_b,
 				     bool have_tsc, bool *consecutive);
