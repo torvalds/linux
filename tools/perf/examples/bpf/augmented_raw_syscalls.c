@@ -60,11 +60,27 @@ struct augmented_args_filename {
 
 bpf_map(augmented_filename_map, PERCPU_ARRAY, int, struct augmented_args_filename, 1);
 
+static inline
+unsigned int augmented_args__read_filename(struct augmented_args_filename *augmented_args,
+					   const void *filename_arg, unsigned int filename_len)
+{
+	unsigned int len = sizeof(*augmented_args);
+
+	augmented_args->filename.reserved = 0;
+	augmented_args->filename.size = probe_read_str(&augmented_args->filename.value, filename_len, filename_arg);
+	if (augmented_args->filename.size < sizeof(augmented_args->filename.value)) {
+		len -= sizeof(augmented_args->filename.value) - augmented_args->filename.size;
+		len &= sizeof(augmented_args->filename.value) - 1;
+	}
+
+	return len;
+}
+
 SEC("raw_syscalls:sys_enter")
 int sys_enter(struct syscall_enter_args *args)
 {
 	struct augmented_args_filename *augmented_args;
-	unsigned int len = sizeof(*augmented_args), filename_len;
+	unsigned int len, filename_len;
 	const void *filename_arg = NULL;
 	struct syscall *syscall;
 	int key = 0;
@@ -182,14 +198,7 @@ processed 46 insns (limit 1000000) max_states_per_insn 0 total_states 12 peak_st
 	loop_iter_last(5)
 
 	if (filename_arg != NULL && filename_len <= sizeof(augmented_args->filename.value)) {
-		augmented_args->filename.reserved = 0;
-		augmented_args->filename.size = probe_read_str(&augmented_args->filename.value,
-							      filename_len,
-							      filename_arg);
-		if (augmented_args->filename.size < sizeof(augmented_args->filename.value)) {
-			len -= sizeof(augmented_args->filename.value) - augmented_args->filename.size;
-			len &= sizeof(augmented_args->filename.value) - 1;
-		}
+		len = augmented_args__read_filename(augmented_args, filename_arg, filename_len);
 	} else {
 		len = sizeof(augmented_args->args);
 	}
