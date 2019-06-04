@@ -361,12 +361,12 @@ include::itrace.txt[]
 
 --time::
 	Only analyze samples within given time window: <start>,<stop>. Times
-	have the format seconds.microseconds. If start is not given (i.e., time
+	have the format seconds.nanoseconds. If start is not given (i.e. time
 	string is ',x.y') then analysis starts at the beginning of the file. If
-	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	stop time is not given (i.e. time string is 'x.y,') then analysis goes
 	to end of file.
 
-	Also support time percent with multipe time range. Time string is
+	Also support time percent with multiple time ranges. Time string is
 	'a%/n,b%/m,...' or 'a%-b%,c%-%d,...'.
 
 	For example:

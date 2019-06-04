@@ -142,9 +142,9 @@ OPTIONS
 	  perf diff --time 0%-10%,30%-40%
 
 	It also supports analyzing samples within a given time window
-	<start>,<stop>. Times have the format seconds.microseconds. If 'start'
-	is not given (i.e., time string is ',x.y') then analysis starts at
-	the beginning of the file. If stop time is not given (i.e, time
+	<start>,<stop>. Times have the format seconds.nanoseconds. If 'start'
+	is not given (i.e. time string is ',x.y') then analysis starts at
+	the beginning of the file. If stop time is not given (i.e. time
 	string is 'x.y,') then analysis goes to the end of the file. Time string is
 	'a1.b1,c1.d1:a2.b2,c2.d2'. Use ':' to separate timestamps for different
 	perf.data files.
