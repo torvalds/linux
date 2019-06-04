@@ -44,12 +44,12 @@
 #include "rockchip_drm_vop.h"
 
 #define VOP_WIN_SET(vop, win, name, v) \
-		vop_reg_set(vop, &win->phy->name, win->base, ~0, v, #name)
+		vop_reg_set(vop, &win->phy->name, win->offset, ~0, v, #name)
 #define VOP_SCL_SET(vop, win, name, v) \
-		vop_reg_set(vop, &win->phy->scl->name, win->base, ~0, v, #name)
+		vop_reg_set(vop, &win->phy->scl->name, win->offset, ~0, v, #name)
 #define VOP_SCL_SET_EXT(vop, win, name, v) \
 		vop_reg_set(vop, &win->phy->scl->ext->name, \
-			    win->base, ~0, v, #name)
+			    win->offset, ~0, v, #name)
 
 #define VOP_WIN_YUV2YUV_SET(vop, win_yuv2yuv, name, v) \
 	do { \
@@ -84,13 +84,16 @@
 		vop_get_intr_type(vop, &vop->data->intr->name, type)
 
 #define VOP_WIN_GET(vop, win, name) \
-		vop_read_reg(vop, win->offset, win->phy->name)
+		vop_read_reg(vop, win->offset, &VOP_WIN_NAME(win, name))
+
+#define VOP_WIN_NAME(win, name) \
+		(vop_get_win_phy(win, &win->phy->name)->name)
 
 #define VOP_WIN_HAS_REG(win, name) \
-	(!!(win->phy->name.mask))
+	(!!(&win->phy->name)->mask)
 
 #define VOP_WIN_GET_YRGBADDR(vop, win) \
-		vop_readl(vop, win->base + win->phy->yrgb_mst.offset)
+		vop_readl(vop, win->offset + VOP_WIN_NAME(win, yrgb_mst).offset)
 
 #define VOP_WIN_TO_INDEX(vop_win) \
 	((vop_win) - (vop_win)->vop->win)
@@ -115,8 +118,15 @@ enum vop_pending {
 };
 
 struct vop_win {
+	struct vop_win *parent;
 	struct drm_plane base;
-	const struct vop_win_data *data;
+
+	uint32_t offset;
+	enum drm_plane_type type;
+	const struct vop_win_phy *phy;
+	const uint32_t *data_formats;
+	uint32_t nformats;
+
 	const struct vop_win_yuv2yuv_data *yuv2yuv_data;
 	struct vop *vop;
 };
@@ -138,6 +148,7 @@ struct vop {
 	struct completion line_flag_completion;
 
 	const struct vop_data *data;
+	int num_wins;
 
 	uint32_t *regsbak;
 	void __iomem *regs;
@@ -212,6 +223,15 @@ static void vop_reg_set(struct vop *vop, const struct vop_reg *reg,
 		writel_relaxed(v, vop->regs + offset);
 	else
 		writel(v, vop->regs + offset);
+}
+
+static inline const struct vop_win_phy *
+vop_get_win_phy(struct vop_win *win, const struct vop_reg *reg)
+{
+	if (!reg->mask && win->parent)
+		return win->parent->phy;
+
+	return win->phy;
 }
 
 static inline uint32_t vop_get_intr_type(struct vop *vop,
@@ -306,9 +326,9 @@ static uint16_t scl_vop_cal_scale(enum scale_mode mode, uint32_t src,
 	return val;
 }
 
-static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
-			     uint32_t src_w, uint32_t src_h, uint32_t dst_w,
-			     uint32_t dst_h, uint32_t pixel_format)
+static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win *win,
+				uint32_t src_w, uint32_t src_h, uint32_t dst_w,
+				uint32_t dst_h, uint32_t pixel_format)
 {
 	uint16_t yrgb_hor_scl_mode, yrgb_ver_scl_mode;
 	uint16_t cbcr_hor_scl_mode = SCALE_NONE;
@@ -323,6 +343,9 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 	uint16_t lb_mode;
 	uint32_t val;
 	int vskiplines;
+
+	if (!win->phy->scl)
+		return;
 
 	info = drm_format_info(pixel_format);
 
@@ -575,9 +598,8 @@ static int vop_enable(struct drm_crtc *crtc)
 	 * enable the crtc. Otherwise we might try to scan from a destroyed
 	 * buffer later.
 	 */
-	for (i = 0; i < vop->data->win_size; i++) {
-		struct vop_win *vop_win = &vop->win[i];
-		const struct vop_win_data *win = vop_win->data;
+	for (i = 0; i < vop->num_wins; i++) {
+		struct vop_win *win = &vop->win[i];
 
 		VOP_WIN_SET(vop, win, enable, 0);
 	}
@@ -671,8 +693,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_framebuffer *fb = state->fb;
-	struct vop_win *vop_win = to_vop_win(plane);
-	const struct vop_win_data *win = vop_win->data;
+	struct vop_win *win = to_vop_win(plane);
 	int ret;
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
 					DRM_PLANE_HELPER_NO_SCALING;
@@ -719,8 +740,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 static void vop_plane_atomic_disable(struct drm_plane *plane,
 				     struct drm_plane_state *old_state)
 {
-	struct vop_win *vop_win = to_vop_win(plane);
-	const struct vop_win_data *win = vop_win->data;
+	const struct vop_win *win = to_vop_win(plane);
 	struct vop *vop = to_vop(old_state->crtc);
 
 	if (!old_state->crtc)
@@ -738,9 +758,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_crtc *crtc = state->crtc;
-	struct vop_win *vop_win = to_vop_win(plane);
-	const struct vop_win_data *win = vop_win->data;
-	const struct vop_win_yuv2yuv_data *win_yuv2yuv = vop_win->yuv2yuv_data;
+	const struct vop_win *win = to_vop_win(plane);
+	const struct vop_win_yuv2yuv_data *win_yuv2yuv = win->yuv2yuv_data;
 	struct vop *vop = to_vop(state->crtc);
 	struct drm_framebuffer *fb = state->fb;
 	unsigned int actual_w, actual_h;
@@ -754,7 +773,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	dma_addr_t dma_addr;
 	uint32_t val;
 	bool rb_swap;
-	int win_index = VOP_WIN_TO_INDEX(vop_win);
+	int win_index = VOP_WIN_TO_INDEX(win);
 	int format;
 	int is_yuv = fb->format->is_yuv;
 	int i;
@@ -1322,20 +1341,40 @@ out:
 }
 
 static void vop_plane_add_properties(struct drm_plane *plane,
-				     const struct vop_win_data *win_data)
+				     const struct vop_win *win)
 {
 	unsigned int flags = 0;
 
-	flags |= VOP_WIN_HAS_REG(win_data, x_mir_en) ? DRM_MODE_REFLECT_X : 0;
-	flags |= VOP_WIN_HAS_REG(win_data, y_mir_en) ? DRM_MODE_REFLECT_Y : 0;
+	flags |= VOP_WIN_HAS_REG(win, x_mir_en) ? DRM_MODE_REFLECT_X : 0;
+	flags |= VOP_WIN_HAS_REG(win, y_mir_en) ? DRM_MODE_REFLECT_Y : 0;
 	if (flags)
 		drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
 						   DRM_MODE_ROTATE_0 | flags);
 }
 
+static int vop_plane_init(struct vop *vop, struct vop_win *win,
+			  unsigned long possible_crtcs)
+{
+	struct drm_plane *share = NULL;
+	int ret;
+
+	if (win->parent)
+		share = &win->parent->base;
+
+	ret = drm_share_plane_init(vop->drm_dev, &win->base, share,
+				   possible_crtcs, &vop_plane_funcs,
+				   win->data_formats, win->nformats, win->type);
+	if (ret) {
+		DRM_ERROR("failed to initialize plane\n");
+		return ret;
+	}
+	drm_plane_helper_add(&win->base, &plane_helper_funcs);
+
+	return 0;
+}
+
 static int vop_create_crtc(struct vop *vop)
 {
-	const struct vop_data *vop_data = vop->data;
 	struct device *dev = vop->dev;
 	struct drm_device *drm_dev = vop->drm_dev;
 	struct drm_plane *primary = NULL, *cursor = NULL, *plane, *tmp;
@@ -1349,28 +1388,20 @@ static int vop_create_crtc(struct vop *vop)
 	 * to pass them to drm_crtc_init_with_planes, which sets the
 	 * "possible_crtcs" to the newly initialized crtc.
 	 */
-	for (i = 0; i < vop_data->win_size; i++) {
-		struct vop_win *vop_win = &vop->win[i];
-		const struct vop_win_data *win_data = vop_win->data;
+	for (i = 0; i < vop->num_wins; i++) {
+		struct vop_win *win = &vop->win[i];
 
-		if (win_data->type != DRM_PLANE_TYPE_PRIMARY &&
-		    win_data->type != DRM_PLANE_TYPE_CURSOR)
+		if (win->type != DRM_PLANE_TYPE_PRIMARY &&
+		    win->type != DRM_PLANE_TYPE_CURSOR)
 			continue;
 
-		ret = drm_universal_plane_init(vop->drm_dev, &vop_win->base,
-					       0, &vop_plane_funcs,
-					       win_data->phy->data_formats,
-					       win_data->phy->nformats,
-					       NULL, win_data->type, NULL);
-		if (ret) {
+		if (vop_plane_init(vop, win, 0)) {
 			DRM_DEV_ERROR(vop->dev, "failed to init plane %d\n",
 				      ret);
 			goto err_cleanup_planes;
 		}
 
-		plane = &vop_win->base;
-		drm_plane_helper_add(plane, &plane_helper_funcs);
-		vop_plane_add_properties(plane, win_data);
+		plane = &win->base;
 		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
 			primary = plane;
 		else if (plane->type == DRM_PLANE_TYPE_CURSOR)
@@ -1388,27 +1419,19 @@ static int vop_create_crtc(struct vop *vop)
 	 * Create drm_planes for overlay windows with possible_crtcs restricted
 	 * to the newly created crtc.
 	 */
-	for (i = 0; i < vop_data->win_size; i++) {
-		struct vop_win *vop_win = &vop->win[i];
-		const struct vop_win_data *win_data = vop_win->data;
+	for (i = 0; i < vop->num_wins; i++) {
+		struct vop_win *win = &vop->win[i];
 		unsigned long possible_crtcs = drm_crtc_mask(crtc);
 
-		if (win_data->type != DRM_PLANE_TYPE_OVERLAY)
+		if (win->type != DRM_PLANE_TYPE_OVERLAY)
 			continue;
 
-		ret = drm_universal_plane_init(vop->drm_dev, &vop_win->base,
-					       possible_crtcs,
-					       &vop_plane_funcs,
-					       win_data->phy->data_formats,
-					       win_data->phy->nformats,
-					       NULL, win_data->type, NULL);
-		if (ret) {
+		if (vop_plane_init(vop, win, possible_crtcs)) {
 			DRM_DEV_ERROR(vop->dev, "failed to init overlay %d\n",
 				      ret);
 			goto err_cleanup_crtc;
 		}
-		drm_plane_helper_add(&vop_win->base, &plane_helper_funcs);
-		vop_plane_add_properties(&vop_win->base, win_data);
+		vop_plane_add_properties(&win->base, win);
 	}
 
 	port = of_get_child_by_name(dev->of_node, "port");
@@ -1467,7 +1490,6 @@ static void vop_destroy_crtc(struct vop *vop)
 
 static int vop_initial(struct vop *vop)
 {
-	const struct vop_data *vop_data = vop->data;
 	struct reset_control *ahb_rst;
 	int i, ret;
 
@@ -1534,8 +1556,8 @@ static int vop_initial(struct vop *vop)
 	VOP_REG_SET(vop, misc, global_regdone_en, 1);
 	VOP_REG_SET(vop, common, dsp_blank, 0);
 
-	for (i = 0; i < vop_data->win_size; i++) {
-		const struct vop_win_data *win = &vop_data->win[i];
+	for (i = 0; i < vop->num_wins; i++) {
+		struct vop_win *win = &vop->win[i];
 		int channel = i * 2 + 1;
 
 		VOP_WIN_SET(vop, win, channel, (channel + 1) << 4 | channel);
@@ -1584,15 +1606,35 @@ err_put_pm_runtime:
 static void vop_win_init(struct vop *vop)
 {
 	const struct vop_data *vop_data = vop->data;
-	unsigned int i;
+	unsigned int i, j;
+	unsigned int num_wins = 0;
 
 	for (i = 0; i < vop_data->win_size; i++) {
-		struct vop_win *vop_win = &vop->win[i];
+		struct vop_win *vop_win = &vop->win[num_wins];
 		const struct vop_win_data *win_data = &vop_data->win[i];
 
-		vop_win->data = win_data;
+		vop_win->phy = win_data->phy;
+		vop_win->offset = win_data->base;
+		vop_win->type = win_data->type;
+		vop_win->data_formats = win_data->phy->data_formats;
+		vop_win->nformats = win_data->phy->nformats;
 		vop_win->vop = vop;
 		vop_win->yuv2yuv_data = &vop_data->win_yuv2yuv[i];
+		num_wins++;
+
+		for (j = 0; j < win_data->area_size; j++) {
+			struct vop_win *vop_area = &vop->win[num_wins];
+			const struct vop_win_phy *area = win_data->area[j];
+
+			vop_area->parent = vop_win;
+			vop_area->offset = vop_win->offset;
+			vop_area->phy = area;
+			vop_area->type = DRM_PLANE_TYPE_OVERLAY;
+			vop_area->data_formats = vop_win->data_formats;
+			vop_area->nformats = vop_win->nformats;
+			vop_area->vop = vop;
+			num_wins++;
+		}
 	}
 }
 
@@ -1652,14 +1694,21 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm_dev = data;
 	struct vop *vop;
 	struct resource *res;
-	int ret, irq;
+	int ret, irq, i;
+	int num_wins = 0;
 
 	vop_data = of_device_get_match_data(dev);
 	if (!vop_data)
 		return -ENODEV;
 
+	for (i = 0; i < vop_data->win_size; i++) {
+		const struct vop_win_data *win_data = &vop_data->win[i];
+
+		num_wins += win_data->area_size + 1;
+	}
+
 	/* Allocate vop struct and its vop_win array */
-	vop = devm_kzalloc(dev, struct_size(vop, win, vop_data->win_size),
+	vop = devm_kzalloc(dev, struct_size(vop, win, num_wins),
 			   GFP_KERNEL);
 	if (!vop)
 		return -ENOMEM;
@@ -1667,6 +1716,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	vop->dev = dev;
 	vop->data = vop_data;
 	vop->drm_dev = drm_dev;
+	vop->num_wins = num_wins;
 	dev_set_drvdata(dev, vop);
 
 	vop_win_init(vop);
