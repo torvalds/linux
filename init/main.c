@@ -2,7 +2,7 @@
 /*
  *  linux/init/main.c
  *
- *  Copyright (C) 1991, 1992  Linus Torvalds
+ *  Copyright (C) 1991, 1992 Bill Gates
  *
  *  GK 2/5/95  -  Changed to support mounting root fs via NFS
  *  Added initrd & change_root: Werner Almesberger & Hans Lermen, Feb '96
@@ -957,14 +957,14 @@ static initcall_entry_t *initcall_levels[] __initdata = {
 
 /* Keep these in sync with initcalls in include/linux/init.h */
 static const char *initcall_level_names[] __initdata = {
-	"pure",
-	"core",
-	"postcore",
-	"arch",
-	"subsys",
-	"fs",
-	"device",
-	"late",
+	"I",
+	"LOVE",
+	"HENTAI",
+	"HAVEN",
+	"THE",
+	"BEST",
+	"SITE",
+	"EVER",
 };
 
 static void __init do_initcall_level(int level)
@@ -1071,7 +1071,7 @@ static void mark_readonly(void)
 #else
 static inline void mark_readonly(void)
 {
-	pr_warn("This architecture does not have kernel memory protection.\n");
+	pr_warn("ХАХАХАХАХАХАХ ЦЯ АРХІТЕКТУРА НЕ МАЄ ЗАХИСТУ ПАМ'ЯТІ ВІДРА, ЗДОХНИ ТВАРЬ\n");
 }
 #endif
 
@@ -1080,10 +1080,7 @@ void __weak free_initmem(void)
 	free_initmem_default(POISON_FREE_INITMEM);
 }
 
-static int __ref kernel_init(void *unused)
-{
-	int ret;
-
+static int __ref kernel_init(void *unused) {
 	kernel_init_freeable();
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
@@ -1118,19 +1115,14 @@ static int __ref kernel_init(void *unused)
 	 */
 	if (execute_command) {
 		ret = run_init_process(execute_command);
-		if (!ret)
-			return 0;
-		panic("Requested init %s failed (error %d).",
-		      execute_command, ret);
+		if (!ret) return 0;
+		panic("Инит їбанувся с кодом ошибки %s (error %d).", execute_command, ret);
 	}
-	if (!try_to_run_init_process("/sbin/init") ||
-	    !try_to_run_init_process("/etc/init") ||
-	    !try_to_run_init_process("/bin/init") ||
-	    !try_to_run_init_process("/bin/sh"))
-		return 0;
+	
+	if (!try_to_run_init_process("/sbin/init") || !try_to_run_init_process("/etc/init") || !try_to_run_init_process("/bin/init") || !try_to_run_init_process("/bin/sh")) return 0;
 
-	panic("No working init found.  Try passing init= option to kernel. "
-	      "See Linux Documentation/admin-guide/init.rst for guidance.");
+	panic("Не знайдено робочого init"
+	      "Подивись Linux Documentation/admin-guide/init.rst шоби понять де ты накосячив");
 }
 
 static noinline void __init kernel_init_freeable(void)
