@@ -1008,6 +1008,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		VOP_REG_SET(vop, common, pre_dither_down, 0);
 
 	VOP_REG_SET(vop, common, out_mode, s->output_mode);
+	VOP_REG_SET(vop, common, yuv_overlay, 0);
 
 	VOP_REG_SET(vop, modeset, htotal_pw, (htotal << 16) | hsync_len);
 	val = hact_st << 16;

@@ -535,6 +535,7 @@ static const struct vop_misc rk3328_misc = {
 
 static const struct vop_common rk3328_common = {
 	.standby = VOP_REG_SYNC(RK3328_SYS_CTRL, 0x1, 22),
+	.yuv_overlay = VOP_REG_SYNC(RK3328_SYS_CTRL, 0x1, 16),
 	.dither_down = VOP_REG(RK3328_DSP_CTRL1, 0xf, 1),
 	.dither_up = VOP_REG(RK3328_DSP_CTRL1, 0x1, 6),
 	.dsp_blank = VOP_REG(RK3328_DSP_CTRL0, 0x3, 18),
