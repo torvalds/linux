@@ -192,6 +192,42 @@ struct hinic_checksum_offload {
 	u16	rsvd1;
 	u32	rx_csum_offload;
 };
+
+struct hinic_rq_num {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	rsvd1[33];
+	u32	num_rqs;
+	u32	rq_depth;
+};
+
+struct hinic_lro_config {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	rsvd1;
+	u8	lro_ipv4_en;
+	u8	lro_ipv6_en;
+	u8	lro_max_wqe_num;
+	u8	resv2[13];
+};
+
+struct hinic_lro_timer {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u8	type;   /* 0: set timer value, 1: get timer value */
+	u8	enable; /* when set lro time, enable should be 1 */
+	u16	rsvd1;
+	u32	timer;
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 
@@ -220,7 +256,12 @@ int hinic_port_set_func_state(struct hinic_dev *nic_dev,
 int hinic_port_get_cap(struct hinic_dev *nic_dev,
 		       struct hinic_port_cap *port_cap);
 
+int hinic_set_max_qnum(struct hinic_dev *nic_dev, u8 num_rqs);
+
 int hinic_port_set_tso(struct hinic_dev *nic_dev, enum hinic_tso_state state);
 
 int hinic_set_rx_csum_offload(struct hinic_dev *nic_dev, u32 en);
+
+int hinic_set_rx_lro_state(struct hinic_dev *nic_dev, u8 lro_en,
+			   u32 lro_timer, u32 wqe_num);
 #endif

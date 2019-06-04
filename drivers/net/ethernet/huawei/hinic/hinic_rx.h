@@ -41,6 +41,8 @@ struct hinic_rxq {
 	struct hinic_rxq_stats  rxq_stats;
 
 	char                    *irq_name;
+	u16			buf_len;
+	u32			rx_buff_shift;
 
 	struct napi_struct      napi;
 };

@@ -62,6 +62,10 @@ MODULE_PARM_DESC(rx_weight, "Number Rx packets for NAPI budget (default=64)");
 					 NETIF_MSG_IFUP |                  \
 					 NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
 
+#define HINIC_LRO_MAX_WQE_NUM_DEFAULT	8
+
+#define HINIC_LRO_RX_TIMER_DEFAULT	16
+
 #define VLAN_BITMAP_SIZE(nic_dev)       (ALIGN(VLAN_N_VID, 8) / 8)
 
 #define work_to_rx_mode_work(work)      \
@@ -71,6 +75,10 @@ MODULE_PARM_DESC(rx_weight, "Number Rx packets for NAPI budget (default=64)");
 		container_of(rx_mode_work, struct hinic_dev, rx_mode_work)
 
 static int change_mac_addr(struct net_device *netdev, const u8 *addr);
+
+static int set_features(struct hinic_dev *nic_dev,
+			netdev_features_t pre_features,
+			netdev_features_t features, bool force_change);
 
 static void set_link_speed(struct ethtool_link_ksettings *link_ksettings,
 			   enum hinic_speed speed)
@@ -372,6 +380,17 @@ static void free_rxqs(struct hinic_dev *nic_dev)
 	nic_dev->rxqs = NULL;
 }
 
+static int hinic_configure_max_qnum(struct hinic_dev *nic_dev)
+{
+	int err;
+
+	err = hinic_set_max_qnum(nic_dev, nic_dev->hwdev->nic_cap.max_qps);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 static int hinic_open(struct net_device *netdev)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
@@ -399,6 +418,13 @@ static int hinic_open(struct net_device *netdev)
 		netif_err(nic_dev, drv, netdev,
 			  "Failed to create Rx queues\n");
 		goto err_create_rxqs;
+	}
+
+	err = hinic_configure_max_qnum(nic_dev);
+	if (err) {
+		netif_err(nic_dev, drv, nic_dev->netdev,
+			  "Failed to configure the maximum number of queues\n");
+		goto err_port_state;
 	}
 
 	num_qps = hinic_hwdev_num_qps(nic_dev->hwdev);
@@ -787,6 +813,29 @@ static void hinic_get_stats64(struct net_device *netdev,
 	stats->tx_errors  = nic_tx_stats->tx_dropped;
 }
 
+static int hinic_set_features(struct net_device *netdev,
+			      netdev_features_t features)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+
+	return set_features(nic_dev, nic_dev->netdev->features,
+			    features, false);
+}
+
+static netdev_features_t hinic_fix_features(struct net_device *netdev,
+					    netdev_features_t features)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+
+	/* If Rx checksum is disabled, then LRO should also be disabled */
+	if (!(features & NETIF_F_RXCSUM)) {
+		netif_info(nic_dev, drv, netdev, "disabling LRO as RXCSUM is off\n");
+		features &= ~NETIF_F_LRO;
+	}
+
+	return features;
+}
+
 static const struct net_device_ops hinic_netdev_ops = {
 	.ndo_open = hinic_open,
 	.ndo_stop = hinic_close,
@@ -799,13 +848,16 @@ static const struct net_device_ops hinic_netdev_ops = {
 	.ndo_start_xmit = hinic_xmit_frame,
 	.ndo_tx_timeout = hinic_tx_timeout,
 	.ndo_get_stats64 = hinic_get_stats64,
+	.ndo_fix_features = hinic_fix_features,
+	.ndo_set_features = hinic_set_features,
+
 };
 
 static void netdev_features_init(struct net_device *netdev)
 {
 	netdev->hw_features = NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM |
 			      NETIF_F_IPV6_CSUM | NETIF_F_TSO | NETIF_F_TSO6 |
-			      NETIF_F_RXCSUM;
+			      NETIF_F_RXCSUM | NETIF_F_LRO;
 
 	netdev->vlan_features = netdev->hw_features;
 
@@ -877,6 +929,13 @@ static int set_features(struct hinic_dev *nic_dev,
 
 	if (changed & NETIF_F_RXCSUM)
 		err = hinic_set_rx_csum_offload(nic_dev, csum_en);
+
+	if (changed & NETIF_F_LRO) {
+		err = hinic_set_rx_lro_state(nic_dev,
+					     !!(features & NETIF_F_LRO),
+					     HINIC_LRO_RX_TIMER_DEFAULT,
+					     HINIC_LRO_MAX_WQE_NUM_DEFAULT);
+	}
 
 	return err;
 }

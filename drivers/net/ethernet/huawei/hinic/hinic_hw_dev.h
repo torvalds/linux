@@ -50,6 +50,8 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_GET_LINK_STATE   = 24,
 
+	HINIC_PORT_CMD_SET_LRO		= 25,
+
 	HINIC_PORT_CMD_SET_RX_CSUM	= 26,
 
 	HINIC_PORT_CMD_SET_PORT_STATE   = 41,
@@ -62,7 +64,11 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_SET_TSO          = 112,
 
+	HINIC_PORT_CMD_SET_RQ_IQ_MAP	= 115,
+
 	HINIC_PORT_CMD_GET_CAP          = 170,
+
+	HINIC_PORT_CMD_SET_LRO_TIMER	= 244,
 };
 
 enum hinic_mgmt_msg_cmd {
@@ -106,7 +112,7 @@ struct hinic_cmd_hw_ioctxt {
 	u8      set_cmdq_depth;
 	u8      cmdq_depth;
 
-	u8      rsvd2;
+	u8      lro_en;
 	u8      rsvd3;
 	u8      rsvd4;
 	u8      rsvd5;

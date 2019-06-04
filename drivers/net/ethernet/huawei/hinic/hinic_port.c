@@ -439,3 +439,117 @@ int hinic_set_rx_csum_offload(struct hinic_dev *nic_dev, u32 en)
 
 	return 0;
 }
+
+int hinic_set_max_qnum(struct hinic_dev *nic_dev, u8 num_rqs)
+{
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_rq_num rq_num = { 0 };
+	u16 out_size = sizeof(rq_num);
+	int err;
+
+	rq_num.func_id = HINIC_HWIF_FUNC_IDX(hwif);
+	rq_num.num_rqs = num_rqs;
+	rq_num.rq_depth = ilog2(HINIC_SQ_DEPTH);
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_RQ_IQ_MAP,
+				 &rq_num, sizeof(rq_num),
+				 &rq_num, &out_size);
+	if (err || !out_size || rq_num.status) {
+		dev_err(&pdev->dev,
+			"Failed to rxq number, ret = %d\n",
+			rq_num.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hinic_set_rx_lro(struct hinic_dev *nic_dev, u8 ipv4_en, u8 ipv6_en,
+			    u8 max_wqe_num)
+{
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct hinic_lro_config lro_cfg = { 0 };
+	struct pci_dev *pdev = hwif->pdev;
+	u16 out_size = sizeof(lro_cfg);
+	int err;
+
+	lro_cfg.func_id = HINIC_HWIF_FUNC_IDX(hwif);
+	lro_cfg.lro_ipv4_en = ipv4_en;
+	lro_cfg.lro_ipv6_en = ipv6_en;
+	lro_cfg.lro_max_wqe_num = max_wqe_num;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_LRO,
+				 &lro_cfg, sizeof(lro_cfg),
+				 &lro_cfg, &out_size);
+	if (err || !out_size || lro_cfg.status) {
+		dev_err(&pdev->dev,
+			"Failed to set lro offload, ret = %d\n",
+			lro_cfg.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hinic_set_rx_lro_timer(struct hinic_dev *nic_dev, u32 timer_value)
+{
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_lro_timer lro_timer = { 0 };
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	u16 out_size = sizeof(lro_timer);
+	int err;
+
+	lro_timer.status = 0;
+	lro_timer.type = 0;
+	lro_timer.enable = 1;
+	lro_timer.timer = timer_value;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_SET_LRO_TIMER,
+				 &lro_timer, sizeof(lro_timer),
+				 &lro_timer, &out_size);
+	if (lro_timer.status == 0xFF) {
+		/* For this case, we think status (0xFF) is OK */
+		lro_timer.status = 0;
+		dev_dbg(&pdev->dev,
+			"Set lro timer not supported by the current FW version, it will be 1ms default\n");
+	}
+
+	if (err || !out_size || lro_timer.status) {
+		dev_err(&pdev->dev,
+			"Failed to set lro timer, ret = %d\n",
+			lro_timer.status);
+
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int hinic_set_rx_lro_state(struct hinic_dev *nic_dev, u8 lro_en,
+			   u32 lro_timer, u32 wqe_num)
+{
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	u8 ipv4_en;
+	u8 ipv6_en;
+	int err;
+
+	if (!hwdev)
+		return -EINVAL;
+
+	ipv4_en = lro_en ? 1 : 0;
+	ipv6_en = lro_en ? 1 : 0;
+
+	err = hinic_set_rx_lro(nic_dev, ipv4_en, ipv6_en, (u8)wqe_num);
+	if (err)
+		return err;
+
+	err = hinic_set_rx_lro_timer(nic_dev, lro_timer);
+	if (err)
+		return err;
+
+	return 0;
+}

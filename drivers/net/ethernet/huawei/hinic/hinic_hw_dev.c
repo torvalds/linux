@@ -313,6 +313,8 @@ static int set_hw_ioctxt(struct hinic_hwdev *hwdev, unsigned int rq_depth,
 	hw_ioctxt.set_cmdq_depth = HW_IOCTXT_SET_CMDQ_DEPTH_DEFAULT;
 	hw_ioctxt.cmdq_depth = 0;
 
+	hw_ioctxt.lro_en = 1;
+
 	hw_ioctxt.rq_depth  = ilog2(rq_depth);
 
 	hw_ioctxt.rx_buf_sz_idx = HINIC_RX_BUF_SZ_IDX;

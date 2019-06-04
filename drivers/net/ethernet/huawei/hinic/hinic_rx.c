@@ -45,6 +45,15 @@
 #define RX_IRQ_NO_RESEND_TIMER          0
 #define HINIC_RX_BUFFER_WRITE           16
 
+#define HINIC_RX_IPV6_PKT		7
+#define LRO_PKT_HDR_LEN_IPV4		66
+#define LRO_PKT_HDR_LEN_IPV6		86
+#define LRO_REPLENISH_THLD		256
+
+#define LRO_PKT_HDR_LEN(cqe)		\
+	(HINIC_GET_RX_PKT_TYPE(be32_to_cpu((cqe)->offload_type)) == \
+	 HINIC_RX_IPV6_PKT ? LRO_PKT_HDR_LEN_IPV6 : LRO_PKT_HDR_LEN_IPV4)
+
 /**
  * hinic_rxq_clean_stats - Clean the statistics of specific queue
  * @rxq: Logical Rx Queue
@@ -90,18 +99,12 @@ static void rxq_stats_init(struct hinic_rxq *rxq)
 	hinic_rxq_clean_stats(rxq);
 }
 
-static void rx_csum(struct hinic_rxq *rxq, u16 cons_idx,
+static void rx_csum(struct hinic_rxq *rxq, u32 status,
 		    struct sk_buff *skb)
 {
 	struct net_device *netdev = rxq->netdev;
-	struct hinic_rq_cqe *cqe;
-	struct hinic_rq *rq;
 	u32 csum_err;
-	u32 status;
 
-	rq = rxq->rq;
-	cqe = rq->cqe[cons_idx];
-	status = be32_to_cpu(cqe->status);
 	csum_err = HINIC_RQ_CQE_STATUS_GET(status, CSUM_ERR);
 
 	if (!(netdev->features & NETIF_F_RXCSUM))
@@ -321,12 +324,16 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 {
 	struct hinic_qp *qp = container_of(rxq->rq, struct hinic_qp, rq);
 	u64 pkt_len = 0, rx_bytes = 0;
+	struct hinic_rq *rq = rxq->rq;
 	struct hinic_rq_wqe *rq_wqe;
 	unsigned int free_wqebbs;
+	struct hinic_rq_cqe *cqe;
 	int num_wqes, pkts = 0;
 	struct hinic_sge sge;
+	unsigned int status;
 	struct sk_buff *skb;
-	u16 ci;
+	u16 ci, num_lro;
+	u16 num_wqe = 0;
 
 	while (pkts < budget) {
 		num_wqes = 0;
@@ -336,11 +343,13 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 		if (!rq_wqe)
 			break;
 
+		cqe = rq->cqe[ci];
+		status =  be32_to_cpu(cqe->status);
 		hinic_rq_get_sge(rxq->rq, rq_wqe, ci, &sge);
 
 		rx_unmap_skb(rxq, hinic_sge_to_dma(&sge));
 
-		rx_csum(rxq, ci, skb);
+		rx_csum(rxq, status, skb);
 
 		prefetch(skb->data);
 
@@ -354,7 +363,7 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 						     HINIC_RX_BUF_SZ, ci);
 		}
 
-		hinic_rq_put_wqe(rxq->rq, ci,
+		hinic_rq_put_wqe(rq, ci,
 				 (num_wqes + 1) * HINIC_RQ_WQE_SIZE);
 
 		skb_record_rx_queue(skb, qp->q_id);
@@ -364,6 +373,21 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 
 		pkts++;
 		rx_bytes += pkt_len;
+
+		num_lro = HINIC_GET_RX_NUM_LRO(status);
+		if (num_lro) {
+			rx_bytes += ((num_lro - 1) *
+				     LRO_PKT_HDR_LEN(cqe));
+
+			num_wqe +=
+			(u16)(pkt_len >> rxq->rx_buff_shift) +
+			((pkt_len & (rxq->buf_len - 1)) ? 1 : 0);
+		}
+
+		cqe->status = 0;
+
+		if (num_wqe >= LRO_REPLENISH_THLD)
+			break;
 	}
 
 	free_wqebbs = hinic_get_rq_free_wqebbs(rxq->rq);
@@ -482,6 +506,8 @@ int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 
 	rxq->netdev = netdev;
 	rxq->rq = rq;
+	rxq->buf_len = HINIC_RX_BUF_SZ;
+	rxq->rx_buff_shift = ilog2(HINIC_RX_BUF_SZ);
 
 	rxq_stats_init(rxq);
 
