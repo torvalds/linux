@@ -1169,8 +1169,9 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 			schedule_work(&mvm->add_stream_wk);
 	}
 
-	IWL_DEBUG_TX(mvm, "TX to [%d|%d] Q:%d - seq: 0x%x\n", mvmsta->sta_id,
-		     tid, txq_id, IEEE80211_SEQ_TO_SN(seq_number));
+	IWL_DEBUG_TX(mvm, "TX to [%d|%d] Q:%d - seq: 0x%x len %d\n",
+		     mvmsta->sta_id, tid, txq_id,
+		     IEEE80211_SEQ_TO_SN(seq_number), skb->len);
 
 	/* From now on, we cannot access info->control */
 	iwl_mvm_skb_prepare_status(skb, dev_cmd);
