@@ -126,12 +126,9 @@ adfs_dir_checkbyte(const struct adfs_dir *dir)
 	return (dircheck ^ (dircheck >> 8) ^ (dircheck >> 16) ^ (dircheck >> 24)) & 0xff;
 }
 
-/*
- * Read and check that a directory is valid
- */
-static int
-adfs_dir_read(struct super_block *sb, unsigned long object_id,
-	      unsigned int size, struct adfs_dir *dir)
+/* Read and check that a directory is valid */
+static int adfs_dir_read(struct super_block *sb, u32 indaddr,
+			 unsigned int size, struct adfs_dir *dir)
 {
 	const unsigned int blocksize_bits = sb->s_blocksize_bits;
 	int blk = 0;
@@ -151,10 +148,10 @@ adfs_dir_read(struct super_block *sb, unsigned long object_id,
 	for (blk = 0; blk < size; blk++) {
 		int phys;
 
-		phys = __adfs_block_map(sb, object_id, blk);
+		phys = __adfs_block_map(sb, indaddr, blk);
 		if (!phys) {
-			adfs_error(sb, "dir object %lX has a hole at offset %d",
-				   object_id, blk);
+			adfs_error(sb, "dir %06x has a hole at offset %d",
+				   indaddr, blk);
 			goto release_buffers;
 		}
 
@@ -182,8 +179,7 @@ adfs_dir_read(struct super_block *sb, unsigned long object_id,
 	return 0;
 
 bad_dir:
-	adfs_error(sb, "corrupted directory fragment %lX",
-		   object_id);
+	adfs_error(sb, "dir %06x is corrupted", indaddr);
 release_buffers:
 	for (blk -= 1; blk >= 0; blk -= 1)
 		brelse(dir->bh[blk]);
@@ -210,7 +206,7 @@ adfs_dir2obj(struct adfs_dir *dir, struct object_info *obj,
 	}
 
 	obj->name_len =	name_len;
-	obj->file_id  = adfs_readval(de->dirinddiscadd, 3);
+	obj->indaddr  = adfs_readval(de->dirinddiscadd, 3);
 	obj->loadaddr = adfs_readval(de->dirload, 4);
 	obj->execaddr = adfs_readval(de->direxec, 4);
 	obj->size     = adfs_readval(de->dirlen,  4);
@@ -225,7 +221,7 @@ adfs_dir2obj(struct adfs_dir *dir, struct object_info *obj,
 static inline void
 adfs_obj2dir(struct adfs_direntry *de, struct object_info *obj)
 {
-	adfs_writeval(de->dirinddiscadd, 3, obj->file_id);
+	adfs_writeval(de->dirinddiscadd, 3, obj->indaddr);
 	adfs_writeval(de->dirload, 4, obj->loadaddr);
 	adfs_writeval(de->direxec, 4, obj->execaddr);
 	adfs_writeval(de->dirlen,  4, obj->size);
@@ -311,8 +307,7 @@ __adfs_dir_put(struct adfs_dir *dir, int pos, struct object_info *obj)
  * the caller is responsible for holding the necessary
  * locks.
  */
-static int
-adfs_dir_find_entry(struct adfs_dir *dir, unsigned long object_id)
+static int adfs_dir_find_entry(struct adfs_dir *dir, u32 indaddr)
 {
 	int pos, ret;
 
@@ -324,7 +319,7 @@ adfs_dir_find_entry(struct adfs_dir *dir, unsigned long object_id)
 		if (!__adfs_dir_get(dir, pos, &obj))
 			break;
 
-		if (obj.file_id == object_id) {
+		if (obj.indaddr == indaddr) {
 			ret = pos;
 			break;
 		}
@@ -333,15 +328,15 @@ adfs_dir_find_entry(struct adfs_dir *dir, unsigned long object_id)
 	return ret;
 }
 
-static int
-adfs_f_read(struct super_block *sb, unsigned int id, unsigned int sz, struct adfs_dir *dir)
+static int adfs_f_read(struct super_block *sb, u32 indaddr, unsigned int size,
+		       struct adfs_dir *dir)
 {
 	int ret;
 
-	if (sz != ADFS_NEWDIR_SIZE)
+	if (size != ADFS_NEWDIR_SIZE)
 		return -EIO;
 
-	ret = adfs_dir_read(sb, id, sz, dir);
+	ret = adfs_dir_read(sb, indaddr, size, dir);
 	if (ret)
 		adfs_error(sb, "unable to read directory");
 	else
@@ -378,7 +373,7 @@ adfs_f_update(struct adfs_dir *dir, struct object_info *obj)
 	struct super_block *sb = dir->sb;
 	int ret, i;
 
-	ret = adfs_dir_find_entry(dir, obj->file_id);
+	ret = adfs_dir_find_entry(dir, obj->indaddr);
 	if (ret < 0) {
 		adfs_error(dir->sb, "unable to locate entry to update");
 		goto out;

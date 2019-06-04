@@ -462,7 +462,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	dr = adfs_map_discrecord(asb->s_map);
 
-	root_obj.parent_id = root_obj.file_id = le32_to_cpu(dr->root);
+	root_obj.parent_id = root_obj.indaddr = le32_to_cpu(dr->root);
 	root_obj.name_len  = 0;
 	/* Set root object date as 01 Jan 1987 00:00:00 */
 	root_obj.loadaddr  = 0xfff0003f;

@@ -180,7 +180,7 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 	obj->loadaddr = le32_to_cpu(bde.bigdirload);
 	obj->execaddr = le32_to_cpu(bde.bigdirexec);
 	obj->size     = le32_to_cpu(bde.bigdirlen);
-	obj->file_id  = le32_to_cpu(bde.bigdirindaddr);
+	obj->indaddr  = le32_to_cpu(bde.bigdirindaddr);
 	obj->attr     = le32_to_cpu(bde.bigdirattr);
 	obj->name_len = le32_to_cpu(bde.bigdirobnamelen);
 

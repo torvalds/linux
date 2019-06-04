@@ -24,7 +24,7 @@
  */
 struct adfs_inode_info {
 	loff_t		mmu_private;
-	unsigned long	parent_id;	/* object id of parent		*/
+	__u32		parent_id;	/* parent indirect disc address	*/
 	__u32		loadaddr;	/* RISC OS load address		*/
 	__u32		execaddr;	/* RISC OS exec address		*/
 	unsigned int	filetype;	/* RISC OS file type		*/
@@ -86,7 +86,7 @@ struct adfs_dir {
 	struct buffer_head	**bh_fplus;
 
 	unsigned int		pos;
-	unsigned int		parent_id;
+	__u32			parent_id;
 
 	struct adfs_dirheader	dirhead;
 	union  adfs_dirtail	dirtail;
@@ -98,7 +98,7 @@ struct adfs_dir {
 #define ADFS_MAX_NAME_LEN	(256 + 4) /* +4 for ,xyz hex filetype suffix */
 struct object_info {
 	__u32		parent_id;		/* parent object id	*/
-	__u32		file_id;		/* object id		*/
+	__u32		indaddr;		/* indirect disc addr	*/
 	__u32		loadaddr;		/* load address		*/
 	__u32		execaddr;		/* execution address	*/
 	__u32		size;			/* size			*/
@@ -111,7 +111,8 @@ struct object_info {
 };
 
 struct adfs_dir_ops {
-	int	(*read)(struct super_block *sb, unsigned int id, unsigned int sz, struct adfs_dir *dir);
+	int	(*read)(struct super_block *sb, unsigned int indaddr,
+			unsigned int size, struct adfs_dir *dir);
 	int	(*setpos)(struct adfs_dir *dir, unsigned int fpos);
 	int	(*getnext)(struct adfs_dir *dir, struct object_info *obj);
 	int	(*update)(struct adfs_dir *dir, struct object_info *obj);
@@ -134,7 +135,7 @@ int adfs_write_inode(struct inode *inode, struct writeback_control *wbc);
 int adfs_notify_change(struct dentry *dentry, struct iattr *attr);
 
 /* map.c */
-extern int adfs_map_lookup(struct super_block *sb, unsigned int frag_id, unsigned int offset);
+int adfs_map_lookup(struct super_block *sb, u32 frag_id, unsigned int offset);
 extern unsigned int adfs_map_free(struct super_block *sb);
 
 /* Misc */
@@ -180,18 +181,17 @@ static inline __u32 signed_asl(__u32 val, signed int shift)
  *
  * The root directory ID should always be looked up in the map [3.4]
  */
-static inline int
-__adfs_block_map(struct super_block *sb, unsigned int object_id,
-		 unsigned int block)
+static inline int __adfs_block_map(struct super_block *sb, u32 indaddr,
+				   unsigned int block)
 {
-	if (object_id & 255) {
+	if (indaddr & 255) {
 		unsigned int off;
 
-		off = (object_id & 255) - 1;
+		off = (indaddr & 255) - 1;
 		block += off << ADFS_SB(sb)->s_log2sharesize;
 	}
 
-	return adfs_map_lookup(sb, object_id >> 8, block);
+	return adfs_map_lookup(sb, indaddr >> 8, block);
 }
 
 /* Return the disc record from the map */

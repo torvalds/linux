@@ -95,7 +95,7 @@ adfs_readdir(struct file *file, struct dir_context *ctx)
 		goto unlock_out;
 	while (ops->getnext(&dir, &obj) == 0) {
 		if (!dir_emit(ctx, obj.name, obj.name_len,
-			    obj.file_id, DT_UNKNOWN))
+			      obj.indaddr, DT_UNKNOWN))
 			break;
 		ctx->pos++;
 	}
@@ -116,8 +116,8 @@ adfs_dir_update(struct super_block *sb, struct object_info *obj, int wait)
 	const struct adfs_dir_ops *ops = ADFS_SB(sb)->s_dir;
 	struct adfs_dir dir;
 
-	printk(KERN_INFO "adfs_dir_update: object %06X in dir %06X\n",
-		 obj->file_id, obj->parent_id);
+	printk(KERN_INFO "adfs_dir_update: object %06x in dir %06x\n",
+		 obj->indaddr, obj->parent_id);
 
 	if (!ops->update) {
 		ret = -EINVAL;
@@ -181,7 +181,8 @@ static int adfs_dir_lookup_byname(struct inode *inode, const struct qstr *qstr,
 		goto out;
 
 	if (ADFS_I(inode)->parent_id != dir.parent_id) {
-		adfs_error(sb, "parent directory changed under me! (%lx but got %x)\n",
+		adfs_error(sb,
+			   "parent directory changed under me! (%06x but got %06x)\n",
 			   ADFS_I(inode)->parent_id, dir.parent_id);
 		ret = -EIO;
 		goto free_out;

@@ -250,7 +250,7 @@ adfs_iget(struct super_block *sb, struct object_info *obj)
 
 	inode->i_uid	 = ADFS_SB(sb)->s_uid;
 	inode->i_gid	 = ADFS_SB(sb)->s_gid;
-	inode->i_ino	 = obj->file_id;
+	inode->i_ino	 = obj->indaddr;
 	inode->i_size	 = obj->size;
 	set_nlink(inode, 2);
 	inode->i_blocks	 = (inode->i_size + sb->s_blocksize - 1) >>
@@ -358,7 +358,7 @@ int adfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct object_info obj;
 	int ret;
 
-	obj.file_id	= inode->i_ino;
+	obj.indaddr	= inode->i_ino;
 	obj.name_len	= 0;
 	obj.parent_id	= ADFS_I(inode)->parent_id;
 	obj.loadaddr	= ADFS_I(inode)->loadaddr;
