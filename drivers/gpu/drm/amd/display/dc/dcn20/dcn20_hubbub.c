@@ -337,6 +337,7 @@ static enum dcn_hubbub_page_table_block_size page_table_block_size_to_hw(unsigne
 		break;
 	default:
 		ASSERT(false);
+		block_size = page_table_block_size;
 		break;
 	}
 
