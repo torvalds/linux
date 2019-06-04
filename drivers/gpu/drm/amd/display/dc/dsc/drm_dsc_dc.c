@@ -15,6 +15,7 @@
 #define ERANGE			-1
 #define DRM_DEBUG_KMS(msg)	/* nothing */
 #define cpu_to_be16(__x) little_to_big(__x)
+#define MAX(x, y)		((x) > (y) ? (x) : (y))
 
 static unsigned short little_to_big(int data)
 {
@@ -232,6 +233,38 @@ void drm_dsc_pps_payload_pack(struct drm_dsc_picture_parameter_set *pps_payload,
 }
 EXPORT_SYMBOL(drm_dsc_pps_payload_pack);
 
+static int compute_offset(struct drm_dsc_config *vdsc_cfg, int pixels_per_group,
+				int groups_per_line, int grpcnt)
+{
+	int offset = 0;
+	int grpcnt_id = DIV_ROUND_UP(vdsc_cfg->initial_xmit_delay, pixels_per_group);
+
+	if (grpcnt <= grpcnt_id)
+		offset = DIV_ROUND_UP(grpcnt * pixels_per_group * vdsc_cfg->bits_per_pixel, 16);
+	else
+		offset = DIV_ROUND_UP(grpcnt_id * pixels_per_group * vdsc_cfg->bits_per_pixel, 16)
+			- (((grpcnt - grpcnt_id) * vdsc_cfg->slice_bpg_offset) >> 11);
+
+	if (grpcnt <= groups_per_line)
+		offset += grpcnt * vdsc_cfg->first_line_bpg_offset;
+	else
+		offset += groups_per_line * vdsc_cfg->first_line_bpg_offset
+			- (((grpcnt - groups_per_line) * vdsc_cfg->nfl_bpg_offset) >> 11);
+
+	if (vdsc_cfg->native_420) {
+		if (grpcnt <= groups_per_line)
+			offset -= (grpcnt * vdsc_cfg->nsl_bpg_offset) >> 11;
+		else if (grpcnt <= 2 * groups_per_line)
+			offset += (grpcnt - groups_per_line) * vdsc_cfg->second_line_bpg_offset
+				- ((groups_per_line * vdsc_cfg->nsl_bpg_offset) >> 11);
+		else
+			offset += (grpcnt - groups_per_line) * vdsc_cfg->second_line_bpg_offset
+				- (((grpcnt - groups_per_line) * vdsc_cfg->nsl_bpg_offset) >> 11);
+	}
+
+	return offset;
+}
+
 /**
  * drm_dsc_compute_rc_parameters() - Write rate control
  * parameters to the dsc configuration defined in
@@ -251,6 +284,7 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 	unsigned long hrd_delay = 0;
 	unsigned long final_scale = 0;
 	unsigned long rbs_min = 0;
+	unsigned long max_offset = 0;
 
 	if (vdsc_cfg->native_420 || vdsc_cfg->native_422) {
 		/* Number of groups used to code each line of a slice */
@@ -329,6 +363,17 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 		return -ERANGE;
 	}
 
+	if (vdsc_cfg->slice_height > 2)
+		vdsc_cfg->nsl_bpg_offset = DIV_ROUND_UP((vdsc_cfg->second_line_bpg_offset << 11),
+							(vdsc_cfg->slice_height - 1));
+	else
+		vdsc_cfg->nsl_bpg_offset = 0;
+
+	if (vdsc_cfg->nsl_bpg_offset > 65535) {
+		DRM_DEBUG_KMS("NslBpgOffset is too large for this slice height\n");
+		return -ERANGE;
+	}
+
 	/* Number of groups used to code the entire slice */
 	groups_total = groups_per_line * vdsc_cfg->slice_height;
 
@@ -348,6 +393,7 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 		vdsc_cfg->scale_increment_interval =
 				(vdsc_cfg->final_offset * (1 << 11)) /
 				((vdsc_cfg->nfl_bpg_offset +
+				vdsc_cfg->nsl_bpg_offset +
 				vdsc_cfg->slice_bpg_offset) *
 				(final_scale - 9));
 	} else {
@@ -368,10 +414,29 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 	 * bits/pixel (bpp) rate that is used by the encoder,
 	 * in steps of 1/16 of a bit per pixel
 	 */
-	rbs_min = vdsc_cfg->rc_model_size - vdsc_cfg->initial_offset +
-		DIV_ROUND_UP(vdsc_cfg->initial_xmit_delay *
-			     vdsc_cfg->bits_per_pixel, 16) +
-		groups_per_line * vdsc_cfg->first_line_bpg_offset;
+	if (vdsc_cfg->dsc_version_minor == 2 && (vdsc_cfg->native_420 || vdsc_cfg->native_422)) {
+
+		max_offset = compute_offset(vdsc_cfg, DSC_RC_PIXELS_PER_GROUP, groups_per_line,
+					DIV_ROUND_UP(vdsc_cfg->initial_xmit_delay,
+						DSC_RC_PIXELS_PER_GROUP));
+
+		max_offset = MAX(max_offset,
+				compute_offset(vdsc_cfg, DSC_RC_PIXELS_PER_GROUP, groups_per_line,
+					DIV_ROUND_UP(vdsc_cfg->initial_xmit_delay,
+						groups_per_line)));
+
+		max_offset = MAX(max_offset,
+				compute_offset(vdsc_cfg, DSC_RC_PIXELS_PER_GROUP, groups_per_line,
+					DIV_ROUND_UP(vdsc_cfg->initial_xmit_delay,
+						groups_per_line * 2)));
+
+		rbs_min = vdsc_cfg->rc_model_size - vdsc_cfg->initial_offset + max_offset;
+	} else {
+		rbs_min = vdsc_cfg->rc_model_size - vdsc_cfg->initial_offset +
+			DIV_ROUND_UP(vdsc_cfg->initial_xmit_delay *
+				     vdsc_cfg->bits_per_pixel, 16) +
+			groups_per_line * vdsc_cfg->first_line_bpg_offset;
+	}
 
 	hrd_delay = DIV_ROUND_UP((rbs_min * 16), vdsc_cfg->bits_per_pixel);
 	vdsc_cfg->rc_bits = (hrd_delay * vdsc_cfg->bits_per_pixel) / 16;
