@@ -22,9 +22,16 @@ $scriptname =~ s,.*/([^/]+/),$1,;
 # Parse arguments
 my $help = 0;
 my $fix = 0;
+my $warn = 0;
+
+if (! -d ".git") {
+	printf "Warning: can't check if file exists, as this is not a git tree";
+	exit 0;
+}
 
 GetOptions(
 	'fix' => \$fix,
+	'warn' => \$warn,
 	'h|help|usage' => \$help,
 );
 
@@ -139,6 +146,8 @@ while (<IN>) {
 			if (!($ref =~ m/(scripts|Kconfig|Kbuild)/)) {
 				$broken_ref{$ref}++;
 			}
+		} elsif ($warn) {
+			print STDERR "Warning: $f references a file that doesn't exist: $fulref\n";
 		} else {
 			print STDERR "$f: $fulref\n";
 		}
