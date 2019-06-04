@@ -98,6 +98,14 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(i915_gem_object_get_tiling(obj) != tile->tiling);
 	GEM_BUG_ON(i915_gem_object_get_stride(obj) != tile->stride);
 
+	i915_gem_object_lock(obj);
+	err = i915_gem_object_set_to_gtt_domain(obj, true);
+	i915_gem_object_unlock(obj);
+	if (err) {
+		pr_err("Failed to flush to GTT write domain; err=%d\n", err);
+		return err;
+	}
+
 	for_each_prime_number_from(page, 1, npages) {
 		struct i915_ggtt_view view =
 			compute_partial_view(obj, page, MIN_CHUNK_PAGES);
@@ -109,15 +117,6 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 
 		GEM_BUG_ON(view.partial.size > nreal);
 		cond_resched();
-
-		i915_gem_object_lock(obj);
-		err = i915_gem_object_set_to_gtt_domain(obj, true);
-		i915_gem_object_unlock(obj);
-		if (err) {
-			pr_err("Failed to flush to GTT write domain; err=%d\n",
-			       err);
-			return err;
-		}
 
 		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
 		if (IS_ERR(vma)) {
@@ -144,9 +143,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		if (offset >= obj->base.size)
 			continue;
 
-		i915_gem_object_lock(obj);
-		i915_gem_object_flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
-		i915_gem_object_unlock(obj);
+		i915_gem_flush_ggtt_writes(to_i915(obj->base.dev));
 
 		p = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
 		cpu = kmap(p) + offset_in_page(offset);
