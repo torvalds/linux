@@ -1003,6 +1003,20 @@ static int mlxsw_devlink_core_bus_device_reload(struct devlink *devlink,
 	return err;
 }
 
+static int mlxsw_devlink_flash_update(struct devlink *devlink,
+				      const char *file_name,
+				      const char *component,
+				      struct netlink_ext_ack *extack)
+{
+	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
+	struct mlxsw_driver *mlxsw_driver = mlxsw_core->driver;
+
+	if (!mlxsw_driver->flash_update)
+		return -EOPNOTSUPP;
+	return mlxsw_driver->flash_update(mlxsw_core, file_name,
+					  component, extack);
+}
+
 static const struct devlink_ops mlxsw_devlink_ops = {
 	.reload				= mlxsw_devlink_core_bus_device_reload,
 	.port_type_set			= mlxsw_devlink_port_type_set,
@@ -1019,6 +1033,7 @@ static const struct devlink_ops mlxsw_devlink_ops = {
 	.sb_occ_port_pool_get		= mlxsw_devlink_sb_occ_port_pool_get,
 	.sb_occ_tc_port_bind_get	= mlxsw_devlink_sb_occ_tc_port_bind_get,
 	.info_get			= mlxsw_devlink_info_get,
+	.flash_update			= mlxsw_devlink_flash_update,
 };
 
 static int

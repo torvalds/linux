@@ -388,6 +388,27 @@ static int mlxsw_sp_fw_rev_validate(struct mlxsw_sp *mlxsw_sp)
 		return 0;
 }
 
+static int mlxsw_sp_flash_update(struct mlxsw_core *mlxsw_core,
+				 const char *file_name, const char *component,
+				 struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+	const struct firmware *firmware;
+	int err;
+
+	if (component)
+		return -EOPNOTSUPP;
+
+	err = request_firmware_direct(&firmware, file_name,
+				      mlxsw_sp->bus_info->dev);
+	if (err)
+		return err;
+	err = mlxsw_sp_firmware_flash(mlxsw_sp, firmware);
+	release_firmware(firmware);
+
+	return err;
+}
+
 int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
 			      unsigned int counter_index, u64 *packets,
 			      u64 *bytes)
@@ -3159,31 +3180,6 @@ mlxsw_sp_port_set_link_ksettings(struct net_device *dev,
 	return 0;
 }
 
-static int mlxsw_sp_flash_device(struct net_device *dev,
-				 struct ethtool_flash *flash)
-{
-	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	const struct firmware *firmware;
-	int err;
-
-	if (flash->region != ETHTOOL_FLASH_ALL_REGIONS)
-		return -EOPNOTSUPP;
-
-	dev_hold(dev);
-	rtnl_unlock();
-
-	err = request_firmware_direct(&firmware, flash->data, &dev->dev);
-	if (err)
-		goto out;
-	err = mlxsw_sp_firmware_flash(mlxsw_sp, firmware);
-	release_firmware(firmware);
-out:
-	rtnl_lock();
-	dev_put(dev);
-	return err;
-}
-
 static int mlxsw_sp_get_module_info(struct net_device *netdev,
 				    struct ethtool_modinfo *modinfo)
 {
@@ -3224,7 +3220,6 @@ static const struct ethtool_ops mlxsw_sp_port_ethtool_ops = {
 	.get_sset_count		= mlxsw_sp_port_get_sset_count,
 	.get_link_ksettings	= mlxsw_sp_port_get_link_ksettings,
 	.set_link_ksettings	= mlxsw_sp_port_set_link_ksettings,
-	.flash_device		= mlxsw_sp_flash_device,
 	.get_module_info	= mlxsw_sp_get_module_info,
 	.get_module_eeprom	= mlxsw_sp_get_module_eeprom,
 };
@@ -4889,6 +4884,7 @@ static struct mlxsw_driver mlxsw_sp1_driver = {
 	.sb_occ_max_clear		= mlxsw_sp_sb_occ_max_clear,
 	.sb_occ_port_pool_get		= mlxsw_sp_sb_occ_port_pool_get,
 	.sb_occ_tc_port_bind_get	= mlxsw_sp_sb_occ_tc_port_bind_get,
+	.flash_update			= mlxsw_sp_flash_update,
 	.txhdr_construct		= mlxsw_sp_txhdr_construct,
 	.resources_register		= mlxsw_sp1_resources_register,
 	.kvd_sizes_get			= mlxsw_sp_kvd_sizes_get,
@@ -4917,6 +4913,7 @@ static struct mlxsw_driver mlxsw_sp2_driver = {
 	.sb_occ_max_clear		= mlxsw_sp_sb_occ_max_clear,
 	.sb_occ_port_pool_get		= mlxsw_sp_sb_occ_port_pool_get,
 	.sb_occ_tc_port_bind_get	= mlxsw_sp_sb_occ_tc_port_bind_get,
+	.flash_update			= mlxsw_sp_flash_update,
 	.txhdr_construct		= mlxsw_sp_txhdr_construct,
 	.resources_register		= mlxsw_sp2_resources_register,
 	.params_register		= mlxsw_sp2_params_register,
