@@ -695,13 +695,6 @@ again:
 
 		hdev->hard_reset_pending = true;
 
-		if (!hdev->pdev) {
-			dev_err(hdev->dev,
-				"Reset action is NOT supported in simulator\n");
-			rc = -EINVAL;
-			goto out_err;
-		}
-
 		device_reset_work = kzalloc(sizeof(*device_reset_work),
 						GFP_ATOMIC);
 		if (!device_reset_work) {
