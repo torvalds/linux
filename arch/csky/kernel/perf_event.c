@@ -9,6 +9,7 @@
 #include <linux/platform_device.h>
 
 #define CSKY_PMU_MAX_EVENTS 32
+#define DEFAULT_COUNT_WIDTH 48
 
 #define HPCR		"<0, 0x0>"	/* PMU Control reg */
 #define HPCNTENR	"<0, 0x4>"	/* Count Enable reg */
@@ -18,6 +19,7 @@ static void (*hw_raw_write_mapping[CSKY_PMU_MAX_EVENTS])(uint64_t val);
 
 struct csky_pmu_t {
 	struct pmu	pmu;
+	uint32_t	count_width;
 	uint32_t	hpcr;
 } csky_pmu;
 
@@ -804,7 +806,12 @@ static void csky_perf_event_update(struct perf_event *event,
 				   struct hw_perf_event *hwc)
 {
 	uint64_t prev_raw_count = local64_read(&hwc->prev_count);
-	uint64_t new_raw_count = hw_raw_read_mapping[hwc->idx]();
+	/*
+	 * Sign extend count value to 64bit, otherwise delta calculation
+	 * would be incorrect when overflow occurs.
+	 */
+	uint64_t new_raw_count = sign_extend64(
+		hw_raw_read_mapping[hwc->idx](), csky_pmu.count_width - 1);
 	int64_t delta = new_raw_count - prev_raw_count;
 
 	/*
@@ -1032,12 +1039,18 @@ int init_hw_perf_events(void)
 int csky_pmu_device_probe(struct platform_device *pdev,
 			  const struct of_device_id *of_table)
 {
+	struct device_node *node = pdev->dev.of_node;
 	int ret;
 
 	ret = init_hw_perf_events();
 	if (ret) {
 		pr_notice("[perf] failed to probe PMU!\n");
 		return ret;
+	}
+
+	if (of_property_read_u32(node, "count-width",
+				 &csky_pmu.count_width)) {
+		csky_pmu.count_width = DEFAULT_COUNT_WIDTH;
 	}
 
 	return ret;
