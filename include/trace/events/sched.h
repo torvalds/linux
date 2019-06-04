@@ -594,6 +594,29 @@ TRACE_EVENT(sched_wake_idle_without_ipi,
 
 	TP_printk("cpu=%d", __entry->cpu)
 );
+
+/*
+ * Following tracepoints are not exported in tracefs and provide hooking
+ * mechanisms only for testing and debugging purposes.
+ *
+ * Postfixed with _tp to make them easily identifiable in the code.
+ */
+DECLARE_TRACE(pelt_cfs_tp,
+	TP_PROTO(struct cfs_rq *cfs_rq),
+	TP_ARGS(cfs_rq));
+
+DECLARE_TRACE(pelt_rt_tp,
+	TP_PROTO(struct rq *rq),
+	TP_ARGS(rq));
+
+DECLARE_TRACE(pelt_dl_tp,
+	TP_PROTO(struct rq *rq),
+	TP_ARGS(rq));
+
+DECLARE_TRACE(pelt_irq_tp,
+	TP_PROTO(struct rq *rq),
+	TP_ARGS(rq));
+
 #endif /* _TRACE_SCHED_H */
 
 /* This part must be outside protection */
