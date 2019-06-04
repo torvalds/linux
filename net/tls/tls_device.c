@@ -252,7 +252,7 @@ static int tls_push_record(struct sock *sk,
 			 skb_frag_address(frag),
 			 record->len - prot->prepend_size,
 			 record_type,
-			 ctx->crypto_send.info.version);
+			 prot->version);
 
 	/* HW doesn't care about the data in the tag, because it fills it. */
 	dummy_tag_frag.page = skb_frag_page(frag);
@@ -264,7 +264,7 @@ static int tls_push_record(struct sock *sk,
 	list_add_tail(&record->list, &offload_ctx->records_list);
 	spin_unlock_irq(&offload_ctx->lock);
 	offload_ctx->open_record = NULL;
-	tls_advance_record_sn(sk, &ctx->tx, ctx->crypto_send.info.version);
+	tls_advance_record_sn(sk, prot, &ctx->tx);
 
 	for (i = 0; i < record->num_frags; i++) {
 		frag = &record->frags[i];
@@ -603,8 +603,10 @@ static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 	sg_set_buf(&sg[0], buf,
 		   rxm->full_len + TLS_HEADER_SIZE +
 		   TLS_CIPHER_AES_GCM_128_IV_SIZE);
-	skb_copy_bits(skb, offset, buf,
-		      TLS_HEADER_SIZE + TLS_CIPHER_AES_GCM_128_IV_SIZE);
+	err = skb_copy_bits(skb, offset, buf,
+			    TLS_HEADER_SIZE + TLS_CIPHER_AES_GCM_128_IV_SIZE);
+	if (err)
+		goto free_buf;
 
 	/* We are interested only in the decrypted data not the auth */
 	err = decrypt_skb(sk, skb, sg);
@@ -618,8 +620,11 @@ static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 	if (skb_pagelen(skb) > offset) {
 		copy = min_t(int, skb_pagelen(skb) - offset, data_len);
 
-		if (skb->decrypted)
-			skb_store_bits(skb, offset, buf, copy);
+		if (skb->decrypted) {
+			err = skb_store_bits(skb, offset, buf, copy);
+			if (err)
+				goto free_buf;
+		}
 
 		offset += copy;
 		buf += copy;
@@ -642,8 +647,11 @@ static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
 		copy = min_t(int, skb_iter->len - frag_pos,
 			     data_len + rxm->offset - offset);
 
-		if (skb_iter->decrypted)
-			skb_store_bits(skb_iter, frag_pos, buf, copy);
+		if (skb_iter->decrypted) {
+			err = skb_store_bits(skb_iter, frag_pos, buf, copy);
+			if (err)
+				goto free_buf;
+		}
 
 		offset += copy;
 		buf += copy;
@@ -663,10 +671,6 @@ int tls_device_decrypted(struct sock *sk, struct sk_buff *skb)
 	int is_decrypted = skb->decrypted;
 	int is_encrypted = !is_decrypted;
 	struct sk_buff *skb_iter;
-
-	/* Skip if it is already decrypted */
-	if (ctx->sw.decrypted)
-		return 0;
 
 	/* Check if all the data is decrypted already */
 	skb_walk_frags(skb, skb_iter) {

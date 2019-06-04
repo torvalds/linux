@@ -379,7 +379,6 @@ by the driver:
    but did not arrive in the expected order
  * ``tx_tls_drop_no_sync_data`` - number of TX packets dropped because
    they arrived out of order and associated record could not be found
-   (see also :ref:`pre_tls_data`)
 
 Notable corner cases, exceptions and additional requirements
 ============================================================
@@ -462,21 +461,3 @@ Redirects leak clear text
 
 In the RX direction, if segment has already been decrypted by the device
 and it gets redirected or mirrored - clear text will be transmitted out.
-
-.. _pre_tls_data:
-
-Transmission of pre-TLS data
-----------------------------
-
-User can enqueue some already encrypted and framed records before enabling
-``ktls`` on the socket. Those records have to get sent as they are. This is
-perfectly easy to handle in the software case - such data will be waiting
-in the TCP layer, TLS ULP won't see it. In the offloaded case when pre-queued
-segment reaches transmission point it appears to be out of order (before the
-expected TCP sequence number) and the stack does not have a record information
-associated.
-
-All segments without record information cannot, however, be assumed to be
-pre-queued data, because a race condition exists between TCP stack queuing
-a retransmission, the driver seeing the retransmission and TCP ACK arriving
-for the retransmitted data.

@@ -236,34 +236,32 @@ struct tls_prot_info {
 };
 
 struct tls_context {
+	/* read-only cache line */
 	struct tls_prot_info prot_info;
-
-	union tls_crypto_context crypto_send;
-	union tls_crypto_context crypto_recv;
-
-	struct list_head list;
-	struct net_device *netdev;
-	refcount_t refcount;
-
-	void *priv_ctx_tx;
-	void *priv_ctx_rx;
 
 	u8 tx_conf:3;
 	u8 rx_conf:3;
 
+	int (*push_pending_record)(struct sock *sk, int flags);
+	void (*sk_write_space)(struct sock *sk);
+
+	void *priv_ctx_tx;
+	void *priv_ctx_rx;
+
+	struct net_device *netdev;
+
+	/* rw cache line */
 	struct cipher_context tx;
 	struct cipher_context rx;
 
 	struct scatterlist *partially_sent_record;
 	u16 partially_sent_offset;
 
-	unsigned long flags;
 	bool in_tcp_sendpages;
 	bool pending_open_record_frags;
+	unsigned long flags;
 
-	int (*push_pending_record)(struct sock *sk, int flags);
-
-	void (*sk_write_space)(struct sock *sk);
+	/* cache cold stuff */
 	void (*sk_destruct)(struct sock *sk);
 	void (*sk_proto_close)(struct sock *sk, long timeout);
 
@@ -275,6 +273,12 @@ struct tls_context {
 			   int __user *optlen);
 	int  (*hash)(struct sock *sk);
 	void (*unhash)(struct sock *sk);
+
+	union tls_crypto_context crypto_send;
+	union tls_crypto_context crypto_recv;
+
+	struct list_head list;
+	refcount_t refcount;
 };
 
 enum tls_offload_ctx_dir {
@@ -442,19 +446,15 @@ static inline struct tls_context *tls_get_ctx(const struct sock *sk)
 }
 
 static inline void tls_advance_record_sn(struct sock *sk,
-					 struct cipher_context *ctx,
-					 int version)
+					 struct tls_prot_info *prot,
+					 struct cipher_context *ctx)
 {
-	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_prot_info *prot = &tls_ctx->prot_info;
-
 	if (tls_bigint_increment(ctx->rec_seq, prot->rec_seq_size))
 		tls_err_abort(sk, EBADMSG);
 
-	if (version != TLS_1_3_VERSION) {
+	if (prot->version != TLS_1_3_VERSION)
 		tls_bigint_increment(ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
 				     prot->iv_size);
-	}
 }
 
 static inline void tls_fill_prepend(struct tls_context *ctx,
