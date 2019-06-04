@@ -262,6 +262,10 @@ static int mlx5_lag_fib_event(struct notifier_block *nb,
 		fen_info = container_of(info, struct fib_entry_notifier_info,
 					info);
 		fi = fen_info->fi;
+		if (fi->nh) {
+			NL_SET_ERR_MSG_MOD(info->extack, "IPv4 route with nexthop objects is not supported");
+			return notifier_from_errno(-EINVAL);
+		}
 		fib_dev = fib_info_nh(fen_info->fi, 0)->fib_nh_dev;
 		if (fib_dev != ldev->pf[0].netdev &&
 		    fib_dev != ldev->pf[1].netdev) {
