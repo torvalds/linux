@@ -981,8 +981,6 @@ static int smu_hw_init(void *handle)
 		}
 	}
 
-	mutex_lock(&smu->mutex);
-
 	ret = smu_feature_init_dpm(smu);
 	if (ret)
 		goto failed;
@@ -1010,8 +1008,6 @@ static int smu_hw_init(void *handle)
 	ret = smu_register_irq_handler(smu);
 	if (ret)
 		goto failed;
-
-	mutex_unlock(&smu->mutex);
 
 	if (!smu->pm_enabled)
 		adev->pm.dpm_enabled = false;
