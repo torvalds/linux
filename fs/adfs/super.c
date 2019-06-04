@@ -19,6 +19,8 @@
 #include "dir_f.h"
 #include "dir_fplus.h"
 
+#define ADFS_SB_FLAGS SB_NOATIME
+
 #define ADFS_DEFAULT_OWNER_MASK S_IRWXU
 #define ADFS_DEFAULT_OTHER_MASK (S_IRWXG | S_IRWXO)
 
@@ -227,7 +229,7 @@ static int parse_options(struct super_block *sb, char *options)
 static int adfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	*flags |= SB_NODIRATIME;
+	*flags |= ADFS_SB_FLAGS;
 	return parse_options(sb, data);
 }
 
@@ -371,7 +373,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *root;
 	int ret = -EINVAL;
 
-	sb->s_flags |= SB_NODIRATIME;
+	sb->s_flags |= ADFS_SB_FLAGS;
 
 	asb = kzalloc(sizeof(*asb), GFP_KERNEL);
 	if (!asb)
