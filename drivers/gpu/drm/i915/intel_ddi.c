@@ -1231,6 +1231,19 @@ static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	wrpll = I915_READ(reg);
 	switch (wrpll & WRPLL_REF_MASK) {
 	case WRPLL_REF_SPECIAL_HSW:
+		/*
+		 * muxed-SSC for BDW.
+		 * non-SSC for non-ULT HSW. Check FUSE_STRAP3
+		 * for the non-SSC reference frequency.
+		 */
+		if (IS_HASWELL(dev_priv) && !IS_HSW_ULT(dev_priv)) {
+			if (I915_READ(FUSE_STRAP3) & HSW_REF_CLK_SELECT)
+				refclk = 24;
+			else
+				refclk = 135;
+			break;
+		}
+		/* fall through */
 	case WRPLL_REF_PCH_SSC:
 		/*
 		 * We could calculate spread here, but our checking
@@ -1243,7 +1256,7 @@ static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 		refclk = 2700;
 		break;
 	default:
-		WARN(1, "bad wrpll refclk\n");
+		MISSING_CASE(wrpll);
 		return 0;
 	}
 

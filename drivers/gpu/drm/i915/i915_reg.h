@@ -7514,6 +7514,9 @@ enum {
 #define  ILK_DESKTOP			(1 << 23)
 #define  HSW_CPU_SSC_ENABLE		(1 << 21)
 
+#define FUSE_STRAP3			_MMIO(0x42020)
+#define  HSW_REF_CLK_SELECT		(1 << 1)
+
 #define ILK_DSPCLK_GATE_D			_MMIO(0x42020)
 #define   ILK_VRHUNIT_CLOCK_GATE_DISABLE	(1 << 28)
 #define   ILK_DPFCUNIT_CLOCK_GATE_DISABLE	(1 << 9)
