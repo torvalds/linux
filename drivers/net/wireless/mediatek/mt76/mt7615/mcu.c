@@ -879,7 +879,7 @@ int mt7615_mcu_set_wtbl_key(struct mt7615_dev *dev, int wcid,
 		u8 cipher;
 
 		cipher = mt7615_get_key_info(key, req.key.key_material);
-		if (cipher == MT_CIPHER_NONE && key)
+		if (cipher == MT_CIPHER_NONE)
 			return -EOPNOTSUPP;
 
 		req.key.rkv = 1;
