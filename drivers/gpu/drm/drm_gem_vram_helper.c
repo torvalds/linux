@@ -585,7 +585,7 @@ int drm_gem_vram_bo_driver_verify_access(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(drm_gem_vram_bo_driver_verify_access);
 
-/**
+/*
  * drm_gem_vram_mm_funcs - Functions for &struct drm_vram_mm
  *
  * Most users of @struct drm_gem_vram_object will also use
