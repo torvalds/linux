@@ -203,21 +203,9 @@ int mv88e6250_g1_reset(struct mv88e6xxx_chip *chip)
 
 int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip)
 {
-	u16 val;
 	int err;
 
-	/* Set the SWReset bit 15 */
-	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &val);
-	if (err)
-		return err;
-
-	val |= MV88E6XXX_G1_CTL1_SW_RESET;
-
-	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, val);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_wait_init_ready(chip);
+	err = mv88e6250_g1_reset(chip);
 	if (err)
 		return err;
 
