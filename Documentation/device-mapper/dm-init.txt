@@ -74,13 +74,13 @@ this target to /dev/mapper/lroot (depending on the rules). No uuid was assigned.
 An example of multiple device-mappers, with the dm-mod.create="..." contents is shown here
 split on multiple lines for readability:
 
-  vroot,,,ro,
-    0 1740800 verity 254:0 254:0 1740800 sha1
-      76e9be054b15884a9fa85973e9cb274c93afadb6
-      5b3549d54d6c7a3837b9b81ed72e49463a64c03680c47835bef94d768e5646fe;
-  vram,,,rw,
-    0 32768 linear 1:0 0,
-    32768 32768 linear 1:1 0
+  dm-linear,,1,rw,
+    0 32768 linear 8:1 0,
+    32768 1024000 linear 8:2 0;
+  dm-verity,,3,ro,
+    0 1638400 verity 1 /dev/sdc1 /dev/sdc2 4096 4096 204800 1 sha256
+    ac87db56303c9c1da433d7209b5a6ef3e4779df141200cbd7c157dcb8dd89c42
+    5ebfe87f7df3235b80a117ebc4078e44f55045487ad4a96581d1adb564615b51
 
 Other examples (per target):
 
