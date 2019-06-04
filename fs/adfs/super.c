@@ -24,16 +24,18 @@
 
 void __adfs_error(struct super_block *sb, const char *function, const char *fmt, ...)
 {
-	char error_buf[128];
+	struct va_format vaf;
 	va_list args;
 
 	va_start(args, fmt);
-	vsnprintf(error_buf, sizeof(error_buf), fmt, args);
-	va_end(args);
+	vaf.fmt = fmt;
+	vaf.va = &args;
 
-	printk(KERN_CRIT "ADFS-fs error (device %s)%s%s: %s\n",
+	printk(KERN_CRIT "ADFS-fs error (device %s)%s%s: %pV\n",
 		sb->s_id, function ? ": " : "",
-		function ? function : "", error_buf);
+		function ? function : "", &vaf);
+
+	va_end(args);
 }
 
 static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
