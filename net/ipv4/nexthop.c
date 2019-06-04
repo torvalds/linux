@@ -106,6 +106,7 @@ static struct nexthop *nexthop_alloc(void)
 	nh = kzalloc(sizeof(struct nexthop), GFP_KERNEL);
 	if (nh) {
 		INIT_LIST_HEAD(&nh->fi_list);
+		INIT_LIST_HEAD(&nh->f6i_list);
 		INIT_LIST_HEAD(&nh->grp_list);
 	}
 	return nh;
@@ -516,6 +517,41 @@ struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
 }
 EXPORT_SYMBOL_GPL(nexthop_select_path);
 
+int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
+		       struct netlink_ext_ack *extack)
+{
+	struct nh_info *nhi;
+
+	/* fib6_src is unique to a fib6_info and limits the ability to cache
+	 * routes in fib6_nh within a nexthop that is potentially shared
+	 * across multiple fib entries. If the config wants to use source
+	 * routing it can not use nexthop objects. mlxsw also does not allow
+	 * fib6_src on routes.
+	 */
+	if (!ipv6_addr_any(&cfg->fc_src)) {
+		NL_SET_ERR_MSG(extack, "IPv6 routes using source address can not use nexthop objects");
+		return -EINVAL;
+	}
+
+	if (nh->is_group) {
+		struct nh_group *nhg;
+
+		nhg = rtnl_dereference(nh->nh_grp);
+		if (nhg->has_v4)
+			goto no_v4_nh;
+	} else {
+		nhi = rtnl_dereference(nh->nh_info);
+		if (nhi->family == AF_INET)
+			goto no_v4_nh;
+	}
+
+	return 0;
+no_v4_nh:
+	NL_SET_ERR_MSG(extack, "IPv6 routes can not use an IPv4 nexthop");
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(fib6_check_nexthop);
+
 static int nexthop_check_scope(struct nexthop *nh, u8 scope,
 			       struct netlink_ext_ack *extack)
 {
@@ -658,6 +694,7 @@ static void remove_nexthop_group(struct nexthop *nh, struct nl_info *nlinfo)
 
 static void __remove_nexthop_fib(struct net *net, struct nexthop *nh)
 {
+	struct fib6_info *f6i, *tmp;
 	bool do_flush = false;
 	struct fib_info *fi;
 
@@ -667,6 +704,13 @@ static void __remove_nexthop_fib(struct net *net, struct nexthop *nh)
 	}
 	if (do_flush)
 		fib_flush(net);
+
+	/* ip6_del_rt removes the entry from this list hence the _safe */
+	list_for_each_entry_safe(f6i, tmp, &nh->f6i_list, nh_list) {
+		/* __ip6_del_rt does a release, so do a hold here */
+		fib6_info_hold(f6i);
+		ipv6_stub->ip6_del_rt(net, f6i);
+	}
 }
 
 static void __remove_nexthop(struct net *net, struct nexthop *nh,

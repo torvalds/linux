@@ -10,6 +10,7 @@
 #define __LINUX_NEXTHOP_H
 
 #include <linux/netdevice.h>
+#include <linux/route.h>
 #include <linux/types.h>
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
@@ -78,6 +79,7 @@ struct nh_group {
 struct nexthop {
 	struct rb_node		rb_node;    /* entry on netns rbtree */
 	struct list_head	fi_list;    /* v4 entries using nh */
+	struct list_head	f6i_list;   /* v6 entries using nh */
 	struct list_head	grp_list;   /* nh group entries using this nh */
 	struct net		*net;
 
@@ -254,5 +256,53 @@ static inline struct fib_nh *fib_info_nh(struct fib_info *fi, int nhsel)
 	WARN_ON(fi->nh);
 
 	return &fi->fib_nh[nhsel];
+}
+
+/*
+ * IPv6 variants
+ */
+int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
+		       struct netlink_ext_ack *extack);
+
+static inline struct fib6_nh *nexthop_fib6_nh(struct nexthop *nh)
+{
+	struct nh_info *nhi;
+
+	if (nexthop_is_multipath(nh)) {
+		nh = nexthop_mpath_select(nh, 0);
+		if (!nh)
+			return NULL;
+	}
+
+	nhi = rcu_dereference_rtnl(nh->nh_info);
+	if (nhi->family == AF_INET6)
+		return &nhi->fib6_nh;
+
+	return NULL;
+}
+
+static inline struct net_device *fib6_info_nh_dev(struct fib6_info *f6i)
+{
+	struct fib6_nh *fib6_nh;
+
+	fib6_nh = f6i->nh ? nexthop_fib6_nh(f6i->nh) : f6i->fib6_nh;
+	return fib6_nh->fib_nh_dev;
+}
+
+static inline void nexthop_path_fib6_result(struct fib6_result *res, int hash)
+{
+	struct nexthop *nh = res->f6i->nh;
+	struct nh_info *nhi;
+
+	nh = nexthop_select_path(nh, hash);
+
+	nhi = rcu_dereference_rtnl(nh->nh_info);
+	if (nhi->reject_nh) {
+		res->fib6_type = RTN_BLACKHOLE;
+		res->fib6_flags |= RTF_REJECT;
+		res->nh = nexthop_fib6_nh(nh);
+	} else {
+		res->nh = &nhi->fib6_nh;
+	}
 }
 #endif

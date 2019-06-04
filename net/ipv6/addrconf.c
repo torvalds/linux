@@ -2421,6 +2421,10 @@ static struct fib6_info *addrconf_get_prefix_route(const struct in6_addr *pfx,
 		goto out;
 
 	for_each_fib6_node_rt_rcu(fn) {
+		/* prefix routes only use builtin fib6_nh */
+		if (rt->nh)
+			continue;
+
 		if (rt->fib6_nh->fib_nh_dev->ifindex != dev->ifindex)
 			continue;
 		if (no_gw && rt->fib6_nh->fib_nh_gw_family)
@@ -6352,6 +6356,7 @@ void addrconf_disable_policy_idev(struct inet6_dev *idev, int val)
 	list_for_each_entry(ifa, &idev->addr_list, if_list) {
 		spin_lock(&ifa->lock);
 		if (ifa->rt) {
+			/* host routes only use builtin fib6_nh */
 			struct fib6_nh *nh = ifa->rt->fib6_nh;
 			int cpu;
 

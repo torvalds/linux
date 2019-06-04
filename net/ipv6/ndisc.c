@@ -1289,9 +1289,8 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	    !in6_dev->cnf.accept_ra_rtr_pref)
 		pref = ICMPV6_ROUTER_PREF_MEDIUM;
 #endif
-
+	/* routes added from RAs do not use nexthop objects */
 	rt = rt6_get_dflt_router(net, &ipv6_hdr(skb)->saddr, skb->dev);
-
 	if (rt) {
 		neigh = ip6_neigh_lookup(&rt->fib6_nh->fib_nh_gw6,
 					 rt->fib6_nh->fib_nh_dev, NULL,
