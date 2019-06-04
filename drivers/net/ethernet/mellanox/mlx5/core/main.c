@@ -1230,7 +1230,7 @@ static int mlx5_devlink_flash_update(struct devlink *devlink,
 	if (err)
 		return err;
 
-	return mlx5_firmware_flash(dev, fw);
+	return mlx5_firmware_flash(dev, fw, extack);
 }
 
 static const struct devlink_ops mlx5_devlink_ops = {

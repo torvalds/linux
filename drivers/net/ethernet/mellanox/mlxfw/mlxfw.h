@@ -5,6 +5,7 @@
 #define _MLXFW_H
 
 #include <linux/firmware.h>
+#include <linux/netlink.h>
 
 enum mlxfw_fsm_state {
 	MLXFW_FSM_STATE_IDLE,
@@ -67,11 +68,13 @@ struct mlxfw_dev {
 
 #if IS_REACHABLE(CONFIG_MLXFW)
 int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
-			 const struct firmware *firmware);
+			 const struct firmware *firmware,
+			 struct netlink_ext_ack *extack);
 #else
 static inline
 int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
-			 const struct firmware *firmware)
+			 const struct firmware *firmware,
+			 struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
