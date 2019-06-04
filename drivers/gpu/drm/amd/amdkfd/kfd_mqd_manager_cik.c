@@ -77,9 +77,6 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 {
 	struct kfd_mem_obj *mqd_mem_obj;
 
-	if (q->type == KFD_QUEUE_TYPE_HIQ)
-		return allocate_hiq_mqd(kfd);
-
 	if (kfd_gtt_sa_allocate(kfd, sizeof(struct cik_mqd),
 			&mqd_mem_obj))
 		return NULL;
@@ -87,21 +84,15 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 	return mqd_mem_obj;
 }
 
-static int init_mqd(struct mqd_manager *mm, void **mqd,
-		struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
+static void init_mqd(struct mqd_manager *mm, void **mqd,
+		struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
 		struct queue_properties *q)
 {
 	uint64_t addr;
 	struct cik_mqd *m;
-	int retval;
-	struct kfd_dev *kfd = mm->dev;
 
-	*mqd_mem_obj = allocate_mqd(kfd, q);
-	if (!*mqd_mem_obj)
-		return -ENOMEM;
-
-	m = (struct cik_mqd *) (*mqd_mem_obj)->cpu_ptr;
-	addr = (*mqd_mem_obj)->gpu_addr;
+	m = (struct cik_mqd *) mqd_mem_obj->cpu_ptr;
+	addr = mqd_mem_obj->gpu_addr;
 
 	memset(m, 0, ALIGN(sizeof(struct cik_mqd), 256));
 
@@ -144,37 +135,27 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	*mqd = m;
 	if (gart_addr)
 		*gart_addr = addr;
-	retval = mm->update_mqd(mm, m, q);
-
-	return retval;
+	mm->update_mqd(mm, m, q);
 }
 
-static int init_mqd_sdma(struct mqd_manager *mm, void **mqd,
-			struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
+static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
+			struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
 			struct queue_properties *q)
 {
-	int retval;
 	struct cik_sdma_rlc_registers *m;
-	struct kfd_dev *dev = mm->dev;
 
-	*mqd_mem_obj = allocate_sdma_mqd(dev, q);
-	if (!*mqd_mem_obj)
-		return -ENOMEM;
-
-	m = (struct cik_sdma_rlc_registers *) (*mqd_mem_obj)->cpu_ptr;
+	m = (struct cik_sdma_rlc_registers *) mqd_mem_obj->cpu_ptr;
 
 	memset(m, 0, sizeof(struct cik_sdma_rlc_registers));
 
 	*mqd = m;
 	if (gart_addr)
-		*gart_addr = (*mqd_mem_obj)->gpu_addr;
+		*gart_addr = mqd_mem_obj->gpu_addr;
 
-	retval = mm->update_mqd(mm, m, q);
-
-	return retval;
+	mm->update_mqd(mm, m, q);
 }
 
-static void uninit_mqd(struct mqd_manager *mm, void *mqd,
+static void free_mqd(struct mqd_manager *mm, void *mqd,
 			struct kfd_mem_obj *mqd_mem_obj)
 {
 	kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
@@ -203,7 +184,7 @@ static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
 					       mms);
 }
 
-static int __update_mqd(struct mqd_manager *mm, void *mqd,
+static void __update_mqd(struct mqd_manager *mm, void *mqd,
 			struct queue_properties *q, unsigned int atc_bit)
 {
 	struct cik_mqd *m;
@@ -237,23 +218,21 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 	set_priority(m, q);
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
-
-	return 0;
 }
 
-static int update_mqd(struct mqd_manager *mm, void *mqd,
+static void update_mqd(struct mqd_manager *mm, void *mqd,
 			struct queue_properties *q)
 {
-	return __update_mqd(mm, mqd, q, 1);
+	__update_mqd(mm, mqd, q, 1);
 }
 
-static int update_mqd_hawaii(struct mqd_manager *mm, void *mqd,
+static void update_mqd_hawaii(struct mqd_manager *mm, void *mqd,
 			struct queue_properties *q)
 {
-	return __update_mqd(mm, mqd, q, 0);
+	__update_mqd(mm, mqd, q, 0);
 }
 
-static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
+static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 				struct queue_properties *q)
 {
 	struct cik_sdma_rlc_registers *m;
@@ -278,8 +257,6 @@ static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	m->sdma_queue_id = q->sdma_queue_id;
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
-
-	return 0;
 }
 
 static int destroy_mqd(struct mqd_manager *mm, void *mqd,
@@ -326,14 +303,14 @@ static bool is_occupied_sdma(struct mqd_manager *mm, void *mqd,
  * queues but with different initial values.
  */
 
-static int init_mqd_hiq(struct mqd_manager *mm, void **mqd,
-		struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
+static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
+		struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
 		struct queue_properties *q)
 {
-	return init_mqd(mm, mqd, mqd_mem_obj, gart_addr, q);
+	init_mqd(mm, mqd, mqd_mem_obj, gart_addr, q);
 }
 
-static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
+static void update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 				struct queue_properties *q)
 {
 	struct cik_mqd *m;
@@ -360,7 +337,6 @@ static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 	q->is_active = QUEUE_IS_ACTIVE(*q);
 
 	set_priority(m, q);
-	return 0;
 }
 
 #if defined(CONFIG_DEBUG_FS)
@@ -399,8 +375,9 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 	switch (type) {
 	case KFD_MQD_TYPE_CP:
 	case KFD_MQD_TYPE_COMPUTE:
+		mqd->allocate_mqd = allocate_mqd;
 		mqd->init_mqd = init_mqd;
-		mqd->uninit_mqd = uninit_mqd;
+		mqd->free_mqd = free_mqd;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd;
 		mqd->destroy_mqd = destroy_mqd;
@@ -411,8 +388,9 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 #endif
 		break;
 	case KFD_MQD_TYPE_HIQ:
+		mqd->allocate_mqd = allocate_hiq_mqd;
 		mqd->init_mqd = init_mqd_hiq;
-		mqd->uninit_mqd = uninit_mqd_hiq_sdma;
+		mqd->free_mqd = free_mqd_hiq_sdma;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd_hiq;
 		mqd->destroy_mqd = destroy_mqd;
@@ -423,8 +401,9 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 #endif
 		break;
 	case KFD_MQD_TYPE_DIQ:
+		mqd->allocate_mqd = allocate_hiq_mqd;
 		mqd->init_mqd = init_mqd_hiq;
-		mqd->uninit_mqd = uninit_mqd;
+		mqd->free_mqd = free_mqd;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd_hiq;
 		mqd->destroy_mqd = destroy_mqd;
@@ -435,8 +414,9 @@ struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 #endif
 		break;
 	case KFD_MQD_TYPE_SDMA:
+		mqd->allocate_mqd = allocate_sdma_mqd;
 		mqd->init_mqd = init_mqd_sdma;
-		mqd->uninit_mqd = uninit_mqd_hiq_sdma;
+		mqd->free_mqd = free_mqd_hiq_sdma;
 		mqd->load_mqd = load_mqd_sdma;
 		mqd->update_mqd = update_mqd_sdma;
 		mqd->destroy_mqd = destroy_mqd_sdma;

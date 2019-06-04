@@ -45,7 +45,7 @@ int pipe_priority_map[] = {
 	KFD_PIPE_PRIORITY_CS_HIGH
 };
 
-struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev)
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev, struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj = NULL;
 
@@ -86,7 +86,7 @@ struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
 	return mqd_mem_obj;
 }
 
-void uninit_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
+void free_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
 			struct kfd_mem_obj *mqd_mem_obj)
 {
 	WARN_ON(!mqd_mem_obj->gtt_mem);

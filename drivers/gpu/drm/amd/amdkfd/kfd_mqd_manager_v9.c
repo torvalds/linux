@@ -79,9 +79,6 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 	int retval;
 	struct kfd_mem_obj *mqd_mem_obj = NULL;
 
-	if (q->type == KFD_QUEUE_TYPE_HIQ)
-		return allocate_hiq_mqd(kfd);
-
 	/* From V9,  for CWSR, the control stack is located on the next page
 	 * boundary after the mqd, we will use the gtt allocation function
 	 * instead of sub-allocation function.
@@ -110,21 +107,15 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 
 }
 
-static int init_mqd(struct mqd_manager *mm, void **mqd,
-			struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
+static void init_mqd(struct mqd_manager *mm, void **mqd,
+			struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
 			struct queue_properties *q)
 {
-	int retval;
 	uint64_t addr;
 	struct v9_mqd *m;
-	struct kfd_dev *kfd = mm->dev;
 
-	*mqd_mem_obj = allocate_mqd(kfd, q);
-	if (!*mqd_mem_obj)
-		return -ENOMEM;
-
-	m = (struct v9_mqd *) (*mqd_mem_obj)->cpu_ptr;
-	addr = (*mqd_mem_obj)->gpu_addr;
+	m = (struct v9_mqd *) mqd_mem_obj->cpu_ptr;
+	addr = mqd_mem_obj->gpu_addr;
 
 	memset(m, 0, sizeof(struct v9_mqd));
 
@@ -173,9 +164,7 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	*mqd = m;
 	if (gart_addr)
 		*gart_addr = addr;
-	retval = mm->update_mqd(mm, m, q);
-
-	return retval;
+	mm->update_mqd(mm, m, q);
 }
 
 static int load_mqd(struct mqd_manager *mm, void *mqd,
@@ -190,7 +179,7 @@ static int load_mqd(struct mqd_manager *mm, void *mqd,
 					  wptr_shift, 0, mms);
 }
 
-static int update_mqd(struct mqd_manager *mm, void *mqd,
+static void update_mqd(struct mqd_manager *mm, void *mqd,
 		      struct queue_properties *q)
 {
 	struct v9_mqd *m;
@@ -252,8 +241,6 @@ static int update_mqd(struct mqd_manager *mm, void *mqd,
 	set_priority(m, q);
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
-
-	return 0;
 }
 
 
@@ -267,7 +254,7 @@ static int destroy_mqd(struct mqd_manager *mm, void *mqd,
 		pipe_id, queue_id);
 }
 
-static void uninit_mqd(struct mqd_manager *mm, void *mqd,
+static void free_mqd(struct mqd_manager *mm, void *mqd,
 			struct kfd_mem_obj *mqd_mem_obj)
 {
 	struct kfd_dev *kfd = mm->dev;
@@ -311,62 +298,47 @@ static int get_wave_state(struct mqd_manager *mm, void *mqd,
 	return 0;
 }
 
-static int init_mqd_hiq(struct mqd_manager *mm, void **mqd,
-			struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
+static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
+			struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
 			struct queue_properties *q)
 {
 	struct v9_mqd *m;
-	int retval = init_mqd(mm, mqd, mqd_mem_obj, gart_addr, q);
 
-	if (retval != 0)
-		return retval;
+	init_mqd(mm, mqd, mqd_mem_obj, gart_addr, q);
 
 	m = get_mqd(*mqd);
 
 	m->cp_hqd_pq_control |= 1 << CP_HQD_PQ_CONTROL__PRIV_STATE__SHIFT |
 			1 << CP_HQD_PQ_CONTROL__KMD_QUEUE__SHIFT;
-
-	return retval;
 }
 
-static int update_mqd_hiq(struct mqd_manager *mm, void *mqd,
+static void update_mqd_hiq(struct mqd_manager *mm, void *mqd,
 			struct queue_properties *q)
 {
 	struct v9_mqd *m;
-	int retval = update_mqd(mm, mqd, q);
 
-	if (retval != 0)
-		return retval;
+	update_mqd(mm, mqd, q);
 
 	/* TODO: what's the point? update_mqd already does this. */
 	m = get_mqd(mqd);
 	m->cp_hqd_vmid = q->vmid;
-	return retval;
 }
 
-static int init_mqd_sdma(struct mqd_manager *mm, void **mqd,
-		struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
+static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
+		struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
 		struct queue_properties *q)
 {
-	int retval;
 	struct v9_sdma_mqd *m;
-	struct kfd_dev *dev = mm->dev;
 
-	*mqd_mem_obj = allocate_sdma_mqd(dev, q);
-	if (!*mqd_mem_obj)
-		return -ENOMEM;
-
-	m = (struct v9_sdma_mqd *) (*mqd_mem_obj)->cpu_ptr;
+	m = (struct v9_sdma_mqd *) mqd_mem_obj->cpu_ptr;
 
 	memset(m, 0, sizeof(struct v9_sdma_mqd));
 
 	*mqd = m;
 	if (gart_addr)
-		*gart_addr = (*mqd_mem_obj)->gpu_addr;
+		*gart_addr = mqd_mem_obj->gpu_addr;
 
-	retval = mm->update_mqd(mm, m, q);
-
-	return retval;
+	mm->update_mqd(mm, m, q);
 }
 
 static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
@@ -380,7 +352,7 @@ static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
 
 #define SDMA_RLC_DUMMY_DEFAULT 0xf
 
-static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
+static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 		struct queue_properties *q)
 {
 	struct v9_sdma_mqd *m;
@@ -404,8 +376,6 @@ static int update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	m->sdmax_rlcx_dummy_reg = SDMA_RLC_DUMMY_DEFAULT;
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
-
-	return 0;
 }
 
 /*
@@ -462,8 +432,9 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 	switch (type) {
 	case KFD_MQD_TYPE_CP:
 	case KFD_MQD_TYPE_COMPUTE:
+		mqd->allocate_mqd = allocate_mqd;
 		mqd->init_mqd = init_mqd;
-		mqd->uninit_mqd = uninit_mqd;
+		mqd->free_mqd = free_mqd;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd;
 		mqd->destroy_mqd = destroy_mqd;
@@ -475,8 +446,9 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 #endif
 		break;
 	case KFD_MQD_TYPE_HIQ:
+		mqd->allocate_mqd = allocate_hiq_mqd;
 		mqd->init_mqd = init_mqd_hiq;
-		mqd->uninit_mqd = uninit_mqd_hiq_sdma;
+		mqd->free_mqd = free_mqd_hiq_sdma;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd_hiq;
 		mqd->destroy_mqd = destroy_mqd;
@@ -487,8 +459,9 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 #endif
 		break;
 	case KFD_MQD_TYPE_DIQ:
+		mqd->allocate_mqd = allocate_hiq_mqd;
 		mqd->init_mqd = init_mqd_hiq;
-		mqd->uninit_mqd = uninit_mqd;
+		mqd->free_mqd = free_mqd;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd_hiq;
 		mqd->destroy_mqd = destroy_mqd;
@@ -499,8 +472,9 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 #endif
 		break;
 	case KFD_MQD_TYPE_SDMA:
+		mqd->allocate_mqd = allocate_sdma_mqd;
 		mqd->init_mqd = init_mqd_sdma;
-		mqd->uninit_mqd = uninit_mqd_hiq_sdma;
+		mqd->free_mqd = free_mqd_hiq_sdma;
 		mqd->load_mqd = load_mqd_sdma;
 		mqd->update_mqd = update_mqd_sdma;
 		mqd->destroy_mqd = destroy_mqd_sdma;
