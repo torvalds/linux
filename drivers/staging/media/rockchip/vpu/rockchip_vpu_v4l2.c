@@ -153,14 +153,14 @@ static int vidioc_enum_fmt(struct file *file, void *priv,
 	return -EINVAL;
 }
 
-static int vidioc_enum_fmt_vid_cap_mplane(struct file *file, void *priv,
-					  struct v4l2_fmtdesc *f)
+static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
+				   struct v4l2_fmtdesc *f)
 {
 	return vidioc_enum_fmt(file, priv, f, true);
 }
 
-static int vidioc_enum_fmt_vid_out_mplane(struct file *file, void *priv,
-					  struct v4l2_fmtdesc *f)
+static int vidioc_enum_fmt_vid_out(struct file *file, void *priv,
+				   struct v4l2_fmtdesc *f)
 {
 	return vidioc_enum_fmt(file, priv, f, false);
 }
@@ -494,8 +494,8 @@ const struct v4l2_ioctl_ops rockchip_vpu_ioctl_ops = {
 	.vidioc_s_fmt_vid_cap_mplane = vidioc_s_fmt_cap_mplane,
 	.vidioc_g_fmt_vid_out_mplane = vidioc_g_fmt_out_mplane,
 	.vidioc_g_fmt_vid_cap_mplane = vidioc_g_fmt_cap_mplane,
-	.vidioc_enum_fmt_vid_out_mplane = vidioc_enum_fmt_vid_out_mplane,
-	.vidioc_enum_fmt_vid_cap_mplane = vidioc_enum_fmt_vid_cap_mplane,
+	.vidioc_enum_fmt_vid_out = vidioc_enum_fmt_vid_out,
+	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
 
 	.vidioc_reqbufs = v4l2_m2m_ioctl_reqbufs,
 	.vidioc_querybuf = v4l2_m2m_ioctl_querybuf,

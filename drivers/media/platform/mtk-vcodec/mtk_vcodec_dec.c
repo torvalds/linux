@@ -957,14 +957,14 @@ static int vidioc_enum_fmt(struct v4l2_fmtdesc *f, bool output_queue)
 	return 0;
 }
 
-static int vidioc_vdec_enum_fmt_vid_cap_mplane(struct file *file, void *pirv,
-					       struct v4l2_fmtdesc *f)
+static int vidioc_vdec_enum_fmt_vid_cap(struct file *file, void *priv,
+					struct v4l2_fmtdesc *f)
 {
 	return vidioc_enum_fmt(f, false);
 }
 
-static int vidioc_vdec_enum_fmt_vid_out_mplane(struct file *file, void *priv,
-					       struct v4l2_fmtdesc *f)
+static int vidioc_vdec_enum_fmt_vid_out(struct file *file, void *priv,
+					struct v4l2_fmtdesc *f)
 {
 	return vidioc_enum_fmt(f, true);
 }
@@ -1461,8 +1461,8 @@ const struct v4l2_ioctl_ops mtk_vdec_ioctl_ops = {
 
 	.vidioc_create_bufs		= v4l2_m2m_ioctl_create_bufs,
 
-	.vidioc_enum_fmt_vid_cap_mplane	= vidioc_vdec_enum_fmt_vid_cap_mplane,
-	.vidioc_enum_fmt_vid_out_mplane	= vidioc_vdec_enum_fmt_vid_out_mplane,
+	.vidioc_enum_fmt_vid_cap	= vidioc_vdec_enum_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_out	= vidioc_vdec_enum_fmt_vid_out,
 	.vidioc_enum_framesizes	= vidioc_enum_framesizes,
 
 	.vidioc_querycap		= vidioc_vdec_querycap,

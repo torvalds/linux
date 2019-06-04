@@ -946,8 +946,8 @@ static int jpu_streamon(struct file *file, void *priv, enum v4l2_buf_type type)
 static const struct v4l2_ioctl_ops jpu_ioctl_ops = {
 	.vidioc_querycap		= jpu_querycap,
 
-	.vidioc_enum_fmt_vid_cap_mplane = jpu_enum_fmt_cap,
-	.vidioc_enum_fmt_vid_out_mplane = jpu_enum_fmt_out,
+	.vidioc_enum_fmt_vid_cap	= jpu_enum_fmt_cap,
+	.vidioc_enum_fmt_vid_out	= jpu_enum_fmt_out,
 	.vidioc_g_fmt_vid_cap_mplane	= jpu_g_fmt,
 	.vidioc_g_fmt_vid_out_mplane	= jpu_g_fmt,
 	.vidioc_try_fmt_vid_cap_mplane	= jpu_try_fmt,

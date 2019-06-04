@@ -1730,8 +1730,8 @@ static const char * const fdp1_ctrl_deint_menu[] = {
 static const struct v4l2_ioctl_ops fdp1_ioctl_ops = {
 	.vidioc_querycap	= fdp1_vidioc_querycap,
 
-	.vidioc_enum_fmt_vid_cap_mplane = fdp1_enum_fmt_vid_cap,
-	.vidioc_enum_fmt_vid_out_mplane = fdp1_enum_fmt_vid_out,
+	.vidioc_enum_fmt_vid_cap	= fdp1_enum_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_out	= fdp1_enum_fmt_vid_out,
 	.vidioc_g_fmt_vid_cap_mplane	= fdp1_g_fmt,
 	.vidioc_g_fmt_vid_out_mplane	= fdp1_g_fmt,
 	.vidioc_try_fmt_vid_cap_mplane	= fdp1_try_fmt,
