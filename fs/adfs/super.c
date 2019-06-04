@@ -220,12 +220,13 @@ static int adfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct adfs_sb_info *sbi = ADFS_SB(sb);
+	struct adfs_discrecord *dr = adfs_map_discrecord(sbi->s_map);
 	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 
 	buf->f_type    = ADFS_SUPER_MAGIC;
 	buf->f_namelen = sbi->s_namelen;
 	buf->f_bsize   = sb->s_blocksize;
-	buf->f_blocks  = sbi->s_size;
+	buf->f_blocks  = adfs_disc_size(dr) >> sb->s_blocksize_bits;
 	buf->f_files   = sbi->s_ids_per_zone * sbi->s_map_size;
 	buf->f_bavail  =
 	buf->f_bfree   = adfs_map_free(sb);
@@ -329,8 +330,7 @@ static struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_di
 	i = zone - 1;
 	dm[0].dm_startblk = 0;
 	dm[0].dm_startbit = ADFS_DR_SIZE_BITS;
-	dm[i].dm_endbit   = (le32_to_cpu(dr->disc_size_high) << (32 - dr->log2bpmb)) +
-			    (le32_to_cpu(dr->disc_size) >> dr->log2bpmb) +
+	dm[i].dm_endbit   = (adfs_disc_size(dr) >> dr->log2bpmb) +
 			    (ADFS_DR_SIZE_BITS - i * zone_size);
 
 	if (adfs_checkmap(sb, dm))
@@ -344,16 +344,6 @@ error_free:
 
 	kfree(dm);
 	return ERR_PTR(-EIO);
-}
-
-static inline unsigned long adfs_discsize(struct adfs_discrecord *dr, int block_bits)
-{
-	unsigned long discsize;
-
-	discsize  = le32_to_cpu(dr->disc_size_high) << (32 - block_bits);
-	discsize |= le32_to_cpu(dr->disc_size) >> block_bits;
-
-	return discsize;
 }
 
 static int adfs_fill_super(struct super_block *sb, void *data, int silent)
@@ -445,7 +435,6 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	asb->s_idlen		= dr->idlen;
 	asb->s_map_size		= dr->nzones | (dr->nzones_high << 8);
 	asb->s_map2blk		= dr->log2bpmb - dr->log2secsize;
-	asb->s_size    		= adfs_discsize(dr, sb->s_blocksize_bits);
 	asb->s_version 		= dr->format_version;
 	asb->s_log2sharesize	= dr->log2sharesize;
 

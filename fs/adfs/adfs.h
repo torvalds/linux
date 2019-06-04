@@ -58,7 +58,6 @@ struct adfs_sb_info {
 	__u32		s_ids_per_zone;	/* max. no ids in one zone */
 	__u32		s_idlen;	/* length of ID in map */
 	__u32		s_map_size;	/* sector size of a map	*/
-	unsigned long	s_size;		/* total size (in blocks) of this fs */
 	signed int	s_map2blk;	/* shift left by this for map->sector*/
 	unsigned int	s_log2sharesize;/* log2 share size */
 	__le32		s_version;	/* disc format version */
@@ -200,4 +199,10 @@ static inline
 struct adfs_discrecord *adfs_map_discrecord(struct adfs_discmap *dm)
 {
 	return (void *)(dm[0].dm_bh->b_data + 4);
+}
+
+static inline u64 adfs_disc_size(const struct adfs_discrecord *dr)
+{
+	return (u64)le32_to_cpu(dr->disc_size_high) << 32 |
+		    le32_to_cpu(dr->disc_size);
 }
