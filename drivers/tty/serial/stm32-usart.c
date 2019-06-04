@@ -1298,12 +1298,16 @@ static int stm32_serial_suspend(struct device *dev)
 	else
 		stm32_serial_enable_wakeup(port, false);
 
+	pinctrl_pm_select_sleep_state(dev);
+
 	return 0;
 }
 
 static int stm32_serial_resume(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
+
+	pinctrl_pm_select_default_state(dev);
 
 	if (device_may_wakeup(dev))
 		stm32_serial_enable_wakeup(port, false);
