@@ -296,7 +296,7 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 	struct amdgpu_xgmi	*entry;
 	struct amdgpu_device *tmp_adev = NULL;
 
-	int count = 0, ret = -EINVAL;
+	int count = 0, ret = 0;
 
 	if (!adev->gmc.xgmi.supported)
 		return 0;
@@ -337,29 +337,32 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 	top_info->num_nodes = count;
 	hive->number_devices = count;
 
-	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
-		/* update node list for other device in the hive */
-		if (tmp_adev != adev) {
-			top_info = &tmp_adev->psp.xgmi_context.top_info;
-			top_info->nodes[count - 1].node_id = adev->gmc.xgmi.node_id;
-			top_info->num_nodes = count;
+	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
+		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+			/* update node list for other device in the hive */
+			if (tmp_adev != adev) {
+				top_info = &tmp_adev->psp.xgmi_context.top_info;
+				top_info->nodes[count - 1].node_id =
+					adev->gmc.xgmi.node_id;
+				top_info->num_nodes = count;
+			}
+			ret = amdgpu_xgmi_update_topology(hive, tmp_adev);
+			if (ret)
+				goto exit;
 		}
-		ret = amdgpu_xgmi_update_topology(hive, tmp_adev);
-		if (ret)
-			goto exit;
-	}
 
-	/* get latest topology info for each device from psp */
-	list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
-		ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count,
-				&tmp_adev->psp.xgmi_context.top_info);
-		if (ret) {
-			dev_err(tmp_adev->dev,
-				"XGMI: Get topology failure on device %llx, hive %llx, ret %d",
-				tmp_adev->gmc.xgmi.node_id,
-				tmp_adev->gmc.xgmi.hive_id, ret);
-			/* To do : continue with some node failed or disable the whole hive */
-			goto exit;
+		/* get latest topology info for each device from psp */
+		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+			ret = psp_xgmi_get_topology_info(&tmp_adev->psp, count,
+					&tmp_adev->psp.xgmi_context.top_info);
+			if (ret) {
+				dev_err(tmp_adev->dev,
+					"XGMI: Get topology failure on device %llx, hive %llx, ret %d",
+					tmp_adev->gmc.xgmi.node_id,
+					tmp_adev->gmc.xgmi.hive_id, ret);
+				/* To do : continue with some node failed or disable the whole hive */
+				goto exit;
+			}
 		}
 	}
 
