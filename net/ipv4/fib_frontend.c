@@ -43,6 +43,7 @@
 #include <net/sock.h>
 #include <net/arp.h>
 #include <net/ip_fib.h>
+#include <net/nexthop.h>
 #include <net/rtnetlink.h>
 #include <net/xfrm.h>
 #include <net/l3mdev.h>
@@ -234,7 +235,9 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 	if (table) {
 		ret = RTN_UNICAST;
 		if (!fib_table_lookup(table, &fl4, &res, FIB_LOOKUP_NOREF)) {
-			if (!dev || dev == res.fi->fib_dev)
+			struct fib_nh *nh = fib_info_nh(res.fi, 0);
+
+			if (!dev || dev == nh->fib_nh_dev)
 				ret = res.type;
 		}
 	}
@@ -321,8 +324,8 @@ bool fib_info_nh_uses_dev(struct fib_info *fi, const struct net_device *dev)
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int ret;
 
-	for (ret = 0; ret < fi->fib_nhs; ret++) {
-		struct fib_nh *nh = &fi->fib_nh[ret];
+	for (ret = 0; ret < fib_info_num_path(fi); ret++) {
+		const struct fib_nh *nh = fib_info_nh(fi, ret);
 
 		if (nh->fib_nh_dev == dev) {
 			dev_match = true;
@@ -333,7 +336,7 @@ bool fib_info_nh_uses_dev(struct fib_info *fi, const struct net_device *dev)
 		}
 	}
 #else
-	if (fi->fib_nh[0].fib_nh_dev == dev)
+	if (fib_info_nh(fi, 0)->fib_nh_dev == dev)
 		dev_match = true;
 #endif
 

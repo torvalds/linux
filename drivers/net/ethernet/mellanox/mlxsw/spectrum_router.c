@@ -21,6 +21,7 @@
 #include <net/arp.h>
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
+#include <net/nexthop.h>
 #include <net/fib_rules.h>
 #include <net/ip_tunnels.h>
 #include <net/l3mdev.h>
@@ -3816,23 +3817,25 @@ static void mlxsw_sp_nexthop_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
 }
 
 static bool mlxsw_sp_fi_is_gateway(const struct mlxsw_sp *mlxsw_sp,
-				   const struct fib_info *fi)
+				   struct fib_info *fi)
 {
-	return fi->fib_nh->fib_nh_scope == RT_SCOPE_LINK ||
-	       mlxsw_sp_nexthop4_ipip_type(mlxsw_sp, fi->fib_nh, NULL);
+	const struct fib_nh *nh = fib_info_nh(fi, 0);
+
+	return nh->fib_nh_scope == RT_SCOPE_LINK ||
+	       mlxsw_sp_nexthop4_ipip_type(mlxsw_sp, nh, NULL);
 }
 
 static struct mlxsw_sp_nexthop_group *
 mlxsw_sp_nexthop4_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 {
+	unsigned int nhs = fib_info_num_path(fi);
 	struct mlxsw_sp_nexthop_group *nh_grp;
 	struct mlxsw_sp_nexthop *nh;
 	struct fib_nh *fib_nh;
 	int i;
 	int err;
 
-	nh_grp = kzalloc(struct_size(nh_grp, nexthops, fi->fib_nhs),
-			 GFP_KERNEL);
+	nh_grp = kzalloc(struct_size(nh_grp, nexthops, nhs), GFP_KERNEL);
 	if (!nh_grp)
 		return ERR_PTR(-ENOMEM);
 	nh_grp->priv = fi;
@@ -3840,11 +3843,11 @@ mlxsw_sp_nexthop4_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 	nh_grp->neigh_tbl = &arp_tbl;
 
 	nh_grp->gateway = mlxsw_sp_fi_is_gateway(mlxsw_sp, fi);
-	nh_grp->count = fi->fib_nhs;
+	nh_grp->count = nhs;
 	fib_info_hold(fi);
 	for (i = 0; i < nh_grp->count; i++) {
 		nh = &nh_grp->nexthops[i];
-		fib_nh = &fi->fib_nh[i];
+		fib_nh = fib_info_nh(fi, i);
 		err = mlxsw_sp_nexthop4_init(mlxsw_sp, nh_grp, nh, fib_nh);
 		if (err)
 			goto err_nexthop4_init;
@@ -4282,9 +4285,9 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 			     const struct fib_entry_notifier_info *fen_info,
 			     struct mlxsw_sp_fib_entry *fib_entry)
 {
+	struct net_device *dev = fib_info_nh(fen_info->fi, 0)->fib_nh_dev;
 	union mlxsw_sp_l3addr dip = { .addr4 = htonl(fen_info->dst) };
 	u32 tb_id = mlxsw_sp_fix_tb_id(fen_info->tb_id);
-	struct net_device *dev = fen_info->fi->fib_dev;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
 	struct fib_info *fi = fen_info->fi;
 
