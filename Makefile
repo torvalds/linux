@@ -1744,8 +1744,7 @@ build-dir = $(patsubst %/,%,$(dir $(build-target)))
 PHONY += /
 /: ./
 
-# Make sure the latest headers are built for Documentation
-Documentation/ samples/: headers_install
+samples/: headers_install
 %/: prepare FORCE
 	$(Q)$(MAKE) KBUILD_MODULES=1 $(build)=$(build-dir)
 
