@@ -929,10 +929,6 @@ static int sur40_vidioc_querycap(struct file *file, void *priv,
 	strlcpy(cap->driver, DRIVER_SHORT, sizeof(cap->driver));
 	strlcpy(cap->card, DRIVER_LONG, sizeof(cap->card));
 	usb_make_path(sur40->usbdev, cap->bus_info, sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TOUCH |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1162,6 +1158,8 @@ static const struct video_device sur40_video_device = {
 	.fops = &sur40_video_fops,
 	.ioctl_ops = &sur40_video_ioctl_ops,
 	.release = video_device_release_empty,
+	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TOUCH |
+		       V4L2_CAP_READWRITE | V4L2_CAP_STREAMING,
 };
 
 /* USB-specific object needed to register this driver with the USB subsystem. */
