@@ -58,7 +58,7 @@ $(if $(new-dirs), $(shell mkdir -p $(new-dirs)))
 ifndef HDRCHECK
 
 quiet_cmd_install = HDRINST $@
-      cmd_install = $(CONFIG_SHELL) $(srctree)/scripts/headers_install.sh $(@D) $(<D) $(@F)
+      cmd_install = $(CONFIG_SHELL) $(srctree)/scripts/headers_install.sh $< $@
 
 $(src-headers): $(dst)/%.h: $(src)/%.h $(srctree)/scripts/headers_install.sh FORCE
 	$(call if_changed,install)
