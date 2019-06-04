@@ -97,7 +97,7 @@ adfs_atts2mode(struct super_block *sb, struct inode *inode)
 		return S_IFDIR | S_IXUGO | mode;
 	}
 
-	switch (ADFS_I(inode)->filetype) {
+	switch (adfs_filetype(ADFS_I(inode)->loadaddr)) {
 	case 0xfc0:	/* LinkFS */
 		return S_IFLNK|S_IRWXUGO;
 
@@ -177,7 +177,7 @@ adfs_adfs2unix_time(struct timespec64 *tv, struct inode *inode)
 							2208988800000000000LL;
 	s64 nsec;
 
-	if (ADFS_I(inode)->stamped == 0)
+	if (!adfs_inode_is_stamped(inode))
 		goto cur_time;
 
 	high = ADFS_I(inode)->loadaddr & 0xFF; /* top 8 bits of timestamp */
@@ -216,7 +216,7 @@ adfs_unix2adfs_time(struct inode *inode, unsigned int secs)
 {
 	unsigned int high, low;
 
-	if (ADFS_I(inode)->stamped) {
+	if (adfs_inode_is_stamped(inode)) {
 		/* convert 32-bit seconds to 40-bit centi-seconds */
 		low  = (secs & 255) * 100;
 		high = (secs / 256) * 100 + (low >> 8) + 0x336e996a;
@@ -266,8 +266,6 @@ adfs_iget(struct super_block *sb, struct object_info *obj)
 	ADFS_I(inode)->loadaddr  = obj->loadaddr;
 	ADFS_I(inode)->execaddr  = obj->execaddr;
 	ADFS_I(inode)->attr      = obj->attr;
-	ADFS_I(inode)->filetype  = obj->filetype;
-	ADFS_I(inode)->stamped   = ((obj->loadaddr & 0xfff00000) == 0xfff00000);
 
 	inode->i_mode	 = adfs_atts2mode(sb, inode);
 	adfs_adfs2unix_time(&inode->i_mtime, inode);

@@ -38,20 +38,14 @@ void adfs_object_fixup(struct adfs_dir *dir, struct object_info *obj)
 	if (obj->name_len <= 2 && dots == obj->name_len)
 		obj->name[0] = '^';
 
-	obj->filetype = -1;
-
 	/*
-	 * object is a file and is filetyped and timestamped?
-	 * RISC OS 12-bit filetype is stored in load_address[19:8]
+	 * If the object is a file, and the user requested the ,xyz hex
+	 * filetype suffix to the name, check the filetype and append.
 	 */
-	if ((0 == (obj->attr & ADFS_NDA_DIRECTORY)) &&
-	    (0xfff00000 == (0xfff00000 & obj->loadaddr))) {
-		obj->filetype = (__u16) ((0x000fff00 & obj->loadaddr) >> 8);
+	if (!(obj->attr & ADFS_NDA_DIRECTORY) && ADFS_SB(dir->sb)->s_ftsuffix) {
+		u16 filetype = adfs_filetype(obj->loadaddr);
 
-		/* optionally append the ,xyz hex filetype suffix */
-		if (ADFS_SB(dir->sb)->s_ftsuffix) {
-			__u16 filetype = obj->filetype;
-
+		if (filetype != ADFS_FILETYPE_NONE) {
 			obj->name[obj->name_len++] = ',';
 			obj->name[obj->name_len++] = hex_asc_lo(filetype >> 8);
 			obj->name[obj->name_len++] = hex_asc_lo(filetype >> 4);

@@ -9,6 +9,15 @@
 #define ADFS_BAD_FRAG		 1
 #define ADFS_ROOT_FRAG		 2
 
+#define ADFS_FILETYPE_NONE	((u16)~0)
+
+/* RISC OS 12-bit filetype is stored in load_address[19:8] */
+static inline u16 adfs_filetype(u32 loadaddr)
+{
+	return (loadaddr & 0xfff00000) == 0xfff00000 ?
+	       (loadaddr >> 8) & 0xfff : ADFS_FILETYPE_NONE;
+}
+
 #define ADFS_NDA_OWNER_READ	(1 << 0)
 #define ADFS_NDA_OWNER_WRITE	(1 << 1)
 #define ADFS_NDA_LOCKED		(1 << 2)
@@ -27,11 +36,19 @@ struct adfs_inode_info {
 	__u32		parent_id;	/* parent indirect disc address	*/
 	__u32		loadaddr;	/* RISC OS load address		*/
 	__u32		execaddr;	/* RISC OS exec address		*/
-	unsigned int	filetype;	/* RISC OS file type		*/
 	unsigned int	attr;		/* RISC OS permissions		*/
-	unsigned int	stamped:1;	/* RISC OS file has date/time	*/
 	struct inode vfs_inode;
 };
+
+static inline struct adfs_inode_info *ADFS_I(struct inode *inode)
+{
+	return container_of(inode, struct adfs_inode_info, vfs_inode);
+}
+
+static inline bool adfs_inode_is_stamped(struct inode *inode)
+{
+	return (ADFS_I(inode)->loadaddr & 0xfff00000) == 0xfff00000;
+}
 
 /*
  * Forward-declare this
@@ -68,11 +85,6 @@ static inline struct adfs_sb_info *ADFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-static inline struct adfs_inode_info *ADFS_I(struct inode *inode)
-{
-	return container_of(inode, struct adfs_inode_info, vfs_inode);
-}
-
 /*
  * Directory handling
  */
@@ -105,9 +117,6 @@ struct object_info {
 	__u8		attr;			/* RISC OS attributes	*/
 	unsigned int	name_len;		/* name length		*/
 	char		name[ADFS_MAX_NAME_LEN];/* file name		*/
-
-	/* RISC OS file type (12-bit: derived from loadaddr) */
-	__u16		filetype;
 };
 
 struct adfs_dir_ops {

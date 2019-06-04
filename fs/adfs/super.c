@@ -490,7 +490,6 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	root_obj.size	   = ADFS_NEWDIR_SIZE;
 	root_obj.attr	   = ADFS_NDA_DIRECTORY   | ADFS_NDA_OWNER_READ |
 			     ADFS_NDA_OWNER_WRITE | ADFS_NDA_PUBLIC_READ;
-	root_obj.filetype  = -1;
 
 	/*
 	 * If this is a F+ disk with variable length directories,
