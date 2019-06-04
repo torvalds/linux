@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for sTec s1120 PCIe SSDs. sTec was acquired in 2013 by HGST and HGST
  * was acquired by Western Digital in 2012.
  *
  * Copyright 2012 sTec, Inc.
  * Copyright (c) 2017 Western Digital Corporation or its affiliates.
- *
- * This file is part of the Linux kernel, and is made available under
- * the terms of the GNU General Public License version 2.
  */
 
 #include <linux/kernel.h>
