@@ -194,13 +194,6 @@ static int fm_v4l2_vidioc_querycap(struct file *file, void *priv,
 	strscpy(capability->card, FM_DRV_CARD_SHORT_NAME,
 		sizeof(capability->card));
 	sprintf(capability->bus_info, "UART");
-	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_TUNER |
-		V4L2_CAP_RADIO | V4L2_CAP_MODULATOR |
-		V4L2_CAP_AUDIO | V4L2_CAP_READWRITE |
-		V4L2_CAP_RDS_CAPTURE;
-	capability->capabilities = capability->device_caps |
-		V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -524,6 +517,9 @@ static const struct video_device fm_viddev_template = {
 	 * but that would affect applications using this driver.
 	 */
 	.vfl_dir = VFL_DIR_M2M,
+	.device_caps = V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_TUNER | V4L2_CAP_RADIO |
+		       V4L2_CAP_MODULATOR | V4L2_CAP_AUDIO |
+		       V4L2_CAP_READWRITE | V4L2_CAP_RDS_CAPTURE,
 };
 
 int fm_v4l2_init_video_device(struct fmdev *fmdev, int radio_nr)
