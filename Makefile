@@ -1053,9 +1053,6 @@ vmlinux: scripts/link-vmlinux.sh autoksyms_recursive $(vmlinux-deps) FORCE
 
 targets := vmlinux
 
-# Some samples need headers_install.
-samples: headers_install
-
 # The actual objects are generated when descending,
 # make sure no implicit rule kicks in
 $(sort $(vmlinux-deps)): $(vmlinux-dirs) ;
@@ -1198,6 +1195,10 @@ PHONY += headers_check
 headers_check: headers_install
 	$(Q)$(MAKE) $(hdr-inst)=include/uapi dst=include HDRCHECK=1
 	$(Q)$(MAKE) $(hdr-inst)=arch/$(SRCARCH)/include/uapi dst=include HDRCHECK=1
+
+ifdef CONFIG_HEADERS_INSTALL
+prepare: headers_install
+endif
 
 ifdef CONFIG_HEADERS_CHECK
 all: headers_check
@@ -1744,7 +1745,6 @@ build-dir = $(patsubst %/,%,$(dir $(build-target)))
 PHONY += /
 /: ./
 
-samples/: headers_install
 %/: prepare FORCE
 	$(Q)$(MAKE) KBUILD_MODULES=1 $(build)=$(build-dir)
 
