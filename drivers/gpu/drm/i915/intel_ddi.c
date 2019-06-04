@@ -1221,12 +1221,10 @@ intel_ddi_get_crtc_encoder(struct intel_crtc *crtc)
 	return ret;
 }
 
-#define LC_FREQ 2700
-
 static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 				   i915_reg_t reg)
 {
-	int refclk = LC_FREQ;
+	int refclk;
 	int n, p, r;
 	u32 wrpll;
 
@@ -1242,7 +1240,7 @@ static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 		refclk = 135;
 		break;
 	case WRPLL_REF_LCPLL:
-		refclk = LC_FREQ;
+		refclk = 2700;
 		break;
 	default:
 		WARN(1, "bad wrpll refclk\n");
