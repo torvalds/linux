@@ -915,6 +915,7 @@ static void cb_retire(struct i915_active *base)
 I915_SELFTEST_DECLARE(static intel_engine_mask_t context_barrier_inject_fault);
 static int context_barrier_task(struct i915_gem_context *ctx,
 				intel_engine_mask_t engines,
+				bool (*skip)(struct intel_context *ce, void *data),
 				int (*emit)(struct i915_request *rq, void *data),
 				void (*task)(void *data),
 				void *data)
@@ -944,7 +945,10 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 			break;
 		}
 
-		if (!(ce->engine->mask & engines) || !ce->state)
+		if (!(ce->engine->mask & engines))
+			continue;
+
+		if (skip && skip(ce, data))
 			continue;
 
 		rq = intel_context_create_request(ce);
@@ -1071,6 +1075,14 @@ static int emit_ppgtt_update(struct i915_request *rq, void *data)
 	return 0;
 }
 
+static bool skip_ppgtt_update(struct intel_context *ce, void *data)
+{
+	if (HAS_LOGICAL_RING_CONTEXTS(ce->engine->i915))
+		return !ce->state;
+	else
+		return !atomic_read(&ce->pin_count);
+}
+
 static int set_ppgtt(struct drm_i915_file_private *file_priv,
 		     struct i915_gem_context *ctx,
 		     struct drm_i915_gem_context_param *args)
@@ -1118,6 +1130,7 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 	 * only indirectly through the context.
 	 */
 	err = context_barrier_task(ctx, ALL_ENGINES,
+				   skip_ppgtt_update,
 				   emit_ppgtt_update,
 				   set_ppgtt_barrier,
 				   old);
