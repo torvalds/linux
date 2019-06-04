@@ -864,10 +864,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 
 	snprintf((char *)cap->bus_info, sizeof(cap->bus_info),
 		 "platform:%s", dev->v4l2_dev.name);
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY |
-	    V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -1446,6 +1442,8 @@ static const struct video_device vdev_template = {
 	.fops = &camera0_fops,
 	.ioctl_ops = &camera0_ioctl_ops,
 	.release = video_device_release_empty,
+	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY |
+		       V4L2_CAP_STREAMING | V4L2_CAP_READWRITE,
 };
 
 /* Returns the number of cameras, and also the max resolution supported
