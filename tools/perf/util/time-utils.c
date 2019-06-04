@@ -402,6 +402,7 @@ int perf_time__parse_for_ranges(const char *time_str,
 				struct perf_time_interval **ranges,
 				int *range_size, int *range_num)
 {
+	bool has_percent = strchr(time_str, '%');
 	struct perf_time_interval *ptime_range;
 	int size, num, ret = -EINVAL;
 
@@ -409,7 +410,7 @@ int perf_time__parse_for_ranges(const char *time_str,
 	if (!ptime_range)
 		return -ENOMEM;
 
-	if (perf_time__parse_str(ptime_range, time_str) != 0) {
+	if (has_percent) {
 		if (session->evlist->first_sample_time == 0 &&
 		    session->evlist->last_sample_time == 0) {
 			pr_err("HINT: no first/last sample time found in perf data.\n"
@@ -427,6 +428,8 @@ int perf_time__parse_for_ranges(const char *time_str,
 		if (num < 0)
 			goto error_invalid;
 	} else {
+		if (perf_time__parse_str(ptime_range, time_str))
+			goto error_invalid;
 		num = 1;
 	}
 
