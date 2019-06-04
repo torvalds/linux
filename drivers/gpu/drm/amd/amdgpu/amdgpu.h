@@ -142,7 +142,6 @@ extern uint amdgpu_sdma_phase_quantum;
 extern char *amdgpu_disable_cu;
 extern char *amdgpu_virtual_display;
 extern uint amdgpu_pp_feature_mask;
-extern int amdgpu_vram_page_split;
 extern int amdgpu_ngg;
 extern int amdgpu_prim_buf_per_se;
 extern int amdgpu_pos_buf_per_se;

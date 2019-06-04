@@ -284,17 +284,21 @@ static int amdgpu_vram_mgr_new(struct ttm_mem_type_manager *man,
 	if (!lpfn)
 		lpfn = man->size;
 
-	if (place->flags & TTM_PL_FLAG_CONTIGUOUS ||
-	    amdgpu_vram_page_split == -1) {
+	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
 		pages_per_node = ~0ul;
 		num_nodes = 1;
 	} else {
-		pages_per_node = max((uint32_t)amdgpu_vram_page_split,
-				     mem->page_alignment);
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+		pages_per_node = HPAGE_PMD_NR;
+#else
+		/* default to 2MB */
+		pages_per_node = (2UL << (20UL - PAGE_SHIFT));
+#endif
+		pages_per_node = max((uint32_t)pages_per_node, mem->page_alignment);
 		num_nodes = DIV_ROUND_UP(mem->num_pages, pages_per_node);
 	}
 
-	nodes = kvmalloc_array(num_nodes, sizeof(*nodes),
+	nodes = kvmalloc_array((uint32_t)num_nodes, sizeof(*nodes),
 			       GFP_KERNEL | __GFP_ZERO);
 	if (!nodes)
 		return -ENOMEM;
