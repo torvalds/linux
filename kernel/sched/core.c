@@ -23,6 +23,17 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
 
+/*
+ * Export tracepoints that act as a bare tracehook (ie: have no trace event
+ * associated with them) to allow external modules to probe them.
+ */
+EXPORT_TRACEPOINT_SYMBOL_GPL(pelt_cfs_tp);
+EXPORT_TRACEPOINT_SYMBOL_GPL(pelt_rt_tp);
+EXPORT_TRACEPOINT_SYMBOL_GPL(pelt_dl_tp);
+EXPORT_TRACEPOINT_SYMBOL_GPL(pelt_irq_tp);
+EXPORT_TRACEPOINT_SYMBOL_GPL(pelt_se_tp);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sched_overutilized_tp);
+
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
 #if defined(CONFIG_SCHED_DEBUG) && defined(CONFIG_JUMP_LABEL)
