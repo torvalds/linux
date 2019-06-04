@@ -1732,12 +1732,14 @@ static int read_partial_banner(struct ceph_connection *con)
 	ret = read_partial(con, end, size, &con->actual_peer_addr);
 	if (ret <= 0)
 		goto out;
+	ceph_decode_addr(&con->actual_peer_addr);
 
 	size = sizeof (con->peer_addr_for_me);
 	end += size;
 	ret = read_partial(con, end, size, &con->peer_addr_for_me);
 	if (ret <= 0)
 		goto out;
+	ceph_decode_addr(&con->peer_addr_for_me);
 
 out:
 	return ret;
@@ -2009,9 +2011,6 @@ static int process_banner(struct ceph_connection *con)
 
 	if (verify_hello(con) < 0)
 		return -1;
-
-	ceph_decode_addr(&con->actual_peer_addr);
-	ceph_decode_addr(&con->peer_addr_for_me);
 
 	/*
 	 * Make sure the other end is who we wanted.  note that the other
