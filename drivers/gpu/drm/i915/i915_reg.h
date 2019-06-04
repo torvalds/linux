@@ -7512,6 +7512,7 @@ enum {
 #define  ILK_eDP_A_DISABLE		(1 << 24)
 #define  HSW_CDCLK_LIMIT		(1 << 24)
 #define  ILK_DESKTOP			(1 << 23)
+#define  HSW_CPU_SSC_ENABLE		(1 << 21)
 
 #define ILK_DSPCLK_GATE_D			_MMIO(0x42020)
 #define   ILK_VRHUNIT_CLOCK_GATE_DISABLE	(1 << 28)

@@ -9126,22 +9126,95 @@ static void lpt_bend_clkout_dp(struct drm_i915_private *dev_priv, int steps)
 
 #undef BEND_IDX
 
+static bool spll_uses_pch_ssc(struct drm_i915_private *dev_priv)
+{
+	u32 fuse_strap = I915_READ(FUSE_STRAP);
+	u32 ctl = I915_READ(SPLL_CTL);
+
+	if ((ctl & SPLL_PLL_ENABLE) == 0)
+		return false;
+
+	if ((ctl & SPLL_PLL_REF_MASK) == SPLL_PLL_SSC &&
+	    (fuse_strap & HSW_CPU_SSC_ENABLE) == 0)
+		return true;
+
+	if (IS_BROADWELL(dev_priv) &&
+	    (ctl & SPLL_PLL_REF_MASK) == SPLL_PLL_NON_SSC)
+		return true;
+
+	return false;
+}
+
+static bool wrpll_uses_pch_ssc(struct drm_i915_private *dev_priv,
+			       enum intel_dpll_id id)
+{
+	u32 fuse_strap = I915_READ(FUSE_STRAP);
+	u32 ctl = I915_READ(WRPLL_CTL(id));
+
+	if ((ctl & WRPLL_PLL_ENABLE) == 0)
+		return false;
+
+	if ((ctl & WRPLL_PLL_REF_MASK) == WRPLL_PLL_SSC)
+		return true;
+
+	if ((IS_BROADWELL(dev_priv) || IS_HSW_ULT(dev_priv)) &&
+	    (ctl & WRPLL_PLL_REF_MASK) == WRPLL_PLL_NON_SSC &&
+	    (fuse_strap & HSW_CPU_SSC_ENABLE) == 0)
+		return true;
+
+	return false;
+}
+
 static void lpt_init_pch_refclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *encoder;
-	bool has_vga = false;
+	bool pch_ssc_in_use = false;
+	bool has_fdi = false;
 
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		switch (encoder->type) {
 		case INTEL_OUTPUT_ANALOG:
-			has_vga = true;
+			has_fdi = true;
 			break;
 		default:
 			break;
 		}
 	}
 
-	if (has_vga) {
+	/*
+	 * The BIOS may have decided to use the PCH SSC
+	 * reference so we must not disable it until the
+	 * relevant PLLs have stopped relying on it. We'll
+	 * just leave the PCH SSC reference enabled in case
+	 * any active PLL is using it. It will get disabled
+	 * after runtime suspend if we don't have FDI.
+	 *
+	 * TODO: Move the whole reference clock handling
+	 * to the modeset sequence proper so that we can
+	 * actually enable/disable/reconfigure these things
+	 * safely. To do that we need to introduce a real
+	 * clock hierarchy. That would also allow us to do
+	 * clock bending finally.
+	 */
+	if (spll_uses_pch_ssc(dev_priv)) {
+		DRM_DEBUG_KMS("SPLL using PCH SSC\n");
+		pch_ssc_in_use = true;
+	}
+
+	if (wrpll_uses_pch_ssc(dev_priv, DPLL_ID_WRPLL1)) {
+		DRM_DEBUG_KMS("WRPLL1 using PCH SSC\n");
+		pch_ssc_in_use = true;
+	}
+
+	if (wrpll_uses_pch_ssc(dev_priv, DPLL_ID_WRPLL2)) {
+		DRM_DEBUG_KMS("WRPLL2 using PCH SSC\n");
+		pch_ssc_in_use = true;
+	}
+
+	if (pch_ssc_in_use)
+		return;
+
+	if (has_fdi) {
 		lpt_bend_clkout_dp(dev_priv, 0);
 		lpt_enable_clkout_dp(dev_priv, true, true);
 	} else {
