@@ -425,8 +425,18 @@ static int goya_config_etr(struct hl_device *hdev,
 		WREG32(base_reg + 0x28, 0);
 		WREG32(base_reg + 0x304, 0);
 
-		if (params->output_size >= sizeof(u32))
-			*(u32 *) params->output = RREG32(base_reg + 0x18);
+		if (params->output_size >= sizeof(u64)) {
+			u32 rwp, rwphi;
+
+			/*
+			 * The trace buffer address is 40 bits wide. The end of
+			 * the buffer is set in the RWP register (lower 32
+			 * bits), and in the RWPHI register (upper 8 bits).
+			 */
+			rwp = RREG32(base_reg + 0x18);
+			rwphi = RREG32(base_reg + 0x3c) & 0xff;
+			*(u64 *) params->output = ((u64) rwphi << 32) | rwp;
+		}
 	}
 
 	return 0;
