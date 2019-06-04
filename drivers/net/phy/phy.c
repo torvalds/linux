@@ -43,7 +43,6 @@ static const char *phy_state_to_str(enum phy_state st)
 	PHY_STATE_STR(UP)
 	PHY_STATE_STR(RUNNING)
 	PHY_STATE_STR(NOLINK)
-	PHY_STATE_STR(FORCING)
 	PHY_STATE_STR(HALTED)
 	}
 
@@ -577,15 +576,8 @@ int phy_start_aneg(struct phy_device *phydev)
 	if (err < 0)
 		goto out_unlock;
 
-	if (phy_is_started(phydev)) {
-		if (phydev->autoneg == AUTONEG_ENABLE) {
-			err = phy_check_link_status(phydev);
-		} else {
-			phydev->state = PHY_FORCING;
-			phydev->link_timeout = PHY_FORCE_TIMEOUT;
-		}
-	}
-
+	if (phy_is_started(phydev))
+		err = phy_check_link_status(phydev);
 out_unlock:
 	mutex_unlock(&phydev->lock);
 
@@ -950,20 +942,6 @@ void phy_state_machine(struct work_struct *work)
 	case PHY_NOLINK:
 	case PHY_RUNNING:
 		err = phy_check_link_status(phydev);
-		break;
-	case PHY_FORCING:
-		err = genphy_update_link(phydev);
-		if (err)
-			break;
-
-		if (phydev->link) {
-			phydev->state = PHY_RUNNING;
-			phy_link_up(phydev);
-		} else {
-			if (0 == phydev->link_timeout--)
-				needs_aneg = true;
-			phy_link_down(phydev, false);
-		}
 		break;
 	case PHY_HALTED:
 		if (phydev->link) {

@@ -297,12 +297,6 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  * - irq or timer will set RUNNING if link comes back
  * - phy_stop moves to HALTED
  *
- * FORCING: PHY is being configured with forced settings
- * - if link is up, move to RUNNING
- * - If link is down, we drop to the next highest setting, and
- *   retry (FORCING) after a timeout
- * - phy_stop moves to HALTED
- *
  * RUNNING: PHY is currently up, running, and possibly sending
  * and/or receiving packets
  * - irq or timer will set NOLINK if link goes down
@@ -319,7 +313,6 @@ enum phy_state {
 	PHY_UP,
 	PHY_RUNNING,
 	PHY_NOLINK,
-	PHY_FORCING,
 };
 
 /**
@@ -347,8 +340,6 @@ struct phy_c45_device_ids {
  * loopback_enabled: Set true if this phy has been loopbacked successfully.
  * state: state of the PHY for management purposes
  * dev_flags: Device-specific flags used by the PHY driver.
- * link_timeout: The number of timer firings to wait before the
- * giving up on the current attempt at acquiring a link
  * irq: IRQ number of the PHY's interrupt (-1 if none)
  * phy_timer: The timer for handling the state machine
  * attached_dev: The attached enet driver's device instance ptr
@@ -415,8 +406,6 @@ struct phy_device {
 
 	/* Energy efficient ethernet modes which should be prohibited */
 	u32 eee_broken_modes;
-
-	int link_timeout;
 
 #ifdef CONFIG_LED_TRIGGER_PHY
 	struct phy_led_trigger *phy_led_triggers;
