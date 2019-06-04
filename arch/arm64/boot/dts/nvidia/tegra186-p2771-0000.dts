@@ -31,6 +31,8 @@
 
 			#gpio-cells = <2>;
 			gpio-controller;
+
+			vcc-supply = <&vdd_3v3_sys>;
 		};
 
 		exp2: gpio@77 {
@@ -43,6 +45,8 @@
 
 			#gpio-cells = <2>;
 			gpio-controller;
+
+			vcc-supply = <&vdd_1v8>;
 		};
 	};
 
