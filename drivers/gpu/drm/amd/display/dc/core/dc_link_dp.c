@@ -2230,11 +2230,18 @@ static void get_active_converter_info(
 		link->dpcd_caps.dongle_type = DISPLAY_DONGLE_NONE;
 		ddc_service_set_dongle_type(link->ddc,
 				link->dpcd_caps.dongle_type);
+		link->dpcd_caps.is_branch_dev = false;
 		return;
 	}
 
 	/* DPCD 0x5 bit 0 = 1, it indicate it's branch device */
-	link->dpcd_caps.is_branch_dev = ds_port.fields.PORT_PRESENT;
+	if (ds_port.fields.PORT_TYPE == DOWNSTREAM_DP) {
+		link->dpcd_caps.is_branch_dev = false;
+	}
+
+	else {
+		link->dpcd_caps.is_branch_dev = ds_port.fields.PORT_PRESENT;
+	}
 
 	switch (ds_port.fields.PORT_TYPE) {
 	case DOWNSTREAM_VGA:
