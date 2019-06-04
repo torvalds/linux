@@ -170,10 +170,10 @@ static const match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static int parse_options(struct super_block *sb, char *options)
+static int parse_options(struct super_block *sb, struct adfs_sb_info *asb,
+			 char *options)
 {
 	char *p;
-	struct adfs_sb_info *asb = ADFS_SB(sb);
 	int option;
 
 	if (!options)
@@ -228,9 +228,18 @@ static int parse_options(struct super_block *sb, char *options)
 
 static int adfs_remount(struct super_block *sb, int *flags, char *data)
 {
+	struct adfs_sb_info temp_asb;
+	int ret;
+
 	sync_filesystem(sb);
 	*flags |= ADFS_SB_FLAGS;
-	return parse_options(sb, data);
+
+	temp_asb = *ADFS_SB(sb);
+	ret = parse_options(sb, &temp_asb, data);
+	if (ret == 0)
+		*ADFS_SB(sb) = temp_asb;
+
+	return ret;
 }
 
 static int adfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -387,7 +396,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	asb->s_other_mask = ADFS_DEFAULT_OTHER_MASK;
 	asb->s_ftsuffix = 0;
 
-	if (parse_options(sb, data))
+	if (parse_options(sb, asb, data))
 		goto error;
 
 	sb_set_blocksize(sb, BLOCK_SIZE);
