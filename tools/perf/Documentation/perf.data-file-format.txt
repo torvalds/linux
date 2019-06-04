@@ -153,7 +153,7 @@ struct {
 
 String lists defining the core and CPU threads topology.
 The string lists are followed by a variable length array
-which contains core_id and socket_id of each cpu.
+which contains core_id, die_id (for x86) and socket_id of each cpu.
 The number of entries can be determined by the size of the
 section minus the sizes of both string lists.
 
@@ -162,14 +162,19 @@ struct {
        struct perf_header_string_list threads; /* Variable length */
        struct {
 	      uint32_t core_id;
+	      uint32_t die_id;
 	      uint32_t socket_id;
        } cpus[nr]; /* Variable length records */
 };
 
 Example:
-	sibling cores   : 0-3
+	sibling cores   : 0-8
+	sibling dies	: 0-3
+	sibling dies	: 4-7
 	sibling threads : 0-1
 	sibling threads : 2-3
+	sibling threads : 4-5
+	sibling threads : 6-7
 
 	HEADER_NUMA_TOPOLOGY = 14,
 
