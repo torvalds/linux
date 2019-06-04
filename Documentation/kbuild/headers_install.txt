@@ -39,12 +39,5 @@ INSTALL_HDR_PATH indicates where to install the headers. It defaults to
 An 'include' directory is automatically created inside INSTALL_HDR_PATH and
 headers are installed in 'INSTALL_HDR_PATH/include'.
 
-The command "make headers_install_all" exports headers for all architectures
-simultaneously.  (This is mostly of interest to distribution maintainers,
-who create an architecture-independent tarball from the resulting include
-directory.)  You also can use HDR_ARCH_LIST to specify list of architectures.
-Remember to provide the appropriate linux/asm directory via "mv" or "ln -s"
-before building a C library with headers exported this way.
-
 The kernel header export infrastructure is maintained by David Woodhouse
 <dwmw2@infradead.org>.
