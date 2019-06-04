@@ -54,6 +54,7 @@ void adfs_msg(struct super_block *sb, const char *pfx, const char *fmt, ...)
 
 static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 {
+	unsigned int max_idlen;
 	int i;
 
 	/* sector size must be 256, 512 or 1024 bytes */
@@ -73,8 +74,13 @@ static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 	if (le32_to_cpu(dr->disc_size_high) >> dr->log2secsize)
 		return 1;
 
-	/* idlen must be no greater than 19 v2 [1.0] */
-	if (dr->idlen > 19)
+	/*
+	 * Maximum idlen is limited to 16 bits for new directories by
+	 * the three-byte storage of an indirect disc address.  For
+	 * big directories, idlen must be no greater than 19 v2 [1.0]
+	 */
+	max_idlen = dr->format_version ? 19 : 16;
+	if (dr->idlen > max_idlen)
 		return 1;
 
 	/* reserved bytes should be zero */
