@@ -90,18 +90,25 @@ static inline void hw_breakpoint_disable(void)
 extern void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs);
 int hw_breakpoint_handler(struct die_args *args);
 
-extern int set_dawr(struct arch_hw_breakpoint *brk);
+#else	/* CONFIG_HAVE_HW_BREAKPOINT */
+static inline void hw_breakpoint_disable(void) { }
+static inline void thread_change_pc(struct task_struct *tsk,
+					struct pt_regs *regs) { }
+
+#endif	/* CONFIG_HAVE_HW_BREAKPOINT */
+
+
+#ifdef CONFIG_PPC_DAWR
 extern bool dawr_force_enable;
 static inline bool dawr_enabled(void)
 {
 	return dawr_force_enable;
 }
-
-#else	/* CONFIG_HAVE_HW_BREAKPOINT */
-static inline void hw_breakpoint_disable(void) { }
-static inline void thread_change_pc(struct task_struct *tsk,
-					struct pt_regs *regs) { }
+int set_dawr(struct arch_hw_breakpoint *brk);
+#else
 static inline bool dawr_enabled(void) { return false; }
-#endif	/* CONFIG_HAVE_HW_BREAKPOINT */
+static inline int set_dawr(struct arch_hw_breakpoint *brk) { return -1; }
+#endif
+
 #endif	/* __KERNEL__ */
 #endif	/* _PPC_BOOK3S_64_HW_BREAKPOINT_H */

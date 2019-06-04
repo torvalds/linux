@@ -236,6 +236,7 @@ config PPC
 	select OLD_SIGSUSPEND
 	select PCI_DOMAINS			if PCI
 	select PCI_SYSCALL			if PCI
+	select PPC_DAWR				if PPC64
 	select RTC_LIB
 	select SPARSE_IRQ
 	select SYSCTL_EXCEPTION_TRACE
@@ -371,6 +372,9 @@ config PPC_ADV_DEBUG_DAC_RANGE
 	bool
 	depends on PPC_ADV_DEBUG_REGS && 44x
 	default y
+
+config PPC_DAWR
+	bool
 
 config ZONE_DMA
 	bool
