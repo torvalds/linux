@@ -9,7 +9,6 @@
  *
  *  E and F format directory handling
  */
-#include <linux/buffer_head.h>
 #include "adfs.h"
 #include "dir_f.h"
 

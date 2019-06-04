@@ -9,7 +9,6 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/buffer_head.h>
 #include <linux/parser.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
@@ -463,7 +462,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	sb->s_op = &adfs_sops;
 
-	dr = (struct adfs_discrecord *)(asb->s_map[0].dm_bh->b_data + 4);
+	dr = adfs_map_discrecord(asb->s_map);
 
 	root_obj.parent_id = root_obj.file_id = le32_to_cpu(dr->root);
 	root_obj.name_len  = 0;

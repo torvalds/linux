@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <linux/buffer_head.h>
 #include <linux/fs.h>
 #include <linux/adfs_fs.h>
 
@@ -17,8 +18,6 @@
 #define ADFS_NDA_PUBLIC_WRITE	(1 << 6)
 
 #include "dir_f.h"
-
-struct buffer_head;
 
 /*
  * adfs file system inode data in memory
@@ -194,4 +193,11 @@ __adfs_block_map(struct super_block *sb, unsigned int object_id,
 	}
 
 	return adfs_map_lookup(sb, object_id >> 8, block);
+}
+
+/* Return the disc record from the map */
+static inline
+struct adfs_discrecord *adfs_map_discrecord(struct adfs_discmap *dm)
+{
+	return (void *)(dm[0].dm_bh->b_data + 4);
 }
