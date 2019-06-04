@@ -2984,8 +2984,10 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 
 	/* Retrain with preferred link settings only relevant for
 	 * DP signal type
+	 * Check for non-DP signal or if passive dongle present
 	 */
-	if (!dc_is_dp_signal(link->connector_signal))
+	if (!dc_is_dp_signal(link->connector_signal) ||
+		link->dongle_max_pix_clk > 0)
 		return;
 
 	for (i = 0; i < MAX_PIPES; i++) {
