@@ -17,6 +17,7 @@
 #include <linux/pci.h>
 
 #include "dw-edma-core.h"
+#include "dw-edma-v0-core.h"
 #include "../dmaengine.h"
 #include "../virt-dma.h"
 
