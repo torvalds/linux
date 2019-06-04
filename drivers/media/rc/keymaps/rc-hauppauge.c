@@ -233,6 +233,7 @@ static struct rc_map_table rc5_hauppauge_new[] = {
 	 * This one also uses RC-5 protocol
 	 * Keycodes start with address = 0x00
 	 */
+	{ 0x000f, KEY_TV },
 	{ 0x001f, KEY_TV },
 	{ 0x0020, KEY_CHANNELUP },
 	{ 0x000c, KEY_RADIO },
