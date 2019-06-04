@@ -922,6 +922,30 @@ static int csky_pmu_event_init(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	int ret;
 
+	switch (event->attr.type) {
+	case PERF_TYPE_HARDWARE:
+		if (event->attr.config >= PERF_COUNT_HW_MAX)
+			return -ENOENT;
+		ret = csky_pmu_hw_map[event->attr.config];
+		if (ret == HW_OP_UNSUPPORTED)
+			return -ENOENT;
+		hwc->idx = ret;
+		break;
+	case PERF_TYPE_HW_CACHE:
+		ret = csky_pmu_cache_event(event->attr.config);
+		if (ret == CACHE_OP_UNSUPPORTED)
+			return -ENOENT;
+		hwc->idx = ret;
+		break;
+	case PERF_TYPE_RAW:
+		if (hw_raw_read_mapping[event->attr.config] == NULL)
+			return -ENOENT;
+		hwc->idx = event->attr.config;
+		break;
+	default:
+		return -ENOENT;
+	}
+
 	if (event->attr.exclude_user)
 		csky_pmu.hpcr = BIT(2);
 	else if (event->attr.exclude_kernel)
@@ -931,29 +955,7 @@ static int csky_pmu_event_init(struct perf_event *event)
 
 	csky_pmu.hpcr |= BIT(1) | BIT(0);
 
-	switch (event->attr.type) {
-	case PERF_TYPE_HARDWARE:
-		if (event->attr.config >= PERF_COUNT_HW_MAX)
-			return -ENOENT;
-		ret = csky_pmu_hw_map[event->attr.config];
-		if (ret == HW_OP_UNSUPPORTED)
-			return -ENOENT;
-		hwc->idx = ret;
-		return 0;
-	case PERF_TYPE_HW_CACHE:
-		ret = csky_pmu_cache_event(event->attr.config);
-		if (ret == CACHE_OP_UNSUPPORTED)
-			return -ENOENT;
-		hwc->idx = ret;
-		return 0;
-	case PERF_TYPE_RAW:
-		if (hw_raw_read_mapping[event->attr.config] == NULL)
-			return -ENOENT;
-		hwc->idx = event->attr.config;
-		return 0;
-	default:
-		return -ENOENT;
-	}
+	return 0;
 }
 
 /* starts all counters */
