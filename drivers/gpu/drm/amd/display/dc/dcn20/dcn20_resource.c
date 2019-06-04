@@ -2022,6 +2022,7 @@ bool dcn20_fast_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
+		int *pipe_cnt_out,
 		int *pipe_split_from,
 		int *vlevel_out)
 {
@@ -2073,6 +2074,8 @@ bool dcn20_fast_validate_bw(
 	else
 		pipe_cnt = dcn20_populate_dml_pipes_from_context(dc,
 			&context->res_ctx, pipes);
+
+	*pipe_cnt_out = pipe_cnt;
 
 	if (!pipe_cnt) {
 		out = true;
@@ -2434,7 +2437,10 @@ bool dcn20_validate_bandwidth(struct dc *dc, struct dc_state *context,
 
 	BW_VAL_TRACE_COUNT();
 
-	out = dcn20_fast_validate_bw(dc, context, pipes, pipe_split_from, &vlevel);
+	out = dcn20_fast_validate_bw(dc, context, pipes, &pipe_cnt, pipe_split_from, &vlevel);
+
+	if (pipe_cnt == 0)
+		goto validate_out;
 
 	if (!out)
 		goto validate_fail;

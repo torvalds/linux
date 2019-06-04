@@ -120,6 +120,7 @@ bool dcn20_fast_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
+		int *pipe_cnt_out,
 		int *pipe_split_from,
 		int *vlevel_out);
 void dcn20_calculate_dlg_params(
