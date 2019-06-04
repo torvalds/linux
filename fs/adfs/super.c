@@ -38,6 +38,18 @@ void __adfs_error(struct super_block *sb, const char *function, const char *fmt,
 	va_end(args);
 }
 
+void adfs_msg(struct super_block *sb, const char *pfx, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk("%sADFS-fs (%s): %pV\n", pfx, sb->s_id, &vaf);
+	va_end(args);
+}
+
 static int adfs_checkdiscrecord(struct adfs_discrecord *dr)
 {
 	int i;
@@ -203,8 +215,9 @@ static int parse_options(struct super_block *sb, char *options)
 			asb->s_ftsuffix = option;
 			break;
 		default:
-			printk("ADFS-fs: unrecognised mount option \"%s\" "
-					"or missing value\n", p);
+			adfs_msg(sb, KERN_ERR,
+				 "unrecognised mount option \"%s\" or missing value",
+				 p);
 			return -EINVAL;
 		}
 	}
@@ -377,7 +390,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb_set_blocksize(sb, BLOCK_SIZE);
 	if (!(bh = sb_bread(sb, ADFS_DISCRECORD / BLOCK_SIZE))) {
-		adfs_error(sb, "unable to read superblock");
+		adfs_msg(sb, KERN_ERR, "error: unable to read superblock");
 		ret = -EIO;
 		goto error;
 	}
@@ -385,11 +398,8 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	b_data = bh->b_data + (ADFS_DISCRECORD % BLOCK_SIZE);
 
 	if (adfs_checkbblk(b_data)) {
-		if (!silent)
-			printk("VFS: Can't find an adfs filesystem on dev "
-				"%s.\n", sb->s_id);
 		ret = -EINVAL;
-		goto error_free_bh;
+		goto error_badfs;
 	}
 
 	dr = (struct adfs_discrecord *)(b_data + ADFS_DR_OFFSET);
@@ -398,33 +408,31 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	 * Do some sanity checks on the ADFS disc record
 	 */
 	if (adfs_checkdiscrecord(dr)) {
-		if (!silent)
-			printk("VPS: Can't find an adfs filesystem on dev "
-				"%s.\n", sb->s_id);
 		ret = -EINVAL;
-		goto error_free_bh;
+		goto error_badfs;
 	}
 
 	brelse(bh);
 	if (sb_set_blocksize(sb, 1 << dr->log2secsize)) {
 		bh = sb_bread(sb, ADFS_DISCRECORD / sb->s_blocksize);
 		if (!bh) {
-			adfs_error(sb, "couldn't read superblock on "
-				"2nd try.");
+			adfs_msg(sb, KERN_ERR,
+				 "error: couldn't read superblock on 2nd try.");
 			ret = -EIO;
 			goto error;
 		}
 		b_data = bh->b_data + (ADFS_DISCRECORD % sb->s_blocksize);
 		if (adfs_checkbblk(b_data)) {
-			adfs_error(sb, "disc record mismatch, very weird!");
+			adfs_msg(sb, KERN_ERR,
+				 "error: disc record mismatch, very weird!");
 			ret = -EINVAL;
 			goto error_free_bh;
 		}
 		dr = (struct adfs_discrecord *)(b_data + ADFS_DR_OFFSET);
 	} else {
 		if (!silent)
-			printk(KERN_ERR "VFS: Unsupported blocksize on dev "
-				"%s.\n", sb->s_id);
+			adfs_msg(sb, KERN_ERR,
+				 "error: unsupported blocksize");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -497,6 +505,11 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	return 0;
 
+error_badfs:
+	if (!silent)
+		adfs_msg(sb, KERN_ERR,
+			 "error: can't find an ADFS filesystem on dev %s.",
+			 sb->s_id);
 error_free_bh:
 	brelse(bh);
 error:

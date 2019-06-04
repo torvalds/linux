@@ -142,6 +142,7 @@ __printf(3, 4)
 void __adfs_error(struct super_block *sb, const char *function,
 		  const char *fmt, ...);
 #define adfs_error(sb, fmt...) __adfs_error(sb, __func__, fmt)
+void adfs_msg(struct super_block *sb, const char *pfx, const char *fmt, ...);
 
 /* super.c */
 
