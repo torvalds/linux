@@ -275,6 +275,19 @@ static inline struct cfs_rq *group_cfs_rq(struct sched_entity *grp)
 	return grp->my_q;
 }
 
+static inline void cfs_rq_tg_path(struct cfs_rq *cfs_rq, char *path, int len)
+{
+	if (!path)
+		return;
+
+	if (cfs_rq && task_group_is_autogroup(cfs_rq->tg))
+		autogroup_path(cfs_rq->tg, path, len);
+	else if (cfs_rq && cfs_rq->tg->css.cgroup)
+		cgroup_path(cfs_rq->tg->css.cgroup, path, len);
+	else
+		strlcpy(path, "(null)", len);
+}
+
 static inline bool list_add_leaf_cfs_rq(struct cfs_rq *cfs_rq)
 {
 	struct rq *rq = rq_of(cfs_rq);
@@ -447,6 +460,12 @@ static inline struct cfs_rq *cfs_rq_of(struct sched_entity *se)
 static inline struct cfs_rq *group_cfs_rq(struct sched_entity *grp)
 {
 	return NULL;
+}
+
+static inline void cfs_rq_tg_path(struct cfs_rq *cfs_rq, char *path, int len)
+{
+	if (path)
+		strlcpy(path, "(null)", len);
 }
 
 static inline bool list_add_leaf_cfs_rq(struct cfs_rq *cfs_rq)
@@ -10408,3 +10427,83 @@ __init void init_sched_fair_class(void)
 #endif /* SMP */
 
 }
+
+/*
+ * Helper functions to facilitate extracting info from tracepoints.
+ */
+
+const struct sched_avg *sched_trace_cfs_rq_avg(struct cfs_rq *cfs_rq)
+{
+#ifdef CONFIG_SMP
+	return cfs_rq ? &cfs_rq->avg : NULL;
+#else
+	return NULL;
+#endif
+}
+EXPORT_SYMBOL_GPL(sched_trace_cfs_rq_avg);
+
+char *sched_trace_cfs_rq_path(struct cfs_rq *cfs_rq, char *str, int len)
+{
+	if (!cfs_rq) {
+		if (str)
+			strlcpy(str, "(null)", len);
+		else
+			return NULL;
+	}
+
+	cfs_rq_tg_path(cfs_rq, str, len);
+	return str;
+}
+EXPORT_SYMBOL_GPL(sched_trace_cfs_rq_path);
+
+int sched_trace_cfs_rq_cpu(struct cfs_rq *cfs_rq)
+{
+	return cfs_rq ? cpu_of(rq_of(cfs_rq)) : -1;
+}
+EXPORT_SYMBOL_GPL(sched_trace_cfs_rq_cpu);
+
+const struct sched_avg *sched_trace_rq_avg_rt(struct rq *rq)
+{
+#ifdef CONFIG_SMP
+	return rq ? &rq->avg_rt : NULL;
+#else
+	return NULL;
+#endif
+}
+EXPORT_SYMBOL_GPL(sched_trace_rq_avg_rt);
+
+const struct sched_avg *sched_trace_rq_avg_dl(struct rq *rq)
+{
+#ifdef CONFIG_SMP
+	return rq ? &rq->avg_dl : NULL;
+#else
+	return NULL;
+#endif
+}
+EXPORT_SYMBOL_GPL(sched_trace_rq_avg_dl);
+
+const struct sched_avg *sched_trace_rq_avg_irq(struct rq *rq)
+{
+#if defined(CONFIG_SMP) && defined(CONFIG_HAVE_SCHED_AVG_IRQ)
+	return rq ? &rq->avg_irq : NULL;
+#else
+	return NULL;
+#endif
+}
+EXPORT_SYMBOL_GPL(sched_trace_rq_avg_irq);
+
+int sched_trace_rq_cpu(struct rq *rq)
+{
+	return rq ? cpu_of(rq) : -1;
+}
+EXPORT_SYMBOL_GPL(sched_trace_rq_cpu);
+
+const struct cpumask *sched_trace_rd_span(struct root_domain *rd)
+{
+#ifdef CONFIG_SMP
+	return rd ? rd->span : NULL;
+#else
+	return NULL;
+#endif
+}
+EXPORT_SYMBOL_GPL(sched_trace_rd_span);
