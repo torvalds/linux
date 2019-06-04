@@ -1540,7 +1540,7 @@ $(DOC_TARGETS): scripts_basic FORCE
 # ---------------------------------------------------------------------------
 
 PHONY += scripts_gdb
-scripts_gdb: prepare
+scripts_gdb: prepare0
 	$(Q)$(MAKE) $(build)=scripts/gdb
 	$(Q)ln -fsn $(abspath $(srctree)/scripts/gdb/vmlinux-gdb.py)
 
