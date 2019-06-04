@@ -1,4 +1,5 @@
-/* GPLv2 Copyright(c) 2017 Jesper Dangaard Brouer, Red Hat, Inc.
+// SPDX-License-Identifier: GPL-2.0-only
+/* Copyright(c) 2017 Jesper Dangaard Brouer, Red Hat, Inc.
  */
 static const char *__doc__ =
 	" XDP redirect with a CPU-map type \"BPF_MAP_TYPE_CPUMAP\"";
