@@ -210,6 +210,8 @@ static int sja1105_init_l2_lookup_params(struct sja1105_private *priv)
 		.maxage = SJA1105_AGEING_TIME_MS(300000),
 		/* All entries within a FDB bin are available for learning */
 		.dyn_tbsz = SJA1105ET_FDB_BIN_SIZE,
+		/* And the P/Q/R/S equivalent setting: */
+		.start_dynspc = 0,
 		/* 2^8 + 2^5 + 2^3 + 2^2 + 2^1 + 1 in Koopman notation */
 		.poly = 0x97,
 		/* This selects between Independent VLAN Learning (IVL) and
@@ -225,6 +227,13 @@ static int sja1105_init_l2_lookup_params(struct sja1105_private *priv)
 		 * Maybe correlate with no_linklocal_learn from bridge driver?
 		 */
 		.no_mgmt_learn = true,
+		/* P/Q/R/S only */
+		.use_static = true,
+		/* Dynamically learned FDB entries can overwrite other (older)
+		 * dynamic FDB entries
+		 */
+		.owr_dyn = true,
+		.drpnolearn = true,
 	};
 
 	table = &priv->static_config.tables[BLK_IDX_L2_LOOKUP_PARAMS];
@@ -786,10 +795,10 @@ static inline int sja1105et_fdb_index(int bin, int way)
 	return bin * SJA1105ET_FDB_BIN_SIZE + way;
 }
 
-static int sja1105_is_fdb_entry_in_bin(struct sja1105_private *priv, int bin,
-				       const u8 *addr, u16 vid,
-				       struct sja1105_l2_lookup_entry *match,
-				       int *last_unused)
+static int sja1105et_is_fdb_entry_in_bin(struct sja1105_private *priv, int bin,
+					 const u8 *addr, u16 vid,
+					 struct sja1105_l2_lookup_entry *match,
+					 int *last_unused)
 {
 	int way;
 
@@ -818,8 +827,8 @@ static int sja1105_is_fdb_entry_in_bin(struct sja1105_private *priv, int bin,
 	return -1;
 }
 
-static int sja1105_fdb_add(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid)
+int sja1105et_fdb_add(struct dsa_switch *ds, int port,
+		      const unsigned char *addr, u16 vid)
 {
 	struct sja1105_l2_lookup_entry l2_lookup = {0};
 	struct sja1105_private *priv = ds->priv;
@@ -827,10 +836,10 @@ static int sja1105_fdb_add(struct dsa_switch *ds, int port,
 	int last_unused = -1;
 	int bin, way;
 
-	bin = sja1105_fdb_hash(priv, addr, vid);
+	bin = sja1105et_fdb_hash(priv, addr, vid);
 
-	way = sja1105_is_fdb_entry_in_bin(priv, bin, addr, vid,
-					  &l2_lookup, &last_unused);
+	way = sja1105et_is_fdb_entry_in_bin(priv, bin, addr, vid,
+					    &l2_lookup, &last_unused);
 	if (way >= 0) {
 		/* We have an FDB entry. Is our port in the destination
 		 * mask? If yes, we need to do nothing. If not, we need
@@ -874,17 +883,17 @@ static int sja1105_fdb_add(struct dsa_switch *ds, int port,
 					    true);
 }
 
-static int sja1105_fdb_del(struct dsa_switch *ds, int port,
-			   const unsigned char *addr, u16 vid)
+int sja1105et_fdb_del(struct dsa_switch *ds, int port,
+		      const unsigned char *addr, u16 vid)
 {
 	struct sja1105_l2_lookup_entry l2_lookup = {0};
 	struct sja1105_private *priv = ds->priv;
 	int index, bin, way;
 	bool keep;
 
-	bin = sja1105_fdb_hash(priv, addr, vid);
-	way = sja1105_is_fdb_entry_in_bin(priv, bin, addr, vid,
-					  &l2_lookup, NULL);
+	bin = sja1105et_fdb_hash(priv, addr, vid);
+	way = sja1105et_is_fdb_entry_in_bin(priv, bin, addr, vid,
+					    &l2_lookup, NULL);
 	if (way < 0)
 		return 0;
 	index = sja1105et_fdb_index(bin, way);
@@ -894,8 +903,8 @@ static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 	 * need to completely evict the FDB entry.
 	 * Otherwise we just write it back.
 	 */
-	if (l2_lookup.destports & BIT(port))
-		l2_lookup.destports &= ~BIT(port);
+	l2_lookup.destports &= ~BIT(port);
+
 	if (l2_lookup.destports)
 		keep = true;
 	else
@@ -903,6 +912,138 @@ static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 
 	return sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
 					    index, &l2_lookup, keep);
+}
+
+int sja1105pqrs_fdb_add(struct dsa_switch *ds, int port,
+			const unsigned char *addr, u16 vid)
+{
+	struct sja1105_l2_lookup_entry l2_lookup = {0};
+	struct sja1105_private *priv = ds->priv;
+	int rc, i;
+
+	/* Search for an existing entry in the FDB table */
+	l2_lookup.macaddr = ether_addr_to_u64(addr);
+	l2_lookup.vlanid = vid;
+	l2_lookup.iotag = SJA1105_S_TAG;
+	l2_lookup.mask_macaddr = GENMASK_ULL(ETH_ALEN * 8 - 1, 0);
+	l2_lookup.mask_vlanid = VLAN_VID_MASK;
+	l2_lookup.mask_iotag = BIT(0);
+	l2_lookup.destports = BIT(port);
+
+	rc = sja1105_dynamic_config_read(priv, BLK_IDX_L2_LOOKUP,
+					 SJA1105_SEARCH, &l2_lookup);
+	if (rc == 0) {
+		/* Found and this port is already in the entry's
+		 * port mask => job done
+		 */
+		if (l2_lookup.destports & BIT(port))
+			return 0;
+		/* l2_lookup.index is populated by the switch in case it
+		 * found something.
+		 */
+		l2_lookup.destports |= BIT(port);
+		goto skip_finding_an_index;
+	}
+
+	/* Not found, so try to find an unused spot in the FDB.
+	 * This is slightly inefficient because the strategy is knock-knock at
+	 * every possible position from 0 to 1023.
+	 */
+	for (i = 0; i < SJA1105_MAX_L2_LOOKUP_COUNT; i++) {
+		rc = sja1105_dynamic_config_read(priv, BLK_IDX_L2_LOOKUP,
+						 i, NULL);
+		if (rc < 0)
+			break;
+	}
+	if (i == SJA1105_MAX_L2_LOOKUP_COUNT) {
+		dev_err(ds->dev, "FDB is full, cannot add entry.\n");
+		return -EINVAL;
+	}
+	l2_lookup.index = i;
+
+skip_finding_an_index:
+	return sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
+					    l2_lookup.index, &l2_lookup,
+					    true);
+}
+
+int sja1105pqrs_fdb_del(struct dsa_switch *ds, int port,
+			const unsigned char *addr, u16 vid)
+{
+	struct sja1105_l2_lookup_entry l2_lookup = {0};
+	struct sja1105_private *priv = ds->priv;
+	bool keep;
+	int rc;
+
+	l2_lookup.macaddr = ether_addr_to_u64(addr);
+	l2_lookup.vlanid = vid;
+	l2_lookup.iotag = SJA1105_S_TAG;
+	l2_lookup.mask_macaddr = GENMASK_ULL(ETH_ALEN * 8 - 1, 0);
+	l2_lookup.mask_vlanid = VLAN_VID_MASK;
+	l2_lookup.mask_iotag = BIT(0);
+	l2_lookup.destports = BIT(port);
+
+	rc = sja1105_dynamic_config_read(priv, BLK_IDX_L2_LOOKUP,
+					 SJA1105_SEARCH, &l2_lookup);
+	if (rc < 0)
+		return 0;
+
+	l2_lookup.destports &= ~BIT(port);
+
+	/* Decide whether we remove just this port from the FDB entry,
+	 * or if we remove it completely.
+	 */
+	if (l2_lookup.destports)
+		keep = true;
+	else
+		keep = false;
+
+	return sja1105_dynamic_config_write(priv, BLK_IDX_L2_LOOKUP,
+					    l2_lookup.index, &l2_lookup, keep);
+}
+
+static int sja1105_fdb_add(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid)
+{
+	struct sja1105_private *priv = ds->priv;
+	int rc;
+
+	/* Since we make use of VLANs even when the bridge core doesn't tell us
+	 * to, translate these FDB entries into the correct dsa_8021q ones.
+	 */
+	if (!dsa_port_is_vlan_filtering(&ds->ports[port])) {
+		unsigned int upstream = dsa_upstream_port(priv->ds, port);
+		u16 tx_vid = dsa_8021q_tx_vid(ds, port);
+		u16 rx_vid = dsa_8021q_rx_vid(ds, port);
+
+		rc = priv->info->fdb_add_cmd(ds, port, addr, tx_vid);
+		if (rc < 0)
+			return rc;
+		return priv->info->fdb_add_cmd(ds, upstream, addr, rx_vid);
+	}
+	return priv->info->fdb_add_cmd(ds, port, addr, vid);
+}
+
+static int sja1105_fdb_del(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid)
+{
+	struct sja1105_private *priv = ds->priv;
+	int rc;
+
+	/* Since we make use of VLANs even when the bridge core doesn't tell us
+	 * to, translate these FDB entries into the correct dsa_8021q ones.
+	 */
+	if (!dsa_port_is_vlan_filtering(&ds->ports[port])) {
+		unsigned int upstream = dsa_upstream_port(priv->ds, port);
+		u16 tx_vid = dsa_8021q_tx_vid(ds, port);
+		u16 rx_vid = dsa_8021q_rx_vid(ds, port);
+
+		rc = priv->info->fdb_del_cmd(ds, port, addr, tx_vid);
+		if (rc < 0)
+			return rc;
+		return priv->info->fdb_del_cmd(ds, upstream, addr, rx_vid);
+	}
+	return priv->info->fdb_del_cmd(ds, port, addr, vid);
 }
 
 static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
@@ -920,7 +1061,7 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 		rc = sja1105_dynamic_config_read(priv, BLK_IDX_L2_LOOKUP,
 						 i, &l2_lookup);
 		/* No fdb entry at i, not an issue */
-		if (rc == -EINVAL)
+		if (rc == -ENOENT)
 			continue;
 		if (rc) {
 			dev_err(dev, "Failed to dump FDB: %d\n", rc);
@@ -936,6 +1077,15 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 		if (!(l2_lookup.destports & BIT(port)))
 			continue;
 		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
+
+		/* We need to hide the dsa_8021q VLAN from the user.
+		 * Convert the TX VID into the pvid that is active in
+		 * standalone and non-vlan_filtering modes, aka 1.
+		 * The RX VID is applied on the CPU port, which is not seen by
+		 * the bridge core anyway, so there's nothing to hide.
+		 */
+		if (!dsa_port_is_vlan_filtering(&ds->ports[port]))
+			l2_lookup.vlanid = 1;
 		cb(macaddr, l2_lookup.vlanid, false, data);
 	}
 	return 0;
@@ -1447,6 +1597,8 @@ static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
 	if (!timeout) {
 		/* Clean up the management route so that a follow-up
 		 * frame may not match on it by mistake.
+		 * This is only hardware supported on P/Q/R/S - on E/T it is
+		 * a no-op and we are silently discarding the -EOPNOTSUPP.
 		 */
 		sja1105_dynamic_config_write(priv, BLK_IDX_MGMT_ROUTE,
 					     slot, &mgmt_route, false);

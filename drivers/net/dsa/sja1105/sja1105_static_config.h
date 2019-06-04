@@ -122,9 +122,35 @@ struct sja1105_l2_lookup_entry {
 	u64 destports;
 	u64 enfport;
 	u64 index;
+	/* P/Q/R/S only */
+	u64 mask_iotag;
+	u64 mask_vlanid;
+	u64 mask_macaddr;
+	u64 iotag;
+	bool lockeds;
+	union {
+		/* LOCKEDS=1: Static FDB entries */
+		struct {
+			u64 tsreg;
+			u64 mirrvlan;
+			u64 takets;
+			u64 mirr;
+			u64 retag;
+		};
+		/* LOCKEDS=0: Dynamically learned FDB entries */
+		struct {
+			u64 touched;
+			u64 age;
+		};
+	};
 };
 
 struct sja1105_l2_lookup_params_entry {
+	u64 start_dynspc;    /* P/Q/R/S only */
+	u64 drpnolearn;      /* P/Q/R/S only */
+	u64 use_static;      /* P/Q/R/S only */
+	u64 owr_dyn;         /* P/Q/R/S only */
+	u64 learn_once;      /* P/Q/R/S only */
 	u64 maxage;          /* Shared */
 	u64 dyn_tbsz;        /* E/T only */
 	u64 poly;            /* E/T only */

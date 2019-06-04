@@ -55,6 +55,11 @@ struct sja1105_info {
 	const struct sja1105_regs *regs;
 	int (*reset_cmd)(const void *ctx, const void *data);
 	int (*setup_rgmii_delay)(const void *ctx, int port);
+	/* Prototypes from include/net/dsa.h */
+	int (*fdb_add_cmd)(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid);
+	int (*fdb_del_cmd)(struct dsa_switch *ds, int port,
+			   const unsigned char *addr, u16 vid);
 	const char *name;
 };
 
@@ -142,7 +147,20 @@ int sja1105_dynamic_config_write(struct sja1105_private *priv,
 				 enum sja1105_blk_idx blk_idx,
 				 int index, void *entry, bool keep);
 
-u8 sja1105_fdb_hash(struct sja1105_private *priv, const u8 *addr, u16 vid);
+enum sja1105_iotag {
+	SJA1105_C_TAG = 0, /* Inner VLAN header */
+	SJA1105_S_TAG = 1, /* Outer VLAN header */
+};
+
+u8 sja1105et_fdb_hash(struct sja1105_private *priv, const u8 *addr, u16 vid);
+int sja1105et_fdb_add(struct dsa_switch *ds, int port,
+		      const unsigned char *addr, u16 vid);
+int sja1105et_fdb_del(struct dsa_switch *ds, int port,
+		      const unsigned char *addr, u16 vid);
+int sja1105pqrs_fdb_add(struct dsa_switch *ds, int port,
+			const unsigned char *addr, u16 vid);
+int sja1105pqrs_fdb_del(struct dsa_switch *ds, int port,
+			const unsigned char *addr, u16 vid);
 
 /* Common implementations for the static and dynamic configs */
 size_t sja1105_l2_forwarding_entry_packing(void *buf, void *entry_ptr,

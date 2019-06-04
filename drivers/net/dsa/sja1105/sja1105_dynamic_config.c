@@ -35,17 +35,72 @@
 #define SJA1105_MAX_DYN_CMD_SIZE				\
 	SJA1105PQRS_SIZE_MAC_CONFIG_DYN_CMD
 
+struct sja1105_dyn_cmd {
+	bool search;
+	u64 valid;
+	u64 rdwrset;
+	u64 errors;
+	u64 valident;
+	u64 index;
+};
+
+enum sja1105_hostcmd {
+	SJA1105_HOSTCMD_SEARCH = 1,
+	SJA1105_HOSTCMD_READ = 2,
+	SJA1105_HOSTCMD_WRITE = 3,
+	SJA1105_HOSTCMD_INVALIDATE = 4,
+};
+
 static void
 sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 				  enum packing_op op)
 {
 	u8 *p = buf + SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
 	const int size = SJA1105_SIZE_DYN_CMD;
+	u64 lockeds = 0;
+	u64 hostcmd;
 
 	sja1105_packing(p, &cmd->valid,    31, 31, size, op);
 	sja1105_packing(p, &cmd->rdwrset,  30, 30, size, op);
 	sja1105_packing(p, &cmd->errors,   29, 29, size, op);
+	sja1105_packing(p, &lockeds,       28, 28, size, op);
 	sja1105_packing(p, &cmd->valident, 27, 27, size, op);
+
+	/* VALIDENT is supposed to indicate "keep or not", but in SJA1105 E/T,
+	 * using it to delete a management route was unsupported. UM10944
+	 * said about it:
+	 *
+	 *   In case of a write access with the MGMTROUTE flag set,
+	 *   the flag will be ignored. It will always be found cleared
+	 *   for read accesses with the MGMTROUTE flag set.
+	 *
+	 * SJA1105 P/Q/R/S keeps the same behavior w.r.t. VALIDENT, but there
+	 * is now another flag called HOSTCMD which does more stuff (quoting
+	 * from UM11040):
+	 *
+	 *   A write request is accepted only when HOSTCMD is set to write host
+	 *   or invalid. A read request is accepted only when HOSTCMD is set to
+	 *   search host or read host.
+	 *
+	 * So it is possible to translate a RDWRSET/VALIDENT combination into
+	 * HOSTCMD so that we keep the dynamic command API in place, and
+	 * at the same time achieve compatibility with the management route
+	 * command structure.
+	 */
+	if (cmd->rdwrset == SPI_READ) {
+		if (cmd->search)
+			hostcmd = SJA1105_HOSTCMD_SEARCH;
+		else
+			hostcmd = SJA1105_HOSTCMD_READ;
+	} else {
+		/* SPI_WRITE */
+		if (cmd->valident)
+			hostcmd = SJA1105_HOSTCMD_WRITE;
+		else
+			hostcmd = SJA1105_HOSTCMD_INVALIDATE;
+	}
+	sja1105_packing(p, &hostcmd, 25, 23, size, op);
+
 	/* Hack - The hardware takes the 'index' field within
 	 * struct sja1105_l2_lookup_entry as the index on which this command
 	 * will operate. However it will ignore everything else, so 'index'
@@ -54,9 +109,8 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	 * such that our API doesn't need to ask for a full-blown entry
 	 * structure when e.g. a delete is requested.
 	 */
-	sja1105_packing(buf, &cmd->index, 29, 20,
+	sja1105_packing(buf, &cmd->index, 15, 6,
 			SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY, op);
-	/* TODO hostcmd */
 }
 
 static void
@@ -104,6 +158,36 @@ static size_t sja1105et_mgmt_route_entry_packing(void *buf, void *entry_ptr,
 	sja1105_packing(buf, &entry->macaddr,   83, 36, size, op);
 	sja1105_packing(buf, &entry->destports, 35, 31, size, op);
 	sja1105_packing(buf, &entry->enfport,   30, 30, size, op);
+	return size;
+}
+
+static void
+sja1105pqrs_mgmt_route_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				   enum packing_op op)
+{
+	u8 *p = buf + SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
+	u64 mgmtroute = 1;
+
+	sja1105pqrs_l2_lookup_cmd_packing(buf, cmd, op);
+	if (op == PACK)
+		sja1105_pack(p, &mgmtroute, 26, 26, SJA1105_SIZE_DYN_CMD);
+}
+
+static size_t sja1105pqrs_mgmt_route_entry_packing(void *buf, void *entry_ptr,
+						   enum packing_op op)
+{
+	const size_t size = SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY;
+	struct sja1105_mgmt_entry *entry = entry_ptr;
+
+	/* In P/Q/R/S, enfport got renamed to mgmtvalid, but its purpose
+	 * is the same (driver uses it to confirm that frame was sent).
+	 * So just keep the name from E/T.
+	 */
+	sja1105_packing(buf, &entry->tsreg,     71, 71, size, op);
+	sja1105_packing(buf, &entry->takets,    70, 70, size, op);
+	sja1105_packing(buf, &entry->macaddr,   69, 22, size, op);
+	sja1105_packing(buf, &entry->destports, 21, 17, size, op);
+	sja1105_packing(buf, &entry->enfport,   16, 16, size, op);
 	return size;
 }
 
@@ -240,6 +324,7 @@ sja1105et_general_params_entry_packing(void *buf, void *entry_ptr,
 #define OP_READ		BIT(0)
 #define OP_WRITE	BIT(1)
 #define OP_DEL		BIT(2)
+#define OP_SEARCH	BIT(3)
 
 /* SJA1105E/T: First generation */
 struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN] = {
@@ -304,14 +389,22 @@ struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_XMII_PARAMS] = {0},
 };
 
-/* SJA1105P/Q/R/S: Second generation: TODO */
+/* SJA1105P/Q/R/S: Second generation */
 struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_L2_LOOKUP] = {
 		.entry_packing = sja1105pqrs_l2_lookup_entry_packing,
 		.cmd_packing = sja1105pqrs_l2_lookup_cmd_packing,
-		.access = (OP_READ | OP_WRITE | OP_DEL),
+		.access = (OP_READ | OP_WRITE | OP_DEL | OP_SEARCH),
 		.max_entry_count = SJA1105_MAX_L2_LOOKUP_COUNT,
-		.packed_size = SJA1105ET_SIZE_L2_LOOKUP_DYN_CMD,
+		.packed_size = SJA1105PQRS_SIZE_L2_LOOKUP_DYN_CMD,
+		.addr = 0x24,
+	},
+	[BLK_IDX_MGMT_ROUTE] = {
+		.entry_packing = sja1105pqrs_mgmt_route_entry_packing,
+		.cmd_packing = sja1105pqrs_mgmt_route_cmd_packing,
+		.access = (OP_READ | OP_WRITE | OP_DEL | OP_SEARCH),
+		.max_entry_count = SJA1105_NUM_PORTS,
+		.packed_size = SJA1105PQRS_SIZE_L2_LOOKUP_DYN_CMD,
 		.addr = 0x24,
 	},
 	[BLK_IDX_L2_POLICING] = {0},
@@ -359,6 +452,24 @@ struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
 	[BLK_IDX_XMII_PARAMS] = {0},
 };
 
+/* Provides read access to the settings through the dynamic interface
+ * of the switch.
+ * @blk_idx	is used as key to select from the sja1105_dynamic_table_ops.
+ *		The selection is limited by the hardware in respect to which
+ *		configuration blocks can be read through the dynamic interface.
+ * @index	is used to retrieve a particular table entry. If negative,
+ *		(and if the @blk_idx supports the searching operation) a search
+ *		is performed by the @entry parameter.
+ * @entry	Type-casted to an unpacked structure that holds a table entry
+ *		of the type specified in @blk_idx.
+ *		Usually an output argument. If @index is negative, then this
+ *		argument is used as input/output: it should be pre-populated
+ *		with the element to search for. Entries which support the
+ *		search operation will have an "index" field (not the @index
+ *		argument to this function) and that is where the found index
+ *		will be returned (or left unmodified - thus negative - if not
+ *		found).
+ */
 int sja1105_dynamic_config_read(struct sja1105_private *priv,
 				enum sja1105_blk_idx blk_idx,
 				int index, void *entry)
@@ -375,8 +486,10 @@ int sja1105_dynamic_config_read(struct sja1105_private *priv,
 
 	ops = &priv->info->dyn_ops[blk_idx];
 
-	if (index >= ops->max_entry_count)
+	if (index >= 0 && index >= ops->max_entry_count)
 		return -ERANGE;
+	if (index < 0 && !(ops->access & OP_SEARCH))
+		return -EOPNOTSUPP;
 	if (!(ops->access & OP_READ))
 		return -EOPNOTSUPP;
 	if (ops->packed_size > SJA1105_MAX_DYN_CMD_SIZE)
@@ -388,8 +501,19 @@ int sja1105_dynamic_config_read(struct sja1105_private *priv,
 
 	cmd.valid = true; /* Trigger action on table entry */
 	cmd.rdwrset = SPI_READ; /* Action is read */
-	cmd.index = index;
+	if (index < 0) {
+		/* Avoid copying a signed negative number to an u64 */
+		cmd.index = 0;
+		cmd.search = true;
+	} else {
+		cmd.index = index;
+		cmd.search = false;
+	}
+	cmd.valident = true;
 	ops->cmd_packing(packed_buf, &cmd, PACK);
+
+	if (cmd.search)
+		ops->entry_packing(packed_buf, entry, PACK);
 
 	/* Send SPI write operation: read config table entry */
 	rc = sja1105_spi_send_packed_buf(priv, SPI_WRITE, ops->addr,
@@ -416,7 +540,7 @@ int sja1105_dynamic_config_read(struct sja1105_private *priv,
 		 * So don't error out in that case.
 		 */
 		if (!cmd.valident && blk_idx != BLK_IDX_MGMT_ROUTE)
-			return -EINVAL;
+			return -ENOENT;
 		cpu_relax();
 	} while (cmd.valid && --retries);
 
@@ -447,6 +571,8 @@ int sja1105_dynamic_config_write(struct sja1105_private *priv,
 	ops = &priv->info->dyn_ops[blk_idx];
 
 	if (index >= ops->max_entry_count)
+		return -ERANGE;
+	if (index < 0)
 		return -ERANGE;
 	if (!(ops->access & OP_WRITE))
 		return -EOPNOTSUPP;
@@ -510,7 +636,7 @@ static u8 sja1105_crc8_add(u8 crc, u8 byte, u8 poly)
  * is also received as argument in the Koopman notation that the switch
  * hardware stores it in.
  */
-u8 sja1105_fdb_hash(struct sja1105_private *priv, const u8 *addr, u16 vid)
+u8 sja1105et_fdb_hash(struct sja1105_private *priv, const u8 *addr, u16 vid)
 {
 	struct sja1105_l2_lookup_params_entry *l2_lookup_params =
 		priv->static_config.tables[BLK_IDX_L2_LOOKUP_PARAMS].entries;
