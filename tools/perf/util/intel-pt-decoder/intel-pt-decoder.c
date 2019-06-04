@@ -1369,6 +1369,21 @@ static int intel_pt_mode_tsx(struct intel_pt_decoder *decoder, bool *no_tip)
 	return 0;
 }
 
+static uint64_t intel_pt_8b_tsc(uint64_t timestamp, uint64_t ref_timestamp)
+{
+	timestamp |= (ref_timestamp & (0xffULL << 56));
+
+	if (timestamp < ref_timestamp) {
+		if (ref_timestamp - timestamp > (1ULL << 55))
+			timestamp += (1ULL << 56);
+	} else {
+		if (timestamp - ref_timestamp > (1ULL << 55))
+			timestamp -= (1ULL << 56);
+	}
+
+	return timestamp;
+}
+
 static void intel_pt_calc_tsc_timestamp(struct intel_pt_decoder *decoder)
 {
 	uint64_t timestamp;
@@ -1376,15 +1391,8 @@ static void intel_pt_calc_tsc_timestamp(struct intel_pt_decoder *decoder)
 	decoder->have_tma = false;
 
 	if (decoder->ref_timestamp) {
-		timestamp = decoder->packet.payload |
-			    (decoder->ref_timestamp & (0xffULL << 56));
-		if (timestamp < decoder->ref_timestamp) {
-			if (decoder->ref_timestamp - timestamp > (1ULL << 55))
-				timestamp += (1ULL << 56);
-		} else {
-			if (timestamp - decoder->ref_timestamp > (1ULL << 55))
-				timestamp -= (1ULL << 56);
-		}
+		timestamp = intel_pt_8b_tsc(decoder->packet.payload,
+					    decoder->ref_timestamp);
 		decoder->tsc_timestamp = timestamp;
 		decoder->timestamp = timestamp;
 		decoder->ref_timestamp = 0;
