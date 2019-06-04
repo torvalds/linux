@@ -3665,6 +3665,9 @@ static void hsw_assert_cdclk(struct drm_i915_private *dev_priv)
 
 	if (val & LCPLL_PLL_DISABLE)
 		DRM_ERROR("LCPLL is disabled\n");
+
+	if ((val & LCPLL_REF_MASK) != LCPLL_REF_NON_SSC)
+		DRM_ERROR("LCPLL not using non-SSC reference\n");
 }
 
 static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
