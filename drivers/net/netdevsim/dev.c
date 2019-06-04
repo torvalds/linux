@@ -38,6 +38,8 @@ static int nsim_dev_debugfs_init(struct nsim_dev *nsim_dev)
 	nsim_dev->ports_ddir = debugfs_create_dir("ports", nsim_dev->ddir);
 	if (IS_ERR_OR_NULL(nsim_dev->ports_ddir))
 		return PTR_ERR_OR_ZERO(nsim_dev->ports_ddir) ?: -EINVAL;
+	debugfs_create_bool("fw_update_status", 0600, nsim_dev->ddir,
+			    &nsim_dev->fw_update_status);
 	return 0;
 }
 
@@ -220,8 +222,49 @@ static int nsim_dev_reload(struct devlink *devlink,
 	return 0;
 }
 
+#define NSIM_DEV_FLASH_SIZE 500000
+#define NSIM_DEV_FLASH_CHUNK_SIZE 1000
+#define NSIM_DEV_FLASH_CHUNK_TIME_MS 10
+
+static int nsim_dev_flash_update(struct devlink *devlink, const char *file_name,
+				 const char *component,
+				 struct netlink_ext_ack *extack)
+{
+	struct nsim_dev *nsim_dev = devlink_priv(devlink);
+	int i;
+
+	if (nsim_dev->fw_update_status) {
+		devlink_flash_update_begin_notify(devlink);
+		devlink_flash_update_status_notify(devlink,
+						   "Preparing to flash",
+						   component, 0, 0);
+	}
+
+	for (i = 0; i < NSIM_DEV_FLASH_SIZE / NSIM_DEV_FLASH_CHUNK_SIZE; i++) {
+		if (nsim_dev->fw_update_status)
+			devlink_flash_update_status_notify(devlink, "Flashing",
+							   component,
+							   i * NSIM_DEV_FLASH_CHUNK_SIZE,
+							   NSIM_DEV_FLASH_SIZE);
+		msleep(NSIM_DEV_FLASH_CHUNK_TIME_MS);
+	}
+
+	if (nsim_dev->fw_update_status) {
+		devlink_flash_update_status_notify(devlink, "Flashing",
+						   component,
+						   NSIM_DEV_FLASH_SIZE,
+						   NSIM_DEV_FLASH_SIZE);
+		devlink_flash_update_status_notify(devlink, "Flashing done",
+						   component, 0, 0);
+		devlink_flash_update_end_notify(devlink);
+	}
+
+	return 0;
+}
+
 static const struct devlink_ops nsim_dev_devlink_ops = {
 	.reload = nsim_dev_reload,
+	.flash_update = nsim_dev_flash_update,
 };
 
 static struct nsim_dev *
@@ -240,6 +283,7 @@ nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev, unsigned int port_count)
 	get_random_bytes(nsim_dev->switch_id.id, nsim_dev->switch_id.id_len);
 	INIT_LIST_HEAD(&nsim_dev->port_list);
 	mutex_init(&nsim_dev->port_list_lock);
+	nsim_dev->fw_update_status = true;
 
 	nsim_dev->fib_data = nsim_fib_create();
 	if (IS_ERR(nsim_dev->fib_data)) {
