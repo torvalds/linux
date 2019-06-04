@@ -138,6 +138,7 @@ static const struct vop_common rk3036_common = {
 	.out_mode = VOP_REG(RK3036_DSP_CTRL0, 0xf, 0),
 	.dsp_blank = VOP_REG(RK3036_DSP_CTRL1, 0x1, 24),
 	.cfg_done = VOP_REG_SYNC(RK3036_REG_CFG_DONE, 0x1, 0),
+	.dsp_layer_sel = VOP_REG(RK3036_DSP_CTRL0, 0x1, 8),
 };
 
 static const struct vop_data rk3036_vop = {
@@ -301,6 +302,7 @@ static const struct vop_common rk3288_common = {
 	.dsp_blank = VOP_REG(RK3288_DSP_CTRL0, 0x3, 18),
 	.out_mode = VOP_REG(RK3288_DSP_CTRL0, 0xf, 0),
 	.cfg_done = VOP_REG_SYNC(RK3288_REG_CFG_DONE, 0x1, 0),
+	.dsp_layer_sel = VOP_REG(RK3288_DSP_CTRL1, 0xff, 8),
 };
 
 /*
@@ -684,6 +686,7 @@ static const struct vop_common rk3328_common = {
 	.dsp_blank = VOP_REG(RK3328_DSP_CTRL0, 0x3, 18),
 	.out_mode = VOP_REG(RK3328_DSP_CTRL0, 0xf, 0),
 	.cfg_done = VOP_REG_SYNC(RK3328_REG_CFG_DONE, 0x1, 0),
+	.dsp_layer_sel = VOP_REG(RK3328_DSP_CTRL1, 0xff, 8),
 };
 
 static const struct vop_intr rk3328_vop_intr = {

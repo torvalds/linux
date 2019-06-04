@@ -77,6 +77,7 @@ struct vop_common {
 	struct vop_reg out_mode;
 	struct vop_reg standby;
 	struct vop_reg yuv_overlay;
+	struct vop_reg dsp_layer_sel;
 };
 
 struct vop_misc {

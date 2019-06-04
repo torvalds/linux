@@ -34,6 +34,7 @@ struct iommu_domain;
 
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
+	int dsp_layer_sel;
 	int output_type;
 	int output_mode;
 	int output_bpc;

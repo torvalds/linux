@@ -36,6 +36,7 @@
 
 #include <linux/reset.h>
 #include <linux/delay.h>
+#include <linux/sort.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
@@ -117,10 +118,21 @@ enum vop_pending {
 	VOP_PENDING_FB_UNREF,
 };
 
+struct vop_zpos {
+	int win_id;
+	int zpos;
+};
+
+struct vop_plane_state {
+	int zpos;
+};
+
 struct vop_win {
 	struct vop_win *parent;
 	struct drm_plane base;
 
+	int win_id;
+	int area_id;
 	uint32_t offset;
 	enum drm_plane_type type;
 	const struct vop_win_phy *phy;
@@ -129,12 +141,14 @@ struct vop_win {
 
 	const struct vop_win_yuv2yuv_data *yuv2yuv_data;
 	struct vop *vop;
+	struct vop_plane_state state;
 };
 
 struct vop {
 	struct drm_crtc crtc;
 	struct device *dev;
 	struct drm_device *drm_dev;
+	struct drm_property *plane_zpos_prop;
 	bool is_enabled;
 
 	struct completion dsp_hold_completion;
@@ -682,11 +696,6 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	}
 }
 
-static void vop_plane_destroy(struct drm_plane *plane)
-{
-	drm_plane_cleanup(plane);
-}
-
 static int vop_plane_atomic_check(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
@@ -895,13 +904,62 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 	.atomic_disable = vop_plane_atomic_disable,
 };
 
+static void vop_plane_destroy(struct drm_plane *plane)
+{
+	drm_plane_cleanup(plane);
+}
+
+static void vop_plane_reset(struct drm_plane *plane)
+{
+	struct vop_win *win = to_vop_win(plane);
+
+	drm_atomic_helper_plane_reset(plane);
+	win->state.zpos = win->win_id;
+}
+
+static int vop_atomic_plane_set_property(struct drm_plane *plane,
+					 struct drm_plane_state *state,
+					 struct drm_property *property,
+					 uint64_t val)
+{
+	struct vop_win *win = to_vop_win(plane);
+	struct vop_plane_state *plane_state = &win->state;
+
+	if (property == win->vop->plane_zpos_prop) {
+		plane_state->zpos = val;
+		return 0;
+	}
+
+	DRM_ERROR("failed to set vop plane property\n");
+	return -EINVAL;
+}
+
+static int vop_atomic_plane_get_property(struct drm_plane *plane,
+					 const struct drm_plane_state *state,
+					 struct drm_property *property,
+					 uint64_t *val)
+{
+	struct vop_win *win = to_vop_win(plane);
+	struct vop_plane_state *plane_state = &win->state;
+
+	if (property == win->vop->plane_zpos_prop) {
+		*val = plane_state->zpos;
+		return 0;
+	}
+
+	DRM_ERROR("failed to get vop plane property\n");
+	return -EINVAL;
+}
+
 static const struct drm_plane_funcs vop_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy = vop_plane_destroy,
-	.reset = drm_atomic_helper_plane_reset,
+	.reset = vop_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.atomic_set_property = vop_atomic_plane_set_property,
+	.atomic_get_property = vop_atomic_plane_get_property,
 };
 
 static int vop_crtc_enable_vblank(struct drm_crtc *crtc)
@@ -1075,6 +1133,78 @@ static void vop_wait_for_irq_handler(struct vop *vop)
 	synchronize_irq(vop->irq);
 }
 
+static int vop_zpos_cmp(const void *a, const void *b)
+{
+	struct vop_zpos *pa = (struct vop_zpos *)a;
+	struct vop_zpos *pb = (struct vop_zpos *)b;
+
+	return pb->zpos - pa->zpos;
+}
+
+static int vop_crtc_atomic_check(struct drm_crtc *crtc,
+				 struct drm_crtc_state *state)
+{
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(state);
+	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
+	struct vop_plane_state *plane_state;
+	struct vop_zpos *pzpos;
+	int dsp_layer_sel = 0;
+	int i, j, cnt = 0, ret = 0;
+
+	pzpos = kmalloc_array(vop_data->win_size, sizeof(*pzpos), GFP_KERNEL);
+	if (!pzpos)
+		return -ENOMEM;
+
+	for (i = 0; i < vop_data->win_size; i++) {
+		const struct vop_win_data *win_data = &vop_data->win[i];
+		struct vop_win *win;
+
+		if (!win_data->phy)
+			continue;
+
+		for (j = 0; j < vop->num_wins; j++) {
+			win = &vop->win[j];
+
+			if (win->win_id == i && !win->area_id)
+				break;
+		}
+		if (WARN_ON(j >= vop->num_wins)) {
+			ret = -EINVAL;
+			goto err_free_pzpos;
+		}
+
+		plane_state = &win->state;
+		/*
+		 * plane might not have changed, in which case take
+		 * current state:
+		 */
+		pzpos[cnt].zpos = plane_state->zpos;
+		pzpos[cnt++].win_id = win->win_id;
+	}
+
+	sort(pzpos, cnt, sizeof(pzpos[0]), vop_zpos_cmp, NULL);
+
+	for (i = 0, cnt = 0; i < vop_data->win_size; i++) {
+		const struct vop_win_data *win_data = &vop_data->win[i];
+		int shift = i * 2;
+
+		if (win_data->phy) {
+			struct vop_zpos *zpos = &pzpos[cnt++];
+
+			dsp_layer_sel |= zpos->win_id << shift;
+		} else {
+			dsp_layer_sel |= i << shift;
+		}
+	}
+
+	s->dsp_layer_sel = dsp_layer_sel;
+
+err_free_pzpos:
+	kfree(pzpos);
+	return ret;
+}
+
 static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 				  struct drm_crtc_state *old_crtc_state)
 {
@@ -1083,12 +1213,15 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct vop *vop = to_vop(crtc);
 	struct drm_plane *plane;
 	int i;
+	struct rockchip_crtc_state *s =
+		to_rockchip_crtc_state(crtc->state);
 
 	if (WARN_ON(!vop->is_enabled))
 		return;
 
 	spin_lock(&vop->reg_lock);
 
+	VOP_REG_SET(vop, common, dsp_layer_sel, s->dsp_layer_sel);
 	vop_cfg_done(vop);
 
 	spin_unlock(&vop->reg_lock);
@@ -1127,6 +1260,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs vop_crtc_helper_funcs = {
 	.mode_fixup = vop_crtc_mode_fixup,
+	.atomic_check = vop_crtc_atomic_check,
 	.atomic_flush = vop_crtc_atomic_flush,
 	.atomic_enable = vop_crtc_atomic_enable,
 	.atomic_disable = vop_crtc_atomic_disable,
@@ -1369,6 +1503,8 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 		return ret;
 	}
 	drm_plane_helper_add(&win->base, &plane_helper_funcs);
+	drm_object_attach_property(&win->base.base,
+				   vop->plane_zpos_prop, win->win_id);
 
 	return 0;
 }
@@ -1603,11 +1739,12 @@ err_put_pm_runtime:
 /*
  * Initialize the vop->win array elements.
  */
-static void vop_win_init(struct vop *vop)
+static int vop_win_init(struct vop *vop)
 {
 	const struct vop_data *vop_data = vop->data;
 	unsigned int i, j;
 	unsigned int num_wins = 0;
+	struct drm_property *prop;
 
 	for (i = 0; i < vop_data->win_size; i++) {
 		struct vop_win *vop_win = &vop->win[num_wins];
@@ -1620,6 +1757,8 @@ static void vop_win_init(struct vop *vop)
 		vop_win->nformats = win_data->phy->nformats;
 		vop_win->vop = vop;
 		vop_win->yuv2yuv_data = &vop_data->win_yuv2yuv[i];
+		vop_win->win_id = i;
+		vop_win->area_id = 0;
 		num_wins++;
 
 		for (j = 0; j < win_data->area_size; j++) {
@@ -1633,9 +1772,20 @@ static void vop_win_init(struct vop *vop)
 			vop_area->data_formats = vop_win->data_formats;
 			vop_area->nformats = vop_win->nformats;
 			vop_area->vop = vop;
+			vop_area->win_id = i;
+			vop_area->area_id = j + 1;
 			num_wins++;
 		}
 	}
+	prop = drm_property_create_range(vop->drm_dev, DRM_MODE_PROP_ATOMIC,
+					 "ZPOS", 0, vop_data->win_size);
+	if (!prop) {
+		DRM_ERROR("failed to create zpos property\n");
+		return -EINVAL;
+	}
+	vop->plane_zpos_prop = prop;
+
+	return 0;
 }
 
 /**
@@ -1719,7 +1869,9 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	vop->num_wins = num_wins;
 	dev_set_drvdata(dev, vop);
 
-	vop_win_init(vop);
+	ret = vop_win_init(vop);
+	if (ret)
+		return ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	vop->len = resource_size(res);
