@@ -1930,6 +1930,9 @@ int genphy_config_init(struct phy_device *phydev)
 		if (val & ESTATUS_1000_THALF)
 			linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 					 features);
+		if (val & ESTATUS_1000_XFULL)
+			linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+					 features);
 	}
 
 	linkmode_and(phydev->supported, phydev->supported, features);
