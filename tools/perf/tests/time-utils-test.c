@@ -169,6 +169,23 @@ int test__time_utils(struct test *t __maybe_unused, int subtest __maybe_unused)
 	}
 
 	{
+		u64 b = 1234567123456789ULL;
+		u64 c = 7654321987654321ULL;
+		u64 e = 8000000000000000ULL;
+		struct test_data d = {
+			.str   = "1234567.123456789,1234567.123456790 "
+				 "7654321.987654321,7654321.987654444 "
+				 "8000000,8000000.000000005",
+			.ptime = { {b, b + 1}, {c, c + 123}, {e, e + 5}, },
+			.num = 3,
+			.skip = { b - 1, b + 2, c - 1, c + 124, e - 1, e + 6 },
+			.noskip = { b, b + 1, c, c + 123, e, e + 5 },
+		};
+
+		pass &= test__perf_time__parse_for_ranges(&d);
+	}
+
+	{
 		u64 b = 7654321ULL * NSEC_PER_SEC;
 		struct test_data d = {
 			.str    = "10%/1",

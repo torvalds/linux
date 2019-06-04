@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
+#include <ctype.h>
 
 #include "perf.h"
 #include "debug.h"
@@ -112,6 +113,69 @@ int perf_time__parse_str(struct perf_time_interval *ptime, const char *ostr)
 
 	pr_debug("start time %" PRIu64 ", ", ptime->start);
 	pr_debug("end time %" PRIu64 "\n", ptime->end);
+
+	return rc;
+}
+
+static int perf_time__parse_strs(struct perf_time_interval *ptime,
+				 const char *ostr, int size)
+{
+	const char *cp;
+	char *str, *arg, *p;
+	int i, num = 0, rc = 0;
+
+	/* Count the commas */
+	for (cp = ostr; *cp; cp++)
+		num += !!(*cp == ',');
+
+	if (!num)
+		return -EINVAL;
+
+	BUG_ON(num > size);
+
+	str = strdup(ostr);
+	if (!str)
+		return -ENOMEM;
+
+	/* Split the string and parse each piece, except the last */
+	for (i = 0, p = str; i < num - 1; i++) {
+		arg = p;
+		/* Find next comma, there must be one */
+		p = strchr(p, ',') + 1;
+		/* Skip white space */
+		while (isspace(*p))
+			p++;
+		/* Skip the value, must not contain space or comma */
+		while (*p && !isspace(*p)) {
+			if (*p++ == ',') {
+				rc = -EINVAL;
+				goto out;
+			}
+		}
+		/* Split and parse */
+		if (*p)
+			*p++ = 0;
+		rc = perf_time__parse_str(ptime + i, arg);
+		if (rc < 0)
+			goto out;
+	}
+
+	/* Parse the last piece */
+	rc = perf_time__parse_str(ptime + i, p);
+	if (rc < 0)
+		goto out;
+
+	/* Check there is no overlap */
+	for (i = 0; i < num - 1; i++) {
+		if (ptime[i].end >= ptime[i + 1].start) {
+			rc = -EINVAL;
+			goto out;
+		}
+	}
+
+	rc = num;
+out:
+	free(str);
 
 	return rc;
 }
@@ -424,14 +488,12 @@ int perf_time__parse_for_ranges(const char *time_str,
 				time_str,
 				session->evlist->first_sample_time,
 				session->evlist->last_sample_time);
-
-		if (num < 0)
-			goto error_invalid;
 	} else {
-		if (perf_time__parse_str(ptime_range, time_str))
-			goto error_invalid;
-		num = 1;
+		num = perf_time__parse_strs(ptime_range, time_str, size);
 	}
+
+	if (num < 0)
+		goto error_invalid;
 
 	*range_size = size;
 	*range_num = num;
