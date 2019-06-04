@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Amstrad E3 FIQ handling
  *
@@ -8,10 +9,6 @@
  *
  * Parts of this code are taken from linux/arch/arm/mach-omap/irq.c
  * in the MontaVista 2.4 kernel (and the Amstrad changes therein)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>

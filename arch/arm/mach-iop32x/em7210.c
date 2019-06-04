@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-iop32x/em7210.c
  *
@@ -6,11 +7,6 @@
  * Based on arch/arm/mach-iop32x/iq31244.c file.
  *
  * Copyright (C) 2007 Arnaud Patard <arnaud.patard@rtp-net.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/mm.h>
