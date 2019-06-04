@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config DW_EDMA
+	tristate "Synopsys DesignWare eDMA controller driver"
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the Synopsys DesignWare eDMA controller, normally
+	  implemented on endpoints SoCs.
