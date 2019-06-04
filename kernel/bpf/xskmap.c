@@ -17,8 +17,8 @@ struct xsk_map {
 
 static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 {
-	int cpu, err = -EINVAL;
 	struct xsk_map *m;
+	int cpu, err;
 	u64 cost;
 
 	if (!capable(CAP_NET_ADMIN))
