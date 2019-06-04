@@ -435,7 +435,6 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	asb->s_idlen		= dr->idlen;
 	asb->s_map_size		= dr->nzones | (dr->nzones_high << 8);
 	asb->s_map2blk		= dr->log2bpmb - dr->log2secsize;
-	asb->s_version 		= dr->format_version;
 	asb->s_log2sharesize	= dr->log2sharesize;
 
 	asb->s_map = adfs_read_map(sb, dr);
@@ -467,7 +466,7 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	 * If this is a F+ disk with variable length directories,
 	 * get the root_size from the disc record.
 	 */
-	if (asb->s_version) {
+	if (dr->format_version) {
 		root_obj.size = le32_to_cpu(dr->root_size);
 		asb->s_dir     = &adfs_fplus_dir_ops;
 		asb->s_namelen = ADFS_FPLUS_NAME_LEN;

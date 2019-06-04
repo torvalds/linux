@@ -60,7 +60,6 @@ struct adfs_sb_info {
 	__u32		s_map_size;	/* sector size of a map	*/
 	signed int	s_map2blk;	/* shift left by this for map->sector*/
 	unsigned int	s_log2sharesize;/* log2 share size */
-	__le32		s_version;	/* disc format version */
 	unsigned int	s_namelen;	/* maximum number of characters in name	 */
 };
 
