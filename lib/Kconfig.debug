@@ -324,9 +324,7 @@ config HEADERS_CHECK
 	  attempt to include files which were not exported, etc.
 
 	  If you're making modifications to header files which are
-	  relevant for userspace, say 'Y', and check the headers
-	  exported to $(INSTALL_HDR_PATH) (usually 'usr/include' in
-	  your build tree), to make sure they're suitable.
+	  relevant for userspace, say 'Y'.
 
 config OPTIMIZE_INLINING
 	bool "Allow compiler to uninline functions marked 'inline'"

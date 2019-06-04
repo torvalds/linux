@@ -41,7 +41,7 @@ ifeq ($(skip-inst),)
 kbuild-file := $(srctree)/$(obj)/Kbuild
 -include $(kbuild-file)
 
-installdir    := $(INSTALL_HDR_PATH)/$(dst)
+installdir    := usr/$(dst)
 gendir        := $(objtree)/$(subst include/,include/generated/,$(obj))
 header-files  := $(notdir $(wildcard $(srcdir)/*.h))
 header-files  := $(filter-out $(no-export-headers), $(header-files))
@@ -60,10 +60,10 @@ output-files  := $(addprefix $(installdir)/, $(all-files))
 oldheaders    := $(patsubst $(installdir)/%,%,$(wildcard $(installdir)/*.h))
 unwanted      := $(filter-out $(all-files),$(oldheaders))
 
-# Prefix unwanted with full paths to $(INSTALL_HDR_PATH)
+# Prefix unwanted with full paths to objtree
 unwanted-file := $(addprefix $(installdir)/, $(unwanted))
 
-printdir = $(patsubst $(INSTALL_HDR_PATH)/%/,%,$(dir $@))
+printdir = $(patsubst %/,%,$(dir $@))
 
 quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
                             file$(if $(word 2, $(all-files)),s))
@@ -81,7 +81,7 @@ quiet_cmd_check = CHECK   $(printdir) ($(words $(all-files)) files)
       cmd_check = for f in $(all-files); do                          \
                   echo "$(installdir)/$${f}"; done                      \
                   | xargs                                            \
-                  $(PERL) $< $(INSTALL_HDR_PATH)/include $(SRCARCH); \
+                  $(PERL) $< usr/include $(SRCARCH); \
 	          touch $@
 
 ifndef HDRCHECK
