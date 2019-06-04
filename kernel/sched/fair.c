@@ -3348,6 +3348,7 @@ static inline int propagate_entity_load_avg(struct sched_entity *se)
 	update_tg_cfs_runnable(cfs_rq, se, gcfs_rq);
 
 	trace_pelt_cfs_tp(cfs_rq);
+	trace_pelt_se_tp(se);
 
 	return 1;
 }
