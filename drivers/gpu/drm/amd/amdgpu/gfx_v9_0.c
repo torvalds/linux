@@ -3586,37 +3586,38 @@ static const struct soc15_reg_entry sgpr_init_regs[] = {
 };
 
 static const struct soc15_reg_entry sec_ded_counter_registers[] = {
-   { SOC15_REG_ENTRY(GC, 0, mmCPC_EDC_SCRATCH_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmCPC_EDC_UCODE_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmCPF_EDC_ROQ_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmCPF_EDC_TAG_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmCPG_EDC_DMA_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmCPG_EDC_TAG_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmDC_EDC_CSINVOC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmDC_EDC_RESTORE_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmDC_EDC_STATE_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmGDS_EDC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmGDS_EDC_GRBM_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmGDS_EDC_OA_DED) },
-   { SOC15_REG_ENTRY(GC, 0, mmSPI_EDC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmSQC_EDC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_DED_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_INFO) },
-   { SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_SEC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmTCC_EDC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmTCP_ATC_EDC_GATCL1_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmTCP_EDC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmTD_EDC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmSQC_EDC_CNT2) },
-   { SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmTA_EDC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmGDS_EDC_OA_PHY_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmGDS_EDC_OA_PIPE_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmGCEA_EDC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmGCEA_EDC_CNT2) },
-   { SOC15_REG_ENTRY(GC, 0, mmTCI_EDC_CNT) },
-   { SOC15_REG_ENTRY(GC, 0, mmTCC_EDC_CNT2) },
-   { SOC15_REG_ENTRY(GC, 0, mmTCA_EDC_CNT) },
+   { SOC15_REG_ENTRY(GC, 0, mmCPC_EDC_SCRATCH_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmCPC_EDC_UCODE_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmCPF_EDC_ROQ_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmCPF_EDC_TAG_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmCPG_EDC_DMA_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmCPG_EDC_TAG_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmDC_EDC_CSINVOC_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmDC_EDC_RESTORE_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmDC_EDC_STATE_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmGDS_EDC_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmGDS_EDC_GRBM_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmGDS_EDC_OA_DED), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmSPI_EDC_CNT), 0, 4, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmSQC_EDC_CNT), 0, 4, 6},
+   { SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_DED_CNT), 0, 4, 16},
+   { SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_INFO), 0, 4, 16},
+   { SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_SEC_CNT), 0, 4, 16},
+   { SOC15_REG_ENTRY(GC, 0, mmTCC_EDC_CNT), 0, 1, 16},
+   { SOC15_REG_ENTRY(GC, 0, mmTCP_ATC_EDC_GATCL1_CNT), 0, 4, 16},
+   { SOC15_REG_ENTRY(GC, 0, mmTCP_EDC_CNT), 0, 4, 16},
+   { SOC15_REG_ENTRY(GC, 0, mmTD_EDC_CNT), 0, 4, 16},
+   { SOC15_REG_ENTRY(GC, 0, mmSQC_EDC_CNT2), 0, 4, 6},
+   { SOC15_REG_ENTRY(GC, 0, mmSQ_EDC_CNT), 0, 4, 16},
+   { SOC15_REG_ENTRY(GC, 0, mmTA_EDC_CNT), 0, 4, 16},
+   { SOC15_REG_ENTRY(GC, 0, mmGDS_EDC_OA_PHY_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmGDS_EDC_OA_PIPE_CNT), 0, 1, 1},
+   { SOC15_REG_ENTRY(GC, 0, mmGCEA_EDC_CNT), 0, 1, 32},
+   { SOC15_REG_ENTRY(GC, 0, mmGCEA_EDC_CNT2), 0, 1, 32},
+   { SOC15_REG_ENTRY(GC, 0, mmTCI_EDC_CNT), 0, 1, 72},
+   { SOC15_REG_ENTRY(GC, 0, mmTCC_EDC_CNT2), 0, 1, 16},
+   { SOC15_REG_ENTRY(GC, 0, mmTCA_EDC_CNT), 0, 1, 2},
+   { SOC15_REG_ENTRY(GC, 0, mmSQC_EDC_CNT3), 0, 4, 6},
 };
 
 static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
@@ -3624,7 +3625,7 @@ static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring = &adev->gfx.compute_ring[0];
 	struct amdgpu_ib ib;
 	struct dma_fence *f = NULL;
-	int r, i, j;
+	int r, i, j, k;
 	unsigned total_size, vgpr_offset, sgpr_offset;
 	u64 gpu_addr;
 
@@ -3736,19 +3737,13 @@ static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 
 	/* read back registers to clear the counters */
 	mutex_lock(&adev->grbm_idx_mutex);
-	for (j = 0; j < 16; j++) {
-		gfx_v9_0_select_se_sh(adev, 0x01, 0x0, j);
-		for (i = 0; i < ARRAY_SIZE(sec_ded_counter_registers); i++)
-			RREG32(SOC15_REG_ENTRY_OFFSET(sec_ded_counter_registers[i]));
-		gfx_v9_0_select_se_sh(adev, 0x02, 0x0, j);
-		for (i = 0; i < ARRAY_SIZE(sec_ded_counter_registers); i++)
-			RREG32(SOC15_REG_ENTRY_OFFSET(sec_ded_counter_registers[i]));
-		gfx_v9_0_select_se_sh(adev, 0x03, 0x0, j);
-		for (i = 0; i < ARRAY_SIZE(sec_ded_counter_registers); i++)
-			RREG32(SOC15_REG_ENTRY_OFFSET(sec_ded_counter_registers[i]));
-		gfx_v9_0_select_se_sh(adev, 0x04, 0x0, j);
-		for (i = 0; i < ARRAY_SIZE(sec_ded_counter_registers); i++)
-			RREG32(SOC15_REG_ENTRY_OFFSET(sec_ded_counter_registers[i]));
+	for (i = 0; i < ARRAY_SIZE(sec_ded_counter_registers); i++) {
+		for (j = 0; j < sec_ded_counter_registers[i].se_num; j++) {
+			for (k = 0; k < sec_ded_counter_registers[i].instance; k++) {
+				gfx_v9_0_select_se_sh(adev, j, 0x0, k);
+				RREG32(SOC15_REG_ENTRY_OFFSET(sec_ded_counter_registers[i]));
+			}
+		}
 	}
 	WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX, 0xe0000000);
 	mutex_unlock(&adev->grbm_idx_mutex);

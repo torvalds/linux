@@ -48,6 +48,8 @@ struct soc15_reg_entry {
 	uint32_t seg;
 	uint32_t reg_offset;
 	uint32_t reg_value;
+	uint32_t se_num;
+	uint32_t instance;
 };
 
 #define SOC15_REG_ENTRY(ip, inst, reg)	ip##_HWIP, inst, reg##_BASE_IDX, reg
