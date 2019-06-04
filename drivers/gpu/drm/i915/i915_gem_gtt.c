@@ -108,22 +108,26 @@
 static int
 i915_get_ggtt_vma_pages(struct i915_vma *vma);
 
-static void gen6_ggtt_invalidate(struct drm_i915_private *dev_priv)
+static void gen6_ggtt_invalidate(struct drm_i915_private *i915)
 {
+	struct intel_uncore *uncore = &i915->uncore;
+
 	/*
 	 * Note that as an uncached mmio write, this will flush the
 	 * WCB of the writes into the GGTT before it triggers the invalidate.
 	 */
-	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
+	intel_uncore_write_fw(uncore, GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 }
 
-static void guc_ggtt_invalidate(struct drm_i915_private *dev_priv)
+static void guc_ggtt_invalidate(struct drm_i915_private *i915)
 {
-	gen6_ggtt_invalidate(dev_priv);
-	I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
+	struct intel_uncore *uncore = &i915->uncore;
+
+	gen6_ggtt_invalidate(i915);
+	intel_uncore_write_fw(uncore, GEN8_GTCR, GEN8_GTCR_INVALIDATE);
 }
 
-static void gmch_ggtt_invalidate(struct drm_i915_private *dev_priv)
+static void gmch_ggtt_invalidate(struct drm_i915_private *i915)
 {
 	intel_gtt_chipset_flush();
 }
@@ -1347,10 +1351,10 @@ static void gen8_ppgtt_cleanup_4lvl(struct i915_hw_ppgtt *ppgtt)
 
 static void gen8_ppgtt_cleanup(struct i915_address_space *vm)
 {
-	struct drm_i915_private *dev_priv = vm->i915;
+	struct drm_i915_private *i915 = vm->i915;
 	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 
-	if (intel_vgpu_active(dev_priv))
+	if (intel_vgpu_active(i915))
 		gen8_ppgtt_notify_vgt(ppgtt, false);
 
 	if (i915_vm_is_4lvl(vm))
