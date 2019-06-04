@@ -2724,9 +2724,9 @@ static unsigned int fib_flag_trans(int type, __be32 mask, struct fib_info *fi)
 	if (type == RTN_UNREACHABLE || type == RTN_PROHIBIT)
 		flags = RTF_REJECT;
 	if (fi) {
-		const struct fib_nh *nh = fib_info_nh(fi, 0);
+		const struct fib_nh_common *nhc = fib_info_nhc(fi, 0);
 
-		if (nh->fib_nh_gw4)
+		if (nhc->nhc_gw.ipv4)
 			flags |= RTF_GATEWAY;
 	}
 	if (mask == htonl(0xFFFFFFFF))
@@ -2773,14 +2773,17 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 		seq_setwidth(seq, 127);
 
 		if (fi) {
-			struct fib_nh *nh = fib_info_nh(fi, 0);
+			struct fib_nh_common *nhc = fib_info_nhc(fi, 0);
+			__be32 gw = 0;
+
+			if (nhc->nhc_gw_family == AF_INET)
+				gw = nhc->nhc_gw.ipv4;
 
 			seq_printf(seq,
 				   "%s\t%08X\t%08X\t%04X\t%d\t%u\t"
 				   "%d\t%08X\t%d\t%u\t%u",
-				   nh->fib_nh_dev ? nh->fib_nh_dev->name : "*",
-				   prefix,
-				   nh->fib_nh_gw4, flags, 0, 0,
+				   nhc->nhc_dev ? nhc->nhc_dev->name : "*",
+				   prefix, gw, flags, 0, 0,
 				   fi->fib_priority,
 				   mask,
 				   (fi->fib_advmss ?

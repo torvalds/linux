@@ -1585,7 +1585,7 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 		ip_dst_init_metrics(&rt->dst, fi->fib_metrics);
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
-		{
+		if (nhc->nhc_family == AF_INET) {
 			struct fib_nh *nh;
 
 			nh = container_of(nhc, struct fib_nh, nh_common);

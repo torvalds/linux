@@ -61,6 +61,9 @@ static unsigned int fib_info_cnt;
 #define DEVINDEX_HASHSIZE (1U << DEVINDEX_HASHBITS)
 static struct hlist_head fib_info_devhash[DEVINDEX_HASHSIZE];
 
+/* for_nexthops and change_nexthops only used when nexthop object
+ * is not set in a fib_info. The logic within can reference fib_nh.
+ */
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 
 #define for_nexthops(fi) {						\
@@ -402,20 +405,23 @@ static inline size_t fib_nlmsg_size(struct fib_info *fi)
 
 		/* each nexthop is packed in an attribute */
 		size_t nhsize = nla_total_size(sizeof(struct rtnexthop));
+		unsigned int i;
 
 		/* may contain flow and gateway attribute */
 		nhsize += 2 * nla_total_size(4);
 
 		/* grab encap info */
-		for_nexthops(fi) {
-			if (nh->fib_nh_lws) {
+		for (i = 0; i < fib_info_num_path(fi); i++) {
+			struct fib_nh_common *nhc = fib_info_nhc(fi, i);
+
+			if (nhc->nhc_lwtstate) {
 				/* RTA_ENCAP_TYPE */
 				nh_encapsize += lwtunnel_get_encap_size(
-						nh->fib_nh_lws);
+						nhc->nhc_lwtstate);
 				/* RTA_ENCAP */
 				nh_encapsize +=  nla_total_size(2);
 			}
-		} endfor_nexthops(fi);
+		}
 
 		/* all nexthops are packed in a nested attribute */
 		payload += nla_total_size((nhs * nhsize) + nh_encapsize);
@@ -1194,9 +1200,15 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 	fib_info_hash_free(old_laddrhash, bytes);
 }
 
-__be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh,
-				unsigned char scope)
+__be32 fib_info_update_nhc_saddr(struct net *net, struct fib_nh_common *nhc,
+				 unsigned char scope)
 {
+	struct fib_nh *nh;
+
+	if (nhc->nhc_family != AF_INET)
+		return inet_select_addr(nhc->nhc_dev, 0, scope);
+
+	nh = container_of(nhc, struct fib_nh, nh_common);
 	nh->nh_saddr = inet_select_addr(nh->fib_nh_dev, nh->fib_nh_gw4, scope);
 	nh->nh_saddr_genid = atomic_read(&net->ipv4.dev_addr_genid);
 
@@ -1206,16 +1218,19 @@ __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh,
 __be32 fib_result_prefsrc(struct net *net, struct fib_result *res)
 {
 	struct fib_nh_common *nhc = res->nhc;
-	struct fib_nh *nh;
 
 	if (res->fi->fib_prefsrc)
 		return res->fi->fib_prefsrc;
 
-	nh = container_of(nhc, struct fib_nh, nh_common);
-	if (nh->nh_saddr_genid == atomic_read(&net->ipv4.dev_addr_genid))
-		return nh->nh_saddr;
+	if (nhc->nhc_family == AF_INET) {
+		struct fib_nh *nh;
 
-	return fib_info_update_nh_saddr(net, nh, res->fi->fib_scope);
+		nh = container_of(nhc, struct fib_nh, nh_common);
+		if (nh->nh_saddr_genid == atomic_read(&net->ipv4.dev_addr_genid))
+			return nh->nh_saddr;
+	}
+
+	return fib_info_update_nhc_saddr(net, nhc, res->fi->fib_scope);
 }
 
 static bool fib_valid_prefsrc(struct fib_config *cfg, __be32 fib_prefsrc)
@@ -1397,7 +1412,8 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	}
 
 	change_nexthops(fi) {
-		fib_info_update_nh_saddr(net, nexthop_nh, fi->fib_scope);
+		fib_info_update_nhc_saddr(net, &nexthop_nh->nh_common,
+					  fi->fib_scope);
 		if (nexthop_nh->fib_nh_gw_family == AF_INET6)
 			fi->fib_nh_is_v6 = true;
 	} endfor_nexthops(fi)
@@ -1625,17 +1641,22 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 	    nla_put_in_addr(skb, RTA_PREFSRC, fi->fib_prefsrc))
 		goto nla_put_failure;
 	if (nhs == 1) {
-		const struct fib_nh *nh = fib_info_nh(fi, 0);
+		const struct fib_nh_common *nhc = fib_info_nhc(fi, 0);
 		unsigned char flags = 0;
 
-		if (fib_nexthop_info(skb, &nh->nh_common, &flags, false) < 0)
+		if (fib_nexthop_info(skb, nhc, &flags, false) < 0)
 			goto nla_put_failure;
 
 		rtm->rtm_flags = flags;
 #ifdef CONFIG_IP_ROUTE_CLASSID
-		if (nh->nh_tclassid &&
-		    nla_put_u32(skb, RTA_FLOW, nh->nh_tclassid))
-			goto nla_put_failure;
+		if (nhc->nhc_family == AF_INET) {
+			struct fib_nh *nh;
+
+			nh = container_of(nhc, struct fib_nh, nh_common);
+			if (nh->nh_tclassid &&
+			    nla_put_u32(skb, RTA_FLOW, nh->nh_tclassid))
+				goto nla_put_failure;
+		}
 #endif
 	} else {
 		if (fib_add_multipath(skb, fi) < 0)

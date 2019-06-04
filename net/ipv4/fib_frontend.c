@@ -235,9 +235,9 @@ static inline unsigned int __inet_dev_addr_type(struct net *net,
 	if (table) {
 		ret = RTN_UNICAST;
 		if (!fib_table_lookup(table, &fl4, &res, FIB_LOOKUP_NOREF)) {
-			struct fib_nh *nh = fib_info_nh(res.fi, 0);
+			struct fib_nh_common *nhc = fib_info_nhc(res.fi, 0);
 
-			if (!dev || dev == nh->fib_nh_dev)
+			if (!dev || dev == nhc->nhc_dev)
 				ret = res.type;
 		}
 	}
@@ -325,18 +325,18 @@ bool fib_info_nh_uses_dev(struct fib_info *fi, const struct net_device *dev)
 	int ret;
 
 	for (ret = 0; ret < fib_info_num_path(fi); ret++) {
-		const struct fib_nh *nh = fib_info_nh(fi, ret);
+		const struct fib_nh_common *nhc = fib_info_nhc(fi, ret);
 
-		if (nh->fib_nh_dev == dev) {
+		if (nhc->nhc_dev == dev) {
 			dev_match = true;
 			break;
-		} else if (l3mdev_master_ifindex_rcu(nh->fib_nh_dev) == dev->ifindex) {
+		} else if (l3mdev_master_ifindex_rcu(nhc->nhc_dev) == dev->ifindex) {
 			dev_match = true;
 			break;
 		}
 	}
 #else
-	if (fib_info_nh(fi, 0)->fib_nh_dev == dev)
+	if (fib_info_nhc(fi, 0)->nhc_dev == dev)
 		dev_match = true;
 #endif
 

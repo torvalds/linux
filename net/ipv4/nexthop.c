@@ -815,7 +815,8 @@ static int nh_create_ipv4(struct net *net, struct nexthop *nh,
 	err = fib_check_nh(net, fib_nh, tb_id, 0, extack);
 	if (!err) {
 		nh->nh_flags = fib_nh->fib_nh_flags;
-		fib_info_update_nh_saddr(net, fib_nh, fib_nh->fib_nh_scope);
+		fib_info_update_nhc_saddr(net, &fib_nh->nh_common,
+					  fib_nh->fib_nh_scope);
 	} else {
 		fib_nh_release(net, fib_nh);
 	}
