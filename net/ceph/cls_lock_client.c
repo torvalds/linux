@@ -264,8 +264,11 @@ static int decode_locker(void **p, void *end, struct ceph_locker *locker)
 		return ret;
 
 	*p += sizeof(struct ceph_timespec); /* skip expiration */
-	ceph_decode_copy(p, &locker->info.addr, sizeof(locker->info.addr));
-	ceph_decode_addr(&locker->info.addr);
+
+	ret = ceph_decode_entity_addr(p, end, &locker->info.addr);
+	if (ret)
+		return ret;
+
 	len = ceph_decode_32(p);
 	*p += len; /* skip description */
 
