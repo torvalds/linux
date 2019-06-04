@@ -96,12 +96,12 @@ int __weak arch_asym_cpu_priority(int cpu)
 }
 
 /*
- * The margin used when comparing utilization with CPU capacity:
- * util * margin < capacity * 1024
+ * The margin used when comparing utilization with CPU capacity.
  *
  * (default: ~20%)
  */
-static unsigned int capacity_margin			= 1280;
+#define fits_capacity(cap, max)	((cap) * 1280 < (max) * 1024)
+
 #endif
 
 #ifdef CONFIG_CFS_BANDWIDTH
@@ -3808,7 +3808,7 @@ util_est_dequeue(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep)
 
 static inline int task_fits_capacity(struct task_struct *p, long capacity)
 {
-	return capacity * 1024 > task_util_est(p) * capacity_margin;
+	return fits_capacity(task_util_est(p), capacity);
 }
 
 static inline void update_misfit_status(struct task_struct *p, struct rq *rq)
@@ -5235,7 +5235,7 @@ static inline unsigned long cpu_util(int cpu);
 
 static inline bool cpu_overutilized(int cpu)
 {
-	return (capacity_of(cpu) * 1024) < (cpu_util(cpu) * capacity_margin);
+	return !fits_capacity(cpu_util(cpu), capacity_of(cpu));
 }
 
 static inline void update_overutilized_status(struct rq *rq)
@@ -6456,7 +6456,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu)
 			/* Skip CPUs that will be overutilized. */
 			util = cpu_util_next(cpu, p, cpu);
 			cpu_cap = capacity_of(cpu);
-			if (cpu_cap * 1024 < util * capacity_margin)
+			if (!fits_capacity(util, cpu_cap))
 				continue;
 
 			/* Always use prev_cpu as a candidate. */
@@ -8011,8 +8011,7 @@ group_is_overloaded(struct lb_env *env, struct sg_lb_stats *sgs)
 static inline bool
 group_smaller_min_cpu_capacity(struct sched_group *sg, struct sched_group *ref)
 {
-	return sg->sgc->min_capacity * capacity_margin <
-						ref->sgc->min_capacity * 1024;
+	return fits_capacity(sg->sgc->min_capacity, ref->sgc->min_capacity);
 }
 
 /*
@@ -8022,8 +8021,7 @@ group_smaller_min_cpu_capacity(struct sched_group *sg, struct sched_group *ref)
 static inline bool
 group_smaller_max_cpu_capacity(struct sched_group *sg, struct sched_group *ref)
 {
-	return sg->sgc->max_capacity * capacity_margin <
-						ref->sgc->max_capacity * 1024;
+	return fits_capacity(sg->sgc->max_capacity, ref->sgc->max_capacity);
 }
 
 static inline enum
