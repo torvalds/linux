@@ -112,6 +112,12 @@ struct mv88e6xxx_info {
 	 * when it is non-zero, and use indirect access to internal registers.
 	 */
 	bool multi_chip;
+	/* Dual-chip Addressing Mode
+	 * Some chips respond to only half of the 32 SMI addresses,
+	 * allowing two to coexist on the same SMI interface.
+	 */
+	bool dual_chip;
+
 	enum dsa_tag_protocol tag_protocol;
 
 	/* Mask for FromPort and ToPort value of PortVec used in ATU Move
