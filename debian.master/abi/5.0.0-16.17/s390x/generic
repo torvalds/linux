@@ -2866,6 +2866,7 @@ EXPORT_SYMBOL vmlinux 0x00000000	audit_log_task_info
 EXPORT_SYMBOL vmlinux 0x00000000	autoremove_wake_function
 EXPORT_SYMBOL vmlinux 0x00000000	avenrun
 EXPORT_SYMBOL vmlinux 0x00000000	balance_dirty_pages_ratelimited
+EXPORT_SYMBOL vmlinux 0x00000000	bcmp
 EXPORT_SYMBOL vmlinux 0x00000000	bd_set_size
 EXPORT_SYMBOL vmlinux 0x00000000	bdev_dax_pgoff
 EXPORT_SYMBOL vmlinux 0x00000000	bdev_read_only
@@ -8115,7 +8116,6 @@ EXPORT_SYMBOL_GPL net/802/stp 0x00000000	stp_proto_register
 EXPORT_SYMBOL_GPL net/802/stp 0x00000000	stp_proto_unregister
 EXPORT_SYMBOL_GPL net/9p/9pnet 0x00000000	p9_client_xattrcreate
 EXPORT_SYMBOL_GPL net/9p/9pnet 0x00000000	p9_client_xattrwalk
-EXPORT_SYMBOL_GPL net/bridge/br_netfilter 0x00000000	br_netfilter_enable
 EXPORT_SYMBOL_GPL net/bridge/bridge 0x00000000	br_dev_queue_push_xmit
 EXPORT_SYMBOL_GPL net/bridge/bridge 0x00000000	br_fdb_clear_offload
 EXPORT_SYMBOL_GPL net/bridge/bridge 0x00000000	br_fdb_find_port

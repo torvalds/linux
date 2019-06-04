@@ -6327,6 +6327,7 @@ EXPORT_SYMBOL vmlinux 0x00000000	backlight_force_update
 EXPORT_SYMBOL vmlinux 0x00000000	backlight_register_notifier
 EXPORT_SYMBOL vmlinux 0x00000000	backlight_unregister_notifier
 EXPORT_SYMBOL vmlinux 0x00000000	balance_dirty_pages_ratelimited
+EXPORT_SYMBOL vmlinux 0x00000000	bcmp
 EXPORT_SYMBOL vmlinux 0x00000000	bd_set_size
 EXPORT_SYMBOL vmlinux 0x00000000	bdev_dax_pgoff
 EXPORT_SYMBOL vmlinux 0x00000000	bdev_read_only
@@ -15673,7 +15674,6 @@ EXPORT_SYMBOL_GPL net/bluetooth/bluetooth 0x00000000	l2cap_chan_put
 EXPORT_SYMBOL_GPL net/bluetooth/bluetooth 0x00000000	l2cap_chan_send
 EXPORT_SYMBOL_GPL net/bluetooth/bluetooth 0x00000000	l2cap_chan_set_defaults
 EXPORT_SYMBOL_GPL net/bluetooth/hidp/hidp 0x00000000	hidp_hid_driver
-EXPORT_SYMBOL_GPL net/bridge/br_netfilter 0x00000000	br_netfilter_enable
 EXPORT_SYMBOL_GPL net/bridge/bridge 0x00000000	br_dev_queue_push_xmit
 EXPORT_SYMBOL_GPL net/bridge/bridge 0x00000000	br_fdb_clear_offload
 EXPORT_SYMBOL_GPL net/bridge/bridge 0x00000000	br_fdb_find_port
