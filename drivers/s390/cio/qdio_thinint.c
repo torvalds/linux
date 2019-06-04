@@ -178,6 +178,7 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
 /**
  * tiqdio_thinint_handler - thin interrupt handler for qdio
  * @airq: pointer to adapter interrupt descriptor
+ * @floating: flag to recognize floating vs. directed interrupts (unused)
  */
 static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating)
 {
