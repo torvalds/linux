@@ -581,9 +581,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strscpy(cap->driver, "hdpvr", sizeof(cap->driver));
 	strscpy(cap->card, "Hauppauge HD PVR", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_AUDIO |
-			    V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1154,6 +1151,8 @@ static const struct video_device hdpvr_video_template = {
 	.release		= hdpvr_device_release,
 	.ioctl_ops		= &hdpvr_ioctl_ops,
 	.tvnorms		= V4L2_STD_ALL,
+	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_AUDIO |
+				  V4L2_CAP_READWRITE,
 };
 
 static const struct v4l2_ctrl_ops hdpvr_ctrl_ops = {

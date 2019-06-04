@@ -1984,7 +1984,6 @@ static int vidioc_s_register(struct file *file, void *priv,
 static int vidioc_querycap(struct file *file, void  *priv,
 			   struct v4l2_capability *cap)
 {
-	struct video_device   *vdev = video_devdata(file);
 	struct em28xx         *dev  = video_drvdata(file);
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
 	struct usb_device *udev = interface_to_usbdev(dev->intf);
@@ -1993,23 +1992,12 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strscpy(cap->card, em28xx_boards[dev->model].name, sizeof(cap->card));
 	usb_make_path(udev, cap->bus_info, sizeof(cap->bus_info));
 
-	if (vdev->vfl_type == VFL_TYPE_GRABBER)
-		cap->device_caps = V4L2_CAP_READWRITE |
-			V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
-	else if (vdev->vfl_type == VFL_TYPE_RADIO)
-		cap->device_caps = V4L2_CAP_RADIO;
-	else
-		cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_VBI_CAPTURE;
-
-	if (dev->int_audio_type != EM28XX_INT_AUDIO_NONE)
-		cap->device_caps |= V4L2_CAP_AUDIO;
-
-	if (dev->tuner_type != TUNER_ABSENT)
-		cap->device_caps |= V4L2_CAP_TUNER;
-
-	cap->capabilities = cap->device_caps |
-			    V4L2_CAP_DEVICE_CAPS | V4L2_CAP_READWRITE |
+	cap->capabilities = V4L2_CAP_DEVICE_CAPS | V4L2_CAP_READWRITE |
 			    V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	if (dev->int_audio_type != EM28XX_INT_AUDIO_NONE)
+		cap->capabilities |= V4L2_CAP_AUDIO;
+	if (dev->tuner_type != TUNER_ABSENT)
+		cap->capabilities |= V4L2_CAP_TUNER;
 	if (video_is_registered(&v4l2->vbi_dev))
 		cap->capabilities |= V4L2_CAP_VBI_CAPTURE;
 	if (video_is_registered(&v4l2->radio_dev))
@@ -2782,6 +2770,13 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	mutex_init(&v4l2->vb_vbi_queue_lock);
 	v4l2->vdev.queue = &v4l2->vb_vidq;
 	v4l2->vdev.queue->lock = &v4l2->vb_queue_lock;
+	v4l2->vdev.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_VIDEO_CAPTURE |
+				 V4L2_CAP_STREAMING;
+	if (dev->int_audio_type != EM28XX_INT_AUDIO_NONE)
+		v4l2->vdev.device_caps |= V4L2_CAP_AUDIO;
+	if (dev->tuner_type != TUNER_ABSENT)
+		v4l2->vdev.device_caps |= V4L2_CAP_TUNER;
+
 
 	/* disable inapplicable ioctls */
 	if (dev->is_webcam) {
@@ -2818,6 +2813,10 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 
 		v4l2->vbi_dev.queue = &v4l2->vb_vbiq;
 		v4l2->vbi_dev.queue->lock = &v4l2->vb_vbi_queue_lock;
+		v4l2->vbi_dev.device_caps = V4L2_CAP_STREAMING |
+			V4L2_CAP_READWRITE | V4L2_CAP_VBI_CAPTURE;
+		if (dev->tuner_type != TUNER_ABSENT)
+			v4l2->vbi_dev.device_caps |= V4L2_CAP_TUNER;
 
 		/* disable inapplicable ioctls */
 		v4l2_disable_ioctl(&v4l2->vbi_dev, VIDIOC_S_PARM);
@@ -2845,6 +2844,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	if (em28xx_boards[dev->model].radio.type == EM28XX_RADIO) {
 		em28xx_vdev_init(dev, &v4l2->radio_dev, &em28xx_radio_template,
 				 "radio");
+		v4l2->radio_dev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
 		ret = video_register_device(&v4l2->radio_dev, VFL_TYPE_RADIO,
 					    radio_nr[dev->devno]);
 		if (ret < 0) {
