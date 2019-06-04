@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
 /*
- * osd.h
+ * osd.h - DEPRECATED On Screen Display API
+ *
+ * NOTE: should not be used on future drivers
  *
  * Copyright (C) 2001 Ralph  Metzler <ralph@convergence.de>
  *                  & Marcus Metzler <marcus@convergence.de>
