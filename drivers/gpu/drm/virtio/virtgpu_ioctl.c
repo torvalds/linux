@@ -168,7 +168,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 			goto out_unused_fd;
 		}
 
-		user_bo_handles = (void __user *)(uintptr_t)exbuf->bo_handles;
+		user_bo_handles = u64_to_user_ptr(exbuf->bo_handles);
 		if (copy_from_user(bo_handles, user_bo_handles,
 				   exbuf->num_bo_handles * sizeof(uint32_t))) {
 			ret = -EFAULT;
@@ -195,8 +195,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out_free;
 
-	buf = memdup_user((void __user *)(uintptr_t)exbuf->command,
-			  exbuf->size);
+	buf = memdup_user(u64_to_user_ptr(exbuf->command), exbuf->size);
 	if (IS_ERR(buf)) {
 		ret = PTR_ERR(buf);
 		goto out_unresv;
@@ -263,10 +262,9 @@ static int virtio_gpu_getparam_ioctl(struct drm_device *dev, void *data,
 	default:
 		return -EINVAL;
 	}
-	if (copy_to_user((void __user *)(unsigned long)param->value,
-			 &value, sizeof(int))) {
+	if (copy_to_user(u64_to_user_ptr(param->value), &value, sizeof(int)))
 		return -EFAULT;
-	}
+
 	return 0;
 }
 
@@ -545,7 +543,7 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 	ptr = cache_ent->caps_cache;
 
 copy_exit:
-	if (copy_to_user((void __user *)(unsigned long)args->addr, ptr, size))
+	if (copy_to_user(u64_to_user_ptr(args->addr), ptr, size))
 		return -EFAULT;
 
 	return 0;
