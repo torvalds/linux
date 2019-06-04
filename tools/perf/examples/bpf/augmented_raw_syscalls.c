@@ -102,8 +102,6 @@ int sys_enter(struct syscall_enter_args *args)
 	 * initial, non-augmented raw_syscalls:sys_enter payload.
 	 */
 	unsigned int len = sizeof(augmented_args->args);
-	unsigned int filename_len;
-	const void *filename_arg = NULL;
 	struct syscall *syscall;
 	int key = 0;
 
@@ -206,8 +204,10 @@ processed 46 insns (limit 1000000) max_states_per_insn 0 total_states 12 peak_st
 
 #define __loop_iter(arg) \
 	if (syscall->string_args_len[arg] != 0) { \
-		filename_len = syscall->string_args_len[arg]; \
-		filename_arg = (const void *)args->args[arg];
+		unsigned int filename_len = syscall->string_args_len[arg]; \
+		const void *filename_arg = (const void *)args->args[arg]; \
+		if (filename_len <= sizeof(augmented_args->filename.value)) \
+			len += augmented_filename__read(&augmented_args->filename, filename_arg, filename_len);
 #define loop_iter_first() __loop_iter(0); }
 #define loop_iter(arg) else __loop_iter(arg); }
 #define loop_iter_last(arg) else __loop_iter(arg); __asm__ __volatile__("": : :"memory"); }
@@ -218,10 +218,6 @@ processed 46 insns (limit 1000000) max_states_per_insn 0 total_states 12 peak_st
 	loop_iter(3)
 	loop_iter(4)
 	loop_iter_last(5)
-
-	if (filename_arg != NULL && filename_len <= sizeof(augmented_args->filename.value)) {
-		len += augmented_filename__read(&augmented_args->filename, filename_arg, filename_len);
-	}
 
 	/* If perf_event_output fails, return non-zero so that it gets recorded unaugmented */
 	return perf_event_output(args, &__augmented_syscalls__, BPF_F_CURRENT_CPU, augmented_args, len);
