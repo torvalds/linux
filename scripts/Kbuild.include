@@ -187,12 +187,6 @@ dtbinst := -f $(srctree)/scripts/Makefile.dtbinst obj
 # $(Q)$(MAKE) $(clean)=dir
 clean := -f $(srctree)/scripts/Makefile.clean obj
 
-###
-# Shorthand for $(Q)$(MAKE) -f scripts/Makefile.headersinst obj=
-# Usage:
-# $(Q)$(MAKE) $(hdr-inst)=dir
-hdr-inst := -f $(srctree)/scripts/Makefile.headersinst obj
-
 # echo command.
 # Short version is used, if $(quiet) equals `quiet_', otherwise full one.
 echo-cmd = $(if $($(quiet)cmd_$(1)),\
