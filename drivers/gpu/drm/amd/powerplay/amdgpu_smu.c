@@ -135,30 +135,52 @@ int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 	if (!min && !max)
 		return -EINVAL;
 
+	switch (clk_type) {
+	case SMU_UCLK:
+		if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
+			pr_warn("uclk dpm is not enabled\n");
+			return 0;
+		}
+		break;
+	case SMU_GFXCLK:
+		if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
+			pr_warn("gfxclk dpm is not enabled\n");
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+
+	mutex_lock(&smu->mutex);
 	clk_id = smu_clk_get_index(smu, clk_type);
-	if (clk_id < 0)
-		return clk_id;
+	if (clk_id < 0) {
+		ret = -EINVAL;
+		goto failed;
+	}
 
 	param = (clk_id & 0xffff) << 16;
 
 	if (max) {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq, param);
 		if (ret)
-			return ret;
+			goto failed;
 		ret = smu_read_smc_arg(smu, max);
 		if (ret)
-			return ret;
+			goto failed;
 	}
 
 	if (min) {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMinDpmFreq, param);
 		if (ret)
-			return ret;
+			goto failed;
 		ret = smu_read_smc_arg(smu, min);
 		if (ret)
-			return ret;
+			goto failed;
 	}
 
+failed:
+	mutex_unlock(&smu->mutex);
 	return ret;
 }
 

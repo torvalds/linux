@@ -1351,89 +1351,6 @@ static int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	return ret;
 }
 
-
-static int smu_v11_0_get_clock_ranges(struct smu_context *smu,
-				      uint32_t *clock,
-				      enum smu_clk_type clock_select,
-				      bool max)
-{
-	int ret;
-	*clock = 0;
-	if (max) {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq,
-				smu_clk_get_index(smu, clock_select) << 16);
-		if (ret) {
-			pr_err("[GetClockRanges] Failed to get max clock from SMC!\n");
-			return ret;
-		}
-		smu_read_smc_arg(smu, clock);
-	} else {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMinDpmFreq,
-				smu_clk_get_index(smu, clock_select) << 16);
-		if (ret) {
-			pr_err("[GetClockRanges] Failed to get min clock from SMC!\n");
-			return ret;
-		}
-		smu_read_smc_arg(smu, clock);
-	}
-
-	return 0;
-}
-
-static uint32_t smu_v11_0_dpm_get_sclk(struct smu_context *smu, bool low)
-{
-	uint32_t gfx_clk;
-	int ret;
-
-	if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
-		pr_err("[GetSclks]: gfxclk dpm not enabled!\n");
-		return -EPERM;
-	}
-
-	if (low) {
-		ret = smu_v11_0_get_clock_ranges(smu, &gfx_clk, SMU_GFXCLK, false);
-		if (ret) {
-			pr_err("[GetSclks]: fail to get min SMU_GFXCLK\n");
-			return ret;
-		}
-	} else {
-		ret = smu_v11_0_get_clock_ranges(smu, &gfx_clk, SMU_GFXCLK, true);
-		if (ret) {
-			pr_err("[GetSclks]: fail to get max SMU_GFXCLK\n");
-			return ret;
-		}
-	}
-
-	return (gfx_clk * 100);
-}
-
-static uint32_t smu_v11_0_dpm_get_mclk(struct smu_context *smu, bool low)
-{
-	uint32_t mem_clk;
-	int ret;
-
-	if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
-		pr_err("[GetMclks]: memclk dpm not enabled!\n");
-		return -EPERM;
-	}
-
-	if (low) {
-		ret = smu_v11_0_get_clock_ranges(smu, &mem_clk, SMU_UCLK, false);
-		if (ret) {
-			pr_err("[GetMclks]: fail to get min SMU_UCLK\n");
-			return ret;
-		}
-	} else {
-		ret = smu_v11_0_get_clock_ranges(smu, &mem_clk, SMU_GFXCLK, true);
-		if (ret) {
-			pr_err("[GetMclks]: fail to get max SMU_UCLK\n");
-			return ret;
-		}
-	}
-
-	return (mem_clk * 100);
-}
-
 static int smu_v11_0_set_od8_default_settings(struct smu_context *smu,
 					      bool initialize)
 {
@@ -1778,8 +1695,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.set_deep_sleep_dcefclk = smu_v11_0_set_deep_sleep_dcefclk,
 	.display_clock_voltage_request = smu_v11_0_display_clock_voltage_request,
 	.set_watermarks_for_clock_ranges = smu_v11_0_set_watermarks_for_clock_ranges,
-	.get_sclk = smu_v11_0_dpm_get_sclk,
-	.get_mclk = smu_v11_0_dpm_get_mclk,
 	.set_od8_default_settings = smu_v11_0_set_od8_default_settings,
 	.update_od8_settings = smu_v11_0_update_od8_settings,
 	.get_current_rpm = smu_v11_0_get_current_rpm,

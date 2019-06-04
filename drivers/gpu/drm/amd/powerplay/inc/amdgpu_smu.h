@@ -679,8 +679,6 @@ struct smu_funcs
 	int (*update_od8_settings)(struct smu_context *smu,
 				   uint32_t index,
 				   uint32_t value);
-	uint32_t (*get_sclk)(struct smu_context *smu, bool low);
-	uint32_t (*get_mclk)(struct smu_context *smu, bool low);
 	int (*get_current_rpm)(struct smu_context *smu, uint32_t *speed);
 	uint32_t (*get_fan_control_mode)(struct smu_context *smu);
 	int (*set_fan_control_mode)(struct smu_context *smu, uint32_t mode);
@@ -881,10 +879,6 @@ struct smu_funcs
 	((smu)->ppt_funcs->dpm_set_uvd_enable ? (smu)->ppt_funcs->dpm_set_uvd_enable((smu), (enable)) : 0)
 #define smu_dpm_set_vce_enable(smu, enable) \
 	((smu)->ppt_funcs->dpm_set_vce_enable ? (smu)->ppt_funcs->dpm_set_vce_enable((smu), (enable)) : 0)
-#define smu_get_sclk(smu, low) \
-	((smu)->funcs->get_sclk ? (smu)->funcs->get_sclk((smu), (low)) : 0)
-#define smu_get_mclk(smu, low) \
-	((smu)->funcs->get_mclk ? (smu)->funcs->get_mclk((smu), (low)) : 0)
 #define smu_set_xgmi_pstate(smu, pstate) \
 		((smu)->funcs->set_xgmi_pstate ? (smu)->funcs->set_xgmi_pstate((smu), (pstate)) : 0)
 #define smu_set_ppfeature_status(smu, ppfeatures) \

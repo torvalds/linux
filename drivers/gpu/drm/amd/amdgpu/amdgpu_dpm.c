@@ -907,18 +907,36 @@ amdgpu_get_vce_clock_state(void *handle, u32 idx)
 
 int amdgpu_dpm_get_sclk(struct amdgpu_device *adev, bool low)
 {
-	if (is_support_sw_smu(adev))
-		return smu_get_sclk(&adev->smu, low);
-	else
+	uint32_t clk_freq;
+	int ret = 0;
+	if (is_support_sw_smu(adev)) {
+		ret = smu_get_dpm_freq_range(&adev->smu, SMU_GFXCLK,
+					     low ? &clk_freq : NULL,
+					     !low ? &clk_freq : NULL);
+		if (ret)
+			return 0;
+		return clk_freq * 100;
+
+	} else {
 		return (adev)->powerplay.pp_funcs->get_sclk((adev)->powerplay.pp_handle, (low));
+	}
 }
 
 int amdgpu_dpm_get_mclk(struct amdgpu_device *adev, bool low)
 {
-	if (is_support_sw_smu(adev))
-		return smu_get_mclk(&adev->smu, low);
-	else
+	uint32_t clk_freq;
+	int ret = 0;
+	if (is_support_sw_smu(adev)) {
+		ret = smu_get_dpm_freq_range(&adev->smu, SMU_UCLK,
+					     low ? &clk_freq : NULL,
+					     !low ? &clk_freq : NULL);
+		if (ret)
+			return 0;
+		return clk_freq * 100;
+
+	} else {
 		return (adev)->powerplay.pp_funcs->get_mclk((adev)->powerplay.pp_handle, (low));
+	}
 }
 
 int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block_type, bool gate)
