@@ -1214,6 +1214,25 @@ out:
 	return err;
 }
 
+static int mlx5_devlink_flash_update(struct devlink *devlink,
+				     const char *file_name,
+				     const char *component,
+				     struct netlink_ext_ack *extack)
+{
+	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	const struct firmware *fw;
+	int err;
+
+	if (component)
+		return -EOPNOTSUPP;
+
+	err = request_firmware_direct(&fw, file_name, &dev->pdev->dev);
+	if (err)
+		return err;
+
+	return mlx5_firmware_flash(dev, fw);
+}
+
 static const struct devlink_ops mlx5_devlink_ops = {
 #ifdef CONFIG_MLX5_ESWITCH
 	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
@@ -1223,6 +1242,7 @@ static const struct devlink_ops mlx5_devlink_ops = {
 	.eswitch_encap_mode_set = mlx5_devlink_eswitch_encap_mode_set,
 	.eswitch_encap_mode_get = mlx5_devlink_eswitch_encap_mode_get,
 #endif
+	.flash_update = mlx5_devlink_flash_update,
 };
 
 static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
