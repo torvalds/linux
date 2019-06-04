@@ -129,9 +129,12 @@ struct fib_nh {
  * This structure contains data shared by many of routes.
  */
 
+struct nexthop;
+
 struct fib_info {
 	struct hlist_node	fib_hash;
 	struct hlist_node	fib_lhash;
+	struct list_head	nh_list;
 	struct net		*fib_net;
 	int			fib_treeref;
 	refcount_t		fib_clntref;
@@ -151,6 +154,7 @@ struct fib_info {
 	int			fib_nhs;
 	bool			fib_nh_is_v6;
 	bool			nh_updated;
+	struct nexthop		*nh;
 	struct rcu_head		rcu;
 	struct fib_nh		fib_nh[0];
 };

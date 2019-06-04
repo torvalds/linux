@@ -1461,6 +1461,7 @@ found:
 		fib_alias_accessed(fa);
 		err = fib_props[fa->fa_type].error;
 		if (unlikely(err < 0)) {
+out_reject:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
@@ -1469,6 +1470,12 @@ found:
 		}
 		if (fi->fib_flags & RTNH_F_DEAD)
 			continue;
+
+		if (unlikely(fi->nh && nexthop_is_blackhole(fi->nh))) {
+			err = fib_props[RTN_BLACKHOLE].error;
+			goto out_reject;
+		}
+
 		for (nhsel = 0; nhsel < fib_info_num_path(fi); nhsel++) {
 			struct fib_nh_common *nhc = fib_info_nhc(fi, nhsel);
 

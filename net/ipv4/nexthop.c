@@ -105,6 +105,7 @@ static struct nexthop *nexthop_alloc(void)
 
 	nh = kzalloc(sizeof(struct nexthop), GFP_KERNEL);
 	if (nh) {
+		INIT_LIST_HEAD(&nh->fi_list);
 		INIT_LIST_HEAD(&nh->grp_list);
 	}
 	return nh;
@@ -515,6 +516,54 @@ struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
 }
 EXPORT_SYMBOL_GPL(nexthop_select_path);
 
+static int nexthop_check_scope(struct nexthop *nh, u8 scope,
+			       struct netlink_ext_ack *extack)
+{
+	struct nh_info *nhi;
+
+	nhi = rtnl_dereference(nh->nh_info);
+	if (scope == RT_SCOPE_HOST && nhi->fib_nhc.nhc_gw_family) {
+		NL_SET_ERR_MSG(extack,
+			       "Route with host scope can not have a gateway");
+		return -EINVAL;
+	}
+
+	if (nhi->fib_nhc.nhc_flags & RTNH_F_ONLINK && scope >= RT_SCOPE_LINK) {
+		NL_SET_ERR_MSG(extack, "Scope mismatch with nexthop");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* Invoked by fib add code to verify nexthop by id is ok with
+ * config for prefix; parts of fib_check_nh not done when nexthop
+ * object is used.
+ */
+int fib_check_nexthop(struct nexthop *nh, u8 scope,
+		      struct netlink_ext_ack *extack)
+{
+	int err = 0;
+
+	if (nh->is_group) {
+		struct nh_group *nhg;
+
+		if (scope == RT_SCOPE_HOST) {
+			NL_SET_ERR_MSG(extack, "Route with host scope can not have multiple nexthops");
+			err = -EINVAL;
+			goto out;
+		}
+
+		nhg = rtnl_dereference(nh->nh_grp);
+		/* all nexthops in a group have the same scope */
+		err = nexthop_check_scope(nhg->nh_entries[0].nh, scope, extack);
+	} else {
+		err = nexthop_check_scope(nh, scope, extack);
+	}
+out:
+	return err;
+}
+
 static void nh_group_rebalance(struct nh_group *nhg)
 {
 	int total = 0;
@@ -607,9 +656,24 @@ static void remove_nexthop_group(struct nexthop *nh, struct nl_info *nlinfo)
 	}
 }
 
+static void __remove_nexthop_fib(struct net *net, struct nexthop *nh)
+{
+	bool do_flush = false;
+	struct fib_info *fi;
+
+	list_for_each_entry(fi, &nh->fi_list, nh_list) {
+		fi->fib_flags |= RTNH_F_DEAD;
+		do_flush = true;
+	}
+	if (do_flush)
+		fib_flush(net);
+}
+
 static void __remove_nexthop(struct net *net, struct nexthop *nh,
 			     struct nl_info *nlinfo)
 {
+	__remove_nexthop_fib(net, nh);
+
 	if (nh->is_group) {
 		remove_nexthop_group(nh, nlinfo);
 	} else {
