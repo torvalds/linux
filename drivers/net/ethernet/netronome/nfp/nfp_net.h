@@ -17,6 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/semaphore.h>
 #include <net/xdp.h>
 
 #include "nfp_net_ctrl.h"
@@ -620,7 +621,7 @@ struct nfp_net {
 	struct timer_list reconfig_timer;
 	u32 reconfig_in_progress_update;
 
-	struct mutex bar_lock;
+	struct semaphore bar_lock;
 
 	u32 rx_coalesce_usecs;
 	u32 rx_coalesce_max_frames;
@@ -848,12 +849,12 @@ static inline void nfp_ctrl_unlock(struct nfp_net *nn)
 
 static inline void nn_ctrl_bar_lock(struct nfp_net *nn)
 {
-	mutex_lock(&nn->bar_lock);
+	down(&nn->bar_lock);
 }
 
 static inline void nn_ctrl_bar_unlock(struct nfp_net *nn)
 {
-	mutex_unlock(&nn->bar_lock);
+	up(&nn->bar_lock);
 }
 
 /* Globals */
