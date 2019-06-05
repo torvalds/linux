@@ -210,7 +210,7 @@
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges;
+			ranges = <0x30000000 0x30000000 0x400000>;
 
 			sai1: sai@30010000 {
 				compatible = "fsl,imx8mm-sai", "fsl,imx8mq-sai";
@@ -450,7 +450,7 @@
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges;
+			ranges = <0x30400000 0x30400000 0x400000>;
 
 			pwm1: pwm@30660000 {
 				compatible = "fsl,imx8mm-pwm", "fsl,imx27-pwm";
@@ -501,7 +501,7 @@
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges;
+			ranges = <0x30800000 0x30800000 0x400000>;
 
 			ecspi1: spi@30820000 {
 				compatible = "fsl,imx8mm-ecspi", "fsl,imx51-ecspi";
@@ -720,7 +720,7 @@
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges;
+			ranges = <0x32c00000 0x32c00000 0x400000>;
 
 			usbotg1: usb@32e40000 {
 				compatible = "fsl,imx8mm-usb", "fsl,imx7d-usb";
