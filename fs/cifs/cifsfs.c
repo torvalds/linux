@@ -1148,6 +1148,10 @@ static ssize_t cifs_copy_file_range(struct file *src_file, loff_t off,
 	rc = cifs_file_copychunk_range(xid, src_file, off, dst_file, destoff,
 					len, flags);
 	free_xid(xid);
+
+	if (rc == -EOPNOTSUPP)
+		rc = generic_copy_file_range(src_file, off, dst_file,
+					     destoff, len, flags);
 	return rc;
 }
 
