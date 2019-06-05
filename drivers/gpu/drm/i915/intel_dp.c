@@ -332,6 +332,7 @@ static int icl_max_source_rate(struct intel_dp *intel_dp)
 	enum port port = dig_port->base.port;
 
 	if (intel_port_is_combophy(dev_priv, port) &&
+	    !IS_ELKHARTLAKE(dev_priv) &&
 	    !intel_dp_is_edp(intel_dp))
 		return 540000;
 
