@@ -44,6 +44,7 @@
 #include "nfp_net.h"
 #include "nfp_net_sriov.h"
 #include "nfp_port.h"
+#include "crypto/crypto.h"
 
 /**
  * nfp_net_get_fw_version() - Read and parse the FW version
@@ -270,7 +271,7 @@ static void nfp_net_reconfig_wait_posted(struct nfp_net *nn)
  *
  * Return: Negative errno on error, 0 on success
  */
-static int __nfp_net_reconfig(struct nfp_net *nn, u32 update)
+int __nfp_net_reconfig(struct nfp_net *nn, u32 update)
 {
 	int ret;
 
@@ -4005,8 +4006,13 @@ int nfp_net_init(struct nfp_net *nn)
 	if (err)
 		return err;
 
-	if (nn->dp.netdev)
+	if (nn->dp.netdev) {
 		nfp_net_netdev_init(nn);
+
+		err = nfp_net_tls_init(nn);
+		if (err)
+			return err;
+	}
 
 	nfp_net_vecs_init(nn);
 
