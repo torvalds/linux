@@ -1669,6 +1669,174 @@ static void intel_dsi_add_properties(struct intel_connector *connector)
 	}
 }
 
+#define NS_KHZ_RATIO		1000000
+
+#define PREPARE_CNT_MAX		0x3F
+#define EXIT_ZERO_CNT_MAX	0x3F
+#define CLK_ZERO_CNT_MAX	0xFF
+#define TRAIL_CNT_MAX		0x1F
+
+static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
+{
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
+	u32 tlpx_ns, extra_byte_count, tlpx_ui;
+	u32 ui_num, ui_den;
+	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
+	u32 ths_prepare_ns, tclk_trail_ns;
+	u32 tclk_prepare_clkzero, ths_prepare_hszero;
+	u32 lp_to_hs_switch, hs_to_lp_switch;
+	u32 mul;
+
+	tlpx_ns = intel_dsi_tlpx_ns(intel_dsi);
+
+	switch (intel_dsi->lane_count) {
+	case 1:
+	case 2:
+		extra_byte_count = 2;
+		break;
+	case 3:
+		extra_byte_count = 4;
+		break;
+	case 4:
+	default:
+		extra_byte_count = 3;
+		break;
+	}
+
+	/* in Kbps */
+	ui_num = NS_KHZ_RATIO;
+	ui_den = intel_dsi_bitrate(intel_dsi);
+
+	tclk_prepare_clkzero = mipi_config->tclk_prepare_clkzero;
+	ths_prepare_hszero = mipi_config->ths_prepare_hszero;
+
+	/*
+	 * B060
+	 * LP byte clock = TLPX/ (8UI)
+	 */
+	intel_dsi->lp_byte_clk = DIV_ROUND_UP(tlpx_ns * ui_den, 8 * ui_num);
+
+	/* DDR clock period = 2 * UI
+	 * UI(sec) = 1/(bitrate * 10^3) (bitrate is in KHZ)
+	 * UI(nsec) = 10^6 / bitrate
+	 * DDR clock period (nsec) = 2 * UI = (2 * 10^6)/ bitrate
+	 * DDR clock count  = ns_value / DDR clock period
+	 *
+	 * For GEMINILAKE dphy_param_reg will be programmed in terms of
+	 * HS byte clock count for other platform in HS ddr clock count
+	 */
+	mul = IS_GEMINILAKE(dev_priv) ? 8 : 2;
+	ths_prepare_ns = max(mipi_config->ths_prepare,
+			     mipi_config->tclk_prepare);
+
+	/* prepare count */
+	prepare_cnt = DIV_ROUND_UP(ths_prepare_ns * ui_den, ui_num * mul);
+
+	if (prepare_cnt > PREPARE_CNT_MAX) {
+		DRM_DEBUG_KMS("prepare count too high %u\n", prepare_cnt);
+		prepare_cnt = PREPARE_CNT_MAX;
+	}
+
+	/* exit zero count */
+	exit_zero_cnt = DIV_ROUND_UP(
+				(ths_prepare_hszero - ths_prepare_ns) * ui_den,
+				ui_num * mul
+				);
+
+	/*
+	 * Exit zero is unified val ths_zero and ths_exit
+	 * minimum value for ths_exit = 110ns
+	 * min (exit_zero_cnt * 2) = 110/UI
+	 * exit_zero_cnt = 55/UI
+	 */
+	if (exit_zero_cnt < (55 * ui_den / ui_num) && (55 * ui_den) % ui_num)
+		exit_zero_cnt += 1;
+
+	if (exit_zero_cnt > EXIT_ZERO_CNT_MAX) {
+		DRM_DEBUG_KMS("exit zero count too high %u\n", exit_zero_cnt);
+		exit_zero_cnt = EXIT_ZERO_CNT_MAX;
+	}
+
+	/* clk zero count */
+	clk_zero_cnt = DIV_ROUND_UP(
+				(tclk_prepare_clkzero -	ths_prepare_ns)
+				* ui_den, ui_num * mul);
+
+	if (clk_zero_cnt > CLK_ZERO_CNT_MAX) {
+		DRM_DEBUG_KMS("clock zero count too high %u\n", clk_zero_cnt);
+		clk_zero_cnt = CLK_ZERO_CNT_MAX;
+	}
+
+	/* trail count */
+	tclk_trail_ns = max(mipi_config->tclk_trail, mipi_config->ths_trail);
+	trail_cnt = DIV_ROUND_UP(tclk_trail_ns * ui_den, ui_num * mul);
+
+	if (trail_cnt > TRAIL_CNT_MAX) {
+		DRM_DEBUG_KMS("trail count too high %u\n", trail_cnt);
+		trail_cnt = TRAIL_CNT_MAX;
+	}
+
+	/* B080 */
+	intel_dsi->dphy_reg = exit_zero_cnt << 24 | trail_cnt << 16 |
+						clk_zero_cnt << 8 | prepare_cnt;
+
+	/*
+	 * LP to HS switch count = 4TLPX + PREP_COUNT * mul + EXIT_ZERO_COUNT *
+	 *					mul + 10UI + Extra Byte Count
+	 *
+	 * HS to LP switch count = THS-TRAIL + 2TLPX + Extra Byte Count
+	 * Extra Byte Count is calculated according to number of lanes.
+	 * High Low Switch Count is the Max of LP to HS and
+	 * HS to LP switch count
+	 *
+	 */
+	tlpx_ui = DIV_ROUND_UP(tlpx_ns * ui_den, ui_num);
+
+	/* B044 */
+	/* FIXME:
+	 * The comment above does not match with the code */
+	lp_to_hs_switch = DIV_ROUND_UP(4 * tlpx_ui + prepare_cnt * mul +
+						exit_zero_cnt * mul + 10, 8);
+
+	hs_to_lp_switch = DIV_ROUND_UP(mipi_config->ths_trail + 2 * tlpx_ui, 8);
+
+	intel_dsi->hs_to_lp_count = max(lp_to_hs_switch, hs_to_lp_switch);
+	intel_dsi->hs_to_lp_count += extra_byte_count;
+
+	/* B088 */
+	/* LP -> HS for clock lanes
+	 * LP clk sync + LP11 + LP01 + tclk_prepare + tclk_zero +
+	 *						extra byte count
+	 * 2TPLX + 1TLPX + 1 TPLX(in ns) + prepare_cnt * 2 + clk_zero_cnt *
+	 *					2(in UI) + extra byte count
+	 * In byteclks = (4TLPX + prepare_cnt * 2 + clk_zero_cnt *2 (in UI)) /
+	 *					8 + extra byte count
+	 */
+	intel_dsi->clk_lp_to_hs_count =
+		DIV_ROUND_UP(
+			4 * tlpx_ui + prepare_cnt * 2 +
+			clk_zero_cnt * 2,
+			8);
+
+	intel_dsi->clk_lp_to_hs_count += extra_byte_count;
+
+	/* HS->LP for Clock Lanes
+	 * Low Power clock synchronisations + 1Tx byteclk + tclk_trail +
+	 *						Extra byte count
+	 * 2TLPX + 8UI + (trail_count*2)(in UI) + Extra byte count
+	 * In byteclks = (2*TLpx(in UI) + trail_count*2 +8)(in UI)/8 +
+	 *						Extra byte count
+	 */
+	intel_dsi->clk_hs_to_lp_count =
+		DIV_ROUND_UP(2 * tlpx_ui + trail_cnt * 2 + 8,
+			8);
+	intel_dsi->clk_hs_to_lp_count += extra_byte_count;
+
+	intel_dsi_log_params(intel_dsi);
+}
+
 void vlv_dsi_init(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
@@ -1757,6 +1925,8 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 		DRM_DEBUG_KMS("no device found\n");
 		goto err;
 	}
+
+	vlv_dphy_param_init(intel_dsi);
 
 	/*
 	 * In case of BYT with CRC PMIC, we need to use GPIO for
