@@ -269,10 +269,6 @@ static char *savemem(struct nfsd4_compoundargs *argp, __be32 *p, int nbytes)
 	return ret;
 }
 
-/*
- * We require the high 32 bits of 'seconds' to be 0, and
- * we ignore all 32 bits of 'nseconds'.
- */
 static __be32
 nfsd4_decode_time(struct nfsd4_compoundargs *argp, struct timespec64 *tv)
 {
