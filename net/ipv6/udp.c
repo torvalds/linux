@@ -219,7 +219,7 @@ struct sock *__udp6_lib_lookup(struct net *net,
 					  exact_dif, hslot2,
 					  skb);
 	}
-	if (unlikely(IS_ERR(result)))
+	if (IS_ERR(result))
 		return NULL;
 	return result;
 }
