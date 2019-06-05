@@ -590,6 +590,7 @@ void tls_unregister_device(struct tls_device *device);
 int tls_device_decrypted(struct sock *sk, struct sk_buff *skb);
 int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 		struct scatterlist *sgout);
+struct sk_buff *tls_encrypt_skb(struct sk_buff *skb);
 
 struct sk_buff *tls_validate_xmit_skb(struct sock *sk,
 				      struct net_device *dev,
