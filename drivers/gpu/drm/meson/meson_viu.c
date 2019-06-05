@@ -405,8 +405,7 @@ void meson_viu_init(struct meson_drm *priv)
 				0 << 16 |
 				1,
 				priv->io_base + _REG(VIU_OSD_BLEND_CTRL));
-		writel_relaxed(3 << 8 |
-				1 << 20,
+		writel_relaxed(1 << 20,
 				priv->io_base + _REG(OSD1_BLEND_SRC_CTRL));
 		writel_relaxed(1 << 20,
 				priv->io_base + _REG(OSD2_BLEND_SRC_CTRL));
