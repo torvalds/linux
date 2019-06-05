@@ -1389,7 +1389,6 @@ nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
 		goto xdr_error;
 	}
 
-	/* Ignore Implementation ID */
 	READ_BUF(4);    /* nfs_impl_id4 array length */
 	dummy = be32_to_cpup(p++);
 
@@ -1397,21 +1396,19 @@ nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
 		goto xdr_error;
 
 	if (dummy == 1) {
-		/* nii_domain */
-		READ_BUF(4);
-		dummy = be32_to_cpup(p++);
-		READ_BUF(dummy);
-		p += XDR_QUADLEN(dummy);
+		status = nfsd4_decode_opaque(argp, &exid->nii_domain);
+		if (status)
+			goto xdr_error;
 
 		/* nii_name */
-		READ_BUF(4);
-		dummy = be32_to_cpup(p++);
-		READ_BUF(dummy);
-		p += XDR_QUADLEN(dummy);
+		status = nfsd4_decode_opaque(argp, &exid->nii_name);
+		if (status)
+			goto xdr_error;
 
 		/* nii_date */
-		READ_BUF(12);
-		p += 3;
+		status = nfsd4_decode_time(argp, &exid->nii_time);
+		if (status)
+			goto xdr_error;
 	}
 	DECODE_TAIL;
 }

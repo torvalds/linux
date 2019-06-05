@@ -1899,6 +1899,8 @@ static void __free_client(struct kref *k)
 	free_svc_cred(&clp->cl_cred);
 	kfree(clp->cl_ownerstr_hashtbl);
 	kfree(clp->cl_name.data);
+	kfree(clp->cl_nii_domain.data);
+	kfree(clp->cl_nii_name.data);
 	idr_destroy(&clp->cl_stateids);
 	kmem_cache_free(client_slab, clp);
 }
@@ -2261,6 +2263,15 @@ static int client_info_show(struct seq_file *m, void *v)
 	seq_printf(m, "name: ");
 	seq_quote_mem(m, clp->cl_name.data, clp->cl_name.len);
 	seq_printf(m, "\nminor version: %d\n", clp->cl_minorversion);
+	if (clp->cl_nii_domain.data) {
+		seq_printf(m, "Implementation domain: ");
+		seq_quote_mem(m, clp->cl_nii_domain.data,
+					clp->cl_nii_domain.len);
+		seq_printf(m, "\nImplementation name: ");
+		seq_quote_mem(m, clp->cl_nii_name.data, clp->cl_nii_name.len);
+		seq_printf(m, "\nImplementation time: [%ld, %ld]\n",
+			clp->cl_nii_time.tv_sec, clp->cl_nii_time.tv_nsec);
+	}
 	drop_client(clp);
 
 	return 0;
@@ -2901,6 +2912,22 @@ static bool client_has_state(struct nfs4_client *clp)
 		|| !list_empty(&clp->async_copies);
 }
 
+static __be32 copy_impl_id(struct nfs4_client *clp,
+				struct nfsd4_exchange_id *exid)
+{
+	if (!exid->nii_domain.data)
+		return 0;
+	xdr_netobj_dup(&clp->cl_nii_domain, &exid->nii_domain, GFP_KERNEL);
+	if (!clp->cl_nii_domain.data)
+		return nfserr_jukebox;
+	xdr_netobj_dup(&clp->cl_nii_name, &exid->nii_name, GFP_KERNEL);
+	if (!clp->cl_nii_name.data)
+		return nfserr_jukebox;
+	clp->cl_nii_time.tv_sec = exid->nii_time.tv_sec;
+	clp->cl_nii_time.tv_nsec = exid->nii_time.tv_nsec;
+	return 0;
+}
+
 __be32
 nfsd4_exchange_id(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		union nfsd4_op_u *u)
@@ -2927,6 +2954,9 @@ nfsd4_exchange_id(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	new = create_client(exid->clname, rqstp, &verf);
 	if (new == NULL)
 		return nfserr_jukebox;
+	status = copy_impl_id(new, exid);
+	if (status)
+		goto out_nolock;
 
 	switch (exid->spa_how) {
 	case SP4_MACH_CRED:

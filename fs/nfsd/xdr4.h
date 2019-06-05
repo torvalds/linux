@@ -410,6 +410,9 @@ struct nfsd4_exchange_id {
 	int		spa_how;
 	u32             spo_must_enforce[3];
 	u32             spo_must_allow[3];
+	struct xdr_netobj nii_domain;
+	struct xdr_netobj nii_name;
+	struct timespec64 nii_time;
 };
 
 struct nfsd4_sequence {
