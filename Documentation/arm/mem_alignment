@@ -1,4 +1,4 @@
-Too many problems poped up because of unnoticed misaligned memory access in
+Too many problems popped up because of unnoticed misaligned memory access in
 kernel code lately.  Therefore the alignment fixup is now unconditionally
 configured in for SA11x0 based targets.  According to Alan Cox, this is a
 bad idea to configure it out, but Russell King has some good reasons for
