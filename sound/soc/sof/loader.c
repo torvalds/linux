@@ -123,10 +123,11 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 
 		switch (block->type) {
 		case SOF_FW_BLK_TYPE_RSRVD0:
-		case SOF_FW_BLK_TYPE_SRAM...SOF_FW_BLK_TYPE_RSRVD14:
+		case SOF_FW_BLK_TYPE_ROM...SOF_FW_BLK_TYPE_RSRVD14:
 			continue;	/* not handled atm */
 		case SOF_FW_BLK_TYPE_IRAM:
 		case SOF_FW_BLK_TYPE_DRAM:
+		case SOF_FW_BLK_TYPE_SRAM:
 			offset = block->offset;
 			bar = snd_sof_dsp_get_bar_index(sdev, block->type);
 			if (bar < 0) {
