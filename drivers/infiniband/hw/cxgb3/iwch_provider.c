@@ -1236,6 +1236,8 @@ static void get_dev_fw_ver_str(struct ib_device *ibdev, char *str)
 }
 
 static const struct ib_device_ops iwch_dev_ops = {
+	.driver_id = RDMA_DRIVER_CXGB3,
+
 	.alloc_hw_stats	= iwch_alloc_stats,
 	.alloc_mr = iwch_alloc_mr,
 	.alloc_mw = iwch_alloc_mw,
@@ -1319,7 +1321,6 @@ int iwch_register_device(struct iwch_dev *dev)
 	memcpy(dev->ibdev.iw_ifname, dev->rdev.t3cdev_p->lldev->name,
 	       sizeof(dev->ibdev.iw_ifname));
 
-	dev->ibdev.driver_id = RDMA_DRIVER_CXGB3;
 	rdma_set_device_sysfs_group(&dev->ibdev, &iwch_attr_group);
 	ib_set_device_ops(&dev->ibdev, &iwch_dev_ops);
 	return ib_register_device(&dev->ibdev, "cxgb3_%d");

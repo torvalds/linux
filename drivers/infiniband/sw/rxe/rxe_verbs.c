@@ -1111,6 +1111,8 @@ static int rxe_enable_driver(struct ib_device *ib_dev)
 }
 
 static const struct ib_device_ops rxe_dev_ops = {
+	.driver_id = RDMA_DRIVER_RXE,
+
 	.alloc_hw_stats = rxe_ib_alloc_hw_stats,
 	.alloc_mr = rxe_alloc_mr,
 	.alloc_pd = rxe_alloc_pd,
@@ -1230,7 +1232,6 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	rxe->tfm = tfm;
 
 	rdma_set_device_sysfs_group(dev, &rxe_attr_group);
-	dev->driver_id = RDMA_DRIVER_RXE;
 	err = ib_register_device(dev, ibdev_name);
 	if (err)
 		pr_warn("%s failed with error %d\n", __func__, err);

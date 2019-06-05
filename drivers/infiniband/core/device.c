@@ -373,7 +373,7 @@ struct ib_device *ib_device_get_by_name(const char *name,
 	down_read(&devices_rwsem);
 	device = __ib_device_get_by_name(name);
 	if (device && driver_id != RDMA_DRIVER_UNKNOWN &&
-	    device->driver_id != driver_id)
+	    device->ops.driver_id != driver_id)
 		device = NULL;
 
 	if (device) {
@@ -1456,7 +1456,7 @@ void ib_unregister_driver(enum rdma_driver_id driver_id)
 
 	down_read(&devices_rwsem);
 	xa_for_each (&devices, index, ib_dev) {
-		if (ib_dev->driver_id != driver_id)
+		if (ib_dev->ops.driver_id != driver_id)
 			continue;
 
 		get_device(&ib_dev->dev);
@@ -2013,7 +2013,7 @@ struct ib_device *ib_device_get_by_netdev(struct net_device *ndev,
 				    (uintptr_t)ndev) {
 		if (rcu_access_pointer(cur->netdev) == ndev &&
 		    (driver_id == RDMA_DRIVER_UNKNOWN ||
-		     cur->ib_dev->driver_id == driver_id) &&
+		     cur->ib_dev->ops.driver_id == driver_id) &&
 		    ib_device_try_get(cur->ib_dev)) {
 			res = cur->ib_dev;
 			break;
@@ -2317,6 +2317,12 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	} while (0)
 
 #define SET_OBJ_SIZE(ptr, name) SET_DEVICE_OP(ptr, size_##name)
+
+	if (ops->driver_id != RDMA_DRIVER_UNKNOWN) {
+		WARN_ON(dev_ops->driver_id != RDMA_DRIVER_UNKNOWN &&
+			dev_ops->driver_id != ops->driver_id);
+		dev_ops->driver_id = ops->driver_id;
+	}
 
 	SET_DEVICE_OP(dev_ops, add_gid);
 	SET_DEVICE_OP(dev_ops, advise_mr);

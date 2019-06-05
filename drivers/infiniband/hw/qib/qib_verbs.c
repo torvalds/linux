@@ -1482,6 +1482,8 @@ static void qib_fill_device_attr(struct qib_devdata *dd)
 }
 
 static const struct ib_device_ops qib_dev_ops = {
+	.driver_id = RDMA_DRIVER_QIB,
+
 	.init_port = qib_create_port_files,
 	.modify_device = qib_modify_device,
 	.process_mad = qib_process_mad,
@@ -1616,7 +1618,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	rdma_set_device_sysfs_group(&dd->verbs_dev.rdi.ibdev, &qib_attr_group);
 
 	ib_set_device_ops(ibdev, &qib_dev_ops);
-	ret = rvt_register_device(&dd->verbs_dev.rdi, RDMA_DRIVER_QIB);
+	ret = rvt_register_device(&dd->verbs_dev.rdi);
 	if (ret)
 		goto err_tx;
 

@@ -596,6 +596,8 @@ static void bnxt_re_unregister_ib(struct bnxt_re_dev *rdev)
 }
 
 static const struct ib_device_ops bnxt_re_dev_ops = {
+	.driver_id = RDMA_DRIVER_BNXT_RE,
+
 	.add_gid = bnxt_re_add_gid,
 	.alloc_hw_stats = bnxt_re_ib_alloc_hw_stats,
 	.alloc_mr = bnxt_re_alloc_mr,
@@ -691,7 +693,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 
 
 	rdma_set_device_sysfs_group(ibdev, &bnxt_re_dev_attr_group);
-	ibdev->driver_id = RDMA_DRIVER_BNXT_RE;
 	ib_set_device_ops(ibdev, &bnxt_re_dev_ops);
 	ret = ib_device_set_netdev(&rdev->ibdev, rdev->netdev, 1);
 	if (ret)

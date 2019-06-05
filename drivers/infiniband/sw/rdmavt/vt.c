@@ -530,7 +530,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
  *
  * Return: 0 on success otherwise an errno.
  */
-int rvt_register_device(struct rvt_dev_info *rdi, u32 driver_id)
+int rvt_register_device(struct rvt_dev_info *rdi)
 {
 	int ret = 0, i;
 
@@ -636,7 +636,6 @@ int rvt_register_device(struct rvt_dev_info *rdi, u32 driver_id)
 	if (!rdi->ibdev.num_comp_vectors)
 		rdi->ibdev.num_comp_vectors = 1;
 
-	rdi->ibdev.driver_id = driver_id;
 	/* We are now good to announce we exist */
 	ret = ib_register_device(&rdi->ibdev, dev_name(&rdi->ibdev.dev));
 	if (ret) {

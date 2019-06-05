@@ -183,6 +183,8 @@ static void qedr_roce_register_device(struct qedr_dev *dev)
 }
 
 static const struct ib_device_ops qedr_dev_ops = {
+	.driver_id = RDMA_DRIVER_QEDR,
+
 	.alloc_mr = qedr_alloc_mr,
 	.alloc_pd = qedr_alloc_pd,
 	.alloc_ucontext = qedr_alloc_ucontext,
@@ -274,7 +276,6 @@ static int qedr_register_device(struct qedr_dev *dev)
 	rdma_set_device_sysfs_group(&dev->ibdev, &qedr_attr_group);
 	ib_set_device_ops(&dev->ibdev, &qedr_dev_ops);
 
-	dev->ibdev.driver_id = RDMA_DRIVER_QEDR;
 	rc = ib_device_set_netdev(&dev->ibdev, dev->ndev, 1);
 	if (rc)
 		return rc;

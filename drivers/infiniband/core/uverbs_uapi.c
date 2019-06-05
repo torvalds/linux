@@ -647,7 +647,7 @@ struct uverbs_api *uverbs_alloc_api(struct ib_device *ibdev)
 		return ERR_PTR(-ENOMEM);
 
 	INIT_RADIX_TREE(&uapi->radix, GFP_KERNEL);
-	uapi->driver_id = ibdev->driver_id;
+	uapi->driver_id = ibdev->ops.driver_id;
 
 	rc = uapi_merge_def(uapi, ibdev, uverbs_core_api, false);
 	if (rc)

@@ -2329,6 +2329,8 @@ struct iw_cm_conn_param;
  * need to define the supported operations, otherwise they will be set to null.
  */
 struct ib_device_ops {
+	enum rdma_driver_id driver_id;
+
 	int (*post_send)(struct ib_qp *qp, const struct ib_send_wr *send_wr,
 			 const struct ib_send_wr **bad_send_wr);
 	int (*post_recv)(struct ib_qp *qp, const struct ib_recv_wr *recv_wr,
@@ -2672,7 +2674,6 @@ struct ib_device {
 	struct rdma_restrack_root *res;
 
 	const struct uapi_definition   *driver_def;
-	enum rdma_driver_id		driver_id;
 
 	/*
 	 * Positive refcount indicates that the device is currently

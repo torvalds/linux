@@ -489,6 +489,8 @@ static int fill_res_entry(struct sk_buff *msg, struct rdma_restrack_entry *res)
 }
 
 static const struct ib_device_ops c4iw_dev_ops = {
+	.driver_id = RDMA_DRIVER_CXGB4,
+
 	.alloc_hw_stats = c4iw_alloc_stats,
 	.alloc_mr = c4iw_alloc_mr,
 	.alloc_mw = c4iw_alloc_mw,
@@ -599,7 +601,6 @@ void c4iw_register_device(struct work_struct *work)
 	       sizeof(dev->ibdev.iw_ifname));
 
 	rdma_set_device_sysfs_group(&dev->ibdev, &c4iw_attr_group);
-	dev->ibdev.driver_id = RDMA_DRIVER_CXGB4;
 	ib_set_device_ops(&dev->ibdev, &c4iw_dev_ops);
 	ret = set_netdevs(&dev->ibdev, &dev->rdev);
 	if (ret)

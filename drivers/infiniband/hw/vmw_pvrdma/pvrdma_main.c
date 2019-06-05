@@ -144,6 +144,8 @@ static int pvrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
 }
 
 static const struct ib_device_ops pvrdma_dev_ops = {
+	.driver_id = RDMA_DRIVER_VMW_PVRDMA,
+
 	.add_gid = pvrdma_add_gid,
 	.alloc_mr = pvrdma_alloc_mr,
 	.alloc_pd = pvrdma_alloc_pd,
@@ -261,7 +263,6 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 		if (!dev->srq_tbl)
 			goto err_qp_free;
 	}
-	dev->ib_dev.driver_id = RDMA_DRIVER_VMW_PVRDMA;
 	ret = ib_device_set_netdev(&dev->ib_dev, dev->netdev, 1);
 	if (ret)
 		return ret;

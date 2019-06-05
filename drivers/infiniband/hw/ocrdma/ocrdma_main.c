@@ -144,6 +144,8 @@ static const struct attribute_group ocrdma_attr_group = {
 };
 
 static const struct ib_device_ops ocrdma_dev_ops = {
+	.driver_id = RDMA_DRIVER_OCRDMA,
+
 	.alloc_mr = ocrdma_alloc_mr,
 	.alloc_pd = ocrdma_alloc_pd,
 	.alloc_ucontext = ocrdma_alloc_ucontext,
@@ -249,7 +251,6 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 		ib_set_device_ops(&dev->ibdev, &ocrdma_dev_srq_ops);
 	}
 	rdma_set_device_sysfs_group(&dev->ibdev, &ocrdma_attr_group);
-	dev->ibdev.driver_id = RDMA_DRIVER_OCRDMA;
 	ret = ib_device_set_netdev(&dev->ibdev, dev->nic_info.netdev, 1);
 	if (ret)
 		return ret;

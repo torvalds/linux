@@ -414,6 +414,8 @@ static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 }
 
 static const struct ib_device_ops hns_roce_dev_ops = {
+	.driver_id = RDMA_DRIVER_HNS,
+
 	.add_gid = hns_roce_add_gid,
 	.alloc_pd = hns_roce_alloc_pd,
 	.alloc_ucontext = hns_roce_alloc_ucontext,
@@ -536,7 +538,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_srq_ops);
 	}
 
-	ib_dev->driver_id = RDMA_DRIVER_HNS;
 	ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_ops);
 	ib_set_device_ops(ib_dev, &hns_roce_dev_ops);
 	for (i = 0; i < hr_dev->caps.num_ports; i++) {

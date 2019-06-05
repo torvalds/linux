@@ -2509,6 +2509,8 @@ static void get_fw_ver_str(struct ib_device *device, char *str)
 }
 
 static const struct ib_device_ops mlx4_ib_dev_ops = {
+	.driver_id = RDMA_DRIVER_MLX4,
+
 	.add_gid = mlx4_ib_add_gid,
 	.alloc_mr = mlx4_ib_alloc_mr,
 	.alloc_pd = mlx4_ib_alloc_pd,
@@ -2839,7 +2841,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 		goto err_steer_free_bitmap;
 
 	rdma_set_device_sysfs_group(&ibdev->ib_dev, &mlx4_attr_group);
-	ibdev->ib_dev.driver_id = RDMA_DRIVER_MLX4;
 	if (ib_register_device(&ibdev->ib_dev, "mlx4_%d"))
 		goto err_diag_counters;
 

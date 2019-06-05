@@ -6124,6 +6124,8 @@ static void mlx5_ib_stage_flow_db_cleanup(struct mlx5_ib_dev *dev)
 }
 
 static const struct ib_device_ops mlx5_ib_dev_ops = {
+	.driver_id = RDMA_DRIVER_MLX5,
+
 	.add_gid = mlx5_ib_add_gid,
 	.alloc_mr = mlx5_ib_alloc_mr,
 	.alloc_pd = mlx5_ib_alloc_pd,
@@ -6290,7 +6292,6 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	if (mlx5_accel_ipsec_device_caps(dev->mdev) &
 	    MLX5_ACCEL_IPSEC_CAP_DEVICE)
 		ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_flow_ipsec_ops);
-	dev->ib_dev.driver_id = RDMA_DRIVER_MLX5;
 	ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_ops);
 
 	if (IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS))

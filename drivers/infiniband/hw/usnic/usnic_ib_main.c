@@ -329,6 +329,8 @@ static void usnic_get_dev_fw_str(struct ib_device *device, char *str)
 }
 
 static const struct ib_device_ops usnic_dev_ops = {
+	.driver_id = RDMA_DRIVER_USNIC,
+
 	.alloc_pd = usnic_ib_alloc_pd,
 	.alloc_ucontext = usnic_ib_alloc_ucontext,
 	.create_cq = usnic_ib_create_cq,
@@ -412,7 +414,6 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 
 	ib_set_device_ops(&us_ibdev->ib_dev, &usnic_dev_ops);
 
-	us_ibdev->ib_dev.driver_id = RDMA_DRIVER_USNIC;
 	rdma_set_device_sysfs_group(&us_ibdev->ib_dev, &usnic_attr_group);
 
 	ret = ib_device_set_netdev(&us_ibdev->ib_dev, us_ibdev->netdev, 1);

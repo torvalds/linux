@@ -2650,6 +2650,8 @@ static int i40iw_query_pkey(struct ib_device *ibdev,
 }
 
 static const struct ib_device_ops i40iw_dev_ops = {
+	.driver_id = RDMA_DRIVER_I40IW,
+
 	.alloc_hw_stats = i40iw_alloc_hw_stats,
 	.alloc_mr = i40iw_alloc_mr,
 	.alloc_pd = i40iw_alloc_pd,
@@ -2787,7 +2789,6 @@ int i40iw_register_rdma_device(struct i40iw_device *iwdev)
 		return -ENOMEM;
 	iwibdev = iwdev->iwibdev;
 	rdma_set_device_sysfs_group(&iwibdev->ibdev, &i40iw_attr_group);
-	iwibdev->ibdev.driver_id = RDMA_DRIVER_I40IW;
 	ret = ib_register_device(&iwibdev->ibdev, "i40iw%d");
 	if (ret)
 		goto error;

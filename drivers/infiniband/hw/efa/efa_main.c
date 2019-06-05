@@ -197,6 +197,8 @@ static void efa_stats_init(struct efa_dev *dev)
 }
 
 static const struct ib_device_ops efa_dev_ops = {
+	.driver_id = RDMA_DRIVER_EFA,
+
 	.alloc_pd = efa_alloc_pd,
 	.alloc_ucontext = efa_alloc_ucontext,
 	.create_ah = efa_create_ah,
@@ -287,7 +289,6 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.uverbs_ex_cmd_mask =
 		(1ull << IB_USER_VERBS_EX_CMD_QUERY_DEVICE);
 
-	dev->ibdev.driver_id = RDMA_DRIVER_EFA;
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);
 
 	err = ib_register_device(&dev->ibdev, "efa_%d");

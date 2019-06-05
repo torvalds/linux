@@ -3558,6 +3558,8 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 }
 
 static const struct ib_device_ops nes_dev_ops = {
+	.driver_id = RDMA_DRIVER_NES,
+
 	.alloc_mr = nes_alloc_mr,
 	.alloc_mw = nes_alloc_mw,
 	.alloc_pd = nes_alloc_pd,
@@ -3722,7 +3724,6 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 	int ret;
 
 	rdma_set_device_sysfs_group(&nesvnic->nesibdev->ibdev, &nes_attr_group);
-	nesvnic->nesibdev->ibdev.driver_id = RDMA_DRIVER_NES;
 	ret = ib_register_device(&nesvnic->nesibdev->ibdev, "nes%d");
 	if (ret) {
 		return ret;

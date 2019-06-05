@@ -1153,6 +1153,8 @@ static void get_dev_fw_str(struct ib_device *device, char *str)
 }
 
 static const struct ib_device_ops mthca_dev_ops = {
+	.driver_id = RDMA_DRIVER_MTHCA,
+
 	.alloc_pd = mthca_alloc_pd,
 	.alloc_ucontext = mthca_alloc_ucontext,
 	.attach_mcast = mthca_multicast_attach,
@@ -1303,7 +1305,6 @@ int mthca_register_device(struct mthca_dev *dev)
 	mutex_init(&dev->cap_mask_mutex);
 
 	rdma_set_device_sysfs_group(&dev->ib_dev, &mthca_attr_group);
-	dev->ib_dev.driver_id = RDMA_DRIVER_MTHCA;
 	ret = ib_register_device(&dev->ib_dev, "mthca%d");
 	if (ret)
 		return ret;
