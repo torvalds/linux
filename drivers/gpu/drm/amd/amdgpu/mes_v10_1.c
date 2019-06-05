@@ -33,6 +33,47 @@ MODULE_FIRMWARE("amdgpu/navi10_mes.bin");
 
 #define MES_EOP_SIZE   2048
 
+static void mes_v10_1_ring_set_wptr(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	if (ring->use_doorbell) {
+		atomic64_set((atomic64_t*)&adev->wb.wb[ring->wptr_offs],
+			     ring->wptr);
+		WDOORBELL64(ring->doorbell_index, ring->wptr);
+	} else {
+		BUG();
+	}
+}
+
+static u64 mes_v10_1_ring_get_rptr(struct amdgpu_ring *ring)
+{
+	return ring->adev->wb.wb[ring->rptr_offs];
+}
+
+static u64 mes_v10_1_ring_get_wptr(struct amdgpu_ring *ring)
+{
+	u64 wptr;
+
+	if (ring->use_doorbell)
+		wptr = atomic64_read((atomic64_t *)
+				     &ring->adev->wb.wb[ring->wptr_offs]);
+	else
+		BUG();
+	return wptr;
+}
+
+static const struct amdgpu_ring_funcs mes_v10_1_ring_funcs = {
+	.type = AMDGPU_RING_TYPE_MES,
+	.align_mask = 1,
+	.nop = 0,
+	.support_64bit_ptrs = true,
+	.get_rptr = mes_v10_1_ring_get_rptr,
+	.get_wptr = mes_v10_1_ring_get_wptr,
+	.set_wptr = mes_v10_1_ring_set_wptr,
+	.insert_nop = amdgpu_ring_insert_nop,
+};
+
 static int mes_v10_1_add_hw_queue(struct amdgpu_mes *mes,
 				  struct mes_add_queue_input *input)
 {
@@ -314,6 +355,8 @@ static int mes_v10_1_ring_init(struct amdgpu_device *adev)
 	int r;
 
 	ring = &adev->mes.ring;
+
+	ring->funcs = &mes_v10_1_ring_funcs;
 
 	ring->me = 3;
 	ring->pipe = 0;
