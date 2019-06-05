@@ -105,7 +105,6 @@ struct kp_spi {
 	u64 __iomem        *base;
 	unsigned long       phys;
 	struct device      *dev;
-	unsigned int        pin_dir:1;
 };
 
 struct kp_spi_controller_state {
@@ -460,7 +459,6 @@ kp_spi_probe(struct platform_device *pldev)
 	if (pldev->id != -1) {
 		master->bus_num = pldev->id;
 	}
-	kpspi->pin_dir = 0;
 
 	r = platform_get_resource(pldev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
