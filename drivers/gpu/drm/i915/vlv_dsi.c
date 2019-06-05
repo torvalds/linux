@@ -1845,7 +1845,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
-	struct drm_display_mode *fixed_mode;
+	struct drm_display_mode *current_mode, *fixed_mode;
 	enum port port;
 
 	DRM_DEBUG_KMS("\n");
@@ -1889,6 +1889,9 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	intel_encoder->port = port;
+	intel_encoder->type = INTEL_OUTPUT_DSI;
+	intel_encoder->power_domain = POWER_DOMAIN_PORT_DSI;
+	intel_encoder->cloneable = 0;
 
 	/*
 	 * On BYT/CHV, pipe A maps to MIPI DSI port A, pipe B maps to MIPI DSI
@@ -1926,6 +1929,20 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 		goto err;
 	}
 
+	/* Use clock read-back from current hw-state for fastboot */
+	current_mode = intel_encoder_current_mode(intel_encoder);
+	if (current_mode) {
+		DRM_DEBUG_KMS("Calculated pclk %d GOP %d\n",
+			      intel_dsi->pclk, current_mode->clock);
+		if (intel_fuzzy_clock_check(intel_dsi->pclk,
+					    current_mode->clock)) {
+			DRM_DEBUG_KMS("Using GOP pclk\n");
+			intel_dsi->pclk = current_mode->clock;
+		}
+
+		kfree(current_mode);
+	}
+
 	vlv_dphy_param_init(intel_dsi);
 
 	/*
@@ -1943,9 +1960,6 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 		}
 	}
 
-	intel_encoder->type = INTEL_OUTPUT_DSI;
-	intel_encoder->power_domain = POWER_DOMAIN_PORT_DSI;
-	intel_encoder->cloneable = 0;
 	drm_connector_init(dev, connector, &intel_dsi_connector_funcs,
 			   DRM_MODE_CONNECTOR_DSI);
 
