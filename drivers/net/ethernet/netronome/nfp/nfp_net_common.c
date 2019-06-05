@@ -3705,6 +3705,9 @@ nfp_net_alloc(struct pci_dev *pdev, void __iomem *ctrl_bar, bool needs_netdev,
 
 	timer_setup(&nn->reconfig_timer, nfp_net_reconfig_timer, 0);
 
+	skb_queue_head_init(&nn->mbox_cmsg.queue);
+	init_waitqueue_head(&nn->mbox_cmsg.wq);
+
 	err = nfp_net_tlv_caps_parse(&nn->pdev->dev, nn->dp.ctrl_bar,
 				     &nn->tlv_caps);
 	if (err)
@@ -3727,6 +3730,7 @@ err_free_nn:
 void nfp_net_free(struct nfp_net *nn)
 {
 	WARN_ON(timer_pending(&nn->reconfig_timer) || nn->reconfig_posted);
+	WARN_ON(!skb_queue_empty(&nn->mbox_cmsg.queue));
 
 	if (nn->dp.netdev)
 		free_netdev(nn->dp.netdev);

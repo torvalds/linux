@@ -394,6 +394,7 @@
 #define NFP_NET_CFG_MBOX_CMD_CTAG_FILTER_KILL 2
 
 #define NFP_NET_CFG_MBOX_CMD_PCI_DSCP_PRIOMAP_SET	5
+#define NFP_NET_CFG_MBOX_CMD_TLV_CMSG			6
 
 /**
  * VLAN filtering using general use mailbox

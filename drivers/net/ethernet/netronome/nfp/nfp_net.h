@@ -563,6 +563,10 @@ struct nfp_net_dp {
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @tlv_caps:		Parsed TLV capabilities
+ * @mbox_cmsg:		Common Control Message via vNIC mailbox state
+ * @mbox_cmsg.queue:	CCM mbox queue of pending messages
+ * @mbox_cmsg.wq:	CCM mbox wait queue of waiting processes
+ * @mbox_cmsg.tag:	CCM mbox message tag allocator
  * @debugfs_dir:	Device directory in debugfs
  * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
@@ -637,6 +641,12 @@ struct nfp_net {
 	u8 __iomem *rx_bar;
 
 	struct nfp_net_tlv_caps tlv_caps;
+
+	struct {
+		struct sk_buff_head queue;
+		wait_queue_head_t wq;
+		u16 tag;
+	} mbox_cmsg;
 
 	struct dentry *debugfs_dir;
 

@@ -7,9 +7,6 @@
 #include "nfp_app.h"
 #include "nfp_net.h"
 
-#define NFP_CCM_TYPE_REPLY_BIT		7
-#define __NFP_CCM_REPLY(req)		(BIT(NFP_CCM_TYPE_REPLY_BIT) | (req))
-
 #define ccm_warn(app, msg...)	nn_dp_warn(&(app)->ctrl->dp, msg)
 
 #define NFP_CCM_TAG_ALLOC_SPAN	(U16_MAX / 4)
