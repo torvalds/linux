@@ -153,7 +153,7 @@
  * REG_FIELD_PREP() - Prepare a u32 bitfield value
  * @__mask: shifted mask defining the field's length and position
  * @__val: value to put in the field
-
+ *
  * Local copy of FIELD_PREP() to generate an integer constant expression, force
  * u32 and for consistency with REG_FIELD_GET(), REG_BIT() and REG_GENMASK().
  *

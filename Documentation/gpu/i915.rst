@@ -475,12 +475,6 @@ i915_context_create and i915_context_free
 .. kernel-doc:: drivers/gpu/drm/i915/i915_trace.h
    :doc: i915_context_create and i915_context_free tracepoints
 
-switch_mm
----------
-
-.. kernel-doc:: drivers/gpu/drm/i915/i915_trace.h
-   :doc: switch_mm tracepoint
-
 Perf
 ====
 

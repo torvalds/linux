@@ -500,6 +500,8 @@ enum guc_log_buffer_type {
 };
 
 /**
+ * struct guc_log_buffer_state - GuC log buffer state
+ *
  * Below state structure is used for coordination of retrieval of GuC firmware
  * logs. Separate state is maintained for each log buffer type.
  * read_ptr points to the location where i915 read last in log buffer and

@@ -40,6 +40,8 @@
 enum i915_cache_level;
 
 /**
+ * DOC: Virtual Memory Address
+ *
  * A VMA represents a GEM BO that is bound into an address space. Therefore, a
  * VMA's presence cannot be guaranteed before binding, or after unbinding the
  * object into/from the address space.

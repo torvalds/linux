@@ -391,8 +391,6 @@ static intel_wakeref_t __intel_runtime_pm_get(struct drm_i915_private *i915,
  * asynchronous PM management from display code) and ensures that it is powered
  * up. Raw references are not considered during wakelock assert checks.
  *
- * Returns:
- * True when the power domain is enabled, false otherwise.
  * Any runtime pm reference obtained by this function must have a symmetric
  * call to intel_runtime_pm_put_raw() to release the reference again.
  *
