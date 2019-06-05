@@ -320,7 +320,7 @@ struct sock *__inet_lookup_listener(struct net *net,
 				    saddr, sport, htonl(INADDR_ANY), hnum,
 				    dif, sdif);
 done:
-	if (unlikely(IS_ERR(result)))
+	if (IS_ERR(result))
 		return NULL;
 	return result;
 }

@@ -483,7 +483,7 @@ struct sock *__udp4_lib_lookup(struct net *net, __be32 saddr,
 					  htonl(INADDR_ANY), hnum, dif, sdif,
 					  exact_dif, hslot2, skb);
 	}
-	if (unlikely(IS_ERR(result)))
+	if (IS_ERR(result))
 		return NULL;
 	return result;
 }
