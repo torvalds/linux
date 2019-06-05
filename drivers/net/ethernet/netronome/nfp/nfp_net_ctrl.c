@@ -99,6 +99,10 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 
 			caps->repr_cap = readl(data);
 			break;
+		case NFP_NET_CFG_TLV_TYPE_MBOX_CMSG_TYPES:
+			if (length >= 4)
+				caps->mbox_cmsg_types = readl(data);
+			break;
 		default:
 			if (!FIELD_GET(NFP_NET_CFG_TLV_HEADER_REQUIRED, hdr))
 				break;

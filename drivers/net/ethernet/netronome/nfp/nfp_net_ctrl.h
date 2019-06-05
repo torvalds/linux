@@ -466,6 +466,11 @@
  * %NFP_NET_CFG_TLV_TYPE_REPR_CAP:
  * Single word, equivalent of %NFP_NET_CFG_CAP for representors, features which
  * can be used on representors.
+ *
+ * %NFP_NET_CFG_TLV_TYPE_MBOX_CMSG_TYPES:
+ * Variable, bitmap of control message types supported by the mailbox handler.
+ * Bit 0 corresponds to message type 0, bit 1 to 1, etc.  Control messages are
+ * encapsulated into simple TLVs, with an end TLV and written to the Mailbox.
  */
 #define NFP_NET_CFG_TLV_TYPE_UNKNOWN		0
 #define NFP_NET_CFG_TLV_TYPE_RESERVED		1
@@ -475,6 +480,7 @@
 #define NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL0	5
 #define NFP_NET_CFG_TLV_TYPE_EXPERIMENTAL1	6
 #define NFP_NET_CFG_TLV_TYPE_REPR_CAP		7
+#define NFP_NET_CFG_TLV_TYPE_MBOX_CMSG_TYPES	10
 
 struct device;
 
@@ -484,12 +490,14 @@ struct device;
  * @mbox_off:		vNIC mailbox area offset
  * @mbox_len:		vNIC mailbox area length
  * @repr_cap:		capabilities for representors
+ * @mbox_cmsg_types:	cmsgs which can be passed through the mailbox
  */
 struct nfp_net_tlv_caps {
 	u32 me_freq_mhz;
 	unsigned int mbox_off;
 	unsigned int mbox_len;
 	u32 repr_cap;
+	u32 mbox_cmsg_types;
 };
 
 int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
