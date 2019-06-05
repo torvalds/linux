@@ -198,6 +198,7 @@ static void efa_stats_init(struct efa_dev *dev)
 
 static const struct ib_device_ops efa_dev_ops = {
 	.driver_id = RDMA_DRIVER_EFA,
+	.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION,
 
 	.alloc_pd = efa_alloc_pd,
 	.alloc_ucontext = efa_alloc_ucontext,
@@ -266,7 +267,6 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = 1;
 	dev->ibdev.dev.parent = &pdev->dev;
-	dev->ibdev.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION;
 
 	dev->ibdev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |

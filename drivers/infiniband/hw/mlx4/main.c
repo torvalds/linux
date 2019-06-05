@@ -1089,7 +1089,8 @@ static int mlx4_ib_alloc_ucontext(struct ib_ucontext *uctx,
 	if (!dev->ib_active)
 		return -EAGAIN;
 
-	if (ibdev->uverbs_abi_ver == MLX4_IB_UVERBS_NO_DEV_CAPS_ABI_VERSION) {
+	if (ibdev->ops.uverbs_abi_ver ==
+	    MLX4_IB_UVERBS_NO_DEV_CAPS_ABI_VERSION) {
 		resp_v3.qp_tab_size      = dev->dev->caps.num_qps;
 		resp_v3.bf_reg_size      = dev->dev->caps.bf_reg_size;
 		resp_v3.bf_regs_per_page = dev->dev->caps.bf_regs_per_page;
@@ -1111,7 +1112,7 @@ static int mlx4_ib_alloc_ucontext(struct ib_ucontext *uctx,
 	INIT_LIST_HEAD(&context->wqn_ranges_list);
 	mutex_init(&context->wqn_ranges_mutex);
 
-	if (ibdev->uverbs_abi_ver == MLX4_IB_UVERBS_NO_DEV_CAPS_ABI_VERSION)
+	if (ibdev->ops.uverbs_abi_ver == MLX4_IB_UVERBS_NO_DEV_CAPS_ABI_VERSION)
 		err = ib_copy_to_udata(udata, &resp_v3, sizeof(resp_v3));
 	else
 		err = ib_copy_to_udata(udata, &resp, sizeof(resp));
@@ -2510,6 +2511,7 @@ static void get_fw_ver_str(struct ib_device *device, char *str)
 
 static const struct ib_device_ops mlx4_ib_dev_ops = {
 	.driver_id = RDMA_DRIVER_MLX4,
+	.uverbs_abi_ver = MLX4_IB_UVERBS_ABI_VERSION,
 
 	.add_gid = mlx4_ib_add_gid,
 	.alloc_mr = mlx4_ib_alloc_mr,
@@ -2653,11 +2655,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.num_comp_vectors	= dev->caps.num_comp_vectors;
 	ibdev->ib_dev.dev.parent	= &dev->persist->pdev->dev;
 
-	if (dev->caps.userspace_caps)
-		ibdev->ib_dev.uverbs_abi_ver = MLX4_IB_UVERBS_ABI_VERSION;
-	else
-		ibdev->ib_dev.uverbs_abi_ver = MLX4_IB_UVERBS_NO_DEV_CAPS_ABI_VERSION;
-
 	ibdev->ib_dev.uverbs_cmd_mask	=
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
@@ -2730,6 +2727,10 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_FLOW);
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_fs_ops);
 	}
+
+	if (!dev->caps.userspace_caps)
+		ibdev->ib_dev.ops.uverbs_abi_ver =
+			MLX4_IB_UVERBS_NO_DEV_CAPS_ABI_VERSION;
 
 	mlx4_ib_alloc_eqs(dev, ibdev);
 

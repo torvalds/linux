@@ -145,6 +145,7 @@ static int pvrdma_port_immutable(struct ib_device *ibdev, u8 port_num,
 
 static const struct ib_device_ops pvrdma_dev_ops = {
 	.driver_id = RDMA_DRIVER_VMW_PVRDMA,
+	.uverbs_abi_ver = PVRDMA_UVERBS_ABI_VERSION,
 
 	.add_gid = pvrdma_add_gid,
 	.alloc_mr = pvrdma_alloc_mr,
@@ -203,7 +204,6 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	dev->ib_dev.owner = THIS_MODULE;
 	dev->ib_dev.num_comp_vectors = 1;
 	dev->ib_dev.dev.parent = &dev->pdev->dev;
-	dev->ib_dev.uverbs_abi_ver = PVRDMA_UVERBS_ABI_VERSION;
 	dev->ib_dev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|

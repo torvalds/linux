@@ -1154,6 +1154,7 @@ static void get_dev_fw_str(struct ib_device *device, char *str)
 
 static const struct ib_device_ops mthca_dev_ops = {
 	.driver_id = RDMA_DRIVER_MTHCA,
+	.uverbs_abi_ver = MTHCA_UVERBS_ABI_VERSION,
 
 	.alloc_pd = mthca_alloc_pd,
 	.alloc_ucontext = mthca_alloc_ucontext,
@@ -1247,7 +1248,6 @@ int mthca_register_device(struct mthca_dev *dev)
 
 	dev->ib_dev.owner                = THIS_MODULE;
 
-	dev->ib_dev.uverbs_abi_ver	 = MTHCA_UVERBS_ABI_VERSION;
 	dev->ib_dev.uverbs_cmd_mask	 =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|

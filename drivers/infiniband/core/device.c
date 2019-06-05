@@ -2323,6 +2323,8 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 			dev_ops->driver_id != ops->driver_id);
 		dev_ops->driver_id = ops->driver_id;
 	}
+	if (ops->uverbs_abi_ver)
+		dev_ops->uverbs_abi_ver = ops->uverbs_abi_ver;
 
 	SET_DEVICE_OP(dev_ops, add_gid);
 	SET_DEVICE_OP(dev_ops, advise_mr);

@@ -3630,10 +3630,10 @@ int bnxt_re_alloc_ucontext(struct ib_ucontext *ctx, struct ib_udata *udata)
 	u32 chip_met_rev_num = 0;
 	int rc;
 
-	dev_dbg(rdev_to_dev(rdev), "ABI version requested %d",
-		ibdev->uverbs_abi_ver);
+	dev_dbg(rdev_to_dev(rdev), "ABI version requested %u",
+		ibdev->ops.uverbs_abi_ver);
 
-	if (ibdev->uverbs_abi_ver != BNXT_RE_ABI_VERSION) {
+	if (ibdev->ops.uverbs_abi_ver != BNXT_RE_ABI_VERSION) {
 		dev_dbg(rdev_to_dev(rdev), " is different from the device %d ",
 			BNXT_RE_ABI_VERSION);
 		return -EPERM;

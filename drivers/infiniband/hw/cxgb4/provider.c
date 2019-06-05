@@ -490,6 +490,7 @@ static int fill_res_entry(struct sk_buff *msg, struct rdma_restrack_entry *res)
 
 static const struct ib_device_ops c4iw_dev_ops = {
 	.driver_id = RDMA_DRIVER_CXGB4,
+	.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION,
 
 	.alloc_hw_stats = c4iw_alloc_stats,
 	.alloc_mr = c4iw_alloc_mr,
@@ -595,7 +596,6 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.phys_port_cnt = dev->rdev.lldi.nports;
 	dev->ibdev.num_comp_vectors =  dev->rdev.lldi.nciq;
 	dev->ibdev.dev.parent = &dev->rdev.lldi.pdev->dev;
-	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
 
 	memcpy(dev->ibdev.iw_ifname, dev->rdev.lldi.ports[0]->name,
 	       sizeof(dev->ibdev.iw_ifname));

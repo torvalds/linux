@@ -2330,6 +2330,7 @@ struct iw_cm_conn_param;
  */
 struct ib_device_ops {
 	enum rdma_driver_id driver_id;
+	u32 uverbs_abi_ver;
 
 	int (*post_send)(struct ib_qp *qp, const struct ib_send_wr *send_wr,
 			 const struct ib_send_wr **bad_send_wr);
@@ -2650,7 +2651,6 @@ struct ib_device {
 	 */
 	const struct attribute_group	*groups[3];
 
-	int			     uverbs_abi_ver;
 	u64			     uverbs_cmd_mask;
 	u64			     uverbs_ex_cmd_mask;
 

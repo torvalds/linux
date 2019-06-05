@@ -2651,6 +2651,8 @@ static int i40iw_query_pkey(struct ib_device *ibdev,
 
 static const struct ib_device_ops i40iw_dev_ops = {
 	.driver_id = RDMA_DRIVER_I40IW,
+	/* NOTE: Older kernels wrongly use 0 for the uverbs_abi_ver */
+	.uverbs_abi_ver = I40IW_ABI_VER,
 
 	.alloc_hw_stats = i40iw_alloc_hw_stats,
 	.alloc_mr = i40iw_alloc_mr,

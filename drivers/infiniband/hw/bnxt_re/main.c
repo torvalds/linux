@@ -597,6 +597,7 @@ static void bnxt_re_unregister_ib(struct bnxt_re_dev *rdev)
 
 static const struct ib_device_ops bnxt_re_dev_ops = {
 	.driver_id = RDMA_DRIVER_BNXT_RE,
+	.uverbs_abi_ver = BNXT_RE_ABI_VERSION,
 
 	.add_gid = bnxt_re_add_gid,
 	.alloc_hw_stats = bnxt_re_ib_alloc_hw_stats,
@@ -663,7 +664,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->local_dma_lkey = BNXT_QPLIB_RSVD_LKEY;
 
 	/* User space */
-	ibdev->uverbs_abi_ver = BNXT_RE_ABI_VERSION;
 	ibdev->uverbs_cmd_mask =
 			(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
 			(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|

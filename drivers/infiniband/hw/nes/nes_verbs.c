@@ -3559,6 +3559,8 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 
 static const struct ib_device_ops nes_dev_ops = {
 	.driver_id = RDMA_DRIVER_NES,
+	/* NOTE: Older kernels wrongly use 0 for the uverbs_abi_ver */
+	.uverbs_abi_ver = NES_ABI_USERSPACE_VER,
 
 	.alloc_mr = nes_alloc_mr,
 	.alloc_mw = nes_alloc_mw,

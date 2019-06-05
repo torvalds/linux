@@ -382,6 +382,8 @@ enum {
 };
 
 static const struct ib_device_ops rvt_dev_ops = {
+	.uverbs_abi_ver = RVT_UVERBS_ABI_VERSION,
+
 	.alloc_fmr = rvt_alloc_fmr,
 	.alloc_mr = rvt_alloc_mr,
 	.alloc_pd = rvt_alloc_pd,
@@ -600,7 +602,6 @@ int rvt_register_device(struct rvt_dev_info *rdi)
 	 * exactly which functions rdmavt supports, nor do they know the ABI
 	 * version, so we do all of this sort of stuff here.
 	 */
-	rdi->ibdev.uverbs_abi_ver = RVT_UVERBS_ABI_VERSION;
 	rdi->ibdev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)         |
 		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)        |

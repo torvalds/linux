@@ -415,6 +415,7 @@ static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 
 static const struct ib_device_ops hns_roce_dev_ops = {
 	.driver_id = RDMA_DRIVER_HNS,
+	.uverbs_abi_ver = 1,
 
 	.add_gid = hns_roce_add_gid,
 	.alloc_pd = hns_roce_alloc_pd,
@@ -489,7 +490,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->phys_port_cnt		= hr_dev->caps.num_ports;
 	ib_dev->local_dma_lkey		= hr_dev->caps.reserved_lkey;
 	ib_dev->num_comp_vectors	= hr_dev->caps.num_comp_vectors;
-	ib_dev->uverbs_abi_ver		= 1;
 	ib_dev->uverbs_cmd_mask		=
 		(1ULL << IB_USER_VERBS_CMD_GET_CONTEXT) |
 		(1ULL << IB_USER_VERBS_CMD_QUERY_DEVICE) |

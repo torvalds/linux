@@ -1237,6 +1237,7 @@ static void get_dev_fw_ver_str(struct ib_device *ibdev, char *str)
 
 static const struct ib_device_ops iwch_dev_ops = {
 	.driver_id = RDMA_DRIVER_CXGB3,
+	.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION,
 
 	.alloc_hw_stats	= iwch_alloc_stats,
 	.alloc_mr = iwch_alloc_mr,
@@ -1316,7 +1317,6 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.phys_port_cnt = dev->rdev.port_info.nports;
 	dev->ibdev.num_comp_vectors = 1;
 	dev->ibdev.dev.parent = &dev->rdev.rnic_info.pdev->dev;
-	dev->ibdev.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION;
 
 	memcpy(dev->ibdev.iw_ifname, dev->rdev.t3cdev_p->lldev->name,
 	       sizeof(dev->ibdev.iw_ifname));

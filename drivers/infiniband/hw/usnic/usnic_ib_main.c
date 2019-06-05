@@ -330,6 +330,7 @@ static void usnic_get_dev_fw_str(struct ib_device *device, char *str)
 
 static const struct ib_device_ops usnic_dev_ops = {
 	.driver_id = RDMA_DRIVER_USNIC,
+	.uverbs_abi_ver = USNIC_UVERBS_ABI_VERSION,
 
 	.alloc_pd = usnic_ib_alloc_pd,
 	.alloc_ucontext = usnic_ib_alloc_ucontext,
@@ -391,7 +392,6 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.phys_port_cnt = USNIC_IB_PORT_CNT;
 	us_ibdev->ib_dev.num_comp_vectors = USNIC_IB_NUM_COMP_VECTORS;
 	us_ibdev->ib_dev.dev.parent = &dev->dev;
-	us_ibdev->ib_dev.uverbs_abi_ver = USNIC_UVERBS_ABI_VERSION;
 
 	us_ibdev->ib_dev.uverbs_cmd_mask =
 		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
