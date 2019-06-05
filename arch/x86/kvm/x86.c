@@ -9775,6 +9775,36 @@ static int apf_get_user(struct kvm_vcpu *vcpu, u32 *val)
 				      sizeof(u32));
 }
 
+static bool kvm_can_deliver_async_pf(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->arch.apf.delivery_as_pf_vmexit && is_guest_mode(vcpu))
+		return false;
+
+	if (!(vcpu->arch.apf.msr_val & KVM_ASYNC_PF_ENABLED) ||
+	    (vcpu->arch.apf.send_user_only &&
+	     kvm_x86_ops->get_cpl(vcpu) == 0))
+		return false;
+
+	return true;
+}
+
+bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu)
+{
+	if (unlikely(!lapic_in_kernel(vcpu) ||
+		     kvm_event_needs_reinjection(vcpu) ||
+		     vcpu->arch.exception.pending))
+		return false;
+
+	if (kvm_hlt_in_guest(vcpu->kvm) && !kvm_can_deliver_async_pf(vcpu))
+		return false;
+
+	/*
+	 * If interrupts are off we cannot even use an artificial
+	 * halt state.
+	 */
+	return kvm_x86_ops->interrupt_allowed(vcpu);
+}
+
 void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 				     struct kvm_async_pf *work)
 {
@@ -9783,11 +9813,8 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 	trace_kvm_async_pf_not_present(work->arch.token, work->gva);
 	kvm_add_async_pf_gfn(vcpu, work->arch.gfn);
 
-	if (!(vcpu->arch.apf.msr_val & KVM_ASYNC_PF_ENABLED) ||
-	    (vcpu->arch.apf.send_user_only &&
-	     kvm_x86_ops->get_cpl(vcpu) == 0))
-		kvm_make_request(KVM_REQ_APF_HALT, vcpu);
-	else if (!apf_put_user(vcpu, KVM_PV_REASON_PAGE_NOT_PRESENT)) {
+	if (kvm_can_deliver_async_pf(vcpu) &&
+	    !apf_put_user(vcpu, KVM_PV_REASON_PAGE_NOT_PRESENT)) {
 		fault.vector = PF_VECTOR;
 		fault.error_code_valid = true;
 		fault.error_code = 0;
@@ -9795,6 +9822,16 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 		fault.address = work->arch.token;
 		fault.async_page_fault = true;
 		kvm_inject_page_fault(vcpu, &fault);
+	} else {
+		/*
+		 * It is not possible to deliver a paravirtualized asynchronous
+		 * page fault, but putting the guest in an artificial halt state
+		 * can be beneficial nevertheless: if an interrupt arrives, we
+		 * can deliver it timely and perhaps the guest will schedule
+		 * another process.  When the instruction that triggered a page
+		 * fault is retried, hopefully the page will be ready in the host.
+		 */
+		kvm_make_request(KVM_REQ_APF_HALT, vcpu);
 	}
 }
 

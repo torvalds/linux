@@ -4040,19 +4040,6 @@ static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn)
 	return kvm_setup_async_pf(vcpu, gva, kvm_vcpu_gfn_to_hva(vcpu, gfn), &arch);
 }
 
-bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu)
-{
-	if (unlikely(!lapic_in_kernel(vcpu) ||
-		     kvm_event_needs_reinjection(vcpu) ||
-		     vcpu->arch.exception.pending))
-		return false;
-
-	if (!vcpu->arch.apf.delivery_as_pf_vmexit && is_guest_mode(vcpu))
-		return false;
-
-	return kvm_x86_ops->interrupt_allowed(vcpu);
-}
-
 static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
 			 gva_t gva, kvm_pfn_t *pfn, bool write, bool *writable)
 {
