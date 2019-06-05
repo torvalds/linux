@@ -193,15 +193,15 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 		goto err_cleanup;
 	}
 
-	mdev->mclk = devm_clk_get(dev, "mclk");
-	if (IS_ERR(mdev->mclk)) {
+	mdev->aclk = devm_clk_get(dev, "aclk");
+	if (IS_ERR(mdev->aclk)) {
 		DRM_ERROR("Get engine clk failed.\n");
-		err = PTR_ERR(mdev->mclk);
-		mdev->mclk = NULL;
+		err = PTR_ERR(mdev->aclk);
+		mdev->aclk = NULL;
 		goto err_cleanup;
 	}
 
-	clk_prepare_enable(mdev->mclk);
+	clk_prepare_enable(mdev->aclk);
 
 	mdev->funcs = product->identify(mdev->reg_base, &mdev->chip);
 	if (!komeda_product_match(mdev, product->product_id)) {
@@ -300,10 +300,10 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 		mdev->reg_base = NULL;
 	}
 
-	if (mdev->mclk) {
-		clk_disable_unprepare(mdev->mclk);
-		devm_clk_put(dev, mdev->mclk);
-		mdev->mclk = NULL;
+	if (mdev->aclk) {
+		clk_disable_unprepare(mdev->aclk);
+		devm_clk_put(dev, mdev->aclk);
+		mdev->aclk = NULL;
 	}
 
 	devm_kfree(dev, mdev);

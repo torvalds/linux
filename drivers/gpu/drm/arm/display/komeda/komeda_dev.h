@@ -160,8 +160,8 @@ struct komeda_dev {
 	struct komeda_chip_info chip;
 	/** @fmt_tbl: initialized by &komeda_dev_funcs->init_format_table */
 	struct komeda_format_caps_table fmt_tbl;
-	/** @mclk: HW main engine clk */
-	struct clk *mclk;
+	/** @aclk: HW main engine clk */
+	struct clk *aclk;
 
 	/** @irq: irq number */
 	int irq;

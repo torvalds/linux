@@ -87,7 +87,7 @@ struct komeda_crtc {
 	/** @disable_done: this flip_done is for tracing the disable */
 	struct completion *disable_done;
 
-	/** @clock_ratio_property: property for ratio of (mclk << 32)/pxlclk */
+	/** @clock_ratio_property: property for ratio of (aclk << 32)/pxlclk */
 	struct drm_property *clock_ratio_property;
 };
 
@@ -112,7 +112,7 @@ struct komeda_crtc_state {
 	 */
 	u32 active_pipes;
 
-	/** @clock_ratio: ratio of (mclk << 32)/pxlclk */
+	/** @clock_ratio: ratio of (aclk << 32)/pxlclk */
 	u64 clock_ratio;
 };
 
@@ -155,7 +155,7 @@ is_only_changed_connector(struct drm_crtc_state *st, struct drm_connector *conn)
 	return BIT(drm_connector_index(conn)) == changed_connectors;
 }
 
-unsigned long komeda_calc_mclk(struct komeda_crtc_state *kcrtc_st);
+unsigned long komeda_calc_aclk(struct komeda_crtc_state *kcrtc_st);
 
 int komeda_kms_setup_crtcs(struct komeda_kms_dev *kms, struct komeda_dev *mdev);
 

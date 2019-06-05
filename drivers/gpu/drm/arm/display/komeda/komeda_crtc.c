@@ -20,7 +20,7 @@
 
 static void komeda_crtc_update_clock_ratio(struct komeda_crtc_state *kcrtc_st)
 {
-	u64 pxlclk, mclk;
+	u64 pxlclk, aclk;
 
 	if (!kcrtc_st->base.active) {
 		kcrtc_st->clock_ratio = 0;
@@ -28,10 +28,10 @@ static void komeda_crtc_update_clock_ratio(struct komeda_crtc_state *kcrtc_st)
 	}
 
 	pxlclk = kcrtc_st->base.adjusted_mode.clock * 1000;
-	mclk = komeda_calc_mclk(kcrtc_st) << 32;
+	aclk = komeda_calc_aclk(kcrtc_st) << 32;
 
-	do_div(mclk, pxlclk);
-	kcrtc_st->clock_ratio = mclk;
+	do_div(aclk, pxlclk);
+	kcrtc_st->clock_ratio = aclk;
 }
 
 /**
@@ -71,12 +71,12 @@ komeda_crtc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
-unsigned long komeda_calc_mclk(struct komeda_crtc_state *kcrtc_st)
+unsigned long komeda_calc_aclk(struct komeda_crtc_state *kcrtc_st)
 {
 	struct komeda_dev *mdev = kcrtc_st->base.crtc->dev->dev_private;
 	unsigned long pxlclk = kcrtc_st->base.adjusted_mode.clock;
 
-	return clk_round_rate(mdev->mclk, pxlclk * 1000);
+	return clk_round_rate(mdev->aclk, pxlclk * 1000);
 }
 
 /* For active a crtc, mainly need two parts of preparation
@@ -109,18 +109,18 @@ komeda_crtc_prepare(struct komeda_crtc *kcrtc)
 	}
 
 	mdev->dpmode = new_mode;
-	/* Only need to enable mclk on single display mode, but no need to
-	 * enable mclk it on dual display mode, since the dual mode always
-	 * switch from single display mode, the mclk already enabled, no need
+	/* Only need to enable aclk on single display mode, but no need to
+	 * enable aclk it on dual display mode, since the dual mode always
+	 * switch from single display mode, the aclk already enabled, no need
 	 * to enable it again.
 	 */
 	if (new_mode != KOMEDA_MODE_DUAL_DISP) {
-		err = clk_set_rate(mdev->mclk, komeda_calc_mclk(kcrtc_st));
+		err = clk_set_rate(mdev->aclk, komeda_calc_aclk(kcrtc_st));
 		if (err)
-			DRM_ERROR("failed to set mclk.\n");
-		err = clk_prepare_enable(mdev->mclk);
+			DRM_ERROR("failed to set aclk.\n");
+		err = clk_prepare_enable(mdev->aclk);
 		if (err)
-			DRM_ERROR("failed to enable mclk.\n");
+			DRM_ERROR("failed to enable aclk.\n");
 	}
 
 	err = clk_set_rate(master->pxlclk, pxlclk_rate);
@@ -164,7 +164,7 @@ komeda_crtc_unprepare(struct komeda_crtc *kcrtc)
 
 	clk_disable_unprepare(master->pxlclk);
 	if (new_mode == KOMEDA_MODE_INACTIVE)
-		clk_disable_unprepare(mdev->mclk);
+		clk_disable_unprepare(mdev->aclk);
 
 unlock:
 	mutex_unlock(&mdev->lock);
@@ -342,7 +342,6 @@ komeda_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *m)
 	if (m->flags & DRM_MODE_FLAG_INTERLACE)
 		return MODE_NO_INTERLACE;
 
-	/* main clock/AXI clk must be faster than pxlclk*/
 	mode_clk = m->clock * 1000;
 	pxlclk = clk_round_rate(master->pxlclk, mode_clk);
 	if (pxlclk != mode_clk) {
@@ -351,8 +350,9 @@ komeda_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *m)
 		return MODE_NOCLOCK;
 	}
 
-	if (clk_round_rate(mdev->mclk, mode_clk) < pxlclk) {
-		DRM_DEBUG_ATOMIC("mclk can't satisfy the requirement of %s-clk: %ld.\n",
+	/* main engine clock must be faster than pxlclk*/
+	if (clk_round_rate(mdev->aclk, mode_clk) < pxlclk) {
+		DRM_DEBUG_ATOMIC("engine clk can't satisfy the requirement of %s-clk: %ld.\n",
 				 m->name, pxlclk);
 
 		return MODE_CLOCK_HIGH;

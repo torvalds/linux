@@ -728,7 +728,7 @@ static int d71_scaler_init(struct d71_dev *d71,
 
 static int d71_downscaling_clk_check(struct komeda_pipeline *pipe,
 				     struct drm_display_mode *mode,
-				     unsigned long mclk_rate,
+				     unsigned long aclk_rate,
 				     struct komeda_data_flow_cfg *dflow)
 {
 	u32 h_in = dflow->in_w;
@@ -738,20 +738,20 @@ static int d71_downscaling_clk_check(struct komeda_pipeline *pipe,
 
 	/* D71 downscaling must satisfy the following equation
 	 *
-	 *   MCLK                   h_in * v_in
+	 *   ACLK                   h_in * v_in
 	 * ------- >= ---------------------------------------------
 	 *  PXLCLK     (h_total - (1 + 2 * v_in / v_out)) * v_out
 	 *
 	 * In only horizontal downscaling situation, the right side should be
 	 * multiplied by (h_total - 3) / (h_active - 3), then equation becomes
 	 *
-	 *   MCLK          h_in
+	 *   ACLK          h_in
 	 * ------- >= ----------------
 	 *  PXLCLK     (h_active - 3)
 	 *
 	 * To avoid precision lost the equation 1 will be convert to:
 	 *
-	 *   MCLK             h_in * v_in
+	 *   ACLK             h_in * v_in
 	 * ------- >= -----------------------------------
 	 *  PXLCLK     (h_total -1 ) * v_out -  2 * v_in
 	 */
@@ -763,7 +763,7 @@ static int d71_downscaling_clk_check(struct komeda_pipeline *pipe,
 		denominator = (mode->htotal - 1) * v_out -  2 * v_in;
 	}
 
-	return mclk_rate * denominator >= mode->clock * 1000 * fraction ?
+	return aclk_rate * denominator >= mode->clock * 1000 * fraction ?
 	       0 : -EINVAL;
 }
 
