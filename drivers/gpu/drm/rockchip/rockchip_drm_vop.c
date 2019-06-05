@@ -776,8 +776,6 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	uint32_t act_info, dsp_info, dsp_st;
 	struct drm_rect *src = &state->src;
 	struct drm_rect *dest = &state->dst;
-	struct drm_gem_object *obj, *uv_obj;
-	struct rockchip_gem_object *rk_obj, *rk_uv_obj;
 	unsigned long offset;
 	dma_addr_t dma_addr;
 	uint32_t val;
@@ -801,9 +799,6 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	obj = fb->obj[0];
-	rk_obj = to_rockchip_obj(obj);
-
 	actual_w = drm_rect_width(src) >> 16;
 	actual_h = drm_rect_height(src) >> 16;
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
@@ -817,7 +812,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	offset = (src->x1 >> 16) * fb->format->cpp[0];
 	offset += (src->y1 >> 16) * fb->pitches[0];
-	dma_addr = rk_obj->dma_addr + offset + fb->offsets[0];
+	dma_addr = rockchip_fb_get_dma_addr(fb, 0, vop->dev);
+	dma_addr += offset + fb->offsets[0];
 
 	/*
 	 * For y-mirroring we need to move address
@@ -844,13 +840,12 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		int vsub = drm_format_vert_chroma_subsampling(fb->format->format);
 		int bpp = fb->format->cpp[1];
 
-		uv_obj = fb->obj[1];
-		rk_uv_obj = to_rockchip_obj(uv_obj);
-
 		offset = (src->x1 >> 16) * bpp / hsub;
 		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
 
-		dma_addr = rk_uv_obj->dma_addr + offset + fb->offsets[1];
+		dma_addr = rockchip_fb_get_dma_addr(fb, 1, vop->dev);
+		dma_addr += offset + fb->offsets[1];
+
 		VOP_WIN_SET(vop, win, uv_vir, DIV_ROUND_UP(fb->pitches[1], 4));
 		VOP_WIN_SET(vop, win, uv_mst, dma_addr);
 
@@ -1277,7 +1272,7 @@ static void vop_crtc_reset(struct drm_crtc *crtc)
 		__drm_atomic_helper_crtc_destroy_state(crtc->state);
 	kfree(crtc->state);
 
-	crtc->state = kzalloc(sizeof(struct rockchip_crtc_state), GFP_KERNEL);
+	crtc->state = kzalloc(sizeof(struct drm_crtc_state), GFP_KERNEL);
 	if (crtc->state)
 		crtc->state->crtc = crtc;
 }
@@ -1499,7 +1494,7 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 				   possible_crtcs, &vop_plane_funcs,
 				   win->data_formats, win->nformats, win->type);
 	if (ret) {
-		DRM_ERROR("failed to initialize plane\n");
+		DRM_ERROR("failed to initialize plane %d\n", ret);
 		return ret;
 	}
 	drm_plane_helper_add(&win->base, &plane_helper_funcs);
@@ -1532,8 +1527,7 @@ static int vop_create_crtc(struct vop *vop)
 			continue;
 
 		if (vop_plane_init(vop, win, 0)) {
-			DRM_DEV_ERROR(vop->dev, "failed to init plane %d\n",
-				      ret);
+			DRM_DEV_ERROR(vop->dev, "failed to init plane\n");
 			goto err_cleanup_planes;
 		}
 
@@ -1563,8 +1557,7 @@ static int vop_create_crtc(struct vop *vop)
 			continue;
 
 		if (vop_plane_init(vop, win, possible_crtcs)) {
-			DRM_DEV_ERROR(vop->dev, "failed to init overlay %d\n",
-				      ret);
+			DRM_DEV_ERROR(vop->dev, "failed to init overlay\n");
 			goto err_cleanup_crtc;
 		}
 		vop_plane_add_properties(&win->base, win);
