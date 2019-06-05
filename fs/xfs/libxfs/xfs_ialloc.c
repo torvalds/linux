@@ -31,20 +31,6 @@
 #include "xfs_log.h"
 #include "xfs_rmap.h"
 
-
-/*
- * Allocation group level functions.
- */
-int
-xfs_ialloc_cluster_alignment(
-	struct xfs_mount	*mp)
-{
-	if (xfs_sb_version_hasalign(&mp->m_sb) &&
-	    mp->m_sb.sb_inoalignmt >= xfs_icluster_size_fsb(mp))
-		return mp->m_sb.sb_inoalignmt;
-	return 1;
-}
-
 /*
  * Lookup a record by ino in the btree given by cur.
  */
@@ -2414,20 +2400,6 @@ out_map:
 }
 
 /*
- * Compute and fill in value of m_ino_geo.inobt_maxlevels.
- */
-void
-xfs_ialloc_compute_maxlevels(
-	xfs_mount_t	*mp)		/* file system mount structure */
-{
-	uint		inodes;
-
-	inodes = (1LL << XFS_INO_AGINO_BITS(mp)) >> XFS_INODES_PER_CHUNK_LOG;
-	M_IGEO(mp)->inobt_maxlevels = xfs_btree_compute_maxlevels(
-			M_IGEO(mp)->inobt_mnr, inodes);
-}
-
-/*
  * Log specified fields for the ag hdr (inode section). The growth of the agi
  * structure over time requires that we interpret the buffer as two logical
  * regions delineated by the end of the unlinked list. This is due to the size
@@ -2772,4 +2744,100 @@ xfs_ialloc_count_inodes(
 	*count = ci.count;
 	*freecount = ci.freecount;
 	return 0;
+}
+
+/*
+ * Initialize inode-related geometry information.
+ *
+ * Compute the inode btree min and max levels and set maxicount.
+ *
+ * Set the inode cluster size.  This may still be overridden by the file
+ * system block size if it is larger than the chosen cluster size.
+ *
+ * For v5 filesystems, scale the cluster size with the inode size to keep a
+ * constant ratio of inode per cluster buffer, but only if mkfs has set the
+ * inode alignment value appropriately for larger cluster sizes.
+ *
+ * Then compute the inode cluster alignment information.
+ */
+void
+xfs_ialloc_setup_geometry(
+	struct xfs_mount	*mp)
+{
+	struct xfs_sb		*sbp = &mp->m_sb;
+	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
+	uint64_t		icount;
+	uint			inodes;
+
+	/* Compute inode btree geometry. */
+	igeo->agino_log = sbp->sb_inopblog + sbp->sb_agblklog;
+	igeo->inobt_mxr[0] = xfs_inobt_maxrecs(mp, sbp->sb_blocksize, 1);
+	igeo->inobt_mxr[1] = xfs_inobt_maxrecs(mp, sbp->sb_blocksize, 0);
+	igeo->inobt_mnr[0] = igeo->inobt_mxr[0] / 2;
+	igeo->inobt_mnr[1] = igeo->inobt_mxr[1] / 2;
+
+	igeo->ialloc_inos = max_t(uint16_t, XFS_INODES_PER_CHUNK,
+			sbp->sb_inopblock);
+	igeo->ialloc_blks = igeo->ialloc_inos >> sbp->sb_inopblog;
+
+	if (sbp->sb_spino_align)
+		igeo->ialloc_min_blks = sbp->sb_spino_align;
+	else
+		igeo->ialloc_min_blks = igeo->ialloc_blks;
+
+	/* Compute and fill in value of m_ino_geo.inobt_maxlevels. */
+	inodes = (1LL << XFS_INO_AGINO_BITS(mp)) >> XFS_INODES_PER_CHUNK_LOG;
+	igeo->inobt_maxlevels = xfs_btree_compute_maxlevels(igeo->inobt_mnr,
+			inodes);
+
+	/* Set the maximum inode count for this filesystem. */
+	if (sbp->sb_imax_pct) {
+		/*
+		 * Make sure the maximum inode count is a multiple
+		 * of the units we allocate inodes in.
+		 */
+		icount = sbp->sb_dblocks * sbp->sb_imax_pct;
+		do_div(icount, 100);
+		do_div(icount, igeo->ialloc_blks);
+		igeo->maxicount = XFS_FSB_TO_INO(mp,
+				icount * igeo->ialloc_blks);
+	} else {
+		igeo->maxicount = 0;
+	}
+
+	igeo->inode_cluster_size = XFS_INODE_BIG_CLUSTER_SIZE;
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		int	new_size = igeo->inode_cluster_size;
+
+		new_size *= mp->m_sb.sb_inodesize / XFS_DINODE_MIN_SIZE;
+		if (mp->m_sb.sb_inoalignmt >= XFS_B_TO_FSBT(mp, new_size))
+			igeo->inode_cluster_size = new_size;
+	}
+
+	/* Calculate inode cluster ratios. */
+	if (igeo->inode_cluster_size > mp->m_sb.sb_blocksize)
+		igeo->blocks_per_cluster = XFS_B_TO_FSBT(mp,
+				igeo->inode_cluster_size);
+	else
+		igeo->blocks_per_cluster = 1;
+	igeo->inodes_per_cluster = XFS_FSB_TO_INO(mp, igeo->blocks_per_cluster);
+
+	/* Calculate inode cluster alignment. */
+	if (xfs_sb_version_hasalign(&mp->m_sb) &&
+	    mp->m_sb.sb_inoalignmt >= igeo->blocks_per_cluster)
+		igeo->cluster_align = mp->m_sb.sb_inoalignmt;
+	else
+		igeo->cluster_align = 1;
+	igeo->inoalign_mask = igeo->cluster_align - 1;
+	igeo->cluster_align_inodes = XFS_FSB_TO_INO(mp, igeo->cluster_align);
+
+	/*
+	 * If we are using stripe alignment, check whether
+	 * the stripe unit is a multiple of the inode alignment
+	 */
+	if (mp->m_dalign && igeo->inoalign_mask &&
+	    !(mp->m_dalign & igeo->inoalign_mask))
+		igeo->ialloc_align = mp->m_dalign;
+	else
+		igeo->ialloc_align = 0;
 }
