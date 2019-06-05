@@ -91,7 +91,6 @@ enum intel_platform {
 /* HSW/BDW/SKL/KBL/CFL */
 #define INTEL_SUBPLATFORM_ULT	(0)
 #define INTEL_SUBPLATFORM_ULX	(1)
-#define INTEL_SUBPLATFORM_AML	(2)
 
 /* CNL/ICL */
 #define INTEL_SUBPLATFORM_PORTF	(0)

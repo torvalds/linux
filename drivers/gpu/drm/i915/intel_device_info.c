@@ -787,9 +787,6 @@ static const u16 subplatform_ulx_ids[] = {
 	INTEL_SKL_ULX_GT2_IDS(0),
 	INTEL_KBL_ULX_GT1_IDS(0),
 	INTEL_KBL_ULX_GT2_IDS(0),
-};
-
-static const u16 subplatform_aml_ids[] = {
 	INTEL_AML_KBL_GT2_IDS(0),
 	INTEL_AML_CFL_GT2_IDS(0),
 };
@@ -832,9 +829,6 @@ void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 			/* ULX machines are also considered ULT. */
 			mask |= BIT(INTEL_SUBPLATFORM_ULT);
 		}
-	} else if (find_devid(devid, subplatform_aml_ids,
-			      ARRAY_SIZE(subplatform_aml_ids))) {
-		mask = BIT(INTEL_SUBPLATFORM_AML);
 	} else if (find_devid(devid, subplatform_portf_ids,
 			      ARRAY_SIZE(subplatform_portf_ids))) {
 		mask = BIT(INTEL_SUBPLATFORM_PORTF);
