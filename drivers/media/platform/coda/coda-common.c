@@ -2814,7 +2814,6 @@ static int coda_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct gen_pool *pool;
 	struct coda_dev *dev;
-	struct resource *res;
 	int ret, irq;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
@@ -2846,8 +2845,7 @@ static int coda_probe(struct platform_device *pdev)
 	}
 
 	/* Get  memory for physical registers */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->regs_base = devm_ioremap_resource(&pdev->dev, res);
+	dev->regs_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->regs_base))
 		return PTR_ERR(dev->regs_base);
 
