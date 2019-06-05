@@ -2805,21 +2805,32 @@ xfs_ialloc_setup_geometry(
 		igeo->maxicount = 0;
 	}
 
-	igeo->inode_cluster_size = XFS_INODE_BIG_CLUSTER_SIZE;
+	/*
+	 * Compute the desired size of an inode cluster buffer size, which
+	 * starts at 8K and (on v5 filesystems) scales up with larger inode
+	 * sizes.
+	 *
+	 * Preserve the desired inode cluster size because the sparse inodes
+	 * feature uses that desired size (not the actual size) to compute the
+	 * sparse inode alignment.  The mount code validates this value, so we
+	 * cannot change the behavior.
+	 */
+	igeo->inode_cluster_size_raw = XFS_INODE_BIG_CLUSTER_SIZE;
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		int	new_size = igeo->inode_cluster_size;
+		int	new_size = igeo->inode_cluster_size_raw;
 
 		new_size *= mp->m_sb.sb_inodesize / XFS_DINODE_MIN_SIZE;
 		if (mp->m_sb.sb_inoalignmt >= XFS_B_TO_FSBT(mp, new_size))
-			igeo->inode_cluster_size = new_size;
+			igeo->inode_cluster_size_raw = new_size;
 	}
 
 	/* Calculate inode cluster ratios. */
-	if (igeo->inode_cluster_size > mp->m_sb.sb_blocksize)
+	if (igeo->inode_cluster_size_raw > mp->m_sb.sb_blocksize)
 		igeo->blocks_per_cluster = XFS_B_TO_FSBT(mp,
-				igeo->inode_cluster_size);
+				igeo->inode_cluster_size_raw);
 	else
 		igeo->blocks_per_cluster = 1;
+	igeo->inode_cluster_size = XFS_FSB_TO_B(mp, igeo->blocks_per_cluster);
 	igeo->inodes_per_cluster = XFS_FSB_TO_INO(mp, igeo->blocks_per_cluster);
 
 	/* Calculate inode cluster alignment. */

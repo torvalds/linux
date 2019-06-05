@@ -308,8 +308,7 @@ xfs_calc_iunlink_remove_reservation(
 	struct xfs_mount        *mp)
 {
 	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
-	       2 * max_t(uint, XFS_FSB_TO_B(mp, 1),
-			 M_IGEO(mp)->inode_cluster_size);
+	       2 * M_IGEO(mp)->inode_cluster_size;
 }
 
 /*
@@ -347,8 +346,7 @@ STATIC uint
 xfs_calc_iunlink_add_reservation(xfs_mount_t *mp)
 {
 	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
-			max_t(uint, XFS_FSB_TO_B(mp, 1),
-			      M_IGEO(mp)->inode_cluster_size);
+			M_IGEO(mp)->inode_cluster_size;
 }
 
 /*

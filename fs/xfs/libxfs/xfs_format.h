@@ -1698,11 +1698,16 @@ struct xfs_ino_geometry {
 	/* Maximum inode count in this filesystem. */
 	uint64_t	maxicount;
 
+	/* Actual inode cluster buffer size, in bytes. */
+	unsigned int	inode_cluster_size;
+
 	/*
 	 * Desired inode cluster buffer size, in bytes.  This value is not
-	 * rounded up to at least one filesystem block.
+	 * rounded up to at least one filesystem block, which is necessary for
+	 * the sole purpose of validating sb_spino_align.  Runtime code must
+	 * only ever use inode_cluster_size.
 	 */
-	unsigned int	inode_cluster_size;
+	unsigned int	inode_cluster_size_raw;
 
 	/* Inode cluster sizes, adjusted to be at least 1 fsb. */
 	unsigned int	inodes_per_cluster;
