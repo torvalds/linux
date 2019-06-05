@@ -36,6 +36,7 @@
 #include <linux/vmalloc.h>
 #include <linux/ktime.h>
 
+#include <net/tls.h>
 #include <net/vxlan.h>
 
 #include "nfpcore/nfp_nsp.h"
@@ -801,6 +802,55 @@ static void nfp_net_tx_csum(struct nfp_net_dp *dp,
 	u64_stats_update_end(&r_vec->tx_sync);
 }
 
+#ifdef CONFIG_TLS_DEVICE
+static struct sk_buff *
+nfp_net_tls_tx(struct nfp_net_dp *dp, struct sk_buff *skb, u64 *tls_handle,
+	       int *nr_frags)
+{
+	struct nfp_net_tls_offload_ctx *ntls;
+	struct sk_buff *nskb;
+	u32 datalen, seq;
+
+	if (likely(!dp->ktls_tx))
+		return skb;
+	if (!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk))
+		return skb;
+
+	datalen = skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb));
+	seq = ntohl(tcp_hdr(skb)->seq);
+	ntls = tls_driver_ctx(skb->sk, TLS_OFFLOAD_CTX_DIR_TX);
+	if (unlikely(ntls->next_seq != seq || ntls->out_of_sync)) {
+		/* Pure ACK out of order already */
+		if (!datalen)
+			return skb;
+
+		nskb = tls_encrypt_skb(skb);
+		if (!nskb)
+			return NULL;
+		/* encryption wasn't necessary */
+		if (nskb == skb)
+			return skb;
+		/* we don't re-check ring space */
+		if (unlikely(skb_is_nonlinear(nskb))) {
+			nn_dp_warn(dp, "tls_encrypt_skb() produced fragmented frame\n");
+			dev_kfree_skb_any(nskb);
+			return NULL;
+		}
+
+		/* jump forward, a TX may have gotten lost, need to sync TX */
+		if (!ntls->out_of_sync && seq - ntls->next_seq < U32_MAX / 4)
+			ntls->out_of_sync = true;
+
+		*nr_frags = 0;
+		return nskb;
+	}
+
+	memcpy(tls_handle, ntls->fw_handle, sizeof(ntls->fw_handle));
+	ntls->next_seq += datalen;
+	return skb;
+}
+#endif
+
 static void nfp_net_tx_xmit_more_flush(struct nfp_net_tx_ring *tx_ring)
 {
 	wmb();
@@ -892,6 +942,12 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 		u64_stats_update_end(&r_vec->tx_sync);
 		return NETDEV_TX_BUSY;
 	}
+
+#ifdef CONFIG_TLS_DEVICE
+	skb = nfp_net_tls_tx(dp, skb, &tls_handle, &nr_frags);
+	if (unlikely(!skb))
+		goto err_flush;
+#endif
 
 	md_bytes = nfp_net_prep_tx_meta(skb, tls_handle);
 	if (unlikely(md_bytes < 0))

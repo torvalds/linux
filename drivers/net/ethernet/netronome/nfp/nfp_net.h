@@ -459,6 +459,7 @@ struct nfp_stat_pair {
  * @netdev:		Backpointer to net_device structure
  * @is_vf:		Is the driver attached to a VF?
  * @chained_metadata_format:  Firemware will use new metadata format
+ * @ktls_tx:		Is kTLS TX enabled?
  * @rx_dma_dir:		Mapping direction for RX buffers
  * @rx_dma_off:		Offset at which DMA packets (for XDP headroom)
  * @rx_offset:		Offset in the RX buffers where packet data starts
@@ -483,6 +484,7 @@ struct nfp_net_dp {
 
 	u8 is_vf:1;
 	u8 chained_metadata_format:1;
+	u8 ktls_tx:1;
 
 	u8 rx_dma_dir;
 	u8 rx_offset;
