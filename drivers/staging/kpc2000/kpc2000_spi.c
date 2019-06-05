@@ -110,7 +110,6 @@ struct kp_spi {
 
 struct kp_spi_controller_state {
 	void __iomem   *base;
-	unsigned long   phys;
 	unsigned char   chip_select;
 	int             word_len;
 	s64             conf_cache;
@@ -270,7 +269,6 @@ kp_spi_setup(struct spi_device *spidev)
 			return -ENOMEM;
 		}
 		cs->base = kpspi->base;
-		cs->phys = kpspi->phys;
 		cs->chip_select = spidev->chip_select;
 		cs->word_len = spidev->bits_per_word;
 		cs->conf_cache = -1;
