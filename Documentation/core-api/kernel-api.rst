@@ -33,6 +33,9 @@ String Conversions
 .. kernel-doc:: lib/kstrtox.c
    :export:
 
+.. kernel-doc:: lib/string_helpers.c
+   :export:
+
 String Manipulation
 -------------------
 
