@@ -27,6 +27,7 @@ struct route_info {
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/route.h>
+#include <net/nexthop.h>
 
 #define RT6_LOOKUP_F_IFACE		0x00000001
 #define RT6_LOOKUP_F_REACHABLE		0x00000002
@@ -66,10 +67,13 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 		(IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL | IPV6_ADDR_LOOPBACK);
 }
 
+/* fib entries using a nexthop object can not be coalesced into
+ * a multipath route
+ */
 static inline bool rt6_qualify_for_ecmp(const struct fib6_info *f6i)
 {
 	/* the RTF_ADDRCONF flag filters out RA's */
-	return !(f6i->fib6_flags & RTF_ADDRCONF) &&
+	return !(f6i->fib6_flags & RTF_ADDRCONF) && !f6i->nh &&
 		f6i->fib6_nh->fib_nh_gw_family;
 }
 
@@ -275,8 +279,13 @@ static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt,
 
 static inline bool rt6_duplicate_nexthop(struct fib6_info *a, struct fib6_info *b)
 {
-	struct fib6_nh *nha = a->fib6_nh, *nhb = b->fib6_nh;
+	struct fib6_nh *nha, *nhb;
 
+	if (a->nh || b->nh)
+		return nexthop_cmp(a->nh, b->nh);
+
+	nha = a->fib6_nh;
+	nhb = b->fib6_nh;
 	return nha->fib_nh_dev == nhb->fib_nh_dev &&
 	       ipv6_addr_equal(&nha->fib_nh_gw6, &nhb->fib_nh_gw6) &&
 	       !lwtunnel_cmp_encap(nha->fib_nh_lws, nhb->fib_nh_lws);

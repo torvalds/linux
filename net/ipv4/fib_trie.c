@@ -1461,6 +1461,7 @@ found:
 		fib_alias_accessed(fa);
 		err = fib_props[fa->fa_type].error;
 		if (unlikely(err < 0)) {
+out_reject:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
@@ -1469,7 +1470,13 @@ found:
 		}
 		if (fi->fib_flags & RTNH_F_DEAD)
 			continue;
-		for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
+
+		if (unlikely(fi->nh && nexthop_is_blackhole(fi->nh))) {
+			err = fib_props[RTN_BLACKHOLE].error;
+			goto out_reject;
+		}
+
+		for (nhsel = 0; nhsel < fib_info_num_path(fi); nhsel++) {
 			struct fib_nh_common *nhc = fib_info_nhc(fi, nhsel);
 
 			if (nhc->nhc_flags & RTNH_F_DEAD)
@@ -2717,14 +2724,18 @@ static void fib_route_seq_stop(struct seq_file *seq, void *v)
 	rcu_read_unlock();
 }
 
-static unsigned int fib_flag_trans(int type, __be32 mask, const struct fib_info *fi)
+static unsigned int fib_flag_trans(int type, __be32 mask, struct fib_info *fi)
 {
 	unsigned int flags = 0;
 
 	if (type == RTN_UNREACHABLE || type == RTN_PROHIBIT)
 		flags = RTF_REJECT;
-	if (fi && fi->fib_nh->fib_nh_gw4)
-		flags |= RTF_GATEWAY;
+	if (fi) {
+		const struct fib_nh_common *nhc = fib_info_nhc(fi, 0);
+
+		if (nhc->nhc_gw.ipv4)
+			flags |= RTF_GATEWAY;
+	}
 	if (mask == htonl(0xFFFFFFFF))
 		flags |= RTF_HOST;
 	flags |= RTF_UP;
@@ -2755,7 +2766,7 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 	prefix = htonl(l->key);
 
 	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
-		const struct fib_info *fi = fa->fa_info;
+		struct fib_info *fi = fa->fa_info;
 		__be32 mask = inet_make_mask(KEYLENGTH - fa->fa_slen);
 		unsigned int flags = fib_flag_trans(fa->fa_type, mask, fi);
 
@@ -2768,26 +2779,31 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 
 		seq_setwidth(seq, 127);
 
-		if (fi)
+		if (fi) {
+			struct fib_nh_common *nhc = fib_info_nhc(fi, 0);
+			__be32 gw = 0;
+
+			if (nhc->nhc_gw_family == AF_INET)
+				gw = nhc->nhc_gw.ipv4;
+
 			seq_printf(seq,
 				   "%s\t%08X\t%08X\t%04X\t%d\t%u\t"
 				   "%d\t%08X\t%d\t%u\t%u",
-				   fi->fib_dev ? fi->fib_dev->name : "*",
-				   prefix,
-				   fi->fib_nh->fib_nh_gw4, flags, 0, 0,
+				   nhc->nhc_dev ? nhc->nhc_dev->name : "*",
+				   prefix, gw, flags, 0, 0,
 				   fi->fib_priority,
 				   mask,
 				   (fi->fib_advmss ?
 				    fi->fib_advmss + 40 : 0),
 				   fi->fib_window,
 				   fi->fib_rtt >> 3);
-		else
+		} else {
 			seq_printf(seq,
 				   "*\t%08X\t%08X\t%04X\t%d\t%u\t"
 				   "%d\t%08X\t%d\t%u\t%u",
 				   prefix, 0, flags, 0, 0, 0,
 				   mask, 0, 0, 0);
-
+		}
 		seq_pad(seq, '\n');
 	}
 

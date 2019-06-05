@@ -159,6 +159,7 @@ struct fib6_info *fib6_info_alloc(gfp_t gfp_flags, bool with_fib6_nh)
 	if (!f6i)
 		return NULL;
 
+	/* fib6_siblings is a union with nh_list, so this initializes both */
 	INIT_LIST_HEAD(&f6i->fib6_siblings);
 	refcount_set(&f6i->fib6_ref, 1);
 
@@ -171,7 +172,11 @@ void fib6_info_destroy_rcu(struct rcu_head *head)
 
 	WARN_ON(f6i->fib6_node);
 
-	fib6_nh_release(f6i->fib6_nh);
+	if (f6i->nh)
+		nexthop_put(f6i->nh);
+	else
+		fib6_nh_release(f6i->fib6_nh);
+
 	ip_fib_metrics_put(f6i->fib6_metrics);
 	kfree(f6i);
 }
@@ -927,6 +932,9 @@ static void fib6_purge_rt(struct fib6_info *rt, struct fib6_node *fn,
 
 	fib6_drop_pcpu_from(rt, table);
 
+	if (rt->nh && !list_empty(&rt->nh_list))
+		list_del_init(&rt->nh_list);
+
 	if (refcount_read(&rt->fib6_ref) != 1) {
 		/* This route is used as dummy address holder in some split
 		 * nodes. It is not leaked, but it still holds other resources,
@@ -1334,6 +1342,8 @@ int fib6_add(struct fib6_node *root, struct fib6_info *rt,
 
 	err = fib6_add_rt2node(fn, rt, info, extack);
 	if (!err) {
+		if (rt->nh)
+			list_add(&rt->nh_list, &rt->nh->f6i_list);
 		__fib6_update_sernum_upto_root(rt, sernum);
 		fib6_start_gc(info->nl_net, rt);
 	}
@@ -2295,8 +2305,12 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 {
 	struct fib6_info *rt = v;
 	struct ipv6_route_iter *iter = seq->private;
+	struct fib6_nh *fib6_nh = rt->fib6_nh;
 	unsigned int flags = rt->fib6_flags;
 	const struct net_device *dev;
+
+	if (rt->nh)
+		fib6_nh = nexthop_fib6_nh(rt->nh);
 
 	seq_printf(seq, "%pi6 %02x ", &rt->fib6_dst.addr, rt->fib6_dst.plen);
 
@@ -2305,14 +2319,14 @@ static int ipv6_route_seq_show(struct seq_file *seq, void *v)
 #else
 	seq_puts(seq, "00000000000000000000000000000000 00 ");
 #endif
-	if (rt->fib6_nh->fib_nh_gw_family) {
+	if (fib6_nh->fib_nh_gw_family) {
 		flags |= RTF_GATEWAY;
-		seq_printf(seq, "%pi6", &rt->fib6_nh->fib_nh_gw6);
+		seq_printf(seq, "%pi6", &fib6_nh->fib_nh_gw6);
 	} else {
 		seq_puts(seq, "00000000000000000000000000000000");
 	}
 
-	dev = rt->fib6_nh->fib_nh_dev;
+	dev = fib6_nh->fib_nh_dev;
 	seq_printf(seq, " %08x %08x %08x %08x %8s\n",
 		   rt->fib6_metric, refcount_read(&rt->fib6_ref), 0,
 		   flags, dev ? dev->name : "");

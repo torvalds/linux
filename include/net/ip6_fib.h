@@ -146,7 +146,10 @@ struct fib6_info {
 	 * destination, but not the same gateway. nsiblings is just a cache
 	 * to speed up lookup.
 	 */
-	struct list_head		fib6_siblings;
+	union {
+		struct list_head	fib6_siblings;
+		struct list_head	nh_list;
+	};
 	unsigned int			fib6_nsiblings;
 
 	refcount_t			fib6_ref;
@@ -170,6 +173,7 @@ struct fib6_info {
 					unused:3;
 
 	struct rcu_head			rcu;
+	struct nexthop			*nh;
 	struct fib6_nh			fib6_nh[0];
 };
 
@@ -439,11 +443,6 @@ void rt6_get_prefsrc(const struct rt6_info *rt, struct in6_addr *addr)
 	}
 
 	rcu_read_unlock();
-}
-
-static inline struct net_device *fib6_info_nh_dev(const struct fib6_info *f6i)
-{
-	return f6i->fib6_nh->fib_nh_dev;
 }
 
 int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,

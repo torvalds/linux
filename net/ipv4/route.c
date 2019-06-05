@@ -99,6 +99,7 @@
 #include <net/inetpeer.h>
 #include <net/sock.h>
 #include <net/ip_fib.h>
+#include <net/nexthop.h>
 #include <net/arp.h>
 #include <net/tcp.h>
 #include <net/icmp.h>
@@ -1584,7 +1585,7 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 		ip_dst_init_metrics(&rt->dst, fi->fib_metrics);
 
 #ifdef CONFIG_IP_ROUTE_CLASSID
-		{
+		if (nhc->nhc_family == AF_INET) {
 			struct fib_nh *nh;
 
 			nh = container_of(nhc, struct fib_nh, nh_common);
@@ -1950,7 +1951,7 @@ static int ip_mkroute_input(struct sk_buff *skb,
 			    struct flow_keys *hkeys)
 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	if (res->fi && res->fi->fib_nhs > 1) {
+	if (res->fi && fib_info_num_path(res->fi) > 1) {
 		int h = fib_multipath_hash(res->fi->fib_net, NULL, skb, hkeys);
 
 		fib_select_multipath(res, h);

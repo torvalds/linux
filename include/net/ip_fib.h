@@ -129,9 +129,12 @@ struct fib_nh {
  * This structure contains data shared by many of routes.
  */
 
+struct nexthop;
+
 struct fib_info {
 	struct hlist_node	fib_hash;
 	struct hlist_node	fib_lhash;
+	struct list_head	nh_list;
 	struct net		*fib_net;
 	int			fib_treeref;
 	refcount_t		fib_clntref;
@@ -151,9 +154,9 @@ struct fib_info {
 	int			fib_nhs;
 	bool			fib_nh_is_v6;
 	bool			nh_updated;
+	struct nexthop		*nh;
 	struct rcu_head		rcu;
 	struct fib_nh		fib_nh[0];
-#define fib_dev		fib_nh[0].fib_nh_dev
 };
 
 
@@ -190,19 +193,14 @@ struct fib_result_nl {
 	int             err;
 };
 
-static inline struct fib_nh_common *fib_info_nhc(struct fib_info *fi, int nhsel)
-{
-	return &fi->fib_nh[nhsel].nh_common;
-}
-
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 #define FIB_TABLE_HASHSZ 256
 #else
 #define FIB_TABLE_HASHSZ 2
 #endif
 
-__be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh,
-				unsigned char scope);
+__be32 fib_info_update_nhc_saddr(struct net *net, struct fib_nh_common *nhc,
+				 unsigned char scope);
 __be32 fib_result_prefsrc(struct net *net, struct fib_result *res);
 
 #define FIB_RES_NHC(res)		((res).nhc)
@@ -461,11 +459,18 @@ static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 {
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	struct fib_nh_common *nhc = res->nhc;
-	struct fib_nh *nh = container_of(nhc, struct fib_nh, nh_common);
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	u32 rtag;
 #endif
-	*itag = nh->nh_tclassid << 16;
+	if (nhc->nhc_family == AF_INET) {
+		struct fib_nh *nh;
+
+		nh = container_of(nhc, struct fib_nh, nh_common);
+		*itag = nh->nh_tclassid << 16;
+	} else {
+		*itag = 0;
+	}
+
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	rtag = res->tclassid;
 	if (*itag == 0)

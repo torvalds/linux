@@ -10,6 +10,7 @@
 #define __LINUX_NEXTHOP_H
 
 #include <linux/netdevice.h>
+#include <linux/route.h>
 #include <linux/types.h>
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
@@ -77,6 +78,8 @@ struct nh_group {
 
 struct nexthop {
 	struct rb_node		rb_node;    /* entry on netns rbtree */
+	struct list_head	fi_list;    /* v4 entries using nh */
+	struct list_head	f6i_list;   /* v6 entries using nh */
 	struct list_head	grp_list;   /* nh group entries using this nh */
 	struct net		*net;
 
@@ -108,6 +111,12 @@ static inline void nexthop_put(struct nexthop *nh)
 {
 	if (refcount_dec_and_test(&nh->refcnt))
 		call_rcu(&nh->rcu, nexthop_free_rcu);
+}
+
+static inline bool nexthop_cmp(const struct nexthop *nh1,
+			       const struct nexthop *nh2)
+{
+	return nh1 == nh2;
 }
 
 static inline bool nexthop_is_multipath(const struct nexthop *nh)
@@ -191,5 +200,109 @@ static inline bool nexthop_is_blackhole(const struct nexthop *nh)
 
 	nhi = rcu_dereference_rtnl(nh->nh_info);
 	return nhi->reject_nh;
+}
+
+static inline void nexthop_path_fib_result(struct fib_result *res, int hash)
+{
+	struct nh_info *nhi;
+	struct nexthop *nh;
+
+	nh = nexthop_select_path(res->fi->nh, hash);
+	nhi = rcu_dereference(nh->nh_info);
+	res->nhc = &nhi->fib_nhc;
+}
+
+/* called with rcu read lock or rtnl held */
+static inline
+struct fib_nh_common *nexthop_fib_nhc(struct nexthop *nh, int nhsel)
+{
+	struct nh_info *nhi;
+
+	BUILD_BUG_ON(offsetof(struct fib_nh, nh_common) != 0);
+	BUILD_BUG_ON(offsetof(struct fib6_nh, nh_common) != 0);
+
+	if (nexthop_is_multipath(nh)) {
+		nh = nexthop_mpath_select(nh, nhsel);
+		if (!nh)
+			return NULL;
+	}
+
+	nhi = rcu_dereference_rtnl(nh->nh_info);
+	return &nhi->fib_nhc;
+}
+
+static inline unsigned int fib_info_num_path(const struct fib_info *fi)
+{
+	if (unlikely(fi->nh))
+		return nexthop_num_path(fi->nh);
+
+	return fi->fib_nhs;
+}
+
+int fib_check_nexthop(struct nexthop *nh, u8 scope,
+		      struct netlink_ext_ack *extack);
+
+static inline struct fib_nh_common *fib_info_nhc(struct fib_info *fi, int nhsel)
+{
+	if (unlikely(fi->nh))
+		return nexthop_fib_nhc(fi->nh, nhsel);
+
+	return &fi->fib_nh[nhsel].nh_common;
+}
+
+/* only used when fib_nh is built into fib_info */
+static inline struct fib_nh *fib_info_nh(struct fib_info *fi, int nhsel)
+{
+	WARN_ON(fi->nh);
+
+	return &fi->fib_nh[nhsel];
+}
+
+/*
+ * IPv6 variants
+ */
+int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
+		       struct netlink_ext_ack *extack);
+
+static inline struct fib6_nh *nexthop_fib6_nh(struct nexthop *nh)
+{
+	struct nh_info *nhi;
+
+	if (nexthop_is_multipath(nh)) {
+		nh = nexthop_mpath_select(nh, 0);
+		if (!nh)
+			return NULL;
+	}
+
+	nhi = rcu_dereference_rtnl(nh->nh_info);
+	if (nhi->family == AF_INET6)
+		return &nhi->fib6_nh;
+
+	return NULL;
+}
+
+static inline struct net_device *fib6_info_nh_dev(struct fib6_info *f6i)
+{
+	struct fib6_nh *fib6_nh;
+
+	fib6_nh = f6i->nh ? nexthop_fib6_nh(f6i->nh) : f6i->fib6_nh;
+	return fib6_nh->fib_nh_dev;
+}
+
+static inline void nexthop_path_fib6_result(struct fib6_result *res, int hash)
+{
+	struct nexthop *nh = res->f6i->nh;
+	struct nh_info *nhi;
+
+	nh = nexthop_select_path(nh, hash);
+
+	nhi = rcu_dereference_rtnl(nh->nh_info);
+	if (nhi->reject_nh) {
+		res->fib6_type = RTN_BLACKHOLE;
+		res->fib6_flags |= RTF_REJECT;
+		res->nh = nexthop_fib6_nh(nh);
+	} else {
+		res->nh = &nhi->fib6_nh;
+	}
 }
 #endif
