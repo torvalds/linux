@@ -2345,8 +2345,6 @@ ice_vsi_add_rem_eth_mac(struct ice_vsi *vsi, bool add_rule)
 	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
 }
 
-#define ICE_ETH_P_LLDP	0x88CC
-
 /**
  * ice_cfg_sw_lldp - Config switch rules for LLDP packet handling
  * @vsi: the VSI being configured
@@ -2366,7 +2364,7 @@ void ice_cfg_sw_lldp(struct ice_vsi *vsi, bool tx, bool create)
 
 	list->fltr_info.lkup_type = ICE_SW_LKUP_ETHERTYPE;
 	list->fltr_info.vsi_handle = vsi->idx;
-	list->fltr_info.l_data.ethertype_mac.ethertype = ICE_ETH_P_LLDP;
+	list->fltr_info.l_data.ethertype_mac.ethertype = ETH_P_LLDP;
 
 	if (tx) {
 		list->fltr_info.fltr_act = ICE_DROP_PACKET;
