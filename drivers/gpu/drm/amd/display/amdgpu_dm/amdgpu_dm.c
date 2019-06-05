@@ -2971,6 +2971,9 @@ convert_color_depth_from_display_info(const struct drm_connector *connector,
 {
 	uint32_t bpc = connector->display_info.bpc;
 
+	if (!state)
+		state = connector->state;
+
 	if (state) {
 		bpc = state->max_bpc;
 		/* Round down to the nearest even number. */
@@ -3733,6 +3736,7 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 		state->underscan_enable = false;
 		state->underscan_hborder = 0;
 		state->underscan_vborder = 0;
+		state->base.max_requested_bpc = 8;
 
 		__drm_atomic_helper_connector_reset(connector, &state->base);
 	}
