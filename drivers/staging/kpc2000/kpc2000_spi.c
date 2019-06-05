@@ -109,7 +109,6 @@ struct kp_spi {
 
 struct kp_spi_controller_state {
 	void __iomem   *base;
-	unsigned char   chip_select;
 	s64             conf_cache;
 };
 
@@ -267,7 +266,6 @@ kp_spi_setup(struct spi_device *spidev)
 			return -ENOMEM;
 		}
 		cs->base = kpspi->base;
-		cs->chip_select = spidev->chip_select;
 		cs->conf_cache = -1;
 		spidev->controller_state = cs;
 	}
