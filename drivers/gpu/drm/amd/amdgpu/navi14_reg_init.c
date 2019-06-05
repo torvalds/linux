@@ -29,8 +29,20 @@
 
 int navi14_reg_base_init(struct amdgpu_device *adev)
 {
-	/* HW has more IP blocks,  only initialized the blocke needed by driver */
-	uint32_t i;
+	int r, i;
+
+	if (amdgpu_discovery) {
+		r = amdgpu_discovery_reg_base_init(adev);
+		if (r) {
+			DRM_WARN("failed to init reg base from ip discovery table, "
+					"fallback to legacy init method\n");
+			goto legacy_init;
+		}
+
+		return 0;
+	}
+
+legacy_init:
 	for (i = 0 ; i < MAX_INSTANCE ; ++i) {
 		adev->reg_offset[GC_HWIP][i] = (uint32_t *)(&(GC_BASE.instance[i]));
 		adev->reg_offset[HDP_HWIP][i] = (uint32_t *)(&(HDP_BASE.instance[i]));
@@ -49,5 +61,6 @@ int navi14_reg_base_init(struct amdgpu_device *adev)
 		adev->reg_offset[THM_HWIP][i] = (uint32_t *)(&(THM_BASE.instance[i]));
 		adev->reg_offset[CLK_HWIP][i] = (uint32_t *)(&(CLK_BASE.instance[i]));
 	}
+
 	return 0;
 }
