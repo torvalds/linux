@@ -1153,8 +1153,8 @@ void dcn20_enable_plane(
 
 		apt.sys_default.quad_part = 0;
 
-		apt.sys_high.quad_part = dc->vm_pa_config.system_aperture.start_addr;
-		apt.sys_low.quad_part = dc->vm_pa_config.system_aperture.end_addr;
+		apt.sys_low.quad_part = dc->vm_pa_config.system_aperture.start_addr;
+		apt.sys_high.quad_part = dc->vm_pa_config.system_aperture.end_addr;
 
 		// Program system aperture settings
 		pipe_ctx->plane_res.hubp->funcs->hubp_set_vm_system_aperture_settings(pipe_ctx->plane_res.hubp, &apt);
