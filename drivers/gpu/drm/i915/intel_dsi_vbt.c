@@ -537,6 +537,44 @@ void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
 	msleep(msec);
 }
 
+static void intel_dsi_log_params(struct intel_dsi *intel_dsi)
+{
+	DRM_DEBUG_KMS("Pclk %d\n", intel_dsi->pclk);
+	DRM_DEBUG_KMS("Pixel overlap %d\n", intel_dsi->pixel_overlap);
+	DRM_DEBUG_KMS("Lane count %d\n", intel_dsi->lane_count);
+	DRM_DEBUG_KMS("DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
+	DRM_DEBUG_KMS("Video mode format %s\n",
+		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE ?
+		      "non-burst with sync pulse" :
+		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS ?
+		      "non-burst with sync events" :
+		      intel_dsi->video_mode_format == VIDEO_MODE_BURST ?
+		      "burst" : "<unknown>");
+	DRM_DEBUG_KMS("Burst mode ratio %d\n", intel_dsi->burst_mode_ratio);
+	DRM_DEBUG_KMS("Reset timer %d\n", intel_dsi->rst_timer_val);
+	DRM_DEBUG_KMS("Eot %s\n", enableddisabled(intel_dsi->eotp_pkt));
+	DRM_DEBUG_KMS("Clockstop %s\n", enableddisabled(!intel_dsi->clock_stop));
+	DRM_DEBUG_KMS("Mode %s\n", intel_dsi->operation_mode ? "command" : "video");
+	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
+		DRM_DEBUG_KMS("Dual link: DSI_DUAL_LINK_FRONT_BACK\n");
+	else if (intel_dsi->dual_link == DSI_DUAL_LINK_PIXEL_ALT)
+		DRM_DEBUG_KMS("Dual link: DSI_DUAL_LINK_PIXEL_ALT\n");
+	else
+		DRM_DEBUG_KMS("Dual link: NONE\n");
+	DRM_DEBUG_KMS("Pixel Format %d\n", intel_dsi->pixel_format);
+	DRM_DEBUG_KMS("TLPX %d\n", intel_dsi->escape_clk_div);
+	DRM_DEBUG_KMS("LP RX Timeout 0x%x\n", intel_dsi->lp_rx_timeout);
+	DRM_DEBUG_KMS("Turnaround Timeout 0x%x\n", intel_dsi->turn_arnd_val);
+	DRM_DEBUG_KMS("Init Count 0x%x\n", intel_dsi->init_count);
+	DRM_DEBUG_KMS("HS to LP Count 0x%x\n", intel_dsi->hs_to_lp_count);
+	DRM_DEBUG_KMS("LP Byte Clock %d\n", intel_dsi->lp_byte_clk);
+	DRM_DEBUG_KMS("DBI BW Timer 0x%x\n", intel_dsi->bw_timer);
+	DRM_DEBUG_KMS("LP to HS Clock Count 0x%x\n", intel_dsi->clk_lp_to_hs_count);
+	DRM_DEBUG_KMS("HS to LP Clock Count 0x%x\n", intel_dsi->clk_hs_to_lp_count);
+	DRM_DEBUG_KMS("BTA %s\n",
+			enableddisabled(!(intel_dsi->video_frmt_cfg_bits & DISABLE_VIDEO_BTA)));
+}
+
 #define ICL_PREPARE_CNT_MAX	0x7
 #define ICL_CLK_ZERO_CNT_MAX	0xf
 #define ICL_TRAIL_CNT_MAX	0x7
@@ -640,6 +678,8 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 					 HS_TRAIL(trail_cnt) |
 					 HS_EXIT_OVERRIDE |
 					 HS_EXIT(exit_zero_cnt));
+
+	intel_dsi_log_params(intel_dsi);
 }
 
 static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
@@ -799,6 +839,8 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 		DIV_ROUND_UP(2 * tlpx_ui + trail_cnt * 2 + 8,
 			8);
 	intel_dsi->clk_hs_to_lp_count += extra_byte_count;
+
+	intel_dsi_log_params(intel_dsi);
 }
 
 bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
@@ -892,41 +934,6 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 		icl_dphy_param_init(intel_dsi);
 	else
 		vlv_dphy_param_init(intel_dsi);
-
-	DRM_DEBUG_KMS("Pclk %d\n", intel_dsi->pclk);
-	DRM_DEBUG_KMS("Pixel overlap %d\n", intel_dsi->pixel_overlap);
-	DRM_DEBUG_KMS("Lane count %d\n", intel_dsi->lane_count);
-	DRM_DEBUG_KMS("DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
-	DRM_DEBUG_KMS("Video mode format %s\n",
-		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE ?
-		      "non-burst with sync pulse" :
-		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS ?
-		      "non-burst with sync events" :
-		      intel_dsi->video_mode_format == VIDEO_MODE_BURST ?
-		      "burst" : "<unknown>");
-	DRM_DEBUG_KMS("Burst mode ratio %d\n", intel_dsi->burst_mode_ratio);
-	DRM_DEBUG_KMS("Reset timer %d\n", intel_dsi->rst_timer_val);
-	DRM_DEBUG_KMS("Eot %s\n", enableddisabled(intel_dsi->eotp_pkt));
-	DRM_DEBUG_KMS("Clockstop %s\n", enableddisabled(!intel_dsi->clock_stop));
-	DRM_DEBUG_KMS("Mode %s\n", intel_dsi->operation_mode ? "command" : "video");
-	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
-		DRM_DEBUG_KMS("Dual link: DSI_DUAL_LINK_FRONT_BACK\n");
-	else if (intel_dsi->dual_link == DSI_DUAL_LINK_PIXEL_ALT)
-		DRM_DEBUG_KMS("Dual link: DSI_DUAL_LINK_PIXEL_ALT\n");
-	else
-		DRM_DEBUG_KMS("Dual link: NONE\n");
-	DRM_DEBUG_KMS("Pixel Format %d\n", intel_dsi->pixel_format);
-	DRM_DEBUG_KMS("TLPX %d\n", intel_dsi->escape_clk_div);
-	DRM_DEBUG_KMS("LP RX Timeout 0x%x\n", intel_dsi->lp_rx_timeout);
-	DRM_DEBUG_KMS("Turnaround Timeout 0x%x\n", intel_dsi->turn_arnd_val);
-	DRM_DEBUG_KMS("Init Count 0x%x\n", intel_dsi->init_count);
-	DRM_DEBUG_KMS("HS to LP Count 0x%x\n", intel_dsi->hs_to_lp_count);
-	DRM_DEBUG_KMS("LP Byte Clock %d\n", intel_dsi->lp_byte_clk);
-	DRM_DEBUG_KMS("DBI BW Timer 0x%x\n", intel_dsi->bw_timer);
-	DRM_DEBUG_KMS("LP to HS Clock Count 0x%x\n", intel_dsi->clk_lp_to_hs_count);
-	DRM_DEBUG_KMS("HS to LP Clock Count 0x%x\n", intel_dsi->clk_hs_to_lp_count);
-	DRM_DEBUG_KMS("BTA %s\n",
-			enableddisabled(!(intel_dsi->video_frmt_cfg_bits & DISABLE_VIDEO_BTA)));
 
 	/* delays in VBT are in unit of 100us, so need to convert
 	 * here in ms
