@@ -419,5 +419,4 @@ module_platform_driver(tegra_rtc_driver);
 
 MODULE_AUTHOR("Jon Mayo <jmayo@nvidia.com>");
 MODULE_DESCRIPTION("driver for Tegra internal RTC");
-MODULE_ALIAS("platform:tegra_rtc");
 MODULE_LICENSE("GPL");
