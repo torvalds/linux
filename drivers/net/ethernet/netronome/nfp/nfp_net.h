@@ -552,7 +552,7 @@ struct nfp_net_dp {
  * @reconfig_timer:	Timer for async reading of reconfig results
  * @reconfig_in_progress_update:	Update FW is processing now (debug only)
  * @bar_lock:		vNIC config BAR access lock, protects: update,
- *			mailbox area
+ *			mailbox area, crypto TLV
  * @link_up:            Is the link up?
  * @link_status_lock:	Protects @link_* and ensures atomicity with BAR reading
  * @rx_coalesce_usecs:      RX interrupt moderation usecs delay parameter
@@ -565,6 +565,7 @@ struct nfp_net_dp {
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @tlv_caps:		Parsed TLV capabilities
+ * @ktls_tx_conn_cnt:	Number of offloaded kTLS TX connections
  * @mbox_cmsg:		Common Control Message via vNIC mailbox state
  * @mbox_cmsg.queue:	CCM mbox queue of pending messages
  * @mbox_cmsg.wq:	CCM mbox wait queue of waiting processes
@@ -643,6 +644,8 @@ struct nfp_net {
 	u8 __iomem *rx_bar;
 
 	struct nfp_net_tlv_caps tlv_caps;
+
+	unsigned int ktls_tx_conn_cnt;
 
 	struct {
 		struct sk_buff_head queue;
