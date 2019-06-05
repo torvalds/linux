@@ -804,8 +804,8 @@ static void nfp_net_tx_csum(struct nfp_net_dp *dp,
 
 #ifdef CONFIG_TLS_DEVICE
 static struct sk_buff *
-nfp_net_tls_tx(struct nfp_net_dp *dp, struct sk_buff *skb, u64 *tls_handle,
-	       int *nr_frags)
+nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
+	       struct sk_buff *skb, u64 *tls_handle, int *nr_frags)
 {
 	struct nfp_net_tls_offload_ctx *ntls;
 	struct sk_buff *nskb;
@@ -824,15 +824,26 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct sk_buff *skb, u64 *tls_handle,
 		if (!datalen)
 			return skb;
 
+		u64_stats_update_begin(&r_vec->tx_sync);
+		r_vec->tls_tx_fallback++;
+		u64_stats_update_end(&r_vec->tx_sync);
+
 		nskb = tls_encrypt_skb(skb);
-		if (!nskb)
+		if (!nskb) {
+			u64_stats_update_begin(&r_vec->tx_sync);
+			r_vec->tls_tx_no_fallback++;
+			u64_stats_update_end(&r_vec->tx_sync);
 			return NULL;
+		}
 		/* encryption wasn't necessary */
 		if (nskb == skb)
 			return skb;
 		/* we don't re-check ring space */
 		if (unlikely(skb_is_nonlinear(nskb))) {
 			nn_dp_warn(dp, "tls_encrypt_skb() produced fragmented frame\n");
+			u64_stats_update_begin(&r_vec->tx_sync);
+			r_vec->tx_errors++;
+			u64_stats_update_end(&r_vec->tx_sync);
 			dev_kfree_skb_any(nskb);
 			return NULL;
 		}
@@ -843,6 +854,12 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct sk_buff *skb, u64 *tls_handle,
 
 		*nr_frags = 0;
 		return nskb;
+	}
+
+	if (datalen) {
+		u64_stats_update_begin(&r_vec->tx_sync);
+		r_vec->hw_tls_tx++;
+		u64_stats_update_end(&r_vec->tx_sync);
 	}
 
 	memcpy(tls_handle, ntls->fw_handle, sizeof(ntls->fw_handle));
@@ -944,9 +961,11 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 #ifdef CONFIG_TLS_DEVICE
-	skb = nfp_net_tls_tx(dp, skb, &tls_handle, &nr_frags);
-	if (unlikely(!skb))
-		goto err_flush;
+	skb = nfp_net_tls_tx(dp, r_vec, skb, &tls_handle, &nr_frags);
+	if (unlikely(!skb)) {
+		nfp_net_tx_xmit_more_flush(tx_ring);
+		return NETDEV_TX_OK;
+	}
 #endif
 
 	md_bytes = nfp_net_prep_tx_meta(skb, tls_handle);

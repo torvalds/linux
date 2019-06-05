@@ -12,6 +12,7 @@
 #ifndef _NFP_NET_H_
 #define _NFP_NET_H_
 
+#include <linux/atomic.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
@@ -373,6 +374,11 @@ struct nfp_net_rx_ring {
  * @hw_csum_tx_inner:	 Counter of inner TX checksum offload requests
  * @tx_gather:	    Counter of packets with Gather DMA
  * @tx_lso:	    Counter of LSO packets sent
+ * @hw_tls_tx:	    Counter of TLS packets sent with crypto offloaded to HW
+ * @tls_tx_fallback:	Counter of TLS packets sent which had to be encrypted
+ *			by the fallback path because packets came out of order
+ * @tls_tx_no_fallback:	Counter of TLS packets not sent because the fallback
+ *			path could not encrypt them
  * @tx_errors:	    How many TX errors were encountered
  * @tx_busy:        How often was TX busy (no space)?
  * @rx_replace_buf_alloc_fail:	Counter of RX buffer allocation failures
@@ -410,20 +416,27 @@ struct nfp_net_r_vector {
 	u64 hw_csum_rx_inner_ok;
 	u64 hw_csum_rx_complete;
 
+	u64 hw_csum_rx_error;
+	u64 rx_replace_buf_alloc_fail;
+
 	struct nfp_net_tx_ring *xdp_ring;
 
 	struct u64_stats_sync tx_sync;
 	u64 tx_pkts;
 	u64 tx_bytes;
-	u64 hw_csum_tx;
+
+	u64 ____cacheline_aligned_in_smp hw_csum_tx;
 	u64 hw_csum_tx_inner;
 	u64 tx_gather;
 	u64 tx_lso;
+	u64 hw_tls_tx;
 
-	u64 hw_csum_rx_error;
-	u64 rx_replace_buf_alloc_fail;
+	u64 tls_tx_fallback;
+	u64 tls_tx_no_fallback;
 	u64 tx_errors;
 	u64 tx_busy;
+
+	/* Cold data follows */
 
 	u32 irq_vector;
 	irq_handler_t handler;
@@ -566,6 +579,8 @@ struct nfp_net_dp {
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @tlv_caps:		Parsed TLV capabilities
  * @ktls_tx_conn_cnt:	Number of offloaded kTLS TX connections
+ * @ktls_no_space:	Counter of firmware rejecting kTLS connection due to
+ *			lack of space
  * @mbox_cmsg:		Common Control Message via vNIC mailbox state
  * @mbox_cmsg.queue:	CCM mbox queue of pending messages
  * @mbox_cmsg.wq:	CCM mbox wait queue of waiting processes
@@ -646,6 +661,8 @@ struct nfp_net {
 	struct nfp_net_tlv_caps tlv_caps;
 
 	unsigned int ktls_tx_conn_cnt;
+
+	atomic_t ktls_no_space;
 
 	struct {
 		struct sk_buff_head queue;

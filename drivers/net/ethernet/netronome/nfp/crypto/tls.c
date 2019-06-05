@@ -324,9 +324,13 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 	reply = (void *)skb->data;
 	err = -be32_to_cpu(reply->error);
 	if (err) {
-		if (err != -ENOSPC)
+		if (err == -ENOSPC) {
+			if (!atomic_fetch_inc(&nn->ktls_no_space))
+				nn_info(nn, "HW TLS table full\n");
+		} else {
 			nn_dp_warn(&nn->dp,
 				   "failed to add TLS, FW replied: %d\n", err);
+		}
 		goto err_free_skb;
 	}
 
