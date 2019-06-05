@@ -24,9 +24,15 @@
  */
 
 #include <linux/delay.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
 #include <drm/savage_drm.h>
+
 #include "savage_drv.h"
 
 /* Need a long timeout for shadow status updates can take a while

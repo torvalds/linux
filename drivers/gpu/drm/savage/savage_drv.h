@@ -26,7 +26,11 @@
 #ifndef __SAVAGE_DRV_H__
 #define __SAVAGE_DRV_H__
 
+#include <linux/io.h>
+
+#include <drm/drm_ioctl.h>
 #include <drm/drm_legacy.h>
+#include <drm/savage_drm.h>
 
 #define DRIVER_AUTHOR	"Felix Kuehling"
 
