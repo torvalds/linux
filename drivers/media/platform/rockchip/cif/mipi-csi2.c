@@ -11,6 +11,7 @@
 #include <linux/iopoll.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <media/v4l2-device.h>
@@ -21,11 +22,12 @@
  * there must be 5 pads: 1 input pad from sensor, and
  * the 4 virtual channel output pads
  */
-#define CSI2_SINK_PAD       0
-#define CSI2_NUM_SINK_PADS  1
-#define CSI2_NUM_SRC_PADS   4
-#define CSI2_NUM_PADS       5
-#define MAX_CSI2_SENSORS	2
+#define CSI2_SINK_PAD			0
+#define CSI2_NUM_SINK_PADS		1
+#define CSI2_NUM_SRC_PADS		4
+#define CSI2_NUM_PADS			5
+#define CSI2_NUM_PADS_SINGLE_LINK	2
+#define MAX_CSI2_SENSORS		2
 
 /*
  * The default maximum bit-rate per lane in Mbps, if the
@@ -35,6 +37,13 @@
 
 #define IMX_MEDIA_GRP_ID_CSI2      BIT(8)
 #define CSIHOST_MAX_ERRINT_COUNT	10
+
+enum rkcsi2_chip_id {
+	CHIP_PX30_CSI2,
+	CHIP_RK1808_CSI2,
+	CHIP_RK3128_CSI2,
+	CHIP_RK3288_CSI2
+};
 
 enum csi2_pads {
 	RK_CSI2_PAD_SINK = 0,
@@ -47,6 +56,11 @@ enum csi2_pads {
 enum host_type_t {
 	RK_CSI_RXHOST,
 	RK_DSI_RXHOST
+};
+
+struct csi2_match_data {
+	int chip_id;
+	int num_pads;
 };
 
 struct csi2_sensor {
@@ -73,6 +87,7 @@ struct csi2_dev {
 	struct v4l2_subdev      *src_sd;
 	bool                    sink_linked[CSI2_NUM_SRC_PADS];
 	struct csi2_sensor	sensors[MAX_CSI2_SENSORS];
+	const struct csi2_match_data	*match_data;
 	int num_sensors;
 };
 
@@ -292,9 +307,11 @@ out:
 static int csi2_media_init(struct v4l2_subdev *sd)
 {
 	struct csi2_dev *csi2 = sd_to_dev(sd);
-	int i;
+	int i = 0, num_pads = 0;
 
-	for (i = 0; i < CSI2_NUM_PADS; i++) {
+	num_pads = csi2->match_data->num_pads;
+
+	for (i = 0; i < num_pads; i++) {
 		csi2->pad[i].flags = (i == CSI2_SINK_PAD) ?
 		MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
 	}
@@ -311,7 +328,7 @@ static int csi2_media_init(struct v4l2_subdev *sd)
 	csi2->format_mbus.height = 1080;
 
 	v4l2_err(&csi2->sd, "media entry init\n");
-	return media_entity_init(&sd->entity, CSI2_NUM_PADS, csi2->pad, 0);
+	return media_entity_init(&sd->entity, num_pads, csi2->pad, 0);
 }
 
 /* csi2 accepts all fmt/size from sensor */
@@ -411,10 +428,9 @@ csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 		return -ENXIO;
 	}
 
-	ret = media_entity_create_link(
-			&sensor->sd->entity, pad,
-			&csi2->sd.entity, RK_CSI2_PAD_SINK,
-			0/* csi2->num_sensors != 1 ? 0 : MEDIA_LNK_FL_ENABLED */);
+	ret = media_entity_create_link(&sensor->sd->entity, pad,
+				       &csi2->sd.entity, RK_CSI2_PAD_SINK,
+				       0/* csi2->num_sensors != 1 ? 0 : MEDIA_LNK_FL_ENABLED */);
 	if (ret) {
 		dev_err(csi2->dev,
 			"failed to create link for %s\n",
@@ -523,17 +539,49 @@ static int csi2_notifier(struct csi2_dev *csi2)
 	return v4l2_async_register_subdev(&csi2->sd);
 }
 
+static const struct csi2_match_data rk1808_csi2_match_data = {
+	.chip_id = CHIP_RK1808_CSI2,
+	.num_pads = CSI2_NUM_PADS
+};
+
+static const struct csi2_match_data rk3288_csi2_match_data = {
+	.chip_id = CHIP_RK3288_CSI2,
+	.num_pads = CSI2_NUM_PADS_SINGLE_LINK
+};
+
+static const struct of_device_id csi2_dt_ids[] = {
+	{
+		.compatible = "rockchip,rk1808-mipi-csi2",
+		.data = &rk1808_csi2_match_data,
+	},
+	{
+		.compatible = "rockchip,rk3288-mipi-csi2",
+		.data = &rk3288_csi2_match_data,
+	},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, csi2_dt_ids);
+
 static int csi2_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
+	struct device_node *node = pdev->dev.of_node;
 	struct csi2_dev *csi2 = NULL;
 	struct resource *res;
+	const struct csi2_match_data *data;
 	int ret, irq;
+
+	match = of_match_node(csi2_dt_ids, node);
+	if (IS_ERR(match))
+		return PTR_ERR(match);
+	data = match->data;
 
 	csi2 = devm_kzalloc(&pdev->dev, sizeof(*csi2), GFP_KERNEL);
 	if (!csi2)
 		return -ENOMEM;
 
 	csi2->dev = &pdev->dev;
+	csi2->match_data = data;
 
 	v4l2_subdev_init(&csi2->sd, &csi2_subdev_ops);
 	v4l2_set_subdevdata(&csi2->sd, &pdev->dev);
@@ -555,8 +603,19 @@ static int csi2_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	csi2->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(csi2->base))
-		return PTR_ERR(csi2->base);
+	if (IS_ERR(csi2->base)) {
+		resource_size_t offset = res->start;
+		resource_size_t size = resource_size(res);
+
+		dev_warn(&pdev->dev, "avoid secondary mipi resource check!\n");
+
+		csi2->base = devm_ioremap(&pdev->dev, offset, size);
+		if (IS_ERR(csi2->base)) {
+			dev_err(&pdev->dev, "Failed to ioremap resource\n");
+
+			return PTR_ERR(csi2->base);
+		}
+	}
 
 	irq = platform_get_irq_byname(pdev, "csi-intr1");
 	if (irq > 0) {
@@ -612,14 +671,6 @@ static int csi2_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id csi2_dt_ids[] = {
-	{
-		.compatible = "rockchip,rk1808-mipi-csi2",
-	},
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, csi2_dt_ids);
 
 static struct platform_driver csi2_driver = {
 	.driver = {
