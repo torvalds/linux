@@ -916,7 +916,7 @@ F:	drivers/iio/adc/ad7768-1.c
 F:	Documentation/devicetree/bindings/iio/adc/adi,ad7768-1.txt
 
 ANALOG DEVICES INC AD9389B DRIVER
-M:	Hans Verkuil <hans.verkuil@cisco.com>
+M:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/ad9389b*
@@ -948,19 +948,19 @@ S:	Maintained
 F:	drivers/media/i2c/adv748x/*
 
 ANALOG DEVICES INC ADV7511 DRIVER
-M:	Hans Verkuil <hans.verkuil@cisco.com>
+M:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/adv7511*
 
 ANALOG DEVICES INC ADV7604 DRIVER
-M:	Hans Verkuil <hans.verkuil@cisco.com>
+M:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/adv7604*
 
 ANALOG DEVICES INC ADV7842 DRIVER
-M:	Hans Verkuil <hans.verkuil@cisco.com>
+M:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/i2c/adv7842*
@@ -2343,7 +2343,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
 ARM/TEGRA HDMI CEC SUBSYSTEM SUPPORT
-M:	Hans Verkuil <hans.verkuil@cisco.com>
+M:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 L:	linux-tegra@vger.kernel.org
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -3672,7 +3672,7 @@ F:	drivers/crypto/ccree/
 W:	https://developer.arm.com/products/system-ip/trustzone-cryptocell/cryptocell-700-family
 
 CEC FRAMEWORK
-M:	Hans Verkuil <hans.verkuil@cisco.com>
+M:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 W:	http://linuxtv.org
@@ -3689,7 +3689,7 @@ F:	Documentation/devicetree/bindings/media/cec.txt
 F:	Documentation/ABI/testing/debugfs-cec-error-inj
 
 CEC GPIO DRIVER
-M:	Hans Verkuil <hans.verkuil@cisco.com>
+M:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 W:	http://linuxtv.org
@@ -3965,7 +3965,7 @@ S:	Supported
 F:	drivers/platform/x86/classmate-laptop.c
 
 COBALT MEDIA DRIVER
-M:	Hans Verkuil <hans.verkuil@cisco.com>
+M:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 W:	https://linuxtv.org
@@ -6700,7 +6700,7 @@ F:	drivers/gnss/
 F:	include/linux/gnss.h
 
 GO7007 MPEG CODEC
-M:	Hans Verkuil <hans.verkuil@cisco.com>
+M:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/usb/go7007/
@@ -16672,7 +16672,7 @@ S:	Maintained
 F:	drivers/net/ethernet/via/via-velocity.*
 
 VICODEC VIRTUAL CODEC DRIVER
-M:	Hans Verkuil <hans.verkuil@cisco.com>
+M:	Hans Verkuil <hverkuil-cisco@xs4all.nl>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 W:	https://linuxtv.org
