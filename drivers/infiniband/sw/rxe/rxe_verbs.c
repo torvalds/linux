@@ -1111,6 +1111,7 @@ static int rxe_enable_driver(struct ib_device *ib_dev)
 }
 
 static const struct ib_device_ops rxe_dev_ops = {
+	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_RXE,
 	.uverbs_abi_ver = RXE_UVERBS_ABI_VERSION,
 
@@ -1173,7 +1174,6 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 
 	strlcpy(dev->node_desc, "rxe", sizeof(dev->node_desc));
 
-	dev->owner = THIS_MODULE;
 	dev->node_type = RDMA_NODE_IB_CA;
 	dev->phys_port_cnt = 1;
 	dev->num_comp_vectors = num_possible_cpus();

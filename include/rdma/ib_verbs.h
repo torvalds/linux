@@ -2329,6 +2329,7 @@ struct iw_cm_conn_param;
  * need to define the supported operations, otherwise they will be set to null.
  */
 struct ib_device_ops {
+	struct module *owner;
 	enum rdma_driver_id driver_id;
 	u32 uverbs_abi_ver;
 
@@ -2639,7 +2640,6 @@ struct ib_device {
 
 	int			      num_comp_vectors;
 
-	struct module               *owner;
 	union {
 		struct device		dev;
 		struct ib_core_device	coredev;

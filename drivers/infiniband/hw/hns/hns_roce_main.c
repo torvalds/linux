@@ -414,6 +414,7 @@ static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 }
 
 static const struct ib_device_ops hns_roce_dev_ops = {
+	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_HNS,
 	.uverbs_abi_ver = 1,
 
@@ -483,7 +484,6 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	ib_dev = &hr_dev->ib_dev;
 
-	ib_dev->owner			= THIS_MODULE;
 	ib_dev->node_type		= RDMA_NODE_IB_CA;
 	ib_dev->dev.parent		= dev;
 

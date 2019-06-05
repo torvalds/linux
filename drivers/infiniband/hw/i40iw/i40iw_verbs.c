@@ -2650,6 +2650,7 @@ static int i40iw_query_pkey(struct ib_device *ibdev,
 }
 
 static const struct ib_device_ops i40iw_dev_ops = {
+	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_I40IW,
 	/* NOTE: Older kernels wrongly use 0 for the uverbs_abi_ver */
 	.uverbs_abi_ver = I40IW_ABI_VER,
@@ -2711,7 +2712,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 		i40iw_pr_err("iwdev == NULL\n");
 		return NULL;
 	}
-	iwibdev->ibdev.owner = THIS_MODULE;
 	iwdev->iwibdev = iwibdev;
 	iwibdev->iwdev = iwdev;
 

@@ -1236,6 +1236,7 @@ static void get_dev_fw_ver_str(struct ib_device *ibdev, char *str)
 }
 
 static const struct ib_device_ops iwch_dev_ops = {
+	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_CXGB3,
 	.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION,
 
@@ -1285,7 +1286,6 @@ int iwch_register_device(struct iwch_dev *dev)
 	pr_debug("%s iwch_dev %p\n", __func__, dev);
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
-	dev->ibdev.owner = THIS_MODULE;
 	dev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY |
 				IB_DEVICE_MEM_WINDOW |
 				IB_DEVICE_MEM_MGT_EXTENSIONS;

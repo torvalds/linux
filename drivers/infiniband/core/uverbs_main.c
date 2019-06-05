@@ -198,7 +198,7 @@ void ib_uverbs_release_file(struct kref *ref)
 	ib_dev = srcu_dereference(file->device->ib_dev,
 				  &file->device->disassociate_srcu);
 	if (ib_dev && !ib_dev->ops.disassociate_ucontext)
-		module_put(ib_dev->owner);
+		module_put(ib_dev->ops.owner);
 	srcu_read_unlock(&file->device->disassociate_srcu, srcu_key);
 
 	if (atomic_dec_and_test(&file->device->refcount))
@@ -1065,7 +1065,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	module_dependent = !(ib_dev->ops.disassociate_ucontext);
 
 	if (module_dependent) {
-		if (!try_module_get(ib_dev->owner)) {
+		if (!try_module_get(ib_dev->ops.owner)) {
 			ret = -ENODEV;
 			goto err;
 		}
@@ -1100,7 +1100,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	return stream_open(inode, filp);
 
 err_module:
-	module_put(ib_dev->owner);
+	module_put(ib_dev->ops.owner);
 
 err:
 	mutex_unlock(&dev->lists_mutex);

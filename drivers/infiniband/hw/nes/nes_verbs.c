@@ -3558,6 +3558,7 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 }
 
 static const struct ib_device_ops nes_dev_ops = {
+	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_NES,
 	/* NOTE: Older kernels wrongly use 0 for the uverbs_abi_ver */
 	.uverbs_abi_ver = NES_ABI_USERSPACE_VER,
@@ -3617,7 +3618,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	if (nesibdev == NULL) {
 		return NULL;
 	}
-	nesibdev->ibdev.owner = THIS_MODULE;
 
 	nesibdev->ibdev.node_type = RDMA_NODE_RNIC;
 	memset(&nesibdev->ibdev.node_guid, 0, sizeof(nesibdev->ibdev.node_guid));

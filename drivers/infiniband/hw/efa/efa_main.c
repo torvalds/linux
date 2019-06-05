@@ -197,6 +197,7 @@ static void efa_stats_init(struct efa_dev *dev)
 }
 
 static const struct ib_device_ops efa_dev_ops = {
+	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_EFA,
 	.uverbs_abi_ver = EFA_UVERBS_ABI_VERSION,
 
@@ -262,7 +263,6 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	if (err)
 		goto err_release_doorbell_bar;
 
-	dev->ibdev.owner = THIS_MODULE;
 	dev->ibdev.node_type = RDMA_NODE_UNSPECIFIED;
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = 1;

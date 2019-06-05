@@ -596,6 +596,7 @@ static void bnxt_re_unregister_ib(struct bnxt_re_dev *rdev)
 }
 
 static const struct ib_device_ops bnxt_re_dev_ops = {
+	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_BNXT_RE,
 	.uverbs_abi_ver = BNXT_RE_ABI_VERSION,
 
@@ -651,7 +652,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	int ret;
 
 	/* ib device init */
-	ibdev->owner = THIS_MODULE;
 	ibdev->node_type = RDMA_NODE_IB_CA;
 	strlcpy(ibdev->node_desc, BNXT_RE_DESC " HCA",
 		strlen(BNXT_RE_DESC) + 5);

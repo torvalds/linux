@@ -2510,6 +2510,7 @@ static void get_fw_ver_str(struct ib_device *device, char *str)
 }
 
 static const struct ib_device_ops mlx4_ib_dev_ops = {
+	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_MLX4,
 	.uverbs_abi_ver = MLX4_IB_UVERBS_ABI_VERSION,
 
@@ -2646,7 +2647,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->dev = dev;
 	ibdev->bond_next_port	= 0;
 
-	ibdev->ib_dev.owner		= THIS_MODULE;
 	ibdev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	ibdev->ib_dev.local_dma_lkey	= dev->caps.reserved_lkey;
 	ibdev->num_ports		= num_ports;

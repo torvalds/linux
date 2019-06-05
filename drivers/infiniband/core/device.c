@@ -2323,6 +2323,10 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 			dev_ops->driver_id != ops->driver_id);
 		dev_ops->driver_id = ops->driver_id;
 	}
+	if (ops->owner) {
+		WARN_ON(dev_ops->owner && dev_ops->owner != ops->owner);
+		dev_ops->owner = ops->owner;
+	}
 	if (ops->uverbs_abi_ver)
 		dev_ops->uverbs_abi_ver = ops->uverbs_abi_ver;
 

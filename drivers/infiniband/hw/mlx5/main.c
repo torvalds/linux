@@ -6044,7 +6044,6 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	if (mlx5_use_mad_ifc(dev))
 		get_ext_port_caps(dev);
 
-	dev->ib_dev.owner		= THIS_MODULE;
 	dev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	dev->ib_dev.local_dma_lkey	= 0 /* not supported for now */;
 	dev->ib_dev.phys_port_cnt	= dev->num_ports;
@@ -6124,6 +6123,7 @@ static void mlx5_ib_stage_flow_db_cleanup(struct mlx5_ib_dev *dev)
 }
 
 static const struct ib_device_ops mlx5_ib_dev_ops = {
+	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_MLX5,
 	.uverbs_abi_ver	= MLX5_IB_UVERBS_ABI_VERSION,
 

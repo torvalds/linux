@@ -144,6 +144,7 @@ static const struct attribute_group ocrdma_attr_group = {
 };
 
 static const struct ib_device_ops ocrdma_dev_ops = {
+	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_OCRDMA,
 	.uverbs_abi_ver = OCRDMA_ABI_VERSION,
 
@@ -203,7 +204,6 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	BUILD_BUG_ON(sizeof(OCRDMA_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);
 	memcpy(dev->ibdev.node_desc, OCRDMA_NODE_DESC,
 	       sizeof(OCRDMA_NODE_DESC));
-	dev->ibdev.owner = THIS_MODULE;
 	dev->ibdev.uverbs_cmd_mask =
 	    OCRDMA_UVERBS(GET_CONTEXT) |
 	    OCRDMA_UVERBS(QUERY_DEVICE) |
