@@ -773,7 +773,7 @@ static const u16 subplatform_ult_ids[] = {
 	INTEL_CFL_U_GT3_IDS(0),
 	INTEL_WHL_U_GT1_IDS(0),
 	INTEL_WHL_U_GT2_IDS(0),
-	INTEL_WHL_U_GT3_IDS(0)
+	INTEL_WHL_U_GT3_IDS(0),
 };
 
 static const u16 subplatform_ulx_ids[] = {
@@ -786,17 +786,17 @@ static const u16 subplatform_ulx_ids[] = {
 	INTEL_SKL_ULX_GT1_IDS(0),
 	INTEL_SKL_ULX_GT2_IDS(0),
 	INTEL_KBL_ULX_GT1_IDS(0),
-	INTEL_KBL_ULX_GT2_IDS(0)
+	INTEL_KBL_ULX_GT2_IDS(0),
 };
 
 static const u16 subplatform_aml_ids[] = {
 	INTEL_AML_KBL_GT2_IDS(0),
-	INTEL_AML_CFL_GT2_IDS(0)
+	INTEL_AML_CFL_GT2_IDS(0),
 };
 
 static const u16 subplatform_portf_ids[] = {
 	INTEL_CNL_PORT_F_IDS(0),
-	INTEL_ICL_PORT_F_IDS(0)
+	INTEL_ICL_PORT_F_IDS(0),
 };
 
 static bool find_devid(u16 id, const u16 *p, unsigned int num)
