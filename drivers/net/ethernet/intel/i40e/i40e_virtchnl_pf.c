@@ -4302,10 +4302,8 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 	vf = &pf->vf[vf_id];
 	/* first vsi is always the LAN vsi */
 	vsi = pf->vsi[vf->lan_vsi_idx];
-	if (!test_bit(I40E_VF_STATE_INIT, &vf->vf_states)) {
-		dev_err(&pf->pdev->dev, "VF %d still in reset. Try again.\n",
-			vf_id);
-		ret = -EAGAIN;
+	if (!vsi) {
+		ret = -ENOENT;
 		goto error_param;
 	}
 
