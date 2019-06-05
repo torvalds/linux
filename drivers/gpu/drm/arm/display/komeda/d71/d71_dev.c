@@ -280,7 +280,7 @@ static int d71_change_opmode(struct komeda_dev *mdev, int new_mode)
 	ret = dp_wait_cond(((malidp_read32(d71->gcu_addr, BLK_CONTROL) & 0x7) == opmode),
 			   100, 1000, 10000);
 
-	return ret > 0 ? 0 : -ETIMEDOUT;
+	return ret;
 }
 
 static void d71_flush(struct komeda_dev *mdev,
@@ -304,7 +304,7 @@ static int d71_reset(struct d71_dev *d71)
 	ret = dp_wait_cond(!(malidp_read32(gcu, BLK_CONTROL) & GCU_CONTROL_SRST),
 			   100, 1000, 10000);
 
-	return ret > 0 ? 0 : -ETIMEDOUT;
+	return ret;
 }
 
 void d71_read_block_header(u32 __iomem *reg, struct block_header *blk)
