@@ -110,7 +110,6 @@ struct kp_spi {
 struct kp_spi_controller_state {
 	void __iomem   *base;
 	unsigned char   chip_select;
-	int             word_len;
 	s64             conf_cache;
 };
 
@@ -269,7 +268,6 @@ kp_spi_setup(struct spi_device *spidev)
 		}
 		cs->base = kpspi->base;
 		cs->chip_select = spidev->chip_select;
-		cs->word_len = spidev->bits_per_word;
 		cs->conf_cache = -1;
 		spidev->controller_state = cs;
 	}
@@ -369,7 +367,6 @@ kp_spi_transfer_one_message(struct spi_master *master, struct spi_message *m)
 			if (transfer->bits_per_word) {
 				word_len = transfer->bits_per_word;
 			}
-			cs->word_len = word_len;
 			sc.bitfield.wl = word_len-1;
 
 			/* ...chip select */
