@@ -2222,7 +2222,7 @@ static struct rtable *vxlan_get_route(struct vxlan_dev *vxlan, struct net_device
 	fl4.fl4_sport = sport;
 
 	rt = ip_route_output_key(vxlan->net, &fl4);
-	if (likely(!IS_ERR(rt))) {
+	if (!IS_ERR(rt)) {
 		if (rt->dst.dev == dev) {
 			netdev_dbg(dev, "circular route to %pI4\n", &daddr);
 			ip_rt_put(rt);
