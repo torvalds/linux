@@ -1783,8 +1783,9 @@ static void dcn20_reset_back_end_for_pipe(
 		}
 	}
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	else if (pipe_ctx->stream_res.dsc)
+	else if (pipe_ctx->stream_res.dsc) {
 		dp_set_dsc_enable(pipe_ctx, false);
+	}
 #endif
 
 	/* by upper caller loop, parent pipe: pipe0, will be reset last.

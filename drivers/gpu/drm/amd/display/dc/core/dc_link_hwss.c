@@ -396,7 +396,7 @@ static bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable)
 
 /* This has to be done after DSC was enabled on RX first, i.e. after dp_enable_dsc_on_rx() had been called
  */
-static void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
+void set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 {
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
 	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
@@ -435,7 +435,7 @@ static void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 
 		dsc_optc_config_log(dsc, &dsc_optc_cfg);
 		/* Enable DSC in encoder */
-		if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment) && pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config)
+		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(pipe_ctx->stream_res.stream_enc,
 									optc_dsc_mode,
 									dsc_optc_cfg.bytes_per_pixel,
@@ -454,11 +454,10 @@ static void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 				OPTC_DSC_DISABLED, 0, 0);
 
 		/* disable DSC in stream encoder */
-		if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
+		if (dc_is_dp_signal(stream->signal) && !IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
 					pipe_ctx->stream_res.stream_enc,
 					OPTC_DSC_DISABLED, 0, 0, NULL);
-		}
 
 		/* disable DSC block */
 		pipe_ctx->stream_res.dsc->funcs->dsc_disable(pipe_ctx->stream_res.dsc);
@@ -479,12 +478,12 @@ bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable)
 
 	if (enable) {
 		if (dp_set_dsc_on_rx(pipe_ctx, true)) {
-			dp_set_dsc_on_stream(pipe_ctx, true);
+			set_dsc_on_stream(pipe_ctx, true);
 			result = true;
 		}
 	} else {
 		dp_set_dsc_on_rx(pipe_ctx, false);
-		dp_set_dsc_on_stream(pipe_ctx, false);
+		set_dsc_on_stream(pipe_ctx, false);
 		result = true;
 	}
 out:
@@ -500,7 +499,7 @@ bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx)
 	if (!dsc)
 		return false;
 
-	dp_set_dsc_on_stream(pipe_ctx, true);
+	set_dsc_on_stream(pipe_ctx, true);
 	return true;
 }
 

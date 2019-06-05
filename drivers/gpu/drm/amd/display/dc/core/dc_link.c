@@ -2771,10 +2771,10 @@ void core_link_enable_stream(
 			allocate_mst_payload(pipe_ctx);
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-		if (pipe_ctx->stream->timing.flags.DSC &&
-				(dc_is_dp_signal(pipe_ctx->stream->signal) ||
-				dc_is_virtual_signal(pipe_ctx->stream->signal))) {
-			dp_set_dsc_enable(pipe_ctx, true);
+		if (pipe_ctx->stream->timing.flags.DSC) {
+			if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
+					dc_is_virtual_signal(pipe_ctx->stream->signal))
+				dp_set_dsc_enable(pipe_ctx, true);
 			pipe_ctx->stream_res.tg->funcs->wait_for_state(
 					pipe_ctx->stream_res.tg,
 					CRTC_STATE_VBLANK);
@@ -2835,9 +2835,9 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 
 	disable_link(pipe_ctx->stream->link, pipe_ctx->stream->signal);
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	if (pipe_ctx->stream->timing.flags.DSC &&
-			dc_is_dp_signal(pipe_ctx->stream->signal)) {
-		dp_set_dsc_enable(pipe_ctx, false);
+	if (pipe_ctx->stream->timing.flags.DSC) {
+		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+			dp_set_dsc_enable(pipe_ctx, false);
 	}
 #endif
 }
