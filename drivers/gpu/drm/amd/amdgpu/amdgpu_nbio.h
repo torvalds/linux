@@ -79,10 +79,14 @@ struct amdgpu_nbio_funcs {
 	void (*remap_hdp_registers)(struct amdgpu_device *adev);
 	void (*handle_ras_controller_intr_no_bifring)(struct amdgpu_device *adev);
 	void (*handle_ras_err_event_athub_intr_no_bifring)(struct amdgpu_device *adev);
+	int (*init_ras_controller_interrupt)(struct amdgpu_device *adev);
+	int (*init_ras_err_event_athub_interrupt)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_nbio {
 	const struct nbio_hdp_flush_reg *hdp_flush_reg;
+	struct amdgpu_irq_src ras_controller_irq;
+	struct amdgpu_irq_src ras_err_event_athub_irq;
 	const struct amdgpu_nbio_funcs *funcs;
 };
 

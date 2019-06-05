@@ -29,6 +29,7 @@
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_atomfirmware.h"
+#include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 
 const char *ras_error_string[] = {
 	"none",
@@ -1500,6 +1501,7 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
 int amdgpu_ras_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	int r;
 
 	if (con)
 		return 0;
@@ -1526,6 +1528,18 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	INIT_LIST_HEAD(&con->head);
 	/* Might need get this flag from vbios. */
 	con->flags = RAS_DEFAULT_FLAGS;
+
+	if (adev->nbio.funcs->init_ras_controller_interrupt) {
+		r = adev->nbio.funcs->init_ras_controller_interrupt(adev);
+		if (r)
+			return r;
+	}
+
+	if (adev->nbio.funcs->init_ras_err_event_athub_interrupt) {
+		r = adev->nbio.funcs->init_ras_err_event_athub_interrupt(adev);
+		if (r)
+			return r;
+	}
 
 	if (amdgpu_ras_recovery_init(adev))
 		goto recovery_out;

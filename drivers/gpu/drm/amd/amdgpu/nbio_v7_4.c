@@ -27,6 +27,7 @@
 #include "nbio/nbio_7_4_offset.h"
 #include "nbio/nbio_7_4_sh_mask.h"
 #include "nbio/nbio_7_4_0_smn.h"
+#include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 #include <uapi/linux/kfd_ioctl.h>
 
 #define smnNBIF_MGCG_CTRL_LCLK	0x1013a21c
@@ -345,6 +346,128 @@ static void nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_d
 	}
 }
 
+
+static int nbio_v7_4_set_ras_controller_irq_state(struct amdgpu_device *adev,
+						  struct amdgpu_irq_src *src,
+						  unsigned type,
+						  enum amdgpu_interrupt_state state)
+{
+	/* The ras_controller_irq enablement should be done in psp bl when it
+	 * tries to enable ras feature. Driver only need to set the correct interrupt
+	 * vector for bare-metal and sriov use case respectively
+	 */
+	uint32_t bif_intr_cntl;
+
+	bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+	if (state == AMDGPU_IRQ_STATE_ENABLE) {
+		/* set interrupt vector select bit to 0 to select
+		 * vetcor 1 for bare metal case */
+		bif_intr_cntl = REG_SET_FIELD(bif_intr_cntl,
+					      BIF_INTR_CNTL,
+					      RAS_INTR_VEC_SEL, 0);
+		WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
+	}
+
+	return 0;
+}
+
+static int nbio_v7_4_process_ras_controller_irq(struct amdgpu_device *adev,
+						struct amdgpu_irq_src *source,
+						struct amdgpu_iv_entry *entry)
+{
+	/* By design, the ih cookie for ras_controller_irq should be written
+	 * to BIFring instead of general iv ring. However, due to known bif ring
+	 * hw bug, it has to be disabled. There is no chance the process function
+	 * will be involked. Just left it as a dummy one.
+	 */
+	return 0;
+}
+
+static int nbio_v7_4_set_ras_err_event_athub_irq_state(struct amdgpu_device *adev,
+						       struct amdgpu_irq_src *src,
+						       unsigned type,
+						       enum amdgpu_interrupt_state state)
+{
+	/* The ras_controller_irq enablement should be done in psp bl when it
+	 * tries to enable ras feature. Driver only need to set the correct interrupt
+	 * vector for bare-metal and sriov use case respectively
+	 */
+	uint32_t bif_intr_cntl;
+
+	bif_intr_cntl = RREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL);
+	if (state == AMDGPU_IRQ_STATE_ENABLE) {
+		/* set interrupt vector select bit to 0 to select
+		 * vetcor 1 for bare metal case */
+		bif_intr_cntl = REG_SET_FIELD(bif_intr_cntl,
+					      BIF_INTR_CNTL,
+					      RAS_INTR_VEC_SEL, 0);
+		WREG32_SOC15(NBIO, 0, mmBIF_INTR_CNTL, bif_intr_cntl);
+	}
+
+	return 0;
+}
+
+static int nbio_v7_4_process_err_event_athub_irq(struct amdgpu_device *adev,
+						 struct amdgpu_irq_src *source,
+						 struct amdgpu_iv_entry *entry)
+{
+	/* By design, the ih cookie for err_event_athub_irq should be written
+	 * to BIFring instead of general iv ring. However, due to known bif ring
+	 * hw bug, it has to be disabled. There is no chance the process function
+	 * will be involked. Just left it as a dummy one.
+	 */
+	return 0;
+}
+
+static const struct amdgpu_irq_src_funcs nbio_v7_4_ras_controller_irq_funcs = {
+	.set = nbio_v7_4_set_ras_controller_irq_state,
+	.process = nbio_v7_4_process_ras_controller_irq,
+};
+
+static const struct amdgpu_irq_src_funcs nbio_v7_4_ras_err_event_athub_irq_funcs = {
+	.set = nbio_v7_4_set_ras_err_event_athub_irq_state,
+	.process = nbio_v7_4_process_err_event_athub_irq,
+};
+
+static int nbio_v7_4_init_ras_controller_interrupt (struct amdgpu_device *adev)
+{
+	int r;
+
+	/* init the irq funcs */
+	adev->nbio.ras_controller_irq.funcs =
+		&nbio_v7_4_ras_controller_irq_funcs;
+	adev->nbio.ras_controller_irq.num_types = 1;
+
+	/* register ras controller interrupt */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_BIF,
+			      NBIF_7_4__SRCID__RAS_CONTROLLER_INTERRUPT,
+			      &adev->nbio.ras_controller_irq);
+	if (r)
+		return r;
+
+	return 0;
+}
+
+static int nbio_v7_4_init_ras_err_event_athub_interrupt (struct amdgpu_device *adev)
+{
+
+	int r;
+
+	/* init the irq funcs */
+	adev->nbio.ras_err_event_athub_irq.funcs =
+		&nbio_v7_4_ras_err_event_athub_irq_funcs;
+	adev->nbio.ras_err_event_athub_irq.num_types = 1;
+
+	/* register ras err event athub interrupt */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_BIF,
+			      NBIF_7_4__SRCID__ERREVENT_ATHUB_INTERRUPT,
+			      &adev->nbio.ras_err_event_athub_irq);
+	if (r)
+		return r;
+
+	return 0;
+}
+
 const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.get_hdp_flush_req_offset = nbio_v7_4_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_4_get_hdp_flush_done_offset,
@@ -368,4 +491,6 @@ const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
 	.remap_hdp_registers = nbio_v7_4_remap_hdp_registers,
 	.handle_ras_controller_intr_no_bifring = nbio_v7_4_handle_ras_controller_intr_no_bifring,
 	.handle_ras_err_event_athub_intr_no_bifring = nbio_v7_4_handle_ras_err_event_athub_intr_no_bifring,
+	.init_ras_controller_interrupt = nbio_v7_4_init_ras_controller_interrupt,
+	.init_ras_err_event_athub_interrupt = nbio_v7_4_init_ras_err_event_athub_interrupt,
 };
