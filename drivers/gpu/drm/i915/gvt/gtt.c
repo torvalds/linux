@@ -948,7 +948,16 @@ static int ppgtt_invalidate_spt_by_shadow_entry(struct intel_vgpu *vgpu,
 
 	if (e->type != GTT_TYPE_PPGTT_ROOT_L3_ENTRY
 		&& e->type != GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
-		cur_pt_type = get_next_pt_type(e->type) + 1;
+		cur_pt_type = get_next_pt_type(e->type);
+
+		if (!gtt_type_is_pt(cur_pt_type) ||
+				!gtt_type_is_pt(cur_pt_type + 1)) {
+			WARN(1, "Invalid page table type, cur_pt_type is: %d\n", cur_pt_type);
+			return -EINVAL;
+		}
+
+		cur_pt_type += 1;
+
 		if (ops->get_pfn(e) ==
 			vgpu->gtt.scratch_pt[cur_pt_type].page_mfn)
 			return 0;
@@ -1108,6 +1117,7 @@ static struct intel_vgpu_ppgtt_spt *ppgtt_populate_spt_by_guest_entry(
 
 err_free_spt:
 	ppgtt_free_spt(spt);
+	spt = NULL;
 err:
 	gvt_vgpu_err("fail: shadow page %p guest entry 0x%llx type %d\n",
 		     spt, we->val64, we->type);
