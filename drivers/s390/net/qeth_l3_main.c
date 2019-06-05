@@ -1888,13 +1888,20 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static int qeth_l3_get_cast_type(struct sk_buff *skb)
 {
+	int ipv = qeth_get_ip_version(skb);
 	struct neighbour *n = NULL;
 	struct dst_entry *dst;
 
 	rcu_read_lock();
 	dst = skb_dst(skb);
-	if (dst)
-		n = dst_neigh_lookup_skb(dst, skb);
+	if (dst) {
+		struct rt6_info *rt = (struct rt6_info *) dst;
+
+		dst = dst_check(dst, (ipv == 6) ? rt6_get_cookie(rt) : 0);
+		if (dst)
+			n = dst_neigh_lookup_skb(dst, skb);
+	}
+
 	if (n) {
 		int cast_type = n->type;
 
@@ -1909,7 +1916,7 @@ static int qeth_l3_get_cast_type(struct sk_buff *skb)
 	rcu_read_unlock();
 
 	/* no neighbour (eg AF_PACKET), fall back to target's IP address ... */
-	switch (qeth_get_ip_version(skb)) {
+	switch (ipv) {
 	case 4:
 		if (ipv4_is_lbcast(ip_hdr(skb)->daddr))
 			return RTN_BROADCAST;
@@ -1942,6 +1949,7 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 	struct qeth_hdr_layer3 *l3_hdr = &hdr->hdr.l3;
 	struct vlan_ethhdr *veth = vlan_eth_hdr(skb);
 	struct qeth_card *card = queue->card;
+	struct dst_entry *dst;
 
 	hdr->hdr.l3.length = data_len;
 
@@ -1987,15 +1995,27 @@ static void qeth_l3_fill_header(struct qeth_qdio_out_q *queue,
 	}
 
 	rcu_read_lock();
+	dst = skb_dst(skb);
+
 	if (ipv == 4) {
-		struct rtable *rt = skb_rtable(skb);
+		struct rtable *rt;
+
+		if (dst)
+			dst = dst_check(dst, 0);
+		rt = (struct rtable *) dst;
 
 		*((__be32 *) &hdr->hdr.l3.next_hop.ipv4.addr) = (rt) ?
 				rt_nexthop(rt, ip_hdr(skb)->daddr) :
 				ip_hdr(skb)->daddr;
 	} else {
 		/* IPv6 */
-		const struct rt6_info *rt = skb_rt6_info(skb);
+		struct rt6_info *rt;
+
+		if (dst) {
+			rt = (struct rt6_info *) dst;
+			dst = dst_check(dst, rt6_get_cookie(rt));
+		}
+		rt = (struct rt6_info *) dst;
 
 		if (rt && !ipv6_addr_any(&rt->rt6i_gateway))
 			l3_hdr->next_hop.ipv6_addr = rt->rt6i_gateway;
