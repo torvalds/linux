@@ -824,7 +824,7 @@ static int r128_cce_dispatch_blit(struct drm_device *dev,
 
 	if (buf->file_priv != file_priv) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
-			  DRM_CURRENTPID, buf->file_priv);
+			  task_pid_nr(current), buf->file_priv);
 		return -EINVAL;
 	}
 	if (buf->pending) {
@@ -1317,7 +1317,7 @@ static int r128_cce_vertex(struct drm_device *dev, void *data, struct drm_file *
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
 	DRM_DEBUG("pid=%d index=%d count=%d discard=%d\n",
-		  DRM_CURRENTPID, vertex->idx, vertex->count, vertex->discard);
+		  task_pid_nr(current), vertex->idx, vertex->count, vertex->discard);
 
 	if (vertex->idx < 0 || vertex->idx >= dma->buf_count) {
 		DRM_ERROR("buffer index %d (of %d max)\n",
@@ -1338,7 +1338,7 @@ static int r128_cce_vertex(struct drm_device *dev, void *data, struct drm_file *
 
 	if (buf->file_priv != file_priv) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
-			  DRM_CURRENTPID, buf->file_priv);
+			  task_pid_nr(current), buf->file_priv);
 		return -EINVAL;
 	}
 	if (buf->pending) {
@@ -1369,7 +1369,7 @@ static int r128_cce_indices(struct drm_device *dev, void *data, struct drm_file 
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	DRM_DEBUG("pid=%d buf=%d s=%d e=%d d=%d\n", DRM_CURRENTPID,
+	DRM_DEBUG("pid=%d buf=%d s=%d e=%d d=%d\n", task_pid_nr(current),
 		  elts->idx, elts->start, elts->end, elts->discard);
 
 	if (elts->idx < 0 || elts->idx >= dma->buf_count) {
@@ -1391,7 +1391,7 @@ static int r128_cce_indices(struct drm_device *dev, void *data, struct drm_file 
 
 	if (buf->file_priv != file_priv) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
-			  DRM_CURRENTPID, buf->file_priv);
+			  task_pid_nr(current), buf->file_priv);
 		return -EINVAL;
 	}
 	if (buf->pending) {
@@ -1432,7 +1432,7 @@ static int r128_cce_blit(struct drm_device *dev, void *data, struct drm_file *fi
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	DRM_DEBUG("pid=%d index=%d\n", DRM_CURRENTPID, blit->idx);
+	DRM_DEBUG("pid=%d index=%d\n", task_pid_nr(current), blit->idx);
 
 	if (blit->idx < 0 || blit->idx >= dma->buf_count) {
 		DRM_ERROR("buffer index %d (of %d max)\n",
@@ -1532,7 +1532,7 @@ static int r128_cce_indirect(struct drm_device *dev, void *data, struct drm_file
 
 	if (buf->file_priv != file_priv) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
-			  DRM_CURRENTPID, buf->file_priv);
+			  task_pid_nr(current), buf->file_priv);
 		return -EINVAL;
 	}
 	if (buf->pending) {
@@ -1579,7 +1579,7 @@ int r128_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	DRM_DEBUG("pid=%d\n", DRM_CURRENTPID);
+	DRM_DEBUG("pid=%d\n", task_pid_nr(current));
 
 	switch (param->param) {
 	case R128_PARAM_IRQ_NR:
