@@ -36,7 +36,7 @@ out:
 	return c;
 }
 
-void  kpc_dma_add_device(struct kpc_dma_device *ldev)
+static void kpc_dma_add_device(struct kpc_dma_device *ldev)
 {
 	mutex_lock(&kpc_dma_mtx);
 	list_add(&ldev->list, &kpc_dma_list);
