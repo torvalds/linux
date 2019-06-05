@@ -472,7 +472,7 @@ struct nfsd4_layoutcommit {
 	u32			lc_reclaim;	/* request */
 	u32			lc_newoffset;	/* request */
 	u64			lc_last_wr;	/* request */
-	struct timespec		lc_mtime;	/* request */
+	struct timespec64	lc_mtime;	/* request */
 	u32			lc_layout_type;	/* request */
 	u32			lc_up_len;	/* layout length */
 	void			*lc_up_layout;	/* decoded by callback */
