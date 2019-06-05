@@ -2298,7 +2298,7 @@ static int statx_to_caps(u32 want)
 {
 	int mask = 0;
 
-	if (want & (STATX_MODE|STATX_UID|STATX_GID|STATX_CTIME))
+	if (want & (STATX_MODE|STATX_UID|STATX_GID|STATX_CTIME|STATX_BTIME))
 		mask |= CEPH_CAP_AUTH_SHARED;
 
 	if (want & (STATX_NLINK|STATX_CTIME))
@@ -2323,6 +2323,7 @@ int ceph_getattr(const struct path *path, struct kstat *stat,
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	u32 valid_mask = STATX_BASIC_STATS;
 	int err = 0;
 
 	/* Skip the getattr altogether if we're asked not to sync */
@@ -2335,6 +2336,16 @@ int ceph_getattr(const struct path *path, struct kstat *stat,
 
 	generic_fillattr(inode, stat);
 	stat->ino = ceph_translate_ino(inode->i_sb, inode->i_ino);
+
+	/*
+	 * btime on newly-allocated inodes is 0, so if this is still set to
+	 * that, then assume that it's not valid.
+	 */
+	if (ci->i_btime.tv_sec || ci->i_btime.tv_nsec) {
+		stat->btime = ci->i_btime;
+		valid_mask |= STATX_BTIME;
+	}
+
 	if (ceph_snap(inode) == CEPH_NOSNAP)
 		stat->dev = inode->i_sb->s_dev;
 	else
@@ -2358,7 +2369,6 @@ int ceph_getattr(const struct path *path, struct kstat *stat,
 			stat->nlink = 1 + 1 + ci->i_subdirs;
 	}
 
-	/* Mask off any higher bits (e.g. btime) until we have support */
-	stat->result_mask = request_mask & STATX_BASIC_STATS;
+	stat->result_mask = request_mask & valid_mask;
 	return err;
 }
