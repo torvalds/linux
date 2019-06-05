@@ -202,12 +202,12 @@ struct tls_offload_context_tx {
 	 * Currently the belief is that there is not enough
 	 * driver specific state to justify another layer of indirection
 	 */
-#define TLS_DRIVER_STATE_SIZE (max_t(size_t, 8, sizeof(void *)))
+#define TLS_DRIVER_STATE_SIZE_TX	16
 };
 
 #define TLS_OFFLOAD_CONTEXT_SIZE_TX                                            \
 	(ALIGN(sizeof(struct tls_offload_context_tx), sizeof(void *)) +        \
-	 TLS_DRIVER_STATE_SIZE)
+	 TLS_DRIVER_STATE_SIZE_TX)
 
 struct cipher_context {
 	char *iv;
@@ -307,11 +307,12 @@ struct tls_offload_context_rx {
 	 * Currently the belief is that there is not enough
 	 * driver specific state to justify another layer of indirection
 	 */
+#define TLS_DRIVER_STATE_SIZE_RX	8
 };
 
 #define TLS_OFFLOAD_CONTEXT_SIZE_RX					\
 	(ALIGN(sizeof(struct tls_offload_context_rx), sizeof(void *)) + \
-	 TLS_DRIVER_STATE_SIZE)
+	 TLS_DRIVER_STATE_SIZE_RX)
 
 int wait_on_pending_writer(struct sock *sk, long *timeo);
 int tls_sk_query(struct sock *sk, int optname, char __user *optval,
