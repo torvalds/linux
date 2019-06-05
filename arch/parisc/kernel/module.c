@@ -858,6 +858,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 	const char *strtab = NULL;
 	const Elf_Shdr *s;
 	char *secstrings;
+	int err, symindex = -1;
 	Elf_Sym *newptr, *oldptr;
 	Elf_Shdr *symhdr = NULL;
 #ifdef DEBUG
@@ -884,6 +885,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 		if(sechdrs[i].sh_type == SHT_SYMTAB
 		   && (sechdrs[i].sh_flags & SHF_ALLOC)) {
 			int strindex = sechdrs[i].sh_link;
+			symindex = i;
 			/* FIXME: AWFUL HACK
 			 * The cast is to drop the const from
 			 * the sechdrs pointer */
@@ -939,8 +941,24 @@ int module_finalize(const Elf_Ehdr *hdr,
 		if (!strcmp(".altinstructions", secname))
 			/* patch .altinstructions */
 			apply_alternatives(aseg, aseg + s->sh_size, me->name);
-	}
 
+		/* For 32 bit kernels we're compiling modules with
+		 * -ffunction-sections so we must relocate the addresses in the
+		 *__mcount_loc section.
+		 */
+		if (symindex != -1 && !strcmp(secname, "__mcount_loc")) {
+			if (s->sh_type == SHT_REL)
+				err = apply_relocate((Elf_Shdr *)sechdrs,
+							strtab, symindex,
+							s - sechdrs, me);
+			else if (s->sh_type == SHT_RELA)
+				err = apply_relocate_add((Elf_Shdr *)sechdrs,
+							strtab, symindex,
+							s - sechdrs, me);
+			if (err)
+				return err;
+		}
+	}
 	return 0;
 }
 
