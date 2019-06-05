@@ -19,12 +19,6 @@
 #define OCOTP_CFG3_MKT_SEGMENT_SHIFT    6
 #define OCOTP_CFG3_MKT_SEGMENT_MASK     (0x3 << 6)
 
-static const struct of_device_id imx_cpufreq_dt_match_list[] = {
-	{ .compatible = "fsl,imx8mm" },
-	{ .compatible = "fsl,imx8mq" },
-	{}
-};
-
 /* cpufreq-dt device registered by imx-cpufreq-dt */
 static struct platform_device *cpufreq_dt_pdev;
 static struct opp_table *cpufreq_opp_table;
@@ -32,17 +26,9 @@ static struct opp_table *cpufreq_opp_table;
 static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 {
 	struct device *cpu_dev = get_cpu_device(0);
-	struct device_node *np;
-	const struct of_device_id *match;
 	u32 cell_value, supported_hw[2];
 	int speed_grade, mkt_segment;
 	int ret;
-
-	np = of_find_node_by_path("/");
-	match = of_match_node(imx_cpufreq_dt_match_list, np);
-	of_node_put(np);
-	if (!match)
-		return -ENODEV;
 
 	ret = nvmem_cell_read_u32(cpu_dev, "speed_grade", &cell_value);
 	if (ret)
@@ -61,8 +47,8 @@ static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 	 * Applies to 8mq and 8mm.
 	 */
 	if (mkt_segment == 0 && speed_grade == 0 && (
-			!strcmp(match->compatible, "fsl,imx8mm") ||
-			!strcmp(match->compatible, "fsl,imx8mq")))
+			of_machine_is_compatible("fsl,imx8mm") ||
+			of_machine_is_compatible("fsl,imx8mq")))
 		speed_grade = 1;
 
 	supported_hw[0] = BIT(speed_grade);
