@@ -551,6 +551,10 @@
 				tempmon_temp_grade: temp-grade@10 {
 					reg = <0x10 0x4>;
 				};
+
+				cpu_speed_grade: speed-grade@10 {
+					reg = <0x10 0x4>;
+				};
 			};
 
 			anatop: anatop@30360000 {
