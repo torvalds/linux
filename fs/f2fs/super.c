@@ -3218,6 +3218,7 @@ try_onemore:
 	mutex_init(&sbi->gc_mutex);
 	mutex_init(&sbi->writepages);
 	mutex_init(&sbi->cp_mutex);
+	mutex_init(&sbi->resize_mutex);
 	init_rwsem(&sbi->node_write);
 	init_rwsem(&sbi->node_change);
 
@@ -3289,6 +3290,9 @@ try_onemore:
 		set_sbi_flag(sbi, SBI_CP_DISABLED_QUICK);
 		sbi->interval_time[DISABLE_TIME] = DEF_DISABLE_QUICK_INTERVAL;
 	}
+
+	if (__is_set_ckpt_flags(F2FS_CKPT(sbi), CP_FSCK_FLAG))
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
 
 	/* Initialize device list */
 	err = f2fs_scan_devices(sbi);
