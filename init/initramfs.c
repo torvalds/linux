@@ -30,7 +30,6 @@ static ssize_t __init xwrite(int fd, const char *p, size_t count)
 		out += rv;
 		count -= rv;
 	}
-
 	return out;
 }
 
@@ -408,8 +407,8 @@ static long __init write_buffer(char *buf, unsigned long len)
 	byte_count = len;
 	victim = buf;
 
-	while (!actions[state]())
-		;
+	while (!actions[state]());
+	
 	return len - byte_count;
 }
 
@@ -593,10 +592,11 @@ static void __init clean_rootfs(void)
 			ret = vfs_lstat(dirp->d_name, &st);
 			WARN_ON_ONCE(ret);
 			if (!ret) {
-				if (S_ISDIR(st.mode))
+				if (S_ISDIR(st.mode)) {
 					ksys_rmdir(dirp->d_name);
-				else
+				} else {
 					ksys_unlink(dirp->d_name);
+				}
 			}
 
 			num -= dirp->d_reclen;
@@ -658,10 +658,9 @@ static int __init populate_rootfs(void)
 	else
 		printk(KERN_INFO "Unpacking initramfs...\n");
 
-	err = unpack_to_rootfs((char *)initrd_start, initrd_end - initrd_start);
-	if (err) {
+	if (unpack_to_rootfs((char *)initrd_start, initrd_end - initrd_start)) {
 		clean_rootfs();
-		populate_initrd_image(err);
+		populate_initrd_image(unpack_to_rootfs((char *)initrd_start, initrd_end - initrd_start));
 	}
 
 done:
