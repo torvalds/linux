@@ -45,8 +45,6 @@ static char rkcif_version[RKCIF_VERNO_LEN];
 module_param_string(version, rkcif_version, RKCIF_VERNO_LEN, 0444);
 MODULE_PARM_DESC(version, "version number");
 
-int using_pingpong;
-
 static DEFINE_MUTEX(rkcif_dev_mutex);
 static LIST_HEAD(rkcif_device_list);
 
@@ -184,7 +182,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 		rockchip_set_system_status(SYS_STATUS_CIF0);
 
 	/* phy -> sensor */
-	for (i = p->num_subdevs; i > -1; --i) {
+	for (i = p->num_subdevs - 1; i > -1; --i) {
 		ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
 		if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 			goto err_stream_off;
@@ -229,13 +227,13 @@ static int rkcif_create_links(struct rkcif_device *dev)
 				}
 
 				for (id = 0; id < stream_num; id++) {
-					ret = media_entity_create_link(
-							&sensor->sd->entity,
-							pad,
-							&dev->stream[id].vnode.vdev.entity,
-							0,
-							(dev->chip_id != CHIP_RK1808_CIF) | (id == pad - 1) ?
-							MEDIA_LNK_FL_ENABLED : 0);
+					ret = media_entity_create_link(&sensor->sd->entity,
+								       pad,
+								       &dev->stream[id].vnode.vdev.entity,
+								       0,
+								       (dev->chip_id != CHIP_RK1808_CIF) |
+								       (id == pad - 1) ?
+								       MEDIA_LNK_FL_ENABLED : 0);
 					if (ret) {
 						dev_err(dev->dev,
 							"failed to create link for %s\n",
@@ -311,8 +309,8 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 }
 
 static int rkcif_fwnode_parse(struct device *dev,
-			       struct v4l2_fwnode_endpoint *vep,
-			       struct v4l2_async_subdev *asd)
+			      struct v4l2_fwnode_endpoint *vep,
+			      struct v4l2_async_subdev *asd)
 {
 	struct rkcif_async_subdev *rk_asd =
 			container_of(asd, struct rkcif_async_subdev, asd);
@@ -347,7 +345,7 @@ static int cif_subdev_notifier(struct rkcif_device *cif_dev)
 	int ret;
 
 	ret = v4l2_async_notifier_parse_fwnode_endpoints(dev, ntf,
-			sizeof(struct rkcif_async_subdev), rkcif_fwnode_parse);
+							 sizeof(struct rkcif_async_subdev), rkcif_fwnode_parse);
 
 	if (ret < 0)
 		return ret;
@@ -441,7 +439,6 @@ static const char * const rk3288_cif_clks[] = {
 	"aclk_cif0",
 	"hclk_cif0",
 	"cif0_in",
-	"cif0_out",
 };
 
 static const char * const rk3288_cif_rsts[] = {
@@ -505,7 +502,7 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 	struct device *dev = ctx;
 	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
 
-	if (using_pingpong)
+	if (cif_dev->workmode == RKCIF_WORKMODE_PINGPONG)
 		rkcif_irq_pingpong(cif_dev);
 	else
 		rkcif_irq_oneframe(cif_dev);
@@ -623,15 +620,13 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	data = match->data;
 	cif_dev->chip_id = data->chip_id;
 	if (data->chip_id == CHIP_RK1808_CIF) {
-		using_pingpong = 1;
-
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cif_regs");
+		res = platform_get_resource_byname(pdev,
+						   IORESOURCE_MEM,
+						   "cif_regs");
 		cif_dev->base_addr = devm_ioremap_resource(dev, res);
 		if (IS_ERR(cif_dev->base_addr))
 			return PTR_ERR(cif_dev->base_addr);
 	} else {
-		using_pingpong = 0;
-
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		cif_dev->base_addr = devm_ioremap_resource(dev, res);
 		if (IS_ERR(cif_dev->base_addr))
@@ -639,7 +634,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	}
 
 	if (data->clks_num > RKCIF_MAX_BUS_CLK ||
-		data->rsts_num > RKCIF_MAX_RESET) {
+	    data->rsts_num > RKCIF_MAX_RESET) {
 		dev_err(dev, "out of range: clks(%d %d) rsts(%d %d)\n",
 			data->clks_num, RKCIF_MAX_BUS_CLK,
 			data->rsts_num, RKCIF_MAX_RESET);
@@ -647,6 +642,7 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	}
 	for (i = 0; i < data->clks_num; i++) {
 		struct clk *clk = devm_clk_get(dev, data->clks[i]);
+
 		if (IS_ERR(clk)) {
 			dev_err(dev, "failed to get %s\n", data->clks[i]);
 			return PTR_ERR(clk);
@@ -682,6 +678,14 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 	} else {
 		rkcif_stream_init(cif_dev, RKCIF_STREAM_CIF);
 	}
+
+#if defined(CONFIG_ROCKCHIP_CIF_WORKMODE_PINGPONG)
+	cif_dev->workmode = RKCIF_WORKMODE_PINGPONG;
+#elif defined(CONFIG_ROCKCHIP_CIF_WORKMODE_ONEFRAME)
+	cif_dev->workmode = RKCIF_WORKMODE_ONEFRAME;
+#else
+	cif_dev->workmode = RKCIF_WORKMODE_PINGPONG;
+#endif
 
 	strlcpy(cif_dev->media_dev.model, "rkcif",
 		sizeof(cif_dev->media_dev.model));

@@ -10,3 +10,16 @@ config VIDEO_ROCKCHIP_CIF
 	default n
 	help
 	  Support for CIF on the rockchip SoCs like rk312x, rk3288.
+
+choice
+	prompt "rockchip camera sensor interface work mode"
+	depends on VIDEO_ROCKCHIP_CIF
+	default ROCKCHIP_CIF_WORKMODE_PINGPONG
+
+config ROCKCHIP_CIF_WORKMODE_PINGPONG
+	bool "interface works in pingpong mode"
+
+config ROCKCHIP_CIF_WORKMODE_ONEFRAME
+	bool "interface works in oneframe mode"
+
+endchoice

@@ -36,6 +36,9 @@
 #define CIF_CUR_DST			0x64
 #define CIF_LAST_LINE			0x68
 #define CIF_LAST_PIX			0x6c
+#define CIF_FETCH_Y_LAST_LINE(val)	((val) & 0x1fff)
+/* Check if swap y and c in bt1120 mode */
+#define CIF_FETCH_IS_Y_FIRST(val)	((val) & 0xf)
 
 /* RK1808 CIF CSI Registers Offset */
 #define CIF_CSI_ID0_CTRL0		0x80
@@ -117,7 +120,11 @@
 
 /* FRAME STATUS */
 #define FRAME_STAT_CLS			0x00
-#define FRM0_STAT_CLS			0x20	/* write 0 to clear frame 0 */
+/* write 0 to clear frame 0 */
+#define FRM0_STAT_CLS			0xfffffffe
+#define FRAME_NUM_SHIFT			(16U)
+#define FRAME_NUM_MASK			(0xffff << FRAME_NUM_SHIFT)
+#define CIF_GET_FRAME_ID(val)		(((val) & FRAME_NUM_MASK) >> FRAME_NUM_SHIFT)
 
 /* CIF FORMAT */
 #define VSY_HIGH_ACTIVE			(0x01 << 0)
@@ -144,6 +151,9 @@
 #define RAW_DATA_WIDTH_8		(0x00 << 11)
 #define RAW_DATA_WIDTH_10		(0x01 << 11)
 #define RAW_DATA_WIDTH_12		(0x02 << 11)
+#define MIPI_MODE_32BITS_BYPASS		(0x00 << 13)
+#define MIPI_MODE_RGB			(0x01 << 13)
+#define MIPI_MODE_YUV			(0x02 << 13)
 #define YUV_OUTPUT_422			(0x00 << 16)
 #define YUV_OUTPUT_420			(0x01 << 16)
 #define OUTPUT_420_ORDER_EVEN		(0x00 << 17)

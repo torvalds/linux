@@ -55,6 +55,17 @@
 #define write_cif_reg_and(base, addr, val) \
 	writel(readl((addr) + (base)) & (val), (addr) + (base))
 
+enum rkcif_workmode {
+	RKCIF_WORKMODE_ONEFRAME = 0x00,
+	RKCIF_WORKMODE_PINGPONG = 0x01,
+	RKCIF_WORKMODE_LINELOOP = 0x02
+};
+
+enum rkcif_yuvaddr_state {
+	RKCIF_YUV_ADDR_STATE_UPDATE = 0x0,
+	RKCIF_YUV_ADDR_STATE_INIT = 0x1
+};
+
 enum rkcif_state {
 	RKCIF_STATE_DISABLED,
 	RKCIF_STATE_READY,
@@ -293,6 +304,7 @@ struct rkcif_device {
 	atomic_t			stream_cnt;
 	atomic_t			fh_cnt;
 	struct mutex                    stream_lock; /* lock between streams */
+	enum rkcif_workmode		workmode;
 };
 
 void rkcif_unregister_stream_vdevs(struct rkcif_device *dev,

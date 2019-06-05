@@ -11,12 +11,12 @@
  *v0.1.0:
  *1. First version;
  *v0.1.1
- *support the mipi vc multi-channel input in cif driver for rk1808
+ *1. Support the mipi vc multi-channel input in cif driver for rk1808
  *v0.1.2
- *Compatible with cif only have single dma mode in driver
- *v0.1.2
- *support output yuyv fmt by setting the input mode to raw8
- *
+ *1. support output yuyv fmt by setting the input mode to raw8
+ *2. Compatible with cif only have single dma mode in driver
+ *3. Support cif works with mipi channel for rk3288
+ *4. Support switching between oneframe and pingpong for cif
  */
 
 #define RKCIF_DRIVER_VERSION KERNEL_VERSION(0, 1, 0x2)
