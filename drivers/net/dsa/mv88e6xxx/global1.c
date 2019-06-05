@@ -182,7 +182,7 @@ int mv88e6185_g1_reset(struct mv88e6xxx_chip *chip)
 	return mv88e6185_g1_wait_ppu_polling(chip);
 }
 
-int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip)
+int mv88e6250_g1_reset(struct mv88e6xxx_chip *chip)
 {
 	u16 val;
 	int err;
@@ -198,7 +198,14 @@ int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g1_wait_init_ready(chip);
+	return mv88e6xxx_g1_wait_init_ready(chip);
+}
+
+int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	err = mv88e6250_g1_reset(chip);
 	if (err)
 		return err;
 
@@ -297,6 +304,12 @@ int mv88e6085_g1_ieee_pri_map(struct mv88e6xxx_chip *chip)
 {
 	/* Reset the IEEE Tag priorities to defaults */
 	return mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IEEE_PRI, 0xfa41);
+}
+
+int mv88e6250_g1_ieee_pri_map(struct mv88e6xxx_chip *chip)
+{
+	/* Reset the IEEE Tag priorities to defaults */
+	return mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IEEE_PRI, 0xfa50);
 }
 
 /* Offset 0x1a: Monitor Control */

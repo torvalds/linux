@@ -829,6 +829,12 @@ static int mv88e6095_stats_get_strings(struct mv88e6xxx_chip *chip,
 					   STATS_TYPE_BANK0 | STATS_TYPE_PORT);
 }
 
+static int mv88e6250_stats_get_strings(struct mv88e6xxx_chip *chip,
+				       uint8_t *data)
+{
+	return mv88e6xxx_stats_get_strings(chip, data, STATS_TYPE_BANK0);
+}
+
 static int mv88e6320_stats_get_strings(struct mv88e6xxx_chip *chip,
 				       uint8_t *data)
 {
@@ -899,6 +905,11 @@ static int mv88e6095_stats_get_sset_count(struct mv88e6xxx_chip *chip)
 					      STATS_TYPE_PORT);
 }
 
+static int mv88e6250_stats_get_sset_count(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_stats_get_sset_count(chip, STATS_TYPE_BANK0);
+}
+
 static int mv88e6320_stats_get_sset_count(struct mv88e6xxx_chip *chip)
 {
 	return mv88e6xxx_stats_get_sset_count(chip, STATS_TYPE_BANK0 |
@@ -963,6 +974,13 @@ static int mv88e6095_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
 {
 	return mv88e6xxx_stats_get_stats(chip, port, data,
 					 STATS_TYPE_BANK0 | STATS_TYPE_PORT,
+					 0, MV88E6XXX_G1_STATS_OP_HIST_RX_TX);
+}
+
+static int mv88e6250_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
+				     uint64_t *data)
+{
+	return mv88e6xxx_stats_get_stats(chip, port, data, STATS_TYPE_BANK0,
 					 0, MV88E6XXX_G1_STATS_OP_HIST_RX_TX);
 }
 
@@ -3448,6 +3466,44 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.phylink_validate = mv88e6352_phylink_validate,
 };
 
+static const struct mv88e6xxx_ops mv88e6250_ops = {
+	/* MV88E6XXX_FAMILY_6250 */
+	.ieee_pri_map = mv88e6250_g1_ieee_pri_map,
+	.ip_pri_map = mv88e6085_g1_ip_pri_map,
+	.irl_init_all = mv88e6352_g2_irl_init_all,
+	.get_eeprom = mv88e6xxx_g2_get_eeprom16,
+	.set_eeprom = mv88e6xxx_g2_set_eeprom16,
+	.set_switch_mac = mv88e6xxx_g2_set_switch_mac,
+	.phy_read = mv88e6xxx_g2_smi_phy_read,
+	.phy_write = mv88e6xxx_g2_smi_phy_write,
+	.port_set_link = mv88e6xxx_port_set_link,
+	.port_set_duplex = mv88e6xxx_port_set_duplex,
+	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
+	.port_set_speed = mv88e6250_port_set_speed,
+	.port_tag_remap = mv88e6095_port_tag_remap,
+	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
+	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
+	.port_set_ether_type = mv88e6351_port_set_ether_type,
+	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
+	.port_pause_limit = mv88e6097_port_pause_limit,
+	.port_disable_pri_override = mv88e6xxx_port_disable_pri_override,
+	.port_link_state = mv88e6250_port_link_state,
+	.stats_snapshot = mv88e6320_g1_stats_snapshot,
+	.stats_set_histogram = mv88e6095_g1_stats_set_histogram,
+	.stats_get_sset_count = mv88e6250_stats_get_sset_count,
+	.stats_get_strings = mv88e6250_stats_get_strings,
+	.stats_get_stats = mv88e6250_stats_get_stats,
+	.set_cpu_port = mv88e6095_g1_set_cpu_port,
+	.set_egress_port = mv88e6095_g1_set_egress_port,
+	.watchdog_ops = &mv88e6250_watchdog_ops,
+	.mgmt_rsvd2cpu = mv88e6352_g2_mgmt_rsvd2cpu,
+	.pot_clear = mv88e6xxx_g2_pot_clear,
+	.reset = mv88e6250_g1_reset,
+	.vtu_getnext = mv88e6250_g1_vtu_getnext,
+	.vtu_loadpurge = mv88e6250_g1_vtu_loadpurge,
+	.phylink_validate = mv88e6065_phylink_validate,
+};
+
 static const struct mv88e6xxx_ops mv88e6290_ops = {
 	/* MV88E6XXX_FAMILY_6390 */
 	.setup_errata = mv88e6390_setup_errata,
@@ -4233,6 +4289,27 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 		.ops = &mv88e6240_ops,
 	},
 
+	[MV88E6250] = {
+		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6250,
+		.family = MV88E6XXX_FAMILY_6250,
+		.name = "Marvell 88E6250",
+		.num_databases = 64,
+		.num_ports = 7,
+		.num_internal_phys = 5,
+		.max_vid = 4095,
+		.port_base_addr = 0x08,
+		.phy_base_addr = 0x00,
+		.global1_addr = 0x0f,
+		.global2_addr = 0x07,
+		.age_time_coeff = 15000,
+		.g1_irqs = 9,
+		.g2_irqs = 10,
+		.atu_move_port_mask = 0xf,
+		.dual_chip = true,
+		.tag_protocol = DSA_TAG_PROTO_DSA,
+		.ops = &mv88e6250_ops,
+	},
+
 	[MV88E6290] = {
 		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6290,
 		.family = MV88E6XXX_FAMILY_6390,
@@ -4840,6 +4917,10 @@ static const struct of_device_id mv88e6xxx_of_match[] = {
 	{
 		.compatible = "marvell,mv88e6190",
 		.data = &mv88e6xxx_table[MV88E6190],
+	},
+	{
+		.compatible = "marvell,mv88e6250",
+		.data = &mv88e6xxx_table[MV88E6250],
 	},
 	{ /* sentinel */ },
 };

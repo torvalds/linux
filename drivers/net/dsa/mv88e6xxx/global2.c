@@ -816,6 +816,32 @@ const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops = {
 	.irq_free = mv88e6097_watchdog_free,
 };
 
+static void mv88e6250_watchdog_free(struct mv88e6xxx_chip *chip)
+{
+	u16 reg;
+
+	mv88e6xxx_g2_read(chip, MV88E6250_G2_WDOG_CTL, &reg);
+
+	reg &= ~(MV88E6250_G2_WDOG_CTL_EGRESS_ENABLE |
+		 MV88E6250_G2_WDOG_CTL_QC_ENABLE);
+
+	mv88e6xxx_g2_write(chip, MV88E6250_G2_WDOG_CTL, reg);
+}
+
+static int mv88e6250_watchdog_setup(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g2_write(chip, MV88E6250_G2_WDOG_CTL,
+				  MV88E6250_G2_WDOG_CTL_EGRESS_ENABLE |
+				  MV88E6250_G2_WDOG_CTL_QC_ENABLE |
+				  MV88E6250_G2_WDOG_CTL_SWRESET);
+}
+
+const struct mv88e6xxx_irq_ops mv88e6250_watchdog_ops = {
+	.irq_action = mv88e6097_watchdog_action,
+	.irq_setup = mv88e6250_watchdog_setup,
+	.irq_free = mv88e6250_watchdog_free,
+};
+
 static int mv88e6390_watchdog_setup(struct mv88e6xxx_chip *chip)
 {
 	return mv88e6xxx_g2_update(chip, MV88E6390_G2_WDOG_CTL,
