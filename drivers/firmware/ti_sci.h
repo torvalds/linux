@@ -71,6 +71,14 @@
 #define TISCI_MSG_RM_UDMAP_FLOW_GET_CFG		0x1232
 #define TISCI_MSG_RM_UDMAP_FLOW_SIZE_THRESH_GET_CFG	0x1233
 
+/* Processor Control requests */
+#define TI_SCI_MSG_PROC_REQUEST		0xc000
+#define TI_SCI_MSG_PROC_RELEASE		0xc001
+#define TI_SCI_MSG_PROC_HANDOVER	0xc005
+#define TI_SCI_MSG_SET_CONFIG		0xc100
+#define TI_SCI_MSG_SET_CTRL		0xc101
+#define TI_SCI_MSG_GET_STATUS		0xc400
+
 /**
  * struct ti_sci_msg_hdr - Generic Message Header for All messages and responses
  * @type:	Type of messages: One of TI_SCI_MSG* values
@@ -1236,6 +1244,133 @@ struct ti_sci_msg_rm_udmap_flow_cfg_req {
 	u16 rx_fdq2_qnum;
 	u16 rx_fdq3_qnum;
 	u8 rx_ps_location;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_proc_request - Request a processor
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor being requested
+ *
+ * Request type is TI_SCI_MSG_PROC_REQUEST, response is a generic ACK/NACK
+ * message.
+ */
+struct ti_sci_msg_req_proc_request {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_proc_release - Release a processor
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor being released
+ *
+ * Request type is TI_SCI_MSG_PROC_RELEASE, response is a generic ACK/NACK
+ * message.
+ */
+struct ti_sci_msg_req_proc_release {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_proc_handover - Handover a processor to a host
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor being handed over
+ * @host_id:		Host ID the control needs to be transferred to
+ *
+ * Request type is TI_SCI_MSG_PROC_HANDOVER, response is a generic ACK/NACK
+ * message.
+ */
+struct ti_sci_msg_req_proc_handover {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+	u8 host_id;
+} __packed;
+
+/* Boot Vector masks */
+#define TI_SCI_ADDR_LOW_MASK			GENMASK_ULL(31, 0)
+#define TI_SCI_ADDR_HIGH_MASK			GENMASK_ULL(63, 32)
+#define TI_SCI_ADDR_HIGH_SHIFT			32
+
+/**
+ * struct ti_sci_msg_req_set_config - Set Processor boot configuration
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor being configured
+ * @bootvector_low:	Lower 32 bit address (Little Endian) of boot vector
+ * @bootvector_high:	Higher 32 bit address (Little Endian) of boot vector
+ * @config_flags_set:	Optional Processor specific Config Flags to set.
+ *			Setting a bit here implies the corresponding mode
+ *			will be set
+ * @config_flags_clear:	Optional Processor specific Config Flags to clear.
+ *			Setting a bit here implies the corresponding mode
+ *			will be cleared
+ *
+ * Request type is TI_SCI_MSG_PROC_HANDOVER, response is a generic ACK/NACK
+ * message.
+ */
+struct ti_sci_msg_req_set_config {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+	u32 bootvector_low;
+	u32 bootvector_high;
+	u32 config_flags_set;
+	u32 config_flags_clear;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_set_ctrl - Set Processor boot control flags
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor being configured
+ * @control_flags_set:	Optional Processor specific Control Flags to set.
+ *			Setting a bit here implies the corresponding mode
+ *			will be set
+ * @control_flags_clear:Optional Processor specific Control Flags to clear.
+ *			Setting a bit here implies the corresponding mode
+ *			will be cleared
+ *
+ * Request type is TI_SCI_MSG_SET_CTRL, response is a generic ACK/NACK
+ * message.
+ */
+struct ti_sci_msg_req_set_ctrl {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+	u32 control_flags_set;
+	u32 control_flags_clear;
+} __packed;
+
+/**
+ * struct ti_sci_msg_req_get_status - Processor boot status request
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor whose status is being requested
+ *
+ * Request type is TI_SCI_MSG_GET_STATUS, response is an appropriate
+ * message, or NACK in case of inability to satisfy request.
+ */
+struct ti_sci_msg_req_get_status {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+} __packed;
+
+/**
+ * struct ti_sci_msg_resp_get_status - Processor boot status response
+ * @hdr:		Generic Header
+ * @processor_id:	ID of processor whose status is returned
+ * @bootvector_low:	Lower 32 bit address (Little Endian) of boot vector
+ * @bootvector_high:	Higher 32 bit address (Little Endian) of boot vector
+ * @config_flags:	Optional Processor specific Config Flags set currently
+ * @control_flags:	Optional Processor specific Control Flags set currently
+ * @status_flags:	Optional Processor specific Status Flags set currently
+ *
+ * Response structure to a TI_SCI_MSG_GET_STATUS request.
+ */
+struct ti_sci_msg_resp_get_status {
+	struct ti_sci_msg_hdr hdr;
+	u8 processor_id;
+	u32 bootvector_low;
+	u32 bootvector_high;
+	u32 config_flags;
+	u32 control_flags;
+	u32 status_flags;
 } __packed;
 
 #endif /* __TI_SCI_H */
