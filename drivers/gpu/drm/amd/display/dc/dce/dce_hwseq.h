@@ -696,7 +696,8 @@ struct dce_hwseq_registers {
 	type D2VGA_MODE_ENABLE; \
 	type D3VGA_MODE_ENABLE; \
 	type D4VGA_MODE_ENABLE; \
-	type AZALIA_AUDIO_DTO_MODULE;
+	type AZALIA_AUDIO_DTO_MODULE;\
+	type HPO_HDMISTREAMCLK_GATE_DIS;
 
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)
