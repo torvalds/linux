@@ -343,8 +343,6 @@ struct komeda_pipeline {
 	struct komeda_dev *mdev;
 	/** @pxlclk: pixel clock */
 	struct clk *pxlclk;
-	/** @aclk: AXI clock */
-	struct clk *aclk;
 	/** @id: pipeline id */
 	int id;
 	/** @avail_comps: available components mask of pipeline */

@@ -160,8 +160,6 @@ struct komeda_dev {
 	struct komeda_chip_info chip;
 	/** @fmt_tbl: initialized by &komeda_dev_funcs->init_format_table */
 	struct komeda_format_caps_table fmt_tbl;
-	/** @pclk: APB clock for register access */
-	struct clk *pclk;
 	/** @mclk: HW main engine clk */
 	struct clk *mclk;
 

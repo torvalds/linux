@@ -53,7 +53,6 @@ void komeda_pipeline_destroy(struct komeda_dev *mdev,
 	}
 
 	clk_put(pipe->pxlclk);
-	clk_put(pipe->aclk);
 
 	of_node_put(pipe->of_output_dev);
 	of_node_put(pipe->of_output_port);

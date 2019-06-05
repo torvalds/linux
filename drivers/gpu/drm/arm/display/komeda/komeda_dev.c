@@ -116,13 +116,6 @@ static int komeda_parse_pipe_dt(struct komeda_dev *mdev, struct device_node *np)
 
 	pipe = mdev->pipelines[pipe_id];
 
-	clk = of_clk_get_by_name(np, "aclk");
-	if (IS_ERR(clk)) {
-		DRM_ERROR("get aclk for pipeline %d failed!\n", pipe_id);
-		return PTR_ERR(clk);
-	}
-	pipe->aclk = clk;
-
 	clk = of_clk_get_by_name(np, "pxclk");
 	if (IS_ERR(clk)) {
 		DRM_ERROR("get pxclk for pipeline %d failed!\n", pipe_id);
@@ -145,14 +138,8 @@ static int komeda_parse_dt(struct device *dev, struct komeda_dev *mdev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *child, *np = dev->of_node;
-	struct clk *clk;
 	int ret;
 
-	clk = devm_clk_get(dev, "mclk");
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	mdev->mclk = clk;
 	mdev->irq  = platform_get_irq(pdev, 0);
 	if (mdev->irq < 0) {
 		DRM_ERROR("could not get IRQ number.\n");
@@ -206,16 +193,15 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 		goto err_cleanup;
 	}
 
-	mdev->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(mdev->pclk)) {
-		DRM_ERROR("Get APB clk failed.\n");
-		err = PTR_ERR(mdev->pclk);
-		mdev->pclk = NULL;
+	mdev->mclk = devm_clk_get(dev, "mclk");
+	if (IS_ERR(mdev->mclk)) {
+		DRM_ERROR("Get engine clk failed.\n");
+		err = PTR_ERR(mdev->mclk);
+		mdev->mclk = NULL;
 		goto err_cleanup;
 	}
 
-	/* Enable APB clock to access the registers */
-	clk_prepare_enable(mdev->pclk);
+	clk_prepare_enable(mdev->mclk);
 
 	mdev->funcs = product->identify(mdev->reg_base, &mdev->chip);
 	if (!komeda_product_match(mdev, product->product_id)) {
@@ -315,14 +301,9 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 	}
 
 	if (mdev->mclk) {
+		clk_disable_unprepare(mdev->mclk);
 		devm_clk_put(dev, mdev->mclk);
 		mdev->mclk = NULL;
-	}
-
-	if (mdev->pclk) {
-		clk_disable_unprepare(mdev->pclk);
-		devm_clk_put(dev, mdev->pclk);
-		mdev->pclk = NULL;
 	}
 
 	devm_kfree(dev, mdev);

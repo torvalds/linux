@@ -123,9 +123,6 @@ komeda_crtc_prepare(struct komeda_crtc *kcrtc)
 			DRM_ERROR("failed to enable mclk.\n");
 	}
 
-	err = clk_prepare_enable(master->aclk);
-	if (err)
-		DRM_ERROR("failed to enable axi clk for pipe%d.\n", master->id);
 	err = clk_set_rate(master->pxlclk, pxlclk_rate);
 	if (err)
 		DRM_ERROR("failed to set pxlclk for pipe%d\n", master->id);
@@ -166,7 +163,6 @@ komeda_crtc_unprepare(struct komeda_crtc *kcrtc)
 	mdev->dpmode = new_mode;
 
 	clk_disable_unprepare(master->pxlclk);
-	clk_disable_unprepare(master->aclk);
 	if (new_mode == KOMEDA_MODE_INACTIVE)
 		clk_disable_unprepare(mdev->mclk);
 
@@ -357,13 +353,6 @@ komeda_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *m)
 
 	if (clk_round_rate(mdev->mclk, mode_clk) < pxlclk) {
 		DRM_DEBUG_ATOMIC("mclk can't satisfy the requirement of %s-clk: %ld.\n",
-				 m->name, pxlclk);
-
-		return MODE_CLOCK_HIGH;
-	}
-
-	if (clk_round_rate(master->aclk, mode_clk) < pxlclk) {
-		DRM_DEBUG_ATOMIC("aclk can't satisfy the requirement of %s-clk: %ld.\n",
 				 m->name, pxlclk);
 
 		return MODE_CLOCK_HIGH;
