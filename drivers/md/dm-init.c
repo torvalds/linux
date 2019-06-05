@@ -272,7 +272,7 @@ static int __init dm_init_init(void)
 		return 0;
 
 	if (strlen(create) >= DM_MAX_STR_SIZE) {
-		DMERR("Argument is too big. Limit is %d\n", DM_MAX_STR_SIZE);
+		DMERR("Argument is too big. Limit is %d", DM_MAX_STR_SIZE);
 		return -EINVAL;
 	}
 	str = kstrndup(create, DM_MAX_STR_SIZE, GFP_KERNEL);
@@ -283,7 +283,7 @@ static int __init dm_init_init(void)
 	if (r)
 		goto out;
 
-	DMINFO("waiting for all devices to be available before creating mapped devices\n");
+	DMINFO("waiting for all devices to be available before creating mapped devices");
 	wait_for_device_probe();
 
 	list_for_each_entry(dev, &devices, list) {
