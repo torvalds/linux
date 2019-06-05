@@ -1980,25 +1980,10 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 		return ret;
 
 	/* If can't alter the file contents, we're done. */
-	if (!(remap_flags & REMAP_FILE_DEDUP)) {
-		/* Update the timestamps, since we can alter file contents. */
-		if (!(file_out->f_mode & FMODE_NOCMTIME)) {
-			ret = file_update_time(file_out);
-			if (ret)
-				return ret;
-		}
+	if (!(remap_flags & REMAP_FILE_DEDUP))
+		ret = file_modified(file_out);
 
-		/*
-		 * Clear the security bits if the process is not being run by
-		 * root.  This keeps people from modifying setuid and setgid
-		 * binaries.
-		 */
-		ret = file_remove_privs(file_out);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(generic_remap_file_range_prep);
 
