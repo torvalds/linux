@@ -35,6 +35,9 @@ void clear_fixmap(enum fixed_addresses idx)
 	pmd_t *pmd = pmd_offset(pgd, vaddr);
 	pte_t *pte = pte_offset_kernel(pmd, vaddr);
 
+	if (WARN_ON(pte_none(*pte)))
+		return;
+
 	pte_clear(&init_mm, vaddr, pte);
 
 	flush_tlb_kernel_range(vaddr, vaddr + PAGE_SIZE);
