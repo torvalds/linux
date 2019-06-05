@@ -262,11 +262,11 @@ void dce110_clk_mgr_construct(
 		struct dc_context *ctx,
 		struct clk_mgr_internal *clk_mgr)
 {
+	dce_clk_mgr_construct(ctx, clk_mgr);
+
 	memcpy(clk_mgr->max_clks_by_state,
 		dce110_max_clks_by_state,
 		sizeof(dce110_max_clks_by_state));
-
-	dce_clk_mgr_construct(ctx, clk_mgr);
 
 	clk_mgr->regs = &disp_clk_regs;
 	clk_mgr->clk_mgr_shift = &disp_clk_shift;
