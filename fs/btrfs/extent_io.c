@@ -359,6 +359,24 @@ do_insert:
 	return NULL;
 }
 
+/**
+ * __etree_search - searche @tree for an entry that contains @offset. Such
+ * entry would have entry->start <= offset && entry->end >= offset.
+ *
+ * @tree - the tree to search
+ * @offset - offset that should fall within an entry in @tree
+ * @next_ret - pointer to the first entry whose range ends after @offset
+ * @prev - pointer to the first entry whose range begins before @offset
+ * @p_ret - pointer where new node should be anchored (used when inserting an
+ *	    entry in the tree)
+ * @parent_ret - points to entry which would have been the parent of the entry,
+ *               containing @offset
+ *
+ * This function returns a pointer to the entry that contains @offset byte
+ * address. If no such entry exists, then NULL is returned and the other
+ * pointer arguments to the function are filled, otherwise the found entry is
+ * returned and other pointers are left untouched.
+ */
 static struct rb_node *__etree_search(struct extent_io_tree *tree, u64 offset,
 				      struct rb_node **next_ret,
 				      struct rb_node **prev_ret,
