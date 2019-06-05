@@ -58,6 +58,15 @@ config WATCHDOG_HANDLE_BOOT_ENABLED
 	  the watchdog on its own. Thus if your userspace does not start fast
 	  enough your device will reboot.
 
+config WATCHDOG_OPEN_TIMEOUT
+	int "Timeout value for opening watchdog device"
+	default 0
+	help
+	  The maximum time, in seconds, for which the watchdog framework takes
+	  care of pinging a hardware watchdog.  A value of 0 means infinite. The
+	  value set here can be overridden by the commandline parameter
+	  "watchdog.open_timeout".
+
 config WATCHDOG_SYSFS
 	bool "Read different watchdog information through sysfs"
 	help
