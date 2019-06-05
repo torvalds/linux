@@ -241,7 +241,7 @@ static int  read_system_regs(struct kp2000_device *pcard)
 	read_val = readq(pcard->sysinfo_regs_base + REG_MAGIC_NUMBER);
 	if (read_val != KP2000_MAGIC_VALUE) {
 		dev_err(&pcard->pdev->dev,
-			"Invalid magic!  Got: 0x%016llx  Want: 0x%016lx\n",
+			"Invalid magic!  Got: 0x%016llx  Want: 0x%016llx\n",
 			read_val, KP2000_MAGIC_VALUE);
 		return -EILSEQ;
 	}
