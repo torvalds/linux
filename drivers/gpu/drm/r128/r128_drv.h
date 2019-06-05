@@ -35,8 +35,14 @@
 #ifndef __R128_DRV_H__
 #define __R128_DRV_H__
 
+#include <linux/delay.h>
+#include <linux/io.h>
+#include <linux/irqreturn.h>
+
 #include <drm/ati_pcigart.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_legacy.h>
+#include <drm/r128_drm.h>
 
 /* General customization:
  */

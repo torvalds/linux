@@ -29,13 +29,21 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/firmware.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/uaccess.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_print.h>
 #include <drm/r128_drm.h>
+
 #include "r128_drv.h"
 
 #define R128_FIFO_DEBUG		0

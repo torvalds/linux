@@ -28,8 +28,15 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
-#include <drm/drmP.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
 #include <drm/r128_drm.h>
+
 #include "r128_drv.h"
 
 /* ================================================================
