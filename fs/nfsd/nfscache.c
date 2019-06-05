@@ -157,12 +157,12 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
 	nn->nfsd_reply_cache_shrinker.seeks = 1;
 	status = register_shrinker(&nn->nfsd_reply_cache_shrinker);
 	if (status)
-		return status;
+		goto out_nomem;
 
 	nn->drc_slab = kmem_cache_create("nfsd_drc",
 				sizeof(struct svc_cacherep), 0, 0, NULL);
 	if (!nn->drc_slab)
-		goto out_nomem;
+		goto out_shrinker;
 
 	nn->drc_hashtbl = kcalloc(hashsize,
 				sizeof(*nn->drc_hashtbl), GFP_KERNEL);
@@ -170,7 +170,7 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
 		nn->drc_hashtbl = vzalloc(array_size(hashsize,
 						 sizeof(*nn->drc_hashtbl)));
 		if (!nn->drc_hashtbl)
-			goto out_nomem;
+			goto out_slab;
 	}
 
 	for (i = 0; i < hashsize; i++) {
@@ -180,6 +180,10 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
 	nn->drc_hashsize = hashsize;
 
 	return 0;
+out_slab:
+	kmem_cache_destroy(nn->drc_slab);
+out_shrinker:
+	unregister_shrinker(&nn->nfsd_reply_cache_shrinker);
 out_nomem:
 	printk(KERN_ERR "nfsd: failed to allocate reply cache\n");
 	return -ENOMEM;
