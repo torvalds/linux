@@ -28,9 +28,9 @@ static inline int
 xfs_icluster_size_fsb(
 	struct xfs_mount	*mp)
 {
-	if (mp->m_sb.sb_blocksize >= mp->m_inode_cluster_size)
+	if (mp->m_sb.sb_blocksize >= M_IGEO(mp)->inode_cluster_size)
 		return 1;
-	return mp->m_inode_cluster_size >> mp->m_sb.sb_blocklog;
+	return M_IGEO(mp)->inode_cluster_size >> mp->m_sb.sb_blocklog;
 }
 
 /*
@@ -96,7 +96,7 @@ xfs_imap(
 	uint		flags);		/* flags for inode btree lookup */
 
 /*
- * Compute and fill in value of m_in_maxlevels.
+ * Compute and fill in value of m_ino_geo.inobt_maxlevels.
  */
 void
 xfs_ialloc_compute_maxlevels(

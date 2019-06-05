@@ -582,7 +582,7 @@ xfs_set_inode_alloc(
 	 * Calculate how much should be reserved for inodes to meet
 	 * the max inode percentage.  Used only for inode32.
 	 */
-	if (mp->m_maxicount) {
+	if (M_IGEO(mp)->maxicount) {
 		uint64_t	icount;
 
 		icount = sbp->sb_dblocks * sbp->sb_imax_pct;
@@ -1131,10 +1131,10 @@ xfs_fs_statfs(
 
 	fakeinos = XFS_FSB_TO_INO(mp, statp->f_bfree);
 	statp->f_files = min(icount + fakeinos, (uint64_t)XFS_MAXINUMBER);
-	if (mp->m_maxicount)
+	if (M_IGEO(mp)->maxicount)
 		statp->f_files = min_t(typeof(statp->f_files),
 					statp->f_files,
-					mp->m_maxicount);
+					M_IGEO(mp)->maxicount);
 
 	/* If sb_icount overshot maxicount, report actual allocation */
 	statp->f_files = max_t(typeof(statp->f_files),

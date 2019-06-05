@@ -2882,19 +2882,19 @@ xlog_recover_buffer_pass2(
 	 *
 	 * Also make sure that only inode buffers with good sizes stay in
 	 * the buffer cache.  The kernel moves inodes in buffers of 1 block
-	 * or mp->m_inode_cluster_size bytes, whichever is bigger.  The inode
+	 * or inode_cluster_size bytes, whichever is bigger.  The inode
 	 * buffers in the log can be a different size if the log was generated
 	 * by an older kernel using unclustered inode buffers or a newer kernel
 	 * running with a different inode cluster size.  Regardless, if the
-	 * the inode buffer size isn't max(blocksize, mp->m_inode_cluster_size)
-	 * for *our* value of mp->m_inode_cluster_size, then we need to keep
+	 * the inode buffer size isn't max(blocksize, inode_cluster_size)
+	 * for *our* value of inode_cluster_size, then we need to keep
 	 * the buffer out of the buffer cache so that the buffer won't
 	 * overlap with future reads of those inodes.
 	 */
 	if (XFS_DINODE_MAGIC ==
 	    be16_to_cpu(*((__be16 *)xfs_buf_offset(bp, 0))) &&
 	    (BBTOB(bp->b_io_length) != max(log->l_mp->m_sb.sb_blocksize,
-			(uint32_t)log->l_mp->m_inode_cluster_size))) {
+			M_IGEO(log->l_mp)->inode_cluster_size))) {
 		xfs_buf_stale(bp);
 		error = xfs_bwrite(bp);
 	} else {
@@ -3849,6 +3849,7 @@ xlog_recover_do_icreate_pass2(
 {
 	struct xfs_mount	*mp = log->l_mp;
 	struct xfs_icreate_log	*icl;
+	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
 	xfs_agnumber_t		agno;
 	xfs_agblock_t		agbno;
 	unsigned int		count;
@@ -3898,10 +3899,10 @@ xlog_recover_do_icreate_pass2(
 
 	/*
 	 * The inode chunk is either full or sparse and we only support
-	 * m_ialloc_min_blks sized sparse allocations at this time.
+	 * m_ino_geo.ialloc_min_blks sized sparse allocations at this time.
 	 */
-	if (length != mp->m_ialloc_blks &&
-	    length != mp->m_ialloc_min_blks) {
+	if (length != igeo->ialloc_blks &&
+	    length != igeo->ialloc_min_blks) {
 		xfs_warn(log->l_mp,
 			 "%s: unsupported chunk length", __FUNCTION__);
 		return -EINVAL;
@@ -3921,13 +3922,13 @@ xlog_recover_do_icreate_pass2(
 	 * buffers for cancellation so we don't overwrite anything written after
 	 * a cancellation.
 	 */
-	bb_per_cluster = XFS_FSB_TO_BB(mp, mp->m_blocks_per_cluster);
-	nbufs = length / mp->m_blocks_per_cluster;
+	bb_per_cluster = XFS_FSB_TO_BB(mp, igeo->blocks_per_cluster);
+	nbufs = length / igeo->blocks_per_cluster;
 	for (i = 0, cancel_count = 0; i < nbufs; i++) {
 		xfs_daddr_t	daddr;
 
 		daddr = XFS_AGB_TO_DADDR(mp, agno,
-					 agbno + i * mp->m_blocks_per_cluster);
+				agbno + i * igeo->blocks_per_cluster);
 		if (xlog_check_buffer_cancelled(log, daddr, bb_per_cluster, 0))
 			cancel_count++;
 	}

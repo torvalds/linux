@@ -251,9 +251,9 @@ xfs_growfs_data(
 	if (mp->m_sb.sb_imax_pct) {
 		uint64_t icount = mp->m_sb.sb_dblocks * mp->m_sb.sb_imax_pct;
 		do_div(icount, 100);
-		mp->m_maxicount = XFS_FSB_TO_INO(mp, icount);
+		M_IGEO(mp)->maxicount = XFS_FSB_TO_INO(mp, icount);
 	} else
-		mp->m_maxicount = 0;
+		M_IGEO(mp)->maxicount = 0;
 
 	/* Update secondary superblocks now the physical grow has completed */
 	error = xfs_update_secondary_sbs(mp);

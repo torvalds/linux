@@ -36,7 +36,7 @@ xfs_inobp_check(
 	int		j;
 	xfs_dinode_t	*dip;
 
-	j = mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog;
+	j = M_IGEO(mp)->inode_cluster_size >> mp->m_sb.sb_inodelog;
 
 	for (i = 0; i < j; i++) {
 		dip = xfs_buf_offset(bp, i * mp->m_sb.sb_inodesize);

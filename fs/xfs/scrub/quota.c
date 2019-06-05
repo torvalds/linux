@@ -144,7 +144,7 @@ xchk_quota_item(
 	if (bsoft > bhard)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
-	if (ihard > mp->m_maxicount)
+	if (ihard > M_IGEO(mp)->maxicount)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
 	if (isoft > ihard)
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);

@@ -28,7 +28,7 @@ xfs_inobt_get_minrecs(
 	struct xfs_btree_cur	*cur,
 	int			level)
 {
-	return cur->bc_mp->m_inobt_mnr[level != 0];
+	return M_IGEO(cur->bc_mp)->inobt_mnr[level != 0];
 }
 
 STATIC struct xfs_btree_cur *
@@ -164,7 +164,7 @@ xfs_inobt_get_maxrecs(
 	struct xfs_btree_cur	*cur,
 	int			level)
 {
-	return cur->bc_mp->m_inobt_mxr[level != 0];
+	return M_IGEO(cur->bc_mp)->inobt_mxr[level != 0];
 }
 
 STATIC void
@@ -281,10 +281,11 @@ xfs_inobt_verify(
 
 	/* level verification */
 	level = be16_to_cpu(block->bb_level);
-	if (level >= mp->m_in_maxlevels)
+	if (level >= M_IGEO(mp)->inobt_maxlevels)
 		return __this_address;
 
-	return xfs_btree_sblock_verify(bp, mp->m_inobt_mxr[level != 0]);
+	return xfs_btree_sblock_verify(bp,
+			M_IGEO(mp)->inobt_mxr[level != 0]);
 }
 
 static void
@@ -546,7 +547,7 @@ xfs_inobt_max_size(
 	xfs_agblock_t		agblocks = xfs_ag_block_count(mp, agno);
 
 	/* Bail out if we're uninitialized, which can happen in mkfs. */
-	if (mp->m_inobt_mxr[0] == 0)
+	if (M_IGEO(mp)->inobt_mxr[0] == 0)
 		return 0;
 
 	/*
@@ -558,7 +559,7 @@ xfs_inobt_max_size(
 	    XFS_FSB_TO_AGNO(mp, mp->m_sb.sb_logstart) == agno)
 		agblocks -= mp->m_sb.sb_logblocks;
 
-	return xfs_btree_calc_size(mp->m_inobt_mnr,
+	return xfs_btree_calc_size(M_IGEO(mp)->inobt_mnr,
 				(uint64_t)agblocks * mp->m_sb.sb_inopblock /
 					XFS_INODES_PER_CHUNK);
 }
@@ -619,5 +620,5 @@ xfs_iallocbt_calc_size(
 	struct xfs_mount	*mp,
 	unsigned long long	len)
 {
-	return xfs_btree_calc_size(mp->m_inobt_mnr, len);
+	return xfs_btree_calc_size(M_IGEO(mp)->inobt_mnr, len);
 }

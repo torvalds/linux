@@ -433,10 +433,12 @@ xfs_update_alignment(xfs_mount_t *mp)
  * Set the maximum inode count for this filesystem
  */
 STATIC void
-xfs_set_maxicount(xfs_mount_t *mp)
+xfs_set_maxicount(
+	struct xfs_mount	*mp)
 {
-	xfs_sb_t	*sbp = &(mp->m_sb);
-	uint64_t	icount;
+	struct xfs_sb		*sbp = &(mp->m_sb);
+	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
+	uint64_t		icount;
 
 	if (sbp->sb_imax_pct) {
 		/*
@@ -445,11 +447,11 @@ xfs_set_maxicount(xfs_mount_t *mp)
 		 */
 		icount = sbp->sb_dblocks * sbp->sb_imax_pct;
 		do_div(icount, 100);
-		do_div(icount, mp->m_ialloc_blks);
-		mp->m_maxicount = (icount * mp->m_ialloc_blks)  <<
-				   sbp->sb_inopblog;
+		do_div(icount, igeo->ialloc_blks);
+		igeo->maxicount = XFS_FSB_TO_INO(mp,
+				icount * igeo->ialloc_blks);
 	} else {
-		mp->m_maxicount = 0;
+		igeo->maxicount = 0;
 	}
 }
 
@@ -518,18 +520,18 @@ xfs_set_inoalignment(xfs_mount_t *mp)
 {
 	if (xfs_sb_version_hasalign(&mp->m_sb) &&
 		mp->m_sb.sb_inoalignmt >= xfs_icluster_size_fsb(mp))
-		mp->m_inoalign_mask = mp->m_sb.sb_inoalignmt - 1;
+		M_IGEO(mp)->inoalign_mask = mp->m_sb.sb_inoalignmt - 1;
 	else
-		mp->m_inoalign_mask = 0;
+		M_IGEO(mp)->inoalign_mask = 0;
 	/*
 	 * If we are using stripe alignment, check whether
 	 * the stripe unit is a multiple of the inode alignment
 	 */
-	if (mp->m_dalign && mp->m_inoalign_mask &&
-	    !(mp->m_dalign & mp->m_inoalign_mask))
-		mp->m_sinoalign = mp->m_dalign;
+	if (mp->m_dalign && M_IGEO(mp)->inoalign_mask &&
+	    !(mp->m_dalign & M_IGEO(mp)->inoalign_mask))
+		M_IGEO(mp)->ialloc_align = mp->m_dalign;
 	else
-		mp->m_sinoalign = 0;
+		M_IGEO(mp)->ialloc_align = 0;
 }
 
 /*
@@ -683,6 +685,7 @@ xfs_mountfs(
 {
 	struct xfs_sb		*sbp = &(mp->m_sb);
 	struct xfs_inode	*rip;
+	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
 	uint64_t		resblks;
 	uint			quotamount = 0;
 	uint			quotaflags = 0;
@@ -797,18 +800,20 @@ xfs_mountfs(
 	 * has set the inode alignment value appropriately for larger cluster
 	 * sizes.
 	 */
-	mp->m_inode_cluster_size = XFS_INODE_BIG_CLUSTER_SIZE;
+	igeo->inode_cluster_size = XFS_INODE_BIG_CLUSTER_SIZE;
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		int	new_size = mp->m_inode_cluster_size;
+		int	new_size = igeo->inode_cluster_size;
 
 		new_size *= mp->m_sb.sb_inodesize / XFS_DINODE_MIN_SIZE;
 		if (mp->m_sb.sb_inoalignmt >= XFS_B_TO_FSBT(mp, new_size))
-			mp->m_inode_cluster_size = new_size;
+			igeo->inode_cluster_size = new_size;
 	}
-	mp->m_blocks_per_cluster = xfs_icluster_size_fsb(mp);
-	mp->m_inodes_per_cluster = XFS_FSB_TO_INO(mp, mp->m_blocks_per_cluster);
-	mp->m_cluster_align = xfs_ialloc_cluster_alignment(mp);
-	mp->m_cluster_align_inodes = XFS_FSB_TO_INO(mp, mp->m_cluster_align);
+	igeo->blocks_per_cluster = xfs_icluster_size_fsb(mp);
+	igeo->inodes_per_cluster = XFS_FSB_TO_INO(mp,
+			igeo->blocks_per_cluster);
+	igeo->cluster_align = xfs_ialloc_cluster_alignment(mp);
+	igeo->cluster_align_inodes = XFS_FSB_TO_INO(mp,
+			igeo->cluster_align);
 
 	/*
 	 * If enabled, sparse inode chunk alignment is expected to match the
@@ -817,11 +822,11 @@ xfs_mountfs(
 	 */
 	if (xfs_sb_version_hassparseinodes(&mp->m_sb) &&
 	    mp->m_sb.sb_spino_align !=
-			XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size)) {
+			XFS_B_TO_FSBT(mp, igeo->inode_cluster_size)) {
 		xfs_warn(mp,
 	"Sparse inode block alignment (%u) must match cluster size (%llu).",
 			 mp->m_sb.sb_spino_align,
-			 XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size));
+			 XFS_B_TO_FSBT(mp, igeo->inode_cluster_size));
 		error = -EINVAL;
 		goto out_remove_uuid;
 	}
