@@ -367,20 +367,7 @@ restart:
 	 * lock above.  Eventually we should look into a way to avoid
 	 * the pointless lock roundtrip.
 	 */
-	if (likely(!(file->f_mode & FMODE_NOCMTIME))) {
-		error = file_update_time(file);
-		if (error)
-			return error;
-	}
-
-	/*
-	 * If we're writing the file then make sure to clear the setuid and
-	 * setgid bits if the process is not being run by root.  This keeps
-	 * people from modifying setuid and setgid binaries.
-	 */
-	if (!IS_NOSEC(inode))
-		return file_remove_privs(file);
-	return 0;
+	return file_modified(file);
 }
 
 static int
