@@ -6,6 +6,7 @@
 
 #include <linux/ceph/cls_lock_client.h>
 #include <linux/ceph/decode.h>
+#include <linux/ceph/libceph.h>
 
 /**
  * ceph_cls_lock - grab rados lock for object
@@ -378,3 +379,47 @@ int ceph_cls_lock_info(struct ceph_osd_client *osdc,
 	return ret;
 }
 EXPORT_SYMBOL(ceph_cls_lock_info);
+
+int ceph_cls_assert_locked(struct ceph_osd_request *req, int which,
+			   char *lock_name, u8 type, char *cookie, char *tag)
+{
+	int assert_op_buf_size;
+	int name_len = strlen(lock_name);
+	int cookie_len = strlen(cookie);
+	int tag_len = strlen(tag);
+	struct page **pages;
+	void *p, *end;
+	int ret;
+
+	assert_op_buf_size = name_len + sizeof(__le32) +
+			     cookie_len + sizeof(__le32) +
+			     tag_len + sizeof(__le32) +
+			     sizeof(u8) + CEPH_ENCODING_START_BLK_LEN;
+	if (assert_op_buf_size > PAGE_SIZE)
+		return -E2BIG;
+
+	ret = osd_req_op_cls_init(req, which, "lock", "assert_locked");
+	if (ret)
+		return ret;
+
+	pages = ceph_alloc_page_vector(1, GFP_NOIO);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	p = page_address(pages[0]);
+	end = p + assert_op_buf_size;
+
+	/* encode cls_lock_assert_op struct */
+	ceph_start_encoding(&p, 1, 1,
+			    assert_op_buf_size - CEPH_ENCODING_START_BLK_LEN);
+	ceph_encode_string(&p, end, lock_name, name_len);
+	ceph_encode_8(&p, type);
+	ceph_encode_string(&p, end, cookie, cookie_len);
+	ceph_encode_string(&p, end, tag, tag_len);
+	WARN_ON(p != end);
+
+	osd_req_op_cls_request_data_pages(req, which, pages, assert_op_buf_size,
+					  0, false, true);
+	return 0;
+}
+EXPORT_SYMBOL(ceph_cls_assert_locked);
