@@ -21,6 +21,10 @@
 #define CLONE_PIDFD 0x00001000
 #endif
 
+#ifndef __NR_pidfd_send_signal
+#define __NR_pidfd_send_signal -1
+#endif
+
 static int do_child(void *args)
 {
 	printf("%d\n", getpid());
