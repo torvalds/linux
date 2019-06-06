@@ -728,8 +728,10 @@ static int mipidphy_g_mbus_config(struct v4l2_subdev *sd,
 	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
 	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sensor_sd);
 
-	mipidphy_update_sensor_mbus(sd);
-	*config = sensor->mbus;
+	if (sensor_sd) {
+		mipidphy_update_sensor_mbus(sd);
+		*config = sensor->mbus;
+	}
 
 	return 0;
 }
