@@ -745,7 +745,7 @@ struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkcg_gq *blkg,
 	struct blkcg_gq *pos_blkg;
 	struct cgroup_subsys_state *pos_css;
 	struct blkg_rwstat sum = { };
-	int i;
+	unsigned int i;
 
 	lockdep_assert_held(&blkg->q->queue_lock);
 
@@ -762,8 +762,7 @@ struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkcg_gq *blkg,
 			rwstat = (void *)pos_blkg + off;
 
 		for (i = 0; i < BLKG_RWSTAT_NR; i++)
-			atomic64_add(atomic64_read(&rwstat->aux_cnt[i]) +
-				percpu_counter_sum_positive(&rwstat->cpu_cnt[i]),
+			atomic64_add(blkg_rwstat_read_counter(rwstat, i),
 				&sum.aux_cnt[i]);
 	}
 	rcu_read_unlock();
