@@ -30,7 +30,7 @@ static inline bool on_stack(struct stack_info *info,
 		return false;
 	if (addr + len < addr)
 		return false;
-	return addr >= info->begin && addr + len < info->end;
+	return addr >= info->begin && addr + len <= info->end;
 }
 
 static inline unsigned long get_stack_pointer(struct task_struct *task,
