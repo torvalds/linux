@@ -1118,37 +1118,12 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static int iwl_mvm_enter_d0i3_sync(struct iwl_mvm *mvm)
-{
-	struct iwl_notification_wait wait_d3;
-	static const u16 d3_notif[] = { D3_CONFIG_CMD };
-	int ret;
-
-	iwl_init_notification_wait(&mvm->notif_wait, &wait_d3,
-				   d3_notif, ARRAY_SIZE(d3_notif),
-				   NULL, NULL);
-
-	ret = iwl_mvm_enter_d0i3(mvm->hw->priv);
-	if (ret)
-		goto remove_notif;
-
-	ret = iwl_wait_notification(&mvm->notif_wait, &wait_d3, HZ);
-	WARN_ON_ONCE(ret);
-	return ret;
-
-remove_notif:
-	iwl_remove_notification(&mvm->notif_wait, &wait_d3);
-	return ret;
-}
-
 int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_trans *trans = mvm->trans;
 	int ret;
 
-	/* make sure the d0i3 exit work is not pending */
-	flush_work(&mvm->d0i3_exit_work);
 	iwl_mvm_pause_tcm(mvm, true);
 
 	iwl_fw_runtime_suspend(&mvm->fwrt);
@@ -1156,25 +1131,6 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	ret = iwl_trans_suspend(trans);
 	if (ret)
 		return ret;
-
-	if (wowlan->any) {
-		trans->system_pm_mode = IWL_PLAT_PM_MODE_D0I3;
-
-		if (iwl_mvm_enter_d0i3_on_suspend(mvm)) {
-			ret = iwl_mvm_enter_d0i3_sync(mvm);
-
-			if (ret)
-				return ret;
-		}
-
-		mutex_lock(&mvm->d0i3_suspend_mutex);
-		__set_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
-		mutex_unlock(&mvm->d0i3_suspend_mutex);
-
-		iwl_trans_d3_suspend(trans, false, false);
-
-		return 0;
-	}
 
 	trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
 
@@ -1751,30 +1707,6 @@ out_unlock:
 	return false;
 }
 
-void iwl_mvm_d0i3_update_keys(struct iwl_mvm *mvm,
-			      struct ieee80211_vif *vif,
-			      struct iwl_wowlan_status *status)
-{
-	struct iwl_mvm_d3_gtk_iter_data gtkdata = {
-		.mvm = mvm,
-		.status = status,
-	};
-
-	/*
-	 * rekey handling requires taking locks that can't be taken now.
-	 * however, d0i3 doesn't offload rekey, so we're fine.
-	 */
-	if (WARN_ON_ONCE(status->num_of_gtk_rekeys))
-		return;
-
-	/* find last GTK that we used initially, if any */
-	gtkdata.find_phase = true;
-	iwl_mvm_iter_d0i3_ap_keys(mvm, vif, iwl_mvm_d3_update_keys, &gtkdata);
-
-	gtkdata.find_phase = false;
-	iwl_mvm_iter_d0i3_ap_keys(mvm, vif, iwl_mvm_d3_update_keys, &gtkdata);
-}
-
 #define ND_QUERY_BUF_LEN (sizeof(struct iwl_scan_offload_profile_match) * \
 			  IWL_SCAN_MAX_PROFILES)
 
@@ -2125,53 +2057,12 @@ static int iwl_mvm_resume_d3(struct iwl_mvm *mvm)
 	return __iwl_mvm_resume(mvm, false);
 }
 
-static int iwl_mvm_resume_d0i3(struct iwl_mvm *mvm)
-{
-	bool exit_now;
-	enum iwl_d3_status d3_status;
-	struct iwl_trans *trans = mvm->trans;
-
-	iwl_trans_d3_resume(trans, &d3_status, false, false);
-
-	/*
-	 * make sure to clear D0I3_DEFER_WAKEUP before
-	 * calling iwl_trans_resume(), which might wait
-	 * for d0i3 exit completion.
-	 */
-	mutex_lock(&mvm->d0i3_suspend_mutex);
-	__clear_bit(D0I3_DEFER_WAKEUP, &mvm->d0i3_suspend_flags);
-	exit_now = __test_and_clear_bit(D0I3_PENDING_WAKEUP,
-					&mvm->d0i3_suspend_flags);
-	mutex_unlock(&mvm->d0i3_suspend_mutex);
-	if (exit_now) {
-		IWL_DEBUG_RPM(mvm, "Run deferred d0i3 exit\n");
-		_iwl_mvm_exit_d0i3(mvm);
-	}
-
-	iwl_trans_resume(trans);
-
-	if (iwl_mvm_enter_d0i3_on_suspend(mvm)) {
-		int ret = iwl_mvm_exit_d0i3(mvm->hw->priv);
-
-		if (ret)
-			return ret;
-		/*
-		 * d0i3 exit will be deferred until reconfig_complete.
-		 * make sure there we are out of d0i3.
-		 */
-	}
-	return 0;
-}
-
 int iwl_mvm_resume(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	int ret;
 
-	if (mvm->trans->system_pm_mode == IWL_PLAT_PM_MODE_D0I3)
-		ret = iwl_mvm_resume_d0i3(mvm);
-	else
-		ret = iwl_mvm_resume_d3(mvm);
+	ret = iwl_mvm_resume_d3(mvm);
 
 	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 

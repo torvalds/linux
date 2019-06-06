@@ -1017,12 +1017,7 @@ struct iwl_mvm {
 
 	/* d0i3 */
 	u8 d0i3_ap_sta_id;
-	bool d0i3_offloading;
-	struct work_struct d0i3_exit_work;
-	/* protect d0i3_suspend_flags */
-	struct mutex d0i3_suspend_mutex;
-	unsigned long d0i3_suspend_flags;
-	wait_queue_head_t d0i3_exit_waitq;
+
 	wait_queue_head_t rx_sync_waitq;
 
 	/* BT-Coex */
@@ -1288,19 +1283,6 @@ static inline bool iwl_mvm_is_short_beacon_notif_supported(struct iwl_mvm *mvm)
 {
 	return fw_has_api(&mvm->fw->ucode_capa,
 			  IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF);
-}
-
-static inline bool iwl_mvm_enter_d0i3_on_suspend(struct iwl_mvm *mvm)
-{
-	/* For now we only use this mode to differentiate between
-	 * slave transports, which handle D0i3 entry in suspend by
-	 * themselves in conjunction with runtime PM D0i3.  So, this
-	 * function is used to check whether we need to do anything
-	 * when entering suspend or if the transport layer has already
-	 * done it.
-	 */
-	return (mvm->trans->system_pm_mode == IWL_PLAT_PM_MODE_D0I3) &&
-		(mvm->trans->runtime_pm_mode != IWL_PLAT_PM_MODE_D0I3);
 }
 
 static inline bool iwl_mvm_is_dqa_data_queue(struct iwl_mvm *mvm, u8 queue)
@@ -1824,9 +1806,6 @@ int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 				     struct ieee80211_vif *vif,
 				     bool host_awake,
 				     u32 cmd_flags);
-void iwl_mvm_d0i3_update_keys(struct iwl_mvm *mvm,
-			      struct ieee80211_vif *vif,
-			      struct iwl_wowlan_status *status);
 void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);
 #else
@@ -1836,12 +1815,6 @@ static inline int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 						   u32 cmd_flags)
 {
 	return 0;
-}
-
-static inline void iwl_mvm_d0i3_update_keys(struct iwl_mvm *mvm,
-					    struct ieee80211_vif *vif,
-					    struct iwl_wowlan_status *status)
-{
 }
 
 static inline void
@@ -1856,12 +1829,6 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 			       bool disable_offloading,
 			       bool offload_ns,
 			       u32 cmd_flags);
-
-#ifdef CONFIG_PM
-int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode);
-int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode);
-int _iwl_mvm_exit_d0i3(struct iwl_mvm *mvm);
-#endif
 
 /* BT Coex */
 int iwl_mvm_send_bt_init_conf(struct iwl_mvm *mvm);
