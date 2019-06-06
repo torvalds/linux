@@ -1152,7 +1152,7 @@ static int blk_cloned_rq_check_limits(struct request_queue *q,
 	 * Recalculate it to check the request correctly on this queue's
 	 * limitation.
 	 */
-	blk_recalc_rq_segments(rq);
+	rq->nr_phys_segments = blk_recalc_rq_segments(rq);
 	if (rq->nr_phys_segments > queue_max_segments(q)) {
 		printk(KERN_ERR "%s: over max segments limit. (%hu > %hu)\n",
 			__func__, rq->nr_phys_segments, queue_max_segments(q));
@@ -1421,7 +1421,7 @@ bool blk_update_request(struct request *req, blk_status_t error,
 		}
 
 		/* recalculate the number of segments */
-		blk_recalc_rq_segments(req);
+		req->nr_phys_segments = blk_recalc_rq_segments(req);
 	}
 
 	return true;

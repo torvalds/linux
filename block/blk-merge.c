@@ -310,17 +310,16 @@ void blk_queue_split(struct request_queue *q, struct bio **bio)
 }
 EXPORT_SYMBOL(blk_queue_split);
 
-static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
-					     struct bio *bio)
+unsigned int blk_recalc_rq_segments(struct request *rq)
 {
 	unsigned int nr_phys_segs = 0;
-	struct bvec_iter iter;
+	struct req_iterator iter;
 	struct bio_vec bv;
 
-	if (!bio)
+	if (!rq->bio)
 		return 0;
 
-	switch (bio_op(bio)) {
+	switch (bio_op(rq->bio)) {
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
 	case REQ_OP_WRITE_ZEROES:
@@ -329,17 +328,9 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 		return 1;
 	}
 
-	for_each_bio(bio) {
-		bio_for_each_bvec(bv, bio, iter)
-			bvec_split_segs(q, &bv, &nr_phys_segs, NULL, UINT_MAX);
-	}
-
+	rq_for_each_bvec(bv, rq, iter)
+		bvec_split_segs(rq->q, &bv, &nr_phys_segs, NULL, UINT_MAX);
 	return nr_phys_segs;
-}
-
-void blk_recalc_rq_segments(struct request *rq)
-{
-	rq->nr_phys_segments = __blk_recalc_rq_segments(rq->q, rq->bio);
 }
 
 static inline struct scatterlist *blk_next_sg(struct scatterlist **sg,
