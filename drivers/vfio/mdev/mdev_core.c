@@ -102,55 +102,10 @@ static void mdev_put_parent(struct mdev_parent *parent)
 		kref_put(&parent->ref, mdev_release_parent);
 }
 
-static int mdev_device_create_ops(struct kobject *kobj,
-				  struct mdev_device *mdev)
-{
-	struct mdev_parent *parent = mdev->parent;
-	int ret;
-
-	ret = parent->ops->create(kobj, mdev);
-	if (ret)
-		return ret;
-
-	ret = sysfs_create_groups(&mdev->dev.kobj,
-				  parent->ops->mdev_attr_groups);
-	if (ret)
-		parent->ops->remove(mdev);
-
-	return ret;
-}
-
-/*
- * mdev_device_remove_ops gets called from sysfs's 'remove' and when parent
- * device is being unregistered from mdev device framework.
- * - 'force_remove' is set to 'false' when called from sysfs's 'remove' which
- *   indicates that if the mdev device is active, used by VMM or userspace
- *   application, vendor driver could return error then don't remove the device.
- * - 'force_remove' is set to 'true' when called from mdev_unregister_device()
- *   which indicate that parent device is being removed from mdev device
- *   framework so remove mdev device forcefully.
- */
-static int mdev_device_remove_ops(struct mdev_device *mdev, bool force_remove)
-{
-	struct mdev_parent *parent = mdev->parent;
-	int ret;
-
-	/*
-	 * Vendor driver can return error if VMM or userspace application is
-	 * using this mdev device.
-	 */
-	ret = parent->ops->remove(mdev);
-	if (ret && !force_remove)
-		return ret;
-
-	sysfs_remove_groups(&mdev->dev.kobj, parent->ops->mdev_attr_groups);
-	return 0;
-}
-
 static int mdev_device_remove_cb(struct device *dev, void *data)
 {
 	if (dev_is_mdev(dev))
-		mdev_device_remove(dev, true);
+		mdev_device_remove(dev);
 
 	return 0;
 }
@@ -310,41 +265,43 @@ int mdev_device_create(struct kobject *kobj,
 
 	mdev->parent = parent;
 
+	device_initialize(&mdev->dev);
 	mdev->dev.parent  = dev;
 	mdev->dev.bus     = &mdev_bus_type;
 	mdev->dev.release = mdev_device_release;
 	dev_set_name(&mdev->dev, "%pUl", uuid);
+	mdev->dev.groups = parent->ops->mdev_attr_groups;
+	mdev->type_kobj = kobj;
 
-	ret = device_register(&mdev->dev);
-	if (ret) {
-		put_device(&mdev->dev);
-		goto mdev_fail;
-	}
-
-	ret = mdev_device_create_ops(kobj, mdev);
+	ret = parent->ops->create(kobj, mdev);
 	if (ret)
-		goto create_fail;
+		goto ops_create_fail;
+
+	ret = device_add(&mdev->dev);
+	if (ret)
+		goto add_fail;
 
 	ret = mdev_create_sysfs_files(&mdev->dev, type);
-	if (ret) {
-		mdev_device_remove_ops(mdev, true);
-		goto create_fail;
-	}
+	if (ret)
+		goto sysfs_fail;
 
-	mdev->type_kobj = kobj;
 	mdev->active = true;
 	dev_dbg(&mdev->dev, "MDEV: created\n");
 
 	return 0;
 
-create_fail:
-	device_unregister(&mdev->dev);
+sysfs_fail:
+	device_del(&mdev->dev);
+add_fail:
+	parent->ops->remove(mdev);
+ops_create_fail:
+	put_device(&mdev->dev);
 mdev_fail:
 	mdev_put_parent(parent);
 	return ret;
 }
 
-int mdev_device_remove(struct device *dev, bool force_remove)
+int mdev_device_remove(struct device *dev)
 {
 	struct mdev_device *mdev, *tmp;
 	struct mdev_parent *parent;
@@ -373,16 +330,15 @@ int mdev_device_remove(struct device *dev, bool force_remove)
 	mutex_unlock(&mdev_list_lock);
 
 	type = to_mdev_type(mdev->type_kobj);
-	parent = mdev->parent;
-
-	ret = mdev_device_remove_ops(mdev, force_remove);
-	if (ret) {
-		mdev->active = true;
-		return ret;
-	}
-
 	mdev_remove_sysfs_files(dev, type);
-	device_unregister(dev);
+	device_del(&mdev->dev);
+	parent = mdev->parent;
+	ret = parent->ops->remove(mdev);
+	if (ret)
+		dev_err(&mdev->dev, "Remove failed: err=%d\n", ret);
+
+	/* Balances with device_initialize() */
+	put_device(&mdev->dev);
 	mdev_put_parent(parent);
 
 	return 0;
