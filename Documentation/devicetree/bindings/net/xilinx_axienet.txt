@@ -31,6 +31,11 @@ Optional properties:
 		  1 to enable partial TX checksum offload,
 		  2 to enable full TX checksum offload
 - xlnx,rxcsum	: Same values as xlnx,txcsum but for RX checksum offload
+- clocks	: AXI bus clock for the device. Refer to common clock bindings.
+		  Used to calculate MDIO clock divisor. If not specified, it is
+		  auto-detected from the CPU clock (but only on platforms where
+		  this is possible). New device trees should specify this - the
+		  auto detection is only for backward compatibility.
 
 Example:
 	axi_ethernet_eth: ethernet@40c00000 {
@@ -38,6 +43,7 @@ Example:
 		device_type = "network";
 		interrupt-parent = <&microblaze_0_axi_intc>;
 		interrupts = <2 0>;
+		clocks = <&axi_clk>;
 		phy-mode = "mii";
 		reg = <0x40c00000 0x40000>;
 		xlnx,rxcsum = <0x2>;

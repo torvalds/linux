@@ -21,6 +21,7 @@
  *  - Add support for extended VLAN support.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/module.h>
@@ -1611,9 +1612,24 @@ static int axienet_probe(struct platform_device *pdev)
 
 	lp->phy_node = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
 	if (lp->phy_node) {
-		ret = axienet_mdio_setup(lp, pdev->dev.of_node);
+		lp->clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(lp->clk)) {
+			dev_warn(&pdev->dev, "Failed to get clock: %ld\n",
+				 PTR_ERR(lp->clk));
+			lp->clk = NULL;
+		} else {
+			ret = clk_prepare_enable(lp->clk);
+			if (ret) {
+				dev_err(&pdev->dev, "Unable to enable clock: %d\n",
+					ret);
+				goto free_netdev;
+			}
+		}
+
+		ret = axienet_mdio_setup(lp);
 		if (ret)
-			dev_warn(&pdev->dev, "error registering MDIO bus\n");
+			dev_warn(&pdev->dev,
+				 "error registering MDIO bus: %d\n", ret);
 	}
 
 	ret = register_netdev(lp->ndev);
@@ -1637,6 +1653,9 @@ static int axienet_remove(struct platform_device *pdev)
 
 	axienet_mdio_teardown(lp);
 	unregister_netdev(ndev);
+
+	if (lp->clk)
+		clk_disable_unprepare(lp->clk);
 
 	of_node_put(lp->phy_node);
 	lp->phy_node = NULL;

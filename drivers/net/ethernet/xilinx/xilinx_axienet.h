@@ -418,6 +418,9 @@ struct axienet_local {
 	/* Connection to PHY device */
 	struct device_node *phy_node;
 
+	/* Clock for AXI bus */
+	struct clk *clk;
+
 	/* MDIO bus data */
 	struct mii_bus *mii_bus;	/* MII bus reference */
 
@@ -502,7 +505,7 @@ static inline void axienet_iow(struct axienet_local *lp, off_t offset,
 }
 
 /* Function prototypes visible in xilinx_axienet_mdio.c for other files */
-int axienet_mdio_setup(struct axienet_local *lp, struct device_node *np);
+int axienet_mdio_setup(struct axienet_local *lp);
 int axienet_mdio_wait_until_ready(struct axienet_local *lp);
 void axienet_mdio_teardown(struct axienet_local *lp);
 
