@@ -16,6 +16,7 @@ algorithms work.
 .. toctree::
    :maxdepth: 2
 
+   vfs
    path-lookup.rst
    api-summary
    splice
