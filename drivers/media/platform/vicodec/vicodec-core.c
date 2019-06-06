@@ -1799,8 +1799,10 @@ static int vicodec_open(struct file *file)
 	raw_size = 1280 * 720 * info->sizeimage_mult / info->sizeimage_div;
 	comp_size = 1280 * 720 * pixfmt_fwht.sizeimage_mult /
 				 pixfmt_fwht.sizeimage_div;
-	if (ctx->is_enc || ctx->is_stateless)
+	if (ctx->is_enc)
 		ctx->q_data[V4L2_M2M_SRC].sizeimage = raw_size;
+	else if (ctx->is_stateless)
+		ctx->q_data[V4L2_M2M_SRC].sizeimage = comp_size;
 	else
 		ctx->q_data[V4L2_M2M_SRC].sizeimage =
 			comp_size + sizeof(struct fwht_cframe_hdr);
