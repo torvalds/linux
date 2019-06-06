@@ -97,16 +97,10 @@ static void compose_cursor(struct vkms_crc_data *cursor_crc,
 	cursor_obj = drm_gem_fb_get_obj(&cursor_crc->fb, 0);
 	cursor_vkms_obj = drm_gem_to_vkms_gem(cursor_obj);
 
-	mutex_lock(&cursor_vkms_obj->pages_lock);
-	if (!cursor_vkms_obj->vaddr) {
-		DRM_WARN("cursor plane vaddr is NULL");
-		goto out;
-	}
+	if (WARN_ON(!cursor_vkms_obj->vaddr))
+		return;
 
 	blend(vaddr_out, cursor_vkms_obj->vaddr, primary_crc, cursor_crc);
-
-out:
-	mutex_unlock(&cursor_vkms_obj->pages_lock);
 }
 
 static uint32_t _vkms_get_crc(struct vkms_crc_data *primary_crc,
@@ -123,15 +117,12 @@ static uint32_t _vkms_get_crc(struct vkms_crc_data *primary_crc,
 		return 0;
 	}
 
-	mutex_lock(&vkms_obj->pages_lock);
 	if (WARN_ON(!vkms_obj->vaddr)) {
-		mutex_unlock(&vkms_obj->pages_lock);
 		kfree(vaddr_out);
 		return crc;
 	}
 
 	memcpy(vaddr_out, vkms_obj->vaddr, vkms_obj->gem.size);
-	mutex_unlock(&vkms_obj->pages_lock);
 
 	if (cursor_crc)
 		compose_cursor(cursor_crc, primary_crc, vaddr_out);
