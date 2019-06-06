@@ -1720,6 +1720,10 @@ try_again:
 		sin->sin_addr.s_addr = ip_hdr(skb)->saddr;
 		memset(sin->sin_zero, 0, sizeof(sin->sin_zero));
 		*addr_len = sizeof(*sin);
+
+		if (cgroup_bpf_enabled)
+			BPF_CGROUP_RUN_PROG_UDP4_RECVMSG_LOCK(sk,
+							(struct sockaddr *)sin);
 	}
 	if (inet->cmsg_flags)
 		ip_cmsg_recv_offset(msg, sk, skb, sizeof(struct udphdr), off);
