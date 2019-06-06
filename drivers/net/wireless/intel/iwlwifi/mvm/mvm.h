@@ -1019,12 +1019,9 @@ struct iwl_mvm {
 	u8 d0i3_ap_sta_id;
 	bool d0i3_offloading;
 	struct work_struct d0i3_exit_work;
-	struct sk_buff_head d0i3_tx;
 	/* protect d0i3_suspend_flags */
 	struct mutex d0i3_suspend_mutex;
 	unsigned long d0i3_suspend_flags;
-	/* sync d0i3_tx queue and IWL_MVM_STATUS_IN_D0I3 status flag */
-	spinlock_t d0i3_tx_lock;
 	wait_queue_head_t d0i3_exit_waitq;
 	wait_queue_head_t rx_sync_waitq;
 
@@ -1861,7 +1858,6 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 			       u32 cmd_flags);
 
 #ifdef CONFIG_PM
-void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq);
 int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode);
 int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode);
 int _iwl_mvm_exit_d0i3(struct iwl_mvm *mvm);

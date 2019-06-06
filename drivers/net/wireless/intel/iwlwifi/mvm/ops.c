@@ -713,8 +713,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_WORK(&mvm->add_stream_wk, iwl_mvm_add_new_dqa_stream_wk);
 	INIT_LIST_HEAD(&mvm->add_stream_txqs);
 
-	spin_lock_init(&mvm->d0i3_tx_lock);
-	skb_queue_head_init(&mvm->d0i3_tx);
 	init_waitqueue_head(&mvm->d0i3_exit_waitq);
 	init_waitqueue_head(&mvm->rx_sync_waitq);
 
@@ -1590,62 +1588,6 @@ static void iwl_mvm_d0i3_exit_work_iter(void *_data, u8 *mac,
 		iwl_mvm_d0i3_update_keys(data->mvm, vif, data->status);
 }
 
-void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq)
-{
-	struct ieee80211_sta *sta = NULL;
-	struct iwl_mvm_sta *mvm_ap_sta;
-	int i;
-	bool wake_queues = false;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	spin_lock_bh(&mvm->d0i3_tx_lock);
-
-	if (mvm->d0i3_ap_sta_id == IWL_MVM_INVALID_STA)
-		goto out;
-
-	IWL_DEBUG_RPM(mvm, "re-enqueue packets\n");
-
-	/* get the sta in order to update seq numbers and re-enqueue skbs */
-	sta = rcu_dereference_protected(
-			mvm->fw_id_to_mac_id[mvm->d0i3_ap_sta_id],
-			lockdep_is_held(&mvm->mutex));
-
-	if (IS_ERR_OR_NULL(sta)) {
-		sta = NULL;
-		goto out;
-	}
-
-	if (mvm->d0i3_offloading && qos_seq) {
-		/* update qos seq numbers if offloading was enabled */
-		mvm_ap_sta = iwl_mvm_sta_from_mac80211(sta);
-		for (i = 0; i < IWL_MAX_TID_COUNT; i++) {
-			u16 seq = le16_to_cpu(qos_seq[i]);
-			/* firmware stores last-used one, we store next one */
-			seq += 0x10;
-			mvm_ap_sta->tid_data[i].seq_number = seq;
-		}
-	}
-out:
-	/* re-enqueue (or drop) all packets */
-	while (!skb_queue_empty(&mvm->d0i3_tx)) {
-		struct sk_buff *skb = __skb_dequeue(&mvm->d0i3_tx);
-
-		if (!sta || iwl_mvm_tx_skb(mvm, skb, sta))
-			ieee80211_free_txskb(mvm->hw, skb);
-
-		/* if the skb_queue is not empty, we need to wake queues */
-		wake_queues = true;
-	}
-	clear_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
-	wake_up(&mvm->d0i3_exit_waitq);
-	mvm->d0i3_ap_sta_id = IWL_MVM_INVALID_STA;
-	if (wake_queues)
-		ieee80211_wake_queues(mvm->hw);
-
-	spin_unlock_bh(&mvm->d0i3_tx_lock);
-}
-
 static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 {
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, d0i3_exit_work);
@@ -1655,7 +1597,6 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 
 	struct iwl_wowlan_status *status;
 	u32 wakeup_reasons = 0;
-	__le16 *qos_seq = NULL;
 
 	mutex_lock(&mvm->mutex);
 
@@ -1667,7 +1608,6 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 	}
 
 	wakeup_reasons = le32_to_cpu(status->wakeup_reasons);
-	qos_seq = status->qos_seq_ctr;
 
 	IWL_DEBUG_RPM(mvm, "wakeup reasons: 0x%x\n", wakeup_reasons);
 
@@ -1678,12 +1618,9 @@ static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 					    iwl_mvm_d0i3_exit_work_iter,
 					    &iter_data);
 out:
-	iwl_mvm_d0i3_enable_tx(mvm, qos_seq);
-
 	IWL_DEBUG_INFO(mvm, "d0i3 exit completed (wakeup reasons: 0x%x)\n",
 		       wakeup_reasons);
 
-	/* qos_seq might point inside resp_pkt, so free it only now */
 	kfree(status);
 
 	/* the FW might have updated the regdomain */

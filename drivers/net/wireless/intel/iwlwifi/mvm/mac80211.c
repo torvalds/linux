@@ -742,42 +742,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	return ret;
 }
 
-static bool iwl_mvm_defer_tx(struct iwl_mvm *mvm,
-			     struct ieee80211_sta *sta,
-			     struct sk_buff *skb)
-{
-	struct iwl_mvm_sta *mvmsta;
-	bool defer = false;
-
-	/*
-	 * double check the IN_D0I3 flag both before and after
-	 * taking the spinlock, in order to prevent taking
-	 * the spinlock when not needed.
-	 */
-	if (likely(!test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status)))
-		return false;
-
-	spin_lock(&mvm->d0i3_tx_lock);
-	/*
-	 * testing the flag again ensures the skb dequeue
-	 * loop (on d0i3 exit) hasn't run yet.
-	 */
-	if (!test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status))
-		goto out;
-
-	mvmsta = iwl_mvm_sta_from_mac80211(sta);
-	if (mvmsta->sta_id == IWL_MVM_INVALID_STA ||
-	    mvmsta->sta_id != mvm->d0i3_ap_sta_id)
-		goto out;
-
-	__skb_queue_tail(&mvm->d0i3_tx, skb);
-
-	defer = true;
-out:
-	spin_unlock(&mvm->d0i3_tx_lock);
-	return defer;
-}
-
 static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 			   struct ieee80211_tx_control *control,
 			   struct sk_buff *skb)
@@ -822,8 +786,6 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 	}
 
 	if (sta) {
-		if (iwl_mvm_defer_tx(mvm, sta, skb))
-			return;
 		if (iwl_mvm_tx_skb(mvm, skb, sta))
 			goto drop;
 		return;
@@ -1156,9 +1118,6 @@ int __iwl_mvm_mac_start(struct iwl_mvm *mvm)
 		 * would do.
 		 */
 		clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
-#ifdef CONFIG_PM
-		iwl_mvm_d0i3_enable_tx(mvm, NULL);
-#endif
 	}
 
 	return ret;
@@ -1196,9 +1155,7 @@ static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 	mutex_lock(&mvm->mutex);
 
 	clear_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
-#ifdef CONFIG_PM
-	iwl_mvm_d0i3_enable_tx(mvm, NULL);
-#endif
+
 	ret = iwl_mvm_update_quotas(mvm, true, NULL);
 	if (ret)
 		IWL_ERR(mvm, "Failed to update quotas after restart (%d)\n",
