@@ -202,17 +202,3 @@ int iwl_cmd_groups_verify_sorted(const struct iwl_trans_config *trans)
 	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_cmd_groups_verify_sorted);
-
-void iwl_trans_ref(struct iwl_trans *trans)
-{
-	if (trans->ops->ref)
-		trans->ops->ref(trans);
-}
-IWL_EXPORT_SYMBOL(iwl_trans_ref);
-
-void iwl_trans_unref(struct iwl_trans *trans)
-{
-	if (trans->ops->unref)
-		trans->ops->unref(trans);
-}
-IWL_EXPORT_SYMBOL(iwl_trans_unref);

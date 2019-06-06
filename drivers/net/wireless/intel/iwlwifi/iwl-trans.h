@@ -531,11 +531,6 @@ struct iwl_trans_rxq_dma_data {
  * @release_nic_access: let the NIC go to sleep. The "flags" parameter
  *	must be the same one that was sent before to the grab_nic_access.
  * @set_bits_mask - set SRAM register according to value and mask.
- * @ref: grab a reference to the transport/FW layers, disallowing
- *	certain low power states
- * @unref: release a reference previously taken with @ref. Note that
- *	initially the reference count is 1, making an initial @unref
- *	necessary to allow low power states.
  * @dump_data: return a vmalloc'ed buffer with debug data, maybe containing last
  *	TX'ed commands and similar. The buffer will be vfree'd by the caller.
  *	Note that the transport must fill in the proper file headers.
@@ -605,8 +600,6 @@ struct iwl_trans_ops {
 				   unsigned long *flags);
 	void (*set_bits_mask)(struct iwl_trans *trans, u32 reg, u32 mask,
 			      u32 value);
-	void (*ref)(struct iwl_trans *trans);
-	void (*unref)(struct iwl_trans *trans);
 	int  (*suspend)(struct iwl_trans *trans);
 	void (*resume)(struct iwl_trans *trans);
 
@@ -1254,8 +1247,6 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 				  const struct iwl_cfg *cfg,
 				  const struct iwl_trans_ops *ops);
 void iwl_trans_free(struct iwl_trans *trans);
-void iwl_trans_ref(struct iwl_trans *trans);
-void iwl_trans_unref(struct iwl_trans *trans);
 
 /*****************************************************
 * driver (transport) register/unregister functions
