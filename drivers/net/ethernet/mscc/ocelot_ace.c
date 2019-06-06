@@ -93,7 +93,7 @@ struct vcap_data {
 	u32 counter_offset; /* Current counter offset */
 	u32 tg_value; /* Current type-group value */
 	u32 tg_mask; /* Current type-group mask */
-} vcap_data_t;
+};
 
 static u32 vcap_s2_read_update_ctrl(struct ocelot *oc)
 {
