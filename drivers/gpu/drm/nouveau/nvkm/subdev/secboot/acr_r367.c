@@ -22,6 +22,7 @@
 
 #include "acr_r367.h"
 #include "acr_r361.h"
+#include "acr_r370.h"
 
 #include <core/gpuobj.h>
 
@@ -381,6 +382,17 @@ acr_r367_fixup_hs_desc(struct acr_r352 *acr, struct nvkm_secboot *sb,
 	}
 }
 
+static const struct acr_r352_ls_func
+acr_r367_ls_sec2_func = {
+	.load = acr_ls_ucode_load_sec2,
+	.post_run = acr_ls_sec2_post_run,
+	.version_max = 1,
+	.version = {
+		&acr_r361_ls_sec2_func_0,
+		&acr_r370_ls_sec2_func_0,
+	}
+};
+
 const struct acr_r352_func
 acr_r367_func = {
 	.fixup_hs_desc = acr_r367_fixup_hs_desc,
@@ -394,7 +406,7 @@ acr_r367_func = {
 		[NVKM_SECBOOT_FALCON_FECS] = &acr_r361_ls_fecs_func,
 		[NVKM_SECBOOT_FALCON_GPCCS] = &acr_r361_ls_gpccs_func,
 		[NVKM_SECBOOT_FALCON_PMU] = &acr_r361_ls_pmu_func,
-		[NVKM_SECBOOT_FALCON_SEC2] = &acr_r361_ls_sec2_func,
+		[NVKM_SECBOOT_FALCON_SEC2] = &acr_r367_ls_sec2_func,
 	},
 };
 

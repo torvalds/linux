@@ -111,7 +111,7 @@ acr_r370_generate_sec2_bl_desc(const struct nvkm_acr *acr,
 	desc->argv = 0x01000000;
 }
 
-static const struct acr_r352_lsf_func
+const struct acr_r352_lsf_func
 acr_r370_ls_sec2_func_0 = {
 	.generate_bl_desc = acr_r370_generate_sec2_bl_desc,
 	.bl_desc_size = sizeof(struct acr_r370_flcn_bl_desc),
