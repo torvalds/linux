@@ -31,6 +31,8 @@
 
 MODULE_FIRMWARE("amdgpu/navi10_mes.bin");
 
+#define MES_EOP_SIZE   2048
+
 static int mes_v10_1_add_hw_queue(struct amdgpu_mes *mes,
 				  struct mes_add_queue_input *input)
 {
@@ -283,6 +285,29 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int mes_v10_1_allocate_eop_buf(struct amdgpu_device *adev)
+{
+	int r;
+	u32 *eop;
+
+	r = amdgpu_bo_create_reserved(adev, MES_EOP_SIZE, PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_GTT,
+				      &adev->mes.eop_gpu_obj,
+				      &adev->mes.eop_gpu_addr,
+				      (void **)&eop);
+	if (r) {
+		dev_warn(adev->dev, "(%d) create EOP bo failed\n", r);
+		return r;
+	}
+
+	memset(eop, 0, adev->mes.eop_gpu_obj->tbo.mem.size);
+
+	amdgpu_bo_kunmap(adev->mes.eop_gpu_obj);
+	amdgpu_bo_unreserve(adev->mes.eop_gpu_obj);
+
+	return 0;
+}
+
 static int mes_v10_1_sw_init(void *handle)
 {
 	int r;
@@ -292,12 +317,20 @@ static int mes_v10_1_sw_init(void *handle)
 	if (r)
 		return r;
 
+	r = mes_v10_1_allocate_eop_buf(adev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
 static int mes_v10_1_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	amdgpu_bo_free_kernel(&adev->mes.eop_gpu_obj,
+			      &adev->mes.eop_gpu_addr,
+			      NULL);
 
 	mes_v10_1_free_microcode(adev);
 
