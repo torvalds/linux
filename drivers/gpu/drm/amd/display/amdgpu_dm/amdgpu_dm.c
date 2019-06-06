@@ -3738,6 +3738,9 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 		state->underscan_vborder = 0;
 		state->base.max_requested_bpc = 8;
 
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+			state->abm_level = amdgpu_dm_abm_level;
+
 		__drm_atomic_helper_connector_reset(connector, &state->base);
 	}
 }
