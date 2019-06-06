@@ -201,11 +201,12 @@ static inline void pfn_array_table_idal_create_words(
 		pa = pat->pat_pa + i;
 		for (j = 0; j < pa->pa_nr; j++) {
 			idaws[k] = pa->pa_pfn[j] << PAGE_SHIFT;
-			if (k == 0)
-				idaws[k] += pa->pa_iova & (PAGE_SIZE - 1);
 			k++;
 		}
 	}
+
+	/* Adjust the first IDAW, since it may not start on a page boundary */
+	idaws[0] += pat->pat_pa->pa_iova & (PAGE_SIZE - 1);
 }
 
 
