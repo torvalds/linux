@@ -90,8 +90,8 @@ ls_ucode_img_build(const struct firmware *bl, const struct firmware *code,
  * blob. Also generate the corresponding ucode descriptor.
  */
 static int
-ls_ucode_img_load_gr(const struct nvkm_subdev *subdev, struct ls_ucode_img *img,
-		     const char *falcon_name)
+ls_ucode_img_load_gr(const struct nvkm_subdev *subdev, int maxver,
+		     struct ls_ucode_img *img, const char *falcon_name)
 {
 	const struct firmware *bl, *code, *data, *sig;
 	char f[64];
@@ -146,13 +146,15 @@ error:
 }
 
 int
-acr_ls_ucode_load_fecs(const struct nvkm_secboot *sb, struct ls_ucode_img *img)
+acr_ls_ucode_load_fecs(const struct nvkm_secboot *sb, int maxver,
+		       struct ls_ucode_img *img)
 {
-	return ls_ucode_img_load_gr(&sb->subdev, img, "fecs");
+	return ls_ucode_img_load_gr(&sb->subdev, maxver, img, "fecs");
 }
 
 int
-acr_ls_ucode_load_gpccs(const struct nvkm_secboot *sb, struct ls_ucode_img *img)
+acr_ls_ucode_load_gpccs(const struct nvkm_secboot *sb, int maxver,
+			struct ls_ucode_img *img)
 {
-	return ls_ucode_img_load_gr(&sb->subdev, img, "gpccs");
+	return ls_ucode_img_load_gr(&sb->subdev, maxver, img, "gpccs");
 }

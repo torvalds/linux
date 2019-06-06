@@ -57,12 +57,14 @@ hsf_load_header_app_size(const struct hsf_load_header *hdr, u32 app)
  * @lhdr_flags: LS flags
  */
 struct acr_r352_ls_func {
-	int (*load)(const struct nvkm_secboot *, struct ls_ucode_img *);
+	int (*load)(const struct nvkm_secboot *, int maxver,
+		    struct ls_ucode_img *);
 	void (*generate_bl_desc)(const struct nvkm_acr *,
 				 const struct ls_ucode_img *, u64, void *);
 	u32 bl_desc_size;
 	int (*post_run)(const struct nvkm_acr *, const struct nvkm_secboot *);
 	u32 lhdr_flags;
+	int version_max;
 };
 
 struct acr_r352;

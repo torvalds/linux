@@ -243,6 +243,7 @@ acr_r352_ls_ucode_img_load(const struct acr_r352 *acr,
 			   enum nvkm_secboot_falcon falcon_id)
 {
 	const struct nvkm_subdev *subdev = acr->base.subdev;
+	const struct acr_r352_ls_func *func = acr->func->ls_func[falcon_id];
 	struct ls_ucode_img_r352 *img;
 	int ret;
 
@@ -252,9 +253,8 @@ acr_r352_ls_ucode_img_load(const struct acr_r352 *acr,
 
 	img->base.falcon_id = falcon_id;
 
-	ret = acr->func->ls_func[falcon_id]->load(sb, &img->base);
-
-	if (ret) {
+	ret = func->load(sb, func->version_max, &img->base);
+	if (ret < 0) {
 		kfree(img->base.ucode_data);
 		kfree(img->base.sig);
 		kfree(img);

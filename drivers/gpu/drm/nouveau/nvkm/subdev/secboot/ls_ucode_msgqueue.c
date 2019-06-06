@@ -39,7 +39,7 @@
  */
 static int
 acr_ls_ucode_load_msgqueue(const struct nvkm_subdev *subdev, const char *name,
-			   struct ls_ucode_img *img)
+			   int maxver, struct ls_ucode_img *img)
 {
 	const struct firmware *image, *desc, *sig;
 	char f[64];
@@ -99,12 +99,13 @@ acr_ls_msgqueue_post_run(struct nvkm_msgqueue *queue,
 }
 
 int
-acr_ls_ucode_load_pmu(const struct nvkm_secboot *sb, struct ls_ucode_img *img)
+acr_ls_ucode_load_pmu(const struct nvkm_secboot *sb, int maxver,
+		      struct ls_ucode_img *img)
 {
 	struct nvkm_pmu *pmu = sb->subdev.device->pmu;
 	int ret;
 
-	ret = acr_ls_ucode_load_msgqueue(&sb->subdev, "pmu", img);
+	ret = acr_ls_ucode_load_msgqueue(&sb->subdev, "pmu", maxver, img);
 	if (ret)
 		return ret;
 
@@ -136,12 +137,13 @@ acr_ls_pmu_post_run(const struct nvkm_acr *acr, const struct nvkm_secboot *sb)
 }
 
 int
-acr_ls_ucode_load_sec2(const struct nvkm_secboot *sb, struct ls_ucode_img *img)
+acr_ls_ucode_load_sec2(const struct nvkm_secboot *sb, int maxver,
+		       struct ls_ucode_img *img)
 {
 	struct nvkm_sec2 *sec = sb->subdev.device->sec2;
 	int ret;
 
-	ret = acr_ls_ucode_load_msgqueue(&sb->subdev, "sec2", img);
+	ret = acr_ls_ucode_load_msgqueue(&sb->subdev, "sec2", maxver, img);
 	if (ret)
 		return ret;
 
