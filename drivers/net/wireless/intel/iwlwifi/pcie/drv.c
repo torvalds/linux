@@ -1314,12 +1314,6 @@ static int iwl_pci_system_prepare(struct device *device)
 
 	IWL_DEBUG_RPM(trans, "preparing for system suspend\n");
 
-	/* This is called before entering system suspend and before
-	 * the runtime resume is called.  Set the suspending flag to
-	 * prevent the wakelock from being taken.
-	 */
-	trans->suspending = true;
-
 	/* Wake the device up from runtime suspend before going to
 	 * platform suspend.  This is needed because we don't know
 	 * whether wowlan any is set and, if it's not, mac80211 will
@@ -1336,14 +1330,6 @@ static void iwl_pci_system_complete(struct device *device)
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 
 	IWL_DEBUG_RPM(trans, "completing system suspend\n");
-
-	/* This is called as a counterpart to the prepare op.  It is
-	 * called either when suspending fails or when suspend
-	 * completed successfully.  Now there's no risk of grabbing
-	 * the wakelock anymore, so we can release the suspending
-	 * flag.
-	 */
-	trans->suspending = false;
 }
 #endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 
