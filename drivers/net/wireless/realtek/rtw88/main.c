@@ -462,15 +462,15 @@ static u8 get_rate_id(u8 wireless_set, enum rtw_bandwidth bw_mode, u8 tx_num)
 
 #define RA_MASK_CCK_RATES	0x0000f
 #define RA_MASK_OFDM_RATES	0x00ff0
-#define RA_MASK_HT_RATES_1SS	(0xff000 << 0)
-#define RA_MASK_HT_RATES_2SS	(0xff000 << 8)
-#define RA_MASK_HT_RATES_3SS	(0xff000 << 16)
+#define RA_MASK_HT_RATES_1SS	(0xff000ULL << 0)
+#define RA_MASK_HT_RATES_2SS	(0xff000ULL << 8)
+#define RA_MASK_HT_RATES_3SS	(0xff000ULL << 16)
 #define RA_MASK_HT_RATES	(RA_MASK_HT_RATES_1SS | \
 				 RA_MASK_HT_RATES_2SS | \
 				 RA_MASK_HT_RATES_3SS)
-#define RA_MASK_VHT_RATES_1SS	(0x3ff000 << 0)
-#define RA_MASK_VHT_RATES_2SS	(0x3ff000 << 10)
-#define RA_MASK_VHT_RATES_3SS	(0x3ff000 << 20)
+#define RA_MASK_VHT_RATES_1SS	(0x3ff000ULL << 0)
+#define RA_MASK_VHT_RATES_2SS	(0x3ff000ULL << 10)
+#define RA_MASK_VHT_RATES_3SS	(0x3ff000ULL << 20)
 #define RA_MASK_VHT_RATES	(RA_MASK_VHT_RATES_1SS | \
 				 RA_MASK_VHT_RATES_2SS | \
 				 RA_MASK_VHT_RATES_3SS)
