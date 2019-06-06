@@ -356,9 +356,6 @@
  * @app2:         MM2S/S2MM User Application Field 2.
  * @app3:         MM2S/S2MM User Application Field 3.
  * @app4:         MM2S/S2MM User Application Field 4.
- * @sw_id_offset: MM2S/S2MM Sw ID
- * @reserved5:    Reserved and not used
- * @reserved6:    Reserved and not used
  */
 struct axidma_bd {
 	u32 next;	/* Physical address of next buffer descriptor */
@@ -373,11 +370,9 @@ struct axidma_bd {
 	u32 app1;	/* TX start << 16 | insert */
 	u32 app2;	/* TX csum seed */
 	u32 app3;
-	u32 app4;
-	u32 sw_id_offset;
-	u32 reserved5;
-	u32 reserved6;
-};
+	u32 app4;   /* Last field used by HW */
+	struct sk_buff *skb;
+} __aligned(XAXIDMA_BD_MINIMUM_ALIGNMENT);
 
 /**
  * struct axienet_local - axienet private per device data
