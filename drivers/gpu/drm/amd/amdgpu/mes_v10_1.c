@@ -271,6 +271,7 @@ static int mes_v10_1_init_microcode(struct amdgpu_device *adev)
 	char fw_name[30];
 	int err;
 	const struct mes_firmware_header_v1_0 *mes_hdr;
+	struct amdgpu_firmware_info *info;
 
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
@@ -305,6 +306,22 @@ static int mes_v10_1_init_microcode(struct amdgpu_device *adev)
 	adev->mes.data_start_addr =
 		le32_to_cpu(mes_hdr->mes_data_start_addr_lo) |
 		((uint64_t)(le32_to_cpu(mes_hdr->mes_data_start_addr_hi)) << 32);
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_CP_MES];
+		info->ucode_id = AMDGPU_UCODE_ID_CP_MES;
+		info->fw = adev->mes.fw;
+		adev->firmware.fw_size +=
+			ALIGN(le32_to_cpu(mes_hdr->mes_ucode_size_bytes),
+			      PAGE_SIZE);
+
+		info = &adev->firmware.ucode[AMDGPU_UCODE_ID_CP_MES_DATA];
+		info->ucode_id = AMDGPU_UCODE_ID_CP_MES_DATA;
+		info->fw = adev->mes.fw;
+		adev->firmware.fw_size +=
+			ALIGN(le32_to_cpu(mes_hdr->mes_ucode_data_size_bytes),
+			      PAGE_SIZE);
+	}
 
 	return 0;
 }
