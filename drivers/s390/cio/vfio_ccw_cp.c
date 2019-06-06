@@ -635,7 +635,6 @@ static int ccwchain_fetch_idal(struct ccwchain *chain,
 {
 	struct ccw1 *ccw;
 	struct pfn_array_table *pat;
-	struct pfn_array *pa;
 	unsigned long *idaws;
 	u64 idaw_iova;
 	unsigned int idaw_nr, idaw_len;
@@ -656,9 +655,13 @@ static int ccwchain_fetch_idal(struct ccwchain *chain,
 
 	/* Pin data page(s) in memory. */
 	pat = chain->ch_pat + idx;
-	ret = pfn_array_table_init(pat, idaw_nr);
+	ret = pfn_array_table_init(pat, 1);
 	if (ret)
 		goto out_init;
+
+	ret = pfn_array_alloc(pat->pat_pa, idaw_iova, bytes);
+	if (ret)
+		goto out_unpin;
 
 	/* Translate idal ccw to use new allocated idaws. */
 	idaws = kzalloc(idaw_len, GFP_DMA | GFP_KERNEL);
@@ -673,22 +676,15 @@ static int ccwchain_fetch_idal(struct ccwchain *chain,
 
 	ccw->cda = virt_to_phys(idaws);
 
-	for (i = 0; i < idaw_nr; i++) {
-		idaw_iova = *(idaws + i);
-		pa = pat->pat_pa + i;
+	for (i = 0; i < idaw_nr; i++)
+		pat->pat_pa->pa_iova_pfn[i] = idaws[i] >> PAGE_SHIFT;
 
-		ret = pfn_array_alloc(pa, idaw_iova, 1);
+	if (ccw_does_data_transfer(ccw)) {
+		ret = pfn_array_pin(pat->pat_pa, cp->mdev);
 		if (ret < 0)
 			goto out_free_idaws;
-
-		if (!ccw_does_data_transfer(ccw)) {
-			pa->pa_nr = 0;
-			continue;
-		}
-
-		ret = pfn_array_pin(pa, cp->mdev);
-		if (ret < 0)
-			goto out_free_idaws;
+	} else {
+		pat->pat_pa->pa_nr = 0;
 	}
 
 	pfn_array_table_idal_create_words(pat, idaws);
