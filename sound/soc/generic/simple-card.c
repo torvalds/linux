@@ -30,8 +30,6 @@ static const struct snd_soc_ops simple_ops = {
 
 static int asoc_simple_parse_dai(struct device_node *node,
 				 struct snd_soc_dai_link_component *dlc,
-				 struct device_node **dai_of_node,
-				 const char **dai_name,
 				 int *is_single_link)
 {
 	struct of_phandle_args args;
@@ -39,17 +37,6 @@ static int asoc_simple_parse_dai(struct device_node *node,
 
 	if (!node)
 		return 0;
-
-	/*
-	 * Use snd_soc_dai_link_component instead of legacy style.
-	 * It is only for codec, but cpu will be supported in the future.
-	 * see
-	 *	soc-core.c :: snd_soc_init_multicodec()
-	 */
-	if (dlc) {
-		dai_name	= &dlc->dai_name;
-		dai_of_node	= &dlc->of_node;
-	}
 
 	/*
 	 * Get node via "sound-dai = <&phandle port>"
@@ -60,13 +47,11 @@ static int asoc_simple_parse_dai(struct device_node *node,
 		return ret;
 
 	/* Get dai->name */
-	if (dai_name) {
-		ret = snd_soc_of_get_dai_name(node, dai_name);
-		if (ret < 0)
-			return ret;
-	}
+	ret = snd_soc_of_get_dai_name(node, &dlc->dai_name);
+	if (ret < 0)
+		return ret;
 
-	*dai_of_node = args.np;
+	dlc->of_node = args.np;
 
 	if (is_single_link)
 		*is_single_link = !args.args_count;
@@ -119,6 +104,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct asoc_simple_dai *dai;
+	struct snd_soc_dai_link_component *cpus = dai_link->cpus;
 	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
 	struct device_node *top = dev->of_node;
 	struct device_node *node = of_get_parent(np);
@@ -169,7 +155,7 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 		ret = asoc_simple_set_dailink_name(dev, dai_link,
 						   "fe.%s",
-						   dai_link->cpu_dai_name);
+						   cpus->dai_name);
 		if (ret < 0)
 			return ret;
 
@@ -178,9 +164,9 @@ static int simple_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		struct snd_soc_codec_conf *cconf;
 
 		/* FE is dummy */
-		dai_link->cpu_of_node		= NULL;
-		dai_link->cpu_dai_name		= "snd-soc-dummy-dai";
-		dai_link->cpu_name		= "snd-soc-dummy";
+		cpus->of_node		= NULL;
+		cpus->dai_name		= "snd-soc-dummy-dai";
+		cpus->name		= "snd-soc-dummy";
 
 		/* BE settings */
 		dai_link->no_pcm		= 1;
@@ -320,7 +306,7 @@ static int simple_dai_link_of(struct asoc_simple_priv *priv,
 
 	ret = asoc_simple_set_dailink_name(dev, dai_link,
 					   "%s-%s",
-					   dai_link->cpu_dai_name,
+					   dai_link->cpus->dai_name,
 					   dai_link->codecs->dai_name);
 	if (ret < 0)
 		goto dai_link_of_err;
@@ -646,6 +632,7 @@ static int asoc_simple_probe(struct platform_device *pdev)
 
 	} else {
 		struct asoc_simple_card_info *cinfo;
+		struct snd_soc_dai_link_component *cpus;
 		struct snd_soc_dai_link_component *codecs;
 		struct snd_soc_dai_link_component *platform;
 		struct snd_soc_dai_link *dai_link = priv->dai_link;
@@ -671,6 +658,9 @@ static int asoc_simple_probe(struct platform_device *pdev)
 		dai_props->cpu_dai	= &priv->dais[dai_idx++];
 		dai_props->codec_dai	= &priv->dais[dai_idx++];
 
+		cpus			= dai_link->cpus;
+		cpus->dai_name		= cinfo->cpu_dai.name;
+
 		codecs			= dai_link->codecs;
 		codecs->name		= cinfo->codec;
 		codecs->dai_name	= cinfo->codec_dai.name;
@@ -681,7 +671,6 @@ static int asoc_simple_probe(struct platform_device *pdev)
 		card->name		= (cinfo->card) ? cinfo->card : cinfo->name;
 		dai_link->name		= cinfo->name;
 		dai_link->stream_name	= cinfo->name;
-		dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
 		dai_link->dai_fmt	= cinfo->daifmt;
 		dai_link->init		= asoc_simple_dai_init;
 		memcpy(dai_props->cpu_dai, &cinfo->cpu_dai,
