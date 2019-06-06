@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/of_dma.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/fpga/adi-axi-common.h>
 
@@ -678,6 +679,44 @@ static void axi_dmac_desc_free(struct virt_dma_desc *vdesc)
 	kfree(container_of(vdesc, struct axi_dmac_desc, vdesc));
 }
 
+static bool axi_dmac_regmap_rdwr(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case AXI_DMAC_REG_IRQ_MASK:
+	case AXI_DMAC_REG_IRQ_SOURCE:
+	case AXI_DMAC_REG_IRQ_PENDING:
+	case AXI_DMAC_REG_CTRL:
+	case AXI_DMAC_REG_TRANSFER_ID:
+	case AXI_DMAC_REG_START_TRANSFER:
+	case AXI_DMAC_REG_FLAGS:
+	case AXI_DMAC_REG_DEST_ADDRESS:
+	case AXI_DMAC_REG_SRC_ADDRESS:
+	case AXI_DMAC_REG_X_LENGTH:
+	case AXI_DMAC_REG_Y_LENGTH:
+	case AXI_DMAC_REG_DEST_STRIDE:
+	case AXI_DMAC_REG_SRC_STRIDE:
+	case AXI_DMAC_REG_TRANSFER_DONE:
+	case AXI_DMAC_REG_ACTIVE_TRANSFER_ID:
+	case AXI_DMAC_REG_STATUS:
+	case AXI_DMAC_REG_CURRENT_SRC_ADDR:
+	case AXI_DMAC_REG_CURRENT_DEST_ADDR:
+	case AXI_DMAC_REG_PARTIAL_XFER_LEN:
+	case AXI_DMAC_REG_PARTIAL_XFER_ID:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static const struct regmap_config axi_dmac_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+	.max_register = AXI_DMAC_REG_PARTIAL_XFER_ID,
+	.readable_reg = axi_dmac_regmap_rdwr,
+	.writeable_reg = axi_dmac_regmap_rdwr,
+};
+
 /*
  * The configuration stored in the devicetree matches the configuration
  * parameters of the peripheral instance and allows the driver to know which
@@ -881,6 +920,8 @@ static int axi_dmac_probe(struct platform_device *pdev)
 		goto err_unregister_of;
 
 	platform_set_drvdata(pdev, dmac);
+
+	devm_regmap_init_mmio(&pdev->dev, dmac->base, &axi_dmac_regmap_config);
 
 	return 0;
 
