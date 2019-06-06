@@ -238,6 +238,9 @@ struct timing_generator_funcs {
 	bool (*get_crc)(struct timing_generator *tg,
 			uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);
 
+	void (*program_manual_trigger)(struct timing_generator *optc);
+	void (*setup_manual_trigger)(struct timing_generator *optc);
+
 	void (*set_vtg_params)(struct timing_generator *optc,
 			const struct dc_crtc_timing *dc_crtc_timing);
 };

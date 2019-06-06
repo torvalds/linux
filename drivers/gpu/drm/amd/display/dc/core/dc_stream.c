@@ -179,6 +179,9 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 	if (new_stream->out_transfer_func)
 		dc_transfer_func_retain(new_stream->out_transfer_func);
 
+	new_stream->stream_id = new_stream->ctx->dc_stream_id_count;
+	new_stream->ctx->dc_stream_id_count++;
+
 	kref_init(&new_stream->refcount);
 
 	return new_stream;
@@ -229,7 +232,7 @@ static void delay_cursor_until_vupdate(struct pipe_ctx *pipe_ctx, struct dc *dc)
 	unsigned int us_per_line;
 
 	if (stream->ctx->asic_id.chip_family == FAMILY_RV &&
-			ASIC_REV_IS_RAVEN(stream->ctx->asic_id.hw_internal_rev)) {
+			ASICREV_IS_RAVEN(stream->ctx->asic_id.hw_internal_rev)) {
 
 		vupdate_line = get_vupdate_offset_from_vsync(pipe_ctx);
 		if (!dc_stream_get_crtc_position(dc, &stream, 1, &vpos, &nvpos))

@@ -1869,6 +1869,43 @@ static int amdgpu_device_set_pg_state(struct amdgpu_device *adev, enum amd_power
 	return 0;
 }
 
+static int amdgpu_device_enable_mgpu_fan_boost(void)
+{
+	struct amdgpu_gpu_instance *gpu_ins;
+	struct amdgpu_device *adev;
+	int i, ret = 0;
+
+	mutex_lock(&mgpu_info.mutex);
+
+	/*
+	 * MGPU fan boost feature should be enabled
+	 * only when there are two or more dGPUs in
+	 * the system
+	 */
+	if (mgpu_info.num_dgpu < 2)
+		goto out;
+
+	for (i = 0; i < mgpu_info.num_dgpu; i++) {
+		gpu_ins = &(mgpu_info.gpu_ins[i]);
+		adev = gpu_ins->adev;
+		if (!(adev->flags & AMD_IS_APU) &&
+		    !gpu_ins->mgpu_fan_enabled &&
+		    adev->powerplay.pp_funcs &&
+		    adev->powerplay.pp_funcs->enable_mgpu_fan_boost) {
+			ret = amdgpu_dpm_enable_mgpu_fan_boost(adev);
+			if (ret)
+				break;
+
+			gpu_ins->mgpu_fan_enabled = 1;
+		}
+	}
+
+out:
+	mutex_unlock(&mgpu_info.mutex);
+
+	return ret;
+}
+
 /**
  * amdgpu_device_ip_late_init - run late init for hardware IPs
  *
@@ -1902,10 +1939,14 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_GATE);
 	amdgpu_device_set_pg_state(adev, AMD_PG_STATE_GATE);
 
-	queue_delayed_work(system_wq, &adev->late_init_work,
-			   msecs_to_jiffies(AMDGPU_RESUME_MS));
-
 	amdgpu_device_fill_reset_magic(adev);
+
+	r = amdgpu_device_enable_mgpu_fan_boost();
+	if (r)
+		DRM_ERROR("enable mgpu fan boost failed (%d).\n", r);
+
+	/* set to low pstate by default */
+	amdgpu_xgmi_set_pstate(adev, 0);
 
 	return 0;
 }
@@ -2005,65 +2046,20 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int amdgpu_device_enable_mgpu_fan_boost(void)
-{
-	struct amdgpu_gpu_instance *gpu_ins;
-	struct amdgpu_device *adev;
-	int i, ret = 0;
-
-	mutex_lock(&mgpu_info.mutex);
-
-	/*
-	 * MGPU fan boost feature should be enabled
-	 * only when there are two or more dGPUs in
-	 * the system
-	 */
-	if (mgpu_info.num_dgpu < 2)
-		goto out;
-
-	for (i = 0; i < mgpu_info.num_dgpu; i++) {
-		gpu_ins = &(mgpu_info.gpu_ins[i]);
-		adev = gpu_ins->adev;
-		if (!(adev->flags & AMD_IS_APU) &&
-		    !gpu_ins->mgpu_fan_enabled &&
-		    adev->powerplay.pp_funcs &&
-		    adev->powerplay.pp_funcs->enable_mgpu_fan_boost) {
-			ret = amdgpu_dpm_enable_mgpu_fan_boost(adev);
-			if (ret)
-				break;
-
-			gpu_ins->mgpu_fan_enabled = 1;
-		}
-	}
-
-out:
-	mutex_unlock(&mgpu_info.mutex);
-
-	return ret;
-}
-
 /**
- * amdgpu_device_ip_late_init_func_handler - work handler for ib test
+ * amdgpu_device_delayed_init_work_handler - work handler for IB tests
  *
  * @work: work_struct.
  */
-static void amdgpu_device_ip_late_init_func_handler(struct work_struct *work)
+static void amdgpu_device_delayed_init_work_handler(struct work_struct *work)
 {
 	struct amdgpu_device *adev =
-		container_of(work, struct amdgpu_device, late_init_work.work);
+		container_of(work, struct amdgpu_device, delayed_init_work.work);
 	int r;
 
 	r = amdgpu_ib_ring_tests(adev);
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
-
-	r = amdgpu_device_enable_mgpu_fan_boost();
-	if (r)
-		DRM_ERROR("enable mgpu fan boost failed (%d).\n", r);
-
-	/*set to low pstate by default */
-	amdgpu_xgmi_set_pstate(adev, 0);
-
 }
 
 static void amdgpu_device_delay_enable_gfx_off(struct work_struct *work)
@@ -2535,8 +2531,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&adev->ring_lru_list);
 	spin_lock_init(&adev->ring_lru_list_lock);
 
-	INIT_DELAYED_WORK(&adev->late_init_work,
-			  amdgpu_device_ip_late_init_func_handler);
+	INIT_DELAYED_WORK(&adev->delayed_init_work,
+			  amdgpu_device_delayed_init_work_handler);
 	INIT_DELAYED_WORK(&adev->gfx.gfx_off_delay_work,
 			  amdgpu_device_delay_enable_gfx_off);
 
@@ -2749,6 +2745,9 @@ fence_driver_init:
 	/* must succeed. */
 	amdgpu_ras_resume(adev);
 
+	queue_delayed_work(system_wq, &adev->delayed_init_work,
+			   msecs_to_jiffies(AMDGPU_RESUME_MS));
+
 	r = device_create_file(adev->dev, &dev_attr_pcie_replay_count);
 	if (r) {
 		dev_err(adev->dev, "Could not create pcie_replay_count");
@@ -2796,7 +2795,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 		adev->firmware.gpu_info_fw = NULL;
 	}
 	adev->accel_working = false;
-	cancel_delayed_work_sync(&adev->late_init_work);
+	cancel_delayed_work_sync(&adev->delayed_init_work);
 	/* free i2c buses */
 	if (!amdgpu_device_has_dc_support(adev))
 		amdgpu_i2c_fini(adev);
@@ -2859,7 +2858,7 @@ int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon)
 	if (fbcon)
 		amdgpu_fbdev_set_suspend(adev, 1);
 
-	cancel_delayed_work_sync(&adev->late_init_work);
+	cancel_delayed_work_sync(&adev->delayed_init_work);
 
 	if (!amdgpu_device_has_dc_support(adev)) {
 		/* turn off display hw */
@@ -2979,6 +2978,9 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	if (r)
 		return r;
 
+	queue_delayed_work(system_wq, &adev->delayed_init_work,
+			   msecs_to_jiffies(AMDGPU_RESUME_MS));
+
 	if (!amdgpu_device_has_dc_support(adev)) {
 		/* pin cursors */
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -3002,7 +3004,7 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 		return r;
 
 	/* Make sure IB tests flushed */
-	flush_delayed_work(&adev->late_init_work);
+	flush_delayed_work(&adev->delayed_init_work);
 
 	/* blat the mode back in */
 	if (fbcon) {
@@ -3592,6 +3594,8 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	INIT_LIST_HEAD(&device_list);
 
 	dev_info(adev->dev, "GPU reset begin!\n");
+
+	cancel_delayed_work_sync(&adev->delayed_init_work);
 
 	hive = amdgpu_get_xgmi_hive(adev, false);
 

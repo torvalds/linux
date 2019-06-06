@@ -552,4 +552,21 @@ void enc1_dig_connect_to_otg(
 	struct stream_encoder *enc,
 	int tg_inst);
 
+void enc1_stream_encoder_set_stream_attribute_helper(
+	struct dcn10_stream_encoder *enc1,
+	struct dc_crtc_timing *crtc_timing);
+
+void enc1_se_enable_audio_clock(
+	struct stream_encoder *enc,
+	bool enable);
+
+void enc1_se_enable_dp_audio(
+	struct stream_encoder *enc);
+
+void get_audio_clock_info(
+	enum dc_color_depth color_depth,
+	uint32_t crtc_pixel_clock_in_khz,
+	uint32_t actual_pixel_clock_in_khz,
+	struct audio_clock_info *audio_clock_info);
+
 #endif /* __DC_STREAM_ENCODER_DCN10_H__ */

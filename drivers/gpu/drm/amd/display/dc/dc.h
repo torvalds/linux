@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.31"
+#define DC_VER "3.2.32"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -367,6 +367,7 @@ struct dc_bounding_box_overrides {
 	int urgent_latency_ns;
 	int percent_of_ideal_drambw;
 	int dram_clock_change_latency_ns;
+	int min_dcfclk_mhz;
 };
 
 struct dc_state;
@@ -386,6 +387,8 @@ struct dc {
 
 	struct dc_state *current_state;
 	struct resource_pool *res_pool;
+
+	struct clk_mgr *clk_mgr;
 
 	/* Display Engine Clock levels */
 	struct dm_pp_clock_levels sclk_lvls;

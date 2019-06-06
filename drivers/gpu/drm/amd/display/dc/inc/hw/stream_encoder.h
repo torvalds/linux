@@ -52,6 +52,19 @@ enum dp_component_depth {
 	DP_COMPONENT_PIXEL_DEPTH_16BPC		= 0x00000004
 };
 
+struct audio_clock_info {
+	/* pixel clock frequency*/
+	uint32_t pixel_clock_in_10khz;
+	/* N - 32KHz audio */
+	uint32_t n_32khz;
+	/* CTS - 32KHz audio*/
+	uint32_t cts_32khz;
+	uint32_t n_44khz;
+	uint32_t cts_44khz;
+	uint32_t n_48khz;
+	uint32_t cts_48khz;
+};
+
 struct encoder_info_frame {
 	/* auxiliary video information */
 	struct dc_info_packet avi;

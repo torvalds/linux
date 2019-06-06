@@ -1124,19 +1124,6 @@ union audio_cea_channels {
 	} channels;
 };
 
-struct audio_clock_info {
-	/* pixel clock frequency*/
-	uint32_t pixel_clock_in_10khz;
-	/* N - 32KHz audio */
-	uint32_t n_32khz;
-	/* CTS - 32KHz audio*/
-	uint32_t cts_32khz;
-	uint32_t n_44khz;
-	uint32_t cts_44khz;
-	uint32_t n_48khz;
-	uint32_t cts_48khz;
-};
-
 /* 25.2MHz/1.001*/
 /* 25.2MHz/1.001*/
 /* 25.2MHz*/

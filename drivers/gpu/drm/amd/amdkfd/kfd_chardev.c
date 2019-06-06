@@ -1575,15 +1575,15 @@ static int kfd_ioctl_alloc_queue_gws(struct file *filep,
 	struct kfd_dev *dev;
 
 	if (!hws_gws_support)
-		return -EINVAL;
+		return -ENODEV;
 
 	dev = kfd_device_by_id(args->gpu_id);
 	if (!dev) {
 		pr_debug("Could not find gpu id 0x%x\n", args->gpu_id);
-		return -EINVAL;
+		return -ENODEV;
 	}
 	if (dev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS)
-		return -EINVAL;
+		return -ENODEV;
 
 	mutex_lock(&p->mutex);
 	retval = pqm_set_gws(&p->pqm, args->queue_id, args->num_gws ? dev->gws : NULL);

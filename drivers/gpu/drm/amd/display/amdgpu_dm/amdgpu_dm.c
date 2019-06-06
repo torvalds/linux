@@ -665,13 +665,11 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 		return 0;
 	case CHIP_RAVEN:
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
 		if (ASICREV_IS_PICASSO(adev->external_rev_id))
 			fw_name_dmcu = FIRMWARE_RAVEN_DMCU;
 		else if (ASICREV_IS_RAVEN2(adev->external_rev_id))
 			fw_name_dmcu = FIRMWARE_RAVEN_DMCU;
 		else
-#endif
 			return 0;
 		break;
 	default:
@@ -3675,6 +3673,13 @@ int amdgpu_dm_connector_atomic_get_property(struct drm_connector *connector,
 	return ret;
 }
 
+static void amdgpu_dm_connector_unregister(struct drm_connector *connector)
+{
+	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
+
+	drm_dp_aux_unregister(&amdgpu_dm_connector->dm_dp_aux.aux);
+}
+
 static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
@@ -3703,6 +3708,11 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 	drm_dp_cec_unregister_connector(&aconnector->dm_dp_aux.aux);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
+	if (aconnector->i2c) {
+		i2c_del_adapter(&aconnector->i2c->base);
+		kfree(aconnector->i2c);
+	}
+
 	kfree(connector);
 }
 
@@ -3760,7 +3770,8 @@ static const struct drm_connector_funcs amdgpu_dm_connector_funcs = {
 	.atomic_duplicate_state = amdgpu_dm_connector_atomic_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_set_property = amdgpu_dm_connector_atomic_set_property,
-	.atomic_get_property = amdgpu_dm_connector_atomic_get_property
+	.atomic_get_property = amdgpu_dm_connector_atomic_get_property,
+	.early_unregister = amdgpu_dm_connector_unregister
 };
 
 static int get_modes(struct drm_connector *connector)
@@ -4217,6 +4228,9 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	struct amdgpu_device *adev;
 	struct amdgpu_bo *rbo;
 	struct dm_plane_state *dm_plane_state_new, *dm_plane_state_old;
+	struct list_head list;
+	struct ttm_validate_buffer tv;
+	struct ww_acquire_ctx ticket;
 	uint64_t tiling_flags;
 	uint32_t domain;
 	int r;
@@ -4233,9 +4247,17 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	obj = new_state->fb->obj[0];
 	rbo = gem_to_amdgpu_bo(obj);
 	adev = amdgpu_ttm_adev(rbo->tbo.bdev);
-	r = amdgpu_bo_reserve(rbo, false);
-	if (unlikely(r != 0))
+	INIT_LIST_HEAD(&list);
+
+	tv.bo = &rbo->tbo;
+	tv.num_shared = 1;
+	list_add(&tv.head, &list);
+
+	r = ttm_eu_reserve_buffers(&ticket, &list, false, NULL, true);
+	if (r) {
+		dev_err(adev->dev, "fail to reserve bo (%d)\n", r);
 		return r;
+	}
 
 	if (plane->type != DRM_PLANE_TYPE_CURSOR)
 		domain = amdgpu_display_supported_domains(adev);
@@ -4246,21 +4268,21 @@ static int dm_plane_helper_prepare_fb(struct drm_plane *plane,
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to pin framebuffer with error %d\n", r);
-		amdgpu_bo_unreserve(rbo);
+		ttm_eu_backoff_reservation(&ticket, &list);
 		return r;
 	}
 
 	r = amdgpu_ttm_alloc_gart(&rbo->tbo);
 	if (unlikely(r != 0)) {
 		amdgpu_bo_unpin(rbo);
-		amdgpu_bo_unreserve(rbo);
+		ttm_eu_backoff_reservation(&ticket, &list);
 		DRM_ERROR("%p bind failed\n", rbo);
 		return r;
 	}
 
 	amdgpu_bo_get_tiling_flags(rbo, &tiling_flags);
 
-	amdgpu_bo_unreserve(rbo);
+	ttm_eu_backoff_reservation(&ticket, &list);
 
 	afb->address = amdgpu_bo_gpu_offset(rbo);
 
@@ -5254,6 +5276,11 @@ static void update_freesync_state_on_stream(
 		    amdgpu_dm_vrr_active(new_crtc_state)) {
 			mod_freesync_handle_v_update(dm->freesync_module,
 						     new_stream, &vrr_params);
+
+			/* Need to call this before the frame ends. */
+			dc_stream_adjust_vmin_vmax(dm->dc,
+						   new_crtc_state->stream,
+						   &vrr_params.adjust);
 		}
 	}
 
@@ -5592,11 +5619,6 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		}
 
 		if (acrtc_state->stream) {
-
-			if (acrtc_state->freesync_timing_changed)
-				bundle->stream_update.adjust =
-					&acrtc_state->stream->adjust;
-
 			if (acrtc_state->freesync_vrr_info_changed)
 				bundle->stream_update.vrr_infopacket =
 					&acrtc_state->stream->vrr_infopacket;
@@ -5616,6 +5638,20 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		acrtc_state->stream->abm_level = acrtc_state->abm_level;
 		if (acrtc_state->abm_level != dm_old_crtc_state->abm_level)
 			bundle->stream_update.abm_level = &acrtc_state->abm_level;
+
+		/*
+		 * If FreeSync state on the stream has changed then we need to
+		 * re-adjust the min/max bounds now that DC doesn't handle this
+		 * as part of commit.
+		 */
+		if (amdgpu_dm_vrr_active(dm_old_crtc_state) !=
+		    amdgpu_dm_vrr_active(acrtc_state)) {
+			spin_lock_irqsave(&pcrtc->dev->event_lock, flags);
+			dc_stream_adjust_vmin_vmax(
+				dm->dc, acrtc_state->stream,
+				&acrtc_state->vrr_params.adjust);
+			spin_unlock_irqrestore(&pcrtc->dev->event_lock, flags);
+		}
 
 		mutex_lock(&dm->dc_lock);
 		dc_commit_updates_for_stream(dm->dc,
@@ -6485,6 +6521,10 @@ static bool should_reset_plane(struct drm_atomic_state *state,
 		drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
 
 	if (!new_crtc_state)
+		return true;
+
+	/* CRTC Degamma changes currently require us to recreate planes. */
+	if (new_crtc_state->color_mgmt_changed)
 		return true;
 
 	if (drm_atomic_crtc_needs_modeset(new_crtc_state))

@@ -1359,5 +1359,5 @@ void dcn10_aux_initialize(struct dcn10_link_encoder *enc10)
 
 	/* 1/4 window (the maximum allowed) */
 	AUX_REG_UPDATE(AUX_DPHY_RX_CONTROL0,
-			AUX_RX_RECEIVE_WINDOW, 1);
+			AUX_RX_RECEIVE_WINDOW, 0);
 }

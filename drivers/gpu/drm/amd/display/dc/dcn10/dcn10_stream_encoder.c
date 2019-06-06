@@ -472,7 +472,7 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 		hw_crtc_timing.v_addressable + hw_crtc_timing.v_border_bottom);
 }
 
-static void enc1_stream_encoder_set_stream_attribute_helper(
+void enc1_stream_encoder_set_stream_attribute_helper(
 		struct dcn10_stream_encoder *enc1,
 		struct dc_crtc_timing *crtc_timing)
 {
@@ -1091,19 +1091,6 @@ union audio_cea_channels {
 	} channels;
 };
 
-struct audio_clock_info {
-	/* pixel clock frequency*/
-	uint32_t pixel_clock_in_10khz;
-	/* N - 32KHz audio */
-	uint32_t n_32khz;
-	/* CTS - 32KHz audio*/
-	uint32_t cts_32khz;
-	uint32_t n_44khz;
-	uint32_t cts_44khz;
-	uint32_t n_48khz;
-	uint32_t cts_48khz;
-};
-
 /* 25.2MHz/1.001*/
 /* 25.2MHz/1.001*/
 /* 25.2MHz*/
@@ -1206,7 +1193,7 @@ static union audio_cea_channels speakers_to_channels(
 	return cea_channels;
 }
 
-static void get_audio_clock_info(
+void get_audio_clock_info(
 	enum dc_color_depth color_depth,
 	uint32_t crtc_pixel_clock_in_khz,
 	uint32_t actual_pixel_clock_in_khz,
@@ -1410,7 +1397,7 @@ static void enc1_se_setup_dp_audio(
 	REG_UPDATE(AFMT_60958_0, AFMT_60958_CS_CLOCK_ACCURACY, 0);
 }
 
-static void enc1_se_enable_audio_clock(
+void enc1_se_enable_audio_clock(
 	struct stream_encoder *enc,
 	bool enable)
 {
@@ -1432,7 +1419,7 @@ static void enc1_se_enable_audio_clock(
 	 */
 }
 
-static void enc1_se_enable_dp_audio(
+void enc1_se_enable_dp_audio(
 	struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);

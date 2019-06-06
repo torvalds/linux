@@ -46,6 +46,7 @@
 #include "link_encoder.h"
 #include "link_hwss.h"
 #include "clock_source.h"
+#include "clk_mgr.h"
 #include "abm.h"
 #include "audio.h"
 #include "reg_helper.h"
@@ -960,6 +961,9 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 	struct pp_smu_funcs *pp_smu = NULL;
 	unsigned int i, num_audio = 1;
 
+	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == true)
+		return;
+
 	if (core_dc->res_pool->pp_smu)
 		pp_smu = core_dc->res_pool->pp_smu;
 
@@ -979,6 +983,8 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 		/* TODO: audio should be per stream rather than per link */
 		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 					pipe_ctx->stream_res.stream_enc, false);
+		if (pipe_ctx->stream_res.audio)
+			pipe_ctx->stream_res.audio->enabled = true;
 	}
 }
 
@@ -986,6 +992,9 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct pp_smu_funcs *pp_smu = NULL;
+
+	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == false)
+		return;
 
 	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 			pipe_ctx->stream_res.stream_enc, true);
@@ -1020,6 +1029,8 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 		/* dal_audio_disable_azalia_audio_jack_presence(stream->audio,
 		 * stream->stream_engine_id);
 		 */
+		if (pipe_ctx->stream_res.audio)
+			pipe_ctx->stream_res.audio->enabled = false;
 	}
 }
 
@@ -2313,6 +2324,7 @@ static void init_hw(struct dc *dc)
 	struct dc_bios *bp;
 	struct transform *xfm;
 	struct abm *abm;
+	struct dmcu *dmcu;
 
 	bp = dc->ctx->dc_bios;
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2340,9 +2352,6 @@ static void init_hw(struct dc *dc)
 		 * default signal on connector). */
 		struct dc_link *link = dc->links[i];
 
-		if (link->link_enc->connector.id == CONNECTOR_ID_EDP)
-			dc->hwss.edp_power_control(link, true);
-
 		link->link_enc->funcs->hw_init(link->link_enc);
 	}
 
@@ -2368,6 +2377,10 @@ static void init_hw(struct dc *dc)
 		abm->funcs->abm_init(abm);
 	}
 
+	dmcu = dc->res_pool->dmcu;
+	if (dmcu != NULL && abm != NULL)
+		abm->dmcu_is_running = dmcu->funcs->is_dmcu_initialized(dmcu);
+
 	if (dc->fbc_compressor)
 		dc->fbc_compressor->funcs->power_up_fbc(dc->fbc_compressor);
 
@@ -2378,7 +2391,7 @@ void dce110_prepare_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	struct clk_mgr *dccg = dc->res_pool->clk_mgr;
+	struct clk_mgr *dccg = dc->clk_mgr;
 
 	dce110_set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
@@ -2392,7 +2405,7 @@ void dce110_optimize_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	struct clk_mgr *dccg = dc->res_pool->clk_mgr;
+	struct clk_mgr *dccg = dc->clk_mgr;
 
 	dce110_set_displaymarks(dc, context);
 

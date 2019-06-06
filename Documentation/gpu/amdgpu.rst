@@ -37,10 +37,10 @@ Buffer Objects
 PRIME Buffer Sharing
 --------------------
 
-.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_prime.c
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_dma_buf.c
    :doc: PRIME Buffer Sharing
 
-.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_prime.c
+.. kernel-doc:: drivers/gpu/drm/amd/amdgpu/amdgpu_dma_buf.c
    :internal:
 
 MMU Notifier
