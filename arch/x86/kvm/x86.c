@@ -2563,6 +2563,9 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		vcpu->arch.smbase = data;
 		break;
+	case MSR_IA32_POWER_CTL:
+		vcpu->arch.msr_ia32_power_ctl = data;
+		break;
 	case MSR_IA32_TSC:
 		kvm_write_tsc(vcpu, msr_info);
 		break;
@@ -2821,6 +2824,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		    !guest_cpuid_has(vcpu, X86_FEATURE_ARCH_CAPABILITIES))
 			return 1;
 		msr_info->data = vcpu->arch.arch_capabilities;
+		break;
+	case MSR_IA32_POWER_CTL:
+		msr_info->data = vcpu->arch.msr_ia32_power_ctl;
 		break;
 	case MSR_IA32_TSC:
 		msr_info->data = kvm_scale_tsc(vcpu, rdtsc()) + vcpu->arch.tsc_offset;

@@ -260,8 +260,6 @@ struct vcpu_vmx {
 
 	unsigned long host_debugctlmsr;
 
-	u64 msr_ia32_power_ctl;
-
 	/*
 	 * Only bits masked by msr_ia32_feature_control_valid_bits can be set in
 	 * msr_ia32_feature_control. FEATURE_CONTROL_LOCKED is always included
