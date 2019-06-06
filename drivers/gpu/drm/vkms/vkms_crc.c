@@ -168,14 +168,14 @@ void vkms_crc_work_handle(struct work_struct *work)
 	u64 frame_start, frame_end;
 	bool crc_pending;
 
-	spin_lock_irq(&out->state_lock);
+	spin_lock_irq(&out->crc_lock);
 	frame_start = crtc_state->frame_start;
 	frame_end = crtc_state->frame_end;
 	crc_pending = crtc_state->crc_pending;
 	crtc_state->frame_start = 0;
 	crtc_state->frame_end = 0;
 	crtc_state->crc_pending = false;
-	spin_unlock_irq(&out->state_lock);
+	spin_unlock_irq(&out->crc_lock);
 
 	/*
 	 * We raced with the vblank hrtimer and previous work already computed

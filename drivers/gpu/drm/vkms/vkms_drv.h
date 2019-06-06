@@ -49,6 +49,7 @@ struct vkms_crtc_state {
 	struct drm_crtc_state base;
 	struct work_struct crc_work;
 
+	/* below three are protected by vkms_output.crc_lock */
 	bool crc_pending;
 	u64 frame_start;
 	u64 frame_end;
@@ -66,8 +67,8 @@ struct vkms_output {
 	struct workqueue_struct *crc_workq;
 	/* protects concurrent access to crc_data */
 	spinlock_t lock;
-	/* protects concurrent access to crtc_state */
-	spinlock_t state_lock;
+
+	spinlock_t crc_lock;
 };
 
 struct vkms_device {

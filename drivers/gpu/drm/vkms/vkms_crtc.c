@@ -29,7 +29,7 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 		/* update frame_start only if a queued vkms_crc_work_handle()
 		 * has read the data
 		 */
-		spin_lock(&output->state_lock);
+		spin_lock(&output->crc_lock);
 		if (!state->crc_pending)
 			state->frame_start = frame;
 		else
@@ -37,7 +37,7 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 					 state->frame_start, frame);
 		state->frame_end = frame;
 		state->crc_pending = true;
-		spin_unlock(&output->state_lock);
+		spin_unlock(&output->crc_lock);
 
 		ret = queue_work(output->crc_workq, &state->crc_work);
 		if (!ret)
@@ -225,7 +225,7 @@ int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 	drm_crtc_helper_add(crtc, &vkms_crtc_helper_funcs);
 
 	spin_lock_init(&vkms_out->lock);
-	spin_lock_init(&vkms_out->state_lock);
+	spin_lock_init(&vkms_out->crc_lock);
 
 	vkms_out->crc_workq = alloc_ordered_workqueue("vkms_crc_workq", 0);
 	if (!vkms_out->crc_workq)
