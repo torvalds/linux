@@ -1053,167 +1053,18 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 	}
 }
 
-static int snd_soc_init_cpu(struct snd_soc_card *card,
-			    struct snd_soc_dai_link *dai_link)
-{
-	struct snd_soc_dai_link_component *cpu = dai_link->cpus;
-
-	/*
-	 * REMOVE ME
-	 *
-	 * This is glue code for Legacy vs Modern dai_link.
-	 * This function will be removed if all derivers are switched to
-	 * modern style dai_link.
-	 * Driver shouldn't use both legacy and modern style in the same time.
-	 * see
-	 *	soc.h :: struct snd_soc_dai_link
-	 */
-	/* convert Legacy platform link */
-	if (!cpu) {
-		cpu = devm_kzalloc(card->dev,
-				   sizeof(struct snd_soc_dai_link_component),
-				   GFP_KERNEL);
-		if (!cpu)
-			return -ENOMEM;
-
-		dai_link->cpus		= cpu;
-		dai_link->num_cpus	= 1;
-		dai_link->legacy_cpu	= 1;
-
-		cpu->name	= dai_link->cpu_name;
-		cpu->of_node	= dai_link->cpu_of_node;
-		cpu->dai_name	= dai_link->cpu_dai_name;
-	}
-
-	if (!dai_link->cpus) {
-		dev_err(card->dev, "ASoC: DAI link has no CPUs\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int snd_soc_init_platform(struct snd_soc_card *card,
-				 struct snd_soc_dai_link *dai_link)
-{
-	struct snd_soc_dai_link_component *platform = dai_link->platforms;
-
-	/*
-	 * REMOVE ME
-	 *
-	 * This is glue code for Legacy vs Modern dai_link.
-	 * This function will be removed if all derivers are switched to
-	 * modern style dai_link.
-	 * Driver shouldn't use both legacy and modern style in the same time.
-	 * see
-	 *	soc.h :: struct snd_soc_dai_link
-	 */
-	/* convert Legacy platform link */
-	if (!platform) {
-		platform = devm_kzalloc(card->dev,
-				sizeof(struct snd_soc_dai_link_component),
-				GFP_KERNEL);
-		if (!platform)
-			return -ENOMEM;
-
-		dai_link->platforms	  = platform;
-		dai_link->num_platforms	  = 1;
-		dai_link->legacy_platform = 1;
-		platform->name		  = dai_link->platform_name;
-		platform->of_node	  = dai_link->platform_of_node;
-		platform->dai_name	  = NULL;
-	}
-
-	/* if there's no platform we match on the empty platform */
-	if (!platform->name &&
-	    !platform->of_node)
-		platform->name = "snd-soc-dummy";
-
-	return 0;
-}
-
-static void soc_cleanup_legacy(struct snd_soc_card *card)
-{
-	struct snd_soc_dai_link *link;
-	int i;
-	/*
-	 * FIXME
-	 *
-	 * this function should be removed with snd_soc_init_platform
-	 */
-
-	for_each_card_prelinks(card, i, link) {
-		if (link->legacy_platform) {
-			link->legacy_platform = 0;
-			link->platforms       = NULL;
-		}
-		if (link->legacy_cpu) {
-			link->legacy_cpu = 0;
-			link->cpus = NULL;
-		}
-	}
-}
-
-static int snd_soc_init_multicodec(struct snd_soc_card *card,
-				   struct snd_soc_dai_link *dai_link)
-{
-	/*
-	 * REMOVE ME
-	 *
-	 * This is glue code for Legacy vs Modern dai_link.
-	 * This function will be removed if all derivers are switched to
-	 * modern style dai_link.
-	 * Driver shouldn't use both legacy and modern style in the same time.
-	 * see
-	 *	soc.h :: struct snd_soc_dai_link
-	 */
-
-	/* Legacy codec/codec_dai link is a single entry in multicodec */
-	if (dai_link->codec_name || dai_link->codec_of_node ||
-	    dai_link->codec_dai_name) {
-		dai_link->num_codecs = 1;
-
-		dai_link->codecs = devm_kzalloc(card->dev,
-				sizeof(struct snd_soc_dai_link_component),
-				GFP_KERNEL);
-		if (!dai_link->codecs)
-			return -ENOMEM;
-
-		dai_link->codecs[0].name = dai_link->codec_name;
-		dai_link->codecs[0].of_node = dai_link->codec_of_node;
-		dai_link->codecs[0].dai_name = dai_link->codec_dai_name;
-	}
-
-	if (!dai_link->codecs) {
-		dev_err(card->dev, "ASoC: DAI link has no CODECs\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
+static struct snd_soc_dai_link_component dummy_link = COMP_DUMMY();
 
 static int soc_init_dai_link(struct snd_soc_card *card,
 			     struct snd_soc_dai_link *link)
 {
-	int i, ret;
+	int i;
 	struct snd_soc_dai_link_component *codec;
 
-	ret = snd_soc_init_cpu(card, link);
-	if (ret) {
-		dev_err(card->dev, "ASoC: failed to init cpu\n");
-		return ret;
-	}
-
-	ret = snd_soc_init_platform(card, link);
-	if (ret) {
-		dev_err(card->dev, "ASoC: failed to init multiplatform\n");
-		return ret;
-	}
-
-	ret = snd_soc_init_multicodec(card, link);
-	if (ret) {
-		dev_err(card->dev, "ASoC: failed to init multicodec\n");
-		return ret;
+	/* default Platform */
+	if (!link->platforms || !link->num_platforms) {
+		link->platforms = &dummy_link;
+		link->num_platforms = 1;
 	}
 
 	for_each_link_codecs(link, i, codec) {
@@ -2060,7 +1911,7 @@ match:
 				 card->dai_link[i].name);
 
 			/* override platform component */
-			if (snd_soc_init_platform(card, dai_link) < 0) {
+			if (!dai_link->platforms) {
 				dev_err(card->dev, "init platform error");
 				continue;
 			}
@@ -2111,7 +1962,6 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	/* remove and free each DAI */
 	soc_remove_dai_links(card);
 	soc_remove_pcm_runtimes(card);
-	soc_cleanup_legacy(card);
 
 	/* remove auxiliary devices */
 	soc_remove_aux_devices(card);
@@ -2868,7 +2718,6 @@ int snd_soc_register_card(struct snd_soc_card *card)
 
 		ret = soc_init_dai_link(card, link);
 		if (ret) {
-			soc_cleanup_legacy(card);
 			dev_err(card->dev, "ASoC: failed to init link %s\n",
 				link->name);
 			mutex_unlock(&client_mutex);
