@@ -40,6 +40,7 @@
 #include <linux/socket.h>
 #include <linux/tcp.h>
 #include <linux/skmsg.h>
+#include <linux/netdevice.h>
 
 #include <net/tcp.h>
 #include <net/strparser.h>
@@ -197,17 +198,16 @@ struct tls_offload_context_tx {
 
 	struct scatterlist sg_tx_data[MAX_SKB_FRAGS];
 	void (*sk_destruct)(struct sock *sk);
-	u8 driver_state[];
+	u8 driver_state[] __aligned(8);
 	/* The TLS layer reserves room for driver specific state
 	 * Currently the belief is that there is not enough
 	 * driver specific state to justify another layer of indirection
 	 */
-#define TLS_DRIVER_STATE_SIZE (max_t(size_t, 8, sizeof(void *)))
+#define TLS_DRIVER_STATE_SIZE_TX	16
 };
 
 #define TLS_OFFLOAD_CONTEXT_SIZE_TX                                            \
-	(ALIGN(sizeof(struct tls_offload_context_tx), sizeof(void *)) +        \
-	 TLS_DRIVER_STATE_SIZE)
+	(sizeof(struct tls_offload_context_tx) + TLS_DRIVER_STATE_SIZE_TX)
 
 struct cipher_context {
 	char *iv;
@@ -302,16 +302,16 @@ struct tls_offload_context_rx {
 	/* sw must be the first member of tls_offload_context_rx */
 	struct tls_sw_context_rx sw;
 	atomic64_t resync_req;
-	u8 driver_state[];
+	u8 driver_state[] __aligned(8);
 	/* The TLS layer reserves room for driver specific state
 	 * Currently the belief is that there is not enough
 	 * driver specific state to justify another layer of indirection
 	 */
+#define TLS_DRIVER_STATE_SIZE_RX	8
 };
 
 #define TLS_OFFLOAD_CONTEXT_SIZE_RX					\
-	(ALIGN(sizeof(struct tls_offload_context_rx), sizeof(void *)) + \
-	 TLS_DRIVER_STATE_SIZE)
+	(sizeof(struct tls_offload_context_rx) + TLS_DRIVER_STATE_SIZE_RX)
 
 int wait_on_pending_writer(struct sock *sk, long *timeo);
 int tls_sk_query(struct sock *sk, int optname, char __user *optval,
@@ -556,6 +556,23 @@ tls_offload_ctx_rx(const struct tls_context *tls_ctx)
 	return (struct tls_offload_context_rx *)tls_ctx->priv_ctx_rx;
 }
 
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+static inline void *__tls_driver_ctx(struct tls_context *tls_ctx,
+				     enum tls_offload_ctx_dir direction)
+{
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX)
+		return tls_offload_ctx_tx(tls_ctx)->driver_state;
+	else
+		return tls_offload_ctx_rx(tls_ctx)->driver_state;
+}
+
+static inline void *
+tls_driver_ctx(const struct sock *sk, enum tls_offload_ctx_dir direction)
+{
+	return __tls_driver_ctx(tls_get_ctx(sk), direction);
+}
+#endif
+
 /* The TLS context is valid until sk_destruct is called */
 static inline void tls_offload_rx_resync_request(struct sock *sk, __be32 seq)
 {
@@ -573,6 +590,7 @@ void tls_unregister_device(struct tls_device *device);
 int tls_device_decrypted(struct sock *sk, struct sk_buff *skb);
 int decrypt_skb(struct sock *sk, struct sk_buff *skb,
 		struct scatterlist *sgout);
+struct sk_buff *tls_encrypt_skb(struct sk_buff *skb);
 
 struct sk_buff *tls_validate_xmit_skb(struct sock *sk,
 				      struct net_device *dev,

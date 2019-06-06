@@ -12,11 +12,13 @@
 #ifndef _NFP_NET_H_
 #define _NFP_NET_H_
 
+#include <linux/atomic.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/semaphore.h>
 #include <net/xdp.h>
 
 #include "nfp_net_ctrl.h"
@@ -372,6 +374,11 @@ struct nfp_net_rx_ring {
  * @hw_csum_tx_inner:	 Counter of inner TX checksum offload requests
  * @tx_gather:	    Counter of packets with Gather DMA
  * @tx_lso:	    Counter of LSO packets sent
+ * @hw_tls_tx:	    Counter of TLS packets sent with crypto offloaded to HW
+ * @tls_tx_fallback:	Counter of TLS packets sent which had to be encrypted
+ *			by the fallback path because packets came out of order
+ * @tls_tx_no_fallback:	Counter of TLS packets not sent because the fallback
+ *			path could not encrypt them
  * @tx_errors:	    How many TX errors were encountered
  * @tx_busy:        How often was TX busy (no space)?
  * @rx_replace_buf_alloc_fail:	Counter of RX buffer allocation failures
@@ -409,20 +416,27 @@ struct nfp_net_r_vector {
 	u64 hw_csum_rx_inner_ok;
 	u64 hw_csum_rx_complete;
 
+	u64 hw_csum_rx_error;
+	u64 rx_replace_buf_alloc_fail;
+
 	struct nfp_net_tx_ring *xdp_ring;
 
 	struct u64_stats_sync tx_sync;
 	u64 tx_pkts;
 	u64 tx_bytes;
-	u64 hw_csum_tx;
+
+	u64 ____cacheline_aligned_in_smp hw_csum_tx;
 	u64 hw_csum_tx_inner;
 	u64 tx_gather;
 	u64 tx_lso;
+	u64 hw_tls_tx;
 
-	u64 hw_csum_rx_error;
-	u64 rx_replace_buf_alloc_fail;
+	u64 tls_tx_fallback;
+	u64 tls_tx_no_fallback;
 	u64 tx_errors;
 	u64 tx_busy;
+
+	/* Cold data follows */
 
 	u32 irq_vector;
 	irq_handler_t handler;
@@ -458,6 +472,7 @@ struct nfp_stat_pair {
  * @netdev:		Backpointer to net_device structure
  * @is_vf:		Is the driver attached to a VF?
  * @chained_metadata_format:  Firemware will use new metadata format
+ * @ktls_tx:		Is kTLS TX enabled?
  * @rx_dma_dir:		Mapping direction for RX buffers
  * @rx_dma_off:		Offset at which DMA packets (for XDP headroom)
  * @rx_offset:		Offset in the RX buffers where packet data starts
@@ -482,6 +497,7 @@ struct nfp_net_dp {
 
 	u8 is_vf:1;
 	u8 chained_metadata_format:1;
+	u8 ktls_tx:1;
 
 	u8 rx_dma_dir;
 	u8 rx_offset;
@@ -549,7 +565,7 @@ struct nfp_net_dp {
  * @reconfig_timer:	Timer for async reading of reconfig results
  * @reconfig_in_progress_update:	Update FW is processing now (debug only)
  * @bar_lock:		vNIC config BAR access lock, protects: update,
- *			mailbox area
+ *			mailbox area, crypto TLV
  * @link_up:            Is the link up?
  * @link_status_lock:	Protects @link_* and ensures atomicity with BAR reading
  * @rx_coalesce_usecs:      RX interrupt moderation usecs delay parameter
@@ -562,6 +578,13 @@ struct nfp_net_dp {
  * @tx_bar:             Pointer to mapped TX queues
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @tlv_caps:		Parsed TLV capabilities
+ * @ktls_tx_conn_cnt:	Number of offloaded kTLS TX connections
+ * @ktls_no_space:	Counter of firmware rejecting kTLS connection due to
+ *			lack of space
+ * @mbox_cmsg:		Common Control Message via vNIC mailbox state
+ * @mbox_cmsg.queue:	CCM mbox queue of pending messages
+ * @mbox_cmsg.wq:	CCM mbox wait queue of waiting processes
+ * @mbox_cmsg.tag:	CCM mbox message tag allocator
  * @debugfs_dir:	Device directory in debugfs
  * @vnic_list:		Entry on device vNIC list
  * @pdev:		Backpointer to PCI device
@@ -620,7 +643,7 @@ struct nfp_net {
 	struct timer_list reconfig_timer;
 	u32 reconfig_in_progress_update;
 
-	struct mutex bar_lock;
+	struct semaphore bar_lock;
 
 	u32 rx_coalesce_usecs;
 	u32 rx_coalesce_max_frames;
@@ -636,6 +659,16 @@ struct nfp_net {
 	u8 __iomem *rx_bar;
 
 	struct nfp_net_tlv_caps tlv_caps;
+
+	unsigned int ktls_tx_conn_cnt;
+
+	atomic_t ktls_no_space;
+
+	struct {
+		struct sk_buff_head queue;
+		wait_queue_head_t wq;
+		u16 tag;
+	} mbox_cmsg;
 
 	struct dentry *debugfs_dir;
 
@@ -848,12 +881,12 @@ static inline void nfp_ctrl_unlock(struct nfp_net *nn)
 
 static inline void nn_ctrl_bar_lock(struct nfp_net *nn)
 {
-	mutex_lock(&nn->bar_lock);
+	down(&nn->bar_lock);
 }
 
 static inline void nn_ctrl_bar_unlock(struct nfp_net *nn)
 {
-	mutex_unlock(&nn->bar_lock);
+	up(&nn->bar_lock);
 }
 
 /* Globals */
@@ -883,6 +916,7 @@ void nfp_ctrl_close(struct nfp_net *nn);
 
 void nfp_net_set_ethtool_ops(struct net_device *netdev);
 void nfp_net_info(struct nfp_net *nn);
+int __nfp_net_reconfig(struct nfp_net *nn, u32 update);
 int nfp_net_reconfig(struct nfp_net *nn, u32 update);
 unsigned int nfp_net_rss_key_sz(struct nfp_net *nn);
 void nfp_net_rss_write_itbl(struct nfp_net *nn);
