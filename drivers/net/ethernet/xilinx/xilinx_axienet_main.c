@@ -50,7 +50,7 @@
 #define DRIVER_DESCRIPTION	"Xilinx Axi Ethernet driver"
 #define DRIVER_VERSION		"1.00a"
 
-#define AXIENET_REGS_N		32
+#define AXIENET_REGS_N		40
 
 /* Match table for of_platform binding */
 static const struct of_device_id axienet_of_match[] = {
@@ -1179,6 +1179,14 @@ static void axienet_ethtools_get_regs(struct net_device *ndev,
 	data[29] = axienet_ior(lp, XAE_FMI_OFFSET);
 	data[30] = axienet_ior(lp, XAE_AF0_OFFSET);
 	data[31] = axienet_ior(lp, XAE_AF1_OFFSET);
+	data[32] = axienet_dma_in32(lp, XAXIDMA_TX_CR_OFFSET);
+	data[33] = axienet_dma_in32(lp, XAXIDMA_TX_SR_OFFSET);
+	data[34] = axienet_dma_in32(lp, XAXIDMA_TX_CDESC_OFFSET);
+	data[35] = axienet_dma_in32(lp, XAXIDMA_TX_TDESC_OFFSET);
+	data[36] = axienet_dma_in32(lp, XAXIDMA_RX_CR_OFFSET);
+	data[37] = axienet_dma_in32(lp, XAXIDMA_RX_SR_OFFSET);
+	data[38] = axienet_dma_in32(lp, XAXIDMA_RX_CDESC_OFFSET);
+	data[39] = axienet_dma_in32(lp, XAXIDMA_RX_TDESC_OFFSET);
 }
 
 static void axienet_ethtools_get_ringparam(struct net_device *ndev,
