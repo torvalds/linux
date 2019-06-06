@@ -1293,6 +1293,8 @@ static int vicodec_subscribe_event(struct v4l2_fh *fh,
 			return -EINVAL;
 		/* fall through */
 	case V4L2_EVENT_EOS:
+		if (ctx->is_stateless)
+			return -EINVAL;
 		return v4l2_event_subscribe(fh, sub, 0, NULL);
 	default:
 		return v4l2_ctrl_subscribe_event(fh, sub);
