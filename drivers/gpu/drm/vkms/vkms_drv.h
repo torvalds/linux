@@ -48,6 +48,8 @@ struct vkms_plane_state {
 struct vkms_crtc_state {
 	struct drm_crtc_state base;
 	struct work_struct crc_work;
+
+	bool crc_pending;
 	u64 frame_start;
 	u64 frame_end;
 };

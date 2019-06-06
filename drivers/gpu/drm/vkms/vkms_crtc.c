@@ -30,13 +30,18 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 		 * has read the data
 		 */
 		spin_lock(&output->state_lock);
-		if (!state->frame_start)
+		if (!state->crc_pending)
 			state->frame_start = frame;
+		else
+			DRM_DEBUG_DRIVER("crc worker falling behind, frame_start: %llu, frame_end: %llu\n",
+					 state->frame_start, frame);
+		state->frame_end = frame;
+		state->crc_pending = true;
 		spin_unlock(&output->state_lock);
 
 		ret = queue_work(output->crc_workq, &state->crc_work);
 		if (!ret)
-			DRM_WARN("failed to queue vkms_crc_work_handle");
+			DRM_DEBUG_DRIVER("vkms_crc_work_handle already queued\n");
 	}
 
 	spin_unlock(&output->lock);

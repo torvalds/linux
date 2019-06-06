@@ -166,16 +166,24 @@ void vkms_crc_work_handle(struct work_struct *work)
 	struct drm_plane *plane;
 	u32 crc32 = 0;
 	u64 frame_start, frame_end;
+	bool crc_pending;
 	unsigned long flags;
 
 	spin_lock_irqsave(&out->state_lock, flags);
 	frame_start = crtc_state->frame_start;
 	frame_end = crtc_state->frame_end;
+	crc_pending = crtc_state->crc_pending;
+	crtc_state->frame_start = 0;
+	crtc_state->frame_end = 0;
+	crtc_state->crc_pending = false;
 	spin_unlock_irqrestore(&out->state_lock, flags);
 
-	/* _vblank_handle() hasn't updated frame_start yet */
-	if (!frame_start || frame_start == frame_end)
-		goto out;
+	/*
+	 * We raced with the vblank hrtimer and previous work already computed
+	 * the crc, nothing to do.
+	 */
+	if (!crc_pending)
+		return;
 
 	drm_for_each_plane(plane, &vdev->drm) {
 		struct vkms_plane_state *vplane_state;
@@ -196,20 +204,11 @@ void vkms_crc_work_handle(struct work_struct *work)
 	if (primary_crc)
 		crc32 = _vkms_get_crc(primary_crc, cursor_crc);
 
-	frame_end = drm_crtc_accurate_vblank_count(crtc);
-
-	/* queue_work can fail to schedule crc_work; add crc for
-	 * missing frames
+	/*
+	 * The worker can fall behind the vblank hrtimer, make sure we catch up.
 	 */
 	while (frame_start <= frame_end)
 		drm_crtc_add_crc_entry(crtc, true, frame_start++, &crc32);
-
-out:
-	/* to avoid using the same value for frame number again */
-	spin_lock_irqsave(&out->state_lock, flags);
-	crtc_state->frame_end = frame_end;
-	crtc_state->frame_start = 0;
-	spin_unlock_irqrestore(&out->state_lock, flags);
 }
 
 static const char * const pipe_crc_sources[] = {"auto"};
