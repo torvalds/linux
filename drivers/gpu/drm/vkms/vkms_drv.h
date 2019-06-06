@@ -20,14 +20,6 @@
 
 extern bool enable_cursor;
 
-static const u32 vkms_formats[] = {
-	DRM_FORMAT_XRGB8888,
-};
-
-static const u32 vkms_cursor_formats[] = {
-	DRM_FORMAT_ARGB8888,
-};
-
 struct vkms_crc_data {
 	struct drm_framebuffer fb;
 	struct drm_rect src, dst;
