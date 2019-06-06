@@ -2501,10 +2501,6 @@ extern void i915_driver_unload(struct drm_device *dev);
 
 extern void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
 extern void intel_hangcheck_init(struct drm_i915_private *dev_priv);
-extern unsigned long i915_chipset_val(struct drm_i915_private *dev_priv);
-extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
-extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
-extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
 
 u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv);
@@ -2832,13 +2828,7 @@ extern int intel_modeset_vga_set_state(struct drm_i915_private *dev_priv,
 extern void intel_display_resume(struct drm_device *dev);
 extern void i915_redisable_vga(struct drm_i915_private *dev_priv);
 extern void i915_redisable_vga_power_on(struct drm_i915_private *dev_priv);
-extern bool ironlake_set_drps(struct drm_i915_private *dev_priv, u8 val);
 extern void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
-extern int intel_set_rps(struct drm_i915_private *dev_priv, u8 val);
-extern void intel_rps_mark_interactive(struct drm_i915_private *i915,
-				       bool interactive);
-extern bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv,
-				  bool enable);
 
 int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
