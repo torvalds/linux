@@ -4455,11 +4455,8 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 	vect_info = vmx->idt_vectoring_info;
 	intr_info = vmx->exit_intr_info;
 
-	if (is_machine_check(intr_info))
-		return handle_machine_check(vcpu);
-
-	if (is_nmi(intr_info))
-		return 1;  /* already handled by vmx_vcpu_run() */
+	if (is_machine_check(intr_info) || is_nmi(intr_info))
+		return 1;  /* already handled by vmx_complete_atomic_exit */
 
 	if (is_invalid_opcode(intr_info))
 		return handle_ud(vcpu);
