@@ -228,7 +228,6 @@ int axienet_mdio_setup(struct axienet_local *lp)
 	if (!bus)
 		return -ENOMEM;
 
-	mdio_node = of_get_parent(lp->phy_node);
 	snprintf(bus->id, MII_BUS_ID_SIZE, "axienet-%.8llx",
 		 (unsigned long long)lp->regs_start);
 
@@ -239,7 +238,9 @@ int axienet_mdio_setup(struct axienet_local *lp)
 	bus->parent = lp->dev;
 	lp->mii_bus = bus;
 
+	mdio_node = of_get_child_by_name(lp->dev->of_node, "mdio");
 	ret = of_mdiobus_register(bus, mdio_node);
+	of_node_put(mdio_node);
 	if (ret) {
 		mdiobus_free(bus);
 		lp->mii_bus = NULL;
