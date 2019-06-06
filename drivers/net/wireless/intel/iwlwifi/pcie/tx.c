@@ -1858,20 +1858,6 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 		wake_up(&trans_pcie->wait_command_queue);
 	}
 
-	if (meta->flags & CMD_MAKE_TRANS_IDLE) {
-		IWL_DEBUG_INFO(trans, "complete %s - mark trans as idle\n",
-			       iwl_get_cmd_string(trans, cmd->hdr.cmd));
-		set_bit(STATUS_TRANS_IDLE, &trans->status);
-		wake_up(&trans_pcie->d0i3_waitq);
-	}
-
-	if (meta->flags & CMD_WAKE_UP_TRANS) {
-		IWL_DEBUG_INFO(trans, "complete %s - clear trans idle flag\n",
-			       iwl_get_cmd_string(trans, cmd->hdr.cmd));
-		clear_bit(STATUS_TRANS_IDLE, &trans->status);
-		wake_up(&trans_pcie->d0i3_waitq);
-	}
-
 	meta->flags = 0;
 
 	spin_unlock_bh(&txq->lock);
@@ -1917,16 +1903,6 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
 		       iwl_get_cmd_string(trans, cmd->id));
-
-	if (pm_runtime_suspended(&trans_pcie->pci_dev->dev)) {
-		ret = wait_event_timeout(trans_pcie->d0i3_waitq,
-				 pm_runtime_active(&trans_pcie->pci_dev->dev),
-				 msecs_to_jiffies(IWL_TRANS_IDLE_TIMEOUT));
-		if (!ret) {
-			IWL_ERR(trans, "Timeout exiting D0i3 before hcmd\n");
-			return -ETIMEDOUT;
-		}
-	}
 
 	cmd_idx = iwl_pcie_enqueue_hcmd(trans, cmd);
 	if (cmd_idx < 0) {

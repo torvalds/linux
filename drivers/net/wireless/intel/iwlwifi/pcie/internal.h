@@ -558,7 +558,6 @@ struct iwl_trans_pcie {
 	bool ucode_write_complete;
 	wait_queue_head_t ucode_write_waitq;
 	wait_queue_head_t wait_command_queue;
-	wait_queue_head_t d0i3_waitq;
 
 	u8 page_offs, dev_cmd_offs;
 
@@ -581,7 +580,6 @@ struct iwl_trans_pcie {
 	/*protect hw register */
 	spinlock_t reg_lock;
 	bool cmd_hold_nic_awake;
-	bool ref_cmd_in_flight;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct cont_rec fw_mon_data;

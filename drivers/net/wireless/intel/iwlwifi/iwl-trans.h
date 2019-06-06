@@ -159,10 +159,6 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  * @CMD_ASYNC: Return right away and don't wait for the response
  * @CMD_WANT_SKB: Not valid with CMD_ASYNC. The caller needs the buffer of
  *	the response. The caller needs to call iwl_free_resp when done.
- * @CMD_SEND_IN_IDLE: The command should be sent even when the trans is idle.
- * @CMD_MAKE_TRANS_IDLE: The command response should mark the trans as idle.
- * @CMD_WAKE_UP_TRANS: The command response should wake up the trans
- *	(i.e. mark it as non-idle).
  * @CMD_WANT_ASYNC_CALLBACK: the op_mode's async callback function must be
  *	called after this command completes. Valid only with CMD_ASYNC.
  */
@@ -170,10 +166,7 @@ enum CMD_MODE {
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
 	CMD_SEND_IN_RFKILL	= BIT(2),
-	CMD_SEND_IN_IDLE	= BIT(3),
-	CMD_MAKE_TRANS_IDLE	= BIT(4),
-	CMD_WAKE_UP_TRANS	= BIT(5),
-	CMD_WANT_ASYNC_CALLBACK	= BIT(6),
+	CMD_WANT_ASYNC_CALLBACK	= BIT(3),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -658,11 +651,6 @@ enum iwl_plat_pm_mode {
 	IWL_PLAT_PM_MODE_DISABLED,
 	IWL_PLAT_PM_MODE_D3,
 };
-
-/* Max time to wait for trans to become idle/non-idle on d0i3
- * enter/exit (in msecs).
- */
-#define IWL_TRANS_IDLE_TIMEOUT 2000
 
 /* Max time to wait for nmi interrupt */
 #define IWL_TRANS_NMI_TIMEOUT (HZ / 4)
