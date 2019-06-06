@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/if_vlan.h>
+#include <linux/phylink.h>
 
 /* Packet size info */
 #define XAE_HDR_SIZE			14 /* Size of Ethernet header */
@@ -420,6 +421,9 @@ struct axienet_local {
 	/* Connection to PHY device */
 	struct device_node *phy_node;
 
+	struct phylink *phylink;
+	struct phylink_config phylink_config;
+
 	/* Clock for AXI bus */
 	struct clk *clk;
 
@@ -439,7 +443,6 @@ struct axienet_local {
 	phy_interface_t phy_mode;
 
 	u32 options;			/* Current options word */
-	u32 last_link;
 	u32 features;
 
 	/* Buffer descriptors */
