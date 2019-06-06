@@ -167,16 +167,15 @@ void vkms_crc_work_handle(struct work_struct *work)
 	u32 crc32 = 0;
 	u64 frame_start, frame_end;
 	bool crc_pending;
-	unsigned long flags;
 
-	spin_lock_irqsave(&out->state_lock, flags);
+	spin_lock_irq(&out->state_lock);
 	frame_start = crtc_state->frame_start;
 	frame_end = crtc_state->frame_end;
 	crc_pending = crtc_state->crc_pending;
 	crtc_state->frame_start = 0;
 	crtc_state->frame_end = 0;
 	crtc_state->crc_pending = false;
-	spin_unlock_irqrestore(&out->state_lock, flags);
+	spin_unlock_irq(&out->state_lock);
 
 	/*
 	 * We raced with the vblank hrtimer and previous work already computed
@@ -255,7 +254,6 @@ int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 {
 	struct vkms_output *out = drm_crtc_to_vkms_output(crtc);
 	bool enabled = false;
-	unsigned long flags;
 	int ret = 0;
 
 	ret = vkms_crc_parse_source(src_name, &enabled);
@@ -263,9 +261,9 @@ int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	/* make sure nothing is scheduled on crtc workq */
 	flush_workqueue(out->crc_workq);
 
-	spin_lock_irqsave(&out->lock, flags);
+	spin_lock_irq(&out->lock);
 	out->crc_enabled = enabled;
-	spin_unlock_irqrestore(&out->lock, flags);
+	spin_unlock_irq(&out->lock);
 
 	return ret;
 }
