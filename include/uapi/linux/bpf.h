@@ -3083,6 +3083,10 @@ struct bpf_sock_tuple {
 	};
 };
 
+struct bpf_xdp_sock {
+	__u32 queue_id;
+};
+
 #define XDP_PACKET_HEADROOM 256
 
 /* User return codes for XDP prog type.
