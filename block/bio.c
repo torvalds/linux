@@ -558,14 +558,6 @@ void bio_put(struct bio *bio)
 }
 EXPORT_SYMBOL(bio_put);
 
-int bio_phys_segments(struct request_queue *q, struct bio *bio)
-{
-	if (unlikely(!bio_flagged(bio, BIO_SEG_VALID)))
-		blk_recount_segments(q, bio);
-
-	return bio->bi_phys_segments;
-}
-
 /**
  * 	__bio_clone_fast - clone a bio that shares the original bio's biovec
  * 	@bio: destination bio
@@ -739,7 +731,7 @@ static int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 	if (bio_full(bio))
 		return 0;
 
-	if (bio->bi_phys_segments >= queue_max_segments(q))
+	if (bio->bi_vcnt >= queue_max_segments(q))
 		return 0;
 
 	bvec = &bio->bi_io_vec[bio->bi_vcnt];
@@ -749,8 +741,6 @@ static int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
 	bio->bi_vcnt++;
  done:
 	bio->bi_iter.bi_size += len;
-	bio->bi_phys_segments = bio->bi_vcnt;
-	bio_set_flag(bio, BIO_SEG_VALID);
 	return len;
 }
 
@@ -1909,10 +1899,7 @@ void bio_trim(struct bio *bio, int offset, int size)
 	if (offset == 0 && size == bio->bi_iter.bi_size)
 		return;
 
-	bio_clear_flag(bio, BIO_SEG_VALID);
-
 	bio_advance(bio, offset << 9);
-
 	bio->bi_iter.bi_size = size;
 
 	if (bio_integrity(bio))

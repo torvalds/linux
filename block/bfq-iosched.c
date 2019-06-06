@@ -2027,7 +2027,8 @@ static void bfq_remove_request(struct request_queue *q,
 
 }
 
-static bool bfq_bio_merge(struct blk_mq_hw_ctx *hctx, struct bio *bio)
+static bool bfq_bio_merge(struct blk_mq_hw_ctx *hctx, struct bio *bio,
+		unsigned int nr_segs)
 {
 	struct request_queue *q = hctx->queue;
 	struct bfq_data *bfqd = q->elevator->elevator_data;
@@ -2050,7 +2051,7 @@ static bool bfq_bio_merge(struct blk_mq_hw_ctx *hctx, struct bio *bio)
 		bfqd->bio_bfqq = NULL;
 	bfqd->bio_bic = bic;
 
-	ret = blk_mq_sched_try_merge(q, bio, &free);
+	ret = blk_mq_sched_try_merge(q, bio, nr_segs, &free);
 
 	if (free)
 		blk_mq_free_request(free);

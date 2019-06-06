@@ -550,15 +550,15 @@ void blk_put_request(struct request *req)
 }
 EXPORT_SYMBOL(blk_put_request);
 
-bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
-			    struct bio *bio)
+bool bio_attempt_back_merge(struct request *req, struct bio *bio,
+		unsigned int nr_segs)
 {
 	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
 
-	if (!ll_back_merge_fn(q, req, bio))
+	if (!ll_back_merge_fn(req, bio, nr_segs))
 		return false;
 
-	trace_block_bio_backmerge(q, req, bio);
+	trace_block_bio_backmerge(req->q, req, bio);
 
 	if ((req->cmd_flags & REQ_FAILFAST_MASK) != ff)
 		blk_rq_set_mixed_merge(req);
@@ -571,15 +571,15 @@ bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 	return true;
 }
 
-bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
-			     struct bio *bio)
+bool bio_attempt_front_merge(struct request *req, struct bio *bio,
+		unsigned int nr_segs)
 {
 	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
 
-	if (!ll_front_merge_fn(q, req, bio))
+	if (!ll_front_merge_fn(req, bio, nr_segs))
 		return false;
 
-	trace_block_bio_frontmerge(q, req, bio);
+	trace_block_bio_frontmerge(req->q, req, bio);
 
 	if ((req->cmd_flags & REQ_FAILFAST_MASK) != ff)
 		blk_rq_set_mixed_merge(req);
@@ -621,6 +621,7 @@ no_merge:
  * blk_attempt_plug_merge - try to merge with %current's plugged list
  * @q: request_queue new bio is being queued at
  * @bio: new bio being queued
+ * @nr_segs: number of segments in @bio
  * @same_queue_rq: pointer to &struct request that gets filled in when
  * another request associated with @q is found on the plug list
  * (optional, may be %NULL)
@@ -639,7 +640,7 @@ no_merge:
  * Caller must ensure !blk_queue_nomerges(q) beforehand.
  */
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
-			    struct request **same_queue_rq)
+		unsigned int nr_segs, struct request **same_queue_rq)
 {
 	struct blk_plug *plug;
 	struct request *rq;
@@ -668,10 +669,10 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 
 		switch (blk_try_merge(rq, bio)) {
 		case ELEVATOR_BACK_MERGE:
-			merged = bio_attempt_back_merge(q, rq, bio);
+			merged = bio_attempt_back_merge(rq, bio, nr_segs);
 			break;
 		case ELEVATOR_FRONT_MERGE:
-			merged = bio_attempt_front_merge(q, rq, bio);
+			merged = bio_attempt_front_merge(rq, bio, nr_segs);
 			break;
 		case ELEVATOR_DISCARD_MERGE:
 			merged = bio_attempt_discard_merge(q, rq, bio);
@@ -1427,14 +1428,9 @@ bool blk_update_request(struct request *req, blk_status_t error,
 }
 EXPORT_SYMBOL_GPL(blk_update_request);
 
-void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
-		     struct bio *bio)
+void blk_rq_bio_prep(struct request *rq, struct bio *bio, unsigned int nr_segs)
 {
-	if (bio_has_data(bio))
-		rq->nr_phys_segments = bio_phys_segments(q, bio);
-	else if (bio_op(bio) == REQ_OP_DISCARD)
-		rq->nr_phys_segments = 1;
-
+	rq->nr_phys_segments = nr_segs;
 	rq->__data_len = bio->bi_iter.bi_size;
 	rq->bio = rq->biotail = bio;
 	rq->ioprio = bio_prio(bio);

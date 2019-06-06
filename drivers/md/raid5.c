@@ -5251,7 +5251,6 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 		rcu_read_unlock();
 		raid_bio->bi_next = (void*)rdev;
 		bio_set_dev(align_bi, rdev->bdev);
-		bio_clear_flag(align_bi, BIO_SEG_VALID);
 
 		if (is_badblock(rdev, align_bi->bi_iter.bi_sector,
 				bio_sectors(align_bi),

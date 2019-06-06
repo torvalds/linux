@@ -408,7 +408,6 @@ static inline void bio_wouldblock_error(struct bio *bio)
 }
 
 struct request_queue;
-extern int bio_phys_segments(struct request_queue *, struct bio *);
 
 extern int submit_bio_wait(struct bio *bio);
 extern void bio_advance(struct bio *, unsigned);

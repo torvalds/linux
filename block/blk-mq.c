@@ -1764,14 +1764,15 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 	}
 }
 
-static void blk_mq_bio_to_request(struct request *rq, struct bio *bio)
+static void blk_mq_bio_to_request(struct request *rq, struct bio *bio,
+		unsigned int nr_segs)
 {
 	if (bio->bi_opf & REQ_RAHEAD)
 		rq->cmd_flags |= REQ_FAILFAST_MASK;
 
 	rq->__sector = bio->bi_iter.bi_sector;
 	rq->write_hint = bio->bi_write_hint;
-	blk_rq_bio_prep(rq->q, rq, bio);
+	blk_rq_bio_prep(rq, bio, nr_segs);
 
 	blk_account_io_start(rq, true);
 }
@@ -1941,20 +1942,20 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	struct request *rq;
 	struct blk_plug *plug;
 	struct request *same_queue_rq = NULL;
+	unsigned int nr_segs;
 	blk_qc_t cookie;
 
 	blk_queue_bounce(q, &bio);
-
-	blk_queue_split(q, &bio);
+	__blk_queue_split(q, &bio, &nr_segs);
 
 	if (!bio_integrity_prep(bio))
 		return BLK_QC_T_NONE;
 
 	if (!is_flush_fua && !blk_queue_nomerges(q) &&
-	    blk_attempt_plug_merge(q, bio, &same_queue_rq))
+	    blk_attempt_plug_merge(q, bio, nr_segs, &same_queue_rq))
 		return BLK_QC_T_NONE;
 
-	if (blk_mq_sched_bio_merge(q, bio))
+	if (blk_mq_sched_bio_merge(q, bio, nr_segs))
 		return BLK_QC_T_NONE;
 
 	rq_qos_throttle(q, bio);
@@ -1977,7 +1978,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	plug = current->plug;
 	if (unlikely(is_flush_fua)) {
 		blk_mq_put_ctx(data.ctx);
-		blk_mq_bio_to_request(rq, bio);
+		blk_mq_bio_to_request(rq, bio, nr_segs);
 
 		/* bypass scheduler for flush rq */
 		blk_insert_flush(rq);
@@ -1991,7 +1992,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		struct request *last = NULL;
 
 		blk_mq_put_ctx(data.ctx);
-		blk_mq_bio_to_request(rq, bio);
+		blk_mq_bio_to_request(rq, bio, nr_segs);
 
 		if (!request_count)
 			trace_block_plug(q);
@@ -2006,7 +2007,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 
 		blk_add_rq_to_plug(plug, rq);
 	} else if (plug && !blk_queue_nomerges(q)) {
-		blk_mq_bio_to_request(rq, bio);
+		blk_mq_bio_to_request(rq, bio, nr_segs);
 
 		/*
 		 * We do limited plugging. If the bio can be merged, do that.
@@ -2035,11 +2036,11 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	} else if ((q->nr_hw_queues > 1 && is_sync) || (!q->elevator &&
 			!data.hctx->dispatch_busy)) {
 		blk_mq_put_ctx(data.ctx);
-		blk_mq_bio_to_request(rq, bio);
+		blk_mq_bio_to_request(rq, bio, nr_segs);
 		blk_mq_try_issue_directly(data.hctx, rq, &cookie);
 	} else {
 		blk_mq_put_ctx(data.ctx);
-		blk_mq_bio_to_request(rq, bio);
+		blk_mq_bio_to_request(rq, bio, nr_segs);
 		blk_mq_sched_insert_request(rq, false, true, true);
 	}
 
