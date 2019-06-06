@@ -15,11 +15,6 @@ struct insn {
 	s32 offset;
 } __packed;
 
-struct insn_args {
-	struct jump_entry *entry;
-	enum jump_label_type type;
-};
-
 static void jump_label_make_nop(struct jump_entry *entry, struct insn *insn)
 {
 	/* brcl 0,offset */
