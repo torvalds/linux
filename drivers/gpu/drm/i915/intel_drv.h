@@ -1535,18 +1535,6 @@ int intel_prepare_plane_fb(struct drm_plane *plane,
 			   struct drm_plane_state *new_state);
 void intel_cleanup_plane_fb(struct drm_plane *plane,
 			    struct drm_plane_state *old_state);
-int intel_plane_atomic_get_property(struct drm_plane *plane,
-				    const struct drm_plane_state *state,
-				    struct drm_property *property,
-				    u64 *val);
-int intel_plane_atomic_set_property(struct drm_plane *plane,
-				    struct drm_plane_state *state,
-				    struct drm_property *property,
-				    u64 val);
-int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_state,
-				    struct drm_crtc_state *crtc_state,
-				    const struct intel_plane_state *old_plane_state,
-				    struct drm_plane_state *plane_state);
 
 void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe);
