@@ -224,8 +224,8 @@ int blkg_print_stat_ios_recursive(struct seq_file *sf, void *v);
 
 u64 blkg_stat_recursive_sum(struct blkcg_gq *blkg,
 			    struct blkcg_policy *pol, int off);
-struct blkg_rwstat blkg_rwstat_recursive_sum(struct blkcg_gq *blkg,
-					     struct blkcg_policy *pol, int off);
+void blkg_rwstat_recursive_sum(struct blkcg_gq *blkg, struct blkcg_policy *pol,
+		int off, struct blkg_rwstat *sum);
 
 struct blkg_conf_ctx {
 	struct gendisk			*disk;
@@ -700,15 +700,14 @@ static inline void blkg_rwstat_add(struct blkg_rwstat *rwstat,
  *
  * Read the current snapshot of @rwstat and return it in the aux counts.
  */
-static inline struct blkg_rwstat blkg_rwstat_read(struct blkg_rwstat *rwstat)
+static inline void blkg_rwstat_read(struct blkg_rwstat *rwstat,
+		struct blkg_rwstat *result)
 {
-	struct blkg_rwstat result;
 	int i;
 
 	for (i = 0; i < BLKG_RWSTAT_NR; i++)
-		atomic64_set(&result.aux_cnt[i],
+		atomic64_set(&result->aux_cnt[i],
 			     percpu_counter_sum_positive(&rwstat->cpu_cnt[i]));
-	return result;
 }
 
 /**
@@ -721,8 +720,9 @@ static inline struct blkg_rwstat blkg_rwstat_read(struct blkg_rwstat *rwstat)
  */
 static inline uint64_t blkg_rwstat_total(struct blkg_rwstat *rwstat)
 {
-	struct blkg_rwstat tmp = blkg_rwstat_read(rwstat);
+	struct blkg_rwstat tmp = { };
 
+	blkg_rwstat_read(rwstat, &tmp);
 	return atomic64_read(&tmp.aux_cnt[BLKG_RWSTAT_READ]) +
 		atomic64_read(&tmp.aux_cnt[BLKG_RWSTAT_WRITE]);
 }
