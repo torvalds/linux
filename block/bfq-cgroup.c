@@ -15,8 +15,7 @@
 
 #include "bfq-iosched.h"
 
-#if defined(CONFIG_BFQ_GROUP_IOSCHED) &&  defined(CONFIG_DEBUG_BLK_CGROUP)
-
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 static int bfq_stat_init(struct bfq_stat *stat, gfp_t gfp)
 {
 	int ret;
@@ -253,7 +252,7 @@ void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
 				io_start_time_ns - start_time_ns);
 }
 
-#else /* CONFIG_BFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
+#else /* CONFIG_BFQ_CGROUP_DEBUG */
 
 void bfqg_stats_update_io_add(struct bfq_group *bfqg, struct bfq_queue *bfqq,
 			      unsigned int op) { }
@@ -267,7 +266,7 @@ void bfqg_stats_update_idle_time(struct bfq_group *bfqg) { }
 void bfqg_stats_set_start_idle_time(struct bfq_group *bfqg) { }
 void bfqg_stats_update_avg_queue_size(struct bfq_group *bfqg) { }
 
-#endif /* CONFIG_BFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
+#endif /* CONFIG_BFQ_CGROUP_DEBUG */
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 
@@ -351,7 +350,7 @@ void bfqg_and_blkg_put(struct bfq_group *bfqg)
 /* @stats = 0 */
 static void bfqg_stats_reset(struct bfqg_stats *stats)
 {
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	/* queued stats shouldn't be cleared */
 	blkg_rwstat_reset(&stats->merged);
 	blkg_rwstat_reset(&stats->service_time);
@@ -372,7 +371,7 @@ static void bfqg_stats_add_aux(struct bfqg_stats *to, struct bfqg_stats *from)
 	if (!to || !from)
 		return;
 
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	/* queued stats shouldn't be cleared */
 	blkg_rwstat_add_aux(&to->merged, &from->merged);
 	blkg_rwstat_add_aux(&to->service_time, &from->service_time);
@@ -432,7 +431,7 @@ void bfq_init_entity(struct bfq_entity *entity, struct bfq_group *bfqg)
 
 static void bfqg_stats_exit(struct bfqg_stats *stats)
 {
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	blkg_rwstat_exit(&stats->merged);
 	blkg_rwstat_exit(&stats->service_time);
 	blkg_rwstat_exit(&stats->wait_time);
@@ -449,7 +448,7 @@ static void bfqg_stats_exit(struct bfqg_stats *stats)
 
 static int bfqg_stats_init(struct bfqg_stats *stats, gfp_t gfp)
 {
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	if (blkg_rwstat_init(&stats->merged, gfp) ||
 	    blkg_rwstat_init(&stats->service_time, gfp) ||
 	    blkg_rwstat_init(&stats->wait_time, gfp) ||
@@ -986,7 +985,7 @@ static ssize_t bfq_io_set_weight(struct kernfs_open_file *of,
 	return ret ?: nbytes;
 }
 
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 static int bfqg_print_stat(struct seq_file *sf, void *v)
 {
 	blkcg_print_blkgs(sf, css_to_blkcg(seq_css(sf)), blkg_prfill_stat,
@@ -1109,7 +1108,7 @@ static int bfqg_print_avg_queue_size(struct seq_file *sf, void *v)
 			  0, false);
 	return 0;
 }
-#endif /* CONFIG_DEBUG_BLK_CGROUP */
+#endif /* CONFIG_BFQ_CGROUP_DEBUG */
 
 struct bfq_group *bfq_create_group_hierarchy(struct bfq_data *bfqd, int node)
 {
@@ -1157,7 +1156,7 @@ struct cftype bfq_blkcg_legacy_files[] = {
 		.private = (unsigned long)&blkcg_policy_bfq,
 		.seq_show = blkg_print_stat_ios,
 	},
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	{
 		.name = "bfq.time",
 		.private = offsetof(struct bfq_group, stats.time),
@@ -1187,7 +1186,7 @@ struct cftype bfq_blkcg_legacy_files[] = {
 		.private = offsetof(struct bfq_group, stats.queued),
 		.seq_show = bfqg_print_rwstat,
 	},
-#endif /* CONFIG_DEBUG_BLK_CGROUP */
+#endif /* CONFIG_BFQ_CGROUP_DEBUG */
 
 	/* the same statistics which cover the bfqg and its descendants */
 	{
@@ -1200,7 +1199,7 @@ struct cftype bfq_blkcg_legacy_files[] = {
 		.private = (unsigned long)&blkcg_policy_bfq,
 		.seq_show = blkg_print_stat_ios_recursive,
 	},
-#ifdef CONFIG_DEBUG_BLK_CGROUP
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	{
 		.name = "bfq.time_recursive",
 		.private = offsetof(struct bfq_group, stats.time),
@@ -1254,7 +1253,7 @@ struct cftype bfq_blkcg_legacy_files[] = {
 		.private = offsetof(struct bfq_group, stats.dequeue),
 		.seq_show = bfqg_print_stat,
 	},
-#endif	/* CONFIG_DEBUG_BLK_CGROUP */
+#endif	/* CONFIG_BFQ_CGROUP_DEBUG */
 	{ }	/* terminate */
 };
 

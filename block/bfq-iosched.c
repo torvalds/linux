@@ -4404,7 +4404,7 @@ exit:
 	return rq;
 }
 
-#if defined(CONFIG_BFQ_GROUP_IOSCHED) && defined(CONFIG_DEBUG_BLK_CGROUP)
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 static void bfq_update_dispatch_stats(struct request_queue *q,
 				      struct request *rq,
 				      struct bfq_queue *in_serv_queue,
@@ -4454,7 +4454,7 @@ static inline void bfq_update_dispatch_stats(struct request_queue *q,
 					     struct request *rq,
 					     struct bfq_queue *in_serv_queue,
 					     bool idle_timer_disabled) {}
-#endif
+#endif /* CONFIG_BFQ_CGROUP_DEBUG */
 
 static struct request *bfq_dispatch_request(struct blk_mq_hw_ctx *hctx)
 {
@@ -5008,7 +5008,7 @@ static bool __bfq_insert_request(struct bfq_data *bfqd, struct request *rq)
 	return idle_timer_disabled;
 }
 
-#if defined(CONFIG_BFQ_GROUP_IOSCHED) && defined(CONFIG_DEBUG_BLK_CGROUP)
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 static void bfq_update_insert_stats(struct request_queue *q,
 				    struct bfq_queue *bfqq,
 				    bool idle_timer_disabled,
@@ -5038,7 +5038,7 @@ static inline void bfq_update_insert_stats(struct request_queue *q,
 					   struct bfq_queue *bfqq,
 					   bool idle_timer_disabled,
 					   unsigned int cmd_flags) {}
-#endif
+#endif /* CONFIG_BFQ_CGROUP_DEBUG */
 
 static void bfq_insert_request(struct blk_mq_hw_ctx *hctx, struct request *rq,
 			       bool at_head)

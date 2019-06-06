@@ -783,7 +783,7 @@ struct bfq_stat {
 };
 
 struct bfqg_stats {
-#if defined(CONFIG_BFQ_GROUP_IOSCHED) && defined(CONFIG_DEBUG_BLK_CGROUP)
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
 	/* number of ios merged */
 	struct blkg_rwstat		merged;
 	/* total time spent on device in ns, may not be accurate w/ queueing */
@@ -811,7 +811,7 @@ struct bfqg_stats {
 	u64				start_idle_time;
 	u64				start_empty_time;
 	uint16_t			flags;
-#endif	/* CONFIG_BFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
+#endif /* CONFIG_BFQ_CGROUP_DEBUG */
 };
 
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
