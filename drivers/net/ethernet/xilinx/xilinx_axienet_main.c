@@ -39,9 +39,11 @@
 
 #include "xilinx_axienet.h"
 
-/* Descriptors defines for Tx and Rx DMA - 2^n for the best performance */
-#define TX_BD_NUM		64
-#define RX_BD_NUM		128
+/* Descriptors defines for Tx and Rx DMA */
+#define TX_BD_NUM_DEFAULT		64
+#define RX_BD_NUM_DEFAULT		1024
+#define TX_BD_NUM_MAX			4096
+#define RX_BD_NUM_MAX			4096
 
 /* Must be shorter than length of ethtool_drvinfo.driver field to fit */
 #define DRIVER_NAME		"xaxienet"
@@ -157,7 +159,7 @@ static void axienet_dma_bd_release(struct net_device *ndev)
 	int i;
 	struct axienet_local *lp = netdev_priv(ndev);
 
-	for (i = 0; i < RX_BD_NUM; i++) {
+	for (i = 0; i < lp->rx_bd_num; i++) {
 		dma_unmap_single(ndev->dev.parent, lp->rx_bd_v[i].phys,
 				 lp->max_frm_size, DMA_FROM_DEVICE);
 		dev_kfree_skb(lp->rx_bd_v[i].skb);
@@ -165,13 +167,13 @@ static void axienet_dma_bd_release(struct net_device *ndev)
 
 	if (lp->rx_bd_v) {
 		dma_free_coherent(ndev->dev.parent,
-				  sizeof(*lp->rx_bd_v) * RX_BD_NUM,
+				  sizeof(*lp->rx_bd_v) * lp->rx_bd_num,
 				  lp->rx_bd_v,
 				  lp->rx_bd_p);
 	}
 	if (lp->tx_bd_v) {
 		dma_free_coherent(ndev->dev.parent,
-				  sizeof(*lp->tx_bd_v) * TX_BD_NUM,
+				  sizeof(*lp->tx_bd_v) * lp->tx_bd_num,
 				  lp->tx_bd_v,
 				  lp->tx_bd_p);
 	}
@@ -201,27 +203,27 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 
 	/* Allocate the Tx and Rx buffer descriptors. */
 	lp->tx_bd_v = dma_alloc_coherent(ndev->dev.parent,
-					 sizeof(*lp->tx_bd_v) * TX_BD_NUM,
+					 sizeof(*lp->tx_bd_v) * lp->tx_bd_num,
 					 &lp->tx_bd_p, GFP_KERNEL);
 	if (!lp->tx_bd_v)
 		goto out;
 
 	lp->rx_bd_v = dma_alloc_coherent(ndev->dev.parent,
-					 sizeof(*lp->rx_bd_v) * RX_BD_NUM,
+					 sizeof(*lp->rx_bd_v) * lp->rx_bd_num,
 					 &lp->rx_bd_p, GFP_KERNEL);
 	if (!lp->rx_bd_v)
 		goto out;
 
-	for (i = 0; i < TX_BD_NUM; i++) {
+	for (i = 0; i < lp->tx_bd_num; i++) {
 		lp->tx_bd_v[i].next = lp->tx_bd_p +
 				      sizeof(*lp->tx_bd_v) *
-				      ((i + 1) % TX_BD_NUM);
+				      ((i + 1) % lp->tx_bd_num);
 	}
 
-	for (i = 0; i < RX_BD_NUM; i++) {
+	for (i = 0; i < lp->rx_bd_num; i++) {
 		lp->rx_bd_v[i].next = lp->rx_bd_p +
 				      sizeof(*lp->rx_bd_v) *
-				      ((i + 1) % RX_BD_NUM);
+				      ((i + 1) % lp->rx_bd_num);
 
 		skb = netdev_alloc_skb_ip_align(ndev, lp->max_frm_size);
 		if (!skb)
@@ -269,7 +271,7 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET,
 			  cr | XAXIDMA_CR_RUNSTOP_MASK);
 	axienet_dma_out32(lp, XAXIDMA_RX_TDESC_OFFSET, lp->rx_bd_p +
-			  (sizeof(*lp->rx_bd_v) * (RX_BD_NUM - 1)));
+			  (sizeof(*lp->rx_bd_v) * (lp->rx_bd_num - 1)));
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
 	 * Tx channel is now ready to run. But only after we write to the
@@ -610,8 +612,8 @@ static void axienet_start_xmit_done(struct net_device *ndev)
 		size += status & XAXIDMA_BD_STS_ACTUAL_LEN_MASK;
 		packets++;
 
-		++lp->tx_bd_ci;
-		lp->tx_bd_ci %= TX_BD_NUM;
+		if (++lp->tx_bd_ci >= lp->tx_bd_num)
+			lp->tx_bd_ci = 0;
 		cur_p = &lp->tx_bd_v[lp->tx_bd_ci];
 		status = cur_p->status;
 	}
@@ -638,7 +640,7 @@ static inline int axienet_check_tx_bd_space(struct axienet_local *lp,
 					    int num_frag)
 {
 	struct axidma_bd *cur_p;
-	cur_p = &lp->tx_bd_v[(lp->tx_bd_tail + num_frag) % TX_BD_NUM];
+	cur_p = &lp->tx_bd_v[(lp->tx_bd_tail + num_frag) % lp->tx_bd_num];
 	if (cur_p->status & XAXIDMA_BD_STS_ALL_MASK)
 		return NETDEV_TX_BUSY;
 	return 0;
@@ -698,8 +700,8 @@ axienet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 				     skb_headlen(skb), DMA_TO_DEVICE);
 
 	for (ii = 0; ii < num_frag; ii++) {
-		++lp->tx_bd_tail;
-		lp->tx_bd_tail %= TX_BD_NUM;
+		if (++lp->tx_bd_tail >= lp->tx_bd_num)
+			lp->tx_bd_tail = 0;
 		cur_p = &lp->tx_bd_v[lp->tx_bd_tail];
 		frag = &skb_shinfo(skb)->frags[ii];
 		cur_p->phys = dma_map_single(ndev->dev.parent,
@@ -715,8 +717,8 @@ axienet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	tail_p = lp->tx_bd_p + sizeof(*lp->tx_bd_v) * lp->tx_bd_tail;
 	/* Start the transfer */
 	axienet_dma_out32(lp, XAXIDMA_TX_TDESC_OFFSET, tail_p);
-	++lp->tx_bd_tail;
-	lp->tx_bd_tail %= TX_BD_NUM;
+	if (++lp->tx_bd_tail >= lp->tx_bd_num)
+		lp->tx_bd_tail = 0;
 
 	return NETDEV_TX_OK;
 }
@@ -790,8 +792,8 @@ static void axienet_recv(struct net_device *ndev)
 		cur_p->status = 0;
 		cur_p->skb = new_skb;
 
-		++lp->rx_bd_ci;
-		lp->rx_bd_ci %= RX_BD_NUM;
+		if (++lp->rx_bd_ci >= lp->rx_bd_num)
+			lp->rx_bd_ci = 0;
 		cur_p = &lp->rx_bd_v[lp->rx_bd_ci];
 	}
 
@@ -1179,6 +1181,40 @@ static void axienet_ethtools_get_regs(struct net_device *ndev,
 	data[31] = axienet_ior(lp, XAE_AF1_OFFSET);
 }
 
+static void axienet_ethtools_get_ringparam(struct net_device *ndev,
+					   struct ethtool_ringparam *ering)
+{
+	struct axienet_local *lp = netdev_priv(ndev);
+
+	ering->rx_max_pending = RX_BD_NUM_MAX;
+	ering->rx_mini_max_pending = 0;
+	ering->rx_jumbo_max_pending = 0;
+	ering->tx_max_pending = TX_BD_NUM_MAX;
+	ering->rx_pending = lp->rx_bd_num;
+	ering->rx_mini_pending = 0;
+	ering->rx_jumbo_pending = 0;
+	ering->tx_pending = lp->tx_bd_num;
+}
+
+static int axienet_ethtools_set_ringparam(struct net_device *ndev,
+					  struct ethtool_ringparam *ering)
+{
+	struct axienet_local *lp = netdev_priv(ndev);
+
+	if (ering->rx_pending > RX_BD_NUM_MAX ||
+	    ering->rx_mini_pending ||
+	    ering->rx_jumbo_pending ||
+	    ering->rx_pending > TX_BD_NUM_MAX)
+		return -EINVAL;
+
+	if (netif_running(ndev))
+		return -EBUSY;
+
+	lp->rx_bd_num = ering->rx_pending;
+	lp->tx_bd_num = ering->tx_pending;
+	return 0;
+}
+
 /**
  * axienet_ethtools_get_pauseparam - Get the pause parameter setting for
  *				     Tx and Rx paths.
@@ -1320,6 +1356,8 @@ static const struct ethtool_ops axienet_ethtool_ops = {
 	.get_regs_len   = axienet_ethtools_get_regs_len,
 	.get_regs       = axienet_ethtools_get_regs,
 	.get_link       = ethtool_op_get_link,
+	.get_ringparam	= axienet_ethtools_get_ringparam,
+	.set_ringparam	= axienet_ethtools_set_ringparam,
 	.get_pauseparam = axienet_ethtools_get_pauseparam,
 	.set_pauseparam = axienet_ethtools_set_pauseparam,
 	.get_coalesce   = axienet_ethtools_get_coalesce,
@@ -1357,7 +1395,7 @@ static void axienet_dma_err_handler(unsigned long data)
 	axienet_mdio_enable(lp);
 	mutex_unlock(&lp->mii_bus->mdio_lock);
 
-	for (i = 0; i < TX_BD_NUM; i++) {
+	for (i = 0; i < lp->tx_bd_num; i++) {
 		cur_p = &lp->tx_bd_v[i];
 		if (cur_p->phys)
 			dma_unmap_single(ndev->dev.parent, cur_p->phys,
@@ -1377,7 +1415,7 @@ static void axienet_dma_err_handler(unsigned long data)
 		cur_p->skb = NULL;
 	}
 
-	for (i = 0; i < RX_BD_NUM; i++) {
+	for (i = 0; i < lp->rx_bd_num; i++) {
 		cur_p = &lp->rx_bd_v[i];
 		cur_p->status = 0;
 		cur_p->app0 = 0;
@@ -1425,7 +1463,7 @@ static void axienet_dma_err_handler(unsigned long data)
 	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET,
 			  cr | XAXIDMA_CR_RUNSTOP_MASK);
 	axienet_dma_out32(lp, XAXIDMA_RX_TDESC_OFFSET, lp->rx_bd_p +
-			  (sizeof(*lp->rx_bd_v) * (RX_BD_NUM - 1)));
+			  (sizeof(*lp->rx_bd_v) * (lp->rx_bd_num - 1)));
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
 	 * Tx channel is now ready to run. But only after we write to the
@@ -1497,6 +1535,8 @@ static int axienet_probe(struct platform_device *pdev)
 	lp->ndev = ndev;
 	lp->dev = &pdev->dev;
 	lp->options = XAE_OPTION_DEFAULTS;
+	lp->rx_bd_num = RX_BD_NUM_DEFAULT;
+	lp->tx_bd_num = TX_BD_NUM_DEFAULT;
 	/* Map device registers */
 	ethres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	lp->regs_start = ethres->start;

@@ -444,8 +444,10 @@ struct axienet_local {
 	/* Buffer descriptors */
 	struct axidma_bd *tx_bd_v;
 	dma_addr_t tx_bd_p;
+	u32 tx_bd_num;
 	struct axidma_bd *rx_bd_v;
 	dma_addr_t rx_bd_p;
+	u32 rx_bd_num;
 	u32 tx_bd_ci;
 	u32 tx_bd_tail;
 	u32 rx_bd_ci;
