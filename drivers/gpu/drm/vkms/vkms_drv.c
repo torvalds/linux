@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_helper.h>
@@ -58,6 +59,25 @@ static void vkms_release(struct drm_device *dev)
 	destroy_workqueue(vkms->output.crc_workq);
 }
 
+static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = old_state->dev;
+
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
+
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
+
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
+
+	drm_atomic_helper_fake_vblank(old_state);
+
+	drm_atomic_helper_commit_hw_done(old_state);
+
+	drm_atomic_helper_wait_for_vblanks(dev, old_state);
+
+	drm_atomic_helper_cleanup_planes(dev, old_state);
+}
+
 static struct drm_driver vkms_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
 	.release		= vkms_release,
@@ -80,6 +100,10 @@ static const struct drm_mode_config_funcs vkms_mode_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
+static const struct drm_mode_config_helper_funcs vkms_mode_config_helpers = {
+	.atomic_commit_tail = vkms_atomic_commit_tail,
+};
+
 static int vkms_modeset_init(struct vkms_device *vkmsdev)
 {
 	struct drm_device *dev = &vkmsdev->drm;
@@ -91,6 +115,7 @@ static int vkms_modeset_init(struct vkms_device *vkmsdev)
 	dev->mode_config.max_width = XRES_MAX;
 	dev->mode_config.max_height = YRES_MAX;
 	dev->mode_config.preferred_depth = 24;
+	dev->mode_config.helper_private = &vkms_mode_config_helpers;
 
 	return vkms_output_init(vkmsdev);
 }
