@@ -927,6 +927,9 @@ struct snd_soc_dai_link {
 	 */
 	const char *cpu_dai_name;
 
+	struct snd_soc_dai_link_component *cpus;
+	unsigned int num_cpus;
+
 	/*
 	 *	codec_name
 	 *	codec_of_node
@@ -1035,6 +1038,7 @@ struct snd_soc_dai_link {
 	 * drivers should not modify this value.
 	 */
 	unsigned int legacy_platform:1;
+	unsigned int legacy_cpu:1;
 
 	struct list_head list; /* DAI link list of the soc card */
 	struct snd_soc_dobj dobj; /* For topology */

@@ -887,7 +887,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link_component *codecs;
-	struct snd_soc_dai_link_component cpu_dai_component;
 	struct snd_soc_component *component;
 	int i;
 
@@ -906,13 +905,11 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	if (!rtd)
 		return -ENOMEM;
 
-	cpu_dai_component.name = dai_link->cpu_name;
-	cpu_dai_component.of_node = dai_link->cpu_of_node;
-	cpu_dai_component.dai_name = dai_link->cpu_dai_name;
-	rtd->cpu_dai = snd_soc_find_dai(&cpu_dai_component);
+	/* FIXME: we need multi CPU support in the future */
+	rtd->cpu_dai = snd_soc_find_dai(dai_link->cpus);
 	if (!rtd->cpu_dai) {
 		dev_info(card->dev, "ASoC: CPU DAI %s not registered\n",
-			 dai_link->cpu_dai_name);
+			 dai_link->cpus->dai_name);
 		goto _err_defer;
 	}
 	snd_soc_rtdcom_add(rtd, rtd->cpu_dai->component);
@@ -1049,6 +1046,46 @@ static void soc_remove_dai_links(struct snd_soc_card *card)
 	}
 }
 
+static int snd_soc_init_cpu(struct snd_soc_card *card,
+			    struct snd_soc_dai_link *dai_link)
+{
+	struct snd_soc_dai_link_component *cpu = dai_link->cpus;
+
+	/*
+	 * REMOVE ME
+	 *
+	 * This is glue code for Legacy vs Modern dai_link.
+	 * This function will be removed if all derivers are switched to
+	 * modern style dai_link.
+	 * Driver shouldn't use both legacy and modern style in the same time.
+	 * see
+	 *	soc.h :: struct snd_soc_dai_link
+	 */
+	/* convert Legacy platform link */
+	if (!cpu) {
+		cpu = devm_kzalloc(card->dev,
+				   sizeof(struct snd_soc_dai_link_component),
+				   GFP_KERNEL);
+		if (!cpu)
+			return -ENOMEM;
+
+		dai_link->cpus		= cpu;
+		dai_link->num_cpus	= 1;
+		dai_link->legacy_cpu	= 1;
+
+		cpu->name	= dai_link->cpu_name;
+		cpu->of_node	= dai_link->cpu_of_node;
+		cpu->dai_name	= dai_link->cpu_dai_name;
+	}
+
+	if (!dai_link->cpus) {
+		dev_err(card->dev, "ASoC: DAI link has no CPUs\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int snd_soc_init_platform(struct snd_soc_card *card,
 				 struct snd_soc_dai_link *dai_link)
 {
@@ -1088,7 +1125,7 @@ static int snd_soc_init_platform(struct snd_soc_card *card,
 	return 0;
 }
 
-static void soc_cleanup_platform(struct snd_soc_card *card)
+static void soc_cleanup_legacy(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *link;
 	int i;
@@ -1102,6 +1139,10 @@ static void soc_cleanup_platform(struct snd_soc_card *card)
 		if (link->legacy_platform) {
 			link->legacy_platform = 0;
 			link->platforms       = NULL;
+		}
+		if (link->legacy_cpu) {
+			link->legacy_cpu = 0;
+			link->cpus = NULL;
 		}
 	}
 }
@@ -1149,6 +1190,12 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 {
 	int i, ret;
 	struct snd_soc_dai_link_component *codec;
+
+	ret = snd_soc_init_cpu(card, link);
+	if (ret) {
+		dev_err(card->dev, "ASoC: failed to init cpu\n");
+		return ret;
+	}
 
 	ret = snd_soc_init_platform(card, link);
 	if (ret) {
@@ -1208,12 +1255,20 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 	    !soc_find_component(link->platforms->of_node, link->platforms->name))
 		return -EPROBE_DEFER;
 
+	/* FIXME */
+	if (link->num_cpus > 1) {
+		dev_err(card->dev,
+			"ASoC: multi cpu is not yet supported %s\n",
+			link->name);
+		return -EINVAL;
+	}
+
 	/*
 	 * CPU device may be specified by either name or OF node, but
 	 * can be left unspecified, and will be matched based on DAI
 	 * name alone..
 	 */
-	if (link->cpu_name && link->cpu_of_node) {
+	if (link->cpus->name && link->cpus->of_node) {
 		dev_err(card->dev,
 			"ASoC: Neither/both cpu name/of_node are set for %s\n",
 			link->name);
@@ -1224,16 +1279,16 @@ static int soc_init_dai_link(struct snd_soc_card *card,
 	 * Defer card registartion if cpu dai component is not added to
 	 * component list.
 	 */
-	if ((link->cpu_of_node || link->cpu_name) &&
-	    !soc_find_component(link->cpu_of_node, link->cpu_name))
+	if ((link->cpus->of_node || link->cpus->name) &&
+	    !soc_find_component(link->cpus->of_node, link->cpus->name))
 		return -EPROBE_DEFER;
 
 	/*
 	 * At least one of CPU DAI name or CPU device name/node must be
 	 * specified
 	 */
-	if (!link->cpu_dai_name &&
-	    !(link->cpu_name || link->cpu_of_node)) {
+	if (!link->cpus->dai_name &&
+	    !(link->cpus->name || link->cpus->of_node)) {
 		dev_err(card->dev,
 			"ASoC: Neither cpu_dai_name nor cpu_name/of_node are set for %s\n",
 			link->name);
@@ -2049,7 +2104,7 @@ static int soc_cleanup_card_resources(struct snd_soc_card *card)
 	/* remove and free each DAI */
 	soc_remove_dai_links(card);
 	soc_remove_pcm_runtimes(card);
-	soc_cleanup_platform(card);
+	soc_cleanup_legacy(card);
 
 	/* remove auxiliary devices */
 	soc_remove_aux_devices(card);
@@ -2806,7 +2861,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 
 		ret = soc_init_dai_link(card, link);
 		if (ret) {
-			soc_cleanup_platform(card);
+			soc_cleanup_legacy(card);
 			dev_err(card->dev, "ASoC: failed to init link %s\n",
 				link->name);
 			mutex_unlock(&client_mutex);
