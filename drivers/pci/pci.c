@@ -2474,10 +2474,20 @@ bool pci_dev_keep_suspended(struct pci_dev *pci_dev)
 {
 	struct device *dev = &pci_dev->dev;
 	bool wakeup = device_may_wakeup(dev);
+	pci_power_t target_state;
 
-	if (!pm_runtime_suspended(dev)
-	    || pci_target_state(pci_dev, wakeup) != pci_dev->current_state
-	    || platform_pci_need_resume(pci_dev))
+	if (!pm_runtime_suspended(dev) || platform_pci_need_resume(pci_dev))
+		return false;
+
+	target_state = pci_target_state(pci_dev, wakeup);
+
+	/*
+	 * If the earlier platform check has not triggered, D3cold is just power
+	 * removal on top of D3hot, so no need to resume the device in that
+	 * case.
+	 */
+	if (target_state != pci_dev->current_state &&
+	    target_state != PCI_D3cold && pci_dev->current_state != PCI_D3hot)
 		return false;
 
 	/*
