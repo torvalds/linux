@@ -24,7 +24,6 @@ struct drm_i915_gem_object;
  */
 struct i915_lut_handle {
 	struct list_head obj_link;
-	struct list_head ctx_link;
 	struct i915_gem_context *ctx;
 	u32 handle;
 };

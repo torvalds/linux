@@ -105,39 +105,47 @@ void i915_gem_object_set_cache_coherency(struct drm_i915_gem_object *obj,
 
 void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 {
-	struct drm_i915_private *i915 = to_i915(gem->dev);
 	struct drm_i915_gem_object *obj = to_intel_bo(gem);
 	struct drm_i915_file_private *fpriv = file->driver_priv;
 	struct i915_lut_handle *lut, *ln;
+	LIST_HEAD(close);
 
-	mutex_lock(&i915->drm.struct_mutex);
-
+	i915_gem_object_lock(obj);
 	list_for_each_entry_safe(lut, ln, &obj->lut_list, obj_link) {
 		struct i915_gem_context *ctx = lut->ctx;
-		struct i915_vma *vma;
 
-		GEM_BUG_ON(ctx->file_priv == ERR_PTR(-EBADF));
 		if (ctx->file_priv != fpriv)
 			continue;
 
-		vma = radix_tree_delete(&ctx->handles_vma, lut->handle);
-		GEM_BUG_ON(vma->obj != obj);
+		i915_gem_context_get(ctx);
+		list_move(&lut->obj_link, &close);
+	}
+	i915_gem_object_unlock(obj);
 
-		/* We allow the process to have multiple handles to the same
+	list_for_each_entry_safe(lut, ln, &close, obj_link) {
+		struct i915_gem_context *ctx = lut->ctx;
+		struct i915_vma *vma;
+
+		/*
+		 * We allow the process to have multiple handles to the same
 		 * vma, in the same fd namespace, by virtue of flink/open.
 		 */
-		GEM_BUG_ON(!vma->open_count);
-		if (!--vma->open_count && !i915_vma_is_ggtt(vma))
-			i915_vma_close(vma);
 
-		list_del(&lut->obj_link);
-		list_del(&lut->ctx_link);
+		mutex_lock(&ctx->mutex);
+		vma = radix_tree_delete(&ctx->handles_vma, lut->handle);
+		if (vma) {
+			GEM_BUG_ON(vma->obj != obj);
+			GEM_BUG_ON(!atomic_read(&vma->open_count));
+			if (atomic_dec_and_test(&vma->open_count) &&
+			    !i915_vma_is_ggtt(vma))
+				i915_vma_close(vma);
+		}
+		mutex_unlock(&ctx->mutex);
 
+		i915_gem_context_put(lut->ctx);
 		i915_lut_handle_free(lut);
 		i915_gem_object_put(obj);
 	}
-
-	mutex_unlock(&i915->drm.struct_mutex);
 }
 
 static bool discard_backing_storage(struct drm_i915_gem_object *obj)

@@ -30,7 +30,6 @@ mock_context(struct drm_i915_private *i915,
 	RCU_INIT_POINTER(ctx->engines, e);
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
-	INIT_LIST_HEAD(&ctx->handles_list);
 	INIT_LIST_HEAD(&ctx->hw_id_link);
 	mutex_init(&ctx->mutex);
 

@@ -1899,9 +1899,11 @@ struct drm_i915_private {
 		} timelines;
 
 		struct list_head active_rings;
-		struct list_head closed_vma;
 
 		struct intel_wakeref wakeref;
+
+		struct list_head closed_vma;
+		spinlock_t closed_lock; /* guards the list of closed_vma */
 
 		/**
 		 * Is the GPU currently considered idle, or busy executing

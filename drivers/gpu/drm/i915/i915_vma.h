@@ -71,7 +71,7 @@ struct i915_vma {
 	 * handles (but same file) for execbuf, i.e. the number of aliases
 	 * that exist in the ctx->handle_vmas LUT for this vma.
 	 */
-	unsigned int open_count;
+	atomic_t open_count;
 	unsigned long flags;
 	/**
 	 * How many users have pinned this object in GTT space.
@@ -106,10 +106,9 @@ struct i915_vma {
 
 #define I915_VMA_GGTT		BIT(11)
 #define I915_VMA_CAN_FENCE	BIT(12)
-#define I915_VMA_CLOSED		BIT(13)
-#define I915_VMA_USERFAULT_BIT	14
+#define I915_VMA_USERFAULT_BIT	13
 #define I915_VMA_USERFAULT	BIT(I915_VMA_USERFAULT_BIT)
-#define I915_VMA_GGTT_WRITE	BIT(15)
+#define I915_VMA_GGTT_WRITE	BIT(14)
 
 	struct i915_active active;
 	struct i915_active_request last_fence;
@@ -192,11 +191,6 @@ static inline bool i915_vma_is_map_and_fenceable(const struct i915_vma *vma)
 	return vma->flags & I915_VMA_CAN_FENCE;
 }
 
-static inline bool i915_vma_is_closed(const struct i915_vma *vma)
-{
-	return vma->flags & I915_VMA_CLOSED;
-}
-
 static inline bool i915_vma_set_userfault(struct i915_vma *vma)
 {
 	GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
@@ -211,6 +205,11 @@ static inline void i915_vma_unset_userfault(struct i915_vma *vma)
 static inline bool i915_vma_has_userfault(const struct i915_vma *vma)
 {
 	return test_bit(I915_VMA_USERFAULT_BIT, &vma->flags);
+}
+
+static inline bool i915_vma_is_closed(const struct i915_vma *vma)
+{
+	return !list_empty(&vma->closed_link);
 }
 
 static inline u32 i915_ggtt_offset(const struct i915_vma *vma)

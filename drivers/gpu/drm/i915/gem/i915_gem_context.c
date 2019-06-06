@@ -95,24 +95,45 @@ void i915_lut_handle_free(struct i915_lut_handle *lut)
 
 static void lut_close(struct i915_gem_context *ctx)
 {
-	struct i915_lut_handle *lut, *ln;
 	struct radix_tree_iter iter;
 	void __rcu **slot;
 
-	list_for_each_entry_safe(lut, ln, &ctx->handles_list, ctx_link) {
-		list_del(&lut->obj_link);
-		i915_lut_handle_free(lut);
-	}
-	INIT_LIST_HEAD(&ctx->handles_list);
+	lockdep_assert_held(&ctx->mutex);
 
 	rcu_read_lock();
 	radix_tree_for_each_slot(slot, &ctx->handles_vma, &iter, 0) {
 		struct i915_vma *vma = rcu_dereference_raw(*slot);
+		struct drm_i915_gem_object *obj = vma->obj;
+		struct i915_lut_handle *lut;
 
-		radix_tree_iter_delete(&ctx->handles_vma, &iter, slot);
+		if (!kref_get_unless_zero(&obj->base.refcount))
+			continue;
 
-		vma->open_count--;
-		i915_vma_put(vma);
+		rcu_read_unlock();
+		i915_gem_object_lock(obj);
+		list_for_each_entry(lut, &obj->lut_list, obj_link) {
+			if (lut->ctx != ctx)
+				continue;
+
+			if (lut->handle != iter.index)
+				continue;
+
+			list_del(&lut->obj_link);
+			break;
+		}
+		i915_gem_object_unlock(obj);
+		rcu_read_lock();
+
+		if (&lut->obj_link != &obj->lut_list) {
+			i915_lut_handle_free(lut);
+			radix_tree_iter_delete(&ctx->handles_vma, &iter, slot);
+			if (atomic_dec_and_test(&vma->open_count) &&
+			    !i915_vma_is_ggtt(vma))
+				i915_vma_close(vma);
+			i915_gem_object_put(obj);
+		}
+
+		i915_gem_object_put(obj);
 	}
 	rcu_read_unlock();
 }
@@ -250,15 +271,9 @@ static void free_engines(struct i915_gem_engines *e)
 	__free_engines(e, e->num_engines);
 }
 
-static void free_engines_rcu(struct work_struct *wrk)
+static void free_engines_rcu(struct rcu_head *rcu)
 {
-	struct i915_gem_engines *e =
-		container_of(wrk, struct i915_gem_engines, rcu.work);
-	struct drm_i915_private *i915 = e->i915;
-
-	mutex_lock(&i915->drm.struct_mutex);
-	free_engines(e);
-	mutex_unlock(&i915->drm.struct_mutex);
+	free_engines(container_of(rcu, struct i915_gem_engines, rcu));
 }
 
 static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
@@ -271,7 +286,7 @@ static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 	if (!e)
 		return ERR_PTR(-ENOMEM);
 
-	e->i915 = ctx->i915;
+	init_rcu_head(&e->rcu);
 	for_each_engine(engine, ctx->i915, id) {
 		struct intel_context *ce;
 
@@ -359,7 +374,10 @@ void i915_gem_context_release(struct kref *ref)
 
 static void context_close(struct i915_gem_context *ctx)
 {
+	mutex_lock(&ctx->mutex);
+
 	i915_gem_context_set_closed(ctx);
+	ctx->file_priv = ERR_PTR(-EBADF);
 
 	/*
 	 * This context will never again be assinged to HW, so we can
@@ -374,7 +392,7 @@ static void context_close(struct i915_gem_context *ctx)
 	 */
 	lut_close(ctx);
 
-	ctx->file_priv = ERR_PTR(-EBADF);
+	mutex_unlock(&ctx->mutex);
 	i915_gem_context_put(ctx);
 }
 
@@ -429,7 +447,6 @@ __create_context(struct drm_i915_private *dev_priv)
 	RCU_INIT_POINTER(ctx->engines, e);
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
-	INIT_LIST_HEAD(&ctx->handles_list);
 	INIT_LIST_HEAD(&ctx->hw_id_link);
 
 	/* NB: Mark all slices as needing a remap so that when the context first
@@ -772,9 +789,7 @@ int i915_gem_context_open(struct drm_i915_private *i915,
 	return 0;
 
 err_ctx:
-	mutex_lock(&i915->drm.struct_mutex);
 	context_close(ctx);
-	mutex_unlock(&i915->drm.struct_mutex);
 err:
 	idr_destroy(&file_priv->vm_idr);
 	idr_destroy(&file_priv->context_idr);
@@ -786,8 +801,6 @@ err:
 void i915_gem_context_close(struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-
-	lockdep_assert_held(&file_priv->dev_priv->drm.struct_mutex);
 
 	idr_for_each(&file_priv->context_idr, context_idr_cleanup, NULL);
 	idr_destroy(&file_priv->context_idr);
@@ -1093,7 +1106,9 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 		goto unlock;
 
 	/* Teardown the existing obj:vma cache, it will have to be rebuilt. */
+	mutex_lock(&ctx->mutex);
 	lut_close(ctx);
+	mutex_unlock(&ctx->mutex);
 
 	old = __set_ppgtt(ctx, ppgtt);
 
@@ -1612,7 +1627,7 @@ set_engines(struct i915_gem_context *ctx,
 	if (!set.engines)
 		return -ENOMEM;
 
-	set.engines->i915 = ctx->i915;
+	init_rcu_head(&set.engines->rcu);
 	for (n = 0; n < num_engines; n++) {
 		struct i915_engine_class_instance ci;
 		struct intel_engine_cs *engine;
@@ -1666,8 +1681,7 @@ replace:
 	rcu_swap_protected(ctx->engines, set.engines, 1);
 	mutex_unlock(&ctx->engines_mutex);
 
-	INIT_RCU_WORK(&set.engines->rcu, free_engines_rcu);
-	queue_rcu_work(system_wq, &set.engines->rcu);
+	call_rcu(&set.engines->rcu, free_engines_rcu);
 
 	return 0;
 }
@@ -1682,7 +1696,7 @@ __copy_engines(struct i915_gem_engines *e)
 	if (!copy)
 		return ERR_PTR(-ENOMEM);
 
-	copy->i915 = e->i915;
+	init_rcu_head(&copy->rcu);
 	for (n = 0; n < e->num_engines; n++) {
 		if (e->engines[n])
 			copy->engines[n] = intel_context_get(e->engines[n]);
@@ -1769,8 +1783,7 @@ get_engines(struct i915_gem_context *ctx,
 	args->size = size;
 
 err_free:
-	INIT_RCU_WORK(&e->rcu, free_engines_rcu);
-	queue_rcu_work(system_wq, &e->rcu);
+	free_engines(e);
 	return err;
 }
 
@@ -1891,7 +1904,7 @@ static int clone_engines(struct i915_gem_context *dst,
 	if (!clone)
 		goto err_unlock;
 
-	clone->i915 = dst->i915;
+	init_rcu_head(&clone->rcu);
 	for (n = 0; n < e->num_engines; n++) {
 		struct intel_engine_cs *engine;
 
@@ -2163,9 +2176,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	return 0;
 
 err_ctx:
-	mutex_lock(&dev->struct_mutex);
 	context_close(ext_data.ctx);
-	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }
 
@@ -2190,10 +2201,7 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 	if (!ctx)
 		return -ENOENT;
 
-	mutex_lock(&dev->struct_mutex);
 	context_close(ctx);
-	mutex_unlock(&dev->struct_mutex);
-
 	return 0;
 }
 

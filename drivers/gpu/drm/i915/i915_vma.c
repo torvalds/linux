@@ -131,15 +131,17 @@ vma_create(struct drm_i915_gem_object *obj,
 	if (vma == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	i915_active_init(vm->i915, &vma->active, __i915_vma_retire);
-	INIT_ACTIVE_REQUEST(&vma->last_fence);
-
 	vma->vm = vm;
 	vma->ops = &vm->vma_ops;
 	vma->obj = obj;
 	vma->resv = obj->resv;
 	vma->size = obj->base.size;
 	vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
+
+	i915_active_init(vm->i915, &vma->active, __i915_vma_retire);
+	INIT_ACTIVE_REQUEST(&vma->last_fence);
+
+	INIT_LIST_HEAD(&vma->closed_link);
 
 	if (view && view->type != I915_GGTT_VIEW_NORMAL) {
 		vma->ggtt_view = *view;
@@ -787,10 +789,10 @@ err_unpin:
 
 void i915_vma_close(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
+	struct drm_i915_private *i915 = vma->vm->i915;
+	unsigned long flags;
 
 	GEM_BUG_ON(i915_vma_is_closed(vma));
-	vma->flags |= I915_VMA_CLOSED;
 
 	/*
 	 * We defer actually closing, unbinding and destroying the VMA until
@@ -804,17 +806,26 @@ void i915_vma_close(struct i915_vma *vma)
 	 * causing us to rebind the VMA once more. This ends up being a lot
 	 * of wasted work for the steady state.
 	 */
-	list_add_tail(&vma->closed_link, &vma->vm->i915->gt.closed_vma);
+	spin_lock_irqsave(&i915->gt.closed_lock, flags);
+	list_add(&vma->closed_link, &i915->gt.closed_vma);
+	spin_unlock_irqrestore(&i915->gt.closed_lock, flags);
+}
+
+static void __i915_vma_remove_closed(struct i915_vma *vma)
+{
+	struct drm_i915_private *i915 = vma->vm->i915;
+
+	if (!i915_vma_is_closed(vma))
+		return;
+
+	spin_lock_irq(&i915->gt.closed_lock);
+	list_del_init(&vma->closed_link);
+	spin_unlock_irq(&i915->gt.closed_lock);
 }
 
 void i915_vma_reopen(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
-
-	if (vma->flags & I915_VMA_CLOSED) {
-		vma->flags &= ~I915_VMA_CLOSED;
-		list_del(&vma->closed_link);
-	}
+	__i915_vma_remove_closed(vma);
 }
 
 static void __i915_vma_destroy(struct i915_vma *vma)
@@ -848,8 +859,7 @@ void i915_vma_destroy(struct i915_vma *vma)
 
 	GEM_BUG_ON(i915_vma_is_pinned(vma));
 
-	if (i915_vma_is_closed(vma))
-		list_del(&vma->closed_link);
+	__i915_vma_remove_closed(vma);
 
 	WARN_ON(i915_vma_unbind(vma));
 	GEM_BUG_ON(i915_vma_is_active(vma));
@@ -861,12 +871,16 @@ void i915_vma_parked(struct drm_i915_private *i915)
 {
 	struct i915_vma *vma, *next;
 
+	spin_lock_irq(&i915->gt.closed_lock);
 	list_for_each_entry_safe(vma, next, &i915->gt.closed_vma, closed_link) {
-		GEM_BUG_ON(!i915_vma_is_closed(vma));
-		i915_vma_destroy(vma);
-	}
+		list_del_init(&vma->closed_link);
+		spin_unlock_irq(&i915->gt.closed_lock);
 
-	GEM_BUG_ON(!list_empty(&i915->gt.closed_vma));
+		i915_vma_destroy(vma);
+
+		spin_lock_irq(&i915->gt.closed_lock);
+	}
+	spin_unlock_irq(&i915->gt.closed_lock);
 }
 
 static void __i915_vma_iounmap(struct i915_vma *vma)

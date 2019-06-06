@@ -2074,6 +2074,7 @@ static struct i915_vma *pd_vma_create(struct gen6_hw_ppgtt *ppgtt, int size)
 	vma->ggtt_view.type = I915_GGTT_VIEW_ROTATED; /* prevent fencing */
 
 	INIT_LIST_HEAD(&vma->obj_link);
+	INIT_LIST_HEAD(&vma->closed_link);
 
 	mutex_lock(&vma->vm->mutex);
 	list_add(&vma->vm_link, &vma->vm->unbound_list);

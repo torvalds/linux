@@ -1784,6 +1784,7 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 
 	INIT_LIST_HEAD(&dev_priv->gt.active_rings);
 	INIT_LIST_HEAD(&dev_priv->gt.closed_vma);
+	spin_lock_init(&dev_priv->gt.closed_lock);
 
 	i915_gem_init__mm(dev_priv);
 	i915_gem_init__pm(dev_priv);

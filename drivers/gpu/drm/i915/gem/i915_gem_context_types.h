@@ -30,8 +30,7 @@ struct i915_timeline;
 struct intel_ring;
 
 struct i915_gem_engines {
-	struct rcu_work rcu;
-	struct drm_i915_private *i915;
+	struct rcu_head rcu;
 	unsigned int num_engines;
 	struct intel_context *engines[];
 };
@@ -192,17 +191,12 @@ struct i915_gem_context {
 	/** remap_slice: Bitmask of cache lines that need remapping */
 	u8 remap_slice;
 
-	/** handles_vma: rbtree to look up our context specific obj/vma for
+	/**
+	 * handles_vma: rbtree to look up our context specific obj/vma for
 	 * the user handle. (user handles are per fd, but the binding is
 	 * per vm, which may be one per context or shared with the global GTT)
 	 */
 	struct radix_tree_root handles_vma;
-
-	/** handles_list: reverse list of all the rbtree entries in use for
-	 * this context, which allows us to free all the allocations on
-	 * context close.
-	 */
-	struct list_head handles_list;
 };
 
 #endif /* __I915_GEM_CONTEXT_TYPES_H__ */

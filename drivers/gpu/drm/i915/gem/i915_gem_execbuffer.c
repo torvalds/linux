@@ -801,9 +801,6 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 	unsigned int i, batch;
 	int err;
 
-	if (unlikely(i915_gem_context_is_closed(eb->gem_context)))
-		return -ENOENT;
-
 	if (unlikely(i915_gem_context_is_banned(eb->gem_context)))
 		return -EIO;
 
@@ -811,6 +808,12 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 	INIT_LIST_HEAD(&eb->unbound);
 
 	batch = eb_batch_index(eb);
+
+	mutex_lock(&eb->gem_context->mutex);
+	if (unlikely(i915_gem_context_is_closed(eb->gem_context))) {
+		err = -ENOENT;
+		goto err_ctx;
+	}
 
 	for (i = 0; i < eb->buffer_count; i++) {
 		u32 handle = eb->exec[i].handle;
@@ -845,13 +848,15 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 			goto err_obj;
 		}
 
-		/* transfer ref to ctx */
-		if (!vma->open_count++)
+		/* transfer ref to lut */
+		if (!atomic_fetch_inc(&vma->open_count))
 			i915_vma_reopen(vma);
-		list_add(&lut->obj_link, &obj->lut_list);
-		list_add(&lut->ctx_link, &eb->gem_context->handles_list);
-		lut->ctx = eb->gem_context;
 		lut->handle = handle;
+		lut->ctx = eb->gem_context;
+
+		i915_gem_object_lock(obj);
+		list_add(&lut->obj_link, &obj->lut_list);
+		i915_gem_object_unlock(obj);
 
 add_vma:
 		err = eb_add_vma(eb, i, batch, vma);
@@ -864,6 +869,8 @@ add_vma:
 			   eb_vma_misplaced(&eb->exec[i], vma, eb->flags[i]));
 	}
 
+	mutex_unlock(&eb->gem_context->mutex);
+
 	eb->args->flags |= __EXEC_VALIDATED;
 	return eb_reserve(eb);
 
@@ -871,6 +878,8 @@ err_obj:
 	i915_gem_object_put(obj);
 err_vma:
 	eb->vma[i] = NULL;
+err_ctx:
+	mutex_unlock(&eb->gem_context->mutex);
 	return err;
 }
 
