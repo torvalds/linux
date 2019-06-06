@@ -255,7 +255,7 @@ static int hl_debug_ioctl(struct hl_fpriv *hpriv, void *data)
 	case HL_DEBUG_OP_SPMU:
 	case HL_DEBUG_OP_TIMESTAMP:
 		if (!hdev->in_debug) {
-			dev_err(hdev->dev,
+			dev_err_ratelimited(hdev->dev,
 				"Rejecting debug configuration request because device not in debug mode\n");
 			return -EFAULT;
 		}
