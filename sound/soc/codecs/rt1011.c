@@ -1145,8 +1145,8 @@ static int rt1011_bq_drc_coeff_get(struct snd_kcontrol *kcontrol,
 	bq_drc_info = rt1011->bq_drc_params[mode_idx];
 
 	for (i = 0; i < RT1011_BQ_DRC_NUM; i++) {
-		params[i].reg = cpu_to_le16(bq_drc_info[i].reg);
-		params[i].val = cpu_to_le16(bq_drc_info[i].val);
+		params[i].reg = bq_drc_info[i].reg;
+		params[i].val = bq_drc_info[i].val;
 	}
 
 	return 0;
@@ -1187,8 +1187,8 @@ static int rt1011_bq_drc_coeff_put(struct snd_kcontrol *kcontrol,
 	pr_info("%s, id.name=%s, mode_idx=%d\n", __func__,
 		ucontrol->id.name, mode_idx);
 	for (i = 0; i < RT1011_BQ_DRC_NUM; i++) {
-		bq_drc_info[i].reg =	le16_to_cpu(params[i].reg);
-		bq_drc_info[i].val =	le16_to_cpu(params[i].val);
+		bq_drc_info[i].reg = params[i].reg;
+		bq_drc_info[i].val = params[i].val;
 	}
 
 	for (i = 0; i < RT1011_BQ_DRC_NUM; i++) {
@@ -1283,6 +1283,9 @@ static int rt1011_r0_load_mode_put(struct snd_kcontrol *kcontrol,
 
 	if (!component->card->instantiated)
 		return 0;
+
+	if (ucontrol->value.integer.value[0] == 0)
+		return -EINVAL;
 
 	dev = regmap_get_device(rt1011->regmap);
 	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
