@@ -65,11 +65,6 @@ struct blkcg {
  * blkg_[rw]stat->aux_cnt is excluded for local stats but included for
  * recursive.  Used to carry stats of dead children.
  */
-struct blkg_stat {
-	struct percpu_counter		cpu_cnt;
-	atomic64_t			aux_cnt;
-};
-
 struct blkg_rwstat {
 	struct percpu_counter		cpu_cnt[BLKG_RWSTAT_NR];
 	atomic64_t			aux_cnt[BLKG_RWSTAT_NR];
@@ -217,7 +212,6 @@ void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
 u64 __blkg_prfill_u64(struct seq_file *sf, struct blkg_policy_data *pd, u64 v);
 u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 			 const struct blkg_rwstat_sample *rwstat);
-u64 blkg_prfill_stat(struct seq_file *sf, struct blkg_policy_data *pd, int off);
 u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 		       int off);
 int blkg_print_stat_bytes(struct seq_file *sf, void *v);
@@ -225,8 +219,6 @@ int blkg_print_stat_ios(struct seq_file *sf, void *v);
 int blkg_print_stat_bytes_recursive(struct seq_file *sf, void *v);
 int blkg_print_stat_ios_recursive(struct seq_file *sf, void *v);
 
-u64 blkg_stat_recursive_sum(struct blkcg_gq *blkg,
-			    struct blkcg_policy *pol, int off);
 void blkg_rwstat_recursive_sum(struct blkcg_gq *blkg, struct blkcg_policy *pol,
 		int off, struct blkg_rwstat_sample *sum);
 
@@ -578,69 +570,6 @@ static inline void blkg_put(struct blkcg_gq *blkg)
 	css_for_each_descendant_post((pos_css), &(p_blkg)->blkcg->css)	\
 		if (((d_blkg) = __blkg_lookup(css_to_blkcg(pos_css),	\
 					      (p_blkg)->q, false)))
-
-static inline int blkg_stat_init(struct blkg_stat *stat, gfp_t gfp)
-{
-	int ret;
-
-	ret = percpu_counter_init(&stat->cpu_cnt, 0, gfp);
-	if (ret)
-		return ret;
-
-	atomic64_set(&stat->aux_cnt, 0);
-	return 0;
-}
-
-static inline void blkg_stat_exit(struct blkg_stat *stat)
-{
-	percpu_counter_destroy(&stat->cpu_cnt);
-}
-
-/**
- * blkg_stat_add - add a value to a blkg_stat
- * @stat: target blkg_stat
- * @val: value to add
- *
- * Add @val to @stat.  The caller must ensure that IRQ on the same CPU
- * don't re-enter this function for the same counter.
- */
-static inline void blkg_stat_add(struct blkg_stat *stat, uint64_t val)
-{
-	percpu_counter_add_batch(&stat->cpu_cnt, val, BLKG_STAT_CPU_BATCH);
-}
-
-/**
- * blkg_stat_read - read the current value of a blkg_stat
- * @stat: blkg_stat to read
- */
-static inline uint64_t blkg_stat_read(struct blkg_stat *stat)
-{
-	return percpu_counter_sum_positive(&stat->cpu_cnt);
-}
-
-/**
- * blkg_stat_reset - reset a blkg_stat
- * @stat: blkg_stat to reset
- */
-static inline void blkg_stat_reset(struct blkg_stat *stat)
-{
-	percpu_counter_set(&stat->cpu_cnt, 0);
-	atomic64_set(&stat->aux_cnt, 0);
-}
-
-/**
- * blkg_stat_add_aux - add a blkg_stat into another's aux count
- * @to: the destination blkg_stat
- * @from: the source
- *
- * Add @from's count including the aux one to @to's aux count.
- */
-static inline void blkg_stat_add_aux(struct blkg_stat *to,
-				     struct blkg_stat *from)
-{
-	atomic64_add(blkg_stat_read(from) + atomic64_read(&from->aux_cnt),
-		     &to->aux_cnt);
-}
 
 static inline int blkg_rwstat_init(struct blkg_rwstat *rwstat, gfp_t gfp)
 {
