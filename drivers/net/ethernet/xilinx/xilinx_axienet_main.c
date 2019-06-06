@@ -1651,8 +1651,8 @@ static int axienet_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct axienet_local *lp = netdev_priv(ndev);
 
-	axienet_mdio_teardown(lp);
 	unregister_netdev(ndev);
+	axienet_mdio_teardown(lp);
 
 	if (lp->clk)
 		clk_disable_unprepare(lp->clk);
