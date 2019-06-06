@@ -885,15 +885,33 @@ static bool navi10_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
+static int navi10_get_fan_speed(struct smu_context *smu, uint16_t *value)
+{
+	SmuMetrics_t metrics = {0};
+	int ret = 0;
+
+	if (!value)
+		return -EINVAL;
+
+	ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS,
+			       (void *)&metrics, false);
+	if (ret)
+		return ret;
+
+	*value = metrics.CurrFanSpeed;
+
+	return ret;
+}
+
 static int navi10_get_fan_speed_percent(struct smu_context *smu,
 					uint32_t *speed)
 {
 	int ret = 0;
 	uint32_t percent = 0;
-	uint32_t current_rpm;
+	uint16_t current_rpm;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 
-	ret = smu_get_current_rpm(smu, &current_rpm);
+	ret = navi10_get_fan_speed(smu, &current_rpm);
 	if (ret)
 		return ret;
 
