@@ -5,33 +5,31 @@ Introduction
 
 The Intel Management Engine (Intel ME) is an isolated and protected computing
 resource (Co-processor) residing inside certain Intel chipsets. The Intel ME
-provides support for computer/IT management features. The feature set
-depends on the Intel chipset SKU.
+provides support for computer/IT management and security features.
+The actual feature set depends on the Intel chipset SKU.
 
 The Intel Management Engine Interface (Intel MEI, previously known as HECI)
 is the interface between the Host and Intel ME. This interface is exposed
-to the host as a PCI device. The Intel MEI Driver is in charge of the
-communication channel between a host application and the Intel ME feature.
+to the host as a PCI device, actually multiple PCI devices might be exposed.
+The Intel MEI Driver is in charge of the communication channel between
+a host application and the Intel ME features.
 
-Each Intel ME feature (Intel ME Client) is addressed by a GUID/UUID and
+Each Intel ME feature, or Intel ME Client is addressed by a unique GUID and
 each client has its own protocol. The protocol is message-based with a
-header and payload up to 512 bytes.
+header and payload up to maximal number of bytes advertised by the client,
+upon connection.
 
 Intel MEI Driver
 ================
 
-The driver exposes a misc device called /dev/mei.
+The driver exposes a character device with device nodes /dev/meiX.
 
 An application maintains communication with an Intel ME feature while
-/dev/mei is open. The binding to a specific feature is performed by calling
-MEI_CONNECT_CLIENT_IOCTL, which passes the desired UUID.
+/dev/meiX is open. The binding to a specific feature is performed by calling
+:c:macro:`MEI_CONNECT_CLIENT_IOCTL`, which passes the desired GUID.
 The number of instances of an Intel ME feature that can be opened
 at the same time depends on the Intel ME feature, but most of the
 features allow only a single instance.
-
-The Intel AMT Host Interface (Intel AMTHI) feature supports multiple
-simultaneous user connected applications. The Intel MEI driver
-handles this internally by maintaining request queues for the applications.
 
 The driver is transparent to data that are passed between firmware feature
 and host application.
@@ -40,6 +38,8 @@ Because some of the Intel ME features can change the system
 configuration, the driver by default allows only a privileged
 user to access it.
 
+The session is terminated calling :c:func:`close(int fd)`.
+
 A code snippet for an application communicating with Intel AMTHI client:
 
 .. code-block:: C
@@ -47,13 +47,13 @@ A code snippet for an application communicating with Intel AMTHI client:
 	struct mei_connect_client_data data;
 	fd = open(MEI_DEVICE);
 
-	data.d.in_client_uuid = AMTHI_UUID;
+	data.d.in_client_uuid = AMTHI_GUID;
 
 	ioctl(fd, IOCTL_MEI_CONNECT_CLIENT, &data);
 
 	printf("Ver=%d, MaxLen=%ld\n",
-			data.d.in_client_uuid.protocol_version,
-			data.d.in_client_uuid.max_msg_length);
+	       data.d.in_client_uuid.protocol_version,
+	       data.d.in_client_uuid.max_msg_length);
 
 	[...]
 
@@ -67,60 +67,86 @@ A code snippet for an application communicating with Intel AMTHI client:
 	close(fd);
 
 
-IOCTLs
-======
+User space API
+
+IOCTLs:
+=======
 
 The Intel MEI Driver supports the following IOCTL commands:
-	IOCTL_MEI_CONNECT_CLIENT	Connect to firmware Feature (client).
 
-	usage:
-		struct mei_connect_client_data clientData;
-		ioctl(fd, IOCTL_MEI_CONNECT_CLIENT, &clientData);
+IOCTL_MEI_CONNECT_CLIENT
+-------------------------
+Connect to firmware Feature/Client.
 
-	inputs:
-		mei_connect_client_data struct contain the following
-		input field:
+.. code-block:: none
 
-		in_client_uuid -	UUID of the FW Feature that needs
+	Usage:
+
+        struct mei_connect_client_data client_data;
+
+        ioctl(fd, IOCTL_MEI_CONNECT_CLIENT, &client_data);
+
+	Inputs:
+
+        struct mei_connect_client_data - contain the following
+	Input field:
+
+		in_client_uuid -	GUID of the FW Feature that needs
 					to connect to.
-	outputs:
+         Outputs:
 		out_client_properties - Client Properties: MTU and Protocol Version.
 
-	error returns:
+         Error returns:
+
+                ENOTTY  No such client (i.e. wrong GUID) or connection is not allowed.
 		EINVAL	Wrong IOCTL Number
-		ENODEV	Device or Connection is not initialized or ready. (e.g. Wrong UUID)
+		ENODEV	Device or Connection is not initialized or ready.
 		ENOMEM	Unable to allocate memory to client internal data.
 		EFAULT	Fatal Error (e.g. Unable to access user input data)
 		EBUSY	Connection Already Open
 
-	Notes:
+:Note:
         max_msg_length (MTU) in client properties describes the maximum
         data that can be sent or received. (e.g. if MTU=2K, can send
         requests up to bytes 2k and received responses up to 2k bytes).
 
-	IOCTL_MEI_NOTIFY_SET: enable or disable event notifications
+
+IOCTL_MEI_NOTIFY_SET
+---------------------
+Enable or disable event notifications.
+
+
+.. code-block:: none
 
 	Usage:
+
 		uint32_t enable;
+
 		ioctl(fd, IOCTL_MEI_NOTIFY_SET, &enable);
 
-	Inputs:
+
 		uint32_t enable = 1;
 		or
 		uint32_t enable[disable] = 0;
 
 	Error returns:
+
+
 		EINVAL	Wrong IOCTL Number
 		ENODEV	Device  is not initialized or the client not connected
 		ENOMEM	Unable to allocate memory to client internal data.
 		EFAULT	Fatal Error (e.g. Unable to access user input data)
 		EOPNOTSUPP if the device doesn't support the feature
 
-	Notes:
+:Note:
 	The client must be connected in order to enable notification events
 
 
-	IOCTL_MEI_NOTIFY_GET : retrieve event
+IOCTL_MEI_NOTIFY_GET
+--------------------
+Retrieve event
+
+.. code-block:: none
 
 	Usage:
 		uint32_t event;
@@ -137,7 +163,7 @@ The Intel MEI Driver supports the following IOCTL commands:
 		EFAULT	Fatal Error (e.g. Unable to access user input data)
 		EOPNOTSUPP if the device doesn't support the feature
 
-	Notes:
+:Note:
 	The client must be connected and event notification has to be enabled
 	in order to receive an event
 
