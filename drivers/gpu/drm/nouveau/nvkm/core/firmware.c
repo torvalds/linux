@@ -24,7 +24,7 @@
 
 /**
  * nvkm_firmware_get - load firmware from the official nvidia/chip/ directory
- * @device	device that will use that firmware
+ * @subdev	subdevice that will use that firmware
  * @fwname	name of firmware file to load
  * @fw		firmware structure to load to
  *
@@ -32,9 +32,10 @@
  * Firmware files released by NVIDIA will always follow this format.
  */
 int
-nvkm_firmware_get(struct nvkm_device *device, const char *fwname,
+nvkm_firmware_get(const struct nvkm_subdev *subdev, const char *fwname,
 		  const struct firmware **fw)
 {
+	struct nvkm_device *device = subdev->device;
 	char f[64];
 	char cname[16];
 	int i;

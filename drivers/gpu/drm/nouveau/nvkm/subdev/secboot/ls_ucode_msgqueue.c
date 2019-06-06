@@ -46,7 +46,7 @@ acr_ls_ucode_load_msgqueue(const struct nvkm_subdev *subdev, const char *name,
 	int ret;
 
 	snprintf(f, sizeof(f), "%s/image", name);
-	ret = nvkm_firmware_get(subdev->device, f, &image);
+	ret = nvkm_firmware_get(subdev, f, &image);
 	if (ret)
 		return ret;
 	img->ucode_data = kmemdup(image->data, image->size, GFP_KERNEL);
@@ -55,7 +55,7 @@ acr_ls_ucode_load_msgqueue(const struct nvkm_subdev *subdev, const char *name,
 		return -ENOMEM;
 
 	snprintf(f, sizeof(f), "%s/desc", name);
-	ret = nvkm_firmware_get(subdev->device, f, &desc);
+	ret = nvkm_firmware_get(subdev, f, &desc);
 	if (ret)
 		return ret;
 	memcpy(&img->ucode_desc, desc->data, sizeof(img->ucode_desc));
@@ -63,7 +63,7 @@ acr_ls_ucode_load_msgqueue(const struct nvkm_subdev *subdev, const char *name,
 	nvkm_firmware_put(desc);
 
 	snprintf(f, sizeof(f), "%s/sig", name);
-	ret = nvkm_firmware_get(subdev->device, f, &sig);
+	ret = nvkm_firmware_get(subdev, f, &sig);
 	if (ret)
 		return ret;
 	img->sig_size = sig->size;

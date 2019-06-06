@@ -98,22 +98,22 @@ ls_ucode_img_load_gr(const struct nvkm_subdev *subdev, struct ls_ucode_img *img,
 	int ret;
 
 	snprintf(f, sizeof(f), "gr/%s_bl", falcon_name);
-	ret = nvkm_firmware_get(subdev->device, f, &bl);
+	ret = nvkm_firmware_get(subdev, f, &bl);
 	if (ret)
 		goto error;
 
 	snprintf(f, sizeof(f), "gr/%s_inst", falcon_name);
-	ret = nvkm_firmware_get(subdev->device, f, &code);
+	ret = nvkm_firmware_get(subdev, f, &code);
 	if (ret)
 		goto free_bl;
 
 	snprintf(f, sizeof(f), "gr/%s_data", falcon_name);
-	ret = nvkm_firmware_get(subdev->device, f, &data);
+	ret = nvkm_firmware_get(subdev, f, &data);
 	if (ret)
 		goto free_inst;
 
 	snprintf(f, sizeof(f), "gr/%s_sig", falcon_name);
-	ret = nvkm_firmware_get(subdev->device, f, &sig);
+	ret = nvkm_firmware_get(subdev, f, &sig);
 	if (ret)
 		goto free_data;
 
