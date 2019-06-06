@@ -127,7 +127,7 @@ int axienet_mdio_setup(struct axienet_local *lp, struct device_node *np)
 	int ret;
 	u32 clk_div, host_clock;
 	struct mii_bus *bus;
-	struct resource res;
+	struct device_node *mdio_node;
 	struct device_node *np1;
 
 	/* clk_div can be calculated by deriving it from the equation:
@@ -199,10 +199,9 @@ issue:
 	if (!bus)
 		return -ENOMEM;
 
-	np1 = of_get_parent(lp->phy_node);
-	of_address_to_resource(np1, 0, &res);
-	snprintf(bus->id, MII_BUS_ID_SIZE, "%.8llx",
-		 (unsigned long long) res.start);
+	mdio_node = of_get_parent(lp->phy_node);
+	snprintf(bus->id, MII_BUS_ID_SIZE, "axienet-%.8llx",
+		 (unsigned long long)lp->regs_start);
 
 	bus->priv = lp;
 	bus->name = "Xilinx Axi Ethernet MDIO";
@@ -211,7 +210,7 @@ issue:
 	bus->parent = lp->dev;
 	lp->mii_bus = bus;
 
-	ret = of_mdiobus_register(bus, np1);
+	ret = of_mdiobus_register(bus, mdio_node);
 	if (ret) {
 		mdiobus_free(bus);
 		lp->mii_bus = NULL;

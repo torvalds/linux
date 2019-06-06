@@ -380,6 +380,7 @@ struct axidma_bd {
  * @dev:	Pointer to device structure
  * @phy_node:	Pointer to device node structure
  * @mii_bus:	Pointer to MII bus structure
+ * @regs_start: Resource start for axienet device addresses
  * @regs:	Base address for the axienet_local device address space
  * @dma_regs:	Base address for the axidma device address space
  * @dma_err_tasklet: Tasklet structure to process Axi DMA errors
@@ -421,6 +422,7 @@ struct axienet_local {
 	struct mii_bus *mii_bus;	/* MII bus reference */
 
 	/* IO registers, dma functions and IRQs */
+	resource_size_t regs_start;
 	void __iomem *regs;
 	void __iomem *dma_regs;
 
