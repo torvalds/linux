@@ -544,7 +544,7 @@ EXPORT_SYMBOL_GPL(__blkg_prfill_u64);
  * Print @rwstat to @sf for the device assocaited with @pd.
  */
 u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
-			 const struct blkg_rwstat *rwstat)
+			 const struct blkg_rwstat_sample *rwstat)
 {
 	static const char *rwstr[] = {
 		[BLKG_RWSTAT_READ]	= "Read",
@@ -562,12 +562,12 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 
 	for (i = 0; i < BLKG_RWSTAT_NR; i++)
 		seq_printf(sf, "%s %s %llu\n", dname, rwstr[i],
-			   (unsigned long long)atomic64_read(&rwstat->aux_cnt[i]));
+			   rwstat->cnt[i]);
 
-	v = atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_READ]) +
-		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_WRITE]) +
-		atomic64_read(&rwstat->aux_cnt[BLKG_RWSTAT_DISCARD]);
-	seq_printf(sf, "%s Total %llu\n", dname, (unsigned long long)v);
+	v = rwstat->cnt[BLKG_RWSTAT_READ] +
+		rwstat->cnt[BLKG_RWSTAT_WRITE] +
+		rwstat->cnt[BLKG_RWSTAT_DISCARD];
+	seq_printf(sf, "%s Total %llu\n", dname, v);
 	return v;
 }
 EXPORT_SYMBOL_GPL(__blkg_prfill_rwstat);
@@ -597,7 +597,7 @@ EXPORT_SYMBOL_GPL(blkg_prfill_stat);
 u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 		       int off)
 {
-	struct blkg_rwstat rwstat = { };
+	struct blkg_rwstat_sample rwstat = { };
 
 	blkg_rwstat_read((void *)pd + off, &rwstat);
 	return __blkg_prfill_rwstat(sf, pd, &rwstat);
@@ -607,7 +607,7 @@ EXPORT_SYMBOL_GPL(blkg_prfill_rwstat);
 static u64 blkg_prfill_rwstat_field(struct seq_file *sf,
 				    struct blkg_policy_data *pd, int off)
 {
-	struct blkg_rwstat rwstat = { };
+	struct blkg_rwstat_sample rwstat = { };
 
 	blkg_rwstat_read((void *)pd->blkg + off, &rwstat);
 	return __blkg_prfill_rwstat(sf, pd, &rwstat);
@@ -651,7 +651,7 @@ static u64 blkg_prfill_rwstat_field_recursive(struct seq_file *sf,
 					      struct blkg_policy_data *pd,
 					      int off)
 {
-	struct blkg_rwstat rwstat;
+	struct blkg_rwstat_sample rwstat;
 
 	blkg_rwstat_recursive_sum(pd->blkg, NULL, off, &rwstat);
 	return __blkg_prfill_rwstat(sf, pd, &rwstat);
@@ -734,7 +734,7 @@ EXPORT_SYMBOL_GPL(blkg_stat_recursive_sum);
  * @blkg: blkg of interest
  * @pol: blkcg_policy which contains the blkg_rwstat
  * @off: offset to the blkg_rwstat in blkg_policy_data or @blkg
- * @sum: blkg_rwstat structure containing the results
+ * @sum: blkg_rwstat_sample structure containing the results
  *
  * Collect the blkg_rwstat specified by @blkg, @pol and @off and all its
  * online descendants and their aux counts.  The caller must be holding the
@@ -744,7 +744,7 @@ EXPORT_SYMBOL_GPL(blkg_stat_recursive_sum);
  * is at @off bytes into @blkg's blkg_policy_data of the policy.
  */
 void blkg_rwstat_recursive_sum(struct blkcg_gq *blkg, struct blkcg_policy *pol,
-		int off, struct blkg_rwstat *sum)
+		int off, struct blkg_rwstat_sample *sum)
 {
 	struct blkcg_gq *pos_blkg;
 	struct cgroup_subsys_state *pos_css;
@@ -765,8 +765,7 @@ void blkg_rwstat_recursive_sum(struct blkcg_gq *blkg, struct blkcg_policy *pol,
 			rwstat = (void *)pos_blkg + off;
 
 		for (i = 0; i < BLKG_RWSTAT_NR; i++)
-			atomic64_set(&sum->aux_cnt[i],
-				blkg_rwstat_read_counter(rwstat, i));
+			sum->cnt[i] = blkg_rwstat_read_counter(rwstat, i);
 	}
 	rcu_read_unlock();
 }
@@ -934,7 +933,7 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 	hlist_for_each_entry_rcu(blkg, &blkcg->blkg_list, blkcg_node) {
 		const char *dname;
 		char *buf;
-		struct blkg_rwstat rwstat;
+		struct blkg_rwstat_sample rwstat;
 		u64 rbytes, wbytes, rios, wios, dbytes, dios;
 		size_t size = seq_get_buf(sf, &buf), off = 0;
 		int i;
@@ -956,15 +955,15 @@ static int blkcg_print_stat(struct seq_file *sf, void *v)
 
 		blkg_rwstat_recursive_sum(blkg, NULL,
 				offsetof(struct blkcg_gq, stat_bytes), &rwstat);
-		rbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_READ]);
-		wbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_WRITE]);
-		dbytes = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_DISCARD]);
+		rbytes = rwstat.cnt[BLKG_RWSTAT_READ];
+		wbytes = rwstat.cnt[BLKG_RWSTAT_WRITE];
+		dbytes = rwstat.cnt[BLKG_RWSTAT_DISCARD];
 
 		blkg_rwstat_recursive_sum(blkg, NULL,
 					offsetof(struct blkcg_gq, stat_ios), &rwstat);
-		rios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_READ]);
-		wios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_WRITE]);
-		dios = atomic64_read(&rwstat.aux_cnt[BLKG_RWSTAT_DISCARD]);
+		rios = rwstat.cnt[BLKG_RWSTAT_READ];
+		wios = rwstat.cnt[BLKG_RWSTAT_WRITE];
+		dios = rwstat.cnt[BLKG_RWSTAT_DISCARD];
 
 		spin_unlock_irq(&blkg->q->queue_lock);
 

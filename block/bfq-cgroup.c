@@ -935,7 +935,7 @@ static u64 bfqg_prfill_stat_recursive(struct seq_file *sf,
 static u64 bfqg_prfill_rwstat_recursive(struct seq_file *sf,
 					struct blkg_policy_data *pd, int off)
 {
-	struct blkg_rwstat sum;
+	struct blkg_rwstat_sample sum;
 
 	blkg_rwstat_recursive_sum(pd_to_blkg(pd), &blkcg_policy_bfq, off, &sum);
 	return __blkg_prfill_rwstat(sf, pd, &sum);
@@ -975,15 +975,13 @@ static int bfqg_print_stat_sectors(struct seq_file *sf, void *v)
 static u64 bfqg_prfill_sectors_recursive(struct seq_file *sf,
 					 struct blkg_policy_data *pd, int off)
 {
-	struct blkg_rwstat tmp;
-	u64 sum;
+	struct blkg_rwstat_sample tmp;
 
 	blkg_rwstat_recursive_sum(pd->blkg, NULL,
 			offsetof(struct blkcg_gq, stat_bytes), &tmp);
-	sum = atomic64_read(&tmp.aux_cnt[BLKG_RWSTAT_READ]) +
-		atomic64_read(&tmp.aux_cnt[BLKG_RWSTAT_WRITE]);
 
-	return __blkg_prfill_u64(sf, pd, sum >> 9);
+	return __blkg_prfill_u64(sf, pd,
+		(tmp.cnt[BLKG_RWSTAT_READ] + tmp.cnt[BLKG_RWSTAT_WRITE]) >> 9);
 }
 
 static int bfqg_print_stat_sectors_recursive(struct seq_file *sf, void *v)
