@@ -857,6 +857,8 @@
 					 <&clks IMX6UL_CLK_USDHC1>,
 					 <&clks IMX6UL_CLK_USDHC1>;
 				clock-names = "ipg", "ahb", "per";
+				fsl,tuning-step= <2>;
+				fsl,tuning-start-tap = <20>;
 				bus-width = <4>;
 				status = "disabled";
 			};
@@ -870,6 +872,8 @@
 					 <&clks IMX6UL_CLK_USDHC2>;
 				clock-names = "ipg", "ahb", "per";
 				bus-width = <4>;
+				fsl,tuning-step= <2>;
+				fsl,tuning-start-tap = <20>;
 				status = "disabled";
 			};
 
