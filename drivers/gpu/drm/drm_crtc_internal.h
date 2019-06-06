@@ -31,14 +31,30 @@
  * and are not exported to drivers.
  */
 
-enum drm_mode_status;
-enum drm_connector_force;
+#include <linux/types.h>
 
-struct drm_display_mode;
-struct work_struct;
-struct drm_connector;
+enum drm_color_encoding;
+enum drm_color_range;
+enum drm_connector_force;
+enum drm_mode_status;
+
+struct drm_atomic_state;
 struct drm_bridge;
+struct drm_connector;
+struct drm_crtc;
+struct drm_device;
+struct drm_display_mode;
+struct drm_file;
+struct drm_framebuffer;
+struct drm_mode_create_dumb;
+struct drm_mode_fb_cmd2;
+struct drm_mode_fb_cmd;
+struct drm_mode_object;
+struct drm_plane;
+struct drm_property;
 struct edid;
+struct kref;
+struct work_struct;
 
 /* drm_crtc.c */
 int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,

@@ -24,12 +24,13 @@
  * Daniel Vetter <daniel.vetter@ffwll.ch>
  */
 
-#include <drm/drm_atomic_state_helper.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_plane.h>
-#include <drm/drm_connector.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_state_helper.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
+#include <drm/drm_plane.h>
+#include <drm/drm_print.h>
 #include <drm/drm_writeback.h>
 
 #include <linux/slab.h>

@@ -3,12 +3,13 @@
 #include <linux/export.h>
 #include <linux/list.h>
 #include <linux/of_graph.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_of.h>
+#include <drm/drm_panel.h>
 
 /**
  * DOC: overview

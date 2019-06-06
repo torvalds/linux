@@ -5,14 +5,16 @@
  * Copyright (C) 2018 Jacopo Mondi <jacopo+renesas@jmondi.org>
  */
 
-#include <drm/drmP.h>
-#include <drm/drm_bridge.h>
-#include <drm/drm_panel.h>
-
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+
+#include <drm/drm_bridge.h>
+#include <drm/drm_panel.h>
 
 enum thc63_ports {
 	THC63_LVDS_IN0,

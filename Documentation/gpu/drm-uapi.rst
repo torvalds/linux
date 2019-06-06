@@ -85,9 +85,9 @@ leads to a few additional requirements:
 - The userspace side must be fully reviewed and tested to the standards of that
   userspace project. For e.g. mesa this means piglit testcases and review on the
   mailing list. This is again to ensure that the new interface actually gets the
-  job done.  The userspace-side reviewer should also provide at least an
-  Acked-by on the kernel uAPI patch indicating that they've looked at how the
-  kernel side is implementing the new feature being used.
+  job done.  The userspace-side reviewer should also provide an Acked-by on the
+  kernel uAPI patch indicating that they believe the proposed uAPI is sound and
+  sufficiently documented and validated for userspace's consumption.
 
 - The userspace patches must be against the canonical upstream, not some vendor
   fork. This is to make sure that no one cheats on the review and testing
@@ -329,3 +329,12 @@ DRM_IOCTL_MODESET_CTL
     mode setting, since on many devices the vertical blank counter is
     reset to 0 at some point during modeset. Modern drivers should not
     call this any more since with kernel mode setting it is a no-op.
+
+Userspace API Structures
+========================
+
+.. kernel-doc:: include/uapi/drm/drm_mode.h
+   :doc: overview
+
+.. kernel-doc:: include/uapi/drm/drm_mode.h
+   :internal:

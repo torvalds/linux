@@ -28,8 +28,16 @@
 
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
 
-struct drm_prime_file_private;
+struct dentry;
 struct dma_buf;
+struct drm_connector;
+struct drm_crtc;
+struct drm_framebuffer;
+struct drm_gem_object;
+struct drm_master;
+struct drm_minor;
+struct drm_prime_file_private;
+struct drm_printer;
 
 /* drm_file.c */
 extern struct mutex drm_global_mutex;

@@ -3,7 +3,11 @@
 #ifndef _DRM_CLIENT_H_
 #define _DRM_CLIENT_H_
 
+#include <linux/lockdep.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
+
+#include <drm/drm_crtc.h>
 
 struct drm_client_dev;
 struct drm_device;
@@ -12,6 +16,8 @@ struct drm_framebuffer;
 struct drm_gem_object;
 struct drm_minor;
 struct module;
+
+#define DRM_CLIENT_MAX_CLONED_CONNECTORS	8
 
 /**
  * struct drm_client_funcs - DRM client callbacks
@@ -85,6 +91,16 @@ struct drm_client_dev {
 	 * @file: DRM file
 	 */
 	struct drm_file *file;
+
+	/**
+	 * @modeset_mutex: Protects @modesets.
+	 */
+	struct mutex modeset_mutex;
+
+	/**
+	 * @modesets: CRTC configurations
+	 */
+	struct drm_mode_set *modesets;
 };
 
 int drm_client_init(struct drm_device *dev, struct drm_client_dev *client,
@@ -134,6 +150,20 @@ struct drm_client_buffer {
 struct drm_client_buffer *
 drm_client_framebuffer_create(struct drm_client_dev *client, u32 width, u32 height, u32 format);
 void drm_client_framebuffer_delete(struct drm_client_buffer *buffer);
+
+int drm_client_modeset_create(struct drm_client_dev *client);
+void drm_client_modeset_free(struct drm_client_dev *client);
+void drm_client_modeset_release(struct drm_client_dev *client);
+struct drm_mode_set *drm_client_find_modeset(struct drm_client_dev *client, struct drm_crtc *crtc);
+
+/**
+ * drm_client_for_each_modeset() - Iterate over client modesets
+ * @modeset: &drm_mode_set loop cursor
+ * @client: DRM client
+ */
+#define drm_client_for_each_modeset(modeset, client) \
+	for (({ lockdep_assert_held(&(client)->modeset_mutex); }), \
+	     modeset = (client)->modesets; modeset->crtc; modeset++)
 
 int drm_client_debugfs_init(struct drm_minor *minor);
 

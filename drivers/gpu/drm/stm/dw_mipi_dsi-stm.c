@@ -227,7 +227,6 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 	u32 val;
 
 	/* Update lane capabilities according to hw version */
-	dsi->hw_version = dsi_read(dsi, DSI_VERSION) & VERSION;
 	dsi->lane_min_kbps = LANE_MIN_KBPS;
 	dsi->lane_max_kbps = LANE_MAX_KBPS;
 	if (dsi->hw_version == HWVER_131) {
@@ -306,6 +305,7 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_mipi_dsi_stm *dsi;
+	struct clk *pclk;
 	struct resource *res;
 	int ret;
 
@@ -346,6 +346,28 @@ static int dw_mipi_dsi_stm_probe(struct platform_device *pdev)
 	if (ret) {
 		DRM_ERROR("Failed to enable pllref_clk: %d\n", ret);
 		goto err_clk_get;
+	}
+
+	pclk = devm_clk_get(dev, "pclk");
+	if (IS_ERR(pclk)) {
+		ret = PTR_ERR(pclk);
+		DRM_ERROR("Unable to get peripheral clock: %d\n", ret);
+		goto err_dsi_probe;
+	}
+
+	ret = clk_prepare_enable(pclk);
+	if (ret) {
+		DRM_ERROR("%s: Failed to enable peripheral clk\n", __func__);
+		goto err_dsi_probe;
+	}
+
+	dsi->hw_version = dsi_read(dsi, DSI_VERSION) & VERSION;
+	clk_disable_unprepare(pclk);
+
+	if (dsi->hw_version != HWVER_130 && dsi->hw_version != HWVER_131) {
+		ret = -ENODEV;
+		DRM_ERROR("bad dsi hardware version\n");
+		goto err_dsi_probe;
 	}
 
 	dw_mipi_dsi_stm_plat_data.base = dsi->base;

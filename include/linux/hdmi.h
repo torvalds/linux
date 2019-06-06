@@ -367,8 +367,19 @@ struct hdr_static_metadata {
 	__u16 min_cll;
 };
 
+/**
+ * struct hdr_sink_metadata - HDR sink metadata
+ *
+ * Metadata Information read from Sink's EDID
+ */
 struct hdr_sink_metadata {
+	/**
+	 * @metadata_type: Static_Metadata_Descriptor_ID.
+	 */
 	__u32 metadata_type;
+	/**
+	 * @hdmi_type1: HDR Metadata Infoframe.
+	 */
 	union {
 		struct hdr_static_metadata hdmi_type1;
 	};
@@ -398,6 +409,7 @@ union hdmi_vendor_any_infoframe {
  * @spd: spd infoframe
  * @vendor: union of all vendor infoframes
  * @audio: audio infoframe
+ * @drm: Dynamic Range and Mastering infoframe
  *
  * This is used by the generic pack function. This works since all infoframes
  * have the same header which also indicates which type of infoframe should be

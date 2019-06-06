@@ -10,7 +10,15 @@
 #ifndef __DW_MIPI_DSI__
 #define __DW_MIPI_DSI__
 
+#include <linux/types.h>
+
+#include <drm/drm_modes.h>
+
+struct drm_display_mode;
+struct drm_encoder;
 struct dw_mipi_dsi;
+struct mipi_dsi_device;
+struct platform_device;
 
 struct dw_mipi_dsi_phy_ops {
 	int (*init)(void *priv_data);

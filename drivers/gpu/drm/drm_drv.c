@@ -35,16 +35,19 @@
 #include <linux/srcu.h>
 
 #include <drm/drm_client.h>
+#include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
-#include <drm/drmP.h>
+#include <drm/drm_file.h>
+#include <drm/drm_mode_object.h>
+#include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
-#include "drm_legacy.h"
 #include "drm_internal.h"
+#include "drm_legacy.h"
 
 /*
  * drm_debug: Enable debug output.
- * Bitmask of DRM_UT_x. See include/drm/drmP.h for details.
+ * Bitmask of DRM_UT_x. See include/drm/drm_print.h for details.
  */
 unsigned int drm_debug = 0;
 EXPORT_SYMBOL(drm_debug);

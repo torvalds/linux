@@ -7,13 +7,14 @@
  * (at your option) any later version.
  */
 
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
-#include <linux/slab.h>
 
 /**
  * DOC: overview

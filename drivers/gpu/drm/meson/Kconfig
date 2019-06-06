@@ -15,3 +15,4 @@ config DRM_MESON_DW_HDMI
 	depends on DRM_MESON
 	default y if DRM_MESON
 	select DRM_DW_HDMI
+	imply DRM_DW_HDMI_I2S_AUDIO

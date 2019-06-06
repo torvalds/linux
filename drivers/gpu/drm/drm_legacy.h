@@ -29,11 +29,15 @@
  * drivers use them, and removing them are API breaks.
  */
 #include <linux/list.h>
+
+#include <drm/drm.h>
+#include <drm/drm_device.h>
 #include <drm/drm_legacy.h>
 
 struct agp_memory;
 struct drm_device;
 struct drm_file;
+struct drm_buf_desc;
 
 /*
  * Generic DRM Contexts
