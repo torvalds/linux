@@ -23,6 +23,8 @@ struct mdev_parent {
 	struct list_head next;
 	struct kset *mdev_types_kset;
 	struct list_head type_list;
+	/* Synchronize device creation/removal with parent unregistration */
+	struct rw_semaphore unreg_sem;
 };
 
 struct mdev_device {
