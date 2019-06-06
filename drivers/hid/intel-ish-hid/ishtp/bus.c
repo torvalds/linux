@@ -479,7 +479,6 @@ static struct ishtp_cl_device *ishtp_bus_add_device(struct ishtp_device *dev,
 	}
 
 	ishtp_device_ready = true;
-	dev_set_drvdata(&device->dev, device);
 
 	return device;
 }
@@ -646,6 +645,20 @@ void *ishtp_get_drvdata(struct ishtp_cl_device *cl_device)
 	return cl_device->driver_data;
 }
 EXPORT_SYMBOL(ishtp_get_drvdata);
+
+/**
+ * ishtp_dev_to_cl_device() - get ishtp_cl_device instance from device instance
+ * @device: device instance
+ *
+ * Get ish_cl_device instance which embeds device instance in it.
+ *
+ * Return: pointer to ishtp_cl_device instance
+ */
+struct ishtp_cl_device *ishtp_dev_to_cl_device(struct device *device)
+{
+	return to_ishtp_cl_device(device);
+}
+EXPORT_SYMBOL(ishtp_dev_to_cl_device);
 
 /**
  * ishtp_bus_new_client() - Create a new client
