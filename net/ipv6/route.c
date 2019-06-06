@@ -3346,7 +3346,7 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 			goto out;
 		}
 		if (rt->fib6_src.plen) {
-			NL_SET_ERR_MSG(extack, "Nexthops can not be used wtih source routing");
+			NL_SET_ERR_MSG(extack, "Nexthops can not be used with source routing");
 			goto out;
 		}
 		rt->nh = nh;
