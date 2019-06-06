@@ -15,6 +15,10 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 
 	spin_lock(&output->lock);
 
+	ret_overrun = hrtimer_forward_now(&output->vblank_hrtimer,
+					  output->period_ns);
+	WARN_ON(ret_overrun != 1);
+
 	ret = drm_crtc_handle_vblank(crtc);
 	if (!ret)
 		DRM_ERROR("vkms failure on handling vblank");
@@ -34,10 +38,6 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 		if (!ret)
 			DRM_WARN("failed to queue vkms_crc_work_handle");
 	}
-
-	ret_overrun = hrtimer_forward_now(&output->vblank_hrtimer,
-					  output->period_ns);
-	WARN_ON(ret_overrun != 1);
 
 	spin_unlock(&output->lock);
 
@@ -74,11 +74,21 @@ bool vkms_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 {
 	struct vkms_device *vkmsdev = drm_device_to_vkms_device(dev);
 	struct vkms_output *output = &vkmsdev->output;
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 
 	*vblank_time = output->vblank_hrtimer.node.expires;
 
-	if (!in_vblank_irq)
-		*vblank_time -= output->period_ns;
+	if (WARN_ON(*vblank_time == vblank->time))
+		return true;
+
+	/*
+	 * To prevent races we roll the hrtimer forward before we do any
+	 * interrupt processing - this is how real hw works (the interrupt is
+	 * only generated after all the vblank registers are updated) and what
+	 * the vblank core expects. Therefore we need to always correct the
+	 * timestampe by one frame.
+	 */
+	*vblank_time -= output->period_ns;
 
 	return true;
 }
