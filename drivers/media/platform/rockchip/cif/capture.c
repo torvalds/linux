@@ -47,6 +47,10 @@ static int fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs)
 	switch (fcc) {
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_VYUY:
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_YVYU:
 		*xsubs = 2;
 		*ysubs = 1;
 		break;
@@ -84,6 +88,26 @@ static const struct cif_output_fmt out_fmts[] = {
 	}, {
 		.fourcc = V4L2_PIX_FMT_NV21,
 		.fmt_val = YUV_OUTPUT_420 | UV_STORAGE_ORDER_VUVU,
+		.cplanes = 2,
+		.mplanes = 1,
+		.bpp = { 8, 16 },
+	}, {
+		.fourcc = V4L2_PIX_FMT_YUYV,
+		.cplanes = 2,
+		.mplanes = 1,
+		.bpp = { 8, 16 },
+	}, {
+		.fourcc = V4L2_PIX_FMT_YVYU,
+		.cplanes = 2,
+		.mplanes = 1,
+		.bpp = { 8, 16 },
+	}, {
+		.fourcc = V4L2_PIX_FMT_UYVY,
+		.cplanes = 2,
+		.mplanes = 1,
+		.bpp = { 8, 16 },
+	}, {
+		.fourcc = V4L2_PIX_FMT_VYUY,
 		.cplanes = 2,
 		.mplanes = 1,
 		.bpp = { 8, 16 },
@@ -653,8 +677,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 {
 	struct rkcif_device *dev = stream->cifdev;
 	const struct cif_output_fmt *fmt;
-	/* struct rkcif_sensor_info *sensor_info = dev->active_sensor; */
-	/* u32 mbus_flags = sensor_info->mbus.flags; */
+	u32 fourcc;
 
 	channel->enable = 1;
 	channel->width = stream->pixm.width;
@@ -685,6 +708,19 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	channel->virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
 	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
 		channel->width = channel->width * fmt->bpp[0] / 8;
+	/*
+	 * rk cif don't support output yuyv fmt data
+	 * if user request yuyv fmt, the input mode must be RAW8
+	 * and the width is double Because the real input fmt is
+	 * yuyv
+	 */
+	fourcc  = stream->cif_fmt_out->fourcc;
+	if (fourcc == V4L2_PIX_FMT_YUYV || fourcc == V4L2_PIX_FMT_YVYU ||
+	    fourcc == V4L2_PIX_FMT_UYVY || fourcc == V4L2_PIX_FMT_VYUY) {
+		channel->fmt_val = CSI_WRDDR_TYPE_RAW8;
+		channel->width *= 2;
+		channel->virtual_width *= 2;
+	}
 
 	channel->data_type = get_data_type(stream->cif_fmt_in->mbus_code,
 					   channel->cmd_mode_en);
@@ -940,6 +976,12 @@ static void rkcif_stop_streaming(struct vb2_queue *queue)
 		stream->next_buf = NULL;
 	}
 
+	if (stream->next_buf)
+		vb2_buffer_done(&stream->next_buf->vb.vb2_buf,
+				VB2_BUF_STATE_QUEUED);
+	if (stream->curr_buf)
+		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
+				VB2_BUF_STATE_QUEUED);
 	while (!list_empty(&stream->buf_head)) {
 		buf = list_first_entry(&stream->buf_head,
 				       struct rkcif_buffer, queue);
