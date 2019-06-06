@@ -1095,7 +1095,7 @@ v4l2_fwnode_reference_parse_int_props(struct device *dev,
 		}
 	}
 
-	return PTR_ERR(fwnode) == -ENOENT ? 0 : PTR_ERR(fwnode);
+	return !fwnode || PTR_ERR(fwnode) == -ENOENT ? 0 : PTR_ERR(fwnode);
 
 error:
 	fwnode_handle_put(fwnode);
