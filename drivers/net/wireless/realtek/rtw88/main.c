@@ -363,13 +363,13 @@ static u64 get_vht_ra_mask(struct ieee80211_sta *sta)
 		vht_mcs_cap = mcs_map & 0x3;
 		switch (vht_mcs_cap) {
 		case 2: /* MCS9 */
-			ra_mask |= 0x3ff << nss;
+			ra_mask |= 0x3ffULL << nss;
 			break;
 		case 1: /* MCS8 */
-			ra_mask |= 0x1ff << nss;
+			ra_mask |= 0x1ffULL << nss;
 			break;
 		case 0: /* MCS7 */
-			ra_mask |= 0x0ff << nss;
+			ra_mask |= 0x0ffULL << nss;
 			break;
 		default:
 			break;
