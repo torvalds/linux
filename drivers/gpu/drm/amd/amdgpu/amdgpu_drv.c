@@ -678,6 +678,22 @@ MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supp
 MODULE_PARM_DESC(dcfeaturemask, "all stable DC features enabled (default))");
 module_param_named(dcfeaturemask, amdgpu_dc_feature_mask, uint, 0444);
 
+/**
+ * DOC: abmlevel (uint)
+ * Override the default ABM (Adaptive Backlight Management) level used for DC
+ * enabled hardware. Requires DMCU to be supported and loaded.
+ * Valid levels are 0-4. A value of 0 indicates that ABM should be disabled by
+ * default. Values 1-4 control the maximum allowable brightness reduction via
+ * the ABM algorithm, with 1 being the least reduction and 4 being the most
+ * reduction.
+ *
+ * Defaults to 0, or disabled. Userspace can still override this level later
+ * after boot.
+ */
+uint amdgpu_dm_abm_level = 0;
+MODULE_PARM_DESC(abmlevel, "ABM level (0 = off (default), 1-4 = backlight reduction level) ");
+module_param_named(abmlevel, amdgpu_dm_abm_level, uint, 0444);
+
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI
 	{0x1002, 0x6780, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_TAHITI},
