@@ -235,24 +235,14 @@ static void guc_disable_interrupts(struct intel_guc *guc)
 
 static int guc_enable_communication(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_i915(guc);
-
 	guc_enable_interrupts(guc);
 
-	if (HAS_GUC_CT(i915))
-		return intel_guc_ct_enable(&guc->ct);
-
-	guc->send = intel_guc_send_mmio;
-	guc->handler = intel_guc_to_host_event_handler_mmio;
-	return 0;
+	return intel_guc_ct_enable(&guc->ct);
 }
 
 static void guc_stop_communication(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_i915(guc);
-
-	if (HAS_GUC_CT(i915))
-		intel_guc_ct_stop(&guc->ct);
+	intel_guc_ct_stop(&guc->ct);
 
 	guc->send = intel_guc_send_nop;
 	guc->handler = intel_guc_to_host_event_handler_nop;
@@ -260,10 +250,7 @@ static void guc_stop_communication(struct intel_guc *guc)
 
 static void guc_disable_communication(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_i915(guc);
-
-	if (HAS_GUC_CT(i915))
-		intel_guc_ct_disable(&guc->ct);
+	intel_guc_ct_disable(&guc->ct);
 
 	guc_disable_interrupts(guc);
 

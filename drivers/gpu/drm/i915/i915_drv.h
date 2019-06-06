@@ -2393,7 +2393,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
  * properties, so we have separate macros to test them.
  */
 #define HAS_GUC(dev_priv)	(INTEL_INFO(dev_priv)->has_guc)
-#define HAS_GUC_CT(dev_priv)	(INTEL_INFO(dev_priv)->has_guc_ct)
 #define HAS_GUC_UCODE(dev_priv)	(HAS_GUC(dev_priv))
 #define HAS_GUC_SCHED(dev_priv)	(HAS_GUC(dev_priv))
 

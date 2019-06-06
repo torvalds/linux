@@ -112,7 +112,6 @@ enum intel_ppgtt_type {
 	func(has_reset_engine); \
 	func(has_fpga_dbg); \
 	func(has_guc); \
-	func(has_guc_ct); \
 	func(has_l3_dpf); \
 	func(has_llc); \
 	func(has_logical_ring_contexts); \

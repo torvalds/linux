@@ -56,7 +56,7 @@ void intel_guc_init_send_regs(struct intel_guc *guc)
 	enum forcewake_domains fw_domains = 0;
 	unsigned int i;
 
-	if (HAS_GUC_CT(dev_priv) && INTEL_GEN(dev_priv) >= 11) {
+	if (INTEL_GEN(dev_priv) >= 11) {
 		guc->send_regs.base =
 				i915_mmio_reg_offset(GEN11_SOFT_SCRATCH(0));
 		guc->send_regs.count = GEN11_SOFT_SCRATCH_COUNT;
@@ -232,11 +232,9 @@ int intel_guc_init(struct intel_guc *guc)
 		goto err_log;
 	GEM_BUG_ON(!guc->ads_vma);
 
-	if (HAS_GUC_CT(dev_priv)) {
-		ret = intel_guc_ct_init(&guc->ct);
-		if (ret)
-			goto err_ads;
-	}
+	ret = intel_guc_ct_init(&guc->ct);
+	if (ret)
+		goto err_ads;
 
 	/* We need to notify the guc whenever we change the GGTT */
 	i915_ggtt_enable_guc(dev_priv);
@@ -262,8 +260,7 @@ void intel_guc_fini(struct intel_guc *guc)
 
 	i915_ggtt_disable_guc(dev_priv);
 
-	if (HAS_GUC_CT(dev_priv))
-		intel_guc_ct_fini(&guc->ct);
+	intel_guc_ct_fini(&guc->ct);
 
 	intel_guc_ads_destroy(guc);
 	intel_guc_log_destroy(&guc->log);
@@ -430,9 +427,8 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 	GEM_BUG_ON(*action & ~INTEL_GUC_MSG_CODE_MASK);
 
 	/* If CT is available, we expect to use MMIO only during init/fini */
-	GEM_BUG_ON(HAS_GUC_CT(dev_priv) &&
-		*action != INTEL_GUC_ACTION_REGISTER_COMMAND_TRANSPORT_BUFFER &&
-		*action != INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER);
+	GEM_BUG_ON(*action != INTEL_GUC_ACTION_REGISTER_COMMAND_TRANSPORT_BUFFER &&
+		   *action != INTEL_GUC_ACTION_DEREGISTER_COMMAND_TRANSPORT_BUFFER);
 
 	mutex_lock(&guc->send_mutex);
 	intel_uncore_forcewake_get(uncore, guc->send_regs.fw_domains);
@@ -479,33 +475,6 @@ out:
 	mutex_unlock(&guc->send_mutex);
 
 	return ret;
-}
-
-void intel_guc_to_host_event_handler_mmio(struct intel_guc *guc)
-{
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	u32 msg, val;
-
-	/*
-	 * Sample the log buffer flush related bits & clear them out now
-	 * itself from the message identity register to minimize the
-	 * probability of losing a flush interrupt, when there are back
-	 * to back flush interrupts.
-	 * There can be a new flush interrupt, for different log buffer
-	 * type (like for ISR), whilst Host is handling one (for DPC).
-	 * Since same bit is used in message register for ISR & DPC, it
-	 * could happen that GuC sets the bit for 2nd interrupt but Host
-	 * clears out the bit on handling the 1st interrupt.
-	 */
-	disable_rpm_wakeref_asserts(dev_priv);
-	spin_lock(&guc->irq_lock);
-	val = I915_READ(SOFT_SCRATCH(15));
-	msg = val & guc->msg_enabled_mask;
-	I915_WRITE(SOFT_SCRATCH(15), val & ~msg);
-	spin_unlock(&guc->irq_lock);
-	enable_rpm_wakeref_asserts(dev_priv);
-
-	intel_guc_to_host_process_recv_msg(guc, &msg, 1);
 }
 
 int intel_guc_to_host_process_recv_msg(struct intel_guc *guc,
