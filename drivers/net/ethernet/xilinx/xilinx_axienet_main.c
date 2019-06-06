@@ -125,7 +125,7 @@ static struct axienet_option axienet_options[] = {
  */
 static inline u32 axienet_dma_in32(struct axienet_local *lp, off_t reg)
 {
-	return in_be32(lp->dma_regs + reg);
+	return ioread32(lp->dma_regs + reg);
 }
 
 /**
@@ -140,7 +140,7 @@ static inline u32 axienet_dma_in32(struct axienet_local *lp, off_t reg)
 static inline void axienet_dma_out32(struct axienet_local *lp,
 				     off_t reg, u32 value)
 {
-	out_be32((lp->dma_regs + reg), value);
+	iowrite32(value, lp->dma_regs + reg);
 }
 
 /**

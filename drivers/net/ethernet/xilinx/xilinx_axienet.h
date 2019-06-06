@@ -476,7 +476,7 @@ struct axienet_option {
  */
 static inline u32 axienet_ior(struct axienet_local *lp, off_t offset)
 {
-	return in_be32(lp->regs + offset);
+	return ioread32(lp->regs + offset);
 }
 
 static inline u32 axinet_ior_read_mcr(struct axienet_local *lp)
@@ -496,7 +496,7 @@ static inline u32 axinet_ior_read_mcr(struct axienet_local *lp)
 static inline void axienet_iow(struct axienet_local *lp, off_t offset,
 			       u32 value)
 {
-	out_be32((lp->regs + offset), value);
+	iowrite32(value, lp->regs + offset);
 }
 
 /* Function prototypes visible in xilinx_axienet_mdio.c for other files */
