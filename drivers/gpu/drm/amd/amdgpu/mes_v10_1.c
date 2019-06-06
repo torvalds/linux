@@ -28,6 +28,7 @@
 #include "nv.h"
 #include "gc/gc_10_1_0_offset.h"
 #include "gc/gc_10_1_0_sh_mask.h"
+#include "v10_structs.h"
 
 MODULE_FIRMWARE("amdgpu/navi10_mes.bin");
 
@@ -375,6 +376,32 @@ static int mes_v10_1_ring_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int mes_v10_1_mqd_sw_init(struct amdgpu_device *adev)
+{
+	int r, mqd_size = sizeof(struct v10_compute_mqd);
+	struct amdgpu_ring *ring = &adev->mes.ring;
+
+	if (ring->mqd_obj)
+		return 0;
+
+	r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
+				    &ring->mqd_gpu_addr, &ring->mqd_ptr);
+	if (r) {
+		dev_warn(adev->dev, "failed to create ring mqd bo (%d)", r);
+		return r;
+	}
+
+	/* prepare MQD backup */
+	adev->mes.mqd_backup = kmalloc(mqd_size, GFP_KERNEL);
+	if (!adev->mes.mqd_backup)
+		dev_warn(adev->dev,
+			 "no memory to create MQD backup for ring %s\n",
+			 ring->name);
+
+	return 0;
+}
+
 static int mes_v10_1_sw_init(void *handle)
 {
 	int r;
@@ -390,12 +417,22 @@ static int mes_v10_1_sw_init(void *handle)
 	if (r)
 		return r;
 
+	r = mes_v10_1_mqd_sw_init(adev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
 static int mes_v10_1_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	kfree(adev->mes.mqd_backup);
+
+	amdgpu_bo_free_kernel(&adev->mes.ring.mqd_obj,
+			      &adev->mes.ring.mqd_gpu_addr,
+			      &adev->mes.ring.mqd_ptr);
 
 	amdgpu_bo_free_kernel(&adev->mes.eop_gpu_obj,
 			      &adev->mes.eop_gpu_addr,
