@@ -616,7 +616,6 @@ static const struct renesas_sdhi_quirks sdhi_quirks_4tap_nohs400 = {
 };
 
 static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
-	.hs400_disabled = false,
 	.hs400_4taps = true,
 };
 
