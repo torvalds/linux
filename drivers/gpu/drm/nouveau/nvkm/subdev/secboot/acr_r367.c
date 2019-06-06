@@ -100,6 +100,8 @@ struct acr_r367_lsf_wpr_header {
 struct ls_ucode_img_r367 {
 	struct ls_ucode_img base;
 
+	const struct acr_r352_lsf_func *func;
+
 	struct acr_r367_lsf_wpr_header wpr_header;
 	struct acr_r367_lsf_lsb_header lsb_header;
 };
@@ -128,6 +130,8 @@ acr_r367_ls_ucode_img_load(const struct acr_r352 *acr,
 		kfree(img);
 		return ERR_PTR(ret);
 	}
+
+	img->func = func->version[ret];
 
 	/* Check that the signature size matches our expectations... */
 	if (img->base.sig_size != sizeof(img->lsb_header.signature)) {
@@ -159,8 +163,7 @@ acr_r367_ls_img_fill_headers(struct acr_r352 *acr,
 	struct acr_r367_lsf_wpr_header *whdr = &img->wpr_header;
 	struct acr_r367_lsf_lsb_header *lhdr = &img->lsb_header;
 	struct ls_ucode_img_desc *desc = &_img->ucode_desc;
-	const struct acr_r352_ls_func *func =
-					    acr->func->ls_func[_img->falcon_id];
+	const struct acr_r352_lsf_func *func = img->func;
 
 	/* Fill WPR header */
 	whdr->falcon_id = _img->falcon_id;
@@ -270,8 +273,8 @@ acr_r367_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 	u8 *gdesc;
 
 	list_for_each_entry(_img, imgs, node) {
-		const struct acr_r352_ls_func *ls_func =
-					    acr->func->ls_func[_img->falcon_id];
+		struct ls_ucode_img_r367 *img = ls_ucode_img_r367(_img);
+		const struct acr_r352_lsf_func *ls_func = img->func;
 
 		max_desc_size = max(max_desc_size, ls_func->bl_desc_size);
 	}
@@ -284,8 +287,7 @@ acr_r367_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 
 	list_for_each_entry(_img, imgs, node) {
 		struct ls_ucode_img_r367 *img = ls_ucode_img_r367(_img);
-		const struct acr_r352_ls_func *ls_func =
-					    acr->func->ls_func[_img->falcon_id];
+		const struct acr_r352_lsf_func *ls_func = img->func;
 
 		nvkm_gpuobj_memcpy_to(wpr_blob, pos, &img->wpr_header,
 				      sizeof(img->wpr_header));
