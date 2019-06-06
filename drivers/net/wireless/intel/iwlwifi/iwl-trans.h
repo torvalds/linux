@@ -452,9 +452,8 @@ struct iwl_trans_rxq_dma_data {
  *
  * All the handlers MUST be implemented
  *
- * @start_hw: starts the HW. If low_power is true, the NIC needs to be taken
- *	out of a low power state. From that point on, the HW can send
- *	interrupts. May sleep.
+ * @start_hw: starts the HW. From that point on, the HW can send interrupts.
+ *	May sleep.
  * @op_mode_leave: Turn off the HW RF kill indication if on
  *	May sleep
  * @start_fw: allocates and inits all the resources for the transport
@@ -464,9 +463,8 @@ struct iwl_trans_rxq_dma_data {
  *	the SCD base address in SRAM, then provide it here, or 0 otherwise.
  *	May sleep
  * @stop_device: stops the whole device (embedded CPU put to reset) and stops
- *	the HW. If low_power is true, the NIC will be put in low power state.
- *	From that point on, the HW will be stopped but will still issue an
- *	interrupt if the HW RF kill switch is triggered.
+ *	the HW. From that point on, the HW will be stopped but will still issue
+ *	an interrupt if the HW RF kill switch is triggered.
  *	This callback must do the right thing and not crash even if %start_hw()
  *	was called but not &start_fw(). May sleep.
  * @d3_suspend: put the device into the correct mode for WoWLAN during
@@ -532,12 +530,12 @@ struct iwl_trans_rxq_dma_data {
  */
 struct iwl_trans_ops {
 
-	int (*start_hw)(struct iwl_trans *iwl_trans, bool low_power);
+	int (*start_hw)(struct iwl_trans *iwl_trans);
 	void (*op_mode_leave)(struct iwl_trans *iwl_trans);
 	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw,
 			bool run_in_rfkill);
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
-	void (*stop_device)(struct iwl_trans *trans, bool low_power);
+	void (*stop_device)(struct iwl_trans *trans);
 
 	void (*d3_suspend)(struct iwl_trans *trans, bool test, bool reset);
 	int (*d3_resume)(struct iwl_trans *trans, enum iwl_d3_status *status,
@@ -819,16 +817,11 @@ static inline void iwl_trans_configure(struct iwl_trans *trans,
 	WARN_ON(iwl_cmd_groups_verify_sorted(trans_cfg));
 }
 
-static inline int _iwl_trans_start_hw(struct iwl_trans *trans, bool low_power)
+static inline int iwl_trans_start_hw(struct iwl_trans *trans)
 {
 	might_sleep();
 
-	return trans->ops->start_hw(trans, low_power);
-}
-
-static inline int iwl_trans_start_hw(struct iwl_trans *trans)
-{
-	return trans->ops->start_hw(trans, true);
+	return trans->ops->start_hw(trans);
 }
 
 static inline void iwl_trans_op_mode_leave(struct iwl_trans *trans)
@@ -864,19 +857,13 @@ static inline int iwl_trans_start_fw(struct iwl_trans *trans,
 	return trans->ops->start_fw(trans, fw, run_in_rfkill);
 }
 
-static inline void _iwl_trans_stop_device(struct iwl_trans *trans,
-					  bool low_power)
+static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 {
 	might_sleep();
 
-	trans->ops->stop_device(trans, low_power);
+	trans->ops->stop_device(trans);
 
 	trans->state = IWL_TRANS_NO_FW;
-}
-
-static inline void iwl_trans_stop_device(struct iwl_trans *trans)
-{
-	_iwl_trans_stop_device(trans, true);
 }
 
 static inline void iwl_trans_d3_suspend(struct iwl_trans *trans, bool test,

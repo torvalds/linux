@@ -65,7 +65,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/pm_runtime.h>
 #include <linux/pci.h>
 #include <linux/acpi.h>
 

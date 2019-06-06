@@ -1109,9 +1109,8 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			   struct iwl_device_cmd *dev_cmd, int txq_id);
 int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 				  struct iwl_host_cmd *cmd);
-void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans,
-				     bool low_power);
-void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power);
+void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
+void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
 void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id);
 void iwl_pcie_gen2_tx_free(struct iwl_trans *trans);
 void iwl_pcie_gen2_tx_stop(struct iwl_trans *trans);

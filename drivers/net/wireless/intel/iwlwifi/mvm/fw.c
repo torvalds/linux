@@ -1141,13 +1141,8 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 	}
 
 	iwl_fw_dbg_stop_sync(&mvm->fwrt);
-	/*
-	 * Stop and start the transport without entering low power
-	 * mode. This will save the state of other components on the
-	 * device that are triggered by the INIT firwmare (MFUART).
-	 */
-	_iwl_trans_stop_device(mvm->trans, false);
-	ret = _iwl_trans_start_hw(mvm->trans, false);
+	iwl_trans_stop_device(mvm->trans);
+	ret = iwl_trans_start_hw(mvm->trans);
 	if (ret)
 		return ret;
 

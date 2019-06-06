@@ -136,7 +136,7 @@ static void iwl_pcie_gen2_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 		      BIT(trans->cfg->csr->flag_init_done));
 }
 
-void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
+void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -215,7 +215,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
 	iwl_pcie_prepare_card_hw(trans);
 }
 
-void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
+void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool was_in_rfkill;
@@ -223,7 +223,7 @@ void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power)
 	mutex_lock(&trans_pcie->mutex);
 	trans_pcie->opmode_down = true;
 	was_in_rfkill = test_bit(STATUS_RFKILL_OPMODE, &trans->status);
-	_iwl_trans_pcie_gen2_stop_device(trans, low_power);
+	_iwl_trans_pcie_gen2_stop_device(trans);
 	iwl_trans_pcie_handle_stop_rfkill(trans, was_in_rfkill);
 	mutex_unlock(&trans_pcie->mutex);
 }

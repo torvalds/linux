@@ -50,7 +50,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#include <linux/pm_runtime.h>
 #include <net/tso.h>
 #include <linux/tcp.h>
 
