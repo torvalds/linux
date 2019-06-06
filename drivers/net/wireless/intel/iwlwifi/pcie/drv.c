@@ -1269,80 +1269,9 @@ err:
 	return ret;
 }
 
-#ifdef CONFIG_IWLWIFI_PCIE_RTPM
-static int iwl_pci_runtime_suspend(struct device *device)
-{
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_trans *trans = pci_get_drvdata(pdev);
-	int ret;
-
-	IWL_DEBUG_RPM(trans, "entering runtime suspend\n");
-
-	if (test_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
-		ret = iwl_pci_fw_enter_d0i3(trans);
-		if (ret < 0)
-			return ret;
-	}
-
-	trans->system_pm_mode = IWL_PLAT_PM_MODE_D0I3;
-
-	iwl_trans_d3_suspend(trans, false, false);
-
-	return 0;
-}
-
-static int iwl_pci_runtime_resume(struct device *device)
-{
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_trans *trans = pci_get_drvdata(pdev);
-	enum iwl_d3_status d3_status;
-
-	IWL_DEBUG_RPM(trans, "exiting runtime suspend (resume)\n");
-
-	iwl_trans_d3_resume(trans, &d3_status, false, false);
-
-	if (test_bit(STATUS_DEVICE_ENABLED, &trans->status))
-		return iwl_pci_fw_exit_d0i3(trans);
-
-	return 0;
-}
-
-static int iwl_pci_system_prepare(struct device *device)
-{
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_trans *trans = pci_get_drvdata(pdev);
-
-	IWL_DEBUG_RPM(trans, "preparing for system suspend\n");
-
-	/* Wake the device up from runtime suspend before going to
-	 * platform suspend.  This is needed because we don't know
-	 * whether wowlan any is set and, if it's not, mac80211 will
-	 * disconnect (in which case, we can't be in D0i3).
-	 */
-	pm_runtime_resume(device);
-
-	return 0;
-}
-
-static void iwl_pci_system_complete(struct device *device)
-{
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_trans *trans = pci_get_drvdata(pdev);
-
-	IWL_DEBUG_RPM(trans, "completing system suspend\n");
-}
-#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
-
 static const struct dev_pm_ops iwl_dev_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(iwl_pci_suspend,
 				iwl_pci_resume)
-#ifdef CONFIG_IWLWIFI_PCIE_RTPM
-	SET_RUNTIME_PM_OPS(iwl_pci_runtime_suspend,
-			   iwl_pci_runtime_resume,
-			   NULL)
-	.prepare = iwl_pci_system_prepare,
-	.complete = iwl_pci_system_complete,
-#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 };
 
 #define IWL_PM_OPS	(&iwl_dev_pm_ops)

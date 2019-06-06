@@ -3654,11 +3654,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 						   WQ_HIGHPRI | WQ_UNBOUND, 1);
 	INIT_WORK(&trans_pcie->rba.rx_alloc, iwl_pcie_rx_allocator_work);
 
-#ifdef CONFIG_IWLWIFI_PCIE_RTPM
-	trans->runtime_pm_mode = IWL_PLAT_PM_MODE_D0I3;
-#else
 	trans->runtime_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
-#endif /* CONFIG_IWLWIFI_PCIE_RTPM */
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	trans_pcie->fw_mon_data.state = IWL_FW_MON_DBGFS_STATE_CLOSED;
