@@ -5621,7 +5621,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	if (unlikely(le32_to_cpu(txd->opts1) & DescOwn))
 		goto err_stop_0;
 
-	opts[1] = cpu_to_le32(rtl8169_tx_vlan_tag(skb));
+	opts[1] = rtl8169_tx_vlan_tag(skb);
 	opts[0] = DescOwn;
 
 	if (rtl_chip_supports_csum_v2(tp)) {
