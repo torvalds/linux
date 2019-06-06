@@ -1477,7 +1477,7 @@ static void gfs2_final_release_pages(struct gfs2_inode *ip)
 	truncate_inode_pages(gfs2_glock2aspace(ip->i_gl), 0);
 	truncate_inode_pages(&inode->i_data, 0);
 
-	if (!test_bit(GLF_REVOKES, &gl->gl_flags)) {
+	if (atomic_read(&gl->gl_revokes) == 0) {
 		clear_bit(GLF_LFLUSH, &gl->gl_flags);
 		clear_bit(GLF_DIRTY, &gl->gl_flags);
 	}
