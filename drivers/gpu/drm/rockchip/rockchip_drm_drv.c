@@ -733,7 +733,7 @@ static void rockchip_drm_fb_suspend(struct drm_device *drm)
 	struct rockchip_drm_private *priv = drm->dev_private;
 
 	console_lock();
-	drm_fb_helper_set_suspend(&priv->fbdev_helper, 1);
+	drm_fb_helper_set_suspend(priv->fbdev_helper, 1);
 	console_unlock();
 }
 
@@ -742,7 +742,7 @@ static void rockchip_drm_fb_resume(struct drm_device *drm)
 	struct rockchip_drm_private *priv = drm->dev_private;
 
 	console_lock();
-	drm_fb_helper_set_suspend(&priv->fbdev_helper, 0);
+	drm_fb_helper_set_suspend(priv->fbdev_helper, 0);
 	console_unlock();
 }
 
