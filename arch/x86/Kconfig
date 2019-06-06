@@ -217,6 +217,7 @@ config X86
 	select USER_STACKTRACE_SUPPORT
 	select VIRT_TO_BUS
 	select X86_FEATURE_NAMES		if PROC_FS
+	select PROC_PID_ARCH_STATUS		if PROC_FS
 
 config INSTRUCTION_DECODER
 	def_bool y
