@@ -331,12 +331,15 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 							  int hdmi_num)
 {
 	struct snd_soc_dai_link_component *idisp_components;
+	struct snd_soc_dai_link_component *cpus;
 	struct snd_soc_dai_link *links;
 	int i, id = 0;
 
 	links = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link) *
 			     sof_audio_card_rt5682.num_links, GFP_KERNEL);
-	if (!links)
+	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component) *
+			     sof_audio_card_rt5682.num_links, GFP_KERNEL);
+	if (!links || !cpus)
 		goto devm_err;
 
 	/* codec SSP */
@@ -356,11 +359,13 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	links[id].dpcm_playback = 1;
 	links[id].dpcm_capture = 1;
 	links[id].no_pcm = 1;
+	links[id].cpus = &cpus[id];
+	links[id].num_cpus = 1;
 	if (is_legacy_cpu) {
-		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
-							"ssp%d-port",
-							ssp_codec);
-		if (!links[id].cpu_dai_name)
+		links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
+							  "ssp%d-port",
+							  ssp_codec);
+		if (!links[id].cpus->dai_name)
 			goto devm_err;
 	} else {
 		/*
@@ -373,10 +378,10 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		 * It can be removed once we can control MCLK by driver.
 		 */
 		links[id].ignore_pmdown_time = 1;
-		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
-							"SSP%d Pin",
-							ssp_codec);
-		if (!links[id].cpu_dai_name)
+		links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
+							  "SSP%d Pin",
+							  ssp_codec);
+		if (!links[id].cpus->dai_name)
 			goto devm_err;
 	}
 	id++;
@@ -389,9 +394,11 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			goto devm_err;
 
 		links[id].id = id;
-		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
-							"DMIC%02d Pin", i);
-		if (!links[id].cpu_dai_name)
+		links[id].cpus = &cpus[id];
+		links[id].num_cpus = 1;
+		links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
+							  "DMIC%02d Pin", i);
+		if (!links[id].cpus->dai_name)
 			goto devm_err;
 
 		links[id].codecs = dmic_component;
@@ -419,9 +426,11 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			goto devm_err;
 
 		links[id].id = id;
-		links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
-							"iDisp%d Pin", i);
-		if (!links[id].cpu_dai_name)
+		links[id].cpus = &cpus[id];
+		links[id].num_cpus = 1;
+		links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
+							  "iDisp%d Pin", i);
+		if (!links[id].cpus->dai_name)
 			goto devm_err;
 
 		idisp_components[i - 1].name = "ehdaudio0D2";
@@ -458,18 +467,20 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].nonatomic = true;
 		links[id].dpcm_playback = 1;
 		links[id].no_pcm = 1;
+		links[id].cpus = &cpus[id];
+		links[id].num_cpus = 1;
 		if (is_legacy_cpu) {
-			links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
-								"ssp%d-port",
-								ssp_amp);
-			if (!links[id].cpu_dai_name)
+			links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
+								  "ssp%d-port",
+								  ssp_amp);
+			if (!links[id].cpus->dai_name)
 				goto devm_err;
 
 		} else {
-			links[id].cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL,
-								"SSP%d Pin",
-								ssp_amp);
-			if (!links[id].cpu_dai_name)
+			links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
+								  "SSP%d Pin",
+								  ssp_amp);
+			if (!links[id].cpus->dai_name)
 				goto devm_err;
 		}
 	}
