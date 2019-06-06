@@ -23,6 +23,10 @@ menuconfig DRM
 	  details.  You should also select and configure AGP
 	  (/dev/agpgart) support if it is available for your platform.
 
+config DRM_IGNORE_IOTCL_PERMIT
+	bool "Ignore drm ioctl permission"
+	depends on DRM && ANDROID
+
 config DRM_MIPI_DSI
 	bool
 	depends on DRM
