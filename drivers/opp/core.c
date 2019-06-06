@@ -745,6 +745,91 @@ put_opp_table:
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_set_rate);
 
+/**
+ * dev_pm_opp_check_rate_volt() - Configure new OPP based on current rate
+ * @dev:	device for which we do this operation
+ * @force:	when true force to set voltage
+ *
+ * This configures the power-supplies and clock source to the levels specified
+ * by the OPP corresponding to current rate.
+ *
+ */
+int dev_pm_opp_check_rate_volt(struct device *dev, bool force)
+{
+	struct opp_table *opp_table;
+	struct dev_pm_opp *opp;
+	struct regulator *reg;
+	struct clk *clk;
+	unsigned long old_freq, target_freq, target_volt;
+	int old_volt;
+	int ret = 0;
+
+	opp_table = _find_opp_table(dev);
+	if (IS_ERR(opp_table)) {
+		dev_err(dev, "%s: device opp doesn't exist\n", __func__);
+		return PTR_ERR(opp_table);
+	}
+
+	clk = opp_table->clk;
+	if (!opp_table->regulators) {
+		dev_err(dev, "opp_table regulators is null\n");
+		goto put_opp_table;
+	}
+	reg = opp_table->regulators[0];
+	if (IS_ERR_OR_NULL(clk) || IS_ERR_OR_NULL(reg)) {
+		dev_err(dev, "clk or regulater is unavailable\n");
+		ret = -EINVAL;
+		goto put_opp_table;
+	}
+	old_freq = clk_get_rate(clk);
+	old_volt = regulator_get_voltage(reg);
+	if (old_volt <= 0) {
+		dev_err(dev, "failed to get volt %d\n", old_volt);
+		ret = -EINVAL;
+		goto put_opp_table;
+	}
+
+	target_freq = old_freq;
+	/* If not available, use the closest opp */
+	opp = dev_pm_opp_find_freq_ceil(dev, &target_freq);
+	if (IS_ERR(opp)) {
+		/* The freq is an upper bound. opp should be lower */
+		opp = dev_pm_opp_find_freq_floor(dev, &target_freq);
+		if (IS_ERR(opp)) {
+			dev_err(dev, "failed to find OPP for freq %lu\n",
+				target_freq);
+			ret = PTR_ERR(opp);
+			goto put_opp_table;
+		}
+	}
+	target_volt = opp->supplies->u_volt;
+	target_freq = clk_round_rate(clk, target_freq);
+
+	dev_dbg(dev, "%lu Hz %d uV --> %lu Hz %lu uV\n", old_freq, old_volt,
+		target_freq, target_volt);
+
+	if (old_freq == target_freq) {
+		if (old_volt != target_volt || force) {
+			ret = _set_opp_voltage(dev, reg, opp->supplies);
+			if (ret) {
+				dev_err(dev, "failed to set volt %lu\n",
+					target_volt);
+				goto put_opp;
+			}
+		}
+		goto put_opp;
+	}
+
+	ret = _generic_set_opp_regulator(opp_table, dev, old_freq, target_freq,
+					  NULL, opp->supplies);
+put_opp:
+	dev_pm_opp_put(opp);
+put_opp_table:
+	dev_pm_opp_put_opp_table(opp_table);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_check_rate_volt);
+
 /* OPP-dev Helpers */
 static void _remove_opp_dev(struct opp_device *opp_dev,
 			    struct opp_table *opp_table)
