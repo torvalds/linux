@@ -1059,9 +1059,6 @@ void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans);
 static inline void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans) { }
 #endif
 
-int iwl_pci_fw_exit_d0i3(struct iwl_trans *trans);
-int iwl_pci_fw_enter_d0i3(struct iwl_trans *trans);
-
 void iwl_pcie_rx_allocator_work(struct work_struct *data);
 
 /* common functions that are used by gen2 transport */
