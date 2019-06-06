@@ -62,6 +62,9 @@ static void vkms_release(struct drm_device *dev)
 static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
+	int i;
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 
@@ -74,6 +77,13 @@ static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
 	drm_atomic_helper_commit_hw_done(old_state);
 
 	drm_atomic_helper_wait_for_vblanks(dev, old_state);
+
+	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		struct vkms_crtc_state *vkms_state =
+			to_vkms_crtc_state(old_crtc_state);
+
+		flush_work(&vkms_state->crc_work);
+	}
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 }

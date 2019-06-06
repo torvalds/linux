@@ -125,7 +125,7 @@ static void vkms_atomic_crtc_destroy_state(struct drm_crtc *crtc,
 	__drm_atomic_helper_crtc_destroy_state(state);
 
 	if (vkms_state) {
-		flush_work(&vkms_state->crc_work);
+		WARN_ON(work_pending(&vkms_state->crc_work));
 		kfree(vkms_state);
 	}
 }
