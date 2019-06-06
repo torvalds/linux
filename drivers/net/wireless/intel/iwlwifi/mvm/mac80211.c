@@ -1079,9 +1079,6 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	ieee80211_wake_queues(mvm->hw);
 
-	/* clear any stale d0i3 state */
-	clear_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
-
 	mvm->vif_count = 0;
 	mvm->rx_ba_sessions = 0;
 	mvm->fwrt.dump.conf = FW_DBG_INVALID;
