@@ -434,17 +434,20 @@ static void axienet_setoptions(struct net_device *ndev, u32 options)
 	lp->options |= options;
 }
 
-static void __axienet_device_reset(struct axienet_local *lp, off_t offset)
+static void __axienet_device_reset(struct axienet_local *lp)
 {
 	u32 timeout;
 	/* Reset Axi DMA. This would reset Axi Ethernet core as well. The reset
 	 * process of Axi DMA takes a while to complete as all pending
 	 * commands/transfers will be flushed or completed during this
 	 * reset process.
+	 * Note that even though both TX and RX have their own reset register,
+	 * they both reset the entire DMA core, so only one needs to be used.
 	 */
-	axienet_dma_out32(lp, offset, XAXIDMA_CR_RESET_MASK);
+	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, XAXIDMA_CR_RESET_MASK);
 	timeout = DELAY_OF_ONE_MILLISEC;
-	while (axienet_dma_in32(lp, offset) & XAXIDMA_CR_RESET_MASK) {
+	while (axienet_dma_in32(lp, XAXIDMA_TX_CR_OFFSET) &
+				XAXIDMA_CR_RESET_MASK) {
 		udelay(1);
 		if (--timeout == 0) {
 			netdev_err(lp->ndev, "%s: DMA reset timeout!\n",
@@ -470,8 +473,7 @@ static void axienet_device_reset(struct net_device *ndev)
 	u32 axienet_status;
 	struct axienet_local *lp = netdev_priv(ndev);
 
-	__axienet_device_reset(lp, XAXIDMA_TX_CR_OFFSET);
-	__axienet_device_reset(lp, XAXIDMA_RX_CR_OFFSET);
+	__axienet_device_reset(lp);
 
 	lp->max_frm_size = XAE_MAX_VLAN_FRAME_SIZE;
 	lp->options |= XAE_OPTION_VLAN;
@@ -981,19 +983,44 @@ err_tx_irq:
  */
 static int axienet_stop(struct net_device *ndev)
 {
-	u32 cr;
+	u32 cr, sr;
+	int count;
 	struct axienet_local *lp = netdev_priv(ndev);
 
 	dev_dbg(&ndev->dev, "axienet_close()\n");
 
-	cr = axienet_dma_in32(lp, XAXIDMA_RX_CR_OFFSET);
-	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET,
-			  cr & (~XAXIDMA_CR_RUNSTOP_MASK));
-	cr = axienet_dma_in32(lp, XAXIDMA_TX_CR_OFFSET);
-	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET,
-			  cr & (~XAXIDMA_CR_RUNSTOP_MASK));
 	axienet_setoptions(ndev, lp->options &
 			   ~(XAE_OPTION_TXEN | XAE_OPTION_RXEN));
+
+	cr = axienet_dma_in32(lp, XAXIDMA_RX_CR_OFFSET);
+	cr &= ~(XAXIDMA_CR_RUNSTOP_MASK | XAXIDMA_IRQ_ALL_MASK);
+	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, cr);
+
+	cr = axienet_dma_in32(lp, XAXIDMA_TX_CR_OFFSET);
+	cr &= ~(XAXIDMA_CR_RUNSTOP_MASK | XAXIDMA_IRQ_ALL_MASK);
+	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, cr);
+
+	axienet_iow(lp, XAE_IE_OFFSET, 0);
+
+	/* Give DMAs a chance to halt gracefully */
+	sr = axienet_dma_in32(lp, XAXIDMA_RX_SR_OFFSET);
+	for (count = 0; !(sr & XAXIDMA_SR_HALT_MASK) && count < 5; ++count) {
+		msleep(20);
+		sr = axienet_dma_in32(lp, XAXIDMA_RX_SR_OFFSET);
+	}
+
+	sr = axienet_dma_in32(lp, XAXIDMA_TX_SR_OFFSET);
+	for (count = 0; !(sr & XAXIDMA_SR_HALT_MASK) && count < 5; ++count) {
+		msleep(20);
+		sr = axienet_dma_in32(lp, XAXIDMA_TX_SR_OFFSET);
+	}
+
+	/* Do a reset to ensure DMA is really stopped */
+	mutex_lock(&lp->mii_bus->mdio_lock);
+	axienet_mdio_disable(lp);
+	__axienet_device_reset(lp);
+	axienet_mdio_enable(lp);
+	mutex_unlock(&lp->mii_bus->mdio_lock);
 
 	tasklet_kill(&lp->dma_err_tasklet);
 
@@ -1326,8 +1353,7 @@ static void axienet_dma_err_handler(unsigned long data)
 	 */
 	mutex_lock(&lp->mii_bus->mdio_lock);
 	axienet_mdio_disable(lp);
-	__axienet_device_reset(lp, XAXIDMA_TX_CR_OFFSET);
-	__axienet_device_reset(lp, XAXIDMA_RX_CR_OFFSET);
+	__axienet_device_reset(lp);
 	axienet_mdio_enable(lp);
 	mutex_unlock(&lp->mii_bus->mdio_lock);
 

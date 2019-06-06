@@ -83,6 +83,8 @@
 #define XAXIDMA_CR_RUNSTOP_MASK	0x00000001 /* Start/stop DMA channel */
 #define XAXIDMA_CR_RESET_MASK	0x00000004 /* Reset DMA engine */
 
+#define XAXIDMA_SR_HALT_MASK	0x00000001 /* Indicates DMA channel halted */
+
 #define XAXIDMA_BD_NDESC_OFFSET		0x00 /* Next descriptor pointer */
 #define XAXIDMA_BD_BUFA_OFFSET		0x08 /* Buffer address */
 #define XAXIDMA_BD_CTRL_LEN_OFFSET	0x18 /* Control/buffer length */
