@@ -51,7 +51,6 @@ struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
 		int node, int cmd_size, gfp_t flags);
 void blk_free_flush_queue(struct blk_flush_queue *q);
 
-void blk_rq_bio_prep(struct request *rq, struct bio *bio, unsigned int nr_segs);
 void blk_freeze_queue(struct request_queue *q);
 
 static inline void blk_queue_enter_live(struct request_queue *q)
@@ -98,6 +97,18 @@ static inline bool bvec_gap_to_prev(struct request_queue *q,
 	if (!queue_virt_boundary(q))
 		return false;
 	return __bvec_gap_to_prev(q, bprv, offset);
+}
+
+static inline void blk_rq_bio_prep(struct request *rq, struct bio *bio,
+		unsigned int nr_segs)
+{
+	rq->nr_phys_segments = nr_segs;
+	rq->__data_len = bio->bi_iter.bi_size;
+	rq->bio = rq->biotail = bio;
+	rq->ioprio = bio_prio(bio);
+
+	if (bio->bi_disk)
+		rq->rq_disk = bio->bi_disk;
 }
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
