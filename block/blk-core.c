@@ -693,7 +693,6 @@ void blk_init_request_from_bio(struct request *req, struct bio *bio)
 		req->cmd_flags |= REQ_FAILFAST_MASK;
 
 	req->__sector = bio->bi_iter.bi_sector;
-	req->ioprio = bio_prio(bio);
 	req->write_hint = bio->bi_write_hint;
 	blk_rq_bio_prep(req->q, req, bio);
 }
@@ -1449,6 +1448,7 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 
 	rq->__data_len = bio->bi_iter.bi_size;
 	rq->bio = rq->biotail = bio;
+	rq->ioprio = bio_prio(bio);
 
 	if (bio->bi_disk)
 		rq->rq_disk = bio->bi_disk;
