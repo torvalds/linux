@@ -1802,21 +1802,9 @@ void iwl_mvm_set_default_unicast_key(struct ieee80211_hw *hw,
 extern const struct file_operations iwl_dbgfs_d3_test_ops;
 struct iwl_wowlan_status *iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm);
 #ifdef CONFIG_PM
-int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
-				     bool host_awake,
-				     u32 cmd_flags);
 void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);
 #else
-static inline int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
-						   struct ieee80211_vif *vif,
-						   bool host_awake,
-						   u32 cmd_flags)
-{
-	return 0;
-}
-
 static inline void
 iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {

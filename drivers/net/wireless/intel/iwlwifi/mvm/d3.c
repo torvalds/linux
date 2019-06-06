@@ -735,40 +735,16 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 	return 0;
 }
 
-static void
-iwl_mvm_iter_d0i3_ap_keys(struct iwl_mvm *mvm,
-			  struct ieee80211_vif *vif,
-			  void (*iter)(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif,
-				       struct ieee80211_sta *sta,
-				       struct ieee80211_key_conf *key,
-				       void *data),
-			  void *data)
-{
-	struct ieee80211_sta *ap_sta;
-
-	rcu_read_lock();
-
-	ap_sta = rcu_dereference(mvm->fw_id_to_mac_id[mvm->d0i3_ap_sta_id]);
-	if (IS_ERR_OR_NULL(ap_sta))
-		goto out;
-
-	ieee80211_iter_keys_rcu(mvm->hw, vif, iter, data);
-out:
-	rcu_read_unlock();
-}
-
-int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
-				     struct ieee80211_vif *vif,
-				     bool d0i3,
-				     u32 cmd_flags)
+static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
+					    struct ieee80211_vif *vif,
+					    u32 cmd_flags)
 {
 	struct iwl_wowlan_kek_kck_material_cmd kek_kck_cmd = {};
 	struct iwl_wowlan_tkip_params_cmd tkip_cmd = {};
 	bool unified = fw_has_capa(&mvm->fw->ucode_capa,
 				   IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 	struct wowlan_key_data key_data = {
-		.configure_keys = !d0i3 && !unified,
+		.configure_keys = !unified,
 		.use_rsc_tsc = false,
 		.tkip = &tkip_cmd,
 		.use_tkip = false,
@@ -784,25 +760,16 @@ int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 	 * if we have to configure keys, call ieee80211_iter_keys(),
 	 * as we need non-atomic context in order to take the
 	 * required locks.
-	 * for the d0i3 we can't use ieee80211_iter_keys(), as
-	 * taking (almost) any mutex might result in deadlock.
 	 */
-	if (!d0i3) {
-		/*
-		 * Note that currently we don't propagate cmd_flags
-		 * to the iterator. In case of key_data.configure_keys,
-		 * all the configured commands are SYNC, and
-		 * iwl_mvm_wowlan_program_keys() will take care of
-		 * locking/unlocking mvm->mutex.
-		 */
-		ieee80211_iter_keys(mvm->hw, vif,
-				    iwl_mvm_wowlan_program_keys,
-				    &key_data);
-	} else {
-		iwl_mvm_iter_d0i3_ap_keys(mvm, vif,
-					  iwl_mvm_wowlan_program_keys,
-					  &key_data);
-	}
+	/*
+	 * Note that currently we don't propagate cmd_flags
+	 * to the iterator. In case of key_data.configure_keys,
+	 * all the configured commands are SYNC, and
+	 * iwl_mvm_wowlan_program_keys() will take care of
+	 * locking/unlocking mvm->mutex.
+	 */
+	ieee80211_iter_keys(mvm->hw, vif, iwl_mvm_wowlan_program_keys,
+			    &key_data);
 
 	if (key_data.error) {
 		ret = -EIO;
@@ -830,7 +797,7 @@ int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 	}
 
 	/* configure rekey data only if offloaded rekey is supported (d3) */
-	if (mvmvif->rekey_data.valid && !d0i3) {
+	if (mvmvif->rekey_data.valid) {
 		memset(&kek_kck_cmd, 0, sizeof(kek_kck_cmd));
 		memcpy(kek_kck_cmd.kck, mvmvif->rekey_data.kck,
 		       NL80211_KCK_LEN);
@@ -881,8 +848,7 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 		 * that isn't really a problem though.
 		 */
 		mutex_unlock(&mvm->mutex);
-		ret = iwl_mvm_wowlan_config_key_params(mvm, vif, false,
-						       CMD_ASYNC);
+		ret = iwl_mvm_wowlan_config_key_params(mvm, vif, CMD_ASYNC);
 		mutex_lock(&mvm->mutex);
 		if (ret)
 			return ret;
