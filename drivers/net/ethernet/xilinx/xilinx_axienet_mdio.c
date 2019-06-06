@@ -5,6 +5,7 @@
  * Copyright (c) 2009 Secret Lab Technologies, Ltd.
  * Copyright (c) 2010 - 2011 Michal Simek <monstr@monstr.eu>
  * Copyright (c) 2010 - 2011 PetaLogix
+ * Copyright (c) 2019 SED Systems, a division of Calian Ltd.
  * Copyright (c) 2010 - 2012 Xilinx, Inc. All rights reserved.
  */
 
@@ -20,7 +21,7 @@
 #define DEFAULT_HOST_CLOCK	150000000 /* 150 MHz */
 
 /* Wait till MDIO interface is ready to accept a new transaction.*/
-int axienet_mdio_wait_until_ready(struct axienet_local *lp)
+static int axienet_mdio_wait_until_ready(struct axienet_local *lp)
 {
 	u32 val;
 
@@ -113,21 +114,17 @@ static int axienet_mdio_write(struct mii_bus *bus, int phy_id, int reg,
 }
 
 /**
- * axienet_mdio_setup - MDIO setup function
+ * axienet_mdio_enable - MDIO hardware setup function
  * @lp:		Pointer to axienet local data structure.
  *
- * Return:	0 on success, -ETIMEDOUT on a timeout, -ENOMEM when
- *		mdiobus_alloc (to allocate memory for mii bus structure) fails.
+ * Return:	0 on success, -ETIMEDOUT on a timeout.
  *
  * Sets up the MDIO interface by initializing the MDIO clock and enabling the
- * MDIO interface in hardware. Register the MDIO interface.
+ * MDIO interface in hardware.
  **/
-int axienet_mdio_setup(struct axienet_local *lp)
+int axienet_mdio_enable(struct axienet_local *lp)
 {
-	int ret;
 	u32 clk_div, host_clock;
-	struct mii_bus *bus;
-	struct device_node *mdio_node;
 
 	if (lp->clk) {
 		host_clock = clk_get_rate(lp->clk);
@@ -142,8 +139,8 @@ int axienet_mdio_setup(struct axienet_local *lp)
 			netdev_warn(lp->ndev, "Could not find CPU device node.\n");
 			host_clock = DEFAULT_HOST_CLOCK;
 		} else {
-			ret = of_property_read_u32(np1, "clock-frequency",
-						   &host_clock);
+			int ret = of_property_read_u32(np1, "clock-frequency",
+						       &host_clock);
 			if (ret) {
 				netdev_warn(lp->ndev, "CPU clock-frequency property not found.\n");
 				host_clock = DEFAULT_HOST_CLOCK;
@@ -191,10 +188,39 @@ int axienet_mdio_setup(struct axienet_local *lp)
 		   "Setting MDIO clock divisor to %u/%u Hz host clock.\n",
 		   clk_div, host_clock);
 
-	axienet_iow(lp, XAE_MDIO_MC_OFFSET,
-		    (((u32) clk_div) | XAE_MDIO_MC_MDIOEN_MASK));
+	axienet_iow(lp, XAE_MDIO_MC_OFFSET, clk_div | XAE_MDIO_MC_MDIOEN_MASK);
 
-	ret = axienet_mdio_wait_until_ready(lp);
+	return axienet_mdio_wait_until_ready(lp);
+}
+
+/**
+ * axienet_mdio_disable - MDIO hardware disable function
+ * @lp:		Pointer to axienet local data structure.
+ *
+ * Disable the MDIO interface in hardware.
+ **/
+void axienet_mdio_disable(struct axienet_local *lp)
+{
+	axienet_iow(lp, XAE_MDIO_MC_OFFSET, 0);
+}
+
+/**
+ * axienet_mdio_setup - MDIO setup function
+ * @lp:		Pointer to axienet local data structure.
+ *
+ * Return:	0 on success, -ETIMEDOUT on a timeout, -ENOMEM when
+ *		mdiobus_alloc (to allocate memory for mii bus structure) fails.
+ *
+ * Sets up the MDIO interface by initializing the MDIO clock and enabling the
+ * MDIO interface in hardware. Register the MDIO interface.
+ **/
+int axienet_mdio_setup(struct axienet_local *lp)
+{
+	struct device_node *mdio_node;
+	struct mii_bus *bus;
+	int ret;
+
+	ret = axienet_mdio_enable(lp);
 	if (ret < 0)
 		return ret;
 

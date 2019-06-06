@@ -914,27 +914,23 @@ static void axienet_dma_err_handler(unsigned long data);
  */
 static int axienet_open(struct net_device *ndev)
 {
-	int ret, mdio_mcreg;
+	int ret;
 	struct axienet_local *lp = netdev_priv(ndev);
 	struct phy_device *phydev = NULL;
 
 	dev_dbg(&ndev->dev, "axienet_open()\n");
 
-	mdio_mcreg = axienet_ior(lp, XAE_MDIO_MC_OFFSET);
-	ret = axienet_mdio_wait_until_ready(lp);
-	if (ret < 0)
-		return ret;
 	/* Disable the MDIO interface till Axi Ethernet Reset is completed.
 	 * When we do an Axi Ethernet reset, it resets the complete core
-	 * including the MDIO. If MDIO is not disabled when the reset
-	 * process is started, MDIO will be broken afterwards.
+	 * including the MDIO. MDIO must be disabled before resetting
+	 * and re-enabled afterwards.
+	 * Hold MDIO bus lock to avoid MDIO accesses during the reset.
 	 */
-	axienet_iow(lp, XAE_MDIO_MC_OFFSET,
-		    (mdio_mcreg & (~XAE_MDIO_MC_MDIOEN_MASK)));
+	mutex_lock(&lp->mii_bus->mdio_lock);
+	axienet_mdio_disable(lp);
 	axienet_device_reset(ndev);
-	/* Enable the MDIO */
-	axienet_iow(lp, XAE_MDIO_MC_OFFSET, mdio_mcreg);
-	ret = axienet_mdio_wait_until_ready(lp);
+	ret = axienet_mdio_enable(lp);
+	mutex_unlock(&lp->mii_bus->mdio_lock);
 	if (ret < 0)
 		return ret;
 
@@ -1316,28 +1312,24 @@ static void axienet_dma_err_handler(unsigned long data)
 {
 	u32 axienet_status;
 	u32 cr, i;
-	int mdio_mcreg;
 	struct axienet_local *lp = (struct axienet_local *) data;
 	struct net_device *ndev = lp->ndev;
 	struct axidma_bd *cur_p;
 
 	axienet_setoptions(ndev, lp->options &
 			   ~(XAE_OPTION_TXEN | XAE_OPTION_RXEN));
-	mdio_mcreg = axienet_ior(lp, XAE_MDIO_MC_OFFSET);
-	axienet_mdio_wait_until_ready(lp);
 	/* Disable the MDIO interface till Axi Ethernet Reset is completed.
 	 * When we do an Axi Ethernet reset, it resets the complete core
-	 * including the MDIO. So if MDIO is not disabled when the reset
-	 * process is started, MDIO will be broken afterwards.
+	 * including the MDIO. MDIO must be disabled before resetting
+	 * and re-enabled afterwards.
+	 * Hold MDIO bus lock to avoid MDIO accesses during the reset.
 	 */
-	axienet_iow(lp, XAE_MDIO_MC_OFFSET, (mdio_mcreg &
-		    ~XAE_MDIO_MC_MDIOEN_MASK));
-
+	mutex_lock(&lp->mii_bus->mdio_lock);
+	axienet_mdio_disable(lp);
 	__axienet_device_reset(lp, XAXIDMA_TX_CR_OFFSET);
 	__axienet_device_reset(lp, XAXIDMA_RX_CR_OFFSET);
-
-	axienet_iow(lp, XAE_MDIO_MC_OFFSET, mdio_mcreg);
-	axienet_mdio_wait_until_ready(lp);
+	axienet_mdio_enable(lp);
+	mutex_unlock(&lp->mii_bus->mdio_lock);
 
 	for (i = 0; i < TX_BD_NUM; i++) {
 		cur_p = &lp->tx_bd_v[i];
