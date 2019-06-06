@@ -651,6 +651,12 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 								hwdev, j);
 					if (err) {
 						device_unregister(hdev);
+						/*
+						 * Don't worry about hwdev;
+						 * hwmon_dev_release(), called
+						 * from device_unregister(),
+						 * will free it.
+						 */
 						goto ida_remove;
 					}
 				}
