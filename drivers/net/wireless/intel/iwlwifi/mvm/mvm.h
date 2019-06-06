@@ -1015,9 +1015,6 @@ struct iwl_mvm {
 #endif
 #endif
 
-	/* d0i3 */
-	u8 d0i3_ap_sta_id;
-
 	wait_queue_head_t rx_sync_waitq;
 
 	/* BT-Coex */
