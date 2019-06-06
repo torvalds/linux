@@ -762,12 +762,6 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
 #ifdef CONFIG_PM_SLEEP
-	if (iwl_mvm_is_d0i3_supported(mvm) &&
-	    device_can_wakeup(mvm->trans->dev)) {
-		mvm->wowlan.flags = WIPHY_WOWLAN_ANY;
-		hw->wiphy->wowlan = &mvm->wowlan;
-	}
-
 	if ((unified || mvm->fw->img[IWL_UCODE_WOWLAN].num_sec) &&
 	    mvm->trans->ops->d3_suspend &&
 	    mvm->trans->ops->d3_resume &&
@@ -1359,17 +1353,6 @@ static void iwl_mvm_restart_complete(struct iwl_mvm *mvm)
 	mutex_unlock(&mvm->mutex);
 }
 
-static void iwl_mvm_resume_complete(struct iwl_mvm *mvm)
-{
-	if (iwl_mvm_is_d0i3_supported(mvm) &&
-	    iwl_mvm_enter_d0i3_on_suspend(mvm))
-		WARN_ONCE(!wait_event_timeout(mvm->d0i3_exit_waitq,
-					      !test_bit(IWL_MVM_STATUS_IN_D0I3,
-							&mvm->status),
-					      HZ),
-			  "D0i3 exit on resume timed out\n");
-}
-
 static void
 iwl_mvm_mac_reconfig_complete(struct ieee80211_hw *hw,
 			      enum ieee80211_reconfig_type reconfig_type)
@@ -1381,7 +1364,6 @@ iwl_mvm_mac_reconfig_complete(struct ieee80211_hw *hw,
 		iwl_mvm_restart_complete(mvm);
 		break;
 	case IEEE80211_RECONFIG_TYPE_SUSPEND:
-		iwl_mvm_resume_complete(mvm);
 		break;
 	}
 }
