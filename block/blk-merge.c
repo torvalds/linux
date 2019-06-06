@@ -202,8 +202,6 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	struct bio_vec bv, bvprv, *bvprvp = NULL;
 	struct bvec_iter iter;
 	unsigned nsegs = 0, sectors = 0;
-	bool do_split = true;
-	struct bio *new = NULL;
 	const unsigned max_sectors = get_max_io_size(q, bio);
 	const unsigned max_segs = queue_max_segments(q);
 
@@ -245,17 +243,11 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 		}
 	}
 
-	do_split = false;
+	*segs = nsegs;
+	return NULL;
 split:
 	*segs = nsegs;
-
-	if (do_split) {
-		new = bio_split(bio, sectors, GFP_NOIO, bs);
-		if (new)
-			bio = new;
-	}
-
-	return do_split ? new : NULL;
+	return bio_split(bio, sectors, GFP_NOIO, bs);
 }
 
 void __blk_queue_split(struct request_queue *q, struct bio **bio,
