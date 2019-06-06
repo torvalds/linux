@@ -156,7 +156,7 @@ static int parse_reply_info_in(void **p, void *end,
 		ceph_decode_copy(p, &info->btime, sizeof(info->btime));
 
 		/* change attribute */
-		ceph_decode_skip_64(p, end, bad);
+		ceph_decode_64_safe(p, end, info->change_attr, bad);
 
 		/* dir pin */
 		if (struct_v >= 2) {
@@ -208,7 +208,7 @@ static int parse_reply_info_in(void **p, void *end,
 		if (features & CEPH_FEATURE_FS_BTIME) {
 			ceph_decode_need(p, end, sizeof(info->btime), bad);
 			ceph_decode_copy(p, &info->btime, sizeof(info->btime));
-			ceph_decode_skip_64(p, end, bad);
+			ceph_decode_64_safe(p, end, info->change_attr, bad);
 		}
 
 		info->dir_pin = -ENODATA;

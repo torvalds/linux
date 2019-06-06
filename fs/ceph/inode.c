@@ -13,6 +13,7 @@
 #include <linux/posix_acl.h>
 #include <linux/random.h>
 #include <linux/sort.h>
+#include <linux/iversion.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -42,6 +43,7 @@ static int ceph_set_ino_cb(struct inode *inode, void *data)
 {
 	ceph_inode(inode)->i_vino = *(struct ceph_vino *)data;
 	inode->i_ino = ceph_vino_to_ino(*(struct ceph_vino *)data);
+	inode_set_iversion_raw(inode, 0);
 	return 0;
 }
 
@@ -795,6 +797,9 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	    ((info->cap.flags & CEPH_CAP_FLAG_AUTH) &&
 	     le64_to_cpu(info->version) > (ci->i_version & ~1)))
 		new_version = true;
+
+	/* Update change_attribute */
+	inode_set_max_iversion_raw(inode, iinfo->change_attr);
 
 	__ceph_caps_issued(ci, &issued);
 	issued |= __ceph_caps_dirty(ci);
