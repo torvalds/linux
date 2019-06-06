@@ -717,8 +717,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 	dma_addr_t blp;
 	dma_addr_t bloutp = 0;
 	struct scatterlist *sg;
-	size_t sz_out, sz = sizeof(struct qat_alg_buf_list) +
-			((1 + n) * sizeof(struct qat_alg_buf));
+	size_t sz_out, sz = struct_size(bufl, bufers, n + 1);
 
 	if (unlikely(!n))
 		return -EINVAL;
@@ -755,8 +754,7 @@ static int qat_alg_sgl_to_bufl(struct qat_crypto_instance *inst,
 		struct qat_alg_buf *bufers;
 
 		n = sg_nents(sglout);
-		sz_out = sizeof(struct qat_alg_buf_list) +
-			((1 + n) * sizeof(struct qat_alg_buf));
+		sz_out = struct_size(buflout, bufers, n + 1);
 		sg_nctr = 0;
 		buflout = kzalloc_node(sz_out, GFP_ATOMIC,
 				       dev_to_node(&GET_DEV(inst->accel_dev)));
