@@ -42,6 +42,17 @@ struct rockchip_crtc_state {
 #define to_rockchip_crtc_state(s) \
 		container_of(s, struct rockchip_crtc_state, base)
 
+struct rockchip_logo {
+	struct sg_table *sgt;
+	struct drm_mm_node mm;
+	dma_addr_t dma_addr;
+	void *kvaddr;
+	phys_addr_t start;
+	phys_addr_t size;
+	size_t iommu_map_size;
+	int count;
+};
+
 /*
  * Rockchip drm private structure.
  *
@@ -50,6 +61,7 @@ struct rockchip_crtc_state {
  * @mm_lock: protect drm_mm on multi-threads.
  */
 struct rockchip_drm_private {
+	struct rockchip_logo *logo;
 	struct drm_fb_helper *fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
 	struct drm_atomic_state *state;

@@ -169,6 +169,11 @@ struct vop_win_data {
 	unsigned int area_size;
 };
 
+struct vop_rect {
+	int width;
+	int height;
+};
+
 struct vop_data {
 	uint32_t version;
 	const struct vop_intr *intr;
@@ -179,6 +184,9 @@ struct vop_data {
 	const struct vop_win_yuv2yuv_data *win_yuv2yuv;
 	const struct vop_win_data *win;
 	unsigned int win_size;
+
+	struct vop_rect max_input;
+	struct vop_rect max_output;
 
 #define VOP_FEATURE_OUTPUT_RGB10	BIT(0)
 	u64 feature;

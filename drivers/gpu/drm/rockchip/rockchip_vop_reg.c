@@ -142,6 +142,8 @@ static const struct vop_common rk3036_common = {
 };
 
 static const struct vop_data rk3036_vop = {
+	.max_input = {1920, 8192},
+	.max_output = {1920, 1080},
 	.intr = &rk3036_intr,
 	.common = &rk3036_common,
 	.modeset = &rk3036_modeset,
@@ -170,6 +172,8 @@ static const struct vop_win_data rk3126_vop_win_data[] = {
 };
 
 static const struct vop_data rk3126_vop = {
+	.max_input = {1920, 8192},
+	.max_output = {1920, 1080},
 	.intr = &rk3036_intr,
 	.common = &rk3036_common,
 	.modeset = &rk3036_modeset,
@@ -344,6 +348,8 @@ static const struct vop_intr rk3288_vop_intr = {
 
 static const struct vop_data rk3288_vop = {
 	.version = VOP_VERSION(3, 1),
+	.max_input = {4096, 8192},
+	.max_output = {4096, 2160},
 	.feature = VOP_FEATURE_OUTPUT_RGB10,
 	.intr = &rk3288_vop_intr,
 	.common = &rk3288_common,
@@ -457,6 +463,8 @@ static const struct vop_misc rk3368_misc = {
 
 static const struct vop_data rk3368_vop = {
 	.version = VOP_VERSION(3, 2),
+	.max_input = {4096, 8192},
+	.max_output = {4096, 2160},
 	.intr = &rk3368_vop_intr,
 	.common = &rk3288_common,
 	.modeset = &rk3288_modeset,
@@ -478,6 +486,8 @@ static const struct vop_intr rk3366_vop_intr = {
 
 static const struct vop_data rk3366_vop = {
 	.version = VOP_VERSION(3, 4),
+	.max_input = {4096, 8192},
+	.max_output = {4096, 2160},
 	.intr = &rk3366_vop_intr,
 	.common = &rk3288_common,
 	.modeset = &rk3288_modeset,
@@ -596,6 +606,8 @@ static const struct vop_win_data rk3399_vop_win_data[] = {
 static const struct vop_data rk3399_vop_big = {
 	.version = VOP_VERSION(3, 5),
 	.feature = VOP_FEATURE_OUTPUT_RGB10,
+	.max_input = {4096, 8192},
+	.max_output = {4096, 2160},
 	.intr = &rk3366_vop_intr,
 	.common = &rk3288_common,
 	.modeset = &rk3288_modeset,
@@ -625,6 +637,8 @@ static const struct vop_win_yuv2yuv_data rk3399_vop_lit_win_yuv2yuv_data[] = {
 
 static const struct vop_data rk3399_vop_lit = {
 	.version = VOP_VERSION(3, 6),
+	.max_input = {4096, 8192},
+	.max_output = {2560, 1600},
 	.intr = &rk3366_vop_intr,
 	.common = &rk3288_common,
 	.modeset = &rk3288_modeset,
@@ -645,6 +659,8 @@ static const struct vop_win_data rk3228_vop_win_data[] = {
 static const struct vop_data rk3228_vop = {
 	.version = VOP_VERSION(3, 7),
 	.feature = VOP_FEATURE_OUTPUT_RGB10,
+	.max_input = {4096, 8192},
+	.max_output = {4096, 2160},
 	.intr = &rk3366_vop_intr,
 	.common = &rk3288_common,
 	.modeset = &rk3288_modeset,
@@ -711,6 +727,8 @@ static const struct vop_win_data rk3328_vop_win_data[] = {
 static const struct vop_data rk3328_vop = {
 	.version = VOP_VERSION(3, 8),
 	.feature = VOP_FEATURE_OUTPUT_RGB10,
+	.max_input = {4096, 8192},
+	.max_output = {4096, 2160},
 	.intr = &rk3328_vop_intr,
 	.common = &rk3328_common,
 	.modeset = &rk3328_modeset,

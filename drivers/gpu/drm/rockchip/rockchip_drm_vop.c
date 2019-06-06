@@ -101,6 +101,7 @@
 
 #define to_vop(x) container_of(x, struct vop, crtc)
 #define to_vop_win(x) container_of(x, struct vop_win, base)
+#define to_vop_plane_state(x) container_of(x, struct vop_plane_state, base)
 
 /*
  * The coefficients of the following matrix are all fixed points.
@@ -124,7 +125,29 @@ struct vop_zpos {
 };
 
 struct vop_plane_state {
+	struct drm_plane_state base;
+	int format;
 	int zpos;
+	unsigned int logo_ymirror;
+	struct drm_rect src;
+	struct drm_rect dest;
+	dma_addr_t yrgb_mst;
+	dma_addr_t uv_mst;
+	void *yrgb_kvaddr;
+	const uint32_t *y2r_table;
+	const uint32_t *r2r_table;
+	const uint32_t *r2y_table;
+	int eotf;
+	bool y2r_en;
+	bool r2r_en;
+	bool r2y_en;
+	int color_space;
+	unsigned int csc_mode;
+	bool enable;
+	int global_alpha;
+	int blend_mode;
+	unsigned long offset;
+	int pdaf_data_type;
 };
 
 struct vop_win {
@@ -703,11 +726,19 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc_state *crtc_state;
 	struct drm_framebuffer *fb = state->fb;
 	struct vop_win *win = to_vop_win(plane);
+	struct vop_plane_state *vop_plane_state = to_vop_plane_state(state);
+	const struct vop_data *vop_data;
+	struct vop *vop;
 	int ret;
+	struct drm_rect *dest = &vop_plane_state->dest;
+	struct drm_rect *src = &vop_plane_state->src;
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
 					DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
 					DRM_PLANE_HELPER_NO_SCALING;
+	unsigned long offset;
+	dma_addr_t dma_addr;
+	void *kvaddr;
 
 	if (!crtc || !fb)
 		return 0;
@@ -715,6 +746,15 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
+
+	src->x1 = state->src_x;
+	src->y1 = state->src_y;
+	src->x2 = state->src_x + state->src_w;
+	src->y2 = state->src_y + state->src_h;
+	dest->x1 = state->crtc_x;
+	dest->y1 = state->crtc_y;
+	dest->x2 = state->crtc_x + state->crtc_w;
+	dest->y2 = state->crtc_y + state->crtc_h;
 
 	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  min_scale, max_scale,
@@ -725,9 +765,22 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (!state->visible)
 		return 0;
 
-	ret = vop_convert_format(fb->format->format);
-	if (ret < 0)
-		return ret;
+	vop_plane_state->format = vop_convert_format(fb->format->format);
+	if (vop_plane_state->format < 0)
+		return vop_plane_state->format;
+
+	vop = to_vop(crtc);
+	vop_data = vop->data;
+
+	if (drm_rect_width(src) >> 16 > vop_data->max_input.width ||
+	    drm_rect_height(src) >> 16 > vop_data->max_input.height) {
+		DRM_ERROR("Invalid source: %dx%d. max input: %dx%d\n",
+			  drm_rect_width(src) >> 16,
+			  drm_rect_height(src) >> 16,
+			  vop_data->max_input.width,
+			  vop_data->max_input.height);
+		return -EINVAL;
+	}
 
 	/*
 	 * Src.x1 can be odd when do clip, but yuv plane start point
@@ -741,6 +794,30 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (fb->format->is_yuv && state->rotation & DRM_MODE_REFLECT_Y) {
 		DRM_ERROR("Invalid Source: Yuv format does not support this rotation\n");
 		return -EINVAL;
+	}
+
+	offset = (src->x1 >> 16) * fb->format->cpp[0];
+	vop_plane_state->offset = offset + fb->offsets[0];
+	if (state->rotation & DRM_MODE_REFLECT_Y ||
+	    (rockchip_fb_is_logo(fb) && vop_plane_state->logo_ymirror))
+		offset += ((src->y2 >> 16) - 1) * fb->pitches[0];
+	else
+		offset += (src->y1 >> 16) * fb->pitches[0];
+
+	dma_addr = rockchip_fb_get_dma_addr(fb, 0);
+	kvaddr = rockchip_fb_get_kvaddr(fb, 0);
+	vop_plane_state->yrgb_mst = dma_addr + offset + fb->offsets[0];
+	vop_plane_state->yrgb_kvaddr = kvaddr + offset + fb->offsets[0];
+	if (fb->format->is_yuv) {
+		int hsub = drm_format_horz_chroma_subsampling(fb->format->format);
+		int vsub = drm_format_vert_chroma_subsampling(fb->format->format);
+
+		offset = (src->x1 >> 16) * fb->format->cpp[1] / hsub;
+		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
+
+		dma_addr = rockchip_fb_get_dma_addr(fb, 1);
+		dma_addr += offset + fb->offsets[1];
+		vop_plane_state->uv_mst = dma_addr;
 	}
 
 	return 0;
@@ -768,20 +845,18 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *state = plane->state;
 	struct drm_crtc *crtc = state->crtc;
 	const struct vop_win *win = to_vop_win(plane);
+	struct vop_plane_state *vop_plane_state = to_vop_plane_state(state);
 	const struct vop_win_yuv2yuv_data *win_yuv2yuv = win->yuv2yuv_data;
 	struct vop *vop = to_vop(state->crtc);
 	struct drm_framebuffer *fb = state->fb;
 	unsigned int actual_w, actual_h;
 	unsigned int dsp_stx, dsp_sty;
 	uint32_t act_info, dsp_info, dsp_st;
-	struct drm_rect *src = &state->src;
-	struct drm_rect *dest = &state->dst;
-	unsigned long offset;
-	dma_addr_t dma_addr;
+	struct drm_rect *src = &vop_plane_state->src;
+	struct drm_rect *dest = &vop_plane_state->dest;
 	uint32_t val;
 	bool rb_swap;
 	int win_index = VOP_WIN_TO_INDEX(win);
-	int format;
 	int is_yuv = fb->format->is_yuv;
 	int i;
 
@@ -810,25 +885,11 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	dsp_sty = dest->y1 + crtc->mode.vtotal - crtc->mode.vsync_start;
 	dsp_st = dsp_sty << 16 | (dsp_stx & 0xffff);
 
-	offset = (src->x1 >> 16) * fb->format->cpp[0];
-	offset += (src->y1 >> 16) * fb->pitches[0];
-	dma_addr = rockchip_fb_get_dma_addr(fb, 0);
-	dma_addr += offset + fb->offsets[0];
-
-	/*
-	 * For y-mirroring we need to move address
-	 * to the beginning of the last line.
-	 */
-	if (state->rotation & DRM_MODE_REFLECT_Y)
-		dma_addr += (actual_h - 1) * fb->pitches[0];
-
-	format = vop_convert_format(fb->format->format);
-
 	spin_lock(&vop->reg_lock);
 
-	VOP_WIN_SET(vop, win, format, format);
+	VOP_WIN_SET(vop, win, format, vop_plane_state->format);
 	VOP_WIN_SET(vop, win, yrgb_vir, DIV_ROUND_UP(fb->pitches[0], 4));
-	VOP_WIN_SET(vop, win, yrgb_mst, dma_addr);
+	VOP_WIN_SET(vop, win, yrgb_mst, vop_plane_state->yrgb_mst);
 	VOP_WIN_YUV2YUV_SET(vop, win_yuv2yuv, y2r_en, is_yuv);
 	VOP_WIN_SET(vop, win, y_mir_en,
 		    (state->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0);
@@ -836,18 +897,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		    (state->rotation & DRM_MODE_REFLECT_X) ? 1 : 0);
 
 	if (is_yuv) {
-		int hsub = drm_format_horz_chroma_subsampling(fb->format->format);
-		int vsub = drm_format_vert_chroma_subsampling(fb->format->format);
-		int bpp = fb->format->cpp[1];
-
-		offset = (src->x1 >> 16) * bpp / hsub;
-		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
-
-		dma_addr = rockchip_fb_get_dma_addr(fb, 1);
-		dma_addr += offset + fb->offsets[1];
-
 		VOP_WIN_SET(vop, win, uv_vir, DIV_ROUND_UP(fb->pitches[1], 4));
-		VOP_WIN_SET(vop, win, uv_mst, dma_addr);
+		VOP_WIN_SET(vop, win, uv_mst, vop_plane_state->yrgb_mst);
 
 		for (i = 0; i < NUM_YUV2YUV_COEFFICIENTS; i++) {
 			VOP_WIN_YUV2YUV_COEFFICIENT_SET(vop,
@@ -906,10 +957,51 @@ static void vop_plane_destroy(struct drm_plane *plane)
 
 static void vop_plane_reset(struct drm_plane *plane)
 {
+	struct vop_plane_state *vop_plane_state =
+					to_vop_plane_state(plane->state);
 	struct vop_win *win = to_vop_win(plane);
 
 	drm_atomic_helper_plane_reset(plane);
+	kfree(vop_plane_state);
+	vop_plane_state = kzalloc(sizeof(*vop_plane_state), GFP_KERNEL);
+	if (!vop_plane_state)
+		return;
+
 	win->state.zpos = win->win_id;
+	vop_plane_state->global_alpha = 0xff;
+	plane->state = &vop_plane_state->base;
+	plane->state->plane = plane;
+}
+
+static struct drm_plane_state *
+vop_atomic_plane_duplicate_state(struct drm_plane *plane)
+{
+	struct vop_plane_state *old_vop_plane_state;
+	struct vop_plane_state *vop_plane_state;
+
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	old_vop_plane_state = to_vop_plane_state(plane->state);
+	vop_plane_state = kmemdup(old_vop_plane_state,
+				  sizeof(*vop_plane_state), GFP_KERNEL);
+	if (!vop_plane_state)
+		return NULL;
+
+	__drm_atomic_helper_plane_duplicate_state(plane,
+						  &vop_plane_state->base);
+
+	return &vop_plane_state->base;
+}
+
+static void vop_atomic_plane_destroy_state(struct drm_plane *plane,
+					   struct drm_plane_state *state)
+{
+	struct vop_plane_state *vop_state = to_vop_plane_state(state);
+
+	__drm_atomic_helper_plane_destroy_state(state);
+
+	kfree(vop_state);
 }
 
 static int vop_atomic_plane_set_property(struct drm_plane *plane,
@@ -951,8 +1043,8 @@ static const struct drm_plane_funcs vop_plane_funcs = {
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy = vop_plane_destroy,
 	.reset = vop_plane_reset,
-	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.atomic_duplicate_state = vop_atomic_plane_duplicate_state,
+	.atomic_destroy_state = vop_atomic_plane_destroy_state,
 	.atomic_set_property = vop_atomic_plane_set_property,
 	.atomic_get_property = vop_atomic_plane_get_property,
 };

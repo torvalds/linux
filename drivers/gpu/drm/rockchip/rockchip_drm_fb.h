@@ -15,6 +15,7 @@
 #ifndef _ROCKCHIP_DRM_FB_H
 #define _ROCKCHIP_DRM_FB_H
 
+bool rockchip_fb_is_logo(struct drm_framebuffer *fb);
 struct drm_framebuffer *
 rockchip_drm_framebuffer_init(struct drm_device *dev,
 			      const struct drm_mode_fb_cmd2 *mode_cmd,
@@ -25,9 +26,10 @@ void rockchip_drm_mode_config_init(struct drm_device *dev);
 
 struct drm_framebuffer *
 rockchip_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2 *mode_cmd,
-		  struct drm_gem_object **obj, struct resource *res,
+		  struct drm_gem_object **obj, struct rockchip_logo *logo,
 		  unsigned int num_planes);
 
 dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
 				    unsigned int plane);
+void *rockchip_fb_get_kvaddr(struct drm_framebuffer *fb, unsigned int plane);
 #endif /* _ROCKCHIP_DRM_FB_H */
