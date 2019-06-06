@@ -159,11 +159,8 @@ void vkms_crc_work_handle(struct work_struct *work)
 						crc_work);
 	struct drm_crtc *crtc = crtc_state->base.crtc;
 	struct vkms_output *out = drm_crtc_to_vkms_output(crtc);
-	struct vkms_device *vdev = container_of(out, struct vkms_device,
-						output);
 	struct vkms_crc_data *primary_crc = NULL;
 	struct vkms_crc_data *cursor_crc = NULL;
-	struct drm_plane *plane;
 	u32 crc32 = 0;
 	u64 frame_start, frame_end;
 	bool crc_pending;
@@ -184,21 +181,11 @@ void vkms_crc_work_handle(struct work_struct *work)
 	if (!crc_pending)
 		return;
 
-	drm_for_each_plane(plane, &vdev->drm) {
-		struct vkms_plane_state *vplane_state;
-		struct vkms_crc_data *crc_data;
+	if (crtc_state->num_active_planes >= 1)
+		primary_crc = crtc_state->active_planes[0]->crc_data;
 
-		vplane_state = to_vkms_plane_state(plane->state);
-		crc_data = vplane_state->crc_data;
-
-		if (drm_framebuffer_read_refcount(&crc_data->fb) == 0)
-			continue;
-
-		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
-			primary_crc = crc_data;
-		else
-			cursor_crc = crc_data;
-	}
+	if (crtc_state->num_active_planes == 2)
+		cursor_crc = crtc_state->active_planes[1]->crc_data;
 
 	if (primary_crc)
 		crc32 = _vkms_get_crc(primary_crc, cursor_crc);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include "vkms_drv.h"
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
 
@@ -9,7 +10,7 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 	struct vkms_output *output = container_of(timer, struct vkms_output,
 						  vblank_hrtimer);
 	struct drm_crtc *crtc = &output->crtc;
-	struct vkms_crtc_state *state = to_vkms_crtc_state(crtc->state);
+	struct vkms_crtc_state *state;
 	u64 ret_overrun;
 	bool ret;
 
@@ -23,6 +24,7 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 	if (!ret)
 		DRM_ERROR("vkms failure on handling vblank");
 
+	state = output->crc_state;
 	if (state && output->crc_enabled) {
 		u64 frame = drm_crtc_accurate_vblank_count(crtc);
 
@@ -124,10 +126,9 @@ static void vkms_atomic_crtc_destroy_state(struct drm_crtc *crtc,
 
 	__drm_atomic_helper_crtc_destroy_state(state);
 
-	if (vkms_state) {
-		WARN_ON(work_pending(&vkms_state->crc_work));
-		kfree(vkms_state);
-	}
+	WARN_ON(work_pending(&vkms_state->crc_work));
+	kfree(vkms_state->active_planes);
+	kfree(vkms_state);
 }
 
 static void vkms_atomic_crtc_reset(struct drm_crtc *crtc)
@@ -156,6 +157,52 @@ static const struct drm_crtc_funcs vkms_crtc_funcs = {
 	.set_crc_source		= vkms_set_crc_source,
 	.verify_crc_source	= vkms_verify_crc_source,
 };
+
+static int vkms_crtc_atomic_check(struct drm_crtc *crtc,
+				  struct drm_crtc_state *state)
+{
+	struct vkms_crtc_state *vkms_state = to_vkms_crtc_state(state);
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	int i = 0, ret;
+
+	if (vkms_state->active_planes)
+		return 0;
+
+	ret = drm_atomic_add_affected_planes(state->state, crtc);
+	if (ret < 0)
+		return ret;
+
+	drm_for_each_plane_mask(plane, crtc->dev, state->plane_mask) {
+		plane_state = drm_atomic_get_existing_plane_state(state->state,
+								  plane);
+		WARN_ON(!plane_state);
+
+		if (!plane_state->visible)
+			continue;
+
+		i++;
+	}
+
+	vkms_state->active_planes = kcalloc(i, sizeof(plane), GFP_KERNEL);
+	if (!vkms_state->active_planes)
+		return -ENOMEM;
+	vkms_state->num_active_planes = i;
+
+	i = 0;
+	drm_for_each_plane_mask(plane, crtc->dev, state->plane_mask) {
+		plane_state = drm_atomic_get_existing_plane_state(state->state,
+								  plane);
+
+		if (!plane_state->visible)
+			continue;
+
+		vkms_state->active_planes[i++] =
+			to_vkms_plane_state(plane_state);
+	}
+
+	return 0;
+}
 
 static void vkms_crtc_atomic_enable(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_state)
@@ -198,10 +245,13 @@ static void vkms_crtc_atomic_flush(struct drm_crtc *crtc,
 		crtc->state->event = NULL;
 	}
 
+	vkms_output->crc_state = to_vkms_crtc_state(crtc->state);
+
 	spin_unlock_irq(&vkms_output->lock);
 }
 
 static const struct drm_crtc_helper_funcs vkms_crtc_helper_funcs = {
+	.atomic_check	= vkms_crtc_atomic_check,
 	.atomic_begin	= vkms_crtc_atomic_begin,
 	.atomic_flush	= vkms_crtc_atomic_flush,
 	.atomic_enable	= vkms_crtc_atomic_enable,
