@@ -237,10 +237,8 @@ static ssize_t remove_store(struct device *dev, struct device_attribute *attr,
 		int ret;
 
 		ret = mdev_device_remove(dev);
-		if (ret) {
-			device_create_file(dev, attr);
+		if (ret)
 			return ret;
-		}
 	}
 
 	return count;
