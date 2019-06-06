@@ -8,6 +8,7 @@
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <linux/writeback.h>
+#include <linux/iversion.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -1138,6 +1139,7 @@ struct cap_msg_args {
 	u64			ino, cid, follows;
 	u64			flush_tid, oldest_flush_tid, size, max_size;
 	u64			xattr_version;
+	u64			change_attr;
 	struct ceph_buffer	*xattr_buf;
 	struct timespec64	atime, mtime, ctime, btime;
 	int			op, caps, wanted, dirty;
@@ -1244,15 +1246,10 @@ static int send_cap_msg(struct cap_msg_args *arg)
 	/* pool namespace (version 8) (mds always ignores this) */
 	ceph_encode_32(&p, 0);
 
-	/*
-	 * btime and change_attr (version 9)
-	 *
-	 * We just zero these out for now, as the MDS ignores them unless
-	 * the requisite feature flags are set (which we don't do yet).
-	 */
+	/* btime and change_attr (version 9) */
 	ceph_encode_timespec64(p, &arg->btime);
 	p += sizeof(struct ceph_timespec);
-	ceph_encode_64(&p, 0);
+	ceph_encode_64(&p, arg->change_attr);
 
 	/* Advisory flags (version 10) */
 	ceph_encode_32(&p, arg->flags);
@@ -1379,6 +1376,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	arg.atime = inode->i_atime;
 	arg.ctime = inode->i_ctime;
 	arg.btime = ci->i_btime;
+	arg.change_attr = inode_peek_iversion_raw(inode);
 
 	arg.op = op;
 	arg.caps = cap->implemented;
@@ -1439,6 +1437,7 @@ static inline int __send_flush_snap(struct inode *inode,
 	arg.mtime = capsnap->mtime;
 	arg.ctime = capsnap->ctime;
 	arg.btime = capsnap->btime;
+	arg.change_attr = capsnap->change_attr;
 
 	arg.op = CEPH_CAP_OP_FLUSHSNAP;
 	arg.caps = capsnap->issued;
@@ -3043,6 +3042,7 @@ struct cap_extra_info {
 	bool dirstat_valid;
 	u64 nfiles;
 	u64 nsubdirs;
+	u64 change_attr;
 	/* currently issued */
 	int issued;
 	struct timespec64 btime;
@@ -3126,6 +3126,8 @@ static void handle_cap_grant(struct inode *inode,
 	cap->seq = seq;
 
 	__check_cap_issue(ci, cap, newcaps);
+
+	inode_set_max_iversion_raw(inode, extra_info->change_attr);
 
 	if ((newcaps & CEPH_CAP_AUTH_SHARED) &&
 	    (extra_info->issued & CEPH_CAP_AUTH_EXCL) == 0) {
@@ -3856,14 +3858,13 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 
 	if (msg_version >= 9) {
 		struct ceph_timespec *btime;
-		u64 change_attr;
 
 		if (p + sizeof(*btime) > end)
 			goto bad;
 		btime = p;
 		ceph_decode_timespec64(&extra_info.btime, btime);
 		p += sizeof(*btime);
-		ceph_decode_64_safe(&p, end, change_attr, bad);
+		ceph_decode_64_safe(&p, end, extra_info.change_attr, bad);
 	}
 
 	if (msg_version >= 11) {
