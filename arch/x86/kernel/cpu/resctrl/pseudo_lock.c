@@ -431,11 +431,7 @@ static int pseudo_lock_fn(void *_rdtgrp)
 #else
 	register unsigned int line_size asm("esi");
 	register unsigned int size asm("edi");
-#ifdef CONFIG_X86_64
-	register void *mem_r asm("rbx");
-#else
-	register void *mem_r asm("ebx");
-#endif /* CONFIG_X86_64 */
+	register void *mem_r asm(_ASM_BX);
 #endif /* CONFIG_KASAN */
 
 	/*
