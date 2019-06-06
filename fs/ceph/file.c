@@ -10,6 +10,7 @@
 #include <linux/namei.h>
 #include <linux/writeback.h>
 #include <linux/falloc.h>
+#include <linux/iversion.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -1435,6 +1436,8 @@ retry_snap:
 	if (err)
 		goto out;
 
+	inode_inc_iversion_raw(inode);
+
 	if (ci->i_inline_version != CEPH_INLINE_NONE) {
 		err = ceph_uninline_data(file, NULL);
 		if (err < 0)
@@ -2064,6 +2067,8 @@ static ssize_t ceph_copy_file_range(struct file *src_file, loff_t src_off,
 		do_final_copy = true;
 
 	file_update_time(dst_file);
+	inode_inc_iversion_raw(dst_inode);
+
 	if (endoff > size) {
 		int caps_flags = 0;
 
