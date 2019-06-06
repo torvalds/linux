@@ -502,10 +502,6 @@ static int ccwchain_handle_tic(struct ccw1 *tic, struct channel_program *cp)
 	struct ccwchain *chain;
 	int len, ret;
 
-	/* May transfer to an existing chain. */
-	if (tic_target_chain_exists(tic, cp))
-		return 0;
-
 	/* Get chain length. */
 	len = ccwchain_calc_length(tic->cda, cp);
 	if (len < 0)
@@ -538,6 +534,10 @@ static int ccwchain_loop_tic(struct ccwchain *chain, struct channel_program *cp)
 		tic = chain->ch_ccw + i;
 
 		if (!ccw_is_tic(tic))
+			continue;
+
+		/* May transfer to an existing chain. */
+		if (tic_target_chain_exists(tic, cp))
 			continue;
 
 		ret = ccwchain_handle_tic(tic, cp);
