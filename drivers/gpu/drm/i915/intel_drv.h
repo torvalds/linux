@@ -1468,8 +1468,6 @@ void intel_add_fb_offsets(int *x, int *y,
 unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info);
 unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info);
 bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv);
-void intel_mark_busy(struct drm_i915_private *dev_priv);
-void intel_mark_idle(struct drm_i915_private *dev_priv);
 int intel_display_suspend(struct drm_device *dev);
 void intel_pps_unlock_regs_wa(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
@@ -1578,7 +1576,6 @@ void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe, bool state);
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
 void intel_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_finish_reset(struct drm_i915_private *dev_priv);
-unsigned int skl_cdclk_get_vco(unsigned int freq);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);
 void intel_dp_set_m_n(const struct intel_crtc_state *crtc_state,
