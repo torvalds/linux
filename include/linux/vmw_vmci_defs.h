@@ -438,8 +438,8 @@ enum {
 struct vmci_queue_header {
 	/* All fields are 64bit and aligned. */
 	struct vmci_handle handle;	/* Identifier. */
-	atomic64_t producer_tail;	/* Offset in this queue. */
-	atomic64_t consumer_head;	/* Offset in peer queue. */
+	u64 producer_tail;	/* Offset in this queue. */
+	u64 consumer_head;	/* Offset in peer queue. */
 };
 
 /*
@@ -740,13 +740,9 @@ static inline void *vmci_event_data_payload(struct vmci_event_data *ev_data)
  * prefix will be used, so correctness isn't an issue, but using a
  * 64bit operation still adds unnecessary overhead.
  */
-static inline u64 vmci_q_read_pointer(atomic64_t *var)
+static inline u64 vmci_q_read_pointer(u64 *var)
 {
-#if defined(CONFIG_X86_32)
-	return atomic_read((atomic_t *)var);
-#else
-	return atomic64_read(var);
-#endif
+	return READ_ONCE(*(unsigned long *)var);
 }
 
 /*
@@ -755,23 +751,17 @@ static inline u64 vmci_q_read_pointer(atomic64_t *var)
  * never exceeds a 32bit value in this case. On 32bit SMP, using a
  * locked cmpxchg8b adds unnecessary overhead.
  */
-static inline void vmci_q_set_pointer(atomic64_t *var,
-				      u64 new_val)
+static inline void vmci_q_set_pointer(u64 *var, u64 new_val)
 {
-#if defined(CONFIG_X86_32)
-	return atomic_set((atomic_t *)var, (u32)new_val);
-#else
-	return atomic64_set(var, new_val);
-#endif
+	/* XXX buggered on big-endian */
+	WRITE_ONCE(*(unsigned long *)var, (unsigned long)new_val);
 }
 
 /*
  * Helper to add a given offset to a head or tail pointer. Wraps the
  * value of the pointer around the max size of the queue.
  */
-static inline void vmci_qp_add_pointer(atomic64_t *var,
-				       size_t add,
-				       u64 size)
+static inline void vmci_qp_add_pointer(u64 *var, size_t add, u64 size)
 {
 	u64 new_val = vmci_q_read_pointer(var);
 
@@ -848,8 +838,8 @@ static inline void vmci_q_header_init(struct vmci_queue_header *q_header,
 				      const struct vmci_handle handle)
 {
 	q_header->handle = handle;
-	atomic64_set(&q_header->producer_tail, 0);
-	atomic64_set(&q_header->consumer_head, 0);
+	q_header->producer_tail = 0;
+	q_header->consumer_head = 0;
 }
 
 /*
