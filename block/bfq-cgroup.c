@@ -81,47 +81,6 @@ static inline void bfq_stat_add_aux(struct bfq_stat *to,
 }
 
 /**
- * bfq_stat_recursive_sum - collect hierarchical bfq_stat
- * @blkg: blkg of interest
- * @pol: blkcg_policy which contains the bfq_stat
- * @off: offset to the bfq_stat in blkg_policy_data or @blkg
- *
- * Collect the bfq_stat specified by @blkg, @pol and @off and all its
- * online descendants and their aux counts.  The caller must be holding the
- * queue lock for online tests.
- *
- * If @pol is NULL, bfq_stat is at @off bytes into @blkg; otherwise, it is
- * at @off bytes into @blkg's blkg_policy_data of the policy.
- */
-static u64 bfq_stat_recursive_sum(struct blkcg_gq *blkg,
-			    struct blkcg_policy *pol, int off)
-{
-	struct blkcg_gq *pos_blkg;
-	struct cgroup_subsys_state *pos_css;
-	u64 sum = 0;
-
-	lockdep_assert_held(&blkg->q->queue_lock);
-
-	rcu_read_lock();
-	blkg_for_each_descendant_pre(pos_blkg, pos_css, blkg) {
-		struct bfq_stat *stat;
-
-		if (!pos_blkg->online)
-			continue;
-
-		if (pol)
-			stat = (void *)blkg_to_pd(pos_blkg, pol) + off;
-		else
-			stat = (void *)blkg + off;
-
-		sum += bfq_stat_read(stat) + atomic64_read(&stat->aux_cnt);
-	}
-	rcu_read_unlock();
-
-	return sum;
-}
-
-/**
  * blkg_prfill_stat - prfill callback for bfq_stat
  * @sf: seq_file to print to
  * @pd: policy private data of interest
@@ -1045,8 +1004,25 @@ static int bfqg_print_rwstat(struct seq_file *sf, void *v)
 static u64 bfqg_prfill_stat_recursive(struct seq_file *sf,
 				      struct blkg_policy_data *pd, int off)
 {
-	u64 sum = bfq_stat_recursive_sum(pd_to_blkg(pd),
-					  &blkcg_policy_bfq, off);
+	struct blkcg_gq *blkg = pd_to_blkg(pd);
+	struct blkcg_gq *pos_blkg;
+	struct cgroup_subsys_state *pos_css;
+	u64 sum = 0;
+
+	lockdep_assert_held(&blkg->q->queue_lock);
+
+	rcu_read_lock();
+	blkg_for_each_descendant_pre(pos_blkg, pos_css, blkg) {
+		struct bfq_stat *stat;
+
+		if (!pos_blkg->online)
+			continue;
+
+		stat = (void *)blkg_to_pd(pos_blkg, &blkcg_policy_bfq) + off;
+		sum += bfq_stat_read(stat) + atomic64_read(&stat->aux_cnt);
+	}
+	rcu_read_unlock();
+
 	return __blkg_prfill_u64(sf, pd, sum);
 }
 
