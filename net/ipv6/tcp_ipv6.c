@@ -916,15 +916,17 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
+	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	u32 seq = 0, ack_seq = 0;
 	struct tcp_md5sig_key *key = NULL;
 #ifdef CONFIG_TCP_MD5SIG
 	const __u8 *hash_location = NULL;
-	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	unsigned char newhash[16];
 	int genhash;
 	struct sock *sk1 = NULL;
 #endif
+	__be32 label = 0;
+	struct net *net;
 	int oif = 0;
 
 	if (th->rst)
@@ -936,6 +938,7 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 	if (!sk && !ipv6_unicast_destination(skb))
 		return;
 
+	net = dev_net(skb_dst(skb)->dev);
 #ifdef CONFIG_TCP_MD5SIG
 	rcu_read_lock();
 	hash_location = tcp_parse_md5sig_option(th);
@@ -949,7 +952,7 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 		 * Incoming packet is checked with md5 hash with finding key,
 		 * no RST generated if md5 hash doesn't match.
 		 */
-		sk1 = inet6_lookup_listener(dev_net(skb_dst(skb)->dev),
+		sk1 = inet6_lookup_listener(net,
 					   &tcp_hashinfo, NULL, 0,
 					   &ipv6h->saddr,
 					   th->source, &ipv6h->daddr,
@@ -979,9 +982,15 @@ static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb)
 		oif = sk->sk_bound_dev_if;
 		if (sk_fullsock(sk))
 			trace_tcp_send_reset(sk, skb);
+		if (sk->sk_state == TCP_TIME_WAIT)
+			label = cpu_to_be32(inet_twsk(sk)->tw_flowlabel);
+	} else {
+		if (net->ipv6.sysctl.flowlabel_reflect & 2)
+			label = ip6_flowlabel(ipv6h);
 	}
 
-	tcp_v6_send_response(sk, skb, seq, ack_seq, 0, 0, 0, oif, key, 1, 0, 0);
+	tcp_v6_send_response(sk, skb, seq, ack_seq, 0, 0, 0, oif, key, 1, 0,
+			     label);
 
 #ifdef CONFIG_TCP_MD5SIG
 out:

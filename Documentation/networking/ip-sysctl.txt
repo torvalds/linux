@@ -1429,14 +1429,24 @@ flowlabel_state_ranges - BOOLEAN
 	FALSE: disabled
 	Default: true
 
-flowlabel_reflect - BOOLEAN
-	Automatically reflect the flow label. Needed for Path MTU
+flowlabel_reflect - INTEGER
+	Control flow label reflection. Needed for Path MTU
 	Discovery to work with Equal Cost Multipath Routing in anycast
 	environments. See RFC 7690 and:
 	https://tools.ietf.org/html/draft-wang-6man-flow-label-reflection-01
-	TRUE: enabled
-	FALSE: disabled
-	Default: FALSE
+
+	This is a mask of two bits.
+	1: enabled for established flows
+
+	Note that this prevents automatic flowlabel changes, as done
+	in "tcp: change IPv6 flow-label upon receiving spurious retransmission"
+	and "tcp: Change txhash on every SYN and RTO retransmit"
+
+	2: enabled for TCP RESET packets (no active listener)
+	If set, a RST packet sent in response to a SYN packet on a closed
+	port will reflect the incoming flow label.
+
+	Default: 0
 
 fib_multipath_hash_policy - INTEGER
 	Controls which hash policy to use for multipath routes.
