@@ -18,7 +18,8 @@ Required properties:
 - compatible	: Must be one of "xlnx,axi-ethernet-1.00.a",
 		  "xlnx,axi-ethernet-1.01.a", "xlnx,axi-ethernet-2.01.a"
 - reg		: Address and length of the IO space.
-- interrupts	: Should be a list of two interrupt, TX and RX.
+- interrupts	: Should be a list of 2 or 3 interrupts: TX DMA, RX DMA,
+		  and optionally Ethernet core.
 - phy-handle	: Should point to the external phy device.
 		  See ethernet.txt file in the same directory.
 - xlnx,rxmem	: Set to allocated memory buffer for Rx/Tx in the hardware

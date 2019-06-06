@@ -435,6 +435,7 @@ struct axienet_local {
 
 	int tx_irq;
 	int rx_irq;
+	int eth_irq;
 	phy_interface_t phy_mode;
 
 	u32 options;			/* Current options word */

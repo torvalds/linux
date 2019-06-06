@@ -502,6 +502,8 @@ static void axienet_device_reset(struct net_device *ndev)
 	axienet_status = axienet_ior(lp, XAE_IP_OFFSET);
 	if (axienet_status & XAE_INT_RXRJECT_MASK)
 		axienet_iow(lp, XAE_IS_OFFSET, XAE_INT_RXRJECT_MASK);
+	axienet_iow(lp, XAE_IE_OFFSET, lp->eth_irq > 0 ?
+		    XAE_INT_RECV_ERROR_MASK : 0);
 
 	axienet_iow(lp, XAE_FCC_OFFSET, XAE_FCC_FCRX_MASK);
 
@@ -902,6 +904,35 @@ out:
 	return IRQ_HANDLED;
 }
 
+/**
+ * axienet_eth_irq - Ethernet core Isr.
+ * @irq:	irq number
+ * @_ndev:	net_device pointer
+ *
+ * Return: IRQ_HANDLED if device generated a core interrupt, IRQ_NONE otherwise.
+ *
+ * Handle miscellaneous conditions indicated by Ethernet core IRQ.
+ */
+static irqreturn_t axienet_eth_irq(int irq, void *_ndev)
+{
+	struct net_device *ndev = _ndev;
+	struct axienet_local *lp = netdev_priv(ndev);
+	unsigned int pending;
+
+	pending = axienet_ior(lp, XAE_IP_OFFSET);
+	if (!pending)
+		return IRQ_NONE;
+
+	if (pending & XAE_INT_RXFIFOOVR_MASK)
+		ndev->stats.rx_missed_errors++;
+
+	if (pending & XAE_INT_RXRJECT_MASK)
+		ndev->stats.rx_frame_errors++;
+
+	axienet_iow(lp, XAE_IS_OFFSET, pending);
+	return IRQ_HANDLED;
+}
+
 static void axienet_dma_err_handler(unsigned long data);
 
 /**
@@ -962,9 +993,18 @@ static int axienet_open(struct net_device *ndev)
 			  ndev->name, ndev);
 	if (ret)
 		goto err_rx_irq;
+	/* Enable interrupts for Axi Ethernet core (if defined) */
+	if (lp->eth_irq > 0) {
+		ret = request_irq(lp->eth_irq, axienet_eth_irq, IRQF_SHARED,
+				  ndev->name, ndev);
+		if (ret)
+			goto err_eth_irq;
+	}
 
 	return 0;
 
+err_eth_irq:
+	free_irq(lp->rx_irq, ndev);
 err_rx_irq:
 	free_irq(lp->tx_irq, ndev);
 err_tx_irq:
@@ -1028,6 +1068,8 @@ static int axienet_stop(struct net_device *ndev)
 
 	tasklet_kill(&lp->dma_err_tasklet);
 
+	if (lp->eth_irq > 0)
+		free_irq(lp->eth_irq, ndev);
 	free_irq(lp->tx_irq, ndev);
 	free_irq(lp->rx_irq, ndev);
 
@@ -1491,6 +1533,8 @@ static void axienet_dma_err_handler(unsigned long data)
 	axienet_status = axienet_ior(lp, XAE_IP_OFFSET);
 	if (axienet_status & XAE_INT_RXRJECT_MASK)
 		axienet_iow(lp, XAE_IS_OFFSET, XAE_INT_RXRJECT_MASK);
+	axienet_iow(lp, XAE_IE_OFFSET, lp->eth_irq > 0 ?
+		    XAE_INT_RECV_ERROR_MASK : 0);
 	axienet_iow(lp, XAE_FCC_OFFSET, XAE_FCC_FCRX_MASK);
 
 	/* Sync default options with HW but leave receiver and
@@ -1660,12 +1704,17 @@ static int axienet_probe(struct platform_device *pdev)
 	}
 	lp->rx_irq = irq_of_parse_and_map(np, 1);
 	lp->tx_irq = irq_of_parse_and_map(np, 0);
+	lp->eth_irq = irq_of_parse_and_map(np, 2);
 	of_node_put(np);
 	if ((lp->rx_irq <= 0) || (lp->tx_irq <= 0)) {
 		dev_err(&pdev->dev, "could not determine irqs\n");
 		ret = -ENOMEM;
 		goto free_netdev;
 	}
+
+	/* Check for Ethernet core IRQ (optional) */
+	if (lp->eth_irq <= 0)
+		dev_info(&pdev->dev, "Ethernet core IRQ not defined\n");
 
 	/* Retrieve the MAC address */
 	mac_addr = of_get_mac_address(pdev->dev.of_node);
