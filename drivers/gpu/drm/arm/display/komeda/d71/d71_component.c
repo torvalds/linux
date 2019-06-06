@@ -250,6 +250,8 @@ static void d71_layer_update(struct komeda_component *c,
 	malidp_write32(reg, LAYER_FMT, kfb->format_caps->hw_id);
 	malidp_write32(reg, BLK_IN_SIZE, HV_SIZE(st->hsize, st->vsize));
 
+	if (kfb->is_va)
+		ctrl |= L_TBU_EN;
 	malidp_write32_mask(reg, BLK_CONTROL, ctrl_mask, ctrl);
 }
 
@@ -382,6 +384,9 @@ static void d71_wb_layer_update(struct komeda_component *c,
 		malidp_write32(reg + i * LAYER_PER_PLANE_REGS, BLK_P0_STRIDE,
 			       fb->pitches[i] & 0xFFFF);
 	}
+
+	if (kfb->is_va)
+		ctrl |= LW_TBU_EN;
 
 	malidp_write32(reg, LAYER_FMT, kfb->format_caps->hw_id);
 	malidp_write32(reg, BLK_IN_SIZE, HV_SIZE(st->hsize, st->vsize));

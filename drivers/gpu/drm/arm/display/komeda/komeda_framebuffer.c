@@ -202,6 +202,8 @@ komeda_fb_create(struct drm_device *dev, struct drm_file *file,
 		goto err_cleanup;
 	}
 
+	kfb->is_va = mdev->iommu ? true : false;
+
 	return &kfb->base;
 
 err_cleanup:

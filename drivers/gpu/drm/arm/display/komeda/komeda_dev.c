@@ -5,6 +5,7 @@
  *
  */
 #include <linux/io.h>
+#include <linux/iommu.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
@@ -253,6 +254,18 @@ struct komeda_dev *komeda_dev_create(struct device *dev)
 	dev->dma_parms = &mdev->dma_parms;
 	dma_set_max_seg_size(dev, DMA_BIT_MASK(32));
 
+	mdev->iommu = iommu_get_domain_for_dev(mdev->dev);
+	if (!mdev->iommu)
+		DRM_INFO("continue without IOMMU support!\n");
+
+	if (mdev->iommu && mdev->funcs->connect_iommu) {
+		err = mdev->funcs->connect_iommu(mdev);
+		if (err) {
+			mdev->iommu = NULL;
+			goto err_cleanup;
+		}
+	}
+
 	err = sysfs_create_group(&dev->kobj, &komeda_sysfs_attr_group);
 	if (err) {
 		DRM_ERROR("create sysfs group failed.\n");
@@ -281,6 +294,10 @@ void komeda_dev_destroy(struct komeda_dev *mdev)
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(mdev->debugfs_root);
 #endif
+
+	if (mdev->iommu && mdev->funcs->disconnect_iommu)
+		mdev->funcs->disconnect_iommu(mdev);
+	mdev->iommu = NULL;
 
 	for (i = 0; i < mdev->n_pipelines; i++) {
 		komeda_pipeline_destroy(mdev, mdev->pipelines[i]);

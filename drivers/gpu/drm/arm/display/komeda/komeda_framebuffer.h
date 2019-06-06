@@ -21,6 +21,8 @@ struct komeda_fb {
 	 * extends drm_format_info for komeda specific information
 	 */
 	const struct komeda_format_caps *format_caps;
+	/** @is_va: if smmu is enabled, it will be true */
+	bool is_va;
 	/** @aligned_w: aligned frame buffer width */
 	u32 aligned_w;
 	/** @aligned_h: aligned frame buffer height */

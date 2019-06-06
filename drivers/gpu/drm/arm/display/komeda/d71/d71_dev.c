@@ -517,6 +517,53 @@ static void d71_init_fmt_tbl(struct komeda_dev *mdev)
 	table->n_formats = ARRAY_SIZE(d71_format_caps_table);
 }
 
+static int d71_connect_iommu(struct komeda_dev *mdev)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+	u32 __iomem *reg = d71->gcu_addr;
+	u32 check_bits = (d71->num_pipelines == 2) ?
+			 GCU_STATUS_TCS0 | GCU_STATUS_TCS1 : GCU_STATUS_TCS0;
+	int i, ret;
+
+	if (!d71->integrates_tbu)
+		return -1;
+
+	malidp_write32_mask(reg, BLK_CONTROL, 0x7, TBU_CONNECT_MODE);
+
+	ret = dp_wait_cond(has_bits(check_bits, malidp_read32(reg, BLK_STATUS)),
+			100, 1000, 1000);
+	if (ret < 0) {
+		DRM_ERROR("timed out connecting to TCU!\n");
+		malidp_write32_mask(reg, BLK_CONTROL, 0x7, INACTIVE_MODE);
+		return ret;
+	}
+
+	for (i = 0; i < d71->num_pipelines; i++)
+		malidp_write32_mask(d71->pipes[i]->lpu_addr, LPU_TBU_CONTROL,
+				    LPU_TBU_CTRL_TLBPEN, LPU_TBU_CTRL_TLBPEN);
+	return 0;
+}
+
+static int d71_disconnect_iommu(struct komeda_dev *mdev)
+{
+	struct d71_dev *d71 = mdev->chip_data;
+	u32 __iomem *reg = d71->gcu_addr;
+	u32 check_bits = (d71->num_pipelines == 2) ?
+			 GCU_STATUS_TCS0 | GCU_STATUS_TCS1 : GCU_STATUS_TCS0;
+	int ret;
+
+	malidp_write32_mask(reg, BLK_CONTROL, 0x7, TBU_DISCONNECT_MODE);
+
+	ret = dp_wait_cond(((malidp_read32(reg, BLK_STATUS) & check_bits) == 0),
+			100, 1000, 1000);
+	if (ret < 0) {
+		DRM_ERROR("timed out disconnecting from TCU!\n");
+		malidp_write32_mask(reg, BLK_CONTROL, 0x7, INACTIVE_MODE);
+	}
+
+	return ret;
+}
+
 static const struct komeda_dev_funcs d71_chip_funcs = {
 	.init_format_table = d71_init_fmt_tbl,
 	.enum_resources	= d71_enum_resources,
@@ -527,6 +574,8 @@ static const struct komeda_dev_funcs d71_chip_funcs = {
 	.on_off_vblank	= d71_on_off_vblank,
 	.change_opmode	= d71_change_opmode,
 	.flush		= d71_flush,
+	.connect_iommu	= d71_connect_iommu,
+	.disconnect_iommu = d71_disconnect_iommu,
 };
 
 const struct komeda_dev_funcs *
