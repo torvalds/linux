@@ -1733,8 +1733,9 @@ static int axienet_probe(struct platform_device *pdev)
 	/* Retrieve the MAC address */
 	mac_addr = of_get_mac_address(pdev->dev.of_node);
 	if (IS_ERR(mac_addr)) {
-		dev_err(&pdev->dev, "could not find MAC address\n");
-		goto free_netdev;
+		dev_warn(&pdev->dev, "could not find MAC address property: %ld\n",
+			 PTR_ERR(mac_addr));
+		mac_addr = NULL;
 	}
 	axienet_set_mac_address(ndev, mac_addr);
 
