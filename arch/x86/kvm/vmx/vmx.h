@@ -142,8 +142,11 @@ struct nested_vmx {
 	 * pointers, so we must keep them pinned while L2 runs.
 	 */
 	struct page *apic_access_page;
-	struct page *virtual_apic_page;
-	struct page *pi_desc_page;
+	struct kvm_host_map virtual_apic_map;
+	struct kvm_host_map pi_desc_map;
+
+	struct kvm_host_map msr_bitmap_map;
+
 	struct pi_desc *pi_desc;
 	bool pi_pending;
 	u16 posted_intr_nv;
@@ -169,7 +172,7 @@ struct nested_vmx {
 	} smm;
 
 	gpa_t hv_evmcs_vmptr;
-	struct page *hv_evmcs_page;
+	struct kvm_host_map hv_evmcs_map;
 	struct hv_enlightened_vmcs *hv_evmcs;
 };
 
@@ -257,6 +260,8 @@ struct vcpu_vmx {
 
 	unsigned long host_debugctlmsr;
 
+	u64 msr_ia32_power_ctl;
+
 	/*
 	 * Only bits masked by msr_ia32_feature_control_valid_bits can be set in
 	 * msr_ia32_feature_control. FEATURE_CONTROL_LOCKED is always included
@@ -314,6 +319,7 @@ void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked);
 void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
 struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr);
 void pt_update_intercept_for_msr(struct vcpu_vmx *vmx);
+void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp);
 
 #define POSTED_INTR_ON  0
 #define POSTED_INTR_SN  1

@@ -274,29 +274,6 @@ DEFINE_EVENT(s390_class_schid, s390_cio_rsch,
 	TP_ARGS(schid, cc)
 );
 
-/**
- * s390_cio_rchp - Reset Channel Path (RCHP) instruction was performed
- * @chpid: Channel-Path Identifier
- * @cc: Condition code
- */
-TRACE_EVENT(s390_cio_rchp,
-	TP_PROTO(struct chp_id chpid, int cc),
-	TP_ARGS(chpid, cc),
-	TP_STRUCT__entry(
-		__field(u8, cssid)
-		__field(u8, id)
-		__field(int, cc)
-	),
-	TP_fast_assign(
-		__entry->cssid = chpid.cssid;
-		__entry->id = chpid.id;
-		__entry->cc = cc;
-	),
-	TP_printk("chpid=%x.%02x cc=%d", __entry->cssid, __entry->id,
-		  __entry->cc
-	)
-);
-
 #define CHSC_MAX_REQUEST_LEN		64
 #define CHSC_MAX_RESPONSE_LEN		64
 

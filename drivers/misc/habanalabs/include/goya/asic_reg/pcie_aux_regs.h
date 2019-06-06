@@ -240,4 +240,3 @@
 #define mmPCIE_AUX_PERST                                             0xC079B8
 
 #endif /* ASIC_REG_PCIE_AUX_REGS_H_ */
-

@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -214,7 +214,7 @@ struct iwl_proto_offload_cmd_v3_large {
 #define IWL_WOWLAN_MIN_PATTERN_LEN	16
 #define IWL_WOWLAN_MAX_PATTERN_LEN	128
 
-struct iwl_wowlan_pattern {
+struct iwl_wowlan_pattern_v1 {
 	u8 mask[IWL_WOWLAN_MAX_PATTERN_LEN / 8];
 	u8 pattern[IWL_WOWLAN_MAX_PATTERN_LEN];
 	u8 mask_size;
@@ -227,6 +227,126 @@ struct iwl_wowlan_pattern {
 /**
  * struct iwl_wowlan_patterns_cmd - WoWLAN wakeup patterns
  */
+struct iwl_wowlan_patterns_cmd_v1 {
+	/**
+	 * @n_patterns: number of patterns
+	 */
+	__le32 n_patterns;
+
+	/**
+	 * @patterns: the patterns, array length in @n_patterns
+	 */
+	struct iwl_wowlan_pattern_v1 patterns[];
+} __packed; /* WOWLAN_PATTERN_ARRAY_API_S_VER_1 */
+
+#define IPV4_ADDR_SIZE	4
+#define IPV6_ADDR_SIZE	16
+
+enum iwl_wowlan_pattern_type {
+	WOWLAN_PATTERN_TYPE_BITMASK,
+	WOWLAN_PATTERN_TYPE_IPV4_TCP_SYN,
+	WOWLAN_PATTERN_TYPE_IPV6_TCP_SYN,
+	WOWLAN_PATTERN_TYPE_IPV4_TCP_SYN_WILDCARD,
+	WOWLAN_PATTERN_TYPE_IPV6_TCP_SYN_WILDCARD,
+}; /* WOWLAN_PATTERN_TYPE_API_E_VER_1 */
+
+/**
+ * struct iwl_wowlan_ipv4_tcp_syn - WoWLAN IPv4 TCP SYN pattern data
+ */
+struct iwl_wowlan_ipv4_tcp_syn {
+	/**
+	 * @src_addr: source IP address to match
+	 */
+	u8 src_addr[IPV4_ADDR_SIZE];
+
+	/**
+	 * @dst_addr: destination IP address to match
+	 */
+	u8 dst_addr[IPV4_ADDR_SIZE];
+
+	/**
+	 * @src_port: source TCP port to match
+	 */
+	__le16 src_port;
+
+	/**
+	 * @dst_port: destination TCP port to match
+	 */
+	__le16 dst_port;
+} __packed; /* WOWLAN_IPV4_TCP_SYN_API_S_VER_1 */
+
+/**
+ * struct iwl_wowlan_ipv6_tcp_syn - WoWLAN Ipv6 TCP SYN pattern data
+ */
+struct iwl_wowlan_ipv6_tcp_syn {
+	/**
+	 * @src_addr: source IP address to match
+	 */
+	u8 src_addr[IPV6_ADDR_SIZE];
+
+	/**
+	 * @dst_addr: destination IP address to match
+	 */
+	u8 dst_addr[IPV6_ADDR_SIZE];
+
+	/**
+	 * @src_port: source TCP port to match
+	 */
+	__le16 src_port;
+
+	/**
+	 * @dst_port: destination TCP port to match
+	 */
+	__le16 dst_port;
+} __packed; /* WOWLAN_IPV6_TCP_SYN_API_S_VER_1 */
+
+/**
+ * union iwl_wowlan_pattern_data - Data for the different pattern types
+ *
+ * If wildcard addresses/ports are to be used, the union can be left
+ * undefined.
+ */
+union iwl_wowlan_pattern_data {
+	/**
+	 * @bitmask: bitmask pattern data
+	 */
+	struct iwl_wowlan_pattern_v1 bitmask;
+
+	/**
+	 * @ipv4_tcp_syn: IPv4 TCP SYN pattern data
+	 */
+	struct iwl_wowlan_ipv4_tcp_syn ipv4_tcp_syn;
+
+	/**
+	 * @ipv6_tcp_syn: IPv6 TCP SYN pattern data
+	 */
+	struct iwl_wowlan_ipv6_tcp_syn ipv6_tcp_syn;
+}; /* WOWLAN_PATTERN_API_U_VER_1 */
+
+/**
+ * struct iwl_wowlan_pattern_v2 - Pattern entry for the WoWLAN wakeup patterns
+ */
+struct iwl_wowlan_pattern_v2 {
+	/**
+	 * @pattern_type: defines the struct type to be used in the union
+	 */
+	u8 pattern_type;
+
+	/**
+	 * @reserved: reserved for alignment
+	 */
+	u8 reserved[3];
+
+	/**
+	 * @u: the union containing the match data, or undefined for
+	 *     wildcard matches
+	 */
+	union iwl_wowlan_pattern_data u;
+} __packed; /* WOWLAN_PATTERN_API_S_VER_2 */
+
+/**
+ * struct iwl_wowlan_patterns_cmd - WoWLAN wakeup patterns command
+ */
 struct iwl_wowlan_patterns_cmd {
 	/**
 	 * @n_patterns: number of patterns
@@ -236,8 +356,8 @@ struct iwl_wowlan_patterns_cmd {
 	/**
 	 * @patterns: the patterns, array length in @n_patterns
 	 */
-	struct iwl_wowlan_pattern patterns[];
-} __packed; /* WOWLAN_PATTERN_ARRAY_API_S_VER_1 */
+	struct iwl_wowlan_pattern_v2 patterns[];
+} __packed; /* WOWLAN_PATTERN_ARRAY_API_S_VER_2 */
 
 enum iwl_wowlan_wakeup_filters {
 	IWL_WOWLAN_WAKEUP_MAGIC_PACKET			= BIT(0),
@@ -383,7 +503,11 @@ enum iwl_wowlan_wakeup_reason {
 	IWL_WOWLAN_WAKEUP_BY_D3_WAKEUP_HOST_TIMER		= BIT(14),
 	IWL_WOWLAN_WAKEUP_BY_RXFRAME_FILTERED_IN		= BIT(15),
 	IWL_WOWLAN_WAKEUP_BY_BEACON_FILTERED_IN			= BIT(16),
-
+	IWL_WAKEUP_BY_11W_UNPROTECTED_DEAUTH_OR_DISASSOC	= BIT(17),
+	IWL_WAKEUP_BY_PATTERN_IPV4_TCP_SYN			= BIT(18),
+	IWL_WAKEUP_BY_PATTERN_IPV4_TCP_SYN_WILDCARD		= BIT(19),
+	IWL_WAKEUP_BY_PATTERN_IPV6_TCP_SYN			= BIT(20),
+	IWL_WAKEUP_BY_PATTERN_IPV6_TCP_SYN_WILDCARD		= BIT(21),
 }; /* WOWLAN_WAKE_UP_REASON_API_E_VER_2 */
 
 struct iwl_wowlan_gtk_status_v1 {

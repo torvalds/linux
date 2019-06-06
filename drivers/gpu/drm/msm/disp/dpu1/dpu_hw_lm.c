@@ -15,7 +15,6 @@
 #include "dpu_hwio.h"
 #include "dpu_hw_lm.h"
 #include "dpu_hw_mdss.h"
-#include "dpu_kms.h"
 
 #define LM_OP_MODE                        0x00
 #define LM_OUT_SIZE                       0x04

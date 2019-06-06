@@ -15347,27 +15347,47 @@ static int bnx2x_enable_ptp_packets(struct bnx2x *bp)
 	return 0;
 }
 
+#define BNX2X_P2P_DETECT_PARAM_MASK 0x5F5
+#define BNX2X_P2P_DETECT_RULE_MASK 0x3DBB
+#define BNX2X_PTP_TX_ON_PARAM_MASK (BNX2X_P2P_DETECT_PARAM_MASK & 0x6AA)
+#define BNX2X_PTP_TX_ON_RULE_MASK (BNX2X_P2P_DETECT_RULE_MASK & 0x3EEE)
+#define BNX2X_PTP_V1_L4_PARAM_MASK (BNX2X_P2P_DETECT_PARAM_MASK & 0x7EE)
+#define BNX2X_PTP_V1_L4_RULE_MASK (BNX2X_P2P_DETECT_RULE_MASK & 0x3FFE)
+#define BNX2X_PTP_V2_L4_PARAM_MASK (BNX2X_P2P_DETECT_PARAM_MASK & 0x7EA)
+#define BNX2X_PTP_V2_L4_RULE_MASK (BNX2X_P2P_DETECT_RULE_MASK & 0x3FEE)
+#define BNX2X_PTP_V2_L2_PARAM_MASK (BNX2X_P2P_DETECT_PARAM_MASK & 0x6BF)
+#define BNX2X_PTP_V2_L2_RULE_MASK (BNX2X_P2P_DETECT_RULE_MASK & 0x3EFF)
+#define BNX2X_PTP_V2_PARAM_MASK (BNX2X_P2P_DETECT_PARAM_MASK & 0x6AA)
+#define BNX2X_PTP_V2_RULE_MASK (BNX2X_P2P_DETECT_RULE_MASK & 0x3EEE)
+
 int bnx2x_configure_ptp_filters(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
+	u32 param, rule;
 	int rc;
 
 	if (!bp->hwtstamp_ioctl_called)
 		return 0;
 
+	param = port ? NIG_REG_P1_TLLH_PTP_PARAM_MASK :
+		NIG_REG_P0_TLLH_PTP_PARAM_MASK;
+	rule = port ? NIG_REG_P1_TLLH_PTP_RULE_MASK :
+		NIG_REG_P0_TLLH_PTP_RULE_MASK;
 	switch (bp->tx_type) {
 	case HWTSTAMP_TX_ON:
 		bp->flags |= TX_TIMESTAMPING_EN;
-		REG_WR(bp, port ? NIG_REG_P1_TLLH_PTP_PARAM_MASK :
-		       NIG_REG_P0_TLLH_PTP_PARAM_MASK, 0x6AA);
-		REG_WR(bp, port ? NIG_REG_P1_TLLH_PTP_RULE_MASK :
-		       NIG_REG_P0_TLLH_PTP_RULE_MASK, 0x3EEE);
+		REG_WR(bp, param, BNX2X_PTP_TX_ON_PARAM_MASK);
+		REG_WR(bp, rule, BNX2X_PTP_TX_ON_RULE_MASK);
 		break;
 	case HWTSTAMP_TX_ONESTEP_SYNC:
 		BNX2X_ERR("One-step timestamping is not supported\n");
 		return -ERANGE;
 	}
 
+	param = port ? NIG_REG_P1_LLH_PTP_PARAM_MASK :
+		NIG_REG_P0_LLH_PTP_PARAM_MASK;
+	rule = port ? NIG_REG_P1_LLH_PTP_RULE_MASK :
+		NIG_REG_P0_LLH_PTP_RULE_MASK;
 	switch (bp->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		break;
@@ -15381,30 +15401,24 @@ int bnx2x_configure_ptp_filters(struct bnx2x *bp)
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 		bp->rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
 		/* Initialize PTP detection for UDP/IPv4 events */
-		REG_WR(bp, port ? NIG_REG_P1_LLH_PTP_PARAM_MASK :
-		       NIG_REG_P0_LLH_PTP_PARAM_MASK, 0x7EE);
-		REG_WR(bp, port ? NIG_REG_P1_LLH_PTP_RULE_MASK :
-		       NIG_REG_P0_LLH_PTP_RULE_MASK, 0x3FFE);
+		REG_WR(bp, param, BNX2X_PTP_V1_L4_PARAM_MASK);
+		REG_WR(bp, rule, BNX2X_PTP_V1_L4_RULE_MASK);
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
 		bp->rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
 		/* Initialize PTP detection for UDP/IPv4 or UDP/IPv6 events */
-		REG_WR(bp, port ? NIG_REG_P1_LLH_PTP_PARAM_MASK :
-		       NIG_REG_P0_LLH_PTP_PARAM_MASK, 0x7EA);
-		REG_WR(bp, port ? NIG_REG_P1_LLH_PTP_RULE_MASK :
-		       NIG_REG_P0_LLH_PTP_RULE_MASK, 0x3FEE);
+		REG_WR(bp, param, BNX2X_PTP_V2_L4_PARAM_MASK);
+		REG_WR(bp, rule, BNX2X_PTP_V2_L4_RULE_MASK);
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 		bp->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
 		/* Initialize PTP detection L2 events */
-		REG_WR(bp, port ? NIG_REG_P1_LLH_PTP_PARAM_MASK :
-		       NIG_REG_P0_LLH_PTP_PARAM_MASK, 0x6BF);
-		REG_WR(bp, port ? NIG_REG_P1_LLH_PTP_RULE_MASK :
-		       NIG_REG_P0_LLH_PTP_RULE_MASK, 0x3EFF);
+		REG_WR(bp, param, BNX2X_PTP_V2_L2_PARAM_MASK);
+		REG_WR(bp, rule, BNX2X_PTP_V2_L2_RULE_MASK);
 
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
@@ -15412,10 +15426,8 @@ int bnx2x_configure_ptp_filters(struct bnx2x *bp)
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 		bp->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		/* Initialize PTP detection L2, UDP/IPv4 or UDP/IPv6 events */
-		REG_WR(bp, port ? NIG_REG_P1_LLH_PTP_PARAM_MASK :
-		       NIG_REG_P0_LLH_PTP_PARAM_MASK, 0x6AA);
-		REG_WR(bp, port ? NIG_REG_P1_LLH_PTP_RULE_MASK :
-		       NIG_REG_P0_LLH_PTP_RULE_MASK, 0x3EEE);
+		REG_WR(bp, param, BNX2X_PTP_V2_PARAM_MASK);
+		REG_WR(bp, rule, BNX2X_PTP_V2_RULE_MASK);
 		break;
 	}
 

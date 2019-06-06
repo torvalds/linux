@@ -27,22 +27,16 @@
 static struct vfsmount *mount;
 static int mount_count;
 
-static void securityfs_i_callback(struct rcu_head *head)
+static void securityfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	if (S_ISLNK(inode->i_mode))
 		kfree(inode->i_link);
 	free_inode_nonrcu(inode);
 }
 
-static void securityfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, securityfs_i_callback);
-}
-
 static const struct super_operations securityfs_super_operations = {
 	.statfs		= simple_statfs,
-	.destroy_inode	= securityfs_destroy_inode,
+	.free_inode	= securityfs_free_inode,
 };
 
 static int fill_super(struct super_block *sb, void *data, int silent)

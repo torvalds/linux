@@ -30,6 +30,8 @@
 #include <linux/security.h>
 #include <linux/hugetlb.h>
 
+int sysctl_unprivileged_userfaultfd __read_mostly = 1;
+
 static struct kmem_cache *userfaultfd_ctx_cachep __read_mostly;
 
 enum userfaultfd_state {
@@ -1929,6 +1931,9 @@ SYSCALL_DEFINE1(userfaultfd, int, flags)
 {
 	struct userfaultfd_ctx *ctx;
 	int fd;
+
+	if (!sysctl_unprivileged_userfaultfd && !capable(CAP_SYS_PTRACE))
+		return -EPERM;
 
 	BUG_ON(!current->mm);
 

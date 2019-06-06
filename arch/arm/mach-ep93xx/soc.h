@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * arch/arm/mach-ep93xx/soc.h
  *
  * Copyright (C) 2012 Open Kernel Labs <www.ok-labs.com>
  * Copyright (C) 2012 Ryan Mallon <rmallon@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #ifndef _EP93XX_SOC_H

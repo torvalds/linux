@@ -149,7 +149,8 @@ static void tve200_display_enable(struct drm_simple_display_pipe *pipe,
 	/* Vsync IRQ at start of Vsync at first */
 	ctrl1 |= TVE200_VSTSTYPE_VSYNC;
 
-	if (connector->display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+	if (connector->display_info.bus_flags &
+	    DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
 		ctrl1 |= TVE200_CTRL_TVCLKP;
 
 	if ((mode->hdisplay == 352 && mode->vdisplay == 240) || /* SIF(525) */

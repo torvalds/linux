@@ -3440,6 +3440,82 @@ DEFINE_AGINODE_EVENT(xfs_iunlink);
 DEFINE_AGINODE_EVENT(xfs_iunlink_remove);
 DEFINE_AG_EVENT(xfs_iunlink_map_prev_fallback);
 
+DECLARE_EVENT_CLASS(xfs_fs_corrupt_class,
+	TP_PROTO(struct xfs_mount *mp, unsigned int flags),
+	TP_ARGS(mp, flags),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->flags = flags;
+	),
+	TP_printk("dev %d:%d flags 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->flags)
+);
+#define DEFINE_FS_CORRUPT_EVENT(name)	\
+DEFINE_EVENT(xfs_fs_corrupt_class, name,	\
+	TP_PROTO(struct xfs_mount *mp, unsigned int flags), \
+	TP_ARGS(mp, flags))
+DEFINE_FS_CORRUPT_EVENT(xfs_fs_mark_sick);
+DEFINE_FS_CORRUPT_EVENT(xfs_fs_mark_healthy);
+DEFINE_FS_CORRUPT_EVENT(xfs_fs_unfixed_corruption);
+DEFINE_FS_CORRUPT_EVENT(xfs_rt_mark_sick);
+DEFINE_FS_CORRUPT_EVENT(xfs_rt_mark_healthy);
+DEFINE_FS_CORRUPT_EVENT(xfs_rt_unfixed_corruption);
+
+DECLARE_EVENT_CLASS(xfs_ag_corrupt_class,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, unsigned int flags),
+	TP_ARGS(mp, agno, flags),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+		__entry->flags = flags;
+	),
+	TP_printk("dev %d:%d agno %u flags 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno, __entry->flags)
+);
+#define DEFINE_AG_CORRUPT_EVENT(name)	\
+DEFINE_EVENT(xfs_ag_corrupt_class, name,	\
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
+		 unsigned int flags), \
+	TP_ARGS(mp, agno, flags))
+DEFINE_AG_CORRUPT_EVENT(xfs_ag_mark_sick);
+DEFINE_AG_CORRUPT_EVENT(xfs_ag_mark_healthy);
+DEFINE_AG_CORRUPT_EVENT(xfs_ag_unfixed_corruption);
+
+DECLARE_EVENT_CLASS(xfs_inode_corrupt_class,
+	TP_PROTO(struct xfs_inode *ip, unsigned int flags),
+	TP_ARGS(ip, flags),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->flags = flags;
+	),
+	TP_printk("dev %d:%d ino 0x%llx flags 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino, __entry->flags)
+);
+#define DEFINE_INODE_CORRUPT_EVENT(name)	\
+DEFINE_EVENT(xfs_inode_corrupt_class, name,	\
+	TP_PROTO(struct xfs_inode *ip, unsigned int flags), \
+	TP_ARGS(ip, flags))
+DEFINE_INODE_CORRUPT_EVENT(xfs_inode_mark_sick);
+DEFINE_INODE_CORRUPT_EVENT(xfs_inode_mark_healthy);
+
 #endif /* _TRACE_XFS_H */
 
 #undef TRACE_INCLUDE_PATH

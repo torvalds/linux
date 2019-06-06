@@ -21,6 +21,7 @@
 #include <linux/stop_machine.h>
 #include <linux/pvclock_gtod.h>
 #include <linux/compiler.h>
+#include <linux/audit.h>
 
 #include "tick-internal.h"
 #include "ntp_internal.h"
@@ -1250,6 +1251,9 @@ out:
 	/* signal hrtimers about time change */
 	clock_was_set();
 
+	if (!ret)
+		audit_tk_injoffset(ts_delta);
+
 	return ret;
 }
 EXPORT_SYMBOL(do_settimeofday64);
@@ -2303,6 +2307,7 @@ static int timekeeping_validate_timex(const struct __kernel_timex *txc)
 int do_adjtimex(struct __kernel_timex *txc)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
+	struct audit_ntp_data ad;
 	unsigned long flags;
 	struct timespec64 ts;
 	s32 orig_tai, tai;
@@ -2322,7 +2327,11 @@ int do_adjtimex(struct __kernel_timex *txc)
 		ret = timekeeping_inject_offset(&delta);
 		if (ret)
 			return ret;
+
+		audit_tk_injoffset(delta);
 	}
+
+	audit_ntp_init(&ad);
 
 	ktime_get_real_ts64(&ts);
 
@@ -2330,7 +2339,7 @@ int do_adjtimex(struct __kernel_timex *txc)
 	write_seqcount_begin(&tk_core.seq);
 
 	orig_tai = tai = tk->tai_offset;
-	ret = __do_adjtimex(txc, &ts, &tai);
+	ret = __do_adjtimex(txc, &ts, &tai, &ad);
 
 	if (tai != orig_tai) {
 		__timekeeping_set_tai_offset(tk, tai);
@@ -2340,6 +2349,8 @@ int do_adjtimex(struct __kernel_timex *txc)
 
 	write_seqcount_end(&tk_core.seq);
 	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
+
+	audit_ntp_log(&ad);
 
 	/* Update the multiplier immediately if frequency was set directly */
 	if (txc->modes & (ADJ_FREQUENCY | ADJ_TICK))

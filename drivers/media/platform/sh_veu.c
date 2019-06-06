@@ -493,9 +493,6 @@ static int sh_veu_try_fmt_vid_cap(struct file *file, void *priv,
 	const struct sh_veu_format *fmt;
 
 	fmt = sh_veu_find_fmt(f);
-	if (!fmt)
-		/* wrong buffer type */
-		return -EINVAL;
 
 	return sh_veu_try_fmt(f, fmt);
 }
@@ -506,9 +503,6 @@ static int sh_veu_try_fmt_vid_out(struct file *file, void *priv,
 	const struct sh_veu_format *fmt;
 
 	fmt = sh_veu_find_fmt(f);
-	if (!fmt)
-		/* wrong buffer type */
-		return -EINVAL;
 
 	return sh_veu_try_fmt(f, fmt);
 }

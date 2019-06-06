@@ -5,7 +5,7 @@
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * SAMSUNG EXYNOS54200 SoC device nodes are listed in this file.
+ * SAMSUNG EXYNOS5420 SoC device nodes are listed in this file.
  * EXYNOS5420 based board files can include this file and provide
  * values for board specfic bindings.
  */

@@ -412,6 +412,12 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 				 CIP_HEADER_WITHOUT_EOH;
 			fmt = CIP_FMT_MOTU_TX_V3;
 		}
+
+		if (protocol == &snd_motu_protocol_v2) {
+			// 8pre has some quirks.
+			flags |= CIP_WRONG_DBS |
+				 CIP_SKIP_DBC_ZERO_CHECK;
+		}
 	} else {
 		process_data_blocks = process_rx_data_blocks;
 		flags |= CIP_DBC_IS_END_EVENT;

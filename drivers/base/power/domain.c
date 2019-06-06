@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/base/power/domain.c - Common code related to device power domains.
  *
  * Copyright (C) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Renesas Electronics Corp.
- *
- * This file is released under the GPLv2.
  */
-
 #define pr_fmt(fmt) "PM: " fmt
 
 #include <linux/delay.h>
@@ -130,6 +128,7 @@ static const struct genpd_lock_ops genpd_spin_ops = {
 #define genpd_is_always_on(genpd)	(genpd->flags & GENPD_FLAG_ALWAYS_ON)
 #define genpd_is_active_wakeup(genpd)	(genpd->flags & GENPD_FLAG_ACTIVE_WAKEUP)
 #define genpd_is_cpu_domain(genpd)	(genpd->flags & GENPD_FLAG_CPU_DOMAIN)
+#define genpd_is_rpm_always_on(genpd)	(genpd->flags & GENPD_FLAG_RPM_ALWAYS_ON)
 
 static inline bool irq_safe_dev_in_no_sleep_domain(struct device *dev,
 		const struct generic_pm_domain *genpd)
@@ -517,7 +516,9 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	 * (1) The domain is configured as always on.
 	 * (2) When the domain has a subdomain being powered on.
 	 */
-	if (genpd_is_always_on(genpd) || atomic_read(&genpd->sd_count) > 0)
+	if (genpd_is_always_on(genpd) ||
+			genpd_is_rpm_always_on(genpd) ||
+			atomic_read(&genpd->sd_count) > 0)
 		return -EBUSY;
 
 	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
@@ -1814,7 +1815,8 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 	}
 
 	/* Always-on domains must be powered on at initialization. */
-	if (genpd_is_always_on(genpd) && !genpd_status_on(genpd))
+	if ((genpd_is_always_on(genpd) || genpd_is_rpm_always_on(genpd)) &&
+			!genpd_status_on(genpd))
 		return -EINVAL;
 
 	if (genpd_is_cpu_domain(genpd) &&

@@ -205,8 +205,7 @@ static int hid_time_parse_report(struct platform_device *pdev,
 static int hid_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned long flags;
-	struct hid_time_state *time_state =
-		platform_get_drvdata(to_platform_device(dev));
+	struct hid_time_state *time_state = dev_get_drvdata(dev);
 	int ret;
 
 	reinit_completion(&time_state->comp_last_time);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * TI OMAP Real Time Clock interface for Linux
  *
@@ -6,11 +7,6 @@
  *
  * Copyright (C) 2006 David Brownell (new RTC framework)
  * Copyright (C) 2014 Johan Hovold <johan@kernel.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -271,7 +267,7 @@ static int omap_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 }
 
 /* this hardware doesn't support "don't care" alarm fields */
-static int tm2bcd(struct rtc_time *tm)
+static void tm2bcd(struct rtc_time *tm)
 {
 	tm->tm_sec = bin2bcd(tm->tm_sec);
 	tm->tm_min = bin2bcd(tm->tm_min);
@@ -279,13 +275,7 @@ static int tm2bcd(struct rtc_time *tm)
 	tm->tm_mday = bin2bcd(tm->tm_mday);
 
 	tm->tm_mon = bin2bcd(tm->tm_mon + 1);
-
-	/* epoch == 1900 */
-	if (tm->tm_year < 100 || tm->tm_year > 199)
-		return -EINVAL;
 	tm->tm_year = bin2bcd(tm->tm_year - 100);
-
-	return 0;
 }
 
 static void bcd2tm(struct rtc_time *tm)
@@ -328,8 +318,7 @@ static int omap_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct omap_rtc *rtc = dev_get_drvdata(dev);
 
-	if (tm2bcd(tm) < 0)
-		return -EINVAL;
+	tm2bcd(tm);
 
 	local_irq_disable();
 	rtc_wait_not_busy(rtc);
@@ -378,8 +367,7 @@ static int omap_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	struct omap_rtc *rtc = dev_get_drvdata(dev);
 	u8 reg, irqwake_reg = 0;
 
-	if (tm2bcd(&alm->time) < 0)
-		return -EINVAL;
+	tm2bcd(&alm->time);
 
 	local_irq_disable();
 	rtc_wait_not_busy(rtc);
@@ -415,15 +403,12 @@ static int omap_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 static struct omap_rtc *omap_rtc_power_off_rtc;
 
-/*
- * omap_rtc_poweroff: RTC-controlled power off
- *
- * The RTC can be used to control an external PMIC via the pmic_power_en pin,
- * which can be configured to transition to OFF on ALARM2 events.
- *
- * Called with local interrupts disabled.
+/**
+ * omap_rtc_power_off_program: Set the pmic power off sequence. The RTC
+ * generates pmic_pwr_enable control, which can be used to control an external
+ * PMIC.
  */
-static void omap_rtc_power_off(void)
+int omap_rtc_power_off_program(struct device *dev)
 {
 	struct omap_rtc *rtc = omap_rtc_power_off_rtc;
 	struct rtc_time tm;
@@ -437,18 +422,17 @@ static void omap_rtc_power_off(void)
 	rtc_writel(rtc, OMAP_RTC_PMIC_REG, val | OMAP_RTC_PMIC_POWER_EN_EN);
 
 again:
+	/* Clear any existing ALARM2 event */
+	rtc_writel(rtc, OMAP_RTC_STATUS_REG, OMAP_RTC_STATUS_ALARM2);
+
 	/* set alarm one second from now */
 	omap_rtc_read_time_raw(rtc, &tm);
 	seconds = tm.tm_sec;
 	bcd2tm(&tm);
-	rtc_tm_to_time(&tm, &now);
-	rtc_time_to_tm(now + 1, &tm);
+	now = rtc_tm_to_time64(&tm);
+	rtc_time64_to_tm(now + 1, &tm);
 
-	if (tm2bcd(&tm) < 0) {
-		dev_err(&rtc->rtc->dev, "power off failed\n");
-		rtc->type->lock(rtc);
-		return;
-	}
+	tm2bcd(&tm);
 
 	rtc_wait_not_busy(rtc);
 
@@ -476,6 +460,39 @@ again:
 	}
 
 	rtc->type->lock(rtc);
+
+	return 0;
+}
+EXPORT_SYMBOL(omap_rtc_power_off_program);
+
+/*
+ * omap_rtc_poweroff: RTC-controlled power off
+ *
+ * The RTC can be used to control an external PMIC via the pmic_power_en pin,
+ * which can be configured to transition to OFF on ALARM2 events.
+ *
+ * Notes:
+ * The one-second alarm offset is the shortest offset possible as the alarm
+ * registers must be set before the next timer update and the offset
+ * calculation is too heavy for everything to be done within a single access
+ * period (~15 us).
+ *
+ * Called with local interrupts disabled.
+ */
+static void omap_rtc_power_off(void)
+{
+	struct rtc_device *rtc = omap_rtc_power_off_rtc->rtc;
+	u32 val;
+
+	omap_rtc_power_off_program(rtc->dev.parent);
+
+	/* Set PMIC power enable and EXT_WAKEUP in case PB power on is used */
+	omap_rtc_power_off_rtc->type->unlock(omap_rtc_power_off_rtc);
+	val = rtc_readl(omap_rtc_power_off_rtc, OMAP_RTC_PMIC_REG);
+	val |= OMAP_RTC_PMIC_POWER_EN_EN | OMAP_RTC_PMIC_EXT_WKUP_POL(0) |
+			OMAP_RTC_PMIC_EXT_WKUP_EN(0);
+	rtc_writel(omap_rtc_power_off_rtc, OMAP_RTC_PMIC_REG, val);
+	omap_rtc_power_off_rtc->type->lock(omap_rtc_power_off_rtc);
 
 	/*
 	 * Wait for alarm to trigger (within one second) and external PMIC to
@@ -845,6 +862,8 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	}
 
 	rtc->rtc->ops = &omap_rtc_ops;
+	rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	rtc->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	omap_rtc_nvmem_config.priv = rtc;
 
 	/* handle periodic and alarm irqs */

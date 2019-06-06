@@ -8,8 +8,14 @@ Required properties:
 - interrupt-names: must be "mc"
 - clocks: phandle to the "udc" clock
 - clock-names: must be "udc"
+- phys: phandle to the USB PHY
 
 Example:
+
+usb_phy: usb-phy@0 {
+	compatible = "usb-nop-xceiv";
+	#phy-cells = <0>;
+};
 
 udc: usb@13040000 {
 	compatible = "ingenic,jz4740-musb";
@@ -21,4 +27,6 @@ udc: usb@13040000 {
 
 	clocks = <&cgu JZ4740_CLK_UDC>;
 	clock-names = "udc";
+
+	phys = <&usb_phy>;
 };

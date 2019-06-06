@@ -2687,6 +2687,24 @@ sub process {
 			} else {
 				$signatures{$sig_nospace} = 1;
 			}
+
+# Check Co-developed-by: immediately followed by Signed-off-by: with same name and email
+			if ($sign_off =~ /^co-developed-by:$/i) {
+				if ($email eq $author) {
+					WARN("BAD_SIGN_OFF",
+					      "Co-developed-by: should not be used to attribute nominal patch author '$author'\n" . "$here\n" . $rawline);
+				}
+				if (!defined $lines[$linenr]) {
+					WARN("BAD_SIGN_OFF",
+                                             "Co-developed-by: must be immediately followed by Signed-off-by:\n" . "$here\n" . $rawline);
+				} elsif ($rawlines[$linenr] !~ /^\s*signed-off-by:\s*(.*)/i) {
+					WARN("BAD_SIGN_OFF",
+					     "Co-developed-by: must be immediately followed by Signed-off-by:\n" . "$here\n" . $rawline . "\n" .$rawlines[$linenr]);
+				} elsif ($1 ne $email) {
+					WARN("BAD_SIGN_OFF",
+					     "Co-developed-by and Signed-off-by: name/email do not match \n" . "$here\n" . $rawline . "\n" .$rawlines[$linenr]);
+				}
+			}
 		}
 
 # Check email subject for common tools that don't need to be mentioned
@@ -3009,7 +3027,7 @@ sub process {
 			my @compats = $rawline =~ /\"([a-zA-Z0-9\-\,\.\+_]+)\"/g;
 
 			my $dt_path = $root . "/Documentation/devicetree/bindings/";
-			my $vp_file = $dt_path . "vendor-prefixes.txt";
+			my $vp_file = $dt_path . "vendor-prefixes.yaml";
 
 			foreach my $compat (@compats) {
 				my $compat2 = $compat;
@@ -3024,7 +3042,7 @@ sub process {
 
 				next if $compat !~ /^([a-zA-Z0-9\-]+)\,/;
 				my $vendor = $1;
-				`grep -Eq "^$vendor\\b" $vp_file`;
+				`grep -Eq "\\"\\^\Q$vendor\E,\\.\\*\\":" $vp_file`;
 				if ( $? >> 8 ) {
 					WARN("UNDOCUMENTED_DT_STRING",
 					     "DT compatible string vendor \"$vendor\" appears un-documented -- check $vp_file\n" . $herecurr);

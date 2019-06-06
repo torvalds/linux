@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Kernel execution entry point code.
  *
@@ -21,11 +22,6 @@
  * 	   	debbie_chu@mvista.com
  *    Copyright 2002-2005 MontaVista Software, Inc.
  *      PowerPC 44x support, Matt Porter <mporter@kernel.crashing.org>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/init.h>
@@ -203,6 +199,9 @@ _ENTRY(_start);
 /*
  * Decide what sort of machine this is and initialize the MMU.
  */
+#ifdef CONFIG_KASAN
+	bl	kasan_early_init
+#endif
 	li	r3,0
 	mr	r4,r31
 	bl	machine_init
@@ -278,16 +277,15 @@ interrupt_base:
 	FP_UNAVAILABLE_EXCEPTION
 #else
 	EXCEPTION(0x2010, BOOKE_INTERRUPT_FP_UNAVAIL, \
-		  FloatingPointUnavailable, unknown_exception, EXC_XFER_EE)
+		  FloatingPointUnavailable, unknown_exception, EXC_XFER_STD)
 #endif
 	/* System Call Interrupt */
 	START_EXCEPTION(SystemCall)
-	NORMAL_EXCEPTION_PROLOG(BOOKE_INTERRUPT_SYSCALL)
-	EXC_XFER_EE_LITE(0x0c00, DoSyscall)
+	SYSCALL_ENTRY   0xc00 BOOKE_INTERRUPT_SYSCALL
 
 	/* Auxiliary Processor Unavailable Interrupt */
 	EXCEPTION(0x2020, BOOKE_INTERRUPT_AP_UNAVAIL, \
-		  AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_EE)
+		  AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_STD)
 
 	/* Decrementer Interrupt */
 	DECREMENTER_EXCEPTION
@@ -295,7 +293,7 @@ interrupt_base:
 	/* Fixed Internal Timer Interrupt */
 	/* TODO: Add FIT support */
 	EXCEPTION(0x1010, BOOKE_INTERRUPT_FIT, FixedIntervalTimer, \
-		  unknown_exception, EXC_XFER_EE)
+		  unknown_exception, EXC_XFER_STD)
 
 	/* Watchdog Timer Interrupt */
 	/* TODO: Add watchdog support */

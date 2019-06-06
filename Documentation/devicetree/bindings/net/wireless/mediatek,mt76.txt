@@ -13,10 +13,11 @@ properties:
 
 Optional properties:
 
-- mac-address: See ethernet.txt in the parent directory
-- local-mac-address: See ethernet.txt in the parent directory
 - ieee80211-freq-limit: See ieee80211.txt
 - mediatek,mtd-eeprom: Specify a MTD partition + offset containing EEPROM data
+
+The MAC address can as well be set with corresponding optional properties
+defined in net/ethernet.txt.
 
 Optional nodes:
 - led: Properties for a connected LED

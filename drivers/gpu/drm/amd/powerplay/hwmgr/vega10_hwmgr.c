@@ -1427,6 +1427,15 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 
 	vega10_setup_default_pcie_table(hwmgr);
 
+	/* Zero out the saved copy of the CUSTOM profile
+	 * This will be checked when trying to set the profile
+	 * and will require that new values be passed in
+	 */
+	data->custom_profile_mode[0] = 0;
+	data->custom_profile_mode[1] = 0;
+	data->custom_profile_mode[2] = 0;
+	data->custom_profile_mode[3] = 0;
+
 	/* save a copy of the default DPM table */
 	memcpy(&(data->golden_dpm_table), &(data->dpm_table),
 			sizeof(struct vega10_dpm_table));
@@ -4904,15 +4913,22 @@ static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 	uint8_t FPS;
 	uint8_t use_rlc_busy;
 	uint8_t min_active_level;
+	uint32_t power_profile_mode = input[size];
 
-	hwmgr->power_profile_mode = input[size];
-
-	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
-						1<<hwmgr->power_profile_mode);
-
-	if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
-		if (size == 0 || size > 4)
+	if (power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
+		if (size != 0 && size != 4)
 			return -EINVAL;
+
+		/* If size = 0 and the CUSTOM profile has been set already
+		 * then just apply the profile. The copy stored in the hwmgr
+		 * is zeroed out on init
+		 */
+		if (size == 0) {
+			if (data->custom_profile_mode[0] != 0)
+				goto out;
+			else
+				return -EINVAL;
+		}
 
 		data->custom_profile_mode[0] = busy_set_point = input[0];
 		data->custom_profile_mode[1] = FPS = input[1];
@@ -4923,6 +4939,11 @@ static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, ui
 					busy_set_point | FPS<<8 |
 					use_rlc_busy << 16 | min_active_level<<24);
 	}
+
+out:
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
+						1 << power_profile_mode);
+	hwmgr->power_profile_mode = power_profile_mode;
 
 	return 0;
 }
@@ -5170,8 +5191,8 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.set_power_limit = vega10_set_power_limit,
 	.odn_edit_dpm_table = vega10_odn_edit_dpm_table,
 	.get_performance_level = vega10_get_performance_level,
-	.get_asic_baco_capability = vega10_baco_get_capability,
-	.get_asic_baco_state = vega10_baco_get_state,
+	.get_asic_baco_capability = smu9_baco_get_capability,
+	.get_asic_baco_state = smu9_baco_get_state,
 	.set_asic_baco_state = vega10_baco_set_state,
 	.enable_mgpu_fan_boost = vega10_enable_mgpu_fan_boost,
 	.get_ppfeature_status = vega10_get_ppfeature_status,

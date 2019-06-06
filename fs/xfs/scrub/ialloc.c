@@ -39,7 +39,7 @@ xchk_setup_ag_iallocbt(
 	struct xfs_scrub	*sc,
 	struct xfs_inode	*ip)
 {
-	return xchk_setup_ag_btree(sc, ip, sc->try_harder);
+	return xchk_setup_ag_btree(sc, ip, sc->flags & XCHK_TRY_HARDER);
 }
 
 /* Inode btree scrubber. */
@@ -185,7 +185,7 @@ xchk_iallocbt_check_cluster_ifree(
 	if (error == -ENODATA) {
 		/* Not cached, just read the disk buffer */
 		freemask_ok = irec_free ^ !!(dip->di_mode);
-		if (!bs->sc->try_harder && !freemask_ok)
+		if (!(bs->sc->flags & XCHK_TRY_HARDER) && !freemask_ok)
 			return -EDEADLOCK;
 	} else if (error < 0) {
 		/*

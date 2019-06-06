@@ -23,7 +23,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <mach/irqs.h>
 
 /* assumes CONTROLLER_ONLY# is never asserted in the ESSR register */

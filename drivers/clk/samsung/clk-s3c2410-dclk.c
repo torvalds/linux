@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include "clk.h"

@@ -105,6 +105,37 @@
 	__T;								\
 })
 
+/*
+ * container_of_user: Extract the superclass from a pointer to a member.
+ *
+ * Exactly like container_of() with the exception that it plays nicely
+ * with sparse for __user @ptr.
+ */
+#define container_of_user(ptr, type, member) ({				\
+	void __user *__mptr = (void __user *)(ptr);			\
+	BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) &&	\
+			 !__same_type(*(ptr), void),			\
+			 "pointer type mismatch in container_of()");	\
+	((type __user *)(__mptr - offsetof(type, member))); })
+
+/*
+ * check_user_mbz: Check that a user value exists and is zero
+ *
+ * Frequently in our uABI we reserve space for future extensions, and
+ * two ensure that userspace is prepared we enforce that space must
+ * be zero. (Then any future extension can safely assume a default value
+ * of 0.)
+ *
+ * check_user_mbz() combines checking that the user pointer is accessible
+ * and that the contained value is zero.
+ *
+ * Returns: -EFAULT if not accessible, -EINVAL if !zero, or 0 on success.
+ */
+#define check_user_mbz(U) ({						\
+	typeof(*(U)) mbz__;						\
+	get_user(mbz__, (U)) ? -EFAULT : mbz__ ? -EINVAL : 0;		\
+})
+
 static inline u64 ptr_to_u64(const void *ptr)
 {
 	return (uintptr_t)ptr;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OPAL IMC interface detection driver
  * Supported on POWERNV platform
@@ -5,11 +6,6 @@
  * Copyright	(C) 2017 Madhavan Srinivasan, IBM Corporation.
  *		(C) 2017 Anju T Sudhakar, IBM Corporation.
  *		(C) 2017 Hemant K Shaw, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or later version.
  */
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -127,7 +123,7 @@ static int imc_get_mem_addr_nest(struct device_node *node,
 								nr_chips))
 		goto error;
 
-	pmu_ptr->mem_info = kcalloc(nr_chips, sizeof(*pmu_ptr->mem_info),
+	pmu_ptr->mem_info = kcalloc(nr_chips + 1, sizeof(*pmu_ptr->mem_info),
 				    GFP_KERNEL);
 	if (!pmu_ptr->mem_info)
 		goto error;
@@ -160,6 +156,10 @@ static int imc_pmu_create(struct device_node *parent, int pmu_index, int domain)
 	int ret = 0;
 	struct imc_pmu *pmu_ptr;
 	u32 offset;
+
+	/* Return for unknown domain */
+	if (domain < 0)
+		return -EINVAL;
 
 	/* memory for pmu */
 	pmu_ptr = kzalloc(sizeof(*pmu_ptr), GFP_KERNEL);
@@ -283,6 +283,9 @@ static int opal_imc_counters_probe(struct platform_device *pdev)
 			break;
 		case IMC_TYPE_THREAD:
 			domain = IMC_DOMAIN_THREAD;
+			break;
+		case IMC_TYPE_TRACE:
+			domain = IMC_DOMAIN_TRACE;
 			break;
 		default:
 			pr_warn("IMC Unknown Device type \n");

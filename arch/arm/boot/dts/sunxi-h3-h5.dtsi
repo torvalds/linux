@@ -227,6 +227,11 @@
 			#size-cells = <0>;
 		};
 
+		sid: eeprom@1c14000 {
+			/* compatible is in per SoC .dtsi file */
+			reg = <0x1c14000 0x400>;
+		};
+
 		usb_otg: usb@1c19000 {
 			compatible = "allwinner,sun8i-h3-musb";
 			reg = <0x01c19000 0x400>;
@@ -237,6 +242,7 @@
 			phys = <&usbphy 0>;
 			phy-names = "usb";
 			extcon = <&usbphy 0>;
+			dr_mode = "otg";
 			status = "disabled";
 		};
 
@@ -298,7 +304,6 @@
 			clocks = <&ccu CLK_BUS_EHCI1>, <&ccu CLK_BUS_OHCI1>;
 			resets = <&ccu RST_BUS_EHCI1>, <&ccu RST_BUS_OHCI1>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -310,7 +315,6 @@
 				 <&ccu CLK_USB_OHCI1>;
 			resets = <&ccu RST_BUS_EHCI1>, <&ccu RST_BUS_OHCI1>;
 			phys = <&usbphy 1>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -321,7 +325,6 @@
 			clocks = <&ccu CLK_BUS_EHCI2>, <&ccu CLK_BUS_OHCI2>;
 			resets = <&ccu RST_BUS_EHCI2>, <&ccu RST_BUS_OHCI2>;
 			phys = <&usbphy 2>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -333,7 +336,6 @@
 				 <&ccu CLK_USB_OHCI2>;
 			resets = <&ccu RST_BUS_EHCI2>, <&ccu RST_BUS_OHCI2>;
 			phys = <&usbphy 2>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -344,7 +346,6 @@
 			clocks = <&ccu CLK_BUS_EHCI3>, <&ccu CLK_BUS_OHCI3>;
 			resets = <&ccu RST_BUS_EHCI3>, <&ccu RST_BUS_OHCI3>;
 			phys = <&usbphy 3>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -356,7 +357,6 @@
 				 <&ccu CLK_USB_OHCI3>;
 			resets = <&ccu RST_BUS_EHCI3>, <&ccu RST_BUS_OHCI3>;
 			phys = <&usbphy 3>;
-			phy-names = "usb";
 			status = "disabled";
 		};
 
@@ -381,14 +381,14 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
-			csi_pins: csi {
+			csi_pins: csi-pins {
 				pins = "PE0", "PE2", "PE3", "PE4", "PE5",
 				       "PE6", "PE7", "PE8", "PE9", "PE10",
 				       "PE11";
 				function = "csi";
 			};
 
-			emac_rgmii_pins: emac0 {
+			emac_rgmii_pins: emac-rgmii-pins {
 				pins = "PD0", "PD1", "PD2", "PD3", "PD4",
 				       "PD5", "PD7", "PD8", "PD9", "PD10",
 				       "PD12", "PD13", "PD15", "PD16", "PD17";
@@ -396,22 +396,22 @@
 				drive-strength = <40>;
 			};
 
-			i2c0_pins: i2c0 {
+			i2c0_pins: i2c0-pins {
 				pins = "PA11", "PA12";
 				function = "i2c0";
 			};
 
-			i2c1_pins: i2c1 {
+			i2c1_pins: i2c1-pins {
 				pins = "PA18", "PA19";
 				function = "i2c1";
 			};
 
-			i2c2_pins: i2c2 {
+			i2c2_pins: i2c2-pins {
 				pins = "PE12", "PE13";
 				function = "i2c2";
 			};
 
-			mmc0_pins: mmc0 {
+			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2", "PF3",
 				       "PF4", "PF5";
 				function = "mmc0";
@@ -419,7 +419,7 @@
 				bias-pull-up;
 			};
 
-			mmc1_pins: mmc1 {
+			mmc1_pins: mmc1-pins {
 				pins = "PG0", "PG1", "PG2", "PG3",
 				       "PG4", "PG5";
 				function = "mmc1";
@@ -427,7 +427,7 @@
 				bias-pull-up;
 			};
 
-			mmc2_8bit_pins: mmc2_8bit {
+			mmc2_8bit_pins: mmc2-8bit-pins {
 				pins = "PC5", "PC6", "PC8",
 				       "PC9", "PC10", "PC11",
 				       "PC12", "PC13", "PC14",
@@ -437,47 +437,47 @@
 				bias-pull-up;
 			};
 
-			spdif_tx_pins_a: spdif {
+			spdif_tx_pin: spdif-tx-pin {
 				pins = "PA17";
 				function = "spdif";
 			};
 
-			spi0_pins: spi0 {
+			spi0_pins: spi0-pins {
 				pins = "PC0", "PC1", "PC2", "PC3";
 				function = "spi0";
 			};
 
-			spi1_pins: spi1 {
+			spi1_pins: spi1-pins {
 				pins = "PA15", "PA16", "PA14", "PA13";
 				function = "spi1";
 			};
 
-			uart0_pins_a: uart0 {
+			uart0_pa_pins: uart0-pa-pins {
 				pins = "PA4", "PA5";
 				function = "uart0";
 			};
 
-			uart1_pins: uart1 {
+			uart1_pins: uart1-pins {
 				pins = "PG6", "PG7";
 				function = "uart1";
 			};
 
-			uart1_rts_cts_pins: uart1_rts_cts {
+			uart1_rts_cts_pins: uart1-rts-cts-pins {
 				pins = "PG8", "PG9";
 				function = "uart1";
 			};
 
-			uart2_pins: uart2 {
+			uart2_pins: uart2-pins {
 				pins = "PA0", "PA1";
 				function = "uart2";
 			};
 
-			uart3_pins: uart3 {
+			uart3_pins: uart3-pins {
 				pins = "PA13", "PA14";
 				function = "uart3";
 			};
 
-			uart3_rts_cts_pins: uart3_rts_cts {
+			uart3_rts_cts_pins: uart3-rts-cts-pins {
 				pins = "PA15", "PA16";
 				function = "uart3";
 			};
@@ -855,12 +855,12 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
-			ir_pins_a: ir {
+			r_ir_rx_pin: r-ir-rx-pin {
 				pins = "PL11";
 				function = "s_cir_rx";
 			};
 
-			r_i2c_pins: r-i2c {
+			r_i2c_pins: r-i2c-pins {
 				pins = "PL0", "PL1";
 				function = "s_i2c";
 			};

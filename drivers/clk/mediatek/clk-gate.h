@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014 MediaTek Inc.
  * Author: James Liao <jamesjj.liao@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __DRV_CLK_GATE_H
@@ -49,5 +41,19 @@ struct clk *mtk_clk_register_gate(
 		u8 bit,
 		const struct clk_ops *ops,
 		unsigned long flags);
+
+#define GATE_MTK_FLAGS(_id, _name, _parent, _regs, _shift,	\
+			_ops, _flags) {				\
+		.id = _id,					\
+		.name = _name,					\
+		.parent_name = _parent,				\
+		.regs = _regs,					\
+		.shift = _shift,				\
+		.ops = _ops,					\
+		.flags = _flags,				\
+	}
+
+#define GATE_MTK(_id, _name, _parent, _regs, _shift, _ops)		\
+	GATE_MTK_FLAGS(_id, _name, _parent, _regs, _shift, _ops, 0)
 
 #endif /* __DRV_CLK_GATE_H */

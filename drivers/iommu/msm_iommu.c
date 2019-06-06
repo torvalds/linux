@@ -34,7 +34,7 @@
 #include <linux/of_iommu.h>
 
 #include <asm/cacheflush.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include "msm_iommu_hw-8xxx.h"
 #include "msm_iommu.h"

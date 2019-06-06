@@ -103,85 +103,24 @@ xt_ct_set_helper(struct nf_conn *ct, const char *helper_name,
 	return 0;
 }
 
-#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-static void __xt_ct_tg_timeout_put(struct nf_ct_timeout *timeout)
-{
-	typeof(nf_ct_timeout_put_hook) timeout_put;
-
-	timeout_put = rcu_dereference(nf_ct_timeout_put_hook);
-	if (timeout_put)
-		timeout_put(timeout);
-}
-#endif
-
 static int
 xt_ct_set_timeout(struct nf_conn *ct, const struct xt_tgchk_param *par,
 		  const char *timeout_name)
 {
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-	typeof(nf_ct_timeout_find_get_hook) timeout_find_get;
 	const struct nf_conntrack_l4proto *l4proto;
-	struct nf_ct_timeout *timeout;
-	struct nf_conn_timeout *timeout_ext;
-	const char *errmsg = NULL;
-	int ret = 0;
 	u8 proto;
-
-	rcu_read_lock();
-	timeout_find_get = rcu_dereference(nf_ct_timeout_find_get_hook);
-	if (timeout_find_get == NULL) {
-		ret = -ENOENT;
-		errmsg = "Timeout policy base is empty";
-		goto out;
-	}
 
 	proto = xt_ct_find_proto(par);
 	if (!proto) {
-		ret = -EINVAL;
-		errmsg = "You must specify a L4 protocol and not use inversions on it";
-		goto out;
+		pr_info_ratelimited("You must specify a L4 protocol and not "
+				    "use inversions on it");
+		return -EINVAL;
 	}
-
-	timeout = timeout_find_get(par->net, timeout_name);
-	if (timeout == NULL) {
-		ret = -ENOENT;
-		pr_info_ratelimited("No such timeout policy \"%s\"\n",
-				    timeout_name);
-		goto out;
-	}
-
-	if (timeout->l3num != par->family) {
-		ret = -EINVAL;
-		pr_info_ratelimited("Timeout policy `%s' can only be used by L%d protocol number %d\n",
-				    timeout_name, 3, timeout->l3num);
-		goto err_put_timeout;
-	}
-	/* Make sure the timeout policy matches any existing protocol tracker,
-	 * otherwise default to generic.
-	 */
 	l4proto = nf_ct_l4proto_find(proto);
-	if (timeout->l4proto->l4proto != l4proto->l4proto) {
-		ret = -EINVAL;
-		pr_info_ratelimited("Timeout policy `%s' can only be used by L%d protocol number %d\n",
-				    timeout_name, 4, timeout->l4proto->l4proto);
-		goto err_put_timeout;
-	}
-	timeout_ext = nf_ct_timeout_ext_add(ct, timeout, GFP_ATOMIC);
-	if (!timeout_ext) {
-		ret = -ENOMEM;
-		goto err_put_timeout;
-	}
+	return nf_ct_set_timeout(par->net, ct, par->family, l4proto->l4proto,
+				 timeout_name);
 
-	rcu_read_unlock();
-	return ret;
-
-err_put_timeout:
-	__xt_ct_tg_timeout_put(timeout);
-out:
-	rcu_read_unlock();
-	if (errmsg)
-		pr_info_ratelimited("%s\n", errmsg);
-	return ret;
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -328,26 +267,6 @@ static int xt_ct_tg_check_v2(const struct xt_tgchk_param *par)
 	return xt_ct_tg_check(par, par->targinfo);
 }
 
-static void xt_ct_destroy_timeout(struct nf_conn *ct)
-{
-#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-	struct nf_conn_timeout *timeout_ext;
-	typeof(nf_ct_timeout_put_hook) timeout_put;
-
-	rcu_read_lock();
-	timeout_put = rcu_dereference(nf_ct_timeout_put_hook);
-
-	if (timeout_put) {
-		timeout_ext = nf_ct_timeout_find(ct);
-		if (timeout_ext) {
-			timeout_put(timeout_ext->timeout);
-			RCU_INIT_POINTER(timeout_ext->timeout, NULL);
-		}
-	}
-	rcu_read_unlock();
-#endif
-}
-
 static void xt_ct_tg_destroy(const struct xt_tgdtor_param *par,
 			     struct xt_ct_target_info_v1 *info)
 {
@@ -361,7 +280,7 @@ static void xt_ct_tg_destroy(const struct xt_tgdtor_param *par,
 
 		nf_ct_netns_put(par->net, par->family);
 
-		xt_ct_destroy_timeout(ct);
+		nf_ct_destroy_timeout(ct);
 		nf_ct_put(info->ct);
 	}
 }

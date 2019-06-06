@@ -1,9 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "DMABUF options"
 
 config SYNC_FILE
 	bool "Explicit Synchronization Framework"
 	default n
-	select ANON_INODES
 	select DMA_SHARED_BUFFER
 	---help---
 	  The Sync File Framework adds explicit syncronization via

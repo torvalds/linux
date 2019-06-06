@@ -224,4 +224,3 @@
 #define mmTPC7_NRTR_NON_LIN_SCRAMB                                   0xFC0604
 
 #endif /* ASIC_REG_TPC7_NRTR_REGS_H_ */
-

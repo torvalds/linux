@@ -196,7 +196,7 @@ CAP_LAST_CAP from the kernel.
 core_pattern:
 
 core_pattern is used to specify a core dumpfile pattern name.
-. max length 128 characters; default value is "core"
+. max length 127 characters; default value is "core"
 . core_pattern is used as a pattern template for the output filename;
   certain string patterns (beginning with '%') are substituted with
   their actual values.

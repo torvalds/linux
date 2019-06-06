@@ -12,22 +12,20 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <linux/sched.h>
 
 #include <asm/io.h>
 #include <asm/irq_cpu.h>
-#include <asm/pci/bridge.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/agent.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/hub.h>
 #include <asm/sn/intr.h>
+#include <asm/sn/irq_alloc.h>
 
 struct hub_irq_data {
-	struct bridge_controller *bc;
 	u64	*irq_mask[2];
 	cpuid_t	cpu;
-	int	bit;
-	int	pin;
 };
 
 static DECLARE_BITMAP(hub_irq_map, IP27_HUB_IRQ_COUNT);
@@ -54,7 +52,7 @@ static void enable_hub_irq(struct irq_data *d)
 	struct hub_irq_data *hd = irq_data_get_irq_chip_data(d);
 	unsigned long *mask = per_cpu(irq_enable_mask, hd->cpu);
 
-	set_bit(hd->bit, mask);
+	set_bit(d->hwirq, mask);
 	__raw_writeq(mask[0], hd->irq_mask[0]);
 	__raw_writeq(mask[1], hd->irq_mask[1]);
 }
@@ -64,69 +62,9 @@ static void disable_hub_irq(struct irq_data *d)
 	struct hub_irq_data *hd = irq_data_get_irq_chip_data(d);
 	unsigned long *mask = per_cpu(irq_enable_mask, hd->cpu);
 
-	clear_bit(hd->bit, mask);
+	clear_bit(d->hwirq, mask);
 	__raw_writeq(mask[0], hd->irq_mask[0]);
 	__raw_writeq(mask[1], hd->irq_mask[1]);
-}
-
-static unsigned int startup_bridge_irq(struct irq_data *d)
-{
-	struct hub_irq_data *hd = irq_data_get_irq_chip_data(d);
-	struct bridge_controller *bc;
-	nasid_t nasid;
-	u32 device;
-	int pin;
-
-	if (!hd)
-		return -EINVAL;
-
-	pin = hd->pin;
-	bc = hd->bc;
-
-	nasid = COMPACT_TO_NASID_NODEID(cpu_to_node(hd->cpu));
-	bridge_write(bc, b_int_addr[pin].addr,
-		     (0x20000 | hd->bit | (nasid << 8)));
-	bridge_set(bc, b_int_enable, (1 << pin));
-	bridge_set(bc, b_int_enable, 0x7ffffe00); /* more stuff in int_enable */
-
-	/*
-	 * Enable sending of an interrupt clear packt to the hub on a high to
-	 * low transition of the interrupt pin.
-	 *
-	 * IRIX sets additional bits in the address which are documented as
-	 * reserved in the bridge docs.
-	 */
-	bridge_set(bc, b_int_mode, (1UL << pin));
-
-	/*
-	 * We assume the bridge to have a 1:1 mapping between devices
-	 * (slots) and intr pins.
-	 */
-	device = bridge_read(bc, b_int_device);
-	device &= ~(7 << (pin*3));
-	device |= (pin << (pin*3));
-	bridge_write(bc, b_int_device, device);
-
-	bridge_read(bc, b_wid_tflush);
-
-	enable_hub_irq(d);
-
-	return 0;	/* Never anything pending.  */
-}
-
-static void shutdown_bridge_irq(struct irq_data *d)
-{
-	struct hub_irq_data *hd = irq_data_get_irq_chip_data(d);
-	struct bridge_controller *bc;
-
-	if (!hd)
-		return;
-
-	disable_hub_irq(d);
-
-	bc = hd->bc;
-	bridge_clr(bc, b_int_enable, (1 << hd->pin));
-	bridge_read(bc, b_wid_tflush);
 }
 
 static void setup_hub_mask(struct hub_irq_data *hd, const struct cpumask *mask)
@@ -144,9 +82,6 @@ static void setup_hub_mask(struct hub_irq_data *hd, const struct cpumask *mask)
 		hd->irq_mask[0] = REMOTE_HUB_PTR(nasid, PI_INT_MASK0_B);
 		hd->irq_mask[1] = REMOTE_HUB_PTR(nasid, PI_INT_MASK1_B);
 	}
-
-	/* Make sure it's not already pending when we connect it. */
-	REMOTE_HUB_CLR_INTR(nasid, hd->bit);
 }
 
 static int set_affinity_hub_irq(struct irq_data *d, const struct cpumask *mask,
@@ -163,7 +98,7 @@ static int set_affinity_hub_irq(struct irq_data *d, const struct cpumask *mask,
 	setup_hub_mask(hd, mask);
 
 	if (irqd_is_started(d))
-		startup_bridge_irq(d);
+		enable_hub_irq(d);
 
 	irq_data_update_effective_affinity(d, cpumask_of(hd->cpu));
 
@@ -172,20 +107,22 @@ static int set_affinity_hub_irq(struct irq_data *d, const struct cpumask *mask,
 
 static struct irq_chip hub_irq_type = {
 	.name		  = "HUB",
-	.irq_startup	  = startup_bridge_irq,
-	.irq_shutdown	  = shutdown_bridge_irq,
 	.irq_mask	  = disable_hub_irq,
 	.irq_unmask	  = enable_hub_irq,
 	.irq_set_affinity = set_affinity_hub_irq,
 };
 
-int request_bridge_irq(struct bridge_controller *bc, int pin)
+static int hub_domain_alloc(struct irq_domain *domain, unsigned int virq,
+			    unsigned int nr_irqs, void *arg)
 {
+	struct irq_alloc_info *info = arg;
 	struct hub_irq_data *hd;
 	struct hub_data *hub;
 	struct irq_desc *desc;
 	int swlevel;
-	int irq;
+
+	if (nr_irqs > 1 || !info)
+		return -EINVAL;
 
 	hd = kzalloc(sizeof(*hd), GFP_KERNEL);
 	if (!hd)
@@ -196,45 +133,40 @@ int request_bridge_irq(struct bridge_controller *bc, int pin)
 		kfree(hd);
 		return -EAGAIN;
 	}
-	irq = swlevel + IP27_HUB_IRQ_BASE;
-
-	hd->bc = bc;
-	hd->bit = swlevel;
-	hd->pin = pin;
-	irq_set_chip_data(irq, hd);
+	irq_domain_set_info(domain, virq, swlevel, &hub_irq_type, hd,
+			    handle_level_irq, NULL, NULL);
 
 	/* use CPU connected to nearest hub */
-	hub = hub_data(NASID_TO_COMPACT_NODEID(bc->nasid));
+	hub = hub_data(NASID_TO_COMPACT_NODEID(info->nasid));
 	setup_hub_mask(hd, &hub->h_cpus);
 
-	desc = irq_to_desc(irq);
-	desc->irq_common_data.node = bc->nasid;
+	/* Make sure it's not already pending when we connect it. */
+	REMOTE_HUB_CLR_INTR(info->nasid, swlevel);
+
+	desc = irq_to_desc(virq);
+	desc->irq_common_data.node = info->nasid;
 	cpumask_copy(desc->irq_common_data.affinity, &hub->h_cpus);
 
-	return irq;
+	return 0;
 }
 
-void ip27_hub_irq_init(void)
+static void hub_domain_free(struct irq_domain *domain,
+			    unsigned int virq, unsigned int nr_irqs)
 {
-	int i;
+	struct irq_data *irqd;
 
-	for (i = IP27_HUB_IRQ_BASE;
-	     i < (IP27_HUB_IRQ_BASE + IP27_HUB_IRQ_COUNT); i++)
-		irq_set_chip_and_handler(i, &hub_irq_type, handle_level_irq);
+	if (nr_irqs > 1)
+		return;
 
-	/*
-	 * Some interrupts are reserved by hardware or by software convention.
-	 * Mark these as reserved right away so they won't be used accidentally
-	 * later.
-	 */
-	for (i = 0; i <= BASE_PCI_IRQ; i++)
-		set_bit(i, hub_irq_map);
-
-	set_bit(IP_PEND0_6_63, hub_irq_map);
-
-	for (i = NI_BRDCAST_ERR_A; i <= MSC_PANIC_INTR; i++)
-		set_bit(i, hub_irq_map);
+	irqd = irq_domain_get_irq_data(domain, virq);
+	if (irqd && irqd->chip_data)
+		kfree(irqd->chip_data);
 }
+
+static const struct irq_domain_ops hub_domain_ops = {
+	.alloc = hub_domain_alloc,
+	.free  = hub_domain_free,
+};
 
 /*
  * This code is unnecessarily complex, because we do
@@ -252,7 +184,9 @@ static void ip27_do_irq_mask0(struct irq_desc *desc)
 {
 	cpuid_t cpu = smp_processor_id();
 	unsigned long *mask = per_cpu(irq_enable_mask, cpu);
+	struct irq_domain *domain;
 	u64 pend0;
+	int irq;
 
 	/* copied from Irix intpend0() */
 	pend0 = LOCAL_HUB_L(PI_INT_PEND0);
@@ -276,7 +210,14 @@ static void ip27_do_irq_mask0(struct irq_desc *desc)
 		generic_smp_call_function_interrupt();
 	} else
 #endif
-		generic_handle_irq(__ffs(pend0) + IP27_HUB_IRQ_BASE);
+	{
+		domain = irq_desc_get_handler_data(desc);
+		irq = irq_linear_revmap(domain, __ffs(pend0));
+		if (irq)
+			generic_handle_irq(irq);
+		else
+			spurious_interrupt();
+	}
 
 	LOCAL_HUB_L(PI_INT_PEND0);
 }
@@ -285,7 +226,9 @@ static void ip27_do_irq_mask1(struct irq_desc *desc)
 {
 	cpuid_t cpu = smp_processor_id();
 	unsigned long *mask = per_cpu(irq_enable_mask, cpu);
+	struct irq_domain *domain;
 	u64 pend1;
+	int irq;
 
 	/* copied from Irix intpend0() */
 	pend1 = LOCAL_HUB_L(PI_INT_PEND1);
@@ -294,7 +237,12 @@ static void ip27_do_irq_mask1(struct irq_desc *desc)
 	if (!pend1)
 		return;
 
-	generic_handle_irq(__ffs(pend1) + IP27_HUB_IRQ_BASE + 64);
+	domain = irq_desc_get_handler_data(desc);
+	irq = irq_linear_revmap(domain, __ffs(pend1) + 64);
+	if (irq)
+		generic_handle_irq(irq);
+	else
+		spurious_interrupt();
 
 	LOCAL_HUB_L(PI_INT_PEND1);
 }
@@ -325,11 +273,41 @@ void install_ipi(void)
 
 void __init arch_init_irq(void)
 {
+	struct irq_domain *domain;
+	struct fwnode_handle *fn;
+	int i;
+
 	mips_cpu_irq_init();
-	ip27_hub_irq_init();
+
+	/*
+	 * Some interrupts are reserved by hardware or by software convention.
+	 * Mark these as reserved right away so they won't be used accidentally
+	 * later.
+	 */
+	for (i = 0; i <= BASE_PCI_IRQ; i++)
+		set_bit(i, hub_irq_map);
+
+	set_bit(IP_PEND0_6_63, hub_irq_map);
+
+	for (i = NI_BRDCAST_ERR_A; i <= MSC_PANIC_INTR; i++)
+		set_bit(i, hub_irq_map);
+
+	fn = irq_domain_alloc_named_fwnode("HUB");
+	WARN_ON(fn == NULL);
+	if (!fn)
+		return;
+	domain = irq_domain_create_linear(fn, IP27_HUB_IRQ_COUNT,
+					  &hub_domain_ops, NULL);
+	WARN_ON(domain == NULL);
+	if (!domain)
+		return;
+
+	irq_set_default_host(domain);
 
 	irq_set_percpu_devid(IP27_HUB_PEND0_IRQ);
-	irq_set_chained_handler(IP27_HUB_PEND0_IRQ, ip27_do_irq_mask0);
+	irq_set_chained_handler_and_data(IP27_HUB_PEND0_IRQ, ip27_do_irq_mask0,
+					 domain);
 	irq_set_percpu_devid(IP27_HUB_PEND1_IRQ);
-	irq_set_chained_handler(IP27_HUB_PEND1_IRQ, ip27_do_irq_mask1);
+	irq_set_chained_handler_and_data(IP27_HUB_PEND1_IRQ, ip27_do_irq_mask1,
+					 domain);
 }

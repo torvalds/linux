@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config 64BIT
 	bool "64-bit kernel" if "$(ARCH)" = "sparc"
 	default "$(ARCH)" = "sparc64"
@@ -92,6 +93,7 @@ config SPARC64
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_HAS_PTE_SPECIAL
 	select PCI_DOMAINS if PCI
+	select ARCH_HAS_GIGANTIC_PAGE
 
 config ARCH_DEFCONFIG
 	string

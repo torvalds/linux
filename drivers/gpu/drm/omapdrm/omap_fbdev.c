@@ -183,13 +183,9 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	fbdev->fb = fb;
 	helper->fb = fb;
 
-	fbi->par = helper;
 	fbi->fbops = &omap_fb_ops;
 
-	strcpy(fbi->fix.id, MODULE_NAME);
-
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(fbi, helper, sizes);
 
 	dev->mode_config.fb_base = dma_addr;
 

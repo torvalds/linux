@@ -468,7 +468,7 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 	if (err)
 		return err;
 
-	rq = i915_request_alloc(i915->engine[RCS], i915->kernel_context);
+	rq = i915_request_alloc(i915->engine[RCS0], i915->kernel_context);
 	if (IS_ERR(rq)) {
 		i915_vma_unpin(vma);
 		return PTR_ERR(rq);
@@ -583,7 +583,7 @@ static int igt_mmap_offset_exhaustion(void *arg)
 	for (loop = 0; loop < 3; loop++) {
 		intel_wakeref_t wakeref;
 
-		if (i915_terminally_wedged(&i915->gpu_error))
+		if (i915_terminally_wedged(i915))
 			break;
 
 		obj = i915_gem_object_create_internal(i915, PAGE_SIZE);

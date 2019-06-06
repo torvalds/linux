@@ -27,8 +27,6 @@
 #include "davinci_vpfe_user.h"
 #include "vpfe_video.h"
 
-#define CEIL(a, b)	(((a) + (b-1)) / (b))
-
 enum ipipe_noise_filter {
 	IPIPE_D2F_1ST = 0,
 	IPIPE_D2F_2ND = 1,

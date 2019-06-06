@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
  *  Copyright (c) 2003-2013  LSI Corporation
  *  Copyright (c) 2013-2016  Avago Technologies
  *  Copyright (c) 2016-2018  Broadcom Inc.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *  Authors: Broadcom Inc.
  *           Sreenivas Bagalkote
@@ -2724,7 +2712,7 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 	do {
 		if ((fw_state == MFI_STATE_FAULT) || atomic_read(&instance->fw_outstanding)) {
 			dev_info(&instance->pdev->dev,
-				"%s:%d waiting_for_outstanding: before issue OCR. FW state = 0x%x, oustanding 0x%x\n",
+				"%s:%d waiting_for_outstanding: before issue OCR. FW state = 0x%x, outstanding 0x%x\n",
 				__func__, __LINE__, fw_state, atomic_read(&instance->fw_outstanding));
 			if (i == 3)
 				goto kill_hba_and_failed;
@@ -4647,7 +4635,7 @@ megasas_ld_list_query(struct megasas_instance *instance, u8 query_type)
  * Return:			0 if DCMD succeeded
  *				 non-zero if failed
  */
-int
+static int
 megasas_host_device_list_query(struct megasas_instance *instance,
 			       bool is_probe)
 {

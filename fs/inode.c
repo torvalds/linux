@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 1997 Linus Torvalds
  * (C) 1999 Andrea Arcangeli <andrea@suse.de> (dynamic inode allocation)
@@ -202,12 +203,28 @@ out:
 }
 EXPORT_SYMBOL(inode_init_always);
 
+void free_inode_nonrcu(struct inode *inode)
+{
+	kmem_cache_free(inode_cachep, inode);
+}
+EXPORT_SYMBOL(free_inode_nonrcu);
+
+static void i_callback(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+	if (inode->free_inode)
+		inode->free_inode(inode);
+	else
+		free_inode_nonrcu(inode);
+}
+
 static struct inode *alloc_inode(struct super_block *sb)
 {
+	const struct super_operations *ops = sb->s_op;
 	struct inode *inode;
 
-	if (sb->s_op->alloc_inode)
-		inode = sb->s_op->alloc_inode(sb);
+	if (ops->alloc_inode)
+		inode = ops->alloc_inode(sb);
 	else
 		inode = kmem_cache_alloc(inode_cachep, GFP_KERNEL);
 
@@ -215,21 +232,18 @@ static struct inode *alloc_inode(struct super_block *sb)
 		return NULL;
 
 	if (unlikely(inode_init_always(sb, inode))) {
-		if (inode->i_sb->s_op->destroy_inode)
-			inode->i_sb->s_op->destroy_inode(inode);
-		else
-			kmem_cache_free(inode_cachep, inode);
+		if (ops->destroy_inode) {
+			ops->destroy_inode(inode);
+			if (!ops->free_inode)
+				return NULL;
+		}
+		inode->free_inode = ops->free_inode;
+		i_callback(&inode->i_rcu);
 		return NULL;
 	}
 
 	return inode;
 }
-
-void free_inode_nonrcu(struct inode *inode)
-{
-	kmem_cache_free(inode_cachep, inode);
-}
-EXPORT_SYMBOL(free_inode_nonrcu);
 
 void __destroy_inode(struct inode *inode)
 {
@@ -253,20 +267,19 @@ void __destroy_inode(struct inode *inode)
 }
 EXPORT_SYMBOL(__destroy_inode);
 
-static void i_callback(struct rcu_head *head)
-{
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	kmem_cache_free(inode_cachep, inode);
-}
-
 static void destroy_inode(struct inode *inode)
 {
+	const struct super_operations *ops = inode->i_sb->s_op;
+
 	BUG_ON(!list_empty(&inode->i_lru));
 	__destroy_inode(inode);
-	if (inode->i_sb->s_op->destroy_inode)
-		inode->i_sb->s_op->destroy_inode(inode);
-	else
-		call_rcu(&inode->i_rcu, i_callback);
+	if (ops->destroy_inode) {
+		ops->destroy_inode(inode);
+		if (!ops->free_inode)
+			return;
+	}
+	inode->free_inode = ops->free_inode;
+	call_rcu(&inode->i_rcu, i_callback);
 }
 
 /**
@@ -1601,7 +1614,7 @@ EXPORT_SYMBOL(bmap);
  * passed since the last atime update.
  */
 static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
-			     struct timespec now)
+			     struct timespec64 now)
 {
 
 	if (!(mnt->mnt_flags & MNT_RELATIME))
@@ -1702,7 +1715,7 @@ bool atime_needs_update(const struct path *path, struct inode *inode)
 
 	now = current_time(inode);
 
-	if (!relatime_need_update(mnt, inode, timespec64_to_timespec(now)))
+	if (!relatime_need_update(mnt, inode, now))
 		return false;
 
 	if (timespec64_equal(&inode->i_atime, &now))

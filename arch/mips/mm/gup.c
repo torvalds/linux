@@ -235,7 +235,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
  * get_user_pages_fast() - pin user pages in memory
  * @start:	starting user address
  * @nr_pages:	number of pages from start to pin
- * @write:	whether pages will be written to
+ * @gup_flags:	flags modifying pin behaviour
  * @pages:	array that receives pointers to the pages pinned.
  *		Should be at least nr_pages long.
  *
@@ -247,8 +247,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
  * requested. If nr_pages is 0 or negative, returns 0. If no pages
  * were pinned, returns -errno.
  */
-int get_user_pages_fast(unsigned long start, int nr_pages, int write,
-			struct page **pages)
+int get_user_pages_fast(unsigned long start, int nr_pages,
+			unsigned int gup_flags, struct page **pages)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long addr, len, end;
@@ -273,7 +273,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none(pgd))
 			goto slow;
-		if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
+		if (!gup_pud_range(pgd, addr, next, gup_flags & FOLL_WRITE,
+				   pages, &nr))
 			goto slow;
 	} while (pgdp++, addr = next, addr != end);
 	local_irq_enable();
@@ -289,7 +290,7 @@ slow_irqon:
 	pages += nr;
 
 	ret = get_user_pages_unlocked(start, (end - start) >> PAGE_SHIFT,
-				      pages, write ? FOLL_WRITE : 0);
+				      pages, gup_flags);
 
 	/* Have to be a bit careful with return values */
 	if (nr > 0) {

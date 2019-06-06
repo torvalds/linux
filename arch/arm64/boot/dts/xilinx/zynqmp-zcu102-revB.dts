@@ -21,6 +21,7 @@
 		ti,rx-internal-delay = <0x8>;
 		ti,tx-internal-delay = <0xa>;
 		ti,fifo-depth = <0x1>;
+		ti,dp83867-rxctrl-strap-quirk;
 	};
 	/* Cleanup from RevA */
 	/delete-node/ phy@21;

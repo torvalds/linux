@@ -21,7 +21,12 @@
 #include <asm/asm.h>
 
 #ifdef CONFIG_GENERIC_BUG
-#define __BUG_INSN	_AC(0x00100073, UL) /* ebreak */
+#define __INSN_LENGTH_MASK  _UL(0x3)
+#define __INSN_LENGTH_32    _UL(0x3)
+#define __COMPRESSED_INSN_MASK	_UL(0xffff)
+
+#define __BUG_INSN_32	_UL(0x00100073) /* ebreak */
+#define __BUG_INSN_16	_UL(0x9002) /* c.ebreak */
 
 #ifndef __ASSEMBLY__
 typedef u32 bug_insn_t;
@@ -38,37 +43,45 @@ typedef u32 bug_insn_t;
 #define __BUG_ENTRY			\
 	__BUG_ENTRY_ADDR "\n\t"		\
 	__BUG_ENTRY_FILE "\n\t"		\
-	RISCV_SHORT " %1"
+	RISCV_SHORT " %1\n\t"		\
+	RISCV_SHORT " %2"
 #else
 #define __BUG_ENTRY			\
-	__BUG_ENTRY_ADDR
+	__BUG_ENTRY_ADDR "\n\t"		\
+	RISCV_SHORT " %2"
 #endif
 
-#define BUG()							\
+#define __BUG_FLAGS(flags)					\
 do {								\
 	__asm__ __volatile__ (					\
 		"1:\n\t"					\
 			"ebreak\n"				\
-			".pushsection __bug_table,\"a\"\n\t"	\
+			".pushsection __bug_table,\"aw\"\n\t"	\
 		"2:\n\t"					\
 			__BUG_ENTRY "\n\t"			\
-			".org 2b + %2\n\t"			\
+			".org 2b + %3\n\t"                      \
 			".popsection"				\
 		:						\
 		: "i" (__FILE__), "i" (__LINE__),		\
-		  "i" (sizeof(struct bug_entry)));		\
-	unreachable();						\
+		  "i" (flags),					\
+		  "i" (sizeof(struct bug_entry)));              \
 } while (0)
+
 #endif /* !__ASSEMBLY__ */
 #else /* CONFIG_GENERIC_BUG */
 #ifndef __ASSEMBLY__
-#define BUG()							\
-do {								\
+#define __BUG_FLAGS(flags) do {					\
 	__asm__ __volatile__ ("ebreak\n");			\
-	unreachable();						\
 } while (0)
 #endif /* !__ASSEMBLY__ */
 #endif /* CONFIG_GENERIC_BUG */
+
+#define BUG() do {						\
+	__BUG_FLAGS(0);						\
+	unreachable();						\
+} while (0)
+
+#define __WARN_FLAGS(flags) __BUG_FLAGS(BUGFLAG_WARNING|(flags))
 
 #define HAVE_ARCH_BUG
 

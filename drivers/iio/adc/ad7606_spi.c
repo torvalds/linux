@@ -53,6 +53,7 @@ static const struct spi_device_id ad7606_id_table[] = {
 	{ "ad7606-4", ID_AD7606_4 },
 	{ "ad7606-6", ID_AD7606_6 },
 	{ "ad7606-8", ID_AD7606_8 },
+	{ "ad7616",   ID_AD7616 },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad7606_id_table);
@@ -62,6 +63,7 @@ static const struct of_device_id ad7606_of_match[] = {
 	{ .compatible = "adi,ad7606-4" },
 	{ .compatible = "adi,ad7606-6" },
 	{ .compatible = "adi,ad7606-8" },
+	{ .compatible = "adi,ad7616" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ad7606_of_match);

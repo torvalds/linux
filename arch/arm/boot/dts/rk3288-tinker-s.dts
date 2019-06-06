@@ -23,3 +23,8 @@
 	mmc-ddr-1_8v;
 	status = "okay";
 };
+
+&hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_cec_c0>;
+};

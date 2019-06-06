@@ -13,6 +13,7 @@ struct dsa_mv88e6xxx_pdata {
 	unsigned int enabled_ports;
 	struct net_device *netdev;
 	u32 eeprom_len;
+	int irq;
 };
 
 #endif

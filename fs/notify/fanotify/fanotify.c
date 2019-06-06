@@ -367,7 +367,7 @@ static __kernel_fsid_t fanotify_get_fsid(struct fsnotify_iter_info *iter_info)
 static int fanotify_handle_event(struct fsnotify_group *group,
 				 struct inode *inode,
 				 u32 mask, const void *data, int data_type,
-				 const unsigned char *file_name, u32 cookie,
+				 const struct qstr *file_name, u32 cookie,
 				 struct fsnotify_iter_info *iter_info)
 {
 	int ret = 0;

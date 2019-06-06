@@ -360,7 +360,6 @@ static int gsta_probe(struct platform_device *dev)
 	struct pci_dev *pdev;
 	struct sta2x11_gpio_pdata *gpio_pdata;
 	struct gsta_gpio *chip;
-	struct resource *res;
 
 	pdev = *(struct pci_dev **)dev_get_platdata(&dev->dev);
 	gpio_pdata = dev_get_platdata(&pdev->dev);
@@ -369,13 +368,11 @@ static int gsta_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "no gpio config\n");
 	pr_debug("gpio config: %p\n", gpio_pdata);
 
-	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-
 	chip = devm_kzalloc(&dev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 	chip->dev = &dev->dev;
-	chip->reg_base = devm_ioremap_resource(&dev->dev, res);
+	chip->reg_base = devm_platform_ioremap_resource(dev, 0);
 	if (IS_ERR(chip->reg_base))
 		return PTR_ERR(chip->reg_base);
 

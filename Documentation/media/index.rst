@@ -18,7 +18,7 @@ Linux Media Subsystem Documentation
    v4l-drivers/index
    cec-drivers/index
 
-.. only::  subproject
+.. only:: html and subproject
 
    Indices
    =======

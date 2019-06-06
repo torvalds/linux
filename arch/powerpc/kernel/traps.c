@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 1995-1996  Gary Thomas (gdt@linuxppc.org)
  *  Copyright 2007-2010 Freescale Semiconductor, Inc.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  *  Modified by Cort Dougan (cort@cs.nmt.edu)
  *  and Paul Mackerras (paulus@samba.org)
@@ -179,7 +175,7 @@ extern void panic_flush_kmsg_end(void)
 	kmsg_dump(KMSG_DUMP_PANIC);
 	bust_spinlocks(0);
 	debug_locks_off();
-	console_flush_on_panic();
+	console_flush_on_panic(CONSOLE_FLUSH_PENDING);
 }
 
 static unsigned long oops_begin(struct pt_regs *regs)
@@ -2088,6 +2084,10 @@ void SPEFloatingPointException(struct pt_regs *regs)
 	int code = FPE_FLTUNK;
 	int err;
 
+	/* We restore the interrupt state now */
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
+
 	flush_spe_to_thread(current);
 
 	spefscr = current->thread.spefscr;
@@ -2132,6 +2132,10 @@ void SPEFloatingPointRoundException(struct pt_regs *regs)
 {
 	extern int speround_handler(struct pt_regs *regs);
 	int err;
+
+	/* We restore the interrupt state now */
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
 
 	preempt_disable();
 	if (regs->msr & MSR_SPE)

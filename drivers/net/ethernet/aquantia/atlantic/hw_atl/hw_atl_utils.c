@@ -545,7 +545,7 @@ void hw_atl_utils_mpi_read_stats(struct aq_hw_s *self,
 		pmbox->stats.ubtc = pmbox->stats.uptc * mtu;
 		pmbox->stats.dpc = atomic_read(&self->dpc);
 	} else {
-		pmbox->stats.dpc = hw_atl_reg_rx_dma_stat_counter7get(self);
+		pmbox->stats.dpc = hw_atl_rpb_rx_dma_drop_pkt_cnt_get(self);
 	}
 
 err_exit:;
@@ -763,6 +763,7 @@ static int hw_atl_fw1x_deinit(struct aq_hw_s *self)
 int hw_atl_utils_update_stats(struct aq_hw_s *self)
 {
 	struct hw_atl_utils_mbox mbox;
+	struct aq_stats_s *cs = &self->curr_stats;
 
 	hw_atl_utils_mpi_read_stats(self, &mbox);
 
@@ -789,10 +790,11 @@ int hw_atl_utils_update_stats(struct aq_hw_s *self)
 		AQ_SDELTA(dpc);
 	}
 #undef AQ_SDELTA
-	self->curr_stats.dma_pkt_rc = hw_atl_stats_rx_dma_good_pkt_counterlsw_get(self);
-	self->curr_stats.dma_pkt_tc = hw_atl_stats_tx_dma_good_pkt_counterlsw_get(self);
-	self->curr_stats.dma_oct_rc = hw_atl_stats_rx_dma_good_octet_counterlsw_get(self);
-	self->curr_stats.dma_oct_tc = hw_atl_stats_tx_dma_good_octet_counterlsw_get(self);
+
+	cs->dma_pkt_rc = hw_atl_stats_rx_dma_good_pkt_counter_get(self);
+	cs->dma_pkt_tc = hw_atl_stats_tx_dma_good_pkt_counter_get(self);
+	cs->dma_oct_rc = hw_atl_stats_rx_dma_good_octet_counter_get(self);
+	cs->dma_oct_tc = hw_atl_stats_tx_dma_good_octet_counter_get(self);
 
 	memcpy(&self->last_stats, &mbox.stats, sizeof(mbox.stats));
 
@@ -960,6 +962,7 @@ const struct aq_fw_ops aq_fw_1x_ops = {
 	.set_state = hw_atl_utils_mpi_set_state,
 	.update_link_status = hw_atl_utils_mpi_get_link_status,
 	.update_stats = hw_atl_utils_update_stats,
+	.get_phy_temp = NULL,
 	.set_power = aq_fw1x_set_power,
 	.set_eee_rate = NULL,
 	.get_eee_rate = NULL,

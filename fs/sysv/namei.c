@@ -28,21 +28,6 @@ static int add_nondir(struct dentry *dentry, struct inode *inode)
 	return err;
 }
 
-static int sysv_hash(const struct dentry *dentry, struct qstr *qstr)
-{
-	/* Truncate the name in place, avoids having to define a compare
-	   function. */
-	if (qstr->len > SYSV_NAMELEN) {
-		qstr->len = SYSV_NAMELEN;
-		qstr->hash = full_name_hash(dentry, qstr->name, qstr->len);
-	}
-	return 0;
-}
-
-const struct dentry_operations sysv_dentry_operations = {
-	.d_hash		= sysv_hash,
-};
-
 static struct dentry *sysv_lookup(struct inode * dir, struct dentry * dentry, unsigned int flags)
 {
 	struct inode * inode = NULL;

@@ -293,7 +293,6 @@ mediatek_gpio_bank_probe(struct device *dev,
 static int
 mediatek_gpio_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct mtk *mtk;
@@ -304,7 +303,7 @@ mediatek_gpio_probe(struct platform_device *pdev)
 	if (!mtk)
 		return -ENOMEM;
 
-	mtk->base = devm_ioremap_resource(dev, res);
+	mtk->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mtk->base))
 		return PTR_ERR(mtk->base);
 

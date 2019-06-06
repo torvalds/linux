@@ -12,6 +12,11 @@ Required properties:
   See ../clocks/clock-bindings.txt for details.
 
 
+Optional properties:
+- cts-override : Override the CTS modem status signal. This signal will
+  always be reported as active instead of being obtained from the modem status
+  register. Define this if your serial port does not use this pin
+
 Example:
 	uart@e0000000 {
 		compatible = "cdns,uart-r1p8";

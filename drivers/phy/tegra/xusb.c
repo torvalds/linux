@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2014-2016, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -66,6 +66,12 @@ static const struct of_device_id tegra_xusb_padctl_of_match[] = {
 	{
 		.compatible = "nvidia,tegra210-xusb-padctl",
 		.data = &tegra210_xusb_padctl_soc,
+	},
+#endif
+#if defined(CONFIG_ARCH_TEGRA_186_SOC)
+	{
+		.compatible = "nvidia,tegra186-xusb-padctl",
+		.data = &tegra186_xusb_padctl_soc,
 	},
 #endif
 	{ }
@@ -313,6 +319,10 @@ static void tegra_xusb_lane_program(struct tegra_xusb_lane *lane)
 	const struct tegra_xusb_lane_soc *soc = lane->soc;
 	u32 value;
 
+	/* skip single function lanes */
+	if (soc->num_funcs < 2)
+		return;
+
 	/* choose function */
 	value = padctl_readl(padctl, soc->offset);
 	value &= ~(soc->mask << soc->shift);
@@ -542,12 +552,33 @@ static void tegra_xusb_port_unregister(struct tegra_xusb_port *port)
 	device_unregister(&port->dev);
 }
 
+static const char *const modes[] = {
+	[USB_DR_MODE_UNKNOWN] = "",
+	[USB_DR_MODE_HOST] = "host",
+	[USB_DR_MODE_PERIPHERAL] = "peripheral",
+	[USB_DR_MODE_OTG] = "otg",
+};
+
 static int tegra_xusb_usb2_port_parse_dt(struct tegra_xusb_usb2_port *usb2)
 {
 	struct tegra_xusb_port *port = &usb2->base;
 	struct device_node *np = port->dev.of_node;
+	const char *mode;
 
 	usb2->internal = of_property_read_bool(np, "nvidia,internal");
+
+	if (!of_property_read_string(np, "mode", &mode)) {
+		int err = match_string(modes, ARRAY_SIZE(modes), mode);
+		if (err < 0) {
+			dev_err(&port->dev, "invalid value %s for \"mode\"\n",
+				mode);
+			usb2->mode = USB_DR_MODE_UNKNOWN;
+		} else {
+			usb2->mode = err;
+		}
+	} else {
+		usb2->mode = USB_DR_MODE_HOST;
+	}
 
 	usb2->supply = devm_regulator_get(&port->dev, "vbus");
 	return PTR_ERR_OR_ZERO(usb2->supply);
@@ -839,6 +870,7 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 	struct tegra_xusb_padctl *padctl;
 	const struct of_device_id *match;
 	struct resource *res;
+	unsigned int i;
 	int err;
 
 	/* for backwards compatibility with old device trees */
@@ -876,14 +908,38 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 		goto remove;
 	}
 
+	padctl->supplies = devm_kcalloc(&pdev->dev, padctl->soc->num_supplies,
+					sizeof(*padctl->supplies), GFP_KERNEL);
+	if (!padctl->supplies) {
+		err = -ENOMEM;
+		goto remove;
+	}
+
+	for (i = 0; i < padctl->soc->num_supplies; i++)
+		padctl->supplies[i].supply = padctl->soc->supply_names[i];
+
+	err = devm_regulator_bulk_get(&pdev->dev, padctl->soc->num_supplies,
+				      padctl->supplies);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to get regulators: %d\n", err);
+		goto remove;
+	}
+
 	err = reset_control_deassert(padctl->rst);
 	if (err < 0)
 		goto remove;
 
+	err = regulator_bulk_enable(padctl->soc->num_supplies,
+				    padctl->supplies);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to enable supplies: %d\n", err);
+		goto reset;
+	}
+
 	err = tegra_xusb_setup_pads(padctl);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to setup pads: %d\n", err);
-		goto reset;
+		goto power_down;
 	}
 
 	err = tegra_xusb_setup_ports(padctl);
@@ -896,6 +952,8 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 
 remove_pads:
 	tegra_xusb_remove_pads(padctl);
+power_down:
+	regulator_bulk_disable(padctl->soc->num_supplies, padctl->supplies);
 reset:
 	reset_control_assert(padctl->rst);
 remove:
@@ -910,6 +968,11 @@ static int tegra_xusb_padctl_remove(struct platform_device *pdev)
 
 	tegra_xusb_remove_ports(padctl);
 	tegra_xusb_remove_pads(padctl);
+
+	err = regulator_bulk_disable(padctl->soc->num_supplies,
+				     padctl->supplies);
+	if (err < 0)
+		dev_err(&pdev->dev, "failed to disable supplies: %d\n", err);
 
 	err = reset_control_assert(padctl->rst);
 	if (err < 0)

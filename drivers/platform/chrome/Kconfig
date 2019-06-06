@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Platform support for Chrome OS hardware (Chromebooks and Chromeboxes)
 #
@@ -58,6 +59,18 @@ config CROS_EC_I2C
 	  EC through an I2C bus. This uses a simple byte-level protocol with
 	  a checksum. Failing accesses will be retried three times to
 	  improve reliability.
+
+config CROS_EC_RPMSG
+	tristate "ChromeOS Embedded Controller (rpmsg)"
+	depends on MFD_CROS_EC && RPMSG && OF
+	help
+	  If you say Y here, you get support for talking to the ChromeOS EC
+	  through rpmsg. This uses a simple byte-level protocol with a
+	  checksum. Also since there's no addition EC-to-host interrupt, this
+	  use a byte in message to distinguish host event from host command.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_rpmsg.
 
 config CROS_EC_SPI
 	tristate "ChromeOS Embedded Controller (SPI)"
@@ -151,6 +164,18 @@ config CROS_EC_SYSFS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_sysfs.
+
+config CROS_USBPD_LOGGER
+	tristate "Logging driver for USB PD charger"
+	depends on CHARGER_CROS_USBPD
+	default y
+	select RTC_LIB
+	help
+	  This option enables support for logging event data for the USB PD charger
+	  available in the Embedded Controller on ChromeOS systems.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_usbpd_logger.
 
 source "drivers/platform/chrome/wilco_ec/Kconfig"
 

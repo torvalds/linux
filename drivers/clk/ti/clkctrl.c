@@ -137,9 +137,6 @@ static int _omap4_clkctrl_clk_enable(struct clk_hw *hw)
 	int ret;
 	union omap4_timeout timeout = { 0 };
 
-	if (!clk->enable_bit)
-		return 0;
-
 	if (clk->clkdm) {
 		ret = ti_clk_ll_ops->clkdm_clk_enable(clk->clkdm, hw->clk);
 		if (ret) {
@@ -150,6 +147,9 @@ static int _omap4_clkctrl_clk_enable(struct clk_hw *hw)
 			return ret;
 		}
 	}
+
+	if (!clk->enable_bit)
+		return 0;
 
 	val = ti_clk_ll_ops->clk_readl(&clk->enable_reg);
 
@@ -179,7 +179,7 @@ static void _omap4_clkctrl_clk_disable(struct clk_hw *hw)
 	union omap4_timeout timeout = { 0 };
 
 	if (!clk->enable_bit)
-		return;
+		goto exit;
 
 	val = ti_clk_ll_ops->clk_readl(&clk->enable_reg);
 
@@ -446,6 +446,7 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	u32 addr;
 	int ret;
 	char *c;
+	u16 soc_mask = 0;
 
 	if (!(ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT) &&
 	    of_node_name_eq(node, "clk"))
@@ -469,6 +470,13 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 		else
 			data = dra7_clkctrl_data;
 	}
+
+	if (of_machine_is_compatible("ti,dra72"))
+		soc_mask = CLKF_SOC_DRA72;
+	if (of_machine_is_compatible("ti,dra74"))
+		soc_mask = CLKF_SOC_DRA74;
+	if (of_machine_is_compatible("ti,dra76"))
+		soc_mask = CLKF_SOC_DRA76;
 #endif
 #ifdef CONFIG_SOC_AM33XX
 	if (of_machine_is_compatible("ti,am33xx")) {
@@ -500,6 +508,9 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	if (of_machine_is_compatible("ti,dm816"))
 		data = dm816_clkctrl_data;
 #endif
+
+	if (ti_clk_get_features()->flags & TI_CLK_DEVICE_TYPE_GP)
+		soc_mask |= CLKF_SOC_NONSEC;
 
 	while (data->addr) {
 		if (addr == data->addr)
@@ -562,6 +573,12 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	reg_data = data->regs;
 
 	while (reg_data->parent) {
+		if ((reg_data->flags & CLKF_SOC_MASK) &&
+		    (reg_data->flags & soc_mask) == 0) {
+			reg_data++;
+			continue;
+		}
+
 		hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 		if (!hw)
 			return;

@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* auditfilter.c -- filtering of audit events
  *
  * Copyright 2003-2004 Red Hat, Inc.
  * Copyright 2005 Hewlett-Packard Development Company, L.P.
  * Copyright 2005 IBM Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1114,22 +1101,24 @@ int audit_rule_change(int type, int seq, void *data, size_t datasz)
 	int err = 0;
 	struct audit_entry *entry;
 
-	entry = audit_data_to_entry(data, datasz);
-	if (IS_ERR(entry))
-		return PTR_ERR(entry);
-
 	switch (type) {
 	case AUDIT_ADD_RULE:
+		entry = audit_data_to_entry(data, datasz);
+		if (IS_ERR(entry))
+			return PTR_ERR(entry);
 		err = audit_add_rule(entry);
 		audit_log_rule_change("add_rule", &entry->rule, !err);
 		break;
 	case AUDIT_DEL_RULE:
+		entry = audit_data_to_entry(data, datasz);
+		if (IS_ERR(entry))
+			return PTR_ERR(entry);
 		err = audit_del_rule(entry);
 		audit_log_rule_change("remove_rule", &entry->rule, !err);
 		break;
 	default:
-		err = -EINVAL;
 		WARN_ON(1);
+		return -EINVAL;
 	}
 
 	if (err || type == AUDIT_DEL_RULE) {
@@ -1290,12 +1279,12 @@ int parent_len(const char *path)
  * @parentlen:	length of the parent if known. Passing in AUDIT_NAME_FULL
  * 		here indicates that we must compute this value.
  */
-int audit_compare_dname_path(const char *dname, const char *path, int parentlen)
+int audit_compare_dname_path(const struct qstr *dname, const char *path, int parentlen)
 {
 	int dlen, pathlen;
 	const char *p;
 
-	dlen = strlen(dname);
+	dlen = dname->len;
 	pathlen = strlen(path);
 	if (pathlen < dlen)
 		return 1;
@@ -1306,7 +1295,7 @@ int audit_compare_dname_path(const char *dname, const char *path, int parentlen)
 
 	p = path + parentlen;
 
-	return strncmp(p, dname, dlen);
+	return strncmp(p, dname->name, dlen);
 }
 
 int audit_filter(int msgtype, unsigned int listtype)
@@ -1315,8 +1304,6 @@ int audit_filter(int msgtype, unsigned int listtype)
 	int ret = 1; /* Audit by default */
 
 	rcu_read_lock();
-	if (list_empty(&audit_filter_list[listtype]))
-		goto unlock_and_return;
 	list_for_each_entry_rcu(e, &audit_filter_list[listtype], list) {
 		int i, result = 0;
 

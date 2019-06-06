@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  * Copyright (C) Alan Cox GW4PTS (alan@lxorguk.ukuu.org.uk)
@@ -1301,12 +1298,6 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		return put_user(amount, (unsigned int __user *) argp);
 	}
 
-	case SIOCGSTAMP:
-		return sock_get_timestamp(sk, (struct timeval __user *) argp);
-
-	case SIOCGSTAMPNS:
-		return sock_get_timestampns(sk, (struct timespec __user *) argp);
-
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
 	case SIOCGIFDSTADDR:
@@ -1474,6 +1465,7 @@ static const struct proto_ops rose_proto_ops = {
 	.getname	=	rose_getname,
 	.poll		=	datagram_poll,
 	.ioctl		=	rose_ioctl,
+	.gettstamp	=	sock_gettstamp,
 	.listen		=	rose_listen,
 	.shutdown	=	sock_no_shutdown,
 	.setsockopt	=	rose_setsockopt,

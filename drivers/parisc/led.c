@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Chassis LCD/LED driver for HP-PARISC workstations
  *
@@ -5,11 +6,6 @@
  *      (c) Copyright 2000 Helge Deller <hdeller@redhat.com>
  *      (c) Copyright 2001-2009 Helge Deller <deller@gmx.de>
  *      (c) Copyright 2001 Randolph Chung <tausq@debian.org>
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
  *
  * TODO:
  *	- speed-up calculations with inlined assembler
@@ -568,6 +564,9 @@ int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long d
 		break;
 
 	case DISPLAY_MODEL_LASI:
+		/* Skip to register LED in QEMU */
+		if (running_on_qemu)
+			return 1;
 		LED_DATA_REG = data_reg;
 		led_func_ptr = led_LASI_driver;
 		printk(KERN_INFO "LED display at %lx registered\n", LED_DATA_REG);

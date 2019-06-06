@@ -2521,7 +2521,8 @@ struct dvb_frontend *dib9000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, c
 	dibx000_init_i2c_master(&st->i2c_master, DIB7000MC, st->i2c.i2c_adap, st->i2c.i2c_addr);
 
 	st->tuner_adap.dev.parent = i2c_adap->dev.parent;
-	strncpy(st->tuner_adap.name, "DIB9000_FW TUNER ACCESS", sizeof(st->tuner_adap.name));
+	strscpy(st->tuner_adap.name, "DIB9000_FW TUNER ACCESS",
+		sizeof(st->tuner_adap.name));
 	st->tuner_adap.algo = &dib9000_tuner_algo;
 	st->tuner_adap.algo_data = NULL;
 	i2c_set_adapdata(&st->tuner_adap, st);
@@ -2529,7 +2530,8 @@ struct dvb_frontend *dib9000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, c
 		goto error;
 
 	st->component_bus.dev.parent = i2c_adap->dev.parent;
-	strncpy(st->component_bus.name, "DIB9000_FW COMPONENT BUS ACCESS", sizeof(st->component_bus.name));
+	strscpy(st->component_bus.name, "DIB9000_FW COMPONENT BUS ACCESS",
+		sizeof(st->component_bus.name));
 	st->component_bus.algo = &dib9000_component_bus_algo;
 	st->component_bus.algo_data = NULL;
 	st->component_bus_speed = 340;

@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *
+ * Copyright (c) 2003-2018, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2018, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -36,6 +27,12 @@
 
 #include "mei_dev.h"
 #include "client.h"
+
+static struct class *mei_class;
+static dev_t mei_devt;
+#define MEI_MAX_DEVS  MINORMASK
+static DEFINE_MUTEX(mei_minor_lock);
+static DEFINE_IDR(mei_idr);
 
 /**
  * mei_open - the open function
@@ -838,12 +835,65 @@ static ssize_t fw_ver_show(struct device *device,
 }
 static DEVICE_ATTR_RO(fw_ver);
 
+/**
+ * dev_state_show - display device state
+ *
+ * @device: device pointer
+ * @attr: attribute pointer
+ * @buf:  char out buffer
+ *
+ * Return: number of the bytes printed into buf or error
+ */
+static ssize_t dev_state_show(struct device *device,
+			      struct device_attribute *attr, char *buf)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	enum mei_dev_state dev_state;
+
+	mutex_lock(&dev->device_lock);
+	dev_state = dev->dev_state;
+	mutex_unlock(&dev->device_lock);
+
+	return sprintf(buf, "%s", mei_dev_state_str(dev_state));
+}
+static DEVICE_ATTR_RO(dev_state);
+
+static int match_devt(struct device *dev, const void *data)
+{
+	const dev_t *devt = data;
+
+	return dev->devt == *devt;
+}
+
+/**
+ * dev_set_devstate: set to new device state and notify sysfs file.
+ *
+ * @dev: mei_device
+ * @state: new device state
+ */
+void mei_set_devstate(struct mei_device *dev, enum mei_dev_state state)
+{
+	struct device *clsdev;
+
+	if (dev->dev_state == state)
+		return;
+
+	dev->dev_state = state;
+
+	clsdev = class_find_device(mei_class, NULL, &dev->cdev.dev, match_devt);
+	if (clsdev) {
+		sysfs_notify(&clsdev->kobj, NULL, "dev_state");
+		put_device(clsdev);
+	}
+}
+
 static struct attribute *mei_attrs[] = {
 	&dev_attr_fw_status.attr,
 	&dev_attr_hbm_ver.attr,
 	&dev_attr_hbm_ver_drv.attr,
 	&dev_attr_tx_queue_limit.attr,
 	&dev_attr_fw_ver.attr,
+	&dev_attr_dev_state.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(mei);
@@ -866,12 +916,6 @@ static const struct file_operations mei_fops = {
 	.fasync = mei_fasync,
 	.llseek = no_llseek
 };
-
-static struct class *mei_class;
-static dev_t mei_devt;
-#define MEI_MAX_DEVS  MINORMASK
-static DEFINE_MUTEX(mei_minor_lock);
-static DEFINE_IDR(mei_idr);
 
 /**
  * mei_minor_get - obtain next free device minor number

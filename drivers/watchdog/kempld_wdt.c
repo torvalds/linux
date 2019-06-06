@@ -467,7 +467,7 @@ static int kempld_wdt_probe(struct platform_device *pdev)
 			KEMPLD_WDT_CFG_GLOBAL_LOCK)) {
 		if (!nowayout)
 			dev_warn(dev,
-				"Forcing nowayout - watchdog lock enabled!\n");
+				 "Forcing nowayout - watchdog lock enabled!\n");
 		nowayout = true;
 	}
 
@@ -492,33 +492,15 @@ static int kempld_wdt_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, wdt_data);
-	ret = watchdog_register_device(wdd);
+	watchdog_stop_on_reboot(wdd);
+	watchdog_stop_on_unregister(wdd);
+	ret = devm_watchdog_register_device(dev, wdd);
 	if (ret)
 		return ret;
 
 	dev_info(dev, "Watchdog registered with %ds timeout\n", wdd->timeout);
 
 	return 0;
-}
-
-static void kempld_wdt_shutdown(struct platform_device *pdev)
-{
-	struct kempld_wdt_data *wdt_data = platform_get_drvdata(pdev);
-
-	kempld_wdt_stop(&wdt_data->wdd);
-}
-
-static int kempld_wdt_remove(struct platform_device *pdev)
-{
-	struct kempld_wdt_data *wdt_data = platform_get_drvdata(pdev);
-	struct watchdog_device *wdd = &wdt_data->wdd;
-	int ret = 0;
-
-	if (!nowayout)
-		ret = kempld_wdt_stop(wdd);
-	watchdog_unregister_device(wdd);
-
-	return ret;
 }
 
 #ifdef CONFIG_PM
@@ -567,8 +549,6 @@ static struct platform_driver kempld_wdt_driver = {
 		.name	= "kempld-wdt",
 	},
 	.probe		= kempld_wdt_probe,
-	.remove		= kempld_wdt_remove,
-	.shutdown	= kempld_wdt_shutdown,
 	.suspend	= kempld_wdt_suspend,
 	.resume		= kempld_wdt_resume,
 };

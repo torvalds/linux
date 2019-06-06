@@ -902,8 +902,8 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	 * First try to read MAC address from DT
 	 */
 	mac_addr = of_get_mac_address(np);
-	if (mac_addr) {
-		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+	if (!IS_ERR(mac_addr)) {
+		ether_addr_copy(ndev->dev_addr, mac_addr);
 	} else {
 		struct mpc52xx_fec __iomem *fec = priv->fec;
 

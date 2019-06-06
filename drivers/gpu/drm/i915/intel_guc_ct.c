@@ -140,11 +140,6 @@ static int guc_action_deregister_ct_buffer(struct intel_guc *guc,
 	return err;
 }
 
-static bool ctch_is_open(struct intel_guc_ct_channel *ctch)
-{
-	return ctch->vma != NULL;
-}
-
 static int ctch_init(struct intel_guc *guc,
 		     struct intel_guc_ct_channel *ctch)
 {
@@ -214,25 +209,21 @@ err_out:
 static void ctch_fini(struct intel_guc *guc,
 		      struct intel_guc_ct_channel *ctch)
 {
+	GEM_BUG_ON(ctch->enabled);
+
 	i915_vma_unpin_and_release(&ctch->vma, I915_VMA_RELEASE_MAP);
 }
 
-static int ctch_open(struct intel_guc *guc,
-		     struct intel_guc_ct_channel *ctch)
+static int ctch_enable(struct intel_guc *guc,
+		       struct intel_guc_ct_channel *ctch)
 {
 	u32 base;
 	int err;
 	int i;
 
-	CT_DEBUG_DRIVER("CT: channel %d reopen=%s\n",
-			ctch->owner, yesno(ctch_is_open(ctch)));
+	GEM_BUG_ON(!ctch->vma);
 
-	if (!ctch->vma) {
-		err = ctch_init(guc, ctch);
-		if (unlikely(err))
-			goto err_out;
-		GEM_BUG_ON(!ctch->vma);
-	}
+	GEM_BUG_ON(ctch->enabled);
 
 	/* vma should be already allocated and map'ed */
 	base = intel_guc_ggtt_offset(guc, ctch->vma);
@@ -255,7 +246,7 @@ static int ctch_open(struct intel_guc *guc,
 					    base + PAGE_SIZE/4 * CTB_RECV,
 					    INTEL_GUC_CT_BUFFER_TYPE_RECV);
 	if (unlikely(err))
-		goto err_fini;
+		goto err_out;
 
 	err = guc_action_register_ct_buffer(guc,
 					    base + PAGE_SIZE/4 * CTB_SEND,
@@ -263,23 +254,25 @@ static int ctch_open(struct intel_guc *guc,
 	if (unlikely(err))
 		goto err_deregister;
 
+	ctch->enabled = true;
+
 	return 0;
 
 err_deregister:
 	guc_action_deregister_ct_buffer(guc,
 					ctch->owner,
 					INTEL_GUC_CT_BUFFER_TYPE_RECV);
-err_fini:
-	ctch_fini(guc, ctch);
 err_out:
 	DRM_ERROR("CT: can't open channel %d; err=%d\n", ctch->owner, err);
 	return err;
 }
 
-static void ctch_close(struct intel_guc *guc,
-		       struct intel_guc_ct_channel *ctch)
+static void ctch_disable(struct intel_guc *guc,
+			 struct intel_guc_ct_channel *ctch)
 {
-	GEM_BUG_ON(!ctch_is_open(ctch));
+	GEM_BUG_ON(!ctch->enabled);
+
+	ctch->enabled = false;
 
 	guc_action_deregister_ct_buffer(guc,
 					ctch->owner,
@@ -287,7 +280,6 @@ static void ctch_close(struct intel_guc *guc,
 	guc_action_deregister_ct_buffer(guc,
 					ctch->owner,
 					INTEL_GUC_CT_BUFFER_TYPE_RECV);
-	ctch_fini(guc, ctch);
 }
 
 static u32 ctch_get_next_fence(struct intel_guc_ct_channel *ctch)
@@ -481,7 +473,7 @@ static int ctch_send(struct intel_guc_ct *ct,
 	u32 fence;
 	int err;
 
-	GEM_BUG_ON(!ctch_is_open(ctch));
+	GEM_BUG_ON(!ctch->enabled);
 	GEM_BUG_ON(!len);
 	GEM_BUG_ON(len & ~GUC_CT_MSG_LEN_MASK);
 	GEM_BUG_ON(!response_buf && response_buf_size);
@@ -709,14 +701,15 @@ static void ct_process_request(struct intel_guc_ct *ct,
 			       u32 action, u32 len, const u32 *payload)
 {
 	struct intel_guc *guc = ct_to_guc(ct);
+	int ret;
 
 	CT_DEBUG_DRIVER("CT: request %x %*ph\n", action, 4 * len, payload);
 
 	switch (action) {
 	case INTEL_GUC_ACTION_DEFAULT:
-		if (unlikely(len < 1))
+		ret = intel_guc_to_host_process_recv_msg(guc, payload, len);
+		if (unlikely(ret))
 			goto fail_unexpected;
-		intel_guc_to_host_process_recv_msg(guc, *payload);
 		break;
 
 	default:
@@ -817,7 +810,7 @@ static void ct_process_host_channel(struct intel_guc_ct *ct)
 	u32 msg[GUC_CT_MSG_LEN_MASK + 1]; /* one extra dw for the header */
 	int err = 0;
 
-	if (!ctch_is_open(ctch))
+	if (!ctch->enabled)
 		return;
 
 	do {
@@ -849,6 +842,51 @@ static void intel_guc_to_host_event_handler_ct(struct intel_guc *guc)
 }
 
 /**
+ * intel_guc_ct_init - Init CT communication
+ * @ct: pointer to CT struct
+ *
+ * Allocate memory required for communication via
+ * the CT channel.
+ *
+ * Shall only be called for platforms with HAS_GUC_CT.
+ *
+ * Return: 0 on success, a negative errno code on failure.
+ */
+int intel_guc_ct_init(struct intel_guc_ct *ct)
+{
+	struct intel_guc *guc = ct_to_guc(ct);
+	struct intel_guc_ct_channel *ctch = &ct->host_channel;
+	int err;
+
+	err = ctch_init(guc, ctch);
+	if (unlikely(err)) {
+		DRM_ERROR("CT: can't open channel %d; err=%d\n",
+			  ctch->owner, err);
+		return err;
+	}
+
+	GEM_BUG_ON(!ctch->vma);
+	return 0;
+}
+
+/**
+ * intel_guc_ct_fini - Fini CT communication
+ * @ct: pointer to CT struct
+ *
+ * Deallocate memory required for communication via
+ * the CT channel.
+ *
+ * Shall only be called for platforms with HAS_GUC_CT.
+ */
+void intel_guc_ct_fini(struct intel_guc_ct *ct)
+{
+	struct intel_guc *guc = ct_to_guc(ct);
+	struct intel_guc_ct_channel *ctch = &ct->host_channel;
+
+	ctch_fini(guc, ctch);
+}
+
+/**
  * intel_guc_ct_enable - Enable buffer based command transport.
  * @ct: pointer to CT struct
  *
@@ -865,7 +903,10 @@ int intel_guc_ct_enable(struct intel_guc_ct *ct)
 
 	GEM_BUG_ON(!HAS_GUC_CT(i915));
 
-	err = ctch_open(guc, ctch);
+	if (ctch->enabled)
+		return 0;
+
+	err = ctch_enable(guc, ctch);
 	if (unlikely(err))
 		return err;
 
@@ -890,10 +931,10 @@ void intel_guc_ct_disable(struct intel_guc_ct *ct)
 
 	GEM_BUG_ON(!HAS_GUC_CT(i915));
 
-	if (!ctch_is_open(ctch))
+	if (!ctch->enabled)
 		return;
 
-	ctch_close(guc, ctch);
+	ctch_disable(guc, ctch);
 
 	/* Disable send */
 	guc->send = intel_guc_send_nop;

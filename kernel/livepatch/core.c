@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * core.c - Kernel Live Patching Core
  *
  * Copyright (C) 2014 Seth Jennings <sjenning@redhat.com>
  * Copyright (C) 2014 SUSE
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -419,6 +407,7 @@ static struct attribute *klp_patch_attrs[] = {
 	&force_kobj_attr.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(klp_patch);
 
 static void klp_free_object_dynamic(struct klp_object *obj)
 {
@@ -549,7 +538,7 @@ static void klp_kobj_release_patch(struct kobject *kobj)
 static struct kobj_type klp_ktype_patch = {
 	.release = klp_kobj_release_patch,
 	.sysfs_ops = &kobj_sysfs_ops,
-	.default_attrs = klp_patch_attrs,
+	.default_groups = klp_patch_groups,
 };
 
 static void klp_kobj_release_object(struct kobject *kobj)
@@ -1207,14 +1196,6 @@ void klp_module_going(struct module *mod)
 
 static int __init klp_init(void)
 {
-	int ret;
-
-	ret = klp_check_compiler_support();
-	if (ret) {
-		pr_info("Your compiler is too old; turning off.\n");
-		return -EINVAL;
-	}
-
 	klp_root_kobj = kobject_create_and_add("livepatch", kernel_kobj);
 	if (!klp_root_kobj)
 		return -ENOMEM;

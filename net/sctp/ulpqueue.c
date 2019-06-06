@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -7,22 +8,6 @@
  * Copyright (c) 2001 La Monte H.P. Yarroll
  *
  * This abstraction carries sctp events to the ULP (sockets).
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -116,12 +101,13 @@ int sctp_ulpq_tail_data(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 	event = sctp_ulpq_reasm(ulpq, event);
 
 	/* Do ordering if needed.  */
-	if ((event) && (event->msg_flags & MSG_EOR)) {
+	if (event) {
 		/* Create a temporary list to collect chunks on.  */
 		skb_queue_head_init(&temp);
 		__skb_queue_tail(&temp, sctp_event2skb(event));
 
-		event = sctp_ulpq_order(ulpq, event);
+		if (event->msg_flags & MSG_EOR)
+			event = sctp_ulpq_order(ulpq, event);
 	}
 
 	/* Send event to the ULP.  'event' is the sctp_ulpevent for
@@ -129,7 +115,7 @@ int sctp_ulpq_tail_data(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 	 */
 	if (event) {
 		event_eor = (event->msg_flags & MSG_EOR) ? 1 : 0;
-		sctp_ulpq_tail_event(ulpq, event);
+		sctp_ulpq_tail_event(ulpq, &temp);
 	}
 
 	return event_eor;
@@ -193,18 +179,17 @@ static int sctp_ulpq_clear_pd(struct sctp_ulpq *ulpq)
 	return sctp_clear_pd(ulpq->asoc->base.sk, ulpq->asoc);
 }
 
-/* If the SKB of 'event' is on a list, it is the first such member
- * of that list.
- */
-int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
+int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sk_buff_head *skb_list)
 {
 	struct sock *sk = ulpq->asoc->base.sk;
 	struct sctp_sock *sp = sctp_sk(sk);
-	struct sk_buff_head *queue, *skb_list;
-	struct sk_buff *skb = sctp_event2skb(event);
+	struct sctp_ulpevent *event;
+	struct sk_buff_head *queue;
+	struct sk_buff *skb;
 	int clear_pd = 0;
 
-	skb_list = (struct sk_buff_head *) skb->prev;
+	skb = __skb_peek(skb_list);
+	event = sctp_skb2event(skb);
 
 	/* If the socket is just going to throw this away, do not
 	 * even try to deliver it.
@@ -257,13 +242,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 		}
 	}
 
-	/* If we are harvesting multiple skbs they will be
-	 * collected on a list.
-	 */
-	if (skb_list)
-		skb_queue_splice_tail_init(skb_list, queue);
-	else
-		__skb_queue_tail(queue, skb);
+	skb_queue_splice_tail_init(skb_list, queue);
 
 	/* Did we just complete partial delivery and need to get
 	 * rolling again?  Move pending data to the receive
@@ -738,25 +717,25 @@ void sctp_ulpq_reasm_flushtsn(struct sctp_ulpq *ulpq, __u32 fwd_tsn)
 static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq)
 {
 	struct sctp_ulpevent *event = NULL;
-	struct sk_buff_head temp;
 
 	if (skb_queue_empty(&ulpq->reasm))
 		return;
 
 	while ((event = sctp_ulpq_retrieve_reassembled(ulpq)) != NULL) {
-		/* Do ordering if needed.  */
-		if ((event) && (event->msg_flags & MSG_EOR)) {
-			skb_queue_head_init(&temp);
-			__skb_queue_tail(&temp, sctp_event2skb(event));
+		struct sk_buff_head temp;
 
+		skb_queue_head_init(&temp);
+		__skb_queue_tail(&temp, sctp_event2skb(event));
+
+		/* Do ordering if needed.  */
+		if (event->msg_flags & MSG_EOR)
 			event = sctp_ulpq_order(ulpq, event);
-		}
 
 		/* Send event to the ULP.  'event' is the
 		 * sctp_ulpevent for  very first SKB on the  temp' list.
 		 */
 		if (event)
-			sctp_ulpq_tail_event(ulpq, event);
+			sctp_ulpq_tail_event(ulpq, &temp);
 	}
 }
 
@@ -956,7 +935,7 @@ static void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
 	if (event) {
 		/* see if we have more ordered that we can deliver */
 		sctp_ulpq_retrieve_ordered(ulpq, event);
-		sctp_ulpq_tail_event(ulpq, event);
+		sctp_ulpq_tail_event(ulpq, &temp);
 	}
 }
 
@@ -1082,7 +1061,11 @@ void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
 		event = sctp_ulpq_retrieve_first(ulpq);
 		/* Send event to the ULP.   */
 		if (event) {
-			sctp_ulpq_tail_event(ulpq, event);
+			struct sk_buff_head temp;
+
+			skb_queue_head_init(&temp);
+			__skb_queue_tail(&temp, sctp_event2skb(event));
+			sctp_ulpq_tail_event(ulpq, &temp);
 			sctp_ulpq_set_pd(ulpq);
 			return;
 		}
@@ -1106,7 +1089,8 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 			freed += sctp_ulpq_renege_frags(ulpq, needed - freed);
 	}
 	/* If able to free enough room, accept this chunk. */
-	if (freed >= needed) {
+	if (sk_rmem_schedule(asoc->base.sk, chunk->skb, needed) &&
+	    freed >= needed) {
 		int retval = sctp_ulpq_tail_data(ulpq, chunk, gfp);
 		/*
 		 * Enter partial delivery if chunk has not been

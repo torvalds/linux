@@ -27,6 +27,8 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 
+#include "irqs.h"
+
 #define AVILA_MAX_DEV	4
 #define LOFT_MAX_DEV	6
 #define IRQ_LINES	4

@@ -44,7 +44,8 @@
 
 #define HOLLY_PCI_CFG_PHYS 0x7c000000
 
-int holly_exclude_device(struct pci_controller *hose, u_char bus, u_char devfn)
+static int holly_exclude_device(struct pci_controller *hose, u_char bus,
+				u_char devfn)
 {
 	if (bus == 0 && PCI_SLOT(devfn) == 0)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -187,13 +188,13 @@ static void __init holly_init_IRQ(void)
 	tsi108_write_reg(TSI108_MPIC_OFFSET + 0x30c, 0);
 }
 
-void holly_show_cpuinfo(struct seq_file *m)
+static void holly_show_cpuinfo(struct seq_file *m)
 {
 	seq_printf(m, "vendor\t\t: IBM\n");
 	seq_printf(m, "machine\t\t: PPC750 GX/CL\n");
 }
 
-void __noreturn holly_restart(char *cmd)
+static void __noreturn holly_restart(char *cmd)
 {
 	__be32 __iomem *ocn_bar1 = NULL;
 	unsigned long bar;
@@ -231,18 +232,6 @@ void __noreturn holly_restart(char *cmd)
 
 	/* Spin until reset happens.  Shouldn't really get here */
 	for (;;) ;
-}
-
-void holly_power_off(void)
-{
-	local_irq_disable();
-	/* No way to shut power off with software */
-	for (;;) ;
-}
-
-void holly_halt(void)
-{
-	holly_power_off();
 }
 
 /*

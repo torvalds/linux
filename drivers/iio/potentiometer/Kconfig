@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Potentiometer drivers
 #
@@ -26,26 +27,26 @@ config DS1803
 	  module will be called ds1803.
 
 config MAX5481
-        tristate "Maxim MAX5481-MAX5484 Digital Potentiometer driver"
-        depends on SPI
-        help
-          Say yes here to build support for the Maxim
-          MAX5481, MAX5482, MAX5483, MAX5484 digital potentiometer
-          chips.
+	tristate "Maxim MAX5481-MAX5484 Digital Potentiometer driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Maxim
+	  MAX5481, MAX5482, MAX5483, MAX5484 digital potentiometer
+	  chips.
 
-          To compile this driver as a module, choose M here: the
-          module will be called max5481.
+	  To compile this driver as a module, choose M here: the
+	  module will be called max5481.
 
 config MAX5487
-        tristate "Maxim MAX5487/MAX5488/MAX5489 Digital Potentiometer driver"
-        depends on SPI
-        help
-          Say yes here to build support for the Maxim
-          MAX5487, MAX5488, MAX5489 digital potentiometer
-          chips.
+	tristate "Maxim MAX5487/MAX5488/MAX5489 Digital Potentiometer driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Maxim
+	  MAX5487, MAX5488, MAX5489 digital potentiometer
+	  chips.
 
-          To compile this driver as a module, choose M here: the
-          module will be called max5487.
+	  To compile this driver as a module, choose M here: the
+	  module will be called max5487.
 
 config MCP4018
 	tristate "Microchip MCP4017/18/19 Digital Potentiometer driver"

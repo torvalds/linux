@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * wm8650.dtsi - Device tree file for Wondermedia WM8650 SoC
  *
  * Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
- *
- * Licensed under GPLv2 or later
  */
 
 / {

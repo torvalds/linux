@@ -29,13 +29,6 @@
 
 #include "../i915_request.h"
 
-struct mock_request {
-	struct i915_request base;
-
-	struct list_head link;
-	unsigned long delay;
-};
-
 struct i915_request *
 mock_request(struct intel_engine_cs *engine,
 	     struct i915_gem_context *context,

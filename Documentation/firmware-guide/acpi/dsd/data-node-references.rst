@@ -45,8 +45,8 @@ the ANOD object which is also the final target node of the reference.
 	    Name (_DSD, Package () {
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
-		    Package () { "node@0", NOD0 },
-		    Package () { "node@1", NOD1 },
+		    Package () { "node@0", "NOD0" },
+		    Package () { "node@1", "NOD1" },
 		}
 	    })
 	    Name (NOD0, Package() {
@@ -58,7 +58,7 @@ the ANOD object which is also the final target node of the reference.
 	    Name (NOD1, Package() {
 		ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
 		Package () {
-		    Package () { "anothernode", ANOD },
+		    Package () { "anothernode", "ANOD" },
 		}
 	    })
 	    Name (ANOD, Package() {

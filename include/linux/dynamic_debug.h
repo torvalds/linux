@@ -71,6 +71,13 @@ void __dynamic_netdev_dbg(struct _ddebug *descriptor,
 			  const struct net_device *dev,
 			  const char *fmt, ...);
 
+struct ib_device;
+
+extern __printf(3, 4)
+void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
+			 const struct ib_device *ibdev,
+			 const char *fmt, ...);
+
 #define DEFINE_DYNAMIC_DEBUG_METADATA(name, fmt)		\
 	static struct _ddebug  __aligned(8)			\
 	__attribute__((section("__verbose"))) name = {		\
@@ -152,6 +159,10 @@ void __dynamic_netdev_dbg(struct _ddebug *descriptor,
 
 #define dynamic_netdev_dbg(dev, fmt, ...)			\
 	_dynamic_func_call(fmt, __dynamic_netdev_dbg,		\
+			   dev, fmt, ##__VA_ARGS__)
+
+#define dynamic_ibdev_dbg(dev, fmt, ...)			\
+	_dynamic_func_call(fmt, __dynamic_ibdev_dbg,		\
 			   dev, fmt, ##__VA_ARGS__)
 
 #define dynamic_hex_dump(prefix_str, prefix_type, rowsize,		\

@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016 BayLibre, Inc.
- *
- * Licensed under GPLv2.
  */
 /dts-v1/;
 #include "da850.dtsi"

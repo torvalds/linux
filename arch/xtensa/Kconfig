@@ -253,12 +253,26 @@ config MEMMAP_CACHEATTR
 	  region: bits 0..3 -- for addresses 0x00000000..0x1fffffff,
 	  bits 4..7 -- for addresses 0x20000000..0x3fffffff, and so on.
 
-	  Cache attribute values are specific for the MMU type, so e.g.
-	  for region protection MMUs: 2 is cache bypass, 4 is WB cached,
-	  1 is WT cached, f is illegal. For ful MMU: bit 0 makes it executable,
-	  bit 1 makes it writable, bits 2..3 meaning is 0: cache bypass,
-	  1: WB cache, 2: WT cache, 3: special (c and e are illegal, f is
-	  reserved).
+	  Cache attribute values are specific for the MMU type.
+	  For region protection MMUs:
+	    1: WT cached,
+	    2: cache bypass,
+	    4: WB cached,
+	    f: illegal.
+	  For ful MMU:
+	    bit 0: executable,
+	    bit 1: writable,
+	    bits 2..3:
+	      0: cache bypass,
+	      1: WB cache,
+	      2: WT cache,
+	      3: special (c and e are illegal, f is reserved).
+	  For MPU:
+	    0: illegal,
+	    1: WB cache,
+	    2: WB, no-write-allocate cache,
+	    3: WT cache,
+	    4: cache bypass.
 
 config KSEG_PADDR
 	hex "Physical address of the KSEG mapping"

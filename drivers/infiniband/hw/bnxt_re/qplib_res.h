@@ -219,6 +219,12 @@ static inline u8 bnxt_qplib_get_ring_type(struct bnxt_qplib_chip_ctx *cctx)
 	       RING_ALLOC_REQ_RING_TYPE_ROCE_CMPL;
 }
 
+struct bnxt_qplib_sg_info {
+	struct scatterlist		*sglist;
+	u32				nmap;
+	u32				npages;
+};
+
 #define to_bnxt_qplib(ptr, type, member)	\
 	container_of(ptr, type, member)
 
@@ -227,7 +233,7 @@ struct bnxt_qplib_dev_attr;
 
 void bnxt_qplib_free_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq);
 int bnxt_qplib_alloc_init_hwq(struct pci_dev *pdev, struct bnxt_qplib_hwq *hwq,
-			      struct scatterlist *sl, int nmap, u32 *elements,
+			      struct bnxt_qplib_sg_info *sg_info, u32 *elements,
 			      u32 elements_per_page, u32 aux, u32 pg_size,
 			      enum bnxt_qplib_hwq_type hwq_type);
 void bnxt_qplib_get_guid(u8 *dev_addr, u8 *guid);

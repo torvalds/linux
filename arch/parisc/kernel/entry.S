@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Linux/PA-RISC Project (http://www.parisc-linux.org/)
  *
@@ -6,20 +7,6 @@
  *  Copyright (C) 1999 SuSE GmbH Nuernberg 
  *  Copyright (C) 2000 Hewlett-Packard (John Marvin)
  *  Copyright (C) 1999 Hewlett-Packard (Frank Rowand)
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2, or (at your option)
- *    any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <asm/asm-offsets.h>
@@ -50,12 +37,8 @@
 
 	.import		pa_tlb_lock,data
 	.macro  load_pa_tlb_lock reg
-#if __PA_LDCW_ALIGNMENT > 4
-	load32	PA(pa_tlb_lock) + __PA_LDCW_ALIGNMENT-1, \reg
-	depi	0,31,__PA_LDCW_ALIGN_ORDER, \reg
-#else
-	load32	PA(pa_tlb_lock), \reg
-#endif
+	mfctl		%cr25,\reg
+	addil		L%(PAGE_SIZE << (PGD_ALLOC_ORDER - 1)),\reg
 	.endm
 
 	/* space_to_prot macro creates a prot id from a space id */
@@ -471,8 +454,9 @@
 	nop
 	LDREG		0(\ptp),\pte
 	bb,<,n		\pte,_PAGE_PRESENT_BIT,3f
+	LDCW		0(\tmp),\tmp1
 	b		\fault
-	stw,ma		\spc,0(\tmp)
+	stw		\spc,0(\tmp)
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 2:	LDREG		0(\ptp),\pte
@@ -481,20 +465,22 @@
 	.endm
 
 	/* Release pa_tlb_lock lock without reloading lock address. */
-	.macro		tlb_unlock0	spc,tmp
+	.macro		tlb_unlock0	spc,tmp,tmp1
 #ifdef CONFIG_SMP
 98:	or,COND(=)	%r0,\spc,%r0
-	stw,ma		\spc,0(\tmp)
+	LDCW		0(\tmp),\tmp1
+	or,COND(=)	%r0,\spc,%r0
+	stw		\spc,0(\tmp)
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
 #endif
 	.endm
 
 	/* Release pa_tlb_lock lock. */
-	.macro		tlb_unlock1	spc,tmp
+	.macro		tlb_unlock1	spc,tmp,tmp1
 #ifdef CONFIG_SMP
 98:	load_pa_tlb_lock \tmp
 99:	ALTERNATIVE(98b, 99b, ALT_COND_NO_SMP, INSN_NOP)
-	tlb_unlock0	\spc,\tmp
+	tlb_unlock0	\spc,\tmp,\tmp1
 #endif
 	.endm
 
@@ -1177,7 +1163,7 @@ dtlb_miss_20w:
 	
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1203,7 +1189,7 @@ nadtlb_miss_20w:
 
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1237,7 +1223,7 @@ dtlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1270,7 +1256,7 @@ nadtlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1299,7 +1285,7 @@ dtlb_miss_20:
 
 	idtlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1327,7 +1313,7 @@ nadtlb_miss_20:
 	
 	idtlbt		pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1434,7 +1420,7 @@ itlb_miss_20w:
 	
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1458,7 +1444,7 @@ naitlb_miss_20w:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1492,7 +1478,7 @@ itlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1516,7 +1502,7 @@ naitlb_miss_11:
 
 	mtsp		t1, %sr1	/* Restore sr1 */
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1546,7 +1532,7 @@ itlb_miss_20:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1566,7 +1552,7 @@ naitlb_miss_20:
 
 	iitlbt          pte,prot
 
-	tlb_unlock1	spc,t0
+	tlb_unlock1	spc,t0,t1
 	rfir
 	nop
 
@@ -1596,7 +1582,7 @@ dbit_trap_20w:
 		
 	idtlbt          pte,prot
 
-	tlb_unlock0	spc,t0
+	tlb_unlock0	spc,t0,t1
 	rfir
 	nop
 #else
@@ -1622,7 +1608,7 @@ dbit_trap_11:
 
 	mtsp            t1, %sr1     /* Restore sr1 */
 
-	tlb_unlock0	spc,t0
+	tlb_unlock0	spc,t0,t1
 	rfir
 	nop
 
@@ -1642,7 +1628,7 @@ dbit_trap_20:
 	
 	idtlbt		pte,prot
 
-	tlb_unlock0	spc,t0
+	tlb_unlock0	spc,t0,t1
 	rfir
 	nop
 #endif

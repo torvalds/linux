@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 generated-y += syscall_table.h
 generic-y += bug.h
 generic-y += compat.h
@@ -27,7 +28,6 @@ generic-y += preempt.h
 generic-y += qrwlock.h
 generic-y += qspinlock.h
 generic-y += sections.h
-generic-y += socket.h
 generic-y += topology.h
 generic-y += trace_clock.h
 generic-y += vga.h

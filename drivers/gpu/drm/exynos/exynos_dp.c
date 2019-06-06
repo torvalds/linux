@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Samsung SoC DP (Display Port) interface driver.
  *
  * Copyright (C) 2012 Samsung Electronics Co., Ltd.
  * Author: Jingoo Han <jg1.han@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -83,7 +79,8 @@ static int exynos_dp_get_modes(struct analogix_dp_plat_data *plat_data,
 
 	mode = drm_mode_create(connector->dev);
 	if (!mode) {
-		DRM_ERROR("failed to create a new display mode.\n");
+		DRM_DEV_ERROR(dp->dev,
+			      "failed to create a new display mode.\n");
 		return num_modes;
 	}
 
@@ -111,7 +108,8 @@ static int exynos_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 	if (dp->ptn_bridge) {
 		ret = drm_bridge_attach(&dp->encoder, dp->ptn_bridge, bridge);
 		if (ret) {
-			DRM_ERROR("Failed to attach bridge to drm\n");
+			DRM_DEV_ERROR(dp->dev,
+				      "Failed to attach bridge to drm\n");
 			bridge->next = NULL;
 			return ret;
 		}
@@ -147,7 +145,8 @@ static int exynos_dp_dt_parse_panel(struct exynos_dp_device *dp)
 
 	ret = of_get_videomode(dp->dev->of_node, &dp->vm, OF_USE_NATIVE_MODE);
 	if (ret) {
-		DRM_ERROR("failed: of_get_videomode() : %d\n", ret);
+		DRM_DEV_ERROR(dp->dev,
+			      "failed: of_get_videomode() : %d\n", ret);
 		return ret;
 	}
 	return 0;

@@ -65,5 +65,4 @@ For more details see the file COPYING in the source distribution of Linux.
 	soc-camera
 	uvcvideo
 	vivid
-	zoran
 	zr364xx

@@ -269,6 +269,7 @@ static const struct v4l2_subdev_ops sru_ops = {
 
 static void sru_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
 {
 	const struct vsp1_sru_param *param;

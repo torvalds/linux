@@ -742,6 +742,7 @@ extern long arc_strnlen_user_noinline(const char __user *src, long n);
 
 #endif
 
+#include <asm/segment.h>
 #include <asm-generic/uaccess.h>
 
 #endif

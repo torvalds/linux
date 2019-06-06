@@ -61,10 +61,17 @@
 	addi	sp, 16
 .endm
 
+.macro nop32_stub
+	nop32
+	nop32
+	nop32
+.endm
+
 ENTRY(ftrace_stub)
 	jmp	lr
 END(ftrace_stub)
 
+#ifndef CONFIG_DYNAMIC_FTRACE
 ENTRY(_mcount)
 	mcount_enter
 
@@ -76,7 +83,7 @@ ENTRY(_mcount)
 	bf	skip_ftrace
 
 	mov	a0, lr
-	subi	a0, MCOUNT_INSN_SIZE
+	subi	a0, 4
 	ldw	a1, (sp, 24)
 
 	jsr	r26
@@ -101,13 +108,41 @@ skip_ftrace:
 	mcount_exit
 #endif
 END(_mcount)
+#else /* CONFIG_DYNAMIC_FTRACE */
+ENTRY(_mcount)
+	mov	t1, lr
+	ldw	lr, (sp, 0)
+	addi	sp, 4
+	jmp	t1
+ENDPROC(_mcount)
+
+ENTRY(ftrace_caller)
+	mcount_enter
+
+	ldw	a0, (sp, 16)
+	subi	a0, 4
+	ldw	a1, (sp, 24)
+
+	nop
+GLOBAL(ftrace_call)
+	nop32_stub
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	nop
+GLOBAL(ftrace_graph_call)
+	nop32_stub
+#endif
+
+	mcount_exit
+ENDPROC(ftrace_caller)
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(ftrace_graph_caller)
 	mov	a0, sp
 	addi	a0, 24
 	ldw	a1, (sp, 16)
-	subi	a1, MCOUNT_INSN_SIZE
+	subi	a1, 4
 	mov	a2, r8
 	lrw	r26, prepare_ftrace_return
 	jsr	r26

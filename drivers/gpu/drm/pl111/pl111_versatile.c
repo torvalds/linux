@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/amba/clcd-regs.h>
 #include <linux/device.h>
 #include <linux/of.h>
@@ -330,6 +331,7 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 		ret = vexpress_muxfpga_init();
 		if (ret) {
 			dev_err(dev, "unable to initialize muxfpga driver\n");
+			of_node_put(np);
 			return ret;
 		}
 
@@ -337,17 +339,20 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 		pdev = of_find_device_by_node(np);
 		if (!pdev) {
 			dev_err(dev, "can't find the sysreg device, deferring\n");
+			of_node_put(np);
 			return -EPROBE_DEFER;
 		}
 		map = dev_get_drvdata(&pdev->dev);
 		if (!map) {
 			dev_err(dev, "sysreg has not yet probed\n");
 			platform_device_put(pdev);
+			of_node_put(np);
 			return -EPROBE_DEFER;
 		}
 	} else {
 		map = syscon_node_to_regmap(np);
 	}
+	of_node_put(np);
 
 	if (IS_ERR(map)) {
 		dev_err(dev, "no Versatile syscon regmap\n");

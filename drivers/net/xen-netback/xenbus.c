@@ -1,42 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Xenbus code for netif backend
  *
  * Copyright (C) 2005 Rusty Russell <rusty@rustcorp.com.au>
  * Copyright (C) 2005 XenSource Ltd
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "common.h"
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
-
-struct backend_info {
-	struct xenbus_device *dev;
-	struct xenvif *vif;
-
-	/* This is the state that will be reflected in xenstore when any
-	 * active hotplug script completes.
-	 */
-	enum xenbus_state state;
-
-	enum xenbus_state frontend_state;
-	struct xenbus_watch hotplug_status_watch;
-	u8 have_hotplug_status_watch:1;
-
-	const char *hotplug_script;
-};
 
 static int connect_data_rings(struct backend_info *be,
 			      struct xenvif_queue *queue);
@@ -472,6 +444,7 @@ static int backend_create_xenvif(struct backend_info *be)
 		return err;
 	}
 	be->vif = vif;
+	vif->be = be;
 
 	kobject_uevent(&dev->dev.kobj, KOBJ_ONLINE);
 	return 0;

@@ -97,6 +97,7 @@ static void intel_epb_restore(void)
 	wrmsrl(MSR_IA32_ENERGY_PERF_BIAS, (epb & ~EPB_MASK) | val);
 }
 
+#ifdef CONFIG_PM
 static struct syscore_ops intel_epb_syscore_ops = {
 	.suspend = intel_epb_save,
 	.resume = intel_epb_restore,
@@ -193,6 +194,25 @@ static int intel_epb_offline(unsigned int cpu)
 	return 0;
 }
 
+static inline void register_intel_ebp_syscore_ops(void)
+{
+	register_syscore_ops(&intel_epb_syscore_ops);
+}
+#else /* !CONFIG_PM */
+static int intel_epb_online(unsigned int cpu)
+{
+	intel_epb_restore();
+	return 0;
+}
+
+static int intel_epb_offline(unsigned int cpu)
+{
+	return intel_epb_save();
+}
+
+static inline void register_intel_ebp_syscore_ops(void) {}
+#endif
+
 static __init int intel_epb_init(void)
 {
 	int ret;
@@ -206,7 +226,7 @@ static __init int intel_epb_init(void)
 	if (ret < 0)
 		goto err_out_online;
 
-	register_syscore_ops(&intel_epb_syscore_ops);
+	register_intel_ebp_syscore_ops();
 	return 0;
 
 err_out_online:

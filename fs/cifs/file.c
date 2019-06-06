@@ -2443,7 +2443,6 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	rc = file_write_and_wait_range(file, start, end);
 	if (rc)
 		return rc;
-	inode_lock(inode);
 
 	xid = get_xid();
 
@@ -2468,7 +2467,6 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	}
 
 	free_xid(xid);
-	inode_unlock(inode);
 	return rc;
 }
 
@@ -2480,12 +2478,10 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct TCP_Server_Info *server;
 	struct cifsFileInfo *smbfile = file->private_data;
 	struct cifs_sb_info *cifs_sb = CIFS_FILE_SB(file);
-	struct inode *inode = file->f_mapping->host;
 
 	rc = file_write_and_wait_range(file, start, end);
 	if (rc)
 		return rc;
-	inode_lock(inode);
 
 	xid = get_xid();
 
@@ -2502,7 +2498,6 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 
 	free_xid(xid);
-	inode_unlock(inode);
 	return rc;
 }
 
@@ -3221,7 +3216,9 @@ cifs_read_allocate_pages(struct cifs_readdata *rdata, unsigned int nr_pages)
 	}
 
 	if (rc) {
-		for (i = 0; i < nr_pages; i++) {
+		unsigned int nr_page_failed = i;
+
+		for (i = 0; i < nr_page_failed; i++) {
 			put_page(rdata->pages[i]);
 			rdata->pages[i] = NULL;
 		}

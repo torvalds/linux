@@ -2871,6 +2871,13 @@ static int tegra_sor_init(struct host1x_client *client)
 	 * kernel is possible.
 	 */
 	if (sor->rst) {
+		err = reset_control_acquire(sor->rst);
+		if (err < 0) {
+			dev_err(sor->dev, "failed to acquire SOR reset: %d\n",
+				err);
+			return err;
+		}
+
 		err = reset_control_assert(sor->rst);
 		if (err < 0) {
 			dev_err(sor->dev, "failed to assert SOR reset: %d\n",
@@ -2894,6 +2901,8 @@ static int tegra_sor_init(struct host1x_client *client)
 				err);
 			return err;
 		}
+
+		reset_control_release(sor->rst);
 	}
 
 	err = clk_prepare_enable(sor->clk_safe);
@@ -3331,7 +3340,7 @@ static int tegra_sor_probe(struct platform_device *pdev)
 		goto remove;
 	}
 
-	sor->rst = devm_reset_control_get(&pdev->dev, "sor");
+	sor->rst = devm_reset_control_get_exclusive_released(&pdev->dev, "sor");
 	if (IS_ERR(sor->rst)) {
 		err = PTR_ERR(sor->rst);
 
@@ -3519,6 +3528,8 @@ static int tegra_sor_suspend(struct device *dev)
 			dev_err(dev, "failed to assert reset: %d\n", err);
 			return err;
 		}
+
+		reset_control_release(sor->rst);
 	}
 
 	usleep_range(1000, 2000);
@@ -3542,9 +3553,17 @@ static int tegra_sor_resume(struct device *dev)
 	usleep_range(1000, 2000);
 
 	if (sor->rst) {
+		err = reset_control_acquire(sor->rst);
+		if (err < 0) {
+			dev_err(dev, "failed to acquire reset: %d\n", err);
+			clk_disable_unprepare(sor->clk);
+			return err;
+		}
+
 		err = reset_control_deassert(sor->rst);
 		if (err < 0) {
 			dev_err(dev, "failed to deassert reset: %d\n", err);
+			reset_control_release(sor->rst);
 			clk_disable_unprepare(sor->clk);
 			return err;
 		}

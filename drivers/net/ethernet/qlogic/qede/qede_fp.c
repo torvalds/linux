@@ -1657,12 +1657,12 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	txq->tx_db.data.bd_prod =
 		cpu_to_le16(qed_chain_get_prod_idx(&txq->tx_pbl));
 
-	if (!skb->xmit_more || netif_xmit_stopped(netdev_txq))
+	if (!netdev_xmit_more() || netif_xmit_stopped(netdev_txq))
 		qede_update_tx_producer(txq);
 
 	if (unlikely(qed_chain_get_elem_left(&txq->tx_pbl)
 		      < (MAX_SKB_FRAGS + 1))) {
-		if (skb->xmit_more)
+		if (netdev_xmit_more())
 			qede_update_tx_producer(txq);
 
 		netif_tx_stop_queue(netdev_txq);
@@ -1688,8 +1688,7 @@ netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 }
 
 u16 qede_select_queue(struct net_device *dev, struct sk_buff *skb,
-		      struct net_device *sb_dev,
-		      select_queue_fallback_t fallback)
+		      struct net_device *sb_dev)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	int total_txq;
@@ -1697,7 +1696,7 @@ u16 qede_select_queue(struct net_device *dev, struct sk_buff *skb,
 	total_txq = QEDE_TSS_COUNT(edev) * edev->dev_info.num_tc;
 
 	return QEDE_TSS_COUNT(edev) ?
-		fallback(dev, skb, NULL) % total_txq :  0;
+		netdev_pick_tx(dev, skb, NULL) % total_txq :  0;
 }
 
 /* 8B udp header + 8B base tunnel header + 32B option length */

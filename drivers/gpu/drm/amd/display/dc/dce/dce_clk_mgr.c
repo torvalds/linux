@@ -222,7 +222,7 @@ static enum dm_pp_clocks_state dce_get_required_clocks_state(
 	 * all required clocks
 	 */
 	for (i = clk_mgr_dce->max_clks_state; i >= DM_PP_CLOCKS_STATE_ULTRA_LOW; i--)
-		if (context->bw.dce.dispclk_khz >
+		if (context->bw_ctx.bw.dce.dispclk_khz >
 				clk_mgr_dce->max_clks_by_state[i].display_clk_khz
 			|| max_pix_clk >
 				clk_mgr_dce->max_clks_by_state[i].pixel_clk_khz)
@@ -232,7 +232,7 @@ static enum dm_pp_clocks_state dce_get_required_clocks_state(
 	if (low_req_clk > clk_mgr_dce->max_clks_state) {
 		/* set max clock state for high phyclock, invalid on exceeding display clock */
 		if (clk_mgr_dce->max_clks_by_state[clk_mgr_dce->max_clks_state].display_clk_khz
-				< context->bw.dce.dispclk_khz)
+				< context->bw_ctx.bw.dce.dispclk_khz)
 			low_req_clk = DM_PP_CLOCKS_STATE_INVALID;
 		else
 			low_req_clk = clk_mgr_dce->max_clks_state;
@@ -610,22 +610,22 @@ static void dce11_pplib_apply_display_requirements(
 	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
 
 	pp_display_cfg->all_displays_in_sync =
-		context->bw.dce.all_displays_in_sync;
+		context->bw_ctx.bw.dce.all_displays_in_sync;
 	pp_display_cfg->nb_pstate_switch_disable =
-			context->bw.dce.nbp_state_change_enable == false;
+			context->bw_ctx.bw.dce.nbp_state_change_enable == false;
 	pp_display_cfg->cpu_cc6_disable =
-			context->bw.dce.cpuc_state_change_enable == false;
+			context->bw_ctx.bw.dce.cpuc_state_change_enable == false;
 	pp_display_cfg->cpu_pstate_disable =
-			context->bw.dce.cpup_state_change_enable == false;
+			context->bw_ctx.bw.dce.cpup_state_change_enable == false;
 	pp_display_cfg->cpu_pstate_separation_time =
-			context->bw.dce.blackout_recovery_time_us;
+			context->bw_ctx.bw.dce.blackout_recovery_time_us;
 
-	pp_display_cfg->min_memory_clock_khz = context->bw.dce.yclk_khz
+	pp_display_cfg->min_memory_clock_khz = context->bw_ctx.bw.dce.yclk_khz
 		/ MEMORY_TYPE_MULTIPLIER_CZ;
 
 	pp_display_cfg->min_engine_clock_khz = determine_sclk_from_bounding_box(
 			dc,
-			context->bw.dce.sclk_khz);
+			context->bw_ctx.bw.dce.sclk_khz);
 
 	/*
 	 * As workaround for >4x4K lightup set dcfclock to min_engine_clock value.
@@ -638,7 +638,7 @@ static void dce11_pplib_apply_display_requirements(
 			pp_display_cfg->min_engine_clock_khz : 0;
 
 	pp_display_cfg->min_engine_clock_deep_sleep_khz
-			= context->bw.dce.sclk_deep_sleep_khz;
+			= context->bw_ctx.bw.dce.sclk_deep_sleep_khz;
 
 	pp_display_cfg->avail_mclk_switch_time_us =
 						dce110_get_min_vblank_time_us(context);
@@ -669,7 +669,7 @@ static void dce_update_clocks(struct clk_mgr *clk_mgr,
 {
 	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr);
 	struct dm_pp_power_level_change_request level_change_req;
-	int patched_disp_clk = context->bw.dce.dispclk_khz;
+	int patched_disp_clk = context->bw_ctx.bw.dce.dispclk_khz;
 
 	/*TODO: W/A for dal3 linux, investigate why this works */
 	if (!clk_mgr_dce->dfs_bypass_active)
@@ -696,7 +696,7 @@ static void dce11_update_clocks(struct clk_mgr *clk_mgr,
 {
 	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr);
 	struct dm_pp_power_level_change_request level_change_req;
-	int patched_disp_clk = context->bw.dce.dispclk_khz;
+	int patched_disp_clk = context->bw_ctx.bw.dce.dispclk_khz;
 
 	/*TODO: W/A for dal3 linux, investigate why this works */
 	if (!clk_mgr_dce->dfs_bypass_active)
@@ -711,7 +711,7 @@ static void dce11_update_clocks(struct clk_mgr *clk_mgr,
 	}
 
 	if (should_set_clock(safe_to_lower, patched_disp_clk, clk_mgr->clks.dispclk_khz)) {
-		context->bw.dce.dispclk_khz = dce_set_clock(clk_mgr, patched_disp_clk);
+		context->bw_ctx.bw.dce.dispclk_khz = dce_set_clock(clk_mgr, patched_disp_clk);
 		clk_mgr->clks.dispclk_khz = patched_disp_clk;
 	}
 	dce11_pplib_apply_display_requirements(clk_mgr->ctx->dc, context);
@@ -723,7 +723,7 @@ static void dce112_update_clocks(struct clk_mgr *clk_mgr,
 {
 	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr);
 	struct dm_pp_power_level_change_request level_change_req;
-	int patched_disp_clk = context->bw.dce.dispclk_khz;
+	int patched_disp_clk = context->bw_ctx.bw.dce.dispclk_khz;
 
 	/*TODO: W/A for dal3 linux, investigate why this works */
 	if (!clk_mgr_dce->dfs_bypass_active)
@@ -751,7 +751,7 @@ static void dce12_update_clocks(struct clk_mgr *clk_mgr,
 	struct dce_clk_mgr *clk_mgr_dce = TO_DCE_CLK_MGR(clk_mgr);
 	struct dm_pp_clock_for_voltage_req clock_voltage_req = {0};
 	int max_pix_clk = get_max_pixel_clock_for_all_paths(context);
-	int patched_disp_clk = context->bw.dce.dispclk_khz;
+	int patched_disp_clk = context->bw_ctx.bw.dce.dispclk_khz;
 
 	/*TODO: W/A for dal3 linux, investigate why this works */
 	if (!clk_mgr_dce->dfs_bypass_active)

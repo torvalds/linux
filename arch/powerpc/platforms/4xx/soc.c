@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IBM/AMCC PPC4xx SoC setup code
  *
@@ -6,11 +7,6 @@
  * L2 cache routines cloned from arch/ppc/syslib/ibm440gx_common.c which is:
  *   Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *   Copyright (c) 2003 - 2006 Zultys Technologies
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/stddef.h>

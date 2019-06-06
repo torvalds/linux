@@ -347,3 +347,22 @@ void drm_legacy_lock_release(struct drm_device *dev, struct file *filp)
 				     _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
 	}
 }
+
+void drm_legacy_lock_master_cleanup(struct drm_device *dev, struct drm_master *master)
+{
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
+		return;
+
+	/*
+	 * Since the master is disappearing, so is the
+	 * possibility to lock.
+	 */	mutex_lock(&dev->struct_mutex);
+	if (master->lock.hw_lock) {
+		if (dev->sigdata.lock == master->lock.hw_lock)
+			dev->sigdata.lock = NULL;
+		master->lock.hw_lock = NULL;
+		master->lock.file_priv = NULL;
+		wake_up_interruptible_all(&master->lock.lock_queue);
+	}
+	mutex_unlock(&dev->struct_mutex);
+}

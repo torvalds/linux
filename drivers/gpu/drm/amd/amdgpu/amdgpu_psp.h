@@ -28,11 +28,13 @@
 #include "amdgpu.h"
 #include "psp_gfx_if.h"
 #include "ta_xgmi_if.h"
+#include "ta_ras_if.h"
 
 #define PSP_FENCE_BUFFER_SIZE	0x1000
 #define PSP_CMD_BUFFER_SIZE	0x1000
 #define PSP_ASD_SHARED_MEM_SIZE 0x4000
 #define PSP_XGMI_SHARED_MEM_SIZE 0x4000
+#define PSP_RAS_SHARED_MEM_SIZE 0x4000
 #define PSP_1_MEG		0x100000
 #define PSP_TMR_SIZE	0x400000
 
@@ -88,6 +90,9 @@ struct psp_funcs
 	int (*xgmi_set_topology_info)(struct psp_context *psp, int number_devices,
 				      struct psp_xgmi_topology_info *topology);
 	bool (*support_vmr_ring)(struct psp_context *psp);
+	int (*ras_trigger_error)(struct psp_context *psp,
+			struct ta_ras_trigger_error_input *info);
+	int (*ras_cure_posion)(struct psp_context *psp, uint64_t *mode_ptr);
 };
 
 struct psp_xgmi_context {
@@ -96,6 +101,16 @@ struct psp_xgmi_context {
 	struct amdgpu_bo                *xgmi_shared_bo;
 	uint64_t                        xgmi_shared_mc_addr;
 	void                            *xgmi_shared_buf;
+};
+
+struct psp_ras_context {
+	/*ras fw*/
+	bool			ras_initialized;
+	uint32_t		session_id;
+	struct amdgpu_bo	*ras_shared_bo;
+	uint64_t		ras_shared_mc_addr;
+	void			*ras_shared_buf;
+	struct amdgpu_ras	*ras;
 };
 
 struct psp_context
@@ -150,10 +165,15 @@ struct psp_context
 
 	/* xgmi ta firmware and buffer */
 	const struct firmware		*ta_fw;
+	uint32_t			ta_fw_version;
 	uint32_t			ta_xgmi_ucode_version;
 	uint32_t			ta_xgmi_ucode_size;
 	uint8_t				*ta_xgmi_start_addr;
+	uint32_t			ta_ras_ucode_version;
+	uint32_t			ta_ras_ucode_size;
+	uint8_t				*ta_ras_start_addr;
 	struct psp_xgmi_context		xgmi_context;
+	struct psp_ras_context		ras;
 };
 
 struct amdgpu_psp_funcs {
@@ -207,6 +227,13 @@ struct psp_xgmi_topology_info {
 
 #define amdgpu_psp_check_fw_loading_status(adev, i) (adev)->firmware.funcs->check_fw_loading_status((adev), (i))
 
+#define psp_ras_trigger_error(psp, info) \
+	((psp)->funcs->ras_trigger_error ? \
+	(psp)->funcs->ras_trigger_error((psp), (info)) : -EINVAL)
+#define psp_ras_cure_posion(psp, addr) \
+	((psp)->funcs->ras_cure_posion ? \
+	(psp)->funcs->ras_cure_posion(psp, (addr)) : -EINVAL)
+
 extern const struct amd_ip_funcs psp_ip_funcs;
 
 extern const struct amdgpu_ip_block_version psp_v3_1_ip_block;
@@ -217,6 +244,11 @@ extern const struct amdgpu_ip_block_version psp_v10_0_ip_block;
 
 int psp_gpu_reset(struct amdgpu_device *adev);
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
+
+int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
+int psp_ras_enable_features(struct psp_context *psp,
+		union ta_ras_cmd_input *info, bool enable);
+
 extern const struct amdgpu_ip_block_version psp_v11_0_ip_block;
 
 #endif

@@ -1735,7 +1735,8 @@ static __net_exit void l2tp_exit_net(struct net *net)
 	}
 	rcu_read_unlock_bh();
 
-	flush_workqueue(l2tp_wq);
+	if (l2tp_wq)
+		flush_workqueue(l2tp_wq);
 	rcu_barrier();
 
 	for (hash = 0; hash < L2TP_HASH_SIZE_2; hash++)

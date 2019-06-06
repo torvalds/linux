@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2005-2017 Andes Technology Corporation
 
 #ifndef _ASMNDS32_PGTABLE_H
@@ -6,7 +6,7 @@
 
 #define __PAGETABLE_PMD_FOLDED 1
 #include <asm-generic/4level-fixup.h>
-#include <asm-generic/sizes.h>
+#include <linux/sizes.h>
 
 #include <asm/memory.h>
 #include <asm/nds32.h>

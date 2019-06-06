@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_SCSI_ESAS2R)	+= esas2r.o
 
 esas2r-objs := esas2r_log.o esas2r_disc.o esas2r_flash.o esas2r_init.o \

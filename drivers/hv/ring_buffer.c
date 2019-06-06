@@ -166,14 +166,18 @@ hv_get_ringbuffer_availbytes(const struct hv_ring_buffer_info *rbi,
 }
 
 /* Get various debug metrics for the specified ring buffer. */
-int hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
+int hv_ringbuffer_get_debuginfo(struct hv_ring_buffer_info *ring_info,
 				struct hv_ring_buffer_debug_info *debug_info)
 {
 	u32 bytes_avail_towrite;
 	u32 bytes_avail_toread;
 
-	if (!ring_info->ring_buffer)
+	mutex_lock(&ring_info->ring_buffer_mutex);
+
+	if (!ring_info->ring_buffer) {
+		mutex_unlock(&ring_info->ring_buffer_mutex);
 		return -EINVAL;
+	}
 
 	hv_get_ringbuffer_availbytes(ring_info,
 				     &bytes_avail_toread,
@@ -184,9 +188,18 @@ int hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
 	debug_info->current_write_index = ring_info->ring_buffer->write_index;
 	debug_info->current_interrupt_mask
 		= ring_info->ring_buffer->interrupt_mask;
+	mutex_unlock(&ring_info->ring_buffer_mutex);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hv_ringbuffer_get_debuginfo);
+
+/* Initialize a channel's ring buffer info mutex locks */
+void hv_ringbuffer_pre_init(struct vmbus_channel *channel)
+{
+	mutex_init(&channel->inbound.ring_buffer_mutex);
+	mutex_init(&channel->outbound.ring_buffer_mutex);
+}
 
 /* Initialize the ring buffer. */
 int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
@@ -196,8 +209,6 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 	struct page **pages_wraparound;
 
 	BUILD_BUG_ON((sizeof(struct hv_ring_buffer) != PAGE_SIZE));
-
-	memset(ring_info, 0, sizeof(struct hv_ring_buffer_info));
 
 	/*
 	 * First page holds struct hv_ring_buffer, do wraparound mapping for
@@ -232,6 +243,7 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 		reciprocal_value(ring_info->ring_size / 10);
 	ring_info->ring_datasize = ring_info->ring_size -
 		sizeof(struct hv_ring_buffer);
+	ring_info->priv_read_index = 0;
 
 	spin_lock_init(&ring_info->ring_lock);
 
@@ -241,8 +253,10 @@ int hv_ringbuffer_init(struct hv_ring_buffer_info *ring_info,
 /* Cleanup the ring buffer. */
 void hv_ringbuffer_cleanup(struct hv_ring_buffer_info *ring_info)
 {
+	mutex_lock(&ring_info->ring_buffer_mutex);
 	vunmap(ring_info->ring_buffer);
 	ring_info->ring_buffer = NULL;
+	mutex_unlock(&ring_info->ring_buffer_mutex);
 }
 
 /* Write to the ring buffer. */

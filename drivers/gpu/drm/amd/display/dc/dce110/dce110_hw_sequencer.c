@@ -616,7 +616,7 @@ dce110_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
 
 void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 {
-	bool is_hdmi;
+	bool is_hdmi_tmds;
 	bool is_dp;
 
 	ASSERT(pipe_ctx->stream);
@@ -624,13 +624,13 @@ void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->stream_res.stream_enc == NULL)
 		return;  /* this is not root pipe */
 
-	is_hdmi = dc_is_hdmi_signal(pipe_ctx->stream->signal);
+	is_hdmi_tmds = dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal);
 	is_dp = dc_is_dp_signal(pipe_ctx->stream->signal);
 
-	if (!is_hdmi && !is_dp)
+	if (!is_hdmi_tmds && !is_dp)
 		return;
 
-	if (is_hdmi)
+	if (is_hdmi_tmds)
 		pipe_ctx->stream_res.stream_enc->funcs->update_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->stream_res.encoder_info_frame);
@@ -935,12 +935,30 @@ void hwss_edp_backlight_control(
 		edp_receiver_ready_T9(link);
 }
 
+// Static helper function which calls the correct function
+// based on pp_smu version
+static void set_pme_wa_enable_by_version(struct dc *dc)
+{
+	struct pp_smu_funcs *pp_smu = NULL;
+
+	if (dc->res_pool->pp_smu)
+		pp_smu = dc->res_pool->pp_smu;
+
+	if (pp_smu) {
+		if (pp_smu->ctx.ver == PP_SMU_VER_RV && pp_smu->rv_funcs.set_pme_wa_enable)
+			pp_smu->rv_funcs.set_pme_wa_enable(&(pp_smu->ctx));
+	}
+}
+
 void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
-	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
 	/* notify audio driver for audio modes of monitor */
-	struct pp_smu_funcs_rv *pp_smu = core_dc->res_pool->pp_smu;
+	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
+	struct pp_smu_funcs *pp_smu = NULL;
 	unsigned int i, num_audio = 1;
+
+	if (core_dc->res_pool->pp_smu)
+		pp_smu = core_dc->res_pool->pp_smu;
 
 	if (pipe_ctx->stream_res.audio) {
 		for (i = 0; i < MAX_PIPES; i++) {
@@ -951,30 +969,31 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 
 		pipe_ctx->stream_res.audio->funcs->az_enable(pipe_ctx->stream_res.audio);
 
-		if (num_audio >= 1 && pp_smu != NULL && pp_smu->set_pme_wa_enable != NULL)
+		if (num_audio >= 1 && pp_smu != NULL)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
-			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
+			set_pme_wa_enable_by_version(core_dc);
 		/* un-mute audio */
 		/* TODO: audio should be per stream rather than per link */
 		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
-			pipe_ctx->stream_res.stream_enc, false);
+					pipe_ctx->stream_res.stream_enc, false);
 	}
 }
 
 void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct pp_smu_funcs *pp_smu = NULL;
 
 	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
 			pipe_ctx->stream_res.stream_enc, true);
 	if (pipe_ctx->stream_res.audio) {
-		struct pp_smu_funcs_rv *pp_smu = dc->res_pool->pp_smu;
+		if (dc->res_pool->pp_smu)
+			pp_smu = dc->res_pool->pp_smu;
 
 		if (option != KEEP_ACQUIRED_RESOURCE ||
-				!dc->debug.az_endpoint_mute_only) {
+				!dc->debug.az_endpoint_mute_only)
 			/*only disalbe az_endpoint if power down or free*/
 			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
-		}
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
@@ -989,9 +1008,9 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 			update_audio_usage(&dc->current_state->res_ctx, dc->res_pool, pipe_ctx->stream_res.audio, false);
 			pipe_ctx->stream_res.audio = NULL;
 		}
-		if (pp_smu != NULL && pp_smu->set_pme_wa_enable != NULL)
+		if (pp_smu != NULL)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
-			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
+			set_pme_wa_enable_by_version(dc);
 
 		/* TODO: notify audio driver for if audio modes list changed
 		 * add audio mode list change flag */
@@ -1007,7 +1026,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	struct dc_link *link = stream->link;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
 			pipe_ctx->stream_res.stream_enc);
 
@@ -1032,7 +1051,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 	struct dc_link *link = stream->link;
 
 	/* only 3 items below are used by unblank */
-	params.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10;
+	params.timing = pipe_ctx->stream->timing;
 	params.link_settings.link_rate = link_settings->link_rate;
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
@@ -1147,8 +1166,8 @@ static void build_audio_output(
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT ||
 			pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		audio_output->pll_info.dp_dto_source_clock_in_khz =
-				state->dccg->funcs->get_dp_ref_clk_frequency(
-						state->dccg);
+				state->clk_mgr->funcs->get_dp_ref_clk_frequency(
+						state->clk_mgr);
 	}
 
 	audio_output->pll_info.feed_back_divider =
@@ -1349,7 +1368,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
 				pipe_ctx->stream_res.tg, event_triggers);
 
-	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
+	if (!dc_is_virtual_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dig_connect_to_otg(
 			pipe_ctx->stream_res.stream_enc,
 			pipe_ctx->stream_res.tg->inst);
@@ -1358,7 +1377,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			pipe_ctx->stream_res.opp,
 			COLOR_SPACE_YCBCR601,
 			stream->timing.display_color_depth,
-			pipe_ctx->stream->signal);
+			stream->signal);
 
 	pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
 		pipe_ctx->stream_res.opp,
@@ -1532,6 +1551,9 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 		}
 	}
 
+	if (dc->hwss.init_pipes)
+		dc->hwss.init_pipes(dc, context);
+
 	if (edp_link) {
 		/* this seems to cause blank screens on DCE8 */
 		if ((dc->ctx->dce_version == DCE_VERSION_8_0) ||
@@ -1608,18 +1630,18 @@ static void dce110_set_displaymarks(
 			dc->bw_vbios->blackout_duration, pipe_ctx->stream);
 		pipe_ctx->plane_res.mi->funcs->mem_input_program_display_marks(
 			pipe_ctx->plane_res.mi,
-			context->bw.dce.nbp_state_change_wm_ns[num_pipes],
-			context->bw.dce.stutter_exit_wm_ns[num_pipes],
-			context->bw.dce.stutter_entry_wm_ns[num_pipes],
-			context->bw.dce.urgent_wm_ns[num_pipes],
+			context->bw_ctx.bw.dce.nbp_state_change_wm_ns[num_pipes],
+			context->bw_ctx.bw.dce.stutter_exit_wm_ns[num_pipes],
+			context->bw_ctx.bw.dce.stutter_entry_wm_ns[num_pipes],
+			context->bw_ctx.bw.dce.urgent_wm_ns[num_pipes],
 			total_dest_line_time_ns);
 		if (i == underlay_idx) {
 			num_pipes++;
 			pipe_ctx->plane_res.mi->funcs->mem_input_program_chroma_display_marks(
 				pipe_ctx->plane_res.mi,
-				context->bw.dce.nbp_state_change_wm_ns[num_pipes],
-				context->bw.dce.stutter_exit_wm_ns[num_pipes],
-				context->bw.dce.urgent_wm_ns[num_pipes],
+				context->bw_ctx.bw.dce.nbp_state_change_wm_ns[num_pipes],
+				context->bw_ctx.bw.dce.stutter_exit_wm_ns[num_pipes],
+				context->bw_ctx.bw.dce.urgent_wm_ns[num_pipes],
 				total_dest_line_time_ns);
 		}
 		num_pipes++;
@@ -2612,7 +2634,7 @@ void dce110_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	struct mem_input *mi = pipe_ctx->plane_res.mi;
 	struct dc_cursor_mi_param param = {
 		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10,
-		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clock_inKhz,
+		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clocks.xtalin_clock_inKhz,
 		.viewport = pipe_ctx->plane_res.scl_data.viewport,
 		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz,
 		.v_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.vert,

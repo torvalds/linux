@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  V4L2 sub-device support header.
  *
  *  Copyright (C) 2008  Hans Verkuil <hverkuil@xs4all.nl>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #ifndef _V4L2_SUBDEV_H
@@ -755,7 +746,17 @@ struct v4l2_subdev_ops {
  *
  * @open: called when the subdev device node is opened by an application.
  *
- * @close: called when the subdev device node is closed.
+ * @close: called when the subdev device node is closed. Please note that
+ *	it is possible for @close to be called after @unregistered!
+ *
+ * @release: called when the last user of the subdev device is gone. This
+ *	happens after the @unregistered callback and when the last open
+ *	filehandle to the v4l-subdevX device node was closed. If no device
+ *	node was created for this sub-device, then the @release callback
+ *	is called right after the @unregistered callback.
+ *	The @release callback is typically used to free the memory containing
+ *	the v4l2_subdev structure. It is almost certainly required for any
+ *	sub-device that sets the V4L2_SUBDEV_FL_HAS_DEVNODE flag.
  *
  * .. note::
  *	Never call this from drivers, only the v4l2 framework can call
@@ -766,6 +767,7 @@ struct v4l2_subdev_internal_ops {
 	void (*unregistered)(struct v4l2_subdev *sd);
 	int (*open)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
 	int (*close)(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh);
+	void (*release)(struct v4l2_subdev *sd);
 };
 
 #define V4L2_SUBDEV_NAME_SIZE 32
@@ -899,9 +901,11 @@ struct v4l2_subdev {
  *
  * @vfh: pointer to &struct v4l2_fh
  * @pad: pointer to &struct v4l2_subdev_pad_config
+ * @owner: module pointer to the owner of this file handle
  */
 struct v4l2_subdev_fh {
 	struct v4l2_fh vfh;
+	struct module *owner;
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	struct v4l2_subdev_pad_config *pad;
 #endif

@@ -568,10 +568,9 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 	idx = *pos >> 2;
 
 	valuesize = sizeof(values);
-	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->read_sensor)
-		r = amdgpu_dpm_read_sensor(adev, idx, &values[0], &valuesize);
-	else
-		return -EINVAL;
+	r = amdgpu_dpm_read_sensor(adev, idx, &values[0], &valuesize);
+	if (r)
+		return r;
 
 	if (size > valuesize)
 		return -EINVAL;

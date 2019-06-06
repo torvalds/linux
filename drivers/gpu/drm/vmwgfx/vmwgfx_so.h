@@ -157,4 +157,5 @@ extern struct vmw_resource *vmw_view_srf(struct vmw_resource *res);
 extern struct vmw_resource *vmw_view_lookup(struct vmw_cmdbuf_res_manager *man,
 					    enum vmw_view_type view_type,
 					    u32 user_key);
+extern u32 vmw_view_dirtying(struct vmw_resource *res);
 #endif

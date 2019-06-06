@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_POWERPC_PAGE_H
 #define _ASM_POWERPC_PAGE_H
 
 /*
  * Copyright (C) 2001,2005 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef __ASSEMBLY__
@@ -28,11 +24,15 @@
 #define PAGE_SIZE		(ASM_CONST(1) << PAGE_SHIFT)
 
 #ifndef __ASSEMBLY__
-#ifdef CONFIG_HUGETLB_PAGE
-extern bool hugetlb_disabled;
-extern unsigned int HPAGE_SHIFT;
-#else
+#ifndef CONFIG_HUGETLB_PAGE
 #define HPAGE_SHIFT PAGE_SHIFT
+#elif defined(CONFIG_PPC_BOOK3S_64)
+extern unsigned int hpage_shift;
+#define HPAGE_SHIFT hpage_shift
+#elif defined(CONFIG_PPC_8xx)
+#define HPAGE_SHIFT		19	/* 512k pages */
+#elif defined(CONFIG_PPC_FSL_BOOK3E)
+#define HPAGE_SHIFT		22	/* 4M pages */
 #endif
 #define HPAGE_SIZE		((1UL) << HPAGE_SHIFT)
 #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
@@ -132,18 +132,7 @@ static inline bool pfn_valid(unsigned long pfn)
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 
-#ifdef CONFIG_PPC_BOOK3S_64
-/*
- * On hash the vmalloc and other regions alias to the kernel region when passed
- * through __pa(), which virt_to_pfn() uses. That means virt_addr_valid() can
- * return true for some vmalloc addresses, which is incorrect. So explicitly
- * check that the address is in the kernel region.
- */
-#define virt_addr_valid(kaddr) (REGION_ID(kaddr) == KERNEL_REGION_ID && \
-				pfn_valid(virt_to_pfn(kaddr)))
-#else
 #define virt_addr_valid(kaddr)	pfn_valid(virt_to_pfn(kaddr))
-#endif
 
 /*
  * On Book-E parts we need __va to parse the device tree and we can't

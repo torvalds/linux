@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 32bit Socket syscall emulation. Based on arch/sparc64/kernel/sys_sparc32.c.
  *
@@ -394,63 +395,6 @@ COMPAT_SYSCALL_DEFINE5(setsockopt, int, fd, int, level, int, optname,
 {
 	return __compat_sys_setsockopt(fd, level, optname, optval, optlen);
 }
-
-int compat_sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
-{
-	struct compat_timeval __user *ctv;
-	int err;
-	struct timeval tv;
-
-	if (COMPAT_USE_64BIT_TIME)
-		return sock_get_timestamp(sk, userstamp);
-
-	ctv = (struct compat_timeval __user *) userstamp;
-	err = -ENOENT;
-	sock_enable_timestamp(sk, SOCK_TIMESTAMP);
-	tv = ktime_to_timeval(sock_read_timestamp(sk));
-
-	if (tv.tv_sec == -1)
-		return err;
-	if (tv.tv_sec == 0) {
-		ktime_t kt = ktime_get_real();
-		sock_write_timestamp(sk, kt);
-		tv = ktime_to_timeval(kt);
-	}
-	err = 0;
-	if (put_user(tv.tv_sec, &ctv->tv_sec) ||
-			put_user(tv.tv_usec, &ctv->tv_usec))
-		err = -EFAULT;
-	return err;
-}
-EXPORT_SYMBOL(compat_sock_get_timestamp);
-
-int compat_sock_get_timestampns(struct sock *sk, struct timespec __user *userstamp)
-{
-	struct compat_timespec __user *ctv;
-	int err;
-	struct timespec ts;
-
-	if (COMPAT_USE_64BIT_TIME)
-		return sock_get_timestampns (sk, userstamp);
-
-	ctv = (struct compat_timespec __user *) userstamp;
-	err = -ENOENT;
-	sock_enable_timestamp(sk, SOCK_TIMESTAMP);
-	ts = ktime_to_timespec(sock_read_timestamp(sk));
-	if (ts.tv_sec == -1)
-		return err;
-	if (ts.tv_sec == 0) {
-		ktime_t kt = ktime_get_real();
-		sock_write_timestamp(sk, kt);
-		ts = ktime_to_timespec(kt);
-	}
-	err = 0;
-	if (put_user(ts.tv_sec, &ctv->tv_sec) ||
-			put_user(ts.tv_nsec, &ctv->tv_nsec))
-		err = -EFAULT;
-	return err;
-}
-EXPORT_SYMBOL(compat_sock_get_timestampns);
 
 static int __compat_sys_getsockopt(int fd, int level, int optname,
 				   char __user *optval,

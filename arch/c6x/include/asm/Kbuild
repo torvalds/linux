@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 generic-y += atomic.h
 generic-y += barrier.h
 generic-y += bugs.h
@@ -30,7 +31,6 @@ generic-y += pci.h
 generic-y += percpu.h
 generic-y += pgalloc.h
 generic-y += preempt.h
-generic-y += segment.h
 generic-y += serial.h
 generic-y += shmparam.h
 generic-y += tlbflush.h

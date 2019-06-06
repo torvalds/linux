@@ -53,23 +53,24 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
  * "Define 'is'", Bill Clinton
  * "Define 'if'", Steven Rostedt
  */
-#define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
-#define __trace_if(cond) \
-	if (__builtin_constant_p(!!(cond)) ? !!(cond) :			\
-	({								\
-		int ______r;						\
-		static struct ftrace_branch_data			\
-			__aligned(4)					\
-			__section("_ftrace_branch")			\
-			______f = {					\
-				.func = __func__,			\
-				.file = __FILE__,			\
-				.line = __LINE__,			\
-			};						\
-		______r = !!(cond);					\
-		______r ? ______f.miss_hit[1]++ : ______f.miss_hit[0]++;\
-		______r;						\
-	}))
+#define if(cond, ...) if ( __trace_if_var( !!(cond , ## __VA_ARGS__) ) )
+
+#define __trace_if_var(cond) (__builtin_constant_p(cond) ? (cond) : __trace_if_value(cond))
+
+#define __trace_if_value(cond) ({			\
+	static struct ftrace_branch_data		\
+		__aligned(4)				\
+		__section("_ftrace_branch")		\
+		__if_trace = {				\
+			.func = __func__,		\
+			.file = __FILE__,		\
+			.line = __LINE__,		\
+		};					\
+	(cond) ?					\
+		(__if_trace.miss_hit[1]++,1) :		\
+		(__if_trace.miss_hit[0]++,0);		\
+})
+
 #endif /* CONFIG_PROFILE_ALL_BRANCHES */
 
 #else

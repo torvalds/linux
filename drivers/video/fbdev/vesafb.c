@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * framebuffer driver for VBE 2.0 compliant graphic boards
  *
@@ -336,8 +337,8 @@ static int vesafb_probe(struct platform_device *dev)
 		printk(KERN_INFO "vesafb: pmi: set display start = %p, set palette = %p\n",pmi_start,pmi_pal);
 		if (pmi_base[3]) {
 			printk(KERN_INFO "vesafb: pmi: ports = ");
-				for (i = pmi_base[3]/2; pmi_base[i] != 0xffff; i++)
-					printk("%x ",pmi_base[i]);
+			for (i = pmi_base[3]/2; pmi_base[i] != 0xffff; i++)
+				printk("%x ", pmi_base[i]);
 			printk("\n");
 			if (pmi_base[i] != 0xffff) {
 				/*

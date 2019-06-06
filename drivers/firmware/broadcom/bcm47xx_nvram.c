@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * BCM947xx nvram variable access
  *
  * Copyright (C) 2005 Broadcom Corporation
  * Copyright (C) 2006 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2010-2012 Hauke Mehrtens <hauke@hauke-m.de>
- *
- * This program is free software; you can redistribute	it and/or modify it
- * under  the terms of	the GNU General	 Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/io.h>

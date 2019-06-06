@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IP multicast routing support for mrouted 3.6/3.8
  *
  *		(c) 1995 Alan Cox, <alan@lxorguk.ukuu.org.uk>
  *	  Linux Consultancy and Custom Driver Development
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	Fixes:
  *	Michael Chastain	:	Incorrect size of copying.
@@ -23,7 +19,6 @@
  *      Carlos Picoto           :       PIMv1 Support
  *	Pavlin Ivanov Radoslavov:	PIMv2 Registers must checksum only PIM header
  *					Relax this requirement to work with older peers.
- *
  */
 
 #include <linux/uaccess.h>
@@ -66,7 +61,7 @@
 #include <net/netlink.h>
 #include <net/fib_rules.h>
 #include <linux/netconf.h>
-#include <net/nexthop.h>
+#include <net/rtnh.h>
 
 #include <linux/nospec.h>
 
@@ -373,7 +368,6 @@ static const struct rhashtable_params ipmr_rht_params = {
 	.key_offset = offsetof(struct mfc_cache, cmparg),
 	.key_len = sizeof(struct mfc_cache_cmp_arg),
 	.nelem_hint = 3,
-	.locks_mul = 1,
 	.obj_cmpfn = ipmr_hash_cmp,
 	.automatic_shrinking = true,
 };
@@ -2499,8 +2493,8 @@ static int ipmr_rtm_valid_getroute_req(struct sk_buff *skb,
 	}
 
 	if (!netlink_strict_get_check(skb))
-		return nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX,
-				   rtm_ipv4_policy, extack);
+		return nlmsg_parse_deprecated(nlh, sizeof(*rtm), tb, RTA_MAX,
+					      rtm_ipv4_policy, extack);
 
 	rtm = nlmsg_data(nlh);
 	if ((rtm->rtm_src_len && rtm->rtm_src_len != 32) ||
@@ -2511,8 +2505,8 @@ static int ipmr_rtm_valid_getroute_req(struct sk_buff *skb,
 		return -EINVAL;
 	}
 
-	err = nlmsg_parse_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
-				 rtm_ipv4_policy, extack);
+	err = nlmsg_parse_deprecated_strict(nlh, sizeof(*rtm), tb, RTA_MAX,
+					    rtm_ipv4_policy, extack);
 	if (err)
 		return err;
 
@@ -2675,8 +2669,8 @@ static int rtm_to_ipmr_mfcc(struct net *net, struct nlmsghdr *nlh,
 	struct rtmsg *rtm;
 	int ret, rem;
 
-	ret = nlmsg_validate(nlh, sizeof(*rtm), RTA_MAX, rtm_ipmr_policy,
-			     extack);
+	ret = nlmsg_validate_deprecated(nlh, sizeof(*rtm), RTA_MAX,
+					rtm_ipmr_policy, extack);
 	if (ret < 0)
 		goto out;
 	rtm = nlmsg_data(nlh);
@@ -2784,7 +2778,7 @@ static bool ipmr_fill_vif(struct mr_table *mrt, u32 vifid, struct sk_buff *skb)
 		return true;
 
 	vif = &mrt->vif_table[vifid];
-	vif_nest = nla_nest_start(skb, IPMRA_VIF);
+	vif_nest = nla_nest_start_noflag(skb, IPMRA_VIF);
 	if (!vif_nest)
 		return false;
 	if (nla_put_u32(skb, IPMRA_VIFA_IFINDEX, vif->dev->ifindex) ||
@@ -2868,7 +2862,7 @@ static int ipmr_rtm_dumplink(struct sk_buff *skb, struct netlink_callback *cb)
 		memset(hdr, 0, sizeof(*hdr));
 		hdr->ifi_family = RTNL_FAMILY_IPMR;
 
-		af = nla_nest_start(skb, IFLA_AF_SPEC);
+		af = nla_nest_start_noflag(skb, IFLA_AF_SPEC);
 		if (!af) {
 			nlmsg_cancel(skb, nlh);
 			goto out;
@@ -2879,7 +2873,7 @@ static int ipmr_rtm_dumplink(struct sk_buff *skb, struct netlink_callback *cb)
 			goto out;
 		}
 
-		vifs = nla_nest_start(skb, IPMRA_TABLE_VIFS);
+		vifs = nla_nest_start_noflag(skb, IPMRA_TABLE_VIFS);
 		if (!vifs) {
 			nla_nest_end(skb, af);
 			nlmsg_end(skb, nlh);

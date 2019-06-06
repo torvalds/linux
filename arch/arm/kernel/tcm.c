@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * TCM memory handling for ARM systems
  *
  * Author: Linus Walleij <linus.walleij@stericsson.com>

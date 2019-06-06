@@ -21,24 +21,6 @@
 #define MAX_NODES			6
 #define MAX_NAME_LEN			50
 
-#define CLK_TYPE_SHIFT			2
-
-#define PM_API_PAYLOAD_LEN		3
-
-#define NA_PARENT			0xFFFFFFFF
-#define DUMMY_PARENT			0xFFFFFFFE
-
-#define CLK_TYPE_FIELD_LEN		4
-#define CLK_TOPOLOGY_NODE_OFFSET	16
-#define NODES_PER_RESP			3
-
-#define CLK_TYPE_FIELD_MASK		0xF
-#define CLK_FLAG_FIELD_MASK		GENMASK(21, 8)
-#define CLK_TYPE_FLAG_FIELD_MASK	GENMASK(31, 24)
-
-#define CLK_PARENTS_ID_LEN		16
-#define CLK_PARENTS_ID_MASK		0xFFFF
-
 /* Flags for parents */
 #define PARENT_CLK_SELF			0
 #define PARENT_CLK_NODE1		1
@@ -52,7 +34,10 @@
 #define END_OF_PARENTS			1
 #define RESERVED_CLK_NAME		""
 
-#define CLK_VALID_MASK			0x1
+#define CLK_GET_NAME_RESP_LEN		16
+#define CLK_GET_TOPOLOGY_RESP_WORDS	3
+#define CLK_GET_PARENTS_RESP_WORDS	3
+#define CLK_GET_ATTR_RESP_WORDS		1
 
 enum clk_type {
 	CLK_TYPE_OUTPUT,
@@ -80,6 +65,7 @@ struct clock_parent {
  * @num_nodes:		Number of nodes present in topology
  * @parent:		Parent of clock
  * @num_parents:	Number of parents of clock
+ * @clk_id:		Clock id
  */
 struct zynqmp_clock {
 	char clk_name[MAX_NAME_LEN];
@@ -89,6 +75,36 @@ struct zynqmp_clock {
 	u32 num_nodes;
 	struct clock_parent parent[MAX_PARENT];
 	u32 num_parents;
+	u32 clk_id;
+};
+
+struct name_resp {
+	char name[CLK_GET_NAME_RESP_LEN];
+};
+
+struct topology_resp {
+#define CLK_TOPOLOGY_TYPE		GENMASK(3, 0)
+#define CLK_TOPOLOGY_FLAGS		GENMASK(23, 8)
+#define CLK_TOPOLOGY_TYPE_FLAGS		GENMASK(31, 24)
+	u32 topology[CLK_GET_TOPOLOGY_RESP_WORDS];
+};
+
+struct parents_resp {
+#define NA_PARENT			0xFFFFFFFF
+#define DUMMY_PARENT			0xFFFFFFFE
+#define CLK_PARENTS_ID			GENMASK(15, 0)
+#define CLK_PARENTS_FLAGS		GENMASK(31, 16)
+	u32 parents[CLK_GET_PARENTS_RESP_WORDS];
+};
+
+struct attr_resp {
+#define CLK_ATTR_VALID			BIT(0)
+#define CLK_ATTR_TYPE			BIT(2)
+#define CLK_ATTR_NODE_INDEX		GENMASK(13, 0)
+#define CLK_ATTR_NODE_TYPE		GENMASK(19, 14)
+#define CLK_ATTR_NODE_SUBCLASS		GENMASK(25, 20)
+#define CLK_ATTR_NODE_CLASS		GENMASK(31, 26)
+	u32 attr[CLK_GET_ATTR_RESP_WORDS];
 };
 
 static const char clk_type_postfix[][10] = {
@@ -199,14 +215,15 @@ static int zynqmp_pm_clock_get_num_clocks(u32 *nclocks)
 /**
  * zynqmp_pm_clock_get_name() - Get the name of clock for given id
  * @clock_id:	ID of the clock to be queried
- * @name:	Name of given clock
+ * @response:	Name of the clock with the given id
  *
  * This function is used to get name of clock specified by given
  * clock ID.
  *
- * Return: Returns 0, in case of error name would be 0
+ * Return: Returns 0
  */
-static int zynqmp_pm_clock_get_name(u32 clock_id, char *name)
+static int zynqmp_pm_clock_get_name(u32 clock_id,
+				    struct name_resp *response)
 {
 	struct zynqmp_pm_query_data qdata = {0};
 	u32 ret_payload[PAYLOAD_ARG_CNT];
@@ -215,7 +232,7 @@ static int zynqmp_pm_clock_get_name(u32 clock_id, char *name)
 	qdata.arg1 = clock_id;
 
 	eemi_ops->query_data(qdata, ret_payload);
-	memcpy(name, ret_payload, CLK_GET_NAME_RESP_LEN);
+	memcpy(response, ret_payload, sizeof(*response));
 
 	return 0;
 }
@@ -224,7 +241,7 @@ static int zynqmp_pm_clock_get_name(u32 clock_id, char *name)
  * zynqmp_pm_clock_get_topology() - Get the topology of clock for given id
  * @clock_id:	ID of the clock to be queried
  * @index:	Node index of clock topology
- * @topology:	Buffer to store nodes in topology and flags
+ * @response:	Buffer used for the topology response
  *
  * This function is used to get topology information for the clock
  * specified by given clock ID.
@@ -237,7 +254,8 @@ static int zynqmp_pm_clock_get_name(u32 clock_id, char *name)
  *
  * Return: 0 on success else error+reason
  */
-static int zynqmp_pm_clock_get_topology(u32 clock_id, u32 index, u32 *topology)
+static int zynqmp_pm_clock_get_topology(u32 clock_id, u32 index,
+					struct topology_resp *response)
 {
 	struct zynqmp_pm_query_data qdata = {0};
 	u32 ret_payload[PAYLOAD_ARG_CNT];
@@ -248,7 +266,7 @@ static int zynqmp_pm_clock_get_topology(u32 clock_id, u32 index, u32 *topology)
 	qdata.arg2 = index;
 
 	ret = eemi_ops->query_data(qdata, ret_payload);
-	memcpy(topology, &ret_payload[1], CLK_GET_TOPOLOGY_RESP_WORDS * 4);
+	memcpy(response, &ret_payload[1], sizeof(*response));
 
 	return ret;
 }
@@ -297,7 +315,7 @@ struct clk_hw *zynqmp_clk_register_fixed_factor(const char *name, u32 clk_id,
  * zynqmp_pm_clock_get_parents() - Get the first 3 parents of clock for given id
  * @clock_id:	Clock ID
  * @index:	Parent index
- * @parents:	3 parents of the given clock
+ * @response:	Parents of the given clock
  *
  * This function is used to get 3 parents for the clock specified by
  * given clock ID.
@@ -310,7 +328,8 @@ struct clk_hw *zynqmp_clk_register_fixed_factor(const char *name, u32 clk_id,
  *
  * Return: 0 on success else error+reason
  */
-static int zynqmp_pm_clock_get_parents(u32 clock_id, u32 index, u32 *parents)
+static int zynqmp_pm_clock_get_parents(u32 clock_id, u32 index,
+				       struct parents_resp *response)
 {
 	struct zynqmp_pm_query_data qdata = {0};
 	u32 ret_payload[PAYLOAD_ARG_CNT];
@@ -321,7 +340,7 @@ static int zynqmp_pm_clock_get_parents(u32 clock_id, u32 index, u32 *parents)
 	qdata.arg2 = index;
 
 	ret = eemi_ops->query_data(qdata, ret_payload);
-	memcpy(parents, &ret_payload[1], CLK_GET_PARENTS_RESP_WORDS * 4);
+	memcpy(response, &ret_payload[1], sizeof(*response));
 
 	return ret;
 }
@@ -329,13 +348,14 @@ static int zynqmp_pm_clock_get_parents(u32 clock_id, u32 index, u32 *parents)
 /**
  * zynqmp_pm_clock_get_attributes() - Get the attributes of clock for given id
  * @clock_id:	Clock ID
- * @attr:	Clock attributes
+ * @response:	Clock attributes response
  *
  * This function is used to get clock's attributes(e.g. valid, clock type, etc).
  *
  * Return: 0 on success else error+reason
  */
-static int zynqmp_pm_clock_get_attributes(u32 clock_id, u32 *attr)
+static int zynqmp_pm_clock_get_attributes(u32 clock_id,
+					  struct attr_resp *response)
 {
 	struct zynqmp_pm_query_data qdata = {0};
 	u32 ret_payload[PAYLOAD_ARG_CNT];
@@ -345,7 +365,7 @@ static int zynqmp_pm_clock_get_attributes(u32 clock_id, u32 *attr)
 	qdata.arg1 = clock_id;
 
 	ret = eemi_ops->query_data(qdata, ret_payload);
-	memcpy(attr, &ret_payload[1], CLK_GET_ATTR_RESP_WORDS * 4);
+	memcpy(response, &ret_payload[1], sizeof(*response));
 
 	return ret;
 }
@@ -354,24 +374,28 @@ static int zynqmp_pm_clock_get_attributes(u32 clock_id, u32 *attr)
  * __zynqmp_clock_get_topology() - Get topology data of clock from firmware
  *				   response data
  * @topology:		Clock topology
- * @data:		Clock topology data received from firmware
+ * @response:		Clock topology data received from firmware
  * @nnodes:		Number of nodes
  *
  * Return: 0 on success else error+reason
  */
 static int __zynqmp_clock_get_topology(struct clock_topology *topology,
-				       u32 *data, u32 *nnodes)
+				       struct topology_resp *response,
+				       u32 *nnodes)
 {
 	int i;
+	u32 type;
 
-	for (i = 0; i < PM_API_PAYLOAD_LEN; i++) {
-		if (!(data[i] & CLK_TYPE_FIELD_MASK))
+	for (i = 0; i < ARRAY_SIZE(response->topology); i++) {
+		type = FIELD_GET(CLK_TOPOLOGY_TYPE, response->topology[i]);
+		if (type == TYPE_INVALID)
 			return END_OF_TOPOLOGY_NODE;
-		topology[*nnodes].type = data[i] & CLK_TYPE_FIELD_MASK;
-		topology[*nnodes].flag = FIELD_GET(CLK_FLAG_FIELD_MASK,
-						   data[i]);
+		topology[*nnodes].type = type;
+		topology[*nnodes].flag = FIELD_GET(CLK_TOPOLOGY_FLAGS,
+						   response->topology[i]);
 		topology[*nnodes].type_flag =
-				FIELD_GET(CLK_TYPE_FLAG_FIELD_MASK, data[i]);
+				FIELD_GET(CLK_TOPOLOGY_TYPE_FLAGS,
+					  response->topology[i]);
 		(*nnodes)++;
 	}
 
@@ -392,14 +416,16 @@ static int zynqmp_clock_get_topology(u32 clk_id,
 				     u32 *num_nodes)
 {
 	int j, ret;
-	u32 pm_resp[PM_API_PAYLOAD_LEN] = {0};
+	struct topology_resp response = { };
 
 	*num_nodes = 0;
-	for (j = 0; j <= MAX_NODES; j += 3) {
-		ret = zynqmp_pm_clock_get_topology(clk_id, j, pm_resp);
+	for (j = 0; j <= MAX_NODES; j += ARRAY_SIZE(response.topology)) {
+		ret = zynqmp_pm_clock_get_topology(clock[clk_id].clk_id, j,
+						   &response);
 		if (ret)
 			return ret;
-		ret = __zynqmp_clock_get_topology(topology, pm_resp, num_nodes);
+		ret = __zynqmp_clock_get_topology(topology, &response,
+						  num_nodes);
 		if (ret == END_OF_TOPOLOGY_NODE)
 			return 0;
 	}
@@ -408,31 +434,33 @@ static int zynqmp_clock_get_topology(u32 clk_id,
 }
 
 /**
- * __zynqmp_clock_get_topology() - Get parents info of clock from firmware
+ * __zynqmp_clock_get_parents() - Get parents info of clock from firmware
  *				   response data
  * @parents:		Clock parents
- * @data:		Clock parents data received from firmware
+ * @response:		Clock parents data received from firmware
  * @nparent:		Number of parent
  *
  * Return: 0 on success else error+reason
  */
-static int __zynqmp_clock_get_parents(struct clock_parent *parents, u32 *data,
+static int __zynqmp_clock_get_parents(struct clock_parent *parents,
+				      struct parents_resp *response,
 				      u32 *nparent)
 {
 	int i;
 	struct clock_parent *parent;
 
-	for (i = 0; i < PM_API_PAYLOAD_LEN; i++) {
-		if (data[i] == NA_PARENT)
+	for (i = 0; i < ARRAY_SIZE(response->parents); i++) {
+		if (response->parents[i] == NA_PARENT)
 			return END_OF_PARENTS;
 
 		parent = &parents[i];
-		parent->id = data[i] & CLK_PARENTS_ID_MASK;
-		if (data[i] == DUMMY_PARENT) {
+		parent->id = FIELD_GET(CLK_PARENTS_ID, response->parents[i]);
+		if (response->parents[i] == DUMMY_PARENT) {
 			strcpy(parent->name, "dummy_name");
 			parent->flag = 0;
 		} else {
-			parent->flag = data[i] >> CLK_PARENTS_ID_LEN;
+			parent->flag = FIELD_GET(CLK_PARENTS_FLAGS,
+						 response->parents[i]);
 			if (zynqmp_get_clock_name(parent->id, parent->name))
 				continue;
 		}
@@ -454,20 +482,21 @@ static int zynqmp_clock_get_parents(u32 clk_id, struct clock_parent *parents,
 				    u32 *num_parents)
 {
 	int j = 0, ret;
-	u32 pm_resp[PM_API_PAYLOAD_LEN] = {0};
+	struct parents_resp response = { };
 
 	*num_parents = 0;
 	do {
 		/* Get parents from firmware */
-		ret = zynqmp_pm_clock_get_parents(clk_id, j, pm_resp);
+		ret = zynqmp_pm_clock_get_parents(clock[clk_id].clk_id, j,
+						  &response);
 		if (ret)
 			return ret;
 
-		ret = __zynqmp_clock_get_parents(&parents[j], pm_resp,
+		ret = __zynqmp_clock_get_parents(&parents[j], &response,
 						 num_parents);
 		if (ret == END_OF_PARENTS)
 			return 0;
-		j += PM_API_PAYLOAD_LEN;
+		j += ARRAY_SIZE(response.parents);
 	} while (*num_parents <= MAX_PARENT);
 
 	return 0;
@@ -528,13 +557,14 @@ static struct clk_hw *zynqmp_register_clk_topology(int clk_id, char *clk_name,
 						   const char **parent_names)
 {
 	int j;
-	u32 num_nodes;
+	u32 num_nodes, clk_dev_id;
 	char *clk_out = NULL;
 	struct clock_topology *nodes;
 	struct clk_hw *hw = NULL;
 
 	nodes = clock[clk_id].node;
 	num_nodes = clock[clk_id].num_nodes;
+	clk_dev_id = clock[clk_id].clk_id;
 
 	for (j = 0; j < num_nodes; j++) {
 		/*
@@ -551,13 +581,14 @@ static struct clk_hw *zynqmp_register_clk_topology(int clk_id, char *clk_name,
 		if (!clk_topology[nodes[j].type])
 			continue;
 
-		hw = (*clk_topology[nodes[j].type])(clk_out, clk_id,
+		hw = (*clk_topology[nodes[j].type])(clk_out, clk_dev_id,
 						    parent_names,
 						    num_parents,
 						    &nodes[j]);
 		if (IS_ERR(hw))
-			pr_warn_once("%s() %s register fail with %ld\n",
-				     __func__, clk_name, PTR_ERR(hw));
+			pr_warn_once("%s() 0x%x: %s register fail with %ld\n",
+				     __func__,  clk_dev_id, clk_name,
+				     PTR_ERR(hw));
 
 		parent_names[0] = clk_out;
 	}
@@ -621,20 +652,33 @@ static int zynqmp_register_clocks(struct device_node *np)
 static void zynqmp_get_clock_info(void)
 {
 	int i, ret;
-	u32 attr, type = 0;
+	u32 type = 0;
+	u32 nodetype, subclass, class;
+	struct attr_resp attr;
+	struct name_resp name;
 
 	for (i = 0; i < clock_max_idx; i++) {
-		zynqmp_pm_clock_get_name(i, clock[i].clk_name);
-		if (!strcmp(clock[i].clk_name, RESERVED_CLK_NAME))
-			continue;
-
 		ret = zynqmp_pm_clock_get_attributes(i, &attr);
 		if (ret)
 			continue;
 
-		clock[i].valid = attr & CLK_VALID_MASK;
-		clock[i].type = attr >> CLK_TYPE_SHIFT ? CLK_TYPE_EXTERNAL :
-							CLK_TYPE_OUTPUT;
+		clock[i].valid = FIELD_GET(CLK_ATTR_VALID, attr.attr[0]);
+		clock[i].type = FIELD_GET(CLK_ATTR_TYPE, attr.attr[0]) ?
+			CLK_TYPE_EXTERNAL : CLK_TYPE_OUTPUT;
+
+		nodetype = FIELD_GET(CLK_ATTR_NODE_TYPE, attr.attr[0]);
+		subclass = FIELD_GET(CLK_ATTR_NODE_SUBCLASS, attr.attr[0]);
+		class = FIELD_GET(CLK_ATTR_NODE_CLASS, attr.attr[0]);
+
+		clock[i].clk_id = FIELD_PREP(CLK_ATTR_NODE_CLASS, class) |
+				  FIELD_PREP(CLK_ATTR_NODE_SUBCLASS, subclass) |
+				  FIELD_PREP(CLK_ATTR_NODE_TYPE, nodetype) |
+				  FIELD_PREP(CLK_ATTR_NODE_INDEX, i);
+
+		zynqmp_pm_clock_get_name(clock[i].clk_id, &name);
+		if (!strcmp(name.name, RESERVED_CLK_NAME))
+			continue;
+		strncpy(clock[i].clk_name, name.name, MAX_NAME_LEN);
 	}
 
 	/* Get topology of all clock */
@@ -695,8 +739,8 @@ static int zynqmp_clock_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	eemi_ops = zynqmp_pm_get_eemi_ops();
-	if (!eemi_ops)
-		return -ENXIO;
+	if (IS_ERR(eemi_ops))
+		return PTR_ERR(eemi_ops);
 
 	ret = zynqmp_clk_setup(dev->of_node);
 

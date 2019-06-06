@@ -221,8 +221,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 				 size_t frame_size,
 				 void __user **fpstate)
 {
-	struct fpu *fpu = &current->thread.fpu;
-	unsigned long sp;
+	unsigned long sp, fx_aligned, math_size;
 
 	/* Default to using normal stack */
 	sp = regs->sp;
@@ -236,15 +235,11 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 		 ksig->ka.sa.sa_restorer)
 		sp = (unsigned long) ksig->ka.sa.sa_restorer;
 
-	if (fpu->initialized) {
-		unsigned long fx_aligned, math_size;
-
-		sp = fpu__alloc_mathframe(sp, 1, &fx_aligned, &math_size);
-		*fpstate = (struct _fpstate_32 __user *) sp;
-		if (copy_fpstate_to_sigframe(*fpstate, (void __user *)fx_aligned,
-				    math_size) < 0)
-			return (void __user *) -1L;
-	}
+	sp = fpu__alloc_mathframe(sp, 1, &fx_aligned, &math_size);
+	*fpstate = (struct _fpstate_32 __user *) sp;
+	if (copy_fpstate_to_sigframe(*fpstate, (void __user *)fx_aligned,
+				     math_size) < 0)
+		return (void __user *) -1L;
 
 	sp -= frame_size;
 	/* Align the stack pointer according to the i386 ABI,

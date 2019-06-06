@@ -168,27 +168,27 @@
 		haikou_pin_hog: haikou-pin-hog {
 			rockchip,pins =
 			  /* LID_BTN */
-			  <RK_GPIO0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>,
+			  <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>,
 			  /* BATLOW# */
-			  <RK_GPIO0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
+			  <0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
 			  /* SLP_BTN# */
-			  <RK_GPIO0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>,
+			  <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>,
 			  /* BIOS_DISABLE# */
-			  <RK_GPIO0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+			  <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	leds {
 		led_sd_haikou: led-sd-gpio {
 			rockchip,pins =
-			  <RK_GPIO1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
 	usb2 {
 		otg_vbus_drv: otg-vbus-drv {
 			rockchip,pins =
-			  <RK_GPIO0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			  <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };

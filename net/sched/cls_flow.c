@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/cls_flow.c		Generic flow classifier
  *
  * Copyright (c) 2007, 2008 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -408,7 +404,8 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_FLOW_MAX, opt, flow_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_FLOW_MAX, opt, flow_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 
@@ -629,7 +626,7 @@ static int flow_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = f->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

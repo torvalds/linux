@@ -162,6 +162,7 @@ int pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 
 			*erase_ppa = ppa_list[i];
 			erase_ppa->a.blk = e_line->id;
+			erase_ppa->a.reserved = 0;
 
 			spin_unlock(&e_line->lock);
 

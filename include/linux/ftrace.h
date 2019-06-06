@@ -741,6 +741,8 @@ struct ftrace_graph_ret {
 typedef void (*trace_func_graph_ret_t)(struct ftrace_graph_ret *); /* return */
 typedef int (*trace_func_graph_ent_t)(struct ftrace_graph_ent *); /* entry */
 
+extern int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace);
+
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
 struct fgraph_ops {

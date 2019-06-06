@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/kernel/exit.c
  *
@@ -422,7 +423,7 @@ retry:
 	 * freed task structure.
 	 */
 	if (atomic_read(&mm->mm_users) <= 1) {
-		mm->owner = NULL;
+		WRITE_ONCE(mm->owner, NULL);
 		return;
 	}
 
@@ -462,7 +463,7 @@ retry:
 	 * most likely racing with swapoff (try_to_unuse()) or /proc or
 	 * ptrace or page migration (get_task_mm()).  Mark owner as NULL.
 	 */
-	mm->owner = NULL;
+	WRITE_ONCE(mm->owner, NULL);
 	return;
 
 assign_new_owner:
@@ -483,7 +484,7 @@ assign_new_owner:
 		put_task_struct(c);
 		goto retry;
 	}
-	mm->owner = c;
+	WRITE_ONCE(mm->owner, c);
 	task_unlock(c);
 	put_task_struct(c);
 }

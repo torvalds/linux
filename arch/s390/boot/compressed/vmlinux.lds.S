@@ -77,6 +77,8 @@ SECTIONS
 		_compressed_start = .;
 		*(.vmlinux.bin.compressed)
 		_compressed_end = .;
+		FILL(0xff);
+		. = ALIGN(4096);
 	}
 	. = ALIGN(256);
 	.bss : {

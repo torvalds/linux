@@ -64,7 +64,7 @@ enum kernfs_root_flag {
 	KERNFS_ROOT_CREATE_DEACTIVATED		= 0x0001,
 
 	/*
-	 * For regular flies, if the opener has CAP_DAC_OVERRIDE, open(2)
+	 * For regular files, if the opener has CAP_DAC_OVERRIDE, open(2)
 	 * succeeds regardless of the RW permissions.  sysfs had an extra
 	 * layer of enforcement where open(2) fails with -EACCES regardless
 	 * of CAP_DAC_OVERRIDE if the permission doesn't have the
@@ -371,6 +371,11 @@ __poll_t kernfs_generic_poll(struct kernfs_open_file *of,
 			     struct poll_table_struct *pt);
 void kernfs_notify(struct kernfs_node *kn);
 
+int kernfs_xattr_get(struct kernfs_node *kn, const char *name,
+		     void *value, size_t size);
+int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
+		     const void *value, size_t size, int flags);
+
 const void *kernfs_super_ns(struct super_block *sb);
 int kernfs_get_tree(struct fs_context *fc);
 void kernfs_free_fs_context(struct fs_context *fc);
@@ -472,6 +477,14 @@ static inline int kernfs_setattr(struct kernfs_node *kn,
 { return -ENOSYS; }
 
 static inline void kernfs_notify(struct kernfs_node *kn) { }
+
+static inline int kernfs_xattr_get(struct kernfs_node *kn, const char *name,
+				   void *value, size_t size)
+{ return -ENOSYS; }
+
+static inline int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
+				   const void *value, size_t size, int flags)
+{ return -ENOSYS; }
 
 static inline const void *kernfs_super_ns(struct super_block *sb)
 { return NULL; }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * xfrm_policy.c
  *
@@ -27,10 +28,14 @@
 #include <linux/cpu.h>
 #include <linux/audit.h>
 #include <linux/rhashtable.h>
+#include <linux/if_tunnel.h>
 #include <net/dst.h>
 #include <net/flow.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
+#include <net/mip6.h>
+#endif
 #ifdef CONFIG_XFRM_STATISTICS
 #include <net/snmp.h>
 #endif
@@ -2450,18 +2455,10 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, const struct flowi *fl,
 
 static int xfrm_get_tos(const struct flowi *fl, int family)
 {
-	const struct xfrm_policy_afinfo *afinfo;
-	int tos;
+	if (family == AF_INET)
+		return IPTOS_RT_MASK & fl->u.ip4.flowi4_tos;
 
-	afinfo = xfrm_policy_get_afinfo(family);
-	if (!afinfo)
-		return 0;
-
-	tos = afinfo->get_tos(fl);
-
-	rcu_read_unlock();
-
-	return tos;
+	return 0;
 }
 
 static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
@@ -2499,21 +2496,14 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 	return xdst;
 }
 
-static inline int xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
-				 int nfheader_len)
+static void xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
+			   int nfheader_len)
 {
-	const struct xfrm_policy_afinfo *afinfo =
-		xfrm_policy_get_afinfo(dst->ops->family);
-	int err;
-
-	if (!afinfo)
-		return -EINVAL;
-
-	err = afinfo->init_path(path, dst, nfheader_len);
-
-	rcu_read_unlock();
-
-	return err;
+	if (dst->ops->family == AF_INET6) {
+		struct rt6_info *rt = (struct rt6_info *)dst;
+		path->path_cookie = rt6_get_cookie(rt);
+		path->u.rt6.rt6i_nfheader_len = nfheader_len;
+	}
 }
 
 static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
@@ -2545,10 +2535,11 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 					    const struct flowi *fl,
 					    struct dst_entry *dst)
 {
+	const struct xfrm_state_afinfo *afinfo;
+	const struct xfrm_mode *inner_mode;
 	struct net *net = xp_net(policy);
 	unsigned long now = jiffies;
 	struct net_device *dev;
-	struct xfrm_mode *inner_mode;
 	struct xfrm_dst *xdst_prev = NULL;
 	struct xfrm_dst *xdst0 = NULL;
 	int i = 0;
@@ -2594,7 +2585,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 				goto put_states;
 			}
 		} else
-			inner_mode = xfrm[i]->inner_mode;
+			inner_mode = &xfrm[i]->inner_mode;
 
 		xdst->route = dst;
 		dst_copy_metrics(dst1, dst);
@@ -2622,7 +2613,14 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		dst1->lastuse = now;
 
 		dst1->input = dst_discard;
-		dst1->output = inner_mode->afinfo->output;
+
+		rcu_read_lock();
+		afinfo = xfrm_state_afinfo_get_rcu(inner_mode->family);
+		if (likely(afinfo))
+			dst1->output = afinfo->output;
+		else
+			dst1->output = dst_discard_out;
+		rcu_read_unlock();
 
 		xdst_prev = xdst;
 
@@ -3263,20 +3261,231 @@ xfrm_policy_ok(const struct xfrm_tmpl *tmpl, const struct sec_path *sp, int star
 	return start;
 }
 
+static void
+decode_session4(struct sk_buff *skb, struct flowi *fl, bool reverse)
+{
+	const struct iphdr *iph = ip_hdr(skb);
+	int ihl = iph->ihl;
+	u8 *xprth = skb_network_header(skb) + ihl * 4;
+	struct flowi4 *fl4 = &fl->u.ip4;
+	int oif = 0;
+
+	if (skb_dst(skb))
+		oif = skb_dst(skb)->dev->ifindex;
+
+	memset(fl4, 0, sizeof(struct flowi4));
+	fl4->flowi4_mark = skb->mark;
+	fl4->flowi4_oif = reverse ? skb->skb_iif : oif;
+
+	fl4->flowi4_proto = iph->protocol;
+	fl4->daddr = reverse ? iph->saddr : iph->daddr;
+	fl4->saddr = reverse ? iph->daddr : iph->saddr;
+	fl4->flowi4_tos = iph->tos;
+
+	if (!ip_is_fragment(iph)) {
+		switch (iph->protocol) {
+		case IPPROTO_UDP:
+		case IPPROTO_UDPLITE:
+		case IPPROTO_TCP:
+		case IPPROTO_SCTP:
+		case IPPROTO_DCCP:
+			if (xprth + 4 < skb->data ||
+			    pskb_may_pull(skb, xprth + 4 - skb->data)) {
+				__be16 *ports;
+
+				xprth = skb_network_header(skb) + ihl * 4;
+				ports = (__be16 *)xprth;
+
+				fl4->fl4_sport = ports[!!reverse];
+				fl4->fl4_dport = ports[!reverse];
+			}
+			break;
+		case IPPROTO_ICMP:
+			if (xprth + 2 < skb->data ||
+			    pskb_may_pull(skb, xprth + 2 - skb->data)) {
+				u8 *icmp;
+
+				xprth = skb_network_header(skb) + ihl * 4;
+				icmp = xprth;
+
+				fl4->fl4_icmp_type = icmp[0];
+				fl4->fl4_icmp_code = icmp[1];
+			}
+			break;
+		case IPPROTO_ESP:
+			if (xprth + 4 < skb->data ||
+			    pskb_may_pull(skb, xprth + 4 - skb->data)) {
+				__be32 *ehdr;
+
+				xprth = skb_network_header(skb) + ihl * 4;
+				ehdr = (__be32 *)xprth;
+
+				fl4->fl4_ipsec_spi = ehdr[0];
+			}
+			break;
+		case IPPROTO_AH:
+			if (xprth + 8 < skb->data ||
+			    pskb_may_pull(skb, xprth + 8 - skb->data)) {
+				__be32 *ah_hdr;
+
+				xprth = skb_network_header(skb) + ihl * 4;
+				ah_hdr = (__be32 *)xprth;
+
+				fl4->fl4_ipsec_spi = ah_hdr[1];
+			}
+			break;
+		case IPPROTO_COMP:
+			if (xprth + 4 < skb->data ||
+			    pskb_may_pull(skb, xprth + 4 - skb->data)) {
+				__be16 *ipcomp_hdr;
+
+				xprth = skb_network_header(skb) + ihl * 4;
+				ipcomp_hdr = (__be16 *)xprth;
+
+				fl4->fl4_ipsec_spi = htonl(ntohs(ipcomp_hdr[1]));
+			}
+			break;
+		case IPPROTO_GRE:
+			if (xprth + 12 < skb->data ||
+			    pskb_may_pull(skb, xprth + 12 - skb->data)) {
+				__be16 *greflags;
+				__be32 *gre_hdr;
+
+				xprth = skb_network_header(skb) + ihl * 4;
+				greflags = (__be16 *)xprth;
+				gre_hdr = (__be32 *)xprth;
+
+				if (greflags[0] & GRE_KEY) {
+					if (greflags[0] & GRE_CSUM)
+						gre_hdr++;
+					fl4->fl4_gre_key = gre_hdr[1];
+				}
+			}
+			break;
+		default:
+			fl4->fl4_ipsec_spi = 0;
+			break;
+		}
+	}
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+static void
+decode_session6(struct sk_buff *skb, struct flowi *fl, bool reverse)
+{
+	struct flowi6 *fl6 = &fl->u.ip6;
+	int onlyproto = 0;
+	const struct ipv6hdr *hdr = ipv6_hdr(skb);
+	u32 offset = sizeof(*hdr);
+	struct ipv6_opt_hdr *exthdr;
+	const unsigned char *nh = skb_network_header(skb);
+	u16 nhoff = IP6CB(skb)->nhoff;
+	int oif = 0;
+	u8 nexthdr;
+
+	if (!nhoff)
+		nhoff = offsetof(struct ipv6hdr, nexthdr);
+
+	nexthdr = nh[nhoff];
+
+	if (skb_dst(skb))
+		oif = skb_dst(skb)->dev->ifindex;
+
+	memset(fl6, 0, sizeof(struct flowi6));
+	fl6->flowi6_mark = skb->mark;
+	fl6->flowi6_oif = reverse ? skb->skb_iif : oif;
+
+	fl6->daddr = reverse ? hdr->saddr : hdr->daddr;
+	fl6->saddr = reverse ? hdr->daddr : hdr->saddr;
+
+	while (nh + offset + sizeof(*exthdr) < skb->data ||
+	       pskb_may_pull(skb, nh + offset + sizeof(*exthdr) - skb->data)) {
+		nh = skb_network_header(skb);
+		exthdr = (struct ipv6_opt_hdr *)(nh + offset);
+
+		switch (nexthdr) {
+		case NEXTHDR_FRAGMENT:
+			onlyproto = 1;
+			/* fall through */
+		case NEXTHDR_ROUTING:
+		case NEXTHDR_HOP:
+		case NEXTHDR_DEST:
+			offset += ipv6_optlen(exthdr);
+			nexthdr = exthdr->nexthdr;
+			exthdr = (struct ipv6_opt_hdr *)(nh + offset);
+			break;
+		case IPPROTO_UDP:
+		case IPPROTO_UDPLITE:
+		case IPPROTO_TCP:
+		case IPPROTO_SCTP:
+		case IPPROTO_DCCP:
+			if (!onlyproto && (nh + offset + 4 < skb->data ||
+			     pskb_may_pull(skb, nh + offset + 4 - skb->data))) {
+				__be16 *ports;
+
+				nh = skb_network_header(skb);
+				ports = (__be16 *)(nh + offset);
+				fl6->fl6_sport = ports[!!reverse];
+				fl6->fl6_dport = ports[!reverse];
+			}
+			fl6->flowi6_proto = nexthdr;
+			return;
+		case IPPROTO_ICMPV6:
+			if (!onlyproto && (nh + offset + 2 < skb->data ||
+			    pskb_may_pull(skb, nh + offset + 2 - skb->data))) {
+				u8 *icmp;
+
+				nh = skb_network_header(skb);
+				icmp = (u8 *)(nh + offset);
+				fl6->fl6_icmp_type = icmp[0];
+				fl6->fl6_icmp_code = icmp[1];
+			}
+			fl6->flowi6_proto = nexthdr;
+			return;
+#if IS_ENABLED(CONFIG_IPV6_MIP6)
+		case IPPROTO_MH:
+			offset += ipv6_optlen(exthdr);
+			if (!onlyproto && (nh + offset + 3 < skb->data ||
+			    pskb_may_pull(skb, nh + offset + 3 - skb->data))) {
+				struct ip6_mh *mh;
+
+				nh = skb_network_header(skb);
+				mh = (struct ip6_mh *)(nh + offset);
+				fl6->fl6_mh_type = mh->ip6mh_type;
+			}
+			fl6->flowi6_proto = nexthdr;
+			return;
+#endif
+		/* XXX Why are there these headers? */
+		case IPPROTO_AH:
+		case IPPROTO_ESP:
+		case IPPROTO_COMP:
+		default:
+			fl6->fl6_ipsec_spi = 0;
+			fl6->flowi6_proto = nexthdr;
+			return;
+		}
+	}
+}
+#endif
+
 int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
 			  unsigned int family, int reverse)
 {
-	const struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
-	int err;
-
-	if (unlikely(afinfo == NULL))
+	switch (family) {
+	case AF_INET:
+		decode_session4(skb, fl, reverse);
+		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case AF_INET6:
+		decode_session6(skb, fl, reverse);
+		break;
+#endif
+	default:
 		return -EAFNOSUPPORT;
+	}
 
-	afinfo->decode_session(skb, fl, reverse);
-
-	err = security_xfrm_decode_session(skb, &fl->flowi_secid);
-	rcu_read_unlock();
-	return err;
+	return security_xfrm_decode_session(skb, &fl->flowi_secid);
 }
 EXPORT_SYMBOL(__xfrm_decode_session);
 

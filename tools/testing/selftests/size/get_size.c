@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014 Sony Mobile Communications Inc.
- *
- * Licensed under the terms of the GNU GPL License version 2
  *
  * Selftest for runtime system size
  *

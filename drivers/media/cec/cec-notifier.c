@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/kref.h>
+#include <linux/of_platform.h>
 
 #include <media/cec.h>
 #include <media/cec-notifier.h>
@@ -127,3 +128,32 @@ void cec_notifier_unregister(struct cec_notifier *n)
 	cec_notifier_put(n);
 }
 EXPORT_SYMBOL_GPL(cec_notifier_unregister);
+
+struct device *cec_notifier_parse_hdmi_phandle(struct device *dev)
+{
+	struct platform_device *hdmi_pdev;
+	struct device *hdmi_dev = NULL;
+	struct device_node *np;
+
+	np = of_parse_phandle(dev->of_node, "hdmi-phandle", 0);
+
+	if (!np) {
+		dev_err(dev, "Failed to find HDMI node in device tree\n");
+		return ERR_PTR(-ENODEV);
+	}
+	hdmi_pdev = of_find_device_by_node(np);
+	of_node_put(np);
+	if (hdmi_pdev) {
+		hdmi_dev = &hdmi_pdev->dev;
+		/*
+		 * Note that the device struct is only used as a key into the
+		 * cec_notifiers list, it is never actually accessed.
+		 * So we decrement the reference here so we don't leak
+		 * memory.
+		 */
+		put_device(hdmi_dev);
+		return hdmi_dev;
+	}
+	return ERR_PTR(-EPROBE_DEFER);
+}
+EXPORT_SYMBOL_GPL(cec_notifier_parse_hdmi_phandle);
