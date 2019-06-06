@@ -812,7 +812,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	offset = (src->x1 >> 16) * fb->format->cpp[0];
 	offset += (src->y1 >> 16) * fb->pitches[0];
-	dma_addr = rockchip_fb_get_dma_addr(fb, 0, vop->dev);
+	dma_addr = rockchip_fb_get_dma_addr(fb, 0);
 	dma_addr += offset + fb->offsets[0];
 
 	/*
@@ -843,7 +843,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		offset = (src->x1 >> 16) * bpp / hsub;
 		offset += (src->y1 >> 16) * fb->pitches[1] / vsub;
 
-		dma_addr = rockchip_fb_get_dma_addr(fb, 1, vop->dev);
+		dma_addr = rockchip_fb_get_dma_addr(fb, 1);
 		dma_addr += offset + fb->offsets[1];
 
 		VOP_WIN_SET(vop, win, uv_vir, DIV_ROUND_UP(fb->pitches[1], 4));
@@ -1206,7 +1206,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_atomic_state *old_state = old_crtc_state->state;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	struct vop *vop = to_vop(crtc);
-	struct drm_plane *plane;
+	struct drm_plane *plane = NULL;
 	int i;
 	struct rockchip_crtc_state *s =
 		to_rockchip_crtc_state(crtc->state);
@@ -1511,7 +1511,7 @@ static int vop_create_crtc(struct vop *vop)
 	struct drm_plane *primary = NULL, *cursor = NULL, *plane, *tmp;
 	struct drm_crtc *crtc = &vop->crtc;
 	struct device_node *port;
-	int ret;
+	int ret = 0;
 	int i;
 
 	/*
