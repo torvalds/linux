@@ -1845,9 +1845,6 @@ iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
 					 struct iwl_beacon_filter_cmd *cmd)
 {}
 #endif
-int iwl_mvm_update_d0i3_power_mode(struct iwl_mvm *mvm,
-				   struct ieee80211_vif *vif,
-				   bool enable, u32 flags);
 int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif,
 				 u32 flags);
