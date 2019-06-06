@@ -258,9 +258,6 @@ int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 
 	ret = vkms_crc_parse_source(src_name, &enabled);
 
-	/* make sure nothing is scheduled on crtc workq */
-	flush_workqueue(out->crc_workq);
-
 	spin_lock_irq(&out->lock);
 	out->crc_enabled = enabled;
 	spin_unlock_irq(&out->lock);
