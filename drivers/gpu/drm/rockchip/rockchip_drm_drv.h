@@ -162,7 +162,7 @@ struct rockchip_crtc_funcs {
  * @mm_lock: protect drm_mm on multi-threads.
  */
 struct rockchip_drm_private {
-	struct drm_fb_helper fbdev_helper;
+	struct drm_fb_helper *fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
 	struct iommu_domain *domain;
 	struct mutex mm_lock;
