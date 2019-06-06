@@ -537,13 +537,21 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 	unsigned long *idaws;
 	int ret;
 	int bytes = 1;
-	int idaw_nr = 1;
+	int idaw_nr;
 
 	ccw = chain->ch_ccw + idx;
 
-	if (ccw->count) {
+	if (ccw->count)
 		bytes = ccw->count;
-		idaw_nr = idal_nr_words((void *)(u64)ccw->cda, ccw->count);
+
+	/* Calculate size of IDAL */
+	idaw_nr = idal_nr_words((void *)(u64)ccw->cda, bytes);
+
+	/* Allocate an IDAL from host storage */
+	idaws = kcalloc(idaw_nr, sizeof(*idaws), GFP_DMA | GFP_KERNEL);
+	if (!idaws) {
+		ret = -ENOMEM;
+		goto out_init;
 	}
 
 	/*
@@ -554,7 +562,7 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 	pa = chain->ch_pa + idx;
 	ret = pfn_array_alloc(pa, ccw->cda, bytes);
 	if (ret < 0)
-		goto out_unpin;
+		goto out_free_idaws;
 
 	if (ccw_does_data_transfer(ccw)) {
 		ret = pfn_array_pin(pa, cp->mdev);
@@ -564,21 +572,18 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 		pa->pa_nr = 0;
 	}
 
-	/* Translate this direct ccw to a idal ccw. */
-	idaws = kcalloc(idaw_nr, sizeof(*idaws), GFP_DMA | GFP_KERNEL);
-	if (!idaws) {
-		ret = -ENOMEM;
-		goto out_unpin;
-	}
 	ccw->cda = (__u32) virt_to_phys(idaws);
 	ccw->flags |= CCW_FLAG_IDA;
 
+	/* Populate the IDAL with pinned/translated addresses from pfn */
 	pfn_array_idal_create_words(pa, idaws);
 
 	return 0;
 
 out_unpin:
 	pfn_array_unpin_free(pa, cp->mdev);
+out_free_idaws:
+	kfree(idaws);
 out_init:
 	ccw->cda = 0;
 	return ret;
