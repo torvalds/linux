@@ -330,14 +330,14 @@ unreferenced dentries, and is now only called when the dentry refcount goes to
 [mandatory]
 
 	.d_compare() calling convention and locking rules are significantly
-changed. Read updated documentation in Documentation/filesystems/vfs.txt (and
+changed. Read updated documentation in Documentation/filesystems/vfs.rst (and
 look at examples of other filesystems) for guidance.
 
 ---
 [mandatory]
 
 	.d_hash() calling convention and locking rules are significantly
-changed. Read updated documentation in Documentation/filesystems/vfs.txt (and
+changed. Read updated documentation in Documentation/filesystems/vfs.rst (and
 look at examples of other filesystems) for guidance.
 
 ---
@@ -377,12 +377,12 @@ where possible.
 the filesystem provides it), which requires dropping out of rcu-walk mode. This
 may now be called in rcu-walk mode (nd->flags & LOOKUP_RCU). -ECHILD should be
 returned if the filesystem cannot handle rcu-walk. See
-Documentation/filesystems/vfs.txt for more details.
+Documentation/filesystems/vfs.rst for more details.
 
 	permission is an inode permission check that is called on many or all
 directory inodes on the way down a path walk (to check for exec permission). It
 must now be rcu-walk aware (mask & MAY_NOT_BLOCK).  See
-Documentation/filesystems/vfs.txt for more details.
+Documentation/filesystems/vfs.rst for more details.
  
 --
 [mandatory]
@@ -625,7 +625,7 @@ in your dentry operations instead.
 --
 [mandatory]
 	->clone_file_range() and ->dedupe_file_range have been replaced with
-	->remap_file_range().  See Documentation/filesystems/vfs.txt for more
+	->remap_file_range().  See Documentation/filesystems/vfs.rst for more
 	information.
 --
 [recommended]
