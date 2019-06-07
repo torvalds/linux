@@ -72,6 +72,8 @@ MODULE_FIRMWARE(BXT_CSR_PATH);
 #define CSR_DEFAULT_FW_OFFSET		0xFFFFFFFF
 #define PACKAGE_MAX_FW_INFO_ENTRIES	20
 #define PACKAGE_V2_MAX_FW_INFO_ENTRIES	32
+#define DMC_V1_MAX_MMIO_COUNT		8
+#define DMC_V3_MAX_MMIO_COUNT		20
 
 struct intel_css_header {
 	/* 0x09 for DMC */
@@ -143,7 +145,7 @@ struct intel_package_header {
 	u32 num_entries;
 } __packed;
 
-struct intel_dmc_header {
+struct intel_dmc_header_base {
 	/* always value would be 0x40403E3E */
 	u32 signature;
 
@@ -164,20 +166,45 @@ struct intel_dmc_header {
 
 	/* Major Minor version */
 	u32 fw_version;
+} __packed;
+
+struct intel_dmc_header_v1 {
+	struct intel_dmc_header_base base;
 
 	/* Number of valid MMIO cycles present. */
 	u32 mmio_count;
 
 	/* MMIO address */
-	u32 mmioaddr[8];
+	u32 mmioaddr[DMC_V1_MAX_MMIO_COUNT];
 
 	/* MMIO data */
-	u32 mmiodata[8];
+	u32 mmiodata[DMC_V1_MAX_MMIO_COUNT];
 
 	/* FW filename  */
-	unsigned char dfile[32];
+	char dfile[32];
 
 	u32 reserved1[2];
+} __packed;
+
+struct intel_dmc_header_v3 {
+	struct intel_dmc_header_base base;
+
+	/* DMC RAM start MMIO address */
+	u32 start_mmioaddr;
+
+	u32 reserved[9];
+
+	/* FW filename */
+	char dfile[32];
+
+	/* Number of valid MMIO cycles present. */
+	u32 mmio_count;
+
+	/* MMIO address */
+	u32 mmioaddr[DMC_V3_MAX_MMIO_COUNT];
+
+	/* MMIO data */
+	u32 mmiodata[DMC_V3_MAX_MMIO_COUNT];
 } __packed;
 
 struct stepping_info {
@@ -333,43 +360,83 @@ static u32 find_dmc_fw_offset(const struct intel_fw_info *fw_info,
 }
 
 static u32 parse_csr_fw_dmc(struct intel_csr *csr,
-			    const struct intel_dmc_header *dmc_header,
+			    const struct intel_dmc_header_base *dmc_header,
 			    size_t rem_size)
 {
-	unsigned int i, payload_size;
-	u32 r;
+	unsigned int header_len_bytes, dmc_header_size, payload_size, i;
+	const u32 *mmioaddr, *mmiodata;
+	u32 mmio_count, mmio_count_max;
 	u8 *payload;
 
-	if (rem_size < sizeof(struct intel_dmc_header))
+	BUILD_BUG_ON(ARRAY_SIZE(csr->mmioaddr) < DMC_V3_MAX_MMIO_COUNT ||
+		     ARRAY_SIZE(csr->mmioaddr) < DMC_V1_MAX_MMIO_COUNT);
+
+	/*
+	 * Check if we can access common fields, we will checkc again below
+	 * after we have read the version
+	 */
+	if (rem_size < sizeof(struct intel_dmc_header_base))
 		goto error_truncated;
 
-	if (sizeof(struct intel_dmc_header) != dmc_header->header_len) {
+	/* Cope with small differences between v1 and v3 */
+	if (dmc_header->header_ver == 3) {
+		const struct intel_dmc_header_v3 *v3 =
+			(const struct intel_dmc_header_v3 *)dmc_header;
+
+		if (rem_size < sizeof(struct intel_dmc_header_v3))
+			goto error_truncated;
+
+		mmioaddr = v3->mmioaddr;
+		mmiodata = v3->mmiodata;
+		mmio_count = v3->mmio_count;
+		mmio_count_max = DMC_V3_MAX_MMIO_COUNT;
+		/* header_len is in dwords */
+		header_len_bytes = dmc_header->header_len * 4;
+		dmc_header_size = sizeof(*v3);
+	} else if (dmc_header->header_ver == 1) {
+		const struct intel_dmc_header_v1 *v1 =
+			(const struct intel_dmc_header_v1 *)dmc_header;
+
+		if (rem_size < sizeof(struct intel_dmc_header_v1))
+			goto error_truncated;
+
+		mmioaddr = v1->mmioaddr;
+		mmiodata = v1->mmiodata;
+		mmio_count = v1->mmio_count;
+		mmio_count_max = DMC_V1_MAX_MMIO_COUNT;
+		header_len_bytes = dmc_header->header_len;
+		dmc_header_size = sizeof(*v1);
+	} else {
+		DRM_ERROR("Unknown DMC fw header version: %u\n",
+			  dmc_header->header_ver);
+		return 0;
+	}
+
+	if (header_len_bytes != dmc_header_size) {
 		DRM_ERROR("DMC firmware has wrong dmc header length "
-			  "(%u bytes)\n",
-			  (dmc_header->header_len));
+			  "(%u bytes)\n", header_len_bytes);
 		return 0;
 	}
 
 	/* Cache the dmc header info. */
-	if (dmc_header->mmio_count > ARRAY_SIZE(csr->mmioaddr)) {
-		DRM_ERROR("DMC firmware has wrong mmio count %u\n",
-			  dmc_header->mmio_count);
+	if (mmio_count > mmio_count_max) {
+		DRM_ERROR("DMC firmware has wrong mmio count %u\n", mmio_count);
 		return 0;
 	}
 
-	csr->mmio_count = dmc_header->mmio_count;
-	for (i = 0; i < dmc_header->mmio_count; i++) {
-		if (dmc_header->mmioaddr[i] < CSR_MMIO_START_RANGE ||
-		    dmc_header->mmioaddr[i] > CSR_MMIO_END_RANGE) {
+	for (i = 0; i < mmio_count; i++) {
+		if (mmioaddr[i] < CSR_MMIO_START_RANGE ||
+		    mmioaddr[i] > CSR_MMIO_END_RANGE) {
 			DRM_ERROR("DMC firmware has wrong mmio address 0x%x\n",
-				  dmc_header->mmioaddr[i]);
+				  mmioaddr[i]);
 			return 0;
 		}
-		csr->mmioaddr[i] = _MMIO(dmc_header->mmioaddr[i]);
-		csr->mmiodata[i] = dmc_header->mmiodata[i];
+		csr->mmioaddr[i] = _MMIO(mmioaddr[i]);
+		csr->mmiodata[i] = mmiodata[i];
 	}
+	csr->mmio_count = mmio_count;
 
-	rem_size -= dmc_header->header_len;
+	rem_size -= header_len_bytes;
 
 	/* fw_size is in dwords, so multiplied by 4 to convert into bytes. */
 	payload_size = dmc_header->fw_size * 4;
@@ -388,12 +455,10 @@ static u32 parse_csr_fw_dmc(struct intel_csr *csr,
 		return 0;
 	}
 
-	r = sizeof(struct intel_dmc_header);
-	payload = (u8 *)(dmc_header) + r;
+	payload = (u8 *)(dmc_header) + header_len_bytes;
 	memcpy(csr->dmc_payload, payload, payload_size);
-	r += payload_size;
 
-	return r;
+	return header_len_bytes + payload_size;
 
 error_truncated:
 	DRM_ERROR("Truncated DMC firmware, refusing.\n");
@@ -497,7 +562,7 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 {
 	struct intel_css_header *css_header;
 	struct intel_package_header *package_header;
-	struct intel_dmc_header *dmc_header;
+	struct intel_dmc_header_base *dmc_header;
 	struct intel_csr *csr = &dev_priv->csr;
 	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
 	u32 readcount = 0;
@@ -523,7 +588,7 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 	readcount += r;
 
 	/* Extract dmc_header information */
-	dmc_header = (struct intel_dmc_header *)&fw->data[readcount];
+	dmc_header = (struct intel_dmc_header_base *)&fw->data[readcount];
 	r = parse_csr_fw_dmc(csr, dmc_header, fw->size - readcount);
 	if (!r)
 		return NULL;

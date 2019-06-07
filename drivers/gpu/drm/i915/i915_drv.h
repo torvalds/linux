@@ -353,8 +353,8 @@ struct intel_csr {
 	u32 dmc_fw_size; /* dwords */
 	u32 version;
 	u32 mmio_count;
-	i915_reg_t mmioaddr[8];
-	u32 mmiodata[8];
+	i915_reg_t mmioaddr[20];
+	u32 mmiodata[20];
 	u32 dc_state;
 	u32 allowed_dc_mask;
 	intel_wakeref_t wakeref;
