@@ -293,7 +293,7 @@ struct intel_shared_dpll {
 	/**
 	 * @state:
 	 *
-	 * Store the state for the pll, including the its hw state
+	 * Store the state for the pll, including its hw state
 	 * and CRTCs using it.
 	 */
 	struct intel_shared_dpll_state state;
