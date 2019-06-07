@@ -1687,6 +1687,81 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
+/* hclge_query_8bd_info: query information about over_8bd_nfe_err
+ * @hdev: pointer to struct hclge_dev
+ * @vf_id: Index of the virtual function with error
+ * @q_id: Physical index of the queue with error
+ *
+ * This function get specific index of queue and function which causes
+ * over_8bd_nfe_err by using command. If vf_id is 0, it means error is
+ * caused by PF instead of VF.
+ */
+static int hclge_query_over_8bd_err_info(struct hclge_dev *hdev, u16 *vf_id,
+					 u16 *q_id)
+{
+	struct hclge_query_ppu_pf_other_int_dfx_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_PPU_PF_OTHER_INT_DFX, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		return ret;
+
+	req = (struct hclge_query_ppu_pf_other_int_dfx_cmd *)desc.data;
+	*vf_id = le16_to_cpu(req->over_8bd_no_fe_vf_id);
+	*q_id = le16_to_cpu(req->over_8bd_no_fe_qid);
+
+	return 0;
+}
+
+/* hclge_handle_over_8bd_err: handle MSI-X error named over_8bd_nfe_err
+ * @hdev: pointer to struct hclge_dev
+ * @reset_requests: reset level that we need to trigger later
+ *
+ * over_8bd_nfe_err is a special MSI-X because it may caused by a VF, in
+ * that case, we need to trigger VF reset. Otherwise, a PF reset is needed.
+ */
+static void hclge_handle_over_8bd_err(struct hclge_dev *hdev,
+				      unsigned long *reset_requests)
+{
+	struct device *dev = &hdev->pdev->dev;
+	u16 vf_id;
+	u16 q_id;
+	int ret;
+
+	ret = hclge_query_over_8bd_err_info(hdev, &vf_id, &q_id);
+	if (ret) {
+		dev_err(dev, "fail(%d) to query over_8bd_no_fe info\n",
+			ret);
+		return;
+	}
+
+	dev_warn(dev, "PPU_PF_ABNORMAL_INT_ST over_8bd_no_fe found, vf_id(%d), queue_id(%d)\n",
+		 vf_id, q_id);
+
+	if (vf_id) {
+		if (vf_id >= hdev->num_alloc_vport) {
+			dev_err(dev, "invalid vf id(%d)\n", vf_id);
+			return;
+		}
+
+		/* If we need to trigger other reset whose level is higher
+		 * than HNAE3_VF_FUNC_RESET, no need to trigger a VF reset
+		 * here.
+		 */
+		if (*reset_requests != 0)
+			return;
+
+		ret = hclge_inform_reset_assert_to_vf(&hdev->vport[vf_id]);
+		if (ret)
+			dev_warn(dev, "inform reset to vf(%d) failed %d!\n",
+				 hdev->vport->vport_id, ret);
+	} else {
+		set_bit(HNAE3_FUNC_RESET, reset_requests);
+	}
+}
+
 int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 			       unsigned long *reset_requests)
 {
@@ -1798,6 +1873,10 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 					      status);
 		set_bit(reset_level, reset_requests);
 	}
+
+	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_OVER_8BD_ERR_MASK;
+	if (status)
+		hclge_handle_over_8bd_err(hdev, reset_requests);
 
 	/* clear all PF MSIx errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
