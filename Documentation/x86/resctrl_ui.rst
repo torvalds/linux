@@ -677,8 +677,8 @@ allocations can overlap or not. The allocations specifies the maximum
 b/w that the group may be able to use and the system admin can configure
 the b/w accordingly.
 
-If the MBA is specified in MB(megabytes) then user can enter the max b/w in MB
-rather than the percentage values.
+If resctrl is using the software controller (mba_sc) then user can enter the
+max b/w in MB rather than the percentage values.
 ::
 
   # echo "L3:0=3;1=c\nMB:0=1024;1=500" > /sys/fs/resctrl/p0/schemata
