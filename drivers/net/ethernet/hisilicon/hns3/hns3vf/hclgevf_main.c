@@ -232,7 +232,7 @@ static int hclgevf_get_tc_info(struct hclgevf_dev *hdev)
 	int status;
 
 	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_TCINFO, 0, NULL, 0,
-				      true, &resp_msg, sizeof(u8));
+				      true, &resp_msg, sizeof(resp_msg));
 	if (status) {
 		dev_err(&hdev->pdev->dev,
 			"VF request to get TC info from PF failed %d",
@@ -321,7 +321,8 @@ static u16 hclgevf_get_qid_global(struct hnae3_handle *handle, u16 queue_id)
 	memcpy(&msg_data[0], &queue_id, sizeof(queue_id));
 
 	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_QID_IN_PF, 0, msg_data,
-				   2, true, resp_data, 2);
+				   sizeof(msg_data), true, resp_data,
+				   sizeof(resp_data));
 	if (!ret)
 		qid_in_pf = *(u16 *)resp_data;
 
@@ -418,7 +419,7 @@ static void hclgevf_request_link_info(struct hclgevf_dev *hdev)
 	u8 resp_msg;
 
 	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_STATUS, 0, NULL,
-				      0, false, &resp_msg, sizeof(u8));
+				      0, false, &resp_msg, sizeof(resp_msg));
 	if (status)
 		dev_err(&hdev->pdev->dev,
 			"VF failed to fetch link status(%d) from PF", status);
@@ -453,11 +454,13 @@ static void hclgevf_update_link_mode(struct hclgevf_dev *hdev)
 	u8 resp_msg;
 
 	send_msg = HCLGEVF_ADVERTISING;
-	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_MODE, 0, &send_msg,
-			     sizeof(u8), false, &resp_msg, sizeof(u8));
+	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_MODE, 0,
+			     &send_msg, sizeof(send_msg), false,
+			     &resp_msg, sizeof(resp_msg));
 	send_msg = HCLGEVF_SUPPORTED;
-	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_MODE, 0, &send_msg,
-			     sizeof(u8), false, &resp_msg, sizeof(u8));
+	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_MODE, 0,
+			     &send_msg, sizeof(send_msg), false,
+			     &resp_msg, sizeof(resp_msg));
 }
 
 static int hclgevf_set_handle_info(struct hclgevf_dev *hdev)
@@ -1186,7 +1189,7 @@ static int hclgevf_set_mac_addr(struct hnae3_handle *handle, void *p,
 			HCLGE_MBX_MAC_VLAN_UC_MODIFY;
 
 	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_UNICAST,
-				      subcode, msg_data, ETH_ALEN * 2,
+				      subcode, msg_data, sizeof(msg_data),
 				      true, NULL, 0);
 	if (!status)
 		ether_addr_copy(hdev->hw.mac.mac_addr, new_mac_addr);
@@ -1273,7 +1276,7 @@ static int hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 	u8 msg_data[2];
 	int ret;
 
-	memcpy(&msg_data[0], &queue_id, sizeof(queue_id));
+	memcpy(msg_data, &queue_id, sizeof(queue_id));
 
 	/* disable vf queue before send queue reset msg to PF */
 	ret = hclgevf_tqp_enable(hdev, queue_id, 0, false);
@@ -1281,7 +1284,7 @@ static int hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 		return ret;
 
 	return hclgevf_send_mbx_msg(hdev, HCLGE_MBX_QUEUE_RESET, 0, msg_data,
-				    2, true, NULL, 0);
+				    sizeof(msg_data), true, NULL, 0);
 }
 
 static int hclgevf_set_mtu(struct hnae3_handle *handle, int new_mtu)
@@ -1768,7 +1771,7 @@ static void hclgevf_keep_alive_task(struct work_struct *work)
 		return;
 
 	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_KEEP_ALIVE, 0, NULL,
-				   0, false, &respmsg, sizeof(u8));
+				   0, false, &respmsg, sizeof(respmsg));
 	if (ret)
 		dev_err(&hdev->pdev->dev,
 			"VF sends keep alive cmd failed(=%d)\n", ret);

@@ -31,6 +31,8 @@
 #define HCLGE_BUF_MUL_BY	2
 #define HCLGE_BUF_DIV_BY	2
 
+#define HCLGE_RESET_MAX_FAIL_CNT	5
+
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
 static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev);
@@ -2169,7 +2171,8 @@ static int hclge_cfg_mac_speed_dup_hw(struct hclge_dev *hdev, int speed,
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CONFIG_SPEED_DUP, false);
 
-	hnae3_set_bit(req->speed_dup, HCLGE_CFG_DUPLEX_B, !!duplex);
+	if (duplex)
+		hnae3_set_bit(req->speed_dup, HCLGE_CFG_DUPLEX_B, 1);
 
 	switch (speed) {
 	case HCLGE_MAC_SPEED_10M:
@@ -2531,7 +2534,7 @@ static void hclge_update_port_capability(struct hclge_mac *mac)
 
 static int hclge_get_sfp_speed(struct hclge_dev *hdev, u32 *speed)
 {
-	struct hclge_sfp_info_cmd *resp = NULL;
+	struct hclge_sfp_info_cmd *resp;
 	struct hclge_desc desc;
 	int ret;
 
@@ -3271,6 +3274,25 @@ static int hclge_reset_prepare_up(struct hclge_dev *hdev)
 	return ret;
 }
 
+static int hclge_reset_stack(struct hclge_dev *hdev)
+{
+	int ret;
+
+	ret = hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+	if (ret)
+		return ret;
+
+	ret = hclge_reset_ae_dev(hdev->ae_dev);
+	if (ret)
+		return ret;
+
+	ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
+	if (ret)
+		return ret;
+
+	return hclge_notify_client(hdev, HNAE3_RESTORE_CLIENT);
+}
+
 static void hclge_reset(struct hclge_dev *hdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
@@ -3314,19 +3336,8 @@ static void hclge_reset(struct hclge_dev *hdev)
 		goto err_reset;
 
 	rtnl_lock();
-	ret = hclge_notify_client(hdev, HNAE3_UNINIT_CLIENT);
-	if (ret)
-		goto err_reset_lock;
 
-	ret = hclge_reset_ae_dev(hdev->ae_dev);
-	if (ret)
-		goto err_reset_lock;
-
-	ret = hclge_notify_client(hdev, HNAE3_INIT_CLIENT);
-	if (ret)
-		goto err_reset_lock;
-
-	ret = hclge_notify_client(hdev, HNAE3_RESTORE_CLIENT);
+	ret = hclge_reset_stack(hdev);
 	if (ret)
 		goto err_reset_lock;
 
@@ -3336,15 +3347,22 @@ static void hclge_reset(struct hclge_dev *hdev)
 	if (ret)
 		goto err_reset_lock;
 
+	rtnl_unlock();
+
+	ret = hclge_notify_roce_client(hdev, HNAE3_INIT_CLIENT);
+	/* ignore RoCE notify error if it fails HCLGE_RESET_MAX_FAIL_CNT - 1
+	 * times
+	 */
+	if (ret && hdev->reset_fail_cnt < HCLGE_RESET_MAX_FAIL_CNT - 1)
+		goto err_reset;
+
+	rtnl_lock();
+
 	ret = hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 	if (ret)
 		goto err_reset_lock;
 
 	rtnl_unlock();
-
-	ret = hclge_notify_roce_client(hdev, HNAE3_INIT_CLIENT);
-	if (ret)
-		goto err_reset;
 
 	ret = hclge_notify_roce_client(hdev, HNAE3_UP_CLIENT);
 	if (ret)
@@ -6440,7 +6458,9 @@ static int hclge_set_umv_space(struct hclge_dev *hdev, u16 space_size,
 
 	req = (struct hclge_umv_spc_alc_cmd *)desc.data;
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MAC_VLAN_ALLOCATE, false);
-	hnae3_set_bit(req->allocate, HCLGE_UMV_SPC_ALC_B, !is_alloc);
+	if (!is_alloc)
+		hnae3_set_bit(req->allocate, HCLGE_UMV_SPC_ALC_B, 1);
+
 	req->space_size = cpu_to_le32(space_size);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -6640,18 +6660,16 @@ int hclge_add_mc_addr_common(struct hclge_vport *vport,
 	hnae3_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
 	hclge_prepare_mac_addr(&req, addr, true);
 	status = hclge_lookup_mac_vlan_tbl(vport, &req, desc, true);
-	if (!status) {
-		/* This mac addr exist, update VFID for it */
-		hclge_update_desc_vfid(desc, vport->vport_id, false);
-		status = hclge_add_mac_vlan_tbl(vport, &req, desc);
-	} else {
+	if (status) {
 		/* This mac addr do not exist, add new entry for it */
 		memset(desc[0].data, 0, sizeof(desc[0].data));
 		memset(desc[1].data, 0, sizeof(desc[0].data));
 		memset(desc[2].data, 0, sizeof(desc[0].data));
-		hclge_update_desc_vfid(desc, vport->vport_id, false);
-		status = hclge_add_mac_vlan_tbl(vport, &req, desc);
 	}
+	status = hclge_update_desc_vfid(desc, vport->vport_id, false);
+	if (status)
+		return status;
+	status = hclge_add_mac_vlan_tbl(vport, &req, desc);
 
 	if (status == -ENOSPC)
 		dev_err(&hdev->pdev->dev, "mc mac vlan table is full\n");
@@ -6689,7 +6707,9 @@ int hclge_rm_mc_addr_common(struct hclge_vport *vport,
 	status = hclge_lookup_mac_vlan_tbl(vport, &req, desc, true);
 	if (!status) {
 		/* This mac addr exist, remove this handle's VFID for it */
-		hclge_update_desc_vfid(desc, vport->vport_id, true);
+		status = hclge_update_desc_vfid(desc, vport->vport_id, true);
+		if (status)
+			return status;
 
 		if (hclge_is_all_function_id_zero(desc))
 			/* All the vfid is zero, so need to delete this entry */
@@ -7762,7 +7782,7 @@ static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu)
 {
 	struct hclge_dev *hdev = vport->back;
-	int i, max_frm_size, ret = 0;
+	int i, max_frm_size, ret;
 
 	max_frm_size = new_mtu + ETH_HLEN + ETH_FCS_LEN + 2 * VLAN_HLEN;
 	if (max_frm_size < HCLGE_MAC_MIN_FRAME ||
@@ -7873,7 +7893,7 @@ int hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 	int reset_try_times = 0;
 	int reset_status;
 	u16 queue_gid;
-	int ret = 0;
+	int ret;
 
 	queue_gid = hclge_covert_handle_qid_global(handle, queue_id);
 
@@ -7890,7 +7910,6 @@ int hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 		return ret;
 	}
 
-	reset_try_times = 0;
 	while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
 		/* Wait for tqp hw reset */
 		msleep(20);
@@ -7929,7 +7948,6 @@ void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id)
 		return;
 	}
 
-	reset_try_times = 0;
 	while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
 		/* Wait for tqp hw reset */
 		msleep(20);
@@ -7999,7 +8017,7 @@ int hclge_cfg_flowctrl(struct hclge_dev *hdev)
 {
 	struct phy_device *phydev = hdev->hw.mac.phydev;
 	u16 remote_advertising = 0;
-	u16 local_advertising = 0;
+	u16 local_advertising;
 	u32 rx_pause, tx_pause;
 	u8 flowctl;
 

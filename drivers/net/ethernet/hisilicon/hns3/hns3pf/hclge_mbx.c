@@ -369,7 +369,7 @@ static int hclge_get_vf_tcinfo(struct hclge_vport *vport,
 		vf_tc_map |= BIT(i);
 
 	ret = hclge_gen_resp_to_vf(vport, mbx_req, 0, &vf_tc_map,
-				   sizeof(u8));
+				   sizeof(vf_tc_map));
 
 	return ret;
 }
