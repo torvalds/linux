@@ -1394,10 +1394,9 @@ int rtw_acl_add_sta(struct adapter *padapter, u8 *addr)
 	return ret;
 }
 
-int rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
+void rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 {
 	struct list_head	*plist, *phead;
-	int ret = 0;
 	struct rtw_wlan_acl_node *paclnode;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
@@ -1438,7 +1437,6 @@ int rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 
 	DBG_871X("%s, acl_num =%d\n", __func__, pacl_list->num);
 
-	return ret;
 }
 
 u8 rtw_ap_set_pairwise_key(struct adapter *padapter, struct sta_info *psta)
