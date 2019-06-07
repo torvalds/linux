@@ -926,3 +926,18 @@ free_map:
 fail:
 	return status;
 }
+
+void *get_efi_config_table(efi_system_table_t *sys_table, efi_guid_t guid)
+{
+	efi_config_table_t *tables = (efi_config_table_t *)sys_table->tables;
+	int i;
+
+	for (i = 0; i < sys_table->nr_tables; i++) {
+		if (efi_guidcmp(tables[i].guid, guid) != 0)
+			continue;
+
+		return (void *)tables[i].table;
+	}
+
+	return NULL;
+}
