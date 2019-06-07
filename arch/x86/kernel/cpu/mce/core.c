@@ -1490,6 +1490,11 @@ static void __mcheck_cpu_mce_banks_init(void)
 	for (i = 0; i < n_banks; i++) {
 		struct mce_bank *b = &mce_banks[i];
 
+		/*
+		 * Init them all, __mcheck_cpu_apply_quirks() is going to apply
+		 * the required vendor quirks before
+		 * __mcheck_cpu_init_clear_banks() does the final bank setup.
+		 */
 		b->ctl = -1ULL;
 		b->init = 1;
 	}
@@ -1559,6 +1564,33 @@ static void __mcheck_cpu_init_clear_banks(void)
 			continue;
 		wrmsrl(msr_ops.ctl(i), b->ctl);
 		wrmsrl(msr_ops.status(i), 0);
+	}
+}
+
+/*
+ * Do a final check to see if there are any unused/RAZ banks.
+ *
+ * This must be done after the banks have been initialized and any quirks have
+ * been applied.
+ *
+ * Do not call this from any user-initiated flows, e.g. CPU hotplug or sysfs.
+ * Otherwise, a user who disables a bank will not be able to re-enable it
+ * without a system reboot.
+ */
+static void __mcheck_cpu_check_banks(void)
+{
+	struct mce_bank *mce_banks = this_cpu_ptr(mce_banks_array);
+	u64 msrval;
+	int i;
+
+	for (i = 0; i < this_cpu_read(mce_num_banks); i++) {
+		struct mce_bank *b = &mce_banks[i];
+
+		if (!b->init)
+			continue;
+
+		rdmsrl(msr_ops.ctl(i), msrval);
+		b->init = !!msrval;
 	}
 }
 
@@ -1849,6 +1881,7 @@ void mcheck_cpu_init(struct cpuinfo_x86 *c)
 	__mcheck_cpu_init_generic();
 	__mcheck_cpu_init_vendor(c);
 	__mcheck_cpu_init_clear_banks();
+	__mcheck_cpu_check_banks();
 	__mcheck_cpu_setup_timer();
 }
 
@@ -2085,6 +2118,9 @@ static ssize_t show_bank(struct device *s, struct device_attribute *attr,
 
 	b = &per_cpu(mce_banks_array, s->id)[bank];
 
+	if (!b->init)
+		return -ENODEV;
+
 	return sprintf(buf, "%llx\n", b->ctl);
 }
 
@@ -2102,6 +2138,9 @@ static ssize_t set_bank(struct device *s, struct device_attribute *attr,
 		return -EINVAL;
 
 	b = &per_cpu(mce_banks_array, s->id)[bank];
+
+	if (!b->init)
+		return -ENODEV;
 
 	b->ctl = new;
 	mce_restart();
