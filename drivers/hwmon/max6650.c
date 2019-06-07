@@ -101,7 +101,7 @@ module_param(clock, int, 0444);
 
 struct max6650_data {
 	struct i2c_client *client;
-	struct mutex update_lock;
+	struct mutex update_lock; /* protect alarm register updates */
 	int nr_fans;
 	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
@@ -319,7 +319,7 @@ static SENSOR_DEVICE_ATTR_RO(gpio1_alarm, alarm, MAX6650_ALRM_GPIO1);
 static SENSOR_DEVICE_ATTR_RO(gpio2_alarm, alarm, MAX6650_ALRM_GPIO2);
 
 static umode_t max6650_attrs_visible(struct kobject *kobj, struct attribute *a,
-				    int n)
+				     int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct max6650_data *data = dev_get_drvdata(dev);
@@ -500,11 +500,10 @@ static int max6650_set_cur_state(struct thermal_cooling_device *cdev,
 
 	data->dac = pwm_to_dac(state, data->config & MAX6650_CFG_V12);
 	err = i2c_smbus_write_byte_data(client, MAX6650_REG_DAC, data->dac);
-
 	if (!err) {
 		max6650_set_operating_mode(data, state ?
-						   MAX6650_CFG_MODE_OPEN_LOOP :
-						   MAX6650_CFG_MODE_OFF);
+					   MAX6650_CFG_MODE_OPEN_LOOP :
+					   MAX6650_CFG_MODE_OFF);
 		data->cooling_dev_state = state;
 	}
 
