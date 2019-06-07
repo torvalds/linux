@@ -70,6 +70,7 @@ MODULE_FIRMWARE(SKL_CSR_PATH);
 MODULE_FIRMWARE(BXT_CSR_PATH);
 
 #define CSR_DEFAULT_FW_OFFSET		0xFFFFFFFF
+#define PACKAGE_MAX_FW_INFO_ENTRIES	20
 
 struct intel_css_header {
 	/* 0x09 for DMC */
@@ -139,8 +140,6 @@ struct intel_package_header {
 
 	/* Number of valid entries in the FWInfo array below */
 	u32 num_entries;
-
-	struct intel_fw_info fw_info[20];
 } __packed;
 
 struct intel_dmc_header {
@@ -292,6 +291,46 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
 	gen9_set_dc_state_debugmask(dev_priv);
 }
 
+/*
+ * Search fw_info table for dmc_offset to find firmware binary: num_entries is
+ * already sanitized.
+ */
+static u32 find_dmc_fw_offset(const struct intel_fw_info *fw_info,
+			      unsigned int num_entries,
+			      const struct stepping_info *si)
+{
+	u32 dmc_offset = CSR_DEFAULT_FW_OFFSET;
+	unsigned int i;
+
+	for (i = 0; i < num_entries; i++) {
+		if (fw_info[i].substepping == '*' &&
+		    si->stepping == fw_info[i].stepping) {
+			dmc_offset = fw_info[i].offset;
+			break;
+		}
+
+		if (si->stepping == fw_info[i].stepping &&
+		    si->substepping == fw_info[i].substepping) {
+			dmc_offset = fw_info[i].offset;
+			break;
+		}
+
+		if (fw_info[i].stepping == '*' &&
+		    fw_info[i].substepping == '*') {
+			/*
+			 * In theory we should stop the search as generic
+			 * entries should always come after the more specific
+			 * ones, but let's continue to make sure to work even
+			 * with "broken" firmwares. If we don't find a more
+			 * specific one, then we use this entry
+			 */
+			dmc_offset = fw_info[i].offset;
+		}
+	}
+
+	return dmc_offset;
+}
+
 static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 			 const struct firmware *fw)
 {
@@ -300,7 +339,7 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 	struct intel_dmc_header *dmc_header;
 	struct intel_csr *csr = &dev_priv->csr;
 	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
-	u32 dmc_offset = CSR_DEFAULT_FW_OFFSET, readcount = 0, nbytes;
+	u32 dmc_offset, num_entries, readcount = 0, nbytes;
 	u32 i;
 	u32 *dmc_payload;
 	size_t fsize;
@@ -349,27 +388,26 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 			  (package_header->header_len * 4));
 		return NULL;
 	}
-	readcount += sizeof(struct intel_package_header);
 
-	/* Search for dmc_offset to find firware binary. */
-	for (i = 0; i < package_header->num_entries; i++) {
-		if (package_header->fw_info[i].substepping == '*' &&
-		    si->stepping == package_header->fw_info[i].stepping) {
-			dmc_offset = package_header->fw_info[i].offset;
-			break;
-		} else if (si->stepping == package_header->fw_info[i].stepping &&
-			   si->substepping == package_header->fw_info[i].substepping) {
-			dmc_offset = package_header->fw_info[i].offset;
-			break;
-		} else if (package_header->fw_info[i].stepping == '*' &&
-			   package_header->fw_info[i].substepping == '*')
-			dmc_offset = package_header->fw_info[i].offset;
-	}
+	readcount += sizeof(struct intel_package_header);
+	num_entries = package_header->num_entries;
+	if (WARN_ON(package_header->num_entries > PACKAGE_MAX_FW_INFO_ENTRIES))
+		num_entries = PACKAGE_MAX_FW_INFO_ENTRIES;
+
+	fsize += PACKAGE_MAX_FW_INFO_ENTRIES * sizeof(struct intel_fw_info);
+	if (fsize > fw->size)
+		goto error_truncated;
+
+	dmc_offset = find_dmc_fw_offset((struct intel_fw_info *)
+					&fw->data[readcount], num_entries, si);
 	if (dmc_offset == CSR_DEFAULT_FW_OFFSET) {
 		DRM_ERROR("DMC firmware not supported for %c stepping\n",
 			  si->stepping);
 		return NULL;
 	}
+	/* we always have space for PACKAGE_MAX_FW_INFO_ENTRIES */
+	readcount += PACKAGE_MAX_FW_INFO_ENTRIES * sizeof(struct intel_fw_info);
+
 	/* Convert dmc_offset into number of bytes. By default it is in dwords*/
 	dmc_offset *= 4;
 	readcount += dmc_offset;
