@@ -64,7 +64,7 @@ struct jz4780_nemc {
  *
  * Return: The number of unique NEMC banks referred to by the specified NEMC
  * child device. Unique here means that a device that references the same bank
- * multiple times in the its "reg" property will only count once.
+ * multiple times in its "reg" property will only count once.
  */
 unsigned int jz4780_nemc_num_banks(struct device *dev)
 {
