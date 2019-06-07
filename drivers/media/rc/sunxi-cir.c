@@ -72,6 +72,17 @@
 /* Time after which device stops sending data in ms */
 #define SUNXI_IR_TIMEOUT      120
 
+/**
+ * struct sunxi_ir_quirks - Differences between SoC variants.
+ *
+ * @has_reset: SoC needs reset deasserted.
+ * @fifo_size: size of the fifo.
+ */
+struct sunxi_ir_quirks {
+	bool		has_reset;
+	int		fifo_size;
+};
+
 struct sunxi_ir {
 	spinlock_t      ir_lock;
 	struct rc_dev   *rc;
@@ -134,6 +145,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 
 	struct device *dev = &pdev->dev;
 	struct device_node *dn = dev->of_node;
+	const struct sunxi_ir_quirks *quirks;
 	struct resource *res;
 	struct sunxi_ir *ir;
 	u32 b_clk_freq = SUNXI_IR_BASE_CLK;
@@ -142,12 +154,15 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	if (!ir)
 		return -ENOMEM;
 
+	quirks = of_device_get_match_data(&pdev->dev);
+	if (!quirks) {
+		dev_err(&pdev->dev, "Failed to determine the quirks to use\n");
+		return -ENODEV;
+	}
+
 	spin_lock_init(&ir->ir_lock);
 
-	if (of_device_is_compatible(dn, "allwinner,sun5i-a13-ir"))
-		ir->fifo_size = 64;
-	else
-		ir->fifo_size = 16;
+	ir->fifo_size = quirks->fifo_size;
 
 	/* Clock */
 	ir->apb_clk = devm_clk_get(dev, "apb");
@@ -164,13 +179,15 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	/* Base clock frequency (optional) */
 	of_property_read_u32(dn, "clock-frequency", &b_clk_freq);
 
-	/* Reset (optional) */
-	ir->rst = devm_reset_control_get_optional_exclusive(dev, NULL);
-	if (IS_ERR(ir->rst))
-		return PTR_ERR(ir->rst);
-	ret = reset_control_deassert(ir->rst);
-	if (ret)
-		return ret;
+	/* Reset */
+	if (quirks->has_reset) {
+		ir->rst = devm_reset_control_get_exclusive(dev, NULL);
+		if (IS_ERR(ir->rst))
+			return PTR_ERR(ir->rst);
+		ret = reset_control_deassert(ir->rst);
+		if (ret)
+			return ret;
+	}
 
 	ret = clk_set_rate(ir->clk, b_clk_freq);
 	if (ret) {
@@ -306,10 +323,26 @@ static int sunxi_ir_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct sunxi_ir_quirks sun4i_a10_ir_quirks = {
+	.has_reset = false,
+	.fifo_size = 16,
+};
+
+static const struct sunxi_ir_quirks sun5i_a13_ir_quirks = {
+	.has_reset = false,
+	.fifo_size = 64,
+};
+
 static const struct of_device_id sunxi_ir_match[] = {
-	{ .compatible = "allwinner,sun4i-a10-ir", },
-	{ .compatible = "allwinner,sun5i-a13-ir", },
-	{},
+	{
+		.compatible = "allwinner,sun4i-a10-ir",
+		.data = &sun4i_a10_ir_quirks,
+	},
+	{
+		.compatible = "allwinner,sun5i-a13-ir",
+		.data = &sun5i_a13_ir_quirks,
+	},
+	{}
 };
 MODULE_DEVICE_TABLE(of, sunxi_ir_match);
 
