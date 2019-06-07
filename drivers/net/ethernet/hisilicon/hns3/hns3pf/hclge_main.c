@@ -3609,28 +3609,27 @@ static int hclge_set_rss_algo_key(struct hclge_dev *hdev,
 {
 	struct hclge_rss_config_cmd *req;
 	struct hclge_desc desc;
-	int key_offset;
+	int key_offset = 0;
+	int key_counts;
 	int key_size;
 	int ret;
 
+	key_counts = HCLGE_RSS_KEY_SIZE;
 	req = (struct hclge_rss_config_cmd *)desc.data;
 
-	for (key_offset = 0; key_offset < 3; key_offset++) {
+	while (key_counts) {
 		hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_GENERIC_CONFIG,
 					   false);
 
 		req->hash_config |= (hfunc & HCLGE_RSS_HASH_ALGO_MASK);
 		req->hash_config |= (key_offset << HCLGE_RSS_HASH_KEY_OFFSET_B);
 
-		if (key_offset == 2)
-			key_size =
-			HCLGE_RSS_KEY_SIZE - HCLGE_RSS_HASH_KEY_NUM * 2;
-		else
-			key_size = HCLGE_RSS_HASH_KEY_NUM;
-
+		key_size = min(HCLGE_RSS_HASH_KEY_NUM, key_counts);
 		memcpy(req->hash_key,
 		       key + key_offset * HCLGE_RSS_HASH_KEY_NUM, key_size);
 
+		key_counts -= key_size;
+		key_offset++;
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
