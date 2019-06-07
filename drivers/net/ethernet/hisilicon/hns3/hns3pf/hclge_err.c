@@ -1388,6 +1388,66 @@ static int hclge_handle_all_ras_errors(struct hclge_dev *hdev)
 	return ret;
 }
 
+static int hclge_log_rocee_axi_error(struct hclge_dev *hdev)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc[3];
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_ROCEE_AXI_RAS_INFO_CMD,
+				   true);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_QUERY_ROCEE_AXI_RAS_INFO_CMD,
+				   true);
+	hclge_cmd_setup_basic_desc(&desc[2], HCLGE_QUERY_ROCEE_AXI_RAS_INFO_CMD,
+				   true);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], 3);
+	if (ret) {
+		dev_err(dev, "failed(%d) to query ROCEE AXI error sts\n", ret);
+		return ret;
+	}
+
+	dev_info(dev, "AXI1: %08X %08X %08X %08X %08X %08X\n",
+		 le32_to_cpu(desc[0].data[0]), le32_to_cpu(desc[0].data[1]),
+		 le32_to_cpu(desc[0].data[2]), le32_to_cpu(desc[0].data[3]),
+		 le32_to_cpu(desc[0].data[4]), le32_to_cpu(desc[0].data[5]));
+	dev_info(dev, "AXI2: %08X %08X %08X %08X %08X %08X\n",
+		 le32_to_cpu(desc[1].data[0]), le32_to_cpu(desc[1].data[1]),
+		 le32_to_cpu(desc[1].data[2]), le32_to_cpu(desc[1].data[3]),
+		 le32_to_cpu(desc[1].data[4]), le32_to_cpu(desc[1].data[5]));
+	dev_info(dev, "AXI3: %08X %08X %08X %08X\n",
+		 le32_to_cpu(desc[2].data[0]), le32_to_cpu(desc[2].data[1]),
+		 le32_to_cpu(desc[2].data[2]), le32_to_cpu(desc[2].data[3]));
+
+	return 0;
+}
+
+static int hclge_log_rocee_ecc_error(struct hclge_dev *hdev)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc[2];
+	int ret;
+
+	ret = hclge_cmd_query_error(hdev, &desc[0],
+				    HCLGE_QUERY_ROCEE_ECC_RAS_INFO_CMD,
+				    HCLGE_CMD_FLAG_NEXT, 0, 0);
+	if (ret) {
+		dev_err(dev, "failed(%d) to query ROCEE ECC error sts\n", ret);
+		return ret;
+	}
+
+	dev_info(dev, "ECC1: %08X %08X %08X %08X %08X %08X\n",
+		 le32_to_cpu(desc[0].data[0]), le32_to_cpu(desc[0].data[1]),
+		 le32_to_cpu(desc[0].data[2]), le32_to_cpu(desc[0].data[3]),
+		 le32_to_cpu(desc[0].data[4]), le32_to_cpu(desc[0].data[5]));
+	dev_info(dev, "ECC2: %08X %08X %08X\n", le32_to_cpu(desc[1].data[0]),
+		 le32_to_cpu(desc[1].data[1]), le32_to_cpu(desc[1].data[2]));
+
+	return 0;
+}
+
 static int hclge_log_rocee_ovf_error(struct hclge_dev *hdev)
 {
 	struct device *dev = &hdev->pdev->dev;
@@ -1456,19 +1516,27 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 
 	status = le32_to_cpu(desc[0].data[0]);
 
-	if (status & HCLGE_ROCEE_RERR_INT_MASK) {
-		dev_warn(dev, "ROCEE RAS AXI rresp error\n");
-		reset_type = HNAE3_FUNC_RESET;
-	}
+	if (status & HCLGE_ROCEE_AXI_ERR_INT_MASK) {
+		if (status & HCLGE_ROCEE_RERR_INT_MASK)
+			dev_warn(dev, "ROCEE RAS AXI rresp error\n");
 
-	if (status & HCLGE_ROCEE_BERR_INT_MASK) {
-		dev_warn(dev, "ROCEE RAS AXI bresp error\n");
+		if (status & HCLGE_ROCEE_BERR_INT_MASK)
+			dev_warn(dev, "ROCEE RAS AXI bresp error\n");
+
 		reset_type = HNAE3_FUNC_RESET;
+
+		ret = hclge_log_rocee_axi_error(hdev);
+		if (ret)
+			return HNAE3_GLOBAL_RESET;
 	}
 
 	if (status & HCLGE_ROCEE_ECC_INT_MASK) {
 		dev_warn(dev, "ROCEE RAS 2bit ECC error\n");
 		reset_type = HNAE3_GLOBAL_RESET;
+
+		ret = hclge_log_rocee_ecc_error(hdev);
+		if (ret)
+			return HNAE3_GLOBAL_RESET;
 	}
 
 	if (status & HCLGE_ROCEE_OVF_INT_MASK) {
@@ -1478,7 +1546,6 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 			/* reset everything for now */
 			return HNAE3_GLOBAL_RESET;
 		}
-		reset_type = HNAE3_FUNC_RESET;
 	}
 
 	/* clear error status */
