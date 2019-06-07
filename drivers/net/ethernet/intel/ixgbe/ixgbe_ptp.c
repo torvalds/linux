@@ -205,11 +205,8 @@ static void ixgbe_ptp_setup_sdp_X540(struct ixgbe_adapter *adapter)
 	 */
 	rem = (NS_PER_SEC - rem);
 
-	/* Adjust the clock edge to align with the next full second. This
-	 * assumes that the cycle counter shift is small enough to avoid
-	 * overflowing when shifting the remainder.
-	 */
-	clock_edge += div_u64((rem << cc->shift), cc->mult);
+	/* Adjust the clock edge to align with the next full second. */
+	clock_edge += div_u64(((u64)rem << cc->shift), cc->mult);
 	trgttiml = (u32)clock_edge;
 	trgttimh = (u32)(clock_edge >> 32);
 
@@ -291,11 +288,8 @@ static void ixgbe_ptp_setup_sdp_X550(struct ixgbe_adapter *adapter)
 	 */
 	rem = (NS_PER_SEC - rem);
 
-	/* Adjust the clock edge to align with the next full second. This
-	 * assumes that the cycle counter shift is small enough to avoid
-	 * overflowing when shifting the remainder.
-	 */
-	clock_edge += div_u64((rem << cc->shift), cc->mult);
+	/* Adjust the clock edge to align with the next full second. */
+	clock_edge += div_u64(((u64)rem << cc->shift), cc->mult);
 
 	/* X550 hardware stores the time in 32bits of 'billions of cycles' and
 	 * 32bits of 'cycles'. There's no guarantee that cycles represents
