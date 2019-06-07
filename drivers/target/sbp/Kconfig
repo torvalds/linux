@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SBP_TARGET
 	tristate "FireWire SBP-2 fabric module"
 	depends on FIREWIRE

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Neil Brown 2002
  * Copyright (C) Christoph Hellwig 2007

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig LEDS_TRIGGERS
 	bool "LED Trigger support"
 	depends on LEDS_CLASS

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This driver supports the digital controls for the internal codec
  * found in Allwinner's A33 SoCs.
@@ -6,16 +7,6 @@
  * Reuuimlla Technology Co., Ltd. <www.reuuimllatech.com>
  * huangxin <huangxin@Reuuimllatech.com>
  * Mylène Josserand <mylene.josserand@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>

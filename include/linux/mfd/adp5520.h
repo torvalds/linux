@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Definitions and platform data for Analog Devices
  * ADP5520/ADP5501 MFD PMICs (Backlight, LED, GPIO and Keys)
  *
  * Copyright 2009 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 

@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap-hdmi-audio.c -- OMAP4+ DSS HDMI audio support library
  *
  * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com
  *
  * Author: Jyri Sarha <jsarha@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -321,6 +312,7 @@ static int omap_hdmi_audio_probe(struct platform_device *pdev)
 	struct hdmi_audio_data *ad;
 	struct snd_soc_dai_driver *dai_drv;
 	struct snd_soc_card *card;
+	struct snd_soc_dai_link_component *compnent;
 	int ret;
 
 	if (!ha) {
@@ -371,12 +363,23 @@ static int omap_hdmi_audio_probe(struct platform_device *pdev)
 		devm_kzalloc(dev, sizeof(*(card->dai_link)), GFP_KERNEL);
 	if (!card->dai_link)
 		return -ENOMEM;
+
+	compnent = devm_kzalloc(dev, 3 * sizeof(*compnent), GFP_KERNEL);
+	if (!compnent)
+		return -ENOMEM;
+	card->dai_link->cpus		= &compnent[0];
+	card->dai_link->num_cpus	= 1;
+	card->dai_link->codecs		= &compnent[1];
+	card->dai_link->num_codecs	= 1;
+	card->dai_link->platforms	= &compnent[2];
+	card->dai_link->num_platforms	= 1;
+
 	card->dai_link->name = card->name;
 	card->dai_link->stream_name = card->name;
-	card->dai_link->cpu_dai_name = dev_name(ad->dssdev);
-	card->dai_link->platform_name = dev_name(ad->dssdev);
-	card->dai_link->codec_name = "snd-soc-dummy";
-	card->dai_link->codec_dai_name = "snd-soc-dummy-dai";
+	card->dai_link->cpus->dai_name = dev_name(ad->dssdev);
+	card->dai_link->platforms->name = dev_name(ad->dssdev);
+	card->dai_link->codecs->name = "snd-soc-dummy";
+	card->dai_link->codecs->dai_name = "snd-soc-dummy-dai";
 	card->num_links = 1;
 	card->dev = dev;
 

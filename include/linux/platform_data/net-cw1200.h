@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) ST-Ericsson SA 2011
  *
  * Author: Dmitry Tarnyagin <dmitry.tarnyagin@stericsson.com>
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #ifndef CW1200_PLAT_H_INCLUDED

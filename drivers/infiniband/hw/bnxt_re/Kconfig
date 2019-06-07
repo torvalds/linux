@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_BNXT_RE
         tristate "Broadcom Netxtreme HCA support"
         depends on 64BIT

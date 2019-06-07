@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * sun4i-ss.h - hardware cryptographic accelerator for Allwinner A20 SoC
  *
@@ -8,8 +9,6 @@
  * Support DES and 3DES
  *
  * You could find the datasheet in Documentation/arm/sunxi/README
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/clk.h>

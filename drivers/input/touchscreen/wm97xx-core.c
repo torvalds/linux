@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * wm97xx-core.c  --  Touch screen driver core for Wolfson WM9705, WM9712
  *                    and WM9713 AC97 Codecs.
@@ -7,11 +8,6 @@
  * Parts Copyright : Ian Molton <spyro@f2s.com>
  *                   Andrew Zabolotny <zap@homelink.ru>
  *                   Russell King <rmk@arm.linux.org.uk>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  *
  * Notes:
  *
@@ -31,7 +27,6 @@
  *       - codec event notification
  * Todo
  *       - Support for async sampling control for noisy LCDs.
- *
  */
 
 #include <linux/module.h>
