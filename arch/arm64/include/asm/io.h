@@ -95,7 +95,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 ({									\
 	unsigned long tmp;						\
 									\
-	rmb();								\
+	dma_rmb();								\
 									\
 	/*								\
 	 * Create a dummy control dependency from the IO read to any	\
@@ -109,7 +109,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 })
 
 #define __io_par(v)		__iormb(v)
-#define __iowmb()		wmb()
+#define __iowmb()		dma_wmb()
 
 /*
  * Relaxed I/O memory access primitives. These follow the Device memory
