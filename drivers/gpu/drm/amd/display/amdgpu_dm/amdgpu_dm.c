@@ -6519,14 +6519,6 @@ static bool should_reset_plane(struct drm_atomic_state *state,
 	struct drm_crtc_state *new_crtc_state;
 	int i;
 
-	/*
-	 * TODO: Remove this hack once the checks below are sufficient
-	 * enough to determine when we need to reset all the planes on
-	 * the stream.
-	 */
-	if (state->allow_modeset)
-		return true;
-
 	/* Exit early if we know that we're adding or removing the plane. */
 	if (old_plane_state->crtc != new_plane_state->crtc)
 		return true;
