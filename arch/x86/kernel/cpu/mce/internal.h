@@ -118,7 +118,6 @@ struct mca_config {
 	      bios_cmci_threshold	: 1,
 	      __reserved		: 59;
 
-	u8 banks;
 	s8 bootlog;
 	int tolerant;
 	int monarch_timeout;
@@ -127,6 +126,7 @@ struct mca_config {
 };
 
 extern struct mca_config mca_cfg;
+DECLARE_PER_CPU_READ_MOSTLY(unsigned int, mce_num_banks);
 
 struct mce_vendor_flags {
 	/*

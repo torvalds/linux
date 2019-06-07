@@ -495,7 +495,7 @@ static u32 get_block_address(u32 current_addr, u32 low, u32 high,
 {
 	u32 addr = 0, offset = 0;
 
-	if ((bank >= mca_cfg.banks) || (block >= NR_BLOCKS))
+	if ((bank >= per_cpu(mce_num_banks, cpu)) || (block >= NR_BLOCKS))
 		return addr;
 
 	if (mce_flags.smca)
@@ -627,11 +627,12 @@ void disable_err_thresholding(struct cpuinfo_x86 *c, unsigned int bank)
 /* cpu init entry point, called from mce.c with preempt off */
 void mce_amd_feature_init(struct cpuinfo_x86 *c)
 {
-	u32 low = 0, high = 0, address = 0;
 	unsigned int bank, block, cpu = smp_processor_id();
+	u32 low = 0, high = 0, address = 0;
 	int offset = -1;
 
-	for (bank = 0; bank < mca_cfg.banks; ++bank) {
+
+	for (bank = 0; bank < this_cpu_read(mce_num_banks); ++bank) {
 		if (mce_flags.smca)
 			smca_configure(bank, cpu);
 
@@ -976,7 +977,7 @@ static void amd_deferred_error_interrupt(void)
 {
 	unsigned int bank;
 
-	for (bank = 0; bank < mca_cfg.banks; ++bank)
+	for (bank = 0; bank < this_cpu_read(mce_num_banks); ++bank)
 		log_error_deferred(bank);
 }
 
@@ -1017,7 +1018,7 @@ static void amd_threshold_interrupt(void)
 	struct threshold_block *first_block = NULL, *block = NULL, *tmp = NULL;
 	unsigned int bank, cpu = smp_processor_id();
 
-	for (bank = 0; bank < mca_cfg.banks; ++bank) {
+	for (bank = 0; bank < this_cpu_read(mce_num_banks); ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
 
@@ -1204,7 +1205,7 @@ static int allocate_threshold_blocks(unsigned int cpu, unsigned int bank,
 	u32 low, high;
 	int err;
 
-	if ((bank >= mca_cfg.banks) || (block >= NR_BLOCKS))
+	if ((bank >= per_cpu(mce_num_banks, cpu)) || (block >= NR_BLOCKS))
 		return 0;
 
 	if (rdmsr_safe_on_cpu(cpu, address, &low, &high))
@@ -1438,7 +1439,7 @@ int mce_threshold_remove_device(unsigned int cpu)
 {
 	unsigned int bank;
 
-	for (bank = 0; bank < mca_cfg.banks; ++bank) {
+	for (bank = 0; bank < per_cpu(mce_num_banks, cpu); ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
 		threshold_remove_bank(cpu, bank);
@@ -1459,14 +1460,14 @@ int mce_threshold_create_device(unsigned int cpu)
 	if (bp)
 		return 0;
 
-	bp = kcalloc(mca_cfg.banks, sizeof(struct threshold_bank *),
+	bp = kcalloc(per_cpu(mce_num_banks, cpu), sizeof(struct threshold_bank *),
 		     GFP_KERNEL);
 	if (!bp)
 		return -ENOMEM;
 
 	per_cpu(threshold_banks, cpu) = bp;
 
-	for (bank = 0; bank < mca_cfg.banks; ++bank) {
+	for (bank = 0; bank < per_cpu(mce_num_banks, cpu); ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
 		err = threshold_create_bank(cpu, bank);
