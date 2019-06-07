@@ -130,12 +130,12 @@ struct intel_fw_info {
 
 struct intel_package_header {
 	/* DMC container header length in dwords */
-	unsigned char header_len;
+	u8 header_len;
 
 	/* always value would be 0x01 */
-	unsigned char header_ver;
+	u8 header_ver;
 
-	unsigned char reserved[10];
+	u8 reserved[10];
 
 	/* Number of valid entries in the FWInfo array below */
 	u32 num_entries;
@@ -148,10 +148,10 @@ struct intel_dmc_header {
 	u32 signature;
 
 	/* DMC binary header length */
-	unsigned char header_len;
+	u8 header_len;
 
 	/* 0x01 */
-	unsigned char header_ver;
+	u8 header_ver;
 
 	/* Reserved */
 	u16 dmcc_ver;
