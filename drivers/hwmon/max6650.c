@@ -162,17 +162,10 @@ static struct max6650_data *max6650_update_device(struct device *dev)
 	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
-		data->speed = i2c_smbus_read_byte_data(client,
-						       MAX6650_REG_SPEED);
-		data->config = i2c_smbus_read_byte_data(client,
-							MAX6650_REG_CONFIG);
 		for (i = 0; i < data->nr_fans; i++) {
 			data->tach[i] = i2c_smbus_read_byte_data(client,
 								 tach_reg[i]);
 		}
-		data->count = i2c_smbus_read_byte_data(client,
-							MAX6650_REG_COUNT);
-		data->dac = i2c_smbus_read_byte_data(client, MAX6650_REG_DAC);
 
 		/*
 		 * Alarms are cleared on read in case the condition that
@@ -421,8 +414,22 @@ static int max6650_init_client(struct max6650_data *data,
 		dev_err(dev, "Config write error, aborting.\n");
 		return err;
 	}
-
 	data->config = reg;
+
+	reg = i2c_smbus_read_byte_data(client, MAX6650_REG_SPEED);
+	if (reg < 0) {
+		dev_err(dev, "Failed to read speed register, aborting.\n");
+		return reg;
+	}
+	data->speed = reg;
+
+	reg = i2c_smbus_read_byte_data(client, MAX6650_REG_DAC);
+	if (reg < 0) {
+		dev_err(dev, "Failed to read DAC register, aborting.\n");
+		return reg;
+	}
+	data->dac = reg;
+
 	reg = i2c_smbus_read_byte_data(client, MAX6650_REG_COUNT);
 	if (reg < 0) {
 		dev_err(dev, "Failed to read count register, aborting.\n");
