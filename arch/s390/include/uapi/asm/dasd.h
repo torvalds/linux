@@ -193,6 +193,7 @@ typedef struct format_data_t {
 #define DASD_FMT_INT_FMT_HA	2	/* write home address, also set FMT_R0 ! */
 #define DASD_FMT_INT_INVAL	4	/* invalidate tracks */
 #define DASD_FMT_INT_COMPAT	8	/* use OS/390 compatible disk layout */
+#define DASD_FMT_INT_FMT_NOR0	16	/* remove permission to write record zero */
 
 /*
  * struct format_check_t
