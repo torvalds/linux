@@ -6710,7 +6710,7 @@ static int tg3_alloc_rx_data(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
 	skb_size = SKB_DATA_ALIGN(data_size + TG3_RX_OFFSET(tp)) +
 		   SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	if (skb_size <= PAGE_SIZE) {
-		data = netdev_alloc_frag(skb_size);
+		data = napi_alloc_frag(skb_size);
 		*frag_size = skb_size;
 	} else {
 		data = kmalloc(skb_size, GFP_ATOMIC);
