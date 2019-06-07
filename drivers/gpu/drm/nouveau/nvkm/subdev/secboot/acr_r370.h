@@ -46,4 +46,5 @@ struct acr_r370_flcn_bl_desc {
 void acr_r370_generate_hs_bl_desc(const struct hsf_load_header *, void *, u64);
 extern const struct acr_r352_ls_func acr_r370_ls_fecs_func;
 extern const struct acr_r352_ls_func acr_r370_ls_gpccs_func;
+extern const struct acr_r352_lsf_func acr_r370_ls_sec2_func_0;
 #endif
