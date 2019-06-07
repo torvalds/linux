@@ -1057,20 +1057,18 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	 * when guest state is loaded. This happens when guest transitions
 	 * to/from long-mode by setting MSR_EFER.LMA.
 	 */
-	if (!vmx->loaded_cpu_state || vmx->guest_msrs_dirty) {
-		vmx->guest_msrs_dirty = false;
+	if (!vmx->guest_msrs_ready) {
+		vmx->guest_msrs_ready = true;
 		for (i = 0; i < vmx->save_nmsrs; ++i)
 			kvm_set_shared_msr(vmx->guest_msrs[i].index,
 					   vmx->guest_msrs[i].data,
 					   vmx->guest_msrs[i].mask);
 
 	}
-
-	if (vmx->loaded_cpu_state)
+	if (vmx->guest_state_loaded)
 		return;
 
-	vmx->loaded_cpu_state = vmx->loaded_vmcs;
-	host_state = &vmx->loaded_cpu_state->host_state;
+	host_state = &vmx->loaded_vmcs->host_state;
 
 	/*
 	 * Set host fs and gs selectors.  Unfortunately, 22.2.3 does not
@@ -1126,20 +1124,20 @@ void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 		vmcs_writel(HOST_GS_BASE, gs_base);
 		host_state->gs_base = gs_base;
 	}
+
+	vmx->guest_state_loaded = true;
 }
 
 static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 {
 	struct vmcs_host_state *host_state;
 
-	if (!vmx->loaded_cpu_state)
+	if (!vmx->guest_state_loaded)
 		return;
 
-	WARN_ON_ONCE(vmx->loaded_cpu_state != vmx->loaded_vmcs);
-	host_state = &vmx->loaded_cpu_state->host_state;
+	host_state = &vmx->loaded_vmcs->host_state;
 
 	++vmx->vcpu.stat.host_state_reload;
-	vmx->loaded_cpu_state = NULL;
 
 #ifdef CONFIG_X86_64
 	rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
@@ -1165,13 +1163,15 @@ static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
 	wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
 #endif
 	load_fixmap_gdt(raw_smp_processor_id());
+	vmx->guest_state_loaded = false;
+	vmx->guest_msrs_ready = false;
 }
 
 #ifdef CONFIG_X86_64
 static u64 vmx_read_guest_kernel_gs_base(struct vcpu_vmx *vmx)
 {
 	preempt_disable();
-	if (vmx->loaded_cpu_state)
+	if (vmx->guest_state_loaded)
 		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
 	preempt_enable();
 	return vmx->msr_guest_kernel_gs_base;
@@ -1180,7 +1180,7 @@ static u64 vmx_read_guest_kernel_gs_base(struct vcpu_vmx *vmx)
 static void vmx_write_guest_kernel_gs_base(struct vcpu_vmx *vmx, u64 data)
 {
 	preempt_disable();
-	if (vmx->loaded_cpu_state)
+	if (vmx->guest_state_loaded)
 		wrmsrl(MSR_KERNEL_GS_BASE, data);
 	preempt_enable();
 	vmx->msr_guest_kernel_gs_base = data;
@@ -1583,7 +1583,7 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 		move_msr_up(vmx, index, save_nmsrs++);
 
 	vmx->save_nmsrs = save_nmsrs;
-	vmx->guest_msrs_dirty = true;
+	vmx->guest_msrs_ready = false;
 
 	if (cpu_has_vmx_msr_bitmap())
 		vmx_update_msr_bitmap(&vmx->vcpu);

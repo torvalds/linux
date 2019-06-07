@@ -187,13 +187,23 @@ struct vcpu_vmx {
 	struct kvm_vcpu       vcpu;
 	u8                    fail;
 	u8		      msr_bitmap_mode;
+
+	/*
+	 * If true, host state has been stored in vmx->loaded_vmcs for
+	 * the CPU registers that only need to be switched when transitioning
+	 * to/from the kernel, and the registers have been loaded with guest
+	 * values.  If false, host state is loaded in the CPU registers
+	 * and vmx->loaded_vmcs->host_state is invalid.
+	 */
+	bool		      guest_state_loaded;
+
 	u32                   exit_intr_info;
 	u32                   idt_vectoring_info;
 	ulong                 rflags;
 	struct shared_msr_entry *guest_msrs;
 	int                   nmsrs;
 	int                   save_nmsrs;
-	bool                  guest_msrs_dirty;
+	bool                  guest_msrs_ready;
 #ifdef CONFIG_X86_64
 	u64		      msr_host_kernel_gs_base;
 	u64		      msr_guest_kernel_gs_base;
@@ -208,14 +218,10 @@ struct vcpu_vmx {
 	/*
 	 * loaded_vmcs points to the VMCS currently used in this vcpu. For a
 	 * non-nested (L1) guest, it always points to vmcs01. For a nested
-	 * guest (L2), it points to a different VMCS.  loaded_cpu_state points
-	 * to the VMCS whose state is loaded into the CPU registers that only
-	 * need to be switched when transitioning to/from the kernel; a NULL
-	 * value indicates that host state is loaded.
+	 * guest (L2), it points to a different VMCS.
 	 */
 	struct loaded_vmcs    vmcs01;
 	struct loaded_vmcs   *loaded_vmcs;
-	struct loaded_vmcs   *loaded_cpu_state;
 
 	struct msr_autoload {
 		struct vmx_msrs guest;
