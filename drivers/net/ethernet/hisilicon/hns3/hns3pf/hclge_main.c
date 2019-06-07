@@ -443,8 +443,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 		queue = handle->kinfo.tqp[i];
 		tqp = container_of(queue, struct hclge_tqp, q);
 		/* command : HCLGE_OPC_QUERY_IGU_STAT */
-		hclge_cmd_setup_basic_desc(&desc[0],
-					   HCLGE_OPC_QUERY_RX_STATUS,
+		hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QUERY_RX_STATUS,
 					   true);
 
 		desc[0].data[0] = cpu_to_le32((tqp->index & 0x1ff));
@@ -452,7 +451,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
 				"Query tqp stat fail, status = %d,queue = %d\n",
-				ret,	i);
+				ret, i);
 			return ret;
 		}
 		tqp->tqp_stats.rcb_rx_ring_pktnum_rcd +=
@@ -506,6 +505,7 @@ static int hclge_tqps_get_sset_count(struct hnae3_handle *handle, int stringset)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 
+	/* each tqp has TX & RX two queues */
 	return kinfo->num_tqps * (2);
 }
 
@@ -650,8 +650,7 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 	return count;
 }
 
-static void hclge_get_strings(struct hnae3_handle *handle,
-			      u32 stringset,
+static void hclge_get_strings(struct hnae3_handle *handle, u32 stringset,
 			      u8 *data)
 {
 	u8 *p = (char *)data;
@@ -659,21 +658,17 @@ static void hclge_get_strings(struct hnae3_handle *handle,
 
 	if (stringset == ETH_SS_STATS) {
 		size = ARRAY_SIZE(g_mac_stats_string);
-		p = hclge_comm_get_strings(stringset,
-					   g_mac_stats_string,
-					   size,
-					   p);
+		p = hclge_comm_get_strings(stringset, g_mac_stats_string,
+					   size, p);
 		p = hclge_tqps_get_strings(handle, p);
 	} else if (stringset == ETH_SS_TEST) {
 		if (handle->flags & HNAE3_SUPPORT_APP_LOOPBACK) {
-			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_LOOP_APP],
+			memcpy(p, hns3_nic_test_strs[HNAE3_LOOP_APP],
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
 		if (handle->flags & HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK) {
-			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_LOOP_SERIAL_SERDES],
+			memcpy(p, hns3_nic_test_strs[HNAE3_LOOP_SERIAL_SERDES],
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
@@ -684,8 +679,7 @@ static void hclge_get_strings(struct hnae3_handle *handle,
 			p += ETH_GSTRING_LEN;
 		}
 		if (handle->flags & HNAE3_SUPPORT_PHY_LOOPBACK) {
-			memcpy(p,
-			       hns3_nic_test_strs[HNAE3_LOOP_PHY],
+			memcpy(p, hns3_nic_test_strs[HNAE3_LOOP_PHY],
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
@@ -698,10 +692,8 @@ static void hclge_get_stats(struct hnae3_handle *handle, u64 *data)
 	struct hclge_dev *hdev = vport->back;
 	u64 *p;
 
-	p = hclge_comm_get_stats(&hdev->hw_stats.mac_stats,
-				 g_mac_stats_string,
-				 ARRAY_SIZE(g_mac_stats_string),
-				 data);
+	p = hclge_comm_get_stats(&hdev->hw_stats.mac_stats, g_mac_stats_string,
+				 ARRAY_SIZE(g_mac_stats_string), data);
 	p = hclge_tqps_get_stats(handle, p);
 }
 
@@ -746,9 +738,7 @@ static int hclge_query_function_status(struct hclge_dev *hdev)
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
-				"query function status failed %d.\n",
-				ret);
-
+				"query function status failed %d.\n", ret);
 			return ret;
 		}
 
@@ -808,7 +798,7 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 		/* PF should have NIC vectors and Roce vectors,
 		 * NIC vectors are queued before Roce vectors.
 		 */
-		hdev->num_msi = hdev->num_roce_msi  +
+		hdev->num_msi = hdev->num_roce_msi +
 				hdev->roce_base_msix_offset;
 	} else {
 		hdev->num_msi =
@@ -2153,7 +2143,6 @@ static int hclge_init_msi(struct hclge_dev *hdev)
 
 static u8 hclge_check_speed_dup(u8 duplex, int speed)
 {
-
 	if (!(speed == HCLGE_MAC_SPEED_10M || speed == HCLGE_MAC_SPEED_100M))
 		duplex = HCLGE_MAC_FULL;
 
@@ -2862,8 +2851,7 @@ int hclge_notify_client(struct hclge_dev *hdev,
 	struct hnae3_client *client = hdev->nic_client;
 	u16 i;
 
-	if (!test_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state) ||
-	    !client)
+	if (!test_bit(HCLGE_STATE_NIC_REGISTERED, &hdev->state) || !client)
 		return 0;
 
 	if (!client->ops->reset_notify)
@@ -2891,8 +2879,7 @@ static int hclge_notify_roce_client(struct hclge_dev *hdev,
 	int ret = 0;
 	u16 i;
 
-	if (!test_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state) ||
-	    !client)
+	if (!test_bit(HCLGE_STATE_ROCE_REGISTERED, &hdev->state) || !client)
 		return 0;
 
 	if (!client->ops->reset_notify)
@@ -4167,8 +4154,7 @@ int hclge_bind_ring_with_vector(struct hclge_vport *vport,
 	return 0;
 }
 
-static int hclge_map_ring_to_vector(struct hnae3_handle *handle,
-				    int vector,
+static int hclge_map_ring_to_vector(struct hnae3_handle *handle, int vector,
 				    struct hnae3_ring_chain_node *ring_chain)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -4185,8 +4171,7 @@ static int hclge_map_ring_to_vector(struct hnae3_handle *handle,
 	return hclge_bind_ring_with_vector(vport, vector_id, true, ring_chain);
 }
 
-static int hclge_unmap_ring_frm_vector(struct hnae3_handle *handle,
-				       int vector,
+static int hclge_unmap_ring_frm_vector(struct hnae3_handle *handle, int vector,
 				       struct hnae3_ring_chain_node *ring_chain)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -4207,8 +4192,7 @@ static int hclge_unmap_ring_frm_vector(struct hnae3_handle *handle,
 	if (ret)
 		dev_err(&handle->pdev->dev,
 			"Unmap ring from vector fail. vectorid=%d, ret =%d\n",
-			vector_id,
-			ret);
+			vector_id, ret);
 
 	return ret;
 }
@@ -5272,13 +5256,12 @@ static int hclge_del_fd_entry(struct hnae3_handle *handle,
 
 	if (!hclge_fd_rule_exist(hdev, fs->location)) {
 		dev_err(&hdev->pdev->dev,
-			"Delete fail, rule %d is inexistent\n",
-			fs->location);
+			"Delete fail, rule %d is inexistent\n", fs->location);
 		return -ENOENT;
 	}
 
-	ret = hclge_fd_tcam_config(hdev, HCLGE_FD_STAGE_1, true,
-				   fs->location, NULL, false);
+	ret = hclge_fd_tcam_config(hdev, HCLGE_FD_STAGE_1, true, fs->location,
+				   NULL, false);
 	if (ret)
 		return ret;
 
@@ -6549,8 +6532,7 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 	    is_multicast_ether_addr(addr)) {
 		dev_err(&hdev->pdev->dev,
 			"Set_uc mac err! invalid mac:%pM. is_zero:%d,is_br=%d,is_mul=%d\n",
-			 addr,
-			 is_zero_ether_addr(addr),
+			 addr, is_zero_ether_addr(addr),
 			 is_broadcast_ether_addr(addr),
 			 is_multicast_ether_addr(addr));
 		return -EINVAL;
@@ -6617,9 +6599,8 @@ int hclge_rm_uc_addr_common(struct hclge_vport *vport,
 	if (is_zero_ether_addr(addr) ||
 	    is_broadcast_ether_addr(addr) ||
 	    is_multicast_ether_addr(addr)) {
-		dev_dbg(&hdev->pdev->dev,
-			"Remove mac err! invalid mac:%pM.\n",
-			 addr);
+		dev_dbg(&hdev->pdev->dev, "Remove mac err! invalid mac:%pM.\n",
+			addr);
 		return -EINVAL;
 	}
 
@@ -8730,8 +8711,7 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	ret = hclge_init_fd_config(hdev);
 	if (ret) {
-		dev_err(&pdev->dev,
-			"fd table init fail, ret=%d\n", ret);
+		dev_err(&pdev->dev, "fd table init fail, ret=%d\n", ret);
 		return ret;
 	}
 

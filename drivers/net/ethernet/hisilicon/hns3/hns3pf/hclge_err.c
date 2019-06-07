@@ -673,19 +673,19 @@ static int hclge_cmd_query_error(struct hclge_dev *hdev,
 				 enum hclge_err_int_type int_type)
 {
 	struct device *dev = &hdev->pdev->dev;
-	int num = 1;
+	int desc_num = 1;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc[0], cmd, true);
 	if (flag) {
 		desc[0].flag |= cpu_to_le16(flag);
 		hclge_cmd_setup_basic_desc(&desc[1], cmd, true);
-		num = 2;
+		desc_num = 2;
 	}
 	if (w_num)
 		desc[0].data[w_num] = cpu_to_le32(int_type);
 
-	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], desc_num);
 	if (ret)
 		dev_err(dev, "query error cmd failed (%d)\n", ret);
 
@@ -941,7 +941,7 @@ static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
 {
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_desc desc[2];
-	int num = 1;
+	int desc_num = 1;
 	int ret;
 
 	/* configure PPU error interrupts */
@@ -960,7 +960,7 @@ static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
 		desc[1].data[1] = HCLGE_PPU_MPF_ABNORMAL_INT1_EN_MASK;
 		desc[1].data[2] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN_MASK;
 		desc[1].data[3] |= HCLGE_PPU_MPF_ABNORMAL_INT3_EN_MASK;
-		num = 2;
+		desc_num = 2;
 	} else if (cmd == HCLGE_PPU_MPF_OTHER_INT_CMD) {
 		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
 		if (en)
@@ -978,7 +978,7 @@ static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
 		return -EINVAL;
 	}
 
-	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], desc_num);
 
 	return ret;
 }
@@ -1455,8 +1455,7 @@ static int hclge_log_rocee_ovf_error(struct hclge_dev *hdev)
 	int ret;
 
 	/* read overflow error status */
-	ret = hclge_cmd_query_error(hdev, &desc[0],
-				    HCLGE_ROCEE_PF_RAS_INT_CMD,
+	ret = hclge_cmd_query_error(hdev, &desc[0], HCLGE_ROCEE_PF_RAS_INT_CMD,
 				    0, 0, 0);
 	if (ret) {
 		dev_err(dev, "failed(%d) to query ROCEE OVF error sts\n", ret);

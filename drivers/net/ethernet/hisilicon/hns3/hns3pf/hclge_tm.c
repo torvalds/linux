@@ -52,7 +52,8 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 		6 * 8,          /* Port level */
 		6 * 256         /* Qset level */
 	};
-	u8 ir_u_calc = 0, ir_s_calc = 0;
+	u8 ir_u_calc = 0;
+	u8 ir_s_calc = 0;
 	u32 ir_calc;
 	u32 tick;
 
@@ -222,8 +223,7 @@ int hclge_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr)
 	trans_gap = pause_param->pause_trans_gap;
 	trans_time = le16_to_cpu(pause_param->pause_trans_time);
 
-	return hclge_pause_param_cfg(hdev, mac_addr, trans_gap,
-					 trans_time);
+	return hclge_pause_param_cfg(hdev, mac_addr, trans_gap, trans_time);
 }
 
 static int hclge_fill_pri_array(struct hclge_dev *hdev, u8 *pri, u8 pri_id)
@@ -387,7 +387,7 @@ static int hclge_tm_pg_shapping_cfg(struct hclge_dev *hdev,
 	struct hclge_desc desc;
 
 	opcode = bucket ? HCLGE_OPC_TM_PG_P_SHAPPING :
-		HCLGE_OPC_TM_PG_C_SHAPPING;
+		 HCLGE_OPC_TM_PG_C_SHAPPING;
 	hclge_cmd_setup_basic_desc(&desc, opcode, false);
 
 	shap_cfg_cmd = (struct hclge_pg_shapping_cmd *)desc.data;
@@ -434,7 +434,7 @@ static int hclge_tm_pri_shapping_cfg(struct hclge_dev *hdev,
 	struct hclge_desc desc;
 
 	opcode = bucket ? HCLGE_OPC_TM_PRI_P_SHAPPING :
-		HCLGE_OPC_TM_PRI_C_SHAPPING;
+		 HCLGE_OPC_TM_PRI_C_SHAPPING;
 
 	hclge_cmd_setup_basic_desc(&desc, opcode, false);
 
@@ -531,6 +531,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	max_rss_size = min_t(u16, hdev->rss_size_max,
 			     vport->alloc_tqps / kinfo->num_tc);
 
+	/* Set to user value, no larger than max_rss_size. */
 	if (kinfo->req_rss_size != kinfo->rss_size && kinfo->req_rss_size &&
 	    kinfo->req_rss_size <= max_rss_size) {
 		dev_info(&hdev->pdev->dev, "rss changes from %d to %d\n",
@@ -538,6 +539,7 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 		kinfo->rss_size = kinfo->req_rss_size;
 	} else if (kinfo->rss_size > max_rss_size ||
 		   (!kinfo->req_rss_size && kinfo->rss_size < max_rss_size)) {
+		/* Set to the maximum specification value (max_rss_size). */
 		dev_info(&hdev->pdev->dev, "rss changes from %d to %d\n",
 			 kinfo->rss_size, max_rss_size);
 		kinfo->rss_size = max_rss_size;
@@ -736,8 +738,7 @@ static int hclge_tm_pg_dwrr_cfg(struct hclge_dev *hdev)
 	/* pg to prio */
 	for (i = 0; i < hdev->tm_info.num_pg; i++) {
 		/* Cfg dwrr */
-		ret = hclge_tm_pg_weight_cfg(hdev, i,
-					     hdev->tm_info.pg_dwrr[i]);
+		ret = hclge_tm_pg_weight_cfg(hdev, i, hdev->tm_info.pg_dwrr[i]);
 		if (ret)
 			return ret;
 	}
@@ -1223,8 +1224,8 @@ static int hclge_pause_param_setup_hw(struct hclge_dev *hdev)
 	struct hclge_mac *mac = &hdev->hw.mac;
 
 	return hclge_pause_param_cfg(hdev, mac->mac_addr,
-					 HCLGE_DEFAULT_PAUSE_TRANS_GAP,
-					 HCLGE_DEFAULT_PAUSE_TRANS_TIME);
+				     HCLGE_DEFAULT_PAUSE_TRANS_GAP,
+				     HCLGE_DEFAULT_PAUSE_TRANS_TIME);
 }
 
 static int hclge_pfc_setup_hw(struct hclge_dev *hdev)
@@ -1369,7 +1370,8 @@ void hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc)
 
 void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc)
 {
-	u8 i, bit_map = 0;
+	u8 bit_map = 0;
+	u8 i;
 
 	hdev->tm_info.num_tc = num_tc;
 

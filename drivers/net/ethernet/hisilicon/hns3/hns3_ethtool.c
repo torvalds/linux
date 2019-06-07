@@ -150,6 +150,12 @@ static void hns3_lp_setup_skb(struct sk_buff *skb)
 	packet = skb_put(skb, HNS3_NIC_LB_TEST_PACKET_SIZE);
 
 	memcpy(ethh->h_dest, ndev->dev_addr, ETH_ALEN);
+
+	/* The dst mac addr of loopback packet is the same as the host'
+	 * mac addr, the SSU component may loop back the packet to host
+	 * before the packet reaches mac or serdes, which will defect
+	 * the purpose of mac or serdes selftest.
+	 */
 	ethh->h_dest[5] += 0x1f;
 	eth_zero_addr(ethh->h_source);
 	ethh->h_proto = htons(ETH_P_ARP);

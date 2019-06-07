@@ -399,7 +399,7 @@ static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
 	if (ret)
 		goto err_tm_pg_cmd_send;
 
-	dev_info(&hdev->pdev->dev, "PRI_SCH pg_id: %u\n", desc.data[0]);
+	dev_info(&hdev->pdev->dev, "PRI_SCH pri_id: %u\n", desc.data[0]);
 
 	cmd = HCLGE_OPC_TM_QS_SCH_MODE_CFG;
 	hclge_cmd_setup_basic_desc(&desc, cmd, true);
@@ -407,7 +407,7 @@ static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
 	if (ret)
 		goto err_tm_pg_cmd_send;
 
-	dev_info(&hdev->pdev->dev, "QS_SCH pg_id: %u\n", desc.data[0]);
+	dev_info(&hdev->pdev->dev, "QS_SCH qs_id: %u\n", desc.data[0]);
 
 	cmd = HCLGE_OPC_TM_BP_TO_QSET_MAPPING;
 	hclge_cmd_setup_basic_desc(&desc, cmd, true);
@@ -416,9 +416,9 @@ static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
 		goto err_tm_pg_cmd_send;
 
 	bp_to_qs_map_cmd = (struct hclge_bp_to_qs_map_cmd *)desc.data;
-	dev_info(&hdev->pdev->dev, "BP_TO_QSET pg_id: %u\n",
+	dev_info(&hdev->pdev->dev, "BP_TO_QSET tc_id: %u\n",
 		 bp_to_qs_map_cmd->tc_id);
-	dev_info(&hdev->pdev->dev, "BP_TO_QSET pg_shapping: 0x%x\n",
+	dev_info(&hdev->pdev->dev, "BP_TO_QSET qs_group_id: 0x%x\n",
 		 bp_to_qs_map_cmd->qs_group_id);
 	dev_info(&hdev->pdev->dev, "BP_TO_QSET qs_bit_map: 0x%x\n",
 		 bp_to_qs_map_cmd->qs_bit_map);
@@ -477,7 +477,7 @@ static void hclge_dbg_dump_tm(struct hclge_dev *hdev)
 
 	nq_to_qs_map = (struct hclge_nq_to_qs_link_cmd *)desc.data;
 	dev_info(&hdev->pdev->dev, "NQ_TO_QS nq_id: %u\n", nq_to_qs_map->nq_id);
-	dev_info(&hdev->pdev->dev, "NQ_TO_QS qset_id: %u\n",
+	dev_info(&hdev->pdev->dev, "NQ_TO_QS qset_id: 0x%x\n",
 		 nq_to_qs_map->qset_id);
 
 	cmd = HCLGE_OPC_TM_PG_WEIGHT;

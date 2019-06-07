@@ -139,8 +139,7 @@ static int hns3_nic_init_irq(struct hns3_nic_priv *priv)
 		tqp_vectors->name[HNAE3_INT_NAME_LEN - 1] = '\0';
 
 		ret = request_irq(tqp_vectors->vector_irq, hns3_irq_handle, 0,
-				  tqp_vectors->name,
-				       tqp_vectors);
+				  tqp_vectors->name, tqp_vectors);
 		if (ret) {
 			netdev_err(priv->netdev, "request irq(%d) fail\n",
 				   tqp_vectors->vector_irq);
@@ -277,8 +276,7 @@ static int hns3_nic_set_real_num_queue(struct net_device *netdev)
 	ret = netif_set_real_num_tx_queues(netdev, queue_size);
 	if (ret) {
 		netdev_err(netdev,
-			   "netif_set_real_num_tx_queues fail, ret=%d!\n",
-			   ret);
+			   "netif_set_real_num_tx_queues fail, ret=%d!\n", ret);
 		return ret;
 	}
 
@@ -373,7 +371,7 @@ static int hns3_nic_net_up(struct net_device *netdev)
 	/* get irq resource for all vectors */
 	ret = hns3_nic_init_irq(priv);
 	if (ret) {
-		netdev_err(netdev, "hns init irq failed! ret=%d\n", ret);
+		netdev_err(netdev, "init irq failed! ret=%d\n", ret);
 		goto free_rmap;
 	}
 
@@ -449,16 +447,13 @@ static int hns3_nic_net_open(struct net_device *netdev)
 
 	ret = hns3_nic_net_up(netdev);
 	if (ret) {
-		netdev_err(netdev,
-			   "hns net up fail, ret=%d!\n", ret);
+		netdev_err(netdev, "net up fail, ret=%d!\n", ret);
 		return ret;
 	}
 
 	kinfo = &h->kinfo;
-	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++) {
-		netdev_set_prio_tc_map(netdev, i,
-				       kinfo->prio_tc[i]);
-	}
+	for (i = 0; i < HNAE3_MAX_USER_PRIO; i++)
+		netdev_set_prio_tc_map(netdev, i, kinfo->prio_tc[i]);
 
 	if (h->ae_algo->ops->set_timer_task)
 		h->ae_algo->ops->set_timer_task(priv->ae_handle, true);
@@ -663,7 +658,7 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 	if (l3.v4->version == 4)
 		l3.v4->check = 0;
 
-	/* tunnel packet.*/
+	/* tunnel packet */
 	if (skb_shinfo(skb)->gso_type & (SKB_GSO_GRE |
 					 SKB_GSO_GRE_CSUM |
 					 SKB_GSO_UDP_TUNNEL |
@@ -688,11 +683,11 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 			l3.v4->check = 0;
 	}
 
-	/* normal or tunnel packet*/
+	/* normal or tunnel packet */
 	l4_offset = l4.hdr - skb->data;
 	hdr_len = (l4.tcp->doff << 2) + l4_offset;
 
-	/* remove payload length from inner pseudo checksum when tso*/
+	/* remove payload length from inner pseudo checksum when tso */
 	l4_paylen = skb->len - l4_offset;
 	csum_replace_by_diff(&l4.tcp->check,
 			     (__force __wsum)htonl(l4_paylen));
@@ -800,7 +795,7 @@ static void hns3_set_outer_l2l3l4(struct sk_buff *skb, u8 ol4_proto,
 	hns3_set_field(*ol_type_vlan_len_msec, HNS3_TXD_L3LEN_S, l3_len >> 2);
 
 	il2_hdr = skb_inner_mac_header(skb);
-	/* compute OL4 header size, defined in 4 Bytes. */
+	/* compute OL4 header size, defined in 4 Bytes */
 	l4_len = il2_hdr - l4.hdr;
 	hns3_set_field(*ol_type_vlan_len_msec, HNS3_TXD_L4LEN_S, l4_len >> 2);
 
@@ -1060,8 +1055,7 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		/* Set txbd */
 		desc->tx.ol_type_vlan_len_msec =
 			cpu_to_le32(ol_type_vlan_len_msec);
-		desc->tx.type_cs_vlan_tso_len =
-			cpu_to_le32(type_cs_vlan_tso);
+		desc->tx.type_cs_vlan_tso_len =	cpu_to_le32(type_cs_vlan_tso);
 		desc->tx.paylen = cpu_to_le32(paylen);
 		desc->tx.mss = cpu_to_le16(mss);
 		desc->tx.vlan_tag = cpu_to_le16(inner_vtag);
@@ -1108,19 +1102,19 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		desc_cb->priv = priv;
 		desc_cb->dma = dma + HNS3_MAX_BD_SIZE * k;
 		desc_cb->type = (type == DESC_TYPE_SKB && !k) ?
-					DESC_TYPE_SKB : DESC_TYPE_PAGE;
+				DESC_TYPE_SKB : DESC_TYPE_PAGE;
 
 		/* now, fill the descriptor */
 		desc->addr = cpu_to_le64(dma + HNS3_MAX_BD_SIZE * k);
 		desc->tx.send_size = cpu_to_le16((k == frag_buf_num - 1) ?
-				(u16)sizeoflast : (u16)HNS3_MAX_BD_SIZE);
+				     (u16)sizeoflast : (u16)HNS3_MAX_BD_SIZE);
 		hns3_set_txbd_baseinfo(&bdtp_fe_sc_vld_ra_ri,
 				       frag_end && (k == frag_buf_num - 1) ?
 						1 : 0);
 		desc->tx.bdtp_fe_sc_vld_ra_ri =
 				cpu_to_le16(bdtp_fe_sc_vld_ra_ri);
 
-		/* move ring pointer to next.*/
+		/* move ring pointer to next */
 		ring_ptr_move_fw(ring, next_to_use);
 
 		desc_cb = &ring->desc_cb[ring->next_to_use];
@@ -1577,7 +1571,7 @@ static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 
 	if (h->ae_algo->ops->set_vf_vlan_filter)
 		ret = h->ae_algo->ops->set_vf_vlan_filter(h, vf, vlan,
-						   qos, vlan_proto);
+							  qos, vlan_proto);
 
 	return ret;
 }
@@ -1828,8 +1822,7 @@ static int hns3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct hnae3_ae_dev *ae_dev;
 	int ret;
 
-	ae_dev = devm_kzalloc(&pdev->dev, sizeof(*ae_dev),
-			      GFP_KERNEL);
+	ae_dev = devm_kzalloc(&pdev->dev, sizeof(*ae_dev), GFP_KERNEL);
 	if (!ae_dev) {
 		ret = -ENOMEM;
 		return ret;
@@ -2196,7 +2189,7 @@ out_buffer_fail:
 	return ret;
 }
 
-/* detach a in-used buffer and replace with a reserved one  */
+/* detach a in-used buffer and replace with a reserved one */
 static void hns3_replace_buffer(struct hns3_enet_ring *ring, int i,
 				struct hns3_desc_cb *res_cb)
 {
@@ -2209,8 +2202,8 @@ static void hns3_replace_buffer(struct hns3_enet_ring *ring, int i,
 static void hns3_reuse_buffer(struct hns3_enet_ring *ring, int i)
 {
 	ring->desc_cb[i].reuse_flag = 0;
-	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma
-		+ ring->desc_cb[i].page_offset);
+	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma +
+					 ring->desc_cb[i].page_offset);
 	ring->desc[i].rx.bd_base_info = 0;
 }
 
@@ -2312,8 +2305,8 @@ static int hns3_desc_unused(struct hns3_enet_ring *ring)
 	return ((ntc >= ntu) ? 0 : ring->desc_num) + ntc - ntu;
 }
 
-static void
-hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring, int cleand_count)
+static void hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
+				      int cleand_count)
 {
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_desc_cb res_cbs;
@@ -2375,7 +2368,7 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 
 	if (desc_cb->page_offset + truesize <= hnae3_page_size(ring)) {
 		desc_cb->reuse_flag = 1;
-		/* Bump ref count on page before it is given*/
+		/* Bump ref count on page before it is given */
 		get_page(desc_cb->priv);
 	} else if (page_count(desc_cb->priv) == 1) {
 		desc_cb->reuse_flag = 1;
@@ -2619,7 +2612,7 @@ static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
 	 */
 	if (pending) {
 		pre_bd = (ring->next_to_clean - 1 + ring->desc_num) %
-			ring->desc_num;
+			 ring->desc_num;
 		pre_desc = &ring->desc[pre_bd];
 		bd_base_info = le32_to_cpu(pre_desc->rx.bd_base_info);
 	} else {
@@ -2688,8 +2681,7 @@ static int hns3_set_gro_and_checksum(struct hns3_enet_ring *ring,
 						  HNS3_RXD_GRO_COUNT_M,
 						  HNS3_RXD_GRO_COUNT_S);
 
-	l3_type = hnae3_get_field(l234info, HNS3_RXD_L3ID_M,
-				  HNS3_RXD_L3ID_S);
+	l3_type = hnae3_get_field(l234info, HNS3_RXD_L3ID_M, HNS3_RXD_L3ID_S);
 	if (l3_type == HNS3_L3_TYPE_IPV4)
 		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
 	else if (l3_type == HNS3_L3_TYPE_IPV6)
@@ -2877,9 +2869,8 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	return 0;
 }
 
-int hns3_clean_rx_ring(
-		struct hns3_enet_ring *ring, int budget,
-		void (*rx_fn)(struct hns3_enet_ring *, struct sk_buff *))
+int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
+		       void (*rx_fn)(struct hns3_enet_ring *, struct sk_buff *))
 {
 #define RCB_NOF_ALLOC_RX_BUFF_ONCE 16
 	int recv_pkts, recv_bds, clean_count, err;
@@ -2931,8 +2922,7 @@ int hns3_clean_rx_ring(
 out:
 	/* Make all data has been write before submit */
 	if (clean_count + unused_count > 0)
-		hns3_nic_alloc_rx_buffers(ring,
-					  clean_count + unused_count);
+		hns3_nic_alloc_rx_buffers(ring, clean_count + unused_count);
 
 	return recv_pkts;
 }
@@ -3337,6 +3327,7 @@ static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
 	if (!vector)
 		return -ENOMEM;
 
+	/* save the actual available vector number */
 	vector_num = h->ae_algo->ops->get_vector(h, vector_num, vector);
 
 	priv->vector_num = vector_num;
@@ -3605,8 +3596,7 @@ static void hns3_init_ring_hw(struct hns3_enet_ring *ring)
 	struct hnae3_queue *q = ring->tqp;
 
 	if (!HNAE3_IS_TX_RING(ring)) {
-		hns3_write_dev(q, HNS3_RING_RX_RING_BASEADDR_L_REG,
-			       (u32)dma);
+		hns3_write_dev(q, HNS3_RING_RX_RING_BASEADDR_L_REG, (u32)dma);
 		hns3_write_dev(q, HNS3_RING_RX_RING_BASEADDR_H_REG,
 			       (u32)((dma >> 31) >> 1));
 
@@ -4052,8 +4042,7 @@ static int hns3_clear_rx_ring(struct hns3_enet_ring *ring)
 					    ret);
 				return ret;
 			}
-			hns3_replace_buffer(ring, ring->next_to_use,
-					    &res_cbs);
+			hns3_replace_buffer(ring, ring->next_to_use, &res_cbs);
 		}
 		ring_ptr_move_fw(ring, next_to_use);
 	}
@@ -4228,7 +4217,7 @@ static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 		if (ret) {
 			set_bit(HNS3_NIC_STATE_RESETTING, &priv->state);
 			netdev_err(kinfo->netdev,
-				   "hns net up fail, ret=%d!\n", ret);
+				   "net up fail, ret=%d!\n", ret);
 			return ret;
 		}
 	}
