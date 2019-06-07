@@ -159,7 +159,8 @@ static void _rtw_free_network(struct mlme_priv *pmlmepriv, struct wlan_network *
 	spin_unlock_bh(&free_queue->lock);
 }
 
-void _rtw_free_network_nolock(struct	mlme_priv *pmlmepriv, struct wlan_network *pnetwork)
+static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
+				    struct wlan_network *pnetwork)
 {
 	struct __queue *free_queue = &pmlmepriv->free_bss_pool;
 
@@ -274,12 +275,6 @@ u8 *rtw_get_beacon_interval_from_ie(u8 *ie)
 static struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv)
 {
 	return _rtw_alloc_network(pmlmepriv);
-}
-
-static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
-				    struct wlan_network *pnetwork)
-{
-	_rtw_free_network_nolock(pmlmepriv, pnetwork);
 }
 
 int rtw_is_same_ibss(struct adapter *adapter, struct wlan_network *pnetwork)
