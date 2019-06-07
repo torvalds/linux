@@ -332,6 +332,74 @@ static u32 find_dmc_fw_offset(const struct intel_fw_info *fw_info,
 	return dmc_offset;
 }
 
+static u32 parse_csr_fw_dmc(struct intel_csr *csr,
+			    const struct intel_dmc_header *dmc_header,
+			    size_t rem_size)
+{
+	unsigned int i, payload_size;
+	u32 r;
+	u8 *payload;
+
+	if (rem_size < sizeof(struct intel_dmc_header))
+		goto error_truncated;
+
+	if (sizeof(struct intel_dmc_header) != dmc_header->header_len) {
+		DRM_ERROR("DMC firmware has wrong dmc header length "
+			  "(%u bytes)\n",
+			  (dmc_header->header_len));
+		return 0;
+	}
+
+	/* Cache the dmc header info. */
+	if (dmc_header->mmio_count > ARRAY_SIZE(csr->mmioaddr)) {
+		DRM_ERROR("DMC firmware has wrong mmio count %u\n",
+			  dmc_header->mmio_count);
+		return 0;
+	}
+
+	csr->mmio_count = dmc_header->mmio_count;
+	for (i = 0; i < dmc_header->mmio_count; i++) {
+		if (dmc_header->mmioaddr[i] < CSR_MMIO_START_RANGE ||
+		    dmc_header->mmioaddr[i] > CSR_MMIO_END_RANGE) {
+			DRM_ERROR("DMC firmware has wrong mmio address 0x%x\n",
+				  dmc_header->mmioaddr[i]);
+			return 0;
+		}
+		csr->mmioaddr[i] = _MMIO(dmc_header->mmioaddr[i]);
+		csr->mmiodata[i] = dmc_header->mmiodata[i];
+	}
+
+	rem_size -= dmc_header->header_len;
+
+	/* fw_size is in dwords, so multiplied by 4 to convert into bytes. */
+	payload_size = dmc_header->fw_size * 4;
+	if (rem_size < payload_size)
+		goto error_truncated;
+
+	if (payload_size > csr->max_fw_size) {
+		DRM_ERROR("DMC FW too big (%u bytes)\n", payload_size);
+		return 0;
+	}
+	csr->dmc_fw_size = dmc_header->fw_size;
+
+	csr->dmc_payload = kmalloc(payload_size, GFP_KERNEL);
+	if (!csr->dmc_payload) {
+		DRM_ERROR("Memory allocation failed for dmc payload\n");
+		return 0;
+	}
+
+	r = sizeof(struct intel_dmc_header);
+	payload = (u8 *)(dmc_header) + r;
+	memcpy(csr->dmc_payload, payload, payload_size);
+	r += payload_size;
+
+	return r;
+
+error_truncated:
+	DRM_ERROR("Truncated DMC firmware, refusing.\n");
+	return 0;
+}
+
 static u32
 parse_csr_fw_package(struct intel_csr *csr,
 		     const struct intel_package_header *package_header,
@@ -432,10 +500,8 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 	struct intel_dmc_header *dmc_header;
 	struct intel_csr *csr = &dev_priv->csr;
 	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
-	u32 readcount = 0, nbytes;
-	u32 i, r;
-	u32 *dmc_payload;
-	size_t fsize;
+	u32 readcount = 0;
+	u32 r;
 
 	if (!fw)
 		return NULL;
@@ -455,62 +521,14 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 		return NULL;
 
 	readcount += r;
-	fsize = readcount +
-		sizeof(struct intel_dmc_header);
-	if (fsize > fw->size)
-		goto error_truncated;
 
-	/* Extract dmc_header information. */
+	/* Extract dmc_header information */
 	dmc_header = (struct intel_dmc_header *)&fw->data[readcount];
-	if (sizeof(struct intel_dmc_header) != (dmc_header->header_len)) {
-		DRM_ERROR("DMC firmware has wrong dmc header length "
-			  "(%u bytes)\n",
-			  (dmc_header->header_len));
+	r = parse_csr_fw_dmc(csr, dmc_header, fw->size - readcount);
+	if (!r)
 		return NULL;
-	}
-	readcount += sizeof(struct intel_dmc_header);
 
-	/* Cache the dmc header info. */
-	if (dmc_header->mmio_count > ARRAY_SIZE(csr->mmioaddr)) {
-		DRM_ERROR("DMC firmware has wrong mmio count %u\n",
-			  dmc_header->mmio_count);
-		return NULL;
-	}
-	csr->mmio_count = dmc_header->mmio_count;
-	for (i = 0; i < dmc_header->mmio_count; i++) {
-		if (dmc_header->mmioaddr[i] < CSR_MMIO_START_RANGE ||
-		    dmc_header->mmioaddr[i] > CSR_MMIO_END_RANGE) {
-			DRM_ERROR("DMC firmware has wrong mmio address 0x%x\n",
-				  dmc_header->mmioaddr[i]);
-			return NULL;
-		}
-		csr->mmioaddr[i] = _MMIO(dmc_header->mmioaddr[i]);
-		csr->mmiodata[i] = dmc_header->mmiodata[i];
-	}
-
-	/* fw_size is in dwords, so multiplied by 4 to convert into bytes. */
-	nbytes = dmc_header->fw_size * 4;
-	fsize += nbytes;
-	if (fsize > fw->size)
-		goto error_truncated;
-
-	if (nbytes > csr->max_fw_size) {
-		DRM_ERROR("DMC FW too big (%u bytes)\n", nbytes);
-		return NULL;
-	}
-	csr->dmc_fw_size = dmc_header->fw_size;
-
-	dmc_payload = kmalloc(nbytes, GFP_KERNEL);
-	if (!dmc_payload) {
-		DRM_ERROR("Memory allocation failed for dmc payload\n");
-		return NULL;
-	}
-
-	return memcpy(dmc_payload, &fw->data[readcount], nbytes);
-
-error_truncated:
-	DRM_ERROR("Truncated DMC firmware, rejecting.\n");
-	return NULL;
+	return csr->dmc_payload;
 }
 
 static void intel_csr_runtime_pm_get(struct drm_i915_private *dev_priv)
