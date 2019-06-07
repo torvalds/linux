@@ -332,36 +332,22 @@ static u32 find_dmc_fw_offset(const struct intel_fw_info *fw_info,
 	return dmc_offset;
 }
 
-static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
-			 const struct firmware *fw)
+/* Return number of bytes parsed or 0 on error */
+static u32 parse_csr_fw_css(struct intel_csr *csr,
+			    struct intel_css_header *css_header,
+			    size_t rem_size)
 {
-	struct intel_css_header *css_header;
-	struct intel_package_header *package_header;
-	struct intel_dmc_header *dmc_header;
-	struct intel_csr *csr = &dev_priv->csr;
-	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
-	u32 dmc_offset, num_entries, max_entries, readcount = 0, nbytes;
-	u32 i;
-	u32 *dmc_payload;
-	size_t fsize;
+	if (rem_size < sizeof(struct intel_css_header)) {
+		DRM_ERROR("Truncated DMC firmware, refusing.\n");
+		return 0;
+	}
 
-	if (!fw)
-		return NULL;
-
-	fsize = sizeof(struct intel_css_header) +
-		sizeof(struct intel_package_header) +
-		sizeof(struct intel_dmc_header);
-	if (fsize > fw->size)
-		goto error_truncated;
-
-	/* Extract CSS Header information*/
-	css_header = (struct intel_css_header *)fw->data;
 	if (sizeof(struct intel_css_header) !=
 	    (css_header->header_len * 4)) {
 		DRM_ERROR("DMC firmware has wrong CSS header length "
 			  "(%u bytes)\n",
 			  (css_header->header_len * 4));
-		return NULL;
+		return 0;
 	}
 
 	if (csr->required_version &&
@@ -372,12 +358,42 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 			 CSR_VERSION_MINOR(css_header->version),
 			 CSR_VERSION_MAJOR(csr->required_version),
 			 CSR_VERSION_MINOR(csr->required_version));
-		return NULL;
+		return 0;
 	}
 
 	csr->version = css_header->version;
 
-	readcount += sizeof(struct intel_css_header);
+	return sizeof(struct intel_css_header);
+}
+
+static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
+			 const struct firmware *fw)
+{
+	struct intel_css_header *css_header;
+	struct intel_package_header *package_header;
+	struct intel_dmc_header *dmc_header;
+	struct intel_csr *csr = &dev_priv->csr;
+	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
+	u32 dmc_offset, num_entries, max_entries, readcount = 0, nbytes;
+	u32 i, r;
+	u32 *dmc_payload;
+	size_t fsize;
+
+	if (!fw)
+		return NULL;
+
+	/* Extract CSS Header information */
+	css_header = (struct intel_css_header *)fw->data;
+	r = parse_csr_fw_css(csr, css_header, fw->size);
+	if (!r)
+		return NULL;
+
+	readcount += r;
+	fsize = readcount +
+		sizeof(struct intel_package_header) +
+		sizeof(struct intel_dmc_header);
+	if (fsize > fw->size)
+		goto error_truncated;
 
 	/* Extract Package Header information*/
 	package_header = (struct intel_package_header *)
