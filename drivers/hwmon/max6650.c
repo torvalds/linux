@@ -92,7 +92,8 @@ module_param(clock, int, 0444);
 #define FAN_RPM_MIN 240
 #define FAN_RPM_MAX 30000
 
-#define DIV_FROM_REG(reg) (1 << (reg & 7))
+#define DIV_FROM_REG(reg)	(1 << ((reg) & 7))
+#define DAC_LIMIT(v12)		((v12) ? 180 : 76)
 
 /*
  * Client data (each client gets its own)
@@ -135,6 +136,22 @@ static const struct of_device_id __maybe_unused max6650_dt_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, max6650_dt_match);
+
+static int dac_to_pwm(int dac, bool v12)
+{
+	/*
+	 * Useful range for dac is 0-180 for 12V fans and 0-76 for 5V fans.
+	 * Lower DAC values mean higher speeds.
+	 */
+	return clamp_val(255 - (255 * dac) / DAC_LIMIT(v12), 0, 255);
+}
+
+static u8 pwm_to_dac(unsigned int pwm, bool v12)
+{
+	int limit = DAC_LIMIT(v12);
+
+	return limit - (limit * pwm) / 255;
+}
 
 static struct max6650_data *max6650_update_device(struct device *dev)
 {
@@ -343,22 +360,10 @@ static ssize_t fan1_target_store(struct device *dev,
 static ssize_t pwm1_show(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
-	int pwm;
 	struct max6650_data *data = max6650_update_device(dev);
 
-	/*
-	 * Useful range for dac is 0-180 for 12V fans and 0-76 for 5V fans.
-	 * Lower DAC values mean higher speeds.
-	 */
-	if (data->config & MAX6650_CFG_V12)
-		pwm = 255 - (255 * (int)data->dac)/180;
-	else
-		pwm = 255 - (255 * (int)data->dac)/76;
-
-	if (pwm < 0)
-		pwm = 0;
-
-	return sprintf(buf, "%d\n", pwm);
+	return sprintf(buf, "%d\n", dac_to_pwm(data->dac,
+					       data->config & MAX6650_CFG_V12));
 }
 
 static ssize_t pwm1_store(struct device *dev,
@@ -369,6 +374,7 @@ static ssize_t pwm1_store(struct device *dev,
 	struct i2c_client *client = data->client;
 	unsigned long pwm;
 	int err;
+	u8 dac;
 
 	err = kstrtoul(buf, 10, &pwm);
 	if (err)
@@ -377,13 +383,10 @@ static ssize_t pwm1_store(struct device *dev,
 	pwm = clamp_val(pwm, 0, 255);
 
 	mutex_lock(&data->update_lock);
-
-	if (data->config & MAX6650_CFG_V12)
-		data->dac = 180 - (180 * pwm)/255;
-	else
-		data->dac = 76 - (76 * pwm)/255;
-	err = i2c_smbus_write_byte_data(client, MAX6650_REG_DAC, data->dac);
-
+	dac = pwm_to_dac(pwm, data->config & MAX6650_CFG_V12);
+	err = i2c_smbus_write_byte_data(client, MAX6650_REG_DAC, dac);
+	if (!err)
+		data->dac = dac;
 	mutex_unlock(&data->update_lock);
 
 	return err < 0 ? err : count;
@@ -714,11 +717,7 @@ static int max6650_set_cur_state(struct thermal_cooling_device *cdev,
 
 	mutex_lock(&data->update_lock);
 
-	if (data->config & MAX6650_CFG_V12)
-		data->dac = 180 - (180 * state)/255;
-	else
-		data->dac = 76 - (76 * state)/255;
-
+	data->dac = pwm_to_dac(state, data->config & MAX6650_CFG_V12);
 	err = i2c_smbus_write_byte_data(client, MAX6650_REG_DAC, data->dac);
 
 	if (!err) {
@@ -730,7 +729,7 @@ static int max6650_set_cur_state(struct thermal_cooling_device *cdev,
 
 	mutex_unlock(&data->update_lock);
 
-	return err < 0 ? err : 0;
+	return err;
 }
 
 static const struct thermal_cooling_device_ops max6650_cooling_ops = {
