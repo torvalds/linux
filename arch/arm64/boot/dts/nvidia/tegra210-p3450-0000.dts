@@ -88,6 +88,10 @@
 		status = "okay";
 	};
 
+	pwm@7000a000 {
+		status = "okay";
+	};
+
 	i2c@7000c500 {
 		status = "okay";
 		clock-frequency = <100000>;
