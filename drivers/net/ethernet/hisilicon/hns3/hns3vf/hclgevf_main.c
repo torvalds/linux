@@ -539,13 +539,15 @@ static int hclgevf_set_rss_algo_key(struct hclgevf_dev *hdev,
 {
 	struct hclgevf_rss_config_cmd *req;
 	struct hclgevf_desc desc;
-	int key_offset;
+	int key_offset = 0;
+	int key_counts;
 	int key_size;
 	int ret;
 
+	key_counts = HCLGEVF_RSS_KEY_SIZE;
 	req = (struct hclgevf_rss_config_cmd *)desc.data;
 
-	for (key_offset = 0; key_offset < 3; key_offset++) {
+	while (key_counts) {
 		hclgevf_cmd_setup_basic_desc(&desc,
 					     HCLGEVF_OPC_RSS_GENERIC_CONFIG,
 					     false);
@@ -554,15 +556,12 @@ static int hclgevf_set_rss_algo_key(struct hclgevf_dev *hdev,
 		req->hash_config |=
 			(key_offset << HCLGEVF_RSS_HASH_KEY_OFFSET_B);
 
-		if (key_offset == 2)
-			key_size =
-			HCLGEVF_RSS_KEY_SIZE - HCLGEVF_RSS_HASH_KEY_NUM * 2;
-		else
-			key_size = HCLGEVF_RSS_HASH_KEY_NUM;
-
+		key_size = min(HCLGEVF_RSS_HASH_KEY_NUM, key_counts);
 		memcpy(req->hash_key,
 		       key + key_offset * HCLGEVF_RSS_HASH_KEY_NUM, key_size);
 
+		key_counts -= key_size;
+		key_offset++;
 		ret = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
