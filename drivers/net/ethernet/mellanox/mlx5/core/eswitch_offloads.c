@@ -2075,19 +2075,19 @@ esw_vfs_changed_event_handler(struct mlx5_eswitch *esw, const u32 *out)
 
 static void esw_functions_changed_event_handler(struct work_struct *work)
 {
-	u32 out[MLX5_ST_SZ_DW(query_esw_functions_out)] = {};
 	struct mlx5_host_work *host_work;
 	struct mlx5_eswitch *esw;
-	int err;
+	const u32 *out;
 
 	host_work = container_of(work, struct mlx5_host_work, work);
 	esw = host_work->esw;
 
-	err = mlx5_esw_query_functions(esw->dev, out, sizeof(out));
-	if (err)
+	out = mlx5_esw_query_functions(esw->dev);
+	if (IS_ERR(out))
 		goto out;
 
 	esw_vfs_changed_event_handler(esw, out);
+	kvfree(out);
 out:
 	kfree(host_work);
 }
