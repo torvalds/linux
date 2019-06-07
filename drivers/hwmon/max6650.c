@@ -114,6 +114,7 @@ struct max6650_data {
 	u8 count;
 	u8 dac;
 	u8 alarm;
+	u8 alarm_en;
 	unsigned long cooling_dev_state;
 };
 
@@ -545,8 +546,6 @@ static umode_t max6650_attrs_visible(struct kobject *kobj, struct attribute *a,
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct max6650_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
-	u8 alarm_en = i2c_smbus_read_byte_data(client, MAX6650_REG_ALARM_EN);
 	struct device_attribute *devattr;
 
 	/*
@@ -559,7 +558,7 @@ static umode_t max6650_attrs_visible(struct kobject *kobj, struct attribute *a,
 	 || devattr == &sensor_dev_attr_fan1_fault.dev_attr
 	 || devattr == &sensor_dev_attr_gpio1_alarm.dev_attr
 	 || devattr == &sensor_dev_attr_gpio2_alarm.dev_attr) {
-		if (!(alarm_en & to_sensor_dev_attr(devattr)->index))
+		if (!(data->alarm_en & to_sensor_dev_attr(devattr)->index))
 			return 0;
 	}
 
@@ -681,6 +680,13 @@ static int max6650_init_client(struct max6650_data *data,
 		return reg;
 	}
 	data->count = reg;
+
+	reg = i2c_smbus_read_byte_data(client, MAX6650_REG_ALARM_EN);
+	if (reg < 0) {
+		dev_err(dev, "Failed to read alarm configuration, aborting.\n");
+		return reg;
+	}
+	data->alarm_en = reg;
 
 	if (!of_property_read_u32(client->dev.of_node, "maxim,fan-target-rpm",
 				  &target_rpm)) {
