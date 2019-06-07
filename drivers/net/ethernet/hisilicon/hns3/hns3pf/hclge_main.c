@@ -4490,19 +4490,19 @@ static bool hclge_fd_convert_tuple(u32 tuple_bit, u8 *key_x, u8 *key_y,
 	case 0:
 		return false;
 	case BIT(INNER_DST_MAC):
-		for (i = 0; i < 6; i++) {
-			calc_x(key_x[5 - i], rule->tuples.dst_mac[i],
+		for (i = 0; i < ETH_ALEN; i++) {
+			calc_x(key_x[ETH_ALEN - 1 - i], rule->tuples.dst_mac[i],
 			       rule->tuples_mask.dst_mac[i]);
-			calc_y(key_y[5 - i], rule->tuples.dst_mac[i],
+			calc_y(key_y[ETH_ALEN - 1 - i], rule->tuples.dst_mac[i],
 			       rule->tuples_mask.dst_mac[i]);
 		}
 
 		return true;
 	case BIT(INNER_SRC_MAC):
-		for (i = 0; i < 6; i++) {
-			calc_x(key_x[5 - i], rule->tuples.src_mac[i],
+		for (i = 0; i < ETH_ALEN; i++) {
+			calc_x(key_x[ETH_ALEN - 1 - i], rule->tuples.src_mac[i],
 			       rule->tuples.src_mac[i]);
-			calc_y(key_y[5 - i], rule->tuples.src_mac[i],
+			calc_y(key_y[ETH_ALEN - 1 - i], rule->tuples.src_mac[i],
 			       rule->tuples.src_mac[i]);
 		}
 
@@ -4538,19 +4538,19 @@ static bool hclge_fd_convert_tuple(u32 tuple_bit, u8 *key_x, u8 *key_y,
 
 		return true;
 	case BIT(INNER_SRC_IP):
-		calc_x(tmp_x_l, rule->tuples.src_ip[3],
-		       rule->tuples_mask.src_ip[3]);
-		calc_y(tmp_y_l, rule->tuples.src_ip[3],
-		       rule->tuples_mask.src_ip[3]);
+		calc_x(tmp_x_l, rule->tuples.src_ip[IPV4_INDEX],
+		       rule->tuples_mask.src_ip[IPV4_INDEX]);
+		calc_y(tmp_y_l, rule->tuples.src_ip[IPV4_INDEX],
+		       rule->tuples_mask.src_ip[IPV4_INDEX]);
 		*(__le32 *)key_x = cpu_to_le32(tmp_x_l);
 		*(__le32 *)key_y = cpu_to_le32(tmp_y_l);
 
 		return true;
 	case BIT(INNER_DST_IP):
-		calc_x(tmp_x_l, rule->tuples.dst_ip[3],
-		       rule->tuples_mask.dst_ip[3]);
-		calc_y(tmp_y_l, rule->tuples.dst_ip[3],
-		       rule->tuples_mask.dst_ip[3]);
+		calc_x(tmp_x_l, rule->tuples.dst_ip[IPV4_INDEX],
+		       rule->tuples_mask.dst_ip[IPV4_INDEX]);
+		calc_y(tmp_y_l, rule->tuples.dst_ip[IPV4_INDEX],
+		       rule->tuples_mask.dst_ip[IPV4_INDEX]);
 		*(__le32 *)key_x = cpu_to_le32(tmp_x_l);
 		*(__le32 *)key_y = cpu_to_le32(tmp_y_l);
 
@@ -4799,6 +4799,7 @@ static int hclge_fd_check_spec(struct hclge_dev *hdev,
 		*unused |= BIT(INNER_SRC_MAC) | BIT(INNER_DST_MAC) |
 			BIT(INNER_IP_TOS);
 
+		/* check whether src/dst ip address used */
 		if (!tcp_ip6_spec->ip6src[0] && !tcp_ip6_spec->ip6src[1] &&
 		    !tcp_ip6_spec->ip6src[2] && !tcp_ip6_spec->ip6src[3])
 			*unused |= BIT(INNER_SRC_IP);
@@ -4823,6 +4824,7 @@ static int hclge_fd_check_spec(struct hclge_dev *hdev,
 			BIT(INNER_IP_TOS) | BIT(INNER_SRC_PORT) |
 			BIT(INNER_DST_PORT);
 
+		/* check whether src/dst ip address used */
 		if (!usr_ip6_spec->ip6src[0] && !usr_ip6_spec->ip6src[1] &&
 		    !usr_ip6_spec->ip6src[2] && !usr_ip6_spec->ip6src[3])
 			*unused |= BIT(INNER_SRC_IP);
@@ -4966,14 +4968,14 @@ static int hclge_fd_get_tuple(struct hclge_dev *hdev,
 	case SCTP_V4_FLOW:
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
-		rule->tuples.src_ip[3] =
+		rule->tuples.src_ip[IPV4_INDEX] =
 				be32_to_cpu(fs->h_u.tcp_ip4_spec.ip4src);
-		rule->tuples_mask.src_ip[3] =
+		rule->tuples_mask.src_ip[IPV4_INDEX] =
 				be32_to_cpu(fs->m_u.tcp_ip4_spec.ip4src);
 
-		rule->tuples.dst_ip[3] =
+		rule->tuples.dst_ip[IPV4_INDEX] =
 				be32_to_cpu(fs->h_u.tcp_ip4_spec.ip4dst);
-		rule->tuples_mask.dst_ip[3] =
+		rule->tuples_mask.dst_ip[IPV4_INDEX] =
 				be32_to_cpu(fs->m_u.tcp_ip4_spec.ip4dst);
 
 		rule->tuples.src_port = be16_to_cpu(fs->h_u.tcp_ip4_spec.psrc);
@@ -4992,14 +4994,14 @@ static int hclge_fd_get_tuple(struct hclge_dev *hdev,
 
 		break;
 	case IP_USER_FLOW:
-		rule->tuples.src_ip[3] =
+		rule->tuples.src_ip[IPV4_INDEX] =
 				be32_to_cpu(fs->h_u.usr_ip4_spec.ip4src);
-		rule->tuples_mask.src_ip[3] =
+		rule->tuples_mask.src_ip[IPV4_INDEX] =
 				be32_to_cpu(fs->m_u.usr_ip4_spec.ip4src);
 
-		rule->tuples.dst_ip[3] =
+		rule->tuples.dst_ip[IPV4_INDEX] =
 				be32_to_cpu(fs->h_u.usr_ip4_spec.ip4dst);
-		rule->tuples_mask.dst_ip[3] =
+		rule->tuples_mask.dst_ip[IPV4_INDEX] =
 				be32_to_cpu(fs->m_u.usr_ip4_spec.ip4dst);
 
 		rule->tuples.ip_tos = fs->h_u.usr_ip4_spec.tos;
@@ -5016,14 +5018,14 @@ static int hclge_fd_get_tuple(struct hclge_dev *hdev,
 	case TCP_V6_FLOW:
 	case UDP_V6_FLOW:
 		be32_to_cpu_array(rule->tuples.src_ip,
-				  fs->h_u.tcp_ip6_spec.ip6src, 4);
+				  fs->h_u.tcp_ip6_spec.ip6src, IPV6_SIZE);
 		be32_to_cpu_array(rule->tuples_mask.src_ip,
-				  fs->m_u.tcp_ip6_spec.ip6src, 4);
+				  fs->m_u.tcp_ip6_spec.ip6src, IPV6_SIZE);
 
 		be32_to_cpu_array(rule->tuples.dst_ip,
-				  fs->h_u.tcp_ip6_spec.ip6dst, 4);
+				  fs->h_u.tcp_ip6_spec.ip6dst, IPV6_SIZE);
 		be32_to_cpu_array(rule->tuples_mask.dst_ip,
-				  fs->m_u.tcp_ip6_spec.ip6dst, 4);
+				  fs->m_u.tcp_ip6_spec.ip6dst, IPV6_SIZE);
 
 		rule->tuples.src_port = be16_to_cpu(fs->h_u.tcp_ip6_spec.psrc);
 		rule->tuples_mask.src_port =
@@ -5039,14 +5041,14 @@ static int hclge_fd_get_tuple(struct hclge_dev *hdev,
 		break;
 	case IPV6_USER_FLOW:
 		be32_to_cpu_array(rule->tuples.src_ip,
-				  fs->h_u.usr_ip6_spec.ip6src, 4);
+				  fs->h_u.usr_ip6_spec.ip6src, IPV6_SIZE);
 		be32_to_cpu_array(rule->tuples_mask.src_ip,
-				  fs->m_u.usr_ip6_spec.ip6src, 4);
+				  fs->m_u.usr_ip6_spec.ip6src, IPV6_SIZE);
 
 		be32_to_cpu_array(rule->tuples.dst_ip,
-				  fs->h_u.usr_ip6_spec.ip6dst, 4);
+				  fs->h_u.usr_ip6_spec.ip6dst, IPV6_SIZE);
 		be32_to_cpu_array(rule->tuples_mask.dst_ip,
-				  fs->m_u.usr_ip6_spec.ip6dst, 4);
+				  fs->m_u.usr_ip6_spec.ip6dst, IPV6_SIZE);
 
 		rule->tuples.ip_proto = fs->h_u.usr_ip6_spec.l4_proto;
 		rule->tuples_mask.ip_proto = fs->m_u.usr_ip6_spec.l4_proto;
@@ -5389,16 +5391,16 @@ static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 		fs->h_u.tcp_ip4_spec.ip4src =
-				cpu_to_be32(rule->tuples.src_ip[3]);
+				cpu_to_be32(rule->tuples.src_ip[IPV4_INDEX]);
 		fs->m_u.tcp_ip4_spec.ip4src =
-				rule->unused_tuple & BIT(INNER_SRC_IP) ?
-				0 : cpu_to_be32(rule->tuples_mask.src_ip[3]);
+			rule->unused_tuple & BIT(INNER_SRC_IP) ?
+			0 : cpu_to_be32(rule->tuples_mask.src_ip[IPV4_INDEX]);
 
 		fs->h_u.tcp_ip4_spec.ip4dst =
-				cpu_to_be32(rule->tuples.dst_ip[3]);
+				cpu_to_be32(rule->tuples.dst_ip[IPV4_INDEX]);
 		fs->m_u.tcp_ip4_spec.ip4dst =
-				rule->unused_tuple & BIT(INNER_DST_IP) ?
-				0 : cpu_to_be32(rule->tuples_mask.dst_ip[3]);
+			rule->unused_tuple & BIT(INNER_DST_IP) ?
+			0 : cpu_to_be32(rule->tuples_mask.dst_ip[IPV4_INDEX]);
 
 		fs->h_u.tcp_ip4_spec.psrc = cpu_to_be16(rule->tuples.src_port);
 		fs->m_u.tcp_ip4_spec.psrc =
@@ -5418,16 +5420,16 @@ static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
 		break;
 	case IP_USER_FLOW:
 		fs->h_u.usr_ip4_spec.ip4src =
-				cpu_to_be32(rule->tuples.src_ip[3]);
+				cpu_to_be32(rule->tuples.src_ip[IPV4_INDEX]);
 		fs->m_u.tcp_ip4_spec.ip4src =
-				rule->unused_tuple & BIT(INNER_SRC_IP) ?
-				0 : cpu_to_be32(rule->tuples_mask.src_ip[3]);
+			rule->unused_tuple & BIT(INNER_SRC_IP) ?
+			0 : cpu_to_be32(rule->tuples_mask.src_ip[IPV4_INDEX]);
 
 		fs->h_u.usr_ip4_spec.ip4dst =
-				cpu_to_be32(rule->tuples.dst_ip[3]);
+				cpu_to_be32(rule->tuples.dst_ip[IPV4_INDEX]);
 		fs->m_u.usr_ip4_spec.ip4dst =
-				rule->unused_tuple & BIT(INNER_DST_IP) ?
-				0 : cpu_to_be32(rule->tuples_mask.dst_ip[3]);
+			rule->unused_tuple & BIT(INNER_DST_IP) ?
+			0 : cpu_to_be32(rule->tuples_mask.dst_ip[IPV4_INDEX]);
 
 		fs->h_u.usr_ip4_spec.tos = rule->tuples.ip_tos;
 		fs->m_u.usr_ip4_spec.tos =
@@ -5446,20 +5448,22 @@ static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
 	case TCP_V6_FLOW:
 	case UDP_V6_FLOW:
 		cpu_to_be32_array(fs->h_u.tcp_ip6_spec.ip6src,
-				  rule->tuples.src_ip, 4);
+				  rule->tuples.src_ip, IPV6_SIZE);
 		if (rule->unused_tuple & BIT(INNER_SRC_IP))
-			memset(fs->m_u.tcp_ip6_spec.ip6src, 0, sizeof(int) * 4);
+			memset(fs->m_u.tcp_ip6_spec.ip6src, 0,
+			       sizeof(int) * IPV6_SIZE);
 		else
 			cpu_to_be32_array(fs->m_u.tcp_ip6_spec.ip6src,
-					  rule->tuples_mask.src_ip, 4);
+					  rule->tuples_mask.src_ip, IPV6_SIZE);
 
 		cpu_to_be32_array(fs->h_u.tcp_ip6_spec.ip6dst,
-				  rule->tuples.dst_ip, 4);
+				  rule->tuples.dst_ip, IPV6_SIZE);
 		if (rule->unused_tuple & BIT(INNER_DST_IP))
-			memset(fs->m_u.tcp_ip6_spec.ip6dst, 0, sizeof(int) * 4);
+			memset(fs->m_u.tcp_ip6_spec.ip6dst, 0,
+			       sizeof(int) * IPV6_SIZE);
 		else
 			cpu_to_be32_array(fs->m_u.tcp_ip6_spec.ip6dst,
-					  rule->tuples_mask.dst_ip, 4);
+					  rule->tuples_mask.dst_ip, IPV6_SIZE);
 
 		fs->h_u.tcp_ip6_spec.psrc = cpu_to_be16(rule->tuples.src_port);
 		fs->m_u.tcp_ip6_spec.psrc =
@@ -5474,20 +5478,22 @@ static int hclge_get_fd_rule_info(struct hnae3_handle *handle,
 		break;
 	case IPV6_USER_FLOW:
 		cpu_to_be32_array(fs->h_u.usr_ip6_spec.ip6src,
-				  rule->tuples.src_ip, 4);
+				  rule->tuples.src_ip, IPV6_SIZE);
 		if (rule->unused_tuple & BIT(INNER_SRC_IP))
-			memset(fs->m_u.usr_ip6_spec.ip6src, 0, sizeof(int) * 4);
+			memset(fs->m_u.usr_ip6_spec.ip6src, 0,
+			       sizeof(int) * IPV6_SIZE);
 		else
 			cpu_to_be32_array(fs->m_u.usr_ip6_spec.ip6src,
-					  rule->tuples_mask.src_ip, 4);
+					  rule->tuples_mask.src_ip, IPV6_SIZE);
 
 		cpu_to_be32_array(fs->h_u.usr_ip6_spec.ip6dst,
-				  rule->tuples.dst_ip, 4);
+				  rule->tuples.dst_ip, IPV6_SIZE);
 		if (rule->unused_tuple & BIT(INNER_DST_IP))
-			memset(fs->m_u.usr_ip6_spec.ip6dst, 0, sizeof(int) * 4);
+			memset(fs->m_u.usr_ip6_spec.ip6dst, 0,
+			       sizeof(int) * IPV6_SIZE);
 		else
 			cpu_to_be32_array(fs->m_u.usr_ip6_spec.ip6dst,
-					  rule->tuples_mask.dst_ip, 4);
+					  rule->tuples_mask.dst_ip, IPV6_SIZE);
 
 		fs->h_u.usr_ip6_spec.l4_proto = rule->tuples.ip_proto;
 		fs->m_u.usr_ip6_spec.l4_proto =
@@ -6390,6 +6396,10 @@ static int hclge_init_umv_space(struct hclge_dev *hdev)
 
 	mutex_init(&hdev->umv_mutex);
 	hdev->max_umv_size = allocated_size;
+	/* divide max_umv_size by (hdev->num_req_vfs + 2), in order to
+	 * preserve some unicast mac vlan table entries shared by pf
+	 * and its vfs.
+	 */
 	hdev->priv_umv_size = hdev->max_umv_size / (hdev->num_req_vfs + 2);
 	hdev->share_umv_size = hdev->priv_umv_size +
 			hdev->max_umv_size % (hdev->num_req_vfs + 2);
