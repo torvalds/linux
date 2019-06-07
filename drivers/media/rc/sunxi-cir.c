@@ -333,6 +333,11 @@ static const struct sunxi_ir_quirks sun5i_a13_ir_quirks = {
 	.fifo_size = 64,
 };
 
+static const struct sunxi_ir_quirks sun6i_a31_ir_quirks = {
+	.has_reset = true,
+	.fifo_size = 64,
+};
+
 static const struct of_device_id sunxi_ir_match[] = {
 	{
 		.compatible = "allwinner,sun4i-a10-ir",
@@ -341,6 +346,10 @@ static const struct of_device_id sunxi_ir_match[] = {
 	{
 		.compatible = "allwinner,sun5i-a13-ir",
 		.data = &sun5i_a13_ir_quirks,
+	},
+	{
+		.compatible = "allwinner,sun6i-a31-ir",
+		.data = &sun6i_a31_ir_quirks,
 	},
 	{}
 };
