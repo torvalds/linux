@@ -646,7 +646,6 @@ int gen6_ppgtt_pin(struct i915_hw_ppgtt *base);
 void gen6_ppgtt_unpin(struct i915_hw_ppgtt *base);
 void gen6_ppgtt_unpin_all(struct i915_hw_ppgtt *base);
 
-void i915_check_and_clear_faults(struct drm_i915_private *dev_priv);
 void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv);
 void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv);
 
