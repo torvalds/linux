@@ -2738,8 +2738,9 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine)
 
 int intel_execlists_submission_init(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *i915 = engine->i915;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct drm_i915_private *i915 = engine->i915;
+	struct intel_uncore *uncore = engine->uncore;
 	u32 base = engine->mmio_base;
 	int ret;
 
@@ -2759,12 +2760,12 @@ int intel_execlists_submission_init(struct intel_engine_cs *engine)
 		DRM_ERROR("WA batch buffer initialization failed\n");
 
 	if (HAS_LOGICAL_RING_ELSQ(i915)) {
-		execlists->submit_reg = i915->uncore.regs +
+		execlists->submit_reg = uncore->regs +
 			i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(base));
-		execlists->ctrl_reg = i915->uncore.regs +
+		execlists->ctrl_reg = uncore->regs +
 			i915_mmio_reg_offset(RING_EXECLIST_CONTROL(base));
 	} else {
-		execlists->submit_reg = i915->uncore.regs +
+		execlists->submit_reg = uncore->regs +
 			i915_mmio_reg_offset(RING_ELSP(base));
 	}
 
@@ -2779,7 +2780,7 @@ int intel_execlists_submission_init(struct intel_engine_cs *engine)
 	execlists->csb_write =
 		&engine->status_page.addr[intel_hws_csb_write_index(i915)];
 
-	if (INTEL_GEN(engine->i915) < 11)
+	if (INTEL_GEN(i915) < 11)
 		execlists->csb_size = GEN8_CSB_ENTRIES;
 	else
 		execlists->csb_size = GEN11_CSB_ENTRIES;
