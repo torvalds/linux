@@ -661,8 +661,8 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 		if (new_active) {
 			rv = bond_set_dev_addr(bond->dev, new_active->dev);
 			if (rv)
-				netdev_err(bond->dev, "Error %d setting MAC of slave %s\n",
-					   -rv, bond->dev->name);
+				netdev_err(bond->dev, "Error %d setting bond MAC from slave %s\n",
+					   -rv, new_active->dev->name);
 		}
 		break;
 	case BOND_FOM_FOLLOW:
@@ -692,7 +692,7 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 		rv = dev_set_mac_address(new_active->dev,
 					 (struct sockaddr *)&ss, NULL);
 		if (rv) {
-			netdev_err(bond->dev, "Error %d setting MAC of slave %s\n",
+			netdev_err(bond->dev, "Error %d setting MAC of new active slave %s\n",
 				   -rv, new_active->dev->name);
 			goto out;
 		}
@@ -707,8 +707,8 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 		rv = dev_set_mac_address(old_active->dev,
 					 (struct sockaddr *)&ss, NULL);
 		if (rv)
-			netdev_err(bond->dev, "Error %d setting MAC of slave %s\n",
-				   -rv, new_active->dev->name);
+			netdev_err(bond->dev, "Error %d setting MAC of old active slave %s\n",
+				   -rv, old_active->dev->name);
 out:
 		break;
 	default:
