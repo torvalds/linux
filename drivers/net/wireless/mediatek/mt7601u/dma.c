@@ -241,14 +241,25 @@ static void mt7601u_complete_tx(struct urb *urb)
 	struct sk_buff *skb;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->tx_lock, flags);
+	switch (urb->status) {
+	case -ECONNRESET:
+	case -ESHUTDOWN:
+	case -ENOENT:
+		return;
+	default:
+		dev_err_ratelimited(dev->dev, "tx urb failed: %d\n",
+				    urb->status);
+		/* fall through */
+	case 0:
+		break;
+	}
 
-	if (mt7601u_urb_has_error(urb))
-		dev_err(dev->dev, "Error: TX urb failed:%d\n", urb->status);
+	spin_lock_irqsave(&dev->tx_lock, flags);
 	if (WARN_ONCE(q->e[q->start].urb != urb, "TX urb mismatch"))
 		goto out;
 
 	skb = q->e[q->start].skb;
+	q->e[q->start].skb = NULL;
 	trace_mt_tx_dma_done(dev, skb);
 
 	__skb_queue_tail(&dev->tx_skb_done, skb);
@@ -448,10 +459,10 @@ static void mt7601u_free_tx_queue(struct mt7601u_tx_queue *q)
 {
 	int i;
 
-	WARN_ON(q->used);
-
 	for (i = 0; i < q->entries; i++)  {
 		usb_poison_urb(q->e[i].urb);
+		if (q->e[i].skb)
+			mt7601u_tx_status(q->dev, q->e[i].skb);
 		usb_free_urb(q->e[i].urb);
 	}
 }
