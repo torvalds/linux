@@ -470,12 +470,6 @@ static int hclgevf_set_handle_info(struct hclgevf_dev *hdev)
 	nic->numa_node_mask = hdev->numa_node_mask;
 	nic->flags |= HNAE3_SUPPORT_VF;
 
-	if (hdev->ae_dev->dev_type != HNAE3_DEV_KNIC) {
-		dev_err(&hdev->pdev->dev, "unsupported device type %d\n",
-			hdev->ae_dev->dev_type);
-		return -EINVAL;
-	}
-
 	ret = hclgevf_knic_setup(hdev);
 	if (ret)
 		dev_err(&hdev->pdev->dev, "VF knic setup failed %d\n",
@@ -2322,16 +2316,6 @@ static int hclgevf_init_client_instance(struct hnae3_client *client,
 		if (ret)
 			goto clear_roce;
 
-		break;
-	case HNAE3_CLIENT_UNIC:
-		hdev->nic_client = client;
-		hdev->nic.client = client;
-
-		ret = client->ops->init_instance(&hdev->nic);
-		if (ret)
-			goto clear_nic;
-
-		hnae3_set_client_init_flag(client, ae_dev, 1);
 		break;
 	case HNAE3_CLIENT_ROCE:
 		if (hnae3_dev_roce_supported(hdev)) {

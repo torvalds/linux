@@ -102,13 +102,7 @@ enum hnae3_loop {
 
 enum hnae3_client_type {
 	HNAE3_CLIENT_KNIC,
-	HNAE3_CLIENT_UNIC,
 	HNAE3_CLIENT_ROCE,
-};
-
-enum hnae3_dev_type {
-	HNAE3_DEV_KNIC,
-	HNAE3_DEV_UNIC,
 };
 
 /* mac media type */
@@ -220,7 +214,6 @@ struct hnae3_ae_dev {
 	struct list_head node;
 	u32 flag;
 	u8 override_pci_need_reset; /* fix to stop multiple reset happening */
-	enum hnae3_dev_type dev_type;
 	enum hnae3_reset_type reset_type;
 	void *priv;
 };

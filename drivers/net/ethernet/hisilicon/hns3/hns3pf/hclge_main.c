@@ -1461,11 +1461,6 @@ static int hclge_map_tqp(struct hclge_dev *hdev)
 	return 0;
 }
 
-static void hclge_unic_setup(struct hclge_vport *vport, u16 num_tqps)
-{
-	/* this would be initialized later */
-}
-
 static int hclge_vport_setup(struct hclge_vport *vport, u16 num_tqps)
 {
 	struct hnae3_handle *nic = &vport->nic;
@@ -1476,20 +1471,12 @@ static int hclge_vport_setup(struct hclge_vport *vport, u16 num_tqps)
 	nic->ae_algo = &ae_algo;
 	nic->numa_node_mask = hdev->numa_node_mask;
 
-	if (hdev->ae_dev->dev_type == HNAE3_DEV_KNIC) {
-		ret = hclge_knic_setup(vport, num_tqps,
-				       hdev->num_tx_desc, hdev->num_rx_desc);
+	ret = hclge_knic_setup(vport, num_tqps,
+			       hdev->num_tx_desc, hdev->num_rx_desc);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "knic setup failed %d\n", ret);
 
-		if (ret) {
-			dev_err(&hdev->pdev->dev, "knic setup failed %d\n",
-				ret);
-			return ret;
-		}
-	} else {
-		hclge_unic_setup(vport, num_tqps);
-	}
-
-	return 0;
+	return ret;
 }
 
 static int hclge_alloc_vport(struct hclge_dev *hdev)
@@ -8262,17 +8249,6 @@ static int hclge_init_client_instance(struct hnae3_client *client,
 			ret = hclge_init_roce_client_instance(ae_dev, vport);
 			if (ret)
 				goto clear_roce;
-
-			break;
-		case HNAE3_CLIENT_UNIC:
-			hdev->nic_client = client;
-			vport->nic.client = client;
-
-			ret = client->ops->init_instance(&vport->nic);
-			if (ret)
-				goto clear_nic;
-
-			hnae3_set_client_init_flag(client, ae_dev, 1);
 
 			break;
 		case HNAE3_CLIENT_ROCE:
