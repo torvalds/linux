@@ -22,16 +22,7 @@ enum severity_level {
 
 extern struct blocking_notifier_head x86_mce_decoder_chain;
 
-#define ATTR_LEN		16
 #define INITIAL_CHECK_INTERVAL	5 * 60 /* 5 minutes */
-
-/* One object for each MCE bank, shared by all CPUs */
-struct mce_bank {
-	u64			ctl;			/* subevents to enable */
-	unsigned char init;				/* initialise bank? */
-	struct device_attribute attr;			/* device attribute */
-	char			attrname[ATTR_LEN];	/* attribute name */
-};
 
 struct mce_evt_llist {
 	struct llist_node llnode;
@@ -47,7 +38,6 @@ struct llist_node *mce_gen_pool_prepare_records(void);
 extern int (*mce_severity)(struct mce *a, int tolerant, char **msg, bool is_excp);
 struct dentry *mce_get_debugfs_dir(void);
 
-extern struct mce_bank *mce_banks;
 extern mce_banks_t mce_banks_ce_disabled;
 
 #ifdef CONFIG_X86_MCE_INTEL
