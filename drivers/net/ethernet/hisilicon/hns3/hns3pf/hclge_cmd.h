@@ -180,6 +180,9 @@ enum hclge_opcode_type {
 	HCLGE_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
 	HCLGE_OPC_RESET_TQP_QUEUE	= 0x0B22,
 
+	/* PPU commands */
+	HCLGE_OPC_PPU_PF_OTHER_INT_DFX	= 0x0B4A,
+
 	/* TSO command */
 	HCLGE_OPC_TSO_GENERIC_CONFIG	= 0x0C01,
 	HCLGE_OPC_GRO_GENERIC_CONFIG    = 0x0C10,
@@ -978,6 +981,20 @@ struct hclge_fd_ad_config_cmd {
 struct hclge_get_m7_bd_cmd {
 	__le32 bd_num;
 	u8 rsv[20];
+};
+
+struct hclge_query_ppu_pf_other_int_dfx_cmd {
+	__le16 over_8bd_no_fe_qid;
+	__le16 over_8bd_no_fe_vf_id;
+	__le16 tso_mss_cmp_min_err_qid;
+	__le16 tso_mss_cmp_min_err_vf_id;
+	__le16 tso_mss_cmp_max_err_qid;
+	__le16 tso_mss_cmp_max_err_vf_id;
+	__le16 tx_rd_fbd_poison_qid;
+	__le16 tx_rd_fbd_poison_vf_id;
+	__le16 rx_rd_fbd_poison_qid;
+	__le16 rx_rd_fbd_poison_vf_id;
+	u8 rsv[4];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);
