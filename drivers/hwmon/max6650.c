@@ -104,7 +104,7 @@ struct max6650_data {
 	const struct attribute_group *groups[3];
 	struct mutex update_lock;
 	int nr_fans;
-	char valid; /* zero until following fields are valid */
+	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
 	/* register values */
@@ -183,7 +183,7 @@ static struct max6650_data *max6650_update_device(struct device *dev)
 							MAX6650_REG_ALARM);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 
 	mutex_unlock(&data->update_lock);
