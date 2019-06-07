@@ -1195,10 +1195,8 @@ void i915_clear_error_registers(struct drm_i915_private *i915,
 		enum intel_engine_id id;
 
 		for_each_engine_masked(engine, i915, engine_mask, id) {
-			rmw_clear(uncore,
-				  RING_FAULT_REG(engine), RING_FAULT_VALID);
-			intel_uncore_posting_read(uncore,
-						  RING_FAULT_REG(engine));
+			GEN6_RING_FAULT_REG_RMW(engine, RING_FAULT_VALID, 0);
+			GEN6_RING_FAULT_REG_POSTING_READ(engine);
 		}
 	}
 }

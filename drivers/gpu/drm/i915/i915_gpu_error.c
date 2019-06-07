@@ -1149,7 +1149,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 		if (INTEL_GEN(dev_priv) >= 8)
 			ee->fault_reg = I915_READ(GEN8_RING_FAULT_REG);
 		else
-			ee->fault_reg = I915_READ(RING_FAULT_REG(engine));
+			ee->fault_reg = GEN6_RING_FAULT_REG_READ(engine);
 	}
 
 	if (INTEL_GEN(dev_priv) >= 4) {

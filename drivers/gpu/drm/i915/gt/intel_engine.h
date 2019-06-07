@@ -68,6 +68,24 @@ struct drm_printer;
 #define ENGINE_WRITE(...)	__ENGINE_WRITE_OP(write, __VA_ARGS__)
 #define ENGINE_WRITE_FW(...)	__ENGINE_WRITE_OP(write_fw, __VA_ARGS__)
 
+#define GEN6_RING_FAULT_REG_READ(engine__) \
+	intel_uncore_read((engine__)->uncore, RING_FAULT_REG(engine__))
+
+#define GEN6_RING_FAULT_REG_POSTING_READ(engine__) \
+	intel_uncore_posting_read((engine__)->uncore, RING_FAULT_REG(engine__))
+
+#define GEN6_RING_FAULT_REG_RMW(engine__, clear__, set__) \
+({ \
+	u32 __val; \
+\
+	__val = intel_uncore_read((engine__)->uncore, \
+				  RING_FAULT_REG(engine__)); \
+	__val &= ~(clear__); \
+	__val |= (set__); \
+	intel_uncore_write((engine__)->uncore, RING_FAULT_REG(engine__), \
+			   __val); \
+})
+
 /* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
  * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.
  */
