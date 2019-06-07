@@ -43,6 +43,9 @@
 	PORT_1(288, fn, pfx##288, sfx), PORT_1(289, fn, pfx##289, sfx),	\
 	PORT_10(290, fn, pfx##29, sfx), PORT_10(300, fn, pfx##30, sfx)
 
+#define CPU_ALL_NOGP(fn)	\
+	PIN_NOGP(A11, "F26", fn)
+
 enum {
 	PINMUX_RESERVED = 0,
 
@@ -1147,7 +1150,7 @@ static const u16 pinmux_data[] = {
 #define __IO		(SH_PFC_PIN_CFG_INPUT | SH_PFC_PIN_CFG_OUTPUT)
 #define __PD		(SH_PFC_PIN_CFG_PULL_DOWN)
 #define __PU		(SH_PFC_PIN_CFG_PULL_UP)
-#define __PUD		(SH_PFC_PIN_CFG_PULL_DOWN | SH_PFC_PIN_CFG_PULL_UP)
+#define __PUD		(SH_PFC_PIN_CFG_PULL_UP_DOWN)
 
 #define SH73A0_PIN_I_PD(pin)		SH_PFC_PIN_CFG(pin, __I | __PD)
 #define SH73A0_PIN_I_PU(pin)		SH_PFC_PIN_CFG(pin, __I | __PU)
@@ -1158,11 +1161,13 @@ static const u16 pinmux_data[] = {
 #define SH73A0_PIN_IO_PU_PD(pin)	SH_PFC_PIN_CFG(pin, __IO | __PUD)
 #define SH73A0_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
 
-/* Pin numbers for pins without a corresponding GPIO port number are computed
- * from the row and column numbers with a 1000 offset to avoid collisions with
- * GPIO port numbers.
+/*
+ * Pins not associated with a GPIO port.
  */
-#define PIN_NUMBER(row, col)		(1000+((row)-1)*34+(col)-1)
+enum {
+	PORT_ASSIGN_LAST(),
+	NOGP_ALL(),
+};
 
 static const struct sh_pfc_pin pinmux_pins[] = {
 	/* Table 25-1 (I/O and Pull U/D) */
@@ -1437,7 +1442,7 @@ static const struct sh_pfc_pin pinmux_pins[] = {
 	SH73A0_PIN_O(309),
 
 	/* Pins not associated with a GPIO port */
-	SH_PFC_PIN_NAMED(6, 26, F26),
+	PINMUX_NOGP_ALL(),
 };
 
 /* - BSC -------------------------------------------------------------------- */
@@ -1863,7 +1868,7 @@ static const unsigned int keysc_out7_2_mux[] = {
 };
 static const unsigned int keysc_out8_0_pins[] = {
 	/* KEYOUT8 */
-	PIN_NUMBER(6, 26),
+	PIN_A11,
 };
 static const unsigned int keysc_out8_0_mux[] = {
 	KEYOUT8_MARK,
@@ -3073,7 +3078,7 @@ static const unsigned int tpu4_to2_mux[] = {
 };
 static const unsigned int tpu4_to3_pins[] = {
 	/* TO */
-	PIN_NUMBER(6, 26),
+	PIN_A11,
 };
 static const unsigned int tpu4_to3_mux[] = {
 	TPU4TO3_MARK,

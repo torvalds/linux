@@ -19,7 +19,7 @@
 #include "core.h"
 #include "sh_pfc.h"
 
-#define CPU_ALL_PORT(fn, sfx)	\
+#define CPU_ALL_GP(fn, sfx)	\
 	PORT_GP_CFG_22(0, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),	\
 	PORT_GP_28(1, fn, sfx),	\
 	PORT_GP_CFG_30(2, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),	\

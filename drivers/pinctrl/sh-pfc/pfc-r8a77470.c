@@ -10,7 +10,7 @@
 
 #include "sh_pfc.h"
 
-#define CPU_ALL_PORT(fn, sfx)						\
+#define CPU_ALL_GP(fn, sfx)						\
 	PORT_GP_4(0, fn, sfx),						\
 	PORT_GP_1(0, 4, fn, sfx),					\
 	PORT_GP_CFG_1(0,  5, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),	\
