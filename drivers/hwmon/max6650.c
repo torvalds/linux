@@ -512,15 +512,12 @@ static ssize_t alarm_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct max6650_data *data = max6650_update_device(dev);
-	struct i2c_client *client = data->client;
-	int alarm = 0;
+	bool alarm = data->alarm & attr->index;
 
-	if (data->alarm & attr->index) {
+	if (alarm) {
 		mutex_lock(&data->update_lock);
-		alarm = 1;
 		data->alarm &= ~attr->index;
-		data->alarm |= i2c_smbus_read_byte_data(client,
-							MAX6650_REG_ALARM);
+		data->valid = false;
 		mutex_unlock(&data->update_lock);
 	}
 
