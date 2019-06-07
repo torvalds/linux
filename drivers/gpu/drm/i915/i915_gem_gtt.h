@@ -617,9 +617,6 @@ const struct intel_ppat_entry *
 intel_ppat_get(struct drm_i915_private *i915, u8 value);
 void intel_ppat_put(const struct intel_ppat_entry *entry);
 
-int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915);
-void i915_gem_fini_aliasing_ppgtt(struct drm_i915_private *i915);
-
 int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv);
 int i915_ggtt_init_hw(struct drm_i915_private *dev_priv);
 int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv);
