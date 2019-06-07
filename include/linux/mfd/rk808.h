@@ -718,5 +718,8 @@ struct rk808 {
 	struct regmap			*regmap;
 	long				variant;
 	const struct regmap_config	*regmap_cfg;
+	const struct regmap_irq_chip	*regmap_irq_chip;
+	void				(*pm_pwroff_fn)(void);
+	void				(*pm_pwroff_prep_fn)(void);
 };
 #endif /* __LINUX_REGULATOR_RK808_H */
