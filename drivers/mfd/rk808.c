@@ -562,7 +562,6 @@ static int rk808_probe(struct i2c_client *client,
 	struct rk808 *rk808;
 	const struct rk808_reg_data *pre_init_reg;
 	const struct mfd_cell *cells;
-	void (*pm_pwroff_fn)(void) = NULL;
 	int nr_pre_init_regs;
 	int nr_cells;
 	int pm_off = 0, msb, lsb;
@@ -609,7 +608,7 @@ static int rk808_probe(struct i2c_client *client,
 		nr_pre_init_regs = ARRAY_SIZE(rk805_pre_init_reg);
 		cells = rk805s;
 		nr_cells = ARRAY_SIZE(rk805s);
-		pm_pwroff_fn = rk805_device_shutdown;
+		rk808->pm_pwroff_fn = rk805_device_shutdown;
 		break;
 	case RK808_ID:
 		rk808->regmap_cfg = &rk808_regmap_config;
@@ -618,7 +617,7 @@ static int rk808_probe(struct i2c_client *client,
 		nr_pre_init_regs = ARRAY_SIZE(rk808_pre_init_reg);
 		cells = rk808s;
 		nr_cells = ARRAY_SIZE(rk808s);
-		pm_pwroff_fn = rk808_device_shutdown;
+		rk808->pm_pwroff_fn = rk808_device_shutdown;
 		break;
 	case RK818_ID:
 		rk808->regmap_cfg = &rk818_regmap_config;
@@ -627,7 +626,7 @@ static int rk808_probe(struct i2c_client *client,
 		nr_pre_init_regs = ARRAY_SIZE(rk818_pre_init_reg);
 		cells = rk818s;
 		nr_cells = ARRAY_SIZE(rk818s);
-		pm_pwroff_fn = rk818_device_shutdown;
+		rk808->pm_pwroff_fn = rk818_device_shutdown;
 		break;
 	case RK809_ID:
 	case RK817_ID:
@@ -692,7 +691,7 @@ static int rk808_probe(struct i2c_client *client,
 				"rockchip,system-power-controller");
 	if (pm_off && !pm_power_off) {
 		rk808_i2c_client = client;
-		pm_power_off = pm_pwroff_fn;
+		pm_power_off = rk808->pm_pwroff_fn;
 	}
 
 	return 0;
@@ -707,7 +706,13 @@ static int rk808_remove(struct i2c_client *client)
 	struct rk808 *rk808 = i2c_get_clientdata(client);
 
 	regmap_del_irq_chip(client->irq, rk808->irq_data);
-	pm_power_off = NULL;
+
+	/**
+	 * pm_power_off may points to a function from another module.
+	 * Check if the pointer is set by us and only then overwrite it.
+	 */
+	if (rk808->pm_pwroff_fn && pm_power_off == rk808->pm_pwroff_fn)
+		pm_power_off = NULL;
 
 	return 0;
 }
