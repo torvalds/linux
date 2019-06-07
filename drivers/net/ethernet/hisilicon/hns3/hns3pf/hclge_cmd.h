@@ -649,6 +649,11 @@ enum hclge_mac_vlan_tbl_opcode {
 	HCLGE_MAC_VLAN_LKUP,    /* Lookup a entry through mac_vlan key */
 };
 
+enum hclge_mac_vlan_add_resp_code {
+	HCLGE_ADD_UC_OVERFLOW = 2,	/* ADD failed for UC overflow */
+	HCLGE_ADD_MC_OVERFLOW,		/* ADD failed for MC overflow */
+};
+
 #define HCLGE_MAC_VLAN_BIT0_EN_B	0
 #define HCLGE_MAC_VLAN_BIT1_EN_B	1
 #define HCLGE_MAC_EPORT_SW_EN_B		12

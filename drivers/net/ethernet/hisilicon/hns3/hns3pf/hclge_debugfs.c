@@ -64,6 +64,8 @@ static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 				      char *cmd_buf, int msg_num, int offset,
 				      enum hclge_opcode_type cmd)
 {
+#define BD_DATA_NUM       6
+
 	struct hclge_desc *desc_src;
 	struct hclge_desc *desc;
 	int bd_num, buf_len;
@@ -92,14 +94,16 @@ static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
 		return;
 	}
 
-	max = (bd_num * 6) <= msg_num ? (bd_num * 6) : msg_num;
+	max = (bd_num * BD_DATA_NUM) <= msg_num ?
+		(bd_num * BD_DATA_NUM) : msg_num;
 
 	desc = desc_src;
 	for (i = 0; i < max; i++) {
-		(((i / 6) > 0) && ((i % 6) == 0)) ? desc++ : desc;
+		((i > 0) && ((i % BD_DATA_NUM) == 0)) ? desc++ : desc;
 		if (dfx_message->flag)
 			dev_info(&hdev->pdev->dev, "%s: 0x%x\n",
-				 dfx_message->message, desc->data[i % 6]);
+				 dfx_message->message,
+				 desc->data[i % BD_DATA_NUM]);
 
 		dfx_message++;
 	}

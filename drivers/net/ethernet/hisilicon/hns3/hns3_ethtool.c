@@ -60,6 +60,7 @@ static const struct hns3_stats hns3_rxq_stats[] = {
 #define HNS3_NIC_LB_TEST_PKT_NUM	1
 #define HNS3_NIC_LB_TEST_RING_ID	0
 #define HNS3_NIC_LB_TEST_PACKET_SIZE	128
+#define HNS3_NIC_LB_SETUP_USEC		10000
 
 /* Nic loopback test err  */
 #define HNS3_NIC_LB_TEST_NO_MEM_ERR	1
@@ -117,7 +118,7 @@ static int hns3_lp_up(struct net_device *ndev, enum hnae3_loop loop_mode)
 		return ret;
 
 	ret = hns3_lp_setup(ndev, loop_mode, true);
-	usleep_range(10000, 20000);
+	usleep_range(HNS3_NIC_LB_SETUP_USEC, HNS3_NIC_LB_SETUP_USEC * 2);
 
 	return ret;
 }
@@ -132,7 +133,7 @@ static int hns3_lp_down(struct net_device *ndev, enum hnae3_loop loop_mode)
 		return ret;
 	}
 
-	usleep_range(10000, 20000);
+	usleep_range(HNS3_NIC_LB_SETUP_USEC, HNS3_NIC_LB_SETUP_USEC * 2);
 
 	return 0;
 }
