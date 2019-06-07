@@ -101,11 +101,6 @@ static struct smca_bank_name smca_names[] = {
 	[SMCA_PCIE]	= { "pcie",		"PCI Express Unit" },
 };
 
-static u32 smca_bank_addrs[MAX_NR_BANKS][NR_BLOCKS] __ro_after_init =
-{
-	[0 ... MAX_NR_BANKS - 1] = { [0 ... NR_BLOCKS - 1] = -1 }
-};
-
 static const char *smca_get_name(enum smca_bank_types t)
 {
 	if (t >= N_SMCA_BANK_TYPES)
@@ -199,6 +194,9 @@ static char buf_mcatype[MAX_MCATYPE_NAME_LEN];
 static DEFINE_PER_CPU(struct threshold_bank **, threshold_banks);
 static DEFINE_PER_CPU(unsigned int, bank_map);	/* see which banks are on */
 
+/* Map of banks that have more than MCA_MISC0 available. */
+static DEFINE_PER_CPU(u32, smca_misc_banks_map);
+
 static void amd_threshold_interrupt(void);
 static void amd_deferred_error_interrupt(void);
 
@@ -207,6 +205,28 @@ static void default_deferred_error_interrupt(void)
 	pr_err("Unexpected deferred interrupt at vector %x\n", DEFERRED_ERROR_VECTOR);
 }
 void (*deferred_error_int_vector)(void) = default_deferred_error_interrupt;
+
+static void smca_set_misc_banks_map(unsigned int bank, unsigned int cpu)
+{
+	u32 low, high;
+
+	/*
+	 * For SMCA enabled processors, BLKPTR field of the first MISC register
+	 * (MCx_MISC0) indicates presence of additional MISC regs set (MISC1-4).
+	 */
+	if (rdmsr_safe(MSR_AMD64_SMCA_MCx_CONFIG(bank), &low, &high))
+		return;
+
+	if (!(low & MCI_CONFIG_MCAX))
+		return;
+
+	if (rdmsr_safe(MSR_AMD64_SMCA_MCx_MISC(bank), &low, &high))
+		return;
+
+	if (low & MASK_BLKPTR_LO)
+		per_cpu(smca_misc_banks_map, cpu) |= BIT(bank);
+
+}
 
 static void smca_configure(unsigned int bank, unsigned int cpu)
 {
@@ -244,6 +264,8 @@ static void smca_configure(unsigned int bank, unsigned int cpu)
 
 		wrmsr(smca_config, low, high);
 	}
+
+	smca_set_misc_banks_map(bank, cpu);
 
 	/* Return early if this bank was already initialized. */
 	if (smca_banks[bank].hwid)
@@ -455,42 +477,21 @@ static void deferred_error_interrupt_enable(struct cpuinfo_x86 *c)
 	wrmsr(MSR_CU_DEF_ERR, low, high);
 }
 
-static u32 smca_get_block_address(unsigned int bank, unsigned int block)
+static u32 smca_get_block_address(unsigned int bank, unsigned int block,
+				  unsigned int cpu)
 {
-	u32 low, high;
-	u32 addr = 0;
-
-	if (smca_get_bank_type(bank) == SMCA_RESERVED)
-		return addr;
-
 	if (!block)
 		return MSR_AMD64_SMCA_MCx_MISC(bank);
 
-	/* Check our cache first: */
-	if (smca_bank_addrs[bank][block] != -1)
-		return smca_bank_addrs[bank][block];
+	if (!(per_cpu(smca_misc_banks_map, cpu) & BIT(bank)))
+		return 0;
 
-	/*
-	 * For SMCA enabled processors, BLKPTR field of the first MISC register
-	 * (MCx_MISC0) indicates presence of additional MISC regs set (MISC1-4).
-	 */
-	if (rdmsr_safe(MSR_AMD64_SMCA_MCx_CONFIG(bank), &low, &high))
-		goto out;
-
-	if (!(low & MCI_CONFIG_MCAX))
-		goto out;
-
-	if (!rdmsr_safe(MSR_AMD64_SMCA_MCx_MISC(bank), &low, &high) &&
-	    (low & MASK_BLKPTR_LO))
-		addr = MSR_AMD64_SMCA_MCx_MISCy(bank, block - 1);
-
-out:
-	smca_bank_addrs[bank][block] = addr;
-	return addr;
+	return MSR_AMD64_SMCA_MCx_MISCy(bank, block - 1);
 }
 
 static u32 get_block_address(u32 current_addr, u32 low, u32 high,
-			     unsigned int bank, unsigned int block)
+			     unsigned int bank, unsigned int block,
+			     unsigned int cpu)
 {
 	u32 addr = 0, offset = 0;
 
@@ -498,7 +499,7 @@ static u32 get_block_address(u32 current_addr, u32 low, u32 high,
 		return addr;
 
 	if (mce_flags.smca)
-		return smca_get_block_address(bank, block);
+		return smca_get_block_address(bank, block, cpu);
 
 	/* Fall back to method we used for older processors: */
 	switch (block) {
@@ -637,7 +638,7 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 		disable_err_thresholding(c, bank);
 
 		for (block = 0; block < NR_BLOCKS; ++block) {
-			address = get_block_address(address, low, high, bank, block);
+			address = get_block_address(address, low, high, bank, block, cpu);
 			if (!address)
 				break;
 
@@ -1254,7 +1255,7 @@ static int allocate_threshold_blocks(unsigned int cpu, unsigned int bank,
 	if (err)
 		goto out_free;
 recurse:
-	address = get_block_address(address, low, high, bank, ++block);
+	address = get_block_address(address, low, high, bank, ++block, cpu);
 	if (!address)
 		return 0;
 
