@@ -120,7 +120,10 @@ struct intel_css_header {
 } __packed;
 
 struct intel_fw_info {
-	u16 reserved1;
+	u8 reserved1;
+
+	/* reserved on package_header version 1, must be 0 on version 2 */
+	u8 dmc_id;
 
 	/* Stepping (A, B, C, ..., *). * is a wildcard */
 	char stepping;
@@ -325,12 +328,16 @@ void intel_csr_load_program(struct drm_i915_private *dev_priv)
  */
 static u32 find_dmc_fw_offset(const struct intel_fw_info *fw_info,
 			      unsigned int num_entries,
-			      const struct stepping_info *si)
+			      const struct stepping_info *si,
+			      u8 package_ver)
 {
 	u32 dmc_offset = CSR_DEFAULT_FW_OFFSET;
 	unsigned int i;
 
 	for (i = 0; i < num_entries; i++) {
+		if (package_ver > 1 && fw_info[i].dmc_id != 0)
+			continue;
+
 		if (fw_info[i].substepping == '*' &&
 		    si->stepping == fw_info[i].stepping) {
 			dmc_offset = fw_info[i].offset;
@@ -508,7 +515,8 @@ parse_csr_fw_package(struct intel_csr *csr,
 
 	fw_info = (const struct intel_fw_info *)
 		((u8 *)package_header + sizeof(*package_header));
-	dmc_offset = find_dmc_fw_offset(fw_info, num_entries, si);
+	dmc_offset = find_dmc_fw_offset(fw_info, num_entries, si,
+					package_header->header_ver);
 	if (dmc_offset == CSR_DEFAULT_FW_OFFSET) {
 		DRM_ERROR("DMC firmware not supported for %c stepping\n",
 			  si->stepping);
