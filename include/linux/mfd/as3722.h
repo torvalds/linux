@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * as3722 definitions
  *
@@ -6,21 +7,6 @@
  *
  * Author: Florian Lobmaier <florian.lobmaier@ams.com>
  * Author: Laxman Dewangan <ldewangan@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #ifndef __LINUX_MFD_AS3722_H__
@@ -296,6 +282,8 @@
 #define AS3722_ADC1_CONV_NOTREADY			BIT(7)
 #define AS3722_ADC1_SOURCE_SELECT_MASK			0x1F
 
+#define AS3722_CTRL_SEQU1_AC_OK_PWR_ON			BIT(0)
+
 /* GPIO modes */
 #define AS3722_GPIO_MODE_MASK				0x07
 #define AS3722_GPIO_MODE_INPUT				0x00
@@ -391,6 +379,7 @@ struct as3722 {
 	unsigned long irq_flags;
 	bool en_intern_int_pullup;
 	bool en_intern_i2c_pullup;
+	bool en_ac_ok_pwr_on;
 	struct regmap_irq_chip_data *irq_data;
 };
 

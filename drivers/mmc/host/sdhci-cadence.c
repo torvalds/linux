@@ -1,20 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitfield.h>
-#include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/mmc/host.h>
@@ -253,6 +244,7 @@ static int sdhci_cdns_set_tune_val(struct sdhci_host *host, unsigned int val)
 	struct sdhci_cdns_priv *priv = sdhci_cdns_priv(host);
 	void __iomem *reg = priv->hrs_addr + SDHCI_CDNS_HRS06;
 	u32 tmp;
+	int i, ret;
 
 	if (WARN_ON(!FIELD_FIT(SDHCI_CDNS_HRS06_TUNE, val)))
 		return -EINVAL;
@@ -260,11 +252,24 @@ static int sdhci_cdns_set_tune_val(struct sdhci_host *host, unsigned int val)
 	tmp = readl(reg);
 	tmp &= ~SDHCI_CDNS_HRS06_TUNE;
 	tmp |= FIELD_PREP(SDHCI_CDNS_HRS06_TUNE, val);
-	tmp |= SDHCI_CDNS_HRS06_TUNE_UP;
-	writel(tmp, reg);
 
-	return readl_poll_timeout(reg, tmp, !(tmp & SDHCI_CDNS_HRS06_TUNE_UP),
-				  0, 1);
+	/*
+	 * Workaround for IP errata:
+	 * The IP6116 SD/eMMC PHY design has a timing issue on receive data
+	 * path. Send tune request twice.
+	 */
+	for (i = 0; i < 2; i++) {
+		tmp |= SDHCI_CDNS_HRS06_TUNE_UP;
+		writel(tmp, reg);
+
+		ret = readl_poll_timeout(reg, tmp,
+					 !(tmp & SDHCI_CDNS_HRS06_TUNE_UP),
+					 0, 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int sdhci_cdns_execute_tuning(struct mmc_host *mmc, u32 opcode)

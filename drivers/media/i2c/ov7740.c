@@ -20,7 +20,7 @@
 #define REG_BGAIN	0x01	/* blue gain */
 #define REG_RGAIN	0x02	/* red gain */
 #define REG_GGAIN	0x03	/* green gain */
-#define REG_REG04	0x04	/* analog setting, dont change*/
+#define REG_REG04	0x04	/* analog setting, don't change*/
 #define REG_BAVG	0x05	/* b channel average */
 #define REG_GAVG	0x06	/* g channel average */
 #define REG_RAVG	0x07	/* r channel average */
@@ -322,7 +322,7 @@ static int ov7740_set_power(struct ov7740 *ov7740, int on)
 	return 0;
 }
 
-static struct v4l2_subdev_core_ops ov7740_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops ov7740_subdev_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = ov7740_get_register,
@@ -448,6 +448,27 @@ static int ov7740_get_gain(struct ov7740 *ov7740, struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
+static int ov7740_get_exp(struct ov7740 *ov7740, struct v4l2_ctrl *ctrl)
+{
+	struct regmap *regmap = ov7740->regmap;
+	unsigned int value0, value1;
+	int ret;
+
+	if (ctrl->val == V4L2_EXPOSURE_MANUAL)
+		return 0;
+
+	ret = regmap_read(regmap, REG_AEC, &value0);
+	if (ret)
+		return ret;
+	ret = regmap_read(regmap, REG_HAEC, &value1);
+	if (ret)
+		return ret;
+
+	ov7740->exposure->val = (value1 << 8) | (value0 & 0xff);
+
+	return 0;
+}
+
 static int ov7740_set_exp(struct regmap *regmap, int value)
 {
 	int ret;
@@ -494,6 +515,9 @@ static int ov7740_get_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_AUTOGAIN:
 		ret = ov7740_get_gain(ov7740, ctrl);
 		break;
+	case V4L2_CID_EXPOSURE_AUTO:
+		ret = ov7740_get_exp(ov7740, ctrl);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -510,7 +534,7 @@ static int ov7740_set_ctrl(struct v4l2_ctrl *ctrl)
 	int ret;
 	u8 val = 0;
 
-	if (pm_runtime_get_if_in_use(&client->dev) <= 0)
+	if (!pm_runtime_get_if_in_use(&client->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -648,7 +672,7 @@ static int ov7740_s_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops ov7740_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops ov7740_subdev_video_ops = {
 	.s_stream = ov7740_set_stream,
 	.s_frame_interval = ov7740_s_frame_interval,
 	.g_frame_interval = ov7740_g_frame_interval,
@@ -953,7 +977,7 @@ static int ov7740_init_controls(struct ov7740 *ov7740)
 	struct v4l2_ctrl_handler *ctrl_hdlr = &ov7740->ctrl_handler;
 	int ret;
 
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 2);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 12);
 	if (ret < 0)
 		return ret;
 
@@ -980,26 +1004,36 @@ static int ov7740_init_controls(struct ov7740 *ov7740)
 					V4L2_CID_HFLIP, 0, 1, 1, 0);
 	ov7740->vflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov7740_ctrl_ops,
 					V4L2_CID_VFLIP, 0, 1, 1, 0);
+
 	ov7740->gain = v4l2_ctrl_new_std(ctrl_hdlr, &ov7740_ctrl_ops,
 				       V4L2_CID_GAIN, 0, 1023, 1, 500);
+	if (ov7740->gain)
+		ov7740->gain->flags |= V4L2_CTRL_FLAG_VOLATILE;
+
 	ov7740->auto_gain = v4l2_ctrl_new_std(ctrl_hdlr, &ov7740_ctrl_ops,
 					    V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+
 	ov7740->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &ov7740_ctrl_ops,
 					   V4L2_CID_EXPOSURE, 0, 65535, 1, 500);
+
 	ov7740->auto_exposure = v4l2_ctrl_new_std_menu(ctrl_hdlr,
 					&ov7740_ctrl_ops,
 					V4L2_CID_EXPOSURE_AUTO,
 					V4L2_EXPOSURE_MANUAL, 0,
 					V4L2_EXPOSURE_AUTO);
 
-	ov7740->gain->flags |= V4L2_CTRL_FLAG_VOLATILE;
-	ov7740->exposure->flags |= V4L2_CTRL_FLAG_VOLATILE;
-
 	v4l2_ctrl_auto_cluster(3, &ov7740->auto_wb, 0, false);
 	v4l2_ctrl_auto_cluster(2, &ov7740->auto_gain, 0, true);
 	v4l2_ctrl_auto_cluster(2, &ov7740->auto_exposure,
-			       V4L2_EXPOSURE_MANUAL, false);
+			       V4L2_EXPOSURE_MANUAL, true);
 	v4l2_ctrl_cluster(2, &ov7740->hflip);
+
+	if (ctrl_hdlr->error) {
+		ret = ctrl_hdlr->error;
+		dev_err(&client->dev, "controls initialisation failed (%d)\n",
+			ret);
+		goto error;
+	}
 
 	ret = v4l2_ctrl_handler_setup(ctrl_hdlr);
 	if (ret) {
@@ -1074,7 +1108,7 @@ static int ov7740_probe(struct i2c_client *client,
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &ov7740_subdev_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
@@ -1088,6 +1122,9 @@ static int ov7740_probe(struct i2c_client *client,
 	ret = ov7740_set_power(ov7740, 1);
 	if (ret)
 		return ret;
+
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_enable(&client->dev);
 
 	ret = ov7740_detect(ov7740);
 	if (ret)
@@ -1111,8 +1148,6 @@ static int ov7740_probe(struct i2c_client *client,
 	if (ret)
 		goto error_async_register;
 
-	pm_runtime_set_active(&client->dev);
-	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
 	return 0;
@@ -1122,6 +1157,8 @@ error_async_register:
 error_init_controls:
 	ov7740_free_controls(ov7740);
 error_detect:
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 	ov7740_set_power(ov7740, 0);
 	media_entity_cleanup(&ov7740->subdev.entity);
 

@@ -347,6 +347,14 @@ static unsigned get_maxpacket(struct usb_device *udev, int pipe)
 	return le16_to_cpup(&ep->desc.wMaxPacketSize);
 }
 
+static int ss_isoc_get_packet_num(struct usb_device *udev, int pipe)
+{
+	struct usb_host_endpoint *ep = usb_pipe_endpoint(udev, pipe);
+
+	return USB_SS_MULT(ep->ss_ep_comp.bmAttributes)
+		* (1 + ep->ss_ep_comp.bMaxBurst);
+}
+
 static void simple_fill_buf(struct urb *urb)
 {
 	unsigned	i;
@@ -1082,11 +1090,12 @@ static void ctrl_complete(struct urb *urb)
 	struct usb_ctrlrequest	*reqp;
 	struct subcase		*subcase;
 	int			status = urb->status;
+	unsigned long		flags;
 
 	reqp = (struct usb_ctrlrequest *)urb->setup_packet;
 	subcase = container_of(reqp, struct subcase, setup);
 
-	spin_lock(&ctx->lock);
+	spin_lock_irqsave(&ctx->lock, flags);
 	ctx->count--;
 	ctx->pending--;
 
@@ -1185,7 +1194,7 @@ error:
 	/* signal completion when nothing's queued */
 	if (ctx->pending == 0)
 		complete(&ctx->complete);
-	spin_unlock(&ctx->lock);
+	spin_unlock_irqrestore(&ctx->lock, flags);
 }
 
 static int
@@ -1917,8 +1926,9 @@ struct transfer_context {
 static void complicated_callback(struct urb *urb)
 {
 	struct transfer_context	*ctx = urb->context;
+	unsigned long flags;
 
-	spin_lock(&ctx->lock);
+	spin_lock_irqsave(&ctx->lock, flags);
 	ctx->count--;
 
 	ctx->packet_count += urb->number_of_packets;
@@ -1958,7 +1968,7 @@ static void complicated_callback(struct urb *urb)
 		complete(&ctx->done);
 	}
 done:
-	spin_unlock(&ctx->lock);
+	spin_unlock_irqrestore(&ctx->lock, flags);
 }
 
 static struct urb *iso_alloc_urb(
@@ -1974,8 +1984,13 @@ static struct urb *iso_alloc_urb(
 
 	if (bytes < 0 || !desc)
 		return NULL;
+
 	maxp = usb_endpoint_maxp(desc);
-	maxp *= usb_endpoint_maxp_mult(desc);
+	if (udev->speed >= USB_SPEED_SUPER)
+		maxp *= ss_isoc_get_packet_num(udev, pipe);
+	else
+		maxp *= usb_endpoint_maxp_mult(desc);
+
 	packets = DIV_ROUND_UP(bytes, maxp);
 
 	urb = usb_alloc_urb(packets, GFP_KERNEL);
@@ -2063,17 +2078,24 @@ test_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param,
 	packets *= param->iterations;
 
 	if (context.is_iso) {
+		int transaction_num;
+
+		if (udev->speed >= USB_SPEED_SUPER)
+			transaction_num = ss_isoc_get_packet_num(udev, pipe);
+		else
+			transaction_num = usb_endpoint_maxp_mult(desc);
+
 		dev_info(&dev->intf->dev,
 			"iso period %d %sframes, wMaxPacket %d, transactions: %d\n",
 			1 << (desc->bInterval - 1),
-			(udev->speed == USB_SPEED_HIGH) ? "micro" : "",
+			(udev->speed >= USB_SPEED_HIGH) ? "micro" : "",
 			usb_endpoint_maxp(desc),
-			usb_endpoint_maxp_mult(desc));
+			transaction_num);
 
 		dev_info(&dev->intf->dev,
 			"total %lu msec (%lu packets)\n",
 			(packets * (1 << (desc->bInterval - 1)))
-				/ ((udev->speed == USB_SPEED_HIGH) ? 8 : 1),
+				/ ((udev->speed >= USB_SPEED_HIGH) ? 8 : 1),
 			packets);
 	}
 

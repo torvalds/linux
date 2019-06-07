@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * powr1220.c - Driver for the Lattice POWR1220 programmable power supply
  * and monitor. Users can read all ADC inputs along with their labels
@@ -5,16 +6,6 @@
  *
  * Copyright (c) 2014 Echo360 http://www.echo360.com
  * Scott Kanowitz <skanowitz@echo360.com> <scott.kanowitz@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -177,8 +168,9 @@ exit:
 }
 
 /* Shows the voltage associated with the specified ADC channel */
-static ssize_t powr1220_show_voltage(struct device *dev,
-	struct device_attribute *dev_attr, char *buf)
+static ssize_t powr1220_voltage_show(struct device *dev,
+				     struct device_attribute *dev_attr,
+				     char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(dev_attr);
 	int adc_val = powr1220_read_adc(dev, attr->index);
@@ -190,8 +182,8 @@ static ssize_t powr1220_show_voltage(struct device *dev,
 }
 
 /* Shows the maximum setting associated with the specified ADC channel */
-static ssize_t powr1220_show_max(struct device *dev,
-	struct device_attribute *dev_attr, char *buf)
+static ssize_t powr1220_max_show(struct device *dev,
+				 struct device_attribute *dev_attr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(dev_attr);
 	struct powr1220_data *data = dev_get_drvdata(dev);
@@ -200,100 +192,59 @@ static ssize_t powr1220_show_max(struct device *dev,
 }
 
 /* Shows the label associated with the specified ADC channel */
-static ssize_t powr1220_show_label(struct device *dev,
-	struct device_attribute *dev_attr, char *buf)
+static ssize_t powr1220_label_show(struct device *dev,
+				   struct device_attribute *dev_attr,
+				   char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(dev_attr);
 
 	return sprintf(buf, "%s\n", input_names[attr->index]);
 }
 
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON1);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON2);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON3);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON4);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON5);
-static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON6);
-static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON7);
-static SENSOR_DEVICE_ATTR(in7_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON8);
-static SENSOR_DEVICE_ATTR(in8_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON9);
-static SENSOR_DEVICE_ATTR(in9_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON10);
-static SENSOR_DEVICE_ATTR(in10_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON11);
-static SENSOR_DEVICE_ATTR(in11_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VMON12);
-static SENSOR_DEVICE_ATTR(in12_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VCCA);
-static SENSOR_DEVICE_ATTR(in13_input, S_IRUGO, powr1220_show_voltage, NULL,
-	VCCINP);
+static SENSOR_DEVICE_ATTR_RO(in0_input, powr1220_voltage, VMON1);
+static SENSOR_DEVICE_ATTR_RO(in1_input, powr1220_voltage, VMON2);
+static SENSOR_DEVICE_ATTR_RO(in2_input, powr1220_voltage, VMON3);
+static SENSOR_DEVICE_ATTR_RO(in3_input, powr1220_voltage, VMON4);
+static SENSOR_DEVICE_ATTR_RO(in4_input, powr1220_voltage, VMON5);
+static SENSOR_DEVICE_ATTR_RO(in5_input, powr1220_voltage, VMON6);
+static SENSOR_DEVICE_ATTR_RO(in6_input, powr1220_voltage, VMON7);
+static SENSOR_DEVICE_ATTR_RO(in7_input, powr1220_voltage, VMON8);
+static SENSOR_DEVICE_ATTR_RO(in8_input, powr1220_voltage, VMON9);
+static SENSOR_DEVICE_ATTR_RO(in9_input, powr1220_voltage, VMON10);
+static SENSOR_DEVICE_ATTR_RO(in10_input, powr1220_voltage, VMON11);
+static SENSOR_DEVICE_ATTR_RO(in11_input, powr1220_voltage, VMON12);
+static SENSOR_DEVICE_ATTR_RO(in12_input, powr1220_voltage, VCCA);
+static SENSOR_DEVICE_ATTR_RO(in13_input, powr1220_voltage, VCCINP);
 
-static SENSOR_DEVICE_ATTR(in0_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON1);
-static SENSOR_DEVICE_ATTR(in1_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON2);
-static SENSOR_DEVICE_ATTR(in2_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON3);
-static SENSOR_DEVICE_ATTR(in3_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON4);
-static SENSOR_DEVICE_ATTR(in4_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON5);
-static SENSOR_DEVICE_ATTR(in5_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON6);
-static SENSOR_DEVICE_ATTR(in6_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON7);
-static SENSOR_DEVICE_ATTR(in7_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON8);
-static SENSOR_DEVICE_ATTR(in8_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON9);
-static SENSOR_DEVICE_ATTR(in9_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON10);
-static SENSOR_DEVICE_ATTR(in10_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON11);
-static SENSOR_DEVICE_ATTR(in11_highest, S_IRUGO, powr1220_show_max, NULL,
-	VMON12);
-static SENSOR_DEVICE_ATTR(in12_highest, S_IRUGO, powr1220_show_max, NULL,
-	VCCA);
-static SENSOR_DEVICE_ATTR(in13_highest, S_IRUGO, powr1220_show_max, NULL,
-	VCCINP);
+static SENSOR_DEVICE_ATTR_RO(in0_highest, powr1220_max, VMON1);
+static SENSOR_DEVICE_ATTR_RO(in1_highest, powr1220_max, VMON2);
+static SENSOR_DEVICE_ATTR_RO(in2_highest, powr1220_max, VMON3);
+static SENSOR_DEVICE_ATTR_RO(in3_highest, powr1220_max, VMON4);
+static SENSOR_DEVICE_ATTR_RO(in4_highest, powr1220_max, VMON5);
+static SENSOR_DEVICE_ATTR_RO(in5_highest, powr1220_max, VMON6);
+static SENSOR_DEVICE_ATTR_RO(in6_highest, powr1220_max, VMON7);
+static SENSOR_DEVICE_ATTR_RO(in7_highest, powr1220_max, VMON8);
+static SENSOR_DEVICE_ATTR_RO(in8_highest, powr1220_max, VMON9);
+static SENSOR_DEVICE_ATTR_RO(in9_highest, powr1220_max, VMON10);
+static SENSOR_DEVICE_ATTR_RO(in10_highest, powr1220_max, VMON11);
+static SENSOR_DEVICE_ATTR_RO(in11_highest, powr1220_max, VMON12);
+static SENSOR_DEVICE_ATTR_RO(in12_highest, powr1220_max, VCCA);
+static SENSOR_DEVICE_ATTR_RO(in13_highest, powr1220_max, VCCINP);
 
-static SENSOR_DEVICE_ATTR(in0_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON1);
-static SENSOR_DEVICE_ATTR(in1_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON2);
-static SENSOR_DEVICE_ATTR(in2_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON3);
-static SENSOR_DEVICE_ATTR(in3_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON4);
-static SENSOR_DEVICE_ATTR(in4_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON5);
-static SENSOR_DEVICE_ATTR(in5_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON6);
-static SENSOR_DEVICE_ATTR(in6_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON7);
-static SENSOR_DEVICE_ATTR(in7_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON8);
-static SENSOR_DEVICE_ATTR(in8_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON9);
-static SENSOR_DEVICE_ATTR(in9_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON10);
-static SENSOR_DEVICE_ATTR(in10_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON11);
-static SENSOR_DEVICE_ATTR(in11_label, S_IRUGO, powr1220_show_label, NULL,
-	VMON12);
-static SENSOR_DEVICE_ATTR(in12_label, S_IRUGO, powr1220_show_label, NULL,
-	VCCA);
-static SENSOR_DEVICE_ATTR(in13_label, S_IRUGO, powr1220_show_label, NULL,
-	VCCINP);
+static SENSOR_DEVICE_ATTR_RO(in0_label, powr1220_label, VMON1);
+static SENSOR_DEVICE_ATTR_RO(in1_label, powr1220_label, VMON2);
+static SENSOR_DEVICE_ATTR_RO(in2_label, powr1220_label, VMON3);
+static SENSOR_DEVICE_ATTR_RO(in3_label, powr1220_label, VMON4);
+static SENSOR_DEVICE_ATTR_RO(in4_label, powr1220_label, VMON5);
+static SENSOR_DEVICE_ATTR_RO(in5_label, powr1220_label, VMON6);
+static SENSOR_DEVICE_ATTR_RO(in6_label, powr1220_label, VMON7);
+static SENSOR_DEVICE_ATTR_RO(in7_label, powr1220_label, VMON8);
+static SENSOR_DEVICE_ATTR_RO(in8_label, powr1220_label, VMON9);
+static SENSOR_DEVICE_ATTR_RO(in9_label, powr1220_label, VMON10);
+static SENSOR_DEVICE_ATTR_RO(in10_label, powr1220_label, VMON11);
+static SENSOR_DEVICE_ATTR_RO(in11_label, powr1220_label, VMON12);
+static SENSOR_DEVICE_ATTR_RO(in12_label, powr1220_label, VCCA);
+static SENSOR_DEVICE_ATTR_RO(in13_label, powr1220_label, VCCINP);
 
 static struct attribute *powr1220_attrs[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,

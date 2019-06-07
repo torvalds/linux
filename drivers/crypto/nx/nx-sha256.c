@@ -162,8 +162,7 @@ static int nx_sha256_update(struct shash_desc *desc, const u8 *data,
 			goto out;
 		}
 
-		rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-				   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+		rc = nx_hcall_sync(nx_ctx, &nx_ctx->op, 0);
 		if (rc)
 			goto out;
 
@@ -243,8 +242,7 @@ static int nx_sha256_final(struct shash_desc *desc, u8 *out)
 		goto out;
 	}
 
-	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-			   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op, 0);
 	if (rc)
 		goto out;
 
@@ -288,7 +286,6 @@ struct shash_alg nx_shash_sha256_alg = {
 		.cra_name        = "sha256",
 		.cra_driver_name = "sha256-nx",
 		.cra_priority    = 300,
-		.cra_flags       = CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize   = SHA256_BLOCK_SIZE,
 		.cra_module      = THIS_MODULE,
 		.cra_ctxsize     = sizeof(struct nx_crypto_ctx),

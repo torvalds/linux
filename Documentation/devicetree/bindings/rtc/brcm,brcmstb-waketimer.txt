@@ -7,8 +7,6 @@ Required properties:
 - compatible     : should contain "brcm,brcmstb-waketimer"
 - reg            : the register start and length for the WKTMR block
 - interrupts     : The TIMER interrupt
-- interrupt-parent: The phandle to the Always-On (AON) Power Management (PM) L2
-                    interrupt controller node
 - clocks	 : The phandle to the UPG fixed clock (27Mhz domain)
 
 Example:

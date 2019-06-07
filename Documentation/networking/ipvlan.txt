@@ -73,11 +73,11 @@ mode to make conn-tracking work.
 	This is the default option. To configure the IPvlan port in this mode,
 user can choose to either add this option on the command-line or don't specify
 anything. This is the traditional mode where slaves can cross-talk among
-themseleves apart from talking through the master device.
+themselves apart from talking through the master device.
 
 5.2 private:
 	If this option is added to the command-line, the port is set in private
-mode. i.e. port wont allow cross communication between slaves.
+mode. i.e. port won't allow cross communication between slaves.
 
 5.3 vepa:
 	If this is added to the command-line, the port is set in VEPA mode.

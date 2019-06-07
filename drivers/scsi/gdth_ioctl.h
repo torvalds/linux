@@ -27,11 +27,7 @@
 #define GDTH_MAXSG      32                      /* max. s/g elements */
 
 #define MAX_LDRIVES     255                     /* max. log. drive count */
-#ifdef GDTH_IOCTL_PROC
-#define MAX_HDRIVES     100                     /* max. host drive count */
-#else
 #define MAX_HDRIVES     MAX_LDRIVES             /* max. host drive count */
-#endif
 
 /* scatter/gather element */
 typedef struct {
@@ -177,91 +173,6 @@ typedef struct {
     u8          reserved;
     gdth_evt_data   event_data;
 } __attribute__((packed)) gdth_evt_str;
-
-
-#ifdef GDTH_IOCTL_PROC
-/* IOCTL structure (write) */
-typedef struct {
-    u32                 magic;              /* IOCTL magic */
-    u16                  ioctl;              /* IOCTL */
-    u16                  ionode;             /* controller number */
-    u16                  service;            /* controller service */
-    u16                  timeout;            /* timeout */
-    union {
-        struct {
-            u8          command[512];       /* controller command */
-            u8          data[1];            /* add. data */
-        } general;
-        struct {
-            u8          lock;               /* lock/unlock */
-            u8          drive_cnt;          /* drive count */
-            u16          drives[MAX_HDRIVES];/* drives */
-        } lockdrv;
-        struct {
-            u8          lock;               /* lock/unlock */
-            u8          channel;            /* channel */
-        } lockchn;
-        struct {
-            int             erase;              /* erase event ? */
-            int             handle;
-            u8          evt[EVENT_SIZE];    /* event structure */
-        } event;
-        struct {
-            u8          bus;                /* SCSI bus */
-            u8          target;             /* target ID */
-            u8          lun;                /* LUN */
-            u8          cmd_len;            /* command length */
-            u8          cmd[12];            /* SCSI command */
-        } scsi;
-        struct {
-            u16          hdr_no;             /* host drive number */
-            u8          flag;               /* old meth./add/remove */
-        } rescan;
-    } iu;
-} gdth_iowr_str;
-
-/* IOCTL structure (read) */
-typedef struct {
-    u32                 size;               /* buffer size */
-    u32                 status;             /* IOCTL error code */
-    union {
-        struct {
-            u8          data[1];            /* data */
-        } general;
-        struct {
-            u16          version;            /* driver version */
-        } drvers;
-        struct {
-            u8          type;               /* controller type */
-            u16          info;               /* slot etc. */
-            u16          oem_id;             /* OEM ID */
-            u16          bios_ver;           /* not used */
-            u16          access;             /* not used */
-            u16          ext_type;           /* extended type */
-            u16          device_id;          /* device ID */
-            u16          sub_device_id;      /* sub device ID */
-        } ctrtype;
-        struct {
-            u8          version;            /* OS version */
-            u8          subversion;         /* OS subversion */
-            u16          revision;           /* revision */
-        } osvers;
-        struct {
-            u16          count;              /* controller count */
-        } ctrcnt;
-        struct {
-            int             handle;
-            u8          evt[EVENT_SIZE];    /* event structure */
-        } event;
-        struct {
-            u8          bus;                /* SCSI bus, 0xff: invalid */
-            u8          target;             /* target ID */
-            u8          lun;                /* LUN */
-            u8          cluster_type;       /* cluster properties */
-        } hdr_list[MAX_HDRIVES];                /* index is host drive number */
-    } iu;
-} gdth_iord_str;
-#endif
 
 /* GDTIOCTL_GENERAL */
 typedef struct {

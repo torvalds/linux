@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2014 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
  * Intel SCIF driver.
- *
  */
 #include <linux/scif.h>
 #include "scif_main.h"
@@ -187,6 +178,7 @@ int scif_close(scif_epd_t epd)
 	case SCIFEP_ZOMBIE:
 		dev_err(scif_info.mdev.this_device,
 			"SCIFAPI close: zombie state unexpected\n");
+		/* fall through */
 	case SCIFEP_DISCONNECTED:
 		spin_unlock(&ep->lock);
 		scif_unregister_all_windows(epd);
@@ -370,11 +362,10 @@ int scif_bind(scif_epd_t epd, u16 pn)
 			goto scif_bind_exit;
 		}
 	} else {
-		pn = scif_get_new_port();
-		if (!pn) {
-			ret = -ENOSPC;
+		ret = scif_get_new_port();
+		if (ret < 0)
 			goto scif_bind_exit;
-		}
+		pn = ret;
 	}
 
 	ep->state = SCIFEP_BOUND;
@@ -648,13 +639,12 @@ int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block)
 			err = -EISCONN;
 		break;
 	case SCIFEP_UNBOUND:
-		ep->port.port = scif_get_new_port();
-		if (!ep->port.port) {
-			err = -ENOSPC;
-		} else {
-			ep->port.node = scif_info.nodeid;
-			ep->conn_async_state = ASYNC_CONN_IDLE;
-		}
+		err = scif_get_new_port();
+		if (err < 0)
+			break;
+		ep->port.port = err;
+		ep->port.node = scif_info.nodeid;
+		ep->conn_async_state = ASYNC_CONN_IDLE;
 		/* Fall through */
 	case SCIFEP_BOUND:
 		/*

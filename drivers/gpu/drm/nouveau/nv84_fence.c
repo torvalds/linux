@@ -109,7 +109,6 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 int
 nv84_fence_context_new(struct nouveau_channel *chan)
 {
-	struct nouveau_cli *cli = (void *)chan->user.client;
 	struct nv84_fence_priv *priv = chan->drm->fence;
 	struct nv84_fence_chan *fctx;
 	int ret;
@@ -127,7 +126,7 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.sequence = nv84_fence_read(chan);
 
 	mutex_lock(&priv->mutex);
-	ret = nouveau_vma_new(priv->bo, &cli->vmm, &fctx->vma);
+	ret = nouveau_vma_new(priv->bo, chan->vmm, &fctx->vma);
 	mutex_unlock(&priv->mutex);
 
 	if (ret)
@@ -141,9 +140,9 @@ nv84_fence_suspend(struct nouveau_drm *drm)
 	struct nv84_fence_priv *priv = drm->fence;
 	int i;
 
-	priv->suspend = vmalloc(priv->base.contexts * sizeof(u32));
+	priv->suspend = vmalloc(array_size(sizeof(u32), drm->chan.nr));
 	if (priv->suspend) {
-		for (i = 0; i < priv->base.contexts; i++)
+		for (i = 0; i < drm->chan.nr; i++)
 			priv->suspend[i] = nouveau_bo_rd32(priv->bo, i*4);
 	}
 
@@ -157,7 +156,7 @@ nv84_fence_resume(struct nouveau_drm *drm)
 	int i;
 
 	if (priv->suspend) {
-		for (i = 0; i < priv->base.contexts; i++)
+		for (i = 0; i < drm->chan.nr; i++)
 			nouveau_bo_wr32(priv->bo, i*4, priv->suspend[i]);
 		vfree(priv->suspend);
 		priv->suspend = NULL;
@@ -179,7 +178,6 @@ nv84_fence_destroy(struct nouveau_drm *drm)
 int
 nv84_fence_create(struct nouveau_drm *drm)
 {
-	struct nvkm_fifo *fifo = nvxx_fifo(&drm->client.device);
 	struct nv84_fence_priv *priv;
 	u32 domain;
 	int ret;
@@ -194,8 +192,6 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.context_new = nv84_fence_context_new;
 	priv->base.context_del = nv84_fence_context_del;
 
-	priv->base.contexts = fifo->nr;
-	priv->base.context_base = dma_fence_context_alloc(priv->base.contexts);
 	priv->base.uevent = true;
 
 	mutex_init(&priv->mutex);
@@ -207,7 +203,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 			  * will lose CPU/GPU coherency!
 			  */
 			 TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
-	ret = nouveau_bo_new(&drm->client, 16 * priv->base.contexts, 0,
+	ret = nouveau_bo_new(&drm->client, 16 * drm->chan.nr, 0,
 			     domain, 0, 0, NULL, NULL, &priv->bo);
 	if (ret == 0) {
 		ret = nouveau_bo_pin(priv->bo, domain, false);

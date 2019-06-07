@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Broxton-P I2S Machine Driver
  *
@@ -5,15 +6,6 @@
  *
  * Modified from:
  *   Intel Skylake I2S Machine driver
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -21,6 +13,7 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 #include <sound/jack.h>
 #include <sound/pcm_params.h>
 #include "../../codecs/hdac_hdmi.h"
@@ -221,7 +214,7 @@ static int broxton_ssp5_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	/* set SSP5 to 24 bit */
 	snd_mask_none(fmt);
-	snd_mask_set(fmt, SNDRV_PCM_FORMAT_S24_LE);
+	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
 
 	return 0;
 }
@@ -576,6 +569,9 @@ static int broxton_audio_probe(struct platform_device *pdev)
 	struct bxt_rt286_private *ctx;
 	struct snd_soc_card *card =
 			(struct snd_soc_card *)pdev->id_entry->driver_data;
+	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
+	int ret;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(broxton_rt298_dais); i++) {
@@ -593,7 +589,7 @@ static int broxton_audio_probe(struct platform_device *pdev)
 		}
 	}
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -601,6 +597,15 @@ static int broxton_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 	snd_soc_card_set_drvdata(card, ctx);
+
+	/* override plaform name, if required */
+	mach = (&pdev->dev)->platform_data;
+	platform_name = mach->mach_params.platform;
+
+	ret = snd_soc_fixup_dai_links_platform_name(card,
+						    platform_name);
+	if (ret)
+		return ret;
 
 	return devm_snd_soc_register_card(&pdev->dev, card);
 }

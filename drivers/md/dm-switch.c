@@ -61,8 +61,7 @@ static struct switch_ctx *alloc_switch_ctx(struct dm_target *ti, unsigned nr_pat
 {
 	struct switch_ctx *sctx;
 
-	sctx = kzalloc(sizeof(struct switch_ctx) + nr_paths * sizeof(struct switch_path),
-		       GFP_KERNEL);
+	sctx = kzalloc(struct_size(sctx, path_list, nr_paths), GFP_KERNEL);
 	if (!sctx)
 		return NULL;
 
@@ -114,7 +113,8 @@ static int alloc_region_table(struct dm_target *ti, unsigned nr_paths)
 		return -EINVAL;
 	}
 
-	sctx->region_table = vmalloc(nr_slots * sizeof(region_table_slot_t));
+	sctx->region_table = vmalloc(array_size(nr_slots,
+						sizeof(region_table_slot_t)));
 	if (!sctx->region_table) {
 		ti->error = "Cannot allocate region table";
 		return -ENOMEM;

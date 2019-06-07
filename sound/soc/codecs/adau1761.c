@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for ADAU1361/ADAU1461/ADAU1761/ADAU1961 codec
  *
  * Copyright 2011-2013 Analog Devices Inc.
  * Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
@@ -518,7 +517,8 @@ static int adau1761_setup_digmic_jackdetect(struct snd_soc_component *component)
 			ARRAY_SIZE(adau1761_jack_detect_controls));
 		if (ret)
 			return ret;
-	case ADAU1761_DIGMIC_JACKDET_PIN_MODE_NONE: /* fallthrough */
+		/* fall through */
+	case ADAU1761_DIGMIC_JACKDET_PIN_MODE_NONE:
 		ret = snd_soc_dapm_add_routes(dapm, adau1761_no_dmic_routes,
 			ARRAY_SIZE(adau1761_no_dmic_routes));
 		if (ret)

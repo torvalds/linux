@@ -753,11 +753,12 @@ static int init_cmdq(struct hinic_cmdq *cmdq, struct hinic_wq *wq,
 
 	spin_lock_init(&cmdq->cmdq_lock);
 
-	cmdq->done = vzalloc(wq->q_depth * sizeof(*cmdq->done));
+	cmdq->done = vzalloc(array_size(sizeof(*cmdq->done), wq->q_depth));
 	if (!cmdq->done)
 		return -ENOMEM;
 
-	cmdq->errcode = vzalloc(wq->q_depth * sizeof(*cmdq->errcode));
+	cmdq->errcode = vzalloc(array_size(sizeof(*cmdq->errcode),
+					   wq->q_depth));
 	if (!cmdq->errcode) {
 		err = -ENOMEM;
 		goto err_errcode;

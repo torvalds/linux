@@ -8,9 +8,6 @@ the SPI master node.
 Required properties:
 - compatible: Should be "microchip,enc28j60"
 - reg: Specify the SPI chip select the ENC28J60 is wired to
-- interrupt-parent: Specify the phandle of the source interrupt, see interrupt
-                    binding documentation for details. Usually this is the GPIO bank
-                    the interrupt line is wired to.
 - interrupts: Specify the interrupt index within the interrupt controller (referred
               to above in interrupt-parent) and interrupt type. The ENC28J60 natively
               generates falling edge interrupts, however, additional board logic
@@ -24,8 +21,9 @@ Optional properties:
 - spi-max-frequency: Maximum frequency of the SPI bus when accessing the ENC28J60.
   According to the ENC28J80 datasheet, the chip allows a maximum of 20 MHz, however,
   board designs may need to limit this value.
-- local-mac-address: See ethernet.txt in the same directory.
 
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Example (for NXP i.MX28 with pin control stuff for GPIO irq):
 

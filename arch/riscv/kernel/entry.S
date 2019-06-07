@@ -37,11 +37,11 @@
 	 * the kernel thread pointer.  If we came from the kernel, sscratch
 	 * will contain 0, and we should continue on the current TP.
 	 */
-	csrrw tp, sscratch, tp
+	csrrw tp, CSR_SSCRATCH, tp
 	bnez tp, _save_context
 
 _restore_kernel_tpsp:
-	csrr tp, sscratch
+	csrr tp, CSR_SSCRATCH
 	REG_S sp, TASK_TI_KERNEL_SP(tp)
 _save_context:
 	REG_S sp, TASK_TI_USER_SP(tp)
@@ -87,11 +87,11 @@ _save_context:
 	li t0, SR_SUM | SR_FS
 
 	REG_L s0, TASK_TI_USER_SP(tp)
-	csrrc s1, sstatus, t0
-	csrr s2, sepc
-	csrr s3, sbadaddr
-	csrr s4, scause
-	csrr s5, sscratch
+	csrrc s1, CSR_SSTATUS, t0
+	csrr s2, CSR_SEPC
+	csrr s3, CSR_STVAL
+	csrr s4, CSR_SCAUSE
+	csrr s5, CSR_SSCRATCH
 	REG_S s0, PT_SP(sp)
 	REG_S s1, PT_SSTATUS(sp)
 	REG_S s2, PT_SEPC(sp)
@@ -107,8 +107,8 @@ _save_context:
 	.macro RESTORE_ALL
 	REG_L a0, PT_SSTATUS(sp)
 	REG_L a2, PT_SEPC(sp)
-	csrw sstatus, a0
-	csrw sepc, a2
+	csrw CSR_SSTATUS, a0
+	csrw CSR_SEPC, a2
 
 	REG_L x1,  PT_RA(sp)
 	REG_L x3,  PT_GP(sp)
@@ -144,6 +144,10 @@ _save_context:
 	REG_L x2,  PT_SP(sp)
 	.endm
 
+#if !IS_ENABLED(CONFIG_PREEMPT)
+.set resume_kernel, restore_all
+#endif
+
 ENTRY(handle_exception)
 	SAVE_ALL
 
@@ -151,7 +155,7 @@ ENTRY(handle_exception)
 	 * Set sscratch register to 0, so that if a recursive exception
 	 * occurs, the exception vector knows it came from the kernel
 	 */
-	csrw sscratch, x0
+	csrw CSR_SSCRATCH, x0
 
 	/* Load the global pointer */
 .option push
@@ -168,8 +172,7 @@ ENTRY(handle_exception)
 
 	/* Handle interrupts */
 	move a0, sp /* pt_regs */
-	REG_L a1, handle_arch_irq
-	jr a1
+	tail do_IRQ
 1:
 	/* Exceptions run with interrupts enabled */
 	csrs sstatus, SR_SIE
@@ -202,7 +205,7 @@ handle_syscall:
 	REG_S s2, PT_SEPC(sp)
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
-	andi t0, t0, _TIF_SYSCALL_TRACE
+	andi t0, t0, _TIF_SYSCALL_WORK
 	bnez t0, handle_syscall_trace_enter
 check_syscall_nr:
 	/* Check to make sure we don't jump to a bogus syscall number. */
@@ -222,14 +225,14 @@ ret_from_syscall:
 	REG_S a0, PT_A0(sp)
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
-	andi t0, t0, _TIF_SYSCALL_TRACE
+	andi t0, t0, _TIF_SYSCALL_WORK
 	bnez t0, handle_syscall_trace_exit
 
 ret_from_exception:
 	REG_L s0, PT_SSTATUS(sp)
 	csrc sstatus, SR_SIE
 	andi s0, s0, SR_SPP
-	bnez s0, restore_all
+	bnez s0, resume_kernel
 
 resume_userspace:
 	/* Interrupts must be disabled here so flags are checked atomically */
@@ -245,11 +248,23 @@ resume_userspace:
 	 * Save TP into sscratch, so we can find the kernel data structures
 	 * again.
 	 */
-	csrw sscratch, tp
+	csrw CSR_SSCRATCH, tp
 
 restore_all:
 	RESTORE_ALL
 	sret
+
+#if IS_ENABLED(CONFIG_PREEMPT)
+resume_kernel:
+	REG_L s0, TASK_TI_PREEMPT_COUNT(tp)
+	bnez s0, restore_all
+need_resched:
+	REG_L s0, TASK_TI_FLAGS(tp)
+	andi s0, s0, _TIF_NEED_RESCHED
+	beqz s0, restore_all
+	call preempt_schedule_irq
+	j need_resched
+#endif
 
 work_pending:
 	/* Enter slow path for supplementary processing */
@@ -356,93 +371,6 @@ ENTRY(__switch_to)
 #endif
 	ret
 ENDPROC(__switch_to)
-
-ENTRY(__fstate_save)
-	li  a2,  TASK_THREAD_F0
-	add a0, a0, a2
-	li t1, SR_FS
-	csrs sstatus, t1
-	frcsr t0
-	fsd f0,  TASK_THREAD_F0_F0(a0)
-	fsd f1,  TASK_THREAD_F1_F0(a0)
-	fsd f2,  TASK_THREAD_F2_F0(a0)
-	fsd f3,  TASK_THREAD_F3_F0(a0)
-	fsd f4,  TASK_THREAD_F4_F0(a0)
-	fsd f5,  TASK_THREAD_F5_F0(a0)
-	fsd f6,  TASK_THREAD_F6_F0(a0)
-	fsd f7,  TASK_THREAD_F7_F0(a0)
-	fsd f8,  TASK_THREAD_F8_F0(a0)
-	fsd f9,  TASK_THREAD_F9_F0(a0)
-	fsd f10, TASK_THREAD_F10_F0(a0)
-	fsd f11, TASK_THREAD_F11_F0(a0)
-	fsd f12, TASK_THREAD_F12_F0(a0)
-	fsd f13, TASK_THREAD_F13_F0(a0)
-	fsd f14, TASK_THREAD_F14_F0(a0)
-	fsd f15, TASK_THREAD_F15_F0(a0)
-	fsd f16, TASK_THREAD_F16_F0(a0)
-	fsd f17, TASK_THREAD_F17_F0(a0)
-	fsd f18, TASK_THREAD_F18_F0(a0)
-	fsd f19, TASK_THREAD_F19_F0(a0)
-	fsd f20, TASK_THREAD_F20_F0(a0)
-	fsd f21, TASK_THREAD_F21_F0(a0)
-	fsd f22, TASK_THREAD_F22_F0(a0)
-	fsd f23, TASK_THREAD_F23_F0(a0)
-	fsd f24, TASK_THREAD_F24_F0(a0)
-	fsd f25, TASK_THREAD_F25_F0(a0)
-	fsd f26, TASK_THREAD_F26_F0(a0)
-	fsd f27, TASK_THREAD_F27_F0(a0)
-	fsd f28, TASK_THREAD_F28_F0(a0)
-	fsd f29, TASK_THREAD_F29_F0(a0)
-	fsd f30, TASK_THREAD_F30_F0(a0)
-	fsd f31, TASK_THREAD_F31_F0(a0)
-	sw t0, TASK_THREAD_FCSR_F0(a0)
-	csrc sstatus, t1
-	ret
-ENDPROC(__fstate_save)
-
-ENTRY(__fstate_restore)
-	li  a2,  TASK_THREAD_F0
-	add a0, a0, a2
-	li t1, SR_FS
-	lw t0, TASK_THREAD_FCSR_F0(a0)
-	csrs sstatus, t1
-	fld f0,  TASK_THREAD_F0_F0(a0)
-	fld f1,  TASK_THREAD_F1_F0(a0)
-	fld f2,  TASK_THREAD_F2_F0(a0)
-	fld f3,  TASK_THREAD_F3_F0(a0)
-	fld f4,  TASK_THREAD_F4_F0(a0)
-	fld f5,  TASK_THREAD_F5_F0(a0)
-	fld f6,  TASK_THREAD_F6_F0(a0)
-	fld f7,  TASK_THREAD_F7_F0(a0)
-	fld f8,  TASK_THREAD_F8_F0(a0)
-	fld f9,  TASK_THREAD_F9_F0(a0)
-	fld f10, TASK_THREAD_F10_F0(a0)
-	fld f11, TASK_THREAD_F11_F0(a0)
-	fld f12, TASK_THREAD_F12_F0(a0)
-	fld f13, TASK_THREAD_F13_F0(a0)
-	fld f14, TASK_THREAD_F14_F0(a0)
-	fld f15, TASK_THREAD_F15_F0(a0)
-	fld f16, TASK_THREAD_F16_F0(a0)
-	fld f17, TASK_THREAD_F17_F0(a0)
-	fld f18, TASK_THREAD_F18_F0(a0)
-	fld f19, TASK_THREAD_F19_F0(a0)
-	fld f20, TASK_THREAD_F20_F0(a0)
-	fld f21, TASK_THREAD_F21_F0(a0)
-	fld f22, TASK_THREAD_F22_F0(a0)
-	fld f23, TASK_THREAD_F23_F0(a0)
-	fld f24, TASK_THREAD_F24_F0(a0)
-	fld f25, TASK_THREAD_F25_F0(a0)
-	fld f26, TASK_THREAD_F26_F0(a0)
-	fld f27, TASK_THREAD_F27_F0(a0)
-	fld f28, TASK_THREAD_F28_F0(a0)
-	fld f29, TASK_THREAD_F29_F0(a0)
-	fld f30, TASK_THREAD_F30_F0(a0)
-	fld f31, TASK_THREAD_F31_F0(a0)
-	fscsr t0
-	csrc sstatus, t1
-	ret
-ENDPROC(__fstate_restore)
-
 
 	.section ".rodata"
 	/* Exception vector table */

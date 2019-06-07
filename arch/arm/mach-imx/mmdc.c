@@ -1,16 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2017 NXP
  * Copyright 2011,2016 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/clk.h>
 #include <linux/hrtimer.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -293,13 +288,7 @@ static int mmdc_pmu_event_init(struct perf_event *event)
 		return -EOPNOTSUPP;
 	}
 
-	if (event->attr.exclude_user		||
-			event->attr.exclude_kernel	||
-			event->attr.exclude_hv		||
-			event->attr.exclude_idle	||
-			event->attr.exclude_host	||
-			event->attr.exclude_guest	||
-			event->attr.sample_period)
+	if (event->attr.sample_period)
 		return -EINVAL;
 
 	if (cfg < 0 || cfg >= MMDC_NUM_COUNTERS)
@@ -455,6 +444,7 @@ static int mmdc_pmu_init(struct mmdc_pmu *pmu_mmdc,
 			.start          = mmdc_pmu_event_start,
 			.stop           = mmdc_pmu_event_stop,
 			.read           = mmdc_pmu_event_update,
+			.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 		},
 		.mmdc_base = mmdc_base,
 		.dev = dev,
@@ -546,7 +536,20 @@ static int imx_mmdc_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	void __iomem *mmdc_base, *reg;
+	struct clk *mmdc_ipg_clk;
 	u32 val;
+	int err;
+
+	/* the ipg clock is optional */
+	mmdc_ipg_clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(mmdc_ipg_clk))
+		mmdc_ipg_clk = NULL;
+
+	err = clk_prepare_enable(mmdc_ipg_clk);
+	if (err) {
+		dev_err(&pdev->dev, "Unable to enable mmdc ipg clock.\n");
+		return err;
+	}
 
 	mmdc_base = of_iomap(np, 0);
 	WARN_ON(!mmdc_base);

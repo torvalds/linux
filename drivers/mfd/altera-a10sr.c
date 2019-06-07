@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Altera Arria10 DevKit System Resource MFD Driver
  *
  * Author: Thor Thayer <tthayer@opensource.altera.com>
  *
  * Copyright Intel Corporation (C) 2014-2016. All Rights Reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * SPI access for Altera Arria10 MAX5 System Resource Chip
  *
@@ -108,7 +97,8 @@ static const struct regmap_config altr_a10sr_regmap_config = {
 
 	.cache_type = REGCACHE_NONE,
 
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.read_flag_mask = 1,
 	.write_flag_mask = 0,
 

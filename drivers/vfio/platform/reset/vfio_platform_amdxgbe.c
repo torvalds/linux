@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VFIO platform driver specialized for AMD xgbe reset
  * reset code is inherited from AMD xgbe native driver
  *
  * Copyright (c) 2015 Linaro Ltd.
  *              www.linaro.org
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -25,7 +14,7 @@
 #include <uapi/linux/mdio.h>
 #include <linux/delay.h>
 
-#include "vfio_platform_private.h"
+#include "../vfio_platform_private.h"
 
 #define DMA_MR			0x3000
 #define MAC_VR			0x0110
@@ -89,7 +78,8 @@ static int vfio_platform_amdxgbe_reset(struct vfio_platform_device *vdev)
 	} while ((pcs_value & MDIO_CTRL1_RESET) && --count);
 
 	if (pcs_value & MDIO_CTRL1_RESET)
-		pr_warn("%s XGBE PHY reset timeout\n", __func__);
+		dev_warn(vdev->device, "%s: XGBE PHY reset timeout\n",
+			 __func__);
 
 	/* disable auto-negotiation */
 	value = xmdio_read(xpcs_regs->ioaddr, MDIO_MMD_AN, MDIO_CTRL1);
@@ -114,7 +104,7 @@ static int vfio_platform_amdxgbe_reset(struct vfio_platform_device *vdev)
 		usleep_range(500, 600);
 
 	if (!count)
-		pr_warn("%s MAC SW reset failed\n", __func__);
+		dev_warn(vdev->device, "%s: MAC SW reset failed\n", __func__);
 
 	return 0;
 }

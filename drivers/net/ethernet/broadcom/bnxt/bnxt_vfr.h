@@ -30,7 +30,8 @@ static inline u16 bnxt_vf_rep_get_fid(struct net_device *dev)
 
 bool bnxt_dev_is_vf_rep(struct net_device *dev);
 int bnxt_dl_eswitch_mode_get(struct devlink *devlink, u16 *mode);
-int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode);
+int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
+			     struct netlink_ext_ack *extack);
 
 #else
 

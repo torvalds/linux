@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * FSI hub master driver
  *
  * Copyright (C) IBM Corporation 2016
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -122,7 +114,8 @@ static int hub_master_write(struct fsi_master *master, int link,
 
 static int hub_master_break(struct fsi_master *master, int link)
 {
-	uint32_t addr, cmd;
+	uint32_t addr;
+	__be32 cmd;
 
 	addr = 0x4;
 	cmd = cpu_to_be32(0xc0de0000);
@@ -205,7 +198,7 @@ static int hub_master_init(struct fsi_master_hub *hub)
 	if (rc)
 		return rc;
 
-	reg = ~0;
+	reg = cpu_to_be32(~0);
 	rc = fsi_device_write(dev, FSI_MSENP0, &reg, sizeof(reg));
 	if (rc)
 		return rc;

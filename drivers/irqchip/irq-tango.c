@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 Mans Rullgard <mans@mansr.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/init.h>
@@ -184,11 +180,11 @@ static int __init tangox_irq_init(void __iomem *base, struct resource *baseres,
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (!irq)
-		panic("%s: failed to get IRQ", node->name);
+		panic("%pOFn: failed to get IRQ", node);
 
 	err = of_address_to_resource(node, 0, &res);
 	if (err)
-		panic("%s: failed to get address", node->name);
+		panic("%pOFn: failed to get address", node);
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	chip->ctl = res.start - baseres->start;
@@ -196,17 +192,16 @@ static int __init tangox_irq_init(void __iomem *base, struct resource *baseres,
 
 	dom = irq_domain_add_linear(node, 64, &irq_generic_chip_ops, chip);
 	if (!dom)
-		panic("%s: failed to create irqdomain", node->name);
+		panic("%pOFn: failed to create irqdomain", node);
 
 	err = irq_alloc_domain_generic_chips(dom, 32, 2, node->name,
 					     handle_level_irq, 0, 0, 0);
 	if (err)
-		panic("%s: failed to allocate irqchip", node->name);
+		panic("%pOFn: failed to allocate irqchip", node);
 
 	tangox_irq_domain_init(dom);
 
-	irq_set_chained_handler(irq, tangox_irq_handler);
-	irq_set_handler_data(irq, dom);
+	irq_set_chained_handler_and_data(irq, tangox_irq_handler, dom);
 
 	return 0;
 }
@@ -220,7 +215,7 @@ static int __init tangox_of_irq_init(struct device_node *node,
 
 	base = of_iomap(node, 0);
 	if (!base)
-		panic("%s: of_iomap failed", node->name);
+		panic("%pOFn: of_iomap failed", node);
 
 	of_address_to_resource(node, 0, &res);
 

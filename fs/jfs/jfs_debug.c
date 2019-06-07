@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (C) International Business Machines Corp., 2000-2004
  *   Portions Copyright (C) Christoph Hellwig, 2001-2002
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/fs.h>
@@ -29,7 +16,6 @@
 
 #ifdef PROC_FS_JFS /* see jfs_debug.h */
 
-static struct proc_dir_entry *base;
 #ifdef CONFIG_JFS_DEBUG
 static int jfs_loglevel_proc_show(struct seq_file *m, void *v)
 {
@@ -66,43 +52,29 @@ static const struct file_operations jfs_loglevel_proc_fops = {
 };
 #endif
 
-static struct {
-	const char	*name;
-	const struct file_operations *proc_fops;
-} Entries[] = {
-#ifdef CONFIG_JFS_STATISTICS
-	{ "lmstats",	&jfs_lmstats_proc_fops, },
-	{ "txstats",	&jfs_txstats_proc_fops, },
-	{ "xtstat",	&jfs_xtstat_proc_fops, },
-	{ "mpstat",	&jfs_mpstat_proc_fops, },
-#endif
-#ifdef CONFIG_JFS_DEBUG
-	{ "TxAnchor",	&jfs_txanchor_proc_fops, },
-	{ "loglevel",	&jfs_loglevel_proc_fops }
-#endif
-};
-#define NPROCENT	ARRAY_SIZE(Entries)
-
 void jfs_proc_init(void)
 {
-	int i;
+	struct proc_dir_entry *base;
 
-	if (!(base = proc_mkdir("fs/jfs", NULL)))
+	base = proc_mkdir("fs/jfs", NULL);
+	if (!base)
 		return;
 
-	for (i = 0; i < NPROCENT; i++)
-		proc_create(Entries[i].name, 0, base, Entries[i].proc_fops);
+#ifdef CONFIG_JFS_STATISTICS
+	proc_create_single("lmstats", 0, base, jfs_lmstats_proc_show);
+	proc_create_single("txstats", 0, base, jfs_txstats_proc_show);
+	proc_create_single("xtstat", 0, base, jfs_xtstat_proc_show);
+	proc_create_single("mpstat", 0, base, jfs_mpstat_proc_show);
+#endif
+#ifdef CONFIG_JFS_DEBUG
+	proc_create_single("TxAnchor", 0, base, jfs_txanchor_proc_show);
+	proc_create("loglevel", 0, base, &jfs_loglevel_proc_fops);
+#endif
 }
 
 void jfs_proc_clean(void)
 {
-	int i;
-
-	if (base) {
-		for (i = 0; i < NPROCENT; i++)
-			remove_proc_entry(Entries[i].name, base);
-		remove_proc_entry("fs/jfs", NULL);
-	}
+	remove_proc_subtree("fs/jfs", NULL);
 }
 
 #endif /* PROC_FS_JFS */

@@ -1,20 +1,8 @@
-/* Driver for Realtek PCI-Express card reader
- * Header file
+/* SPDX-License-Identifier: GPL-2.0+ */
+/*
+ * Driver for Realtek PCI-Express card reader
  *
  * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author:
  *   Wei WANG (wei_wang@realsil.com.cn)
@@ -139,28 +127,6 @@ static inline struct rtsx_dev *host_to_rtsx(struct Scsi_Host *host)
 	return (struct rtsx_dev *)host->hostdata;
 }
 
-static inline void get_current_time(u8 *timeval_buf, int buf_len)
-{
-	struct timespec64 ts64;
-	u32 tv_usec;
-
-	if (!timeval_buf || (buf_len < 8))
-		return;
-
-	getnstimeofday64(&ts64);
-
-	tv_usec = ts64.tv_nsec / NSEC_PER_USEC;
-
-	timeval_buf[0] = (u8)(ts64.tv_sec >> 24);
-	timeval_buf[1] = (u8)(ts64.tv_sec >> 16);
-	timeval_buf[2] = (u8)(ts64.tv_sec >> 8);
-	timeval_buf[3] = (u8)(ts64.tv_sec);
-	timeval_buf[4] = (u8)(tv_usec >> 24);
-	timeval_buf[5] = (u8)(tv_usec >> 16);
-	timeval_buf[6] = (u8)(tv_usec >> 8);
-	timeval_buf[7] = (u8)(tv_usec);
-}
-
 /*
  * The scsi_lock() and scsi_unlock() macros protect the sm_state and the
  * single queue element srb for write access
@@ -174,9 +140,6 @@ static inline void get_current_time(u8 *timeval_buf, int buf_len)
 /* struct scsi_cmnd transfer buffer access utilities */
 enum xfer_buf_dir	{TO_XFER_BUF, FROM_XFER_BUF};
 
-#define _MSG_TRACE
-
-#include "trace.h"
 #include "rtsx_chip.h"
 #include "rtsx_transport.h"
 #include "rtsx_scsi.h"

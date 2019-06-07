@@ -251,6 +251,7 @@ static inline bool idle_should_enter_s2idle(void)
 	return unlikely(s2idle_state == S2IDLE_STATE_ENTER);
 }
 
+extern bool pm_suspend_via_s2idle(void);
 extern void __init pm_states_init(void);
 extern void s2idle_set_ops(const struct platform_s2idle_ops *ops);
 extern void s2idle_wake(void);
@@ -282,6 +283,7 @@ static inline void pm_set_suspend_via_firmware(void) {}
 static inline void pm_set_resume_via_firmware(void) {}
 static inline bool pm_suspend_via_firmware(void) { return false; }
 static inline bool pm_resume_via_firmware(void) { return false; }
+static inline bool pm_suspend_via_s2idle(void) { return false; }
 
 static inline void suspend_set_ops(const struct platform_suspend_ops *ops) {}
 static inline int pm_suspend(suspend_state_t state) { return -ENOSYS; }
@@ -357,7 +359,7 @@ extern void mark_free_pages(struct zone *zone);
  *	platforms which require special recovery actions in that situation.
  */
 struct platform_hibernation_ops {
-	int (*begin)(void);
+	int (*begin)(pm_message_t stage);
 	void (*end)(void);
 	int (*pre_snapshot)(void);
 	void (*finish)(void);
@@ -414,7 +416,7 @@ static inline bool hibernation_available(void) { return false; }
 #define PM_RESTORE_PREPARE	0x0005 /* Going to restore a saved image */
 #define PM_POST_RESTORE		0x0006 /* Restore failed */
 
-extern struct mutex pm_mutex;
+extern struct mutex system_transition_mutex;
 
 #ifdef CONFIG_PM_SLEEP
 void save_processor_state(void);
@@ -423,6 +425,7 @@ void restore_processor_state(void);
 /* kernel/power/main.c */
 extern int register_pm_notifier(struct notifier_block *nb);
 extern int unregister_pm_notifier(struct notifier_block *nb);
+extern void ksys_sync_helper(void);
 
 #define pm_notifier(fn, pri) {				\
 	static struct notifier_block fn##_nb =			\
@@ -459,6 +462,8 @@ static inline int unregister_pm_notifier(struct notifier_block *nb)
 {
 	return 0;
 }
+
+static inline void ksys_sync_helper(void) {}
 
 #define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
 

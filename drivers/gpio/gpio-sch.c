@@ -1,33 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPIO interface for Intel Poulsbo SCH
  *
  *  Copyright (c) 2010 CompuLab Ltd
  *  Author: Denis Turischev <denis@compulab.co.il>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License 2 as published
- *  by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/init.h>
+#include <linux/acpi.h>
+#include <linux/errno.h>
+#include <linux/gpio/driver.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/io.h>
-#include <linux/errno.h>
-#include <linux/acpi.h>
-#include <linux/platform_device.h>
 #include <linux/pci_ids.h>
-
-#include <linux/gpio.h>
+#include <linux/platform_device.h>
 
 #define GEN	0x00
 #define GIO	0x04
@@ -37,7 +23,6 @@ struct sch_gpio {
 	struct gpio_chip chip;
 	spinlock_t lock;
 	unsigned short iobase;
-	unsigned short core_base;
 	unsigned short resume_base;
 };
 
@@ -138,6 +123,13 @@ static int sch_gpio_direction_out(struct gpio_chip *gc, unsigned gpio_num,
 	return 0;
 }
 
+static int sch_gpio_get_direction(struct gpio_chip *gc, unsigned gpio_num)
+{
+	struct sch_gpio *sch = gpiochip_get_data(gc);
+
+	return sch_gpio_reg_get(sch, gpio_num, GIO);
+}
+
 static const struct gpio_chip sch_gpio_chip = {
 	.label			= "sch_gpio",
 	.owner			= THIS_MODULE,
@@ -145,6 +137,7 @@ static const struct gpio_chip sch_gpio_chip = {
 	.get			= sch_gpio_get,
 	.direction_output	= sch_gpio_direction_out,
 	.set			= sch_gpio_set,
+	.get_direction		= sch_gpio_get_direction,
 };
 
 static int sch_gpio_probe(struct platform_device *pdev)
@@ -172,7 +165,6 @@ static int sch_gpio_probe(struct platform_device *pdev)
 
 	switch (pdev->id) {
 	case PCI_DEVICE_ID_INTEL_SCH_LPC:
-		sch->core_base = 0;
 		sch->resume_base = 10;
 		sch->chip.ngpio = 14;
 
@@ -191,19 +183,16 @@ static int sch_gpio_probe(struct platform_device *pdev)
 		break;
 
 	case PCI_DEVICE_ID_INTEL_ITC_LPC:
-		sch->core_base = 0;
 		sch->resume_base = 5;
 		sch->chip.ngpio = 14;
 		break;
 
 	case PCI_DEVICE_ID_INTEL_CENTERTON_ILB:
-		sch->core_base = 0;
 		sch->resume_base = 21;
 		sch->chip.ngpio = 30;
 		break;
 
 	case PCI_DEVICE_ID_INTEL_QUARK_X1000_ILB:
-		sch->core_base = 0;
 		sch->resume_base = 2;
 		sch->chip.ngpio = 8;
 		break;
@@ -228,5 +217,5 @@ module_platform_driver(sch_gpio_driver);
 
 MODULE_AUTHOR("Denis Turischev <denis@compulab.co.il>");
 MODULE_DESCRIPTION("GPIO interface for Intel Poulsbo SCH");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:sch_gpio");

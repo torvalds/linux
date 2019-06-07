@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (c) 2006-2008 Daniel Mack, Karsten Wiese
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
 #include <linux/device.h>
@@ -348,7 +335,6 @@ static const struct snd_pcm_ops snd_usb_caiaq_ops = {
 	.trigger =	snd_usb_caiaq_pcm_trigger,
 	.pointer =	snd_usb_caiaq_pcm_pointer,
 	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 static void check_for_elapsed_periods(struct snd_usb_caiaqdev *cdev,
@@ -636,6 +622,7 @@ static void read_completed(struct urb *urb)
 	struct device *dev;
 	struct urb *out = NULL;
 	int i, frame, len, send_it = 0, outframe = 0;
+	unsigned long flags;
 	size_t offset = 0;
 
 	if (urb->status || !info)
@@ -672,10 +659,10 @@ static void read_completed(struct urb *urb)
 		offset += len;
 
 		if (len > 0) {
-			spin_lock(&cdev->spinlock);
+			spin_lock_irqsave(&cdev->spinlock, flags);
 			fill_out_urb(cdev, out, &out->iso_frame_desc[outframe]);
 			read_in_urb(cdev, urb, &urb->iso_frame_desc[frame]);
-			spin_unlock(&cdev->spinlock);
+			spin_unlock_irqrestore(&cdev->spinlock, flags);
 			check_for_elapsed_periods(cdev, cdev->sub_playback);
 			check_for_elapsed_periods(cdev, cdev->sub_capture);
 			send_it = 1;
@@ -728,7 +715,7 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 		usb_sndisocpipe(usb_dev, ENDPOINT_PLAYBACK) :
 		usb_rcvisocpipe(usb_dev, ENDPOINT_CAPTURE);
 
-	urbs = kmalloc(N_URBS * sizeof(*urbs), GFP_KERNEL);
+	urbs = kmalloc_array(N_URBS, sizeof(*urbs), GFP_KERNEL);
 	if (!urbs) {
 		*ret = -ENOMEM;
 		return NULL;
@@ -742,7 +729,8 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 		}
 
 		urbs[i]->transfer_buffer =
-			kmalloc(FRAMES_PER_URB * BYTES_PER_FRAME, GFP_KERNEL);
+			kmalloc_array(BYTES_PER_FRAME, FRAMES_PER_URB,
+				      GFP_KERNEL);
 		if (!urbs[i]->transfer_buffer) {
 			*ret = -ENOMEM;
 			return urbs;
@@ -857,7 +845,7 @@ int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *cdev)
 				&snd_usb_caiaq_ops);
 
 	cdev->data_cb_info =
-		kmalloc(sizeof(struct snd_usb_caiaq_cb_info) * N_URBS,
+		kmalloc_array(N_URBS, sizeof(struct snd_usb_caiaq_cb_info),
 					GFP_KERNEL);
 
 	if (!cdev->data_cb_info)

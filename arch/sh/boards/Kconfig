@@ -101,7 +101,7 @@ config SH_7751_SOLUTION_ENGINE
 config SH_7780_SOLUTION_ENGINE
 	bool "SolutionEngine7780"
 	select SOLUTION_ENGINE
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	depends on CPU_SUBTYPE_SH7780
 	help
 	  Select 7780 SolutionEngine if configuring for a Renesas SH7780
@@ -129,7 +129,7 @@ config SH_HP6XX
 
 config SH_DREAMCAST
 	bool "Dreamcast"
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	depends on CPU_SUBTYPE_SH7091
 	help
 	  Select Dreamcast if configuring for a SEGA Dreamcast.
@@ -139,7 +139,7 @@ config SH_SH03
 	bool "Interface CTP/PCI-SH03"
 	depends on CPU_SUBTYPE_SH7751
 	select CPU_HAS_IPR_IRQ
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	help
 	  CTP/PCI-SH03 is a CPU module computer that is produced
 	  by Interface Corporation.
@@ -149,7 +149,7 @@ config SH_SECUREEDGE5410
 	bool "SecureEdge5410"
 	depends on CPU_SUBTYPE_SH7751R
 	select CPU_HAS_IPR_IRQ
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	help
 	  Select SecureEdge5410 if configuring for a SnapGear SH board.
 	  This includes both the OEM SecureEdge products as well as the
@@ -158,7 +158,7 @@ config SH_SECUREEDGE5410
 config SH_RTS7751R2D
 	bool "RTS7751R2D"
 	depends on CPU_SUBTYPE_SH7751R
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	select IO_TRAPPED if MMU
 	help
 	  Select RTS7751R2D if configuring for a Renesas Technology
@@ -176,7 +176,7 @@ config SH_RSK
 config SH_SDK7780
 	bool "SDK7780R3"
 	depends on CPU_SUBTYPE_SH7780
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	help
 	  Select SDK7780 if configuring for a Renesas SH7780 SDK7780R3
 	  evaluation board.
@@ -184,7 +184,7 @@ config SH_SDK7780
 config SH_SDK7786
 	bool "SDK7786"
 	depends on CPU_SUBTYPE_SH7786
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	select NO_IOPORT_MAP if !PCI
 	select HAVE_SRAM_POOL
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
@@ -195,7 +195,7 @@ config SH_SDK7786
 config SH_HIGHLANDER
 	bool "Highlander"
 	depends on CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	select IO_TRAPPED if MMU
 
 config SH_SH7757LCR
@@ -207,7 +207,7 @@ config SH_SH7757LCR
 config SH_SH7785LCR
 	bool "SH7785LCR"
 	depends on CPU_SUBTYPE_SH7785
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 
 config SH_SH7785LCR_29BIT_PHYSMAPS
 	bool "SH7785LCR 29bit physmaps"
@@ -229,7 +229,7 @@ config SH_URQUELL
 	bool "Urquell"
 	depends on CPU_SUBTYPE_SH7786
 	select GPIOLIB
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	select NO_IOPORT_MAP if !PCI
 
 config SH_MIGOR
@@ -302,7 +302,7 @@ config SH_SH4202_MICRODEV
 config SH_LANDISK
 	bool "LANDISK"
 	depends on CPU_SUBTYPE_SH7751R
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	help
 	  I-O DATA DEVICE, INC. "LANDISK Series" support.
 
@@ -310,7 +310,7 @@ config SH_TITAN
 	bool "TITAN"
 	depends on CPU_SUBTYPE_SH7751R
 	select CPU_HAS_IPR_IRQ
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	help
 	  Select Titan if you are configuring for a Nimble Microsystems
 	  NetEngine NP51R.
@@ -325,7 +325,7 @@ config SH_SHMIN
 config SH_LBOX_RE2
 	bool "L-BOX RE2"
 	depends on CPU_SUBTYPE_SH7751R
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	help
 	  Select L-BOX RE2 if configuring for the NTT COMWARE L-BOX RE2.
 
@@ -346,7 +346,7 @@ config SH_MAGIC_PANEL_R2
 config SH_CAYMAN
 	bool "Hitachi Cayman"
 	depends on CPU_SUBTYPE_SH5_101 || CPU_SUBTYPE_SH5_103
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	select ARCH_MIGHT_HAVE_PC_SERIO
 
 config SH_POLARIS
@@ -380,7 +380,7 @@ config SH_APSH4A3A
 config SH_APSH4AD0A
 	bool "AP-SH4AD-0A"
 	select SH_ALPHA_BOARD
-	select SYS_SUPPORTS_PCI
+	select HAVE_PCI
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	depends on CPU_SUBTYPE_SH7786
 	help

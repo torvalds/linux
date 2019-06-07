@@ -193,7 +193,7 @@ static void __sco_chan_add(struct sco_conn *conn, struct sock *sk,
 	conn->sk = sk;
 
 	if (parent)
-		bt_accept_enqueue(parent, sk);
+		bt_accept_enqueue(parent, sk, true);
 }
 
 static int sco_chan_add(struct sco_conn *conn, struct sock *sk,
@@ -393,7 +393,8 @@ static void sco_sock_cleanup_listen(struct sock *parent)
  */
 static void sco_sock_kill(struct sock *sk)
 {
-	if (!sock_flag(sk, SOCK_ZAPPED) || sk->sk_socket)
+	if (!sock_flag(sk, SOCK_ZAPPED) || sk->sk_socket ||
+	    sock_flag(sk, SOCK_DEAD))
 		return;
 
 	BT_DBG("sk %p state %d", sk, sk->sk_state);
@@ -522,11 +523,11 @@ static int sco_sock_bind(struct socket *sock, struct sockaddr *addr,
 	struct sock *sk = sock->sk;
 	int err = 0;
 
-	BT_DBG("sk %p %pMR", sk, &sa->sco_bdaddr);
-
 	if (!addr || addr_len < sizeof(struct sockaddr_sco) ||
 	    addr->sa_family != AF_BLUETOOTH)
 		return -EINVAL;
+
+	BT_DBG("sk %p %pMR", sk, &sa->sco_bdaddr);
 
 	lock_sock(sk);
 
@@ -1172,17 +1173,7 @@ static int sco_debugfs_show(struct seq_file *f, void *p)
 	return 0;
 }
 
-static int sco_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sco_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations sco_debugfs_fops = {
-	.open		= sco_debugfs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(sco_debugfs);
 
 static struct dentry *sco_debugfs;
 
@@ -1199,6 +1190,7 @@ static const struct proto_ops sco_sock_ops = {
 	.recvmsg	= sco_sock_recvmsg,
 	.poll		= bt_sock_poll,
 	.ioctl		= bt_sock_ioctl,
+	.gettstamp	= sock_gettstamp,
 	.mmap		= sock_no_mmap,
 	.socketpair	= sock_no_socketpair,
 	.shutdown	= sco_sock_shutdown,

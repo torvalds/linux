@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * eisa.c - provide support for EISA adapters in PA-RISC machines
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Copyright (c) 2001 Matthew Wilcox for Hewlett Packard
  * Copyright (c) 2001 Daniel Engstrom <5116@telia.com>
@@ -14,7 +10,6 @@
  * Wax ASIC also includes a PS/2 and RS-232 controller, but those are
  * dealt with elsewhere; this file is concerned only with the EISA portions
  * of Wax.
- *
  *
  * HINT:
  * -----
@@ -44,6 +39,8 @@
 #include <asm/delay.h>
 #include <asm/eisa_bus.h>
 #include <asm/eisa_eeprom.h>
+
+#include "iommu.h"
 
 #if 0
 #define EISA_DBG(msg, arg...) printk(KERN_DEBUG "eisa: " msg, ## arg)

@@ -54,10 +54,7 @@ static int saa7146_i2c_msg_prepare(const struct i2c_msg *m, int num, __le32 *op)
 	/* loop through all messages */
 	for(i = 0; i < num; i++) {
 
-		/* insert the address of the i2c-slave.
-		   note: we get 7 bit i2c-addresses,
-		   so we have to perform a translation */
-		addr = (m[i].addr*2) + ( (0 != (m[i].flags & I2C_M_RD)) ? 1 : 0);
+		addr = i2c_8bit_addr_from_msg(&m[i]);
 		h1 = op_count/3; h2 = op_count%3;
 		op[h1] |= cpu_to_le32(	    (u8)addr << ((3-h2)*8));
 		op[h1] |= cpu_to_le32(SAA7146_I2C_START << ((3-h2)*2));
@@ -308,7 +305,7 @@ static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *m
 	/* prepare the message(s), get number of u32s to transfer */
 	count = saa7146_i2c_msg_prepare(msgs, num, buffer);
 	if ( 0 > count ) {
-		err = -1;
+		err = -EIO;
 		goto out;
 	}
 
@@ -360,7 +357,7 @@ static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *m
 	/* if any things had to be read, get the results */
 	if ( 0 != saa7146_i2c_msg_cleanup(msgs, num, buffer)) {
 		DEB_I2C("could not cleanup i2c-message\n");
-		err = -1;
+		err = -EIO;
 		goto out;
 	}
 

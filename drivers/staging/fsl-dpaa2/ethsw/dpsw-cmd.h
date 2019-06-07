@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2014-2016 Freescale Semiconductor Inc.
  * Copyright 2017-2018 NXP
@@ -48,6 +48,8 @@
 #define DPSW_CMDID_IF_GET_LINK_STATE        DPSW_CMD_ID(0x046)
 #define DPSW_CMDID_IF_SET_FLOODING          DPSW_CMD_ID(0x047)
 #define DPSW_CMDID_IF_SET_BROADCAST         DPSW_CMD_ID(0x048)
+
+#define DPSW_CMDID_IF_GET_TCI               DPSW_CMD_ID(0x04A)
 
 #define DPSW_CMDID_IF_SET_LINK_CFG          DPSW_CMD_ID(0x04C)
 
@@ -204,6 +206,17 @@ struct dpsw_cmd_if_set_tci {
 	__le16 if_id;
 	/* from LSB: VLAN_ID:12 DEI:1 PCP:3 */
 	__le16 conf;
+};
+
+struct dpsw_cmd_if_get_tci {
+	__le16 if_id;
+};
+
+struct dpsw_rsp_if_get_tci {
+	__le16 pad;
+	__le16 vlan_id;
+	u8 dei;
+	u8 pcp;
 };
 
 #define DPSW_STATE_SHIFT	0

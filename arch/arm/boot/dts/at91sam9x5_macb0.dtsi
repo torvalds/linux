@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91sam9x5_macb0.dtsi - Device Tree Include file for AT91SAM9x5 SoC with 1
  * Ethernet interface.
  *
  * Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
- *
- * Licensed under GPLv2.
  */
 
 #include <dt-bindings/pinctrl/at91.h>
@@ -43,22 +42,13 @@
 				};
 			};
 
-			pmc: pmc@fffffc00 {
-				periphck {
-					macb0_clk: macb0_clk {
-						#clock-cells = <0>;
-						reg = <24>;
-					};
-				};
-			};
-
 			macb0: ethernet@f802c000 {
 				compatible = "cdns,at91sam9260-macb", "cdns,macb";
 				reg = <0xf802c000 0x100>;
 				interrupts = <24 IRQ_TYPE_LEVEL_HIGH 3>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_macb0_rmii>;
-				clocks = <&macb0_clk>, <&macb0_clk>;
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 24>, <&pmc PMC_TYPE_PERIPHERAL 24>;
 				clock-names = "hclk", "pclk";
 				status = "disabled";
 			};

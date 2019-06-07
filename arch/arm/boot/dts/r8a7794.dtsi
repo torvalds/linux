@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the r8a7794 SoC
+ * Device Tree Source for the R-Car E2 (R8A77940) SoC
  *
  * Copyright (C) 2014 Renesas Electronics Corporation
  * Copyright (C) 2014 Ulrich Hecht
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <dt-bindings/clock/r8a7794-cpg-mssr.h>
@@ -103,6 +100,13 @@
 		clock-frequency = <0>;
 	};
 
+	pmu {
+		compatible = "arm,cortex-a7-pmu";
+		interrupts-extended = <&gic GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>,
+				      <&gic GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>;
+	};
+
 	/* External SCIF clock */
 	scif_clk: scif {
 		compatible = "fixed-clock";
@@ -118,6 +122,16 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		rwdt: watchdog@e6020000 {
+			compatible = "renesas,r8a7794-wdt",
+				     "renesas,rcar-gen2-wdt";
+			reg = <0 0xe6020000 0 0x0c>;
+			clocks = <&cpg CPG_MOD 402>;
+			power-domains = <&sysc R8A7794_PD_ALWAYS_ON>;
+			resets = <&cpg 402>;
+			status = "disabled";
+		};
 
 		gpio0: gpio@e6050000 {
 			compatible = "renesas,gpio-r8a7794",
@@ -348,7 +362,7 @@
 
 			smp-sram@0 {
 				compatible = "renesas,smp-sram";
-				reg = <0 0x10>;
+				reg = <0 0x100>;
 			};
 		};
 
@@ -1323,10 +1337,18 @@
 			resets = <&cpg 128>;
 		};
 
+		fdp1@fe940000 {
+			compatible = "renesas,fdp1";
+			reg = <0 0xfe940000 0 0x2400>;
+			interrupts = <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 119>;
+			power-domains = <&sysc R8A7794_PD_ALWAYS_ON>;
+			resets = <&cpg 119>;
+		};
+
 		du: display@feb00000 {
 			compatible = "renesas,du-r8a7794";
 			reg = <0 0xfeb00000 0 0x40000>;
-			reg-names = "du";
 			interrupts = <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 724>, <&cpg CPG_MOD 723>;

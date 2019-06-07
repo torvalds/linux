@@ -33,6 +33,7 @@
 #include <linux/etherdevice.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/mlx5_ifc.h>
+#include <linux/mlx5/eswitch.h>
 #include "mlx5_core.h"
 #include "lib/mpfs.h"
 
@@ -98,7 +99,7 @@ int mlx5_mpfs_init(struct mlx5_core_dev *dev)
 	int l2table_size = 1 << MLX5_CAP_GEN(dev, log_max_l2_table);
 	struct mlx5_mpfs *mpfs;
 
-	if (!MLX5_VPORT_MANAGER(dev))
+	if (!MLX5_ESWITCH_MANAGER(dev))
 		return 0;
 
 	mpfs = kzalloc(sizeof(*mpfs), GFP_KERNEL);
@@ -107,8 +108,7 @@ int mlx5_mpfs_init(struct mlx5_core_dev *dev)
 
 	mutex_init(&mpfs->lock);
 	mpfs->size   = l2table_size;
-	mpfs->bitmap = kcalloc(BITS_TO_LONGS(l2table_size),
-			       sizeof(uintptr_t), GFP_KERNEL);
+	mpfs->bitmap = bitmap_zalloc(l2table_size, GFP_KERNEL);
 	if (!mpfs->bitmap) {
 		kfree(mpfs);
 		return -ENOMEM;
@@ -122,11 +122,11 @@ void mlx5_mpfs_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_mpfs *mpfs = dev->priv.mpfs;
 
-	if (!MLX5_VPORT_MANAGER(dev))
+	if (!MLX5_ESWITCH_MANAGER(dev))
 		return;
 
 	WARN_ON(!hlist_empty(mpfs->hash));
-	kfree(mpfs->bitmap);
+	bitmap_free(mpfs->bitmap);
 	kfree(mpfs);
 }
 
@@ -137,7 +137,7 @@ int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 	u32 index;
 	int err;
 
-	if (!MLX5_VPORT_MANAGER(dev))
+	if (!MLX5_ESWITCH_MANAGER(dev))
 		return 0;
 
 	mutex_lock(&mpfs->lock);
@@ -179,7 +179,7 @@ int mlx5_mpfs_del_mac(struct mlx5_core_dev *dev, u8 *mac)
 	int err = 0;
 	u32 index;
 
-	if (!MLX5_VPORT_MANAGER(dev))
+	if (!MLX5_ESWITCH_MANAGER(dev))
 		return 0;
 
 	mutex_lock(&mpfs->lock);

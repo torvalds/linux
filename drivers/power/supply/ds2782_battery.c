@@ -319,17 +319,17 @@ static void ds278x_power_supply_init(struct power_supply_desc *battery)
 static int ds278x_battery_remove(struct i2c_client *client)
 {
 	struct ds278x_info *info = i2c_get_clientdata(client);
+	int id = info->id;
 
 	power_supply_unregister(info->battery);
+	cancel_delayed_work_sync(&info->bat_work);
 	kfree(info->battery_desc.name);
+	kfree(info);
 
 	mutex_lock(&battery_lock);
-	idr_remove(&battery_id, info->id);
+	idr_remove(&battery_id, id);
 	mutex_unlock(&battery_lock);
 
-	cancel_delayed_work(&info->bat_work);
-
-	kfree(info);
 	return 0;
 }
 
@@ -471,5 +471,5 @@ static struct i2c_driver ds278x_battery_driver = {
 module_i2c_driver(ds278x_battery_driver);
 
 MODULE_AUTHOR("Ryan Mallon");
-MODULE_DESCRIPTION("Maxim/Dallas DS2782 Stand-Alone Fuel Gauage IC driver");
+MODULE_DESCRIPTION("Maxim/Dallas DS2782 Stand-Alone Fuel Gauge IC driver");
 MODULE_LICENSE("GPL");

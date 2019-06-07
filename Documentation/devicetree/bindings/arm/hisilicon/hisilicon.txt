@@ -8,6 +8,14 @@ HiKey960 Board
 Required root node properties:
 	- compatible = "hisilicon,hi3660-hikey960", "hisilicon,hi3660";
 
+Hi3670 SoC
+Required root node properties:
+	- compatible = "hisilicon,hi3670";
+
+HiKey970 Board
+Required root node properties:
+	- compatible = "hisilicon,hi3670-hikey970", "hisilicon,hi3670";
+
 Hi3798cv200 SoC
 Required root node properties:
 	- compatible = "hisilicon,hi3798cv200";

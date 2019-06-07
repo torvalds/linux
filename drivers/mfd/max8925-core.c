@@ -10,7 +10,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -919,8 +919,3 @@ void max8925_device_exit(struct max8925_chip *chip)
 		free_irq(chip->tsc_irq, chip);
 	mfd_remove_devices(chip->dev);
 }
-
-
-MODULE_DESCRIPTION("PMIC Driver for Maxim MAX8925");
-MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com");
-MODULE_LICENSE("GPL");

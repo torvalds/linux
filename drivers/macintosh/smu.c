@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/dmapool.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/jiffies.h>
@@ -38,7 +38,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
-#include <linux/memblock.h>
 #include <linux/sched/signal.h>
 
 #include <asm/byteorder.h>
@@ -486,14 +485,17 @@ int __init smu_init (void)
 	 * SMU based G5s need some memory below 2Gb. Thankfully this is
 	 * called at a time where memblock is still available.
 	 */
-	smu_cmdbuf_abs = memblock_alloc_base(4096, 4096, 0x80000000UL);
+	smu_cmdbuf_abs = memblock_phys_alloc_range(4096, 4096, 0, 0x80000000UL);
 	if (smu_cmdbuf_abs == 0) {
 		printk(KERN_ERR "SMU: Command buffer allocation failed !\n");
 		ret = -EINVAL;
 		goto fail_np;
 	}
 
-	smu = alloc_bootmem(sizeof(struct smu_device));
+	smu = memblock_alloc(sizeof(struct smu_device), SMP_CACHE_BYTES);
+	if (!smu)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(struct smu_device));
 
 	spin_lock_init(&smu->lock);
 	INIT_LIST_HEAD(&smu->cmd_list);
@@ -569,7 +571,7 @@ fail_msg_node:
 fail_db_node:
 	of_node_put(smu->db_node);
 fail_bootmem:
-	free_bootmem(__pa(smu), sizeof(struct smu_device));
+	memblock_free(__pa(smu), sizeof(struct smu_device));
 	smu = NULL;
 fail_np:
 	of_node_put(np);

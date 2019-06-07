@@ -20,7 +20,6 @@
 #define pr_fmt(fmt) "NUMA: " fmt
 
 #include <linux/acpi.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -70,19 +69,32 @@ EXPORT_SYMBOL(cpumask_of_node);
 
 #endif
 
-static void map_cpu_to_node(unsigned int cpu, int nid)
+static void numa_update_cpu(unsigned int cpu, bool remove)
 {
-	set_cpu_numa_node(cpu, nid);
-	if (nid >= 0)
+	int nid = cpu_to_node(cpu);
+
+	if (nid == NUMA_NO_NODE)
+		return;
+
+	if (remove)
+		cpumask_clear_cpu(cpu, node_to_cpumask_map[nid]);
+	else
 		cpumask_set_cpu(cpu, node_to_cpumask_map[nid]);
+}
+
+void numa_add_cpu(unsigned int cpu)
+{
+	numa_update_cpu(cpu, false);
+}
+
+void numa_remove_cpu(unsigned int cpu)
+{
+	numa_update_cpu(cpu, true);
 }
 
 void numa_clear_node(unsigned int cpu)
 {
-	int nid = cpu_to_node(cpu);
-
-	if (nid >= 0)
-		cpumask_clear_cpu(cpu, node_to_cpumask_map[nid]);
+	numa_remove_cpu(cpu);
 	set_cpu_numa_node(cpu, NUMA_NO_NODE);
 }
 
@@ -108,15 +120,15 @@ static void __init setup_node_to_cpumask_map(void)
 	}
 
 	/* cpumask_of_node() will now work */
-	pr_debug("Node to cpumask map for %d nodes\n", nr_node_ids);
+	pr_debug("Node to cpumask map for %u nodes\n", nr_node_ids);
 }
 
 /*
- *  Set the cpu to node and mem mapping
+ * Set the cpu to node and mem mapping
  */
 void numa_store_cpu_info(unsigned int cpu)
 {
-	map_cpu_to_node(cpu, cpu_to_node_map[cpu]);
+	set_cpu_numa_node(cpu, cpu_to_node_map[cpu]);
 }
 
 void __init early_map_cpu_to_node(unsigned int cpu, int nid)
@@ -155,7 +167,7 @@ static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size,
 {
 	int nid = early_cpu_to_node(cpu);
 
-	return  memblock_virt_alloc_try_nid(size, align,
+	return  memblock_alloc_try_nid(size, align,
 			__pa(MAX_DMA_ADDRESS), MEMBLOCK_ALLOC_ACCESSIBLE, nid);
 }
 
@@ -188,7 +200,7 @@ void __init setup_per_cpu_areas(void)
 #endif
 
 /**
- * numa_add_memblk - Set node id to memblk
+ * numa_add_memblk() - Set node id to memblk
  * @nid: NUMA node ID of the new memblk
  * @start: Start address of the new memblk
  * @end:  End address of the new memblk
@@ -211,7 +223,7 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
 	return ret;
 }
 
-/**
+/*
  * Initialize NODE_DATA for a node on the local memory
  */
 static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
@@ -224,7 +236,11 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 	if (start_pfn >= end_pfn)
 		pr_info("Initmem setup node %d [<memory-less node>]\n", nid);
 
-	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+	if (!nd_pa)
+		panic("Cannot allocate %zu bytes for node %d data\n",
+		      nd_size, nid);
+
 	nd = __va(nd_pa);
 
 	/* report and initialize */
@@ -241,7 +257,7 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
 }
 
-/**
+/*
  * numa_free_distance
  *
  * The current table is freed.
@@ -261,10 +277,8 @@ void __init numa_free_distance(void)
 	numa_distance = NULL;
 }
 
-/**
- *
+/*
  * Create a new NUMA distance table.
- *
  */
 static int __init numa_alloc_distance(void)
 {
@@ -295,7 +309,7 @@ static int __init numa_alloc_distance(void)
 }
 
 /**
- * numa_set_distance - Set inter node NUMA distance from node to node.
+ * numa_set_distance() - Set inter node NUMA distance from node to node.
  * @from: the 'from' node to set distance
  * @to: the 'to'  node to set distance
  * @distance: NUMA distance
@@ -305,7 +319,6 @@ static int __init numa_alloc_distance(void)
  *
  * If @from or @to is higher than the highest known node or lower than zero
  * or @distance doesn't make sense, the call is ignored.
- *
  */
 void __init numa_set_distance(int from, int to, int distance)
 {
@@ -331,7 +344,7 @@ void __init numa_set_distance(int from, int to, int distance)
 	numa_distance[from * numa_distance_cnt + to] = distance;
 }
 
-/**
+/*
  * Return NUMA distance @from to @to
  */
 int __node_distance(int from, int to)
@@ -378,7 +391,6 @@ static int __init numa_init(int (*init_func)(void))
 	nodes_clear(numa_nodes_parsed);
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
-	numa_free_distance();
 
 	ret = numa_alloc_distance();
 	if (ret < 0)
@@ -386,30 +398,36 @@ static int __init numa_init(int (*init_func)(void))
 
 	ret = init_func();
 	if (ret < 0)
-		return ret;
+		goto out_free_distance;
 
 	if (nodes_empty(numa_nodes_parsed)) {
 		pr_info("No NUMA configuration found\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out_free_distance;
 	}
 
 	ret = numa_register_nodes();
 	if (ret < 0)
-		return ret;
+		goto out_free_distance;
 
 	setup_node_to_cpumask_map();
 
 	return 0;
+out_free_distance:
+	numa_free_distance();
+	return ret;
 }
 
 /**
- * dummy_numa_init - Fallback dummy NUMA init
+ * dummy_numa_init() - Fallback dummy NUMA init
  *
  * Used if there's no underlying NUMA architecture, NUMA initialization
  * fails, or NUMA is disabled on the command line.
  *
  * Must online at least one node (node 0) and add memory blocks that cover all
  * allowed memory. It is unlikely that this function fails.
+ *
+ * Return: 0 on success, -errno on failure.
  */
 static int __init dummy_numa_init(void)
 {
@@ -419,7 +437,7 @@ static int __init dummy_numa_init(void)
 	if (numa_off)
 		pr_info("NUMA disabled\n"); /* Forced off on command line. */
 	pr_info("Faking a node at [mem %#018Lx-%#018Lx]\n",
-		0LLU, PFN_PHYS(max_pfn) - 1);
+		memblock_start_of_DRAM(), memblock_end_of_DRAM() - 1);
 
 	for_each_memblock(memory, mblk) {
 		ret = numa_add_memblk(0, mblk->base, mblk->base + mblk->size);
@@ -435,9 +453,9 @@ static int __init dummy_numa_init(void)
 }
 
 /**
- * arm64_numa_init - Initialize NUMA
+ * arm64_numa_init() - Initialize NUMA
  *
- * Try each configured NUMA initialization method until one succeeds.  The
+ * Try each configured NUMA initialization method until one succeeds. The
  * last fallback is dummy single node config encomapssing whole memory.
  */
 void __init arm64_numa_init(void)
@@ -450,4 +468,14 @@ void __init arm64_numa_init(void)
 	}
 
 	numa_init(dummy_numa_init);
+}
+
+/*
+ * We hope that we will be hotplugging memory on nodes we already know about,
+ * such that acpi_get_node() succeeds and we never fall back to this...
+ */
+int memory_add_physaddr_to_nid(u64 addr)
+{
+	pr_warn("Unknown node for memory at 0x%llx, assuming node 0\n", addr);
+	return 0;
 }

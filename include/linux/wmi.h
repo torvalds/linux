@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * wmi.h - ACPI WMI interface
  *
  * Copyright (c) 2015 Andrew Lutomirski
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef _LINUX_WMI_H
@@ -18,6 +10,7 @@
 
 #include <linux/device.h>
 #include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 #include <uapi/linux/wmi.h>
 
 struct wmi_device {
@@ -38,10 +31,6 @@ extern union acpi_object *wmidev_block_query(struct wmi_device *wdev,
 					     u8 instance);
 
 extern int set_required_buffer_size(struct wmi_device *wdev, u64 length);
-
-struct wmi_device_id {
-	const char *guid_string;
-};
 
 struct wmi_driver {
 	struct device_driver driver;

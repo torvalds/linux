@@ -1,17 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ox820.dtsi - Device tree file for Oxford Semiconductor OX820 SoC
  *
  * Copyright (C) 2016 Neil Armstrong <narmstrong@baylibre.com>
- *
- * Licensed under GPLv2 or later
  */
 
-/include/ "skeleton.dtsi"
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/oxsemi,ox820.h>
 #include <dt-bindings/reset/oxsemi,ox820.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "oxsemi,ox820";
 
 	cpus {
@@ -35,6 +35,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		/* Max 512MB @ 0x60000000 */
 		reg = <0x60000000 0x20000000>;
 	};

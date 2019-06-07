@@ -11,9 +11,6 @@ Required Properties:
 - resets		: phandle to reset controller with the reset number in
 			  the second cell
 - interrupts		: interrupt number
-- interrupt-parent	: interrupt controller for bus, should reference a
-			  aspeed,ast2400-i2c-ic or aspeed,ast2500-i2c-ic
-			  interrupt controller
 
 Optional Properties:
 - bus-frequency	: frequency of the bus clock in Hz defaults to 100 kHz when not

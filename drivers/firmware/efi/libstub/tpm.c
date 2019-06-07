@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * TPM handling.
  *
@@ -5,9 +6,6 @@
  * Copyright (C) 2017 Google, Inc.
  *     Matthew Garrett <mjg59@google.com>
  *     Thiebaud Weksteen <tweek@google.com>
- *
- * This file is part of the Linux kernel, and is made available under the
- * terms of the GNU General Public License version 2.
  */
 #include <linux/efi.h>
 #include <linux/tpm_eventlog.h>
@@ -59,12 +57,12 @@ void efi_enable_reset_attack_mitigation(efi_system_table_t *sys_table_arg)
 
 #endif
 
-void efi_retrieve_tpm2_eventlog_1_2(efi_system_table_t *sys_table_arg)
+static void efi_retrieve_tpm2_eventlog_1_2(efi_system_table_t *sys_table_arg)
 {
 	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
 	efi_guid_t linux_eventlog_guid = LINUX_EFI_TPM_EVENT_LOG_GUID;
 	efi_status_t status;
-	efi_physical_addr_t log_location, log_last_entry;
+	efi_physical_addr_t log_location = 0, log_last_entry = 0;
 	struct linux_efi_tpm_eventlog *log_tbl = NULL;
 	unsigned long first_entry_addr, last_entry_addr;
 	size_t log_size, last_entry_size;

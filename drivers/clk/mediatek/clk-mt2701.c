@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 MediaTek Inc.
  * Author: Shunli Wang <shunli.wang@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
@@ -46,8 +38,6 @@ static const struct mtk_fixed_clk top_fixed_clks[] = {
 		340 * MHZ),
 	FIXED_CLK(CLK_TOP_HDMI_0_PLL340M, "hdmi_0_pll340m", "clk26m",
 		340 * MHZ),
-	FIXED_CLK(CLK_TOP_HDMITX_CLKDIG_CTS, "hdmitx_dig_cts", "clk26m",
-		300 * MHZ),
 	FIXED_CLK(CLK_TOP_HADDS2_FB, "hadds2_fbclk", "clk26m",
 		27 * MHZ),
 	FIXED_CLK(CLK_TOP_WBG_DIG_416M, "wbg_dig_ck_416m", "clk26m",
@@ -249,11 +239,6 @@ static const char * const msdc30_parents[] = {
 	"syspll1_d4",
 	"univpll1_d4",
 	"univpll2_d4"
-};
-
-static const char * const audio_parents[] = {
-	"clk26m",
-	"syspll1_d16"
 };
 
 static const char * const aud_intbus_parents[] = {
@@ -542,8 +527,8 @@ static const struct mtk_composite top_muxes[] = {
 		0x0080, 8, 2, 15),
 	MUX_GATE(CLK_TOP_DPI0_SEL, "dpi0_sel", dpi0_parents,
 		0x0080, 16, 3, 23),
-	MUX_GATE(CLK_TOP_DPI1_SEL, "dpi1_sel", dpi1_parents,
-		0x0080, 24, 2, 31),
+	MUX_GATE_FLAGS_2(CLK_TOP_DPI1_SEL, "dpi1_sel", dpi1_parents,
+		0x0080, 24, 2, 31, 0, CLK_MUX_ROUND_CLOSEST),
 
 	MUX_GATE(CLK_TOP_TVE_SEL, "tve_sel", tve_parents,
 		0x0090, 0, 3, 7),
@@ -977,6 +962,10 @@ static const struct mtk_pll_data apmixed_plls[] = {
 				21, 0x2d0, 4, 0x0, 0x2d4, 0),
 };
 
+static const struct mtk_fixed_factor apmixed_fixed_divs[] = {
+	FACTOR(CLK_APMIXED_HDMI_REF, "hdmi_ref", "tvdpll", 1, 1),
+};
+
 static int mtk_apmixedsys_init(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
@@ -987,6 +976,8 @@ static int mtk_apmixedsys_init(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mtk_clk_register_plls(node, apmixed_plls, ARRAY_SIZE(apmixed_plls),
+								clk_data);
+	mtk_clk_register_factors(apmixed_fixed_divs, ARRAY_SIZE(apmixed_fixed_divs),
 								clk_data);
 
 	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);

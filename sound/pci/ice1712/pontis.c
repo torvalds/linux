@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for ICEnsemble VT1724 (Envy24HT)
  *
  *   Lowlevel functions for Pontis MS300
  *
  *	Copyright (c) 2004 Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -659,12 +645,8 @@ static void wm_proc_regs_read(struct snd_info_entry *entry, struct snd_info_buff
 
 static void wm_proc_init(struct snd_ice1712 *ice)
 {
-	struct snd_info_entry *entry;
-	if (! snd_card_proc_new(ice->card, "wm_codec", &entry)) {
-		snd_info_set_text_ops(entry, ice, wm_proc_regs_read);
-		entry->mode |= S_IWUSR;
-		entry->c.text.write = wm_proc_regs_write;
-	}
+	snd_card_rw_proc_new(ice->card, "wm_codec", ice, wm_proc_regs_read,
+			     wm_proc_regs_write);
 }
 
 static void cs_proc_regs_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
@@ -684,9 +666,7 @@ static void cs_proc_regs_read(struct snd_info_entry *entry, struct snd_info_buff
 
 static void cs_proc_init(struct snd_ice1712 *ice)
 {
-	struct snd_info_entry *entry;
-	if (! snd_card_proc_new(ice->card, "cs_codec", &entry))
-		snd_info_set_text_ops(entry, ice, cs_proc_regs_read);
+	snd_card_ro_proc_new(ice->card, "cs_codec", ice, cs_proc_regs_read);
 }
 
 

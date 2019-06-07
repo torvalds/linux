@@ -1,22 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ingenic JZ4740 SoC CGU driver
  *
  * Copyright (c) 2015 Imagination Technologies
  * Author: Paul Burton <paul.burton@mips.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <dt-bindings/clock/jz4740-cgu.h>
 #include <asm/mach-jz4740/clock.h>
@@ -134,7 +126,7 @@ static const struct ingenic_cgu_clk_info jz4740_cgu_clocks[] = {
 		"i2s", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4740_CLK_EXT, JZ4740_CLK_PLL_HALF, -1, -1 },
 		.mux = { CGU_REG_CPCCR, 31, 1 },
-		.div = { CGU_REG_I2SCDR, 0, 1, 8, -1, -1, -1 },
+		.div = { CGU_REG_I2SCDR, 0, 1, 9, -1, -1, -1 },
 		.gate = { CGU_REG_CLKGR, 6 },
 	},
 
@@ -161,11 +153,11 @@ static const struct ingenic_cgu_clk_info jz4740_cgu_clocks[] = {
 	},
 
 	[JZ4740_CLK_UDC] = {
-		"udc", CGU_CLK_MUX | CGU_CLK_DIV,
+		"udc", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4740_CLK_EXT, JZ4740_CLK_PLL_HALF, -1, -1 },
 		.mux = { CGU_REG_CPCCR, 29, 1 },
 		.div = { CGU_REG_CPCCR, 23, 1, 6, -1, -1, -1 },
-		.gate = { CGU_REG_SCR, 6 },
+		.gate = { CGU_REG_SCR, 6, true },
 	},
 
 	/* Gate-only clocks */

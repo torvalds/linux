@@ -27,9 +27,9 @@
 
 #define MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE    12
 
-static int mwifiex_check_ibss_peer_capabilties(struct mwifiex_private *priv,
-					       struct mwifiex_sta_node *sta_ptr,
-					       struct sk_buff *event)
+static int mwifiex_check_ibss_peer_capabilities(struct mwifiex_private *priv,
+					        struct mwifiex_sta_node *sta_ptr,
+					        struct sk_buff *event)
 {
 	int evt_len, ele_len;
 	u8 *curr;
@@ -42,7 +42,7 @@ static int mwifiex_check_ibss_peer_capabilties(struct mwifiex_private *priv,
 	evt_len = event->len;
 	curr = event->data;
 
-	mwifiex_dbg_dump(priv->adapter, EVT_D, "ibss peer capabilties:",
+	mwifiex_dbg_dump(priv->adapter, EVT_D, "ibss peer capabilities:",
 			 event->data, event->len);
 
 	skb_push(event, MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE);
@@ -224,7 +224,8 @@ void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
 	adapter->tx_lock_flag = false;
 	adapter->pps_uapsd_mode = false;
 
-	if (adapter->is_cmd_timedout && adapter->curr_cmd)
+	if (test_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags) &&
+	    adapter->curr_cmd)
 		return;
 	priv->media_connected = false;
 	mwifiex_dbg(adapter, MSG,
@@ -240,6 +241,9 @@ void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
 	mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
+
+	if (!ISSUPP_FIRMWARE_SUPPLICANT(priv->adapter->fw_cap_info))
+		return;
 
 	mwifiex_send_cmd(priv, HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG,
 			 HostCmd_ACT_GEN_REMOVE, 0, NULL, false);
@@ -933,8 +937,8 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 			    ibss_sta_addr);
 		sta_ptr = mwifiex_add_sta_entry(priv, ibss_sta_addr);
 		if (sta_ptr && adapter->adhoc_11n_enabled) {
-			mwifiex_check_ibss_peer_capabilties(priv, sta_ptr,
-							    adapter->event_skb);
+			mwifiex_check_ibss_peer_capabilities(priv, sta_ptr,
+							     adapter->event_skb);
 			if (sta_ptr->is_11n_enabled)
 				for (i = 0; i < MAX_NUM_TID; i++)
 					sta_ptr->ampdu_sta[i] =

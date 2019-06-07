@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig CAN_SJA1000
 	tristate "Philips/NXP SJA1000 devices"
 	depends on HAS_IOMEM
@@ -88,6 +89,7 @@ config CAN_PLX_PCI
 	   - TEWS TECHNOLOGIES TPMC810 card (http://www.tews.com/)
 	   - IXXAT Automation PC-I 04/PCI card (http://www.ixxat.com/)
 	   - Connect Tech Inc. CANpro/104-Plus Opto (CRG001) card (http://www.connecttech.com)
+	   - ASEM CAN raw - 2 isolated CAN channels (www.asem.it)
 
 config CAN_TSCAN1
 	tristate "TS-CAN1 PC104 boards"

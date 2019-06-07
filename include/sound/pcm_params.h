@@ -1,25 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __SOUND_PCM_PARAMS_H
 #define __SOUND_PCM_PARAMS_H
 
 /*
  *  PCM params helpers
  *  Copyright (c) by Abramo Bagnara <abramo@alsa-project.org>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <sound/pcm.h>
@@ -85,6 +70,13 @@ static inline unsigned int snd_mask_max(const struct snd_mask *mask)
 static inline void snd_mask_set(struct snd_mask *mask, unsigned int val)
 {
 	mask->bits[MASK_OFS(val)] |= MASK_BIT(val);
+}
+
+/* Most of drivers need only this one */
+static inline void snd_mask_set_format(struct snd_mask *mask,
+				       snd_pcm_format_t format)
+{
+	snd_mask_set(mask, (__force unsigned int)format);
 }
 
 static inline void snd_mask_reset(struct snd_mask *mask, unsigned int val)
@@ -247,11 +239,13 @@ static inline int snd_interval_empty(const struct snd_interval *i)
 static inline int snd_interval_single(const struct snd_interval *i)
 {
 	return (i->min == i->max || 
-		(i->min + 1 == i->max && i->openmax));
+		(i->min + 1 == i->max && (i->openmin || i->openmax)));
 }
 
 static inline int snd_interval_value(const struct snd_interval *i)
 {
+	if (i->openmin && !i->openmax)
+		return i->max;
 	return i->min;
 }
 
@@ -369,8 +363,7 @@ static inline int params_physical_width(const struct snd_pcm_hw_params *p)
 static inline void
 params_set_format(struct snd_pcm_hw_params *p, snd_pcm_format_t fmt)
 {
-	snd_mask_set(hw_param_mask(p, SNDRV_PCM_HW_PARAM_FORMAT),
-		(__force int)fmt);
+	snd_mask_set_format(hw_param_mask(p, SNDRV_PCM_HW_PARAM_FORMAT), fmt);
 }
 
 #endif /* __SOUND_PCM_PARAMS_H */

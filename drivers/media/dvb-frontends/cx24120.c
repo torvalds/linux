@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Conexant cx24120/cx24118 - DVBS/S2 Satellite demod/tuner driver
 
@@ -12,15 +13,6 @@
 
 	Cards supported: Technisat Skystar S2
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 */
 
 #include <linux/slab.h>
@@ -1491,7 +1483,7 @@ static int cx24120_tune(struct dvb_frontend *fe, bool re_tune,
 	return cx24120_read_status(fe, status);
 }
 
-static int cx24120_get_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo cx24120_get_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
 }
@@ -1555,10 +1547,10 @@ static const struct dvb_frontend_ops cx24120_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name = "Conexant CX24120/CX24118",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
-		.frequency_stepsize = 1011, /* kHz for QPSK frontends */
-		.frequency_tolerance = 5000,
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
+		.frequency_stepsize_hz = 1011 * kHz,
+		.frequency_tolerance_hz = 5 * MHz,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.caps =	FE_CAN_INVERSION_AUTO |

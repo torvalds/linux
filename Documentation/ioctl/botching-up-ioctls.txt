@@ -73,7 +73,9 @@ will have a second iteration or at least an extension for any given interface.
    future extensions is going right down the gutters since someone will submit
    an ioctl struct with random stack garbage in the yet unused parts. Which
    then bakes in the ABI that those fields can never be used for anything else
-   but garbage.
+   but garbage. This is also the reason why you must explicitly pad all
+   structures, even if you never use them in an array - the padding the compiler
+   might insert could contain garbage.
 
  * Have simple testcases for all of the above.
 

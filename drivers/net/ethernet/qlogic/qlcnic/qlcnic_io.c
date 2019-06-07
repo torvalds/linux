@@ -268,13 +268,12 @@ static void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter,
 }
 
 void qlcnic_82xx_change_filter(struct qlcnic_adapter *adapter, u64 *uaddr,
-			       u16 vlan_id)
+			       u16 vlan_id, struct qlcnic_host_tx_ring *tx_ring)
 {
 	struct cmd_desc_type0 *hwdesc;
 	struct qlcnic_nic_req *req;
 	struct qlcnic_mac_req *mac_req;
 	struct qlcnic_vlan_req *vlan_req;
-	struct qlcnic_host_tx_ring *tx_ring = adapter->tx_ring;
 	u32 producer;
 	u64 word;
 
@@ -301,7 +300,8 @@ void qlcnic_82xx_change_filter(struct qlcnic_adapter *adapter, u64 *uaddr,
 
 static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 			       struct cmd_desc_type0 *first_desc,
-			       struct sk_buff *skb)
+			       struct sk_buff *skb,
+			       struct qlcnic_host_tx_ring *tx_ring)
 {
 	struct vlan_ethhdr *vh = (struct vlan_ethhdr *)(skb->data);
 	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
@@ -335,7 +335,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 		    tmp_fil->vlan_id == vlan_id) {
 			if (jiffies > (QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
 				qlcnic_change_filter(adapter, &src_addr,
-						     vlan_id);
+						     vlan_id, tx_ring);
 			tmp_fil->ftime = jiffies;
 			return;
 		}
@@ -350,7 +350,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	if (!fil)
 		return;
 
-	qlcnic_change_filter(adapter, &src_addr, vlan_id);
+	qlcnic_change_filter(adapter, &src_addr, vlan_id, tx_ring);
 	fil->ftime = jiffies;
 	fil->vlan_id = vlan_id;
 	memcpy(fil->faddr, &src_addr, ETH_ALEN);
@@ -459,7 +459,7 @@ static int qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 			 struct cmd_desc_type0 *first_desc, struct sk_buff *skb,
 			 struct qlcnic_host_tx_ring *tx_ring)
 {
-	u8 l4proto, opcode = 0, hdr_len = 0;
+	u8 l4proto, opcode = 0, hdr_len = 0, tag_vlan = 0;
 	u16 flags = 0, vlan_tci = 0;
 	int copied, offset, copy_len, size;
 	struct cmd_desc_type0 *hwdesc;
@@ -472,14 +472,16 @@ static int qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 		flags = QLCNIC_FLAGS_VLAN_TAGGED;
 		vlan_tci = ntohs(vh->h_vlan_TCI);
 		protocol = ntohs(vh->h_vlan_encapsulated_proto);
+		tag_vlan = 1;
 	} else if (skb_vlan_tag_present(skb)) {
 		flags = QLCNIC_FLAGS_VLAN_OOB;
 		vlan_tci = skb_vlan_tag_get(skb);
+		tag_vlan = 1;
 	}
 	if (unlikely(adapter->tx_pvid)) {
-		if (vlan_tci && !(adapter->flags & QLCNIC_TAGGING_ENABLED))
+		if (tag_vlan && !(adapter->flags & QLCNIC_TAGGING_ENABLED))
 			return -EIO;
-		if (vlan_tci && (adapter->flags & QLCNIC_TAGGING_ENABLED))
+		if (tag_vlan && (adapter->flags & QLCNIC_TAGGING_ENABLED))
 			goto set_flags;
 
 		flags = QLCNIC_FLAGS_VLAN_OOB;
@@ -766,7 +768,7 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (adapter->drv_mac_learn)
-		qlcnic_send_filter(adapter, first_desc, skb);
+		qlcnic_send_filter(adapter, first_desc, skb, tx_ring);
 
 	tx_ring->tx_stats.tx_bytes += skb->len;
 	tx_ring->tx_stats.xmit_called++;

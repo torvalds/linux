@@ -332,7 +332,7 @@ static int make_raw_data_56k(struct BCState *bcs) {
 			bitcnt = 0;
 		}
 		val >>= 1;
-	};
+	}
 	fcs = PPP_INITFCS;
 	for (i = 0; i < bcs->tx_skb->len; i++) {
 		val = bcs->tx_skb->data[i];
@@ -415,7 +415,7 @@ static void read_raw(struct BCState *bcs, u_int *buf, int cnt) {
 	else { // it's 56K
 		mask = 0x7f;
 		bits = 7;
-	};
+	}
 	for (i = 0; i < cnt; i++) {
 		val = bcs->channel ? ((*p >> 8) & 0xff) : (*p & 0xff);
 		p++;
@@ -623,7 +623,7 @@ void netjet_fill_dma(struct BCState *bcs)
 	else { // it's 56k
 		if (make_raw_data_56k(bcs))
 			return;
-	};
+	}
 	if (bcs->cs->debug & L1_DEB_HSCX)
 		debugl1(bcs->cs, "tiger fill_dma2: c%d %4lx", bcs->channel,
 			bcs->Flag);
@@ -912,8 +912,10 @@ setstack_tiger(struct PStack *st, struct BCState *bcs)
 void
 inittiger(struct IsdnCardState *cs)
 {
-	if (!(cs->bcs[0].hw.tiger.send = kmalloc(NETJET_DMA_TXSIZE * sizeof(unsigned int),
-						 GFP_KERNEL | GFP_DMA))) {
+	cs->bcs[0].hw.tiger.send = kmalloc_array(NETJET_DMA_TXSIZE,
+						 sizeof(unsigned int),
+						 GFP_KERNEL | GFP_DMA);
+	if (!cs->bcs[0].hw.tiger.send) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for tiger.send\n");
 		return;
@@ -933,8 +935,10 @@ inittiger(struct IsdnCardState *cs)
 	     cs->hw.njet.base + NETJET_DMA_READ_IRQ);
 	outl(virt_to_bus(cs->bcs[0].hw.tiger.s_end),
 	     cs->hw.njet.base + NETJET_DMA_READ_END);
-	if (!(cs->bcs[0].hw.tiger.rec = kmalloc(NETJET_DMA_RXSIZE * sizeof(unsigned int),
-						GFP_KERNEL | GFP_DMA))) {
+	cs->bcs[0].hw.tiger.rec = kmalloc_array(NETJET_DMA_RXSIZE,
+						sizeof(unsigned int),
+						GFP_KERNEL | GFP_DMA);
+	if (!cs->bcs[0].hw.tiger.rec) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for tiger.rec\n");
 		return;

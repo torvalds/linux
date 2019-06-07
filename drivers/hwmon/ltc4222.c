@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Linear Technology LTC4222 Dual Hot Swap controller
  *
  * Copyright (c) 2014 Guenter Roeck
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -94,7 +85,7 @@ static int ltc4222_get_value(struct device *dev, u8 reg)
 	return val;
 }
 
-static ssize_t ltc4222_show_value(struct device *dev,
+static ssize_t ltc4222_value_show(struct device *dev,
 				  struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -106,7 +97,7 @@ static ssize_t ltc4222_show_value(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", value);
 }
 
-static ssize_t ltc4222_show_bool(struct device *dev,
+static ssize_t ltc4222_bool_show(struct device *dev,
 				 struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute_2 *attr = to_sensor_dev_attr_2(da);
@@ -125,45 +116,39 @@ static ssize_t ltc4222_show_bool(struct device *dev,
 }
 
 /* Voltages */
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, ltc4222_show_value, NULL,
-			  LTC4222_SOURCE1);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, ltc4222_show_value, NULL,
-			  LTC4222_ADIN1);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, ltc4222_show_value, NULL,
-			  LTC4222_SOURCE2);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, ltc4222_show_value, NULL,
-			  LTC4222_ADIN2);
+static SENSOR_DEVICE_ATTR_RO(in1_input, ltc4222_value, LTC4222_SOURCE1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, ltc4222_value, LTC4222_ADIN1);
+static SENSOR_DEVICE_ATTR_RO(in3_input, ltc4222_value, LTC4222_SOURCE2);
+static SENSOR_DEVICE_ATTR_RO(in4_input, ltc4222_value, LTC4222_ADIN2);
 
 /*
  * Voltage alarms
  * UV/OV faults are associated with the input voltage, and power bad and fet
  * faults are associated with the output voltage.
  */
-static SENSOR_DEVICE_ATTR_2(in1_min_alarm, S_IRUGO, ltc4222_show_bool, NULL,
-			    LTC4222_FAULT1, FAULT_UV);
-static SENSOR_DEVICE_ATTR_2(in1_max_alarm, S_IRUGO, ltc4222_show_bool, NULL,
-			    LTC4222_FAULT1, FAULT_OV);
-static SENSOR_DEVICE_ATTR_2(in2_alarm, S_IRUGO, ltc4222_show_bool, NULL,
-			    LTC4222_FAULT1, FAULT_POWER_BAD | FAULT_FET_BAD);
+static SENSOR_DEVICE_ATTR_2_RO(in1_min_alarm, ltc4222_bool, LTC4222_FAULT1,
+			       FAULT_UV);
+static SENSOR_DEVICE_ATTR_2_RO(in1_max_alarm, ltc4222_bool, LTC4222_FAULT1,
+			       FAULT_OV);
+static SENSOR_DEVICE_ATTR_2_RO(in2_alarm, ltc4222_bool, LTC4222_FAULT1,
+			       FAULT_POWER_BAD | FAULT_FET_BAD);
 
-static SENSOR_DEVICE_ATTR_2(in3_min_alarm, S_IRUGO, ltc4222_show_bool, NULL,
-			    LTC4222_FAULT2, FAULT_UV);
-static SENSOR_DEVICE_ATTR_2(in3_max_alarm, S_IRUGO, ltc4222_show_bool, NULL,
-			    LTC4222_FAULT2, FAULT_OV);
-static SENSOR_DEVICE_ATTR_2(in4_alarm, S_IRUGO, ltc4222_show_bool, NULL,
-			    LTC4222_FAULT2, FAULT_POWER_BAD | FAULT_FET_BAD);
+static SENSOR_DEVICE_ATTR_2_RO(in3_min_alarm, ltc4222_bool, LTC4222_FAULT2,
+			       FAULT_UV);
+static SENSOR_DEVICE_ATTR_2_RO(in3_max_alarm, ltc4222_bool, LTC4222_FAULT2,
+			       FAULT_OV);
+static SENSOR_DEVICE_ATTR_2_RO(in4_alarm, ltc4222_bool, LTC4222_FAULT2,
+			       FAULT_POWER_BAD | FAULT_FET_BAD);
 
 /* Current (via sense resistor) */
-static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, ltc4222_show_value, NULL,
-			  LTC4222_SENSE1);
-static SENSOR_DEVICE_ATTR(curr2_input, S_IRUGO, ltc4222_show_value, NULL,
-			  LTC4222_SENSE2);
+static SENSOR_DEVICE_ATTR_RO(curr1_input, ltc4222_value, LTC4222_SENSE1);
+static SENSOR_DEVICE_ATTR_RO(curr2_input, ltc4222_value, LTC4222_SENSE2);
 
 /* Overcurrent alarm */
-static SENSOR_DEVICE_ATTR_2(curr1_max_alarm, S_IRUGO, ltc4222_show_bool, NULL,
-			    LTC4222_FAULT1, FAULT_OC);
-static SENSOR_DEVICE_ATTR_2(curr2_max_alarm, S_IRUGO, ltc4222_show_bool, NULL,
-			    LTC4222_FAULT2, FAULT_OC);
+static SENSOR_DEVICE_ATTR_2_RO(curr1_max_alarm, ltc4222_bool, LTC4222_FAULT1,
+			       FAULT_OC);
+static SENSOR_DEVICE_ATTR_2_RO(curr2_max_alarm, ltc4222_bool, LTC4222_FAULT2,
+			       FAULT_OC);
 
 static struct attribute *ltc4222_attrs[] = {
 	&sensor_dev_attr_in1_input.dev_attr.attr,

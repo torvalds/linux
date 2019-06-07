@@ -42,13 +42,6 @@ enum cpufreq_table_sorting {
 	CPUFREQ_TABLE_SORTED_DESCENDING
 };
 
-struct cpufreq_freqs {
-	unsigned int cpu;	/* cpu nr */
-	unsigned int old;
-	unsigned int new;
-	u8 flags;		/* flags of cpufreq_driver, see below. */
-};
-
 struct cpufreq_cpuinfo {
 	unsigned int		max_freq;
 	unsigned int		min_freq;
@@ -151,6 +144,16 @@ struct cpufreq_policy {
 
 	/* For cpufreq driver's internal use */
 	void			*driver_data;
+
+	/* Pointer to the cooling device if used for thermal mitigation */
+	struct thermal_cooling_device *cdev;
+};
+
+struct cpufreq_freqs {
+	struct cpufreq_policy *policy;
+	unsigned int old;
+	unsigned int new;
+	u8 flags;		/* flags of cpufreq_driver, see below. */
 };
 
 /* Only for ACPI */
@@ -175,6 +178,11 @@ static inline struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 static inline void cpufreq_cpu_put(struct cpufreq_policy *policy) { }
 #endif
 
+static inline bool policy_is_inactive(struct cpufreq_policy *policy)
+{
+	return cpumask_empty(policy->cpus);
+}
+
 static inline bool policy_is_shared(struct cpufreq_policy *policy)
 {
 	return cpumask_weight(policy->cpus) > 1;
@@ -190,8 +198,14 @@ unsigned int cpufreq_quick_get_max(unsigned int cpu);
 void disable_cpufreq(void);
 
 u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
+
+struct cpufreq_policy *cpufreq_cpu_acquire(unsigned int cpu);
+void cpufreq_cpu_release(struct cpufreq_policy *policy);
 int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu);
+int cpufreq_set_policy(struct cpufreq_policy *policy,
+		       struct cpufreq_policy *new_policy);
 void cpufreq_update_policy(unsigned int cpu);
+void cpufreq_update_limits(unsigned int cpu);
 bool have_governor_per_policy(void);
 struct kobject *get_governor_parent_kobj(struct cpufreq_policy *policy);
 void cpufreq_enable_fast_switch(struct cpufreq_policy *policy);
@@ -254,20 +268,12 @@ __ATTR(_name, 0644, show_##_name, store_##_name)
 static struct freq_attr _name =			\
 __ATTR(_name, 0200, NULL, store_##_name)
 
-struct global_attr {
-	struct attribute attr;
-	ssize_t (*show)(struct kobject *kobj,
-			struct attribute *attr, char *buf);
-	ssize_t (*store)(struct kobject *a, struct attribute *b,
-			 const char *c, size_t count);
-};
-
 #define define_one_global_ro(_name)		\
-static struct global_attr _name =		\
+static struct kobj_attribute _name =		\
 __ATTR(_name, 0444, show_##_name, NULL)
 
 #define define_one_global_rw(_name)		\
-static struct global_attr _name =		\
+static struct kobj_attribute _name =		\
 __ATTR(_name, 0644, show_##_name, store_##_name)
 
 
@@ -327,9 +333,14 @@ struct cpufreq_driver {
 	/* should be defined, if possible */
 	unsigned int	(*get)(unsigned int cpu);
 
+	/* Called to update policy limits on firmware notifications. */
+	void		(*update_limits)(unsigned int cpu);
+
 	/* optional */
 	int		(*bios_limit)(int cpu, unsigned int *limit);
 
+	int		(*online)(struct cpufreq_policy *policy);
+	int		(*offline)(struct cpufreq_policy *policy);
 	int		(*exit)(struct cpufreq_policy *policy);
 	void		(*stop_cpu)(struct cpufreq_policy *policy);
 	int		(*suspend)(struct cpufreq_policy *policy);
@@ -346,14 +357,15 @@ struct cpufreq_driver {
 };
 
 /* flags */
-#define CPUFREQ_STICKY		(1 << 0)	/* driver isn't removed even if
-						   all ->init() calls failed */
-#define CPUFREQ_CONST_LOOPS	(1 << 1)	/* loops_per_jiffy or other
-						   kernel "constants" aren't
-						   affected by frequency
-						   transitions */
-#define CPUFREQ_PM_NO_WARN	(1 << 2)	/* don't warn on suspend/resume
-						   speed mismatches */
+
+/* driver isn't removed even if all ->init() calls failed */
+#define CPUFREQ_STICKY				BIT(0)
+
+/* loops_per_jiffy or other kernel "constants" aren't affected by frequency transitions */
+#define CPUFREQ_CONST_LOOPS			BIT(1)
+
+/* don't warn on suspend/resume speed mismatches */
+#define CPUFREQ_PM_NO_WARN			BIT(2)
 
 /*
  * This should be set by platforms having multiple clock-domains, i.e.
@@ -361,14 +373,14 @@ struct cpufreq_driver {
  * be created in cpu/cpu<num>/cpufreq/ directory and so they can use the same
  * governor with different tunables for different clusters.
  */
-#define CPUFREQ_HAVE_GOVERNOR_PER_POLICY (1 << 3)
+#define CPUFREQ_HAVE_GOVERNOR_PER_POLICY	BIT(3)
 
 /*
  * Driver will do POSTCHANGE notifications from outside of their ->target()
  * routine and so must set cpufreq_driver->flags with this flag, so that core
  * can handle them specially.
  */
-#define CPUFREQ_ASYNC_NOTIFICATION  (1 << 4)
+#define CPUFREQ_ASYNC_NOTIFICATION		BIT(4)
 
 /*
  * Set by drivers which want cpufreq core to check if CPU is running at a
@@ -377,13 +389,19 @@ struct cpufreq_driver {
  * from the table. And if that fails, we will stop further boot process by
  * issuing a BUG_ON().
  */
-#define CPUFREQ_NEED_INITIAL_FREQ_CHECK	(1 << 5)
+#define CPUFREQ_NEED_INITIAL_FREQ_CHECK	BIT(5)
 
 /*
  * Set by drivers to disallow use of governors with "dynamic_switching" flag
  * set.
  */
-#define CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING (1 << 6)
+#define CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING	BIT(6)
+
+/*
+ * Set by drivers that want the core to automatically register the cpufreq
+ * driver as a thermal cooling device.
+ */
+#define CPUFREQ_IS_COOLING_DEV			BIT(7)
 
 int cpufreq_register_driver(struct cpufreq_driver *driver_data);
 int cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
@@ -571,7 +589,7 @@ struct governor_attr {
 			 size_t count);
 };
 
-static inline bool cpufreq_can_do_remote_dvfs(struct cpufreq_policy *policy)
+static inline bool cpufreq_this_cpu_can_update(struct cpufreq_policy *policy)
 {
 	/*
 	 * Allow remote callbacks if:
@@ -948,6 +966,14 @@ static inline bool policy_has_boost_freq(struct cpufreq_policy *policy)
 {
 	return false;
 }
+#endif
+
+#if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
+void sched_cpufreq_governor_change(struct cpufreq_policy *policy,
+			struct cpufreq_governor *old_gov);
+#else
+static inline void sched_cpufreq_governor_change(struct cpufreq_policy *policy,
+			struct cpufreq_governor *old_gov) { }
 #endif
 
 extern void arch_freq_prepare_all(void);

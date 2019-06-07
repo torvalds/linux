@@ -1,20 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Clock domain and sample rate management functions
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/bitops.h>
@@ -443,10 +429,11 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 	data[0] = rate;
 	data[1] = rate >> 8;
 	data[2] = rate >> 16;
-	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
-				   USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_OUT,
-				   UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
-				   data, sizeof(data))) < 0) {
+	err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
+			      USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_OUT,
+			      UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
+			      data, sizeof(data));
+	if (err < 0) {
 		dev_err(&dev->dev, "%d:%d: cannot set freq %d to ep %#x\n",
 			iface, fmt->altsetting, rate, ep);
 		return err;
@@ -460,10 +447,11 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 	if (chip->sample_rate_read_error > 2)
 		return 0;
 
-	if ((err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC_GET_CUR,
-				   USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_IN,
-				   UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
-				   data, sizeof(data))) < 0) {
+	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC_GET_CUR,
+			      USB_TYPE_CLASS | USB_RECIP_ENDPOINT | USB_DIR_IN,
+			      UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep,
+			      data, sizeof(data));
+	if (err < 0) {
 		dev_err(&dev->dev, "%d:%d: cannot get freq at ep %#x\n",
 			iface, fmt->altsetting, ep);
 		chip->sample_rate_read_error++;
@@ -511,14 +499,28 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 	bool writeable;
 	u32 bmControls;
 
+	/* First, try to find a valid clock. This may trigger
+	 * automatic clock selection if the current clock is not
+	 * valid.
+	 */
 	clock = snd_usb_clock_find_source(chip, fmt->protocol,
 					  fmt->clock, true);
-	if (clock < 0)
-		return clock;
+	if (clock < 0) {
+		/* We did not find a valid clock, but that might be
+		 * because the current sample rate does not match an
+		 * external clock source. Try again without validation
+		 * and we will do another validation after setting the
+		 * rate.
+		 */
+		clock = snd_usb_clock_find_source(chip, fmt->protocol,
+						  fmt->clock, false);
+		if (clock < 0)
+			return clock;
+	}
 
 	prev_rate = get_sample_rate_v2v3(chip, iface, fmt->altsetting, clock);
 	if (prev_rate == rate)
-		return 0;
+		goto validation;
 
 	if (fmt->protocol == UAC_VERSION_3) {
 		struct uac3_clock_source_descriptor *cs_desc;
@@ -575,6 +577,10 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 		snd_usb_set_interface_quirk(dev);
 	}
 
+validation:
+	/* validate clock after rate change */
+	if (!uac_clock_source_is_valid(chip, fmt->protocol, clock))
+		return -ENXIO;
 	return 0;
 }
 
@@ -587,8 +593,15 @@ int snd_usb_init_sample_rate(struct snd_usb_audio *chip, int iface,
 	default:
 		return set_sample_rate_v1(chip, iface, alts, fmt, rate);
 
-	case UAC_VERSION_2:
 	case UAC_VERSION_3:
+		if (chip->badd_profile >= UAC3_FUNCTION_SUBCLASS_GENERIC_IO) {
+			if (rate != UAC3_BADD_SAMPLING_RATE)
+				return -ENXIO;
+			else
+				return 0;
+		}
+	/* fall through */
+	case UAC_VERSION_2:
 		return set_sample_rate_v2v3(chip, iface, alts, fmt, rate);
 	}
 }

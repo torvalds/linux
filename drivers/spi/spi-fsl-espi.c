@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale eSPI controller driver.
  *
  * Copyright 2010 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -547,8 +543,11 @@ static void fsl_espi_cpu_irq(struct fsl_espi *espi, u32 events)
 		dev_err(espi->dev,
 			"Transfer done but SPIE_DON isn't set!\n");
 
-	if (SPIE_RXCNT(events) || SPIE_TXCNT(events) != FSL_ESPI_FIFO_SIZE)
+	if (SPIE_RXCNT(events) || SPIE_TXCNT(events) != FSL_ESPI_FIFO_SIZE) {
 		dev_err(espi->dev, "Transfer done but rx/tx fifo's aren't empty!\n");
+		dev_err(espi->dev, "SPIE_RXCNT = %d, SPIE_TXCNT = %d\n",
+			SPIE_RXCNT(events), SPIE_TXCNT(events));
+	}
 
 	complete(&espi->done);
 }
@@ -795,10 +794,8 @@ static int of_fsl_espi_suspend(struct device *dev)
 	int ret;
 
 	ret = spi_master_suspend(master);
-	if (ret) {
-		dev_warn(dev, "cannot suspend master\n");
+	if (ret)
 		return ret;
-	}
 
 	return pm_runtime_force_suspend(dev);
 }

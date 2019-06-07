@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Aeroflex Gaisler GRGPIO General Purpose I/O cores.
  *
@@ -12,11 +13,6 @@
  * See "Documentation/devicetree/bindings/gpio/gpio-grgpio.txt" for
  * information on open firmware properties.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
  * Contributors: Andreas Larsson <andreas@gaisler.com>
  */
 
@@ -30,7 +26,6 @@
 #include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>

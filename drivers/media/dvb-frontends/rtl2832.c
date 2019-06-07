@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Realtek RTL2832 DVB-T demodulator driver
  *
  * Copyright (C) 2012 Thomas Mair <thomas.mair86@gmail.com>
  * Copyright (C) 2012-2014 Antti Palosaari <crope@iki.fi>
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
- *
- *	This program is distributed in the hope that it will be useful,
- *	but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *	GNU General Public License for more details.
- *
- *	You should have received a copy of the GNU General Public License along
- *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "rtl2832_priv.h"
@@ -408,8 +395,8 @@ static int rtl2832_get_tune_settings(struct dvb_frontend *fe,
 
 	dev_dbg(&client->dev, "\n");
 	s->min_delay_ms = 1000;
-	s->step_size = fe->ops.info.frequency_stepsize * 2;
-	s->max_drift = (fe->ops.info.frequency_stepsize * 2) + 1;
+	s->step_size = fe->ops.info.frequency_stepsize_hz * 2;
+	s->max_drift = (fe->ops.info.frequency_stepsize_hz * 2) + 1;
 	return 0;
 }
 
@@ -841,9 +828,9 @@ static const struct dvb_frontend_ops rtl2832_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Realtek RTL2832 (DVB-T)",
-		.frequency_min	  = 174000000,
-		.frequency_max	  = 862000000,
-		.frequency_stepsize = 166667,
+		.frequency_min_hz	= 174 * MHz,
+		.frequency_max_hz	= 862 * MHz,
+		.frequency_stepsize_hz	= 166667,
 		.caps = FE_CAN_FEC_1_2 |
 			FE_CAN_FEC_2_3 |
 			FE_CAN_FEC_3_4 |

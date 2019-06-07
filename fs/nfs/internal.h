@@ -69,7 +69,8 @@ struct nfs_clone_mount {
  * Maximum number of pages that readdir can use for creating
  * a vmapped array of pages.
  */
-#define NFS_MAX_READDIR_PAGES 8
+#define NFS_MAX_READDIR_PAGES 64
+#define NFS_MAX_READDIR_RAPAGES 8
 
 struct nfs_client_initdata {
 	unsigned long init_flags;
@@ -83,6 +84,7 @@ struct nfs_client_initdata {
 	u32 minorversion;
 	struct net *net;
 	const struct rpc_timeout *timeparms;
+	const struct cred *cred;
 };
 
 /*
@@ -123,7 +125,7 @@ struct nfs_parsed_mount_data {
 		unsigned short		protocol;
 	} nfs_server;
 
-	struct security_mnt_opts lsm_opts;
+	void			*lsm_opts;
 	struct net		*net;
 };
 
@@ -254,7 +256,7 @@ struct nfs_pgio_header *nfs_pgio_header_alloc(const struct nfs_rw_ops *);
 void nfs_pgio_header_free(struct nfs_pgio_header *);
 int nfs_generic_pgio(struct nfs_pageio_descriptor *, struct nfs_pgio_header *);
 int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_header *hdr,
-		      struct rpc_cred *cred, const struct nfs_rpc_ops *rpc_ops,
+		      const struct cred *cred, const struct nfs_rpc_ops *rpc_ops,
 		      const struct rpc_call_ops *call_ops, int how, int flags);
 void nfs_free_request(struct nfs_page *req);
 struct nfs_pgio_mirror *
@@ -269,7 +271,7 @@ static inline bool nfs_pgio_has_mirroring(struct nfs_pageio_descriptor *desc)
 static inline bool nfs_match_open_context(const struct nfs_open_context *ctx1,
 		const struct nfs_open_context *ctx2)
 {
-	return ctx1->cred == ctx2->cred && ctx1->state == ctx2->state;
+	return cred_fscmp(ctx1->cred, ctx2->cred) == 0 && ctx1->state == ctx2->state;
 }
 
 /* nfs2xdr.c */
@@ -380,7 +382,7 @@ int nfs_check_flags(int);
 /* inode.c */
 extern struct workqueue_struct *nfsiod_workqueue;
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
-extern void nfs_destroy_inode(struct inode *);
+extern void nfs_free_inode(struct inode *);
 extern int nfs_write_inode(struct inode *, struct writeback_control *);
 extern int nfs_drop_inode(struct inode *);
 extern void nfs_clear_inode(struct inode *);
@@ -395,7 +397,6 @@ extern const struct super_operations nfs_sops;
 extern struct file_system_type nfs_fs_type;
 extern struct file_system_type nfs_xdev_fs_type;
 #if IS_ENABLED(CONFIG_NFS_V4)
-extern struct file_system_type nfs4_xdev_fs_type;
 extern struct file_system_type nfs4_referral_fs_type;
 #endif
 bool nfs_auth_info_match(const struct nfs_auth_info *, rpc_authflavor_t);
@@ -565,13 +566,13 @@ extern struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 			    const struct nfs_client_initdata *);
 extern int nfs40_walk_client_list(struct nfs_client *clp,
 				struct nfs_client **result,
-				struct rpc_cred *cred);
+				const struct cred *cred);
 extern int nfs41_walk_client_list(struct nfs_client *clp,
 				struct nfs_client **result,
-				struct rpc_cred *cred);
-extern int nfs4_test_session_trunk(struct rpc_clnt *,
-				struct rpc_xprt *,
-				void *);
+				const struct cred *cred);
+extern void nfs4_test_session_trunk(struct rpc_clnt *clnt,
+				struct rpc_xprt *xprt,
+				void *data);
 
 static inline struct inode *nfs_igrab_and_active(struct inode *inode)
 {
@@ -756,6 +757,7 @@ static inline bool nfs_error_is_fatal(int err)
 {
 	switch (err) {
 	case -ERESTARTSYS:
+	case -EINTR:
 	case -EACCES:
 	case -EDQUOT:
 	case -EFBIG:
@@ -764,15 +766,11 @@ static inline bool nfs_error_is_fatal(int err)
 	case -EROFS:
 	case -ESTALE:
 	case -E2BIG:
+	case -ENOMEM:
+	case -ETIMEDOUT:
 		return true;
 	default:
 		return false;
 	}
 }
 
-static inline void nfs_context_set_write_error(struct nfs_open_context *ctx, int error)
-{
-	ctx->error = error;
-	smp_wmb();
-	set_bit(NFS_CONTEXT_ERROR_WRITE, &ctx->flags);
-}

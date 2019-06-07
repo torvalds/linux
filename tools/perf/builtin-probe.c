@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * builtin-probe.c
  *
  * Builtin probe command: Set up probe events by C expression
  *
  * Written by Masami Hiramatsu <mhiramat@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- *
  */
 #include <sys/utsname.h>
 #include <sys/types.h>
@@ -32,6 +18,7 @@
 
 #include "perf.h"
 #include "builtin.h"
+#include "namespaces.h"
 #include "util/util.h"
 #include "util/strlist.h"
 #include "util/strfilter.h"
@@ -81,8 +68,7 @@ static int parse_probe_event(const char *str)
 		params.target_used = true;
 	}
 
-	if (params.nsi)
-		pev->nsi = nsinfo__get(params.nsi);
+	pev->nsi = nsinfo__get(params.nsi);
 
 	/* Parse a perf-probe command into event */
 	ret = parse_perf_probe_command(str, pev);

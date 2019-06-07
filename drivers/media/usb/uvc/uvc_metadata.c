@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      uvc_metadata.c  --  USB Video Class driver - Metadata handling
  *
  *      Copyright (C) 2016
  *          Guennadi Liakhovetski (guennadi.liakhovetski@intel.com)
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -33,8 +29,8 @@ static int uvc_meta_v4l2_querycap(struct file *file, void *fh,
 	struct uvc_streaming *stream = video_get_drvdata(vfh->vdev);
 	struct uvc_video_chain *chain = stream->chain;
 
-	strlcpy(cap->driver, "uvcvideo", sizeof(cap->driver));
-	strlcpy(cap->card, vfh->vdev->name, sizeof(cap->card));
+	strscpy(cap->driver, "uvcvideo", sizeof(cap->driver));
+	strscpy(cap->card, vfh->vdev->name, sizeof(cap->card));
 	usb_make_path(stream->dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->capabilities = V4L2_CAP_DEVICE_CAPS | V4L2_CAP_STREAMING
 			  | chain->caps;
@@ -74,7 +70,8 @@ static int uvc_meta_v4l2_try_format(struct file *file, void *fh,
 
 	memset(fmt, 0, sizeof(*fmt));
 
-	fmt->dataformat = fmeta == dev->meta_format ? fmeta : V4L2_META_FMT_UVC;
+	fmt->dataformat = fmeta == dev->info->meta_format
+			? fmeta : V4L2_META_FMT_UVC;
 	fmt->buffersize = UVC_METATADA_BUF_SIZE;
 
 	return 0;
@@ -118,14 +115,14 @@ static int uvc_meta_v4l2_enum_formats(struct file *file, void *fh,
 	u32 index = fdesc->index;
 
 	if (fdesc->type != vfh->vdev->queue->type ||
-	    index > 1U || (index && !dev->meta_format))
+	    index > 1U || (index && !dev->info->meta_format))
 		return -EINVAL;
 
 	memset(fdesc, 0, sizeof(*fdesc));
 
 	fdesc->type = vfh->vdev->queue->type;
 	fdesc->index = index;
-	fdesc->pixelformat = index ? dev->meta_format : V4L2_META_FMT_UVC;
+	fdesc->pixelformat = index ? dev->info->meta_format : V4L2_META_FMT_UVC;
 
 	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
   Broadcom B43 wireless driver
@@ -10,20 +11,6 @@
   Copyright (C) 2002 David S. Miller
   Copyright (C) Pekka Pietikainen
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
-  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
-  Boston, MA 02110-1301, USA.
 
 */
 
@@ -431,9 +418,9 @@ static int alloc_ringmemory(struct b43_dmaring *ring)
 	u16 ring_mem_size = (ring->type == B43_DMA_64BIT) ?
 				B43_DMA64_RINGMEMSIZE : B43_DMA32_RINGMEMSIZE;
 
-	ring->descbase = dma_zalloc_coherent(ring->dev->dev->dma_dev,
-					     ring_mem_size, &(ring->dmabase),
-					     GFP_KERNEL);
+	ring->descbase = dma_alloc_coherent(ring->dev->dev->dma_dev,
+					    ring_mem_size, &(ring->dmabase),
+					    GFP_KERNEL);
 	if (!ring->descbase)
 		return -ENOMEM;
 
@@ -1432,7 +1419,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		goto out;
 	}
 
-	if (unlikely(WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME))) {
+	if (WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME)) {
 		/* If we get here, we have a real error with the queue
 		 * full, but queues not stopped. */
 		b43err(dev->wl, "DMA queue overflow\n");
@@ -1484,7 +1471,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 	int slot, firstused;
 	bool frame_succeed;
 	int skip;
-	static u8 err_out1, err_out2;
+	static u8 err_out1;
 
 	ring = parse_cookie(dev, status->cookie, &slot);
 	if (unlikely(!ring))
@@ -1518,13 +1505,15 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			}
 		} else {
 			/* More than a single header/data pair were missed.
-			 * Report this error once.
+			 * Report this error. If running with open-source
+			 * firmware, then reset the controller to
+			 * revive operation.
 			 */
-			if (!err_out2)
-				b43dbg(dev->wl,
-				       "Out of order TX status report on DMA ring %d. Expected %d, but got %d\n",
-				       ring->index, firstused, slot);
-			err_out2 = 1;
+			b43dbg(dev->wl,
+			       "Out of order TX status report on DMA ring %d. Expected %d, but got %d\n",
+			       ring->index, firstused, slot);
+			if (dev->fw.opensource)
+				b43_controller_restart(dev, "Out of order TX");
 			return;
 		}
 	}

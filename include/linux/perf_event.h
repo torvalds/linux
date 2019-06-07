@@ -30,6 +30,7 @@ struct perf_guest_info_callbacks {
 	int				(*is_in_guest)(void);
 	int				(*is_user_mode)(void);
 	unsigned long			(*get_guest_ip)(void);
+	void				(*handle_intel_pt_intr)(void);
 };
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
@@ -53,8 +54,8 @@ struct perf_guest_info_callbacks {
 #include <linux/atomic.h>
 #include <linux/sysfs.h>
 #include <linux/perf_regs.h>
-#include <linux/workqueue.h>
 #include <linux/cgroup.h>
+#include <linux/refcount.h>
 #include <asm/local.h>
 
 struct perf_callchain_entry {
@@ -240,10 +241,10 @@ struct perf_event;
 #define PERF_PMU_CAP_NO_INTERRUPT		0x01
 #define PERF_PMU_CAP_NO_NMI			0x02
 #define PERF_PMU_CAP_AUX_NO_SG			0x04
-#define PERF_PMU_CAP_AUX_SW_DOUBLEBUF		0x08
 #define PERF_PMU_CAP_EXCLUSIVE			0x10
 #define PERF_PMU_CAP_ITRACE			0x20
 #define PERF_PMU_CAP_HETEROGENEOUS_CPUS		0x40
+#define PERF_PMU_CAP_NO_EXCLUDE			0x80
 
 /**
  * struct pmu - generic performance monitoring unit
@@ -262,8 +263,8 @@ struct pmu {
 	 */
 	int				capabilities;
 
-	int * __percpu			pmu_disable_count;
-	struct perf_cpu_context * __percpu pmu_cpu_context;
+	int __percpu			*pmu_disable_count;
+	struct perf_cpu_context __percpu *pmu_cpu_context;
 	atomic_t			exclusive_cnt; /* < 0: cpu; > 0: tsk */
 	int				task_ctx_nr;
 	int				hrtimer_interval_ms;
@@ -409,7 +410,7 @@ struct pmu {
 	/*
 	 * Set up pmu-private data structures for an AUX area
 	 */
-	void *(*setup_aux)		(int cpu, void **pages,
+	void *(*setup_aux)		(struct perf_event *event, void **pages,
 					 int nr_pages, bool overwrite);
 					/* optional */
 
@@ -447,6 +448,11 @@ struct pmu {
 	 * Filter events for PMU-specific reasons.
 	 */
 	int (*filter_match)		(struct perf_event *event); /* optional */
+
+	/*
+	 * Check period value for PERF_EVENT_IOC_PERIOD ioctl.
+	 */
+	int (*check_period)		(struct perf_event *event, u64 value); /* optional */
 };
 
 enum perf_addr_filter_action_t {
@@ -458,7 +464,7 @@ enum perf_addr_filter_action_t {
 /**
  * struct perf_addr_filter - address range filter definition
  * @entry:	event's filter list linkage
- * @inode:	object file's inode for file-based filters
+ * @path:	object file's path for file-based filters
  * @offset:	filter range offset
  * @size:	filter range size (size==0 means single address trigger)
  * @action:	filter/start/stop
@@ -467,7 +473,7 @@ enum perf_addr_filter_action_t {
  */
 struct perf_addr_filter {
 	struct list_head	entry;
-	struct inode		*inode;
+	struct path		path;
 	unsigned long		offset;
 	unsigned long		size;
 	enum perf_addr_filter_action_t	action;
@@ -489,8 +495,13 @@ struct perf_addr_filters_head {
 	unsigned int		nr_file_filters;
 };
 
+struct perf_addr_filter_range {
+	unsigned long		start;
+	unsigned long		size;
+};
+
 /**
- * enum perf_event_state - the states of a event
+ * enum perf_event_state - the states of an event:
  */
 enum perf_event_state {
 	PERF_EVENT_STATE_DEAD		= -4,
@@ -665,7 +676,7 @@ struct perf_event {
 	/* address range filters */
 	struct perf_addr_filters_head	addr_filters;
 	/* vma address array for file-based filders */
-	unsigned long			*addr_filters_offs;
+	struct perf_addr_filter_range	*addr_filter_ranges;
 	unsigned long			addr_filters_gen;
 
 	void (*destroy)(struct perf_event *);
@@ -737,7 +748,7 @@ struct perf_event_context {
 	int				nr_stat;
 	int				nr_freq;
 	int				rotate_disable;
-	atomic_t			refcount;
+	refcount_t			refcount;
 	struct task_struct		*task;
 
 	/*
@@ -868,6 +879,7 @@ extern void perf_event_exit_task(struct task_struct *child);
 extern void perf_event_free_task(struct task_struct *task);
 extern void perf_event_delayed_put(struct task_struct *task);
 extern struct file *perf_event_get(unsigned int fd);
+extern const struct perf_event *perf_get_event(struct file *file);
 extern const struct perf_event_attr *perf_event_attrs(struct perf_event *event);
 extern void perf_event_print_debug(void);
 extern void perf_pmu_disable(struct pmu *pmu);
@@ -876,6 +888,9 @@ extern void perf_sched_cb_dec(struct pmu *pmu);
 extern void perf_sched_cb_inc(struct pmu *pmu);
 extern int perf_event_task_disable(void);
 extern int perf_event_task_enable(void);
+
+extern void perf_pmu_resched(struct pmu *pmu);
+
 extern int perf_event_refresh(struct perf_event *event, int refresh);
 extern void perf_event_update_userpage(struct perf_event *event);
 extern int perf_event_release_kernel(struct perf_event *event);
@@ -977,9 +992,9 @@ extern void perf_event_output_forward(struct perf_event *event,
 extern void perf_event_output_backward(struct perf_event *event,
 				       struct perf_sample_data *data,
 				       struct pt_regs *regs);
-extern void perf_event_output(struct perf_event *event,
-			      struct perf_sample_data *data,
-			      struct pt_regs *regs);
+extern int perf_event_output(struct perf_event *event,
+			     struct perf_sample_data *data,
+			     struct pt_regs *regs);
 
 static inline bool
 is_default_overflow_handler(struct perf_event *event)
@@ -1003,6 +1018,15 @@ perf_event__output_id_sample(struct perf_event *event,
 extern void
 perf_log_lost_samples(struct perf_event *event, u64 lost);
 
+static inline bool event_has_any_exclude_flag(struct perf_event *event)
+{
+	struct perf_event_attr *attr = &event->attr;
+
+	return attr->exclude_idle || attr->exclude_user ||
+	       attr->exclude_kernel || attr->exclude_hv ||
+	       attr->exclude_guest || attr->exclude_host;
+}
+
 static inline bool is_sampling_event(struct perf_event *event)
 {
 	return event->attr.sample_period != 0;
@@ -1016,6 +1040,14 @@ static inline int is_software_event(struct perf_event *event)
 	return event->event_caps & PERF_EV_CAP_SOFTWARE;
 }
 
+/*
+ * Return 1 for event in sw context, 0 for event in hw context
+ */
+static inline int in_software_context(struct perf_event *event)
+{
+	return event->ctx->pmu->task_ctx_nr == perf_sw_context;
+}
+
 extern struct static_key perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
 extern void ___perf_sw_event(u32, u64, struct pt_regs *, u64);
@@ -1026,12 +1058,18 @@ static inline void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned lo
 #endif
 
 /*
- * Take a snapshot of the regs. Skip ip and frame pointer to
- * the nth caller. We only need a few of the regs:
+ * When generating a perf sample in-line, instead of from an interrupt /
+ * exception, we lack a pt_regs. This is typically used from software events
+ * like: SW_CONTEXT_SWITCHES, SW_MIGRATIONS and the tie-in with tracepoints.
+ *
+ * We typically don't need a full set, but (for x86) do require:
  * - ip for PERF_SAMPLE_IP
  * - cs for user_mode() tests
- * - bp for callchains
- * - eflags, for future purposes, just in case
+ * - sp for PERF_SAMPLE_CALLCHAIN
+ * - eflags for MISC bits and CALLCHAIN (see: perf_hw_regs())
+ *
+ * NOTE: assumes @regs is otherwise already 0 filled; this is important for
+ * things like PERF_SAMPLE_REGS_INTR.
  */
 static inline void perf_fetch_caller_regs(struct pt_regs *regs)
 {
@@ -1104,6 +1142,13 @@ static inline void perf_event_task_sched_out(struct task_struct *prev,
 }
 
 extern void perf_event_mmap(struct vm_area_struct *vma);
+
+extern void perf_event_ksymbol(u16 ksym_type, u64 addr, u32 len,
+			       bool unregister, const char *sym);
+extern void perf_event_bpf_event(struct bpf_prog *prog,
+				 enum perf_bpf_event_type type,
+				 u16 flags);
+
 extern struct perf_guest_info_callbacks *perf_guest_cbs;
 extern int perf_register_guest_info_callbacks(struct perf_guest_info_callbacks *callbacks);
 extern int perf_unregister_guest_info_callbacks(struct perf_guest_info_callbacks *callbacks);
@@ -1121,6 +1166,7 @@ extern void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct
 extern struct perf_callchain_entry *
 get_perf_callchain(struct pt_regs *regs, u32 init_nr, bool kernel, bool user,
 		   u32 max_stack, bool crosstask, bool add_mark);
+extern struct perf_callchain_entry *perf_callchain(struct perf_event *event, struct pt_regs *regs);
 extern int get_callchain_buffers(int max_stack);
 extern void put_callchain_buffers(void);
 
@@ -1289,6 +1335,10 @@ static inline void perf_event_exit_task(struct task_struct *child)	{ }
 static inline void perf_event_free_task(struct task_struct *task)	{ }
 static inline void perf_event_delayed_put(struct task_struct *task)	{ }
 static inline struct file *perf_event_get(unsigned int fd)	{ return ERR_PTR(-EINVAL); }
+static inline const struct perf_event *perf_get_event(struct file *file)
+{
+	return ERR_PTR(-EINVAL);
+}
 static inline const struct perf_event_attr *perf_event_attrs(struct perf_event *event)
 {
 	return ERR_PTR(-EINVAL);
@@ -1319,6 +1369,13 @@ static inline int perf_unregister_guest_info_callbacks
 (struct perf_guest_info_callbacks *callbacks)				{ return 0; }
 
 static inline void perf_event_mmap(struct vm_area_struct *vma)		{ }
+
+typedef int (perf_ksymbol_get_name_f)(char *name, int name_len, void *data);
+static inline void perf_event_ksymbol(u16 ksym_type, u64 addr, u32 len,
+				      bool unregister, const char *sym)	{ }
+static inline void perf_event_bpf_event(struct bpf_prog *prog,
+					enum perf_bpf_event_type type,
+					u16 flags)			{ }
 static inline void perf_event_exec(void)				{ }
 static inline void perf_event_comm(struct task_struct *tsk, bool exec)	{ }
 static inline void perf_event_namespaces(struct task_struct *tsk)	{ }

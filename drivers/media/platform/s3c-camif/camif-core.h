@@ -260,7 +260,7 @@ struct camif_vp {
  * @clock:	  clocks required for the CAMIF operation
  * @lock:	  mutex protecting this data structure
  * @slock:	  spinlock protecting CAMIF registers
- * @io_base:	  start address of the mmaped CAMIF registers
+ * @io_base:	  start address of the mmapped CAMIF registers
  */
 struct camif_dev {
 	struct media_device		media_dev;

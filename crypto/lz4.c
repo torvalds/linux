@@ -122,7 +122,6 @@ static struct crypto_alg alg_lz4 = {
 	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
 	.cra_ctxsize		= sizeof(struct lz4_ctx),
 	.cra_module		= THIS_MODULE,
-	.cra_list		= LIST_HEAD_INIT(alg_lz4.cra_list),
 	.cra_init		= lz4_init,
 	.cra_exit		= lz4_exit,
 	.cra_u			= { .compress = {
@@ -165,7 +164,7 @@ static void __exit lz4_mod_fini(void)
 	crypto_unregister_scomp(&scomp);
 }
 
-module_init(lz4_mod_init);
+subsys_initcall(lz4_mod_init);
 module_exit(lz4_mod_fini);
 
 MODULE_LICENSE("GPL");

@@ -23,6 +23,7 @@
 #include <linux/usb/cdc_ncm.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>
+#include <net/ipv6_stubs.h>
 
 /* alternative VLAN for IP session 0 if not untagged */
 #define MBIM_IPS0_VID	4094
@@ -609,7 +610,7 @@ static const struct driver_info cdc_mbim_info_ndp_to_end = {
  */
 static const struct driver_info cdc_mbim_info_avoid_altsetting_toggle = {
 	.description = "CDC MBIM",
-	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN,
+	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN | FLAG_SEND_ZLP,
 	.bind = cdc_mbim_bind,
 	.unbind = cdc_mbim_unbind,
 	.manage_power = cdc_mbim_manage_power,

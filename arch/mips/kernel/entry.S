@@ -58,15 +58,14 @@ resume_kernel:
 	local_irq_disable
 	lw	t0, TI_PRE_COUNT($28)
 	bnez	t0, restore_all
-need_resched:
 	LONG_L	t0, TI_FLAGS($28)
 	andi	t1, t0, _TIF_NEED_RESCHED
 	beqz	t1, restore_all
 	LONG_L	t0, PT_STATUS(sp)		# Interrupts off?
 	andi	t0, 1
 	beqz	t0, restore_all
-	jal	preempt_schedule_irq
-	b	need_resched
+	PTR_LA	ra, restore_all
+	j	preempt_schedule_irq
 #endif
 
 FEXPORT(ret_from_kernel_thread)
@@ -79,6 +78,10 @@ FEXPORT(ret_from_fork)
 	jal	schedule_tail		# a0 = struct task_struct *prev
 
 FEXPORT(syscall_exit)
+#ifdef CONFIG_DEBUG_RSEQ
+	move	a0, sp
+	jal	rseq_syscall
+#endif
 	local_irq_disable		# make sure need_resched and
 					# signals dont change between
 					# sampling and return
@@ -141,6 +144,10 @@ work_notifysig:				# deal with pending signals and
 	j	resume_userspace_check
 
 FEXPORT(syscall_exit_partial)
+#ifdef CONFIG_DEBUG_RSEQ
+	move	a0, sp
+	jal	rseq_syscall
+#endif
 	local_irq_disable		# make sure need_resched doesn't
 					# change between and return
 	LONG_L	a2, TI_FLAGS($28)	# current->work

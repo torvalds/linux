@@ -1,22 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright(c) 2004-2005 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -160,14 +144,19 @@ static ssize_t bonding_sysfs_store_option(struct device *d,
 {
 	struct bonding *bond = to_bond(d);
 	const struct bond_option *opt;
+	char *buffer_clone;
 	int ret;
 
 	opt = bond_opt_get_by_name(attr->attr.name);
 	if (WARN_ON(!opt))
 		return -ENOENT;
-	ret = bond_opt_tryset_rtnl(bond, opt->id, (char *)buffer);
+	buffer_clone = kstrndup(buffer, count, GFP_KERNEL);
+	if (!buffer_clone)
+		return -ENOMEM;
+	ret = bond_opt_tryset_rtnl(bond, opt->id, buffer_clone);
 	if (!ret)
 		ret = count;
+	kfree(buffer_clone);
 
 	return ret;
 }

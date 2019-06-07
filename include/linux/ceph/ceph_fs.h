@@ -436,6 +436,12 @@ union ceph_mds_request_args {
 		__le64 length; /* num bytes to lock from start */
 		__u8 wait; /* will caller wait for lock to become available? */
 	} __attribute__ ((packed)) filelock_change;
+	struct {
+		__le32 mask;                 /* CEPH_CAP_* */
+		__le64 snapid;
+		__le64 parent;
+		__le32 hash;
+	} __attribute__ ((packed)) lookupino;
 } __attribute__ ((packed));
 
 #define CEPH_MDS_FLAG_REPLAY        1  /* this is a replayed op */
@@ -628,6 +634,7 @@ int ceph_flags_to_mode(int flags);
 				 CEPH_CAP_XATTR_SHARED)
 #define CEPH_STAT_CAP_INLINE_DATA (CEPH_CAP_FILE_SHARED | \
 				   CEPH_CAP_FILE_RD)
+#define CEPH_STAT_RSTAT CEPH_CAP_FILE_WREXTEND
 
 #define CEPH_CAP_ANY_SHARED (CEPH_CAP_AUTH_SHARED |			\
 			      CEPH_CAP_LINK_SHARED |			\

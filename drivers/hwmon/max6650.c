@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * max6650.c - Part of lm_sensors, Linux kernel modules for hardware
  *             monitoring.
@@ -15,20 +16,6 @@
  * The datasheet was last seen at:
  *
  *        http://pdfserv.maxim-ic.com/en/ds/MAX6650-MAX6651.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -40,6 +27,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/of_device.h>
+#include <linux/thermal.h>
 
 /*
  * Insmod parameters
@@ -52,9 +40,9 @@ static int prescaler;
 /* clock: The clock frequency of the chip (max6651 can be clocked externally) */
 static int clock = 254000;
 
-module_param(fan_voltage, int, S_IRUGO);
-module_param(prescaler, int, S_IRUGO);
-module_param(clock, int, S_IRUGO);
+module_param(fan_voltage, int, 0444);
+module_param(prescaler, int, 0444);
+module_param(clock, int, 0444);
 
 /*
  * MAX 6650/6651 registers
@@ -113,6 +101,7 @@ module_param(clock, int, S_IRUGO);
 struct max6650_data {
 	struct i2c_client *client;
 	const struct attribute_group *groups[3];
+	struct thermal_cooling_device *cooling_dev;
 	struct mutex update_lock;
 	int nr_fans;
 	char valid; /* zero until following fields are valid */
@@ -125,6 +114,7 @@ struct max6650_data {
 	u8 count;
 	u8 dac;
 	u8 alarm;
+	unsigned long cooling_dev_state;
 };
 
 static const u8 tach_reg[] = {
@@ -134,7 +124,7 @@ static const u8 tach_reg[] = {
 	MAX6650_REG_TACH3,
 };
 
-static const struct of_device_id max6650_dt_match[] = {
+static const struct of_device_id __maybe_unused max6650_dt_match[] = {
 	{
 		.compatible = "maxim,max6650",
 		.data = (void *)1
@@ -209,8 +199,8 @@ static int max6650_set_operating_mode(struct max6650_data *data, u8 mode)
 	return 0;
 }
 
-static ssize_t get_fan(struct device *dev, struct device_attribute *devattr,
-		       char *buf)
+static ssize_t fan_show(struct device *dev, struct device_attribute *devattr,
+			char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct max6650_data *data = max6650_update_device(dev);
@@ -514,8 +504,8 @@ static ssize_t fan1_div_store(struct device *dev,
  * 1 = alarm
  */
 
-static ssize_t get_alarm(struct device *dev, struct device_attribute *devattr,
-			 char *buf)
+static ssize_t alarm_show(struct device *dev,
+			  struct device_attribute *devattr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct max6650_data *data = max6650_update_device(dev);
@@ -534,24 +524,19 @@ static ssize_t get_alarm(struct device *dev, struct device_attribute *devattr,
 	return sprintf(buf, "%d\n", alarm);
 }
 
-static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, get_fan, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_input, S_IRUGO, get_fan, NULL, 1);
-static SENSOR_DEVICE_ATTR(fan3_input, S_IRUGO, get_fan, NULL, 2);
-static SENSOR_DEVICE_ATTR(fan4_input, S_IRUGO, get_fan, NULL, 3);
+static SENSOR_DEVICE_ATTR_RO(fan1_input, fan, 0);
+static SENSOR_DEVICE_ATTR_RO(fan2_input, fan, 1);
+static SENSOR_DEVICE_ATTR_RO(fan3_input, fan, 2);
+static SENSOR_DEVICE_ATTR_RO(fan4_input, fan, 3);
 static DEVICE_ATTR_RW(fan1_target);
 static DEVICE_ATTR_RW(fan1_div);
 static DEVICE_ATTR_RW(pwm1_enable);
 static DEVICE_ATTR_RW(pwm1);
-static SENSOR_DEVICE_ATTR(fan1_max_alarm, S_IRUGO, get_alarm, NULL,
-			  MAX6650_ALRM_MAX);
-static SENSOR_DEVICE_ATTR(fan1_min_alarm, S_IRUGO, get_alarm, NULL,
-			  MAX6650_ALRM_MIN);
-static SENSOR_DEVICE_ATTR(fan1_fault, S_IRUGO, get_alarm, NULL,
-			  MAX6650_ALRM_TACH);
-static SENSOR_DEVICE_ATTR(gpio1_alarm, S_IRUGO, get_alarm, NULL,
-			  MAX6650_ALRM_GPIO1);
-static SENSOR_DEVICE_ATTR(gpio2_alarm, S_IRUGO, get_alarm, NULL,
-			  MAX6650_ALRM_GPIO2);
+static SENSOR_DEVICE_ATTR_RO(fan1_max_alarm, alarm, MAX6650_ALRM_MAX);
+static SENSOR_DEVICE_ATTR_RO(fan1_min_alarm, alarm, MAX6650_ALRM_MIN);
+static SENSOR_DEVICE_ATTR_RO(fan1_fault, alarm, MAX6650_ALRM_TACH);
+static SENSOR_DEVICE_ATTR_RO(gpio1_alarm, alarm, MAX6650_ALRM_GPIO1);
+static SENSOR_DEVICE_ATTR_RO(gpio2_alarm, alarm, MAX6650_ALRM_GPIO2);
 
 static umode_t max6650_attrs_visible(struct kobject *kobj, struct attribute *a,
 				    int n)
@@ -699,6 +684,63 @@ static int max6650_init_client(struct max6650_data *data,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_THERMAL)
+
+static int max6650_get_max_state(struct thermal_cooling_device *cdev,
+				 unsigned long *state)
+{
+	*state = 255;
+
+	return 0;
+}
+
+static int max6650_get_cur_state(struct thermal_cooling_device *cdev,
+				 unsigned long *state)
+{
+	struct max6650_data *data = cdev->devdata;
+
+	*state = data->cooling_dev_state;
+
+	return 0;
+}
+
+static int max6650_set_cur_state(struct thermal_cooling_device *cdev,
+				 unsigned long state)
+{
+	struct max6650_data *data = cdev->devdata;
+	struct i2c_client *client = data->client;
+	int err;
+
+	state = clamp_val(state, 0, 255);
+
+	mutex_lock(&data->update_lock);
+
+	if (data->config & MAX6650_CFG_V12)
+		data->dac = 180 - (180 * state)/255;
+	else
+		data->dac = 76 - (76 * state)/255;
+
+	err = i2c_smbus_write_byte_data(client, MAX6650_REG_DAC, data->dac);
+
+	if (!err) {
+		max6650_set_operating_mode(data, state ?
+						   MAX6650_CFG_MODE_OPEN_LOOP :
+						   MAX6650_CFG_MODE_OFF);
+		data->cooling_dev_state = state;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return err < 0 ? err : 0;
+}
+
+static const struct thermal_cooling_device_ops max6650_cooling_ops = {
+	.get_max_state = max6650_get_max_state,
+	.get_cur_state = max6650_get_cur_state,
+	.set_cur_state = max6650_set_cur_state,
+};
+#endif
+
 static int max6650_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -714,6 +756,7 @@ static int max6650_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	data->client = client;
+	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
 	data->nr_fans = of_id ? (int)(uintptr_t)of_id->data : id->driver_data;
 
@@ -732,7 +775,31 @@ static int max6650_probe(struct i2c_client *client,
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev,
 							   client->name, data,
 							   data->groups);
-	return PTR_ERR_OR_ZERO(hwmon_dev);
+	err = PTR_ERR_OR_ZERO(hwmon_dev);
+	if (err)
+		return err;
+
+#if IS_ENABLED(CONFIG_THERMAL)
+	data->cooling_dev =
+		thermal_of_cooling_device_register(client->dev.of_node,
+						   client->name, data,
+						   &max6650_cooling_ops);
+	if (IS_ERR(data->cooling_dev))
+		dev_warn(&client->dev,
+			 "thermal cooling device register failed: %ld\n",
+			 PTR_ERR(data->cooling_dev));
+#endif
+	return 0;
+}
+
+static int max6650_remove(struct i2c_client *client)
+{
+	struct max6650_data *data = i2c_get_clientdata(client);
+
+	if (!IS_ERR(data->cooling_dev))
+		thermal_cooling_device_unregister(data->cooling_dev);
+
+	return 0;
 }
 
 static const struct i2c_device_id max6650_id[] = {
@@ -748,6 +815,7 @@ static struct i2c_driver max6650_driver = {
 		.of_match_table = of_match_ptr(max6650_dt_match),
 	},
 	.probe		= max6650_probe,
+	.remove		= max6650_remove,
 	.id_table	= max6650_id,
 };
 

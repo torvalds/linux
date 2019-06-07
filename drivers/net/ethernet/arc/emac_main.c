@@ -148,7 +148,7 @@ static void arc_emac_tx_clean(struct net_device *ndev)
 				 dma_unmap_len(tx_buff, len), DMA_TO_DEVICE);
 
 		/* return the sk_buff to system */
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 
 		txbd->data = 0;
 		txbd->info = 0;
@@ -432,7 +432,8 @@ static int arc_emac_open(struct net_device *ndev)
 	phy_dev->autoneg = AUTONEG_ENABLE;
 	phy_dev->speed = 0;
 	phy_dev->duplex = 0;
-	phy_dev->advertising &= phy_dev->supported;
+	linkmode_and(phy_dev->advertising, phy_dev->advertising,
+		     phy_dev->supported);
 
 	priv->last_rx_bd = 0;
 
@@ -959,8 +960,8 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	/* Get MAC address from device tree */
 	mac_addr = of_get_mac_address(dev->of_node);
 
-	if (mac_addr)
-		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+	if (!IS_ERR(mac_addr))
+		ether_addr_copy(ndev->dev_addr, mac_addr);
 	else
 		eth_hw_addr_random(ndev);
 

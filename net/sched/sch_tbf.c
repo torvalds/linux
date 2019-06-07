@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/sch_tbf.c	Token Bucket Filter queue.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *		Dmitry Torokhov <dtor@mail.ru> - allow attaching inner qdiscs -
  *						 original idea by Martin Devera
- *
  */
 
 #include <linux/module.h>
@@ -162,7 +157,7 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch,
 	nb = 0;
 	while (segs) {
 		nskb = segs->next;
-		segs->next = NULL;
+		skb_mark_not_on_list(segs);
 		qdisc_skb_cb(segs)->pkt_len = segs->len;
 		len += segs->len;
 		ret = qdisc_enqueue(segs, q->qdisc, to_free);
@@ -185,6 +180,7 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		       struct sk_buff **to_free)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
+	unsigned int len = qdisc_pkt_len(skb);
 	int ret;
 
 	if (qdisc_pkt_len(skb) > q->max_size) {
@@ -200,7 +196,7 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		return ret;
 	}
 
-	qdisc_qstats_backlog_inc(sch, skb);
+	sch->qstats.backlog += len;
 	sch->q.qlen++;
 	return NET_XMIT_SUCCESS;
 }
@@ -307,7 +303,8 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt,
 	s64 buffer, mtu;
 	u64 rate64 = 0, prate64 = 0;
 
-	err = nla_parse_nested(tb, TCA_TBF_MAX, opt, tbf_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_TBF_MAX, opt, tbf_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 
@@ -390,9 +387,8 @@ static int tbf_change(struct Qdisc *sch, struct nlattr *opt,
 
 	sch_tree_lock(sch);
 	if (child) {
-		qdisc_tree_reduce_backlog(q->qdisc, q->qdisc->q.qlen,
-					  q->qdisc->qstats.backlog);
-		qdisc_destroy(q->qdisc);
+		qdisc_tree_flush_backlog(q->qdisc);
+		qdisc_put(q->qdisc);
 		q->qdisc = child;
 	}
 	q->limit = qopt->limit;
@@ -438,7 +434,7 @@ static void tbf_destroy(struct Qdisc *sch)
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
 	qdisc_watchdog_cancel(&q->watchdog);
-	qdisc_destroy(q->qdisc);
+	qdisc_put(q->qdisc);
 }
 
 static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
@@ -448,7 +444,7 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_tbf_qopt opt;
 
 	sch->qstats.backlog = q->qdisc->qstats.backlog;
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

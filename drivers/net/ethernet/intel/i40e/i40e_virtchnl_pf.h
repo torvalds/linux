@@ -1,29 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #ifndef _I40E_VIRTCHNL_PF_H_
 #define _I40E_VIRTCHNL_PF_H_
@@ -37,9 +13,11 @@
 #define I40E_DEFAULT_NUM_MDD_EVENTS_ALLOWED	3
 #define I40E_DEFAULT_NUM_INVALID_MSGS_ALLOWED	10
 
-#define I40E_VLAN_PRIORITY_SHIFT	12
+#define I40E_VLAN_PRIORITY_SHIFT	13
 #define I40E_VLAN_MASK			0xFFF
-#define I40E_PRIORITY_MASK		0x7000
+#define I40E_PRIORITY_MASK		0xE000
+
+#define I40E_MAX_VF_PROMISC_FLAGS	3
 
 /* Various queue ctrls */
 enum i40e_queue_ctrl {

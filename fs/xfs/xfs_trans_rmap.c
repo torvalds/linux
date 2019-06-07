@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -117,7 +103,7 @@ xfs_trans_log_finish_rmap_update(
 	 * 2.) shuts down the filesystem
 	 */
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	rudp->rud_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &rudp->rud_item.li_flags);
 
 	return error;
 }
@@ -175,7 +161,7 @@ xfs_rmap_update_log_item(
 	rmap = container_of(item, struct xfs_rmap_intent, ri_list);
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	ruip->rui_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &ruip->rui_item.li_flags);
 
 	/*
 	 * atomic_inc_return gives us the value after the increment;
@@ -207,7 +193,6 @@ xfs_rmap_update_create_done(
 STATIC int
 xfs_rmap_update_finish_item(
 	struct xfs_trans		*tp,
-	struct xfs_defer_ops		*dop,
 	struct list_head		*item,
 	void				*done_item,
 	void				**state)
@@ -259,8 +244,7 @@ xfs_rmap_update_cancel_item(
 	kmem_free(rmap);
 }
 
-static const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
-	.type		= XFS_DEFER_OPS_TYPE_RMAP,
+const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
 	.max_items	= XFS_RUI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_rmap_update_diff_items,
 	.create_intent	= xfs_rmap_update_create_intent,
@@ -271,10 +255,3 @@ static const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
 	.finish_cleanup = xfs_rmap_update_finish_cleanup,
 	.cancel_item	= xfs_rmap_update_cancel_item,
 };
-
-/* Register the deferred op type. */
-void
-xfs_rmap_update_init_defer_op(void)
-{
-	xfs_defer_init_op_type(&xfs_rmap_update_defer_type);
-}

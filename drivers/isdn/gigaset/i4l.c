@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Stuff used by all variants of the driver
  *
@@ -6,10 +7,6 @@
  *                       Tilman Schmidt <tilman@imap.cc>.
  *
  * =====================================================================
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation; either version 2 of
- *	the License, or (at your option) any later version.
  * =====================================================================
  */
 
@@ -243,7 +240,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		dev_kfree_skb(bcs->rx_skb);
 		gigaset_new_rx_skb(bcs);
 
-		commands = kzalloc(AT_NUM * (sizeof *commands), GFP_ATOMIC);
+		commands = kcalloc(AT_NUM, sizeof(*commands), GFP_ATOMIC);
 		if (!commands) {
 			gigaset_free_channel(bcs);
 			dev_err(cs->dev, "ISDN_CMD_DIAL: out of memory\n");

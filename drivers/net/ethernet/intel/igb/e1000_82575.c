@@ -1,26 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Intel(R) Gigabit Ethernet Linux driver
- * Copyright(c) 2007-2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* Copyright(c) 2007 - 2018 Intel Corporation. */
 
 /* e1000_82575
  * e1000_82576
@@ -246,19 +225,7 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 	hw->bus.func = (rd32(E1000_STATUS) & E1000_STATUS_FUNC_MASK) >>
 			E1000_STATUS_FUNC_SHIFT;
 
-	/* Make sure the PHY is in a good state. Several people have reported
-	 * firmware leaving the PHY's page select register set to something
-	 * other than the default of zero, which causes the PHY ID read to
-	 * access something other than the intended register.
-	 */
-	ret_val = hw->phy.ops.reset(hw);
-	if (ret_val) {
-		hw_dbg("Error resetting the PHY.\n");
-		goto out;
-	}
-
 	/* Set phy->phy_addr and phy->id. */
-	igb_write_phy_reg_82580(hw, I347AT4_PAGE_SELECT, 0);
 	ret_val = igb_get_phy_id_82575(hw);
 	if (ret_val)
 		return ret_val;
@@ -1741,6 +1708,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
 		/* disable PCS autoneg and support parallel detect only */
 		pcs_autoneg = false;
+		/* fall through */
 	default:
 		if (hw->mac.type == e1000_82575 ||
 		    hw->mac.type == e1000_82576) {

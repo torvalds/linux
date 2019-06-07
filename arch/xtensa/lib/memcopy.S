@@ -10,8 +10,8 @@
  */
 
 #include <linux/linkage.h>
-#include <variant/core.h>
 #include <asm/asmmacro.h>
+#include <asm/core.h>
 
 /*
  * void *memcpy(void *dst, const void *src, size_t len);

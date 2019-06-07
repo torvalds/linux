@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TTUSB DVB driver
  *
  * Copyright (c) 2002 Holger Waechtler <holger@convergence.de>
  * Copyright (c) 2003 Felix Domke <tmbinc@elitedvb.net>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation; either version 2 of
- *	the License, or (at your option) any later version.
  */
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -306,7 +302,7 @@ static int ttusb_boot_dsp(struct ttusb *ttusb)
 	b[3] = 28;
 
 	/* upload dsp code in 32 byte steps (36 didn't work for me ...) */
-	/* 32 is max packet size, no messages should be splitted. */
+	/* 32 is max packet size, no messages should be split. */
 	for (i = 0; i < fw->size; i += 28) {
 		memcpy(&b[4], &fw->data[i], 28);
 
@@ -1686,7 +1682,7 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	/* i2c */
 	memset(&ttusb->i2c_adap, 0, sizeof(struct i2c_adapter));
-	strcpy(ttusb->i2c_adap.name, "TTUSB DEC");
+	strscpy(ttusb->i2c_adap.name, "TTUSB DEC", sizeof(ttusb->i2c_adap.name));
 
 	i2c_set_adapdata(&ttusb->i2c_adap, ttusb);
 

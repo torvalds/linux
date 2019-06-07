@@ -25,18 +25,6 @@ static void GLUE(X_PFX,ack_pending)(struct kvmppc_xive_vcpu *xc)
 	 */
 	eieio();
 
-	/*
-	 * DD1 bug workaround: If PIPR is less favored than CPPR
-	 * ignore the interrupt or we might incorrectly lose an IPB
-	 * bit.
-	 */
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-		__be64 qw1 = __x_readq(__x_tima + TM_QW1_OS);
-		u8 pipr = be64_to_cpu(qw1) & 0xff;
-		if (pipr >= xc->hw_cppr)
-			return;
-	}
-
 	/* Perform the acknowledge OS to register cycle. */
 	ack = be16_to_cpu(__x_readw(__x_tima + TM_SPC_ACK_OS_REG));
 
@@ -89,8 +77,15 @@ static void GLUE(X_PFX,source_eoi)(u32 hw_irq, struct xive_irq_data *xd)
 	/* If the XIVE supports the new "store EOI facility, use it */
 	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
 		__x_writeq(0, __x_eoi_page(xd) + XIVE_ESB_STORE_EOI);
-	else if (hw_irq && xd->flags & XIVE_IRQ_FLAG_EOI_FW) {
+	else if (hw_irq && xd->flags & XIVE_IRQ_FLAG_EOI_FW)
 		opal_int_eoi(hw_irq);
+	else if (xd->flags & XIVE_IRQ_FLAG_LSI) {
+		/*
+		 * For LSIs the HW EOI cycle is used rather than PQ bits,
+		 * as they are automatically re-triggred in HW when still
+		 * pending.
+		 */
+		__x_readq(__x_eoi_page(xd) + XIVE_ESB_LOAD_EOI);
 	} else {
 		uint64_t eoi_val;
 
@@ -102,20 +97,12 @@ static void GLUE(X_PFX,source_eoi)(u32 hw_irq, struct xive_irq_data *xd)
 		 *
 		 * This allows us to then do a re-trigger if Q was set
 		 * rather than synthetizing an interrupt in software
-		 *
-		 * For LSIs, using the HW EOI cycle works around a problem
-		 * on P9 DD1 PHBs where the other ESB accesses don't work
-		 * properly.
 		 */
-		if (xd->flags & XIVE_IRQ_FLAG_LSI)
-			__x_readq(__x_eoi_page(xd) + XIVE_ESB_LOAD_EOI);
-		else {
-			eoi_val = GLUE(X_PFX,esb_load)(xd, XIVE_ESB_SET_PQ_00);
+		eoi_val = GLUE(X_PFX,esb_load)(xd, XIVE_ESB_SET_PQ_00);
 
-			/* Re-trigger if needed */
-			if ((eoi_val & 1) && __x_trig_page(xd))
-				__x_writeq(0, __x_trig_page(xd));
-		}
+		/* Re-trigger if needed */
+		if ((eoi_val & 1) && __x_trig_page(xd))
+			__x_writeq(0, __x_trig_page(xd));
 	}
 }
 
@@ -143,24 +130,14 @@ static u32 GLUE(X_PFX,scan_interrupts)(struct kvmppc_xive_vcpu *xc,
 		 */
 		prio = ffs(pending) - 1;
 
-		/*
-		 * If the most favoured prio we found pending is less
-		 * favored (or equal) than a pending IPI, we return
-		 * the IPI instead.
-		 *
-		 * Note: If pending was 0 and mfrr is 0xff, we will
-		 * not spurriously take an IPI because mfrr cannot
-		 * then be smaller than cppr.
-		 */
-		if (prio >= xc->mfrr && xc->mfrr < xc->cppr) {
-			prio = xc->mfrr;
-			hirq = XICS_IPI;
+		/* Don't scan past the guest cppr */
+		if (prio >= xc->cppr || prio > 7) {
+			if (xc->mfrr < xc->cppr) {
+				prio = xc->mfrr;
+				hirq = XICS_IPI;
+			}
 			break;
 		}
-
-		/* Don't scan past the guest cppr */
-		if (prio >= xc->cppr || prio > 7)
-			break;
 
 		/* Grab queue and pointers */
 		q = &xc->queues[prio];
@@ -197,9 +174,12 @@ skip_ipi:
 		 * been set and another occurrence of the IPI will trigger.
 		 */
 		if (hirq == XICS_IPI || (prio == 0 && !qpage)) {
-			if (scan_type == scan_fetch)
+			if (scan_type == scan_fetch) {
 				GLUE(X_PFX,source_eoi)(xc->vp_ipi,
 						       &xc->vp_ipi_data);
+				q->idx = idx;
+				q->toggle = toggle;
+			}
 			/* Loop back on same queue with updated idx/toggle */
 #ifdef XIVE_RUNTIME_CHECKS
 			WARN_ON(hirq && hirq != XICS_IPI);
@@ -212,31 +192,40 @@ skip_ipi:
 		if (hirq == XICS_DUMMY)
 			goto skip_ipi;
 
+		/* Clear the pending bit if the queue is now empty */
+		if (!hirq) {
+			pending &= ~(1 << prio);
+
+			/*
+			 * Check if the queue count needs adjusting due to
+			 * interrupts being moved away.
+			 */
+			if (atomic_read(&q->pending_count)) {
+				int p = atomic_xchg(&q->pending_count, 0);
+				if (p) {
+#ifdef XIVE_RUNTIME_CHECKS
+					WARN_ON(p > atomic_read(&q->count));
+#endif
+					atomic_sub(p, &q->count);
+				}
+			}
+		}
+
+		/*
+		 * If the most favoured prio we found pending is less
+		 * favored (or equal) than a pending IPI, we return
+		 * the IPI instead.
+		 */
+		if (prio >= xc->mfrr && xc->mfrr < xc->cppr) {
+			prio = xc->mfrr;
+			hirq = XICS_IPI;
+			break;
+		}
+
 		/* If fetching, update queue pointers */
 		if (scan_type == scan_fetch) {
 			q->idx = idx;
 			q->toggle = toggle;
-		}
-
-		/* Something found, stop searching */
-		if (hirq)
-			break;
-
-		/* Clear the pending bit on the now empty queue */
-		pending &= ~(1 << prio);
-
-		/*
-		 * Check if the queue count needs adjusting due to
-		 * interrupts being moved away.
-		 */
-		if (atomic_read(&q->pending_count)) {
-			int p = atomic_xchg(&q->pending_count, 0);
-			if (p) {
-#ifdef XIVE_RUNTIME_CHECKS
-				WARN_ON(p > atomic_read(&q->count));
-#endif
-				atomic_sub(p, &q->count);
-			}
 		}
 	}
 
@@ -293,14 +282,6 @@ X_STATIC unsigned long GLUE(X_PFX,h_xirr)(struct kvm_vcpu *vcpu)
 	/* First collect pending bits from HW */
 	GLUE(X_PFX,ack_pending)(xc);
 
-	/*
-	 * Cleanup the old-style bits if needed (they may have been
-	 * set by pull or an escalation interrupts).
-	 */
-	if (test_bit(BOOK3S_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions))
-		clear_bit(BOOK3S_IRQPRIO_EXTERNAL_LEVEL,
-			  &vcpu->arch.pending_exceptions);
-
 	pr_devel(" new pending=0x%02x hw_cppr=%d cppr=%d\n",
 		 xc->pending, xc->hw_cppr, xc->cppr);
 
@@ -334,7 +315,7 @@ X_STATIC unsigned long GLUE(X_PFX,h_xirr)(struct kvm_vcpu *vcpu)
 	 */
 
 	/* Return interrupt and old CPPR in GPR4 */
-	vcpu->arch.gpr[4] = hirq | (old_cppr << 24);
+	vcpu->arch.regs.gpr[4] = hirq | (old_cppr << 24);
 
 	return H_SUCCESS;
 }
@@ -369,7 +350,7 @@ X_STATIC unsigned long GLUE(X_PFX,h_ipoll)(struct kvm_vcpu *vcpu, unsigned long 
 	hirq = GLUE(X_PFX,scan_interrupts)(xc, pending, scan_poll);
 
 	/* Return interrupt and old CPPR in GPR4 */
-	vcpu->arch.gpr[4] = hirq | (xc->cppr << 24);
+	vcpu->arch.regs.gpr[4] = hirq | (xc->cppr << 24);
 
 	return H_SUCCESS;
 }

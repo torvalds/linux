@@ -551,13 +551,13 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	if (lance_debug > 6) printk(" (#0x%05lx)", (unsigned long)lp);
 	dev->ml_priv = lp;
 	lp->name = chipname;
-	lp->rx_buffs = (unsigned long)kmalloc(PKT_BUF_SZ*RX_RING_SIZE,
-						  GFP_DMA | GFP_KERNEL);
+	lp->rx_buffs = (unsigned long)kmalloc_array(RX_RING_SIZE, PKT_BUF_SZ,
+						    GFP_DMA | GFP_KERNEL);
 	if (!lp->rx_buffs)
 		goto out_lp;
 	if (lance_need_isa_bounce_buffers) {
-		lp->tx_bounce_buffs = kmalloc(PKT_BUF_SZ*TX_RING_SIZE,
-						  GFP_DMA | GFP_KERNEL);
+		lp->tx_bounce_buffs = kmalloc_array(TX_RING_SIZE, PKT_BUF_SZ,
+						    GFP_DMA | GFP_KERNEL);
 		if (!lp->tx_bounce_buffs)
 			goto out_rx;
 	} else
@@ -1084,7 +1084,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 				/* We must free the original skb if it's not a data-only copy
 				   in the bounce buffer. */
 				if (lp->tx_skbuff[entry]) {
-					dev_kfree_skb_irq(lp->tx_skbuff[entry]);
+					dev_consume_skb_irq(lp->tx_skbuff[entry]);
 					lp->tx_skbuff[entry] = NULL;
 				}
 				dirty_tx++;

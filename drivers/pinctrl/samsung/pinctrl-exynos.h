@@ -99,7 +99,7 @@
 
 #define EXYNOS5433_PIN_BANK_EINTW_EXT(pins, reg, id, offs, pctl_idx) \
 	{							\
-		.type           = &exynos5433_bank_type_alive,	\
+		.type           = &exynos5433_bank_type_off,	\
 		.pctl_offset    = reg,				\
 		.nr_pins        = pins,				\
 		.eint_type      = EINT_TYPE_WKUP,		\

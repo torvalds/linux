@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __OSDEP_SERVICE_H_
@@ -71,8 +63,6 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 
 u8 *_rtw_malloc(u32 sz);
 #define rtw_malloc(sz)			_rtw_malloc((sz))
-
-void *rtw_malloc2d(int h, int w, int size);
 
 void _rtw_init_queue(struct __queue *pqueue);
 

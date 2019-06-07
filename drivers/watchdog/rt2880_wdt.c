@@ -18,6 +18,7 @@
 #include <linux/watchdog.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
+#include <linux/mod_devicetable.h>
 
 #include <asm/mach-ralink/ralink_regs.h>
 
@@ -140,19 +141,18 @@ static struct watchdog_device rt288x_wdt_dev = {
 
 static int rt288x_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
+	struct device *dev = &pdev->dev;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rt288x_wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	rt288x_wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rt288x_wdt_base))
 		return PTR_ERR(rt288x_wdt_base);
 
-	rt288x_wdt_clk = devm_clk_get(&pdev->dev, NULL);
+	rt288x_wdt_clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(rt288x_wdt_clk))
 		return PTR_ERR(rt288x_wdt_clk);
 
-	rt288x_wdt_reset = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+	rt288x_wdt_reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (!IS_ERR(rt288x_wdt_reset))
 		reset_control_deassert(rt288x_wdt_reset);
 
@@ -160,29 +160,18 @@ static int rt288x_wdt_probe(struct platform_device *pdev)
 
 	rt288x_wdt_dev.bootstatus = rt288x_wdt_bootcause();
 	rt288x_wdt_dev.max_timeout = (0xfffful / rt288x_wdt_freq);
-	rt288x_wdt_dev.parent = &pdev->dev;
+	rt288x_wdt_dev.parent = dev;
 
 	watchdog_init_timeout(&rt288x_wdt_dev, rt288x_wdt_dev.max_timeout,
-			      &pdev->dev);
+			      dev);
 	watchdog_set_nowayout(&rt288x_wdt_dev, nowayout);
 
-	ret = watchdog_register_device(&rt288x_wdt_dev);
+	watchdog_stop_on_reboot(&rt288x_wdt_dev);
+	ret = devm_watchdog_register_device(dev, &rt288x_wdt_dev);
 	if (!ret)
-		dev_info(&pdev->dev, "Initialized\n");
+		dev_info(dev, "Initialized\n");
 
 	return 0;
-}
-
-static int rt288x_wdt_remove(struct platform_device *pdev)
-{
-	watchdog_unregister_device(&rt288x_wdt_dev);
-
-	return 0;
-}
-
-static void rt288x_wdt_shutdown(struct platform_device *pdev)
-{
-	rt288x_wdt_stop(&rt288x_wdt_dev);
 }
 
 static const struct of_device_id rt288x_wdt_match[] = {
@@ -193,8 +182,6 @@ MODULE_DEVICE_TABLE(of, rt288x_wdt_match);
 
 static struct platform_driver rt288x_wdt_driver = {
 	.probe		= rt288x_wdt_probe,
-	.remove		= rt288x_wdt_remove,
-	.shutdown	= rt288x_wdt_shutdown,
 	.driver		= {
 		.name		= KBUILD_MODNAME,
 		.of_match_table	= rt288x_wdt_match,

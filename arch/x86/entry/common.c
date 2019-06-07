@@ -25,12 +25,14 @@
 #include <linux/uprobes.h>
 #include <linux/livepatch.h>
 #include <linux/syscalls.h>
+#include <linux/uaccess.h>
 
 #include <asm/desc.h>
 #include <asm/traps.h>
 #include <asm/vdso.h>
-#include <linux/uaccess.h>
 #include <asm/cpufeature.h>
+#include <asm/fpu/api.h>
+#include <asm/nospec-branch.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
@@ -140,7 +142,7 @@ static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 	/*
 	 * In order to return to user mode, we need to have IRQs off with
 	 * none of EXIT_TO_USERMODE_LOOP_FLAGS set.  Several of these flags
-	 * can be set at any time on preemptable kernels if we have IRQs on,
+	 * can be set at any time on preemptible kernels if we have IRQs on,
 	 * so we need to loop.  Disabling preemption wouldn't help: doing the
 	 * work to clear some of the flags can sleep.
 	 */
@@ -164,6 +166,7 @@ static void exit_to_usermode_loop(struct pt_regs *regs, u32 cached_flags)
 		if (cached_flags & _TIF_NOTIFY_RESUME) {
 			clear_thread_flag(TIF_NOTIFY_RESUME);
 			tracehook_notify_resume(regs);
+			rseq_handle_notify_resume(NULL, regs);
 		}
 
 		if (cached_flags & _TIF_USER_RETURN_NOTIFY)
@@ -195,6 +198,13 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
 	if (unlikely(cached_flags & EXIT_TO_USERMODE_LOOP_FLAGS))
 		exit_to_usermode_loop(regs, cached_flags);
 
+	/* Reload ti->flags; we may have rescheduled above. */
+	cached_flags = READ_ONCE(ti->flags);
+
+	fpregs_assert_state_consistent();
+	if (unlikely(cached_flags & _TIF_NEED_FPU_LOAD))
+		switch_fpu_return();
+
 #ifdef CONFIG_COMPAT
 	/*
 	 * Compat syscalls set TS_COMPAT.  Make sure we clear it before
@@ -211,6 +221,8 @@ __visible inline void prepare_exit_to_usermode(struct pt_regs *regs)
 #endif
 
 	user_enter_irqoff();
+
+	mds_user_clear_cpu_buffers();
 }
 
 #define SYSCALL_EXIT_WORK_FLAGS				\
@@ -253,6 +265,8 @@ __visible inline void syscall_return_slowpath(struct pt_regs *regs)
 	if (IS_ENABLED(CONFIG_PROVE_LOCKING) &&
 	    WARN(irqs_disabled(), "syscall %ld left IRQs disabled", regs->orig_ax))
 		local_irq_enable();
+
+	rseq_syscall(regs);
 
 	/*
 	 * First do one-time work.  If these work items are enabled, we

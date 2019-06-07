@@ -25,8 +25,7 @@
 	};
 
 	chosen {
-		bootargs ="console=ttySAC2,115200";
-		stdout-path = &serial_2;
+		stdout-path = "serial2:115200n8";
 	};
 
 	firmware@203f000 {
@@ -90,7 +89,7 @@
 	samsung,vbus-gpio = <&gpx3 5 1>;
 	status = "okay";
 
-	port@1{
+	port@1 {
 		status = "okay";
 	};
 	port@2 {

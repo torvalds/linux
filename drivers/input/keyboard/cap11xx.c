@@ -75,9 +75,7 @@
 struct cap11xx_led {
 	struct cap11xx_priv *priv;
 	struct led_classdev cdev;
-	struct work_struct work;
 	u32 reg;
-	enum led_brightness new_brightness;
 };
 #endif
 
@@ -233,30 +231,21 @@ static void cap11xx_input_close(struct input_dev *idev)
 }
 
 #ifdef CONFIG_LEDS_CLASS
-static void cap11xx_led_work(struct work_struct *work)
-{
-	struct cap11xx_led *led = container_of(work, struct cap11xx_led, work);
-	struct cap11xx_priv *priv = led->priv;
-	int value = led->new_brightness;
-
-	/*
-	 * All LEDs share the same duty cycle as this is a HW limitation.
-	 * Brightness levels per LED are either 0 (OFF) and 1 (ON).
-	 */
-	regmap_update_bits(priv->regmap, CAP11XX_REG_LED_OUTPUT_CONTROL,
-				BIT(led->reg), value ? BIT(led->reg) : 0);
-}
-
-static void cap11xx_led_set(struct led_classdev *cdev,
-			   enum led_brightness value)
+static int cap11xx_led_set(struct led_classdev *cdev,
+			    enum led_brightness value)
 {
 	struct cap11xx_led *led = container_of(cdev, struct cap11xx_led, cdev);
+	struct cap11xx_priv *priv = led->priv;
 
-	if (led->new_brightness == value)
-		return;
-
-	led->new_brightness = value;
-	schedule_work(&led->work);
+	/*
+	 * All LEDs share the same duty cycle as this is a HW
+	 * limitation. Brightness levels per LED are either
+	 * 0 (OFF) and 1 (ON).
+	 */
+	return regmap_update_bits(priv->regmap,
+				  CAP11XX_REG_LED_OUTPUT_CONTROL,
+				  BIT(led->reg),
+				  value ? BIT(led->reg) : 0);
 }
 
 static int cap11xx_init_leds(struct device *dev,
@@ -299,7 +288,7 @@ static int cap11xx_init_leds(struct device *dev,
 		led->cdev.default_trigger =
 			of_get_property(child, "linux,default-trigger", NULL);
 		led->cdev.flags = 0;
-		led->cdev.brightness_set = cap11xx_led_set;
+		led->cdev.brightness_set_blocking = cap11xx_led_set;
 		led->cdev.max_brightness = 1;
 		led->cdev.brightness = LED_OFF;
 
@@ -311,8 +300,6 @@ static int cap11xx_init_leds(struct device *dev,
 
 		led->reg = reg;
 		led->priv = priv;
-
-		INIT_WORK(&led->work, cap11xx_led_work);
 
 		error = devm_led_classdev_register(dev, &led->cdev);
 		if (error) {
@@ -357,8 +344,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	priv = devm_kzalloc(dev,
-			    sizeof(*priv) +
-				cap->num_channels * sizeof(priv->keycodes[0]),
+			    struct_size(priv, keycodes, cap->num_channels),
 			    GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;

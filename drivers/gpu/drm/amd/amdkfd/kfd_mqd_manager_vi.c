@@ -43,6 +43,31 @@ static inline struct vi_sdma_mqd *get_sdma_mqd(void *mqd)
 	return (struct vi_sdma_mqd *)mqd;
 }
 
+static void update_cu_mask(struct mqd_manager *mm, void *mqd,
+			struct queue_properties *q)
+{
+	struct vi_mqd *m;
+	uint32_t se_mask[4] = {0}; /* 4 is the max # of SEs */
+
+	if (q->cu_mask_count == 0)
+		return;
+
+	mqd_symmetrically_map_cu_mask(mm,
+		q->cu_mask, q->cu_mask_count, se_mask);
+
+	m = get_mqd(mqd);
+	m->compute_static_thread_mgmt_se0 = se_mask[0];
+	m->compute_static_thread_mgmt_se1 = se_mask[1];
+	m->compute_static_thread_mgmt_se2 = se_mask[2];
+	m->compute_static_thread_mgmt_se3 = se_mask[3];
+
+	pr_debug("Update cu mask to %#x %#x %#x %#x\n",
+		m->compute_static_thread_mgmt_se0,
+		m->compute_static_thread_mgmt_se1,
+		m->compute_static_thread_mgmt_se2,
+		m->compute_static_thread_mgmt_se3);
+}
+
 static int init_mqd(struct mqd_manager *mm, void **mqd,
 			struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
 			struct queue_properties *q)
@@ -196,6 +221,8 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 			atc_bit << CP_HQD_CTX_SAVE_CONTROL__ATC__SHIFT |
 			mtype << CP_HQD_CTX_SAVE_CONTROL__MTYPE__SHIFT;
 
+	update_cu_mask(mm, mqd, q);
+
 	q->is_active = (q->queue_size > 0 &&
 			q->queue_address != 0 &&
 			q->queue_percent > 0 &&
@@ -240,6 +267,28 @@ static bool is_occupied(struct mqd_manager *mm, void *mqd,
 	return mm->dev->kfd2kgd->hqd_is_occupied(
 		mm->dev->kgd, queue_address,
 		pipe_id, queue_id);
+}
+
+static int get_wave_state(struct mqd_manager *mm, void *mqd,
+			  void __user *ctl_stack,
+			  u32 *ctl_stack_used_size,
+			  u32 *save_area_used_size)
+{
+	struct vi_mqd *m;
+
+	m = get_mqd(mqd);
+
+	*ctl_stack_used_size = m->cp_hqd_cntl_stack_size -
+		m->cp_hqd_cntl_stack_offset;
+	*save_area_used_size = m->cp_hqd_wg_state_offset -
+		m->cp_hqd_cntl_stack_size;
+
+	/* Control stack is not copied to user mode for GFXv8 because
+	 * it's part of the context save area that is already
+	 * accessible to user mode
+	 */
+
+	return 0;
 }
 
 static int init_mqd_hiq(struct mqd_manager *mm, void **mqd,
@@ -409,6 +458,7 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 		mqd->update_mqd = update_mqd;
 		mqd->destroy_mqd = destroy_mqd;
 		mqd->is_occupied = is_occupied;
+		mqd->get_wave_state = get_wave_state;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif

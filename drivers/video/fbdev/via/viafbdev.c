@@ -1,31 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 1998-2009 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation;
- * either version 2, or (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTIES OR REPRESENTATIONS; without even
- * the implied warranty of MERCHANTABILITY or FITNESS FOR
- * A PARTICULAR PURPOSE.See the GNU General Public License
- * for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/via-core.h>
 #include <linux/via_i2c.h>
-#include <asm/olpc.h>
 
 #define _MASTER_FILE
 #include "global.h"
@@ -596,7 +582,8 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		break;
 
 	case VIAFB_GET_GAMMA_LUT:
-		viafb_gamma_table = kmalloc(256 * sizeof(u32), GFP_KERNEL);
+		viafb_gamma_table = kmalloc_array(256, sizeof(u32),
+						  GFP_KERNEL);
 		if (!viafb_gamma_table)
 			return -ENOMEM;
 		viafb_get_gamma_table(viafb_gamma_table);
@@ -1468,25 +1455,12 @@ static const struct file_operations viafb_vt1636_proc_fops = {
 
 #endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
 
-static int viafb_sup_odev_proc_show(struct seq_file *m, void *v)
+static int __maybe_unused viafb_sup_odev_proc_show(struct seq_file *m, void *v)
 {
 	via_odev_to_seq(m, supported_odev_map[
 		viaparinfo->shared->chip_info.gfx_chip_name]);
 	return 0;
 }
-
-static int viafb_sup_odev_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, viafb_sup_odev_proc_show, NULL);
-}
-
-static const struct file_operations viafb_sup_odev_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= viafb_sup_odev_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static ssize_t odev_update(const char __user *buffer, size_t count, u32 *odev)
 {
@@ -1616,8 +1590,8 @@ static void viafb_init_proc(struct viafb_shared *shared)
 				&viafb_vt1636_proc_fops);
 #endif /* CONFIG_FB_VIA_DIRECT_PROCFS */
 
-		proc_create("supported_output_devices", 0, viafb_entry,
-			&viafb_sup_odev_proc_fops);
+		proc_create_single("supported_output_devices", 0, viafb_entry,
+			viafb_sup_odev_proc_show);
 		iga1_entry = proc_mkdir("iga1", viafb_entry);
 		shared->iga1_proc_entry = iga1_entry;
 		proc_create("output_devices", 0, iga1_entry,
@@ -2122,7 +2096,7 @@ MODULE_PARM_DESC(viafb_lcd_panel_id,
 
 module_param(viafb_lcd_dsp_method, int, S_IRUSR);
 MODULE_PARM_DESC(viafb_lcd_dsp_method,
-	"Set Flat Panel display scaling method.(Default=Expandsion)");
+	"Set Flat Panel display scaling method.(Default=Expansion)");
 
 module_param(viafb_SAMM_ON, int, S_IRUSR);
 MODULE_PARM_DESC(viafb_SAMM_ON,

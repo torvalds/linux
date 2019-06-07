@@ -1,12 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2012 Free Electrons
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /*
@@ -398,8 +392,6 @@
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&rotary_btn_pins_cfa10049>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		rotary_button {
 			label = "rotary_button";

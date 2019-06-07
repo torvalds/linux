@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2010-2017 Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
  *
  * membarrier system call
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include "sched.h"
 
@@ -210,7 +201,7 @@ static int membarrier_register_global_expedited(void)
 		 * future scheduler executions will observe the new
 		 * thread flag state for this mm.
 		 */
-		synchronize_sched();
+		synchronize_rcu();
 	}
 	atomic_or(MEMBARRIER_STATE_GLOBAL_EXPEDITED_READY,
 		  &mm->membarrier_state);
@@ -246,7 +237,7 @@ static int membarrier_register_private_expedited(int flags)
 		 * Ensure all future scheduler executions will observe the
 		 * new thread flag state for this process.
 		 */
-		synchronize_sched();
+		synchronize_rcu();
 	}
 	atomic_or(state, &mm->membarrier_state);
 
@@ -298,7 +289,7 @@ SYSCALL_DEFINE2(membarrier, int, cmd, int, flags)
 		if (tick_nohz_full_enabled())
 			return -EINVAL;
 		if (num_online_cpus() > 1)
-			synchronize_sched();
+			synchronize_rcu();
 		return 0;
 	case MEMBARRIER_CMD_GLOBAL_EXPEDITED:
 		return membarrier_global_expedited();

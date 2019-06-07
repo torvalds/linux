@@ -2,9 +2,7 @@
 # Generated files
 #
 *.moc
-gconf.glade.h
-*.pot
-*.mo
+*conf-cfg
 
 #
 # configuration programs
@@ -14,4 +12,3 @@ mconf
 nconf
 qconf
 gconf
-kxgettext

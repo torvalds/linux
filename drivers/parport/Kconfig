@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # For a description of the syntax of this configuration file,
 # see Documentation/kbuild/kconfig-language.txt.
@@ -20,7 +21,7 @@ menuconfig PARPORT
 	  drive, PLIP link (Parallel Line Internet Protocol is mainly used to
 	  create a mini network by connecting the parallel ports of two local
 	  machines) etc., then you need to say Y here; please read
-	  <file:Documentation/parport.txt> and
+	  <file:Documentation/admin-guide/parport.rst> and
 	  <file:drivers/parport/BUGS-parport>.
 
 	  For extensive information about drivers for many devices attaching
@@ -33,7 +34,7 @@ menuconfig PARPORT
 	  the module will be called parport.
 	  If you have more than one parallel port and want to specify which
 	  port and IRQ to be used by this driver at module load time, take a
-	  look at <file:Documentation/parport.txt>.
+	  look at <file:Documentation/admin-guide/parport.rst>.
 
 	  If unsure, say Y.
 
@@ -71,7 +72,7 @@ config PARPORT_PC_FIFO
 	  As well as actually having a FIFO, or DMA capability, the kernel
 	  will need to know which IRQ the parallel port has.  By default,
 	  parallel port interrupts will not be used, and so neither will the
-	  FIFO.  See <file:Documentation/parport.txt> to find out how to
+	  FIFO.  See <file:Documentation/admin-guide/parport.rst> to find out how to
 	  specify which IRQ/DMA to use.
 
 config PARPORT_PC_SUPERIO

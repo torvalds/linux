@@ -1117,8 +1117,10 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 		if (ov2659_formats[index].code == mf->code)
 			break;
 
-	if (index < 0)
-		return -EINVAL;
+	if (index < 0) {
+		index = 0;
+		mf->code = ov2659_formats[index].code;
+	}
 
 	mf->colorspace = V4L2_COLORSPACE_SRGB;
 	mf->field = V4L2_FIELD_NONE;
@@ -1130,7 +1132,7 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 		*mf = fmt->format;
 #else
-		return -ENOTTY;
+		ret = -ENOTTY;
 #endif
 	} else {
 		s64 val;
@@ -1347,8 +1349,9 @@ static struct ov2659_platform_data *
 ov2659_get_pdata(struct i2c_client *client)
 {
 	struct ov2659_platform_data *pdata;
-	struct v4l2_fwnode_endpoint *bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 	struct device_node *endpoint;
+	int ret;
 
 	if (!IS_ENABLED(CONFIG_OF) || !client->dev.of_node)
 		return client->dev.platform_data;
@@ -1357,8 +1360,9 @@ ov2659_get_pdata(struct i2c_client *client)
 	if (!endpoint)
 		return NULL;
 
-	bus_cfg = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(endpoint));
-	if (IS_ERR(bus_cfg)) {
+	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(endpoint),
+					       &bus_cfg);
+	if (ret) {
 		pdata = NULL;
 		goto done;
 	}
@@ -1367,17 +1371,17 @@ ov2659_get_pdata(struct i2c_client *client)
 	if (!pdata)
 		goto done;
 
-	if (!bus_cfg->nr_of_link_frequencies) {
+	if (!bus_cfg.nr_of_link_frequencies) {
 		dev_err(&client->dev,
 			"link-frequencies property not found or too many\n");
 		pdata = NULL;
 		goto done;
 	}
 
-	pdata->link_frequency = bus_cfg->link_frequencies[0];
+	pdata->link_frequency = bus_cfg.link_frequencies[0];
 
 done:
-	v4l2_fwnode_endpoint_free(bus_cfg);
+	v4l2_fwnode_endpoint_free(&bus_cfg);
 	of_node_put(endpoint);
 	return pdata;
 }

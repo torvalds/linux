@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * vsp1_histo.c  --  R-Car VSP1 Histogram API
  *
@@ -5,11 +6,6 @@
  * Copyright (C) 2016 Laurent Pinchart
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/device.h>
@@ -61,7 +57,7 @@ void vsp1_histogram_buffer_complete(struct vsp1_histogram *histo,
 				    struct vsp1_histogram_buffer *buf,
 				    size_t size)
 {
-	struct vsp1_pipeline *pipe = histo->pipe;
+	struct vsp1_pipeline *pipe = histo->entity.pipe;
 	unsigned long flags;
 
 	/*
@@ -393,65 +389,14 @@ static int histo_set_format(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_histogram *histo = subdev_to_histo(subdev);
-	struct v4l2_subdev_pad_config *config;
-	struct v4l2_mbus_framefmt *format;
-	struct v4l2_rect *selection;
-	unsigned int i;
-	int ret = 0;
 
 	if (fmt->pad != HISTO_PAD_SINK)
 		return histo_get_format(subdev, cfg, fmt);
 
-	mutex_lock(&histo->entity.lock);
-
-	config = vsp1_entity_get_pad_config(&histo->entity, cfg, fmt->which);
-	if (!config) {
-		ret = -EINVAL;
-		goto done;
-	}
-
-	/*
-	 * Default to the first format if the requested format is not
-	 * supported.
-	 */
-	for (i = 0; i < histo->num_formats; ++i) {
-		if (fmt->format.code == histo->formats[i])
-			break;
-	}
-	if (i == histo->num_formats)
-		fmt->format.code = histo->formats[0];
-
-	format = vsp1_entity_get_pad_format(&histo->entity, config, fmt->pad);
-
-	format->code = fmt->format.code;
-	format->width = clamp_t(unsigned int, fmt->format.width,
-				HISTO_MIN_SIZE, HISTO_MAX_SIZE);
-	format->height = clamp_t(unsigned int, fmt->format.height,
-				 HISTO_MIN_SIZE, HISTO_MAX_SIZE);
-	format->field = V4L2_FIELD_NONE;
-	format->colorspace = V4L2_COLORSPACE_SRGB;
-
-	fmt->format = *format;
-
-	/* Reset the crop and compose rectangles */
-	selection = vsp1_entity_get_pad_selection(&histo->entity, config,
-						  fmt->pad, V4L2_SEL_TGT_CROP);
-	selection->left = 0;
-	selection->top = 0;
-	selection->width = format->width;
-	selection->height = format->height;
-
-	selection = vsp1_entity_get_pad_selection(&histo->entity, config,
-						  fmt->pad,
-						  V4L2_SEL_TGT_COMPOSE);
-	selection->left = 0;
-	selection->top = 0;
-	selection->width = format->width;
-	selection->height = format->height;
-
-done:
-	mutex_unlock(&histo->entity.lock);
-	return ret;
+	return vsp1_subdev_set_pad_format(subdev, cfg, fmt,
+					  histo->formats, histo->num_formats,
+					  HISTO_MIN_SIZE, HISTO_MIN_SIZE,
+					  HISTO_MAX_SIZE, HISTO_MAX_SIZE);
 }
 
 static const struct v4l2_subdev_pad_ops histo_pad_ops = {
@@ -484,8 +429,8 @@ static int histo_v4l2_querycap(struct file *file, void *fh,
 	cap->device_caps = V4L2_CAP_META_CAPTURE
 			 | V4L2_CAP_STREAMING;
 
-	strlcpy(cap->driver, "vsp1", sizeof(cap->driver));
-	strlcpy(cap->card, histo->video.name, sizeof(cap->card));
+	strscpy(cap->driver, "vsp1", sizeof(cap->driver));
+	strscpy(cap->card, histo->video.name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(histo->entity.vsp1->dev));
 

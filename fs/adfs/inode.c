@@ -167,7 +167,7 @@ adfs_mode2atts(struct super_block *sb, struct inode *inode)
  * of time to convert from RISC OS epoch to Unix epoch.
  */
 static void
-adfs_adfs2unix_time(struct timespec *tv, struct inode *inode)
+adfs_adfs2unix_time(struct timespec64 *tv, struct inode *inode)
 {
 	unsigned int high, low;
 	/* 01 Jan 1970 00:00:00 (Unix epoch) as nanoseconds since
@@ -195,7 +195,7 @@ adfs_adfs2unix_time(struct timespec *tv, struct inode *inode)
 	/* convert from RISC OS to Unix epoch */
 	nsec -= nsec_unix_epoch_diff_risc_os_epoch;
 
-	*tv = ns_to_timespec(nsec);
+	*tv = ns_to_timespec64(nsec);
 	return;
 
  cur_time:
@@ -284,7 +284,7 @@ adfs_iget(struct super_block *sb, struct object_info *obj)
 		ADFS_I(inode)->mmu_private = inode->i_size;
 	}
 
-	insert_inode_hash(inode);
+	inode_fake_hash(inode);
 
 out:
 	return inode;

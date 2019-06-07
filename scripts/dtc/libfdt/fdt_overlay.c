@@ -697,7 +697,7 @@ static int get_path_len(const void *fdt, int nodeoffset)
 	int len = 0, namelen;
 	const char *name;
 
-	FDT_CHECK_HEADER(fdt);
+	FDT_RO_PROBE(fdt);
 
 	for (;;) {
 		name = fdt_get_name(fdt, nodeoffset, &namelen);
@@ -866,8 +866,8 @@ int fdt_overlay_apply(void *fdt, void *fdto)
 	uint32_t delta = fdt_get_max_phandle(fdt);
 	int ret;
 
-	FDT_CHECK_HEADER(fdt);
-	FDT_CHECK_HEADER(fdto);
+	FDT_RO_PROBE(fdt);
+	FDT_RO_PROBE(fdto);
 
 	ret = overlay_adjust_local_phandles(fdto, delta);
 	if (ret)

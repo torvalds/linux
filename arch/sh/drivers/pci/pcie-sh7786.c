@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Low-Level PCI Express Support for the SH7786
  *
  *  Copyright (C) 2009 - 2011  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #define pr_fmt(fmt) "PCI: " fmt
 
@@ -21,7 +18,7 @@
 #include <linux/sh_intc.h>
 #include <cpu/sh7786.h>
 #include "pcie-sh7786.h"
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 struct sh7786_pcie_port {
 	struct pci_channel	*hose;
@@ -561,7 +558,7 @@ static int __init sh7786_pcie_init(void)
 	if (unlikely(nr_ports == 0))
 		return -ENODEV;
 
-	sh7786_pcie_ports = kzalloc(nr_ports * sizeof(struct sh7786_pcie_port),
+	sh7786_pcie_ports = kcalloc(nr_ports, sizeof(struct sh7786_pcie_port),
 				    GFP_KERNEL);
 	if (unlikely(!sh7786_pcie_ports))
 		return -ENOMEM;

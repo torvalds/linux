@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* n2_core.c: Niagara2 Stream Processing Unit (SPU) crypto support.
  *
  * Copyright (C) 2010, 2011 David S. Miller <davem@davemloft.net>
@@ -469,8 +470,6 @@ static int n2_hmac_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 		return err;
 
 	shash->tfm = child_shash;
-	shash->flags = crypto_ahash_get_flags(tfm) &
-		CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	bs = crypto_shash_blocksize(child_shash);
 	ds = crypto_shash_digestsize(child_shash);
@@ -772,7 +771,7 @@ static int n2_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	}
 
 	err = des_ekey(tmp, key);
-	if (err == 0 && (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+	if (err == 0 && (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 		return -EINVAL;
 	}
@@ -788,13 +787,18 @@ static int n2_3des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
 	struct n2_cipher_context *ctx = crypto_tfm_ctx(tfm);
 	struct n2_cipher_alg *n2alg = n2_cipher_alg(tfm);
+	u32 flags;
+	int err;
+
+	flags = crypto_ablkcipher_get_flags(cipher);
+	err = __des3_verify_key(&flags, key);
+	if (unlikely(err)) {
+		crypto_ablkcipher_set_flags(cipher, flags);
+		return err;
+	}
 
 	ctx->enc_type = n2alg->enc_type;
 
-	if (keylen != (3 * DES_KEY_SIZE)) {
-		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
 	ctx->key_len = keylen;
 	memcpy(ctx->key.des3, key, keylen);
 	return 0;
@@ -1487,8 +1491,7 @@ static int __n2_register_one_ahash(const struct n2_hash_tmpl *tmpl)
 	snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "%s", tmpl->name);
 	snprintf(base->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s-n2", tmpl->name);
 	base->cra_priority = N2_CRA_PRIORITY;
-	base->cra_flags = CRYPTO_ALG_TYPE_AHASH |
-			  CRYPTO_ALG_KERN_DRIVER_ONLY |
+	base->cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY |
 			  CRYPTO_ALG_NEED_FALLBACK;
 	base->cra_blocksize = tmpl->block_size;
 	base->cra_ctxsize = sizeof(struct n2_hash_ctx);
@@ -1919,12 +1922,12 @@ static int grab_global_resources(void)
 		goto out_hvapi_release;
 
 	err = -ENOMEM;
-	cpu_to_cwq = kzalloc(sizeof(struct spu_queue *) * NR_CPUS,
+	cpu_to_cwq = kcalloc(NR_CPUS, sizeof(struct spu_queue *),
 			     GFP_KERNEL);
 	if (!cpu_to_cwq)
 		goto out_queue_cache_destroy;
 
-	cpu_to_mau = kzalloc(sizeof(struct spu_queue *) * NR_CPUS,
+	cpu_to_mau = kcalloc(NR_CPUS, sizeof(struct spu_queue *),
 			     GFP_KERNEL);
 	if (!cpu_to_mau)
 		goto out_free_cwq_table;

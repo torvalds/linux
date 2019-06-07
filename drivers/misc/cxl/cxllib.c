@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2017 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/hugetlb.h>
@@ -102,10 +98,6 @@ int cxllib_get_xsl_config(struct pci_dev *dev, struct cxllib_xsl_config *cfg)
 	rc = cxl_get_xsl9_dsnctl(dev, capp_unit_id, &cfg->dsnctl);
 	if (rc)
 		return rc;
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-		/* workaround for DD1 - nbwind = capiind */
-		cfg->dsnctl |= ((u64)0x02 << (63-47));
-	}
 
 	cfg->version  = CXL_XSL_CONFIG_CURRENT_VERSION;
 	cfg->log_bar_size = CXL_CAPI_WINDOW_LOG_SIZE;

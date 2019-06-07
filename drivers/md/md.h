@@ -1,15 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
    md.h : kernel internal structure of the Linux MD driver
           Copyright (C) 1996-98 Ingo Molnar, Gadi Oxman
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-
-   You should have received a copy of the GNU General Public License
-   (for example /usr/src/linux/COPYING); if not, write to the Free
-   Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #ifndef _MD_MD_H
@@ -452,8 +445,8 @@ struct mddev {
 
 	struct attribute_group		*to_remove;
 
-	struct bio_set			*bio_set;
-	struct bio_set			*sync_set; /* for sync operations like
+	struct bio_set			bio_set;
+	struct bio_set			sync_set; /* for sync operations like
 						   * metadata and bitmap writes
 						   */
 
@@ -463,6 +456,9 @@ struct mddev {
 	 */
 	struct bio *flush_bio;
 	atomic_t flush_pending;
+	ktime_t start_flush, last_flush; /* last_flush is when the last completed
+					  * flush was started.
+					  */
 	struct work_struct flush_work;
 	struct work_struct event_work;	/* used by dm to report failure event */
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
@@ -488,6 +484,7 @@ enum recovery_flags {
 	MD_RECOVERY_FROZEN,	/* User request to abort, and not restart, any action */
 	MD_RECOVERY_ERROR,	/* sync-action interrupted because io-error */
 	MD_RECOVERY_WAIT,	/* waiting for pers->start() to finish */
+	MD_RESYNCING_REMOTE,	/* remote node is running resync thread */
 };
 
 static inline int __must_check mddev_lock(struct mddev *mddev)
@@ -548,6 +545,7 @@ struct md_personality
 	int (*check_reshape) (struct mddev *mddev);
 	int (*start_reshape) (struct mddev *mddev);
 	void (*finish_reshape) (struct mddev *mddev);
+	void (*update_reshape_pos) (struct mddev *mddev);
 	/* quiesce suspends or resumes internal processing.
 	 * 1 - stop new actions and wait for action io to complete
 	 * 0 - return to normal behaviour

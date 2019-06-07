@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Synopsys DesignWare Multimedia Card Interface driver
  *  (Based on NXP driver for lpc 31xx)
  *
  * Copyright (C) 2009 NXP Semiconductors
  * Copyright (C) 2009, 2010 Imagination Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/blkdev.h>
@@ -1065,8 +1061,8 @@ static void dw_mci_ctrl_thld(struct dw_mci *host, struct mmc_data *data)
 	 * It's used when HS400 mode is enabled.
 	 */
 	if (data->flags & MMC_DATA_WRITE &&
-		!(host->timing != MMC_TIMING_MMC_HS400))
-		return;
+		host->timing != MMC_TIMING_MMC_HS400)
+		goto disable;
 
 	if (data->flags & MMC_DATA_WRITE)
 		enable = SDMMC_CARD_WR_THR_EN;
@@ -1074,7 +1070,8 @@ static void dw_mci_ctrl_thld(struct dw_mci *host, struct mmc_data *data)
 		enable = SDMMC_CARD_RD_THR_EN;
 
 	if (host->timing != MMC_TIMING_MMC_HS200 &&
-	    host->timing != MMC_TIMING_UHS_SDR104)
+	    host->timing != MMC_TIMING_UHS_SDR104 &&
+	    host->timing != MMC_TIMING_MMC_HS400)
 		goto disable;
 
 	blksz_depth = blksz / (1 << host->data_shift);
@@ -1230,6 +1227,8 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 	if (host->state == STATE_WAITING_CMD11_DONE)
 		sdmmc_cmd_bits |= SDMMC_CMD_VOLT_SWITCH;
 
+	slot->mmc->actual_clock = 0;
+
 	if (!clock) {
 		mci_writel(host, CLKENA, 0);
 		mci_send_cmd(slot, sdmmc_cmd_bits, 0);
@@ -1288,6 +1287,8 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 		/* keep the last clock value that was requested from core */
 		slot->__clk_old = clock;
+		slot->mmc->actual_clock = div ? ((host->bus_hz / div) >> 1) :
+					  host->bus_hz;
 	}
 
 	host->current_speed = clock;

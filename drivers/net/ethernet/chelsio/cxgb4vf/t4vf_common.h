@@ -391,7 +391,10 @@ int t4vf_config_rss_range(struct adapter *, unsigned int, int, int,
 
 int t4vf_alloc_vi(struct adapter *, int);
 int t4vf_free_vi(struct adapter *, int);
-int t4vf_enable_vi(struct adapter *, unsigned int, bool, bool);
+int t4vf_enable_vi(struct adapter *adapter, unsigned int viid, bool rx_en,
+		   bool tx_en);
+int t4vf_enable_pi(struct adapter *adapter, struct port_info *pi, bool rx_en,
+		   bool tx_en);
 int t4vf_identify_port(struct adapter *, unsigned int, unsigned int);
 
 int t4vf_set_rxmode(struct adapter *, unsigned int, int, int, int, int, int,

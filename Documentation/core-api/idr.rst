@@ -1,4 +1,4 @@
-.. SPDX-License-Identifier: CC-BY-SA-4.0
+.. SPDX-License-Identifier: GPL-2.0+
 
 =============
 ID Allocation
@@ -76,4 +76,6 @@ Functions and structures
 ========================
 
 .. kernel-doc:: include/linux/idr.h
+   :functions:
 .. kernel-doc:: lib/idr.c
+   :functions:

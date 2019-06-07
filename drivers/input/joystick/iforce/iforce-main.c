@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) 2000-2002 Vojtech Pavlik <vojtech@ucw.cz>
  *  Copyright (c) 2001-2002, 2007 Johann Deneux <johann.deneux@gmail.com>
@@ -6,23 +7,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
- * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
 #include "iforce.h"
@@ -33,21 +17,14 @@ MODULE_LICENSE("GPL");
 
 static signed short btn_joystick[] =
 { BTN_TRIGGER, BTN_TOP, BTN_THUMB, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_BASE5, BTN_A, BTN_B, BTN_C, -1 };
+  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_BASE5, BTN_A,
+  BTN_B, BTN_C, BTN_DEAD, -1 };
 
-static signed short btn_avb_pegasus[] =
-{ BTN_TRIGGER, BTN_TOP, BTN_THUMB, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, -1 };
+static signed short btn_joystick_avb[] =
+{ BTN_TRIGGER, BTN_THUMB, BTN_TOP, BTN_TOP2, BTN_BASE,
+  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_DEAD, -1 };
 
 static signed short btn_wheel[] =
-{ BTN_TRIGGER, BTN_TOP, BTN_THUMB, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_BASE5, BTN_A, BTN_B, BTN_C, -1 };
-
-static signed short btn_avb_tw[] =
-{ BTN_TRIGGER, BTN_THUMB, BTN_TOP, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, -1 };
-
-static signed short btn_avb_wheel[] =
 { BTN_GEAR_DOWN, BTN_GEAR_UP, BTN_BASE, BTN_BASE2, BTN_BASE3,
   BTN_BASE4, BTN_BASE5, BTN_BASE6, -1 };
 
@@ -73,9 +50,9 @@ static struct iforce_device iforce_device[] = {
 	{ 0x044f, 0xa01c, "Thrustmaster Motor Sport GT",		btn_wheel, abs_wheel, ff_iforce },
 	{ 0x046d, 0xc281, "Logitech WingMan Force",			btn_joystick, abs_joystick, ff_iforce },
 	{ 0x046d, 0xc291, "Logitech WingMan Formula Force",		btn_wheel, abs_wheel, ff_iforce },
-	{ 0x05ef, 0x020a, "AVB Top Shot Pegasus",			btn_avb_pegasus, abs_avb_pegasus, ff_iforce },
-	{ 0x05ef, 0x8884, "AVB Mag Turbo Force",			btn_avb_wheel, abs_wheel, ff_iforce },
-	{ 0x05ef, 0x8888, "AVB Top Shot Force Feedback Racing Wheel",	btn_avb_tw, abs_wheel, ff_iforce }, //?
+	{ 0x05ef, 0x020a, "AVB Top Shot Pegasus",			btn_joystick_avb, abs_avb_pegasus, ff_iforce },
+	{ 0x05ef, 0x8884, "AVB Mag Turbo Force",			btn_wheel, abs_wheel, ff_iforce },
+	{ 0x05ef, 0x8888, "AVB Top Shot Force Feedback Racing Wheel",	btn_wheel, abs_wheel, ff_iforce }, //?
 	{ 0x061c, 0xc0a4, "ACT LABS Force RS",                          btn_wheel, abs_wheel, ff_iforce }, //?
 	{ 0x061c, 0xc084, "ACT LABS Force RS",				btn_wheel, abs_wheel, ff_iforce },
 	{ 0x06f8, 0x0001, "Guillemot Race Leader Force Feedback",	btn_wheel, abs_wheel, ff_iforce }, //?
@@ -360,7 +337,7 @@ int iforce_init_device(struct iforce *iforce)
 
 	for (i = 0; c[i]; i++)
 		if (!iforce_get_id_packet(iforce, c + i))
-			iforce_dump_packet("info", iforce->ecmd, iforce->edata);
+			iforce_dump_packet(iforce, "info", iforce->ecmd, iforce->edata);
 
 /*
  * Disable spring, enable force feedback.
@@ -388,7 +365,6 @@ int iforce_init_device(struct iforce *iforce)
 
 	for (i = 0; iforce->type->btn[i] >= 0; i++)
 		set_bit(iforce->type->btn[i], input_dev->keybit);
-	set_bit(BTN_DEAD, input_dev->keybit);
 
 	for (i = 0; iforce->type->abs[i] >= 0; i++) {
 

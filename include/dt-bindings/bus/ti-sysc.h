@@ -15,6 +15,8 @@
 /* SmartReflex sysc found on 36xx and later */
 #define SYSC_OMAP3_SR_ENAWAKEUP		(1 << 26)
 
+#define SYSC_DRA7_MCAN_ENAWAKEUP	(1 << 4)
+
 /* SYSCONFIG STANDBYMODE/MIDLEMODE/SIDLEMODE supported by hardware */
 #define SYSC_IDLE_FORCE			0
 #define SYSC_IDLE_NO			1

@@ -3,6 +3,7 @@
 #define _UAPI_LINUX_ERRQUEUE_H
 
 #include <linux/types.h>
+#include <linux/time_types.h>
 
 struct sock_extended_err {
 	__u32	ee_errno;	
@@ -20,11 +21,15 @@ struct sock_extended_err {
 #define SO_EE_ORIGIN_ICMP6	3
 #define SO_EE_ORIGIN_TXSTATUS	4
 #define SO_EE_ORIGIN_ZEROCOPY	5
+#define SO_EE_ORIGIN_TXTIME	6
 #define SO_EE_ORIGIN_TIMESTAMPING SO_EE_ORIGIN_TXSTATUS
 
 #define SO_EE_OFFENDER(ee)	((struct sockaddr*)((ee)+1))
 
 #define SO_EE_CODE_ZEROCOPY_COPIED	1
+
+#define SO_EE_CODE_TXTIME_INVALID_PARAM	1
+#define SO_EE_CODE_TXTIME_MISSED	2
 
 /**
  *	struct scm_timestamping - timestamps exposed through cmsg
@@ -35,6 +40,10 @@ struct sock_extended_err {
  */
 struct scm_timestamping {
 	struct timespec ts[3];
+};
+
+struct scm_timestamping64 {
+	struct __kernel_timespec ts[3];
 };
 
 /* The type of scm_timestamping, passed in sock_extended_err ee_info.

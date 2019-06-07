@@ -21,9 +21,9 @@
 #define _PSB_DRV_H_
 
 #include <linux/kref.h>
+#include <linux/mm_types.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_global.h>
 #include <drm/gma_drm.h>
 #include "psb_reg.h"
 #include "psb_intel_drv.h"
@@ -537,6 +537,7 @@ struct drm_psb_private {
 	int lvds_ssc_freq;
 	bool is_lvds_on;
 	bool is_mipi_on;
+	bool lvds_enabled_in_vbt;
 	u32 mipi_ctrl_display;
 
 	unsigned int core_freq;
@@ -749,7 +750,7 @@ extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
 			struct drm_file *file);
 extern int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
-extern int psb_gem_fault(struct vm_fault *vmf);
+extern vm_fault_t psb_gem_fault(struct vm_fault *vmf);
 
 /* psb_device.c */
 extern const struct psb_ops psb_chip_ops;

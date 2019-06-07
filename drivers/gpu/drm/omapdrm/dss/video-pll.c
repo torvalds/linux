@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/clk.h>
@@ -134,6 +126,7 @@ static const struct dss_pll_hw dss_dra7_video_pll_hw = {
 	.has_refsel = true,
 
 	.errata_i886 = true,
+	.errata_i932 = true,
 };
 
 struct dss_pll *dss_video_pll_init(struct dss_device *dss,

@@ -231,14 +231,34 @@ char acpi_ut_remove_whitespace(char **string)
 
 u8 acpi_ut_detect_hex_prefix(char **string)
 {
+	char *initial_position = *string;
 
-	if ((**string == ACPI_ASCII_ZERO) &&
-	    (tolower((int)*(*string + 1)) == 'x')) {
-		*string += 2;	/* Go past the leading 0x */
-		return (TRUE);
+	acpi_ut_remove_hex_prefix(string);
+	if (*string != initial_position) {
+		return (TRUE);	/* String is past leading 0x */
 	}
 
 	return (FALSE);		/* Not a hex string */
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_remove_hex_prefix
+ *
+ * PARAMETERS:  string                  - Pointer to input ASCII string
+ *
+ * RETURN:      none
+ *
+ * DESCRIPTION: Remove a hex "0x" prefix
+ *
+ ******************************************************************************/
+
+void acpi_ut_remove_hex_prefix(char **string)
+{
+	if ((**string == ACPI_ASCII_ZERO) &&
+	    (tolower((int)*(*string + 1)) == 'x')) {
+		*string += 2;	/* Go past the leading 0x */
+	}
 }
 
 /*******************************************************************************

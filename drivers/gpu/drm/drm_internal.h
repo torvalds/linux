@@ -21,11 +21,20 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <drm/drm_ioctl.h>
+
 #define DRM_IF_MAJOR 1
 #define DRM_IF_MINOR 4
 
+#define DRM_IF_VERSION(maj, min) (maj << 16 | min)
+
+struct drm_prime_file_private;
+struct dma_buf;
+
 /* drm_file.c */
 extern struct mutex drm_global_mutex;
+struct drm_file *drm_file_alloc(struct drm_minor *minor);
+void drm_file_free(struct drm_file *file);
 void drm_lastclose(struct drm_device *dev);
 
 /* drm_pci.c */
@@ -49,11 +58,6 @@ void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpr
 struct drm_minor *drm_minor_acquire(unsigned int minor_id);
 void drm_minor_release(struct drm_minor *minor);
 
-/* drm_info.c */
-int drm_name_info(struct seq_file *m, void *data);
-int drm_clients_info(struct seq_file *m, void* data);
-int drm_gem_name_info(struct seq_file *m, void *data);
-
 /* drm_vblank.c */
 void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
 void drm_vblank_cleanup(struct drm_device *dev);
@@ -67,8 +71,10 @@ int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
 /* drm_irq.c */
 
 /* IOCTLS */
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
 int drm_legacy_irq_control(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
+#endif
 
 int drm_crtc_get_sequence_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
@@ -96,6 +102,8 @@ void drm_sysfs_destroy(void);
 struct device *drm_sysfs_minor_alloc(struct drm_minor *minor);
 int drm_sysfs_connector_add(struct drm_connector *connector);
 void drm_sysfs_connector_remove(struct drm_connector *connector);
+
+void drm_sysfs_lease_event(struct drm_device *dev);
 
 /* drm_gem.c */
 int drm_gem_init(struct drm_device *dev);
@@ -174,12 +182,20 @@ int drm_syncobj_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_private);
 int drm_syncobj_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_private);
+int drm_syncobj_transfer_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file_private);
 int drm_syncobj_wait_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_private);
+int drm_syncobj_timeline_wait_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file_private);
 int drm_syncobj_reset_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_private);
 int drm_syncobj_signal_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_private);
+int drm_syncobj_timeline_signal_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file_private);
+int drm_syncobj_query_ioctl(struct drm_device *dev, void *data,
+			    struct drm_file *file_private);
 
 /* drm_framebuffer.c */
 void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,

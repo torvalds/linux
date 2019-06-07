@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/percpu.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
@@ -106,20 +106,22 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 	void *ptr;
 
 	if (!node_online(node) || !NODE_DATA(node)) {
-		ptr = __alloc_bootmem_nopanic(size, align, goal);
+		ptr = memblock_alloc_from(size, align, goal);
 		pr_info("cpu %d has no node %d or node-local memory\n",
 			cpu, node);
 		pr_debug("per cpu data for cpu%d %lu bytes at %016lx\n",
 			 cpu, size, __pa(ptr));
 	} else {
-		ptr = __alloc_bootmem_node_nopanic(NODE_DATA(node),
-						   size, align, goal);
+		ptr = memblock_alloc_try_nid(size, align, goal,
+					     MEMBLOCK_ALLOC_ACCESSIBLE,
+					     node);
+
 		pr_debug("per cpu data for cpu%d %lu bytes on node%d at %016lx\n",
 			 cpu, size, node, __pa(ptr));
 	}
 	return ptr;
 #else
-	return __alloc_bootmem_nopanic(size, align, goal);
+	return memblock_alloc_from(size, align, goal);
 #endif
 }
 
@@ -133,7 +135,7 @@ static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align)
 
 static void __init pcpu_fc_free(void *ptr, size_t size)
 {
-	free_bootmem(__pa(ptr), size);
+	memblock_free(__pa(ptr), size);
 }
 
 static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
@@ -169,7 +171,7 @@ void __init setup_per_cpu_areas(void)
 	unsigned long delta;
 	int rc;
 
-	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%u nr_node_ids:%d\n",
+	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%u nr_node_ids:%u\n",
 		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_node_ids);
 
 	/*
@@ -241,11 +243,6 @@ void __init setup_per_cpu_areas(void)
 #ifdef CONFIG_X86_32
 		per_cpu(x86_cpu_to_logical_apicid, cpu) =
 			early_per_cpu_map(x86_cpu_to_logical_apicid, cpu);
-#endif
-#ifdef CONFIG_X86_64
-		per_cpu(irq_stack_ptr, cpu) =
-			per_cpu(irq_stack_union.irq_stack, cpu) +
-			IRQ_STACK_SIZE;
 #endif
 #ifdef CONFIG_NUMA
 		per_cpu(x86_cpu_to_node_map, cpu) =

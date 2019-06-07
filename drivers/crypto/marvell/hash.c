@@ -135,11 +135,10 @@ static int mv_cesa_ahash_pad_len(struct mv_cesa_ahash_req *creq)
 
 static int mv_cesa_ahash_pad_req(struct mv_cesa_ahash_req *creq, u8 *buf)
 {
-	unsigned int index, padlen;
+	unsigned int padlen;
 
 	buf[0] = 0x80;
 	/* Pad out to 56 mod 64 */
-	index = creq->len & CESA_HASH_BLOCK_SIZE_MSK;
 	padlen = mv_cesa_ahash_pad_len(creq);
 	memset(buf + 1, 0, padlen - 1);
 
@@ -1183,8 +1182,7 @@ static int mv_cesa_ahmac_setkey(const char *hash_alg_name,
 	u8 *opad;
 	int ret;
 
-	tfm = crypto_alloc_ahash(hash_alg_name, CRYPTO_ALG_TYPE_AHASH,
-				 CRYPTO_ALG_TYPE_AHASH_MASK);
+	tfm = crypto_alloc_ahash(hash_alg_name, 0, 0);
 	if (IS_ERR(tfm))
 		return PTR_ERR(tfm);
 
@@ -1198,7 +1196,7 @@ static int mv_cesa_ahmac_setkey(const char *hash_alg_name,
 
 	blocksize = crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
 
-	ipad = kzalloc(2 * blocksize, GFP_KERNEL);
+	ipad = kcalloc(2, blocksize, GFP_KERNEL);
 	if (!ipad) {
 		ret = -ENOMEM;
 		goto free_req;

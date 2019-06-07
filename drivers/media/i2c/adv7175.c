@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  adv7175 - adv7175a video encoder driver version 0.0.3
  *
@@ -8,16 +9,6 @@
  *
  * Changes by Ronald Bultje <rbultje@ronald.bitfreak.net>
  *    - moved over to linux>=2.4.x i2c protocol (9/9/2002)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -219,7 +210,7 @@ static int adv7175_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 		 * SECAM->PAL (typically it does not work
 		 * due to genlock: when decoder is in SECAM
 		 * and encoder in in PAL the subcarrier can
-		 * not be syncronized with horizontal
+		 * not be synchronized with horizontal
 		 * quency) */
 		adv7175_write_block(sd, init_pal, sizeof(init_pal));
 		if (encoder->input == 0)

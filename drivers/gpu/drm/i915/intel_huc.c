@@ -32,6 +32,14 @@ void intel_huc_init_early(struct intel_huc *huc)
 	intel_huc_fw_init_early(huc);
 }
 
+int intel_huc_init_misc(struct intel_huc *huc)
+{
+	struct drm_i915_private *i915 = huc_to_i915(huc);
+
+	intel_uc_fw_fetch(i915, &huc->fw);
+	return 0;
+}
+
 /**
  * intel_huc_auth() - Authenticate HuC uCode
  * @huc: intel_huc structure
@@ -55,7 +63,7 @@ int intel_huc_auth(struct intel_huc *huc)
 		return -ENOEXEC;
 
 	vma = i915_gem_object_ggtt_pin(huc->fw.obj, NULL, 0, 0,
-				PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+				       PIN_OFFSET_BIAS | i915->ggtt.pin_bias);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		DRM_ERROR("HuC: Failed to pin huc fw object %d\n", ret);
@@ -63,14 +71,15 @@ int intel_huc_auth(struct intel_huc *huc)
 	}
 
 	ret = intel_guc_auth_huc(guc,
-				 guc_ggtt_offset(vma) + huc->fw.rsa_offset);
+				 intel_guc_ggtt_offset(guc, vma) +
+				 huc->fw.rsa_offset);
 	if (ret) {
 		DRM_ERROR("HuC: GuC did not ack Auth request %d\n", ret);
 		goto fail_unpin;
 	}
 
 	/* Check authentication status, it should be done by now */
-	ret = __intel_wait_for_register(i915,
+	ret = __intel_wait_for_register(&i915->uncore,
 					HUC_STATUS2,
 					HUC_FW_VERIFIED,
 					HUC_FW_VERIFIED,
@@ -90,4 +99,30 @@ fail:
 
 	DRM_ERROR("HuC: Authentication failed %d\n", ret);
 	return ret;
+}
+
+/**
+ * intel_huc_check_status() - check HuC status
+ * @huc: intel_huc structure
+ *
+ * This function reads status register to verify if HuC
+ * firmware was successfully loaded.
+ *
+ * Returns: 1 if HuC firmware is loaded and verified,
+ * 0 if HuC firmware is not loaded and -ENODEV if HuC
+ * is not present on this platform.
+ */
+int intel_huc_check_status(struct intel_huc *huc)
+{
+	struct drm_i915_private *dev_priv = huc_to_i915(huc);
+	intel_wakeref_t wakeref;
+	bool status = false;
+
+	if (!HAS_HUC(dev_priv))
+		return -ENODEV;
+
+	with_intel_runtime_pm(dev_priv, wakeref)
+		status = I915_READ(HUC_STATUS2) & HUC_FW_VERIFIED;
+
+	return status;
 }

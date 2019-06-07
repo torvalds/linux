@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Imagination Technologies
  * Author: Paul Burton <paul.burton@mips.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/clk.h>
@@ -14,7 +10,6 @@
 #include <linux/init.h>
 #include <linux/irqchip.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 
 #include <asm/bootinfo.h>
 #include <asm/fw/fw.h>
@@ -44,14 +39,14 @@ void __init *plat_get_fdt(void)
 		/* Already set up */
 		return (void *)fdt;
 
-	if ((fw_arg0 == -2) && !fdt_check_header((void *)fw_arg1)) {
+	if ((fw_arg0 == -2) && !fdt_check_header((void *)fw_passed_dtb)) {
 		/*
 		 * We booted using the UHI boot protocol, so we have been
 		 * provided with the appropriate device tree for the board.
 		 * Make use of it & search for any machine struct based upon
 		 * the root compatible string.
 		 */
-		fdt = (void *)fw_arg1;
+		fdt = (void *)fw_passed_dtb;
 
 		for_each_mips_machine(check_mach) {
 			match = mips_machine_is_compatible(check_mach, fdt);
@@ -204,21 +199,10 @@ void __init arch_init_irq(void)
 					    "mti,cpu-interrupt-controller");
 	if (!cpu_has_veic && !intc_node)
 		mips_cpu_irq_init();
+	of_node_put(intc_node);
 
 	irqchip_init();
 }
-
-static int __init publish_devices(void)
-{
-	if (!of_have_populated_dt())
-		panic("Device-tree not present");
-
-	if (of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL))
-		panic("Failed to populate DT");
-
-	return 0;
-}
-arch_initcall(publish_devices);
 
 void __init prom_free_prom_memory(void)
 {

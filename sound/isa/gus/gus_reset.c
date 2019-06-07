@@ -1,21 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -292,7 +277,6 @@ void snd_gf1_free_voice(struct snd_gus_card * gus, struct snd_gus_voice *voice)
 {
 	unsigned long flags;
 	void (*private_free)(struct snd_gus_voice *voice);
-	void *private_data;
 
 	if (voice == NULL || !voice->use)
 		return;
@@ -300,7 +284,6 @@ void snd_gf1_free_voice(struct snd_gus_card * gus, struct snd_gus_voice *voice)
 	snd_gf1_clear_voices(gus, voice->number, voice->number);
 	spin_lock_irqsave(&gus->voice_alloc, flags);
 	private_free = voice->private_free;
-	private_data = voice->private_data;
 	voice->private_free = NULL;
 	voice->private_data = NULL;
 	if (voice->pcm)

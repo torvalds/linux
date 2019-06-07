@@ -172,8 +172,7 @@ static int emac_mdio_probe(struct net_device *dev)
 	}
 
 	/* mask with MAC supported features */
-	phydev->supported &= PHY_BASIC_FEATURES;
-	phydev->advertising = phydev->supported;
+	phy_set_max_speed(phydev, SPEED_100);
 
 	db->link = 0;
 	db->speed = 0;
@@ -871,8 +870,8 @@ static int emac_probe(struct platform_device *pdev)
 
 	/* Read MAC-address from DT */
 	mac_addr = of_get_mac_address(np);
-	if (mac_addr)
-		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+	if (!IS_ERR(mac_addr))
+		ether_addr_copy(ndev->dev_addr, mac_addr);
 
 	/* Check if the MAC address is valid, if not get a random one */
 	if (!is_valid_ether_addr(ndev->dev_addr)) {

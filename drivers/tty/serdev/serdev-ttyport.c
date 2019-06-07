@@ -233,7 +233,7 @@ static int ttyport_get_tiocm(struct serdev_controller *ctrl)
 	if (!tty->ops->tiocmget)
 		return -ENOTSUPP;
 
-	return tty->driver->ops->tiocmget(tty);
+	return tty->ops->tiocmget(tty);
 }
 
 static int ttyport_set_tiocm(struct serdev_controller *ctrl, unsigned int set, unsigned int clear)
@@ -244,7 +244,7 @@ static int ttyport_set_tiocm(struct serdev_controller *ctrl, unsigned int set, u
 	if (!tty->ops->tiocmset)
 		return -ENOTSUPP;
 
-	return tty->driver->ops->tiocmset(tty, set, clear);
+	return tty->ops->tiocmset(tty, set, clear);
 }
 
 static const struct serdev_controller_ops ctrl_ops = {

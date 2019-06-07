@@ -56,11 +56,13 @@ extern struct pci_ecam_ops thunder_pem_ecam_ops; /* Cavium ThunderX 1.x & 2.x */
 extern struct pci_ecam_ops pci_thunder_ecam_ops; /* Cavium ThunderX 1.x */
 extern struct pci_ecam_ops xgene_v1_pcie_ecam_ops; /* APM X-Gene PCIe v1 */
 extern struct pci_ecam_ops xgene_v2_pcie_ecam_ops; /* APM X-Gene PCIe v2.x */
+extern struct pci_ecam_ops al_pcie_ops; /* Amazon Annapurna Labs PCIe */
 #endif
 
 #ifdef CONFIG_PCI_HOST_COMMON
 /* for DT-based PCI controllers that support ECAM */
 int pci_host_common_probe(struct platform_device *pdev,
 			  struct pci_ecam_ops *ops);
+int pci_host_common_remove(struct platform_device *pdev);
 #endif
 #endif

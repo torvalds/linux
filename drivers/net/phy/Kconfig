@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # PHY Layer Configuration
 #
@@ -6,6 +7,8 @@ menuconfig MDIO_DEVICE
 	tristate "MDIO bus device drivers"
 	help
 	  MDIO devices and driver infrastructure code.
+
+if MDIO_DEVICE
 
 config MDIO_BUS
 	tristate
@@ -28,7 +31,7 @@ config MDIO_BCM_IPROC
 
 config MDIO_BCM_UNIMAC
 	tristate "Broadcom UniMAC MDIO bus controller"
-	depends on HAS_IOMEM && OF_MDIO
+	depends on HAS_IOMEM
 	help
 	  This module provides a driver for the Broadcom UniMAC MDIO busses.
 	  This hardware can be found in the Broadcom GENET Ethernet MAC
@@ -74,6 +77,17 @@ config MDIO_BUS_MUX_GPIO
 	  several child MDIO busses to a parent bus.  Child bus
 	  selection is under the control of GPIO lines.
 
+config MDIO_BUS_MUX_MESON_G12A
+	tristate "Amlogic G12a based MDIO bus multiplexer"
+	depends on ARCH_MESON || COMPILE_TEST
+	depends on OF_MDIO && HAS_IOMEM && COMMON_CLK
+	select MDIO_BUS_MUX
+	default m if ARCH_MESON
+	help
+	  This module provides a driver for the MDIO multiplexer/glue of
+	  the amlogic g12a SoC. The multiplexers connects either the external
+	  or the internal MDIO bus to the parent bus.
+
 config MDIO_BUS_MUX_MMIOREG
 	tristate "MMIO device-controlled MDIO bus multiplexers"
 	depends on OF_MDIO && HAS_IOMEM
@@ -87,12 +101,25 @@ config MDIO_BUS_MUX_MMIOREG
 
 	  Currently, only 8/16/32 bits registers are supported.
 
+config MDIO_BUS_MUX_MULTIPLEXER
+	tristate "MDIO bus multiplexer using kernel multiplexer subsystem"
+	depends on OF_MDIO
+	select MULTIPLEXER
+	select MDIO_BUS_MUX
+	help
+	  This module provides a driver for MDIO bus multiplexer
+	  that is controlled via the kernel multiplexer subsystem. The
+	  bus multiplexer connects one of several child MDIO busses to
+	  a parent bus.  Child bus selection is under the control of
+	  the kernel multiplexer subsystem.
+
 config MDIO_CAVIUM
 	tristate
 
 config MDIO_GPIO
 	tristate "GPIO lib-based bitbanged MDIO buses"
-	depends on MDIO_BITBANG && GPIOLIB
+	depends on MDIO_BITBANG
+	depends on GPIOLIB || COMPILE_TEST
 	---help---
 	  Supports GPIO lib-based MDIO busses.
 
@@ -118,10 +145,17 @@ config MDIO_I2C
 
 config MDIO_MOXART
 	tristate "MOXA ART MDIO interface support"
-	depends on ARCH_MOXART
+	depends on ARCH_MOXART || COMPILE_TEST
 	help
 	  This driver supports the MDIO interface found in the network
 	  interface units of the MOXA ART SoC
+
+config MDIO_MSCC_MIIM
+	tristate "Microsemi MIIM interface support"
+	depends on HAS_IOMEM
+	help
+	  This driver supports the MIIM (MDIO) interface found in the network
+	  switches of the Microsemi SoCs
 
 config MDIO_OCTEON
 	tristate "Octeon and some ThunderX SOCs MDIO buses"
@@ -135,7 +169,7 @@ config MDIO_OCTEON
 
 config MDIO_SUN4I
 	tristate "Allwinner sun4i MDIO interface support"
-	depends on ARCH_SUNXI
+	depends on ARCH_SUNXI || COMPILE_TEST
 	help
 	  This driver supports the MDIO interface found in the network
 	  interface units of the Allwinner SoC that have an EMAC (A10,
@@ -158,6 +192,7 @@ config MDIO_XGENE
 	  This module provides a driver for the MDIO busses found in the
 	  APM X-Gene SoC's.
 
+endif
 endif
 
 config PHYLINK
@@ -206,6 +241,7 @@ comment "MII PHY device drivers"
 config SFP
 	tristate "SFP cage support"
 	depends on I2C && PHYLINK
+	depends on HWMON || HWMON=n
 	select MDIO_I2C
 
 config AMD_PHY
@@ -218,6 +254,12 @@ config AQUANTIA_PHY
 	---help---
 	  Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
 
+config ASIX_PHY
+	tristate "Asix PHYs"
+	help
+	  Currently supports the Asix Electronics PHY found in the X-Surf 100
+	  AX88796B package.
+
 config AT803X_PHY
 	tristate "AT803X PHYs"
 	---help---
@@ -225,7 +267,7 @@ config AT803X_PHY
 
 config BCM63XX_PHY
 	tristate "Broadcom 63xx SOCs internal PHY"
-	depends on BCM63XX
+	depends on BCM63XX || COMPILE_TEST
 	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the 6348 and 6358 PHYs.
@@ -243,13 +285,13 @@ config BCM87XX_PHY
 	  Currently supports the BCM8706 and BCM8727 10G Ethernet PHYs.
 
 config BCM_CYGNUS_PHY
-	tristate "Broadcom Cygnus SoC internal PHY"
-	depends on ARCH_BCM_CYGNUS || COMPILE_TEST
+	tristate "Broadcom Cygnus/Omega SoC internal PHY"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on MDIO_BCM_IPROC
 	select BCM_NET_PHYLIB
 	---help---
 	  This PHY driver is for the 1G internal PHYs of the Broadcom
-	  Cygnus Family SoC.
+	  Cygnus and Omega Family SoC.
 
 	  Currently supports internal PHY's used in the BCM11300,
 	  BCM11320, BCM11350, BCM11360, BCM58300, BCM58302,
@@ -284,6 +326,11 @@ config DP83822_PHY
 	tristate "Texas Instruments DP83822 PHY"
 	---help---
 	  Supports the DP83822 PHY.
+
+config DP83TC811_PHY
+	tristate "Texas Instruments DP83TC822 PHY"
+	---help---
+	  Supports the DP83TC822 PHY.
 
 config DP83848_PHY
 	tristate "Texas Instruments DP83848 PHY"
@@ -354,10 +401,15 @@ config MICROCHIP_PHY
 	help
 	  Supports the LAN88XX PHYs.
 
+config MICROCHIP_T1_PHY
+	tristate "Microchip T1 PHYs"
+	---help---
+	  Supports the LAN87XX PHYs.
+
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"
 	---help---
-	  Currently supports VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
+	  Currently supports VSC8514, VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"

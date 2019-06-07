@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Character LCD driver for Linux
  *
  * Copyright (C) 2000-2008, Willy Tarreau <w@1wt.eu>
  * Copyright (C) 2016-2017 Glider bvba
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 struct charlcd {
@@ -35,6 +31,7 @@ struct charlcd_ops {
 };
 
 struct charlcd *charlcd_alloc(unsigned int drvdata_size);
+void charlcd_free(struct charlcd *lcd);
 
 int charlcd_register(struct charlcd *lcd);
 int charlcd_unregister(struct charlcd *lcd);

@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Userland implementation of gettimeofday() for 64 bits processes in a
  * ppc64 kernel for use in the vDSO
  *
  * Copyright (C) 2004 Benjamin Herrenschmuidt (benh@kernel.crashing.org),
  *                    IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
@@ -92,7 +88,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	 * At this point, r4,r5 contain our sec/nsec values.
 	 */
 
-	lwa	r6,WTOM_CLOCK_SEC(r3)
+	ld	r6,WTOM_CLOCK_SEC(r3)
 	lwa	r9,WTOM_CLOCK_NSEC(r3)
 
 	/* We now have our result in r6,r9. We create a fake dependency
@@ -125,7 +121,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	bne     cr6,75f
 
 	/* CLOCK_MONOTONIC_COARSE */
-	lwa     r6,WTOM_CLOCK_SEC(r3)
+	ld	r6,WTOM_CLOCK_SEC(r3)
 	lwa     r9,WTOM_CLOCK_NSEC(r3)
 
 	/* check if counter has updated */
@@ -169,6 +165,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	 */
 99:
 	li	r0,__NR_clock_gettime
+  .cfi_restore lr
 	sc
 	blr
   .cfi_endproc

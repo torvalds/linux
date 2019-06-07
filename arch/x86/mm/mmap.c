@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Flexible mmap layout support
  *
@@ -8,20 +9,6 @@
  * All Rights Reserved.
  * Copyright 2005 Andi Kleen, SUSE Labs.
  * Copyright 2007 Jiri Kosina, SUSE Labs.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/personality.h>
@@ -166,7 +153,7 @@ unsigned long get_mmap_base(int is_legacy)
 	struct mm_struct *mm = current->mm;
 
 #ifdef CONFIG_HAVE_ARCH_COMPAT_MMAP_BASES
-	if (in_compat_syscall()) {
+	if (in_32bit_syscall()) {
 		return is_legacy ? mm->mmap_compat_legacy_base
 				 : mm->mmap_compat_base;
 	}
@@ -230,7 +217,7 @@ bool mmap_address_hint_valid(unsigned long addr, unsigned long len)
 /* Can we access it for direct reading/writing? Must be RAM: */
 int valid_phys_addr_range(phys_addr_t addr, size_t count)
 {
-	return addr + count <= __pa(high_memory);
+	return addr + count - 1 <= __pa(high_memory - 1);
 }
 
 /* Can we access it through mmap? Must be a valid physical address: */
@@ -239,4 +226,25 @@ int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
 	phys_addr_t addr = (phys_addr_t)pfn << PAGE_SHIFT;
 
 	return phys_addr_valid(addr + count - 1);
+}
+
+/*
+ * Only allow root to set high MMIO mappings to PROT_NONE.
+ * This prevents an unpriv. user to set them to PROT_NONE and invert
+ * them, then pointing to valid memory for L1TF speculation.
+ *
+ * Note: for locked down kernels may want to disable the root override.
+ */
+bool pfn_modify_allowed(unsigned long pfn, pgprot_t prot)
+{
+	if (!boot_cpu_has_bug(X86_BUG_L1TF))
+		return true;
+	if (!__pte_needs_invert(pgprot_val(prot)))
+		return true;
+	/* If it's real memory always allow */
+	if (pfn_valid(pfn))
+		return true;
+	if (pfn >= l1tf_pfn_limit() && !capable(CAP_SYS_ADMIN))
+		return false;
+	return true;
 }

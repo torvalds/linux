@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Rockchip machine ASoC driver for boards using a RT5645/RT5650 CODEC.
  *
  * Copyright (c) 2015, ROCKCHIP CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/module.h>
@@ -181,7 +169,8 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 	if (!rk_dailink.cpu_of_node) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,i2s-controller' missing or invalid\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto put_codec_of_node;
 	}
 
 	rk_dailink.platform_of_node = rk_dailink.cpu_of_node;
@@ -190,17 +179,36 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Soc parse card name failed %d\n", ret);
-		return ret;
+		goto put_cpu_of_node;
 	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Soc register card failed %d\n", ret);
-		return ret;
+		goto put_cpu_of_node;
 	}
 
 	return ret;
+
+put_cpu_of_node:
+	of_node_put(rk_dailink.cpu_of_node);
+	rk_dailink.cpu_of_node = NULL;
+put_codec_of_node:
+	of_node_put(rk_dailink.codec_of_node);
+	rk_dailink.codec_of_node = NULL;
+
+	return ret;
+}
+
+static int snd_rk_mc_remove(struct platform_device *pdev)
+{
+	of_node_put(rk_dailink.cpu_of_node);
+	rk_dailink.cpu_of_node = NULL;
+	of_node_put(rk_dailink.codec_of_node);
+	rk_dailink.codec_of_node = NULL;
+
+	return 0;
 }
 
 static const struct of_device_id rockchip_rt5645_of_match[] = {
@@ -212,6 +220,7 @@ MODULE_DEVICE_TABLE(of, rockchip_rt5645_of_match);
 
 static struct platform_driver snd_rk_mc_driver = {
 	.probe = snd_rk_mc_probe,
+	.remove = snd_rk_mc_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &snd_soc_pm_ops,

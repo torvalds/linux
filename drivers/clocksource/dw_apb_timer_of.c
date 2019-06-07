@@ -22,6 +22,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 #include <linux/sched_clock.h>
 
 static void __init timer_get_base_and_rate(struct device_node *np,
@@ -29,11 +30,22 @@ static void __init timer_get_base_and_rate(struct device_node *np,
 {
 	struct clk *timer_clk;
 	struct clk *pclk;
+	struct reset_control *rstc;
 
 	*base = of_iomap(np, 0);
 
 	if (!*base)
-		panic("Unable to map regs for %s", np->name);
+		panic("Unable to map regs for %pOFn", np);
+
+	/*
+	 * Reset the timer if the reset control is available, wiping
+	 * out the state the firmware may have left it
+	 */
+	rstc = of_reset_control_get(np, NULL);
+	if (!IS_ERR(rstc)) {
+		reset_control_assert(rstc);
+		reset_control_deassert(rstc);
+	}
 
 	/*
 	 * Not all implementations use a periphal clock, so don't panic
@@ -42,8 +54,8 @@ static void __init timer_get_base_and_rate(struct device_node *np,
 	pclk = of_clk_get_by_name(np, "pclk");
 	if (!IS_ERR(pclk))
 		if (clk_prepare_enable(pclk))
-			pr_warn("pclk for %s is present, but could not be activated\n",
-				np->name);
+			pr_warn("pclk for %pOFn is present, but could not be activated\n",
+				np);
 
 	timer_clk = of_clk_get_by_name(np, "timer");
 	if (IS_ERR(timer_clk))
@@ -57,7 +69,7 @@ static void __init timer_get_base_and_rate(struct device_node *np,
 try_clock_freq:
 	if (of_property_read_u32(np, "clock-freq", rate) &&
 	    of_property_read_u32(np, "clock-frequency", rate))
-		panic("No clock nor clock-frequency property for %s", np->name);
+		panic("No clock nor clock-frequency property for %pOFn", np);
 }
 
 static void __init add_clockevent(struct device_node *event_timer)

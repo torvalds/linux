@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Framework for MDIO devices, other than PHYs.
  *
  * Copyright (c) 2016 Andrew Lunn <andrew@lunn.ch>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -21,6 +16,7 @@
 #include <linux/mii.h>
 #include <linux/module.h>
 #include <linux/phy.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/unistd.h>
@@ -121,10 +117,18 @@ void mdio_device_reset(struct mdio_device *mdiodev, int value)
 {
 	unsigned int d;
 
-	if (!mdiodev->reset)
+	if (!mdiodev->reset_gpio && !mdiodev->reset_ctrl)
 		return;
 
-	gpiod_set_value(mdiodev->reset, value);
+	if (mdiodev->reset_gpio)
+		gpiod_set_value(mdiodev->reset_gpio, value);
+
+	if (mdiodev->reset_ctrl) {
+		if (value)
+			reset_control_assert(mdiodev->reset_ctrl);
+		else
+			reset_control_deassert(mdiodev->reset_ctrl);
+	}
 
 	d = value ? mdiodev->reset_assert_delay : mdiodev->reset_deassert_delay;
 	if (d)

@@ -91,8 +91,6 @@ static int ndesc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 		return dma_own;
 
 	if (unlikely(!(rdes0 & RDES0_LAST_DESCRIPTOR))) {
-		pr_warn("%s: Oversized frame spanned multiple buffers\n",
-			__func__);
 		stats->rx_length_errors++;
 		return discard_frame;
 	}
@@ -135,15 +133,19 @@ static int ndesc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 }
 
 static void ndesc_init_rx_desc(struct dma_desc *p, int disable_rx_ic, int mode,
-			       int end)
+			       int end, int bfsize)
 {
+	int bfsize1;
+
 	p->des0 |= cpu_to_le32(RDES0_OWN);
-	p->des1 |= cpu_to_le32((BUF_SIZE_2KiB - 1) & RDES1_BUFFER1_SIZE_MASK);
+
+	bfsize1 = min(bfsize, BUF_SIZE_2KiB - 1);
+	p->des1 |= cpu_to_le32(bfsize1 & RDES1_BUFFER1_SIZE_MASK);
 
 	if (mode == STMMAC_CHAIN_MODE)
 		ndesc_rx_set_on_chain(p, end);
 	else
-		ndesc_rx_set_on_ring(p, end);
+		ndesc_rx_set_on_ring(p, end, bfsize);
 
 	if (disable_rx_ic)
 		p->des1 |= cpu_to_le32(RDES1_DISABLE_IC);
@@ -168,7 +170,7 @@ static void ndesc_set_tx_owner(struct dma_desc *p)
 	p->des0 |= cpu_to_le32(TDES0_OWN);
 }
 
-static void ndesc_set_rx_owner(struct dma_desc *p)
+static void ndesc_set_rx_owner(struct dma_desc *p, int disable_rx_ic)
 {
 	p->des0 |= cpu_to_le32(RDES0_OWN);
 }
@@ -253,7 +255,7 @@ static int ndesc_get_tx_timestamp_status(struct dma_desc *p)
 	return (le32_to_cpu(p->des0) & TDES0_TIME_STAMP_STATUS) >> 17;
 }
 
-static u64 ndesc_get_timestamp(void *desc, u32 ats)
+static void ndesc_get_timestamp(void *desc, u32 ats, u64 *ts)
 {
 	struct dma_desc *p = (struct dma_desc *)desc;
 	u64 ns;
@@ -262,7 +264,7 @@ static u64 ndesc_get_timestamp(void *desc, u32 ats)
 	/* convert high/sec time stamp value to nanosecond */
 	ns += le32_to_cpu(p->des3) * 1000000000ULL;
 
-	return ns;
+	*ts = ns;
 }
 
 static int ndesc_get_rx_timestamp_status(void *desc, void *next_desc, u32 ats)
@@ -297,6 +299,21 @@ static void ndesc_display_ring(void *head, unsigned int size, bool rx)
 	pr_info("\n");
 }
 
+static void ndesc_get_addr(struct dma_desc *p, unsigned int *addr)
+{
+	*addr = le32_to_cpu(p->des2);
+}
+
+static void ndesc_set_addr(struct dma_desc *p, dma_addr_t addr)
+{
+	p->des2 = cpu_to_le32(addr);
+}
+
+static void ndesc_clear(struct dma_desc *p)
+{
+	p->des2 = 0;
+}
+
 const struct stmmac_desc_ops ndesc_ops = {
 	.tx_status = ndesc_get_tx_status,
 	.rx_status = ndesc_get_rx_status,
@@ -316,4 +333,7 @@ const struct stmmac_desc_ops ndesc_ops = {
 	.get_timestamp = ndesc_get_timestamp,
 	.get_rx_timestamp_status = ndesc_get_rx_timestamp_status,
 	.display_ring = ndesc_display_ring,
+	.get_addr = ndesc_get_addr,
+	.set_addr = ndesc_set_addr,
+	.clear = ndesc_clear,
 };

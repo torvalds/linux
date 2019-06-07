@@ -159,7 +159,7 @@ static size_t omap_dump_tlb_entries(struct omap_iommu *obj, struct seq_file *s)
 	return 0;
 }
 
-static int debug_read_tlb(struct seq_file *s, void *data)
+static int tlb_show(struct seq_file *s, void *data)
 {
 	struct omap_iommu *obj = s->private;
 
@@ -210,7 +210,7 @@ static void dump_ioptable(struct seq_file *s)
 	spin_unlock(&obj->page_table_lock);
 }
 
-static int debug_read_pagetable(struct seq_file *s, void *data)
+static int pagetable_show(struct seq_file *s, void *data)
 {
 	struct omap_iommu *obj = s->private;
 
@@ -228,35 +228,22 @@ static int debug_read_pagetable(struct seq_file *s, void *data)
 	return 0;
 }
 
-#define DEBUG_SEQ_FOPS_RO(name)						       \
-	static int debug_open_##name(struct inode *inode, struct file *file)   \
-	{								       \
-		return single_open(file, debug_read_##name, inode->i_private); \
-	}								       \
-									       \
-	static const struct file_operations debug_##name##_fops = {	       \
-		.open		= debug_open_##name,			       \
-		.read		= seq_read,				       \
-		.llseek		= seq_lseek,				       \
-		.release	= single_release,			       \
-	}
-
 #define DEBUG_FOPS_RO(name)						\
-	static const struct file_operations debug_##name##_fops = {	\
+	static const struct file_operations name##_fops = {	        \
 		.open = simple_open,					\
 		.read = debug_read_##name,				\
 		.llseek = generic_file_llseek,				\
 	}
 
 DEBUG_FOPS_RO(regs);
-DEBUG_SEQ_FOPS_RO(tlb);
-DEBUG_SEQ_FOPS_RO(pagetable);
+DEFINE_SHOW_ATTRIBUTE(tlb);
+DEFINE_SHOW_ATTRIBUTE(pagetable);
 
 #define __DEBUG_ADD_FILE(attr, mode)					\
 	{								\
 		struct dentry *dent;					\
 		dent = debugfs_create_file(#attr, mode, obj->debug_dir,	\
-					   obj, &debug_##attr##_fops);	\
+					   obj, &attr##_fops);	        \
 		if (!dent)						\
 			goto err;					\
 	}

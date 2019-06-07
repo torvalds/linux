@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTW_DEBUG_C_
@@ -527,7 +519,7 @@ int proc_get_ap_info(struct seq_file *m, void *v)
 			}
 		}
 
-	} else{
+	} else {
 		DBG_871X_SEL_NL(m, "can't get sta's macaddr, cur_network's macaddr:" MAC_FMT "\n", MAC_ARG(cur_network->network.MacAddress));
 	}
 
@@ -665,7 +657,7 @@ int proc_get_suspend_resume_info(struct seq_file *m, void *v)
 	DBG_871X_SEL_NL(m, "dbg_enwow_dload_fw_fail_cnt =%d\n", pdbgpriv->dbg_enwow_dload_fw_fail_cnt);
 	DBG_871X_SEL_NL(m, "dbg_ips_drvopen_fail_cnt =%d\n", pdbgpriv->dbg_ips_drvopen_fail_cnt);
 	DBG_871X_SEL_NL(m, "dbg_poll_fail_cnt =%d\n", pdbgpriv->dbg_poll_fail_cnt);
-	DBG_871X_SEL_NL(m, "dbg_rpwm_toogle_cnt =%d\n", pdbgpriv->dbg_rpwm_toogle_cnt);
+	DBG_871X_SEL_NL(m, "dbg_rpwm_toggle_cnt =%d\n", pdbgpriv->dbg_rpwm_toggle_cnt);
 	DBG_871X_SEL_NL(m, "dbg_rpwm_timeout_fail_cnt =%d\n", pdbgpriv->dbg_rpwm_timeout_fail_cnt);
 
 	return 0;
@@ -1403,16 +1395,16 @@ ssize_t proc_set_btcoex_dbg(struct file *file, const char __user *buffer, size_t
 	}
 
 	num = sscanf(tmp, "%x %x", module, module+1);
-	if (1 == num) {
-		if (0 == module[0])
+	if (num == 1) {
+		if (module[0] == 0)
 			memset(module, 0, sizeof(module));
 		else
 			memset(module, 0xFF, sizeof(module));
-	} else if (2 != num) {
+	} else if (num != 2) {
 		DBG_871X(FUNC_ADPT_FMT ": input(\"%s\") format incorrect!\n",
 			FUNC_ADPT_ARG(padapter), tmp);
 
-		if (0 == num)
+		if (num == 0)
 			return -EFAULT;
 	}
 
@@ -1433,9 +1425,8 @@ int proc_get_btcoex_info(struct seq_file *m, void *v)
 	padapter = (struct adapter *)rtw_netdev_priv(dev);
 
 	pbuf = rtw_zmalloc(bufsize);
-	if (NULL == pbuf) {
+	if (!pbuf)
 		return -ENOMEM;
-	}
 
 	rtw_btcoex_DisplayBtCoexInfo(padapter, pbuf, bufsize);
 

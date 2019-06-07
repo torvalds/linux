@@ -18,7 +18,6 @@ static inline int printk_get_level(const char *buffer)
 	if (buffer[0] == KERN_SOH_ASCII && buffer[1]) {
 		switch (buffer[1]) {
 		case '0' ... '7':
-		case 'd':	/* KERN_DEFAULT */
 		case 'c':	/* KERN_CONT */
 			return buffer[1];
 		}
@@ -50,15 +49,15 @@ static inline const char *printk_skip_headers(const char *buffer)
 /* We show everything that is MORE important than this.. */
 #define CONSOLE_LOGLEVEL_SILENT  0 /* Mum's the word */
 #define CONSOLE_LOGLEVEL_MIN	 1 /* Minimum loglevel we let people use */
-#define CONSOLE_LOGLEVEL_QUIET	 4 /* Shhh ..., when booted with "quiet" */
 #define CONSOLE_LOGLEVEL_DEBUG	10 /* issue debug messages */
 #define CONSOLE_LOGLEVEL_MOTORMOUTH 15	/* You can't shut this one up */
 
 /*
- * Default used to be hard-coded at 7, we're now allowing it to be set from
- * kernel config.
+ * Default used to be hard-coded at 7, quiet used to be hardcoded at 4,
+ * we're now allowing both to be set from kernel config.
  */
 #define CONSOLE_LOGLEVEL_DEFAULT CONFIG_CONSOLE_LOGLEVEL_DEFAULT
+#define CONSOLE_LOGLEVEL_QUIET	 CONFIG_CONSOLE_LOGLEVEL_QUIET
 
 extern int console_printk[];
 
@@ -82,6 +81,8 @@ static inline void console_verbose(void)
 #define DEVKMSG_STR_MAX_SIZE 10
 extern char devkmsg_log_str[];
 struct ctl_table;
+
+extern int suppress_printk;
 
 struct va_format {
 	const char *fmt;
@@ -148,9 +149,13 @@ void early_printk(const char *s, ...) { }
 #ifdef CONFIG_PRINTK_NMI
 extern void printk_nmi_enter(void);
 extern void printk_nmi_exit(void);
+extern void printk_nmi_direct_enter(void);
+extern void printk_nmi_direct_exit(void);
 #else
 static inline void printk_nmi_enter(void) { }
 static inline void printk_nmi_exit(void) { }
+static inline void printk_nmi_direct_enter(void) { }
+static inline void printk_nmi_direct_exit(void) { }
 #endif /* PRINTK_NMI */
 
 #ifdef CONFIG_PRINTK
@@ -161,11 +166,6 @@ int vprintk_emit(int facility, int level,
 
 asmlinkage __printf(1, 0)
 int vprintk(const char *fmt, va_list args);
-
-asmlinkage __printf(5, 6) __cold
-int printk_emit(int facility, int level,
-		const char *dict, size_t dictlen,
-		const char *fmt, ...);
 
 asmlinkage __printf(1, 2) __cold
 int printk(const char *fmt, ...);
@@ -265,7 +265,7 @@ static inline void show_regs_print_info(const char *log_lvl)
 {
 }
 
-static inline asmlinkage void dump_stack(void)
+static inline void dump_stack(void)
 {
 }
 
@@ -349,7 +349,7 @@ extern int kptr_restrict;
 #ifdef CONFIG_PRINTK
 #define printk_once(fmt, ...)					\
 ({								\
-	static bool __print_once __read_mostly;			\
+	static bool __section(.data.once) __print_once;		\
 	bool __ret_print_once = !__print_once;			\
 								\
 	if (!__print_once) {					\
@@ -360,7 +360,7 @@ extern int kptr_restrict;
 })
 #define printk_deferred_once(fmt, ...)				\
 ({								\
-	static bool __print_once __read_mostly;			\
+	static bool __section(.data.once) __print_once;		\
 	bool __ret_print_once = !__print_once;			\
 								\
 	if (!__print_once) {					\
@@ -462,7 +462,7 @@ do {									\
 				      DEFAULT_RATELIMIT_INTERVAL,	\
 				      DEFAULT_RATELIMIT_BURST);		\
 	DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, pr_fmt(fmt));		\
-	if (unlikely(descriptor.flags & _DPRINTK_FLAGS_PRINT) &&	\
+	if (DYNAMIC_DEBUG_BRANCH(descriptor) &&				\
 	    __ratelimit(&_rs))						\
 		__dynamic_pr_debug(&descriptor, pr_fmt(fmt), ##__VA_ARGS__);	\
 } while (0)

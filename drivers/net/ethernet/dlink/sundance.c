@@ -1193,7 +1193,6 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 	int handled = 0;
 	int i;
 
-
 	do {
 		int intr_status = ioread16(ioaddr + IntrStatus);
 		iowrite16(intr_status, ioaddr + IntrStatus);
@@ -1286,7 +1285,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 				dma_unmap_single(&np->pci_dev->dev,
 					le32_to_cpu(np->tx_ring[entry].frag[0].addr),
 					skb->len, DMA_TO_DEVICE);
-				dev_kfree_skb_irq (np->tx_skbuff[entry]);
+				dev_consume_skb_irq(np->tx_skbuff[entry]);
 				np->tx_skbuff[entry] = NULL;
 				np->tx_ring[entry].frag[0].addr = 0;
 				np->tx_ring[entry].frag[0].length = 0;
@@ -1305,7 +1304,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 				dma_unmap_single(&np->pci_dev->dev,
 					le32_to_cpu(np->tx_ring[entry].frag[0].addr),
 					skb->len, DMA_TO_DEVICE);
-				dev_kfree_skb_irq (np->tx_skbuff[entry]);
+				dev_consume_skb_irq(np->tx_skbuff[entry]);
 				np->tx_skbuff[entry] = NULL;
 				np->tx_ring[entry].frag[0].addr = 0;
 				np->tx_ring[entry].frag[0].length = 0;

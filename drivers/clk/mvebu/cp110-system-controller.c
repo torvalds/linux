@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Marvell Armada CP110 System Controller
  *
@@ -5,9 +6,6 @@
  *
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 /*
@@ -23,7 +21,7 @@
  *    - Equal to SDIO clock
  *    - 2/5 PLL0
  *
- * CP110 has 32 gatable clocks, for the various peripherals in the IP.
+ * CP110 has 32 gateable clocks, for the various peripherals in the IP.
  */
 
 #define pr_fmt(fmt) "cp110-system-controller: " fmt
@@ -59,7 +57,7 @@ enum {
 #define CP110_CORE_NAND			4
 #define CP110_CORE_SDIO			5
 
-/* A number of gatable clocks need special handling */
+/* A number of gateable clocks need special handling */
 #define CP110_GATE_AUDIO		0
 #define CP110_GATE_COMM_UNIT		1
 #define CP110_GATE_NAND			2
@@ -202,11 +200,11 @@ static struct clk_hw *cp110_of_clk_get(struct of_phandle_args *clkspec,
 	unsigned int idx = clkspec->args[1];
 
 	if (type == CP110_CLK_TYPE_CORE) {
-		if (idx > CP110_MAX_CORE_CLOCKS)
+		if (idx >= CP110_MAX_CORE_CLOCKS)
 			return ERR_PTR(-EINVAL);
 		return clk_data->hws[idx];
 	} else if (type == CP110_CLK_TYPE_GATABLE) {
-		if (idx > CP110_MAX_GATABLE_CLOCKS)
+		if (idx >= CP110_MAX_GATABLE_CLOCKS)
 			return ERR_PTR(-EINVAL);
 		return clk_data->hws[CP110_MAX_CORE_CLOCKS + idx];
 	}

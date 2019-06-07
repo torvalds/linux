@@ -202,6 +202,7 @@ struct qed_ll2_tx_pkt_info {
 	bool enable_ip_cksum;
 	bool enable_l4_cksum;
 	bool calc_ip_len;
+	bool remove_stag;
 };
 
 #define QED_LL2_UNUSED_HANDLE   (0xff)
@@ -218,6 +219,11 @@ struct qed_ll2_params {
 	u8 tx_tc;
 	bool frags_mapped;
 	u8 ll2_mac_address[ETH_ALEN];
+};
+
+enum qed_ll2_xmit_flags {
+	/* FIP discovery packet */
+	QED_LL2_XMIT_FLAGS_FIP_DISCOVERY
 };
 
 struct qed_ll2_ops {
@@ -245,10 +251,12 @@ struct qed_ll2_ops {
  *
  * @param cdev
  * @param skb
+ * @param xmit_flags - Transmit options defined by the enum qed_ll2_xmit_flags.
  *
  * @return 0 on success, otherwise error value.
  */
-	int (*start_xmit)(struct qed_dev *cdev, struct sk_buff *skb);
+	int (*start_xmit)(struct qed_dev *cdev, struct sk_buff *skb,
+			  unsigned long xmit_flags);
 
 /**
  * @brief register_cb_ops - protocol driver register the callback for Rx/Tx

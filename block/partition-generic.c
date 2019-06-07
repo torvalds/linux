@@ -120,29 +120,30 @@ ssize_t part_stat_show(struct device *dev,
 {
 	struct hd_struct *p = dev_to_part(dev);
 	struct request_queue *q = part_to_disk(p)->queue;
-	unsigned int inflight[2];
-	int cpu;
+	unsigned int inflight;
 
-	cpu = part_stat_lock();
-	part_round_stats(q, cpu, p);
-	part_stat_unlock();
-	part_in_flight(q, p, inflight);
+	inflight = part_in_flight(q, p);
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
 		"%8lu %8lu %8llu %8u "
-		"%8u %8u %8u"
+		"%8u %8u %8u "
+		"%8lu %8lu %8llu %8u"
 		"\n",
-		part_stat_read(p, ios[READ]),
-		part_stat_read(p, merges[READ]),
-		(unsigned long long)part_stat_read(p, sectors[READ]),
-		jiffies_to_msecs(part_stat_read(p, ticks[READ])),
-		part_stat_read(p, ios[WRITE]),
-		part_stat_read(p, merges[WRITE]),
-		(unsigned long long)part_stat_read(p, sectors[WRITE]),
-		jiffies_to_msecs(part_stat_read(p, ticks[WRITE])),
-		inflight[0],
+		part_stat_read(p, ios[STAT_READ]),
+		part_stat_read(p, merges[STAT_READ]),
+		(unsigned long long)part_stat_read(p, sectors[STAT_READ]),
+		(unsigned int)part_stat_read_msecs(p, STAT_READ),
+		part_stat_read(p, ios[STAT_WRITE]),
+		part_stat_read(p, merges[STAT_WRITE]),
+		(unsigned long long)part_stat_read(p, sectors[STAT_WRITE]),
+		(unsigned int)part_stat_read_msecs(p, STAT_WRITE),
+		inflight,
 		jiffies_to_msecs(part_stat_read(p, io_ticks)),
-		jiffies_to_msecs(part_stat_read(p, time_in_queue)));
+		jiffies_to_msecs(part_stat_read(p, time_in_queue)),
+		part_stat_read(p, ios[STAT_DISCARD]),
+		part_stat_read(p, merges[STAT_DISCARD]),
+		(unsigned long long)part_stat_read(p, sectors[STAT_DISCARD]),
+		(unsigned int)part_stat_read_msecs(p, STAT_DISCARD));
 }
 
 ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
@@ -179,18 +180,17 @@ ssize_t part_fail_store(struct device *dev,
 }
 #endif
 
-static DEVICE_ATTR(partition, S_IRUGO, part_partition_show, NULL);
-static DEVICE_ATTR(start, S_IRUGO, part_start_show, NULL);
-static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
-static DEVICE_ATTR(ro, S_IRUGO, part_ro_show, NULL);
-static DEVICE_ATTR(alignment_offset, S_IRUGO, part_alignment_offset_show, NULL);
-static DEVICE_ATTR(discard_alignment, S_IRUGO, part_discard_alignment_show,
-		   NULL);
-static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
-static DEVICE_ATTR(inflight, S_IRUGO, part_inflight_show, NULL);
+static DEVICE_ATTR(partition, 0444, part_partition_show, NULL);
+static DEVICE_ATTR(start, 0444, part_start_show, NULL);
+static DEVICE_ATTR(size, 0444, part_size_show, NULL);
+static DEVICE_ATTR(ro, 0444, part_ro_show, NULL);
+static DEVICE_ATTR(alignment_offset, 0444, part_alignment_offset_show, NULL);
+static DEVICE_ATTR(discard_alignment, 0444, part_discard_alignment_show, NULL);
+static DEVICE_ATTR(stat, 0444, part_stat_show, NULL);
+static DEVICE_ATTR(inflight, 0444, part_inflight_show, NULL);
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 static struct device_attribute dev_attr_fail =
-	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, part_fail_show, part_fail_store);
+	__ATTR(make-it-fail, 0644, part_fail_show, part_fail_store);
 #endif
 
 static struct attribute *part_attrs[] = {
@@ -245,9 +245,10 @@ struct device_type part_type = {
 	.uevent		= part_uevent,
 };
 
-static void delete_partition_rcu_cb(struct rcu_head *head)
+static void delete_partition_work_fn(struct work_struct *work)
 {
-	struct hd_struct *part = container_of(head, struct hd_struct, rcu_head);
+	struct hd_struct *part = container_of(to_rcu_work(work), struct hd_struct,
+					rcu_work);
 
 	part->start_sect = 0;
 	part->nr_sects = 0;
@@ -258,7 +259,8 @@ static void delete_partition_rcu_cb(struct rcu_head *head)
 void __delete_partition(struct percpu_ref *ref)
 {
 	struct hd_struct *part = container_of(ref, struct hd_struct, ref);
-	call_rcu(&part->rcu_head, delete_partition_rcu_cb);
+	INIT_RCU_WORK(&part->rcu_work, delete_partition_work_fn);
+	queue_rcu_work(system_wq, &part->rcu_work);
 }
 
 /*
@@ -283,6 +285,13 @@ void delete_partition(struct gendisk *disk, int partno)
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
 
+	/*
+	 * Remove gendisk pointer from idr so that it cannot be looked up
+	 * while RCU period before freeing gendisk is running to prevent
+	 * use-after-free issues. Note that the device number stays
+	 * "in-use" until we really free the gendisk.
+	 */
+	blk_invalidate_devt(part_devt(part));
 	hd_struct_kill(part);
 }
 
@@ -291,8 +300,7 @@ static ssize_t whole_disk_show(struct device *dev,
 {
 	return 0;
 }
-static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
-		   whole_disk_show, NULL);
+static DEVICE_ATTR(whole_disk, 0444, whole_disk_show, NULL);
 
 /*
  * Must be called either with bd_mutex held, before a disk can be opened or
@@ -518,7 +526,7 @@ rescan:
 
 	if (disk->fops->revalidate_disk)
 		disk->fops->revalidate_disk(disk);
-	check_disk_size_change(disk, bdev);
+	check_disk_size_change(disk, bdev, true);
 	bdev->bd_invalidated = 0;
 	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
 		return 0;
@@ -643,7 +651,7 @@ int invalidate_partitions(struct gendisk *disk, struct block_device *bdev)
 		return res;
 
 	set_capacity(disk, 0);
-	check_disk_size_change(disk, bdev);
+	check_disk_size_change(disk, bdev, false);
 	bdev->bd_invalidated = 0;
 	/* tell userspace that the media / partition table may have changed */
 	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);

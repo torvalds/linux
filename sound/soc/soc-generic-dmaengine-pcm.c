@@ -1,17 +1,8 @@
-/*
- *  Copyright (C) 2013, Analog Devices Inc.
- *	Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+//  Copyright (C) 2013, Analog Devices Inc.
+//	Author: Lars-Peter Clausen <lars@metafoo.de>
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/dmaengine.h>
@@ -156,7 +147,7 @@ static int dmaengine_pcm_set_runtime_hwparams(struct snd_pcm_substream *substrea
 
 	ret = dma_get_slave_caps(chan, &dma_caps);
 	if (ret == 0) {
-		if (dma_caps.cmd_pause)
+		if (dma_caps.cmd_pause && dma_caps.cmd_resume)
 			hw.info |= SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME;
 		if (dma_caps.residue_granularity <= DMA_RESIDUE_GRANULARITY_SEGMENT)
 			hw.info |= SNDRV_PCM_INFO_BATCH;
@@ -197,7 +188,7 @@ static int dmaengine_pcm_set_runtime_hwparams(struct snd_pcm_substream *substrea
 			case 32:
 			case 64:
 				if (addr_widths & (1 << (bits / 8)))
-					hw.formats |= (1LL << i);
+					hw.formats |= pcm_format_to_bits(i);
 				break;
 			default:
 				/* Unsupported types */
@@ -274,12 +265,10 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	const struct snd_dmaengine_pcm_config *config = pcm->config;
 	struct device *dev = component->dev;
-	struct snd_dmaengine_dai_dma_data *dma_data;
 	struct snd_pcm_substream *substream;
 	size_t prealloc_buffer_size;
 	size_t max_buffer_size;
 	unsigned int i;
-	int ret;
 
 	if (config && config->prealloc_buffer_size) {
 		prealloc_buffer_size = config->prealloc_buffer_size;
@@ -294,12 +283,9 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		if (!substream)
 			continue;
 
-		dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-
-		if (!pcm->chan[i] &&
-		    (pcm->flags & SND_DMAENGINE_PCM_FLAG_CUSTOM_CHANNEL_NAME))
+		if (!pcm->chan[i] && config && config->chan_names[i])
 			pcm->chan[i] = dma_request_slave_channel(dev,
-				dma_data->chan_name);
+				config->chan_names[i]);
 
 		if (!pcm->chan[i] && (pcm->flags & SND_DMAENGINE_PCM_FLAG_COMPAT)) {
 			pcm->chan[i] = dmaengine_pcm_compat_request_channel(rtd,
@@ -312,13 +298,11 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			return -EINVAL;
 		}
 
-		ret = snd_pcm_lib_preallocate_pages(substream,
+		snd_pcm_lib_preallocate_pages(substream,
 				SNDRV_DMA_TYPE_DEV_IRAM,
 				dmaengine_dma_dev(pcm, substream),
 				prealloc_buffer_size,
 				max_buffer_size);
-		if (ret)
-			return ret;
 
 		if (!dmaengine_pcm_can_report_residue(dev, pcm->chan[i]))
 			pcm->flags |= SND_DMAENGINE_PCM_FLAG_NO_RESIDUE;
@@ -343,7 +327,7 @@ static snd_pcm_uframes_t dmaengine_pcm_pointer(
 
 static int dmaengine_copy_user(struct snd_pcm_substream *substream,
 			       int channel, unsigned long hwoff,
-			       void *buf, unsigned long bytes)
+			       void __user *buf, unsigned long bytes)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_component *component =
@@ -359,18 +343,17 @@ static int dmaengine_copy_user(struct snd_pcm_substream *substream,
 	int ret;
 
 	if (is_playback)
-		if (copy_from_user(dma_ptr, (void __user *)buf, bytes))
+		if (copy_from_user(dma_ptr, buf, bytes))
 			return -EFAULT;
 
 	if (process) {
-		ret = process(substream, channel, hwoff,
-			      (void __user *)buf, bytes);
+		ret = process(substream, channel, hwoff, (__force void *)buf, bytes);
 		if (ret < 0)
 			return ret;
 	}
 
 	if (!is_playback)
-		if (copy_to_user((void __user *)buf, dma_ptr, bytes))
+		if (copy_to_user(buf, dma_ptr, bytes))
 			return -EFAULT;
 
 	return 0;
@@ -423,9 +406,8 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 	const char *name;
 	struct dma_chan *chan;
 
-	if ((pcm->flags & (SND_DMAENGINE_PCM_FLAG_NO_DT |
-			   SND_DMAENGINE_PCM_FLAG_CUSTOM_CHANNEL_NAME)) ||
-	    !dev->of_node)
+	if ((pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_DT) || (!dev->of_node &&
+	    !(config && config->dma_dev && config->dma_dev->of_node)))
 		return 0;
 
 	if (config && config->dma_dev) {

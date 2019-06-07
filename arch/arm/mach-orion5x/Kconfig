@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_ORION5X
 	bool "Marvell Orion"
 	depends on MMU && ARCH_MULTI_V5
@@ -5,7 +6,7 @@ menuconfig ARCH_ORION5X
 	select GENERIC_CLOCKEVENTS
 	select GPIOLIB
 	select MVEBU_MBUS
-	select PCI
+	select FORCE_PCI
 	select PHYLIB if NETDEVICES
 	select PLAT_ORION_LEGACY
 	help

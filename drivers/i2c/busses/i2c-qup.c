@@ -136,8 +136,13 @@
  */
 #define TOUT_MIN			2
 
+/* I2C Frequency Modes */
+#define I2C_STANDARD_FREQ		100000
+#define I2C_FAST_MODE_FREQ		400000
+#define I2C_FAST_MODE_PLUS_FREQ		1000000
+
 /* Default values. Use these if FW query fails */
-#define DEFAULT_CLK_FREQ 100000
+#define DEFAULT_CLK_FREQ I2C_STANDARD_FREQ
 #define DEFAULT_SRC_CLK 20000000
 
 /*
@@ -149,6 +154,10 @@
 #define RECV_MAX_DATA_LEN		254
 /* TAG length for DATA READ in RX FIFO  */
 #define READ_RX_TAGS_LEN		2
+
+static unsigned int scl_freq;
+module_param_named(scl_freq, scl_freq, uint, 0444);
+MODULE_PARM_DESC(scl_freq, "SCL frequency override");
 
 /*
  * count: no of blocks
@@ -453,7 +462,7 @@ static void qup_i2c_write_tx_fifo_v1(struct qup_i2c_dev *qup)
 {
 	struct qup_i2c_block *blk = &qup->blk;
 	struct i2c_msg *msg = qup->msg;
-	u32 addr = msg->addr << 1;
+	u32 addr = i2c_8bit_addr_from_msg(msg);
 	u32 qup_tag;
 	int idx;
 	u32 val;
@@ -1079,11 +1088,6 @@ static int qup_i2c_xfer(struct i2c_adapter *adap,
 	writel(I2C_MINI_CORE | I2C_N_VAL, qup->base + QUP_CONFIG);
 
 	for (idx = 0; idx < num; idx++) {
-		if (msgs[idx].len == 0) {
-			ret = -EINVAL;
-			goto out;
-		}
-
 		if (qup_i2c_poll_state_i2c_master(qup)) {
 			ret = -EIO;
 			goto out;
@@ -1511,9 +1515,6 @@ qup_i2c_determine_mode_v2(struct qup_i2c_dev *qup,
 
 	/* All i2c_msgs should be transferred using either dma or cpu */
 	for (idx = 0; idx < num; idx++) {
-		if (msgs[idx].len == 0)
-			return -EINVAL;
-
 		if (msgs[idx].flags & I2C_M_RD)
 			max_rx_len = max_t(unsigned int, max_rx_len,
 					   msgs[idx].len);
@@ -1627,7 +1628,12 @@ static const struct i2c_algorithm qup_i2c_algo_v2 = {
  * which limits the possible read to 256 (QUP_READ_LIMIT) bytes.
  */
 static const struct i2c_adapter_quirks qup_i2c_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN,
 	.max_read_len = QUP_READ_LIMIT,
+};
+
+static const struct i2c_adapter_quirks qup_i2c_quirks_v2 = {
+	.flags = I2C_AQ_NO_ZERO_LEN,
 };
 
 static void qup_i2c_enable_clocks(struct qup_i2c_dev *qup)
@@ -1647,6 +1653,12 @@ static void qup_i2c_disable_clocks(struct qup_i2c_dev *qup)
 	writel(config, qup->base + QUP_CONFIG);
 	clk_disable_unprepare(qup->pclk);
 }
+
+static const struct acpi_device_id qup_i2c_acpi_match[] = {
+	{ "QCOM8010"},
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, qup_i2c_acpi_match);
 
 static int qup_i2c_probe(struct platform_device *pdev)
 {
@@ -1669,10 +1681,15 @@ static int qup_i2c_probe(struct platform_device *pdev)
 	init_completion(&qup->xfer);
 	platform_set_drvdata(pdev, qup);
 
-	ret = device_property_read_u32(qup->dev, "clock-frequency", &clk_freq);
-	if (ret) {
-		dev_notice(qup->dev, "using default clock-frequency %d",
-			DEFAULT_CLK_FREQ);
+	if (scl_freq) {
+		dev_notice(qup->dev, "Using override frequency of %u\n", scl_freq);
+		clk_freq = scl_freq;
+	} else {
+		ret = device_property_read_u32(qup->dev, "clock-frequency", &clk_freq);
+		if (ret) {
+			dev_notice(qup->dev, "using default clock-frequency %d",
+				DEFAULT_CLK_FREQ);
+		}
 	}
 
 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,i2c-qup-v1.1.1")) {
@@ -1681,8 +1698,12 @@ static int qup_i2c_probe(struct platform_device *pdev)
 		is_qup_v1 = true;
 	} else {
 		qup->adap.algo = &qup_i2c_algo_v2;
+		qup->adap.quirks = &qup_i2c_quirks_v2;
 		is_qup_v1 = false;
-		ret = qup_i2c_req_dma(qup);
+		if (acpi_match_device(qup_i2c_acpi_match, qup->dev))
+			goto nodma;
+		else
+			ret = qup_i2c_req_dma(qup);
 
 		if (ret == -EPROBE_DEFER)
 			goto fail_dma;
@@ -1691,8 +1712,8 @@ static int qup_i2c_probe(struct platform_device *pdev)
 
 		qup->max_xfer_sg_len = (MX_BLOCKS << 1);
 		blocks = (MX_DMA_BLOCKS << 1) + 1;
-		qup->btx.sg = devm_kzalloc(&pdev->dev,
-					   sizeof(*qup->btx.sg) * blocks,
+		qup->btx.sg = devm_kcalloc(&pdev->dev,
+					   blocks, sizeof(*qup->btx.sg),
 					   GFP_KERNEL);
 		if (!qup->btx.sg) {
 			ret = -ENOMEM;
@@ -1700,8 +1721,8 @@ static int qup_i2c_probe(struct platform_device *pdev)
 		}
 		sg_init_table(qup->btx.sg, blocks);
 
-		qup->brx.sg = devm_kzalloc(&pdev->dev,
-					   sizeof(*qup->brx.sg) * blocks,
+		qup->brx.sg = devm_kcalloc(&pdev->dev,
+					   blocks, sizeof(*qup->brx.sg),
 					   GFP_KERNEL);
 		if (!qup->brx.sg) {
 			ret = -ENOMEM;
@@ -1734,8 +1755,8 @@ static int qup_i2c_probe(struct platform_device *pdev)
 	}
 
 nodma:
-	/* We support frequencies up to FAST Mode (400KHz) */
-	if (!clk_freq || clk_freq > 400000) {
+	/* We support frequencies up to FAST Mode Plus (1MHz) */
+	if (!clk_freq || clk_freq > I2C_FAST_MODE_PLUS_FREQ) {
 		dev_err(qup->dev, "clock frequency not supported %d\n",
 			clk_freq);
 		return -EINVAL;
@@ -1839,9 +1860,15 @@ nodma:
 	size = QUP_INPUT_FIFO_SIZE(io_mode);
 	qup->in_fifo_sz = qup->in_blk_sz * (2 << size);
 
-	fs_div = ((src_clk_freq / clk_freq) / 2) - 3;
 	hs_div = 3;
-	qup->clk_ctl = (hs_div << 8) | (fs_div & 0xff);
+	if (clk_freq <= I2C_STANDARD_FREQ) {
+		fs_div = ((src_clk_freq / clk_freq) / 2) - 3;
+		qup->clk_ctl = (hs_div << 8) | (fs_div & 0xff);
+	} else {
+		/* 33%/66% duty cycle */
+		fs_div = ((src_clk_freq / clk_freq) - 6) * 2 / 3;
+		qup->clk_ctl = ((fs_div / 2) << 16) | (hs_div << 8) | (fs_div & 0xff);
+	}
 
 	/*
 	 * Time it takes for a byte to be clocked out on the bus.
@@ -1958,14 +1985,6 @@ static const struct of_device_id qup_i2c_dt_match[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, qup_i2c_dt_match);
-
-#if IS_ENABLED(CONFIG_ACPI)
-static const struct acpi_device_id qup_i2c_acpi_match[] = {
-	{ "QCOM8010"},
-	{ },
-};
-MODULE_DEVICE_TABLE(acpi, qup_i2c_acpi_match);
-#endif
 
 static struct platform_driver qup_i2c_driver = {
 	.probe  = qup_i2c_probe,

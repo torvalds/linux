@@ -2,12 +2,14 @@
 #ifndef _UVC_QUEUE_H_
 #define _UVC_QUEUE_H_
 
-#ifdef __KERNEL__
-
-#include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/poll.h>
-#include <linux/videodev2.h>
+#include <linux/spinlock.h>
+
 #include <media/videobuf2-v4l2.h>
+
+struct file;
+struct mutex;
 
 /* Maximum frame size in bytes, for sanity checking. */
 #define UVC_MAX_FRAME_SIZE	(16*1024*1024)
@@ -90,8 +92,6 @@ struct uvc_buffer *uvcg_queue_next_buffer(struct uvc_video_queue *queue,
 					  struct uvc_buffer *buf);
 
 struct uvc_buffer *uvcg_queue_head(struct uvc_video_queue *queue);
-
-#endif /* __KERNEL__ */
 
 #endif /* _UVC_QUEUE_H_ */
 

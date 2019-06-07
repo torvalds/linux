@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _video_types:
 
@@ -195,7 +202,7 @@ If video_blank is set video will be blanked out if the channel is
 changed or if playback is stopped. Otherwise, the last picture will be
 displayed. play_state indicates if the video is currently frozen,
 stopped, or being played back. The stream_source corresponds to the
-seleted source for the video stream. It can come either from the
+selected source for the video stream. It can come either from the
 demultiplexer or from memory. The video_format indicates the aspect
 ratio (one of 4:3 or 16:9) of the currently played video stream.
 Finally, display_format corresponds to the selected cropping mode in
@@ -246,134 +253,3 @@ following bits set according to the hardwares capabilities.
      #define VIDEO_CAP_SPU    16
      #define VIDEO_CAP_NAVI   32
      #define VIDEO_CAP_CSS    64
-
-
-.. _video-system:
-
-video_system_t
-==============
-
-A call to VIDEO_SET_SYSTEM sets the desired video system for TV
-output. The following system types can be set:
-
-
-.. code-block:: c
-
-    typedef enum {
-	 VIDEO_SYSTEM_PAL,
-	 VIDEO_SYSTEM_NTSC,
-	 VIDEO_SYSTEM_PALN,
-	 VIDEO_SYSTEM_PALNc,
-	 VIDEO_SYSTEM_PALM,
-	 VIDEO_SYSTEM_NTSC60,
-	 VIDEO_SYSTEM_PAL60,
-	 VIDEO_SYSTEM_PALM60
-    } video_system_t;
-
-
-.. c:type:: video_highlight
-
-struct video_highlight
-======================
-
-Calling the ioctl VIDEO_SET_HIGHLIGHTS posts the SPU highlight
-information. The call expects the following format for that information:
-
-
-.. code-block:: c
-
-     typedef
-     struct video_highlight {
-	 boolean active;      /*    1=show highlight, 0=hide highlight */
-	 uint8_t contrast1;   /*    7- 4  Pattern pixel contrast */
-		      /*    3- 0  Background pixel contrast */
-	 uint8_t contrast2;   /*    7- 4  Emphasis pixel-2 contrast */
-		      /*    3- 0  Emphasis pixel-1 contrast */
-	 uint8_t color1;      /*    7- 4  Pattern pixel color */
-		      /*    3- 0  Background pixel color */
-	 uint8_t color2;      /*    7- 4  Emphasis pixel-2 color */
-		      /*    3- 0  Emphasis pixel-1 color */
-	 uint32_t ypos;       /*   23-22  auto action mode */
-		      /*   21-12  start y */
-		      /*    9- 0  end y */
-	 uint32_t xpos;       /*   23-22  button color number */
-		      /*   21-12  start x */
-		      /*    9- 0  end x */
-     } video_highlight_t;
-
-
-.. c:type:: video_spu
-
-struct video_spu
-================
-
-Calling VIDEO_SET_SPU deactivates or activates SPU decoding, according
-to the following format:
-
-
-.. code-block:: c
-
-     typedef
-     struct video_spu {
-	 boolean active;
-	 int stream_id;
-     } video_spu_t;
-
-
-.. c:type:: video_spu_palette
-
-struct video_spu_palette
-========================
-
-The following structure is used to set the SPU palette by calling
-VIDEO_SPU_PALETTE:
-
-
-.. code-block:: c
-
-     typedef
-     struct video_spu_palette {
-	 int length;
-	 uint8_t *palette;
-     } video_spu_palette_t;
-
-
-.. c:type:: video_navi_pack
-
-struct video_navi_pack
-======================
-
-In order to get the navigational data the following structure has to be
-passed to the ioctl VIDEO_GET_NAVI:
-
-
-.. code-block:: c
-
-     typedef
-     struct video_navi_pack {
-	 int length;         /* 0 ... 1024 */
-	 uint8_t data[1024];
-     } video_navi_pack_t;
-
-
-.. _video-attributes-t:
-
-video_attributes_t
-==================
-
-The following attributes can be set by a call to VIDEO_SET_ATTRIBUTES:
-
-
-.. code-block:: c
-
-     typedef uint16_t video_attributes_t;
-     /*   bits: descr. */
-     /*   15-14 Video compression mode (0=MPEG-1, 1=MPEG-2) */
-     /*   13-12 TV system (0=525/60, 1=625/50) */
-     /*   11-10 Aspect ratio (0=4:3, 3=16:9) */
-     /*    9- 8 permitted display mode on 4:3 monitor (0=both, 1=only pan-sca */
-     /*    7    line 21-1 data present in GOP (1=yes, 0=no) */
-     /*    6    line 21-2 data present in GOP (1=yes, 0=no) */
-     /*    5- 3 source resolution (0=720x480/576, 1=704x480/576, 2=352x480/57 */
-     /*    2    source letterboxed (1=yes, 0=no) */
-     /*    0    film/camera mode (0=camera, 1=film (625/50 only)) */

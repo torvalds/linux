@@ -200,7 +200,7 @@ static void wf_smu_create_cpu_fans(void)
 	wf_cpu_pid_init(&wf_smu_cpu_fans->pid, &pid_param);
 
 	DBG("wf: CPU Fan control initialized.\n");
-	DBG("    ttarged=%d.%03d, tmax=%d.%03d, min=%d RPM, max=%d RPM\n",
+	DBG("    ttarget=%d.%03d, tmax=%d.%03d, min=%d RPM, max=%d RPM\n",
 	    FIX32TOPRINT(pid_param.ttarget), FIX32TOPRINT(pid_param.tmax),
 	    pid_param.min, pid_param.max);
 

@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics pressures driver
  *
  * Copyright 2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -45,6 +44,10 @@ static const struct of_device_id st_press_of_match[] = {
 		.compatible = "st,lps35hw",
 		.data = LPS35HW_PRESS_DEV_NAME,
 	},
+	{
+		.compatible = "st,lps22hh",
+		.data = LPS22HH_PRESS_DEV_NAME,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_press_of_match);
@@ -69,6 +72,7 @@ static const struct i2c_device_id st_press_id_table[] = {
 	{ LPS22HB_PRESS_DEV_NAME, LPS22HB },
 	{ LPS33HW_PRESS_DEV_NAME, LPS33HW },
 	{ LPS35HW_PRESS_DEV_NAME, LPS35HW },
+	{ LPS22HH_PRESS_DEV_NAME, LPS22HH },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_press_id_table);
@@ -94,9 +98,8 @@ static int st_press_i2c_probe(struct i2c_client *client,
 		if ((ret < 0) || (ret >= ST_PRESS_MAX))
 			return -ENODEV;
 
-		strncpy(client->name, st_press_id_table[ret].name,
+		strlcpy(client->name, st_press_id_table[ret].name,
 				sizeof(client->name));
-		client->name[sizeof(client->name) - 1] = '\0';
 	} else if (!id)
 		return -ENODEV;
 

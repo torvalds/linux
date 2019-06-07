@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015 Freescale Semiconductor, Inc.
  *
  * Freescale DCU drm device driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/backlight.h>
@@ -14,9 +10,9 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 
 #include "fsl_dcu_drm_drv.h"
 #include "fsl_tcon.h"
@@ -117,7 +113,7 @@ static int fsl_dcu_attach_panel(struct fsl_dcu_drm_device *fsl_dev,
 	if (ret < 0)
 		goto err_cleanup;
 
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
 		goto err_sysfs;
 
@@ -148,8 +144,9 @@ int fsl_dcu_create_outputs(struct fsl_dcu_drm_device *fsl_dev)
 	if (panel_node) {
 		fsl_dev->connector.panel = of_drm_find_panel(panel_node);
 		of_node_put(panel_node);
-		if (!fsl_dev->connector.panel)
-			return -EPROBE_DEFER;
+		if (IS_ERR(fsl_dev->connector.panel))
+			return PTR_ERR(fsl_dev->connector.panel);
+
 		return fsl_dcu_attach_panel(fsl_dev, fsl_dev->connector.panel);
 	}
 

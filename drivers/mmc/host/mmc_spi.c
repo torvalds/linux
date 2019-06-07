@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * mmc_spi.c - Access SD/MMC cards through SPI master controllers
+ * Access SD/MMC cards through SPI master controllers
  *
  * (C) Copyright 2005, Intec Automation,
  *		Mike Lavender (mike@steroidmicros)
@@ -8,21 +9,6 @@
  *		Hans-Peter Nilsson (hp@axis.com)
  * (C) Copyright 2007, ATRON electronic GmbH,
  *		Jan Nikitenko <jan.nikitenko@gmail.com>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/sched.h>
 #include <linux/delay.h>
@@ -197,7 +183,7 @@ mmc_spi_readbytes(struct mmc_spi_host *host, unsigned len)
 static int mmc_spi_skip(struct mmc_spi_host *host, unsigned long timeout,
 			unsigned n, u8 byte)
 {
-	u8		*cp = host->data->status;
+	u8 *cp = host->data->status;
 	unsigned long start = jiffies;
 
 	while (1) {
@@ -220,7 +206,7 @@ static int mmc_spi_skip(struct mmc_spi_host *host, unsigned long timeout,
 		 * We use jiffies here because we want to have a relation
 		 * between elapsed time and the blocking of the scheduler.
 		 */
-		if (time_is_before_jiffies(start+1))
+		if (time_is_before_jiffies(start + 1))
 			schedule();
 	}
 	return -ETIMEDOUT;
@@ -415,7 +401,7 @@ checkstatus:
 
 	default:
 		dev_dbg(&host->spi->dev, "bad response type %04x\n",
-				mmc_spi_resp_type(cmd));
+			mmc_spi_resp_type(cmd));
 		if (value >= 0)
 			value = -EINVAL;
 		goto done;
@@ -467,8 +453,8 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 	memset(cp, 0xff, sizeof(data->status));
 
 	cp[1] = 0x40 | cmd->opcode;
-	put_unaligned_be32(cmd->arg, cp+2);
-	cp[6] = crc7_be(0, cp+1, 5) | 0x01;
+	put_unaligned_be32(cmd->arg, cp + 2);
+	cp[6] = crc7_be(0, cp + 1, 5) | 0x01;
 	cp += 7;
 
 	/* Then, read up to 13 bytes (while writing all-ones):
@@ -642,9 +628,7 @@ mmc_spi_setup_data_message(
 	if (multiple || direction == DMA_TO_DEVICE) {
 		t = &host->early_status;
 		memset(t, 0, sizeof(*t));
-		t->len = (direction == DMA_TO_DEVICE)
-				? sizeof(scratch->status)
-				: 1;
+		t->len = (direction == DMA_TO_DEVICE) ? sizeof(scratch->status) : 1;
 		t->tx_buf = host->ones;
 		t->tx_dma = host->ones_dma;
 		t->rx_buf = scratch->status;
@@ -677,8 +661,7 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t,
 	u32			pattern;
 
 	if (host->mmc->use_spi_crc)
-		scratch->crc_val = cpu_to_be16(
-				crc_itu_t(0, t->tx_buf, t->len));
+		scratch->crc_val = cpu_to_be16(crc_itu_t(0, t->tx_buf, t->len));
 	if (host->dma_dev)
 		dma_sync_single_for_device(host->dma_dev,
 				host->data_dma, sizeof(*scratch),
@@ -819,6 +802,10 @@ mmc_spi_readblock(struct mmc_spi_host *host, struct spi_transfer *t,
 	}
 
 	status = spi_sync_locked(spi, &host->m);
+	if (status < 0) {
+		dev_dbg(&spi->dev, "read error %d\n", status);
+		return status;
+	}
 
 	if (host->dma_dev) {
 		dma_sync_single_for_cpu(host->dma_dev,
@@ -855,9 +842,9 @@ mmc_spi_readblock(struct mmc_spi_host *host, struct spi_transfer *t,
 
 		be16_to_cpus(&scratch->crc_val);
 		if (scratch->crc_val != crc) {
-			dev_dbg(&spi->dev, "read - crc error: crc_val=0x%04x, "
-					"computed=0x%04x len=%d\n",
-					scratch->crc_val, crc, t->len);
+			dev_dbg(&spi->dev,
+				"read - crc error: crc_val=0x%04x, computed=0x%04x len=%d\n",
+				scratch->crc_val, crc, t->len);
 			return -EILSEQ;
 		}
 	}
@@ -945,9 +932,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 
 			dev_dbg(&host->spi->dev,
 				"    mmc_spi: %s block, %d bytes\n",
-				(direction == DMA_TO_DEVICE)
-				? "write"
-				: "read",
+				(direction == DMA_TO_DEVICE) ? "write" : "read",
 				t->len);
 
 			if (direction == DMA_TO_DEVICE)
@@ -974,8 +959,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 		if (status < 0) {
 			data->error = status;
 			dev_dbg(&spi->dev, "%s status %d\n",
-				(direction == DMA_TO_DEVICE)
-					? "write" : "read",
+				(direction == DMA_TO_DEVICE) ? "write" : "read",
 				status);
 			break;
 		}
@@ -1249,8 +1233,7 @@ static void mmc_spi_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				mres = spi_setup(host->spi);
 				if (mres < 0)
 					dev_dbg(&host->spi->dev,
-						"switch back to SPI mode 3"
-						" failed\n");
+						"switch back to SPI mode 3 failed\n");
 			}
 		}
 
@@ -1434,26 +1417,30 @@ static int mmc_spi_probe(struct spi_device *spi)
 	if (status != 0)
 		goto fail_add_host;
 
-	if (host->pdata && host->pdata->flags & MMC_SPI_USE_CD_GPIO) {
-		status = mmc_gpio_request_cd(mmc, host->pdata->cd_gpio,
-					     host->pdata->cd_debounce);
-		if (status != 0)
-			goto fail_add_host;
-
-		/* The platform has a CD GPIO signal that may support
+	/*
+	 * Index 0 is card detect
+	 * Old boardfiles were specifying 1 ms as debounce
+	 */
+	status = mmc_gpiod_request_cd(mmc, NULL, 0, false, 1, NULL);
+	if (status == -EPROBE_DEFER)
+		goto fail_add_host;
+	if (!status) {
+		/*
+		 * The platform has a CD GPIO signal that may support
 		 * interrupts, so let mmc_gpiod_request_cd_irq() decide
 		 * if polling is needed or not.
 		 */
 		mmc->caps &= ~MMC_CAP_NEEDS_POLL;
 		mmc_gpiod_request_cd_irq(mmc);
 	}
+	mmc_detect_change(mmc, 0);
 
-	if (host->pdata && host->pdata->flags & MMC_SPI_USE_RO_GPIO) {
+	/* Index 1 is write protect/read only */
+	status = mmc_gpiod_request_ro(mmc, NULL, 1, 0, NULL);
+	if (status == -EPROBE_DEFER)
+		goto fail_add_host;
+	if (!status)
 		has_ro = true;
-		status = mmc_gpio_request_ro(mmc, host->pdata->ro_gpio);
-		if (status != 0)
-			goto fail_add_host;
-	}
 
 	dev_info(&spi->dev, "SD/MMC host %s%s%s%s%s\n",
 			dev_name(&mmc->class_dev),
@@ -1466,7 +1453,7 @@ static int mmc_spi_probe(struct spi_device *spi)
 	return 0;
 
 fail_add_host:
-	mmc_remove_host (mmc);
+	mmc_remove_host(mmc);
 fail_glue_init:
 	if (host->dma_dev)
 		dma_unmap_single(host->dma_dev, host->data_dma,
@@ -1481,7 +1468,6 @@ fail_ones_dma:
 fail_nobuf1:
 	mmc_free_host(mmc);
 	mmc_spi_put_pdata(spi);
-	dev_set_drvdata(&spi->dev, NULL);
 
 nomem:
 	kfree(ones);
@@ -1492,32 +1478,27 @@ nomem:
 static int mmc_spi_remove(struct spi_device *spi)
 {
 	struct mmc_host		*mmc = dev_get_drvdata(&spi->dev);
-	struct mmc_spi_host	*host;
+	struct mmc_spi_host	*host = mmc_priv(mmc);
 
-	if (mmc) {
-		host = mmc_priv(mmc);
+	/* prevent new mmc_detect_change() calls */
+	if (host->pdata && host->pdata->exit)
+		host->pdata->exit(&spi->dev, mmc);
 
-		/* prevent new mmc_detect_change() calls */
-		if (host->pdata && host->pdata->exit)
-			host->pdata->exit(&spi->dev, mmc);
+	mmc_remove_host(mmc);
 
-		mmc_remove_host(mmc);
-
-		if (host->dma_dev) {
-			dma_unmap_single(host->dma_dev, host->ones_dma,
-				MMC_SPI_BLOCKSIZE, DMA_TO_DEVICE);
-			dma_unmap_single(host->dma_dev, host->data_dma,
-				sizeof(*host->data), DMA_BIDIRECTIONAL);
-		}
-
-		kfree(host->data);
-		kfree(host->ones);
-
-		spi->max_speed_hz = mmc->f_max;
-		mmc_free_host(mmc);
-		mmc_spi_put_pdata(spi);
-		dev_set_drvdata(&spi->dev, NULL);
+	if (host->dma_dev) {
+		dma_unmap_single(host->dma_dev, host->ones_dma,
+			MMC_SPI_BLOCKSIZE, DMA_TO_DEVICE);
+		dma_unmap_single(host->dma_dev, host->data_dma,
+			sizeof(*host->data), DMA_BIDIRECTIONAL);
 	}
+
+	kfree(host->data);
+	kfree(host->ones);
+
+	spi->max_speed_hz = mmc->f_max;
+	mmc_free_host(mmc);
+	mmc_spi_put_pdata(spi);
 	return 0;
 }
 
@@ -1538,8 +1519,7 @@ static struct spi_driver mmc_spi_driver = {
 
 module_spi_driver(mmc_spi_driver);
 
-MODULE_AUTHOR("Mike Lavender, David Brownell, "
-		"Hans-Peter Nilsson, Jan Nikitenko");
+MODULE_AUTHOR("Mike Lavender, David Brownell, Hans-Peter Nilsson, Jan Nikitenko");
 MODULE_DESCRIPTION("SPI SD/MMC host driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("spi:mmc_spi");

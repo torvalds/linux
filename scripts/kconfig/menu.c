@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>
- * Released under the terms of the GNU GPL v2.0.
  */
 
 #include <ctype.h>
@@ -195,32 +195,26 @@ void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep)
 	menu_add_prop(type, NULL, expr_alloc_symbol(sym), dep);
 }
 
-void menu_add_option(int token, char *arg)
+void menu_add_option_modules(void)
 {
-	switch (token) {
-	case T_OPT_MODULES:
-		if (modules_sym)
-			zconf_error("symbol '%s' redefines option 'modules'"
-				    " already defined by symbol '%s'",
-				    current_entry->sym->name,
-				    modules_sym->name
-				    );
-		modules_sym = current_entry->sym;
-		break;
-	case T_OPT_DEFCONFIG_LIST:
-		if (!sym_defconfig_list)
-			sym_defconfig_list = current_entry->sym;
-		else if (sym_defconfig_list != current_entry->sym)
-			zconf_error("trying to redefine defconfig symbol");
-		sym_defconfig_list->flags |= SYMBOL_AUTO;
-		break;
-	case T_OPT_ENV:
-		prop_add_env(arg);
-		break;
-	case T_OPT_ALLNOCONFIG_Y:
-		current_entry->sym->flags |= SYMBOL_ALLNOCONFIG_Y;
-		break;
-	}
+	if (modules_sym)
+		zconf_error("symbol '%s' redefines option 'modules' already defined by symbol '%s'",
+			    current_entry->sym->name, modules_sym->name);
+	modules_sym = current_entry->sym;
+}
+
+void menu_add_option_defconfig_list(void)
+{
+	if (!sym_defconfig_list)
+		sym_defconfig_list = current_entry->sym;
+	else if (sym_defconfig_list != current_entry->sym)
+		zconf_error("trying to redefine defconfig symbol");
+	sym_defconfig_list->flags |= SYMBOL_NO_WRITE;
+}
+
+void menu_add_option_allnoconfig_y(void)
+{
+	current_entry->sym->flags |= SYMBOL_ALLNOCONFIG_Y;
 }
 
 static int menu_validate_number(struct symbol *sym, struct symbol *sym2)
@@ -711,7 +705,7 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 	struct menu *submenu[8], *menu, *location = NULL;
 	struct jump_key *jump = NULL;
 
-	str_printf(r, _("Prompt: %s\n"), _(prop->text));
+	str_printf(r, "Prompt: %s\n", prop->text);
 	menu = prop->menu->parent;
 	for (i = 0; menu != &rootmenu && i < 8; menu = menu->parent) {
 		bool accessible = menu_is_visible(menu);
@@ -744,16 +738,16 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 	}
 
 	if (i > 0) {
-		str_printf(r, _("  Location:\n"));
+		str_printf(r, "  Location:\n");
 		for (j = 4; --i >= 0; j += 2) {
 			menu = submenu[i];
 			if (jump && menu == location)
 				jump->offset = strlen(r->s);
 			str_printf(r, "%*c-> %s", j, ' ',
-				   _(menu_get_prompt(menu)));
+				   menu_get_prompt(menu));
 			if (menu->sym) {
 				str_printf(r, " (%s [=%s])", menu->sym->name ?
-					menu->sym->name : _("<choice>"),
+					menu->sym->name : "<choice>",
 					sym_get_string_value(menu->sym));
 			}
 			str_append(r, "\n");
@@ -817,23 +811,23 @@ static void get_symbol_str(struct gstr *r, struct symbol *sym,
 
 	prop = get_symbol_prop(sym);
 	if (prop) {
-		str_printf(r, _("  Defined at %s:%d\n"), prop->menu->file->name,
+		str_printf(r, "  Defined at %s:%d\n", prop->menu->file->name,
 			prop->menu->lineno);
 		if (!expr_is_yes(prop->visible.expr)) {
-			str_append(r, _("  Depends on: "));
+			str_append(r, "  Depends on: ");
 			expr_gstr_print(prop->visible.expr, r);
 			str_append(r, "\n");
 		}
 	}
 
-	get_symbol_props_str(r, sym, P_SELECT, _("  Selects: "));
+	get_symbol_props_str(r, sym, P_SELECT, "  Selects: ");
 	if (sym->rev_dep.expr) {
 		expr_gstr_print_revdep(sym->rev_dep.expr, r, yes, "  Selected by [y]:\n");
 		expr_gstr_print_revdep(sym->rev_dep.expr, r, mod, "  Selected by [m]:\n");
 		expr_gstr_print_revdep(sym->rev_dep.expr, r, no, "  Selected by [n]:\n");
 	}
 
-	get_symbol_props_str(r, sym, P_IMPLY, _("  Implies: "));
+	get_symbol_props_str(r, sym, P_IMPLY, "  Implies: ");
 	if (sym->implied.expr) {
 		expr_gstr_print_revdep(sym->implied.expr, r, yes, "  Implied by [y]:\n");
 		expr_gstr_print_revdep(sym->implied.expr, r, mod, "  Implied by [m]:\n");
@@ -852,7 +846,7 @@ struct gstr get_relations_str(struct symbol **sym_arr, struct list_head *head)
 	for (i = 0; sym_arr && (sym = sym_arr[i]); i++)
 		get_symbol_str(&res, sym, head);
 	if (!i)
-		str_append(&res, _("No matches found.\n"));
+		str_append(&res, "No matches found.\n");
 	return res;
 }
 
@@ -867,7 +861,7 @@ void menu_get_ext_help(struct menu *menu, struct gstr *help)
 			str_printf(help, "%s%s:\n\n", CONFIG_, sym->name);
 		help_text = menu_get_help(menu);
 	}
-	str_printf(help, "%s\n", _(help_text));
+	str_printf(help, "%s\n", help_text);
 	if (sym)
 		get_symbol_str(help, sym, NULL);
 }

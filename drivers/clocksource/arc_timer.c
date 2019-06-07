@@ -23,6 +23,7 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/sched_clock.h>
 
 #include <soc/arc/timers.h>
 #include <soc/arc/mcip.h>
@@ -61,6 +62,20 @@ static u64 arc_read_gfrc(struct clocksource *cs)
 	unsigned long flags;
 	u32 l, h;
 
+	/*
+	 * From a programming model pov, there seems to be just one instance of
+	 * MCIP_CMD/MCIP_READBACK however micro-architecturally there's
+	 * an instance PER ARC CORE (not per cluster), and there are dedicated
+	 * hardware decode logic (per core) inside ARConnect to handle
+	 * simultaneous read/write accesses from cores via those two registers.
+	 * So several concurrent commands to ARConnect are OK if they are
+	 * trying to access two different sub-components (like GFRC,
+	 * inter-core interrupt, etc...). HW also supports simultaneously
+	 * accessing GFRC by multiple cores.
+	 * That's why it is safe to disable hard interrupts on the local CPU
+	 * before access to GFRC instead of taking global MCIP spinlock
+	 * defined in arch/arc/kernel/mcip.c
+	 */
 	local_irq_save(flags);
 
 	__mcip_cmd(CMD_GFRC_READ_LO, 0);
@@ -72,6 +87,11 @@ static u64 arc_read_gfrc(struct clocksource *cs)
 	local_irq_restore(flags);
 
 	return (((u64)h) << 32) | l;
+}
+
+static notrace u64 arc_gfrc_clock_read(void)
+{
+	return arc_read_gfrc(NULL);
 }
 
 static struct clocksource arc_counter_gfrc = {
@@ -96,6 +116,8 @@ static int __init arc_cs_setup_gfrc(struct device_node *node)
 	ret = arc_get_timer_clk(node);
 	if (ret)
 		return ret;
+
+	sched_clock_register(arc_gfrc_clock_read, 64, arc_timer_freq);
 
 	return clocksource_register_hz(&arc_counter_gfrc, arc_timer_freq);
 }
@@ -123,6 +145,11 @@ static u64 arc_read_rtc(struct clocksource *cs)
 	} while (!(status & _BITUL(31)));
 
 	return (((u64)h) << 32) | l;
+}
+
+static notrace u64 arc_rtc_clock_read(void)
+{
+	return arc_read_rtc(NULL);
 }
 
 static struct clocksource arc_counter_rtc = {
@@ -156,6 +183,8 @@ static int __init arc_cs_setup_rtc(struct device_node *node)
 
 	write_aux_reg(AUX_RTC_CTRL, 1);
 
+	sched_clock_register(arc_rtc_clock_read, 64, arc_timer_freq);
+
 	return clocksource_register_hz(&arc_counter_rtc, arc_timer_freq);
 }
 TIMER_OF_DECLARE(arc_rtc, "snps,archs-timer-rtc", arc_cs_setup_rtc);
@@ -169,6 +198,11 @@ TIMER_OF_DECLARE(arc_rtc, "snps,archs-timer-rtc", arc_cs_setup_rtc);
 static u64 arc_read_timer1(struct clocksource *cs)
 {
 	return (u64) read_aux_reg(ARC_REG_TIMER1_CNT);
+}
+
+static notrace u64 arc_timer1_clock_read(void)
+{
+	return arc_read_timer1(NULL);
 }
 
 static struct clocksource arc_counter_timer1 = {
@@ -194,6 +228,8 @@ static int __init arc_cs_setup_timer1(struct device_node *node)
 	write_aux_reg(ARC_REG_TIMER1_LIMIT, ARC_TIMERN_MAX);
 	write_aux_reg(ARC_REG_TIMER1_CNT, 0);
 	write_aux_reg(ARC_REG_TIMER1_CTRL, TIMER_CTRL_NH);
+
+	sched_clock_register(arc_timer1_clock_read, 32, arc_timer_freq);
 
 	return clocksource_register_hz(&arc_counter_timer1, arc_timer_freq);
 }

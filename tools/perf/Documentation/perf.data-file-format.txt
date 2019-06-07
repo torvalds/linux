@@ -43,11 +43,10 @@ struct perf_file_section {
 
 Flags section:
 
-The header is followed by different optional headers, described by the bits set
-in flags. Only headers for which the bit is set are included. Each header
-consists of a perf_file_section located after the initial header.
-The respective perf_file_section points to the data of the additional
-header and defines its size.
+For each of the optional features a perf_file_section it placed after the data
+section if the feature bit is set in the perf_header flags bitset. The
+respective perf_file_section points to the data of the additional header and
+defines its size.
 
 Some headers consist of strings, which are defined like this:
 
@@ -111,8 +110,8 @@ A perf_header_string with the CPU architecture (uname -m)
 A structure defining the number of CPUs.
 
 struct nr_cpus {
-       uint32_t nr_cpus_online;
        uint32_t nr_cpus_available; /* CPUs not yet onlined */
+       uint32_t nr_cpus_online;
 };
 
 	HEADER_CPUDESC = 8,
@@ -131,7 +130,7 @@ An uint64_t with the total memory in bytes.
 
 	HEADER_CMDLINE = 11,
 
-A perf_header_string with the perf command line used to collect the data.
+A perf_header_string_list with the perf arg-vector used to collect the data.
 
 	HEADER_EVENT_DESC = 12,
 
@@ -153,10 +152,18 @@ struct {
 	HEADER_CPU_TOPOLOGY = 13,
 
 String lists defining the core and CPU threads topology.
+The string lists are followed by a variable length array
+which contains core_id and socket_id of each cpu.
+The number of entries can be determined by the size of the
+section minus the sizes of both string lists.
 
 struct {
        struct perf_header_string_list cores; /* Variable length */
        struct perf_header_string_list threads; /* Variable length */
+       struct {
+	      uint32_t core_id;
+	      uint32_t socket_id;
+       } cpus[nr]; /* Variable length records */
 };
 
 Example:
@@ -264,6 +271,19 @@ struct {
 	HEADER_SAMPLE_TIME = 21,
 
 Two uint64_t for the time of first sample and the time of last sample.
+
+        HEADER_COMPRESSED = 27,
+
+struct {
+	u32	version;
+	u32	type;
+	u32	level;
+	u32	ratio;
+	u32	mmap_len;
+};
+
+Indicates that trace contains records of PERF_RECORD_COMPRESSED type
+that have perf_events records in compressed form.
 
 	other bits are reserved and should ignored for now
 	HEADER_FEAT_BITS	= 256,
@@ -429,6 +449,17 @@ struct auxtrace_error_event {
 
 Describes a header feature. These are records used in pipe-mode that
 contain information that otherwise would be in perf.data file's header.
+
+	PERF_RECORD_COMPRESSED 			= 81,
+
+struct compressed_event {
+	struct perf_event_header	header;
+	char				data[];
+};
+
+The header is followed by compressed data frame that can be decompressed
+into array of perf trace records. The size of the entire compressed event
+record including the header is limited by the max value of header.size.
 
 Event types
 

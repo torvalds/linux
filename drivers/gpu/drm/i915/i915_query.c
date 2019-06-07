@@ -4,16 +4,40 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include <linux/nospec.h>
+
 #include "i915_drv.h"
 #include "i915_query.h"
 #include <uapi/drm/i915_drm.h>
 
+static int copy_query_item(void *query_hdr, size_t query_sz,
+			   u32 total_length,
+			   struct drm_i915_query_item *query_item)
+{
+	if (query_item->length == 0)
+		return total_length;
+
+	if (query_item->length < total_length)
+		return -EINVAL;
+
+	if (copy_from_user(query_hdr, u64_to_user_ptr(query_item->data_ptr),
+			   query_sz))
+		return -EFAULT;
+
+	if (!access_ok(u64_to_user_ptr(query_item->data_ptr),
+		       total_length))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int query_topology_info(struct drm_i915_private *dev_priv,
 			       struct drm_i915_query_item *query_item)
 {
-	const struct sseu_dev_info *sseu = &INTEL_INFO(dev_priv)->sseu;
+	const struct sseu_dev_info *sseu = &RUNTIME_INFO(dev_priv)->sseu;
 	struct drm_i915_query_topology_info topo;
 	u32 slice_length, subslice_length, eu_length, total_length;
+	int ret;
 
 	if (query_item->flags != 0)
 		return -EINVAL;
@@ -25,29 +49,19 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 
 	slice_length = sizeof(sseu->slice_mask);
 	subslice_length = sseu->max_slices *
-		DIV_ROUND_UP(sseu->max_subslices,
-			     sizeof(sseu->subslice_mask[0]) * BITS_PER_BYTE);
+		DIV_ROUND_UP(sseu->max_subslices, BITS_PER_BYTE);
 	eu_length = sseu->max_slices * sseu->max_subslices *
 		DIV_ROUND_UP(sseu->max_eus_per_subslice, BITS_PER_BYTE);
 
 	total_length = sizeof(topo) + slice_length + subslice_length + eu_length;
 
-	if (query_item->length == 0)
-		return total_length;
-
-	if (query_item->length < total_length)
-		return -EINVAL;
-
-	if (copy_from_user(&topo, u64_to_user_ptr(query_item->data_ptr),
-			   sizeof(topo)))
-		return -EFAULT;
+	ret = copy_query_item(&topo, sizeof(topo), total_length,
+			      query_item);
+	if (ret != 0)
+		return ret;
 
 	if (topo.flags != 0)
 		return -EINVAL;
-
-	if (!access_ok(VERIFY_WRITE, u64_to_user_ptr(query_item->data_ptr),
-		       total_length))
-		return -EFAULT;
 
 	memset(&topo, 0, sizeof(topo));
 	topo.max_slices = sseu->max_slices;
@@ -100,7 +114,7 @@ int i915_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	for (i = 0; i < args->num_items; i++, user_item_ptr++) {
 		struct drm_i915_query_item item;
-		u64 func_idx;
+		unsigned long func_idx;
 		int ret;
 
 		if (copy_from_user(&item, user_item_ptr, sizeof(item)))
@@ -109,12 +123,17 @@ int i915_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		if (item.query_id == 0)
 			return -EINVAL;
 
+		if (overflows_type(item.query_id - 1, unsigned long))
+			return -EINVAL;
+
 		func_idx = item.query_id - 1;
 
-		if (func_idx < ARRAY_SIZE(i915_query_funcs))
+		ret = -EINVAL;
+		if (func_idx < ARRAY_SIZE(i915_query_funcs)) {
+			func_idx = array_index_nospec(func_idx,
+						      ARRAY_SIZE(i915_query_funcs));
 			ret = i915_query_funcs[func_idx](dev_priv, &item);
-		else
-			ret = -EINVAL;
+		}
 
 		/* Only write the length back to userspace if they differ. */
 		if (ret != item.length && put_user(ret, &user_item_ptr->length))

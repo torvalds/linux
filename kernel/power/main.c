@@ -15,17 +15,17 @@
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/suspend.h>
+#include <linux/syscalls.h>
 
 #include "power.h"
-
-DEFINE_MUTEX(pm_mutex);
 
 #ifdef CONFIG_PM_SLEEP
 
 void lock_system_sleep(void)
 {
 	current->flags |= PF_FREEZER_SKIP;
-	mutex_lock(&pm_mutex);
+	mutex_lock(&system_transition_mutex);
 }
 EXPORT_SYMBOL_GPL(lock_system_sleep);
 
@@ -37,8 +37,9 @@ void unlock_system_sleep(void)
 	 *
 	 * Reason:
 	 * Fundamentally, we just don't need it, because freezing condition
-	 * doesn't come into effect until we release the pm_mutex lock,
-	 * since the freezer always works with pm_mutex held.
+	 * doesn't come into effect until we release the
+	 * system_transition_mutex lock, since the freezer always works with
+	 * system_transition_mutex held.
 	 *
 	 * More importantly, in the case of hibernation,
 	 * unlock_system_sleep() gets called in snapshot_read() and
@@ -47,9 +48,22 @@ void unlock_system_sleep(void)
 	 * enter the refrigerator, thus causing hibernation to lockup.
 	 */
 	current->flags &= ~PF_FREEZER_SKIP;
-	mutex_unlock(&pm_mutex);
+	mutex_unlock(&system_transition_mutex);
 }
 EXPORT_SYMBOL_GPL(unlock_system_sleep);
+
+void ksys_sync_helper(void)
+{
+	ktime_t start;
+	long elapsed_msecs;
+
+	start = ktime_get();
+	ksys_sync();
+	elapsed_msecs = ktime_to_ms(ktime_sub(ktime_get(), start));
+	pr_info("Filesystems sync: %ld.%03ld seconds\n",
+		elapsed_msecs / MSEC_PER_SEC, elapsed_msecs % MSEC_PER_SEC);
+}
+EXPORT_SYMBOL_GPL(ksys_sync_helper);
 
 /* Routines for PM-transition notifications */
 
@@ -318,23 +332,12 @@ static int suspend_stats_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-
-static int suspend_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, suspend_stats_show, NULL);
-}
-
-static const struct file_operations suspend_stats_operations = {
-	.open           = suspend_stats_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(suspend_stats);
 
 static int __init pm_debugfs_init(void)
 {
 	debugfs_create_file("suspend_stats", S_IFREG | S_IRUGO,
-			NULL, NULL, &suspend_stats_operations);
+			NULL, NULL, &suspend_stats_fops);
 	return 0;
 }
 
@@ -455,8 +458,9 @@ struct kobject *power_kobj;
  * state - control system sleep states.
  *
  * show() returns available sleep state labels, which may be "mem", "standby",
- * "freeze" and "disk" (hibernation).  See Documentation/power/states.txt for a
- * description of what they mean.
+ * "freeze" and "disk" (hibernation).
+ * See Documentation/admin-guide/pm/sleep-states.rst for a description of
+ * what they mean.
  *
  * store() accepts one of those strings, translates it into the proper
  * enumerated value, and initiates a suspend transition.

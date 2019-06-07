@@ -101,6 +101,9 @@ static void platform_msi_update_chip_ops(struct msi_domain_info *info)
 		chip->irq_set_affinity = msi_domain_set_affinity;
 	if (!chip->irq_write_msi_msg)
 		chip->irq_write_msi_msg = platform_msi_write_msg;
+	if (WARN_ON((info->flags & MSI_FLAG_LEVEL_CAPABLE) &&
+		    !(chip->flags & IRQCHIP_SUPPORTS_LEVEL_MSI)))
+		info->flags &= ~MSI_FLAG_LEVEL_CAPABLE;
 }
 
 static void platform_msi_free_descs(struct device *dev, int base, int nvec)
@@ -318,11 +321,12 @@ void *platform_msi_get_host_data(struct irq_domain *domain)
  * Returns an irqdomain for @nvec interrupts
  */
 struct irq_domain *
-platform_msi_create_device_domain(struct device *dev,
-				  unsigned int nvec,
-				  irq_write_msi_msg_t write_msi_msg,
-				  const struct irq_domain_ops *ops,
-				  void *host_data)
+__platform_msi_create_device_domain(struct device *dev,
+				    unsigned int nvec,
+				    bool is_tree,
+				    irq_write_msi_msg_t write_msi_msg,
+				    const struct irq_domain_ops *ops,
+				    void *host_data)
 {
 	struct platform_msi_priv_data *data;
 	struct irq_domain *domain;
@@ -333,7 +337,8 @@ platform_msi_create_device_domain(struct device *dev,
 		return NULL;
 
 	data->host_data = host_data;
-	domain = irq_domain_create_hierarchy(dev->msi_domain, 0, nvec,
+	domain = irq_domain_create_hierarchy(dev->msi_domain, 0,
+					     is_tree ? 0 : nvec,
 					     dev->fwnode, ops, data);
 	if (!domain)
 		goto free_priv;
@@ -363,14 +368,16 @@ void platform_msi_domain_free(struct irq_domain *domain, unsigned int virq,
 			      unsigned int nvec)
 {
 	struct platform_msi_priv_data *data = domain->host_data;
-	struct msi_desc *desc;
-	for_each_msi_entry(desc, data->dev) {
+	struct msi_desc *desc, *tmp;
+	for_each_msi_entry_safe(desc, tmp, data->dev) {
 		if (WARN_ON(!desc->irq || desc->nvec_used != 1))
 			return;
 		if (!(desc->irq >= virq && desc->irq < (virq + nvec)))
 			continue;
 
 		irq_domain_free_irqs_common(domain, desc->irq, 1);
+		list_del(&desc->list);
+		free_msi_entry(desc);
 	}
 }
 

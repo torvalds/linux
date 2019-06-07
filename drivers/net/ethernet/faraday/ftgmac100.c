@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Faraday FTGMAC100 Gigabit Ethernet
  *
  * (C) Copyright 2009-2011 Faraday Technology
  * Po-Yu Chuang <ratbert@faraday-tech.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -712,8 +699,8 @@ static bool ftgmac100_prep_tx_csum(struct sk_buff *skb, u32 *csum_vlan)
 	return skb_checksum_help(skb) == 0;
 }
 
-static int ftgmac100_hard_start_xmit(struct sk_buff *skb,
-				     struct net_device *netdev)
+static netdev_tx_t ftgmac100_hard_start_xmit(struct sk_buff *skb,
+					     struct net_device *netdev)
 {
 	struct ftgmac100 *priv = netdev_priv(netdev);
 	struct ftgmac100_txdes *txdes, *first;
@@ -935,16 +922,14 @@ static int ftgmac100_alloc_rings(struct ftgmac100 *priv)
 		return -ENOMEM;
 
 	/* Allocate descriptors */
-	priv->rxdes = dma_zalloc_coherent(priv->dev,
-					  MAX_RX_QUEUE_ENTRIES *
-					  sizeof(struct ftgmac100_rxdes),
-					  &priv->rxdes_dma, GFP_KERNEL);
+	priv->rxdes = dma_alloc_coherent(priv->dev,
+					 MAX_RX_QUEUE_ENTRIES * sizeof(struct ftgmac100_rxdes),
+					 &priv->rxdes_dma, GFP_KERNEL);
 	if (!priv->rxdes)
 		return -ENOMEM;
-	priv->txdes = dma_zalloc_coherent(priv->dev,
-					  MAX_TX_QUEUE_ENTRIES *
-					  sizeof(struct ftgmac100_txdes),
-					  &priv->txdes_dma, GFP_KERNEL);
+	priv->txdes = dma_alloc_coherent(priv->dev,
+					 MAX_TX_QUEUE_ENTRIES * sizeof(struct ftgmac100_txdes),
+					 &priv->txdes_dma, GFP_KERNEL);
 	if (!priv->txdes)
 		return -ENOMEM;
 
@@ -1079,8 +1064,7 @@ static int ftgmac100_mii_probe(struct ftgmac100 *priv, phy_interface_t intf)
 	/* Indicate that we support PAUSE frames (see comment in
 	 * Documentation/networking/phy.txt)
 	 */
-	phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
-	phydev->advertising = phydev->supported;
+	phy_support_asym_pause(phydev);
 
 	/* Display what we found */
 	phy_attached_info(phydev);
@@ -1220,22 +1204,11 @@ static int ftgmac100_set_pauseparam(struct net_device *netdev,
 	priv->tx_pause = pause->tx_pause;
 	priv->rx_pause = pause->rx_pause;
 
-	if (phydev) {
-		phydev->advertising &= ~ADVERTISED_Pause;
-		phydev->advertising &= ~ADVERTISED_Asym_Pause;
+	if (phydev)
+		phy_set_asym_pause(phydev, pause->rx_pause, pause->tx_pause);
 
-		if (pause->rx_pause) {
-			phydev->advertising |= ADVERTISED_Pause;
-			phydev->advertising |= ADVERTISED_Asym_Pause;
-		}
-
-		if (pause->tx_pause)
-			phydev->advertising ^= ADVERTISED_Asym_Pause;
-	}
 	if (netif_running(netdev)) {
-		if (phydev && priv->aneg_pause)
-			phy_start_aneg(phydev);
-		else
+		if (!(phydev && priv->aneg_pause))
 			ftgmac100_config_pause(priv);
 	}
 
@@ -1651,7 +1624,7 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 		reg = ioread32(priv->base + FTGMAC100_OFFSET_REVR);
 		reg &= ~FTGMAC100_REVR_NEW_MDIO_INTERFACE;
 		iowrite32(reg, priv->base + FTGMAC100_OFFSET_REVR);
-	};
+	}
 
 	/* Get PHY mode from device-tree */
 	if (np) {
@@ -1735,8 +1708,8 @@ static void ftgmac100_ncsi_handler(struct ncsi_dev *nd)
 	if (unlikely(nd->state != ncsi_dev_state_functional))
 		return;
 
-	netdev_info(nd->dev, "NCSI interface %s\n",
-		    nd->link_up ? "up" : "down");
+	netdev_dbg(nd->dev, "NCSI interface %s\n",
+		   nd->link_up ? "up" : "down");
 }
 
 static void ftgmac100_setup_clk(struct ftgmac100 *priv)

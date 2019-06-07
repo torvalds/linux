@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * elf.c - ELF access library
  *
  * Adapted from kpatch (https://github.com/dynup/kpatch):
  * Copyright (C) 2013-2015 Josh Poimboeuf <jpoimboe@redhat.com>
  * Copyright (C) 2014 Seth Jennings <sjenning@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <sys/types.h>
@@ -30,6 +18,8 @@
 
 #include "elf.h"
 #include "warn.h"
+
+#define MAX_NAME_LEN 128
 
 struct section *find_section_by_name(struct elf *elf, const char *name)
 {
@@ -217,7 +207,7 @@ static int read_sections(struct elf *elf)
 static int read_symbols(struct elf *elf)
 {
 	struct section *symtab, *sec;
-	struct symbol *sym, *pfunc;
+	struct symbol *sym, *pfunc, *alias;
 	struct list_head *entry, *tmp;
 	int symbols_nr, i;
 	char *coldstr;
@@ -237,6 +227,7 @@ static int read_symbols(struct elf *elf)
 			return -1;
 		}
 		memset(sym, 0, sizeof(*sym));
+		alias = sym;
 
 		sym->idx = i;
 
@@ -286,11 +277,17 @@ static int read_symbols(struct elf *elf)
 				break;
 			}
 
-			if (sym->offset == s->offset && sym->len >= s->len) {
-				entry = tmp;
-				break;
+			if (sym->offset == s->offset) {
+				if (sym->len == s->len && alias == sym)
+					alias = s;
+
+				if (sym->len >= s->len) {
+					entry = tmp;
+					break;
+				}
 			}
 		}
+		sym->alias = alias;
 		list_add(&sym->list, entry);
 		hash_add(sym->sec->symbol_hash, &sym->hash, sym->idx);
 	}
@@ -298,23 +295,47 @@ static int read_symbols(struct elf *elf)
 	/* Create parent/child links for any cold subfunctions */
 	list_for_each_entry(sec, &elf->sections, list) {
 		list_for_each_entry(sym, &sec->symbol_list, list) {
+			char pname[MAX_NAME_LEN + 1];
+			size_t pnamelen;
 			if (sym->type != STT_FUNC)
 				continue;
 			sym->pfunc = sym->cfunc = sym;
-			coldstr = strstr(sym->name, ".cold.");
-			if (coldstr) {
-				coldstr[0] = '\0';
-				pfunc = find_symbol_by_name(elf, sym->name);
-				coldstr[0] = '.';
+			coldstr = strstr(sym->name, ".cold");
+			if (!coldstr)
+				continue;
 
-				if (!pfunc) {
-					WARN("%s(): can't find parent function",
-					     sym->name);
-					goto err;
-				}
+			pnamelen = coldstr - sym->name;
+			if (pnamelen > MAX_NAME_LEN) {
+				WARN("%s(): parent function name exceeds maximum length of %d characters",
+				     sym->name, MAX_NAME_LEN);
+				return -1;
+			}
 
-				sym->pfunc = pfunc;
-				pfunc->cfunc = sym;
+			strncpy(pname, sym->name, pnamelen);
+			pname[pnamelen] = '\0';
+			pfunc = find_symbol_by_name(elf, pname);
+
+			if (!pfunc) {
+				WARN("%s(): can't find parent function",
+				     sym->name);
+				return -1;
+			}
+
+			sym->pfunc = pfunc;
+			pfunc->cfunc = sym;
+
+			/*
+			 * Unfortunately, -fnoreorder-functions puts the child
+			 * inside the parent.  Remove the overlap so we can
+			 * have sane assumptions.
+			 *
+			 * Note that pfunc->len now no longer matches
+			 * pfunc->sym.st_size.
+			 */
+			if (sym->sec == pfunc->sec &&
+			    sym->offset >= pfunc->offset &&
+			    sym->offset + sym->len == pfunc->offset + pfunc->len) {
+				pfunc->len -= sym->len;
 			}
 		}
 	}
@@ -364,6 +385,7 @@ static int read_relas(struct elf *elf)
 			rela->offset = rela->rela.r_offset;
 			symndx = GELF_R_SYM(rela->rela.r_info);
 			rela->sym = find_symbol_by_index(elf, symndx);
+			rela->rela_sec = sec;
 			if (!rela->sym) {
 				WARN("can't find rela entry symbol %d for %s",
 				     symndx, sec->name);
@@ -504,10 +526,12 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	sec->sh.sh_flags = SHF_ALLOC;
 
 
-	/* Add section name to .shstrtab */
+	/* Add section name to .shstrtab (or .strtab for Clang) */
 	shstrtab = find_section_by_name(elf, ".shstrtab");
+	if (!shstrtab)
+		shstrtab = find_section_by_name(elf, ".strtab");
 	if (!shstrtab) {
-		WARN("can't find .shstrtab section");
+		WARN("can't find .shstrtab or .strtab section");
 		return NULL;
 	}
 

@@ -66,6 +66,9 @@ int efx_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
 
 		part->mtd.writesize = 1;
 
+		if (!(part->mtd.flags & MTD_NO_ERASE))
+			part->mtd.flags |= MTD_WRITEABLE;
+
 		part->mtd.owner = THIS_MODULE;
 		part->mtd.priv = efx;
 		part->mtd.name = part->name;

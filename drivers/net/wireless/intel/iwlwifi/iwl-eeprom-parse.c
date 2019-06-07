@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -16,11 +17,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -33,6 +29,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -745,7 +742,9 @@ void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 	else
 		rx_chains = hweight8(rx_chains);
 
-	if (!(data->sku_cap_11n_enable) || !cfg->ht_params) {
+	if (!(data->sku_cap_11n_enable) ||
+	    (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL) ||
+	    !cfg->ht_params) {
 		ht_info->ht_supported = false;
 		return;
 	}
@@ -767,7 +766,7 @@ void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 		ht_info->cap |= IEEE80211_HT_CAP_LDPC_CODING;
 
 	if ((cfg->mq_rx_supported &&
-	     iwlwifi_mod_params.amsdu_size != IWL_AMSDU_4K) ||
+	     iwlwifi_mod_params.amsdu_size == IWL_AMSDU_DEF) ||
 	     iwlwifi_mod_params.amsdu_size >= IWL_AMSDU_8K)
 		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
 
@@ -851,8 +850,7 @@ iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 	if (WARN_ON(!cfg || !cfg->eeprom_params))
 		return NULL;
 
-	data = kzalloc(sizeof(*data) +
-		       sizeof(struct ieee80211_channel) * IWL_NUM_CHANNELS,
+	data = kzalloc(struct_size(data, channels, IWL_NUM_CHANNELS),
 		       GFP_KERNEL);
 	if (!data)
 		return NULL;
@@ -899,8 +897,8 @@ iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 				 EEPROM_SKU_CAP);
 	data->sku_cap_11n_enable = sku & EEPROM_SKU_CAP_11N_ENABLE;
 	data->sku_cap_amt_enable = sku & EEPROM_SKU_CAP_AMT_ENABLE;
-	data->sku_cap_band_24GHz_enable = sku & EEPROM_SKU_CAP_BAND_24GHZ;
-	data->sku_cap_band_52GHz_enable = sku & EEPROM_SKU_CAP_BAND_52GHZ;
+	data->sku_cap_band_24ghz_enable = sku & EEPROM_SKU_CAP_BAND_24GHZ;
+	data->sku_cap_band_52ghz_enable = sku & EEPROM_SKU_CAP_BAND_52GHZ;
 	data->sku_cap_ipan_enable = sku & EEPROM_SKU_CAP_IPAN_ENABLE;
 	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
 		data->sku_cap_11n_enable = false;
@@ -928,22 +926,3 @@ iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 	return NULL;
 }
 IWL_EXPORT_SYMBOL(iwl_parse_eeprom_data);
-
-/* helper functions */
-int iwl_nvm_check_version(struct iwl_nvm_data *data,
-			     struct iwl_trans *trans)
-{
-	if (data->nvm_version >= trans->cfg->nvm_ver ||
-	    data->calib_version >= trans->cfg->nvm_calib_ver) {
-		IWL_DEBUG_INFO(trans, "device EEPROM VER=0x%x, CALIB=0x%x\n",
-			       data->nvm_version, data->calib_version);
-		return 0;
-	}
-
-	IWL_ERR(trans,
-		"Unsupported (too old) EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
-		data->nvm_version, trans->cfg->nvm_ver,
-		data->calib_version,  trans->cfg->nvm_calib_ver);
-	return -EINVAL;
-}
-IWL_EXPORT_SYMBOL(iwl_nvm_check_version);

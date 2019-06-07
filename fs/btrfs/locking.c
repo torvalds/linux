@@ -12,46 +12,134 @@
 #include "extent_io.h"
 #include "locking.h"
 
-static void btrfs_assert_tree_read_locked(struct extent_buffer *eb);
-
-/*
- * if we currently have a spinning reader or writer lock
- * (indicated by the rw flag) this will bump the count
- * of blocking holders and drop the spinlock.
- */
-void btrfs_set_lock_blocking_rw(struct extent_buffer *eb, int rw)
+#ifdef CONFIG_BTRFS_DEBUG
+static void btrfs_assert_spinning_writers_get(struct extent_buffer *eb)
 {
+	WARN_ON(atomic_read(&eb->spinning_writers));
+	atomic_inc(&eb->spinning_writers);
+}
+
+static void btrfs_assert_spinning_writers_put(struct extent_buffer *eb)
+{
+	WARN_ON(atomic_read(&eb->spinning_writers) != 1);
+	atomic_dec(&eb->spinning_writers);
+}
+
+static void btrfs_assert_no_spinning_writers(struct extent_buffer *eb)
+{
+	WARN_ON(atomic_read(&eb->spinning_writers));
+}
+
+static void btrfs_assert_spinning_readers_get(struct extent_buffer *eb)
+{
+	atomic_inc(&eb->spinning_readers);
+}
+
+static void btrfs_assert_spinning_readers_put(struct extent_buffer *eb)
+{
+	WARN_ON(atomic_read(&eb->spinning_readers) == 0);
+	atomic_dec(&eb->spinning_readers);
+}
+
+static void btrfs_assert_tree_read_locks_get(struct extent_buffer *eb)
+{
+	atomic_inc(&eb->read_locks);
+}
+
+static void btrfs_assert_tree_read_locks_put(struct extent_buffer *eb)
+{
+	atomic_dec(&eb->read_locks);
+}
+
+static void btrfs_assert_tree_read_locked(struct extent_buffer *eb)
+{
+	BUG_ON(!atomic_read(&eb->read_locks));
+}
+
+static void btrfs_assert_tree_write_locks_get(struct extent_buffer *eb)
+{
+	atomic_inc(&eb->write_locks);
+}
+
+static void btrfs_assert_tree_write_locks_put(struct extent_buffer *eb)
+{
+	atomic_dec(&eb->write_locks);
+}
+
+void btrfs_assert_tree_locked(struct extent_buffer *eb)
+{
+	BUG_ON(!atomic_read(&eb->write_locks));
+}
+
+#else
+static void btrfs_assert_spinning_writers_get(struct extent_buffer *eb) { }
+static void btrfs_assert_spinning_writers_put(struct extent_buffer *eb) { }
+static void btrfs_assert_no_spinning_writers(struct extent_buffer *eb) { }
+static void btrfs_assert_spinning_readers_put(struct extent_buffer *eb) { }
+static void btrfs_assert_spinning_readers_get(struct extent_buffer *eb) { }
+static void btrfs_assert_tree_read_locked(struct extent_buffer *eb) { }
+static void btrfs_assert_tree_read_locks_get(struct extent_buffer *eb) { }
+static void btrfs_assert_tree_read_locks_put(struct extent_buffer *eb) { }
+void btrfs_assert_tree_locked(struct extent_buffer *eb) { }
+static void btrfs_assert_tree_write_locks_get(struct extent_buffer *eb) { }
+static void btrfs_assert_tree_write_locks_put(struct extent_buffer *eb) { }
+#endif
+
+void btrfs_set_lock_blocking_read(struct extent_buffer *eb)
+{
+	trace_btrfs_set_lock_blocking_read(eb);
 	/*
-	 * no lock is required.  The lock owner may change if
-	 * we have a read lock, but it won't change to or away
-	 * from us.  If we have the write lock, we are the owner
-	 * and it'll never change.
+	 * No lock is required.  The lock owner may change if we have a read
+	 * lock, but it won't change to or away from us.  If we have the write
+	 * lock, we are the owner and it'll never change.
 	 */
 	if (eb->lock_nested && current->pid == eb->lock_owner)
 		return;
-	if (rw == BTRFS_WRITE_LOCK) {
-		if (atomic_read(&eb->blocking_writers) == 0) {
-			WARN_ON(atomic_read(&eb->spinning_writers) != 1);
-			atomic_dec(&eb->spinning_writers);
-			btrfs_assert_tree_locked(eb);
-			atomic_inc(&eb->blocking_writers);
-			write_unlock(&eb->lock);
-		}
-	} else if (rw == BTRFS_READ_LOCK) {
-		btrfs_assert_tree_read_locked(eb);
-		atomic_inc(&eb->blocking_readers);
-		WARN_ON(atomic_read(&eb->spinning_readers) == 0);
-		atomic_dec(&eb->spinning_readers);
-		read_unlock(&eb->lock);
+	btrfs_assert_tree_read_locked(eb);
+	atomic_inc(&eb->blocking_readers);
+	btrfs_assert_spinning_readers_put(eb);
+	read_unlock(&eb->lock);
+}
+
+void btrfs_set_lock_blocking_write(struct extent_buffer *eb)
+{
+	trace_btrfs_set_lock_blocking_write(eb);
+	/*
+	 * No lock is required.  The lock owner may change if we have a read
+	 * lock, but it won't change to or away from us.  If we have the write
+	 * lock, we are the owner and it'll never change.
+	 */
+	if (eb->lock_nested && current->pid == eb->lock_owner)
+		return;
+	if (atomic_read(&eb->blocking_writers) == 0) {
+		btrfs_assert_spinning_writers_put(eb);
+		btrfs_assert_tree_locked(eb);
+		atomic_inc(&eb->blocking_writers);
+		write_unlock(&eb->lock);
 	}
 }
 
-/*
- * if we currently have a blocking lock, take the spinlock
- * and drop our blocking count
- */
-void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw)
+void btrfs_clear_lock_blocking_read(struct extent_buffer *eb)
 {
+	trace_btrfs_clear_lock_blocking_read(eb);
+	/*
+	 * No lock is required.  The lock owner may change if we have a read
+	 * lock, but it won't change to or away from us.  If we have the write
+	 * lock, we are the owner and it'll never change.
+	 */
+	if (eb->lock_nested && current->pid == eb->lock_owner)
+		return;
+	BUG_ON(atomic_read(&eb->blocking_readers) == 0);
+	read_lock(&eb->lock);
+	btrfs_assert_spinning_readers_get(eb);
+	/* atomic_dec_and_test implies a barrier */
+	if (atomic_dec_and_test(&eb->blocking_readers))
+		cond_wake_up_nomb(&eb->read_lock_wq);
+}
+
+void btrfs_clear_lock_blocking_write(struct extent_buffer *eb)
+{
+	trace_btrfs_clear_lock_blocking_write(eb);
 	/*
 	 * no lock is required.  The lock owner may change if
 	 * we have a read lock, but it won't change to or away
@@ -60,29 +148,12 @@ void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw)
 	 */
 	if (eb->lock_nested && current->pid == eb->lock_owner)
 		return;
-
-	if (rw == BTRFS_WRITE_LOCK_BLOCKING) {
-		BUG_ON(atomic_read(&eb->blocking_writers) != 1);
-		write_lock(&eb->lock);
-		WARN_ON(atomic_read(&eb->spinning_writers));
-		atomic_inc(&eb->spinning_writers);
-		/*
-		 * atomic_dec_and_test implies a barrier for waitqueue_active
-		 */
-		if (atomic_dec_and_test(&eb->blocking_writers) &&
-		    waitqueue_active(&eb->write_lock_wq))
-			wake_up(&eb->write_lock_wq);
-	} else if (rw == BTRFS_READ_LOCK_BLOCKING) {
-		BUG_ON(atomic_read(&eb->blocking_readers) == 0);
-		read_lock(&eb->lock);
-		atomic_inc(&eb->spinning_readers);
-		/*
-		 * atomic_dec_and_test implies a barrier for waitqueue_active
-		 */
-		if (atomic_dec_and_test(&eb->blocking_readers) &&
-		    waitqueue_active(&eb->read_lock_wq))
-			wake_up(&eb->read_lock_wq);
-	}
+	BUG_ON(atomic_read(&eb->blocking_writers) != 1);
+	write_lock(&eb->lock);
+	btrfs_assert_spinning_writers_get(eb);
+	/* atomic_dec_and_test implies a barrier */
+	if (atomic_dec_and_test(&eb->blocking_writers))
+		cond_wake_up_nomb(&eb->write_lock_wq);
 }
 
 /*
@@ -91,6 +162,10 @@ void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw)
  */
 void btrfs_tree_read_lock(struct extent_buffer *eb)
 {
+	u64 start_ns = 0;
+
+	if (trace_btrfs_tree_read_lock_enabled())
+		start_ns = ktime_get_ns();
 again:
 	BUG_ON(!atomic_read(&eb->blocking_writers) &&
 	       current->pid == eb->lock_owner);
@@ -105,8 +180,9 @@ again:
 		 * called on a partly (write-)locked tree.
 		 */
 		BUG_ON(eb->lock_nested);
-		eb->lock_nested = 1;
+		eb->lock_nested = true;
 		read_unlock(&eb->lock);
+		trace_btrfs_tree_read_lock(eb, start_ns);
 		return;
 	}
 	if (atomic_read(&eb->blocking_writers)) {
@@ -115,8 +191,9 @@ again:
 			   atomic_read(&eb->blocking_writers) == 0);
 		goto again;
 	}
-	atomic_inc(&eb->read_locks);
-	atomic_inc(&eb->spinning_readers);
+	btrfs_assert_tree_read_locks_get(eb);
+	btrfs_assert_spinning_readers_get(eb);
+	trace_btrfs_tree_read_lock(eb, start_ns);
 }
 
 /*
@@ -134,8 +211,9 @@ int btrfs_tree_read_lock_atomic(struct extent_buffer *eb)
 		read_unlock(&eb->lock);
 		return 0;
 	}
-	atomic_inc(&eb->read_locks);
-	atomic_inc(&eb->spinning_readers);
+	btrfs_assert_tree_read_locks_get(eb);
+	btrfs_assert_spinning_readers_get(eb);
+	trace_btrfs_tree_read_lock_atomic(eb);
 	return 1;
 }
 
@@ -155,8 +233,9 @@ int btrfs_try_tree_read_lock(struct extent_buffer *eb)
 		read_unlock(&eb->lock);
 		return 0;
 	}
-	atomic_inc(&eb->read_locks);
-	atomic_inc(&eb->spinning_readers);
+	btrfs_assert_tree_read_locks_get(eb);
+	btrfs_assert_spinning_readers_get(eb);
+	trace_btrfs_try_tree_read_lock(eb);
 	return 1;
 }
 
@@ -176,9 +255,10 @@ int btrfs_try_tree_write_lock(struct extent_buffer *eb)
 		write_unlock(&eb->lock);
 		return 0;
 	}
-	atomic_inc(&eb->write_locks);
-	atomic_inc(&eb->spinning_writers);
+	btrfs_assert_tree_write_locks_get(eb);
+	btrfs_assert_spinning_writers_get(eb);
 	eb->lock_owner = current->pid;
+	trace_btrfs_try_tree_write_lock(eb);
 	return 1;
 }
 
@@ -187,6 +267,7 @@ int btrfs_try_tree_write_lock(struct extent_buffer *eb)
  */
 void btrfs_tree_read_unlock(struct extent_buffer *eb)
 {
+	trace_btrfs_tree_read_unlock(eb);
 	/*
 	 * if we're nested, we have the write lock.  No new locking
 	 * is needed as long as we are the lock owner.
@@ -194,13 +275,12 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
 	 * field only matters to the lock owner.
 	 */
 	if (eb->lock_nested && current->pid == eb->lock_owner) {
-		eb->lock_nested = 0;
+		eb->lock_nested = false;
 		return;
 	}
 	btrfs_assert_tree_read_locked(eb);
-	WARN_ON(atomic_read(&eb->spinning_readers) == 0);
-	atomic_dec(&eb->spinning_readers);
-	atomic_dec(&eb->read_locks);
+	btrfs_assert_spinning_readers_put(eb);
+	btrfs_assert_tree_read_locks_put(eb);
 	read_unlock(&eb->lock);
 }
 
@@ -209,6 +289,7 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
  */
 void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
 {
+	trace_btrfs_tree_read_unlock_blocking(eb);
 	/*
 	 * if we're nested, we have the write lock.  No new locking
 	 * is needed as long as we are the lock owner.
@@ -216,18 +297,15 @@ void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
 	 * field only matters to the lock owner.
 	 */
 	if (eb->lock_nested && current->pid == eb->lock_owner) {
-		eb->lock_nested = 0;
+		eb->lock_nested = false;
 		return;
 	}
 	btrfs_assert_tree_read_locked(eb);
 	WARN_ON(atomic_read(&eb->blocking_readers) == 0);
-	/*
-	 * atomic_dec_and_test implies a barrier for waitqueue_active
-	 */
-	if (atomic_dec_and_test(&eb->blocking_readers) &&
-	    waitqueue_active(&eb->read_lock_wq))
-		wake_up(&eb->read_lock_wq);
-	atomic_dec(&eb->read_locks);
+	/* atomic_dec_and_test implies a barrier */
+	if (atomic_dec_and_test(&eb->blocking_readers))
+		cond_wake_up_nomb(&eb->read_lock_wq);
+	btrfs_assert_tree_read_locks_put(eb);
 }
 
 /*
@@ -236,27 +314,25 @@ void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
  */
 void btrfs_tree_lock(struct extent_buffer *eb)
 {
+	u64 start_ns = 0;
+
+	if (trace_btrfs_tree_lock_enabled())
+		start_ns = ktime_get_ns();
+
 	WARN_ON(eb->lock_owner == current->pid);
 again:
 	wait_event(eb->read_lock_wq, atomic_read(&eb->blocking_readers) == 0);
 	wait_event(eb->write_lock_wq, atomic_read(&eb->blocking_writers) == 0);
 	write_lock(&eb->lock);
-	if (atomic_read(&eb->blocking_readers)) {
+	if (atomic_read(&eb->blocking_readers) ||
+	    atomic_read(&eb->blocking_writers)) {
 		write_unlock(&eb->lock);
-		wait_event(eb->read_lock_wq,
-			   atomic_read(&eb->blocking_readers) == 0);
 		goto again;
 	}
-	if (atomic_read(&eb->blocking_writers)) {
-		write_unlock(&eb->lock);
-		wait_event(eb->write_lock_wq,
-			   atomic_read(&eb->blocking_writers) == 0);
-		goto again;
-	}
-	WARN_ON(atomic_read(&eb->spinning_writers));
-	atomic_inc(&eb->spinning_writers);
-	atomic_inc(&eb->write_locks);
+	btrfs_assert_spinning_writers_get(eb);
+	btrfs_assert_tree_write_locks_get(eb);
 	eb->lock_owner = current->pid;
+	trace_btrfs_tree_lock(eb, start_ns);
 }
 
 /*
@@ -269,31 +345,18 @@ void btrfs_tree_unlock(struct extent_buffer *eb)
 	BUG_ON(blockers > 1);
 
 	btrfs_assert_tree_locked(eb);
+	trace_btrfs_tree_unlock(eb);
 	eb->lock_owner = 0;
-	atomic_dec(&eb->write_locks);
+	btrfs_assert_tree_write_locks_put(eb);
 
 	if (blockers) {
-		WARN_ON(atomic_read(&eb->spinning_writers));
+		btrfs_assert_no_spinning_writers(eb);
 		atomic_dec(&eb->blocking_writers);
-		/*
-		 * Make sure counter is updated before we wake up waiters.
-		 */
+		/* Use the lighter barrier after atomic */
 		smp_mb__after_atomic();
-		if (waitqueue_active(&eb->write_lock_wq))
-			wake_up(&eb->write_lock_wq);
+		cond_wake_up_nomb(&eb->write_lock_wq);
 	} else {
-		WARN_ON(atomic_read(&eb->spinning_writers) != 1);
-		atomic_dec(&eb->spinning_writers);
+		btrfs_assert_spinning_writers_put(eb);
 		write_unlock(&eb->lock);
 	}
-}
-
-void btrfs_assert_tree_locked(struct extent_buffer *eb)
-{
-	BUG_ON(!atomic_read(&eb->write_locks));
-}
-
-static void btrfs_assert_tree_read_locked(struct extent_buffer *eb)
-{
-	BUG_ON(!atomic_read(&eb->read_locks));
 }

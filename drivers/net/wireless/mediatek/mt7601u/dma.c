@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include "mt7601u.h"
@@ -124,9 +116,9 @@ static u16 mt7601u_rx_next_seg_len(u8 *data, u32 data_len)
 	u16 dma_len = get_unaligned_le16(data);
 
 	if (data_len < min_seg_len ||
-	    WARN_ON(!dma_len) ||
-	    WARN_ON(dma_len + MT_DMA_HDRS > data_len) ||
-	    WARN_ON(dma_len & 0x3))
+	    WARN_ON_ONCE(!dma_len) ||
+	    WARN_ON_ONCE(dma_len + MT_DMA_HDRS > data_len) ||
+	    WARN_ON_ONCE(dma_len & 0x3))
 		return 0;
 
 	return MT_DMA_HDRS + dma_len;

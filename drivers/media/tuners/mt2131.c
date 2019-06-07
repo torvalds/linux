@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Microtune MT2131 "QAM/8VSB single chip tuner"
  *
  *  Copyright (c) 2006 Steven Toth <stoth@linuxtv.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -235,10 +225,10 @@ static void mt2131_release(struct dvb_frontend *fe)
 
 static const struct dvb_tuner_ops mt2131_tuner_ops = {
 	.info = {
-		.name           = "Microtune MT2131",
-		.frequency_min  =  48000000,
-		.frequency_max  = 860000000,
-		.frequency_step =     50000,
+		.name              = "Microtune MT2131",
+		.frequency_min_hz  =  48 * MHz,
+		.frequency_max_hz  = 860 * MHz,
+		.frequency_step_hz =  50 * kHz,
 	},
 
 	.release       = mt2131_release,

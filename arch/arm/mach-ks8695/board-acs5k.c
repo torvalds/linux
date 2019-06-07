@@ -19,7 +19,7 @@
 #include <linux/gpio/machine.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
 #include <linux/platform_data/pca953x.h>
 
 #include <linux/mtd/mtd.h>
@@ -100,7 +100,7 @@ static struct i2c_board_info acs5k_i2c_devs[] __initdata = {
 	},
 };
 
-static void acs5k_i2c_init(void)
+static void __init acs5k_i2c_init(void)
 {
 	/* The gpio interface */
 	gpiod_add_lookup_table(&acs5k_i2c_gpiod_table);

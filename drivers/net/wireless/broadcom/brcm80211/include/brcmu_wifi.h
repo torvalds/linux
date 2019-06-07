@@ -29,6 +29,8 @@
 #define CH_UPPER_SB			0x01
 #define CH_LOWER_SB			0x02
 #define CH_EWA_VALID			0x04
+#define CH_70MHZ_APART			14
+#define CH_50MHZ_APART			10
 #define CH_30MHZ_APART			6
 #define CH_20MHZ_APART			4
 #define CH_10MHZ_APART			2
@@ -237,6 +239,7 @@ static inline bool ac_bitmap_tst(u8 bitmap, int prec)
 #define WPA2_AUTH_RESERVED4	0x0400
 #define WPA2_AUTH_RESERVED5	0x0800
 #define WPA2_AUTH_1X_SHA256	0x1000  /* 1X with SHA256 key derivation */
+#define WPA2_AUTH_FT		0x4000	/* Fast BSS Transition */
 #define WPA2_AUTH_PSK_SHA256	0x8000	/* PSK with SHA256 key derivation */
 
 #define DOT11_DEFAULT_RTS_LEN		2347

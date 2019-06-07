@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  net/9p/9p.c
  *
@@ -6,22 +7,6 @@
  *  Copyright (C) 2007 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2
- *  as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to:
- *  Free Software Foundation
- *  51 Franklin Street, Fifth Floor
- *  Boston, MA  02111-1301  USA
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -104,7 +89,7 @@ EXPORT_SYMBOL(v9fs_unregister_trans);
 
 /**
  * v9fs_get_trans_by_name - get transport with the matching name
- * @name: string identifying transport
+ * @s: string identifying transport
  *
  */
 struct p9_trans_module *v9fs_get_trans_by_name(char *s)
@@ -171,7 +156,11 @@ void v9fs_put_trans(struct p9_trans_module *m)
  */
 static int __init init_p9(void)
 {
-	int ret = 0;
+	int ret;
+
+	ret = p9_client_init();
+	if (ret)
+		return ret;
 
 	p9_error_init();
 	pr_info("Installing 9P2000 support\n");
@@ -190,6 +179,7 @@ static void __exit exit_p9(void)
 	pr_info("Unloading 9P2000 support\n");
 
 	p9_trans_fd_exit();
+	p9_client_exit();
 }
 
 module_init(init_p9)

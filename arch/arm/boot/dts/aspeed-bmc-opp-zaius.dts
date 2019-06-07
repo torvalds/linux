@@ -55,6 +55,12 @@
 			gpios = <&gpio ASPEED_GPIO(F, 7) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(F, 7)>;
 		};
+
+		pcie-e2b-present{
+			label = "pcie-e2b-present";
+			gpios = <&gpio ASPEED_GPIO(E, 7) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(E, 7)>;
+		};
 	};
 
 	leds {
@@ -85,6 +91,7 @@
 		compatible = "fsi-master-gpio", "fsi-master";
 		#address-cells = <2>;
 		#size-cells = <0>;
+		no-gpio-delays;
 
 		trans-gpios = <&gpio ASPEED_GPIO(O, 6) GPIO_ACTIVE_HIGH>;
 		enable-gpios = <&gpio ASPEED_GPIO(D, 0) GPIO_ACTIVE_HIGH>;

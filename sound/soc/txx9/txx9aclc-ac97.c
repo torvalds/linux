@@ -102,7 +102,6 @@ static void txx9aclc_ac97_cold_reset(struct snd_ac97 *ac97)
 	u32 ready = ACINT_CODECRDY(ac97->num) | ACINT_REGACCRDY;
 
 	__raw_writel(ACCTL_ENLINK, base + ACCTLDIS);
-	mmiowb();
 	udelay(1);
 	__raw_writel(ACCTL_ENLINK, base + ACCTLEN);
 	/* wait for primary codec ready status */
@@ -208,13 +207,12 @@ static int txx9aclc_ac97_dev_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	return snd_soc_register_component(&pdev->dev, &txx9aclc_ac97_component,
+	return devm_snd_soc_register_component(&pdev->dev, &txx9aclc_ac97_component,
 					  &txx9aclc_ac97_dai, 1);
 }
 
 static int txx9aclc_ac97_dev_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_component(&pdev->dev);
 	snd_soc_set_ac97_ops(NULL);
 	return 0;
 }

@@ -1,19 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2009 Texas Instruments.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __ARCH_ARM_DAVINCI_SPI_H
@@ -36,9 +23,6 @@ enum {
  * @num_chipselect: number of chipselects supported by this SPI master
  * @intr_line:	interrupt line used to connect the SPI IP to the ARM interrupt
  *		controller withn the SoC. Possible values are 0 and 1.
- * @chip_sel:	list of GPIOs which can act as chip-selects for the SPI.
- *		SPI_INTERN_CS denotes internal SPI chip-select. Not necessary
- *		to populate if all chip-selects are internal.
  * @cshold_bug:	set this to true if the SPI controller on your chip requires
  *		a write to CSHOLD bit in between transfers (like in DM355).
  * @dma_event_q: DMA event queue to use if SPI_IO_TYPE_DMA is used for any
@@ -48,7 +32,6 @@ struct davinci_spi_platform_data {
 	u8			version;
 	u8			num_chipselect;
 	u8			intr_line;
-	u8			*chip_sel;
 	u8			prescaler_limit;
 	bool			cshold_bug;
 	enum dma_event_q	dma_event_q;

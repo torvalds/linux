@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel SST generic IPC Support
  *
  * Copyright (C) 2015, Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/types.h>
@@ -121,8 +112,8 @@ static int msg_empty_list_init(struct sst_generic_ipc *ipc)
 {
 	int i;
 
-	ipc->msg = kzalloc(sizeof(struct ipc_message) *
-		IPC_EMPTY_LIST_SIZE, GFP_KERNEL);
+	ipc->msg = kcalloc(IPC_EMPTY_LIST_SIZE, sizeof(struct ipc_message),
+			   GFP_KERNEL);
 	if (ipc->msg == NULL)
 		return -ENOMEM;
 

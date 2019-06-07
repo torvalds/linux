@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * interface to user space for the gigaset driver
  *
  * Copyright (c) 2004 by Hansjoerg Lipp <hjlipp@web.de>
  *
  * =====================================================================
- *    This program is free software; you can redistribute it and/or
- *    modify it under the terms of the GNU General Public License as
- *    published by the Free Software Foundation; either version 2 of
- *    the License, or (at your option) any later version.
  * =====================================================================
  */
 
@@ -206,7 +203,7 @@ static int if_ioctl(struct tty_struct *tty,
 				? -EFAULT : 0;
 			if (retval >= 0) {
 				gigaset_dbg_buffer(DEBUG_IF, "GIGASET_BRKCHARS",
-						   6, (const unsigned char *) arg);
+						   6, buf);
 				retval = cs->ops->brkchars(cs, buf);
 			}
 			break;
@@ -232,6 +229,14 @@ static int if_ioctl(struct tty_struct *tty,
 
 	return retval;
 }
+
+#ifdef CONFIG_COMPAT
+static long if_compat_ioctl(struct tty_struct *tty,
+		    unsigned int cmd, unsigned long arg)
+{
+	return if_ioctl(tty, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
 
 static int if_tiocmget(struct tty_struct *tty)
 {
@@ -472,6 +477,9 @@ static const struct tty_operations if_ops = {
 	.open =			if_open,
 	.close =		if_close,
 	.ioctl =		if_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =		if_compat_ioctl,
+#endif
 	.write =		if_write,
 	.write_room =		if_write_room,
 	.chars_in_buffer =	if_chars_in_buffer,

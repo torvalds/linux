@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright(C) 2015 Linaro Limited. All rights reserved.
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/pid_namespace.h>
 #include <linux/pm_runtime.h>
 #include <linux/sysfs.h>
 #include "coresight-etm.h"
@@ -1036,8 +1026,15 @@ static ssize_t ctxid_pid_show(struct device *dev,
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etm_config *config = &drvdata->config;
 
+	/*
+	 * Don't use contextID tracing if coming from a PID namespace.  See
+	 * comment in ctxid_pid_store().
+	 */
+	if (task_active_pid_ns(current) != &init_pid_ns)
+		return -EINVAL;
+
 	spin_lock(&drvdata->spinlock);
-	val = config->ctxid_vpid[config->ctxid_idx];
+	val = config->ctxid_pid[config->ctxid_idx];
 	spin_unlock(&drvdata->spinlock);
 
 	return sprintf(buf, "%#lx\n", val);
@@ -1048,19 +1045,28 @@ static ssize_t ctxid_pid_store(struct device *dev,
 			       const char *buf, size_t size)
 {
 	int ret;
-	unsigned long vpid, pid;
+	unsigned long pid;
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etm_config *config = &drvdata->config;
 
-	ret = kstrtoul(buf, 16, &vpid);
+	/*
+	 * When contextID tracing is enabled the tracers will insert the
+	 * value found in the contextID register in the trace stream.  But if
+	 * a process is in a namespace the PID of that process as seen from the
+	 * namespace won't be what the kernel sees, something that makes the
+	 * feature confusing and can potentially leak kernel only information.
+	 * As such refuse to use the feature if @current is not in the initial
+	 * PID namespace.
+	 */
+	if (task_active_pid_ns(current) != &init_pid_ns)
+		return -EINVAL;
+
+	ret = kstrtoul(buf, 16, &pid);
 	if (ret)
 		return ret;
 
-	pid = coresight_vpid_to_pid(vpid);
-
 	spin_lock(&drvdata->spinlock);
 	config->ctxid_pid[config->ctxid_idx] = pid;
-	config->ctxid_vpid[config->ctxid_idx] = vpid;
 	spin_unlock(&drvdata->spinlock);
 
 	return size;
@@ -1074,6 +1080,13 @@ static ssize_t ctxid_mask_show(struct device *dev,
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etm_config *config = &drvdata->config;
 
+	/*
+	 * Don't use contextID tracing if coming from a PID namespace.  See
+	 * comment in ctxid_pid_store().
+	 */
+	if (task_active_pid_ns(current) != &init_pid_ns)
+		return -EINVAL;
+
 	val = config->ctxid_mask;
 	return sprintf(buf, "%#lx\n", val);
 }
@@ -1086,6 +1099,13 @@ static ssize_t ctxid_mask_store(struct device *dev,
 	unsigned long val;
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etm_config *config = &drvdata->config;
+
+	/*
+	 * Don't use contextID tracing if coming from a PID namespace.  See
+	 * comment in ctxid_pid_store().
+	 */
+	if (task_active_pid_ns(current) != &init_pid_ns)
+		return -EINVAL;
 
 	ret = kstrtoul(buf, 16, &val);
 	if (ret)

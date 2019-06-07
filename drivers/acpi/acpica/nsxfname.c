@@ -4,7 +4,7 @@
  * Module Name: nsxfname - Public interfaces to the ACPI subsystem
  *                         ACPI Namespace oriented interfaces
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -495,8 +495,8 @@ acpi_status acpi_install_method(u8 *buffer)
 
 	/* Table must be a DSDT or SSDT */
 
-	if (!ACPI_COMPARE_NAME(table->signature, ACPI_SIG_DSDT) &&
-	    !ACPI_COMPARE_NAME(table->signature, ACPI_SIG_SSDT)) {
+	if (!ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_DSDT) &&
+	    !ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_SSDT)) {
 		return (AE_BAD_HEADER);
 	}
 

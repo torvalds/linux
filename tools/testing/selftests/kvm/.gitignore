@@ -1,0 +1,14 @@
+/x86_64/cr4_cpuid_sync_test
+/x86_64/evmcs_test
+/x86_64/hyperv_cpuid
+/x86_64/kvm_create_max_vcpus
+/x86_64/platform_info_test
+/x86_64/set_sregs_test
+/x86_64/smm_test
+/x86_64/state_test
+/x86_64/sync_regs_test
+/x86_64/vmx_close_while_nested_test
+/x86_64/vmx_set_nested_state_test
+/x86_64/vmx_tsc_adjust_test
+/clear_dirty_log_test
+/dirty_log_test

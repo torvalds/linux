@@ -152,6 +152,7 @@ struct msb_data {
 	struct gendisk			*disk;
 	struct request_queue		*queue;
 	spinlock_t			q_lock;
+	struct blk_mq_tag_set		tag_set;
 	struct hd_geometry		geometry;
 	struct attribute_group		attr_group;
 	struct request			*req;

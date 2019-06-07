@@ -1,14 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Many of the syscalls used in this file expect some of the arguments
- * to be __user pointers not __kernel pointers.  To limit the sparse
- * noise, turn off sparse checking for this file.
- */
-#ifdef __CHECKER__
-#undef __CHECKER__
-#warning "Sparse checking disabled for this file"
-#endif
-
 #include <linux/delay.h>
 #include <linux/raid/md_u.h>
 #include <linux/raid/md_p.h>

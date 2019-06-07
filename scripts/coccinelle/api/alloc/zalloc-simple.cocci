@@ -35,8 +35,7 @@ statement S;
 
 * x = (T)\(kmalloc(E1, ...)\|vmalloc(E1)\|dma_alloc_coherent(...,E1,...)\|
   kmalloc_node(E1, ...)\|kmem_cache_alloc(...)\|kmem_alloc(E1, ...)\|
-  devm_kmalloc(...,E1,...)\|kvmalloc(E1, ...)\|pci_alloc_consistent(...,E1,...)\|
-  kvmalloc_node(E1,...)\);
+  devm_kmalloc(...,E1,...)\|kvmalloc(E1, ...)\|kvmalloc_node(E1,...)\);
   if ((x==NULL) || ...) S
 * memset((T2)x,0,E1);
 
@@ -69,15 +68,6 @@ statement S;
 |
 - x = (T)vmalloc(E1);
 + x = (T)vzalloc(E1);
-|
-- x = dma_alloc_coherent(E2,E1,E3,E4);
-+ x = dma_zalloc_coherent(E2,E1,E3,E4);
-|
-- x = (T *)dma_alloc_coherent(E2,E1,E3,E4);
-+ x = dma_zalloc_coherent(E2,E1,E3,E4);
-|
-- x = (T)dma_alloc_coherent(E2,E1,E3,E4);
-+ x = (T)dma_zalloc_coherent(E2,E1,E3,E4);
 |
 - x = kmalloc_node(E1,E2,E3);
 + x = kzalloc_node(E1,E2,E3);
@@ -123,15 +113,6 @@ statement S;
 |
 - x = (T)kvmalloc(E1,E2);
 + x = (T)kvzalloc(E1,E2);
-|
-- x = pci_alloc_consistent(E2,E1,E3);
-+ x = pci_zalloc_consistent(E2,E1,E3);
-|
-- x = (T *)pci_alloc_consistent(E2,E1,E3);
-+ x = pci_zalloc_consistent(E2,E1,E3);
-|
-- x = (T)pci_alloc_consistent(E2,E1,E3);
-+ x = (T)pci_zalloc_consistent(E2,E1,E3);
 |
 - x = kvmalloc_node(E1,E2,E3);
 + x = kvzalloc_node(E1,E2,E3);
@@ -235,7 +216,7 @@ p << r2.p;
 x << r2.x;
 @@
 
-msg="WARNING: dma_zalloc_coherent should be used for %s, instead of dma_alloc_coherent/memset" % (x)
+msg="WARNING: dma_alloc_coherent use in %s already zeroes out memory,  so memset is not needed" % (x)
 coccilib.report.print_report(p[0], msg)
 
 //-----------------------------------------------------------------
@@ -388,35 +369,6 @@ x << r7.x;
 msg="WARNING: kvzalloc should be used for %s, instead of kvmalloc/memset" % (x)
 coccilib.report.print_report(p[0], msg)
 
-//-----------------------------------------------------------------
-@r8 depends on org || report@
-type T, T2;
-expression x;
-expression E1,E2,E3;
-statement S;
-position p;
-@@
-
- x = (T)pci_alloc_consistent@p(E2,E1,E3);
- if ((x==NULL) || ...) S
- memset((T2)x,0,E1);
-
-@script:python depends on org@
-p << r8.p;
-x << r8.x;
-@@
-
-msg="%s" % (x)
-msg_safe=msg.replace("[","@(").replace("]",")")
-coccilib.org.print_todo(p[0], msg_safe)
-
-@script:python depends on report@
-p << r8.p;
-x << r8.x;
-@@
-
-msg="WARNING: pci_zalloc_consistent should be used for %s, instead of pci_alloc_consistent/memset" % (x)
-coccilib.report.print_report(p[0], msg)
 //-----------------------------------------------------------------
 @r9 depends on org || report@
 type T, T2;

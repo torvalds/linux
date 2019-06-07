@@ -1,14 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * wm8650.dtsi - Device tree file for Wondermedia WM8650 SoC
  *
  * Copyright (C) 2012 Tony Prisk <linux@prisktech.co.nz>
- *
- * Licensed under GPLv2 or later
  */
 
-/include/ "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "wm,wm8650";
 
 	cpus {
@@ -19,6 +18,11 @@
 			device_type = "cpu";
 			compatible = "arm,arm926ej-s";
 		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
 	};
 
  	aliases {

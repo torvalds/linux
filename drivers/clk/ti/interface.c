@@ -57,12 +57,10 @@ static struct clk *_register_interface(struct device *dev, const char *name,
 	init.num_parents = 1;
 	init.parent_names = &parent_name;
 
-	clk = ti_clk_register(NULL, &clk_hw->hw, name);
+	clk = ti_clk_register_omap_hw(NULL, &clk_hw->hw, name);
 
 	if (IS_ERR(clk))
 		kfree(clk_hw);
-	else
-		omap2_init_clk_hw_omap_clocks(&clk_hw->hw);
 
 	return clk;
 }
@@ -84,7 +82,7 @@ static void __init _of_ti_interface_clk_setup(struct device_node *node,
 
 	parent_name = of_clk_get_parent_name(node, 0);
 	if (!parent_name) {
-		pr_err("%s must have a parent\n", node->name);
+		pr_err("%pOFn must have a parent\n", node);
 		return;
 	}
 

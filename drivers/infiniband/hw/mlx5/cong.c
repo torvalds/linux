@@ -359,9 +359,6 @@ static ssize_t get_param(struct file *filp, char __user *buf, size_t count,
 	int ret;
 	char lbuf[11];
 
-	if (*pos)
-		return 0;
-
 	ret = mlx5_ib_get_cc_params(param->dev, param->port_num, offset, &var);
 	if (ret)
 		return ret;
@@ -370,11 +367,7 @@ static ssize_t get_param(struct file *filp, char __user *buf, size_t count,
 	if (ret < 0)
 		return ret;
 
-	if (copy_to_user(buf, lbuf, ret))
-		return -EFAULT;
-
-	*pos += ret;
-	return ret;
+	return simple_read_from_buffer(buf, count, pos, lbuf, ret);
 }
 
 static const struct file_operations dbg_cc_fops = {
@@ -396,19 +389,19 @@ void mlx5_ib_cleanup_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 	dev->port[port_num].dbg_cc_params = NULL;
 }
 
-int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
+void mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 {
 	struct mlx5_ib_dbg_cc_params *dbg_cc_params;
 	struct mlx5_core_dev *mdev;
 	int i;
 
 	if (!mlx5_debugfs_root)
-		goto out;
+		return;
 
 	/* Takes a 1-based port number */
 	mdev = mlx5_ib_get_native_port_mdev(dev, port_num + 1, NULL);
 	if (!mdev)
-		goto out;
+		return;
 
 	if (!MLX5_CAP_GEN(mdev, cc_query_allowed) ||
 	    !MLX5_CAP_GEN(mdev, cc_modify_allowed))
@@ -422,8 +415,6 @@ int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 
 	dbg_cc_params->root = debugfs_create_dir("cc_params",
 						 mdev->priv.dbg_root);
-	if (!dbg_cc_params->root)
-		goto err;
 
 	for (i = 0; i < MLX5_IB_DBG_CC_MAX; i++) {
 		dbg_cc_params->params[i].offset = i;
@@ -434,14 +425,11 @@ int mlx5_ib_init_cong_debugfs(struct mlx5_ib_dev *dev, u8 port_num)
 					    0600, dbg_cc_params->root,
 					    &dbg_cc_params->params[i],
 					    &dbg_cc_fops);
-		if (!dbg_cc_params->params[i].dentry)
-			goto err;
 	}
 
 put_mdev:
 	mlx5_ib_put_native_port_mdev(dev, port_num + 1);
-out:
-	return 0;
+	return;
 
 err:
 	mlx5_ib_warn(dev, "cong debugfs failure\n");
@@ -452,5 +440,5 @@ err:
 	 * We don't want to fail driver if debugfs failed to initialize,
 	 * so we are not forwarding error to the user.
 	 */
-	return 0;
+	return;
 }

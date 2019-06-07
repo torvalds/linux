@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Program to hack in a PT_NOTE program header entry in an ELF file.
  * This is needed for OF on RS/6000s to load an image correctly.
@@ -7,11 +8,6 @@
  * Copyright 2000 Paul Mackerras.
  *
  * Adapted for 64 bit little endian images by Andrew Tauferner.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Usage: addnote zImage
  */
@@ -223,7 +219,11 @@ main(int ac, char **av)
 	PUT_16(E_PHNUM, np + 2);
 
 	/* write back */
-	lseek(fd, (long) 0, SEEK_SET);
+	i = lseek(fd, (long) 0, SEEK_SET);
+	if (i < 0) {
+		perror("lseek");
+		exit(1);
+	}
 	i = write(fd, buf, n);
 	if (i < 0) {
 		perror("write");

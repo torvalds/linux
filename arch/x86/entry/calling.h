@@ -329,7 +329,21 @@ For 32-bit we have the following conventions - kernel is built with
 
 #endif
 
+.macro STACKLEAK_ERASE_NOCLOBBER
+#ifdef CONFIG_GCC_PLUGIN_STACKLEAK
+	PUSH_AND_CLEAR_REGS
+	call stackleak_erase
+	POP_REGS
+#endif
+.endm
+
 #endif /* CONFIG_X86_64 */
+
+.macro STACKLEAK_ERASE
+#ifdef CONFIG_GCC_PLUGIN_STACKLEAK
+	call stackleak_erase
+#endif
+.endm
 
 /*
  * This does 'call enter_from_user_mode' unless we can avoid it based on
@@ -337,7 +351,7 @@ For 32-bit we have the following conventions - kernel is built with
  */
 .macro CALL_enter_from_user_mode
 #ifdef CONFIG_CONTEXT_TRACKING
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 	STATIC_JUMP_IF_FALSE .Lafter_call_\@, context_tracking_enabled, def=0
 #endif
 	call enter_from_user_mode

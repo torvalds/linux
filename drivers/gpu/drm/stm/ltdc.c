@@ -10,18 +10,25 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/delay.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
 #include <linux/reset.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_of.h>
-#include <drm/drm_bridge.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include <video/videomode.h>
 
@@ -147,6 +154,8 @@
 #define IER_FUIE	BIT(1)		/* Fifo Underrun Interrupt Enable */
 #define IER_TERRIE	BIT(2)		/* Transfer ERRor Interrupt Enable */
 #define IER_RRIE	BIT(3)		/* Register Reload Interrupt enable */
+
+#define CPSR_CYPOS	GENMASK(15, 0)	/* Current Y position */
 
 #define ISR_LIF		BIT(0)		/* Line Interrupt Flag */
 #define ISR_FUIF	BIT(1)		/* Fifo Underrun Interrupt Flag */
@@ -392,9 +401,6 @@ static void ltdc_crtc_update_clut(struct drm_crtc *crtc)
 	u32 val;
 	int i;
 
-	if (!crtc || !crtc->state)
-		return;
-
 	if (!crtc->state->color_mgmt_changed || !crtc->state->gamma_lut)
 		return;
 
@@ -446,6 +452,47 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	/* immediately commit disable of layers before switching off LTDC */
 	reg_set(ldev->regs, LTDC_SRCR, SRCR_IMR);
+}
+
+#define CLK_TOLERANCE_HZ 50
+
+static enum drm_mode_status
+ltdc_crtc_mode_valid(struct drm_crtc *crtc,
+		     const struct drm_display_mode *mode)
+{
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	int target = mode->clock * 1000;
+	int target_min = target - CLK_TOLERANCE_HZ;
+	int target_max = target + CLK_TOLERANCE_HZ;
+	int result;
+
+	result = clk_round_rate(ldev->pixel_clk, target);
+
+	DRM_DEBUG_DRIVER("clk rate target %d, available %d\n", target, result);
+
+	/* Filter modes according to the max frequency supported by the pads */
+	if (result > ldev->caps.pad_max_freq_hz)
+		return MODE_CLOCK_HIGH;
+
+	/*
+	 * Accept all "preferred" modes:
+	 * - this is important for panels because panel clock tolerances are
+	 *   bigger than hdmi ones and there is no reason to not accept them
+	 *   (the fps may vary a little but it is not a problem).
+	 * - the hdmi preferred mode will be accepted too, but userland will
+	 *   be able to use others hdmi "valid" modes if necessary.
+	 */
+	if (mode->type & DRM_MODE_TYPE_PREFERRED)
+		return MODE_OK;
+
+	/*
+	 * Filter modes according to the clock value, particularly useful for
+	 * hdmi modes that require precise pixel clocks.
+	 */
+	if (result < target_min || result > target_max)
+		return MODE_CLOCK_RANGE;
+
+	return MODE_OK;
 }
 
 static bool ltdc_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -562,6 +609,7 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
+	.mode_valid = ltdc_crtc_mode_valid,
 	.mode_fixup = ltdc_crtc_mode_fixup,
 	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
 	.atomic_flush = ltdc_crtc_atomic_flush,
@@ -569,9 +617,9 @@ static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
 	.atomic_disable = ltdc_crtc_atomic_disable,
 };
 
-int ltdc_crtc_enable_vblank(struct drm_device *ddev, unsigned int pipe)
+static int ltdc_crtc_enable_vblank(struct drm_crtc *crtc)
 {
-	struct ltdc_device *ldev = ddev->dev_private;
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 
 	DRM_DEBUG_DRIVER("\n");
 	reg_set(ldev->regs, LTDC_IER, IER_LIE);
@@ -579,12 +627,55 @@ int ltdc_crtc_enable_vblank(struct drm_device *ddev, unsigned int pipe)
 	return 0;
 }
 
-void ltdc_crtc_disable_vblank(struct drm_device *ddev, unsigned int pipe)
+static void ltdc_crtc_disable_vblank(struct drm_crtc *crtc)
 {
-	struct ltdc_device *ldev = ddev->dev_private;
+	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 
 	DRM_DEBUG_DRIVER("\n");
 	reg_clear(ldev->regs, LTDC_IER, IER_LIE);
+}
+
+bool ltdc_crtc_scanoutpos(struct drm_device *ddev, unsigned int pipe,
+			  bool in_vblank_irq, int *vpos, int *hpos,
+			  ktime_t *stime, ktime_t *etime,
+			  const struct drm_display_mode *mode)
+{
+	struct ltdc_device *ldev = ddev->dev_private;
+	int line, vactive_start, vactive_end, vtotal;
+
+	if (stime)
+		*stime = ktime_get();
+
+	/* The active area starts after vsync + front porch and ends
+	 * at vsync + front porc + display size.
+	 * The total height also include back porch.
+	 * We have 3 possible cases to handle:
+	 * - line < vactive_start: vpos = line - vactive_start and will be
+	 * negative
+	 * - vactive_start < line < vactive_end: vpos = line - vactive_start
+	 * and will be positive
+	 * - line > vactive_end: vpos = line - vtotal - vactive_start
+	 * and will negative
+	 *
+	 * Computation for the two first cases are identical so we can
+	 * simplify the code and only test if line > vactive_end
+	 */
+	line = reg_read(ldev->regs, LTDC_CPSR) & CPSR_CYPOS;
+	vactive_start = reg_read(ldev->regs, LTDC_BPCR) & BPCR_AVBP;
+	vactive_end = reg_read(ldev->regs, LTDC_AWCR) & AWCR_AAH;
+	vtotal = reg_read(ldev->regs, LTDC_TWCR) & TWCR_TOTALH;
+
+	if (line > vactive_end)
+		*vpos = line - vtotal - vactive_start;
+	else
+		*vpos = line - vactive_start;
+
+	*hpos = 0;
+
+	if (etime)
+		*etime = ktime_get();
+
+	return true;
 }
 
 static const struct drm_crtc_funcs ltdc_crtc_funcs = {
@@ -594,6 +685,8 @@ static const struct drm_crtc_funcs ltdc_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = ltdc_crtc_enable_vblank,
+	.disable_vblank = ltdc_crtc_disable_vblank,
 	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 };
 
@@ -605,7 +698,7 @@ static int ltdc_plane_atomic_check(struct drm_plane *plane,
 				   struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
-	u32 src_x, src_y, src_w, src_h;
+	u32 src_w, src_h;
 
 	DRM_DEBUG_DRIVER("\n");
 
@@ -613,8 +706,6 @@ static int ltdc_plane_atomic_check(struct drm_plane *plane,
 		return 0;
 
 	/* convert src_ from 16:16 format */
-	src_x = state->src_x >> 16;
-	src_y = state->src_y >> 16;
 	src_w = state->src_w >> 16;
 	src_h = state->src_h >> 16;
 
@@ -727,6 +818,8 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	reg_update_bits(ldev->regs, LTDC_L1CR + lofs,
 			LXCR_LEN | LXCR_CLUTEN, val);
 
+	ldev->plane_fpsi[plane->index].counter++;
+
 	mutex_lock(&ldev->err_lock);
 	if (ldev->error_status & ISR_FUIF) {
 		DRM_DEBUG_DRIVER("Fifo underrun\n");
@@ -752,6 +845,25 @@ static void ltdc_plane_atomic_disable(struct drm_plane *plane,
 			 oldstate->crtc->base.id, plane->base.id);
 }
 
+static void ltdc_plane_atomic_print_state(struct drm_printer *p,
+					  const struct drm_plane_state *state)
+{
+	struct drm_plane *plane = state->plane;
+	struct ltdc_device *ldev = plane_to_ltdc(plane);
+	struct fps_info *fpsi = &ldev->plane_fpsi[plane->index];
+	int ms_since_last;
+	ktime_t now;
+
+	now = ktime_get();
+	ms_since_last = ktime_to_ms(ktime_sub(now, fpsi->last_timestamp));
+
+	drm_printf(p, "\tuser_updates=%dfps\n",
+		   DIV_ROUND_CLOSEST(fpsi->counter * 1000, ms_since_last));
+
+	fpsi->last_timestamp = now;
+	fpsi->counter = 0;
+}
+
 static const struct drm_plane_funcs ltdc_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
@@ -759,6 +871,7 @@ static const struct drm_plane_funcs ltdc_plane_funcs = {
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.atomic_print_state = ltdc_plane_atomic_print_state,
 };
 
 static const struct drm_plane_helper_funcs ltdc_plane_helper_funcs = {
@@ -801,13 +914,13 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 
 	plane = devm_kzalloc(dev, sizeof(*plane), GFP_KERNEL);
 	if (!plane)
-		return 0;
+		return NULL;
 
 	ret = drm_universal_plane_init(ddev, plane, possible_crtcs,
 				       &ltdc_plane_funcs, formats, nb_fmt,
 				       NULL, type, NULL);
 	if (ret < 0)
-		return 0;
+		return NULL;
 
 	drm_plane_helper_add(plane, &ltdc_plane_helper_funcs);
 
@@ -932,14 +1045,42 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		 * does not work on 2nd layer.
 		 */
 		ldev->caps.non_alpha_only_l1 = true;
+		ldev->caps.pad_max_freq_hz = 90000000;
+		if (ldev->caps.hw_version == HWVER_10200)
+			ldev->caps.pad_max_freq_hz = 65000000;
 		break;
 	case HWVER_20101:
 		ldev->caps.reg_ofs = REG_OFS_4;
 		ldev->caps.pix_fmt_hw = ltdc_pix_fmt_a1;
 		ldev->caps.non_alpha_only_l1 = false;
+		ldev->caps.pad_max_freq_hz = 150000000;
 		break;
 	default:
 		return -ENODEV;
+	}
+
+	return 0;
+}
+
+void ltdc_suspend(struct drm_device *ddev)
+{
+	struct ltdc_device *ldev = ddev->dev_private;
+
+	DRM_DEBUG_DRIVER("\n");
+	clk_disable_unprepare(ldev->pixel_clk);
+}
+
+int ltdc_resume(struct drm_device *ddev)
+{
+	struct ltdc_device *ldev = ddev->dev_private;
+	int ret;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	ret = clk_prepare_enable(ldev->pixel_clk);
+	if (ret) {
+		DRM_ERROR("failed to enable pixel clock (%d)\n", ret);
+		return ret;
 	}
 
 	return 0;
@@ -966,14 +1107,13 @@ int ltdc_load(struct drm_device *ddev)
 						  &bridge[i]);
 
 		/*
-		 * If at least one endpoint is ready, continue probing,
-		 * else if at least one endpoint is -EPROBE_DEFER and
-		 * there is no previous ready endpoints, defer probing.
+		 * If at least one endpoint is -EPROBE_DEFER, defer probing,
+		 * else if at least one endpoint is ready, continue probing.
 		 */
-		if (!ret)
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		else if (!ret)
 			endpoint_not_ready = 0;
-		else if (ret == -EPROBE_DEFER && endpoint_not_ready)
-			endpoint_not_ready = -EPROBE_DEFER;
 	}
 
 	if (endpoint_not_ready)
@@ -1016,8 +1156,11 @@ int ltdc_load(struct drm_device *ddev)
 		}
 	}
 
-	if (!IS_ERR(rstc))
+	if (!IS_ERR(rstc)) {
+		reset_control_assert(rstc);
+		usleep_range(10, 20);
 		reset_control_deassert(rstc);
+	}
 
 	/* Disable interrupts */
 	reg_clear(ldev->regs, LTDC_IER,

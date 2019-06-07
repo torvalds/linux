@@ -12,6 +12,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/of_address.h>
 
 #include "ccu_common.h"
@@ -69,18 +70,19 @@ static SUNXI_CCU_NM_WITH_SDM_GATE_LOCK(pll_audio_base_clk, "pll-audio-base",
 				       BIT(28),	/* lock */
 				       CLK_SET_RATE_UNGATE);
 
-static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK_MIN(pll_video_clk, "pll-video",
-					    "osc24M", 0x0010,
-					    192000000,	/* Minimum rate */
-					    8, 7,	/* N */
-					    0, 4,	/* M */
-					    BIT(24),	/* frac enable */
-					    BIT(25),	/* frac select */
-					    270000000,	/* frac rate 0 */
-					    297000000,	/* frac rate 1 */
-					    BIT(31),	/* gate */
-					    BIT(28),	/* lock */
-					    CLK_SET_RATE_UNGATE);
+static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK_MIN_MAX(pll_video_clk, "pll-video",
+						"osc24M", 0x0010,
+						192000000, /* Minimum rate */
+						912000000, /* Maximum rate */
+						8, 7,      /* N */
+						0, 4,	   /* M */
+						BIT(24),   /* frac enable */
+						BIT(25),   /* frac select */
+						270000000, /* frac rate 0 */
+						297000000, /* frac rate 1 */
+						BIT(31),   /* gate */
+						BIT(28),   /* lock */
+						CLK_SET_RATE_UNGATE);
 
 static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_ve_clk, "pll-ve",
 					"osc24M", 0x0018,
@@ -475,12 +477,12 @@ static const char * const csi_sclk_parents[] = { "pll-periph0", "pll-periph1" };
 static SUNXI_CCU_M_WITH_MUX_GATE(csi_sclk_clk, "csi-sclk", csi_sclk_parents,
 				 0x134, 16, 4, 24, 3, BIT(31), 0);
 
-static const char * const csi_mclk_parents[] = { "osc24M", "pll-video", "pll-periph0" };
+static const char * const csi_mclk_parents[] = { "osc24M", "pll-video", "pll-periph1" };
 static SUNXI_CCU_M_WITH_MUX_GATE(csi_mclk_clk, "csi-mclk", csi_mclk_parents,
 				 0x134, 0, 5, 8, 3, BIT(15), 0);
 
 static SUNXI_CCU_M_WITH_GATE(ve_clk, "ve", "pll-ve",
-			     0x13c, 16, 3, BIT(31), 0);
+			     0x13c, 16, 3, BIT(31), CLK_SET_RATE_PARENT);
 
 static SUNXI_CCU_GATE(ac_dig_clk,	"ac-dig",	"pll-audio",
 		      0x140, BIT(31), CLK_SET_RATE_PARENT);

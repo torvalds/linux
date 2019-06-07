@@ -66,8 +66,6 @@
 	status = "okay";
 
 	spi-flash@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <10000000>;
@@ -169,8 +167,6 @@
 	status = "okay";
 
 	spi-flash@0 {
-		#address-cells = <0x1>;
-		#size-cells = <0x1>;
 		compatible = "jedec,spi-nor";
 		reg = <0x0>;
 		spi-max-frequency = <20000000>;
@@ -242,6 +238,11 @@
 	phy-mode = "10gbase-kr";
 	/* Generic PHY, providing serdes lanes */
 	phys = <&cp0_comphy2 0>;
+
+	fixed-link {
+		speed = <10000>;
+		full-duplex;
+	};
 };
 
 &cp0_eth1 {

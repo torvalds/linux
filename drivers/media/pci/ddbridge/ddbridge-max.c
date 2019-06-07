@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ddbridge-max.c: Digital Devices bridge MAX card support
  *
@@ -13,7 +14,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -33,6 +33,7 @@
 #include "ddbridge.h"
 #include "ddbridge-regs.h"
 #include "ddbridge-io.h"
+#include "ddbridge-mci.h"
 
 #include "ddbridge-max.h"
 #include "mxl5xx.h"
@@ -436,6 +437,55 @@ int ddb_fe_attach_mxl5xx(struct ddb_input *input)
 		return -ENODEV;
 	}
 
+	if (input->nr < 4) {
+		lnb_command(dev, port->lnr, input->nr, LNB_CMD_INIT);
+		lnb_set_voltage(dev, port->lnr, input->nr, SEC_VOLTAGE_OFF);
+	}
+	ddb_lnb_init_fmode(dev, link, fmode);
+
+	dvb->fe->ops.set_voltage = max_set_voltage;
+	dvb->fe->ops.enable_high_lnb_voltage = max_enable_high_lnb_voltage;
+	dvb->fe->ops.set_tone = max_set_tone;
+	dvb->diseqc_send_master_cmd = dvb->fe->ops.diseqc_send_master_cmd;
+	dvb->fe->ops.diseqc_send_master_cmd = max_send_master_cmd;
+	dvb->fe->ops.diseqc_send_burst = max_send_burst;
+	dvb->fe->sec_priv = input;
+	dvb->input = tuner;
+	return 0;
+}
+
+/******************************************************************************/
+/* MAX MCI related functions */
+
+int ddb_fe_attach_mci(struct ddb_input *input, u32 type)
+{
+	struct ddb *dev = input->port->dev;
+	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
+	struct ddb_port *port = input->port;
+	struct ddb_link *link = &dev->link[port->lnr];
+	int demod, tuner;
+	struct mci_cfg cfg;
+
+	demod = input->nr;
+	tuner = demod & 3;
+	switch (type) {
+	case DDB_TUNER_MCI_SX8:
+		cfg = ddb_max_sx8_cfg;
+		if (fmode == 3)
+			tuner = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+	dvb->fe = ddb_mci_attach(input, &cfg, demod, &dvb->set_input);
+	if (!dvb->fe) {
+		dev_err(dev->dev, "No MCI card found!\n");
+		return -ENODEV;
+	}
+	if (!dvb->set_input) {
+		dev_err(dev->dev, "No MCI set_input function pointer!\n");
+		return -ENODEV;
+	}
 	if (input->nr < 4) {
 		lnb_command(dev, port->lnr, input->nr, LNB_CMD_INIT);
 		lnb_set_voltage(dev, port->lnr, input->nr, SEC_VOLTAGE_OFF);

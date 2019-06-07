@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RTC Driver for X-Powers AC100
  *
  * Copyright (c) 2016 Chen-Yu Tsai
  *
  * Chen-Yu Tsai <wens@csie.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/bcd.h>
@@ -317,10 +309,10 @@ static int ac100_rtc_register_clks(struct ac100_rtc_dev *chip)
 	const char *parents[2] = {AC100_RTC_32K_NAME};
 	int i, ret;
 
-	chip->clk_data = devm_kzalloc(chip->dev, sizeof(*chip->clk_data) +
-						 sizeof(*chip->clk_data->hws) *
-						 AC100_CLKOUT_NUM,
-						 GFP_KERNEL);
+	chip->clk_data = devm_kzalloc(chip->dev,
+				      struct_size(chip->clk_data, hws,
+						  AC100_CLKOUT_NUM),
+				      GFP_KERNEL);
 	if (!chip->clk_data)
 		return -ENOMEM;
 

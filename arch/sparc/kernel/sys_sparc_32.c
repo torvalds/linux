@@ -147,17 +147,11 @@ SYSCALL_DEFINE0(nis_syscall)
 asmlinkage void
 sparc_breakpoint (struct pt_regs *regs)
 {
-	siginfo_t info;
 
 #ifdef DEBUG_SPARC_BREAKPOINT
         printk ("TRAP: Entering kernel PC=%x, nPC=%x\n", regs->pc, regs->npc);
 #endif
-	info.si_signo = SIGTRAP;
-	info.si_errno = 0;
-	info.si_code = TRAP_BRKPT;
-	info.si_addr = (void __user *)regs->pc;
-	info.si_trapno = 0;
-	force_sig_info(SIGTRAP, &info, current);
+	force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)regs->pc, 0, current);
 
 #ifdef DEBUG_SPARC_BREAKPOINT
 	printk ("TRAP: Returning to space: PC=%x nPC=%x\n", regs->pc, regs->npc);
@@ -203,23 +197,27 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig,
 
 SYSCALL_DEFINE2(getdomainname, char __user *, name, int, len)
 {
- 	int nlen, err;
- 	
+	int nlen, err;
+	char tmp[__NEW_UTS_LEN + 1];
+
 	if (len < 0)
 		return -EINVAL;
 
- 	down_read(&uts_sem);
- 	
+	down_read(&uts_sem);
+
 	nlen = strlen(utsname()->domainname) + 1;
 	err = -EINVAL;
 	if (nlen > len)
-		goto out;
+		goto out_unlock;
+	memcpy(tmp, utsname()->domainname, nlen);
 
-	err = -EFAULT;
-	if (!copy_to_user(name, utsname()->domainname, nlen))
-		err = 0;
+	up_read(&uts_sem);
 
-out:
+	if (copy_to_user(name, tmp, nlen))
+		return -EFAULT;
+	return 0;
+
+out_unlock:
 	up_read(&uts_sem);
 	return err;
 }

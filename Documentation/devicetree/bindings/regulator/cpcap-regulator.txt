@@ -5,6 +5,7 @@ Requires node properties:
 - "compatible" value one of:
     "motorola,cpcap-regulator"
     "motorola,mapphone-cpcap-regulator"
+    "motorola,xoom-cpcap-regulator"
 
 Required regulator properties:
 - "regulator-name"

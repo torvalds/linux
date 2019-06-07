@@ -1,8 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Based on powerpc version
  */
@@ -19,7 +16,6 @@
 #include <linux/scatterlist.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 
 #define PCIBIOS_MIN_IO		0x1000
@@ -61,16 +57,6 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 				      enum pci_mmap_state mmap_state);
 
 #define HAVE_PCI_LEGACY	1
-
-/* The PCI address space does equal the physical memory
- * address space (no IOMMU).  The IDE and SCSI device layers use
- * this boolean for bounce buffer decisions.
- */
-#define PCI_DMA_BUS_IS_PHYS     (1)
-
-extern void pcibios_claim_one_bus(struct pci_bus *b);
-
-extern void pcibios_finish_adding_to_bus(struct pci_bus *bus);
 
 extern void pcibios_resource_survey(void);
 

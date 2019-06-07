@@ -47,7 +47,8 @@ static void audit_file_mask(struct audit_buffer *ab, u32 mask)
 {
 	char str[10];
 
-	aa_perm_mask_to_str(str, aa_file_perm_chrs, map_mask_to_chr_mask(mask));
+	aa_perm_mask_to_str(str, sizeof(str), aa_file_perm_chrs,
+			    map_mask_to_chr_mask(mask));
 	audit_log_string(ab, str);
 }
 
@@ -495,7 +496,7 @@ static void update_file_ctx(struct aa_file_ctx *fctx, struct aa_label *label,
 	/* update caching of label on file_ctx */
 	spin_lock(&fctx->lock);
 	old = rcu_dereference_protected(fctx->label,
-					spin_is_locked(&fctx->lock));
+					lockdep_is_held(&fctx->lock));
 	l = aa_label_merge(old, label, GFP_ATOMIC);
 	if (l) {
 		if (l != old) {

@@ -53,10 +53,7 @@
 
 #define FIJI_SMC_SIZE 0x20000
 
-#define VOLTAGE_SCALE 4
 #define POWERTUNE_DEFAULT_SET_MAX    1
-#define VOLTAGE_VID_OFFSET_SCALE1   625
-#define VOLTAGE_VID_OFFSET_SCALE2   100
 #define VDDC_VDDCI_DELTA            300
 #define MC_CG_ARB_FREQ_F1           0x0b
 
@@ -288,8 +285,7 @@ static int fiji_start_smu(struct pp_hwmgr *hwmgr)
 	struct fiji_smumgr *priv = (struct fiji_smumgr *)(hwmgr->smu_backend);
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!(smu7_is_smc_ram_running(hwmgr)
-		|| cgs_is_virtualization_enabled(hwmgr->device))) {
+	if (!smu7_is_smc_ram_running(hwmgr) && hwmgr->not_vf) {
 		/* Check if SMU is running in protected mode */
 		if (0 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 				CGS_IND_REG__SMC,
@@ -305,16 +301,6 @@ static int fiji_start_smu(struct pp_hwmgr *hwmgr)
 		if (fiji_avfs_event_mgr(hwmgr))
 			hwmgr->avfs_supported = false;
 	}
-
-	/* To initialize all clock gating before RLC loaded and running.*/
-	cgs_set_clockgating_state(hwmgr->device,
-			AMD_IP_BLOCK_TYPE_GFX, AMD_CG_STATE_GATE);
-	cgs_set_clockgating_state(hwmgr->device,
-			AMD_IP_BLOCK_TYPE_GMC, AMD_CG_STATE_GATE);
-	cgs_set_clockgating_state(hwmgr->device,
-			AMD_IP_BLOCK_TYPE_SDMA, AMD_CG_STATE_GATE);
-	cgs_set_clockgating_state(hwmgr->device,
-			AMD_IP_BLOCK_TYPE_COMMON, AMD_CG_STATE_GATE);
 
 	/* Setup SoftRegsStart here for register lookup in case
 	 * DummyBackEnd is used and ProcessFirmwareHeader is not executed
@@ -335,10 +321,10 @@ static bool fiji_is_hw_avfs_present(struct pp_hwmgr *hwmgr)
 	uint32_t efuse = 0;
 	uint32_t mask = (1 << ((AVFS_EN_MSB - AVFS_EN_LSB) + 1)) - 1;
 
-	if (cgs_is_virtualization_enabled(hwmgr->device))
-		return 0;
+	if (!hwmgr->not_vf)
+		return false;
 
-	if (!atomctrl_read_efuse(hwmgr->device, AVFS_EN_LSB, AVFS_EN_MSB,
+	if (!atomctrl_read_efuse(hwmgr, AVFS_EN_LSB, AVFS_EN_MSB,
 			mask, &efuse)) {
 		if (efuse)
 			return true;
@@ -989,11 +975,11 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 
 	threshold = clock * data->fast_watermark_threshold / 100;
 
-	data->display_timing.min_clock_in_sr = hwmgr->display_config.min_core_set_clock_in_sr;
+	data->display_timing.min_clock_in_sr = hwmgr->display_config->min_core_set_clock_in_sr;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
 		level->DeepSleepDivId = smu7_get_sleep_divider_id_from_clock(clock,
-								hwmgr->display_config.min_core_set_clock_in_sr);
+								hwmgr->display_config->min_core_set_clock_in_sr);
 
 
 	/* Default to slow, highest DPM level will be
@@ -1214,7 +1200,8 @@ static int fiji_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	 * PECI_GetNumberOfActiveDisplays(hwmgr->pPECI,
 	 * &(data->DisplayTiming.numExistingDisplays));
 	 */
-	data->display_timing.num_existing_displays = 1;
+	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
+	data->display_timing.vrefresh = hwmgr->display_config->vrefresh;
 
 	if (mclk_stutter_mode_threshold &&
 		(clock <= mclk_stutter_mode_threshold) &&
@@ -1503,44 +1490,6 @@ static int fiji_populate_smc_acp_level(struct pp_hwmgr *hwmgr,
 
 		CONVERT_FROM_HOST_TO_SMC_UL(table->AcpLevel[count].Frequency);
 		CONVERT_FROM_HOST_TO_SMC_UL(table->AcpLevel[count].MinVoltage);
-	}
-	return result;
-}
-
-static int fiji_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
-		SMU73_Discrete_DpmTable *table)
-{
-	int result = -EINVAL;
-	uint8_t count;
-	struct pp_atomctrl_clock_dividers_vi dividers;
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table =
-			table_info->mm_dep_table;
-
-	table->SamuBootLevel = 0;
-	table->SamuLevelCount = (uint8_t)(mm_table->count);
-
-	for (count = 0; count < table->SamuLevelCount; count++) {
-		/* not sure whether we need evclk or not */
-		table->SamuLevel[count].MinVoltage = 0;
-		table->SamuLevel[count].Frequency = mm_table->entries[count].samclock;
-		table->SamuLevel[count].MinVoltage |= (mm_table->entries[count].vddc *
-				VOLTAGE_SCALE) << VDDC_SHIFT;
-		table->SamuLevel[count].MinVoltage |= ((mm_table->entries[count].vddc -
-				VDDC_VDDCI_DELTA) * VOLTAGE_SCALE) << VDDCI_SHIFT;
-		table->SamuLevel[count].MinVoltage |= 1 << PHASES_SHIFT;
-
-		/* retrieve divider value for VBIOS */
-		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
-				table->SamuLevel[count].Frequency, &dividers);
-		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for samu clock", return result);
-
-		table->SamuLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
-
-		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].Frequency);
-		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].MinVoltage);
 	}
 	return result;
 }
@@ -2032,10 +1981,6 @@ static int fiji_init_smc_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize ACP Level!", return result);
 
-	result = fiji_populate_smc_samu_level(hwmgr, table);
-	PP_ASSERT_WITH_CODE(0 == result,
-			"Failed to initialize SAMU Level!", return result);
-
 	/* Since only the initial state is completely set up at this point
 	 * (the other states are just copies of the boot state) we only
 	 * need to populate the  ARB settings for the initial state.
@@ -2376,17 +2321,17 @@ static uint32_t fiji_get_offsetof(uint32_t type, uint32_t member)
 		case DRAM_LOG_BUFF_SIZE:
 			return offsetof(SMU73_SoftRegisters, DRAM_LOG_BUFF_SIZE);
 		}
+		break;
 	case SMU_Discrete_DpmTable:
 		switch (member) {
 		case UvdBootLevel:
 			return offsetof(SMU73_Discrete_DpmTable, UvdBootLevel);
 		case VceBootLevel:
 			return offsetof(SMU73_Discrete_DpmTable, VceBootLevel);
-		case SamuBootLevel:
-			return offsetof(SMU73_Discrete_DpmTable, SamuBootLevel);
 		case LowSclkInterruptThreshold:
 			return offsetof(SMU73_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
+		break;
 	}
 	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;
@@ -2482,33 +2427,6 @@ static int fiji_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int fiji_update_samu_smc_table(struct pp_hwmgr *hwmgr)
-{
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)(hwmgr->smu_backend);
-	uint32_t mm_boot_level_offset, mm_boot_level_value;
-
-
-	smu_data->smc_state_table.SamuBootLevel = 0;
-	mm_boot_level_offset = smu_data->smu7_data.dpm_table_start +
-				offsetof(SMU73_Discrete_DpmTable, SamuBootLevel);
-
-	mm_boot_level_offset /= 4;
-	mm_boot_level_offset *= 4;
-	mm_boot_level_value = cgs_read_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC, mm_boot_level_offset);
-	mm_boot_level_value &= 0xFFFFFF00;
-	mm_boot_level_value |= smu_data->smc_state_table.SamuBootLevel << 0;
-	cgs_write_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC, mm_boot_level_offset, mm_boot_level_value);
-
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_StablePState))
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_SAMUDPM_SetEnabledMask,
-				(uint32_t)(1 << smu_data->smc_state_table.SamuBootLevel));
-	return 0;
-}
-
 static int fiji_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 {
 	switch (type) {
@@ -2517,9 +2435,6 @@ static int fiji_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 		break;
 	case SMU_VCE_TABLE:
 		fiji_update_vce_smc_table(hwmgr);
-		break;
-	case SMU_SAMU_TABLE:
-		fiji_update_samu_smc_table(hwmgr);
 		break;
 	default:
 		break;

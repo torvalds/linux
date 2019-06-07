@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	Local APIC handling, local APIC timers
  *
@@ -20,7 +21,7 @@
 #include <linux/acpi_pmtmr.h>
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/ftrace.h>
 #include <linux/ioport.h>
 #include <linux/export.h>
@@ -44,6 +45,7 @@
 #include <asm/mpspec.h>
 #include <asm/i8259.h>
 #include <asm/proto.h>
+#include <asm/traps.h>
 #include <asm/apic.h>
 #include <asm/io_apic.h>
 #include <asm/desc.h>
@@ -56,6 +58,7 @@
 #include <asm/hypervisor.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/irq_regs.h>
 
 unsigned int num_processors;
 
@@ -223,6 +226,11 @@ static int modern_apic(void)
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
 	    boot_cpu_data.x86 >= 0xf)
 		return 1;
+
+	/* Hygon systems use modern APIC */
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_HYGON)
+		return 1;
+
 	return lapic_get_version() >= 0x14;
 }
 
@@ -573,6 +581,9 @@ static u32 skx_deadline_rev(void)
 	case 0x04: return 0x02000014;
 	}
 
+	if (boot_cpu_data.x86_stepping > 4)
+		return 0;
+
 	return ~0U;
 }
 
@@ -792,6 +803,24 @@ calibrate_by_pmtimer(long deltapm, long *delta, long *deltatsc)
 	return 0;
 }
 
+static int __init lapic_init_clockevent(void)
+{
+	if (!lapic_timer_frequency)
+		return -1;
+
+	/* Calculate the scaled math multiplication factor */
+	lapic_clockevent.mult = div_sc(lapic_timer_frequency/APIC_DIVISOR,
+					TICK_NSEC, lapic_clockevent.shift);
+	lapic_clockevent.max_delta_ns =
+		clockevent_delta2ns(0x7FFFFFFF, &lapic_clockevent);
+	lapic_clockevent.max_delta_ticks = 0x7FFFFFFF;
+	lapic_clockevent.min_delta_ns =
+		clockevent_delta2ns(0xF, &lapic_clockevent);
+	lapic_clockevent.min_delta_ticks = 0xF;
+
+	return 0;
+}
+
 static int __init calibrate_APIC_clock(void)
 {
 	struct clock_event_device *levt = this_cpu_ptr(&lapic_events);
@@ -800,25 +829,21 @@ static int __init calibrate_APIC_clock(void)
 	long delta, deltatsc;
 	int pm_referenced = 0;
 
-	/**
-	 * check if lapic timer has already been calibrated by platform
-	 * specific routine, such as tsc calibration code. if so, we just fill
+	if (boot_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER))
+		return 0;
+
+	/*
+	 * Check if lapic timer has already been calibrated by platform
+	 * specific routine, such as tsc calibration code. If so just fill
 	 * in the clockevent structure and return.
 	 */
-
-	if (boot_cpu_has(X86_FEATURE_TSC_DEADLINE_TIMER)) {
-		return 0;
-	} else if (lapic_timer_frequency) {
+	if (!lapic_init_clockevent()) {
 		apic_printk(APIC_VERBOSE, "lapic timer already calibrated %d\n",
-				lapic_timer_frequency);
-		lapic_clockevent.mult = div_sc(lapic_timer_frequency/APIC_DIVISOR,
-					TICK_NSEC, lapic_clockevent.shift);
-		lapic_clockevent.max_delta_ns =
-			clockevent_delta2ns(0x7FFFFF, &lapic_clockevent);
-		lapic_clockevent.max_delta_ticks = 0x7FFFFF;
-		lapic_clockevent.min_delta_ns =
-			clockevent_delta2ns(0xF, &lapic_clockevent);
-		lapic_clockevent.min_delta_ticks = 0xF;
+			    lapic_timer_frequency);
+		/*
+		 * Direct calibration methods must have an always running
+		 * local APIC timer, no need for broadcast timer.
+		 */
 		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
 		return 0;
 	}
@@ -859,17 +884,8 @@ static int __init calibrate_APIC_clock(void)
 	pm_referenced = !calibrate_by_pmtimer(lapic_cal_pm2 - lapic_cal_pm1,
 					&delta, &deltatsc);
 
-	/* Calculate the scaled math multiplication factor */
-	lapic_clockevent.mult = div_sc(delta, TICK_NSEC * LAPIC_CAL_LOOPS,
-				       lapic_clockevent.shift);
-	lapic_clockevent.max_delta_ns =
-		clockevent_delta2ns(0x7FFFFFFF, &lapic_clockevent);
-	lapic_clockevent.max_delta_ticks = 0x7FFFFFFF;
-	lapic_clockevent.min_delta_ns =
-		clockevent_delta2ns(0xF, &lapic_clockevent);
-	lapic_clockevent.min_delta_ticks = 0xF;
-
 	lapic_timer_frequency = (delta * APIC_DIVISOR) / LAPIC_CAL_LOOPS;
+	lapic_init_clockevent();
 
 	apic_printk(APIC_VERBOSE, "..... delta %ld\n", delta);
 	apic_printk(APIC_VERBOSE, "..... mult: %u\n", lapic_clockevent.mult);
@@ -937,7 +953,7 @@ static int __init calibrate_APIC_clock(void)
 
 	if (levt->features & CLOCK_EVT_FEAT_DUMMY) {
 		pr_warning("APIC timer disabled due to verification failure\n");
-			return -1;
+		return -1;
 	}
 
 	return 0;
@@ -1908,6 +1924,8 @@ static int __init detect_init_APIC(void)
 		    (boot_cpu_data.x86 >= 15))
 			break;
 		goto no_apic;
+	case X86_VENDOR_HYGON:
+		break;
 	case X86_VENDOR_INTEL:
 		if (boot_cpu_data.x86 == 6 || boot_cpu_data.x86 == 15 ||
 		    (boot_cpu_data.x86 == 5 && boot_cpu_has(X86_FEATURE_APIC)))
@@ -2188,6 +2206,23 @@ static int nr_logical_cpuids = 1;
 static int cpuid_to_apicid[] = {
 	[0 ... NR_CPUS - 1] = -1,
 };
+
+#ifdef CONFIG_SMP
+/**
+ * apic_id_is_primary_thread - Check whether APIC ID belongs to a primary thread
+ * @id:	APIC ID to check
+ */
+bool apic_id_is_primary_thread(unsigned int apicid)
+{
+	u32 mask;
+
+	if (smp_num_siblings == 1)
+		return true;
+	/* Isolate the SMT bit(s) in the APICID and check for 0 */
+	mask = (1U << (fls(smp_num_siblings) - 1)) - 1;
+	return !(apicid & mask);
+}
+#endif
 
 /*
  * Should use this API to allocate logical CPU IDs to keep nr_logical_cpuids

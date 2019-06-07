@@ -66,7 +66,6 @@ struct zx2967_i2c {
 	int			msg_rd;
 	u8			*cur_trans;
 	u8			access_cnt;
-	bool			is_suspended;
 	int			error;
 };
 
@@ -281,9 +280,6 @@ static int zx2967_i2c_xfer_msg(struct zx2967_i2c *i2c,
 	int ret;
 	int i;
 
-	if (msg->len == 0)
-		return -EINVAL;
-
 	zx2967_i2c_flush_fifos(i2c);
 
 	i2c->cur_trans = msg->buf;
@@ -315,9 +311,6 @@ static int zx2967_i2c_xfer(struct i2c_adapter *adap,
 	struct zx2967_i2c *i2c = i2c_get_adapdata(adap);
 	int ret;
 	int i;
-
-	if (i2c->is_suspended)
-		return -EBUSY;
 
 	zx2967_set_addr(i2c, msgs->addr);
 
@@ -473,7 +466,7 @@ static int __maybe_unused zx2967_i2c_suspend(struct device *dev)
 {
 	struct zx2967_i2c *i2c = dev_get_drvdata(dev);
 
-	i2c->is_suspended = true;
+	i2c_mark_adapter_suspended(&i2c->adap);
 	clk_disable_unprepare(i2c->clk);
 
 	return 0;
@@ -483,8 +476,8 @@ static int __maybe_unused zx2967_i2c_resume(struct device *dev)
 {
 	struct zx2967_i2c *i2c = dev_get_drvdata(dev);
 
-	i2c->is_suspended = false;
 	clk_prepare_enable(i2c->clk);
+	i2c_mark_adapter_resumed(&i2c->adap);
 
 	return 0;
 }
@@ -496,6 +489,10 @@ static const struct i2c_algorithm zx2967_i2c_algo = {
 	.master_xfer = zx2967_i2c_xfer,
 	.smbus_xfer = zx2967_smbus_xfer,
 	.functionality = zx2967_i2c_func,
+};
+
+static const struct i2c_adapter_quirks zx2967_i2c_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN,
 };
 
 static const struct of_device_id zx2967_i2c_of_match[] = {
@@ -568,6 +565,7 @@ static int zx2967_i2c_probe(struct platform_device *pdev)
 	strlcpy(i2c->adap.name, "zx2967 i2c adapter",
 		sizeof(i2c->adap.name));
 	i2c->adap.algo = &zx2967_i2c_algo;
+	i2c->adap.quirks = &zx2967_i2c_quirks;
 	i2c->adap.nr = pdev->id;
 	i2c->adap.dev.parent = &pdev->dev;
 	i2c->adap.dev.of_node = pdev->dev.of_node;

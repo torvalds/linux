@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* FSI device & driver interfaces
  *
  * Copyright (C) IBM Corporation 2016
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef LINUX_FSI_H
@@ -76,8 +68,18 @@ extern int fsi_slave_read(struct fsi_slave *slave, uint32_t addr,
 extern int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
 		const void *val, size_t size);
 
-
-
 extern struct bus_type fsi_bus_type;
+extern const struct device_type fsi_cdev_type;
+
+enum fsi_dev_type {
+	fsi_dev_cfam,
+	fsi_dev_sbefifo,
+	fsi_dev_scom,
+	fsi_dev_occ
+};
+
+extern int fsi_get_new_minor(struct fsi_device *fdev, enum fsi_dev_type type,
+			     dev_t *out_dev, int *out_index);
+extern void fsi_free_minor(dev_t dev);
 
 #endif /* LINUX_FSI_H */

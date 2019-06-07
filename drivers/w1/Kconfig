@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig W1
 	tristate "Dallas's 1-wire support"
 	depends on HAS_IOMEM
@@ -25,7 +26,7 @@ config W1_CON
 	  2. Userspace commands. Includes read/write and search/alarm search commands.
 	  3. Replies to userspace commands.
 
-source drivers/w1/masters/Kconfig
-source drivers/w1/slaves/Kconfig
+source "drivers/w1/masters/Kconfig"
+source "drivers/w1/slaves/Kconfig"
 
 endif # W1

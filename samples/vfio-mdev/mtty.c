@@ -156,22 +156,22 @@ static const struct file_operations vd_fops = {
 
 /* function prototypes */
 
-static int mtty_trigger_interrupt(uuid_le uuid);
+static int mtty_trigger_interrupt(const guid_t *uuid);
 
 /* Helper functions */
-static struct mdev_state *find_mdev_state_by_uuid(uuid_le uuid)
+static struct mdev_state *find_mdev_state_by_uuid(const guid_t *uuid)
 {
 	struct mdev_state *mds;
 
 	list_for_each_entry(mds, &mdev_devices_list, next) {
-		if (uuid_le_cmp(mdev_uuid(mds->mdev), uuid) == 0)
+		if (guid_equal(mdev_uuid(mds->mdev), uuid))
 			return mds;
 	}
 
 	return NULL;
 }
 
-void dump_buffer(char *buf, uint32_t count)
+void dump_buffer(u8 *buf, uint32_t count)
 {
 #if defined(DEBUG)
 	int i;
@@ -250,7 +250,7 @@ static void mtty_create_config_space(struct mdev_state *mdev_state)
 }
 
 static void handle_pci_cfg_write(struct mdev_state *mdev_state, u16 offset,
-				 char *buf, u32 count)
+				 u8 *buf, u32 count)
 {
 	u32 cfg_addr, bar_mask, bar_index = 0;
 
@@ -304,7 +304,7 @@ static void handle_pci_cfg_write(struct mdev_state *mdev_state, u16 offset,
 }
 
 static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
-				u16 offset, char *buf, u32 count)
+				u16 offset, u8 *buf, u32 count)
 {
 	u8 data = *buf;
 
@@ -475,7 +475,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 }
 
 static void handle_bar_read(unsigned int index, struct mdev_state *mdev_state,
-			    u16 offset, char *buf, u32 count)
+			    u16 offset, u8 *buf, u32 count)
 {
 	/* Handle read requests by guest */
 	switch (offset) {
@@ -650,7 +650,7 @@ static void mdev_read_base(struct mdev_state *mdev_state)
 	}
 }
 
-static ssize_t mdev_access(struct mdev_device *mdev, char *buf, size_t count,
+static ssize_t mdev_access(struct mdev_device *mdev, u8 *buf, size_t count,
 			   loff_t pos, bool is_write)
 {
 	struct mdev_state *mdev_state;
@@ -698,7 +698,7 @@ static ssize_t mdev_access(struct mdev_device *mdev, char *buf, size_t count,
 #if defined(DEBUG_REGS)
 			pr_info("%s: BAR%d  WR @0x%llx %s val:0x%02x dlab:%d\n",
 				__func__, index, offset, wr_reg[offset],
-				(u8)*buf, mdev_state->s[index].dlab);
+				*buf, mdev_state->s[index].dlab);
 #endif
 			handle_bar_write(index, mdev_state, offset, buf, count);
 		} else {
@@ -708,7 +708,7 @@ static ssize_t mdev_access(struct mdev_device *mdev, char *buf, size_t count,
 #if defined(DEBUG_REGS)
 			pr_info("%s: BAR%d  RD @0x%llx %s val:0x%02x dlab:%d\n",
 				__func__, index, offset, rd_reg[offset],
-				(u8)*buf, mdev_state->s[index].dlab);
+				*buf, mdev_state->s[index].dlab);
 #endif
 		}
 		break;
@@ -827,7 +827,7 @@ ssize_t mtty_read(struct mdev_device *mdev, char __user *buf, size_t count,
 		if (count >= 4 && !(*ppos % 4)) {
 			u32 val;
 
-			ret =  mdev_access(mdev, (char *)&val, sizeof(val),
+			ret =  mdev_access(mdev, (u8 *)&val, sizeof(val),
 					   *ppos, false);
 			if (ret <= 0)
 				goto read_err;
@@ -839,7 +839,7 @@ ssize_t mtty_read(struct mdev_device *mdev, char __user *buf, size_t count,
 		} else if (count >= 2 && !(*ppos % 2)) {
 			u16 val;
 
-			ret = mdev_access(mdev, (char *)&val, sizeof(val),
+			ret = mdev_access(mdev, (u8 *)&val, sizeof(val),
 					  *ppos, false);
 			if (ret <= 0)
 				goto read_err;
@@ -851,7 +851,7 @@ ssize_t mtty_read(struct mdev_device *mdev, char __user *buf, size_t count,
 		} else {
 			u8 val;
 
-			ret = mdev_access(mdev, (char *)&val, sizeof(val),
+			ret = mdev_access(mdev, (u8 *)&val, sizeof(val),
 					  *ppos, false);
 			if (ret <= 0)
 				goto read_err;
@@ -889,7 +889,7 @@ ssize_t mtty_write(struct mdev_device *mdev, const char __user *buf,
 			if (copy_from_user(&val, buf, sizeof(val)))
 				goto write_err;
 
-			ret = mdev_access(mdev, (char *)&val, sizeof(val),
+			ret = mdev_access(mdev, (u8 *)&val, sizeof(val),
 					  *ppos, true);
 			if (ret <= 0)
 				goto write_err;
@@ -901,7 +901,7 @@ ssize_t mtty_write(struct mdev_device *mdev, const char __user *buf,
 			if (copy_from_user(&val, buf, sizeof(val)))
 				goto write_err;
 
-			ret = mdev_access(mdev, (char *)&val, sizeof(val),
+			ret = mdev_access(mdev, (u8 *)&val, sizeof(val),
 					  *ppos, true);
 			if (ret <= 0)
 				goto write_err;
@@ -913,7 +913,7 @@ ssize_t mtty_write(struct mdev_device *mdev, const char __user *buf,
 			if (copy_from_user(&val, buf, sizeof(val)))
 				goto write_err;
 
-			ret = mdev_access(mdev, (char *)&val, sizeof(val),
+			ret = mdev_access(mdev, (u8 *)&val, sizeof(val),
 					  *ppos, true);
 			if (ret <= 0)
 				goto write_err;
@@ -1032,7 +1032,7 @@ static int mtty_set_irqs(struct mdev_device *mdev, uint32_t flags,
 	return ret;
 }
 
-static int mtty_trigger_interrupt(uuid_le uuid)
+static int mtty_trigger_interrupt(const guid_t *uuid)
 {
 	int ret = -1;
 	struct mdev_state *mdev_state;
@@ -1442,7 +1442,8 @@ static int __init mtty_dev_init(void)
 
 	idr_init(&mtty_dev.vd_idr);
 
-	ret = alloc_chrdev_region(&mtty_dev.vd_devt, 0, MINORMASK, MTTY_NAME);
+	ret = alloc_chrdev_region(&mtty_dev.vd_devt, 0, MINORMASK + 1,
+				  MTTY_NAME);
 
 	if (ret < 0) {
 		pr_err("Error: failed to register mtty_dev, err:%d\n", ret);
@@ -1450,7 +1451,7 @@ static int __init mtty_dev_init(void)
 	}
 
 	cdev_init(&mtty_dev.vd_cdev, &vd_fops);
-	cdev_add(&mtty_dev.vd_cdev, mtty_dev.vd_devt, MINORMASK);
+	cdev_add(&mtty_dev.vd_cdev, mtty_dev.vd_devt, MINORMASK + 1);
 
 	pr_info("major_number:%d\n", MAJOR(mtty_dev.vd_devt));
 
@@ -1487,7 +1488,7 @@ failed2:
 
 failed1:
 	cdev_del(&mtty_dev.vd_cdev);
-	unregister_chrdev_region(mtty_dev.vd_devt, MINORMASK);
+	unregister_chrdev_region(mtty_dev.vd_devt, MINORMASK + 1);
 
 all_done:
 	return ret;
@@ -1501,7 +1502,7 @@ static void __exit mtty_dev_exit(void)
 	device_unregister(&mtty_dev.dev);
 	idr_destroy(&mtty_dev.vd_idr);
 	cdev_del(&mtty_dev.vd_cdev);
-	unregister_chrdev_region(mtty_dev.vd_devt, MINORMASK);
+	unregister_chrdev_region(mtty_dev.vd_devt, MINORMASK + 1);
 	class_destroy(mtty_dev.vd_class);
 	mtty_dev.vd_class = NULL;
 	pr_info("mtty_dev: Unloaded!\n");

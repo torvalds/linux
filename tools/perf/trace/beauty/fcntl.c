@@ -1,36 +1,36 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  * trace/beauty/fcntl.c
  *
  *  Copyright (C) 2017, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 
 #include "trace/beauty/beauty.h"
 #include <linux/kernel.h>
 #include <uapi/linux/fcntl.h>
 
-static size_t fcntl__scnprintf_getfd(unsigned long val, char *bf, size_t size)
+static size_t fcntl__scnprintf_getfd(unsigned long val, char *bf, size_t size, bool show_prefix)
 {
-	return scnprintf(bf, size, "%s", val ? "CLOEXEC" : "0");
+	return val ? scnprintf(bf, size, "%s", "0") :
+		     scnprintf(bf, size, "%s%s", show_prefix ? "FD_" : "", "CLOEXEC");
 }
 
 static size_t syscall_arg__scnprintf_fcntl_getfd(char *bf, size_t size, struct syscall_arg *arg)
 {
-	return fcntl__scnprintf_getfd(arg->val, bf, size);
+	return fcntl__scnprintf_getfd(arg->val, bf, size, arg->show_string_prefix);
 }
 
-static size_t fcntl__scnprintf_getlease(unsigned long val, char *bf, size_t size)
+static size_t fcntl__scnprintf_getlease(unsigned long val, char *bf, size_t size, bool show_prefix)
 {
 	static const char *fcntl_setlease[] = { "RDLCK", "WRLCK", "UNLCK", };
-	static DEFINE_STRARRAY(fcntl_setlease);
+	static DEFINE_STRARRAY(fcntl_setlease, "F_");
 
-	return strarray__scnprintf(&strarray__fcntl_setlease, bf, size, "%x", val);
+	return strarray__scnprintf(&strarray__fcntl_setlease, bf, size, "%x", show_prefix, val);
 }
 
 static size_t syscall_arg__scnprintf_fcntl_getlease(char *bf, size_t size, struct syscall_arg *arg)
 {
-	return fcntl__scnprintf_getlease(arg->val, bf, size);
+	return fcntl__scnprintf_getlease(arg->val, bf, size, arg->show_string_prefix);
 }
 
 size_t syscall_arg__scnprintf_fcntl_cmd(char *bf, size_t size, struct syscall_arg *arg)
@@ -69,22 +69,23 @@ out:
 
 size_t syscall_arg__scnprintf_fcntl_arg(char *bf, size_t size, struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
 	int cmd = syscall_arg__val(arg, 1);
 
 	if (cmd == F_DUPFD)
 		return syscall_arg__scnprintf_fd(bf, size, arg);
 
 	if (cmd == F_SETFD)
-		return fcntl__scnprintf_getfd(arg->val, bf, size);
+		return fcntl__scnprintf_getfd(arg->val, bf, size, show_prefix);
 
 	if (cmd == F_SETFL)
-		return open__scnprintf_flags(arg->val, bf, size);
+		return open__scnprintf_flags(arg->val, bf, size, show_prefix);
 
 	if (cmd == F_SETOWN)
 		return syscall_arg__scnprintf_pid(bf, size, arg);
 
 	if (cmd == F_SETLEASE)
-		return fcntl__scnprintf_getlease(arg->val, bf, size);
+		return fcntl__scnprintf_getlease(arg->val, bf, size, show_prefix);
 	/*
 	 * We still don't grab the contents of pointers on entry or exit,
 	 * so just print them as hex numbers

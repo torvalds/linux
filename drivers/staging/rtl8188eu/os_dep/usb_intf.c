@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 
@@ -43,6 +35,7 @@ static const struct usb_device_id rtw_usb_id_tbl[] = {
 	{USB_DEVICE(0x2001, 0x330F)}, /* DLink DWA-125 REV D1 */
 	{USB_DEVICE(0x2001, 0x3310)}, /* Dlink DWA-123 REV D1 */
 	{USB_DEVICE(0x2001, 0x3311)}, /* DLink GO-USB-N150 REV B1 */
+	{USB_DEVICE(0x2001, 0x331B)}, /* D-Link DWA-121 rev B1 */
 	{USB_DEVICE(0x2357, 0x010c)}, /* TP-Link TL-WN722N v2 */
 	{USB_DEVICE(0x0df6, 0x0076)}, /* Sitecom N150 v2 */
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0xffef)}, /* Rosewill RNX-N150NUB */
@@ -141,7 +134,6 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 	}
 
 	usb_put_dev(interface_to_usbdev(usb_intf));
-
 }
 
 void usb_intf_stop(struct adapter *padapter)
@@ -236,10 +228,10 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	    check_fwstate(pmlmepriv, _FW_LINKED)) {
 		pr_debug("%s:%d %s(%pM), length:%d assoc_ssid.length:%d\n",
 			__func__, __LINE__,
-			pmlmepriv->cur_network.network.Ssid.Ssid,
+			pmlmepriv->cur_network.network.ssid.ssid,
 			pmlmepriv->cur_network.network.MacAddress,
-			pmlmepriv->cur_network.network.Ssid.SsidLength,
-			pmlmepriv->assoc_ssid.SsidLength);
+			pmlmepriv->cur_network.network.ssid.ssid_length,
+			pmlmepriv->assoc_ssid.ssid_length);
 
 		pmlmepriv->to_roaming = 1;
 	}
@@ -334,7 +326,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	int status = _FAIL;
 
 	padapter = vzalloc(sizeof(*padapter));
-	if (padapter == NULL)
+	if (!padapter)
 		goto exit;
 	padapter->dvobj = dvobj;
 	dvobj->if1 = padapter;
@@ -343,14 +335,14 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	mutex_init(&padapter->hw_init_mutex);
 
 	pnetdev = rtw_init_netdev(padapter);
-	if (pnetdev == NULL)
+	if (!pnetdev)
 		goto free_adapter;
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 	padapter = rtw_netdev_priv(pnetdev);
 
 	if (padapter->registrypriv.monitor_enable) {
 		pmondev = rtl88eu_mon_init();
-		if (pmondev == NULL)
+		if (!pmondev)
 			netdev_warn(pnetdev, "Failed to initialize monitor interface");
 		padapter->pmondev = pmondev;
 	}
@@ -389,7 +381,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	/* 2012-07-11 Move here to prevent the 8723AS-VAU BT auto
 	 * suspend influence */
 	if (usb_autopm_get_interface(pusb_intf) < 0)
-			pr_debug("can't get autopm:\n");
+		pr_debug("can't get autopm:\n");
 
 	/*  alloc dev name after read efuse. */
 	rtw_init_netdev_name(pnetdev, padapter->registrypriv.ifname);

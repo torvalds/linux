@@ -94,7 +94,7 @@ enum dib7000p_power_mode {
 	DIB7000P_POWER_INTERFACE_ONLY,
 };
 
-/* dib7090 specific fonctions */
+/* dib7090 specific functions */
 static int dib7090_set_output_mode(struct dvb_frontend *fe, int mode);
 static int dib7090_set_diversity_in(struct dvb_frontend *fe, int onoff);
 static void dib7090_setDibTxMux(struct dib7000p_state *state, int mode);
@@ -319,7 +319,7 @@ static void dib7000p_set_adc_state(struct dib7000p_state *state, enum dibx000_ad
 
 			dib7000p_write_word(state, 1925, reg | (1 << 4) | (1 << 2));	/* en_slowAdc = 1 & reset_sladc = 1 */
 
-			reg = dib7000p_read_word(state, 1925);	/* read acces to make it works... strange ... */
+			reg = dib7000p_read_word(state, 1925);	/* read access to make it works... strange ... */
 			msleep(200);
 			dib7000p_write_word(state, 1925, reg & ~(1 << 4));	/* en_slowAdc = 1 & reset_sladc = 0 */
 
@@ -1101,7 +1101,7 @@ static void dib7000p_set_channel(struct dib7000p_state *state,
 	else
 		state->div_sync_wait = (value * 3) / 2 + state->cfg.diversity_delay;
 
-	/* deactive the possibility of diversity reception if extended interleaver */
+	/* deactivate the possibility of diversity reception if extended interleaver */
 	state->div_force_off = !1 && ch->transmission_mode != TRANSMISSION_MODE_8K;
 	dib7000p_set_diversity_in(&state->demod, state->div_state);
 
@@ -1871,9 +1871,12 @@ static u32 dib7000p_get_time_us(struct dvb_frontend *demod)
 		break;
 	}
 
-	interleaving = interleaving;
-
 	denom = bits_per_symbol * rate_num * fft_div * 384;
+
+	/*
+	 * FIXME: check if the math makes sense. If so, fill the
+	 * interleaving var.
+	 */
 
 	/* If calculus gets wrong, wait for 1s for the next stats */
 	if (!denom)
@@ -2018,10 +2021,10 @@ static int dib7000pc_detection(struct i2c_adapter *i2c_adap)
 	};
 	int ret = 0;
 
-	tx = kzalloc(2*sizeof(u8), GFP_KERNEL);
+	tx = kzalloc(2, GFP_KERNEL);
 	if (!tx)
 		return -ENOMEM;
-	rx = kzalloc(2*sizeof(u8), GFP_KERNEL);
+	rx = kzalloc(2, GFP_KERNEL);
 	if (!rx) {
 		ret = -ENOMEM;
 		goto rx_memory_error;
@@ -2375,7 +2378,7 @@ static int dib7090_tuner_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msg[]
 		}
 	}
 
-	if (apb_address != 0)	/* R/W acces via APB */
+	if (apb_address != 0)	/* R/W access via APB */
 		return dib7090p_rw_on_apb(i2c_adap, msg, num, apb_address);
 	else			/* R/W access via SERPAR  */
 		return w7090p_tuner_rw_serpar(i2c_adap, msg, num);
@@ -2771,7 +2774,8 @@ static struct dvb_frontend *dib7000p_init(struct i2c_adapter *i2c_adap, u8 i2c_a
 	dibx000_init_i2c_master(&st->i2c_master, DIB7000P, st->i2c_adap, st->i2c_addr);
 
 	/* init 7090 tuner adapter */
-	strncpy(st->dib7090_tuner_adap.name, "DiB7090 tuner interface", sizeof(st->dib7090_tuner_adap.name));
+	strscpy(st->dib7090_tuner_adap.name, "DiB7090 tuner interface",
+		sizeof(st->dib7090_tuner_adap.name));
 	st->dib7090_tuner_adap.algo = &dib7090_tuner_xfer_algo;
 	st->dib7090_tuner_adap.algo_data = NULL;
 	st->dib7090_tuner_adap.dev.parent = st->i2c_adap->dev.parent;
@@ -2824,9 +2828,9 @@ static const struct dvb_frontend_ops dib7000p_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "DiBcom 7000PC",
-		 .frequency_min = 44250000,
-		 .frequency_max = 867250000,
-		 .frequency_stepsize = 62500,
+		 .frequency_min_hz =  44250 * kHz,
+		 .frequency_max_hz = 867250 * kHz,
+		 .frequency_stepsize_hz = 62500,
 		 .caps = FE_CAN_INVERSION_AUTO |
 		 FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		 FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

@@ -6,6 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -15,11 +16,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -31,6 +27,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -90,6 +87,8 @@ enum iwl_amsdu_size {
 	IWL_AMSDU_4K = 1,
 	IWL_AMSDU_8K = 2,
 	IWL_AMSDU_12K = 3,
+	/* Add 2K at the end to avoid breaking current API */
+	IWL_AMSDU_2K = 4,
 };
 
 enum iwl_uapsd_disable {
@@ -122,6 +121,8 @@ enum iwl_uapsd_disable {
  * @lar_disable: disable LAR (regulatory), default = 0
  * @fw_monitor: allow to use firmware monitor
  * @disable_11ac: disable VHT capabilities, default = false.
+ * @remove_when_gone: remove an inaccessible device from the PCIe bus.
+ * @enable_ini: enable new FW debug infratructure (INI TLVs)
  */
 struct iwl_mod_params {
 	int swcrypto;
@@ -143,6 +144,30 @@ struct iwl_mod_params {
 	bool lar_disable;
 	bool fw_monitor;
 	bool disable_11ac;
+	/**
+	 * @disable_11ax: disable HE capabilities, default = false
+	 */
+	bool disable_11ax;
+	bool remove_when_gone;
+	bool enable_ini;
 };
+
+static inline bool iwl_enable_rx_ampdu(void)
+{
+	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
+		return false;
+	return true;
+}
+
+static inline bool iwl_enable_tx_ampdu(void)
+{
+	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
+		return false;
+	if (iwlwifi_mod_params.disable_11n & IWL_ENABLE_HT_TXAGG)
+		return true;
+
+	/* enabled by default */
+	return true;
+}
 
 #endif /* #__iwl_modparams_h__ */

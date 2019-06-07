@@ -717,6 +717,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 			}
 			cmd->SCp.phase++;
 		}
+		/* fall through */
 
 	case 2:		/* Phase 2 - We are now talking to the scsi bus */
 		if (!ppa_select(dev, scmd_id(cmd))) {
@@ -978,7 +979,6 @@ static struct scsi_host_template ppa_template = {
 	.bios_param		= ppa_biosparam,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.can_queue		= 1,
 	.slave_alloc		= ppa_adjust_queue,
 };

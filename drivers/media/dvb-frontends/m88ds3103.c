@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Montage Technology M88DS3103/M88RS6000 demodulator driver
  *
  * Copyright (C) 2013 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #include "m88ds3103_priv.h"
@@ -309,6 +300,9 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	u16 u16tmp;
 	u32 tuner_frequency_khz, target_mclk;
 	s32 s32tmp;
+	static const struct reg_sequence reset_buf[] = {
+		{0x07, 0x80}, {0x07, 0x00}
+	};
 
 	dev_dbg(&client->dev,
 		"delivery_system=%d modulation=%d frequency=%u symbol_rate=%d inversion=%d pilot=%d rolloff=%d\n",
@@ -321,11 +315,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 	}
 
 	/* reset */
-	ret = regmap_write(dev->regmap, 0x07, 0x80);
-	if (ret)
-		goto err;
-
-	ret = regmap_write(dev->regmap, 0x07, 0x00);
+	ret = regmap_multi_reg_write(dev->regmap, reset_buf, 2);
 	if (ret)
 		goto err;
 
@@ -1284,7 +1274,7 @@ struct dvb_frontend *m88ds3103_attach(const struct m88ds3103_config *cfg,
 	pdata.attach_in_use = true;
 
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "m88ds3103", I2C_NAME_SIZE);
+	strscpy(board_info.type, "m88ds3103", I2C_NAME_SIZE);
 	board_info.addr = cfg->i2c_addr;
 	board_info.platform_data = &pdata;
 	client = i2c_new_device(i2c, &board_info);
@@ -1300,9 +1290,9 @@ static const struct dvb_frontend_ops m88ds3103_ops = {
 	.delsys = {SYS_DVBS, SYS_DVBS2},
 	.info = {
 		.name = "Montage Technology M88DS3103",
-		.frequency_min =  950000,
-		.frequency_max = 2150000,
-		.frequency_tolerance = 5000,
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
+		.frequency_tolerance_hz = 5 * MHz,
 		.symbol_rate_min =  1000000,
 		.symbol_rate_max = 45000000,
 		.caps = FE_CAN_INVERSION_AUTO |
@@ -1470,7 +1460,7 @@ static int m88ds3103_probe(struct i2c_client *client,
 	/* create dvb_frontend */
 	memcpy(&dev->fe.ops, &m88ds3103_ops, sizeof(struct dvb_frontend_ops));
 	if (dev->chip_id == M88RS6000_CHIP_ID)
-		strncpy(dev->fe.ops.info.name, "Montage Technology M88RS6000",
+		strscpy(dev->fe.ops.info.name, "Montage Technology M88RS6000",
 			sizeof(dev->fe.ops.info.name));
 	if (!pdata->attach_in_use)
 		dev->fe.ops.release = NULL;

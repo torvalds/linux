@@ -1,23 +1,21 @@
 /*
+ * SPDX-License-Identifier: MIT
+ *
  * i915_sw_fence.h - library routines for N:M synchronisation points
  *
  * Copyright (C) 2016 Intel Corporation
- *
- * This file is released under the GPLv2.
- *
  */
 
 #ifndef _I915_SW_FENCE_H_
 #define _I915_SW_FENCE_H_
 
+#include <linux/dma-fence.h>
 #include <linux/gfp.h>
 #include <linux/kref.h>
 #include <linux/notifier.h> /* for NOTIFY_DONE */
 #include <linux/wait.h>
 
 struct completion;
-struct dma_fence;
-struct dma_fence_ops;
 struct reservation_object;
 
 struct i915_sw_fence {
@@ -69,16 +67,29 @@ int i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 int i915_sw_fence_await_sw_fence_gfp(struct i915_sw_fence *fence,
 				     struct i915_sw_fence *after,
 				     gfp_t gfp);
+
+struct i915_sw_dma_fence_cb {
+	struct dma_fence_cb base;
+	struct i915_sw_fence *fence;
+};
+
+int __i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
+				    struct dma_fence *dma,
+				    struct i915_sw_dma_fence_cb *cb);
 int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 				  struct dma_fence *dma,
 				  unsigned long timeout,
 				  gfp_t gfp);
+
 int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 				    struct reservation_object *resv,
 				    const struct dma_fence_ops *exclude,
 				    bool write,
 				    unsigned long timeout,
 				    gfp_t gfp);
+
+void i915_sw_fence_await(struct i915_sw_fence *fence);
+void i915_sw_fence_complete(struct i915_sw_fence *fence);
 
 static inline bool i915_sw_fence_signaled(const struct i915_sw_fence *fence)
 {

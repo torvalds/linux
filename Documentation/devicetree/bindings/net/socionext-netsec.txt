@@ -26,10 +26,11 @@ Required properties:
 Optional properties: (See ethernet.txt file in the same directory)
 - dma-coherent: Boolean property, must only be present if memory
 	accesses performed by the device are cache coherent.
-- local-mac-address: See ethernet.txt in the same directory.
-- mac-address: See ethernet.txt in the same directory.
 - max-speed: See ethernet.txt in the same directory.
 - max-frame-size: See ethernet.txt in the same directory.
+
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Example:
 	eth0: ethernet@522d0000 {

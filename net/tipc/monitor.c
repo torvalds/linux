@@ -684,7 +684,8 @@ int tipc_nl_monitor_get_threshold(struct net *net)
 	return tn->mon_threshold;
 }
 
-int __tipc_nl_add_monitor_peer(struct tipc_peer *peer, struct tipc_nl_msg *msg)
+static int __tipc_nl_add_monitor_peer(struct tipc_peer *peer,
+				      struct tipc_nl_msg *msg)
 {
 	struct tipc_mon_domain *dom = peer->domain;
 	struct nlattr *attrs;
@@ -695,7 +696,7 @@ int __tipc_nl_add_monitor_peer(struct tipc_peer *peer, struct tipc_nl_msg *msg)
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start(msg->skb, TIPC_NLA_MON_PEER);
+	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_MON_PEER);
 	if (!attrs)
 		goto msg_full;
 
@@ -784,7 +785,7 @@ int __tipc_nl_add_monitor(struct net *net, struct tipc_nl_msg *msg,
 	if (!hdr)
 		return -EMSGSIZE;
 
-	attrs = nla_nest_start(msg->skb, TIPC_NLA_MON);
+	attrs = nla_nest_start_noflag(msg->skb, TIPC_NLA_MON);
 	if (!attrs)
 		goto msg_full;
 

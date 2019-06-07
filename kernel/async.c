@@ -119,7 +119,7 @@ static void async_run_entry_fn(struct work_struct *work)
 
 	/* 1) run (and print duration) */
 	if (initcall_debug && system_state < SYSTEM_RUNNING) {
-		pr_debug("calling  %lli_%pF @ %i\n",
+		pr_debug("calling  %lli_%pS @ %i\n",
 			(long long)entry->cookie,
 			entry->func, task_pid_nr(current));
 		calltime = ktime_get();
@@ -128,7 +128,7 @@ static void async_run_entry_fn(struct work_struct *work)
 	if (initcall_debug && system_state < SYSTEM_RUNNING) {
 		rettime = ktime_get();
 		delta = ktime_sub(rettime, calltime);
-		pr_debug("initcall %lli_%pF returned 0 after %lld usecs\n",
+		pr_debug("initcall %lli_%pS returned 0 after %lld usecs\n",
 			(long long)entry->cookie,
 			entry->func,
 			(long long)ktime_to_ns(delta) >> 10);
@@ -149,7 +149,25 @@ static void async_run_entry_fn(struct work_struct *work)
 	wake_up(&async_done);
 }
 
-static async_cookie_t __async_schedule(async_func_t func, void *data, struct async_domain *domain)
+/**
+ * async_schedule_node_domain - NUMA specific version of async_schedule_domain
+ * @func: function to execute asynchronously
+ * @data: data pointer to pass to the function
+ * @node: NUMA node that we want to schedule this on or close to
+ * @domain: the domain
+ *
+ * Returns an async_cookie_t that may be used for checkpointing later.
+ * @domain may be used in the async_synchronize_*_domain() functions to
+ * wait within a certain synchronization domain rather than globally.
+ *
+ * Note: This function may be called from atomic or non-atomic contexts.
+ *
+ * The node requested will be honored on a best effort basis. If the node
+ * has no CPUs associated with it then the work is distributed among all
+ * available CPUs.
+ */
+async_cookie_t async_schedule_node_domain(async_func_t func, void *data,
+					  int node, struct async_domain *domain)
 {
 	struct async_entry *entry;
 	unsigned long flags;
@@ -195,43 +213,30 @@ static async_cookie_t __async_schedule(async_func_t func, void *data, struct asy
 	current->flags |= PF_USED_ASYNC;
 
 	/* schedule for execution */
-	queue_work(system_unbound_wq, &entry->work);
+	queue_work_node(node, system_unbound_wq, &entry->work);
 
 	return newcookie;
 }
+EXPORT_SYMBOL_GPL(async_schedule_node_domain);
 
 /**
- * async_schedule - schedule a function for asynchronous execution
+ * async_schedule_node - NUMA specific version of async_schedule
  * @func: function to execute asynchronously
  * @data: data pointer to pass to the function
+ * @node: NUMA node that we want to schedule this on or close to
  *
  * Returns an async_cookie_t that may be used for checkpointing later.
  * Note: This function may be called from atomic or non-atomic contexts.
- */
-async_cookie_t async_schedule(async_func_t func, void *data)
-{
-	return __async_schedule(func, data, &async_dfl_domain);
-}
-EXPORT_SYMBOL_GPL(async_schedule);
-
-/**
- * async_schedule_domain - schedule a function for asynchronous execution within a certain domain
- * @func: function to execute asynchronously
- * @data: data pointer to pass to the function
- * @domain: the domain
  *
- * Returns an async_cookie_t that may be used for checkpointing later.
- * @domain may be used in the async_synchronize_*_domain() functions to
- * wait within a certain synchronization domain rather than globally.  A
- * synchronization domain is specified via @domain.  Note: This function
- * may be called from atomic or non-atomic contexts.
+ * The node requested will be honored on a best effort basis. If the node
+ * has no CPUs associated with it then the work is distributed among all
+ * available CPUs.
  */
-async_cookie_t async_schedule_domain(async_func_t func, void *data,
-				     struct async_domain *domain)
+async_cookie_t async_schedule_node(async_func_t func, void *data, int node)
 {
-	return __async_schedule(func, data, domain);
+	return async_schedule_node_domain(func, data, node, &async_dfl_domain);
 }
-EXPORT_SYMBOL_GPL(async_schedule_domain);
+EXPORT_SYMBOL_GPL(async_schedule_node);
 
 /**
  * async_synchronize_full - synchronize all asynchronous function calls

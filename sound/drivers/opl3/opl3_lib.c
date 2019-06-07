@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *                   Hannu Savolainen 1993-1996,
@@ -6,21 +7,6 @@
  *  Routines for control of AdLib FM cards (OPL2/OPL3/OPL4 chips)
  *
  *  Most if code is ported from OSS/Lite.
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <sound/opl3.h>
@@ -31,12 +17,11 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <sound/minors.h>
+#include "opl3_voice.h"
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Hannu Savolainen 1993-1996, Rob Hooft");
 MODULE_DESCRIPTION("Routines for control of AdLib FM cards (OPL2/OPL3/OPL4 chips)");
 MODULE_LICENSE("GPL");
-
-extern char snd_opl3_regmap[MAX_OPL2_VOICES][4];
 
 static void snd_opl2_command(struct snd_opl3 * opl3, unsigned short cmd, unsigned char val)
 {
@@ -539,19 +524,3 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3,
 }
 
 EXPORT_SYMBOL(snd_opl3_hwdep_new);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_opl3_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_opl3_exit(void)
-{
-}
-
-module_init(alsa_opl3_init)
-module_exit(alsa_opl3_exit)

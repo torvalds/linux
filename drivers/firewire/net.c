@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv4 over IEEE 1394, per RFC 2734
  * IPv6 over IEEE 1394, per RFC 3146
@@ -1121,7 +1122,7 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	max_receive = 1U << (dev->card->max_receive + 1);
 	num_packets = (FWNET_ISO_PAGE_COUNT * PAGE_SIZE) / max_receive;
 
-	ptrptr = kmalloc(sizeof(void *) * num_packets, GFP_KERNEL);
+	ptrptr = kmalloc_array(num_packets, sizeof(void *), GFP_KERNEL);
 	if (!ptrptr) {
 		retval = -ENOMEM;
 		goto failed;

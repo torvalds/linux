@@ -8,7 +8,7 @@ explained in a separate documents - please refer to
 Documentation/devicetree/bindings/memory-controllers/omap-gpmc.txt
 
 For NAND specific properties such as ECC modes or bus width, please refer to
-Documentation/devicetree/bindings/mtd/nand.txt
+Documentation/devicetree/bindings/mtd/nand-controller.yaml
 
 
 Required properties:
@@ -16,7 +16,6 @@ Required properties:
  - compatible:	"ti,omap2-nand"
  - reg:		range id (CS number), base offset and length of the
 		NAND I/O space
- - interrupt-parent: must point to gpmc node
  - interrupts:	Two interrupt specifiers, one for fifoevent, one for termcount.
 
 Optional properties:

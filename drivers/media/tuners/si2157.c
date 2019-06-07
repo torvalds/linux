@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Silicon Labs Si2146/2147/2148/2157/2158 silicon tuner driver
  *
  * Copyright (C) 2014 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #include "si2157_priv.h"
@@ -387,9 +378,9 @@ static int si2157_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops si2157_ops = {
 	.info = {
-		.name           = "Silicon Labs Si2141/Si2146/2147/2148/2157/2158",
-		.frequency_min  = 42000000,
-		.frequency_max  = 870000000,
+		.name             = "Silicon Labs Si2141/Si2146/2147/2148/2157/2158",
+		.frequency_min_hz =  42 * MHz,
+		.frequency_max_hz = 870 * MHz,
 	},
 
 	.init = si2157_init,
@@ -468,11 +459,14 @@ static int si2157_probe(struct i2c_client *client,
 		dev->ent.name = KBUILD_MODNAME;
 		dev->ent.function = MEDIA_ENT_F_TUNER;
 
-		dev->pad[TUNER_PAD_RF_INPUT].flags = MEDIA_PAD_FL_SINK;
-		dev->pad[TUNER_PAD_OUTPUT].flags = MEDIA_PAD_FL_SOURCE;
-		dev->pad[TUNER_PAD_AUD_OUT].flags = MEDIA_PAD_FL_SOURCE;
+		dev->pad[SI2157_PAD_RF_INPUT].flags = MEDIA_PAD_FL_SINK;
+		dev->pad[SI2157_PAD_RF_INPUT].sig_type = PAD_SIGNAL_ANALOG;
+		dev->pad[SI2157_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
+		dev->pad[SI2157_PAD_VID_OUT].sig_type = PAD_SIGNAL_ANALOG;
+		dev->pad[SI2157_PAD_AUD_OUT].flags = MEDIA_PAD_FL_SOURCE;
+		dev->pad[SI2157_PAD_AUD_OUT].sig_type = PAD_SIGNAL_AUDIO;
 
-		ret = media_entity_pads_init(&dev->ent, TUNER_NUM_PADS,
+		ret = media_entity_pads_init(&dev->ent, SI2157_NUM_PADS,
 					     &dev->pad[0]);
 
 		if (ret)

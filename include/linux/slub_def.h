@@ -81,12 +81,12 @@ struct kmem_cache_order_objects {
  */
 struct kmem_cache {
 	struct kmem_cache_cpu __percpu *cpu_slab;
-	/* Used for retriving partial slabs etc */
+	/* Used for retrieving partial slabs, etc. */
 	slab_flags_t flags;
 	unsigned long min_partial;
-	unsigned int size;	/* The size of an object including meta data */
-	unsigned int object_size;/* The size of an object without meta data */
-	unsigned int offset;	/* Free pointer offset. */
+	unsigned int size;	/* The size of an object including metadata */
+	unsigned int object_size;/* The size of an object without metadata */
+	unsigned int offset;	/* Free pointer offset */
 #ifdef CONFIG_SLUB_CPU_PARTIAL
 	/* Number of per cpu partial objects to keep around */
 	unsigned int cpu_partial;
@@ -101,7 +101,6 @@ struct kmem_cache {
 	void (*ctor)(void *);
 	unsigned int inuse;		/* Offset to metadata */
 	unsigned int align;		/* Alignment */
-	unsigned int reserved;		/* Reserved bytes at the end of slabs */
 	unsigned int red_left_pad;	/* Left redzone padding size */
 	const char *name;	/* Name (only for display!) */
 	struct list_head list;	/* List of slab caches */
@@ -111,7 +110,7 @@ struct kmem_cache {
 #endif
 #ifdef CONFIG_MEMCG
 	struct memcg_cache_params memcg_params;
-	/* for propagation, maximum size of a stored attr */
+	/* For propagation, maximum size of a stored attr */
 	unsigned int max_attr_size;
 #ifdef CONFIG_SYSFS
 	struct kset *memcg_kset;
@@ -152,12 +151,16 @@ struct kmem_cache {
 #else
 #define slub_cpu_partial(s)		(0)
 #define slub_set_cpu_partial(s, n)
-#endif // CONFIG_SLUB_CPU_PARTIAL
+#endif /* CONFIG_SLUB_CPU_PARTIAL */
 
 #ifdef CONFIG_SYSFS
 #define SLAB_SUPPORTS_SYSFS
+void sysfs_slab_unlink(struct kmem_cache *);
 void sysfs_slab_release(struct kmem_cache *);
 #else
+static inline void sysfs_slab_unlink(struct kmem_cache *s)
+{
+}
 static inline void sysfs_slab_release(struct kmem_cache *s)
 {
 }

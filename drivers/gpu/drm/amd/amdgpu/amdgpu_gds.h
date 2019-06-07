@@ -24,13 +24,6 @@
 #ifndef __AMDGPU_GDS_H__
 #define __AMDGPU_GDS_H__
 
-/* Because TTM request that alloacted buffer should be PAGE_SIZE aligned,
- * we should report GDS/GWS/OA size as PAGE_SIZE aligned
- * */
-#define AMDGPU_GDS_SHIFT	2
-#define AMDGPU_GWS_SHIFT	PAGE_SHIFT
-#define AMDGPU_OA_SHIFT		PAGE_SHIFT
-
 struct amdgpu_ring;
 struct amdgpu_bo;
 
@@ -44,6 +37,8 @@ struct amdgpu_gds {
 	struct amdgpu_gds_asic_info	mem;
 	struct amdgpu_gds_asic_info	gws;
 	struct amdgpu_gds_asic_info	oa;
+	uint32_t			gds_compute_max_wave_id;
+
 	/* At present, GDS, GWS and OA resources for gfx (graphics)
 	 * is always pre-allocated and available for graphics operation.
 	 * Such resource is shared between all gfx clients.

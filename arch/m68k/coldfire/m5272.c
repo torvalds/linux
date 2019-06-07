@@ -127,7 +127,7 @@ static struct fixed_phy_status nettel_fixed_phy_status __initdata = {
 static int __init init_BSP(void)
 {
 	m5272_uarts_init();
-	fixed_phy_add(PHY_POLL, 0, &nettel_fixed_phy_status, -1);
+	fixed_phy_add(PHY_POLL, 0, &nettel_fixed_phy_status);
 	return 0;
 }
 

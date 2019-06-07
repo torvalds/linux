@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * linux/drivers/media/platform/coda/coda_regs.h
  *
  * Copyright (C) 2012 Vista Silicon SL
  *    Javier Martin <javier.martin@vista-silicon.com>
  *    Xavier Duret
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _REGS_CODA_H_
@@ -157,6 +153,7 @@
 #define CODA_CMD_DEC_SEQ_START_BYTE		0x190
 #define CODA_CMD_DEC_SEQ_PS_BB_START		0x194
 #define CODA_CMD_DEC_SEQ_PS_BB_SIZE		0x198
+#define CODA_CMD_DEC_SEQ_JPG_THUMB_EN		0x19c
 #define CODA_CMD_DEC_SEQ_MP4_ASP_CLASS		0x19c
 #define		CODA_MP4_CLASS_MPEG4			0
 #define CODA_CMD_DEC_SEQ_X264_MV_EN		0x19c
@@ -291,7 +288,7 @@
 #define		CODA_264PARAM_DEBLKFILTEROFFSETALPHA_OFFSET	8
 #define		CODA_264PARAM_DEBLKFILTEROFFSETALPHA_MASK	0x0f
 #define		CODA_264PARAM_DISABLEDEBLK_OFFSET		6
-#define		CODA_264PARAM_DISABLEDEBLK_MASK		0x01
+#define		CODA_264PARAM_DISABLEDEBLK_MASK		0x03
 #define		CODA_264PARAM_CONSTRAINEDINTRAPREDFLAG_OFFSET	5
 #define		CODA_264PARAM_CONSTRAINEDINTRAPREDFLAG_MASK	0x01
 #define		CODA_264PARAM_CHROMAQPOFFSET_OFFSET		0

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IPv6 over IPv4 tunnel device - Simple Internet Transition (SIT)
  *	Linux INET6 implementation
@@ -5,11 +6,6 @@
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *	Alexey Kuznetsov	<kuznet@ms2.inr.ac.ru>
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  *
  *	Changes:
  * Roger Venning <r.venning@telstra.com>:	6to4 support
@@ -534,19 +530,20 @@ static int ipip6_err(struct sk_buff *skb, u32 info)
 
 	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
 		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
-				 t->parms.link, 0, iph->protocol, 0);
+				 t->parms.link, iph->protocol);
 		err = 0;
 		goto out;
 	}
 	if (type == ICMP_REDIRECT) {
-		ipv4_redirect(skb, dev_net(skb->dev), t->parms.link, 0,
-			      iph->protocol, 0);
+		ipv4_redirect(skb, dev_net(skb->dev), t->parms.link,
+			      iph->protocol);
 		err = 0;
 		goto out;
 	}
 
 	err = 0;
-	if (!ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4, type, data_len))
+	if (__in6_dev_get(skb->dev) &&
+	    !ip6_err_gen_icmpv6_unreach(skb, iph->ihl * 4, type, data_len))
 		goto out;
 
 	if (t->parms.iph.daddr == 0)
@@ -668,6 +665,10 @@ static int ipip6_rcv(struct sk_buff *skb)
 		    !net_eq(tunnel->net, dev_net(tunnel->dev))))
 			goto out;
 
+		/* skb can be uncloned in iptunnel_pull_header, so
+		 * old iph is no longer valid
+		 */
+		iph = (const struct iphdr *)skb_mac_header(skb);
 		err = IP_ECN_decapsulate(iph, skb);
 		if (unlikely(err)) {
 			if (log_ecn_error)
@@ -777,8 +778,9 @@ static bool check_6rd(struct ip_tunnel *tunnel, const struct in6_addr *v6dst,
 		pbw0 = tunnel->ip6rd.prefixlen >> 5;
 		pbi0 = tunnel->ip6rd.prefixlen & 0x1f;
 
-		d = (ntohl(v6dst->s6_addr32[pbw0]) << pbi0) >>
-		    tunnel->ip6rd.relay_prefixlen;
+		d = tunnel->ip6rd.relay_prefixlen < 32 ?
+			(ntohl(v6dst->s6_addr32[pbw0]) << pbi0) >>
+		    tunnel->ip6rd.relay_prefixlen : 0;
 
 		pbi1 = pbi0 - tunnel->ip6rd.relay_prefixlen;
 		if (pbi1 > 0)
@@ -1021,6 +1023,9 @@ tx_error:
 static netdev_tx_t sit_tunnel_xmit(struct sk_buff *skb,
 				   struct net_device *dev)
 {
+	if (!pskb_inet_may_pull(skb))
+		goto tx_err;
+
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		sit_tunnel_xmit__(skb, dev, IPPROTO_IPIP);
@@ -1075,7 +1080,7 @@ static void ipip6_tunnel_bind_dev(struct net_device *dev)
 	if (!tdev && tunnel->parms.link)
 		tdev = __dev_get_by_index(tunnel->net, tunnel->parms.link);
 
-	if (tdev) {
+	if (tdev && !netif_is_l3_master(tdev)) {
 		int t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
 		dev->hard_header_len = tdev->hard_header_len + sizeof(struct iphdr);
@@ -1371,7 +1376,7 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 	dev->hard_header_len	= LL_MAX_HEADER + t_hlen;
 	dev->mtu		= ETH_DATA_LEN - t_hlen;
 	dev->min_mtu		= IPV6_MIN_MTU;
-	dev->max_mtu		= 0xFFF8 - t_hlen;
+	dev->max_mtu		= IP6_MAX_MTU - t_hlen;
 	dev->flags		= IFF_NOARP;
 	netif_keep_dst(dev);
 	dev->addr_len		= 4;
@@ -1583,7 +1588,8 @@ static int ipip6_newlink(struct net *src_net, struct net_device *dev,
 	if (tb[IFLA_MTU]) {
 		u32 mtu = nla_get_u32(tb[IFLA_MTU]);
 
-		if (mtu >= IPV6_MIN_MTU && mtu <= 0xFFF8 - dev->hard_header_len)
+		if (mtu >= IPV6_MIN_MTU &&
+		    mtu <= IP6_MAX_MTU - dev->hard_header_len)
 			dev->mtu = mtu;
 	}
 
@@ -1868,6 +1874,7 @@ static int __net_init sit_init_net(struct net *net)
 
 err_reg_dev:
 	ipip6_dev_free(sitn->fb_tunnel_dev);
+	free_netdev(sitn->fb_tunnel_dev);
 err_alloc_dev:
 	return err;
 }

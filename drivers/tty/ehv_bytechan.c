@@ -128,8 +128,8 @@ static int find_console_handle(void)
 	 */
 	iprop = of_get_property(np, "hv-handle", NULL);
 	if (!iprop) {
-		pr_err("ehv-bc: no 'hv-handle' property in %s node\n",
-		       np->name);
+		pr_err("ehv-bc: no 'hv-handle' property in %pOFn node\n",
+		       np);
 		return 0;
 	}
 	stdout_bc = be32_to_cpu(*iprop);
@@ -661,8 +661,8 @@ static int ehv_bc_tty_probe(struct platform_device *pdev)
 
 	iprop = of_get_property(np, "hv-handle", NULL);
 	if (!iprop) {
-		dev_err(&pdev->dev, "no 'hv-handle' property in %s node\n",
-			np->name);
+		dev_err(&pdev->dev, "no 'hv-handle' property in %pOFn node\n",
+			np);
 		return -ENODEV;
 	}
 
@@ -682,8 +682,8 @@ static int ehv_bc_tty_probe(struct platform_device *pdev)
 	bc->rx_irq = irq_of_parse_and_map(np, 0);
 	bc->tx_irq = irq_of_parse_and_map(np, 1);
 	if ((bc->rx_irq == NO_IRQ) || (bc->tx_irq == NO_IRQ)) {
-		dev_err(&pdev->dev, "no 'interrupts' property in %s node\n",
-			np->name);
+		dev_err(&pdev->dev, "no 'interrupts' property in %pOFn node\n",
+			np);
 		ret = -ENODEV;
 		goto error;
 	}
@@ -754,7 +754,7 @@ static int __init ehv_bc_init(void)
 	 * array, then you can use pointer math (e.g. "bc - bcs") to get its
 	 * tty index.
 	 */
-	bcs = kzalloc(count * sizeof(struct ehv_bc_data), GFP_KERNEL);
+	bcs = kcalloc(count, sizeof(struct ehv_bc_data), GFP_KERNEL);
 	if (!bcs)
 		return -ENOMEM;
 

@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CS4271 ASoC codec driver
  *
  * Copyright (c) 2010 Alexander Sverdlin <subaparts@yandex.ru>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * This driver support CS4271 codec being master or slave, working
  * in control port mode, connected either via SPI or I2C.
@@ -223,10 +214,10 @@ static int cs4271_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	switch (format & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
-		cs4271->master = 0;
+		cs4271->master = false;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
-		cs4271->master = 1;
+		cs4271->master = true;
 		val |= CS4271_MODE1_MASTER;
 		break;
 	default:

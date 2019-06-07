@@ -3,7 +3,7 @@
  *
  * Module Name: tbdata - Table manager data structure functions
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -480,7 +480,8 @@ acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc,
 
 	/* If a particular signature is expected (DSDT/FACS), it must match */
 
-	if (signature && !ACPI_COMPARE_NAME(&table_desc->signature, signature)) {
+	if (signature &&
+	    !ACPI_COMPARE_NAMESEG(&table_desc->signature, signature)) {
 		ACPI_BIOS_ERROR((AE_INFO,
 				 "Invalid signature 0x%X for ACPI table, expected [%s]",
 				 table_desc->signature.integer, signature));
@@ -516,9 +517,9 @@ acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc,
 			    acpi_tb_check_duplication(table_desc, table_index);
 			if (ACPI_FAILURE(status)) {
 				if (status != AE_CTRL_TERMINATE) {
-					ACPI_EXCEPTION((AE_INFO, AE_NO_MEMORY,
+					ACPI_EXCEPTION((AE_INFO, status,
 							"%4.4s 0x%8.8X%8.8X"
-							" Table is duplicated",
+							" Table is already loaded",
 							acpi_ut_valid_nameseg
 							(table_desc->signature.
 							 ascii) ? table_desc->

@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  acpi_bus.h - ACPI Bus Driver ($Revision: 22 $)
  *
  *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #ifndef __ACPI_BUS_H__
@@ -91,8 +78,8 @@ acpi_evaluate_dsm_typed(acpi_handle handle, const guid_t *guid, u64 rev,
 bool acpi_dev_found(const char *hid);
 bool acpi_dev_present(const char *hid, const char *uid, s64 hrv);
 
-const char *
-acpi_dev_get_first_match_name(const char *hid, const char *uid, s64 hrv);
+struct acpi_device *
+acpi_dev_get_first_match_dev(const char *hid, const char *uid, s64 hrv);
 
 #ifdef CONFIG_ACPI
 
@@ -230,7 +217,7 @@ struct acpi_device_dir {
 /* Plug and Play */
 
 typedef char acpi_bus_id[8];
-typedef unsigned long acpi_bus_address;
+typedef u64 acpi_bus_address;
 typedef char acpi_device_name[40];
 typedef char acpi_device_class[20];
 
@@ -346,10 +333,16 @@ struct acpi_device_physical_node {
 	bool put_online:1;
 };
 
+struct acpi_device_properties {
+	const guid_t *guid;
+	const union acpi_object *properties;
+	struct list_head list;
+};
+
 /* ACPI Device Specific Data (_DSD) */
 struct acpi_device_data {
 	const union acpi_object *pointer;
-	const union acpi_object *properties;
+	struct list_head properties;
 	const union acpi_object *of_compatible;
 	struct list_head subnodes;
 };
@@ -595,7 +588,6 @@ enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev);
 int acpi_dma_get_range(struct device *dev, u64 *dma_addr, u64 *offset,
 		       u64 *size);
 int acpi_dma_configure(struct device *dev, enum dev_dma_attr attr);
-void acpi_dma_deconfigure(struct device *dev);
 
 struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 					   u64 address, bool check_children);
@@ -682,6 +674,10 @@ static inline bool acpi_device_can_poweroff(struct acpi_device *adev)
 		adev->power.states[ACPI_STATE_D3_HOT].flags.explicit_set);
 }
 
+static inline void acpi_dev_put(struct acpi_device *adev)
+{
+	put_device(&adev->dev);
+}
 #else	/* CONFIG_ACPI */
 
 static inline int register_acpi_bus_type(void *bus) { return 0; }

@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DBAu1200/PBAu1200 board platform device registration
  *
  * Copyright (C) 2008-2011 Manuel Lauss
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/clk.h>
@@ -29,8 +16,7 @@
 #include <linux/leds.h>
 #include <linux/mmc/host.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/rawnand.h>
-#include <linux/mtd/partitions.h>
+#include <linux/mtd/platnand.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/spi/spi.h>
@@ -154,6 +140,8 @@ int __init db1200_board_setup(void)
 
 /******************************************************************************/
 
+static u64 au1200_all_dmamask = DMA_BIT_MASK(32);
+
 static struct mtd_partition db1200_spiflash_parts[] = {
 	{
 		.name	= "spi_flash",
@@ -197,11 +185,10 @@ static struct i2c_board_info db1200_i2c_devs[] __initdata = {
 
 /**********************************************************************/
 
-static void au1200_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
+static void au1200_nand_cmd_ctrl(struct nand_chip *this, int cmd,
 				 unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
-	unsigned long ioaddr = (unsigned long)this->IO_ADDR_W;
+	unsigned long ioaddr = (unsigned long)this->legacy.IO_ADDR_W;
 
 	ioaddr &= 0xffffff00;
 
@@ -213,14 +200,14 @@ static void au1200_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 		/* assume we want to r/w real data  by default */
 		ioaddr += MEM_STNAND_DATA;
 	}
-	this->IO_ADDR_R = this->IO_ADDR_W = (void __iomem *)ioaddr;
+	this->legacy.IO_ADDR_R = this->legacy.IO_ADDR_W = (void __iomem *)ioaddr;
 	if (cmd != NAND_CMD_NONE) {
-		__raw_writeb(cmd, this->IO_ADDR_W);
+		__raw_writeb(cmd, this->legacy.IO_ADDR_W);
 		wmb();
 	}
 }
 
-static int au1200_nand_device_ready(struct mtd_info *mtd)
+static int au1200_nand_device_ready(struct nand_chip *this)
 {
 	return alchemy_rdsmem(AU1000_MEM_STSTAT) & 1;
 }
@@ -326,13 +313,11 @@ static struct resource db1200_ide_res[] = {
 	},
 };
 
-static u64 au1200_ide_dmamask = DMA_BIT_MASK(32);
-
 static struct platform_device db1200_ide_dev = {
 	.name		= "pata_platform",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= &au1200_ide_dmamask,
+		.dma_mask		= &au1200_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1200_ide_info,
 	},
@@ -568,13 +553,11 @@ static struct resource au1200_mmc0_resources[] = {
 	}
 };
 
-static u64 au1xxx_mmc_dmamask =	 DMA_BIT_MASK(32);
-
 static struct platform_device db1200_mmc0_dev = {
 	.name		= "au1xxx-mmc",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= &au1xxx_mmc_dmamask,
+		.dma_mask		= &au1200_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1200_mmc_platdata[0],
 	},
@@ -609,7 +592,7 @@ static struct platform_device pb1200_mmc1_dev = {
 	.name		= "au1xxx-mmc",
 	.id		= 1,
 	.dev = {
-		.dma_mask		= &au1xxx_mmc_dmamask,
+		.dma_mask		= &au1200_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1200_mmc_platdata[1],
 	},
@@ -659,13 +642,11 @@ static struct resource au1200_lcd_res[] = {
 	}
 };
 
-static u64 au1200_lcd_dmamask = DMA_BIT_MASK(32);
-
 static struct platform_device au1200_lcd_dev = {
 	.name		= "au1200-lcd",
 	.id		= 0,
 	.dev = {
-		.dma_mask		= &au1200_lcd_dmamask,
+		.dma_mask		= &au1200_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1200fb_pd,
 	},
@@ -719,11 +700,9 @@ static struct au1550_spi_info db1200_spi_platdata = {
 	.activate_cs	= db1200_spi_cs_en,
 };
 
-static u64 spi_dmamask = DMA_BIT_MASK(32);
-
 static struct platform_device db1200_spi_dev = {
 	.dev	= {
-		.dma_mask		= &spi_dmamask,
+		.dma_mask		= &au1200_all_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1200_spi_platdata,
 	},
@@ -768,6 +747,10 @@ static struct platform_device db1200_audio_dev = {
 static struct platform_device db1200_sound_dev = {
 	/* name assigned later based on switch setting */
 	.id		= 1,	/* PSC ID */
+	.dev = {
+		.dma_mask		= &au1200_all_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
 };
 
 static struct platform_device db1200_stac_dev = {

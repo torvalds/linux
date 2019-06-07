@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-only
 
 """Find Kconfig symbols that are referenced but not defined."""
 
 # (c) 2014-2017 Valentin Rothberg <valentinrothberg@gmail.com>
 # (c) 2014 Stefan Hengelein <stefan.hengelein@fau.de>
 #
-# Licensed under the terms of the GNU GPL License version 2
 
 
 import argparse

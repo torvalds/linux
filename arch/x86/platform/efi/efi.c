@@ -36,9 +36,8 @@
 #include <linux/efi.h>
 #include <linux/efi-bgrt.h>
 #include <linux/export.h>
-#include <linux/bootmem.h>
-#include <linux/slab.h>
 #include <linux/memblock.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/time.h>
@@ -86,6 +85,8 @@ static efi_status_t __init phys_efi_set_virtual_address_map(
 	pgd_t *save_pgd;
 
 	save_pgd = efi_call_phys_prolog();
+	if (!save_pgd)
+		return EFI_ABORTED;
 
 	/* Disable interrupts around EFI calls: */
 	local_irq_save(flags);
@@ -993,6 +994,8 @@ static void __init __efi_enter_virtual_mode(void)
 			 status);
 		panic("EFI call to SetVirtualAddressMap() failed!");
 	}
+
+	efi_free_boot_services();
 
 	/*
 	 * Now that EFI is in virtual mode, update the function

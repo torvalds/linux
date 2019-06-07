@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Syncookies implementation for the Linux kernel
  *
  *  Copyright (C) 1997 Andi Kleen
  *  Based on ideas by D.J.Bernstein and Eric Schenk.
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/tcp.h>
@@ -88,7 +84,7 @@ u64 cookie_init_timestamp(struct request_sock *req)
 		ts <<= TSBITS;
 		ts |= options;
 	}
-	return (u64)ts * (USEC_PER_SEC / TCP_TS_HZ);
+	return (u64)ts * (NSEC_PER_SEC / TCP_TS_HZ);
 }
 
 
@@ -216,11 +212,15 @@ struct sock *tcp_get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 		refcount_set(&req->rsk_refcnt, 1);
 		tcp_sk(child)->tsoffset = tsoff;
 		sock_rps_save_rxhash(child, skb);
-		inet_csk_reqsk_queue_add(sk, req, child);
-	} else {
-		reqsk_free(req);
+		if (inet_csk_reqsk_queue_add(sk, req, child))
+			return child;
+
+		bh_unlock_sock(child);
+		sock_put(child);
 	}
-	return child;
+	__reqsk_free(req);
+
+	return NULL;
 }
 EXPORT_SYMBOL(tcp_get_cookie_sock);
 

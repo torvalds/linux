@@ -6,6 +6,9 @@ SoundWire Documentation
    :maxdepth: 1
 
    summary
+   stream
+   error_handling
+   locking
 
 .. only::  subproject
 

@@ -132,47 +132,28 @@ designed for this purpose be used, such as scrypt, PBKDF2, or Argon2.
 Per-file keys
 -------------
 
-Master keys are not used to encrypt file contents or names directly.
-Instead, a unique key is derived for each encrypted file, including
-each regular file, directory, and symbolic link.  This has several
-advantages:
+Since each master key can protect many files, it is necessary to
+"tweak" the encryption of each file so that the same plaintext in two
+files doesn't map to the same ciphertext, or vice versa.  In most
+cases, fscrypt does this by deriving per-file keys.  When a new
+encrypted inode (regular file, directory, or symlink) is created,
+fscrypt randomly generates a 16-byte nonce and stores it in the
+inode's encryption xattr.  Then, it uses a KDF (Key Derivation
+Function) to derive the file's key from the master key and nonce.
 
-- In cryptosystems, the same key material should never be used for
-  different purposes.  Using the master key as both an XTS key for
-  contents encryption and as a CTS-CBC key for filenames encryption
-  would violate this rule.
-- Per-file keys simplify the choice of IVs (Initialization Vectors)
-  for contents encryption.  Without per-file keys, to ensure IV
-  uniqueness both the inode and logical block number would need to be
-  encoded in the IVs.  This would make it impossible to renumber
-  inodes, which e.g. ``resize2fs`` can do when resizing an ext4
-  filesystem.  With per-file keys, it is sufficient to encode just the
-  logical block number in the IVs.
-- Per-file keys strengthen the encryption of filenames, where IVs are
-  reused out of necessity.  With a unique key per directory, IV reuse
-  is limited to within a single directory.
-- Per-file keys allow individual files to be securely erased simply by
-  securely erasing their keys.  (Not yet implemented.)
+The Adiantum encryption mode (see `Encryption modes and usage`_) is
+special, since it accepts longer IVs and is suitable for both contents
+and filenames encryption.  For it, a "direct key" option is offered
+where the file's nonce is included in the IVs and the master key is
+used for encryption directly.  This improves performance; however,
+users must not use the same master key for any other encryption mode.
 
-A KDF (Key Derivation Function) is used to derive per-file keys from
-the master key.  This is done instead of wrapping a randomly-generated
-key for each file because it reduces the size of the encryption xattr,
-which for some filesystems makes the xattr more likely to fit in-line
-in the filesystem's inode table.  With a KDF, only a 16-byte nonce is
-required --- long enough to make key reuse extremely unlikely.  A
-wrapped key, on the other hand, would need to be up to 64 bytes ---
-the length of an AES-256-XTS key.  Furthermore, currently there is no
-requirement to support unlocking a file with multiple alternative
-master keys or to support rotating master keys.  Instead, the master
-keys may be wrapped in userspace, e.g. as done by the `fscrypt
-<https://github.com/google/fscrypt>`_ tool.
+Below, the KDF and design considerations are described in more detail.
 
-The current KDF encrypts the master key using the 16-byte nonce as an
-AES-128-ECB key.  The output is used as the derived key.  If the
-output is longer than needed, then it is truncated to the needed
-length.  Truncation is the norm for directories and symlinks, since
-those use the CTS-CBC encryption mode which requires a key half as
-long as that required by the XTS encryption mode.
+The current KDF works by encrypting the master key with AES-128-ECB,
+using the file's nonce as the AES key.  The output is used as the
+derived key.  If the output is longer than needed, then it is
+truncated to the needed length.
 
 Note: this KDF meets the primary security requirement, which is to
 produce unique derived keys that preserve the entropy of the master
@@ -180,6 +161,20 @@ key, assuming that the master key is already a good pseudorandom key.
 However, it is nonstandard and has some problems such as being
 reversible, so it is generally considered to be a mistake!  It may be
 replaced with HKDF or another more standard KDF in the future.
+
+Key derivation was chosen over key wrapping because wrapped keys would
+require larger xattrs which would be less likely to fit in-line in the
+filesystem's inode table, and there didn't appear to be any
+significant advantages to key wrapping.  In particular, currently
+there is no requirement to support unlocking a file with multiple
+alternative master keys or to support rotating master keys.  Instead,
+the master keys may be wrapped in userspace, e.g. as is done by the
+`fscrypt <https://github.com/google/fscrypt>`_ tool.
+
+Including the inode number in the IVs was considered.  However, it was
+rejected as it would have prevented ext4 filesystems from being
+resized, and by itself still wouldn't have been sufficient to prevent
+the same key from being directly reused for both XTS and CTS-CBC.
 
 Encryption modes and usage
 ==========================
@@ -191,54 +186,80 @@ Currently, the following pairs of encryption modes are supported:
 
 - AES-256-XTS for contents and AES-256-CTS-CBC for filenames
 - AES-128-CBC for contents and AES-128-CTS-CBC for filenames
+- Adiantum for both contents and filenames
 
-It is strongly recommended to use AES-256-XTS for contents encryption.
+If unsure, you should use the (AES-256-XTS, AES-256-CTS-CBC) pair.
+
 AES-128-CBC was added only for low-powered embedded devices with
 crypto accelerators such as CAAM or CESA that do not support XTS.
+
+Adiantum is a (primarily) stream cipher-based mode that is fast even
+on CPUs without dedicated crypto instructions.  It's also a true
+wide-block mode, unlike XTS.  It can also eliminate the need to derive
+per-file keys.  However, it depends on the security of two primitives,
+XChaCha12 and AES-256, rather than just one.  See the paper
+"Adiantum: length-preserving encryption for entry-level processors"
+(https://eprint.iacr.org/2018/720.pdf) for more details.  To use
+Adiantum, CONFIG_CRYPTO_ADIANTUM must be enabled.  Also, fast
+implementations of ChaCha and NHPoly1305 should be enabled, e.g.
+CONFIG_CRYPTO_CHACHA20_NEON and CONFIG_CRYPTO_NHPOLY1305_NEON for ARM.
 
 New encryption modes can be added relatively easily, without changes
 to individual filesystems.  However, authenticated encryption (AE)
 modes are not currently supported because of the difficulty of dealing
 with ciphertext expansion.
 
+Contents encryption
+-------------------
+
 For file contents, each filesystem block is encrypted independently.
 Currently, only the case where the filesystem block size is equal to
-the system's page size (usually 4096 bytes) is supported.  With the
-XTS mode of operation (recommended), the logical block number within
-the file is used as the IV.  With the CBC mode of operation (not
-recommended), ESSIV is used; specifically, the IV for CBC is the
-logical block number encrypted with AES-256, where the AES-256 key is
-the SHA-256 hash of the inode's data encryption key.
+the system's page size (usually 4096 bytes) is supported.
 
-For filenames, the full filename is encrypted at once.  Because of the
-requirements to retain support for efficient directory lookups and
-filenames of up to 255 bytes, a constant initialization vector (IV) is
-used.  However, each encrypted directory uses a unique key, which
-limits IV reuse to within a single directory.  Note that IV reuse in
-the context of CTS-CBC encryption means that when the original
-filenames share a common prefix at least as long as the cipher block
-size (16 bytes for AES), the corresponding encrypted filenames will
-also share a common prefix.  This is undesirable; it may be fixed in
-the future by switching to an encryption mode that is a strong
-pseudorandom permutation on arbitrary-length messages, e.g. the HEH
-(Hash-Encrypt-Hash) mode.
+Each block's IV is set to the logical block number within the file as
+a little endian number, except that:
 
-Since filenames are encrypted with the CTS-CBC mode of operation, the
-plaintext and ciphertext filenames need not be multiples of the AES
-block size, i.e. 16 bytes.  However, the minimum size that can be
-encrypted is 16 bytes, so shorter filenames are NUL-padded to 16 bytes
-before being encrypted.  In addition, to reduce leakage of filename
-lengths via their ciphertexts, all filenames are NUL-padded to the
-next 4, 8, 16, or 32-byte boundary (configurable).  32 is recommended
-since this provides the best confidentiality, at the cost of making
-directory entries consume slightly more space.  Note that since NUL
-(``\0``) is not otherwise a valid character in filenames, the padding
-will never produce duplicate plaintexts.
+- With CBC mode encryption, ESSIV is also used.  Specifically, each IV
+  is encrypted with AES-256 where the AES-256 key is the SHA-256 hash
+  of the file's data encryption key.
+
+- In the "direct key" configuration (FS_POLICY_FLAG_DIRECT_KEY set in
+  the fscrypt_policy), the file's nonce is also appended to the IV.
+  Currently this is only allowed with the Adiantum encryption mode.
+
+Filenames encryption
+--------------------
+
+For filenames, each full filename is encrypted at once.  Because of
+the requirements to retain support for efficient directory lookups and
+filenames of up to 255 bytes, the same IV is used for every filename
+in a directory.
+
+However, each encrypted directory still uses a unique key; or
+alternatively (for the "direct key" configuration) has the file's
+nonce included in the IVs.  Thus, IV reuse is limited to within a
+single directory.
+
+With CTS-CBC, the IV reuse means that when the plaintext filenames
+share a common prefix at least as long as the cipher block size (16
+bytes for AES), the corresponding encrypted filenames will also share
+a common prefix.  This is undesirable.  Adiantum does not have this
+weakness, as it is a wide-block encryption mode.
+
+All supported filenames encryption modes accept any plaintext length
+>= 16 bytes; cipher block alignment is not required.  However,
+filenames shorter than 16 bytes are NUL-padded to 16 bytes before
+being encrypted.  In addition, to reduce leakage of filename lengths
+via their ciphertexts, all filenames are NUL-padded to the next 4, 8,
+16, or 32-byte boundary (configurable).  32 is recommended since this
+provides the best confidentiality, at the cost of making directory
+entries consume slightly more space.  Note that since NUL (``\0``) is
+not otherwise a valid character in filenames, the padding will never
+produce duplicate plaintexts.
 
 Symbolic link targets are considered a type of filename and are
-encrypted in the same way as filenames in directory entries.  Each
-symlink also uses a unique key; hence, the hardcoded IV is not a
-problem for symlinks.
+encrypted in the same way as filenames in directory entries, except
+that IV reuse is not a problem as each symlink has its own inode.
 
 User API
 ========
@@ -272,9 +293,13 @@ This structure must be initialized as follows:
   and FS_ENCRYPTION_MODE_AES_256_CTS (4) for
   ``filenames_encryption_mode``.
 
-- ``flags`` must be set to a value from ``<linux/fs.h>`` which
+- ``flags`` must contain a value from ``<linux/fs.h>`` which
   identifies the amount of NUL-padding to use when encrypting
   filenames.  If unsure, use FS_POLICY_FLAGS_PAD_32 (0x3).
+  In addition, if the chosen encryption modes are both
+  FS_ENCRYPTION_MODE_ADIANTUM, this can contain
+  FS_POLICY_FLAG_DIRECT_KEY to specify that the master key should be
+  used directly, without key derivation.
 
 - ``master_key_descriptor`` specifies how to find the master key in
   the keyring; see `Adding keys`_.  It is up to userspace to choose a
@@ -318,9 +343,9 @@ FS_IOC_SET_ENCRYPTION_POLICY can fail with the following errors:
 - ``ENOTEMPTY``: the file is unencrypted and is a nonempty directory
 - ``ENOTTY``: this type of filesystem does not implement encryption
 - ``EOPNOTSUPP``: the kernel was not configured with encryption
-  support for this filesystem, or the filesystem superblock has not
+  support for filesystems, or the filesystem superblock has not
   had encryption enabled on it.  (For example, to use encryption on an
-  ext4 filesystem, CONFIG_EXT4_ENCRYPTION must be enabled in the
+  ext4 filesystem, CONFIG_FS_ENCRYPTION must be enabled in the
   kernel config, and the superblock must have had the "encrypt"
   feature flag enabled using ``tune2fs -O encrypt`` or ``mkfs.ext4 -O
   encrypt``.)
@@ -426,9 +451,17 @@ astute users may notice some differences in behavior:
 - Unencrypted files, or files encrypted with a different encryption
   policy (i.e. different key, modes, or flags), cannot be renamed or
   linked into an encrypted directory; see `Encryption policy
-  enforcement`_.  Attempts to do so will fail with EPERM.  However,
+  enforcement`_.  Attempts to do so will fail with EXDEV.  However,
   encrypted files can be renamed within an encrypted directory, or
   into an unencrypted directory.
+
+  Note: "moving" an unencrypted file into an encrypted directory, e.g.
+  with the `mv` program, is implemented in userspace by a copy
+  followed by a delete.  Be aware that the original unencrypted data
+  may remain recoverable from free space on the disk; prefer to keep
+  all files encrypted from the very beginning.  The `shred` program
+  may be used to overwrite the source files but isn't guaranteed to be
+  effective on all filesystems and storage devices.
 
 - Direct I/O is not supported on encrypted files.  Attempts to use
   direct I/O on such files will fall back to buffered I/O.
@@ -516,7 +549,7 @@ not be encrypted.
 Except for those special files, it is forbidden to have unencrypted
 files, or files encrypted with a different encryption policy, in an
 encrypted directory tree.  Attempts to link or rename such a file into
-an encrypted directory will fail with EPERM.  This is also enforced
+an encrypted directory will fail with EXDEV.  This is also enforced
 during ->lookup() to provide limited protection against offline
 attacks that try to disable or downgrade encryption in known locations
 where applications may later write sensitive data.  It is recommended

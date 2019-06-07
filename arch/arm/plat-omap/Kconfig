@@ -92,7 +92,6 @@ config OMAP_32K_TIMER
 config OMAP3_L2_AUX_SECURE_SAVE_RESTORE
 	bool "OMAP3 HS/EMU save and restore for L2 AUX control register"
 	depends on ARCH_OMAP3 && PM
-	default n
 	help
 	  Without this option, L2 Auxiliary control register contents are
 	  lost during off-mode entry on HS/EMU devices. This feature
@@ -114,16 +113,6 @@ config OMAP_SERIAL_WAKE
 	  Select this option if you want to have your system wake up
 	  to data on the serial RX line. This allows you to wake the
 	  system from serial console.
-
-choice
-	prompt "OMAP PM layer selection"
-	depends on ARCH_OMAP
-	default OMAP_PM_NOOP
-
-config OMAP_PM_NOOP
-	bool "No-op/debug PM layer"
-
-endchoice
 
 endmenu
 

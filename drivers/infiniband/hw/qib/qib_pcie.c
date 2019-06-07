@@ -387,7 +387,7 @@ void qib_pcie_reenable(struct qib_devdata *dd, u16 cmd, u8 iline, u8 cline)
 
 static int qib_pcie_coalesce;
 module_param_named(pcie_coalesce, qib_pcie_coalesce, int, S_IRUGO);
-MODULE_PARM_DESC(pcie_coalesce, "tune PCIe colescing on some Intel chipsets");
+MODULE_PARM_DESC(pcie_coalesce, "tune PCIe coalescing on some Intel chipsets");
 
 /*
  * Enable PCIe completion and data coalescing, on Intel 5x00 and 7300
@@ -597,7 +597,6 @@ qib_pci_resume(struct pci_dev *pdev)
 	struct qib_devdata *dd = pci_get_drvdata(pdev);
 
 	qib_devinfo(pdev, "QIB resume function called\n");
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	/*
 	 * Running jobs will fail, since it's asynchronous
 	 * unlike sysfs-requested reset.   Better than

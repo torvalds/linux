@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Tulip family network device configuration
 #
@@ -113,7 +114,7 @@ config DE4X5
 	  These include the DE425, DE434, DE435, DE450 and DE500 models.  If
 	  you have a network card of this type, say Y.  More specific
 	  information is contained in
-	  <file:Documentation/networking/de4x5.txt>.
+	  <file:Documentation/networking/device_drivers/dec/de4x5.txt>.
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called de4x5.
@@ -137,7 +138,7 @@ config DM9102
 	  This driver is for DM9102(A)/DM9132/DM9801 compatible PCI cards from
 	  Davicom (<http://www.davicom.com.tw/>).  If you have such a network
 	  (Ethernet) card, say Y.  Some information is contained in the file
-	  <file:Documentation/networking/dmfe.txt>.
+	  <file:Documentation/networking/device_drivers/dec/dmfe.txt>.
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called dmfe.

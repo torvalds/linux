@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Digigram miXart soundcards
  *
  * main file with alsa callbacks
  *
  * Copyright (c) 2003 by Digigram <alsa@digigram.com>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 
@@ -182,6 +169,7 @@ static int mixart_set_clock(struct mixart_mgr *mgr,
 	case PIPE_RUNNING:
 		if(rate != 0)
 			break;
+		/* fall through */
 	default:
 		if(rate == 0)
 			return 0; /* nothing to do */
@@ -1219,10 +1207,8 @@ static void snd_mixart_proc_init(struct snd_mixart *chip)
 	struct snd_info_entry *entry;
 
 	/* text interface to read perf and temp meters */
-	if (! snd_card_proc_new(chip->card, "board_info", &entry)) {
-		entry->private_data = chip;
-		entry->c.text.read = snd_mixart_proc_read;
-	}
+	snd_card_ro_proc_new(chip->card, "board_info", chip,
+			     snd_mixart_proc_read);
 
 	if (! snd_card_proc_new(chip->card, "mixart_BA0", &entry)) {
 		entry->content = SNDRV_INFO_CONTENT_DATA;

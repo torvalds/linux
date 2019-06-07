@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014 MediaTek Inc.
  * Author: Hongzhou.Yang <hongzhou.yang@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __PINCTRL_MTK_COMMON_H
@@ -18,6 +10,8 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/regmap.h>
 #include <linux/pinctrl/pinconf-generic.h>
+
+#include "mtk-eint.h"
 
 #define NO_EINT_SUPPORT    255
 #define MT_EDGE_SENSITIVE           0
@@ -258,9 +252,8 @@ struct mtk_pinctrl_devdata {
 	unsigned char  port_shf;
 	unsigned char  port_mask;
 	unsigned char  port_align;
-	struct mtk_eint_offsets eint_offsets;
-	unsigned int	ap_num;
-	unsigned int	db_cnt;
+	struct mtk_eint_hw eint_hw;
+	struct mtk_eint_regs *eint_regs;
 };
 
 struct mtk_pinctrl {
@@ -274,11 +267,7 @@ struct mtk_pinctrl {
 	const char          **grp_names;
 	struct pinctrl_dev      *pctl_dev;
 	const struct mtk_pinctrl_devdata  *devdata;
-	void __iomem		*eint_reg_base;
-	struct irq_domain	*domain;
-	int			*eint_dual_edges;
-	u32 *wake_mask;
-	u32 *cur_mask;
+	struct mtk_eint *eint;
 };
 
 int mtk_pctrl_init(struct platform_device *pdev,

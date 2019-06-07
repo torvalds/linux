@@ -126,7 +126,8 @@ static ssize_t store_gamma_curve(struct device *device,
 
 	mutex_lock(&par->gamma.lock);
 	memcpy(par->gamma.curves, tmp_curves,
-	       par->gamma.num_curves * par->gamma.num_values * sizeof(tmp_curves[0]));
+	       par->gamma.num_curves * par->gamma.num_values *
+	       sizeof(tmp_curves[0]));
 	mutex_unlock(&par->gamma.lock);
 
 	return count;

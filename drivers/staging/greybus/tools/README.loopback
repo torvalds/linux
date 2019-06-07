@@ -79,7 +79,7 @@ Here is the summary of the available options:
    -t     must be one of the test names - sink, transfer or ping
    -i     iteration count - the number of iterations to run the test over
  Optional arguments
-   -S     sysfs location - location for greybus 'endo' entires default /sys/bus/greybus/devices/
+   -S     sysfs location - location for greybus 'endo' entries default /sys/bus/greybus/devices/
    -D     debugfs location - location for loopback debugfs entries default /sys/kernel/debug/gb_loopback/
    -s     size of data packet to send during test - defaults to zero
    -m     mask - a bit mask of connections to include example: -m 8 = 4th connection -m 9 = 1st and 4th connection etc

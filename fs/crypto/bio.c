@@ -26,42 +26,49 @@
 #include <linux/namei.h>
 #include "fscrypt_private.h"
 
-/*
- * Call fscrypt_decrypt_page on every single page, reusing the encryption
- * context.
- */
+static void __fscrypt_decrypt_bio(struct bio *bio, bool done)
+{
+	struct bio_vec *bv;
+	struct bvec_iter_all iter_all;
+
+	bio_for_each_segment_all(bv, bio, iter_all) {
+		struct page *page = bv->bv_page;
+		int ret = fscrypt_decrypt_page(page->mapping->host, page,
+				PAGE_SIZE, 0, page->index);
+
+		if (ret)
+			SetPageError(page);
+		else if (done)
+			SetPageUptodate(page);
+		if (done)
+			unlock_page(page);
+	}
+}
+
+void fscrypt_decrypt_bio(struct bio *bio)
+{
+	__fscrypt_decrypt_bio(bio, false);
+}
+EXPORT_SYMBOL(fscrypt_decrypt_bio);
+
 static void completion_pages(struct work_struct *work)
 {
 	struct fscrypt_ctx *ctx =
 		container_of(work, struct fscrypt_ctx, r.work);
 	struct bio *bio = ctx->r.bio;
-	struct bio_vec *bv;
-	int i;
 
-	bio_for_each_segment_all(bv, bio, i) {
-		struct page *page = bv->bv_page;
-		int ret = fscrypt_decrypt_page(page->mapping->host, page,
-				PAGE_SIZE, 0, page->index);
-
-		if (ret) {
-			WARN_ON_ONCE(1);
-			SetPageError(page);
-		} else {
-			SetPageUptodate(page);
-		}
-		unlock_page(page);
-	}
+	__fscrypt_decrypt_bio(bio, true);
 	fscrypt_release_ctx(ctx);
 	bio_put(bio);
 }
 
-void fscrypt_decrypt_bio_pages(struct fscrypt_ctx *ctx, struct bio *bio)
+void fscrypt_enqueue_decrypt_bio(struct fscrypt_ctx *ctx, struct bio *bio)
 {
 	INIT_WORK(&ctx->r.work, completion_pages);
 	ctx->r.bio = bio;
-	queue_work(fscrypt_read_workqueue, &ctx->r.work);
+	fscrypt_enqueue_decrypt_work(&ctx->r.work);
 }
-EXPORT_SYMBOL(fscrypt_decrypt_bio_pages);
+EXPORT_SYMBOL(fscrypt_enqueue_decrypt_bio);
 
 void fscrypt_pullback_bio_page(struct page **page, bool restore)
 {
@@ -94,7 +101,7 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 
 	BUG_ON(inode->i_sb->s_blocksize != PAGE_SIZE);
 
-	ctx = fscrypt_get_ctx(inode, GFP_NOFS);
+	ctx = fscrypt_get_ctx(GFP_NOFS);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 

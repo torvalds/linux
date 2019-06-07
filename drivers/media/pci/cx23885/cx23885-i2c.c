@@ -1,24 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the Conexant CX23885 PCIe bridge
  *
  *  Copyright (c) 2006 Steven Toth <stoth@linuxtv.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include "cx23885.h"
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <asm/io.h>
@@ -317,7 +306,7 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 	bus->i2c_client = cx23885_i2c_client_template;
 	bus->i2c_adap.dev.parent = &dev->pci->dev;
 
-	strlcpy(bus->i2c_adap.name, bus->dev->name,
+	strscpy(bus->i2c_adap.name, bus->dev->name,
 		sizeof(bus->i2c_adap.name));
 
 	bus->i2c_adap.algo_data = bus;
@@ -340,12 +329,12 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 	/* Instantiate the IR receiver device, if present */
 	if (0 == bus->i2c_rc) {
 		struct i2c_board_info info;
-		const unsigned short addr_list[] = {
+		static const unsigned short addr_list[] = {
 			0x6b, I2C_CLIENT_END
 		};
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
-		strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+		strscpy(info.type, "ir_video", I2C_NAME_SIZE);
 		/* Use quick read command for probe, some IR chips don't
 		 * support writes */
 		i2c_new_probed_device(&bus->i2c_adap, &info, addr_list,

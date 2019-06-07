@@ -25,7 +25,7 @@
 #include "isppreview.h"
 
 /* Default values in Office Fluorescent Light for RGBtoRGB Blending */
-static struct omap3isp_prev_rgbtorgb flr_rgb2rgb = {
+static const struct omap3isp_prev_rgbtorgb flr_rgb2rgb = {
 	{	/* RGB-RGB Matrix */
 		{0x01E2, 0x0F30, 0x0FEE},
 		{0x0F9B, 0x01AC, 0x0FB9},
@@ -35,7 +35,7 @@ static struct omap3isp_prev_rgbtorgb flr_rgb2rgb = {
 };
 
 /* Default values in Office Fluorescent Light for RGB to YUV Conversion*/
-static struct omap3isp_prev_csc flr_prev_csc = {
+static const struct omap3isp_prev_csc flr_prev_csc = {
 	{	/* CSC Coef Matrix */
 		{66, 129, 25},
 		{-38, -75, 112},
@@ -890,7 +890,7 @@ static int preview_config(struct isp_prev_device *prev,
 		params = &prev->params.params[!!(active & bit)];
 
 		if (cfg->flag & bit) {
-			void __user *from = *(void * __user *)
+			void __user *from = *(void __user **)
 				((void *)cfg + attr->config_offset);
 			void *to = (void *)params + attr->param_offset;
 			size_t size = attr->param_size;
@@ -2267,7 +2267,7 @@ static int preview_init_entities(struct isp_prev_device *prev)
 
 	v4l2_subdev_init(sd, &preview_v4l2_ops);
 	sd->internal_ops = &preview_v4l2_internal_ops;
-	strlcpy(sd->name, "OMAP3 ISP preview", sizeof(sd->name));
+	strscpy(sd->name, "OMAP3 ISP preview", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for isp subdevs */
 	v4l2_set_subdevdata(sd, prev);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;

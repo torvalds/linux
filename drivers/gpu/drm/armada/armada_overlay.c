@@ -7,346 +7,469 @@
  * published by the Free Software Foundation.
  */
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/armada_drm.h>
 #include "armada_crtc.h"
 #include "armada_drm.h"
 #include "armada_fb.h"
 #include "armada_gem.h"
 #include "armada_hw.h"
-#include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
+#include "armada_plane.h"
 #include "armada_trace.h"
 
-struct armada_ovl_plane_properties {
-	uint32_t colorkey_yr;
-	uint32_t colorkey_ug;
-	uint32_t colorkey_vb;
-#define K2R(val) (((val) >> 0) & 0xff)
-#define K2G(val) (((val) >> 8) & 0xff)
-#define K2B(val) (((val) >> 16) & 0xff)
-	int16_t  brightness;
-	uint16_t contrast;
-	uint16_t saturation;
-	uint32_t colorkey_mode;
+#define DEFAULT_BRIGHTNESS	0
+#define DEFAULT_CONTRAST	0x4000
+#define DEFAULT_SATURATION	0x4000
+#define DEFAULT_ENCODING	DRM_COLOR_YCBCR_BT601
+
+struct armada_overlay_state {
+	struct drm_plane_state base;
+	u32 colorkey_yr;
+	u32 colorkey_ug;
+	u32 colorkey_vb;
+	u32 colorkey_mode;
+	u32 colorkey_enable;
+	s16 brightness;
+	u16 contrast;
+	u16 saturation;
 };
+#define drm_to_overlay_state(s) \
+	container_of(s, struct armada_overlay_state, base)
 
-struct armada_ovl_plane {
-	struct armada_plane base;
-	struct armada_ovl_plane_properties prop;
-};
-#define drm_to_armada_ovl_plane(p) \
-	container_of(p, struct armada_ovl_plane, base.base)
-
-
-static void
-armada_ovl_update_attr(struct armada_ovl_plane_properties *prop,
-	struct armada_crtc *dcrtc)
+static inline u32 armada_spu_contrast(struct drm_plane_state *state)
 {
-	writel_relaxed(prop->colorkey_yr, dcrtc->base + LCD_SPU_COLORKEY_Y);
-	writel_relaxed(prop->colorkey_ug, dcrtc->base + LCD_SPU_COLORKEY_U);
-	writel_relaxed(prop->colorkey_vb, dcrtc->base + LCD_SPU_COLORKEY_V);
+	return drm_to_overlay_state(state)->brightness << 16 |
+	       drm_to_overlay_state(state)->contrast;
+}
 
-	writel_relaxed(prop->brightness << 16 | prop->contrast,
-		       dcrtc->base + LCD_SPU_CONTRAST);
+static inline u32 armada_spu_saturation(struct drm_plane_state *state)
+{
 	/* Docs say 15:0, but it seems to actually be 31:16 on Armada 510 */
-	writel_relaxed(prop->saturation << 16,
-		       dcrtc->base + LCD_SPU_SATURATION);
-	writel_relaxed(0x00002000, dcrtc->base + LCD_SPU_CBSH_HUE);
+	return drm_to_overlay_state(state)->saturation << 16;
+}
 
-	spin_lock_irq(&dcrtc->irq_lock);
-	armada_updatel(prop->colorkey_mode | CFG_ALPHAM_GRA,
-		     CFG_CKMODE_MASK | CFG_ALPHAM_MASK | CFG_ALPHA_MASK,
-		     dcrtc->base + LCD_SPU_DMA_CTRL1);
-
-	armada_updatel(ADV_GRACOLORKEY, 0, dcrtc->base + LCD_SPU_ADV_REG);
-	spin_unlock_irq(&dcrtc->irq_lock);
+static inline u32 armada_csc(struct drm_plane_state *state)
+{
+	/*
+	 * The CFG_CSC_RGB_* settings control the output of the colour space
+	 * converter, setting the range of output values it produces.  Since
+	 * we will be blending with the full-range graphics, we need to
+	 * produce full-range RGB output from the conversion.
+	 */
+	return CFG_CSC_RGB_COMPUTER |
+	       (state->color_encoding == DRM_COLOR_YCBCR_BT709 ?
+			CFG_CSC_YUV_CCIR709 : CFG_CSC_YUV_CCIR601);
 }
 
 /* === Plane support === */
-static void armada_ovl_plane_work(struct armada_crtc *dcrtc,
-	struct armada_plane_work *work)
+static void armada_drm_overlay_plane_atomic_update(struct drm_plane *plane,
+	struct drm_plane_state *old_state)
 {
-	unsigned long flags;
+	struct drm_plane_state *state = plane->state;
+	struct armada_crtc *dcrtc;
+	struct armada_regs *regs;
+	unsigned int idx;
+	u32 cfg, cfg_mask, val;
 
-	trace_armada_ovl_plane_work(&dcrtc->crtc, work->plane);
+	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
 
-	spin_lock_irqsave(&dcrtc->irq_lock, flags);
-	armada_drm_crtc_update_regs(dcrtc, work->regs);
-	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
-}
+	if (!state->fb || WARN_ON(!state->crtc))
+		return;
 
-static void armada_ovl_plane_update_state(struct drm_plane_state *state,
-	struct armada_regs *regs)
-{
-	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(state->plane);
-	struct armada_framebuffer *dfb = drm_fb_to_armada_fb(state->fb);
-	const struct drm_format_info *format;
-	unsigned int idx = 0;
-	bool fb_changed;
-	u32 val, ctrl0;
-	u16 src_x, src_y;
+	DRM_DEBUG_KMS("[PLANE:%d:%s] is on [CRTC:%d:%s] with [FB:%d] visible %u->%u\n",
+		plane->base.id, plane->name,
+		state->crtc->base.id, state->crtc->name,
+		state->fb->base.id,
+		old_state->visible, state->visible);
 
-	ctrl0 = CFG_DMA_FMT(dfb->fmt) | CFG_DMA_MOD(dfb->mod) | CFG_CBSH_ENA;
-	if (state->visible)
-		ctrl0 |= CFG_DMA_ENA;
-	if (drm_rect_width(&state->src) >> 16 != drm_rect_width(&state->dst))
-		ctrl0 |= CFG_DMA_HSMOOTH;
+	dcrtc = drm_to_armada_crtc(state->crtc);
+	regs = dcrtc->regs + dcrtc->regs_idx;
 
-	/*
-	 * Shifting a YUV packed format image by one pixel causes the U/V
-	 * planes to swap.  Compensate for it by also toggling the UV swap.
-	 */
-	format = dfb->fb.format;
-	if (format->num_planes == 1 && state->src.x1 >> 16 & (format->hsub - 1))
-		ctrl0 ^= CFG_DMA_MOD(CFG_SWAPUV);
-
-	if (~dplane->base.state.ctrl0 & ctrl0 & CFG_DMA_ENA) {
-		/* Power up the Y/U/V FIFOs on ENA 0->1 transitions */
+	idx = 0;
+	if (!old_state->visible && state->visible)
 		armada_reg_queue_mod(regs, idx,
 				     0, CFG_PDWN16x66 | CFG_PDWN32x66,
 				     LCD_SPU_SRAM_PARA1);
-	}
-
-	fb_changed = dplane->base.base.fb != &dfb->fb ||
-		     dplane->base.state.src_x != state->src.x1 >> 16 ||
-	             dplane->base.state.src_y != state->src.y1 >> 16;
-
-	dplane->base.state.vsync_update = fb_changed;
-
+	val = armada_rect_hw_fp(&state->src);
+	if (armada_rect_hw_fp(&old_state->src) != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_HPXL_VLN);
+	val = armada_rect_yx(&state->dst);
+	if (armada_rect_yx(&old_state->dst) != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_OVSA_HPXL_VLN);
+	val = armada_rect_hw(&state->dst);
+	if (armada_rect_hw(&old_state->dst) != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_DZM_HPXL_VLN);
 	/* FIXME: overlay on an interlaced display */
-	if (fb_changed) {
-		u32 addrs[3];
+	if (old_state->src.x1 != state->src.x1 ||
+	    old_state->src.y1 != state->src.y1 ||
+	    old_state->fb != state->fb) {
+		const struct drm_format_info *format;
+		u16 src_x, pitches[3];
+		u32 addrs[2][3];
 
-		dplane->base.state.src_y = src_y = state->src.y1 >> 16;
-		dplane->base.state.src_x = src_x = state->src.x1 >> 16;
+		armada_drm_plane_calc(state, addrs, pitches, false);
 
-		armada_drm_plane_calc_addrs(addrs, &dfb->fb, src_x, src_y);
-
-		armada_reg_queue_set(regs, idx, addrs[0],
+		armada_reg_queue_set(regs, idx, addrs[0][0],
 				     LCD_SPU_DMA_START_ADDR_Y0);
-		armada_reg_queue_set(regs, idx, addrs[1],
+		armada_reg_queue_set(regs, idx, addrs[0][1],
 				     LCD_SPU_DMA_START_ADDR_U0);
-		armada_reg_queue_set(regs, idx, addrs[2],
+		armada_reg_queue_set(regs, idx, addrs[0][2],
 				     LCD_SPU_DMA_START_ADDR_V0);
-		armada_reg_queue_set(regs, idx, addrs[0],
+		armada_reg_queue_set(regs, idx, addrs[1][0],
 				     LCD_SPU_DMA_START_ADDR_Y1);
-		armada_reg_queue_set(regs, idx, addrs[1],
+		armada_reg_queue_set(regs, idx, addrs[1][1],
 				     LCD_SPU_DMA_START_ADDR_U1);
-		armada_reg_queue_set(regs, idx, addrs[2],
+		armada_reg_queue_set(regs, idx, addrs[1][2],
 				     LCD_SPU_DMA_START_ADDR_V1);
 
-		val = dfb->fb.pitches[0] << 16 | dfb->fb.pitches[0];
-		armada_reg_queue_set(regs, idx, val,
-				     LCD_SPU_DMA_PITCH_YC);
-		val = dfb->fb.pitches[1] << 16 | dfb->fb.pitches[2];
-		armada_reg_queue_set(regs, idx, val,
-				     LCD_SPU_DMA_PITCH_UV);
+		val = pitches[0] << 16 | pitches[0];
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_PITCH_YC);
+		val = pitches[1] << 16 | pitches[2];
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_DMA_PITCH_UV);
+
+		cfg = CFG_DMA_FMT(drm_fb_to_armada_fb(state->fb)->fmt) |
+		      CFG_DMA_MOD(drm_fb_to_armada_fb(state->fb)->mod) |
+		      CFG_CBSH_ENA;
+		if (state->visible)
+			cfg |= CFG_DMA_ENA;
+
+		/*
+		 * Shifting a YUV packed format image by one pixel causes the
+		 * U/V planes to swap.  Compensate for it by also toggling
+		 * the UV swap.
+		 */
+		format = state->fb->format;
+		src_x = state->src.x1 >> 16;
+		if (format->num_planes == 1 && src_x & (format->hsub - 1))
+			cfg ^= CFG_DMA_MOD(CFG_SWAPUV);
+		cfg_mask = CFG_CBSH_ENA | CFG_DMAFORMAT |
+			   CFG_DMA_MOD(CFG_SWAPRB | CFG_SWAPUV |
+				       CFG_SWAPYU | CFG_YUV2RGB) |
+			   CFG_DMA_FTOGGLE | CFG_DMA_TSTMODE |
+			   CFG_DMA_ENA;
+	} else if (old_state->visible != state->visible) {
+		cfg = state->visible ? CFG_DMA_ENA : 0;
+		cfg_mask = CFG_DMA_ENA;
+	} else {
+		cfg = cfg_mask = 0;
+	}
+	if (drm_rect_width(&old_state->src) != drm_rect_width(&state->src) ||
+	    drm_rect_width(&old_state->dst) != drm_rect_width(&state->dst)) {
+		cfg_mask |= CFG_DMA_HSMOOTH;
+		if (drm_rect_width(&state->src) >> 16 !=
+		    drm_rect_width(&state->dst))
+			cfg |= CFG_DMA_HSMOOTH;
 	}
 
-	val = (drm_rect_height(&state->src) & 0xffff0000) |
-	       drm_rect_width(&state->src) >> 16;
-	if (dplane->base.state.src_hw != val) {
-		dplane->base.state.src_hw = val;
-		armada_reg_queue_set(regs, idx, val,
-				     LCD_SPU_DMA_HPXL_VLN);
-	}
+	if (cfg_mask)
+		armada_reg_queue_mod(regs, idx, cfg, cfg_mask,
+				     LCD_SPU_DMA_CTRL0);
 
-	val = drm_rect_height(&state->dst) << 16 | drm_rect_width(&state->dst);
-	if (dplane->base.state.dst_hw != val) {
-		dplane->base.state.dst_hw = val;
-		armada_reg_queue_set(regs, idx, val,
-				     LCD_SPU_DZM_HPXL_VLN);
-	}
+	val = armada_spu_contrast(state);
+	if ((!old_state->visible && state->visible) ||
+	    armada_spu_contrast(old_state) != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_CONTRAST);
+	val = armada_spu_saturation(state);
+	if ((!old_state->visible && state->visible) ||
+	    armada_spu_saturation(old_state) != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_SATURATION);
+	if (!old_state->visible && state->visible)
+		armada_reg_queue_set(regs, idx, 0x00002000, LCD_SPU_CBSH_HUE);
+	val = armada_csc(state);
+	if ((!old_state->visible && state->visible) ||
+	    armada_csc(old_state) != val)
+		armada_reg_queue_mod(regs, idx, val, CFG_CSC_MASK,
+				     LCD_SPU_IOPAD_CONTROL);
+	val = drm_to_overlay_state(state)->colorkey_yr;
+	if ((!old_state->visible && state->visible) ||
+	    drm_to_overlay_state(old_state)->colorkey_yr != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_COLORKEY_Y);
+	val = drm_to_overlay_state(state)->colorkey_ug;
+	if ((!old_state->visible && state->visible) ||
+	    drm_to_overlay_state(old_state)->colorkey_ug != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_COLORKEY_U);
+	val = drm_to_overlay_state(state)->colorkey_vb;
+	if ((!old_state->visible && state->visible) ||
+	    drm_to_overlay_state(old_state)->colorkey_vb != val)
+		armada_reg_queue_set(regs, idx, val, LCD_SPU_COLORKEY_V);
+	val = drm_to_overlay_state(state)->colorkey_mode;
+	if ((!old_state->visible && state->visible) ||
+	    drm_to_overlay_state(old_state)->colorkey_mode != val)
+		armada_reg_queue_mod(regs, idx, val, CFG_CKMODE_MASK |
+				     CFG_ALPHAM_MASK | CFG_ALPHA_MASK,
+				     LCD_SPU_DMA_CTRL1);
+	val = drm_to_overlay_state(state)->colorkey_enable;
+	if (((!old_state->visible && state->visible) ||
+	     drm_to_overlay_state(old_state)->colorkey_enable != val) &&
+	    dcrtc->variant->has_spu_adv_reg)
+		armada_reg_queue_mod(regs, idx, val, ADV_GRACOLORKEY |
+				     ADV_VIDCOLORKEY, LCD_SPU_ADV_REG);
 
-	val = state->dst.y1 << 16 | state->dst.x1;
-	if (dplane->base.state.dst_yx != val) {
-		dplane->base.state.dst_yx = val;
-		armada_reg_queue_set(regs, idx, val,
-				     LCD_SPU_DMA_OVSA_HPXL_VLN);
-	}
-
-	if (dplane->base.state.ctrl0 != ctrl0) {
-		dplane->base.state.ctrl0 = ctrl0;
-		armada_reg_queue_mod(regs, idx, ctrl0,
-			CFG_CBSH_ENA | CFG_DMAFORMAT | CFG_DMA_FTOGGLE |
-			CFG_DMA_HSMOOTH | CFG_DMA_TSTMODE |
-			CFG_DMA_MOD(CFG_SWAPRB | CFG_SWAPUV | CFG_SWAPYU |
-			CFG_YUV2RGB) | CFG_DMA_ENA,
-			LCD_SPU_DMA_CTRL0);
-		dplane->base.state.vsync_update = true;
-	}
-
-	dplane->base.state.changed = idx != 0;
-
-	armada_reg_queue_end(regs, idx);
+	dcrtc->regs_idx += idx;
 }
 
+static void armada_drm_overlay_plane_atomic_disable(struct drm_plane *plane,
+	struct drm_plane_state *old_state)
+{
+	struct armada_crtc *dcrtc;
+	struct armada_regs *regs;
+	unsigned int idx = 0;
+
+	DRM_DEBUG_KMS("[PLANE:%d:%s]\n", plane->base.id, plane->name);
+
+	if (!old_state->crtc)
+		return;
+
+	DRM_DEBUG_KMS("[PLANE:%d:%s] was on [CRTC:%d:%s] with [FB:%d]\n",
+		plane->base.id, plane->name,
+		old_state->crtc->base.id, old_state->crtc->name,
+		old_state->fb->base.id);
+
+	dcrtc = drm_to_armada_crtc(old_state->crtc);
+	regs = dcrtc->regs + dcrtc->regs_idx;
+
+	/* Disable plane and power down the YUV FIFOs */
+	armada_reg_queue_mod(regs, idx, 0, CFG_DMA_ENA, LCD_SPU_DMA_CTRL0);
+	armada_reg_queue_mod(regs, idx, CFG_PDWN16x66 | CFG_PDWN32x66, 0,
+			     LCD_SPU_SRAM_PARA1);
+
+	dcrtc->regs_idx += idx;
+}
+
+static const struct drm_plane_helper_funcs armada_overlay_plane_helper_funcs = {
+	.prepare_fb	= armada_drm_plane_prepare_fb,
+	.cleanup_fb	= armada_drm_plane_cleanup_fb,
+	.atomic_check	= armada_drm_plane_atomic_check,
+	.atomic_update	= armada_drm_overlay_plane_atomic_update,
+	.atomic_disable	= armada_drm_overlay_plane_atomic_disable,
+};
+
 static int
-armada_ovl_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
+armada_overlay_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct drm_framebuffer *fb,
 	int crtc_x, int crtc_y, unsigned crtc_w, unsigned crtc_h,
 	uint32_t src_x, uint32_t src_y, uint32_t src_w, uint32_t src_h,
 	struct drm_modeset_acquire_ctx *ctx)
 {
-	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
-	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
-	struct armada_plane_work *work;
-	struct drm_plane_state state = {
-		.plane = plane,
-		.crtc = crtc,
-		.fb = fb,
-		.src_x = src_x,
-		.src_y = src_y,
-		.src_w = src_w,
-		.src_h = src_h,
-		.crtc_x = crtc_x,
-		.crtc_y = crtc_y,
-		.crtc_w = crtc_w,
-		.crtc_h = crtc_h,
-		.rotation = DRM_MODE_ROTATE_0,
-	};
-	struct drm_crtc_state crtc_state = {
-		.crtc = crtc,
-		.enable = crtc->enabled,
-		.mode = crtc->mode,
-	};
-	int ret;
+	struct drm_atomic_state *state;
+	struct drm_plane_state *plane_state;
+	int ret = 0;
 
 	trace_armada_ovl_plane_update(plane, crtc, fb,
 				 crtc_x, crtc_y, crtc_w, crtc_h,
 				 src_x, src_y, src_w, src_h);
 
-	ret = drm_atomic_helper_check_plane_state(&state, &crtc_state, 0,
-						  INT_MAX, true, false);
-	if (ret)
-		return ret;
+	state = drm_atomic_state_alloc(plane->dev);
+	if (!state)
+		return -ENOMEM;
 
-	work = &dplane->base.works[dplane->base.next_work];
-
-	if (plane->fb != fb) {
-		/*
-		 * Take a reference on the new framebuffer - we want to
-		 * hold on to it while the hardware is displaying it.
-		 */
-		drm_framebuffer_reference(fb);
-
-		work->old_fb = plane->fb;
-	} else {
-		work->old_fb = NULL;
+	state->acquire_ctx = ctx;
+	plane_state = drm_atomic_get_plane_state(state, plane);
+	if (IS_ERR(plane_state)) {
+		ret = PTR_ERR(plane_state);
+		goto fail;
 	}
 
-	armada_ovl_plane_update_state(&state, work->regs);
+	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
+	if (ret != 0)
+		goto fail;
 
-	if (!dplane->base.state.changed)
-		return 0;
+	drm_atomic_set_fb_for_plane(plane_state, fb);
+	plane_state->crtc_x = crtc_x;
+	plane_state->crtc_y = crtc_y;
+	plane_state->crtc_h = crtc_h;
+	plane_state->crtc_w = crtc_w;
+	plane_state->src_x = src_x;
+	plane_state->src_y = src_y;
+	plane_state->src_h = src_h;
+	plane_state->src_w = src_w;
 
-	/* Wait for pending work to complete */
-	if (armada_drm_plane_work_wait(&dplane->base, HZ / 25) == 0)
-		armada_drm_plane_work_cancel(dcrtc, &dplane->base);
-
-	/* Just updating the position/size? */
-	if (!dplane->base.state.vsync_update) {
-		armada_ovl_plane_work(dcrtc, work);
-		return 0;
-	}
-
-	if (!dcrtc->plane) {
-		dcrtc->plane = plane;
-		armada_ovl_update_attr(&dplane->prop, dcrtc);
-	}
-
-	/* Queue it for update on the next interrupt if we are enabled */
-	ret = armada_drm_plane_work_queue(dcrtc, work);
-	if (ret)
-		DRM_ERROR("failed to queue plane work: %d\n", ret);
-
-	dplane->base.next_work = !dplane->base.next_work;
-
-	return 0;
+	ret = drm_atomic_nonblocking_commit(state);
+fail:
+	drm_atomic_state_put(state);
+	return ret;
 }
 
 static void armada_ovl_plane_destroy(struct drm_plane *plane)
 {
-	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
-
 	drm_plane_cleanup(plane);
-
-	kfree(dplane);
+	kfree(plane);
 }
 
-static int armada_ovl_plane_set_property(struct drm_plane *plane,
-	struct drm_property *property, uint64_t val)
+static void armada_overlay_reset(struct drm_plane *plane)
+{
+	struct armada_overlay_state *state;
+
+	if (plane->state)
+		__drm_atomic_helper_plane_destroy_state(plane->state);
+	kfree(plane->state);
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state) {
+		state->base.plane = plane;
+		state->base.color_encoding = DEFAULT_ENCODING;
+		state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+		state->base.rotation = DRM_MODE_ROTATE_0;
+		state->colorkey_yr = 0xfefefe00;
+		state->colorkey_ug = 0x01010100;
+		state->colorkey_vb = 0x01010100;
+		state->colorkey_mode = CFG_CKMODE(CKMODE_RGB) |
+				       CFG_ALPHAM_GRA | CFG_ALPHA(0);
+		state->colorkey_enable = ADV_GRACOLORKEY;
+		state->brightness = DEFAULT_BRIGHTNESS;
+		state->contrast = DEFAULT_CONTRAST;
+		state->saturation = DEFAULT_SATURATION;
+	}
+	plane->state = &state->base;
+}
+
+struct drm_plane_state *
+armada_overlay_duplicate_state(struct drm_plane *plane)
+{
+	struct armada_overlay_state *state;
+
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	state = kmemdup(plane->state, sizeof(*state), GFP_KERNEL);
+	if (state)
+		__drm_atomic_helper_plane_duplicate_state(plane, &state->base);
+	return &state->base;
+}
+
+static int armada_overlay_set_property(struct drm_plane *plane,
+	struct drm_plane_state *state, struct drm_property *property,
+	uint64_t val)
 {
 	struct armada_private *priv = plane->dev->dev_private;
-	struct armada_ovl_plane *dplane = drm_to_armada_ovl_plane(plane);
-	bool update_attr = false;
 
+#define K2R(val) (((val) >> 0) & 0xff)
+#define K2G(val) (((val) >> 8) & 0xff)
+#define K2B(val) (((val) >> 16) & 0xff)
 	if (property == priv->colorkey_prop) {
 #define CCC(v) ((v) << 24 | (v) << 16 | (v) << 8)
-		dplane->prop.colorkey_yr = CCC(K2R(val));
-		dplane->prop.colorkey_ug = CCC(K2G(val));
-		dplane->prop.colorkey_vb = CCC(K2B(val));
+		drm_to_overlay_state(state)->colorkey_yr = CCC(K2R(val));
+		drm_to_overlay_state(state)->colorkey_ug = CCC(K2G(val));
+		drm_to_overlay_state(state)->colorkey_vb = CCC(K2B(val));
 #undef CCC
-		update_attr = true;
 	} else if (property == priv->colorkey_min_prop) {
-		dplane->prop.colorkey_yr &= ~0x00ff0000;
-		dplane->prop.colorkey_yr |= K2R(val) << 16;
-		dplane->prop.colorkey_ug &= ~0x00ff0000;
-		dplane->prop.colorkey_ug |= K2G(val) << 16;
-		dplane->prop.colorkey_vb &= ~0x00ff0000;
-		dplane->prop.colorkey_vb |= K2B(val) << 16;
-		update_attr = true;
+		drm_to_overlay_state(state)->colorkey_yr &= ~0x00ff0000;
+		drm_to_overlay_state(state)->colorkey_yr |= K2R(val) << 16;
+		drm_to_overlay_state(state)->colorkey_ug &= ~0x00ff0000;
+		drm_to_overlay_state(state)->colorkey_ug |= K2G(val) << 16;
+		drm_to_overlay_state(state)->colorkey_vb &= ~0x00ff0000;
+		drm_to_overlay_state(state)->colorkey_vb |= K2B(val) << 16;
 	} else if (property == priv->colorkey_max_prop) {
-		dplane->prop.colorkey_yr &= ~0xff000000;
-		dplane->prop.colorkey_yr |= K2R(val) << 24;
-		dplane->prop.colorkey_ug &= ~0xff000000;
-		dplane->prop.colorkey_ug |= K2G(val) << 24;
-		dplane->prop.colorkey_vb &= ~0xff000000;
-		dplane->prop.colorkey_vb |= K2B(val) << 24;
-		update_attr = true;
+		drm_to_overlay_state(state)->colorkey_yr &= ~0xff000000;
+		drm_to_overlay_state(state)->colorkey_yr |= K2R(val) << 24;
+		drm_to_overlay_state(state)->colorkey_ug &= ~0xff000000;
+		drm_to_overlay_state(state)->colorkey_ug |= K2G(val) << 24;
+		drm_to_overlay_state(state)->colorkey_vb &= ~0xff000000;
+		drm_to_overlay_state(state)->colorkey_vb |= K2B(val) << 24;
 	} else if (property == priv->colorkey_val_prop) {
-		dplane->prop.colorkey_yr &= ~0x0000ff00;
-		dplane->prop.colorkey_yr |= K2R(val) << 8;
-		dplane->prop.colorkey_ug &= ~0x0000ff00;
-		dplane->prop.colorkey_ug |= K2G(val) << 8;
-		dplane->prop.colorkey_vb &= ~0x0000ff00;
-		dplane->prop.colorkey_vb |= K2B(val) << 8;
-		update_attr = true;
+		drm_to_overlay_state(state)->colorkey_yr &= ~0x0000ff00;
+		drm_to_overlay_state(state)->colorkey_yr |= K2R(val) << 8;
+		drm_to_overlay_state(state)->colorkey_ug &= ~0x0000ff00;
+		drm_to_overlay_state(state)->colorkey_ug |= K2G(val) << 8;
+		drm_to_overlay_state(state)->colorkey_vb &= ~0x0000ff00;
+		drm_to_overlay_state(state)->colorkey_vb |= K2B(val) << 8;
 	} else if (property == priv->colorkey_alpha_prop) {
-		dplane->prop.colorkey_yr &= ~0x000000ff;
-		dplane->prop.colorkey_yr |= K2R(val);
-		dplane->prop.colorkey_ug &= ~0x000000ff;
-		dplane->prop.colorkey_ug |= K2G(val);
-		dplane->prop.colorkey_vb &= ~0x000000ff;
-		dplane->prop.colorkey_vb |= K2B(val);
-		update_attr = true;
+		drm_to_overlay_state(state)->colorkey_yr &= ~0x000000ff;
+		drm_to_overlay_state(state)->colorkey_yr |= K2R(val);
+		drm_to_overlay_state(state)->colorkey_ug &= ~0x000000ff;
+		drm_to_overlay_state(state)->colorkey_ug |= K2G(val);
+		drm_to_overlay_state(state)->colorkey_vb &= ~0x000000ff;
+		drm_to_overlay_state(state)->colorkey_vb |= K2B(val);
 	} else if (property == priv->colorkey_mode_prop) {
-		dplane->prop.colorkey_mode &= ~CFG_CKMODE_MASK;
-		dplane->prop.colorkey_mode |= CFG_CKMODE(val);
-		update_attr = true;
+		if (val == CKMODE_DISABLE) {
+			drm_to_overlay_state(state)->colorkey_mode =
+				CFG_CKMODE(CKMODE_DISABLE) |
+				CFG_ALPHAM_CFG | CFG_ALPHA(255);
+			drm_to_overlay_state(state)->colorkey_enable = 0;
+		} else {
+			drm_to_overlay_state(state)->colorkey_mode =
+				CFG_CKMODE(val) |
+				CFG_ALPHAM_GRA | CFG_ALPHA(0);
+			drm_to_overlay_state(state)->colorkey_enable =
+				ADV_GRACOLORKEY;
+		}
 	} else if (property == priv->brightness_prop) {
-		dplane->prop.brightness = val - 256;
-		update_attr = true;
+		drm_to_overlay_state(state)->brightness = val - 256;
 	} else if (property == priv->contrast_prop) {
-		dplane->prop.contrast = val;
-		update_attr = true;
+		drm_to_overlay_state(state)->contrast = val;
 	} else if (property == priv->saturation_prop) {
-		dplane->prop.saturation = val;
-		update_attr = true;
+		drm_to_overlay_state(state)->saturation = val;
+	} else {
+		return -EINVAL;
 	}
+	return 0;
+}
 
-	if (update_attr && dplane->base.base.crtc)
-		armada_ovl_update_attr(&dplane->prop,
-				       drm_to_armada_crtc(dplane->base.base.crtc));
+static int armada_overlay_get_property(struct drm_plane *plane,
+	const struct drm_plane_state *state, struct drm_property *property,
+	uint64_t *val)
+{
+	struct armada_private *priv = plane->dev->dev_private;
 
+#define C2K(c,s)	(((c) >> (s)) & 0xff)
+#define R2BGR(r,g,b,s)	(C2K(r,s) << 0 | C2K(g,s) << 8 | C2K(b,s) << 16)
+	if (property == priv->colorkey_prop) {
+		/* Do best-efforts here for this property */
+		*val = R2BGR(drm_to_overlay_state(state)->colorkey_yr,
+			     drm_to_overlay_state(state)->colorkey_ug,
+			     drm_to_overlay_state(state)->colorkey_vb, 16);
+		/* If min != max, or min != val, error out */
+		if (*val != R2BGR(drm_to_overlay_state(state)->colorkey_yr,
+				  drm_to_overlay_state(state)->colorkey_ug,
+				  drm_to_overlay_state(state)->colorkey_vb, 24) ||
+		    *val != R2BGR(drm_to_overlay_state(state)->colorkey_yr,
+				  drm_to_overlay_state(state)->colorkey_ug,
+				  drm_to_overlay_state(state)->colorkey_vb, 8))
+			return -EINVAL;
+	} else if (property == priv->colorkey_min_prop) {
+		*val = R2BGR(drm_to_overlay_state(state)->colorkey_yr,
+			     drm_to_overlay_state(state)->colorkey_ug,
+			     drm_to_overlay_state(state)->colorkey_vb, 16);
+	} else if (property == priv->colorkey_max_prop) {
+		*val = R2BGR(drm_to_overlay_state(state)->colorkey_yr,
+			     drm_to_overlay_state(state)->colorkey_ug,
+			     drm_to_overlay_state(state)->colorkey_vb, 24);
+	} else if (property == priv->colorkey_val_prop) {
+		*val = R2BGR(drm_to_overlay_state(state)->colorkey_yr,
+			     drm_to_overlay_state(state)->colorkey_ug,
+			     drm_to_overlay_state(state)->colorkey_vb, 8);
+	} else if (property == priv->colorkey_alpha_prop) {
+		*val = R2BGR(drm_to_overlay_state(state)->colorkey_yr,
+			     drm_to_overlay_state(state)->colorkey_ug,
+			     drm_to_overlay_state(state)->colorkey_vb, 0);
+	} else if (property == priv->colorkey_mode_prop) {
+		*val = (drm_to_overlay_state(state)->colorkey_mode &
+			CFG_CKMODE_MASK) >> ffs(CFG_CKMODE_MASK);
+	} else if (property == priv->brightness_prop) {
+		*val = drm_to_overlay_state(state)->brightness + 256;
+	} else if (property == priv->contrast_prop) {
+		*val = drm_to_overlay_state(state)->contrast;
+	} else if (property == priv->saturation_prop) {
+		*val = drm_to_overlay_state(state)->saturation;
+	} else {
+		return -EINVAL;
+	}
 	return 0;
 }
 
 static const struct drm_plane_funcs armada_ovl_plane_funcs = {
-	.update_plane	= armada_ovl_plane_update,
-	.disable_plane	= armada_drm_plane_disable,
+	.update_plane	= armada_overlay_plane_update,
+	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy	= armada_ovl_plane_destroy,
-	.set_property	= armada_ovl_plane_set_property,
+	.reset		= armada_overlay_reset,
+	.atomic_duplicate_state = armada_overlay_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
+	.atomic_set_property = armada_overlay_set_property,
+	.atomic_get_property = armada_overlay_get_property,
 };
 
 static const uint32_t armada_ovl_formats[] = {
@@ -419,46 +542,31 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 {
 	struct armada_private *priv = dev->dev_private;
 	struct drm_mode_object *mobj;
-	struct armada_ovl_plane *dplane;
+	struct drm_plane *overlay;
 	int ret;
 
 	ret = armada_overlay_create_properties(dev);
 	if (ret)
 		return ret;
 
-	dplane = kzalloc(sizeof(*dplane), GFP_KERNEL);
-	if (!dplane)
+	overlay = kzalloc(sizeof(*overlay), GFP_KERNEL);
+	if (!overlay)
 		return -ENOMEM;
 
-	ret = armada_drm_plane_init(&dplane->base);
-	if (ret) {
-		kfree(dplane);
-		return ret;
-	}
+	drm_plane_helper_add(overlay, &armada_overlay_plane_helper_funcs);
 
-	dplane->base.works[0].fn = armada_ovl_plane_work;
-	dplane->base.works[1].fn = armada_ovl_plane_work;
-
-	ret = drm_universal_plane_init(dev, &dplane->base.base, crtcs,
+	ret = drm_universal_plane_init(dev, overlay, crtcs,
 				       &armada_ovl_plane_funcs,
 				       armada_ovl_formats,
 				       ARRAY_SIZE(armada_ovl_formats),
 				       NULL,
 				       DRM_PLANE_TYPE_OVERLAY, NULL);
 	if (ret) {
-		kfree(dplane);
+		kfree(overlay);
 		return ret;
 	}
 
-	dplane->prop.colorkey_yr = 0xfefefe00;
-	dplane->prop.colorkey_ug = 0x01010100;
-	dplane->prop.colorkey_vb = 0x01010100;
-	dplane->prop.colorkey_mode = CFG_CKMODE(CKMODE_RGB);
-	dplane->prop.brightness = 0;
-	dplane->prop.contrast = 0x4000;
-	dplane->prop.saturation = 0x4000;
-
-	mobj = &dplane->base.base.base;
+	mobj = &overlay->base;
 	drm_object_attach_property(mobj, priv->colorkey_prop,
 				   0x0101fe);
 	drm_object_attach_property(mobj, priv->colorkey_min_prop,
@@ -471,11 +579,19 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 				   0x000000);
 	drm_object_attach_property(mobj, priv->colorkey_mode_prop,
 				   CKMODE_RGB);
-	drm_object_attach_property(mobj, priv->brightness_prop, 256);
+	drm_object_attach_property(mobj, priv->brightness_prop,
+				   256 + DEFAULT_BRIGHTNESS);
 	drm_object_attach_property(mobj, priv->contrast_prop,
-				   dplane->prop.contrast);
+				   DEFAULT_CONTRAST);
 	drm_object_attach_property(mobj, priv->saturation_prop,
-				   dplane->prop.saturation);
+				   DEFAULT_SATURATION);
 
-	return 0;
+	ret = drm_plane_create_color_properties(overlay,
+						BIT(DRM_COLOR_YCBCR_BT601) |
+						BIT(DRM_COLOR_YCBCR_BT709),
+						BIT(DRM_COLOR_YCBCR_LIMITED_RANGE),
+						DEFAULT_ENCODING,
+						DRM_COLOR_YCBCR_LIMITED_RANGE);
+
+	return ret;
 }

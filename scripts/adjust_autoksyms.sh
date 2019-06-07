@@ -39,14 +39,7 @@ case "$KBUILD_VERBOSE" in
 esac
 
 # We need access to CONFIG_ symbols
-case "${KCONFIG_CONFIG}" in
-*/*)
-	. "${KCONFIG_CONFIG}"
-	;;
-*)
-	# Force using a file from the current directory
-	. "./${KCONFIG_CONFIG}"
-esac
+. include/config/auto.conf
 
 # Generate a new ksym list file with symbols needed by the current
 # set of modules.
@@ -61,9 +54,6 @@ for mod in "$MODVERDIR"/*.mod; do
 	sed -n -e '3{s/ /\n/g;/^$/!p;}' "$mod"
 done | sort -u |
 while read sym; do
-	if [ -n "$CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX" ]; then
-		sym="${sym#_}"
-	fi
 	echo "#define __KSYM_${sym} 1"
 done >> "$new_ksyms_file"
 

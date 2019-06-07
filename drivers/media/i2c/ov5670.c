@@ -2016,7 +2016,7 @@ static int ov5670_set_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/* V4L2 controls values will be applied only when power is already up */
-	if (pm_runtime_get_if_in_use(&client->dev) <= 0)
+	if (!pm_runtime_get_if_in_use(&client->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -2504,10 +2504,9 @@ static int ov5670_probe(struct i2c_client *client)
 	 * Device is already turned on by i2c-core with ACPI domain PM.
 	 * Enable runtime PM and turn off the device.
 	 */
-	pm_runtime_get_noresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
-	pm_runtime_put(&client->dev);
+	pm_runtime_idle(&client->dev);
 
 	return 0;
 
@@ -2536,14 +2535,7 @@ static int ov5670_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	mutex_destroy(&ov5670->mutex);
 
-	/*
-	 * Disable runtime PM but keep the device turned on.
-	 * i2c-core with ACPI domain PM will turn off the device.
-	 */
-	pm_runtime_get_sync(&client->dev);
 	pm_runtime_disable(&client->dev);
-	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
 
 	return 0;
 }

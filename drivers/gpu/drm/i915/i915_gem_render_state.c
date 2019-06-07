@@ -42,7 +42,7 @@ struct intel_render_state {
 static const struct intel_renderstate_rodata *
 render_state_get_rodata(const struct intel_engine_cs *engine)
 {
-	if (engine->id != RCS)
+	if (engine->id != RCS0)
 		return NULL;
 
 	switch (INTEL_GEN(engine->i915)) {
@@ -164,7 +164,7 @@ static int render_state_setup(struct intel_render_state *so,
 		drm_clflush_virt_range(d, i * sizeof(u32));
 	kunmap_atomic(d);
 
-	ret = i915_gem_object_set_to_gtt_domain(so->obj, false);
+	ret = 0;
 out:
 	i915_gem_obj_finish_shmem_access(so->obj);
 	return ret;
@@ -194,7 +194,7 @@ int i915_gem_render_state_emit(struct i915_request *rq)
 	if (IS_ERR(so.obj))
 		return PTR_ERR(so.obj);
 
-	so.vma = i915_vma_instance(so.obj, &engine->i915->ggtt.base, NULL);
+	so.vma = i915_vma_instance(so.obj, &engine->i915->ggtt.vm, NULL);
 	if (IS_ERR(so.vma)) {
 		err = PTR_ERR(so.vma);
 		goto err_obj;
@@ -222,7 +222,7 @@ int i915_gem_render_state_emit(struct i915_request *rq)
 			goto err_unpin;
 	}
 
-	i915_vma_move_to_active(so.vma, rq, 0);
+	err = i915_vma_move_to_active(so.vma, rq, 0);
 err_unpin:
 	i915_vma_unpin(so.vma);
 err_vma:

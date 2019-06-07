@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This file contains assembly-language implementations
  * of IP-style 1's complement checksum routines.
  *	
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  * Severely hacked about by Paul Mackerras (paulus@cs.anu.edu.au).
  */
@@ -47,16 +43,25 @@ _GLOBAL(__csum_partial)
 	bdnz	2b
 21:	srwi.	r6,r4,4		/* # blocks of 4 words to do */
 	beq	3f
+	lwz	r0,4(r3)
 	mtctr	r6
-22:	lwz	r0,4(r3)
 	lwz	r6,8(r3)
-	lwz	r7,12(r3)
-	lwzu	r8,16(r3)
 	adde	r5,r5,r0
+	lwz	r7,12(r3)
 	adde	r5,r5,r6
+	lwzu	r8,16(r3)
 	adde	r5,r5,r7
+	bdz	23f
+22:	lwz	r0,4(r3)
 	adde	r5,r5,r8
+	lwz	r6,8(r3)
+	adde	r5,r5,r0
+	lwz	r7,12(r3)
+	adde	r5,r5,r6
+	lwzu	r8,16(r3)
+	adde	r5,r5,r7
 	bdnz	22b
+23:	adde	r5,r5,r8
 3:	andi.	r0,r4,2
 	beq+	4f
 	lhz	r0,4(r3)
@@ -293,3 +298,36 @@ dst_error:
 	EX_TABLE(51b, dst_error);
 
 EXPORT_SYMBOL(csum_partial_copy_generic)
+
+/*
+ * __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+ *			   const struct in6_addr *daddr,
+ *			   __u32 len, __u8 proto, __wsum sum)
+ */
+
+_GLOBAL(csum_ipv6_magic)
+	lwz	r8, 0(r3)
+	lwz	r9, 4(r3)
+	addc	r0, r7, r8
+	lwz	r10, 8(r3)
+	adde	r0, r0, r9
+	lwz	r11, 12(r3)
+	adde	r0, r0, r10
+	lwz	r8, 0(r4)
+	adde	r0, r0, r11
+	lwz	r9, 4(r4)
+	adde	r0, r0, r8
+	lwz	r10, 8(r4)
+	adde	r0, r0, r9
+	lwz	r11, 12(r4)
+	adde	r0, r0, r10
+	add	r5, r5, r6	/* assumption: len + proto doesn't carry */
+	adde	r0, r0, r11
+	adde	r0, r0, r5
+	addze	r0, r0
+	rotlwi	r3, r0, 16
+	add	r3, r0, r3
+	not	r3, r3
+	rlwinm	r3, r3, 16, 16, 31
+	blr
+EXPORT_SYMBOL(csum_ipv6_magic)

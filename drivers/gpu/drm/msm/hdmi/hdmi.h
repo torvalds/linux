@@ -245,6 +245,7 @@ void msm_hdmi_bridge_destroy(struct drm_bridge *bridge);
 
 void msm_hdmi_connector_irq(struct drm_connector *connector);
 struct drm_connector *msm_hdmi_connector_init(struct hdmi *hdmi);
+int msm_hdmi_hpd_enable(struct drm_connector *connector);
 
 /*
  * i2c adapter for ddc:

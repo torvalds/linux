@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Marvell 88E6xxx Switch Global 2 Registers support
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (c) 2016-2017 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _MV88E6XXX_GLOBAL2_H
@@ -60,7 +56,8 @@
 #define MV88E6XXX_G2_DEVICE_MAPPING		0x06
 #define MV88E6XXX_G2_DEVICE_MAPPING_UPDATE	0x8000
 #define MV88E6XXX_G2_DEVICE_MAPPING_DEV_MASK	0x1f00
-#define MV88E6XXX_G2_DEVICE_MAPPING_PORT_MASK	0x000f
+#define MV88E6352_G2_DEVICE_MAPPING_PORT_MASK	0x000f
+#define MV88E6390_G2_DEVICE_MAPPING_PORT_MASK	0x001f
 
 /* Offset 0x07: Trunk Mask Table Register */
 #define MV88E6XXX_G2_TRUNK_MASK			0x07
@@ -159,6 +156,7 @@
 #define MV88E6390_G2_AVB_CMD_OP_WRITE		0x6000
 #define MV88E6352_G2_AVB_CMD_PORT_MASK		0x0f00
 #define MV88E6352_G2_AVB_CMD_PORT_TAIGLOBAL	0xe
+#define MV88E6165_G2_AVB_CMD_PORT_PTPGLOBAL	0xf
 #define MV88E6352_G2_AVB_CMD_PORT_PTPGLOBAL	0xf
 #define MV88E6390_G2_AVB_CMD_PORT_MASK		0x1f00
 #define MV88E6390_G2_AVB_CMD_PORT_TAIGLOBAL	0x1e
@@ -313,7 +311,6 @@ int mv88e6xxx_g2_pvt_write(struct mv88e6xxx_chip *chip, int src_dev,
 			   int src_port, u16 data);
 int mv88e6xxx_g2_misc_4_bit_port(struct mv88e6xxx_chip *chip);
 
-int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip);
 int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip);
 
@@ -327,9 +324,15 @@ int mv88e6352_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
 
 int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip);
 
+int mv88e6xxx_g2_trunk_clear(struct mv88e6xxx_chip *chip);
+
+int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip, int target,
+				      int port);
+
 extern const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops;
 extern const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops;
 
+extern const struct mv88e6xxx_avb_ops mv88e6165_avb_ops;
 extern const struct mv88e6xxx_avb_ops mv88e6352_avb_ops;
 extern const struct mv88e6xxx_avb_ops mv88e6390_avb_ops;
 
@@ -441,11 +444,6 @@ static inline int mv88e6xxx_g2_misc_4_bit_port(struct mv88e6xxx_chip *chip)
 	return -EOPNOTSUPP;
 }
 
-static inline int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip)
-{
-	return -EOPNOTSUPP;
-}
-
 static inline int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 {
 	return -EOPNOTSUPP;
@@ -484,6 +482,7 @@ static inline int mv88e6xxx_g2_pot_clear(struct mv88e6xxx_chip *chip)
 static const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops = {};
 static const struct mv88e6xxx_irq_ops mv88e6390_watchdog_ops = {};
 
+static const struct mv88e6xxx_avb_ops mv88e6165_avb_ops = {};
 static const struct mv88e6xxx_avb_ops mv88e6352_avb_ops = {};
 static const struct mv88e6xxx_avb_ops mv88e6390_avb_ops = {};
 
@@ -491,6 +490,17 @@ static const struct mv88e6xxx_gpio_ops mv88e6352_gpio_ops = {};
 
 static inline int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 						    bool external)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int mv88e6xxx_g2_trunk_clear(struct mv88e6xxx_chip *chip)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip,
+						    int target, int port)
 {
 	return -EOPNOTSUPP;
 }

@@ -93,10 +93,10 @@ struct r10conf {
 						   */
 	wait_queue_head_t	wait_barrier;
 
-	mempool_t		*r10bio_pool;
-	mempool_t		*r10buf_pool;
+	mempool_t		r10bio_pool;
+	mempool_t		r10buf_pool;
 	struct page		*tmppage;
-	struct bio_set		*bio_split;
+	struct bio_set		bio_split;
 
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.

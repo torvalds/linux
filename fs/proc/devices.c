@@ -51,21 +51,9 @@ static const struct seq_operations devinfo_ops = {
 	.show  = devinfo_show
 };
 
-static int devinfo_open(struct inode *inode, struct file *filp)
-{
-	return seq_open(filp, &devinfo_ops);
-}
-
-static const struct file_operations proc_devinfo_operations = {
-	.open		= devinfo_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 static int __init proc_devices_init(void)
 {
-	proc_create("devices", 0, NULL, &proc_devinfo_operations);
+	proc_create_seq("devices", 0, NULL, &devinfo_ops);
 	return 0;
 }
 fs_initcall(proc_devices_init);

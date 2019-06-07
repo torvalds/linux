@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2006,2007 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2006,2007 Eugene Konev <ejka@openwrt.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/init.h>
@@ -683,7 +670,7 @@ static int __init ar7_register_devices(void)
 
 	if (ar7_has_high_cpmac()) {
 		res = fixed_phy_add(PHY_POLL, cpmac_high.id,
-				    &fixed_phy_status, -1);
+				    &fixed_phy_status);
 		if (!res) {
 			cpmac_get_mac(1, cpmac_high_data.dev_addr);
 
@@ -696,7 +683,7 @@ static int __init ar7_register_devices(void)
 	} else
 		cpmac_low_data.phy_mask = 0xffffffff;
 
-	res = fixed_phy_add(PHY_POLL, cpmac_low.id, &fixed_phy_status, -1);
+	res = fixed_phy_add(PHY_POLL, cpmac_low.id, &fixed_phy_status);
 	if (!res) {
 		cpmac_get_mac(0, cpmac_low_data.dev_addr);
 		res = platform_device_register(&cpmac_low);

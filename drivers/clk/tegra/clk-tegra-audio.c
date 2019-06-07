@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012, 2013, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/io.h>
@@ -49,8 +38,6 @@ struct tegra_sync_source_initdata {
 #define SYNC(_name) \
 	{\
 		.name		= #_name,\
-		.rate		= 24000000,\
-		.max_rate	= 24000000,\
 		.clk_id		= tegra_clk_ ## _name,\
 	}
 
@@ -176,7 +163,7 @@ static void __init tegra_audio_sync_clk_init(void __iomem *clk_base,
 void __init tegra_audio_clk_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
 			struct tegra_audio_clk_info *audio_info,
-			unsigned int num_plls)
+			unsigned int num_plls, unsigned long sync_max_rate)
 {
 	struct clk *clk;
 	struct clk **dt_clk;
@@ -221,8 +208,7 @@ void __init tegra_audio_clk_init(void __iomem *clk_base,
 		if (!dt_clk)
 			continue;
 
-		clk = tegra_clk_register_sync_source(data->name,
-					data->rate, data->max_rate);
+		clk = tegra_clk_register_sync_source(data->name, sync_max_rate);
 		*dt_clk = clk;
 	}
 

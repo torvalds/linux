@@ -39,7 +39,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <asm/mach-au1x00/au1000.h>
 
@@ -55,7 +55,7 @@ static struct {
 	int queue;
 	int default_ticks;
 	unsigned long inuse;
-	unsigned gpio;
+	struct gpio_desc *gpiod;
 	unsigned int gstate;
 } mtx1_wdt_device;
 
@@ -67,7 +67,7 @@ static void mtx1_wdt_trigger(struct timer_list *unused)
 
 	/* toggle wdt gpio */
 	mtx1_wdt_device.gstate = !mtx1_wdt_device.gstate;
-	gpio_set_value(mtx1_wdt_device.gpio, mtx1_wdt_device.gstate);
+	gpiod_set_value(mtx1_wdt_device.gpiod, mtx1_wdt_device.gstate);
 
 	if (mtx1_wdt_device.queue && ticks)
 		mod_timer(&mtx1_wdt_device.timer, jiffies + MTX1_WDT_INTERVAL);
@@ -90,7 +90,7 @@ static void mtx1_wdt_start(void)
 	if (!mtx1_wdt_device.queue) {
 		mtx1_wdt_device.queue = 1;
 		mtx1_wdt_device.gstate = 1;
-		gpio_set_value(mtx1_wdt_device.gpio, 1);
+		gpiod_set_value(mtx1_wdt_device.gpiod, 1);
 		mod_timer(&mtx1_wdt_device.timer, jiffies + MTX1_WDT_INTERVAL);
 	}
 	mtx1_wdt_device.running++;
@@ -105,7 +105,7 @@ static int mtx1_wdt_stop(void)
 	if (mtx1_wdt_device.queue) {
 		mtx1_wdt_device.queue = 0;
 		mtx1_wdt_device.gstate = 0;
-		gpio_set_value(mtx1_wdt_device.gpio, 0);
+		gpiod_set_value(mtx1_wdt_device.gpiod, 0);
 	}
 	ticks = mtx1_wdt_device.default_ticks;
 	spin_unlock_irqrestore(&mtx1_wdt_device.lock, flags);
@@ -118,7 +118,7 @@ static int mtx1_wdt_open(struct inode *inode, struct file *file)
 {
 	if (test_and_set_bit(0, &mtx1_wdt_device.inuse))
 		return -EBUSY;
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 
@@ -198,12 +198,11 @@ static int mtx1_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	mtx1_wdt_device.gpio = pdev->resource[0].start;
-	ret = devm_gpio_request_one(&pdev->dev, mtx1_wdt_device.gpio,
-				GPIOF_OUT_INIT_HIGH, "mtx1-wdt");
-	if (ret < 0) {
+	mtx1_wdt_device.gpiod = devm_gpiod_get(&pdev->dev,
+					       NULL, GPIOD_OUT_HIGH);
+	if (IS_ERR(mtx1_wdt_device.gpiod)) {
 		dev_err(&pdev->dev, "failed to request gpio");
-		return ret;
+		return PTR_ERR(mtx1_wdt_device.gpiod);
 	}
 
 	spin_lock_init(&mtx1_wdt_device.lock);

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 # Ignore header name
 ignore define _LINUX_LIRC_H
 
@@ -58,6 +60,10 @@ ignore symbol RC_PROTO_SHARP
 ignore symbol RC_PROTO_XMP
 ignore symbol RC_PROTO_CEC
 ignore symbol RC_PROTO_IMON
+ignore symbol RC_PROTO_RCMM12
+ignore symbol RC_PROTO_RCMM24
+ignore symbol RC_PROTO_RCMM32
+ignore symbol RC_PROTO_XBOX_DVD
 
 # Undocumented macros
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OLPC-specific OFW device tree support code.
  *
@@ -9,17 +10,11 @@
  *
  *  Adapted for sparc by David S. Miller davem@davemloft.net
  *  Adapted for x86/OLPC by Andres Salomon <dilinger@queued.net>
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
 #include <linux/of_pdt.h>
 #include <asm/olpc.h>
 #include <asm/olpc_ofw.h>
@@ -141,7 +136,10 @@ void * __init prom_early_alloc(unsigned long size)
 		 * fast enough on the platforms we care about while minimizing
 		 * wasted bootmem) and hand off chunks of it to callers.
 		 */
-		res = alloc_bootmem(chunk_size);
+		res = memblock_alloc(chunk_size, SMP_CACHE_BYTES);
+		if (!res)
+			panic("%s: Failed to allocate %zu bytes\n", __func__,
+			      chunk_size);
 		BUG_ON(!res);
 		prom_early_allocated += chunk_size;
 		memset(res, 0, chunk_size);
@@ -218,10 +216,26 @@ static u32 __init olpc_dt_get_board_revision(void)
 	return be32_to_cpu(rev);
 }
 
+int olpc_dt_compatible_match(phandle node, const char *compat)
+{
+	char buf[64], *p;
+	int plen, len;
+
+	plen = olpc_dt_getproperty(node, "compatible", buf, sizeof(buf));
+	if (plen <= 0)
+		return 0;
+
+	len = strlen(compat);
+	for (p = buf; p < buf + plen; p += strlen(p) + 1) {
+		if (strcmp(p, compat) == 0)
+			return 1;
+	}
+
+	return 0;
+}
+
 void __init olpc_dt_fixup(void)
 {
-	int r;
-	char buf[64];
 	phandle node;
 	u32 board_rev;
 
@@ -229,41 +243,66 @@ void __init olpc_dt_fixup(void)
 	if (!node)
 		return;
 
-	/*
-	 * If the battery node has a compatible property, we are running a new
-	 * enough firmware and don't have fixups to make.
-	 */
-	r = olpc_dt_getproperty(node, "compatible", buf, sizeof(buf));
-	if (r > 0)
-		return;
-
-	pr_info("PROM DT: Old firmware detected, applying fixes\n");
-
-	/* Add olpc,xo1-battery compatible marker to battery node */
-	olpc_dt_interpret("\" /battery@0\" find-device"
-		" \" olpc,xo1-battery\" +compatible"
-		" device-end");
-
 	board_rev = olpc_dt_get_board_revision();
 	if (!board_rev)
 		return;
 
 	if (board_rev >= olpc_board_pre(0xd0)) {
-		/* XO-1.5: add dcon device */
-		olpc_dt_interpret("\" /pci/display@1\" find-device"
-			" new-device"
-			" \" dcon\" device-name \" olpc,xo1-dcon\" +compatible"
-			" finish-device device-end");
+		/* XO-1.5 */
+
+		if (olpc_dt_compatible_match(node, "olpc,xo1.5-battery"))
+			return;
+
+		/* Add olpc,xo1.5-battery compatible marker to battery node */
+		olpc_dt_interpret("\" /battery@0\" find-device");
+		olpc_dt_interpret("  \" olpc,xo1.5-battery\" +compatible");
+		olpc_dt_interpret("device-end");
+
+		if (olpc_dt_compatible_match(node, "olpc,xo1-battery")) {
+			/*
+			 * If we have a olpc,xo1-battery compatible, then we're
+			 * running a new enough firmware that already has
+			 * the dcon node.
+			 */
+			return;
+		}
+
+		/* Add dcon device */
+		olpc_dt_interpret("\" /pci/display@1\" find-device");
+		olpc_dt_interpret("  new-device");
+		olpc_dt_interpret("    \" dcon\" device-name");
+		olpc_dt_interpret("    \" olpc,xo1-dcon\" +compatible");
+		olpc_dt_interpret("  finish-device");
+		olpc_dt_interpret("device-end");
 	} else {
-		/* XO-1: add dcon device, mark RTC as olpc,xo1-rtc */
-		olpc_dt_interpret("\" /pci/display@1,1\" find-device"
-			" new-device"
-			" \" dcon\" device-name \" olpc,xo1-dcon\" +compatible"
-			" finish-device device-end"
-			" \" /rtc\" find-device"
-			" \" olpc,xo1-rtc\" +compatible"
-			" device-end");
+		/* XO-1 */
+
+		if (olpc_dt_compatible_match(node, "olpc,xo1-battery")) {
+			/*
+			 * If we have a olpc,xo1-battery compatible, then we're
+			 * running a new enough firmware that already has
+			 * the dcon and RTC nodes.
+			 */
+			return;
+		}
+
+		/* Add dcon device, mark RTC as olpc,xo1-rtc */
+		olpc_dt_interpret("\" /pci/display@1,1\" find-device");
+		olpc_dt_interpret("  new-device");
+		olpc_dt_interpret("    \" dcon\" device-name");
+		olpc_dt_interpret("    \" olpc,xo1-dcon\" +compatible");
+		olpc_dt_interpret("  finish-device");
+		olpc_dt_interpret("device-end");
+
+		olpc_dt_interpret("\" /rtc\" find-device");
+		olpc_dt_interpret(" \" olpc,xo1-rtc\" +compatible");
+		olpc_dt_interpret("device-end");
 	}
+
+	/* Add olpc,xo1-battery compatible marker to battery node */
+	olpc_dt_interpret("\" /battery@0\" find-device");
+	olpc_dt_interpret("  \" olpc,xo1-battery\" +compatible");
+	olpc_dt_interpret("device-end");
 }
 
 void __init olpc_dt_build_devicetree(void)
@@ -285,20 +324,3 @@ void __init olpc_dt_build_devicetree(void)
 	pr_info("PROM DT: Built device tree with %u bytes of memory.\n",
 			prom_early_allocated);
 }
-
-/* A list of DT node/bus matches that we want to expose as platform devices */
-static struct of_device_id __initdata of_ids[] = {
-	{ .compatible = "olpc,xo1-battery" },
-	{ .compatible = "olpc,xo1-dcon" },
-	{ .compatible = "olpc,xo1-rtc" },
-	{},
-};
-
-static int __init olpc_create_platform_devices(void)
-{
-	if (machine_is_olpc())
-		return of_platform_bus_probe(NULL, of_ids, NULL);
-	else
-		return 0;
-}
-device_initcall(olpc_create_platform_devices);

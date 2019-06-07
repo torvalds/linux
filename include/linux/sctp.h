@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* SCTP kernel reference Implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -9,22 +10,6 @@
  * This file is part of the SCTP kernel reference Implementation
  *
  * Various protocol defined structures.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -799,6 +784,13 @@ struct sctp_strreset_resptsn {
 	__be32 result;
 	__be32 senders_next_tsn;
 	__be32 receivers_next_tsn;
+};
+
+enum {
+	SCTP_DSCP_SET_MASK = 0x1,
+	SCTP_DSCP_VAL_MASK = 0xfc,
+	SCTP_FLOWLABEL_SET_MASK = 0x100000,
+	SCTP_FLOWLABEL_VAL_MASK = 0xfffff
 };
 
 #endif /* __LINUX_SCTP_H__ */

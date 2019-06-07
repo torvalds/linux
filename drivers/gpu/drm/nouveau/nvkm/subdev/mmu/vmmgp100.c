@@ -21,11 +21,89 @@
  */
 #include "vmm.h"
 
+#include <core/client.h>
 #include <subdev/fb.h>
 #include <subdev/ltc.h>
+#include <subdev/timer.h>
+#include <engine/gr.h>
 
 #include <nvif/ifc00d.h>
 #include <nvif/unpack.h>
+
+static void
+gp100_vmm_pfn_unmap(struct nvkm_vmm *vmm,
+		    struct nvkm_mmu_pt *pt, u32 ptei, u32 ptes)
+{
+	struct device *dev = vmm->mmu->subdev.device->dev;
+	dma_addr_t addr;
+
+	nvkm_kmap(pt->memory);
+	while (ptes--) {
+		u32 datalo = nvkm_ro32(pt->memory, pt->base + ptei * 8 + 0);
+		u32 datahi = nvkm_ro32(pt->memory, pt->base + ptei * 8 + 4);
+		u64 data   = (u64)datahi << 32 | datalo;
+		if ((data & (3ULL << 1)) != 0) {
+			addr = (data >> 8) << 12;
+			dma_unmap_page(dev, addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
+		}
+		ptei++;
+	}
+	nvkm_done(pt->memory);
+}
+
+static bool
+gp100_vmm_pfn_clear(struct nvkm_vmm *vmm,
+		    struct nvkm_mmu_pt *pt, u32 ptei, u32 ptes)
+{
+	bool dma = false;
+	nvkm_kmap(pt->memory);
+	while (ptes--) {
+		u32 datalo = nvkm_ro32(pt->memory, pt->base + ptei * 8 + 0);
+		u32 datahi = nvkm_ro32(pt->memory, pt->base + ptei * 8 + 4);
+		u64 data   = (u64)datahi << 32 | datalo;
+		if ((data & BIT_ULL(0)) && (data & (3ULL << 1)) != 0) {
+			VMM_WO064(pt, vmm, ptei * 8, data & ~BIT_ULL(0));
+			dma = true;
+		}
+		ptei++;
+	}
+	nvkm_done(pt->memory);
+	return dma;
+}
+
+static void
+gp100_vmm_pgt_pfn(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
+		  u32 ptei, u32 ptes, struct nvkm_vmm_map *map)
+{
+	struct device *dev = vmm->mmu->subdev.device->dev;
+	dma_addr_t addr;
+
+	nvkm_kmap(pt->memory);
+	while (ptes--) {
+		u64 data = 0;
+		if (!(*map->pfn & NVKM_VMM_PFN_W))
+			data |= BIT_ULL(6); /* RO. */
+
+		if (!(*map->pfn & NVKM_VMM_PFN_VRAM)) {
+			addr = *map->pfn >> NVKM_VMM_PFN_ADDR_SHIFT;
+			addr = dma_map_page(dev, pfn_to_page(addr), 0,
+					    PAGE_SIZE, DMA_BIDIRECTIONAL);
+			if (!WARN_ON(dma_mapping_error(dev, addr))) {
+				data |= addr >> 4;
+				data |= 2ULL << 1; /* SYSTEM_COHERENT_MEMORY. */
+				data |= BIT_ULL(3); /* VOL. */
+				data |= BIT_ULL(0); /* VALID. */
+			}
+		} else {
+			data |= (*map->pfn & NVKM_VMM_PFN_ADDR) >> 4;
+			data |= BIT_ULL(0); /* VALID. */
+		}
+
+		VMM_WO064(pt, vmm, ptei++ * 8, data);
+		map->pfn++;
+	}
+	nvkm_done(pt->memory);
+}
 
 static inline void
 gp100_vmm_pgt_pte(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
@@ -89,6 +167,9 @@ gp100_vmm_desc_spt = {
 	.mem = gp100_vmm_pgt_mem,
 	.dma = gp100_vmm_pgt_dma,
 	.sgl = gp100_vmm_pgt_sgl,
+	.pfn = gp100_vmm_pgt_pfn,
+	.pfn_clear = gp100_vmm_pfn_clear,
+	.pfn_unmap = gp100_vmm_pfn_unmap,
 };
 
 static void
@@ -306,16 +387,100 @@ gp100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 	return 0;
 }
 
+static int
+gp100_vmm_fault_cancel(struct nvkm_vmm *vmm, void *argv, u32 argc)
+{
+	struct nvkm_device *device = vmm->mmu->subdev.device;
+	union {
+		struct gp100_vmm_fault_cancel_v0 v0;
+	} *args = argv;
+	int ret = -ENOSYS;
+	u32 inst, aper;
+
+	if ((ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false)))
+		return ret;
+
+	/* Translate MaxwellFaultBufferA instance pointer to the same
+	 * format as the NV_GR_FECS_CURRENT_CTX register.
+	 */
+	aper = (args->v0.inst >> 8) & 3;
+	args->v0.inst >>= 12;
+	args->v0.inst |= aper << 28;
+	args->v0.inst |= 0x80000000;
+
+	if (!WARN_ON(nvkm_gr_ctxsw_pause(device))) {
+		if ((inst = nvkm_gr_ctxsw_inst(device)) == args->v0.inst) {
+			gf100_vmm_invalidate(vmm, 0x0000001b
+					     /* CANCEL_TARGETED. */ |
+					     (args->v0.hub    << 20) |
+					     (args->v0.gpc    << 15) |
+					     (args->v0.client << 9));
+		}
+		WARN_ON(nvkm_gr_ctxsw_resume(device));
+	}
+
+	return 0;
+}
+
+static int
+gp100_vmm_fault_replay(struct nvkm_vmm *vmm, void *argv, u32 argc)
+{
+	union {
+		struct gp100_vmm_fault_replay_vn vn;
+	} *args = argv;
+	int ret = -ENOSYS;
+
+	if (!(ret = nvif_unvers(ret, &argv, &argc, args->vn))) {
+		gf100_vmm_invalidate(vmm, 0x0000000b); /* REPLAY_GLOBAL. */
+	}
+
+	return ret;
+}
+
+int
+gp100_vmm_mthd(struct nvkm_vmm *vmm,
+	       struct nvkm_client *client, u32 mthd, void *argv, u32 argc)
+{
+	if (client->super) {
+		switch (mthd) {
+		case GP100_VMM_VN_FAULT_REPLAY:
+			return gp100_vmm_fault_replay(vmm, argv, argc);
+		case GP100_VMM_VN_FAULT_CANCEL:
+			return gp100_vmm_fault_cancel(vmm, argv, argc);
+		default:
+			break;
+		}
+	}
+	return -EINVAL;
+}
+
+void
+gp100_vmm_invalidate_pdb(struct nvkm_vmm *vmm, u64 addr)
+{
+	struct nvkm_device *device = vmm->mmu->subdev.device;
+	nvkm_wr32(device, 0x100cb8, lower_32_bits(addr));
+	nvkm_wr32(device, 0x100cec, upper_32_bits(addr));
+}
+
 void
 gp100_vmm_flush(struct nvkm_vmm *vmm, int depth)
 {
-	gf100_vmm_flush_(vmm, 5 /* CACHE_LEVEL_UP_TO_PDE3 */ - depth);
+	u32 type = (5 /* CACHE_LEVEL_UP_TO_PDE3 */ - depth) << 24;
+	type = 0; /*XXX: need to confirm stuff works with depth enabled... */
+	if (atomic_read(&vmm->engref[NVKM_SUBDEV_BAR]))
+		type |= 0x00000004; /* HUB_ONLY */
+	type |= 0x00000001; /* PAGE_ALL */
+	gf100_vmm_invalidate(vmm, type);
 }
 
 int
 gp100_vmm_join(struct nvkm_vmm *vmm, struct nvkm_memory *inst)
 {
-	const u64 base = BIT_ULL(10) /* VER2 */ | BIT_ULL(11); /* 64KiB */
+	u64 base = BIT_ULL(10) /* VER2 */ | BIT_ULL(11) /* 64KiB */;
+	if (vmm->replay) {
+		base |= BIT_ULL(4); /* FAULT_REPLAY_TEX */
+		base |= BIT_ULL(5); /* FAULT_REPLAY_GCC */
+	}
 	return gf100_vmm_join_(vmm, inst, base);
 }
 
@@ -326,6 +491,8 @@ gp100_vmm = {
 	.aper = gf100_vmm_aper,
 	.valid = gp100_vmm_valid,
 	.flush = gp100_vmm_flush,
+	.mthd = gp100_vmm_mthd,
+	.invalidate_pdb = gp100_vmm_invalidate_pdb,
 	.page = {
 		{ 47, &gp100_vmm_desc_16[4], NVKM_VMM_PAGE_Sxxx },
 		{ 38, &gp100_vmm_desc_16[3], NVKM_VMM_PAGE_Sxxx },
@@ -338,10 +505,39 @@ gp100_vmm = {
 };
 
 int
-gp100_vmm_new(struct nvkm_mmu *mmu, u64 addr, u64 size, void *argv, u32 argc,
-	      struct lock_class_key *key, const char *name,
-	      struct nvkm_vmm **pvmm)
+gp100_vmm_new_(const struct nvkm_vmm_func *func,
+	       struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	       void *argv, u32 argc, struct lock_class_key *key,
+	       const char *name, struct nvkm_vmm **pvmm)
 {
-	return nv04_vmm_new_(&gp100_vmm, mmu, 0, addr, size,
-			     argv, argc, key, name, pvmm);
+	union {
+		struct gp100_vmm_vn vn;
+		struct gp100_vmm_v0 v0;
+	} *args = argv;
+	int ret = -ENOSYS;
+	bool replay;
+
+	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
+		replay = args->v0.fault_replay != 0;
+	} else
+	if (!(ret = nvif_unvers(ret, &argv, &argc, args->vn))) {
+		replay = false;
+	} else
+		return ret;
+
+	ret = nvkm_vmm_new_(func, mmu, 0, managed, addr, size, key, name, pvmm);
+	if (ret)
+		return ret;
+
+	(*pvmm)->replay = replay;
+	return 0;
+}
+
+int
+gp100_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+	      void *argv, u32 argc, struct lock_class_key *key,
+	      const char *name, struct nvkm_vmm **pvmm)
+{
+	return gp100_vmm_new_(&gp100_vmm, mmu, managed, addr, size,
+			      argv, argc, key, name, pvmm);
 }

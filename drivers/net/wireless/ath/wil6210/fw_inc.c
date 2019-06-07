@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -145,7 +145,7 @@ fw_handle_capabilities(struct wil6210_priv *wil, const void *data,
 				    capabilities);
 	bitmap_zero(wil->fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	memcpy(wil->fw_capabilities, rec->capabilities,
-	       min(sizeof(wil->fw_capabilities), capa_size));
+	       min_t(size_t, sizeof(wil->fw_capabilities), capa_size));
 	wil_hex_dump_fw("CAPA", DUMP_PREFIX_OFFSET, 16, 1,
 			rec->capabilities, capa_size, false);
 	return 0;
@@ -647,6 +647,8 @@ int wil_request_firmware(struct wil6210_priv *wil, const char *name,
 
 out:
 	release_firmware(fw);
+	if (rc)
+		wil_err_fw(wil, "Loading <%s> failed, rc %d\n", name, rc);
 	return rc;
 }
 
@@ -741,6 +743,8 @@ int wil_request_board(struct wil6210_priv *wil, const char *name)
 
 out:
 	release_firmware(brd);
+	if (rc)
+		wil_err_fw(wil, "Loading <%s> failed, rc %d\n", name, rc);
 	return rc;
 }
 

@@ -49,7 +49,7 @@
 #include "hw.h"
 #include "reg.h"
 
-const char alx_drv_name[] = "alx";
+static const char alx_drv_name[] = "alx";
 
 static void alx_free_txbuf(struct alx_tx_queue *txq, int entry)
 {
@@ -660,10 +660,9 @@ static int alx_alloc_rings(struct alx_priv *alx)
 			    alx->num_txq +
 			    sizeof(struct alx_rrd) * alx->rx_ringsz +
 			    sizeof(struct alx_rfd) * alx->rx_ringsz;
-	alx->descmem.virt = dma_zalloc_coherent(&alx->hw.pdev->dev,
-						alx->descmem.size,
-						&alx->descmem.dma,
-						GFP_KERNEL);
+	alx->descmem.virt = dma_alloc_coherent(&alx->hw.pdev->dev,
+					       alx->descmem.size,
+					       &alx->descmem.dma, GFP_KERNEL);
 	if (!alx->descmem.virt)
 		return -ENOMEM;
 
@@ -1279,7 +1278,6 @@ static void alx_check_link(struct alx_priv *alx)
 	struct alx_hw *hw = &alx->hw;
 	unsigned long flags;
 	int old_speed;
-	u8 old_duplex;
 	int err;
 
 	/* clear PHY internal interrupt status, otherwise the main
@@ -1288,7 +1286,6 @@ static void alx_check_link(struct alx_priv *alx)
 	alx_clear_phy_intr(hw);
 
 	old_speed = hw->link_speed;
-	old_duplex = hw->duplex;
 	err = alx_read_phy_link(hw);
 	if (err < 0)
 		goto reset;
@@ -1897,13 +1894,19 @@ static int alx_resume(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct alx_priv *alx = pci_get_drvdata(pdev);
 	struct alx_hw *hw = &alx->hw;
+	int err;
 
 	alx_reset_phy(hw);
 
 	if (!netif_running(alx->dev))
 		return 0;
 	netif_device_attach(alx->dev);
-	return __alx_open(alx, true);
+
+	rtnl_lock();
+	err = __alx_open(alx, true);
+	rtnl_unlock();
+
+	return err;
 }
 
 static SIMPLE_DEV_PM_OPS(alx_pm_ops, alx_suspend, alx_resume);
@@ -1960,8 +1963,6 @@ static pci_ers_result_t alx_pci_error_slot_reset(struct pci_dev *pdev)
 	if (!alx_reset_mac(hw))
 		rc = PCI_ERS_RESULT_RECOVERED;
 out:
-	pci_cleanup_aer_uncorrect_error_status(pdev);
-
 	rtnl_unlock();
 
 	return rc;

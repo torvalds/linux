@@ -14,7 +14,7 @@
 #include <linux/err.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>

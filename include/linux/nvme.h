@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for the NVM Express interface
  * Copyright (c) 2011-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _LINUX_NVME_H
@@ -52,15 +44,20 @@ enum {
 enum {
 	NVMF_TRTYPE_RDMA	= 1,	/* RDMA */
 	NVMF_TRTYPE_FC		= 2,	/* Fibre Channel */
+	NVMF_TRTYPE_TCP		= 3,	/* TCP/IP */
 	NVMF_TRTYPE_LOOP	= 254,	/* Reserved for host usage */
 	NVMF_TRTYPE_MAX,
 };
 
 /* Transport Requirements codes for Discovery Log Page entry TREQ field */
 enum {
-	NVMF_TREQ_NOT_SPECIFIED	= 0,	/* Not specified */
-	NVMF_TREQ_REQUIRED	= 1,	/* Required */
-	NVMF_TREQ_NOT_REQUIRED	= 2,	/* Not Required */
+	NVMF_TREQ_NOT_SPECIFIED	= 0,		/* Not specified */
+	NVMF_TREQ_REQUIRED	= 1,		/* Required */
+	NVMF_TREQ_NOT_REQUIRED	= 2,		/* Not Required */
+#define NVME_TREQ_SECURE_CHANNEL_MASK \
+	(NVMF_TREQ_REQUIRED | NVMF_TREQ_NOT_REQUIRED)
+
+	NVMF_TREQ_DISABLE_SQFLOW = (1 << 2),	/* Supports SQ flow control disable */
 };
 
 /* RDMA QP Service Type codes for Discovery Log Page entry TSAS
@@ -198,6 +195,11 @@ enum {
 	NVME_PS_FLAGS_NON_OP_STATE	= 1 << 1,
 };
 
+enum nvme_ctrl_attr {
+	NVME_CTRL_ATTR_HID_128_BIT	= (1 << 0),
+	NVME_CTRL_ATTR_TBKAS		= (1 << 6),
+};
+
 struct nvme_id_ctrl {
 	__le16			vid;
 	__le16			ssvid;
@@ -214,7 +216,11 @@ struct nvme_id_ctrl {
 	__le32			rtd3e;
 	__le32			oaes;
 	__le32			ctratt;
-	__u8			rsvd100[156];
+	__u8			rsvd100[28];
+	__le16			crdt1;
+	__le16			crdt2;
+	__le16			crdt3;
+	__u8			rsvd134[122];
 	__le16			oacs;
 	__u8			acl;
 	__u8			aerl;
@@ -242,7 +248,12 @@ struct nvme_id_ctrl {
 	__le32			sanicap;
 	__le32			hmminds;
 	__le16			hmmaxd;
-	__u8			rsvd338[174];
+	__u8			rsvd338[4];
+	__u8			anatt;
+	__u8			anacap;
+	__le32			anagrpmax;
+	__le32			nanagrpid;
+	__u8			rsvd352[160];
 	__u8			sqes;
 	__u8			cqes;
 	__le16			maxcmd;
@@ -254,11 +265,12 @@ struct nvme_id_ctrl {
 	__le16			awun;
 	__le16			awupf;
 	__u8			nvscc;
-	__u8			rsvd531;
+	__u8			nwpc;
 	__le16			acwu;
 	__u8			rsvd534[2];
 	__le32			sgls;
-	__u8			rsvd540[228];
+	__le32			mnan;
+	__u8			rsvd544[224];
 	char			subnqn[256];
 	__u8			rsvd1024[768];
 	__le32			ioccsz;
@@ -312,7 +324,11 @@ struct nvme_id_ns {
 	__le16			nabspf;
 	__le16			noiob;
 	__u8			nvmcap[16];
-	__u8			rsvd64[40];
+	__u8			rsvd64[28];
+	__le32			anagrpid;
+	__u8			rsvd96[3];
+	__u8			nsattr;
+	__u8			rsvd100[4];
 	__u8			nguid[16];
 	__u8			eui64[8];
 	struct nvme_lbaf	lbaf[16];
@@ -425,6 +441,32 @@ struct nvme_effects_log {
 	__u8   resv[2048];
 };
 
+enum nvme_ana_state {
+	NVME_ANA_OPTIMIZED		= 0x01,
+	NVME_ANA_NONOPTIMIZED		= 0x02,
+	NVME_ANA_INACCESSIBLE		= 0x03,
+	NVME_ANA_PERSISTENT_LOSS	= 0x04,
+	NVME_ANA_CHANGE			= 0x0f,
+};
+
+struct nvme_ana_group_desc {
+	__le32	grpid;
+	__le32	nnsids;
+	__le64	chgcnt;
+	__u8	state;
+	__u8	rsvd17[15];
+	__le32	nsids[];
+};
+
+/* flag for the log specific field of the ANA log */
+#define NVME_ANA_LOG_RGO	(1 << 0)
+
+struct nvme_ana_rsp_hdr {
+	__le64	chgcnt;
+	__le16	ngrps;
+	__le16	rsvd10[3];
+};
+
 enum {
 	NVME_SMART_CRIT_SPARE		= 1 << 0,
 	NVME_SMART_CRIT_TEMPERATURE	= 1 << 1,
@@ -436,10 +478,30 @@ enum {
 enum {
 	NVME_AER_ERROR			= 0,
 	NVME_AER_SMART			= 1,
+	NVME_AER_NOTICE			= 2,
 	NVME_AER_CSS			= 6,
 	NVME_AER_VS			= 7,
-	NVME_AER_NOTICE_NS_CHANGED	= 0x0002,
-	NVME_AER_NOTICE_FW_ACT_STARTING = 0x0102,
+};
+
+enum {
+	NVME_AER_NOTICE_NS_CHANGED	= 0x00,
+	NVME_AER_NOTICE_FW_ACT_STARTING = 0x01,
+	NVME_AER_NOTICE_ANA		= 0x03,
+	NVME_AER_NOTICE_DISC_CHANGED	= 0xf0,
+};
+
+enum {
+	NVME_AEN_BIT_NS_ATTR		= 8,
+	NVME_AEN_BIT_FW_ACT		= 9,
+	NVME_AEN_BIT_ANA_CHANGE		= 11,
+	NVME_AEN_BIT_DISC_CHANGE	= 31,
+};
+
+enum {
+	NVME_AEN_CFG_NS_ATTR		= 1 << NVME_AEN_BIT_NS_ATTR,
+	NVME_AEN_CFG_FW_ACT		= 1 << NVME_AEN_BIT_FW_ACT,
+	NVME_AEN_CFG_ANA_CHANGE		= 1 << NVME_AEN_BIT_ANA_CHANGE,
+	NVME_AEN_CFG_DISC_CHANGE	= 1 << NVME_AEN_BIT_DISC_CHANGE,
 };
 
 struct nvme_lba_range_type {
@@ -592,7 +654,12 @@ struct nvme_common_command {
 	__le32			cdw2[2];
 	__le64			metadata;
 	union nvme_data_ptr	dptr;
-	__le32			cdw10[6];
+	__le32			cdw10;
+	__le32			cdw11;
+	__le32			cdw12;
+	__le32			cdw13;
+	__le32			cdw14;
+	__le32			cdw15;
 };
 
 struct nvme_rw_command {
@@ -691,6 +758,15 @@ enum {
 	NVME_HOST_MEM_RETURN	= (1 << 1),
 };
 
+struct nvme_feat_host_behavior {
+	__u8 acre;
+	__u8 resv1[511];
+};
+
+enum {
+	NVME_ENABLE_ACRE	= 1,
+};
+
 /* Admin commands */
 
 enum nvme_admin_opcode {
@@ -740,20 +816,39 @@ enum {
 	NVME_FEAT_HOST_MEM_BUF	= 0x0d,
 	NVME_FEAT_TIMESTAMP	= 0x0e,
 	NVME_FEAT_KATO		= 0x0f,
+	NVME_FEAT_HCTM		= 0x10,
+	NVME_FEAT_NOPSC		= 0x11,
+	NVME_FEAT_RRL		= 0x12,
+	NVME_FEAT_PLM_CONFIG	= 0x13,
+	NVME_FEAT_PLM_WINDOW	= 0x14,
+	NVME_FEAT_HOST_BEHAVIOR	= 0x16,
 	NVME_FEAT_SW_PROGRESS	= 0x80,
 	NVME_FEAT_HOST_ID	= 0x81,
 	NVME_FEAT_RESV_MASK	= 0x82,
 	NVME_FEAT_RESV_PERSIST	= 0x83,
+	NVME_FEAT_WRITE_PROTECT	= 0x84,
 	NVME_LOG_ERROR		= 0x01,
 	NVME_LOG_SMART		= 0x02,
 	NVME_LOG_FW_SLOT	= 0x03,
+	NVME_LOG_CHANGED_NS	= 0x04,
 	NVME_LOG_CMD_EFFECTS	= 0x05,
+	NVME_LOG_ANA		= 0x0c,
 	NVME_LOG_DISC		= 0x70,
 	NVME_LOG_RESERVATION	= 0x80,
 	NVME_FWACT_REPL		= (0 << 3),
 	NVME_FWACT_REPL_ACTV	= (1 << 3),
 	NVME_FWACT_ACTV		= (2 << 3),
 };
+
+/* NVMe Namespace Write Protect State */
+enum {
+	NVME_NS_NO_WRITE_PROTECT = 0,
+	NVME_NS_WRITE_PROTECT,
+	NVME_NS_WRITE_PROTECT_POWER_CYCLE,
+	NVME_NS_WRITE_PROTECT_PERMANENT,
+};
+
+#define NVME_MAX_CHANGED_NAMESPACES	1024
 
 struct nvme_identify {
 	__u8			opcode;
@@ -868,12 +963,17 @@ struct nvme_get_log_page_command {
 	__u64			rsvd2[2];
 	union nvme_data_ptr	dptr;
 	__u8			lid;
-	__u8			rsvd10;
+	__u8			lsp; /* upper 4 bits reserved */
 	__le16			numdl;
 	__le16			numdu;
 	__u16			rsvd11;
-	__le32			lpol;
-	__le32			lpou;
+	union {
+		struct {
+			__le32 lpol;
+			__le32 lpou;
+		};
+		__le64 lpo;
+	};
 	__u32			rsvd14[2];
 };
 
@@ -963,6 +1063,10 @@ struct nvmf_disc_rsp_page_hdr {
 	__le16		recfmt;
 	__u8		resv14[1006];
 	struct nvmf_disc_rsp_page_entry entries[0];
+};
+
+enum {
+	NVME_CONNECT_DISABLE_SQFLOW	= (1 << 2),
 };
 
 struct nvmf_connect_command {
@@ -1061,6 +1165,20 @@ struct nvme_command {
 	};
 };
 
+struct nvme_error_slot {
+	__le64		error_count;
+	__le16		sqid;
+	__le16		cmdid;
+	__le16		status_field;
+	__le16		param_error_location;
+	__le64		lba;
+	__le32		nsid;
+	__u8		vs;
+	__u8		resv[3];
+	__le64		cs;
+	__u8		resv2[24];
+};
+
 static inline bool nvme_is_write(struct nvme_command *cmd)
 {
 	/*
@@ -1099,6 +1217,8 @@ enum {
 	NVME_SC_SGL_INVALID_OFFSET	= 0x16,
 	NVME_SC_SGL_INVALID_SUBTYPE	= 0x17,
 
+	NVME_SC_NS_WRITE_PROTECTED	= 0x20,
+
 	NVME_SC_LBA_RANGE		= 0x80,
 	NVME_SC_CAP_EXCEEDED		= 0x81,
 	NVME_SC_NS_NOT_READY		= 0x82,
@@ -1126,9 +1246,9 @@ enum {
 	NVME_SC_FW_NEEDS_SUBSYS_RESET	= 0x110,
 	NVME_SC_FW_NEEDS_RESET		= 0x111,
 	NVME_SC_FW_NEEDS_MAX_TIME	= 0x112,
-	NVME_SC_FW_ACIVATE_PROHIBITED	= 0x113,
+	NVME_SC_FW_ACTIVATE_PROHIBITED	= 0x113,
 	NVME_SC_OVERLAPPING_RANGE	= 0x114,
-	NVME_SC_NS_INSUFFICENT_CAP	= 0x115,
+	NVME_SC_NS_INSUFFICIENT_CAP	= 0x115,
 	NVME_SC_NS_ID_UNAVAILABLE	= 0x116,
 	NVME_SC_NS_ALREADY_ATTACHED	= 0x118,
 	NVME_SC_NS_IS_PRIVATE		= 0x119,
@@ -1168,6 +1288,15 @@ enum {
 	NVME_SC_ACCESS_DENIED		= 0x286,
 	NVME_SC_UNWRITTEN_BLOCK		= 0x287,
 
+	/*
+	 * Path-related Errors:
+	 */
+	NVME_SC_ANA_PERSISTENT_LOSS	= 0x301,
+	NVME_SC_ANA_INACCESSIBLE	= 0x302,
+	NVME_SC_ANA_TRANSITION		= 0x303,
+	NVME_SC_HOST_PATH_ERROR		= 0x370,
+
+	NVME_SC_CRD			= 0x1800,
 	NVME_SC_DNR			= 0x4000,
 };
 

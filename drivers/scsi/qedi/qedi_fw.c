@@ -155,12 +155,10 @@ static void qedi_tmf_resp_work(struct work_struct *work)
 	struct iscsi_conn *conn = qedi_conn->cls_conn->dd_data;
 	struct iscsi_session *session = conn->session;
 	struct iscsi_tm_rsp *resp_hdr_ptr;
-	struct iscsi_cls_session *cls_sess;
 	int rval = 0;
 
 	set_bit(QEDI_CONN_FW_CLEANUP, &qedi_conn->flags);
 	resp_hdr_ptr =  (struct iscsi_tm_rsp *)qedi_cmd->tmf_resp_buf;
-	cls_sess = iscsi_conn_to_session(qedi_conn->cls_conn);
 
 	iscsi_block_session(session->cls_session);
 	rval = qedi_cleanup_all_io(qedi, qedi_conn, qedi_cmd->task, true);
@@ -616,13 +614,6 @@ static void qedi_scsi_completion(struct qedi_ctx *qedi,
 		goto error;
 	}
 
-	if (!sc_cmd->request->special) {
-		QEDI_WARN(&qedi->dbg_ctx,
-			  "request->special is NULL so request not valid, sc_cmd=%p.\n",
-			  sc_cmd);
-		goto error;
-	}
-
 	if (!sc_cmd->request->q) {
 		QEDI_WARN(&qedi->dbg_ctx,
 			  "request->q is NULL so request is not valid, sc_cmd=%p.\n",
@@ -992,7 +983,6 @@ static void qedi_ring_doorbell(struct qedi_conn *qedi_conn)
 	 * others they are two different assembly operations.
 	 */
 	wmb();
-	mmiowb();
 	QEDI_INFO(&qedi_conn->qedi->dbg_ctx, QEDI_LOG_MP_REQ,
 		  "prod_idx=0x%x, fw_prod_idx=0x%x, cid=0x%x\n",
 		  qedi_conn->ep->sq_prod_idx, qedi_conn->ep->fw_sq_prod_idx,
@@ -1374,7 +1364,6 @@ static void qedi_tmf_work(struct work_struct *work)
 	struct qedi_conn *qedi_conn = qedi_cmd->conn;
 	struct qedi_ctx *qedi = qedi_conn->qedi;
 	struct iscsi_conn *conn = qedi_conn->cls_conn->dd_data;
-	struct iscsi_cls_session *cls_sess;
 	struct qedi_work_map *list_work = NULL;
 	struct iscsi_task *mtask;
 	struct qedi_cmd *cmd;
@@ -1385,7 +1374,6 @@ static void qedi_tmf_work(struct work_struct *work)
 
 	mtask = qedi_cmd->task;
 	tmf_hdr = (struct iscsi_tm *)mtask->hdr;
-	cls_sess = iscsi_conn_to_session(qedi_conn->cls_conn);
 	set_bit(QEDI_CONN_FW_CLEANUP, &qedi_conn->flags);
 
 	ctask = iscsi_itt_to_task(conn, tmf_hdr->rtt);

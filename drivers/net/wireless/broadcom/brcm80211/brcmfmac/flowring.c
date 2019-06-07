@@ -46,6 +46,8 @@ static const u8 brcmf_flowring_prio2fifo[] = {
 	3
 };
 
+static const u8 ALLFFMAC[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
 
 static bool
 brcmf_flowring_is_tdls_mac(struct brcmf_flowring *flow, u8 mac[ETH_ALEN])

@@ -17,7 +17,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "pch_gbe.h"
-#include "pch_gbe_api.h"
+#include "pch_gbe_phy.h"
 
 /**
  * pch_gbe_stats - Stats item information
@@ -125,7 +125,7 @@ static int pch_gbe_set_link_ksettings(struct net_device *netdev,
 	u32 advertising;
 	int ret;
 
-	pch_gbe_hal_write_phy_reg(hw, MII_BMCR, BMCR_RESET);
+	pch_gbe_phy_write_reg_miic(hw, MII_BMCR, BMCR_RESET);
 
 	memcpy(&copy_ecmd, ecmd, sizeof(*ecmd));
 
@@ -204,7 +204,7 @@ static void pch_gbe_get_regs(struct net_device *netdev,
 		*regs_buff++ = ioread32(&hw->reg->INT_ST + i);
 	/* PHY register */
 	for (i = 0; i < PCH_GBE_PHY_REGS_LEN; i++) {
-		pch_gbe_hal_read_phy_reg(&adapter->hw, i, &tmp);
+		pch_gbe_phy_read_reg_miic(&adapter->hw, i, &tmp);
 		*regs_buff++ = tmp;
 	}
 }
@@ -349,25 +349,12 @@ static int pch_gbe_set_ringparam(struct net_device *netdev,
 		err = pch_gbe_setup_tx_resources(adapter, adapter->tx_ring);
 		if (err)
 			goto err_setup_tx;
-		/* save the new, restore the old in order to free it,
-		 * then restore the new back again */
-#ifdef RINGFREE
-		adapter->rx_ring = rx_old;
-		adapter->tx_ring = tx_old;
-		pch_gbe_free_rx_resources(adapter, adapter->rx_ring);
-		pch_gbe_free_tx_resources(adapter, adapter->tx_ring);
-		kfree(tx_old);
-		kfree(rx_old);
-		adapter->rx_ring = rxdr;
-		adapter->tx_ring = txdr;
-#else
 		pch_gbe_free_rx_resources(adapter, rx_old);
 		pch_gbe_free_tx_resources(adapter, tx_old);
 		kfree(tx_old);
 		kfree(rx_old);
 		adapter->rx_ring = rxdr;
 		adapter->tx_ring = txdr;
-#endif
 		err = pch_gbe_up(adapter);
 	}
 	return err;

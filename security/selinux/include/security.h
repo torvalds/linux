@@ -58,12 +58,13 @@
 #define SE_SBINITIALIZED	0x0100
 #define SE_SBPROC		0x0200
 #define SE_SBGENFS		0x0400
+#define SE_SBGENFS_XATTR	0x0800
 
-#define CONTEXT_STR	"context="
-#define FSCONTEXT_STR	"fscontext="
-#define ROOTCONTEXT_STR	"rootcontext="
-#define DEFCONTEXT_STR	"defcontext="
-#define LABELSUPP_STR "seclabel"
+#define CONTEXT_STR	"context"
+#define FSCONTEXT_STR	"fscontext"
+#define ROOTCONTEXT_STR	"rootcontext"
+#define DEFCONTEXT_STR	"defcontext"
+#define SECLABEL_STR "seclabel"
 
 struct netlbl_lsm_secattr;
 
@@ -81,7 +82,7 @@ enum {
 };
 #define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
 
-extern char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX];
+extern const char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX];
 
 /*
  * type_datum properties
@@ -253,6 +254,9 @@ int security_sid_to_context(struct selinux_state *state, u32 sid,
 			    char **scontext, u32 *scontext_len);
 
 int security_sid_to_context_force(struct selinux_state *state,
+				  u32 sid, char **scontext, u32 *scontext_len);
+
+int security_sid_to_context_inval(struct selinux_state *state,
 				  u32 sid, char **scontext, u32 *scontext_len);
 
 int security_context_to_sid(struct selinux_state *state,

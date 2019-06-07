@@ -190,7 +190,6 @@ mmc0: mmc@23000000 {
 	power-domains = <&k2g_pds 0xb>;
 	clocks = <&k2g_clks 0xb 1>, <&k2g_clks 0xb 2>;
 	clock-names = "fck", "mmchsdb_fck";
-	status = "disabled";
 };
 
 ------------------------------------------------------------------------------
@@ -202,7 +201,6 @@ Required properties:
 - #dma-cells: Should be set to <1>
               Clients should use a single channel number per DMA request.
 - reg: Memory map for accessing module
-- interrupt-parent: Interrupt controller the interrupt is routed through
 - interrupts: Exactly 3 interrupts need to be specified in the order:
               1. Transfer completion interrupt.
               2. Memory protection interrupt.

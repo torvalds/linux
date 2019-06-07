@@ -453,6 +453,7 @@ static int pcf2123_remove(struct spi_device *spi)
 #ifdef CONFIG_OF
 static const struct of_device_id pcf2123_dt_ids[] = {
 	{ .compatible = "nxp,rtc-pcf2123", },
+	{ .compatible = "microcrystal,rv2123", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pcf2123_dt_ids);

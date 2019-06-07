@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This only handles 32bit MTRR on 32bit hosts. This is strictly wrong
  * because MTRRs can span up to 40 bits (36bits on most modern x86)
@@ -798,7 +799,7 @@ static void generic_set_all(void)
 	local_irq_restore(flags);
 
 	/* Use the atomic bitops to update the global mask */
-	for (count = 0; count < sizeof mask * 8; ++count) {
+	for (count = 0; count < sizeof(mask) * 8; ++count) {
 		if (mask & 0x01)
 			set_bit(count, &smp_changes_mask);
 		mask >>= 1;

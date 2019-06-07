@@ -1,14 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DMA support use of SYS DMAC with SDHI SD/SDIO controller
  *
- * Copyright (C) 2016-17 Renesas Electronics Corporation
- * Copyright (C) 2016-17 Sang Engineering, Wolfram Sang
+ * Copyright (C) 2016-19 Renesas Electronics Corporation
+ * Copyright (C) 2016-19 Sang Engineering, Wolfram Sang
  * Copyright (C) 2017 Horms Solutions, Simon Horman
  * Copyright (C) 2010-2011 Guennadi Liakhovetski
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/device.h>
@@ -42,6 +39,7 @@ static const struct renesas_sdhi_of_data of_rz_compatible = {
 static const struct renesas_sdhi_of_data of_rcar_gen1_compatible = {
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_CLK_ACTUAL,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
+	.capabilities2	= MMC_CAP2_NO_WRITE_PROTECT,
 };
 
 /* Definitions for sampling clocks */
@@ -61,11 +59,13 @@ static const struct renesas_sdhi_of_data of_rcar_gen2_compatible = {
 			  TMIO_MMC_HAVE_CBSY | TMIO_MMC_MIN_RCAR2,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_CMD23,
+	.capabilities2	= MMC_CAP2_NO_WRITE_PROTECT,
 	.dma_buswidth	= DMA_SLAVE_BUSWIDTH_4_BYTES,
 	.dma_rx_offset	= 0x2000,
 	.scc_offset	= 0x0300,
 	.taps		= rcar_gen2_scc_taps,
 	.taps_num	= ARRAY_SIZE(rcar_gen2_scc_taps),
+	.max_blk_count	= UINT_MAX / TMIO_MAX_BLK_SIZE,
 };
 
 /* Definitions for sampling clocks */
@@ -81,6 +81,7 @@ static const struct renesas_sdhi_of_data of_rcar_gen3_compatible = {
 			  TMIO_MMC_HAVE_CBSY | TMIO_MMC_MIN_RCAR2,
 	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_CMD23,
+	.capabilities2	= MMC_CAP2_NO_WRITE_PROTECT,
 	.bus_shift	= 2,
 	.scc_offset	= 0x1000,
 	.taps		= rcar_gen3_scc_taps,
@@ -197,10 +198,8 @@ static void renesas_sdhi_sys_dmac_start_dma_rx(struct tmio_mmc_host *host)
 		goto pio;
 	}
 
-	if (sg->length < TMIO_MMC_MIN_DMA_LEN) {
-		host->force_pio = true;
+	if (sg->length < TMIO_MMC_MIN_DMA_LEN)
 		return;
-	}
 
 	/* The only sg element can be unaligned, use our bounce buffer then */
 	if (!aligned) {
@@ -224,6 +223,7 @@ static void renesas_sdhi_sys_dmac_start_dma_rx(struct tmio_mmc_host *host)
 			desc = NULL;
 			ret = cookie;
 		}
+		host->dma_on = true;
 	}
 pio:
 	if (!desc) {
@@ -270,10 +270,8 @@ static void renesas_sdhi_sys_dmac_start_dma_tx(struct tmio_mmc_host *host)
 		goto pio;
 	}
 
-	if (sg->length < TMIO_MMC_MIN_DMA_LEN) {
-		host->force_pio = true;
+	if (sg->length < TMIO_MMC_MIN_DMA_LEN)
 		return;
-	}
 
 	/* The only sg element can be unaligned, use our bounce buffer then */
 	if (!aligned) {
@@ -302,6 +300,7 @@ static void renesas_sdhi_sys_dmac_start_dma_tx(struct tmio_mmc_host *host)
 			desc = NULL;
 			ret = cookie;
 		}
+		host->dma_on = true;
 	}
 pio:
 	if (!desc) {

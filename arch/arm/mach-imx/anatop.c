@@ -1,13 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  * Copyright 2017-2018 NXP.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/err.h>
@@ -30,6 +24,8 @@
 #define ANADIG_DIGPROG		0x260
 #define ANADIG_DIGPROG_IMX6SL	0x280
 #define ANADIG_DIGPROG_IMX7D	0x800
+
+#define SRC_SBMR2		0x1c
 
 #define BM_ANADIG_REG_2P5_ENABLE_WEAK_LINREG	0x40000
 #define BM_ANADIG_REG_2P5_ENABLE_PULLDOWN	0x8
@@ -148,6 +144,24 @@ void __init imx_init_revision_from_anatop(void)
 		major_part = (digprog >> 8) & 0xf;
 		minor_part = digprog & 0xf;
 		revision = ((major_part + 1) << 4) | minor_part;
+
+		if ((digprog >> 16) == MXC_CPU_IMX6ULL) {
+			void __iomem *src_base;
+			u32 sbmr2;
+
+			np = of_find_compatible_node(NULL, NULL,
+						     "fsl,imx6ul-src");
+			src_base = of_iomap(np, 0);
+			WARN_ON(!src_base);
+			sbmr2 = readl_relaxed(src_base + SRC_SBMR2);
+			iounmap(src_base);
+
+			/* src_sbmr2 bit 6 is to identify if it is i.MX6ULZ */
+			if (sbmr2 & (1 << 6)) {
+				digprog &= ~(0xff << 16);
+				digprog |= (MXC_CPU_IMX6ULZ << 16);
+			}
+		}
 	}
 
 	mxc_set_cpu_type(digprog >> 16 & 0xff);

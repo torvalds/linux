@@ -160,7 +160,7 @@ static struct clk __init *alchemy_clk_setup_cpu(const char *parent_name,
 	id.name = ALCHEMY_CPU_CLK;
 	id.parent_names = &parent_name;
 	id.num_parents = 1;
-	id.flags = CLK_IS_BASIC;
+	id.flags = 0;
 	id.ops = &alchemy_clkops_cpu;
 	h->init = &id;
 
@@ -985,7 +985,7 @@ static int __init alchemy_clk_setup_imux(int ctype)
 		return -ENODEV;
 	}
 
-	a = kzalloc((sizeof(*a)) * 6, GFP_KERNEL);
+	a = kcalloc(6, sizeof(*a), GFP_KERNEL);
 	if (!a)
 		return -ENOMEM;
 

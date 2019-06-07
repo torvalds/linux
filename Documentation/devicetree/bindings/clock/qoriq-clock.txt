@@ -28,11 +28,18 @@ Required properties:
 	* "fsl,p4080-clockgen"
 	* "fsl,p5020-clockgen"
 	* "fsl,p5040-clockgen"
+	* "fsl,t1023-clockgen"
+	* "fsl,t1024-clockgen"
+	* "fsl,t1040-clockgen"
+	* "fsl,t1042-clockgen"
+	* "fsl,t2080-clockgen"
+	* "fsl,t2081-clockgen"
 	* "fsl,t4240-clockgen"
 	* "fsl,b4420-clockgen"
 	* "fsl,b4860-clockgen"
 	* "fsl,ls1012a-clockgen"
 	* "fsl,ls1021a-clockgen"
+	* "fsl,ls1028a-clockgen"
 	* "fsl,ls1043a-clockgen"
 	* "fsl,ls1046a-clockgen"
 	* "fsl,ls1088a-clockgen"
@@ -77,8 +84,8 @@ second cell is the clock index for the specified type.
 	1	cmux		index (n in CLKCnCSR)
 	2	hwaccel		index (n in CLKCGnHWACSR)
 	3	fman		0 for fm1, 1 for fm2
-	4	platform pll	0=pll, 1=pll/2, 2=pll/3, 3=pll/4
-				4=pll/5, 5=pll/6, 6=pll/7, 7=pll/8
+	4	platform pll	n=pll/(n+1). For example, when n=1,
+				that means output_freq=PLL_freq/2.
 	5	coreclk		must be 0
 
 3. Example

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* align.c - handle alignment exceptions for the Power PC.
  *
  * Copyright (c) 1996 Paul Mackerras <paulus@cs.anu.edu.au>
@@ -10,11 +11,6 @@
  * Copyright (c) 2005 Benjamin Herrenschmidt, IBM Corp
  *                    <benh@kernel.crashing.org>
  *   Merge ppc32 and ppc64 implementations
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -131,8 +127,7 @@ static int emulate_spe(struct pt_regs *regs, unsigned int reg,
 
 	/* Verify the address of the operand */
 	if (unlikely(user_mode(regs) &&
-		     !access_ok((flags & ST ? VERIFY_WRITE : VERIFY_READ),
-				addr, nb)))
+		     !access_ok(addr, nb)))
 		return -EFAULT;
 
 	/* userland only */
@@ -339,7 +334,7 @@ int fix_alignment(struct pt_regs *regs)
 	if (r < 0)
 		return -EINVAL;
 
-	type = op.type & INSTR_TYPE_MASK;
+	type = GETTYPE(op.type);
 	if (!OP_IS_LOAD_STORE(type)) {
 		if (op.type != CACHEOP + DCBZ)
 			return -EINVAL;

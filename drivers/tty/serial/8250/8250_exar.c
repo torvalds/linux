@@ -109,11 +109,12 @@ struct exar8250_platform {
  * struct exar8250_board - board information
  * @num_ports: number of serial ports
  * @reg_shift: describes UART register mapping in PCI memory
+ * @setup: quirk run at ->probe() stage
+ * @exit: quirk run at ->remove() stage
  */
 struct exar8250_board {
 	unsigned int num_ports;
 	unsigned int reg_shift;
-	bool has_slave;
 	int	(*setup)(struct exar8250 *, struct pci_dev *,
 			 struct uart_8250_port *, int);
 	void	(*exit)(struct pci_dev *pcidev);
@@ -272,8 +273,32 @@ static int xr17v35x_register_gpio(struct pci_dev *pcidev,
 	return 0;
 }
 
+static int generic_rs485_config(struct uart_port *port,
+				struct serial_rs485 *rs485)
+{
+	bool is_rs485 = !!(rs485->flags & SER_RS485_ENABLED);
+	u8 __iomem *p = port->membase;
+	u8 value;
+
+	value = readb(p + UART_EXAR_FCTR);
+	if (is_rs485)
+		value |= UART_FCTR_EXAR_485;
+	else
+		value &= ~UART_FCTR_EXAR_485;
+
+	writeb(value, p + UART_EXAR_FCTR);
+
+	if (is_rs485)
+		writeb(UART_EXAR_RS485_DLY(4), p + UART_MSR);
+
+	port->rs485 = *rs485;
+
+	return 0;
+}
+
 static const struct exar8250_platform exar8250_default_platform = {
 	.register_gpio = xr17v35x_register_gpio,
+	.rs485_config = generic_rs485_config,
 };
 
 static int iot2040_rs485_config(struct uart_port *port,
@@ -306,19 +331,7 @@ static int iot2040_rs485_config(struct uart_port *port,
 	value |= mode;
 	writeb(value, p + UART_EXAR_MPIOLVL_7_0);
 
-	value = readb(p + UART_EXAR_FCTR);
-	if (is_rs485)
-		value |= UART_FCTR_EXAR_485;
-	else
-		value &= ~UART_FCTR_EXAR_485;
-	writeb(value, p + UART_EXAR_FCTR);
-
-	if (is_rs485)
-		writeb(UART_EXAR_RS485_DLY(4), p + UART_MSR);
-
-	port->rs485 = *rs485;
-
-	return 0;
+	return generic_rs485_config(port, rs485);
 }
 
 static const struct property_entry iot2040_gpio_properties[] = {
@@ -348,12 +361,15 @@ static const struct exar8250_platform iot2040_platform = {
 	.register_gpio = iot2040_register_gpio,
 };
 
+/*
+ * For SIMATIC IOT2000, only IOT2040 and its variants have the Exar device,
+ * IOT2020 doesn't have. Therefore it is sufficient to match on the common
+ * board name after the device was found.
+ */
 static const struct dmi_system_id exar_platforms[] = {
 	{
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "SIMATIC IOT2000"),
-			DMI_EXACT_MATCH(DMI_BOARD_ASSET_TAG,
-					"6ES7647-0AA00-1YA2"),
 		},
 		.driver_data = (void *)&iot2040_platform,
 	},
@@ -364,7 +380,6 @@ static int
 pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 		   struct uart_8250_port *port, int idx)
 {
-	const struct exar8250_board *board = priv->board;
 	const struct exar8250_platform *platform;
 	const struct dmi_system_id *dmi_match;
 	unsigned int offset = idx * 0x400;
@@ -382,10 +397,10 @@ pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	port->port.rs485_config = platform->rs485_config;
 
 	/*
-	 * Setup the uart clock for the devices on expansion slot to
+	 * Setup the UART clock for the devices on expansion slot to
 	 * half the clock speed of the main chip (which is 125MHz)
 	 */
-	if (board->has_slave && idx >= 8)
+	if (idx >= 8)
 		port->port.uartclk /= 2;
 
 	ret = default_setup(priv, pcidev, idx, offset, port);
@@ -433,7 +448,11 @@ static irqreturn_t exar_misc_handler(int irq, void *data)
 	struct exar8250 *priv = data;
 
 	/* Clear all PCI interrupts by reading INT0. No effect on IIR */
-	ioread8(priv->virt + UART_EXAR_INT0);
+	readb(priv->virt + UART_EXAR_INT0);
+
+	/* Clear INT0 for Expansion Interface slave ports, too */
+	if (priv->board->num_ports > 8)
+		readb(priv->virt + 0x2000 + UART_EXAR_INT0);
 
 	return IRQ_HANDLED;
 }
@@ -590,14 +609,12 @@ static const struct exar8250_board pbn_exar_XR17V35x = {
 
 static const struct exar8250_board pbn_exar_XR17V4358 = {
 	.num_ports	= 12,
-	.has_slave	= true,
 	.setup		= pci_xr17v35x_setup,
 	.exit		= pci_xr17v35x_exit,
 };
 
 static const struct exar8250_board pbn_exar_XR17V8358 = {
 	.num_ports	= 16,
-	.has_slave	= true,
 	.setup		= pci_xr17v35x_setup,
 	.exit		= pci_xr17v35x_exit,
 };

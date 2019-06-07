@@ -30,8 +30,6 @@
  * SOFTWARE.
  */
 
-#ifdef CONFIG_RFS_ACCEL
-
 #include <linux/hash.h>
 #include <linux/mlx5/fs.h>
 #include <linux/ip.h>
@@ -213,7 +211,7 @@ out:
 }
 
 #define MLX5E_ARFS_NUM_GROUPS	2
-#define MLX5E_ARFS_GROUP1_SIZE	BIT(12)
+#define MLX5E_ARFS_GROUP1_SIZE	(BIT(16) - 1)
 #define MLX5E_ARFS_GROUP2_SIZE	BIT(0)
 #define MLX5E_ARFS_TABLE_SIZE	(MLX5E_ARFS_GROUP1_SIZE +\
 				 MLX5E_ARFS_GROUP2_SIZE)
@@ -381,14 +379,14 @@ static void arfs_may_expire_flow(struct mlx5e_priv *priv)
 	HLIST_HEAD(del_list);
 	spin_lock_bh(&priv->fs.arfs.arfs_lock);
 	mlx5e_for_each_arfs_rule(arfs_rule, htmp, priv->fs.arfs.arfs_tables, i, j) {
-		if (quota++ > MLX5E_ARFS_EXPIRY_QUOTA)
-			break;
 		if (!work_pending(&arfs_rule->arfs_work) &&
 		    rps_may_expire_flow(priv->netdev,
 					arfs_rule->rxq, arfs_rule->flow_id,
 					arfs_rule->filter_id)) {
 			hlist_del_init(&arfs_rule->hlist);
 			hlist_add_head(&arfs_rule->hlist, &del_list);
+			if (quota++ > MLX5E_ARFS_EXPIRY_QUOTA)
+				break;
 		}
 	}
 	spin_unlock_bh(&priv->fs.arfs.arfs_lock);
@@ -545,8 +543,11 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 	rule = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
-		netdev_err(priv->netdev, "%s: add rule(filter id=%d, rq idx=%d) failed, err=%d\n",
-			   __func__, arfs_rule->filter_id, arfs_rule->rxq, err);
+		priv->channel_stats[arfs_rule->rxq].rq.arfs_err++;
+		mlx5e_dbg(HW, priv,
+			  "%s: add rule(filter id=%d, rq idx=%d, ip proto=0x%x) failed,err=%d\n",
+			  __func__, arfs_rule->filter_id, arfs_rule->rxq,
+			  tuple->ip_proto, err);
 	}
 
 out:
@@ -565,7 +566,7 @@ static void arfs_modify_rule_rq(struct mlx5e_priv *priv,
 	err =  mlx5_modify_rule_destination(rule, &dst, NULL);
 	if (err)
 		netdev_warn(priv->netdev,
-			    "Failed to modfiy aRFS rule destination to rq=%d\n", rxq);
+			    "Failed to modify aRFS rule destination to rq=%d\n", rxq);
 }
 
 static void arfs_handle_work(struct work_struct *work)
@@ -711,6 +712,9 @@ int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	    skb->protocol != htons(ETH_P_IPV6))
 		return -EPROTONOSUPPORT;
 
+	if (skb->encapsulation)
+		return -EPROTONOSUPPORT;
+
 	arfs_t = arfs_get_table(arfs, arfs_get_ip_proto(skb), skb->protocol);
 	if (!arfs_t)
 		return -EPROTONOSUPPORT;
@@ -735,4 +739,4 @@ int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	spin_unlock_bh(&arfs->arfs_lock);
 	return arfs_rule->filter_id;
 }
-#endif
+

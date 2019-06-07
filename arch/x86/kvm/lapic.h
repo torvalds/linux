@@ -16,6 +16,13 @@
 #define APIC_BUS_CYCLE_NS       1
 #define APIC_BUS_FREQUENCY      (1000000000ULL / APIC_BUS_CYCLE_NS)
 
+enum lapic_mode {
+	LAPIC_MODE_DISABLED = 0,
+	LAPIC_MODE_INVALID = X2APIC_ENABLE,
+	LAPIC_MODE_XAPIC = MSR_IA32_APICBASE_ENABLE,
+	LAPIC_MODE_X2APIC = MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE,
+};
+
 struct kvm_timer {
 	struct hrtimer timer;
 	s64 period; 				/* unit: ns */
@@ -24,8 +31,10 @@ struct kvm_timer {
 	u32 timer_mode_mask;
 	u64 tscdeadline;
 	u64 expired_tscdeadline;
+	u32 timer_advance_ns;
 	atomic_t pending;			/* accumulated triggered timers */
 	bool hv_timer_in_use;
+	bool timer_advance_adjust_done;
 };
 
 struct kvm_lapic {
@@ -55,7 +64,7 @@ struct kvm_lapic {
 
 struct dest_map;
 
-int kvm_create_lapic(struct kvm_vcpu *vcpu);
+int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns);
 void kvm_free_lapic(struct kvm_vcpu *vcpu);
 
 int kvm_apic_has_interrupt(struct kvm_vcpu *vcpu);
@@ -89,6 +98,7 @@ u64 kvm_get_apic_base(struct kvm_vcpu *vcpu);
 int kvm_set_apic_base(struct kvm_vcpu *vcpu, struct msr_data *msr_info);
 int kvm_apic_get_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s);
 int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s);
+enum lapic_mode kvm_get_apic_mode(struct kvm_vcpu *vcpu);
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu);
 
 u64 kvm_get_lapic_tscdeadline_msr(struct kvm_vcpu *vcpu);
@@ -112,7 +122,7 @@ static inline bool kvm_hv_vapic_assist_page_enabled(struct kvm_vcpu *vcpu)
 	return vcpu->arch.hyperv.hv_vapic & HV_X64_MSR_VP_ASSIST_PAGE_ENABLE;
 }
 
-int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data);
+int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data, unsigned long len);
 void kvm_lapic_init(void);
 void kvm_lapic_exit(void);
 
@@ -220,4 +230,10 @@ void kvm_lapic_switch_to_hv_timer(struct kvm_vcpu *vcpu);
 void kvm_lapic_expired_hv_timer(struct kvm_vcpu *vcpu);
 bool kvm_lapic_hv_timer_in_use(struct kvm_vcpu *vcpu);
 void kvm_lapic_restart_hv_timer(struct kvm_vcpu *vcpu);
+
+static inline enum lapic_mode kvm_apic_mode(u64 apic_base)
+{
+	return apic_base & (MSR_IA32_APICBASE_ENABLE | X2APIC_ENABLE);
+}
+
 #endif

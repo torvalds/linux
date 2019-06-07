@@ -113,7 +113,7 @@ struct mga_framebuffer {
 };
 
 struct mga_fbdev {
-	struct drm_fb_helper helper;
+	struct drm_fb_helper helper; /* must be first */
 	struct mga_framebuffer mfb;
 	void *sysram;
 	int size;
@@ -212,8 +212,6 @@ struct mga_device {
 	int fb_mtrr;
 
 	struct {
-		struct drm_global_reference mem_global_ref;
-		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
 	} ttm;
 
@@ -271,7 +269,6 @@ mgag200_dumb_mmap_offset(struct drm_file *file,
 struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev);
 void mgag200_i2c_destroy(struct mga_i2c_chan *i2c);
 
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 void mgag200_ttm_placement(struct mgag200_bo *bo, int domain);
 
 static inline int mgag200_bo_reserve(struct mgag200_bo *bo, bool no_wait)

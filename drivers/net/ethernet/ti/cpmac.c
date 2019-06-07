@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2006, 2007 Eugene Konev
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/module.h>
@@ -608,7 +596,7 @@ static void cpmac_end_xmit(struct net_device *dev, int queue)
 			netdev_dbg(dev, "sent 0x%p, len=%d\n",
 				   desc->skb, desc->skb->len);
 
-		dev_kfree_skb_irq(desc->skb);
+		dev_consume_skb_irq(desc->skb);
 		desc->skb = NULL;
 		if (__netif_subqueue_stopped(dev, queue))
 			netif_wake_subqueue(dev, queue);
@@ -991,7 +979,6 @@ static int cpmac_open(struct net_device *dev)
 	cpmac_hw_start(dev);
 
 	napi_enable(&priv->napi);
-	dev->phydev->state = PHY_CHANGELINK;
 	phy_start(dev->phydev);
 
 	return 0;

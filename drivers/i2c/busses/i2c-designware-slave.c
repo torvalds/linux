@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Synopsys DesignWare I2C adapter driver (slave only).
  *
  * Based on the Synopsys DesignWare I2C adapter driver (master).
  *
  * Copyright (C) 2016 Synopsys Inc.
- *
- * ----------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * ----------------------------------------------------------------------------
- *
  */
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -51,53 +38,18 @@ static void i2c_dw_configure_fifo_slave(struct dw_i2c_dev *dev)
  */
 static int i2c_dw_init_slave(struct dw_i2c_dev *dev)
 {
-	u32 reg, comp_param1;
 	int ret;
 
 	ret = i2c_dw_acquire_lock(dev);
 	if (ret)
 		return ret;
 
-	reg = dw_readl(dev, DW_IC_COMP_TYPE);
-	if (reg == ___constant_swab32(DW_IC_COMP_TYPE_VALUE)) {
-		/* Configure register endianness access. */
-		dev->flags |= ACCESS_SWAP;
-	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
-		/* Configure register access mode 16bit. */
-		dev->flags |= ACCESS_16BIT;
-	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
-		dev_err(dev->dev,
-			"Unknown Synopsys component type: 0x%08x\n", reg);
-		i2c_dw_release_lock(dev);
-		return -ENODEV;
-	}
-
-	comp_param1 = dw_readl(dev, DW_IC_COMP_PARAM_1);
-
 	/* Disable the adapter. */
-	__i2c_dw_enable_and_wait(dev, false);
+	__i2c_dw_disable(dev);
 
-	/* Configure SDA Hold Time if required. */
-	reg = dw_readl(dev, DW_IC_COMP_VERSION);
-	if (reg >= DW_IC_SDA_HOLD_MIN_VERS) {
-		if (!dev->sda_hold_time) {
-			/* Keep previous hold time setting if no one set it. */
-			dev->sda_hold_time = dw_readl(dev, DW_IC_SDA_HOLD);
-		}
-		/*
-		 * Workaround for avoiding TX arbitration lost in case I2C
-		 * slave pulls SDA down "too quickly" after falling egde of
-		 * SCL by enabling non-zero SDA RX hold. Specification says it
-		 * extends incoming SDA low to high transition while SCL is
-		 * high but it apprears to help also above issue.
-		 */
-		if (!(dev->sda_hold_time & DW_IC_SDA_HOLD_RX_MASK))
-			dev->sda_hold_time |= 1 << DW_IC_SDA_HOLD_RX_SHIFT;
+	/* Write SDA hold time if supported */
+	if (dev->sda_hold_time)
 		dw_writel(dev, dev->sda_hold_time, DW_IC_SDA_HOLD);
-	} else {
-		dev_warn(dev->dev,
-			 "Hardware too old to adjust SDA hold time.\n");
-	}
 
 	i2c_dw_configure_fifo_slave(dev);
 	i2c_dw_release_lock(dev);
@@ -119,11 +71,11 @@ static int i2c_dw_reg_slave(struct i2c_client *slave)
 	 * Set slave address in the IC_SAR register,
 	 * the address to which the DW_apb_i2c responds.
 	 */
-	__i2c_dw_enable(dev, false);
+	__i2c_dw_disable_nowait(dev);
 	dw_writel(dev, slave->addr, DW_IC_SAR);
 	dev->slave = slave;
 
-	__i2c_dw_enable(dev, true);
+	__i2c_dw_enable(dev);
 
 	dev->cmd_err = 0;
 	dev->msg_write_idx = 0;
@@ -298,6 +250,14 @@ int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 	dev->init = i2c_dw_init_slave;
 	dev->disable = i2c_dw_disable;
 	dev->disable_int = i2c_dw_disable_int;
+
+	ret = i2c_dw_set_reg_access(dev);
+	if (ret)
+		return ret;
+
+	ret = i2c_dw_set_sda_hold(dev);
+	if (ret)
+		return ret;
 
 	ret = dev->init(dev);
 	if (ret)

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AF_RXRPC sendmsg() implementation.
  *
  * Copyright (C) 2007, 2016 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -80,7 +76,8 @@ static int rxrpc_wait_for_tx_window_nonintr(struct rxrpc_sock *rx,
 		if (call->state >= RXRPC_CALL_COMPLETE)
 			return call->error;
 
-		if (timeout == 0 &&
+		if (test_bit(RXRPC_CALL_IS_INTR, &call->flags) &&
+		    timeout == 0 &&
 		    tx_win == tx_start && signal_pending(current))
 			return -EINTR;
 
@@ -152,12 +149,13 @@ static void rxrpc_notify_end_tx(struct rxrpc_sock *rx, struct rxrpc_call *call,
 }
 
 /*
- * Queue a DATA packet for transmission, set the resend timeout and send the
- * packet immediately
+ * Queue a DATA packet for transmission, set the resend timeout and send
+ * the packet immediately.  Returns the error from rxrpc_send_data_packet()
+ * in case the caller wants to do something with it.
  */
-static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
-			       struct sk_buff *skb, bool last,
-			       rxrpc_notify_end_tx_t notify_end_tx)
+static int rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
+			      struct sk_buff *skb, bool last,
+			      rxrpc_notify_end_tx_t notify_end_tx)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned long now;
@@ -169,10 +167,8 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 
 	ASSERTCMP(seq, ==, call->tx_top + 1);
 
-	if (last) {
+	if (last)
 		annotation |= RXRPC_TX_ANNO_LAST;
-		set_bit(RXRPC_CALL_TX_LASTQ, &call->flags);
-	}
 
 	/* We have to set the timestamp before queueing as the retransmit
 	 * algorithm can see the packet as soon as we queue it.
@@ -252,7 +248,8 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 
 out:
 	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
-	_leave("");
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*
@@ -386,6 +383,11 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 				call->tx_total_len -= copy;
 		}
 
+		/* check for the far side aborting the call or a network error
+		 * occurring */
+		if (call->state == RXRPC_CALL_COMPLETE)
+			goto call_terminated;
+
 		/* add the packet to the send queue if it's now full */
 		if (sp->remain <= 0 ||
 		    (msg_data_left(msg) == 0 && !more)) {
@@ -420,20 +422,11 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			if (ret < 0)
 				goto out;
 
-			rxrpc_queue_packet(rx, call, skb,
-					   !msg_data_left(msg) && !more,
-					   notify_end_tx);
+			ret = rxrpc_queue_packet(rx, call, skb,
+						 !msg_data_left(msg) && !more,
+						 notify_end_tx);
+			/* Should check for failure here */
 			skb = NULL;
-		}
-
-		/* Check for the far side aborting the call or a network error
-		 * occurring.  If this happens, save any packet that was under
-		 * construction so that in the case of a network error, the
-		 * call can be retried or redirected.
-		 */
-		if (call->state == RXRPC_CALL_COMPLETE) {
-			ret = call->error;
-			goto out;
 		}
 	} while (msg_data_left(msg) > 0);
 
@@ -443,6 +436,11 @@ out:
 	call->tx_pending = skb;
 	_leave(" = %d", ret);
 	return ret;
+
+call_terminated:
+	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
+	_leave(" = %d", call->error);
+	return call->error;
 
 maybe_error:
 	if (copied)
@@ -619,6 +617,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		.call.tx_total_len	= -1,
 		.call.user_call_ID	= 0,
 		.call.nr_timeouts	= 0,
+		.call.intr		= true,
 		.abort_code		= 0,
 		.command		= RXRPC_CMD_SEND_DATA,
 		.exclusive		= false,

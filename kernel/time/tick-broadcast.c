@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * linux/kernel/time/tick-broadcast.c
- *
  * This file contains functions which emulate a local clock-event
  * device via a broadcast event source.
  *
  * Copyright(C) 2005-2006, Thomas Gleixner <tglx@linutronix.de>
  * Copyright(C) 2005-2007, Red Hat, Inc., Ingo Molnar
  * Copyright(C) 2006-2007, Timesys Corp., Thomas Gleixner
- *
- * This code is licenced under the GPL version 2. For details see
- * kernel-base/COPYING.
  */
 #include <linux/cpu.h>
 #include <linux/err.h>
@@ -40,10 +36,16 @@ static __cacheline_aligned_in_smp DEFINE_RAW_SPINLOCK(tick_broadcast_lock);
 static void tick_broadcast_setup_oneshot(struct clock_event_device *bc);
 static void tick_broadcast_clear_oneshot(int cpu);
 static void tick_resume_broadcast_oneshot(struct clock_event_device *bc);
+# ifdef CONFIG_HOTPLUG_CPU
+static void tick_broadcast_oneshot_offline(unsigned int cpu);
+# endif
 #else
 static inline void tick_broadcast_setup_oneshot(struct clock_event_device *bc) { BUG(); }
 static inline void tick_broadcast_clear_oneshot(int cpu) { }
 static inline void tick_resume_broadcast_oneshot(struct clock_event_device *bc) { }
+# ifdef CONFIG_HOTPLUG_CPU
+static inline void tick_broadcast_oneshot_offline(unsigned int cpu) { }
+# endif
 #endif
 
 /*
@@ -379,6 +381,7 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 	switch (mode) {
 	case TICK_BROADCAST_FORCE:
 		tick_broadcast_forced = 1;
+		/* fall through */
 	case TICK_BROADCAST_ON:
 		cpumask_set_cpu(cpu, tick_broadcast_on);
 		if (!cpumask_test_and_set_cpu(cpu, tick_broadcast_mask)) {
@@ -400,8 +403,6 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 		if (tick_broadcast_forced)
 			break;
 		cpumask_clear_cpu(cpu, tick_broadcast_on);
-		if (!tick_device_is_functional(dev))
-			break;
 		if (cpumask_test_and_clear_cpu(cpu, tick_broadcast_mask)) {
 			if (tick_broadcast_device.mode ==
 			    TICKDEV_MODE_PERIODIC)
@@ -438,27 +439,29 @@ void tick_set_periodic_handler(struct clock_event_device *dev, int broadcast)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-/*
- * Remove a CPU from broadcasting
- */
-void tick_shutdown_broadcast(unsigned int cpu)
+static void tick_shutdown_broadcast(void)
 {
-	struct clock_event_device *bc;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
-
-	bc = tick_broadcast_device.evtdev;
-	cpumask_clear_cpu(cpu, tick_broadcast_mask);
-	cpumask_clear_cpu(cpu, tick_broadcast_on);
+	struct clock_event_device *bc = tick_broadcast_device.evtdev;
 
 	if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC) {
 		if (bc && cpumask_empty(tick_broadcast_mask))
 			clockevents_shutdown(bc);
 	}
-
-	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
+
+/*
+ * Remove a CPU from broadcasting
+ */
+void tick_broadcast_offline(unsigned int cpu)
+{
+	raw_spin_lock(&tick_broadcast_lock);
+	cpumask_clear_cpu(cpu, tick_broadcast_mask);
+	cpumask_clear_cpu(cpu, tick_broadcast_on);
+	tick_broadcast_oneshot_offline(cpu);
+	tick_shutdown_broadcast();
+	raw_spin_unlock(&tick_broadcast_lock);
+}
+
 #endif
 
 void tick_suspend_broadcast(void)
@@ -806,13 +809,13 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 			 * either the CPU handling the broadcast
 			 * interrupt or we got woken by something else.
 			 *
-			 * We are not longer in the broadcast mask, so
+			 * We are no longer in the broadcast mask, so
 			 * if the cpu local expiry time is already
 			 * reached, we would reprogram the cpu local
 			 * timer with an already expired event.
 			 *
 			 * This can lead to a ping-pong when we return
-			 * to idle and therefor rearm the broadcast
+			 * to idle and therefore rearm the broadcast
 			 * timer before the cpu local timer was able
 			 * to fire. This happens because the forced
 			 * reprogramming makes sure that the event
@@ -955,14 +958,10 @@ void hotplug_cpu__broadcast_tick_pull(int deadcpu)
 }
 
 /*
- * Remove a dead CPU from broadcasting
+ * Remove a dying CPU from broadcasting
  */
-void tick_shutdown_broadcast_oneshot(unsigned int cpu)
+static void tick_broadcast_oneshot_offline(unsigned int cpu)
 {
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
-
 	/*
 	 * Clear the broadcast masks for the dead cpu, but do not stop
 	 * the broadcast device!
@@ -970,8 +969,6 @@ void tick_shutdown_broadcast_oneshot(unsigned int cpu)
 	cpumask_clear_cpu(cpu, tick_broadcast_oneshot_mask);
 	cpumask_clear_cpu(cpu, tick_broadcast_pending_mask);
 	cpumask_clear_cpu(cpu, tick_broadcast_force_mask);
-
-	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
 #endif
 

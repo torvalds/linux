@@ -1,15 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 IBM Corporation
  *
  * Authors:
  * Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
  * Mimi Zohar <zohar@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 #include <linux/kexec.h>
@@ -104,7 +102,7 @@ void ima_add_kexec_buffer(struct kimage *image)
 		kexec_segment_size = ALIGN(ima_get_binary_runtime_size() +
 					   PAGE_SIZE / 2, PAGE_SIZE);
 	if ((kexec_segment_size == ULONG_MAX) ||
-	    ((kexec_segment_size >> PAGE_SHIFT) > totalram_pages / 2)) {
+	    ((kexec_segment_size >> PAGE_SHIFT) > totalram_pages() / 2)) {
 		pr_err("Binary measurement list too large.\n");
 		return;
 	}

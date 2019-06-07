@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2006, 2007, 2009 Rusty Russell, IBM Corporation
  * Copyright (C) 2009, 2010, 2011 Red Hat, Inc.
  * Copyright (C) 2009, 2010, 2011 Amit Shah <amit.shah@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/cdev.h>
 #include <linux/debugfs.h>
@@ -75,7 +62,7 @@ struct ports_driver_data {
 	/* All the console devices handled by this driver */
 	struct list_head consoles;
 };
-static struct ports_driver_data pdrvdata;
+static struct ports_driver_data pdrvdata = { .next_vtermno = 1};
 
 static DEFINE_SPINLOCK(pdrvdata_lock);
 static DECLARE_COMPLETION(early_console_added);
@@ -433,8 +420,7 @@ static struct port_buffer *alloc_buf(struct virtio_device *vdev, size_t buf_size
 	 * Allocate buffer and the sg list. The sg list array is allocated
 	 * directly after the port_buffer struct.
 	 */
-	buf = kmalloc(sizeof(*buf) + sizeof(struct scatterlist) * pages,
-		      GFP_KERNEL);
+	buf = kmalloc(struct_size(buf, sg, pages), GFP_KERNEL);
 	if (!buf)
 		goto fail;
 
@@ -1310,52 +1296,25 @@ static const struct attribute_group port_attribute_group = {
 	.attrs = port_sysfs_entries,
 };
 
-static ssize_t debugfs_read(struct file *filp, char __user *ubuf,
-			    size_t count, loff_t *offp)
+static int port_debugfs_show(struct seq_file *s, void *data)
 {
-	struct port *port;
-	char *buf;
-	ssize_t ret, out_offset, out_count;
+	struct port *port = s->private;
 
-	out_count = 1024;
-	buf = kmalloc(out_count, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	seq_printf(s, "name: %s\n", port->name ? port->name : "");
+	seq_printf(s, "guest_connected: %d\n", port->guest_connected);
+	seq_printf(s, "host_connected: %d\n", port->host_connected);
+	seq_printf(s, "outvq_full: %d\n", port->outvq_full);
+	seq_printf(s, "bytes_sent: %lu\n", port->stats.bytes_sent);
+	seq_printf(s, "bytes_received: %lu\n", port->stats.bytes_received);
+	seq_printf(s, "bytes_discarded: %lu\n", port->stats.bytes_discarded);
+	seq_printf(s, "is_console: %s\n",
+		   is_console_port(port) ? "yes" : "no");
+	seq_printf(s, "console_vtermno: %u\n", port->cons.vtermno);
 
-	port = filp->private_data;
-	out_offset = 0;
-	out_offset += snprintf(buf + out_offset, out_count,
-			       "name: %s\n", port->name ? port->name : "");
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "guest_connected: %d\n", port->guest_connected);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "host_connected: %d\n", port->host_connected);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "outvq_full: %d\n", port->outvq_full);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "bytes_sent: %lu\n", port->stats.bytes_sent);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "bytes_received: %lu\n",
-			       port->stats.bytes_received);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "bytes_discarded: %lu\n",
-			       port->stats.bytes_discarded);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "is_console: %s\n",
-			       is_console_port(port) ? "yes" : "no");
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "console_vtermno: %u\n", port->cons.vtermno);
-
-	ret = simple_read_from_buffer(ubuf, count, offp, buf, out_offset);
-	kfree(buf);
-	return ret;
+	return 0;
 }
 
-static const struct file_operations port_debugfs_ops = {
-	.owner = THIS_MODULE,
-	.open  = simple_open,
-	.read  = debugfs_read,
-};
+DEFINE_SHOW_ATTRIBUTE(port_debugfs);
 
 static void set_console_size(struct port *port, u16 rows, u16 cols)
 {
@@ -1422,6 +1381,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 	port->async_queue = NULL;
 
 	port->cons.ws.ws_row = port->cons.ws.ws_col = 0;
+	port->cons.vtermno = 0;
 
 	port->host_connected = port->guest_connected = false;
 	port->stats = (struct port_stats) { 0 };
@@ -1507,7 +1467,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 		port->debugfs_file = debugfs_create_file(debugfs_name, 0444,
 							 pdrvdata.debugfs_dir,
 							 port,
-							 &port_debugfs_ops);
+							 &port_debugfs_fops);
 	}
 	return 0;
 
@@ -1892,13 +1852,14 @@ static int init_vqs(struct ports_device *portdev)
 	nr_ports = portdev->max_nr_ports;
 	nr_queues = use_multiport(portdev) ? (nr_ports + 1) * 2 : 2;
 
-	vqs = kmalloc(nr_queues * sizeof(struct virtqueue *), GFP_KERNEL);
-	io_callbacks = kmalloc(nr_queues * sizeof(vq_callback_t *), GFP_KERNEL);
-	io_names = kmalloc(nr_queues * sizeof(char *), GFP_KERNEL);
-	portdev->in_vqs = kmalloc(nr_ports * sizeof(struct virtqueue *),
-				  GFP_KERNEL);
-	portdev->out_vqs = kmalloc(nr_ports * sizeof(struct virtqueue *),
-				   GFP_KERNEL);
+	vqs = kmalloc_array(nr_queues, sizeof(struct virtqueue *), GFP_KERNEL);
+	io_callbacks = kmalloc_array(nr_queues, sizeof(vq_callback_t *),
+				     GFP_KERNEL);
+	io_names = kmalloc_array(nr_queues, sizeof(char *), GFP_KERNEL);
+	portdev->in_vqs = kmalloc_array(nr_ports, sizeof(struct virtqueue *),
+					GFP_KERNEL);
+	portdev->out_vqs = kmalloc_array(nr_ports, sizeof(struct virtqueue *),
+					 GFP_KERNEL);
 	if (!vqs || !io_callbacks || !io_names || !portdev->in_vqs ||
 	    !portdev->out_vqs) {
 		err = -ENOMEM;

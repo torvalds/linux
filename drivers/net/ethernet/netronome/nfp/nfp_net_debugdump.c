@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
 #include <linux/ethtool.h>
 #include <linux/vmalloc.h>
@@ -188,25 +158,21 @@ nfp_net_dump_load_dumpspec(struct nfp_cpp *cpp, struct nfp_rtsym_table *rtbl)
 	const struct nfp_rtsym *specsym;
 	struct nfp_dumpspec *dumpspec;
 	int bytes_read;
-	u32 cpp_id;
+	u64 sym_size;
 
 	specsym = nfp_rtsym_lookup(rtbl, NFP_DUMP_SPEC_RTSYM);
 	if (!specsym)
 		return NULL;
+	sym_size = nfp_rtsym_size(specsym);
 
 	/* expected size of this buffer is in the order of tens of kilobytes */
-	dumpspec = vmalloc(sizeof(*dumpspec) + specsym->size);
+	dumpspec = vmalloc(sizeof(*dumpspec) + sym_size);
 	if (!dumpspec)
 		return NULL;
+	dumpspec->size = sym_size;
 
-	dumpspec->size = specsym->size;
-
-	cpp_id = NFP_CPP_ISLAND_ID(specsym->target, NFP_CPP_ACTION_RW, 0,
-				   specsym->domain);
-
-	bytes_read = nfp_cpp_read(cpp, cpp_id, specsym->addr, dumpspec->data,
-				  specsym->size);
-	if (bytes_read != specsym->size) {
+	bytes_read = nfp_rtsym_read(cpp, specsym, 0, dumpspec->data, sym_size);
+	if (bytes_read != sym_size) {
 		vfree(dumpspec);
 		nfp_warn(cpp, "Debug dump specification read failed.\n");
 		return NULL;
@@ -266,7 +232,6 @@ nfp_calc_rtsym_dump_sz(struct nfp_pf *pf, struct nfp_dump_tl *spec)
 	struct nfp_dumpspec_rtsym *spec_rtsym;
 	const struct nfp_rtsym *sym;
 	u32 tl_len, key_len;
-	u32 size;
 
 	spec_rtsym = (struct nfp_dumpspec_rtsym *)spec;
 	tl_len = be32_to_cpu(spec->length);
@@ -278,13 +243,8 @@ nfp_calc_rtsym_dump_sz(struct nfp_pf *pf, struct nfp_dump_tl *spec)
 	if (!sym)
 		return nfp_dump_error_tlv_size(spec);
 
-	if (sym->type == NFP_RTSYM_TYPE_ABS)
-		size = sizeof(sym->addr);
-	else
-		size = sym->size;
-
 	return ALIGN8(offsetof(struct nfp_dump_rtsym, rtsym) + key_len + 1) +
-	       ALIGN8(size);
+	       ALIGN8(nfp_rtsym_size(sym));
 }
 
 static int
@@ -644,7 +604,6 @@ nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 	const struct nfp_rtsym *sym;
 	u32 tl_len, key_len;
 	int bytes_read;
-	u32 cpp_id;
 	void *dest;
 	int err;
 
@@ -657,11 +616,7 @@ nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 	if (!sym)
 		return nfp_dump_error_tlv(&spec->tl, -ENOENT, dump);
 
-	if (sym->type == NFP_RTSYM_TYPE_ABS)
-		sym_size = sizeof(sym->addr);
-	else
-		sym_size = sym->size;
-
+	sym_size = nfp_rtsym_size(sym);
 	header_size =
 		ALIGN8(offsetof(struct nfp_dump_rtsym, rtsym) + key_len + 1);
 	total_size = header_size + ALIGN8(sym_size);
@@ -676,23 +631,20 @@ nfp_dump_single_rtsym(struct nfp_pf *pf, struct nfp_dumpspec_rtsym *spec,
 	memcpy(dump_header->rtsym, spec->rtsym, key_len + 1);
 	dump_header->cpp.dump_length = cpu_to_be32(sym_size);
 
-	if (sym->type == NFP_RTSYM_TYPE_ABS) {
-		*(u64 *)dest = sym->addr;
-	} else {
+	if (sym->type != NFP_RTSYM_TYPE_ABS) {
 		cpp_params.target = sym->target;
 		cpp_params.action = NFP_CPP_ACTION_RW;
 		cpp_params.token  = 0;
 		cpp_params.island = sym->domain;
-		cpp_id = nfp_get_numeric_cpp_id(&cpp_params);
 		dump_header->cpp.cpp_id = cpp_params;
 		dump_header->cpp.offset = cpu_to_be32(sym->addr);
-		bytes_read = nfp_cpp_read(pf->cpp, cpp_id, sym->addr, dest,
-					  sym_size);
-		if (bytes_read != sym_size) {
-			if (bytes_read >= 0)
-				bytes_read = -EIO;
-			dump_header->error = cpu_to_be32(bytes_read);
-		}
+	}
+
+	bytes_read = nfp_rtsym_read(pf->cpp, sym, 0, dest, sym_size);
+	if (bytes_read != sym_size) {
+		if (bytes_read >= 0)
+			bytes_read = -EIO;
+		dump_header->error = cpu_to_be32(bytes_read);
 	}
 
 	return 0;

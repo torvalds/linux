@@ -27,6 +27,7 @@
 #include <linux/power_supply.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio_keys.h>
 #include <linux/delay.h>
 #include <linux/regulator/machine.h>
@@ -290,14 +291,21 @@ static inline void z2_lcd_init(void) {}
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 static struct pxamci_platform_data z2_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO96_ZIPITZ2_SD_DETECT,
-	.gpio_power		= -1,
-	.gpio_card_ro		= -1,
 	.detect_delay_ms	= 200,
+};
+
+static struct gpiod_lookup_table z2_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO96_ZIPITZ2_SD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static void __init z2_mmc_init(void)
 {
+	gpiod_add_lookup_table(&z2_mci_gpio_table);
 	pxa_set_mci_info(&z2_mci_platform_data);
 }
 #else
@@ -599,12 +607,12 @@ static struct spi_board_info spi_board_info[] __initdata = {
 },
 };
 
-static struct pxa2xx_spi_master pxa_ssp1_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp1_master_info = {
 	.num_chipselect	= 1,
 	.enable_dma	= 1,
 };
 
-static struct pxa2xx_spi_master pxa_ssp2_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp2_master_info = {
 	.num_chipselect	= 1,
 };
 

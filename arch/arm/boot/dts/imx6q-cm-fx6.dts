@@ -51,6 +51,7 @@
 	compatible = "compulab,cm-fx6", "fsl,imx6q";
 
 	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x80000000>;
 	};
 
@@ -166,6 +167,72 @@
 };
 
 &cpu0 {
+	/*
+	 * Although the imx6q fuse indicates that 1.2GHz operation is possible,
+	 * the module behaves unstable at this frequency. Hence, remove the
+	 * 1.2GHz operation point here.
+	 */
+	operating-points = <
+		/* kHz	uV */
+		996000	1250000
+		852000	1250000
+		792000	1175000
+		396000	975000
+	>;
+	fsl,soc-operating-points = <
+		/* ARM kHz	SOC-PU uV */
+		996000		1250000
+		852000		1250000
+		792000		1175000
+		396000		1175000
+	>;
+};
+
+&cpu1 {
+	/*
+	 * Although the imx6q fuse indicates that 1.2GHz operation is possible,
+	 * the module behaves unstable at this frequency. Hence, remove the
+	 * 1.2GHz operation point here.
+	 */
+	operating-points = <
+		/* kHz	uV */
+		996000	1250000
+		852000	1250000
+		792000	1175000
+		396000	975000
+	>;
+	fsl,soc-operating-points = <
+		/* ARM kHz	SOC-PU uV */
+		996000		1250000
+		852000		1250000
+		792000		1175000
+		396000		1175000
+	>;
+};
+
+&cpu2 {
+	/*
+	 * Although the imx6q fuse indicates that 1.2GHz operation is possible,
+	 * the module behaves unstable at this frequency. Hence, remove the
+	 * 1.2GHz operation point here.
+	 */
+	operating-points = <
+		/* kHz	uV */
+		996000	1250000
+		852000	1250000
+		792000	1175000
+		396000	975000
+	>;
+	fsl,soc-operating-points = <
+		/* ARM kHz	SOC-PU uV */
+		996000		1250000
+		852000		1250000
+		792000		1175000
+		396000		1175000
+	>;
+};
+
+&cpu3 {
 	/*
 	 * Although the imx6q fuse indicates that 1.2GHz operation is possible,
 	 * the module behaves unstable at this frequency. Hence, remove the

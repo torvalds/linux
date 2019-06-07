@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2009-2010, Lars-Peter Clausen <lars@metafoo.de>
  *  Copyright (C) 2011, Maarten ter Huurne <maarten@treewalker.org>
  *  JZ4740 setup code
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General	 Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/init.h>
@@ -30,7 +21,6 @@
 
 
 #define JZ4740_EMC_SDRAM_CTRL 0x80
-
 
 static void __init jz4740_detect_mem(void)
 {
@@ -66,15 +56,22 @@ static unsigned long __init get_board_mach_type(const void *fdt)
 void __init plat_mem_setup(void)
 {
 	int offset;
+	void *dtb;
 
 	jz4740_reset_init();
-	__dt_setup_arch(__dtb_start);
 
-	offset = fdt_path_offset(__dtb_start, "/memory");
+	if (__dtb_start != __dtb_end)
+		dtb = __dtb_start;
+	else
+		dtb = (void *)fw_passed_dtb;
+
+	__dt_setup_arch(dtb);
+
+	offset = fdt_path_offset(dtb, "/memory");
 	if (offset < 0)
 		jz4740_detect_mem();
 
-	mips_machtype = get_board_mach_type(__dtb_start);
+	mips_machtype = get_board_mach_type(dtb);
 }
 
 void __init device_tree_init(void)

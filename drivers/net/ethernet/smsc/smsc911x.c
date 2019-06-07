@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /***************************************************************************
  *
  * Copyright (C) 2004-2008 SMSC
  * Copyright (C) 2005-2008 ARM
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  ***************************************************************************
  * Rewritten, heavily based on smsc911x simple driver by SMSC.
@@ -26,7 +14,6 @@
  *   LAN9210, LAN9211
  *   LAN9220, LAN9221
  *   LAN89218,LAN9250
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1048,10 +1035,10 @@ static int smsc911x_mii_probe(struct net_device *dev)
 
 	phy_attached_info(phydev);
 
+	phy_set_max_speed(phydev, SPEED_100);
+
 	/* mask with MAC supported features */
-	phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
-			      SUPPORTED_Asym_Pause);
-	phydev->advertising = phydev->supported;
+	phy_support_asym_pause(phydev);
 
 	pdata->last_duplex = -1;
 	pdata->last_carrier = -1;
@@ -1786,7 +1773,8 @@ static int smsc911x_stop(struct net_device *dev)
 }
 
 /* Entry point for transmitting a packet */
-static int smsc911x_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t
+smsc911x_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct smsc911x_data *pdata = netdev_priv(dev);
 	unsigned int freespace;

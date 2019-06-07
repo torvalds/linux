@@ -180,8 +180,8 @@ static int qce_ablkcipher_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
 		u32 tmp[DES_EXPKEY_WORDS];
 
 		ret = des_ekey(tmp, key);
-		if (!ret && crypto_ablkcipher_get_flags(ablk) &
-		    CRYPTO_TFM_REQ_WEAK_KEY)
+		if (!ret && (crypto_ablkcipher_get_flags(ablk) &
+			     CRYPTO_TFM_REQ_FORBID_WEAK_KEYS))
 			goto weakkey;
 	}
 
@@ -189,13 +189,32 @@ static int qce_ablkcipher_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
 	memcpy(ctx->enc_key, key, keylen);
 	return 0;
 fallback:
-	ret = crypto_skcipher_setkey(ctx->fallback, key, keylen);
+	ret = crypto_sync_skcipher_setkey(ctx->fallback, key, keylen);
 	if (!ret)
 		ctx->enc_keylen = keylen;
 	return ret;
 weakkey:
 	crypto_ablkcipher_set_flags(ablk, CRYPTO_TFM_RES_WEAK_KEY);
 	return -EINVAL;
+}
+
+static int qce_des3_setkey(struct crypto_ablkcipher *ablk, const u8 *key,
+			   unsigned int keylen)
+{
+	struct qce_cipher_ctx *ctx = crypto_ablkcipher_ctx(ablk);
+	u32 flags;
+	int err;
+
+	flags = crypto_ablkcipher_get_flags(ablk);
+	err = __des3_verify_key(&flags, key);
+	if (unlikely(err)) {
+		crypto_ablkcipher_set_flags(ablk, flags);
+		return err;
+	}
+
+	ctx->enc_keylen = keylen;
+	memcpy(ctx->enc_key, key, keylen);
+	return 0;
 }
 
 static int qce_ablkcipher_crypt(struct ablkcipher_request *req, int encrypt)
@@ -212,9 +231,9 @@ static int qce_ablkcipher_crypt(struct ablkcipher_request *req, int encrypt)
 
 	if (IS_AES(rctx->flags) && ctx->enc_keylen != AES_KEYSIZE_128 &&
 	    ctx->enc_keylen != AES_KEYSIZE_256) {
-		SKCIPHER_REQUEST_ON_STACK(subreq, ctx->fallback);
+		SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, ctx->fallback);
 
-		skcipher_request_set_tfm(subreq, ctx->fallback);
+		skcipher_request_set_sync_tfm(subreq, ctx->fallback);
 		skcipher_request_set_callback(subreq, req->base.flags,
 					      NULL, NULL);
 		skcipher_request_set_crypt(subreq, req->src, req->dst,
@@ -245,9 +264,8 @@ static int qce_ablkcipher_init(struct crypto_tfm *tfm)
 	memset(ctx, 0, sizeof(*ctx));
 	tfm->crt_ablkcipher.reqsize = sizeof(struct qce_cipher_reqctx);
 
-	ctx->fallback = crypto_alloc_skcipher(crypto_tfm_alg_name(tfm), 0,
-					      CRYPTO_ALG_ASYNC |
-					      CRYPTO_ALG_NEED_FALLBACK);
+	ctx->fallback = crypto_alloc_sync_skcipher(crypto_tfm_alg_name(tfm),
+						   0, CRYPTO_ALG_NEED_FALLBACK);
 	return PTR_ERR_OR_ZERO(ctx->fallback);
 }
 
@@ -255,7 +273,7 @@ static void qce_ablkcipher_exit(struct crypto_tfm *tfm)
 {
 	struct qce_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	crypto_free_skcipher(ctx->fallback);
+	crypto_free_sync_skcipher(ctx->fallback);
 }
 
 struct qce_ablkcipher_def {
@@ -364,7 +382,8 @@ static int qce_ablkcipher_register_one(const struct qce_ablkcipher_def *def,
 	alg->cra_ablkcipher.ivsize = def->ivsize;
 	alg->cra_ablkcipher.min_keysize = def->min_keysize;
 	alg->cra_ablkcipher.max_keysize = def->max_keysize;
-	alg->cra_ablkcipher.setkey = qce_ablkcipher_setkey;
+	alg->cra_ablkcipher.setkey = IS_3DES(def->flags) ?
+				     qce_des3_setkey : qce_ablkcipher_setkey;
 	alg->cra_ablkcipher.encrypt = qce_ablkcipher_encrypt;
 	alg->cra_ablkcipher.decrypt = qce_ablkcipher_decrypt;
 
@@ -377,7 +396,6 @@ static int qce_ablkcipher_register_one(const struct qce_ablkcipher_def *def,
 	alg->cra_module = THIS_MODULE;
 	alg->cra_init = qce_ablkcipher_init;
 	alg->cra_exit = qce_ablkcipher_exit;
-	INIT_LIST_HEAD(&alg->cra_list);
 
 	INIT_LIST_HEAD(&tmpl->entry);
 	tmpl->crypto_alg_type = CRYPTO_ALG_TYPE_ABLKCIPHER;

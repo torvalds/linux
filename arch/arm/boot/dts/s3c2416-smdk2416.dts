@@ -12,17 +12,19 @@
 	model = "SMDK2416";
 	compatible = "samsung,s3c2416";
 
-	memory {
+	memory@30000000 {
+		device_type = "memory";
 		reg =  <0x30000000 0x4000000>;
 	};
 
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
-		#size-cells = <1>;
+		#size-cells = <0>;
 
-		xti: xti {
+		xti: xti@0 {
 			compatible = "fixed-clock";
+			reg = <0>;
 			clock-frequency = <12000000>;
 			clock-output-names = "xti";
 			#clock-cells = <0>;

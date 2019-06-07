@@ -136,7 +136,9 @@ static void read_pcm_s32(struct amdtp_stream *s,
 		byte = (u8 *)buffer + p->pcm_byte_offset;
 
 		for (c = 0; c < channels; ++c) {
-			*dst = (byte[0] << 24) | (byte[1] << 16) | byte[2];
+			*dst = (byte[0] << 24) |
+			       (byte[1] << 16) |
+			       (byte[2] << 8);
 			byte += 3;
 			dst++;
 		}
@@ -409,6 +411,12 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 				 CIP_SKIP_DBC_ZERO_CHECK |
 				 CIP_HEADER_WITHOUT_EOH;
 			fmt = CIP_FMT_MOTU_TX_V3;
+		}
+
+		if (protocol == &snd_motu_protocol_v2) {
+			// 8pre has some quirks.
+			flags |= CIP_WRONG_DBS |
+				 CIP_SKIP_DBC_ZERO_CHECK;
 		}
 	} else {
 		process_data_blocks = process_rx_data_blocks;

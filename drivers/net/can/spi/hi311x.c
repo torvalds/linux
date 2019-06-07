@@ -760,7 +760,7 @@ static int hi3110_open(struct net_device *net)
 {
 	struct hi3110_priv *priv = netdev_priv(net);
 	struct spi_device *spi = priv->spi;
-	unsigned long flags = IRQF_ONESHOT | IRQF_TRIGGER_RISING;
+	unsigned long flags = IRQF_ONESHOT | IRQF_TRIGGER_HIGH;
 	int ret;
 
 	ret = open_candev(net);

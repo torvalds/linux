@@ -15,12 +15,14 @@ Required properties:
 
 Optional properties:
 
-  - interrupt-parent: should be the phandle for the interrupt controller
-
   - interrupts: interrupt mapping for GPIO IRQ
 
   - interrupt-names: should contain "INT1" and/or "INT2", the accelerometer's
 		     interrupt line in use.
+
+  - vdd-supply: phandle to the regulator that provides vdd power to the accelerometer.
+
+  - vddio-supply: phandle to the regulator that provides vddio power to the accelerometer.
 
 Example:
 

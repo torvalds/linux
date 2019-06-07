@@ -56,7 +56,7 @@ obj-y				+= tty/
 obj-y				+= char/
 
 # iommu/ comes before gpu as gpu are using iommu controllers
-obj-$(CONFIG_IOMMU_SUPPORT)	+= iommu/
+obj-y				+= iommu/
 
 # gpu/ comes after char for AGP vs DRM startup and after iommu
 obj-y				+= gpu/
@@ -76,7 +76,7 @@ obj-$(CONFIG_DMA_SHARED_BUFFER) += dma-buf/
 obj-$(CONFIG_NUBUS)		+= nubus/
 obj-y				+= macintosh/
 obj-$(CONFIG_IDE)		+= ide/
-obj-$(CONFIG_SCSI)		+= scsi/
+obj-y				+= scsi/
 obj-y				+= nvme/
 obj-$(CONFIG_ATA)		+= ata/
 obj-$(CONFIG_TARGET_CORE)	+= target/
@@ -111,7 +111,7 @@ obj-$(CONFIG_SERIO)		+= input/serio/
 obj-$(CONFIG_GAMEPORT)		+= input/gameport/
 obj-$(CONFIG_INPUT)		+= input/
 obj-$(CONFIG_RTC_LIB)		+= rtc/
-obj-y				+= i2c/ media/
+obj-y				+= i2c/ i3c/ media/
 obj-$(CONFIG_PPS)		+= pps/
 obj-y				+= ptp/
 obj-$(CONFIG_W1)		+= w1/
@@ -185,3 +185,6 @@ obj-$(CONFIG_TEE)		+= tee/
 obj-$(CONFIG_MULTIPLEXER)	+= mux/
 obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus/
 obj-$(CONFIG_SIOX)		+= siox/
+obj-$(CONFIG_GNSS)		+= gnss/
+obj-$(CONFIG_INTERCONNECT)	+= interconnect/
+obj-$(CONFIG_COUNTER)		+= counter/

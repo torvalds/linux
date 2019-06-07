@@ -92,7 +92,8 @@ static void gfs2_remove_from_ail(struct gfs2_bufdata *bd)
 
 static int gfs2_ail1_start_one(struct gfs2_sbd *sdp,
 			       struct writeback_control *wbc,
-			       struct gfs2_trans *tr)
+			       struct gfs2_trans *tr,
+			       bool *withdraw)
 __releases(&sdp->sd_ail_lock)
 __acquires(&sdp->sd_ail_lock)
 {
@@ -107,8 +108,12 @@ __acquires(&sdp->sd_ail_lock)
 		gfs2_assert(sdp, bd->bd_tr == tr);
 
 		if (!buffer_busy(bh)) {
-			if (!buffer_uptodate(bh))
+			if (!buffer_uptodate(bh) &&
+			    !test_and_set_bit(SDF_AIL1_IO_ERROR,
+					      &sdp->sd_flags)) {
 				gfs2_io_error_bh(sdp, bh);
+				*withdraw = true;
+			}
 			list_move(&bd->bd_ail_st_list, &tr->tr_ail2_list);
 			continue;
 		}
@@ -148,6 +153,7 @@ void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 	struct list_head *head = &sdp->sd_ail1_list;
 	struct gfs2_trans *tr;
 	struct blk_plug plug;
+	bool withdraw = false;
 
 	trace_gfs2_ail_flush(sdp, wbc, 1);
 	blk_start_plug(&plug);
@@ -156,11 +162,13 @@ restart:
 	list_for_each_entry_reverse(tr, head, tr_list) {
 		if (wbc->nr_to_write <= 0)
 			break;
-		if (gfs2_ail1_start_one(sdp, wbc, tr))
+		if (gfs2_ail1_start_one(sdp, wbc, tr, &withdraw))
 			goto restart;
 	}
 	spin_unlock(&sdp->sd_ail_lock);
 	blk_finish_plug(&plug);
+	if (withdraw)
+		gfs2_lm_withdraw(sdp, NULL);
 	trace_gfs2_ail_flush(sdp, wbc, 0);
 }
 
@@ -188,7 +196,8 @@ static void gfs2_ail1_start(struct gfs2_sbd *sdp)
  *
  */
 
-static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
+static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
+				bool *withdraw)
 {
 	struct gfs2_bufdata *bd, *s;
 	struct buffer_head *bh;
@@ -199,11 +208,13 @@ static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 		gfs2_assert(sdp, bd->bd_tr == tr);
 		if (buffer_busy(bh))
 			continue;
-		if (!buffer_uptodate(bh))
+		if (!buffer_uptodate(bh) &&
+		    !test_and_set_bit(SDF_AIL1_IO_ERROR, &sdp->sd_flags)) {
 			gfs2_io_error_bh(sdp, bh);
+			*withdraw = true;
+		}
 		list_move(&bd->bd_ail_st_list, &tr->tr_ail2_list);
 	}
-
 }
 
 /**
@@ -218,10 +229,11 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 	struct gfs2_trans *tr, *s;
 	int oldest_tr = 1;
 	int ret;
+	bool withdraw = false;
 
 	spin_lock(&sdp->sd_ail_lock);
 	list_for_each_entry_safe_reverse(tr, s, &sdp->sd_ail1_list, tr_list) {
-		gfs2_ail1_empty_one(sdp, tr);
+		gfs2_ail1_empty_one(sdp, tr, &withdraw);
 		if (list_empty(&tr->tr_ail1_list) && oldest_tr)
 			list_move(&tr->tr_list, &sdp->sd_ail2_list);
 		else
@@ -229,6 +241,9 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 	}
 	ret = list_empty(&sdp->sd_ail1_list);
 	spin_unlock(&sdp->sd_ail_lock);
+
+	if (withdraw)
+		gfs2_lm_withdraw(sdp, "fatal: I/O error(s)\n");
 
 	return ret;
 }
@@ -536,9 +551,9 @@ static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 	LIST_HEAD(written);
 
 	spin_lock(&sdp->sd_ordered_lock);
-	list_sort(NULL, &sdp->sd_log_le_ordered, &ip_cmp);
-	while (!list_empty(&sdp->sd_log_le_ordered)) {
-		ip = list_entry(sdp->sd_log_le_ordered.next, struct gfs2_inode, i_ordered);
+	list_sort(NULL, &sdp->sd_log_ordered, &ip_cmp);
+	while (!list_empty(&sdp->sd_log_ordered)) {
+		ip = list_entry(sdp->sd_log_ordered.next, struct gfs2_inode, i_ordered);
 		if (ip->i_inode.i_mapping->nrpages == 0) {
 			test_and_clear_bit(GIF_ORDERED, &ip->i_flags);
 			list_del(&ip->i_ordered);
@@ -549,7 +564,7 @@ static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 		filemap_fdatawrite(ip->i_inode.i_mapping);
 		spin_lock(&sdp->sd_ordered_lock);
 	}
-	list_splice(&written, &sdp->sd_log_le_ordered);
+	list_splice(&written, &sdp->sd_log_ordered);
 	spin_unlock(&sdp->sd_ordered_lock);
 }
 
@@ -558,8 +573,8 @@ static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
 	struct gfs2_inode *ip;
 
 	spin_lock(&sdp->sd_ordered_lock);
-	while (!list_empty(&sdp->sd_log_le_ordered)) {
-		ip = list_entry(sdp->sd_log_le_ordered.next, struct gfs2_inode, i_ordered);
+	while (!list_empty(&sdp->sd_log_ordered)) {
+		ip = list_entry(sdp->sd_log_ordered.next, struct gfs2_inode, i_ordered);
 		list_del(&ip->i_ordered);
 		WARN_ON(!test_and_clear_bit(GIF_ORDERED, &ip->i_flags));
 		if (ip->i_inode.i_mapping->nrpages == 0)
@@ -590,11 +605,11 @@ void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	bd->bd_blkno = bh->b_blocknr;
 	gfs2_remove_from_ail(bd); /* drops ref on bh */
 	bd->bd_bh = NULL;
-	bd->bd_ops = &gfs2_revoke_lops;
 	sdp->sd_log_num_revoke++;
-	atomic_inc(&gl->gl_revokes);
+	if (atomic_inc_return(&gl->gl_revokes) == 1)
+		gfs2_glock_hold(gl);
 	set_bit(GLF_LFLUSH, &gl->gl_flags);
-	list_add(&bd->bd_list, &sdp->sd_log_le_revoke);
+	list_add(&bd->bd_list, &sdp->sd_log_revokes);
 }
 
 void gfs2_write_revokes(struct gfs2_sbd *sdp)
@@ -606,7 +621,7 @@ void gfs2_write_revokes(struct gfs2_sbd *sdp)
 
 	gfs2_ail1_empty(sdp);
 	spin_lock(&sdp->sd_ail_lock);
-	list_for_each_entry(tr, &sdp->sd_ail1_list, tr_list) {
+	list_for_each_entry_reverse(tr, &sdp->sd_ail1_list, tr_list) {
 		list_for_each_entry(bd, &tr->tr_ail2_list, bd_ail_st_list) {
 			if (list_empty(&bd->bd_list)) {
 				have_revokes = 1;
@@ -630,7 +645,7 @@ done:
 	}
 	gfs2_log_lock(sdp);
 	spin_lock(&sdp->sd_ail_lock);
-	list_for_each_entry(tr, &sdp->sd_ail1_list, tr_list) {
+	list_for_each_entry_reverse(tr, &sdp->sd_ail1_list, tr_list) {
 		list_for_each_entry_safe(bd, tmp, &tr->tr_ail2_list, bd_ail_st_list) {
 			if (max_revokes == 0)
 				goto out_of_blocks;
@@ -652,11 +667,12 @@ out_of_blocks:
 }
 
 /**
- * write_log_header - Write a journal log header buffer at sd_log_flush_head
+ * gfs2_write_log_header - Write a journal log header buffer at lblock
  * @sdp: The GFS2 superblock
  * @jd: journal descriptor of the journal to which we are writing
  * @seq: sequence number
  * @tail: tail of the log
+ * @lblock: value for lh_blkno (block number relative to start of journal)
  * @flags: log header flags GFS2_LOG_HEAD_*
  * @op_flags: flags to pass to the bio
  *
@@ -664,7 +680,8 @@ out_of_blocks:
  */
 
 void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
-			   u64 seq, u32 tail, u32 flags, int op_flags)
+			   u64 seq, u32 tail, u32 lblock, u32 flags,
+			   int op_flags)
 {
 	struct gfs2_log_header *lh;
 	u32 hash, crc;
@@ -672,7 +689,7 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 	struct timespec64 tv;
 	struct super_block *sb = sdp->sd_vfs;
-	u64 addr;
+	u64 dblock;
 
 	lh = page_address(page);
 	clear_page(lh);
@@ -685,15 +702,21 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	lh->lh_sequence = cpu_to_be64(seq);
 	lh->lh_flags = cpu_to_be32(flags);
 	lh->lh_tail = cpu_to_be32(tail);
-	lh->lh_blkno = cpu_to_be32(sdp->sd_log_flush_head);
+	lh->lh_blkno = cpu_to_be32(lblock);
 	hash = ~crc32(~0, lh, LH_V1_SIZE);
 	lh->lh_hash = cpu_to_be32(hash);
 
-	tv = current_kernel_time64();
+	ktime_get_coarse_real_ts64(&tv);
 	lh->lh_nsec = cpu_to_be32(tv.tv_nsec);
 	lh->lh_sec = cpu_to_be64(tv.tv_sec);
-	addr = gfs2_log_bmap(sdp);
-	lh->lh_addr = cpu_to_be64(addr);
+	if (!list_empty(&jd->extent_list))
+		dblock = gfs2_log_bmap(sdp);
+	else {
+		int ret = gfs2_lblk_to_dblk(jd->jd_inode, lblock, &dblock);
+		if (gfs2_assert_withdraw(sdp, ret == 0))
+			return;
+	}
+	lh->lh_addr = cpu_to_be64(dblock);
 	lh->lh_jinode = cpu_to_be64(GFS2_I(jd->jd_inode)->i_no_addr);
 
 	/* We may only write local statfs, quota, etc., when writing to our
@@ -718,8 +741,8 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 		     sb->s_blocksize - LH_V1_SIZE - 4);
 	lh->lh_crc = cpu_to_be32(crc);
 
-	gfs2_log_write(sdp, page, sb->s_blocksize, 0, addr);
-	gfs2_log_flush_bio(sdp, REQ_OP_WRITE, op_flags);
+	gfs2_log_write(sdp, page, sb->s_blocksize, 0, dblock);
+	gfs2_log_submit_bio(&sdp->sd_log_bio, REQ_OP_WRITE | op_flags);
 	log_flush_wait(sdp);
 }
 
@@ -747,7 +770,7 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
 	}
 	sdp->sd_log_idle = (tail == sdp->sd_log_flush_head);
 	gfs2_write_log_header(sdp, sdp->sd_jdesc, sdp->sd_log_sequence++, tail,
-			      flags, op_flags);
+			      sdp->sd_log_flush_head, flags, op_flags);
 
 	if (sdp->sd_log_tail != tail)
 		log_pull_tail(sdp, tail);
@@ -796,7 +819,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 
 	gfs2_ordered_write(sdp);
 	lops_before_commit(sdp, tr);
-	gfs2_log_flush_bio(sdp, REQ_OP_WRITE, 0);
+	gfs2_log_submit_bio(&sdp->sd_log_bio, REQ_OP_WRITE);
 
 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
 		log_flush_wait(sdp);

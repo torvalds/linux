@@ -103,14 +103,11 @@ struct drm_master *drm_master_create(struct drm_device *dev)
 		return NULL;
 
 	kref_init(&master->refcount);
-	spin_lock_init(&master->lock.spinlock);
-	init_waitqueue_head(&master->lock.lock_queue);
+	drm_master_legacy_init(master);
 	idr_init(&master->magic_map);
 	master->dev = dev;
 
 	/* initialize the tree of output resource lessees */
-	master->lessor = NULL;
-	master->lessee_id = 0;
 	INIT_LIST_HEAD(&master->lessees);
 	INIT_LIST_HEAD(&master->lessee_list);
 	idr_init(&master->leases);
@@ -142,6 +139,7 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 
 	lockdep_assert_held_once(&dev->master_mutex);
 
+	WARN_ON(fpriv->is_master);
 	old_master = fpriv->master;
 	fpriv->master = drm_master_create(dev);
 	if (!fpriv->master) {
@@ -170,6 +168,7 @@ out_err:
 	/* drop references and restore old master on failure */
 	drm_master_put(&fpriv->master);
 	fpriv->master = old_master;
+	fpriv->is_master = 0;
 
 	return ret;
 }
@@ -272,21 +271,7 @@ void drm_master_release(struct drm_file *file_priv)
 	if (!drm_is_current_master(file_priv))
 		goto out;
 
-	if (drm_core_check_feature(dev, DRIVER_LEGACY)) {
-		/*
-		 * Since the master is disappearing, so is the
-		 * possibility to lock.
-		 */
-		mutex_lock(&dev->struct_mutex);
-		if (master->lock.hw_lock) {
-			if (dev->sigdata.lock == master->lock.hw_lock)
-				dev->sigdata.lock = NULL;
-			master->lock.hw_lock = NULL;
-			master->lock.file_priv = NULL;
-			wake_up_interruptible_all(&master->lock.lock_queue);
-		}
-		mutex_unlock(&dev->struct_mutex);
-	}
+	drm_legacy_lock_master_cleanup(dev, master);
 
 	if (dev->master == file_priv->master)
 		drm_drop_master(dev, file_priv);

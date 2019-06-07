@@ -16,6 +16,7 @@
 #include <linux/cpu.h>
 #include <asm/ctl_reg.h>
 #include <asm/io.h>
+#include <asm/stacktrace.h>
 
 static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t size)
 {
@@ -89,10 +90,8 @@ static int __memcpy_real(void *dest, void *src, size_t count)
 	return rc;
 }
 
-/*
- * Copy memory in real mode (kernel to kernel)
- */
-int memcpy_real(void *dest, void *src, size_t count)
+static unsigned long _memcpy_real(unsigned long dest, unsigned long src,
+				  unsigned long count)
 {
 	int irqs_disabled, rc;
 	unsigned long flags;
@@ -103,11 +102,28 @@ int memcpy_real(void *dest, void *src, size_t count)
 	irqs_disabled = arch_irqs_disabled_flags(flags);
 	if (!irqs_disabled)
 		trace_hardirqs_off();
-	rc = __memcpy_real(dest, src, count);
+	rc = __memcpy_real((void *) dest, (void *) src, (size_t) count);
 	if (!irqs_disabled)
 		trace_hardirqs_on();
 	__arch_local_irq_ssm(flags);
 	return rc;
+}
+
+/*
+ * Copy memory in real mode (kernel to kernel)
+ */
+int memcpy_real(void *dest, void *src, size_t count)
+{
+	if (S390_lowcore.nodat_stack != 0)
+		return CALL_ON_STACK(_memcpy_real, S390_lowcore.nodat_stack,
+				     3, dest, src, count);
+	/*
+	 * This is a really early memcpy_real call, the stacks are
+	 * not set up yet. Just call _memcpy_real on the early boot
+	 * stack
+	 */
+	return _memcpy_real((unsigned long) dest,(unsigned long) src,
+			    (unsigned long) count);
 }
 
 /*

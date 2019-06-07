@@ -324,6 +324,10 @@ struct fman_port_qmi_regs {
 #define HWP_HXS_PHE_REPORT 0x00000800
 #define HWP_HXS_PCAC_PSTAT 0x00000100
 #define HWP_HXS_PCAC_PSTOP 0x00000001
+#define HWP_HXS_TCP_OFFSET 0xA
+#define HWP_HXS_UDP_OFFSET 0xB
+#define HWP_HXS_SH_PAD_REM 0x80000000
+
 struct fman_port_hwp_regs {
 	struct {
 		u32 ssa; /* Soft Sequence Attachment */
@@ -727,6 +731,10 @@ static void init_hwp(struct fman_port *port)
 		iowrite32be(0x00000000, &regs->pmda[i].ssa);
 		iowrite32be(0xffffffff, &regs->pmda[i].lcv);
 	}
+
+	/* Short packet padding removal from checksum calculation */
+	iowrite32be(HWP_HXS_SH_PAD_REM, &regs->pmda[HWP_HXS_TCP_OFFSET].ssa);
+	iowrite32be(HWP_HXS_SH_PAD_REM, &regs->pmda[HWP_HXS_UDP_OFFSET].ssa);
 
 	start_port_hwp(port);
 }
@@ -1391,12 +1399,10 @@ int fman_port_config(struct fman_port *port, struct fman_port_params *params)
 		/* FM_WRONG_RESET_VALUES_ERRATA_FMAN_A005127 Errata
 		 * workaround
 		 */
-		if (port->rev_info.major >= 6) {
-			u32 reg;
+		u32 reg;
 
-			reg = 0x00001013;
-			iowrite32be(reg, &port->bmi_regs->tx.fmbm_tfp);
-		}
+		reg = 0x00001013;
+		iowrite32be(reg, &port->bmi_regs->tx.fmbm_tfp);
 	}
 
 	return 0;
@@ -1732,6 +1738,18 @@ int fman_port_get_hash_result_offset(struct fman_port *port, u32 *offset)
 	return 0;
 }
 EXPORT_SYMBOL(fman_port_get_hash_result_offset);
+
+int fman_port_get_tstamp(struct fman_port *port, const void *data, u64 *tstamp)
+{
+	if (port->buffer_offsets.time_stamp_offset == ILLEGAL_BASE)
+		return -EINVAL;
+
+	*tstamp = be64_to_cpu(*(__be64 *)(data +
+			port->buffer_offsets.time_stamp_offset));
+
+	return 0;
+}
+EXPORT_SYMBOL(fman_port_get_tstamp);
 
 static int fman_port_probe(struct platform_device *of_dev)
 {

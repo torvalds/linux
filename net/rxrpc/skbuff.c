@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ar-skbuff.c: socket buffer destruction handling
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -57,21 +53,6 @@ void rxrpc_get_skb(struct sk_buff *skb, enum rxrpc_skb_trace op)
  * Note the destruction of a socket buffer.
  */
 void rxrpc_free_skb(struct sk_buff *skb, enum rxrpc_skb_trace op)
-{
-	const void *here = __builtin_return_address(0);
-	if (skb) {
-		int n;
-		CHECK_SLAB_OKAY(&skb->users);
-		n = atomic_dec_return(select_skb_count(op));
-		trace_rxrpc_skb(skb, op, refcount_read(&skb->users), n, here);
-		kfree_skb(skb);
-	}
-}
-
-/*
- * Note the injected loss of a socket buffer.
- */
-void rxrpc_lose_skb(struct sk_buff *skb, enum rxrpc_skb_trace op)
 {
 	const void *here = __builtin_return_address(0);
 	if (skb) {

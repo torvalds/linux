@@ -13,6 +13,8 @@
 
 #include <linux/stringify.h>
 #include <asm/cputable.h>
+#include <asm/asm-const.h>
+#include <asm/feature-fixups.h>
 
 /* Pickup Book E specific registers. */
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
@@ -116,10 +118,15 @@
 #define MSR_TS_S	__MASK(MSR_TS_S_LG)	/*  Transaction Suspended */
 #define MSR_TS_T	__MASK(MSR_TS_T_LG)	/*  Transaction Transactional */
 #define MSR_TS_MASK	(MSR_TS_T | MSR_TS_S)   /* Transaction State bits */
-#define MSR_TM_ACTIVE(x) (((x) & MSR_TS_MASK) != 0) /* Transaction active? */
 #define MSR_TM_RESV(x) (((x) & MSR_TS_MASK) == MSR_TS_MASK) /* Reserved */
 #define MSR_TM_TRANSACTIONAL(x)	(((x) & MSR_TS_MASK) == MSR_TS_T)
 #define MSR_TM_SUSPENDED(x)	(((x) & MSR_TS_MASK) == MSR_TS_S)
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+#define MSR_TM_ACTIVE(x) (((x) & MSR_TS_MASK) != 0) /* Transaction active? */
+#else
+#define MSR_TM_ACTIVE(x) 0
+#endif
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 #define MSR_64BIT	MSR_SF
@@ -146,6 +153,12 @@
 #define MSR_64BIT	0
 #endif
 
+/* Condition Register related */
+#define CR0_SHIFT	28
+#define CR0_MASK	0xF
+#define CR0_TBEGIN_FAILURE	(0x2 << 28) /* 0b0010 */
+
+
 /* Power Management - Processor Stop Status and Control Register Fields */
 #define PSSCR_RL_MASK		0x0000000F /* Requested Level */
 #define PSSCR_MTL_MASK		0x000000F0 /* Maximum Transition Level */
@@ -155,7 +168,8 @@
 #define PSSCR_ESL		0x00200000 /* Enable State Loss */
 #define PSSCR_SD		0x00400000 /* Status Disable */
 #define PSSCR_PLS	0xf000000000000000 /* Power-saving Level Status */
-#define PSSCR_GUEST_VIS	0xf0000000000003ff /* Guest-visible PSSCR fields */
+#define PSSCR_PLS_SHIFT	60
+#define PSSCR_GUEST_VIS	0xf0000000000003ffUL /* Guest-visible PSSCR fields */
 #define PSSCR_FAKE_SUSPEND	0x00000400 /* Fake-suspend bit (P9 DD2.2) */
 #define PSSCR_FAKE_SUSPEND_LG	10	   /* Fake-suspend bit position */
 
@@ -239,13 +253,27 @@
 #define SPRN_TFIAR	0x81	/* Transaction Failure Inst Addr   */
 #define SPRN_TEXASR	0x82	/* Transaction EXception & Summary */
 #define SPRN_TEXASRU	0x83	/* ''	   ''	   ''	 Upper 32  */
-#define   TEXASR_ABORT	__MASK(63-31) /* terminated by tabort or treclaim */
-#define   TEXASR_SUSP	__MASK(63-32) /* tx failed in suspended state */
-#define   TEXASR_HV	__MASK(63-34) /* MSR[HV] when failure occurred */
-#define   TEXASR_PR	__MASK(63-35) /* MSR[PR] when failure occurred */
-#define   TEXASR_FS	__MASK(63-36) /* TEXASR Failure Summary */
-#define   TEXASR_EXACT	__MASK(63-37) /* TFIAR value is exact */
+
+#define TEXASR_FC_LG	(63 - 7)	/* Failure Code */
+#define TEXASR_AB_LG	(63 - 31)	/* Abort */
+#define TEXASR_SU_LG	(63 - 32)	/* Suspend */
+#define TEXASR_HV_LG	(63 - 34)	/* Hypervisor state*/
+#define TEXASR_PR_LG	(63 - 35)	/* Privilege level */
+#define TEXASR_FS_LG	(63 - 36)	/* failure summary */
+#define TEXASR_EX_LG	(63 - 37)	/* TFIAR exact bit */
+#define TEXASR_ROT_LG	(63 - 38)	/* ROT bit */
+
+#define   TEXASR_ABORT	__MASK(TEXASR_AB_LG) /* terminated by tabort or treclaim */
+#define   TEXASR_SUSP	__MASK(TEXASR_SU_LG) /* tx failed in suspended state */
+#define   TEXASR_HV	__MASK(TEXASR_HV_LG) /* MSR[HV] when failure occurred */
+#define   TEXASR_PR	__MASK(TEXASR_PR_LG) /* MSR[PR] when failure occurred */
+#define   TEXASR_FS	__MASK(TEXASR_FS_LG) /* TEXASR Failure Summary */
+#define   TEXASR_EXACT	__MASK(TEXASR_EX_LG) /* TFIAR value is exact */
+#define   TEXASR_ROT	__MASK(TEXASR_ROT_LG)
+#define   TEXASR_FC	(ASM_CONST(0xFF) << TEXASR_FC_LG)
+
 #define SPRN_TFHAR	0x80	/* Transaction Failure Handler Addr */
+
 #define SPRN_TIDR	144	/* Thread ID register */
 #define SPRN_CTRLF	0x088
 #define SPRN_CTRLT	0x098
@@ -365,6 +393,7 @@
 #define SPRN_PSSCR	0x357	/* Processor Stop Status and Control Register (ISA 3.0) */
 #define SPRN_PSSCR_PR	0x337	/* PSSCR ISA 3.0, privileged mode access */
 #define SPRN_PMCR	0x374	/* Power Management Control Register */
+#define SPRN_RWMR	0x375	/* Region-Weighting Mode Register */
 
 /* HFSCR and FSCR bit numbers are the same */
 #define FSCR_SCV_LG	12	/* Enable System Call Vectored */
@@ -392,6 +421,7 @@
 #define   HFSCR_DSCR	__MASK(FSCR_DSCR_LG)
 #define   HFSCR_VECVSX	__MASK(FSCR_VECVSX_LG)
 #define   HFSCR_FP	__MASK(FSCR_FP_LG)
+#define   HFSCR_INTR_CAUSE (ASM_CONST(0xFF) << 56)	/* interrupt cause */
 #define SPRN_TAR	0x32f	/* Target Address Register */
 #define SPRN_LPCR	0x13E	/* LPAR Control Register */
 #define   LPCR_VPM0		ASM_CONST(0x8000000000000000)
@@ -553,7 +583,7 @@
 #define HID0_POWER9_RADIX	__MASK(63 - 8)
 
 #define SPRN_HID1	0x3F1		/* Hardware Implementation Register 1 */
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 #define HID1_EMCP	(1<<31)		/* 7450 Machine Check Pin Enable */
 #define HID1_DFS	(1<<22)		/* 7447A Dynamic Frequency Scaling */
 #define HID1_PC0	(1<<16)		/* 7450 PLL_CFG[0] */
@@ -729,10 +759,9 @@
 #define	  SRR1_WAKERESET	0x00100000 /* System reset */
 #define   SRR1_WAKEHDBELL	0x000c0000 /* Hypervisor doorbell on P8 */
 #define	  SRR1_WAKESTATE	0x00030000 /* Powersave exit mask [46:47] */
-#define	  SRR1_WS_DEEPEST	0x00030000 /* Some resources not maintained,
-					  * may not be recoverable */
-#define	  SRR1_WS_DEEPER	0x00020000 /* Some resources not maintained */
-#define	  SRR1_WS_DEEP		0x00010000 /* All resources maintained */
+#define	  SRR1_WS_HVLOSS	0x00030000 /* HV resources not maintained */
+#define	  SRR1_WS_GPRLOSS	0x00020000 /* GPRs not maintained */
+#define	  SRR1_WS_NOLOSS	0x00010000 /* All resources maintained */
 #define   SRR1_PROGTM		0x00200000 /* TM Bad Thing */
 #define   SRR1_PROGFPE		0x00100000 /* Floating Point Enabled */
 #define   SRR1_PROGILL		0x00080000 /* Illegal instruction */
@@ -740,9 +769,12 @@
 #define   SRR1_PROGTRAP		0x00020000 /* Trap */
 #define   SRR1_PROGADDR		0x00010000 /* SRR0 contains subsequent addr */
 
+#define   SRR1_MCE_MCP		0x00080000 /* Machine check signal caused interrupt */
+
 #define SPRN_HSRR0	0x13A	/* Save/Restore Register 0 */
 #define SPRN_HSRR1	0x13B	/* Save/Restore Register 1 */
 #define   HSRR1_DENORM		0x00100000 /* Denorm exception */
+#define   HSRR1_HISI_WRITE	0x00010000 /* HISI bcs couldn't update mem */
 
 #define SPRN_TBCTL	0x35f	/* PA6T Timebase control register */
 #define   TBCTL_FREEZE		0x0000000000000000ull /* Freeze all tbs */
@@ -1030,7 +1062,7 @@
  *	- SPRG9 debug exception scratch
  *
  * All 32-bit:
- *	- SPRG3 current thread_info pointer
+ *	- SPRG3 current thread_struct physical addr pointer
  *        (virtual on BookE, physical on others)
  *
  * 32-bit classic:
@@ -1135,7 +1167,7 @@
 #ifdef CONFIG_PPC_BOOK3S_32
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
 #define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
-#define SPRN_SPRG_RTAS		SPRN_SPRG2
+#define SPRN_SPRG_PGDIR		SPRN_SPRG2
 #define SPRN_SPRG_603_LRU	SPRN_SPRG4
 #endif
 
@@ -1393,6 +1425,11 @@ static inline void msr_check_and_clear(unsigned long bits)
 #define mfsrin(v)	({unsigned int rval; \
 			asm volatile("mfsrin %0,%1" : "=r" (rval) : "r" (v)); \
 					rval;})
+
+static inline void mtsrin(u32 val, u32 idx)
+{
+	asm volatile("mtsrin %0, %1" : : "r" (val), "r" (idx));
+}
 #endif
 
 #define proc_trap()	asm volatile("trap")

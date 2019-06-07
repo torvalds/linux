@@ -13,6 +13,7 @@
 #include <linux/securebits.h>
 #include <linux/seqlock.h>
 #include <linux/rbtree.h>
+#include <linux/refcount.h>
 #include <linux/sched/autogroup.h>
 #include <net/net_namespace.h>
 #include <linux/sched/rt.h>
@@ -45,15 +46,6 @@ extern struct cred init_cred;
 #else
 #define INIT_CPU_TIMERS(s)
 #endif
-
-#define INIT_PID_LINK(type) 					\
-{								\
-	.node = {						\
-		.next = NULL,					\
-		.pprev = NULL,					\
-	},							\
-	.pid = &init_struct_pid,				\
-}
 
 #define INIT_TASK_COMM "swapper"
 

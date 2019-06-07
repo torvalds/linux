@@ -286,9 +286,10 @@ static void __init pxa3xx_register_plls(void)
 	clk_register_fixed_rate(NULL, "osc_13mhz", NULL,
 				CLK_GET_RATE_NOCACHE,
 				13 * MHz);
-	clk_register_fixed_rate(NULL, "osc_32_768khz", NULL,
-				CLK_GET_RATE_NOCACHE,
-				32768);
+	clkdev_pxa_register(CLK_OSC32k768, "osc_32_768khz", NULL,
+			    clk_register_fixed_rate(NULL, "osc_32_768khz", NULL,
+						    CLK_GET_RATE_NOCACHE,
+						    32768));
 	clk_register_fixed_rate(NULL, "ring_osc_120mhz", NULL,
 				CLK_GET_RATE_NOCACHE,
 				120 * MHz);

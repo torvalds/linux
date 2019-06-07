@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 1995  Linus Torvalds
  *
@@ -30,7 +31,6 @@
 #include <linux/sfi.h>
 #include <linux/apm_bios.h>
 #include <linux/initrd.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/seq_file.h>
 #include <linux/console.h>
@@ -51,6 +51,7 @@
 #include <linux/kvm_para.h>
 #include <linux/dma-contiguous.h>
 #include <xen/xen.h>
+#include <uapi/linux/mount.h>
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -71,6 +72,7 @@
 #include <linux/tboot.h>
 #include <linux/jiffies.h>
 #include <linux/mem_encrypt.h>
+#include <linux/sizes.h>
 
 #include <linux/usb/xhci-dbgp.h>
 #include <video/edid.h>
@@ -448,18 +450,17 @@ static void __init memblock_x86_reserve_range_setup_data(void)
 #ifdef CONFIG_KEXEC_CORE
 
 /* 16M alignment for crash kernel regions */
-#define CRASH_ALIGN		(16 << 20)
+#define CRASH_ALIGN		SZ_16M
 
 /*
  * Keep the crash kernel below this limit.  On 32 bits earlier kernels
  * would limit the kernel to the low 512 MiB due to mapping restrictions.
- * On 64bit, old kexec-tools need to under 896MiB.
  */
 #ifdef CONFIG_X86_32
-# define CRASH_ADDR_LOW_MAX	(512 << 20)
-# define CRASH_ADDR_HIGH_MAX	(512 << 20)
+# define CRASH_ADDR_LOW_MAX	SZ_512M
+# define CRASH_ADDR_HIGH_MAX	SZ_512M
 #else
-# define CRASH_ADDR_LOW_MAX	(896UL << 20)
+# define CRASH_ADDR_LOW_MAX	SZ_4G
 # define CRASH_ADDR_HIGH_MAX	MAXMEM
 #endif
 
@@ -541,21 +542,27 @@ static void __init reserve_crashkernel(void)
 	}
 
 	/* 0 means: find the address automatically */
-	if (crash_base <= 0) {
+	if (!crash_base) {
 		/*
 		 * Set CRASH_ADDR_LOW_MAX upper bound for crash memory,
-		 * as old kexec-tools loads bzImage below that, unless
-		 * "crashkernel=size[KMG],high" is specified.
+		 * crashkernel=x,high reserves memory over 4G, also allocates
+		 * 256M extra low memory for DMA buffers and swiotlb.
+		 * But the extra memory is not required for all machines.
+		 * So try low memory first and fall back to high memory
+		 * unless "crashkernel=size[KMG],high" is specified.
 		 */
-		crash_base = memblock_find_in_range(CRASH_ALIGN,
-						    high ? CRASH_ADDR_HIGH_MAX
-							 : CRASH_ADDR_LOW_MAX,
-						    crash_size, CRASH_ALIGN);
+		if (!high)
+			crash_base = memblock_find_in_range(CRASH_ALIGN,
+						CRASH_ADDR_LOW_MAX,
+						crash_size, CRASH_ALIGN);
+		if (!crash_base)
+			crash_base = memblock_find_in_range(CRASH_ALIGN,
+						CRASH_ADDR_HIGH_MAX,
+						crash_size, CRASH_ALIGN);
 		if (!crash_base) {
 			pr_info("crashkernel reservation failed - No suitable area found.\n");
 			return;
 		}
-
 	} else {
 		unsigned long long start;
 
@@ -823,6 +830,12 @@ void __init setup_arch(char **cmdline_p)
 	memblock_reserve(__pa_symbol(_text),
 			 (unsigned long)__bss_stop - (unsigned long)_text);
 
+	/*
+	 * Make sure page 0 is always reserved because on systems with
+	 * L1TF its contents can be leaked to user processes.
+	 */
+	memblock_reserve(0, PAGE_SIZE);
+
 	early_reserve_initrd();
 
 	/*
@@ -866,6 +879,8 @@ void __init setup_arch(char **cmdline_p)
 
 	idt_setup_early_traps();
 	early_cpu_init();
+	arch_init_ideal_nops();
+	jump_label_init();
 	early_ioremap_init();
 
 	setup_olpc_ofw_pgd();
@@ -991,27 +1006,21 @@ void __init setup_arch(char **cmdline_p)
 		setup_clear_cpu_cap(X86_FEATURE_APIC);
 	}
 
-#ifdef CONFIG_PCI
-	if (pci_early_dump_regs)
-		early_dump_pci_devices();
-#endif
-
 	e820__reserve_setup_data();
 	e820__finish_early_params();
 
 	if (efi_enabled(EFI_BOOT))
 		efi_init();
 
-	dmi_scan_machine();
-	dmi_memdev_walk();
-	dmi_set_dump_stack_arch_desc();
+	dmi_setup();
 
 	/*
 	 * VMware detection requires dmi to be available, so this
-	 * needs to be done after dmi_scan_machine(), for the boot CPU.
+	 * needs to be done after dmi_setup(), for the boot CPU.
 	 */
 	init_hypervisor_platform();
 
+	tsc_early_init();
 	x86_init.resources.probe_roms();
 
 	/* after parse_early_param, so could debug it */
@@ -1197,11 +1206,6 @@ void __init setup_arch(char **cmdline_p)
 
 	memblock_find_dma_reserve();
 
-#ifdef CONFIG_KVM_GUEST
-	kvmclock_init();
-#endif
-
-	tsc_early_delay_calibrate();
 	if (!early_xdbc_setup_hardware())
 		early_xdbc_register_console();
 
@@ -1252,7 +1256,7 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.hyper.guest_late_init();
 
 	e820__reserve_resources();
-	e820__register_nosave_regions(max_low_pfn);
+	e820__register_nosave_regions(max_pfn);
 
 	x86_init.resources.reserve_resources();
 
@@ -1271,8 +1275,6 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.timers.wallclock_init();
 
 	mcheck_init();
-
-	arch_init_ideal_nops();
 
 	register_refined_jiffies(CLOCK_TICK_RATE);
 
@@ -1312,11 +1314,3 @@ static int __init register_kernel_offset_dumper(void)
 	return 0;
 }
 __initcall(register_kernel_offset_dumper);
-
-void arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
-{
-	if (!boot_cpu_has(X86_FEATURE_OSPKE))
-		return;
-
-	seq_printf(m, "ProtectionKey:  %8u\n", vma_pkey(vma));
-}

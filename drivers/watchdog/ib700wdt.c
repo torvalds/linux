@@ -238,7 +238,7 @@ static int ibwdt_open(struct inode *inode, struct file *file)
 
 	/* Activate */
 	ibwdt_ping();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int ibwdt_close(struct inode *inode, struct file *file)

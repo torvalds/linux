@@ -65,7 +65,7 @@
 
 /*
  * Linking of buffers:
- *	All buffers are linked to cache_hash with their hash_list field.
+ *	All buffers are linked to buffer_tree with their node field.
  *
  *	Clean buffers that are not being written (B_WRITING not set)
  *	are linked to lru[LIST_CLEAN] with their lru_list field.
@@ -150,7 +150,7 @@ struct dm_buffer {
 	void (*end_io)(struct dm_buffer *, blk_status_t);
 #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
 #define MAX_STACK 10
-	struct stack_trace stack_trace;
+	unsigned int stack_len;
 	unsigned long stack_entries[MAX_STACK];
 #endif
 };
@@ -232,11 +232,7 @@ static DEFINE_MUTEX(dm_bufio_clients_lock);
 #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
 static void buffer_record_stack(struct dm_buffer *b)
 {
-	b->stack_trace.nr_entries = 0;
-	b->stack_trace.max_entries = MAX_STACK;
-	b->stack_trace.entries = b->stack_entries;
-	b->stack_trace.skip = 2;
-	save_stack_trace(&b->stack_trace);
+	b->stack_len = stack_trace_save(b->stack_entries, MAX_STACK, 2);
 }
 #endif
 
@@ -438,7 +434,7 @@ static struct dm_buffer *alloc_buffer(struct dm_bufio_client *c, gfp_t gfp_mask)
 	adjust_total_allocated(b->data_mode, (long)c->block_size);
 
 #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
-	memset(&b->stack_trace, 0, sizeof(b->stack_trace));
+	b->stack_len = 0;
 #endif
 	return b;
 }
@@ -457,7 +453,7 @@ static void free_buffer(struct dm_buffer *b)
 }
 
 /*
- * Link buffer to the hash list and clean or dirty queue.
+ * Link buffer to the buffer tree and clean or dirty queue.
  */
 static void __link_buffer(struct dm_buffer *b, sector_t block, int dirty)
 {
@@ -472,7 +468,7 @@ static void __link_buffer(struct dm_buffer *b, sector_t block, int dirty)
 }
 
 /*
- * Unlink buffer from the hash list and dirty or clean queue.
+ * Unlink buffer from the buffer tree and dirty or clean queue.
  */
 static void __unlink_buffer(struct dm_buffer *b)
 {
@@ -993,7 +989,7 @@ static struct dm_buffer *__bufio_new(struct dm_bufio_client *c, sector_t block,
 
 	/*
 	 * We've had a period where the mutex was unlocked, so need to
-	 * recheck the hash table.
+	 * recheck the buffer tree.
 	 */
 	b = __find(c, block);
 	if (b) {
@@ -1327,7 +1323,7 @@ again:
 EXPORT_SYMBOL_GPL(dm_bufio_write_dirty_buffers);
 
 /*
- * Use dm-io to send and empty barrier flush the device.
+ * Use dm-io to send an empty barrier to flush the device.
  */
 int dm_bufio_issue_flush(struct dm_bufio_client *c)
 {
@@ -1356,7 +1352,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_issue_flush);
  * Then, we write the buffer to the original location if it was dirty.
  *
  * Then, if we are the only one who is holding the buffer, relink the buffer
- * in the hash queue for the new location.
+ * in the buffer tree for the new location.
  *
  * If there was someone else holding the buffer, we write it to the new
  * location but not relink it, because that other user needs to have the buffer
@@ -1520,8 +1516,9 @@ static void drop_buffers(struct dm_bufio_client *c)
 			DMERR("leaked buffer %llx, hold count %u, list %d",
 			      (unsigned long long)b->block, b->hold_count, i);
 #ifdef CONFIG_DM_DEBUG_BLOCK_STACK_TRACING
-			print_stack_trace(&b->stack_trace, 1);
-			b->hold_count = 0; /* mark unclaimed to avoid BUG_ON below */
+			stack_trace_print(b->stack_entries, b->stack_len, 1);
+			/* mark unclaimed to avoid BUG_ON below */
+			b->hold_count = 0;
 #endif
 		}
 
@@ -1887,7 +1884,7 @@ static int __init dm_bufio_init(void)
 	dm_bufio_allocated_vmalloc = 0;
 	dm_bufio_current_allocated = 0;
 
-	mem = (__u64)mult_frac(totalram_pages - totalhigh_pages,
+	mem = (__u64)mult_frac(totalram_pages() - totalhigh_pages(),
 			       DM_BUFIO_MEMORY_PERCENT, 100) << PAGE_SHIFT;
 
 	if (mem > ULONG_MAX)

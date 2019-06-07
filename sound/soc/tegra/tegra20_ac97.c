@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tegra20_ac97.c - Tegra20 AC97 platform driver
  *
@@ -6,16 +7,6 @@
  * Partly based on code copyright/by:
  *
  * Copyright (c) 2011,2012 Toradex Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  */
 
 #include <linux/clk.h>
@@ -377,7 +368,7 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(ac97->clk_ac97);
 	if (ret) {
 		dev_err(&pdev->dev, "clk_enable failed: %d\n", ret);
-		goto err;
+		goto err_clk_put;
 	}
 
 	ret = snd_soc_set_ac97_ops(&tegra20_ac97_ops);

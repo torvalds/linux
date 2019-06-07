@@ -8,7 +8,7 @@
 
 #ifdef __ASSEMBLY__
 
-#ifdef CONFIG_EXPOLINE
+#ifdef CC_USING_EXPOLINE
 
 _LC_BR_R1 = __LC_BR_R1
 
@@ -32,23 +32,23 @@ _LC_BR_R1 = __LC_BR_R1
 	.endm
 
 	.macro __THUNK_PROLOG_BR r1,r2
-	__THUNK_PROLOG_NAME __s390x_indirect_jump_r\r2\()use_r\r1
+	__THUNK_PROLOG_NAME __s390_indirect_jump_r\r2\()use_r\r1
 	.endm
 
 	.macro __THUNK_PROLOG_BC d0,r1,r2
-	__THUNK_PROLOG_NAME __s390x_indirect_branch_\d0\()_\r2\()use_\r1
+	__THUNK_PROLOG_NAME __s390_indirect_branch_\d0\()_\r2\()use_\r1
 	.endm
 
 	.macro __THUNK_BR r1,r2
-	jg	__s390x_indirect_jump_r\r2\()use_r\r1
+	jg	__s390_indirect_jump_r\r2\()use_r\r1
 	.endm
 
 	.macro __THUNK_BC d0,r1,r2
-	jg	__s390x_indirect_branch_\d0\()_\r2\()use_\r1
+	jg	__s390_indirect_branch_\d0\()_\r2\()use_\r1
 	.endm
 
 	.macro __THUNK_BRASL r1,r2,r3
-	brasl	\r1,__s390x_indirect_jump_r\r3\()use_r\r2
+	brasl	\r1,__s390_indirect_jump_r\r3\()use_r\r2
 	.endm
 
 	.macro	__DECODE_RR expand,reg,ruse
@@ -189,7 +189,7 @@ _LC_BR_R1 = __LC_BR_R1
 	.macro BASR_EX rsave,rtarget,ruse=%r1
 	basr	\rsave,\rtarget
 	.endm
-#endif
+#endif /* CC_USING_EXPOLINE */
 
 #endif /* __ASSEMBLY__ */
 

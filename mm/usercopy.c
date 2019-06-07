@@ -20,6 +20,8 @@
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/thread_info.h>
+#include <linux/atomic.h>
+#include <linux/jump_label.h>
 #include <asm/sections.h>
 
 /*
@@ -240,23 +242,26 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 	}
 }
 
+static DEFINE_STATIC_KEY_FALSE_RO(bypass_usercopy_checks);
+
 /*
  * Validates that the given object is:
  * - not bogus address
- * - known-safe heap or stack object
+ * - fully contained by stack (or stack frame, when available)
+ * - fully within SLAB object (or object whitelist area, when available)
  * - not in kernel text
  */
 void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 {
+	if (static_branch_unlikely(&bypass_usercopy_checks))
+		return;
+
 	/* Skip all tests if size is zero. */
 	if (!n)
 		return;
 
 	/* Check for invalid addresses. */
 	check_bogus_address((const unsigned long)ptr, n, to_user);
-
-	/* Check for bad heap object. */
-	check_heap_object(ptr, n, to_user);
 
 	/* Check for bad stack object. */
 	switch (check_stack_object(ptr, n)) {
@@ -275,7 +280,28 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
 		usercopy_abort("process stack", NULL, to_user, 0, n);
 	}
 
+	/* Check for bad heap object. */
+	check_heap_object(ptr, n, to_user);
+
 	/* Check for object in kernel to avoid text exposure. */
 	check_kernel_text_object((const unsigned long)ptr, n, to_user);
 }
 EXPORT_SYMBOL(__check_object_size);
+
+static bool enable_checks __initdata = true;
+
+static int __init parse_hardened_usercopy(char *str)
+{
+	return strtobool(str, &enable_checks);
+}
+
+__setup("hardened_usercopy=", parse_hardened_usercopy);
+
+static int __init set_hardened_usercopy(void)
+{
+	if (enable_checks == false)
+		static_branch_enable(&bypass_usercopy_checks);
+	return 1;
+}
+
+late_initcall(set_hardened_usercopy);

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Management of Tx window, Tx resend, ACKs and out-of-sequence reception
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -123,6 +119,7 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		else
 			ack_at = expiry;
 
+		ack_at += READ_ONCE(call->tx_backoff);
 		ack_at += now;
 		if (time_before(ack_at, call->ack_at)) {
 			WRITE_ONCE(call->ack_at, ack_at);
@@ -162,7 +159,6 @@ static void rxrpc_congestion_timeout(struct rxrpc_call *call)
  */
 static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 {
-	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
 	unsigned long resend_at;
 	rxrpc_seq_t cursor, seq, top;
@@ -207,7 +203,6 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 
 		skb = call->rxtx_buffer[ix];
 		rxrpc_see_skb(skb, rxrpc_skb_tx_seen);
-		sp = rxrpc_skb(skb);
 
 		if (anno_type == RXRPC_TX_ANNO_UNACK) {
 			if (ktime_after(skb->tstamp, max_age)) {
@@ -313,6 +308,7 @@ void rxrpc_process_call(struct work_struct *work)
 		container_of(work, struct rxrpc_call, processor);
 	rxrpc_serial_t *send_ack;
 	unsigned long now, next, t;
+	unsigned int iterations = 0;
 
 	rxrpc_see_call(call);
 
@@ -321,6 +317,11 @@ void rxrpc_process_call(struct work_struct *work)
 	       call->debug_id, rxrpc_call_states[call->state], call->events);
 
 recheck_state:
+	/* Limit the number of times we do this before returning to the manager */
+	iterations++;
+	if (iterations > 5)
+		goto requeue;
+
 	if (test_and_clear_bit(RXRPC_CALL_EV_ABORT, &call->events)) {
 		rxrpc_send_abort_packet(call);
 		goto recheck_state;
@@ -392,7 +393,13 @@ recheck_state:
 
 	/* Process events */
 	if (test_and_clear_bit(RXRPC_CALL_EV_EXPIRED, &call->events)) {
-		rxrpc_abort_call("EXP", call, 0, RX_USER_ABORT, -ETIME);
+		if (test_bit(RXRPC_CALL_RX_HEARD, &call->flags) &&
+		    (int)call->conn->hi_serial - (int)call->rx_serial > 0) {
+			trace_rxrpc_call_reset(call);
+			rxrpc_abort_call("EXP", call, 0, RX_USER_ABORT, -ECONNRESET);
+		} else {
+			rxrpc_abort_call("EXP", call, 0, RX_USER_ABORT, -ETIME);
+		}
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		goto recheck_state;
 	}
@@ -443,13 +450,16 @@ recheck_state:
 	rxrpc_reduce_call_timer(call, next, now, rxrpc_timer_restart);
 
 	/* other events may have been raised since we started checking */
-	if (call->events && call->state < RXRPC_CALL_COMPLETE) {
-		__rxrpc_queue_call(call);
-		goto out;
-	}
+	if (call->events && call->state < RXRPC_CALL_COMPLETE)
+		goto requeue;
 
 out_put:
 	rxrpc_put_call(call, rxrpc_call_put);
 out:
 	_leave("");
+	return;
+
+requeue:
+	__rxrpc_queue_call(call);
+	goto out;
 }

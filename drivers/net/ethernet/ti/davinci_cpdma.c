@@ -1,16 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Texas Instruments CPDMA Driver
  *
  * Copyright (C) 2010 Texas Instruments
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
@@ -191,7 +184,7 @@ static void cpdma_desc_pool_destroy(struct cpdma_ctlr *ctlr)
 		return;
 
 	WARN(gen_pool_size(pool->gen_pool) != gen_pool_avail(pool->gen_pool),
-	     "cpdma_desc_pool size %d != avail %d",
+	     "cpdma_desc_pool size %zd != avail %zd",
 	     gen_pool_size(pool->gen_pool),
 	     gen_pool_avail(pool->gen_pool));
 	if (pool->cpumap)
@@ -205,7 +198,7 @@ static void cpdma_desc_pool_destroy(struct cpdma_ctlr *ctlr)
  * devices (e.g. cpsw switches) use plain old memory.  Descriptor pools
  * abstract out these details
  */
-int cpdma_desc_pool_create(struct cpdma_ctlr *ctlr)
+static int cpdma_desc_pool_create(struct cpdma_ctlr *ctlr)
 {
 	struct cpdma_params *cpdma_params = &ctlr->params;
 	struct cpdma_desc_pool *pool;
@@ -406,37 +399,36 @@ static int cpdma_chan_fit_rate(struct cpdma_chan *ch, u32 rate,
 	struct cpdma_chan *chan;
 	u32 old_rate = ch->rate;
 	u32 new_rmask = 0;
-	int rlim = 1;
+	int rlim = 0;
 	int i;
 
-	*prio_mode = 0;
 	for (i = tx_chan_num(0); i < tx_chan_num(CPDMA_MAX_CHANNELS); i++) {
 		chan = ctlr->channels[i];
-		if (!chan) {
-			rlim = 0;
+		if (!chan)
 			continue;
-		}
 
 		if (chan == ch)
 			chan->rate = rate;
 
 		if (chan->rate) {
-			if (rlim) {
-				new_rmask |= chan->mask;
-			} else {
-				ch->rate = old_rate;
-				dev_err(ctlr->dev, "Prev channel of %dch is not rate limited\n",
-					chan->chan_num);
-				return -EINVAL;
-			}
-		} else {
-			*prio_mode = 1;
-			rlim = 0;
+			rlim = 1;
+			new_rmask |= chan->mask;
+			continue;
 		}
+
+		if (rlim)
+			goto err;
 	}
 
 	*rmask = new_rmask;
+	*prio_mode = rlim;
 	return 0;
+
+err:
+	ch->rate = old_rate;
+	dev_err(ctlr->dev, "Upper cpdma ch%d is not rate limited\n",
+		chan->chan_num);
+	return -EINVAL;
 }
 
 static u32 cpdma_chan_set_factors(struct cpdma_ctlr *ctlr,
@@ -528,7 +520,6 @@ struct cpdma_ctlr *cpdma_ctlr_create(struct cpdma_params *params)
 		ctlr->num_chan = CPDMA_MAX_CHANNELS;
 	return ctlr;
 }
-EXPORT_SYMBOL_GPL(cpdma_ctlr_create);
 
 int cpdma_ctlr_start(struct cpdma_ctlr *ctlr)
 {
@@ -589,7 +580,6 @@ int cpdma_ctlr_start(struct cpdma_ctlr *ctlr)
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cpdma_ctlr_start);
 
 int cpdma_ctlr_stop(struct cpdma_ctlr *ctlr)
 {
@@ -622,7 +612,6 @@ int cpdma_ctlr_stop(struct cpdma_ctlr *ctlr)
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cpdma_ctlr_stop);
 
 int cpdma_ctlr_destroy(struct cpdma_ctlr *ctlr)
 {
@@ -640,7 +629,6 @@ int cpdma_ctlr_destroy(struct cpdma_ctlr *ctlr)
 	cpdma_desc_pool_destroy(ctlr);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(cpdma_ctlr_destroy);
 
 int cpdma_ctlr_int_ctrl(struct cpdma_ctlr *ctlr, bool enable)
 {
@@ -661,25 +649,21 @@ int cpdma_ctlr_int_ctrl(struct cpdma_ctlr *ctlr, bool enable)
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cpdma_ctlr_int_ctrl);
 
 void cpdma_ctlr_eoi(struct cpdma_ctlr *ctlr, u32 value)
 {
 	dma_reg_write(ctlr, CPDMA_MACEOIVECTOR, value);
 }
-EXPORT_SYMBOL_GPL(cpdma_ctlr_eoi);
 
 u32 cpdma_ctrl_rxchs_state(struct cpdma_ctlr *ctlr)
 {
 	return dma_reg_read(ctlr, CPDMA_RXINTSTATMASKED);
 }
-EXPORT_SYMBOL_GPL(cpdma_ctrl_rxchs_state);
 
 u32 cpdma_ctrl_txchs_state(struct cpdma_ctlr *ctlr)
 {
 	return dma_reg_read(ctlr, CPDMA_TXINTSTATMASKED);
 }
-EXPORT_SYMBOL_GPL(cpdma_ctrl_txchs_state);
 
 static void cpdma_chan_set_descs(struct cpdma_ctlr *ctlr,
 				 int rx, int desc_num,
@@ -775,7 +759,6 @@ int cpdma_chan_split_pool(struct cpdma_ctlr *ctlr)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_split_pool);
 
 
 /* cpdma_chan_set_weight - set weight of a channel in percentage.
@@ -808,7 +791,6 @@ int cpdma_chan_set_weight(struct cpdma_chan *ch, int weight)
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_set_weight);
 
 /* cpdma_chan_get_min_rate - get minimum allowed rate for channel
  * Should be called before cpdma_chan_set_rate.
@@ -823,7 +805,6 @@ u32 cpdma_chan_get_min_rate(struct cpdma_ctlr *ctlr)
 
 	return DIV_ROUND_UP(divident, divisor);
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_get_min_rate);
 
 /* cpdma_chan_set_rate - limits bandwidth for transmit channel.
  * The bandwidth * limited channels have to be in order beginning from lowest.
@@ -868,7 +849,6 @@ err:
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_set_rate);
 
 u32 cpdma_chan_get_rate(struct cpdma_chan *ch)
 {
@@ -881,7 +861,6 @@ u32 cpdma_chan_get_rate(struct cpdma_chan *ch)
 
 	return rate;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_get_rate);
 
 struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
 				     cpdma_handler_fn handler, int rx_type)
@@ -941,7 +920,6 @@ struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 	return chan;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_create);
 
 int cpdma_chan_get_rx_buf_num(struct cpdma_chan *chan)
 {
@@ -954,7 +932,6 @@ int cpdma_chan_get_rx_buf_num(struct cpdma_chan *chan)
 
 	return desc_num;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_get_rx_buf_num);
 
 int cpdma_chan_destroy(struct cpdma_chan *chan)
 {
@@ -976,7 +953,6 @@ int cpdma_chan_destroy(struct cpdma_chan *chan)
 	spin_unlock_irqrestore(&ctlr->lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_destroy);
 
 int cpdma_chan_get_stats(struct cpdma_chan *chan,
 			 struct cpdma_chan_stats *stats)
@@ -989,7 +965,6 @@ int cpdma_chan_get_stats(struct cpdma_chan *chan,
 	spin_unlock_irqrestore(&chan->lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_get_stats);
 
 static void __cpdma_chan_submit(struct cpdma_chan *chan,
 				struct cpdma_desc __iomem *desc)
@@ -1080,7 +1055,7 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 	writel_relaxed(buffer, &desc->hw_buffer);
 	writel_relaxed(len, &desc->hw_len);
 	writel_relaxed(mode | len, &desc->hw_mode);
-	writel_relaxed(token, &desc->sw_token);
+	writel_relaxed((uintptr_t)token, &desc->sw_token);
 	writel_relaxed(buffer, &desc->sw_buffer);
 	writel_relaxed(len, &desc->sw_len);
 	desc_read(desc, sw_len);
@@ -1096,7 +1071,6 @@ unlock_ret:
 	spin_unlock_irqrestore(&chan->lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_submit);
 
 bool cpdma_check_free_tx_desc(struct cpdma_chan *chan)
 {
@@ -1111,7 +1085,6 @@ bool cpdma_check_free_tx_desc(struct cpdma_chan *chan)
 	spin_unlock_irqrestore(&chan->lock, flags);
 	return free_tx_desc;
 }
-EXPORT_SYMBOL_GPL(cpdma_check_free_tx_desc);
 
 static void __cpdma_chan_free(struct cpdma_chan *chan,
 			      struct cpdma_desc __iomem *desc,
@@ -1121,15 +1094,15 @@ static void __cpdma_chan_free(struct cpdma_chan *chan,
 	struct cpdma_desc_pool		*pool = ctlr->pool;
 	dma_addr_t			buff_dma;
 	int				origlen;
-	void				*token;
+	uintptr_t			token;
 
-	token      = (void *)desc_read(desc, sw_token);
+	token      = desc_read(desc, sw_token);
 	buff_dma   = desc_read(desc, sw_buffer);
 	origlen    = desc_read(desc, sw_len);
 
 	dma_unmap_single(ctlr->dev, buff_dma, origlen, chan->dir);
 	cpdma_desc_free(pool, desc, 1);
-	(*chan->handler)(token, outlen, status);
+	(*chan->handler)((void *)token, outlen, status);
 }
 
 static int __cpdma_chan_process(struct cpdma_chan *chan)
@@ -1205,7 +1178,6 @@ int cpdma_chan_process(struct cpdma_chan *chan, int quota)
 	}
 	return used;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_process);
 
 int cpdma_chan_start(struct cpdma_chan *chan)
 {
@@ -1225,7 +1197,6 @@ int cpdma_chan_start(struct cpdma_chan *chan)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_start);
 
 int cpdma_chan_stop(struct cpdma_chan *chan)
 {
@@ -1288,7 +1259,6 @@ int cpdma_chan_stop(struct cpdma_chan *chan)
 	spin_unlock_irqrestore(&chan->lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cpdma_chan_stop);
 
 int cpdma_chan_int_ctrl(struct cpdma_chan *chan, bool enable)
 {
@@ -1330,25 +1300,19 @@ int cpdma_control_set(struct cpdma_ctlr *ctlr, int control, int value)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(cpdma_control_set);
 
 int cpdma_get_num_rx_descs(struct cpdma_ctlr *ctlr)
 {
 	return ctlr->num_rx_desc;
 }
-EXPORT_SYMBOL_GPL(cpdma_get_num_rx_descs);
 
 int cpdma_get_num_tx_descs(struct cpdma_ctlr *ctlr)
 {
 	return ctlr->num_tx_desc;
 }
-EXPORT_SYMBOL_GPL(cpdma_get_num_tx_descs);
 
 void cpdma_set_num_rx_descs(struct cpdma_ctlr *ctlr, int num_rx_desc)
 {
 	ctlr->num_rx_desc = num_rx_desc;
 	ctlr->num_tx_desc = ctlr->pool->num_desc - ctlr->num_rx_desc;
 }
-EXPORT_SYMBOL_GPL(cpdma_set_num_rx_descs);
-
-MODULE_LICENSE("GPL");

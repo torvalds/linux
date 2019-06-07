@@ -14,6 +14,8 @@
 #ifndef AQ_HW_UTILS_H
 #define AQ_HW_UTILS_H
 
+#include <linux/iopoll.h>
+
 #include "aq_common.h"
 
 #ifndef HIDWORD
@@ -22,18 +24,6 @@
 #endif
 
 #define AQ_HW_SLEEP(_US_) mdelay(_US_)
-
-#define AQ_HW_WAIT_FOR(_B_, _US_, _N_) \
-do { \
-	unsigned int AQ_HW_WAIT_FOR_i; \
-	for (AQ_HW_WAIT_FOR_i = _N_; (!(_B_)) && (AQ_HW_WAIT_FOR_i);\
-	--AQ_HW_WAIT_FOR_i) {\
-		udelay(_US_); \
-	} \
-	if (!AQ_HW_WAIT_FOR_i) {\
-		err = -ETIME; \
-	} \
-} while (0)
 
 #define aq_pr_err(...) pr_err(AQ_CFG_DRV_NAME ": " __VA_ARGS__)
 #define aq_pr_trace(...) pr_info(AQ_CFG_DRV_NAME ": " __VA_ARGS__)
@@ -45,6 +35,7 @@ void aq_hw_write_reg_bit(struct aq_hw_s *aq_hw, u32 addr, u32 msk,
 u32 aq_hw_read_reg_bit(struct aq_hw_s *aq_hw, u32 addr, u32 msk, u32 shift);
 u32 aq_hw_read_reg(struct aq_hw_s *hw, u32 reg);
 void aq_hw_write_reg(struct aq_hw_s *hw, u32 reg, u32 value);
+u64 aq_hw_read_reg64(struct aq_hw_s *hw, u32 reg);
 int aq_hw_err_from_flags(struct aq_hw_s *hw);
 
 #endif /* AQ_HW_UTILS_H */

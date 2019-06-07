@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * gl520sm.c - Part of lm_sensors, Linux kernel modules for hardware
  *	       monitoring
  * Copyright (c) 1998, 1999  Frodo Looijaard <frodol@dds.nl>,
  *			     Kyösti Mälkki <kmalkki@cc.hut.fi>
  * Copyright (c) 2005	Maarten Deprez <maartendeprez@users.sourceforge.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/module.h>
@@ -216,8 +202,8 @@ static DEVICE_ATTR_RO(cpu0_vid);
 #define IN_CLAMP(val)		clamp_val(val, 0, 255 * 19)
 #define IN_TO_REG(val)		DIV_ROUND_CLOSEST(IN_CLAMP(val), 19)
 
-static ssize_t get_in_input(struct device *dev, struct device_attribute *attr,
-			    char *buf)
+static ssize_t in_input_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	int n = to_sensor_dev_attr(attr)->index;
 	struct gl520_data *data = gl520_update_device(dev);
@@ -229,8 +215,8 @@ static ssize_t get_in_input(struct device *dev, struct device_attribute *attr,
 		return sprintf(buf, "%d\n", IN_FROM_REG(r));
 }
 
-static ssize_t get_in_min(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t in_min_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	int n = to_sensor_dev_attr(attr)->index;
 	struct gl520_data *data = gl520_update_device(dev);
@@ -242,8 +228,8 @@ static ssize_t get_in_min(struct device *dev, struct device_attribute *attr,
 		return sprintf(buf, "%d\n", IN_FROM_REG(r));
 }
 
-static ssize_t get_in_max(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t in_max_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	int n = to_sensor_dev_attr(attr)->index;
 	struct gl520_data *data = gl520_update_device(dev);
@@ -255,8 +241,8 @@ static ssize_t get_in_max(struct device *dev, struct device_attribute *attr,
 		return sprintf(buf, "%d\n", IN_FROM_REG(r));
 }
 
-static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t in_min_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	struct gl520_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -289,8 +275,8 @@ static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t in_max_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	struct gl520_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -323,31 +309,21 @@ static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, get_in_input, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, get_in_input, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, get_in_input, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, get_in_input, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, get_in_input, NULL, 4);
-static SENSOR_DEVICE_ATTR(in0_min, S_IRUGO | S_IWUSR,
-		get_in_min, set_in_min, 0);
-static SENSOR_DEVICE_ATTR(in1_min, S_IRUGO | S_IWUSR,
-		get_in_min, set_in_min, 1);
-static SENSOR_DEVICE_ATTR(in2_min, S_IRUGO | S_IWUSR,
-		get_in_min, set_in_min, 2);
-static SENSOR_DEVICE_ATTR(in3_min, S_IRUGO | S_IWUSR,
-		get_in_min, set_in_min, 3);
-static SENSOR_DEVICE_ATTR(in4_min, S_IRUGO | S_IWUSR,
-		get_in_min, set_in_min, 4);
-static SENSOR_DEVICE_ATTR(in0_max, S_IRUGO | S_IWUSR,
-		get_in_max, set_in_max, 0);
-static SENSOR_DEVICE_ATTR(in1_max, S_IRUGO | S_IWUSR,
-		get_in_max, set_in_max, 1);
-static SENSOR_DEVICE_ATTR(in2_max, S_IRUGO | S_IWUSR,
-		get_in_max, set_in_max, 2);
-static SENSOR_DEVICE_ATTR(in3_max, S_IRUGO | S_IWUSR,
-		get_in_max, set_in_max, 3);
-static SENSOR_DEVICE_ATTR(in4_max, S_IRUGO | S_IWUSR,
-		get_in_max, set_in_max, 4);
+static SENSOR_DEVICE_ATTR_RO(in0_input, in_input, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_input, in_input, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, in_input, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_input, in_input, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_input, in_input, 4);
+static SENSOR_DEVICE_ATTR_RW(in0_min, in_min, 0);
+static SENSOR_DEVICE_ATTR_RW(in1_min, in_min, 1);
+static SENSOR_DEVICE_ATTR_RW(in2_min, in_min, 2);
+static SENSOR_DEVICE_ATTR_RW(in3_min, in_min, 3);
+static SENSOR_DEVICE_ATTR_RW(in4_min, in_min, 4);
+static SENSOR_DEVICE_ATTR_RW(in0_max, in_max, 0);
+static SENSOR_DEVICE_ATTR_RW(in1_max, in_max, 1);
+static SENSOR_DEVICE_ATTR_RW(in2_max, in_max, 2);
+static SENSOR_DEVICE_ATTR_RW(in3_max, in_max, 3);
+static SENSOR_DEVICE_ATTR_RW(in4_max, in_max, 4);
 
 #define DIV_FROM_REG(val) (1 << (val))
 #define FAN_FROM_REG(val, div) ((val) == 0 ? 0 : (480000 / ((val) << (div))))
@@ -359,8 +335,8 @@ static SENSOR_DEVICE_ATTR(in4_max, S_IRUGO | S_IWUSR,
 				 DIV_ROUND_CLOSEST(480000, \
 						FAN_CLAMP(val, div) << (div)))
 
-static ssize_t get_fan_input(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t fan_input_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	int n = to_sensor_dev_attr(attr)->index;
 	struct gl520_data *data = gl520_update_device(dev);
@@ -369,8 +345,8 @@ static ssize_t get_fan_input(struct device *dev, struct device_attribute *attr,
 						 data->fan_div[n]));
 }
 
-static ssize_t get_fan_min(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static ssize_t fan_min_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	int n = to_sensor_dev_attr(attr)->index;
 	struct gl520_data *data = gl520_update_device(dev);
@@ -379,8 +355,8 @@ static ssize_t get_fan_min(struct device *dev, struct device_attribute *attr,
 						 data->fan_div[n]));
 }
 
-static ssize_t get_fan_div(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static ssize_t fan_div_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	int n = to_sensor_dev_attr(attr)->index;
 	struct gl520_data *data = gl520_update_device(dev);
@@ -395,8 +371,9 @@ static ssize_t fan1_off_show(struct device *dev,
 	return sprintf(buf, "%d\n", data->fan_off);
 }
 
-static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t fan_min_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	struct gl520_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -434,8 +411,9 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t fan_div_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	struct gl520_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -508,24 +486,20 @@ static ssize_t fan1_off_store(struct device *dev,
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, get_fan_input, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_input, S_IRUGO, get_fan_input, NULL, 1);
-static SENSOR_DEVICE_ATTR(fan1_min, S_IRUGO | S_IWUSR,
-		get_fan_min, set_fan_min, 0);
-static SENSOR_DEVICE_ATTR(fan2_min, S_IRUGO | S_IWUSR,
-		get_fan_min, set_fan_min, 1);
-static SENSOR_DEVICE_ATTR(fan1_div, S_IRUGO | S_IWUSR,
-		get_fan_div, set_fan_div, 0);
-static SENSOR_DEVICE_ATTR(fan2_div, S_IRUGO | S_IWUSR,
-		get_fan_div, set_fan_div, 1);
+static SENSOR_DEVICE_ATTR_RO(fan1_input, fan_input, 0);
+static SENSOR_DEVICE_ATTR_RO(fan2_input, fan_input, 1);
+static SENSOR_DEVICE_ATTR_RW(fan1_min, fan_min, 0);
+static SENSOR_DEVICE_ATTR_RW(fan2_min, fan_min, 1);
+static SENSOR_DEVICE_ATTR_RW(fan1_div, fan_div, 0);
+static SENSOR_DEVICE_ATTR_RW(fan2_div, fan_div, 1);
 static DEVICE_ATTR_RW(fan1_off);
 
 #define TEMP_FROM_REG(val)	(((val) - 130) * 1000)
 #define TEMP_CLAMP(val)		clamp_val(val, -130000, 125000)
 #define TEMP_TO_REG(val)	(DIV_ROUND_CLOSEST(TEMP_CLAMP(val), 1000) + 130)
 
-static ssize_t get_temp_input(struct device *dev, struct device_attribute *attr,
-			      char *buf)
+static ssize_t temp_input_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	int n = to_sensor_dev_attr(attr)->index;
 	struct gl520_data *data = gl520_update_device(dev);
@@ -533,8 +507,8 @@ static ssize_t get_temp_input(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_input[n]));
 }
 
-static ssize_t get_temp_max(struct device *dev, struct device_attribute *attr,
-			    char *buf)
+static ssize_t temp_max_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	int n = to_sensor_dev_attr(attr)->index;
 	struct gl520_data *data = gl520_update_device(dev);
@@ -542,8 +516,8 @@ static ssize_t get_temp_max(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_max[n]));
 }
 
-static ssize_t get_temp_max_hyst(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t temp_max_hyst_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
 	int n = to_sensor_dev_attr(attr)->index;
 	struct gl520_data *data = gl520_update_device(dev);
@@ -551,8 +525,9 @@ static ssize_t get_temp_max_hyst(struct device *dev,
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_max_hyst[n]));
 }
 
-static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t temp_max_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
 {
 	struct gl520_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -571,8 +546,9 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t set_temp_max_hyst(struct device *dev, struct device_attribute
-				 *attr, const char *buf, size_t count)
+static ssize_t temp_max_hyst_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	struct gl520_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -592,16 +568,12 @@ static ssize_t set_temp_max_hyst(struct device *dev, struct device_attribute
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, get_temp_input, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, get_temp_input, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO | S_IWUSR,
-		get_temp_max, set_temp_max, 0);
-static SENSOR_DEVICE_ATTR(temp2_max, S_IRUGO | S_IWUSR,
-		get_temp_max, set_temp_max, 1);
-static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IRUGO | S_IWUSR,
-		get_temp_max_hyst, set_temp_max_hyst, 0);
-static SENSOR_DEVICE_ATTR(temp2_max_hyst, S_IRUGO | S_IWUSR,
-		get_temp_max_hyst, set_temp_max_hyst, 1);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp_input, 0);
+static SENSOR_DEVICE_ATTR_RO(temp2_input, temp_input, 1);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, temp_max, 0);
+static SENSOR_DEVICE_ATTR_RW(temp2_max, temp_max, 1);
+static SENSOR_DEVICE_ATTR_RW(temp1_max_hyst, temp_max_hyst, 0);
+static SENSOR_DEVICE_ATTR_RW(temp2_max_hyst, temp_max_hyst, 1);
 
 static ssize_t alarms_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
@@ -674,8 +646,8 @@ static DEVICE_ATTR_RO(alarms);
 static DEVICE_ATTR_RW(beep_enable);
 static DEVICE_ATTR_RW(beep_mask);
 
-static ssize_t get_alarm(struct device *dev, struct device_attribute *attr,
-			 char *buf)
+static ssize_t alarm_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	int bit_nr = to_sensor_dev_attr(attr)->index;
 	struct gl520_data *data = gl520_update_device(dev);
@@ -683,18 +655,18 @@ static ssize_t get_alarm(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", (data->alarms >> bit_nr) & 1);
 }
 
-static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, get_alarm, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, get_alarm, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, get_alarm, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_alarm, S_IRUGO, get_alarm, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, get_alarm, NULL, 4);
-static SENSOR_DEVICE_ATTR(fan1_alarm, S_IRUGO, get_alarm, NULL, 5);
-static SENSOR_DEVICE_ATTR(fan2_alarm, S_IRUGO, get_alarm, NULL, 6);
-static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, get_alarm, NULL, 7);
-static SENSOR_DEVICE_ATTR(in4_alarm, S_IRUGO, get_alarm, NULL, 7);
+static SENSOR_DEVICE_ATTR_RO(in0_alarm, alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_alarm, alarm, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_alarm, alarm, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_alarm, alarm, 3);
+static SENSOR_DEVICE_ATTR_RO(temp1_alarm, alarm, 4);
+static SENSOR_DEVICE_ATTR_RO(fan1_alarm, alarm, 5);
+static SENSOR_DEVICE_ATTR_RO(fan2_alarm, alarm, 6);
+static SENSOR_DEVICE_ATTR_RO(temp2_alarm, alarm, 7);
+static SENSOR_DEVICE_ATTR_RO(in4_alarm, alarm, 7);
 
-static ssize_t get_beep(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t beep_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	int bitnr = to_sensor_dev_attr(attr)->index;
 	struct gl520_data *data = gl520_update_device(dev);
@@ -702,8 +674,8 @@ static ssize_t get_beep(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", (data->beep_mask >> bitnr) & 1);
 }
 
-static ssize_t set_beep(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t beep_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
 {
 	struct gl520_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -729,15 +701,15 @@ static ssize_t set_beep(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(in0_beep, S_IRUGO | S_IWUSR, get_beep, set_beep, 0);
-static SENSOR_DEVICE_ATTR(in1_beep, S_IRUGO | S_IWUSR, get_beep, set_beep, 1);
-static SENSOR_DEVICE_ATTR(in2_beep, S_IRUGO | S_IWUSR, get_beep, set_beep, 2);
-static SENSOR_DEVICE_ATTR(in3_beep, S_IRUGO | S_IWUSR, get_beep, set_beep, 3);
-static SENSOR_DEVICE_ATTR(temp1_beep, S_IRUGO | S_IWUSR, get_beep, set_beep, 4);
-static SENSOR_DEVICE_ATTR(fan1_beep, S_IRUGO | S_IWUSR, get_beep, set_beep, 5);
-static SENSOR_DEVICE_ATTR(fan2_beep, S_IRUGO | S_IWUSR, get_beep, set_beep, 6);
-static SENSOR_DEVICE_ATTR(temp2_beep, S_IRUGO | S_IWUSR, get_beep, set_beep, 7);
-static SENSOR_DEVICE_ATTR(in4_beep, S_IRUGO | S_IWUSR, get_beep, set_beep, 7);
+static SENSOR_DEVICE_ATTR_RW(in0_beep, beep, 0);
+static SENSOR_DEVICE_ATTR_RW(in1_beep, beep, 1);
+static SENSOR_DEVICE_ATTR_RW(in2_beep, beep, 2);
+static SENSOR_DEVICE_ATTR_RW(in3_beep, beep, 3);
+static SENSOR_DEVICE_ATTR_RW(temp1_beep, beep, 4);
+static SENSOR_DEVICE_ATTR_RW(fan1_beep, beep, 5);
+static SENSOR_DEVICE_ATTR_RW(fan2_beep, beep, 6);
+static SENSOR_DEVICE_ATTR_RW(temp2_beep, beep, 7);
+static SENSOR_DEVICE_ATTR_RW(in4_beep, beep, 7);
 
 static struct attribute *gl520_attributes[] = {
 	&dev_attr_cpu0_vid.attr,

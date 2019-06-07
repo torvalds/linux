@@ -1,7 +1,8 @@
 /******************************************************************************
  *
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
- * Copyright(C) 2016 Intel Deutschland GmbH
+ * Copyright(C) 2016        Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,10 +12,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
@@ -60,16 +57,23 @@ static inline bool iwl_trace_data(struct sk_buff *skb)
 }
 
 static inline size_t iwl_rx_trace_len(const struct iwl_trans *trans,
-				      void *rxbuf, size_t len)
+				      void *rxbuf, size_t len,
+				      size_t *out_hdr_offset)
 {
 	struct iwl_cmd_header *cmd = (void *)((u8 *)rxbuf + sizeof(__le32));
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr *hdr = NULL;
+	size_t hdr_offset;
 
 	if (cmd->cmd != trans->rx_mpdu_cmd)
 		return len;
 
-	hdr = (void *)((u8 *)cmd + sizeof(struct iwl_cmd_header) +
-			trans->rx_mpdu_cmd_hdr_size);
+	hdr_offset = sizeof(struct iwl_cmd_header) +
+		     trans->rx_mpdu_cmd_hdr_size;
+
+	if (out_hdr_offset)
+		*out_hdr_offset = hdr_offset;
+
+	hdr = (void *)((u8 *)cmd + hdr_offset);
 	if (!ieee80211_is_data(hdr->frame_control))
 		return len;
 	/* maybe try to identify EAPOL frames? */

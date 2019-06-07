@@ -1,19 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2016-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2016-2019  B.A.T.M.A.N. contributors:
  *
  * Matthias Schiffer
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_NETLINK_H_
@@ -33,6 +21,12 @@ int batadv_netlink_get_ifindex(const struct nlmsghdr *nlh, int attrtype);
 int batadv_netlink_tpmeter_notify(struct batadv_priv *bat_priv, const u8 *dst,
 				  u8 result, u32 test_time, u64 total_bytes,
 				  u32 cookie);
+
+int batadv_netlink_notify_mesh(struct batadv_priv *bat_priv);
+int batadv_netlink_notify_hardif(struct batadv_priv *bat_priv,
+				 struct batadv_hard_iface *hard_iface);
+int batadv_netlink_notify_vlan(struct batadv_priv *bat_priv,
+			       struct batadv_softif_vlan *vlan);
 
 extern struct genl_family batadv_netlink_family;
 

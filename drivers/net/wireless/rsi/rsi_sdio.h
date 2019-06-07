@@ -28,6 +28,10 @@
 #include <linux/mmc/sdio_ids.h>
 #include "rsi_main.h"
 
+#define RSI_SDIO_VENDOR_ID   0x041B
+#define RSI_SDIO_PID_9113    0x9330
+#define RSI_SDIO_PID_9116    0x9116
+
 enum sdio_interrupt_type {
 	BUFFER_FULL         = 0x0,
 	BUFFER_AVAILABLE    = 0x2,
@@ -87,8 +91,8 @@ enum sdio_interrupt_type {
 #define TA_SOFT_RST_CLR              0
 #define TA_SOFT_RST_SET              BIT(0)
 #define TA_PC_ZERO                   0
-#define TA_HOLD_THREAD_VALUE         cpu_to_le32(0xF)
-#define TA_RELEASE_THREAD_VALUE      cpu_to_le32(0xF)
+#define TA_HOLD_THREAD_VALUE         0xF
+#define TA_RELEASE_THREAD_VALUE      0xF
 #define TA_BASE_ADDR                 0x2200
 #define MISC_CFG_BASE_ADDR           0x4105
 

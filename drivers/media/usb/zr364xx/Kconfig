@@ -1,12 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config USB_ZR364XX
 	tristate "USB ZR364XX Camera support"
 	depends on VIDEO_V4L2
 	select VIDEOBUF_GEN
 	select VIDEOBUF_VMALLOC
-	---help---
+	help
 	  Say Y here if you want to connect this type of camera to your
 	  computer's USB port.
-	  See <file:Documentation/video4linux/zr364xx.txt> for more info
+	  See <file:Documentation/media/v4l-drivers/zr364xx.rst> for more info
 	  and list of supported cameras.
 
 	  To compile this driver as a module, choose M here: the

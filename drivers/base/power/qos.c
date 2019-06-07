@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Devices PM QoS constraints management
  *
  * Copyright (C) 2011 Texas Instruments, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  *
  * This module exposes the interface to kernel space for specifying
  * per-device PM QoS dependencies. It provides infrastructure for registration
@@ -22,7 +18,7 @@
  * per-device constraint data struct.
  *
  * Note about the per-device constraint data struct allocation:
- * . The per-device constraints data struct ptr is tored into the device
+ * . The per-device constraints data struct ptr is stored into the device
  *    dev_pm_info.
  * . To minimize the data usage by the per-device constraints, the data struct
  *   is only allocated at the first call to dev_pm_qos_add_request.

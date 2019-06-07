@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * RCU segmented callback lists, function definitions
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
- *
  * Copyright IBM Corporation, 2017
  *
- * Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+ * Authors: Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
 #include <linux/types.h>
@@ -401,24 +388,6 @@ bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
 		rsclp->gp_seq[i] = seq;
 	}
 	return true;
-}
-
-/*
- * Scan the specified rcu_segcblist structure for callbacks that need
- * a grace period later than the one specified by "seq".  We don't look
- * at the RCU_DONE_TAIL or RCU_NEXT_TAIL segments because they don't
- * have a grace-period sequence number.
- */
-bool rcu_segcblist_future_gp_needed(struct rcu_segcblist *rsclp,
-				    unsigned long seq)
-{
-	int i;
-
-	for (i = RCU_WAIT_TAIL; i < RCU_NEXT_TAIL; i++)
-		if (rsclp->tails[i - 1] != rsclp->tails[i] &&
-		    ULONG_CMP_LT(seq, rsclp->gp_seq[i]))
-			return true;
-	return false;
 }
 
 /*

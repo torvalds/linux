@@ -13,7 +13,6 @@
 
 #include <linux/clk.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
@@ -596,7 +595,7 @@ static const struct snd_kcontrol_new wm8904_adc_snd_controls[] = {
 SOC_DOUBLE_R_TLV("Digital Capture Volume", WM8904_ADC_DIGITAL_VOLUME_LEFT,
 		 WM8904_ADC_DIGITAL_VOLUME_RIGHT, 1, 119, 0, digital_tlv),
 
-SOC_ENUM("Left Caputure Mode", lin_mode),
+SOC_ENUM("Left Capture Mode", lin_mode),
 SOC_ENUM("Right Capture Mode", rin_mode),
 
 /* No TLV since it depends on mode */
@@ -1455,6 +1454,7 @@ static int wm8904_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif1 |= 0x3 | WM8904_AIF_LRCLK_INV;
+		/* fall through */
 	case SND_SOC_DAIFMT_DSP_A:
 		aif1 |= 0x3;
 		break;
@@ -1837,9 +1837,6 @@ static int wm8904_set_bias_level(struct snd_soc_component *component,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		ret = clk_prepare_enable(wm8904->mclk);
-		if (ret)
-			return ret;
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
@@ -1861,6 +1858,15 @@ static int wm8904_set_bias_level(struct snd_soc_component *component,
 				dev_err(component->dev,
 					"Failed to enable supplies: %d\n",
 					ret);
+				return ret;
+			}
+
+			ret = clk_prepare_enable(wm8904->mclk);
+			if (ret) {
+				dev_err(component->dev,
+					"Failed to enable MCLK: %d\n", ret);
+				regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies),
+						       wm8904->supplies);
 				return ret;
 			}
 
@@ -2023,8 +2029,9 @@ static void wm8904_handle_pdata(struct snd_soc_component *component)
 				     wm8904_get_drc_enum, wm8904_put_drc_enum);
 
 		/* We need an array of texts for the enum API */
-		wm8904->drc_texts = kmalloc(sizeof(char *)
-					    * pdata->num_drc_cfgs, GFP_KERNEL);
+		wm8904->drc_texts = kmalloc_array(pdata->num_drc_cfgs,
+						  sizeof(char *),
+						  GFP_KERNEL);
 		if (!wm8904->drc_texts)
 			return;
 
@@ -2107,16 +2114,13 @@ static const struct regmap_config wm8904_regmap = {
 };
 
 #ifdef CONFIG_OF
-static enum wm8904_type wm8904_data = WM8904;
-static enum wm8904_type wm8912_data = WM8912;
-
 static const struct of_device_id wm8904_of_match[] = {
 	{
 		.compatible = "wlf,wm8904",
-		.data = &wm8904_data,
+		.data = (void *)WM8904,
 	}, {
 		.compatible = "wlf,wm8912",
-		.data = &wm8912_data,
+		.data = (void *)WM8912,
 	}, {
 		/* sentinel */
 	}
@@ -2157,7 +2161,7 @@ static int wm8904_i2c_probe(struct i2c_client *i2c,
 		match = of_match_node(wm8904_of_match, i2c->dev.of_node);
 		if (match == NULL)
 			return -EINVAL;
-		wm8904->devtype = *((enum wm8904_type *)match->data);
+		wm8904->devtype = (enum wm8904_type)match->data;
 	} else {
 		wm8904->devtype = id->driver_data;
 	}

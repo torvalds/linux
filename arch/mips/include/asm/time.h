@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2001, 2002, MontaVista Software Inc.
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
@@ -5,11 +6,6 @@
  *
  * include/asm-mips/time.h
  *     header file for the new style time.c file and time services.
- *
- * This program is free software; you can redistribute	it and/or modify it
- * under  the terms of	the GNU General	 Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #ifndef _ASM_TIME_H
 #define _ASM_TIME_H
@@ -20,15 +16,6 @@
 #include <linux/clocksource.h>
 
 extern spinlock_t rtc_lock;
-
-/*
- * RTC ops.  By default, they point to weak no-op RTC functions.
- *	rtc_mips_set_time - reverse the above translation and set time to RTC.
- *	rtc_mips_set_mmss - similar to rtc_set_time, but only min and sec need
- *			to be set.  Used by RTC sync-up.
- */
-extern int rtc_mips_set_time(unsigned long);
-extern int rtc_mips_set_mmss(unsigned long);
 
 /*
  * board specific routines required by time_init().

@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  * os_intfs.c
  *
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
  * Linux device driver for RTL8192SU
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
@@ -370,7 +362,7 @@ static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
 	r8712_fw_cmd(padapter, intcmd);
 }
 
-/**
+/*
  *
  * This function intends to handle the activation of an interface
  * i.e. when it is brought Up/Active from a Down state.
@@ -382,8 +374,8 @@ static int netdev_open(struct net_device *pnetdev)
 
 	mutex_lock(&padapter->mutex_start);
 	if (!padapter->bup) {
-		padapter->bDriverStopped = false;
-		padapter->bSurpriseRemoved = false;
+		padapter->driver_stopped = false;
+		padapter->surprise_removed = false;
 		padapter->bup = true;
 		if (rtl871x_hal_init(padapter) != _SUCCESS)
 			goto netdev_open_error;
@@ -438,7 +430,7 @@ netdev_open_error:
 	return -1;
 }
 
-/**
+/*
  *
  * This function intends to handle the shutdown of an interface
  * i.e. when it is brought Down from an Up/Active state.

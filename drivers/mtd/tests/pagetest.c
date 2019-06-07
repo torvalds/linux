@@ -127,7 +127,7 @@ static int crosstest(void)
 	unsigned char *pp1, *pp2, *pp3, *pp4;
 
 	pr_info("crosstest\n");
-	pp1 = kzalloc(pgsize * 4, GFP_KERNEL);
+	pp1 = kcalloc(pgsize, 4, GFP_KERNEL);
 	if (!pp1)
 		return -ENOMEM;
 	pp2 = pp1 + pgsize;

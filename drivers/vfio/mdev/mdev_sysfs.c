@@ -55,7 +55,7 @@ static ssize_t create_store(struct kobject *kobj, struct device *dev,
 			    const char *buf, size_t count)
 {
 	char *str;
-	uuid_le uuid;
+	guid_t uuid;
 	int ret;
 
 	if ((count < UUID_STRING_LEN) || (count > UUID_STRING_LEN + 1))
@@ -65,12 +65,12 @@ static ssize_t create_store(struct kobject *kobj, struct device *dev,
 	if (!str)
 		return -ENOMEM;
 
-	ret = uuid_le_to_bin(str, &uuid);
+	ret = guid_parse(str, &uuid);
 	kfree(str);
 	if (ret)
 		return ret;
 
-	ret = mdev_device_create(kobj, dev, uuid);
+	ret = mdev_device_create(kobj, dev, &uuid);
 	if (ret)
 		return ret;
 
@@ -92,8 +92,8 @@ static struct kobj_type mdev_type_ktype = {
 	.release = mdev_type_release,
 };
 
-struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
-					  struct attribute_group *group)
+static struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
+						 struct attribute_group *group)
 {
 	struct mdev_type *type;
 	int ret;
@@ -257,30 +257,30 @@ int  mdev_create_sysfs_files(struct device *dev, struct mdev_type *type)
 {
 	int ret;
 
-	ret = sysfs_create_files(&dev->kobj, mdev_device_attrs);
-	if (ret)
-		return ret;
-
 	ret = sysfs_create_link(type->devices_kobj, &dev->kobj, dev_name(dev));
 	if (ret)
-		goto device_link_failed;
+		return ret;
 
 	ret = sysfs_create_link(&dev->kobj, &type->kobj, "mdev_type");
 	if (ret)
 		goto type_link_failed;
 
+	ret = sysfs_create_files(&dev->kobj, mdev_device_attrs);
+	if (ret)
+		goto create_files_failed;
+
 	return ret;
 
+create_files_failed:
+	sysfs_remove_link(&dev->kobj, "mdev_type");
 type_link_failed:
 	sysfs_remove_link(type->devices_kobj, dev_name(dev));
-device_link_failed:
-	sysfs_remove_files(&dev->kobj, mdev_device_attrs);
 	return ret;
 }
 
 void mdev_remove_sysfs_files(struct device *dev, struct mdev_type *type)
 {
+	sysfs_remove_files(&dev->kobj, mdev_device_attrs);
 	sysfs_remove_link(&dev->kobj, "mdev_type");
 	sysfs_remove_link(type->devices_kobj, dev_name(dev));
-	sysfs_remove_files(&dev->kobj, mdev_device_attrs);
 }

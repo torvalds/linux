@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * max9850.c  --  codec driver for max9850
  *
@@ -7,12 +8,6 @@
  *
  * Initial development of this code was funded by
  * MICRONIC Computer Systeme GmbH, http://www.mcsberlin.de/
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -52,9 +47,9 @@ static bool max9850_volatile_register(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case MAX9850_STATUSA:
 	case MAX9850_STATUSB:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 

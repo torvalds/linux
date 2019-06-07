@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * eCryptfs: Linux filesystem encryption layer
  *
@@ -6,21 +7,6 @@
  * Copyright (C) 2004-2007 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *              Michael C. Thompsion <mcthomps@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
  */
 
 #include <linux/file.h>
@@ -593,11 +579,16 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	lower_new_dir_dentry = dget_parent(lower_new_dentry);
 	target_inode = d_inode(new_dentry);
 	trap = lock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
-	/* source should not be ancestor of target */
-	if (trap == lower_old_dentry) {
-		rc = -EINVAL;
+	rc = -EINVAL;
+	if (lower_old_dentry->d_parent != lower_old_dir_dentry)
 		goto out_lock;
-	}
+	if (lower_new_dentry->d_parent != lower_new_dir_dentry)
+		goto out_lock;
+	if (d_unhashed(lower_old_dentry) || d_unhashed(lower_new_dentry))
+		goto out_lock;
+	/* source should not be ancestor of target */
+	if (trap == lower_old_dentry)
+		goto out_lock;
 	/* target should not be ancestor of source */
 	if (trap == lower_new_dentry) {
 		rc = -ENOTEMPTY;

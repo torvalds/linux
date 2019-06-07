@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * TI Common Platform Time Sync
  *
  * Copyright (C) 2012 Richard Cochran <richardcochran@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/err.h>
 #include <linux/if.h>
@@ -86,6 +74,25 @@ static int cpts_purge_events(struct cpts *cpts)
 	return removed ? 0 : -1;
 }
 
+static void cpts_purge_txq(struct cpts *cpts)
+{
+	struct cpts_skb_cb_data *skb_cb;
+	struct sk_buff *skb, *tmp;
+	int removed = 0;
+
+	skb_queue_walk_safe(&cpts->txq, skb, tmp) {
+		skb_cb = (struct cpts_skb_cb_data *)skb->cb;
+		if (time_after(jiffies, skb_cb->tmo)) {
+			__skb_unlink(skb, &cpts->txq);
+			dev_consume_skb_any(skb);
+			++removed;
+		}
+	}
+
+	if (removed)
+		dev_dbg(cpts->dev, "txq cleaned up %d\n", removed);
+}
+
 static bool cpts_match_tx_ts(struct cpts *cpts, struct cpts_event *event)
 {
 	struct sk_buff *skb, *tmp;
@@ -114,11 +121,12 @@ static bool cpts_match_tx_ts(struct cpts *cpts, struct cpts_event *event)
 			dev_consume_skb_any(skb);
 			dev_dbg(cpts->dev, "match tx timestamp mtype %u seqid %04x\n",
 				mtype, seqid);
-		} else if (time_after(jiffies, skb_cb->tmo)) {
+			break;
+		}
+
+		if (time_after(jiffies, skb_cb->tmo)) {
 			/* timeout any expired skbs over 1s */
-			dev_dbg(cpts->dev,
-				"expiring tx timestamp mtype %u seqid %04x\n",
-				mtype, seqid);
+			dev_dbg(cpts->dev, "expiring tx timestamp from txq\n");
 			__skb_unlink(skb, &cpts->txq);
 			dev_consume_skb_any(skb);
 		}
@@ -158,6 +166,7 @@ static int cpts_fifo_read(struct cpts *cpts, int match)
 				 */
 				break;
 			}
+			/* fall through */
 		case CPTS_EV_PUSH:
 		case CPTS_EV_RX:
 			list_del_init(&event->list);
@@ -290,11 +299,15 @@ static long cpts_overflow_check(struct ptp_clock_info *ptp)
 	spin_lock_irqsave(&cpts->lock, flags);
 	ts = ns_to_timespec64(timecounter_read(&cpts->tc));
 
-	if (!skb_queue_empty(&cpts->txq))
-		delay = CPTS_SKB_TX_WORK_TIMEOUT;
+	if (!skb_queue_empty(&cpts->txq)) {
+		cpts_purge_txq(cpts);
+		if (!skb_queue_empty(&cpts->txq))
+			delay = CPTS_SKB_TX_WORK_TIMEOUT;
+	}
 	spin_unlock_irqrestore(&cpts->lock, flags);
 
-	pr_debug("cpts overflow check at %lld.%09lu\n", ts.tv_sec, ts.tv_nsec);
+	pr_debug("cpts overflow check at %lld.%09ld\n",
+		 (long long)ts.tv_sec, ts.tv_nsec);
 	return (long)delay;
 }
 
@@ -405,8 +418,6 @@ void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 	u64 ns;
 	struct skb_shared_hwtstamps *ssh;
 
-	if (!cpts->rx_enable)
-		return;
 	ns = cpts_find_ts(cpts, skb, CPTS_EV_RX);
 	if (!ns)
 		return;
@@ -564,10 +575,12 @@ struct cpts *cpts_create(struct device *dev, void __iomem *regs,
 	cpts->refclk = devm_clk_get(dev, "cpts");
 	if (IS_ERR(cpts->refclk)) {
 		dev_err(dev, "Failed to get cpts refclk\n");
-		return ERR_PTR(PTR_ERR(cpts->refclk));
+		return ERR_CAST(cpts->refclk);
 	}
 
-	clk_prepare(cpts->refclk);
+	ret = clk_prepare(cpts->refclk);
+	if (ret)
+		return ERR_PTR(ret);
 
 	cpts->cc.read = cpts_systim_read;
 	cpts->cc.mask = CLOCKSOURCE_MASK(32);

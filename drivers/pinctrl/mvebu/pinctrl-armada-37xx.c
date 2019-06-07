@@ -80,6 +80,18 @@ struct armada_37xx_pmx_func {
 	unsigned int		ngroups;
 };
 
+struct armada_37xx_pm_state {
+	u32 out_en_l;
+	u32 out_en_h;
+	u32 out_val_l;
+	u32 out_val_h;
+	u32 irq_en_l;
+	u32 irq_en_h;
+	u32 irq_pol_l;
+	u32 irq_pol_h;
+	u32 selection;
+};
+
 struct armada_37xx_pinctrl {
 	struct regmap			*regmap;
 	void __iomem			*base;
@@ -94,6 +106,7 @@ struct armada_37xx_pinctrl {
 	unsigned int			ngroups;
 	struct armada_37xx_pmx_func	*funcs;
 	unsigned int			nfuncs;
+	struct armada_37xx_pm_state	pm;
 };
 
 #define PIN_GRP(_name, _start, _nr, _mask, _func1, _func2)	\
@@ -157,8 +170,8 @@ static struct armada_37xx_pin_group armada_37xx_nb_groups[] = {
 	PIN_GRP_GPIO("pwm1", 12, 1, BIT(4), "pwm"),
 	PIN_GRP_GPIO("pwm2", 13, 1, BIT(5), "pwm"),
 	PIN_GRP_GPIO("pwm3", 14, 1, BIT(6), "pwm"),
-	PIN_GRP_GPIO("pmic1", 17, 1, BIT(7), "pmic"),
-	PIN_GRP_GPIO("pmic0", 16, 1, BIT(8), "pmic"),
+	PIN_GRP_GPIO("pmic1", 7, 1, BIT(7), "pmic"),
+	PIN_GRP_GPIO("pmic0", 6, 1, BIT(8), "pmic"),
 	PIN_GRP_GPIO("i2c2", 2, 2, BIT(9), "i2c"),
 	PIN_GRP_GPIO("i2c1", 0, 2, BIT(10), "i2c"),
 	PIN_GRP_GPIO("spi_cs1", 17, 1, BIT(12), "spi"),
@@ -182,8 +195,11 @@ static struct armada_37xx_pin_group armada_37xx_sb_groups[] = {
 	PIN_GRP_GPIO("usb2_drvvbus1", 1, 1, BIT(1), "drvbus"),
 	PIN_GRP_GPIO("sdio_sb", 24, 6, BIT(2), "sdio"),
 	PIN_GRP_GPIO("rgmii", 6, 12, BIT(3), "mii"),
-	PIN_GRP_GPIO("pcie1", 3, 2, BIT(4), "pcie"),
-	PIN_GRP_GPIO("ptp", 20, 3, BIT(5), "ptp"),
+	PIN_GRP_GPIO("smi", 18, 2, BIT(4), "smi"),
+	PIN_GRP_GPIO("pcie1", 3, 1, BIT(5), "pcie"),
+	PIN_GRP_GPIO("pcie1_clkreq", 4, 1, BIT(9), "pcie"),
+	PIN_GRP_GPIO("pcie1_wakeup", 5, 1, BIT(10), "pcie"),
+	PIN_GRP_GPIO("ptp", 20, 3, BIT(11) | BIT(12) | BIT(13), "ptp"),
 	PIN_GRP("ptp_clk", 21, 1, BIT(6), "ptp", "mii"),
 	PIN_GRP("ptp_trig", 22, 1, BIT(7), "ptp", "mii"),
 	PIN_GRP_GPIO_3("mii_col", 23, 1, BIT(8) | BIT(14), 0, BIT(8), BIT(14),
@@ -212,18 +228,6 @@ static inline void armada_37xx_update_reg(unsigned int *reg,
 		offset -= GPIO_PER_REG;
 		*reg += sizeof(u32);
 	}
-}
-
-static int armada_37xx_get_func_reg(struct armada_37xx_pin_group *grp,
-				    const char *func)
-{
-	int f;
-
-	for (f = 0; (f < NB_FUNCS) && grp->funcs[f]; f++)
-		if (!strcmp(grp->funcs[f], func))
-			return f;
-
-	return -ENOTSUPP;
 }
 
 static struct armada_37xx_pin_group *armada_37xx_find_next_grp_by_pin(
@@ -344,10 +348,9 @@ static int armada_37xx_pmx_set_by_name(struct pinctrl_dev *pctldev,
 	dev_dbg(info->dev, "enable function %s group %s\n",
 		name, grp->name);
 
-	func = armada_37xx_get_func_reg(grp, name);
-
+	func = match_string(grp->funcs, NB_FUNCS, name);
 	if (func < 0)
-		return func;
+		return -ENOTSUPP;
 
 	val = grp->val[func];
 
@@ -679,12 +682,13 @@ static void armada_37xx_irq_handler(struct irq_desc *desc)
 					writel(1 << hwirq,
 					       info->base +
 					       IRQ_STATUS + 4 * i);
-					continue;
+					goto update_status;
 				}
 			}
 
 			generic_handle_irq(virq);
 
+update_status:
 			/* Update status in case a new IRQ appears */
 			spin_lock_irqsave(&info->irq_lock, flags);
 			status = readl_relaxed(info->base +
@@ -868,9 +872,10 @@ static int armada_37xx_fill_group(struct armada_37xx_pinctrl *info)
 		struct armada_37xx_pin_group *grp = &info->groups[n];
 		int i, j, f;
 
-		grp->pins = devm_kzalloc(info->dev,
-					 (grp->npins + grp->extra_npins) *
-					 sizeof(*grp->pins), GFP_KERNEL);
+		grp->pins = devm_kcalloc(info->dev,
+					 grp->npins + grp->extra_npins,
+					 sizeof(*grp->pins),
+					 GFP_KERNEL);
 		if (!grp->pins)
 			return -ENOMEM;
 
@@ -920,7 +925,8 @@ static int armada_37xx_fill_func(struct armada_37xx_pinctrl *info)
 		const char **groups;
 		int g;
 
-		funcs[n].groups = devm_kzalloc(info->dev, funcs[n].ngroups *
+		funcs[n].groups = devm_kcalloc(info->dev,
+					       funcs[n].ngroups,
 					       sizeof(*(funcs[n].groups)),
 					       GFP_KERNEL);
 		if (!funcs[n].groups)
@@ -932,12 +938,12 @@ static int armada_37xx_fill_func(struct armada_37xx_pinctrl *info)
 			struct armada_37xx_pin_group *gp = &info->groups[g];
 			int f;
 
-			for (f = 0; (f < NB_FUNCS) && gp->funcs[f]; f++) {
-				if (strcmp(gp->funcs[f], name) == 0) {
-					*groups = gp->name;
-					groups++;
-				}
-			}
+			f = match_string(gp->funcs, NB_FUNCS, name);
+			if (f < 0)
+				continue;
+
+			*groups = gp->name;
+			groups++;
 		}
 	}
 	return 0;
@@ -960,8 +966,9 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	ctrldesc->pmxops = &armada_37xx_pmx_ops;
 	ctrldesc->confops = &armada_37xx_pinconf_ops;
 
-	pindesc = devm_kzalloc(&pdev->dev, sizeof(*pindesc) *
-			       pin_data->nr_pins, GFP_KERNEL);
+	pindesc = devm_kcalloc(&pdev->dev,
+			       pin_data->nr_pins, sizeof(*pindesc),
+			       GFP_KERNEL);
 	if (!pindesc)
 		return -ENOMEM;
 
@@ -980,8 +987,10 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 	 * we allocate functions for number of pins and hope there are
 	 * fewer unique functions than pins available
 	 */
-	info->funcs = devm_kzalloc(&pdev->dev, pin_data->nr_pins *
-			   sizeof(struct armada_37xx_pmx_func), GFP_KERNEL);
+	info->funcs = devm_kcalloc(&pdev->dev,
+				   pin_data->nr_pins,
+				   sizeof(struct armada_37xx_pmx_func),
+				   GFP_KERNEL);
 	if (!info->funcs)
 		return -ENOMEM;
 
@@ -1002,6 +1011,110 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 
 	return 0;
 }
+
+#if defined(CONFIG_PM)
+static int armada_3700_pinctrl_suspend(struct device *dev)
+{
+	struct armada_37xx_pinctrl *info = dev_get_drvdata(dev);
+
+	/* Save GPIO state */
+	regmap_read(info->regmap, OUTPUT_EN, &info->pm.out_en_l);
+	regmap_read(info->regmap, OUTPUT_EN + sizeof(u32), &info->pm.out_en_h);
+	regmap_read(info->regmap, OUTPUT_VAL, &info->pm.out_val_l);
+	regmap_read(info->regmap, OUTPUT_VAL + sizeof(u32),
+		    &info->pm.out_val_h);
+
+	info->pm.irq_en_l = readl(info->base + IRQ_EN);
+	info->pm.irq_en_h = readl(info->base + IRQ_EN + sizeof(u32));
+	info->pm.irq_pol_l = readl(info->base + IRQ_POL);
+	info->pm.irq_pol_h = readl(info->base + IRQ_POL + sizeof(u32));
+
+	/* Save pinctrl state */
+	regmap_read(info->regmap, SELECTION, &info->pm.selection);
+
+	return 0;
+}
+
+static int armada_3700_pinctrl_resume(struct device *dev)
+{
+	struct armada_37xx_pinctrl *info = dev_get_drvdata(dev);
+	struct gpio_chip *gc;
+	struct irq_domain *d;
+	int i;
+
+	/* Restore GPIO state */
+	regmap_write(info->regmap, OUTPUT_EN, info->pm.out_en_l);
+	regmap_write(info->regmap, OUTPUT_EN + sizeof(u32),
+		     info->pm.out_en_h);
+	regmap_write(info->regmap, OUTPUT_VAL, info->pm.out_val_l);
+	regmap_write(info->regmap, OUTPUT_VAL + sizeof(u32),
+		     info->pm.out_val_h);
+
+	/*
+	 * Input levels may change during suspend, which is not monitored at
+	 * that time. GPIOs used for both-edge IRQs may not be synchronized
+	 * anymore with their polarities (rising/falling edge) and must be
+	 * re-configured manually.
+	 */
+	gc = &info->gpio_chip;
+	d = gc->irq.domain;
+	for (i = 0; i < gc->ngpio; i++) {
+		u32 irq_bit = BIT(i % GPIO_PER_REG);
+		u32 mask, *irq_pol, input_reg, virq, type, level;
+
+		if (i < GPIO_PER_REG) {
+			mask = info->pm.irq_en_l;
+			irq_pol = &info->pm.irq_pol_l;
+			input_reg = INPUT_VAL;
+		} else {
+			mask = info->pm.irq_en_h;
+			irq_pol = &info->pm.irq_pol_h;
+			input_reg = INPUT_VAL + sizeof(u32);
+		}
+
+		if (!(mask & irq_bit))
+			continue;
+
+		virq = irq_find_mapping(d, i);
+		type = irq_get_trigger_type(virq);
+
+		/*
+		 * Synchronize level and polarity for both-edge irqs:
+		 *     - a high input level expects a falling edge,
+		 *     - a low input level exepects a rising edge.
+		 */
+		if ((type & IRQ_TYPE_SENSE_MASK) ==
+		    IRQ_TYPE_EDGE_BOTH) {
+			regmap_read(info->regmap, input_reg, &level);
+			if ((*irq_pol ^ level) & irq_bit)
+				*irq_pol ^= irq_bit;
+		}
+	}
+
+	writel(info->pm.irq_en_l, info->base + IRQ_EN);
+	writel(info->pm.irq_en_h, info->base + IRQ_EN + sizeof(u32));
+	writel(info->pm.irq_pol_l, info->base + IRQ_POL);
+	writel(info->pm.irq_pol_h, info->base + IRQ_POL + sizeof(u32));
+
+	/* Restore pinctrl state */
+	regmap_write(info->regmap, SELECTION, info->pm.selection);
+
+	return 0;
+}
+
+/*
+ * Since pinctrl is an infrastructure module, its resume should be issued prior
+ * to other IO drivers.
+ */
+static const struct dev_pm_ops armada_3700_pinctrl_pm_ops = {
+	.suspend_noirq = armada_3700_pinctrl_suspend,
+	.resume_noirq = armada_3700_pinctrl_resume,
+};
+
+#define PINCTRL_ARMADA_37XX_DEV_PM_OPS (&armada_3700_pinctrl_pm_ops)
+#else
+#define PINCTRL_ARMADA_37XX_DEV_PM_OPS NULL
+#endif /* CONFIG_PM */
 
 static const struct of_device_id armada_37xx_pinctrl_of_match[] = {
 	{
@@ -1056,6 +1169,7 @@ static struct platform_driver armada_37xx_pinctrl_driver = {
 	.driver = {
 		.name = "armada-37xx-pinctrl",
 		.of_match_table = armada_37xx_pinctrl_of_match,
+		.pm = PINCTRL_ARMADA_37XX_DEV_PM_OPS,
 	},
 };
 

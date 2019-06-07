@@ -802,7 +802,7 @@ static int starfire_init_one(struct pci_dev *pdev,
 		int mii_status;
 		for (phy = 0; phy < 32 && phy_idx < PHY_CNT; phy++) {
 			mdio_write(dev, phy, MII_BMCR, BMCR_RESET);
-			mdelay(100);
+			msleep(100);
 			boguscnt = 1000;
 			while (--boguscnt > 0)
 				if ((mdio_read(dev, phy, MII_BMCR) & BMCR_RESET) == 0)
@@ -1390,7 +1390,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 					}
 				}
 
-				dev_kfree_skb_irq(skb);
+				dev_consume_skb_irq(skb);
 			}
 			np->tx_done_q[np->tx_done].status = 0;
 			np->tx_done = (np->tx_done + 1) % DONE_Q_SIZE;

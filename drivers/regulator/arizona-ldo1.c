@@ -1,15 +1,10 @@
-/*
- * arizona-ldo1.c  --  LDO1 supply for Arizona devices
- *
- * Copyright 2012 Wolfson Microelectronics PLC.
- *
- * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// arizona-ldo1.c  --  LDO1 supply for Arizona devices
+//
+// Copyright 2012 Wolfson Microelectronics PLC.
+//
+// Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -17,12 +12,11 @@
 #include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
-#include <linux/gpio.h>
 #include <linux/slab.h>
 
 #include <linux/regulator/arizona-ldo1.h>
@@ -37,37 +31,14 @@ struct arizona_ldo1 {
 
 	struct regulator_consumer_supply supply;
 	struct regulator_init_data init_data;
+
+	struct gpio_desc *ena_gpiod;
 };
-
-static int arizona_ldo1_hc_list_voltage(struct regulator_dev *rdev,
-					unsigned int selector)
-{
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-
-	if (selector == rdev->desc->n_voltages - 1)
-		return 1800000;
-	else
-		return rdev->desc->min_uV + (rdev->desc->uV_step * selector);
-}
-
-static int arizona_ldo1_hc_map_voltage(struct regulator_dev *rdev,
-				       int min_uV, int max_uV)
-{
-	int sel;
-
-	sel = DIV_ROUND_UP(min_uV - rdev->desc->min_uV, rdev->desc->uV_step);
-	if (sel >= rdev->desc->n_voltages)
-		sel = rdev->desc->n_voltages - 1;
-
-	return sel;
-}
 
 static int arizona_ldo1_hc_set_voltage_sel(struct regulator_dev *rdev,
 					   unsigned sel)
 {
-	struct arizona_ldo1 *ldo = rdev_get_drvdata(rdev);
-	struct regmap *regmap = ldo->regmap;
+	struct regmap *regmap = rdev_get_regmap(rdev);
 	unsigned int val;
 	int ret;
 
@@ -84,16 +55,12 @@ static int arizona_ldo1_hc_set_voltage_sel(struct regulator_dev *rdev,
 	if (val)
 		return 0;
 
-	val = sel << ARIZONA_LDO1_VSEL_SHIFT;
-
-	return regmap_update_bits(regmap, ARIZONA_LDO1_CONTROL_1,
-				  ARIZONA_LDO1_VSEL_MASK, val);
+	return regulator_set_voltage_sel_regmap(rdev, sel);
 }
 
 static int arizona_ldo1_hc_get_voltage_sel(struct regulator_dev *rdev)
 {
-	struct arizona_ldo1 *ldo = rdev_get_drvdata(rdev);
-	struct regmap *regmap = ldo->regmap;
+	struct regmap *regmap = rdev_get_regmap(rdev);
 	unsigned int val;
 	int ret;
 
@@ -104,20 +71,21 @@ static int arizona_ldo1_hc_get_voltage_sel(struct regulator_dev *rdev)
 	if (val & ARIZONA_LDO1_HI_PWR)
 		return rdev->desc->n_voltages - 1;
 
-	ret = regmap_read(regmap, ARIZONA_LDO1_CONTROL_1, &val);
-	if (ret != 0)
-		return ret;
-
-	return (val & ARIZONA_LDO1_VSEL_MASK) >> ARIZONA_LDO1_VSEL_SHIFT;
+	return regulator_get_voltage_sel_regmap(rdev);
 }
 
 static const struct regulator_ops arizona_ldo1_hc_ops = {
-	.list_voltage = arizona_ldo1_hc_list_voltage,
-	.map_voltage = arizona_ldo1_hc_map_voltage,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.map_voltage = regulator_map_voltage_linear_range,
 	.get_voltage_sel = arizona_ldo1_hc_get_voltage_sel,
 	.set_voltage_sel = arizona_ldo1_hc_set_voltage_sel,
 	.get_bypass = regulator_get_bypass_regmap,
 	.set_bypass = regulator_set_bypass_regmap,
+};
+
+static const struct regulator_linear_range arizona_ldo1_hc_ranges[] = {
+	REGULATOR_LINEAR_RANGE(900000, 0, 0x6, 50000),
+	REGULATOR_LINEAR_RANGE(1800000, 0x7, 0x7, 0),
 };
 
 static const struct regulator_desc arizona_ldo1_hc = {
@@ -126,10 +94,12 @@ static const struct regulator_desc arizona_ldo1_hc = {
 	.type = REGULATOR_VOLTAGE,
 	.ops = &arizona_ldo1_hc_ops,
 
+	.vsel_reg = ARIZONA_LDO1_CONTROL_1,
+	.vsel_mask = ARIZONA_LDO1_VSEL_MASK,
 	.bypass_reg = ARIZONA_LDO1_CONTROL_1,
 	.bypass_mask = ARIZONA_LDO1_BYPASS,
-	.min_uV = 900000,
-	.uV_step = 50000,
+	.linear_ranges = arizona_ldo1_hc_ranges,
+	.n_linear_ranges = ARRAY_SIZE(arizona_ldo1_hc_ranges),
 	.n_voltages = 8,
 	.enable_time = 1500,
 	.ramp_delay = 24000,
@@ -198,16 +168,6 @@ static int arizona_ldo1_of_get_pdata(struct arizona_ldo1_pdata *pdata,
 	struct device_node *init_node, *dcvdd_node;
 	struct regulator_init_data *init_data;
 
-	pdata->ldoena = of_get_named_gpio(np, "wlf,ldoena", 0);
-	if (pdata->ldoena < 0) {
-		dev_warn(config->dev,
-			 "LDOENA GPIO property missing/malformed: %d\n",
-			 pdata->ldoena);
-		pdata->ldoena = 0;
-	} else {
-		config->ena_gpio_initialized = true;
-	}
-
 	init_node = of_get_child_by_name(np, "ldo1");
 	dcvdd_node = of_parse_phandle(np, "DCVDD-supply", 0);
 
@@ -264,7 +224,16 @@ static int arizona_ldo1_common_init(struct platform_device *pdev,
 		}
 	}
 
-	config.ena_gpio = pdata->ldoena;
+	/* We assume that high output = regulator off
+	 * Don't use devm, since we need to get against the parent device
+	 * so clean up would happen at the wrong time
+	 */
+	config.ena_gpiod = gpiod_get_optional(parent_dev, "wlf,ldoena",
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
+	if (IS_ERR(config.ena_gpiod))
+		return PTR_ERR(config.ena_gpiod);
+
+	ldo1->ena_gpiod = config.ena_gpiod;
 
 	if (pdata->init_data)
 		config.init_data = pdata->init_data;
@@ -341,8 +310,19 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static int arizona_ldo1_remove(struct platform_device *pdev)
+{
+	struct arizona_ldo1 *ldo1 = platform_get_drvdata(pdev);
+
+	if (ldo1->ena_gpiod)
+		gpiod_put(ldo1->ena_gpiod);
+
+	return 0;
+}
+
 static struct platform_driver arizona_ldo1_driver = {
 	.probe = arizona_ldo1_probe,
+	.remove = arizona_ldo1_remove,
 	.driver		= {
 		.name	= "arizona-ldo1",
 	},

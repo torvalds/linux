@@ -263,7 +263,6 @@ int dccp_disconnect(struct sock *sk, int flags)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_sock *inet = inet_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	int err = 0;
 	const int old_state = sk->sk_state;
 
 	if (old_state != DCCP_CLOSED)
@@ -307,7 +306,7 @@ int dccp_disconnect(struct sock *sk, int flags)
 	WARN_ON(inet->inet_num && !icsk->icsk_bind_hash);
 
 	sk->sk_error_report(sk);
-	return err;
+	return 0;
 }
 
 EXPORT_SYMBOL_GPL(dccp_disconnect);
@@ -325,7 +324,7 @@ __poll_t dccp_poll(struct file *file, struct socket *sock,
 	__poll_t mask;
 	struct sock *sk = sock->sk;
 
-	sock_poll_wait(file, sk_sleep(sk), wait);
+	sock_poll_wait(file, sock, wait);
 	if (sk->sk_state == DCCP_LISTEN)
 		return inet_csk_listen_poll(sk);
 
@@ -948,6 +947,7 @@ int inet_dccp_listen(struct socket *sock, int backlog)
 	if (!((1 << old_state) & (DCCPF_CLOSED | DCCPF_LISTEN)))
 		goto out;
 
+	sk->sk_max_ack_backlog = backlog;
 	/* Really, if the socket is already in listen state
 	 * we can only allow the backlog to be adjusted.
 	 */
@@ -960,7 +960,6 @@ int inet_dccp_listen(struct socket *sock, int backlog)
 		if (err)
 			goto out;
 	}
-	sk->sk_max_ack_backlog = backlog;
 	err = 0;
 
 out:
@@ -1131,6 +1130,7 @@ EXPORT_SYMBOL_GPL(dccp_debug);
 static int __init dccp_init(void)
 {
 	unsigned long goal;
+	unsigned long nr_pages = totalram_pages();
 	int ehash_order, bhash_order, i;
 	int rc;
 
@@ -1139,8 +1139,11 @@ static int __init dccp_init(void)
 	rc = percpu_counter_init(&dccp_orphan_count, 0, GFP_KERNEL);
 	if (rc)
 		goto out_fail;
-	rc = -ENOBUFS;
 	inet_hashinfo_init(&dccp_hashinfo);
+	rc = inet_hashinfo2_init_mod(&dccp_hashinfo);
+	if (rc)
+		goto out_fail;
+	rc = -ENOBUFS;
 	dccp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("dccp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
@@ -1154,10 +1157,10 @@ static int __init dccp_init(void)
 	 *
 	 * The methodology is similar to that of the buffer cache.
 	 */
-	if (totalram_pages >= (128 * 1024))
-		goal = totalram_pages >> (21 - PAGE_SHIFT);
+	if (nr_pages >= (128 * 1024))
+		goal = nr_pages >> (21 - PAGE_SHIFT);
 	else
-		goal = totalram_pages >> (23 - PAGE_SHIFT);
+		goal = nr_pages >> (23 - PAGE_SHIFT);
 
 	if (thash_entries)
 		goal = (thash_entries *

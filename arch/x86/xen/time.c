@@ -28,8 +28,10 @@
 
 #include "xen-ops.h"
 
-/* Xen may fire a timer up to this many ns early */
+/* Minimum amount of time until next clock event fires */
 #define TIMER_SLOP	100000
+
+static u64 xen_sched_clock_offset __read_mostly;
 
 /* Get the TSC speed from Xen */
 static unsigned long xen_tsc_khz(void)
@@ -40,7 +42,7 @@ static unsigned long xen_tsc_khz(void)
 	return pvclock_tsc_khz(info);
 }
 
-u64 xen_clocksource_read(void)
+static u64 xen_clocksource_read(void)
 {
         struct pvclock_vcpu_time_info *src;
 	u64 ret;
@@ -57,7 +59,12 @@ static u64 xen_clocksource_get_cycles(struct clocksource *cs)
 	return xen_clocksource_read();
 }
 
-static void xen_read_wallclock(struct timespec *ts)
+static u64 xen_sched_clock(void)
+{
+	return xen_clocksource_read() - xen_sched_clock_offset;
+}
+
+static void xen_read_wallclock(struct timespec64 *ts)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct pvclock_wall_clock *wall_clock = &(s->wc);
@@ -68,12 +75,12 @@ static void xen_read_wallclock(struct timespec *ts)
 	put_cpu_var(xen_vcpu);
 }
 
-static void xen_get_wallclock(struct timespec *now)
+static void xen_get_wallclock(struct timespec64 *now)
 {
 	xen_read_wallclock(now);
 }
 
-static int xen_set_wallclock(const struct timespec *now)
+static int xen_set_wallclock(const struct timespec64 *now)
 {
 	return -ENODEV;
 }
@@ -205,7 +212,7 @@ static int xen_timerop_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static const struct clock_event_device xen_timerop_clockevent = {
+static struct clock_event_device xen_timerop_clockevent __ro_after_init = {
 	.name			= "xen",
 	.features		= CLOCK_EVT_FEAT_ONESHOT,
 
@@ -266,7 +273,7 @@ static int xen_vcpuop_set_next_event(unsigned long delta,
 	return ret;
 }
 
-static const struct clock_event_device xen_vcpuop_clockevent = {
+static struct clock_event_device xen_vcpuop_clockevent __ro_after_init = {
 	.name = "xen",
 	.features = CLOCK_EVT_FEAT_ONESHOT,
 
@@ -354,8 +361,6 @@ void xen_timer_resume(void)
 {
 	int cpu;
 
-	pvclock_resume();
-
 	if (xen_clockevent != &xen_vcpuop_clockevent)
 		return;
 
@@ -367,16 +372,19 @@ void xen_timer_resume(void)
 }
 
 static const struct pv_time_ops xen_time_ops __initconst = {
-	.sched_clock = xen_clocksource_read,
+	.sched_clock = xen_sched_clock,
 	.steal_clock = xen_steal_clock,
 };
 
 static struct pvclock_vsyscall_time_info *xen_clock __read_mostly;
+static u64 xen_clock_value_saved;
 
 void xen_save_time_memory_area(void)
 {
 	struct vcpu_register_time_memory_area t;
 	int ret;
+
+	xen_clock_value_saved = xen_clocksource_read() - xen_sched_clock_offset;
 
 	if (!xen_clock)
 		return;
@@ -397,7 +405,7 @@ void xen_restore_time_memory_area(void)
 	int ret;
 
 	if (!xen_clock)
-		return;
+		goto out;
 
 	t.addr.v = &xen_clock->pvti;
 
@@ -414,6 +422,11 @@ void xen_restore_time_memory_area(void)
 	if (ret != 0)
 		pr_notice("Cannot restore secondary vcpu_time_info (err %d)",
 			  ret);
+
+out:
+	/* Need pvclock_resume() before using xen_clocksource_read(). */
+	pvclock_resume();
+	xen_sched_clock_offset = xen_clocksource_read() - xen_clock_value_saved;
 }
 
 static void xen_setup_vsyscall_time_info(void)
@@ -461,7 +474,7 @@ static void __init xen_time_init(void)
 {
 	struct pvclock_vcpu_time_info *pvti;
 	int cpu = smp_processor_id();
-	struct timespec tp;
+	struct timespec64 tp;
 
 	/* As Dom0 is never moved, no penalty on using TSC there */
 	if (xen_initial_domain())
@@ -479,7 +492,7 @@ static void __init xen_time_init(void)
 
 	/* Set initial system time with full resolution */
 	xen_read_wallclock(&tp);
-	do_settimeofday(&tp);
+	do_settimeofday64(&tp);
 
 	setup_force_cpu_cap(X86_FEATURE_TSC);
 
@@ -503,9 +516,10 @@ static void __init xen_time_init(void)
 		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
 }
 
-void __ref xen_init_time_ops(void)
+void __init xen_init_time_ops(void)
 {
-	pv_time_ops = xen_time_ops;
+	xen_sched_clock_offset = xen_clocksource_read();
+	pv_ops.time = xen_time_ops;
 
 	x86_init.timers.timer_init = xen_time_init;
 	x86_init.timers.setup_percpu_clockev = x86_init_noop;
@@ -542,12 +556,12 @@ void __init xen_hvm_init_time_ops(void)
 		return;
 
 	if (!xen_feature(XENFEAT_hvm_safe_pvclock)) {
-		printk(KERN_INFO "Xen doesn't support pvclock on HVM,"
-				"disable pv timer\n");
+		pr_info("Xen doesn't support pvclock on HVM, disable pv timer");
 		return;
 	}
 
-	pv_time_ops = xen_time_ops;
+	xen_sched_clock_offset = xen_clocksource_read();
+	pv_ops.time = xen_time_ops;
 	x86_init.timers.setup_percpu_clockev = xen_time_init;
 	x86_cpuinit.setup_percpu_clockev = xen_hvm_setup_cpu_clockevents;
 
@@ -556,3 +570,17 @@ void __init xen_hvm_init_time_ops(void)
 	x86_platform.set_wallclock = xen_set_wallclock;
 }
 #endif
+
+/* Kernel parameter to specify Xen timer slop */
+static int __init parse_xen_timer_slop(char *ptr)
+{
+	unsigned long slop = memparse(ptr, NULL);
+
+	xen_timerop_clockevent.min_delta_ns = slop;
+	xen_timerop_clockevent.min_delta_ticks = slop;
+	xen_vcpuop_clockevent.min_delta_ns = slop;
+	xen_vcpuop_clockevent.min_delta_ticks = slop;
+
+	return 0;
+}
+early_param("xen_timer_slop", parse_xen_timer_slop);

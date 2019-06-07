@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __HID_DEBUG_H
 #define __HID_DEBUG_H
 
@@ -6,25 +7,14 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 #ifdef CONFIG_DEBUG_FS
 
+#include <linux/kfifo.h>
+
 #define HID_DEBUG_BUFSIZE 512
+#define HID_DEBUG_FIFOSIZE 512
 
 void hid_dump_input(struct hid_device *, struct hid_usage *, __s32);
 void hid_dump_report(struct hid_device *, int , u8 *, int);
@@ -37,11 +27,8 @@ void hid_debug_init(void);
 void hid_debug_exit(void);
 void hid_debug_event(struct hid_device *, char *);
 
-
 struct hid_debug_list {
-	char *hid_debug_buf;
-	int head;
-	int tail;
+	DECLARE_KFIFO_PTR(hid_debug_fifo, char);
 	struct fasync_struct *fasync;
 	struct hid_device *hdev;
 	struct list_head node;
@@ -64,4 +51,3 @@ struct hid_debug_list {
 #endif
 
 #endif
-

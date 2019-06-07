@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  pm.h - Power management interface
  *
  *  Copyright (C) 2000 Andrew Henroid
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef _LINUX_PM_H
@@ -26,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <linux/timer.h>
+#include <linux/hrtimer.h>
 #include <linux/completion.h>
 
 /*
@@ -591,6 +579,7 @@ struct dev_pm_info {
 	bool			is_suspended:1;	/* Ditto */
 	bool			is_noirq_suspended:1;
 	bool			is_late_suspended:1;
+	bool			no_pm:1;
 	bool			early_init:1;	/* Owned by the PM core */
 	bool			direct_complete:1;	/* Owned by the PM core */
 	u32			driver_flags;
@@ -608,7 +597,7 @@ struct dev_pm_info {
 	unsigned int		should_wakeup:1;
 #endif
 #ifdef CONFIG_PM
-	struct timer_list	suspend_timer;
+	struct hrtimer		suspend_timer;
 	unsigned long		timer_expires;
 	struct work_struct	work;
 	wait_queue_head_t	wait_queue;
@@ -631,17 +620,16 @@ struct dev_pm_info {
 	enum rpm_status		runtime_status;
 	int			runtime_error;
 	int			autosuspend_delay;
-	unsigned long		last_busy;
-	unsigned long		active_jiffies;
-	unsigned long		suspended_jiffies;
-	unsigned long		accounting_timestamp;
+	u64			last_busy;
+	u64			active_time;
+	u64			suspended_time;
+	u64			accounting_timestamp;
 #endif
 	struct pm_subsys_data	*subsys_data;  /* Owned by the subsystem. */
 	void (*set_latency_tolerance)(struct device *, s32);
 	struct dev_pm_qos	*qos;
 };
 
-extern void update_pm_runtime_accounting(struct device *dev);
 extern int dev_pm_get_subsys_data(struct device *dev);
 extern void dev_pm_put_subsys_data(struct device *dev);
 

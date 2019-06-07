@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -233,7 +233,7 @@ static const struct drm_crtc_funcs vmw_legacy_crtc_funcs = {
 	.reset = vmw_du_crtc_reset,
 	.atomic_duplicate_state = vmw_du_crtc_duplicate_state,
 	.atomic_destroy_state = vmw_du_crtc_destroy_state,
-	.set_config = vmw_kms_set_config,
+	.set_config = drm_atomic_helper_set_config,
 };
 
 
@@ -263,56 +263,19 @@ static const struct drm_connector_funcs vmw_legacy_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
 	.detect = vmw_du_connector_detect,
 	.fill_modes = vmw_du_connector_fill_modes,
-	.set_property = vmw_du_connector_set_property,
 	.destroy = vmw_ldu_connector_destroy,
 	.reset = vmw_du_connector_reset,
 	.atomic_duplicate_state = vmw_du_connector_duplicate_state,
 	.atomic_destroy_state = vmw_du_connector_destroy_state,
-	.atomic_set_property = vmw_du_connector_atomic_set_property,
-	.atomic_get_property = vmw_du_connector_atomic_get_property,
 };
 
 static const struct
 drm_connector_helper_funcs vmw_ldu_connector_helper_funcs = {
-	.best_encoder = drm_atomic_helper_best_encoder,
 };
 
 /*
  * Legacy Display Plane Functions
  */
-
-/**
- * vmw_ldu_primary_plane_cleanup_fb - Noop
- *
- * @plane:  display plane
- * @old_state: Contains the FB to clean up
- *
- * Unpins the display surface
- *
- * Returns 0 on success
- */
-static void
-vmw_ldu_primary_plane_cleanup_fb(struct drm_plane *plane,
-				 struct drm_plane_state *old_state)
-{
-}
-
-
-/**
- * vmw_ldu_primary_plane_prepare_fb - Noop
- *
- * @plane:  display plane
- * @new_state: info on the new plane state, including the FB
- *
- * Returns 0 on success
- */
-static int
-vmw_ldu_primary_plane_prepare_fb(struct drm_plane *plane,
-				 struct drm_plane_state *new_state)
-{
-	return 0;
-}
-
 
 static void
 vmw_ldu_primary_plane_atomic_update(struct drm_plane *plane,
@@ -373,8 +336,6 @@ static const struct
 drm_plane_helper_funcs vmw_ldu_primary_plane_helper_funcs = {
 	.atomic_check = vmw_du_primary_plane_atomic_check,
 	.atomic_update = vmw_ldu_primary_plane_atomic_update,
-	.prepare_fb = vmw_ldu_primary_plane_prepare_fb,
-	.cleanup_fb = vmw_ldu_primary_plane_cleanup_fb,
 };
 
 static const struct drm_crtc_helper_funcs vmw_ldu_crtc_helper_funcs = {
@@ -452,7 +413,6 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 
 	drm_plane_helper_add(cursor, &vmw_ldu_cursor_plane_helper_funcs);
 
-
 	vmw_du_connector_reset(connector);
 	ret = drm_connector_init(dev, connector, &vmw_legacy_connector_funcs,
 				 DRM_MODE_CONNECTOR_VIRTUAL);
@@ -463,8 +423,6 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 
 	drm_connector_helper_add(connector, &vmw_ldu_connector_helper_funcs);
 	connector->status = vmw_du_connector_detect(connector, true);
-	vmw_connector_state_to_vcs(connector->state)->is_implicit = true;
-
 
 	ret = drm_encoder_init(dev, encoder, &vmw_legacy_encoder_funcs,
 			       DRM_MODE_ENCODER_VIRTUAL, NULL);
@@ -473,7 +431,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free_connector;
 	}
 
-	(void) drm_mode_connector_attach_encoder(connector, encoder);
+	(void) drm_connector_attach_encoder(connector, encoder);
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
 
@@ -482,7 +440,6 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 		DRM_ERROR("Failed to register connector\n");
 		goto err_free_encoder;
 	}
-
 
 	vmw_du_crtc_reset(crtc);
 	ret = drm_crtc_init_with_planes(dev, crtc, &ldu->base.primary,
@@ -549,7 +506,7 @@ int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 	if (ret != 0)
 		goto err_free;
 
-	vmw_kms_create_implicit_placement_property(dev_priv, true);
+	vmw_kms_create_implicit_placement_property(dev_priv);
 
 	if (dev_priv->capabilities & SVGA_CAP_MULTIMON)
 		for (i = 0; i < VMWGFX_NUM_DISPLAY_UNITS; ++i)
@@ -582,11 +539,11 @@ int vmw_kms_ldu_close_display(struct vmw_private *dev_priv)
 }
 
 
-int vmw_kms_ldu_do_dmabuf_dirty(struct vmw_private *dev_priv,
-				struct vmw_framebuffer *framebuffer,
-				unsigned flags, unsigned color,
-				struct drm_clip_rect *clips,
-				unsigned num_clips, int increment)
+int vmw_kms_ldu_do_bo_dirty(struct vmw_private *dev_priv,
+			    struct vmw_framebuffer *framebuffer,
+			    unsigned int flags, unsigned int color,
+			    struct drm_clip_rect *clips,
+			    unsigned int num_clips, int increment)
 {
 	size_t fifo_size;
 	int i;
@@ -597,11 +554,9 @@ int vmw_kms_ldu_do_dmabuf_dirty(struct vmw_private *dev_priv,
 	} *cmd;
 
 	fifo_size = sizeof(*cmd) * num_clips;
-	cmd = vmw_fifo_reserve(dev_priv, fifo_size);
-	if (unlikely(cmd == NULL)) {
-		DRM_ERROR("Fifo reserve failed.\n");
+	cmd = VMW_FIFO_RESERVE(dev_priv, fifo_size);
+	if (unlikely(cmd == NULL))
 		return -ENOMEM;
-	}
 
 	memset(cmd, 0, fifo_size);
 	for (i = 0; i < num_clips; i++, clips += increment) {

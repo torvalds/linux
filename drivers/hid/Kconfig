@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # HID driver configuration
 #
@@ -149,6 +150,8 @@ config HID_APPLEIR
 config HID_ASUS
 	tristate "Asus"
 	depends on LEDS_CLASS
+	depends on ASUS_WMI || ASUS_WMI=n
+	select POWER_SUPPLY
 	---help---
 	Support for Asus notebook built-in keyboard and touchpad via i2c, and
 	the Asus Republic of Gamers laptop keyboard special keys.
@@ -182,6 +185,18 @@ config HID_BETOP_FF
 	Currently the following devices are known to be supported:
 	 - BETOP 2185 PC & BFM MODE
 
+config HID_BIGBEN_FF
+	tristate "BigBen Interactive Kids' gamepad support"
+	depends on USB_HID
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	select INPUT_FF_MEMLESS
+	help
+	  Support for the "Kid-friendly Wired Controller" PS3OFMINIPAD
+	  gamepad made by BigBen Interactive, originally sold as a PS3
+	  accessory. This driver fixes input mapping and adds support for
+	  force feedback effects and LEDs on the device.
+
 config HID_CHERRY
 	tristate "Cherry Cymotion keyboard"
 	depends on HID
@@ -206,6 +221,26 @@ config HID_CORSAIR
 	Supported devices:
 	- Vengeance K90
 	- Scimitar PRO RGB
+
+config HID_COUGAR
+	tristate "Cougar devices"
+	depends on HID
+	help
+	Support for Cougar devices that are not fully compliant with the
+	HID standard.
+
+	Supported devices:
+	- Cougar 500k Gaming Keyboard
+
+config HID_MACALLY
+	tristate "Macally devices"
+	depends on HID
+	help
+	Support for Macally devices that are not fully compliant with the
+	HID standard.
+
+	supported devices:
+	- Macally ikey keyboard
 
 config HID_PRODIKEYS
 	tristate "Prodikeys PC-MIDI Keyboard support"
@@ -341,7 +376,7 @@ config HOLTEK_FF
 
 config HID_GOOGLE_HAMMER
 	tristate "Google Hammer Keyboard"
-	depends on USB_HID && LEDS_CLASS
+	depends on USB_HID && LEDS_CLASS && MFD_CROS_EC
 	---help---
 	Say Y here if you have a Google Hammer device.
 
@@ -388,6 +423,12 @@ config HID_WALTOP
 	depends on HID
 	---help---
 	Support for Waltop tablets.
+
+config HID_VIEWSONIC
+	tristate "ViewSonic/Signotec"
+	depends on HID
+	help
+	  Support for ViewSonic/Signotec PD1011 signature pad.
 
 config HID_GYRATION
 	tristate "Gyration remote control"
@@ -481,6 +522,7 @@ config HID_LOGITECH
 
 config HID_LOGITECH_DJ
 	tristate "Logitech Unifying receivers full support"
+	depends on USB_HID
 	depends on HIDRAW
 	depends on HID_LOGITECH
 	select HID_LOGITECH_HIDPP
@@ -567,6 +609,13 @@ config HID_MAGICMOUSE
 	Say Y here if you want support for the multi-touch features of the
 	Apple Wireless "Magic" Mouse and the Apple Wireless "Magic" Trackpad.
 
+config HID_MALTRON
+	tristate "Maltron L90 keyboard"
+	depends on HID
+	---help---
+	Adds support for the volume up, volume down, mute, and play/pause buttons
+	of the Maltron L90 keyboard.
+
 config HID_MAYFLASH
 	tristate "Mayflash game controller adapter force feedback"
 	depends on HID
@@ -575,10 +624,18 @@ config HID_MAYFLASH
 	Say Y here if you have HJZ Mayflash PS3 game controller adapters
 	and want to enable force feedback support.
 
+config HID_REDRAGON
+	tristate "Redragon keyboards"
+	depends on HID
+	default !EXPERT
+	---help---
+    Support for Redragon keyboards that need fix-ups to work properly.
+
 config HID_MICROSOFT
 	tristate "Microsoft non-fully HID-compliant devices"
 	depends on HID
 	default !EXPERT
+	select INPUT_FF_MEMLESS
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
 
@@ -838,6 +895,15 @@ config HID_SPEEDLINK
 	---help---
 	Support for Speedlink Vicious and Divine Cezanne mouse.
 
+config HID_STEAM
+	tristate "Steam Controller support"
+	depends on HID
+	select POWER_SUPPLY
+	---help---
+	Say Y here if you have a Steam Controller if you want to use it
+	without running the Steam Client. It supports both the wired and
+	the wireless adaptor.
+
 config HID_STEELSERIES
 	tristate "Steelseries SRW-S1 steering wheel support"
 	depends on HID
@@ -948,6 +1014,22 @@ config HID_UDRAW_PS3
 	---help---
 	  Say Y here if you want to use the THQ uDraw gaming tablet for
 	  the PS3.
+
+config HID_U2FZERO
+	tristate "U2F Zero LED and RNG support"
+	depends on USB_HID
+	depends on LEDS_CLASS
+	depends on HW_RANDOM
+	help
+	  Support for the LED of the U2F Zero device.
+
+	  U2F Zero supports custom commands for blinking the LED
+	  and getting data from the internal hardware RNG.
+	  The internal hardware can be used to feed the enthropy pool.
+
+	  U2F Zero only supports blinking its LED, so this driver doesn't
+	  allow setting the brightness to anything but 1, which will
+	  trigger a single blink and immediately reset to back 0.
 
 config HID_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"

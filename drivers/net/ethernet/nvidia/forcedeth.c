@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * forcedeth: Ethernet driver for NVIDIA nForce media access controllers.
  *
@@ -14,19 +15,6 @@
  * Copyright (C) 2004 Carl-Daniel Hailfinger (invalid MAC handling, insane
  *		IRQ rate fixes, bigendian fixes, cleanups, verification)
  * Copyright (c) 2004,2005,2006,2007,2008,2009 NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -4630,8 +4618,10 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 					       ring->tx_pending),
 					       &ring_addr, GFP_ATOMIC);
 	}
-	rx_skbuff = kmalloc(sizeof(struct nv_skb_map) * ring->rx_pending, GFP_KERNEL);
-	tx_skbuff = kmalloc(sizeof(struct nv_skb_map) * ring->tx_pending, GFP_KERNEL);
+	rx_skbuff = kmalloc_array(ring->rx_pending, sizeof(struct nv_skb_map),
+				  GFP_KERNEL);
+	tx_skbuff = kmalloc_array(ring->tx_pending, sizeof(struct nv_skb_map),
+				  GFP_KERNEL);
 	if (!rxtx_ring || !rx_skbuff || !tx_skbuff) {
 		/* fall back to old rings */
 		if (!nv_optimized(np)) {
@@ -5775,7 +5765,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 						      (np->rx_ring_size +
 						      np->tx_ring_size),
 						      &np->ring_addr,
-						      GFP_ATOMIC);
+						      GFP_KERNEL);
 		if (!np->rx_ring.orig)
 			goto out_unmap;
 		np->tx_ring.orig = &np->rx_ring.orig[np->rx_ring_size];
@@ -5784,7 +5774,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 						    sizeof(struct ring_desc_ex) *
 						    (np->rx_ring_size +
 						    np->tx_ring_size),
-						    &np->ring_addr, GFP_ATOMIC);
+						    &np->ring_addr, GFP_KERNEL);
 		if (!np->rx_ring.ex)
 			goto out_unmap;
 		np->tx_ring.ex = &np->rx_ring.ex[np->rx_ring_size];

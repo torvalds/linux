@@ -1044,7 +1044,8 @@ research:
 			if (blocks_needed == 1) {
 				un = &unf_single;
 			} else {
-				un = kzalloc(min(blocks_needed, max_to_insert) * UNFM_P_SIZE, GFP_NOFS);
+				un = kcalloc(min(blocks_needed, max_to_insert),
+					     UNFM_P_SIZE, GFP_NOFS);
 				if (!un) {
 					un = &unf_single;
 					blocks_needed = 1;

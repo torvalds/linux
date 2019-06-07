@@ -1,18 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    driver for Microsemi PQI-based storage controllers
- *    Copyright (c) 2016-2017 Microsemi Corporation
+ *    Copyright (c) 2019 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; version 2 of the License.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- *    NON INFRINGEMENT.  See the GNU General Public License for more details.
- *
- *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
+ *    Questions/Comments/Bugfixes to storagedev@microchip.com
  *
  */
 
@@ -34,6 +27,7 @@
 #define SIS_REENABLE_SIS_MODE			0x1
 #define SIS_ENABLE_MSIX				0x40
 #define SIS_ENABLE_INTX				0x80
+#define SIS_SOFT_RESET				0x100
 #define SIS_CMD_READY				0x200
 #define SIS_TRIGGER_SHUTDOWN			0x800000
 #define SIS_PQI_RESET_QUIESCE			0x1000000
@@ -59,7 +53,7 @@
 
 #define SIS_CTRL_KERNEL_UP			0x80
 #define SIS_CTRL_KERNEL_PANIC			0x100
-#define SIS_CTRL_READY_TIMEOUT_SECS		30
+#define SIS_CTRL_READY_TIMEOUT_SECS		180
 #define SIS_CTRL_READY_RESUME_TIMEOUT_SECS	90
 #define SIS_CTRL_READY_POLL_INTERVAL_MSECS	10
 
@@ -90,7 +84,7 @@ static int sis_wait_for_ctrl_ready_with_timeout(struct pqi_ctrl_info *ctrl_info,
 	unsigned long timeout;
 	u32 status;
 
-	timeout = (timeout_secs * HZ) + jiffies;
+	timeout = (timeout_secs * PQI_HZ) + jiffies;
 
 	while (1) {
 		status = readl(&ctrl_info->registers->sis_firmware_status);
@@ -202,7 +196,7 @@ static int sis_send_sync_cmd(struct pqi_ctrl_info *ctrl_info,
 	 * the top of the loop in order to give the controller time to start
 	 * processing the command before we start polling.
 	 */
-	timeout = (SIS_CMD_COMPLETE_TIMEOUT_SECS * HZ) + jiffies;
+	timeout = (SIS_CMD_COMPLETE_TIMEOUT_SECS * PQI_HZ) + jiffies;
 	while (1) {
 		msleep(SIS_CMD_COMPLETE_POLL_INTERVAL_MSECS);
 		doorbell = readl(&registers->sis_ctrl_to_host_doorbell);
@@ -316,9 +310,9 @@ int sis_init_base_struct_addr(struct pqi_ctrl_info *ctrl_info)
 	put_unaligned_le32(ctrl_info->max_io_slots,
 		&base_struct->error_buffer_num_elements);
 
-	bus_address = pci_map_single(ctrl_info->pci_dev, base_struct,
-		sizeof(*base_struct), PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(ctrl_info->pci_dev, bus_address)) {
+	bus_address = dma_map_single(&ctrl_info->pci_dev->dev, base_struct,
+		sizeof(*base_struct), DMA_TO_DEVICE);
+	if (dma_mapping_error(&ctrl_info->pci_dev->dev, bus_address)) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -331,9 +325,8 @@ int sis_init_base_struct_addr(struct pqi_ctrl_info *ctrl_info)
 	rc = sis_send_sync_cmd(ctrl_info, SIS_CMD_INIT_BASE_STRUCT_ADDRESS,
 		&params);
 
-	pci_unmap_single(ctrl_info->pci_dev, bus_address, sizeof(*base_struct),
-		PCI_DMA_TODEVICE);
-
+	dma_unmap_single(&ctrl_info->pci_dev->dev, bus_address,
+			sizeof(*base_struct), DMA_TO_DEVICE);
 out:
 	kfree(base_struct_unaligned);
 
@@ -349,7 +342,7 @@ static int sis_wait_for_doorbell_bit_to_clear(
 	u32 doorbell_register;
 	unsigned long timeout;
 
-	timeout = (SIS_DOORBELL_BIT_CLEAR_TIMEOUT_SECS * HZ) + jiffies;
+	timeout = (SIS_DOORBELL_BIT_CLEAR_TIMEOUT_SECS * PQI_HZ) + jiffies;
 
 	while (1) {
 		doorbell_register =
@@ -419,6 +412,12 @@ void sis_write_driver_scratch(struct pqi_ctrl_info *ctrl_info, u32 value)
 u32 sis_read_driver_scratch(struct pqi_ctrl_info *ctrl_info)
 {
 	return readl(&ctrl_info->registers->sis_driver_scratch);
+}
+
+void sis_soft_reset(struct pqi_ctrl_info *ctrl_info)
+{
+	writel(SIS_SOFT_RESET,
+		&ctrl_info->registers->sis_host_to_ctrl_doorbell);
 }
 
 static void __attribute__((unused)) verify_structures(void)

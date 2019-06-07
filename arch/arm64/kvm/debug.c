@@ -76,7 +76,7 @@ static void restore_guest_debug_regs(struct kvm_vcpu *vcpu)
 
 void kvm_arm_init_debug(void)
 {
-	__this_cpu_write(mdcr_el2, kvm_call_hyp(__kvm_get_mdcr_el2));
+	__this_cpu_write(mdcr_el2, kvm_call_hyp_ret(__kvm_get_mdcr_el2));
 }
 
 /**
@@ -103,7 +103,7 @@ void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu)
  *
  * Additionally, KVM only traps guest accesses to the debug registers if
  * the guest is not actively using them (see the KVM_ARM64_DEBUG_DIRTY
- * flag on vcpu->arch.debug_flags).  Since the guest must not interfere
+ * flag on vcpu->arch.flags).  Since the guest must not interfere
  * with the hardware state when debugging the guest, we must ensure that
  * trapping is enabled whenever we are debugging the guest using the
  * debug registers.
@@ -111,7 +111,7 @@ void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu)
 
 void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 {
-	bool trap_debug = !(vcpu->arch.debug_flags & KVM_ARM64_DEBUG_DIRTY);
+	bool trap_debug = !(vcpu->arch.flags & KVM_ARM64_DEBUG_DIRTY);
 	unsigned long mdscr;
 
 	trace_kvm_arm_setup_debug(vcpu, vcpu->guest_debug);
@@ -184,7 +184,7 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 			vcpu_write_sys_reg(vcpu, mdscr, MDSCR_EL1);
 
 			vcpu->arch.debug_ptr = &vcpu->arch.external_debug_state;
-			vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+			vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 			trap_debug = true;
 
 			trace_kvm_arm_set_regset("BKPTS", get_num_brps(),
@@ -206,7 +206,7 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 
 	/* If KDE or MDE are set, perform a full save/restore cycle. */
 	if (vcpu_read_sys_reg(vcpu, MDSCR_EL1) & (DBG_MDSCR_KDE | DBG_MDSCR_MDE))
-		vcpu->arch.debug_flags |= KVM_ARM64_DEBUG_DIRTY;
+		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 
 	trace_kvm_arm_set_dreg32("MDCR_EL2", vcpu->arch.mdcr_el2);
 	trace_kvm_arm_set_dreg32("MDSCR_EL1", vcpu_read_sys_reg(vcpu, MDSCR_EL1));
@@ -235,25 +235,4 @@ void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
 						&vcpu->arch.debug_ptr->dbg_wvr[0]);
 		}
 	}
-}
-
-
-/*
- * After successfully emulating an instruction, we might want to
- * return to user space with a KVM_EXIT_DEBUG. We can only do this
- * once the emulation is complete, though, so for userspace emulations
- * we have to wait until we have re-entered KVM before calling this
- * helper.
- *
- * Return true (and set exit_reason) to return to userspace or false
- * if no further action is required.
- */
-bool kvm_arm_handle_step_debug(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
-		run->exit_reason = KVM_EXIT_DEBUG;
-		run->debug.arch.hsr = ESR_ELx_EC_SOFTSTP_LOW << ESR_ELx_EC_SHIFT;
-		return true;
-	}
-	return false;
 }

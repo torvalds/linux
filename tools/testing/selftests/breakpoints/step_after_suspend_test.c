@@ -143,10 +143,14 @@ void suspend(void)
 	int err;
 	struct itimerspec spec = {};
 
+	if (getuid() != 0)
+		ksft_exit_skip("Please run the test as root - Exiting.\n");
+
 	power_state_fd = open("/sys/power/state", O_RDWR);
 	if (power_state_fd < 0)
 		ksft_exit_fail_msg(
-			"open(\"/sys/power/state\") failed (is this test running as root?)\n");
+			"open(\"/sys/power/state\") failed %s)\n",
+			strerror(errno));
 
 	timerfd = timerfd_create(CLOCK_BOOTTIME_ALARM, 0);
 	if (timerfd < 0)
@@ -169,6 +173,7 @@ int main(int argc, char **argv)
 	int opt;
 	bool do_suspend = true;
 	bool succeeded = true;
+	unsigned int tests = 0;
 	cpu_set_t available_cpus;
 	int err;
 	int cpu;
@@ -186,6 +191,13 @@ int main(int argc, char **argv)
 			return -1;
 		}
 	}
+
+	for (cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+		if (!CPU_ISSET(cpu, &available_cpus))
+			continue;
+		tests++;
+	}
+	ksft_set_plan(tests);
 
 	if (do_suspend)
 		suspend();

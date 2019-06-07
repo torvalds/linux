@@ -121,13 +121,15 @@ nfsd4_block_commit_blocks(struct inode *inode, struct nfsd4_layoutcommit *lcp,
 {
 	loff_t new_size = lcp->lc_last_wr + 1;
 	struct iattr iattr = { .ia_valid = 0 };
+	struct timespec ts;
 	int error;
 
+	ts = timespec64_to_timespec(inode->i_mtime);
 	if (lcp->lc_mtime.tv_nsec == UTIME_NOW ||
-	    timespec_compare(&lcp->lc_mtime, &inode->i_mtime) < 0)
-		lcp->lc_mtime = current_time(inode);
+	    timespec_compare(&lcp->lc_mtime, &ts) < 0)
+		lcp->lc_mtime = timespec64_to_timespec(current_time(inode));
 	iattr.ia_valid |= ATTR_ATIME | ATTR_CTIME | ATTR_MTIME;
-	iattr.ia_atime = iattr.ia_ctime = iattr.ia_mtime = lcp->lc_mtime;
+	iattr.ia_atime = iattr.ia_ctime = iattr.ia_mtime = timespec_to_timespec64(lcp->lc_mtime);
 
 	if (new_size > i_size_read(inode)) {
 		iattr.ia_valid |= ATTR_SIZE;
@@ -216,18 +218,26 @@ static int nfsd4_scsi_identify_device(struct block_device *bdev,
 	struct request_queue *q = bdev->bd_disk->queue;
 	struct request *rq;
 	struct scsi_request *req;
-	size_t bufflen = 252, len, id_len;
+	/*
+	 * The allocation length (passed in bytes 3 and 4 of the INQUIRY
+	 * command descriptor block) specifies the number of bytes that have
+	 * been allocated for the data-in buffer.
+	 * 252 is the highest one-byte value that is a multiple of 4.
+	 * 65532 is the highest two-byte value that is a multiple of 4.
+	 */
+	size_t bufflen = 252, maxlen = 65532, len, id_len;
 	u8 *buf, *d, type, assoc;
-	int error;
+	int retries = 1, error;
 
 	if (WARN_ON_ONCE(!blk_queue_scsi_passthrough(q)))
 		return -EINVAL;
 
+again:
 	buf = kzalloc(bufflen, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	rq = blk_get_request(q, REQ_OP_SCSI_IN, GFP_KERNEL);
+	rq = blk_get_request(q, REQ_OP_SCSI_IN, 0);
 	if (IS_ERR(rq)) {
 		error = -ENOMEM;
 		goto out_free_buf;
@@ -255,6 +265,12 @@ static int nfsd4_scsi_identify_device(struct block_device *bdev,
 
 	len = (buf[2] << 8) + buf[3] + 4;
 	if (len > bufflen) {
+		if (len <= maxlen && retries--) {
+			blk_put_request(rq);
+			kfree(buf);
+			bufflen = len;
+			goto again;
+		}
 		pr_err("pNFS: INQUIRY 0x83 response invalid (len = %zd)\n",
 			len);
 		goto out_put_request;

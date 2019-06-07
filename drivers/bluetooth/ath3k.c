@@ -1,20 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2008-2009 Atheros Communications Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 
@@ -203,10 +189,11 @@ static const struct usb_device_id ath3k_blist_tbl[] = {
 	{ }	/* Terminating entry */
 };
 
-static inline void ath3k_log_failed_loading(int err, int len, int size)
+static inline void ath3k_log_failed_loading(int err, int len, int size,
+					    int count)
 {
-	BT_ERR("Error in firmware loading err = %d, len = %d, size = %d",
-			err, len, size);
+	BT_ERR("Firmware loading err = %d, len = %d, size = %d, count = %d",
+	       err, len, size, count);
 }
 
 #define USB_REQ_DFU_DNLOAD	1
@@ -257,7 +244,7 @@ static int ath3k_load_firmware(struct usb_device *udev,
 					&len, 3000);
 
 		if (err || (len != size)) {
-			ath3k_log_failed_loading(err, len, size);
+			ath3k_log_failed_loading(err, len, size, count);
 			goto error;
 		}
 
@@ -356,7 +343,7 @@ static int ath3k_load_fwfile(struct usb_device *udev,
 		err = usb_bulk_msg(udev, pipe, send_buf, size,
 					&len, 3000);
 		if (err || (len != size)) {
-			ath3k_log_failed_loading(err, len, size);
+			ath3k_log_failed_loading(err, len, size, count);
 			kfree(send_buf);
 			return err;
 		}

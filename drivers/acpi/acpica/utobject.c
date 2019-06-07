@@ -3,11 +3,12 @@
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
 #include <acpi/acpi.h>
+#include <linux/kmemleak.h>
 #include "accommon.h"
 #include "acnamesp.h"
 
@@ -70,6 +71,7 @@ union acpi_operand_object *acpi_ut_create_internal_object_dbg(const char
 	if (!object) {
 		return_PTR(NULL);
 	}
+	kmemleak_not_leak(object);
 
 	switch (type) {
 	case ACPI_TYPE_REGION:

@@ -73,12 +73,6 @@ SECTIONS
 
 	.text		: { *(.text*) }			:text	=0x90909090,
 
-	.vread_tick_patch : {
-		vread_tick_patch_start = .;
-		*(.vread_tick_patch)
-		vread_tick_patch_end = .;
-	}
-
 	/DISCARD/ : {
 		*(.discard)
 		*(.discard.*)

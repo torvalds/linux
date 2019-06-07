@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/kernel/timer.c
- *
  *  Kernel internal timers
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
@@ -537,6 +536,8 @@ static void enqueue_timer(struct timer_base *base, struct timer_list *timer,
 	hlist_add_head(&timer->entry, base->vectors + idx);
 	__set_bit(idx, base->pending_map);
 	timer_set_idx(timer, idx);
+
+	trace_timer_start(timer, timer->expires, timer->flags);
 }
 
 static void
@@ -581,7 +582,7 @@ trigger_dyntick_cpu(struct timer_base *base, struct timer_list *timer)
 	 * wheel:
 	 */
 	base->next_expiry = timer->expires;
-		wake_up_nohz_cpu(base->cpu);
+	wake_up_nohz_cpu(base->cpu);
 }
 
 static void
@@ -648,7 +649,7 @@ static bool timer_fixup_activate(void *addr, enum debug_obj_state state)
 
 	case ODEBUG_STATE_ACTIVE:
 		WARN_ON(1);
-
+		/* fall through */
 	default:
 		return false;
 	}
@@ -756,13 +757,6 @@ static inline void debug_init(struct timer_list *timer)
 {
 	debug_timer_init(timer);
 	trace_timer_init(timer);
-}
-
-static inline void
-debug_activate(struct timer_list *timer, unsigned long expires)
-{
-	debug_timer_activate(timer);
-	trace_timer_start(timer, expires, timer->flags);
 }
 
 static inline void debug_deactivate(struct timer_list *timer)
@@ -1038,7 +1032,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 		}
 	}
 
-	debug_activate(timer, expires);
+	debug_timer_activate(timer);
 
 	timer->expires = expires;
 	/*
@@ -1172,7 +1166,7 @@ void add_timer_on(struct timer_list *timer, int cpu)
 	}
 	forward_timer_base(base);
 
-	debug_activate(timer, timer->expires);
+	debug_timer_activate(timer);
 	internal_add_timer(base, timer);
 	raw_spin_unlock_irqrestore(&base->lock, flags);
 }
@@ -1251,18 +1245,18 @@ EXPORT_SYMBOL(try_to_del_timer_sync);
  *
  * Note: For !irqsafe timers, you must not hold locks that are held in
  *   interrupt context while calling this function. Even if the lock has
- *   nothing to do with the timer in question.  Here's why:
+ *   nothing to do with the timer in question.  Here's why::
  *
  *    CPU0                             CPU1
  *    ----                             ----
- *                                   <SOFTIRQ>
- *                                   call_timer_fn();
- *                                     base->running_timer = mytimer;
- *  spin_lock_irq(somelock);
+ *                                     <SOFTIRQ>
+ *                                       call_timer_fn();
+ *                                       base->running_timer = mytimer;
+ *    spin_lock_irq(somelock);
  *                                     <IRQ>
  *                                        spin_lock(somelock);
- *  del_timer_sync(mytimer);
- *   while (base->running_timer == mytimer);
+ *    del_timer_sync(mytimer);
+ *    while (base->running_timer == mytimer);
  *
  * Now del_timer_sync() will never return and never release somelock.
  * The interrupt on the other CPU is waiting to grab somelock but
@@ -1299,7 +1293,9 @@ int del_timer_sync(struct timer_list *timer)
 EXPORT_SYMBOL(del_timer_sync);
 #endif
 
-static void call_timer_fn(struct timer_list *timer, void (*fn)(struct timer_list *))
+static void call_timer_fn(struct timer_list *timer,
+			  void (*fn)(struct timer_list *),
+			  unsigned long baseclk)
 {
 	int count = preempt_count();
 
@@ -1322,14 +1318,14 @@ static void call_timer_fn(struct timer_list *timer, void (*fn)(struct timer_list
 	 */
 	lock_map_acquire(&lockdep_map);
 
-	trace_timer_expire_entry(timer);
+	trace_timer_expire_entry(timer, baseclk);
 	fn(timer);
 	trace_timer_expire_exit(timer);
 
 	lock_map_release(&lockdep_map);
 
 	if (count != preempt_count()) {
-		WARN_ONCE(1, "timer: %pF preempt leak: %08x -> %08x\n",
+		WARN_ONCE(1, "timer: %pS preempt leak: %08x -> %08x\n",
 			  fn, count, preempt_count());
 		/*
 		 * Restore the preempt count. That gives us a decent
@@ -1343,6 +1339,13 @@ static void call_timer_fn(struct timer_list *timer, void (*fn)(struct timer_list
 
 static void expire_timers(struct timer_base *base, struct hlist_head *head)
 {
+	/*
+	 * This value is required only for tracing. base->clk was
+	 * incremented directly before expire_timers was called. But expiry
+	 * is related to the old base->clk value.
+	 */
+	unsigned long baseclk = base->clk - 1;
+
 	while (!hlist_empty(head)) {
 		struct timer_list *timer;
 		void (*fn)(struct timer_list *);
@@ -1356,11 +1359,11 @@ static void expire_timers(struct timer_base *base, struct hlist_head *head)
 
 		if (timer->flags & TIMER_IRQSAFE) {
 			raw_spin_unlock(&base->lock);
-			call_timer_fn(timer, fn);
+			call_timer_fn(timer, fn, baseclk);
 			raw_spin_lock(&base->lock);
 		} else {
 			raw_spin_unlock_irq(&base->lock);
-			call_timer_fn(timer, fn);
+			call_timer_fn(timer, fn, baseclk);
 			raw_spin_lock_irq(&base->lock);
 		}
 	}
@@ -1633,7 +1636,7 @@ void update_process_times(int user_tick)
 	/* Note: this timer irq context must be accounted for as well. */
 	account_process_tick(p, user_tick);
 	run_local_timers();
-	rcu_check_callbacks(user_tick);
+	rcu_sched_clock_irq(user_tick);
 #ifdef CONFIG_IRQ_WORK
 	if (in_irq())
 		irq_work_tick();
@@ -1657,6 +1660,22 @@ static inline void __run_timers(struct timer_base *base)
 
 	raw_spin_lock_irq(&base->lock);
 
+	/*
+	 * timer_base::must_forward_clk must be cleared before running
+	 * timers so that any timer functions that call mod_timer() will
+	 * not try to forward the base. Idle tracking / clock forwarding
+	 * logic is only used with BASE_STD timers.
+	 *
+	 * The must_forward_clk flag is cleared unconditionally also for
+	 * the deferrable base. The deferrable base is not affected by idle
+	 * tracking and never forwarded, so clearing the flag is a NOOP.
+	 *
+	 * The fact that the deferrable base is never forwarded can cause
+	 * large variations in granularity for deferrable timers, but they
+	 * can be deferred for long periods due to idle anyway.
+	 */
+	base->must_forward_clk = false;
+
 	while (time_after_eq(jiffies, base->clk)) {
 
 		levels = collect_expired_timers(base, heads);
@@ -1675,19 +1694,6 @@ static inline void __run_timers(struct timer_base *base)
 static __latent_entropy void run_timer_softirq(struct softirq_action *h)
 {
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
-
-	/*
-	 * must_forward_clk must be cleared before running timers so that any
-	 * timer functions that call mod_timer will not try to forward the
-	 * base. idle trcking / clock forwarding logic is only used with
-	 * BASE_STD timers.
-	 *
-	 * The deferrable base does not do idle tracking at all, so we do
-	 * not forward it. This can result in very large variations in
-	 * granularity for deferrable timers, but they can be deferred for
-	 * long periods due to idle.
-	 */
-	base->must_forward_clk = false;
 
 	__run_timers(base);
 	if (IS_ENABLED(CONFIG_NO_HZ_COMMON))

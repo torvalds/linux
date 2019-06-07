@@ -13,7 +13,7 @@
  * more details.
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 /* VT8500 has no enable register in the extgpio bank. */
 #define NO_REG	0xFFFF

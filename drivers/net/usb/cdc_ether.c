@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CDC Ethernet based networking peripherals
  * Copyright (C) 2003-2005 by David Brownell
  * Copyright (C) 2006 by Ole Andre Vadla Ravnas (ActiveSync)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 // #define	DEBUG			// error path messages, extra info
@@ -179,10 +167,8 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	 * probed with) and a slave/data interface; union
 	 * descriptors sort this all out.
 	 */
-	info->control = usb_ifnum_to_if(dev->udev,
-	info->u->bMasterInterface0);
-	info->data = usb_ifnum_to_if(dev->udev,
-		info->u->bSlaveInterface0);
+	info->control = usb_ifnum_to_if(dev->udev, info->u->bMasterInterface0);
+	info->data = usb_ifnum_to_if(dev->udev, info->u->bSlaveInterface0);
 	if (!info->control || !info->data) {
 		dev_dbg(&intf->dev,
 			"master #%u/%p slave #%u/%p\n",
@@ -216,18 +202,16 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* a data interface altsetting does the real i/o */
 	d = &info->data->cur_altsetting->desc;
 	if (d->bInterfaceClass != USB_CLASS_CDC_DATA) {
-		dev_dbg(&intf->dev, "slave class %u\n",
-			d->bInterfaceClass);
+		dev_dbg(&intf->dev, "slave class %u\n", d->bInterfaceClass);
 		goto bad_desc;
 	}
 skip:
-	if (	rndis &&
-		header.usb_cdc_acm_descriptor &&
-		header.usb_cdc_acm_descriptor->bmCapabilities) {
-			dev_dbg(&intf->dev,
-				"ACM capabilities %02x, not really RNDIS?\n",
-				header.usb_cdc_acm_descriptor->bmCapabilities);
-			goto bad_desc;
+	if (rndis && header.usb_cdc_acm_descriptor &&
+	    header.usb_cdc_acm_descriptor->bmCapabilities) {
+		dev_dbg(&intf->dev,
+			"ACM capabilities %02x, not really RNDIS?\n",
+			header.usb_cdc_acm_descriptor->bmCapabilities);
+		goto bad_desc;
 	}
 
 	if (header.usb_cdc_ether_desc && info->ether->wMaxSegmentSize) {
@@ -238,7 +222,7 @@ skip:
 	}
 
 	if (header.usb_cdc_mdlm_desc &&
-		memcmp(header.usb_cdc_mdlm_desc->bGUID, mbm_guid, 16)) {
+	    memcmp(header.usb_cdc_mdlm_desc->bGUID, mbm_guid, 16)) {
 		dev_dbg(&intf->dev, "GUID doesn't match\n");
 		goto bad_desc;
 	}
@@ -302,7 +286,7 @@ skip:
 	if (info->control->cur_altsetting->desc.bNumEndpoints == 1) {
 		struct usb_endpoint_descriptor	*desc;
 
-		dev->status = &info->control->cur_altsetting->endpoint [0];
+		dev->status = &info->control->cur_altsetting->endpoint[0];
 		desc = &dev->status->desc;
 		if (!usb_endpoint_is_int_in(desc) ||
 		    (le16_to_cpu(desc->wMaxPacketSize)
@@ -562,6 +546,8 @@ static const struct driver_info wwan_info = {
 #define MICROSOFT_VENDOR_ID	0x045e
 #define UBLOX_VENDOR_ID		0x1546
 #define TPLINK_VENDOR_ID	0x2357
+#define AQUANTIA_VENDOR_ID	0x2eca
+#define ASIX_VENDOR_ID		0x0b95
 
 static const struct usb_device_id	products[] = {
 /* BLACKLIST !!
@@ -818,6 +804,46 @@ static const struct usb_device_id	products[] = {
 {
 	USB_DEVICE_AND_INTERFACE_INFO(TPLINK_VENDOR_ID, 0x0601, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
+	.driver_info = 0,
+},
+
+/* Aquantia AQtion USB to 5GbE Controller (based on AQC111U) */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(AQUANTIA_VENDOR_ID, 0xc101,
+				      USB_CLASS_COMM, USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
+	.driver_info = 0,
+},
+
+/* ASIX USB 3.1 Gen1 to 5G Multi-Gigabit Ethernet Adapter(based on AQC111U) */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(ASIX_VENDOR_ID, 0x2790, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
+	.driver_info = 0,
+},
+
+/* ASIX USB 3.1 Gen1 to 2.5G Multi-Gigabit Ethernet Adapter(based on AQC112U) */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(ASIX_VENDOR_ID, 0x2791, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
+	.driver_info = 0,
+},
+
+/* USB-C 3.1 to 5GBASE-T Ethernet Adapter (based on AQC111U) */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(0x20f4, 0xe05a, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
+	.driver_info = 0,
+},
+
+/* QNAP QNA-UC5G1T USB to 5GbE Adapter (based on AQC111U) */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(0x1c04, 0x0015, USB_CLASS_COMM,
+				      USB_CDC_SUBCLASS_ETHERNET,
+				      USB_CDC_PROTO_NONE),
 	.driver_info = 0,
 },
 

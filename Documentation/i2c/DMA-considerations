@@ -50,10 +50,14 @@ bounce buffer. But you don't need to care about that detail, just use the
 returned buffer. If NULL is returned, the threshold was not met or a bounce
 buffer could not be allocated. Fall back to PIO in that case.
 
-In any case, a buffer obtained from above needs to be released. It ensures data
-is copied back to the message and a potentially used bounce buffer is freed::
+In any case, a buffer obtained from above needs to be released. Another helper
+function ensures a potentially used bounce buffer is freed::
 
-	i2c_release_dma_safe_msg_buf(msg, dma_buf);
+	i2c_put_dma_safe_msg_buf(dma_buf, msg, xferred);
+
+The last argument 'xferred' controls if the buffer is synced back to the
+message or not. No syncing is needed in cases setting up DMA had an error and
+there was no data transferred.
 
 The bounce buffer handling from the core is generic and simple. It will always
 allocate a new bounce buffer. If you want a more sophisticated handling (e.g.

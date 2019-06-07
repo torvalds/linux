@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* General filesystem caching backing cache interface
  *
  * Copyright (C) 2004-2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * NOTE!!! See:
  *
@@ -196,8 +192,7 @@ static inline void fscache_enqueue_retrieval(struct fscache_retrieval *op)
 static inline void fscache_retrieval_complete(struct fscache_retrieval *op,
 					      int n_pages)
 {
-	atomic_sub(n_pages, &op->n_pages);
-	if (atomic_read(&op->n_pages) <= 0)
+	if (atomic_sub_return_relaxed(n_pages, &op->n_pages) <= 0)
 		fscache_op_complete(&op->op, false);
 }
 

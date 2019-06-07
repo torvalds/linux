@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pseries CPU Hotplug infrastructure.
  *
@@ -11,11 +12,6 @@
  * Plus various changes from other IBM teams...
  *
  * Copyright (C) 2006 Michael Ellerman, IBM Corporation
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt)     "pseries-hotplug-cpu: " fmt
@@ -287,7 +283,7 @@ static int pseries_add_processor(struct device_node *np)
 
 	if (cpumask_empty(tmp)) {
 		printk(KERN_ERR "Unable to find space in cpu_present_mask for"
-		       " processor %s with %d thread(s)\n", np->name,
+		       " processor %pOFn with %d thread(s)\n", np,
 		       nthreads);
 		goto out_unlock;
 	}
@@ -481,8 +477,8 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 
 	if (rc) {
 		saved_rc = rc;
-		pr_warn("Failed to attach node %s, rc: %d, drc index: %x\n",
-			dn->name, rc, drc_index);
+		pr_warn("Failed to attach node %pOFn, rc: %d, drc index: %x\n",
+			dn, rc, drc_index);
 
 		rc = dlpar_release_drc(drc_index);
 		if (!rc)
@@ -494,8 +490,8 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 	rc = dlpar_online_cpu(dn);
 	if (rc) {
 		saved_rc = rc;
-		pr_warn("Failed to online cpu %s, rc: %d, drc index: %x\n",
-			dn->name, rc, drc_index);
+		pr_warn("Failed to online cpu %pOFn, rc: %d, drc index: %x\n",
+			dn, rc, drc_index);
 
 		rc = dlpar_detach_node(dn);
 		if (!rc)
@@ -504,7 +500,7 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 		return saved_rc;
 	}
 
-	pr_debug("Successfully added CPU %s, drc index: %x\n", dn->name,
+	pr_debug("Successfully added CPU %pOFn, drc index: %x\n", dn,
 		 drc_index);
 	return rc;
 }
@@ -570,19 +566,19 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 {
 	int rc;
 
-	pr_debug("Attempting to remove CPU %s, drc index: %x\n",
-		 dn->name, drc_index);
+	pr_debug("Attempting to remove CPU %pOFn, drc index: %x\n",
+		 dn, drc_index);
 
 	rc = dlpar_offline_cpu(dn);
 	if (rc) {
-		pr_warn("Failed to offline CPU %s, rc: %d\n", dn->name, rc);
+		pr_warn("Failed to offline CPU %pOFn, rc: %d\n", dn, rc);
 		return -EINVAL;
 	}
 
 	rc = dlpar_release_drc(drc_index);
 	if (rc) {
-		pr_warn("Failed to release drc (%x) for CPU %s, rc: %d\n",
-			drc_index, dn->name, rc);
+		pr_warn("Failed to release drc (%x) for CPU %pOFn, rc: %d\n",
+			drc_index, dn, rc);
 		dlpar_online_cpu(dn);
 		return rc;
 	}
@@ -591,7 +587,7 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 	if (rc) {
 		int saved_rc = rc;
 
-		pr_warn("Failed to detach CPU %s, rc: %d", dn->name, rc);
+		pr_warn("Failed to detach CPU %pOFn, rc: %d", dn, rc);
 
 		rc = dlpar_acquire_drc(drc_index);
 		if (!rc)
@@ -662,8 +658,8 @@ static int find_dlpar_cpus_to_remove(u32 *cpu_drcs, int cpus_to_remove)
 		rc = of_property_read_u32(dn, "ibm,my-drc-index",
 					  &cpu_drcs[cpus_found - 1]);
 		if (rc) {
-			pr_warn("Error occurred getting drc-index for %s\n",
-				dn->name);
+			pr_warn("Error occurred getting drc-index for %pOFn\n",
+				dn);
 			of_node_put(dn);
 			return -1;
 		}
@@ -799,6 +795,25 @@ static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 	}
 
 	kfree(cpu_drcs);
+	return rc;
+}
+
+int dlpar_cpu_readd(int cpu)
+{
+	struct device_node *dn;
+	struct device *dev;
+	u32 drc_index;
+	int rc;
+
+	dev = get_cpu_device(cpu);
+	dn = dev->of_node;
+
+	rc = of_property_read_u32(dn, "ibm,my-drc-index", &drc_index);
+
+	rc = dlpar_cpu_remove_by_index(drc_index);
+	if (!rc)
+		rc = dlpar_cpu_add(drc_index);
+
 	return rc;
 }
 

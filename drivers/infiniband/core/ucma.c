@@ -44,6 +44,8 @@
 #include <linux/module.h>
 #include <linux/nsproxy.h>
 
+#include <linux/nospec.h>
+
 #include <rdma/rdma_user_cm.h>
 #include <rdma/ib_marshall.h>
 #include <rdma/rdma_cm.h>
@@ -123,6 +125,8 @@ struct ucma_event {
 static DEFINE_MUTEX(mut);
 static DEFINE_IDR(ctx_idr);
 static DEFINE_IDR(multicast_idr);
+
+static const struct file_operations ucma_fops;
 
 static inline struct ucma_context *_ucma_find_context(int id,
 						      struct ucma_file *file)
@@ -235,7 +239,7 @@ static struct ucma_multicast* ucma_alloc_multicast(struct ucma_context *ctx)
 		return NULL;
 
 	mutex_lock(&mut);
-	mc->id = idr_alloc(&multicast_idr, mc, 0, 0, GFP_KERNEL);
+	mc->id = idr_alloc(&multicast_idr, NULL, 0, 0, GFP_KERNEL);
 	mutex_unlock(&mut);
 	if (mc->id < 0)
 		goto error;
@@ -1232,6 +1236,13 @@ static int ucma_set_option_id(struct ucma_context *ctx, int optname,
 		}
 		ret = rdma_set_afonly(ctx->cm_id, *((int *) optval) ? 1 : 0);
 		break;
+	case RDMA_OPTION_ID_ACK_TIMEOUT:
+		if (optlen != sizeof(u8)) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = rdma_set_ack_timeout(ctx->cm_id, *((u8 *)optval));
+		break;
 	default:
 		ret = -ENOSYS;
 	}
@@ -1421,6 +1432,10 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 		goto err3;
 	}
 
+	mutex_lock(&mut);
+	idr_replace(&multicast_idr, mc, mc->id);
+	mutex_unlock(&mut);
+
 	mutex_unlock(&file->mut);
 	ucma_put_ctx(ctx);
 	return 0;
@@ -1577,6 +1592,10 @@ static ssize_t ucma_migrate_id(struct ucma_file *new_file,
 	f = fdget(cmd.fd);
 	if (!f.file)
 		return -ENOENT;
+	if (f.file->f_op != &ucma_fops) {
+		ret = -EINVAL;
+		goto file_put;
+	}
 
 	/* Validate current fd and prevent destruction of id. */
 	ctx = ucma_get_ctx(f.file->private_data, cmd.id);
@@ -1666,6 +1685,7 @@ static ssize_t ucma_write(struct file *filp, const char __user *buf,
 
 	if (hdr.cmd >= ARRAY_SIZE(ucma_cmd_table))
 		return -EINVAL;
+	hdr.cmd = array_index_nospec(hdr.cmd, ARRAY_SIZE(ucma_cmd_table));
 
 	if (hdr.in + sizeof(hdr) > len)
 		return -EINVAL;
@@ -1724,7 +1744,7 @@ static int ucma_open(struct inode *inode, struct file *filp)
 	filp->private_data = file;
 	file->filp = filp;
 
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 }
 
 static int ucma_close(struct inode *inode, struct file *filp)
@@ -1749,6 +1769,8 @@ static int ucma_close(struct inode *inode, struct file *filp)
 		mutex_lock(&mut);
 		if (!ctx->closing) {
 			mutex_unlock(&mut);
+			ucma_put_ctx(ctx);
+			wait_for_completion(&ctx->comp);
 			/* rdma_destroy_id ensures that no event handlers are
 			 * inflight for that id before releasing it.
 			 */

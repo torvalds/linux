@@ -42,9 +42,11 @@
 #include <linux/file.h>
 #include <linux/mount.h>
 #include <linux/cdev.h>
-#include <linux/idr.h>
+#include <linux/xarray.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+
+#include <linux/nospec.h>
 
 #include <linux/uaccess.h>
 
@@ -123,23 +125,22 @@ static struct ib_client ucm_client = {
 	.remove = ib_ucm_remove_one
 };
 
-static DEFINE_MUTEX(ctx_id_mutex);
-static DEFINE_IDR(ctx_id_table);
+static DEFINE_XARRAY_ALLOC(ctx_id_table);
 static DECLARE_BITMAP(dev_map, IB_UCM_MAX_DEVICES);
 
 static struct ib_ucm_context *ib_ucm_ctx_get(struct ib_ucm_file *file, int id)
 {
 	struct ib_ucm_context *ctx;
 
-	mutex_lock(&ctx_id_mutex);
-	ctx = idr_find(&ctx_id_table, id);
+	xa_lock(&ctx_id_table);
+	ctx = xa_load(&ctx_id_table, id);
 	if (!ctx)
 		ctx = ERR_PTR(-ENOENT);
 	else if (ctx->file != file)
 		ctx = ERR_PTR(-EINVAL);
 	else
 		atomic_inc(&ctx->ref);
-	mutex_unlock(&ctx_id_mutex);
+	xa_unlock(&ctx_id_table);
 
 	return ctx;
 }
@@ -192,10 +193,7 @@ static struct ib_ucm_context *ib_ucm_ctx_alloc(struct ib_ucm_file *file)
 	ctx->file = file;
 	INIT_LIST_HEAD(&ctx->events);
 
-	mutex_lock(&ctx_id_mutex);
-	ctx->id = idr_alloc(&ctx_id_table, ctx, 0, 0, GFP_KERNEL);
-	mutex_unlock(&ctx_id_mutex);
-	if (ctx->id < 0)
+	if (xa_alloc(&ctx_id_table, &ctx->id, ctx, xa_limit_32b, GFP_KERNEL))
 		goto error;
 
 	list_add_tail(&ctx->file_list, &file->ctxs);
@@ -207,7 +205,7 @@ error:
 }
 
 static void ib_ucm_event_req_get(struct ib_ucm_req_event_resp *ureq,
-				 struct ib_cm_req_event_param *kreq)
+				 const struct ib_cm_req_event_param *kreq)
 {
 	ureq->remote_ca_guid             = kreq->remote_ca_guid;
 	ureq->remote_qkey                = kreq->remote_qkey;
@@ -231,7 +229,7 @@ static void ib_ucm_event_req_get(struct ib_ucm_req_event_resp *ureq,
 }
 
 static void ib_ucm_event_rep_get(struct ib_ucm_rep_event_resp *urep,
-				 struct ib_cm_rep_event_param *krep)
+				 const struct ib_cm_rep_event_param *krep)
 {
 	urep->remote_ca_guid      = krep->remote_ca_guid;
 	urep->remote_qkey         = krep->remote_qkey;
@@ -247,14 +245,14 @@ static void ib_ucm_event_rep_get(struct ib_ucm_rep_event_resp *urep,
 }
 
 static void ib_ucm_event_sidr_rep_get(struct ib_ucm_sidr_rep_event_resp *urep,
-				      struct ib_cm_sidr_rep_event_param *krep)
+				      const struct ib_cm_sidr_rep_event_param *krep)
 {
 	urep->status = krep->status;
 	urep->qkey   = krep->qkey;
 	urep->qpn    = krep->qpn;
 };
 
-static int ib_ucm_event_process(struct ib_cm_event *evt,
+static int ib_ucm_event_process(const struct ib_cm_event *evt,
 				struct ib_ucm_event *uvt)
 {
 	void *info = NULL;
@@ -351,7 +349,7 @@ err1:
 }
 
 static int ib_ucm_event_handler(struct ib_cm_id *cm_id,
-				struct ib_cm_event *event)
+				const struct ib_cm_event *event)
 {
 	struct ib_ucm_event *uevent;
 	struct ib_ucm_context *ctx;
@@ -512,9 +510,7 @@ static ssize_t ib_ucm_create_id(struct ib_ucm_file *file,
 err2:
 	ib_destroy_cm_id(ctx->cm_id);
 err1:
-	mutex_lock(&ctx_id_mutex);
-	idr_remove(&ctx_id_table, ctx->id);
-	mutex_unlock(&ctx_id_mutex);
+	xa_erase(&ctx_id_table, ctx->id);
 	kfree(ctx);
 	return result;
 }
@@ -534,15 +530,15 @@ static ssize_t ib_ucm_destroy_id(struct ib_ucm_file *file,
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
-	mutex_lock(&ctx_id_mutex);
-	ctx = idr_find(&ctx_id_table, cmd.id);
+	xa_lock(&ctx_id_table);
+	ctx = xa_load(&ctx_id_table, cmd.id);
 	if (!ctx)
 		ctx = ERR_PTR(-ENOENT);
 	else if (ctx->file != file)
 		ctx = ERR_PTR(-EINVAL);
 	else
-		idr_remove(&ctx_id_table, ctx->id);
-	mutex_unlock(&ctx_id_mutex);
+		__xa_erase(&ctx_id_table, ctx->id);
+	xa_unlock(&ctx_id_table);
 
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
@@ -1000,13 +996,10 @@ static ssize_t ib_ucm_send_sidr_req(struct ib_ucm_file *file,
 				    const char __user *inbuf,
 				    int in_len, int out_len)
 {
-	struct ib_cm_sidr_req_param param;
+	struct ib_cm_sidr_req_param param = {};
 	struct ib_ucm_context *ctx;
 	struct ib_ucm_sidr_req cmd;
 	int result;
-
-	param.private_data = NULL;
-	param.path = NULL;
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
@@ -1123,6 +1116,7 @@ static ssize_t ib_ucm_write(struct file *filp, const char __user *buf,
 
 	if (hdr.cmd >= ARRAY_SIZE(ucm_cmd_table))
 		return -EINVAL;
+	hdr.cmd = array_index_nospec(hdr.cmd, ARRAY_SIZE(ucm_cmd_table));
 
 	if (hdr.in + sizeof(hdr) > len)
 		return -EINVAL;
@@ -1175,7 +1169,7 @@ static int ib_ucm_open(struct inode *inode, struct file *filp)
 	file->filp = filp;
 	file->device = container_of(inode->i_cdev, struct ib_ucm_device, cdev);
 
-	return nonseekable_open(inode, filp);
+	return stream_open(inode, filp);
 }
 
 static int ib_ucm_close(struct inode *inode, struct file *filp)
@@ -1189,10 +1183,7 @@ static int ib_ucm_close(struct inode *inode, struct file *filp)
 				 struct ib_ucm_context, file_list);
 		mutex_unlock(&file->file_mutex);
 
-		mutex_lock(&ctx_id_mutex);
-		idr_remove(&ctx_id_table, ctx->id);
-		mutex_unlock(&ctx_id_mutex);
-
+		xa_erase(&ctx_id_table, ctx->id);
 		ib_destroy_cm_id(ctx->cm_id);
 		ib_ucm_cleanup_events(ctx);
 		kfree(ctx);
@@ -1242,7 +1233,7 @@ static void ib_ucm_add_one(struct ib_device *device)
 	dev_t base;
 	struct ib_ucm_device *ucm_dev;
 
-	if (!device->alloc_ucontext || !rdma_cap_ib_cm(device, 1))
+	if (!device->ops.alloc_ucontext || !rdma_cap_ib_cm(device, 1))
 		return;
 
 	ucm_dev = kzalloc(sizeof *ucm_dev, GFP_KERNEL);
@@ -1352,7 +1343,7 @@ static void __exit ib_ucm_cleanup(void)
 	class_remove_file(&cm_class, &class_attr_abi_version.attr);
 	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_NUM_FIXED_MINOR);
 	unregister_chrdev_region(dynamic_ucm_dev, IB_UCM_NUM_DYNAMIC_MINOR);
-	idr_destroy(&ctx_id_table);
+	WARN_ON(!xa_empty(&ctx_id_table));
 }
 
 module_init(ib_ucm_init);

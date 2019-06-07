@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the internal tuner of Montage M88RS6000
  *
  * Copyright (C) 2014 Max nibble <nibble.max@gmail.com>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #include "m88rs6000t.h"
@@ -569,9 +560,9 @@ err:
 
 static const struct dvb_tuner_ops m88rs6000t_tuner_ops = {
 	.info = {
-		.name          = "Montage M88RS6000 Internal Tuner",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
+		.name             = "Montage M88RS6000 Internal Tuner",
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
 	},
 
 	.init = m88rs6000t_init,

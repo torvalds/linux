@@ -60,4 +60,4 @@ vad: general purpose A/D input (VAD)
 vdd: battery input (VDD)
 
 After the voltage conversion the value is returned as decimal ASCII.
-Note: The value is in mV, so to get a volts the value has to be divided by 10.
+Note: To get a volts the value has to be divided by 100.

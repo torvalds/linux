@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Infineon TUA9001 silicon tuner driver
  *
  * Copyright (C) 2009 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #include "tua9001_priv.h"
@@ -164,9 +155,9 @@ static int tua9001_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops tua9001_tuner_ops = {
 	.info = {
-		.name           = "Infineon TUA9001",
-		.frequency_min  = 170000000,
-		.frequency_max  = 862000000,
+		.name             = "Infineon TUA9001",
+		.frequency_min_hz = 170 * MHz,
+		.frequency_max_hz = 862 * MHz,
 	},
 
 	.init = tua9001_init,

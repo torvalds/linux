@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * lm85.c - Part of lm_sensors, Linux kernel modules for hardware
  *	    monitoring
@@ -8,20 +9,6 @@
  * Copyright (C) 2007--2014  Jean Delvare <jdelvare@suse.de>
  *
  * Chip details at	      <http://www.national.com/ds/LM/LM85.pdf>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -41,7 +28,7 @@
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 enum chips {
-	lm85,
+	lm85, lm96000,
 	adm1027, adt7463, adt7468,
 	emc6d100, emc6d102, emc6d103, emc6d103s
 };
@@ -165,7 +152,6 @@ static inline u16 FAN_TO_REG(unsigned long val)
 #define PWM_TO_REG(val)			clamp_val(val, 0, 255)
 #define PWM_FROM_REG(val)		(val)
 
-
 /*
  * ZONEs have the following parameters:
  *    Limit (low) temp,           1. degC
@@ -198,13 +184,18 @@ static int RANGE_TO_REG(long range)
 #define RANGE_FROM_REG(val)	lm85_range_map[(val) & 0x0f]
 
 /* These are the PWM frequency encodings */
-static const int lm85_freq_map[8] = { /* 1 Hz */
+static const int lm85_freq_map[] = { /* 1 Hz */
 	10, 15, 23, 30, 38, 47, 61, 94
 };
-static const int adm1027_freq_map[8] = { /* 1 Hz */
+
+static const int lm96000_freq_map[] = { /* 1 Hz */
+	10, 15, 23, 30, 38, 47, 61, 94,
+	22500, 24000, 25700, 25700, 27700, 27700, 30000, 30000
+};
+
+static const int adm1027_freq_map[] = { /* 1 Hz */
 	11, 15, 22, 29, 35, 44, 59, 88
 };
-#define FREQ_MAP_LEN	8
 
 static int FREQ_TO_REG(const int *map,
 		       unsigned int map_size, unsigned long freq)
@@ -212,9 +203,9 @@ static int FREQ_TO_REG(const int *map,
 	return find_closest(freq, map, map_size);
 }
 
-static int FREQ_FROM_REG(const int *map, u8 reg)
+static int FREQ_FROM_REG(const int *map, unsigned int map_size, u8 reg)
 {
-	return map[reg & 0x07];
+	return map[reg % map_size];
 }
 
 /*
@@ -296,6 +287,8 @@ struct lm85_data {
 	struct i2c_client *client;
 	const struct attribute_group *groups[6];
 	const int *freq_map;
+	unsigned int freq_map_size;
+
 	enum chips type;
 
 	bool has_vid5;	/* true if VID5 is configured for ADT7463 or ADT7468 */
@@ -514,7 +507,7 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 			data->autofan[i].config =
 			    lm85_read_value(client, LM85_REG_AFAN_CONFIG(i));
 			val = lm85_read_value(client, LM85_REG_AFAN_RANGE(i));
-			data->pwm_freq[i] = val & 0x07;
+			data->pwm_freq[i] = val % data->freq_map_size;
 			data->zone[i].range = val >> 4;
 			data->autofan[i].min_pwm =
 			    lm85_read_value(client, LM85_REG_AFAN_MINPWM(i));
@@ -556,24 +549,25 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 }
 
 /* 4 Fans */
-static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t fan_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", FAN_FROM_REG(data->fan[nr]));
 }
 
-static ssize_t show_fan_min(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t fan_min_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", FAN_FROM_REG(data->fan_min[nr]));
 }
 
-static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t fan_min_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -592,16 +586,14 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-#define show_fan_offset(offset)						\
-static SENSOR_DEVICE_ATTR(fan##offset##_input, S_IRUGO,			\
-		show_fan, NULL, offset - 1);				\
-static SENSOR_DEVICE_ATTR(fan##offset##_min, S_IRUGO | S_IWUSR,		\
-		show_fan_min, set_fan_min, offset - 1)
-
-show_fan_offset(1);
-show_fan_offset(2);
-show_fan_offset(3);
-show_fan_offset(4);
+static SENSOR_DEVICE_ATTR_RO(fan1_input, fan, 0);
+static SENSOR_DEVICE_ATTR_RW(fan1_min, fan_min, 0);
+static SENSOR_DEVICE_ATTR_RO(fan2_input, fan, 1);
+static SENSOR_DEVICE_ATTR_RW(fan2_min, fan_min, 1);
+static SENSOR_DEVICE_ATTR_RO(fan3_input, fan, 2);
+static SENSOR_DEVICE_ATTR_RW(fan3_min, fan_min, 2);
+static SENSOR_DEVICE_ATTR_RO(fan4_input, fan, 3);
+static SENSOR_DEVICE_ATTR_RW(fan4_min, fan_min, 3);
 
 /* vid, vrm, alarms */
 
@@ -660,44 +652,44 @@ static ssize_t alarms_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(alarms);
 
-static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t alarm_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%u\n", (data->alarms >> nr) & 1);
 }
 
-static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_alarm, S_IRUGO, show_alarm, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_alarm, S_IRUGO, show_alarm, NULL, 8);
-static SENSOR_DEVICE_ATTR(in5_alarm, S_IRUGO, show_alarm, NULL, 18);
-static SENSOR_DEVICE_ATTR(in6_alarm, S_IRUGO, show_alarm, NULL, 16);
-static SENSOR_DEVICE_ATTR(in7_alarm, S_IRUGO, show_alarm, NULL, 17);
-static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 4);
-static SENSOR_DEVICE_ATTR(temp1_fault, S_IRUGO, show_alarm, NULL, 14);
-static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 5);
-static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 6);
-static SENSOR_DEVICE_ATTR(temp3_fault, S_IRUGO, show_alarm, NULL, 15);
-static SENSOR_DEVICE_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 10);
-static SENSOR_DEVICE_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 11);
-static SENSOR_DEVICE_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 12);
-static SENSOR_DEVICE_ATTR(fan4_alarm, S_IRUGO, show_alarm, NULL, 13);
+static SENSOR_DEVICE_ATTR_RO(in0_alarm, alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_alarm, alarm, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_alarm, alarm, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_alarm, alarm, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_alarm, alarm, 8);
+static SENSOR_DEVICE_ATTR_RO(in5_alarm, alarm, 18);
+static SENSOR_DEVICE_ATTR_RO(in6_alarm, alarm, 16);
+static SENSOR_DEVICE_ATTR_RO(in7_alarm, alarm, 17);
+static SENSOR_DEVICE_ATTR_RO(temp1_alarm, alarm, 4);
+static SENSOR_DEVICE_ATTR_RO(temp1_fault, alarm, 14);
+static SENSOR_DEVICE_ATTR_RO(temp2_alarm, alarm, 5);
+static SENSOR_DEVICE_ATTR_RO(temp3_alarm, alarm, 6);
+static SENSOR_DEVICE_ATTR_RO(temp3_fault, alarm, 15);
+static SENSOR_DEVICE_ATTR_RO(fan1_alarm, alarm, 10);
+static SENSOR_DEVICE_ATTR_RO(fan2_alarm, alarm, 11);
+static SENSOR_DEVICE_ATTR_RO(fan3_alarm, alarm, 12);
+static SENSOR_DEVICE_ATTR_RO(fan4_alarm, alarm, 13);
 
 /* pwm */
 
-static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t pwm_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", PWM_FROM_REG(data->pwm[nr]));
 }
 
-static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -716,8 +708,8 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_pwm_enable(struct device *dev, struct device_attribute
-		*attr, char *buf)
+static ssize_t pwm_enable_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
@@ -738,8 +730,9 @@ static ssize_t show_pwm_enable(struct device *dev, struct device_attribute
 	return sprintf(buf, "%d\n", enable);
 }
 
-static ssize_t set_pwm_enable(struct device *dev, struct device_attribute
-		*attr, const char *buf, size_t count)
+static ssize_t pwm_enable_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -781,8 +774,8 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute
 	return count;
 }
 
-static ssize_t show_pwm_freq(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pwm_freq_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
@@ -791,13 +784,15 @@ static ssize_t show_pwm_freq(struct device *dev,
 	if (IS_ADT7468_HFPWM(data))
 		freq = 22500;
 	else
-		freq = FREQ_FROM_REG(data->freq_map, data->pwm_freq[nr]);
+		freq = FREQ_FROM_REG(data->freq_map, data->freq_map_size,
+				     data->pwm_freq[nr]);
 
 	return sprintf(buf, "%d\n", freq);
 }
 
-static ssize_t set_pwm_freq(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t pwm_freq_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -820,7 +815,7 @@ static ssize_t set_pwm_freq(struct device *dev,
 		lm85_write_value(client, ADT7468_REG_CFG5, data->cfg5);
 	} else {					/* Low freq. mode */
 		data->pwm_freq[nr] = FREQ_TO_REG(data->freq_map,
-						 FREQ_MAP_LEN, val);
+						 data->freq_map_size, val);
 		lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
 				 (data->zone[nr].range << 4)
 				 | data->pwm_freq[nr]);
@@ -833,22 +828,20 @@ static ssize_t set_pwm_freq(struct device *dev,
 	return count;
 }
 
-#define show_pwm_reg(offset)						\
-static SENSOR_DEVICE_ATTR(pwm##offset, S_IRUGO | S_IWUSR,		\
-		show_pwm, set_pwm, offset - 1);				\
-static SENSOR_DEVICE_ATTR(pwm##offset##_enable, S_IRUGO | S_IWUSR,	\
-		show_pwm_enable, set_pwm_enable, offset - 1);		\
-static SENSOR_DEVICE_ATTR(pwm##offset##_freq, S_IRUGO | S_IWUSR,	\
-		show_pwm_freq, set_pwm_freq, offset - 1)
-
-show_pwm_reg(1);
-show_pwm_reg(2);
-show_pwm_reg(3);
+static SENSOR_DEVICE_ATTR_RW(pwm1, pwm, 0);
+static SENSOR_DEVICE_ATTR_RW(pwm1_enable, pwm_enable, 0);
+static SENSOR_DEVICE_ATTR_RW(pwm1_freq, pwm_freq, 0);
+static SENSOR_DEVICE_ATTR_RW(pwm2, pwm, 1);
+static SENSOR_DEVICE_ATTR_RW(pwm2_enable, pwm_enable, 1);
+static SENSOR_DEVICE_ATTR_RW(pwm2_freq, pwm_freq, 1);
+static SENSOR_DEVICE_ATTR_RW(pwm3, pwm, 2);
+static SENSOR_DEVICE_ATTR_RW(pwm3_enable, pwm_enable, 2);
+static SENSOR_DEVICE_ATTR_RW(pwm3_freq, pwm_freq, 2);
 
 /* Voltages */
 
-static ssize_t show_in(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t in_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
@@ -856,16 +849,16 @@ static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 						    data->in_ext[nr]));
 }
 
-static ssize_t show_in_min(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t in_min_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", INS_FROM_REG(nr, data->in_min[nr]));
 }
 
-static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t in_min_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -884,16 +877,16 @@ static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_in_max(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t in_max_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", INS_FROM_REG(nr, data->in_max[nr]));
 }
 
-static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t in_max_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -912,27 +905,35 @@ static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-#define show_in_reg(offset)						\
-static SENSOR_DEVICE_ATTR(in##offset##_input, S_IRUGO,			\
-		show_in, NULL, offset);					\
-static SENSOR_DEVICE_ATTR(in##offset##_min, S_IRUGO | S_IWUSR,		\
-		show_in_min, set_in_min, offset);			\
-static SENSOR_DEVICE_ATTR(in##offset##_max, S_IRUGO | S_IWUSR,		\
-		show_in_max, set_in_max, offset)
-
-show_in_reg(0);
-show_in_reg(1);
-show_in_reg(2);
-show_in_reg(3);
-show_in_reg(4);
-show_in_reg(5);
-show_in_reg(6);
-show_in_reg(7);
+static SENSOR_DEVICE_ATTR_RO(in0_input, in, 0);
+static SENSOR_DEVICE_ATTR_RW(in0_min, in_min, 0);
+static SENSOR_DEVICE_ATTR_RW(in0_max, in_max, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_input, in, 1);
+static SENSOR_DEVICE_ATTR_RW(in1_min, in_min, 1);
+static SENSOR_DEVICE_ATTR_RW(in1_max, in_max, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, in, 2);
+static SENSOR_DEVICE_ATTR_RW(in2_min, in_min, 2);
+static SENSOR_DEVICE_ATTR_RW(in2_max, in_max, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_input, in, 3);
+static SENSOR_DEVICE_ATTR_RW(in3_min, in_min, 3);
+static SENSOR_DEVICE_ATTR_RW(in3_max, in_max, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_input, in, 4);
+static SENSOR_DEVICE_ATTR_RW(in4_min, in_min, 4);
+static SENSOR_DEVICE_ATTR_RW(in4_max, in_max, 4);
+static SENSOR_DEVICE_ATTR_RO(in5_input, in, 5);
+static SENSOR_DEVICE_ATTR_RW(in5_min, in_min, 5);
+static SENSOR_DEVICE_ATTR_RW(in5_max, in_max, 5);
+static SENSOR_DEVICE_ATTR_RO(in6_input, in, 6);
+static SENSOR_DEVICE_ATTR_RW(in6_min, in_min, 6);
+static SENSOR_DEVICE_ATTR_RW(in6_max, in_max, 6);
+static SENSOR_DEVICE_ATTR_RO(in7_input, in, 7);
+static SENSOR_DEVICE_ATTR_RW(in7_min, in_min, 7);
+static SENSOR_DEVICE_ATTR_RW(in7_max, in_max, 7);
 
 /* Temps */
 
-static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t temp_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
@@ -940,16 +941,17 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 						     data->temp_ext[nr]));
 }
 
-static ssize_t show_temp_min(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t temp_min_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_min[nr]));
 }
 
-static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t temp_min_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -971,16 +973,17 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_temp_max(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t temp_max_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_max[nr]));
 }
 
-static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t temp_max_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -1002,31 +1005,30 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-#define show_temp_reg(offset)						\
-static SENSOR_DEVICE_ATTR(temp##offset##_input, S_IRUGO,		\
-		show_temp, NULL, offset - 1);				\
-static SENSOR_DEVICE_ATTR(temp##offset##_min, S_IRUGO | S_IWUSR,	\
-		show_temp_min, set_temp_min, offset - 1);		\
-static SENSOR_DEVICE_ATTR(temp##offset##_max, S_IRUGO | S_IWUSR,	\
-		show_temp_max, set_temp_max, offset - 1);
-
-show_temp_reg(1);
-show_temp_reg(2);
-show_temp_reg(3);
-
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, temp_min, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, temp_max, 0);
+static SENSOR_DEVICE_ATTR_RO(temp2_input, temp, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_min, temp_min, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_max, temp_max, 1);
+static SENSOR_DEVICE_ATTR_RO(temp3_input, temp, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_min, temp_min, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_max, temp_max, 2);
 
 /* Automatic PWM control */
 
-static ssize_t show_pwm_auto_channels(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pwm_auto_channels_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", ZONE_FROM_REG(data->autofan[nr].config));
 }
 
-static ssize_t set_pwm_auto_channels(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t pwm_auto_channels_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -1047,16 +1049,17 @@ static ssize_t set_pwm_auto_channels(struct device *dev,
 	return count;
 }
 
-static ssize_t show_pwm_auto_pwm_min(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pwm_auto_pwm_min_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", PWM_FROM_REG(data->autofan[nr].min_pwm));
 }
 
-static ssize_t set_pwm_auto_pwm_min(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t pwm_auto_pwm_min_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -1076,16 +1079,18 @@ static ssize_t set_pwm_auto_pwm_min(struct device *dev,
 	return count;
 }
 
-static ssize_t show_pwm_auto_pwm_minctl(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t pwm_auto_pwm_minctl_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", data->autofan[nr].min_off);
 }
 
-static ssize_t set_pwm_auto_pwm_minctl(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t pwm_auto_pwm_minctl_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -1109,25 +1114,21 @@ static ssize_t set_pwm_auto_pwm_minctl(struct device *dev,
 	return count;
 }
 
-#define pwm_auto(offset)						\
-static SENSOR_DEVICE_ATTR(pwm##offset##_auto_channels,			\
-		S_IRUGO | S_IWUSR, show_pwm_auto_channels,		\
-		set_pwm_auto_channels, offset - 1);			\
-static SENSOR_DEVICE_ATTR(pwm##offset##_auto_pwm_min,			\
-		S_IRUGO | S_IWUSR, show_pwm_auto_pwm_min,		\
-		set_pwm_auto_pwm_min, offset - 1);			\
-static SENSOR_DEVICE_ATTR(pwm##offset##_auto_pwm_minctl,		\
-		S_IRUGO | S_IWUSR, show_pwm_auto_pwm_minctl,		\
-		set_pwm_auto_pwm_minctl, offset - 1)
-
-pwm_auto(1);
-pwm_auto(2);
-pwm_auto(3);
+static SENSOR_DEVICE_ATTR_RW(pwm1_auto_channels, pwm_auto_channels, 0);
+static SENSOR_DEVICE_ATTR_RW(pwm1_auto_pwm_min, pwm_auto_pwm_min, 0);
+static SENSOR_DEVICE_ATTR_RW(pwm1_auto_pwm_minctl, pwm_auto_pwm_minctl, 0);
+static SENSOR_DEVICE_ATTR_RW(pwm2_auto_channels, pwm_auto_channels, 1);
+static SENSOR_DEVICE_ATTR_RW(pwm2_auto_pwm_min, pwm_auto_pwm_min, 1);
+static SENSOR_DEVICE_ATTR_RW(pwm2_auto_pwm_minctl, pwm_auto_pwm_minctl, 1);
+static SENSOR_DEVICE_ATTR_RW(pwm3_auto_channels, pwm_auto_channels, 2);
+static SENSOR_DEVICE_ATTR_RW(pwm3_auto_pwm_min, pwm_auto_pwm_min, 2);
+static SENSOR_DEVICE_ATTR_RW(pwm3_auto_pwm_minctl, pwm_auto_pwm_minctl, 2);
 
 /* Temperature settings for automatic PWM control */
 
-static ssize_t show_temp_auto_temp_off(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t temp_auto_temp_off_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
@@ -1135,8 +1136,9 @@ static ssize_t show_temp_auto_temp_off(struct device *dev,
 		HYST_FROM_REG(data->zone[nr].hyst));
 }
 
-static ssize_t set_temp_auto_temp_off(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t temp_auto_temp_off_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -1164,16 +1166,18 @@ static ssize_t set_temp_auto_temp_off(struct device *dev,
 	return count;
 }
 
-static ssize_t show_temp_auto_temp_min(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t temp_auto_temp_min_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->zone[nr].limit));
 }
 
-static ssize_t set_temp_auto_temp_min(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t temp_auto_temp_min_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -1196,14 +1200,15 @@ static ssize_t set_temp_auto_temp_min(struct device *dev,
 		TEMP_FROM_REG(data->zone[nr].limit));
 	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
 		((data->zone[nr].range & 0x0f) << 4)
-		| (data->pwm_freq[nr] & 0x07));
+		| data->pwm_freq[nr]);
 
 	mutex_unlock(&data->update_lock);
 	return count;
 }
 
-static ssize_t show_temp_auto_temp_max(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t temp_auto_temp_max_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
@@ -1211,8 +1216,9 @@ static ssize_t show_temp_auto_temp_max(struct device *dev,
 		RANGE_FROM_REG(data->zone[nr].range));
 }
 
-static ssize_t set_temp_auto_temp_max(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t temp_auto_temp_max_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -1232,21 +1238,23 @@ static ssize_t set_temp_auto_temp_max(struct device *dev,
 		val - min);
 	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
 		((data->zone[nr].range & 0x0f) << 4)
-		| (data->pwm_freq[nr] & 0x07));
+		| data->pwm_freq[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
 
-static ssize_t show_temp_auto_temp_crit(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t temp_auto_temp_crit_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->zone[nr].critical));
 }
 
-static ssize_t set_temp_auto_temp_crit(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t temp_auto_temp_crit_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = dev_get_drvdata(dev);
@@ -1266,23 +1274,18 @@ static ssize_t set_temp_auto_temp_crit(struct device *dev,
 	return count;
 }
 
-#define temp_auto(offset)						\
-static SENSOR_DEVICE_ATTR(temp##offset##_auto_temp_off,			\
-		S_IRUGO | S_IWUSR, show_temp_auto_temp_off,		\
-		set_temp_auto_temp_off, offset - 1);			\
-static SENSOR_DEVICE_ATTR(temp##offset##_auto_temp_min,			\
-		S_IRUGO | S_IWUSR, show_temp_auto_temp_min,		\
-		set_temp_auto_temp_min, offset - 1);			\
-static SENSOR_DEVICE_ATTR(temp##offset##_auto_temp_max,			\
-		S_IRUGO | S_IWUSR, show_temp_auto_temp_max,		\
-		set_temp_auto_temp_max, offset - 1);			\
-static SENSOR_DEVICE_ATTR(temp##offset##_auto_temp_crit,		\
-		S_IRUGO | S_IWUSR, show_temp_auto_temp_crit,		\
-		set_temp_auto_temp_crit, offset - 1);
-
-temp_auto(1);
-temp_auto(2);
-temp_auto(3);
+static SENSOR_DEVICE_ATTR_RW(temp1_auto_temp_off, temp_auto_temp_off, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_auto_temp_min, temp_auto_temp_min, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_auto_temp_max, temp_auto_temp_max, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_auto_temp_crit, temp_auto_temp_crit, 0);
+static SENSOR_DEVICE_ATTR_RW(temp2_auto_temp_off, temp_auto_temp_off, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_auto_temp_min, temp_auto_temp_min, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_auto_temp_max, temp_auto_temp_max, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_auto_temp_crit, temp_auto_temp_crit, 1);
+static SENSOR_DEVICE_ATTR_RW(temp3_auto_temp_off, temp_auto_temp_off, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_auto_temp_min, temp_auto_temp_min, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_auto_temp_max, temp_auto_temp_max, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_auto_temp_crit, temp_auto_temp_crit, 2);
 
 static struct attribute *lm85_attributes[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
@@ -1496,7 +1499,7 @@ static int lm85_detect(struct i2c_client *client, struct i2c_board_info *info)
 					"Found Winbond WPCD377I, ignoring\n");
 				return -ENODEV;
 			}
-			type_name = "lm85";
+			type_name = "lm96000";
 			break;
 		}
 	} else if (company == LM85_COMPANY_ANALOG_DEV) {
@@ -1569,9 +1572,15 @@ static int lm85_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	case emc6d103:
 	case emc6d103s:
 		data->freq_map = adm1027_freq_map;
+		data->freq_map_size = ARRAY_SIZE(adm1027_freq_map);
+		break;
+	case lm96000:
+		data->freq_map = lm96000_freq_map;
+		data->freq_map_size = ARRAY_SIZE(lm96000_freq_map);
 		break;
 	default:
 		data->freq_map = lm85_freq_map;
+		data->freq_map_size = ARRAY_SIZE(lm85_freq_map);
 	}
 
 	/* Set the VRM version */
@@ -1618,6 +1627,7 @@ static const struct i2c_device_id lm85_id[] = {
 	{ "lm85", lm85 },
 	{ "lm85b", lm85 },
 	{ "lm85c", lm85 },
+	{ "lm96000", lm96000 },
 	{ "emc6d100", emc6d100 },
 	{ "emc6d101", emc6d100 },
 	{ "emc6d102", emc6d102 },
@@ -1627,7 +1637,7 @@ static const struct i2c_device_id lm85_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, lm85_id);
 
-static const struct of_device_id lm85_of_match[] = {
+static const struct of_device_id __maybe_unused lm85_of_match[] = {
 	{
 		.compatible = "adi,adm1027",
 		.data = (void *)adm1027
@@ -1651,6 +1661,10 @@ static const struct of_device_id lm85_of_match[] = {
 	{
 		.compatible = "national,lm85c",
 		.data = (void *)lm85
+	},
+	{
+		.compatible = "ti,lm96000",
+		.data = (void *)lm96000
 	},
 	{
 		.compatible = "smsc,emc6d100",

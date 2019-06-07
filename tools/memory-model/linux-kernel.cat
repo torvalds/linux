@@ -5,10 +5,10 @@
  * Copyright (C) 2017 Alan Stern <stern@rowland.harvard.edu>,
  *                    Andrea Parri <parri.andrea@gmail.com>
  *
- * An earlier version of this file appears in the companion webpage for
+ * An earlier version of this file appeared in the companion webpage for
  * "Frightening small children and disconcerting grown-ups: Concurrency
  * in the Linux kernel" by Alglave, Maranget, McKenney, Parri, and Stern,
- * which is to appear in ASPLOS 2018.
+ * which appeared in ASPLOS 2018.
  *)
 
 "Linux-kernel memory consistency model"
@@ -30,15 +30,17 @@ let wmb = [W] ; fencerel(Wmb) ; [W]
 let mb = ([M] ; fencerel(Mb) ; [M]) |
 	([M] ; fencerel(Before-atomic) ; [RMW] ; po? ; [M]) |
 	([M] ; po? ; [RMW] ; fencerel(After-atomic) ; [M]) |
-	([M] ; po? ; [LKW] ; fencerel(After-spinlock) ; [M])
-let gp = po ; [Sync-rcu] ; po?
+	([M] ; po? ; [LKW] ; fencerel(After-spinlock) ; [M]) |
+	([M] ; po ; [UL] ; (co | po) ; [LKW] ;
+		fencerel(After-unlock-lock) ; [M])
+let gp = po ; [Sync-rcu | Sync-srcu] ; po?
 
 let strong-fence = mb | gp
 
 (* Release Acquire *)
 let acq-po = [Acquire] ; po ; [M]
 let po-rel = [M] ; po ; [Release]
-let rfi-rel-acq = [Release] ; rfi ; [Acquire]
+let po-unlock-rf-lock-po = po ; [UL] ; rf ; [LKR] ; po
 
 (**********************************)
 (* Fundamental coherence ordering *)
@@ -60,13 +62,13 @@ let dep = addr | data
 let rwdep = (dep | ctrl) ; [W]
 let overwrite = co | fr
 let to-w = rwdep | (overwrite & int)
-let to-r = addr | (dep ; rfi) | rfi-rel-acq
+let to-r = addr | (dep ; rfi)
 let fence = strong-fence | wmb | po-rel | rmb | acq-po
-let ppo = to-r | to-w | fence
+let ppo = to-r | to-w | fence | (po-unlock-rf-lock-po & int)
 
 (* Propagation: Ordering from release operations and strong fences. *)
 let A-cumul(r) = rfe? ; r
-let cumul-fence = A-cumul(strong-fence | po-rel) | wmb
+let cumul-fence = A-cumul(strong-fence | po-rel) | wmb | po-unlock-rf-lock-po
 let prop = (overwrite & ext)? ; cumul-fence* ; rfe?
 
 (*
@@ -89,33 +91,55 @@ acyclic pb as propagation
 (*******)
 
 (*
- * Effect of read-side critical section proceeds from the rcu_read_lock()
- * onward on the one hand and from the rcu_read_unlock() backwards on the
- * other hand.
+ * Effects of read-side critical sections proceed from the rcu_read_unlock()
+ * or srcu_read_unlock() backwards on the one hand, and from the
+ * rcu_read_lock() or srcu_read_lock() forwards on the other hand.
+ *
+ * In the definition of rcu-fence below, the po term at the left-hand side
+ * of each disjunct and the po? term at the right-hand end have been factored
+ * out.  They have been moved into the definitions of rcu-link and rb.
+ * This was necessary in order to apply the "& loc" tests correctly.
  *)
-let rscs = po ; crit^-1 ; po?
+let rcu-gp = [Sync-rcu]		(* Compare with gp *)
+let srcu-gp = [Sync-srcu]
+let rcu-rscsi = rcu-rscs^-1
+let srcu-rscsi = srcu-rscs^-1
 
 (*
  * The synchronize_rcu() strong fence is special in that it can order not
  * one but two non-rf relations, but only in conjunction with an RCU
  * read-side critical section.
  *)
-let link = hb* ; pb* ; prop
-
-(* Chains that affect the RCU grace-period guarantee *)
-let gp-link = gp ; link
-let rscs-link = rscs ; link
+let rcu-link = po? ; hb* ; pb* ; prop ; po
 
 (*
- * A cycle containing at least as many grace periods as RCU read-side
- * critical sections is forbidden.
+ * Any sequence containing at least as many grace periods as RCU read-side
+ * critical sections (joined by rcu-link) acts as a generalized strong fence.
+ * Likewise for SRCU grace periods and read-side critical sections, provided
+ * the synchronize_srcu() and srcu_read_[un]lock() calls refer to the same
+ * struct srcu_struct location.
  *)
-let rec rcu-path =
-	gp-link |
-	(gp-link ; rscs-link) |
-	(rscs-link ; gp-link) |
-	(rcu-path ; rcu-path) |
-	(gp-link ; rcu-path ; rscs-link) |
-	(rscs-link ; rcu-path ; gp-link)
+let rec rcu-fence = rcu-gp | srcu-gp |
+	(rcu-gp ; rcu-link ; rcu-rscsi) |
+	((srcu-gp ; rcu-link ; srcu-rscsi) & loc) |
+	(rcu-rscsi ; rcu-link ; rcu-gp) |
+	((srcu-rscsi ; rcu-link ; srcu-gp) & loc) |
+	(rcu-gp ; rcu-link ; rcu-fence ; rcu-link ; rcu-rscsi) |
+	((srcu-gp ; rcu-link ; rcu-fence ; rcu-link ; srcu-rscsi) & loc) |
+	(rcu-rscsi ; rcu-link ; rcu-fence ; rcu-link ; rcu-gp) |
+	((srcu-rscsi ; rcu-link ; rcu-fence ; rcu-link ; srcu-gp) & loc) |
+	(rcu-fence ; rcu-link ; rcu-fence)
 
-irreflexive rcu-path as rcu
+(* rb orders instructions just as pb does *)
+let rb = prop ; po ; rcu-fence ; po? ; hb* ; pb*
+
+irreflexive rb as rcu
+
+(*
+ * The happens-before, propagation, and rcu constraints are all
+ * expressions of temporal ordering.  They could be replaced by
+ * a single constraint on an "executes-before" relation, xb:
+ *
+ * let xb = hb | pb | rb
+ * acyclic xb as executes-before
+ *)

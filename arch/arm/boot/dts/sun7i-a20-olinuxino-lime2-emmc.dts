@@ -48,23 +48,12 @@
 	compatible = "olimex,a20-olinuxino-lime2-emmc", "allwinner,sun7i-a20";
 
 	mmc2_pwrseq: pwrseq {
-		pinctrl-0 = <&mmc2_pins_nrst>;
-		pinctrl-names = "default";
 		compatible = "mmc-pwrseq-emmc";
 		reset-gpios = <&pio 2 16 GPIO_ACTIVE_LOW>;
 	};
 };
 
-&pio {
-	mmc2_pins_nrst: mmc2-rst-pin {
-		pins = "PC16";
-		function = "gpio_out";
-	};
-};
-
 &mmc2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc2_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	vqmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;

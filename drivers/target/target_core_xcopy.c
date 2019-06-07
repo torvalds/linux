@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename: target_core_xcopy.c
  *
@@ -8,16 +9,6 @@
  *
  * Author:
  * Nicholas A. Bellinger <nab@daterainc.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  ******************************************************************************/
 
@@ -389,9 +380,7 @@ out:
  */
 
 struct xcopy_pt_cmd {
-	bool remote_port;
 	struct se_cmd se_cmd;
-	struct xcopy_op *xcopy_op;
 	struct completion xpt_passthrough_sem;
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
 };
@@ -399,11 +388,6 @@ struct xcopy_pt_cmd {
 struct se_portal_group xcopy_pt_tpg;
 static struct se_session xcopy_pt_sess;
 static struct se_node_acl xcopy_pt_nacl;
-
-static char *xcopy_pt_get_fabric_name(void)
-{
-        return "xcopy-pt";
-}
 
 static int xcopy_pt_get_cmd_state(struct se_cmd *se_cmd)
 {
@@ -448,11 +432,6 @@ static int xcopy_pt_write_pending(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static int xcopy_pt_write_pending_status(struct se_cmd *se_cmd)
-{
-	return 0;
-}
-
 static int xcopy_pt_queue_data_in(struct se_cmd *se_cmd)
 {
 	return 0;
@@ -464,12 +443,11 @@ static int xcopy_pt_queue_status(struct se_cmd *se_cmd)
 }
 
 static const struct target_core_fabric_ops xcopy_pt_tfo = {
-	.get_fabric_name	= xcopy_pt_get_fabric_name,
+	.fabric_name		= "xcopy-pt",
 	.get_cmd_state		= xcopy_pt_get_cmd_state,
 	.release_cmd		= xcopy_pt_release_cmd,
 	.check_stop_free	= xcopy_pt_check_stop_free,
 	.write_pending		= xcopy_pt_write_pending,
-	.write_pending_status	= xcopy_pt_write_pending_status,
 	.queue_data_in		= xcopy_pt_queue_data_in,
 	.queue_status		= xcopy_pt_queue_status,
 };
@@ -480,6 +458,8 @@ static const struct target_core_fabric_ops xcopy_pt_tfo = {
 
 int target_xcopy_setup_pt(void)
 {
+	int ret;
+
 	xcopy_wq = alloc_workqueue("xcopy_wq", WQ_MEM_RECLAIM, 0);
 	if (!xcopy_wq) {
 		pr_err("Unable to allocate xcopy_wq\n");
@@ -497,10 +477,9 @@ int target_xcopy_setup_pt(void)
 	INIT_LIST_HEAD(&xcopy_pt_nacl.acl_list);
 	INIT_LIST_HEAD(&xcopy_pt_nacl.acl_sess_list);
 	memset(&xcopy_pt_sess, 0, sizeof(struct se_session));
-	INIT_LIST_HEAD(&xcopy_pt_sess.sess_list);
-	INIT_LIST_HEAD(&xcopy_pt_sess.sess_acl_list);
-	INIT_LIST_HEAD(&xcopy_pt_sess.sess_cmd_list);
-	spin_lock_init(&xcopy_pt_sess.sess_cmd_lock);
+	ret = transport_init_session(&xcopy_pt_sess);
+	if (ret < 0)
+		return ret;
 
 	xcopy_pt_nacl.se_tpg = &xcopy_pt_tpg;
 	xcopy_pt_nacl.nacl_sess = &xcopy_pt_sess;
@@ -517,72 +496,20 @@ void target_xcopy_release_pt(void)
 		destroy_workqueue(xcopy_wq);
 }
 
-static void target_xcopy_setup_pt_port(
-	struct xcopy_pt_cmd *xpt_cmd,
-	struct xcopy_op *xop,
-	bool remote_port)
-{
-	struct se_cmd *ec_cmd = xop->xop_se_cmd;
-	struct se_cmd *pt_cmd = &xpt_cmd->se_cmd;
-
-	if (xop->op_origin == XCOL_SOURCE_RECV_OP) {
-		/*
-		 * Honor destination port reservations for X-COPY PUSH emulation
-		 * when CDB is received on local source port, and READs blocks to
-		 * WRITE on remote destination port.
-		 */
-		if (remote_port) {
-			xpt_cmd->remote_port = remote_port;
-		} else {
-			pt_cmd->se_lun = ec_cmd->se_lun;
-			pt_cmd->se_dev = ec_cmd->se_dev;
-
-			pr_debug("Honoring local SRC port from ec_cmd->se_dev:"
-				" %p\n", pt_cmd->se_dev);
-			pt_cmd->se_lun = ec_cmd->se_lun;
-			pr_debug("Honoring local SRC port from ec_cmd->se_lun: %p\n",
-				pt_cmd->se_lun);
-		}
-	} else {
-		/*
-		 * Honor source port reservation for X-COPY PULL emulation
-		 * when CDB is received on local desintation port, and READs
-		 * blocks from the remote source port to WRITE on local
-		 * destination port.
-		 */
-		if (remote_port) {
-			xpt_cmd->remote_port = remote_port;
-		} else {
-			pt_cmd->se_lun = ec_cmd->se_lun;
-			pt_cmd->se_dev = ec_cmd->se_dev;
-
-			pr_debug("Honoring local DST port from ec_cmd->se_dev:"
-				" %p\n", pt_cmd->se_dev);
-			pt_cmd->se_lun = ec_cmd->se_lun;
-			pr_debug("Honoring local DST port from ec_cmd->se_lun: %p\n",
-				pt_cmd->se_lun);
-		}
-	}
-}
-
-static void target_xcopy_init_pt_lun(struct se_device *se_dev,
-		struct se_cmd *pt_cmd, bool remote_port)
-{
-	/*
-	 * Don't allocate + init an pt_cmd->se_lun if honoring local port for
-	 * reservations.  The pt_cmd->se_lun pointer will be setup from within
-	 * target_xcopy_setup_pt_port()
-	 */
-	if (remote_port) {
-		pr_debug("Setup emulated se_dev: %p from se_dev\n",
-			pt_cmd->se_dev);
-		pt_cmd->se_lun = &se_dev->xcopy_lun;
-		pt_cmd->se_dev = se_dev;
-	}
-
-	pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
-}
-
+/*
+ * target_xcopy_setup_pt_cmd - set up a pass-through command
+ * @xpt_cmd:	 Data structure to initialize.
+ * @xop:	 Describes the XCOPY operation received from an initiator.
+ * @se_dev:	 Backend device to associate with @xpt_cmd if
+ *		 @remote_port == true.
+ * @cdb:	 SCSI CDB to be copied into @xpt_cmd.
+ * @remote_port: If false, use the LUN through which the XCOPY command has
+ *		 been received. If true, use @se_dev->xcopy_lun.
+ * @alloc_mem:	 Whether or not to allocate an SGL list.
+ *
+ * Set up a SCSI command (READ or WRITE) that will be used to execute an
+ * XCOPY command.
+ */
 static int target_xcopy_setup_pt_cmd(
 	struct xcopy_pt_cmd *xpt_cmd,
 	struct xcopy_op *xop,
@@ -594,14 +521,19 @@ static int target_xcopy_setup_pt_cmd(
 	struct se_cmd *cmd = &xpt_cmd->se_cmd;
 	sense_reason_t sense_rc;
 	int ret = 0, rc;
+
 	/*
 	 * Setup LUN+port to honor reservations based upon xop->op_origin for
 	 * X-COPY PUSH or X-COPY PULL based upon where the CDB was received.
 	 */
-	target_xcopy_init_pt_lun(se_dev, cmd, remote_port);
-
-	xpt_cmd->xcopy_op = xop;
-	target_xcopy_setup_pt_port(xpt_cmd, xop, remote_port);
+	if (remote_port) {
+		cmd->se_lun = &se_dev->xcopy_lun;
+		cmd->se_dev = se_dev;
+	} else {
+		cmd->se_lun = xop->xop_se_cmd->se_lun;
+		cmd->se_dev = xop->xop_se_cmd->se_dev;
+	}
+	cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 
 	cmd->tag = 0;
 	sense_rc = target_setup_cmd_from_cdb(cmd, cdb);

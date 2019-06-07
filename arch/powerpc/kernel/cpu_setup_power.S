@@ -1,12 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This file contains low level CPU setup functions.
  *    Copyright (C) 2003 Benjamin Herrenschmidt (benh@kernel.crashing.org)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  */
 
 #include <asm/processor.h>
@@ -147,8 +142,8 @@ __init_hvmode_206:
 	rldicl.	r0,r3,4,63
 	bnelr
 	ld	r5,CPU_SPEC_FEATURES(r4)
-	LOAD_REG_IMMEDIATE(r6,CPU_FTR_HVMODE)
-	xor	r5,r5,r6
+	LOAD_REG_IMMEDIATE(r6,CPU_FTR_HVMODE | CPU_FTR_P9_TM_HV_ASSIST)
+	andc	r5,r5,r6
 	std	r5,CPU_SPEC_FEATURES(r4)
 	blr
 

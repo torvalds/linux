@@ -24,14 +24,10 @@
  * User space memory access functions
  */
 #include <linux/mm.h>
-#include <asm/segment.h>
 #include <asm/sections.h>
 
 /*
  * access_ok: - Checks if a user space pointer is valid
- * @type: Type of access: %VERIFY_READ or %VERIFY_WRITE.  Note that
- *        %VERIFY_WRITE is a superset of %VERIFY_READ - if it is safe
- *        to write to a block, it is always safe to read from it.
  * @addr: User space pointer to start of block to check
  * @size: Size of block to check
  *

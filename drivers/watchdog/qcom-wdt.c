@@ -142,22 +142,28 @@ static const struct watchdog_info qcom_wdt_info = {
 	.identity	= KBUILD_MODNAME,
 };
 
+static void qcom_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 static int qcom_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct qcom_wdt *wdt;
 	struct resource *res;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	const u32 *regs;
 	u32 percpu_offset;
 	int ret;
 
-	regs = of_device_get_match_data(&pdev->dev);
+	regs = of_device_get_match_data(dev);
 	if (!regs) {
-		dev_err(&pdev->dev, "Unsupported QCOM WDT module\n");
+		dev_err(dev, "Unsupported QCOM WDT module\n");
 		return -ENODEV;
 	}
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
@@ -172,21 +178,25 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	res->start += percpu_offset;
 	res->end += percpu_offset;
 
-	wdt->base = devm_ioremap_resource(&pdev->dev, res);
+	wdt->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	wdt->clk = devm_clk_get(&pdev->dev, NULL);
+	wdt->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(wdt->clk)) {
-		dev_err(&pdev->dev, "failed to get input clock\n");
+		dev_err(dev, "failed to get input clock\n");
 		return PTR_ERR(wdt->clk);
 	}
 
 	ret = clk_prepare_enable(wdt->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to setup clock\n");
+		dev_err(dev, "failed to setup clock\n");
 		return ret;
 	}
+	ret = devm_add_action_or_reset(dev, qcom_clk_disable_unprepare,
+				       wdt->clk);
+	if (ret)
+		return ret;
 
 	/*
 	 * We use the clock rate to calculate the max timeout, so ensure it's
@@ -199,16 +209,15 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	wdt->rate = clk_get_rate(wdt->clk);
 	if (wdt->rate == 0 ||
 	    wdt->rate > 0x10000000U) {
-		dev_err(&pdev->dev, "invalid clock rate\n");
-		ret = -EINVAL;
-		goto err_clk_unprepare;
+		dev_err(dev, "invalid clock rate\n");
+		return -EINVAL;
 	}
 
 	wdt->wdd.info = &qcom_wdt_info;
 	wdt->wdd.ops = &qcom_wdt_ops;
 	wdt->wdd.min_timeout = 1;
 	wdt->wdd.max_timeout = 0x10000000U / wdt->rate;
-	wdt->wdd.parent = &pdev->dev;
+	wdt->wdd.parent = dev;
 	wdt->layout = regs;
 
 	if (readl(wdt_addr(wdt, WDT_STS)) & 1)
@@ -220,30 +229,39 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	 * the max instead.
 	 */
 	wdt->wdd.timeout = min(wdt->wdd.max_timeout, 30U);
-	watchdog_init_timeout(&wdt->wdd, 0, &pdev->dev);
+	watchdog_init_timeout(&wdt->wdd, 0, dev);
 
-	ret = watchdog_register_device(&wdt->wdd);
+	ret = devm_watchdog_register_device(dev, &wdt->wdd);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register watchdog\n");
-		goto err_clk_unprepare;
+		dev_err(dev, "failed to register watchdog\n");
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, wdt);
 	return 0;
-
-err_clk_unprepare:
-	clk_disable_unprepare(wdt->clk);
-	return ret;
 }
 
-static int qcom_wdt_remove(struct platform_device *pdev)
+static int __maybe_unused qcom_wdt_suspend(struct device *dev)
 {
-	struct qcom_wdt *wdt = platform_get_drvdata(pdev);
+	struct qcom_wdt *wdt = dev_get_drvdata(dev);
 
-	watchdog_unregister_device(&wdt->wdd);
-	clk_disable_unprepare(wdt->clk);
+	if (watchdog_active(&wdt->wdd))
+		qcom_wdt_stop(&wdt->wdd);
+
 	return 0;
 }
+
+static int __maybe_unused qcom_wdt_resume(struct device *dev)
+{
+	struct qcom_wdt *wdt = dev_get_drvdata(dev);
+
+	if (watchdog_active(&wdt->wdd))
+		qcom_wdt_start(&wdt->wdd);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(qcom_wdt_pm_ops, qcom_wdt_suspend, qcom_wdt_resume);
 
 static const struct of_device_id qcom_wdt_of_table[] = {
 	{ .compatible = "qcom,kpss-timer", .data = reg_offset_data_apcs_tmr },
@@ -255,10 +273,10 @@ MODULE_DEVICE_TABLE(of, qcom_wdt_of_table);
 
 static struct platform_driver qcom_watchdog_driver = {
 	.probe	= qcom_wdt_probe,
-	.remove	= qcom_wdt_remove,
 	.driver	= {
 		.name		= KBUILD_MODNAME,
 		.of_match_table	= qcom_wdt_of_table,
+		.pm		= &qcom_wdt_pm_ops,
 	},
 };
 module_platform_driver(qcom_watchdog_driver);

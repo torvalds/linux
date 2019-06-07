@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Frame buffer driver for Trident TGUI, Blade and Image series
  *
@@ -776,9 +777,6 @@ static int get_nativex(struct tridentfb_par *par)
 		break;
 	case 3:
 		x = 800; y = 600;
-		break;
-	case 4:
-		x = 1400; y = 1050;
 		break;
 	case 1:
 	default:

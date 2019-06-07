@@ -459,13 +459,13 @@ static int sprd_adi_probe(struct platform_device *pdev)
 	sadi->slave_pbase = res->start + ADI_SLAVE_OFFSET;
 	sadi->ctlr = ctlr;
 	sadi->dev = &pdev->dev;
-	ret = of_hwspin_lock_get_id(np, 0);
+	ret = of_hwspin_lock_get_id_byname(np, "adi");
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can not get the hardware spinlock\n");
 		goto put_ctlr;
 	}
 
-	sadi->hwlock = hwspin_lock_request_specific(ret);
+	sadi->hwlock = devm_hwspin_lock_request_specific(&pdev->dev, ret);
 	if (!sadi->hwlock) {
 		ret = -ENXIO;
 		goto put_ctlr;
@@ -483,7 +483,7 @@ static int sprd_adi_probe(struct platform_device *pdev)
 	ret = devm_spi_register_controller(&pdev->dev, ctlr);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register SPI controller\n");
-		goto free_hwlock;
+		goto put_ctlr;
 	}
 
 	sadi->restart_handler.notifier_call = sprd_adi_restart_handler;
@@ -491,13 +491,11 @@ static int sprd_adi_probe(struct platform_device *pdev)
 	ret = register_restart_handler(&sadi->restart_handler);
 	if (ret) {
 		dev_err(&pdev->dev, "can not register restart handler\n");
-		goto free_hwlock;
+		goto put_ctlr;
 	}
 
 	return 0;
 
-free_hwlock:
-	hwspin_lock_free(sadi->hwlock);
 put_ctlr:
 	spi_controller_put(ctlr);
 	return ret;
@@ -509,7 +507,6 @@ static int sprd_adi_remove(struct platform_device *pdev)
 	struct sprd_adi *sadi = spi_controller_get_devdata(ctlr);
 
 	unregister_restart_handler(&sadi->restart_handler);
-	hwspin_lock_free(sadi->hwlock);
 	return 0;
 }
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Mediatek 8173 ALSA SoC AFE platform driver
  *
@@ -6,15 +7,6 @@
  *             Sascha Hauer <s.hauer@pengutronix.de>
  *             Hidalgo Huang <hidalgo.huang@mediatek.com>
  *             Ir Lian <ir.lian@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -303,9 +295,7 @@ static void mt8173_afe_dais_disable_clks(struct mtk_base_afe *afe,
 static int mt8173_afe_i2s_startup(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 
 	if (dai->active)
 		return 0;
@@ -318,9 +308,7 @@ static int mt8173_afe_i2s_startup(struct snd_pcm_substream *substream,
 static void mt8173_afe_i2s_shutdown(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 
 	if (dai->active)
 		return;
@@ -334,10 +322,8 @@ static void mt8173_afe_i2s_shutdown(struct snd_pcm_substream *substream,
 static int mt8173_afe_i2s_prepare(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime * const runtime = substream->runtime;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8173_afe_private *afe_priv = afe->platform_priv;
 	int ret;
 
@@ -358,9 +344,7 @@ static int mt8173_afe_i2s_prepare(struct snd_pcm_substream *substream,
 static int mt8173_afe_hdmi_startup(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8173_afe_private *afe_priv = afe->platform_priv;
 
 	if (dai->active)
@@ -374,9 +358,7 @@ static int mt8173_afe_hdmi_startup(struct snd_pcm_substream *substream,
 static void mt8173_afe_hdmi_shutdown(struct snd_pcm_substream *substream,
 				     struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8173_afe_private *afe_priv = afe->platform_priv;
 
 	if (dai->active)
@@ -389,10 +371,8 @@ static void mt8173_afe_hdmi_shutdown(struct snd_pcm_substream *substream,
 static int mt8173_afe_hdmi_prepare(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime * const runtime = substream->runtime;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 	struct mt8173_afe_private *afe_priv = afe->platform_priv;
 
 	unsigned int val;
@@ -454,9 +434,7 @@ static int mt8173_afe_hdmi_prepare(struct snd_pcm_substream *substream,
 static int mt8173_afe_hdmi_trigger(struct snd_pcm_substream *substream, int cmd,
 				   struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, AFE_PCM_NAME);
-	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(component);
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
 
 	dev_info(afe->dev, "%s cmd=%d %s\n", __func__, cmd, dai->name);
 
@@ -736,13 +714,11 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.mono_reg = AFE_DAC_CON1,
 		.mono_shift = 21,
 		.hd_reg = -1,
-		.hd_shift = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 1,
 		.msb_reg = AFE_MEMIF_MSB,
 		.msb_shift = 0,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 	}, {
 		.name = "DL2",
 		.id = MT8173_AFE_MEMIF_DL2,
@@ -754,13 +730,11 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.mono_reg = AFE_DAC_CON1,
 		.mono_shift = 22,
 		.hd_reg = -1,
-		.hd_shift = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 2,
 		.msb_reg = AFE_MEMIF_MSB,
 		.msb_shift = 1,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 	}, {
 		.name = "VUL",
 		.id = MT8173_AFE_MEMIF_VUL,
@@ -772,13 +746,11 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.mono_reg = AFE_DAC_CON1,
 		.mono_shift = 27,
 		.hd_reg = -1,
-		.hd_shift = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 3,
 		.msb_reg = AFE_MEMIF_MSB,
 		.msb_shift = 6,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 	}, {
 		.name = "DAI",
 		.id = MT8173_AFE_MEMIF_DAI,
@@ -790,13 +762,11 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.mono_reg = -1,
 		.mono_shift = -1,
 		.hd_reg = -1,
-		.hd_shift = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 4,
 		.msb_reg = AFE_MEMIF_MSB,
 		.msb_shift = 5,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 	}, {
 		.name = "AWB",
 		.id = MT8173_AFE_MEMIF_AWB,
@@ -808,13 +778,11 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.mono_reg = AFE_DAC_CON1,
 		.mono_shift = 24,
 		.hd_reg = -1,
-		.hd_shift = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 6,
 		.msb_reg = AFE_MEMIF_MSB,
 		.msb_shift = 3,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 	}, {
 		.name = "MOD_DAI",
 		.id = MT8173_AFE_MEMIF_MOD_DAI,
@@ -826,13 +794,11 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.mono_reg = AFE_DAC_CON1,
 		.mono_shift = 30,
 		.hd_reg = -1,
-		.hd_shift = -1,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = 7,
 		.msb_reg = AFE_MEMIF_MSB,
 		.msb_shift = 4,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 	}, {
 		.name = "HDMI",
 		.id = MT8173_AFE_MEMIF_HDMI,
@@ -844,13 +810,10 @@ static const struct mtk_base_memif_data memif_data[MT8173_AFE_MEMIF_NUM] = {
 		.mono_reg = -1,
 		.mono_shift = -1,
 		.hd_reg = -1,
-		.hd_shift = -1,
 		.enable_reg = -1,
-		.enable_shift = -1,
 		.msb_reg = AFE_MEMIF_MSB,
 		.msb_shift = 8,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 	},
 };
 
@@ -936,7 +899,6 @@ static const struct mtk_base_irq_data irq_data[MT8173_AFE_IRQ_NUM] = {
 		.irq_en_reg = AFE_IRQ_MCU_CON,
 		.irq_en_shift = 12,
 		.irq_fs_reg = -1,
-		.irq_fs_shift = -1,
 		.irq_fs_maskbit = -1,
 		.irq_clr_reg = AFE_IRQ_CLR,
 		.irq_clr_shift = 4,
@@ -1114,7 +1076,7 @@ static int mt8173_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	irq_id = platform_get_irq(pdev, 0);
 	if (irq_id <= 0) {
-		dev_err(afe->dev, "np %s no irq\n", afe->dev->of_node->name);
+		dev_err(afe->dev, "np %pOFn no irq\n", afe->dev->of_node);
 		return irq_id < 0 ? irq_id : -ENXIO;
 	}
 	ret = devm_request_irq(afe->dev, irq_id, mt8173_afe_irq_handler,

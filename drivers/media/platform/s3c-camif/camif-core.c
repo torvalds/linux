@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * s3c24xx/s3c64xx SoC series Camera Interface (CAMIF) driver
  *
  * Copyright (C) 2012 Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
  * Copyright (C) 2012 Tomasz Figa <tomasz.figa@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
- * by the Free Software Foundation, either version 2 of the License,
- * or (at your option) any later version.
  */
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
@@ -316,12 +312,12 @@ static int camif_media_dev_init(struct camif_dev *camif)
 	memset(md, 0, sizeof(*md));
 	snprintf(md->model, sizeof(md->model), "SAMSUNG S3C%s CAMIF",
 		 ip_rev == S3C6410_CAMIF_IP_REV ? "6410" : "244X");
-	strlcpy(md->bus_info, "platform", sizeof(md->bus_info));
+	strscpy(md->bus_info, "platform", sizeof(md->bus_info));
 	md->hw_revision = ip_rev;
 
 	md->dev = camif->dev;
 
-	strlcpy(v4l2_dev->name, "s3c-camif", sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, "s3c-camif", sizeof(v4l2_dev->name));
 	v4l2_dev->mdev = md;
 
 	media_device_init(md);

@@ -232,7 +232,6 @@ static inline void pte_clear(struct mm_struct *mm,
 	pte_val(null) = (addr >> PAGE_SHIFT) & 0xf;
 
 	set_pte_at(mm, addr, ptep, null);
-	flush_tlb_one(addr);
 }
 
 /*

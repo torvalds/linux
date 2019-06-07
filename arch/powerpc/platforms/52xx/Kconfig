@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 config PPC_MPC52xx
 	bool "52xx-based boards"
-	depends on 6xx
+	depends on PPC_BOOK3S_32
 	select COMMON_CLK
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 
 config PPC_MPC5200_SIMPLE
 	bool "Generic support for simple MPC5200 based boards"

@@ -1,24 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ARC PGU DRM driver.
  *
  * Copyright (C) 2016 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_vblank.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/clk.h>
 #include <linux/platform_data/simplefb.h>
 
@@ -136,9 +129,6 @@ static void arc_pgu_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
 
-	if (!crtc->primary->fb)
-		return;
-
 	clk_disable_unprepare(arcpgu->clk);
 	arc_pgu_write(arcpgu, ARCPGU_REG_CTRL,
 			      arc_pgu_read(arcpgu, ARCPGU_REG_CTRL) &
@@ -161,8 +151,6 @@ static void arc_pgu_crtc_atomic_begin(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs arc_pgu_crtc_helper_funcs = {
 	.mode_valid	= arc_pgu_crtc_mode_valid,
-	.mode_set	= drm_helper_crtc_mode_set,
-	.mode_set_base	= drm_helper_crtc_mode_set_base,
 	.mode_set_nofb	= arc_pgu_crtc_mode_set_nofb,
 	.atomic_begin	= arc_pgu_crtc_atomic_begin,
 	.atomic_enable	= arc_pgu_crtc_atomic_enable,
@@ -189,7 +177,6 @@ static const struct drm_plane_helper_funcs arc_pgu_plane_helper_funcs = {
 
 static void arc_pgu_plane_destroy(struct drm_plane *plane)
 {
-	drm_plane_helper_disable(plane);
 	drm_plane_cleanup(plane);
 }
 

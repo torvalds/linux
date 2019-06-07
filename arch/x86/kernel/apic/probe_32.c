@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Default generic APIC driver. This handles up to 8 CPUs.
  *
  * Copyright 2003 Andi Kleen, SuSE Labs.
- * Subject to the GNU Public License, v.2
  *
  * Generic x86 APIC driver probe layer.
  */
@@ -185,6 +185,7 @@ void __init default_setup_apic_routing(void)
 				break;
 			}
 			/* If P4 and above fall through */
+		case X86_VENDOR_HYGON:
 		case X86_VENDOR_AMD:
 			def_to_bigsmp = 1;
 		}

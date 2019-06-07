@@ -30,6 +30,7 @@
  * @VFL_TYPE_SUBDEV:	for V4L2 subdevices
  * @VFL_TYPE_SDR:	for Software Defined Radio tuners
  * @VFL_TYPE_TOUCH:	for touch sensors
+ * @VFL_TYPE_MAX:	number of VFL types, must always be last in the enum
  */
 enum vfl_devnode_type {
 	VFL_TYPE_GRABBER	= 0,
@@ -73,10 +74,19 @@ struct v4l2_ctrl_handler;
  *	indicates that file->private_data points to &struct v4l2_fh.
  *	This flag is set by the core when v4l2_fh_init() is called.
  *	All new drivers should use it.
+ * @V4L2_FL_QUIRK_INVERTED_CROP:
+ *	some old M2M drivers use g/s_crop/cropcap incorrectly: crop and
+ *	compose are swapped. If this flag is set, then the selection
+ *	targets are swapped in the g/s_crop/cropcap functions in v4l2-ioctl.c.
+ *	This allows those drivers to correctly implement the selection API,
+ *	but the old crop API will still work as expected in order to preserve
+ *	backwards compatibility.
+ *	Never set this flag for new drivers.
  */
 enum v4l2_video_device_flags {
-	V4L2_FL_REGISTERED	= 0,
-	V4L2_FL_USES_V4L2_FH	= 1,
+	V4L2_FL_REGISTERED		= 0,
+	V4L2_FL_USES_V4L2_FH		= 1,
+	V4L2_FL_QUIRK_INVERTED_CROP	= 2,
 };
 
 /* Priority helper functions */
@@ -237,7 +247,6 @@ struct v4l2_file_operations {
  * @ioctl_ops: pointer to &struct v4l2_ioctl_ops with ioctl callbacks
  *
  * @valid_ioctls: bitmap with the valid ioctls for this device
- * @disable_locking: bitmap with the ioctls that don't require locking
  * @lock: pointer to &struct mutex serialization lock
  *
  * .. note::
@@ -290,7 +299,6 @@ struct video_device
 	const struct v4l2_ioctl_ops *ioctl_ops;
 	DECLARE_BITMAP(valid_ioctls, BASE_VIDIOC_PRIVATE);
 
-	DECLARE_BITMAP(disable_locking, BASE_VIDIOC_PRIVATE);
 	struct mutex *lock;
 };
 
@@ -435,28 +443,6 @@ void video_device_release(struct video_device *vdev);
  *	Having a static video_device is a dubious construction at best.
  */
 void video_device_release_empty(struct video_device *vdev);
-
-/**
- * v4l2_is_known_ioctl - Checks if a given cmd is a known V4L ioctl
- *
- * @cmd: ioctl command
- *
- * returns true if cmd is a known V4L2 ioctl
- */
-bool v4l2_is_known_ioctl(unsigned int cmd);
-
-/** v4l2_disable_ioctl_locking - mark that a given command
- *	shouldn't use core locking
- *
- * @vdev: pointer to &struct video_device
- * @cmd: ioctl command
- */
-static inline void v4l2_disable_ioctl_locking(struct video_device *vdev,
-					      unsigned int cmd)
-{
-	if (_IOC_NR(cmd) < BASE_VIDIOC_PRIVATE)
-		set_bit(_IOC_NR(cmd), vdev->disable_locking);
-}
 
 /**
  * v4l2_disable_ioctl- mark that a given command isn't implemented.

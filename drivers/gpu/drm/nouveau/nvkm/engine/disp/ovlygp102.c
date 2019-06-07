@@ -21,18 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
-#include "dmacnv50.h"
-#include "rootnv50.h"
+#include "channv50.h"
 
-#include <nvif/class.h>
-
-const struct nv50_disp_dmac_oclass
-gp102_disp_ovly_oclass = {
-	.base.oclass = GK104_DISP_OVERLAY_CONTROL_DMA,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = nv50_disp_ovly_new,
-	.func = &gp102_disp_dmac_func,
-	.mthd = &gk104_disp_ovly_chan_mthd,
-	.chid = 5,
-};
+int
+gp102_disp_ovly_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nv50_disp *disp, struct nvkm_object **pobject)
+{
+	return nv50_disp_ovly_new_(&gp102_disp_dmac_func, &gk104_disp_ovly_mthd,
+				   disp, 5, oclass, argv, argc, pobject);
+}

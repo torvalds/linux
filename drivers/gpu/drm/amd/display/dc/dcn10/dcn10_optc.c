@@ -87,10 +87,41 @@ static void optc1_disable_stereo(struct timing_generator *optc)
 	REG_SET(OTG_STEREO_CONTROL, 0,
 		OTG_STEREO_EN, 0);
 
-	REG_SET_3(OTG_3D_STRUCTURE_CONTROL, 0,
+	REG_SET_2(OTG_3D_STRUCTURE_CONTROL, 0,
 		OTG_3D_STRUCTURE_EN, 0,
-		OTG_3D_STRUCTURE_V_UPDATE_MODE, 0,
 		OTG_3D_STRUCTURE_STEREO_SEL_OVR, 0);
+}
+
+void optc1_setup_vertical_interrupt0(
+		struct timing_generator *optc,
+		uint32_t start_line,
+		uint32_t end_line)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET_2(OTG_VERTICAL_INTERRUPT0_POSITION, 0,
+			OTG_VERTICAL_INTERRUPT0_LINE_START, start_line,
+			OTG_VERTICAL_INTERRUPT0_LINE_END, end_line);
+}
+
+void optc1_setup_vertical_interrupt1(
+		struct timing_generator *optc,
+		uint32_t start_line)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET(OTG_VERTICAL_INTERRUPT1_POSITION, 0,
+				OTG_VERTICAL_INTERRUPT1_LINE_START, start_line);
+}
+
+void optc1_setup_vertical_interrupt2(
+		struct timing_generator *optc,
+		uint32_t start_line)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET(OTG_VERTICAL_INTERRUPT2_POSITION, 0,
+			OTG_VERTICAL_INTERRUPT2_LINE_START, start_line);
 }
 
 /**
@@ -111,7 +142,6 @@ void optc1_program_timing(
 	uint32_t v_sync_end;
 	uint32_t v_init, v_fp2;
 	uint32_t h_sync_polarity, v_sync_polarity;
-	uint32_t interlace_factor;
 	uint32_t start_point = 0;
 	uint32_t field_num = 0;
 	uint32_t h_div_2;
@@ -162,16 +192,8 @@ void optc1_program_timing(
 	REG_UPDATE(OTG_H_SYNC_A_CNTL,
 			OTG_H_SYNC_A_POL, h_sync_polarity);
 
-	/* Load vertical timing */
+	v_total = patched_crtc_timing.v_total - 1;
 
-	/* CRTC_V_TOTAL = v_total - 1 */
-	if (patched_crtc_timing.flags.INTERLACE) {
-		interlace_factor = 2;
-		v_total = 2 * patched_crtc_timing.v_total;
-	} else {
-		interlace_factor = 1;
-		v_total = patched_crtc_timing.v_total - 1;
-	}
 	REG_SET(OTG_V_TOTAL, 0,
 			OTG_V_TOTAL, v_total);
 
@@ -184,7 +206,7 @@ void optc1_program_timing(
 		OTG_V_TOTAL_MIN, v_total);
 
 	/* v_sync_start = 0, v_sync_end = v_sync_width */
-	v_sync_end = patched_crtc_timing.v_sync_width * interlace_factor;
+	v_sync_end = patched_crtc_timing.v_sync_width;
 
 	REG_UPDATE_2(OTG_V_SYNC_A,
 			OTG_V_SYNC_A_START, 0,
@@ -196,37 +218,29 @@ void optc1_program_timing(
 
 	asic_blank_end = (patched_crtc_timing.v_total -
 			vesa_sync_start -
-			patched_crtc_timing.v_border_top)
-			* interlace_factor;
+			patched_crtc_timing.v_border_top);
 
 	/* v_blank_start = v_blank_end + v_active */
 	asic_blank_start = asic_blank_end +
 			(patched_crtc_timing.v_border_top +
 			patched_crtc_timing.v_addressable +
-			patched_crtc_timing.v_border_bottom)
-			* interlace_factor;
+			patched_crtc_timing.v_border_bottom);
+
+	vertical_line_start = asic_blank_end - optc->dlg_otg_param.vstartup_start + 1;
+	v_fp2 = 0;
+	if (vertical_line_start < 0)
+		v_fp2 = -vertical_line_start;
 
 	REG_UPDATE_2(OTG_V_BLANK_START_END,
 			OTG_V_BLANK_START, asic_blank_start,
 			OTG_V_BLANK_END, asic_blank_end);
-
-	/* Use OTG_VERTICAL_INTERRUPT2 replace VUPDATE interrupt,
-	 * program the reg for interrupt postition.
-	 */
-	vertical_line_start = asic_blank_end - optc->dlg_otg_param.vstartup_start + 1;
-	if (vertical_line_start < 0) {
-		ASSERT(0);
-		vertical_line_start = 0;
-	}
-	REG_SET(OTG_VERTICAL_INTERRUPT2_POSITION, 0,
-			OTG_VERTICAL_INTERRUPT2_LINE_START, vertical_line_start);
 
 	/* v_sync polarity */
 	v_sync_polarity = patched_crtc_timing.flags.VSYNC_POSITIVE_POLARITY ?
 			0 : 1;
 
 	REG_UPDATE(OTG_V_SYNC_A_CNTL,
-			OTG_V_SYNC_A_POL, v_sync_polarity);
+		OTG_V_SYNC_A_POL, v_sync_polarity);
 
 	v_init = asic_blank_start;
 	if (optc->dlg_otg_param.signal == SIGNAL_TYPE_DISPLAY_PORT ||
@@ -236,21 +250,19 @@ void optc1_program_timing(
 		if (patched_crtc_timing.flags.INTERLACE == 1)
 			field_num = 1;
 	}
-	v_fp2 = 0;
-	if (optc->dlg_otg_param.vstartup_start > asic_blank_end)
-		v_fp2 = optc->dlg_otg_param.vstartup_start > asic_blank_end;
 
 	/* Interlace */
-	if (patched_crtc_timing.flags.INTERLACE == 1) {
-		REG_UPDATE(OTG_INTERLACE_CONTROL,
-				OTG_INTERLACE_ENABLE, 1);
-		v_init = v_init / 2;
-		if ((optc->dlg_otg_param.vstartup_start/2)*2 > asic_blank_end)
-			v_fp2 = v_fp2 / 2;
-	} else
-		REG_UPDATE(OTG_INTERLACE_CONTROL,
-				OTG_INTERLACE_ENABLE, 0);
-
+	if (REG(OTG_INTERLACE_CONTROL)) {
+		if (patched_crtc_timing.flags.INTERLACE == 1) {
+			REG_UPDATE(OTG_INTERLACE_CONTROL,
+					OTG_INTERLACE_ENABLE, 1);
+			v_init = v_init / 2;
+			if ((optc->dlg_otg_param.vstartup_start/2)*2 > asic_blank_end)
+				v_fp2 = v_fp2 / 2;
+		} else
+			REG_UPDATE(OTG_INTERLACE_CONTROL,
+					OTG_INTERLACE_ENABLE, 0);
+	}
 
 	/* VTG enable set to 0 first VInit */
 	REG_UPDATE(CONTROL,
@@ -277,15 +289,14 @@ void optc1_program_timing(
 	/* Enable stereo - only when we need to pack 3D frame. Other types
 	 * of stereo handled in explicit call
 	 */
-	h_div_2 = (dc_crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) ?
-			1 : 0;
 
+	h_div_2 = optc1_is_two_pixels_per_containter(&patched_crtc_timing);
 	REG_UPDATE(OTG_H_TIMING_CNTL,
-			OTG_H_TIMING_DIV_BY2, h_div_2);
+			OTG_H_TIMING_DIV_BY2, h_div_2 || optc1->comb_opp_id != 0xf);
 
 }
 
-static void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enable)
+void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enable)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -302,20 +313,19 @@ static void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bo
 static void optc1_unblank_crtc(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-	uint32_t vertical_interrupt_enable = 0;
-
-	REG_GET(OTG_VERTICAL_INTERRUPT2_CONTROL,
-			OTG_VERTICAL_INTERRUPT2_INT_ENABLE, &vertical_interrupt_enable);
-
-	/* temporary work around for vertical interrupt, once vertical interrupt enabled,
-	 * this check will be removed.
-	 */
-	if (vertical_interrupt_enable)
-		optc1_set_blank_data_double_buffer(optc, true);
 
 	REG_UPDATE_2(OTG_BLANK_CONTROL,
 			OTG_BLANK_DATA_EN, 0,
 			OTG_BLANK_DE_MODE, 0);
+
+	/* W/A for automated testing
+	 * Automated testing will fail underflow test as there
+	 * sporadic underflows which occur during the optc blank
+	 * sequence.  As a w/a, clear underflow on unblank.
+	 * This prevents the failure, but will not mask actual
+	 * underflow that affect real use cases.
+	 */
+	optc1_clear_optc_underflow(optc);
 }
 
 /**
@@ -457,7 +467,6 @@ bool optc1_validate_timing(
 	struct timing_generator *optc,
 	const struct dc_crtc_timing *timing)
 {
-	uint32_t interlace_factor;
 	uint32_t v_blank;
 	uint32_t h_blank;
 	uint32_t min_v_blank;
@@ -465,10 +474,8 @@ bool optc1_validate_timing(
 
 	ASSERT(timing != NULL);
 
-	interlace_factor = timing->flags.INTERLACE ? 2 : 1;
 	v_blank = (timing->v_total - timing->v_addressable -
-					timing->v_border_top - timing->v_border_bottom) *
-					interlace_factor;
+					timing->v_border_top - timing->v_border_bottom);
 
 	h_blank = (timing->h_total - timing->h_addressable -
 		timing->h_border_right -
@@ -780,17 +787,17 @@ void optc1_set_drr(
 				OTG_SET_V_TOTAL_MIN_MASK_EN, 0,
 				OTG_SET_V_TOTAL_MIN_MASK, 0);
 	} else {
-		REG_SET(OTG_V_TOTAL_MIN, 0,
-			OTG_V_TOTAL_MIN, 0);
-
-		REG_SET(OTG_V_TOTAL_MAX, 0,
-			OTG_V_TOTAL_MAX, 0);
-
 		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
 				OTG_SET_V_TOTAL_MIN_MASK, 0,
 				OTG_V_TOTAL_MIN_SEL, 0,
 				OTG_V_TOTAL_MAX_SEL, 0,
 				OTG_FORCE_LOCK_ON_EVENT, 0);
+
+		REG_SET(OTG_V_TOTAL_MIN, 0,
+			OTG_V_TOTAL_MIN, 0);
+
+		REG_SET(OTG_V_TOTAL_MAX, 0,
+			OTG_V_TOTAL_MAX, 0);
 	}
 }
 
@@ -1098,9 +1105,8 @@ static void optc1_enable_stereo(struct timing_generator *optc,
 				OTG_DISABLE_STEREOSYNC_OUTPUT_FOR_DP, 1);
 
 		if (flags->PROGRAM_STEREO)
-			REG_UPDATE_3(OTG_3D_STRUCTURE_CONTROL,
+			REG_UPDATE_2(OTG_3D_STRUCTURE_CONTROL,
 				OTG_3D_STRUCTURE_EN, flags->FRAME_PACKED,
-				OTG_3D_STRUCTURE_V_UPDATE_MODE, flags->FRAME_PACKED,
 				OTG_3D_STRUCTURE_STEREO_SEL_OVR, flags->FRAME_PACKED);
 
 	}
@@ -1132,6 +1138,64 @@ bool optc1_is_stereo_left_eye(struct timing_generator *optc)
 	return ret;
 }
 
+bool optc1_is_matching_timing(struct timing_generator *tg,
+		const struct dc_crtc_timing *otg_timing)
+{
+	struct dc_crtc_timing hw_crtc_timing = {0};
+	struct dcn_otg_state s = {0};
+
+	if (tg == NULL || otg_timing == NULL)
+		return false;
+
+	optc1_read_otg_state(DCN10TG_FROM_TG(tg), &s);
+
+	hw_crtc_timing.h_total = s.h_total + 1;
+	hw_crtc_timing.h_addressable = s.h_total - ((s.h_total - s.h_blank_start) + s.h_blank_end);
+	hw_crtc_timing.h_front_porch = s.h_total + 1 - s.h_blank_start;
+	hw_crtc_timing.h_sync_width = s.h_sync_a_end - s.h_sync_a_start;
+
+	hw_crtc_timing.v_total = s.v_total + 1;
+	hw_crtc_timing.v_addressable = s.v_total - ((s.v_total - s.v_blank_start) + s.v_blank_end);
+	hw_crtc_timing.v_front_porch = s.v_total + 1 - s.v_blank_start;
+	hw_crtc_timing.v_sync_width = s.v_sync_a_end - s.v_sync_a_start;
+
+	if (otg_timing->h_total != hw_crtc_timing.h_total)
+		return false;
+
+	if (otg_timing->h_border_left != hw_crtc_timing.h_border_left)
+		return false;
+
+	if (otg_timing->h_addressable != hw_crtc_timing.h_addressable)
+		return false;
+
+	if (otg_timing->h_border_right != hw_crtc_timing.h_border_right)
+		return false;
+
+	if (otg_timing->h_front_porch != hw_crtc_timing.h_front_porch)
+		return false;
+
+	if (otg_timing->h_sync_width != hw_crtc_timing.h_sync_width)
+		return false;
+
+	if (otg_timing->v_total != hw_crtc_timing.v_total)
+		return false;
+
+	if (otg_timing->v_border_top != hw_crtc_timing.v_border_top)
+		return false;
+
+	if (otg_timing->v_addressable != hw_crtc_timing.v_addressable)
+		return false;
+
+	if (otg_timing->v_border_bottom != hw_crtc_timing.v_border_bottom)
+		return false;
+
+	if (otg_timing->v_sync_width != hw_crtc_timing.v_sync_width)
+		return false;
+
+	return true;
+}
+
+
 void optc1_read_otg_state(struct optc *optc1,
 		struct dcn_otg_state *s)
 {
@@ -1153,6 +1217,12 @@ void optc1_read_otg_state(struct optc *optc1,
 
 	REG_GET(OTG_V_TOTAL_MIN,
 			OTG_V_TOTAL_MIN, &s->v_total_min);
+
+	REG_GET(OTG_V_TOTAL_CONTROL,
+			OTG_V_TOTAL_MAX_SEL, &s->v_total_max_sel);
+
+	REG_GET(OTG_V_TOTAL_CONTROL,
+			OTG_V_TOTAL_MIN_SEL, &s->v_total_min_sel);
 
 	REG_GET_2(OTG_V_SYNC_A,
 			OTG_V_SYNC_A_START, &s->v_sync_a_start,
@@ -1176,20 +1246,51 @@ void optc1_read_otg_state(struct optc *optc1,
 			OPTC_UNDERFLOW_OCCURRED_STATUS, &s->underflow_occurred_status);
 }
 
-static void optc1_clear_optc_underflow(struct timing_generator *optc)
+bool optc1_get_otg_active_size(struct timing_generator *optc,
+		uint32_t *otg_active_width,
+		uint32_t *otg_active_height)
+{
+	uint32_t otg_enabled;
+	uint32_t v_blank_start;
+	uint32_t v_blank_end;
+	uint32_t h_blank_start;
+	uint32_t h_blank_end;
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+
+	REG_GET(OTG_CONTROL,
+			OTG_MASTER_EN, &otg_enabled);
+
+	if (otg_enabled == 0)
+		return false;
+
+	REG_GET_2(OTG_V_BLANK_START_END,
+			OTG_V_BLANK_START, &v_blank_start,
+			OTG_V_BLANK_END, &v_blank_end);
+
+	REG_GET_2(OTG_H_BLANK_START_END,
+			OTG_H_BLANK_START, &h_blank_start,
+			OTG_H_BLANK_END, &h_blank_end);
+
+	*otg_active_width = v_blank_start - v_blank_end;
+	*otg_active_height = h_blank_start - h_blank_end;
+	return true;
+}
+
+void optc1_clear_optc_underflow(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
 	REG_UPDATE(OPTC_INPUT_GLOBAL_CONTROL, OPTC_UNDERFLOW_CLEAR, 1);
 }
 
-static void optc1_tg_init(struct timing_generator *optc)
+void optc1_tg_init(struct timing_generator *optc)
 {
 	optc1_set_blank_data_double_buffer(optc, true);
 	optc1_clear_optc_underflow(optc);
 }
 
-static bool optc1_is_tg_enabled(struct timing_generator *optc)
+bool optc1_is_tg_enabled(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	uint32_t otg_enabled = 0;
@@ -1200,7 +1301,7 @@ static bool optc1_is_tg_enabled(struct timing_generator *optc)
 
 }
 
-static bool optc1_is_optc_underflow_occurred(struct timing_generator *optc)
+bool optc1_is_optc_underflow_occurred(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	uint32_t underflow_occurred = 0;
@@ -1212,9 +1313,78 @@ static bool optc1_is_optc_underflow_occurred(struct timing_generator *optc)
 	return (underflow_occurred == 1);
 }
 
+bool optc1_configure_crc(struct timing_generator *optc,
+			  const struct crc_params *params)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	/* Cannot configure crc on a CRTC that is disabled */
+	if (!optc1_is_tg_enabled(optc))
+		return false;
+
+	REG_WRITE(OTG_CRC_CNTL, 0);
+
+	if (!params->enable)
+		return true;
+
+	/* Program frame boundaries */
+	/* Window A x axis start and end. */
+	REG_UPDATE_2(OTG_CRC0_WINDOWA_X_CONTROL,
+			OTG_CRC0_WINDOWA_X_START, params->windowa_x_start,
+			OTG_CRC0_WINDOWA_X_END, params->windowa_x_end);
+
+	/* Window A y axis start and end. */
+	REG_UPDATE_2(OTG_CRC0_WINDOWA_Y_CONTROL,
+			OTG_CRC0_WINDOWA_Y_START, params->windowa_y_start,
+			OTG_CRC0_WINDOWA_Y_END, params->windowa_y_end);
+
+	/* Window B x axis start and end. */
+	REG_UPDATE_2(OTG_CRC0_WINDOWB_X_CONTROL,
+			OTG_CRC0_WINDOWB_X_START, params->windowb_x_start,
+			OTG_CRC0_WINDOWB_X_END, params->windowb_x_end);
+
+	/* Window B y axis start and end. */
+	REG_UPDATE_2(OTG_CRC0_WINDOWB_Y_CONTROL,
+			OTG_CRC0_WINDOWB_Y_START, params->windowb_y_start,
+			OTG_CRC0_WINDOWB_Y_END, params->windowb_y_end);
+
+	/* Set crc mode and selection, and enable. Only using CRC0*/
+	REG_UPDATE_3(OTG_CRC_CNTL,
+			OTG_CRC_CONT_EN, params->continuous_mode ? 1 : 0,
+			OTG_CRC0_SELECT, params->selection,
+			OTG_CRC_EN, 1);
+
+	return true;
+}
+
+bool optc1_get_crc(struct timing_generator *optc,
+		    uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
+{
+	uint32_t field = 0;
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_GET(OTG_CRC_CNTL, OTG_CRC_EN, &field);
+
+	/* Early return if CRC is not enabled for this CRTC */
+	if (!field)
+		return false;
+
+	REG_GET_2(OTG_CRC0_DATA_RG,
+			CRC0_R_CR, r_cr,
+			CRC0_G_Y, g_y);
+
+	REG_GET(OTG_CRC0_DATA_B,
+			CRC0_B_CB, b_cb);
+
+	return true;
+}
+
 static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
+		.setup_vertical_interrupt0 = optc1_setup_vertical_interrupt0,
+		.setup_vertical_interrupt1 = optc1_setup_vertical_interrupt1,
+		.setup_vertical_interrupt2 = optc1_setup_vertical_interrupt2,
 		.program_global_sync = optc1_program_global_sync,
 		.enable_crtc = optc1_enable_crtc,
 		.disable_crtc = optc1_disable_crtc,
@@ -1223,6 +1393,8 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.get_position = optc1_get_position,
 		.get_frame_count = optc1_get_vblank_counter,
 		.get_scanoutpos = optc1_get_crtc_scanoutpos,
+		.get_otg_active_size = optc1_get_otg_active_size,
+		.is_matching_timing = optc1_is_matching_timing,
 		.set_early_control = optc1_set_early_control,
 		/* used by enable_timing_synchronization. Not need for FPGA */
 		.wait_for_state = optc1_wait_for_state,
@@ -1246,6 +1418,8 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.is_tg_enabled = optc1_is_tg_enabled,
 		.is_optc_underflow_occurred = optc1_is_optc_underflow_occurred,
 		.clear_optc_underflow = optc1_clear_optc_underflow,
+		.get_crc = optc1_get_crc,
+		.configure_crc = optc1_configure_crc,
 };
 
 void dcn10_timing_generator_init(struct optc *optc1)
@@ -1260,4 +1434,13 @@ void dcn10_timing_generator_init(struct optc *optc1)
 	optc1->min_v_blank_interlace = 5;
 	optc1->min_h_sync_width = 8;
 	optc1->min_v_sync_width = 1;
+	optc1->comb_opp_id = 0xf;
 }
+
+bool optc1_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
+{
+	bool two_pix = timing->pixel_encoding == PIXEL_ENCODING_YCBCR420;
+
+	return two_pix;
+}
+

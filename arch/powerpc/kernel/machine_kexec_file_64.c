@@ -24,7 +24,6 @@
 
 #include <linux/slab.h>
 #include <linux/kexec.h>
-#include <linux/memblock.h>
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
 #include <asm/ima.h>
@@ -44,59 +43,6 @@ int arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
 		return -EOPNOTSUPP;
 
 	return kexec_image_probe_default(image, buf, buf_len);
-}
-
-/**
- * arch_kexec_walk_mem - call func(data) for each unreserved memory block
- * @kbuf:	Context info for the search. Also passed to @func.
- * @func:	Function to call for each memory block.
- *
- * This function is used by kexec_add_buffer and kexec_locate_mem_hole
- * to find unreserved memory to load kexec segments into.
- *
- * Return: The memory walk will stop when func returns a non-zero value
- * and that value will be returned. If all free regions are visited without
- * func returning non-zero, then zero will be returned.
- */
-int arch_kexec_walk_mem(struct kexec_buf *kbuf,
-			int (*func)(struct resource *, void *))
-{
-	int ret = 0;
-	u64 i;
-	phys_addr_t mstart, mend;
-	struct resource res = { };
-
-	if (kbuf->top_down) {
-		for_each_free_mem_range_reverse(i, NUMA_NO_NODE, 0,
-						&mstart, &mend, NULL) {
-			/*
-			 * In memblock, end points to the first byte after the
-			 * range while in kexec, end points to the last byte
-			 * in the range.
-			 */
-			res.start = mstart;
-			res.end = mend - 1;
-			ret = func(&res, kbuf);
-			if (ret)
-				break;
-		}
-	} else {
-		for_each_free_mem_range(i, NUMA_NO_NODE, 0, &mstart, &mend,
-					NULL) {
-			/*
-			 * In memblock, end points to the first byte after the
-			 * range while in kexec, end points to the last byte
-			 * in the range.
-			 */
-			res.start = mstart;
-			res.end = mend - 1;
-			ret = func(&res, kbuf);
-			if (ret)
-				break;
-		}
-	}
-
-	return ret;
 }
 
 /**
@@ -269,18 +215,14 @@ int setup_new_fdt(const struct kimage *image, void *fdt,
 		ret = fdt_setprop_u64(fdt, chosen_node,
 				      "linux,initrd-start",
 				      initrd_load_addr);
-		if (ret < 0) {
-			pr_err("Error setting up the new device tree.\n");
-			return -EINVAL;
-		}
+		if (ret < 0)
+			goto err;
 
 		/* initrd-end is the first address after the initrd image. */
 		ret = fdt_setprop_u64(fdt, chosen_node, "linux,initrd-end",
 				      initrd_load_addr + initrd_len);
-		if (ret < 0) {
-			pr_err("Error setting up the new device tree.\n");
-			return -EINVAL;
-		}
+		if (ret < 0)
+			goto err;
 
 		ret = fdt_add_mem_rsv(fdt, initrd_load_addr, initrd_len);
 		if (ret) {
@@ -292,10 +234,8 @@ int setup_new_fdt(const struct kimage *image, void *fdt,
 
 	if (cmdline != NULL) {
 		ret = fdt_setprop_string(fdt, chosen_node, "bootargs", cmdline);
-		if (ret < 0) {
-			pr_err("Error setting up the new device tree.\n");
-			return -EINVAL;
-		}
+		if (ret < 0)
+			goto err;
 	} else {
 		ret = fdt_delprop(fdt, chosen_node, "bootargs");
 		if (ret && ret != -FDT_ERR_NOTFOUND) {
@@ -311,10 +251,12 @@ int setup_new_fdt(const struct kimage *image, void *fdt,
 	}
 
 	ret = fdt_setprop(fdt, chosen_node, "linux,booted-from-kexec", NULL, 0);
-	if (ret) {
-		pr_err("Error setting up the new device tree.\n");
-		return -EINVAL;
-	}
+	if (ret)
+		goto err;
 
 	return 0;
+
+err:
+	pr_err("Error setting up the new device tree.\n");
+	return -EINVAL;
 }

@@ -234,7 +234,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:	/* Set interface flags */
-		return dev_change_flags(dev, ifr->ifr_flags);
+		return dev_change_flags(dev, ifr->ifr_flags, NULL);
 
 	case SIOCSIFMETRIC:	/* Set the metric on the interface
 				   (currently unused) */
@@ -246,7 +246,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 	case SIOCSIFHWADDR:
 		if (dev->addr_len > sizeof(struct sockaddr))
 			return -EINVAL;
-		return dev_set_mac_address(dev, &ifr->ifr_hwaddr);
+		return dev_set_mac_address(dev, &ifr->ifr_hwaddr, NULL);
 
 	case SIOCSIFHWBROADCAST:
 		if (ifr->ifr_hwaddr.sa_family != dev->type)
@@ -284,19 +284,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 	case SIOCSIFTXQLEN:
 		if (ifr->ifr_qlen < 0)
 			return -EINVAL;
-		if (dev->tx_queue_len ^ ifr->ifr_qlen) {
-			unsigned int orig_len = dev->tx_queue_len;
-
-			dev->tx_queue_len = ifr->ifr_qlen;
-			err = call_netdevice_notifiers(
-					NETDEV_CHANGE_TX_QUEUE_LEN, dev);
-			err = notifier_to_errno(err);
-			if (err) {
-				dev->tx_queue_len = orig_len;
-				return err;
-			}
-		}
-		return 0;
+		return dev_change_tx_queue_len(dev, ifr->ifr_qlen);
 
 	case SIOCSIFNAME:
 		ifr->ifr_newname[IFNAMSIZ-1] = '\0';
@@ -378,7 +366,8 @@ EXPORT_SYMBOL(dev_load);
  *	dev_ioctl	-	network device ioctl
  *	@net: the applicable net namespace
  *	@cmd: command to issue
- *	@arg: pointer to a struct ifreq in user space
+ *	@ifr: pointer to a struct ifreq in user space
+ *	@need_copyout: whether or not copy_to_user() should be called
  *
  *	Issue ioctl functions to devices. This is normally called by the
  *	user space syscall interfaces but can sometimes be useful for

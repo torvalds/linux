@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Freescale GPMI NAND Flash Driver
  *
  * Copyright (C) 2008-2011 Freescale Semiconductor, Inc.
  * Copyright (C) 2008 Embedded Alley Solutions, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 #include <linux/delay.h>
 #include <linux/clk.h>
@@ -168,9 +155,9 @@ int gpmi_init(struct gpmi_nand_data *this)
 
 	/*
 	 * Reset BCH here, too. We got failures otherwise :(
-	 * See later BCH reset for explanation of MX23 handling
+	 * See later BCH reset for explanation of MX23 and MX28 handling
 	 */
-	ret = gpmi_reset_block(r->bch_regs, GPMI_IS_MX23(this));
+	ret = gpmi_reset_block(r->bch_regs, GPMI_IS_MXS(this));
 	if (ret)
 		goto err_out;
 
@@ -258,8 +245,9 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	unsigned int gf_len;
 	int ret;
 
-	if (common_nfc_set_geometry(this))
-		return !0;
+	ret = common_nfc_set_geometry(this);
+	if (ret)
+		return ret;
 
 	block_count   = bch_geo->ecc_chunk_count - 1;
 	block_size    = bch_geo->ecc_chunk_size;
@@ -275,12 +263,9 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	/*
 	* Due to erratum #2847 of the MX23, the BCH cannot be soft reset on this
 	* chip, otherwise it will lock up. So we skip resetting BCH on the MX23.
-	* On the other hand, the MX28 needs the reset, because one case has been
-	* seen where the BCH produced ECC errors constantly after 10000
-	* consecutive reboots. The latter case has not been seen on the MX23
-	* yet, still we don't know if it could happen there as well.
+	* and MX28.
 	*/
-	ret = gpmi_reset_block(r->bch_regs, GPMI_IS_MX23(this));
+	ret = gpmi_reset_block(r->bch_regs, GPMI_IS_MXS(this));
 	if (ret)
 		goto err_out;
 
@@ -483,10 +468,9 @@ void gpmi_nfc_apply_timings(struct gpmi_nand_data *this)
 	udelay(dll_wait_time_us);
 }
 
-int gpmi_setup_data_interface(struct mtd_info *mtd, int chipnr,
+int gpmi_setup_data_interface(struct nand_chip *chip, int chipnr,
 			      const struct nand_data_interface *conf)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	const struct nand_sdr_timings *sdr;
 
@@ -544,19 +528,13 @@ int gpmi_is_ready(struct gpmi_nand_data *this, unsigned chip)
 	return reg & mask;
 }
 
-static inline void set_dma_type(struct gpmi_nand_data *this,
-					enum dma_ops_type type)
-{
-	this->last_dma_type = this->dma_type;
-	this->dma_type = type;
-}
-
 int gpmi_send_command(struct gpmi_nand_data *this)
 {
 	struct dma_chan *channel = get_dma_chan(this);
 	struct dma_async_tx_descriptor *desc;
 	struct scatterlist *sgl;
 	int chip = this->current_chip;
+	int ret;
 	u32 pio[3];
 
 	/* [1] send out the PIO words */
@@ -586,15 +564,19 @@ int gpmi_send_command(struct gpmi_nand_data *this)
 		return -EINVAL;
 
 	/* [3] submit the DMA */
-	set_dma_type(this, DMA_FOR_COMMAND);
-	return start_dma_without_bch_irq(this, desc);
+	ret = start_dma_without_bch_irq(this, desc);
+
+	dma_unmap_sg(this->dev, sgl, 1, DMA_TO_DEVICE);
+
+	return ret;
 }
 
-int gpmi_send_data(struct gpmi_nand_data *this)
+int gpmi_send_data(struct gpmi_nand_data *this, const void *buf, int len)
 {
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *channel = get_dma_chan(this);
 	int chip = this->current_chip;
+	int ret;
 	uint32_t command_mode;
 	uint32_t address;
 	u32 pio[2];
@@ -608,7 +590,7 @@ int gpmi_send_data(struct gpmi_nand_data *this)
 		| BF_GPMI_CTRL0_CS(chip, this)
 		| BF_GPMI_CTRL0_LOCK_CS(LOCK_CS_ENABLE, this)
 		| BF_GPMI_CTRL0_ADDRESS(address)
-		| BF_GPMI_CTRL0_XFER_COUNT(this->upper_len);
+		| BF_GPMI_CTRL0_XFER_COUNT(len);
 	pio[1] = 0;
 	desc = dmaengine_prep_slave_sg(channel, (struct scatterlist *)pio,
 					ARRAY_SIZE(pio), DMA_TRANS_NONE, 0);
@@ -616,7 +598,7 @@ int gpmi_send_data(struct gpmi_nand_data *this)
 		return -EINVAL;
 
 	/* [2] send DMA request */
-	prepare_data_dma(this, DMA_TO_DEVICE);
+	prepare_data_dma(this, buf, len, DMA_TO_DEVICE);
 	desc = dmaengine_prep_slave_sg(channel, &this->data_sgl,
 					1, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
@@ -624,16 +606,21 @@ int gpmi_send_data(struct gpmi_nand_data *this)
 		return -EINVAL;
 
 	/* [3] submit the DMA */
-	set_dma_type(this, DMA_FOR_WRITE_DATA);
-	return start_dma_without_bch_irq(this, desc);
+	ret = start_dma_without_bch_irq(this, desc);
+
+	dma_unmap_sg(this->dev, &this->data_sgl, 1, DMA_TO_DEVICE);
+
+	return ret;
 }
 
-int gpmi_read_data(struct gpmi_nand_data *this)
+int gpmi_read_data(struct gpmi_nand_data *this, void *buf, int len)
 {
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *channel = get_dma_chan(this);
 	int chip = this->current_chip;
+	int ret;
 	u32 pio[2];
+	bool direct;
 
 	/* [1] : send PIO */
 	pio[0] = BF_GPMI_CTRL0_COMMAND_MODE(BV_GPMI_CTRL0_COMMAND_MODE__READ)
@@ -641,7 +628,7 @@ int gpmi_read_data(struct gpmi_nand_data *this)
 		| BF_GPMI_CTRL0_CS(chip, this)
 		| BF_GPMI_CTRL0_LOCK_CS(LOCK_CS_ENABLE, this)
 		| BF_GPMI_CTRL0_ADDRESS(BV_GPMI_CTRL0_ADDRESS__NAND_DATA)
-		| BF_GPMI_CTRL0_XFER_COUNT(this->upper_len);
+		| BF_GPMI_CTRL0_XFER_COUNT(len);
 	pio[1] = 0;
 	desc = dmaengine_prep_slave_sg(channel,
 					(struct scatterlist *)pio,
@@ -650,7 +637,7 @@ int gpmi_read_data(struct gpmi_nand_data *this)
 		return -EINVAL;
 
 	/* [2] : send DMA request */
-	prepare_data_dma(this, DMA_FROM_DEVICE);
+	direct = prepare_data_dma(this, buf, len, DMA_FROM_DEVICE);
 	desc = dmaengine_prep_slave_sg(channel, &this->data_sgl,
 					1, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
@@ -658,8 +645,14 @@ int gpmi_read_data(struct gpmi_nand_data *this)
 		return -EINVAL;
 
 	/* [3] : submit the DMA */
-	set_dma_type(this, DMA_FOR_READ_DATA);
-	return start_dma_without_bch_irq(this, desc);
+
+	ret = start_dma_without_bch_irq(this, desc);
+
+	dma_unmap_sg(this->dev, &this->data_sgl, 1, DMA_FROM_DEVICE);
+	if (!direct)
+		memcpy(buf, this->data_buffer_dma, len);
+
+	return ret;
 }
 
 int gpmi_send_page(struct gpmi_nand_data *this,
@@ -703,7 +696,6 @@ int gpmi_send_page(struct gpmi_nand_data *this,
 	if (!desc)
 		return -EINVAL;
 
-	set_dma_type(this, DMA_FOR_WRITE_ECC_PAGE);
 	return start_dma_with_bch_irq(this, desc);
 }
 
@@ -785,7 +777,6 @@ int gpmi_read_page(struct gpmi_nand_data *this,
 		return -EINVAL;
 
 	/* [4] submit the DMA */
-	set_dma_type(this, DMA_FOR_READ_ECC_PAGE);
 	return start_dma_with_bch_irq(this, desc);
 }
 

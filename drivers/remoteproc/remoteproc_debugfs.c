@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Remote Processor Framework
  *
@@ -11,15 +12,6 @@
  * Suman Anna <s-anna@ti.com>
  * Robert Tivy <rtivy@ti.com>
  * Armando Uribe De Leon <x0095078@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt)    "%s: " fmt, __func__
@@ -47,10 +39,23 @@ static struct dentry *rproc_dbg;
 static ssize_t rproc_trace_read(struct file *filp, char __user *userbuf,
 				size_t count, loff_t *ppos)
 {
-	struct rproc_mem_entry *trace = filp->private_data;
-	int len = strnlen(trace->va, trace->len);
+	struct rproc_debug_trace *data = filp->private_data;
+	struct rproc_mem_entry *trace = &data->trace_mem;
+	void *va;
+	char buf[100];
+	int len;
 
-	return simple_read_from_buffer(userbuf, count, ppos, trace->va, len);
+	va = rproc_da_to_va(data->rproc, trace->da, trace->len);
+
+	if (!va) {
+		len = scnprintf(buf, sizeof(buf), "Trace %s not available\n",
+				trace->name);
+		va = buf;
+	} else {
+		len = strnlen(va, trace->len);
+	}
+
+	return simple_read_from_buffer(userbuf, count, ppos, va, len);
 }
 
 static const struct file_operations trace_rproc_ops = {
@@ -155,6 +160,30 @@ static const struct file_operations rproc_recovery_ops = {
 	.llseek = generic_file_llseek,
 };
 
+/* expose the crash trigger via debugfs */
+static ssize_t
+rproc_crash_write(struct file *filp, const char __user *user_buf,
+		  size_t count, loff_t *ppos)
+{
+	struct rproc *rproc = filp->private_data;
+	unsigned int type;
+	int ret;
+
+	ret = kstrtouint_from_user(user_buf, count, 0, &type);
+	if (ret < 0)
+		return ret;
+
+	rproc_report_crash(rproc, type);
+
+	return count;
+}
+
+static const struct file_operations rproc_crash_ops = {
+	.write = rproc_crash_write,
+	.open = simple_open,
+	.llseek = generic_file_llseek,
+};
+
 /* Expose resource table content via debugfs */
 static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 {
@@ -231,7 +260,7 @@ static int rproc_rsc_table_show(struct seq_file *seq, void *p)
 			}
 			break;
 		default:
-			seq_printf(seq, "Unknown resource type found: %d [hdr: %p]\n",
+			seq_printf(seq, "Unknown resource type found: %d [hdr: %pK]\n",
 				   hdr->type, hdr);
 			break;
 		}
@@ -260,7 +289,8 @@ static int rproc_carveouts_show(struct seq_file *seq, void *p)
 
 	list_for_each_entry(carveout, &rproc->carveouts, node) {
 		seq_puts(seq, "Carveout memory entry:\n");
-		seq_printf(seq, "\tVirtual address: %p\n", carveout->va);
+		seq_printf(seq, "\tName: %s\n", carveout->name);
+		seq_printf(seq, "\tVirtual address: %pK\n", carveout->va);
 		seq_printf(seq, "\tDMA address: %pad\n", &carveout->dma);
 		seq_printf(seq, "\tDevice address: 0x%x\n", carveout->da);
 		seq_printf(seq, "\tLength: 0x%x Bytes\n\n", carveout->len);
@@ -287,7 +317,7 @@ void rproc_remove_trace_file(struct dentry *tfile)
 }
 
 struct dentry *rproc_create_trace_file(const char *name, struct rproc *rproc,
-				       struct rproc_mem_entry *trace)
+				       struct rproc_debug_trace *trace)
 {
 	struct dentry *tfile;
 
@@ -324,6 +354,8 @@ void rproc_create_debug_dir(struct rproc *rproc)
 			    rproc, &rproc_name_ops);
 	debugfs_create_file("recovery", 0400, rproc->dbg_dir,
 			    rproc, &rproc_recovery_ops);
+	debugfs_create_file("crash", 0200, rproc->dbg_dir,
+			    rproc, &rproc_crash_ops);
 	debugfs_create_file("resource_table", 0400, rproc->dbg_dir,
 			    rproc, &rproc_rsc_table_ops);
 	debugfs_create_file("carveout_memories", 0400, rproc->dbg_dir,

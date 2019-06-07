@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # ALSA PCI drivers
 
 menuconfig SND_PCI
@@ -175,7 +176,7 @@ config SND_BT87X
 	help
 	  If you want to record audio from TV cards based on
 	  Brooktree Bt878/Bt879 chips, say Y here and read
-	  <file:Documentation/sound/alsa/Bt87x.txt>.
+	  <file:Documentation/sound/cards/bt87x.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-bt87x.
@@ -210,7 +211,7 @@ config SND_CMIPCI
 	help
 	  If you want to use soundcards based on C-Media CMI8338, CMI8738,
 	  CMI8768 or CMI8770 chips, say Y here and read
-	  <file:Documentation/sound/alsa/CMIPCI.txt>.
+	  <file:Documentation/sound/cards/cmipci.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cmipci.
@@ -472,8 +473,8 @@ config SND_EMU10K1
 	  Audigy and E-mu APS (partially supported) soundcards.
 
 	  The confusing multitude of mixer controls is documented in
-	  <file:Documentation/sound/alsa/SB-Live-mixer.txt> and
-	  <file:Documentation/sound/alsa/Audigy-mixer.txt>.
+	  <file:Documentation/sound/cards/sb-live-mixer.rst> and
+	  <file:Documentation/sound/cards/audigy-mixer.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-emu10k1.
@@ -735,7 +736,7 @@ config SND_MIXART
 	select SND_PCM
 	help
 	  If you want to use Digigram miXart soundcards, say Y here and
-	  read <file:Documentation/sound/alsa/MIXART.txt>.
+	  read <file:Documentation/sound/cards/mixart.rst>.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-mixart.

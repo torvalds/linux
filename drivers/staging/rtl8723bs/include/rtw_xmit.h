@@ -1,20 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef _RTW_XMIT_H_
 #define _RTW_XMIT_H_
 
+#include <linux/completion.h>
 
 #define MAX_XMITBUF_SZ	(20480)	/*  20k */
 
@@ -90,7 +83,7 @@ do{\
 
 #define TXDESC_OFFSET TXDESC_SIZE
 
-enum TXDESC_SC{
+enum TXDESC_SC {
 	SC_DONT_CARE = 0x00,
 	SC_UPPER = 0x01,
 	SC_LOWER = 0x02,
@@ -372,8 +365,8 @@ struct	xmit_priv {
 
 	_lock	lock;
 
-	_sema	xmit_sema;
-	_sema	terminate_xmitthread_sema;
+	struct completion xmit_comp;
+	struct completion terminate_xmitthread_comp;
 
 	/* struct __queue	blk_strms[MAX_NUMBLKS]; */
 	struct __queue	be_pending;
@@ -427,8 +420,8 @@ struct	xmit_priv {
 	struct tasklet_struct xmit_tasklet;
 #else
 	void *SdioXmitThread;
-	_sema		SdioXmitSema;
-	_sema		SdioXmitTerminateSema;
+	struct completion SdioXmitStart;
+	struct completion SdioXmitTerminate;
 #endif /* CONFIG_SDIO_TX_TASKLET */
 
 	struct __queue free_xmitbuf_queue;
@@ -494,7 +487,7 @@ s32 _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter);
 void _rtw_free_xmit_priv (struct xmit_priv *pxmitpriv);
 
 
-void rtw_alloc_hwxmits(struct adapter *padapter);
+s32 rtw_alloc_hwxmits(struct adapter *padapter);
 void rtw_free_hwxmits(struct adapter *padapter);
 
 

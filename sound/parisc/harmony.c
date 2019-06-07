@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Hewlett-Packard Harmony audio driver
  *
  *   This is a driver for the Harmony audio chipset found
@@ -13,26 +14,12 @@
  *       Copyright 2003 (c) Laurent Canet
  *       Copyright 2004 (c) Stuart Brady
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License, version 2, as
- *   published by the Free Software Foundation.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * Notes:
  *   - graveyard and silence buffers last for lifetime of
  *     the driver. playback and capture buffers are allocated
  *     per _open()/_close().
  * 
  * TODO:
- *
  */
 
 #include <linux/init.h>
@@ -669,14 +656,8 @@ snd_harmony_pcm_init(struct snd_harmony *h)
 	}
 
 	/* pre-allocate space for DMA */
-	err = snd_pcm_lib_preallocate_pages_for_all(pcm, h->dma.type,
-						    h->dma.dev,
-						    MAX_BUF_SIZE, 
-						    MAX_BUF_SIZE);
-	if (err < 0) {
-		printk(KERN_ERR PFX "buffer allocation error: %d\n", err);
-		return err;
-	}
+	snd_pcm_lib_preallocate_pages_for_all(pcm, h->dma.type, h->dma.dev,
+					      MAX_BUF_SIZE, MAX_BUF_SIZE);
 
 	h->st.format = snd_harmony_set_data_format(h,
 		SNDRV_PCM_FORMAT_S16_BE, 1);

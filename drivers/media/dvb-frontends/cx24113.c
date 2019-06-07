@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Conexant CX24113/CX24128 Tuner (Satellite)
  *
  *  Copyright (C) 2007-8 Patrick Boettcher <pb@linuxtv.org>
  *
  *  Developed for BBTI / Technisat
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include <linux/slab.h>
@@ -533,10 +523,10 @@ static void cx24113_release(struct dvb_frontend *fe)
 
 static const struct dvb_tuner_ops cx24113_tuner_ops = {
 	.info = {
-		.name           = "Conexant CX24113",
-		.frequency_min  = 950000,
-		.frequency_max  = 2150000,
-		.frequency_step = 125,
+		.name              = "Conexant CX24113",
+		.frequency_min_hz  =  950 * MHz,
+		.frequency_max_hz  = 2150 * MHz,
+		.frequency_step_hz =  125 * kHz,
 	},
 
 	.release       = cx24113_release,

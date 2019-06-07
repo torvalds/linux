@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Loopback soundcard
  *
@@ -12,21 +13,6 @@
  *
  *  A next major update in 2010 (separate timers for playback and capture):
  *  Copyright (c) Jaroslav Kysela <perex@perex.cz>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -337,7 +323,7 @@ static int loopback_prepare(struct snd_pcm_substream *substream)
 
 	loopback_timer_stop_sync(dpcm);
 
-	salign = (snd_pcm_format_width(runtime->format) *
+	salign = (snd_pcm_format_physical_width(runtime->format) *
 						runtime->channels) / 8;
 	bps = salign * runtime->rate;
 	if (bps <= 0 || salign <= 0)
@@ -562,6 +548,8 @@ static const struct snd_pcm_hardware loopback_pcm_hardware =
 			 SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_PAUSE |
 			 SNDRV_PCM_INFO_RESUME),
 	.formats =	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |
+			 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_BE |
+			 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_3BE |
 			 SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE |
 			 SNDRV_PCM_FMTBIT_FLOAT_LE | SNDRV_PCM_FMTBIT_FLOAT_BE),
 	.rates =	SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_192000,
@@ -768,7 +756,7 @@ static int loopback_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static const struct snd_pcm_ops loopback_playback_ops = {
+static const struct snd_pcm_ops loopback_pcm_ops = {
 	.open =		loopback_open,
 	.close =	loopback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -778,20 +766,6 @@ static const struct snd_pcm_ops loopback_playback_ops = {
 	.trigger =	loopback_trigger,
 	.pointer =	loopback_pointer,
 	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
-};
-
-static const struct snd_pcm_ops loopback_capture_ops = {
-	.open =		loopback_open,
-	.close =	loopback_close,
-	.ioctl =	snd_pcm_lib_ioctl,
-	.hw_params =	loopback_hw_params,
-	.hw_free =	loopback_hw_free,
-	.prepare =	loopback_prepare,
-	.trigger =	loopback_trigger,
-	.pointer =	loopback_pointer,
-	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 static int loopback_pcm_new(struct loopback *loopback,
@@ -804,8 +778,8 @@ static int loopback_pcm_new(struct loopback *loopback,
 			  substreams, substreams, &pcm);
 	if (err < 0)
 		return err;
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &loopback_playback_ops);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &loopback_capture_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &loopback_pcm_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &loopback_pcm_ops);
 
 	pcm->private_data = loopback;
 	pcm->info_flags = 0;
@@ -1147,16 +1121,10 @@ static void print_cable_info(struct snd_info_entry *entry,
 static int loopback_proc_new(struct loopback *loopback, int cidx)
 {
 	char name[32];
-	struct snd_info_entry *entry;
-	int err;
 
 	snprintf(name, sizeof(name), "cable#%d", cidx);
-	err = snd_card_proc_new(loopback->card, name, &entry);
-	if (err < 0)
-		return err;
-
-	snd_info_set_text_ops(entry, loopback, print_cable_info);
-	return 0;
+	return snd_card_ro_proc_new(loopback->card, name, loopback,
+				    print_cable_info);
 }
 
 static int loopback_probe(struct platform_device *devptr)
@@ -1214,12 +1182,8 @@ static int loopback_remove(struct platform_device *devptr)
 static int loopback_suspend(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
-	struct loopback *loopback = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-
-	snd_pcm_suspend_all(loopback->pcm[0]);
-	snd_pcm_suspend_all(loopback->pcm[1]);
 	return 0;
 }
 	

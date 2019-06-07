@@ -66,23 +66,39 @@ kernel 3.10. Current versions require the following update
 
 The iterator interface
 
-Modules implementing a virtual file with seq_file must implement a simple
-iterator object that allows stepping through the data of interest.
-Iterators must be able to move to a specific position - like the file they
-implement - but the interpretation of that position is up to the iterator
-itself. A seq_file implementation that is formatting firewall rules, for
-example, could interpret position N as the Nth rule in the chain.
-Positioning can thus be done in whatever way makes the most sense for the
-generator of the data, which need not be aware of how a position translates
-to an offset in the virtual file. The one obvious exception is that a
-position of zero should indicate the beginning of the file.
+Modules implementing a virtual file with seq_file must implement an
+iterator object that allows stepping through the data of interest
+during a "session" (roughly one read() system call).  If the iterator
+is able to move to a specific position - like the file they implement,
+though with freedom to map the position number to a sequence location
+in whatever way is convenient - the iterator need only exist
+transiently during a session.  If the iterator cannot easily find a
+numerical position but works well with a first/next interface, the
+iterator can be stored in the private data area and continue from one
+session to the next.
+
+A seq_file implementation that is formatting firewall rules from a
+table, for example, could provide a simple iterator that interprets
+position N as the Nth rule in the chain.  A seq_file implementation
+that presents the content of a, potentially volatile, linked list
+might record a pointer into that list, providing that can be done
+without risk of the current location being removed.
+
+Positioning can thus be done in whatever way makes the most sense for
+the generator of the data, which need not be aware of how a position
+translates to an offset in the virtual file. The one obvious exception
+is that a position of zero should indicate the beginning of the file.
 
 The /proc/sequence iterator just uses the count of the next number it
 will output as its position.
 
-Four functions must be implemented to make the iterator work. The first,
-called start() takes a position as an argument and returns an iterator
-which will start reading at that position. For our simple sequence example,
+Four functions must be implemented to make the iterator work. The
+first, called start(), starts a session and takes a position as an
+argument, returning an iterator which will start reading at that
+position.  The pos passed to start() will always be either zero, or
+the most recent pos used in the previous session.
+
+For our simple sequence example,
 the start() function looks like:
 
 	static void *ct_seq_start(struct seq_file *s, loff_t *pos)
@@ -101,11 +117,12 @@ implementations; in most cases the start() function should check for a
 "past end of file" condition and return NULL if need be.
 
 For more complicated applications, the private field of the seq_file
-structure can be used. There is also a special value which can be returned
-by the start() function called SEQ_START_TOKEN; it can be used if you wish
-to instruct your show() function (described below) to print a header at the
-top of the output. SEQ_START_TOKEN should only be used if the offset is
-zero, however.
+structure can be used to hold state from session to session.  There is
+also a special value which can be returned by the start() function
+called SEQ_START_TOKEN; it can be used if you wish to instruct your
+show() function (described below) to print a header at the top of the
+output. SEQ_START_TOKEN should only be used if the offset is zero,
+however.
 
 The next function to implement is called, amazingly, next(); its job is to
 move the iterator forward to the next position in the sequence.  The
@@ -121,9 +138,13 @@ complete. Here's the example version:
 	        return spos;
 	}
 
-The stop() function is called when iteration is complete; its job, of
-course, is to clean up. If dynamic memory is allocated for the iterator,
-stop() is the place to free it.
+The stop() function closes a session; its job, of course, is to clean
+up. If dynamic memory is allocated for the iterator, stop() is the
+place to free it; if a lock was taken by start(), stop() must release
+that lock.  The value that *pos was set to by the last next() call
+before stop() is remembered, and used for the first start() call of
+the next session unless lseek() has been called on the file; in that
+case next start() will be asked to start at position zero.
 
 	static void ct_seq_stop(struct seq_file *s, void *v)
 	{

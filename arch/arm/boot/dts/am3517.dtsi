@@ -39,6 +39,8 @@
 			ti,davinci-ctrl-ram-size = <0x2000>;
 			ti,davinci-rmii-en = /bits/ 8 <1>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
+			clocks = <&emac_ick>;
+			clock-names = "ick";
 		};
 
 		davinci_mdio: ethernet@5c030000 {
@@ -49,6 +51,8 @@
 			bus_freq = <1000000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			clocks = <&emac_fck>;
+			clock-names = "fck";
 		};
 
 		uart4: serial@4809e000 {
@@ -85,6 +89,11 @@
 			clocks = <&hecc_ck>;
 		};
 	};
+};
+
+/* Table Table 5-79 of the TRM shows 480ab000 is reserved */
+&usb_otg_hs {
+	status = "disabled";
 };
 
 &iva {

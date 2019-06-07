@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CE4100's SPI device is more or less the same one as found on PXA
  *
@@ -5,7 +6,6 @@
  */
 #include <linux/clk-provider.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/spi/pxa2xx_spi.h>
@@ -34,6 +34,8 @@ struct pxa_spi_info {
 	bool (*dma_filter)(struct dma_chan *chan, void *param);
 	void *tx_param;
 	void *rx_param;
+
+	int dma_burst_size;
 
 	int (*setup)(struct pci_dev *pdev, struct pxa_spi_info *c);
 };
@@ -133,6 +135,7 @@ static int mrfld_spi_setup(struct pci_dev *dev, struct pxa_spi_info *c)
 	rx->dma_dev = &dma_dev->dev;
 
 	c->dma_filter = lpss_dma_filter;
+	c->dma_burst_size = 8;
 	return 0;
 }
 
@@ -197,7 +200,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	struct platform_device_info pi;
 	int ret;
 	struct platform_device *pdev;
-	struct pxa2xx_spi_master spi_pdata;
+	struct pxa2xx_spi_controller spi_pdata;
 	struct ssp_device *ssp;
 	struct pxa_spi_info *c;
 	char buf[40];
@@ -223,6 +226,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	spi_pdata.tx_param = c->tx_param;
 	spi_pdata.rx_param = c->rx_param;
 	spi_pdata.enable_dma = c->rx_param && c->tx_param;
+	spi_pdata.dma_burst_size = c->dma_burst_size ? c->dma_burst_size : 1;
 
 	ssp = &spi_pdata.ssp;
 	ssp->phys_base = pci_resource_start(dev, 0);
@@ -265,7 +269,7 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 static void pxa2xx_spi_pci_remove(struct pci_dev *dev)
 {
 	struct platform_device *pdev = pci_get_drvdata(dev);
-	struct pxa2xx_spi_master *spi_pdata;
+	struct pxa2xx_spi_controller *spi_pdata;
 
 	spi_pdata = dev_get_platdata(&pdev->dev);
 

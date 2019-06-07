@@ -43,7 +43,6 @@ char *aa_calc_hash(void *data, size_t len)
 		goto fail;
 
 	desc->tfm = apparmor_tfm;
-	desc->flags = 0;
 
 	error = crypto_shash_init(desc);
 	if (error)
@@ -81,7 +80,6 @@ int aa_calc_profile_hash(struct aa_profile *profile, u32 version, void *start,
 		goto fail;
 
 	desc->tfm = apparmor_tfm;
-	desc->flags = 0;
 
 	error = crypto_shash_init(desc);
 	if (error)
@@ -112,7 +110,7 @@ static int __init init_profile_hash(void)
 	if (!apparmor_initialized)
 		return 0;
 
-	tfm = crypto_alloc_shash("sha1", 0, CRYPTO_ALG_ASYNC);
+	tfm = crypto_alloc_shash("sha1", 0, 0);
 	if (IS_ERR(tfm)) {
 		int error = PTR_ERR(tfm);
 		AA_ERROR("failed to setup profile sha1 hashing: %d\n", error);

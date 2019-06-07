@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  drivers/media/radio/si470x/radio-si470x-usb.c
  *
  *  USB driver for radios with Silicon Labs Si470x FM Radio Receivers
  *
  *  Copyright (c) 2009 Tobias Lorenz <tobias.lorenz@gmx.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 
@@ -250,7 +241,7 @@ static int si470x_set_report(struct si470x_device *radio, void *buf, int size)
 /*
  * si470x_get_register - read register
  */
-int si470x_get_register(struct si470x_device *radio, int regnr)
+static int si470x_get_register(struct si470x_device *radio, int regnr)
 {
 	int retval;
 
@@ -268,7 +259,7 @@ int si470x_get_register(struct si470x_device *radio, int regnr)
 /*
  * si470x_set_register - write register
  */
-int si470x_set_register(struct si470x_device *radio, int regnr)
+static int si470x_set_register(struct si470x_device *radio, int regnr)
 {
 	int retval;
 
@@ -482,12 +473,12 @@ resubmit:
 }
 
 
-int si470x_fops_open(struct file *file)
+static int si470x_fops_open(struct file *file)
 {
 	return v4l2_fh_open(file);
 }
 
-int si470x_fops_release(struct file *file)
+static int si470x_fops_release(struct file *file)
 {
 	return v4l2_fh_release(file);
 }
@@ -514,13 +505,13 @@ static void si470x_usb_release(struct v4l2_device *v4l2_dev)
 /*
  * si470x_vidioc_querycap - query device capabilities
  */
-int si470x_vidioc_querycap(struct file *file, void *priv,
-		struct v4l2_capability *capability)
+static int si470x_vidioc_querycap(struct file *file, void *priv,
+				  struct v4l2_capability *capability)
 {
 	struct si470x_device *radio = video_drvdata(file);
 
-	strlcpy(capability->driver, DRIVER_NAME, sizeof(capability->driver));
-	strlcpy(capability->card, DRIVER_CARD, sizeof(capability->card));
+	strscpy(capability->driver, DRIVER_NAME, sizeof(capability->driver));
+	strscpy(capability->card, DRIVER_CARD, sizeof(capability->card));
 	usb_make_path(radio->usbdev, capability->bus_info,
 			sizeof(capability->bus_info));
 	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_READWRITE |
@@ -597,6 +588,12 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	radio->band = 1; /* Default to 76 - 108 MHz */
 	mutex_init(&radio->lock);
 	init_completion(&radio->completion);
+
+	radio->get_register = si470x_get_register;
+	radio->set_register = si470x_set_register;
+	radio->fops_open = si470x_fops_open;
+	radio->fops_release = si470x_fops_release;
+	radio->vidioc_querycap = si470x_vidioc_querycap;
 
 	iface_desc = intf->cur_altsetting;
 

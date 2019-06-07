@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
  *		interface as the means of communication with the user level.
  *
  *		Definitions for the "ping" module.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _PING_H
 #define _PING_H
@@ -83,20 +79,9 @@ int  ping_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
 bool ping_rcv(struct sk_buff *skb);
 
 #ifdef CONFIG_PROC_FS
-struct ping_seq_afinfo {
-	char				*name;
-	sa_family_t			family;
-	const struct file_operations	*seq_fops;
-	const struct seq_operations	seq_ops;
-};
-
-extern const struct file_operations ping_seq_fops;
-
 void *ping_seq_start(struct seq_file *seq, loff_t *pos, sa_family_t family);
 void *ping_seq_next(struct seq_file *seq, void *v, loff_t *pos);
 void ping_seq_stop(struct seq_file *seq, void *v);
-int ping_proc_register(struct net *net, struct ping_seq_afinfo *afinfo);
-void ping_proc_unregister(struct net *net, struct ping_seq_afinfo *afinfo);
 
 int __init ping_proc_init(void);
 void ping_proc_exit(void);

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Register descriptions for NI DAQ-STC chip
  *
@@ -15,6 +15,7 @@
 #define _COMEDI_NI_STC_H
 
 #include "ni_tio.h"
+#include "ni_routes.h"
 
 /*
  * Registers in the National Instruments DAQ-STC chip
@@ -253,6 +254,8 @@
 #define NISTC_RTSI_TRIG_OLD_CLK_CHAN	7
 #define NISTC_RTSI_TRIG_NUM_CHAN(_m)	((_m) ? 8 : 7)
 #define NISTC_RTSI_TRIG_DIR(_c, _m)	((_m) ? BIT(8 + (_c)) : BIT(7 + (_c)))
+#define NISTC_RTSI_TRIG_DIR_SUB_SEL1	BIT(2)	/* only for M-Series */
+#define NISTC_RTSI_TRIG_DIR_SUB_SEL1_SHIFT	2	/* only for M-Series */
 #define NISTC_RTSI_TRIG_USE_CLK		BIT(1)
 #define NISTC_RTSI_TRIG_DRV_CLK		BIT(0)
 
@@ -281,11 +284,15 @@
 #define NISTC_ATRIG_ETC_REG		61
 #define NISTC_ATRIG_ETC_GPFO_1_ENA	BIT(15)
 #define NISTC_ATRIG_ETC_GPFO_0_ENA	BIT(14)
-#define NISTC_ATRIG_ETC_GPFO_0_SEL(x)	(((x) & 0x3) << 11)
+#define NISTC_ATRIG_ETC_GPFO_0_SEL(x)	(((x) & 0x7) << 11)
+#define NISTC_ATRIG_ETC_GPFO_0_SEL_TO_SRC(x)	(((x) >> 11) & 0x7)
 #define NISTC_ATRIG_ETC_GPFO_1_SEL	BIT(7)
+#define NISTC_ATRIG_ETC_GPFO_1_SEL_TO_SRC(x)	(((x) >> 7) & 0x1)
 #define NISTC_ATRIG_ETC_DRV		BIT(4)
 #define NISTC_ATRIG_ETC_ENA		BIT(3)
 #define NISTC_ATRIG_ETC_MODE(x)		(((x) & 0x7) << 0)
+#define NISTC_GPFO_0_G_OUT		0 /* input to GPFO_0_SEL for Ctr0Out */
+#define NISTC_GPFO_1_G_OUT		0 /* input to GPFO_1_SEL for Ctr1Out */
 
 #define NISTC_AI_START_STOP_REG		62
 #define NISTC_AI_START_POLARITY		BIT(15)
@@ -422,6 +429,7 @@
 #define NISTC_RTSI_TRIGA_OUT_REG	79
 #define NISTC_RTSI_TRIGB_OUT_REG	80
 #define NISTC_RTSI_TRIGB_SUB_SEL1	BIT(15)	/* not for M-Series */
+#define NISTC_RTSI_TRIGB_SUB_SEL1_SHIFT	15	/* not for M-Series */
 #define NISTC_RTSI_TRIG(_c, _s)		(((_s) & 0xf) << (((_c) % 4) * 4))
 #define NISTC_RTSI_TRIG_MASK(_c)	NISTC_RTSI_TRIG((_c), 0xf)
 #define NISTC_RTSI_TRIG_TO_SRC(_c, _b)	(((_b) >> (((_c) % 4) * 4)) & 0xf)
@@ -953,6 +961,7 @@ struct ni_board_struct {
 	int reg_type;
 	unsigned int has_8255:1;
 	unsigned int has_32dio_chan:1;
+	unsigned int dio_speed; /* not for e-series */
 
 	enum caldac_enum caldac[3];
 };
@@ -962,6 +971,7 @@ struct ni_board_struct {
 #define NUM_GPCT			2
 
 #define NUM_PFI_OUTPUT_SELECT_REGS	6
+#define NUM_RTSI_SHARED_MUXS		(NI_RTSI_BRD(-1) - NI_RTSI_BRD(0) + 1)
 
 #define M_SERIES_EEPROM_SIZE		1024
 
@@ -1057,6 +1067,73 @@ struct ni_private {
 	 * possible.
 	 */
 	unsigned int ao_needs_arming:1;
+
+	/* device signal route tables */
+	struct ni_route_tables routing_tables;
+
+	/*
+	 * Number of clients (RTSI lines) for current RTSI MUX source.
+	 *
+	 * This allows resource management of RTSI board/shared mux lines by
+	 * marking the RTSI line that is using a particular MUX.  Currently,
+	 * these lines are only automatically allocated based on source of the
+	 * route requested.  Furthermore, the only way that this auto-allocation
+	 * and configuration works is via the globally-named ni signal/terminal
+	 * names.
+	 */
+	u8 rtsi_shared_mux_usage[NUM_RTSI_SHARED_MUXS];
+
+	/*
+	 * softcopy register for rtsi shared mux/board lines.
+	 * For e-series, the bit layout of this register is
+	 * (docs: mhddk/nieseries/ChipObjects/tSTC.{h,ipp},
+	 *        DAQ-STC, Jan 1999, 340934B-01):
+	 *   bits 0:2  --  NI_RTSI_BRD(0) source selection
+	 *   bits 3:5  --  NI_RTSI_BRD(1) source selection
+	 *   bits 6:8  --  NI_RTSI_BRD(2) source selection
+	 *   bits 9:11 --  NI_RTSI_BRD(3) source selection
+	 *   bit  12   --  NI_RTSI_BRD(0) direction, 0:input, 1:output
+	 *   bit  13   --  NI_RTSI_BRD(1) direction, 0:input, 1:output
+	 *   bit  14   --  NI_RTSI_BRD(2) direction, 0:input, 1:output
+	 *   bit  15   --  NI_RTSI_BRD(3) direction, 0:input, 1:output
+	 *   According to DAQ-STC:
+	 *     RTSI Board Interface--Configured as an input, each bidirectional
+	 *     RTSI_BRD pin can drive any of the seven RTSI_TRIGGER pins.
+	 *     RTSI_BRD<0..1> can also be driven by AI STOP and RTSI_BRD<2..3>
+	 *     can also be driven by the AI START and SCAN_IN_PROG signals.
+	 *     These pins provide a mechanism for additional board-level signals
+	 *     to be sent on or received from the RTSI bus.
+	 *   Couple of comments:
+	 *   - Neither the DAQ-STC nor the MHDDK is clear on what the direction
+	 *     of the RTSI_BRD pins actually means.  There does not appear to be
+	 *     any clear indication on what "output" would mean, since the point
+	 *     of the RTSI_BRD lines is to always drive one of the
+	 *     RTSI_TRIGGER<0..6> lines.
+	 *   - The DAQ-STC also indicates that the NI_RTSI_BRD lines can be
+	 *     driven by any of the RTSI_TRIGGER<0..6> lines.
+	 *     But, looking at valid device routes, as visually imported from
+	 *     NI-MAX, there appears to be only one family (so far) that has the
+	 *     ability to route a signal from one TRIGGER_LINE to another
+	 *     TRIGGER_LINE: the 653x family of DIO devices.
+	 *
+	 * For m-series, the bit layout of this register is
+	 * (docs: mhddk/nimseries/ChipObjects/tMSeries.{h,ipp}):
+	 *   bits  0:3  --  NI_RTSI_BRD(0) source selection
+	 *   bits  4:7  --  NI_RTSI_BRD(1) source selection
+	 *   bits  8:11 --  NI_RTSI_BRD(2) source selection
+	 *   bits 12:15 --  NI_RTSI_BRD(3) source selection
+	 *   Note:  The m-series does not have any option to change direction of
+	 *   NI_RTSI_BRD muxes.  Furthermore, there are no register values that
+	 *   indicate the ability to have TRIGGER_LINES driving the output of
+	 *   the NI_RTSI_BRD muxes.
+	 */
+	u16 rtsi_shared_mux_reg;
+
+	/*
+	 * Number of clients (RTSI lines) for current RGOUT0 path.
+	 * Stored in part of in RTSI_TRIG_DIR or RTSI_TRIGB registers
+	 */
+	u8 rgout0_usage;
 };
 
 static const struct comedi_lrange range_ni_E_ao_ext;

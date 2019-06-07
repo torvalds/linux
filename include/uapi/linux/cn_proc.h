@@ -116,12 +116,16 @@ struct proc_event {
 		struct coredump_proc_event {
 			__kernel_pid_t process_pid;
 			__kernel_pid_t process_tgid;
+			__kernel_pid_t parent_pid;
+			__kernel_pid_t parent_tgid;
 		} coredump;
 
 		struct exit_proc_event {
 			__kernel_pid_t process_pid;
 			__kernel_pid_t process_tgid;
 			__u32 exit_code, exit_signal;
+			__kernel_pid_t parent_pid;
+			__kernel_pid_t parent_tgid;
 		} exit;
 
 	} event_data;

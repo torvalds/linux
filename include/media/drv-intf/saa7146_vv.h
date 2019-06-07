@@ -151,7 +151,7 @@ struct saa7146_vv
 
 struct saa7146_ext_vv
 {
-	/* informations about the video capabilities of the device */
+	/* information about the video capabilities of the device */
 	int	inputs;
 	int	audios;
 	u32	capabilities;
@@ -241,7 +241,7 @@ void saa7146_res_free(struct saa7146_fh *fh, unsigned int bits);
 #define SAA7146_CLIPPING_MASK		0x6
 #define SAA7146_CLIPPING_MASK_INVERTED	0x7
 
-/* output formats: each entry holds four informations */
+/* output formats: each entry holds four information */
 #define RGB08_COMPOSED	0x0217 /* composed is used in the sense of "not-planar" */
 /* this means: planar?=0, yuv2rgb-conversation-mode=2, dither=yes(=1), format-mode = 7 */
 #define RGB15_COMPOSED	0x0213

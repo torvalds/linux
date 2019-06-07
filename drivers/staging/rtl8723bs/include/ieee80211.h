@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __IEEE80211_H
@@ -210,7 +202,7 @@ enum NETWORK_TYPE
 #define IsSupportedVHT(NetType) (((NetType) & (WIRELESS_11AC)) ? true : false)
 
 
-typedef struct ieee_param {
+struct ieee_param {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
 	union {
@@ -248,13 +240,13 @@ typedef struct ieee_param {
 			u8 buf[0];
 		} bcn_ie;
 	} u;
-}ieee_param;
+};
 
-typedef struct ieee_param_ex {
+struct ieee_param_ex {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
 	u8 data[0];
-}ieee_param_ex;
+};
 
 struct sta_data{
 	u16 aid;
@@ -858,18 +850,18 @@ enum ieee80211_state {
 #define IP_FMT "%pI4"
 #define IP_ARG(x) (x)
 
-extern __inline int is_multicast_mac_addr(const u8 *addr)
+static inline int is_multicast_mac_addr(const u8 *addr)
 {
         return ((addr[0] != 0xff) && (0x01 & addr[0]));
 }
 
-extern __inline int is_broadcast_mac_addr(const u8 *addr)
+static inline int is_broadcast_mac_addr(const u8 *addr)
 {
 	return ((addr[0] == 0xff) && (addr[1] == 0xff) && (addr[2] == 0xff) &&   \
 		(addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff));
 }
 
-extern __inline int is_zero_mac_addr(const u8 *addr)
+static inline int is_zero_mac_addr(const u8 *addr)
 {
 	return ((addr[0] == 0x00) && (addr[1] == 0x00) && (addr[2] == 0x00) &&   \
 		(addr[3] == 0x00) && (addr[4] == 0x00) && (addr[5] == 0x00));
@@ -877,13 +869,6 @@ extern __inline int is_zero_mac_addr(const u8 *addr)
 
 #define CFG_IEEE80211_RESERVE_FCS (1<<0)
 #define CFG_IEEE80211_COMPUTE_FCS (1<<1)
-
-typedef struct tx_pending_t{
-	int frag;
-	struct ieee80211_txb *txb;
-}tx_pending_t;
-
-
 
 #define MAXTID	16
 
@@ -1177,9 +1162,9 @@ int rtw_generate_ie(struct registry_priv *pregistrypriv);
 
 int rtw_get_bit_value_from_ieee_value(u8 val);
 
-uint	rtw_is_cckrates_included(u8 *rate);
+bool rtw_is_cckrates_included(u8 *rate);
 
-uint	rtw_is_cckratesonly_included(u8 *rate);
+bool rtw_is_cckratesonly_included(u8 *rate);
 
 int rtw_check_network_type(unsigned char *rate, int ratelen, int channel);
 

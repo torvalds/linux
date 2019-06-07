@@ -13,7 +13,7 @@
  * XXX these should be marked initdata for multi-OMAP kernels
  */
 
-#include <linux/i2c-omap.h>
+#include <linux/platform_data/i2c-omap.h>
 #include <linux/platform_data/hsmmc-omap.h>
 #include <linux/omap-dma.h>
 
@@ -68,7 +68,6 @@ static struct omap_hwmod_class_sysconfig i2c_sysc = {
 static struct omap_hwmod_class i2c_class = {
 	.name		= "i2c",
 	.sysc		= &i2c_sysc,
-	.rev		= OMAP_I2C_IP_VERSION_1,
 	.reset		= &omap_i2c_reset,
 };
 

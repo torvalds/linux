@@ -19,6 +19,10 @@ extern void mac_init_IRQ(void);
 extern void mac_irq_enable(struct irq_data *data);
 extern void mac_irq_disable(struct irq_data *data);
 
+extern unsigned char mac_pram_read_byte(int);
+extern void mac_pram_write_byte(unsigned char, int);
+extern ssize_t mac_pram_get_size(void);
+
 /*
  *	Macintosh Table
  */
@@ -57,7 +61,6 @@ struct mac_model
 #define MAC_SCSI_IIFX		5
 #define MAC_SCSI_DUO		6
 #define MAC_SCSI_LC		7
-#define MAC_SCSI_LATE		8
 
 #define MAC_IDE_NONE		0
 #define MAC_IDE_QUADRA		1

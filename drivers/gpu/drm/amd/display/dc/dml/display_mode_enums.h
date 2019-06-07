@@ -40,8 +40,8 @@ enum source_format_class {
 	dm_422_8 = 5,
 	dm_422_10 = 6,
 	dm_444_8 = 7,
-	dm_mono_8,
-	dm_mono_16
+	dm_mono_8 = dm_444_8,
+	dm_mono_16 = dm_444_16
 };
 enum output_bpc_class {
 	dm_out_6 = 0, dm_out_8 = 1, dm_out_10 = 2, dm_out_12 = 3, dm_out_16 = 4
@@ -106,6 +106,45 @@ enum clock_change_support {
 
 enum output_standard {
 	dm_std_uninitialized = 0, dm_std_cvtr2, dm_std_cvt
+};
+
+enum mpc_combine_affinity {
+	dm_mpc_always_when_possible,
+	dm_mpc_reduce_voltage,
+	dm_mpc_reduce_voltage_and_clocks
+};
+
+enum self_refresh_affinity {
+	dm_try_to_allow_self_refresh_and_mclk_switch,
+	dm_allow_self_refresh_and_mclk_switch,
+	dm_allow_self_refresh,
+	dm_neither_self_refresh_nor_mclk_switch
+};
+
+enum dm_validation_status {
+	DML_VALIDATION_OK,
+	DML_FAIL_SCALE_RATIO_TAP,
+	DML_FAIL_SOURCE_PIXEL_FORMAT,
+	DML_FAIL_VIEWPORT_SIZE,
+	DML_FAIL_TOTAL_V_ACTIVE_BW,
+	DML_FAIL_DIO_SUPPORT,
+	DML_FAIL_NOT_ENOUGH_DSC,
+	DML_FAIL_DSC_CLK_REQUIRED,
+	DML_FAIL_URGENT_LATENCY,
+	DML_FAIL_REORDERING_BUFFER,
+	DML_FAIL_DISPCLK_DPPCLK,
+	DML_FAIL_TOTAL_AVAILABLE_PIPES,
+	DML_FAIL_NUM_OTG,
+	DML_FAIL_WRITEBACK_MODE,
+	DML_FAIL_WRITEBACK_LATENCY,
+	DML_FAIL_WRITEBACK_SCALE_RATIO_TAP,
+	DML_FAIL_CURSOR_SUPPORT,
+	DML_FAIL_PITCH_SUPPORT,
+	DML_FAIL_PTE_BUFFER_SIZE,
+	DML_FAIL_HOST_VM_IMMEDIATE_FLIP,
+	DML_FAIL_DSC_INPUT_BPC,
+	DML_FAIL_PREFETCH_SUPPORT,
+	DML_FAIL_V_RATIO_PREFETCH,
 };
 
 #endif

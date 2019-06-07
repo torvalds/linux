@@ -41,4 +41,7 @@ struct kstatfs {
 #define ST_NODIRATIME	0x0800	/* do not update directory access times */
 #define ST_RELATIME	0x1000	/* update atime relative to mtime/ctime */
 
+struct dentry;
+extern int vfs_get_fsid(struct dentry *dentry, __kernel_fsid_t *fsid);
+
 #endif

@@ -8,9 +8,11 @@
 #include <subdev/bus.h>
 #include <subdev/clk.h>
 #include <subdev/devinit.h>
+#include <subdev/fault.h>
 #include <subdev/fb.h>
 #include <subdev/fuse.h>
 #include <subdev/gpio.h>
+#include <subdev/gsp.h>
 #include <subdev/i2c.h>
 #include <subdev/ibus.h>
 #include <subdev/iccsense.h>

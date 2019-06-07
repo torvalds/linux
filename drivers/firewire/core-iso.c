@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Isochronous I/O functionality:
  *   - Isochronous DMA context management
  *   - Isochronous bus resource management (channels, bandwidth), client side
  *
  * Copyright (C) 2006 Kristian Hoegsberg <krh@bitplanet.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/dma-mapping.h>
@@ -45,8 +32,8 @@ int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
 
 	buffer->page_count = 0;
 	buffer->page_count_mapped = 0;
-	buffer->pages = kmalloc(page_count * sizeof(buffer->pages[0]),
-				GFP_KERNEL);
+	buffer->pages = kmalloc_array(page_count, sizeof(buffer->pages[0]),
+				      GFP_KERNEL);
 	if (buffer->pages == NULL)
 		return -ENOMEM;
 
@@ -107,19 +94,8 @@ EXPORT_SYMBOL(fw_iso_buffer_init);
 int fw_iso_buffer_map_vma(struct fw_iso_buffer *buffer,
 			  struct vm_area_struct *vma)
 {
-	unsigned long uaddr;
-	int i, err;
-
-	uaddr = vma->vm_start;
-	for (i = 0; i < buffer->page_count; i++) {
-		err = vm_insert_page(vma, uaddr, buffer->pages[i]);
-		if (err)
-			return err;
-
-		uaddr += PAGE_SIZE;
-	}
-
-	return 0;
+	return vm_map_pages_zero(vma, buffer->pages,
+					buffer->page_count);
 }
 
 void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
@@ -337,9 +313,16 @@ static void deallocate_channel(struct fw_card *card, int irm_id,
 
 /**
  * fw_iso_resource_manage() - Allocate or deallocate a channel and/or bandwidth
+ * @card: card interface for this action
+ * @generation: bus generation
+ * @channels_mask: bitmask for channel allocation
+ * @channel: pointer for returning channel allocation result
+ * @bandwidth: pointer for returning bandwidth allocation result
+ * @allocate: whether to allocate (true) or deallocate (false)
  *
  * In parameters: card, generation, channels_mask, bandwidth, allocate
  * Out parameters: channel, bandwidth
+ *
  * This function blocks (sleeps) during communication with the IRM.
  *
  * Allocates or deallocates at most one channel out of channels_mask.

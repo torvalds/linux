@@ -1,17 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) 2007 Alan Stern
  * Copyright (C) 2009 IBM Corporation
@@ -169,28 +157,29 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 		set_dr_addr_mask(0, i);
 }
 
-/*
- * Check for virtual address in kernel space.
- */
-int arch_check_bp_in_kernelspace(struct perf_event *bp)
+static int arch_bp_generic_len(int x86_len)
 {
-	unsigned int len;
-	unsigned long va;
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-
-	va = info->address;
-	len = bp->attr.bp_len;
-
-	/*
-	 * We don't need to worry about va + len - 1 overflowing:
-	 * we already require that va is aligned to a multiple of len.
-	 */
-	return (va >= TASK_SIZE_MAX) || ((va + len - 1) >= TASK_SIZE_MAX);
+	switch (x86_len) {
+	case X86_BREAKPOINT_LEN_1:
+		return HW_BREAKPOINT_LEN_1;
+	case X86_BREAKPOINT_LEN_2:
+		return HW_BREAKPOINT_LEN_2;
+	case X86_BREAKPOINT_LEN_4:
+		return HW_BREAKPOINT_LEN_4;
+#ifdef CONFIG_X86_64
+	case X86_BREAKPOINT_LEN_8:
+		return HW_BREAKPOINT_LEN_8;
+#endif
+	default:
+		return -EINVAL;
+	}
 }
 
 int arch_bp_generic_fields(int x86_len, int x86_type,
 			   int *gen_len, int *gen_type)
 {
+	int len;
+
 	/* Type */
 	switch (x86_type) {
 	case X86_BREAKPOINT_EXECUTE:
@@ -211,42 +200,47 @@ int arch_bp_generic_fields(int x86_len, int x86_type,
 	}
 
 	/* Len */
-	switch (x86_len) {
-	case X86_BREAKPOINT_LEN_1:
-		*gen_len = HW_BREAKPOINT_LEN_1;
-		break;
-	case X86_BREAKPOINT_LEN_2:
-		*gen_len = HW_BREAKPOINT_LEN_2;
-		break;
-	case X86_BREAKPOINT_LEN_4:
-		*gen_len = HW_BREAKPOINT_LEN_4;
-		break;
-#ifdef CONFIG_X86_64
-	case X86_BREAKPOINT_LEN_8:
-		*gen_len = HW_BREAKPOINT_LEN_8;
-		break;
-#endif
-	default:
+	len = arch_bp_generic_len(x86_len);
+	if (len < 0)
 		return -EINVAL;
-	}
+	*gen_len = len;
 
 	return 0;
 }
 
-
-static int arch_build_bp_info(struct perf_event *bp)
+/*
+ * Check for virtual address in kernel space.
+ */
+int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw)
 {
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
+	unsigned long va;
+	int len;
 
-	info->address = bp->attr.bp_addr;
+	va = hw->address;
+	len = arch_bp_generic_len(hw->len);
+	WARN_ON_ONCE(len < 0);
+
+	/*
+	 * We don't need to worry about va + len - 1 overflowing:
+	 * we already require that va is aligned to a multiple of len.
+	 */
+	return (va >= TASK_SIZE_MAX) || ((va + len - 1) >= TASK_SIZE_MAX);
+}
+
+static int arch_build_bp_info(struct perf_event *bp,
+			      const struct perf_event_attr *attr,
+			      struct arch_hw_breakpoint *hw)
+{
+	hw->address = attr->bp_addr;
+	hw->mask = 0;
 
 	/* Type */
-	switch (bp->attr.bp_type) {
+	switch (attr->bp_type) {
 	case HW_BREAKPOINT_W:
-		info->type = X86_BREAKPOINT_WRITE;
+		hw->type = X86_BREAKPOINT_WRITE;
 		break;
 	case HW_BREAKPOINT_W | HW_BREAKPOINT_R:
-		info->type = X86_BREAKPOINT_RW;
+		hw->type = X86_BREAKPOINT_RW;
 		break;
 	case HW_BREAKPOINT_X:
 		/*
@@ -254,52 +248,47 @@ static int arch_build_bp_info(struct perf_event *bp)
 		 * acceptable for kprobes.  On non-kprobes kernels, we don't
 		 * allow kernel breakpoints at all.
 		 */
-		if (bp->attr.bp_addr >= TASK_SIZE_MAX) {
-#ifdef CONFIG_KPROBES
-			if (within_kprobe_blacklist(bp->attr.bp_addr))
+		if (attr->bp_addr >= TASK_SIZE_MAX) {
+			if (within_kprobe_blacklist(attr->bp_addr))
 				return -EINVAL;
-#else
-			return -EINVAL;
-#endif
 		}
 
-		info->type = X86_BREAKPOINT_EXECUTE;
+		hw->type = X86_BREAKPOINT_EXECUTE;
 		/*
 		 * x86 inst breakpoints need to have a specific undefined len.
 		 * But we still need to check userspace is not trying to setup
 		 * an unsupported length, to get a range breakpoint for example.
 		 */
-		if (bp->attr.bp_len == sizeof(long)) {
-			info->len = X86_BREAKPOINT_LEN_X;
+		if (attr->bp_len == sizeof(long)) {
+			hw->len = X86_BREAKPOINT_LEN_X;
 			return 0;
 		}
+		/* fall through */
 	default:
 		return -EINVAL;
 	}
 
 	/* Len */
-	info->mask = 0;
-
-	switch (bp->attr.bp_len) {
+	switch (attr->bp_len) {
 	case HW_BREAKPOINT_LEN_1:
-		info->len = X86_BREAKPOINT_LEN_1;
+		hw->len = X86_BREAKPOINT_LEN_1;
 		break;
 	case HW_BREAKPOINT_LEN_2:
-		info->len = X86_BREAKPOINT_LEN_2;
+		hw->len = X86_BREAKPOINT_LEN_2;
 		break;
 	case HW_BREAKPOINT_LEN_4:
-		info->len = X86_BREAKPOINT_LEN_4;
+		hw->len = X86_BREAKPOINT_LEN_4;
 		break;
 #ifdef CONFIG_X86_64
 	case HW_BREAKPOINT_LEN_8:
-		info->len = X86_BREAKPOINT_LEN_8;
+		hw->len = X86_BREAKPOINT_LEN_8;
 		break;
 #endif
 	default:
 		/* AMD range breakpoint */
-		if (!is_power_of_2(bp->attr.bp_len))
+		if (!is_power_of_2(attr->bp_len))
 			return -EINVAL;
-		if (bp->attr.bp_addr & (bp->attr.bp_len - 1))
+		if (attr->bp_addr & (attr->bp_len - 1))
 			return -EINVAL;
 
 		if (!boot_cpu_has(X86_FEATURE_BPEXT))
@@ -312,8 +301,8 @@ static int arch_build_bp_info(struct perf_event *bp)
 		 * breakpoints, then we'll have to check for kprobe-blacklisted
 		 * addresses anywhere in the range.
 		 */
-		info->mask = bp->attr.bp_len - 1;
-		info->len = X86_BREAKPOINT_LEN_1;
+		hw->mask = attr->bp_len - 1;
+		hw->len = X86_BREAKPOINT_LEN_1;
 	}
 
 	return 0;
@@ -322,22 +311,23 @@ static int arch_build_bp_info(struct perf_event *bp)
 /*
  * Validate the arch-specific HW Breakpoint register settings
  */
-int arch_validate_hwbkpt_settings(struct perf_event *bp)
+int hw_breakpoint_arch_parse(struct perf_event *bp,
+			     const struct perf_event_attr *attr,
+			     struct arch_hw_breakpoint *hw)
 {
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 	unsigned int align;
 	int ret;
 
 
-	ret = arch_build_bp_info(bp);
+	ret = arch_build_bp_info(bp, attr, hw);
 	if (ret)
 		return ret;
 
-	switch (info->len) {
+	switch (hw->len) {
 	case X86_BREAKPOINT_LEN_1:
 		align = 0;
-		if (info->mask)
-			align = info->mask;
+		if (hw->mask)
+			align = hw->mask;
 		break;
 	case X86_BREAKPOINT_LEN_2:
 		align = 1;
@@ -352,13 +342,14 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 #endif
 	default:
 		WARN_ON_ONCE(1);
+		return -EINVAL;
 	}
 
 	/*
 	 * Check that the low-order bits of the address are appropriate
 	 * for the alignment implied by len.
 	 */
-	if (info->address & align)
+	if (hw->address & align)
 		return -EINVAL;
 
 	return 0;

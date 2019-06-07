@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_BERLIN
 	bool "Marvell Berlin SoCs"
 	depends on ARCH_MULTI_V7
@@ -23,8 +24,12 @@ config MACH_BERLIN_BG2
 
 config MACH_BERLIN_BG2CD
 	bool "Marvell Armada 1500-mini (BG2CD)"
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select ARM_GLOBAL_TIMER
 	select CACHE_L2X0
-	select HAVE_ARM_TWD if SMP
+	select HAVE_ARM_SCU
+	select HAVE_ARM_TWD
 	select PINCTRL_BERLIN_BG2CD
 
 config MACH_BERLIN_BG2Q

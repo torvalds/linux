@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for RME Hammerfall DSP MADI audio interface(s)
  *
@@ -22,21 +23,6 @@
  *      Modified 2011-01-14 added S/PDIF input on RayDATs by Adrian Knoth
  *
  *	Modified 2011-01-25 variable period sizes on RayDAT/AIO by Adrian Knoth
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 /* *************    Register Documentation   *******************************************************
@@ -5287,44 +5273,35 @@ static void snd_hdspm_proc_ports_out(struct snd_info_entry *entry,
 
 static void snd_hdspm_proc_init(struct hdspm *hdspm)
 {
-	struct snd_info_entry *entry;
+	void (*read)(struct snd_info_entry *, struct snd_info_buffer *) = NULL;
 
-	if (!snd_card_proc_new(hdspm->card, "hdspm", &entry)) {
-		switch (hdspm->io_type) {
-		case AES32:
-			snd_info_set_text_ops(entry, hdspm,
-					snd_hdspm_proc_read_aes32);
-			break;
-		case MADI:
-			snd_info_set_text_ops(entry, hdspm,
-					snd_hdspm_proc_read_madi);
-			break;
-		case MADIface:
-			/* snd_info_set_text_ops(entry, hdspm,
-			 snd_hdspm_proc_read_madiface); */
-			break;
-		case RayDAT:
-			snd_info_set_text_ops(entry, hdspm,
-					snd_hdspm_proc_read_raydat);
-			break;
-		case AIO:
-			break;
-		}
+	switch (hdspm->io_type) {
+	case AES32:
+		read = snd_hdspm_proc_read_aes32;
+		break;
+	case MADI:
+		read = snd_hdspm_proc_read_madi;
+		break;
+	case MADIface:
+		/* read = snd_hdspm_proc_read_madiface; */
+		break;
+	case RayDAT:
+		read = snd_hdspm_proc_read_raydat;
+		break;
+	case AIO:
+		break;
 	}
 
-	if (!snd_card_proc_new(hdspm->card, "ports.in", &entry)) {
-		snd_info_set_text_ops(entry, hdspm, snd_hdspm_proc_ports_in);
-	}
-
-	if (!snd_card_proc_new(hdspm->card, "ports.out", &entry)) {
-		snd_info_set_text_ops(entry, hdspm, snd_hdspm_proc_ports_out);
-	}
+	snd_card_ro_proc_new(hdspm->card, "hdspm", hdspm, read);
+	snd_card_ro_proc_new(hdspm->card, "ports.in", hdspm,
+			     snd_hdspm_proc_ports_in);
+	snd_card_ro_proc_new(hdspm->card, "ports.out", hdspm,
+			     snd_hdspm_proc_ports_out);
 
 #ifdef CONFIG_SND_DEBUG
 	/* debug file to read all hdspm registers */
-	if (!snd_card_proc_new(hdspm->card, "debug", &entry))
-		snd_info_set_text_ops(entry, hdspm,
-				snd_hdspm_proc_read_debug);
+	snd_card_ro_proc_new(hdspm->card, "debug", hdspm,
+			     snd_hdspm_proc_read_debug);
 #endif
 }
 
@@ -6411,7 +6388,6 @@ static int snd_hdspm_create_hwdep(struct snd_card *card,
  ------------------------------------------------------------*/
 static int snd_hdspm_preallocate_memory(struct hdspm *hdspm)
 {
-	int err;
 	struct snd_pcm *pcm;
 	size_t wanted;
 
@@ -6419,21 +6395,10 @@ static int snd_hdspm_preallocate_memory(struct hdspm *hdspm)
 
 	wanted = HDSPM_DMA_AREA_BYTES;
 
-	err =
-	     snd_pcm_lib_preallocate_pages_for_all(pcm,
-						   SNDRV_DMA_TYPE_DEV_SG,
-						   snd_dma_pci_data(hdspm->pci),
-						   wanted,
-						   wanted);
-	if (err < 0) {
-		dev_dbg(hdspm->card->dev,
-			"Could not preallocate %zd Bytes\n", wanted);
-
-		return err;
-	} else
-		dev_dbg(hdspm->card->dev,
-			" Preallocated %zd Bytes\n", wanted);
-
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+					      snd_dma_pci_data(hdspm->pci),
+					      wanted, wanted);
+	dev_dbg(hdspm->card->dev, " Preallocated %zd Bytes\n", wanted);
 	return 0;
 }
 
@@ -6534,7 +6499,7 @@ static int snd_hdspm_create_alsa_devices(struct snd_card *card,
 	dev_dbg(card->dev, "Update mixer controls...\n");
 	hdspm_update_simple_mixer_controls(hdspm);
 
-	dev_dbg(card->dev, "Initializeing complete ???\n");
+	dev_dbg(card->dev, "Initializing complete?\n");
 
 	err = snd_card_register(card);
 	if (err < 0) {

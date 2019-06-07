@@ -20,12 +20,13 @@
 #include <linux/of_graph.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
 
 #include "kirin_drm_drv.h"
 
@@ -33,32 +34,15 @@ static struct kirin_dc_ops *dc_ops;
 
 static int kirin_drm_kms_cleanup(struct drm_device *dev)
 {
-	struct kirin_drm_private *priv = dev->dev_private;
-
-	if (priv->fbdev) {
-		drm_fbdev_cma_fini(priv->fbdev);
-		priv->fbdev = NULL;
-	}
-
 	drm_kms_helper_poll_fini(dev);
 	dc_ops->cleanup(to_platform_device(dev->dev));
 	drm_mode_config_cleanup(dev);
-	devm_kfree(dev->dev, priv);
-	dev->dev_private = NULL;
 
 	return 0;
 }
 
-static void kirin_fbdev_output_poll_changed(struct drm_device *dev)
-{
-	struct kirin_drm_private *priv = dev->dev_private;
-
-	drm_fbdev_cma_hotplug_event(priv->fbdev);
-}
-
 static const struct drm_mode_config_funcs kirin_drm_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = kirin_fbdev_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -76,14 +60,8 @@ static void kirin_drm_mode_config_init(struct drm_device *dev)
 
 static int kirin_drm_kms_init(struct drm_device *dev)
 {
-	struct kirin_drm_private *priv;
 	int ret;
 
-	priv = devm_kzalloc(dev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	dev->dev_private = priv;
 	dev_set_drvdata(dev->dev, dev);
 
 	/* dev->mode_config initialization */
@@ -117,26 +95,14 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(dev);
 
-	priv->fbdev = drm_fbdev_cma_init(dev, 32,
-					 dev->mode_config.num_connector);
-
-	if (IS_ERR(priv->fbdev)) {
-		DRM_ERROR("failed to initialize fbdev.\n");
-		ret = PTR_ERR(priv->fbdev);
-		goto err_cleanup_poll;
-	}
 	return 0;
 
-err_cleanup_poll:
-	drm_kms_helper_poll_fini(dev);
 err_unbind_all:
 	component_unbind_all(dev->dev, dev);
 err_dc_cleanup:
 	dc_ops->cleanup(to_platform_device(dev->dev));
 err_mode_config_cleanup:
 	drm_mode_config_cleanup(dev);
-	devm_kfree(dev->dev, priv);
-	dev->dev_private = NULL;
 
 	return ret;
 }
@@ -193,18 +159,20 @@ static int kirin_drm_bind(struct device *dev)
 
 	ret = kirin_drm_kms_init(drm_dev);
 	if (ret)
-		goto err_drm_dev_unref;
+		goto err_drm_dev_put;
 
 	ret = drm_dev_register(drm_dev, 0);
 	if (ret)
 		goto err_kms_cleanup;
 
+	drm_fbdev_generic_setup(drm_dev, 32);
+
 	return 0;
 
 err_kms_cleanup:
 	kirin_drm_kms_cleanup(drm_dev);
-err_drm_dev_unref:
-	drm_dev_unref(drm_dev);
+err_drm_dev_put:
+	drm_dev_put(drm_dev);
 
 	return ret;
 }
@@ -215,7 +183,7 @@ static void kirin_drm_unbind(struct device *dev)
 
 	drm_dev_unregister(drm_dev);
 	kirin_drm_kms_cleanup(drm_dev);
-	drm_dev_unref(drm_dev);
+	drm_dev_put(drm_dev);
 }
 
 static const struct component_master_ops kirin_drm_ops = {

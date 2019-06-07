@@ -199,8 +199,10 @@ struct wl1271 {
 	struct wl1271_if_operations *if_ops;
 
 	int irq;
+	int wakeirq;
 
 	int irq_flags;
+	int wakeirq_flags;
 
 	spinlock_t wl_lock;
 
@@ -318,9 +320,9 @@ struct wl1271 {
 	bool watchdog_recovery;
 
 	/* Reg domain last configuration */
-	u32 reg_ch_conf_last[2]  __aligned(8);
+	DECLARE_BITMAP(reg_ch_conf_last, 64);
 	/* Reg domain pending configuration */
-	u32 reg_ch_conf_pending[2];
+	DECLARE_BITMAP(reg_ch_conf_pending, 64);
 
 	/* Pointer that holds DMA-friendly block for the mailbox */
 	void *mbox;
@@ -348,7 +350,6 @@ struct wl1271 {
 	enum nl80211_band band;
 
 	struct completion *elp_compl;
-	struct delayed_work elp_work;
 
 	/* in dBm */
 	int power_level;

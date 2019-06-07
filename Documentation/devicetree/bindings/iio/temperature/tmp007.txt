@@ -20,8 +20,6 @@ Required properties:
 
 Optional properties:
 
-  - interrupt-parent: should be the phandle for the interrupt controller
-
   - interrupts: interrupt mapping for GPIO IRQ (level active low)
 
 Example:

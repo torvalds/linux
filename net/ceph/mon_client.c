@@ -62,7 +62,7 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 
 	if (num_mon > CEPH_MAX_MON)
 		goto bad;
-	m = kmalloc(sizeof(*m) + sizeof(m->mon_inst[0])*num_mon, GFP_NOFS);
+	m = kmalloc(struct_size(m, mon_inst, num_mon), GFP_NOFS);
 	if (m == NULL)
 		return ERR_PTR(-ENOMEM);
 	m->fsid = fsid;
@@ -76,7 +76,7 @@ struct ceph_monmap *ceph_monmap_decode(void *p, void *end)
 	     m->num_mon);
 	for (i = 0; i < m->num_mon; i++)
 		dout("monmap_decode  mon%d is %s\n", i,
-		     ceph_pr_addr(&m->mon_inst[i].addr.in_addr));
+		     ceph_pr_addr(&m->mon_inst[i].addr));
 	return m;
 
 bad:
@@ -203,7 +203,7 @@ static void reopen_session(struct ceph_mon_client *monc)
 {
 	if (!monc->hunting)
 		pr_info("mon%d %s session lost, hunting for new mon\n",
-		    monc->cur_mon, ceph_pr_addr(&monc->con.peer_addr.in_addr));
+		    monc->cur_mon, ceph_pr_addr(&monc->con.peer_addr));
 
 	__close_session(monc);
 	__open_session(monc);
@@ -922,6 +922,15 @@ int ceph_monc_blacklist_add(struct ceph_mon_client *monc,
 	mutex_unlock(&monc->mutex);
 
 	ret = wait_generic_request(req);
+	if (!ret)
+		/*
+		 * Make sure we have the osdmap that includes the blacklist
+		 * entry.  This is needed to ensure that the OSDs pick up the
+		 * new blacklist before processing any future requests from
+		 * this client.
+		 */
+		ret = ceph_wait_for_latest_osdmap(monc->client, 0);
+
 out:
 	put_generic_request(req);
 	return ret;
@@ -1000,8 +1009,7 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 	int i;
 
 	/* build initial monmap */
-	monc->monmap = kzalloc(sizeof(*monc->monmap) +
-			       num_mon*sizeof(monc->monmap->mon_inst[0]),
+	monc->monmap = kzalloc(struct_size(monc->monmap, mon_inst, num_mon),
 			       GFP_KERNEL);
 	if (!monc->monmap)
 		return -ENOMEM;
@@ -1170,7 +1178,7 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 		__resend_generic_request(monc);
 
 		pr_info("mon%d %s session established\n", monc->cur_mon,
-			ceph_pr_addr(&monc->con.peer_addr.in_addr));
+			ceph_pr_addr(&monc->con.peer_addr));
 	}
 
 out:
@@ -1250,7 +1258,7 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 		if (monc->client->extra_mon_dispatch &&
 		    monc->client->extra_mon_dispatch(monc->client, msg) == 0)
 			break;
-			
+
 		pr_err("received unknown message type %d %s\n", type,
 		       ceph_msg_type_name(type));
 	}

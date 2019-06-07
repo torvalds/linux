@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson AB 2010
  * Author:	Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/hardirq.h>
@@ -257,10 +257,7 @@ static int handle_tx(struct ser_device *ser)
 		if (skb->len == 0) {
 			struct sk_buff *tmp = skb_dequeue(&ser->head);
 			WARN_ON(tmp != skb);
-			if (in_interrupt())
-				dev_kfree_skb_irq(skb);
-			else
-				kfree_skb(skb);
+			dev_consume_skb_any(skb);
 		}
 	}
 	/* Send flow off if queue is empty */

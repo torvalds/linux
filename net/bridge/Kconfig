@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # 802.1d Ethernet Bridging
 #
@@ -17,7 +18,7 @@ config BRIDGE
 	  other third party bridge products.
 
 	  In order to use the Ethernet bridge, you'll need the bridge
-	  configuration tools; see <file:Documentation/networking/bridge.txt>
+	  configuration tools; see <file:Documentation/networking/bridge.rst>
 	  for location. Please read the Bridge mini-HOWTO for more
 	  information.
 

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*  Kernel module help for powerpc.
     Copyright (C) 2001, 2003 Rusty Russell IBM Corporation.
     Copyright (C) 2008 Freescale Semiconductor, Inc.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 #include <linux/elf.h>
 #include <linux/moduleloader.h>
@@ -72,7 +60,23 @@ int module_finalize(const Elf_Ehdr *hdr,
 		do_feature_fixups(powerpc_firmware_features,
 				  (void *)sect->sh_addr,
 				  (void *)sect->sh_addr + sect->sh_size);
-#endif
+#endif /* CONFIG_PPC64 */
+
+#ifdef PPC64_ELF_ABI_v1
+	sect = find_section(hdr, sechdrs, ".opd");
+	if (sect != NULL) {
+		me->arch.start_opd = sect->sh_addr;
+		me->arch.end_opd = sect->sh_addr + sect->sh_size;
+	}
+#endif /* PPC64_ELF_ABI_v1 */
+
+#ifdef CONFIG_PPC_BARRIER_NOSPEC
+	sect = find_section(hdr, sechdrs, "__spec_barrier_fixup");
+	if (sect != NULL)
+		do_barrier_nospec_fixups_range(barrier_nospec_enabled,
+				  (void *)sect->sh_addr,
+				  (void *)sect->sh_addr + sect->sh_size);
+#endif /* CONFIG_PPC_BARRIER_NOSPEC */
 
 	sect = find_section(hdr, sechdrs, "__lwsync_fixup");
 	if (sect != NULL)

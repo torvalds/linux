@@ -44,7 +44,8 @@
         "matchPattern": "action order [0-9]*: mirred \\(Egress Redirect to device lo\\).*index 2 ref",
         "matchCount": "1",
         "teardown": [
-            "$TC actions flush action mirred"
+            "$TC actions flush action mirred",
+            "$TC actions flush action gact"
         ]
     },
     {
@@ -340,7 +341,7 @@
     },
     {
         "id": "8b69",
-        "name": "Add mirred mirror action with maximum index",
+        "name": "Add mirred mirror action with index at 32-bit maximum",
         "category": [
             "actions",
             "mirred"
@@ -361,6 +362,28 @@
         "teardown": [
             "$TC actions flush action mirred"
         ]
+    },
+    {
+        "id": "3f66",
+        "name": "Add mirred mirror action with index exceeding 32-bit maximum",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress mirror dev lo pipe index 429496729555",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action mirred index 429496729555",
+        "matchPattern": "action order [0-9]*: mirred \\(Ingress Mirror to device lo\\) pipe.*index 429496729555",
+        "matchCount": "0",
+        "teardown": []
     },
     {
         "id": "a70e",
@@ -408,6 +431,31 @@
         "verifyCmd": "$TC actions list action mirred",
         "matchPattern": "action order [0-9]*: mirred \\(Egress Redirect to device lo\\).*index 5 ref",
         "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "2a9a",
+        "name": "Replace mirred action with invalid goto chain control",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action mirred ingress mirror dev lo drop index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action mirred ingress mirror dev lo goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action mirred index 90",
+        "matchPattern": "action order [0-9]*: mirred \\(Ingress Mirror to device lo\\) drop.*index 90 ref",
+        "matchCount": "1",
         "teardown": [
             "$TC actions flush action mirred"
         ]

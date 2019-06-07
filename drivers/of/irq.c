@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/of_pci.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 
@@ -501,7 +500,7 @@ void __init of_irq_init(const struct of_device_id *matches)
 		 * pointer, interrupt-parent device_node etc.
 		 */
 		desc = kzalloc(sizeof(*desc), GFP_KERNEL);
-		if (WARN_ON(!desc)) {
+		if (!desc) {
 			of_node_put(np);
 			goto err;
 		}
@@ -588,8 +587,8 @@ static u32 __of_msi_map_rid(struct device *dev, struct device_node **np,
 	 * "msi-map" property.
 	 */
 	for (parent_dev = dev; parent_dev; parent_dev = parent_dev->parent)
-		if (!of_pci_map_rid(parent_dev->of_node, rid_in, "msi-map",
-				    "msi-map-mask", np, &rid_out))
+		if (!of_map_rid(parent_dev->of_node, rid_in, "msi-map",
+				"msi-map-mask", np, &rid_out))
 			break;
 	return rid_out;
 }

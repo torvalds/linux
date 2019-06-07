@@ -30,19 +30,18 @@
 #include "dal_asic_id.h"
 #include "dm_pp_smu.h"
 
-/* TODO unhardcode, 4 for CZ*/
-#define MEMORY_TYPE_MULTIPLIER 4
-
 enum dce_version resource_parse_asic_id(
 		struct hw_asic_id asic_id);
 
 struct resource_caps {
 	int num_timing_generator;
+	int num_opp;
 	int num_video_plane;
 	int num_audio;
 	int num_stream_encoder;
 	int num_pll;
 	int num_dwb;
+	int num_ddc;
 };
 
 struct resource_straps {
@@ -71,11 +70,9 @@ bool resource_construct(
 	struct resource_pool *pool,
 	const struct resource_create_funcs *create_funcs);
 
-struct resource_pool *dc_create_resource_pool(
-				struct dc *dc,
-				int num_virtual_links,
-				enum dce_version dc_version,
-				struct hw_asic_id asic_id);
+struct resource_pool *dc_create_resource_pool(struct dc  *dc,
+					      const struct dc_init_data *init_data,
+					      enum dce_version dc_version);
 
 void dc_destroy_resource_pool(struct dc *dc);
 
@@ -98,6 +95,11 @@ void resource_unreference_clock_source(
 		struct clock_source *clock_source);
 
 void resource_reference_clock_source(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		struct clock_source *clock_source);
+
+int resource_get_clock_source_reference(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
 		struct clock_source *clock_source);
@@ -127,7 +129,8 @@ bool resource_attach_surfaces_to_context(
 
 struct pipe_ctx *find_idle_secondary_pipe(
 		struct resource_context *res_ctx,
-		const struct resource_pool *pool);
+		const struct resource_pool *pool,
+		const struct pipe_ctx *primary_pipe);
 
 bool resource_is_stream_unchanged(
 	struct dc_state *old_context, struct dc_stream_state *stream);
@@ -138,10 +141,6 @@ bool resource_validate_attach_surfaces(
 		const struct dc_state *old_context,
 		struct dc_state *context,
 		const struct resource_pool *pool);
-
-void validate_guaranteed_copy_streams(
-		struct dc_state *context,
-		int max_streams);
 
 void resource_validate_ctx_update_pointer_after_copy(
 		const struct dc_state *src_ctx,
@@ -169,4 +168,10 @@ void update_audio_usage(
 		const struct resource_pool *pool,
 		struct audio *audio,
 		bool acquired);
+
+unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format);
+
+struct pipe_ctx *dc_res_get_odm_bottom_pipe(struct pipe_ctx *pipe_ctx);
+bool dc_res_is_odm_head_pipe(struct pipe_ctx *pipe_ctx);
+
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

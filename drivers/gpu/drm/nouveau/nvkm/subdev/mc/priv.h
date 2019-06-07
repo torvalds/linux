@@ -26,6 +26,7 @@ struct nvkm_mc_func {
 	void (*intr_mask)(struct nvkm_mc *, u32 mask, u32 stat);
 	/* retrieve pending interrupt mask (NV_PMC_INTR) */
 	u32 (*intr_stat)(struct nvkm_mc *);
+	void (*intr_hack)(struct nvkm_mc *, bool *handled);
 	const struct nvkm_mc_map *reset;
 	void (*unk260)(struct nvkm_mc *, u32);
 };
@@ -57,4 +58,6 @@ int gp100_mc_new_(const struct nvkm_mc_func *, struct nvkm_device *, int,
 
 extern const struct nvkm_mc_map gk104_mc_intr[];
 extern const struct nvkm_mc_map gk104_mc_reset[];
+
+extern const struct nvkm_mc_map gp100_mc_intr[];
 #endif

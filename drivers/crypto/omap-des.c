@@ -656,13 +656,10 @@ static int omap_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(cipher);
 	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
 
-	if (keylen != DES_KEY_SIZE && keylen != (3*DES_KEY_SIZE))
-		return -EINVAL;
-
 	pr_debug("enter, keylen: %d\n", keylen);
 
 	/* Do we need to test against weak key? */
-	if (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY) {
+	if (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) {
 		u32 tmp[DES_EXPKEY_WORDS];
 		int ret = des_ekey(tmp, key);
 
@@ -670,6 +667,28 @@ static int omap_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
 			return -EINVAL;
 		}
+	}
+
+	memcpy(ctx->key, key, keylen);
+	ctx->keylen = keylen;
+
+	return 0;
+}
+
+static int omap_des3_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
+			   unsigned int keylen)
+{
+	struct omap_des_ctx *ctx = crypto_ablkcipher_ctx(cipher);
+	u32 flags;
+	int err;
+
+	pr_debug("enter, keylen: %d\n", keylen);
+
+	flags = crypto_ablkcipher_get_flags(cipher);
+	err = __des3_verify_key(&flags, key);
+	if (unlikely(err)) {
+		crypto_ablkcipher_set_flags(cipher, flags);
+		return err;
 	}
 
 	memcpy(ctx->key, key, keylen);
@@ -788,7 +807,7 @@ static struct crypto_alg algs_ecb_cbc[] = {
 	.cra_u.ablkcipher = {
 		.min_keysize	= 3*DES_KEY_SIZE,
 		.max_keysize	= 3*DES_KEY_SIZE,
-		.setkey		= omap_des_setkey,
+		.setkey		= omap_des3_setkey,
 		.encrypt	= omap_des_ecb_encrypt,
 		.decrypt	= omap_des_ecb_decrypt,
 	}
@@ -811,7 +830,7 @@ static struct crypto_alg algs_ecb_cbc[] = {
 		.min_keysize	= 3*DES_KEY_SIZE,
 		.max_keysize	= 3*DES_KEY_SIZE,
 		.ivsize		= DES_BLOCK_SIZE,
-		.setkey		= omap_des_setkey,
+		.setkey		= omap_des3_setkey,
 		.encrypt	= omap_des_cbc_encrypt,
 		.decrypt	= omap_des_cbc_decrypt,
 	}
@@ -1069,7 +1088,6 @@ static int omap_des_probe(struct platform_device *pdev)
 			algp = &dd->pdata->algs_info[i].algs_list[j];
 
 			pr_debug("reg alg: %s\n", algp->cra_name);
-			INIT_LIST_HEAD(&algp->cra_list);
 
 			err = crypto_register_alg(algp);
 			if (err)

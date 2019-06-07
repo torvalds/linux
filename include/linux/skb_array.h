@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	Definitions for the 'struct skb_array' datastructure.
  *
@@ -5,11 +6,6 @@
  *		Michael S. Tsirkin <mst@redhat.com>
  *
  *	Copyright (C) 2016 Red Hat, Inc.
- *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the
- *	Free Software Foundation; either version 2 of the License, or (at your
- *	option) any later version.
  *
  *	Limited-size FIFO of skbs. Can be used more or less whenever
  *	sk_buff_head can be used, except you need to know the queue size in
@@ -95,6 +91,11 @@ static inline bool skb_array_empty_irq(struct skb_array *a)
 static inline bool skb_array_empty_any(struct skb_array *a)
 {
 	return ptr_ring_empty_any(&a->ring);
+}
+
+static inline struct sk_buff *__skb_array_consume(struct skb_array *a)
+{
+	return __ptr_ring_consume(&a->ring);
 }
 
 static inline struct sk_buff *skb_array_consume(struct skb_array *a)

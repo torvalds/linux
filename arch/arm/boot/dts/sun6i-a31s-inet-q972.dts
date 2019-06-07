@@ -54,8 +54,6 @@
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 
 	ft5406ee8: touchscreen@38 {
@@ -73,21 +71,21 @@
 	vref-supply = <&reg_aldo3>;
 	status = "okay";
 
-	button@200 {
+	button-200 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <200000>;
 	};
 
-	button@900 {
+	button-900 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <900000>;
 	};
 
-	button@1200 {
+	button-1200 {
 		label = "Back";
 		linux,code = <KEY_BACK>;
 		channel = <0>;

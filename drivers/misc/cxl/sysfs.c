@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2014 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -353,12 +349,20 @@ static ssize_t prefault_mode_store(struct device *device,
 	struct cxl_afu *afu = to_cxl_afu(device);
 	enum prefault_modes mode = -1;
 
-	if (!strncmp(buf, "work_element_descriptor", 23))
-		mode = CXL_PREFAULT_WED;
-	if (!strncmp(buf, "all", 3))
-		mode = CXL_PREFAULT_ALL;
 	if (!strncmp(buf, "none", 4))
 		mode = CXL_PREFAULT_NONE;
+	else {
+		if (!radix_enabled()) {
+
+			/* only allowed when not in radix mode */
+			if (!strncmp(buf, "work_element_descriptor", 23))
+				mode = CXL_PREFAULT_WED;
+			if (!strncmp(buf, "all", 3))
+				mode = CXL_PREFAULT_ALL;
+		} else {
+			dev_err(device, "Cannot prefault with radix enabled\n");
+		}
+	}
 
 	if (mode == -1)
 		return -EINVAL;

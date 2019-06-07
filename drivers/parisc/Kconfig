@@ -1,7 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Bus options (PCI, PCMCIA, EISA, GSC, ISA)"
 
 config GSC
 	bool "VSC/GSC/HSC bus support"
+	select HAVE_EISA
 	default y
 	help
 	  The VSC, GSC and HSC busses were used from the earliest 700-series
@@ -46,33 +48,12 @@ config GSC_WAX
 	  used), a HIL interface chip and is also known to be used as the
 	  GSC bridge for an X.25 GSC card.
 
-config EISA
-	bool "EISA support"
-	depends on GSC
-	help
-	  Say Y here if you have an EISA bus in your machine.  This code
-	  supports both the Mongoose & Wax EISA adapters.  It is sadly
-	  incomplete and lacks support for card-to-host DMA.
-
-source "drivers/eisa/Kconfig"
-
 config ISA
 	bool "ISA support"
 	depends on EISA
 	help
 	  If you want to plug an ISA card into your EISA bus, say Y here.
 	  Most people should say N.
-
-config PCI
-	bool "PCI support"
-	help
-	  All recent HP machines have PCI slots, and you should say Y here
-	  if you have a recent machine.  If you are convinced you do not have
-	  PCI slots in your machine (eg a 712), then you may say "N" here.
-	  Beware that some GSC cards have a Dino onboard and PCI inside them,
-	  so it may be safest to say "Y" anyway.
-
-source "drivers/pci/Kconfig"
 
 config GSC_DINO
 	bool "GSCtoPCI/Dino PCI support"
@@ -102,13 +83,6 @@ config IOMMU_SBA
 	bool
 	depends on PCI_LBA
 	default PCI_LBA
-
-config IOMMU_HELPER
-	bool
-	depends on IOMMU_SBA || IOMMU_CCIO
-	default y
-
-source "drivers/pcmcia/Kconfig"
 
 endmenu
 

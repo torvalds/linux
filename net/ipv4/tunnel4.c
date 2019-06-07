@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* tunnel4.c: Generic IP tunnel transformer.
  *
  * Copyright (C) 2003 David S. Miller (davem@redhat.com)
@@ -149,34 +150,40 @@ drop:
 }
 #endif
 
-static void tunnel4_err(struct sk_buff *skb, u32 info)
+static int tunnel4_err(struct sk_buff *skb, u32 info)
 {
 	struct xfrm_tunnel *handler;
 
 	for_each_tunnel_rcu(tunnel4_handlers, handler)
 		if (!handler->err_handler(skb, info))
-			break;
+			return 0;
+
+	return -ENOENT;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
-static void tunnel64_err(struct sk_buff *skb, u32 info)
+static int tunnel64_err(struct sk_buff *skb, u32 info)
 {
 	struct xfrm_tunnel *handler;
 
 	for_each_tunnel_rcu(tunnel64_handlers, handler)
 		if (!handler->err_handler(skb, info))
-			break;
+			return 0;
+
+	return -ENOENT;
 }
 #endif
 
 #if IS_ENABLED(CONFIG_MPLS)
-static void tunnelmpls4_err(struct sk_buff *skb, u32 info)
+static int tunnelmpls4_err(struct sk_buff *skb, u32 info)
 {
 	struct xfrm_tunnel *handler;
 
 	for_each_tunnel_rcu(tunnelmpls4_handlers, handler)
 		if (!handler->err_handler(skb, info))
-			break;
+			return 0;
+
+	return -ENOENT;
 }
 #endif
 

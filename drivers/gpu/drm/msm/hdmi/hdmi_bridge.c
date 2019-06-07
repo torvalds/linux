@@ -40,7 +40,7 @@ static void msm_hdmi_power_on(struct drm_bridge *bridge)
 	for (i = 0; i < config->pwr_reg_cnt; i++) {
 		ret = regulator_enable(hdmi->pwr_regs[i]);
 		if (ret) {
-			dev_err(dev->dev, "failed to enable pwr regulator: %s (%d)\n",
+			DRM_DEV_ERROR(dev->dev, "failed to enable pwr regulator: %s (%d)\n",
 					config->pwr_reg_names[i], ret);
 		}
 	}
@@ -49,7 +49,7 @@ static void msm_hdmi_power_on(struct drm_bridge *bridge)
 		DBG("pixclock: %lu", hdmi->pixclock);
 		ret = clk_set_rate(hdmi->pwr_clks[0], hdmi->pixclock);
 		if (ret) {
-			dev_err(dev->dev, "failed to set pixel clk: %s (%d)\n",
+			DRM_DEV_ERROR(dev->dev, "failed to set pixel clk: %s (%d)\n",
 					config->pwr_clk_names[0], ret);
 		}
 	}
@@ -57,7 +57,7 @@ static void msm_hdmi_power_on(struct drm_bridge *bridge)
 	for (i = 0; i < config->pwr_clk_cnt; i++) {
 		ret = clk_prepare_enable(hdmi->pwr_clks[i]);
 		if (ret) {
-			dev_err(dev->dev, "failed to enable pwr clk: %s (%d)\n",
+			DRM_DEV_ERROR(dev->dev, "failed to enable pwr clk: %s (%d)\n",
 					config->pwr_clk_names[i], ret);
 		}
 	}
@@ -82,7 +82,7 @@ static void power_off(struct drm_bridge *bridge)
 	for (i = 0; i < config->pwr_reg_cnt; i++) {
 		ret = regulator_disable(hdmi->pwr_regs[i]);
 		if (ret) {
-			dev_err(dev->dev, "failed to disable pwr regulator: %s (%d)\n",
+			DRM_DEV_ERROR(dev->dev, "failed to disable pwr regulator: %s (%d)\n",
 					config->pwr_reg_names[i], ret);
 		}
 	}
@@ -101,11 +101,12 @@ static void msm_hdmi_config_avi_infoframe(struct hdmi *hdmi)
 	u32 val;
 	int len;
 
-	drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
+	drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						 hdmi->connector, mode);
 
 	len = hdmi_infoframe_pack(&frame, buffer, sizeof(buffer));
 	if (len < 0) {
-		dev_err(&hdmi->pdev->dev,
+		DRM_DEV_ERROR(&hdmi->pdev->dev,
 			"failed to configure avi infoframe\n");
 		return;
 	}
@@ -207,8 +208,8 @@ static void msm_hdmi_bridge_post_disable(struct drm_bridge *bridge)
 }
 
 static void msm_hdmi_bridge_mode_set(struct drm_bridge *bridge,
-		 struct drm_display_mode *mode,
-		 struct drm_display_mode *adjusted_mode)
+		 const struct drm_display_mode *mode,
+		 const struct drm_display_mode *adjusted_mode)
 {
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
 	struct hdmi *hdmi = hdmi_bridge->hdmi;

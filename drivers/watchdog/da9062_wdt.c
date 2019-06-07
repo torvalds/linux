@@ -30,13 +30,7 @@ static const unsigned int wdt_timeout[] = { 0, 2, 4, 8, 16, 32, 65, 131 };
 struct da9062_watchdog {
 	struct da9062 *hw;
 	struct watchdog_device wdtdev;
-	unsigned long j_time_stamp;
 };
-
-static void da9062_set_window_start(struct da9062_watchdog *wdt)
-{
-	wdt->j_time_stamp = jiffies;
-}
 
 static unsigned int da9062_wdt_timeout_to_sel(unsigned int secs)
 {
@@ -52,16 +46,9 @@ static unsigned int da9062_wdt_timeout_to_sel(unsigned int secs)
 
 static int da9062_reset_watchdog_timer(struct da9062_watchdog *wdt)
 {
-	int ret;
-
-	ret = regmap_update_bits(wdt->hw->regmap,
-			   DA9062AA_CONTROL_F,
-			   DA9062AA_WATCHDOG_MASK,
-			   DA9062AA_WATCHDOG_MASK);
-
-	da9062_set_window_start(wdt);
-
-	return ret;
+	return regmap_update_bits(wdt->hw->regmap, DA9062AA_CONTROL_F,
+				  DA9062AA_WATCHDOG_MASK,
+				  DA9062AA_WATCHDOG_MASK);
 }
 
 static int da9062_wdt_update_timeout_register(struct da9062_watchdog *wdt,
@@ -198,15 +185,16 @@ MODULE_DEVICE_TABLE(of, da9062_compatible_id_table);
 
 static int da9062_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int ret;
 	struct da9062 *chip;
 	struct da9062_watchdog *wdt;
 
-	chip = dev_get_drvdata(pdev->dev.parent);
+	chip = dev_get_drvdata(dev->parent);
 	if (!chip)
 		return -EINVAL;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
@@ -219,20 +207,18 @@ static int da9062_wdt_probe(struct platform_device *pdev)
 	wdt->wdtdev.min_hw_heartbeat_ms = DA9062_RESET_PROTECTION_MS;
 	wdt->wdtdev.timeout = DA9062_WDG_DEFAULT_TIMEOUT;
 	wdt->wdtdev.status = WATCHDOG_NOWAYOUT_INIT_STATUS;
-	wdt->wdtdev.parent = &pdev->dev;
+	wdt->wdtdev.parent = dev;
 
 	watchdog_set_restart_priority(&wdt->wdtdev, 128);
 
 	watchdog_set_drvdata(&wdt->wdtdev, wdt);
 
-	ret = devm_watchdog_register_device(&pdev->dev, &wdt->wdtdev);
+	ret = devm_watchdog_register_device(dev, &wdt->wdtdev);
 	if (ret < 0) {
 		dev_err(wdt->hw->dev,
 			"watchdog registration failed (%d)\n", ret);
 		return ret;
 	}
-
-	da9062_set_window_start(wdt);
 
 	return da9062_wdt_ping(&wdt->wdtdev);
 }

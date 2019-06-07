@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # ALSA ISA drivers
 
 config SND_WSS_LIB
@@ -20,7 +21,8 @@ config SND_SB16_DSP
 
 menuconfig SND_ISA
 	bool "ISA sound devices"
-	depends on ISA && ISA_DMA_API
+	depends on ISA || COMPILE_TEST
+	depends on ISA_DMA_API
 	default y
 	help
 	  Support for sound devices connected via the ISA bus.
@@ -458,7 +460,7 @@ config SND_MSND_CLASSIC
 	  Say M here if you have a Turtle Beach MultiSound Classic, Tahiti or
 	  Monterey (not for the Pinnacle or Fiji).
 
-	  See <file:Documentation/sound/oss/MultiSound> for important information
+	  See <file:Documentation/sound/cards/multisound.sh> for important information
 	  about this driver.  Note that it has been discontinued, but the
 	  Voyetra Turtle Beach knowledge base entry for it is still available
 	  at <http://www.turtlebeach.com/site/kb_ftp/790.asp>.

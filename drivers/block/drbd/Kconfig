@@ -11,7 +11,6 @@ config BLK_DEV_DRBD
 	depends on PROC_FS && INET
 	select LRU_CACHE
 	select LIBCRC32C
-	default n
 	help
 
 	  NOTE: In order to authenticate connections you have to select

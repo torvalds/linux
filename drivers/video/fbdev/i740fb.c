@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * i740fb - framebuffer driver for Intel740
  * Copyright (c) 2011 Ondrej Zary
@@ -429,6 +430,7 @@ static int i740fb_decode_var(const struct fb_var_screeninfo *var,
 		break;
 	case 9 ... 15:
 		bpp = 15;
+		/* fall through */
 	case 16:
 		if ((1000000 / var->pixclock) > DACSPEED16) {
 			dev_err(info->device, "requested pixclock %i MHz out of range (max. %i MHz at 15/16bpp)\n",

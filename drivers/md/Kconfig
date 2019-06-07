@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Block device driver configuration
 #
@@ -215,17 +216,6 @@ config BLK_DEV_DM
 
 	  If unsure, say N.
 
-config DM_MQ_DEFAULT
-	bool "request-based DM: use blk-mq I/O path by default"
-	depends on BLK_DEV_DM
-	---help---
-	  This option enables the blk-mq based I/O path for request-based
-	  DM devices by default.  With the option the dm_mod.use_blk_mq
-	  module/boot option defaults to Y, without it to N, but it can
-	  still be overriden either way.
-
-	  If unsure say N.
-
 config DM_DEBUG
 	bool "Device mapper debugging support"
 	depends on BLK_DEV_DM
@@ -334,6 +324,17 @@ config DM_CACHE_SMQ
          of less memory utilization, improved performance and increased
          adaptability in the face of changing workloads.
 
+config DM_WRITECACHE
+	tristate "Writecache target"
+	depends on BLK_DEV_DM
+	---help---
+	   The writecache target caches writes on persistent memory or SSD.
+	   It is intended for databases or other programs that need extremely
+	   low commit latency.
+
+	   The writecache target doesn't cache reads because reads are supposed
+	   to be cached in standard RAM.
+
 config DM_ERA
        tristate "Era target (EXPERIMENTAL)"
        depends on BLK_DEV_DM
@@ -433,6 +434,27 @@ config DM_DELAY
 	---help---
 	A target that delays reads and/or writes and can send
 	them to different devices.  Useful for testing.
+
+	If unsure, say N.
+
+config DM_DUST
+	tristate "Bad sector simulation target"
+	depends on BLK_DEV_DM
+	---help---
+	A target that simulates bad sector behavior.
+	Useful for testing.
+
+	If unsure, say N.
+
+config DM_INIT
+	bool "DM \"dm-mod.create=\" parameter support"
+	depends on BLK_DEV_DM=y
+	---help---
+	Enable "dm-mod.create=" parameter to create mapped devices at init time.
+	This option is useful to allow mounting rootfs without requiring an
+	initramfs.
+	See Documentation/device-mapper/dm-init.txt for dm-mod.create="..."
+	format.
 
 	If unsure, say N.
 

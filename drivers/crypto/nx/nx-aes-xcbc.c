@@ -105,8 +105,7 @@ static int nx_xcbc_empty(struct shash_desc *desc, u8 *out)
 	nx_ctx->op.inlen = (nx_ctx->in_sg - in_sg) * sizeof(struct nx_sg);
 	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
 
-	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-			   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op, 0);
 	if (rc)
 		goto out;
 	atomic_inc(&(nx_ctx->stats->aes_ops));
@@ -134,8 +133,7 @@ static int nx_xcbc_empty(struct shash_desc *desc, u8 *out)
 	nx_ctx->op.inlen = (nx_ctx->in_sg - in_sg) * sizeof(struct nx_sg);
 	nx_ctx->op.outlen = (nx_ctx->out_sg - out_sg) * sizeof(struct nx_sg);
 
-	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-			   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op, 0);
 	if (rc)
 		goto out;
 	atomic_inc(&(nx_ctx->stats->aes_ops));
@@ -279,8 +277,7 @@ static int nx_xcbc_update(struct shash_desc *desc,
 			goto out;
 		}
 
-		rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-			   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+		rc = nx_hcall_sync(nx_ctx, &nx_ctx->op, 0);
 		if (rc)
 			goto out;
 
@@ -361,8 +358,7 @@ static int nx_xcbc_final(struct shash_desc *desc, u8 *out)
 		goto out;
 	}
 
-	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op,
-			   desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+	rc = nx_hcall_sync(nx_ctx, &nx_ctx->op, 0);
 	if (rc)
 		goto out;
 
@@ -386,7 +382,6 @@ struct shash_alg nx_shash_aes_xcbc_alg = {
 		.cra_name        = "xcbc(aes)",
 		.cra_driver_name = "xcbc-aes-nx",
 		.cra_priority    = 300,
-		.cra_flags       = CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize   = AES_BLOCK_SIZE,
 		.cra_module      = THIS_MODULE,
 		.cra_ctxsize     = sizeof(struct nx_crypto_ctx),

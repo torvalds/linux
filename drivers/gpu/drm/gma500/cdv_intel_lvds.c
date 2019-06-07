@@ -244,7 +244,7 @@ static void cdv_intel_lvds_restore(struct drm_connector *connector)
 {
 }
 
-static int cdv_intel_lvds_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status cdv_intel_lvds_mode_valid(struct drm_connector *connector,
 			      struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
@@ -593,6 +593,9 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	u32 lvds;
 	int pipe;
 	u8 pin;
+
+	if (!dev_priv->lvds_enabled_in_vbt)
+		return;
 
 	pin = GMBUS_PORT_PANEL;
 	if (!lvds_is_present_in_vbt(dev, &pin)) {

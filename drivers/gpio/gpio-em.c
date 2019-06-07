@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Emma Mobile GPIO Support - GIO
  *
  *  Copyright (C) 2012 Magnus Damm
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/init.h>
@@ -101,12 +89,14 @@ static void em_gio_irq_enable(struct irq_data *d)
 static int em_gio_irq_reqres(struct irq_data *d)
 {
 	struct em_gio_priv *p = irq_data_get_irq_chip_data(d);
+	int ret;
 
-	if (gpiochip_lock_as_irq(&p->gpio_chip, irqd_to_hwirq(d))) {
+	ret = gpiochip_lock_as_irq(&p->gpio_chip, irqd_to_hwirq(d));
+	if (ret) {
 		dev_err(p->gpio_chip.parent,
 			"unable to lock HW IRQ %lu for IRQ\n",
 			irqd_to_hwirq(d));
-		return -EINVAL;
+		return ret;
 	}
 	return 0;
 }

@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	(c) Copyright 1998 Alan Cox <alan@lxorguk.ukuu.org.uk>
  *	(c) Copyright 2000, 2001 Red Hat Inc
@@ -1536,7 +1533,7 @@ static void z8530_tx_done(struct z8530_channel *c)
 	z8530_tx_begin(c);
 	c->netdevice->stats.tx_packets++;
 	c->netdevice->stats.tx_bytes += skb->len;
-	dev_kfree_skb_irq(skb);
+	dev_consume_skb_irq(skb);
 }
 
 /**

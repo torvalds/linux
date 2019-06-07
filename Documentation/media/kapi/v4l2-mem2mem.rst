@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 V4L2 Memory to Memory functions and data structures
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

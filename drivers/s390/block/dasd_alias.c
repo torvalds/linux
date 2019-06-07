@@ -407,9 +407,9 @@ static int read_unit_address_configuration(struct dasd_device *device,
 	int rc;
 	unsigned long flags;
 
-	cqr = dasd_kmalloc_request(DASD_ECKD_MAGIC, 1 /* PSF */	+ 1 /* RSSD */,
+	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 1 /* PSF */	+ 1 /* RSSD */,
 				   (sizeof(struct dasd_psf_prssd_data)),
-				   device);
+				   device, NULL);
 	if (IS_ERR(cqr))
 		return PTR_ERR(cqr);
 	cqr->startdev = device;
@@ -457,7 +457,7 @@ static int read_unit_address_configuration(struct dasd_device *device,
 		lcu->flags |= NEED_UAC_UPDATE;
 		spin_unlock_irqrestore(&lcu->lock, flags);
 	}
-	dasd_kfree_request(cqr, cqr->memdev);
+	dasd_sfree_request(cqr, cqr->memdev);
 	return rc;
 }
 
@@ -708,7 +708,7 @@ static int reset_summary_unit_check(struct alias_lcu *lcu,
 	struct ccw1 *ccw;
 
 	cqr = lcu->rsu_cqr;
-	strncpy((char *) &cqr->magic, "ECKD", 4);
+	memcpy((char *) &cqr->magic, "ECKD", 4);
 	ASCEBC((char *) &cqr->magic, 4);
 	ccw = cqr->cpaddr;
 	ccw->cmd_code = DASD_ECKD_CCW_RSCK;

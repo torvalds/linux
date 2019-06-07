@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Header file for Analogix DP (Display Port) core interface driver.
  *
  * Copyright (C) 2012 Samsung Electronics Co., Ltd.
  * Author: Jingoo Han <jg1.han@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #ifndef _ANALOGIX_DP_CORE_H
@@ -19,6 +15,7 @@
 #define DP_TIMEOUT_LOOP_COUNT 100
 #define MAX_CR_LOOP 5
 #define MAX_EQ_LOOP 5
+#define MAX_PLL_LOCK_LOOP 5
 
 /* Training takes 22ms if AUX channel comm fails. Use this as retry interval */
 #define DP_TIMEOUT_TRAINING_US			22000
@@ -173,7 +170,7 @@ struct analogix_dp_device {
 	int			hpd_gpio;
 	bool                    force_hpd;
 	bool			psr_enable;
-	bool			fast_train_support;
+	bool			fast_train_enable;
 
 	struct mutex		panel_lock;
 	bool			panel_is_modeset;
@@ -197,7 +194,7 @@ void analogix_dp_set_pll_power_down(struct analogix_dp_device *dp, bool enable);
 void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
 				       enum analog_power_block block,
 				       bool enable);
-void analogix_dp_init_analog_func(struct analogix_dp_device *dp);
+int analogix_dp_init_analog_func(struct analogix_dp_device *dp);
 void analogix_dp_init_hpd(struct analogix_dp_device *dp);
 void analogix_dp_force_hpd(struct analogix_dp_device *dp);
 enum dp_irq_type analogix_dp_get_irq_type(struct analogix_dp_device *dp);

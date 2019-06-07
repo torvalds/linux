@@ -23,9 +23,6 @@
 #ifndef _INTEL_GUC_FWIF_H
 #define _INTEL_GUC_FWIF_H
 
-#define GUC_CORE_FAMILY_GEN9		12
-#define GUC_CORE_FAMILY_UNKNOWN		0x7fffffff
-
 #define GUC_CLIENT_PRIORITY_KMD_HIGH	0
 #define GUC_CLIENT_PRIORITY_HIGH	1
 #define GUC_CLIENT_PRIORITY_KMD_NORMAL	2
@@ -42,6 +39,11 @@
 #define GUC_VIDEO_ENGINE2		4
 #define GUC_MAX_ENGINES_NUM		(GUC_VIDEO_ENGINE2 + 1)
 
+#define GUC_DOORBELL_INVALID		256
+
+#define GUC_DB_SIZE			(PAGE_SIZE)
+#define GUC_WQ_SIZE			(PAGE_SIZE * 2)
+
 /* Work queue item header definitions */
 #define WQ_STATUS_ACTIVE		1
 #define WQ_STATUS_SUSPENDED		2
@@ -52,6 +54,7 @@
 #define   WQ_TYPE_BATCH_BUF		(0x1 << WQ_TYPE_SHIFT)
 #define   WQ_TYPE_PSEUDO		(0x2 << WQ_TYPE_SHIFT)
 #define   WQ_TYPE_INORDER		(0x3 << WQ_TYPE_SHIFT)
+#define   WQ_TYPE_NOOP			(0x4 << WQ_TYPE_SHIFT)
 #define WQ_TARGET_SHIFT			10
 #define WQ_LEN_SHIFT			16
 #define WQ_NO_WCFLUSH_WAIT		(1 << 27)
@@ -60,9 +63,6 @@
 #define WQ_RING_TAIL_SHIFT		20
 #define WQ_RING_TAIL_MAX		0x7FF	/* 2^11 QWords */
 #define WQ_RING_TAIL_MASK		(WQ_RING_TAIL_MAX << WQ_RING_TAIL_SHIFT)
-
-#define GUC_DOORBELL_ENABLED		1
-#define GUC_DOORBELL_DISABLED		0
 
 #define GUC_STAGE_DESC_ATTR_ACTIVE	BIT(0)
 #define GUC_STAGE_DESC_ATTR_PENDING_DB	BIT(1)
@@ -82,19 +82,17 @@
 #define GUC_CTL_ARAT_LOW		2
 
 #define GUC_CTL_DEVICE_INFO		3
-#define   GUC_CTL_GT_TYPE_SHIFT		0
-#define   GUC_CTL_CORE_FAMILY_SHIFT	7
 
 #define GUC_CTL_LOG_PARAMS		4
 #define   GUC_LOG_VALID			(1 << 0)
 #define   GUC_LOG_NOTIFY_ON_HALF_FULL	(1 << 1)
 #define   GUC_LOG_ALLOC_IN_MEGABYTE	(1 << 3)
-#define   GUC_LOG_CRASH_PAGES		1
 #define   GUC_LOG_CRASH_SHIFT		4
-#define   GUC_LOG_DPC_PAGES		7
+#define   GUC_LOG_CRASH_MASK		(0x1 << GUC_LOG_CRASH_SHIFT)
 #define   GUC_LOG_DPC_SHIFT		6
-#define   GUC_LOG_ISR_PAGES		7
+#define   GUC_LOG_DPC_MASK	        (0x7 << GUC_LOG_DPC_SHIFT)
 #define   GUC_LOG_ISR_SHIFT		9
+#define   GUC_LOG_ISR_MASK	        (0x7 << GUC_LOG_ISR_SHIFT)
 #define   GUC_LOG_BUF_ADDR_SHIFT	12
 
 #define GUC_CTL_PAGE_FAULT_CONTROL	5
@@ -127,7 +125,7 @@
 #define   GUC_PROFILE_ENABLED		(1 << 7)
 #define   GUC_WQ_TRACK_ENABLED		(1 << 8)
 #define   GUC_ADS_ENABLED		(1 << 9)
-#define   GUC_DEBUG_RESERVED		(1 << 10)
+#define   GUC_LOG_DEFAULT_DISABLED	(1 << 10)
 #define   GUC_ADS_ADDR_SHIFT		11
 #define   GUC_ADS_ADDR_MASK		0xfffff800
 
@@ -223,26 +221,6 @@ struct uc_css_header {
 	u32 header_info;
 } __packed;
 
-struct guc_doorbell_info {
-	u32 db_status;
-	u32 cookie;
-	u32 reserved[14];
-} __packed;
-
-union guc_doorbell_qw {
-	struct {
-		u32 db_status;
-		u32 cookie;
-	};
-	u64 value_qw;
-} __packed;
-
-#define GUC_NUM_DOORBELLS	256
-#define GUC_DOORBELL_INVALID	(GUC_NUM_DOORBELLS)
-
-#define GUC_DB_SIZE			(PAGE_SIZE)
-#define GUC_WQ_SIZE			(PAGE_SIZE * 2)
-
 /* Work item for submitting workloads into work queue of GuC. */
 struct guc_wq_item {
 	u32 header;
@@ -326,6 +304,58 @@ struct guc_stage_desc {
 
 	u64 desc_private;
 } __packed;
+
+/**
+ * DOC: CTB based communication
+ *
+ * The CTB (command transport buffer) communication between Host and GuC
+ * is based on u32 data stream written to the shared buffer. One buffer can
+ * be used to transmit data only in one direction (one-directional channel).
+ *
+ * Current status of the each buffer is stored in the buffer descriptor.
+ * Buffer descriptor holds tail and head fields that represents active data
+ * stream. The tail field is updated by the data producer (sender), and head
+ * field is updated by the data consumer (receiver)::
+ *
+ *      +------------+
+ *      | DESCRIPTOR |          +=================+============+========+
+ *      +============+          |                 | MESSAGE(s) |        |
+ *      | address    |--------->+=================+============+========+
+ *      +------------+
+ *      | head       |          ^-----head--------^
+ *      +------------+
+ *      | tail       |          ^---------tail-----------------^
+ *      +------------+
+ *      | size       |          ^---------------size--------------------^
+ *      +------------+
+ *
+ * Each message in data stream starts with the single u32 treated as a header,
+ * followed by optional set of u32 data that makes message specific payload::
+ *
+ *      +------------+---------+---------+---------+
+ *      |         MESSAGE                          |
+ *      +------------+---------+---------+---------+
+ *      |   msg[0]   |   [1]   |   ...   |  [n-1]  |
+ *      +------------+---------+---------+---------+
+ *      |   MESSAGE  |       MESSAGE PAYLOAD       |
+ *      +   HEADER   +---------+---------+---------+
+ *      |            |    0    |   ...   |    n    |
+ *      +======+=====+=========+=========+=========+
+ *      | 31:16| code|         |         |         |
+ *      +------+-----+         |         |         |
+ *      |  15:5|flags|         |         |         |
+ *      +------+-----+         |         |         |
+ *      |   4:0|  len|         |         |         |
+ *      +------+-----+---------+---------+---------+
+ *
+ *                   ^-------------len-------------^
+ *
+ * The message header consists of:
+ *
+ * - **len**, indicates length of the message payload (in u32)
+ * - **code**, indicates message code
+ * - **flags**, holds various bits to control message handling
+ */
 
 /*
  * Describes single command transport buffer.
@@ -485,20 +515,6 @@ enum guc_log_buffer_type {
 };
 
 /**
- * DOC: GuC Log buffer Layout
- *
- * Page0  +-------------------------------+
- *        |   ISR state header (32 bytes) |
- *        |      DPC state header         |
- *        |   Crash dump state header     |
- * Page1  +-------------------------------+
- *        |           ISR logs            |
- * Page9  +-------------------------------+
- *        |           DPC logs            |
- * Page17 +-------------------------------+
- *        |         Crash Dump logs       |
- *        +-------------------------------+
- *
  * Below state structure is used for coordination of retrieval of GuC firmware
  * logs. Separate state is maintained for each log buffer type.
  * read_ptr points to the location where i915 read last in log buffer and
@@ -534,16 +550,6 @@ struct guc_log_buffer_state {
 	u32 version;
 } __packed;
 
-union guc_log_control {
-	struct {
-		u32 logging_enabled:1;
-		u32 reserved1:3;
-		u32 verbosity:4;
-		u32 reserved2:24;
-	};
-	u32 value;
-} __packed;
-
 struct guc_ctx_report {
 	u32 report_return_status;
 	u32 reserved1[64];
@@ -570,7 +576,72 @@ struct guc_shared_ctx_data {
 	struct guc_ctx_report preempt_ctx_report[GUC_MAX_ENGINES_NUM];
 } __packed;
 
-/* This Action will be programmed in C180 - SOFT_SCRATCH_O_REG */
+/**
+ * DOC: MMIO based communication
+ *
+ * The MMIO based communication between Host and GuC uses software scratch
+ * registers, where first register holds data treated as message header,
+ * and other registers are used to hold message payload.
+ *
+ * For Gen9+, GuC uses software scratch registers 0xC180-0xC1B8,
+ * but no H2G command takes more than 8 parameters and the GuC FW
+ * itself uses an 8-element array to store the H2G message.
+ *
+ *      +-----------+---------+---------+---------+
+ *      |  MMIO[0]  | MMIO[1] |   ...   | MMIO[n] |
+ *      +-----------+---------+---------+---------+
+ *      | header    |      optional payload       |
+ *      +======+====+=========+=========+=========+
+ *      | 31:28|type|         |         |         |
+ *      +------+----+         |         |         |
+ *      | 27:16|data|         |         |         |
+ *      +------+----+         |         |         |
+ *      |  15:0|code|         |         |         |
+ *      +------+----+---------+---------+---------+
+ *
+ * The message header consists of:
+ *
+ * - **type**, indicates message type
+ * - **code**, indicates message code, is specific for **type**
+ * - **data**, indicates message data, optional, depends on **code**
+ *
+ * The following message **types** are supported:
+ *
+ * - **REQUEST**, indicates Host-to-GuC request, requested GuC action code
+ *   must be priovided in **code** field. Optional action specific parameters
+ *   can be provided in remaining payload registers or **data** field.
+ *
+ * - **RESPONSE**, indicates GuC-to-Host response from earlier GuC request,
+ *   action response status will be provided in **code** field. Optional
+ *   response data can be returned in remaining payload registers or **data**
+ *   field.
+ */
+
+#define GUC_MAX_MMIO_MSG_LEN		8
+
+#define INTEL_GUC_MSG_TYPE_SHIFT	28
+#define INTEL_GUC_MSG_TYPE_MASK		(0xF << INTEL_GUC_MSG_TYPE_SHIFT)
+#define INTEL_GUC_MSG_DATA_SHIFT	16
+#define INTEL_GUC_MSG_DATA_MASK		(0xFFF << INTEL_GUC_MSG_DATA_SHIFT)
+#define INTEL_GUC_MSG_CODE_SHIFT	0
+#define INTEL_GUC_MSG_CODE_MASK		(0xFFFF << INTEL_GUC_MSG_CODE_SHIFT)
+
+#define __INTEL_GUC_MSG_GET(T, m) \
+	(((m) & INTEL_GUC_MSG_ ## T ## _MASK) >> INTEL_GUC_MSG_ ## T ## _SHIFT)
+#define INTEL_GUC_MSG_TO_TYPE(m)	__INTEL_GUC_MSG_GET(TYPE, m)
+#define INTEL_GUC_MSG_TO_DATA(m)	__INTEL_GUC_MSG_GET(DATA, m)
+#define INTEL_GUC_MSG_TO_CODE(m)	__INTEL_GUC_MSG_GET(CODE, m)
+
+enum intel_guc_msg_type {
+	INTEL_GUC_MSG_TYPE_REQUEST = 0x0,
+	INTEL_GUC_MSG_TYPE_RESPONSE = 0xF,
+};
+
+#define __INTEL_GUC_MSG_TYPE_IS(T, m) \
+	(INTEL_GUC_MSG_TO_TYPE(m) == INTEL_GUC_MSG_TYPE_ ## T)
+#define INTEL_GUC_MSG_IS_REQUEST(m)	__INTEL_GUC_MSG_TYPE_IS(REQUEST, m)
+#define INTEL_GUC_MSG_IS_RESPONSE(m)	__INTEL_GUC_MSG_TYPE_IS(RESPONSE, m)
+
 enum intel_guc_action {
 	INTEL_GUC_ACTION_DEFAULT = 0x0,
 	INTEL_GUC_ACTION_REQUEST_PREEMPTION = 0x2,
@@ -602,23 +673,28 @@ enum intel_guc_report_status {
 	INTEL_GUC_REPORT_STATUS_COMPLETE = 0x4,
 };
 
-/*
- * The GuC sends its response to a command by overwriting the
- * command in SS0. The response is distinguishable from a command
- * by the fact that all the MASK bits are set. The remaining bits
- * give more detail.
- */
-#define	INTEL_GUC_RECV_MASK	((u32)0xF0000000)
-#define	INTEL_GUC_RECV_IS_RESPONSE(x)	((u32)(x) >= INTEL_GUC_RECV_MASK)
-#define	INTEL_GUC_RECV_STATUS(x)	(INTEL_GUC_RECV_MASK | (x))
-
-/* GUC will return status back to SOFT_SCRATCH_O_REG */
-enum intel_guc_status {
-	INTEL_GUC_STATUS_SUCCESS = INTEL_GUC_RECV_STATUS(0x0),
-	INTEL_GUC_STATUS_ALLOCATE_DOORBELL_FAIL = INTEL_GUC_RECV_STATUS(0x10),
-	INTEL_GUC_STATUS_DEALLOCATE_DOORBELL_FAIL = INTEL_GUC_RECV_STATUS(0x20),
-	INTEL_GUC_STATUS_GENERIC_FAIL = INTEL_GUC_RECV_STATUS(0x0000F000)
+enum intel_guc_sleep_state_status {
+	INTEL_GUC_SLEEP_STATE_SUCCESS = 0x0,
+	INTEL_GUC_SLEEP_STATE_PREEMPT_TO_IDLE_FAILED = 0x1,
+	INTEL_GUC_SLEEP_STATE_ENGINE_RESET_FAILED = 0x2
+#define INTEL_GUC_SLEEP_STATE_INVALID_MASK 0x80000000
 };
+
+#define GUC_LOG_CONTROL_LOGGING_ENABLED	(1 << 0)
+#define GUC_LOG_CONTROL_VERBOSITY_SHIFT	4
+#define GUC_LOG_CONTROL_VERBOSITY_MASK	(0xF << GUC_LOG_CONTROL_VERBOSITY_SHIFT)
+#define GUC_LOG_CONTROL_DEFAULT_LOGGING	(1 << 8)
+
+enum intel_guc_response_status {
+	INTEL_GUC_RESPONSE_STATUS_SUCCESS = 0x0,
+	INTEL_GUC_RESPONSE_STATUS_GENERIC_FAIL = 0xF000,
+};
+
+#define INTEL_GUC_MSG_IS_RESPONSE_SUCCESS(m) \
+	 (typecheck(u32, (m)) && \
+	  ((m) & (INTEL_GUC_MSG_TYPE_MASK | INTEL_GUC_MSG_CODE_MASK)) == \
+	  ((INTEL_GUC_MSG_TYPE_RESPONSE << INTEL_GUC_MSG_TYPE_SHIFT) | \
+	   (INTEL_GUC_RESPONSE_STATUS_SUCCESS << INTEL_GUC_MSG_CODE_SHIFT)))
 
 /* This action will be programmed in C1BC - SOFT_SCRATCH_15_REG */
 enum intel_guc_recv_message {

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* connection-level event handling
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -70,7 +66,7 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	iov[2].iov_len	= sizeof(ack_info);
 
 	pkt.whdr.epoch		= htonl(conn->proto.epoch);
-	pkt.whdr.cid		= htonl(conn->proto.cid);
+	pkt.whdr.cid		= htonl(conn->proto.cid | channel);
 	pkt.whdr.callNumber	= htonl(call_id);
 	pkt.whdr.seq		= 0;
 	pkt.whdr.type		= chan->last_type;
@@ -126,20 +122,25 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 
 	switch (chan->last_type) {
 	case RXRPC_PACKET_TYPE_ABORT:
-		_proto("Tx ABORT %%%u { %d } [re]", serial, conn->local_abort);
+		_proto("Tx ABORT %%%u { %d } [re]", serial, conn->abort_code);
 		break;
 	case RXRPC_PACKET_TYPE_ACK:
-		trace_rxrpc_tx_ack(NULL, serial, chan->last_seq, 0,
-				   RXRPC_ACK_DUPLICATE, 0);
+		trace_rxrpc_tx_ack(chan->call_debug_id, serial,
+				   ntohl(pkt.ack.firstPacket),
+				   ntohl(pkt.ack.serial),
+				   pkt.ack.reason, 0);
 		_proto("Tx ACK %%%u [re]", serial);
 		break;
 	}
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, ioc, len);
-	conn->params.peer->last_tx_at = ktime_get_real();
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
-		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
-				    rxrpc_tx_fail_call_final_resend);
+		trace_rxrpc_tx_fail(chan->call_debug_id, serial, ret,
+				    rxrpc_tx_point_call_final_resend);
+	else
+		trace_rxrpc_tx_packet(chan->call_debug_id, &pkt.whdr,
+				      rxrpc_tx_point_call_final_resend);
 
 	_leave("");
 }
@@ -149,12 +150,12 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
  */
 static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 			      enum rxrpc_call_completion compl,
-			      u32 abort_code, int error)
+			      rxrpc_serial_t serial)
 {
 	struct rxrpc_call *call;
 	int i;
 
-	_enter("{%d},%x", conn->debug_id, abort_code);
+	_enter("{%d},%x", conn->debug_id, conn->abort_code);
 
 	spin_lock(&conn->channel_lock);
 
@@ -167,9 +168,14 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 				trace_rxrpc_abort(call->debug_id,
 						  "CON", call->cid,
 						  call->call_id, 0,
-						  abort_code, error);
+						  conn->abort_code,
+						  conn->error);
+			else
+				trace_rxrpc_rx_abort(call, serial,
+						     conn->abort_code);
 			if (rxrpc_set_call_completion(call, compl,
-						      abort_code, error))
+						      conn->abort_code,
+						      conn->error))
 				rxrpc_notify_socket(call);
 		}
 	}
@@ -202,10 +208,10 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 		return 0;
 	}
 
+	conn->error = error;
+	conn->abort_code = abort_code;
 	conn->state = RXRPC_CONN_LOCALLY_ABORTED;
 	spin_unlock_bh(&conn->state_lock);
-
-	rxrpc_abort_calls(conn, RXRPC_CALL_LOCALLY_ABORTED, abort_code, error);
 
 	msg.msg_name	= &conn->params.peer->srx.transport;
 	msg.msg_namelen	= conn->params.peer->srx.transport_len;
@@ -224,7 +230,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	whdr._rsvd	= 0;
 	whdr.serviceId	= htons(conn->service_id);
 
-	word		= htonl(conn->local_abort);
+	word		= htonl(conn->abort_code);
 
 	iov[0].iov_base	= &whdr;
 	iov[0].iov_len	= sizeof(whdr);
@@ -234,18 +240,21 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	len = iov[0].iov_len + iov[1].iov_len;
 
 	serial = atomic_inc_return(&conn->serial);
+	rxrpc_abort_calls(conn, RXRPC_CALL_LOCALLY_ABORTED, serial);
 	whdr.serial = htonl(serial);
-	_proto("Tx CONN ABORT %%%u { %d }", serial, conn->local_abort);
+	_proto("Tx CONN ABORT %%%u { %d }", serial, conn->abort_code);
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
 		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
-				    rxrpc_tx_fail_conn_abort);
+				    rxrpc_tx_point_conn_abort);
 		_debug("sendmsg failed: %d", ret);
 		return -EAGAIN;
 	}
 
-	conn->params.peer->last_tx_at = ktime_get_real();
+	trace_rxrpc_tx_packet(conn->debug_id, &whdr, rxrpc_tx_point_conn_abort);
+
+	conn->params.peer->last_tx_at = ktime_get_seconds();
 
 	_leave(" = 0");
 	return 0;
@@ -308,9 +317,10 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		abort_code = ntohl(wtmp);
 		_proto("Rx ABORT %%%u { ac=%d }", sp->hdr.serial, abort_code);
 
+		conn->error = -ECONNABORTED;
+		conn->abort_code = abort_code;
 		conn->state = RXRPC_CONN_REMOTELY_ABORTED;
-		rxrpc_abort_calls(conn, RXRPC_CALL_REMOTELY_ABORTED,
-				  abort_code, -ECONNABORTED);
+		rxrpc_abort_calls(conn, RXRPC_CALL_REMOTELY_ABORTED, sp->hdr.serial);
 		return -ECONNABORTED;
 
 	case RXRPC_PACKET_TYPE_CHALLENGE:

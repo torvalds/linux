@@ -80,7 +80,8 @@ EXPORT_SYMBOL_GPL(pci_disable_rom);
  * The PCI window size could be much larger than the
  * actual image size.
  */
-size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size)
+static size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom,
+			       size_t size)
 {
 	void __iomem *image;
 	int last_image;
@@ -106,8 +107,14 @@ size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size)
 		length = readw(pds + 16);
 		image += length * 512;
 		/* Avoid iterating through memory outside the resource window */
-		if (image > rom + size)
+		if (image >= rom + size)
 			break;
+		if (!last_image) {
+			if (readw(image) != 0xAA55) {
+				pci_info(pdev, "No more image in the PCI ROM\n");
+				break;
+			}
+		}
 	} while (length && !last_image);
 
 	/* never return a size larger than the PCI resource window */

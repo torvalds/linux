@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
+/* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
 /* p80211netdev.h
  *
  * WLAN net device structure and functions
@@ -180,11 +180,11 @@ struct wlandevice {
 	int (*close)(struct wlandevice *wlandev);
 	void (*reset)(struct wlandevice *wlandev);
 	int (*txframe)(struct wlandevice *wlandev, struct sk_buff *skb,
-			union p80211_hdr *p80211_hdr,
-			struct p80211_metawep *p80211_wep);
+		       union p80211_hdr *p80211_hdr,
+		       struct p80211_metawep *p80211_wep);
 	int (*mlmerequest)(struct wlandevice *wlandev, struct p80211msg *msg);
 	int (*set_multicast_list)(struct wlandevice *wlandev,
-				   struct net_device *dev);
+				  struct net_device *dev);
 	void (*tx_timeout)(struct wlandevice *wlandev);
 
 	/* 802.11 State */

@@ -35,14 +35,17 @@
 #define _PAGE_SPECIAL   _PAGE_SOFT
 #define _PAGE_TABLE     _PAGE_PRESENT
 
+/*
+ * _PAGE_PROT_NONE is set on not-present pages (and ignored by the hardware) to
+ * distinguish them from swapped out pages
+ */
+#define _PAGE_PROT_NONE _PAGE_READ
+
 #define _PAGE_PFN_SHIFT 10
 
 /* Set of bits to preserve across pte_modify() */
 #define _PAGE_CHG_MASK  (~(unsigned long)(_PAGE_PRESENT | _PAGE_READ |	\
 					  _PAGE_WRITE | _PAGE_EXEC |	\
 					  _PAGE_USER | _PAGE_GLOBAL))
-
-/* Advertise support for _PAGE_SPECIAL */
-#define __HAVE_ARCH_PTE_SPECIAL
 
 #endif /* _ASM_RISCV_PGTABLE_BITS_H */

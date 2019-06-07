@@ -5,7 +5,7 @@ config PPC_PSERIES
 	select HAVE_PCSPKR_PLATFORM
 	select MPIC
 	select OF_DYNAMIC
-	select PCI
+	select FORCE_PCI
 	select PCI_MSI
 	select PPC_XICS
 	select PPC_XIVE_SPAPR
@@ -28,7 +28,6 @@ config PPC_PSERIES
 config PPC_SPLPAR
 	depends on PPC_PSERIES
 	bool "Support for shared-processor logical partitions"
-	default n
 	help
 	  Enabling this option will make the kernel run more efficiently
 	  on logically-partitioned pSeries systems which use shared
@@ -99,7 +98,6 @@ config PPC_SMLPAR
 	bool "Support for shared-memory logical partitions"
 	depends on PPC_PSERIES
 	select LPARCFG
-	default n
 	help
 	  Select this option to enable shared memory partition support.
 	  With this option a system running in an LPAR can be given more
@@ -140,3 +138,9 @@ config IBMEBUS
 	bool "Support for GX bus based adapters"
 	help
 	  Bus device driver for GX bus based adapters.
+
+config PAPR_SCM
+	depends on PPC_PSERIES && MEMORY_HOTPLUG && LIBNVDIMM
+	tristate "Support for the PAPR Storage Class Memory interface"
+	help
+	  Enable access to hypervisor provided storage class memory.

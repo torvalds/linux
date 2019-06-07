@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Pulse Eight HDMI CEC driver
  *
  * Copyright 2016 Hans Verkuil <hverkuil@xs4all.nl
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version of 2 of the License, or (at your
- * option) any later version. See the file COPYING in the main directory of
- * this archive for more details.
  */
 
 /*
@@ -435,7 +430,7 @@ static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
 	err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 0);
 	if (err)
 		return err;
-	strncpy(log_addrs->osd_name, data, 13);
+	strscpy(log_addrs->osd_name, data, sizeof(log_addrs->osd_name));
 	dev_dbg(pulse8->dev, "OSD name: %s\n", log_addrs->osd_name);
 
 	return 0;
@@ -566,12 +561,13 @@ static int pulse8_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
 		char *osd_str = cmd + 1;
 
 		cmd[0] = MSGCODE_SET_OSD_NAME;
-		strncpy(cmd + 1, adap->log_addrs.osd_name, 13);
+		strscpy(cmd + 1, adap->log_addrs.osd_name, sizeof(cmd) - 1);
 		if (osd_len < 4) {
 			memset(osd_str + osd_len, ' ', 4 - osd_len);
 			osd_len = 4;
 			osd_str[osd_len] = '\0';
-			strcpy(adap->log_addrs.osd_name, osd_str);
+			strscpy(adap->log_addrs.osd_name, osd_str,
+				sizeof(adap->log_addrs.osd_name));
 		}
 		err = pulse8_send_and_wait(pulse8, cmd, 1 + osd_len,
 					   MSGCODE_COMMAND_ACCEPTED, 0);
@@ -585,7 +581,7 @@ unlock:
 	else
 		pulse8->config_pending = true;
 	mutex_unlock(&pulse8->config_lock);
-	return err;
+	return log_addr == CEC_LOG_ADDR_INVALID ? 0 : err;
 }
 
 static int pulse8_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,

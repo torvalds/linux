@@ -1,25 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cros_ec_dev - expose the Chrome OS Embedded Controller to user-space
  *
  * Copyright (C) 2014 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/fs.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
@@ -33,17 +23,9 @@
 #define CROS_MAX_DEV 128
 static int ec_major;
 
-static const struct attribute_group *cros_ec_groups[] = {
-	&cros_ec_attr_group,
-	&cros_ec_lightbar_attr_group,
-	&cros_ec_vbc_attr_group,
-	NULL,
-};
-
 static struct class cros_class = {
 	.owner          = THIS_MODULE,
 	.name           = "chromeos",
-	.dev_groups     = cros_ec_groups,
 };
 
 /* Basic communication */
@@ -113,9 +95,9 @@ static int cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 			dev_warn(ec->dev, "cannot get EC features: %d/%d\n",
 				 ret, msg->result);
 			memset(ec->features, 0, sizeof(ec->features));
+		} else {
+			memcpy(ec->features, msg->data, sizeof(ec->features));
 		}
-
-		memcpy(ec->features, msg->data, sizeof(ec->features));
 
 		dev_dbg(ec->dev, "EC features %08x %08x\n",
 			ec->features[0], ec->features[1]);
@@ -230,7 +212,7 @@ static long ec_device_ioctl_readmem(struct cros_ec_dev *ec, void __user *arg)
 	if (copy_to_user((void __user *)arg, &s_mem, sizeof(s_mem)))
 		return -EFAULT;
 
-	return 0;
+	return num;
 }
 
 static long ec_device_ioctl(struct file *filp, unsigned int cmd,
@@ -262,11 +244,9 @@ static const struct file_operations fops = {
 #endif
 };
 
-static void __remove(struct device *dev)
+static void cros_ec_class_release(struct device *dev)
 {
-	struct cros_ec_dev *ec = container_of(dev, struct cros_ec_dev,
-					      class_dev);
-	kfree(ec);
+	kfree(to_cros_ec_dev(dev));
 }
 
 static void cros_ec_sensors_register(struct cros_ec_dev *ec)
@@ -306,13 +286,14 @@ static void cros_ec_sensors_register(struct cros_ec_dev *ec)
 	resp = (struct ec_response_motion_sense *)msg->data;
 	sensor_num = resp->dump.sensor_count;
 	/* Allocate 1 extra sensors in FIFO are needed */
-	sensor_cells = kzalloc(sizeof(struct mfd_cell) * (sensor_num + 1),
+	sensor_cells = kcalloc(sensor_num + 1, sizeof(struct mfd_cell),
 			       GFP_KERNEL);
 	if (sensor_cells == NULL)
 		goto error;
 
-	sensor_platforms = kzalloc(sizeof(struct cros_ec_sensor_platform) *
-		  (sensor_num + 1), GFP_KERNEL);
+	sensor_platforms = kcalloc(sensor_num + 1,
+				   sizeof(struct cros_ec_sensor_platform),
+				   GFP_KERNEL);
 	if (sensor_platforms == NULL)
 		goto error_platforms;
 
@@ -383,9 +364,33 @@ error:
 	kfree(msg);
 }
 
+static const struct mfd_cell cros_ec_cec_cells[] = {
+	{ .name = "cros-ec-cec" }
+};
+
+static const struct mfd_cell cros_ec_rtc_cells[] = {
+	{ .name = "cros-ec-rtc" }
+};
+
+static const struct mfd_cell cros_usbpd_charger_cells[] = {
+	{ .name = "cros-usbpd-charger" },
+	{ .name = "cros-usbpd-logger" },
+};
+
+static const struct mfd_cell cros_ec_platform_cells[] = {
+	{ .name = "cros-ec-debugfs" },
+	{ .name = "cros-ec-lightbar" },
+	{ .name = "cros-ec-sysfs" },
+};
+
+static const struct mfd_cell cros_ec_vbc_cells[] = {
+	{ .name = "cros-ec-vbc" }
+};
+
 static int ec_device_probe(struct platform_device *pdev)
 {
 	int retval = -ENOMEM;
+	struct device_node *node;
 	struct device *dev = &pdev->dev;
 	struct cros_ec_platform *ec_platform = dev_get_platdata(dev);
 	struct cros_ec_dev *ec = kzalloc(sizeof(*ec), GFP_KERNEL);
@@ -402,6 +407,39 @@ static int ec_device_probe(struct platform_device *pdev)
 	device_initialize(&ec->class_dev);
 	cdev_init(&ec->cdev, &fops);
 
+	/* Check whether this is actually a Fingerprint MCU rather than an EC */
+	if (cros_ec_check_features(ec, EC_FEATURE_FINGERPRINT)) {
+		dev_info(dev, "CrOS Fingerprint MCU detected.\n");
+		/*
+		 * Help userspace differentiating ECs from FP MCU,
+		 * regardless of the probing order.
+		 */
+		ec_platform->ec_name = CROS_EC_DEV_FP_NAME;
+	}
+
+	/*
+	 * Check whether this is actually an Integrated Sensor Hub (ISH)
+	 * rather than an EC.
+	 */
+	if (cros_ec_check_features(ec, EC_FEATURE_ISH)) {
+		dev_info(dev, "CrOS ISH MCU detected.\n");
+		/*
+		 * Help userspace differentiating ECs from ISH MCU,
+		 * regardless of the probing order.
+		 */
+		ec_platform->ec_name = CROS_EC_DEV_ISH_NAME;
+	}
+
+	/* Check whether this is actually a Touchpad MCU rather than an EC */
+	if (cros_ec_check_features(ec, EC_FEATURE_TOUCHPAD)) {
+		dev_info(dev, "CrOS Touchpad MCU detected.\n");
+		/*
+		 * Help userspace differentiating ECs from TP MCU,
+		 * regardless of the probing order.
+		 */
+		ec_platform->ec_name = CROS_EC_DEV_TP_NAME;
+	}
+
 	/*
 	 * Add the class device
 	 * Link to the character device for creating the /dev entry
@@ -410,7 +448,7 @@ static int ec_device_probe(struct platform_device *pdev)
 	ec->class_dev.devt = MKDEV(ec_major, pdev->id);
 	ec->class_dev.class = &cros_class;
 	ec->class_dev.parent = dev;
-	ec->class_dev.release = __remove;
+	ec->class_dev.release = cros_ec_class_release;
 
 	retval = dev_set_name(&ec->class_dev, "%s", ec_platform->ec_name);
 	if (retval) {
@@ -422,8 +460,41 @@ static int ec_device_probe(struct platform_device *pdev)
 	if (cros_ec_check_features(ec, EC_FEATURE_MOTION_SENSE))
 		cros_ec_sensors_register(ec);
 
-	/* Take control of the lightbar from the EC. */
-	lb_manual_suspend_ctrl(ec, 1);
+	/* Check whether this EC instance has CEC host command support */
+	if (cros_ec_check_features(ec, EC_FEATURE_CEC)) {
+		retval = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
+					 cros_ec_cec_cells,
+					 ARRAY_SIZE(cros_ec_cec_cells),
+					 NULL, 0, NULL);
+		if (retval)
+			dev_err(ec->dev,
+				"failed to add cros-ec-cec device: %d\n",
+				retval);
+	}
+
+	/* Check whether this EC instance has RTC host command support */
+	if (cros_ec_check_features(ec, EC_FEATURE_RTC)) {
+		retval = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
+					 cros_ec_rtc_cells,
+					 ARRAY_SIZE(cros_ec_rtc_cells),
+					 NULL, 0, NULL);
+		if (retval)
+			dev_err(ec->dev,
+				"failed to add cros-ec-rtc device: %d\n",
+				retval);
+	}
+
+	/* Check whether this EC instance has the PD charge manager */
+	if (cros_ec_check_features(ec, EC_FEATURE_USB_PD)) {
+		retval = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
+					 cros_usbpd_charger_cells,
+					 ARRAY_SIZE(cros_usbpd_charger_cells),
+					 NULL, 0, NULL);
+		if (retval)
+			dev_err(ec->dev,
+				"failed to add cros-usbpd-charger device: %d\n",
+				retval);
+	}
 
 	/* We can now add the sysfs class, we know which parameter to show */
 	retval = cdev_device_add(&ec->cdev, &ec->class_dev);
@@ -432,8 +503,26 @@ static int ec_device_probe(struct platform_device *pdev)
 		goto failed;
 	}
 
-	if (cros_ec_debugfs_init(ec))
-		dev_warn(dev, "failed to create debugfs directory\n");
+	retval = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
+				 cros_ec_platform_cells,
+				 ARRAY_SIZE(cros_ec_platform_cells),
+				 NULL, 0, NULL);
+	if (retval)
+		dev_warn(ec->dev,
+			 "failed to add cros-ec platform devices: %d\n",
+			 retval);
+
+	/* Check whether this EC instance has a VBC NVRAM */
+	node = ec->ec_dev->dev->of_node;
+	if (of_property_read_bool(node, "google,has-vbc-nvram")) {
+		retval = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
+					 cros_ec_vbc_cells,
+					 ARRAY_SIZE(cros_ec_vbc_cells),
+					 NULL, 0, NULL);
+		if (retval)
+			dev_warn(ec->dev, "failed to add VBC devices: %d\n",
+				 retval);
+	}
 
 	return 0;
 
@@ -446,11 +535,7 @@ static int ec_device_remove(struct platform_device *pdev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(&pdev->dev);
 
-	/* Let the EC take over the lightbar again. */
-	lb_manual_suspend_ctrl(ec, 0);
-
-	cros_ec_debugfs_remove(ec);
-
+	mfd_remove_devices(ec->dev);
 	cdev_del(&ec->cdev);
 	device_unregister(&ec->class_dev);
 	return 0;
@@ -458,40 +543,15 @@ static int ec_device_remove(struct platform_device *pdev)
 
 static const struct platform_device_id cros_ec_id[] = {
 	{ DRV_NAME, 0 },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_id);
-
-static __maybe_unused int ec_device_suspend(struct device *dev)
-{
-	struct cros_ec_dev *ec = dev_get_drvdata(dev);
-
-	lb_suspend(ec);
-
-	return 0;
-}
-
-static __maybe_unused int ec_device_resume(struct device *dev)
-{
-	struct cros_ec_dev *ec = dev_get_drvdata(dev);
-
-	lb_resume(ec);
-
-	return 0;
-}
-
-static const struct dev_pm_ops cros_ec_dev_pm_ops = {
-#ifdef CONFIG_PM_SLEEP
-	.suspend = ec_device_suspend,
-	.resume = ec_device_resume,
-#endif
-};
 
 static struct platform_driver cros_ec_dev_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.pm = &cros_ec_dev_pm_ops,
 	},
+	.id_table = cros_ec_id,
 	.probe = ec_device_probe,
 	.remove = ec_device_remove,
 };

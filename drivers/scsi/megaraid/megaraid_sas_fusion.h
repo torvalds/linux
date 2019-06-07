@@ -1,34 +1,20 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
  *  Copyright (c) 2009-2013  LSI Corporation
- *  Copyright (c) 2013-2014  Avago Technologies
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  Copyright (c) 2013-2016  Avago Technologies
+ *  Copyright (c) 2016-2018  Broadcom Inc.
  *
  *  FILE: megaraid_sas_fusion.h
  *
- *  Authors: Avago Technologies
+ *  Authors: Broadcom Inc.
  *           Manoj Jose
  *           Sumant Patro
- *           Kashyap Desai <kashyap.desai@avagotech.com>
- *           Sumit Saxena <sumit.saxena@avagotech.com>
+ *           Kashyap Desai <kashyap.desai@broadcom.com>
+ *           Sumit Saxena <sumit.saxena@broadcom.com>
  *
- *  Send feedback to: megaraidlinux.pdl@avagotech.com
- *
- *  Mail to: Avago Technologies, 350 West Trimble Road, Building 90,
- *  San Jose, California 95131
+ *  Send feedback to: megaraidlinux.pdl@broadcom.com
  */
 
 #ifndef _MEGARAID_SAS_FUSION_H_
@@ -725,6 +711,8 @@ struct MPI2_IOC_INIT_REQUEST {
 #define MR_DCMD_CTRL_SHARED_HOST_MEM_ALLOC  0x010e8485   /* SR-IOV HB alloc*/
 #define MR_DCMD_LD_VF_MAP_GET_ALL_LDS_111   0x03200200
 #define MR_DCMD_LD_VF_MAP_GET_ALL_LDS       0x03150200
+#define MR_DCMD_CTRL_SNAPDUMP_GET_PROPERTIES	0x01200100
+#define MR_DCMD_CTRL_DEVICE_LIST_GET		0x01190600
 
 struct MR_DEV_HANDLE_INFO {
 	__le16	curDevHdl;
@@ -1063,6 +1051,9 @@ struct MR_FW_RAID_MAP_DYNAMIC {
 #define MPI26_IEEE_SGE_FLAGS_NSF_NVME_PRP       (0x08)
 #define MPI26_IEEE_SGE_FLAGS_NSF_NVME_SGL       (0x10)
 
+#define MEGASAS_DEFAULT_SNAP_DUMP_WAIT_TIME 15
+#define MEGASAS_MAX_SNAP_DUMP_WAIT_TIME 60
+
 struct megasas_register_set;
 struct megasas_instance;
 
@@ -1348,6 +1339,14 @@ enum CMD_RET_VALUES {
 	REFIRE_CMD = 1,
 	COMPLETE_CMD = 2,
 	RETURN_CMD = 3,
+};
+
+struct  MR_SNAPDUMP_PROPERTIES {
+	u8       offload_num;
+	u8       max_num_supported;
+	u8       cur_num_supported;
+	u8       trigger_min_num_sec_before_ocr;
+	u8       reserved[12];
 };
 
 void megasas_free_cmds_fusion(struct megasas_instance *instance);

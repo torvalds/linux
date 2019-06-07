@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2013 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __OSDEP_LINUX_SERVICE_H_
@@ -30,7 +22,6 @@
 	#include <asm/byteorder.h>
 	#include <linux/atomic.h>
 	#include <linux/io.h>
-	#include <linux/semaphore.h>
 	#include <linux/sem.h>
 	#include <linux/sched.h>
 	#include <linux/etherdevice.h>
@@ -49,7 +40,6 @@
         #include <net/ieee80211_radiotap.h>
 	#include <net/cfg80211.h>
 
-	typedef struct	semaphore _sema;
 	typedef	spinlock_t	_lock;
 	typedef struct mutex		_mutex;
 	typedef struct timer_list _timer;

@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Driver for the Korg 1212 IO PCI card
  *
  *	Copyright (c) 2001 Haroldo Gamal <gamal@alternex.com.br>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -1326,7 +1312,7 @@ static int snd_korg1212_copy_to(struct snd_pcm_substream *substream,
 		}
 #endif
 		if (in_kernel)
-			memcpy((void *)dst, src, size);
+			memcpy((__force void *)dst, src, size);
 		else if (copy_to_user(dst, src, size))
 			return -EFAULT;
 		src++;
@@ -1365,7 +1351,7 @@ static int snd_korg1212_copy_from(struct snd_pcm_substream *substream,
 		}
 #endif
 		if (in_kernel)
-			memcpy((void *)dst, src, size);
+			memcpy(dst, (__force void *)src, size);
 		else if (copy_from_user(dst, src, size))
 			return -EFAULT;
 		dst++;
@@ -2090,10 +2076,8 @@ static void snd_korg1212_proc_read(struct snd_info_entry *entry,
 
 static void snd_korg1212_proc_init(struct snd_korg1212 *korg1212)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(korg1212->card, "korg1212", &entry))
-		snd_info_set_text_ops(entry, korg1212, snd_korg1212_proc_read);
+	snd_card_ro_proc_new(korg1212->card, "korg1212", korg1212,
+			     snd_korg1212_proc_read);
 }
 
 static int

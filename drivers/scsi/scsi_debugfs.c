@@ -4,7 +4,7 @@
 #include <scsi/scsi_dbg.h>
 #include "scsi_debugfs.h"
 
-#define SCSI_CMD_FLAG_NAME(name) [ilog2(SCMD_##name)] = #name
+#define SCSI_CMD_FLAG_NAME(name)[const_ilog2(SCMD_##name)] = #name
 static const char *const scsi_cmd_flags[] = {
 	SCSI_CMD_FLAG_NAME(TAGGED),
 	SCSI_CMD_FLAG_NAME(UNCHECKED_ISA_DMA),

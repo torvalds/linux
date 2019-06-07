@@ -79,8 +79,6 @@
 
 	mmc0_pwrseq: mmc0_pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_reg_on_pin_chip_pro>;
 		reset-gpios = <&pio 1 10 GPIO_ACTIVE_LOW>; /* PB10 */
 	};
 };
@@ -94,8 +92,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -114,20 +110,16 @@
 #include "axp209.dtsi"
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "disabled";
 };
 
 &i2s0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2s0_mclk_pins_a>, <&i2s0_data_pins_a>;
+	pinctrl-0 = <&i2s0_mclk_pin>, <&i2s0_data_pins>;
 	status = "disabled";
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&mmc0_pwrseq>;
 	bus-width = <4>;
@@ -137,12 +129,10 @@
 
 &nfc {
 	pinctrl-names = "default";
-	pinctrl-0 = <&nand_pins_a &nand_cs0_pins_a &nand_rb0_pins_a>;
+	pinctrl-0 = <&nand_pins &nand_cs0_pin &nand_rb0_pin>;
 	status = "okay";
 
 	nand@0 {
-		#address-cells = <2>;
-		#size-cells = <2>;
 		reg = <0>;
 		allwinner,rb = <0>;
 		nand-ecc-mode = "hw";
@@ -157,21 +147,9 @@
 	status = "okay";
 };
 
-&pio {
-	usb0_id_pin_chip_pro: usb0-id-pin@0 {
-		pins = "PG2";
-		function = "gpio_in";
-	};
-
-	wifi_reg_on_pin_chip_pro: wifi-reg-on-pin@0 {
-		pins = "PB10";
-		function = "gpio_out";
-	};
-};
-
 &pwm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_pins>, <&pwm1_pins>;
+	pinctrl-0 = <&pwm0_pin>, <&pwm1_pins>;
 	status = "disabled";
 };
 
@@ -220,19 +198,19 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins_b>, <&uart1_cts_rts_pins_a>;
+	pinctrl-0 = <&uart1_pg_pins>, <&uart1_cts_rts_pins>;
 	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart2_pins_a>, <&uart2_cts_rts_pins_a>;
+	pinctrl-0 = <&uart2_pd_pins>, <&uart2_cts_rts_pd_pins>;
 	status = "disabled";
 };
 
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart3_pins_a>, <&uart3_cts_rts_pins_a>;
+	pinctrl-0 = <&uart3_pg_pins>, <&uart3_cts_rts_pg_pins>;
 	status = "okay";
 };
 
@@ -253,9 +231,7 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_pin_chip_pro>;
-	usb0_id_det-gpio = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
+	usb0_id_det-gpios = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb1_vbus-supply = <&reg_vcc5v0>;
 	status = "okay";

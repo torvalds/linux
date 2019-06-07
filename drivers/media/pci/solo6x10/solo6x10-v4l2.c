@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
  *
@@ -6,16 +7,6 @@
  *
  * Additional work by:
  * John Brooks <john.brooks@bluecherry.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -383,8 +374,8 @@ static int solo_querycap(struct file *file, void  *priv,
 {
 	struct solo_dev *solo_dev = video_drvdata(file);
 
-	strcpy(cap->driver, SOLO6X10_NAME);
-	strcpy(cap->card, "Softlogic 6x10");
+	strscpy(cap->driver, SOLO6X10_NAME, sizeof(cap->driver));
+	strscpy(cap->card, "Softlogic 6x10", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(solo_dev->pdev));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
@@ -470,7 +461,7 @@ static int solo_enum_fmt_cap(struct file *file, void *priv,
 		return -EINVAL;
 
 	f->pixelformat = V4L2_PIX_FMT_UYVY;
-	strlcpy(f->description, "UYUV 4:2:2 Packed", sizeof(f->description));
+	strscpy(f->description, "UYUV 4:2:2 Packed", sizeof(f->description));
 
 	return 0;
 }

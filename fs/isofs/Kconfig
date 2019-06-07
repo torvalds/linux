@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ISO9660_FS
 	tristate "ISO 9660 CDROM file system support"
 	help

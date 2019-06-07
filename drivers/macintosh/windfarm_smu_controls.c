@@ -267,7 +267,7 @@ static int __init smu_controls_init(void)
 
 	/* Look for RPM fans */
 	for (fans = NULL; (fans = of_get_next_child(smu, fans)) != NULL;)
-		if (!strcmp(fans->name, "rpm-fans") ||
+		if (of_node_name_eq(fans, "rpm-fans") ||
 		    of_device_is_compatible(fans, "smu-rpm-fans"))
 			break;
 	for (fan = NULL;
@@ -277,7 +277,7 @@ static int __init smu_controls_init(void)
 		fct = smu_fan_create(fan, 0);
 		if (fct == NULL) {
 			printk(KERN_WARNING "windfarm: Failed to create SMU "
-			       "RPM fan %s\n", fan->name);
+			       "RPM fan %pOFn\n", fan);
 			continue;
 		}
 		list_add(&fct->link, &smu_fans);
@@ -287,7 +287,7 @@ static int __init smu_controls_init(void)
 
 	/* Look for PWM fans */
 	for (fans = NULL; (fans = of_get_next_child(smu, fans)) != NULL;)
-		if (!strcmp(fans->name, "pwm-fans"))
+		if (of_node_name_eq(fans, "pwm-fans"))
 			break;
 	for (fan = NULL;
 	     fans && (fan = of_get_next_child(fans, fan)) != NULL;) {
@@ -296,7 +296,7 @@ static int __init smu_controls_init(void)
 		fct = smu_fan_create(fan, 1);
 		if (fct == NULL) {
 			printk(KERN_WARNING "windfarm: Failed to create SMU "
-			       "PWM fan %s\n", fan->name);
+			       "PWM fan %pOFn\n", fan);
 			continue;
 		}
 		list_add(&fct->link, &smu_fans);

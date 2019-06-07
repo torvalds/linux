@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/export.h>
 #include <linux/kref.h>
 #include <linux/list.h>
@@ -132,6 +133,13 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 			br_max = br_nom + br_nom * id->ext.br_min / 100;
 			br_min = br_nom - br_nom * id->ext.br_min / 100;
 		}
+
+		/* When using passive cables, in case neither BR,min nor BR,max
+		 * are specified, set br_min to 0 as the nominal value is then
+		 * used as the maximum.
+		 */
+		if (br_min == br_max && id->base.sfp_ct_passive)
+			br_min = 0;
 	}
 
 	/* Set ethtool support from the compliance fields. */
@@ -155,7 +163,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	/* 1000Base-PX or 1000Base-BX10 */
 	if ((id->base.e_base_px || id->base.e_base_bx10) &&
 	    br_min <= 1300 && br_max >= 1200)
-		phylink_set(support, 1000baseX_Full);
+		phylink_set(modes, 1000baseX_Full);
 
 	/* For active or passive cables, select the link modes
 	 * based on the bit rates and the cable compliance bytes.
@@ -340,6 +348,7 @@ static int sfp_register_bus(struct sfp_bus *bus)
 				return ret;
 		}
 	}
+	bus->socket_ops->attach(bus->sfp);
 	if (bus->started)
 		bus->socket_ops->start(bus->sfp);
 	bus->netdev->sfp_bus = bus;
@@ -351,13 +360,14 @@ static void sfp_unregister_bus(struct sfp_bus *bus)
 {
 	const struct sfp_upstream_ops *ops = bus->upstream_ops;
 
+	bus->netdev->sfp_bus = NULL;
 	if (bus->registered) {
 		if (bus->started)
 			bus->socket_ops->stop(bus->sfp);
+		bus->socket_ops->detach(bus->sfp);
 		if (bus->phydev && ops && ops->disconnect_phy)
 			ops->disconnect_phy(bus->upstream);
 	}
-	bus->netdev->sfp_bus = NULL;
 	bus->registered = false;
 }
 
@@ -429,6 +439,13 @@ void sfp_upstream_stop(struct sfp_bus *bus)
 }
 EXPORT_SYMBOL_GPL(sfp_upstream_stop);
 
+static void sfp_upstream_clear(struct sfp_bus *bus)
+{
+	bus->upstream_ops = NULL;
+	bus->upstream = NULL;
+	bus->netdev = NULL;
+}
+
 /**
  * sfp_register_upstream() - Register the neighbouring device
  * @fwnode: firmware node for the SFP bus
@@ -455,8 +472,11 @@ struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
 		bus->upstream = upstream;
 		bus->netdev = ndev;
 
-		if (bus->sfp)
+		if (bus->sfp) {
 			ret = sfp_register_bus(bus);
+			if (ret)
+				sfp_upstream_clear(bus);
+		}
 		rtnl_unlock();
 	}
 
@@ -481,8 +501,7 @@ void sfp_unregister_upstream(struct sfp_bus *bus)
 	rtnl_lock();
 	if (bus->sfp)
 		sfp_unregister_bus(bus);
-	bus->upstream = NULL;
-	bus->netdev = NULL;
+	sfp_upstream_clear(bus);
 	rtnl_unlock();
 
 	sfp_bus_put(bus);
@@ -554,6 +573,13 @@ void sfp_module_remove(struct sfp_bus *bus)
 }
 EXPORT_SYMBOL_GPL(sfp_module_remove);
 
+static void sfp_socket_clear(struct sfp_bus *bus)
+{
+	bus->sfp_dev = NULL;
+	bus->sfp = NULL;
+	bus->socket_ops = NULL;
+}
+
 struct sfp_bus *sfp_register_socket(struct device *dev, struct sfp *sfp,
 				    const struct sfp_socket_ops *ops)
 {
@@ -566,8 +592,11 @@ struct sfp_bus *sfp_register_socket(struct device *dev, struct sfp *sfp,
 		bus->sfp = sfp;
 		bus->socket_ops = ops;
 
-		if (bus->netdev)
+		if (bus->netdev) {
 			ret = sfp_register_bus(bus);
+			if (ret)
+				sfp_socket_clear(bus);
+		}
 		rtnl_unlock();
 	}
 
@@ -585,9 +614,7 @@ void sfp_unregister_socket(struct sfp_bus *bus)
 	rtnl_lock();
 	if (bus->netdev)
 		sfp_unregister_bus(bus);
-	bus->sfp_dev = NULL;
-	bus->sfp = NULL;
-	bus->socket_ops = NULL;
+	sfp_socket_clear(bus);
 	rtnl_unlock();
 
 	sfp_bus_put(bus);

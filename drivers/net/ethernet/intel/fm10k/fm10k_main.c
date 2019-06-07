@@ -1,23 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Intel(R) Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include <linux/types.h>
 #include <linux/module.h>
@@ -29,7 +11,7 @@
 
 #include "fm10k.h"
 
-#define DRV_VERSION	"0.23.4-k"
+#define DRV_VERSION	"0.26.1-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Switch Host Interface Driver"
 const char fm10k_driver_version[] = DRV_VERSION;
 char fm10k_driver_name[] = "fm10k";
@@ -39,7 +21,7 @@ static const char fm10k_copyright[] =
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION(DRV_SUMMARY);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
 /* single workqueue for entire fm10k driver */
@@ -59,6 +41,8 @@ static int __init fm10k_init_module(void)
 	/* create driver workqueue */
 	fm10k_workqueue = alloc_workqueue("%s", WQ_MEM_RECLAIM, 0,
 					  fm10k_driver_name);
+	if (!fm10k_workqueue)
+		return -ENOMEM;
 
 	fm10k_dbg_init();
 
@@ -296,7 +280,7 @@ static bool fm10k_add_rx_frag(struct fm10k_rx_buffer *rx_buffer,
 	/* we need the header to contain the greater of either ETH_HLEN or
 	 * 60 bytes if the skb->len is less than 60 for skb_pad.
 	 */
-	pull_len = eth_get_headlen(va, FM10K_RX_HDR_LEN);
+	pull_len = eth_get_headlen(skb->dev, va, FM10K_RX_HDR_LEN);
 
 	/* align pull length to size of long to optimize memcpy performance */
 	memcpy(__skb_put(skb, pull_len), va, ALIGN(pull_len, sizeof(long)));
@@ -445,15 +429,14 @@ static void fm10k_type_trans(struct fm10k_ring *rx_ring,
 			l2_accel = NULL;
 	}
 
-	skb->protocol = eth_type_trans(skb, dev);
-
 	/* Record Rx queue, or update macvlan statistics */
 	if (!l2_accel)
 		skb_record_rx_queue(skb, rx_ring->queue_index);
 	else
 		macvlan_count_rx(netdev_priv(dev), skb->len + ETH_HLEN, true,
-				 (skb->pkt_type == PACKET_BROADCAST) ||
-				 (skb->pkt_type == PACKET_MULTICAST));
+				 false);
+
+	skb->protocol = eth_type_trans(skb, dev);
 }
 
 /**
@@ -1054,13 +1037,8 @@ static void fm10k_tx_map(struct fm10k_ring *tx_ring,
 	fm10k_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	/* notify HW of packet */
-	if (netif_xmit_stopped(txring_txq(tx_ring)) || !skb->xmit_more) {
+	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more()) {
 		writel(i, tx_ring->tail);
-
-		/* we need this if more than one processor can write to our tail
-		 * at a time, it synchronizes IO on IA64/Altix systems
-		 */
-		mmiowb();
 	}
 
 	return;
@@ -1484,11 +1462,11 @@ static int fm10k_poll(struct napi_struct *napi, int budget)
 	if (!clean_complete)
 		return budget;
 
-	/* all work done, exit the polling mode */
-	napi_complete_done(napi, work_done);
-
-	/* re-enable the q_vector */
-	fm10k_qv_enable(q_vector);
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		fm10k_qv_enable(q_vector);
 
 	return min(work_done, budget - 1);
 }
@@ -1622,14 +1600,12 @@ static int fm10k_alloc_q_vector(struct fm10k_intfc *interface,
 {
 	struct fm10k_q_vector *q_vector;
 	struct fm10k_ring *ring;
-	int ring_count, size;
+	int ring_count;
 
 	ring_count = txr_count + rxr_count;
-	size = sizeof(struct fm10k_q_vector) +
-	       (sizeof(struct fm10k_ring) * ring_count);
 
 	/* allocate q_vector and rings */
-	q_vector = kzalloc(size, GFP_KERNEL);
+	q_vector = kzalloc(struct_size(q_vector, ring, ring_count), GFP_KERNEL);
 	if (!q_vector)
 		return -ENOMEM;
 

@@ -3,11 +3,6 @@
  * Device Tree include file for SolidRun Clearfog 88F6828 based boards
  *
  *  Copyright (C) 2015 Russell King
- *
- * This board is in development; the contents of this file work with
- * the A1 rev 2.0 of the board, which does not represent final
- * production board.  Things will change, don't expect this file to
- * remain compatible info the future.
  */
 
 #include "armada-388.dtsi"
@@ -53,7 +48,7 @@
 					     &clearfog_sdhci_cd_pins>;
 				pinctrl-names = "default";
 				status = "okay";
-				vmmc = <&reg_3p3v>;
+				vmmc-supply = <&reg_3p3v>;
 				wp-inverted;
 			};
 
@@ -98,6 +93,7 @@
 	bm,pool-long = <2>;
 	bm,pool-short = <1>;
 	buffer-manager = <&bm>;
+	phys = <&comphy1 1>;
 	phy-mode = "sgmii";
 	status = "okay";
 };
@@ -108,6 +104,7 @@
 	bm,pool-short = <1>;
 	buffer-manager = <&bm>;
 	managed = "in-band-status";
+	phys = <&comphy5 2>;
 	phy-mode = "sgmii";
 	sfp = <&sfp>;
 	status = "okay";
@@ -230,7 +227,7 @@
 &spi1 {
 	/*
 	 * Add SPI CS pins for clearfog:
-	 * CS0: W25Q32 (not populated on uSOM)
+	 * CS0: W25Q32
 	 * CS1: PIC microcontroller (Pro models)
 	 * CS2: mikrobus
 	 */

@@ -1,22 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vimc-debayer.c Virtual Media Controller Driver
  *
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/component.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/vmalloc.h>
 #include <linux/v4l2-mediabus.h>
@@ -25,6 +16,9 @@
 #include "vimc-common.h"
 
 #define VIMC_DEB_DRV_NAME "vimc-debayer"
+/* This module only supports tranforming a bayer format to V4L2_PIX_FMT_RGB24 */
+#define VIMC_DEB_SRC_PIXFMT V4L2_PIX_FMT_RGB24
+#define VIMC_DEB_SRC_MBUS_FMT_DEFAULT MEDIA_BUS_FMT_RGB888_1X24
 
 static unsigned int deb_mean_win_size = 3;
 module_param(deb_mean_win_size, uint, 0000);
@@ -43,6 +37,7 @@ enum vimc_deb_rgb_colors {
 };
 
 struct vimc_deb_pix_map {
+	u32 pixelformat;
 	u32 code;
 	enum vimc_deb_rgb_colors order[2][2];
 };
@@ -65,68 +60,80 @@ struct vimc_deb_device {
 static const struct v4l2_mbus_framefmt sink_fmt_default = {
 	.width = 640,
 	.height = 480,
-	.code = MEDIA_BUS_FMT_RGB888_1X24,
+	.code = MEDIA_BUS_FMT_SRGGB8_1X8,
 	.field = V4L2_FIELD_NONE,
 	.colorspace = V4L2_COLORSPACE_DEFAULT,
 };
 
 static const struct vimc_deb_pix_map vimc_deb_pix_map_list[] = {
 	{
+		.pixelformat = V4L2_PIX_FMT_SBGGR8,
 		.code = MEDIA_BUS_FMT_SBGGR8_1X8,
 		.order = { { VIMC_DEB_BLUE, VIMC_DEB_GREEN },
 			   { VIMC_DEB_GREEN, VIMC_DEB_RED } }
 	},
 	{
+		.pixelformat = V4L2_PIX_FMT_SGBRG8,
 		.code = MEDIA_BUS_FMT_SGBRG8_1X8,
 		.order = { { VIMC_DEB_GREEN, VIMC_DEB_BLUE },
 			   { VIMC_DEB_RED, VIMC_DEB_GREEN } }
 	},
 	{
+		.pixelformat = V4L2_PIX_FMT_SGRBG8,
 		.code = MEDIA_BUS_FMT_SGRBG8_1X8,
 		.order = { { VIMC_DEB_GREEN, VIMC_DEB_RED },
 			   { VIMC_DEB_BLUE, VIMC_DEB_GREEN } }
 	},
 	{
+		.pixelformat = V4L2_PIX_FMT_SRGGB8,
 		.code = MEDIA_BUS_FMT_SRGGB8_1X8,
 		.order = { { VIMC_DEB_RED, VIMC_DEB_GREEN },
 			   { VIMC_DEB_GREEN, VIMC_DEB_BLUE } }
 	},
 	{
+		.pixelformat = V4L2_PIX_FMT_SBGGR10,
 		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.order = { { VIMC_DEB_BLUE, VIMC_DEB_GREEN },
 			   { VIMC_DEB_GREEN, VIMC_DEB_RED } }
 	},
 	{
+		.pixelformat = V4L2_PIX_FMT_SGBRG10,
 		.code = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.order = { { VIMC_DEB_GREEN, VIMC_DEB_BLUE },
 			   { VIMC_DEB_RED, VIMC_DEB_GREEN } }
 	},
 	{
+		.pixelformat = V4L2_PIX_FMT_SGRBG10,
 		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
 		.order = { { VIMC_DEB_GREEN, VIMC_DEB_RED },
 			   { VIMC_DEB_BLUE, VIMC_DEB_GREEN } }
 	},
 	{
+		.pixelformat = V4L2_PIX_FMT_SRGGB10,
 		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.order = { { VIMC_DEB_RED, VIMC_DEB_GREEN },
 			   { VIMC_DEB_GREEN, VIMC_DEB_BLUE } }
 	},
 	{
+		.pixelformat = V4L2_PIX_FMT_SBGGR12,
 		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
 		.order = { { VIMC_DEB_BLUE, VIMC_DEB_GREEN },
 			   { VIMC_DEB_GREEN, VIMC_DEB_RED } }
 	},
 	{
+		.pixelformat = V4L2_PIX_FMT_SGBRG12,
 		.code = MEDIA_BUS_FMT_SGBRG12_1X12,
 		.order = { { VIMC_DEB_GREEN, VIMC_DEB_BLUE },
 			   { VIMC_DEB_RED, VIMC_DEB_GREEN } }
 	},
 	{
+		.pixelformat = V4L2_PIX_FMT_SGRBG12,
 		.code = MEDIA_BUS_FMT_SGRBG12_1X12,
 		.order = { { VIMC_DEB_GREEN, VIMC_DEB_RED },
 			   { VIMC_DEB_BLUE, VIMC_DEB_GREEN } }
 	},
 	{
+		.pixelformat = V4L2_PIX_FMT_SRGGB12,
 		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
 		.order = { { VIMC_DEB_RED, VIMC_DEB_GREEN },
 			   { VIMC_DEB_GREEN, VIMC_DEB_BLUE } }
@@ -167,41 +174,32 @@ static int vimc_deb_enum_mbus_code(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
-	/* We only support one format for source pads */
-	if (IS_SRC(code->pad)) {
-		struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
-
-		if (code->index)
-			return -EINVAL;
-
-		code->code = vdeb->src_code;
-	} else {
+	/* For the sink pad we only support codes in the map_list */
+	if (IS_SINK(code->pad)) {
 		if (code->index >= ARRAY_SIZE(vimc_deb_pix_map_list))
 			return -EINVAL;
 
 		code->code = vimc_deb_pix_map_list[code->index].code;
+		return 0;
 	}
 
-	return 0;
+	return vimc_enum_mbus_code(sd, cfg, code);
 }
 
 static int vimc_deb_enum_frame_size(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_pad_config *cfg,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
-	struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
-
 	if (fse->index)
 		return -EINVAL;
 
+	/* For the sink pad we only support codes in the map_list */
 	if (IS_SINK(fse->pad)) {
 		const struct vimc_deb_pix_map *vpix =
 			vimc_deb_pix_map_by_code(fse->code);
 
 		if (!vpix)
 			return -EINVAL;
-	} else if (fse->code != vdeb->src_code) {
-		return -EINVAL;
 	}
 
 	fse->min_width = VIMC_FRAME_MIN_WIDTH;
@@ -257,6 +255,9 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 	struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *sink_fmt;
 
+	if (!vimc_mbus_code_supported(fmt->format.code))
+		fmt->format.code = sink_fmt_default.code;
+
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		/* Do not change the format while stream is on */
 		if (vdeb->src_frame)
@@ -269,11 +270,11 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 
 	/*
 	 * Do not change the format of the source pad,
-	 * it is propagated from the sink
+	 * it is propagated from the sink (except for the code)
 	 */
 	if (IS_SRC(fmt->pad)) {
+		vdeb->src_code = fmt->format.code;
 		fmt->format = *sink_fmt;
-		/* TODO: Add support for other formats */
 		fmt->format.code = vdeb->src_code;
 	} else {
 		/* Set the new format in the sink pad */
@@ -305,7 +306,7 @@ static const struct v4l2_subdev_pad_ops vimc_deb_pad_ops = {
 	.set_fmt		= vimc_deb_set_fmt,
 };
 
-static void vimc_deb_set_rgb_mbus_fmt_rgb888_1x24(struct vimc_deb_device *vdeb,
+static void vimc_deb_set_rgb_pix_rgb24(struct vimc_deb_device *vdeb,
 						  unsigned int lin,
 						  unsigned int col,
 						  unsigned int rgb[3])
@@ -320,27 +321,39 @@ static void vimc_deb_set_rgb_mbus_fmt_rgb888_1x24(struct vimc_deb_device *vdeb,
 static int vimc_deb_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct vimc_deb_device *vdeb = v4l2_get_subdevdata(sd);
-	int ret;
 
 	if (enable) {
-		const struct vimc_pix_map *vpix;
+		u32 src_pixelformat = vdeb->ved.stream->producer_pixfmt;
+		const struct v4l2_format_info *pix_info;
 		unsigned int frame_size;
 
 		if (vdeb->src_frame)
 			return 0;
 
-		/* Calculate the frame size of the source pad */
-		vpix = vimc_pix_map_by_code(vdeb->src_code);
-		frame_size = vdeb->sink_fmt.width * vdeb->sink_fmt.height *
-				vpix->bpp;
-
-		/* Save the bytes per pixel of the sink */
-		vpix = vimc_pix_map_by_code(vdeb->sink_fmt.code);
-		vdeb->sink_bpp = vpix->bpp;
+		/* We only support translating bayer to RGB24 */
+		if (src_pixelformat != V4L2_PIX_FMT_RGB24) {
+			dev_err(vdeb->dev,
+				"translating to pixfmt (0x%08x) is not supported\n",
+				src_pixelformat);
+			return -EINVAL;
+		}
 
 		/* Get the corresponding pixel map from the table */
 		vdeb->sink_pix_map =
 			vimc_deb_pix_map_by_code(vdeb->sink_fmt.code);
+
+		/* Request bayer format from the pipeline for the sink pad */
+		vdeb->ved.stream->producer_pixfmt =
+			vdeb->sink_pix_map->pixelformat;
+
+		/* Calculate frame_size of the source */
+		pix_info = v4l2_format_info(src_pixelformat);
+		frame_size = vdeb->sink_fmt.width * vdeb->sink_fmt.height *
+			     pix_info->bpp[0];
+
+		/* Get bpp from the sink */
+		pix_info = v4l2_format_info(vdeb->sink_pix_map->pixelformat);
+		vdeb->sink_bpp = pix_info->bpp[0];
 
 		/*
 		 * Allocate the frame buffer. Use vmalloc to be able to
@@ -350,21 +363,9 @@ static int vimc_deb_s_stream(struct v4l2_subdev *sd, int enable)
 		if (!vdeb->src_frame)
 			return -ENOMEM;
 
-		/* Turn the stream on in the subdevices directly connected */
-		ret = vimc_pipeline_s_stream(&vdeb->sd.entity, 1);
-		if (ret) {
-			vfree(vdeb->src_frame);
-			vdeb->src_frame = NULL;
-			return ret;
-		}
 	} else {
 		if (!vdeb->src_frame)
 			return 0;
-
-		/* Disable streaming from the pipe */
-		ret = vimc_pipeline_s_stream(&vdeb->sd.entity, 0);
-		if (ret)
-			return ret;
 
 		vfree(vdeb->src_frame);
 		vdeb->src_frame = NULL;
@@ -479,9 +480,8 @@ static void vimc_deb_calc_rgb_sink(struct vimc_deb_device *vdeb,
 	}
 }
 
-static void vimc_deb_process_frame(struct vimc_ent_device *ved,
-				   struct media_pad *sink,
-				   const void *sink_frame)
+static void *vimc_deb_process_frame(struct vimc_ent_device *ved,
+				    const void *sink_frame)
 {
 	struct vimc_deb_device *vdeb = container_of(ved, struct vimc_deb_device,
 						    ved);
@@ -490,7 +490,7 @@ static void vimc_deb_process_frame(struct vimc_ent_device *ved,
 
 	/* If the stream in this node is not active, just return */
 	if (!vdeb->src_frame)
-		return;
+		return ERR_PTR(-EINVAL);
 
 	for (i = 0; i < vdeb->sink_fmt.height; i++)
 		for (j = 0; j < vdeb->sink_fmt.width; j++) {
@@ -498,13 +498,21 @@ static void vimc_deb_process_frame(struct vimc_ent_device *ved,
 			vdeb->set_rgb_src(vdeb, i, j, rgb);
 		}
 
-	/* Propagate the frame through all source pads */
-	for (i = 1; i < vdeb->sd.entity.num_pads; i++) {
-		struct media_pad *pad = &vdeb->sd.entity.pads[i];
+	return vdeb->src_frame;
 
-		vimc_propagate_frame(pad, vdeb->src_frame);
-	}
 }
+
+static void vimc_deb_release(struct v4l2_subdev *sd)
+{
+	struct vimc_deb_device *vdeb =
+				container_of(sd, struct vimc_deb_device, sd);
+
+	kfree(vdeb);
+}
+
+static const struct v4l2_subdev_internal_ops vimc_deb_int_ops = {
+	.release = vimc_deb_release,
+};
 
 static void vimc_deb_comp_unbind(struct device *comp, struct device *master,
 				 void *master_data)
@@ -514,7 +522,6 @@ static void vimc_deb_comp_unbind(struct device *comp, struct device *master,
 						    ved);
 
 	vimc_ent_sd_unregister(ved, &vdeb->sd);
-	kfree(vdeb);
 }
 
 static int vimc_deb_comp_bind(struct device *comp, struct device *master,
@@ -536,7 +543,7 @@ static int vimc_deb_comp_bind(struct device *comp, struct device *master,
 				   MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV, 2,
 				   (const unsigned long[2]) {MEDIA_PAD_FL_SINK,
 				   MEDIA_PAD_FL_SOURCE},
-				   &vimc_deb_ops);
+				   &vimc_deb_int_ops, &vimc_deb_ops);
 	if (ret) {
 		kfree(vdeb);
 		return ret;
@@ -548,14 +555,14 @@ static int vimc_deb_comp_bind(struct device *comp, struct device *master,
 
 	/* Initialize the frame format */
 	vdeb->sink_fmt = sink_fmt_default;
+	vdeb->src_code = VIMC_DEB_SRC_MBUS_FMT_DEFAULT;
 	/*
 	 * TODO: Add support for more output formats, we only support
-	 * RGB888 for now
+	 * RGB24 for now.
 	 * NOTE: the src format is always the same as the sink, except
 	 * for the code
 	 */
-	vdeb->src_code = MEDIA_BUS_FMT_RGB888_1X24;
-	vdeb->set_rgb_src = vimc_deb_set_rgb_mbus_fmt_rgb888_1x24;
+	vdeb->set_rgb_src = vimc_deb_set_rgb_pix_rgb24;
 
 	return 0;
 }

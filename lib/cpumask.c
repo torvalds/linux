@@ -4,7 +4,8 @@
 #include <linux/bitops.h>
 #include <linux/cpumask.h>
 #include <linux/export.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
+#include <linux/numa.h>
 
 /**
  * cpumask_next - get the next cpu in a cpumask
@@ -163,7 +164,10 @@ EXPORT_SYMBOL(zalloc_cpumask_var);
  */
 void __init alloc_bootmem_cpumask_var(cpumask_var_t *mask)
 {
-	*mask = memblock_virt_alloc(cpumask_size(), 0);
+	*mask = memblock_alloc(cpumask_size(), SMP_CACHE_BYTES);
+	if (!*mask)
+		panic("%s: Failed to allocate %u bytes\n", __func__,
+		      cpumask_size());
 }
 
 /**
@@ -206,7 +210,7 @@ unsigned int cpumask_local_spread(unsigned int i, int node)
 	/* Wrap: we always want a cpu. */
 	i %= num_online_cpus();
 
-	if (node == -1) {
+	if (node == NUMA_NO_NODE) {
 		for_each_cpu(cpu, cpu_online_mask)
 			if (i-- == 0)
 				return cpu;

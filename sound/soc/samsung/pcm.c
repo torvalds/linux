@@ -1,15 +1,10 @@
-/* sound/soc/samsung/pcm.c
- *
- * ALSA SoC Audio Layer - S3C PCM-Controller driver
- *
- * Copyright (c) 2009 Samsung Electronics Co. Ltd
- * Author: Jaswinder Singh <jassisinghbrar@gmail.com>
- * based upon I2S drivers by Ben Dooks.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// ALSA SoC Audio Layer - S3C PCM-Controller driver
+//
+// Copyright (c) 2009 Samsung Electronics Co. Ltd
+// Author: Jaswinder Singh <jassisinghbrar@gmail.com>
+// based upon I2S drivers by Ben Dooks.
 
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -553,7 +548,7 @@ static int s3c_pcm_dev_probe(struct platform_device *pdev)
 	pcm->dma_playback = &s3c_pcm_stereo_out[pdev->id];
 
 	ret = samsung_asoc_dma_platform_register(&pdev->dev, filter,
-						 NULL, NULL);
+						 NULL, NULL, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get register DMA: %d\n", ret);
 		goto err_dis_pclk;

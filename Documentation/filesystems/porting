@@ -602,3 +602,74 @@ in your dentry operations instead.
 	dentry separately, and it now has request_mask and query_flags arguments
 	to specify the fields and sync type requested by statx.  Filesystems not
 	supporting any statx-specific features may ignore the new arguments.
+--
+[mandatory]
+	->atomic_open() calling conventions have changed.  Gone is int *opened,
+	along with FILE_OPENED/FILE_CREATED.  In place of those we have
+	FMODE_OPENED/FMODE_CREATED, set in file->f_mode.  Additionally, return
+	value for 'called finish_no_open(), open it yourself' case has become
+	0, not 1.  Since finish_no_open() itself is returning 0 now, that part
+	does not need any changes in ->atomic_open() instances.
+--
+[mandatory]
+	alloc_file() has become static now; two wrappers are to be used instead.
+	alloc_file_pseudo(inode, vfsmount, name, flags, ops) is for the cases
+	when dentry needs to be created; that's the majority of old alloc_file()
+	users.  Calling conventions: on success a reference to new struct file
+	is returned and callers reference to inode is subsumed by that.  On
+	failure, ERR_PTR() is returned and no caller's references are affected,
+	so the caller needs to drop the inode reference it held.
+	alloc_file_clone(file, flags, ops) does not affect any caller's references.
+	On success you get a new struct file sharing the mount/dentry with the
+	original, on failure - ERR_PTR().
+--
+[mandatory]
+	->clone_file_range() and ->dedupe_file_range have been replaced with
+	->remap_file_range().  See Documentation/filesystems/vfs.txt for more
+	information.
+--
+[recommended]
+	->lookup() instances doing an equivalent of
+		if (IS_ERR(inode))
+			return ERR_CAST(inode);
+		return d_splice_alias(inode, dentry);
+	don't need to bother with the check - d_splice_alias() will do the
+	right thing when given ERR_PTR(...) as inode.  Moreover, passing NULL
+	inode to d_splice_alias() will also do the right thing (equivalent of
+	d_add(dentry, NULL); return NULL;), so that kind of special cases
+	also doesn't need a separate treatment.
+--
+[strongly recommended]
+	take the RCU-delayed parts of ->destroy_inode() into a new method -
+	->free_inode().  If ->destroy_inode() becomes empty - all the better,
+	just get rid of it.  Synchronous work (e.g. the stuff that can't
+	be done from an RCU callback, or any WARN_ON() where we want the
+	stack trace) *might* be movable to ->evict_inode(); however,
+	that goes only for the things that are not needed to balance something
+	done by ->alloc_inode().  IOW, if it's cleaning up the stuff that
+	might have accumulated over the life of in-core inode, ->evict_inode()
+	might be a fit.
+
+	Rules for inode destruction:
+		* if ->destroy_inode() is non-NULL, it gets called
+		* if ->free_inode() is non-NULL, it gets scheduled by call_rcu()
+		* combination of NULL ->destroy_inode and NULL ->free_inode is
+		  treated as NULL/free_inode_nonrcu, to preserve the compatibility.
+
+	Note that the callback (be it via ->free_inode() or explicit call_rcu()
+	in ->destroy_inode()) is *NOT* ordered wrt superblock destruction;
+	as the matter of fact, the superblock and all associated structures
+	might be already gone.  The filesystem driver is guaranteed to be still
+	there, but that's it.  Freeing memory in the callback is fine; doing
+	more than that is possible, but requires a lot of care and is best
+	avoided.
+--
+[mandatory]
+	DCACHE_RCUACCESS is gone; having an RCU delay on dentry freeing is the
+	default.  DCACHE_NORCU opts out, and only d_alloc_pseudo() has any
+	business doing so.
+--
+[mandatory]
+	d_alloc_pseudo() is internal-only; uses outside of alloc_file_pseudo() are
+	very suspect (and won't work in modules).  Such uses are very likely to
+	be misspelled d_alloc_anon().

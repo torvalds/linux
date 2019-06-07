@@ -68,7 +68,6 @@ struct reservation_object_list {
  * @seq: sequence count for managing RCU read-side synchronization
  * @fence_excl: the exclusive fence, if there is one currently
  * @fence: list of current shared fences
- * @staged: staged copy of shared fences for RCU updates
  */
 struct reservation_object {
 	struct ww_mutex lock;
@@ -76,7 +75,6 @@ struct reservation_object {
 
 	struct dma_fence __rcu *fence_excl;
 	struct reservation_object_list __rcu *fence;
-	struct reservation_object_list *staged;
 };
 
 #define reservation_object_held(obj) lockdep_is_held(&(obj)->lock.base)
@@ -95,7 +93,6 @@ reservation_object_init(struct reservation_object *obj)
 	__seqcount_init(&obj->seq, reservation_seqcount_string, &reservation_seqcount_class);
 	RCU_INIT_POINTER(obj->fence, NULL);
 	RCU_INIT_POINTER(obj->fence_excl, NULL);
-	obj->staged = NULL;
 }
 
 /**
@@ -124,7 +121,6 @@ reservation_object_fini(struct reservation_object *obj)
 
 		kfree(fobj);
 	}
-	kfree(obj->staged);
 
 	ww_mutex_destroy(&obj->lock);
 }
@@ -218,6 +214,11 @@ reservation_object_trylock(struct reservation_object *obj)
 static inline void
 reservation_object_unlock(struct reservation_object *obj)
 {
+#ifdef CONFIG_DEBUG_MUTEXES
+	/* Test shared fence slot reservation */
+	if (obj->fence)
+		obj->fence->shared_max = obj->fence->shared_count;
+#endif
 	ww_mutex_unlock(&obj->lock);
 }
 
@@ -227,7 +228,8 @@ reservation_object_unlock(struct reservation_object *obj)
  * @obj: the reservation object
  *
  * Returns the exclusive fence (if any).  Does NOT take a
- * reference.  The obj->lock must be held.
+ * reference. Writers must hold obj->lock, readers may only
+ * hold a RCU read side lock.
  *
  * RETURNS
  * The exclusive fence or NULL
@@ -265,7 +267,8 @@ reservation_object_get_excl_rcu(struct reservation_object *obj)
 	return fence;
 }
 
-int reservation_object_reserve_shared(struct reservation_object *obj);
+int reservation_object_reserve_shared(struct reservation_object *obj,
+				      unsigned int num_fences);
 void reservation_object_add_shared_fence(struct reservation_object *obj,
 					 struct dma_fence *fence);
 

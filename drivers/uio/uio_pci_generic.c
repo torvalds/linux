@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /* uio_pci_generic - generic UIO driver for PCI 2.3 devices
  *
  * Copyright (C) 2009 Red Hat, Inc.
  * Author: Michael S. Tsirkin <mst@redhat.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Since the driver does not declare any device ids, you must allocate
  * id and bind the device to the driver yourself.  For example:
@@ -38,6 +37,22 @@ static inline struct uio_pci_generic_dev *
 to_uio_pci_generic_dev(struct uio_info *info)
 {
 	return container_of(info, struct uio_pci_generic_dev, info);
+}
+
+static int release(struct uio_info *info, struct inode *inode)
+{
+	struct uio_pci_generic_dev *gdev = to_uio_pci_generic_dev(info);
+
+	/*
+	 * This driver is insecure when used with devices doing DMA, but some
+	 * people (mis)use it with such devices.
+	 * Let's at least make sure DMA isn't left enabled after the userspace
+	 * driver closes the fd.
+	 * Note that there's a non-zero chance doing this will wedge the device
+	 * at least until reset.
+	 */
+	pci_clear_master(gdev->pdev);
+	return 0;
 }
 
 /* Interrupt handler. Read/modify/write the command register to disable
@@ -79,6 +94,7 @@ static int probe(struct pci_dev *pdev,
 
 	gdev->info.name = "uio_pci_generic";
 	gdev->info.version = DRIVER_VERSION;
+	gdev->info.release = release;
 	gdev->pdev = pdev;
 	if (pdev->irq) {
 		gdev->info.irq = pdev->irq;

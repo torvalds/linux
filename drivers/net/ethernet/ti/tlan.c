@@ -69,7 +69,9 @@ MODULE_AUTHOR("Maintainer: Samuel Chessman <chessman@tux.org>");
 MODULE_DESCRIPTION("Driver for TI ThunderLAN based ethernet PCI adapters");
 MODULE_LICENSE("GPL");
 
-/* Turn on debugging. See Documentation/networking/tlan.txt for details */
+/* Turn on debugging.
+ * See Documentation/networking/device_drivers/ti/tlan.txt for details
+ */
 static  int		debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "ThunderLAN debug mask");
@@ -966,6 +968,7 @@ static int tlan_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	switch (cmd) {
 	case SIOCGMIIPHY:		/* get address of MII PHY in use. */
 		data->phy_id = phy;
+		/* fall through */
 
 
 	case SIOCGMIIREG:		/* read MII PHY register. */

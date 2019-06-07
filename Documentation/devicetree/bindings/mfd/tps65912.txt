@@ -3,7 +3,6 @@
 Required properties:
  - compatible		: Should be "ti,tps65912".
  - reg			: Slave address or chip select number (I2C / SPI).
- - interrupt-parent	: The parent interrupt controller.
  - interrupts		: The interrupt line the device is connected to.
  - interrupt-controller	: Marks the device node as an interrupt controller.
  - #interrupt-cells	: The number of cells to describe an IRQ, should be 2.

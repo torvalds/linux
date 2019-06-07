@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  (C) 2004-2009  Dominik Brodowski <linux@dominikbrodowski.de>
  *  (C) 2011       Thomas Renninger <trenn@novell.com> Novell Inc.
- *
- *  Licensed under the terms of the GNU GPL License version 2.
  */
 
 #include <stdio.h>
@@ -319,7 +318,7 @@ static unsigned int sysfs_cpuidle_read_file(const char *fname, char *buf,
 
 	snprintf(path, sizeof(path), PATH_TO_CPU "cpuidle/%s", fname);
 
-	return sysfs_read_file(path, buf, buflen);
+	return cpupower_read_sysfs(path, buf, buflen);
 }
 
 

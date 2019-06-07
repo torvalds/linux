@@ -3,7 +3,7 @@
  *
  * Module Name: utpredef - support functions for predefined names
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -84,7 +84,7 @@ const union acpi_predefined_info *acpi_ut_match_predefined_method(char *name)
 
 	this_name = acpi_gbl_predefined_methods;
 	while (this_name->info.name[0]) {
-		if (ACPI_COMPARE_NAME(name, this_name->info.name)) {
+		if (ACPI_COMPARE_NAMESEG(name, this_name->info.name)) {
 			return (this_name);
 		}
 
@@ -201,7 +201,7 @@ const union acpi_predefined_info *acpi_ut_match_resource_name(char *name)
 
 	this_name = acpi_gbl_resource_names;
 	while (this_name->info.name[0]) {
-		if (ACPI_COMPARE_NAME(name, this_name->info.name)) {
+		if (ACPI_COMPARE_NAMESEG(name, this_name->info.name)) {
 			return (this_name);
 		}
 

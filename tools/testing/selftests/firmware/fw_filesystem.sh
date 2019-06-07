@@ -30,6 +30,7 @@ fi
 
 if [ ! -e "$DIR"/trigger_async_request ]; then
 	echo "$0: empty filename: async trigger not present, ignoring test" >&2
+	exit $ksft_skip
 else
 	if printf '\000' >"$DIR"/trigger_async_request 2> /dev/null; then
 		echo "$0: empty filename should not succeed (async)" >&2
@@ -69,6 +70,7 @@ fi
 # Try the asynchronous version too
 if [ ! -e "$DIR"/trigger_async_request ]; then
 	echo "$0: firmware loading: async trigger not present, ignoring test" >&2
+	exit $ksft_skip
 else
 	if ! echo -n "$NAME" >"$DIR"/trigger_async_request ; then
 		echo "$0: could not trigger async request" >&2
@@ -89,7 +91,7 @@ test_config_present()
 {
 	if [ ! -f $DIR/reset ]; then
 		echo "Configuration triggers not present, ignoring test"
-		exit 0
+		exit $ksft_skip
 	fi
 }
 

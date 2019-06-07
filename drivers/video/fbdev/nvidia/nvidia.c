@@ -566,7 +566,7 @@ static int nvidiafb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		u8 *msk = (u8 *) cursor->mask;
 		u8 *src;
 
-		src = kmalloc(s_pitch * cursor->image.height, GFP_ATOMIC);
+		src = kmalloc_array(s_pitch, cursor->image.height, GFP_ATOMIC);
 
 		if (src) {
 			switch (cursor->rop) {
@@ -1548,7 +1548,7 @@ MODULE_PARM_DESC(noaccel,
 		 "(default=0)");
 module_param(noscale, int, 0);
 MODULE_PARM_DESC(noscale,
-		 "Disables screen scaleing. (0 or 1=disable) "
+		 "Disables screen scaling. (0 or 1=disable) "
 		 "(default=0, do scaling)");
 module_param(paneltweak, int, 0);
 MODULE_PARM_DESC(paneltweak,

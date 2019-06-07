@@ -7,6 +7,7 @@
 #define __DRIVER_CPUIDLE_H
 
 /* For internal use only */
+extern char param_governor[];
 extern struct cpuidle_governor *cpuidle_curr_governor;
 extern struct list_head cpuidle_governors;
 extern struct list_head cpuidle_detected_devices;

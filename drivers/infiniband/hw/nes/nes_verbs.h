@@ -59,7 +59,6 @@ struct nes_ucontext {
 	struct list_head   cq_reg_mem_list;
 	struct list_head   qp_reg_mem_list;
 	u32                mcrqf;
-	atomic_t	   usecnt;
 };
 
 struct nes_pd {

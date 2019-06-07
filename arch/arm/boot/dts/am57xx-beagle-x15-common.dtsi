@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-#include "dra74x.dtsi"
+#include "am5728.dtsi"
 #include "am57xx-commercial-grade.dtsi"
 #include "dra74x-mmc-iodelay.dtsi"
 #include <dt-bindings/gpio/gpio.h>
@@ -444,8 +444,8 @@
 	vmmc-supply = <&vdd_3v3>;
 	vqmmc-supply = <&vdd_3v3>;
 	bus-width = <8>;
-	ti,non-removable;
-	cap-mmc-dual-data-rate;
+	non-removable;
+	no-1-8-v;
 };
 
 &sata {
@@ -555,7 +555,7 @@
 
 &mcasp3 {
 	#sound-dai-cells = <0>;
-	assigned-clocks = <&l4per_clkctrl DRA7_MCASP3_CLKCTRL 24>;
+	assigned-clocks = <&l4per2_clkctrl DRA7_L4PER2_MCASP3_CLKCTRL 24>;
 	assigned-clock-parents = <&sys_clkin2>;
 	status = "okay";
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Asynchronous block chaining cipher operations.
  *
@@ -5,12 +6,6 @@
  * via a callback.
  *
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/skcipher.h>
@@ -71,11 +66,9 @@ static inline u8 *ablkcipher_get_spot(u8 *start, unsigned int len)
 	return max(start, end_page);
 }
 
-static inline unsigned int ablkcipher_done_slow(struct ablkcipher_walk *walk,
-						unsigned int bsize)
+static inline void ablkcipher_done_slow(struct ablkcipher_walk *walk,
+					unsigned int n)
 {
-	unsigned int n = bsize;
-
 	for (;;) {
 		unsigned int len_this_page = scatterwalk_pagelen(&walk->out);
 
@@ -87,17 +80,13 @@ static inline unsigned int ablkcipher_done_slow(struct ablkcipher_walk *walk,
 		n -= len_this_page;
 		scatterwalk_start(&walk->out, sg_next(walk->out.sg));
 	}
-
-	return bsize;
 }
 
-static inline unsigned int ablkcipher_done_fast(struct ablkcipher_walk *walk,
-						unsigned int n)
+static inline void ablkcipher_done_fast(struct ablkcipher_walk *walk,
+					unsigned int n)
 {
 	scatterwalk_advance(&walk->in, n);
 	scatterwalk_advance(&walk->out, n);
-
-	return n;
 }
 
 static int ablkcipher_walk_next(struct ablkcipher_request *req,
@@ -107,39 +96,40 @@ int ablkcipher_walk_done(struct ablkcipher_request *req,
 			 struct ablkcipher_walk *walk, int err)
 {
 	struct crypto_tfm *tfm = req->base.tfm;
-	unsigned int nbytes = 0;
+	unsigned int n; /* bytes processed */
+	bool more;
 
-	if (likely(err >= 0)) {
-		unsigned int n = walk->nbytes - err;
+	if (unlikely(err < 0))
+		goto finish;
 
-		if (likely(!(walk->flags & ABLKCIPHER_WALK_SLOW)))
-			n = ablkcipher_done_fast(walk, n);
-		else if (WARN_ON(err)) {
+	n = walk->nbytes - err;
+	walk->total -= n;
+	more = (walk->total != 0);
+
+	if (likely(!(walk->flags & ABLKCIPHER_WALK_SLOW))) {
+		ablkcipher_done_fast(walk, n);
+	} else {
+		if (WARN_ON(err)) {
+			/* unexpected case; didn't process all bytes */
 			err = -EINVAL;
-			goto err;
-		} else
-			n = ablkcipher_done_slow(walk, n);
-
-		nbytes = walk->total - n;
-		err = 0;
+			goto finish;
+		}
+		ablkcipher_done_slow(walk, n);
 	}
 
-	scatterwalk_done(&walk->in, 0, nbytes);
-	scatterwalk_done(&walk->out, 1, nbytes);
+	scatterwalk_done(&walk->in, 0, more);
+	scatterwalk_done(&walk->out, 1, more);
 
-err:
-	walk->total = nbytes;
-	walk->nbytes = nbytes;
-
-	if (nbytes) {
+	if (more) {
 		crypto_yield(req->base.flags);
 		return ablkcipher_walk_next(req, walk);
 	}
-
+	err = 0;
+finish:
+	walk->nbytes = 0;
 	if (walk->iv != req->info)
 		memcpy(req->info, walk->iv, tfm->crt_ablkcipher.ivsize);
 	kfree(walk->iv_buffer);
-
 	return err;
 }
 EXPORT_SYMBOL_GPL(ablkcipher_walk_done);
@@ -370,22 +360,18 @@ static int crypto_ablkcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_blkcipher rblkcipher;
 
-	strncpy(rblkcipher.type, "ablkcipher", sizeof(rblkcipher.type));
-	strncpy(rblkcipher.geniv, alg->cra_ablkcipher.geniv ?: "<default>",
-		sizeof(rblkcipher.geniv));
+	memset(&rblkcipher, 0, sizeof(rblkcipher));
+
+	strscpy(rblkcipher.type, "ablkcipher", sizeof(rblkcipher.type));
+	strscpy(rblkcipher.geniv, "<default>", sizeof(rblkcipher.geniv));
 
 	rblkcipher.blocksize = alg->cra_blocksize;
 	rblkcipher.min_keysize = alg->cra_ablkcipher.min_keysize;
 	rblkcipher.max_keysize = alg->cra_ablkcipher.max_keysize;
 	rblkcipher.ivsize = alg->cra_ablkcipher.ivsize;
 
-	if (nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
-		    sizeof(struct crypto_report_blkcipher), &rblkcipher))
-		goto nla_put_failure;
-	return 0;
-
-nla_put_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
+		       sizeof(rblkcipher), &rblkcipher);
 }
 #else
 static int crypto_ablkcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
@@ -407,7 +393,7 @@ static void crypto_ablkcipher_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "min keysize  : %u\n", ablkcipher->min_keysize);
 	seq_printf(m, "max keysize  : %u\n", ablkcipher->max_keysize);
 	seq_printf(m, "ivsize       : %u\n", ablkcipher->ivsize);
-	seq_printf(m, "geniv        : %s\n", ablkcipher->geniv ?: "<default>");
+	seq_printf(m, "geniv        : <default>\n");
 }
 
 const struct crypto_type crypto_ablkcipher_type = {
@@ -419,77 +405,3 @@ const struct crypto_type crypto_ablkcipher_type = {
 	.report = crypto_ablkcipher_report,
 };
 EXPORT_SYMBOL_GPL(crypto_ablkcipher_type);
-
-static int crypto_init_givcipher_ops(struct crypto_tfm *tfm, u32 type,
-				      u32 mask)
-{
-	struct ablkcipher_alg *alg = &tfm->__crt_alg->cra_ablkcipher;
-	struct ablkcipher_tfm *crt = &tfm->crt_ablkcipher;
-
-	if (alg->ivsize > PAGE_SIZE / 8)
-		return -EINVAL;
-
-	crt->setkey = tfm->__crt_alg->cra_flags & CRYPTO_ALG_GENIV ?
-		      alg->setkey : setkey;
-	crt->encrypt = alg->encrypt;
-	crt->decrypt = alg->decrypt;
-	crt->base = __crypto_ablkcipher_cast(tfm);
-	crt->ivsize = alg->ivsize;
-
-	return 0;
-}
-
-#ifdef CONFIG_NET
-static int crypto_givcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct crypto_report_blkcipher rblkcipher;
-
-	strncpy(rblkcipher.type, "givcipher", sizeof(rblkcipher.type));
-	strncpy(rblkcipher.geniv, alg->cra_ablkcipher.geniv ?: "<built-in>",
-		sizeof(rblkcipher.geniv));
-
-	rblkcipher.blocksize = alg->cra_blocksize;
-	rblkcipher.min_keysize = alg->cra_ablkcipher.min_keysize;
-	rblkcipher.max_keysize = alg->cra_ablkcipher.max_keysize;
-	rblkcipher.ivsize = alg->cra_ablkcipher.ivsize;
-
-	if (nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
-		    sizeof(struct crypto_report_blkcipher), &rblkcipher))
-		goto nla_put_failure;
-	return 0;
-
-nla_put_failure:
-	return -EMSGSIZE;
-}
-#else
-static int crypto_givcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return -ENOSYS;
-}
-#endif
-
-static void crypto_givcipher_show(struct seq_file *m, struct crypto_alg *alg)
-	__maybe_unused;
-static void crypto_givcipher_show(struct seq_file *m, struct crypto_alg *alg)
-{
-	struct ablkcipher_alg *ablkcipher = &alg->cra_ablkcipher;
-
-	seq_printf(m, "type         : givcipher\n");
-	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
-					     "yes" : "no");
-	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
-	seq_printf(m, "min keysize  : %u\n", ablkcipher->min_keysize);
-	seq_printf(m, "max keysize  : %u\n", ablkcipher->max_keysize);
-	seq_printf(m, "ivsize       : %u\n", ablkcipher->ivsize);
-	seq_printf(m, "geniv        : %s\n", ablkcipher->geniv ?: "<built-in>");
-}
-
-const struct crypto_type crypto_givcipher_type = {
-	.ctxsize = crypto_ablkcipher_ctxsize,
-	.init = crypto_init_givcipher_ops,
-#ifdef CONFIG_PROC_FS
-	.show = crypto_givcipher_show,
-#endif
-	.report = crypto_givcipher_report,
-};
-EXPORT_SYMBOL_GPL(crypto_givcipher_type);

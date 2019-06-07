@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/capability.h>
 #include <linux/blkdev.h>
 #include <linux/export.h>
@@ -532,6 +533,10 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		return blkdev_report_zones_ioctl(bdev, mode, cmd, arg);
 	case BLKRESETZONE:
 		return blkdev_reset_zones_ioctl(bdev, mode, cmd, arg);
+	case BLKGETZONESZ:
+		return put_uint(arg, bdev_zone_sectors(bdev));
+	case BLKGETNRZONES:
+		return put_uint(arg, blkdev_nr_zones(bdev));
 	case HDIO_GETGEO:
 		return blkdev_getgeo(bdev, argp);
 	case BLKRAGET:

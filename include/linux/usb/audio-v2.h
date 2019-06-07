@@ -94,7 +94,7 @@ struct uac_clock_selector_descriptor {
 	__u8 bClockID;
 	__u8 bNrInPins;
 	__u8 baCSourceID[];
-	/* bmControls, bAssocTerminal and iClockSource omitted */
+	/* bmControls and iClockSource omitted */
 } __attribute__((packed));
 
 /* 4.7.2.3 Clock Multiplier Descriptor */
@@ -188,6 +188,13 @@ struct uac2_iso_endpoint_descriptor {
 #define UAC2_CONTROL_PITCH		(3 << 0)
 #define UAC2_CONTROL_DATA_OVERRUN	(3 << 2)
 #define UAC2_CONTROL_DATA_UNDERRUN	(3 << 4)
+
+/* 5.2.5.4.2 Connector Control Parameter Block */
+struct uac2_connectors_ctl_blk {
+	__u8 bNrChannels;
+	__le32 bmChannelConfig;
+	__u8 iChannelNames;
+} __attribute__((packed));
 
 /* 6.1 Interrupt Data Message */
 

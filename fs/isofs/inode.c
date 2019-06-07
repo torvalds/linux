@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/isofs/inode.c
  *
@@ -24,6 +25,7 @@
 #include <linux/mpage.h>
 #include <linux/user_namespace.h>
 #include <linux/seq_file.h>
+#include <linux/blkdev.h>
 
 #include "isofs.h"
 #include "zisofs.h"
@@ -71,15 +73,9 @@ static struct inode *isofs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void isofs_i_callback(struct rcu_head *head)
+static void isofs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(isofs_inode_cachep, ISOFS_I(inode));
-}
-
-static void isofs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, isofs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -121,7 +117,7 @@ static int isofs_remount(struct super_block *sb, int *flags, char *data)
 
 static const struct super_operations isofs_sops = {
 	.alloc_inode	= isofs_alloc_inode,
-	.destroy_inode	= isofs_destroy_inode,
+	.free_inode	= isofs_free_inode,
 	.put_super	= isofs_put_super,
 	.statfs		= isofs_statfs,
 	.remount_fs	= isofs_remount,
@@ -653,6 +649,12 @@ static int isofs_fill_super(struct super_block *s, void *data, int silent)
 	/*
 	 * What if bugger tells us to go beyond page size?
 	 */
+	if (bdev_logical_block_size(s->s_bdev) > 2048) {
+		printk(KERN_WARNING
+		       "ISOFS: unsupported/invalid hardware sector size %d\n",
+			bdev_logical_block_size(s->s_bdev));
+		goto out_freesbi;
+	}
 	opt.blocksize = sb_min_blocksize(s, opt.blocksize);
 
 	sbi->s_high_sierra = 0; /* default is iso9660 */

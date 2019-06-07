@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics magnetometers driver
  *
  * Copyright 2012-2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -29,9 +28,9 @@
 #define ST_MAGN_NUMBER_DATA_CHANNELS		3
 
 /* DEFAULT VALUE FOR SENSORS */
-#define ST_MAGN_DEFAULT_OUT_X_H_ADDR		0X03
-#define ST_MAGN_DEFAULT_OUT_Y_H_ADDR		0X07
-#define ST_MAGN_DEFAULT_OUT_Z_H_ADDR		0X05
+#define ST_MAGN_DEFAULT_OUT_X_H_ADDR		0x03
+#define ST_MAGN_DEFAULT_OUT_Y_H_ADDR		0x07
+#define ST_MAGN_DEFAULT_OUT_Z_H_ADDR		0x05
 
 /* FULLSCALE */
 #define ST_MAGN_FS_AVL_1300MG			1300
@@ -267,6 +266,7 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LIS3MDL_MAGN_DEV_NAME,
+			[1] = LSM9DS1_MAGN_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_magn_2_16bit_channels,
 		.odr = {
@@ -314,6 +314,10 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 					.gain = 584,
 				},
 			},
+		},
+		.bdu = {
+			.addr = 0x24,
+			.mask = 0x40,
 		},
 		.drdy_irq = {
 			/* drdy line is routed drdy pin */

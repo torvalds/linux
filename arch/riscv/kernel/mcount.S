@@ -75,7 +75,6 @@ ENTRY(return_to_handler)
 	RESTORE_RET_ABI_STATE
 	jalr	a1
 ENDPROC(return_to_handler)
-EXPORT_SYMBOL(return_to_handler)
 #endif
 
 #ifndef CONFIG_DYNAMIC_FTRACE
@@ -126,5 +125,5 @@ do_trace:
 	RESTORE_ABI_STATE
 	ret
 ENDPROC(_mcount)
-EXPORT_SYMBOL(_mcount)
 #endif
+EXPORT_SYMBOL(_mcount)

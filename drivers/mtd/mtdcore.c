@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Core registration and callback routines for MTD
  * drivers and users.
  *
  * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org>
  * Copyright © 2006      Red Hat UK Limited 
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/module.h>
@@ -41,6 +27,7 @@
 #include <linux/reboot.h>
 #include <linux/leds.h>
 #include <linux/debugfs.h>
+#include <linux/nvmem-provider.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -154,7 +141,6 @@ static ssize_t mtd_flags_show(struct device *dev,
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "0x%lx\n", (unsigned long)mtd->flags);
-
 }
 static DEVICE_ATTR(flags, S_IRUGO, mtd_flags_show, NULL);
 
@@ -165,7 +151,6 @@ static ssize_t mtd_size_show(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
 		(unsigned long long)mtd->size);
-
 }
 static DEVICE_ATTR(size, S_IRUGO, mtd_size_show, NULL);
 
@@ -175,7 +160,6 @@ static ssize_t mtd_erasesize_show(struct device *dev,
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->erasesize);
-
 }
 static DEVICE_ATTR(erasesize, S_IRUGO, mtd_erasesize_show, NULL);
 
@@ -185,7 +169,6 @@ static ssize_t mtd_writesize_show(struct device *dev,
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->writesize);
-
 }
 static DEVICE_ATTR(writesize, S_IRUGO, mtd_writesize_show, NULL);
 
@@ -196,7 +179,6 @@ static ssize_t mtd_subpagesize_show(struct device *dev,
 	unsigned int subpagesize = mtd->writesize >> mtd->subpage_sft;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", subpagesize);
-
 }
 static DEVICE_ATTR(subpagesize, S_IRUGO, mtd_subpagesize_show, NULL);
 
@@ -206,9 +188,17 @@ static ssize_t mtd_oobsize_show(struct device *dev,
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->oobsize);
-
 }
 static DEVICE_ATTR(oobsize, S_IRUGO, mtd_oobsize_show, NULL);
+
+static ssize_t mtd_oobavail_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->oobavail);
+}
+static DEVICE_ATTR(oobavail, S_IRUGO, mtd_oobavail_show, NULL);
 
 static ssize_t mtd_numeraseregions_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -216,7 +206,6 @@ static ssize_t mtd_numeraseregions_show(struct device *dev,
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->numeraseregions);
-
 }
 static DEVICE_ATTR(numeraseregions, S_IRUGO, mtd_numeraseregions_show,
 	NULL);
@@ -227,7 +216,6 @@ static ssize_t mtd_name_show(struct device *dev,
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", mtd->name);
-
 }
 static DEVICE_ATTR(name, S_IRUGO, mtd_name_show, NULL);
 
@@ -327,6 +315,7 @@ static struct attribute *mtd_attrs[] = {
 	&dev_attr_writesize.attr,
 	&dev_attr_subpagesize.attr,
 	&dev_attr_oobsize.attr,
+	&dev_attr_oobavail.attr,
 	&dev_attr_numeraseregions.attr,
 	&dev_attr_name.attr,
 	&dev_attr_ecc_strength.attr,
@@ -478,6 +467,51 @@ int mtd_pairing_groups(struct mtd_info *mtd)
 }
 EXPORT_SYMBOL_GPL(mtd_pairing_groups);
 
+static int mtd_nvmem_reg_read(void *priv, unsigned int offset,
+			      void *val, size_t bytes)
+{
+	struct mtd_info *mtd = priv;
+	size_t retlen;
+	int err;
+
+	err = mtd_read(mtd, offset, bytes, &retlen, val);
+	if (err && err != -EUCLEAN)
+		return err;
+
+	return retlen == bytes ? 0 : -EIO;
+}
+
+static int mtd_nvmem_add(struct mtd_info *mtd)
+{
+	struct nvmem_config config = {};
+
+	config.id = -1;
+	config.dev = &mtd->dev;
+	config.name = mtd->name;
+	config.owner = THIS_MODULE;
+	config.reg_read = mtd_nvmem_reg_read;
+	config.size = mtd->size;
+	config.word_size = 1;
+	config.stride = 1;
+	config.read_only = true;
+	config.root_only = true;
+	config.no_of_node = true;
+	config.priv = mtd;
+
+	mtd->nvmem = nvmem_register(&config);
+	if (IS_ERR(mtd->nvmem)) {
+		/* Just ignore if there is no NVMEM support in the kernel */
+		if (PTR_ERR(mtd->nvmem) == -EOPNOTSUPP) {
+			mtd->nvmem = NULL;
+		} else {
+			dev_err(&mtd->dev, "Failed to register NVMEM device\n");
+			return PTR_ERR(mtd->nvmem);
+		}
+	}
+
+	return 0;
+}
+
 static struct dentry *dfs_dir_mtd;
 
 /**
@@ -503,6 +537,14 @@ int add_mtd_device(struct mtd_info *mtd)
 		return -EEXIST;
 
 	BUG_ON(mtd->writesize == 0);
+
+	/*
+	 * MTD drivers should implement ->_{write,read}() or
+	 * ->_{write,read}_oob(), but not both.
+	 */
+	if (WARN_ON((mtd->_write && mtd->_write_oob) ||
+		    (mtd->_read && mtd->_read_oob)))
+		return -EINVAL;
 
 	if (WARN_ON((!mtd->erasesize || !mtd->_erase) &&
 		    !(mtd->flags & MTD_NO_ERASE)))
@@ -560,6 +602,11 @@ int add_mtd_device(struct mtd_info *mtd)
 	if (error)
 		goto fail_added;
 
+	/* Add the nvmem provider */
+	error = mtd_nvmem_add(mtd);
+	if (error)
+		goto fail_nvmem_add;
+
 	if (!IS_ERR_OR_NULL(dfs_dir_mtd)) {
 		mtd->dbg.dfs_dir = debugfs_create_dir(dev_name(&mtd->dev), dfs_dir_mtd);
 		if (IS_ERR_OR_NULL(mtd->dbg.dfs_dir)) {
@@ -585,6 +632,8 @@ int add_mtd_device(struct mtd_info *mtd)
 	__module_get(THIS_MODULE);
 	return 0;
 
+fail_nvmem_add:
+	device_unregister(&mtd->dev);
 fail_added:
 	of_node_put(mtd_get_of_node(mtd));
 	idr_remove(&mtd_idr, i);
@@ -627,6 +676,10 @@ int del_mtd_device(struct mtd_info *mtd)
 		       mtd->index, mtd->name, mtd->usecount);
 		ret = -EBUSY;
 	} else {
+		/* Try to remove the NVMEM provider */
+		if (mtd->nvmem)
+			nvmem_unregister(mtd->nvmem);
+
 		device_unregister(&mtd->dev);
 
 		idr_remove(&mtd_idr, mtd->index);
@@ -655,6 +708,8 @@ static void mtd_set_dev_defaults(struct mtd_info *mtd)
 	} else {
 		pr_debug("mtd device won't show a device symlink in sysfs\n");
 	}
+
+	mtd->orig_flags = mtd->flags;
 }
 
 /**
@@ -690,7 +745,6 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			      const struct mtd_partition *parts,
 			      int nr_parts)
 {
-	struct mtd_partitions parsed = { };
 	int ret;
 
 	mtd_set_dev_defaults(mtd);
@@ -702,13 +756,10 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 	}
 
 	/* Prefer parsed partitions over driver-provided fallback */
-	ret = parse_mtd_partitions(mtd, types, &parsed, parser_data);
-	if (!ret && parsed.nr_parts) {
-		parts = parsed.parts;
-		nr_parts = parsed.nr_parts;
-	}
-
-	if (nr_parts)
+	ret = parse_mtd_partitions(mtd, types, parser_data);
+	if (ret > 0)
+		ret = 0;
+	else if (nr_parts)
 		ret = add_mtd_partitions(mtd, parts, nr_parts);
 	else if (!device_is_registered(&mtd->dev))
 		ret = add_mtd_device(mtd);
@@ -734,8 +785,6 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 	}
 
 out:
-	/* Cleanup any parsed partitions */
-	mtd_part_parser_cleanup(&parsed);
 	if (ret && device_is_registered(&mtd->dev))
 		del_mtd_device(mtd);
 
@@ -1027,67 +1076,32 @@ EXPORT_SYMBOL_GPL(mtd_get_unmapped_area);
 int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	     u_char *buf)
 {
-	int ret_code;
-	*retlen = 0;
-	if (from < 0 || from >= mtd->size || len > mtd->size - from)
-		return -EINVAL;
-	if (!len)
-		return 0;
+	struct mtd_oob_ops ops = {
+		.len = len,
+		.datbuf = buf,
+	};
+	int ret;
 
-	ledtrig_mtd_activity();
-	/*
-	 * In the absence of an error, drivers return a non-negative integer
-	 * representing the maximum number of bitflips that were corrected on
-	 * any one ecc region (if applicable; zero otherwise).
-	 */
-	if (mtd->_read) {
-		ret_code = mtd->_read(mtd, from, len, retlen, buf);
-	} else if (mtd->_read_oob) {
-		struct mtd_oob_ops ops = {
-			.len = len,
-			.datbuf = buf,
-		};
+	ret = mtd_read_oob(mtd, from, &ops);
+	*retlen = ops.retlen;
 
-		ret_code = mtd->_read_oob(mtd, from, &ops);
-		*retlen = ops.retlen;
-	} else {
-		return -ENOTSUPP;
-	}
-
-	if (unlikely(ret_code < 0))
-		return ret_code;
-	if (mtd->ecc_strength == 0)
-		return 0;	/* device lacks ecc */
-	return ret_code >= mtd->bitflip_threshold ? -EUCLEAN : 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_read);
 
 int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	      const u_char *buf)
 {
-	*retlen = 0;
-	if (to < 0 || to >= mtd->size || len > mtd->size - to)
-		return -EINVAL;
-	if ((!mtd->_write && !mtd->_write_oob) ||
-	    !(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-	if (!len)
-		return 0;
-	ledtrig_mtd_activity();
+	struct mtd_oob_ops ops = {
+		.len = len,
+		.datbuf = (u8 *)buf,
+	};
+	int ret;
 
-	if (!mtd->_write) {
-		struct mtd_oob_ops ops = {
-			.len = len,
-			.datbuf = (u8 *)buf,
-		};
-		int ret;
+	ret = mtd_write_oob(mtd, to, &ops);
+	*retlen = ops.retlen;
 
-		ret = mtd->_write_oob(mtd, to, &ops);
-		*retlen = ops.retlen;
-		return ret;
-	}
-
-	return mtd->_write(mtd, to, len, retlen, buf);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_write);
 
@@ -1132,13 +1146,13 @@ static int mtd_check_oob_ops(struct mtd_info *mtd, loff_t offs,
 		return -EINVAL;
 
 	if (ops->ooblen) {
-		u64 maxooblen;
+		size_t maxooblen;
 
 		if (ops->ooboffs >= mtd_oobavail(mtd, ops))
 			return -EINVAL;
 
-		maxooblen = ((mtd_div_by_ws(mtd->size, mtd) -
-			      mtd_div_by_ws(offs, mtd)) *
+		maxooblen = ((size_t)(mtd_div_by_ws(mtd->size, mtd) -
+				      mtd_div_by_ws(offs, mtd)) *
 			     mtd_oobavail(mtd, ops)) - ops->ooboffs;
 		if (ops->ooblen > maxooblen)
 			return -EINVAL;
@@ -1151,21 +1165,29 @@ int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 {
 	int ret_code;
 	ops->retlen = ops->oobretlen = 0;
-	if (!mtd->_read_oob)
-		return -EOPNOTSUPP;
 
 	ret_code = mtd_check_oob_ops(mtd, from, ops);
 	if (ret_code)
 		return ret_code;
 
 	ledtrig_mtd_activity();
+
+	/* Check the validity of a potential fallback on mtd->_read */
+	if (!mtd->_read_oob && (!mtd->_read || ops->oobbuf))
+		return -EOPNOTSUPP;
+
+	if (mtd->_read_oob)
+		ret_code = mtd->_read_oob(mtd, from, ops);
+	else
+		ret_code = mtd->_read(mtd, from, ops->len, &ops->retlen,
+				      ops->datbuf);
+
 	/*
 	 * In cases where ops->datbuf != NULL, mtd->_read_oob() has semantics
 	 * similar to mtd->_read(), returning a non-negative integer
 	 * representing max bitflips. In other cases, mtd->_read_oob() may
 	 * return -EUCLEAN. In all cases, perform similar logic to mtd_read().
 	 */
-	ret_code = mtd->_read_oob(mtd, from, ops);
 	if (unlikely(ret_code < 0))
 		return ret_code;
 	if (mtd->ecc_strength == 0)
@@ -1180,8 +1202,7 @@ int mtd_write_oob(struct mtd_info *mtd, loff_t to,
 	int ret;
 
 	ops->retlen = ops->oobretlen = 0;
-	if (!mtd->_write_oob)
-		return -EOPNOTSUPP;
+
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
 
@@ -1190,7 +1211,16 @@ int mtd_write_oob(struct mtd_info *mtd, loff_t to,
 		return ret;
 
 	ledtrig_mtd_activity();
-	return mtd->_write_oob(mtd, to, ops);
+
+	/* Check the validity of a potential fallback on mtd->_write */
+	if (!mtd->_write_oob && (!mtd->_write || ops->oobbuf))
+		return -EOPNOTSUPP;
+
+	if (mtd->_write_oob)
+		return mtd->_write_oob(mtd, to, ops);
+	else
+		return mtd->_write(mtd, to, ops->len, &ops->retlen,
+				   ops->datbuf);
 }
 EXPORT_SYMBOL_GPL(mtd_write_oob);
 
@@ -1829,18 +1859,6 @@ static int mtd_proc_show(struct seq_file *m, void *v)
 	mutex_unlock(&mtd_table_mutex);
 	return 0;
 }
-
-static int mtd_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mtd_proc_show, NULL);
-}
-
-static const struct file_operations mtd_proc_ops = {
-	.open		= mtd_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif /* CONFIG_PROC_FS */
 
 /*====================================================================*/
@@ -1883,7 +1901,7 @@ static int __init init_mtd(void)
 		goto err_bdi;
 	}
 
-	proc_mtd = proc_create("mtd", 0, NULL, &mtd_proc_ops);
+	proc_mtd = proc_create_single("mtd", 0, NULL, mtd_proc_show);
 
 	ret = init_mtdchar();
 	if (ret)

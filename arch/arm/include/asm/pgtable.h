@@ -125,6 +125,9 @@ extern pgprot_t		pgprot_s2_device;
 #define pgprot_stronglyordered(prot) \
 	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_UNCACHED)
 
+#define pgprot_device(prot) \
+	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_DEV_SHARED | L_PTE_SHARED | L_PTE_DIRTY | L_PTE_XN)
+
 #ifdef CONFIG_ARM_DMA_MEM_BUFFERABLE
 #define pgprot_dmacoherent(prot) \
 	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_BUFFERABLE | L_PTE_XN)

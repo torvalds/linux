@@ -10,8 +10,6 @@ coordinates.
 Required properties:
 - compatible		: must be "st,stmfts"
 - reg			: I2C slave address, (e.g. 0x49)
-- interrupt-parent	: the phandle to the interrupt controller which provides
-			  the interrupt
 - interrupts		: interrupt specification
 - avdd-supply		: analogic power supply
 - vdd-supply		: power supply

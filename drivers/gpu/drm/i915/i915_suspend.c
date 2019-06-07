@@ -24,10 +24,11 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
-#include "intel_drv.h"
+
 #include "i915_reg.h"
+#include "intel_drv.h"
+#include "intel_fbc.h"
 
 static void i915_save_display(struct drm_i915_private *dev_priv)
 {
@@ -65,7 +66,7 @@ int i915_save_state(struct drm_i915_private *dev_priv)
 
 	i915_save_display(dev_priv);
 
-	if (IS_GEN4(dev_priv))
+	if (IS_GEN(dev_priv, 4))
 		pci_read_config_word(pdev, GCDGMBUS,
 				     &dev_priv->regfile.saveGCDGMBUS);
 
@@ -77,17 +78,17 @@ int i915_save_state(struct drm_i915_private *dev_priv)
 	dev_priv->regfile.saveMI_ARB_STATE = I915_READ(MI_ARB_STATE);
 
 	/* Scratch space */
-	if (IS_GEN2(dev_priv) && IS_MOBILE(dev_priv)) {
+	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
 		for (i = 0; i < 7; i++) {
 			dev_priv->regfile.saveSWF0[i] = I915_READ(SWF0(i));
 			dev_priv->regfile.saveSWF1[i] = I915_READ(SWF1(i));
 		}
 		for (i = 0; i < 3; i++)
 			dev_priv->regfile.saveSWF3[i] = I915_READ(SWF3(i));
-	} else if (IS_GEN2(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 2)) {
 		for (i = 0; i < 7; i++)
 			dev_priv->regfile.saveSWF1[i] = I915_READ(SWF1(i));
-	} else if (HAS_GMCH_DISPLAY(dev_priv)) {
+	} else if (HAS_GMCH(dev_priv)) {
 		for (i = 0; i < 16; i++) {
 			dev_priv->regfile.saveSWF0[i] = I915_READ(SWF0(i));
 			dev_priv->regfile.saveSWF1[i] = I915_READ(SWF1(i));
@@ -108,7 +109,7 @@ int i915_restore_state(struct drm_i915_private *dev_priv)
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 
-	if (IS_GEN4(dev_priv))
+	if (IS_GEN(dev_priv, 4))
 		pci_write_config_word(pdev, GCDGMBUS,
 				      dev_priv->regfile.saveGCDGMBUS);
 	i915_restore_display(dev_priv);
@@ -122,17 +123,17 @@ int i915_restore_state(struct drm_i915_private *dev_priv)
 	I915_WRITE(MI_ARB_STATE, dev_priv->regfile.saveMI_ARB_STATE | 0xffff0000);
 
 	/* Scratch space */
-	if (IS_GEN2(dev_priv) && IS_MOBILE(dev_priv)) {
+	if (IS_GEN(dev_priv, 2) && IS_MOBILE(dev_priv)) {
 		for (i = 0; i < 7; i++) {
 			I915_WRITE(SWF0(i), dev_priv->regfile.saveSWF0[i]);
 			I915_WRITE(SWF1(i), dev_priv->regfile.saveSWF1[i]);
 		}
 		for (i = 0; i < 3; i++)
 			I915_WRITE(SWF3(i), dev_priv->regfile.saveSWF3[i]);
-	} else if (IS_GEN2(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 2)) {
 		for (i = 0; i < 7; i++)
 			I915_WRITE(SWF1(i), dev_priv->regfile.saveSWF1[i]);
-	} else if (HAS_GMCH_DISPLAY(dev_priv)) {
+	} else if (HAS_GMCH(dev_priv)) {
 		for (i = 0; i < 16; i++) {
 			I915_WRITE(SWF0(i), dev_priv->regfile.saveSWF0[i]);
 			I915_WRITE(SWF1(i), dev_priv->regfile.saveSWF1[i]);

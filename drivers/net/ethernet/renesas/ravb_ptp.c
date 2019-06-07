@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* PTP 1588 clock using the Renesas Ethernet AVB
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  * Copyright (C) 2015 Renesas Solutions Corp.
  * Copyright (C) 2015-2016 Cogent Embedded, Inc. <source@cogentembedded.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
  */
 
 #include "ravb.h"
@@ -200,7 +196,6 @@ static int ravb_ptp_extts(struct ptp_clock_info *ptp,
 		ravb_write(ndev, GIE_PTCS, GIE);
 	else
 		ravb_write(ndev, GID_PTCD, GID);
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
@@ -263,7 +258,6 @@ static int ravb_ptp_perout(struct ptp_clock_info *ptp,
 		else
 			ravb_write(ndev, GID_PTMD0, GID);
 	}
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return error;
@@ -319,7 +313,7 @@ void ravb_ptp_interrupt(struct net_device *ndev)
 		}
 	}
 
-	ravb_write(ndev, ~gis, GIS);
+	ravb_write(ndev, ~(gis | GIS_RESERVED), GIS);
 }
 
 void ravb_ptp_init(struct net_device *ndev, struct platform_device *pdev)
@@ -335,7 +329,6 @@ void ravb_ptp_init(struct net_device *ndev, struct platform_device *pdev)
 	spin_lock_irqsave(&priv->lock, flags);
 	ravb_wait(ndev, GCCR, GCCR_TCR, GCCR_TCR_NOREQ);
 	ravb_modify(ndev, GCCR, GCCR_TCSS, GCCR_TCSS_ADJGPTP);
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	priv->ptp.clock = ptp_clock_register(&priv->ptp.info, &pdev->dev);

@@ -518,7 +518,7 @@ static int of_get_devfreq_events(struct device_node *np,
 	event_ops = exynos_bus_get_ops(np);
 
 	count = of_get_child_count(events_np);
-	desc = devm_kzalloc(dev, sizeof(*desc) * count, GFP_KERNEL);
+	desc = devm_kcalloc(dev, count, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 	info->num_events = count;
@@ -529,14 +529,14 @@ static int of_get_devfreq_events(struct device_node *np,
 			if (!ppmu_events[i].name)
 				continue;
 
-			if (!of_node_cmp(node->name, ppmu_events[i].name))
+			if (of_node_name_eq(node, ppmu_events[i].name))
 				break;
 		}
 
 		if (i == ARRAY_SIZE(ppmu_events)) {
 			dev_warn(dev,
-				"don't know how to configure events : %s\n",
-				node->name);
+				"don't know how to configure events : %pOFn\n",
+				node);
 			continue;
 		}
 
@@ -627,11 +627,9 @@ static int exynos_ppmu_probe(struct platform_device *pdev)
 
 	size = sizeof(struct devfreq_event_dev *) * info->num_events;
 	info->edev = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
-	if (!info->edev) {
-		dev_err(&pdev->dev,
-			"failed to allocate memory devfreq-event devices\n");
+	if (!info->edev)
 		return -ENOMEM;
-	}
+
 	edev = info->edev;
 	platform_set_drvdata(pdev, info);
 

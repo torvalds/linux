@@ -55,8 +55,6 @@ static LIST_HEAD(mc_devices);
  */
 static const char *edac_mc_owner;
 
-static struct bus_type mc_bus[EDAC_MAX_MCS];
-
 int edac_get_report_status(void)
 {
 	return edac_report;
@@ -215,6 +213,7 @@ const char * const edac_mem_types[] = {
 	[MEM_LRDDR3]	= "Load-Reduced-DDR3-RAM",
 	[MEM_DDR4]	= "Unbuffered-DDR4",
 	[MEM_RDDR4]	= "Registered-DDR4",
+	[MEM_LRDDR4]	= "Load-Reduced-DDR4-RAM",
 	[MEM_NVDIMM]	= "Non-volatile-RAM",
 };
 EXPORT_SYMBOL_GPL(edac_mem_types);
@@ -680,22 +679,18 @@ static int del_mc_from_global_list(struct mem_ctl_info *mci)
 
 struct mem_ctl_info *edac_mc_find(int idx)
 {
-	struct mem_ctl_info *mci = NULL;
+	struct mem_ctl_info *mci;
 	struct list_head *item;
 
 	mutex_lock(&mem_ctls_mutex);
 
 	list_for_each(item, &mc_devices) {
 		mci = list_entry(item, struct mem_ctl_info, link);
-
-		if (mci->mc_idx >= idx) {
-			if (mci->mc_idx == idx) {
-				goto unlock;
-			}
-			break;
-		}
+		if (mci->mc_idx == idx)
+			goto unlock;
 	}
 
+	mci = NULL;
 unlock:
 	mutex_unlock(&mem_ctls_mutex);
 	return mci;
@@ -714,11 +709,6 @@ int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 {
 	int ret = -EINVAL;
 	edac_dbg(0, "\n");
-
-	if (mci->mc_idx >= EDAC_MAX_MCS) {
-		pr_warn_once("Too many memory controllers: %d\n", mci->mc_idx);
-		return -ENODEV;
-	}
 
 #ifdef CONFIG_EDAC_DEBUG
 	if (edac_debug_level >= 3)
@@ -759,7 +749,7 @@ int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 	/* set load time so that error rate can be tracked */
 	mci->start_time = jiffies;
 
-	mci->bus = &mc_bus[mci->mc_idx];
+	mci->bus = edac_get_sysfs_subsys();
 
 	if (edac_create_sysfs_mci_device(mci, groups)) {
 		edac_mc_printk(mci, KERN_WARNING,

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Generic System Framebuffers on x86
  * Copyright (c) 2012-2013 David Herrmann <dh.herrmann@gmail.com>
  *
  * EFI Quirks Copyright (c) 2006 Edgar Hucek <gimli@dark-green.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 /*
@@ -19,12 +15,15 @@
 
 #include <linux/dmi.h>
 #include <linux/err.h>
+#include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/screen_info.h>
 #include <video/vga.h>
+
+#include <asm/efi.h>
 #include <asm/sysfb.h>
 
 enum {

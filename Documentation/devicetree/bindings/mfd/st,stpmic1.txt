@@ -1,0 +1,61 @@
+* STMicroelectronics STPMIC1 Power Management IC
+
+Required properties:
+- compatible:		: "st,stpmic1"
+- reg:			: The I2C slave address for the STPMIC1 chip.
+- interrupts:		: The interrupt line the device is connected to.
+- #interrupt-cells:	: Should be 1.
+- interrupt-controller:	: Marks the device node as an interrupt controller.
+			    Interrupt numbers are defined at
+			    dt-bindings/mfd/st,stpmic1.h.
+
+STPMIC1 consists in a varied group of sub-devices.
+Each sub-device binding is be described in own documentation file.
+
+Device			 Description
+------			------------
+st,stpmic1-onkey	: Power on key, see ../input/st,stpmic1-onkey.txt
+st,stpmic1-regulators	: Regulators, see ../regulator/st,stpmic1-regulator.txt
+st,stpmic1-wdt		: Watchdog, see ../watchdog/st,stpmic1-wdt.txt
+
+Example:
+
+#include <dt-bindings/mfd/st,stpmic1.h>
+
+pmic: pmic@33 {
+	compatible = "st,stpmic1";
+	reg = <0x33>;
+	interrupt-parent = <&gpioa>;
+	interrupts = <0 2>;
+
+	interrupt-controller;
+	#interrupt-cells = <2>;
+
+	onkey {
+		compatible = "st,stpmic1-onkey";
+		interrupts = <IT_PONKEY_F 0>,<IT_PONKEY_R 1>;
+		interrupt-names = "onkey-falling", "onkey-rising";
+		power-off-time-sec = <10>;
+	};
+
+	watchdog {
+		compatible = "st,stpmic1-wdt";
+	};
+
+	regulators {
+		compatible = "st,stpmic1-regulators";
+
+		vdd_core: buck1 {
+			regulator-name = "vdd_core";
+			regulator-boot-on;
+			regulator-min-microvolt = <700000>;
+			regulator-max-microvolt = <1200000>;
+		};
+		vdd: buck3 {
+			regulator-name = "vdd";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-boot-on;
+			regulator-pull-down;
+		};
+	};

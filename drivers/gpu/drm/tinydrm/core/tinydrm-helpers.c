@@ -1,240 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Noralf Trønnes
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/backlight.h>
 #include <linux/dma-buf.h>
+#include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
 #include <linux/swab.h>
 
-#include <drm/tinydrm/tinydrm.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_print.h>
+#include <drm/drm_rect.h>
 #include <drm/tinydrm/tinydrm-helpers.h>
 
 static unsigned int spi_max;
 module_param(spi_max, uint, 0400);
 MODULE_PARM_DESC(spi_max, "Set a lower SPI max transfer size");
-
-/**
- * tinydrm_merge_clips - Merge clip rectangles
- * @dst: Destination clip rectangle
- * @src: Source clip rectangle(s)
- * @num_clips: Number of @src clip rectangles
- * @flags: Dirty fb ioctl flags
- * @max_width: Maximum width of @dst
- * @max_height: Maximum height of @dst
- *
- * This function merges @src clip rectangle(s) into @dst. If @src is NULL,
- * @max_width and @min_width is used to set a full @dst clip rectangle.
- *
- * Returns:
- * true if it's a full clip, false otherwise
- */
-bool tinydrm_merge_clips(struct drm_clip_rect *dst,
-			 struct drm_clip_rect *src, unsigned int num_clips,
-			 unsigned int flags, u32 max_width, u32 max_height)
-{
-	unsigned int i;
-
-	if (!src || !num_clips) {
-		dst->x1 = 0;
-		dst->x2 = max_width;
-		dst->y1 = 0;
-		dst->y2 = max_height;
-		return true;
-	}
-
-	dst->x1 = ~0;
-	dst->y1 = ~0;
-	dst->x2 = 0;
-	dst->y2 = 0;
-
-	for (i = 0; i < num_clips; i++) {
-		if (flags & DRM_MODE_FB_DIRTY_ANNOTATE_COPY)
-			i++;
-		dst->x1 = min(dst->x1, src[i].x1);
-		dst->x2 = max(dst->x2, src[i].x2);
-		dst->y1 = min(dst->y1, src[i].y1);
-		dst->y2 = max(dst->y2, src[i].y2);
-	}
-
-	if (dst->x2 > max_width || dst->y2 > max_height ||
-	    dst->x1 >= dst->x2 || dst->y1 >= dst->y2) {
-		DRM_DEBUG_KMS("Illegal clip: x1=%u, x2=%u, y1=%u, y2=%u\n",
-			      dst->x1, dst->x2, dst->y1, dst->y2);
-		dst->x1 = 0;
-		dst->y1 = 0;
-		dst->x2 = max_width;
-		dst->y2 = max_height;
-	}
-
-	return (dst->x2 - dst->x1) == max_width &&
-	       (dst->y2 - dst->y1) == max_height;
-}
-EXPORT_SYMBOL(tinydrm_merge_clips);
-
-/**
- * tinydrm_memcpy - Copy clip buffer
- * @dst: Destination buffer
- * @vaddr: Source buffer
- * @fb: DRM framebuffer
- * @clip: Clip rectangle area to copy
- */
-void tinydrm_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
-		    struct drm_clip_rect *clip)
-{
-	unsigned int cpp = drm_format_plane_cpp(fb->format->format, 0);
-	unsigned int pitch = fb->pitches[0];
-	void *src = vaddr + (clip->y1 * pitch) + (clip->x1 * cpp);
-	size_t len = (clip->x2 - clip->x1) * cpp;
-	unsigned int y;
-
-	for (y = clip->y1; y < clip->y2; y++) {
-		memcpy(dst, src, len);
-		src += pitch;
-		dst += len;
-	}
-}
-EXPORT_SYMBOL(tinydrm_memcpy);
-
-/**
- * tinydrm_swab16 - Swap bytes into clip buffer
- * @dst: RGB565 destination buffer
- * @vaddr: RGB565 source buffer
- * @fb: DRM framebuffer
- * @clip: Clip rectangle area to copy
- */
-void tinydrm_swab16(u16 *dst, void *vaddr, struct drm_framebuffer *fb,
-		    struct drm_clip_rect *clip)
-{
-	size_t len = (clip->x2 - clip->x1) * sizeof(u16);
-	unsigned int x, y;
-	u16 *src, *buf;
-
-	/*
-	 * The cma memory is write-combined so reads are uncached.
-	 * Speed up by fetching one line at a time.
-	 */
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf)
-		return;
-
-	for (y = clip->y1; y < clip->y2; y++) {
-		src = vaddr + (y * fb->pitches[0]);
-		src += clip->x1;
-		memcpy(buf, src, len);
-		src = buf;
-		for (x = clip->x1; x < clip->x2; x++)
-			*dst++ = swab16(*src++);
-	}
-
-	kfree(buf);
-}
-EXPORT_SYMBOL(tinydrm_swab16);
-
-/**
- * tinydrm_xrgb8888_to_rgb565 - Convert XRGB8888 to RGB565 clip buffer
- * @dst: RGB565 destination buffer
- * @vaddr: XRGB8888 source buffer
- * @fb: DRM framebuffer
- * @clip: Clip rectangle area to copy
- * @swap: Swap bytes
- *
- * Drivers can use this function for RGB565 devices that don't natively
- * support XRGB8888.
- */
-void tinydrm_xrgb8888_to_rgb565(u16 *dst, void *vaddr,
-				struct drm_framebuffer *fb,
-				struct drm_clip_rect *clip, bool swap)
-{
-	size_t len = (clip->x2 - clip->x1) * sizeof(u32);
-	unsigned int x, y;
-	u32 *src, *buf;
-	u16 val16;
-
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf)
-		return;
-
-	for (y = clip->y1; y < clip->y2; y++) {
-		src = vaddr + (y * fb->pitches[0]);
-		src += clip->x1;
-		memcpy(buf, src, len);
-		src = buf;
-		for (x = clip->x1; x < clip->x2; x++) {
-			val16 = ((*src & 0x00F80000) >> 8) |
-				((*src & 0x0000FC00) >> 5) |
-				((*src & 0x000000F8) >> 3);
-			src++;
-			if (swap)
-				*dst++ = swab16(val16);
-			else
-				*dst++ = val16;
-		}
-	}
-
-	kfree(buf);
-}
-EXPORT_SYMBOL(tinydrm_xrgb8888_to_rgb565);
-
-/**
- * tinydrm_xrgb8888_to_gray8 - Convert XRGB8888 to grayscale
- * @dst: 8-bit grayscale destination buffer
- * @vaddr: XRGB8888 source buffer
- * @fb: DRM framebuffer
- * @clip: Clip rectangle area to copy
- *
- * Drm doesn't have native monochrome or grayscale support.
- * Such drivers can announce the commonly supported XR24 format to userspace
- * and use this function to convert to the native format.
- *
- * Monochrome drivers will use the most significant bit,
- * where 1 means foreground color and 0 background color.
- *
- * ITU BT.601 is used for the RGB -> luma (brightness) conversion.
- */
-void tinydrm_xrgb8888_to_gray8(u8 *dst, void *vaddr, struct drm_framebuffer *fb,
-			       struct drm_clip_rect *clip)
-{
-	unsigned int len = (clip->x2 - clip->x1) * sizeof(u32);
-	unsigned int x, y;
-	void *buf;
-	u32 *src;
-
-	if (WARN_ON(fb->format->format != DRM_FORMAT_XRGB8888))
-		return;
-	/*
-	 * The cma memory is write-combined so reads are uncached.
-	 * Speed up by fetching one line at a time.
-	 */
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf)
-		return;
-
-	for (y = clip->y1; y < clip->y2; y++) {
-		src = vaddr + (y * fb->pitches[0]);
-		src += clip->x1;
-		memcpy(buf, src, len);
-		src = buf;
-		for (x = clip->x1; x < clip->x2; x++) {
-			u8 r = (*src & 0x00ff0000) >> 16;
-			u8 g = (*src & 0x0000ff00) >> 8;
-			u8 b =  *src & 0x000000ff;
-
-			/* ITU BT.601: Y = 0.299 R + 0.587 G + 0.114 B */
-			*dst++ = (3 * r + 6 * g + b) / 10;
-			src++;
-		}
-	}
-
-	kfree(buf);
-}
-EXPORT_SYMBOL(tinydrm_xrgb8888_to_gray8);
 
 #if IS_ENABLED(CONFIG_SPI)
 
@@ -417,3 +203,5 @@ int tinydrm_spi_transfer(struct spi_device *spi, u32 speed_hz,
 EXPORT_SYMBOL(tinydrm_spi_transfer);
 
 #endif /* CONFIG_SPI */
+
+MODULE_LICENSE("GPL");

@@ -33,7 +33,7 @@ static ssize_t write_pmsg(struct file *file, const char __user *buf,
 	record.size = count;
 
 	/* check outside lock, page in any data. write_user also checks */
-	if (!access_ok(VERIFY_READ, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	mutex_lock(&pmsg_lock);

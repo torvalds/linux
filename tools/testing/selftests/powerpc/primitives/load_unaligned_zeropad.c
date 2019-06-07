@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Userspace test harness for load_unaligned_zeropad. Creates two
  * pages and uses mprotect to prevent access to the second page and
@@ -8,11 +9,6 @@
  * performed while access to the second page is enabled via mprotect.
  *
  * Copyright (C) 2014 Anton Blanchard <anton@au.ibm.com>, IBM
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <stdlib.h>
@@ -64,14 +60,6 @@ static int unprotect_region(void)
 
 extern char __start___ex_table[];
 extern char __stop___ex_table[];
-
-#if defined(__powerpc64__)
-#define UCONTEXT_NIA(UC)	(UC)->uc_mcontext.gp_regs[PT_NIP]
-#elif defined(__powerpc__)
-#define UCONTEXT_NIA(UC)	(UC)->uc_mcontext.uc_regs->gregs[PT_NIP]
-#else
-#error implement UCONTEXT_NIA
-#endif
 
 struct extbl_entry {
 	int insn;

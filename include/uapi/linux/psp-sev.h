@@ -6,8 +6,7 @@
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
  *
- * SEV spec 0.14 is available at:
- * http://support.amd.com/TechDocs/55766_SEV-KM%20API_Specification.pdf
+ * SEV API specification is available at: https://developer.amd.com/sev/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -30,6 +29,8 @@ enum {
 	SEV_PDH_GEN,
 	SEV_PDH_CERT_EXPORT,
 	SEV_PEK_CERT_IMPORT,
+	SEV_GET_ID,	/* This command is deprecated, use SEV_GET_ID2 */
+	SEV_GET_ID2,
 
 	SEV_MAX,
 };
@@ -121,6 +122,27 @@ struct sev_user_data_pdh_cert_export {
 	__u32 pdh_cert_len;			/* In/Out */
 	__u64 cert_chain_address;		/* In */
 	__u32 cert_chain_len;			/* In/Out */
+} __packed;
+
+/**
+ * struct sev_user_data_get_id - GET_ID command parameters (deprecated)
+ *
+ * @socket1: Buffer to pass unique ID of first socket
+ * @socket2: Buffer to pass unique ID of second socket
+ */
+struct sev_user_data_get_id {
+	__u8 socket1[64];			/* Out */
+	__u8 socket2[64];			/* Out */
+} __packed;
+
+/**
+ * struct sev_user_data_get_id2 - GET_ID command parameters
+ * @address: Buffer to store unique ID
+ * @length: length of the unique ID
+ */
+struct sev_user_data_get_id2 {
+	__u64 address;				/* In */
+	__u32 length;				/* In/Out */
 } __packed;
 
 /**

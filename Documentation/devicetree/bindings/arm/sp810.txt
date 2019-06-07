@@ -4,7 +4,7 @@ SP810 System Controller
 Required properties:
 
 - compatible:	standard compatible string for a Primecell peripheral,
-		see Documentation/devicetree/bindings/arm/primecell.txt
+		see Documentation/devicetree/bindings/arm/primecell.yaml
 		for more details
 		should be: "arm,sp810", "arm,primecell"
 

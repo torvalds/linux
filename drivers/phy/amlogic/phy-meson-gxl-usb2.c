@@ -152,7 +152,8 @@ static int phy_meson_gxl_usb2_reset(struct phy *phy)
 	return 0;
 }
 
-static int phy_meson_gxl_usb2_set_mode(struct phy *phy, enum phy_mode mode)
+static int phy_meson_gxl_usb2_set_mode(struct phy *phy,
+				       enum phy_mode mode, int submode)
 {
 	struct phy_meson_gxl_usb2_priv *priv = phy_get_drvdata(phy);
 
@@ -209,7 +210,7 @@ static int phy_meson_gxl_usb2_power_on(struct phy *phy)
 	/* power on the PHY by taking it out of reset mode */
 	regmap_update_bits(priv->regmap, U2P_R0, U2P_R0_POWER_ON_RESET, 0);
 
-	ret = phy_meson_gxl_usb2_set_mode(phy, priv->mode);
+	ret = phy_meson_gxl_usb2_set_mode(phy, priv->mode, 0);
 	if (ret) {
 		phy_meson_gxl_usb2_power_off(phy);
 
@@ -260,14 +261,9 @@ static int phy_meson_gxl_usb2_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
-	priv->clk = devm_clk_get(dev, "phy");
-	if (IS_ERR(priv->clk)) {
-		ret = PTR_ERR(priv->clk);
-		if (ret == -ENOENT)
-			priv->clk = NULL;
-		else
-			return ret;
-	}
+	priv->clk = devm_clk_get_optional(dev, "phy");
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
 
 	priv->reset = devm_reset_control_get_optional_shared(dev, "phy");
 	if (IS_ERR(priv->reset))

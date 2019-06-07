@@ -7,6 +7,7 @@
  * Copyright (C) 2009, 2012 Cavium, Inc.
  */
 #include <linux/clocksource.h>
+#include <linux/sched/clock.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/smp.h>

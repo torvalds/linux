@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_cache.h>
 #include <drm/radeon_drm.h>
 #include <linux/pm_runtime.h>
@@ -1387,7 +1388,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(32));
 		pr_warn("radeon: No coherent DMA available\n");
 	}
-	rdev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
+	rdev->need_swiotlb = drm_need_swiotlb(dma_bits);
 
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */
@@ -1591,7 +1592,7 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 	/* unpin the front buffers and cursors */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-		struct radeon_framebuffer *rfb = to_radeon_framebuffer(crtc->primary->fb);
+		struct drm_framebuffer *fb = crtc->primary->fb;
 		struct radeon_bo *robj;
 
 		if (radeon_crtc->cursor_bo) {
@@ -1603,10 +1604,10 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 			}
 		}
 
-		if (rfb == NULL || rfb->obj == NULL) {
+		if (fb == NULL || fb->obj[0] == NULL) {
 			continue;
 		}
-		robj = gem_to_radeon_bo(rfb->obj);
+		robj = gem_to_radeon_bo(fb->obj[0]);
 		/* don't unpin kernel fb objects */
 		if (!radeon_fbdev_robj_is_fb(rdev, robj)) {
 			r = radeon_bo_reserve(robj, false);

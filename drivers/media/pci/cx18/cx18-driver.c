@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 driver initialization and card probing
  *
@@ -5,16 +6,6 @@
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx18-driver.h"
@@ -328,7 +319,7 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 	if (!c)
 		return;
 
-	strlcpy(c->name, "cx18 tveeprom tmp", sizeof(c->name));
+	strscpy(c->name, "cx18 tveeprom tmp", sizeof(c->name));
 	c->adapter = &cx->i2c_adap[0];
 	c->addr = 0xa0 >> 1;
 
@@ -1134,8 +1125,6 @@ free_mem:
 free_workqueues:
 	destroy_workqueue(cx->in_work_queue);
 err:
-	if (retval == 0)
-		retval = -ENODEV;
 	CX18_ERR("Error %d on initialization\n", retval);
 
 	v4l2_device_unregister(&cx->v4l2_dev);
@@ -1254,7 +1243,7 @@ static void cx18_cancel_out_work_orders(struct cx18 *cx)
 {
 	int i;
 	for (i = 0; i < CX18_MAX_STREAMS; i++)
-		if (&cx->streams[i].video_dev)
+		if (cx->streams[i].video_dev.v4l2_dev)
 			cancel_work_sync(&cx->streams[i].out_work_order);
 }
 

@@ -11,6 +11,23 @@
 #ifndef BNXT_SRIOV_H
 #define BNXT_SRIOV_H
 
+#define BNXT_FWD_RESP_SIZE_ERR(n)					\
+	((offsetof(struct hwrm_fwd_resp_input, encap_resp) + n) >	\
+	 sizeof(struct hwrm_fwd_resp_input))
+
+#define BNXT_EXEC_FWD_RESP_SIZE_ERR(n)					\
+	((offsetof(struct hwrm_exec_fwd_resp_input, encap_request) + n) >\
+	 offsetof(struct hwrm_exec_fwd_resp_input, encap_resp_target_id))
+
+#define BNXT_REJ_FWD_RESP_SIZE_ERR(n)					\
+	((offsetof(struct hwrm_reject_fwd_resp_input, encap_request) + n) >\
+	 offsetof(struct hwrm_reject_fwd_resp_input, encap_resp_target_id))
+
+#define BNXT_VF_MIN_RSS_CTX	1
+#define BNXT_VF_MAX_RSS_CTX	1
+#define BNXT_VF_MIN_L2_CTX	1
+#define BNXT_VF_MAX_L2_CTX	4
+
 int bnxt_get_vf_config(struct net_device *, int, struct ifla_vf_info *);
 int bnxt_set_vf_mac(struct net_device *, int, u8 *);
 int bnxt_set_vf_vlan(struct net_device *, int, u16, u8, __be16);
@@ -22,5 +39,5 @@ int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs);
 void bnxt_sriov_disable(struct bnxt *);
 void bnxt_hwrm_exec_fwd_req(struct bnxt *);
 void bnxt_update_vf_mac(struct bnxt *);
-int bnxt_approve_mac(struct bnxt *, u8 *);
+int bnxt_approve_mac(struct bnxt *, u8 *, bool);
 #endif

@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 HOWTO: Get An Avermedia DVB-T working under Linux
 -------------------------------------------------
 

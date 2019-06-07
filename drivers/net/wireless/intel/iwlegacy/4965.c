@@ -577,7 +577,6 @@ il4965_math_div_round(s32 num, s32 denom, s32 * res)
 		sign = -sign;
 		denom = -denom;
 	}
-	*res = 1;
 	*res = ((num * 2 + denom) / (denom * 2)) * sign;
 
 	return 1;
@@ -1296,6 +1295,8 @@ il4965_send_rxon_assoc(struct il_priv *il)
 	struct il4965_rxon_assoc_cmd rxon_assoc;
 	const struct il_rxon_cmd *rxon1 = &il->staging;
 	const struct il_rxon_cmd *rxon2 = &il->active;
+
+	lockdep_assert_held(&il->mutex);
 
 	if (rxon1->flags == rxon2->flags &&
 	    rxon1->filter_flags == rxon2->filter_flags &&

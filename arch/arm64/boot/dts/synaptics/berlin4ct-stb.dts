@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2015 Marvell Technology Group Ltd.
+ *
+ * Author: Jisheng Zhang <jszhang@marvell.com>
+ */
+
+/dts-v1/;
+
+#include "berlin4ct.dtsi"
+
+/ {
+	model = "Marvell BG4CT STB board";
+	compatible = "marvell,berlin4ct-stb", "marvell,berlin4ct", "marvell,berlin";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@1000000 {
+		device_type = "memory";
+		/* the first 16MB is for firmwares' usage */
+		reg = <0 0x01000000 0 0x7f000000>;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

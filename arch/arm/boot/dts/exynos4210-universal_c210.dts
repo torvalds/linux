@@ -24,8 +24,8 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySAC2,115200N8 root=/dev/mmcblk0p5 rw rootwait earlyprintk panic=5 maxcpus=1";
-		stdout-path = &serial_2;
+		bootargs = "root=/dev/mmcblk0p5 rw rootwait earlyprintk panic=5 maxcpus=1";
+		stdout-path = "serial2:115200n8";
 	};
 
 
@@ -177,6 +177,20 @@
 	};
 };
 
+&amba {
+	mdma0: mdma@12840000 {
+		compatible = "arm,pl330", "arm,primecell";
+		reg = <0x12840000 0x1000>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock CLK_MDMA>;
+		clock-names = "apb_pclk";
+		#dma-cells = <1>;
+		#dma-channels = <8>;
+		#dma-requests = <1>;
+		power-domains = <&pd_lcd0>;
+	};
+};
+
 &camera {
 	status = "okay";
 
@@ -310,6 +324,9 @@
 
 	pmic@66 {
 		compatible = "national,lp3974";
+		interrupts-extended = <&gpx0 7 0>, <&gpx2 7 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lp3974_irq>;
 		reg = <0x66>;
 
 		max8998,pmic-buck1-default-dvs-idx = <0>;
@@ -488,7 +505,8 @@
 };
 
 &mdma1 {
-	reg = <0x12840000 0x1000>;
+	/* Use the secure mdma0 */
+	status = "disabled";
 };
 
 &mixer {
@@ -503,6 +521,11 @@
 };
 
 &pinctrl_1 {
+	lp3974_irq: lp3974-irq {
+		samsung,pins = "gpx0-7", "gpx2-7";
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+	};
+
 	hdmi_hpd: hdmi-hpd {
 		samsung,pins = "gpx3-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -537,8 +560,7 @@
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4>;
 	pinctrl-names = "default";
 	vmmc-supply = <&ldo5_reg>;
-	cd-gpios = <&gpx3 4 GPIO_ACTIVE_HIGH>;
-	cd-inverted;
+	cd-gpios = <&gpx3 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

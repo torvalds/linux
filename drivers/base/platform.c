@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
@@ -26,6 +26,7 @@
 #include <linux/clk/clk-conf.h>
 #include <linux/limits.h>
 #include <linux/property.h>
+#include <linux/kmemleak.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -79,6 +80,26 @@ struct resource *platform_get_resource(struct platform_device *dev,
 EXPORT_SYMBOL_GPL(platform_get_resource);
 
 /**
+ * devm_platform_ioremap_resource - call devm_ioremap_resource() for a platform
+ *				    device
+ *
+ * @pdev: platform device to use both for memory resource lookup as well as
+ *        resource management
+ * @index: resource index
+ */
+#ifdef CONFIG_HAS_IOMEM
+void __iomem *devm_platform_ioremap_resource(struct platform_device *pdev,
+					     unsigned int index)
+{
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
+	return devm_ioremap_resource(&pdev->dev, res);
+}
+EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource);
+#endif /* CONFIG_HAS_IOMEM */
+
+/**
  * platform_get_irq - get an IRQ for a device
  * @dev: platform device
  * @num: IRQ number index
@@ -126,7 +147,20 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 		irqd_set_trigger_type(irqd, r->flags & IORESOURCE_BITS);
 	}
 
-	return r ? r->start : -ENXIO;
+	if (r)
+		return r->start;
+
+	/*
+	 * For the index 0 interrupt, allow falling back to GpioInt
+	 * resources. While a device could have both Interrupt and GpioInt
+	 * resources, making this fallback ambiguous, in many common cases
+	 * the device will only expose one IRQ, and this fallback
+	 * allows a common code path across either kind of resource.
+	 */
+	if (num == 0 && has_acpi_companion(&dev->dev))
+		return acpi_dev_gpio_irq_get(ACPI_COMPANION(&dev->dev), num);
+
+	return -ENXIO;
 #endif
 }
 EXPORT_SYMBOL_GPL(platform_get_irq);
@@ -234,7 +268,7 @@ struct platform_object {
  */
 void platform_device_put(struct platform_device *pdev)
 {
-	if (pdev)
+	if (!IS_ERR_OR_NULL(pdev))
 		put_device(&pdev->dev);
 }
 EXPORT_SYMBOL_GPL(platform_device_put);
@@ -404,10 +438,12 @@ int platform_device_add(struct platform_device *pdev)
 				p = &ioport_resource;
 		}
 
-		if (p && insert_resource(p, r)) {
-			dev_err(&pdev->dev, "failed to claim resource %d: %pR\n", i, r);
-			ret = -EBUSY;
-			goto failed;
+		if (p) {
+			ret = insert_resource(p, r);
+			if (ret) {
+				dev_err(&pdev->dev, "failed to claim resource %d: %pR\n", i, r);
+				goto failed;
+			}
 		}
 	}
 
@@ -447,8 +483,7 @@ void platform_device_del(struct platform_device *pdev)
 {
 	int i;
 
-	if (pdev) {
-		device_remove_properties(&pdev->dev);
+	if (!IS_ERR_OR_NULL(pdev)) {
 		device_del(&pdev->dev);
 
 		if (pdev->id_auto) {
@@ -508,10 +543,12 @@ struct platform_device *platform_device_register_full(
 
 	pdev = platform_device_alloc(pdevinfo->name, pdevinfo->id);
 	if (!pdev)
-		goto err_alloc;
+		return ERR_PTR(-ENOMEM);
 
 	pdev->dev.parent = pdevinfo->parent;
 	pdev->dev.fwnode = pdevinfo->fwnode;
+	pdev->dev.of_node = of_node_get(to_of_node(pdev->dev.fwnode));
+	pdev->dev.of_node_reused = pdevinfo->of_node_reused;
 
 	if (pdevinfo->dma_mask) {
 		/*
@@ -524,6 +561,8 @@ struct platform_device *platform_device_register_full(
 			kmalloc(sizeof(*pdev->dev.dma_mask), GFP_KERNEL);
 		if (!pdev->dev.dma_mask)
 			goto err;
+
+		kmemleak_ignore(pdev->dev.dma_mask);
 
 		*pdev->dev.dma_mask = pdevinfo->dma_mask;
 		pdev->dev.coherent_dma_mask = pdevinfo->dma_mask;
@@ -551,8 +590,6 @@ struct platform_device *platform_device_register_full(
 err:
 		ACPI_COMPANION_SET(&pdev->dev, NULL);
 		kfree(pdev->dev.dma_mask);
-
-err_alloc:
 		platform_device_put(pdev);
 		return ERR_PTR(ret);
 	}
@@ -572,17 +609,16 @@ static int platform_drv_probe(struct device *_dev)
 		return ret;
 
 	ret = dev_pm_domain_attach(_dev, true);
-	if (ret != -EPROBE_DEFER) {
-		if (drv->probe) {
-			ret = drv->probe(dev);
-			if (ret)
-				dev_pm_domain_detach(_dev, true);
-		} else {
-			/* don't fail if just dev_pm_domain_attach failed */
-			ret = 0;
-		}
+	if (ret)
+		goto out;
+
+	if (drv->probe) {
+		ret = drv->probe(dev);
+		if (ret)
+			dev_pm_domain_detach(_dev, true);
 	}
 
+out:
 	if (drv->prevent_deferred_probe && ret == -EPROBE_DEFER) {
 		dev_warn(_dev, "probe deferral not supported\n");
 		ret = -ENXIO;
@@ -1130,6 +1166,21 @@ int platform_pm_restore(struct device *dev)
 
 #endif /* CONFIG_HIBERNATE_CALLBACKS */
 
+int platform_dma_configure(struct device *dev)
+{
+	enum dev_dma_attr attr;
+	int ret = 0;
+
+	if (dev->of_node) {
+		ret = of_dma_configure(dev, dev->of_node, true);
+	} else if (has_acpi_companion(dev)) {
+		attr = acpi_get_dma_attr(to_acpi_device_node(dev->fwnode));
+		ret = acpi_dma_configure(dev, attr);
+	}
+
+	return ret;
+}
+
 static const struct dev_pm_ops platform_dev_pm_ops = {
 	.runtime_suspend = pm_generic_runtime_suspend,
 	.runtime_resume = pm_generic_runtime_resume,
@@ -1141,8 +1192,8 @@ struct bus_type platform_bus_type = {
 	.dev_groups	= platform_dev_groups,
 	.match		= platform_match,
 	.uevent		= platform_uevent,
+	.dma_configure	= platform_dma_configure,
 	.pm		= &platform_dev_pm_ops,
-	.force_dma	= true,
 };
 EXPORT_SYMBOL_GPL(platform_bus_type);
 
@@ -1163,28 +1214,6 @@ int __init platform_bus_init(void)
 	of_platform_register_reconfig_notifier();
 	return error;
 }
-
-#ifndef ARCH_HAS_DMA_GET_REQUIRED_MASK
-u64 dma_get_required_mask(struct device *dev)
-{
-	u32 low_totalram = ((max_pfn - 1) << PAGE_SHIFT);
-	u32 high_totalram = ((max_pfn - 1) >> (32 - PAGE_SHIFT));
-	u64 mask;
-
-	if (!high_totalram) {
-		/* convert to mask just covering totalram */
-		low_totalram = (1 << (fls(low_totalram) - 1));
-		low_totalram += low_totalram - 1;
-		mask = low_totalram;
-	} else {
-		high_totalram = (1 << (fls(high_totalram) - 1));
-		high_totalram += high_totalram - 1;
-		mask = (((u64)high_totalram) << 32) + 0xffffffff;
-	}
-	return mask;
-}
-EXPORT_SYMBOL_GPL(dma_get_required_mask);
-#endif
 
 static __initdata LIST_HEAD(early_platform_driver_list);
 static __initdata LIST_HEAD(early_platform_device_list);

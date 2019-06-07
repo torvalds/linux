@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * USB driver for Gigaset 307x base via direct USB connection.
  *
@@ -6,10 +7,6 @@
  *                       Stefan Eilers.
  *
  * =====================================================================
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation; either version 2 of
- *	the License, or (at your option) any later version.
  * =====================================================================
  */
 
@@ -739,6 +736,7 @@ static void read_int_callback(struct urb *urb)
 
 	case HD_OPEN_B2CHANNEL_ACK:
 		++channel;
+		/* fall through */
 	case HD_OPEN_B1CHANNEL_ACK:
 		bcs = cs->bcs + channel;
 		update_basstate(ucs, BS_B1OPEN << channel, 0);
@@ -752,6 +750,7 @@ static void read_int_callback(struct urb *urb)
 
 	case HD_CLOSE_B2CHANNEL_ACK:
 		++channel;
+		/* fall through */
 	case HD_CLOSE_B1CHANNEL_ACK:
 		bcs = cs->bcs + channel;
 		update_basstate(ucs, 0, BS_B1OPEN << channel);
@@ -765,6 +764,7 @@ static void read_int_callback(struct urb *urb)
 
 	case HD_B2_FLOW_CONTROL:
 		++channel;
+		/* fall through */
 	case HD_B1_FLOW_CONTROL:
 		bcs = cs->bcs + channel;
 		atomic_add((l - BAS_NORMFRAME) * BAS_CORRFRAMES,
@@ -955,6 +955,7 @@ static void write_iso_callback(struct urb *urb)
  */
 static int starturbs(struct bc_state *bcs)
 {
+	struct usb_device *udev = bcs->cs->hw.bas->udev;
 	struct bas_bc_state *ubc = bcs->hw.bas;
 	struct urb *urb;
 	int j, k;
@@ -972,16 +973,14 @@ static int starturbs(struct bc_state *bcs)
 			rc = -EFAULT;
 			goto error;
 		}
+		usb_fill_int_urb(urb, udev,
+				 usb_rcvisocpipe(udev, 3 + 2 * bcs->channel),
+				 ubc->isoinbuf + k * BAS_INBUFSIZE,
+				 BAS_INBUFSIZE, read_iso_callback, bcs,
+				 BAS_FRAMETIME);
 
-		urb->dev = bcs->cs->hw.bas->udev;
-		urb->pipe = usb_rcvisocpipe(urb->dev, 3 + 2 * bcs->channel);
 		urb->transfer_flags = URB_ISO_ASAP;
-		urb->transfer_buffer = ubc->isoinbuf + k * BAS_INBUFSIZE;
-		urb->transfer_buffer_length = BAS_INBUFSIZE;
 		urb->number_of_packets = BAS_NUMFRAMES;
-		urb->interval = BAS_FRAMETIME;
-		urb->complete = read_iso_callback;
-		urb->context = bcs;
 		for (j = 0; j < BAS_NUMFRAMES; j++) {
 			urb->iso_frame_desc[j].offset = j * BAS_MAXFRAME;
 			urb->iso_frame_desc[j].length = BAS_MAXFRAME;
@@ -1005,15 +1004,15 @@ static int starturbs(struct bc_state *bcs)
 			rc = -EFAULT;
 			goto error;
 		}
-		urb->dev = bcs->cs->hw.bas->udev;
-		urb->pipe = usb_sndisocpipe(urb->dev, 4 + 2 * bcs->channel);
+		usb_fill_int_urb(urb, udev,
+				 usb_sndisocpipe(udev, 4 + 2 * bcs->channel),
+				 ubc->isooutbuf->data,
+				 sizeof(ubc->isooutbuf->data),
+				 write_iso_callback, &ubc->isoouturbs[k],
+				 BAS_FRAMETIME);
+
 		urb->transfer_flags = URB_ISO_ASAP;
-		urb->transfer_buffer = ubc->isooutbuf->data;
-		urb->transfer_buffer_length = sizeof(ubc->isooutbuf->data);
 		urb->number_of_packets = BAS_NUMFRAMES;
-		urb->interval = BAS_FRAMETIME;
-		urb->complete = write_iso_callback;
-		urb->context = &ubc->isoouturbs[k];
 		for (j = 0; j < BAS_NUMFRAMES; ++j) {
 			urb->iso_frame_desc[j].offset = BAS_OUTBUFSIZE;
 			urb->iso_frame_desc[j].length = BAS_NORMFRAME;

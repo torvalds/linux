@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2012 Texas Instruments Inc
  *
@@ -9,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Contributors:
  *      Manjunath Hadli <manjunath.hadli@ti.com>
@@ -389,7 +386,7 @@ resizer_calculate_down_scale_f_div_param(struct device *dev,
 	}
 	o = 10 + (two_power << 2);
 	if (((input_width << 7) / rsz) % 2)
-		o += (((CEIL(rsz, 1024)) << 1) << n);
+		o += ((DIV_ROUND_UP(rsz, 1024) << 1) << n);
 	h2 = output_width - h1;
 	/* phi */
 	val = (h1 * rsz) - (((upper_h1 - (o - 10)) / two_power) << 8);
@@ -499,7 +496,7 @@ resizer_configure_in_continuous_mode(struct vpfe_resizer_device *resizer)
 	configure_resizer_out_params(resizer, RSZ_A,
 				     &cont_config->output1, 1, 0);
 	param->rsz_en[RSZ_B] = DISABLE;
-	param->oper_mode = RESIZER_MODE_CONTINIOUS;
+	param->oper_mode = RESIZER_MODE_CONTINUOUS;
 
 	if (resizer->resizer_b.output == RESIZER_OUTPUT_MEMORY) {
 		struct v4l2_mbus_framefmt *outformat2;
@@ -633,7 +630,7 @@ resizer_calculate_normal_f_div_param(struct device *dev, int input_width,
 		val /= rsz << 1;
 		val <<= 1;
 		val += 2;
-		o += ((CEIL(rsz, 1024)) << 1);
+		o += (DIV_ROUND_UP(rsz, 1024) << 1);
 		h1 = val;
 	}
 	h2 = output_width - h1;
@@ -794,7 +791,7 @@ resizer_configure_in_single_shot_mode(struct vpfe_resizer_device *resizer)
 }
 
 static void
-resizer_set_defualt_configuration(struct vpfe_resizer_device *resizer)
+resizer_set_default_configuration(struct vpfe_resizer_device *resizer)
 {
 #define  WIDTH_I 640
 #define  HEIGHT_I 480
@@ -916,10 +913,11 @@ resizer_set_configuration(struct vpfe_resizer_device *resizer,
 			  struct vpfe_rsz_config *chan_config)
 {
 	if (!chan_config->config)
-		resizer_set_defualt_configuration(resizer);
+		resizer_set_default_configuration(resizer);
 	else
 		if (copy_from_user(&resizer->config.user_config,
-		    chan_config->config, sizeof(struct vpfe_rsz_config_params)))
+				   (void __user *)chan_config->config,
+				   sizeof(struct vpfe_rsz_config_params)))
 			return -EFAULT;
 
 	return 0;
@@ -942,9 +940,9 @@ resizer_get_configuration(struct vpfe_resizer_device *resizer,
 		return -EINVAL;
 	}
 
-	if (copy_to_user((void *)chan_config->config,
-	   (void *)&resizer->config.user_config,
-	   sizeof(struct vpfe_rsz_config_params))) {
+	if (copy_to_user((void __user *)chan_config->config,
+			 (void *)&resizer->config.user_config,
+			 sizeof(struct vpfe_rsz_config_params))) {
 		dev_err(dev, "resizer_get_configuration: Error in copy to user\n");
 		return -EFAULT;
 	}
@@ -1059,7 +1057,7 @@ static void resizer_ss_isr(struct vpfe_resizer_device *resizer)
 	/* If resizer B is enabled */
 	if (pipe->output_num > 1 && resizer->resizer_b.output ==
 	    RESIZER_OUTPUT_MEMORY) {
-		spin_lock(&video_out->dma_queue_lock);
+		spin_lock(&video_out2->dma_queue_lock);
 		vpfe_video_process_buffer_complete(video_out2);
 		video_out2->state = VPFE_VIDEO_BUFFER_NOT_QUEUED;
 		vpfe_video_schedule_next_buffer(video_out2);
@@ -1286,7 +1284,7 @@ static int resizer_set_stream(struct v4l2_subdev *sd, int enable)
  * @cfg: V4L2 subdev pad config
  * @pad: pad number.
  * @which: wanted subdev format.
- * Retun wanted mbus frame format.
+ * Return wanted mbus frame format.
  */
 static struct v4l2_mbus_framefmt *
 __resizer_get_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
@@ -1787,7 +1785,7 @@ void vpfe_resizer_unregister_entities(struct vpfe_resizer_device *vpfe_rsz)
 
 /*
  * vpfe_resizer_register_entities() - Register entity
- * @resizer - pointer to resizer devive.
+ * @resizer - pointer to resizer device.
  * @vdev: pointer to v4l2 device structure.
  */
 int vpfe_resizer_register_entities(struct vpfe_resizer_device *resizer,
@@ -1883,7 +1881,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 	struct v4l2_subdev *sd = &vpfe_rsz->crop_resizer.subdev;
 	struct media_pad *pads = &vpfe_rsz->crop_resizer.pads[0];
 	struct media_entity *me = &sd->entity;
-	static resource_size_t  res_len;
+	resource_size_t res_len;
 	struct resource *res;
 	int ret;
 
@@ -1902,7 +1900,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 
 	v4l2_subdev_init(sd, &resizer_v4l2_ops);
 	sd->internal_ops = &resizer_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI RESIZER CROP", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI RESIZER CROP", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 	v4l2_set_subdevdata(sd, vpfe_rsz);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1926,7 +1924,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 
 	v4l2_subdev_init(sd, &resizer_v4l2_ops);
 	sd->internal_ops = &resizer_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI RESIZER A", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI RESIZER A", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 	v4l2_set_subdevdata(sd, vpfe_rsz);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1948,7 +1946,7 @@ int vpfe_resizer_init(struct vpfe_resizer_device *vpfe_rsz,
 
 	v4l2_subdev_init(sd, &resizer_v4l2_ops);
 	sd->internal_ops = &resizer_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI RESIZER B", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI RESIZER B", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 	v4l2_set_subdevdata(sd, vpfe_rsz);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;

@@ -54,10 +54,10 @@ struct loop_device {
 
 	spinlock_t		lo_lock;
 	int			lo_state;
-	struct mutex		lo_ctl_mutex;
 	struct kthread_worker	worker;
 	struct task_struct	*worker_task;
 	bool			use_dio;
+	bool			sysfs_inited;
 
 	struct request_queue	*lo_queue;
 	struct blk_mq_tag_set	tag_set;

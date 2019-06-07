@@ -4,13 +4,14 @@
 
 #include <linux/hardirq.h>
 #include <linux/uaccess.h>
+#include <linux/refcount.h>
 
 /* Buffer handling */
 
 #define RING_BUFFER_WRITABLE		0x01
 
 struct ring_buffer {
-	atomic_t			refcount;
+	refcount_t			refcount;
 	struct rcu_head			rcu_head;
 #ifdef CONFIG_PERF_USE_VMALLOC
 	struct work_struct		work;
@@ -23,7 +24,7 @@ struct ring_buffer {
 	atomic_t			poll;		/* POLL_ for wakeups */
 
 	local_t				head;		/* write position    */
-	local_t				nest;		/* nested writers    */
+	unsigned int			nest;		/* nested writers    */
 	local_t				events;		/* event limit       */
 	local_t				wakeup;		/* wakeup stamp      */
 	local_t				lost;		/* nr records lost   */
@@ -40,7 +41,7 @@ struct ring_buffer {
 
 	/* AUX area */
 	long				aux_head;
-	local_t				aux_nest;
+	unsigned int			aux_nest;
 	long				aux_wakeup;	/* last aux_watermark boundary crossed by aux_head */
 	unsigned long			aux_pgoff;
 	int				aux_nr_pages;
@@ -48,7 +49,7 @@ struct ring_buffer {
 	atomic_t			aux_mmap_count;
 	unsigned long			aux_mmap_locked;
 	void				(*free_aux)(void *);
-	atomic_t			aux_refcount;
+	refcount_t			aux_refcount;
 	void				**aux_pages;
 	void				*aux_priv;
 

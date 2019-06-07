@@ -3,7 +3,7 @@
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -164,8 +164,8 @@ struct acpi_namespace_node {
 #define ANOBJ_SUBTREE_HAS_INI           0x10	/* Used to optimize device initialization */
 #define ANOBJ_EVALUATED                 0x20	/* Set on first evaluation of node */
 #define ANOBJ_ALLOCATED_BUFFER          0x40	/* Method AML buffer is dynamic (install_method) */
+#define ANOBJ_NODE_EARLY_INIT           0x80	/* acpi_exec only: Node was create via init file (-fi) */
 
-#define IMPLICIT_EXTERNAL               0x02	/* iASL only: This object created implicitly via External */
 #define ANOBJ_IS_EXTERNAL               0x08	/* iASL only: This object created via External() */
 #define ANOBJ_METHOD_NO_RETVAL          0x10	/* iASL only: Method has no return value */
 #define ANOBJ_METHOD_SOME_NO_RETVAL     0x20	/* iASL only: Method has at least one return value */
@@ -293,7 +293,7 @@ acpi_status (*acpi_internal_method) (struct acpi_walk_state * walk_state);
  * expected_return_btypes - Allowed type(s) for the return value
  */
 struct acpi_name_info {
-	char name[ACPI_NAME_SIZE];
+	char name[ACPI_NAMESEG_SIZE];
 	u16 argument_list;
 	u8 expected_btypes;
 };
@@ -370,7 +370,7 @@ typedef acpi_status (*acpi_object_converter) (struct acpi_namespace_node *
 					      converted_object);
 
 struct acpi_simple_repair_info {
-	char name[ACPI_NAME_SIZE];
+	char name[ACPI_NAMESEG_SIZE];
 	u32 unexpected_btypes;
 	u32 package_index;
 	acpi_object_converter object_converter;
@@ -395,9 +395,9 @@ struct acpi_simple_repair_info {
 /* Info for running the _REG methods */
 
 struct acpi_reg_walk_info {
-	acpi_adr_space_type space_id;
 	u32 function;
 	u32 reg_run_count;
+	acpi_adr_space_type space_id;
 };
 
 /*****************************************************************************
@@ -802,7 +802,7 @@ struct acpi_comment_addr_node {
 
 /*
  * File node - used for "Include" operator file stack and
- * depdendency tree for the -ca option
+ * dependency tree for the -ca option
  */
 struct acpi_file_node {
 	void *file;

@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _HCI_INTF_C_
@@ -82,7 +74,7 @@ static void sd_sync_int_hdl(struct sdio_func *func)
 
 static int sdio_alloc_irq(struct dvobj_priv *dvobj)
 {
-	PSDIO_DATA psdio_data;
+	struct sdio_data *psdio_data;
 	struct sdio_func *func;
 	int err;
 
@@ -110,7 +102,7 @@ static int sdio_alloc_irq(struct dvobj_priv *dvobj)
 
 static void sdio_free_irq(struct dvobj_priv *dvobj)
 {
-    PSDIO_DATA psdio_data;
+    struct sdio_data *psdio_data;
     struct sdio_func *func;
     int err;
 
@@ -184,7 +176,7 @@ static void gpio_hostwakeup_free_irq(struct adapter *padapter)
 
 static u32 sdio_init(struct dvobj_priv *dvobj)
 {
-	PSDIO_DATA psdio_data;
+	struct sdio_data *psdio_data;
 	struct sdio_func *func;
 	int err;
 
@@ -256,7 +248,7 @@ static struct dvobj_priv *sdio_dvobj_init(struct sdio_func *func)
 {
 	int status = _FAIL;
 	struct dvobj_priv *dvobj = NULL;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 
 	dvobj = devobj_init();
 	if (dvobj == NULL) {
@@ -335,7 +327,7 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 	int status = _FAIL;
 	struct net_device *pnetdev;
 	struct adapter *padapter = NULL;
-	PSDIO_DATA psdio = &dvobj->intf_data;
+	struct sdio_data *psdio = &dvobj->intf_data;
 
 	padapter = vzalloc(sizeof(*padapter));
 	if (padapter == NULL) {
@@ -613,7 +605,6 @@ static int rtw_sdio_resume(struct device *dev)
 {
 	struct sdio_func *func =dev_to_sdio_func(dev);
 	struct dvobj_priv *psdpriv = sdio_get_drvdata(func);
-	struct pwrctrl_priv *pwrpriv = dvobj_to_pwrctl(psdpriv);
 	struct adapter *padapter = psdpriv->if1;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	int ret = 0;
@@ -623,25 +614,11 @@ static int rtw_sdio_resume(struct device *dev)
 
 	pdbgpriv->dbg_resume_cnt++;
 
-	if (pwrpriv->bInternalAutoSuspend)
-	{
-		ret = rtw_resume_process(padapter);
-	}
-	else
-	{
-		if (pwrpriv->wowlan_mode || pwrpriv->wowlan_ap_mode)
-		{
-			ret = rtw_resume_process(padapter);
-		}
-		else
-		{
-			ret = rtw_resume_process(padapter);
-		}
-	}
+	ret = rtw_resume_process(padapter);
+
 	pmlmeext->last_scan_time = jiffies;
 	DBG_871X("<========  %s return %d\n", __func__, ret);
 	return ret;
-
 }
 
 static int __init rtw_drv_entry(void)

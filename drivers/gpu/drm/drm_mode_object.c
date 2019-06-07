@@ -38,7 +38,8 @@ int __drm_mode_object_add(struct drm_device *dev, struct drm_mode_object *obj,
 	int ret;
 
 	mutex_lock(&dev->mode_config.idr_mutex);
-	ret = idr_alloc(&dev->mode_config.crtc_idr, register_obj ? obj : NULL, 1, 0, GFP_KERNEL);
+	ret = idr_alloc(&dev->mode_config.object_idr, register_obj ? obj : NULL,
+			1, 0, GFP_KERNEL);
 	if (ret >= 0) {
 		/*
 		 * Set up the object linking under the protection of the idr
@@ -78,7 +79,7 @@ void drm_mode_object_register(struct drm_device *dev,
 			      struct drm_mode_object *obj)
 {
 	mutex_lock(&dev->mode_config.idr_mutex);
-	idr_replace(&dev->mode_config.crtc_idr, obj, obj->id);
+	idr_replace(&dev->mode_config.object_idr, obj, obj->id);
 	mutex_unlock(&dev->mode_config.idr_mutex);
 }
 
@@ -98,7 +99,7 @@ void drm_mode_object_unregister(struct drm_device *dev,
 {
 	mutex_lock(&dev->mode_config.idr_mutex);
 	if (object->id) {
-		idr_remove(&dev->mode_config.crtc_idr, object->id);
+		idr_remove(&dev->mode_config.object_idr, object->id);
 		object->id = 0;
 	}
 	mutex_unlock(&dev->mode_config.idr_mutex);
@@ -130,7 +131,7 @@ struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
 	struct drm_mode_object *obj = NULL;
 
 	mutex_lock(&dev->mode_config.idr_mutex);
-	obj = idr_find(&dev->mode_config.crtc_idr, id);
+	obj = idr_find(&dev->mode_config.object_idr, id);
 	if (obj && type != DRM_MODE_OBJECT_ANY && obj->type != type)
 		obj = NULL;
 	if (obj && obj->id != id)
@@ -381,7 +382,7 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	drm_modeset_lock_all(dev);
 
@@ -433,8 +434,7 @@ static int set_property_legacy(struct drm_mode_object *obj,
 	drm_modeset_lock_all(dev);
 	switch (obj->type) {
 	case DRM_MODE_OBJECT_CONNECTOR:
-		ret = drm_mode_connector_set_obj_prop(obj, prop,
-						      prop_value);
+		ret = drm_connector_set_obj_prop(obj, prop, prop_value);
 		break;
 	case DRM_MODE_OBJECT_CRTC:
 		ret = drm_mode_crtc_set_obj_prop(obj, prop, prop_value);
@@ -451,6 +451,7 @@ static int set_property_legacy(struct drm_mode_object *obj,
 }
 
 static int set_property_atomic(struct drm_mode_object *obj,
+			       struct drm_file *file_priv,
 			       struct drm_property *prop,
 			       uint64_t prop_value)
 {
@@ -459,12 +460,13 @@ static int set_property_atomic(struct drm_mode_object *obj,
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	drm_modeset_acquire_init(&ctx, 0);
-
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
 		return -ENOMEM;
+
+	drm_modeset_acquire_init(&ctx, 0);
 	state->acquire_ctx = &ctx;
+
 retry:
 	if (prop == state->dev->mode_config.dpms_property) {
 		if (obj->type != DRM_MODE_OBJECT_CONNECTOR) {
@@ -476,7 +478,7 @@ retry:
 						       obj_to_connector(obj),
 						       prop_value);
 	} else {
-		ret = drm_atomic_set_property(state, obj, prop, prop_value);
+		ret = drm_atomic_set_property(state, file_priv, obj, prop, prop_value);
 		if (ret)
 			goto out;
 		ret = drm_atomic_commit(state);
@@ -505,7 +507,7 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 	int ret = -EINVAL;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	arg_obj = drm_mode_object_find(dev, file_priv, arg->obj_id, arg->obj_type);
 	if (!arg_obj)
@@ -519,7 +521,7 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 		goto out_unref;
 
 	if (drm_drv_uses_atomic_modeset(property->dev))
-		ret = set_property_atomic(arg_obj, property, arg->value);
+		ret = set_property_atomic(arg_obj, file_priv, property, arg->value);
 	else
 		ret = set_property_legacy(arg_obj, property, arg->value);
 

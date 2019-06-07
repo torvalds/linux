@@ -27,6 +27,7 @@
 #include <asm/cacheflush.h>
 #include <asm/os_info.h>
 #include <asm/set_memory.h>
+#include <asm/stacktrace.h>
 #include <asm/switch_to.h>
 #include <asm/nmi.h>
 
@@ -95,7 +96,7 @@ static void __do_machine_kdump(void *image)
 	start_kdump(1);
 
 	/* Die if start_kdump returns */
-	disabled_wait((unsigned long) __builtin_return_address(0));
+	disabled_wait();
 }
 
 /*
@@ -142,18 +143,27 @@ static noinline void __machine_kdump(void *image)
 }
 #endif
 
-/*
- * Check if kdump checksums are valid: We call purgatory with parameter "0"
- */
-static bool kdump_csum_valid(struct kimage *image)
+static unsigned long do_start_kdump(unsigned long addr)
 {
-#ifdef CONFIG_CRASH_DUMP
+	struct kimage *image = (struct kimage *) addr;
 	int (*start_kdump)(int) = (void *)image->start;
 	int rc;
 
 	__arch_local_irq_stnsm(0xfb); /* disable DAT */
 	rc = start_kdump(0);
 	__arch_local_irq_stosm(0x04); /* enable DAT */
+	return rc;
+}
+
+/*
+ * Check if kdump checksums are valid: We call purgatory with parameter "0"
+ */
+static bool kdump_csum_valid(struct kimage *image)
+{
+#ifdef CONFIG_CRASH_DUMP
+	int rc;
+
+	rc = CALL_ON_STACK(do_start_kdump, S390_lowcore.nodat_stack, 1, image);
 	return rc == 0;
 #else
 	return false;
@@ -244,6 +254,9 @@ void arch_crash_save_vmcoreinfo(void)
 	VMCOREINFO_SYMBOL(high_memory);
 	VMCOREINFO_LENGTH(lowcore_ptr, NR_CPUS);
 	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
+	vmcoreinfo_append_str("SDMA=%lx\n", __sdma);
+	vmcoreinfo_append_str("EDMA=%lx\n", __edma);
+	vmcoreinfo_append_str("KERNELOFFSET=%lx\n", kaslr_offset());
 }
 
 void machine_shutdown(void)
@@ -271,7 +284,7 @@ static void __do_machine_kexec(void *data)
 	(*data_mover)(&image->head, image->start);
 
 	/* Die if kexec returns */
-	disabled_wait((unsigned long) __builtin_return_address(0));
+	disabled_wait();
 }
 
 /*

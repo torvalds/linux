@@ -315,6 +315,7 @@ static int igt_dmabuf_export_kmap(void *arg)
 		goto err;
 	}
 	memset(ptr + PAGE_SIZE, 0xaa, PAGE_SIZE);
+	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 
 	ptr = dma_buf_kmap(dmabuf, 1);
@@ -389,7 +390,7 @@ int i915_gem_dmabuf_mock_selftests(void)
 
 	err = i915_subtests(tests, i915);
 
-	drm_dev_unref(&i915->drm);
+	drm_dev_put(&i915->drm);
 	return err;
 }
 

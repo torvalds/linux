@@ -173,7 +173,7 @@ static int bnxt_vf_rep_setup_tc_block(struct net_device *dev,
 	case TC_BLOCK_BIND:
 		return tcf_block_cb_register(f->block,
 					     bnxt_vf_rep_setup_tc_block_cb,
-					     vf_rep, vf_rep);
+					     vf_rep, vf_rep, f->extack);
 	case TC_BLOCK_UNBIND:
 		tcf_block_cb_unregister(f->block,
 					bnxt_vf_rep_setup_tc_block_cb, vf_rep);
@@ -209,9 +209,7 @@ struct net_device *bnxt_get_vf_rep(struct bnxt *bp, u16 cfa_code)
 void bnxt_vf_rep_rx(struct bnxt *bp, struct sk_buff *skb)
 {
 	struct bnxt_vf_rep *vf_rep = netdev_priv(skb->dev);
-	struct bnxt_vf_rep_stats *rx_stats;
 
-	rx_stats = &vf_rep->rx_stats;
 	vf_rep->rx_stats.bytes += skb->len;
 	vf_rep->rx_stats.packets++;
 
@@ -239,20 +237,16 @@ static void bnxt_vf_rep_get_drvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
-static int bnxt_vf_rep_port_attr_get(struct net_device *dev,
-				     struct switchdev_attr *attr)
+static int bnxt_vf_rep_get_port_parent_id(struct net_device *dev,
+					  struct netdev_phys_item_id *ppid)
 {
 	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
 
 	/* as only PORT_PARENT_ID is supported currently use common code
 	 * between PF and VF-rep for now.
 	 */
-	return bnxt_port_attr_get(vf_rep->bp, attr);
+	return bnxt_get_port_parent_id(vf_rep->bp->dev, ppid);
 }
-
-static const struct switchdev_ops bnxt_vf_rep_switchdev_ops = {
-	.switchdev_port_attr_get	= bnxt_vf_rep_port_attr_get
-};
 
 static const struct ethtool_ops bnxt_vf_rep_ethtool_ops = {
 	.get_drvinfo		= bnxt_vf_rep_get_drvinfo
@@ -264,6 +258,7 @@ static const struct net_device_ops bnxt_vf_rep_netdev_ops = {
 	.ndo_start_xmit		= bnxt_vf_rep_xmit,
 	.ndo_get_stats64	= bnxt_vf_rep_get_stats64,
 	.ndo_setup_tc		= bnxt_vf_rep_setup_tc,
+	.ndo_get_port_parent_id	= bnxt_vf_rep_get_port_parent_id,
 	.ndo_get_phys_port_name = bnxt_vf_rep_get_phys_port_name
 };
 
@@ -394,7 +389,6 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 
 	dev->netdev_ops = &bnxt_vf_rep_netdev_ops;
 	dev->ethtool_ops = &bnxt_vf_rep_ethtool_ops;
-	SWITCHDEV_SET_OPS(dev, &bnxt_vf_rep_switchdev_ops);
 	/* Just inherit all the featues of the parent PF as the VF-R
 	 * uses the RX/TX rings of the parent PF
 	 */
@@ -412,26 +406,6 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 	dev->min_mtu = ETH_ZLEN;
 }
 
-static int bnxt_pcie_dsn_get(struct bnxt *bp, u8 dsn[])
-{
-	struct pci_dev *pdev = bp->pdev;
-	int pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_DSN);
-	u32 dw;
-
-	if (!pos) {
-		netdev_info(bp->dev, "Unable do read adapter's DSN");
-		return -EOPNOTSUPP;
-	}
-
-	/* DSN (two dw) is at an offset of 4 from the cap pos */
-	pos += 4;
-	pci_read_config_dword(pdev, pos, &dw);
-	put_unaligned_le32(dw, &dsn[0]);
-	pci_read_config_dword(pdev, pos + 4, &dw);
-	put_unaligned_le32(dw, &dsn[4]);
-	return 0;
-}
-
 static int bnxt_vf_reps_create(struct bnxt *bp)
 {
 	u16 *cfa_code_map = NULL, num_vfs = pci_num_vf(bp->pdev);
@@ -444,8 +418,8 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 		return -ENOMEM;
 
 	/* storage for cfa_code to vf-idx mapping */
-	cfa_code_map = kmalloc(sizeof(*bp->cfa_code_map) * MAX_CFA_CODE,
-			       GFP_KERNEL);
+	cfa_code_map = kmalloc_array(MAX_CFA_CODE, sizeof(*bp->cfa_code_map),
+				     GFP_KERNEL);
 	if (!cfa_code_map) {
 		rc = -ENOMEM;
 		goto err;
@@ -496,11 +470,6 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 		}
 	}
 
-	/* Read the adapter's DSN to use as the eswitch switch_id */
-	rc = bnxt_pcie_dsn_get(bp, bp->switch_id);
-	if (rc)
-		goto err;
-
 	/* publish cfa_code_map only after all VF-reps have been initialized */
 	bp->cfa_code_map = cfa_code_map;
 	bp->eswitch_mode = DEVLINK_ESWITCH_MODE_SWITCHDEV;
@@ -523,7 +492,8 @@ int bnxt_dl_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 	return 0;
 }
 
-int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode)
+int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
+			     struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = bnxt_get_bp_from_dl(devlink);
 	int rc = 0;
@@ -543,9 +513,14 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode)
 		break;
 
 	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
+		if (bp->hwrm_spec_code < 0x10803) {
+			netdev_warn(bp->dev, "FW does not support SRIOV E-Switch SWITCHDEV mode\n");
+			rc = -ENOTSUPP;
+			goto done;
+		}
+
 		if (pci_num_vf(bp->pdev) == 0) {
-			netdev_info(bp->dev,
-				    "Enable VFs before setting switchdev mode");
+			netdev_info(bp->dev, "Enable VFs before setting switchdev mode");
 			rc = -EPERM;
 			goto done;
 		}

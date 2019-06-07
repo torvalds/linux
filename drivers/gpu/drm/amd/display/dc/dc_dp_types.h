@@ -26,6 +26,8 @@
 #ifndef DC_DP_TYPES_H
 #define DC_DP_TYPES_H
 
+#include "os_types.h"
+
 enum dc_lane_count {
 	LANE_COUNT_UNKNOWN = 0,
 	LANE_COUNT_ONE = 1,
@@ -44,11 +46,14 @@ enum dc_lane_count {
  */
 enum dc_link_rate {
 	LINK_RATE_UNKNOWN = 0,
-	LINK_RATE_LOW = 0x06,
-	LINK_RATE_HIGH = 0x0A,
-	LINK_RATE_RBR2 = 0x0C,
-	LINK_RATE_HIGH2 = 0x14,
-	LINK_RATE_HIGH3 = 0x1E
+	LINK_RATE_LOW = 0x06,		// Rate_1 (RBR)	- 1.62 Gbps/Lane
+	LINK_RATE_RATE_2 = 0x08,	// Rate_2		- 2.16 Gbps/Lane
+	LINK_RATE_RATE_3 = 0x09,	// Rate_3		- 2.43 Gbps/Lane
+	LINK_RATE_HIGH = 0x0A,		// Rate_4 (HBR)	- 2.70 Gbps/Lane
+	LINK_RATE_RBR2 = 0x0C,		// Rate_5 (RBR2)- 3.24 Gbps/Lane
+	LINK_RATE_RATE_6 = 0x10,	// Rate_6		- 4.32 Gbps/Lane
+	LINK_RATE_HIGH2 = 0x14,		// Rate_7 (HBR2)- 5.40 Gbps/Lane
+	LINK_RATE_HIGH3 = 0x1E		// Rate_8 (HBR3)- 8.10 Gbps/Lane
 };
 
 enum dc_link_spread {
@@ -89,6 +94,8 @@ struct dc_link_settings {
 	enum dc_lane_count lane_count;
 	enum dc_link_rate link_rate;
 	enum dc_link_spread link_spread;
+	bool use_link_rate_set;
+	uint8_t link_rate_set;
 };
 
 struct dc_lane_settings {
@@ -415,10 +422,24 @@ union edp_configuration_cap {
 	uint8_t raw;
 };
 
+union dprx_feature {
+	struct {
+		uint8_t GTC_CAP:1;                             // bit 0: DP 1.3+
+		uint8_t SST_SPLIT_SDP_CAP:1;                   // bit 1: DP 1.4
+		uint8_t AV_SYNC_CAP:1;                         // bit 2: DP 1.3+
+		uint8_t VSC_SDP_COLORIMETRY_SUPPORTED:1;       // bit 3: DP 1.3+
+		uint8_t VSC_EXT_VESA_SDP_SUPPORTED:1;          // bit 4: DP 1.4
+		uint8_t VSC_EXT_VESA_SDP_CHAINING_SUPPORTED:1; // bit 5: DP 1.4
+		uint8_t VSC_EXT_CEA_SDP_SUPPORTED:1;           // bit 6: DP 1.4
+		uint8_t VSC_EXT_CEA_SDP_CHAINING_SUPPORTED:1;  // bit 7: DP 1.4
+	} bits;
+	uint8_t raw;
+};
+
 union training_aux_rd_interval {
 	struct {
 		uint8_t TRAINIG_AUX_RD_INTERVAL:7;
-		uint8_t EXT_RECIEVER_CAP_FIELD_PRESENT:1;
+		uint8_t EXT_RECEIVER_CAP_FIELD_PRESENT:1;
 	} bits;
 	uint8_t raw;
 };
@@ -428,7 +449,7 @@ union test_request {
 	struct {
 	uint8_t LINK_TRAINING         :1;
 	uint8_t LINK_TEST_PATTRN      :1;
-	uint8_t EDID_REAT             :1;
+	uint8_t EDID_READ             :1;
 	uint8_t PHY_TEST_PATTERN      :1;
 	uint8_t AUDIO_TEST_PATTERN    :1;
 	uint8_t RESERVED              :1;
@@ -441,7 +462,8 @@ union test_response {
 	struct {
 		uint8_t ACK         :1;
 		uint8_t NO_ACK      :1;
-		uint8_t RESERVED    :6;
+		uint8_t EDID_CHECKSUM_WRITE:1;
+		uint8_t RESERVED    :5;
 	} bits;
 	uint8_t raw;
 };

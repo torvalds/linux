@@ -231,15 +231,15 @@ static void kexec_prepare_cpus(void)
 	/* we are sure every CPU has IRQs off at this point */
 	kexec_all_irq_disabled = 1;
 
-	/* after we tell the others to go down */
-	if (ppc_md.kexec_cpu_down)
-		ppc_md.kexec_cpu_down(0, 0);
-
 	/*
 	 * Before removing MMU mappings make sure all CPUs have entered real
 	 * mode:
 	 */
 	kexec_prepare_cpus_wait(KEXEC_STATE_REAL_MODE);
+
+	/* after we tell the others to go down */
+	if (ppc_md.kexec_cpu_down)
+		ppc_md.kexec_cpu_down(0, 0);
 
 	put_cpu();
 }
@@ -317,10 +317,8 @@ void default_machine_kexec(struct kimage *image)
 	 * We setup preempt_count to avoid using VMX in memcpy.
 	 * XXX: the task struct will likely be invalid once we do the copy!
 	 */
-	kexec_stack.thread_info.task = current_thread_info()->task;
-	kexec_stack.thread_info.flags = 0;
-	kexec_stack.thread_info.preempt_count = HARDIRQ_OFFSET;
-	kexec_stack.thread_info.cpu = current_thread_info()->cpu;
+	current_thread_info()->flags = 0;
+	current_thread_info()->preempt_count = HARDIRQ_OFFSET;
 
 	/* We need a static PACA, too; copy this CPU's PACA over and switch to
 	 * it. Also poison per_cpu_offset and NULL lppaca to catch anyone using

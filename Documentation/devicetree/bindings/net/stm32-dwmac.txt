@@ -6,14 +6,27 @@ Please see stmmac.txt for the other unchanged properties.
 The device node has following properties.
 
 Required properties:
-- compatible:  Should be "st,stm32-dwmac" to select glue, and
+- compatible:  For MCU family should be "st,stm32-dwmac" to select glue, and
 	       "snps,dwmac-3.50a" to select IP version.
+	       For MPU family should be "st,stm32mp1-dwmac" to select
+	       glue, and "snps,dwmac-4.20a" to select IP version.
 - clocks: Must contain a phandle for each entry in clock-names.
 - clock-names: Should be "stmmaceth" for the host clock.
 	       Should be "mac-clk-tx" for the MAC TX clock.
 	       Should be "mac-clk-rx" for the MAC RX clock.
+	       For MPU family need to add also "ethstp" for power mode clock
+- interrupt-names: Should contain a list of interrupt names corresponding to
+           the interrupts in the interrupts property, if available.
+		   Should be "macirq" for the main MAC IRQ
+		   Should be "eth_wake_irq" for the IT which wake up system
 - st,syscon : Should be phandle/offset pair. The phandle to the syscon node which
-	      encompases the glue register, and the offset of the control register.
+	       encompases the glue register, and the offset of the control register.
+
+Optional properties:
+- clock-names:     For MPU family "eth-ck" for PHY without quartz
+- st,eth-clk-sel (boolean) : set this property in RGMII PHY when you want to select RCC clock instead of ETH_CLK125.
+- st,eth-ref-clk-sel (boolean) :  set this property in RMII mode when you have PHY without crystal 50MHz and want to select RCC clock instead of ETH_REF_CLK.
+
 Example:
 
 	ethernet@40028000 {

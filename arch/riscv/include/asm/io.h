@@ -20,6 +20,7 @@
 #define _ASM_RISCV_IO_H
 
 #include <linux/types.h>
+#include <asm/mmiowb.h>
 
 extern void __iomem *ioremap(phys_addr_t offset, unsigned long size);
 
@@ -100,18 +101,6 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 #endif
 
 /*
- * FIXME: I'm flip-flopping on whether or not we should keep this or enforce
- * the ordering with I/O on spinlocks like PowerPC does.  The worry is that
- * drivers won't get this correct, but I also don't want to introduce a fence
- * into the lock code that otherwise only uses AMOs (and is essentially defined
- * by the ISA to be correct).   For now I'm leaving this here: "o,w" is
- * sufficient to ensure that all writes to the device have completed before the
- * write to the spinlock is allowed to commit.  I surmised this from reading
- * "ACQUIRES VS I/O ACCESSES" in memory-barriers.txt.
- */
-#define mmiowb()	__asm__ __volatile__ ("fence o,w" : : : "memory");
-
-/*
  * Unordered I/O memory access primitives.  These are even more relaxed than
  * the relaxed versions, as they don't even order accesses between successive
  * operations to the I/O regions.
@@ -163,20 +152,20 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
  * doesn't define any ordering between the memory space and the I/O space.
  */
 #define __io_br()	do {} while (0)
-#define __io_ar()	__asm__ __volatile__ ("fence i,r" : : : "memory");
+#define __io_ar(v)	__asm__ __volatile__ ("fence i,r" : : : "memory");
 #define __io_bw()	__asm__ __volatile__ ("fence w,o" : : : "memory");
-#define __io_aw()	do {} while (0)
+#define __io_aw()	mmiowb_set_pending()
 
-#define readb(c)	({ u8  __v; __io_br(); __v = readb_cpu(c); __io_ar(); __v; })
-#define readw(c)	({ u16 __v; __io_br(); __v = readw_cpu(c); __io_ar(); __v; })
-#define readl(c)	({ u32 __v; __io_br(); __v = readl_cpu(c); __io_ar(); __v; })
+#define readb(c)	({ u8  __v; __io_br(); __v = readb_cpu(c); __io_ar(__v); __v; })
+#define readw(c)	({ u16 __v; __io_br(); __v = readw_cpu(c); __io_ar(__v); __v; })
+#define readl(c)	({ u32 __v; __io_br(); __v = readl_cpu(c); __io_ar(__v); __v; })
 
 #define writeb(v,c)	({ __io_bw(); writeb_cpu((v),(c)); __io_aw(); })
 #define writew(v,c)	({ __io_bw(); writew_cpu((v),(c)); __io_aw(); })
 #define writel(v,c)	({ __io_bw(); writel_cpu((v),(c)); __io_aw(); })
 
 #ifdef CONFIG_64BIT
-#define readq(c)	({ u64 __v; __io_br(); __v = readq_cpu(c); __io_ar(); __v; })
+#define readq(c)	({ u64 __v; __io_br(); __v = readq_cpu(c); __io_ar(__v); __v; })
 #define writeq(v,c)	({ __io_bw(); writeq_cpu((v),(c)); __io_aw(); })
 #endif
 
@@ -198,20 +187,20 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
  * writes.
  */
 #define __io_pbr()	__asm__ __volatile__ ("fence io,i"  : : : "memory");
-#define __io_par()	__asm__ __volatile__ ("fence i,ior" : : : "memory");
+#define __io_par(v)	__asm__ __volatile__ ("fence i,ior" : : : "memory");
 #define __io_pbw()	__asm__ __volatile__ ("fence iow,o" : : : "memory");
 #define __io_paw()	__asm__ __volatile__ ("fence o,io"  : : : "memory");
 
-#define inb(c)		({ u8  __v; __io_pbr(); __v = readb_cpu((void*)(PCI_IOBASE + (c))); __io_par(); __v; })
-#define inw(c)		({ u16 __v; __io_pbr(); __v = readw_cpu((void*)(PCI_IOBASE + (c))); __io_par(); __v; })
-#define inl(c)		({ u32 __v; __io_pbr(); __v = readl_cpu((void*)(PCI_IOBASE + (c))); __io_par(); __v; })
+#define inb(c)		({ u8  __v; __io_pbr(); __v = readb_cpu((void*)(PCI_IOBASE + (c))); __io_par(__v); __v; })
+#define inw(c)		({ u16 __v; __io_pbr(); __v = readw_cpu((void*)(PCI_IOBASE + (c))); __io_par(__v); __v; })
+#define inl(c)		({ u32 __v; __io_pbr(); __v = readl_cpu((void*)(PCI_IOBASE + (c))); __io_par(__v); __v; })
 
 #define outb(v,c)	({ __io_pbw(); writeb_cpu((v),(void*)(PCI_IOBASE + (c))); __io_paw(); })
 #define outw(v,c)	({ __io_pbw(); writew_cpu((v),(void*)(PCI_IOBASE + (c))); __io_paw(); })
 #define outl(v,c)	({ __io_pbw(); writel_cpu((v),(void*)(PCI_IOBASE + (c))); __io_paw(); })
 
 #ifdef CONFIG_64BIT
-#define inq(c)		({ u64 __v; __io_pbr(); __v = readq_cpu((void*)(c)); __io_par(); __v; })
+#define inq(c)		({ u64 __v; __io_pbr(); __v = readq_cpu((void*)(c)); __io_par(__v); __v; })
 #define outq(v,c)	({ __io_pbw(); writeq_cpu((v),(void*)(c)); __io_paw(); })
 #endif
 
@@ -254,16 +243,16 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 		afence;								\
 	}
 
-__io_reads_ins(reads,  u8, b, __io_br(), __io_ar())
-__io_reads_ins(reads, u16, w, __io_br(), __io_ar())
-__io_reads_ins(reads, u32, l, __io_br(), __io_ar())
+__io_reads_ins(reads,  u8, b, __io_br(), __io_ar(addr))
+__io_reads_ins(reads, u16, w, __io_br(), __io_ar(addr))
+__io_reads_ins(reads, u32, l, __io_br(), __io_ar(addr))
 #define readsb(addr, buffer, count) __readsb(addr, buffer, count)
 #define readsw(addr, buffer, count) __readsw(addr, buffer, count)
 #define readsl(addr, buffer, count) __readsl(addr, buffer, count)
 
-__io_reads_ins(ins,  u8, b, __io_pbr(), __io_par())
-__io_reads_ins(ins, u16, w, __io_pbr(), __io_par())
-__io_reads_ins(ins, u32, l, __io_pbr(), __io_par())
+__io_reads_ins(ins,  u8, b, __io_pbr(), __io_par(addr))
+__io_reads_ins(ins, u16, w, __io_pbr(), __io_par(addr))
+__io_reads_ins(ins, u32, l, __io_pbr(), __io_par(addr))
 #define insb(addr, buffer, count) __insb((void __iomem *)(long)addr, buffer, count)
 #define insw(addr, buffer, count) __insw((void __iomem *)(long)addr, buffer, count)
 #define insl(addr, buffer, count) __insl((void __iomem *)(long)addr, buffer, count)
@@ -283,10 +272,10 @@ __io_writes_outs(outs, u32, l, __io_pbw(), __io_paw())
 #define outsl(addr, buffer, count) __outsl((void __iomem *)(long)addr, buffer, count)
 
 #ifdef CONFIG_64BIT
-__io_reads_ins(reads, u64, q, __io_br(), __io_ar())
+__io_reads_ins(reads, u64, q, __io_br(), __io_ar(addr))
 #define readsq(addr, buffer, count) __readsq(addr, buffer, count)
 
-__io_reads_ins(ins, u64, q, __io_pbr(), __io_par())
+__io_reads_ins(ins, u64, q, __io_pbr(), __io_par(addr))
 #define insq(addr, buffer, count) __insq((void __iomem *)addr, buffer, count)
 
 __io_writes_outs(writes, u64, q, __io_bw(), __io_aw())

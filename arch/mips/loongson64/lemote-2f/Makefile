@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Makefile for lemote loongson2f family machines
 #
 
-obj-y += clock.o machtype.o irq.o reset.o ec_kb3310b.o
+obj-y += clock.o machtype.o irq.o reset.o dma.o ec_kb3310b.o
 
 #
 # Suspend Support

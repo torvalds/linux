@@ -206,6 +206,9 @@ Optional feature arguments are:
                   in a separate btree, which improves speed of shutting
 		  down the cache.
 
+   no_discard_passdown	: disable passing down discards from the cache
+			  to the origin's data device.
+
 A policy called 'default' is always registered.  This is an alias for
 the policy we currently think is giving best all round performance.
 

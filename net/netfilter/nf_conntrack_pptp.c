@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Connection tracking support for PPTP (Point to Point Tunneling Protocol).
  * PPTP is a a protocol for creating virtual private networks.
@@ -121,7 +122,7 @@ static void pptp_expectfn(struct nf_conn *ct,
 		struct nf_conntrack_expect *exp_other;
 
 		/* obviously this tuple inversion only works until you do NAT */
-		nf_ct_invert_tuplepr(&inv_t, &exp->tuple);
+		nf_ct_invert_tuple(&inv_t, &exp->tuple);
 		pr_debug("trying to unexpect other dir: ");
 		nf_ct_dump_tuple(&inv_t);
 

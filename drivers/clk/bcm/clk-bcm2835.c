@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2010,2015 Broadcom
  * Copyright (C) 2012 Stephen Warren
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 /**
@@ -39,6 +29,7 @@
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -394,25 +385,21 @@ out:
 	return count * 1000;
 }
 
-static int bcm2835_debugfs_regset(struct bcm2835_cprman *cprman, u32 base,
+static void bcm2835_debugfs_regset(struct bcm2835_cprman *cprman, u32 base,
 				  struct debugfs_reg32 *regs, size_t nregs,
 				  struct dentry *dentry)
 {
-	struct dentry *regdump;
 	struct debugfs_regset32 *regset;
 
 	regset = devm_kzalloc(cprman->dev, sizeof(*regset), GFP_KERNEL);
 	if (!regset)
-		return -ENOMEM;
+		return;
 
 	regset->regs = regs;
 	regset->nregs = nregs;
 	regset->base = cprman->regs + base;
 
-	regdump = debugfs_create_regset32("regdump", S_IRUGO, dentry,
-					  regset);
-
-	return regdump ? 0 : -ENOMEM;
+	debugfs_create_regset32("regdump", S_IRUGO, dentry, regset);
 }
 
 struct bcm2835_pll_data {
@@ -730,7 +717,7 @@ static int bcm2835_pll_set_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static int bcm2835_pll_debug_init(struct clk_hw *hw,
+static void bcm2835_pll_debug_init(struct clk_hw *hw,
 				  struct dentry *dentry)
 {
 	struct bcm2835_pll *pll = container_of(hw, struct bcm2835_pll, hw);
@@ -738,9 +725,9 @@ static int bcm2835_pll_debug_init(struct clk_hw *hw,
 	const struct bcm2835_pll_data *data = pll->data;
 	struct debugfs_reg32 *regs;
 
-	regs = devm_kzalloc(cprman->dev, 7 * sizeof(*regs), GFP_KERNEL);
+	regs = devm_kcalloc(cprman->dev, 7, sizeof(*regs), GFP_KERNEL);
 	if (!regs)
-		return -ENOMEM;
+		return;
 
 	regs[0].name = "cm_ctrl";
 	regs[0].offset = data->cm_ctrl_reg;
@@ -757,7 +744,7 @@ static int bcm2835_pll_debug_init(struct clk_hw *hw,
 	regs[6].name = "ana3";
 	regs[6].offset = data->ana_reg_base + 3 * 4;
 
-	return bcm2835_debugfs_regset(cprman, 0, regs, 7, dentry);
+	bcm2835_debugfs_regset(cprman, 0, regs, 7, dentry);
 }
 
 static const struct clk_ops bcm2835_pll_clk_ops = {
@@ -861,24 +848,24 @@ static int bcm2835_pll_divider_set_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static int bcm2835_pll_divider_debug_init(struct clk_hw *hw,
-					  struct dentry *dentry)
+static void bcm2835_pll_divider_debug_init(struct clk_hw *hw,
+					   struct dentry *dentry)
 {
 	struct bcm2835_pll_divider *divider = bcm2835_pll_divider_from_hw(hw);
 	struct bcm2835_cprman *cprman = divider->cprman;
 	const struct bcm2835_pll_divider_data *data = divider->data;
 	struct debugfs_reg32 *regs;
 
-	regs = devm_kzalloc(cprman->dev, 7 * sizeof(*regs), GFP_KERNEL);
+	regs = devm_kcalloc(cprman->dev, 7, sizeof(*regs), GFP_KERNEL);
 	if (!regs)
-		return -ENOMEM;
+		return;
 
 	regs[0].name = "cm";
 	regs[0].offset = data->cm_reg;
 	regs[1].name = "a2w";
 	regs[1].offset = data->a2w_reg;
 
-	return bcm2835_debugfs_regset(cprman, 0, regs, 2, dentry);
+	bcm2835_debugfs_regset(cprman, 0, regs, 2, dentry);
 }
 
 static const struct clk_ops bcm2835_pll_divider_clk_ops = {
@@ -1254,15 +1241,14 @@ static struct debugfs_reg32 bcm2835_debugfs_clock_reg32[] = {
 	},
 };
 
-static int bcm2835_clock_debug_init(struct clk_hw *hw,
+static void bcm2835_clock_debug_init(struct clk_hw *hw,
 				    struct dentry *dentry)
 {
 	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
 	struct bcm2835_cprman *cprman = clock->cprman;
 	const struct bcm2835_clock_data *data = clock->data;
 
-	return bcm2835_debugfs_regset(
-		cprman, data->ctl_reg,
+	bcm2835_debugfs_regset(cprman, data->ctl_reg,
 		bcm2835_debugfs_clock_reg32,
 		ARRAY_SIZE(bcm2835_debugfs_clock_reg32),
 		dentry);
@@ -1395,7 +1381,7 @@ static struct clk_hw *bcm2835_register_clock(struct bcm2835_cprman *cprman,
 	struct bcm2835_clock *clock;
 	struct clk_init_data init;
 	const char *parents[1 << CM_SRC_BITS];
-	size_t i, j;
+	size_t i;
 	int ret;
 
 	/*
@@ -1405,12 +1391,11 @@ static struct clk_hw *bcm2835_register_clock(struct bcm2835_cprman *cprman,
 	for (i = 0; i < data->num_mux_parents; i++) {
 		parents[i] = data->parents[i];
 
-		for (j = 0; j < ARRAY_SIZE(cprman_parent_names); j++) {
-			if (strcmp(parents[i], cprman_parent_names[j]) == 0) {
-				parents[i] = cprman->real_parent_names[j];
-				break;
-			}
-		}
+		ret = match_string(cprman_parent_names,
+				   ARRAY_SIZE(cprman_parent_names),
+				   parents[i]);
+		if (ret >= 0)
+			parents[i] = cprman->real_parent_names[ret];
 	}
 
 	memset(&init, 0, sizeof(init));
@@ -2147,8 +2132,8 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 	size_t i;
 	int ret;
 
-	cprman = devm_kzalloc(dev, sizeof(*cprman) +
-			      sizeof(*cprman->onecell.hws) * asize,
+	cprman = devm_kzalloc(dev,
+			      struct_size(cprman, onecell.hws, asize),
 			      GFP_KERNEL);
 	if (!cprman)
 		return -ENOMEM;
@@ -2212,4 +2197,4 @@ builtin_platform_driver(bcm2835_clk_driver);
 
 MODULE_AUTHOR("Eric Anholt <eric@anholt.net>");
 MODULE_DESCRIPTION("BCM2835 clock driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

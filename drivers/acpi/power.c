@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/acpi/power.c - ACPI Power Resources management.
  *
@@ -5,20 +6,6 @@
  * Author: Andy Grover <andrew.grover@intel.com>
  * Author: Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 /*
@@ -131,6 +118,23 @@ void acpi_power_resources_list_free(struct list_head *list)
 	}
 }
 
+static bool acpi_power_resource_is_dup(union acpi_object *package,
+				       unsigned int start, unsigned int i)
+{
+	acpi_handle rhandle, dup;
+	unsigned int j;
+
+	/* The caller is expected to check the package element types */
+	rhandle = package->package.elements[i].reference.handle;
+	for (j = start; j < i; j++) {
+		dup = package->package.elements[j].reference.handle;
+		if (dup == rhandle)
+			return true;
+	}
+
+	return false;
+}
+
 int acpi_extract_power_resources(union acpi_object *package, unsigned int start,
 				 struct list_head *list)
 {
@@ -150,6 +154,11 @@ int acpi_extract_power_resources(union acpi_object *package, unsigned int start,
 			err = -ENODEV;
 			break;
 		}
+
+		/* Some ACPI tables contain duplicate power resource references */
+		if (acpi_power_resource_is_dup(package, start, i))
+			continue;
+
 		err = acpi_add_power_resource(rhandle);
 		if (err)
 			break;
@@ -513,12 +522,12 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
 	/*
 	 * Try to execute _DSW first.
 	 *
-	 * Three agruments are needed for the _DSW object:
+	 * Three arguments are needed for the _DSW object:
 	 * Argument 0: enable/disable the wake capabilities
 	 * Argument 1: target system state
 	 * Argument 2: target device state
 	 * When _DSW object is called to disable the wake capabilities, maybe
-	 * the first argument is filled. The values of the other two agruments
+	 * the first argument is filled. The values of the other two arguments
 	 * are meaningless.
 	 */
 	in_arg[0].type = ACPI_TYPE_INTEGER;

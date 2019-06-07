@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* FS-Cache statistics viewing interface
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define FSCACHE_DEBUG_LEVEL OPERATION
@@ -26,14 +22,14 @@ int __init fscache_proc_init(void)
 		goto error_dir;
 
 #ifdef CONFIG_FSCACHE_STATS
-	if (!proc_create("fs/fscache/stats", S_IFREG | 0444, NULL,
-			 &fscache_stats_fops))
+	if (!proc_create_single("fs/fscache/stats", S_IFREG | 0444, NULL,
+			fscache_stats_show))
 		goto error_stats;
 #endif
 
 #ifdef CONFIG_FSCACHE_HISTOGRAM
-	if (!proc_create("fs/fscache/histogram", S_IFREG | 0444, NULL,
-			 &fscache_histogram_fops))
+	if (!proc_create_seq("fs/fscache/histogram", S_IFREG | 0444, NULL,
+			 &fscache_histogram_ops))
 		goto error_histogram;
 #endif
 

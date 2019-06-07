@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Physical Layer USB driver configuration
 #
@@ -20,8 +21,8 @@ config AB8500_USB
 	  in host mode, low speed.
 
 config FSL_USB2_OTG
-	bool "Freescale USB OTG Transceiver Driver"
-	depends on USB_EHCI_FSL && USB_FSL_USB2 && USB_OTG_FSM && PM
+	tristate "Freescale USB OTG Transceiver Driver"
+	depends on USB_EHCI_FSL && USB_FSL_USB2 && USB_OTG_FSM=y && PM
 	depends on USB_GADGET || !USB_GADGET # if USB_GADGET=m, this can't be 'y'
 	select USB_PHY
 	help
@@ -158,6 +159,16 @@ config USB_MXS_PHY
 	  Enable this to support the Freescale MXS USB PHY.
 
 	  MXS Phy is used by some of the i.MX SoCs, for example imx23/28/6x.
+
+config USB_TEGRA_PHY
+	tristate "NVIDIA Tegra USB PHY Driver"
+	depends on ARCH_TEGRA
+	select USB_COMMON
+	select USB_PHY
+	select USB_ULPI
+	help
+	  This driver provides PHY support for the USB controllers found
+	  on NVIDIA Tegra SoC's.
 
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"

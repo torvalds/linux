@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2007-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  *
  * ABX500 core access functions.
  * The abx500 interface is used for the Analog Baseband chips.
@@ -271,7 +271,6 @@ struct abx500_bm_data {
 	bool autopower_cfg;
 	bool ac_enabled;
 	bool usb_enabled;
-	bool usb_power_path;
 	bool no_maintenance;
 	bool capacity_scaling;
 	bool chg_unknown_bat;

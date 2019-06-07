@@ -49,6 +49,12 @@
 	};
 };
 
+&ldo28_reg {
+	regulator-name = "dp_p3v3";
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+};
+
 &pwm {
 	/*
 	 * PWM 0 -- fan

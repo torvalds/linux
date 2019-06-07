@@ -19,7 +19,7 @@
  * the association between their DT compatible string and their
  * initialization function.
  *
- * @name: name that must be unique accross all IRQCHIP_DECLARE of the
+ * @name: name that must be unique across all IRQCHIP_DECLARE of the
  * same file.
  * @compstr: compatible string of the irqchip driver
  * @fn: initialization function
@@ -30,7 +30,7 @@
  * This macro must be used by the different irqchip drivers to declare
  * the association between their version and their initialization function.
  *
- * @name: name that must be unique accross all IRQCHIP_ACPI_DECLARE of the
+ * @name: name that must be unique across all IRQCHIP_ACPI_DECLARE of the
  * same file.
  * @subtable: Subtable to be identified in MADT
  * @validate: Function to be called on that subtable to check its validity.

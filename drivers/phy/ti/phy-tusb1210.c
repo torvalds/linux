@@ -53,7 +53,7 @@ static int tusb1210_power_off(struct phy *phy)
 	return 0;
 }
 
-static int tusb1210_set_mode(struct phy *phy, enum phy_mode mode)
+static int tusb1210_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	struct tusb1210 *tusb = phy_get_drvdata(phy);
 	int ret;

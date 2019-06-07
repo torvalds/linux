@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTL8723B_PHYCFG_C_
@@ -66,7 +58,7 @@ static	u32 phy_CalculateBitShift(u32 BitMask)
 */
 u32 PHY_QueryBBReg_8723B(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
 {
-	u32 ReturnValue = 0, OriginalValue, BitShift;
+	u32 OriginalValue, BitShift;
 
 #if (DISABLE_BB_RF == 1)
 	return 0;
@@ -76,9 +68,8 @@ u32 PHY_QueryBBReg_8723B(struct adapter *Adapter, u32 RegAddr, u32 BitMask)
 
 	OriginalValue = rtw_read32(Adapter, RegAddr);
 	BitShift = phy_CalculateBitShift(BitMask);
-	ReturnValue = (OriginalValue & BitMask) >> BitShift;
 
-	return ReturnValue;
+	return (OriginalValue & BitMask) >> BitShift;
 
 }
 
@@ -292,18 +283,16 @@ u32 PHY_QueryRFReg_8723B(
 	u32 BitMask
 )
 {
-	u32 Original_Value, Readback_Value, BitShift;
+	u32 Original_Value, BitShift;
 
 #if (DISABLE_BB_RF == 1)
 	return 0;
 #endif
 
 	Original_Value = phy_RFSerialRead_8723B(Adapter, eRFPath, RegAddr);
-
 	BitShift =  phy_CalculateBitShift(BitMask);
-	Readback_Value = (Original_Value & BitMask) >> BitShift;
 
-	return Readback_Value;
+	return (Original_Value & BitMask) >> BitShift;
 }
 
 /**
@@ -696,7 +685,7 @@ u8 PHY_GetTxPowerIndex_8723B(
 	txPower = (s8) PHY_GetTxPowerIndexBase(padapter, RFPath, Rate, BandWidth, Channel, &bIn24G);
 	powerDiffByRate = PHY_GetTxPowerByRate(padapter, BAND_ON_2_4G, ODM_RF_PATH_A, RF_1TX, Rate);
 
-	limit = PHY_GetTxPowerLimit(
+	limit = phy_get_tx_pwr_lmt(
 		padapter,
 		padapter->registrypriv.RegPwrTblSel,
 		(u8)(!bIn24G),
@@ -835,7 +824,7 @@ static u8 phy_GetSecondaryChnl_8723B(struct adapter *Adapter)
 	}
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_, ("SCMapping: SC Value %x\n", ((SCSettingOf40 << 4) | SCSettingOf20)));
-	return  ((SCSettingOf40 << 4) | SCSettingOf20);
+	return  (SCSettingOf40 << 4) | SCSettingOf20;
 }
 
 static void phy_PostSetBwMode8723B(struct adapter *Adapter)

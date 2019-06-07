@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2013, Lars-Peter Clausen <lars@metafoo.de>
  *  JZ4740 DMAC support
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General	 Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/dmaengine.h>
@@ -113,6 +108,7 @@ struct jz4740_dma_desc {
 struct jz4740_dmaengine_chan {
 	struct virt_dma_chan vchan;
 	unsigned int id;
+	struct dma_slave_config config;
 
 	dma_addr_t fifo_addr;
 	unsigned int transfer_shift;
@@ -203,8 +199,9 @@ static enum jz4740_dma_transfer_size jz4740_dma_maxburst(u32 maxburst)
 	return JZ4740_DMA_TRANSFER_SIZE_32BYTE;
 }
 
-static int jz4740_dma_slave_config(struct dma_chan *c,
-				   struct dma_slave_config *config)
+static int jz4740_dma_slave_config_write(struct dma_chan *c,
+				   struct dma_slave_config *config,
+				   enum dma_transfer_direction direction)
 {
 	struct jz4740_dmaengine_chan *chan = to_jz4740_dma_chan(c);
 	struct jz4740_dma_dev *dmadev = jz4740_dma_chan_get_dev(chan);
@@ -214,7 +211,7 @@ static int jz4740_dma_slave_config(struct dma_chan *c,
 	enum jz4740_dma_flags flags;
 	uint32_t cmd;
 
-	switch (config->direction) {
+	switch (direction) {
 	case DMA_MEM_TO_DEV:
 		flags = JZ4740_DMA_SRC_AUTOINC;
 		transfer_size = jz4740_dma_maxburst(config->dst_maxburst);
@@ -262,6 +259,15 @@ static int jz4740_dma_slave_config(struct dma_chan *c,
 	jz4740_dma_write(dmadev, JZ_REG_DMA_REQ_TYPE(chan->id),
 		config->slave_id);
 
+	return 0;
+}
+
+static int jz4740_dma_slave_config(struct dma_chan *c,
+				   struct dma_slave_config *config)
+{
+	struct jz4740_dmaengine_chan *chan = to_jz4740_dma_chan(c);
+
+	memcpy(&chan->config, config, sizeof(*config));
 	return 0;
 }
 
@@ -407,6 +413,8 @@ static struct dma_async_tx_descriptor *jz4740_dma_prep_slave_sg(
 	desc->direction = direction;
 	desc->cyclic = false;
 
+	jz4740_dma_slave_config_write(c, &chan->config, direction);
+
 	return vchan_tx_prep(&chan->vchan, &desc->vdesc, flags);
 }
 
@@ -437,6 +445,8 @@ static struct dma_async_tx_descriptor *jz4740_dma_prep_dma_cyclic(
 	desc->num_sgs = num_periods;
 	desc->direction = direction;
 	desc->cyclic = true;
+
+	jz4740_dma_slave_config_write(c, &chan->config, direction);
 
 	return vchan_tx_prep(&chan->vchan, &desc->vdesc, flags);
 }

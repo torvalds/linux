@@ -75,9 +75,19 @@ struct bug_entry {
 
 /*
  * WARN(), WARN_ON(), WARN_ON_ONCE, and so on can be used to report
- * significant issues that need prompt attention if they should ever
- * appear at runtime.  Use the versions with printk format strings
- * to provide better diagnostics.
+ * significant kernel issues that need prompt attention if they should ever
+ * appear at runtime.
+ *
+ * Do not use these macros when checking for invalid external inputs
+ * (e.g. invalid system call arguments, or invalid data coming from
+ * network/devices), and on transient conditions like ENOMEM or EAGAIN.
+ * These macros should be used for recoverable kernel issues only.
+ * For invalid external inputs, transient conditions, etc use
+ * pr_err[_once/_ratelimited]() followed by dump_stack(), if necessary.
+ * Do not include "BUG"/"WARNING" in format strings manually to make these
+ * conditions distinguishable from kernel issues.
+ *
+ * Use the versions with printk format strings to provide better diagnostics.
  */
 #ifndef __WARN_TAINT
 extern __printf(3, 4)
@@ -201,9 +211,6 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 /*
  * WARN_ON_SMP() is for cases that the warning is either
  * meaningless for !SMP or may even cause failures.
- * This is usually used for cases that we have
- * WARN_ON(!spin_is_locked(&lock)) checks, as spin_is_locked()
- * returns 0 for uniprocessor settings.
  * It can also be used with values that are only defined
  * on SMP:
  *

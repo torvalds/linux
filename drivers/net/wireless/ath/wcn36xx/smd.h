@@ -86,6 +86,10 @@ int wcn36xx_smd_send_beacon(struct wcn36xx *wcn, struct ieee80211_vif *vif,
 			    u16 p2p_off);
 int wcn36xx_smd_switch_channel(struct wcn36xx *wcn,
 			       struct ieee80211_vif *vif, int ch);
+int wcn36xx_smd_process_ptt_msg(struct wcn36xx *wcn,
+				struct ieee80211_vif *vif,
+				void *ptt_msg, size_t len,
+				void **ptt_rsp_msg);
 int wcn36xx_smd_update_proberesp_tmpl(struct wcn36xx *wcn,
 				      struct ieee80211_vif *vif,
 				      struct sk_buff *skb);
@@ -97,6 +101,7 @@ int wcn36xx_smd_set_stakey(struct wcn36xx *wcn,
 			   u8 sta_index);
 int wcn36xx_smd_set_bsskey(struct wcn36xx *wcn,
 			   enum ani_ed_type enc_type,
+			   u8 bssidx,
 			   u8 keyidx,
 			   u8 keylen,
 			   u8 *key);
@@ -106,6 +111,7 @@ int wcn36xx_smd_remove_stakey(struct wcn36xx *wcn,
 			      u8 sta_index);
 int wcn36xx_smd_remove_bsskey(struct wcn36xx *wcn,
 			      enum ani_ed_type enc_type,
+			      u8 bssidx,
 			      u8 keyidx);
 int wcn36xx_smd_enter_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif);
 int wcn36xx_smd_exit_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif);

@@ -622,7 +622,7 @@ static int dvb_dmxdev_start_feed(struct dmxdev *dmxdev,
 				 struct dmxdev_filter *filter,
 				 struct dmxdev_feed *feed)
 {
-	ktime_t timeout = 0;
+	ktime_t timeout = ktime_set(0, 0);
 	struct dmx_pes_filter_params *para = &filter->params.pes;
 	enum dmx_output otype;
 	int ret;
@@ -1195,12 +1195,12 @@ static __poll_t dvb_demux_poll(struct file *file, poll_table *wait)
 	struct dmxdev_filter *dmxdevfilter = file->private_data;
 	__poll_t mask = 0;
 
+	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
+
 	if ((!dmxdevfilter) || dmxdevfilter->dev->exit)
 		return EPOLLERR;
 	if (dvb_vb2_is_streaming(&dmxdevfilter->vb2_ctx))
 		return dvb_vb2_poll(&dmxdevfilter->vb2_ctx, file, wait);
-
-	poll_wait(file, &dmxdevfilter->buffer.queue, wait);
 
 	if (dmxdevfilter->state != DMXDEV_STATE_GO &&
 	    dmxdevfilter->state != DMXDEV_STATE_DONE &&
@@ -1265,6 +1265,7 @@ static const struct file_operations dvb_demux_fops = {
 	.owner = THIS_MODULE,
 	.read = dvb_demux_read,
 	.unlocked_ioctl = dvb_demux_ioctl,
+	.compat_ioctl = dvb_demux_ioctl,
 	.open = dvb_demux_open,
 	.release = dvb_demux_release,
 	.poll = dvb_demux_poll,
@@ -1345,12 +1346,12 @@ static __poll_t dvb_dvr_poll(struct file *file, poll_table *wait)
 
 	dprintk("%s\n", __func__);
 
+	poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
+
 	if (dmxdev->exit)
 		return EPOLLERR;
 	if (dvb_vb2_is_streaming(&dmxdev->dvr_vb2_ctx))
 		return dvb_vb2_poll(&dmxdev->dvr_vb2_ctx, file, wait);
-
-	poll_wait(file, &dmxdev->dvr_buffer.queue, wait);
 
 	if (((file->f_flags & O_ACCMODE) == O_RDONLY) ||
 	    dmxdev->may_do_mmap) {
@@ -1417,7 +1418,8 @@ int dvb_dmxdev_init(struct dmxdev *dmxdev, struct dvb_adapter *dvb_adapter)
 	if (dmxdev->demux->open(dmxdev->demux) < 0)
 		return -EUSERS;
 
-	dmxdev->filter = vmalloc(dmxdev->filternum * sizeof(struct dmxdev_filter));
+	dmxdev->filter = vmalloc(array_size(sizeof(struct dmxdev_filter),
+					    dmxdev->filternum));
 	if (!dmxdev->filter)
 		return -ENOMEM;
 

@@ -45,25 +45,28 @@ struct dm_kcopyd_client {
 	struct dm_io_client *io_client;
 
 	wait_queue_head_t destroyq;
-	atomic_t nr_jobs;
 
-	mempool_t *job_pool;
+	mempool_t job_pool;
 
 	struct workqueue_struct *kcopyd_wq;
 	struct work_struct kcopyd_work;
 
 	struct dm_kcopyd_throttle *throttle;
 
+	atomic_t nr_jobs;
+
 /*
- * We maintain three lists of jobs:
+ * We maintain four lists of jobs:
  *
  * i)   jobs waiting for pages
  * ii)  jobs that have pages, and are waiting for the io to be issued.
- * iii) jobs that have completed.
+ * iii) jobs that don't need to do any IO and just run a callback
+ * iv) jobs that have completed.
  *
- * All three of these are protected by job_lock.
+ * All four of these are protected by job_lock.
  */
 	spinlock_t job_lock;
+	struct list_head callback_jobs;
 	struct list_head complete_jobs;
 	struct list_head io_jobs;
 	struct list_head pages_jobs;
@@ -479,12 +482,14 @@ static int run_complete_job(struct kcopyd_job *job)
 	 */
 	if (job->master_job == job) {
 		mutex_destroy(&job->lock);
-		mempool_free(job, kc->job_pool);
+		mempool_free(job, &kc->job_pool);
 	}
 	fn(read_err, write_err, context);
 
 	if (atomic_dec_and_test(&kc->nr_jobs))
 		wake_up(&kc->destroyq);
+
+	cond_resched();
 
 	return 0;
 }
@@ -622,6 +627,7 @@ static void do_work(struct work_struct *work)
 	struct dm_kcopyd_client *kc = container_of(work,
 					struct dm_kcopyd_client, kcopyd_work);
 	struct blk_plug plug;
+	unsigned long flags;
 
 	/*
 	 * The order that these are called is *very* important.
@@ -630,6 +636,10 @@ static void do_work(struct work_struct *work)
 	 * list.  io jobs call wake when they complete and it all
 	 * starts again.
 	 */
+	spin_lock_irqsave(&kc->job_lock, flags);
+	list_splice_tail_init(&kc->callback_jobs, &kc->complete_jobs);
+	spin_unlock_irqrestore(&kc->job_lock, flags);
+
 	blk_start_plug(&plug);
 	process_jobs(&kc->complete_jobs, kc, run_complete_job);
 	process_jobs(&kc->pages_jobs, kc, run_pages_job);
@@ -647,7 +657,7 @@ static void dispatch_job(struct kcopyd_job *job)
 	struct dm_kcopyd_client *kc = job->kc;
 	atomic_inc(&kc->nr_jobs);
 	if (unlikely(!job->source.count))
-		push(&kc->complete_jobs, job);
+		push(&kc->callback_jobs, job);
 	else if (job->pages == &zero_page_list)
 		push(&kc->io_jobs, job);
 	else
@@ -740,9 +750,9 @@ static void split_job(struct kcopyd_job *master_job)
 	}
 }
 
-int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
-		   unsigned int num_dests, struct dm_io_region *dests,
-		   unsigned int flags, dm_kcopyd_notify_fn fn, void *context)
+void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
+		    unsigned int num_dests, struct dm_io_region *dests,
+		    unsigned int flags, dm_kcopyd_notify_fn fn, void *context)
 {
 	struct kcopyd_job *job;
 	int i;
@@ -751,7 +761,7 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	 * Allocate an array of jobs consisting of one master job
 	 * followed by SPLIT_COUNT sub jobs.
 	 */
-	job = mempool_alloc(kc->job_pool, GFP_NOIO);
+	job = mempool_alloc(&kc->job_pool, GFP_NOIO);
 	mutex_init(&job->lock);
 
 	/*
@@ -817,16 +827,14 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 		job->progress = 0;
 		split_job(job);
 	}
-
-	return 0;
 }
 EXPORT_SYMBOL(dm_kcopyd_copy);
 
-int dm_kcopyd_zero(struct dm_kcopyd_client *kc,
-		   unsigned num_dests, struct dm_io_region *dests,
-		   unsigned flags, dm_kcopyd_notify_fn fn, void *context)
+void dm_kcopyd_zero(struct dm_kcopyd_client *kc,
+		    unsigned num_dests, struct dm_io_region *dests,
+		    unsigned flags, dm_kcopyd_notify_fn fn, void *context)
 {
-	return dm_kcopyd_copy(kc, NULL, num_dests, dests, flags, fn, context);
+	dm_kcopyd_copy(kc, NULL, num_dests, dests, flags, fn, context);
 }
 EXPORT_SYMBOL(dm_kcopyd_zero);
 
@@ -835,7 +843,7 @@ void *dm_kcopyd_prepare_callback(struct dm_kcopyd_client *kc,
 {
 	struct kcopyd_job *job;
 
-	job = mempool_alloc(kc->job_pool, GFP_NOIO);
+	job = mempool_alloc(&kc->job_pool, GFP_NOIO);
 
 	memset(job, 0, sizeof(struct kcopyd_job));
 	job->kc = kc;
@@ -857,7 +865,7 @@ void dm_kcopyd_do_callback(void *j, int read_err, unsigned long write_err)
 	job->read_err = read_err;
 	job->write_err = write_err;
 
-	push(&kc->complete_jobs, job);
+	push(&kc->callback_jobs, job);
 	wake(kc);
 }
 EXPORT_SYMBOL(dm_kcopyd_do_callback);
@@ -879,27 +887,30 @@ int kcopyd_cancel(struct kcopyd_job *job, int block)
  *---------------------------------------------------------------*/
 struct dm_kcopyd_client *dm_kcopyd_client_create(struct dm_kcopyd_throttle *throttle)
 {
-	int r = -ENOMEM;
+	int r;
 	struct dm_kcopyd_client *kc;
 
-	kc = kmalloc(sizeof(*kc), GFP_KERNEL);
+	kc = kzalloc(sizeof(*kc), GFP_KERNEL);
 	if (!kc)
 		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&kc->job_lock);
+	INIT_LIST_HEAD(&kc->callback_jobs);
 	INIT_LIST_HEAD(&kc->complete_jobs);
 	INIT_LIST_HEAD(&kc->io_jobs);
 	INIT_LIST_HEAD(&kc->pages_jobs);
 	kc->throttle = throttle;
 
-	kc->job_pool = mempool_create_slab_pool(MIN_JOBS, _job_cache);
-	if (!kc->job_pool)
+	r = mempool_init_slab_pool(&kc->job_pool, MIN_JOBS, _job_cache);
+	if (r)
 		goto bad_slab;
 
 	INIT_WORK(&kc->kcopyd_work, do_work);
 	kc->kcopyd_wq = alloc_workqueue("kcopyd", WQ_MEM_RECLAIM, 0);
-	if (!kc->kcopyd_wq)
+	if (!kc->kcopyd_wq) {
+		r = -ENOMEM;
 		goto bad_workqueue;
+	}
 
 	kc->pages = NULL;
 	kc->nr_reserved_pages = kc->nr_free_pages = 0;
@@ -923,7 +934,7 @@ bad_io_client:
 bad_client_pages:
 	destroy_workqueue(kc->kcopyd_wq);
 bad_workqueue:
-	mempool_destroy(kc->job_pool);
+	mempool_exit(&kc->job_pool);
 bad_slab:
 	kfree(kc);
 
@@ -936,13 +947,14 @@ void dm_kcopyd_client_destroy(struct dm_kcopyd_client *kc)
 	/* Wait for completion of all jobs submitted by this client. */
 	wait_event(kc->destroyq, !atomic_read(&kc->nr_jobs));
 
+	BUG_ON(!list_empty(&kc->callback_jobs));
 	BUG_ON(!list_empty(&kc->complete_jobs));
 	BUG_ON(!list_empty(&kc->io_jobs));
 	BUG_ON(!list_empty(&kc->pages_jobs));
 	destroy_workqueue(kc->kcopyd_wq);
 	dm_io_client_destroy(kc->io_client);
 	client_free_pages(kc);
-	mempool_destroy(kc->job_pool);
+	mempool_exit(&kc->job_pool);
 	kfree(kc);
 }
 EXPORT_SYMBOL(dm_kcopyd_client_destroy);

@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * User-space Probes (UProbes) for x86
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2008-2011
  * Authors:
@@ -293,7 +280,7 @@ static int uprobe_init_insn(struct arch_uprobe *auprobe, struct insn *insn, bool
 	insn_init(insn, auprobe->insn, sizeof(auprobe->insn), x86_64);
 	/* has the side-effect of processing the entire instruction */
 	insn_get_length(insn);
-	if (WARN_ON_ONCE(!insn_complete(insn)))
+	if (!insn_complete(insn))
 		return -ENOEXEC;
 
 	if (is_prefix_bad(insn))
@@ -745,6 +732,7 @@ static int branch_setup_xol_ops(struct arch_uprobe *auprobe, struct insn *insn)
 		 * OPCODE1() of the "short" jmp which checks the same condition.
 		 */
 		opc1 = OPCODE2(insn) - 0x10;
+		/* fall through */
 	default:
 		if (!is_cond_jmp_opcode(opc1))
 			return -ENOSYS;
@@ -1083,10 +1071,10 @@ arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr, struct pt_regs
 		return orig_ret_vaddr;
 
 	if (nleft != rasize) {
-		pr_err("uprobe: return address clobbered: pid=%d, %%sp=%#lx, "
-			"%%ip=%#lx\n", current->pid, regs->sp, regs->ip);
+		pr_err("return address clobbered: pid=%d, %%sp=%#lx, %%ip=%#lx\n",
+		       current->pid, regs->sp, regs->ip);
 
-		force_sig_info(SIGSEGV, SEND_SIG_FORCED, current);
+		force_sig(SIGSEGV, current);
 	}
 
 	return -1;

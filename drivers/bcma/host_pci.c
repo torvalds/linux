@@ -196,6 +196,8 @@ static int bcma_host_pci_probe(struct pci_dev *dev,
 		goto err_pci_release_regions;
 	}
 
+	bus->dev = &dev->dev;
+
 	/* Map MMIO */
 	err = -ENOMEM;
 	bus->mmio = pci_iomap(dev, 0, ~0UL);

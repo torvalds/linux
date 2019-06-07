@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/sunrpc/rpc_pipe.c
  *
@@ -202,16 +203,9 @@ rpc_alloc_inode(struct super_block *sb)
 }
 
 static void
-rpc_i_callback(struct rcu_head *head)
+rpc_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(rpc_inode_cachep, RPC_I(inode));
-}
-
-static void
-rpc_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, rpc_i_callback);
 }
 
 static int
@@ -608,22 +602,6 @@ static int __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 	dput(dentry);
 	return ret;
 }
-
-int rpc_rmdir(struct dentry *dentry)
-{
-	struct dentry *parent;
-	struct inode *dir;
-	int error;
-
-	parent = dget_parent(dentry);
-	dir = d_inode(parent);
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-	error = __rpc_rmdir(dir, dentry);
-	inode_unlock(dir);
-	dput(parent);
-	return error;
-}
-EXPORT_SYMBOL_GPL(rpc_rmdir);
 
 static int __rpc_unlink(struct inode *dir, struct dentry *dentry)
 {
@@ -1139,7 +1117,7 @@ void rpc_remove_cache_dir(struct dentry *dentry)
  */
 static const struct super_operations s_ops = {
 	.alloc_inode	= rpc_alloc_inode,
-	.destroy_inode	= rpc_destroy_inode,
+	.free_inode	= rpc_free_inode,
 	.statfs		= simple_statfs,
 };
 
@@ -1282,7 +1260,7 @@ static const struct rpc_pipe_ops gssd_dummy_pipe_ops = {
  * that this file will be there and have a certain format.
  */
 static int
-rpc_show_dummy_info(struct seq_file *m, void *v)
+rpc_dummy_info_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "RPC server: %s\n", utsname()->nodename);
 	seq_printf(m, "service: foo (1) version 0\n");
@@ -1291,25 +1269,12 @@ rpc_show_dummy_info(struct seq_file *m, void *v)
 	seq_printf(m, "port: 0\n");
 	return 0;
 }
-
-static int
-rpc_dummy_info_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rpc_show_dummy_info, NULL);
-}
-
-static const struct file_operations rpc_dummy_info_operations = {
-	.owner		= THIS_MODULE,
-	.open		= rpc_dummy_info_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(rpc_dummy_info);
 
 static const struct rpc_filelist gssd_dummy_info_file[] = {
 	[0] = {
 		.name = "info",
-		.i_fop = &rpc_dummy_info_operations,
+		.i_fop = &rpc_dummy_info_fops,
 		.mode = S_IFREG | 0400,
 	},
 };

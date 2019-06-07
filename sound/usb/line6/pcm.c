@@ -158,8 +158,10 @@ static int line6_buffer_acquire(struct snd_line6_pcm *line6pcm,
 
 	/* Invoked multiple times in a row so allocate once only */
 	if (!test_and_set_bit(type, &pstr->opened) && !pstr->buffer) {
-		pstr->buffer = kmalloc(line6pcm->line6->iso_buffers *
-				       LINE6_ISO_PACKETS * pkt_size, GFP_KERNEL);
+		pstr->buffer =
+			kmalloc(array3_size(line6pcm->line6->iso_buffers,
+					    LINE6_ISO_PACKETS, pkt_size),
+				GFP_KERNEL);
 		if (!pstr->buffer)
 			return -ENOMEM;
 	}

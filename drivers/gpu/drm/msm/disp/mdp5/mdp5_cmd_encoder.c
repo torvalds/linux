@@ -12,7 +12,7 @@
  */
 
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "mdp5_kms.h"
 
@@ -55,20 +55,20 @@ static int pingpong_tearcheck_setup(struct drm_encoder *encoder,
 	int pp_id = mixer->pp;
 
 	if (IS_ERR_OR_NULL(mdp5_kms->vsync_clk)) {
-		dev_err(dev, "vsync_clk is not initialized\n");
+		DRM_DEV_ERROR(dev, "vsync_clk is not initialized\n");
 		return -EINVAL;
 	}
 
-	total_lines_x100 = mode->vtotal * mode->vrefresh;
+	total_lines_x100 = mode->vtotal * drm_mode_vrefresh(mode);
 	if (!total_lines_x100) {
-		dev_err(dev, "%s: vtotal(%d) or vrefresh(%d) is 0\n",
-				__func__, mode->vtotal, mode->vrefresh);
+		DRM_DEV_ERROR(dev, "%s: vtotal(%d) or vrefresh(%d) is 0\n",
+			      __func__, mode->vtotal, drm_mode_vrefresh(mode));
 		return -EINVAL;
 	}
 
 	vsync_clk_speed = clk_round_rate(mdp5_kms->vsync_clk, VSYNC_CLK_RATE);
 	if (vsync_clk_speed <= 0) {
-		dev_err(dev, "vsync_clk round rate failed %ld\n",
+		DRM_DEV_ERROR(dev, "vsync_clk round rate failed %ld\n",
 							vsync_clk_speed);
 		return -EINVAL;
 	}
@@ -102,13 +102,13 @@ static int pingpong_tearcheck_enable(struct drm_encoder *encoder)
 	ret = clk_set_rate(mdp5_kms->vsync_clk,
 		clk_round_rate(mdp5_kms->vsync_clk, VSYNC_CLK_RATE));
 	if (ret) {
-		dev_err(encoder->dev->dev,
+		DRM_DEV_ERROR(encoder->dev->dev,
 			"vsync_clk clk_set_rate failed, %d\n", ret);
 		return ret;
 	}
 	ret = clk_prepare_enable(mdp5_kms->vsync_clk);
 	if (ret) {
-		dev_err(encoder->dev->dev,
+		DRM_DEV_ERROR(encoder->dev->dev,
 			"vsync_clk clk_prepare_enable failed, %d\n", ret);
 		return ret;
 	}
@@ -134,14 +134,7 @@ void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 {
 	mode = adjusted_mode;
 
-	DBG("set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			mode->base.id, mode->name,
-			mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal,
-			mode->type, mode->flags);
+	DBG("set mode: " DRM_MODE_FMT, DRM_MODE_ARG(mode));
 	pingpong_tearcheck_setup(encoder, mode);
 	mdp5_crtc_set_pipeline(encoder->crtc);
 }

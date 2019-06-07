@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux Kernel Dump Test Module for testing kernel crashes conditions:
  * induces system failures at predefined crashpoints and under predefined
  * operational conditions in order to evaluate the reliability of kernel
  * sanity checking and crash dumps obtained using different dumping
  * solutions.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2006
  *
@@ -37,15 +24,8 @@
 #include <linux/kprobes.h>
 #include <linux/list.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/hrtimer.h>
 #include <linux/slab.h>
-#include <scsi/scsi_cmnd.h>
 #include <linux/debugfs.h>
-
-#ifdef CONFIG_IDE
-#include <linux/ide.h>
-#endif
 
 #define DEFAULT_COUNT 10
 
@@ -102,9 +82,7 @@ static struct crashpoint crashpoints[] = {
 	CRASHPOINT("MEM_SWAPOUT",	 "shrink_inactive_list"),
 	CRASHPOINT("TIMERADD",		 "hrtimer_start"),
 	CRASHPOINT("SCSI_DISPATCH_CMD",	 "scsi_dispatch_cmd"),
-# ifdef CONFIG_IDE
 	CRASHPOINT("IDE_CORE_CP",	 "generic_ide_ioctl"),
-# endif
 #endif
 };
 
@@ -152,7 +130,9 @@ static const struct crashtype crashtypes[] = {
 	CRASHTYPE(EXEC_VMALLOC),
 	CRASHTYPE(EXEC_RODATA),
 	CRASHTYPE(EXEC_USERSPACE),
+	CRASHTYPE(EXEC_NULL),
 	CRASHTYPE(ACCESS_USERSPACE),
+	CRASHTYPE(ACCESS_NULL),
 	CRASHTYPE(WRITE_RO),
 	CRASHTYPE(WRITE_RO_AFTER_INIT),
 	CRASHTYPE(WRITE_KERN),
@@ -183,6 +163,8 @@ static const struct crashtype crashtypes[] = {
 	CRASHTYPE(USERCOPY_STACK_FRAME_FROM),
 	CRASHTYPE(USERCOPY_STACK_BEYOND),
 	CRASHTYPE(USERCOPY_KERNEL),
+	CRASHTYPE(USERCOPY_KERNEL_DS),
+	CRASHTYPE(STACKLEAK_ERASING),
 };
 
 
@@ -345,9 +327,9 @@ static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	n = snprintf(buf, PAGE_SIZE, "Available crash types:\n");
+	n = scnprintf(buf, PAGE_SIZE, "Available crash types:\n");
 	for (i = 0; i < ARRAY_SIZE(crashtypes); i++) {
-		n += snprintf(buf + n, PAGE_SIZE - n, "%s\n",
+		n += scnprintf(buf + n, PAGE_SIZE - n, "%s\n",
 			      crashtypes[i].name);
 	}
 	buf[n] = '\0';

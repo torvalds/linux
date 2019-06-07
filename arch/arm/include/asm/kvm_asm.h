@@ -23,6 +23,10 @@
 
 #define ARM_EXIT_WITH_ABORT_BIT  31
 #define ARM_EXCEPTION_CODE(x)	  ((x) & ~(1U << ARM_EXIT_WITH_ABORT_BIT))
+#define ARM_EXCEPTION_IS_TRAP(x)					\
+	(ARM_EXCEPTION_CODE((x)) == ARM_EXCEPTION_PREF_ABORT	||	\
+	 ARM_EXCEPTION_CODE((x)) == ARM_EXCEPTION_DATA_ABORT	||	\
+	 ARM_EXCEPTION_CODE((x)) == ARM_EXCEPTION_HVC)
 #define ARM_ABORT_PENDING(x)	  !!((x) & (1U << ARM_EXIT_WITH_ABORT_BIT))
 
 #define ARM_EXCEPTION_RESET	  0
@@ -60,8 +64,6 @@ struct kvm_vcpu;
 
 extern char __kvm_hyp_init[];
 extern char __kvm_hyp_init_end[];
-
-extern char __kvm_hyp_vector[];
 
 extern void __kvm_flush_vm_context(void);
 extern void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa);

@@ -19,6 +19,7 @@
 #include <asm/mipsprom.h>
 #include <asm/mipsregs.h>
 #include <asm/bootinfo.h>
+#include <asm/setup.h>
 
 /* special SNI prom calls */
 /*

@@ -11,8 +11,6 @@
 #ifndef _XTENSA_PGALLOC_H
 #define _XTENSA_PGALLOC_H
 
-#ifdef __KERNEL__
-
 #include <linux/highmem.h>
 #include <linux/slab.h>
 
@@ -38,8 +36,7 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 	free_page((unsigned long)pgd);
 }
 
-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-					 unsigned long address)
+static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
 	pte_t *ptep;
 	int i;
@@ -52,13 +49,12 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 	return ptep;
 }
 
-static inline pgtable_t pte_alloc_one(struct mm_struct *mm,
-					unsigned long addr)
+static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
 	pte_t *pte;
 	struct page *page;
 
-	pte = pte_alloc_one_kernel(mm, addr);
+	pte = pte_alloc_one_kernel(mm);
 	if (!pte)
 		return NULL;
 	page = virt_to_page(pte);
@@ -81,5 +77,4 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
 }
 #define pmd_pgtable(pmd) pmd_page(pmd)
 
-#endif /* __KERNEL__ */
 #endif /* _XTENSA_PGALLOC_H */

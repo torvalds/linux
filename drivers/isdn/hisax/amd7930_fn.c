@@ -625,7 +625,7 @@ Amd7930_l1hw(struct PStack *st, int pr, void *arg)
 		break;
 	case (HW_RESET | REQUEST):
 		spin_lock_irqsave(&cs->lock, flags);
-		if ((cs->dc.amd7930.ph_state == 8)) {
+		if (cs->dc.amd7930.ph_state == 8) {
 			/* b-channels off, PH-AR cleared
 			 * change to F3 */
 			Amd7930_ph_command(cs, 0x20, "HW_RESET REQUEST"); //LMR1 bit 5

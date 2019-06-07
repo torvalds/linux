@@ -39,7 +39,9 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_util.h>
 #include <drm/drm_crtc_helper.h>
+
 #include "ast_drv.h"
 
 static void ast_dirty_update(struct ast_fbdev *afbdev,
@@ -191,7 +193,6 @@ static int astfb_create(struct drm_fb_helper *helper,
 	int size, ret;
 	void *sysram;
 	struct drm_gem_object *gobj = NULL;
-	struct ast_bo *bo = NULL;
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 	mode_cmd.pitches[0] = mode_cmd.width * ((sizes->surface_bpp + 7)/8);
@@ -206,7 +207,6 @@ static int astfb_create(struct drm_fb_helper *helper,
 		DRM_ERROR("failed to create fbcon backing object %d\n", ret);
 		return ret;
 	}
-	bo = gem_to_ast_bo(gobj);
 
 	sysram = vmalloc(size);
 	if (!sysram)
@@ -217,8 +217,6 @@ static int astfb_create(struct drm_fb_helper *helper,
 		ret = PTR_ERR(info);
 		goto out;
 	}
-	info->par = afbdev;
-
 	ret = ast_framebuffer_init(dev, &afbdev->afb, &mode_cmd, gobj);
 	if (ret)
 		goto out;
@@ -229,15 +227,12 @@ static int astfb_create(struct drm_fb_helper *helper,
 	fb = &afbdev->afb.base;
 	afbdev->helper.fb = fb;
 
-	strcpy(info->fix.id, "astdrmfb");
-
 	info->fbops = &astfb_ops;
 
 	info->apertures->ranges[0].base = pci_resource_start(dev->pdev, 0);
 	info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 0);
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(info, &afbdev->helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(info, &afbdev->helper, sizes);
 
 	info->screen_base = sysram;
 	info->screen_size = size;
@@ -263,6 +258,7 @@ static void ast_fbdev_destroy(struct drm_device *dev,
 {
 	struct ast_framebuffer *afb = &afbdev->afb;
 
+	drm_helper_force_disable_all(dev);
 	drm_fb_helper_unregister_fbi(&afbdev->helper);
 
 	if (afb->obj) {

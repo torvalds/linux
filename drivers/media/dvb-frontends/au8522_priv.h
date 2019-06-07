@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
     Auvitek AU8522 QAM/8VSB demodulator driver
 
@@ -5,19 +6,6 @@
     Copyright (C) 2008 Devin Heitmueller <dheitmueller@linuxtv.org>
     Copyright (C) 2005-2008 Auvitek International, Ltd.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
 
@@ -39,6 +27,13 @@
 #define AU8522_ANALOG_MODE 0
 #define AU8522_DIGITAL_MODE 1
 #define AU8522_SUSPEND_MODE 2
+
+enum au8522_pads {
+	AU8522_PAD_IF_INPUT,
+	AU8522_PAD_VID_OUT,
+	AU8522_PAD_AUDIO_OUT,
+	AU8522_NUM_PADS
+};
 
 struct au8522_state {
 	struct i2c_client *c;
@@ -71,7 +66,7 @@ struct au8522_state {
 	struct v4l2_ctrl_handler hdl;
 
 #ifdef CONFIG_MEDIA_CONTROLLER
-	struct media_pad pads[DEMOD_NUM_PADS];
+	struct media_pad pads[AU8522_NUM_PADS];
 #endif
 };
 

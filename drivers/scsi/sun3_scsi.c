@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sun3 SCSI stuff by Erik Verbruggen (erik@bigmama.xtdnet.nl)
  *
@@ -500,7 +501,7 @@ static struct scsi_host_template sun3_scsi_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_NONE,
 	.cmd_per_lun		= 2,
-	.use_clustering		= DISABLE_CLUSTERING,
+	.dma_boundary		= PAGE_SIZE - 1,
 	.cmd_size		= NCR5380_CMD_SIZE,
 };
 

@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Firmware files for lmedm04 cards
 ================================
 

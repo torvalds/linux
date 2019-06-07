@@ -7,9 +7,12 @@
  * Author:  Chunfeng.Yun <chunfeng.yun@mediatek.com>
  */
 
+#include <linux/iopoll.h>
 #include <linux/usb/composite.h>
 
 #include "mtu3.h"
+#include "mtu3_debug.h"
+#include "mtu3_trace.h"
 
 /* ep0 is always mtu3->in_eps[0] */
 #define	next_ep0_request(mtu)	next_request((mtu)->ep0)
@@ -263,6 +266,7 @@ static int handle_test_mode(struct mtu3 *mtu, struct usb_ctrlrequest *setup)
 {
 	void __iomem *mbase = mtu->mac_base;
 	int handled = 1;
+	u32 value;
 
 	switch (le16_to_cpu(setup->wIndex) >> 8) {
 	case TEST_J:
@@ -291,6 +295,14 @@ static int handle_test_mode(struct mtu3 *mtu, struct usb_ctrlrequest *setup)
 	/* no TX completion interrupt, and need restart platform after test */
 	if (mtu->test_mode_nr == TEST_PACKET_MODE)
 		ep0_load_test_packet(mtu);
+
+	/* send status before entering test mode. */
+	value = mtu3_readl(mbase, U3D_EP0CSR) & EP0_W1C_BITS;
+	mtu3_writel(mbase, U3D_EP0CSR, value | EP0_SETUPPKTRDY | EP0_DATAEND);
+
+	/* wait for ACK status sent by host */
+	readl_poll_timeout_atomic(mbase + U3D_EP0CSR, value,
+			!(value & EP0_DATAEND), 100, 5000);
 
 	mtu3_writel(mbase, U3D_USB2_TEST_MODE, mtu->test_mode_nr);
 
@@ -326,9 +338,9 @@ static int ep0_handle_feature_dev(struct mtu3 *mtu,
 
 		lpc = mtu3_readl(mbase, U3D_LINK_POWER_CONTROL);
 		if (set)
-			lpc |= SW_U1_ACCEPT_ENABLE;
+			lpc |= SW_U1_REQUEST_ENABLE;
 		else
-			lpc &= ~SW_U1_ACCEPT_ENABLE;
+			lpc &= ~SW_U1_REQUEST_ENABLE;
 		mtu3_writel(mbase, U3D_LINK_POWER_CONTROL, lpc);
 
 		mtu->u1_enable = !!set;
@@ -341,9 +353,9 @@ static int ep0_handle_feature_dev(struct mtu3 *mtu,
 
 		lpc = mtu3_readl(mbase, U3D_LINK_POWER_CONTROL);
 		if (set)
-			lpc |= SW_U2_ACCEPT_ENABLE;
+			lpc |= SW_U2_REQUEST_ENABLE;
 		else
-			lpc &= ~SW_U2_ACCEPT_ENABLE;
+			lpc &= ~SW_U2_REQUEST_ENABLE;
 		mtu3_writel(mbase, U3D_LINK_POWER_CONTROL, lpc);
 
 		mtu->u2_enable = !!set;
@@ -546,7 +558,7 @@ static void ep0_tx_state(struct mtu3 *mtu)
 	struct usb_request *req;
 	u32 csr;
 	u8 *src;
-	u8 count;
+	u32 count;
 	u32 maxp;
 
 	dev_dbg(mtu->dev, "%s\n", __func__);
@@ -624,6 +636,7 @@ __acquires(mtu->lock)
 	int handled = 0;
 
 	ep0_read_setup(mtu, &setup);
+	trace_mtu3_handle_setup(&setup);
 
 	if ((setup.bRequestType & USB_TYPE_MASK) == USB_TYPE_STANDARD)
 		handled = handle_standard_request(mtu, &setup);
@@ -682,8 +695,12 @@ irqreturn_t mtu3_ep0_isr(struct mtu3 *mtu)
 	mtu3_writel(mbase, U3D_EPISR, int_status); /* W1C */
 
 	/* only handle ep0's */
-	if (!(int_status & EP0ISR))
+	if (!(int_status & (EP0ISR | SETUPENDISR)))
 		return IRQ_NONE;
+
+	/* abort current SETUP, and process new one */
+	if (int_status & SETUPENDISR)
+		mtu->ep0_state = MU3D_EP0_STATE_SETUP;
 
 	csr = mtu3_readl(mbase, U3D_EP0CSR);
 
@@ -696,6 +713,7 @@ irqreturn_t mtu3_ep0_isr(struct mtu3 *mtu)
 		ret = IRQ_HANDLED;
 	}
 	dev_dbg(mtu->dev, "ep0_state: %s\n", decode_ep0_state(mtu));
+	mtu3_dbg_trace(mtu->dev, "ep0_state %s", decode_ep0_state(mtu));
 
 	switch (mtu->ep0_state) {
 	case MU3D_EP0_STATE_TX:

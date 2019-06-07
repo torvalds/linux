@@ -1,0 +1,14 @@
+PDA 91-00156-A0 5.0" WVGA TFT LCD panel
+
+Required properties:
+- compatible: should be "pda,91-00156-a0"
+- power-supply: this panel requires a single power supply. A phandle to a
+regulator needs to be specified here. Compatible with panel-common binding which
+is specified in the panel-common.txt in this directory.
+- backlight: this panel's backlight is controlled by an external backlight
+controller. A phandle to this controller needs to be specified here.
+Compatible with panel-common binding which is specified in the panel-common.txt
+in this directory.
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.

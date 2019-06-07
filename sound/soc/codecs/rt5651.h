@@ -2071,9 +2071,19 @@ struct rt5651_pll_code {
 struct rt5651_priv {
 	struct snd_soc_component *component;
 	struct regmap *regmap;
+	/* Jack and button detect data */
 	struct snd_soc_jack *hp_jack;
+	struct gpio_desc *gpiod_hp_det;
 	struct work_struct jack_detect_work;
+	struct delayed_work bp_work;
+	bool ovcd_irq_enabled;
+	bool pressed;
+	bool press_reported;
+	int press_count;
+	int release_count;
+	int poll_count;
 	unsigned int jd_src;
+	bool jd_active_high;
 	unsigned int ovcd_th;
 	unsigned int ovcd_sf;
 

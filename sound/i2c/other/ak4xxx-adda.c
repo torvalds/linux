@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for AK4524 / AK4528 / AK4529 / AK4355 / AK4358 / AK4381
  *   AD and DA converters
  *
  *	Copyright (c) 2000-2004 Jaroslav Kysela <perex@perex.cz>,
  *				Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/io.h>
@@ -875,13 +861,7 @@ static void proc_regs_read(struct snd_info_entry *entry,
 
 static int proc_init(struct snd_akm4xxx *ak)
 {
-	struct snd_info_entry *entry;
-	int err;
-	err = snd_card_proc_new(ak->card, ak->name, &entry);
-	if (err < 0)
-		return err;
-	snd_info_set_text_ops(entry, ak, proc_regs_read);
-	return 0;
+	return snd_card_ro_proc_new(ak->card, ak->name, ak, proc_regs_read);
 }
 
 int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
@@ -911,15 +891,3 @@ int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
 	return 0;
 }
 EXPORT_SYMBOL(snd_akm4xxx_build_controls);
-
-static int __init alsa_akm4xxx_module_init(void)
-{
-	return 0;
-}
-        
-static void __exit alsa_akm4xxx_module_exit(void)
-{
-}
-        
-module_init(alsa_akm4xxx_module_init)
-module_exit(alsa_akm4xxx_module_exit)

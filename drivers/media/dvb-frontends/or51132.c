@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Support for OR51132 (pcHDTV HD-3000) - VSB/QAM
- *
  *
  *    Copyright (C) 2007 Trent Piepho <xyzzy@speakeasy.org>
  *
@@ -8,17 +8,6 @@
  *
  *    Based on code from Jack Kelliher (kelliher@xmission.com)
  *                           Copyright (C) 2002 & pcHDTV, inc.
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
 */
 
 /*
@@ -583,9 +572,9 @@ static const struct dvb_frontend_ops or51132_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Oren OR51132 VSB/QAM Frontend",
-		.frequency_min		= 44000000,
-		.frequency_max		= 958000000,
-		.frequency_stepsize	= 166666,
+		.frequency_min_hz	=  44 * MHz,
+		.frequency_max_hz	= 958 * MHz,
+		.frequency_stepsize_hz	= 166666,
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_QAM_AUTO |

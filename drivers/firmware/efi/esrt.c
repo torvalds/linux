@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * esrt.c
  *
@@ -250,7 +251,10 @@ void __init efi_esrt_init(void)
 		return;
 
 	rc = efi_mem_desc_lookup(efi.esrt, &md);
-	if (rc < 0) {
+	if (rc < 0 ||
+	    (!(md.attribute & EFI_MEMORY_RUNTIME) &&
+	     md.type != EFI_BOOT_SERVICES_DATA &&
+	     md.type != EFI_RUNTIME_SERVICES_DATA)) {
 		pr_warn("ESRT header is not in the memory map.\n");
 		return;
 	}
@@ -326,7 +330,8 @@ void __init efi_esrt_init(void)
 
 	end = esrt_data + size;
 	pr_info("Reserving ESRT space from %pa to %pa.\n", &esrt_data, &end);
-	efi_mem_reserve(esrt_data, esrt_data_size);
+	if (md.type == EFI_BOOT_SERVICES_DATA)
+		efi_mem_reserve(esrt_data, esrt_data_size);
 
 	pr_debug("esrt-init: loaded.\n");
 }

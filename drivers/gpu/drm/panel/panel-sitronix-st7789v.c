@@ -419,7 +419,6 @@ static int st7789v_remove(struct spi_device *spi)
 {
 	struct st7789v *ctx = spi_get_drvdata(spi);
 
-	drm_panel_detach(&ctx->panel);
 	drm_panel_remove(&ctx->panel);
 
 	if (ctx->backlight)

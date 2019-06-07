@@ -556,7 +556,7 @@ u16  b1_send_message(struct capi_ctr *ctrl, struct sk_buff *skb);
 void b1_parse_version(avmctrl_info *card);
 irqreturn_t b1_interrupt(int interrupt, void *devptr);
 
-extern const struct file_operations b1ctl_proc_fops;
+int b1_proc_show(struct seq_file *m, void *v);
 
 avmcard_dmainfo *avmcard_dma_alloc(char *name, struct pci_dev *,
 				   long rsize, long ssize);
@@ -576,6 +576,6 @@ void b1dma_register_appl(struct capi_ctr *ctrl,
 			 capi_register_params *rp);
 void b1dma_release_appl(struct capi_ctr *ctrl, u16 appl);
 u16  b1dma_send_message(struct capi_ctr *ctrl, struct sk_buff *skb);
-extern const struct file_operations b1dmactl_proc_fops;
+int b1dma_proc_show(struct seq_file *m, void *v);
 
 #endif /* _AVMCARD_H_ */

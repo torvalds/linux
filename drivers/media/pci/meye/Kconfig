@@ -1,10 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_MEYE
 	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
-	depends on PCI && SONY_LAPTOP && VIDEO_V4L2
-	---help---
+	depends on PCI && VIDEO_V4L2
+	depends on SONY_LAPTOP || COMPILE_TEST
+	help
 	  This is the video4linux driver for the Motion Eye camera found
 	  in the Vaio Picturebook laptops. Please read the material in
-	  <file:Documentation/video4linux/meye.txt> for more information.
+	  <file:Documentation/media/v4l-drivers/meye.rst> for more information.
 
 	  If you say Y or M here, you need to say Y or M to "Sony Laptop
 	  Extras" in the misc device section.

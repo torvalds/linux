@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  LZO1X Decompressor from LZO
  *
@@ -46,11 +47,21 @@ int lzo1x_decompress_safe(const unsigned char *in, size_t in_len,
 	const unsigned char * const ip_end = in + in_len;
 	unsigned char * const op_end = out + *out_len;
 
+	unsigned char bitstream_version;
+
 	op = out;
 	ip = in;
 
 	if (unlikely(in_len < 3))
 		goto input_overrun;
+
+	if (likely(in_len >= 5) && likely(*ip == 17)) {
+		bitstream_version = ip[1];
+		ip += 2;
+	} else {
+		bitstream_version = 0;
+	}
+
 	if (*ip > 17) {
 		t = *ip++ - 17;
 		if (t < 4) {
@@ -154,32 +165,49 @@ copy_literal_run:
 			m_pos -= next >> 2;
 			next &= 3;
 		} else {
-			m_pos = op;
-			m_pos -= (t & 8) << 11;
-			t = (t & 7) + (3 - 1);
-			if (unlikely(t == 2)) {
-				size_t offset;
-				const unsigned char *ip_last = ip;
-
-				while (unlikely(*ip == 0)) {
-					ip++;
-					NEED_IP(1);
-				}
-				offset = ip - ip_last;
-				if (unlikely(offset > MAX_255_COUNT))
-					return LZO_E_ERROR;
-
-				offset = (offset << 8) - offset;
-				t += offset + 7 + *ip++;
-				NEED_IP(2);
-			}
+			NEED_IP(2);
 			next = get_unaligned_le16(ip);
-			ip += 2;
-			m_pos -= next >> 2;
-			next &= 3;
-			if (m_pos == op)
-				goto eof_found;
-			m_pos -= 0x4000;
+			if (((next & 0xfffc) == 0xfffc) &&
+			    ((t & 0xf8) == 0x18) &&
+			    likely(bitstream_version)) {
+				NEED_IP(3);
+				t &= 7;
+				t |= ip[2] << 3;
+				t += MIN_ZERO_RUN_LENGTH;
+				NEED_OP(t);
+				memset(op, 0, t);
+				op += t;
+				next &= 3;
+				ip += 3;
+				goto match_next;
+			} else {
+				m_pos = op;
+				m_pos -= (t & 8) << 11;
+				t = (t & 7) + (3 - 1);
+				if (unlikely(t == 2)) {
+					size_t offset;
+					const unsigned char *ip_last = ip;
+
+					while (unlikely(*ip == 0)) {
+						ip++;
+						NEED_IP(1);
+					}
+					offset = ip - ip_last;
+					if (unlikely(offset > MAX_255_COUNT))
+						return LZO_E_ERROR;
+
+					offset = (offset << 8) - offset;
+					t += offset + 7 + *ip++;
+					NEED_IP(2);
+					next = get_unaligned_le16(ip);
+				}
+				ip += 2;
+				m_pos -= next >> 2;
+				next &= 3;
+				if (m_pos == op)
+					goto eof_found;
+				m_pos -= 0x4000;
+			}
 		}
 		TEST_LB(m_pos);
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)

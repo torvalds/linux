@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 .. include:: <isonum.txt>
 
 Vaio Picturebook Motion Eye Camera Driver

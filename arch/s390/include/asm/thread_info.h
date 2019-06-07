@@ -11,18 +11,23 @@
 #include <linux/const.h>
 
 /*
- * Size of kernel stack for each process
+ * General size of kernel stacks
  */
+#ifdef CONFIG_KASAN
+#define THREAD_SIZE_ORDER 4
+#else
 #define THREAD_SIZE_ORDER 2
-#define ASYNC_ORDER  2
-
+#endif
+#define BOOT_STACK_ORDER  2
 #define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)
-#define ASYNC_SIZE  (PAGE_SIZE << ASYNC_ORDER)
 
 #ifndef __ASSEMBLY__
 #include <asm/lowcore.h>
 #include <asm/page.h>
 #include <asm/processor.h>
+
+#define STACK_INIT_OFFSET \
+	(THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs))
 
 /*
  * low level task data that entry.S needs immediate access to

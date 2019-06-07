@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ingenic SoC CGU driver
  *
  * Copyright (c) 2013-2015 Imagination Technologies
  * Author: Paul Burton <paul.burton@mips.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitops.h>
@@ -20,6 +11,7 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/math64.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -43,7 +35,8 @@ static inline bool
 ingenic_cgu_gate_get(struct ingenic_cgu *cgu,
 		     const struct ingenic_cgu_gate_info *info)
 {
-	return readl(cgu->base + info->reg) & BIT(info->bit);
+	return !!(readl(cgu->base + info->reg) & BIT(info->bit))
+		^ info->clear_to_gate;
 }
 
 /**
@@ -62,7 +55,7 @@ ingenic_cgu_gate_set(struct ingenic_cgu *cgu,
 {
 	u32 clkgr = readl(cgu->base + info->reg);
 
-	if (val)
+	if (val ^ info->clear_to_gate)
 		clkgr |= BIT(info->bit);
 	else
 		clkgr &= ~BIT(info->bit);
@@ -82,7 +75,7 @@ ingenic_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	const struct ingenic_cgu_clk_info *clk_info;
 	const struct ingenic_cgu_pll_info *pll_info;
 	unsigned m, n, od_enc, od;
-	bool bypass, enable;
+	bool bypass;
 	unsigned long flags;
 	u32 ctl;
 
@@ -102,7 +95,6 @@ ingenic_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	od_enc &= GENMASK(pll_info->od_bits - 1, 0);
 	bypass = !pll_info->no_bypass_bit &&
 		 !!(ctl & BIT(pll_info->bypass_bit));
-	enable = !!(ctl & BIT(pll_info->enable_bit));
 
 	if (bypass)
 		return parent_rate;
@@ -425,16 +417,16 @@ ingenic_clk_round_rate(struct clk_hw *hw, unsigned long req_rate,
 	struct ingenic_clk *ingenic_clk = to_ingenic_clk(hw);
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
 	const struct ingenic_cgu_clk_info *clk_info;
-	long rate = *parent_rate;
+	unsigned int div = 1;
 
 	clk_info = &cgu->clock_info[ingenic_clk->idx];
 
 	if (clk_info->type & CGU_CLK_DIV)
-		rate /= ingenic_clk_calc_div(clk_info, *parent_rate, req_rate);
+		div = ingenic_clk_calc_div(clk_info, *parent_rate, req_rate);
 	else if (clk_info->type & CGU_CLK_FIXDIV)
-		rate /= clk_info->fixdiv.div;
+		div = clk_info->fixdiv.div;
 
-	return rate;
+	return DIV_ROUND_UP(*parent_rate, div);
 }
 
 static int
@@ -454,7 +446,7 @@ ingenic_clk_set_rate(struct clk_hw *hw, unsigned long req_rate,
 
 	if (clk_info->type & CGU_CLK_DIV) {
 		div = ingenic_clk_calc_div(clk_info, parent_rate, req_rate);
-		rate = parent_rate / div;
+		rate = DIV_ROUND_UP(parent_rate, div);
 
 		if (rate != req_rate)
 			return -EINVAL;
@@ -511,6 +503,9 @@ static int ingenic_clk_enable(struct clk_hw *hw)
 		spin_lock_irqsave(&cgu->lock, flags);
 		ingenic_cgu_gate_set(cgu, &clk_info->gate, false);
 		spin_unlock_irqrestore(&cgu->lock, flags);
+
+		if (clk_info->gate.delay_us)
+			udelay(clk_info->gate.delay_us);
 	}
 
 	return 0;

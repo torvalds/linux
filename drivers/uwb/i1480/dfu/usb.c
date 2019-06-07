@@ -309,7 +309,7 @@ int i1480_usb_cmd(struct i1480 *i1480, const char *cmd_name, size_t cmd_size)
 	if (result < 0) {
 		dev_err(dev, "%s: cannot submit NEEP read: %d\n",
 			cmd_name, result);
-			goto error_submit_ep1;
+		goto error_submit_ep1;
 	}
 	/* Now post the command on EP0 */
 	result = usb_control_msg(
@@ -376,7 +376,7 @@ int i1480_usb_probe(struct usb_interface *iface, const struct usb_device_id *id)
 
 	i1480 = &i1480_usb->i1480;
 	i1480->buf_size = 512;
-	i1480->cmd_buf = kmalloc(2 * i1480->buf_size, GFP_KERNEL);
+	i1480->cmd_buf = kmalloc_array(2, i1480->buf_size, GFP_KERNEL);
 	if (i1480->cmd_buf == NULL) {
 		dev_err(dev, "Cannot allocate transfer buffers\n");
 		result = -ENOMEM;

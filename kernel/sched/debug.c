@@ -73,7 +73,7 @@ static int sched_feat_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-#ifdef HAVE_JUMP_LABEL
+#ifdef CONFIG_JUMP_LABEL
 
 #define jump_label_key__true  STATIC_KEY_INIT_TRUE
 #define jump_label_key__false STATIC_KEY_INIT_FALSE
@@ -89,17 +89,17 @@ struct static_key sched_feat_keys[__SCHED_FEAT_NR] = {
 
 static void sched_feat_disable(int i)
 {
-	static_key_disable(&sched_feat_keys[i]);
+	static_key_disable_cpuslocked(&sched_feat_keys[i]);
 }
 
 static void sched_feat_enable(int i)
 {
-	static_key_enable(&sched_feat_keys[i]);
+	static_key_enable_cpuslocked(&sched_feat_keys[i]);
 }
 #else
 static void sched_feat_disable(int i) { };
 static void sched_feat_enable(int i) { };
-#endif /* HAVE_JUMP_LABEL */
+#endif /* CONFIG_JUMP_LABEL */
 
 static int sched_feat_set(char *cmp)
 {
@@ -111,20 +111,19 @@ static int sched_feat_set(char *cmp)
 		cmp += 3;
 	}
 
-	for (i = 0; i < __SCHED_FEAT_NR; i++) {
-		if (strcmp(cmp, sched_feat_names[i]) == 0) {
-			if (neg) {
-				sysctl_sched_features &= ~(1UL << i);
-				sched_feat_disable(i);
-			} else {
-				sysctl_sched_features |= (1UL << i);
-				sched_feat_enable(i);
-			}
-			break;
-		}
+	i = match_string(sched_feat_names, __SCHED_FEAT_NR, cmp);
+	if (i < 0)
+		return i;
+
+	if (neg) {
+		sysctl_sched_features &= ~(1UL << i);
+		sched_feat_disable(i);
+	} else {
+		sysctl_sched_features |= (1UL << i);
+		sched_feat_enable(i);
 	}
 
-	return i;
+	return 0;
 }
 
 static ssize_t
@@ -133,7 +132,7 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 {
 	char buf[64];
 	char *cmp;
-	int i;
+	int ret;
 	struct inode *inode;
 
 	if (cnt > 63)
@@ -147,11 +146,13 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 
 	/* Ensure the static_key remains in a consistent state */
 	inode = file_inode(filp);
+	cpus_read_lock();
 	inode_lock(inode);
-	i = sched_feat_set(cmp);
+	ret = sched_feat_set(cmp);
 	inode_unlock(inode);
-	if (i == __SCHED_FEAT_NR)
-		return -EINVAL;
+	cpus_read_unlock();
+	if (ret < 0)
+		return ret;
 
 	*ppos += cnt;
 
@@ -314,6 +315,7 @@ void register_sched_domain_sysctl(void)
 {
 	static struct ctl_table *cpu_entries;
 	static struct ctl_table **cpu_idx;
+	static bool init_done = false;
 	char buf[32];
 	int i;
 
@@ -343,7 +345,10 @@ void register_sched_domain_sysctl(void)
 	if (!cpumask_available(sd_sysctl_cpus)) {
 		if (!alloc_cpumask_var(&sd_sysctl_cpus, GFP_KERNEL))
 			return;
+	}
 
+	if (!init_done) {
+		init_done = true;
 		/* init to possible to not have holes in @cpu_entries */
 		cpumask_copy(sd_sysctl_cpus, cpu_possible_mask);
 	}
@@ -623,8 +628,6 @@ void print_dl_rq(struct seq_file *m, int cpu, struct dl_rq *dl_rq)
 #undef PU
 }
 
-extern __read_mostly int sched_clock_running;
-
 static void print_cpu(struct seq_file *m, int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
@@ -699,7 +702,7 @@ do {									\
 
 static const char *sched_tunable_scaling_names[] = {
 	"none",
-	"logaritmic",
+	"logarithmic",
 	"linear"
 };
 
@@ -823,35 +826,9 @@ static const struct seq_operations sched_debug_sops = {
 	.show		= sched_debug_show,
 };
 
-static int sched_debug_release(struct inode *inode, struct file *file)
-{
-	seq_release(inode, file);
-
-	return 0;
-}
-
-static int sched_debug_open(struct inode *inode, struct file *filp)
-{
-	int ret = 0;
-
-	ret = seq_open(filp, &sched_debug_sops);
-
-	return ret;
-}
-
-static const struct file_operations sched_debug_fops = {
-	.open		= sched_debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= sched_debug_release,
-};
-
 static int __init init_sched_debug_procfs(void)
 {
-	struct proc_dir_entry *pe;
-
-	pe = proc_create("sched_debug", 0444, NULL, &sched_debug_fops);
-	if (!pe)
+	if (!proc_create_seq("sched_debug", 0444, NULL, &sched_debug_sops))
 		return -ENOMEM;
 	return 0;
 }
@@ -869,8 +846,8 @@ void print_numa_stats(struct seq_file *m, int node, unsigned long tsf,
 		unsigned long tpf, unsigned long gsf, unsigned long gpf)
 {
 	SEQ_printf(m, "numa_faults node=%d ", node);
-	SEQ_printf(m, "task_private=%lu task_shared=%lu ", tsf, tpf);
-	SEQ_printf(m, "group_private=%lu group_shared=%lu\n", gsf, gpf);
+	SEQ_printf(m, "task_private=%lu task_shared=%lu ", tpf, tsf);
+	SEQ_printf(m, "group_private=%lu group_shared=%lu\n", gpf, gsf);
 }
 #endif
 
@@ -1001,7 +978,7 @@ void proc_sched_show_task(struct task_struct *p, struct pid_namespace *ns,
 #endif
 	P(policy);
 	P(prio);
-	if (p->policy == SCHED_DEADLINE) {
+	if (task_has_dl_policy(p)) {
 		P(dl.runtime);
 		P(dl.deadline);
 	}

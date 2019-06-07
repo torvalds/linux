@@ -1,23 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Routines for control of the CS8427 via i2c bus
  *  IEC958 (S/PDIF) receiver & transmitter by Cirrus Logic
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/slab.h>
@@ -118,7 +103,7 @@ static int snd_cs8427_send_corudata(struct snd_i2c_device *device,
 	struct cs8427 *chip = device->private_data;
 	char *hw_data = udata ?
 		chip->playback.hw_udata : chip->playback.hw_status;
-	char data[32];
+	unsigned char data[32];
 	int err, idx;
 
 	if (!memcmp(hw_data, ndata, count))
@@ -621,15 +606,3 @@ int snd_cs8427_iec958_pcm(struct snd_i2c_device *cs8427, unsigned int rate)
 }
 
 EXPORT_SYMBOL(snd_cs8427_iec958_pcm);
-
-static int __init alsa_cs8427_module_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_cs8427_module_exit(void)
-{
-}
-
-module_init(alsa_cs8427_module_init)
-module_exit(alsa_cs8427_module_exit)

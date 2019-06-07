@@ -35,6 +35,7 @@
 
 #include <linux/highmem.h>
 #include <linux/export.h>
+#include <xen/xen.h>
 #include <drm/drmP.h>
 #include "drm_legacy.h"
 
@@ -51,7 +52,7 @@
 #endif
 
 static void *agp_remap(unsigned long offset, unsigned long size,
-		       struct drm_device * dev)
+		       struct drm_device *dev)
 {
 	unsigned long i, num_pages =
 	    PAGE_ALIGN(size) / PAGE_SIZE;
@@ -80,7 +81,7 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 	 * page-table instead (that's probably faster anyhow...).
 	 */
 	/* note: use vmalloc() because num_pages could be large... */
-	page_map = vmalloc(num_pages * sizeof(struct page *));
+	page_map = vmalloc(array_size(num_pages, sizeof(struct page *)));
 	if (!page_map)
 		return NULL;
 
@@ -94,26 +95,26 @@ static void *agp_remap(unsigned long offset, unsigned long size,
 }
 
 /** Wrapper around agp_free_memory() */
-void drm_free_agp(struct agp_memory * handle, int pages)
+void drm_free_agp(struct agp_memory *handle, int pages)
 {
 	agp_free_memory(handle);
 }
 
 /** Wrapper around agp_bind_memory() */
-int drm_bind_agp(struct agp_memory * handle, unsigned int start)
+int drm_bind_agp(struct agp_memory *handle, unsigned int start)
 {
 	return agp_bind_memory(handle, start);
 }
 
 /** Wrapper around agp_unbind_memory() */
-int drm_unbind_agp(struct agp_memory * handle)
+int drm_unbind_agp(struct agp_memory *handle)
 {
 	return agp_unbind_memory(handle);
 }
 
 #else /*  CONFIG_AGP  */
 static inline void *agp_remap(unsigned long offset, unsigned long size,
-			      struct drm_device * dev)
+			      struct drm_device *dev)
 {
 	return NULL;
 }
@@ -150,15 +151,34 @@ void drm_legacy_ioremapfree(struct drm_local_map *map, struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_legacy_ioremapfree);
 
-u64 drm_get_max_iomem(void)
+bool drm_need_swiotlb(int dma_bits)
 {
 	struct resource *tmp;
 	resource_size_t max_iomem = 0;
+
+	/*
+	 * Xen paravirtual hosts require swiotlb regardless of requested dma
+	 * transfer size.
+	 *
+	 * NOTE: Really, what it requires is use of the dma_alloc_coherent
+	 *       allocator used in ttm_dma_populate() instead of
+	 *       ttm_populate_and_map_pages(), which bounce buffers so much in
+	 *       Xen it leads to swiotlb buffer exhaustion.
+	 */
+	if (xen_pv_domain())
+		return true;
+
+	/*
+	 * Enforce dma_alloc_coherent when memory encryption is active as well
+	 * for the same reasons as for Xen paravirtual hosts.
+	 */
+	if (mem_encrypt_active())
+		return true;
 
 	for (tmp = iomem_resource.child; tmp; tmp = tmp->sibling) {
 		max_iomem = max(max_iomem,  tmp->end);
 	}
 
-	return max_iomem;
+	return max_iomem > ((u64)1 << dma_bits);
 }
-EXPORT_SYMBOL(drm_get_max_iomem);
+EXPORT_SYMBOL(drm_need_swiotlb);

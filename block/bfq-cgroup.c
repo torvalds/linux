@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cgroups support for the BFQ I/O scheduler.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License as
- *  published by the Free Software Foundation; either version 2 of the
- *  License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  */
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -55,13 +46,13 @@ BFQG_FLAG_FNS(empty)
 /* This should be called with the scheduler lock held. */
 static void bfqg_stats_update_group_wait_time(struct bfqg_stats *stats)
 {
-	unsigned long long now;
+	u64 now;
 
 	if (!bfqg_stats_waiting(stats))
 		return;
 
-	now = sched_clock();
-	if (time_after64(now, stats->start_group_wait_time))
+	now = ktime_get_ns();
+	if (now > stats->start_group_wait_time)
 		blkg_stat_add(&stats->group_wait_time,
 			      now - stats->start_group_wait_time);
 	bfqg_stats_clear_waiting(stats);
@@ -77,20 +68,20 @@ static void bfqg_stats_set_start_group_wait_time(struct bfq_group *bfqg,
 		return;
 	if (bfqg == curr_bfqg)
 		return;
-	stats->start_group_wait_time = sched_clock();
+	stats->start_group_wait_time = ktime_get_ns();
 	bfqg_stats_mark_waiting(stats);
 }
 
 /* This should be called with the scheduler lock held. */
 static void bfqg_stats_end_empty_time(struct bfqg_stats *stats)
 {
-	unsigned long long now;
+	u64 now;
 
 	if (!bfqg_stats_empty(stats))
 		return;
 
-	now = sched_clock();
-	if (time_after64(now, stats->start_empty_time))
+	now = ktime_get_ns();
+	if (now > stats->start_empty_time)
 		blkg_stat_add(&stats->empty_time,
 			      now - stats->start_empty_time);
 	bfqg_stats_clear_empty(stats);
@@ -116,7 +107,7 @@ void bfqg_stats_set_start_empty_time(struct bfq_group *bfqg)
 	if (bfqg_stats_empty(stats))
 		return;
 
-	stats->start_empty_time = sched_clock();
+	stats->start_empty_time = ktime_get_ns();
 	bfqg_stats_mark_empty(stats);
 }
 
@@ -125,9 +116,9 @@ void bfqg_stats_update_idle_time(struct bfq_group *bfqg)
 	struct bfqg_stats *stats = &bfqg->stats;
 
 	if (bfqg_stats_idling(stats)) {
-		unsigned long long now = sched_clock();
+		u64 now = ktime_get_ns();
 
-		if (time_after64(now, stats->start_idle_time))
+		if (now > stats->start_idle_time)
 			blkg_stat_add(&stats->idle_time,
 				      now - stats->start_idle_time);
 		bfqg_stats_clear_idling(stats);
@@ -138,7 +129,7 @@ void bfqg_stats_set_start_idle_time(struct bfq_group *bfqg)
 {
 	struct bfqg_stats *stats = &bfqg->stats;
 
-	stats->start_idle_time = sched_clock();
+	stats->start_idle_time = ktime_get_ns();
 	bfqg_stats_mark_idling(stats);
 }
 
@@ -171,18 +162,18 @@ void bfqg_stats_update_io_merged(struct bfq_group *bfqg, unsigned int op)
 	blkg_rwstat_add(&bfqg->stats.merged, op, 1);
 }
 
-void bfqg_stats_update_completion(struct bfq_group *bfqg, uint64_t start_time,
-				  uint64_t io_start_time, unsigned int op)
+void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
+				  u64 io_start_time_ns, unsigned int op)
 {
 	struct bfqg_stats *stats = &bfqg->stats;
-	unsigned long long now = sched_clock();
+	u64 now = ktime_get_ns();
 
-	if (time_after64(now, io_start_time))
+	if (now > io_start_time_ns)
 		blkg_rwstat_add(&stats->service_time, op,
-				now - io_start_time);
-	if (time_after64(io_start_time, start_time))
+				now - io_start_time_ns);
+	if (io_start_time_ns > start_time_ns)
 		blkg_rwstat_add(&stats->wait_time, op,
-				io_start_time - start_time);
+				io_start_time_ns - start_time_ns);
 }
 
 #else /* CONFIG_BFQ_GROUP_IOSCHED && CONFIG_DEBUG_BLK_CGROUP */
@@ -191,8 +182,8 @@ void bfqg_stats_update_io_add(struct bfq_group *bfqg, struct bfq_queue *bfqq,
 			      unsigned int op) { }
 void bfqg_stats_update_io_remove(struct bfq_group *bfqg, unsigned int op) { }
 void bfqg_stats_update_io_merged(struct bfq_group *bfqg, unsigned int op) { }
-void bfqg_stats_update_completion(struct bfq_group *bfqg, uint64_t start_time,
-				  uint64_t io_start_time, unsigned int op) { }
+void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
+				  u64 io_start_time_ns, unsigned int op) { }
 void bfqg_stats_update_dequeue(struct bfq_group *bfqg) { }
 void bfqg_stats_set_start_empty_time(struct bfq_group *bfqg) { }
 void bfqg_stats_update_idle_time(struct bfq_group *bfqg) { }
@@ -275,9 +266,9 @@ static void bfqg_and_blkg_get(struct bfq_group *bfqg)
 
 void bfqg_and_blkg_put(struct bfq_group *bfqg)
 {
-	bfqg_put(bfqg);
-
 	blkg_put(bfqg_to_blkg(bfqg));
+
+	bfqg_put(bfqg);
 }
 
 /* @stats = 0 */
@@ -334,7 +325,7 @@ static void bfqg_stats_xfer_dead(struct bfq_group *bfqg)
 
 	parent = bfqg_parent(bfqg);
 
-	lockdep_assert_held(bfqg_to_blkg(bfqg)->q->queue_lock);
+	lockdep_assert_held(&bfqg_to_blkg(bfqg)->q->queue_lock);
 
 	if (unlikely(!parent))
 		return;
@@ -578,7 +569,8 @@ void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	bfqg_and_blkg_get(bfqg);
 
 	if (bfq_bfqq_busy(bfqq)) {
-		bfq_pos_tree_add_move(bfqd, bfqq);
+		if (unlikely(!bfqd->nonrot_with_queueing))
+			bfq_pos_tree_add_move(bfqd, bfqq);
 		bfq_activate_bfqq(bfqd, bfqq);
 	}
 
@@ -642,7 +634,7 @@ void bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio)
 	uint64_t serial_nr;
 
 	rcu_read_lock();
-	serial_nr = bio_blkcg(bio)->css.serial_nr;
+	serial_nr = __bio_blkcg(bio)->css.serial_nr;
 
 	/*
 	 * Check whether blkcg has changed.  The condition may trigger
@@ -651,7 +643,7 @@ void bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio)
 	if (unlikely(!bfqd) || likely(bic->blkcg_serial_nr == serial_nr))
 		goto out;
 
-	bfqg = __bfq_bic_change_cgroup(bfqd, bic, bio_blkcg(bio));
+	bfqg = __bfq_bic_change_cgroup(bfqd, bic, __bio_blkcg(bio));
 	/*
 	 * Update blkg_path for bfq_log_* functions. We cache this
 	 * path, and update it here, for the following
@@ -913,7 +905,8 @@ static ssize_t bfq_io_set_weight(struct kernfs_open_file *of,
 	if (ret)
 		return ret;
 
-	return bfq_io_set_weight_legacy(of_css(of), NULL, weight);
+	ret = bfq_io_set_weight_legacy(of_css(of), NULL, weight);
+	return ret ?: nbytes;
 }
 
 #ifdef CONFIG_DEBUG_BLK_CGROUP
@@ -1101,7 +1094,7 @@ struct cftype bfq_blkcg_legacy_files[] = {
 	},
 #endif /* CONFIG_DEBUG_BLK_CGROUP */
 
-	/* the same statictics which cover the bfqg and its descendants */
+	/* the same statistics which cover the bfqg and its descendants */
 	{
 		.name = "bfq.io_service_bytes_recursive",
 		.private = (unsigned long)&blkcg_policy_bfq,

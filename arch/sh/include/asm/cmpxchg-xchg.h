@@ -1,14 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_CMPXCHG_XCHG_H
 #define __ASM_SH_CMPXCHG_XCHG_H
 
 /*
  * Copyright (C) 2016 Red Hat, Inc.
  * Author: Michael S. Tsirkin <mst@redhat.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See the
- * file "COPYING" in the main directory of this archive for more details.
  */
-#include <linux/bitops.h>
+#include <linux/bits.h>
+#include <linux/compiler.h>
 #include <asm/byteorder.h>
 
 /*

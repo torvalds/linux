@@ -8,6 +8,7 @@ Required properties:
 - compatible :
   - "socionext,uniphier-pxs2-thermal" : For UniPhier PXs2 SoC
   - "socionext,uniphier-ld20-thermal" : For UniPhier LD20 SoC
+  - "socionext,uniphier-pxs3-thermal" : For UniPhier PXs3 SoC
 - interrupts : IRQ for the temperature alarm
 - #thermal-sensor-cells : Should be 0. See ./thermal.txt for details.
 

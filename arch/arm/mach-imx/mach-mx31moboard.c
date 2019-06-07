@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2008 Valentin Longchamp, EPFL Mobots group
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -152,14 +143,8 @@ static const struct imxi2c_platform_data moboard_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
 
-static int moboard_spi1_cs[] = {
-	MXC_SPI_CS(0),
-	MXC_SPI_CS(2),
-};
-
 static const struct spi_imx_master moboard_spi1_pdata __initconst = {
-	.chipselect	= moboard_spi1_cs,
-	.num_chipselect	= ARRAY_SIZE(moboard_spi1_cs),
+	.num_chipselect	= 3,
 };
 
 static struct regulator_consumer_supply sdhc_consumers[] = {
@@ -296,19 +281,14 @@ static struct spi_board_info moboard_spi_board_info[] __initdata = {
 		/* irq number is run-time assigned */
 		.max_speed_hz = 300000,
 		.bus_num = 1,
-		.chip_select = 1,
+		.chip_select = 0,
 		.platform_data = &moboard_pmic,
 		.mode = SPI_CS_HIGH,
 	},
 };
 
-static int moboard_spi2_cs[] = {
-	MXC_SPI_CS(0), MXC_SPI_CS(1),
-};
-
 static const struct spi_imx_master moboard_spi2_pdata __initconst = {
-	.chipselect	= moboard_spi2_cs,
-	.num_chipselect	= ARRAY_SIZE(moboard_spi2_cs),
+	.num_chipselect	= 2,
 };
 
 #define SDHC1_CD IOMUX_TO_GPIO(MX31_PIN_ATA_CS0)
@@ -486,8 +466,7 @@ static int __init mx31moboard_init_cam(void)
 
 	ret = dma_declare_coherent_memory(&pdev->dev,
 					  mx3_camera_base, mx3_camera_base,
-					  MX3_CAMERA_BUF_SIZE,
-					  DMA_MEMORY_EXCLUSIVE);
+					  MX3_CAMERA_BUF_SIZE);
 	if (ret)
 		goto err;
 

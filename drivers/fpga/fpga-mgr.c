@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * FPGA Manager Core
  *
@@ -6,18 +7,6 @@
  *
  * With code from the mailing list:
  * Copyright (C) 2013 Xilinx, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/firmware.h>
 #include <linux/fpga/fpga-mgr.h>
@@ -32,6 +21,12 @@
 static DEFINE_IDA(fpga_mgr_ida);
 static struct class *fpga_mgr_class;
 
+/**
+ * fpga_image_info_alloc - Allocate a FPGA image info struct
+ * @dev: owning device
+ *
+ * Return: struct fpga_image_info or NULL
+ */
 struct fpga_image_info *fpga_image_info_alloc(struct device *dev)
 {
 	struct fpga_image_info *info;
@@ -50,6 +45,10 @@ struct fpga_image_info *fpga_image_info_alloc(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(fpga_image_info_alloc);
 
+/**
+ * fpga_image_info_free - Free a FPGA image info struct
+ * @info: FPGA image info struct to free
+ */
 void fpga_image_info_free(struct fpga_image_info *info)
 {
 	struct device *dev;
@@ -234,7 +233,7 @@ static int fpga_mgr_buf_load_mapped(struct fpga_manager *mgr,
 /**
  * fpga_mgr_buf_load - load fpga from image in buffer
  * @mgr:	fpga manager
- * @flags:	flags setting fpga confuration modes
+ * @info:	fpga image info
  * @buf:	buffer contain fpga image
  * @count:	byte count of buf
  *
@@ -343,6 +342,16 @@ static int fpga_mgr_firmware_load(struct fpga_manager *mgr,
 	return ret;
 }
 
+/**
+ * fpga_mgr_load - load FPGA from scatter/gather table, buffer, or firmware
+ * @mgr:	fpga manager
+ * @info:	fpga image information.
+ *
+ * Load the FPGA from an image which is indicated in @info.  If successful, the
+ * FPGA ends up in operating mode.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
 int fpga_mgr_load(struct fpga_manager *mgr, struct fpga_image_info *info)
 {
 	if (info->sgt)
@@ -397,12 +406,40 @@ static ssize_t state_show(struct device *dev,
 	return sprintf(buf, "%s\n", state_str[mgr->state]);
 }
 
+static ssize_t status_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct fpga_manager *mgr = to_fpga_manager(dev);
+	u64 status;
+	int len = 0;
+
+	if (!mgr->mops->status)
+		return -ENOENT;
+
+	status = mgr->mops->status(mgr);
+
+	if (status & FPGA_MGR_STATUS_OPERATION_ERR)
+		len += sprintf(buf + len, "reconfig operation error\n");
+	if (status & FPGA_MGR_STATUS_CRC_ERR)
+		len += sprintf(buf + len, "reconfig CRC error\n");
+	if (status & FPGA_MGR_STATUS_INCOMPATIBLE_IMAGE_ERR)
+		len += sprintf(buf + len, "reconfig incompatible image\n");
+	if (status & FPGA_MGR_STATUS_IP_PROTOCOL_ERR)
+		len += sprintf(buf + len, "reconfig IP protocol error\n");
+	if (status & FPGA_MGR_STATUS_FIFO_OVERFLOW_ERR)
+		len += sprintf(buf + len, "reconfig fifo overflow error\n");
+
+	return len;
+}
+
 static DEVICE_ATTR_RO(name);
 static DEVICE_ATTR_RO(state);
+static DEVICE_ATTR_RO(status);
 
 static struct attribute *fpga_mgr_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_state.attr,
+	&dev_attr_status.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(fpga_mgr);
@@ -429,10 +466,8 @@ static int fpga_mgr_dev_match(struct device *dev, const void *data)
 }
 
 /**
- * fpga_mgr_get - get a reference to a fpga mgr
+ * fpga_mgr_get - Given a device, get a reference to a fpga mgr.
  * @dev:	parent device that fpga mgr was registered with
- *
- * Given a device, get a reference to a fpga mgr.
  *
  * Return: fpga manager struct or IS_ERR() condition containing error code.
  */
@@ -453,10 +488,9 @@ static int fpga_mgr_of_node_match(struct device *dev, const void *data)
 }
 
 /**
- * of_fpga_mgr_get - get a reference to a fpga mgr
- * @node:	device node
+ * of_fpga_mgr_get - Given a device node, get a reference to a fpga mgr.
  *
- * Given a device node, get a reference to a fpga mgr.
+ * @node:	device node
  *
  * Return: fpga manager struct or IS_ERR() condition containing error code.
  */
@@ -489,7 +523,10 @@ EXPORT_SYMBOL_GPL(fpga_mgr_put);
  * @mgr:	fpga manager
  *
  * Given a pointer to FPGA Manager (from fpga_mgr_get() or
- * of_fpga_mgr_put()) attempt to get the mutex.
+ * of_fpga_mgr_put()) attempt to get the mutex. The user should call
+ * fpga_mgr_lock() and verify that it returns 0 before attempting to
+ * program the FPGA.  Likewise, the user should call fpga_mgr_unlock
+ * when done programming the FPGA.
  *
  * Return: 0 for success or -EBUSY
  */
@@ -505,7 +542,7 @@ int fpga_mgr_lock(struct fpga_manager *mgr)
 EXPORT_SYMBOL_GPL(fpga_mgr_lock);
 
 /**
- * fpga_mgr_unlock - Unlock FPGA manager
+ * fpga_mgr_unlock - Unlock FPGA manager after done programming
  * @mgr:	fpga manager
  */
 void fpga_mgr_unlock(struct fpga_manager *mgr)
@@ -515,17 +552,20 @@ void fpga_mgr_unlock(struct fpga_manager *mgr)
 EXPORT_SYMBOL_GPL(fpga_mgr_unlock);
 
 /**
- * fpga_mgr_register - register a low level fpga manager driver
+ * fpga_mgr_create - create and initialize a FPGA manager struct
  * @dev:	fpga manager device from pdev
  * @name:	fpga manager name
  * @mops:	pointer to structure of fpga manager ops
  * @priv:	fpga manager private data
  *
- * Return: 0 on success, negative error code otherwise.
+ * The caller of this function is responsible for freeing the struct with
+ * fpga_mgr_free().  Using devm_fpga_mgr_create() instead is recommended.
+ *
+ * Return: pointer to struct fpga_manager or NULL
  */
-int fpga_mgr_register(struct device *dev, const char *name,
-		      const struct fpga_manager_ops *mops,
-		      void *priv)
+struct fpga_manager *fpga_mgr_create(struct device *dev, const char *name,
+				     const struct fpga_manager_ops *mops,
+				     void *priv)
 {
 	struct fpga_manager *mgr;
 	int id, ret;
@@ -534,17 +574,17 @@ int fpga_mgr_register(struct device *dev, const char *name,
 	    !mops->write_init || (!mops->write && !mops->write_sg) ||
 	    (mops->write && mops->write_sg)) {
 		dev_err(dev, "Attempt to register without fpga_manager_ops\n");
-		return -EINVAL;
+		return NULL;
 	}
 
 	if (!name || !strlen(name)) {
 		dev_err(dev, "Attempt to register with no name!\n");
-		return -EINVAL;
+		return NULL;
 	}
 
 	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (!mgr)
-		return -ENOMEM;
+		return NULL;
 
 	id = ida_simple_get(&fpga_mgr_ida, 0, 0, GFP_KERNEL);
 	if (id < 0) {
@@ -558,24 +598,101 @@ int fpga_mgr_register(struct device *dev, const char *name,
 	mgr->mops = mops;
 	mgr->priv = priv;
 
-	/*
-	 * Initialize framework state by requesting low level driver read state
-	 * from device.  FPGA may be in reset mode or may have been programmed
-	 * by bootloader or EEPROM.
-	 */
-	mgr->state = mgr->mops->state(mgr);
-
 	device_initialize(&mgr->dev);
 	mgr->dev.class = fpga_mgr_class;
 	mgr->dev.groups = mops->groups;
 	mgr->dev.parent = dev;
 	mgr->dev.of_node = dev->of_node;
 	mgr->dev.id = id;
-	dev_set_drvdata(dev, mgr);
 
 	ret = dev_set_name(&mgr->dev, "fpga%d", id);
 	if (ret)
 		goto error_device;
+
+	return mgr;
+
+error_device:
+	ida_simple_remove(&fpga_mgr_ida, id);
+error_kfree:
+	kfree(mgr);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(fpga_mgr_create);
+
+/**
+ * fpga_mgr_free - free a FPGA manager created with fpga_mgr_create()
+ * @mgr:	fpga manager struct
+ */
+void fpga_mgr_free(struct fpga_manager *mgr)
+{
+	ida_simple_remove(&fpga_mgr_ida, mgr->dev.id);
+	kfree(mgr);
+}
+EXPORT_SYMBOL_GPL(fpga_mgr_free);
+
+static void devm_fpga_mgr_release(struct device *dev, void *res)
+{
+	struct fpga_manager *mgr = *(struct fpga_manager **)res;
+
+	fpga_mgr_free(mgr);
+}
+
+/**
+ * devm_fpga_mgr_create - create and initialize a managed FPGA manager struct
+ * @dev:	fpga manager device from pdev
+ * @name:	fpga manager name
+ * @mops:	pointer to structure of fpga manager ops
+ * @priv:	fpga manager private data
+ *
+ * This function is intended for use in a FPGA manager driver's probe function.
+ * After the manager driver creates the manager struct with
+ * devm_fpga_mgr_create(), it should register it with fpga_mgr_register().  The
+ * manager driver's remove function should call fpga_mgr_unregister().  The
+ * manager struct allocated with this function will be freed automatically on
+ * driver detach.  This includes the case of a probe function returning error
+ * before calling fpga_mgr_register(), the struct will still get cleaned up.
+ *
+ * Return: pointer to struct fpga_manager or NULL
+ */
+struct fpga_manager *devm_fpga_mgr_create(struct device *dev, const char *name,
+					  const struct fpga_manager_ops *mops,
+					  void *priv)
+{
+	struct fpga_manager **ptr, *mgr;
+
+	ptr = devres_alloc(devm_fpga_mgr_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	mgr = fpga_mgr_create(dev, name, mops, priv);
+	if (!mgr) {
+		devres_free(ptr);
+	} else {
+		*ptr = mgr;
+		devres_add(dev, ptr);
+	}
+
+	return mgr;
+}
+EXPORT_SYMBOL_GPL(devm_fpga_mgr_create);
+
+/**
+ * fpga_mgr_register - register a FPGA manager
+ * @mgr: fpga manager struct
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int fpga_mgr_register(struct fpga_manager *mgr)
+{
+	int ret;
+
+	/*
+	 * Initialize framework state by requesting low level driver read state
+	 * from device.  FPGA may be in reset mode or may have been programmed
+	 * by bootloader or EEPROM.
+	 */
+	mgr->state = mgr->mops->state(mgr);
 
 	ret = device_add(&mgr->dev);
 	if (ret)
@@ -586,22 +703,20 @@ int fpga_mgr_register(struct device *dev, const char *name,
 	return 0;
 
 error_device:
-	ida_simple_remove(&fpga_mgr_ida, id);
-error_kfree:
-	kfree(mgr);
+	ida_simple_remove(&fpga_mgr_ida, mgr->dev.id);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(fpga_mgr_register);
 
 /**
- * fpga_mgr_unregister - unregister a low level fpga manager driver
- * @dev:	fpga manager device from pdev
+ * fpga_mgr_unregister - unregister a FPGA manager
+ * @mgr: fpga manager struct
+ *
+ * This function is intended for use in a FPGA manager driver's remove function.
  */
-void fpga_mgr_unregister(struct device *dev)
+void fpga_mgr_unregister(struct fpga_manager *mgr)
 {
-	struct fpga_manager *mgr = dev_get_drvdata(dev);
-
 	dev_info(&mgr->dev, "%s %s\n", __func__, mgr->name);
 
 	/*
@@ -617,10 +732,6 @@ EXPORT_SYMBOL_GPL(fpga_mgr_unregister);
 
 static void fpga_mgr_dev_release(struct device *dev)
 {
-	struct fpga_manager *mgr = to_fpga_manager(dev);
-
-	ida_simple_remove(&fpga_mgr_ida, mgr->dev.id);
-	kfree(mgr);
 }
 
 static int __init fpga_mgr_class_init(void)

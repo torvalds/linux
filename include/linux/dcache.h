@@ -62,9 +62,10 @@ extern const struct qstr slash_name;
 struct dentry_stat_t {
 	long nr_dentry;
 	long nr_unused;
-	long age_limit;          /* age in seconds */
-	long want_pages;         /* pages requested by system */
-	long dummy[2];
+	long age_limit;		/* age in seconds */
+	long want_pages;	/* pages requested by system */
+	long nr_negative;	/* # of unused negative dentries */
+	long dummy;		/* Reserved for future use */
 };
 extern struct dentry_stat_t dentry_stat;
 
@@ -145,8 +146,7 @@ struct dentry_operations {
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
 	int (*d_manage)(const struct path *, bool);
-	struct dentry *(*d_real)(struct dentry *, const struct inode *,
-				 unsigned int, unsigned int);
+	struct dentry *(*d_real)(struct dentry *, const struct inode *);
 } ____cacheline_aligned;
 
 /*
@@ -176,7 +176,6 @@ struct dentry_operations {
       * typically using d_splice_alias. */
 
 #define DCACHE_REFERENCED		0x00000040 /* Recently used, don't discard. */
-#define DCACHE_RCUACCESS		0x00000080 /* Entry has ever been RCU-visible */
 
 #define DCACHE_CANT_MOUNT		0x00000100
 #define DCACHE_GENOCIDE			0x00000200
@@ -212,11 +211,12 @@ struct dentry_operations {
 
 #define DCACHE_MAY_FREE			0x00800000
 #define DCACHE_FALLTHRU			0x01000000 /* Fall through to lower layer */
-#define DCACHE_ENCRYPTED_WITH_KEY	0x02000000 /* dir is encrypted with a valid key */
+#define DCACHE_ENCRYPTED_NAME		0x02000000 /* Encrypted name (dir key was unavailable) */
 #define DCACHE_OP_REAL			0x04000000
 
 #define DCACHE_PAR_LOOKUP		0x10000000 /* being looked up (with parent locked shared) */
 #define DCACHE_DENTRY_CURSOR		0x20000000
+#define DCACHE_NORCU			0x40000000 /* No RCU delay for freeing */
 
 extern seqlock_t rename_lock;
 
@@ -227,7 +227,6 @@ extern void d_instantiate(struct dentry *, struct inode *);
 extern void d_instantiate_new(struct dentry *, struct inode *);
 extern struct dentry * d_instantiate_unique(struct dentry *, struct inode *);
 extern struct dentry * d_instantiate_anon(struct dentry *, struct inode *);
-extern int d_instantiate_no_diralias(struct dentry *, struct inode *);
 extern void __d_drop(struct dentry *dentry);
 extern void d_drop(struct dentry *dentry);
 extern void d_delete(struct dentry *);
@@ -236,7 +235,6 @@ extern void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op
 /* allocate/de-allocate */
 extern struct dentry * d_alloc(struct dentry *, const struct qstr *);
 extern struct dentry * d_alloc_anon(struct super_block *);
-extern struct dentry * d_alloc_pseudo(struct super_block *, const struct qstr *);
 extern struct dentry * d_alloc_parallel(struct dentry *, const struct qstr *,
 					wait_queue_head_t *);
 extern struct dentry * d_splice_alias(struct inode *, struct dentry *);
@@ -270,8 +268,6 @@ extern int path_has_submounts(const struct path *);
 extern void d_rehash(struct dentry *);
  
 extern void d_add(struct dentry *, struct inode *);
-
-extern void dentry_update_name_case(struct dentry *, const struct qstr *);
 
 /* used for rename() and baskets */
 extern void d_move(struct dentry *, struct dentry *);
@@ -564,15 +560,10 @@ static inline struct dentry *d_backing_dentry(struct dentry *upper)
 	return upper;
 }
 
-/* d_real() flags */
-#define D_REAL_UPPER	0x2	/* return upper dentry or NULL if non-upper */
-
 /**
  * d_real - Return the real dentry
  * @dentry: the dentry to query
  * @inode: inode to select the dentry from multiple layers (can be NULL)
- * @open_flags: open flags to control copy-up behavior
- * @flags: flags to control what is returned by this function
  *
  * If dentry is on a union/overlay, then return the underlying, real dentry.
  * Otherwise return the dentry itself.
@@ -580,11 +571,10 @@ static inline struct dentry *d_backing_dentry(struct dentry *upper)
  * See also: Documentation/filesystems/vfs.txt
  */
 static inline struct dentry *d_real(struct dentry *dentry,
-				    const struct inode *inode,
-				    unsigned int open_flags, unsigned int flags)
+				    const struct inode *inode)
 {
 	if (unlikely(dentry->d_flags & DCACHE_OP_REAL))
-		return dentry->d_op->d_real(dentry, inode, open_flags, flags);
+		return dentry->d_op->d_real(dentry, inode);
 	else
 		return dentry;
 }
@@ -599,11 +589,11 @@ static inline struct dentry *d_real(struct dentry *dentry,
 static inline struct inode *d_real_inode(const struct dentry *dentry)
 {
 	/* This usage of d_real() results in const dentry */
-	return d_backing_inode(d_real((struct dentry *) dentry, NULL, 0, 0));
+	return d_backing_inode(d_real((struct dentry *) dentry, NULL));
 }
 
 struct name_snapshot {
-	const unsigned char *name;
+	struct qstr name;
 	unsigned char inline_name[DNAME_INLINE_LEN];
 };
 void take_dentry_name_snapshot(struct name_snapshot *, struct dentry *);

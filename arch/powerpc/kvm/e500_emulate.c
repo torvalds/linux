@@ -53,7 +53,7 @@ static int dbell2prio(ulong param)
 
 static int kvmppc_e500_emul_msgclr(struct kvm_vcpu *vcpu, int rb)
 {
-	ulong param = vcpu->arch.gpr[rb];
+	ulong param = vcpu->arch.regs.gpr[rb];
 	int prio = dbell2prio(param);
 
 	if (prio < 0)
@@ -65,7 +65,7 @@ static int kvmppc_e500_emul_msgclr(struct kvm_vcpu *vcpu, int rb)
 
 static int kvmppc_e500_emul_msgsnd(struct kvm_vcpu *vcpu, int rb)
 {
-	ulong param = vcpu->arch.gpr[rb];
+	ulong param = vcpu->arch.regs.gpr[rb];
 	int prio = dbell2prio(rb);
 	int pir = param & PPC_DBELL_PIR_MASK;
 	int i;
@@ -94,7 +94,7 @@ static int kvmppc_e500_emul_ehpriv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	switch (get_oc(inst)) {
 	case EHPRIV_OC_DEBUG:
 		run->exit_reason = KVM_EXIT_DEBUG;
-		run->debug.arch.address = vcpu->arch.pc;
+		run->debug.arch.address = vcpu->arch.regs.nip;
 		run->debug.arch.status = 0;
 		kvmppc_account_exit(vcpu, DEBUG_EXITS);
 		emulated = EMULATE_EXIT_USER;
@@ -275,6 +275,13 @@ int kvmppc_core_emulate_mtspr_e500(struct kvm_vcpu *vcpu, int sprn, ulong spr_va
 		 * Treat the request as a general store
 		 */
 		vcpu->arch.pwrmgtcr0 = spr_val;
+		break;
+
+	case SPRN_BUCSR:
+		/*
+		 * If we are here, it means that we have already flushed the
+		 * branch predictor, so just return to guest.
+		 */
 		break;
 
 	/* extra exceptions */

@@ -538,9 +538,9 @@ static int plgpio_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "clk_get() failed, work without it\n");
 
 #ifdef CONFIG_PM_SLEEP
-	plgpio->csave_regs = devm_kzalloc(&pdev->dev,
-			sizeof(*plgpio->csave_regs) *
+	plgpio->csave_regs = devm_kcalloc(&pdev->dev,
 			DIV_ROUND_UP(plgpio->chip.ngpio, MAX_GPIO_PER_REG),
+			sizeof(*plgpio->csave_regs),
 			GFP_KERNEL);
 	if (!plgpio->csave_regs)
 		return -ENOMEM;

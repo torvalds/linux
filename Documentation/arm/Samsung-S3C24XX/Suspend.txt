@@ -87,7 +87,7 @@ Debugging
      suspending, which means that use of printascii() or similar direct
      access to the UARTs will cause the debug to stop.
 
-  2) Whilst the pm code itself will attempt to re-enable the UART clocks,
+  2) While the pm code itself will attempt to re-enable the UART clocks,
      care should be taken that any external clock sources that the UARTs
      rely on are still enabled at that point.
 

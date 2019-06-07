@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* miscellaneous bits
  *
  * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -116,5 +112,66 @@ int afs_abort_to_error(u32 abort_code)
 	case RXGEN_OPCODE:	return -ENOTSUPP;
 
 	default:		return -EREMOTEIO;
+	}
+}
+
+/*
+ * Select the error to report from a set of errors.
+ */
+void afs_prioritise_error(struct afs_error *e, int error, u32 abort_code)
+{
+	switch (error) {
+	case 0:
+		return;
+	default:
+		if (e->error == -ETIMEDOUT ||
+		    e->error == -ETIME)
+			return;
+		/* Fall through */
+	case -ETIMEDOUT:
+	case -ETIME:
+		if (e->error == -ENOMEM ||
+		    e->error == -ENONET)
+			return;
+		/* Fall through */
+	case -ENOMEM:
+	case -ENONET:
+		if (e->error == -ERFKILL)
+			return;
+		/* Fall through */
+	case -ERFKILL:
+		if (e->error == -EADDRNOTAVAIL)
+			return;
+		/* Fall through */
+	case -EADDRNOTAVAIL:
+		if (e->error == -ENETUNREACH)
+			return;
+		/* Fall through */
+	case -ENETUNREACH:
+		if (e->error == -EHOSTUNREACH)
+			return;
+		/* Fall through */
+	case -EHOSTUNREACH:
+		if (e->error == -EHOSTDOWN)
+			return;
+		/* Fall through */
+	case -EHOSTDOWN:
+		if (e->error == -ECONNREFUSED)
+			return;
+		/* Fall through */
+	case -ECONNREFUSED:
+		if (e->error == -ECONNRESET)
+			return;
+		/* Fall through */
+	case -ECONNRESET: /* Responded, but call expired. */
+		if (e->responded)
+			return;
+		e->error = error;
+		return;
+
+	case -ECONNABORTED:
+		e->responded = true;
+		e->error = afs_abort_to_error(abort_code);
+		return;
 	}
 }

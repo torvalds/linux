@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * rtl8712_efuse.c
  *
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
  * Linux device driver for RTL8192SU
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
@@ -365,12 +353,12 @@ static u8 fix_header(struct _adapter *padapter, u8 header, u16 header_addr)
 }
 
 u8 r8712_efuse_pg_packet_write(struct _adapter *padapter, const u8 offset,
-			 const u8 word_en, const u8 *data)
+			       const u8 word_en, const u8 *data)
 {
 	u8 pg_header = 0;
 	u16 efuse_addr = 0, curr_size = 0;
 	u8 efuse_data, target_word_cnts = 0;
-	static int repeat_times;
+	int repeat_times;
 	int sub_repeat;
 	u8 bResult = true;
 
@@ -453,7 +441,7 @@ u8 r8712_efuse_access(struct _adapter *padapter, u8 bRead, u16 start_addr,
 			break;
 		}
 		res = efuse_one_byte_rw(padapter, bRead, start_addr + i,
-		      data + i);
+					data + i);
 		if (!bRead && !res)
 			break;
 	}
@@ -566,7 +554,7 @@ u8 r8712_efuse_map_write(struct _adapter *padapter, u16 addr, u16 cnts,
 		offset++;
 		if (!empty)
 			if (!r8712_efuse_pg_packet_read(padapter, offset,
-			    pktdata))
+							pktdata))
 				return false;
 		i = 0;
 		j = 0;

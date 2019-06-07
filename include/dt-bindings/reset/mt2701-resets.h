@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015 MediaTek, Shunli Wang <shunli.wang@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DT_BINDINGS_RESET_CONTROLLER_MT2701
@@ -86,5 +78,8 @@
 #define MT2701_ETHSYS_FE_RST			6
 #define MT2701_ETHSYS_GMAC_RST			23
 #define MT2701_ETHSYS_PPE_RST			31
+
+/* G3DSYS resets */
+#define MT2701_G3DSYS_CORE_RST			0
 
 #endif  /* _DT_BINDINGS_RESET_CONTROLLER_MT2701 */

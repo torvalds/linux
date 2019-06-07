@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * hfcpci.c     low level driver for CCD's hfc-pci based cards
@@ -8,20 +9,6 @@
  *
  * Copyright 1999  by Werner Cornelius (werner@isdn-development.de)
  * Copyright 2008  by Karsten Keil <kkeil@novell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Module options:
  *
@@ -41,7 +28,6 @@
  *	If kernel uses a frequency of 1000 Hz, steps of 8 samples are possible.
  *	If the kernel uses 100 Hz, steps of 80 samples are possible.
  *	If the kernel uses 300 Hz, steps of about 26 samples are possible.
- *
  */
 
 #include <linux/interrupt.h>
@@ -1296,6 +1282,7 @@ mode_hfcpci(struct bchannel *bch, int bc, int protocol)
 	case (-1): /* used for init */
 		bch->state = -1;
 		bch->nr = bc;
+		/* fall through */
 	case (ISDN_P_NONE):
 		if (bch->state == ISDN_P_NONE)
 			return 0;
@@ -2031,10 +2018,19 @@ setup_hw(struct hfc_pci *hc)
 	hc->hw.fifos = buffer;
 	pci_write_config_dword(hc->pdev, 0x80, hc->hw.dmahandle);
 	hc->hw.pci_io = ioremap((ulong) hc->hw.pci_io, 256);
+	if (unlikely(!hc->hw.pci_io)) {
+		printk(KERN_WARNING
+		       "HFC-PCI: Error in ioremap for PCI!\n");
+		pci_free_consistent(hc->pdev, 0x8000, hc->hw.fifos,
+				    hc->hw.dmahandle);
+		return 1;
+	}
+
 	printk(KERN_INFO
-	       "HFC-PCI: defined at mem %#lx fifo %#lx(%#lx) IRQ %d HZ %d\n",
-	       (u_long) hc->hw.pci_io, (u_long) hc->hw.fifos,
-	       (u_long) hc->hw.dmahandle, hc->irq, HZ);
+	       "HFC-PCI: defined at mem %#lx fifo %p(%pad) IRQ %d HZ %d\n",
+	       (u_long) hc->hw.pci_io, hc->hw.fifos,
+	       &hc->hw.dmahandle, hc->irq, HZ);
+
 	/* enable memory mapped ports, disable busmaster */
 	pci_write_config_word(hc->pdev, PCI_COMMAND, PCI_ENA_MEMIO);
 	hc->hw.int_m2 = 0;
@@ -2219,7 +2215,7 @@ hfc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct hfc_pci	*card;
 	struct _hfc_map	*m = (struct _hfc_map *)ent->driver_data;
 
-	card = kzalloc(sizeof(struct hfc_pci), GFP_ATOMIC);
+	card = kzalloc(sizeof(struct hfc_pci), GFP_KERNEL);
 	if (!card) {
 		printk(KERN_ERR "No kmem for HFC card\n");
 		return err;

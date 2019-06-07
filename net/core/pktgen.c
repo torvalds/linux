@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Authors:
  * Copyright 2001, 2002 by Robert Olsson <robert.olsson@its.uu.se>
@@ -7,12 +8,6 @@
  * Alexey Kuznetsov  <kuznet@ms2.inr.ac.ru>
  * Ben Greear <greearb@candelatech.com>
  * Jens Låås <jens.laas@data.slu.se>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  *
  * A tool for loading the network with preconfigurated packets.
  * The tool is implemented as a linux module.  Parameters are output
@@ -59,7 +54,6 @@
  * --Ben Greear <greearb@candelatech.com>
  *
  * Integrated to 2.5.x 021029 --Lucio Maciel (luciomaciel@zipmail.com.br)
- *
  *
  * 021124 Finished major redesign and rewrite for new functionality.
  * See Documentation/networking/pktgen.txt for how to use this.
@@ -114,7 +108,6 @@
  *
  * Fixed src_mac command to set source mac of packet to value specified in
  * command by Adit Ranadive <adit.262@gmail.com>
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -158,6 +151,7 @@
 #include <linux/etherdevice.h>
 #include <linux/kthread.h>
 #include <linux/prefetch.h>
+#include <linux/mmzone.h>
 #include <net/net_namespace.h>
 #include <net/checksum.h>
 #include <net/ipv6.h>
@@ -1265,7 +1259,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		buf[len] = 0;
 		if (strcmp(buf, pkt_dev->dst_min) != 0) {
 			memset(pkt_dev->dst_min, 0, sizeof(pkt_dev->dst_min));
-			strncpy(pkt_dev->dst_min, buf, len);
+			strcpy(pkt_dev->dst_min, buf);
 			pkt_dev->daddr_min = in_aton(pkt_dev->dst_min);
 			pkt_dev->cur_daddr = pkt_dev->daddr_min;
 		}
@@ -1280,14 +1274,12 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (len < 0)
 			return len;
 
-
 		if (copy_from_user(buf, &user_buffer[i], len))
 			return -EFAULT;
-
 		buf[len] = 0;
 		if (strcmp(buf, pkt_dev->dst_max) != 0) {
 			memset(pkt_dev->dst_max, 0, sizeof(pkt_dev->dst_max));
-			strncpy(pkt_dev->dst_max, buf, len);
+			strcpy(pkt_dev->dst_max, buf);
 			pkt_dev->daddr_max = in_aton(pkt_dev->dst_max);
 			pkt_dev->cur_daddr = pkt_dev->daddr_max;
 		}
@@ -1396,7 +1388,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		buf[len] = 0;
 		if (strcmp(buf, pkt_dev->src_min) != 0) {
 			memset(pkt_dev->src_min, 0, sizeof(pkt_dev->src_min));
-			strncpy(pkt_dev->src_min, buf, len);
+			strcpy(pkt_dev->src_min, buf);
 			pkt_dev->saddr_min = in_aton(pkt_dev->src_min);
 			pkt_dev->cur_saddr = pkt_dev->saddr_min;
 		}
@@ -1416,7 +1408,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		buf[len] = 0;
 		if (strcmp(buf, pkt_dev->src_max) != 0) {
 			memset(pkt_dev->src_max, 0, sizeof(pkt_dev->src_max));
-			strncpy(pkt_dev->src_max, buf, len);
+			strcpy(pkt_dev->src_max, buf);
 			pkt_dev->saddr_max = in_aton(pkt_dev->src_max);
 			pkt_dev->cur_saddr = pkt_dev->saddr_max;
 		}
@@ -2255,7 +2247,7 @@ static void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
 			x = xfrm_state_lookup_byspi(pn->net, htonl(pkt_dev->spi), AF_INET);
 		} else {
 			/* slow path: we dont already have xfrm_state */
-			x = xfrm_stateonly_find(pn->net, DUMMY_MARK,
+			x = xfrm_stateonly_find(pn->net, DUMMY_MARK, 0,
 						(xfrm_address_t *)&pkt_dev->cur_daddr,
 						(xfrm_address_t *)&pkt_dev->cur_saddr,
 						AF_INET,
@@ -2522,7 +2514,7 @@ static int pktgen_output_ipsec(struct sk_buff *skb, struct pktgen_dev *pkt_dev)
 		skb->_skb_refdst = (unsigned long)&pkt_dev->xdst.u.dst | SKB_DST_NOREF;
 
 	rcu_read_lock_bh();
-	err = x->outer_mode->output(x, skb);
+	err = pktgen_xfrm_outer_mode_output(x, skb);
 	rcu_read_unlock_bh();
 	if (err) {
 		XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEMODEERROR);
@@ -3428,7 +3420,7 @@ xmit_more:
 		net_info_ratelimited("%s xmit error: %d\n",
 				     pkt_dev->odevname, ret);
 		pkt_dev->errors++;
-		/* fallthru */
+		/* fall through */
 	case NETDEV_TX_BUSY:
 		/* Retry it next time */
 		refcount_dec(&(pkt_dev->skb->users));
@@ -3603,7 +3595,8 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 		return -ENOMEM;
 
 	strcpy(pkt_dev->odevname, ifname);
-	pkt_dev->flows = vzalloc_node(MAX_CFLOWS * sizeof(struct flow_state),
+	pkt_dev->flows = vzalloc_node(array_size(MAX_CFLOWS,
+						 sizeof(struct flow_state)),
 				      node);
 	if (pkt_dev->flows == NULL) {
 		kfree(pkt_dev);
@@ -3626,7 +3619,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 	pkt_dev->svlan_cfi = 0;
 	pkt_dev->svlan_id = 0xffff;
 	pkt_dev->burst = 1;
-	pkt_dev->node = -1;
+	pkt_dev->node = NUMA_NO_NODE;
 
 	err = pktgen_setup_dev(t->net, pkt_dev, ifname);
 	if (err)

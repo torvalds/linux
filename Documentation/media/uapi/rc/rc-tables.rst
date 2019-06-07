@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _Remote_controllers_tables:
 
@@ -378,7 +385,7 @@ the remote via /dev/input/event devices.
 
        -  ``KEY_CHANNELDOWN``
 
-       -  Decrease channel sequencially
+       -  Decrease channel sequentially
 
        -  CHANNEL - / CHANNEL DOWN / DOWN
 
@@ -386,7 +393,7 @@ the remote via /dev/input/event devices.
 
        -  ``KEY_CHANNELUP``
 
-       -  Increase channel sequencially
+       -  Increase channel sequentially
 
        -  CHANNEL + / CHANNEL UP / UP
 
@@ -616,7 +623,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 78
 
-       -  ``KEY_SCREEN``
+       -  ``KEY_ASPECT_RATIO``
 
        -  Select screen aspect ratio
 
@@ -624,7 +631,7 @@ the remote via /dev/input/event devices.
 
     -  .. row 79
 
-       -  ``KEY_ZOOM``
+       -  ``KEY_FULL_SCREEN``
 
        -  Put device into zoom/full screen mode
 

@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * zylonite.c  --  SoC audio for Zylonite
  *
  * Copyright 2008 Wolfson Microelectronics PLC.
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -83,11 +78,9 @@ static int zylonite_voice_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	unsigned int pll_out = 0;
 	unsigned int wm9713_div = 0;
 	int ret = 0;
 	int rate = params_rate(params);
-	int width = snd_pcm_format_physical_width(params_format(params));
 
 	/* Only support ratios that we can generate neatly from the AC97
 	 * based master clock - in particular, this excludes 44.1kHz.
@@ -109,14 +102,7 @@ static int zylonite_voice_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	/* Add 1 to the width for the leading clock cycle */
-	pll_out = rate * (width + 1) * 8;
-
 	ret = snd_soc_dai_set_sysclk(cpu_dai, PXA_SSP_CLK_AUDIO, 0, 1);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, 0, pll_out);
 	if (ret < 0)
 		return ret;
 

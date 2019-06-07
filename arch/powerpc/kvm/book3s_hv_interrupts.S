@@ -27,6 +27,8 @@
 #include <asm/asm-offsets.h>
 #include <asm/exception-64s.h>
 #include <asm/ppc-opcode.h>
+#include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
 
 /*****************************************************************************
  *                                                                           *
@@ -62,6 +64,60 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 
 	/* Save host PMU registers */
+	bl	kvmhv_save_host_pmu
+
+	/*
+	 * Put whatever is in the decrementer into the
+	 * hypervisor decrementer.
+	 */
+BEGIN_FTR_SECTION
+	ld	r5, HSTATE_KVM_VCORE(r13)
+	ld	r6, VCORE_KVM(r5)
+	ld	r9, KVM_HOST_LPCR(r6)
+	andis.	r9, r9, LPCR_LD@h
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+	mfspr	r8,SPRN_DEC
+	mftb	r7
+BEGIN_FTR_SECTION
+	/* On POWER9, don't sign-extend if host LPCR[LD] bit is set */
+	bne	32f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+	extsw	r8,r8
+32:	mtspr	SPRN_HDEC,r8
+	add	r8,r8,r7
+	std	r8,HSTATE_DECEXP(r13)
+
+	/* Jump to partition switch code */
+	bl	kvmppc_hv_entry_trampoline
+	nop
+
+/*
+ * We return here in virtual mode after the guest exits
+ * with something that we can't handle in real mode.
+ * Interrupts are still hard-disabled.
+ */
+
+	/*
+	 * Register usage at this point:
+	 *
+	 * R1       = host R1
+	 * R2       = host R2
+	 * R3       = trap number on this thread
+	 * R12      = exit handler id
+	 * R13      = PACA
+	 */
+
+	/* Restore non-volatile host registers (r14 - r31) and CR */
+	REST_NVGPRS(r1)
+	ld	r4, _CCR(r1)
+	mtcr	r4
+
+	addi    r1, r1, SWITCH_FRAME_SIZE
+	ld	r0, PPC_LR_STKOFF(r1)
+	mtlr	r0
+	blr
+
+_GLOBAL(kvmhv_save_host_pmu)
 BEGIN_FTR_SECTION
 	/* Work around P8 PMAE bug */
 	li	r3, -1
@@ -107,55 +163,4 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	stw	r7, HSTATE_PMC4(r13)
 	stw	r8, HSTATE_PMC5(r13)
 	stw	r9, HSTATE_PMC6(r13)
-31:
-
-	/*
-	 * Put whatever is in the decrementer into the
-	 * hypervisor decrementer.
-	 */
-BEGIN_FTR_SECTION
-	ld	r5, HSTATE_KVM_VCORE(r13)
-	ld	r6, VCORE_KVM(r5)
-	ld	r9, KVM_HOST_LPCR(r6)
-	andis.	r9, r9, LPCR_LD@h
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
-	mfspr	r8,SPRN_DEC
-	mftb	r7
-BEGIN_FTR_SECTION
-	/* On POWER9, don't sign-extend if host LPCR[LD] bit is set */
-	bne	32f
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
-	extsw	r8,r8
-32:	mtspr	SPRN_HDEC,r8
-	add	r8,r8,r7
-	std	r8,HSTATE_DECEXP(r13)
-
-	/* Jump to partition switch code */
-	bl	kvmppc_hv_entry_trampoline
-	nop
-
-/*
- * We return here in virtual mode after the guest exits
- * with something that we can't handle in real mode.
- * Interrupts are enabled again at this point.
- */
-
-	/*
-	 * Register usage at this point:
-	 *
-	 * R1       = host R1
-	 * R2       = host R2
-	 * R3       = trap number on this thread
-	 * R12      = exit handler id
-	 * R13      = PACA
-	 */
-
-	/* Restore non-volatile host registers (r14 - r31) and CR */
-	REST_NVGPRS(r1)
-	ld	r4, _CCR(r1)
-	mtcr	r4
-
-	addi    r1, r1, SWITCH_FRAME_SIZE
-	ld	r0, PPC_LR_STKOFF(r1)
-	mtlr	r0
-	blr
+31:	blr

@@ -2,7 +2,7 @@
 #ifndef __ASM_GENERIC_MMAN_H
 #define __ASM_GENERIC_MMAN_H
 
-#include <asm-generic/mman-common.h>
+#include <asm-generic/mman-common-tools.h>
 
 #define MAP_GROWSDOWN	0x0100		/* stack-like segment */
 #define MAP_DENYWRITE	0x0800		/* ETXTBSY */

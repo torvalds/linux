@@ -583,7 +583,7 @@ int kvm_pic_init(struct kvm *kvm)
 	struct kvm_pic *s;
 	int ret;
 
-	s = kzalloc(sizeof(struct kvm_pic), GFP_KERNEL);
+	s = kzalloc(sizeof(struct kvm_pic), GFP_KERNEL_ACCOUNT);
 	if (!s)
 		return -ENOMEM;
 	spin_lock_init(&s->lock);

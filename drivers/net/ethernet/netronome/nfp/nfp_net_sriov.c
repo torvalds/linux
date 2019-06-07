@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2019 Netronome Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <linux/errno.h>
@@ -176,6 +146,30 @@ int nfp_app_set_vf_spoofchk(struct net_device *netdev, int vf, bool enable)
 				    "spoofchk");
 }
 
+int nfp_app_set_vf_trust(struct net_device *netdev, int vf, bool enable)
+{
+	struct nfp_app *app = nfp_app_from_netdev(netdev);
+	unsigned int vf_offset;
+	u8 vf_ctrl;
+	int err;
+
+	err = nfp_net_sriov_check(app, vf, NFP_NET_VF_CFG_MB_CAP_TRUST,
+				  "trust");
+	if (err)
+		return err;
+
+	/* Write trust control bit to VF entry in VF config symbol */
+	vf_offset = NFP_NET_VF_CFG_MB_SZ + vf * NFP_NET_VF_CFG_SZ +
+		NFP_NET_VF_CFG_CTRL;
+	vf_ctrl = readb(app->pf->vfcfg_tbl2 + vf_offset);
+	vf_ctrl &= ~NFP_NET_VF_CFG_CTRL_TRUST;
+	vf_ctrl |= FIELD_PREP(NFP_NET_VF_CFG_CTRL_TRUST, enable);
+	writeb(vf_ctrl, app->pf->vfcfg_tbl2 + vf_offset);
+
+	return nfp_net_sriov_update(app, vf, NFP_NET_VF_CFG_MB_UPD_TRUST,
+				    "trust");
+}
+
 int nfp_app_set_vf_link_state(struct net_device *netdev, int vf,
 			      int link_state)
 {
@@ -243,6 +237,7 @@ int nfp_app_get_vf_config(struct net_device *netdev, int vf,
 	ivi->qos = FIELD_GET(NFP_NET_VF_CFG_VLAN_QOS, vlan_tci);
 
 	ivi->spoofchk = FIELD_GET(NFP_NET_VF_CFG_CTRL_SPOOF, flags);
+	ivi->trusted = FIELD_GET(NFP_NET_VF_CFG_CTRL_TRUST, flags);
 	ivi->linkstate = FIELD_GET(NFP_NET_VF_CFG_CTRL_LINK_STATE, flags);
 
 	return 0;

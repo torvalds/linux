@@ -1,52 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Touch Screen driver for EETI's I2C connected touch screen panels
- *   Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
+ *   Copyright (c) 2009,2018 Daniel Mack <daniel@zonque.org>
  *
  * See EETI's software guide for the protocol specification:
- *   http://home.eeti.com.tw/web20/eg/guide.htm
+ *   http://home.eeti.com.tw/documentation.html
  *
  * Based on migor_ts.c
  *   Copyright (c) 2008 Magnus Damm
  *   Copyright (c) 2007 Ujjwal Pande <ujjwal@kenati.com>
- *
- * This file is free software; you can redistribute it and/or
- * modify it under the terms of the GNU  General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This file is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/input.h>
+#include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/timer.h>
 #include <linux/gpio/consumer.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
-
-static bool flip_x;
-module_param(flip_x, bool, 0644);
-MODULE_PARM_DESC(flip_x, "flip x coordinate");
-
-static bool flip_y;
-module_param(flip_y, bool, 0644);
-MODULE_PARM_DESC(flip_y, "flip y coordinate");
 
 struct eeti_ts {
 	struct i2c_client *client;
 	struct input_dev *input;
 	struct gpio_desc *attn_gpio;
+	struct touchscreen_properties props;
 	bool running;
 };
 
@@ -73,17 +54,10 @@ static void eeti_ts_report_event(struct eeti_ts *eeti, u8 *buf)
 	x >>= res - EETI_TS_BITDEPTH;
 	y >>= res - EETI_TS_BITDEPTH;
 
-	if (flip_x)
-		x = EETI_MAXVAL - x;
-
-	if (flip_y)
-		y = EETI_MAXVAL - y;
-
 	if (buf[0] & REPORT_BIT_HAS_PRESSURE)
 		input_report_abs(eeti->input, ABS_PRESSURE, buf[5]);
 
-	input_report_abs(eeti->input, ABS_X, x);
-	input_report_abs(eeti->input, ABS_Y, y);
+	touchscreen_report_pos(eeti->input, &eeti->props, x, y, false);
 	input_report_key(eeti->input, BTN_TOUCH, buf[0] & REPORT_BIT_PRESSED);
 	input_sync(eeti->input);
 }
@@ -178,6 +152,8 @@ static int eeti_ts_probe(struct i2c_client *client,
 	input_set_abs_params(input, ABS_Y, 0, EETI_MAXVAL, 0, 0);
 	input_set_abs_params(input, ABS_PRESSURE, 0, 0xff, 0, 0);
 
+	touchscreen_parse_properties(input, false, &eeti->props);
+
 	input->name = client->name;
 	input->id.bustype = BUS_I2C;
 	input->open = eeti_ts_open;
@@ -262,10 +238,18 @@ static const struct i2c_device_id eeti_ts_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, eeti_ts_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id of_eeti_ts_match[] = {
+	{ .compatible = "eeti,exc3000-i2c", },
+	{ }
+};
+#endif
+
 static struct i2c_driver eeti_ts_driver = {
 	.driver = {
 		.name = "eeti_ts",
 		.pm = &eeti_ts_pm,
+		.of_match_table = of_match_ptr(of_eeti_ts_match),
 	},
 	.probe = eeti_ts_probe,
 	.id_table = eeti_ts_id,
@@ -274,5 +258,5 @@ static struct i2c_driver eeti_ts_driver = {
 module_i2c_driver(eeti_ts_driver);
 
 MODULE_DESCRIPTION("EETI Touchscreen driver");
-MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
+MODULE_AUTHOR("Daniel Mack <daniel@zonque.org>");
 MODULE_LICENSE("GPL");

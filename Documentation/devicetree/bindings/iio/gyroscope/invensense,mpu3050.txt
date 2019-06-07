@@ -5,7 +5,6 @@ Required properties:
   - reg : the I2C address of the sensor
 
 Optional properties:
-  - interrupt-parent : should be the phandle for the interrupt controller
   - interrupts : interrupt mapping for the trigger interrupt from the
     internal oscillator. The following IRQ modes are supported:
     IRQ_TYPE_EDGE_RISING, IRQ_TYPE_EDGE_FALLING, IRQ_TYPE_LEVEL_HIGH and

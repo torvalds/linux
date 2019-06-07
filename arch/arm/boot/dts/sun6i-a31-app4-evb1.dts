@@ -65,22 +65,14 @@
 	status = "okay";
 };
 
-&pio {
-	usb1_vbus_pin_a: usb1_vbus_pin@0 {
-		pins = "PH27";
-		function = "gpio_out";
-	};
-};
-
 &reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_a>;
 	gpio = <&pio 7 27 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_ph_pins>;
 	status = "okay";
 };
 

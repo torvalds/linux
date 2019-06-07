@@ -43,7 +43,7 @@ struct ref_entry {
  * back to the delayed ref action.  We hold the ref we are changing in the
  * action so we can account for the history properly, and we record the root we
  * were called with since it could be different from ref_root.  We also store
- * stack traces because thats how I roll.
+ * stack traces because that's how I roll.
  */
 struct ref_action {
 	int action;
@@ -56,7 +56,7 @@ struct ref_action {
 
 /*
  * One of these for every block we reference, it holds the roots and references
- * to it as well as all of the ref actions that have occured to it.  We never
+ * to it as well as all of the ref actions that have occurred to it.  We never
  * free it until we unmount the file system in order to make sure re-allocations
  * are happening properly.
  */
@@ -205,28 +205,17 @@ static struct root_entry *lookup_root_entry(struct rb_root *root, u64 objectid)
 #ifdef CONFIG_STACKTRACE
 static void __save_stack_trace(struct ref_action *ra)
 {
-	struct stack_trace stack_trace;
-
-	stack_trace.max_entries = MAX_TRACE;
-	stack_trace.nr_entries = 0;
-	stack_trace.entries = ra->trace;
-	stack_trace.skip = 2;
-	save_stack_trace(&stack_trace);
-	ra->trace_len = stack_trace.nr_entries;
+	ra->trace_len = stack_trace_save(ra->trace, MAX_TRACE, 2);
 }
 
 static void __print_stack_trace(struct btrfs_fs_info *fs_info,
 				struct ref_action *ra)
 {
-	struct stack_trace trace;
-
 	if (ra->trace_len == 0) {
 		btrfs_err(fs_info, "  ref-verify: no stacktrace");
 		return;
 	}
-	trace.nr_entries = ra->trace_len;
-	trace.entries = ra->trace;
-	print_stack_trace(&trace, 2);
+	stack_trace_print(ra->trace, ra->trace_len, 2);
 }
 #else
 static void inline __save_stack_trace(struct ref_action *ra)
@@ -520,6 +509,7 @@ static int process_leaf(struct btrfs_root *root,
 		switch (key.type) {
 		case BTRFS_EXTENT_ITEM_KEY:
 			*num_bytes = key.offset;
+			/* fall through */
 		case BTRFS_METADATA_ITEM_KEY:
 			*bytenr = key.objectid;
 			ret = process_extent_item(fs_info, path, &key, i,
@@ -583,7 +573,7 @@ static int walk_down_tree(struct btrfs_root *root, struct btrfs_path *path,
 				return -EIO;
 			}
 			btrfs_tree_read_lock(eb);
-			btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
+			btrfs_set_lock_blocking_read(eb);
 			path->nodes[level-1] = eb;
 			path->slots[level-1] = 0;
 			path->locks[level-1] = BTRFS_READ_LOCK_BLOCKING;
@@ -670,35 +660,42 @@ static void dump_block_entry(struct btrfs_fs_info *fs_info,
 
 /*
  * btrfs_ref_tree_mod: called when we modify a ref for a bytenr
- * @root: the root we are making this modification from.
- * @bytenr: the bytenr we are modifying.
- * @num_bytes: number of bytes.
- * @parent: the parent bytenr.
- * @ref_root: the original root owner of the bytenr.
- * @owner: level in the case of metadata, inode in the case of data.
- * @offset: 0 for metadata, file offset for data.
- * @action: the action that we are doing, this is the same as the delayed ref
- *	action.
  *
  * This will add an action item to the given bytenr and do sanity checks to make
  * sure we haven't messed something up.  If we are making a new allocation and
  * this block entry has history we will delete all previous actions as long as
  * our sanity checks pass as they are no longer needed.
  */
-int btrfs_ref_tree_mod(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
-		       u64 parent, u64 ref_root, u64 owner, u64 offset,
-		       int action)
+int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
+		       struct btrfs_ref *generic_ref)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct ref_entry *ref = NULL, *exist;
 	struct ref_action *ra = NULL;
 	struct block_entry *be = NULL;
 	struct root_entry *re = NULL;
+	int action = generic_ref->action;
 	int ret = 0;
-	bool metadata = owner < BTRFS_FIRST_FREE_OBJECTID;
+	bool metadata;
+	u64 bytenr = generic_ref->bytenr;
+	u64 num_bytes = generic_ref->len;
+	u64 parent = generic_ref->parent;
+	u64 ref_root;
+	u64 owner;
+	u64 offset;
 
-	if (!btrfs_test_opt(root->fs_info, REF_VERIFY))
+	if (!btrfs_test_opt(fs_info, REF_VERIFY))
 		return 0;
+
+	if (generic_ref->type == BTRFS_REF_METADATA) {
+		ref_root = generic_ref->tree_ref.root;
+		owner = generic_ref->tree_ref.level;
+		offset = 0;
+	} else {
+		ref_root = generic_ref->data_ref.ref_root;
+		owner = generic_ref->data_ref.ino;
+		offset = generic_ref->data_ref.offset;
+	}
+	metadata = owner < BTRFS_FIRST_FREE_OBJECTID;
 
 	ref = kzalloc(sizeof(struct ref_entry), GFP_NOFS);
 	ra = kmalloc(sizeof(struct ref_action), GFP_NOFS);
@@ -732,7 +729,7 @@ int btrfs_ref_tree_mod(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 
 	INIT_LIST_HEAD(&ra->list);
 	ra->action = action;
-	ra->root = root->objectid;
+	ra->root = generic_ref->real_root;
 
 	/*
 	 * This is an allocation, preallocate the block_entry in case we haven't
@@ -745,7 +742,7 @@ int btrfs_ref_tree_mod(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 		 * is and the new root objectid, so let's not treat the passed
 		 * in root as if it really has a ref for this bytenr.
 		 */
-		be = add_block_entry(root->fs_info, bytenr, num_bytes, ref_root);
+		be = add_block_entry(fs_info, bytenr, num_bytes, ref_root);
 		if (IS_ERR(be)) {
 			kfree(ra);
 			ret = PTR_ERR(be);
@@ -787,13 +784,13 @@ int btrfs_ref_tree_mod(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 			 * one we want to lookup below when we modify the
 			 * re->num_refs.
 			 */
-			ref_root = root->objectid;
-			re->root_objectid = root->objectid;
+			ref_root = generic_ref->real_root;
+			re->root_objectid = generic_ref->real_root;
 			re->num_refs = 0;
 		}
 
-		spin_lock(&root->fs_info->ref_verify_lock);
-		be = lookup_block_entry(&root->fs_info->block_tree, bytenr);
+		spin_lock(&fs_info->ref_verify_lock);
+		be = lookup_block_entry(&fs_info->block_tree, bytenr);
 		if (!be) {
 			btrfs_err(fs_info,
 "trying to do action %d to bytenr %llu num_bytes %llu but there is no existing entry!",
@@ -859,10 +856,10 @@ int btrfs_ref_tree_mod(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 			 * This shouldn't happen because we will add our re
 			 * above when we lookup the be with !parent, but just in
 			 * case catch this case so we don't panic because I
-			 * didn't thik of some other corner case.
+			 * didn't think of some other corner case.
 			 */
 			btrfs_err(fs_info, "failed to find root %llu for %llu",
-				  root->objectid, be->bytenr);
+				  generic_ref->real_root, be->bytenr);
 			dump_block_entry(fs_info, be);
 			dump_ref_action(fs_info, ra);
 			kfree(ra);
@@ -881,7 +878,7 @@ int btrfs_ref_tree_mod(struct btrfs_root *root, u64 bytenr, u64 num_bytes,
 	list_add_tail(&ra->list, &be->actions);
 	ret = 0;
 out_unlock:
-	spin_unlock(&root->fs_info->ref_verify_lock);
+	spin_unlock(&fs_info->ref_verify_lock);
 out:
 	if (ret)
 		btrfs_clear_opt(fs_info->mount_opt, REF_VERIFY);
@@ -987,7 +984,7 @@ int btrfs_build_ref_tree(struct btrfs_fs_info *fs_info)
 		return -ENOMEM;
 
 	eb = btrfs_read_lock_root_node(fs_info->extent_root);
-	btrfs_set_lock_blocking_rw(eb, BTRFS_READ_LOCK);
+	btrfs_set_lock_blocking_read(eb);
 	level = btrfs_header_level(eb);
 	path->nodes[level] = eb;
 	path->slots[level] = 0;

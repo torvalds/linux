@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __HID_WIIMOTE_H
 #define __HID_WIIMOTE_H
 
@@ -7,10 +8,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <linux/completion.h>
@@ -89,6 +86,8 @@ enum wiimote_exttype {
 	WIIMOTE_EXT_CLASSIC_CONTROLLER,
 	WIIMOTE_EXT_BALANCE_BOARD,
 	WIIMOTE_EXT_PRO_CONTROLLER,
+	WIIMOTE_EXT_DRUMS,
+	WIIMOTE_EXT_GUITAR,
 	WIIMOTE_EXT_NUM,
 };
 
@@ -137,6 +136,7 @@ struct wiimote_state {
 	/* calibration/cache data */
 	__u16 calib_bboard[4][3];
 	__s16 calib_pro_sticks[4];
+	__u8 pressure_drums[7];
 	__u8 cache_rumble;
 };
 

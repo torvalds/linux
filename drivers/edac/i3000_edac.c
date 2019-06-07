@@ -508,8 +508,8 @@ static int __init i3000_init(void)
 
 	edac_dbg(3, "MC:\n");
 
-       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
-       opstate_init();
+	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
+	opstate_init();
 
 	pci_rc = pci_register_driver(&i3000_driver);
 	if (pci_rc < 0)

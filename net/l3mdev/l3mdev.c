@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/l3mdev/l3mdev.c - L3 master device implementation
  * Copyright (c) 2015 Cumulus Networks
  * Copyright (c) 2015 David Ahern <dsa@cumulusnetworks.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/netdevice.h>
@@ -45,6 +41,24 @@ int l3mdev_master_ifindex_rcu(const struct net_device *dev)
 	return ifindex;
 }
 EXPORT_SYMBOL_GPL(l3mdev_master_ifindex_rcu);
+
+/**
+ *	l3mdev_master_upper_ifindex_by_index - get index of upper l3 master
+ *					       device
+ *	@net: network namespace for device index lookup
+ *	@ifindex: targeted interface
+ */
+int l3mdev_master_upper_ifindex_by_index_rcu(struct net *net, int ifindex)
+{
+	struct net_device *dev;
+
+	dev = dev_get_by_index_rcu(net, ifindex);
+	while (dev && !netif_is_l3_master(dev))
+		dev = netdev_master_upper_dev_get(dev);
+
+	return dev ? dev->ifindex : 0;
+}
+EXPORT_SYMBOL_GPL(l3mdev_master_upper_ifindex_by_index_rcu);
 
 /**
  *	l3mdev_fib_table - get FIB table id associated with an L3

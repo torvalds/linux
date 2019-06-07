@@ -5,6 +5,7 @@
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  */
+#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
@@ -12,6 +13,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include "common.h"
@@ -290,6 +292,79 @@ static void usbhsc_set_buswait(struct usbhs_priv *priv)
 		usbhs_bset(priv, BUSWAIT, 0x000F, wait);
 }
 
+static bool usbhsc_is_multi_clks(struct usbhs_priv *priv)
+{
+	if (priv->dparam.type == USBHS_TYPE_RCAR_GEN3 ||
+	    priv->dparam.type == USBHS_TYPE_RCAR_GEN3_WITH_PLL)
+		return true;
+
+	return false;
+}
+
+static int usbhsc_clk_get(struct device *dev, struct usbhs_priv *priv)
+{
+	if (!usbhsc_is_multi_clks(priv))
+		return 0;
+
+	/* The first clock should exist */
+	priv->clks[0] = of_clk_get(dev->of_node, 0);
+	if (IS_ERR(priv->clks[0]))
+		return PTR_ERR(priv->clks[0]);
+
+	/*
+	 * To backward compatibility with old DT, this driver checks the return
+	 * value if it's -ENOENT or not.
+	 */
+	priv->clks[1] = of_clk_get(dev->of_node, 1);
+	if (PTR_ERR(priv->clks[1]) == -ENOENT)
+		priv->clks[1] = NULL;
+	else if (IS_ERR(priv->clks[1]))
+		return PTR_ERR(priv->clks[1]);
+
+	return 0;
+}
+
+static void usbhsc_clk_put(struct usbhs_priv *priv)
+{
+	int i;
+
+	if (!usbhsc_is_multi_clks(priv))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(priv->clks); i++)
+		clk_put(priv->clks[i]);
+}
+
+static int usbhsc_clk_prepare_enable(struct usbhs_priv *priv)
+{
+	int i, ret;
+
+	if (!usbhsc_is_multi_clks(priv))
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(priv->clks); i++) {
+		ret = clk_prepare_enable(priv->clks[i]);
+		if (ret) {
+			while (--i >= 0)
+				clk_disable_unprepare(priv->clks[i]);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+static void usbhsc_clk_disable_unprepare(struct usbhs_priv *priv)
+{
+	int i;
+
+	if (!usbhsc_is_multi_clks(priv))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(priv->clks); i++)
+		clk_disable_unprepare(priv->clks[i]);
+}
+
 /*
  *		platform default param
  */
@@ -340,6 +415,10 @@ static void usbhsc_power_ctrl(struct usbhs_priv *priv, int enable)
 		/* enable PM */
 		pm_runtime_get_sync(dev);
 
+		/* enable clks */
+		if (usbhsc_clk_prepare_enable(priv))
+			return;
+
 		/* enable platform power */
 		usbhs_platform_call(priv, power_ctrl, pdev, priv->base, enable);
 
@@ -351,6 +430,9 @@ static void usbhsc_power_ctrl(struct usbhs_priv *priv, int enable)
 
 		/* disable platform power */
 		usbhs_platform_call(priv, power_ctrl, pdev, priv->base, enable);
+
+		/* disable clks */
+		usbhsc_clk_disable_unprepare(priv);
 
 		/* disable PM */
 		pm_runtime_put_sync(dev);
@@ -458,6 +540,10 @@ static int usbhsc_drvcllbck_notify_hotplug(struct platform_device *pdev)
  */
 static const struct of_device_id usbhs_of_match[] = {
 	{
+		.compatible = "renesas,usbhs-r8a774c0",
+		.data = (void *)USBHS_TYPE_RCAR_GEN3_WITH_PLL,
+	},
+	{
 		.compatible = "renesas,usbhs-r8a7790",
 		.data = (void *)USBHS_TYPE_RCAR_GEN2,
 	},
@@ -476,6 +562,10 @@ static const struct of_device_id usbhs_of_match[] = {
 	{
 		.compatible = "renesas,usbhs-r8a7796",
 		.data = (void *)USBHS_TYPE_RCAR_GEN3,
+	},
+	{
+		.compatible = "renesas,usbhs-r8a77990",
+		.data = (void *)USBHS_TYPE_RCAR_GEN3_WITH_PLL,
 	},
 	{
 		.compatible = "renesas,usbhs-r8a77995",
@@ -574,6 +664,10 @@ static int usbhs_probe(struct platform_device *pdev)
 			return PTR_ERR(priv->edev);
 	}
 
+	priv->rsts = devm_reset_control_array_get_optional_shared(&pdev->dev);
+	if (IS_ERR(priv->rsts))
+		return PTR_ERR(priv->rsts);
+
 	/*
 	 * care platform info
 	 */
@@ -591,15 +685,6 @@ static int usbhs_probe(struct platform_device *pdev)
 		break;
 	case USBHS_TYPE_RCAR_GEN3_WITH_PLL:
 		priv->pfunc = usbhs_rcar3_with_pll_ops;
-		if (!IS_ERR_OR_NULL(priv->edev)) {
-			priv->nb.notifier_call = priv->pfunc.notifier;
-			ret = devm_extcon_register_notifier(&pdev->dev,
-							    priv->edev,
-							    EXTCON_USB_HOST,
-							    &priv->nb);
-			if (ret < 0)
-				dev_err(&pdev->dev, "no notifier registered\n");
-		}
 		break;
 	case USBHS_TYPE_RZA1:
 		priv->pfunc = usbhs_rza1_ops;
@@ -658,6 +743,14 @@ static int usbhs_probe(struct platform_device *pdev)
 	/* dev_set_drvdata should be called after usbhs_mod_init */
 	platform_set_drvdata(pdev, priv);
 
+	ret = reset_control_deassert(priv->rsts);
+	if (ret)
+		goto probe_fail_rst;
+
+	ret = usbhsc_clk_get(&pdev->dev, priv);
+	if (ret)
+		goto probe_fail_clks;
+
 	/*
 	 * deviece reset here because
 	 * USB device might be used in boot loader.
@@ -711,6 +804,10 @@ static int usbhs_probe(struct platform_device *pdev)
 	return ret;
 
 probe_end_mod_exit:
+	usbhsc_clk_put(priv);
+probe_fail_clks:
+	reset_control_assert(priv->rsts);
+probe_fail_rst:
 	usbhs_mod_remove(priv);
 probe_end_fifo_exit:
 	usbhs_fifo_remove(priv);
@@ -739,6 +836,8 @@ static int usbhs_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	usbhs_platform_call(priv, hardware_exit, pdev);
+	usbhsc_clk_put(priv);
+	reset_control_assert(priv->rsts);
 	usbhs_mod_remove(priv);
 	usbhs_fifo_remove(priv);
 	usbhs_pipe_remove(priv);
@@ -746,7 +845,7 @@ static int usbhs_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int usbhsc_suspend(struct device *dev)
+static __maybe_unused int usbhsc_suspend(struct device *dev)
 {
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
@@ -762,7 +861,7 @@ static int usbhsc_suspend(struct device *dev)
 	return 0;
 }
 
-static int usbhsc_resume(struct device *dev)
+static __maybe_unused int usbhsc_resume(struct device *dev)
 {
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
@@ -779,24 +878,7 @@ static int usbhsc_resume(struct device *dev)
 	return 0;
 }
 
-static int usbhsc_runtime_nop(struct device *dev)
-{
-	/* Runtime PM callback shared between ->runtime_suspend()
-	 * and ->runtime_resume(). Simply returns success.
-	 *
-	 * This driver re-initializes all registers after
-	 * pm_runtime_get_sync() anyway so there is no need
-	 * to save and restore registers here.
-	 */
-	return 0;
-}
-
-static const struct dev_pm_ops usbhsc_pm_ops = {
-	.suspend		= usbhsc_suspend,
-	.resume			= usbhsc_resume,
-	.runtime_suspend	= usbhsc_runtime_nop,
-	.runtime_resume		= usbhsc_runtime_nop,
-};
+static SIMPLE_DEV_PM_OPS(usbhsc_pm_ops, usbhsc_suspend, usbhsc_resume);
 
 static struct platform_driver renesas_usbhs_driver = {
 	.driver		= {

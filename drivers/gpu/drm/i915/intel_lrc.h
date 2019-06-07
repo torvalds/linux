@@ -27,23 +27,19 @@
 #include "intel_ringbuffer.h"
 #include "i915_gem_context.h"
 
-#define GEN8_LR_CONTEXT_ALIGN I915_GTT_MIN_ALIGNMENT
-
 /* Execlists regs */
-#define RING_ELSP(engine)			_MMIO((engine)->mmio_base + 0x230)
-#define RING_EXECLIST_STATUS_LO(engine)		_MMIO((engine)->mmio_base + 0x234)
-#define RING_EXECLIST_STATUS_HI(engine)		_MMIO((engine)->mmio_base + 0x234 + 4)
-#define RING_CONTEXT_CONTROL(engine)		_MMIO((engine)->mmio_base + 0x244)
+#define RING_ELSP(base)				_MMIO((base) + 0x230)
+#define RING_EXECLIST_STATUS_LO(base)		_MMIO((base) + 0x234)
+#define RING_EXECLIST_STATUS_HI(base)		_MMIO((base) + 0x234 + 4)
+#define RING_CONTEXT_CONTROL(base)		_MMIO((base) + 0x244)
 #define	  CTX_CTRL_INHIBIT_SYN_CTX_SWITCH	(1 << 3)
 #define	  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT	(1 << 0)
-#define   CTX_CTRL_RS_CTX_ENABLE                (1 << 1)
+#define   CTX_CTRL_RS_CTX_ENABLE		(1 << 1)
 #define	  CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT	(1 << 2)
-#define RING_CONTEXT_STATUS_BUF_BASE(engine)	_MMIO((engine)->mmio_base + 0x370)
-#define RING_CONTEXT_STATUS_BUF_LO(engine, i)	_MMIO((engine)->mmio_base + 0x370 + (i) * 8)
-#define RING_CONTEXT_STATUS_BUF_HI(engine, i)	_MMIO((engine)->mmio_base + 0x370 + (i) * 8 + 4)
-#define RING_CONTEXT_STATUS_PTR(engine)		_MMIO((engine)->mmio_base + 0x3a0)
-#define RING_EXECLIST_SQ_CONTENTS(engine)	_MMIO((engine)->mmio_base + 0x510)
-#define RING_EXECLIST_CONTROL(engine)		_MMIO((engine)->mmio_base + 0x550)
+#define RING_CONTEXT_STATUS_PTR(base)		_MMIO((base) + 0x3a0)
+#define RING_EXECLIST_SQ_CONTENTS(base)		_MMIO((base) + 0x510)
+#define RING_EXECLIST_CONTROL(base)		_MMIO((base) + 0x550)
+
 #define	  EL_CTRL_LOAD				(1 << 0)
 
 /* The docs specify that the write pointer wraps around after 5h, "After status
@@ -57,10 +53,11 @@
 #define GEN8_CSB_PTR_MASK 0x7
 #define GEN8_CSB_READ_PTR_MASK (GEN8_CSB_PTR_MASK << 8)
 #define GEN8_CSB_WRITE_PTR_MASK (GEN8_CSB_PTR_MASK << 0)
-#define GEN8_CSB_WRITE_PTR(csb_status) \
-	(((csb_status) & GEN8_CSB_WRITE_PTR_MASK) >> 0)
-#define GEN8_CSB_READ_PTR(csb_status) \
-	(((csb_status) & GEN8_CSB_READ_PTR_MASK) >> 8)
+
+#define GEN11_CSB_ENTRIES 12
+#define GEN11_CSB_PTR_MASK 0xf
+#define GEN11_CSB_READ_PTR_MASK (GEN11_CSB_PTR_MASK << 8)
+#define GEN11_CSB_WRITE_PTR_MASK (GEN11_CSB_PTR_MASK << 0)
 
 enum {
 	INTEL_CONTEXT_SCHEDULE_IN = 0,
@@ -99,16 +96,25 @@ int logical_xcs_ring_init(struct intel_engine_cs *engine);
  */
 #define LRC_HEADER_PAGES LRC_PPHWSP_PN
 
+struct drm_printer;
+
 struct drm_i915_private;
 struct i915_gem_context;
 
-void intel_lr_context_resume(struct drm_i915_private *dev_priv);
+void intel_execlists_set_default_submission(struct intel_engine_cs *engine);
 
-static inline uint64_t
-intel_lr_context_descriptor(struct i915_gem_context *ctx,
-			    struct intel_engine_cs *engine)
-{
-	return ctx->engine[engine->id].lrc_desc;
-}
+void intel_lr_context_reset(struct intel_engine_cs *engine,
+			    struct intel_context *ce,
+			    u32 head,
+			    bool scrub);
+
+void intel_execlists_show_requests(struct intel_engine_cs *engine,
+				   struct drm_printer *m,
+				   void (*show_request)(struct drm_printer *m,
+							struct i915_request *rq,
+							const char *prefix),
+				   unsigned int max);
+
+u32 gen8_make_rpcs(struct drm_i915_private *i915, struct intel_sseu *ctx_sseu);
 
 #endif /* _INTEL_LRC_H_ */

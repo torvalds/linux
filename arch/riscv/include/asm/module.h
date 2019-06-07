@@ -8,12 +8,13 @@
 
 #define MODULE_ARCH_VERMAGIC    "riscv"
 
-u64 module_emit_got_entry(struct module *mod, u64 val);
-u64 module_emit_plt_entry(struct module *mod, u64 val);
+struct module;
+unsigned long module_emit_got_entry(struct module *mod, unsigned long val);
+unsigned long module_emit_plt_entry(struct module *mod, unsigned long val);
 
 #ifdef CONFIG_MODULE_SECTIONS
 struct mod_section {
-	struct elf64_shdr *shdr;
+	Elf_Shdr *shdr;
 	int num_entries;
 	int max_entries;
 };
@@ -25,18 +26,18 @@ struct mod_arch_specific {
 };
 
 struct got_entry {
-	u64 symbol_addr;	/* the real variable address */
+	unsigned long symbol_addr;	/* the real variable address */
 };
 
-static inline struct got_entry emit_got_entry(u64 val)
+static inline struct got_entry emit_got_entry(unsigned long val)
 {
 	return (struct got_entry) {val};
 }
 
-static inline struct got_entry *get_got_entry(u64 val,
+static inline struct got_entry *get_got_entry(unsigned long val,
 					      const struct mod_section *sec)
 {
-	struct got_entry *got = (struct got_entry *)sec->shdr->sh_addr;
+	struct got_entry *got = (struct got_entry *)(sec->shdr->sh_addr);
 	int i;
 	for (i = 0; i < sec->num_entries; i++) {
 		if (got[i].symbol_addr == val)
@@ -61,7 +62,9 @@ struct plt_entry {
 #define REG_T0     0x5
 #define REG_T1     0x6
 
-static inline struct plt_entry emit_plt_entry(u64 val, u64 plt, u64 got_plt)
+static inline struct plt_entry emit_plt_entry(unsigned long val,
+					      unsigned long plt,
+					      unsigned long got_plt)
 {
 	/*
 	 * U-Type encoding:
@@ -75,7 +78,7 @@ static inline struct plt_entry emit_plt_entry(u64 val, u64 plt, u64 got_plt)
 	 * +------------+------------+--------+----------+----------+
 	 *
 	 */
-	u64 offset = got_plt - plt;
+	unsigned long offset = got_plt - plt;
 	u32 hi20 = (offset + 0x800) & 0xfffff000;
 	u32 lo12 = (offset - hi20);
 	return (struct plt_entry) {
@@ -85,7 +88,7 @@ static inline struct plt_entry emit_plt_entry(u64 val, u64 plt, u64 got_plt)
 	};
 }
 
-static inline int get_got_plt_idx(u64 val, const struct mod_section *sec)
+static inline int get_got_plt_idx(unsigned long val, const struct mod_section *sec)
 {
 	struct got_entry *got_plt = (struct got_entry *)sec->shdr->sh_addr;
 	int i;
@@ -96,9 +99,9 @@ static inline int get_got_plt_idx(u64 val, const struct mod_section *sec)
 	return -1;
 }
 
-static inline struct plt_entry *get_plt_entry(u64 val,
-				      const struct mod_section *sec_plt,
-				      const struct mod_section *sec_got_plt)
+static inline struct plt_entry *get_plt_entry(unsigned long val,
+					      const struct mod_section *sec_plt,
+					      const struct mod_section *sec_got_plt)
 {
 	struct plt_entry *plt = (struct plt_entry *)sec_plt->shdr->sh_addr;
 	int got_plt_idx = get_got_plt_idx(val, sec_got_plt);

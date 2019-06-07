@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Driver for Realtek PCI-Express card reader
  *
  * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
@@ -170,35 +158,46 @@ static int rts5227_card_power_on(struct rtsx_pcr *pcr, int card)
 {
 	int err;
 
+	if (pcr->option.ocp_en)
+		rtsx_pci_enable_ocp(pcr);
+
 	rtsx_pci_init_cmd(pcr);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_PWR_CTL,
 			SD_POWER_MASK, SD_PARTIAL_POWER_ON);
+
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PWR_GATE_CTRL,
 			LDO3318_PWR_MASK, 0x02);
+
 	err = rtsx_pci_send_cmd(pcr, 100);
 	if (err < 0)
 		return err;
 
 	/* To avoid too large in-rush current */
-	udelay(150);
-
+	msleep(20);
 	rtsx_pci_init_cmd(pcr);
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_PWR_CTL,
 			SD_POWER_MASK, SD_POWER_ON);
+
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PWR_GATE_CTRL,
 			LDO3318_PWR_MASK, 0x06);
+
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_OE,
+			SD_OUTPUT_EN, SD_OUTPUT_EN);
+	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_OE,
+			MS_OUTPUT_EN, MS_OUTPUT_EN);
 	return rtsx_pci_send_cmd(pcr, 100);
 }
 
 static int rts5227_card_power_off(struct rtsx_pcr *pcr, int card)
 {
-	rtsx_pci_init_cmd(pcr);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CARD_PWR_CTL,
-			SD_POWER_MASK | PMOS_STRG_MASK,
-			SD_POWER_OFF | PMOS_STRG_400mA);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, PWR_GATE_CTRL,
-			LDO3318_PWR_MASK, 0X00);
-	return rtsx_pci_send_cmd(pcr, 100);
+	if (pcr->option.ocp_en)
+		rtsx_pci_disable_ocp(pcr);
+
+	rtsx_pci_write_register(pcr, CARD_PWR_CTL, SD_POWER_MASK |
+			PMOS_STRG_MASK, SD_POWER_OFF | PMOS_STRG_400mA);
+	rtsx_pci_write_register(pcr, PWR_GATE_CTRL, LDO3318_PWR_MASK, 0X00);
+
+	return 0;
 }
 
 static int rts5227_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
@@ -348,6 +347,32 @@ static int rts522a_extra_init_hw(struct rtsx_pcr *pcr)
 	return 0;
 }
 
+static int rts522a_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
+{
+	int err;
+
+	if (voltage == OUTPUT_3V3) {
+		err = rtsx_pci_write_phy_register(pcr, 0x08, 0x57E4);
+		if (err < 0)
+			return err;
+	} else if (voltage == OUTPUT_1V8) {
+		err = rtsx_pci_write_phy_register(pcr, 0x11, 0x3C02);
+		if (err < 0)
+			return err;
+		err = rtsx_pci_write_phy_register(pcr, 0x08, 0x54A4);
+		if (err < 0)
+			return err;
+	} else {
+		return -EINVAL;
+	}
+
+	/* set pad drive */
+	rtsx_pci_init_cmd(pcr);
+	rts5227_fill_driving(pcr, voltage);
+	return rtsx_pci_send_cmd(pcr, 100);
+}
+
+
 /* rts522a operations mainly derived from rts5227, except phy/hw init setting.
  */
 static const struct pcr_ops rts522a_pcr_ops = {
@@ -360,7 +385,7 @@ static const struct pcr_ops rts522a_pcr_ops = {
 	.disable_auto_blink = rts5227_disable_auto_blink,
 	.card_power_on = rts5227_card_power_on,
 	.card_power_off = rts5227_card_power_off,
-	.switch_output_voltage = rts5227_switch_output_voltage,
+	.switch_output_voltage = rts522a_switch_output_voltage,
 	.cd_deglitch = NULL,
 	.conv_clk_and_div_n = NULL,
 	.force_power_down = rts5227_force_power_down,
@@ -371,4 +396,11 @@ void rts522a_init_params(struct rtsx_pcr *pcr)
 	rts5227_init_params(pcr);
 
 	pcr->reg_pm_ctrl3 = RTS522A_PM_CTRL3;
+
+	pcr->option.ocp_en = 1;
+	if (pcr->option.ocp_en)
+		pcr->hw_param.interrupt_en |= SD_OC_INT_EN;
+	pcr->hw_param.ocp_glitch = SD_OCP_GLITCH_10M;
+	pcr->option.sd_800mA_ocp_thd = RTS522A_OCP_THD_800;
+
 }

@@ -21,6 +21,7 @@ static inline void pm_runtime_early_init(struct device *dev)
 extern void pm_runtime_init(struct device *dev);
 extern void pm_runtime_reinit(struct device *dev);
 extern void pm_runtime_remove(struct device *dev);
+extern u64 pm_runtime_active_time(struct device *dev);
 
 #define WAKE_IRQ_DEDICATED_ALLOCATED	BIT(0)
 #define WAKE_IRQ_DEDICATED_MANAGED	BIT(1)
@@ -56,14 +57,6 @@ static inline void device_wakeup_detach_irq(struct device *dev)
 {
 }
 
-static inline void device_wakeup_arm_wake_irqs(void)
-{
-}
-
-static inline void device_wakeup_disarm_wake_irqs(void)
-{
-}
-
 #endif /* CONFIG_PM_SLEEP */
 
 /*
@@ -95,28 +88,6 @@ static inline void pm_runtime_remove(struct device *dev) {}
 
 static inline int dpm_sysfs_add(struct device *dev) { return 0; }
 static inline void dpm_sysfs_remove(struct device *dev) {}
-static inline void rpm_sysfs_remove(struct device *dev) {}
-static inline int wakeup_sysfs_add(struct device *dev) { return 0; }
-static inline void wakeup_sysfs_remove(struct device *dev) {}
-static inline int pm_qos_sysfs_add(struct device *dev) { return 0; }
-static inline void pm_qos_sysfs_remove(struct device *dev) {}
-
-static inline void dev_pm_arm_wake_irq(struct wake_irq *wirq)
-{
-}
-
-static inline void dev_pm_disarm_wake_irq(struct wake_irq *wirq)
-{
-}
-
-static inline void dev_pm_enable_wake_irq_check(struct device *dev,
-						bool can_change_status)
-{
-}
-
-static inline void dev_pm_disable_wake_irq_check(struct device *dev)
-{
-}
 
 #endif
 

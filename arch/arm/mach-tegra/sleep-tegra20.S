@@ -1,21 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2010-2012, NVIDIA Corporation. All rights reserved.
  * Copyright (c) 2011, Google, Inc.
  *
  * Author: Colin Cross <ccross@android.com>
  *         Gary King <gking@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/linkage.h>
@@ -28,11 +17,11 @@
 #include <asm/cache.h>
 
 #include "irammap.h"
+#include "reset.h"
 #include "sleep.h"
 
 #define EMC_CFG				0xc
 #define EMC_ADR_CFG			0x10
-#define EMC_REFRESH			0x70
 #define EMC_NOP				0xdc
 #define EMC_SELF_REF			0xe0
 #define EMC_REQ_CTRL			0x2b0
@@ -53,6 +42,9 @@
 #define APB_MISC_XM2VTTGENPADCTRL	0x8d8
 #define APB_MISC_XM2CFGCPADCTRL2	0x8e4
 #define APB_MISC_XM2CFGDPADCTRL2	0x8e8
+
+#define __tegra20_cpu1_resettable_status_offset \
+	(__tegra_cpu_reset_handler_data_offset + RESET_DATA(RESETTABLE_STATUS))
 
 .macro pll_enable, rd, r_car_base, pll_base
 	ldr	\rd, [\r_car_base, #\pll_base]
@@ -397,7 +389,6 @@ padload_done:
 	mov	r1, #1
 	str	r1, [r0, #EMC_NOP]
 	str	r1, [r0, #EMC_NOP]
-	str	r1, [r0, #EMC_REFRESH]
 
 	emc_device_mask r1, r0
 

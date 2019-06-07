@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Feature Integration Technology Inc. (aka Fintek) LPC CIR
  *
@@ -6,16 +7,6 @@
  * Special thanks to Fintek for providing hardware and spec sheets.
  * This driver is based upon the nuvoton, ite and ene drivers for
  * similar hardware.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -282,7 +273,7 @@ static int fintek_cmdsize(u8 cmd, u8 subcmd)
 /* process ir data stored in driver buffer */
 static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 {
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 	u8 sample;
 	bool event = false;
 	int i;
@@ -314,7 +305,6 @@ static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 			break;
 		case PARSE_IRDATA:
 			fintek->rem--;
-			init_ir_raw_event(&rawir);
 			rawir.pulse = ((sample & BUF_PULSE_BIT) != 0);
 			rawir.duration = US_TO_NS((sample & BUF_SAMPLE_MASK)
 					  * CIR_SAMPLE_PERIOD);

@@ -1,16 +1,10 @@
-/*
- * RTC driver for Maxim MAX77686 and MAX77802
- *
- * Copyright (C) 2012 Samsung Electronics Co.Ltd
- *
- *  based on rtc-max8997.c
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// RTC driver for Maxim MAX77686 and MAX77802
+//
+// Copyright (C) 2012 Samsung Electronics Co.Ltd
+//
+//  based on rtc-max8997.c
 
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -366,7 +360,7 @@ static int max77686_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 out:
 	mutex_unlock(&info->lock);
-	return 0;
+	return ret;
 }
 
 static int max77686_rtc_set_time(struct device *dev, struct rtc_time *tm)

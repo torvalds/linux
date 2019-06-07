@@ -1253,7 +1253,7 @@ tda1997x_parse_infoframe(struct tda1997x_state *state, u16 addr)
 
 	/* read data */
 	len = io_readn(sd, addr, sizeof(buffer), buffer);
-	err = hdmi_infoframe_unpack(&frame, buffer);
+	err = hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer));
 	if (err) {
 		v4l_err(state->client,
 			"failed parsing %d byte infoframe: 0x%04x/0x%02x\n",
@@ -1884,6 +1884,10 @@ static int tda1997x_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 	for (i = 0; i < 128; i++)
 		io_write(sd, REG_EDID_IN_BYTE128 + i, edid->edid[i+128]);
 
+	/* store state */
+	memcpy(state->edid.edid, edid->edid, 256);
+	state->edid.blocks = edid->blocks;
+
 	tda1997x_enable_edid(sd);
 
 	return 0;
@@ -1928,7 +1932,7 @@ static int tda1997x_log_infoframe(struct v4l2_subdev *sd, int addr)
 	/* read data */
 	len = io_readn(sd, addr, sizeof(buffer), buffer);
 	v4l2_dbg(1, debug, sd, "infoframe: addr=%d len=%d\n", addr, len);
-	err = hdmi_infoframe_unpack(&frame, buffer);
+	err = hdmi_infoframe_unpack(&frame, buffer, sizeof(buffer));
 	if (err) {
 		v4l_err(state->client,
 			"failed parsing %d byte infoframe: 0x%04x/0x%02x\n",
@@ -2265,7 +2269,7 @@ MODULE_DEVICE_TABLE(of, tda1997x_of_id);
 static int tda1997x_parse_dt(struct tda1997x_state *state)
 {
 	struct tda1997x_platform_data *pdata = &state->pdata;
-	struct v4l2_fwnode_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 	struct device_node *ep;
 	struct device_node *np;
 	unsigned int flags;
@@ -2444,7 +2448,7 @@ static int tda1997x_pcm_startup(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct tda1997x_state *state = snd_soc_dai_get_drvdata(dai);
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	struct snd_pcm_runtime *rtd = substream->runtime;
 	int rate, err;
 
@@ -2452,11 +2456,11 @@ static int tda1997x_pcm_startup(struct snd_pcm_substream *substream,
 	err = snd_pcm_hw_constraint_minmax(rtd, SNDRV_PCM_HW_PARAM_RATE,
 					   rate, rate);
 	if (err < 0) {
-		dev_err(codec->dev, "failed to constrain samplerate to %dHz\n",
+		dev_err(component->dev, "failed to constrain samplerate to %dHz\n",
 			rate);
 		return err;
 	}
-	dev_info(codec->dev, "set samplerate constraint to %dHz\n", rate);
+	dev_info(component->dev, "set samplerate constraint to %dHz\n", rate);
 
 	return 0;
 }
@@ -2479,20 +2483,22 @@ static struct snd_soc_dai_driver tda1997x_audio_dai = {
 	.ops = &tda1997x_dai_ops,
 };
 
-static int tda1997x_codec_probe(struct snd_soc_codec *codec)
+static int tda1997x_codec_probe(struct snd_soc_component *component)
 {
 	return 0;
 }
 
-static int tda1997x_codec_remove(struct snd_soc_codec *codec)
+static void tda1997x_codec_remove(struct snd_soc_component *component)
 {
-	return 0;
 }
 
-static struct snd_soc_codec_driver tda1997x_codec_driver = {
-	.probe = tda1997x_codec_probe,
-	.remove = tda1997x_codec_remove,
-	.reg_word_size = sizeof(u16),
+static struct snd_soc_component_driver tda1997x_codec_driver = {
+	.probe			= tda1997x_codec_probe,
+	.remove			= tda1997x_codec_remove,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int tda1997x_probe(struct i2c_client *client,
@@ -2567,8 +2573,8 @@ static int tda1997x_probe(struct i2c_client *client,
 	snprintf(sd->name, sizeof(sd->name), "%s %d-%04x",
 		 id->name, i2c_adapter_id(client->adapter),
 		 client->addr);
-	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
-	sd->entity.function = MEDIA_ENT_F_DTV_DECODER;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	sd->entity.function = MEDIA_ENT_F_DV_DECODER;
 	sd->entity.ops = &tda1997x_media_ops;
 
 	/* set allowed mbus modes based on chip, bus-type, and bus-width */
@@ -2721,7 +2727,7 @@ static int tda1997x_probe(struct i2c_client *client,
 		state->pads);
 	if (ret) {
 		v4l_err(client, "failed entity_init: %d", ret);
-		goto err_free_mutex;
+		goto err_free_handler;
 	}
 
 	ret = v4l2_async_register_subdev(sd);
@@ -2737,7 +2743,7 @@ static int tda1997x_probe(struct i2c_client *client,
 		else
 			formats = SNDRV_PCM_FMTBIT_S16_LE;
 		tda1997x_audio_dai.capture.formats = formats;
-		ret = snd_soc_register_codec(&state->client->dev,
+		ret = devm_snd_soc_register_component(&state->client->dev,
 					     &tda1997x_codec_driver,
 					     &tda1997x_audio_dai, 1);
 		if (ret) {
@@ -2782,7 +2788,6 @@ static int tda1997x_remove(struct i2c_client *client)
 	struct tda1997x_platform_data *pdata = &state->pdata;
 
 	if (pdata->audout_format) {
-		snd_soc_unregister_codec(&client->dev);
 		mutex_destroy(&state->audio_lock);
 	}
 

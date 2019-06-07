@@ -247,7 +247,7 @@ static void pids_cancel_fork(struct task_struct *task)
 	pids_uncharge(pids, 1);
 }
 
-static void pids_free(struct task_struct *task)
+static void pids_release(struct task_struct *task)
 {
 	struct pids_cgroup *pids = css_pids(task_css(task, pids_cgrp_id));
 
@@ -342,7 +342,7 @@ struct cgroup_subsys pids_cgrp_subsys = {
 	.cancel_attach 	= pids_cancel_attach,
 	.can_fork	= pids_can_fork,
 	.cancel_fork	= pids_cancel_fork,
-	.free		= pids_free,
+	.release	= pids_release,
 	.legacy_cftypes	= pids_files,
 	.dfl_cftypes	= pids_files,
 	.threaded	= true,

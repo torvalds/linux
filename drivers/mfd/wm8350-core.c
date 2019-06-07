@@ -1,19 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * wm8350-core.c  --  Device access for Wolfson WM8350
  *
  * Copyright 2007, 2008 Wolfson Microelectronics PLC.
  *
  * Author: Liam Girdwood, Mark Brown
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/bug.h>
 #include <linux/device.h>
@@ -442,30 +438,3 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm8350_device_init);
-
-void wm8350_device_exit(struct wm8350 *wm8350)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8350->pmic.led); i++)
-		platform_device_unregister(wm8350->pmic.led[i].pdev);
-
-	for (i = 0; i < ARRAY_SIZE(wm8350->pmic.pdev); i++)
-		platform_device_unregister(wm8350->pmic.pdev[i]);
-
-	platform_device_unregister(wm8350->wdt.pdev);
-	platform_device_unregister(wm8350->rtc.pdev);
-	platform_device_unregister(wm8350->power.pdev);
-	platform_device_unregister(wm8350->hwmon.pdev);
-	platform_device_unregister(wm8350->gpio.pdev);
-	platform_device_unregister(wm8350->codec.pdev);
-
-	if (wm8350->irq_base)
-		free_irq(wm8350->irq_base + WM8350_IRQ_AUXADC_DATARDY, wm8350);
-
-	wm8350_irq_exit(wm8350);
-}
-EXPORT_SYMBOL_GPL(wm8350_device_exit);
-
-MODULE_DESCRIPTION("WM8350 AudioPlus PMIC core driver");
-MODULE_LICENSE("GPL");

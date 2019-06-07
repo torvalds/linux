@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* client.c: NFS client sharing and management code
  *
  * Copyright (C) 2006 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 
@@ -151,7 +147,6 @@ EXPORT_SYMBOL_GPL(unregister_nfs_version);
 struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 {
 	struct nfs_client *clp;
-	struct rpc_cred *cred;
 	int err = -ENOMEM;
 
 	if ((clp = kzalloc(sizeof(*clp), GFP_KERNEL)) == NULL)
@@ -182,9 +177,7 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 	clp->cl_proto = cl_init->proto;
 	clp->cl_net = get_net(cl_init->net);
 
-	cred = rpc_lookup_machine_cred("*");
-	if (!IS_ERR(cred))
-		clp->cl_machine_cred = cred;
+	clp->cl_principal = "*";
 	nfs_fscache_get_client_cookie(clp);
 
 	return clp;
@@ -246,9 +239,6 @@ void nfs_free_client(struct nfs_client *clp)
 	if (!IS_ERR(clp->cl_rpcclient))
 		rpc_shutdown_client(clp->cl_rpcclient);
 
-	if (clp->cl_machine_cred != NULL)
-		put_rpccred(clp->cl_machine_cred);
-
 	put_net(clp->cl_net);
 	put_nfs_version(clp->cl_nfs_mod);
 	kfree(clp->cl_hostname);
@@ -290,6 +280,7 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 	struct nfs_client *clp;
 	const struct sockaddr *sap = data->addr;
 	struct nfs_net *nn = net_generic(data->net, nfs_net_id);
+	int error;
 
 again:
 	list_for_each_entry(clp, &nn->nfs_client_list, cl_share_link) {
@@ -302,9 +293,11 @@ again:
 		if (clp->cl_cons_state > NFS_CS_READY) {
 			refcount_inc(&clp->cl_count);
 			spin_unlock(&nn->nfs_client_lock);
-			nfs_wait_client_init_complete(clp);
+			error = nfs_wait_client_init_complete(clp);
 			nfs_put_client(clp);
 			spin_lock(&nn->nfs_client_lock);
+			if (error < 0)
+				return ERR_PTR(error);
 			goto again;
 		}
 
@@ -413,6 +406,8 @@ struct nfs_client *nfs_get_client(const struct nfs_client_initdata *cl_init)
 		clp = nfs_match_client(cl_init);
 		if (clp) {
 			spin_unlock(&nn->nfs_client_lock);
+			if (IS_ERR(clp))
+				return clp;
 			if (new)
 				new->rpc_ops->free_client(new);
 			return nfs_found_client(cl_init, clp);
@@ -459,7 +454,7 @@ void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 	case XPRT_TRANSPORT_RDMA:
 		if (retrans == NFS_UNSPEC_RETRANS)
 			to->to_retries = NFS_DEF_TCP_RETRANS;
-		if (timeo == NFS_UNSPEC_TIMEO || to->to_retries == 0)
+		if (timeo == NFS_UNSPEC_TIMEO || to->to_initval == 0)
 			to->to_initval = NFS_DEF_TCP_TIMEO * HZ / 10;
 		if (to->to_initval > NFS_MAX_TCP_TIMEOUT)
 			to->to_initval = NFS_MAX_TCP_TIMEOUT;
@@ -506,6 +501,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		.program	= &nfs_program,
 		.version	= clp->rpc_ops->version,
 		.authflavor	= flavor,
+		.cred		= cl_init->cred,
 	};
 
 	if (test_bit(NFS_CS_DISCRTRY, &clp->cl_flags))
@@ -527,6 +523,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 		return PTR_ERR(clnt);
 	}
 
+	clnt->cl_principal = clp->cl_principal;
 	clp->cl_rpcclient = clnt;
 	return 0;
 }
@@ -557,6 +554,7 @@ static int nfs_start_lockd(struct nfs_server *server)
 					1 : 0,
 		.net		= clp->cl_net,
 		.nlmclnt_ops 	= clp->cl_nfs_mod->rpc_ops->nlmclnt_ops,
+		.cred		= current_cred(),
 	};
 
 	if (nlm_init.nfs_version > 3)
@@ -603,6 +601,8 @@ int nfs_init_server_rpcclient(struct nfs_server *server,
 			sizeof(server->client->cl_timeout_default));
 	server->client->cl_timeout = &server->client->cl_timeout_default;
 	server->client->cl_softrtry = 0;
+	if (server->flags & NFS_MOUNT_SOFTERR)
+		server->client->cl_softerr = 1;
 	if (server->flags & NFS_MOUNT_SOFT)
 		server->client->cl_softrtry = 1;
 
@@ -657,6 +657,7 @@ static int nfs_init_server(struct nfs_server *server,
 		.proto = data->nfs_server.protocol,
 		.net = data->net,
 		.timeparms = &timeparms,
+		.cred = server->cred,
 	};
 	struct nfs_client *clp;
 	int error;
@@ -886,6 +887,7 @@ struct nfs_server *nfs_alloc_server(void)
 	INIT_LIST_HEAD(&server->delegations);
 	INIT_LIST_HEAD(&server->layouts);
 	INIT_LIST_HEAD(&server->state_owners_lru);
+	INIT_LIST_HEAD(&server->ss_copies);
 
 	atomic_set(&server->active, 0);
 
@@ -924,6 +926,7 @@ void nfs_free_server(struct nfs_server *server)
 	ida_destroy(&server->lockowner_id);
 	ida_destroy(&server->openowner_id);
 	nfs_free_iostats(server->io_stats);
+	put_cred(server->cred);
 	kfree(server);
 	nfs_release_automount_timer();
 }
@@ -943,6 +946,8 @@ struct nfs_server *nfs_create_server(struct nfs_mount_info *mount_info,
 	server = nfs_alloc_server();
 	if (!server)
 		return ERR_PTR(-ENOMEM);
+
+	server->cred = get_cred(current_cred());
 
 	error = -ENOMEM;
 	fattr = nfs_alloc_fattr();
@@ -969,7 +974,8 @@ struct nfs_server *nfs_create_server(struct nfs_mount_info *mount_info,
 	}
 
 	if (!(fattr->valid & NFS_ATTR_FATTR)) {
-		error = nfs_mod->rpc_ops->getattr(server, mount_info->mntfh, fattr, NULL);
+		error = nfs_mod->rpc_ops->getattr(server, mount_info->mntfh,
+				fattr, NULL, NULL);
 		if (error < 0) {
 			dprintk("nfs_create_server: getattr error = %d\n", -error);
 			goto error;
@@ -1008,6 +1014,8 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 	server = nfs_alloc_server();
 	if (!server)
 		return ERR_PTR(-ENOMEM);
+
+	server->cred = get_cred(source->cred);
 
 	error = -ENOMEM;
 	fattr_fsinfo = nfs_alloc_fattr();
@@ -1067,7 +1075,6 @@ void nfs_clients_init(struct net *net)
 }
 
 #ifdef CONFIG_PROC_FS
-static int nfs_server_list_open(struct inode *inode, struct file *file);
 static void *nfs_server_list_start(struct seq_file *p, loff_t *pos);
 static void *nfs_server_list_next(struct seq_file *p, void *v, loff_t *pos);
 static void nfs_server_list_stop(struct seq_file *p, void *v);
@@ -1080,14 +1087,6 @@ static const struct seq_operations nfs_server_list_ops = {
 	.show	= nfs_server_list_show,
 };
 
-static const struct file_operations nfs_server_list_fops = {
-	.open		= nfs_server_list_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
-static int nfs_volume_list_open(struct inode *inode, struct file *file);
 static void *nfs_volume_list_start(struct seq_file *p, loff_t *pos);
 static void *nfs_volume_list_next(struct seq_file *p, void *v, loff_t *pos);
 static void nfs_volume_list_stop(struct seq_file *p, void *v);
@@ -1099,23 +1098,6 @@ static const struct seq_operations nfs_volume_list_ops = {
 	.stop	= nfs_volume_list_stop,
 	.show	= nfs_volume_list_show,
 };
-
-static const struct file_operations nfs_volume_list_fops = {
-	.open		= nfs_volume_list_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
-/*
- * open "/proc/fs/nfsfs/servers" which provides a summary of servers with which
- * we're dealing
- */
-static int nfs_server_list_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &nfs_server_list_ops,
-			   sizeof(struct seq_net_private));
-}
 
 /*
  * set up the iterator to start reading from the server list and return the first item
@@ -1182,15 +1164,6 @@ static int nfs_server_list_show(struct seq_file *m, void *v)
 	rcu_read_unlock();
 
 	return 0;
-}
-
-/*
- * open "/proc/fs/nfsfs/volumes" which provides a summary of extant volumes
- */
-static int nfs_volume_list_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &nfs_volume_list_ops,
-			   sizeof(struct seq_net_private));
 }
 
 /*
@@ -1278,14 +1251,14 @@ int nfs_fs_proc_net_init(struct net *net)
 		goto error_0;
 
 	/* a file of servers with which we're dealing */
-	p = proc_create("servers", S_IFREG|S_IRUGO,
-			nn->proc_nfsfs, &nfs_server_list_fops);
+	p = proc_create_net("servers", S_IFREG|S_IRUGO, nn->proc_nfsfs,
+			&nfs_server_list_ops, sizeof(struct seq_net_private));
 	if (!p)
 		goto error_1;
 
 	/* a file of volumes that we have mounted */
-	p = proc_create("volumes", S_IFREG|S_IRUGO,
-			nn->proc_nfsfs, &nfs_volume_list_fops);
+	p = proc_create_net("volumes", S_IFREG|S_IRUGO, nn->proc_nfsfs,
+			&nfs_volume_list_ops, sizeof(struct seq_net_private));
 	if (!p)
 		goto error_1;
 	return 0;

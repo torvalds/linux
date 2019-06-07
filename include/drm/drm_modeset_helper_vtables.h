@@ -49,6 +49,8 @@
  */
 
 enum mode_set_atomic;
+struct drm_writeback_connector;
+struct drm_writeback_job;
 
 /**
  * struct drm_crtc_helper_funcs - helper operations for CRTCs
@@ -418,6 +420,8 @@ struct drm_crtc_helper_funcs {
 	 * Drivers can use the @old_crtc_state input parameter if the operations
 	 * needed to enable the CRTC don't depend solely on the new state but
 	 * also on the transition between the old state and the new state.
+	 *
+	 * This function is optional.
 	 */
 	void (*atomic_enable)(struct drm_crtc *crtc,
 			      struct drm_crtc_state *old_crtc_state);
@@ -441,6 +445,8 @@ struct drm_crtc_helper_funcs {
 	 * parameter @old_crtc_state which could be used to access the old
 	 * state. Atomic drivers should consider to use this one instead
 	 * of @disable.
+	 *
+	 * This function is optional.
 	 */
 	void (*atomic_disable)(struct drm_crtc *crtc,
 			       struct drm_crtc_state *old_crtc_state);
@@ -785,7 +791,7 @@ struct drm_connector_helper_funcs {
 	 *
 	 * This function should fill in all modes currently valid for the sink
 	 * into the &drm_connector.probed_modes list. It should also update the
-	 * EDID property by calling drm_mode_connector_update_edid_property().
+	 * EDID property by calling drm_connector_update_edid_property().
 	 *
 	 * The usual way to implement this is to cache the EDID retrieved in the
 	 * probe callback somewhere in the driver-private connector structure.
@@ -974,6 +980,26 @@ struct drm_connector_helper_funcs {
 	 */
 	int (*atomic_check)(struct drm_connector *connector,
 			    struct drm_connector_state *state);
+
+	/**
+	 * @atomic_commit:
+	 *
+	 * This hook is to be used by drivers implementing writeback connectors
+	 * that need a point when to commit the writeback job to the hardware.
+	 * The writeback_job to commit is available in
+	 * &drm_connector_state.writeback_job.
+	 *
+	 * This hook is optional.
+	 *
+	 * This callback is used by the atomic modeset helpers.
+	 */
+	void (*atomic_commit)(struct drm_connector *connector,
+			      struct drm_connector_state *state);
+
+	int (*prepare_writeback_job)(struct drm_writeback_connector *connector,
+				     struct drm_writeback_job *job);
+	void (*cleanup_writeback_job)(struct drm_writeback_connector *connector,
+				      struct drm_writeback_job *job);
 };
 
 /**
@@ -998,16 +1024,19 @@ struct drm_plane_helper_funcs {
 	 * @prepare_fb:
 	 *
 	 * This hook is to prepare a framebuffer for scanout by e.g. pinning
-	 * it's backing storage or relocating it into a contiguous block of
+	 * its backing storage or relocating it into a contiguous block of
 	 * VRAM. Other possible preparatory work includes flushing caches.
 	 *
 	 * This function must not block for outstanding rendering, since it is
 	 * called in the context of the atomic IOCTL even for async commits to
 	 * be able to return any errors to userspace. Instead the recommended
-	 * way is to fill out the fence member of the passed-in
+	 * way is to fill out the &drm_plane_state.fence of the passed-in
 	 * &drm_plane_state. If the driver doesn't support native fences then
 	 * equivalent functionality should be implemented through private
 	 * members in the plane structure.
+	 *
+	 * Drivers which always have their buffers pinned should use
+	 * drm_gem_fb_prepare_fb() for this hook.
 	 *
 	 * The helpers will call @cleanup_fb with matching arguments for every
 	 * successful call to this hook.

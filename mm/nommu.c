@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/mm/nommu.c
  *
@@ -364,10 +365,6 @@ void *vzalloc_node(unsigned long size, int node)
 }
 EXPORT_SYMBOL(vzalloc_node);
 
-#ifndef PAGE_KERNEL_EXEC
-# define PAGE_KERNEL_EXEC PAGE_KERNEL
-#endif
-
 /**
  *	vmalloc_exec  -  allocate virtually contiguous, executable memory
  *	@size:		allocation size
@@ -476,6 +473,20 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
 	return -EINVAL;
 }
 EXPORT_SYMBOL(vm_insert_page);
+
+int vm_map_pages(struct vm_area_struct *vma, struct page **pages,
+			unsigned long num)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL(vm_map_pages);
+
+int vm_map_pages_zero(struct vm_area_struct *vma, struct page **pages,
+				unsigned long num)
+{
+	return -EINVAL;
+}
+EXPORT_SYMBOL(vm_map_pages_zero);
 
 /*
  *  sys_brk() for the most part doesn't need the global kernel
@@ -769,7 +780,7 @@ static void delete_vma(struct mm_struct *mm, struct vm_area_struct *vma)
 	if (vma->vm_file)
 		fput(vma->vm_file);
 	put_nommu_region(vma->vm_region);
-	kmem_cache_free(vm_area_cachep, vma);
+	vm_area_free(vma);
 }
 
 /*
@@ -1145,6 +1156,8 @@ static int do_mmap_private(struct vm_area_struct *vma,
 		if (ret < len)
 			memset(base + ret, 0, len - ret);
 
+	} else {
+		vma_set_anonymous(vma);
 	}
 
 	return 0;
@@ -1204,7 +1217,7 @@ unsigned long do_mmap(struct file *file,
 	if (!region)
 		goto error_getting_region;
 
-	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+	vma = vm_area_alloc(current->mm);
 	if (!vma)
 		goto error_getting_vma;
 
@@ -1212,7 +1225,6 @@ unsigned long do_mmap(struct file *file,
 	region->vm_flags = vm_flags;
 	region->vm_pgoff = pgoff;
 
-	INIT_LIST_HEAD(&vma->anon_vma_chain);
 	vma->vm_flags = vm_flags;
 	vma->vm_pgoff = pgoff;
 
@@ -1368,7 +1380,7 @@ error:
 	kmem_cache_free(vm_region_jar, region);
 	if (vma->vm_file)
 		fput(vma->vm_file);
-	kmem_cache_free(vm_area_cachep, vma);
+	vm_area_free(vma);
 	return ret;
 
 sharing_violation:
@@ -1469,14 +1481,13 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!region)
 		return -ENOMEM;
 
-	new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+	new = vm_area_dup(vma);
 	if (!new) {
 		kmem_cache_free(vm_region_jar, region);
 		return -ENOMEM;
 	}
 
 	/* most fields are the same, copy all, and then fixup */
-	*new = *vma;
 	*region = *vma->vm_region;
 	new->vm_region = region;
 
@@ -1713,11 +1724,9 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	return ret;
 }
 
-struct page *follow_page_mask(struct vm_area_struct *vma,
-			      unsigned long address, unsigned int flags,
-			      unsigned int *page_mask)
+struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+			 unsigned int foll_flags)
 {
-	*page_mask = 0;
 	return NULL;
 }
 
@@ -1763,7 +1772,7 @@ unsigned long arch_get_unmapped_area(struct file *file, unsigned long addr,
 	return -ENOMEM;
 }
 
-int filemap_fault(struct vm_fault *vmf)
+vm_fault_t filemap_fault(struct vm_fault *vmf)
 {
 	BUG();
 	return 0;

@@ -3,7 +3,7 @@
  *
  * Module Name: nsinit - namespace initialization
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -478,7 +478,7 @@ acpi_ns_find_ini_methods(acpi_handle obj_handle,
 
 	/* We are only looking for methods named _INI */
 
-	if (!ACPI_COMPARE_NAME(node->name.ascii, METHOD_NAME__INI)) {
+	if (!ACPI_COMPARE_NAMESEG(node->name.ascii, METHOD_NAME__INI)) {
 		return (AE_OK);
 	}
 
@@ -641,7 +641,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	 * Note: We know there is an _INI within this subtree, but it may not be
 	 * under this particular device, it may be lower in the branch.
 	 */
-	if (!ACPI_COMPARE_NAME(device_node->name.ascii, "_SB_") ||
+	if (!ACPI_COMPARE_NAMESEG(device_node->name.ascii, "_SB_") ||
 	    device_node->parent != acpi_gbl_root_node) {
 		ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
 				(ACPI_TYPE_METHOD, device_node,

@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __RTW_MLME_EXT_H_
@@ -88,15 +80,8 @@
 #define		_48M_RATE_	10
 #define		_54M_RATE_	11
 
-
-extern unsigned char RTW_WPA_OUI[];
-extern unsigned char WMM_OUI[];
-extern unsigned char WPS_OUI[];
-extern unsigned char WFD_OUI[];
-extern unsigned char P2P_OUI[];
-
-extern unsigned char WMM_INFO_OUI[];
-extern unsigned char WMM_PARA_OUI[];
+extern const u8 RTW_WPA_OUI[];
+extern const u8 WPS_OUI[];
 
 /*  Channel Plan Type. */
 /*  Note: */
@@ -239,22 +224,22 @@ enum SCAN_STATE {
 };
 
 struct mlme_handler {
-	unsigned int   num;
-	char *str;
+	unsigned int num;
+	const char *str;
 	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
 };
 
 struct action_handler {
-	unsigned int   num;
-	char *str;
+	unsigned int num;
+	const char *str;
 	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
 };
 
-struct	ss_res {
-	int	state;
-	int	bss_cnt;
-	int	channel_idx;
-	int	scan_mode;
+struct ss_res {
+	int state;
+	int bss_cnt;
+	int channel_idx;
+	int scan_mode;
 	u8 ssid_num;
 	u8 ch_num;
 	struct ndis_802_11_ssid ssid[RTW_SSID_SCAN_AMOUNT];
@@ -478,9 +463,7 @@ void Set_MSR(struct adapter *padapter, u8 type);
 
 u8 rtw_get_oper_ch(struct adapter *adapter);
 void rtw_set_oper_ch(struct adapter *adapter, u8 ch);
-u8 rtw_get_oper_bw(struct adapter *adapter);
 void rtw_set_oper_bw(struct adapter *adapter, u8 bw);
-u8 rtw_get_oper_choffset(struct adapter *adapter);
 void rtw_set_oper_choffset(struct adapter *adapter, u8 offset);
 
 void set_channel_bwmode(struct adapter *padapter, unsigned char channel,
@@ -495,7 +478,6 @@ void write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key);
 void clear_cam_entry(struct adapter *padapter, u8 entry);
 
 void invalidate_cam_all(struct adapter *padapter);
-void CAM_empty_entry(struct adapter *Adapter, u8 ucIndex);
 
 int allocate_fw_sta_entry(struct adapter *padapter);
 void flush_all_cam_entry(struct adapter *padapter);
@@ -545,7 +527,6 @@ unsigned char get_highest_rate_idx(u32 mask);
 int support_short_GI(struct adapter *padapter, struct ieee80211_ht_cap *caps);
 unsigned int is_ap_in_tkip(struct adapter *padapter);
 unsigned int is_ap_in_wep(struct adapter *padapter);
-unsigned int should_forbid_n_rate(struct adapter *padapter);
 
 void report_join_res(struct adapter *padapter, int res);
 void report_survey_event(struct adapter *padapter,
@@ -592,8 +573,8 @@ void addba_timer_hdl(struct timer_list *t);
 	mod_timer(&mlmeext->link_timer, jiffies +	\
 		  msecs_to_jiffies(ms))
 
-int cckrates_included(unsigned char *rate, int ratelen);
-int cckratesonly_included(unsigned char *rate, int ratelen);
+bool cckrates_included(unsigned char *rate, int ratelen);
+bool cckratesonly_included(unsigned char *rate, int ratelen);
 
 void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr);
 

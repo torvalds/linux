@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* binfmt_elf_fdpic.c: FDPIC ELF binary format
  *
  * Copyright (C) 2003, 2004, 2006 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  * Derived from binfmt_elf.c
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -1600,7 +1596,8 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	psinfo = kmalloc(sizeof(*psinfo), GFP_KERNEL);
 	if (!psinfo)
 		goto cleanup;
-	notes = kmalloc(NUM_NOTES * sizeof(struct memelfnote), GFP_KERNEL);
+	notes = kmalloc_array(NUM_NOTES, sizeof(struct memelfnote),
+			      GFP_KERNEL);
 	if (!notes)
 		goto cleanup;
 	fpu = kmalloc(sizeof(*fpu), GFP_KERNEL);

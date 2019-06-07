@@ -1,0 +1,24 @@
+Innolux P097PFG 9.7" 1536x2048 TFT LCD panel
+
+Required properties:
+- compatible: should be "innolux,p097pfg"
+- reg: DSI virtual channel of the peripheral
+- avdd-supply: phandle of the regulator that provides positive voltage
+- avee-supply: phandle of the regulator that provides negative voltage
+- enable-gpios: panel enable gpio
+
+Optional properties:
+- backlight: phandle of the backlight device attached to the panel
+
+Example:
+
+	&mipi_dsi {
+		panel@0 {
+			compatible = "innolux,p079zca";
+			reg = <0>;
+			avdd-supply = <...>;
+			avee-supply = <...>;
+			backlight = <&backlight>;
+			enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		};
+	};

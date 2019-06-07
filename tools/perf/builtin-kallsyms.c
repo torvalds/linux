@@ -13,6 +13,7 @@
 #include <subcmd/parse-options.h>
 #include "debug.h"
 #include "machine.h"
+#include "map.h"
 #include "symbol.h"
 
 static int __cmd_kallsyms(int argc, const char **argv)
@@ -27,7 +28,7 @@ static int __cmd_kallsyms(int argc, const char **argv)
 
 	for (i = 0; i < argc; ++i) {
 		struct map *map;
-		struct symbol *symbol = machine__find_kernel_function_by_name(machine, argv[i], &map);
+		struct symbol *symbol = machine__find_kernel_symbol_by_name(machine, argv[i], &map);
 
 		if (symbol == NULL) {
 			printf("%s: not found\n", argv[i]);

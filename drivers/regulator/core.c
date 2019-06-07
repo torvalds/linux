@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * core.c  --  Voltage/Current Regulator framework.
  *
@@ -5,12 +6,6 @@
  * Copyright 2008 SlimLogic Ltd.
  *
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -23,7 +18,6 @@
 #include <linux/mutex.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
@@ -50,6 +44,8 @@
 #define rdev_dbg(rdev, fmt, ...)					\
 	pr_debug("%s: " fmt, rdev_get_name(rdev), ##__VA_ARGS__)
 
+static DEFINE_WW_CLASS(regulator_ww_class);
+static DEFINE_MUTEX(regulator_nesting_mutex);
 static DEFINE_MUTEX(regulator_list_mutex);
 static LIST_HEAD(regulator_map_list);
 static LIST_HEAD(regulator_ena_gpio_list);
@@ -80,7 +76,6 @@ struct regulator_enable_gpio {
 	struct gpio_desc *gpiod;
 	u32 enable_count;	/* a number of enabled shared GPIO */
 	u32 request_count;	/* a number of requested shared GPIO */
-	unsigned int ena_gpio_invert:1;
 };
 
 /*
@@ -97,7 +92,7 @@ struct regulator_supply_alias {
 };
 
 static int _regulator_is_enabled(struct regulator_dev *rdev);
-static int _regulator_disable(struct regulator_dev *rdev);
+static int _regulator_disable(struct regulator *regulator);
 static int _regulator_get_voltage(struct regulator_dev *rdev);
 static int _regulator_get_current_limit(struct regulator_dev *rdev);
 static unsigned int _regulator_get_mode(struct regulator_dev *rdev);
@@ -105,6 +100,11 @@ static int _notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data);
 static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				     int min_uV, int max_uV);
+static int regulator_balance_voltage(struct regulator_dev *rdev,
+				     suspend_state_t state);
+static int regulator_set_voltage_rdev(struct regulator_dev *rdev,
+				      int min_uV, int max_uV,
+				      suspend_state_t state);
 static struct regulator *create_regulator(struct regulator_dev *rdev,
 					  struct device *dev,
 					  const char *supply_name);
@@ -138,43 +138,258 @@ static bool regulator_ops_is_valid(struct regulator_dev *rdev, int ops)
 	return false;
 }
 
-static inline struct regulator_dev *rdev_get_supply(struct regulator_dev *rdev)
+/**
+ * regulator_lock_nested - lock a single regulator
+ * @rdev:		regulator source
+ * @ww_ctx:		w/w mutex acquire context
+ *
+ * This function can be called many times by one task on
+ * a single regulator and its mutex will be locked only
+ * once. If a task, which is calling this function is other
+ * than the one, which initially locked the mutex, it will
+ * wait on mutex.
+ */
+static inline int regulator_lock_nested(struct regulator_dev *rdev,
+					struct ww_acquire_ctx *ww_ctx)
 {
-	if (rdev && rdev->supply)
-		return rdev->supply->rdev;
+	bool lock = false;
+	int ret = 0;
 
-	return NULL;
+	mutex_lock(&regulator_nesting_mutex);
+
+	if (ww_ctx || !ww_mutex_trylock(&rdev->mutex)) {
+		if (rdev->mutex_owner == current)
+			rdev->ref_cnt++;
+		else
+			lock = true;
+
+		if (lock) {
+			mutex_unlock(&regulator_nesting_mutex);
+			ret = ww_mutex_lock(&rdev->mutex, ww_ctx);
+			mutex_lock(&regulator_nesting_mutex);
+		}
+	} else {
+		lock = true;
+	}
+
+	if (lock && ret != -EDEADLK) {
+		rdev->ref_cnt++;
+		rdev->mutex_owner = current;
+	}
+
+	mutex_unlock(&regulator_nesting_mutex);
+
+	return ret;
 }
 
 /**
- * regulator_lock_supply - lock a regulator and its supplies
- * @rdev:         regulator source
+ * regulator_lock - lock a single regulator
+ * @rdev:		regulator source
+ *
+ * This function can be called many times by one task on
+ * a single regulator and its mutex will be locked only
+ * once. If a task, which is calling this function is other
+ * than the one, which initially locked the mutex, it will
+ * wait on mutex.
  */
-static void regulator_lock_supply(struct regulator_dev *rdev)
+void regulator_lock(struct regulator_dev *rdev)
 {
+	regulator_lock_nested(rdev, NULL);
+}
+EXPORT_SYMBOL_GPL(regulator_lock);
+
+/**
+ * regulator_unlock - unlock a single regulator
+ * @rdev:		regulator_source
+ *
+ * This function unlocks the mutex when the
+ * reference counter reaches 0.
+ */
+void regulator_unlock(struct regulator_dev *rdev)
+{
+	mutex_lock(&regulator_nesting_mutex);
+
+	if (--rdev->ref_cnt == 0) {
+		rdev->mutex_owner = NULL;
+		ww_mutex_unlock(&rdev->mutex);
+	}
+
+	WARN_ON_ONCE(rdev->ref_cnt < 0);
+
+	mutex_unlock(&regulator_nesting_mutex);
+}
+EXPORT_SYMBOL_GPL(regulator_unlock);
+
+static bool regulator_supply_is_couple(struct regulator_dev *rdev)
+{
+	struct regulator_dev *c_rdev;
 	int i;
 
-	for (i = 0; rdev; rdev = rdev_get_supply(rdev), i++)
-		mutex_lock_nested(&rdev->mutex, i);
+	for (i = 1; i < rdev->coupling_desc.n_coupled; i++) {
+		c_rdev = rdev->coupling_desc.coupled_rdevs[i];
+
+		if (rdev->supply->rdev == c_rdev)
+			return true;
+	}
+
+	return false;
+}
+
+static void regulator_unlock_recursive(struct regulator_dev *rdev,
+				       unsigned int n_coupled)
+{
+	struct regulator_dev *c_rdev;
+	int i;
+
+	for (i = n_coupled; i > 0; i--) {
+		c_rdev = rdev->coupling_desc.coupled_rdevs[i - 1];
+
+		if (!c_rdev)
+			continue;
+
+		if (c_rdev->supply && !regulator_supply_is_couple(c_rdev))
+			regulator_unlock_recursive(
+					c_rdev->supply->rdev,
+					c_rdev->coupling_desc.n_coupled);
+
+		regulator_unlock(c_rdev);
+	}
+}
+
+static int regulator_lock_recursive(struct regulator_dev *rdev,
+				    struct regulator_dev **new_contended_rdev,
+				    struct regulator_dev **old_contended_rdev,
+				    struct ww_acquire_ctx *ww_ctx)
+{
+	struct regulator_dev *c_rdev;
+	int i, err;
+
+	for (i = 0; i < rdev->coupling_desc.n_coupled; i++) {
+		c_rdev = rdev->coupling_desc.coupled_rdevs[i];
+
+		if (!c_rdev)
+			continue;
+
+		if (c_rdev != *old_contended_rdev) {
+			err = regulator_lock_nested(c_rdev, ww_ctx);
+			if (err) {
+				if (err == -EDEADLK) {
+					*new_contended_rdev = c_rdev;
+					goto err_unlock;
+				}
+
+				/* shouldn't happen */
+				WARN_ON_ONCE(err != -EALREADY);
+			}
+		} else {
+			*old_contended_rdev = NULL;
+		}
+
+		if (c_rdev->supply && !regulator_supply_is_couple(c_rdev)) {
+			err = regulator_lock_recursive(c_rdev->supply->rdev,
+						       new_contended_rdev,
+						       old_contended_rdev,
+						       ww_ctx);
+			if (err) {
+				regulator_unlock(c_rdev);
+				goto err_unlock;
+			}
+		}
+	}
+
+	return 0;
+
+err_unlock:
+	regulator_unlock_recursive(rdev, i);
+
+	return err;
 }
 
 /**
- * regulator_unlock_supply - unlock a regulator and its supplies
- * @rdev:         regulator source
+ * regulator_unlock_dependent - unlock regulator's suppliers and coupled
+ *				regulators
+ * @rdev:			regulator source
+ * @ww_ctx:			w/w mutex acquire context
+ *
+ * Unlock all regulators related with rdev by coupling or supplying.
  */
-static void regulator_unlock_supply(struct regulator_dev *rdev)
+static void regulator_unlock_dependent(struct regulator_dev *rdev,
+				       struct ww_acquire_ctx *ww_ctx)
 {
-	struct regulator *supply;
+	regulator_unlock_recursive(rdev, rdev->coupling_desc.n_coupled);
+	ww_acquire_fini(ww_ctx);
+}
 
-	while (1) {
-		mutex_unlock(&rdev->mutex);
-		supply = rdev->supply;
+/**
+ * regulator_lock_dependent - lock regulator's suppliers and coupled regulators
+ * @rdev:			regulator source
+ * @ww_ctx:			w/w mutex acquire context
+ *
+ * This function as a wrapper on regulator_lock_recursive(), which locks
+ * all regulators related with rdev by coupling or supplying.
+ */
+static void regulator_lock_dependent(struct regulator_dev *rdev,
+				     struct ww_acquire_ctx *ww_ctx)
+{
+	struct regulator_dev *new_contended_rdev = NULL;
+	struct regulator_dev *old_contended_rdev = NULL;
+	int err;
 
-		if (!rdev->supply)
-			return;
+	mutex_lock(&regulator_list_mutex);
 
-		rdev = supply->rdev;
+	ww_acquire_init(ww_ctx, &regulator_ww_class);
+
+	do {
+		if (new_contended_rdev) {
+			ww_mutex_lock_slow(&new_contended_rdev->mutex, ww_ctx);
+			old_contended_rdev = new_contended_rdev;
+			old_contended_rdev->ref_cnt++;
+		}
+
+		err = regulator_lock_recursive(rdev,
+					       &new_contended_rdev,
+					       &old_contended_rdev,
+					       ww_ctx);
+
+		if (old_contended_rdev)
+			regulator_unlock(old_contended_rdev);
+
+	} while (err == -EDEADLK);
+
+	ww_acquire_done(ww_ctx);
+
+	mutex_unlock(&regulator_list_mutex);
+}
+
+/**
+ * of_get_child_regulator - get a child regulator device node
+ * based on supply name
+ * @parent: Parent device node
+ * @prop_name: Combination regulator supply name and "-supply"
+ *
+ * Traverse all child nodes.
+ * Extract the child regulator device node corresponding to the supply name.
+ * returns the device node corresponding to the regulator if found, else
+ * returns NULL.
+ */
+static struct device_node *of_get_child_regulator(struct device_node *parent,
+						  const char *prop_name)
+{
+	struct device_node *regnode = NULL;
+	struct device_node *child = NULL;
+
+	for_each_child_of_node(parent, child) {
+		regnode = of_parse_phandle(child, prop_name, 0);
+
+		if (!regnode) {
+			regnode = of_get_child_regulator(child, prop_name);
+			if (regnode)
+				return regnode;
+		} else {
+			return regnode;
+		}
 	}
+	return NULL;
 }
 
 /**
@@ -197,6 +412,10 @@ static struct device_node *of_get_regulator(struct device *dev, const char *supp
 	regnode = of_parse_phandle(dev->of_node, prop_name, 0);
 
 	if (!regnode) {
+		regnode = of_get_child_regulator(dev->of_node, prop_name);
+		if (regnode)
+			return regnode;
+
 		dev_dbg(dev, "Looking up %s property in node %pOF failed\n",
 				prop_name, dev->of_node);
 		return NULL;
@@ -350,9 +569,9 @@ static ssize_t regulator_uV_show(struct device *dev,
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
 	ssize_t ret;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
 	ret = sprintf(buf, "%d\n", _regulator_get_voltage(rdev));
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 
 	return ret;
 }
@@ -376,19 +595,24 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(name);
 
-static ssize_t regulator_print_opmode(char *buf, int mode)
+static const char *regulator_opmode_to_str(int mode)
 {
 	switch (mode) {
 	case REGULATOR_MODE_FAST:
-		return sprintf(buf, "fast\n");
+		return "fast";
 	case REGULATOR_MODE_NORMAL:
-		return sprintf(buf, "normal\n");
+		return "normal";
 	case REGULATOR_MODE_IDLE:
-		return sprintf(buf, "idle\n");
+		return "idle";
 	case REGULATOR_MODE_STANDBY:
-		return sprintf(buf, "standby\n");
+		return "standby";
 	}
-	return sprintf(buf, "unknown\n");
+	return "unknown";
+}
+
+static ssize_t regulator_print_opmode(char *buf, int mode)
+{
+	return sprintf(buf, "%s\n", regulator_opmode_to_str(mode));
 }
 
 static ssize_t regulator_opmode_show(struct device *dev,
@@ -416,9 +640,9 @@ static ssize_t regulator_state_show(struct device *dev,
 	struct regulator_dev *rdev = dev_get_drvdata(dev);
 	ssize_t ret;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
 	ret = regulator_print_state(buf, _regulator_is_enabled(rdev));
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 
 	return ret;
 }
@@ -526,10 +750,12 @@ static ssize_t regulator_total_uA_show(struct device *dev,
 	struct regulator *regulator;
 	int uA = 0;
 
-	mutex_lock(&rdev->mutex);
-	list_for_each_entry(regulator, &rdev->consumer_list, list)
-		uA += regulator->uA_load;
-	mutex_unlock(&rdev->mutex);
+	regulator_lock(rdev);
+	list_for_each_entry(regulator, &rdev->consumer_list, list) {
+		if (regulator->enable_count)
+			uA += regulator->uA_load;
+	}
+	regulator_unlock(rdev);
 	return sprintf(buf, "%d\n", uA);
 }
 static DEVICE_ATTR(requested_microamps, 0444, regulator_total_uA_show, NULL);
@@ -683,14 +909,14 @@ static int drms_uA_update(struct regulator_dev *rdev)
 	int current_uA = 0, output_uV, input_uV, err;
 	unsigned int mode;
 
-	lockdep_assert_held_once(&rdev->mutex);
-
 	/*
 	 * first check to see if we can set modes at all, otherwise just
 	 * tell the consumer everything is OK.
 	 */
-	if (!regulator_ops_is_valid(rdev, REGULATOR_CHANGE_DRMS))
+	if (!regulator_ops_is_valid(rdev, REGULATOR_CHANGE_DRMS)) {
+		rdev_dbg(rdev, "DRMS operation not allowed\n");
 		return 0;
+	}
 
 	if (!rdev->desc->ops->get_optimum_mode &&
 	    !rdev->desc->ops->set_load)
@@ -701,8 +927,10 @@ static int drms_uA_update(struct regulator_dev *rdev)
 		return -EINVAL;
 
 	/* calc total requested load */
-	list_for_each_entry(sibling, &rdev->consumer_list, list)
-		current_uA += sibling->uA_load;
+	list_for_each_entry(sibling, &rdev->consumer_list, list) {
+		if (sibling->enable_count)
+			current_uA += sibling->uA_load;
+	}
 
 	current_uA += rdev->constraints->system_load;
 
@@ -760,7 +988,7 @@ static int suspend_set_state(struct regulator_dev *rdev,
 	if (rstate == NULL)
 		return 0;
 
-	/* If we have no suspend mode configration don't set anything;
+	/* If we have no suspend mode configuration don't set anything;
 	 * only warn if the driver implements set_suspend_voltage or
 	 * set_suspend_mode callback.
 	 */
@@ -886,6 +1114,18 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 	    rdev->constraints->min_uV && rdev->constraints->max_uV) {
 		int target_min, target_max;
 		int current_uV = _regulator_get_voltage(rdev);
+
+		if (current_uV == -ENOTRECOVERABLE) {
+			/* This regulator can't be read and must be initialized */
+			rdev_info(rdev, "Setting %d-%duV\n",
+				  rdev->constraints->min_uV,
+				  rdev->constraints->max_uV);
+			_regulator_do_set_voltage(rdev,
+						  rdev->constraints->min_uV,
+						  rdev->constraints->max_uV);
+			current_uV = _regulator_get_voltage(rdev);
+		}
+
 		if (current_uV < 0) {
 			rdev_err(rdev,
 				 "failed to get the current voltage(%d)\n",
@@ -1089,17 +1329,12 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 			rdev_err(rdev, "failed to set initial mode: %d\n", ret);
 			return ret;
 		}
-	}
-
-	/* If the constraints say the regulator should be on at this point
-	 * and we have control then make sure it is enabled.
-	 */
-	if (rdev->constraints->always_on || rdev->constraints->boot_on) {
-		ret = _regulator_do_enable(rdev);
-		if (ret < 0 && ret != -EINVAL) {
-			rdev_err(rdev, "failed to enable\n");
-			return ret;
-		}
+	} else if (rdev->constraints->system_load) {
+		/*
+		 * We'll only apply the initial system load if an
+		 * initial mode wasn't specified.
+		 */
+		drms_uA_update(rdev);
 	}
 
 	if ((rdev->constraints->ramp_delay || rdev->constraints->ramp_disable)
@@ -1145,6 +1380,27 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 			rdev_err(rdev, "failed to set active discharge\n");
 			return ret;
 		}
+	}
+
+	/* If the constraints say the regulator should be on at this point
+	 * and we have control then make sure it is enabled.
+	 */
+	if (rdev->constraints->always_on || rdev->constraints->boot_on) {
+		if (rdev->supply) {
+			ret = regulator_enable(rdev->supply);
+			if (ret < 0) {
+				_regulator_put(rdev->supply);
+				rdev->supply = NULL;
+				return ret;
+			}
+		}
+
+		ret = _regulator_do_enable(rdev);
+		if (ret < 0 && ret != -EINVAL) {
+			rdev_err(rdev, "failed to enable\n");
+			return ret;
+		}
+		rdev->use_count++;
 	}
 
 	print_constraints(rdev);
@@ -1321,7 +1577,7 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 	if (regulator == NULL)
 		return NULL;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
 	regulator->rdev = rdev;
 	list_add(&regulator->list, &rdev->consumer_list);
 
@@ -1376,12 +1632,12 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 	    _regulator_is_enabled(rdev))
 		regulator->always_on = true;
 
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 	return regulator;
 overflow_err:
 	list_del(&regulator->list);
 	kfree(regulator);
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 	return NULL;
 }
 
@@ -1509,7 +1765,7 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	struct device *dev = rdev->dev.parent;
 	int ret;
 
-	/* No supply to resovle? */
+	/* No supply to resolve? */
 	if (!rdev->supply_name)
 		return 0;
 
@@ -1561,8 +1817,12 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		return ret;
 	}
 
-	/* Cascade always-on state to supply */
-	if (_regulator_is_enabled(rdev)) {
+	/*
+	 * In set_machine_constraints() we may have turned this regulator on
+	 * but we couldn't propagate to the supply if it hadn't been resolved
+	 * yet.  Do it now.
+	 */
+	if (rdev->use_count) {
 		ret = regulator_enable(rdev->supply);
 		if (ret < 0) {
 			_regulator_put(rdev->supply);
@@ -1646,6 +1906,16 @@ struct regulator *_regulator_get(struct device *dev, const char *id,
 		return regulator;
 	}
 
+	mutex_lock(&regulator_list_mutex);
+	ret = (rdev->coupling_desc.n_resolved != rdev->coupling_desc.n_coupled);
+	mutex_unlock(&regulator_list_mutex);
+
+	if (ret != 0) {
+		regulator = ERR_PTR(-EPROBE_DEFER);
+		put_device(&rdev->dev);
+		return regulator;
+	}
+
 	ret = regulator_resolve_supply(rdev);
 	if (ret < 0) {
 		regulator = ERR_PTR(ret);
@@ -1677,6 +1947,8 @@ struct regulator *_regulator_get(struct device *dev, const char *id,
 		else
 			rdev->use_count = 0;
 	}
+
+	device_link_add(dev, &rdev->dev, DL_FLAG_STATELESS);
 
 	return regulator;
 }
@@ -1763,20 +2035,27 @@ static void _regulator_put(struct regulator *regulator)
 
 	lockdep_assert_held_once(&regulator_list_mutex);
 
+	/* Docs say you must disable before calling regulator_put() */
+	WARN_ON(regulator->enable_count);
+
 	rdev = regulator->rdev;
 
 	debugfs_remove_recursive(regulator->debugfs);
 
-	/* remove any sysfs entries */
-	if (regulator->dev)
+	if (regulator->dev) {
+		device_link_remove(regulator->dev, &rdev->dev);
+
+		/* remove any sysfs entries */
 		sysfs_remove_link(&rdev->dev.kobj, regulator->supply_name);
-	mutex_lock(&rdev->mutex);
+	}
+
+	regulator_lock(rdev);
 	list_del(&regulator->list);
 
 	rdev->open_count--;
 	rdev->exclusive = 0;
 	put_device(&rdev->dev);
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 
 	kfree_const(regulator->supply_name);
 	kfree(regulator);
@@ -1935,38 +2214,21 @@ static int regulator_ena_gpio_request(struct regulator_dev *rdev,
 {
 	struct regulator_enable_gpio *pin;
 	struct gpio_desc *gpiod;
-	int ret;
 
-	if (config->ena_gpiod)
-		gpiod = config->ena_gpiod;
-	else
-		gpiod = gpio_to_desc(config->ena_gpio);
+	gpiod = config->ena_gpiod;
 
 	list_for_each_entry(pin, &regulator_ena_gpio_list, list) {
 		if (pin->gpiod == gpiod) {
-			rdev_dbg(rdev, "GPIO %d is already used\n",
-				config->ena_gpio);
+			rdev_dbg(rdev, "GPIO is already used\n");
 			goto update_ena_gpio_to_rdev;
 		}
 	}
 
-	if (!config->ena_gpiod) {
-		ret = gpio_request_one(config->ena_gpio,
-				       GPIOF_DIR_OUT | config->ena_gpio_flags,
-				       rdev_get_name(rdev));
-		if (ret)
-			return ret;
-	}
-
 	pin = kzalloc(sizeof(struct regulator_enable_gpio), GFP_KERNEL);
-	if (pin == NULL) {
-		if (!config->ena_gpiod)
-			gpio_free(config->ena_gpio);
+	if (pin == NULL)
 		return -ENOMEM;
-	}
 
 	pin->gpiod = gpiod;
-	pin->ena_gpio_invert = config->ena_gpio_invert;
 	list_add(&pin->list, &regulator_ena_gpio_list);
 
 update_ena_gpio_to_rdev:
@@ -2017,8 +2279,7 @@ static int regulator_ena_gpio_ctrl(struct regulator_dev *rdev, bool enable)
 	if (enable) {
 		/* Enable GPIO at initial use */
 		if (pin->enable_count == 0)
-			gpiod_set_value_cansleep(pin->gpiod,
-						 !pin->ena_gpio_invert);
+			gpiod_set_value_cansleep(pin->gpiod, 1);
 
 		pin->enable_count++;
 	} else {
@@ -2029,8 +2290,7 @@ static int regulator_ena_gpio_ctrl(struct regulator_dev *rdev, bool enable)
 
 		/* Disable GPIO if not used */
 		if (pin->enable_count <= 1) {
-			gpiod_set_value_cansleep(pin->gpiod,
-						 pin->ena_gpio_invert);
+			gpiod_set_value_cansleep(pin->gpiod, 0);
 			pin->enable_count = 0;
 		}
 	}
@@ -2107,7 +2367,7 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 			 * timer wrapping.
 			 * in case of multiple timer wrapping, either it can be
 			 * detected by out-of-range remaining, or it cannot be
-			 * detected and we gets a panelty of
+			 * detected and we get a penalty of
 			 * _regulator_enable_delay().
 			 */
 			remaining = intended - start_jiffy;
@@ -2144,34 +2404,109 @@ static int _regulator_do_enable(struct regulator_dev *rdev)
 	return 0;
 }
 
-/* locks held by regulator_enable() */
-static int _regulator_enable(struct regulator_dev *rdev)
+/**
+ * _regulator_handle_consumer_enable - handle that a consumer enabled
+ * @regulator: regulator source
+ *
+ * Some things on a regulator consumer (like the contribution towards total
+ * load on the regulator) only have an effect when the consumer wants the
+ * regulator enabled.  Explained in example with two consumers of the same
+ * regulator:
+ *   consumer A: set_load(100);       => total load = 0
+ *   consumer A: regulator_enable();  => total load = 100
+ *   consumer B: set_load(1000);      => total load = 100
+ *   consumer B: regulator_enable();  => total load = 1100
+ *   consumer A: regulator_disable(); => total_load = 1000
+ *
+ * This function (together with _regulator_handle_consumer_disable) is
+ * responsible for keeping track of the refcount for a given regulator consumer
+ * and applying / unapplying these things.
+ *
+ * Returns 0 upon no error; -error upon error.
+ */
+static int _regulator_handle_consumer_enable(struct regulator *regulator)
 {
+	struct regulator_dev *rdev = regulator->rdev;
+
+	lockdep_assert_held_once(&rdev->mutex.base);
+
+	regulator->enable_count++;
+	if (regulator->uA_load && regulator->enable_count == 1)
+		return drms_uA_update(rdev);
+
+	return 0;
+}
+
+/**
+ * _regulator_handle_consumer_disable - handle that a consumer disabled
+ * @regulator: regulator source
+ *
+ * The opposite of _regulator_handle_consumer_enable().
+ *
+ * Returns 0 upon no error; -error upon error.
+ */
+static int _regulator_handle_consumer_disable(struct regulator *regulator)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+
+	lockdep_assert_held_once(&rdev->mutex.base);
+
+	if (!regulator->enable_count) {
+		rdev_err(rdev, "Underflow of regulator enable count\n");
+		return -EINVAL;
+	}
+
+	regulator->enable_count--;
+	if (regulator->uA_load && regulator->enable_count == 0)
+		return drms_uA_update(rdev);
+
+	return 0;
+}
+
+/* locks held by regulator_enable() */
+static int _regulator_enable(struct regulator *regulator)
+{
+	struct regulator_dev *rdev = regulator->rdev;
 	int ret;
 
-	lockdep_assert_held_once(&rdev->mutex);
+	lockdep_assert_held_once(&rdev->mutex.base);
 
-	/* check voltage and requested load before enabling */
-	if (regulator_ops_is_valid(rdev, REGULATOR_CHANGE_DRMS))
-		drms_uA_update(rdev);
+	if (rdev->use_count == 0 && rdev->supply) {
+		ret = _regulator_enable(rdev->supply);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* balance only if there are regulators coupled */
+	if (rdev->coupling_desc.n_coupled > 1) {
+		ret = regulator_balance_voltage(rdev, PM_SUSPEND_ON);
+		if (ret < 0)
+			goto err_disable_supply;
+	}
+
+	ret = _regulator_handle_consumer_enable(regulator);
+	if (ret < 0)
+		goto err_disable_supply;
 
 	if (rdev->use_count == 0) {
 		/* The regulator may on if it's not switchable or left on */
 		ret = _regulator_is_enabled(rdev);
 		if (ret == -EINVAL || ret == 0) {
 			if (!regulator_ops_is_valid(rdev,
-					REGULATOR_CHANGE_STATUS))
-				return -EPERM;
+					REGULATOR_CHANGE_STATUS)) {
+				ret = -EPERM;
+				goto err_consumer_disable;
+			}
 
 			ret = _regulator_do_enable(rdev);
 			if (ret < 0)
-				return ret;
+				goto err_consumer_disable;
 
 			_notifier_call_chain(rdev, REGULATOR_EVENT_ENABLE,
 					     NULL);
 		} else if (ret < 0) {
 			rdev_err(rdev, "is_enabled() failed: %d\n", ret);
-			return ret;
+			goto err_consumer_disable;
 		}
 		/* Fallthrough on positive return values - already enabled */
 	}
@@ -2179,6 +2514,15 @@ static int _regulator_enable(struct regulator_dev *rdev)
 	rdev->use_count++;
 
 	return 0;
+
+err_consumer_disable:
+	_regulator_handle_consumer_disable(regulator);
+
+err_disable_supply:
+	if (rdev->use_count == 0 && rdev->supply)
+		_regulator_disable(rdev->supply);
+
+	return ret;
 }
 
 /**
@@ -2195,23 +2539,12 @@ static int _regulator_enable(struct regulator_dev *rdev)
 int regulator_enable(struct regulator *regulator)
 {
 	struct regulator_dev *rdev = regulator->rdev;
-	int ret = 0;
+	struct ww_acquire_ctx ww_ctx;
+	int ret;
 
-	if (regulator->always_on)
-		return 0;
-
-	if (rdev->supply) {
-		ret = regulator_enable(rdev->supply);
-		if (ret != 0)
-			return ret;
-	}
-
-	mutex_lock(&rdev->mutex);
-	ret = _regulator_enable(rdev);
-	mutex_unlock(&rdev->mutex);
-
-	if (ret != 0 && rdev->supply)
-		regulator_disable(rdev->supply);
+	regulator_lock_dependent(rdev, &ww_ctx);
+	ret = _regulator_enable(regulator);
+	regulator_unlock_dependent(rdev, &ww_ctx);
 
 	return ret;
 }
@@ -2249,11 +2582,12 @@ static int _regulator_do_disable(struct regulator_dev *rdev)
 }
 
 /* locks held by regulator_disable() */
-static int _regulator_disable(struct regulator_dev *rdev)
+static int _regulator_disable(struct regulator *regulator)
 {
+	struct regulator_dev *rdev = regulator->rdev;
 	int ret = 0;
 
-	lockdep_assert_held_once(&rdev->mutex);
+	lockdep_assert_held_once(&rdev->mutex.base);
 
 	if (WARN(rdev->use_count <= 0,
 		 "unbalanced disables for %s\n", rdev_get_name(rdev)))
@@ -2285,11 +2619,17 @@ static int _regulator_disable(struct regulator_dev *rdev)
 
 		rdev->use_count = 0;
 	} else if (rdev->use_count > 1) {
-		if (regulator_ops_is_valid(rdev, REGULATOR_CHANGE_DRMS))
-			drms_uA_update(rdev);
-
 		rdev->use_count--;
 	}
+
+	if (ret == 0)
+		ret = _regulator_handle_consumer_disable(regulator);
+
+	if (ret == 0 && rdev->coupling_desc.n_coupled > 1)
+		ret = regulator_balance_voltage(rdev, PM_SUSPEND_ON);
+
+	if (ret == 0 && rdev->use_count == 0 && rdev->supply)
+		ret = _regulator_disable(rdev->supply);
 
 	return ret;
 }
@@ -2309,17 +2649,12 @@ static int _regulator_disable(struct regulator_dev *rdev)
 int regulator_disable(struct regulator *regulator)
 {
 	struct regulator_dev *rdev = regulator->rdev;
-	int ret = 0;
+	struct ww_acquire_ctx ww_ctx;
+	int ret;
 
-	if (regulator->always_on)
-		return 0;
-
-	mutex_lock(&rdev->mutex);
-	ret = _regulator_disable(rdev);
-	mutex_unlock(&rdev->mutex);
-
-	if (ret == 0 && rdev->supply)
-		regulator_disable(rdev->supply);
+	regulator_lock_dependent(rdev, &ww_ctx);
+	ret = _regulator_disable(regulator);
+	regulator_unlock_dependent(rdev, &ww_ctx);
 
 	return ret;
 }
@@ -2330,7 +2665,7 @@ static int _regulator_force_disable(struct regulator_dev *rdev)
 {
 	int ret = 0;
 
-	lockdep_assert_held_once(&rdev->mutex);
+	lockdep_assert_held_once(&rdev->mutex.base);
 
 	ret = _notifier_call_chain(rdev, REGULATOR_EVENT_FORCE_DISABLE |
 			REGULATOR_EVENT_PRE_DISABLE, NULL);
@@ -2363,16 +2698,25 @@ static int _regulator_force_disable(struct regulator_dev *rdev)
 int regulator_force_disable(struct regulator *regulator)
 {
 	struct regulator_dev *rdev = regulator->rdev;
+	struct ww_acquire_ctx ww_ctx;
 	int ret;
 
-	mutex_lock(&rdev->mutex);
-	regulator->uA_load = 0;
-	ret = _regulator_force_disable(regulator->rdev);
-	mutex_unlock(&rdev->mutex);
+	regulator_lock_dependent(rdev, &ww_ctx);
 
-	if (rdev->supply)
-		while (rdev->open_count--)
-			regulator_disable(rdev->supply);
+	ret = _regulator_force_disable(regulator->rdev);
+
+	if (rdev->coupling_desc.n_coupled > 1)
+		regulator_balance_voltage(rdev, PM_SUSPEND_ON);
+
+	if (regulator->uA_load) {
+		regulator->uA_load = 0;
+		ret = drms_uA_update(rdev);
+	}
+
+	if (rdev->use_count != 0 && rdev->supply)
+		_regulator_disable(rdev->supply);
+
+	regulator_unlock_dependent(rdev, &ww_ctx);
 
 	return ret;
 }
@@ -2382,14 +2726,12 @@ static void regulator_disable_work(struct work_struct *work)
 {
 	struct regulator_dev *rdev = container_of(work, struct regulator_dev,
 						  disable_work.work);
+	struct ww_acquire_ctx ww_ctx;
 	int count, i, ret;
+	struct regulator *regulator;
+	int total_count = 0;
 
-	mutex_lock(&rdev->mutex);
-
-	BUG_ON(!rdev->deferred_disables);
-
-	count = rdev->deferred_disables;
-	rdev->deferred_disables = 0;
+	regulator_lock_dependent(rdev, &ww_ctx);
 
 	/*
 	 * Workqueue functions queue the new work instance while the previous
@@ -2399,29 +2741,33 @@ static void regulator_disable_work(struct work_struct *work)
 	 */
 	cancel_delayed_work(&rdev->disable_work);
 
-	for (i = 0; i < count; i++) {
-		ret = _regulator_disable(rdev);
-		if (ret != 0)
-			rdev_err(rdev, "Deferred disable failed: %d\n", ret);
-	}
+	list_for_each_entry(regulator, &rdev->consumer_list, list) {
+		count = regulator->deferred_disables;
 
-	mutex_unlock(&rdev->mutex);
+		if (!count)
+			continue;
 
-	if (rdev->supply) {
+		total_count += count;
+		regulator->deferred_disables = 0;
+
 		for (i = 0; i < count; i++) {
-			ret = regulator_disable(rdev->supply);
-			if (ret != 0) {
-				rdev_err(rdev,
-					 "Supply disable failed: %d\n", ret);
-			}
+			ret = _regulator_disable(regulator);
+			if (ret != 0)
+				rdev_err(rdev, "Deferred disable failed: %d\n", ret);
 		}
 	}
+	WARN_ON(!total_count);
+
+	if (rdev->coupling_desc.n_coupled > 1)
+		regulator_balance_voltage(rdev, PM_SUSPEND_ON);
+
+	regulator_unlock_dependent(rdev, &ww_ctx);
 }
 
 /**
  * regulator_disable_deferred - disable regulator output with delay
  * @regulator: regulator source
- * @ms: miliseconds until the regulator is disabled
+ * @ms: milliseconds until the regulator is disabled
  *
  * Execute regulator_disable() on the regulator after a delay.  This
  * is intended for use with devices that require some time to quiesce.
@@ -2434,17 +2780,14 @@ int regulator_disable_deferred(struct regulator *regulator, int ms)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 
-	if (regulator->always_on)
-		return 0;
-
 	if (!ms)
 		return regulator_disable(regulator);
 
-	mutex_lock(&rdev->mutex);
-	rdev->deferred_disables++;
+	regulator_lock(rdev);
+	regulator->deferred_disables++;
 	mod_delayed_work(system_power_efficient_wq, &rdev->disable_work,
 			 msecs_to_jiffies(ms));
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 
 	return 0;
 }
@@ -2476,10 +2819,10 @@ static int _regulator_list_voltage(struct regulator_dev *rdev,
 		if (selector >= rdev->desc->n_voltages)
 			return -EINVAL;
 		if (lock)
-			mutex_lock(&rdev->mutex);
+			regulator_lock(rdev);
 		ret = ops->list_voltage(rdev, selector);
 		if (lock)
-			mutex_unlock(&rdev->mutex);
+			regulator_unlock(rdev);
 	} else if (rdev->is_switch && rdev->supply) {
 		ret = _regulator_list_voltage(rdev->supply->rdev,
 					      selector, lock);
@@ -2516,9 +2859,9 @@ int regulator_is_enabled(struct regulator *regulator)
 	if (regulator->always_on)
 		return 1;
 
-	mutex_lock(&regulator->rdev->mutex);
+	regulator_lock(regulator->rdev);
 	ret = _regulator_is_enabled(regulator->rdev);
-	mutex_unlock(&regulator->rdev->mutex);
+	regulator_unlock(regulator->rdev);
 
 	return ret;
 }
@@ -2655,7 +2998,7 @@ EXPORT_SYMBOL_GPL(regulator_get_linear_step);
  * @min_uV: Minimum required voltage in uV.
  * @max_uV: Maximum required voltage in uV.
  *
- * Returns a boolean or a negative error code.
+ * Returns a boolean.
  */
 int regulator_is_supported_voltage(struct regulator *regulator,
 				   int min_uV, int max_uV)
@@ -2679,7 +3022,7 @@ int regulator_is_supported_voltage(struct regulator *regulator,
 
 	ret = regulator_count_voltages(regulator);
 	if (ret < 0)
-		return ret;
+		return 0;
 	voltages = ret;
 
 	for (i = 0; i < voltages; i++) {
@@ -2706,6 +3049,11 @@ static int regulator_map_voltage(struct regulator_dev *rdev, int min_uV,
 
 	if (desc->ops->list_voltage == regulator_list_voltage_linear_range)
 		return regulator_map_voltage_linear_range(rdev, min_uV, max_uV);
+
+	if (desc->ops->list_voltage ==
+		regulator_list_voltage_pickable_linear_range)
+		return regulator_map_voltage_pickable_linear_range(rdev,
+							min_uV, max_uV);
 
 	return regulator_map_voltage_iterate(rdev, min_uV, max_uV);
 }
@@ -2927,8 +3275,6 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 	int ret = 0;
 	int old_min_uV, old_max_uV;
 	int current_uV;
-	int best_supply_uV = 0;
-	int supply_change_uV = 0;
 
 	/* If we're setting the same range as last time the change
 	 * should be a noop (some cpufreq implementations use the same
@@ -2968,9 +3314,23 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 	voltage->min_uV = min_uV;
 	voltage->max_uV = max_uV;
 
-	ret = regulator_check_consumers(rdev, &min_uV, &max_uV, state);
-	if (ret < 0)
-		goto out2;
+	/* for not coupled regulators this will just set the voltage */
+	ret = regulator_balance_voltage(rdev, state);
+	if (ret < 0) {
+		voltage->min_uV = old_min_uV;
+		voltage->max_uV = old_max_uV;
+	}
+
+out:
+	return ret;
+}
+
+static int regulator_set_voltage_rdev(struct regulator_dev *rdev, int min_uV,
+				      int max_uV, suspend_state_t state)
+{
+	int best_supply_uV = 0;
+	int supply_change_uV = 0;
+	int ret;
 
 	if (rdev->supply &&
 	    regulator_ops_is_valid(rdev->supply->rdev,
@@ -2983,13 +3343,13 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 		selector = regulator_map_voltage(rdev, min_uV, max_uV);
 		if (selector < 0) {
 			ret = selector;
-			goto out2;
+			goto out;
 		}
 
 		best_supply_uV = _regulator_list_voltage(rdev, selector, 0);
 		if (best_supply_uV < 0) {
 			ret = best_supply_uV;
-			goto out2;
+			goto out;
 		}
 
 		best_supply_uV += rdev->desc->min_dropout_uV;
@@ -2997,7 +3357,7 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 		current_supply_uV = _regulator_get_voltage(rdev->supply->rdev);
 		if (current_supply_uV < 0) {
 			ret = current_supply_uV;
-			goto out2;
+			goto out;
 		}
 
 		supply_change_uV = best_supply_uV - current_supply_uV;
@@ -3009,7 +3369,7 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 		if (ret) {
 			dev_err(&rdev->dev, "Failed to increase supply voltage: %d\n",
 					ret);
-			goto out2;
+			goto out;
 		}
 	}
 
@@ -3019,7 +3379,7 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 		ret = _regulator_do_set_suspend_voltage(rdev, min_uV,
 							max_uV, state);
 	if (ret < 0)
-		goto out2;
+		goto out;
 
 	if (supply_change_uV < 0) {
 		ret = regulator_set_voltage_unlocked(rdev->supply,
@@ -3033,10 +3393,273 @@ static int regulator_set_voltage_unlocked(struct regulator *regulator,
 
 out:
 	return ret;
-out2:
-	voltage->min_uV = old_min_uV;
-	voltage->max_uV = old_max_uV;
+}
 
+static int regulator_limit_voltage_step(struct regulator_dev *rdev,
+					int *current_uV, int *min_uV)
+{
+	struct regulation_constraints *constraints = rdev->constraints;
+
+	/* Limit voltage change only if necessary */
+	if (!constraints->max_uV_step || !_regulator_is_enabled(rdev))
+		return 1;
+
+	if (*current_uV < 0) {
+		*current_uV = _regulator_get_voltage(rdev);
+
+		if (*current_uV < 0)
+			return *current_uV;
+	}
+
+	if (abs(*current_uV - *min_uV) <= constraints->max_uV_step)
+		return 1;
+
+	/* Clamp target voltage within the given step */
+	if (*current_uV < *min_uV)
+		*min_uV = min(*current_uV + constraints->max_uV_step,
+			      *min_uV);
+	else
+		*min_uV = max(*current_uV - constraints->max_uV_step,
+			      *min_uV);
+
+	return 0;
+}
+
+static int regulator_get_optimal_voltage(struct regulator_dev *rdev,
+					 int *current_uV,
+					 int *min_uV, int *max_uV,
+					 suspend_state_t state,
+					 int n_coupled)
+{
+	struct coupling_desc *c_desc = &rdev->coupling_desc;
+	struct regulator_dev **c_rdevs = c_desc->coupled_rdevs;
+	struct regulation_constraints *constraints = rdev->constraints;
+	int max_spread = constraints->max_spread;
+	int desired_min_uV = 0, desired_max_uV = INT_MAX;
+	int max_current_uV = 0, min_current_uV = INT_MAX;
+	int highest_min_uV = 0, target_uV, possible_uV;
+	int i, ret;
+	bool done;
+
+	*current_uV = -1;
+
+	/*
+	 * If there are no coupled regulators, simply set the voltage
+	 * demanded by consumers.
+	 */
+	if (n_coupled == 1) {
+		/*
+		 * If consumers don't provide any demands, set voltage
+		 * to min_uV
+		 */
+		desired_min_uV = constraints->min_uV;
+		desired_max_uV = constraints->max_uV;
+
+		ret = regulator_check_consumers(rdev,
+						&desired_min_uV,
+						&desired_max_uV, state);
+		if (ret < 0)
+			return ret;
+
+		possible_uV = desired_min_uV;
+		done = true;
+
+		goto finish;
+	}
+
+	/* Find highest min desired voltage */
+	for (i = 0; i < n_coupled; i++) {
+		int tmp_min = 0;
+		int tmp_max = INT_MAX;
+
+		lockdep_assert_held_once(&c_rdevs[i]->mutex.base);
+
+		ret = regulator_check_consumers(c_rdevs[i],
+						&tmp_min,
+						&tmp_max, state);
+		if (ret < 0)
+			return ret;
+
+		ret = regulator_check_voltage(c_rdevs[i], &tmp_min, &tmp_max);
+		if (ret < 0)
+			return ret;
+
+		highest_min_uV = max(highest_min_uV, tmp_min);
+
+		if (i == 0) {
+			desired_min_uV = tmp_min;
+			desired_max_uV = tmp_max;
+		}
+	}
+
+	/*
+	 * Let target_uV be equal to the desired one if possible.
+	 * If not, set it to minimum voltage, allowed by other coupled
+	 * regulators.
+	 */
+	target_uV = max(desired_min_uV, highest_min_uV - max_spread);
+
+	/*
+	 * Find min and max voltages, which currently aren't violating
+	 * max_spread.
+	 */
+	for (i = 1; i < n_coupled; i++) {
+		int tmp_act;
+
+		if (!_regulator_is_enabled(c_rdevs[i]))
+			continue;
+
+		tmp_act = _regulator_get_voltage(c_rdevs[i]);
+		if (tmp_act < 0)
+			return tmp_act;
+
+		min_current_uV = min(tmp_act, min_current_uV);
+		max_current_uV = max(tmp_act, max_current_uV);
+	}
+
+	/* There aren't any other regulators enabled */
+	if (max_current_uV == 0) {
+		possible_uV = target_uV;
+	} else {
+		/*
+		 * Correct target voltage, so as it currently isn't
+		 * violating max_spread
+		 */
+		possible_uV = max(target_uV, max_current_uV - max_spread);
+		possible_uV = min(possible_uV, min_current_uV + max_spread);
+	}
+
+	if (possible_uV > desired_max_uV)
+		return -EINVAL;
+
+	done = (possible_uV == target_uV);
+	desired_min_uV = possible_uV;
+
+finish:
+	/* Apply max_uV_step constraint if necessary */
+	if (state == PM_SUSPEND_ON) {
+		ret = regulator_limit_voltage_step(rdev, current_uV,
+						   &desired_min_uV);
+		if (ret < 0)
+			return ret;
+
+		if (ret == 0)
+			done = false;
+	}
+
+	/* Set current_uV if wasn't done earlier in the code and if necessary */
+	if (n_coupled > 1 && *current_uV == -1) {
+
+		if (_regulator_is_enabled(rdev)) {
+			ret = _regulator_get_voltage(rdev);
+			if (ret < 0)
+				return ret;
+
+			*current_uV = ret;
+		} else {
+			*current_uV = desired_min_uV;
+		}
+	}
+
+	*min_uV = desired_min_uV;
+	*max_uV = desired_max_uV;
+
+	return done;
+}
+
+static int regulator_balance_voltage(struct regulator_dev *rdev,
+				     suspend_state_t state)
+{
+	struct regulator_dev **c_rdevs;
+	struct regulator_dev *best_rdev;
+	struct coupling_desc *c_desc = &rdev->coupling_desc;
+	int i, ret, n_coupled, best_min_uV, best_max_uV, best_c_rdev;
+	bool best_c_rdev_done, c_rdev_done[MAX_COUPLED];
+	unsigned int delta, best_delta;
+
+	c_rdevs = c_desc->coupled_rdevs;
+	n_coupled = c_desc->n_coupled;
+
+	/*
+	 * If system is in a state other than PM_SUSPEND_ON, don't check
+	 * other coupled regulators.
+	 */
+	if (state != PM_SUSPEND_ON)
+		n_coupled = 1;
+
+	if (c_desc->n_resolved < n_coupled) {
+		rdev_err(rdev, "Not all coupled regulators registered\n");
+		return -EPERM;
+	}
+
+	for (i = 0; i < n_coupled; i++)
+		c_rdev_done[i] = false;
+
+	/*
+	 * Find the best possible voltage change on each loop. Leave the loop
+	 * if there isn't any possible change.
+	 */
+	do {
+		best_c_rdev_done = false;
+		best_delta = 0;
+		best_min_uV = 0;
+		best_max_uV = 0;
+		best_c_rdev = 0;
+		best_rdev = NULL;
+
+		/*
+		 * Find highest difference between optimal voltage
+		 * and current voltage.
+		 */
+		for (i = 0; i < n_coupled; i++) {
+			/*
+			 * optimal_uV is the best voltage that can be set for
+			 * i-th regulator at the moment without violating
+			 * max_spread constraint in order to balance
+			 * the coupled voltages.
+			 */
+			int optimal_uV = 0, optimal_max_uV = 0, current_uV = 0;
+
+			if (c_rdev_done[i])
+				continue;
+
+			ret = regulator_get_optimal_voltage(c_rdevs[i],
+							    &current_uV,
+							    &optimal_uV,
+							    &optimal_max_uV,
+							    state, n_coupled);
+			if (ret < 0)
+				goto out;
+
+			delta = abs(optimal_uV - current_uV);
+
+			if (delta && best_delta <= delta) {
+				best_c_rdev_done = ret;
+				best_delta = delta;
+				best_rdev = c_rdevs[i];
+				best_min_uV = optimal_uV;
+				best_max_uV = optimal_max_uV;
+				best_c_rdev = i;
+			}
+		}
+
+		/* Nothing to change, return successfully */
+		if (!best_rdev) {
+			ret = 0;
+			goto out;
+		}
+
+		ret = regulator_set_voltage_rdev(best_rdev, best_min_uV,
+						 best_max_uV, state);
+
+		if (ret < 0)
+			goto out;
+
+		c_rdev_done[best_c_rdev] = best_c_rdev_done;
+
+	} while (n_coupled > 1);
+
+out:
 	return ret;
 }
 
@@ -3060,14 +3683,15 @@ out2:
  */
 int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 {
-	int ret = 0;
+	struct ww_acquire_ctx ww_ctx;
+	int ret;
 
-	regulator_lock_supply(regulator->rdev);
+	regulator_lock_dependent(regulator->rdev, &ww_ctx);
 
 	ret = regulator_set_voltage_unlocked(regulator, min_uV, max_uV,
 					     PM_SUSPEND_ON);
 
-	regulator_unlock_supply(regulator->rdev);
+	regulator_unlock_dependent(regulator->rdev, &ww_ctx);
 
 	return ret;
 }
@@ -3085,7 +3709,7 @@ static inline int regulator_suspend_toggle(struct regulator_dev *rdev,
 	if (!rstate->changeable)
 		return -EPERM;
 
-	rstate->enabled = en;
+	rstate->enabled = (en) ? ENABLE_IN_SUSPEND : DISABLE_IN_SUSPEND;
 
 	return 0;
 }
@@ -3139,18 +3763,19 @@ static int _regulator_set_suspend_voltage(struct regulator *regulator,
 int regulator_set_suspend_voltage(struct regulator *regulator, int min_uV,
 				  int max_uV, suspend_state_t state)
 {
-	int ret = 0;
+	struct ww_acquire_ctx ww_ctx;
+	int ret;
 
 	/* PM_SUSPEND_ON is handled by regulator_set_voltage() */
 	if (regulator_check_states(state) || state == PM_SUSPEND_ON)
 		return -EINVAL;
 
-	regulator_lock_supply(regulator->rdev);
+	regulator_lock_dependent(regulator->rdev, &ww_ctx);
 
 	ret = _regulator_set_suspend_voltage(regulator, min_uV,
 					     max_uV, state);
 
-	regulator_unlock_supply(regulator->rdev);
+	regulator_unlock_dependent(regulator->rdev, &ww_ctx);
 
 	return ret;
 }
@@ -3252,7 +3877,7 @@ int regulator_sync_voltage(struct regulator *regulator)
 	struct regulator_voltage *voltage = &regulator->voltage[PM_SUSPEND_ON];
 	int ret, min_uV, max_uV;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
 
 	if (!rdev->desc->ops->set_voltage &&
 	    !rdev->desc->ops->set_voltage_sel) {
@@ -3281,7 +3906,7 @@ int regulator_sync_voltage(struct regulator *regulator)
 	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
 
 out:
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_sync_voltage);
@@ -3340,13 +3965,12 @@ static int _regulator_get_voltage(struct regulator_dev *rdev)
  */
 int regulator_get_voltage(struct regulator *regulator)
 {
+	struct ww_acquire_ctx ww_ctx;
 	int ret;
 
-	regulator_lock_supply(regulator->rdev);
-
+	regulator_lock_dependent(regulator->rdev, &ww_ctx);
 	ret = _regulator_get_voltage(regulator->rdev);
-
-	regulator_unlock_supply(regulator->rdev);
+	regulator_unlock_dependent(regulator->rdev, &ww_ctx);
 
 	return ret;
 }
@@ -3374,7 +3998,7 @@ int regulator_set_current_limit(struct regulator *regulator,
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
 
 	/* sanity check */
 	if (!rdev->desc->ops->set_current_limit) {
@@ -3389,26 +4013,28 @@ int regulator_set_current_limit(struct regulator *regulator,
 
 	ret = rdev->desc->ops->set_current_limit(rdev, min_uA, max_uA);
 out:
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_set_current_limit);
+
+static int _regulator_get_current_limit_unlocked(struct regulator_dev *rdev)
+{
+	/* sanity check */
+	if (!rdev->desc->ops->get_current_limit)
+		return -EINVAL;
+
+	return rdev->desc->ops->get_current_limit(rdev);
+}
 
 static int _regulator_get_current_limit(struct regulator_dev *rdev)
 {
 	int ret;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
+	ret = _regulator_get_current_limit_unlocked(rdev);
+	regulator_unlock(rdev);
 
-	/* sanity check */
-	if (!rdev->desc->ops->get_current_limit) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = rdev->desc->ops->get_current_limit(rdev);
-out:
-	mutex_unlock(&rdev->mutex);
 	return ret;
 }
 
@@ -3444,7 +4070,7 @@ int regulator_set_mode(struct regulator *regulator, unsigned int mode)
 	int ret;
 	int regulator_curr_mode;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
 
 	/* sanity check */
 	if (!rdev->desc->ops->set_mode) {
@@ -3468,26 +4094,28 @@ int regulator_set_mode(struct regulator *regulator, unsigned int mode)
 
 	ret = rdev->desc->ops->set_mode(rdev, mode);
 out:
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regulator_set_mode);
+
+static unsigned int _regulator_get_mode_unlocked(struct regulator_dev *rdev)
+{
+	/* sanity check */
+	if (!rdev->desc->ops->get_mode)
+		return -EINVAL;
+
+	return rdev->desc->ops->get_mode(rdev);
+}
 
 static unsigned int _regulator_get_mode(struct regulator_dev *rdev)
 {
 	int ret;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
+	ret = _regulator_get_mode_unlocked(rdev);
+	regulator_unlock(rdev);
 
-	/* sanity check */
-	if (!rdev->desc->ops->get_mode) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = rdev->desc->ops->get_mode(rdev);
-out:
-	mutex_unlock(&rdev->mutex);
 	return ret;
 }
 
@@ -3508,7 +4136,7 @@ static int _regulator_get_error_flags(struct regulator_dev *rdev,
 {
 	int ret;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
 
 	/* sanity check */
 	if (!rdev->desc->ops->get_error_flags) {
@@ -3518,7 +4146,7 @@ static int _regulator_get_error_flags(struct regulator_dev *rdev,
 
 	ret = rdev->desc->ops->get_error_flags(rdev, flags);
 out:
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 	return ret;
 }
 
@@ -3560,17 +4188,31 @@ EXPORT_SYMBOL_GPL(regulator_get_error_flags);
  * DRMS will sum the total requested load on the regulator and change
  * to the most efficient operating mode if platform constraints allow.
  *
+ * NOTE: when a regulator consumer requests to have a regulator
+ * disabled then any load that consumer requested no longer counts
+ * toward the total requested load.  If the regulator is re-enabled
+ * then the previously requested load will start counting again.
+ *
+ * If a regulator is an always-on regulator then an individual consumer's
+ * load will still be removed if that consumer is fully disabled.
+ *
  * On error a negative errno is returned.
  */
 int regulator_set_load(struct regulator *regulator, int uA_load)
 {
 	struct regulator_dev *rdev = regulator->rdev;
-	int ret;
+	int old_uA_load;
+	int ret = 0;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
+	old_uA_load = regulator->uA_load;
 	regulator->uA_load = uA_load;
-	ret = drms_uA_update(rdev);
-	mutex_unlock(&rdev->mutex);
+	if (regulator->enable_count && old_uA_load != uA_load) {
+		ret = drms_uA_update(rdev);
+		if (ret < 0)
+			regulator->uA_load = old_uA_load;
+	}
+	regulator_unlock(rdev);
 
 	return ret;
 }
@@ -3598,7 +4240,7 @@ int regulator_allow_bypass(struct regulator *regulator, bool enable)
 	if (!regulator_ops_is_valid(rdev, REGULATOR_CHANGE_BYPASS))
 		return 0;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
 
 	if (enable && !regulator->bypass) {
 		rdev->bypass_count++;
@@ -3622,7 +4264,7 @@ int regulator_allow_bypass(struct regulator *regulator, bool enable)
 	if (ret == 0)
 		regulator->bypass = enable;
 
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 
 	return ret;
 }
@@ -3696,8 +4338,6 @@ int regulator_bulk_get(struct device *dev, int num_consumers,
 						      consumers[i].supply);
 		if (IS_ERR(consumers[i].consumer)) {
 			ret = PTR_ERR(consumers[i].consumer);
-			dev_err(dev, "Failed to get supply '%s': %d\n",
-				consumers[i].supply, ret);
 			consumers[i].consumer = NULL;
 			goto err;
 		}
@@ -3706,6 +4346,13 @@ int regulator_bulk_get(struct device *dev, int num_consumers,
 	return 0;
 
 err:
+	if (ret != -EPROBE_DEFER)
+		dev_err(dev, "Failed to get supply '%s': %d\n",
+			consumers[i].supply, ret);
+	else
+		dev_dbg(dev, "Failed to get supply '%s', deferring\n",
+			consumers[i].supply);
+
 	while (--i >= 0)
 		regulator_put(consumers[i].consumer);
 
@@ -3740,11 +4387,8 @@ int regulator_bulk_enable(int num_consumers,
 	int ret = 0;
 
 	for (i = 0; i < num_consumers; i++) {
-		if (consumers[i].consumer->always_on)
-			consumers[i].ret = 0;
-		else
-			async_schedule_domain(regulator_bulk_enable_async,
-					      &consumers[i], &async_domain);
+		async_schedule_domain(regulator_bulk_enable_async,
+				      &consumers[i], &async_domain);
 	}
 
 	async_synchronize_full_domain(&async_domain);
@@ -3878,7 +4522,7 @@ EXPORT_SYMBOL_GPL(regulator_bulk_free);
 int regulator_notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data)
 {
-	lockdep_assert_held_once(&rdev->mutex);
+	lockdep_assert_held_once(&rdev->mutex.base);
 
 	_notifier_call_chain(rdev, event, data);
 	return NOTIFY_DONE;
@@ -3980,10 +4624,6 @@ static umode_t regulator_attr_is_visible(struct kobject *kobj,
 	if (attr == &dev_attr_bypass.attr)
 		return ops->get_bypass ? mode : 0;
 
-	/* some attributes are type-specific */
-	if (attr == &dev_attr_requested_microamps.attr)
-		return rdev->desc->type == REGULATOR_CURRENT ? mode : 0;
-
 	/* constraints need specific supporting methods */
 	if (attr == &dev_attr_min_microvolts.attr ||
 	    attr == &dev_attr_max_microvolts.attr)
@@ -4067,6 +4707,114 @@ static int regulator_register_resolve_supply(struct device *dev, void *data)
 	return 0;
 }
 
+static void regulator_resolve_coupling(struct regulator_dev *rdev)
+{
+	struct coupling_desc *c_desc = &rdev->coupling_desc;
+	int n_coupled = c_desc->n_coupled;
+	struct regulator_dev *c_rdev;
+	int i;
+
+	for (i = 1; i < n_coupled; i++) {
+		/* already resolved */
+		if (c_desc->coupled_rdevs[i])
+			continue;
+
+		c_rdev = of_parse_coupled_regulator(rdev, i - 1);
+
+		if (!c_rdev)
+			continue;
+
+		regulator_lock(c_rdev);
+
+		c_desc->coupled_rdevs[i] = c_rdev;
+		c_desc->n_resolved++;
+
+		regulator_unlock(c_rdev);
+
+		regulator_resolve_coupling(c_rdev);
+	}
+}
+
+static void regulator_remove_coupling(struct regulator_dev *rdev)
+{
+	struct coupling_desc *__c_desc, *c_desc = &rdev->coupling_desc;
+	struct regulator_dev *__c_rdev, *c_rdev;
+	unsigned int __n_coupled, n_coupled;
+	int i, k;
+
+	n_coupled = c_desc->n_coupled;
+
+	for (i = 1; i < n_coupled; i++) {
+		c_rdev = c_desc->coupled_rdevs[i];
+
+		if (!c_rdev)
+			continue;
+
+		regulator_lock(c_rdev);
+
+		__c_desc = &c_rdev->coupling_desc;
+		__n_coupled = __c_desc->n_coupled;
+
+		for (k = 1; k < __n_coupled; k++) {
+			__c_rdev = __c_desc->coupled_rdevs[k];
+
+			if (__c_rdev == rdev) {
+				__c_desc->coupled_rdevs[k] = NULL;
+				__c_desc->n_resolved--;
+				break;
+			}
+		}
+
+		regulator_unlock(c_rdev);
+
+		c_desc->coupled_rdevs[i] = NULL;
+		c_desc->n_resolved--;
+	}
+}
+
+static int regulator_init_coupling(struct regulator_dev *rdev)
+{
+	int n_phandles;
+
+	if (!IS_ENABLED(CONFIG_OF))
+		n_phandles = 0;
+	else
+		n_phandles = of_get_n_coupled(rdev);
+
+	if (n_phandles + 1 > MAX_COUPLED) {
+		rdev_err(rdev, "too many regulators coupled\n");
+		return -EPERM;
+	}
+
+	/*
+	 * Every regulator should always have coupling descriptor filled with
+	 * at least pointer to itself.
+	 */
+	rdev->coupling_desc.coupled_rdevs[0] = rdev;
+	rdev->coupling_desc.n_coupled = n_phandles + 1;
+	rdev->coupling_desc.n_resolved++;
+
+	/* regulator isn't coupled */
+	if (n_phandles == 0)
+		return 0;
+
+	/* regulator, which can't change its voltage, can't be coupled */
+	if (!regulator_ops_is_valid(rdev, REGULATOR_CHANGE_VOLTAGE)) {
+		rdev_err(rdev, "voltage operation not allowed\n");
+		return -EPERM;
+	}
+
+	if (rdev->constraints->max_spread <= 0) {
+		rdev_err(rdev, "wrong max_spread value\n");
+		return -EPERM;
+	}
+
+	if (!of_check_coupling_data(rdev))
+		return -EPERM;
+
+	return 0;
+}
+
 /**
  * regulator_register - register regulator
  * @regulator_desc: regulator to register
@@ -4085,21 +4833,33 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	struct regulator_config *config = NULL;
 	static atomic_t regulator_no = ATOMIC_INIT(-1);
 	struct regulator_dev *rdev;
+	bool dangling_cfg_gpiod = false;
+	bool dangling_of_gpiod = false;
 	struct device *dev;
 	int ret, i;
 
-	if (regulator_desc == NULL || cfg == NULL)
+	if (cfg == NULL)
 		return ERR_PTR(-EINVAL);
+	if (cfg->ena_gpiod)
+		dangling_cfg_gpiod = true;
+	if (regulator_desc == NULL) {
+		ret = -EINVAL;
+		goto rinse;
+	}
 
 	dev = cfg->dev;
 	WARN_ON(!dev);
 
-	if (regulator_desc->name == NULL || regulator_desc->ops == NULL)
-		return ERR_PTR(-EINVAL);
+	if (regulator_desc->name == NULL || regulator_desc->ops == NULL) {
+		ret = -EINVAL;
+		goto rinse;
+	}
 
 	if (regulator_desc->type != REGULATOR_VOLTAGE &&
-	    regulator_desc->type != REGULATOR_CURRENT)
-		return ERR_PTR(-EINVAL);
+	    regulator_desc->type != REGULATOR_CURRENT) {
+		ret = -EINVAL;
+		goto rinse;
+	}
 
 	/* Only one of each should be implemented */
 	WARN_ON(regulator_desc->ops->get_voltage &&
@@ -4110,16 +4870,20 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	/* If we're using selectors we must implement list_voltage. */
 	if (regulator_desc->ops->get_voltage_sel &&
 	    !regulator_desc->ops->list_voltage) {
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		goto rinse;
 	}
 	if (regulator_desc->ops->set_voltage_sel &&
 	    !regulator_desc->ops->list_voltage) {
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		goto rinse;
 	}
 
 	rdev = kzalloc(sizeof(struct regulator_dev), GFP_KERNEL);
-	if (rdev == NULL)
-		return ERR_PTR(-ENOMEM);
+	if (rdev == NULL) {
+		ret = -ENOMEM;
+		goto rinse;
+	}
 
 	/*
 	 * Duplicate the config so the driver could override it after
@@ -4128,17 +4892,28 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	config = kmemdup(cfg, sizeof(*cfg), GFP_KERNEL);
 	if (config == NULL) {
 		kfree(rdev);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto rinse;
 	}
 
 	init_data = regulator_of_get_init_data(dev, regulator_desc, config,
 					       &rdev->dev.of_node);
+	/*
+	 * We need to keep track of any GPIO descriptor coming from the
+	 * device tree until we have handled it over to the core. If the
+	 * config that was passed in to this function DOES NOT contain
+	 * a descriptor, and the config after this call DOES contain
+	 * a descriptor, we definitely got one from parsing the device
+	 * tree.
+	 */
+	if (!cfg->ena_gpiod && config->ena_gpiod)
+		dangling_of_gpiod = true;
 	if (!init_data) {
 		init_data = config->init_data;
 		rdev->dev.of_node = of_node_get(config->of_node);
 	}
 
-	mutex_init(&rdev->mutex);
+	ww_mutex_init(&rdev->mutex, &regulator_ww_class);
 	rdev->reg_data = config->driver_data;
 	rdev->owner = regulator_desc->owner;
 	rdev->desc = regulator_desc;
@@ -4160,17 +4935,18 @@ regulator_register(const struct regulator_desc *regulator_desc,
 			goto clean;
 	}
 
-	if (config->ena_gpiod ||
-	    ((config->ena_gpio || config->ena_gpio_initialized) &&
-	     gpio_is_valid(config->ena_gpio))) {
+	if (config->ena_gpiod) {
 		mutex_lock(&regulator_list_mutex);
 		ret = regulator_ena_gpio_request(rdev, config);
 		mutex_unlock(&regulator_list_mutex);
 		if (ret != 0) {
-			rdev_err(rdev, "Failed to request enable GPIO%d: %d\n",
-				 config->ena_gpio, ret);
+			rdev_err(rdev, "Failed to request enable GPIO: %d\n",
+				 ret);
 			goto clean;
 		}
+		/* The regulator core took over the GPIO descriptor */
+		dangling_cfg_gpiod = false;
+		dangling_of_gpiod = false;
 	}
 
 	/* register with sysfs */
@@ -4200,6 +4976,10 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	if (ret < 0)
 		goto wash;
 
+	ret = regulator_init_coupling(rdev);
+	if (ret < 0)
+		goto wash;
+
 	/* add consumers devices */
 	if (init_data) {
 		mutex_lock(&regulator_list_mutex);
@@ -4222,14 +5002,19 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	    !rdev->desc->fixed_uV)
 		rdev->is_switch = true;
 
+	dev_set_drvdata(&rdev->dev, rdev);
 	ret = device_register(&rdev->dev);
 	if (ret != 0) {
 		put_device(&rdev->dev);
 		goto unset_supplies;
 	}
 
-	dev_set_drvdata(&rdev->dev, rdev);
 	rdev_init_debugfs(rdev);
+
+	/* try to resolve regulators coupling since a new one was registered */
+	mutex_lock(&regulator_list_mutex);
+	regulator_resolve_coupling(rdev);
+	mutex_unlock(&regulator_list_mutex);
 
 	/* try to resolve regulators supply since a new one was registered */
 	class_for_each_device(&regulator_class, NULL, NULL,
@@ -4247,8 +5032,13 @@ wash:
 	regulator_ena_gpio_free(rdev);
 	mutex_unlock(&regulator_list_mutex);
 clean:
+	if (dangling_of_gpiod)
+		gpiod_put(config->ena_gpiod);
 	kfree(rdev);
 	kfree(config);
+rinse:
+	if (dangling_cfg_gpiod)
+		gpiod_put(cfg->ena_gpiod);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(regulator_register);
@@ -4269,88 +5059,76 @@ void regulator_unregister(struct regulator_dev *rdev)
 			regulator_disable(rdev->supply);
 		regulator_put(rdev->supply);
 	}
-	mutex_lock(&regulator_list_mutex);
-	debugfs_remove_recursive(rdev->debugfs);
+
 	flush_work(&rdev->disable_work.work);
+
+	mutex_lock(&regulator_list_mutex);
+
+	debugfs_remove_recursive(rdev->debugfs);
 	WARN_ON(rdev->open_count);
+	regulator_remove_coupling(rdev);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
 	regulator_ena_gpio_free(rdev);
-	mutex_unlock(&regulator_list_mutex);
 	device_unregister(&rdev->dev);
+
+	mutex_unlock(&regulator_list_mutex);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
 
 #ifdef CONFIG_SUSPEND
-static int _regulator_suspend_late(struct device *dev, void *data)
-{
-	struct regulator_dev *rdev = dev_to_rdev(dev);
-	suspend_state_t *state = data;
-	int ret;
-
-	mutex_lock(&rdev->mutex);
-	ret = suspend_set_state(rdev, *state);
-	mutex_unlock(&rdev->mutex);
-
-	return ret;
-}
-
 /**
- * regulator_suspend_late - prepare regulators for system wide suspend
- * @state: system suspend state
+ * regulator_suspend - prepare regulators for system wide suspend
+ * @dev: ``&struct device`` pointer that is passed to _regulator_suspend()
  *
  * Configure each regulator with it's suspend operating parameters for state.
  */
-static int regulator_suspend_late(struct device *dev)
+static int regulator_suspend(struct device *dev)
 {
-	suspend_state_t state = pm_suspend_target_state;
-
-	return class_for_each_device(&regulator_class, NULL, &state,
-				     _regulator_suspend_late);
-}
-
-static int _regulator_resume_early(struct device *dev, void *data)
-{
-	int ret = 0;
 	struct regulator_dev *rdev = dev_to_rdev(dev);
-	suspend_state_t *state = data;
-	struct regulator_state *rstate;
+	suspend_state_t state = pm_suspend_target_state;
+	int ret;
 
-	rstate = regulator_get_suspend_state(rdev, *state);
-	if (rstate == NULL)
-		return 0;
-
-	mutex_lock(&rdev->mutex);
-
-	if (rdev->desc->ops->resume_early &&
-	    (rstate->enabled == ENABLE_IN_SUSPEND ||
-	     rstate->enabled == DISABLE_IN_SUSPEND))
-		ret = rdev->desc->ops->resume_early(rdev);
-
-	mutex_unlock(&rdev->mutex);
+	regulator_lock(rdev);
+	ret = suspend_set_state(rdev, state);
+	regulator_unlock(rdev);
 
 	return ret;
 }
 
-static int regulator_resume_early(struct device *dev)
+static int regulator_resume(struct device *dev)
 {
 	suspend_state_t state = pm_suspend_target_state;
+	struct regulator_dev *rdev = dev_to_rdev(dev);
+	struct regulator_state *rstate;
+	int ret = 0;
 
-	return class_for_each_device(&regulator_class, NULL, &state,
-				     _regulator_resume_early);
+	rstate = regulator_get_suspend_state(rdev, state);
+	if (rstate == NULL)
+		return 0;
+
+	regulator_lock(rdev);
+
+	if (rdev->desc->ops->resume &&
+	    (rstate->enabled == ENABLE_IN_SUSPEND ||
+	     rstate->enabled == DISABLE_IN_SUSPEND))
+		ret = rdev->desc->ops->resume(rdev);
+
+	regulator_unlock(rdev);
+
+	return ret;
 }
-
 #else /* !CONFIG_SUSPEND */
 
-#define regulator_suspend_late	NULL
-#define regulator_resume_early	NULL
+#define regulator_suspend	NULL
+#define regulator_resume	NULL
 
 #endif /* !CONFIG_SUSPEND */
 
 #ifdef CONFIG_PM
 static const struct dev_pm_ops __maybe_unused regulator_pm_ops = {
-	.suspend_late	= regulator_suspend_late,
-	.resume_early	= regulator_resume_early,
+	.suspend	= regulator_suspend,
+	.resume		= regulator_resume,
 };
 #endif
 
@@ -4432,6 +5210,12 @@ struct device *rdev_get_dev(struct regulator_dev *rdev)
 }
 EXPORT_SYMBOL_GPL(rdev_get_dev);
 
+struct regmap *rdev_get_regmap(struct regulator_dev *rdev)
+{
+	return rdev->regmap;
+}
+EXPORT_SYMBOL_GPL(rdev_get_regmap);
+
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data)
 {
 	return reg_init_data->driver_data;
@@ -4451,23 +5235,8 @@ static int supply_map_show(struct seq_file *sf, void *data)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(supply_map);
 
-static int supply_map_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, supply_map_show, inode->i_private);
-}
-#endif
-
-static const struct file_operations supply_map_fops = {
-#ifdef CONFIG_DEBUG_FS
-	.open = supply_map_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-#endif
-};
-
-#ifdef CONFIG_DEBUG_FS
 struct summary_data {
 	struct seq_file *s;
 	struct regulator_dev *parent;
@@ -4497,17 +5266,21 @@ static void regulator_summary_show_subtree(struct seq_file *s,
 	struct regulation_constraints *c;
 	struct regulator *consumer;
 	struct summary_data summary_data;
+	unsigned int opmode;
 
 	if (!rdev)
 		return;
 
-	seq_printf(s, "%*s%-*s %3d %4d %6d ",
+	opmode = _regulator_get_mode_unlocked(rdev);
+	seq_printf(s, "%*s%-*s %3d %4d %6d %7s ",
 		   level * 3 + 1, "",
 		   30 - level * 3, rdev_get_name(rdev),
-		   rdev->use_count, rdev->open_count, rdev->bypass_count);
+		   rdev->use_count, rdev->open_count, rdev->bypass_count,
+		   regulator_opmode_to_str(opmode));
 
 	seq_printf(s, "%5dmV ", _regulator_get_voltage(rdev) / 1000);
-	seq_printf(s, "%5dmA ", _regulator_get_current_limit(rdev) / 1000);
+	seq_printf(s, "%5dmA ",
+		   _regulator_get_current_limit_unlocked(rdev) / 1000);
 
 	c = rdev->constraints;
 	if (c) {
@@ -4536,7 +5309,11 @@ static void regulator_summary_show_subtree(struct seq_file *s,
 
 		switch (rdev->desc->type) {
 		case REGULATOR_VOLTAGE:
-			seq_printf(s, "%37dmV %5dmV",
+			seq_printf(s, "%3d %33dmA%c%5dmV %5dmV",
+				   consumer->enable_count,
+				   consumer->uA_load / 1000,
+				   consumer->uA_load && !consumer->enable_count ?
+				   '*' : ' ',
 				   consumer->voltage[PM_SUSPEND_ON].min_uV / 1000,
 				   consumer->voltage[PM_SUSPEND_ON].max_uV / 1000);
 			break;
@@ -4555,6 +5332,105 @@ static void regulator_summary_show_subtree(struct seq_file *s,
 			      regulator_summary_show_children);
 }
 
+struct summary_lock_data {
+	struct ww_acquire_ctx *ww_ctx;
+	struct regulator_dev **new_contended_rdev;
+	struct regulator_dev **old_contended_rdev;
+};
+
+static int regulator_summary_lock_one(struct device *dev, void *data)
+{
+	struct regulator_dev *rdev = dev_to_rdev(dev);
+	struct summary_lock_data *lock_data = data;
+	int ret = 0;
+
+	if (rdev != *lock_data->old_contended_rdev) {
+		ret = regulator_lock_nested(rdev, lock_data->ww_ctx);
+
+		if (ret == -EDEADLK)
+			*lock_data->new_contended_rdev = rdev;
+		else
+			WARN_ON_ONCE(ret);
+	} else {
+		*lock_data->old_contended_rdev = NULL;
+	}
+
+	return ret;
+}
+
+static int regulator_summary_unlock_one(struct device *dev, void *data)
+{
+	struct regulator_dev *rdev = dev_to_rdev(dev);
+	struct summary_lock_data *lock_data = data;
+
+	if (lock_data) {
+		if (rdev == *lock_data->new_contended_rdev)
+			return -EDEADLK;
+	}
+
+	regulator_unlock(rdev);
+
+	return 0;
+}
+
+static int regulator_summary_lock_all(struct ww_acquire_ctx *ww_ctx,
+				      struct regulator_dev **new_contended_rdev,
+				      struct regulator_dev **old_contended_rdev)
+{
+	struct summary_lock_data lock_data;
+	int ret;
+
+	lock_data.ww_ctx = ww_ctx;
+	lock_data.new_contended_rdev = new_contended_rdev;
+	lock_data.old_contended_rdev = old_contended_rdev;
+
+	ret = class_for_each_device(&regulator_class, NULL, &lock_data,
+				    regulator_summary_lock_one);
+	if (ret)
+		class_for_each_device(&regulator_class, NULL, &lock_data,
+				      regulator_summary_unlock_one);
+
+	return ret;
+}
+
+static void regulator_summary_lock(struct ww_acquire_ctx *ww_ctx)
+{
+	struct regulator_dev *new_contended_rdev = NULL;
+	struct regulator_dev *old_contended_rdev = NULL;
+	int err;
+
+	mutex_lock(&regulator_list_mutex);
+
+	ww_acquire_init(ww_ctx, &regulator_ww_class);
+
+	do {
+		if (new_contended_rdev) {
+			ww_mutex_lock_slow(&new_contended_rdev->mutex, ww_ctx);
+			old_contended_rdev = new_contended_rdev;
+			old_contended_rdev->ref_cnt++;
+		}
+
+		err = regulator_summary_lock_all(ww_ctx,
+						 &new_contended_rdev,
+						 &old_contended_rdev);
+
+		if (old_contended_rdev)
+			regulator_unlock(old_contended_rdev);
+
+	} while (err == -EDEADLK);
+
+	ww_acquire_done(ww_ctx);
+}
+
+static void regulator_summary_unlock(struct ww_acquire_ctx *ww_ctx)
+{
+	class_for_each_device(&regulator_class, NULL, NULL,
+			      regulator_summary_unlock_one);
+	ww_acquire_fini(ww_ctx);
+
+	mutex_unlock(&regulator_list_mutex);
+}
+
 static int regulator_summary_show_roots(struct device *dev, void *data)
 {
 	struct regulator_dev *rdev = dev_to_rdev(dev);
@@ -4568,29 +5444,22 @@ static int regulator_summary_show_roots(struct device *dev, void *data)
 
 static int regulator_summary_show(struct seq_file *s, void *data)
 {
-	seq_puts(s, " regulator                      use open bypass voltage current     min     max\n");
-	seq_puts(s, "-------------------------------------------------------------------------------\n");
+	struct ww_acquire_ctx ww_ctx;
+
+	seq_puts(s, " regulator                      use open bypass  opmode voltage current     min     max\n");
+	seq_puts(s, "---------------------------------------------------------------------------------------\n");
+
+	regulator_summary_lock(&ww_ctx);
 
 	class_for_each_device(&regulator_class, NULL, s,
 			      regulator_summary_show_roots);
 
+	regulator_summary_unlock(&ww_ctx);
+
 	return 0;
 }
-
-static int regulator_summary_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, regulator_summary_show, inode->i_private);
-}
-#endif
-
-static const struct file_operations regulator_summary_fops = {
-#ifdef CONFIG_DEBUG_FS
-	.open		= regulator_summary_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-#endif
-};
+DEFINE_SHOW_ATTRIBUTE(regulator_summary);
+#endif /* CONFIG_DEBUG_FS */
 
 static int __init regulator_init(void)
 {
@@ -4602,12 +5471,13 @@ static int __init regulator_init(void)
 	if (!debugfs_root)
 		pr_warn("regulator: Failed to create debugfs directory\n");
 
+#ifdef CONFIG_DEBUG_FS
 	debugfs_create_file("supply_map", 0444, debugfs_root, NULL,
 			    &supply_map_fops);
 
 	debugfs_create_file("regulator_summary", 0444, debugfs_root,
 			    NULL, &regulator_summary_fops);
-
+#endif
 	regulator_dummy_init();
 
 	return ret;
@@ -4629,7 +5499,7 @@ static int __init regulator_late_cleanup(struct device *dev, void *data)
 	if (!regulator_ops_is_valid(rdev, REGULATOR_CHANGE_STATUS))
 		return 0;
 
-	mutex_lock(&rdev->mutex);
+	regulator_lock(rdev);
 
 	if (rdev->use_count)
 		goto unlock;
@@ -4660,7 +5530,7 @@ static int __init regulator_late_cleanup(struct device *dev, void *data)
 	}
 
 unlock:
-	mutex_unlock(&rdev->mutex);
+	regulator_unlock(rdev);
 
 	return 0;
 }

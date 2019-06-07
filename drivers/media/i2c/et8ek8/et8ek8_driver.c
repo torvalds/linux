@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * et8ek8_driver.c
  *
@@ -11,15 +12,6 @@
  *
  * This driver is based on the Micron MT9T012 camera imager driver
  * (C) Texas Instruments.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -1446,6 +1438,7 @@ static int et8ek8_probe(struct i2c_client *client,
 	sensor->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sensor->subdev.internal_ops = &et8ek8_internal_ops;
 
+	sensor->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&sensor->subdev.entity, 1, &sensor->pad);
 	if (ret < 0) {

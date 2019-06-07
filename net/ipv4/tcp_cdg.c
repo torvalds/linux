@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CAIA Delay-Gradient (CDG) congestion control
  *
@@ -146,7 +147,7 @@ static void tcp_cdg_hystart_update(struct sock *sk)
 		return;
 
 	if (hystart_detect & HYSTART_ACK_TRAIN) {
-		u32 now_us = div_u64(local_clock(), NSEC_PER_USEC);
+		u32 now_us = tp->tcp_mstamp;
 
 		if (ca->last_ack == 0 || !tcp_is_cwnd_limited(sk)) {
 			ca->last_ack = now_us;

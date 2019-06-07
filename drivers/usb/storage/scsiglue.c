@@ -65,6 +65,7 @@ static const char* host_info(struct Scsi_Host *host)
 static int slave_alloc (struct scsi_device *sdev)
 {
 	struct us_data *us = host_to_us(sdev->host);
+	int maxp;
 
 	/*
 	 * Set the INQUIRY transfer length to 36.  We don't use any of
@@ -74,20 +75,17 @@ static int slave_alloc (struct scsi_device *sdev)
 	sdev->inquiry_len = 36;
 
 	/*
-	 * USB has unusual DMA-alignment requirements: Although the
-	 * starting address of each scatter-gather element doesn't matter,
-	 * the length of each element except the last must be divisible
-	 * by the Bulk maxpacket value.  There's currently no way to
-	 * express this by block-layer constraints, so we'll cop out
-	 * and simply require addresses to be aligned at 512-byte
-	 * boundaries.  This is okay since most block I/O involves
-	 * hardware sectors that are multiples of 512 bytes in length,
-	 * and since host controllers up through USB 2.0 have maxpacket
-	 * values no larger than 512.
-	 *
-	 * But it doesn't suffice for Wireless USB, where Bulk maxpacket
-	 * values can be as large as 2048.  To make that work properly
-	 * will require changes to the block layer.
+	 * USB has unusual scatter-gather requirements: the length of each
+	 * scatterlist element except the last must be divisible by the
+	 * Bulk maxpacket value.  Fortunately this value is always a
+	 * power of 2.  Inform the block layer about this requirement.
+	 */
+	maxp = usb_maxpacket(us->pusb_dev, us->recv_bulk_pipe, 0);
+	blk_queue_virt_boundary(sdev->request_queue, maxp - 1);
+
+	/*
+	 * Some host controllers may have alignment requirements.
+	 * We'll play it safe by requiring 512-byte alignment always.
 	 */
 	blk_queue_update_dma_alignment(sdev->request_queue, (512 - 1));
 
@@ -235,8 +233,12 @@ static int slave_configure(struct scsi_device *sdev)
 		if (!(us->fflags & US_FL_NEEDS_CAP16))
 			sdev->try_rc_10_first = 1;
 
-		/* assume SPC3 or latter devices support sense size > 18 */
-		if (sdev->scsi_level > SCSI_SPC_2)
+		/*
+		 * assume SPC3 or latter devices support sense size > 18
+		 * unless US_FL_BAD_SENSE quirk is specified.
+		 */
+		if (sdev->scsi_level > SCSI_SPC_2 &&
+		    !(us->fflags & US_FL_BAD_SENSE))
 			us->fflags |= US_FL_SANE_SENSE;
 
 		/*
@@ -372,6 +374,15 @@ static int queuecommand_lck(struct scsi_cmnd *srb,
 	if (test_bit(US_FLIDX_DISCONNECTING, &us->dflags)) {
 		usb_stor_dbg(us, "Fail command during disconnect\n");
 		srb->result = DID_NO_CONNECT << 16;
+		done(srb);
+		return 0;
+	}
+
+	if ((us->fflags & US_FL_NO_ATA_1X) &&
+			(srb->cmnd[0] == ATA_12 || srb->cmnd[0] == ATA_16)) {
+		memcpy(srb->sense_buffer, usb_stor_sense_invalidCDB,
+		       sizeof(usb_stor_sense_invalidCDB));
+		srb->result = SAM_STAT_CHECK_CONDITION;
 		done(srb);
 		return 0;
 	}
@@ -629,13 +640,6 @@ static const struct scsi_host_template usb_stor_host_template = {
 	 * and 2048 for USB3 devices.
 	 */
 	.max_sectors =                  240,
-
-	/*
-	 * merge commands... this seems to help performance, but
-	 * periodically someone should test to see which setting is more
-	 * optimal.
-	 */
-	.use_clustering =		1,
 
 	/* emulated HBA */
 	.emulated =			1,

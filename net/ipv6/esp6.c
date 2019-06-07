@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C)2002 USAGI/WIDE Project
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Authors
  *
@@ -145,10 +133,13 @@ static void esp_output_done(struct crypto_async_request *base, int err)
 	void *tmp;
 	struct xfrm_state *x;
 
-	if (xo && (xo->flags & XFRM_DEV_RESUME))
-		x = skb->sp->xvec[skb->sp->len - 1];
-	else
+	if (xo && (xo->flags & XFRM_DEV_RESUME)) {
+		struct sec_path *sp = skb_sec_path(skb);
+
+		x = sp->xvec[sp->len - 1];
+	} else {
 		x = skb_dst(skb)->xfrm;
+	}
 
 	tmp = ESP_SKB_CB(skb)->tmp;
 	esp_ssg_unref(x, tmp);
@@ -293,7 +284,7 @@ int esp6_output_head(struct xfrm_state *x, struct sk_buff *skb, struct esp_info 
 			skb->len += tailen;
 			skb->data_len += tailen;
 			skb->truesize += tailen;
-			if (sk)
+			if (sk && sk_fullsock(sk))
 				refcount_add(tailen, &sk->sk_wmem_alloc);
 
 			goto out;
@@ -601,12 +592,11 @@ static void esp_input_done_esn(struct crypto_async_request *base, int err)
 
 static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct ip_esp_hdr *esph;
 	struct crypto_aead *aead = x->data;
 	struct aead_request *req;
 	struct sk_buff *trailer;
 	int ivlen = crypto_aead_ivsize(aead);
-	int elen = skb->len - sizeof(*esph) - ivlen;
+	int elen = skb->len - sizeof(struct ip_esp_hdr) - ivlen;
 	int nfrags;
 	int assoclen;
 	int seqhilen;
@@ -616,7 +606,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	u8 *iv;
 	struct scatterlist *sg;
 
-	if (!pskb_may_pull(skb, sizeof(*esph) + ivlen)) {
+	if (!pskb_may_pull(skb, sizeof(struct ip_esp_hdr) + ivlen)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -626,7 +616,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 		goto out;
 	}
 
-	assoclen = sizeof(*esph);
+	assoclen = sizeof(struct ip_esp_hdr);
 	seqhilen = 0;
 
 	if (x->props.flags & XFRM_STATE_ESN) {
@@ -669,8 +659,10 @@ skip_cow:
 
 	sg_init_table(sg, nfrags);
 	ret = skb_to_sgvec(skb, sg, 0, skb->len);
-	if (unlikely(ret < 0))
+	if (unlikely(ret < 0)) {
+		kfree(tmp);
 		goto out;
+	}
 
 	skb->ip_summed = CHECKSUM_NONE;
 

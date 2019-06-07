@@ -184,6 +184,6 @@ int vnic_dev_overlay_offload_cfg(struct vnic_dev *vdev, u8 overlay,
 				 u16 vxlan_udp_port_number);
 int vnic_dev_get_supported_feature_ver(struct vnic_dev *vdev, u8 feature,
 				       u64 *supported_versions, u64 *a1);
-bool vnic_dev_capable_udp_rss(struct vnic_dev *vdev);
+int vnic_dev_capable_rss_hash_type(struct vnic_dev *vdev, u8 *rss_hash_type);
 
 #endif /* _VNIC_DEV_H_ */

@@ -121,11 +121,13 @@
 			cooling-maps {
 				map0 {
 					/* Correspond to 500MHz at freq_table */
-					cooling-device = <&cpu0 5 5>;
+					cooling-device = <&cpu0 5 5>,
+							 <&cpu1 5 5>;
 				};
 				map1 {
 					/* Correspond to 200MHz at freq_table */
-					cooling-device = <&cpu0 8 8>;
+					cooling-device = <&cpu0 8 8>,
+							 <&cpu1 8 8>;
 				};
 			};
 		};

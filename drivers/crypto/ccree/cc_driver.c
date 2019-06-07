@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
+/* Copyright (C) 2012-2019 ARM Limited or its affiliates. */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -30,38 +30,87 @@
 bool cc_dump_desc;
 module_param_named(dump_desc, cc_dump_desc, bool, 0600);
 MODULE_PARM_DESC(cc_dump_desc, "Dump descriptors to kernel log as debugging aid");
-
 bool cc_dump_bytes;
 module_param_named(dump_bytes, cc_dump_bytes, bool, 0600);
 MODULE_PARM_DESC(cc_dump_bytes, "Dump buffers to kernel log as debugging aid");
+
+static bool cc_sec_disable;
+module_param_named(sec_disable, cc_sec_disable, bool, 0600);
+MODULE_PARM_DESC(cc_sec_disable, "Disable security functions");
 
 struct cc_hw_data {
 	char *name;
 	enum cc_hw_rev rev;
 	u32 sig;
+	u32 cidr_0123;
+	u32 pidr_0124;
+	int std_bodies;
+};
+
+#define CC_NUM_IDRS 4
+
+/* Note: PIDR3 holds CMOD/Rev so ignored for HW identification purposes */
+static const u32 pidr_0124_offsets[CC_NUM_IDRS] = {
+	CC_REG(PERIPHERAL_ID_0), CC_REG(PERIPHERAL_ID_1),
+	CC_REG(PERIPHERAL_ID_2), CC_REG(PERIPHERAL_ID_4)
+};
+
+static const u32 cidr_0123_offsets[CC_NUM_IDRS] = {
+	CC_REG(COMPONENT_ID_0), CC_REG(COMPONENT_ID_1),
+	CC_REG(COMPONENT_ID_2), CC_REG(COMPONENT_ID_3)
 };
 
 /* Hardware revisions defs. */
 
+/* The 703 is a OSCCA only variant of the 713 */
+static const struct cc_hw_data cc703_hw = {
+	.name = "703", .rev = CC_HW_REV_713, .cidr_0123 = 0xB105F00DU,
+	.pidr_0124 = 0x040BB0D0U, .std_bodies = CC_STD_OSCCA
+};
+
+static const struct cc_hw_data cc713_hw = {
+	.name = "713", .rev = CC_HW_REV_713, .cidr_0123 = 0xB105F00DU,
+	.pidr_0124 = 0x040BB0D0U, .std_bodies = CC_STD_ALL
+};
+
 static const struct cc_hw_data cc712_hw = {
-	.name = "712", .rev = CC_HW_REV_712, .sig =  0xDCC71200U
+	.name = "712", .rev = CC_HW_REV_712, .sig =  0xDCC71200U,
+	.std_bodies = CC_STD_ALL
 };
 
 static const struct cc_hw_data cc710_hw = {
-	.name = "710", .rev = CC_HW_REV_710, .sig =  0xDCC63200U
+	.name = "710", .rev = CC_HW_REV_710, .sig =  0xDCC63200U,
+	.std_bodies = CC_STD_ALL
 };
 
 static const struct cc_hw_data cc630p_hw = {
-	.name = "630P", .rev = CC_HW_REV_630, .sig = 0xDCC63000U
+	.name = "630P", .rev = CC_HW_REV_630, .sig = 0xDCC63000U,
+	.std_bodies = CC_STD_ALL
 };
 
 static const struct of_device_id arm_ccree_dev_of_match[] = {
+	{ .compatible = "arm,cryptocell-703-ree", .data = &cc703_hw },
+	{ .compatible = "arm,cryptocell-713-ree", .data = &cc713_hw },
 	{ .compatible = "arm,cryptocell-712-ree", .data = &cc712_hw },
 	{ .compatible = "arm,cryptocell-710-ree", .data = &cc710_hw },
 	{ .compatible = "arm,cryptocell-630p-ree", .data = &cc630p_hw },
 	{}
 };
 MODULE_DEVICE_TABLE(of, arm_ccree_dev_of_match);
+
+static u32 cc_read_idr(struct cc_drvdata *drvdata, const u32 *idr_offsets)
+{
+	int i;
+	union {
+		u8 regs[CC_NUM_IDRS];
+		__le32 val;
+	} idr;
+
+	for (i = 0; i < CC_NUM_IDRS; ++i)
+		idr.regs[i] = cc_ioread(drvdata, idr_offsets[i]);
+
+	return le32_to_cpu(idr.val);
+}
 
 void __dump_byte_array(const char *name, const u8 *buf, size_t len)
 {
@@ -88,10 +137,10 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	/* read the interrupt status */
 	irr = cc_ioread(drvdata, CC_REG(HOST_IRR));
 	dev_dbg(dev, "Got IRR=0x%08X\n", irr);
-	if (irr == 0) { /* Probably shared interrupt line */
-		dev_err(dev, "Got interrupt with empty IRR\n");
+
+	if (irr == 0) /* Probably shared interrupt line */
 		return IRQ_NONE;
-	}
+
 	imr = cc_ioread(drvdata, CC_REG(HOST_IMR));
 
 	/* clear interrupt - must be before processing events */
@@ -99,12 +148,12 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 
 	drvdata->irq = irr;
 	/* Completion interrupt - most probable */
-	if (irr & CC_COMP_IRQ_MASK) {
-		/* Mask AXI completion interrupt - will be unmasked in
-		 * Deferred service handler
+	if (irr & drvdata->comp_mask) {
+		/* Mask all completion interrupts - will be unmasked in
+		 * deferred service handler
 		 */
-		cc_iowrite(drvdata, CC_REG(HOST_IMR), imr | CC_COMP_IRQ_MASK);
-		irr &= ~CC_COMP_IRQ_MASK;
+		cc_iowrite(drvdata, CC_REG(HOST_IMR), imr | drvdata->comp_mask);
+		irr &= ~drvdata->comp_mask;
 		complete_request(drvdata);
 	}
 #ifdef CONFIG_CRYPTO_FIPS
@@ -131,8 +180,8 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	}
 
 	if (irr) {
-		dev_dbg(dev, "IRR includes unknown cause bits (0x%08X)\n",
-			irr);
+		dev_dbg_ratelimited(dev, "IRR includes unknown cause bits (0x%08X)\n",
+				    irr);
 		/* Just warning */
 	}
 
@@ -144,11 +193,14 @@ int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe)
 	unsigned int val, cache_params;
 	struct device *dev = drvdata_to_dev(drvdata);
 
-	/* Unmask all AXI interrupt sources AXI_CFG1 register */
-	val = cc_ioread(drvdata, CC_REG(AXIM_CFG));
-	cc_iowrite(drvdata, CC_REG(AXIM_CFG), val & ~CC_AXI_IRQ_MASK);
-	dev_dbg(dev, "AXIM_CFG=0x%08X\n",
-		cc_ioread(drvdata, CC_REG(AXIM_CFG)));
+	/* Unmask all AXI interrupt sources AXI_CFG1 register   */
+	/* AXI interrupt config are obsoleted startign at cc7x3 */
+	if (drvdata->hw_rev <= CC_HW_REV_712) {
+		val = cc_ioread(drvdata, CC_REG(AXIM_CFG));
+		cc_iowrite(drvdata, CC_REG(AXIM_CFG), val & ~CC_AXI_IRQ_MASK);
+		dev_dbg(dev, "AXIM_CFG=0x%08X\n",
+			cc_ioread(drvdata, CC_REG(AXIM_CFG)));
+	}
 
 	/* Clear all pending interrupts */
 	val = cc_ioread(drvdata, CC_REG(HOST_IRR));
@@ -156,7 +208,7 @@ int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe)
 	cc_iowrite(drvdata, CC_REG(HOST_ICR), val);
 
 	/* Unmask relevant interrupt cause */
-	val = CC_COMP_IRQ_MASK | CC_AXI_ERR_IRQ_MASK;
+	val = drvdata->comp_mask | CC_AXI_ERR_IRQ_MASK;
 
 	if (drvdata->hw_rev >= CC_HW_REV_712)
 		val |= CC_GPR0_IRQ_MASK;
@@ -168,14 +220,14 @@ int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe)
 	val = cc_ioread(drvdata, CC_REG(AXIM_CACHE_PARAMS));
 
 	if (is_probe)
-		dev_info(dev, "Cache params previous: 0x%08X\n", val);
+		dev_dbg(dev, "Cache params previous: 0x%08X\n", val);
 
 	cc_iowrite(drvdata, CC_REG(AXIM_CACHE_PARAMS), cache_params);
 	val = cc_ioread(drvdata, CC_REG(AXIM_CACHE_PARAMS));
 
 	if (is_probe)
-		dev_info(dev, "Cache params current: 0x%08X (expect: 0x%08X)\n",
-			 val, cache_params);
+		dev_dbg(dev, "Cache params current: 0x%08X (expect: 0x%08X)\n",
+			val, cache_params);
 
 	return 0;
 }
@@ -186,10 +238,11 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	struct cc_drvdata *new_drvdata;
 	struct device *dev = &plat_dev->dev;
 	struct device_node *np = dev->of_node;
-	u32 signature_val;
+	u32 val, hw_rev_pidr, sig_cidr;
 	u64 dma_mask;
 	const struct cc_hw_data *hw_rev;
 	const struct of_device_id *dev_id;
+	struct clk *clk;
 	int rc = 0;
 
 	new_drvdata = devm_kzalloc(dev, sizeof(*new_drvdata), GFP_KERNEL);
@@ -203,19 +256,41 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	hw_rev = (struct cc_hw_data *)dev_id->data;
 	new_drvdata->hw_rev_name = hw_rev->name;
 	new_drvdata->hw_rev = hw_rev->rev;
+	new_drvdata->std_bodies = hw_rev->std_bodies;
 
 	if (hw_rev->rev >= CC_HW_REV_712) {
-		new_drvdata->hash_len_sz = HASH_LEN_SIZE_712;
 		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP);
+		new_drvdata->sig_offset = CC_REG(HOST_SIGNATURE_712);
+		new_drvdata->ver_offset = CC_REG(HOST_VERSION_712);
 	} else {
-		new_drvdata->hash_len_sz = HASH_LEN_SIZE_630;
 		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP8);
+		new_drvdata->sig_offset = CC_REG(HOST_SIGNATURE_630);
+		new_drvdata->ver_offset = CC_REG(HOST_VERSION_630);
 	}
+
+	new_drvdata->comp_mask = CC_COMP_IRQ_MASK;
 
 	platform_set_drvdata(plat_dev, new_drvdata);
 	new_drvdata->plat_dev = plat_dev;
 
-	new_drvdata->clk = of_clk_get(np, 0);
+	clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(clk))
+		switch (PTR_ERR(clk)) {
+		/* Clock is optional so this might be fine */
+		case -ENOENT:
+			break;
+
+		/* Clock not available, let's try again soon */
+		case -EPROBE_DEFER:
+			return -EPROBE_DEFER;
+
+		default:
+			dev_err(dev, "Error getting clock: %ld\n",
+				PTR_ERR(clk));
+			return PTR_ERR(clk);
+		}
+	new_drvdata->clk = clk;
+
 	new_drvdata->coherent = of_dma_is_coherent(np);
 
 	/* Get device resources */
@@ -265,7 +340,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 	if (rc) {
-		dev_err(dev, "Failed in dma_set_mask, mask=%pad\n", &dma_mask);
+		dev_err(dev, "Failed in dma_set_mask, mask=%llx\n", dma_mask);
 		return rc;
 	}
 
@@ -275,20 +350,57 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		return rc;
 	}
 
-	/* Verify correct mapping */
-	signature_val = cc_ioread(new_drvdata, CC_REG(HOST_SIGNATURE));
-	if (signature_val != hw_rev->sig) {
-		dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
-			signature_val, hw_rev->sig);
-		rc = -EINVAL;
-		goto post_clk_err;
+	new_drvdata->sec_disabled = cc_sec_disable;
+
+	if (hw_rev->rev <= CC_HW_REV_712) {
+		/* Verify correct mapping */
+		val = cc_ioread(new_drvdata, new_drvdata->sig_offset);
+		if (val != hw_rev->sig) {
+			dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
+				val, hw_rev->sig);
+			rc = -EINVAL;
+			goto post_clk_err;
+		}
+		sig_cidr = val;
+		hw_rev_pidr = cc_ioread(new_drvdata, new_drvdata->ver_offset);
+	} else {
+		/* Verify correct mapping */
+		val = cc_read_idr(new_drvdata, pidr_0124_offsets);
+		if (val != hw_rev->pidr_0124) {
+			dev_err(dev, "Invalid CC PIDR: PIDR0124=0x%08X != expected=0x%08X\n",
+				val,  hw_rev->pidr_0124);
+			rc = -EINVAL;
+			goto post_clk_err;
+		}
+		hw_rev_pidr = val;
+
+		val = cc_read_idr(new_drvdata, cidr_0123_offsets);
+		if (val != hw_rev->cidr_0123) {
+			dev_err(dev, "Invalid CC CIDR: CIDR0123=0x%08X != expected=0x%08X\n",
+			val,  hw_rev->cidr_0123);
+			rc = -EINVAL;
+			goto post_clk_err;
+		}
+		sig_cidr = val;
+
+		/* Check security disable state */
+		val = cc_ioread(new_drvdata, CC_REG(SECURITY_DISABLED));
+		val &= CC_SECURITY_DISABLED_MASK;
+		new_drvdata->sec_disabled |= !!val;
+
+		if (!new_drvdata->sec_disabled) {
+			new_drvdata->comp_mask |= CC_CPP_SM4_ABORT_MASK;
+			if (new_drvdata->std_bodies & CC_STD_NIST)
+				new_drvdata->comp_mask |= CC_CPP_AES_ABORT_MASK;
+		}
 	}
-	dev_dbg(dev, "CC SIGNATURE=0x%08X\n", signature_val);
+
+	if (new_drvdata->sec_disabled)
+		dev_info(dev, "Security Disabled mode is in effect. Security functions disabled.\n");
 
 	/* Display HW versions */
-	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X, Driver version %s\n",
-		 hw_rev->name, cc_ioread(new_drvdata, CC_REG(HOST_VERSION)),
-		 DRV_MODULE_VERSION);
+	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X/0x%8X, Driver version %s\n",
+		 hw_rev->name, hw_rev_pidr, sig_cidr, DRV_MODULE_VERSION);
 
 	rc = init_cc_regs(new_drvdata, true);
 	if (rc) {
@@ -342,7 +454,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	rc = cc_ivgen_init(new_drvdata);
 	if (rc) {
 		dev_err(dev, "cc_ivgen_init failed\n");
-		goto post_power_mgr_err;
+		goto post_buf_mgr_err;
 	}
 
 	/* Allocate crypto algs */
@@ -365,6 +477,9 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		goto post_hash_err;
 	}
 
+	/* All set, we can allow autosuspend */
+	cc_pm_go(new_drvdata);
+
 	/* If we got here and FIPS mode is enabled
 	 * it means all FIPS test passed, so let TEE
 	 * know we're good.
@@ -379,8 +494,6 @@ post_cipher_err:
 	cc_cipher_free(new_drvdata);
 post_ivgen_err:
 	cc_ivgen_fini(new_drvdata);
-post_power_mgr_err:
-	cc_pm_fini(new_drvdata);
 post_buf_mgr_err:
 	 cc_buffer_mgr_fini(new_drvdata);
 post_req_mgr_err:
@@ -439,6 +552,14 @@ int cc_clk_on(struct cc_drvdata *drvdata)
 	return 0;
 }
 
+unsigned int cc_get_default_hash_len(struct cc_drvdata *drvdata)
+{
+	if (drvdata->hw_rev >= CC_HW_REV_712)
+		return HASH_LEN_SIZE_712;
+	else
+		return HASH_LEN_SIZE_630;
+}
+
 void cc_clk_off(struct cc_drvdata *drvdata)
 {
 	struct clk *clk = drvdata->clk;
@@ -492,13 +613,8 @@ static struct platform_driver ccree_driver = {
 
 static int __init ccree_init(void)
 {
-	int ret;
-
 	cc_hash_global_init();
-
-	ret = cc_debugfs_global_init();
-	if (ret)
-		return ret;
+	cc_debugfs_global_init();
 
 	return platform_driver_register(&ccree_driver);
 }

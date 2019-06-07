@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic Generic NCR5380 driver
  *
@@ -221,10 +222,10 @@ static struct scsi_host_template cumanascsi_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 2,
-	.use_clustering		= DISABLE_CLUSTERING,
 	.proc_name		= "CumanaSCSI-1",
 	.cmd_size		= NCR5380_CMD_SIZE,
 	.max_sectors		= 128,
+	.dma_boundary		= PAGE_SIZE - 1,
 };
 
 static int cumanascsi1_probe(struct expansion_card *ec,

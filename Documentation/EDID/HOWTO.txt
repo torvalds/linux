@@ -45,14 +45,5 @@ EDID:
 
 #define YPIX vdisp
 #define YBLANK vtotal-vdisp
-#define YOFFSET (63+(vsyncstart-vdisp))
-#define YPULSE (63+(vsyncend-vsyncstart))
-
-The CRC value in the last line
-  #define CRC 0x55
-also is a bit tricky. After a first version of the binary data set is
-created, it must be checked with the "edid-decode" utility which will
-most probably complain about a wrong CRC. Fortunately, the utility also
-displays the correct CRC which must then be inserted into the source
-file. After the make procedure is repeated, the EDID data set is ready
-to be used.
+#define YOFFSET vsyncstart-vdisp
+#define YPULSE vsyncend-vsyncstart

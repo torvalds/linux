@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * max8952.c - Voltage and current regulation for the Maxim 8952
  *
  * Copyright (C) 2010 Samsung Electronics
  * MyungJoo Ham <myungjoo.ham@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -27,6 +14,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/max8952.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
@@ -148,7 +136,6 @@ static struct max8952_platform_data *max8952_parse_dt(struct device *dev)
 
 	pd->gpio_vid0 = of_get_named_gpio(np, "max8952,vid-gpios", 0);
 	pd->gpio_vid1 = of_get_named_gpio(np, "max8952,vid-gpios", 1);
-	pd->gpio_en = of_get_named_gpio(np, "max8952,en-gpio", 0);
 
 	if (of_property_read_u32(np, "max8952,default-mode", &pd->default_mode))
 		dev_warn(dev, "Default mode not specified, assuming 0\n");
@@ -197,6 +184,8 @@ static int max8952_pmic_probe(struct i2c_client *client,
 	struct regulator_config config = { };
 	struct max8952_data *max8952;
 	struct regulator_dev *rdev;
+	struct gpio_desc *gpiod;
+	enum gpiod_flags gflags;
 
 	int ret = 0, err = 0;
 
@@ -224,11 +213,22 @@ static int max8952_pmic_probe(struct i2c_client *client,
 	config.driver_data = max8952;
 	config.of_node = client->dev.of_node;
 
-	config.ena_gpio = pdata->gpio_en;
-	if (client->dev.of_node)
-		config.ena_gpio_initialized = true;
 	if (pdata->reg_data->constraints.boot_on)
-		config.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
+		gflags = GPIOD_OUT_HIGH;
+	else
+		gflags = GPIOD_OUT_LOW;
+	gflags |= GPIOD_FLAGS_BIT_NONEXCLUSIVE;
+	/*
+	 * Do not use devm* here: the regulator core takes over the
+	 * lifecycle management of the GPIO descriptor.
+	 */
+	gpiod = gpiod_get_optional(&client->dev,
+				   "max8952,en",
+				   gflags);
+	if (IS_ERR(gpiod))
+		return PTR_ERR(gpiod);
+	if (gpiod)
+		config.ena_gpiod = gpiod;
 
 	rdev = devm_regulator_register(&client->dev, &regulator, &config);
 	if (IS_ERR(rdev)) {

@@ -1,18 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Glue code for the SHA256 Secure Hash Algorithm assembly implementation
  * using optimized ARM assembler and NEON instructions.
  *
- * Copyright © 2015 Google Inc.
+ * Copyright Â© 2015 Google Inc.
  *
  * This file is based on sha256_ssse3_glue.c:
  *   Copyright (C) 2013 Intel Corporation
  *   Author: Tim Chen <tim.c.chen@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/hash.h>
@@ -71,7 +66,6 @@ static struct shash_alg algs[] = { {
 		.cra_name	=	"sha256",
 		.cra_driver_name =	"sha256-asm",
 		.cra_priority	=	150,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA256_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -86,7 +80,6 @@ static struct shash_alg algs[] = { {
 		.cra_name	=	"sha224",
 		.cra_driver_name =	"sha224-asm",
 		.cra_priority	=	150,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA224_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}

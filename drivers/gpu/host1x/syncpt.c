@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Tegra host1x Syncpoints
  *
  * Copyright (c) 2010-2015, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -57,8 +46,8 @@ static struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
 						 struct host1x_client *client,
 						 unsigned long flags)
 {
-	int i;
 	struct host1x_syncpt *sp = host->syncpt;
+	unsigned int i;
 	char *name;
 
 	mutex_lock(&host->syncpt_mutex);
@@ -255,7 +244,7 @@ int host1x_syncpt_wait(struct host1x_syncpt *sp, u32 thresh, long timeout,
 	}
 
 	/* schedule a wakeup when the syncpoint value is reached */
-	err = host1x_intr_add_action(sp->host, sp->id, thresh,
+	err = host1x_intr_add_action(sp->host, sp, thresh,
 				     HOST1X_INTR_ACTION_WAKEUP_INTERRUPTIBLE,
 				     &wq, waiter, &ref);
 	if (err)
@@ -371,12 +360,6 @@ bool host1x_syncpt_is_expired(struct host1x_syncpt *sp, u32 thresh)
 		return future_val - thresh >= current_val - thresh;
 	else
 		return (s32)(current_val - thresh) >= 0;
-}
-
-/* remove a wait pointed to by patch_addr */
-int host1x_syncpt_patch_wait(struct host1x_syncpt *sp, void *patch_addr)
-{
-	return host1x_hw_syncpt_patch_wait(sp->host, sp, patch_addr);
 }
 
 int host1x_syncpt_init(struct host1x *host)

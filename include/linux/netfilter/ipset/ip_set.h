@@ -303,18 +303,18 @@ ip_set_put_flags(struct sk_buff *skb, struct ip_set *set)
 /* Netlink CB args */
 enum {
 	IPSET_CB_NET = 0,	/* net namespace */
+	IPSET_CB_PROTO,		/* ipset protocol */
 	IPSET_CB_DUMP,		/* dump single set/all sets */
 	IPSET_CB_INDEX,		/* set index */
 	IPSET_CB_PRIVATE,	/* set private data */
 	IPSET_CB_ARG0,		/* type specific */
-	IPSET_CB_ARG1,
 };
 
 /* register and unregister set references */
 extern ip_set_id_t ip_set_get_byname(struct net *net,
 				     const char *name, struct ip_set **set);
 extern void ip_set_put_byindex(struct net *net, ip_set_id_t index);
-extern const char *ip_set_name_byindex(struct net *net, ip_set_id_t index);
+extern void ip_set_name_byindex(struct net *net, ip_set_id_t index, char *name);
 extern ip_set_id_t ip_set_nfnl_get_byindex(struct net *net, ip_set_id_t index);
 extern void ip_set_nfnl_put(struct net *net, ip_set_id_t index);
 
@@ -401,33 +401,30 @@ ip_set_get_h16(const struct nlattr *attr)
 	return ntohs(nla_get_be16(attr));
 }
 
-#define ipset_nest_start(skb, attr) nla_nest_start(skb, attr | NLA_F_NESTED)
-#define ipset_nest_end(skb, start)  nla_nest_end(skb, start)
-
 static inline int nla_put_ipaddr4(struct sk_buff *skb, int type, __be32 ipaddr)
 {
-	struct nlattr *__nested = ipset_nest_start(skb, type);
+	struct nlattr *__nested = nla_nest_start(skb, type);
 	int ret;
 
 	if (!__nested)
 		return -EMSGSIZE;
 	ret = nla_put_in_addr(skb, IPSET_ATTR_IPADDR_IPV4, ipaddr);
 	if (!ret)
-		ipset_nest_end(skb, __nested);
+		nla_nest_end(skb, __nested);
 	return ret;
 }
 
 static inline int nla_put_ipaddr6(struct sk_buff *skb, int type,
 				  const struct in6_addr *ipaddrptr)
 {
-	struct nlattr *__nested = ipset_nest_start(skb, type);
+	struct nlattr *__nested = nla_nest_start(skb, type);
 	int ret;
 
 	if (!__nested)
 		return -EMSGSIZE;
 	ret = nla_put_in6_addr(skb, IPSET_ATTR_IPADDR_IPV6, ipaddrptr);
 	if (!ret)
-		ipset_nest_end(skb, __nested);
+		nla_nest_end(skb, __nested);
 	return ret;
 }
 

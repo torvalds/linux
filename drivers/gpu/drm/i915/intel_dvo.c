@@ -24,15 +24,20 @@
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  */
+
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include "intel_drv.h"
 #include <drm/i915_drm.h>
-#include "i915_drv.h"
+
 #include "dvo.h"
+#include "i915_drv.h"
+#include "intel_connector.h"
+#include "intel_drv.h"
+#include "intel_dvo.h"
+#include "intel_panel.h"
 
 #define SIL164_ADDR	0x38
 #define CH7xxx_ADDR	0x76
@@ -137,19 +142,15 @@ static bool intel_dvo_connector_get_hw_state(struct intel_connector *connector)
 static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	u32 tmp;
 
 	tmp = I915_READ(intel_dvo->dev.dvo_reg);
 
-	if (!(tmp & DVO_ENABLE))
-		return false;
+	*pipe = (tmp & DVO_PIPE_SEL_MASK) >> DVO_PIPE_SEL_SHIFT;
 
-	*pipe = PORT_TO_PIPE(tmp);
-
-	return true;
+	return tmp & DVO_ENABLE;
 }
 
 static void intel_dvo_get_config(struct intel_encoder *encoder,
@@ -219,6 +220,9 @@ intel_dvo_mode_valid(struct drm_connector *connector,
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 	int target_clock = mode->clock;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
 	/* XXX: Validate clock range */
 
 	if (fixed_mode) {
@@ -236,9 +240,9 @@ intel_dvo_mode_valid(struct drm_connector *connector,
 	return intel_dvo->dev.dev_ops->mode_valid(&intel_dvo->dev, mode);
 }
 
-static bool intel_dvo_compute_config(struct intel_encoder *encoder,
-				     struct intel_crtc_state *pipe_config,
-				     struct drm_connector_state *conn_state)
+static int intel_dvo_compute_config(struct intel_encoder *encoder,
+				    struct intel_crtc_state *pipe_config,
+				    struct drm_connector_state *conn_state)
 {
 	struct intel_dvo *intel_dvo = enc_to_dvo(encoder);
 	const struct drm_display_mode *fixed_mode =
@@ -254,7 +258,12 @@ static bool intel_dvo_compute_config(struct intel_encoder *encoder,
 	if (fixed_mode)
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
 
-	return true;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return -EINVAL;
+
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+
+	return 0;
 }
 
 static void intel_dvo_pre_enable(struct intel_encoder *encoder,
@@ -276,8 +285,7 @@ static void intel_dvo_pre_enable(struct intel_encoder *encoder,
 	dvo_val |= DVO_DATA_ORDER_FP | DVO_BORDER_ENABLE |
 		   DVO_BLANK_ACTIVE_HIGH;
 
-	if (pipe == 1)
-		dvo_val |= DVO_PIPE_B_SELECT;
+	dvo_val |= DVO_PIPE_SEL(pipe);
 	dvo_val |= DVO_PIPE_STALL;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		dvo_val |= DVO_HSYNC_ACTIVE_HIGH;
@@ -332,18 +340,11 @@ static int intel_dvo_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static void intel_dvo_destroy(struct drm_connector *connector)
-{
-	drm_connector_cleanup(connector);
-	intel_panel_fini(&to_intel_connector(connector)->panel);
-	kfree(connector);
-}
-
 static const struct drm_connector_funcs intel_dvo_connector_funcs = {
 	.detect = intel_dvo_detect,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
-	.destroy = intel_dvo_destroy,
+	.destroy = intel_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -437,7 +438,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		int gpio;
 		bool dvoinit;
 		enum pipe pipe;
-		uint32_t dpll[I915_MAX_PIPES];
+		u32 dpll[I915_MAX_PIPES];
 		enum port port;
 
 		/*
@@ -536,7 +537,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 			 */
 			intel_panel_init(&intel_connector->panel,
 					 intel_dvo_get_current_mode(intel_encoder),
-					 NULL, NULL);
+					 NULL);
 			intel_dvo->panel_wants_dither = true;
 		}
 

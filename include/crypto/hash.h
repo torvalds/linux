@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Hash: Hash algorithms under the crypto API
  * 
  * Copyright (c) 2008 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
- * any later version.
- *
  */
 
 #ifndef _CRYPTO_HASH_H
@@ -146,14 +141,22 @@ struct ahash_alg {
 
 struct shash_desc {
 	struct crypto_shash *tfm;
-	u32 flags;
-
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
+#define HASH_MAX_DIGESTSIZE	 64
+
+/*
+ * Worst case is hmac(sha3-224-generic).  Its context is a nested 'shash_desc'
+ * containing a 'struct sha3_state'.
+ */
+#define HASH_MAX_DESCSIZE	(sizeof(struct shash_desc) + 360)
+
+#define HASH_MAX_STATESIZE	512
+
 #define SHASH_DESC_ON_STACK(shash, ctx)				  \
 	char __##shash##_desc[sizeof(struct shash_desc) +	  \
-		crypto_shash_descsize(ctx)] CRYPTO_MINALIGN_ATTR; \
+		HASH_MAX_DESCSIZE] CRYPTO_MINALIGN_ATTR; \
 	struct shash_desc *shash = (struct shash_desc *)__##shash##_desc
 
 /**
@@ -522,7 +525,15 @@ static inline int crypto_ahash_init(struct ahash_request *req)
  */
 static inline int crypto_ahash_update(struct ahash_request *req)
 {
-	return crypto_ahash_reqtfm(req)->update(req);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct crypto_alg *alg = tfm->base.__crt_alg;
+	unsigned int nbytes = req->nbytes;
+	int ret;
+
+	crypto_stats_get(alg);
+	ret = crypto_ahash_reqtfm(req)->update(req);
+	crypto_stats_ahash_update(nbytes, ret, alg);
+	return ret;
 }
 
 /**
@@ -807,6 +818,7 @@ static inline void *shash_desc_ctx(struct shash_desc *desc)
  * cipher handle must point to a keyed message digest cipher in order for this
  * function to succeed.
  *
+ * Context: Any context.
  * Return: 0 if the setting of the key was successful; < 0 if an error occurred
  */
 int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
@@ -823,6 +835,7 @@ int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
  * crypto_shash_update and crypto_shash_final. The parameters have the same
  * meaning as discussed for those separate three functions.
  *
+ * Context: Any context.
  * Return: 0 if the message digest creation was successful; < 0 if an error
  *	   occurred
  */
@@ -838,6 +851,7 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
  * caller-allocated output buffer out which must have sufficient size (e.g. by
  * calling crypto_shash_descsize).
  *
+ * Context: Any context.
  * Return: 0 if the export creation was successful; < 0 if an error occurred
  */
 static inline int crypto_shash_export(struct shash_desc *desc, void *out)
@@ -854,6 +868,7 @@ static inline int crypto_shash_export(struct shash_desc *desc, void *out)
  * the input buffer. That buffer should have been generated with the
  * crypto_ahash_export function.
  *
+ * Context: Any context.
  * Return: 0 if the import was successful; < 0 if an error occurred
  */
 static inline int crypto_shash_import(struct shash_desc *desc, const void *in)
@@ -874,6 +889,7 @@ static inline int crypto_shash_import(struct shash_desc *desc, const void *in)
  * operational state handle. Any potentially existing state created by
  * previous operations is discarded.
  *
+ * Context: Any context.
  * Return: 0 if the message digest initialization was successful; < 0 if an
  *	   error occurred
  */
@@ -895,6 +911,7 @@ static inline int crypto_shash_init(struct shash_desc *desc)
  *
  * Updates the message digest state of the operational state handle.
  *
+ * Context: Any context.
  * Return: 0 if the message digest update was successful; < 0 if an error
  *	   occurred
  */
@@ -911,6 +928,7 @@ int crypto_shash_update(struct shash_desc *desc, const u8 *data,
  * into the output buffer. The caller must ensure that the output buffer is
  * large enough by using crypto_shash_digestsize.
  *
+ * Context: Any context.
  * Return: 0 if the message digest creation was successful; < 0 if an error
  *	   occurred
  */
@@ -927,6 +945,7 @@ int crypto_shash_final(struct shash_desc *desc, u8 *out);
  * crypto_shash_update and crypto_shash_final. The parameters have the same
  * meaning as discussed for those separate functions.
  *
+ * Context: Any context.
  * Return: 0 if the message digest creation was successful; < 0 if an error
  *	   occurred
  */

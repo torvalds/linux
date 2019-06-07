@@ -1,16 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SuperTrak EX Series Storage Controller driver for Linux
  *
  *	Copyright (C) 2005-2015 Promise Technology Inc.
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  *	Written By:
  *		Ed Lin <promise_linux@promise.com>
- *
  */
 
 #include <linux/init.h>
@@ -1489,6 +1484,7 @@ static struct scsi_host_template driver_template = {
 	.eh_abort_handler		= stex_abort,
 	.eh_host_reset_handler		= stex_reset,
 	.this_id			= -1,
+	.dma_boundary			= PAGE_SIZE - 1,
 };
 
 static struct pci_device_id stex_pci_tbl[] = {
@@ -1617,19 +1613,6 @@ static struct st_card_info stex_card_info[] = {
 	},
 };
 
-static int stex_set_dma_mask(struct pci_dev * pdev)
-{
-	int ret;
-
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
-		&& !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))
-		return 0;
-	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-	if (!ret)
-		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-	return ret;
-}
-
 static int stex_request_irq(struct st_hba *hba)
 {
 	struct pci_dev *pdev = hba->pdev;
@@ -1710,7 +1693,9 @@ static int stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_release_regions;
 	}
 
-	err = stex_set_dma_mask(pdev);
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err)
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
 		printk(KERN_ERR DRV_NAME "(%s): set dma mask failed\n",
 			pci_name(pdev));

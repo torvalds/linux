@@ -1127,19 +1127,6 @@ static int c4_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int c4_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, c4_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations c4_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= c4_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 /* ------------------------------------------------------------- */
 
 static int c4_add_card(struct capicardparams *p, struct pci_dev *dev,
@@ -1211,7 +1198,7 @@ static int c4_add_card(struct capicardparams *p, struct pci_dev *dev,
 		cinfo->capi_ctrl.load_firmware = c4_load_firmware;
 		cinfo->capi_ctrl.reset_ctr     = c4_reset_ctr;
 		cinfo->capi_ctrl.procinfo      = c4_procinfo;
-		cinfo->capi_ctrl.proc_fops = &c4_proc_fops;
+		cinfo->capi_ctrl.proc_show     = c4_proc_show;
 		strcpy(cinfo->capi_ctrl.name, card->name);
 
 		retval = attach_capi_ctr(&cinfo->capi_ctrl);

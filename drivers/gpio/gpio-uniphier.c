@@ -1,18 +1,9 @@
-/*
- * Copyright (C) 2017 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (C) 2017 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
 
-#include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/gpio/driver.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
@@ -181,7 +172,11 @@ static int uniphier_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 	fwspec.fwnode = of_node_to_fwnode(chip->parent->of_node);
 	fwspec.param_count = 2;
 	fwspec.param[0] = offset - UNIPHIER_GPIO_IRQ_OFFSET;
-	fwspec.param[1] = IRQ_TYPE_NONE;
+	/*
+	 * IRQ_TYPE_NONE is rejected by the parent irq domain. Set LEVEL_HIGH
+	 * temporarily. Anyway, ->irq_set_type() will override it later.
+	 */
+	fwspec.param[1] = IRQ_TYPE_LEVEL_HIGH;
 
 	return irq_create_fwspec_mapping(&fwspec);
 }
@@ -306,8 +301,7 @@ static int uniphier_gpio_irq_domain_activate(struct irq_domain *domain,
 	struct uniphier_gpio_priv *priv = domain->host_data;
 	struct gpio_chip *chip = &priv->chip;
 
-	gpiochip_lock_as_irq(chip, data->hwirq + UNIPHIER_GPIO_IRQ_OFFSET);
-	return 0;
+	return gpiochip_lock_as_irq(chip, data->hwirq + UNIPHIER_GPIO_IRQ_OFFSET);
 }
 
 static void uniphier_gpio_irq_domain_deactivate(struct irq_domain *domain,
@@ -352,7 +346,6 @@ static int uniphier_gpio_probe(struct platform_device *pdev)
 	struct uniphier_gpio_priv *priv;
 	struct gpio_chip *chip;
 	struct irq_chip *irq_chip;
-	struct resource *regs;
 	unsigned int nregs;
 	u32 ngpios;
 	int ret;
@@ -371,14 +364,12 @@ static int uniphier_gpio_probe(struct platform_device *pdev)
 		return ret;
 
 	nregs = uniphier_gpio_get_nbanks(ngpios) * 2 + 3;
-	priv = devm_kzalloc(dev,
-			    sizeof(*priv) + sizeof(priv->saved_vals[0]) * nregs,
+	priv = devm_kzalloc(dev, struct_size(priv, saved_vals, nregs),
 			    GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->regs = devm_ioremap_resource(dev, regs);
+	priv->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
 

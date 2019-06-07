@@ -56,7 +56,7 @@ For CAM, this 24-bit offset is:
         cfg_offset(bus, device, function, register) =
                    bus << 16 | device << 11 | function << 8 | register
 
-Whilst ECAM extends this by 4 bits to accommodate 4k of function space:
+While ECAM extends this by 4 bits to accommodate 4k of function space:
 
         cfg_offset(bus, device, function, register) =
                    bus << 20 | device << 15 | function << 12 | register

@@ -1,12 +1,8 @@
-/*
- * sgtl5000.c  --  SGTL5000 ALSA SoC Audio driver
- *
- * Copyright 2010-2011 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// sgtl5000.c  --  SGTL5000 ALSA SoC Audio driver
+//
+// Copyright 2010-2011 Freescale Semiconductor, Inc. All Rights Reserved.
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -120,6 +116,13 @@ enum  {
 	I2S_LRCLK_STRENGTH_HIGH,
 };
 
+enum  {
+	I2S_SCLK_STRENGTH_DISABLE,
+	I2S_SCLK_STRENGTH_LOW,
+	I2S_SCLK_STRENGTH_MEDIUM,
+	I2S_SCLK_STRENGTH_HIGH,
+};
+
 /* sgtl5000 private structure in codec */
 struct sgtl5000_priv {
 	int sysclk;	/* sysclk rate */
@@ -133,6 +136,7 @@ struct sgtl5000_priv {
 	u8 micbias_resistor;
 	u8 micbias_voltage;
 	u8 lrclk_strength;
+	u8 sclk_strength;
 };
 
 /*
@@ -457,7 +461,7 @@ static int dac_put_volsw(struct snd_kcontrol *kcontrol,
  * avc_put_threshold function: register_value = 10^(dB/20) * 0.636 * 2^15 ==>
  * dB = ( fls(register_value) - 14.347 ) * 6.02
  *
- * As this calculation is expensive and the threshold dB values may not exeed
+ * As this calculation is expensive and the threshold dB values may not exceed
  * 0 to 96 we use pre-calculated values.
  */
 static int avc_get_threshold(struct snd_kcontrol *kcontrol,
@@ -490,7 +494,7 @@ static int avc_get_threshold(struct snd_kcontrol *kcontrol,
  *
  * The register value is calculated by following formula:
  *                                    register_value = 10^(dB/20) * 0.636 * 2^15
- * As this calculation is expensive and the threshold dB values may not exeed
+ * As this calculation is expensive and the threshold dB values may not exceed
  * 0 to 96 we use pre-calculated values.
  */
 static int avc_put_threshold(struct snd_kcontrol *kcontrol,
@@ -1222,7 +1226,7 @@ static int sgtl5000_set_power_regs(struct snd_soc_component *component)
 	 * Searching for a suitable index solving this formula:
 	 * idx = 40 * log10(vag_val / lo_cagcntrl) + 15
 	 */
-	vol_quot = (vag * 100) / lo_vag;
+	vol_quot = lo_vag ? (vag * 100) / lo_vag : 0;
 	lo_vol = 0;
 	for (i = 0; i < ARRAY_SIZE(vol_quot_table); i++) {
 		if (vol_quot >= vol_quot_table[i])
@@ -1306,7 +1310,9 @@ static int sgtl5000_probe(struct snd_soc_component *component)
 			SGTL5000_DAC_MUTE_RIGHT |
 			SGTL5000_DAC_MUTE_LEFT);
 
-	reg = ((sgtl5000->lrclk_strength) << SGTL5000_PAD_I2S_LRCLK_SHIFT | 0x5f);
+	reg = ((sgtl5000->lrclk_strength) << SGTL5000_PAD_I2S_LRCLK_SHIFT |
+	       (sgtl5000->sclk_strength) << SGTL5000_PAD_I2S_SCLK_SHIFT |
+	       0x1f);
 	snd_soc_component_write(component, SGTL5000_CHIP_PAD_STRENGTH, reg);
 
 	snd_soc_component_write(component, SGTL5000_CHIP_ANA_CTRL,
@@ -1544,6 +1550,13 @@ static int sgtl5000_i2c_probe(struct i2c_client *client,
 		if (value > I2S_LRCLK_STRENGTH_HIGH)
 			value = I2S_LRCLK_STRENGTH_LOW;
 		sgtl5000->lrclk_strength = value;
+	}
+
+	sgtl5000->sclk_strength = I2S_SCLK_STRENGTH_LOW;
+	if (!of_property_read_u32(np, "sclk-strength", &value)) {
+		if (value > I2S_SCLK_STRENGTH_HIGH)
+			value = I2S_SCLK_STRENGTH_LOW;
+		sgtl5000->sclk_strength = value;
 	}
 
 	/* Ensure sgtl5000 will start with sane register values */

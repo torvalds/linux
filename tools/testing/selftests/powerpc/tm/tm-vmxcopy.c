@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015, Michael Neuling, IBM Corp.
- * Licensed under GPLv2.
  *
  * Original: Michael Neuling 4/12/2013
  * Edited: Rashmica Gupta 4/12/2015
@@ -46,6 +46,7 @@ int test_vmxcopy()
 	uint64_t aborted = 0;
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(!is_ppc64le());
 
 	fd = mkstemp(tmpfile);
 	assert(fd >= 0);

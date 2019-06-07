@@ -1,27 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
     bttv-cards.c
 
-    this file has configuration informations - card-specific stuff
+    this file has configuration information - card-specific stuff
     like the big tvcards array for the most part
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
 			   & Marcus Metzler (mocm@thp.uni-koeln.de)
     (c) 1999-2001 Gerd Knorr <kraxel@goldbach.in-berlin.de>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
 
@@ -1391,7 +1379,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux        = {0x947fff, 0x987fff,0x947fff,0x947fff },
 		.gpiomute	= 0x947fff,
 		/* tvtuner, radio,   external,internal, mute,  stereo
-		* tuner, Composit, SVid, Composit-on-Svid-adapter */
+		* tuner, Composite, SVid, Composite-on-Svid-adapter */
 		.muxsel         = MUXSEL(2, 3, 0, 1),
 		.tuner_type     = TUNER_MT2032,
 		.tuner_addr	= ADDR_UNSET,
@@ -1411,7 +1399,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomux        = {0x947fff, 0x987fff,0x947fff,0x947fff },
 		.gpiomute	= 0x947fff,
 		/* tvtuner, radio,   external,internal, mute,  stereo
-		* tuner, Composit, SVid, Composit-on-Svid-adapter */
+		* tuner, Composite, SVid, Composite-on-Svid-adapter */
 		.muxsel         = MUXSEL(2, 3, 0, 1),
 		.tuner_type     = TUNER_MT2032,
 		.tuner_addr	= ADDR_UNSET,
@@ -4180,7 +4168,7 @@ static void init_PXC200(struct bttv *btv)
 	bttv_I2CWrite(btv,0x5E,0,0x80,1);
 
 	/*	Initialise 12C508 PIC */
-	/*	The I2CWrite and I2CRead commmands are actually to the
+	/*	The I2CWrite and I2CRead commands are actually to the
 	 *	same chips - but the R/W bit is included in the address
 	 *	argument so the numbers are different */
 
@@ -4289,7 +4277,7 @@ init_RTV24 (struct bttv *btv)
 /* ----------------------------------------------------------------------- */
 /*
  *  The PCI-8604PW contains a CPLD, probably an ispMACH 4A, that filters
- *  the PCI REQ signals comming from the four BT878 chips. After power
+ *  the PCI REQ signals coming from the four BT878 chips. After power
  *  up, the CPLD does not forward requests to the bus, which prevents
  *  the BT878 from fetching RISC instructions from memory. While the
  *  CPLD is connected to most of the GPIOs of PCI device 0xD, only
@@ -4405,7 +4393,7 @@ static void rv605_muxsel(struct bttv *btv, unsigned int input)
 
 	gpio_bits(0x07f, muxgpio[input]);
 
-	/* reset all conections */
+	/* reset all connections */
 	gpio_bits(0x200,0x200);
 	mdelay(1);
 	gpio_bits(0x200,0x000);

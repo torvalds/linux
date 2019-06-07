@@ -413,8 +413,9 @@ struct i40iw_cm_core {
 
 	spinlock_t ht_lock; /* manage hash table */
 	spinlock_t listen_list_lock; /* listen list */
+	spinlock_t apbvt_lock; /*manage apbvt entries*/
 
-	unsigned long active_side_ports[BITS_TO_LONGS(MAX_PORTS)];
+	unsigned long ports_in_use[BITS_TO_LONGS(MAX_PORTS)];
 
 	u64	stats_nodes_created;
 	u64	stats_nodes_destroyed;
@@ -457,4 +458,5 @@ void i40iw_if_notify(struct i40iw_device *iwdev, struct net_device *netdev,
 void i40iw_cm_teardown_connections(struct i40iw_device *iwdev, u32 *ipaddr,
 				   struct i40iw_cm_info *nfo,
 				   bool disconnect_all);
+bool i40iw_port_in_use(struct i40iw_cm_core *cm_core, u16 port);
 #endif /* I40IW_CM_H */

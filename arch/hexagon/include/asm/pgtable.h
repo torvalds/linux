@@ -30,7 +30,6 @@
 
 /* A handy thing to have if one has the RAM. Declared in head.S */
 extern unsigned long empty_zero_page;
-extern unsigned long zero_page_mask;
 
 /*
  * The PTE model described here is that of the Hexagon Virtual Machine,

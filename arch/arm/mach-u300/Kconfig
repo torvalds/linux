@@ -29,17 +29,4 @@ config U300_DEBUG
 	help
 		Debug support for U300 in sysfs, procfs etc.
 
-config MACH_U300_SPIDUMMY
-	depends on ARCH_U300
-	bool "SSP/SPI dummy chip"
-	select SPI
-	select SPI_MASTER
-	select SPI_PL022
-	help
-		This creates a small kernel module that creates a dummy
-		SPI device to be used for loopback tests. Regularly used
-		to test reference designs. If you're not testing SPI,
-		you don't need it. Selecting this will activate the
-		SPI framework and ARM PL022 support.
-
 endif

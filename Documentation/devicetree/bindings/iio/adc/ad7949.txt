@@ -1,0 +1,16 @@
+* Analog Devices AD7949/AD7682/AD7689
+
+Required properties:
+ - compatible: Should be one of
+	* "adi,ad7949"
+	* "adi,ad7682"
+	* "adi,ad7689"
+ - reg: spi chip select number for the device
+ - vref-supply: The regulator supply for ADC reference voltage
+
+Example:
+adc@0 {
+	compatible = "adi,ad7949";
+	reg = <0>;
+	vref-supply = <&vdd_supply>;
+};

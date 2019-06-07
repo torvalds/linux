@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * finite state machine implementation
  *
@@ -6,16 +7,6 @@
  * Thanks to    Jan den Ouden
  *              Fritz Elfert
  * Copyright 2008  by Karsten Keil <kkeil@novell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -32,8 +23,10 @@ mISDN_FsmNew(struct Fsm *fsm,
 {
 	int i;
 
-	fsm->jumpmatrix = kzalloc(sizeof(FSMFNPTR) * fsm->state_count *
-				  fsm->event_count, GFP_KERNEL);
+	fsm->jumpmatrix =
+		kzalloc(array3_size(sizeof(FSMFNPTR), fsm->state_count,
+				    fsm->event_count),
+			GFP_KERNEL);
 	if (fsm->jumpmatrix == NULL)
 		return -ENOMEM;
 

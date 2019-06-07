@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_QUERYCAP:
 
@@ -251,6 +258,9 @@ specification the ioctl returns an ``EINVAL`` error code.
     * - ``V4L2_CAP_STREAMING``
       - 0x04000000
       - The device supports the :ref:`streaming <mmap>` I/O method.
+    * - ``V4L2_CAP_META_OUTPUT``
+      - 0x08000000
+      - The device supports the :ref:`metadata` output interface.
     * - ``V4L2_CAP_TOUCH``
       - 0x10000000
       - This is a touch device.

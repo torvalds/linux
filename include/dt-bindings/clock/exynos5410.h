@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Copyright (c) 2016 Krzysztof Kozlowski
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Device Tree binding constants for Exynos5421 clock controller.
-*/
+ */
 
 #ifndef _DT_BINDINGS_CLOCK_EXYNOS_5410_H
 #define _DT_BINDINGS_CLOCK_EXYNOS_5410_H
@@ -39,6 +36,7 @@
 #define CLK_UART0		257
 #define CLK_UART1		258
 #define CLK_UART2		259
+#define CLK_UART3		260
 #define CLK_I2C0		261
 #define CLK_I2C1		262
 #define CLK_I2C2		263
@@ -47,7 +45,7 @@
 #define CLK_USI1		266
 #define CLK_USI2		267
 #define CLK_USI3		268
-#define CLK_UART3		260
+#define CLK_TSADC		270
 #define CLK_PWM			279
 #define CLK_MCT			315
 #define CLK_WDT			316

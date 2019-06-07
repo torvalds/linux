@@ -455,15 +455,19 @@ static const unsigned int a4xx_registers[] = {
 	~0 /* sentinel */
 };
 
-#ifdef CONFIG_DEBUG_FS
-static void a4xx_show(struct msm_gpu *gpu, struct seq_file *m)
+static struct msm_gpu_state *a4xx_gpu_state_get(struct msm_gpu *gpu)
 {
-	seq_printf(m, "status:   %08x\n",
-			gpu_read(gpu, REG_A4XX_RBBM_STATUS));
-	adreno_show(gpu, m);
+	struct msm_gpu_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
 
+	if (!state)
+		return ERR_PTR(-ENOMEM);
+
+	adreno_gpu_state_get(gpu, state);
+
+	state->rbbm_status = gpu_read(gpu, REG_A4XX_RBBM_STATUS);
+
+	return state;
 }
-#endif
 
 /* Register offset defines for A4XX, in order of enum adreno_regs */
 static const unsigned int a4xx_register_offsets[REG_ADRENO_REGISTER_MAX] = {
@@ -538,9 +542,11 @@ static const struct adreno_gpu_funcs funcs = {
 		.active_ring = adreno_active_ring,
 		.irq = a4xx_irq,
 		.destroy = a4xx_destroy,
-#ifdef CONFIG_DEBUG_FS
-		.show = a4xx_show,
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+		.show = adreno_show,
 #endif
+		.gpu_state_get = a4xx_gpu_state_get,
+		.gpu_state_put = adreno_gpu_state_put,
 	},
 	.get_timestamp = a4xx_get_timestamp,
 };
@@ -555,7 +561,7 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 	int ret;
 
 	if (!pdev) {
-		dev_err(dev->dev, "no a4xx device\n");
+		DRM_DEV_ERROR(dev->dev, "no a4xx device\n");
 		ret = -ENXIO;
 		goto fail;
 	}
@@ -602,7 +608,7 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 		 * to not be possible to restrict access, then we must
 		 * implement a cmdstream validator.
 		 */
-		dev_err(dev->dev, "No memory protection without IOMMU\n");
+		DRM_DEV_ERROR(dev->dev, "No memory protection without IOMMU\n");
 		ret = -ENXIO;
 		goto fail;
 	}

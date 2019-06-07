@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2013 Red Hat, Inc.
  * Author: Daniel Borkmann <dborkman@redhat.com>
@@ -19,21 +20,6 @@
  *   - TPACKET_V1: RX_RING, TX_RING
  *   - TPACKET_V2: RX_RING, TX_RING
  *   - TPACKET_V3: RX_RING
- *
- * License (GPLv2):
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. * See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <stdio.h>
@@ -59,6 +45,8 @@
 #include <poll.h>
 
 #include "psock_lib.h"
+
+#include "../kselftest.h"
 
 #ifndef bug_on
 # define bug_on(cond)		assert(!(cond))
@@ -825,7 +813,7 @@ static int test_tpacket(int version, int type)
 		fprintf(stderr, "test: skip %s %s since user and kernel "
 			"space have different bit width\n",
 			tpacket_str[version], type_str[type]);
-		return 0;
+		return KSFT_SKIP;
 	}
 
 	sock = pfsocket(version);

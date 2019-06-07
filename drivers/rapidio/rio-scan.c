@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RapidIO enumeration and discovery support
  *
@@ -11,11 +12,6 @@
  * Copyright 2009 Sysgo AG
  * Thomas Moll <thomas.moll@sysgo.com>
  * - Added Input- Output- enable functionality, to allow full communication
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/types.h>
@@ -425,9 +421,9 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 		rswitch = rdev->rswitch;
 		rswitch->port_ok = 0;
 		spin_lock_init(&rswitch->lock);
-		rswitch->route_table = kzalloc(sizeof(u8)*
-					RIO_MAX_ROUTE_ENTRIES(port->sys_size),
-					GFP_KERNEL);
+		rswitch->route_table =
+			kzalloc(RIO_MAX_ROUTE_ENTRIES(port->sys_size),
+				GFP_KERNEL);
 		if (!rswitch->route_table)
 			goto cleanup;
 		/* Initialize switch route table */

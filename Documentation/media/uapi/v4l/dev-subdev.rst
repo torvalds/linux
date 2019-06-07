@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _subdev:
 
@@ -204,7 +211,7 @@ list entity names and pad numbers).
 
 .. raw:: latex
 
-    \tiny
+    \scriptsize
 
 .. tabularcolumns:: |p{2.0cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|p{2.3cm}|
 
@@ -216,40 +223,80 @@ list entity names and pad numbers).
     :widths: 5 5 5 5 5 5 5
 
     * -
-      - Sensor/0 format
-      - Frontend/0 format
-      - Frontend/1 format
-      - Scaler/0 format
-      - Scaler/0 compose selection rectangle
-      - Scaler/1 format
+      - Sensor/0
+
+        format
+      - Frontend/0
+
+        format
+      - Frontend/1
+
+        format
+      - Scaler/0
+
+        format
+      - Scaler/0
+
+        compose selection rectangle
+      - Scaler/1
+
+        format
     * - Initial state
-      - 2048x1536/SGRBG8_1X8
+      - 2048x1536
+
+        SGRBG8_1X8
       - (default)
       - (default)
       - (default)
       - (default)
       - (default)
     * - Configure frontend sink format
-      - 2048x1536/SGRBG8_1X8
-      - *2048x1536/SGRBG8_1X8*
-      - *2046x1534/SGRBG8_1X8*
+      - 2048x1536
+
+        SGRBG8_1X8
+      - *2048x1536*
+
+        *SGRBG8_1X8*
+      - *2046x1534*
+
+        *SGRBG8_1X8*
       - (default)
       - (default)
       - (default)
     * - Configure scaler sink format
-      - 2048x1536/SGRBG8_1X8
-      - 2048x1536/SGRBG8_1X8
-      - 2046x1534/SGRBG8_1X8
-      - *2046x1534/SGRBG8_1X8*
+      - 2048x1536
+
+        SGRBG8_1X8
+      - 2048x1536
+
+        SGRBG8_1X8
+      - 2046x1534
+
+        SGRBG8_1X8
+      - *2046x1534*
+
+        *SGRBG8_1X8*
       - *0,0/2046x1534*
-      - *2046x1534/SGRBG8_1X8*
+      - *2046x1534*
+
+        *SGRBG8_1X8*
     * - Configure scaler sink compose selection
-      - 2048x1536/SGRBG8_1X8
-      - 2048x1536/SGRBG8_1X8
-      - 2046x1534/SGRBG8_1X8
-      - 2046x1534/SGRBG8_1X8
+      - 2048x1536
+
+        SGRBG8_1X8
+      - 2048x1536
+
+        SGRBG8_1X8
+      - 2046x1534
+
+        SGRBG8_1X8
+      - 2046x1534
+
+        SGRBG8_1X8
       - *0,0/1280x960*
-      - *1280x960/SGRBG8_1X8*
+      - *1280x960*
+
+        *SGRBG8_1X8*
 
 .. raw:: latex
 

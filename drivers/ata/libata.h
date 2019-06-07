@@ -1,28 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  libata.h - helper library for ATA
  *
  *  Copyright 2003-2004 Red Hat, Inc.  All rights reserved.
  *  Copyright 2003-2004 Jeff Garzik
  *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
  *  libata documentation is available via 'make {ps|pdf}docs',
  *  as Documentation/driver-api/libata.rst
- *
  */
 
 #ifndef __LIBATA_H__
@@ -100,8 +84,6 @@ extern int ata_port_probe(struct ata_port *ap);
 extern void __ata_port_probe(struct ata_port *ap);
 extern unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 				      u8 page, void *buf, unsigned int sectors);
-extern void ata_host_get(struct ata_host *host);
-extern void ata_host_put(struct ata_host *host);
 
 #define to_ata_port(d) container_of(d, struct ata_port, tdev)
 

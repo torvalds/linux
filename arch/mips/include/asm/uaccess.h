@@ -69,7 +69,6 @@ extern u64 __ua_limit;
 #define USER_DS		((mm_segment_t) { __UA_LIMIT })
 #endif
 
-#define get_ds()	(KERNEL_DS)
 #define get_fs()	(current_thread_info()->addr_limit)
 #define set_fs(x)	(current_thread_info()->addr_limit = (x))
 
@@ -109,9 +108,6 @@ static inline bool eva_kernel_access(void)
 
 /*
  * access_ok: - Checks if a user space pointer is valid
- * @type: Type of access: %VERIFY_READ or %VERIFY_WRITE.  Note that
- *	  %VERIFY_WRITE is a superset of %VERIFY_READ - if it is safe
- *	  to write to a block, it is always safe to read from it.
  * @addr: User space pointer to start of block to check
  * @size: Size of block to check
  *
@@ -134,7 +130,7 @@ static inline int __access_ok(const void __user *p, unsigned long size)
 	return (get_fs().seg & (addr | (addr + size) | __ua_size(size))) == 0;
 }
 
-#define access_ok(type, addr, size)					\
+#define access_ok(addr, size)					\
 	likely(__access_ok((addr), (size)))
 
 /*
@@ -304,7 +300,7 @@ do {									\
 	const __typeof__(*(ptr)) __user * __gu_ptr = (ptr);		\
 									\
 	might_fault();							\
-	if (likely(access_ok(VERIFY_READ,  __gu_ptr, size))) {		\
+	if (likely(access_ok( __gu_ptr, size))) {		\
 		if (eva_kernel_access())				\
 			__get_kernel_common((x), size, __gu_ptr);	\
 		else							\
@@ -446,7 +442,7 @@ do {									\
 	int __pu_err = -EFAULT;						\
 									\
 	might_fault();							\
-	if (likely(access_ok(VERIFY_WRITE,  __pu_addr, size))) {	\
+	if (likely(access_ok( __pu_addr, size))) {	\
 		if (eva_kernel_access())				\
 			__put_kernel_common(__pu_addr, size);		\
 		else							\
@@ -691,8 +687,7 @@ __clear_user(void __user *addr, __kernel_size_t size)
 ({									\
 	void __user * __cl_addr = (addr);				\
 	unsigned long __cl_size = (n);					\
-	if (__cl_size && access_ok(VERIFY_WRITE,			\
-					__cl_addr, __cl_size))		\
+	if (__cl_size && access_ok(__cl_addr, __cl_size))		\
 		__cl_size = __clear_user(__cl_addr, __cl_size);		\
 	__cl_size;							\
 })

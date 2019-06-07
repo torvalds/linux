@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the Atmel AHB DMA Controller (aka HDMA or DMAC on AT91 systems)
  *
  * Copyright (C) 2008 Atmel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  *
  * This supports the Atmel AHB DMA Controller found in several Atmel SoCs.
  * The only Atmel DMA Controller that is not covered by this driver is the one
@@ -134,7 +129,6 @@ static struct at_desc *atc_desc_get(struct at_dma_chan *atchan)
 	struct at_desc *ret = NULL;
 	unsigned long flags;
 	unsigned int i = 0;
-	LIST_HEAD(tmp_list);
 
 	spin_lock_irqsave(&atchan->lock, flags);
 	list_for_each_entry_safe(desc, _desc, &atchan->free_list, desc_node) {
@@ -1320,7 +1314,7 @@ atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 	if (unlikely(!is_slave_direction(direction)))
 		goto err_out;
 
-	if (sconfig->direction == DMA_MEM_TO_DEV)
+	if (direction == DMA_MEM_TO_DEV)
 		reg_width = convert_buswidth(sconfig->dst_addr_width);
 	else
 		reg_width = convert_buswidth(sconfig->src_addr_width);
@@ -1387,8 +1381,6 @@ static int atc_pause(struct dma_chan *chan)
 	int			chan_id = atchan->chan_common.chan_id;
 	unsigned long		flags;
 
-	LIST_HEAD(list);
-
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
 	spin_lock_irqsave(&atchan->lock, flags);
@@ -1407,8 +1399,6 @@ static int atc_resume(struct dma_chan *chan)
 	struct at_dma		*atdma = to_at_dma(chan->device);
 	int			chan_id = atchan->chan_common.chan_id;
 	unsigned long		flags;
-
-	LIST_HEAD(list);
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
@@ -1641,6 +1631,12 @@ static void atc_free_chan_resources(struct dma_chan *chan)
 	atchan->descs_allocated = 0;
 	atchan->status = 0;
 
+	/*
+	 * Free atslave allocated in at_dma_xlate()
+	 */
+	kfree(chan->private);
+	chan->private = NULL;
+
 	dev_vdbg(chan2dev(chan), "free_chan_resources: done\n");
 }
 
@@ -1675,7 +1671,7 @@ static struct dma_chan *at_dma_xlate(struct of_phandle_args *dma_spec,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	atslave = devm_kzalloc(&dmac_pdev->dev, sizeof(*atslave), GFP_KERNEL);
+	atslave = kzalloc(sizeof(*atslave), GFP_KERNEL);
 	if (!atslave)
 		return NULL;
 
@@ -2000,6 +1996,8 @@ static int at_dma_remove(struct platform_device *pdev)
 	struct resource		*io;
 
 	at_dma_off(atdma);
+	if (pdev->dev.of_node)
+		of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&atdma->dma_common);
 
 	dma_pool_destroy(atdma->memset_pool);
@@ -2041,8 +2039,7 @@ static void at_dma_shutdown(struct platform_device *pdev)
 
 static int at_dma_prepare(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 
 	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
@@ -2076,8 +2073,7 @@ static void atc_suspend_cyclic(struct at_dma_chan *atchan)
 
 static int at_dma_suspend_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 
 	/* preserve data */
@@ -2118,8 +2114,7 @@ static void atc_resume_cyclic(struct at_dma_chan *atchan)
 
 static int at_dma_resume_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 
 	/* bring back DMA controller */

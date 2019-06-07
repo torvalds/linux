@@ -10,17 +10,39 @@ on the Qualcomm ADSP Hexagon core.
 		    "qcom,msm8974-adsp-pil"
 		    "qcom,msm8996-adsp-pil"
 		    "qcom,msm8996-slpi-pil"
+		    "qcom,qcs404-adsp-pas"
+		    "qcom,qcs404-cdsp-pas"
+		    "qcom,qcs404-wcss-pas"
+		    "qcom,sdm845-adsp-pas"
+		    "qcom,sdm845-cdsp-pas"
 
 - interrupts-extended:
 	Usage: required
 	Value type: <prop-encoded-array>
-	Definition: must list the watchdog, fatal IRQs ready, handover and
-		    stop-ack IRQs
+	Definition: reference to the interrupts that match interrupt-names
 
 - interrupt-names:
 	Usage: required
 	Value type: <stringlist>
-	Definition: must be "wdog", "fatal", "ready", "handover", "stop-ack"
+	Definition: The interrupts needed depends on the compatible
+		    string:
+	qcom,msm8974-adsp-pil:
+	qcom,msm8996-adsp-pil:
+	qcom,msm8996-slpi-pil:
+	qcom,qcs404-adsp-pas:
+	qcom,qcs404-cdsp-pas:
+	qcom,sdm845-adsp-pas:
+	qcom,sdm845-cdsp-pas:
+		    must be "wdog", "fatal", "ready", "handover", "stop-ack"
+	qcom,qcs404-wcss-pas:
+		    must be "wdog", "fatal", "ready", "handover", "stop-ack",
+		    "shutdown-ack"
+
+- firmware-name:
+	Usage: optional
+	Value type: <string>
+	Definition: must list the relative firmware image path for the
+		    Hexagon Core.
 
 - clocks:
 	Usage: required

@@ -2,7 +2,9 @@
 /*
  * This module exports the functions:
  *
- *     'int set_selection(struct tiocl_selection __user *, struct tty_struct *)'
+ *     'int set_selection_user(struct tiocl_selection __user *,
+ *			       struct tty_struct *)'
+ *     'int set_selection_kernel(struct tiocl_selection *, struct tty_struct *)'
  *     'void clear_selection(void)'
  *     'int paste_selection(struct tty_struct *)'
  *     'int sel_loadlut(char __user *)'
@@ -57,11 +59,13 @@ static inline void highlight_pointer(const int where)
 	complement_pos(sel_cons, where);
 }
 
-static u16
+static u32
 sel_pos(int n)
 {
+	if (use_unicode)
+		return screen_glyph_unicode(sel_cons, n / 2);
 	return inverse_translate(sel_cons, screen_glyph(sel_cons, n),
-				use_unicode);
+				0);
 }
 
 /**
@@ -78,6 +82,7 @@ void clear_selection(void)
 		sel_start = -1;
 	}
 }
+EXPORT_SYMBOL_GPL(clear_selection);
 
 /*
  * User settable table: what characters are to be considered alphabetic?
@@ -90,7 +95,8 @@ static u32 inwordLut[]={
   0x07FFFFFE, /* lowercase         */
 };
 
-static inline int inword(const u16 c) {
+static inline int inword(const u32 c)
+{
 	return c > 0x7f || (( inwordLut[c>>5] >> (c & 0x1F) ) & 1);
 }
 
@@ -116,14 +122,8 @@ static inline int atedge(const int p, int size_row)
 	return (!(p % size_row)	|| !((p + 2) % size_row));
 }
 
-/* constrain v such that v <= u */
-static inline unsigned short limit(const unsigned short v, const unsigned short u)
-{
-	return (v > u) ? u : v;
-}
-
-/* stores the char in UTF8 and returns the number of bytes used (1-3) */
-static int store_utf8(u16 c, char *p)
+/* stores the char in UTF8 and returns the number of bytes used (1-4) */
+static int store_utf8(u32 c, char *p)
 {
 	if (c < 0x80) {
 		/*  0******* */
@@ -134,17 +134,30 @@ static int store_utf8(u16 c, char *p)
 		p[0] = 0xc0 | (c >> 6);
 		p[1] = 0x80 | (c & 0x3f);
 		return 2;
-    	} else {
+	} else if (c < 0x10000) {
 		/* 1110**** 10****** 10****** */
 		p[0] = 0xe0 | (c >> 12);
 		p[1] = 0x80 | ((c >> 6) & 0x3f);
 		p[2] = 0x80 | (c & 0x3f);
 		return 3;
-    	}
+	} else if (c < 0x110000) {
+		/* 11110*** 10****** 10****** 10****** */
+		p[0] = 0xf0 | (c >> 18);
+		p[1] = 0x80 | ((c >> 12) & 0x3f);
+		p[2] = 0x80 | ((c >> 6) & 0x3f);
+		p[3] = 0x80 | (c & 0x3f);
+		return 4;
+	} else {
+		/* outside Unicode, replace with U+FFFD */
+		p[0] = 0xef;
+		p[1] = 0xbf;
+		p[2] = 0xbd;
+		return 3;
+	}
 }
 
 /**
- *	set_selection		- 	set the current selection.
+ *	set_selection_user	-	set the current selection.
  *	@sel: user selection info
  *	@tty: the console tty
  *
@@ -153,35 +166,44 @@ static int store_utf8(u16 c, char *p)
  *	The entire selection process is managed under the console_lock. It's
  *	 a lot under the lock but its hardly a performance path
  */
-int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *tty)
+int set_selection_user(const struct tiocl_selection __user *sel,
+		       struct tty_struct *tty)
 {
-	struct vc_data *vc = vc_cons[fg_console].d;
-	int new_sel_start, new_sel_end, spc;
 	struct tiocl_selection v;
-	char *bp, *obp;
-	int i, ps, pe, multiplier;
-	u16 c;
-	int mode;
 
-	poke_blanked_console();
 	if (copy_from_user(&v, sel, sizeof(*sel)))
 		return -EFAULT;
 
-	v.xs = limit(v.xs - 1, vc->vc_cols - 1);
-	v.ys = limit(v.ys - 1, vc->vc_rows - 1);
-	v.xe = limit(v.xe - 1, vc->vc_cols - 1);
-	v.ye = limit(v.ye - 1, vc->vc_rows - 1);
-	ps = v.ys * vc->vc_size_row + (v.xs << 1);
-	pe = v.ye * vc->vc_size_row + (v.xe << 1);
+	return set_selection_kernel(&v, tty);
+}
 
-	if (v.sel_mode == TIOCL_SELCLEAR) {
+int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty)
+{
+	struct vc_data *vc = vc_cons[fg_console].d;
+	int new_sel_start, new_sel_end, spc;
+	char *bp, *obp;
+	int i, ps, pe, multiplier;
+	u32 c;
+	int mode;
+
+	poke_blanked_console();
+
+	v->xs = min_t(u16, v->xs - 1, vc->vc_cols - 1);
+	v->ys = min_t(u16, v->ys - 1, vc->vc_rows - 1);
+	v->xe = min_t(u16, v->xe - 1, vc->vc_cols - 1);
+	v->ye = min_t(u16, v->ye - 1, vc->vc_rows - 1);
+	ps = v->ys * vc->vc_size_row + (v->xs << 1);
+	pe = v->ye * vc->vc_size_row + (v->xe << 1);
+
+	if (v->sel_mode == TIOCL_SELCLEAR) {
 		/* useful for screendump without selection highlights */
 		clear_selection();
 		return 0;
 	}
 
-	if (mouse_reporting() && (v.sel_mode & TIOCL_SELMOUSEREPORT)) {
-		mouse_report(tty, v.sel_mode & TIOCL_SELBUTTONMASK, v.xs, v.ys);
+	if (mouse_reporting() && (v->sel_mode & TIOCL_SELMOUSEREPORT)) {
+		mouse_report(tty, v->sel_mode & TIOCL_SELBUTTONMASK, v->xs,
+			     v->ys);
 		return 0;
 	}
 
@@ -198,7 +220,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	else
 		use_unicode = 0;
 
-	switch (v.sel_mode)
+	switch (v->sel_mode)
 	{
 		case TIOCL_SELCHAR:	/* character-by-character selection */
 			new_sel_start = ps;
@@ -279,8 +301,9 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	sel_end = new_sel_end;
 
 	/* Allocate a new buffer before freeing the old one ... */
-	multiplier = use_unicode ? 3 : 1;  /* chars can take up to 3 bytes */
-	bp = kmalloc(((sel_end-sel_start)/2+1)*multiplier, GFP_KERNEL);
+	multiplier = use_unicode ? 4 : 1;  /* chars can take up to 4 bytes */
+	bp = kmalloc_array((sel_end - sel_start) / 2 + 1, multiplier,
+			   GFP_KERNEL);
 	if (!bp) {
 		printk(KERN_WARNING "selection: kmalloc() failed\n");
 		clear_selection();
@@ -311,6 +334,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	sel_buffer_lth = bp - sel_buffer;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(set_selection_kernel);
 
 /* Insert the contents of the selection buffer into the
  * queue of the tty associated with the current console.
@@ -356,3 +380,4 @@ int paste_selection(struct tty_struct *tty)
 	tty_ldisc_deref(ld);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(paste_selection);

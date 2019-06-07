@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Secure boot handling.
  *
@@ -5,9 +6,6 @@
  *     Roy Franz <roy.franz@linaro.org
  * Copyright (C) 2013 Red Hat, Inc.
  *     Mark Salter <msalter@redhat.com>
- *
- * This file is part of the Linux kernel, and is made available under the
- * terms of the GNU General Public License version 2.
  */
 #include <linux/efi.h>
 #include <asm/efi.h>
@@ -30,6 +28,9 @@ static const efi_char16_t shim_MokSBState_name[] = L"MokSBState";
 
 /*
  * Determine whether we're in secure boot mode.
+ *
+ * Please keep the logic in sync with
+ * arch/x86/xen/efi.c:xen_efi_get_secureboot().
  */
 enum efi_secureboot_mode efi_get_secureboot(efi_system_table_t *sys_table_arg)
 {

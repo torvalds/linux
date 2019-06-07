@@ -21,6 +21,7 @@
 
 	aliases {
 		serial0 = &blsp1_uart5;
+		serial1 = &blsp1_uart3;
 	};
 
 	chosen {
@@ -33,20 +34,61 @@
 	};
 
 	soc {
-		pinctrl@1000000 {
-			serial_4_pins: serial4_pinmux {
-				mux {
-					pins = "gpio23", "gpio24";
-					function = "blsp4_uart1";
-					bias-disable;
-				};
+		serial@78b3000 {
+			status = "ok";
+		};
+
+		spi@78b5000 {
+			status = "ok";
+
+			m25p80@0 {
+				  #address-cells = <1>;
+				  #size-cells = <1>;
+				  compatible = "jedec,spi-nor";
+				  reg = <0>;
+				  spi-max-frequency = <50000000>;
 			};
 		};
 
-		serial@78b3000 {
-			pinctrl-0 = <&serial_4_pins>;
-			pinctrl-names = "default";
+		serial@78b1000 {
+			 status = "ok";
+		};
+
+		i2c@78b6000 {
+			 status = "ok";
+		};
+
+		dma@7984000 {
+			 status = "ok";
+		};
+
+		nand@79b0000 {
 			status = "ok";
+
+			nand@0 {
+				reg = <0>;
+				nand-ecc-strength = <4>;
+				nand-ecc-step-size = <512>;
+				nand-bus-width = <8>;
+			};
+		};
+
+		phy@86000 {
+			status = "ok";
+		};
+
+		phy@8e000 {
+			status = "ok";
+		};
+
+		pci@20000000 {
+			status = "ok";
+			perst-gpio = <&tlmm 58 0x1>;
+		};
+
+		pci@10000000 {
+			status = "ok";
+			perst-gpio = <&tlmm 61 0x1>;
 		};
 	};
 };

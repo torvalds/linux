@@ -68,6 +68,10 @@ and an indication of whether it is for Rx or Tx.  The driver should
 	- verify the algorithm is supported for offloads
 	- store the SA information (key, salt, target-ip, protocol, etc)
 	- enable the HW offload of the SA
+	- return status value:
+		0             success
+		-EOPNETSUPP   offload not supported, try SW IPsec
+		other         fail the request
 
 The driver can also set an offload_handle in the SA, an opaque void pointer
 that can be used to convey context into the fast-path offload requests.
@@ -107,9 +111,10 @@ the stack in xfrm_input().
 		xfrm_state_hold(xs);
 
 	store the state information into the skb
-		skb->sp = secpath_dup(skb->sp);
-		skb->sp->xvec[skb->sp->len++] = xs;
-		skb->sp->olen++;
+		sp = secpath_set(skb);
+		if (!sp) return;
+		sp->xvec[sp->len++] = xs;
+		sp->olen++;
 
 	indicate the success and/or error status of the offload
 		xo = xfrm_offload(skb);

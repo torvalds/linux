@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*    Kernel dynamically loadable module help for PARISC.
  *
  *    The best reference for this stuff is probably the Processor-
@@ -7,22 +8,6 @@
  *    Linux/PA-RISC Project (http://www.parisc-linux.org/)
  *    Copyright (C) 2003 Randolph Chung <tausq at debian . org>
  *    Copyright (C) 2008 Helge Deller <deller@gmx.de>
- *
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  *
  *    Notes:
  *    - PLT stub handling
@@ -877,6 +862,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 	int i;
 	unsigned long nsyms;
 	const char *strtab = NULL;
+	const Elf_Shdr *s;
+	char *secstrings;
 	Elf_Sym *newptr, *oldptr;
 	Elf_Shdr *symhdr = NULL;
 #ifdef DEBUG
@@ -948,6 +935,18 @@ int module_finalize(const Elf_Ehdr *hdr,
 	nsyms = newptr - (Elf_Sym *)symhdr->sh_addr;
 	DEBUGP("NEW num_symtab %lu\n", nsyms);
 	symhdr->sh_size = nsyms * sizeof(Elf_Sym);
+
+	/* find .altinstructions section */
+	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {
+		void *aseg = (void *) s->sh_addr;
+		char *secname = secstrings + s->sh_name;
+
+		if (!strcmp(".altinstructions", secname))
+			/* patch .altinstructions */
+			apply_alternatives(aseg, aseg + s->sh_size, me->name);
+	}
+
 	return 0;
 }
 

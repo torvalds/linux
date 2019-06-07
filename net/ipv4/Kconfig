@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # IP configuration
 #
@@ -304,7 +305,7 @@ config NET_IPVTI
 	tristate "Virtual (secure) IP: tunneling"
 	select INET_TUNNEL
 	select NET_IP_TUNNEL
-	depends on INET_XFRM_MODE_TUNNEL
+	select XFRM
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -396,33 +397,6 @@ config INET_TUNNEL
 	tristate
 	default n
 
-config INET_XFRM_MODE_TRANSPORT
-	tristate "IP: IPsec transport mode"
-	default y
-	select XFRM
-	---help---
-	  Support for IPsec transport mode.
-
-	  If unsure, say Y.
-
-config INET_XFRM_MODE_TUNNEL
-	tristate "IP: IPsec tunnel mode"
-	default y
-	select XFRM
-	---help---
-	  Support for IPsec tunnel mode.
-
-	  If unsure, say Y.
-
-config INET_XFRM_MODE_BEET
-	tristate "IP: IPsec BEET mode"
-	default y
-	select XFRM
-	---help---
-	  Support for IPsec BEET mode.
-
-	  If unsure, say Y.
-
 config INET_DIAG
 	tristate "INET: socket monitoring interface"
 	default y
@@ -430,7 +404,7 @@ config INET_DIAG
 	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
 	  native Linux tools such as ss. ss is included in iproute2, currently
 	  downloadable at:
-	  
+
 	    http://www.linuxfoundation.org/collaborate/workgroups/networking/iproute2
 
 	  If unsure, say Y.
@@ -600,7 +574,7 @@ config TCP_CONG_VENO
 	distinguishing to circumvent the difficult judgment of the packet loss
 	type. TCP Veno cuts down less congestion window in response to random
 	loss packets.
-	See <http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=1177186> 
+	See <http://ieeexplore.ieee.org/xpl/freeabs_all.jsp?arnumber=1177186>
 
 config TCP_CONG_YEAH
 	tristate "YeAH TCP"

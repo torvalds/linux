@@ -1199,8 +1199,6 @@ wlc_lcnphy_rx_iq_est(struct brcms_phy *pi,
 {
 	int wait_count = 0;
 	bool result = true;
-	u8 phybw40;
-	phybw40 = CHSPEC_IS40(pi->radio_chanspec);
 
 	mod_phy_reg(pi, 0x6da, (0x1 << 5), (1) << 5);
 
@@ -1387,7 +1385,7 @@ wlc_lcnphy_rx_iq_cal(struct brcms_phy *pi,
 	s16 *ptr;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
-	ptr = kmalloc(sizeof(s16) * 131, GFP_ATOMIC);
+	ptr = kmalloc_array(131, sizeof(s16), GFP_ATOMIC);
 	if (NULL == ptr)
 		return false;
 	if (module == 2) {
@@ -2670,7 +2668,7 @@ wlc_lcnphy_tx_iqlo_cal(struct brcms_phy *pi,
 	u16 *values_to_save;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
-	values_to_save = kmalloc(sizeof(u16) * 20, GFP_ATOMIC);
+	values_to_save = kmalloc_array(20, sizeof(u16), GFP_ATOMIC);
 	if (NULL == values_to_save)
 		return;
 
@@ -3082,7 +3080,7 @@ static void wlc_lcnphy_tx_pwr_ctrl_init(struct brcms_phy_pub *ppi)
 	u8 bbmult;
 	struct phytbl_info tab;
 	s32 a1, b0, b1;
-	s32 tssi, pwr, maxtargetpwr, mintargetpwr;
+	s32 tssi, pwr, mintargetpwr;
 	bool suspend;
 	struct brcms_phy *pi = container_of(ppi, struct brcms_phy, pubpi_ro);
 
@@ -3119,7 +3117,6 @@ static void wlc_lcnphy_tx_pwr_ctrl_init(struct brcms_phy_pub *ppi)
 		b0 = pi->txpa_2g[0];
 		b1 = pi->txpa_2g[1];
 		a1 = pi->txpa_2g[2];
-		maxtargetpwr = wlc_lcnphy_tssi2dbm(10, a1, b0, b1);
 		mintargetpwr = wlc_lcnphy_tssi2dbm(125, a1, b0, b1);
 
 		tab.tbl_id = LCNPHY_TBL_ID_TXPWRCTL;
@@ -3388,13 +3385,8 @@ void wlc_lcnphy_deaf_mode(struct brcms_phy *pi, bool mode)
 	u8 phybw40;
 	phybw40 = CHSPEC_IS40(pi->radio_chanspec);
 
-	if (LCNREV_LT(pi->pubpi.phy_rev, 2)) {
-		mod_phy_reg(pi, 0x4b0, (0x1 << 5), (mode) << 5);
-		mod_phy_reg(pi, 0x4b1, (0x1 << 9), 0 << 9);
-	} else {
-		mod_phy_reg(pi, 0x4b0, (0x1 << 5), (mode) << 5);
-		mod_phy_reg(pi, 0x4b1, (0x1 << 9), 0 << 9);
-	}
+	mod_phy_reg(pi, 0x4b0, (0x1 << 5), (mode) << 5);
+	mod_phy_reg(pi, 0x4b1, (0x1 << 9), 0 << 9);
 
 	if (phybw40 == 0) {
 		mod_phy_reg((pi), 0x410,
@@ -3452,8 +3444,8 @@ wlc_lcnphy_start_tx_tone(struct brcms_phy *pi, s32 f_kHz, u16 max_val,
 
 		theta += rot;
 
-		i_samp = (u16) (FLOAT(tone_samp.i * max_val) & 0x3ff);
-		q_samp = (u16) (FLOAT(tone_samp.q * max_val) & 0x3ff);
+		i_samp = (u16)(CORDIC_FLOAT(tone_samp.i * max_val) & 0x3ff);
+		q_samp = (u16)(CORDIC_FLOAT(tone_samp.q * max_val) & 0x3ff);
 		data_buf[t] = (i_samp << 10) | q_samp;
 	}
 
@@ -3683,11 +3675,11 @@ wlc_lcnphy_a1(struct brcms_phy *pi, int cal_type, int num_levels,
 	u16 *phy_c32;
 	phy_c21 = 0;
 	phy_c10 = phy_c13 = phy_c14 = phy_c8 = 0;
-	ptr = kmalloc(sizeof(s16) * 131, GFP_ATOMIC);
+	ptr = kmalloc_array(131, sizeof(s16), GFP_ATOMIC);
 	if (NULL == ptr)
 		return;
 
-	phy_c32 = kmalloc(sizeof(u16) * 20, GFP_ATOMIC);
+	phy_c32 = kmalloc_array(20, sizeof(u16), GFP_ATOMIC);
 	if (NULL == phy_c32) {
 		kfree(ptr);
 		return;
@@ -4217,7 +4209,7 @@ static void wlc_lcnphy_periodic_cal(struct brcms_phy *pi)
 	s8 index;
 	struct phytbl_info tab;
 	s32 a1, b0, b1;
-	s32 tssi, pwr, maxtargetpwr, mintargetpwr;
+	s32 tssi, pwr, mintargetpwr;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
 	pi->phy_lastcal = pi->sh->now;
@@ -4254,7 +4246,6 @@ static void wlc_lcnphy_periodic_cal(struct brcms_phy *pi)
 		b0 = pi->txpa_2g[0];
 		b1 = pi->txpa_2g[1];
 		a1 = pi->txpa_2g[2];
-		maxtargetpwr = wlc_lcnphy_tssi2dbm(10, a1, b0, b1);
 		mintargetpwr = wlc_lcnphy_tssi2dbm(125, a1, b0, b1);
 
 		tab.tbl_id = LCNPHY_TBL_ID_TXPWRCTL;
@@ -4627,12 +4618,9 @@ static void wlc_lcnphy_radio_init(struct brcms_phy *pi)
 static void wlc_lcnphy_tbl_init(struct brcms_phy *pi)
 {
 	uint idx;
-	u8 phybw40;
 	struct phytbl_info tab;
 	const struct phytbl_info *tb;
 	u32 val;
-
-	phybw40 = CHSPEC_IS40(pi->radio_chanspec);
 
 	for (idx = 0; idx < dot11lcnphytbl_info_sz_rev0; idx++)
 		wlc_lcnphy_write_table(pi, &dot11lcnphytbl_info_rev0[idx]);
@@ -4836,9 +4824,7 @@ static void wlc_lcnphy_baseband_init(struct brcms_phy *pi)
 
 void wlc_phy_init_lcnphy(struct brcms_phy *pi)
 {
-	u8 phybw40;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
-	phybw40 = CHSPEC_IS40(pi->radio_chanspec);
 
 	pi_lcn->lcnphy_cal_counter = 0;
 	pi_lcn->lcnphy_cal_temper = pi_lcn->lcnphy_rawtempsense;

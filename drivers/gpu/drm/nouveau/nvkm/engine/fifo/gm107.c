@@ -24,6 +24,26 @@
 #include "gk104.h"
 #include "changk104.h"
 
+#include <core/gpuobj.h>
+
+#include <nvif/class.h>
+
+static void
+gm107_fifo_runlist_chan(struct gk104_fifo_chan *chan,
+			struct nvkm_memory *memory, u32 offset)
+{
+	nvkm_wo32(memory, offset + 0, chan->base.chid);
+	nvkm_wo32(memory, offset + 4, chan->base.inst->addr >> 12);
+}
+
+const struct gk104_fifo_runlist_func
+gm107_fifo_runlist = {
+	.size = 8,
+	.cgrp = gk110_fifo_runlist_cgrp,
+	.chan = gm107_fifo_runlist_chan,
+	.commit = gk104_fifo_runlist_commit,
+};
+
 const struct nvkm_enum
 gm107_fifo_fault_engine[] = {
 	{ 0x01, "DISPLAY" },
@@ -49,14 +69,14 @@ gm107_fifo_fault_engine[] = {
 
 static const struct gk104_fifo_func
 gm107_fifo = {
+	.pbdma = &gk208_fifo_pbdma,
+	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gm107_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
-	.chan = {
-		&gk110_fifo_gpfifo_oclass,
-		NULL
-	},
+	.runlist = &gm107_fifo_runlist,
+	.chan = {{0,0,KEPLER_CHANNEL_GPFIFO_B}, gk104_fifo_gpfifo_new },
 };
 
 int

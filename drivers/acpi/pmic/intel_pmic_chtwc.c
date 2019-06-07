@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel CHT Whiskey Cove PMIC operation region driver
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
  * Based on various non upstream patches to support the CHT Whiskey Cove PMIC:
  * Copyright (C) 2013-2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/acpi.h>
@@ -239,6 +231,24 @@ static int intel_cht_wc_pmic_update_power(struct regmap *regmap, int reg,
 	return regmap_update_bits(regmap, reg, bitmask, on ? 1 : 0);
 }
 
+static int intel_cht_wc_exec_mipi_pmic_seq_element(struct regmap *regmap,
+						   u16 i2c_client_address,
+						   u32 reg_address,
+						   u32 value, u32 mask)
+{
+	u32 address;
+
+	if (i2c_client_address > 0xff || reg_address > 0xff) {
+		pr_warn("%s warning addresses too big client 0x%x reg 0x%x\n",
+			__func__, i2c_client_address, reg_address);
+		return -ERANGE;
+	}
+
+	address = (i2c_client_address << 8) | reg_address;
+
+	return regmap_update_bits(regmap, address, mask, value);
+}
+
 /*
  * The thermal table and ops are empty, we do not support the Thermal opregion
  * (DPTF) due to lacking documentation.
@@ -246,6 +256,7 @@ static int intel_cht_wc_pmic_update_power(struct regmap *regmap, int reg,
 static struct intel_pmic_opregion_data intel_cht_wc_pmic_opregion_data = {
 	.get_power		= intel_cht_wc_pmic_get_power,
 	.update_power		= intel_cht_wc_pmic_update_power,
+	.exec_mipi_pmic_seq_element = intel_cht_wc_exec_mipi_pmic_seq_element,
 	.power_table		= power_table,
 	.power_table_count	= ARRAY_SIZE(power_table),
 };

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # I-Force driver configuration
 #
@@ -27,6 +28,6 @@ config JOYSTICK_IFORCE_232
 	  connected to your serial (COM) port.
 
 	  You will need an additional utility called inputattach, see
-	  <file:Documentation/input/joystick.txt>
-	  and <file:Documentation/input/ff.txt>.
+	  <file:Documentation/input/joydev/joystick.rst>
+	  and <file:Documentation/input/ff.rst>.
 

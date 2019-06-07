@@ -14,6 +14,7 @@
 #include <asm/simd.h>
 #include <asm/unaligned.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/sha3.h>
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
@@ -32,7 +33,7 @@ static int sha3_update(struct shash_desc *desc, const u8 *data,
 	struct sha3_state *sctx = shash_desc_ctx(desc);
 	unsigned int digest_size = crypto_shash_digestsize(desc->tfm);
 
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return crypto_sha3_update(desc, data, len);
 
 	if ((sctx->partial + len) >= sctx->rsiz) {
@@ -76,7 +77,7 @@ static int sha3_final(struct shash_desc *desc, u8 *out)
 	__le64 *digest = (__le64 *)out;
 	int i;
 
-	if (!may_use_simd())
+	if (!crypto_simd_usable())
 		return crypto_sha3_final(desc, out);
 
 	sctx->buf[sctx->partial++] = 0x06;
@@ -105,7 +106,6 @@ static struct shash_alg algs[] = { {
 	.descsize		= sizeof(struct sha3_state),
 	.base.cra_name		= "sha3-224",
 	.base.cra_driver_name	= "sha3-224-ce",
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA3_224_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 	.base.cra_priority	= 200,
@@ -117,7 +117,6 @@ static struct shash_alg algs[] = { {
 	.descsize		= sizeof(struct sha3_state),
 	.base.cra_name		= "sha3-256",
 	.base.cra_driver_name	= "sha3-256-ce",
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA3_256_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 	.base.cra_priority	= 200,
@@ -129,7 +128,6 @@ static struct shash_alg algs[] = { {
 	.descsize		= sizeof(struct sha3_state),
 	.base.cra_name		= "sha3-384",
 	.base.cra_driver_name	= "sha3-384-ce",
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA3_384_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 	.base.cra_priority	= 200,
@@ -141,7 +139,6 @@ static struct shash_alg algs[] = { {
 	.descsize		= sizeof(struct sha3_state),
 	.base.cra_name		= "sha3-512",
 	.base.cra_driver_name	= "sha3-512-ce",
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA3_512_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 	.base.cra_priority	= 200,

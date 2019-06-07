@@ -1,36 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
-/**************************************************************
- * Description:
- *
- * This file is for RTL8192E Co-exist mechanism
- *
- * History
- * 2012/11/15 Cosa first check in.
- *
- **************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2012  Realtek Corporation.*/
 
 /**************************************************************
  *   include files
@@ -1783,7 +1752,7 @@ static void btc8192e2ant_tdma_duration_adjust(struct btc_coexist *btcoexist,
 		bool scan = false, link = false, roam = false;
 
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-			 "[BTCoex], PsTdma type dismatch!!!, ");
+			 "[BTCoex], PsTdma type mismatch!!!, ");
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
 			 "curPsTdma=%d, recordPsTdma=%d\n",
 			 coex_dm->cur_ps_tdma, coex_dm->tdma_adj_type);

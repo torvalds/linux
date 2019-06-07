@@ -360,6 +360,26 @@ void qed_port_unpretend(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	       *(u32 *)&p_ptt->pxp.pretend);
 }
 
+void qed_port_fid_pretend(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 port_id, u16 fid)
+{
+	u16 control = 0;
+
+	SET_FIELD(control, PXP_PRETEND_CMD_PORT, port_id);
+	SET_FIELD(control, PXP_PRETEND_CMD_USE_PORT, 1);
+	SET_FIELD(control, PXP_PRETEND_CMD_PRETEND_PORT, 1);
+	SET_FIELD(control, PXP_PRETEND_CMD_IS_CONCRETE, 1);
+	SET_FIELD(control, PXP_PRETEND_CMD_PRETEND_FUNCTION, 1);
+	if (!GET_FIELD(fid, PXP_CONCRETE_FID_VFVALID))
+		fid = GET_FIELD(fid, PXP_CONCRETE_FID_PFID);
+	p_ptt->pxp.pretend.control = cpu_to_le16(control);
+	p_ptt->pxp.pretend.fid.concrete_fid.fid = cpu_to_le16(fid);
+	REG_WR(p_hwfn,
+	       qed_ptt_config_addr(p_ptt) +
+	       offsetof(struct pxp_ptt_entry, pretend),
+	       *(u32 *)&p_ptt->pxp.pretend);
+}
+
 u32 qed_vfid_to_concrete(struct qed_hwfn *p_hwfn, u8 vfid)
 {
 	u32 concrete_fid = 0;
@@ -682,6 +702,17 @@ static int qed_dmae_execute_command(struct qed_hwfn *p_hwfn,
 	u16 length_limit = DMAE_MAX_RW_SIZE;
 	int qed_status = 0;
 	u32 offset = 0;
+
+	if (p_hwfn->cdev->recov_in_prog) {
+		DP_VERBOSE(p_hwfn,
+			   NETIF_MSG_HW,
+			   "Recovery is in progress. Avoid DMAE transaction [{src: addr 0x%llx, type %d}, {dst: addr 0x%llx, type %d}, size %d].\n",
+			   src_addr, src_type, dst_addr, dst_type,
+			   size_in_dwords);
+
+		/* Let the flow complete w/o any error handling */
+		return 0;
+	}
 
 	qed_dmae_opcode(p_hwfn,
 			(src_type == QED_DMAE_ADDRESS_GRC),

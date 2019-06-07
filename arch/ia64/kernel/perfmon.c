@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file implements the perfmon-2 subsystem which is used
  * to program the IA-64 Performance Monitoring Unit (PMU).
@@ -583,17 +584,6 @@ pfm_put_task(struct task_struct *task)
 	if (task != current) put_task_struct(task);
 }
 
-static inline void
-pfm_reserve_page(unsigned long a)
-{
-	SetPageReserved(vmalloc_to_page((void *)a));
-}
-static inline void
-pfm_unreserve_page(unsigned long a)
-{
-	ClearPageReserved(vmalloc_to_page((void*)a));
-}
-
 static inline unsigned long
 pfm_protect_ctx_ctxsw(pfm_context_t *x)
 {
@@ -814,44 +804,6 @@ pfm_reset_msgq(pfm_context_t *ctx)
 {
 	ctx->ctx_msgq_head = ctx->ctx_msgq_tail = 0;
 	DPRINT(("ctx=%p msgq reset\n", ctx));
-}
-
-static void *
-pfm_rvmalloc(unsigned long size)
-{
-	void *mem;
-	unsigned long addr;
-
-	size = PAGE_ALIGN(size);
-	mem  = vzalloc(size);
-	if (mem) {
-		//printk("perfmon: CPU%d pfm_rvmalloc(%ld)=%p\n", smp_processor_id(), size, mem);
-		addr = (unsigned long)mem;
-		while (size > 0) {
-			pfm_reserve_page(addr);
-			addr+=PAGE_SIZE;
-			size-=PAGE_SIZE;
-		}
-	}
-	return mem;
-}
-
-static void
-pfm_rvfree(void *mem, unsigned long size)
-{
-	unsigned long addr;
-
-	if (mem) {
-		DPRINT(("freeing physical buffer @%p size=%lu\n", mem, size));
-		addr = (unsigned long) mem;
-		while ((long) size > 0) {
-			pfm_unreserve_page(addr);
-			addr+=PAGE_SIZE;
-			size-=PAGE_SIZE;
-		}
-		vfree(mem);
-	}
-	return;
 }
 
 static pfm_context_t *
@@ -1498,7 +1450,7 @@ pfm_free_smpl_buffer(pfm_context_t *ctx)
 	/*
 	 * free the buffer
 	 */
-	pfm_rvfree(ctx->ctx_smpl_hdr, ctx->ctx_smpl_size);
+	vfree(ctx->ctx_smpl_hdr);
 
 	ctx->ctx_smpl_hdr  = NULL;
 	ctx->ctx_smpl_size = 0UL;
@@ -2137,7 +2089,7 @@ doit:
 	 * All memory free operations (especially for vmalloc'ed memory)
 	 * MUST be done with interrupts ENABLED.
 	 */
-	if (smpl_buf_addr)  pfm_rvfree(smpl_buf_addr, smpl_buf_size);
+	vfree(smpl_buf_addr);
 
 	/*
 	 * return the memory used by the context
@@ -2266,10 +2218,8 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
 
 	/*
 	 * We do the easy to undo allocations first.
- 	 *
-	 * pfm_rvmalloc(), clears the buffer, so there is no leak
 	 */
-	smpl_buf = pfm_rvmalloc(size);
+	smpl_buf = vzalloc(size);
 	if (smpl_buf == NULL) {
 		DPRINT(("Can't allocate sampling buffer\n"));
 		return -ENOMEM;
@@ -2278,17 +2228,15 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
 	DPRINT(("smpl_buf @%p\n", smpl_buf));
 
 	/* allocate vma */
-	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+	vma = vm_area_alloc(mm);
 	if (!vma) {
 		DPRINT(("Cannot allocate vma\n"));
 		goto error_kmem;
 	}
-	INIT_LIST_HEAD(&vma->anon_vma_chain);
 
 	/*
 	 * partially initialize the vma for the sampling buffer
 	 */
-	vma->vm_mm	     = mm;
 	vma->vm_file	     = get_file(filp);
 	vma->vm_flags	     = VM_READ|VM_MAYREAD|VM_DONTEXPAND|VM_DONTDUMP;
 	vma->vm_page_prot    = PAGE_READONLY; /* XXX may need to change */
@@ -2346,9 +2294,9 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
 	return 0;
 
 error:
-	kmem_cache_free(vm_area_cachep, vma);
+	vm_area_free(vma);
 error_kmem:
-	pfm_rvfree(smpl_buf, size);
+	vfree(smpl_buf);
 
 	return -ENOMEM;
 }
@@ -5708,13 +5656,6 @@ const struct seq_operations pfm_seq_ops = {
  	.show =		pfm_proc_show
 };
 
-static int
-pfm_proc_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &pfm_seq_ops);
-}
-
-
 /*
  * we come here as soon as local_cpu_data->pfm_syst_wide is set. this happens
  * during pfm_enable() hence before pfm_start(). We cannot assume monitoring
@@ -6537,13 +6478,6 @@ found:
 	return 0;
 }
 
-static const struct file_operations pfm_proc_fops = {
-	.open		= pfm_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 int __init
 pfm_init(void)
 {
@@ -6615,7 +6549,7 @@ pfm_init(void)
 	/*
 	 * create /proc/perfmon (mostly for debugging purposes)
 	 */
-	perfmon_dir = proc_create("perfmon", S_IRUGO, NULL, &pfm_proc_fops);
+	perfmon_dir = proc_create_seq("perfmon", S_IRUGO, NULL, &pfm_seq_ops);
 	if (perfmon_dir == NULL) {
 		printk(KERN_ERR "perfmon: cannot create /proc entry, perfmon disabled\n");
 		pmu_conf = NULL;

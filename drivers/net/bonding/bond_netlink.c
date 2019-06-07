@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/bond/bond_netlink.c - Netlink interface for bonding
  * Copyright (c) 2013 Jiri Pirko <jiri@resnulli.us>
  * Copyright (c) 2013 Scott Feldman <sfeldma@cumulusnetworks.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -546,7 +542,7 @@ static int bond_fill_info(struct sk_buff *skb,
 	if (nla_put_u32(skb, IFLA_BOND_ARP_INTERVAL, bond->params.arp_interval))
 		goto nla_put_failure;
 
-	targets = nla_nest_start(skb, IFLA_BOND_ARP_IP_TARGET);
+	targets = nla_nest_start_noflag(skb, IFLA_BOND_ARP_IP_TARGET);
 	if (!targets)
 		goto nla_put_failure;
 
@@ -638,14 +634,13 @@ static int bond_fill_info(struct sk_buff *skb,
 				goto nla_put_failure;
 
 			if (nla_put(skb, IFLA_BOND_AD_ACTOR_SYSTEM,
-				    sizeof(bond->params.ad_actor_system),
-				    &bond->params.ad_actor_system))
+				    ETH_ALEN, &bond->params.ad_actor_system))
 				goto nla_put_failure;
 		}
 		if (!bond_3ad_get_active_agg_info(bond, &info)) {
 			struct nlattr *nest;
 
-			nest = nla_nest_start(skb, IFLA_BOND_AD_INFO);
+			nest = nla_nest_start_noflag(skb, IFLA_BOND_AD_INFO);
 			if (!nest)
 				goto nla_put_failure;
 
@@ -676,6 +671,71 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static size_t bond_get_linkxstats_size(const struct net_device *dev, int attr)
+{
+	switch (attr) {
+	case IFLA_STATS_LINK_XSTATS:
+	case IFLA_STATS_LINK_XSTATS_SLAVE:
+		break;
+	default:
+		return 0;
+	}
+
+	return bond_3ad_stats_size() + nla_total_size(0);
+}
+
+static int bond_fill_linkxstats(struct sk_buff *skb,
+				const struct net_device *dev,
+				int *prividx, int attr)
+{
+	struct nlattr *nla __maybe_unused;
+	struct slave *slave = NULL;
+	struct nlattr *nest, *nest2;
+	struct bonding *bond;
+
+	switch (attr) {
+	case IFLA_STATS_LINK_XSTATS:
+		bond = netdev_priv(dev);
+		break;
+	case IFLA_STATS_LINK_XSTATS_SLAVE:
+		slave = bond_slave_get_rtnl(dev);
+		if (!slave)
+			return 0;
+		bond = slave->bond;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	nest = nla_nest_start_noflag(skb, LINK_XSTATS_TYPE_BOND);
+	if (!nest)
+		return -EMSGSIZE;
+	if (BOND_MODE(bond) == BOND_MODE_8023AD) {
+		struct bond_3ad_stats *stats;
+
+		if (slave)
+			stats = &SLAVE_AD_INFO(slave)->stats;
+		else
+			stats = &BOND_AD_INFO(bond).stats;
+
+		nest2 = nla_nest_start_noflag(skb, BOND_XSTATS_3AD);
+		if (!nest2) {
+			nla_nest_end(skb, nest);
+			return -EMSGSIZE;
+		}
+
+		if (bond_3ad_stats_fill(skb, stats)) {
+			nla_nest_cancel(skb, nest2);
+			nla_nest_end(skb, nest);
+			return -EMSGSIZE;
+		}
+		nla_nest_end(skb, nest2);
+	}
+	nla_nest_end(skb, nest);
+
+	return 0;
+}
+
 struct rtnl_link_ops bond_link_ops __read_mostly = {
 	.kind			= "bond",
 	.priv_size		= sizeof(struct bonding),
@@ -690,6 +750,8 @@ struct rtnl_link_ops bond_link_ops __read_mostly = {
 	.get_num_tx_queues	= bond_get_num_tx_queues,
 	.get_num_rx_queues	= bond_get_num_tx_queues, /* Use the same number
 							     as for TX queues */
+	.fill_linkxstats        = bond_fill_linkxstats,
+	.get_linkxstats_size    = bond_get_linkxstats_size,
 	.slave_maxtype		= IFLA_BOND_SLAVE_MAX,
 	.slave_policy		= bond_slave_policy,
 	.slave_changelink	= bond_slave_changelink,

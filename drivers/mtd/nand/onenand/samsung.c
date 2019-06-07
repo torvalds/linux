@@ -933,9 +933,8 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 	if (s3c_read_reg(MEM_CFG_OFFSET) & ONENAND_SYS_CFG1_SYNC_READ)
 		dev_info(&onenand->pdev->dev, "OneNAND Sync. Burst Read enabled\n");
 
-	err = mtd_device_parse_register(mtd, NULL, NULL,
-					pdata ? pdata->parts : NULL,
-					pdata ? pdata->nr_parts : 0);
+	err = mtd_device_register(mtd, pdata ? pdata->parts : NULL,
+				  pdata ? pdata->nr_parts : 0);
 	if (err) {
 		dev_err(&pdev->dev, "failed to parse partitions and register the MTD device\n");
 		onenand_release(mtd);
@@ -958,8 +957,7 @@ static int s3c_onenand_remove(struct platform_device *pdev)
 
 static int s3c_pm_ops_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct mtd_info *mtd = platform_get_drvdata(pdev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 	struct onenand_chip *this = mtd->priv;
 
 	this->wait(mtd, FL_PM_SUSPENDED);
@@ -968,8 +966,7 @@ static int s3c_pm_ops_suspend(struct device *dev)
 
 static  int s3c_pm_ops_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct mtd_info *mtd = platform_get_drvdata(pdev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 	struct onenand_chip *this = mtd->priv;
 
 	this->unlock_all(mtd);

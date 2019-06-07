@@ -36,12 +36,7 @@ static const char *virtio_get_timeline_name(struct dma_fence *f)
 	return "controlq";
 }
 
-static bool virtio_enable_signaling(struct dma_fence *f)
-{
-	return true;
-}
-
-static bool virtio_signaled(struct dma_fence *f)
+bool virtio_fence_signaled(struct dma_fence *f)
 {
 	struct virtio_gpu_fence *fence = to_virtio_fence(f);
 
@@ -67,35 +62,40 @@ static void virtio_timeline_value_str(struct dma_fence *f, char *str, int size)
 static const struct dma_fence_ops virtio_fence_ops = {
 	.get_driver_name     = virtio_get_driver_name,
 	.get_timeline_name   = virtio_get_timeline_name,
-	.enable_signaling    = virtio_enable_signaling,
-	.signaled            = virtio_signaled,
-	.wait                = dma_fence_default_wait,
+	.signaled            = virtio_fence_signaled,
 	.fence_value_str     = virtio_fence_value_str,
 	.timeline_value_str  = virtio_timeline_value_str,
 };
 
+struct virtio_gpu_fence *virtio_gpu_fence_alloc(struct virtio_gpu_device *vgdev)
+{
+	struct virtio_gpu_fence_driver *drv = &vgdev->fence_drv;
+	struct virtio_gpu_fence *fence = kzalloc(sizeof(struct virtio_gpu_fence),
+							GFP_ATOMIC);
+	if (!fence)
+		return fence;
+
+	fence->drv = drv;
+	dma_fence_init(&fence->f, &virtio_fence_ops, &drv->lock, drv->context, 0);
+
+	return fence;
+}
+
 int virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 			  struct virtio_gpu_ctrl_hdr *cmd_hdr,
-			  struct virtio_gpu_fence **fence)
+			  struct virtio_gpu_fence *fence)
 {
 	struct virtio_gpu_fence_driver *drv = &vgdev->fence_drv;
 	unsigned long irq_flags;
 
-	*fence = kmalloc(sizeof(struct virtio_gpu_fence), GFP_ATOMIC);
-	if ((*fence) == NULL)
-		return -ENOMEM;
-
 	spin_lock_irqsave(&drv->lock, irq_flags);
-	(*fence)->drv = drv;
-	(*fence)->seq = ++drv->sync_seq;
-	dma_fence_init(&(*fence)->f, &virtio_fence_ops, &drv->lock,
-		       drv->context, (*fence)->seq);
-	dma_fence_get(&(*fence)->f);
-	list_add_tail(&(*fence)->node, &drv->fences);
+	fence->seq = ++drv->sync_seq;
+	dma_fence_get(&fence->f);
+	list_add_tail(&fence->node, &drv->fences);
 	spin_unlock_irqrestore(&drv->lock, irq_flags);
 
 	cmd_hdr->flags |= cpu_to_le32(VIRTIO_GPU_FLAG_FENCE);
-	cmd_hdr->fence_id = cpu_to_le64((*fence)->seq);
+	cmd_hdr->fence_id = cpu_to_le64(fence->seq);
 	return 0;
 }
 

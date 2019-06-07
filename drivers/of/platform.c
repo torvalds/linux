@@ -32,6 +32,11 @@ const struct of_device_id of_default_bus_match_table[] = {
 	{} /* Empty terminated list */
 };
 
+static const struct of_device_id of_skipped_node_table[] = {
+	{ .compatible = "operating-points-v2", },
+	{} /* Empty terminated list */
+};
+
 static int of_dev_node_match(struct device *dev, void *data)
 {
 	return dev->of_node == data;
@@ -86,8 +91,8 @@ static void of_device_make_bus_id(struct device *dev)
 		 */
 		reg = of_get_property(node, "reg", NULL);
 		if (reg && (addr = of_translate_address(node, reg)) != OF_BAD_ADDR) {
-			dev_set_name(dev, dev_name(dev) ? "%llx.%s:%s" : "%llx.%s",
-				     (unsigned long long)addr, node->name,
+			dev_set_name(dev, dev_name(dev) ? "%llx.%pOFn:%s" : "%llx.%pOFn",
+				     (unsigned long long)addr, node,
 				     dev_name(dev));
 			return;
 		}
@@ -124,7 +129,7 @@ struct platform_device *of_device_alloc(struct device_node *np,
 
 	/* Populate the resource table */
 	if (num_irq || num_reg) {
-		res = kzalloc(sizeof(*res) * (num_irq + num_reg), GFP_KERNEL);
+		res = kcalloc(num_irq + num_reg, sizeof(*res), GFP_KERNEL);
 		if (!res) {
 			platform_device_put(dev);
 			return NULL;
@@ -137,8 +142,8 @@ struct platform_device *of_device_alloc(struct device_node *np,
 			WARN_ON(rc);
 		}
 		if (of_irq_to_resource_table(np, res, num_irq) != num_irq)
-			pr_debug("not all legacy IRQ resources mapped for %s\n",
-				 np->name);
+			pr_debug("not all legacy IRQ resources mapped for %pOFn\n",
+				 np);
 	}
 
 	dev->dev.of_node = of_node_get(np);
@@ -180,6 +185,9 @@ static struct platform_device *of_platform_device_create_pdata(
 	if (!dev)
 		goto err_clear_flag;
 
+	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	if (!dev->dev.dma_mask)
+		dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
 	dev->dev.bus = &platform_bus_type;
 	dev->dev.platform_data = platform_data;
 	of_msi_configure(&dev->dev, dev->dev.of_node);
@@ -232,6 +240,10 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 	dev = amba_device_alloc(NULL, 0, 0);
 	if (!dev)
 		goto err_clear_flag;
+
+	/* AMBA devices only support a single DMA mask */
+	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
 
 	/* setup generic device info */
 	dev->dev.of_node = of_node_get(node);
@@ -353,6 +365,12 @@ static int of_platform_bus_create(struct device_node *bus,
 	if (strict && (!of_get_property(bus, "compatible", NULL))) {
 		pr_debug("%s() - skipping %pOF, no compatible prop\n",
 			 __func__, bus);
+		return 0;
+	}
+
+	/* Skip nodes for which we don't want to create devices */
+	if (unlikely(of_match_node(of_skipped_node_table, bus))) {
+		pr_debug("%s() - skipping %pOF node\n", __func__, bus);
 		return 0;
 	}
 
@@ -494,6 +512,7 @@ EXPORT_SYMBOL_GPL(of_platform_default_populate);
 #ifndef CONFIG_PPC
 static const struct of_device_id reserved_mem_matches[] = {
 	{ .compatible = "qcom,rmtfs-mem" },
+	{ .compatible = "qcom,cmd-db" },
 	{ .compatible = "ramoops" },
 	{}
 };
@@ -537,6 +556,9 @@ int of_platform_device_destroy(struct device *dev, void *data)
 	if (of_node_check_flag(dev->of_node, OF_POPULATED_BUS))
 		device_for_each_child(dev, NULL, of_platform_device_destroy);
 
+	of_node_clear_flag(dev->of_node, OF_POPULATED);
+	of_node_clear_flag(dev->of_node, OF_POPULATED_BUS);
+
 	if (dev->bus == &platform_bus_type)
 		platform_device_unregister(to_platform_device(dev));
 #ifdef CONFIG_ARM_AMBA
@@ -544,8 +566,6 @@ int of_platform_device_destroy(struct device *dev, void *data)
 		amba_device_unregister(to_amba_device(dev));
 #endif
 
-	of_node_clear_flag(dev->of_node, OF_POPULATED);
-	of_node_clear_flag(dev->of_node, OF_POPULATED_BUS);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_platform_device_destroy);

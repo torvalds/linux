@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the BSD Socket
  *		interface as the means of communication with the user level.
  *
  * Authors:	Lotsa people, from code originally in tcp
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #ifndef _INET6_HASHTABLES_H
@@ -115,9 +111,8 @@ int inet6_hash(struct sock *sk);
 	 ((__sk)->sk_family == AF_INET6)			&&	\
 	 ipv6_addr_equal(&(__sk)->sk_v6_daddr, (__saddr))		&&	\
 	 ipv6_addr_equal(&(__sk)->sk_v6_rcv_saddr, (__daddr))	&&	\
-	 (!(__sk)->sk_bound_dev_if	||				\
-	   ((__sk)->sk_bound_dev_if == (__dif))	||			\
-	   ((__sk)->sk_bound_dev_if == (__sdif)))		&&	\
+	 (((__sk)->sk_bound_dev_if == (__dif))	||			\
+	  ((__sk)->sk_bound_dev_if == (__sdif)))		&&	\
 	 net_eq(sock_net(__sk), (__net)))
 
 #endif /* _INET6_HASHTABLES_H */

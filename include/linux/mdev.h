@@ -15,6 +15,20 @@
 
 struct mdev_device;
 
+/*
+ * Called by the parent device driver to set the device which represents
+ * this mdev in iommu protection scope. By default, the iommu device is
+ * NULL, that indicates using vendor defined isolation.
+ *
+ * @dev: the mediated device that iommu will isolate.
+ * @iommu_device: a pci device which represents the iommu for @dev.
+ *
+ * Return 0 for success, otherwise negative error value.
+ */
+int mdev_set_iommu_device(struct device *dev, struct device *iommu_device);
+
+struct device *mdev_get_iommu_device(struct device *dev);
+
 /**
  * struct mdev_parent_ops - Structure to be registered for each parent device to
  * register the device to mdev module.
@@ -118,21 +132,20 @@ struct mdev_driver {
 
 #define to_mdev_driver(drv)	container_of(drv, struct mdev_driver, driver)
 
-extern void *mdev_get_drvdata(struct mdev_device *mdev);
-extern void mdev_set_drvdata(struct mdev_device *mdev, void *data);
-extern uuid_le mdev_uuid(struct mdev_device *mdev);
+void *mdev_get_drvdata(struct mdev_device *mdev);
+void mdev_set_drvdata(struct mdev_device *mdev, void *data);
+const guid_t *mdev_uuid(struct mdev_device *mdev);
 
 extern struct bus_type mdev_bus_type;
 
-extern int  mdev_register_device(struct device *dev,
-				 const struct mdev_parent_ops *ops);
-extern void mdev_unregister_device(struct device *dev);
+int mdev_register_device(struct device *dev, const struct mdev_parent_ops *ops);
+void mdev_unregister_device(struct device *dev);
 
-extern int  mdev_register_driver(struct mdev_driver *drv, struct module *owner);
-extern void mdev_unregister_driver(struct mdev_driver *drv);
+int mdev_register_driver(struct mdev_driver *drv, struct module *owner);
+void mdev_unregister_driver(struct mdev_driver *drv);
 
-extern struct device *mdev_parent_dev(struct mdev_device *mdev);
-extern struct device *mdev_dev(struct mdev_device *mdev);
-extern struct mdev_device *mdev_from_dev(struct device *dev);
+struct device *mdev_parent_dev(struct mdev_device *mdev);
+struct device *mdev_dev(struct mdev_device *mdev);
+struct mdev_device *mdev_from_dev(struct device *dev);
 
 #endif /* MDEV_H */

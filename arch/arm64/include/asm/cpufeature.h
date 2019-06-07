@@ -11,20 +11,11 @@
 
 #include <asm/cpucaps.h>
 #include <asm/cputype.h>
-#include <asm/fpsimd.h>
 #include <asm/hwcap.h>
-#include <asm/sigcontext.h>
 #include <asm/sysreg.h>
 
-/*
- * In the arm64 world (as in the ARM world), elf_hwcap is used both internally
- * in the kernel and for user space to keep track of which optional features
- * are supported by the current system. So let's map feature 'x' to HWCAP_x.
- * Note that HWCAP_x constants are bit fields so we need to take the log.
- */
-
-#define MAX_CPU_FEATURES	(8 * sizeof(elf_hwcap))
-#define cpu_feature(x)		ilog2(HWCAP_ ## x)
+#define MAX_CPU_FEATURES	64
+#define cpu_feature(x)		KERNEL_HWCAP_ ## x
 
 #ifndef __ASSEMBLY__
 
@@ -264,7 +255,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
 /*
  * CPU feature detected at boot time based on system-wide value of a
  * feature. It is safe for a late CPU to have this feature even though
- * the system hasn't enabled it, although the featuer will not be used
+ * the system hasn't enabled it, although the feature will not be used
  * by Linux in this case. If the system has enabled this feature already,
  * then every late CPU must have it.
  */
@@ -323,19 +314,20 @@ struct arm64_cpu_capabilities {
 			bool sign;
 			unsigned long hwcap;
 		};
-		/*
-		 * A list of "matches/cpu_enable" pair for the same
-		 * "capability" of the same "type" as described by the parent.
-		 * Only matches(), cpu_enable() and fields relevant to these
-		 * methods are significant in the list. The cpu_enable is
-		 * invoked only if the corresponding entry "matches()".
-		 * However, if a cpu_enable() method is associated
-		 * with multiple matches(), care should be taken that either
-		 * the match criteria are mutually exclusive, or that the
-		 * method is robust against being called multiple times.
-		 */
-		const struct arm64_cpu_capabilities *match_list;
 	};
+
+	/*
+	 * An optional list of "matches/cpu_enable" pair for the same
+	 * "capability" of the same "type" as described by the parent.
+	 * Only matches(), cpu_enable() and fields relevant to these
+	 * methods are significant in the list. The cpu_enable is
+	 * invoked only if the corresponding entry "matches()".
+	 * However, if a cpu_enable() method is associated
+	 * with multiple matches(), care should be taken that either
+	 * the match criteria are mutually exclusive, or that the
+	 * method is robust against being called multiple times.
+	 */
+	const struct arm64_cpu_capabilities *match_list;
 };
 
 static inline int cpucap_default_scope(const struct arm64_cpu_capabilities *cap)
@@ -355,19 +347,61 @@ cpucap_late_cpu_permitted(const struct arm64_cpu_capabilities *cap)
 	return !!(cap->type & ARM64_CPUCAP_PERMITTED_FOR_LATE_CPU);
 }
 
+/*
+ * Generic helper for handling capabilties with multiple (match,enable) pairs
+ * of call backs, sharing the same capability bit.
+ * Iterate over each entry to see if at least one matches.
+ */
+static inline bool
+cpucap_multi_entry_cap_matches(const struct arm64_cpu_capabilities *entry,
+			       int scope)
+{
+	const struct arm64_cpu_capabilities *caps;
+
+	for (caps = entry->match_list; caps->matches; caps++)
+		if (caps->matches(caps, scope))
+			return true;
+
+	return false;
+}
+
+/*
+ * Take appropriate action for all matching entries in the shared capability
+ * entry.
+ */
+static inline void
+cpucap_multi_entry_cap_cpu_enable(const struct arm64_cpu_capabilities *entry)
+{
+	const struct arm64_cpu_capabilities *caps;
+
+	for (caps = entry->match_list; caps->matches; caps++)
+		if (caps->matches(caps, SCOPE_LOCAL_CPU) &&
+		    caps->cpu_enable)
+			caps->cpu_enable(caps);
+}
+
 extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 extern struct static_key_false cpu_hwcap_keys[ARM64_NCAPS];
 extern struct static_key_false arm64_const_caps_ready;
 
-bool this_cpu_has_cap(unsigned int cap);
+/* ARM64 CAPS + alternative_cb */
+#define ARM64_NPATCHABLE (ARM64_NCAPS + 1)
+extern DECLARE_BITMAP(boot_capabilities, ARM64_NPATCHABLE);
 
-static inline bool cpu_have_feature(unsigned int num)
-{
-	return elf_hwcap & (1UL << num);
-}
+#define for_each_available_cap(cap)		\
+	for_each_set_bit(cap, cpu_hwcaps, ARM64_NCAPS)
+
+bool this_cpu_has_cap(unsigned int cap);
+void cpu_set_feature(unsigned int num);
+bool cpu_have_feature(unsigned int num);
+unsigned long cpu_get_elf_hwcap(void);
+unsigned long cpu_get_elf_hwcap2(void);
+
+#define cpu_set_named_feature(name) cpu_set_feature(cpu_feature(name))
+#define cpu_have_named_feature(name) cpu_have_feature(cpu_feature(name))
 
 /* System capability check for constant caps */
-static inline bool __cpus_have_const_cap(int num)
+static __always_inline bool __cpus_have_const_cap(int num)
 {
 	if (num >= ARM64_NCAPS)
 		return false;
@@ -381,7 +415,7 @@ static inline bool cpus_have_cap(unsigned int num)
 	return test_bit(num, cpu_hwcaps);
 }
 
-static inline bool cpus_have_const_cap(int num)
+static __always_inline bool cpus_have_const_cap(int num)
 {
 	if (static_branch_likely(&arm64_const_caps_ready))
 		return __cpus_have_const_cap(num);
@@ -475,7 +509,6 @@ static inline bool id_aa64pfr0_sve(u64 pfr0)
 void __init setup_cpu_features(void);
 void check_local_cpu_capabilities(void);
 
-
 u64 read_sanitised_ftr_reg(u32 id);
 
 static inline bool cpu_supports_mixed_endian_el0(void)
@@ -488,9 +521,57 @@ static inline bool system_supports_32bit_el0(void)
 	return cpus_have_const_cap(ARM64_HAS_32BIT_EL0);
 }
 
+static inline bool system_supports_4kb_granule(void)
+{
+	u64 mmfr0;
+	u32 val;
+
+	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
+	val = cpuid_feature_extract_unsigned_field(mmfr0,
+						ID_AA64MMFR0_TGRAN4_SHIFT);
+
+	return val == ID_AA64MMFR0_TGRAN4_SUPPORTED;
+}
+
+static inline bool system_supports_64kb_granule(void)
+{
+	u64 mmfr0;
+	u32 val;
+
+	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
+	val = cpuid_feature_extract_unsigned_field(mmfr0,
+						ID_AA64MMFR0_TGRAN64_SHIFT);
+
+	return val == ID_AA64MMFR0_TGRAN64_SUPPORTED;
+}
+
+static inline bool system_supports_16kb_granule(void)
+{
+	u64 mmfr0;
+	u32 val;
+
+	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
+	val = cpuid_feature_extract_unsigned_field(mmfr0,
+						ID_AA64MMFR0_TGRAN16_SHIFT);
+
+	return val == ID_AA64MMFR0_TGRAN16_SUPPORTED;
+}
+
 static inline bool system_supports_mixed_endian_el0(void)
 {
 	return id_aa64mmfr0_mixed_endian_el0(read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1));
+}
+
+static inline bool system_supports_mixed_endian(void)
+{
+	u64 mmfr0;
+	u32 val;
+
+	mmfr0 =	read_sanitised_ftr_reg(SYS_ID_AA64MMFR0_EL1);
+	val = cpuid_feature_extract_unsigned_field(mmfr0,
+						ID_AA64MMFR0_BIGENDEL_SHIFT);
+
+	return val == 0x1;
 }
 
 static inline bool system_supports_fpsimd(void)
@@ -510,33 +591,72 @@ static inline bool system_supports_sve(void)
 		cpus_have_const_cap(ARM64_SVE);
 }
 
-/*
- * Read the pseudo-ZCR used by cpufeatures to identify the supported SVE
- * vector length.
- *
- * Use only if SVE is present.
- * This function clobbers the SVE vector length.
- */
-static inline u64 read_zcr_features(void)
+static inline bool system_supports_cnp(void)
 {
-	u64 zcr;
-	unsigned int vq_max;
-
-	/*
-	 * Set the maximum possible VL, and write zeroes to all other
-	 * bits to see if they stick.
-	 */
-	sve_kernel_enable(NULL);
-	write_sysreg_s(ZCR_ELx_LEN_MASK, SYS_ZCR_EL1);
-
-	zcr = read_sysreg_s(SYS_ZCR_EL1);
-	zcr &= ~(u64)ZCR_ELx_LEN_MASK; /* find sticky 1s outside LEN field */
-	vq_max = sve_vq_from_vl(sve_get_vl());
-	zcr |= vq_max - 1; /* set LEN field to maximum effective value */
-
-	return zcr;
+	return IS_ENABLED(CONFIG_ARM64_CNP) &&
+		cpus_have_const_cap(ARM64_HAS_CNP);
 }
 
+static inline bool system_supports_address_auth(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_PTR_AUTH) &&
+		(cpus_have_const_cap(ARM64_HAS_ADDRESS_AUTH_ARCH) ||
+		 cpus_have_const_cap(ARM64_HAS_ADDRESS_AUTH_IMP_DEF));
+}
+
+static inline bool system_supports_generic_auth(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_PTR_AUTH) &&
+		(cpus_have_const_cap(ARM64_HAS_GENERIC_AUTH_ARCH) ||
+		 cpus_have_const_cap(ARM64_HAS_GENERIC_AUTH_IMP_DEF));
+}
+
+static inline bool system_uses_irq_prio_masking(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) &&
+	       cpus_have_const_cap(ARM64_HAS_IRQ_PRIO_MASKING);
+}
+
+#define ARM64_SSBD_UNKNOWN		-1
+#define ARM64_SSBD_FORCE_DISABLE	0
+#define ARM64_SSBD_KERNEL		1
+#define ARM64_SSBD_FORCE_ENABLE		2
+#define ARM64_SSBD_MITIGATED		3
+
+static inline int arm64_get_ssbd_state(void)
+{
+#ifdef CONFIG_ARM64_SSBD
+	extern int ssbd_state;
+	return ssbd_state;
+#else
+	return ARM64_SSBD_UNKNOWN;
+#endif
+}
+
+void arm64_set_ssbd_mitigation(bool state);
+
+extern int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);
+
+static inline u32 id_aa64mmfr0_parange_to_phys_shift(int parange)
+{
+	switch (parange) {
+	case 0: return 32;
+	case 1: return 36;
+	case 2: return 40;
+	case 3: return 42;
+	case 4: return 44;
+	case 5: return 48;
+	case 6: return 52;
+	/*
+	 * A future PE could use a value unknown to the kernel.
+	 * However, by the "D10.1.4 Principles of the ID scheme
+	 * for fields in ID registers", ARM DDI 0487C.a, any new
+	 * value is guaranteed to be higher than what we know already.
+	 * As a safe limit, we return the limit supported by the kernel.
+	 */
+	default: return CONFIG_ARM64_PA_BITS;
+	}
+}
 #endif /* __ASSEMBLY__ */
 
 #endif

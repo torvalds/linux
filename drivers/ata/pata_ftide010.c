@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Faraday Technology FTIDE010 driver
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
@@ -256,14 +257,12 @@ static struct ata_port_operations pata_ftide010_port_ops = {
 	.qc_issue	= ftide010_qc_issue,
 };
 
-static struct ata_port_info ftide010_port_info[] = {
-	{
-		.flags		= ATA_FLAG_SLAVE_POSS,
-		.mwdma_mask	= ATA_MWDMA2,
-		.udma_mask	= ATA_UDMA6,
-		.pio_mask	= ATA_PIO4,
-		.port_ops	= &pata_ftide010_port_ops,
-	},
+static struct ata_port_info ftide010_port_info = {
+	.flags		= ATA_FLAG_SLAVE_POSS,
+	.mwdma_mask	= ATA_MWDMA2,
+	.udma_mask	= ATA_UDMA6,
+	.pio_mask	= ATA_PIO4,
+	.port_ops	= &pata_ftide010_port_ops,
 };
 
 #if IS_ENABLED(CONFIG_SATA_GEMINI)
@@ -349,6 +348,7 @@ static int pata_ftide010_gemini_cable_detect(struct ata_port *ap)
 }
 
 static int pata_ftide010_gemini_init(struct ftide010 *ftide,
+				     struct ata_port_info *pi,
 				     bool is_ata1)
 {
 	struct device *dev = ftide->dev;
@@ -373,7 +373,13 @@ static int pata_ftide010_gemini_init(struct ftide010 *ftide,
 
 	/* Flag port as SATA-capable */
 	if (gemini_sata_bridge_enabled(sg, is_ata1))
-		ftide010_port_info[0].flags |= ATA_FLAG_SATA;
+		pi->flags |= ATA_FLAG_SATA;
+
+	/* This device has broken DMA, only PIO works */
+	if (of_machine_is_compatible("itian,sq201")) {
+		pi->mwdma_mask = 0;
+		pi->udma_mask = 0;
+	}
 
 	/*
 	 * We assume that a simple 40-wire cable is used in the PATA mode.
@@ -435,6 +441,7 @@ static int pata_ftide010_gemini_init(struct ftide010 *ftide,
 }
 #else
 static int pata_ftide010_gemini_init(struct ftide010 *ftide,
+				     struct ata_port_info *pi,
 				     bool is_ata1)
 {
 	return -ENOTSUPP;
@@ -446,7 +453,7 @@ static int pata_ftide010_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	const struct ata_port_info pi = ftide010_port_info[0];
+	struct ata_port_info pi = ftide010_port_info;
 	const struct ata_port_info *ppi[] = { &pi, NULL };
 	struct ftide010 *ftide;
 	struct resource *res;
@@ -490,6 +497,7 @@ static int pata_ftide010_probe(struct platform_device *pdev)
 		 * are ATA0. This will also set up the cable types.
 		 */
 		ret = pata_ftide010_gemini_init(ftide,
+				&pi,
 				(res->start == 0x63400000));
 		if (ret)
 			goto err_dis_clk;

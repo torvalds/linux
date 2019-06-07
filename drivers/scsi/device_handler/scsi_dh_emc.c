@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Target driver for EMC CLARiiON AX/CX-series hardware.
  * Based on code from Lars Marowsky-Bree <lmb@suse.de>
@@ -5,20 +6,6 @@
  *
  * Copyright (C) 2006 Red Hat, Inc.  All rights reserved.
  * Copyright (C) 2006 Mike Christie
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -341,17 +328,17 @@ static int clariion_check_sense(struct scsi_device *sdev,
 	return SCSI_RETURN_NOT_HANDLED;
 }
 
-static int clariion_prep_fn(struct scsi_device *sdev, struct request *req)
+static blk_status_t clariion_prep_fn(struct scsi_device *sdev,
+		struct request *req)
 {
 	struct clariion_dh_data *h = sdev->handler_data;
-	int ret = BLKPREP_OK;
 
 	if (h->lun_state != CLARIION_LUN_OWNED) {
-		ret = BLKPREP_KILL;
 		req->rq_flags |= RQF_QUIET;
+		return BLK_STS_IOERR;
 	}
-	return ret;
 
+	return BLK_STS_OK;
 }
 
 static int clariion_std_inquiry(struct scsi_device *sdev,

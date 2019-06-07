@@ -12,7 +12,10 @@
 #include "debug.h"
 #include "namespaces.h"
 #include "comm.h"
+#include "map.h"
+#include "symbol.h"
 #include "unwind.h"
+#include "callchain.h"
 
 #include <api/fs/fs.h>
 
@@ -64,6 +67,7 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 		RB_CLEAR_NODE(&thread->rb_node);
 		/* Thread holds first ref to nsdata. */
 		thread->nsinfo = nsinfo__new(pid);
+		srccode_state_init(&thread->srccode_state);
 	}
 
 	return thread;
@@ -103,6 +107,7 @@ void thread__delete(struct thread *thread)
 
 	unwind__finish_access(thread);
 	nsinfo__zput(thread->nsinfo);
+	srccode_state_free(&thread->srccode_state);
 
 	exit_rwsem(&thread->namespaces_lock);
 	exit_rwsem(&thread->comm_lock);
@@ -128,7 +133,7 @@ void thread__put(struct thread *thread)
 	}
 }
 
-struct namespaces *thread__namespaces(const struct thread *thread)
+static struct namespaces *__thread__namespaces(const struct thread *thread)
 {
 	if (list_empty(&thread->namespaces_list))
 		return NULL;
@@ -136,10 +141,21 @@ struct namespaces *thread__namespaces(const struct thread *thread)
 	return list_first_entry(&thread->namespaces_list, struct namespaces, list);
 }
 
+struct namespaces *thread__namespaces(const struct thread *thread)
+{
+	struct namespaces *ns;
+
+	down_read((struct rw_semaphore *)&thread->namespaces_lock);
+	ns = __thread__namespaces(thread);
+	up_read((struct rw_semaphore *)&thread->namespaces_lock);
+
+	return ns;
+}
+
 static int __thread__set_namespaces(struct thread *thread, u64 timestamp,
 				    struct namespaces_event *event)
 {
-	struct namespaces *new, *curr = thread__namespaces(thread);
+	struct namespaces *new, *curr = __thread__namespaces(thread);
 
 	new = namespaces__new(event);
 	if (!new)
@@ -302,22 +318,19 @@ int thread__insert_map(struct thread *thread, struct map *map)
 static int __thread__prepare_access(struct thread *thread)
 {
 	bool initialized = false;
-	int i, err = 0;
+	int err = 0;
+	struct maps *maps = &thread->mg->maps;
+	struct map *map;
 
-	for (i = 0; i < MAP__NR_TYPES; ++i) {
-		struct maps *maps = &thread->mg->maps[i];
-		struct map *map;
+	down_read(&maps->lock);
 
-		down_read(&maps->lock);
-
-		for (map = maps__first(maps); map; map = map__next(map)) {
-			err = unwind__prepare_access(thread, map, &initialized);
-			if (err || initialized)
-				break;
-		}
-
-		up_read(&maps->lock);
+	for (map = maps__first(maps); map; map = map__next(map)) {
+		err = unwind__prepare_access(thread, map, &initialized);
+		if (err || initialized)
+			break;
 	}
+
+	up_read(&maps->lock);
 
 	return err;
 }
@@ -326,17 +339,16 @@ static int thread__prepare_access(struct thread *thread)
 {
 	int err = 0;
 
-	if (symbol_conf.use_callchain)
+	if (dwarf_callchain_users)
 		err = __thread__prepare_access(thread);
 
 	return err;
 }
 
 static int thread__clone_map_groups(struct thread *thread,
-				    struct thread *parent)
+				    struct thread *parent,
+				    bool do_maps_clone)
 {
-	int i;
-
 	/* This is new thread, we share map groups for process. */
 	if (thread->pid_ == parent->pid_)
 		return thread__prepare_access(thread);
@@ -346,16 +358,11 @@ static int thread__clone_map_groups(struct thread *thread,
 			 thread->pid_, thread->tid, parent->pid_, parent->tid);
 		return 0;
 	}
-
 	/* But this one is new process, copy maps. */
-	for (i = 0; i < MAP__NR_TYPES; ++i)
-		if (map_groups__clone(thread, parent->mg, i) < 0)
-			return -ENOMEM;
-
-	return 0;
+	return do_maps_clone ? map_groups__clone(thread, parent->mg) : 0;
 }
 
-int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
+int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp, bool do_maps_clone)
 {
 	if (parent->comm_set) {
 		const char *comm = thread__comm_str(parent);
@@ -368,11 +375,10 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
 	}
 
 	thread->ppid = parent->tid;
-	return thread__clone_map_groups(thread, parent);
+	return thread__clone_map_groups(thread, parent, do_maps_clone);
 }
 
-void thread__find_cpumode_addr_location(struct thread *thread,
-					enum map_type type, u64 addr,
+void thread__find_cpumode_addr_location(struct thread *thread, u64 addr,
 					struct addr_location *al)
 {
 	size_t i;
@@ -384,7 +390,7 @@ void thread__find_cpumode_addr_location(struct thread *thread,
 	};
 
 	for (i = 0; i < ARRAY_SIZE(cpumodes); i++) {
-		thread__find_addr_location(thread, cpumodes[i], type, addr, al);
+		thread__find_symbol(thread, cpumodes[i], addr, al);
 		if (al->map)
 			break;
 	}
@@ -399,4 +405,26 @@ struct thread *thread__main_thread(struct machine *machine, struct thread *threa
 		return NULL;
 
 	return machine__find_thread(machine, thread->pid_, thread->pid_);
+}
+
+int thread__memcpy(struct thread *thread, struct machine *machine,
+		   void *buf, u64 ip, int len, bool *is64bit)
+{
+       u8 cpumode = PERF_RECORD_MISC_USER;
+       struct addr_location al;
+       long offset;
+
+       if (machine__kernel_ip(machine, ip))
+               cpumode = PERF_RECORD_MISC_KERNEL;
+
+       if (!thread__find_map(thread, cpumode, ip, &al) || !al.map->dso ||
+	   al.map->dso->data.status == DSO_DATA_STATUS_ERROR ||
+	   map__load(al.map) < 0)
+               return -1;
+
+       offset = al.map->map_ip(al.map, ip);
+       if (is64bit)
+               *is64bit = al.map->dso->is_64_bit;
+
+       return dso__data_read_offset(al.map->dso, machine, offset, buf, len);
 }

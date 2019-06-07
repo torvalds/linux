@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
@@ -6,21 +7,6 @@
  * Userspace file locking support
  *
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/fs.h>
@@ -52,6 +38,7 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 	if (lockres->l_flags & OCFS2_LOCK_ATTACHED &&
 	    lockres->l_level > LKM_NLMODE) {
 		int old_level = 0;
+		struct file_lock request;
 
 		if (lockres->l_level == LKM_EXMODE)
 			old_level = 1;
@@ -66,11 +53,10 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 		 * level.
 		 */
 
-		locks_lock_file_wait(file,
-				&(struct file_lock) {
-					.fl_type = F_UNLCK,
-					.fl_flags = FL_FLOCK
-				});
+		locks_init_lock(&request);
+		request.fl_type = F_UNLCK;
+		request.fl_flags = FL_FLOCK;
+		locks_lock_file_wait(file, &request);
 
 		ocfs2_file_unlock(file);
 	}

@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -115,6 +115,7 @@ struct lpfc_sli_ct_request {
 		uint32_t PortID;
 		struct gid {
 			uint8_t PortType;	/* for GID_PT requests */
+#define GID_PT_N_PORT	1
 			uint8_t DomainScope;
 			uint8_t AreaScope;
 			uint8_t Fc4Type;	/* for GID_FT requests */
@@ -559,6 +560,8 @@ struct fc_vft_header {
 #define fc_vft_hdr_hopct_WORD		word1
 };
 
+#include <uapi/scsi/fc/fc_els.h>
+
 /*
  *  Extended Link Service LS_COMMAND codes (Payload Word 0)
  */
@@ -602,6 +605,7 @@ struct fc_vft_header {
 #define ELS_CMD_RNID      0x78000000
 #define ELS_CMD_LIRR      0x7A000000
 #define ELS_CMD_LCB	  0x81000000
+#define ELS_CMD_FPIN	  0x16000000
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
 #define ELS_CMD_MASK      0xffff
 #define ELS_RSP_MASK      0xff
@@ -642,6 +646,7 @@ struct fc_vft_header {
 #define ELS_CMD_RNID      0x78
 #define ELS_CMD_LIRR      0x7A
 #define ELS_CMD_LCB	  0x81
+#define ELS_CMD_FPIN	  ELS_FPIN
 #endif
 
 /*
@@ -1065,14 +1070,17 @@ typedef struct _ELS_PKT {	/* Structure is in Big Endian format */
 struct fc_lcb_request_frame {
 	uint32_t      lcb_command;      /* ELS command opcode (0x81)     */
 	uint8_t       lcb_sub_command;/* LCB Payload Word 1, bit 24:31 */
-#define LPFC_LCB_ON    0x1
-#define LPFC_LCB_OFF   0x2
-	uint8_t       reserved[3];
-
+#define LPFC_LCB_ON		0x1
+#define LPFC_LCB_OFF		0x2
+	uint8_t       reserved[2];
+	uint8_t	      capability;	/* LCB Payload Word 1, bit 0:7 */
 	uint8_t       lcb_type; /* LCB Payload Word 2, bit 24:31 */
-#define LPFC_LCB_GREEN 0x1
-#define LPFC_LCB_AMBER 0x2
+#define LPFC_LCB_GREEN		0x1
+#define LPFC_LCB_AMBER		0x2
 	uint8_t       lcb_frequency;    /* LCB Payload Word 2, bit 16:23 */
+#define LCB_CAPABILITY_DURATION	1
+#define BEACON_VERSION_V1	1
+#define BEACON_VERSION_V0	0
 	uint16_t      lcb_duration;     /* LCB Payload Word 2, bit 15:0  */
 };
 
@@ -1082,7 +1090,8 @@ struct fc_lcb_request_frame {
 struct fc_lcb_res_frame {
 	uint32_t      lcb_ls_acc;       /* Acceptance of LCB request (0x02) */
 	uint8_t       lcb_sub_command;/* LCB Payload Word 1, bit 24:31 */
-	uint8_t       reserved[3];
+	uint8_t       reserved[2];
+	uint8_t	      capability;	/* LCB Payload Word 1, bit 0:7 */
 	uint8_t       lcb_type; /* LCB Payload Word 2, bit 24:31 */
 	uint8_t       lcb_frequency;    /* LCB Payload Word 2, bit 16:23 */
 	uint16_t      lcb_duration;     /* LCB Payload Word 2, bit 15:0  */

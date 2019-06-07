@@ -40,19 +40,22 @@
 #undef WARN_ON_ONCE
 #define WARN_ON_ONCE(x) WARN_ONCE((x), "%s", "WARN_ON_ONCE(" __stringify(x) ")")
 
-#define MISSING_CASE(x) WARN(1, "Missing switch case (%lu) in %s\n", \
-			     (long)(x), __func__)
+#define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
+			     __stringify(x), (long)(x))
 
-#if GCC_VERSION >= 70000
-#define add_overflows(A, B) \
-	__builtin_add_overflow_p((A), (B), (typeof((A) + (B)))0)
+#if defined(GCC_VERSION) && GCC_VERSION >= 70000
+#define add_overflows_t(T, A, B) \
+	__builtin_add_overflow_p((A), (B), (T)0)
 #else
-#define add_overflows(A, B) ({ \
+#define add_overflows_t(T, A, B) ({ \
 	typeof(A) a = (A); \
 	typeof(B) b = (B); \
-	a + b < a; \
+	(T)(a + b) < a; \
 })
 #endif
+
+#define add_overflows(A, B) \
+	add_overflows_t(typeof((A) + (B)), (A), (B))
 
 #define range_overflows(start, size, max) ({ \
 	typeof(start) start__ = (start); \
@@ -68,7 +71,7 @@
 
 /* Note we don't consider signbits :| */
 #define overflows_type(x, T) \
-	(sizeof(x) > sizeof(T) && (x) >> (sizeof(T) * BITS_PER_BYTE))
+	(sizeof(x) > sizeof(T) && (x) >> BITS_PER_TYPE(T))
 
 #define ptr_mask_bits(ptr, n) ({					\
 	unsigned long __v = (unsigned long)(ptr);			\
@@ -100,6 +103,37 @@
 	typeof(*ptr) __T = *(ptr);					\
 	*(ptr) = (typeof(*ptr))0;					\
 	__T;								\
+})
+
+/*
+ * container_of_user: Extract the superclass from a pointer to a member.
+ *
+ * Exactly like container_of() with the exception that it plays nicely
+ * with sparse for __user @ptr.
+ */
+#define container_of_user(ptr, type, member) ({				\
+	void __user *__mptr = (void __user *)(ptr);			\
+	BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) &&	\
+			 !__same_type(*(ptr), void),			\
+			 "pointer type mismatch in container_of()");	\
+	((type __user *)(__mptr - offsetof(type, member))); })
+
+/*
+ * check_user_mbz: Check that a user value exists and is zero
+ *
+ * Frequently in our uABI we reserve space for future extensions, and
+ * two ensure that userspace is prepared we enforce that space must
+ * be zero. (Then any future extension can safely assume a default value
+ * of 0.)
+ *
+ * check_user_mbz() combines checking that the user pointer is accessible
+ * and that the contained value is zero.
+ *
+ * Returns: -EFAULT if not accessible, -EINVAL if !zero, or 0 on success.
+ */
+#define check_user_mbz(U) ({						\
+	typeof(*(U)) mbz__;						\
+	get_user(mbz__, (U)) ? -EFAULT : mbz__ ? -EINVAL : 0;		\
 })
 
 static inline u64 ptr_to_u64(const void *ptr)

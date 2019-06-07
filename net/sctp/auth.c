@@ -1,23 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * (C) Copyright 2007 Hewlett-Packard Development Company, L.P.
  *
  * This file is part of the SCTP kernel implementation
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -471,19 +456,14 @@ int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
 	struct crypto_shash *tfm = NULL;
 	__u16   id;
 
-	/* If AUTH extension is disabled, we are done */
-	if (!ep->auth_enable) {
-		ep->auth_hmacs = NULL;
-		return 0;
-	}
-
 	/* If the transforms are already allocated, we are done */
 	if (ep->auth_hmacs)
 		return 0;
 
 	/* Allocated the array of pointers to transorms */
-	ep->auth_hmacs = kzalloc(sizeof(struct crypto_shash *) *
-				 SCTP_AUTH_NUM_HMACS, gfp);
+	ep->auth_hmacs = kcalloc(SCTP_AUTH_NUM_HMACS,
+				 sizeof(struct crypto_shash *),
+				 gfp);
 	if (!ep->auth_hmacs)
 		return -ENOMEM;
 
@@ -765,7 +745,6 @@ void sctp_auth_calculate_hmac(const struct sctp_association *asoc,
 		SHASH_DESC_ON_STACK(desc, tfm);
 
 		desc->tfm = tfm;
-		desc->flags = 0;
 		crypto_shash_digest(desc, (u8 *)auth,
 				    end - (unsigned char *)auth, digest);
 		shash_desc_zero(desc);

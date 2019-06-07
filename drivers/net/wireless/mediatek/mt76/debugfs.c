@@ -43,16 +43,46 @@ mt76_queues_read(struct seq_file *s, void *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dev->q_tx); i++) {
-		struct mt76_queue *q = &dev->q_tx[i];
+		struct mt76_sw_queue *q = &dev->q_tx[i];
 
-		if (!q->ndesc)
+		if (!q->q)
 			continue;
 
 		seq_printf(s,
 			   "%d:	queued=%d head=%d tail=%d swq_queued=%d\n",
-			   i, q->queued, q->head, q->tail, q->swq_queued);
+			   i, q->q->queued, q->q->head, q->q->tail,
+			   q->swq_queued);
 	}
 
+	return 0;
+}
+
+void mt76_seq_puts_array(struct seq_file *file, const char *str,
+			 s8 *val, int len)
+{
+	int i;
+
+	seq_printf(file, "%10s:", str);
+	for (i = 0; i < len; i++)
+		seq_printf(file, " %2d", val[i]);
+	seq_puts(file, "\n");
+}
+EXPORT_SYMBOL_GPL(mt76_seq_puts_array);
+
+static int mt76_read_rate_txpower(struct seq_file *s, void *data)
+{
+	struct mt76_dev *dev = dev_get_drvdata(s->private);
+
+	mt76_seq_puts_array(s, "CCK", dev->rate_power.cck,
+			    ARRAY_SIZE(dev->rate_power.cck));
+	mt76_seq_puts_array(s, "OFDM", dev->rate_power.ofdm,
+			    ARRAY_SIZE(dev->rate_power.ofdm));
+	mt76_seq_puts_array(s, "STBC", dev->rate_power.stbc,
+			    ARRAY_SIZE(dev->rate_power.stbc));
+	mt76_seq_puts_array(s, "HT", dev->rate_power.ht,
+			    ARRAY_SIZE(dev->rate_power.ht));
+	mt76_seq_puts_array(s, "VHT", dev->rate_power.vht,
+			    ARRAY_SIZE(dev->rate_power.vht));
 	return 0;
 }
 
@@ -72,6 +102,8 @@ struct dentry *mt76_register_debugfs(struct mt76_dev *dev)
 	if (dev->otp.data)
 		debugfs_create_blob("otp", 0400, dir, &dev->otp);
 	debugfs_create_devm_seqfile(dev->dev, "queues", dir, mt76_queues_read);
+	debugfs_create_devm_seqfile(dev->dev, "rate_txpower", dir,
+				    mt76_read_rate_txpower);
 
 	return dir;
 }

@@ -18,7 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/swap.h>
@@ -60,6 +60,9 @@ void __init bootmem_init(void)
 	max_pfn = PFN_DOWN(memblock_end_of_DRAM());
 	max_low_pfn = min(max_pfn, MAX_LOW_PFN);
 
+	early_memtest((phys_addr_t)min_low_pfn << PAGE_SHIFT,
+		      (phys_addr_t)max_low_pfn << PAGE_SHIFT);
+
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
 	dma_contiguous_reserve(PFN_PHYS(max_low_pfn));
 
@@ -71,7 +74,7 @@ void __init zones_init(void)
 {
 	/* All pages are DMA-able, so we put them all in the DMA zone. */
 	unsigned long zones_size[MAX_NR_ZONES] = {
-		[ZONE_DMA] = max_low_pfn - ARCH_PFN_OFFSET,
+		[ZONE_NORMAL] = max_low_pfn - ARCH_PFN_OFFSET,
 #ifdef CONFIG_HIGHMEM
 		[ZONE_HIGHMEM] = max_pfn - max_low_pfn,
 #endif
@@ -152,7 +155,7 @@ void __init mem_init(void)
 	max_mapnr = max_pfn - ARCH_PFN_OFFSET;
 	high_memory = (void *)__va(max_low_pfn << PAGE_SHIFT);
 
-	free_all_bootmem();
+	memblock_free_all();
 
 	mem_init_print_info(NULL);
 	pr_info("virtual kernel memory layout:\n"
@@ -212,11 +215,6 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		free_reserved_area((void *)start, (void *)end, -1, "initrd");
 }
 #endif
-
-void free_initmem(void)
-{
-	free_initmem_default(-1);
-}
 
 static void __init parse_memmap_one(char *p)
 {

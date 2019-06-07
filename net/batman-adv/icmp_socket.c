@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "icmp_socket.h"
@@ -47,6 +35,7 @@
 #include <linux/wait.h>
 #include <uapi/linux/batadv_packet.h>
 
+#include "debugfs.h"
 #include "hard-interface.h"
 #include "log.h"
 #include "originator.h"
@@ -74,7 +63,9 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 	if (!try_module_get(THIS_MODULE))
 		return -EBUSY;
 
-	nonseekable_open(inode, file);
+	batadv_debugfs_deprecated(file, "");
+
+	stream_open(inode, file);
 
 	socket_client = kmalloc(sizeof(*socket_client), GFP_KERNEL);
 	if (!socket_client) {
@@ -144,7 +135,7 @@ static ssize_t batadv_socket_read(struct file *file, char __user *buf,
 	if (!buf || count < sizeof(struct batadv_icmp_packet))
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	error = wait_event_interruptible(socket_client->queue_wait,

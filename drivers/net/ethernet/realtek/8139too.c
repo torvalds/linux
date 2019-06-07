@@ -258,6 +258,7 @@ static const struct pci_device_id rtl8139_pci_tbl[] = {
 	{0x126c, 0x1211, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
 	{0x1743, 0x8139, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
 	{0x021b, 0x8139, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
+	{0x16ec, 0xab06, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
 
 #ifdef CONFIG_SH_SECUREEDGE5410
 	/* Bogus 8139 silicon reports 8129 without external PROM :-( */
@@ -1104,7 +1105,6 @@ static int rtl8139_init_one(struct pci_dev *pdev,
 	return 0;
 
 err_out:
-	netif_napi_del(&tp->napi);
 	__rtl8139_cleanup_dev (dev);
 	pci_disable_device (pdev);
 	return i;
@@ -1119,7 +1119,6 @@ static void rtl8139_remove_one(struct pci_dev *pdev)
 	assert (dev != NULL);
 
 	cancel_delayed_work_sync(&tp->thread);
-	netif_napi_del(&tp->napi);
 
 	unregister_netdev (dev);
 
@@ -1663,7 +1662,7 @@ static void rtl8139_tx_timeout_task (struct work_struct *work)
 
 	napi_disable(&tp->napi);
 	netif_stop_queue(dev);
-	synchronize_sched();
+	synchronize_rcu();
 
 	netdev_dbg(dev, "Transmit timeout, status %02x %04x %04x media %02x\n",
 		   RTL_R8(ChipCmd), RTL_R16(IntrStatus),

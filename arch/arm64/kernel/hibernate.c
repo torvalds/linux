@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*:
  * Hibernate support specific for ARM64
  *
@@ -11,8 +12,6 @@
  *  https://patchwork.kernel.org/patch/96442/
  *
  * Copyright (C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 #define pr_fmt(x) "hibernate: " x
 #include <linux/cpu.h>
@@ -214,7 +213,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
 	}
 
 	memcpy((void *)dst, src_start, length);
-	flush_icache_range(dst, dst + length);
+	__flush_icache_range(dst, dst + length);
 
 	pgdp = pgd_offset_raw(allocator(mask), dst_addr);
 	if (pgd_none(READ_ONCE(*pgdp))) {
@@ -299,8 +298,10 @@ int swsusp_arch_suspend(void)
 		dcache_clean_range(__idmap_text_start, __idmap_text_end);
 
 		/* Clean kvm setup code to PoC? */
-		if (el2_reset_needed())
+		if (el2_reset_needed()) {
 			dcache_clean_range(__hyp_idmap_text_start, __hyp_idmap_text_end);
+			dcache_clean_range(__hyp_text_start, __hyp_text_end);
+		}
 
 		/* make the crash dump kernel image protected again */
 		crash_post_resume();
@@ -313,6 +314,17 @@ int swsusp_arch_suspend(void)
 
 		sleep_cpu = -EINVAL;
 		__cpu_suspend_exit();
+
+		/*
+		 * Just in case the boot kernel did turn the SSBD
+		 * mitigation off behind our back, let's set the state
+		 * to what we expect it to be.
+		 */
+		switch (arm64_get_ssbd_state()) {
+		case ARM64_SSBD_FORCE_ENABLE:
+		case ARM64_SSBD_KERNEL:
+			arm64_set_ssbd_mitigation(true);
+		}
 	}
 
 	local_daif_restore(flags);

@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /******************************************************************************
  *
  *	(C)Copyright 1998,1999 SysKonnect,
  *	a business unit of Schneider & Koch & Co. Datensysteme GmbH.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	The information in this file is provided "AS IS" without warranty.
  *
@@ -513,7 +509,6 @@ void pcm_status_state(struct s_smc *smc, int np, int *type, int *state,
 void plc_config_mux(struct s_smc *smc, int mux);
 void sm_lem_evaluate(struct s_smc *smc);
 void mac_update_counter(struct s_smc *smc);
-void sm_pm_ls_latch(struct s_smc *smc, int phy, int on_off);
 void sm_ma_control(struct s_smc *smc, int mode);
 void sm_mac_check_beacon_claim(struct s_smc *smc);
 void config_mux(struct s_smc *smc, int mux);
@@ -655,14 +650,6 @@ void dump_hex(char *p, int len);
 /* PNMI default defines */
 #ifndef PNMI_INIT
 #define	PNMI_INIT(smc)	/* Nothing */
-#endif
-#ifndef PNMI_GET_ID
-#define PNMI_GET_ID( smc, ndis_oid, buf, len, BytesWritten, BytesNeeded ) \
-		( 1 ? (-1) : (-1) )
-#endif
-#ifndef PNMI_SET_ID
-#define PNMI_SET_ID( smc, ndis_oid, buf, len, BytesRead, BytesNeeded, \
-		set_type) ( 1 ? (-1) : (-1) )
 #endif
 
 /*

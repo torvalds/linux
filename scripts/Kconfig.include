@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Kconfig helper macros
+
+# Convenient variables
+comma       := ,
+quote       := "
+squote      := '
+empty       :=
+space       := $(empty) $(empty)
+dollar      := $
+right_paren := )
+left_paren  := (
+
+# $(if-success,<command>,<then>,<else>)
+# Return <then> if <command> exits with 0, <else> otherwise.
+if-success = $(shell,{ $(1); } >/dev/null 2>&1 && echo "$(2)" || echo "$(3)")
+
+# $(success,<command>)
+# Return y if <command> exits with 0, n otherwise
+success = $(if-success,$(1),y,n)
+
+# $(failure,<command>)
+# Return n if <command> exits with 0, y otherwise
+failure = $(if-success,$(1),n,y)
+
+# $(cc-option,<flag>)
+# Return y if the compiler supports <flag>, n otherwise
+cc-option = $(success,$(CC) -Werror $(1) -E -x c /dev/null -o /dev/null)
+
+# $(ld-option,<flag>)
+# Return y if the linker supports <flag>, n otherwise
+ld-option = $(success,$(LD) -v $(1))
+
+# check if $(CC) and $(LD) exist
+$(error-if,$(failure,command -v $(CC)),compiler '$(CC)' not found)
+$(error-if,$(failure,command -v $(LD)),linker '$(LD)' not found)
+
+# gcc version including patch level
+gcc-version := $(shell,$(srctree)/scripts/gcc-version.sh $(CC))

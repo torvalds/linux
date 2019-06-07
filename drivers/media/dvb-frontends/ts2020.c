@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Montage Technology TS2020 - Silicon Tuner driver
     Copyright (C) 2009-2012 Konstantin Dimitrov <kosio.dimitrov@gmail.com>
 
     Copyright (C) 2009-2012 TurboSight.com
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <media/dvb_frontend.h>
@@ -180,6 +168,9 @@ static int ts2020_set_tuner_rf(struct dvb_frontend *fe)
 	unsigned int utmp;
 
 	ret = regmap_read(dev->regmap, 0x3d, &utmp);
+	if (ret)
+		return ret;
+
 	utmp &= 0x7f;
 	if (utmp < 0x16)
 		utmp = 0xa1;
@@ -498,8 +489,8 @@ static int ts2020_read_signal_strength(struct dvb_frontend *fe,
 static const struct dvb_tuner_ops ts2020_tuner_ops = {
 	.info = {
 		.name = "TS2020",
-		.frequency_min = 950000,
-		.frequency_max = 2150000
+		.frequency_min_hz =  950 * MHz,
+		.frequency_max_hz = 2150 * MHz
 	},
 	.init = ts2020_init,
 	.release = ts2020_release,
@@ -525,7 +516,7 @@ struct dvb_frontend *ts2020_attach(struct dvb_frontend *fe,
 	pdata.attach_in_use = true;
 
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "ts2020", I2C_NAME_SIZE);
+	strscpy(board_info.type, "ts2020", I2C_NAME_SIZE);
 	board_info.addr = config->tuner_address;
 	board_info.platform_data = &pdata;
 	client = i2c_new_device(i2c, &board_info);

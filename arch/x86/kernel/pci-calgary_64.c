@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Derived from arch/powerpc/kernel/iommu.c
  *
@@ -7,19 +8,6 @@
  * Author: Jon Mason <jdmason@kudzu.us>
  * Author: Muli Ben-Yehuda <muli@il.ibm.com>
 
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #define pr_fmt(fmt) "Calgary: " fmt
@@ -50,8 +38,6 @@
 #include <asm/bios_ebda.h>
 #include <asm/x86_init.h>
 #include <asm/iommu_table.h>
-
-#define CALGARY_MAPPING_ERROR	0
 
 #ifdef CONFIG_CALGARY_IOMMU_ENABLED_BY_DEFAULT
 int use_calgary __read_mostly = 1;
@@ -157,8 +143,6 @@ static const unsigned long phb_debug_offsets[] = {
 
 #define PHB_DEBUG_STUFF_OFFSET	0x0020
 
-#define EMERGENCY_PAGES 32 /* = 128KB */
-
 unsigned int specified_table_size = TCE_TABLE_SIZE_UNSPECIFIED;
 static int translate_empty_slots __read_mostly = 0;
 static int calgary_detected __read_mostly = 0;
@@ -255,7 +239,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 			if (panic_on_overflow)
 				panic("Calgary: fix the allocator.\n");
 			else
-				return CALGARY_MAPPING_ERROR;
+				return DMA_MAPPING_ERROR;
 		}
 	}
 
@@ -274,11 +258,10 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 	dma_addr_t ret;
 
 	entry = iommu_range_alloc(dev, tbl, npages);
-
-	if (unlikely(entry == CALGARY_MAPPING_ERROR)) {
+	if (unlikely(entry == DMA_MAPPING_ERROR)) {
 		pr_warn("failed to allocate %u pages in iommu %p\n",
 			npages, tbl);
-		return CALGARY_MAPPING_ERROR;
+		return DMA_MAPPING_ERROR;
 	}
 
 	/* set the return dma address */
@@ -294,12 +277,10 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	unsigned int npages)
 {
 	unsigned long entry;
-	unsigned long badend;
 	unsigned long flags;
 
 	/* were we called with bad_dma_address? */
-	badend = CALGARY_MAPPING_ERROR + (EMERGENCY_PAGES * PAGE_SIZE);
-	if (unlikely(dma_addr < badend)) {
+	if (unlikely(dma_addr == DMA_MAPPING_ERROR)) {
 		WARN(1, KERN_ERR "Calgary: driver tried unmapping bad DMA "
 		       "address 0x%Lx\n", dma_addr);
 		return;
@@ -383,7 +364,7 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 		npages = iommu_num_pages(vaddr, s->length, PAGE_SIZE);
 
 		entry = iommu_range_alloc(dev, tbl, npages);
-		if (entry == CALGARY_MAPPING_ERROR) {
+		if (entry == DMA_MAPPING_ERROR) {
 			/* makes sure unmap knows to stop */
 			s->dma_length = 0;
 			goto error;
@@ -401,7 +382,7 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 error:
 	calgary_unmap_sg(dev, sg, nelems, dir, 0);
 	for_each_sg(sg, s, nelems, i) {
-		sg->dma_address = CALGARY_MAPPING_ERROR;
+		sg->dma_address = DMA_MAPPING_ERROR;
 		sg->dma_length = 0;
 	}
 	return 0;
@@ -454,7 +435,7 @@ static void* calgary_alloc_coherent(struct device *dev, size_t size,
 
 	/* set up tces to cover the allocated range */
 	mapping = iommu_alloc(dev, tbl, ret, npages, DMA_BIDIRECTIONAL);
-	if (mapping == CALGARY_MAPPING_ERROR)
+	if (mapping == DMA_MAPPING_ERROR)
 		goto free;
 	*dma_handle = mapping;
 	return ret;
@@ -479,11 +460,6 @@ static void calgary_free_coherent(struct device *dev, size_t size,
 	free_pages((unsigned long)vaddr, get_order(size));
 }
 
-static int calgary_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	return dma_addr == CALGARY_MAPPING_ERROR;
-}
-
 static const struct dma_map_ops calgary_dma_ops = {
 	.alloc = calgary_alloc_coherent,
 	.free = calgary_free_coherent,
@@ -491,7 +467,6 @@ static const struct dma_map_ops calgary_dma_ops = {
 	.unmap_sg = calgary_unmap_sg,
 	.map_page = calgary_map_page,
 	.unmap_page = calgary_unmap_page,
-	.mapping_error = calgary_mapping_error,
 	.dma_supported = dma_direct_supported,
 };
 
@@ -738,9 +713,6 @@ static void __init calgary_reserve_regions(struct pci_dev *dev)
 	unsigned int npages;
 	u64 start;
 	struct iommu_table *tbl = pci_iommu(dev->bus);
-
-	/* reserve EMERGENCY_PAGES from bad_dma_address and up */
-	iommu_range_reserve(tbl, CALGARY_MAPPING_ERROR, EMERGENCY_PAGES);
 
 	/* avoid the BIOS/VGA first 640KB-1MB region */
 	/* for CalIOC2 - avoid the entire first MB */

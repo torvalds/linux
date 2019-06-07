@@ -289,8 +289,7 @@ struct clip_tbl *t4_init_clip_tbl(unsigned int clipt_start,
 	if (clipt_size < CLIPT_MIN_HASH_BUCKETS)
 		return NULL;
 
-	ctbl = kvzalloc(sizeof(*ctbl) +
-			    clipt_size*sizeof(struct list_head), GFP_KERNEL);
+	ctbl = kvzalloc(struct_size(ctbl, hash_list, clipt_size), GFP_KERNEL);
 	if (!ctbl)
 		return NULL;
 
@@ -304,7 +303,7 @@ struct clip_tbl *t4_init_clip_tbl(unsigned int clipt_start,
 	for (i = 0; i < ctbl->clipt_size; ++i)
 		INIT_LIST_HEAD(&ctbl->hash_list[i]);
 
-	cl_list = kvzalloc(clipt_size*sizeof(struct clip_entry), GFP_KERNEL);
+	cl_list = kvcalloc(clipt_size, sizeof(struct clip_entry), GFP_KERNEL);
 	if (!cl_list) {
 		kvfree(ctbl);
 		return NULL;

@@ -1,5 +1,5 @@
 /*
-* Copyright(c) 2015, 2016 Intel Corporation.
+* Copyright(c) 2015 - 2018 Intel Corporation.
 *
 * This file is provided under a dual BSD/GPLv2 license.  When using or
 * redistributing this file, you may do so under either license.
@@ -86,14 +86,14 @@ DECLARE_EVENT_CLASS(hfi1_trace_template,
  * actual function to work and can not be in a macro.
  */
 #define __hfi1_trace_def(lvl) \
-void __hfi1_trace_##lvl(const char *funct, char *fmt, ...);		\
+void __printf(2, 3) __hfi1_trace_##lvl(const char *funct, char *fmt, ...); \
 									\
 DEFINE_EVENT(hfi1_trace_template, hfi1_ ##lvl,				\
 	TP_PROTO(const char *function, struct va_format *vaf),		\
 	TP_ARGS(function, vaf))
 
 #define __hfi1_trace_fn(lvl) \
-void __hfi1_trace_##lvl(const char *func, char *fmt, ...)		\
+void __printf(2, 3) __hfi1_trace_##lvl(const char *func, char *fmt, ...)\
 {									\
 	struct va_format vaf = {					\
 		.fmt = fmt,						\
@@ -113,6 +113,7 @@ void __hfi1_trace_##lvl(const char *func, char *fmt, ...)		\
  * hfi1_cdbg(LVL, fmt, ...); as well as take care of all
  * the debugfs stuff.
  */
+__hfi1_trace_def(AFFINITY);
 __hfi1_trace_def(PKT);
 __hfi1_trace_def(PROC);
 __hfi1_trace_def(SDMA);

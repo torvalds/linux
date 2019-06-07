@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the Conexant CX25821 PCIe bridge
  *
@@ -6,18 +7,6 @@
  *  Based on Steven Toth <stoth@linuxtv.org> cx25821 driver
  *  Parts adapted/taken from Eduardo Moscoso Rubino
  *  Copyright (C) 2009 Eduardo Moscoso Rubino <moscoso@TopoLogica.com>
- *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -322,7 +311,7 @@ static int cx25821_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (unlikely(f->index >= ARRAY_SIZE(formats)))
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name, sizeof(f->description));
+	strscpy(f->description, formats[f->index].name, sizeof(f->description));
 	f->pixelformat = formats[f->index].fourcc;
 
 	return 0;
@@ -441,8 +430,8 @@ static int cx25821_vidioc_querycap(struct file *file, void *priv,
 			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
 	const u32 cap_output = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE;
 
-	strcpy(cap->driver, "cx25821");
-	strlcpy(cap->card, cx25821_boards[dev->board].name, sizeof(cap->card));
+	strscpy(cap->driver, "cx25821", sizeof(cap->driver));
+	strscpy(cap->card, cx25821_boards[dev->board].name, sizeof(cap->card));
 	sprintf(cap->bus_info, "PCIe:%s", pci_name(dev->pci));
 	if (chan->id >= VID_CHANNEL_NUM)
 		cap->device_caps = cap_output;
@@ -486,7 +475,7 @@ static int cx25821_vidioc_enum_input(struct file *file, void *priv,
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	i->std = CX25821_NORMS;
-	strcpy(i->name, "Composite");
+	strscpy(i->name, "Composite", sizeof(i->name));
 	return 0;
 }
 
@@ -534,7 +523,7 @@ static int cx25821_vidioc_enum_output(struct file *file, void *priv,
 
 	o->type = V4L2_INPUT_TYPE_CAMERA;
 	o->std = CX25821_NORMS;
-	strcpy(o->name, "Composite");
+	strscpy(o->name, "Composite", sizeof(o->name));
 	return 0;
 }
 

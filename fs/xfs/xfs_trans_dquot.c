@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2002 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -77,7 +65,7 @@ xfs_trans_log_dquot(
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	dqp->q_logitem.qli_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &dqp->q_logitem.qli_item.li_flags);
 }
 
 /*
@@ -86,13 +74,13 @@ xfs_trans_log_dquot(
  */
 void
 xfs_trans_dup_dqinfo(
-	xfs_trans_t	*otp,
-	xfs_trans_t	*ntp)
+	struct xfs_trans	*otp,
+	struct xfs_trans	*ntp)
 {
-	xfs_dqtrx_t	*oq, *nq;
-	int		i, j;
-	xfs_dqtrx_t	*oqa, *nqa;
-	ulong		blk_res_used;
+	struct xfs_dqtrx	*oq, *nq;
+	int			i, j;
+	struct xfs_dqtrx	*oqa, *nqa;
+	uint64_t		blk_res_used;
 
 	if (!otp->t_dqinfo)
 		return;
@@ -149,7 +137,7 @@ xfs_trans_mod_dquot_byino(
 	xfs_trans_t	*tp,
 	xfs_inode_t	*ip,
 	uint		field,
-	long		delta)
+	int64_t		delta)
 {
 	xfs_mount_t	*mp = tp->t_mountp;
 
@@ -203,12 +191,12 @@ xfs_trans_get_dqtrx(
  */
 void
 xfs_trans_mod_dquot(
-	xfs_trans_t	*tp,
-	xfs_dquot_t	*dqp,
-	uint		field,
-	long		delta)
+	struct xfs_trans	*tp,
+	struct xfs_dquot	*dqp,
+	uint			field,
+	int64_t			delta)
 {
-	xfs_dqtrx_t	*qtrx;
+	struct xfs_dqtrx	*qtrx;
 
 	ASSERT(tp);
 	ASSERT(XFS_IS_QUOTA_RUNNING(tp->t_mountp));
@@ -231,14 +219,14 @@ xfs_trans_mod_dquot(
 		 * regular disk blk reservation
 		 */
 	      case XFS_TRANS_DQ_RES_BLKS:
-		qtrx->qt_blk_res += (ulong)delta;
+		qtrx->qt_blk_res += delta;
 		break;
 
 		/*
 		 * inode reservation
 		 */
 	      case XFS_TRANS_DQ_RES_INOS:
-		qtrx->qt_ino_res += (ulong)delta;
+		qtrx->qt_ino_res += delta;
 		break;
 
 		/*
@@ -257,7 +245,7 @@ xfs_trans_mod_dquot(
 		 */
 	      case XFS_TRANS_DQ_ICOUNT:
 		if (qtrx->qt_ino_res && delta > 0) {
-			qtrx->qt_ino_res_used += (ulong)delta;
+			qtrx->qt_ino_res_used += delta;
 			ASSERT(qtrx->qt_ino_res >= qtrx->qt_ino_res_used);
 		}
 		qtrx->qt_icount_delta += delta;
@@ -267,7 +255,7 @@ xfs_trans_mod_dquot(
 		 * rtblk reservation
 		 */
 	      case XFS_TRANS_DQ_RES_RTBLKS:
-		qtrx->qt_rtblk_res += (ulong)delta;
+		qtrx->qt_rtblk_res += delta;
 		break;
 
 		/*
@@ -275,7 +263,7 @@ xfs_trans_mod_dquot(
 		 */
 	      case XFS_TRANS_DQ_RTBCOUNT:
 		if (qtrx->qt_rtblk_res && delta > 0) {
-			qtrx->qt_rtblk_res_used += (ulong)delta;
+			qtrx->qt_rtblk_res_used += delta;
 			ASSERT(qtrx->qt_rtblk_res >= qtrx->qt_rtblk_res_used);
 		}
 		qtrx->qt_rtbcount_delta += delta;
@@ -300,8 +288,8 @@ xfs_trans_mod_dquot(
  */
 STATIC void
 xfs_trans_dqlockedjoin(
-	xfs_trans_t	*tp,
-	xfs_dqtrx_t	*q)
+	struct xfs_trans	*tp,
+	struct xfs_dqtrx	*q)
 {
 	ASSERT(q[0].qt_dquot != NULL);
 	if (q[1].qt_dquot == NULL) {
@@ -332,8 +320,8 @@ xfs_trans_apply_dquot_deltas(
 	struct xfs_dquot	*dqp;
 	struct xfs_dqtrx	*qtrx, *qa;
 	struct xfs_disk_dquot	*d;
-	long			totalbdelta;
-	long			totalrtbdelta;
+	int64_t			totalbdelta;
+	int64_t			totalrtbdelta;
 
 	if (!(tp->t_flags & XFS_TRANS_DQ_DIRTY))
 		return;
@@ -425,7 +413,7 @@ xfs_trans_apply_dquot_deltas(
 			 * reservation that a transaction structure knows of.
 			 */
 			if (qtrx->qt_blk_res != 0) {
-				ulong blk_res_used = 0;
+				uint64_t	blk_res_used = 0;
 
 				if (qtrx->qt_bcount_delta > 0)
 					blk_res_used = qtrx->qt_bcount_delta;
@@ -513,7 +501,7 @@ xfs_trans_unreserve_and_mod_dquots(
 {
 	int			i, j;
 	xfs_dquot_t		*dqp;
-	xfs_dqtrx_t		*qtrx, *qa;
+	struct xfs_dqtrx	*qtrx, *qa;
 	bool                    locked;
 
 	if (!tp->t_dqinfo || !(tp->t_flags & XFS_TRANS_DQ_DIRTY))
@@ -597,7 +585,7 @@ xfs_trans_dqresv(
 	xfs_trans_t	*tp,
 	xfs_mount_t	*mp,
 	xfs_dquot_t	*dqp,
-	long		nblks,
+	int64_t		nblks,
 	long		ninos,
 	uint		flags)
 {
@@ -757,7 +745,7 @@ xfs_trans_reserve_quota_bydquots(
 	struct xfs_dquot	*udqp,
 	struct xfs_dquot	*gdqp,
 	struct xfs_dquot	*pdqp,
-	long			nblks,
+	int64_t			nblks,
 	long			ninos,
 	uint			flags)
 {
@@ -816,7 +804,7 @@ int
 xfs_trans_reserve_quota_nblks(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
-	long			nblks,
+	int64_t			nblks,
 	long			ninos,
 	uint			flags)
 {
@@ -879,7 +867,7 @@ xfs_trans_log_quotaoff_item(
 	xfs_qoff_logitem_t	*qlp)
 {
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	qlp->qql_item.li_desc->lid_flags |= XFS_LID_DIRTY;
+	set_bit(XFS_LI_DIRTY, &qlp->qql_item.li_flags);
 }
 
 STATIC void

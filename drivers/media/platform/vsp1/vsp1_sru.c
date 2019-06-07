@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * vsp1_sru.c  --  R-Car VSP1 Super Resolution Unit
  *
  * Copyright (C) 2013 Renesas Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/device.h>
@@ -28,10 +24,10 @@
  * Device Access
  */
 
-static inline void vsp1_sru_write(struct vsp1_sru *sru, struct vsp1_dl_list *dl,
-				  u32 reg, u32 data)
+static inline void vsp1_sru_write(struct vsp1_sru *sru,
+				  struct vsp1_dl_body *dlb, u32 reg, u32 data)
 {
-	vsp1_dl_list_write(dl, reg, data);
+	vsp1_dl_body_write(dlb, reg, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -271,19 +267,16 @@ static const struct v4l2_subdev_ops sru_ops = {
  * VSP1 Entity Operations
  */
 
-static void sru_configure(struct vsp1_entity *entity,
-			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl,
-			  enum vsp1_entity_params params)
+static void sru_configure_stream(struct vsp1_entity *entity,
+				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
+				 struct vsp1_dl_body *dlb)
 {
 	const struct vsp1_sru_param *param;
 	struct vsp1_sru *sru = to_sru(&entity->subdev);
 	struct v4l2_mbus_framefmt *input;
 	struct v4l2_mbus_framefmt *output;
 	u32 ctrl0;
-
-	if (params != VSP1_ENTITY_PARAMS_INIT)
-		return;
 
 	input = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
 					   SRU_PAD_SINK);
@@ -303,9 +296,9 @@ static void sru_configure(struct vsp1_entity *entity,
 
 	ctrl0 |= param->ctrl0;
 
-	vsp1_sru_write(sru, dl, VI6_SRU_CTRL0, ctrl0);
-	vsp1_sru_write(sru, dl, VI6_SRU_CTRL1, VI6_SRU_CTRL1_PARAM5);
-	vsp1_sru_write(sru, dl, VI6_SRU_CTRL2, param->ctrl2);
+	vsp1_sru_write(sru, dlb, VI6_SRU_CTRL0, ctrl0);
+	vsp1_sru_write(sru, dlb, VI6_SRU_CTRL1, VI6_SRU_CTRL1_PARAM5);
+	vsp1_sru_write(sru, dlb, VI6_SRU_CTRL2, param->ctrl2);
 }
 
 static unsigned int sru_max_width(struct vsp1_entity *entity,
@@ -320,6 +313,11 @@ static unsigned int sru_max_width(struct vsp1_entity *entity,
 	output = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
 					    SRU_PAD_SOURCE);
 
+	/*
+	 * The maximum input width of the SRU is 288 input pixels, but 32
+	 * pixels are reserved to support overlapping partition windows when
+	 * scaling.
+	 */
 	if (input->width != output->width)
 		return 512;
 	else
@@ -341,7 +339,7 @@ static void sru_partition(struct vsp1_entity *entity,
 	output = vsp1_entity_get_pad_format(&sru->entity, sru->entity.config,
 					    SRU_PAD_SOURCE);
 
-	/* Adapt if SRUx2 is enabled */
+	/* Adapt if SRUx2 is enabled. */
 	if (input->width != output->width) {
 		window->width /= 2;
 		window->left /= 2;
@@ -351,7 +349,7 @@ static void sru_partition(struct vsp1_entity *entity,
 }
 
 static const struct vsp1_entity_operations sru_entity_ops = {
-	.configure = sru_configure,
+	.configure_stream = sru_configure_stream,
 	.max_width = sru_max_width,
 	.partition = sru_partition,
 };

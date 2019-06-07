@@ -483,6 +483,7 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 		/* if closing a dlc in a session that hasn't been started,
 		 * just close and unlink the dlc
 		 */
+		/* fall through */
 
 	default:
 		rfcomm_dlc_clear_timer(d);
@@ -2166,17 +2167,7 @@ static int rfcomm_dlc_debugfs_show(struct seq_file *f, void *x)
 	return 0;
 }
 
-static int rfcomm_dlc_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rfcomm_dlc_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations rfcomm_dlc_debugfs_fops = {
-	.open		= rfcomm_dlc_debugfs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(rfcomm_dlc_debugfs);
 
 static struct dentry *rfcomm_dlc_debugfs;
 

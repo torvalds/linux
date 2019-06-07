@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Functions for the OPL4 proc file
  * Copyright (c) 2003 by Clemens Ladisch <clemens@ladisch.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include "opl4_local.h"
@@ -104,7 +91,7 @@ int snd_opl4_create_proc(struct snd_opl4 *opl4)
 	if (entry) {
 		if (opl4->hardware < OPL3_HW_OPL4_ML) {
 			/* OPL4 can access 4 MB external ROM/SRAM */
-			entry->mode |= S_IWUSR;
+			entry->mode |= 0200;
 			entry->size = 4 * 1024 * 1024;
 		} else {
 			/* OPL4-ML has 1 MB internal ROM */
@@ -114,10 +101,6 @@ int snd_opl4_create_proc(struct snd_opl4 *opl4)
 		entry->c.ops = &snd_opl4_mem_proc_ops;
 		entry->module = THIS_MODULE;
 		entry->private_data = opl4;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
 	}
 	opl4->proc_entry = entry;
 	return 0;

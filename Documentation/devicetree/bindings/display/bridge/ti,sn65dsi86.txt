@@ -1,0 +1,87 @@
+SN65DSI86 DSI to eDP bridge chip
+--------------------------------
+
+This is the binding for Texas Instruments SN65DSI86 bridge.
+http://www.ti.com/general/docs/lit/getliterature.tsp?genericPartNumber=sn65dsi86&fileType=pdf
+
+Required properties:
+- compatible: Must be "ti,sn65dsi86"
+- reg: i2c address of the chip, 0x2d as per datasheet
+- enable-gpios: gpio specification for bridge_en pin (active high)
+
+- vccio-supply: A 1.8V supply that powers up the digital IOs.
+- vpll-supply: A 1.8V supply that powers up the displayport PLL.
+- vcca-supply: A 1.2V supply that powers up the analog circuits.
+- vcc-supply: A 1.2V supply that powers up the digital core.
+
+Optional properties:
+- interrupts-extended: Specifier for the SN65DSI86 interrupt line.
+
+- gpio-controller: Marks the device has a GPIO controller.
+- #gpio-cells    : Should be two. The first cell is the pin number and
+                   the second cell is used to specify flags.
+                   See ../../gpio/gpio.txt for more information.
+- #pwm-cells : Should be one. See ../../pwm/pwm.txt for description of
+               the cell formats.
+
+- clock-names: should be "refclk"
+- clocks: Specification for input reference clock. The reference
+	  clock rate must be 12 MHz, 19.2 MHz, 26 MHz, 27 MHz or 38.4 MHz.
+
+- data-lanes: See ../../media/video-interface.txt
+- lane-polarities: See ../../media/video-interface.txt
+
+- suspend-gpios: specification for GPIO1 pin on bridge (active low)
+
+Required nodes:
+This device has two video ports. Their connections are modelled using the
+OF graph bindings specified in Documentation/devicetree/bindings/graph.txt.
+
+- Video port 0 for DSI input
+- Video port 1 for eDP output
+
+Example
+-------
+
+edp-bridge@2d {
+	compatible = "ti,sn65dsi86";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	reg = <0x2d>;
+
+	enable-gpios = <&msmgpio 33 GPIO_ACTIVE_HIGH>;
+	suspend-gpios = <&msmgpio 34 GPIO_ACTIVE_LOW>;
+
+	interrupts-extended = <&gpio3 4 IRQ_TYPE_EDGE_FALLING>;
+
+	vccio-supply = <&pm8916_l17>;
+	vcca-supply = <&pm8916_l6>;
+	vpll-supply = <&pm8916_l17>;
+	vcc-supply = <&pm8916_l6>;
+
+	clock-names = "refclk";
+	clocks = <&input_refclk>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			edp_bridge_in: endpoint {
+				remote-endpoint = <&dsi_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			edp_bridge_out: endpoint {
+				data-lanes = <2 1 3 0>;
+				lane-polarities = <0 1 0 1>;
+				remote-endpoint = <&edp_panel_in>;
+			};
+		};
+	};
+}

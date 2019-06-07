@@ -141,13 +141,6 @@ int adf_cfg_dev_add(struct adf_accel_dev *accel_dev)
 						  accel_dev->debugfs_dir,
 						  dev_cfg_data,
 						  &qat_dev_cfg_fops);
-	if (!dev_cfg_data->debug) {
-		dev_err(&GET_DEV(accel_dev),
-			"Failed to create qat cfg debugfs entry.\n");
-		kfree(dev_cfg_data);
-		accel_dev->cfg = NULL;
-		return -EFAULT;
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(adf_cfg_dev_add);

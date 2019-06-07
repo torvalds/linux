@@ -346,10 +346,10 @@ gf100_fifo_intr_fault(struct gf100_fifo *fifo, int unit)
 	if (eu && eu->data2) {
 		switch (eu->data2) {
 		case NVKM_SUBDEV_BAR:
-			nvkm_mask(device, 0x001704, 0x00000000, 0x00000000);
+			nvkm_bar_bar1_reset(device);
 			break;
 		case NVKM_SUBDEV_INSTMEM:
-			nvkm_mask(device, 0x001714, 0x00000000, 0x00000000);
+			nvkm_bar_bar2_reset(device);
 			break;
 		case NVKM_ENGINE_IFB:
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);

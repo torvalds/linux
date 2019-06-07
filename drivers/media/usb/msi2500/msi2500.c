@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Mirics MSi2500 driver
  * Mirics MSi3101 SDR Dongle driver
  *
  * Copyright (C) 2013 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  *
  * That driver is somehow based of pwc driver:
  *  (C) 1999-2004 Nemosoft Unv.
@@ -604,8 +595,8 @@ static int msi2500_querycap(struct file *file, void *fh,
 
 	dev_dbg(dev->dev, "\n");
 
-	strlcpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
-	strlcpy(cap->card, dev->vdev.name, sizeof(cap->card));
+	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
+	strscpy(cap->card, dev->vdev.name, sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_SDR_CAPTURE | V4L2_CAP_STREAMING |
 			V4L2_CAP_READWRITE | V4L2_CAP_TUNER;
@@ -916,7 +907,7 @@ static int msi2500_enum_fmt_sdr_cap(struct file *file, void *priv,
 	if (f->index >= dev->num_formats)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name, sizeof(f->description));
+	strscpy(f->description, formats[f->index].name, sizeof(f->description));
 	f->pixelformat = formats[f->index].pixelformat;
 
 	return 0;
@@ -1017,7 +1008,7 @@ static int msi2500_g_tuner(struct file *file, void *priv, struct v4l2_tuner *v)
 	dev_dbg(dev->dev, "index=%d\n", v->index);
 
 	if (v->index == 0) {
-		strlcpy(v->name, "Mirics MSi2500", sizeof(v->name));
+		strscpy(v->name, "Mirics MSi2500", sizeof(v->name));
 		v->type = V4L2_TUNER_ADC;
 		v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		v->rangelow =   1200000;
@@ -1278,7 +1269,7 @@ static int msi2500_probe(struct usb_interface *intf,
 	}
 
 	/* currently all controls are from subdev */
-	v4l2_ctrl_add_handler(&dev->hdl, sd->ctrl_handler, NULL);
+	v4l2_ctrl_add_handler(&dev->hdl, sd->ctrl_handler, NULL, true);
 
 	dev->v4l2_dev.ctrl_handler = &dev->hdl;
 	dev->vdev.v4l2_dev = &dev->v4l2_dev;

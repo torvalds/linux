@@ -33,7 +33,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>

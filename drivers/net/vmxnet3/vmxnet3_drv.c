@@ -535,8 +535,8 @@ vmxnet3_tq_create(struct vmxnet3_tx_queue *tq,
 	}
 
 	sz = tq->tx_ring.size * sizeof(tq->buf_info[0]);
-	tq->buf_info = dma_zalloc_coherent(&adapter->pdev->dev, sz,
-					   &tq->buf_info_pa, GFP_KERNEL);
+	tq->buf_info = dma_alloc_coherent(&adapter->pdev->dev, sz,
+					  &tq->buf_info_pa, GFP_KERNEL);
 	if (!tq->buf_info)
 		goto err;
 
@@ -1815,8 +1815,8 @@ vmxnet3_rq_create(struct vmxnet3_rx_queue *rq, struct vmxnet3_adapter *adapter)
 
 	sz = sizeof(struct vmxnet3_rx_buf_info) * (rq->rx_ring[0].size +
 						   rq->rx_ring[1].size);
-	bi = dma_zalloc_coherent(&adapter->pdev->dev, sz, &rq->buf_info_pa,
-				 GFP_KERNEL);
+	bi = dma_alloc_coherent(&adapter->pdev->dev, sz, &rq->buf_info_pa,
+				GFP_KERNEL);
 	if (!bi)
 		goto err;
 
@@ -2949,7 +2949,7 @@ vmxnet3_close(struct net_device *netdev)
 	 * completion.
 	 */
 	while (test_and_set_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	vmxnet3_quiesce_dev(adapter);
 
@@ -2999,7 +2999,7 @@ vmxnet3_change_mtu(struct net_device *netdev, int new_mtu)
 	 * completion.
 	 */
 	while (test_and_set_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (netif_running(netdev)) {
 		vmxnet3_quiesce_dev(adapter);
@@ -3589,7 +3589,7 @@ static void vmxnet3_shutdown_device(struct pci_dev *pdev)
 	 * completion.
 	 */
 	while (test_and_set_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state))
-		msleep(1);
+		usleep_range(1000, 2000);
 
 	if (test_and_set_bit(VMXNET3_STATE_BIT_QUIESCED,
 			     &adapter->state)) {

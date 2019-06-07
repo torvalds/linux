@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GE IMP3A Board Setup
  *
  * Author Martyn Welch <martyn.welch@ge.com>
  *
  * Copyright 2010 GE Intelligent Platforms Embedded Systems, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Based on: mpc85xx_ds.c (MPC85xx DS Board Setup)
  * Copyright 2007 Freescale Semiconductor Inc.
@@ -201,8 +197,6 @@ static int __init ge_imp3a_probe(void)
 }
 
 machine_arch_initcall(ge_imp3a, mpc85xx_common_publish_devices);
-
-machine_arch_initcall(ge_imp3a, swiotlb_setup_bus_notifier);
 
 define_machine(ge_imp3a) {
 	.name			= "GE_IMP3A",

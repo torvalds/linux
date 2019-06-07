@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2014  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2014  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../pci.h"
@@ -353,6 +331,7 @@ bool rtl92ee_rx_query_desc(struct ieee80211_hw *hw,
 	struct rx_fwinfo *p_drvinfo;
 	struct ieee80211_hdr *hdr;
 	u32 phystatus = GET_RX_DESC_PHYST(pdesc);
+	u8 wake_match;
 
 	if (GET_RX_STATUS_DESC_RPT_SEL(pdesc) == 0)
 		status->packet_report_type = NORMAL_RX;
@@ -372,18 +351,18 @@ bool rtl92ee_rx_query_desc(struct ieee80211_hw *hw,
 	status->is_cck = RTL92EE_RX_HAL_IS_CCK_RATE(status->rate);
 
 	status->macid = GET_RX_DESC_MACID(pdesc);
-	if (GET_RX_STATUS_DESC_MAGIC_MATCH(pdesc))
-		status->wake_match = BIT(2);
+	if (GET_RX_STATUS_DESC_PATTERN_MATCH(pdesc))
+		wake_match = BIT(2);
 	else if (GET_RX_STATUS_DESC_MAGIC_MATCH(pdesc))
-		status->wake_match = BIT(1);
+		wake_match = BIT(1);
 	else if (GET_RX_STATUS_DESC_UNICAST_MATCH(pdesc))
-		status->wake_match = BIT(0);
+		wake_match = BIT(0);
 	else
-		status->wake_match = 0;
-	if (status->wake_match)
+		wake_match = 0;
+	if (wake_match)
 		RT_TRACE(rtlpriv, COMP_RXDESC, DBG_LOUD,
 			 "GGGGGGGGGGGGGet Wakeup Packet!! WakeMatch=%d\n",
-			 status->wake_match);
+			 wake_match);
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
 
@@ -393,7 +372,7 @@ bool rtl92ee_rx_query_desc(struct ieee80211_hw *hw,
 	if (status->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (status->rx_is40Mhzpacket)
+	if (status->rx_is40mhzpacket)
 		rx_status->bw = RATE_INFO_BW_40;
 
 	if (status->is_ht)
@@ -662,6 +641,7 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
+	struct rtlwifi_tx_info *tx_info = rtl_tx_skb_cb_info(skb);
 	u8 *pdesc = (u8 *)pdesc_tx;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
@@ -723,8 +703,6 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 			SET_TX_DESC_OFFSET(pdesc, USB_HWDESC_HEADER_LEN);
 		}
 
-		/* tx report */
-		rtl_get_tx_report(ptcb_desc, pdesc, hw);
 
 		SET_TX_DESC_TX_RATE(pdesc, ptcb_desc->hw_rate);
 
@@ -827,6 +805,8 @@ void rtl92ee_tx_fill_desc(struct ieee80211_hw *hw,
 				SET_TX_DESC_HTC(pdesc, 1);
 			}
 		}
+		/* tx report */
+		rtl_set_tx_report(ptcb_desc, pdesc, hw, tx_info);
 	}
 
 	SET_TX_DESC_FIRST_SEG(pdesc, (firstseg ? 1 : 0));
@@ -1070,28 +1050,4 @@ bool rtl92ee_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue, u16 index)
 
 void rtl92ee_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
 {
-}
-
-u32 rtl92ee_rx_command_packet(struct ieee80211_hw *hw,
-			      const struct rtl_stats *status,
-			      struct sk_buff *skb)
-{
-	u32 result = 0;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	switch (status->packet_report_type) {
-	case NORMAL_RX:
-		result = 0;
-		break;
-	case C2H_PACKET:
-		rtl92ee_c2h_packet_handler(hw, skb->data, (u8)skb->len);
-		result = 1;
-		break;
-	default:
-		RT_TRACE(rtlpriv, COMP_RECV, DBG_TRACE,
-			 "Unknown packet type %d\n", status->packet_report_type);
-		break;
-	}
-
-	return result;
 }

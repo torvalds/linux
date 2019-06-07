@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 
@@ -115,7 +107,7 @@ static int readFile(struct file *fp, char *buf, int len)
 		return -EPERM;
 
 	while (sum<len) {
-		rlen =fp->f_op->read(fp, (char __force __user *)buf+sum, len-sum, &fp->f_pos);
+		rlen = kernel_read(fp, buf + sum, len - sum, &fp->f_pos);
 		if (rlen>0)
 			sum+=rlen;
 		else if (0 != rlen)
@@ -124,7 +116,7 @@ static int readFile(struct file *fp, char *buf, int len)
 			break;
 	}
 
-	return  sum;
+	return sum;
 
 }
 
@@ -137,22 +129,16 @@ static int isFileReadable(char *path)
 {
 	struct file *fp;
 	int ret = 0;
-	mm_segment_t oldfs;
 	char buf;
 
 	fp =filp_open(path, O_RDONLY, 0);
-	if (IS_ERR(fp)) {
-		ret = PTR_ERR(fp);
-	}
-	else {
-		oldfs = get_fs(); set_fs(get_ds());
+	if (IS_ERR(fp))
+		return PTR_ERR(fp);
 
-		if (1!=readFile(fp, &buf, 1))
-			ret = -EINVAL;
+	if (readFile(fp, &buf, 1) != 1)
+		ret = -EINVAL;
 
-		set_fs(oldfs);
-		filp_close(fp, NULL);
-	}
+	filp_close(fp, NULL);
 	return ret;
 }
 
@@ -166,16 +152,15 @@ static int isFileReadable(char *path)
 static int retriveFromFile(char *path, u8 *buf, u32 sz)
 {
 	int ret =-1;
-	mm_segment_t oldfs;
 	struct file *fp;
 
 	if (path && buf) {
-		if (0 == (ret =openFile(&fp, path, O_RDONLY, 0))) {
+		ret = openFile(&fp, path, O_RDONLY, 0);
+
+		if (ret == 0) {
 			DBG_871X("%s openFile path:%s fp =%p\n", __func__, path , fp);
 
-			oldfs = get_fs(); set_fs(get_ds());
 			ret =readFile(fp, buf, sz);
-			set_fs(oldfs);
 			closeFile(fp);
 
 			DBG_871X("%s readFile, ret:%d\n", __func__, ret);
@@ -256,7 +241,7 @@ RETURN:
 	return pnetdev;
 }
 
-void rtw_free_netdev(struct net_device * netdev)
+void rtw_free_netdev(struct net_device *netdev)
 {
 	struct rtw_netdev_priv_indicator *pnpi;
 

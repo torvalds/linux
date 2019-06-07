@@ -76,6 +76,20 @@ static u32 share_count_ssi1;
 static u32 share_count_ssi2;
 static u32 share_count_ssi3;
 
+static struct clk ** const uart_clks[] __initconst = {
+	&clks[IMX6SLL_CLK_UART1_IPG],
+	&clks[IMX6SLL_CLK_UART1_SERIAL],
+	&clks[IMX6SLL_CLK_UART2_IPG],
+	&clks[IMX6SLL_CLK_UART2_SERIAL],
+	&clks[IMX6SLL_CLK_UART3_IPG],
+	&clks[IMX6SLL_CLK_UART3_SERIAL],
+	&clks[IMX6SLL_CLK_UART4_IPG],
+	&clks[IMX6SLL_CLK_UART4_SERIAL],
+	&clks[IMX6SLL_CLK_UART5_IPG],
+	&clks[IMX6SLL_CLK_UART5_SERIAL],
+	NULL
+};
+
 static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
@@ -92,6 +106,7 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6sll-anatop");
 	base = of_iomap(np, 0);
+	of_node_put(np);
 	WARN_ON(!base);
 
 	/* Do not bypass PLLs initially */
@@ -253,6 +268,7 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 	clks[IMX6SLL_CLK_DCP]		= imx_clk_gate2("dcp", "ahb", base + 0x68, 10);
 	clks[IMX6SLL_CLK_UART2_IPG]	= imx_clk_gate2("uart2_ipg", "ipg", base + 0x68, 28);
 	clks[IMX6SLL_CLK_UART2_SERIAL]	= imx_clk_gate2("uart2_serial",	"uart_podf", base + 0x68, 28);
+	clks[IMX6SLL_CLK_GPIO2]		= imx_clk_gate2("gpio2", "ipg", base + 0x68, 30);
 
 	/* CCGR1 */
 	clks[IMX6SLL_CLK_ECSPI1]	= imx_clk_gate2("ecspi1",	"ecspi_podf", base + 0x6c, 0);
@@ -266,14 +282,18 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 	clks[IMX6SLL_CLK_GPT_BUS]	= imx_clk_gate2("gpt1_bus",	"perclk", base + 0x6c, 20);
 	clks[IMX6SLL_CLK_GPT_SERIAL]	= imx_clk_gate2("gpt1_serial",	"perclk", base + 0x6c, 22);
 	clks[IMX6SLL_CLK_UART4_IPG]	= imx_clk_gate2("uart4_ipg",	"ipg", base + 0x6c, 24);
-	clks[IMX6SLL_CLK_UART4_SERIAL]	= imx_clk_gate2("uart4_serail",	"uart_podf", base + 0x6c, 24);
+	clks[IMX6SLL_CLK_UART4_SERIAL]	= imx_clk_gate2("uart4_serial",	"uart_podf", base + 0x6c, 24);
+	clks[IMX6SLL_CLK_GPIO1]		= imx_clk_gate2("gpio1",	"ipg", base + 0x6c, 26);
+	clks[IMX6SLL_CLK_GPIO5]		= imx_clk_gate2("gpio5",	"ipg", base + 0x6c, 30);
 
 	/* CCGR2 */
+	clks[IMX6SLL_CLK_GPIO6]		= imx_clk_gate2("gpio6",	"ipg",    base + 0x70, 0);
 	clks[IMX6SLL_CLK_CSI]		= imx_clk_gate2("csi",		"axi",    base + 0x70,	2);
 	clks[IMX6SLL_CLK_I2C1]		= imx_clk_gate2("i2c1",		"perclk", base + 0x70,	6);
 	clks[IMX6SLL_CLK_I2C2]		= imx_clk_gate2("i2c2",		"perclk", base + 0x70,	8);
 	clks[IMX6SLL_CLK_I2C3]		= imx_clk_gate2("i2c3",		"perclk", base + 0x70,	10);
 	clks[IMX6SLL_CLK_OCOTP]		= imx_clk_gate2("ocotp",	"ipg",    base + 0x70,	12);
+	clks[IMX6SLL_CLK_GPIO3]		= imx_clk_gate2("gpio3",	"ipg",    base + 0x70,	26);
 	clks[IMX6SLL_CLK_LCDIF_APB]	= imx_clk_gate2("lcdif_apb",	"axi",    base + 0x70,	28);
 	clks[IMX6SLL_CLK_PXP]		= imx_clk_gate2("pxp",		"axi",    base + 0x70,	30);
 
@@ -283,9 +303,11 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 	clks[IMX6SLL_CLK_EPDC_AXI]	= imx_clk_gate2("epdc_aclk",	"axi",		base + 0x74, 4);
 	clks[IMX6SLL_CLK_EPDC_PIX]	= imx_clk_gate2("epdc_pix",	"epdc_podf",	base + 0x74, 4);
 	clks[IMX6SLL_CLK_LCDIF_PIX]	= imx_clk_gate2("lcdif_pix",	"lcdif_podf",	base + 0x74, 10);
+	clks[IMX6SLL_CLK_GPIO4]		= imx_clk_gate2("gpio4",	"ipg",		base + 0x74, 12);
 	clks[IMX6SLL_CLK_WDOG1]		= imx_clk_gate2("wdog1",	"ipg",		base + 0x74, 16);
 	clks[IMX6SLL_CLK_MMDC_P0_FAST]	= imx_clk_gate_flags("mmdc_p0_fast", "mmdc_podf",  base + 0x74,	20, CLK_IS_CRITICAL);
 	clks[IMX6SLL_CLK_MMDC_P0_IPG]	= imx_clk_gate2_flags("mmdc_p0_ipg", "ipg",	   base + 0x74,	24, CLK_IS_CRITICAL);
+	clks[IMX6SLL_CLK_MMDC_P1_IPG]	= imx_clk_gate2("mmdc_p1_ipg", "ipg",	   base + 0x74,	26);
 	clks[IMX6SLL_CLK_OCRAM]		= imx_clk_gate_flags("ocram","ahb",		   base + 0x74,	28, CLK_IS_CRITICAL);
 
 	/* CCGR4 */
@@ -325,6 +347,8 @@ static void __init imx6sll_clocks_init(struct device_node *ccm_node)
 	clk_data.clks = clks;
 	clk_data.clk_num = ARRAY_SIZE(clks);
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+
+	imx_register_uart_clocks(uart_clks);
 
 	/* Lower the AHB clock rate before changing the clock source. */
 	clk_set_rate(clks[IMX6SLL_CLK_AHB], 99000000);

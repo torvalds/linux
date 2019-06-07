@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "testmode.h"
@@ -157,7 +146,7 @@ static int ath10k_tm_fetch_utf_firmware_api_1(struct ath10k *ar,
 		 ar->hw_params.fw.dir, ATH10K_FW_UTF_FILE);
 
 	/* load utf firmware image */
-	ret = request_firmware_direct(&fw_file->firmware, filename, ar->dev);
+	ret = firmware_request_nowarn(&fw_file->firmware, filename, ar->dev);
 	ath10k_dbg(ar, ATH10K_DBG_TESTMODE, "testmode fw request '%s': %d\n",
 		   filename, ret);
 
@@ -270,7 +259,7 @@ static int ath10k_tm_cmd_utf_start(struct ath10k *ar, struct nlattr *tb[])
 	ath10k_dbg(ar, ATH10K_DBG_TESTMODE, "testmode wmi version %d\n",
 		   ar->testmode.utf_mode_fw.fw_file.wmi_op_version);
 
-	ret = ath10k_hif_power_up(ar);
+	ret = ath10k_hif_power_up(ar, ATH10K_FIRMWARE_MODE_UTF);
 	if (ret) {
 		ath10k_err(ar, "failed to power up hif (testmode): %d\n", ret);
 		ar->state = ATH10K_STATE_OFF;
@@ -427,8 +416,8 @@ int ath10k_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct nlattr *tb[ATH10K_TM_ATTR_MAX + 1];
 	int ret;
 
-	ret = nla_parse(tb, ATH10K_TM_ATTR_MAX, data, len, ath10k_tm_policy,
-			NULL);
+	ret = nla_parse_deprecated(tb, ATH10K_TM_ATTR_MAX, data, len,
+				   ath10k_tm_policy, NULL);
 	if (ret)
 		return ret;
 

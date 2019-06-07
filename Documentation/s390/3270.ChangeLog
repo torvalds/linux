@@ -16,7 +16,7 @@ Sep 2002:	Dynamically get 3270 input buffer
 
 Sep 2002:	Fix tubfs kmalloc()s
 	* Do read and write lengths correctly in fs3270_read()
-	  and fs3270_write(), whilst never asking kmalloc()
+	  and fs3270_write(), while never asking kmalloc()
 	  for more than 0x800 bytes.  Affects tubfs.c and tubio.h.
 
 Sep 2002:	Recognize 3270 control unit type 3174

@@ -1,6 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
+ * Copyright (C) 2018 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -13,10 +14,6 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
@@ -714,24 +711,6 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return ret;
 }
 
-static inline bool iwl_enable_rx_ampdu(const struct iwl_cfg *cfg)
-{
-	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
-		return false;
-	return true;
-}
-
-static inline bool iwl_enable_tx_ampdu(const struct iwl_cfg *cfg)
-{
-	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
-		return false;
-	if (iwlwifi_mod_params.disable_11n & IWL_ENABLE_HT_TXAGG)
-		return true;
-
-	/* disabled by default */
-	return false;
-}
-
 static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_ampdu_params *params)
@@ -756,7 +735,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		if (!iwl_enable_rx_ampdu(priv->cfg))
+		if (!iwl_enable_rx_ampdu())
 			break;
 		IWL_DEBUG_HT(priv, "start Rx\n");
 		ret = iwl_sta_rx_agg_start(priv, sta, tid, *ssn);
@@ -768,7 +747,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_START:
 		if (!priv->trans->ops->txq_enable)
 			break;
-		if (!iwl_enable_tx_ampdu(priv->cfg))
+		if (!iwl_enable_tx_ampdu())
 			break;
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);

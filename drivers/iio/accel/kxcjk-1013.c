@@ -451,7 +451,7 @@ static int kxcjk1013_set_power_state(struct kxcjk1013_data *data, bool on)
 	}
 	if (ret < 0) {
 		dev_err(&data->client->dev,
-			"Failed: kxcjk1013_set_power_state for %d\n", on);
+			"Failed: %s for %d\n", __func__, on);
 		if (on)
 			pm_runtime_put_noidle(&data->client->dev);
 		return ret;
@@ -1437,6 +1437,8 @@ static int kxcjk1013_resume(struct device *dev)
 
 	mutex_lock(&data->mutex);
 	ret = kxcjk1013_set_mode(data, OPERATION);
+	if (ret == 0)
+		ret = kxcjk1013_set_range(data, data->range);
 	mutex_unlock(&data->mutex);
 
 	return ret;
@@ -1489,8 +1491,12 @@ static const struct acpi_device_id kx_acpi_match[] = {
 	{"KXCJ1013", KXCJK1013},
 	{"KXCJ1008", KXCJ91008},
 	{"KXCJ9000", KXCJ91008},
+	{"KIOX0008", KXCJ91008},
+	{"KIOX0009", KXTJ21009},
 	{"KIOX000A", KXCJ91008},
+	{"KIOX010A", KXCJ91008}, /* KXCJ91008 inside the display of a 2-in-1 */
 	{"KXTJ1009", KXTJ21009},
+	{"KXJ2109",  KXTJ21009},
 	{"SMO8500",  KXCJ91008},
 	{ },
 };
@@ -1507,10 +1513,20 @@ static const struct i2c_device_id kxcjk1013_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, kxcjk1013_id);
 
+static const struct of_device_id kxcjk1013_of_match[] = {
+	{ .compatible = "kionix,kxcjk1013", },
+	{ .compatible = "kionix,kxcj91008", },
+	{ .compatible = "kionix,kxtj21009", },
+	{ .compatible = "kionix,kxtf9", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, kxcjk1013_of_match);
+
 static struct i2c_driver kxcjk1013_driver = {
 	.driver = {
 		.name	= KXCJK1013_DRV_NAME,
 		.acpi_match_table = ACPI_PTR(kx_acpi_match),
+		.of_match_table = kxcjk1013_of_match,
 		.pm	= &kxcjk1013_pm_ops,
 	},
 	.probe		= kxcjk1013_probe,

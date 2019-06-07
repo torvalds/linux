@@ -282,13 +282,13 @@ static int hi6220_mbox_probe(struct platform_device *pdev)
 
 	mbox->dev = dev;
 	mbox->chan_num = MBOX_CHAN_MAX;
-	mbox->mchan = devm_kzalloc(dev,
-		mbox->chan_num * sizeof(*mbox->mchan), GFP_KERNEL);
+	mbox->mchan = devm_kcalloc(dev,
+		mbox->chan_num, sizeof(*mbox->mchan), GFP_KERNEL);
 	if (!mbox->mchan)
 		return -ENOMEM;
 
-	mbox->chan = devm_kzalloc(dev,
-		mbox->chan_num * sizeof(*mbox->chan), GFP_KERNEL);
+	mbox->chan = devm_kcalloc(dev,
+		mbox->chan_num, sizeof(*mbox->chan), GFP_KERNEL);
 	if (!mbox->chan)
 		return -ENOMEM;
 
@@ -349,7 +349,7 @@ static int hi6220_mbox_probe(struct platform_device *pdev)
 		mbox->controller.txpoll_period = 5;
 	}
 
-	err = mbox_controller_register(&mbox->controller);
+	err = devm_mbox_controller_register(dev, &mbox->controller);
 	if (err) {
 		dev_err(dev, "Failed to register mailbox %d\n", err);
 		return err;
@@ -360,14 +360,6 @@ static int hi6220_mbox_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hi6220_mbox_remove(struct platform_device *pdev)
-{
-	struct hi6220_mbox *mbox = platform_get_drvdata(pdev);
-
-	mbox_controller_unregister(&mbox->controller);
-	return 0;
-}
-
 static struct platform_driver hi6220_mbox_driver = {
 	.driver = {
 		.name = "hi6220-mbox",
@@ -375,7 +367,6 @@ static struct platform_driver hi6220_mbox_driver = {
 		.of_match_table = hi6220_mbox_of_match,
 	},
 	.probe	= hi6220_mbox_probe,
-	.remove	= hi6220_mbox_remove,
 };
 
 static int __init hi6220_mbox_init(void)

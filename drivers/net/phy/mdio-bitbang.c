@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Bitbanged MDIO support.
  *
@@ -11,10 +12,6 @@
  *
  * 2005 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/module.h>
@@ -205,14 +202,6 @@ static int mdiobb_write(struct mii_bus *bus, int phy, int reg, u16 val)
 	return 0;
 }
 
-static int mdiobb_reset(struct mii_bus *bus)
-{
-	struct mdiobb_ctrl *ctrl = bus->priv;
-	if (ctrl->reset)
-		ctrl->reset(bus);
-	return 0;
-}
-
 struct mii_bus *alloc_mdio_bitbang(struct mdiobb_ctrl *ctrl)
 {
 	struct mii_bus *bus;
@@ -225,7 +214,6 @@ struct mii_bus *alloc_mdio_bitbang(struct mdiobb_ctrl *ctrl)
 
 	bus->read = mdiobb_read;
 	bus->write = mdiobb_write;
-	bus->reset = mdiobb_reset;
 	bus->priv = ctrl;
 
 	return bus;
@@ -241,4 +229,4 @@ void free_mdio_bitbang(struct mii_bus *bus)
 }
 EXPORT_SYMBOL(free_mdio_bitbang);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

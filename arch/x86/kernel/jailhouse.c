@@ -19,6 +19,7 @@
 #include <asm/pci_x86.h>
 #include <asm/reboot.h>
 #include <asm/setup.h>
+#include <asm/jailhouse_para.h>
 
 static __initdata struct jailhouse_setup_data setup_data;
 static unsigned int precalibrated_tsc_khz;
@@ -37,7 +38,7 @@ static uint32_t __init jailhouse_detect(void)
 	return jailhouse_cpuid_base();
 }
 
-static void jailhouse_get_wallclock(struct timespec *now)
+static void jailhouse_get_wallclock(struct timespec64 *now)
 {
 	memset(now, 0, sizeof(*now));
 }

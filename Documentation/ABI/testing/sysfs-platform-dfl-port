@@ -1,0 +1,16 @@
+What:		/sys/bus/platform/devices/dfl-port.0/id
+Date:		June 2018
+KernelVersion:	4.19
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns id of this port. One DFL FPGA device
+		may have more than one port. Userspace could use this id to
+		distinguish different ports under same FPGA device.
+
+What:		/sys/bus/platform/devices/dfl-port.0/afu_id
+Date:		June 2018
+KernelVersion:	4.19
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. User can program different PR bitstreams to FPGA
+		Accelerator Function Unit (AFU) for different functions. It
+		returns uuid which could be used to identify which PR bitstream
+		is programmed in this AFU.

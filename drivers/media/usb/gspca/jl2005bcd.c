@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Jeilin JL2005B/C/D library
  *
  * Copyright (C) 2011 Theodore Kilgore <kilgota@auburn.edu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #define MODULE_NAME "jl2005bcd"
@@ -321,7 +312,7 @@ static void jl2005c_dostream(struct work_struct *work)
 	int ret;
 	u8 *buffer;
 
-	buffer = kmalloc(JL2005C_MAX_TRANSFER, GFP_KERNEL | GFP_DMA);
+	buffer = kmalloc(JL2005C_MAX_TRANSFER, GFP_KERNEL);
 	if (!buffer) {
 		pr_err("Couldn't allocate USB buffer\n");
 		goto quit_stream;

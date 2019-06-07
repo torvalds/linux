@@ -314,9 +314,6 @@ static const DECLARE_TLV_DB_SCALE(max98090_av_tlv, -1200, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_dvg_tlv, 0, 600, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_dv_tlv, -1500, 100, 0);
 
-static const DECLARE_TLV_DB_SCALE(max98090_sidetone_tlv, -6050, 200, 0);
-
-static const DECLARE_TLV_DB_SCALE(max98090_alc_tlv, -1500, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_alcmakeup_tlv, 0, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_alccomp_tlv, -3100, 100, 0);
 static const DECLARE_TLV_DB_SCALE(max98090_drcexp_tlv, -6600, 100, 0);
@@ -817,18 +814,6 @@ static SOC_ENUM_SINGLE_VIRT_DECL(dmic_mux_enum, dmic_mux_text);
 static const struct snd_kcontrol_new max98090_dmic_mux =
 	SOC_DAPM_ENUM("DMIC Mux", dmic_mux_enum);
 
-static const char *max98090_micpre_text[] = { "Off", "On" };
-
-static SOC_ENUM_SINGLE_DECL(max98090_pa1en_enum,
-			    M98090_REG_MIC1_INPUT_LEVEL,
-			    M98090_MIC_PA1EN_SHIFT,
-			    max98090_micpre_text);
-
-static SOC_ENUM_SINGLE_DECL(max98090_pa2en_enum,
-			    M98090_REG_MIC2_INPUT_LEVEL,
-			    M98090_MIC_PA2EN_SHIFT,
-			    max98090_micpre_text);
-
 /* LINEA mixer switch */
 static const struct snd_kcontrol_new max98090_linea_mixer_controls[] = {
 	SOC_DAPM_SINGLE("IN1 Switch", M98090_REG_LINE_INPUT_CONFIG,
@@ -1209,14 +1194,14 @@ static const struct snd_soc_dapm_widget max98090_dapm_widgets[] = {
 		&max98090_right_rcv_mixer_controls[0],
 		ARRAY_SIZE(max98090_right_rcv_mixer_controls)),
 
-	SND_SOC_DAPM_MUX("LINMOD Mux", M98090_REG_LOUTR_MIXER,
-		M98090_LINMOD_SHIFT, 0, &max98090_linmod_mux),
+	SND_SOC_DAPM_MUX("LINMOD Mux", SND_SOC_NOPM, 0, 0,
+		&max98090_linmod_mux),
 
-	SND_SOC_DAPM_MUX("MIXHPLSEL Mux", M98090_REG_HP_CONTROL,
-		M98090_MIXHPLSEL_SHIFT, 0, &max98090_mixhplsel_mux),
+	SND_SOC_DAPM_MUX("MIXHPLSEL Mux", SND_SOC_NOPM, 0, 0,
+		&max98090_mixhplsel_mux),
 
-	SND_SOC_DAPM_MUX("MIXHPRSEL Mux", M98090_REG_HP_CONTROL,
-		M98090_MIXHPRSEL_SHIFT, 0, &max98090_mixhprsel_mux),
+	SND_SOC_DAPM_MUX("MIXHPRSEL Mux", SND_SOC_NOPM, 0, 0,
+		&max98090_mixhprsel_mux),
 
 	SND_SOC_DAPM_PGA("HP Left Out", M98090_REG_OUTPUT_ENABLE,
 		M98090_HPLEN_SHIFT, 0, NULL, 0),

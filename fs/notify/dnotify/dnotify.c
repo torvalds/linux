@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Directory notifications for Linux.
  *
@@ -5,20 +6,11 @@
  *
  * Copyright (C) 2009 Eric Paris <Red Hat Inc>
  * dnotify was largly rewritten to use the new fsnotify infrastructure
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/dnotify.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
@@ -79,12 +71,11 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
  */
 static int dnotify_handle_event(struct fsnotify_group *group,
 				struct inode *inode,
-				struct fsnotify_mark *inode_mark,
-				struct fsnotify_mark *vfsmount_mark,
 				u32 mask, const void *data, int data_type,
-				const unsigned char *file_name, u32 cookie,
+				const struct qstr *file_name, u32 cookie,
 				struct fsnotify_iter_info *iter_info)
 {
+	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct dnotify_mark *dn_mark;
 	struct dnotify_struct *dn;
 	struct dnotify_struct **prev;
@@ -95,7 +86,8 @@ static int dnotify_handle_event(struct fsnotify_group *group,
 	if (!S_ISDIR(inode->i_mode))
 		return 0;
 
-	BUG_ON(vfsmount_mark);
+	if (WARN_ON(fsnotify_iter_vfsmount_mark(iter_info)))
+		return 0;
 
 	dn_mark = container_of(inode_mark, struct dnotify_mark, fsn_mark);
 
@@ -319,7 +311,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		dn_mark = container_of(fsn_mark, struct dnotify_mark, fsn_mark);
 		spin_lock(&fsn_mark->lock);
 	} else {
-		error = fsnotify_add_mark_locked(new_fsn_mark, inode, NULL, 0);
+		error = fsnotify_add_inode_mark_locked(new_fsn_mark, inode, 0);
 		if (error) {
 			mutex_unlock(&dnotify_group->mark_mutex);
 			goto out_err;
@@ -353,7 +345,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		goto out;
 	}
 
-	__f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
+	__f_setown(filp, task_pid(current), PIDTYPE_TGID, 0);
 
 	error = attach_dn(dn, dn_mark, id, fd, filp, mask);
 	/* !error means that we attached the dn to the dn_mark, so don't free it */
@@ -384,8 +376,9 @@ out_err:
 
 static int __init dnotify_init(void)
 {
-	dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC);
-	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC);
+	dnotify_struct_cache = KMEM_CACHE(dnotify_struct,
+					  SLAB_PANIC|SLAB_ACCOUNT);
+	dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
 
 	dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops);
 	if (IS_ERR(dnotify_group))

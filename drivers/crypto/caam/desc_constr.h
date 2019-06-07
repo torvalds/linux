@@ -189,6 +189,7 @@ static inline u32 *append_##cmd(u32 * const desc, u32 options) \
 }
 APPEND_CMD_RET(jump, JUMP)
 APPEND_CMD_RET(move, MOVE)
+APPEND_CMD_RET(move_len, MOVE_LEN)
 
 static inline void set_jump_tgt_here(u32 * const desc, u32 *jump_cmd)
 {
@@ -327,7 +328,11 @@ static inline void append_##cmd##_imm_##type(u32 * const desc, type immediate, \
 					     u32 options) \
 { \
 	PRINT_POS; \
-	append_cmd(desc, CMD_##op | IMMEDIATE | options | sizeof(type)); \
+	if (options & LDST_LEN_MASK) \
+		append_cmd(desc, CMD_##op | IMMEDIATE | options); \
+	else \
+		append_cmd(desc, CMD_##op | IMMEDIATE | options | \
+			   sizeof(type)); \
 	append_cmd(desc, immediate); \
 }
 APPEND_CMD_RAW_IMM(load, LOAD, u32);

@@ -3,6 +3,7 @@
  * CAAM hardware register-level view
  *
  * Copyright 2008-2011 Freescale Semiconductor, Inc.
+ * Copyright 2018 NXP
  */
 
 #ifndef REGS_H
@@ -70,22 +71,22 @@
 extern bool caam_little_end;
 extern bool caam_imx;
 
-#define caam_to_cpu(len)				\
-static inline u##len caam##len ## _to_cpu(u##len val)	\
-{							\
-	if (caam_little_end)				\
-		return le##len ## _to_cpu(val);		\
-	else						\
-		return be##len ## _to_cpu(val);		\
+#define caam_to_cpu(len)						\
+static inline u##len caam##len ## _to_cpu(u##len val)			\
+{									\
+	if (caam_little_end)						\
+		return le##len ## _to_cpu((__force __le##len)val);	\
+	else								\
+		return be##len ## _to_cpu((__force __be##len)val);	\
 }
 
-#define cpu_to_caam(len)				\
-static inline u##len cpu_to_caam##len(u##len val)	\
-{							\
-	if (caam_little_end)				\
-		return cpu_to_le##len(val);		\
-	else						\
-		return cpu_to_be##len(val);		\
+#define cpu_to_caam(len)					\
+static inline u##len cpu_to_caam##len(u##len val)		\
+{								\
+	if (caam_little_end)					\
+		return (__force u##len)cpu_to_le##len(val);	\
+	else							\
+		return (__force u##len)cpu_to_be##len(val);	\
 }
 
 caam_to_cpu(16)
@@ -211,6 +212,50 @@ struct jr_outentry {
 	u32 jrstatus;	/* Status for completed descriptor */
 } __packed;
 
+/* Version registers (Era 10+)	e80-eff */
+struct version_regs {
+	u32 crca;	/* CRCA_VERSION */
+	u32 afha;	/* AFHA_VERSION */
+	u32 kfha;	/* KFHA_VERSION */
+	u32 pkha;	/* PKHA_VERSION */
+	u32 aesa;	/* AESA_VERSION */
+	u32 mdha;	/* MDHA_VERSION */
+	u32 desa;	/* DESA_VERSION */
+	u32 snw8a;	/* SNW8A_VERSION */
+	u32 snw9a;	/* SNW9A_VERSION */
+	u32 zuce;	/* ZUCE_VERSION */
+	u32 zuca;	/* ZUCA_VERSION */
+	u32 ccha;	/* CCHA_VERSION */
+	u32 ptha;	/* PTHA_VERSION */
+	u32 rng;	/* RNG_VERSION */
+	u32 trng;	/* TRNG_VERSION */
+	u32 aaha;	/* AAHA_VERSION */
+	u32 rsvd[10];
+	u32 sr;		/* SR_VERSION */
+	u32 dma;	/* DMA_VERSION */
+	u32 ai;		/* AI_VERSION */
+	u32 qi;		/* QI_VERSION */
+	u32 jr;		/* JR_VERSION */
+	u32 deco;	/* DECO_VERSION */
+};
+
+/* Version registers bitfields */
+
+/* Number of CHAs instantiated */
+#define CHA_VER_NUM_MASK	0xffull
+/* CHA Miscellaneous Information */
+#define CHA_VER_MISC_SHIFT	8
+#define CHA_VER_MISC_MASK	(0xffull << CHA_VER_MISC_SHIFT)
+/* CHA Revision Number */
+#define CHA_VER_REV_SHIFT	16
+#define CHA_VER_REV_MASK	(0xffull << CHA_VER_REV_SHIFT)
+/* CHA Version ID */
+#define CHA_VER_VID_SHIFT	24
+#define CHA_VER_VID_MASK	(0xffull << CHA_VER_VID_SHIFT)
+
+/* CHA Miscellaneous Information - AESA_MISC specific */
+#define CHA_VER_MISC_AES_GCM	BIT(1 + CHA_VER_MISC_SHIFT)
+
 /*
  * caam_perfmon - Performance Monitor/Secure Memory Status/
  *                CAAM Global Status/Component Version IDs
@@ -223,15 +268,13 @@ struct jr_outentry {
 #define CHA_NUM_MS_DECONUM_MASK	(0xfull << CHA_NUM_MS_DECONUM_SHIFT)
 
 /*
- * CHA version IDs / instantiation bitfields
+ * CHA version IDs / instantiation bitfields (< Era 10)
  * Defined for use with the cha_id fields in perfmon, but the same shift/mask
  * selectors can be used to pull out the number of instantiated blocks within
  * cha_num fields in perfmon because the locations are the same.
  */
 #define CHA_ID_LS_AES_SHIFT	0
 #define CHA_ID_LS_AES_MASK	(0xfull << CHA_ID_LS_AES_SHIFT)
-#define CHA_ID_LS_AES_LP	(0x3ull << CHA_ID_LS_AES_SHIFT)
-#define CHA_ID_LS_AES_HP	(0x4ull << CHA_ID_LS_AES_SHIFT)
 
 #define CHA_ID_LS_DES_SHIFT	4
 #define CHA_ID_LS_DES_MASK	(0xfull << CHA_ID_LS_DES_SHIFT)
@@ -241,9 +284,6 @@ struct jr_outentry {
 
 #define CHA_ID_LS_MD_SHIFT	12
 #define CHA_ID_LS_MD_MASK	(0xfull << CHA_ID_LS_MD_SHIFT)
-#define CHA_ID_LS_MD_LP256	(0x0ull << CHA_ID_LS_MD_SHIFT)
-#define CHA_ID_LS_MD_LP512	(0x1ull << CHA_ID_LS_MD_SHIFT)
-#define CHA_ID_LS_MD_HP		(0x2ull << CHA_ID_LS_MD_SHIFT)
 
 #define CHA_ID_LS_RNG_SHIFT	16
 #define CHA_ID_LS_RNG_MASK	(0xfull << CHA_ID_LS_RNG_SHIFT)
@@ -268,6 +308,13 @@ struct jr_outentry {
 
 #define CHA_ID_MS_JR_SHIFT	28
 #define CHA_ID_MS_JR_MASK	(0xfull << CHA_ID_MS_JR_SHIFT)
+
+/* Specific CHA version IDs */
+#define CHA_VER_VID_AES_LP	0x3ull
+#define CHA_VER_VID_AES_HP	0x4ull
+#define CHA_VER_VID_MD_LP256	0x0ull
+#define CHA_VER_VID_MD_LP512	0x1ull
+#define CHA_VER_VID_MD_HP	0x2ull
 
 struct sec_vid {
 	u16 ip_id;
@@ -312,11 +359,17 @@ struct caam_perfmon {
 
 	/* Component Instantiation Parameters			fe0-fff */
 	u32 rtic_id;		/* RVID - RTIC Version ID	*/
+#define CCBVID_ERA_MASK		0xff000000
+#define CCBVID_ERA_SHIFT	24
 	u32 ccb_id;		/* CCBVID - CCB Version ID	*/
 	u32 cha_id_ms;		/* CHAVID - CHA Version ID Most Significant*/
 	u32 cha_id_ls;		/* CHAVID - CHA Version ID Least Significant*/
 	u32 cha_num_ms;		/* CHANUM - CHA Number Most Significant	*/
 	u32 cha_num_ls;		/* CHANUM - CHA Number Least Significant*/
+#define SECVID_MS_IPID_MASK	0xffff0000
+#define SECVID_MS_IPID_SHIFT	16
+#define SECVID_MS_MAJ_REV_MASK	0x0000ff00
+#define SECVID_MS_MAJ_REV_SHIFT	8
 	u32 caam_id_ms;		/* CAAMVID - CAAM Version ID MS	*/
 	u32 caam_id_ls;		/* CAAMVID - CAAM Version ID LS	*/
 };
@@ -473,8 +526,10 @@ struct caam_ctrl {
 		struct rng4tst r4tst[2];
 	};
 
-	u32 rsvd9[448];
+	u32 rsvd9[416];
 
+	/* Version registers - introduced with era 10		e80-eff */
+	struct version_regs vreg;
 	/* Performance Monitor                                  f00-fff */
 	struct caam_perfmon perfmon;
 };
@@ -564,8 +619,10 @@ struct caam_job_ring {
 	u32 rsvd11;
 	u32 jrcommand;	/* JRCRx - JobR command */
 
-	u32 rsvd12[932];
+	u32 rsvd12[900];
 
+	/* Version registers - introduced with era 10           e80-eff */
+	struct version_regs vreg;
 	/* Performance Monitor                                  f00-fff */
 	struct caam_perfmon perfmon;
 };
@@ -626,6 +683,8 @@ struct caam_job_ring {
 #define JRSTA_DECOERR_SEQOVF        0x85
 #define JRSTA_DECOERR_INVSIGN       0x86
 #define JRSTA_DECOERR_DSASIGN       0x87
+
+#define JRSTA_QIERR_ERROR_MASK      0x00ff
 
 #define JRSTA_CCBERR_JUMP           0x08000000
 #define JRSTA_CCBERR_INDEX_MASK     0xff00
@@ -870,12 +929,18 @@ struct caam_deco {
 	u32 rsvd29[48];
 	u32 descbuf[64];	/* DxDESB - Descriptor buffer */
 	u32 rscvd30[193];
-#define DESC_DBG_DECO_STAT_HOST_ERR	0x00D00000
 #define DESC_DBG_DECO_STAT_VALID	0x80000000
 #define DESC_DBG_DECO_STAT_MASK		0x00F00000
+#define DESC_DBG_DECO_STAT_SHIFT	20
 	u32 desc_dbg;		/* DxDDR - DECO Debug Register */
-	u32 rsvd31[126];
+	u32 rsvd31[13];
+#define DESC_DER_DECO_STAT_MASK		0x000F0000
+#define DESC_DER_DECO_STAT_SHIFT	16
+	u32 dbg_exec;		/* DxDER - DECO Debug Exec Register */
+	u32 rsvd32[112];
 };
+
+#define DECO_STAT_HOST_ERR	0xD
 
 #define DECO_JQCR_WHL		0x20000000
 #define DECO_JQCR_FOUR		0x10000000

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * hal.h - DIM2 HAL interface
  * (MediaLB, Device Interface Macro IP, OS62420)

@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics sensors core library driver
  *
  * Copyright 2012-2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -133,7 +132,7 @@ static int st_sensors_match_fs(struct st_sensor_settings *sensor_settings,
 
 	for (i = 0; i < ST_SENSORS_FULLSCALE_AVL_MAX; i++) {
 		if (sensor_settings->fs.fs_avl[i].num == 0)
-			goto st_sensors_match_odr_error;
+			return ret;
 
 		if (sensor_settings->fs.fs_avl[i].num == fs) {
 			*index_fs_avl = i;
@@ -142,7 +141,6 @@ static int st_sensors_match_fs(struct st_sensor_settings *sensor_settings,
 		}
 	}
 
-st_sensors_match_odr_error:
 	return ret;
 }
 
@@ -380,8 +378,7 @@ void st_sensors_of_name_probe(struct device *dev,
 		return;
 
 	/* The name from the OF match takes precedence if present */
-	strncpy(name, of_id->data, len);
-	name[len - 1] = '\0';
+	strlcpy(name, of_id->data, len);
 }
 EXPORT_SYMBOL(st_sensors_of_name_probe);
 #else

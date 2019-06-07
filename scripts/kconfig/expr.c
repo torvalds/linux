@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>
- * Released under the terms of the GNU GPL v2.0.
  */
 
+#include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -980,7 +982,6 @@ enum string_value_kind {
 	k_string,
 	k_signed,
 	k_unsigned,
-	k_invalid
 };
 
 union string_value {
@@ -1011,13 +1012,10 @@ static enum string_value_kind expr_parse_string(const char *str,
 		val->u = strtoull(str, &tail, 16);
 		kind = k_unsigned;
 		break;
-	case S_STRING:
-	case S_UNKNOWN:
+	default:
 		val->s = strtoll(str, &tail, 0);
 		kind = k_signed;
 		break;
-	default:
-		return k_invalid;
 	}
 	return !errno && !*tail && tail > str && isxdigit(tail[-1])
 	       ? kind : k_string;
@@ -1073,13 +1071,7 @@ tristate expr_calc_value(struct expr *e)
 
 	if (k1 == k_string || k2 == k_string)
 		res = strcmp(str1, str2);
-	else if (k1 == k_invalid || k2 == k_invalid) {
-		if (e->type != E_EQUAL && e->type != E_UNEQUAL) {
-			printf("Cannot compare \"%s\" and \"%s\"\n", str1, str2);
-			return no;
-		}
-		res = strcmp(str1, str2);
-	} else if (k1 == k_unsigned || k2 == k_unsigned)
+	else if (k1 == k_unsigned || k2 == k_unsigned)
 		res = (lval.u > rval.u) - (lval.u < rval.u);
 	else /* if (k1 == k_signed && k2 == k_signed) */
 		res = (lval.s > rval.s) - (lval.s < rval.s);

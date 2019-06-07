@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Xilinx Test Pattern Generator
  *
@@ -6,10 +7,6 @@
  *
  * Contacts: Hyun Kwon <hyun.kwon@xilinx.com>
  *           Laurent Pinchart <laurent.pinchart@ideasonboard.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/device.h>
@@ -725,7 +722,7 @@ static int xtpg_parse_of(struct xtpg_device *xtpg)
 		const struct xvip_video_format *format;
 		struct device_node *endpoint;
 
-		if (!port->name || of_node_cmp(port->name, "port"))
+		if (!of_node_name_eq(port, "port"))
 			continue;
 
 		format = xvip_of_get_format(port);
@@ -833,7 +830,7 @@ static int xtpg_probe(struct platform_device *pdev)
 	v4l2_subdev_init(subdev, &xtpg_ops);
 	subdev->dev = &pdev->dev;
 	subdev->internal_ops = &xtpg_internal_ops;
-	strlcpy(subdev->name, dev_name(&pdev->dev), sizeof(subdev->name));
+	strscpy(subdev->name, dev_name(&pdev->dev), sizeof(subdev->name));
 	v4l2_set_subdevdata(subdev, xtpg);
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	subdev->entity.ops = &xtpg_media_ops;

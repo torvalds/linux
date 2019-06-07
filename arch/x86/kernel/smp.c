@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Intel SMP support routines.
  *
@@ -6,9 +7,6 @@
  *      (c) 2002,2003 Andi Kleen, SuSE Labs.
  *
  *	i386 and x86_64 integration by Glauber Costa <gcosta@redhat.com>
- *
- *	This code is released under the GNU General Public License version 2 or
- *	later.
  */
 
 #include <linux/init.h>
@@ -261,6 +259,7 @@ __visible void __irq_entry smp_reschedule_interrupt(struct pt_regs *regs)
 {
 	ack_APIC_irq();
 	inc_irq_stat(irq_resched_count);
+	kvm_set_cpu_l1tf_flush_l1d();
 
 	if (trace_resched_ipi_enabled()) {
 		/*

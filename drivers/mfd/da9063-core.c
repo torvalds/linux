@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * da9063-core.c: Device access for Dialog DA9063 modules
+ * Device access for Dialog DA9063 modules
  *
  * Copyright 2012 Dialog Semiconductors Ltd.
  * Copyright 2013 Philipp Zabel, Pengutronix
  *
  * Author: Krystian Garbaciak, Dialog Semiconductor
  * Author: Michal Hajduk, Dialog Semiconductor
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  *
  */
 
@@ -26,7 +22,6 @@
 #include <linux/regmap.h>
 
 #include <linux/mfd/da9063/core.h>
-#include <linux/mfd/da9063/pdata.h>
 #include <linux/mfd/da9063/registers.h>
 
 #include <linux/proc_fs.h>
@@ -76,7 +71,7 @@ static struct resource da9063_hwmon_resources[] = {
 };
 
 
-static const struct mfd_cell da9063_devs[] = {
+static const struct mfd_cell da9063_common_devs[] = {
 	{
 		.name		= DA9063_DRVNAME_REGULATORS,
 		.num_resources	= ARRAY_SIZE(da9063_regulators_resources),
@@ -101,13 +96,17 @@ static const struct mfd_cell da9063_devs[] = {
 		.of_compatible = "dlg,da9063-onkey",
 	},
 	{
+		.name		= DA9063_DRVNAME_VIBRATION,
+	},
+};
+
+/* Only present on DA9063 , not on DA9063L */
+static const struct mfd_cell da9063_devs[] = {
+	{
 		.name		= DA9063_DRVNAME_RTC,
 		.num_resources	= ARRAY_SIZE(da9063_rtc_resources),
 		.resources	= da9063_rtc_resources,
 		.of_compatible	= "dlg,da9063-rtc",
-	},
-	{
-		.name		= DA9063_DRVNAME_VIBRATION,
 	},
 };
 
@@ -161,7 +160,6 @@ static int da9063_clear_fault_log(struct da9063 *da9063)
 
 int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 {
-	struct da9063_pdata *pdata = da9063->dev->platform_data;
 	int model, variant_id, variant_code;
 	int ret;
 
@@ -169,30 +167,16 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 	if (ret < 0)
 		dev_err(da9063->dev, "Cannot clear fault log\n");
 
-	if (pdata) {
-		da9063->flags = pdata->flags;
-		da9063->irq_base = pdata->irq_base;
-	} else {
-		da9063->flags = 0;
-		da9063->irq_base = -1;
-	}
+	da9063->flags = 0;
+	da9063->irq_base = -1;
 	da9063->chip_irq = irq;
-
-	if (pdata && pdata->init != NULL) {
-		ret = pdata->init(da9063);
-		if (ret != 0) {
-			dev_err(da9063->dev,
-				"Platform initialization failed.\n");
-			return ret;
-		}
-	}
 
 	ret = regmap_read(da9063->regmap, DA9063_REG_CHIP_ID, &model);
 	if (ret < 0) {
 		dev_err(da9063->dev, "Cannot read chip model id.\n");
 		return -EIO;
 	}
-	if (model != PMIC_DA9063) {
+	if (model != PMIC_CHIP_ID_DA9063) {
 		dev_err(da9063->dev, "Invalid chip model id: 0x%02x\n", model);
 		return -ENODEV;
 	}
@@ -215,7 +199,6 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 		return -ENODEV;
 	}
 
-	da9063->model = model;
 	da9063->variant_code = variant_code;
 
 	ret = da9063_irq_init(da9063);
@@ -226,19 +209,26 @@ int da9063_device_init(struct da9063 *da9063, unsigned int irq)
 
 	da9063->irq_base = regmap_irq_chip_get_base(da9063->regmap_irq);
 
-	ret = mfd_add_devices(da9063->dev, -1, da9063_devs,
-			      ARRAY_SIZE(da9063_devs), NULL, da9063->irq_base,
-			      NULL);
-	if (ret)
-		dev_err(da9063->dev, "Cannot add MFD cells\n");
+	ret = devm_mfd_add_devices(da9063->dev, PLATFORM_DEVID_NONE,
+				   da9063_common_devs,
+				   ARRAY_SIZE(da9063_common_devs),
+				   NULL, da9063->irq_base, NULL);
+	if (ret) {
+		dev_err(da9063->dev, "Failed to add child devices\n");
+		return ret;
+	}
+
+	if (da9063->type == PMIC_TYPE_DA9063) {
+		ret = devm_mfd_add_devices(da9063->dev, PLATFORM_DEVID_NONE,
+					   da9063_devs, ARRAY_SIZE(da9063_devs),
+					   NULL, da9063->irq_base, NULL);
+		if (ret) {
+			dev_err(da9063->dev, "Failed to add child devices\n");
+			return ret;
+		}
+	}
 
 	return ret;
-}
-
-void da9063_device_exit(struct da9063 *da9063)
-{
-	mfd_remove_devices(da9063->dev);
-	da9063_irq_exit(da9063);
 }
 
 MODULE_DESCRIPTION("PMIC driver for Dialog DA9063");

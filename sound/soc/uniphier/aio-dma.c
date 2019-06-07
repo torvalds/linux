@@ -3,19 +3,6 @@
 // Socionext UniPhier AIO DMA driver.
 //
 // Copyright (c) 2016-2018 Socionext Inc.
-//
-// This program is free software; you can redistribute it and/or
-// modify it under the terms of the GNU General Public License
-// as published by the Free Software Foundation; version 2
-// of the License.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
@@ -248,10 +235,11 @@ static int uniphier_aiodma_new(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	return snd_pcm_lib_preallocate_pages_for_all(pcm,
+	snd_pcm_lib_preallocate_pages_for_all(pcm,
 		SNDRV_DMA_TYPE_DEV, dev,
 		uniphier_aiodma_hw.buffer_bytes_max,
 		uniphier_aiodma_hw.buffer_bytes_max);
+	return 0;
 }
 
 static void uniphier_aiodma_free(struct snd_pcm *pcm)

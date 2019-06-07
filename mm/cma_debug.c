@@ -21,8 +21,6 @@ struct cma_mem {
 	unsigned long n;
 };
 
-static struct dentry *cma_debugfs_root;
-
 static int cma_debugfs_get(void *data, u64 *val)
 {
 	unsigned long *p = data;
@@ -58,7 +56,7 @@ static int cma_maxchunk_get(void *data, u64 *val)
 	mutex_lock(&cma->lock);
 	for (;;) {
 		start = find_next_zero_bit(cma->bitmap, bitmap_maxno, end);
-		if (start >= cma->count)
+		if (start >= bitmap_maxno)
 			break;
 		end = find_next_bit(cma->bitmap, bitmap_maxno, start);
 		maxchunk = max(end - start, maxchunk);
@@ -139,7 +137,7 @@ static int cma_alloc_mem(struct cma *cma, int count)
 	if (!mem)
 		return -ENOMEM;
 
-	p = cma_alloc(cma, count, 0, GFP_KERNEL);
+	p = cma_alloc(cma, count, 0, false);
 	if (!p) {
 		kfree(mem);
 		return -ENOMEM;
@@ -162,7 +160,7 @@ static int cma_alloc_write(void *data, u64 val)
 }
 DEFINE_SIMPLE_ATTRIBUTE(cma_alloc_fops, NULL, cma_alloc_write, "%llu\n");
 
-static void cma_debugfs_add_one(struct cma *cma, int idx)
+static void cma_debugfs_add_one(struct cma *cma, struct dentry *root_dentry)
 {
 	struct dentry *tmp;
 	char name[16];
@@ -170,37 +168,31 @@ static void cma_debugfs_add_one(struct cma *cma, int idx)
 
 	scnprintf(name, sizeof(name), "cma-%s", cma->name);
 
-	tmp = debugfs_create_dir(name, cma_debugfs_root);
+	tmp = debugfs_create_dir(name, root_dentry);
 
-	debugfs_create_file("alloc", S_IWUSR, tmp, cma,
-				&cma_alloc_fops);
-
-	debugfs_create_file("free", S_IWUSR, tmp, cma,
-				&cma_free_fops);
-
-	debugfs_create_file("base_pfn", S_IRUGO, tmp,
-				&cma->base_pfn, &cma_debugfs_fops);
-	debugfs_create_file("count", S_IRUGO, tmp,
-				&cma->count, &cma_debugfs_fops);
-	debugfs_create_file("order_per_bit", S_IRUGO, tmp,
-				&cma->order_per_bit, &cma_debugfs_fops);
-	debugfs_create_file("used", S_IRUGO, tmp, cma, &cma_used_fops);
-	debugfs_create_file("maxchunk", S_IRUGO, tmp, cma, &cma_maxchunk_fops);
+	debugfs_create_file("alloc", 0200, tmp, cma, &cma_alloc_fops);
+	debugfs_create_file("free", 0200, tmp, cma, &cma_free_fops);
+	debugfs_create_file("base_pfn", 0444, tmp,
+			    &cma->base_pfn, &cma_debugfs_fops);
+	debugfs_create_file("count", 0444, tmp, &cma->count, &cma_debugfs_fops);
+	debugfs_create_file("order_per_bit", 0444, tmp,
+			    &cma->order_per_bit, &cma_debugfs_fops);
+	debugfs_create_file("used", 0444, tmp, cma, &cma_used_fops);
+	debugfs_create_file("maxchunk", 0444, tmp, cma, &cma_maxchunk_fops);
 
 	u32s = DIV_ROUND_UP(cma_bitmap_maxno(cma), BITS_PER_BYTE * sizeof(u32));
-	debugfs_create_u32_array("bitmap", S_IRUGO, tmp, (u32*)cma->bitmap, u32s);
+	debugfs_create_u32_array("bitmap", 0444, tmp, (u32 *)cma->bitmap, u32s);
 }
 
 static int __init cma_debugfs_init(void)
 {
+	struct dentry *cma_debugfs_root;
 	int i;
 
 	cma_debugfs_root = debugfs_create_dir("cma", NULL);
-	if (!cma_debugfs_root)
-		return -ENOMEM;
 
 	for (i = 0; i < cma_area_count; i++)
-		cma_debugfs_add_one(&cma_areas[i], i);
+		cma_debugfs_add_one(&cma_areas[i], cma_debugfs_root);
 
 	return 0;
 }

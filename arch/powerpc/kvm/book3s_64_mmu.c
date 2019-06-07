@@ -23,7 +23,6 @@
 #include <linux/kvm_host.h>
 #include <linux/highmem.h>
 
-#include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 #include <asm/book3s/64/mmu-hash.h>
@@ -38,7 +37,16 @@
 
 static void kvmppc_mmu_book3s_64_reset_msr(struct kvm_vcpu *vcpu)
 {
-	kvmppc_set_msr(vcpu, vcpu->arch.intr_msr);
+	unsigned long msr = vcpu->arch.intr_msr;
+	unsigned long cur_msr = kvmppc_get_msr(vcpu);
+
+	/* If transactional, change to suspend mode on IRQ delivery */
+	if (MSR_TM_TRANSACTIONAL(cur_msr))
+		msr |= MSR_TS_S;
+	else
+		msr |= cur_msr & MSR_TS_MASK;
+
+	kvmppc_set_msr(vcpu, msr);
 }
 
 static struct kvmppc_slb *kvmppc_mmu_book3s_64_find_slbe(
@@ -427,6 +435,19 @@ static void kvmppc_mmu_book3s_64_slbmte(struct kvm_vcpu *vcpu, u64 rs, u64 rb)
 	kvmppc_mmu_map_segment(vcpu, esid << SID_SHIFT);
 }
 
+static int kvmppc_mmu_book3s_64_slbfee(struct kvm_vcpu *vcpu, gva_t eaddr,
+				       ulong *ret_slb)
+{
+	struct kvmppc_slb *slbe = kvmppc_mmu_book3s_64_find_slbe(vcpu, eaddr);
+
+	if (slbe) {
+		*ret_slb = slbe->origv;
+		return 0;
+	}
+	*ret_slb = 0;
+	return -ENOENT;
+}
+
 static u64 kvmppc_mmu_book3s_64_slbmfee(struct kvm_vcpu *vcpu, u64 slb_nr)
 {
 	struct kvmppc_slb *slbe;
@@ -662,6 +683,7 @@ void kvmppc_mmu_book3s_64_init(struct kvm_vcpu *vcpu)
 	mmu->slbmte = kvmppc_mmu_book3s_64_slbmte;
 	mmu->slbmfee = kvmppc_mmu_book3s_64_slbmfee;
 	mmu->slbmfev = kvmppc_mmu_book3s_64_slbmfev;
+	mmu->slbfee = kvmppc_mmu_book3s_64_slbfee;
 	mmu->slbie = kvmppc_mmu_book3s_64_slbie;
 	mmu->slbia = kvmppc_mmu_book3s_64_slbia;
 	mmu->xlate = kvmppc_mmu_book3s_64_xlate;

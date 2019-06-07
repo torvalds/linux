@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Architecture specific (i386/x86_64) functions for kexec based crash dumps.
  *
@@ -37,6 +38,7 @@
 #include <asm/reboot.h>
 #include <asm/virtext.h>
 #include <asm/intel_pt.h>
+#include <asm/crash.h>
 
 /* Used while preparing memory map entries for second kernel */
 struct crash_memmap_data {
@@ -203,8 +205,7 @@ static struct crash_mem *fill_up_crash_elf_data(void)
 	 * another range split. So add extra two slots here.
 	 */
 	nr_ranges += 2;
-	cmem = vzalloc(sizeof(struct crash_mem) +
-			sizeof(struct crash_mem_range) * nr_ranges);
+	cmem = vzalloc(struct_size(cmem, ranges, nr_ranges));
 	if (!cmem)
 		return NULL;
 
@@ -469,6 +470,7 @@ int crash_load_segments(struct kimage *image)
 
 	kbuf.memsz = kbuf.bufsz;
 	kbuf.buf_align = ELF_CORE_HEADER_ALIGN;
+	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
 	ret = kexec_add_buffer(&kbuf);
 	if (ret) {
 		vfree((void *)image->arch.elf_headers);

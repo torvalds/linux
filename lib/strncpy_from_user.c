@@ -23,10 +23,11 @@
  * hit it), 'max' is the address space maximum (and we return
  * -EFAULT if we hit it).
  */
-static inline long do_strncpy_from_user(char *dst, const char __user *src, long count, unsigned long max)
+static inline long do_strncpy_from_user(char *dst, const char __user *src,
+					unsigned long count, unsigned long max)
 {
 	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
-	long res = 0;
+	unsigned long res = 0;
 
 	/*
 	 * Truncate 'max' to the user-specified limit, so that
@@ -114,10 +115,11 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
 
 		kasan_check_write(dst, count);
 		check_object_size(dst, count, false);
-		user_access_begin();
-		retval = do_strncpy_from_user(dst, src, count, max);
-		user_access_end();
-		return retval;
+		if (user_access_begin(src, max)) {
+			retval = do_strncpy_from_user(dst, src, count, max);
+			user_access_end();
+			return retval;
+		}
 	}
 	return -EFAULT;
 }

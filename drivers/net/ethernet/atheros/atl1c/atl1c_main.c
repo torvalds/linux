@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright(c) 2008 - 2009 Atheros Corporation. All rights reserved.
  *
  * Derived from Intel e1000 driver
  * Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include "atl1c.h"
@@ -1019,8 +1006,8 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 		sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
 		8 * 4;
 
-	ring_header->desc = dma_zalloc_coherent(&pdev->dev, ring_header->size,
-						&ring_header->dma, GFP_KERNEL);
+	ring_header->desc = dma_alloc_coherent(&pdev->dev, ring_header->size,
+					       &ring_header->dma, GFP_KERNEL);
 	if (unlikely(!ring_header->desc)) {
 		dev_err(&pdev->dev, "could not get memory for DMA buffer\n");
 		goto err_nomem;
@@ -1686,6 +1673,7 @@ static struct sk_buff *atl1c_alloc_skb(struct atl1c_adapter *adapter)
 	skb = build_skb(page_address(page) + adapter->rx_page_offset,
 			adapter->rx_frag_size);
 	if (likely(skb)) {
+		skb_reserve(skb, NET_SKB_PAD);
 		adapter->rx_page_offset += adapter->rx_frag_size;
 		if (adapter->rx_page_offset >= PAGE_SIZE)
 			adapter->rx_page = NULL;
@@ -1832,10 +1820,10 @@ rrs_checked:
 		atl1c_clean_rrd(rrd_ring, rrs, rfd_num);
 		if (rrs->word3 & (RRS_RX_ERR_SUM | RRS_802_3_LEN_ERR)) {
 			atl1c_clean_rfd(rfd_ring, rrs, rfd_num);
-				if (netif_msg_rx_err(adapter))
-					dev_warn(&pdev->dev,
-						"wrong packet! rrs word3 is %x\n",
-						rrs->word3);
+			if (netif_msg_rx_err(adapter))
+				dev_warn(&pdev->dev,
+					 "wrong packet! rrs word3 is %x\n",
+					 rrs->word3);
 			continue;
 		}
 

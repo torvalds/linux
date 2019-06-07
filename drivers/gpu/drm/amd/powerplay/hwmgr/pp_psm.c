@@ -46,11 +46,11 @@ int psm_init_power_state_table(struct pp_hwmgr *hwmgr)
 					  sizeof(struct pp_power_state);
 
 	if (table_entries == 0 || size == 0) {
-		pr_warn("Please check whether power state management is suppported on this asic\n");
+		pr_warn("Please check whether power state management is supported on this asic\n");
 		return 0;
 	}
 
-	hwmgr->ps = kzalloc(size * table_entries, GFP_KERNEL);
+	hwmgr->ps = kcalloc(table_entries, size, GFP_KERNEL);
 	if (hwmgr->ps == NULL)
 		return -ENOMEM;
 
@@ -256,21 +256,26 @@ static void power_state_management(struct pp_hwmgr *hwmgr,
 	}
 }
 
-int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
+int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip_display_settings,
 						struct pp_power_state *new_ps)
 {
 	uint32_t index;
 	long workload;
 
-	if (skip)
-		return 0;
-
-	phm_display_configuration_changed(hwmgr);
+	if (!skip_display_settings)
+		phm_display_configuration_changed(hwmgr);
 
 	if (hwmgr->ps)
 		power_state_management(hwmgr, new_ps);
+	else
+		/*
+		 * for vega12/vega20 which does not support power state manager
+		 * DAL clock limits should also be honoured
+		 */
+		phm_apply_clock_adjust_rules(hwmgr);
 
-	phm_notify_smc_display_config_after_ps_adjustment(hwmgr);
+	if (!skip_display_settings)
+		phm_notify_smc_display_config_after_ps_adjustment(hwmgr);
 
 	if (!phm_force_dpm_levels(hwmgr, hwmgr->request_dpm_level))
 		hwmgr->dpm_level = hwmgr->request_dpm_level;

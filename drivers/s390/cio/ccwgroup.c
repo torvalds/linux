@@ -326,8 +326,7 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 	if (num_devices < 1)
 		return -EINVAL;
 
-	gdev = kzalloc(sizeof(*gdev) + num_devices * sizeof(gdev->cdev[0]),
-		       GFP_KERNEL);
+	gdev = kzalloc(struct_size(gdev, cdev, num_devices), GFP_KERNEL);
 	if (!gdev)
 		return -ENOMEM;
 
@@ -561,6 +560,12 @@ static struct bus_type ccwgroup_bus_type = {
 	.pm = &ccwgroup_pm_ops,
 };
 
+bool dev_is_ccwgroup(struct device *dev)
+{
+	return dev->bus == &ccwgroup_bus_type;
+}
+EXPORT_SYMBOL(dev_is_ccwgroup);
+
 /**
  * ccwgroup_driver_register() - register a ccw group driver
  * @cdriver: driver to be registered
@@ -602,6 +607,36 @@ void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 	driver_unregister(&cdriver->driver);
 }
 EXPORT_SYMBOL(ccwgroup_driver_unregister);
+
+static int __ccwgroupdev_check_busid(struct device *dev, void *id)
+{
+	char *bus_id = id;
+
+	return (strcmp(bus_id, dev_name(dev)) == 0);
+}
+
+/**
+ * get_ccwgroupdev_by_busid() - obtain device from a bus id
+ * @gdrv: driver the device is owned by
+ * @bus_id: bus id of the device to be searched
+ *
+ * This function searches all devices owned by @gdrv for a device with a bus
+ * id matching @bus_id.
+ * Returns:
+ *  If a match is found, its reference count of the found device is increased
+ *  and it is returned; else %NULL is returned.
+ */
+struct ccwgroup_device *get_ccwgroupdev_by_busid(struct ccwgroup_driver *gdrv,
+						 char *bus_id)
+{
+	struct device *dev;
+
+	dev = driver_find_device(&gdrv->driver, NULL, bus_id,
+				 __ccwgroupdev_check_busid);
+
+	return dev ? to_ccwgroupdev(dev) : NULL;
+}
+EXPORT_SYMBOL_GPL(get_ccwgroupdev_by_busid);
 
 /**
  * ccwgroup_probe_ccwdev() - probe function for slave devices

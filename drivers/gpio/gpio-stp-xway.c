@@ -13,9 +13,8 @@
 #include <linux/types.h>
 #include <linux/of_platform.h>
 #include <linux/mutex.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/io.h>
-#include <linux/of_gpio.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 
@@ -89,6 +88,20 @@ struct xway_stp {
 	u8 phy2;	/* 3 bits can be driven by phy2 */
 	u8 reserved;	/* mask out the hw driven bits in gpio_request */
 };
+
+/**
+ * xway_stp_get() - gpio_chip->get - get gpios.
+ * @gc:     Pointer to gpio_chip device structure.
+ * @gpio:   GPIO signal number.
+ *
+ * Gets the shadow value.
+ */
+static int xway_stp_get(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct xway_stp *chip = gpiochip_get_data(gc);
+
+	return (xway_stp_r32(chip->virt, XWAY_STP_CPU0) & BIT(gpio));
+}
 
 /**
  * xway_stp_set() - gpio_chip->set - set gpios.
@@ -197,7 +210,6 @@ static int xway_stp_hw_init(struct xway_stp *chip)
 
 static int xway_stp_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	u32 shadow, groups, dsl, phy;
 	struct xway_stp *chip;
 	struct clk *clk;
@@ -207,14 +219,14 @@ static int xway_stp_probe(struct platform_device *pdev)
 	if (!chip)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	chip->virt = devm_ioremap_resource(&pdev->dev, res);
+	chip->virt = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(chip->virt))
 		return PTR_ERR(chip->virt);
 
 	chip->gc.parent = &pdev->dev;
 	chip->gc.label = "stp-xway";
 	chip->gc.direction_output = xway_stp_dir_out;
+	chip->gc.get = xway_stp_get;
 	chip->gc.set = xway_stp_set;
 	chip->gc.request = xway_stp_request;
 	chip->gc.base = -1;

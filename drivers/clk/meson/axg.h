@@ -16,6 +16,7 @@
  * Register offsets from the data sheet must be multiplied by 4 before
  * adding them to the base address to get the right value.
  */
+#define HHI_MIPI_CNTL0			0x00
 #define HHI_GP0_PLL_CNTL		0x40
 #define HHI_GP0_PLL_CNTL2		0x44
 #define HHI_GP0_PLL_CNTL3		0x48
@@ -127,8 +128,19 @@
 #define CLKID_FCLK_DIV4_DIV			73
 #define CLKID_FCLK_DIV5_DIV			74
 #define CLKID_FCLK_DIV7_DIV			75
+#define CLKID_PCIE_PLL				76
+#define CLKID_PCIE_MUX				77
+#define CLKID_PCIE_REF				78
+#define CLKID_GEN_CLK_SEL			82
+#define CLKID_GEN_CLK_DIV			83
+#define CLKID_SYS_PLL_DCO			85
+#define CLKID_FIXED_PLL_DCO			86
+#define CLKID_GP0_PLL_DCO			87
+#define CLKID_HIFI_PLL_DCO			88
+#define CLKID_PCIE_PLL_DCO			89
+#define CLKID_PCIE_PLL_OD			90
 
-#define NR_CLKS					76
+#define NR_CLKS					91
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/axg-clkc.h>

@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/device.h>
+#include <linux/io.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
@@ -301,13 +302,13 @@ static void __init of_axs10x_pll_clk_setup(struct device_node *node)
 
 	ret = clk_hw_register(NULL, &pll_clk->hw);
 	if (ret) {
-		pr_err("failed to register %s clock\n", node->name);
+		pr_err("failed to register %pOFn clock\n", node);
 		goto err_unmap_lock;
 	}
 
 	ret = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &pll_clk->hw);
 	if (ret) {
-		pr_err("failed to add hw provider for %s clock\n", node->name);
+		pr_err("failed to add hw provider for %pOFn clock\n", node);
 		goto err_unregister_clk;
 	}
 

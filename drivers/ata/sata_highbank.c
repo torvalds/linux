@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Calxeda Highbank AHCI SATA platform driver
  * Copyright 2012 Calxeda, Inc.
  *
  * based on the AHCI SATA platform driver by Jeff Garzik and Anton Vorontsov
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
 #include <linux/gfp.h>
@@ -31,8 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/export.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include "ahci.h"
 
@@ -85,7 +73,7 @@ struct ecx_plat_data {
 	/* number of extra clocks that the SGPIO PIC controller expects */
 	u32		pre_clocks;
 	u32		post_clocks;
-	unsigned	sgpio_gpio[SGPIO_PINS];
+	struct gpio_desc *sgpio_gpiod[SGPIO_PINS];
 	u32		sgpio_pattern;
 	u32		port_to_sgpio[SGPIO_PORTS];
 };
@@ -131,9 +119,9 @@ static void ecx_parse_sgpio(struct ecx_plat_data *pdata, u32 port, u32 state)
  */
 static void ecx_led_cycle_clock(struct ecx_plat_data *pdata)
 {
-	gpio_set_value(pdata->sgpio_gpio[SCLOCK], 1);
+	gpiod_set_value(pdata->sgpio_gpiod[SCLOCK], 1);
 	udelay(50);
-	gpio_set_value(pdata->sgpio_gpio[SCLOCK], 0);
+	gpiod_set_value(pdata->sgpio_gpiod[SCLOCK], 0);
 	udelay(50);
 }
 
@@ -164,15 +152,15 @@ static ssize_t ecx_transmit_led_message(struct ata_port *ap, u32 state,
 	for (i = 0; i < pdata->pre_clocks; i++)
 		ecx_led_cycle_clock(pdata);
 
-	gpio_set_value(pdata->sgpio_gpio[SLOAD], 1);
+	gpiod_set_value(pdata->sgpio_gpiod[SLOAD], 1);
 	ecx_led_cycle_clock(pdata);
-	gpio_set_value(pdata->sgpio_gpio[SLOAD], 0);
+	gpiod_set_value(pdata->sgpio_gpiod[SLOAD], 0);
 	/*
 	 * bit-bang out the SGPIO pattern, by consuming a bit and then
 	 * clocking it out.
 	 */
 	for (i = 0; i < (SGPIO_SIGNALS * pdata->n_ports); i++) {
-		gpio_set_value(pdata->sgpio_gpio[SDATA], sgpio_out & 1);
+		gpiod_set_value(pdata->sgpio_gpiod[SDATA], sgpio_out & 1);
 		sgpio_out >>= 1;
 		ecx_led_cycle_clock(pdata);
 	}
@@ -193,21 +181,19 @@ static void highbank_set_em_messages(struct device *dev,
 	struct device_node *np = dev->of_node;
 	struct ecx_plat_data *pdata = hpriv->plat_data;
 	int i;
-	int err;
 
 	for (i = 0; i < SGPIO_PINS; i++) {
-		err = of_get_named_gpio(np, "calxeda,sgpio-gpio", i);
-		if (err < 0)
-			return;
+		struct gpio_desc *gpiod;
 
-		pdata->sgpio_gpio[i] = err;
-		err = gpio_request(pdata->sgpio_gpio[i], "CX SGPIO");
-		if (err) {
-			pr_err("sata_highbank gpio_request %d failed: %d\n",
-					i, err);
-			return;
+		gpiod = devm_gpiod_get_index(dev, "calxeda,sgpio", i,
+					     GPIOD_OUT_HIGH);
+		if (IS_ERR(gpiod)) {
+			dev_err(dev, "failed to get GPIO %d\n", i);
+			continue;
 		}
-		gpio_direction_output(pdata->sgpio_gpio[i], 1);
+		gpiod_set_consumer_name(gpiod, "CX SGPIO");
+
+		pdata->sgpio_gpiod[i] = gpiod;
 	}
 	of_property_read_u32_array(np, "calxeda,led-order",
 						pdata->port_to_sgpio,

@@ -1,23 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *		     Creative Labs, Inc.
  *  Definitions for EMU10K1 (SB Live!) chips
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 #ifndef __SOUND_EMU10K1_H
 #define __SOUND_EMU10K1_H
@@ -1610,7 +1595,7 @@ struct snd_emu10k1_fx8010_pcm {
 	struct snd_pcm_indirect pcm_rec;
 	unsigned int tram_pos;
 	unsigned int tram_shift;
-	struct snd_emu10k1_fx8010_irq *irq;
+	struct snd_emu10k1_fx8010_irq irq;
 };
 
 struct snd_emu10k1_fx8010 {
@@ -1902,7 +1887,7 @@ int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
 					    snd_fx8010_irq_handler_t *handler,
 					    unsigned char gpr_running,
 					    void *private_data,
-					    struct snd_emu10k1_fx8010_irq **r_irq);
+					    struct snd_emu10k1_fx8010_irq *irq);
 int snd_emu10k1_fx8010_unregister_irq_handler(struct snd_emu10k1 *emu,
 					      struct snd_emu10k1_fx8010_irq *irq);
 

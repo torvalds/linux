@@ -146,7 +146,7 @@
 	 kctx_len)
 #define CIPHER_TRANSHDR_SIZE(kctx_len, sge_pairs) \
 	(TRANSHDR_SIZE((kctx_len)) + (sge_pairs) +\
-	 sizeof(struct cpl_rx_phys_dsgl))
+	 sizeof(struct cpl_rx_phys_dsgl) + AES_BLOCK_SIZE)
 #define HASH_TRANSHDR_SIZE(kctx_len)\
 	(TRANSHDR_SIZE(kctx_len) + DUMMY_BYTES)
 
@@ -259,11 +259,10 @@
 					ULP_TX_SC_MORE_V((immdatalen)))
 #define MAX_NK 8
 #define MAX_DSGL_ENT			32
-#define MIN_CIPHER_SG			1 /* IV */
 #define MIN_AUTH_SG			1 /* IV */
 #define MIN_GCM_SG			1 /* IV */
 #define MIN_DIGEST_SG			1 /*Partial Buffer*/
-#define MIN_CCM_SG			2 /*IV+B0*/
+#define MIN_CCM_SG			1 /*IV+B0*/
 #define CIP_SPACE_LEFT(len) \
 	((SGE_MAX_WR_LEN - CIP_WR_MIN_LEN - (len)))
 #define HASH_SPACE_LEFT(len) \

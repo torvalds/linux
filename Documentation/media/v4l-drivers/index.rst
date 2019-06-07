@@ -1,4 +1,4 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. SPDX-License-Identifier: GPL-2.0
 
 .. include:: <isonum.txt>
 
@@ -44,6 +44,8 @@ For more details see the file COPYING in the source distribution of Linux.
 	davinci-vpbe
 	fimc
 	imx
+	imx7
+	ipu3
 	ivtv
 	max2175
 	meye
@@ -63,5 +65,4 @@ For more details see the file COPYING in the source distribution of Linux.
 	soc-camera
 	uvcvideo
 	vivid
-	zoran
 	zr364xx

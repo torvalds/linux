@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  * rtl8712_xmit.c
  *
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
  * Linux device driver for RTL8192SU
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
@@ -72,20 +60,20 @@ int r8712_txframes_sta_ac_pending(struct _adapter *padapter,
 	switch (priority) {
 	case 1:
 	case 2:
-		ptxservq = &(psta->sta_xmitpriv.bk_q);
+		ptxservq = &psta->sta_xmitpriv.bk_q;
 		break;
 	case 4:
 	case 5:
-		ptxservq = &(psta->sta_xmitpriv.vi_q);
+		ptxservq = &psta->sta_xmitpriv.vi_q;
 		break;
 	case 6:
 	case 7:
-		ptxservq = &(psta->sta_xmitpriv.vo_q);
+		ptxservq = &psta->sta_xmitpriv.vo_q;
 		break;
 	case 0:
 	case 3:
 	default:
-		ptxservq = &(psta->sta_xmitpriv.be_q);
+		ptxservq = &psta->sta_xmitpriv.be_q;
 	break;
 	}
 	return ptxservq->qcnt;
@@ -281,7 +269,7 @@ u8 r8712_construct_txaggr_cmd_hdr(struct xmit_buf *pxmitbuf)
 	struct xmit_frame *pxmitframe = (struct xmit_frame *)
 		pxmitbuf->priv_data;
 	struct _adapter *padapter = pxmitframe->padapter;
-	struct cmd_priv *pcmdpriv = &(padapter->cmdpriv);
+	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	struct cmd_hdr *pcmd_hdr = (struct cmd_hdr  *)
 		(pxmitbuf->pbuf + TXDESC_SIZE);
 
@@ -544,7 +532,7 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 		    (pattrib->dhcp_pkt != 1)) {
 			/*Not EAP & ARP type data packet*/
 			if (phtpriv->ht_option == 1) { /*B/G/N Mode*/
-				if (phtpriv->ampdu_enable != true)
+				if (!phtpriv->ampdu_enable)
 					ptxdesc->txdw2 |= cpu_to_le32(BK);
 			}
 		} else {

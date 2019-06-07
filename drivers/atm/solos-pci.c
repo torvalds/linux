@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Solos PCI ADSL2+ card, designed to support Linux by
  *  Traverse Technologies -- http://www.traverse.com.au/
  *  Xrio Limited          -- http://www.xrio.com/
- *
  *
  * Copyright © 2008 Traverse Technologies
  * Copyright © 2008 Intel Corporation
@@ -10,15 +10,6 @@
  * Authors: Nathan Williams <nathan@traverse.com.au>
  *          David Woodhouse <dwmw2@infradead.org>
  *          Treker Chen <treker@xrio.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define DEBUG
@@ -1291,7 +1282,8 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		card->using_dma = 1;
 		if (1) { /* All known FPGA versions so far */
 			card->dma_alignment = 3;
-			card->dma_bounce = kmalloc(card->nr_ports * BUF_SIZE, GFP_KERNEL);
+			card->dma_bounce = kmalloc_array(card->nr_ports,
+							 BUF_SIZE, GFP_KERNEL);
 			if (!card->dma_bounce) {
 				dev_warn(&card->dev->dev, "Failed to allocate DMA bounce buffers\n");
 				err = -ENOMEM;

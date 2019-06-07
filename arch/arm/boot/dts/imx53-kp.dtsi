@@ -1,0 +1,189 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2018
+ * Lukasz Majewski, DENX Software Engineering, lukma@denx.de
+ */
+
+/dts-v1/;
+#include "imx53-tqma53.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	buzzer {
+		compatible = "pwm-beeper";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_buzzer>;
+		pwms = <&pwm1 0 500000>;
+	};
+
+	gpio-buttons {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpiobuttons>;
+
+		button-kalt {
+			label = "Kaltstart";
+			linux,code = <KEY_F6>;
+			gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>;
+		};
+
+		button-pwr {
+			label = "PowerFailInterrupt";
+			linux,code = <KEY_F7>;
+			gpios = <&gpio3 22 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_leds>;
+
+		led-bus {
+			label = "bus";
+			gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "gpio";
+			default-state = "off";
+		};
+
+		led-error {
+			label = "error";
+			gpios = <&gpio3 28 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "gpio";
+			default-state = "off";
+		};
+
+		led-flash {
+			label = "flash";
+			gpios = <&gpio5 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+};
+
+&can1 {
+	status = "okay";
+};
+
+&can2 {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+
+	gpio-expander1@22 {
+		compatible = "nxp,pcf8574";
+		reg = <0x22>;
+		interrupts = <109>;
+		#gpio-cells = <2>;
+		gpio-controller;
+	};
+
+	rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_kp_common>;
+
+	imx53-kp-common {
+		pinctrl_buzzer: buzzergrp {
+			fsl,pins = <
+				MX53_PAD_SD1_DATA3__PWM1_PWMO 0x1e4
+			>;
+		};
+
+		pinctrl_gpiobuttons: gpiobuttonsgrp {
+			fsl,pins = <
+				MX53_PAD_EIM_RW__GPIO2_26 0x1e4
+				MX53_PAD_EIM_D22__GPIO3_22 0x1e4
+			>;
+		};
+
+		pinctrl_kp_common: kpcommongrp {
+			fsl,pins = <
+				MX53_PAD_EIM_CS0__GPIO2_23 0x1e4
+				MX53_PAD_GPIO_19__GPIO4_5  0x1e4
+				MX53_PAD_PATA_DATA6__GPIO2_6 0x1e4
+				MX53_PAD_PATA_DATA7__GPIO2_7 0xe0
+				MX53_PAD_CSI0_DAT14__GPIO6_0 0x1e4
+				MX53_PAD_CSI0_DAT16__GPIO6_2 0x1e4
+				MX53_PAD_CSI0_DAT18__GPIO6_4 0x1e4
+				MX53_PAD_EIM_D17__GPIO3_17 0x1e4
+				MX53_PAD_EIM_D18__GPIO3_18 0x1e4
+				MX53_PAD_EIM_D21__GPIO3_21 0x1e4
+				MX53_PAD_EIM_D29__GPIO3_29 0x1e4
+				MX53_PAD_EIM_DA11__GPIO3_11 0x1e4
+				MX53_PAD_EIM_DA13__GPIO3_13 0x1e4
+				MX53_PAD_EIM_DA14__GPIO3_14 0x1e4
+				MX53_PAD_SD1_DATA0__GPIO1_16 0x1e4
+				MX53_PAD_SD1_CMD__GPIO1_18 0x1e4
+				MX53_PAD_SD1_CLK__GPIO1_20 0x1e4
+			>;
+		};
+
+		pinctrl_leds: ledgrp {
+			fsl,pins = <
+				MX53_PAD_EIM_EB2__GPIO2_30 0x1d4
+				MX53_PAD_EIM_D28__GPIO3_28 0x1d4
+				MX53_PAD_EIM_WAIT__GPIO5_0 0x1d4
+			>;
+		};
+
+		pinctrl_uart4: uart4grp {
+			fsl,pins = <
+				MX53_PAD_CSI0_DAT12__UART4_TXD_MUX 0x1e4
+				MX53_PAD_CSI0_DAT13__UART4_RXD_MUX 0x1e4
+			>;
+		};
+	};
+};
+
+&pinctrl_uart1 {
+	fsl,pins = <
+		MX53_PAD_EIM_D23__GPIO3_23 0x1e4
+		MX53_PAD_EIM_EB3__GPIO2_31 0x1e4
+		MX53_PAD_EIM_D24__GPIO3_24 0x1e4
+		MX53_PAD_EIM_D25__GPIO3_25 0x1e4
+		MX53_PAD_EIM_D19__GPIO3_19 0x1e4
+		MX53_PAD_EIM_D20__GPIO3_20 0x1e4
+	>;
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart4>;
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};
+
+&usbphy0 {
+	status = "disabled";
+};

@@ -1198,14 +1198,11 @@ static int isp116x_debug_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(isp116x_debug);
 
-static int create_debug_file(struct isp116x *isp116x)
+static void create_debug_file(struct isp116x *isp116x)
 {
 	isp116x->dentry = debugfs_create_file(hcd_name,
 					      S_IRUGO, NULL, isp116x,
 					      &isp116x_debug_fops);
-	if (!isp116x->dentry)
-		return -ENOMEM;
-	return 0;
 }
 
 static void remove_debug_file(struct isp116x *isp116x)
@@ -1215,8 +1212,8 @@ static void remove_debug_file(struct isp116x *isp116x)
 
 #else
 
-#define	create_debug_file(d)	0
-#define	remove_debug_file(d)	do{}while(0)
+static inline void create_debug_file(struct isp116x *isp116x) { }
+static inline void remove_debug_file(struct isp116x *isp116x) { }
 
 #endif				/* CONFIG_DEBUG_FS */
 
@@ -1643,16 +1640,10 @@ static int isp116x_probe(struct platform_device *pdev)
 
 	device_wakeup_enable(hcd->self.controller);
 
-	ret = create_debug_file(isp116x);
-	if (ret) {
-		ERR("Couldn't create debugfs entry\n");
-		goto err7;
-	}
+	create_debug_file(isp116x);
 
 	return 0;
 
-      err7:
-	usb_remove_hcd(hcd);
       err6:
 	usb_put_hcd(hcd);
       err5:

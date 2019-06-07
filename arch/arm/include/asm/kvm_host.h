@@ -19,12 +19,15 @@
 #ifndef __ARM_KVM_HOST_H__
 #define __ARM_KVM_HOST_H__
 
+#include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/kvm_types.h>
+#include <asm/cputype.h>
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 #include <asm/fpstate.h>
+#include <asm/smp_plat.h>
 #include <kvm/arm_arch_timer.h>
 
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
@@ -47,18 +50,24 @@
 #define KVM_REQ_SLEEP \
 	KVM_ARCH_REQ_FLAGS(0, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_IRQ_PENDING	KVM_ARCH_REQ(1)
+#define KVM_REQ_VCPU_RESET	KVM_ARCH_REQ(2)
 
 DECLARE_STATIC_KEY_FALSE(userspace_irqchip_in_use);
+
+static inline int kvm_arm_init_sve(void) { return 0; }
 
 u32 *kvm_vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num, u32 mode);
 int __attribute_const__ kvm_target_cpu(void);
 int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
 void kvm_reset_coprocs(struct kvm_vcpu *vcpu);
 
-struct kvm_arch {
-	/* VTTBR value associated with below pgd and vmid */
-	u64    vttbr;
+struct kvm_vmid {
+	/* The VMID generation used for the virt. memory system */
+	u64    vmid_gen;
+	u32    vmid;
+};
 
+struct kvm_arch {
 	/* The last vcpu id that ran on each physical CPU */
 	int __percpu *last_vcpu_ran;
 
@@ -68,11 +77,11 @@ struct kvm_arch {
 	 */
 
 	/* The VMID generation used for the virt. memory system */
-	u64    vmid_gen;
-	u32    vmid;
+	struct kvm_vmid vmid;
 
 	/* Stage-2 page table */
 	pgd_t *pgd;
+	phys_addr_t pgd_phys;
 
 	/* Interrupt controller */
 	struct vgic_dist	vgic;
@@ -144,7 +153,25 @@ struct kvm_cpu_context {
 	u32 cp15[NR_CP15_REGS];
 };
 
-typedef struct kvm_cpu_context kvm_cpu_context_t;
+struct kvm_host_data {
+	struct kvm_cpu_context host_ctxt;
+};
+
+typedef struct kvm_host_data kvm_host_data_t;
+
+static inline void kvm_init_host_cpu_context(struct kvm_cpu_context *cpu_ctxt,
+					     int cpu)
+{
+	/* The host's MPIDR is immutable, so let's set it up at boot time */
+	cpu_ctxt->cp15[c0_MPIDR] = cpu_logical_map(cpu);
+}
+
+struct vcpu_reset_state {
+	unsigned long	pc;
+	unsigned long	r0;
+	bool		be;
+	bool		reset;
+};
 
 struct kvm_vcpu_arch {
 	struct kvm_cpu_context ctxt;
@@ -162,7 +189,7 @@ struct kvm_vcpu_arch {
 	struct kvm_vcpu_fault_info fault;
 
 	/* Host FP context */
-	kvm_cpu_context_t *host_cpu_context;
+	struct kvm_cpu_context *host_cpu_context;
 
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;
@@ -184,6 +211,8 @@ struct kvm_vcpu_arch {
 
 	/* Cache some mmu pages needed inside spinlock regions */
 	struct kvm_mmu_memory_cache mmu_page_cache;
+
+	struct vcpu_reset_state reset_state;
 
 	/* Detect first run of a vcpu */
 	bool has_run_once;
@@ -213,14 +242,46 @@ unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu);
 int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices);
 int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
 int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
-unsigned long kvm_call_hyp(void *hypfn, ...);
+
+unsigned long __kvm_call_hyp(void *hypfn, ...);
+
+/*
+ * The has_vhe() part doesn't get emitted, but is used for type-checking.
+ */
+#define kvm_call_hyp(f, ...)						\
+	do {								\
+		if (has_vhe()) {					\
+			f(__VA_ARGS__);					\
+		} else {						\
+			__kvm_call_hyp(kvm_ksym_ref(f), ##__VA_ARGS__); \
+		}							\
+	} while(0)
+
+#define kvm_call_hyp_ret(f, ...)					\
+	({								\
+		typeof(f(__VA_ARGS__)) ret;				\
+									\
+		if (has_vhe()) {					\
+			ret = f(__VA_ARGS__);				\
+		} else {						\
+			ret = __kvm_call_hyp(kvm_ksym_ref(f),		\
+					     ##__VA_ARGS__);		\
+		}							\
+									\
+		ret;							\
+	})
+
 void force_vm_exit(const cpumask_t *mask);
+int __kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
+			      struct kvm_vcpu_events *events);
+
+int __kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
+			      struct kvm_vcpu_events *events);
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
-int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
 int kvm_unmap_hva_range(struct kvm *kvm,
 			unsigned long start, unsigned long end);
-void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
+int kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
 
 unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu);
 int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices);
@@ -260,7 +321,7 @@ static inline void __cpu_init_hyp_mode(phys_addr_t pgd_ptr,
 	 * compliant with the PCS!).
 	 */
 
-	kvm_call_hyp((void*)hyp_stack_ptr, vector_ptr, pgd_ptr);
+	__kvm_call_hyp((void*)hyp_stack_ptr, vector_ptr, pgd_ptr);
 }
 
 static inline void __cpu_init_stage2(void)
@@ -268,7 +329,7 @@ static inline void __cpu_init_stage2(void)
 	kvm_call_hyp(__init_stage2_translation);
 }
 
-static inline int kvm_arch_dev_ioctl_check_extension(struct kvm *kvm, long ext)
+static inline int kvm_arch_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 	return 0;
 }
@@ -280,6 +341,7 @@ void kvm_mmu_wp_memory_region(struct kvm *kvm, int slot);
 
 struct kvm_vcpu *kvm_mpidr_to_vcpu(struct kvm *kvm, unsigned long mpidr);
 
+static inline bool kvm_arch_requires_vhe(void) { return false; }
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}
@@ -290,11 +352,6 @@ static inline void kvm_arm_init_debug(void) {}
 static inline void kvm_arm_setup_debug(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arm_clear_debug(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu) {}
-static inline bool kvm_arm_handle_step_debug(struct kvm_vcpu *vcpu,
-					     struct kvm_run *run)
-{
-	return false;
-}
 
 int kvm_arm_vcpu_arch_set_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);
@@ -303,19 +360,73 @@ int kvm_arm_vcpu_arch_get_attr(struct kvm_vcpu *vcpu,
 int kvm_arm_vcpu_arch_has_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);
 
-/* All host FP/SIMD state is restored on guest exit, so nothing to save: */
-static inline void kvm_fpsimd_flush_cpu_state(void) {}
+/*
+ * VFP/NEON switching is all done by the hyp switch code, so no need to
+ * coordinate with host context handling for this state:
+ */
+static inline void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu) {}
+static inline void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu) {}
+
+static inline void kvm_vcpu_pmu_restore_guest(struct kvm_vcpu *vcpu) {}
+static inline void kvm_vcpu_pmu_restore_host(struct kvm_vcpu *vcpu) {}
 
 static inline void kvm_arm_vhe_guest_enter(void) {}
 static inline void kvm_arm_vhe_guest_exit(void) {}
 
 static inline bool kvm_arm_harden_branch_predictor(void)
 {
+	switch(read_cpuid_part()) {
+#ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
+	case ARM_CPU_PART_BRAHMA_B15:
+	case ARM_CPU_PART_CORTEX_A12:
+	case ARM_CPU_PART_CORTEX_A15:
+	case ARM_CPU_PART_CORTEX_A17:
+		return true;
+#endif
+	default:
+		return false;
+	}
+}
+
+#define KVM_SSBD_UNKNOWN		-1
+#define KVM_SSBD_FORCE_DISABLE		0
+#define KVM_SSBD_KERNEL		1
+#define KVM_SSBD_FORCE_ENABLE		2
+#define KVM_SSBD_MITIGATED		3
+
+static inline int kvm_arm_have_ssbd(void)
+{
 	/* No way to detect it yet, pretend it is not there. */
-	return false;
+	return KVM_SSBD_UNKNOWN;
 }
 
 static inline void kvm_vcpu_load_sysregs(struct kvm_vcpu *vcpu) {}
 static inline void kvm_vcpu_put_sysregs(struct kvm_vcpu *vcpu) {}
+
+#define __KVM_HAVE_ARCH_VM_ALLOC
+struct kvm *kvm_arch_alloc_vm(void);
+void kvm_arch_free_vm(struct kvm *kvm);
+
+static inline int kvm_arm_setup_stage2(struct kvm *kvm, unsigned long type)
+{
+	/*
+	 * On 32bit ARM, VMs get a static 40bit IPA stage2 setup,
+	 * so any non-zero value used as type is illegal.
+	 */
+	if (type)
+		return -EINVAL;
+	return 0;
+}
+
+static inline int kvm_arm_vcpu_finalize(struct kvm_vcpu *vcpu, int feature)
+{
+	return -EINVAL;
+}
+
+static inline bool kvm_arm_vcpu_is_finalized(struct kvm_vcpu *vcpu)
+{
+	return true;
+}
 
 #endif /* __ARM_KVM_HOST_H__ */

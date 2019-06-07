@@ -6,10 +6,11 @@
  *	    Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  */
 
-#include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/usb/g_uvc.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
@@ -114,8 +115,8 @@ uvc_v4l2_set_format(struct file *file, void *fh, struct v4l2_format *fmt)
 	}
 
 	if (i == ARRAY_SIZE(uvc_formats)) {
-		printk(KERN_INFO "Unsupported format 0x%08x.\n",
-			fmt->fmt.pix.pixelformat);
+		uvcg_info(&uvc->func, "Unsupported format 0x%08x.\n",
+			  fmt->fmt.pix.pixelformat);
 		return -EINVAL;
 	}
 

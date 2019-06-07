@@ -1,0 +1,83 @@
+* Freescale QorIQ 1588 timer based PTP clock
+
+General Properties:
+
+  - compatible   Should be "fsl,etsec-ptp" for eTSEC
+                 Should be "fsl,fman-ptp-timer" for DPAA FMan
+  - reg          Offset and length of the register set for the device
+  - interrupts   There should be at least two interrupts. Some devices
+                 have as many as four PTP related interrupts.
+
+Clock Properties:
+
+  - fsl,cksel        Timer reference clock source.
+  - fsl,tclk-period  Timer reference clock period in nanoseconds.
+  - fsl,tmr-prsc     Prescaler, divides the output clock.
+  - fsl,tmr-add      Frequency compensation value.
+  - fsl,tmr-fiper1   Fixed interval period pulse generator.
+  - fsl,tmr-fiper2   Fixed interval period pulse generator.
+  - fsl,max-adj      Maximum frequency adjustment in parts per billion.
+  - fsl,extts-fifo   The presence of this property indicates hardware
+		     support for the external trigger stamp FIFO.
+  - little-endian    The presence of this property indicates the 1588 timer
+		     IP block is little-endian mode. The default endian mode
+		     is big-endian.
+
+  These properties set the operational parameters for the PTP
+  clock. You must choose these carefully for the clock to work right.
+  Here is how to figure good values:
+
+  TimerOsc     = selected reference clock   MHz
+  tclk_period  = desired clock period       nanoseconds
+  NominalFreq  = 1000 / tclk_period         MHz
+  FreqDivRatio = TimerOsc / NominalFreq     (must be greater that 1.0)
+  tmr_add      = ceil(2^32 / FreqDivRatio)
+  OutputClock  = NominalFreq / tmr_prsc     MHz
+  PulseWidth   = 1 / OutputClock            microseconds
+  FiperFreq1   = desired frequency in Hz
+  FiperDiv1    = 1000000 * OutputClock / FiperFreq1
+  tmr_fiper1   = tmr_prsc * tclk_period * FiperDiv1 - tclk_period
+  max_adj      = 1000000000 * (FreqDivRatio - 1.0) - 1
+
+  The calculation for tmr_fiper2 is the same as for tmr_fiper1. The
+  driver expects that tmr_fiper1 will be correctly set to produce a 1
+  Pulse Per Second (PPS) signal, since this will be offered to the PPS
+  subsystem to synchronize the Linux clock.
+
+  Reference clock source is determined by the value, which is holded
+  in CKSEL bits in TMR_CTRL register. "fsl,cksel" property keeps the
+  value, which will be directly written in those bits, that is why,
+  according to reference manual, the next clock sources can be used:
+
+  For eTSEC,
+  <0> - external high precision timer reference clock (TSEC_TMR_CLK
+        input is used for this purpose);
+  <1> - eTSEC system clock;
+  <2> - eTSEC1 transmit clock;
+  <3> - RTC clock input.
+
+  For DPAA FMan,
+  <0> - external high precision timer reference clock (TMR_1588_CLK)
+  <1> - MAC system clock (1/2 FMan clock)
+  <2> - reserved
+  <3> - RTC clock oscillator
+
+  When this attribute is not used, the IEEE 1588 timer reference clock
+  will use the eTSEC system clock (for Gianfar) or the MAC system
+  clock (for DPAA).
+
+Example:
+
+	ptp_clock@24e00 {
+		compatible = "fsl,etsec-ptp";
+		reg = <0x24E00 0xB0>;
+		interrupts = <12 0x8 13 0x8>;
+		interrupt-parent = < &ipic >;
+		fsl,cksel       = <1>;
+		fsl,tclk-period = <10>;
+		fsl,tmr-prsc    = <100>;
+		fsl,tmr-add     = <0x999999A4>;
+		fsl,tmr-fiper1  = <0x3B9AC9F6>;
+		fsl,tmr-fiper2  = <0x00018696>;
+		fsl,max-adj     = <659999998>;
+	};

@@ -6,6 +6,7 @@
 #include "util/evsel.h"
 #include "util/util.h"
 #include "util/config.h"
+#include "util/map.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
@@ -334,7 +335,7 @@ static int build_alloc_func_list(void)
 	struct alloc_func *func;
 	struct machine *machine = &kmem_session->machines.host;
 	regex_t alloc_func_regex;
-	const char pattern[] = "^_?_?(alloc|get_free|get_zeroed)_pages?";
+	static const char pattern[] = "^_?_?(alloc|get_free|get_zeroed)_pages?";
 
 	ret = regcomp(&alloc_func_regex, pattern, REG_EXTENDED);
 	if (ret) {
@@ -729,7 +730,7 @@ static char *compact_gfp_string(unsigned long gfp_flags)
 static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
 			   unsigned int gfp_flags)
 {
-	struct pevent_record record = {
+	struct tep_record record = {
 		.cpu = sample->cpu,
 		.data = sample->raw_data,
 		.size = sample->raw_size,
@@ -747,7 +748,7 @@ static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
 	}
 
 	trace_seq_init(&seq);
-	pevent_event_info(&seq, evsel->tp_format, &record);
+	tep_event_info(&seq, evsel->tp_format, &record);
 
 	str = strtok_r(seq.buffer, " ", &pos);
 	while (str) {
@@ -1004,7 +1005,7 @@ static void __print_slab_result(struct rb_root *root,
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = machine__find_kernel_function(machine, addr, &map);
+				sym = machine__find_kernel_symbol(machine, addr, &map);
 		} else
 			addr = data->ptr;
 
@@ -1068,7 +1069,7 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite, &map);
+		sym = machine__find_kernel_symbol(machine, data->callsite, &map);
 		if (sym)
 			caller = sym->name;
 		else
@@ -1110,7 +1111,7 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite, &map);
+		sym = machine__find_kernel_symbol(machine, data->callsite, &map);
 		if (sym)
 			caller = sym->name;
 		else
@@ -1924,7 +1925,7 @@ int cmd_kmem(int argc, const char **argv)
 		NULL
 	};
 	struct perf_session *session;
-	const char errmsg[] = "No %s allocation events found.  Have you run 'perf kmem record --%s'?\n";
+	static const char errmsg[] = "No %s allocation events found.  Have you run 'perf kmem record --%s'?\n";
 	int ret = perf_config(kmem_config, NULL);
 
 	if (ret)
@@ -1948,7 +1949,7 @@ int cmd_kmem(int argc, const char **argv)
 		return __cmd_record(argc, argv);
 	}
 
-	data.file.path = input_name;
+	data.path = input_name;
 
 	kmem_session = session = perf_session__new(&data, false, &perf_kmem);
 	if (session == NULL)
@@ -1974,7 +1975,7 @@ int cmd_kmem(int argc, const char **argv)
 			goto out_delete;
 		}
 
-		kmem_page_size = pevent_get_page_size(evsel->tp_format->pevent);
+		kmem_page_size = tep_get_page_size(evsel->tp_format->tep);
 		symbol_conf.use_callchain = true;
 	}
 

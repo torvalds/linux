@@ -1,26 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2007 Robert Schwebel <r.schwebel@pengutronix.de>, Pengutronix
  * Copyright (C) 2009 Sascha Hauer (kernel@pengutronix.de)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301, USA.
  */
 
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
-#include <linux/platform_data/at24.h>
+#include <linux/property.h>
 #include <linux/dma-mapping.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
@@ -168,16 +155,15 @@ static const struct imxi2c_platform_data pca100_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
 
-static struct at24_platform_data board_eeprom = {
-	.byte_len = 4096,
-	.page_size = 32,
-	.flags = AT24_FLAG_ADDR16,
+static const struct property_entry board_eeprom_properties[] = {
+	PROPERTY_ENTRY_U32("pagesize", 32),
+	{ }
 };
 
 static struct i2c_board_info pca100_i2c_devices[] = {
 	{
-		I2C_BOARD_INFO("at24", 0x52), /* E0=0, E1=1, E2=0 */
-		.platform_data = &board_eeprom,
+		I2C_BOARD_INFO("24c32", 0x52), /* E0=0, E1=1, E2=0 */
+		.properties = board_eeprom_properties,
 	}, {
 		I2C_BOARD_INFO("pcf8563", 0x51),
 	}, {

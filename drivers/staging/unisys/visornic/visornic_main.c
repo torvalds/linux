@@ -849,7 +849,7 @@ static bool vnic_hit_low_watermark(struct visornic_devdata *devdata,
  *
  * Return: NETDEV_TX_OK.
  */
-static int visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct visornic_devdata *devdata;
 	int len, firstfraglen, padlen;
@@ -896,9 +896,7 @@ static int visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	    ((skb_end_pointer(skb) - skb->data) >= ETH_MIN_PACKET_SIZE)) {
 		/* pad the packet out to minimum size */
 		padlen = ETH_MIN_PACKET_SIZE - len;
-		memset(&skb->data[len], 0, padlen);
-		skb->tail += padlen;
-		skb->len += padlen;
+		skb_put_zero(skb, padlen);
 		len += padlen;
 		firstfraglen += padlen;
 	}
@@ -2095,7 +2093,7 @@ static int visornic_resume(struct visor_device *dev,
 	mod_timer(&devdata->irq_poll_timer, msecs_to_jiffies(2));
 
 	rtnl_lock();
-	dev_open(netdev);
+	dev_open(netdev, NULL);
 	rtnl_unlock();
 
 	complete_func(dev, 0);
@@ -2126,30 +2124,19 @@ static struct visor_driver visornic_driver = {
  */
 static int visornic_init(void)
 {
-	struct dentry *ret;
-	int err = -ENOMEM;
+	int err;
 
 	visornic_debugfs_dir = debugfs_create_dir("visornic", NULL);
-	if (!visornic_debugfs_dir)
-		return err;
 
-	ret = debugfs_create_file("info", 0400, visornic_debugfs_dir, NULL,
-				  &debugfs_info_fops);
-	if (!ret)
-		goto cleanup_debugfs;
-	ret = debugfs_create_file("enable_ints", 0200, visornic_debugfs_dir,
-				  NULL, &debugfs_enable_ints_fops);
-	if (!ret)
-		goto cleanup_debugfs;
+	debugfs_create_file("info", 0400, visornic_debugfs_dir, NULL,
+			    &debugfs_info_fops);
+	debugfs_create_file("enable_ints", 0200, visornic_debugfs_dir, NULL,
+			    &debugfs_enable_ints_fops);
 
 	err = visorbus_register_visor_driver(&visornic_driver);
 	if (err)
-		goto cleanup_debugfs;
+		debugfs_remove_recursive(visornic_debugfs_dir);
 
-	return 0;
-
-cleanup_debugfs:
-	debugfs_remove_recursive(visornic_debugfs_dir);
 	return err;
 }
 

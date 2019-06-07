@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 ******************************
 Multi-planar format structures
@@ -10,6 +17,7 @@ struct :c:type:`v4l2_pix_format_mplane` structure contains
 information common to all planes (such as image width and height) and an
 array of struct :c:type:`v4l2_plane_pix_format` structures,
 describing all planes of that format.
+
 
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -33,6 +41,10 @@ describing all planes of that format.
       - Reserved for future extensions. Should be zeroed by drivers and
 	applications.
 
+
+.. raw:: latex
+
+    \small
 
 .. tabularcolumns:: |p{4.4cm}|p{5.6cm}|p{7.5cm}|
 
@@ -75,9 +87,7 @@ describing all planes of that format.
     * - __u8
       - ``flags``
       - Flags set by the application or driver, see :ref:`format-flags`.
-    * - union {
-      - (anonymous)
-      -
+    * - :cspan:`2` union { (anonymous)
     * - __u8
       - ``ycbcr_enc``
       - Y'CbCr encoding, from enum :c:type:`v4l2_ycbcr_encoding`.
@@ -90,9 +100,7 @@ describing all planes of that format.
         This information supplements the ``colorspace`` and must be set by
 	the driver for capture streams and by the application for output
 	streams, see :ref:`colorspaces`.
-    * - }
-      -
-      -
+    * - :cspan:`2` }
     * - __u8
       - ``quantization``
       - Quantization range, from enum :c:type:`v4l2_quantization`.
@@ -109,3 +117,7 @@ describing all planes of that format.
       - ``reserved[7]``
       - Reserved for future extensions. Should be zeroed by drivers and
 	applications.
+
+.. raw:: latex
+
+    \normalsize

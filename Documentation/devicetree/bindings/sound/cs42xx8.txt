@@ -16,7 +16,7 @@ Required properties:
 
 Example:
 
-codec: cs42888@48 {
+cs42888: codec@48 {
 	compatible = "cirrus,cs42888";
 	reg = <0x48>;
 	clocks = <&codec_mclk 0>;

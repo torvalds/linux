@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
  * Copyright (C) 2002, 2004 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/fs.h>
@@ -30,6 +16,7 @@
 #include <linux/quotaops.h>
 #include <linux/blkdev.h>
 #include <linux/uio.h>
+#include <linux/mm.h>
 
 #include <cluster/masklog.h>
 
@@ -397,7 +384,7 @@ static int ocfs2_readpages(struct file *filp, struct address_space *mapping,
 	 * Check whether a remote node truncated this file - we just
 	 * drop out in that case as it's not worth handling here.
 	 */
-	last = list_entry(pages->prev, struct page, lru);
+	last = lru_to_page(pages);
 	start = (loff_t)last->index << PAGE_SHIFT;
 	if (start >= i_size_read(inode))
 		goto out_unlock;
@@ -1392,8 +1379,7 @@ retry:
 unlock:
 	spin_unlock(&oi->ip_lock);
 out:
-	if (new)
-		kfree(new);
+	kfree(new);
 	return ret;
 }
 
@@ -2412,8 +2398,16 @@ static int ocfs2_dio_end_io(struct kiocb *iocb,
 	/* this io's submitter should not have unlocked this before we could */
 	BUG_ON(!ocfs2_iocb_is_rw_locked(iocb));
 
-	if (bytes > 0 && private)
-		ret = ocfs2_dio_end_io_write(inode, private, offset, bytes);
+	if (bytes <= 0)
+		mlog_ratelimited(ML_ERROR, "Direct IO failed, bytes = %lld",
+				 (long long)bytes);
+	if (private) {
+		if (bytes > 0)
+			ret = ocfs2_dio_end_io_write(inode, private, offset,
+						     bytes);
+		else
+			ocfs2_dio_free_write_ctx(inode, private);
+	}
 
 	ocfs2_iocb_clear_rw_locked(iocb);
 

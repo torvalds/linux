@@ -3,12 +3,16 @@ Mediatek MT7530 Ethernet switch
 
 Required properties:
 
-- compatible: Must be compatible = "mediatek,mt7530";
+- compatible: may be compatible = "mediatek,mt7530"
+	or compatible = "mediatek,mt7621"
 - #address-cells: Must be 1.
 - #size-cells: Must be 0.
 - mediatek,mcm: Boolean; if defined, indicates that either MT7530 is the part
 	on multi-chip module belong to MT7623A has or the remotely standalone
 	chip as the function MT7623N reference board provided for.
+
+If compatible mediatek,mt7530 is set then the following properties are required
+
 - core-supply: Phandle to the regulator node necessary for the core power.
 - io-supply: Phandle to the regulator node necessary for the I/O power.
 	See Documentation/devicetree/bindings/regulator/mt6323-regulator.txt
@@ -31,7 +35,7 @@ Required properties for the child nodes within ports container:
 - phy-mode: String, must be either "trgmii" or "rgmii" for port labeled
 	 "cpu".
 
-See Documentation/devicetree/bindings/dsa/dsa.txt for a list of additional
+See Documentation/devicetree/bindings/net/dsa/dsa.txt for a list of additional
 required, optional properties and how the integrated switch subnodes must
 be specified.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SMP support for power macintosh.
  *
@@ -15,11 +16,6 @@
  *
  * Support for DayStar quad CPU cards
  * Copyright (C) XLR8, Inc. 1994-2000
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -65,7 +61,6 @@
 #endif
 
 extern void __secondary_start_pmac_0(void);
-extern int pmac_pfunc_base_install(void);
 
 static void (*pmac_tb_freeze)(int freeze);
 static u64 timebase;
@@ -833,8 +828,7 @@ static int smp_core99_kick_cpu(int nr)
 	mdelay(1);
 
 	/* Restore our exception vector */
-	*vector = save_vector;
-	flush_icache_range((unsigned long) vector, (unsigned long) vector + 4);
+	patch_instruction(vector, save_vector);
 
 	local_irq_restore(flags);
 	if (ppc_md.progress) ppc_md.progress("smp_core99_kick_cpu done", 0x347);

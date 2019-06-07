@@ -1,26 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PMac Tumbler/Snapper lowlevel functions
  *
  * Copyright (c) by Takashi Iwai <tiwai@suse.de>
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  *   Rene Rebe <rene.rebe@gmx.net>:
  *     * update from shadow registers on wakeup and headphone plug
  *     * automatically toggle DRC on headphone plug
- *	
  */
 
 
@@ -1365,12 +1351,13 @@ int snd_pmac_tumbler_init(struct snd_pmac *chip)
 	mix->anded_reset = 0;
 	mix->reset_on_sleep = 1;
 
-	for (np = chip->node->child; np; np = np->sibling) {
-		if (!strcmp(np->name, "sound")) {
+	for_each_child_of_node(chip->node, np) {
+		if (of_node_name_eq(np, "sound")) {
 			if (of_get_property(np, "has-anded-reset", NULL))
 				mix->anded_reset = 1;
 			if (of_get_property(np, "layout-id", NULL))
 				mix->reset_on_sleep = 0;
+			of_node_put(np);
 			break;
 		}
 	}

@@ -43,13 +43,10 @@
 #include "imx6q-ba16.dtsi"
 
 / {
-	clocks {
-		mclk: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <22000000>;
-		};
+	mclk: clock-mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <22000000>;
 	};
 
 	gpio-poweroff {
@@ -107,8 +104,6 @@
 
 		switch@0 {
 			compatible = "marvell,mv88e6085"; /* 88e6240*/
-			#address-cells = <1>;
-			#size-cells = <0>;
 			reg = <0>;
 
 			switch_ports: ports {
@@ -237,20 +232,6 @@
 				interrupt-controller;
 				interrupt-parent = <&gpio2>;
 				interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
-
-				P10 {
-					gpio-hog;
-					gpios = <8 0>;
-					output-low;
-					line-name = "PCA9539-P10";
-				};
-
-				P11 {
-					gpio-hog;
-					gpios = <9 0>;
-					output-low;
-					line-name = "PCA9539-P11";
-				};
 
 				P12 {
 					gpio-hog;

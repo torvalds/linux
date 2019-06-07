@@ -201,7 +201,7 @@ static int cqhci_host_alloc_tdl(struct cqhci_host *cq_host)
 	cq_host->desc_size = cq_host->slot_sz * cq_host->num_slots;
 
 	cq_host->data_size = cq_host->trans_desc_len * cq_host->mmc->max_segs *
-		(cq_host->num_slots - 1);
+		cq_host->mmc->cqe_qdepth;
 
 	pr_debug("%s: cqhci: desc_size: %zu data_sz: %zu slot-sz: %d\n",
 		 mmc_hostname(cq_host->mmc), cq_host->desc_size, cq_host->data_size,
@@ -217,12 +217,21 @@ static int cqhci_host_alloc_tdl(struct cqhci_host *cq_host)
 						 cq_host->desc_size,
 						 &cq_host->desc_dma_base,
 						 GFP_KERNEL);
+	if (!cq_host->desc_base)
+		return -ENOMEM;
+
 	cq_host->trans_desc_base = dmam_alloc_coherent(mmc_dev(cq_host->mmc),
 					      cq_host->data_size,
 					      &cq_host->trans_desc_dma_base,
 					      GFP_KERNEL);
-	if (!cq_host->desc_base || !cq_host->trans_desc_base)
+	if (!cq_host->trans_desc_base) {
+		dmam_free_coherent(mmc_dev(cq_host->mmc), cq_host->desc_size,
+				   cq_host->desc_base,
+				   cq_host->desc_dma_base);
+		cq_host->desc_base = NULL;
+		cq_host->desc_dma_base = 0;
 		return -ENOMEM;
+	}
 
 	pr_debug("%s: cqhci: desc-base: 0x%p trans-base: 0x%p\n desc_dma 0x%llx trans_dma: 0x%llx\n",
 		 mmc_hostname(cq_host->mmc), cq_host->desc_base, cq_host->trans_desc_base,
@@ -528,6 +537,8 @@ static void cqhci_prep_dcmd_desc(struct mmc_host *mmc,
 		 CQHCI_ACT(0x5) |
 		 CQHCI_CMD_INDEX(mrq->cmd->opcode) |
 		 CQHCI_CMD_TIMING(timing) | CQHCI_RESP_TYPE(resp_type));
+	if (cq_host->ops->update_dcmd_desc)
+		cq_host->ops->update_dcmd_desc(mmc, mrq, &data);
 	*task_desc |= data;
 	desc = (u8 *)task_desc;
 	pr_debug("%s: cqhci: dcmd: cmd: %d timing: %d resp: %d\n",

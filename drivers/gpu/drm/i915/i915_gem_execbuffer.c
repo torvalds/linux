@@ -26,12 +26,11 @@
  *
  */
 
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 #include <linux/reservation.h>
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_syncobj.h>
 #include <drm/i915_drm.h>
 
@@ -64,7 +63,18 @@ enum {
 #define BATCH_OFFSET_BIAS (256*1024)
 
 #define __I915_EXEC_ILLEGAL_FLAGS \
-	(__I915_EXEC_UNKNOWN_FLAGS | I915_EXEC_CONSTANTS_MASK)
+	(__I915_EXEC_UNKNOWN_FLAGS | \
+	 I915_EXEC_CONSTANTS_MASK  | \
+	 I915_EXEC_RESOURCE_STREAMER)
+
+/* Catch emission of unexpected errors for CI! */
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+#undef EINVAL
+#define EINVAL ({ \
+	DRM_DEBUG_DRIVER("EINVAL at %s:%d\n", __func__, __LINE__); \
+	22; \
+})
+#endif
 
 /**
  * DOC: User command execution
@@ -80,6 +90,35 @@ enum {
  * execution, userspace is told the location of those objects in this pass,
  * but this remains just a hint as the kernel may choose a new location for
  * any object in the future.
+ *
+ * At the level of talking to the hardware, submitting a batchbuffer for the
+ * GPU to execute is to add content to a buffer from which the HW
+ * command streamer is reading.
+ *
+ * 1. Add a command to load the HW context. For Logical Ring Contexts, i.e.
+ *    Execlists, this command is not placed on the same buffer as the
+ *    remaining items.
+ *
+ * 2. Add a command to invalidate caches to the buffer.
+ *
+ * 3. Add a batchbuffer start command to the buffer; the start command is
+ *    essentially a token together with the GPU address of the batchbuffer
+ *    to be executed.
+ *
+ * 4. Add a pipeline flush to the buffer.
+ *
+ * 5. Add a memory write command to the buffer to record when the GPU
+ *    is done executing the batchbuffer. The memory write writes the
+ *    global sequence number of the request, ``i915_request::global_seqno``;
+ *    the i915 driver uses the current value in the register to determine
+ *    if the GPU has completed the batchbuffer.
+ *
+ * 6. Add a user interrupt command to the buffer. This command instructs
+ *    the GPU to issue an interrupt when the command, pipeline flush and
+ *    memory write are completed.
+ *
+ * 7. Inform the hardware of the additional commands added to the buffer
+ *    (by updating the tail pointer).
  *
  * Processing an execbuf ioctl is conceptually split up into a few phases.
  *
@@ -420,7 +459,7 @@ eb_validate_vma(struct i915_execbuffer *eb,
 	 * any non-page-aligned or non-canonical addresses.
 	 */
 	if (unlikely(entry->flags & EXEC_OBJECT_PINNED &&
-		     entry->offset != gen8_canonical_addr(entry->offset & PAGE_MASK)))
+		     entry->offset != gen8_canonical_addr(entry->offset & I915_GTT_PAGE_MASK)))
 		return -EINVAL;
 
 	/* pad_to_size was once a reserved field, so sanitize it */
@@ -460,7 +499,9 @@ eb_validate_vma(struct i915_execbuffer *eb,
 }
 
 static int
-eb_add_vma(struct i915_execbuffer *eb, unsigned int i, struct i915_vma *vma)
+eb_add_vma(struct i915_execbuffer *eb,
+	   unsigned int i, unsigned batch_idx,
+	   struct i915_vma *vma)
 {
 	struct drm_i915_gem_exec_object2 *entry = &eb->exec[i];
 	int err;
@@ -492,6 +533,25 @@ eb_add_vma(struct i915_execbuffer *eb, unsigned int i, struct i915_vma *vma)
 	eb->vma[i] = vma;
 	eb->flags[i] = entry->flags;
 	vma->exec_flags = &eb->flags[i];
+
+	/*
+	 * SNA is doing fancy tricks with compressing batch buffers, which leads
+	 * to negative relocation deltas. Usually that works out ok since the
+	 * relocate address is still positive, except when the batch is placed
+	 * very low in the GTT. Ensure this doesn't happen.
+	 *
+	 * Note that actual hangs have only been observed on gen7, but for
+	 * paranoia do it everywhere.
+	 */
+	if (i == batch_idx) {
+		if (entry->relocation_count &&
+		    !(eb->flags[i] & EXEC_OBJECT_PINNED))
+			eb->flags[i] |= __EXEC_OBJECT_NEEDS_BIAS;
+		if (eb->reloc_cache.has_fence)
+			eb->flags[i] |= EXEC_OBJECT_NEEDS_FENCE;
+
+		eb->batch = vma;
+	}
 
 	err = 0;
 	if (eb_pin_vma(eb, entry, vma)) {
@@ -632,9 +692,14 @@ static int eb_reserve(struct i915_execbuffer *eb)
 			eb_unreserve_vma(vma, &eb->flags[i]);
 
 			if (flags & EXEC_OBJECT_PINNED)
+				/* Pinned must have their slot */
 				list_add(&vma->exec_link, &eb->unbound);
 			else if (flags & __EXEC_OBJECT_NEEDS_MAP)
+				/* Map require the lowest 256MiB (aperture) */
 				list_add_tail(&vma->exec_link, &eb->unbound);
+			else if (!(flags & EXEC_OBJECT_SUPPORTS_48B_ADDRESS))
+				/* Prioritise 4GiB region for restricted bo */
+				list_add(&vma->exec_link, &last);
 			else
 				list_add_tail(&vma->exec_link, &last);
 		}
@@ -674,20 +739,87 @@ static int eb_select_context(struct i915_execbuffer *eb)
 		return -ENOENT;
 
 	eb->ctx = ctx;
-	eb->vm = ctx->ppgtt ? &ctx->ppgtt->base : &eb->i915->ggtt.base;
+	if (ctx->ppgtt) {
+		eb->vm = &ctx->ppgtt->vm;
+		eb->invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
+	} else {
+		eb->vm = &eb->i915->ggtt.vm;
+	}
 
 	eb->context_flags = 0;
-	if (ctx->flags & CONTEXT_NO_ZEROMAP)
+	if (test_bit(UCONTEXT_NO_ZEROMAP, &ctx->user_flags))
 		eb->context_flags |= __EXEC_OBJECT_NEEDS_BIAS;
 
 	return 0;
+}
+
+static struct i915_request *__eb_wait_for_ring(struct intel_ring *ring)
+{
+	struct i915_request *rq;
+
+	/*
+	 * Completely unscientific finger-in-the-air estimates for suitable
+	 * maximum user request size (to avoid blocking) and then backoff.
+	 */
+	if (intel_ring_update_space(ring) >= PAGE_SIZE)
+		return NULL;
+
+	/*
+	 * Find a request that after waiting upon, there will be at least half
+	 * the ring available. The hysteresis allows us to compete for the
+	 * shared ring and should mean that we sleep less often prior to
+	 * claiming our resources, but not so long that the ring completely
+	 * drains before we can submit our next request.
+	 */
+	list_for_each_entry(rq, &ring->request_list, ring_link) {
+		if (__intel_ring_space(rq->postfix,
+				       ring->emit, ring->size) > ring->size / 2)
+			break;
+	}
+	if (&rq->ring_link == &ring->request_list)
+		return NULL; /* weird, we will check again later for real */
+
+	return i915_request_get(rq);
+}
+
+static int eb_wait_for_ring(const struct i915_execbuffer *eb)
+{
+	const struct intel_context *ce;
+	struct i915_request *rq;
+	int ret = 0;
+
+	/*
+	 * Apply a light amount of backpressure to prevent excessive hogs
+	 * from blocking waiting for space whilst holding struct_mutex and
+	 * keeping all of their resources pinned.
+	 */
+
+	ce = intel_context_lookup(eb->ctx, eb->engine);
+	if (!ce || !ce->ring) /* first use, assume empty! */
+		return 0;
+
+	rq = __eb_wait_for_ring(ce->ring);
+	if (rq) {
+		mutex_unlock(&eb->i915->drm.struct_mutex);
+
+		if (i915_request_wait(rq,
+				      I915_WAIT_INTERRUPTIBLE,
+				      MAX_SCHEDULE_TIMEOUT) < 0)
+			ret = -EINTR;
+
+		i915_request_put(rq);
+
+		mutex_lock(&eb->i915->drm.struct_mutex);
+	}
+
+	return ret;
 }
 
 static int eb_lookup_vmas(struct i915_execbuffer *eb)
 {
 	struct radix_tree_root *handles_vma = &eb->ctx->handles_vma;
 	struct drm_i915_gem_object *obj;
-	unsigned int i;
+	unsigned int i, batch;
 	int err;
 
 	if (unlikely(i915_gem_context_is_closed(eb->ctx)))
@@ -698,6 +830,8 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 
 	INIT_LIST_HEAD(&eb->relocs);
 	INIT_LIST_HEAD(&eb->unbound);
+
+	batch = eb_batch_index(eb);
 
 	for (i = 0; i < eb->buffer_count; i++) {
 		u32 handle = eb->exec[i].handle;
@@ -715,12 +849,12 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 		}
 
 		vma = i915_vma_instance(obj, eb->vm, NULL);
-		if (unlikely(IS_ERR(vma))) {
+		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto err_obj;
 		}
 
-		lut = kmem_cache_alloc(eb->i915->luts, GFP_KERNEL);
+		lut = i915_lut_handle_alloc();
 		if (unlikely(!lut)) {
 			err = -ENOMEM;
 			goto err_obj;
@@ -728,44 +862,28 @@ static int eb_lookup_vmas(struct i915_execbuffer *eb)
 
 		err = radix_tree_insert(handles_vma, handle, vma);
 		if (unlikely(err)) {
-			kmem_cache_free(eb->i915->luts, lut);
+			i915_lut_handle_free(lut);
 			goto err_obj;
 		}
 
 		/* transfer ref to ctx */
-		vma->open_count++;
+		if (!vma->open_count++)
+			i915_vma_reopen(vma);
 		list_add(&lut->obj_link, &obj->lut_list);
 		list_add(&lut->ctx_link, &eb->ctx->handles_list);
 		lut->ctx = eb->ctx;
 		lut->handle = handle;
 
 add_vma:
-		err = eb_add_vma(eb, i, vma);
+		err = eb_add_vma(eb, i, batch, vma);
 		if (unlikely(err))
 			goto err_vma;
 
 		GEM_BUG_ON(vma != eb->vma[i]);
 		GEM_BUG_ON(vma->exec_flags != &eb->flags[i]);
+		GEM_BUG_ON(drm_mm_node_allocated(&vma->node) &&
+			   eb_vma_misplaced(&eb->exec[i], vma, eb->flags[i]));
 	}
-
-	/* take note of the batch buffer before we might reorder the lists */
-	i = eb_batch_index(eb);
-	eb->batch = eb->vma[i];
-	GEM_BUG_ON(eb->batch->exec_flags != &eb->flags[i]);
-
-	/*
-	 * SNA is doing fancy tricks with compressing batch buffers, which leads
-	 * to negative relocation deltas. Usually that works out ok since the
-	 * relocate address is still positive, except when the batch is placed
-	 * very low in the GTT. Ensure this doesn't happen.
-	 *
-	 * Note that actual hangs have only been observed on gen7, but for
-	 * paranoia do it everywhere.
-	 */
-	if (!(eb->flags[i] & EXEC_OBJECT_PINNED))
-		eb->flags[i] |= __EXEC_OBJECT_NEEDS_BIAS;
-	if (eb->reloc_cache.has_fence)
-		eb->flags[i] |= EXEC_OBJECT_NEEDS_FENCE;
 
 	eb->args->flags |= __EXEC_VALIDATED;
 	return eb_reserve(eb);
@@ -883,10 +1001,13 @@ static void reloc_gpu_flush(struct reloc_cache *cache)
 {
 	GEM_BUG_ON(cache->rq_size >= cache->rq->batch->obj->base.size / sizeof(u32));
 	cache->rq_cmd[cache->rq_size] = MI_BATCH_BUFFER_END;
+
+	__i915_gem_object_flush_map(cache->rq->batch->obj, 0, cache->rq_size);
 	i915_gem_object_unpin_map(cache->rq->batch->obj);
+
 	i915_gem_chipset_flush(cache->rq->i915);
 
-	__i915_request_add(cache->rq, true);
+	i915_request_add(cache->rq);
 	cache->rq = NULL;
 }
 
@@ -913,9 +1034,9 @@ static void reloc_cache_reset(struct reloc_cache *cache)
 		if (cache->node.allocated) {
 			struct i915_ggtt *ggtt = cache_to_ggtt(cache);
 
-			ggtt->base.clear_range(&ggtt->base,
-					       cache->node.start,
-					       cache->node.size);
+			ggtt->vm.clear_range(&ggtt->vm,
+					     cache->node.start,
+					     cache->node.size);
 			drm_mm_remove_node(&cache->node);
 		} else {
 			i915_vma_unpin((struct i915_vma *)cache->node.mm);
@@ -986,7 +1107,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 		if (IS_ERR(vma)) {
 			memset(&cache->node, 0, sizeof(cache->node));
 			err = drm_mm_insert_node_in_range
-				(&ggtt->base.mm, &cache->node,
+				(&ggtt->vm.mm, &cache->node,
 				 PAGE_SIZE, 0, I915_COLOR_UNEVICTABLE,
 				 0, ggtt->mappable_end,
 				 DRM_MM_INSERT_LOW);
@@ -1007,9 +1128,9 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 	offset = cache->node.start;
 	if (cache->node.allocated) {
 		wmb();
-		ggtt->base.insert_page(&ggtt->base,
-				       i915_gem_object_get_dma_address(obj, page),
-				       offset, I915_CACHE_NONE, 0);
+		ggtt->vm.insert_page(&ggtt->vm,
+				     i915_gem_object_get_dma_address(obj, page),
+				     offset, I915_CACHE_NONE, 0);
 	} else {
 		offset += page << PAGE_SHIFT;
 	}
@@ -1075,6 +1196,13 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	u32 *cmd;
 	int err;
 
+	if (DBG_FORCE_RELOC == FORCE_GPU_RELOC) {
+		obj = vma->obj;
+		if (obj->cache_dirty & ~obj->cache_coherent)
+			i915_gem_clflush_object(obj, 0);
+		obj->write_domain = 0;
+	}
+
 	GEM_BUG_ON(vma->obj->write_domain & I915_GEM_DOMAIN_CPU);
 
 	obj = i915_gem_batch_pool_get(&eb->engine->batch_pool, PAGE_SIZE);
@@ -1088,10 +1216,6 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	i915_gem_object_unpin_pages(obj);
 	if (IS_ERR(cmd))
 		return PTR_ERR(cmd);
-
-	err = i915_gem_object_set_to_wc_domain(obj, false);
-	if (err)
-		goto err_unmap;
 
 	batch = i915_vma_instance(obj, vma->vm, NULL);
 	if (IS_ERR(batch)) {
@@ -1120,18 +1244,16 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 		goto err_request;
 
 	GEM_BUG_ON(!reservation_object_test_signaled_rcu(batch->resv, true));
-	i915_vma_move_to_active(batch, rq, 0);
-	reservation_object_lock(batch->resv, NULL);
-	reservation_object_add_excl_fence(batch->resv, &rq->fence);
-	reservation_object_unlock(batch->resv);
-	i915_vma_unpin(batch);
+	err = i915_vma_move_to_active(batch, rq, 0);
+	if (err)
+		goto skip_request;
 
-	i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	reservation_object_lock(vma->resv, NULL);
-	reservation_object_add_excl_fence(vma->resv, &rq->fence);
-	reservation_object_unlock(vma->resv);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	if (err)
+		goto skip_request;
 
 	rq->batch = batch;
+	i915_vma_unpin(batch);
 
 	cache->rq = rq;
 	cache->rq_cmd = cmd;
@@ -1140,6 +1262,8 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	/* Return with batch mapping (cmd) still pinned */
 	return 0;
 
+skip_request:
+	i915_request_skip(rq, err);
 err_request:
 	i915_request_add(rq);
 err_unpin:
@@ -1316,7 +1440,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 		 * batchbuffers.
 		 */
 		if (reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
-		    IS_GEN6(eb->i915)) {
+		    IS_GEN(eb->i915, 6)) {
 			err = i915_vma_bind(target, target->obj->cache_level,
 					    PIN_GLOBAL);
 			if (WARN_ONCE(err,
@@ -1383,7 +1507,7 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 	 * to read. However, if the array is not writable the user loses
 	 * the updated relocation values.
 	 */
-	if (unlikely(!access_ok(VERIFY_READ, urelocs, remain*sizeof(*urelocs))))
+	if (unlikely(!access_ok(urelocs, remain*sizeof(*urelocs))))
 		return -EFAULT;
 
 	do {
@@ -1439,8 +1563,10 @@ static int eb_relocate_vma(struct i915_execbuffer *eb, struct i915_vma *vma)
 				 * can read from this userspace address.
 				 */
 				offset = gen8_canonical_addr(offset & ~UPDATE);
-				__put_user(offset,
-					   &urelocs[r-stack].presumed_offset);
+				if (unlikely(__put_user(offset, &urelocs[r-stack].presumed_offset))) {
+					remain = -EFAULT;
+					goto out;
+				}
 			}
 		} while (r++, --count);
 		urelocs += ARRAY_SIZE(stack);
@@ -1488,7 +1614,7 @@ static int check_relocations(const struct drm_i915_gem_exec_object2 *entry)
 
 	addr = u64_to_user_ptr(entry->relocs_ptr);
 	size *= sizeof(struct drm_i915_gem_relocation_entry);
-	if (!access_ok(VERIFY_READ, addr, size))
+	if (!access_ok(addr, size))
 		return -EFAULT;
 
 	end = addr + size;
@@ -1525,7 +1651,6 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 
 		relocs = kvmalloc_array(size, 1, GFP_KERNEL);
 		if (!relocs) {
-			kvfree(relocs);
 			err = -ENOMEM;
 			goto err;
 		}
@@ -1539,6 +1664,9 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 			if (__copy_from_user((char *)relocs + copied,
 					     (char __user *)urelocs + copied,
 					     len)) {
+end_user:
+				user_access_end();
+end:
 				kvfree(relocs);
 				err = -EFAULT;
 				goto err;
@@ -1557,12 +1685,13 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 		 * happened we would make the mistake of assuming that the
 		 * relocations were valid.
 		 */
-		user_access_begin();
+		if (!user_access_begin(urelocs, size))
+			goto end;
+
 		for (copied = 0; copied < nreloc; copied++)
 			unsafe_put_user(-1,
 					&urelocs[copied].presumed_offset,
 					end_user);
-end_user:
 		user_access_end();
 
 		eb->exec[i].relocs_ptr = (uintptr_t)relocs;
@@ -1726,25 +1855,6 @@ slow:
 	return eb_relocate_slow(eb);
 }
 
-static void eb_export_fence(struct i915_vma *vma,
-			    struct i915_request *rq,
-			    unsigned int flags)
-{
-	struct reservation_object *resv = vma->resv;
-
-	/*
-	 * Ignore errors from failing to allocate the new fence, we can't
-	 * handle an error right now. Worst case should be missed
-	 * synchronisation leading to rendering corruption.
-	 */
-	reservation_object_lock(resv, NULL);
-	if (flags & EXEC_OBJECT_WRITE)
-		reservation_object_add_excl_fence(resv, &rq->fence);
-	else if (reservation_object_reserve_shared(resv) == 0)
-		reservation_object_add_shared_fence(resv, &rq->fence);
-	reservation_object_unlock(resv);
-}
-
 static int eb_move_to_gpu(struct i915_execbuffer *eb)
 {
 	const unsigned int count = eb->buffer_count;
@@ -1798,8 +1908,11 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 		unsigned int flags = eb->flags[i];
 		struct i915_vma *vma = eb->vma[i];
 
-		i915_vma_move_to_active(vma, eb->request, flags);
-		eb_export_fence(vma, eb->request, flags);
+		err = i915_vma_move_to_active(vma, eb->request, flags);
+		if (unlikely(err)) {
+			i915_request_skip(eb->request, err);
+			return err;
+		}
 
 		__eb_unreserve_vma(vma, flags);
 		vma->exec_flags = NULL;
@@ -1839,51 +1952,12 @@ static bool i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 	return true;
 }
 
-void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct i915_request *rq,
-			     unsigned int flags)
-{
-	struct drm_i915_gem_object *obj = vma->obj;
-	const unsigned int idx = rq->engine->id;
-
-	lockdep_assert_held(&rq->i915->drm.struct_mutex);
-	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-
-	/*
-	 * Add a reference if we're newly entering the active list.
-	 * The order in which we add operations to the retirement queue is
-	 * vital here: mark_active adds to the start of the callback list,
-	 * such that subsequent callbacks are called first. Therefore we
-	 * add the active reference first and queue for it to be dropped
-	 * *last*.
-	 */
-	if (!i915_vma_is_active(vma))
-		obj->active_count++;
-	i915_vma_set_active(vma, idx);
-	i915_gem_active_set(&vma->last_read[idx], rq);
-	list_move_tail(&vma->vm_link, &vma->vm->active_list);
-
-	obj->write_domain = 0;
-	if (flags & EXEC_OBJECT_WRITE) {
-		obj->write_domain = I915_GEM_DOMAIN_RENDER;
-
-		if (intel_fb_obj_invalidate(obj, ORIGIN_CS))
-			i915_gem_active_set(&obj->frontbuffer_write, rq);
-
-		obj->read_domains = 0;
-	}
-	obj->read_domains |= I915_GEM_GPU_DOMAINS;
-
-	if (flags & EXEC_OBJECT_NEEDS_FENCE)
-		i915_gem_active_set(&vma->last_fence, rq);
-}
-
 static int i915_reset_gen7_sol_offsets(struct i915_request *rq)
 {
 	u32 *cs;
 	int i;
 
-	if (!IS_GEN7(rq->i915) || rq->engine->id != RCS) {
+	if (!IS_GEN(rq->i915, 7) || rq->engine->id != RCS0) {
 		DRM_DEBUG("sol reset is gen7/rcs only\n");
 		return -EINVAL;
 	}
@@ -1964,6 +2038,18 @@ static int eb_submit(struct i915_execbuffer *eb)
 			return err;
 	}
 
+	/*
+	 * After we completed waiting for other engines (using HW semaphores)
+	 * then we can signal that this request/batch is ready to run. This
+	 * allows us to determine if the batch is still waiting on the GPU
+	 * or actually running by checking the breadcrumb.
+	 */
+	if (eb->engine->emit_init_breadcrumb) {
+		err = eb->engine->emit_init_breadcrumb(eb->request);
+		if (err)
+			return err;
+	}
+
 	err = eb->engine->emit_bb_start(eb->request,
 					eb->batch->node.start +
 					eb->batch_start_offset,
@@ -1996,11 +2082,11 @@ gen8_dispatch_bsd_engine(struct drm_i915_private *dev_priv,
 #define I915_USER_RINGS (4)
 
 static const enum intel_engine_id user_ring_map[I915_USER_RINGS + 1] = {
-	[I915_EXEC_DEFAULT]	= RCS,
-	[I915_EXEC_RENDER]	= RCS,
-	[I915_EXEC_BLT]		= BCS,
-	[I915_EXEC_BSD]		= VCS,
-	[I915_EXEC_VEBOX]	= VECS
+	[I915_EXEC_DEFAULT]	= RCS0,
+	[I915_EXEC_RENDER]	= RCS0,
+	[I915_EXEC_BLT]		= BCS0,
+	[I915_EXEC_BSD]		= VCS0,
+	[I915_EXEC_VEBOX]	= VECS0
 };
 
 static struct intel_engine_cs *
@@ -2023,7 +2109,7 @@ eb_select_engine(struct drm_i915_private *dev_priv,
 		return NULL;
 	}
 
-	if (user_ring_id == I915_EXEC_BSD && HAS_BSD2(dev_priv)) {
+	if (user_ring_id == I915_EXEC_BSD && HAS_ENGINE(dev_priv, VCS1)) {
 		unsigned int bsd_idx = args->flags & I915_EXEC_BSD_MASK;
 
 		if (bsd_idx == I915_EXEC_BSD_DEFAULT) {
@@ -2080,7 +2166,7 @@ get_fence_array(struct drm_i915_gem_execbuffer2 *args,
 		return ERR_PTR(-EINVAL);
 
 	user = u64_to_user_ptr(args->cliprects_ptr);
-	if (!access_ok(VERIFY_READ, user, nfences * sizeof(*user)))
+	if (!access_ok(user, nfences * sizeof(*user)))
 		return ERR_PTR(-EFAULT);
 
 	fences = kvmalloc_array(nfences, sizeof(*fences),
@@ -2190,6 +2276,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	struct i915_execbuffer eb;
 	struct dma_fence *in_fence = NULL;
 	struct sync_file *out_fence = NULL;
+	intel_wakeref_t wakeref;
 	int out_fence_fd = -1;
 	int err;
 
@@ -2209,8 +2296,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	eb.flags = (unsigned int *)(eb.vma + args->buffer_count + 1);
 
 	eb.invalid_flags = __EXEC_OBJECT_UNKNOWN_FLAGS;
-	if (USES_FULL_PPGTT(eb.i915))
-		eb.invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
 	reloc_cache_init(&eb.reloc_cache, eb.i915);
 
 	eb.buffer_count = args->buffer_count;
@@ -2226,24 +2311,6 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	}
 	if (args->flags & I915_EXEC_IS_PINNED)
 		eb.batch_flags |= I915_DISPATCH_PINNED;
-
-	eb.engine = eb_select_engine(eb.i915, file, args);
-	if (!eb.engine)
-		return -EINVAL;
-
-	if (args->flags & I915_EXEC_RESOURCE_STREAMER) {
-		if (!HAS_RESOURCE_STREAMER(eb.i915)) {
-			DRM_DEBUG("RS is only allowed for Haswell, Gen8 and above\n");
-			return -EINVAL;
-		}
-		if (eb.engine->id != RCS) {
-			DRM_DEBUG("RS is not available on %s\n",
-				 eb.engine->name);
-			return -EINVAL;
-		}
-
-		eb.batch_flags |= I915_DISPATCH_RS;
-	}
 
 	if (args->flags & I915_EXEC_FENCE_IN) {
 		in_fence = sync_file_get_fence(lower_32_bits(args->rsvd2));
@@ -2269,6 +2336,12 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	if (unlikely(err))
 		goto err_destroy;
 
+	eb.engine = eb_select_engine(eb.i915, file, args);
+	if (!eb.engine) {
+		err = -EINVAL;
+		goto err_engine;
+	}
+
 	/*
 	 * Take a local wakeref for preparing to dispatch the execbuf as
 	 * we expect to access the hardware fairly frequently in the
@@ -2276,11 +2349,15 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	 * wakeref that we hold until the GPU has been idle for at least
 	 * 100ms.
 	 */
-	intel_runtime_pm_get(eb.i915);
+	wakeref = intel_runtime_pm_get(eb.i915);
 
 	err = i915_mutex_lock_interruptible(dev);
 	if (err)
 		goto err_rpm;
+
+	err = eb_wait_for_ring(&eb); /* may temporarily drop struct_mutex */
+	if (unlikely(err))
+		goto err_unlock;
 
 	err = eb_relocate(&eb);
 	if (err) {
@@ -2403,7 +2480,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 	trace_i915_request_queue(eb.request, eb.batch_flags);
 	err = eb_submit(&eb);
 err_request:
-	__i915_request_add(eb.request, err == 0);
+	i915_request_add(eb.request);
 	add_to_client(eb.request, file);
 
 	if (fences)
@@ -2426,9 +2503,11 @@ err_batch_unpin:
 err_vma:
 	if (eb.exec)
 		eb_release_vmas(&eb);
+err_unlock:
 	mutex_unlock(&dev->struct_mutex);
 err_rpm:
-	intel_runtime_pm_put(eb.i915);
+	intel_runtime_pm_put(eb.i915, wakeref);
+err_engine:
 	i915_gem_context_put(eb.ctx);
 err_destroy:
 	eb_destroy(&eb);
@@ -2611,7 +2690,16 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 		unsigned int i;
 
 		/* Copy the new buffer offsets back to the user's exec list. */
-		user_access_begin();
+		/*
+		 * Note: count * sizeof(*user_exec_list) does not overflow,
+		 * because we checked 'count' in check_buffer_count().
+		 *
+		 * And this range already got effectively checked earlier
+		 * when we did the "copy_from_user()" above.
+		 */
+		if (!user_access_begin(user_exec_list, count * sizeof(*user_exec_list)))
+			goto end;
+
 		for (i = 0; i < args->buffer_count; i++) {
 			if (!(exec2_list[i].offset & UPDATE))
 				continue;
@@ -2624,6 +2712,7 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 		}
 end_user:
 		user_access_end();
+end:;
 	}
 
 	args->flags &= ~__I915_EXEC_UNKNOWN_FLAGS;

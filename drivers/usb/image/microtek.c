@@ -632,7 +632,6 @@ static struct scsi_host_template mts_scsi_host_template = {
 	.sg_tablesize =		SG_ALL,
 	.can_queue =		1,
 	.this_id =		-1,
-	.use_clustering =	1,
 	.emulated =		1,
 	.slave_alloc =		mts_slave_alloc,
 	.slave_configure =	mts_slave_configure,

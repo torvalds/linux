@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /****************************************************************************
  *
  *  Filename: cpia2_usb.c
@@ -9,16 +10,6 @@
  *     This is a USB driver for CPia2 based video cameras.
  *     The infrastructure of this driver is based on the cpia usb driver by
  *     Jochen Scharrlach and Johannes Erdfeldt.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  *
  *  Stripped of 2.4 stuff ready for main kernel submit by
  *		Alan Cox <alan@lxorguk.ukuu.org.uk>
@@ -324,7 +315,7 @@ static void cpia2_usb_complete(struct urb *urb)
 				continue;
 			}
 			DBG("Start of frame pattern found\n");
-			v4l2_get_timestamp(&cam->workbuff->timestamp);
+			cam->workbuff->ts = ktime_get_ns();
 			cam->workbuff->seq = cam->frame_count++;
 			cam->workbuff->data[0] = 0xFF;
 			cam->workbuff->data[1] = 0xD8;
@@ -663,7 +654,8 @@ static int submit_urbs(struct camera_data *cam)
 		if (cam->sbuf[i].data)
 			continue;
 		cam->sbuf[i].data =
-		    kmalloc(FRAMES_PER_DESC * FRAME_SIZE_PER_DESC, GFP_KERNEL);
+		    kmalloc_array(FRAME_SIZE_PER_DESC, FRAMES_PER_DESC,
+				  GFP_KERNEL);
 		if (!cam->sbuf[i].data) {
 			while (--i >= 0) {
 				kfree(cam->sbuf[i].data);

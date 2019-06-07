@@ -27,6 +27,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/sched/signal.h>
+#include <linux/dma-fence-array.h>
 
 #include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"
@@ -72,6 +73,11 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 	unsigned long irqflags;
 	u32 i;
 	int ret = 0;
+
+	if (!vc4->v3d) {
+		DRM_DEBUG("VC4_GET_HANG_STATE with no VC4 V3D probed\n");
+		return -ENODEV;
+	}
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
 	kernel_state = vc4->hang_state;
@@ -535,7 +541,7 @@ vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
 		bo = to_vc4_bo(&exec->bo[i]->base);
 		bo->seqno = seqno;
 
-		reservation_object_add_shared_fence(bo->resv, exec->fence);
+		reservation_object_add_shared_fence(bo->base.base.resv, exec->fence);
 	}
 
 	list_for_each_entry(bo, &exec->unref_list, unref_head) {
@@ -546,7 +552,7 @@ vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
 		bo = to_vc4_bo(&exec->rcl_write_bo[i]->base);
 		bo->write_seqno = seqno;
 
-		reservation_object_add_excl_fence(bo->resv, exec->fence);
+		reservation_object_add_excl_fence(bo->base.base.resv, exec->fence);
 	}
 }
 
@@ -558,7 +564,7 @@ vc4_unlock_bo_reservations(struct drm_device *dev,
 	int i;
 
 	for (i = 0; i < exec->bo_count; i++) {
-		struct vc4_bo *bo = to_vc4_bo(&exec->bo[i]->base);
+		struct drm_gem_object *bo = &exec->bo[i]->base;
 
 		ww_mutex_unlock(&bo->resv->lock);
 	}
@@ -580,13 +586,13 @@ vc4_lock_bo_reservations(struct drm_device *dev,
 {
 	int contended_lock = -1;
 	int i, ret;
-	struct vc4_bo *bo;
+	struct drm_gem_object *bo;
 
 	ww_acquire_init(acquire_ctx, &reservation_ww_class);
 
 retry:
 	if (contended_lock != -1) {
-		bo = to_vc4_bo(&exec->bo[contended_lock]->base);
+		bo = &exec->bo[contended_lock]->base;
 		ret = ww_mutex_lock_slow_interruptible(&bo->resv->lock,
 						       acquire_ctx);
 		if (ret) {
@@ -599,19 +605,19 @@ retry:
 		if (i == contended_lock)
 			continue;
 
-		bo = to_vc4_bo(&exec->bo[i]->base);
+		bo = &exec->bo[i]->base;
 
 		ret = ww_mutex_lock_interruptible(&bo->resv->lock, acquire_ctx);
 		if (ret) {
 			int j;
 
 			for (j = 0; j < i; j++) {
-				bo = to_vc4_bo(&exec->bo[j]->base);
+				bo = &exec->bo[j]->base;
 				ww_mutex_unlock(&bo->resv->lock);
 			}
 
 			if (contended_lock != -1 && contended_lock >= i) {
-				bo = to_vc4_bo(&exec->bo[contended_lock]->base);
+				bo = &exec->bo[contended_lock]->base;
 
 				ww_mutex_unlock(&bo->resv->lock);
 			}
@@ -632,9 +638,9 @@ retry:
 	 * before we commit the CL to the hardware.
 	 */
 	for (i = 0; i < exec->bo_count; i++) {
-		bo = to_vc4_bo(&exec->bo[i]->base);
+		bo = &exec->bo[i]->base;
 
-		ret = reservation_object_reserve_shared(bo->resv);
+		ret = reservation_object_reserve_shared(bo->resv, 1);
 		if (ret) {
 			vc4_unlock_bo_reservations(dev, exec, acquire_ctx);
 			return ret;
@@ -655,7 +661,8 @@ retry:
  */
 static int
 vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
-		 struct ww_acquire_ctx *acquire_ctx)
+		 struct ww_acquire_ctx *acquire_ctx,
+		 struct drm_syncobj *out_sync)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *renderjob;
@@ -677,6 +684,9 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 		       vc4->dma_fence_context, exec->seqno);
 	fence->seqno = exec->seqno;
 	exec->fence = &fence->base;
+
+	if (out_sync)
+		drm_syncobj_replace_fence(out_sync, exec->fence);
 
 	vc4_update_bo_seqnos(exec, seqno);
 
@@ -959,12 +969,7 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 	/* Release the reference we had on the perf monitor. */
 	vc4_perfmon_put(exec->perfmon);
 
-	mutex_lock(&vc4->power_lock);
-	if (--vc4->power_refcount == 0) {
-		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
-		pm_runtime_put_autosuspend(&vc4->v3d->pdev->dev);
-	}
-	mutex_unlock(&vc4->power_lock);
+	vc4_v3d_pm_put(vc4);
 
 	kfree(exec);
 }
@@ -1113,9 +1118,16 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_file *vc4file = file_priv->driver_priv;
 	struct drm_vc4_submit_cl *args = data;
+	struct drm_syncobj *out_sync = NULL;
 	struct vc4_exec_info *exec;
 	struct ww_acquire_ctx acquire_ctx;
+	struct dma_fence *in_fence;
 	int ret = 0;
+
+	if (!vc4->v3d) {
+		DRM_DEBUG("VC4_SUBMIT_CL with no VC4 V3D probed\n");
+		return -ENODEV;
+	}
 
 	if ((args->flags & ~(VC4_SUBMIT_CL_USE_CLEAR_COLOR |
 			     VC4_SUBMIT_CL_FIXED_RCL_ORDER |
@@ -1126,7 +1138,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->pad2 != 0) {
-		DRM_DEBUG("->pad2 must be set to zero\n");
+		DRM_DEBUG("Invalid pad: 0x%08x\n", args->pad2);
 		return -EINVAL;
 	}
 
@@ -1136,17 +1148,11 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 		return -ENOMEM;
 	}
 
-	mutex_lock(&vc4->power_lock);
-	if (vc4->power_refcount++ == 0) {
-		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-		if (ret < 0) {
-			mutex_unlock(&vc4->power_lock);
-			vc4->power_refcount--;
-			kfree(exec);
-			return ret;
-		}
+	ret = vc4_v3d_pm_get(vc4);
+	if (ret) {
+		kfree(exec);
+		return ret;
 	}
-	mutex_unlock(&vc4->power_lock);
 
 	exec->args = args;
 	INIT_LIST_HEAD(&exec->unref_list);
@@ -1162,6 +1168,29 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 			ret = -ENOENT;
 			goto fail;
 		}
+	}
+
+	if (args->in_sync) {
+		ret = drm_syncobj_find_fence(file_priv, args->in_sync,
+					     0, 0, &in_fence);
+		if (ret)
+			goto fail;
+
+		/* When the fence (or fence array) is exclusively from our
+		 * context we can skip the wait since jobs are executed in
+		 * order of their submission through this ioctl and this can
+		 * only have fences from a prior job.
+		 */
+		if (!dma_fence_match_context(in_fence,
+					     vc4->dma_fence_context)) {
+			ret = dma_fence_wait(in_fence, true);
+			if (ret) {
+				dma_fence_put(in_fence);
+				goto fail;
+			}
+		}
+
+		dma_fence_put(in_fence);
 	}
 
 	if (exec->args->bin_cl_size != 0) {
@@ -1181,12 +1210,33 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto fail;
 
+	if (args->out_sync) {
+		out_sync = drm_syncobj_find(file_priv, args->out_sync);
+		if (!out_sync) {
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		/* We replace the fence in out_sync in vc4_queue_submit since
+		 * the render job could execute immediately after that call.
+		 * If it finishes before our ioctl processing resumes the
+		 * render job fence could already have been freed.
+		 */
+	}
+
 	/* Clear this out of the struct we'll be putting in the queue,
 	 * since it's part of our stack.
 	 */
 	exec->args = NULL;
 
-	ret = vc4_queue_submit(dev, exec, &acquire_ctx);
+	ret = vc4_queue_submit(dev, exec, &acquire_ctx, out_sync);
+
+	/* The syncobj isn't part of the exec data and we need to free our
+	 * reference even if job submission failed.
+	 */
+	if (out_sync)
+		drm_syncobj_put(out_sync);
+
 	if (ret)
 		goto fail;
 

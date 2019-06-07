@@ -578,8 +578,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 {
 	struct hdpvr_device *dev = video_drvdata(file);
 
-	strcpy(cap->driver, "hdpvr");
-	strcpy(cap->card, "Hauppauge HD PVR");
+	strscpy(cap->driver, "hdpvr", sizeof(cap->driver));
+	strscpy(cap->card, "Hauppauge HD PVR", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_AUDIO |
 			    V4L2_CAP_READWRITE;
@@ -769,8 +769,7 @@ static int vidioc_enum_input(struct file *file, void *_fh, struct v4l2_input *i)
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 
-	strncpy(i->name, iname[n], sizeof(i->name) - 1);
-	i->name[sizeof(i->name) - 1] = '\0';
+	strscpy(i->name, iname[n], sizeof(i->name));
 
 	i->audioset = 1<<HDPVR_RCA_FRONT | 1<<HDPVR_RCA_BACK | 1<<HDPVR_SPDIF;
 
@@ -841,8 +840,7 @@ static int vidioc_enumaudio(struct file *file, void *priv,
 
 	audio->capability = V4L2_AUDCAP_STEREO;
 
-	strncpy(audio->name, audio_iname[n], sizeof(audio->name) - 1);
-	audio->name[sizeof(audio->name) - 1] = '\0';
+	strscpy(audio->name, audio_iname[n], sizeof(audio->name));
 
 	return 0;
 }
@@ -873,8 +871,7 @@ static int vidioc_g_audio(struct file *file, void *private_data,
 
 	audio->index = dev->options.audio_input;
 	audio->capability = V4L2_AUDCAP_STEREO;
-	strncpy(audio->name, audio_iname[audio->index], sizeof(audio->name));
-	audio->name[sizeof(audio->name) - 1] = '\0';
+	strscpy(audio->name, audio_iname[audio->index], sizeof(audio->name));
 	return 0;
 }
 
@@ -991,7 +988,8 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *private_data,
 		return -EINVAL;
 
 	f->flags = V4L2_FMT_FLAG_COMPRESSED;
-	strncpy(f->description, "MPEG2-TS with AVC/AAC streams", 32);
+	strscpy(f->description, "MPEG2-TS with AVC/AAC streams",
+		sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_MPEG;
 
 	return 0;
@@ -1238,7 +1236,8 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 
 	/* setup and register video device */
 	dev->video_dev = hdpvr_video_template;
-	strcpy(dev->video_dev.name, "Hauppauge HD PVR");
+	strscpy(dev->video_dev.name, "Hauppauge HD PVR",
+		sizeof(dev->video_dev.name));
 	dev->video_dev.v4l2_dev = &dev->v4l2_dev;
 	video_set_drvdata(&dev->video_dev, dev);
 

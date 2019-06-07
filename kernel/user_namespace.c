@@ -764,8 +764,9 @@ static int insert_extent(struct uid_gid_map *map, struct uid_gid_extent *extent)
 		struct uid_gid_extent *forward;
 
 		/* Allocate memory for 340 mappings. */
-		forward = kmalloc(sizeof(struct uid_gid_extent) *
-				 UID_GID_MAP_MAX_EXTENTS, GFP_KERNEL);
+		forward = kmalloc_array(UID_GID_MAP_MAX_EXTENTS,
+					sizeof(struct uid_gid_extent),
+					GFP_KERNEL);
 		if (!forward)
 			return -ENOMEM;
 
@@ -858,7 +859,16 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	unsigned idx;
 	struct uid_gid_extent extent;
 	char *kbuf = NULL, *pos, *next_line;
-	ssize_t ret = -EINVAL;
+	ssize_t ret;
+
+	/* Only allow < page size writes at the beginning of the file */
+	if ((*ppos != 0) || (count >= PAGE_SIZE))
+		return -EINVAL;
+
+	/* Slurp in the user data */
+	kbuf = memdup_user_nul(buf, count);
+	if (IS_ERR(kbuf))
+		return PTR_ERR(kbuf);
 
 	/*
 	 * The userns_state_mutex serializes all writes to any given map.
@@ -893,19 +903,6 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	 */
 	if (cap_valid(cap_setid) && !file_ns_capable(file, ns, CAP_SYS_ADMIN))
 		goto out;
-
-	/* Only allow < page size writes at the beginning of the file */
-	ret = -EINVAL;
-	if ((*ppos != 0) || (count >= PAGE_SIZE))
-		goto out;
-
-	/* Slurp in the user data */
-	kbuf = memdup_user_nul(buf, count);
-	if (IS_ERR(kbuf)) {
-		ret = PTR_ERR(kbuf);
-		kbuf = NULL;
-		goto out;
-	}
 
 	/* Parse the user data */
 	ret = -EINVAL;
@@ -977,10 +974,6 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	if (!new_idmap_permitted(file, ns, cap_setid, &new_map))
 		goto out;
 
-	ret = sort_idmaps(&new_map);
-	if (ret < 0)
-		goto out;
-
 	ret = -EPERM;
 	/* Map the lower ids from the parent user namespace to the
 	 * kernel global id space.
@@ -1006,6 +999,14 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 
 		e->lower_first = lower_first;
 	}
+
+	/*
+	 * If we want to use binary search for lookup, this clones the extent
+	 * array and sorts both copies.
+	 */
+	ret = sort_idmaps(&new_map);
+	if (ret < 0)
+		goto out;
 
 	/* Install the map */
 	if (new_map.nr_extents <= UID_GID_MAP_MAX_BASE_EXTENTS) {
@@ -1235,6 +1236,7 @@ bool current_in_userns(const struct user_namespace *target_ns)
 {
 	return in_userns(target_ns, current_user_ns());
 }
+EXPORT_SYMBOL(current_in_userns);
 
 static inline struct user_namespace *to_user_ns(struct ns_common *ns)
 {

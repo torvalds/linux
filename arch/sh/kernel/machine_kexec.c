@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * machine_kexec.c - handle transition of Linux booting another kernel
  * Copyright (C) 2002-2003 Eric Biederman  <ebiederm@xmission.com>
  *
  * GameCube/ppc32 port Copyright (C) 2004 Albert Herranz
  * LANDISK/sh4 supported by kogiidena
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 #include <linux/mm.h>
 #include <linux/kexec.h>
@@ -170,7 +168,8 @@ void __init reserve_crashkernel(void)
 	crash_size = PAGE_ALIGN(resource_size(&crashk_res));
 	if (!crashk_res.start) {
 		unsigned long max = memblock_end_of_DRAM() - memory_limit;
-		crashk_res.start = __memblock_alloc_base(crash_size, PAGE_SIZE, max);
+		crashk_res.start = memblock_phys_alloc_range(crash_size,
+							     PAGE_SIZE, 0, max);
 		if (!crashk_res.start) {
 			pr_err("crashkernel allocation failed\n");
 			goto disable;

@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Gateworks Corporation, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -52,6 +43,7 @@
 #define LTC3676_CLIRQ     0x1F
 
 #define LTC3676_DVBxA_REF_SELECT	BIT(5)
+#define LTC3676_DVBxB_PGOOD_MASK	BIT(5)
 
 #define LTC3676_IRQSTAT_PGOOD_TIMEOUT	BIT(3)
 #define LTC3676_IRQSTAT_UNDERVOLT_WARN	BIT(4)
@@ -123,6 +115,23 @@ static int ltc3676_set_suspend_mode(struct regulator_dev *rdev,
 				  mask, val);
 }
 
+static int ltc3676_set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
+{
+	struct ltc3676 *ltc3676 = rdev_get_drvdata(rdev);
+	struct device *dev = ltc3676->dev;
+	int ret, dcdc = rdev_get_id(rdev);
+
+	dev_dbg(dev, "%s id=%d selector=%d\n", __func__, dcdc, selector);
+
+	ret = regmap_update_bits(ltc3676->regmap, rdev->desc->vsel_reg + 1,
+				 LTC3676_DVBxB_PGOOD_MASK,
+				 LTC3676_DVBxB_PGOOD_MASK);
+	if (ret)
+		return ret;
+
+	return regulator_set_voltage_sel_regmap(rdev, selector);
+}
+
 static inline unsigned int ltc3676_scale(unsigned int uV, u32 r1, u32 r2)
 {
 	uint64_t tmp;
@@ -166,7 +175,7 @@ static const struct regulator_ops ltc3676_linear_regulator_ops = {
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.list_voltage = regulator_list_voltage_linear,
-	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+	.set_voltage_sel = ltc3676_set_voltage_sel,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_suspend_voltage = ltc3676_set_suspend_voltage,
 	.set_suspend_mode = ltc3676_set_suspend_mode,
@@ -223,61 +232,10 @@ static struct regulator_desc ltc3676_regulators[LTC3676_NUM_REGULATORS] = {
 	LTC3676_FIXED_REG(LDO4, ldo4, LDOB, 2),
 };
 
-static bool ltc3676_writeable_reg(struct device *dev, unsigned int reg)
+static bool ltc3676_readable_writeable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case LTC3676_IRQSTAT:
-	case LTC3676_BUCK1:
-	case LTC3676_BUCK2:
-	case LTC3676_BUCK3:
-	case LTC3676_BUCK4:
-	case LTC3676_LDOA:
-	case LTC3676_LDOB:
-	case LTC3676_SQD1:
-	case LTC3676_SQD2:
-	case LTC3676_CNTRL:
-	case LTC3676_DVB1A:
-	case LTC3676_DVB1B:
-	case LTC3676_DVB2A:
-	case LTC3676_DVB2B:
-	case LTC3676_DVB3A:
-	case LTC3676_DVB3B:
-	case LTC3676_DVB4A:
-	case LTC3676_DVB4B:
-	case LTC3676_MSKIRQ:
-	case LTC3676_MSKPG:
-	case LTC3676_USER:
-	case LTC3676_HRST:
-	case LTC3676_CLIRQ:
-		return true;
-	}
-	return false;
-}
-
-static bool ltc3676_readable_reg(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case LTC3676_IRQSTAT:
-	case LTC3676_BUCK1:
-	case LTC3676_BUCK2:
-	case LTC3676_BUCK3:
-	case LTC3676_BUCK4:
-	case LTC3676_LDOA:
-	case LTC3676_LDOB:
-	case LTC3676_SQD1:
-	case LTC3676_SQD2:
-	case LTC3676_CNTRL:
-	case LTC3676_DVB1A:
-	case LTC3676_DVB1B:
-	case LTC3676_DVB2A:
-	case LTC3676_DVB2B:
-	case LTC3676_DVB3A:
-	case LTC3676_DVB3B:
-	case LTC3676_DVB4A:
-	case LTC3676_DVB4B:
-	case LTC3676_MSKIRQ:
-	case LTC3676_MSKPG:
-	case LTC3676_USER:
+	case LTC3676_BUCK1 ... LTC3676_IRQSTAT:
 	case LTC3676_HRST:
 	case LTC3676_CLIRQ:
 		return true;
@@ -288,9 +246,7 @@ static bool ltc3676_readable_reg(struct device *dev, unsigned int reg)
 static bool ltc3676_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case LTC3676_IRQSTAT:
-	case LTC3676_PGSTATL:
-	case LTC3676_PGSTATRT:
+	case LTC3676_IRQSTAT ... LTC3676_PGSTATRT:
 		return true;
 	}
 	return false;
@@ -299,11 +255,12 @@ static bool ltc3676_volatile_reg(struct device *dev, unsigned int reg)
 static const struct regmap_config ltc3676_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.writeable_reg = ltc3676_writeable_reg,
-	.readable_reg = ltc3676_readable_reg,
+	.writeable_reg = ltc3676_readable_writeable_reg,
+	.readable_reg = ltc3676_readable_writeable_reg,
 	.volatile_reg = ltc3676_volatile_reg,
 	.max_register = LTC3676_CLIRQ,
-	.use_single_rw = true,
+	.use_single_read = true,
+	.use_single_write = true,
 	.cache_type = REGCACHE_RBTREE,
 };
 
@@ -319,17 +276,23 @@ static irqreturn_t ltc3676_isr(int irq, void *dev_id)
 	if (irqstat & LTC3676_IRQSTAT_THERMAL_WARN) {
 		dev_warn(dev, "Over-temperature Warning\n");
 		event = REGULATOR_EVENT_OVER_TEMP;
-		for (i = 0; i < LTC3676_NUM_REGULATORS; i++)
+		for (i = 0; i < LTC3676_NUM_REGULATORS; i++) {
+			regulator_lock(ltc3676->regulators[i]);
 			regulator_notifier_call_chain(ltc3676->regulators[i],
 						      event, NULL);
+			regulator_unlock(ltc3676->regulators[i]);
+		}
 	}
 
 	if (irqstat & LTC3676_IRQSTAT_UNDERVOLT_WARN) {
 		dev_info(dev, "Undervoltage Warning\n");
 		event = REGULATOR_EVENT_UNDER_VOLTAGE;
-		for (i = 0; i < LTC3676_NUM_REGULATORS; i++)
+		for (i = 0; i < LTC3676_NUM_REGULATORS; i++) {
+			regulator_lock(ltc3676->regulators[i]);
 			regulator_notifier_call_chain(ltc3676->regulators[i],
 						      event, NULL);
+			regulator_unlock(ltc3676->regulators[i]);
+		}
 	}
 
 	/* Clear warning condition */
@@ -423,5 +386,5 @@ static struct i2c_driver ltc3676_driver = {
 module_i2c_driver(ltc3676_driver);
 
 MODULE_AUTHOR("Tim Harvey <tharvey@gateworks.com>");
-MODULE_DESCRIPTION("Regulator driver for Linear Technology LTC1376");
+MODULE_DESCRIPTION("Regulator driver for Linear Technology LTC3676");
 MODULE_LICENSE("GPL v2");

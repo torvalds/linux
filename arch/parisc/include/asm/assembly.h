@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 1999 Hewlett-Packard (Frank Rowand)
  * Copyright (C) 1999 Philipp Rumpf <prumpf@tux.org>
  * Copyright (C) 1999 SuSE GmbH
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2, or (at your option)
- *    any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _PARISC_ASSEMBLY_H
@@ -36,6 +23,7 @@
 #define RP_OFFSET	16
 #define FRAME_SIZE	128
 #define CALLEE_REG_FRAME_SIZE	144
+#define REG_SZ		8
 #define ASM_ULONG_INSN	.dword
 #else	/* CONFIG_64BIT */
 #define LDREG	ldw
@@ -50,6 +38,7 @@
 #define RP_OFFSET	20
 #define FRAME_SIZE	64
 #define CALLEE_REG_FRAME_SIZE	128
+#define REG_SZ		4
 #define ASM_ULONG_INSN	.word
 #endif
 
@@ -59,14 +48,14 @@
 #define LDCW		ldcw,co
 #define BL		b,l
 # ifdef CONFIG_64BIT
-#  define LEVEL		2.0w
+#  define PA_ASM_LEVEL	2.0w
 # else
-#  define LEVEL		2.0
+#  define PA_ASM_LEVEL	2.0
 # endif
 #else
 #define LDCW		ldcw
 #define BL		bl
-#define LEVEL		1.1
+#define PA_ASM_LEVEL	1.1
 #endif
 
 #ifdef __ASSEMBLY__
@@ -127,15 +116,8 @@
 	.macro	debug value
 	.endm
 
-
-	/* Shift Left - note the r and t can NOT be the same! */
-	.macro shl r, sa, t
-	dep,z	\r, 31-(\sa), 32-(\sa), \t
-	.endm
-
-	/* The PA 2.0 shift left */
 	.macro shlw r, sa, t
-	depw,z	\r, 31-(\sa), 32-(\sa), \t
+	zdep	\r, 31-(\sa), 32-(\sa), \t
 	.endm
 
 	/* And the PA 2.0W shift left */

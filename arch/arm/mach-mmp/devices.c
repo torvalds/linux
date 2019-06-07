@@ -240,6 +240,27 @@ void pxa_usb_phy_deinit(void __iomem *phy_reg)
 #if IS_ENABLED(CONFIG_USB_SUPPORT)
 static u64 __maybe_unused usb_dma_mask = ~(u32)0;
 
+#if IS_ENABLED(CONFIG_PHY_PXA_USB)
+struct resource pxa168_usb_phy_resources[] = {
+	[0] = {
+		.start	= PXA168_U2O_PHYBASE,
+		.end	= PXA168_U2O_PHYBASE + USB_PHY_RANGE,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device pxa168_device_usb_phy = {
+	.name		= "pxa-usb-phy",
+	.id		= -1,
+	.resource	= pxa168_usb_phy_resources,
+	.num_resources	= ARRAY_SIZE(pxa168_usb_phy_resources),
+	.dev		=  {
+		.dma_mask	= &usb_dma_mask,
+		.coherent_dma_mask = 0xffffffff,
+	}
+};
+#endif /* CONFIG_PHY_PXA_USB */
+
 #if IS_ENABLED(CONFIG_USB_MV_UDC)
 struct resource pxa168_u2o_resources[] = {
 	/* regbase */
@@ -277,21 +298,12 @@ struct platform_device pxa168_device_u2o = {
 
 #if IS_ENABLED(CONFIG_USB_EHCI_MV_U2O)
 struct resource pxa168_u2oehci_resources[] = {
-	/* regbase */
 	[0] = {
-		.start	= PXA168_U2O_REGBASE + U2x_CAPREGS_OFFSET,
+		.start	= PXA168_U2O_REGBASE,
 		.end	= PXA168_U2O_REGBASE + USB_REG_RANGE,
 		.flags	= IORESOURCE_MEM,
-		.name	= "capregs",
 	},
-	/* phybase */
 	[1] = {
-		.start	= PXA168_U2O_PHYBASE,
-		.end	= PXA168_U2O_PHYBASE + USB_PHY_RANGE,
-		.flags	= IORESOURCE_MEM,
-		.name	= "phyregs",
-	},
-	[2] = {
 		.start	= IRQ_PXA168_USB1,
 		.end	= IRQ_PXA168_USB1,
 		.flags	= IORESOURCE_IRQ,

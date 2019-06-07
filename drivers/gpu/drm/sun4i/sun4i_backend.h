@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2015 Free Electrons
  * Copyright (C) 2015 NextThing Co
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #ifndef _SUN4I_BACKEND_H_
@@ -68,12 +64,15 @@
 #define SUN4I_BACKEND_CKMIN_REG			0x884
 #define SUN4I_BACKEND_CKCFG_REG			0x888
 #define SUN4I_BACKEND_ATTCTL_REG0(l)		(0x890 + (0x4 * (l)))
+#define SUN4I_BACKEND_ATTCTL_REG0_LAY_GLBALPHA_MASK	GENMASK(31, 24)
+#define SUN4I_BACKEND_ATTCTL_REG0_LAY_GLBALPHA(x)		((x) << 24)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL_MASK	BIT(15)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL(x)		((x) << 15)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_PRISEL_MASK	GENMASK(11, 10)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_PRISEL(x)			((x) << 10)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN		BIT(2)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_VDOEN		BIT(1)
+#define SUN4I_BACKEND_ATTCTL_REG0_LAY_GLBALPHA_EN	BIT(0)
 
 #define SUN4I_BACKEND_ATTCTL_REG1(l)		(0x8a0 + (0x4 * (l)))
 #define SUN4I_BACKEND_ATTCTL_REG1_LAY_HSCAFCT		GENMASK(15, 14)
@@ -164,7 +163,6 @@
 #define SUN4I_BACKEND_PIPE_OFF(p)		(0x5000 + (0x400 * (p)))
 
 #define SUN4I_BACKEND_NUM_LAYERS		4
-#define SUN4I_BACKEND_NUM_ALPHA_LAYERS		1
 #define SUN4I_BACKEND_NUM_FRONTEND_LAYERS	1
 #define SUN4I_BACKEND_NUM_YUV_PLANES		1
 
@@ -184,6 +182,8 @@ struct sun4i_backend {
 	/* Protects against races in the frontend teardown */
 	spinlock_t		frontend_lock;
 	bool			frontend_teardown;
+
+	const struct sun4i_backend_quirks	*quirks;
 };
 
 static inline struct sun4i_backend *
@@ -194,6 +194,7 @@ engine_to_sun4i_backend(struct sunxi_engine *engine)
 
 void sun4i_backend_layer_enable(struct sun4i_backend *backend,
 				int layer, bool enable);
+bool sun4i_backend_format_is_supported(uint32_t fmt, uint64_t modifier);
 int sun4i_backend_update_layer_coord(struct sun4i_backend *backend,
 				     int layer, struct drm_plane *plane);
 int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
@@ -204,5 +205,7 @@ int sun4i_backend_update_layer_frontend(struct sun4i_backend *backend,
 					int layer, uint32_t in_fmt);
 int sun4i_backend_update_layer_zpos(struct sun4i_backend *backend,
 				    int layer, struct drm_plane *plane);
+void sun4i_backend_cleanup_layer(struct sun4i_backend *backend,
+				 int layer);
 
 #endif /* _SUN4I_BACKEND_H_ */

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * NVIDIA Tegra Video decoder driver
  *
  * Copyright (C) 2016-2017 Dmitry Osipenko <digetx@gmail.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -16,7 +13,7 @@
 #include <linux/iopoll.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -34,14 +31,6 @@
 
 #define BSE_ICMDQUE_EMPTY	BIT(3)
 #define BSE_DMA_BUSY		BIT(23)
-
-#define VDE_WR(__data, __addr)				\
-do {							\
-	dev_dbg(vde->miscdev.parent,			\
-		"%s: %d: 0x%08X => " #__addr ")\n",	\
-		__func__, __LINE__, (u32)(__data));	\
-	writel_relaxed(__data, __addr);			\
-} while (0)
 
 struct video_frame {
 	struct dma_buf_attachment *y_dmabuf_attachment;
@@ -73,6 +62,7 @@ struct tegra_vde {
 	struct mutex lock;
 	struct miscdevice miscdev;
 	struct reset_control *rst;
+	struct reset_control *rst_mc;
 	struct gen_pool *iram_pool;
 	struct completion decode_completion;
 	struct clk *clk;
@@ -80,12 +70,66 @@ struct tegra_vde {
 	u32 *iram;
 };
 
-static void tegra_vde_set_bits(struct tegra_vde *vde,
-			       u32 mask, void __iomem *regs)
+static __maybe_unused char const *
+tegra_vde_reg_base_name(struct tegra_vde *vde, void __iomem *base)
 {
-	u32 value = readl_relaxed(regs);
+	if (vde->sxe == base)
+		return "SXE";
 
-	VDE_WR(value | mask, regs);
+	if (vde->bsev == base)
+		return "BSEV";
+
+	if (vde->mbe == base)
+		return "MBE";
+
+	if (vde->ppe == base)
+		return "PPE";
+
+	if (vde->mce == base)
+		return "MCE";
+
+	if (vde->tfe == base)
+		return "TFE";
+
+	if (vde->ppb == base)
+		return "PPB";
+
+	if (vde->vdma == base)
+		return "VDMA";
+
+	if (vde->frameid == base)
+		return "FRAMEID";
+
+	return "???";
+}
+
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
+static void tegra_vde_writel(struct tegra_vde *vde,
+			     u32 value, void __iomem *base, u32 offset)
+{
+	trace_vde_writel(vde, base, offset, value);
+
+	writel_relaxed(value, base + offset);
+}
+
+static u32 tegra_vde_readl(struct tegra_vde *vde,
+			   void __iomem *base, u32 offset)
+{
+	u32 value = readl_relaxed(base + offset);
+
+	trace_vde_readl(vde, base, offset, value);
+
+	return value;
+}
+
+static void tegra_vde_set_bits(struct tegra_vde *vde,
+			       u32 mask, void __iomem *base, u32 offset)
+{
+	u32 value = tegra_vde_readl(vde, base, offset);
+
+	tegra_vde_writel(vde, value | mask, base, offset);
 }
 
 static int tegra_vde_wait_mbe(struct tegra_vde *vde)
@@ -106,8 +150,8 @@ static int tegra_vde_setup_mbe_frame_idx(struct tegra_vde *vde,
 	unsigned int idx;
 	int err;
 
-	VDE_WR(0xD0000000 | (0 << 23), vde->mbe + 0x80);
-	VDE_WR(0xD0200000 | (0 << 23), vde->mbe + 0x80);
+	tegra_vde_writel(vde, 0xD0000000 | (0 << 23), vde->mbe, 0x80);
+	tegra_vde_writel(vde, 0xD0200000 | (0 << 23), vde->mbe, 0x80);
 
 	err = tegra_vde_wait_mbe(vde);
 	if (err)
@@ -117,8 +161,10 @@ static int tegra_vde_setup_mbe_frame_idx(struct tegra_vde *vde,
 		return 0;
 
 	for (idx = 0, frame_idx = 1; idx < refs_nb; idx++, frame_idx++) {
-		VDE_WR(0xD0000000 | (frame_idx << 23), vde->mbe + 0x80);
-		VDE_WR(0xD0200000 | (frame_idx << 23), vde->mbe + 0x80);
+		tegra_vde_writel(vde, 0xD0000000 | (frame_idx << 23),
+				 vde->mbe, 0x80);
+		tegra_vde_writel(vde, 0xD0200000 | (frame_idx << 23),
+				 vde->mbe, 0x80);
 
 		frame_idx_enb_mask |= frame_idx << (6 * (idx % 4));
 
@@ -127,7 +173,7 @@ static int tegra_vde_setup_mbe_frame_idx(struct tegra_vde *vde,
 			value |= (idx >> 2) << 24;
 			value |= frame_idx_enb_mask;
 
-			VDE_WR(value, vde->mbe + 0x80);
+			tegra_vde_writel(vde, value, vde->mbe, 0x80);
 
 			err = tegra_vde_wait_mbe(vde);
 			if (err)
@@ -142,8 +188,10 @@ static int tegra_vde_setup_mbe_frame_idx(struct tegra_vde *vde,
 
 static void tegra_vde_mbe_set_0xa_reg(struct tegra_vde *vde, int reg, u32 val)
 {
-	VDE_WR(0xA0000000 | (reg << 24) | (val & 0xFFFF), vde->mbe + 0x80);
-	VDE_WR(0xA0000000 | ((reg + 1) << 24) | (val >> 16), vde->mbe + 0x80);
+	tegra_vde_writel(vde, 0xA0000000 | (reg << 24) | (val & 0xFFFF),
+			 vde->mbe, 0x80);
+	tegra_vde_writel(vde, 0xA0000000 | ((reg + 1) << 24) | (val >> 16),
+			 vde->mbe, 0x80);
 }
 
 static int tegra_vde_wait_bsev(struct tegra_vde *vde, bool wait_dma)
@@ -182,7 +230,7 @@ static int tegra_vde_wait_bsev(struct tegra_vde *vde, bool wait_dma)
 static int tegra_vde_push_to_bsev_icmdqueue(struct tegra_vde *vde,
 					    u32 value, bool wait_dma)
 {
-	VDE_WR(value, vde->bsev + ICMDQUE_WR);
+	tegra_vde_writel(vde, value, vde->bsev, ICMDQUE_WR);
 
 	return tegra_vde_wait_bsev(vde, wait_dma);
 }
@@ -198,11 +246,11 @@ static void tegra_vde_setup_frameid(struct tegra_vde *vde,
 	u32 value1 = frame ? ((mbs_width << 16) | mbs_height) : 0;
 	u32 value2 = frame ? ((((mbs_width + 1) >> 1) << 6) | 1) : 0;
 
-	VDE_WR(y_addr  >> 8, vde->frameid + 0x000 + frameid * 4);
-	VDE_WR(cb_addr >> 8, vde->frameid + 0x100 + frameid * 4);
-	VDE_WR(cr_addr >> 8, vde->frameid + 0x180 + frameid * 4);
-	VDE_WR(value1,       vde->frameid + 0x080 + frameid * 4);
-	VDE_WR(value2,       vde->frameid + 0x280 + frameid * 4);
+	tegra_vde_writel(vde, y_addr  >> 8, vde->frameid, 0x000 + frameid * 4);
+	tegra_vde_writel(vde, cb_addr >> 8, vde->frameid, 0x100 + frameid * 4);
+	tegra_vde_writel(vde, cr_addr >> 8, vde->frameid, 0x180 + frameid * 4);
+	tegra_vde_writel(vde, value1,       vde->frameid, 0x080 + frameid * 4);
+	tegra_vde_writel(vde, value2,       vde->frameid, 0x280 + frameid * 4);
 }
 
 static void tegra_setup_frameidx(struct tegra_vde *vde,
@@ -227,8 +275,7 @@ static void tegra_vde_setup_iram_entry(struct tegra_vde *vde,
 {
 	u32 *iram_tables = vde->iram;
 
-	dev_dbg(vde->miscdev.parent, "IRAM table %u: row %u: 0x%08X 0x%08X\n",
-		table, row, value1, value2);
+	trace_vde_setup_iram_entry(table, row, value1, value2);
 
 	iram_tables[0x20 * table + row * 2] = value1;
 	iram_tables[0x20 * table + row * 2 + 1] = value2;
@@ -244,10 +291,7 @@ static void tegra_vde_setup_iram_tables(struct tegra_vde *vde,
 	int with_later_poc_nb;
 	unsigned int i, k;
 
-	dev_dbg(vde->miscdev.parent, "DPB: Frame 0: frame_num = %d\n",
-		dpb_frames[0].frame_num);
-
-	dev_dbg(vde->miscdev.parent, "REF L0:\n");
+	trace_vde_ref_l0(dpb_frames[0].frame_num);
 
 	for (i = 0; i < 16; i++) {
 		if (i < ref_frames_nb) {
@@ -259,11 +303,6 @@ static void tegra_vde_setup_iram_tables(struct tegra_vde *vde,
 			value |= !(frame->flags & FLAG_B_FRAME) << 25;
 			value |= 1 << 24;
 			value |= frame->frame_num;
-
-			dev_dbg(vde->miscdev.parent,
-				"\tFrame %d: frame_num = %d B_frame = %d\n",
-				i + 1, frame->frame_num,
-				(frame->flags & FLAG_B_FRAME));
 		} else {
 			aux_addr = 0x6ADEAD00;
 			value = 0;
@@ -283,9 +322,7 @@ static void tegra_vde_setup_iram_tables(struct tegra_vde *vde,
 
 	with_later_poc_nb = ref_frames_nb - with_earlier_poc_nb;
 
-	dev_dbg(vde->miscdev.parent,
-		"REF L1: with_later_poc_nb %d with_earlier_poc_nb %d\n",
-		 with_later_poc_nb, with_earlier_poc_nb);
+	trace_vde_ref_l1(with_later_poc_nb, with_earlier_poc_nb);
 
 	for (i = 0, k = with_earlier_poc_nb; i < with_later_poc_nb; i++, k++) {
 		frame = &dpb_frames[k + 1];
@@ -296,10 +333,6 @@ static void tegra_vde_setup_iram_tables(struct tegra_vde *vde,
 		value |= !(frame->flags & FLAG_B_FRAME) << 25;
 		value |= 1 << 24;
 		value |= frame->frame_num;
-
-		dev_dbg(vde->miscdev.parent,
-			"\tFrame %d: frame_num = %d\n",
-			k + 1, frame->frame_num);
 
 		tegra_vde_setup_iram_entry(vde, 2, i, value, aux_addr);
 	}
@@ -313,10 +346,6 @@ static void tegra_vde_setup_iram_tables(struct tegra_vde *vde,
 		value |= !(frame->flags & FLAG_B_FRAME) << 25;
 		value |= 1 << 24;
 		value |= frame->frame_num;
-
-		dev_dbg(vde->miscdev.parent,
-			"\tFrame %d: frame_num = %d\n",
-			k + 1, frame->frame_num);
 
 		tegra_vde_setup_iram_entry(vde, 2, i, value, aux_addr);
 	}
@@ -333,32 +362,32 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	u32 value;
 	int err;
 
-	tegra_vde_set_bits(vde, 0x000A, vde->sxe + 0xF0);
-	tegra_vde_set_bits(vde, 0x000B, vde->bsev + CMDQUE_CONTROL);
-	tegra_vde_set_bits(vde, 0x8002, vde->mbe + 0x50);
-	tegra_vde_set_bits(vde, 0x000A, vde->mbe + 0xA0);
-	tegra_vde_set_bits(vde, 0x000A, vde->ppe + 0x14);
-	tegra_vde_set_bits(vde, 0x000A, vde->ppe + 0x28);
-	tegra_vde_set_bits(vde, 0x0A00, vde->mce + 0x08);
-	tegra_vde_set_bits(vde, 0x000A, vde->tfe + 0x00);
-	tegra_vde_set_bits(vde, 0x0005, vde->vdma + 0x04);
+	tegra_vde_set_bits(vde, 0x000A, vde->sxe, 0xF0);
+	tegra_vde_set_bits(vde, 0x000B, vde->bsev, CMDQUE_CONTROL);
+	tegra_vde_set_bits(vde, 0x8002, vde->mbe, 0x50);
+	tegra_vde_set_bits(vde, 0x000A, vde->mbe, 0xA0);
+	tegra_vde_set_bits(vde, 0x000A, vde->ppe, 0x14);
+	tegra_vde_set_bits(vde, 0x000A, vde->ppe, 0x28);
+	tegra_vde_set_bits(vde, 0x0A00, vde->mce, 0x08);
+	tegra_vde_set_bits(vde, 0x000A, vde->tfe, 0x00);
+	tegra_vde_set_bits(vde, 0x0005, vde->vdma, 0x04);
 
-	VDE_WR(0x00000000, vde->vdma + 0x1C);
-	VDE_WR(0x00000000, vde->vdma + 0x00);
-	VDE_WR(0x00000007, vde->vdma + 0x04);
-	VDE_WR(0x00000007, vde->frameid + 0x200);
-	VDE_WR(0x00000005, vde->tfe + 0x04);
-	VDE_WR(0x00000000, vde->mbe + 0x84);
-	VDE_WR(0x00000010, vde->sxe + 0x08);
-	VDE_WR(0x00000150, vde->sxe + 0x54);
-	VDE_WR(0x0000054C, vde->sxe + 0x58);
-	VDE_WR(0x00000E34, vde->sxe + 0x5C);
-	VDE_WR(0x063C063C, vde->mce + 0x10);
-	VDE_WR(0x0003FC00, vde->bsev + INTR_STATUS);
-	VDE_WR(0x0000150D, vde->bsev + BSE_CONFIG);
-	VDE_WR(0x00000100, vde->bsev + BSE_INT_ENB);
-	VDE_WR(0x00000000, vde->bsev + 0x98);
-	VDE_WR(0x00000060, vde->bsev + 0x9C);
+	tegra_vde_writel(vde, 0x00000000, vde->vdma, 0x1C);
+	tegra_vde_writel(vde, 0x00000000, vde->vdma, 0x00);
+	tegra_vde_writel(vde, 0x00000007, vde->vdma, 0x04);
+	tegra_vde_writel(vde, 0x00000007, vde->frameid, 0x200);
+	tegra_vde_writel(vde, 0x00000005, vde->tfe, 0x04);
+	tegra_vde_writel(vde, 0x00000000, vde->mbe, 0x84);
+	tegra_vde_writel(vde, 0x00000010, vde->sxe, 0x08);
+	tegra_vde_writel(vde, 0x00000150, vde->sxe, 0x54);
+	tegra_vde_writel(vde, 0x0000054C, vde->sxe, 0x58);
+	tegra_vde_writel(vde, 0x00000E34, vde->sxe, 0x5C);
+	tegra_vde_writel(vde, 0x063C063C, vde->mce, 0x10);
+	tegra_vde_writel(vde, 0x0003FC00, vde->bsev, INTR_STATUS);
+	tegra_vde_writel(vde, 0x0000150D, vde->bsev, BSE_CONFIG);
+	tegra_vde_writel(vde, 0x00000100, vde->bsev, BSE_INT_ENB);
+	tegra_vde_writel(vde, 0x00000000, vde->bsev, 0x98);
+	tegra_vde_writel(vde, 0x00000060, vde->bsev, 0x9C);
 
 	memset(vde->iram + 128, 0, macroblocks_nb / 2);
 
@@ -368,15 +397,20 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	tegra_vde_setup_iram_tables(vde, dpb_frames,
 				    ctx->dpb_frames_nb - 1,
 				    ctx->dpb_ref_frames_with_earlier_poc_nb);
+
+	/*
+	 * The IRAM mapping is write-combine, ensure that CPU buffers have
+	 * been flushed at this point.
+	 */
 	wmb();
 
-	VDE_WR(0x00000000, vde->bsev + 0x8C);
-	VDE_WR(bitstream_data_addr + bitstream_data_size,
-	       vde->bsev + 0x54);
+	tegra_vde_writel(vde, 0x00000000, vde->bsev, 0x8C);
+	tegra_vde_writel(vde, bitstream_data_addr + bitstream_data_size,
+			 vde->bsev, 0x54);
 
 	value = ctx->pic_width_in_mbs << 11 | ctx->pic_height_in_mbs << 3;
 
-	VDE_WR(value, vde->bsev + 0x88);
+	tegra_vde_writel(vde, value, vde->bsev, 0x88);
 
 	err = tegra_vde_wait_bsev(vde, false);
 	if (err)
@@ -411,7 +445,7 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	value |= ctx->pic_width_in_mbs << 11;
 	value |= ctx->pic_height_in_mbs << 3;
 
-	VDE_WR(value, vde->sxe + 0x10);
+	tegra_vde_writel(vde, value, vde->sxe, 0x10);
 
 	value = !ctx->baseline_profile << 17;
 	value |= ctx->level_idc << 13;
@@ -419,54 +453,54 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	value |= ctx->pic_order_cnt_type << 5;
 	value |= ctx->log2_max_frame_num;
 
-	VDE_WR(value, vde->sxe + 0x40);
+	tegra_vde_writel(vde, value, vde->sxe, 0x40);
 
 	value = ctx->pic_init_qp << 25;
 	value |= !!(ctx->deblocking_filter_control_present_flag) << 2;
 	value |= !!ctx->pic_order_present_flag;
 
-	VDE_WR(value, vde->sxe + 0x44);
+	tegra_vde_writel(vde, value, vde->sxe, 0x44);
 
 	value = ctx->chroma_qp_index_offset;
 	value |= ctx->num_ref_idx_l0_active_minus1 << 5;
 	value |= ctx->num_ref_idx_l1_active_minus1 << 10;
 	value |= !!ctx->constrained_intra_pred_flag << 15;
 
-	VDE_WR(value, vde->sxe + 0x48);
+	tegra_vde_writel(vde, value, vde->sxe, 0x48);
 
 	value = 0x0C000000;
 	value |= !!(dpb_frames[0].flags & FLAG_B_FRAME) << 24;
 
-	VDE_WR(value, vde->sxe + 0x4C);
+	tegra_vde_writel(vde, value, vde->sxe, 0x4C);
 
 	value = 0x03800000;
-	value |= min_t(size_t, bitstream_data_size, SZ_1M);
+	value |= bitstream_data_size & GENMASK(19, 15);
 
-	VDE_WR(value, vde->sxe + 0x68);
+	tegra_vde_writel(vde, value, vde->sxe, 0x68);
 
-	VDE_WR(bitstream_data_addr, vde->sxe + 0x6C);
+	tegra_vde_writel(vde, bitstream_data_addr, vde->sxe, 0x6C);
 
 	value = 0x10000005;
 	value |= ctx->pic_width_in_mbs << 11;
 	value |= ctx->pic_height_in_mbs << 3;
 
-	VDE_WR(value, vde->mbe + 0x80);
+	tegra_vde_writel(vde, value, vde->mbe, 0x80);
 
 	value = 0x26800000;
 	value |= ctx->level_idc << 4;
 	value |= !ctx->baseline_profile << 1;
 	value |= !!ctx->direct_8x8_inference_flag;
 
-	VDE_WR(value, vde->mbe + 0x80);
+	tegra_vde_writel(vde, value, vde->mbe, 0x80);
 
-	VDE_WR(0xF4000001, vde->mbe + 0x80);
-	VDE_WR(0x20000000, vde->mbe + 0x80);
-	VDE_WR(0xF4000101, vde->mbe + 0x80);
+	tegra_vde_writel(vde, 0xF4000001, vde->mbe, 0x80);
+	tegra_vde_writel(vde, 0x20000000, vde->mbe, 0x80);
+	tegra_vde_writel(vde, 0xF4000101, vde->mbe, 0x80);
 
 	value = 0x20000000;
 	value |= ctx->chroma_qp_index_offset << 8;
 
-	VDE_WR(value, vde->mbe + 0x80);
+	tegra_vde_writel(vde, value, vde->mbe, 0x80);
 
 	err = tegra_vde_setup_mbe_frame_idx(vde,
 					    ctx->dpb_frames_nb - 1,
@@ -488,7 +522,7 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	if (!ctx->baseline_profile)
 		value |= !!(dpb_frames[0].flags & FLAG_REFERENCE) << 1;
 
-	VDE_WR(value, vde->mbe + 0x80);
+	tegra_vde_writel(vde, value, vde->mbe, 0x80);
 
 	err = tegra_vde_wait_mbe(vde);
 	if (err) {
@@ -504,8 +538,9 @@ static void tegra_vde_decode_frame(struct tegra_vde *vde,
 {
 	reinit_completion(&vde->decode_completion);
 
-	VDE_WR(0x00000001, vde->bsev + 0x8C);
-	VDE_WR(0x20000000 | (macroblocks_nb - 1), vde->sxe + 0x00);
+	tegra_vde_writel(vde, 0x00000001, vde->bsev, 0x8C);
+	tegra_vde_writel(vde, 0x20000000 | (macroblocks_nb - 1),
+			 vde->sxe, 0x00);
 }
 
 static void tegra_vde_detach_and_put_dmabuf(struct dma_buf_attachment *a,
@@ -522,7 +557,8 @@ static void tegra_vde_detach_and_put_dmabuf(struct dma_buf_attachment *a,
 static int tegra_vde_attach_dmabuf(struct device *dev,
 				   int fd,
 				   unsigned long offset,
-				   unsigned int min_size,
+				   size_t min_size,
+				   size_t align_size,
 				   struct dma_buf_attachment **a,
 				   dma_addr_t *addr,
 				   struct sg_table **s,
@@ -540,9 +576,14 @@ static int tegra_vde_attach_dmabuf(struct device *dev,
 		return PTR_ERR(dmabuf);
 	}
 
+	if (dmabuf->size & (align_size - 1)) {
+		dev_err(dev, "Unaligned dmabuf 0x%zX, should be aligned to 0x%zX\n",
+			dmabuf->size, align_size);
+		return -EINVAL;
+	}
+
 	if ((u64)offset + min_size > dmabuf->size) {
-		dev_err(dev, "Too small dmabuf size %zu @0x%lX, "
-			     "should be at least %d\n",
+		dev_err(dev, "Too small dmabuf size %zu @0x%lX, should be at least %zu\n",
 			dmabuf->size, offset, min_size);
 		return -EINVAL;
 	}
@@ -591,12 +632,12 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 					     struct tegra_vde_h264_frame *src,
 					     enum dma_data_direction dma_dir,
 					     bool baseline_profile,
-					     size_t csize)
+					     size_t lsize, size_t csize)
 {
 	int err;
 
 	err = tegra_vde_attach_dmabuf(dev, src->y_fd,
-				      src->y_offset, csize * 4,
+				      src->y_offset, lsize, SZ_256,
 				      &frame->y_dmabuf_attachment,
 				      &frame->y_addr,
 				      &frame->y_sgt,
@@ -605,7 +646,7 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 		return err;
 
 	err = tegra_vde_attach_dmabuf(dev, src->cb_fd,
-				      src->cb_offset, csize,
+				      src->cb_offset, csize, SZ_256,
 				      &frame->cb_dmabuf_attachment,
 				      &frame->cb_addr,
 				      &frame->cb_sgt,
@@ -614,7 +655,7 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 		goto err_release_y;
 
 	err = tegra_vde_attach_dmabuf(dev, src->cr_fd,
-				      src->cr_offset, csize,
+				      src->cr_offset, csize, SZ_256,
 				      &frame->cr_dmabuf_attachment,
 				      &frame->cr_addr,
 				      &frame->cr_sgt,
@@ -628,7 +669,7 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 	}
 
 	err = tegra_vde_attach_dmabuf(dev, src->aux_fd,
-				      src->aux_offset, csize,
+				      src->aux_offset, csize, SZ_256,
 				      &frame->aux_dmabuf_attachment,
 				      &frame->aux_addr,
 				      &frame->aux_sgt,
@@ -674,21 +715,6 @@ static int tegra_vde_validate_frame(struct device *dev,
 {
 	if (frame->frame_num > 0x7FFFFF) {
 		dev_err(dev, "Bad frame_num %u\n", frame->frame_num);
-		return -EINVAL;
-	}
-
-	if (frame->y_offset & 0xFF) {
-		dev_err(dev, "Bad y_offset 0x%X\n", frame->y_offset);
-		return -EINVAL;
-	}
-
-	if (frame->cb_offset & 0xFF) {
-		dev_err(dev, "Bad cb_offset 0x%X\n", frame->cb_offset);
-		return -EINVAL;
-	}
-
-	if (frame->cr_offset & 0xFF) {
-		dev_err(dev, "Bad cr_offset 0x%X\n", frame->cr_offset);
 		return -EINVAL;
 	}
 
@@ -777,9 +803,11 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 	enum dma_data_direction dma_dir;
 	dma_addr_t bitstream_data_addr;
 	dma_addr_t bsev_ptr;
+	size_t lsize, csize;
 	size_t bitstream_data_size;
 	unsigned int macroblocks_nb;
 	unsigned int read_bytes;
+	unsigned int cstride;
 	unsigned int i;
 	long timeout;
 	int ret, err;
@@ -792,7 +820,8 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 		return ret;
 
 	ret = tegra_vde_attach_dmabuf(dev, ctx.bitstream_data_fd,
-				      ctx.bitstream_data_offset, 0,
+				      ctx.bitstream_data_offset,
+				      SZ_16K, SZ_16K,
 				      &bitstream_data_dmabuf_attachment,
 				      &bitstream_data_addr,
 				      &bitstream_sgt,
@@ -817,6 +846,10 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 		goto free_dpb_frames;
 	}
 
+	cstride = ALIGN(ctx.pic_width_in_mbs * 8, 16);
+	csize = cstride * ctx.pic_height_in_mbs * 8;
+	lsize = macroblocks_nb * 256;
+
 	for (i = 0; i < ctx.dpb_frames_nb; i++) {
 		ret = tegra_vde_validate_frame(dev, &frames[i]);
 		if (ret)
@@ -830,7 +863,7 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 		ret = tegra_vde_attach_dmabufs_to_frame(dev, &dpb_frames[i],
 							&frames[i], dma_dir,
 							ctx.baseline_profile,
-							macroblocks_nb * 64);
+							lsize, csize);
 		if (ret)
 			goto release_dpb_frames;
 	}
@@ -847,9 +880,23 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 	 * We rely on the VDE registers reset value, otherwise VDE
 	 * causes bus lockup.
 	 */
+	ret = reset_control_assert(vde->rst_mc);
+	if (ret) {
+		dev_err(dev, "DEC start: Failed to assert MC reset: %d\n",
+			ret);
+		goto put_runtime_pm;
+	}
+
 	ret = reset_control_reset(vde->rst);
 	if (ret) {
-		dev_err(dev, "Failed to reset HW: %d\n", ret);
+		dev_err(dev, "DEC start: Failed to reset HW: %d\n", ret);
+		goto put_runtime_pm;
+	}
+
+	ret = reset_control_deassert(vde->rst_mc);
+	if (ret) {
+		dev_err(dev, "DEC start: Failed to deassert MC reset: %d\n",
+			ret);
 		goto put_runtime_pm;
 	}
 
@@ -865,12 +912,11 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 	timeout = wait_for_completion_interruptible_timeout(
 			&vde->decode_completion, msecs_to_jiffies(1000));
 	if (timeout == 0) {
-		bsev_ptr = readl_relaxed(vde->bsev + 0x10);
-		macroblocks_nb = readl_relaxed(vde->sxe + 0xC8) & 0x1FFF;
+		bsev_ptr = tegra_vde_readl(vde, vde->bsev, 0x10);
+		macroblocks_nb = tegra_vde_readl(vde, vde->sxe, 0xC8) & 0x1FFF;
 		read_bytes = bsev_ptr ? bsev_ptr - bitstream_data_addr : 0;
 
-		dev_err(dev, "Decoding failed: "
-				"read 0x%X bytes, %u macroblocks parsed\n",
+		dev_err(dev, "Decoding failed: read 0x%X bytes, %u macroblocks parsed\n",
 			read_bytes, macroblocks_nb);
 
 		ret = -EIO;
@@ -878,9 +924,18 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 		ret = timeout;
 	}
 
+	/*
+	 * At first reset memory client to avoid resetting VDE HW in the
+	 * middle of DMA which could result into memory corruption or hang
+	 * the whole system.
+	 */
+	err = reset_control_assert(vde->rst_mc);
+	if (err)
+		dev_err(dev, "DEC end: Failed to assert MC reset: %d\n", err);
+
 	err = reset_control_assert(vde->rst);
 	if (err)
-		dev_err(dev, "Failed to assert HW reset: %d\n", err);
+		dev_err(dev, "DEC end: Failed to assert HW reset: %d\n", err);
 
 put_runtime_pm:
 	pm_runtime_mark_last_busy(dev);
@@ -933,7 +988,10 @@ static irqreturn_t tegra_vde_isr(int irq, void *data)
 {
 	struct tegra_vde *vde = data;
 
-	tegra_vde_set_bits(vde, 0, vde->frameid + 0x208);
+	if (completion_done(&vde->decode_completion))
+		return IRQ_NONE;
+
+	tegra_vde_set_bits(vde, 0, vde->frameid, 0x208);
 	complete(&vde->decode_completion);
 
 	return IRQ_HANDLED;
@@ -1066,6 +1124,13 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	if (IS_ERR(vde->rst)) {
 		err = PTR_ERR(vde->rst);
 		dev_err(dev, "Could not get VDE reset %d\n", err);
+		return err;
+	}
+
+	vde->rst_mc = devm_reset_control_get_optional(dev, "mc");
+	if (IS_ERR(vde->rst_mc)) {
+		err = PTR_ERR(vde->rst_mc);
+		dev_err(dev, "Could not get MC reset %d\n", err);
 		return err;
 	}
 

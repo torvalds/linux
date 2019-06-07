@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* FS-Cache worker operation management routines
  *
  * Copyright (C) 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * See Documentation/filesystems/caching/operations.txt
  */
@@ -70,7 +66,8 @@ void fscache_enqueue_operation(struct fscache_operation *op)
 	ASSERT(op->processor != NULL);
 	ASSERT(fscache_object_is_available(op->object));
 	ASSERTCMP(atomic_read(&op->usage), >, 0);
-	ASSERTCMP(op->state, ==, FSCACHE_OP_ST_IN_PROGRESS);
+	ASSERTIFCMP(op->state != FSCACHE_OP_ST_IN_PROGRESS,
+		    op->state, ==,  FSCACHE_OP_ST_CANCELLED);
 
 	fscache_stat(&fscache_n_op_enqueue);
 	switch (op->flags & FSCACHE_OP_TYPE) {
@@ -499,7 +496,8 @@ void fscache_put_operation(struct fscache_operation *op)
 	struct fscache_cache *cache;
 
 	_enter("{OBJ%x OP%x,%d}",
-	       op->object->debug_id, op->debug_id, atomic_read(&op->usage));
+	       op->object ? op->object->debug_id : 0,
+	       op->debug_id, atomic_read(&op->usage));
 
 	ASSERTCMP(atomic_read(&op->usage), >, 0);
 

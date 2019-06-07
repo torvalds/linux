@@ -36,13 +36,6 @@
 #include "mlx5_core.h"
 #include "eswitch.h"
 
-bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev)
-{
-	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
-
-	return !!sriov->num_vfs;
-}
-
 static int sriov_restore_guids(struct mlx5_core_dev *dev, int vf)
 {
 	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
@@ -88,6 +81,9 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 		return -EBUSY;
 	}
 
+	if (!MLX5_ESWITCH_MANAGER(dev))
+		goto enable_vfs_hca;
+
 	err = mlx5_eswitch_enable_sriov(dev->priv.eswitch, num_vfs, SRIOV_LEGACY);
 	if (err) {
 		mlx5_core_warn(dev,
@@ -95,6 +91,7 @@ static int mlx5_device_enable_sriov(struct mlx5_core_dev *dev, int num_vfs)
 		return err;
 	}
 
+enable_vfs_hca:
 	for (vf = 0; vf < num_vfs; vf++) {
 		err = mlx5_core_enable_hca(dev, vf + 1);
 		if (err) {
@@ -140,39 +137,17 @@ static void mlx5_device_disable_sriov(struct mlx5_core_dev *dev)
 	}
 
 out:
-	mlx5_eswitch_disable_sriov(dev->priv.eswitch);
+	if (MLX5_ESWITCH_MANAGER(dev))
+		mlx5_eswitch_disable_sriov(dev->priv.eswitch);
 
-	if (mlx5_wait_for_vf_pages(dev))
+	if (mlx5_wait_for_pages(dev, &dev->priv.vfs_pages))
 		mlx5_core_warn(dev, "timeout reclaiming VFs pages\n");
-}
-
-static int mlx5_pci_enable_sriov(struct pci_dev *pdev, int num_vfs)
-{
-	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
-	int err = 0;
-
-	if (pci_num_vf(pdev)) {
-		mlx5_core_warn(dev, "Unable to enable pci sriov, already enabled\n");
-		return -EBUSY;
-	}
-
-	err = pci_enable_sriov(pdev, num_vfs);
-	if (err)
-		mlx5_core_warn(dev, "pci_enable_sriov failed : %d\n", err);
-
-	return err;
-}
-
-static void mlx5_pci_disable_sriov(struct pci_dev *pdev)
-{
-	pci_disable_sriov(pdev);
 }
 
 static int mlx5_sriov_enable(struct pci_dev *pdev, int num_vfs)
 {
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
-	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
-	int err = 0;
+	int err;
 
 	err = mlx5_device_enable_sriov(dev, num_vfs);
 	if (err) {
@@ -180,52 +155,37 @@ static int mlx5_sriov_enable(struct pci_dev *pdev, int num_vfs)
 		return err;
 	}
 
-	err = mlx5_pci_enable_sriov(pdev, num_vfs);
+	err = pci_enable_sriov(pdev, num_vfs);
 	if (err) {
-		mlx5_core_warn(dev, "mlx5_pci_enable_sriov failed : %d\n", err);
+		mlx5_core_warn(dev, "pci_enable_sriov failed : %d\n", err);
 		mlx5_device_disable_sriov(dev);
-		return err;
 	}
-
-	sriov->num_vfs = num_vfs;
-
-	return 0;
+	return err;
 }
 
 static void mlx5_sriov_disable(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
-	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
 
-	mlx5_pci_disable_sriov(pdev);
+	pci_disable_sriov(pdev);
 	mlx5_device_disable_sriov(dev);
-	sriov->num_vfs = 0;
 }
 
 int mlx5_core_sriov_configure(struct pci_dev *pdev, int num_vfs)
 {
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
+	struct mlx5_core_sriov *sriov = &dev->priv.sriov;
 	int err = 0;
 
 	mlx5_core_dbg(dev, "requested num_vfs %d\n", num_vfs);
-	if (!mlx5_core_is_pf(dev))
-		return -EPERM;
 
-	if (num_vfs) {
-		int ret;
-
-		ret = mlx5_lag_forbid(dev);
-		if (ret && (ret != -ENODEV))
-			return ret;
-	}
-
-	if (num_vfs) {
+	if (num_vfs)
 		err = mlx5_sriov_enable(pdev, num_vfs);
-	} else {
+	else
 		mlx5_sriov_disable(pdev);
-		mlx5_lag_allow(dev);
-	}
 
+	if (!err)
+		sriov->num_vfs = num_vfs;
 	return err ? err : num_vfs;
 }
 

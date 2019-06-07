@@ -1,26 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
  * slot_map.c
  *
- *
- *
  * Copyright (C) 2002, 2004 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/types.h>
@@ -55,7 +39,7 @@ struct ocfs2_slot_info {
 	unsigned int si_blocks;
 	struct buffer_head **si_bh;
 	unsigned int si_num_slots;
-	struct ocfs2_slot *si_slots;
+	struct ocfs2_slot si_slots[];
 };
 
 
@@ -420,9 +404,7 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 	struct inode *inode = NULL;
 	struct ocfs2_slot_info *si;
 
-	si = kzalloc(sizeof(struct ocfs2_slot_info) +
-		     (sizeof(struct ocfs2_slot) * osb->max_slots),
-		     GFP_KERNEL);
+	si = kzalloc(struct_size(si, si_slots, osb->max_slots), GFP_KERNEL);
 	if (!si) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -431,8 +413,6 @@ int ocfs2_init_slot_info(struct ocfs2_super *osb)
 
 	si->si_extended = ocfs2_uses_extended_slot_map(osb);
 	si->si_num_slots = osb->max_slots;
-	si->si_slots = (struct ocfs2_slot *)((char *)si +
-					     sizeof(struct ocfs2_slot_info));
 
 	inode = ocfs2_get_system_file_inode(osb, SLOT_MAP_SYSTEM_INODE,
 					    OCFS2_INVALID_SLOT);

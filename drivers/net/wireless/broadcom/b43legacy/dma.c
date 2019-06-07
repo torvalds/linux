@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
   Broadcom B43legacy wireless driver
@@ -10,20 +11,6 @@
   Copyright (C) 2002 David S. Miller
   Copyright (C) Pekka Pietikainen
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
-  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
-  Boston, MA 02110-1301, USA.
 
 */
 
@@ -331,9 +318,9 @@ void free_descriptor_buffer(struct b43legacy_dmaring *ring,
 static int alloc_ringmemory(struct b43legacy_dmaring *ring)
 {
 	/* GFP flags must match the flags in free_ringmemory()! */
-	ring->descbase = dma_zalloc_coherent(ring->dev->dev->dma_dev,
-					     B43legacy_DMA_RINGMEMSIZE,
-					     &(ring->dmabase), GFP_KERNEL);
+	ring->descbase = dma_alloc_coherent(ring->dev->dev->dma_dev,
+					    B43legacy_DMA_RINGMEMSIZE,
+					    &(ring->dmabase), GFP_KERNEL);
 	if (!ring->descbase)
 		return -ENOMEM;
 
@@ -1064,7 +1051,7 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 	meta->dmaaddr = map_descbuffer(ring, skb->data, skb->len, 1);
 	/* create a bounce buffer in zone_dma on mapping failure. */
 	if (b43legacy_dma_mapping_error(ring, meta->dmaaddr, skb->len, 1)) {
-		bounce_skb = alloc_skb(skb->len, GFP_ATOMIC | GFP_DMA);
+		bounce_skb = alloc_skb(skb->len, GFP_KERNEL | GFP_DMA);
 		if (!bounce_skb) {
 			ring->current_slot = old_top_slot;
 			ring->used_slots = old_used_slots;
@@ -1149,7 +1136,7 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		return -ENOSPC;
 	}
 
-	if (unlikely(WARN_ON(free_slots(ring) < SLOTS_PER_PACKET))) {
+	if (WARN_ON(free_slots(ring) < SLOTS_PER_PACKET)) {
 		/* If we get here, we have a real error with the queue
 		 * full, but queues not stopped. */
 		b43legacyerr(dev->wl, "DMA queue overflow\n");

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * I2C driver for the Renesas EMEV2 SoC
  *
  * Copyright (C) 2015 Wolfram Sang <wsa@sang-engineering.com>
  * Copyright 2013 Codethink Ltd.
  * Copyright 2010-2015 Renesas Electronics Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -149,7 +146,7 @@ static int __em_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 	em_clear_set_bit(priv, 0, I2C_BIT_STT0, I2C_OFS_IICC0);
 
 	/* Send slave address and R/W type */
-	writeb((msg->addr << 1) | read, priv->base + I2C_OFS_IIC0);
+	writeb(i2c_8bit_addr_from_msg(msg), priv->base + I2C_OFS_IIC0);
 
 	/* Wait for transaction */
 	status = em_i2c_wait_for_event(priv);

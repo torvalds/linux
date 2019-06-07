@@ -1,23 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for the Intel P-Unit Mailbox IPC mechanism
  *
  * (C) Copyright 2015 Intel Corporation
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * The heart of the P-Unit is the Foxton microcontroller and its firmware,
  * which provide mailbox interface for power management usage.
  */
 
-#include <linux/module.h>
 #include <linux/acpi.h>
-#include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+
 #include <asm/intel_punit_ipc.h>
 
 /* IPC Mailbox registers */
@@ -252,28 +252,28 @@ static int intel_punit_get_bars(struct platform_device *pdev)
 	 * - GTDRIVER_IPC BASE_IFACE
 	 */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	if (res && resource_size(res) > 1) {
+	if (res) {
 		addr = devm_ioremap_resource(&pdev->dev, res);
 		if (!IS_ERR(addr))
 			punit_ipcdev->base[ISPDRIVER_IPC][BASE_DATA] = addr;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
-	if (res && resource_size(res) > 1) {
+	if (res) {
 		addr = devm_ioremap_resource(&pdev->dev, res);
 		if (!IS_ERR(addr))
 			punit_ipcdev->base[ISPDRIVER_IPC][BASE_IFACE] = addr;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
-	if (res && resource_size(res) > 1) {
+	if (res) {
 		addr = devm_ioremap_resource(&pdev->dev, res);
 		if (!IS_ERR(addr))
 			punit_ipcdev->base[GTDRIVER_IPC][BASE_DATA] = addr;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 5);
-	if (res && resource_size(res) > 1) {
+	if (res) {
 		addr = devm_ioremap_resource(&pdev->dev, res);
 		if (!IS_ERR(addr))
 			punit_ipcdev->base[GTDRIVER_IPC][BASE_IFACE] = addr;

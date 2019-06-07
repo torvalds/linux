@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Cryptographic API for algorithms (i.e., low-level API).
  *
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
- * any later version.
- *
  */
 #ifndef _CRYPTO_ALGAPI_H
 #define _CRYPTO_ALGAPI_H
@@ -16,6 +11,16 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+
+/*
+ * Maximum values for blocksize and alignmask, used to allocate
+ * static buffers that are big enough for any combination of
+ * algs and architectures. Ciphers have a lower maximum size.
+ */
+#define MAX_ALGAPI_BLOCKSIZE		160
+#define MAX_ALGAPI_ALIGNMASK		63
+#define MAX_CIPHER_BLOCKSIZE		16
+#define MAX_CIPHER_ALIGNMASK		15
 
 struct crypto_aead;
 struct crypto_instance;
@@ -133,7 +138,9 @@ extern const struct crypto_type crypto_blkcipher_type;
 void crypto_mod_put(struct crypto_alg *alg);
 
 int crypto_register_template(struct crypto_template *tmpl);
+int crypto_register_templates(struct crypto_template *tmpls, int count);
 void crypto_unregister_template(struct crypto_template *tmpl);
+void crypto_unregister_templates(struct crypto_template *tmpls, int count);
 struct crypto_template *crypto_lookup_template(const char *name);
 
 int crypto_register_instance(struct crypto_template *tmpl,
@@ -175,10 +182,8 @@ static inline struct crypto_alg *crypto_attr_alg(struct rtattr *rta,
 int crypto_attr_u32(struct rtattr *rta, u32 *num);
 int crypto_inst_setname(struct crypto_instance *inst, const char *name,
 			struct crypto_alg *alg);
-void *crypto_alloc_instance2(const char *name, struct crypto_alg *alg,
-			     unsigned int head);
-struct crypto_instance *crypto_alloc_instance(const char *name,
-					      struct crypto_alg *alg);
+void *crypto_alloc_instance(const char *name, struct crypto_alg *alg,
+			    unsigned int head);
 
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,
@@ -416,5 +421,15 @@ static inline void crypto_yield(u32 flags)
 		cond_resched();
 #endif
 }
+
+int crypto_register_notifier(struct notifier_block *nb);
+int crypto_unregister_notifier(struct notifier_block *nb);
+
+/* Crypto notification events. */
+enum {
+	CRYPTO_MSG_ALG_REQUEST,
+	CRYPTO_MSG_ALG_REGISTER,
+	CRYPTO_MSG_ALG_LOADED,
+};
 
 #endif	/* _CRYPTO_ALGAPI_H */

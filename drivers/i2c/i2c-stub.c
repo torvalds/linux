@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     i2c-stub.c - I2C/SMBus chip emulator
 
     Copyright (c) 2004 Mark M. Hoffman <mhoffman@lightlink.com>
     Copyright (C) 2007-2014 Jean Delvare <jdelvare@suse.de>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 */
 
 #define DEBUG 1
@@ -338,8 +330,9 @@ static int __init i2c_stub_allocate_banks(int i)
 		chip->bank_mask >>= 1;
 	}
 
-	chip->bank_words = kzalloc(chip->bank_mask * chip->bank_size *
-				   sizeof(u16), GFP_KERNEL);
+	chip->bank_words = kcalloc(chip->bank_mask * chip->bank_size,
+				   sizeof(u16),
+				   GFP_KERNEL);
 	if (!chip->bank_words)
 		return -ENOMEM;
 

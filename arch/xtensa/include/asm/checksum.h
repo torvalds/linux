@@ -13,7 +13,7 @@
 
 #include <linux/in6.h>
 #include <linux/uaccess.h>
-#include <variant/core.h>
+#include <asm/core.h>
 
 /*
  * computes the checksum of a memory block at buff, length len,
@@ -243,7 +243,7 @@ static __inline__ __wsum csum_and_copy_to_user(const void *src,
 					       void __user *dst, int len,
 					       __wsum sum, int *err_ptr)
 {
-	if (access_ok(VERIFY_WRITE, dst, len))
+	if (access_ok(dst, len))
 		return csum_partial_copy_generic(src,dst,len,sum,NULL,err_ptr);
 
 	if (len)

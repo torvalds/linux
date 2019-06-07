@@ -44,7 +44,7 @@
 	IIO_ITTE_PUT((nasid), HUB_PIO_MAP_TO_MEM, \
 		     (bigwin), IIO_ITTE_INVALID_WIDGET, 0)
 
-#define IIO_ITTE_GET(nasid, bigwin) REMOTE_HUB_ADDR((nasid), IIO_ITTE(bigwin))
+#define IIO_ITTE_GET(nasid, bigwin) REMOTE_HUB_PTR((nasid), IIO_ITTE(bigwin))
 
 /*
  * Macro which takes the widget number, and returns the

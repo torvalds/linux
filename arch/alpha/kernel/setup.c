@@ -29,7 +29,7 @@
 #include <linux/string.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pci.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
@@ -293,7 +293,7 @@ move_initrd(unsigned long mem_limit)
 	unsigned long size;
 
 	size = initrd_end - initrd_start;
-	start = __alloc_bootmem(PAGE_ALIGN(size), PAGE_SIZE, 0);
+	start = memblock_alloc(PAGE_ALIGN(size), PAGE_SIZE);
 	if (!start || __pa(start) + size > mem_limit) {
 		initrd_start = initrd_end = 0;
 		return NULL;
@@ -312,9 +312,7 @@ setup_memory(void *kernel_end)
 {
 	struct memclust_struct * cluster;
 	struct memdesc_struct * memdesc;
-	unsigned long start_kernel_pfn, end_kernel_pfn;
-	unsigned long bootmap_size, bootmap_pages, bootmap_start;
-	unsigned long start, end;
+	unsigned long kernel_size;
 	unsigned long i;
 
 	/* Find free clusters, and init and free the bootmem accordingly.  */
@@ -322,6 +320,8 @@ setup_memory(void *kernel_end)
 	  (hwrpb->mddt_offset + (unsigned long) hwrpb);
 
 	for_each_mem_cluster(memdesc, cluster, i) {
+		unsigned long end;
+
 		printk("memcluster %lu, usage %01lx, start %8lu, end %8lu\n",
 		       i, cluster->usage, cluster->start_pfn,
 		       cluster->start_pfn + cluster->numpages);
@@ -335,6 +335,9 @@ setup_memory(void *kernel_end)
 		end = cluster->start_pfn + cluster->numpages;
 		if (end > max_low_pfn)
 			max_low_pfn = end;
+
+		memblock_add(PFN_PHYS(cluster->start_pfn),
+			     cluster->numpages << PAGE_SHIFT);
 	}
 
 	/*
@@ -363,87 +366,9 @@ setup_memory(void *kernel_end)
 		max_low_pfn = mem_size_limit;
 	}
 
-	/* Find the bounds of kernel memory.  */
-	start_kernel_pfn = PFN_DOWN(KERNEL_START_PHYS);
-	end_kernel_pfn = PFN_UP(virt_to_phys(kernel_end));
-	bootmap_start = -1;
-
- try_again:
-	if (max_low_pfn <= end_kernel_pfn)
-		panic("not enough memory to boot");
-
-	/* We need to know how many physically contiguous pages
-	   we'll need for the bootmap.  */
-	bootmap_pages = bootmem_bootmap_pages(max_low_pfn);
-
-	/* Now find a good region where to allocate the bootmap.  */
-	for_each_mem_cluster(memdesc, cluster, i) {
-		if (cluster->usage & 3)
-			continue;
-
-		start = cluster->start_pfn;
-		end = start + cluster->numpages;
-		if (start >= max_low_pfn)
-			continue;
-		if (end > max_low_pfn)
-			end = max_low_pfn;
-		if (start < start_kernel_pfn) {
-			if (end > end_kernel_pfn
-			    && end - end_kernel_pfn >= bootmap_pages) {
-				bootmap_start = end_kernel_pfn;
-				break;
-			} else if (end > start_kernel_pfn)
-				end = start_kernel_pfn;
-		} else if (start < end_kernel_pfn)
-			start = end_kernel_pfn;
-		if (end - start >= bootmap_pages) {
-			bootmap_start = start;
-			break;
-		}
-	}
-
-	if (bootmap_start == ~0UL) {
-		max_low_pfn >>= 1;
-		goto try_again;
-	}
-
-	/* Allocate the bootmap and mark the whole MM as reserved.  */
-	bootmap_size = init_bootmem(bootmap_start, max_low_pfn);
-
-	/* Mark the free regions.  */
-	for_each_mem_cluster(memdesc, cluster, i) {
-		if (cluster->usage & 3)
-			continue;
-
-		start = cluster->start_pfn;
-		end = cluster->start_pfn + cluster->numpages;
-		if (start >= max_low_pfn)
-			continue;
-		if (end > max_low_pfn)
-			end = max_low_pfn;
-		if (start < start_kernel_pfn) {
-			if (end > end_kernel_pfn) {
-				free_bootmem(PFN_PHYS(start),
-					     (PFN_PHYS(start_kernel_pfn)
-					      - PFN_PHYS(start)));
-				printk("freeing pages %ld:%ld\n",
-				       start, start_kernel_pfn);
-				start = end_kernel_pfn;
-			} else if (end > start_kernel_pfn)
-				end = start_kernel_pfn;
-		} else if (start < end_kernel_pfn)
-			start = end_kernel_pfn;
-		if (start >= end)
-			continue;
-
-		free_bootmem(PFN_PHYS(start), PFN_PHYS(end) - PFN_PHYS(start));
-		printk("freeing pages %ld:%ld\n", start, end);
-	}
-
-	/* Reserve the bootmap memory.  */
-	reserve_bootmem(PFN_PHYS(bootmap_start), bootmap_size,
-			BOOTMEM_DEFAULT);
-	printk("reserving pages %ld:%ld\n", bootmap_start, bootmap_start+PFN_UP(bootmap_size));
+	/* Reserve the kernel memory. */
+	kernel_size = virt_to_phys(kernel_end) - KERNEL_START_PHYS;
+	memblock_reserve(KERNEL_START_PHYS, kernel_size);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	initrd_start = INITRD_START;
@@ -459,8 +384,8 @@ setup_memory(void *kernel_end)
 				       initrd_end,
 				       phys_to_virt(PFN_PHYS(max_low_pfn)));
 		} else {
-			reserve_bootmem(virt_to_phys((void *)initrd_start),
-					INITRD_SIZE, BOOTMEM_DEFAULT);
+			memblock_reserve(virt_to_phys((void *)initrd_start),
+					INITRD_SIZE);
 		}
 	}
 #endif /* CONFIG_BLK_DEV_INITRD */
@@ -709,6 +634,7 @@ setup_arch(char **cmdline_p)
 
 	/* Find our memory.  */
 	setup_memory(kernel_end);
+	memblock_set_bottom_up(true);
 
 	/* First guess at cpu cache sizes.  Do this before init_arch.  */
 	determine_cpu_caches(cpu->type);

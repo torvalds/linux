@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * V4L2 Image Converter Subdev for Freescale i.MX5/6 SOC
  *
  * Copyright (c) 2014-2016 Mentor Graphics Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -26,7 +22,7 @@ static struct imx_ic_ops *ic_ops[IC_NUM_OPS] = {
 
 static int imx_ic_probe(struct platform_device *pdev)
 {
-	struct imx_media_internal_sd_platformdata *pdata;
+	struct imx_media_ipu_internal_sd_pdata *pdata;
 	struct imx_ic_priv *priv;
 	int ret;
 
@@ -41,13 +37,13 @@ static int imx_ic_probe(struct platform_device *pdev)
 	pdata = priv->dev->platform_data;
 	priv->ipu_id = pdata->ipu_id;
 	switch (pdata->grp_id) {
-	case IMX_MEDIA_GRP_ID_IC_PRP:
+	case IMX_MEDIA_GRP_ID_IPU_IC_PRP:
 		priv->task_id = IC_TASK_PRP;
 		break;
-	case IMX_MEDIA_GRP_ID_IC_PRPENC:
+	case IMX_MEDIA_GRP_ID_IPU_IC_PRPENC:
 		priv->task_id = IC_TASK_ENCODER;
 		break;
-	case IMX_MEDIA_GRP_ID_IC_PRPVF:
+	case IMX_MEDIA_GRP_ID_IPU_IC_PRPVF:
 		priv->task_id = IC_TASK_VIEWFINDER;
 		break;
 	default:
@@ -63,7 +59,7 @@ static int imx_ic_probe(struct platform_device *pdev)
 	priv->sd.owner = THIS_MODULE;
 	priv->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	priv->sd.grp_id = pdata->grp_id;
-	strncpy(priv->sd.name, pdata->sd_name, sizeof(priv->sd.name));
+	strscpy(priv->sd.name, pdata->sd_name, sizeof(priv->sd.name));
 
 	ret = ic_ops[priv->task_id]->init(priv);
 	if (ret)

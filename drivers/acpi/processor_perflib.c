@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * processor_perflib.c - ACPI Processor P-States Library ($Revision: 71 $)
  *
@@ -6,20 +7,6 @@
  *  Copyright (C) 2004       Dominik Brodowski <linux@brodo.de>
  *  Copyright (C) 2004  Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
  *  			- Added processor hotplug support
- *
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -181,7 +168,7 @@ void acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
 			acpi_processor_ppc_ost(pr->handle, 0);
 	}
 	if (ret >= 0)
-		cpufreq_update_policy(pr->id);
+		cpufreq_update_limits(pr->id);
 }
 
 int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
@@ -343,8 +330,9 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 
 	pr->performance->state_count = pss->package.count;
 	pr->performance->states =
-	    kmalloc(sizeof(struct acpi_processor_px) * pss->package.count,
-		    GFP_KERNEL);
+	    kmalloc_array(pss->package.count,
+			  sizeof(struct acpi_processor_px),
+			  GFP_KERNEL);
 	if (!pr->performance->states) {
 		result = -ENOMEM;
 		goto end;

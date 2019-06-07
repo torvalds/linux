@@ -7,6 +7,6 @@
  * Copyright (C) 2016, 2017, 2018 Sony Semiconductor Solutions Corporation
  */
 
-#define CXD2880_TNRDMD_DRIVER_VERSION "1.4.1 - 1.0.4"
+#define CXD2880_TNRDMD_DRIVER_VERSION "1.4.1 - 1.0.5"
 
-#define CXD2880_TNRDMD_DRIVER_RELEASE_DATE "2018-01-17"
+#define CXD2880_TNRDMD_DRIVER_RELEASE_DATE "2018-04-25"

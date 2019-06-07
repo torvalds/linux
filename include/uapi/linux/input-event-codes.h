@@ -439,10 +439,12 @@
 #define KEY_TITLE		0x171
 #define KEY_SUBTITLE		0x172
 #define KEY_ANGLE		0x173
-#define KEY_ZOOM		0x174
+#define KEY_FULL_SCREEN		0x174	/* AC View Toggle */
+#define KEY_ZOOM		KEY_FULL_SCREEN
 #define KEY_MODE		0x175
 #define KEY_KEYBOARD		0x176
-#define KEY_SCREEN		0x177
+#define KEY_ASPECT_RATIO	0x177	/* HUTRR37: Aspect */
+#define KEY_SCREEN		KEY_ASPECT_RATIO
 #define KEY_PC			0x178	/* Media Select Computer */
 #define KEY_TV			0x179	/* Media Select TV */
 #define KEY_TV2			0x17a	/* Media Select Cable */
@@ -604,6 +606,7 @@
 #define KEY_SCREENSAVER		0x245	/* AL Screen Saver */
 #define KEY_VOICECOMMAND		0x246	/* Listening Voice Command */
 #define KEY_ASSISTANT		0x247	/* AL Context-aware desktop assistant */
+#define KEY_KBD_LAYOUT_NEXT	0x248	/* AC Next Keyboard Layout Select */
 
 #define KEY_BRIGHTNESS_MIN		0x250	/* Set Brightness to Minimum */
 #define KEY_BRIGHTNESS_MAX		0x251	/* Set Brightness to Maximum */
@@ -708,6 +711,16 @@
 #define REL_DIAL		0x07
 #define REL_WHEEL		0x08
 #define REL_MISC		0x09
+/*
+ * 0x0a is reserved and should not be used in input drivers.
+ * It was used by HID as REL_MISC+1 and userspace needs to detect if
+ * the next REL_* event is correct or is just REL_MISC + n.
+ * We define here REL_RESERVED so userspace can rely on it and detect
+ * the situation described above.
+ */
+#define REL_RESERVED		0x0a
+#define REL_WHEEL_HI_RES	0x0b
+#define REL_HWHEEL_HI_RES	0x0c
 #define REL_MAX			0x0f
 #define REL_CNT			(REL_MAX+1)
 
@@ -743,6 +756,15 @@
 #define ABS_VOLUME		0x20
 
 #define ABS_MISC		0x28
+
+/*
+ * 0x2e is reserved and should not be used in input drivers.
+ * It was used by HID as ABS_MISC+6 and userspace needs to detect if
+ * the next ABS_* event is correct or is just ABS_MISC + n.
+ * We define here ABS_RESERVED so userspace can rely on it and detect
+ * the situation described above.
+ */
+#define ABS_RESERVED		0x2e
 
 #define ABS_MT_SLOT		0x2f	/* MT slot being modified */
 #define ABS_MT_TOUCH_MAJOR	0x30	/* Major axis of touching ellipse */

@@ -163,7 +163,7 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	wmb();
 	notify_remote_via_evtchn(priv->evtchn);
 
-	ordinal = be32_to_cpu(((struct tpm_input_header*)buf)->ordinal);
+	ordinal = be32_to_cpu(((struct tpm_header *)buf)->ordinal);
 	duration = tpm_calc_ordinal_duration(chip, ordinal);
 
 	if (wait_for_tpm_stat(chip, VTPM_STATUS_IDLE, duration,
@@ -173,7 +173,7 @@ static int vtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 		return -ETIME;
 	}
 
-	return count;
+	return 0;
 }
 
 static int vtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
@@ -264,7 +264,7 @@ static int setup_ring(struct xenbus_device *dev, struct tpm_private *priv)
 		return -ENOMEM;
 	}
 
-	rv = xenbus_grant_ring(dev, &priv->shr, 1, &gref);
+	rv = xenbus_grant_ring(dev, priv->shr, 1, &gref);
 	if (rv < 0)
 		return rv;
 

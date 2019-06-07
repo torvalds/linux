@@ -1,9 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
  /* Copyright (C) 2004-2006, Advanced Micro Devices, Inc.
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation; either version 2 of the License, or
-  * (at your option) any later version.
   */
 
 #include <linux/module.h>
@@ -261,7 +257,7 @@ static int fallback_init_cip(struct crypto_tfm *tfm)
 	struct geode_aes_op *op = crypto_tfm_ctx(tfm);
 
 	op->fallback.cip = crypto_alloc_cipher(name, 0,
-				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
+					       CRYPTO_ALG_NEED_FALLBACK);
 
 	if (IS_ERR(op->fallback.cip)) {
 		printk(KERN_ERR "Error allocating fallback algo %s\n", name);

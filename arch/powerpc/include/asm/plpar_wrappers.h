@@ -39,10 +39,10 @@ static inline long extended_cede_processor(unsigned long latency_hint)
 	set_cede_latency_hint(latency_hint);
 
 	rc = cede_processor();
-#ifdef CONFIG_TRACE_IRQFLAGS
-		/* Ensure that H_CEDE returns with IRQs on */
-		if (WARN_ON(!(mfmsr() & MSR_EE)))
-			__hard_irq_enable();
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+	/* Ensure that H_CEDE returns with IRQs on */
+	if (WARN_ON(!(mfmsr() & MSR_EE)))
+		__hard_irq_enable();
 #endif
 
 	set_cede_latency_hint(old_latency_hint);

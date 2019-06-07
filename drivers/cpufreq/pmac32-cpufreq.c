@@ -128,7 +128,7 @@ static int cpu_750fx_cpu_speed(int low_speed)
 			mtspr(SPRN_HID2, hid2);
 		}
 	}
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	low_choose_750fx_pll(low_speed);
 #endif
 	if (low_speed == 1) {
@@ -166,7 +166,7 @@ static int dfs_set_cpu_speed(int low_speed)
 	}
 
 	/* set frequency */
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	low_choose_7447a_dfs(low_speed);
 #endif
 	udelay(100);
@@ -552,6 +552,7 @@ static int pmac_cpufreq_init_7447A(struct device_node *cpunode)
 	volt_gpio_np = of_find_node_by_name(NULL, "cpu-vcore-select");
 	if (volt_gpio_np)
 		voltage_gpio = read_gpio(volt_gpio_np);
+	of_node_put(volt_gpio_np);
 	if (!voltage_gpio){
 		pr_err("missing cpu-vcore-select gpio\n");
 		return 1;
@@ -588,6 +589,7 @@ static int pmac_cpufreq_init_750FX(struct device_node *cpunode)
 	if (volt_gpio_np)
 		voltage_gpio = read_gpio(volt_gpio_np);
 
+	of_node_put(volt_gpio_np);
 	pvr = mfspr(SPRN_PVR);
 	has_cpu_l2lve = !((pvr & 0xf00) == 0x100);
 

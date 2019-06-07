@@ -13,7 +13,39 @@
 
 extern struct cache_info L1_cache_info[2];
 
-#ifndef CONFIG_CPU_CACHE_ALIASING
+void flush_icache_range(unsigned long start, unsigned long end)
+{
+	unsigned long line_size, flags;
+	line_size = L1_cache_info[DCACHE].line_size;
+	start = start & ~(line_size - 1);
+	end = (end + line_size - 1) & ~(line_size - 1);
+	local_irq_save(flags);
+	cpu_cache_wbinval_range(start, end, 1);
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(flush_icache_range);
+
+void flush_icache_page(struct vm_area_struct *vma, struct page *page)
+{
+	unsigned long flags;
+	unsigned long kaddr;
+	local_irq_save(flags);
+	kaddr = (unsigned long)kmap_atomic(page);
+	cpu_cache_wbinval_page(kaddr, vma->vm_flags & VM_EXEC);
+	kunmap_atomic((void *)kaddr);
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(flush_icache_page);
+
+void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
+	                     unsigned long addr, int len)
+{
+	unsigned long kaddr;
+	kaddr = (unsigned long)kmap_atomic(page) + (addr & ~PAGE_MASK);
+	flush_icache_range(kaddr, kaddr + len);
+	kunmap_atomic((void *)kaddr);
+}
+
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
 		      pte_t * pte)
 {
@@ -35,19 +67,15 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
 
 	if ((test_and_clear_bit(PG_dcache_dirty, &page->flags)) ||
 	    (vma->vm_flags & VM_EXEC)) {
-
-		if (!PageHighMem(page)) {
-			cpu_cache_wbinval_page((unsigned long)
-					       page_address(page),
-					       vma->vm_flags & VM_EXEC);
-		} else {
-			unsigned long kaddr = (unsigned long)kmap_atomic(page);
-			cpu_cache_wbinval_page(kaddr, vma->vm_flags & VM_EXEC);
-			kunmap_atomic((void *)kaddr);
-		}
+		unsigned long kaddr;
+		local_irq_save(flags);
+		kaddr = (unsigned long)kmap_atomic(page);
+		cpu_cache_wbinval_page(kaddr, vma->vm_flags & VM_EXEC);
+		kunmap_atomic((void *)kaddr);
+		local_irq_restore(flags);
 	}
 }
-#else
+#ifdef CONFIG_CPU_CACHE_ALIASING
 extern pte_t va_present(struct mm_struct *mm, unsigned long addr);
 
 static inline unsigned long aliasing(unsigned long addr, unsigned long page)
@@ -317,52 +345,4 @@ void invalidate_kernel_vmap_range(void *addr, int size)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(invalidate_kernel_vmap_range);
-
-void flush_icache_range(unsigned long start, unsigned long end)
-{
-	unsigned long line_size, flags;
-	line_size = L1_cache_info[DCACHE].line_size;
-	start = start & ~(line_size - 1);
-	end = (end + line_size - 1) & ~(line_size - 1);
-	local_irq_save(flags);
-	cpu_cache_wbinval_range(start, end, 1);
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL(flush_icache_range);
-
-void flush_icache_page(struct vm_area_struct *vma, struct page *page)
-{
-	unsigned long flags;
-	local_irq_save(flags);
-	cpu_cache_wbinval_page((unsigned long)page_address(page),
-			       vma->vm_flags & VM_EXEC);
-	local_irq_restore(flags);
-}
-
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
-		      pte_t * pte)
-{
-	struct page *page;
-	unsigned long flags;
-	unsigned long pfn = pte_pfn(*pte);
-
-	if (!pfn_valid(pfn))
-		return;
-
-	if (vma->vm_mm == current->active_mm) {
-		local_irq_save(flags);
-		__nds32__mtsr_dsb(addr, NDS32_SR_TLB_VPN);
-		__nds32__tlbop_rwr(*pte);
-		__nds32__isb();
-		local_irq_restore(flags);
-	}
-
-	page = pfn_to_page(pfn);
-	if (test_and_clear_bit(PG_dcache_dirty, &page->flags) ||
-	    (vma->vm_flags & VM_EXEC)) {
-		local_irq_save(flags);
-		cpu_dcache_wbinval_page((unsigned long)page_address(page));
-		local_irq_restore(flags);
-	}
-}
 #endif

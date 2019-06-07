@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for the OLPC DCON and OLPC EC access
  *
  * Copyright © 2006  Advanced Micro Devices, Inc.
  * Copyright © 2007-2008  Andres Salomon <dilinger@debian.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -311,10 +307,8 @@ static int __init add_xo1_platform_devices(void)
 		return PTR_ERR(pdev);
 
 	pdev = platform_device_register_simple("olpc-xo1", -1, NULL, 0);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(pdev);
 }
 
 static int olpc_xo1_ec_probe(struct platform_device *pdev)

@@ -194,11 +194,13 @@ static debug_entry_t ***debug_areas_alloc(int pages_per_area, int nr_areas)
 	debug_entry_t ***areas;
 	int i, j;
 
-	areas = kmalloc(nr_areas * sizeof(debug_entry_t **), GFP_KERNEL);
+	areas = kmalloc_array(nr_areas, sizeof(debug_entry_t **), GFP_KERNEL);
 	if (!areas)
 		goto fail_malloc_areas;
 	for (i = 0; i < nr_areas; i++) {
-		areas[i] = kmalloc(pages_per_area * sizeof(debug_entry_t *), GFP_KERNEL);
+		areas[i] = kmalloc_array(pages_per_area,
+					 sizeof(debug_entry_t *),
+					 GFP_KERNEL);
 		if (!areas[i])
 			goto fail_malloc_areas2;
 		for (j = 0; j < pages_per_area; j++) {
@@ -1054,12 +1056,6 @@ int debug_register_view(debug_info_t *id, struct debug_view *view)
 		mode &= ~(S_IWUSR | S_IWGRP | S_IWOTH);
 	pde = debugfs_create_file(view->name, mode, id->debugfs_root_entry,
 				  id, &debug_file_ops);
-	if (!pde) {
-		pr_err("Registering view %s/%s failed due to out of "
-		       "memory\n", id->name, view->name);
-		rc = -1;
-		goto out;
-	}
 	spin_lock_irqsave(&id->lock, flags);
 	for (i = 0; i < DEBUG_MAX_VIEWS; i++) {
 		if (!id->views[i])

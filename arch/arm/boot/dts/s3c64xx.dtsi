@@ -13,10 +13,12 @@
  * nodes can be added to this file.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/samsung,s3c64xx-clock.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		i2c0 = &i2c0;
 		pinctrl0 = &pinctrl0;

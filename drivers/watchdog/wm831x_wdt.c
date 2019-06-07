@@ -180,8 +180,9 @@ static const struct watchdog_ops wm831x_wdt_ops = {
 
 static int wm831x_wdt_probe(struct platform_device *pdev)
 {
-	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
-	struct wm831x_pdata *chip_pdata = dev_get_platdata(pdev->dev.parent);
+	struct device *dev = &pdev->dev;
+	struct wm831x *wm831x = dev_get_drvdata(dev->parent);
+	struct wm831x_pdata *chip_pdata = dev_get_platdata(dev->parent);
 	struct wm831x_watchdog_pdata *pdata;
 	struct wm831x_wdt_drvdata *driver_data;
 	struct watchdog_device *wm831x_wdt;
@@ -198,8 +199,7 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 	if (reg & WM831X_WDOG_DEBUG)
 		dev_warn(wm831x->dev, "Watchdog is paused\n");
 
-	driver_data = devm_kzalloc(&pdev->dev, sizeof(*driver_data),
-				   GFP_KERNEL);
+	driver_data = devm_kzalloc(dev, sizeof(*driver_data), GFP_KERNEL);
 	if (!driver_data)
 		return -ENOMEM;
 
@@ -210,7 +210,7 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 
 	wm831x_wdt->info = &wm831x_wdt_info;
 	wm831x_wdt->ops = &wm831x_wdt_ops;
-	wm831x_wdt->parent = &pdev->dev;
+	wm831x_wdt->parent = dev;
 	watchdog_set_nowayout(wm831x_wdt, nowayout);
 	watchdog_set_drvdata(wm831x_wdt, driver_data);
 
@@ -240,10 +240,9 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 		reg |= pdata->software << WM831X_WDOG_RST_SRC_SHIFT;
 
 		if (pdata->update_gpio) {
-			ret = devm_gpio_request_one(&pdev->dev,
-						pdata->update_gpio,
-						GPIOF_OUT_INIT_LOW,
-						"Watchdog update");
+			ret = devm_gpio_request_one(dev, pdata->update_gpio,
+						    GPIOF_OUT_INIT_LOW,
+						    "Watchdog update");
 			if (ret < 0) {
 				dev_err(wm831x->dev,
 					"Failed to request update GPIO: %d\n",
@@ -268,7 +267,7 @@ static int wm831x_wdt_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = devm_watchdog_register_device(&pdev->dev, &driver_data->wdt);
+	ret = devm_watchdog_register_device(dev, &driver_data->wdt);
 	if (ret != 0) {
 		dev_err(wm831x->dev, "watchdog_register_device() failed: %d\n",
 			ret);

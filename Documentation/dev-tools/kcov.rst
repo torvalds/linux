@@ -22,7 +22,7 @@ Configure the kernel with::
 
         CONFIG_KCOV=y
 
-CONFIG_KCOV requires gcc built on revision 231296 or later.
+CONFIG_KCOV requires gcc 6.1.0 or later.
 
 If the comparison operands need to be collected, set::
 

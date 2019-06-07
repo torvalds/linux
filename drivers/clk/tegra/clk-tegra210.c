@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2014 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/io.h>
@@ -27,6 +16,7 @@
 #include <dt-bindings/clock/tegra210-car.h>
 #include <dt-bindings/reset/tegra210-car.h>
 #include <linux/iopoll.h>
+#include <linux/sizes.h>
 #include <soc/tegra/pmc.h>
 
 #include "clk.h"
@@ -44,6 +34,8 @@
 #define CLK_SOURCE_EMC 0x19c
 #define CLK_SOURCE_SOR1 0x410
 #define CLK_SOURCE_LA 0x1f8
+#define CLK_SOURCE_SDMMC2 0x154
+#define CLK_SOURCE_SDMMC4 0x164
 
 #define PLLC_BASE 0x80
 #define PLLC_OUT 0x84
@@ -2286,11 +2278,9 @@ static struct tegra_clk tegra210_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_rtc] = { .dt_id = TEGRA210_CLK_RTC, .present = true },
 	[tegra_clk_timer] = { .dt_id = TEGRA210_CLK_TIMER, .present = true },
 	[tegra_clk_uarta_8] = { .dt_id = TEGRA210_CLK_UARTA, .present = true },
-	[tegra_clk_sdmmc2_9] = { .dt_id = TEGRA210_CLK_SDMMC2, .present = true },
 	[tegra_clk_i2s1] = { .dt_id = TEGRA210_CLK_I2S1, .present = true },
 	[tegra_clk_i2c1] = { .dt_id = TEGRA210_CLK_I2C1, .present = true },
 	[tegra_clk_sdmmc1_9] = { .dt_id = TEGRA210_CLK_SDMMC1, .present = true },
-	[tegra_clk_sdmmc4_9] = { .dt_id = TEGRA210_CLK_SDMMC4, .present = true },
 	[tegra_clk_pwm] = { .dt_id = TEGRA210_CLK_PWM, .present = true },
 	[tegra_clk_i2s2] = { .dt_id = TEGRA210_CLK_I2S2, .present = true },
 	[tegra_clk_usbd] = { .dt_id = TEGRA210_CLK_USBD, .present = true },
@@ -2603,7 +2593,7 @@ static struct tegra210_domain_mbist_war tegra210_pg_mbist_war[] = {
 	[TEGRA_POWERGATE_MPE] = {
 		.handle_lvl2_ovr = tegra210_generic_mbist_war,
 		.lvl2_offset = LVL2_CLK_GATE_OVRE,
-		.lvl2_mask = BIT(2),
+		.lvl2_mask = BIT(29),
 	},
 	[TEGRA_POWERGATE_SOR] = {
 		.handle_lvl2_ovr = tegra210_generic_mbist_war,
@@ -2654,14 +2644,14 @@ static struct tegra210_domain_mbist_war tegra210_pg_mbist_war[] = {
 		.num_clks = ARRAY_SIZE(nvdec_slcg_clkids),
 		.clk_init_data = nvdec_slcg_clkids,
 		.handle_lvl2_ovr = tegra210_generic_mbist_war,
-		.lvl2_offset = LVL2_CLK_GATE_OVRC,
+		.lvl2_offset = LVL2_CLK_GATE_OVRE,
 		.lvl2_mask = BIT(9) | BIT(31),
 	},
 	[TEGRA_POWERGATE_NVJPG] = {
 		.num_clks = ARRAY_SIZE(nvjpg_slcg_clkids),
 		.clk_init_data = nvjpg_slcg_clkids,
 		.handle_lvl2_ovr = tegra210_generic_mbist_war,
-		.lvl2_offset = LVL2_CLK_GATE_OVRC,
+		.lvl2_offset = LVL2_CLK_GATE_OVRE,
 		.lvl2_mask = BIT(9) | BIT(31),
 	},
 	[TEGRA_POWERGATE_AUD] = {
@@ -3030,6 +3020,16 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 				0, NULL);
 	clks[TEGRA210_CLK_ACLK] = clk;
 
+	clk = tegra_clk_register_sdmmc_mux_div("sdmmc2", clk_base,
+					    CLK_SOURCE_SDMMC2, 9,
+					    TEGRA_DIVIDER_ROUND_UP, 0, NULL);
+	clks[TEGRA210_CLK_SDMMC2] = clk;
+
+	clk = tegra_clk_register_sdmmc_mux_div("sdmmc4", clk_base,
+					    CLK_SOURCE_SDMMC4, 15,
+					    TEGRA_DIVIDER_ROUND_UP, 0, NULL);
+	clks[TEGRA210_CLK_SDMMC4] = clk;
+
 	for (i = 0; i < ARRAY_SIZE(tegra210_periph); i++) {
 		struct tegra_periph_init_data *init = &tegra210_periph[i];
 		struct clk **clkp;
@@ -3359,6 +3359,13 @@ static struct tegra_clk_init_table init_table[] __initdata = {
 	{ TEGRA210_CLK_CCLK_G, TEGRA210_CLK_CLK_MAX, 0, 1 },
 	{ TEGRA210_CLK_PLL_U_OUT1, TEGRA210_CLK_CLK_MAX, 48000000, 1 },
 	{ TEGRA210_CLK_PLL_U_OUT2, TEGRA210_CLK_CLK_MAX, 60000000, 1 },
+	{ TEGRA210_CLK_SPDIF_IN_SYNC, TEGRA210_CLK_CLK_MAX, 24576000, 0 },
+	{ TEGRA210_CLK_I2S0_SYNC, TEGRA210_CLK_CLK_MAX, 24576000, 0 },
+	{ TEGRA210_CLK_I2S1_SYNC, TEGRA210_CLK_CLK_MAX, 24576000, 0 },
+	{ TEGRA210_CLK_I2S2_SYNC, TEGRA210_CLK_CLK_MAX, 24576000, 0 },
+	{ TEGRA210_CLK_I2S3_SYNC, TEGRA210_CLK_CLK_MAX, 24576000, 0 },
+	{ TEGRA210_CLK_I2S4_SYNC, TEGRA210_CLK_CLK_MAX, 24576000, 0 },
+	{ TEGRA210_CLK_VIMCLK_SYNC, TEGRA210_CLK_CLK_MAX, 24576000, 0 },
 	/* This MUST be the last entry. */
 	{ TEGRA210_CLK_CLK_MAX, TEGRA210_CLK_CLK_MAX, 0, 0 },
 };
@@ -3539,7 +3546,7 @@ static void __init tegra210_clock_init(struct device_node *np)
 	if (!clks)
 		return;
 
-	value = clk_readl(clk_base + SPARE_REG0) >> CLK_M_DIVISOR_SHIFT;
+	value = readl(clk_base + SPARE_REG0) >> CLK_M_DIVISOR_SHIFT;
 	clk_m_div = (value & CLK_M_DIVISOR_MASK) + 1;
 
 	if (tegra_osc_clk_init(clk_base, tegra210_clks, tegra210_input_freq,
@@ -3552,13 +3559,13 @@ static void __init tegra210_clock_init(struct device_node *np)
 	tegra210_periph_clk_init(clk_base, pmc_base);
 	tegra_audio_clk_init(clk_base, pmc_base, tegra210_clks,
 			     tegra210_audio_plls,
-			     ARRAY_SIZE(tegra210_audio_plls));
+			     ARRAY_SIZE(tegra210_audio_plls), 24576000);
 	tegra_pmc_clk_init(pmc_base, tegra210_clks);
 
 	/* For Tegra210, PLLD is the only source for DSIA & DSIB */
-	value = clk_readl(clk_base + PLLD_BASE);
+	value = readl(clk_base + PLLD_BASE);
 	value &= ~BIT(25);
-	clk_writel(value, clk_base + PLLD_BASE);
+	writel(value, clk_base + PLLD_BASE);
 
 	tegra_clk_apply_init_table = tegra210_clock_apply_init_table;
 
@@ -3567,7 +3574,7 @@ static void __init tegra210_clock_init(struct device_node *np)
 	tegra_init_special_resets(2, tegra210_reset_assert,
 				  tegra210_reset_deassert);
 
-	tegra_add_of_provider(np);
+	tegra_add_of_provider(np, of_clk_src_onecell_get);
 	tegra_register_devclks(devclks, ARRAY_SIZE(devclks));
 
 	tegra210_mbist_clk_init();

@@ -81,35 +81,11 @@ static inline int notify_page_fault(struct pt_regs *regs)
 	return ret;
 }
 
-
-/*
- * Unlock any spinlocks which will prevent us from getting the
- * message out.
- */
-void bust_spinlocks(int yes)
-{
-	if (yes) {
-		oops_in_progress = 1;
-	} else {
-		int loglevel_save = console_loglevel;
-		console_unblank();
-		oops_in_progress = 0;
-		/*
-		 * OK, the message is on the console.  Now we call printk()
-		 * without oops_in_progress set so that printk will give klogd
-		 * a poke.  Hold onto your hats...
-		 */
-		console_loglevel = 15;
-		printk(" ");
-		console_loglevel = loglevel_save;
-	}
-}
-
 /*
  * Find out which address space caused the exception.
  * Access register mode is impossible, ignore space == 3.
  */
-static inline enum fault_type get_fault_type(struct pt_regs *regs)
+static enum fault_type get_fault_type(struct pt_regs *regs)
 {
 	unsigned long trans_exc_code;
 
@@ -235,6 +211,8 @@ static void dump_fault_info(struct pt_regs *regs)
 		asce = S390_lowcore.kernel_asce;
 		pr_cont("kernel ");
 		break;
+	default:
+		unreachable();
 	}
 	pr_cont("ASCE.\n");
 	dump_pagetable(asce, regs->int_parm_long & __FAIL_ADDR_MASK);
@@ -265,14 +243,22 @@ void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault)
  */
 static noinline void do_sigsegv(struct pt_regs *regs, int si_code)
 {
-	struct siginfo si;
-
 	report_user_fault(regs, SIGSEGV, 1);
-	si.si_signo = SIGSEGV;
-	si.si_errno = 0;
-	si.si_code = si_code;
-	si.si_addr = (void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK);
-	force_sig_info(SIGSEGV, &si, current);
+	force_sig_fault(SIGSEGV, si_code,
+			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK),
+			current);
+}
+
+const struct exception_table_entry *s390_search_extables(unsigned long addr)
+{
+	const struct exception_table_entry *fixup;
+
+	fixup = search_extable(__start_dma_ex_table,
+			       __stop_dma_ex_table - __start_dma_ex_table,
+			       addr);
+	if (!fixup)
+		fixup = search_exception_tables(addr);
+	return fixup;
 }
 
 static noinline void do_no_context(struct pt_regs *regs)
@@ -280,7 +266,7 @@ static noinline void do_no_context(struct pt_regs *regs)
 	const struct exception_table_entry *fixup;
 
 	/* Are we prepared to handle this kernel fault?  */
-	fixup = search_exception_tables(regs->psw.addr);
+	fixup = s390_search_extables(regs->psw.addr);
 	if (fixup) {
 		regs->psw.addr = extable_fixup(fixup);
 		return;
@@ -316,18 +302,13 @@ static noinline void do_low_address(struct pt_regs *regs)
 
 static noinline void do_sigbus(struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
-	struct siginfo si;
-
 	/*
 	 * Send a sigbus, regardless of whether we were in kernel
 	 * or user mode.
 	 */
-	si.si_signo = SIGBUS;
-	si.si_errno = 0;
-	si.si_code = BUS_ADRERR;
-	si.si_addr = (void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK);
-	force_sig_info(SIGBUS, &si, tsk);
+	force_sig_fault(SIGBUS, BUS_ADRERR,
+			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK),
+			current);
 }
 
 static noinline int signal_return(struct pt_regs *regs)
@@ -350,7 +331,8 @@ static noinline int signal_return(struct pt_regs *regs)
 	return -EACCES;
 }
 
-static noinline void do_fault_error(struct pt_regs *regs, int access, int fault)
+static noinline void do_fault_error(struct pt_regs *regs, int access,
+					vm_fault_t fault)
 {
 	int si_code;
 
@@ -410,7 +392,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int access, int fault)
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)
  */
-static inline int do_exception(struct pt_regs *regs, int access)
+static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 {
 	struct gmap *gmap;
 	struct task_struct *tsk;
@@ -420,7 +402,7 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	unsigned long trans_exc_code;
 	unsigned long address;
 	unsigned int flags;
-	int fault;
+	vm_fault_t fault;
 
 	tsk = current;
 	/*
@@ -511,6 +493,8 @@ retry:
 	/* No reason to continue if interrupted by SIGKILL. */
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
 		fault = VM_FAULT_SIGNAL;
+		if (flags & FAULT_FLAG_RETRY_NOWAIT)
+			goto out_up;
 		goto out;
 	}
 	if (unlikely(fault & VM_FAULT_ERROR))
@@ -571,7 +555,8 @@ out:
 void do_protection_exception(struct pt_regs *regs)
 {
 	unsigned long trans_exc_code;
-	int access, fault;
+	int access;
+	vm_fault_t fault;
 
 	trans_exc_code = regs->int_parm_long;
 	/*
@@ -606,7 +591,8 @@ NOKPROBE_SYMBOL(do_protection_exception);
 
 void do_dat_exception(struct pt_regs *regs)
 {
-	int access, fault;
+	int access;
+	vm_fault_t fault;
 
 	access = VM_READ | VM_EXEC | VM_WRITE;
 	fault = do_exception(regs, access);
@@ -640,17 +626,19 @@ struct pfault_refbk {
 	u64 reserved;
 } __attribute__ ((packed, aligned(8)));
 
+static struct pfault_refbk pfault_init_refbk = {
+	.refdiagc = 0x258,
+	.reffcode = 0,
+	.refdwlen = 5,
+	.refversn = 2,
+	.refgaddr = __LC_LPP,
+	.refselmk = 1ULL << 48,
+	.refcmpmk = 1ULL << 48,
+	.reserved = __PF_RES_FIELD
+};
+
 int pfault_init(void)
 {
-	struct pfault_refbk refbk = {
-		.refdiagc = 0x258,
-		.reffcode = 0,
-		.refdwlen = 5,
-		.refversn = 2,
-		.refgaddr = __LC_LPP,
-		.refselmk = 1ULL << 48,
-		.refcmpmk = 1ULL << 48,
-		.reserved = __PF_RES_FIELD };
         int rc;
 
 	if (pfault_disable)
@@ -662,18 +650,20 @@ int pfault_init(void)
 		"1:	la	%0,8\n"
 		"2:\n"
 		EX_TABLE(0b,1b)
-		: "=d" (rc) : "a" (&refbk), "m" (refbk) : "cc");
+		: "=d" (rc)
+		: "a" (&pfault_init_refbk), "m" (pfault_init_refbk) : "cc");
         return rc;
 }
 
+static struct pfault_refbk pfault_fini_refbk = {
+	.refdiagc = 0x258,
+	.reffcode = 1,
+	.refdwlen = 5,
+	.refversn = 2,
+};
+
 void pfault_fini(void)
 {
-	struct pfault_refbk refbk = {
-		.refdiagc = 0x258,
-		.reffcode = 1,
-		.refdwlen = 5,
-		.refversn = 2,
-	};
 
 	if (pfault_disable)
 		return;
@@ -682,7 +672,7 @@ void pfault_fini(void)
 		"	diag	%0,0,0x258\n"
 		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
-		: : "a" (&refbk), "m" (refbk) : "cc");
+		: : "a" (&pfault_fini_refbk), "m" (pfault_fini_refbk) : "cc");
 }
 
 static DEFINE_SPINLOCK(pfault_lock);

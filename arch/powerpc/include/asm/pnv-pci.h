@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2014 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _ASM_PNV_PCI_H
@@ -50,18 +46,10 @@ int pnv_cxl_alloc_hwirq_ranges(struct cxl_irq_ranges *irqs,
 			       struct pci_dev *dev, int num);
 void pnv_cxl_release_hwirq_ranges(struct cxl_irq_ranges *irqs,
 				  struct pci_dev *dev);
-
-/* Support for the cxl kernel api on the real PHB (instead of vPHB) */
-int pnv_cxl_enable_phb_kernel_api(struct pci_controller *hose, bool enable);
-bool pnv_pci_on_cxl_phb(struct pci_dev *dev);
-struct cxl_afu *pnv_cxl_phb_to_afu(struct pci_controller *hose);
-void pnv_cxl_phb_set_peer_afu(struct pci_dev *dev, struct cxl_afu *afu);
-
 #endif
 
 struct pnv_php_slot {
 	struct hotplug_slot		slot;
-	struct hotplug_slot_info	slot_info;
 	uint64_t			id;
 	char				*name;
 	int				slot_no;
@@ -79,6 +67,7 @@ struct pnv_php_slot {
 	struct pci_dev			*pdev;
 	struct pci_bus			*bus;
 	bool				power_state_check;
+	u8				attention_state;
 	void				*fdt;
 	void				*dt;
 	struct of_changeset		ocs;

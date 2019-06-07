@@ -27,6 +27,8 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
+#include <drm/drm_util.h>
+
 #define ATOM_DEBUG
 
 #include "atom.h"
@@ -1176,7 +1178,7 @@ static int atom_execute_table_locked(struct atom_context *ctx, int index, uint32
 	ectx.abort = false;
 	ectx.last_jump = 0;
 	if (ws)
-		ectx.ws = kzalloc(4 * ws, GFP_KERNEL);
+		ectx.ws = kcalloc(4, ws, GFP_KERNEL);
 	else
 		ectx.ws = NULL;
 

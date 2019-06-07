@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/video/console/sticore.c -
  *	core code for console driver using HP's STI firmware
@@ -649,7 +650,7 @@ static void *sti_bmode_font_raw(struct sti_cooked_font *f)
 	unsigned char *n, *p, *q;
 	int size = f->raw->bytes_per_char*256+sizeof(struct sti_rom_font);
 	
-	n = kzalloc(4*size, STI_LOWMEM);
+	n = kcalloc(4, size, STI_LOWMEM);
 	if (!n)
 		return NULL;
 	p = n + 3;

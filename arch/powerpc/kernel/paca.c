@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * c 2001 PPC 64 Team, IBM Corp
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/smp.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
 #include <linux/sched/task.h>
+#include <linux/numa.h>
 
 #include <asm/lppaca.h>
 #include <asm/paca.h>
@@ -27,7 +24,7 @@
 static void *__init alloc_paca_data(unsigned long size, unsigned long align,
 				unsigned long limit, int cpu)
 {
-	unsigned long pa;
+	void *ptr;
 	int nid;
 
 	/*
@@ -36,23 +33,21 @@ static void *__init alloc_paca_data(unsigned long size, unsigned long align,
 	 * which will put its paca in the right place.
 	 */
 	if (cpu == boot_cpuid) {
-		nid = -1;
+		nid = NUMA_NO_NODE;
 		memblock_set_bottom_up(true);
 	} else {
 		nid = early_cpu_to_node(cpu);
 	}
 
-	pa = memblock_alloc_base_nid(size, align, limit, nid, MEMBLOCK_NONE);
-	if (!pa) {
-		pa = memblock_alloc_base(size, align, limit);
-		if (!pa)
-			panic("cannot allocate paca data");
-	}
+	ptr = memblock_alloc_try_nid(size, align, MEMBLOCK_LOW_LIMIT,
+				     limit, nid);
+	if (!ptr)
+		panic("cannot allocate paca data");
 
 	if (cpu == boot_cpuid)
 		memblock_set_bottom_up(false);
 
-	return __va(pa);
+	return ptr;
 }
 
 #ifdef CONFIG_PPC_PSERIES
@@ -118,7 +113,6 @@ static struct slb_shadow * __init new_slb_shadow(int cpu, unsigned long limit)
 	}
 
 	s = alloc_paca_data(sizeof(*s), L1_CACHE_BYTES, limit, cpu);
-	memset(s, 0, sizeof(*s));
 
 	s->persistent = cpu_to_be32(SLB_NUM_BOLTED);
 	s->buffer_length = cpu_to_be32(sizeof(*s));
@@ -198,7 +192,11 @@ void __init allocate_paca_ptrs(void)
 	paca_nr_cpu_ids = nr_cpu_ids;
 
 	paca_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
-	paca_ptrs = __va(memblock_alloc(paca_ptrs_size, 0));
+	paca_ptrs = memblock_alloc_raw(paca_ptrs_size, SMP_CACHE_BYTES);
+	if (!paca_ptrs)
+		panic("Failed to allocate %d bytes for paca pointers\n",
+		      paca_ptrs_size);
+
 	memset(paca_ptrs, 0x88, paca_ptrs_size);
 }
 
@@ -222,7 +220,6 @@ void __init allocate_paca(int cpu)
 	paca = alloc_paca_data(sizeof(struct paca_struct), L1_CACHE_BYTES,
 				limit, cpu);
 	paca_ptrs[cpu] = paca;
-	memset(paca, 0, sizeof(struct paca_struct));
 
 	initialise_paca(paca, cpu);
 #ifdef CONFIG_PPC_PSERIES
@@ -266,12 +263,12 @@ void copy_mm_to_paca(struct mm_struct *mm)
 
 	get_paca()->mm_ctx_id = context->id;
 #ifdef CONFIG_PPC_MM_SLICES
-	VM_BUG_ON(!mm->context.slb_addr_limit);
-	get_paca()->mm_ctx_slb_addr_limit = mm->context.slb_addr_limit;
-	memcpy(&get_paca()->mm_ctx_low_slices_psize,
-	       &context->low_slices_psize, sizeof(context->low_slices_psize));
-	memcpy(&get_paca()->mm_ctx_high_slices_psize,
-	       &context->high_slices_psize, TASK_SLICE_ARRAY_SZ(mm));
+	VM_BUG_ON(!mm_ctx_slb_addr_limit(context));
+	get_paca()->mm_ctx_slb_addr_limit = mm_ctx_slb_addr_limit(context);
+	memcpy(&get_paca()->mm_ctx_low_slices_psize, mm_ctx_low_slices(context),
+	       LOW_SLICE_ARRAY_SZ);
+	memcpy(&get_paca()->mm_ctx_high_slices_psize, mm_ctx_high_slices(context),
+	       TASK_SLICE_ARRAY_SZ(context));
 #else /* CONFIG_PPC_MM_SLICES */
 	get_paca()->mm_ctx_user_psize = context->user_psize;
 	get_paca()->mm_ctx_sllp = context->sllp;

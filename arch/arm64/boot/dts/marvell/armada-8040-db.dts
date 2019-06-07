@@ -81,8 +81,6 @@
 	status = "okay";
 
 	spi-flash@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <10000000>;
@@ -177,6 +175,11 @@
 &cp0_eth0 {
 	status = "okay";
 	phy-mode = "10gbase-kr";
+
+	fixed-link {
+		speed = <10000>;
+		full-duplex;
+	};
 };
 
 &cp0_eth2 {
@@ -209,8 +212,6 @@
 	status = "okay";
 
 	spi-flash@0 {
-		#address-cells = <0x1>;
-		#size-cells = <0x1>;
 		compatible = "jedec,spi-nor";
 		reg = <0x0>;
 		spi-max-frequency = <20000000>;
@@ -303,6 +304,11 @@
 &cp1_eth0 {
 	status = "okay";
 	phy-mode = "10gbase-kr";
+
+	fixed-link {
+		speed = <10000>;
+		full-duplex;
+	};
 };
 
 &cp1_eth1 {

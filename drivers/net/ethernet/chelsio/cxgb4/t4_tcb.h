@@ -41,6 +41,14 @@
 #define TCB_SMAC_SEL_V(x)	((x) << TCB_SMAC_SEL_S)
 
 #define TCB_T_FLAGS_W		1
+#define TCB_T_FLAGS_S		0
+#define TCB_T_FLAGS_M		0xffffffffffffffffULL
+#define TCB_T_FLAGS_V(x)	((__u64)(x) << TCB_T_FLAGS_S)
+
+#define TCB_RQ_START_W		30
+#define TCB_RQ_START_S		0
+#define TCB_RQ_START_M		0x3ffffffULL
+#define TCB_RQ_START_V(x)	((x) << TCB_RQ_START_S)
 
 #define TF_CCTRL_ECE_S		60
 #define TF_CCTRL_CWR_S		61
@@ -66,4 +74,8 @@
 #define TCB_RX_FRAG3_LEN_RAW_W	29
 #define TCB_RX_FRAG3_START_IDX_OFFSET_RAW_W	30
 #define TCB_PDU_HDR_LEN_W	31
+
+#define TF_RX_PDU_OUT_S		49
+#define TF_RX_PDU_OUT_V(x)	((__u64)(x) << TF_RX_PDU_OUT_S)
+
 #endif /* __T4_TCB_H */

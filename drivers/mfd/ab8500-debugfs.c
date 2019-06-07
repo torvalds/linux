@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2010
  *
  * Author: Mattias Wallin <mattias.wallin@stericsson.com> for ST-Ericsson.
- * License Terms: GNU General Public License v2
  */
 /*
  * AB8500 register access
@@ -2519,11 +2519,10 @@ static ssize_t ab8500_subscribe_write(struct file *file,
 	if (!dev_attr[irq_index])
 		return -ENOMEM;
 
-	event_name[irq_index] = kmalloc(count, GFP_KERNEL);
+	event_name[irq_index] = kasprintf(GFP_KERNEL, "%lu", user_val);
 	if (!event_name[irq_index])
 		return -ENOMEM;
 
-	sprintf(event_name[irq_index], "%lu", user_val);
 	dev_attr[irq_index]->show = show_irq;
 	dev_attr[irq_index]->store = NULL;
 	dev_attr[irq_index]->attr.name = event_name[irq_index];
@@ -2588,7 +2587,7 @@ static ssize_t ab8500_unsubscribe_write(struct file *file,
 }
 
 /*
- * - several deubgfs nodes fops
+ * - several debugfs nodes fops
  */
 
 static const struct file_operations ab8500_bank_fops = {
@@ -2660,18 +2659,18 @@ static int ab8500_debug_probe(struct platform_device *plf)
 	ab8500 = dev_get_drvdata(plf->dev.parent);
 	num_irqs = ab8500->mask_size;
 
-	irq_count = devm_kzalloc(&plf->dev,
-				 sizeof(*irq_count)*num_irqs, GFP_KERNEL);
+	irq_count = devm_kcalloc(&plf->dev,
+				 num_irqs, sizeof(*irq_count), GFP_KERNEL);
 	if (!irq_count)
 		return -ENOMEM;
 
-	dev_attr = devm_kzalloc(&plf->dev,
-				sizeof(*dev_attr)*num_irqs, GFP_KERNEL);
+	dev_attr = devm_kcalloc(&plf->dev,
+				num_irqs, sizeof(*dev_attr), GFP_KERNEL);
 	if (!dev_attr)
 		return -ENOMEM;
 
-	event_name = devm_kzalloc(&plf->dev,
-				  sizeof(*event_name)*num_irqs, GFP_KERNEL);
+	event_name = devm_kcalloc(&plf->dev,
+				  num_irqs, sizeof(*event_name), GFP_KERNEL);
 	if (!event_name)
 		return -ENOMEM;
 

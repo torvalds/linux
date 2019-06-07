@@ -1,14 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Diffie-Hellman secret to be used with kpp API along with helper functions
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Salvatore Benedetto <salvatore.benedetto@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #ifndef _CRYPTO_DH_
 #define _CRYPTO_DH_
@@ -29,17 +24,21 @@
  *
  * @key:	Private DH key
  * @p:		Diffie-Hellman parameter P
+ * @q:		Diffie-Hellman parameter Q
  * @g:		Diffie-Hellman generator G
  * @key_size:	Size of the private DH key
  * @p_size:	Size of DH parameter P
+ * @q_size:	Size of DH parameter Q
  * @g_size:	Size of DH generator G
  */
 struct dh {
 	void *key;
 	void *p;
+	void *q;
 	void *g;
 	unsigned int key_size;
 	unsigned int p_size;
+	unsigned int q_size;
 	unsigned int g_size;
 };
 

@@ -205,15 +205,14 @@ static int hid_time_parse_report(struct platform_device *pdev,
 static int hid_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned long flags;
-	struct hid_time_state *time_state =
-		platform_get_drvdata(to_platform_device(dev));
+	struct hid_time_state *time_state = dev_get_drvdata(dev);
 	int ret;
 
 	reinit_completion(&time_state->comp_last_time);
 	/* get a report with all values through requesting one value */
 	sensor_hub_input_attr_get_raw_value(time_state->common_attributes.hsdev,
 			HID_USAGE_SENSOR_TIME, hid_time_addresses[0],
-			time_state->info[0].report_id, SENSOR_HUB_SYNC);
+			time_state->info[0].report_id, SENSOR_HUB_SYNC, false);
 	/* wait for all values (event) */
 	ret = wait_for_completion_killable_timeout(
 			&time_state->comp_last_time, HZ*6);

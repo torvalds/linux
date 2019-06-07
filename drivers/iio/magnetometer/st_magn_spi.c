@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics magnetometers driver
  *
  * Copyright 2012-2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -23,6 +22,8 @@
  * For new single-chip sensors use <device_name> as compatible string.
  * For old single-chip devices keep <device_name>-magn to maintain
  * compatibility
+ * For multi-chip devices, use <device_name>-magn to distinguish which
+ * capability is being used
  */
 static const struct of_device_id st_magn_of_match[] = {
 	{
@@ -36,6 +37,10 @@ static const struct of_device_id st_magn_of_match[] = {
 	{
 		.compatible = "st,lis2mdl",
 		.data = LIS2MDL_MAGN_DEV_NAME,
+	},
+	{
+		.compatible = "st,lsm9ds1-magn",
+		.data = LSM9DS1_MAGN_DEV_NAME,
 	},
 	{}
 };
@@ -79,6 +84,7 @@ static const struct spi_device_id st_magn_id_table[] = {
 	{ LIS3MDL_MAGN_DEV_NAME },
 	{ LSM303AGR_MAGN_DEV_NAME },
 	{ LIS2MDL_MAGN_DEV_NAME },
+	{ LSM9DS1_MAGN_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_magn_id_table);

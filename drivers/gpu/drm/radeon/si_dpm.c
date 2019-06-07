@@ -5762,10 +5762,12 @@ static void si_request_link_speed_change_before_state_change(struct radeon_devic
 			si_pi->force_pcie_gen = RADEON_PCIE_GEN2;
 			if (current_link_speed == RADEON_PCIE_GEN2)
 				break;
+			/* fall through */
 		case RADEON_PCIE_GEN2:
 			if (radeon_acpi_pcie_performance_request(rdev, PCIE_PERF_REQ_PECI_GEN2, false) == 0)
 				break;
 #endif
+			/* fall through */
 		default:
 			si_pi->force_pcie_gen = si_get_current_pcie_speed(rdev);
 			break;
@@ -6832,8 +6834,9 @@ static int si_parse_power_table(struct radeon_device *rdev)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 
-	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
-				  state_array->ucNumEntries, GFP_KERNEL);
+	rdev->pm.dpm.ps = kcalloc(state_array->ucNumEntries,
+				  sizeof(struct radeon_ps),
+				  GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;
@@ -6898,8 +6901,9 @@ int si_dpm_init(struct radeon_device *rdev)
 	struct ni_power_info *ni_pi;
 	struct si_power_info *si_pi;
 	struct atom_clock_dividers dividers;
+	enum pci_bus_speed speed_cap = PCI_SPEED_UNKNOWN;
+	struct pci_dev *root = rdev->pdev->bus->self;
 	int ret;
-	u32 mask;
 
 	si_pi = kzalloc(sizeof(struct si_power_info), GFP_KERNEL);
 	if (si_pi == NULL)
@@ -6909,11 +6913,21 @@ int si_dpm_init(struct radeon_device *rdev)
 	eg_pi = &ni_pi->eg;
 	pi = &eg_pi->rv7xx;
 
-	ret = drm_pcie_get_speed_cap_mask(rdev->ddev, &mask);
-	if (ret)
+	if (!pci_is_root_bus(rdev->pdev->bus))
+		speed_cap = pcie_get_speed_cap(root);
+	if (speed_cap == PCI_SPEED_UNKNOWN) {
 		si_pi->sys_pcie_mask = 0;
-	else
-		si_pi->sys_pcie_mask = mask;
+	} else {
+		if (speed_cap == PCIE_SPEED_8_0GT)
+			si_pi->sys_pcie_mask = RADEON_PCIE_SPEED_25 |
+				RADEON_PCIE_SPEED_50 |
+				RADEON_PCIE_SPEED_80;
+		else if (speed_cap == PCIE_SPEED_5_0GT)
+			si_pi->sys_pcie_mask = RADEON_PCIE_SPEED_25 |
+				RADEON_PCIE_SPEED_50;
+		else
+			si_pi->sys_pcie_mask = RADEON_PCIE_SPEED_25;
+	}
 	si_pi->force_pcie_gen = RADEON_PCIE_GEN_INVALID;
 	si_pi->boot_pcie_gen = si_get_current_pcie_speed(rdev);
 
@@ -6941,7 +6955,9 @@ int si_dpm_init(struct radeon_device *rdev)
 		return ret;
 
 	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
-		kzalloc(4 * sizeof(struct radeon_clock_voltage_dependency_entry), GFP_KERNEL);
+		kcalloc(4,
+			sizeof(struct radeon_clock_voltage_dependency_entry),
+			GFP_KERNEL);
 	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
 		r600_free_extended_power_table(rdev);
 		return -ENOMEM;

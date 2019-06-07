@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	linux/drivers/net/wireless/libertas/if_spi.c
  *
@@ -10,11 +11,6 @@
  *	Colin McCabe <colin@cozybit.com>
  *
  *	Inspired by if_sdio.c, Copyright 2007-2008 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -796,15 +792,13 @@ static void if_spi_h2c(struct if_spi_card *card,
 {
 	struct lbs_private *priv = card->priv;
 	int err = 0;
-	u16 int_type, port_reg;
+	u16 port_reg;
 
 	switch (type) {
 	case MVMS_DAT:
-		int_type = IF_SPI_CIC_TX_DOWNLOAD_OVER;
 		port_reg = IF_SPI_DATA_RDWRPORT_REG;
 		break;
 	case MVMS_CMD:
-		int_type = IF_SPI_CIC_CMD_DOWNLOAD_OVER;
 		port_reg = IF_SPI_CMD_RDWRPORT_REG;
 		break;
 	default:
@@ -1146,8 +1140,8 @@ static int if_spi_probe(struct spi_device *spi)
 	 * This will call alloc_etherdev.
 	 */
 	priv = lbs_add_card(card, &spi->dev);
-	if (!priv) {
-		err = -ENOMEM;
+	if (IS_ERR(priv)) {
+		err = PTR_ERR(priv);
 		goto free_card;
 	}
 	card->priv = priv;

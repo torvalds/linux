@@ -11,6 +11,7 @@
 #ifndef _XTENSA_THREAD_INFO_H
 #define _XTENSA_THREAD_INFO_H
 
+#include <linux/stringify.h>
 #include <asm/kmem_layout.h>
 
 #define CURRENT_SHIFT KERNEL_STACK_SHIFT
@@ -100,13 +101,12 @@ static inline struct thread_info *current_thread_info(void)
 /*
  * thread information flags
  * - these are process state flags that various assembly files may need to access
- * - pending work-to-be-done flags are in LSW
- * - other flags in MSW
  */
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
 #define TIF_SIGPENDING		1	/* signal pending */
 #define TIF_NEED_RESCHED	2	/* rescheduling necessary */
 #define TIF_SINGLESTEP		3	/* restore singlestep on return to user mode */
+#define TIF_SYSCALL_TRACEPOINT	4	/* syscall tracepoint instrumentation */
 #define TIF_MEMDIE		5	/* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	6	/* restore signal mask in do_signal() */
 #define TIF_NOTIFY_RESUME	7	/* callback before returning to user */
@@ -116,18 +116,10 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
+#define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
 
-#define _TIF_WORK_MASK		0x0000FFFE	/* work to do on interrupt/exception return */
-#define _TIF_ALLWORK_MASK	0x0000FFFF	/* work to do on any return to u-space */
-
-/*
- * Thread-synchronous status.
- *
- * This is different from the flags in that nobody else
- * ever touches our thread-synchronous status, so we don't
- * have to worry about atomic accesses.
- */
-#define TS_USEDFPU		0x0001	/* FPU was used by this task this quantum (SMP) */
+#define _TIF_WORK_MASK		(_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP | \
+				 _TIF_SYSCALL_TRACEPOINT)
 
 #define THREAD_SIZE KERNEL_STACK_SIZE
 #define THREAD_SIZE_ORDER (KERNEL_STACK_SHIFT - PAGE_SHIFT)

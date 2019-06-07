@@ -34,6 +34,7 @@ struct mod_arch_specific {
 #endif
 };
 
+struct module;
 u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val);
 
 /*
@@ -59,5 +60,16 @@ u32 get_module_plt(struct module *mod, unsigned long loc, Elf32_Addr val);
 	MODULE_ARCH_VERMAGIC_ARMVSN \
 	MODULE_ARCH_VERMAGIC_ARMTHUMB \
 	MODULE_ARCH_VERMAGIC_P2V
+
+#ifdef CONFIG_THUMB2_KERNEL
+#define HAVE_ARCH_KALLSYMS_SYMBOL_VALUE
+static inline unsigned long kallsyms_symbol_value(const Elf_Sym *sym)
+{
+	if (ELF_ST_TYPE(sym->st_info) == STT_FUNC)
+		return sym->st_value & ~1;
+
+	return sym->st_value;
+}
+#endif
 
 #endif /* _ASM_ARM_MODULE_H */

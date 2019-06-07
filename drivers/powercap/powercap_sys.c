@@ -545,15 +545,16 @@ struct powercap_zone *powercap_register_zone(
 	dev_set_name(&power_zone->dev, "%s:%x",
 					dev_name(power_zone->dev.parent),
 					power_zone->id);
-	power_zone->constraints = kzalloc(sizeof(*power_zone->constraints) *
-					 nr_constraints, GFP_KERNEL);
+	power_zone->constraints = kcalloc(nr_constraints,
+					  sizeof(*power_zone->constraints),
+					  GFP_KERNEL);
 	if (!power_zone->constraints)
 		goto err_const_alloc;
 
 	nr_attrs = nr_constraints * POWERCAP_CONSTRAINTS_ATTRS +
 						POWERCAP_ZONE_MAX_ATTRS + 1;
-	power_zone->zone_dev_attrs = kzalloc(sizeof(void *) *
-						nr_attrs, GFP_KERNEL);
+	power_zone->zone_dev_attrs = kcalloc(nr_attrs, sizeof(void *),
+					     GFP_KERNEL);
 	if (!power_zone->zone_dev_attrs)
 		goto err_attr_alloc;
 	create_power_zone_common_attributes(power_zone);

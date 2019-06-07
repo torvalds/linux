@@ -1,13 +1,10 @@
-/* $Id: head.S,v 1.7 2003/09/01 17:58:19 lethal Exp $
+/* SPDX-License-Identifier: GPL-2.0
+ * $Id: head.S,v 1.7 2003/09/01 17:58:19 lethal Exp $
  *
  *  arch/sh/kernel/head.S
  *
  *  Copyright (C) 1999, 2000  Niibe Yutaka & Kaz Kojima
  *  Copyright (C) 2010  Matt Fleming
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  *
  * Head.S contains the SH exception handlers and startup code.
  */

@@ -1260,6 +1260,7 @@ static int exynos_iommu_add_device(struct device *dev)
 		 * direct calls to pm_runtime_get/put in this driver.
 		 */
 		data->link = device_link_add(dev, data->sysmmu,
+					     DL_FLAG_STATELESS |
 					     DL_FLAG_PM_RUNTIME);
 	}
 	iommu_group_put(group);
@@ -1332,7 +1333,6 @@ static const struct iommu_ops exynos_iommu_ops = {
 	.detach_dev = exynos_iommu_detach_device,
 	.map = exynos_iommu_map,
 	.unmap = exynos_iommu_unmap,
-	.map_sg = default_iommu_map_sg,
 	.iova_to_phys = exynos_iommu_iova_to_phys,
 	.device_group = generic_device_group,
 	.add_device = exynos_iommu_add_device,
@@ -1390,5 +1390,3 @@ err_reg_driver:
 	return ret;
 }
 core_initcall(exynos_iommu_init);
-
-IOMMU_OF_DECLARE(exynos_iommu_of, "samsung,exynos-sysmmu");

@@ -20,6 +20,18 @@ config ANDROID_BINDER_IPC
 	  Android process, using Binder to identify, invoke and pass arguments
 	  between said processes.
 
+config ANDROID_BINDERFS
+	bool "Android Binderfs filesystem"
+	depends on ANDROID_BINDER_IPC
+	default n
+	---help---
+	  Binderfs is a pseudo-filesystem for the Android Binder IPC driver
+	  which can be mounted per-ipc namespace allowing to run multiple
+	  instances of Android.
+	  Each binderfs mount initially only contains a binder-control device.
+	  It can be used to dynamically allocate new binder IPC devices via
+	  ioctls.
+
 config ANDROID_BINDER_DEVICES
 	string "Android Binder devices"
 	depends on ANDROID_BINDER_IPC
@@ -31,19 +43,6 @@ config ANDROID_BINDER_DEVICES
 	  that specifies the names of the binder device nodes that will be
 	  created. Each binder device has its own context manager, and is
 	  therefore logically separated from the other devices.
-
-config ANDROID_BINDER_IPC_32BIT
-	bool "Use old (Android 4.4 and earlier) 32-bit binder API"
-	depends on !64BIT && ANDROID_BINDER_IPC
-	default y
-	---help---
-	  The Binder API has been changed to support both 32 and 64bit
-	  applications in a mixed environment.
-
-	  Enable this to support an old 32-bit Android user-space (v4.4 and
-	  earlier).
-
-	  Note that enabling this will break newer Android user-space.
 
 config ANDROID_BINDER_IPC_SELFTEST
 	bool "Android Binder IPC Driver Selftest"

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of GF1 chip (PCM things)
@@ -7,22 +8,6 @@
  *  
  *  This code emulates autoinit DMA transfer for playback, recording by GF1
  *  chip doesn't support autoinit DMA.
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <asm/dma.h>
@@ -891,7 +876,7 @@ int snd_gf1_pcm_new(struct snd_gus_card *gus, int pcm_dev, int control_index)
 
 	for (substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; substream; substream = substream->next)
 		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
+					      card->dev,
 					      64*1024, gus->gf1.dma1 > 3 ? 128*1024 : 64*1024);
 	
 	pcm->info_flags = 0;
@@ -901,7 +886,7 @@ int snd_gf1_pcm_new(struct snd_gus_card *gus, int pcm_dev, int control_index)
 		if (gus->gf1.dma2 == gus->gf1.dma1)
 			pcm->info_flags |= SNDRV_PCM_INFO_HALF_DUPLEX;
 		snd_pcm_lib_preallocate_pages(pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream,
-					      SNDRV_DMA_TYPE_DEV, snd_dma_isa_data(),
+					      SNDRV_DMA_TYPE_DEV, card->dev,
 					      64*1024, gus->gf1.dma2 > 3 ? 128*1024 : 64*1024);
 	}
 	strcpy(pcm->name, pcm->id);

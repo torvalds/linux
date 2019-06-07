@@ -934,7 +934,7 @@ static int i810_dma_vertex(struct drm_device *dev, void *data,
 	DRM_DEBUG("idx %d used %d discard %d\n",
 		  vertex->idx, vertex->used, vertex->discard);
 
-	if (vertex->idx < 0 || vertex->idx > dma->buf_count)
+	if (vertex->idx < 0 || vertex->idx >= dma->buf_count)
 		return -EINVAL;
 
 	i810_dma_dispatch_vertex(dev,

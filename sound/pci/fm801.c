@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  The driver for the ForteMedia FM801 based soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
  */
 
 #include <linux/delay.h>
@@ -1068,11 +1058,19 @@ static int snd_fm801_mixer(struct fm801 *chip)
 		if ((err = snd_ac97_mixer(chip->ac97_bus, &ac97, &chip->ac97_sec)) < 0)
 			return err;
 	}
-	for (i = 0; i < FM801_CONTROLS; i++)
-		snd_ctl_add(chip->card, snd_ctl_new1(&snd_fm801_controls[i], chip));
+	for (i = 0; i < FM801_CONTROLS; i++) {
+		err = snd_ctl_add(chip->card,
+			snd_ctl_new1(&snd_fm801_controls[i], chip));
+		if (err < 0)
+			return err;
+	}
 	if (chip->multichannel) {
-		for (i = 0; i < FM801_CONTROLS_MULTI; i++)
-			snd_ctl_add(chip->card, snd_ctl_new1(&snd_fm801_controls_multi[i], chip));
+		for (i = 0; i < FM801_CONTROLS_MULTI; i++) {
+			err = snd_ctl_add(chip->card,
+				snd_ctl_new1(&snd_fm801_controls_multi[i], chip));
+			if (err < 0)
+				return err;
+		}
 	}
 	return 0;
 }
@@ -1400,7 +1398,6 @@ static int snd_fm801_suspend(struct device *dev)
 	if (chip->tea575x_tuner & TUNER_ONLY) {
 		/* FIXME: tea575x suspend */
 	} else {
-		snd_pcm_suspend_all(chip->pcm);
 		snd_ac97_suspend(chip->ac97);
 		snd_ac97_suspend(chip->ac97_sec);
 	}

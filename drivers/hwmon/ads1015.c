@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ads1015.c - lm_sensors driver for ads1015 12-bit 4-input ADC
  * (C) Copyright 2010
@@ -6,20 +7,6 @@
  * Based on the ads7828 driver by Steve Hardy.
  *
  * Datasheet available at: http://focus.ti.com/lit/ds/symlink/ads1015.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -133,8 +120,8 @@ static int ads1015_reg_to_mv(struct i2c_client *client, unsigned int channel,
 }
 
 /* sysfs callback function */
-static ssize_t show_in(struct device *dev, struct device_attribute *da,
-	char *buf)
+static ssize_t in_show(struct device *dev, struct device_attribute *da,
+		       char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct i2c_client *client = to_i2c_client(dev);
@@ -149,14 +136,14 @@ static ssize_t show_in(struct device *dev, struct device_attribute *da,
 }
 
 static const struct sensor_device_attribute ads1015_in[] = {
-	SENSOR_ATTR(in0_input, S_IRUGO, show_in, NULL, 0),
-	SENSOR_ATTR(in1_input, S_IRUGO, show_in, NULL, 1),
-	SENSOR_ATTR(in2_input, S_IRUGO, show_in, NULL, 2),
-	SENSOR_ATTR(in3_input, S_IRUGO, show_in, NULL, 3),
-	SENSOR_ATTR(in4_input, S_IRUGO, show_in, NULL, 4),
-	SENSOR_ATTR(in5_input, S_IRUGO, show_in, NULL, 5),
-	SENSOR_ATTR(in6_input, S_IRUGO, show_in, NULL, 6),
-	SENSOR_ATTR(in7_input, S_IRUGO, show_in, NULL, 7),
+	SENSOR_ATTR_RO(in0_input, in, 0),
+	SENSOR_ATTR_RO(in1_input, in, 1),
+	SENSOR_ATTR_RO(in2_input, in, 2),
+	SENSOR_ATTR_RO(in3_input, in, 3),
+	SENSOR_ATTR_RO(in4_input, in, 4),
+	SENSOR_ATTR_RO(in5_input, in, 5),
+	SENSOR_ATTR_RO(in6_input, in, 6),
+	SENSOR_ATTR_RO(in7_input, in, 7),
 };
 
 /*
@@ -307,7 +294,7 @@ static const struct i2c_device_id ads1015_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ads1015_id);
 
-static const struct of_device_id ads1015_of_match[] = {
+static const struct of_device_id __maybe_unused ads1015_of_match[] = {
 	{
 		.compatible = "ti,ads1015",
 		.data = (void *)ads1015

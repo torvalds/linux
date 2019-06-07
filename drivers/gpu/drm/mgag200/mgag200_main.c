@@ -33,7 +33,7 @@ int mgag200_framebuffer_init(struct drm_device *dev,
 			     struct drm_gem_object *obj)
 {
 	int ret;
-	
+
 	drm_helper_mode_fill_fb_struct(dev, &gfb->base, mode_cmd);
 	gfb->obj = obj;
 	ret = drm_framebuffer_init(dev, &gfb->base, &mga_fb_funcs);
@@ -124,19 +124,10 @@ static int mga_probe_vram(struct mga_device *mdev, void __iomem *mem)
 static int mga_vram_init(struct mga_device *mdev)
 {
 	void __iomem *mem;
-	struct apertures_struct *aper = alloc_apertures(1);
-	if (!aper)
-		return -ENOMEM;
 
 	/* BAR 0 is VRAM */
 	mdev->mc.vram_base = pci_resource_start(mdev->dev->pdev, 0);
 	mdev->mc.vram_window = pci_resource_len(mdev->dev->pdev, 0);
-
-	aper->ranges[0].base = mdev->mc.vram_base;
-	aper->ranges[0].size = mdev->mc.vram_window;
-
-	drm_fb_helper_remove_conflicting_framebuffers(aper, "mgafb", true);
-	kfree(aper);
 
 	if (!devm_request_mem_region(mdev->dev->dev, mdev->mc.vram_base, mdev->mc.vram_window,
 				"mgadrmfb_vram")) {
@@ -327,13 +318,9 @@ int mgag200_dumb_create(struct drm_file *file,
 
 static void mgag200_bo_unref(struct mgag200_bo **bo)
 {
-	struct ttm_buffer_object *tbo;
-
 	if ((*bo) == NULL)
 		return;
-
-	tbo = &((*bo)->bo);
-	ttm_bo_unref(&tbo);
+	ttm_bo_put(&((*bo)->bo));
 	*bo = NULL;
 }
 

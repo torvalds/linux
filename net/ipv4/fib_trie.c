@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License
- *   as published by the Free Software Foundation; either version
- *   2 of the License, or (at your option) any later version.
  *
  *   Robert Olsson <robert.olsson@its.uu.se> Uppsala Universitet
  *     & Swedish University of Agricultural Sciences.
@@ -18,13 +15,10 @@
  * Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
  * http://www.csc.kth.se/~snilsson/software/dyntrie2/
  *
- *
  * IP-address lookup using LC-tries. Stefan Nilsson and Gunnar Karlsson
  * IEEE Journal on Selected Areas in Communications, 17(6):1083-1092, June 1999
  *
- *
  * Code from fib_hash has been reused which includes the following header:
- *
  *
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -32,13 +26,7 @@
  *
  *		IPv4 FIB: lookup engine and maintenance routines.
  *
- *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Substantial contributions to this work comes from:
  *
@@ -183,14 +171,16 @@ struct trie {
 };
 
 static struct key_vector *resize(struct trie *t, struct key_vector *tn);
-static size_t tnode_free_size;
+static unsigned int tnode_free_size;
 
 /*
- * synchronize_rcu after call_rcu for that many pages; it should be especially
- * useful before resizing the root node with PREEMPT_NONE configs; the value was
- * obtained experimentally, aiming to avoid visible slowdown.
+ * synchronize_rcu after call_rcu for outstanding dirty memory; it should be
+ * especially useful before resizing the root node with PREEMPT_NONE configs;
+ * the value was obtained experimentally, aiming to avoid visible slowdown.
  */
-static const int sync_pages = 128;
+unsigned int sysctl_fib_sync_mem = 512 * 1024;
+unsigned int sysctl_fib_sync_mem_min = 64 * 1024;
+unsigned int sysctl_fib_sync_mem_max = 64 * 1024 * 1024;
 
 static struct kmem_cache *fn_alias_kmem __ro_after_init;
 static struct kmem_cache *trie_leaf_kmem __ro_after_init;
@@ -504,7 +494,7 @@ static void tnode_free(struct key_vector *tn)
 		tn = container_of(head, struct tnode, rcu)->kv;
 	}
 
-	if (tnode_free_size >= PAGE_SIZE * sync_pages) {
+	if (tnode_free_size >= sysctl_fib_sync_mem) {
 		tnode_free_size = 0;
 		synchronize_rcu();
 	}
@@ -1326,14 +1316,14 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 	unsigned long index;
 	t_key cindex;
 
-	trace_fib_table_lookup(tb->tb_id, flp);
-
 	pn = t->kv;
 	cindex = 0;
 
 	n = get_child_rcu(pn, cindex);
-	if (!n)
+	if (!n) {
+		trace_fib_table_lookup(tb->tb_id, flp, NULL, -EAGAIN);
 		return -EAGAIN;
+	}
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 	this_cpu_inc(stats->gets);
@@ -1416,8 +1406,11 @@ backtrace:
 				 * nothing for us to do as we do not have any
 				 * further nodes to parse.
 				 */
-				if (IS_TRIE(pn))
+				if (IS_TRIE(pn)) {
+					trace_fib_table_lookup(tb->tb_id, flp,
+							       NULL, -EAGAIN);
 					return -EAGAIN;
+				}
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 				this_cpu_inc(stats->backtrack);
 #endif
@@ -1459,24 +1452,23 @@ found:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
+			trace_fib_table_lookup(tb->tb_id, flp, NULL, err);
 			return err;
 		}
 		if (fi->fib_flags & RTNH_F_DEAD)
 			continue;
 		for (nhsel = 0; nhsel < fi->fib_nhs; nhsel++) {
-			const struct fib_nh *nh = &fi->fib_nh[nhsel];
-			struct in_device *in_dev = __in_dev_get_rcu(nh->nh_dev);
+			struct fib_nh_common *nhc = fib_info_nhc(fi, nhsel);
 
-			if (nh->nh_flags & RTNH_F_DEAD)
+			if (nhc->nhc_flags & RTNH_F_DEAD)
 				continue;
-			if (in_dev &&
-			    IN_DEV_IGNORE_ROUTES_WITH_LINKDOWN(in_dev) &&
-			    nh->nh_flags & RTNH_F_LINKDOWN &&
+			if (ip_ignore_linkdown(nhc->nhc_dev) &&
+			    nhc->nhc_flags & RTNH_F_LINKDOWN &&
 			    !(fib_flags & FIB_LOOKUP_IGNORE_LINKSTATE))
 				continue;
 			if (!(flp->flowi4_flags & FLOWI_FLAG_SKIP_NH_OIF)) {
 				if (flp->flowi4_oif &&
-				    flp->flowi4_oif != nh->nh_oif)
+				    flp->flowi4_oif != nhc->nhc_oif)
 					continue;
 			}
 
@@ -1486,6 +1478,7 @@ found:
 			res->prefix = htonl(n->key);
 			res->prefixlen = KEYLENGTH - fa->fa_slen;
 			res->nh_sel = nhsel;
+			res->nhc = nhc;
 			res->type = fa->fa_type;
 			res->scope = fi->fib_scope;
 			res->fi = fi;
@@ -1494,7 +1487,7 @@ found:
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 			this_cpu_inc(stats->semantic_match_passed);
 #endif
-			trace_fib_table_lookup_nh(nh);
+			trace_fib_table_lookup(tb->tb_id, flp, nhc, err);
 
 			return err;
 		}
@@ -1852,7 +1845,7 @@ void fib_table_flush_external(struct fib_table *tb)
 }
 
 /* Caller must hold RTNL. */
-int fib_table_flush(struct net *net, struct fib_table *tb)
+int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *pn = t->kv;
@@ -1900,8 +1893,17 @@ int fib_table_flush(struct net *net, struct fib_table *tb)
 		hlist_for_each_entry_safe(fa, tmp, &n->leaf, fa_list) {
 			struct fib_info *fi = fa->fa_info;
 
-			if (!fi || !(fi->fib_flags & RTNH_F_DEAD) ||
-			    tb->tb_id != fa->tb_id) {
+			if (!fi || tb->tb_id != fa->tb_id ||
+			    (!(fi->fib_flags & RTNH_F_DEAD) &&
+			     !fib_props[fa->fa_type].error)) {
+				slen = fa->fa_slen;
+				continue;
+			}
+
+			/* Do not flush error routes if network namespace is
+			 * not being dismantled
+			 */
+			if (!flush_all && fib_props[fa->fa_type].error) {
 				slen = fa->fa_slen;
 				continue;
 			}
@@ -1999,11 +2001,16 @@ void fib_free_table(struct fib_table *tb)
 }
 
 static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
-			     struct sk_buff *skb, struct netlink_callback *cb)
+			     struct sk_buff *skb, struct netlink_callback *cb,
+			     struct fib_dump_filter *filter)
 {
+	unsigned int flags = NLM_F_MULTI;
 	__be32 xkey = htonl(l->key);
 	struct fib_alias *fa;
 	int i, s_i;
+
+	if (filter->filter_set)
+		flags |= NLM_F_DUMP_FILTERED;
 
 	s_i = cb->args[4];
 	i = 0;
@@ -2012,25 +2019,35 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
 		int err;
 
-		if (i < s_i) {
-			i++;
-			continue;
-		}
+		if (i < s_i)
+			goto next;
 
-		if (tb->tb_id != fa->tb_id) {
-			i++;
-			continue;
+		if (tb->tb_id != fa->tb_id)
+			goto next;
+
+		if (filter->filter_set) {
+			if (filter->rt_type && fa->fa_type != filter->rt_type)
+				goto next;
+
+			if ((filter->protocol &&
+			     fa->fa_info->fib_protocol != filter->protocol))
+				goto next;
+
+			if (filter->dev &&
+			    !fib_info_nh_uses_dev(fa->fa_info, filter->dev))
+				goto next;
 		}
 
 		err = fib_dump_info(skb, NETLINK_CB(cb->skb).portid,
 				    cb->nlh->nlmsg_seq, RTM_NEWROUTE,
 				    tb->tb_id, fa->fa_type,
 				    xkey, KEYLENGTH - fa->fa_slen,
-				    fa->fa_tos, fa->fa_info, NLM_F_MULTI);
+				    fa->fa_tos, fa->fa_info, flags);
 		if (err < 0) {
 			cb->args[4] = i;
 			return err;
 		}
+next:
 		i++;
 	}
 
@@ -2040,7 +2057,7 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 
 /* rcu_read_lock needs to be hold by caller from readside */
 int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
-		   struct netlink_callback *cb)
+		   struct netlink_callback *cb, struct fib_dump_filter *filter)
 {
 	struct trie *t = (struct trie *)tb->tb_data;
 	struct key_vector *l, *tp = t->kv;
@@ -2053,7 +2070,7 @@ int fib_table_dump(struct fib_table *tb, struct sk_buff *skb,
 	while ((l = leaf_walk_rcu(&tp, key)) != NULL) {
 		int err;
 
-		err = fn_trie_dump_leaf(l, tb, skb, cb);
+		err = fn_trie_dump_leaf(l, tb, skb, cb, filter);
 		if (err < 0) {
 			cb->args[3] = key;
 			cb->args[2] = count;
@@ -2348,18 +2365,6 @@ static int fib_triestat_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int fib_triestat_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open_net(inode, file, fib_triestat_seq_show);
-}
-
-static const struct file_operations fib_triestat_fops = {
-	.open	= fib_triestat_seq_open,
-	.read	= seq_read,
-	.llseek	= seq_lseek,
-	.release = single_release_net,
-};
-
 static struct key_vector *fib_trie_get_idx(struct seq_file *seq, loff_t pos)
 {
 	struct fib_trie_iter *iter = seq->private;
@@ -2533,19 +2538,6 @@ static const struct seq_operations fib_trie_seq_ops = {
 	.show   = fib_trie_seq_show,
 };
 
-static int fib_trie_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &fib_trie_seq_ops,
-			    sizeof(struct fib_trie_iter));
-}
-
-static const struct file_operations fib_trie_fops = {
-	.open   = fib_trie_seq_open,
-	.read   = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release_net,
-};
-
 struct fib_route_iter {
 	struct seq_net_private p;
 	struct fib_table *main_tb;
@@ -2648,7 +2640,7 @@ static unsigned int fib_flag_trans(int type, __be32 mask, const struct fib_info 
 
 	if (type == RTN_UNREACHABLE || type == RTN_PROHIBIT)
 		flags = RTF_REJECT;
-	if (fi && fi->fib_nh->nh_gw)
+	if (fi && fi->fib_nh->fib_nh_gw4)
 		flags |= RTF_GATEWAY;
 	if (mask == htonl(0xFFFFFFFF))
 		flags |= RTF_HOST;
@@ -2699,7 +2691,7 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 				   "%d\t%08X\t%d\t%u\t%u",
 				   fi->fib_dev ? fi->fib_dev->name : "*",
 				   prefix,
-				   fi->fib_nh->nh_gw, flags, 0, 0,
+				   fi->fib_nh->fib_nh_gw4, flags, 0, 0,
 				   fi->fib_priority,
 				   mask,
 				   (fi->fib_advmss ?
@@ -2726,29 +2718,18 @@ static const struct seq_operations fib_route_seq_ops = {
 	.show   = fib_route_seq_show,
 };
 
-static int fib_route_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &fib_route_seq_ops,
-			    sizeof(struct fib_route_iter));
-}
-
-static const struct file_operations fib_route_fops = {
-	.open   = fib_route_seq_open,
-	.read   = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release_net,
-};
-
 int __net_init fib_proc_init(struct net *net)
 {
-	if (!proc_create("fib_trie", 0444, net->proc_net, &fib_trie_fops))
+	if (!proc_create_net("fib_trie", 0444, net->proc_net, &fib_trie_seq_ops,
+			sizeof(struct fib_trie_iter)))
 		goto out1;
 
-	if (!proc_create("fib_triestat", 0444, net->proc_net,
-			 &fib_triestat_fops))
+	if (!proc_create_net_single("fib_triestat", 0444, net->proc_net,
+			fib_triestat_seq_show, NULL))
 		goto out2;
 
-	if (!proc_create("route", 0444, net->proc_net, &fib_route_fops))
+	if (!proc_create_net("route", 0444, net->proc_net, &fib_route_seq_ops,
+			sizeof(struct fib_route_iter)))
 		goto out3;
 
 	return 0;

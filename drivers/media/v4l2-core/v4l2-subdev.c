@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * V4L2 sub-device
  *
@@ -5,19 +6,11 @@
  *
  * Contact: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	    Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/ioctl.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/videodev2.h>
@@ -54,9 +47,6 @@ static int subdev_open(struct file *file)
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
 	struct v4l2_subdev_fh *subdev_fh;
-#if defined(CONFIG_MEDIA_CONTROLLER)
-	struct media_entity *entity = NULL;
-#endif
 	int ret;
 
 	subdev_fh = kzalloc(sizeof(*subdev_fh), GFP_KERNEL);
@@ -73,12 +63,15 @@ static int subdev_open(struct file *file)
 	v4l2_fh_add(&subdev_fh->vfh);
 	file->private_data = &subdev_fh->vfh;
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	if (sd->v4l2_dev->mdev) {
-		entity = media_entity_get(&sd->entity);
-		if (!entity) {
+	if (sd->v4l2_dev->mdev && sd->entity.graph_obj.mdev->dev) {
+		struct module *owner;
+
+		owner = sd->entity.graph_obj.mdev->dev->driver->owner;
+		if (!try_module_get(owner)) {
 			ret = -EBUSY;
 			goto err;
 		}
+		subdev_fh->owner = owner;
 	}
 #endif
 
@@ -91,9 +84,7 @@ static int subdev_open(struct file *file)
 	return 0;
 
 err:
-#if defined(CONFIG_MEDIA_CONTROLLER)
-	media_entity_put(entity);
-#endif
+	module_put(subdev_fh->owner);
 	v4l2_fh_del(&subdev_fh->vfh);
 	v4l2_fh_exit(&subdev_fh->vfh);
 	subdev_fh_free(subdev_fh);
@@ -111,10 +102,7 @@ static int subdev_close(struct file *file)
 
 	if (sd->internal_ops && sd->internal_ops->close)
 		sd->internal_ops->close(sd, subdev_fh);
-#if defined(CONFIG_MEDIA_CONTROLLER)
-	if (sd->v4l2_dev->mdev)
-		media_entity_put(&sd->entity);
-#endif
+	module_put(subdev_fh->owner);
 	v4l2_fh_del(vfh);
 	v4l2_fh_exit(vfh);
 	subdev_fh_free(subdev_fh);
@@ -222,17 +210,20 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_G_EXT_CTRLS:
 		if (!vfh->ctrl_handler)
 			return -ENOTTY;
-		return v4l2_g_ext_ctrls(vfh->ctrl_handler, arg);
+		return v4l2_g_ext_ctrls(vfh->ctrl_handler,
+					sd->v4l2_dev->mdev, arg);
 
 	case VIDIOC_S_EXT_CTRLS:
 		if (!vfh->ctrl_handler)
 			return -ENOTTY;
-		return v4l2_s_ext_ctrls(vfh, vfh->ctrl_handler, arg);
+		return v4l2_s_ext_ctrls(vfh, vfh->ctrl_handler,
+					sd->v4l2_dev->mdev, arg);
 
 	case VIDIOC_TRY_EXT_CTRLS:
 		if (!vfh->ctrl_handler)
 			return -ENOTTY;
-		return v4l2_try_ext_ctrls(vfh->ctrl_handler, arg);
+		return v4l2_try_ext_ctrls(vfh->ctrl_handler,
+					  sd->v4l2_dev->mdev, arg);
 
 	case VIDIOC_DQEVENT:
 		if (!(sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS))
@@ -273,7 +264,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			p->flags |= V4L2_CHIP_FL_WRITABLE;
 		if (sd->ops->core && sd->ops->core->g_register)
 			p->flags |= V4L2_CHIP_FL_READABLE;
-		strlcpy(p->name, sd->name, sizeof(p->name));
+		strscpy(p->name, sd->name, sizeof(p->name));
 		return 0;
 	}
 #endif
@@ -494,6 +485,28 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_S_DV_TIMINGS:
 		return v4l2_subdev_call(sd, video, s_dv_timings, arg);
+
+	case VIDIOC_SUBDEV_G_STD:
+		return v4l2_subdev_call(sd, video, g_std, arg);
+
+	case VIDIOC_SUBDEV_S_STD: {
+		v4l2_std_id *std = arg;
+
+		return v4l2_subdev_call(sd, video, s_std, *std);
+	}
+
+	case VIDIOC_SUBDEV_ENUMSTD: {
+		struct v4l2_standard *p = arg;
+		v4l2_std_id id;
+
+		if (v4l2_subdev_call(sd, video, g_tvnorms, &id))
+			return -EINVAL;
+
+		return v4l_video_std_enumstd(p, id);
+	}
+
+	case VIDIOC_SUBDEV_QUERYSTD:
+		return v4l2_subdev_call(sd, video, querystd, arg);
 #endif
 	default:
 		return v4l2_subdev_call(sd, core, ioctl, cmd, arg);
@@ -502,10 +515,25 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
+static long subdev_do_ioctl_lock(struct file *file, unsigned int cmd, void *arg)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct mutex *lock = vdev->lock;
+	long ret = -ENODEV;
+
+	if (lock && mutex_lock_interruptible(lock))
+		return -ERESTARTSYS;
+	if (video_is_registered(vdev))
+		ret = subdev_do_ioctl(file, cmd, arg);
+	if (lock)
+		mutex_unlock(lock);
+	return ret;
+}
+
 static long subdev_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
 {
-	return video_usercopy(file, cmd, arg, subdev_do_ioctl);
+	return video_usercopy(file, cmd, arg, subdev_do_ioctl_lock);
 }
 
 #ifdef CONFIG_COMPAT

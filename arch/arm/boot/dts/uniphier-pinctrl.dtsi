@@ -121,9 +121,34 @@
 		function = "sd";
 	};
 
+	pinctrl_sd_uhs: sd-uhs {
+		groups = "sd";
+		function = "sd";
+	};
+
 	pinctrl_sd1: sd1 {
 		groups = "sd1";
 		function = "sd1";
+	};
+
+	pinctrl_spi0: spi0 {
+		groups = "spi0";
+		function = "spi0";
+	};
+
+	pinctrl_spi1: spi1 {
+		groups = "spi1";
+		function = "spi1";
+	};
+
+	pinctrl_spi2: spi2 {
+		groups = "spi2";
+		function = "spi2";
+	};
+
+	pinctrl_spi3: spi3 {
+		groups = "spi3";
+		function = "spi3";
 	};
 
 	pinctrl_system_bus: system-bus {

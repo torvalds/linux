@@ -203,6 +203,7 @@ struct at_xdmac_chan {
 	u32				save_cim;
 	u32				save_cnda;
 	u32				save_cndc;
+	u32				irq_status;
 	unsigned long			status;
 	struct tasklet_struct		tasklet;
 	struct dma_slave_config		sconfig;
@@ -307,6 +308,11 @@ static inline int at_xdmac_csize(u32 maxburst)
 	return csize;
 };
 
+static inline bool at_xdmac_chan_is_peripheral_xfer(u32 cfg)
+{
+	return cfg & AT_XDMAC_CC_TYPE_PER_TRAN;
+}
+
 static inline u8 at_xdmac_get_dwidth(u32 cfg)
 {
 	return (cfg & AT_XDMAC_CC_DWIDTH_MASK) >> AT_XDMAC_CC_DWIDTH_OFFSET;
@@ -388,7 +394,13 @@ static void at_xdmac_start_xfer(struct at_xdmac_chan *atchan,
 		 at_xdmac_chan_read(atchan, AT_XDMAC_CUBC));
 
 	at_xdmac_chan_write(atchan, AT_XDMAC_CID, 0xffffffff);
-	reg = AT_XDMAC_CIE_RBEIE | AT_XDMAC_CIE_WBEIE | AT_XDMAC_CIE_ROIE;
+	reg = AT_XDMAC_CIE_RBEIE | AT_XDMAC_CIE_WBEIE;
+	/*
+	 * Request Overflow Error is only for peripheral synchronized transfers
+	 */
+	if (at_xdmac_chan_is_peripheral_xfer(first->lld.mbr_cfg))
+		reg |= AT_XDMAC_CIE_ROIE;
+
 	/*
 	 * There is no end of list when doing cyclic dma, we need to get
 	 * an interrupt after each periods.
@@ -1574,14 +1586,54 @@ static void at_xdmac_handle_cyclic(struct at_xdmac_chan *atchan)
 		dmaengine_desc_get_callback_invoke(txd, NULL);
 }
 
+static void at_xdmac_handle_error(struct at_xdmac_chan *atchan)
+{
+	struct at_xdmac		*atxdmac = to_at_xdmac(atchan->chan.device);
+	struct at_xdmac_desc	*bad_desc;
+
+	/*
+	 * The descriptor currently at the head of the active list is
+	 * broken. Since we don't have any way to report errors, we'll
+	 * just have to scream loudly and try to continue with other
+	 * descriptors queued (if any).
+	 */
+	if (atchan->irq_status & AT_XDMAC_CIS_RBEIS)
+		dev_err(chan2dev(&atchan->chan), "read bus error!!!");
+	if (atchan->irq_status & AT_XDMAC_CIS_WBEIS)
+		dev_err(chan2dev(&atchan->chan), "write bus error!!!");
+	if (atchan->irq_status & AT_XDMAC_CIS_ROIS)
+		dev_err(chan2dev(&atchan->chan), "request overflow error!!!");
+
+	spin_lock_bh(&atchan->lock);
+
+	/* Channel must be disabled first as it's not done automatically */
+	at_xdmac_write(atxdmac, AT_XDMAC_GD, atchan->mask);
+	while (at_xdmac_read(atxdmac, AT_XDMAC_GS) & atchan->mask)
+		cpu_relax();
+
+	bad_desc = list_first_entry(&atchan->xfers_list,
+				    struct at_xdmac_desc,
+				    xfer_node);
+
+	spin_unlock_bh(&atchan->lock);
+
+	/* Print bad descriptor's details if needed */
+	dev_dbg(chan2dev(&atchan->chan),
+		"%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x\n",
+		__func__, &bad_desc->lld.mbr_sa, &bad_desc->lld.mbr_da,
+		bad_desc->lld.mbr_ubc);
+
+	/* Then continue with usual descriptor management */
+}
+
 static void at_xdmac_tasklet(unsigned long data)
 {
 	struct at_xdmac_chan	*atchan = (struct at_xdmac_chan *)data;
 	struct at_xdmac_desc	*desc;
 	u32			error_mask;
 
-	dev_dbg(chan2dev(&atchan->chan), "%s: status=0x%08lx\n",
-		 __func__, atchan->status);
+	dev_dbg(chan2dev(&atchan->chan), "%s: status=0x%08x\n",
+		__func__, atchan->irq_status);
 
 	error_mask = AT_XDMAC_CIS_RBEIS
 		     | AT_XDMAC_CIS_WBEIS
@@ -1589,28 +1641,28 @@ static void at_xdmac_tasklet(unsigned long data)
 
 	if (at_xdmac_chan_is_cyclic(atchan)) {
 		at_xdmac_handle_cyclic(atchan);
-	} else if ((atchan->status & AT_XDMAC_CIS_LIS)
-		   || (atchan->status & error_mask)) {
+	} else if ((atchan->irq_status & AT_XDMAC_CIS_LIS)
+		   || (atchan->irq_status & error_mask)) {
 		struct dma_async_tx_descriptor  *txd;
 
-		if (atchan->status & AT_XDMAC_CIS_RBEIS)
-			dev_err(chan2dev(&atchan->chan), "read bus error!!!");
-		if (atchan->status & AT_XDMAC_CIS_WBEIS)
-			dev_err(chan2dev(&atchan->chan), "write bus error!!!");
-		if (atchan->status & AT_XDMAC_CIS_ROIS)
-			dev_err(chan2dev(&atchan->chan), "request overflow error!!!");
+		if (atchan->irq_status & error_mask)
+			at_xdmac_handle_error(atchan);
 
-		spin_lock_bh(&atchan->lock);
+		spin_lock(&atchan->lock);
 		desc = list_first_entry(&atchan->xfers_list,
 					struct at_xdmac_desc,
 					xfer_node);
 		dev_vdbg(chan2dev(&atchan->chan), "%s: desc 0x%p\n", __func__, desc);
-		BUG_ON(!desc->active_xfer);
+		if (!desc->active_xfer) {
+			dev_err(chan2dev(&atchan->chan), "Xfer not active: exiting");
+			spin_unlock(&atchan->lock);
+			return;
+		}
 
 		txd = &desc->tx_dma_desc;
 
 		at_xdmac_remove_xfer(atchan, desc);
-		spin_unlock_bh(&atchan->lock);
+		spin_unlock(&atchan->lock);
 
 		if (!at_xdmac_chan_is_cyclic(atchan)) {
 			dma_cookie_complete(txd);
@@ -1652,7 +1704,7 @@ static irqreturn_t at_xdmac_interrupt(int irq, void *dev_id)
 			atchan = &atxdmac->chan[i];
 			chan_imr = at_xdmac_chan_read(atchan, AT_XDMAC_CIM);
 			chan_status = at_xdmac_chan_read(atchan, AT_XDMAC_CIS);
-			atchan->status = chan_status & chan_imr;
+			atchan->irq_status = chan_status & chan_imr;
 			dev_vdbg(atxdmac->dma.dev,
 				 "%s: chan%d: imr=0x%x, status=0x%x\n",
 				 __func__, i, chan_imr, chan_status);
@@ -1666,7 +1718,7 @@ static irqreturn_t at_xdmac_interrupt(int irq, void *dev_id)
 				 at_xdmac_chan_read(atchan, AT_XDMAC_CDA),
 				 at_xdmac_chan_read(atchan, AT_XDMAC_CUBC));
 
-			if (atchan->status & (AT_XDMAC_CIS_RBEIS | AT_XDMAC_CIS_WBEIS))
+			if (atchan->irq_status & (AT_XDMAC_CIS_RBEIS | AT_XDMAC_CIS_WBEIS))
 				at_xdmac_write(atxdmac, AT_XDMAC_GD, atchan->mask);
 
 			tasklet_schedule(&atchan->tasklet);
@@ -1833,8 +1885,7 @@ static void at_xdmac_free_chan_resources(struct dma_chan *chan)
 #ifdef CONFIG_PM
 static int atmel_xdmac_prepare(struct device *dev)
 {
-	struct platform_device	*pdev = to_platform_device(dev);
-	struct at_xdmac		*atxdmac = platform_get_drvdata(pdev);
+	struct at_xdmac		*atxdmac = dev_get_drvdata(dev);
 	struct dma_chan		*chan, *_chan;
 
 	list_for_each_entry_safe(chan, _chan, &atxdmac->dma.channels, device_node) {
@@ -1853,8 +1904,7 @@ static int atmel_xdmac_prepare(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int atmel_xdmac_suspend(struct device *dev)
 {
-	struct platform_device	*pdev = to_platform_device(dev);
-	struct at_xdmac		*atxdmac = platform_get_drvdata(pdev);
+	struct at_xdmac		*atxdmac = dev_get_drvdata(dev);
 	struct dma_chan		*chan, *_chan;
 
 	list_for_each_entry_safe(chan, _chan, &atxdmac->dma.channels, device_node) {
@@ -1878,8 +1928,7 @@ static int atmel_xdmac_suspend(struct device *dev)
 
 static int atmel_xdmac_resume(struct device *dev)
 {
-	struct platform_device	*pdev = to_platform_device(dev);
-	struct at_xdmac		*atxdmac = platform_get_drvdata(pdev);
+	struct at_xdmac		*atxdmac = dev_get_drvdata(dev);
 	struct at_xdmac_chan	*atchan;
 	struct dma_chan		*chan, *_chan;
 	int			i;

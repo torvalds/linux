@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include "cptvf.h"
@@ -223,7 +220,7 @@ scatter_gather_clean:
 	return ret;
 }
 
-int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
+static int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
 		     u32 qno)
 {
 	struct pci_dev *pdev = cptvf->pdev;
@@ -270,7 +267,7 @@ int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
 	return ret;
 }
 
-void do_request_cleanup(struct cpt_vf *cptvf,
+static void do_request_cleanup(struct cpt_vf *cptvf,
 			struct cpt_info_buffer *info)
 {
 	int i;
@@ -308,25 +305,15 @@ void do_request_cleanup(struct cpt_vf *cptvf,
 		}
 	}
 
-	if (info->scatter_components)
-		kzfree(info->scatter_components);
-
-	if (info->gather_components)
-		kzfree(info->gather_components);
-
-	if (info->out_buffer)
-		kzfree(info->out_buffer);
-
-	if (info->in_buffer)
-		kzfree(info->in_buffer);
-
-	if (info->completion_addr)
-		kzfree((void *)info->completion_addr);
-
+	kzfree(info->scatter_components);
+	kzfree(info->gather_components);
+	kzfree(info->out_buffer);
+	kzfree(info->in_buffer);
+	kzfree((void *)info->completion_addr);
 	kzfree(info);
 }
 
-void do_post_process(struct cpt_vf *cptvf, struct cpt_info_buffer *info)
+static void do_post_process(struct cpt_vf *cptvf, struct cpt_info_buffer *info)
 {
 	struct pci_dev *pdev = cptvf->pdev;
 

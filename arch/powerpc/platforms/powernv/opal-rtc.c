@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PowerNV Real Time Clock.
  *
  * Copyright 2011 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 
@@ -34,7 +30,7 @@ static void opal_to_tm(u32 y_m_d, u64 h_m_s_ms, struct rtc_time *tm)
 	tm->tm_wday     = -1;
 }
 
-unsigned long __init opal_get_boot_time(void)
+time64_t __init opal_get_boot_time(void)
 {
 	struct rtc_time tm;
 	u32 y_m_d;
@@ -61,8 +57,7 @@ unsigned long __init opal_get_boot_time(void)
 	y_m_d = be32_to_cpu(__y_m_d);
 	h_m_s_ms = be64_to_cpu(__h_m_s_ms);
 	opal_to_tm(y_m_d, h_m_s_ms, &tm);
-	return mktime(tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-		      tm.tm_hour, tm.tm_min, tm.tm_sec);
+	return rtc_tm_to_time64(&tm);
 }
 
 static __init int opal_time_init(void)

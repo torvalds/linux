@@ -180,7 +180,7 @@
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&r_ir_rx_pin>;
 	status = "okay";
 };
 
@@ -207,9 +207,21 @@
 	status = "okay";
 };
 
+&spi0  {
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <40000000>;
+	};
+};
+
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pa_pins>;
 	status = "okay";
 };
 

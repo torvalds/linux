@@ -95,7 +95,24 @@ extern struct resource intel_graphics_stolen_res;
 #define    I845_TSEG_SIZE_512K	(2 << 1)
 #define    I845_TSEG_SIZE_1M	(3 << 1)
 
-#define INTEL_BSM 0x5c
+#define INTEL_BSM		0x5c
+#define INTEL_GEN11_BSM_DW0	0xc0
+#define INTEL_GEN11_BSM_DW1	0xc4
 #define   INTEL_BSM_MASK	(-(1u << 20))
+
+enum port {
+	PORT_NONE = -1,
+
+	PORT_A = 0,
+	PORT_B,
+	PORT_C,
+	PORT_D,
+	PORT_E,
+	PORT_F,
+
+	I915_MAX_PORTS
+};
+
+#define port_name(p) ((p) + 'A')
 
 #endif				/* _I915_DRM_H_ */

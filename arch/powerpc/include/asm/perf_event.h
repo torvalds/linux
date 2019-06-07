@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Performance event support - hardware-specific disambiguation
  *
@@ -7,11 +8,6 @@
  * devices other than the core which provide their own performance counters.
  *
  * Copyright 2010 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifdef CONFIG_PPC_PERF_CTRS
@@ -26,6 +22,8 @@
 #include <asm/ptrace.h>
 #include <asm/reg.h>
 
+#define perf_arch_bpf_user_pt_regs(regs) &regs->user_regs
+
 /*
  * Overload regs->result to specify whether we should use the MSR (result
  * is zero) or the SIAR (result is non zero).
@@ -37,4 +35,7 @@
 		(regs)->gpr[1] = current_stack_pointer();	\
 		asm volatile("mfmsr %0" : "=r" ((regs)->msr));	\
 	} while (0)
+
+/* To support perf_regs sier update */
+extern bool is_sier_available(void);
 #endif

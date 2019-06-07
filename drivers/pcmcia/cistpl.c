@@ -1481,11 +1481,11 @@ static ssize_t pccard_extract_cis(struct pcmcia_socket *s, char *buf,
 	u_char *tuplebuffer;
 	u_char *tempbuffer;
 
-	tuplebuffer = kmalloc(sizeof(u_char) * 256, GFP_KERNEL);
+	tuplebuffer = kmalloc_array(256, sizeof(u_char), GFP_KERNEL);
 	if (!tuplebuffer)
 		return -ENOMEM;
 
-	tempbuffer = kmalloc(sizeof(u_char) * 258, GFP_KERNEL);
+	tempbuffer = kmalloc_array(258, sizeof(u_char), GFP_KERNEL);
 	if (!tempbuffer) {
 		ret = -ENOMEM;
 		goto free_tuple;

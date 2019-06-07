@@ -73,8 +73,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&leds_opc>, <&leds_r_opc>;
 
 		pwr_led {
 			label = "orangepi:green:pwr";
@@ -90,8 +88,6 @@
 
 	r_gpio_keys {
 		compatible = "gpio-keys";
-		pinctrl-names = "default";
-		pinctrl-0 = <&sw_r_opc>;
 
 		sw4 {
 			label = "sw4";
@@ -111,6 +107,10 @@
 
 &de {
 	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&reg_vdd_cpux>;
 };
 
 &ehci0 {
@@ -148,7 +148,7 @@
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&r_ir_rx_pin>;
 	status = "okay";
 };
 
@@ -175,22 +175,27 @@
 	status = "okay";
 };
 
-&pio {
-	leds_opc: led_pins {
-		pins = "PA15";
-		function = "gpio_out";
-	};
-};
+&r_i2c {
+	status = "okay";
 
-&r_pio {
-	leds_r_opc: led_pins {
-		pins = "PL10";
-		function = "gpio_out";
-	};
-
-	sw_r_opc: key_pins {
-		pins = "PL3";
-		function = "gpio_in";
+	reg_vdd_cpux: regulator@65 {
+		compatible = "silergy,sy8106a";
+		reg = <0x65>;
+		regulator-name = "vdd-cpux";
+		silergy,fixed-microvolt = <1200000>;
+		/*
+		 * The datasheet uses 1.1V as the minimum value of VDD-CPUX,
+		 * however both the Armbian DVFS table and the official one
+		 * have operating points with voltage under 1.1V, and both
+		 * DVFS table are known to work properly at the lowest
+		 * operating point.
+		 *
+		 * Use 1.0V as the minimum voltage instead.
+		 */
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1300000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 };
 
@@ -201,7 +206,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pa_pins>;
 	status = "okay";
 };
 

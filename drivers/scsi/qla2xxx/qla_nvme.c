@@ -30,6 +30,9 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 		return 0;
 	}
 
+	if (!vha->nvme_local_port && qla_nvme_register_hba(vha))
+		return 0;
+
 	if (!(fcport->nvme_prli_service_param &
 	    (NVME_PRLI_SP_TARGET | NVME_PRLI_SP_DISCOVERY)) ||
 		(fcport->nvme_flag & NVME_FLAG_REGISTERED))
@@ -128,14 +131,10 @@ static void qla_nvme_sp_ls_done(void *ptr, int res)
 	struct nvmefc_ls_req   *fd;
 	struct nvme_private *priv;
 
-	if (atomic_read(&sp->ref_count) == 0) {
-		ql_log(ql_log_warn, sp->fcport->vha, 0x2123,
-		    "SP reference-count to ZERO on LS_done -- sp=%p.\n", sp);
+	if (WARN_ON_ONCE(atomic_read(&sp->ref_count) == 0))
 		return;
-	}
 
-	if (!atomic_dec_and_test(&sp->ref_count))
-		return;
+	atomic_dec(&sp->ref_count);
 
 	if (res)
 		res = -EINVAL;
@@ -158,15 +157,18 @@ static void qla_nvme_sp_done(void *ptr, int res)
 	nvme = &sp->u.iocb_cmd;
 	fd = nvme->u.nvme.desc;
 
-	if (!atomic_dec_and_test(&sp->ref_count))
+	if (WARN_ON_ONCE(atomic_read(&sp->ref_count) == 0))
 		return;
 
-	if (res == QLA_SUCCESS)
-		fd->status = 0;
-	else
-		fd->status = NVME_SC_INTERNAL;
+	atomic_dec(&sp->ref_count);
 
-	fd->rcv_rsplen = nvme->u.nvme.rsp_pyld_len;
+	if (res == QLA_SUCCESS) {
+		fd->rcv_rsplen = nvme->u.nvme.rsp_pyld_len;
+	} else {
+		fd->rcv_rsplen = 0;
+		fd->transferred_length = 0;
+	}
+	fd->status = 0;
 	fd->done(fd);
 	qla2xxx_rel_qpair_sp(sp->qpair, sp);
 
@@ -181,6 +183,24 @@ static void qla_nvme_abort_work(struct work_struct *work)
 	fc_port_t *fcport = sp->fcport;
 	struct qla_hw_data *ha = fcport->vha->hw;
 	int rval;
+
+	ql_dbg(ql_dbg_io, fcport->vha, 0xffff,
+	       "%s called for sp=%p, hndl=%x on fcport=%p deleted=%d\n",
+	       __func__, sp, sp->handle, fcport, fcport->deleted);
+
+	if (!ha->flags.fw_started && (fcport && fcport->deleted))
+		return;
+
+	if (ha->flags.host_shutting_down) {
+		ql_log(ql_log_info, sp->fcport->vha, 0xffff,
+		    "%s Calling done on sp: %p, type: 0x%x, sp->ref_count: 0x%x\n",
+		    __func__, sp, sp->type, atomic_read(&sp->ref_count));
+		sp->done(sp, 0);
+		return;
+	}
+
+	if (WARN_ON_ONCE(atomic_read(&sp->ref_count) == 0))
+		return;
 
 	rval = ha->isp_ops->abort_command(sp);
 
@@ -269,17 +289,6 @@ static void qla_nvme_fcp_abort(struct nvme_fc_local_port *lport,
 	schedule_work(&priv->abort_work);
 }
 
-static void qla_nvme_poll(struct nvme_fc_local_port *lport, void *hw_queue_handle)
-{
-	struct qla_qpair *qpair = hw_queue_handle;
-	unsigned long flags;
-	struct scsi_qla_host *vha = lport->private;
-
-	spin_lock_irqsave(&qpair->qp_lock, flags);
-	qla24xx_process_response_queue(vha, qpair->rsp);
-	spin_unlock_irqrestore(&qpair->qp_lock, flags);
-}
-
 static inline int qla2x00_start_nvme_mq(srb_t *sp)
 {
 	unsigned long   flags;
@@ -291,7 +300,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	uint16_t        req_cnt;
 	uint16_t        tot_dsds;
 	uint16_t	avail_dsds;
-	uint32_t	*cur_dsd;
+	struct dsd64	*cur_dsd;
 	struct req_que *req = NULL;
 	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
@@ -340,6 +349,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 
 	if (unlikely(!fd->sqid)) {
 		struct nvme_fc_cmd_iu *cmd = fd->cmdaddr;
+
 		if (cmd->sqe.common.opcode == nvme_admin_async_event) {
 			nvme->u.nvme.aen_op = 1;
 			atomic_inc(&ha->nvme_active_aen_cnt);
@@ -366,17 +376,24 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 
 	/* No data transfer how do we check buffer len == 0?? */
 	if (fd->io_dir == NVMEFC_FCP_READ) {
-		cmd_pkt->control_flags =
-		    cpu_to_le16(CF_READ_DATA | CF_NVME_ENABLE);
+		cmd_pkt->control_flags = CF_READ_DATA;
 		vha->qla_stats.input_bytes += fd->payload_length;
 		vha->qla_stats.input_requests++;
 	} else if (fd->io_dir == NVMEFC_FCP_WRITE) {
-		cmd_pkt->control_flags =
-		    cpu_to_le16(CF_WRITE_DATA | CF_NVME_ENABLE);
+		cmd_pkt->control_flags = CF_WRITE_DATA;
+		if ((vha->flags.nvme_first_burst) &&
+		    (sp->fcport->nvme_prli_service_param &
+			NVME_PRLI_SP_FIRST_BURST)) {
+			if ((fd->payload_length <=
+			    sp->fcport->nvme_first_burst_size) ||
+				(sp->fcport->nvme_first_burst_size == 0))
+				cmd_pkt->control_flags |=
+				    CF_NVME_FIRST_BURST_ENABLE;
+		}
 		vha->qla_stats.output_bytes += fd->payload_length;
 		vha->qla_stats.output_requests++;
 	} else if (fd->io_dir == 0) {
-		cmd_pkt->control_flags = cpu_to_le16(CF_NVME_ENABLE);
+		cmd_pkt->control_flags = 0;
 	}
 
 	/* Set NPORT-ID */
@@ -388,25 +405,22 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 
 	/* NVME RSP IU */
 	cmd_pkt->nvme_rsp_dsd_len = cpu_to_le16(fd->rsplen);
-	cmd_pkt->nvme_rsp_dseg_address[0] = cpu_to_le32(LSD(fd->rspdma));
-	cmd_pkt->nvme_rsp_dseg_address[1] = cpu_to_le32(MSD(fd->rspdma));
+	put_unaligned_le64(fd->rspdma, &cmd_pkt->nvme_rsp_dseg_address);
 
 	/* NVME CNMD IU */
 	cmd_pkt->nvme_cmnd_dseg_len = cpu_to_le16(fd->cmdlen);
-	cmd_pkt->nvme_cmnd_dseg_address[0] = cpu_to_le32(LSD(fd->cmddma));
-	cmd_pkt->nvme_cmnd_dseg_address[1] = cpu_to_le32(MSD(fd->cmddma));
+	cmd_pkt->nvme_cmnd_dseg_address = cpu_to_le64(fd->cmddma);
 
 	cmd_pkt->dseg_count = cpu_to_le16(tot_dsds);
 	cmd_pkt->byte_count = cpu_to_le32(fd->payload_length);
 
 	/* One DSD is available in the Command Type NVME IOCB */
 	avail_dsds = 1;
-	cur_dsd = (uint32_t *)&cmd_pkt->nvme_data_dseg_address[0];
+	cur_dsd = &cmd_pkt->nvme_dsd;
 	sgl = fd->first_sgl;
 
 	/* Load data segments */
 	for_each_sg(sgl, sg, tot_dsds, i) {
-		dma_addr_t      sle_dma;
 		cont_a64_entry_t *cont_pkt;
 
 		/* Allocate additional continuation packets? */
@@ -425,17 +439,14 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 				req->ring_ptr++;
 			}
 			cont_pkt = (cont_a64_entry_t *)req->ring_ptr;
-			*((uint32_t *)(&cont_pkt->entry_type)) =
-			    cpu_to_le32(CONTINUE_A64_TYPE);
+			put_unaligned_le32(CONTINUE_A64_TYPE,
+					   &cont_pkt->entry_type);
 
-			cur_dsd = (uint32_t *)cont_pkt->dseg_0_address;
-			avail_dsds = 5;
+			cur_dsd = cont_pkt->dsd;
+			avail_dsds = ARRAY_SIZE(cont_pkt->dsd);
 		}
 
-		sle_dma = sg_dma_address(sg);
-		*cur_dsd++ = cpu_to_le32(LSD(sle_dma));
-		*cur_dsd++ = cpu_to_le32(MSD(sle_dma));
-		*cur_dsd++ = cpu_to_le32(sg_dma_len(sg));
+		append_dsd64(&cur_dsd, sg);
 		avail_dsds--;
 	}
 
@@ -471,21 +482,10 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	int rval = -ENODEV;
 	srb_t *sp;
 	struct qla_qpair *qpair = hw_queue_handle;
-	struct nvme_private *priv;
+	struct nvme_private *priv = fd->private;
 	struct qla_nvme_rport *qla_rport = rport->private;
 
-	if (!fd || !qpair) {
-		ql_log(ql_log_warn, NULL, 0x2134,
-		    "NO NVMe request or Queue Handle\n");
-		return rval;
-	}
-
-	priv = fd->private;
 	fcport = qla_rport->fcport;
-	if (!fcport) {
-		ql_log(ql_log_warn, NULL, 0x210e, "No fcport ptr\n");
-		return rval;
-	}
 
 	vha = fcport->vha;
 
@@ -503,7 +503,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 		return -EBUSY;
 
 	/* Alloc SRB structure */
-	sp = qla2xxx_get_qpair_sp(qpair, fcport, GFP_ATOMIC);
+	sp = qla2xxx_get_qpair_sp(vha, qpair, fcport, GFP_ATOMIC);
 	if (!sp)
 		return -EBUSY;
 
@@ -514,6 +514,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	sp->name = "nvme_cmd";
 	sp->done = qla_nvme_sp_done;
 	sp->qpair = qpair;
+	sp->vha = vha;
 	nvme = &sp->u.iocb_cmd;
 	nvme->u.nvme.desc = fd;
 
@@ -561,7 +562,7 @@ static void qla_nvme_remoteport_delete(struct nvme_fc_remote_port *rport)
 		schedule_work(&fcport->free_work);
 	}
 
-	fcport->nvme_flag &= ~(NVME_FLAG_REGISTERED | NVME_FLAG_DELETING);
+	fcport->nvme_flag &= ~NVME_FLAG_DELETING;
 	ql_log(ql_log_info, fcport->vha, 0x2110,
 	    "remoteport_delete of %p completed.\n", fcport);
 }
@@ -575,9 +576,8 @@ static struct nvme_fc_port_template qla_nvme_fc_transport = {
 	.ls_abort	= qla_nvme_ls_abort,
 	.fcp_io		= qla_nvme_post_cmd,
 	.fcp_abort	= qla_nvme_fcp_abort,
-	.poll_queue	= qla_nvme_poll,
 	.max_hw_queues  = 8,
-	.max_sgl_segments = 128,
+	.max_sgl_segments = 1024,
 	.max_dif_sgl_segments = 64,
 	.dma_boundary = 0xFFFFFFFF,
 	.local_priv_sz  = 8,
@@ -585,34 +585,6 @@ static struct nvme_fc_port_template qla_nvme_fc_transport = {
 	.lsrqst_priv_sz = sizeof(struct nvme_private),
 	.fcprqst_priv_sz = sizeof(struct nvme_private),
 };
-
-#define NVME_ABORT_POLLING_PERIOD    2
-static int qla_nvme_wait_on_command(srb_t *sp)
-{
-	int ret = QLA_SUCCESS;
-
-	wait_event_timeout(sp->nvme_ls_waitq, (atomic_read(&sp->ref_count) > 1),
-	    NVME_ABORT_POLLING_PERIOD*HZ);
-
-	if (atomic_read(&sp->ref_count) > 1)
-		ret = QLA_FUNCTION_FAILED;
-
-	return ret;
-}
-
-void qla_nvme_abort(struct qla_hw_data *ha, struct srb *sp, int res)
-{
-	int rval;
-
-	if (!test_bit(ABORT_ISP_ACTIVE, &sp->vha->dpc_flags)) {
-		rval = ha->isp_ops->abort_command(sp);
-		if (!rval && !qla_nvme_wait_on_command(sp))
-			ql_log(ql_log_warn, NULL, 0x2112,
-			    "timed out waiting on sp=%p\n", sp);
-	} else {
-		sp->done(sp, res);
-	}
-}
 
 static void qla_nvme_unregister_remote_port(struct work_struct *work)
 {
@@ -631,9 +603,14 @@ static void qla_nvme_unregister_remote_port(struct work_struct *work)
 		if (qla_rport->fcport == fcport) {
 			ql_log(ql_log_info, fcport->vha, 0x2113,
 			    "%s: fcport=%p\n", __func__, fcport);
+			nvme_fc_set_remoteport_devloss
+				(fcport->nvme_remote_port, 0);
 			init_completion(&fcport->nvme_del_done);
-			nvme_fc_unregister_remoteport(
-			    fcport->nvme_remote_port);
+			if (nvme_fc_unregister_remoteport
+			    (fcport->nvme_remote_port))
+				ql_log(ql_log_info, fcport->vha, 0x2114,
+				    "%s: Failed to unregister nvme_remote_port\n",
+				    __func__);
 			wait_for_completion(&fcport->nvme_del_done);
 			break;
 		}
@@ -642,25 +619,10 @@ static void qla_nvme_unregister_remote_port(struct work_struct *work)
 
 void qla_nvme_delete(struct scsi_qla_host *vha)
 {
-	struct qla_nvme_rport *qla_rport, *trport;
-	fc_port_t *fcport;
 	int nv_ret;
 
 	if (!IS_ENABLED(CONFIG_NVME_FC))
 		return;
-
-	list_for_each_entry_safe(qla_rport, trport,
-	    &vha->nvme_rport_list, list) {
-		fcport = qla_rport->fcport;
-
-		ql_log(ql_log_info, fcport->vha, 0x2114, "%s: fcport=%p\n",
-		    __func__, fcport);
-
-		nvme_fc_set_remoteport_devloss(fcport->nvme_remote_port, 0);
-		init_completion(&fcport->nvme_del_done);
-		nvme_fc_unregister_remoteport(fcport->nvme_remote_port);
-		wait_for_completion(&fcport->nvme_del_done);
-	}
 
 	if (vha->nvme_local_port) {
 		init_completion(&vha->nvme_del_done);
@@ -676,15 +638,15 @@ void qla_nvme_delete(struct scsi_qla_host *vha)
 	}
 }
 
-void qla_nvme_register_hba(struct scsi_qla_host *vha)
+int qla_nvme_register_hba(struct scsi_qla_host *vha)
 {
 	struct nvme_fc_port_template *tmpl;
 	struct qla_hw_data *ha;
 	struct nvme_fc_port_info pinfo;
-	int ret;
+	int ret = EINVAL;
 
 	if (!IS_ENABLED(CONFIG_NVME_FC))
-		return;
+		return ret;
 
 	ha = vha->hw;
 	tmpl = &qla_nvme_fc_transport;
@@ -711,7 +673,9 @@ void qla_nvme_register_hba(struct scsi_qla_host *vha)
 	if (ret) {
 		ql_log(ql_log_warn, vha, 0xffff,
 		    "register_localport failed: ret=%x\n", ret);
-		return;
+	} else {
+		vha->nvme_local_port->private = vha;
 	}
-	vha->nvme_local_port->private = vha;
+
+	return ret;
 }

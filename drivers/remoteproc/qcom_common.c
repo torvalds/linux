@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Qualcomm Peripheral Image Loader helpers
  *
  * Copyright (C) 2016 Linaro Ltd
  * Copyright (C) 2015 Sony Mobile Communications Inc
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/firmware.h>
@@ -33,7 +25,7 @@
 
 static BLOCKING_NOTIFIER_HEAD(ssr_notifiers);
 
-static int glink_subdev_probe(struct rproc_subdev *subdev)
+static int glink_subdev_start(struct rproc_subdev *subdev)
 {
 	struct qcom_rproc_glink *glink = to_glink_subdev(subdev);
 
@@ -42,7 +34,7 @@ static int glink_subdev_probe(struct rproc_subdev *subdev)
 	return PTR_ERR_OR_ZERO(glink->edge);
 }
 
-static void glink_subdev_remove(struct rproc_subdev *subdev, bool crashed)
+static void glink_subdev_stop(struct rproc_subdev *subdev, bool crashed)
 {
 	struct qcom_rproc_glink *glink = to_glink_subdev(subdev);
 
@@ -64,7 +56,10 @@ void qcom_add_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink)
 		return;
 
 	glink->dev = dev;
-	rproc_add_subdev(rproc, &glink->subdev, glink_subdev_probe, glink_subdev_remove);
+	glink->subdev.start = glink_subdev_start;
+	glink->subdev.stop = glink_subdev_stop;
+
+	rproc_add_subdev(rproc, &glink->subdev);
 }
 EXPORT_SYMBOL_GPL(qcom_add_glink_subdev);
 
@@ -126,7 +121,7 @@ int qcom_register_dump_segments(struct rproc *rproc,
 }
 EXPORT_SYMBOL_GPL(qcom_register_dump_segments);
 
-static int smd_subdev_probe(struct rproc_subdev *subdev)
+static int smd_subdev_start(struct rproc_subdev *subdev)
 {
 	struct qcom_rproc_subdev *smd = to_smd_subdev(subdev);
 
@@ -135,7 +130,7 @@ static int smd_subdev_probe(struct rproc_subdev *subdev)
 	return PTR_ERR_OR_ZERO(smd->edge);
 }
 
-static void smd_subdev_remove(struct rproc_subdev *subdev, bool crashed)
+static void smd_subdev_stop(struct rproc_subdev *subdev, bool crashed)
 {
 	struct qcom_rproc_subdev *smd = to_smd_subdev(subdev);
 
@@ -157,7 +152,10 @@ void qcom_add_smd_subdev(struct rproc *rproc, struct qcom_rproc_subdev *smd)
 		return;
 
 	smd->dev = dev;
-	rproc_add_subdev(rproc, &smd->subdev, smd_subdev_probe, smd_subdev_remove);
+	smd->subdev.start = smd_subdev_start;
+	smd->subdev.stop = smd_subdev_stop;
+
+	rproc_add_subdev(rproc, &smd->subdev);
 }
 EXPORT_SYMBOL_GPL(qcom_add_smd_subdev);
 
@@ -202,11 +200,6 @@ void qcom_unregister_ssr_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(qcom_unregister_ssr_notifier);
 
-static int ssr_notify_start(struct rproc_subdev *subdev)
-{
-	return  0;
-}
-
 static void ssr_notify_stop(struct rproc_subdev *subdev, bool crashed)
 {
 	struct qcom_rproc_ssr *ssr = to_ssr_subdev(subdev);
@@ -227,8 +220,9 @@ void qcom_add_ssr_subdev(struct rproc *rproc, struct qcom_rproc_ssr *ssr,
 			 const char *ssr_name)
 {
 	ssr->name = ssr_name;
+	ssr->subdev.stop = ssr_notify_stop;
 
-	rproc_add_subdev(rproc, &ssr->subdev, ssr_notify_start, ssr_notify_stop);
+	rproc_add_subdev(rproc, &ssr->subdev);
 }
 EXPORT_SYMBOL_GPL(qcom_add_ssr_subdev);
 

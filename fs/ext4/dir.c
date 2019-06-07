@@ -26,6 +26,7 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 #include <linux/iversion.h>
+#include <linux/unicode.h>
 #include "ext4.h"
 #include "xattr.h"
 
@@ -76,7 +77,7 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 	else if (unlikely(rlen < EXT4_DIR_REC_LEN(de->name_len)))
 		error_msg = "rec_len is too small for name_len";
 	else if (unlikely(((char *) de - buf) + rlen > size))
-		error_msg = "directory entry across range";
+		error_msg = "directory entry overrun";
 	else if (unlikely(le32_to_cpu(de->inode) >
 			le32_to_cpu(EXT4_SB(dir->i_sb)->s_es->s_inodes_count)))
 		error_msg = "inode out of bounds";
@@ -85,18 +86,16 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 
 	if (filp)
 		ext4_error_file(filp, function, line, bh->b_blocknr,
-				"bad entry in directory: %s - offset=%u(%u), "
-				"inode=%u, rec_len=%d, name_len=%d",
-				error_msg, (unsigned) (offset % size),
-				offset, le32_to_cpu(de->inode),
-				rlen, de->name_len);
+				"bad entry in directory: %s - offset=%u, "
+				"inode=%u, rec_len=%d, name_len=%d, size=%d",
+				error_msg, offset, le32_to_cpu(de->inode),
+				rlen, de->name_len, size);
 	else
 		ext4_error_inode(dir, function, line, bh->b_blocknr,
-				"bad entry in directory: %s - offset=%u(%u), "
-				"inode=%u, rec_len=%d, name_len=%d",
-				error_msg, (unsigned) (offset % size),
-				offset, le32_to_cpu(de->inode),
-				rlen, de->name_len);
+				"bad entry in directory: %s - offset=%u, "
+				"inode=%u, rec_len=%d, name_len=%d, size=%d",
+				 error_msg, offset, le32_to_cpu(de->inode),
+				 rlen, de->name_len, size);
 
 	return 1;
 }
@@ -113,7 +112,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 	int dir_has_error = 0;
 	struct fscrypt_str fstr = FSTR_INIT(NULL, 0);
 
-	if (ext4_encrypted_inode(inode)) {
+	if (IS_ENCRYPTED(inode)) {
 		err = fscrypt_get_encryption_info(inode);
 		if (err && err != -ENOKEY)
 			return err;
@@ -140,7 +139,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 			return err;
 	}
 
-	if (ext4_encrypted_inode(inode)) {
+	if (IS_ENCRYPTED(inode)) {
 		err = fscrypt_fname_alloc_buffer(inode, EXT4_NAME_LEN, &fstr);
 		if (err < 0)
 			return err;
@@ -247,7 +246,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 			offset += ext4_rec_len_from_disk(de->rec_len,
 					sb->s_blocksize);
 			if (le32_to_cpu(de->inode)) {
-				if (!ext4_encrypted_inode(inode)) {
+				if (!IS_ENCRYPTED(inode)) {
 					if (!dir_emit(ctx, de->name,
 					    de->name_len,
 					    le32_to_cpu(de->inode),
@@ -285,9 +284,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 done:
 	err = 0;
 errout:
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
 	fscrypt_fname_free_buffer(&fstr);
-#endif
 	brelse(bh);
 	return err;
 }
@@ -615,7 +612,7 @@ finished:
 
 static int ext4_dir_open(struct inode * inode, struct file * filp)
 {
-	if (ext4_encrypted_inode(inode))
+	if (IS_ENCRYPTED(inode))
 		return fscrypt_get_encryption_info(inode) ? -EACCES : 0;
 	return 0;
 }
@@ -664,3 +661,50 @@ const struct file_operations ext4_dir_operations = {
 	.open		= ext4_dir_open,
 	.release	= ext4_release_dir,
 };
+
+#ifdef CONFIG_UNICODE
+static int ext4_d_compare(const struct dentry *dentry, unsigned int len,
+			  const char *str, const struct qstr *name)
+{
+	struct qstr qstr = {.name = str, .len = len };
+
+	if (!IS_CASEFOLDED(dentry->d_parent->d_inode)) {
+		if (len != name->len)
+			return -1;
+		return memcmp(str, name->name, len);
+	}
+
+	return ext4_ci_compare(dentry->d_parent->d_inode, name, &qstr);
+}
+
+static int ext4_d_hash(const struct dentry *dentry, struct qstr *str)
+{
+	const struct ext4_sb_info *sbi = EXT4_SB(dentry->d_sb);
+	const struct unicode_map *um = sbi->s_encoding;
+	unsigned char *norm;
+	int len, ret = 0;
+
+	if (!IS_CASEFOLDED(dentry->d_inode))
+		return 0;
+
+	norm = kmalloc(PATH_MAX, GFP_ATOMIC);
+	if (!norm)
+		return -ENOMEM;
+
+	len = utf8_casefold(um, str, norm, PATH_MAX);
+	if (len < 0) {
+		if (ext4_has_strict_mode(sbi))
+			ret = -EINVAL;
+		goto out;
+	}
+	str->hash = full_name_hash(dentry, norm, len);
+out:
+	kfree(norm);
+	return ret;
+}
+
+const struct dentry_operations ext4_dentry_ops = {
+	.d_hash = ext4_d_hash,
+	.d_compare = ext4_d_compare,
+};
+#endif

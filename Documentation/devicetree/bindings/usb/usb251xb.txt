@@ -64,6 +64,10 @@ Optional properties :
  - power-on-time-ms : Specifies the time it takes from the time the host
 	initiates the power-on sequence to a port until the port has adequate
 	power. The value is given in ms in a 0 - 510 range (default is 100ms).
+ - swap-dx-lanes : Specifies the downstream ports which will swap the
+	differential-pair (D+/D-), default is not-swapped.
+ - swap-us-lanes : Selects the upstream port differential-pair (D+/D-)
+	swapping (boolean, default is not-swapped)
 
 Examples:
 	usb2512b@2c {
@@ -81,4 +85,6 @@ Examples:
 		manufacturer = "Foo";
 		product = "Foo-Bar";
 		serial = "1234567890A";
+		/* correct misplaced usb connectors on port 1,2 */
+		swap-dx-lanes = <1 2>;
 	};

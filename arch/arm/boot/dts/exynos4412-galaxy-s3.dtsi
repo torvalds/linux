@@ -15,24 +15,22 @@
 		i2c10 = &i2c_cm36651;
 	};
 
-	regulators {
-		lcd_vdd3_reg: voltage-regulator-2 {
-			compatible = "regulator-fixed";
-			regulator-name = "LCD_VDD_2.2V";
-			regulator-min-microvolt = <2200000>;
-			regulator-max-microvolt = <2200000>;
-			gpio = <&gpc0 1 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	lcd_vdd3_reg: voltage-regulator-6 {
+		compatible = "regulator-fixed";
+		regulator-name = "LCD_VDD_2.2V";
+		regulator-min-microvolt = <2200000>;
+		regulator-max-microvolt = <2200000>;
+		gpio = <&gpc0 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
 
-		ps_als_reg: voltage-regulator-5 {
-			compatible = "regulator-fixed";
-			regulator-name = "LED_A_3.0V";
-			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3000000>;
-			gpio = <&gpj0 5 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	ps_als_reg: voltage-regulator-7 {
+		compatible = "regulator-fixed";
+		regulator-name = "LED_A_3.0V";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+		gpio = <&gpj0 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	i2c_ak8975: i2c-gpio-0 {
@@ -120,8 +118,8 @@
 		reg = <0x48>;
 		interrupt-parent = <&gpm2>;
 		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
-		x-size = <720>;
-		y-size = <1280>;
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1280>;
 		avdd-supply = <&ldo23_reg>;
 		vdd-supply = <&ldo24_reg>;
 	};

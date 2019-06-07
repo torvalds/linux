@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
  * Copyright (c) 2013 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -65,17 +53,15 @@ xfs_dir3_block_verify(
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 
+	if (!xfs_verify_magic(bp, hdr3->magic))
+		return __this_address;
+
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		if (hdr3->magic != cpu_to_be32(XFS_DIR3_BLOCK_MAGIC))
-			return __this_address;
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
 			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
-			return __this_address;
-	} else {
-		if (hdr3->magic != cpu_to_be32(XFS_DIR2_BLOCK_MAGIC))
 			return __this_address;
 	}
 	return __xfs_dir3_data_check(NULL, bp);
@@ -124,6 +110,8 @@ xfs_dir3_block_write_verify(
 
 const struct xfs_buf_ops xfs_dir3_block_buf_ops = {
 	.name = "xfs_dir3_block",
+	.magic = { cpu_to_be32(XFS_DIR2_BLOCK_MAGIC),
+		   cpu_to_be32(XFS_DIR3_BLOCK_MAGIC) },
 	.verify_read = xfs_dir3_block_read_verify,
 	.verify_write = xfs_dir3_block_write_verify,
 	.verify_struct = xfs_dir3_block_verify,
@@ -514,8 +502,8 @@ xfs_dir2_block_addname(
 			if (mid - lowstale)
 				memmove(&blp[lowstale], &blp[lowstale + 1],
 					(mid - lowstale) * sizeof(*blp));
-			lfloglow = MIN(lowstale, lfloglow);
-			lfloghigh = MAX(mid, lfloghigh);
+			lfloglow = min(lowstale, lfloglow);
+			lfloghigh = max(mid, lfloghigh);
 		}
 		/*
 		 * Move entries toward the high-numbered stale entry.
@@ -526,8 +514,8 @@ xfs_dir2_block_addname(
 			if (highstale - mid)
 				memmove(&blp[mid + 1], &blp[mid],
 					(highstale - mid) * sizeof(*blp));
-			lfloglow = MIN(mid, lfloglow);
-			lfloghigh = MAX(highstale, lfloghigh);
+			lfloglow = min(mid, lfloglow);
+			lfloghigh = max(highstale, lfloghigh);
 		}
 		be32_add_cpu(&btp->stale, -1);
 	}

@@ -21,8 +21,6 @@
 
 static struct of_pdt_ops *of_pdt_prom_ops __initdata;
 
-void __initdata (*of_pdt_build_more)(struct device_node *dp);
-
 #if defined(CONFIG_SPARC)
 unsigned int of_pdt_unique_id __initdata;
 
@@ -32,24 +30,7 @@ unsigned int of_pdt_unique_id __initdata;
 
 static char * __init of_pdt_build_full_name(struct device_node *dp)
 {
-	int len, ourlen, plen;
-	char *n;
-
-	dp->path_component_name = build_path_component(dp);
-
-	plen = strlen(dp->parent->full_name);
-	ourlen = strlen(dp->path_component_name);
-	len = ourlen + plen + 2;
-
-	n = prom_early_alloc(len);
-	strcpy(n, dp->parent->full_name);
-	if (!of_node_is_root(dp->parent)) {
-		strcpy(n + plen, "/");
-		plen++;
-	}
-	strcpy(n + plen, dp->path_component_name);
-
-	return n;
+	return build_path_component(dp);
 }
 
 #else /* CONFIG_SPARC */
@@ -60,23 +41,21 @@ static inline void irq_trans_init(struct device_node *dp) { }
 static char * __init of_pdt_build_full_name(struct device_node *dp)
 {
 	static int failsafe_id = 0; /* for generating unique names on failure */
+	const char *name;
+	char path[256];
 	char *buf;
 	int len;
 
-	if (of_pdt_prom_ops->pkg2path(dp->phandle, NULL, 0, &len))
-		goto failsafe;
+	if (!of_pdt_prom_ops->pkg2path(dp->phandle, path, sizeof(path), &len)) {
+		name = kbasename(path);
+		buf = prom_early_alloc(strlen(name) + 1);
+		strcpy(buf, name);
+		return buf;
+	}
 
-	buf = prom_early_alloc(len + 1);
-	if (of_pdt_prom_ops->pkg2path(dp->phandle, buf, len, &len))
-		goto failsafe;
-	return buf;
-
- failsafe:
-	buf = prom_early_alloc(strlen(dp->parent->full_name) +
-			       strlen(dp->name) + 16);
-	sprintf(buf, "%s/%s@unknown%i",
-		of_node_is_root(dp->parent) ? "" : dp->parent->full_name,
-		dp->name, failsafe_id++);
+	name = of_get_property(dp, "name", &len);
+	buf = prom_early_alloc(len + 16);
+	sprintf(buf, "%s@unknown%i", name, failsafe_id++);
 	pr_err("%s: pkg2path failed; assigning %s\n", __func__, buf);
 	return buf;
 }
@@ -176,10 +155,11 @@ static struct device_node * __init of_pdt_create_node(phandle node,
 	dp->parent = parent;
 
 	dp->name = of_pdt_get_one_property(node, "name");
-	dp->type = of_pdt_get_one_property(node, "device_type");
 	dp->phandle = node;
 
 	dp->properties = of_pdt_build_prop_list(node);
+
+	dp->full_name = of_pdt_build_full_name(dp);
 
 	irq_trans_init(dp);
 
@@ -204,12 +184,7 @@ static struct device_node * __init of_pdt_build_tree(struct device_node *parent,
 			ret = dp;
 		prev_sibling = dp;
 
-		dp->full_name = of_pdt_build_full_name(dp);
-
 		dp->child = of_pdt_build_tree(dp, of_pdt_prom_ops->getchild(node));
-
-		if (of_pdt_build_more)
-			of_pdt_build_more(dp);
 
 		node = of_pdt_prom_ops->getsibling(node);
 	}
@@ -228,9 +203,6 @@ void __init of_pdt_build_devicetree(phandle root_node, struct of_pdt_ops *ops)
 	of_pdt_prom_ops = ops;
 
 	of_root = of_pdt_create_node(root_node, NULL);
-#if defined(CONFIG_SPARC)
-	of_root->path_component_name = "";
-#endif
 	of_root->full_name = "/";
 
 	of_root->child = of_pdt_build_tree(of_root,

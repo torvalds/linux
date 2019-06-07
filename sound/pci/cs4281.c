@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Cirrus Logic CS4281 based PCI soundcard
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/io.h>
@@ -1174,8 +1159,7 @@ static void snd_cs4281_proc_init(struct cs4281 *chip)
 {
 	struct snd_info_entry *entry;
 
-	if (! snd_card_proc_new(chip->card, "cs4281", &entry))
-		snd_info_set_text_ops(entry, chip, snd_cs4281_proc_read);
+	snd_card_ro_proc_new(chip->card, "cs4281", chip, snd_cs4281_proc_read);
 	if (! snd_card_proc_new(chip->card, "cs4281_BA0", &entry)) {
 		entry->content = SNDRV_INFO_CONTENT_DATA;
 		entry->private_data = chip;
@@ -2002,8 +1986,6 @@ static int cs4281_suspend(struct device *dev)
 	unsigned int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
-
 	snd_ac97_suspend(chip->ac97);
 	snd_ac97_suspend(chip->ac97_secondary);
 

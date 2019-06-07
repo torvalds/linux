@@ -17,7 +17,7 @@
  */
 
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "mdp5_kms.h"
 
@@ -118,14 +118,7 @@ static void mdp5_vid_encoder_mode_set(struct drm_encoder *encoder,
 
 	mode = adjusted_mode;
 
-	DBG("set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			mode->base.id, mode->name,
-			mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal,
-			mode->type, mode->flags);
+	DBG("set mode: " DRM_MODE_FMT, DRM_MODE_ARG(mode));
 
 	ctrl_pol = 0;
 
@@ -319,7 +312,17 @@ static int mdp5_encoder_atomic_check(struct drm_encoder *encoder,
 
 	mdp5_cstate->ctl = ctl;
 	mdp5_cstate->pipeline.intf = intf;
-	mdp5_cstate->defer_start = true;
+
+	/*
+	 * This is a bit awkward, but we want to flush the CTL and hit the
+	 * START bit at most once for an atomic update.  In the non-full-
+	 * modeset case, this is done from crtc->atomic_flush(), but that
+	 * is too early in the case of full modeset, in which case we
+	 * defer to encoder->enable().  But we need to *know* whether
+	 * encoder->enable() will be called to do this:
+	 */
+	if (drm_atomic_crtc_needs_modeset(crtc_state))
+		mdp5_cstate->defer_start = true;
 
 	return 0;
 }

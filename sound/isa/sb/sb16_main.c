@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of 16-bit SoundBlaster cards and clones
@@ -15,22 +16,6 @@
  *        16bit DMA transfers from DSP chip (capture) until 8bit transfer
  *        to DSP chip (playback) starts. This bug can be avoided with
  *        "16bit DMA Allocation" setting set to Playback or Capture.
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/io.h>
@@ -49,6 +34,9 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for control of 16-bit SoundBlaster cards and clones");
 MODULE_LICENSE("GPL");
 
+#define runtime_format_bits(runtime) \
+	((unsigned int)pcm_format_to_bits((runtime)->format))
+
 #ifdef CONFIG_SND_SB16_CSP
 static void snd_sb16_csp_playback_prepare(struct snd_sb *chip, struct snd_pcm_runtime *runtime)
 {
@@ -58,7 +46,7 @@ static void snd_sb16_csp_playback_prepare(struct snd_sb *chip, struct snd_pcm_ru
 		if (csp->running & SNDRV_SB_CSP_ST_LOADED) {
 			/* manually loaded codec */
 			if ((csp->mode & SNDRV_SB_CSP_MODE_DSP_WRITE) &&
-			    ((1U << runtime->format) == csp->acc_format)) {
+			    (runtime_format_bits(runtime) == csp->acc_format)) {
 				/* Supported runtime PCM format for playback */
 				if (csp->ops.csp_use(csp) == 0) {
 					/* If CSP was successfully acquired */
@@ -66,7 +54,7 @@ static void snd_sb16_csp_playback_prepare(struct snd_sb *chip, struct snd_pcm_ru
 				}
 			} else if ((csp->mode & SNDRV_SB_CSP_MODE_QSOUND) && (csp->q_enabled)) {
 				/* QSound decoder is loaded and enabled */
-				if ((1 << runtime->format) & (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8 |
+				if (runtime_format_bits(runtime) & (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8 |
 							      SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_U16_LE)) {
 					/* Only for simple PCM formats */
 					if (csp->ops.csp_use(csp) == 0) {
@@ -106,7 +94,7 @@ static void snd_sb16_csp_capture_prepare(struct snd_sb *chip, struct snd_pcm_run
 		if (csp->running & SNDRV_SB_CSP_ST_LOADED) {
 			/* manually loaded codec */
 			if ((csp->mode & SNDRV_SB_CSP_MODE_DSP_READ) &&
-			    ((1U << runtime->format) == csp->acc_format)) {
+			    (runtime_format_bits(runtime) == csp->acc_format)) {
 				/* Supported runtime PCM format for capture */
 				if (csp->ops.csp_use(csp) == 0) {
 					/* If CSP was successfully acquired */
@@ -876,13 +864,17 @@ int snd_sb16dsp_pcm(struct snd_sb *chip, int device)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_sb16_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_sb16_capture_ops);
 
-	if (chip->dma16 >= 0 && chip->dma8 != chip->dma16)
-		snd_ctl_add(card, snd_ctl_new1(&snd_sb16_dma_control, chip));
-	else
+	if (chip->dma16 >= 0 && chip->dma8 != chip->dma16) {
+		err = snd_ctl_add(card, snd_ctl_new1(
+					&snd_sb16_dma_control, chip));
+		if (err)
+			return err;
+	} else {
 		pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
+	}
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
+					      card->dev,
 					      64*1024, 128*1024);
 	return 0;
 }
@@ -897,19 +889,3 @@ EXPORT_SYMBOL(snd_sb16dsp_pcm);
 EXPORT_SYMBOL(snd_sb16dsp_get_pcm_ops);
 EXPORT_SYMBOL(snd_sb16dsp_configure);
 EXPORT_SYMBOL(snd_sb16dsp_interrupt);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_sb16_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_sb16_exit(void)
-{
-}
-
-module_init(alsa_sb16_init)
-module_exit(alsa_sb16_exit)

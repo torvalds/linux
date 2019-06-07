@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2016 Maxime Ripard
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _CCU_SUN50I_A64_H_
@@ -27,7 +18,9 @@
 #define CLK_PLL_AUDIO_2X		4
 #define CLK_PLL_AUDIO_4X		5
 #define CLK_PLL_AUDIO_8X		6
-#define CLK_PLL_VIDEO0			7
+
+/* PLL_VIDEO0 exported for HDMI PHY */
+
 #define CLK_PLL_VIDEO0_2X		8
 #define CLK_PLL_VE			9
 #define CLK_PLL_DDR0			10

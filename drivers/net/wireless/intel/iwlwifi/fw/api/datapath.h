@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,14 +85,35 @@ enum iwl_data_path_subcmd_ids {
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
 
 	/**
+	 * @STA_HE_CTXT_CMD: &struct iwl_he_sta_context_cmd
+	 */
+	STA_HE_CTXT_CMD = 0x7,
+
+	/**
+	 * @RFH_QUEUE_CONFIG_CMD: &struct iwl_rfh_queue_config
+	 */
+	RFH_QUEUE_CONFIG_CMD = 0xD,
+
+	/**
 	 * @TLC_MNG_CONFIG_CMD: &struct iwl_tlc_config_cmd
 	 */
 	TLC_MNG_CONFIG_CMD = 0xF,
 
 	/**
-	 * @TLC_MNG_NOTIF_REQ_CMD: &struct iwl_tlc_notif_req_config_cmd
+	 * @HE_AIR_SNIFFER_CONFIG_CMD: &struct iwl_he_monitor_cmd
 	 */
-	TLC_MNG_NOTIF_REQ_CMD = 0x10,
+	HE_AIR_SNIFFER_CONFIG_CMD = 0x13,
+
+	/**
+	 * @CHEST_COLLECTOR_FILTER_CONFIG_CMD: Configure the CSI
+	 *	matrix collection, uses &struct iwl_channel_estimation_cfg
+	 */
+	CHEST_COLLECTOR_FILTER_CONFIG_CMD = 0x14,
+
+	/**
+	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_no_data
+	 */
+	RX_NO_DATA_NOTIF = 0xF5,
 
 	/**
 	 * @TLC_MNG_UPDATE_NOTIF: &struct iwl_tlc_update_notif
@@ -138,5 +161,54 @@ struct iwl_mu_group_mgmt_notif {
 	__le32 membership_status[2];
 	__le32 user_position[4];
 } __packed; /* MU_GROUP_MNG_NTFY_API_S_VER_1 */
+
+enum iwl_channel_estimation_flags {
+	IWL_CHANNEL_ESTIMATION_ENABLE	= BIT(0),
+	IWL_CHANNEL_ESTIMATION_TIMER	= BIT(1),
+	IWL_CHANNEL_ESTIMATION_COUNTER	= BIT(2),
+};
+
+/**
+ * struct iwl_channel_estimation_cfg - channel estimation reporting config
+ */
+struct iwl_channel_estimation_cfg {
+	/**
+	 * @flags: flags, see &enum iwl_channel_estimation_flags
+	 */
+	__le32 flags;
+	/**
+	 * @timer: if enabled via flags, automatically disable after this many
+	 *	microseconds
+	 */
+	__le32 timer;
+	/**
+	 * @count: if enabled via flags, automatically disable after this many
+	 *	frames with channel estimation matrix were captured
+	 */
+	__le32 count;
+	/**
+	 * @rate_n_flags_mask: only try to record the channel estimation matrix
+	 *	if the rate_n_flags value for the received frame (let's call
+	 *	that rx_rnf) matches the mask/value given here like this:
+	 *	(rx_rnf & rate_n_flags_mask) == rate_n_flags_val.
+	 */
+	__le32 rate_n_flags_mask;
+	/**
+	 * @rate_n_flags_val: see @rate_n_flags_mask
+	 */
+	__le32 rate_n_flags_val;
+	/**
+	 * @reserved: reserved (for alignment)
+	 */
+	__le32 reserved;
+	/**
+	 * @frame_types: bitmap of frame types to capture, the received frame's
+	 *	subtype|type takes 6 bits in the frame and the corresponding bit
+	 *	in this field must be set to 1 to capture channel estimation for
+	 *	that frame type. Set to all-ones to enable capturing for all
+	 *	frame types.
+	 */
+	__le64 frame_types;
+} __packed; /* CHEST_COLLECTOR_FILTER_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_datapath_h__ */

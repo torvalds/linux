@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2012-2015, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef HOST1X_DEV_H
@@ -78,7 +67,6 @@ struct host1x_syncpt_ops {
 	void (*load_wait_base)(struct host1x_syncpt *syncpt);
 	u32 (*load)(struct host1x_syncpt *syncpt);
 	int (*cpu_incr)(struct host1x_syncpt *syncpt);
-	int (*patch_wait)(struct host1x_syncpt *syncpt, void *patch_addr);
 	void (*assign_to_channel)(struct host1x_syncpt *syncpt,
 	                          struct host1x_channel *channel);
 	void (*enable_protection)(struct host1x *host);
@@ -95,6 +83,12 @@ struct host1x_intr_ops {
 	int (*free_syncpt_irq)(struct host1x *host);
 };
 
+struct host1x_sid_entry {
+	unsigned int base;
+	unsigned int offset;
+	unsigned int limit;
+};
+
 struct host1x_info {
 	unsigned int nb_channels; /* host1x: number of channels supported */
 	unsigned int nb_pts; /* host1x: number of syncpoints supported */
@@ -104,6 +98,8 @@ struct host1x_info {
 	unsigned int sync_offset; /* offset of syncpoint registers */
 	u64 dma_mask; /* mask of addressable memory */
 	bool has_hypervisor; /* has hypervisor registers */
+	unsigned int num_sid_entries;
+	const struct host1x_sid_entry *sid_table;
 };
 
 struct host1x {
@@ -181,13 +177,6 @@ static inline int host1x_hw_syncpt_cpu_incr(struct host1x *host,
 					    struct host1x_syncpt *sp)
 {
 	return host->syncpt_op->cpu_incr(sp);
-}
-
-static inline int host1x_hw_syncpt_patch_wait(struct host1x *host,
-					      struct host1x_syncpt *sp,
-					      void *patch_addr)
-{
-	return host->syncpt_op->patch_wait(sp, patch_addr);
 }
 
 static inline void host1x_hw_syncpt_assign_to_channel(

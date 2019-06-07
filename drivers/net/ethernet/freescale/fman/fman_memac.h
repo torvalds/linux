@@ -58,5 +58,6 @@ int memac_set_exception(struct fman_mac *memac,
 int memac_add_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr);
 int memac_del_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr);
 int memac_set_allmulti(struct fman_mac *memac, bool enable);
+int memac_set_tstamp(struct fman_mac *memac, bool enable);
 
 #endif /* __MEMAC_H */

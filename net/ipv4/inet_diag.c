@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * inet_diag.c	Module for monitoring INET transport protocols sockets.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -108,6 +104,7 @@ static size_t inet_sk_attr_size(struct sock *sk,
 		+ nla_total_size(1) /* INET_DIAG_TOS */
 		+ nla_total_size(1) /* INET_DIAG_TCLASS */
 		+ nla_total_size(4) /* INET_DIAG_MARK */
+		+ nla_total_size(4) /* INET_DIAG_CLASS_ID */
 		+ nla_total_size(sizeof(struct inet_diag_meminfo))
 		+ nla_total_size(sizeof(struct inet_diag_msg))
 		+ nla_total_size(SK_MEMINFO_VARS * sizeof(u32))
@@ -287,12 +284,19 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 			goto errout;
 	}
 
-	if (ext & (1 << (INET_DIAG_CLASS_ID - 1))) {
+	if (ext & (1 << (INET_DIAG_CLASS_ID - 1)) ||
+	    ext & (1 << (INET_DIAG_TCLASS - 1))) {
 		u32 classid = 0;
 
 #ifdef CONFIG_SOCK_CGROUP_DATA
 		classid = sock_cgroup_classid(&sk->sk_cgrp_data);
 #endif
+		/* Fallback to socket priority if class id isn't set.
+		 * Classful qdiscs use it as direct reference to class.
+		 * For cgroup2 classid is always zero.
+		 */
+		if (!classid)
+			classid = sk->sk_priority;
 
 		if (nla_put_u32(skb, INET_DIAG_CLASS_ID, classid))
 			goto errout;
@@ -998,7 +1002,9 @@ next_chunk:
 			if (!inet_diag_bc_sk(bc, sk))
 				goto next_normal;
 
-			sock_hold(sk);
+			if (!refcount_inc_not_zero(&sk->sk_refcnt))
+				goto next_normal;
+
 			num_arr[accum] = num;
 			sk_arr[accum] = sk;
 			if (++accum == SKARR_SZ)

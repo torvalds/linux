@@ -136,8 +136,24 @@ enum drm_mode_status {
 	.hdisplay = (hd), .hsync_start = (hss), .hsync_end = (hse), \
 	.htotal = (ht), .hskew = (hsk), .vdisplay = (vd), \
 	.vsync_start = (vss), .vsync_end = (vse), .vtotal = (vt), \
-	.vscan = (vs), .flags = (f), \
-	.base.type = DRM_MODE_OBJECT_MODE
+	.vscan = (vs), .flags = (f)
+
+/**
+ * DRM_SIMPLE_MODE - Simple display mode
+ * @hd: Horizontal resolution, width
+ * @vd: Vertical resolution, height
+ * @hd_mm: Display width in millimeters
+ * @vd_mm: Display height in millimeters
+ *
+ * This macro initializes a &drm_display_mode that only contains info about
+ * resolution and physical size.
+ */
+#define DRM_SIMPLE_MODE(hd, vd, hd_mm, vd_mm) \
+	.type = DRM_MODE_TYPE_DRIVER, .clock = 1 /* pass validation */, \
+	.hdisplay = (hd), .hsync_start = (hd), .hsync_end = (hd), \
+	.htotal = (hd), .vdisplay = (vd), .vsync_start = (vd), \
+	.vsync_end = (vd), .vtotal = (vd), .width_mm = (hd_mm), \
+	.height_mm = (vd_mm)
 
 #define CRTC_INTERLACE_HALVE_V	(1 << 0) /* halve V values for interlacing */
 #define CRTC_STEREO_DOUBLE	(1 << 1) /* adjust timings for stereo modes */
@@ -146,6 +162,12 @@ enum drm_mode_status {
 #define CRTC_STEREO_DOUBLE_ONLY	(CRTC_STEREO_DOUBLE | CRTC_NO_DBLSCAN | CRTC_NO_VSCAN)
 
 #define DRM_MODE_FLAG_3D_MAX	DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
+
+#define DRM_MODE_MATCH_TIMINGS (1 << 0)
+#define DRM_MODE_MATCH_CLOCK (1 << 1)
+#define DRM_MODE_MATCH_FLAGS (1 << 2)
+#define DRM_MODE_MATCH_3D_FLAGS (1 << 3)
+#define DRM_MODE_MATCH_ASPECT_RATIO (1 << 4)
 
 /**
  * struct drm_display_mode - DRM kernel-internal display mode structure
@@ -206,20 +228,6 @@ struct drm_display_mode {
 	 * struct list_head for mode lists.
 	 */
 	struct list_head head;
-
-	/**
-	 * @base:
-	 *
-	 * A display mode is a normal modeset object, possibly including public
-	 * userspace id.
-	 *
-	 * FIXME:
-	 *
-	 * This can probably be removed since the entire concept of userspace
-	 * managing modes explicitly has never landed in upstream kernel mode
-	 * setting support.
-	 */
-	struct drm_mode_object base;
 
 	/**
 	 * @name:
@@ -405,19 +413,32 @@ struct drm_display_mode {
 	 * Field for setting the HDMI picture aspect ratio of a mode.
 	 */
 	enum hdmi_picture_aspect picture_aspect_ratio;
+
+	/**
+	 * @export_head:
+	 *
+	 * struct list_head for modes to be exposed to the userspace.
+	 * This is to maintain a list of exposed modes while preparing
+	 * user-mode's list in drm_mode_getconnector ioctl. The purpose of this
+	 * list_head only lies in the ioctl function, and is not expected to be
+	 * used outside the function.
+	 * Once used, the stale pointers are not reset, but left as it is, to
+	 * avoid overhead of protecting it by mode_config.mutex.
+	 */
+	struct list_head export_head;
 };
 
 /**
  * DRM_MODE_FMT - printf string for &struct drm_display_mode
  */
-#define DRM_MODE_FMT    "%d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x"
+#define DRM_MODE_FMT    "\"%s\": %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x"
 
 /**
  * DRM_MODE_ARG - printf arguments for &struct drm_display_mode
  * @m: display mode
  */
 #define DRM_MODE_ARG(m) \
-	(m)->base.id, (m)->name, (m)->vrefresh, (m)->clock, \
+	(m)->name, (m)->vrefresh, (m)->clock, \
 	(m)->hdisplay, (m)->hsync_start, (m)->hsync_end, (m)->htotal, \
 	(m)->vdisplay, (m)->vsync_start, (m)->vsync_end, (m)->vtotal, \
 	(m)->type, (m)->flags
@@ -490,6 +511,9 @@ void drm_mode_copy(struct drm_display_mode *dst,
 		   const struct drm_display_mode *src);
 struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
 					    const struct drm_display_mode *mode);
+bool drm_mode_match(const struct drm_display_mode *mode1,
+		    const struct drm_display_mode *mode2,
+		    unsigned int match_flags);
 bool drm_mode_equal(const struct drm_display_mode *mode1,
 		    const struct drm_display_mode *mode2);
 bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1,
@@ -508,7 +532,7 @@ drm_mode_validate_ycbcr420(const struct drm_display_mode *mode,
 void drm_mode_prune_invalid(struct drm_device *dev,
 			    struct list_head *mode_list, bool verbose);
 void drm_mode_sort(struct list_head *mode_list);
-void drm_mode_connector_list_update(struct drm_connector *connector);
+void drm_connector_list_update(struct drm_connector *connector);
 
 /* parsing cmdline modes */
 bool

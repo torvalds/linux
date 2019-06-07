@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/net/sunrpc/sysctl.c
  *
@@ -89,7 +90,7 @@ proc_dodebug(struct ctl_table *table, int write,
 	left = *lenp;
 
 	if (write) {
-		if (!access_ok(VERIFY_READ, buffer, left))
+		if (!access_ok(buffer, left))
 			return -EFAULT;
 		p = buffer;
 		while (left && __get_user(c, p) >= 0 && isspace(c))

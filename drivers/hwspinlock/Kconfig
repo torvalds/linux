@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Generic HWSPINLOCK framework
 #
@@ -45,6 +46,15 @@ config HWSPINLOCK_SPRD
 	depends on HWSPINLOCK
 	help
 	  Say y here to support the SPRD Hardware Spinlock device.
+
+	  If unsure, say N.
+
+config HWSPINLOCK_STM32
+	tristate "STM32 Hardware Spinlock device"
+	depends on MACH_STM32MP157
+	depends on HWSPINLOCK
+	help
+	  Say y here to support the STM32 Hardware Spinlock device.
 
 	  If unsure, say N.
 

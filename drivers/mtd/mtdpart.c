@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Simple MTD partitioning layer
  *
  * Copyright © 2000 Nicolas Pitre <nico@fluxnic.net>
  * Copyright © 2002 Thomas Gleixner <gleixner@linutronix.de>
  * Copyright © 2000-2010 David Woodhouse <dwmw2@infradead.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/module.h>
@@ -61,6 +47,15 @@ static inline struct mtd_part *mtd_to_part(const struct mtd_info *mtd)
 	return container_of(mtd, struct mtd_part, mtd);
 }
 
+static u64 part_absolute_offset(struct mtd_info *mtd)
+{
+	struct mtd_part *part = mtd_to_part(mtd);
+
+	if (!mtd_is_partition(mtd))
+		return 0;
+
+	return part_absolute_offset(part->parent) + part->offset;
+}
 
 /*
  * MTD methods which simply translate the effective address and pass through
@@ -322,35 +317,6 @@ static inline void free_partition(struct mtd_part *p)
 	kfree(p);
 }
 
-/**
- * mtd_parse_part - parse MTD partition looking for subpartitions
- *
- * @slave: part that is supposed to be a container and should be parsed
- * @types: NULL-terminated array with names of partition parsers to try
- *
- * Some partitions are kind of containers with extra subpartitions (volumes).
- * There can be various formats of such containers. This function tries to use
- * specified parsers to analyze given partition and registers found
- * subpartitions on success.
- */
-static int mtd_parse_part(struct mtd_part *slave, const char *const *types)
-{
-	struct mtd_partitions parsed;
-	int err;
-
-	err = parse_mtd_partitions(&slave->mtd, types, &parsed, NULL);
-	if (err)
-		return err;
-	else if (!parsed.nr_parts)
-		return -ENOENT;
-
-	err = add_mtd_partitions(&slave->mtd, parsed.parts, parsed.nr_parts);
-
-	mtd_part_parser_cleanup(&parsed);
-
-	return err;
-}
-
 static struct mtd_part *allocate_partition(struct mtd_info *parent,
 			const struct mtd_partition *part, int partno,
 			uint64_t cur_offset)
@@ -375,7 +341,8 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 
 	/* set up the MTD object for this partition */
 	slave->mtd.type = parent->type;
-	slave->mtd.flags = parent->flags & ~part->mask_flags;
+	slave->mtd.flags = parent->orig_flags & ~part->mask_flags;
+	slave->mtd.orig_flags = slave->mtd.flags;
 	slave->mtd.size = part->size;
 	slave->mtd.writesize = parent->writesize;
 	slave->mtd.writebufsize = parent->writebufsize;
@@ -499,6 +466,10 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 		/* let's register it anyway to preserve ordering */
 		slave->offset = 0;
 		slave->mtd.size = 0;
+
+		/* Initialize ->erasesize to make add_mtd_device() happy. */
+		slave->mtd.erasesize = parent->erasesize;
+
 		printk(KERN_ERR"mtd: partition \"%s\" is out of reach -- disabled\n",
 			part->name);
 		goto out_register;
@@ -542,7 +513,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 	if (!(slave->mtd.flags & MTD_NO_ERASE))
 		wr_alignment = slave->mtd.erasesize;
 
-	tmp = slave->offset;
+	tmp = part_absolute_offset(parent) + slave->offset;
 	remainder = do_div(tmp, wr_alignment);
 	if ((slave->mtd.flags & MTD_WRITEABLE) && remainder) {
 		/* Doesn't start on a boundary of major erase size */
@@ -553,7 +524,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 			part->name);
 	}
 
-	tmp = slave->mtd.size;
+	tmp = part_absolute_offset(parent) + slave->mtd.size;
 	remainder = do_div(tmp, wr_alignment);
 	if ((slave->mtd.flags & MTD_WRITEABLE) && remainder) {
 		slave->mtd.flags &= ~MTD_WRITEABLE;
@@ -587,7 +558,7 @@ static ssize_t mtd_partition_offset_show(struct device *dev,
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 	struct mtd_part *part = mtd_to_part(mtd);
-	return snprintf(buf, PAGE_SIZE, "%lld\n", part->offset);
+	return snprintf(buf, PAGE_SIZE, "%llu\n", part->offset);
 }
 
 static DEVICE_ATTR(offset, S_IRUGO, mtd_partition_offset_show, NULL);
@@ -637,9 +608,20 @@ int mtd_add_partition(struct mtd_info *parent, const char *name,
 	list_add(&new->list, &mtd_partitions);
 	mutex_unlock(&mtd_partitions_mutex);
 
-	add_mtd_device(&new->mtd);
+	ret = add_mtd_device(&new->mtd);
+	if (ret)
+		goto err_remove_part;
 
 	mtd_add_partition_attrs(new);
+
+	return 0;
+
+err_remove_part:
+	mutex_lock(&mtd_partitions_mutex);
+	list_del(&new->list);
+	mutex_unlock(&mtd_partitions_mutex);
+
+	free_partition(new);
 
 	return ret;
 }
@@ -731,30 +713,44 @@ int add_mtd_partitions(struct mtd_info *master,
 {
 	struct mtd_part *slave;
 	uint64_t cur_offset = 0;
-	int i;
+	int i, ret;
 
 	printk(KERN_NOTICE "Creating %d MTD partitions on \"%s\":\n", nbparts, master->name);
 
 	for (i = 0; i < nbparts; i++) {
 		slave = allocate_partition(master, parts + i, i, cur_offset);
 		if (IS_ERR(slave)) {
-			del_mtd_partitions(master);
-			return PTR_ERR(slave);
+			ret = PTR_ERR(slave);
+			goto err_del_partitions;
 		}
 
 		mutex_lock(&mtd_partitions_mutex);
 		list_add(&slave->list, &mtd_partitions);
 		mutex_unlock(&mtd_partitions_mutex);
 
-		add_mtd_device(&slave->mtd);
+		ret = add_mtd_device(&slave->mtd);
+		if (ret) {
+			mutex_lock(&mtd_partitions_mutex);
+			list_del(&slave->list);
+			mutex_unlock(&mtd_partitions_mutex);
+
+			free_partition(slave);
+			goto err_del_partitions;
+		}
+
 		mtd_add_partition_attrs(slave);
-		if (parts[i].types)
-			mtd_parse_part(slave, parts[i].types);
+		/* Look for subpartitions */
+		parse_mtd_partitions(&slave->mtd, parts[i].types, NULL);
 
 		cur_offset = slave->offset + slave->mtd.size;
 	}
 
 	return 0;
+
+err_del_partitions:
+	del_mtd_partitions(master);
+
+	return ret;
 }
 
 static DEFINE_SPINLOCK(part_parser_lock);
@@ -821,6 +817,12 @@ EXPORT_SYMBOL_GPL(deregister_mtd_parser);
  */
 static const char * const default_mtd_part_types[] = {
 	"cmdlinepart",
+	"ofpart",
+	NULL
+};
+
+/* Check DT only when looking for subpartitions. */
+static const char * const default_subpartition_types[] = {
 	"ofpart",
 	NULL
 };
@@ -895,7 +897,12 @@ static int mtd_part_of_parse(struct mtd_info *master,
 	const char *fixed = "fixed-partitions";
 	int ret, err = 0;
 
-	np = of_get_child_by_name(mtd_get_of_node(master), "partitions");
+	np = mtd_get_of_node(master);
+	if (mtd_is_partition(master))
+		of_node_get(np);
+	else
+		np = of_get_child_by_name(np, "partitions");
+
 	of_property_for_each_string(np, "compatible", prop, compat) {
 		parser = mtd_part_get_compatible_parser(compat);
 		if (!parser)
@@ -933,35 +940,33 @@ static int mtd_part_of_parse(struct mtd_info *master,
 }
 
 /**
- * parse_mtd_partitions - parse MTD partitions
+ * parse_mtd_partitions - parse and register MTD partitions
+ *
  * @master: the master partition (describes whole MTD device)
  * @types: names of partition parsers to try or %NULL
- * @pparts: info about partitions found is returned here
  * @data: MTD partition parser-specific data
  *
- * This function tries to find partition on MTD device @master. It uses MTD
- * partition parsers, specified in @types. However, if @types is %NULL, then
- * the default list of parsers is used. The default list contains only the
+ * This function tries to find & register partitions on MTD device @master. It
+ * uses MTD partition parsers, specified in @types. However, if @types is %NULL,
+ * then the default list of parsers is used. The default list contains only the
  * "cmdlinepart" and "ofpart" parsers ATM.
  * Note: If there are more then one parser in @types, the kernel only takes the
  * partitions parsed out by the first parser.
  *
  * This function may return:
  * o a negative error code in case of failure
- * o zero otherwise, and @pparts will describe the partitions, number of
- *   partitions, and the parser which parsed them. Caller must release
- *   resources with mtd_part_parser_cleanup() when finished with the returned
- *   data.
+ * o number of found partitions otherwise
  */
 int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
-			 struct mtd_partitions *pparts,
 			 struct mtd_part_parser_data *data)
 {
+	struct mtd_partitions pparts = { };
 	struct mtd_part_parser *parser;
 	int ret, err = 0;
 
 	if (!types)
-		types = default_mtd_part_types;
+		types = mtd_is_partition(master) ? default_subpartition_types :
+			default_mtd_part_types;
 
 	for ( ; *types; types++) {
 		/*
@@ -970,7 +975,7 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 		 * handled in a separated function.
 		 */
 		if (!strcmp(*types, "ofpart")) {
-			ret = mtd_part_of_parse(master, pparts);
+			ret = mtd_part_of_parse(master, &pparts);
 		} else {
 			pr_debug("%s: parsing partitions %s\n", master->name,
 				 *types);
@@ -981,13 +986,17 @@ int parse_mtd_partitions(struct mtd_info *master, const char *const *types,
 				parser ? parser->name : NULL);
 			if (!parser)
 				continue;
-			ret = mtd_part_do_parse(parser, master, pparts, data);
+			ret = mtd_part_do_parse(parser, master, &pparts, data);
 			if (ret <= 0)
 				mtd_part_parser_put(parser);
 		}
 		/* Found partitions! */
-		if (ret > 0)
-			return 0;
+		if (ret > 0) {
+			err = add_mtd_partitions(master, pparts.parts,
+						 pparts.nr_parts);
+			mtd_part_parser_cleanup(&pparts);
+			return err ? err : pparts.nr_parts;
+		}
 		/*
 		 * Stash the first error we see; only report it if no parser
 		 * succeeds

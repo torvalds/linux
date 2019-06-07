@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * pata_cmd640.c 	- CMD640 PCI PATA for new ATA layer
  *			  (C) 2007 Red Hat Inc
@@ -178,7 +179,7 @@ static struct scsi_host_template cmd640_sht = {
 static struct ata_port_operations cmd640_port_ops = {
 	.inherits	= &ata_sff_port_ops,
 	/* In theory xfer_noirq is not needed once we kill the prefetcher */
-	.sff_data_xfer	= ata_sff_data_xfer_noirq,
+	.sff_data_xfer	= ata_sff_data_xfer32,
 	.sff_irq_check	= cmd640_sff_irq_check,
 	.qc_issue	= cmd640_qc_issue,
 	.cable_detect	= ata_cable_40wire,

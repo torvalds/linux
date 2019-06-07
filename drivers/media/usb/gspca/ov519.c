@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OV519 driver
  *
@@ -20,17 +21,6 @@
  *
  * Copyright (c) 2004-2007 Romain Beauxis <toots@rastageeks.org>
  * Support for OV7670 sensors was contributed by Sam Skipsey <aoanla@yahoo.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1945,7 +1935,7 @@ static const struct ov_i2c_regvals norm_8610[] = {
 	{ 0x62, 0x5f }, /* was 0xd7, new from windrv 090403 */
 	{ 0x63, 0xff },
 	{ 0x64, 0x53 }, /* new windrv 090403 says 0x57,
-			 * maybe thats wrong */
+			 * maybe that's wrong */
 	{ 0x65, 0x00 },
 	{ 0x66, 0x55 },
 	{ 0x67, 0xb0 },
@@ -3658,7 +3648,7 @@ static void ov518_mode_init_regs(struct sd *sd)
 		case SEN_OV7620AE:
 			/*
 			 * HdG: 640x480 needs special handling on device
-			 * revision 2, we check for device revison > 0 to
+			 * revision 2, we check for device revision > 0 to
 			 * avoid regressions, as we don't know the correct
 			 * thing todo for revision 1.
 			 *

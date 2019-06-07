@@ -505,7 +505,7 @@ void __init ltq_soc_init(void)
 		clkdev_add_pmu("1a800000.pcie", "msi", 1, 1, PMU1_PCIE2_MSI);
 		clkdev_add_pmu("1a800000.pcie", "pdi", 1, 1, PMU1_PCIE2_PDI);
 		clkdev_add_pmu("1a800000.pcie", "ctl", 1, 1, PMU1_PCIE2_CTL);
-		clkdev_add_pmu("1e108000.eth", NULL, 0, 0, PMU_SWITCH | PMU_PPE_DP);
+		clkdev_add_pmu("1e10b308.eth", NULL, 0, 0, PMU_SWITCH | PMU_PPE_DP);
 		clkdev_add_pmu("1da00000.usif", "NULL", 1, 0, PMU_USIF);
 		clkdev_add_pmu("1e103100.deu", NULL, 1, 0, PMU_DEU);
 	} else if (of_machine_is_compatible("lantiq,ar10")) {
@@ -513,11 +513,11 @@ void __init ltq_soc_init(void)
 				  ltq_ar10_fpi_hz(), ltq_ar10_pp32_hz());
 		clkdev_add_pmu("1e101000.usb", "otg", 1, 0, PMU_USB0);
 		clkdev_add_pmu("1e106000.usb", "otg", 1, 0, PMU_USB1);
-		clkdev_add_pmu("1e108000.eth", NULL, 0, 0, PMU_SWITCH |
+		clkdev_add_pmu("1e10b308.eth", NULL, 0, 0, PMU_SWITCH |
 			       PMU_PPE_DP | PMU_PPE_TC);
 		clkdev_add_pmu("1da00000.usif", "NULL", 1, 0, PMU_USIF);
-		clkdev_add_pmu("1f203020.gphy", NULL, 1, 0, PMU_GPHY);
-		clkdev_add_pmu("1f203068.gphy", NULL, 1, 0, PMU_GPHY);
+		clkdev_add_pmu("1e108000.gswip", "gphy0", 0, 0, PMU_GPHY);
+		clkdev_add_pmu("1e108000.gswip", "gphy1", 0, 0, PMU_GPHY);
 		clkdev_add_pmu("1e103100.deu", NULL, 1, 0, PMU_DEU);
 		clkdev_add_pmu("1e116000.mei", "afe", 1, 2, PMU_ANALOG_DSL_AFE);
 		clkdev_add_pmu("1e116000.mei", "dfe", 1, 0, PMU_DFE);
@@ -536,12 +536,12 @@ void __init ltq_soc_init(void)
 		clkdev_add_pmu(NULL, "ahb", 1, 0, PMU_AHBM | PMU_AHBS);
 
 		clkdev_add_pmu("1da00000.usif", "NULL", 1, 0, PMU_USIF);
-		clkdev_add_pmu("1e108000.eth", NULL, 0, 0,
+		clkdev_add_pmu("1e10b308.eth", NULL, 0, 0,
 				PMU_SWITCH | PMU_PPE_DPLUS | PMU_PPE_DPLUM |
 				PMU_PPE_EMA | PMU_PPE_TC | PMU_PPE_SLL01 |
 				PMU_PPE_QSB | PMU_PPE_TOP);
-		clkdev_add_pmu("1f203020.gphy", NULL, 0, 0, PMU_GPHY);
-		clkdev_add_pmu("1f203068.gphy", NULL, 0, 0, PMU_GPHY);
+		clkdev_add_pmu("1e108000.gswip", "gphy0", 0, 0, PMU_GPHY);
+		clkdev_add_pmu("1e108000.gswip", "gphy1", 0, 0, PMU_GPHY);
 		clkdev_add_pmu("1e103000.sdio", NULL, 1, 0, PMU_SDIO);
 		clkdev_add_pmu("1e103100.deu", NULL, 1, 0, PMU_DEU);
 		clkdev_add_pmu("1e116000.mei", "dfe", 1, 0, PMU_DFE);

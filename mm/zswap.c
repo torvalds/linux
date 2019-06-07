@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * zswap.c - zswap driver file
  *
@@ -8,16 +9,6 @@
  * than reading from the swap device, can also improve workload performance.
  *
  * Copyright (C) 2012  Seth Jennings <sjenning@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -219,8 +210,8 @@ static const struct zpool_ops zswap_zpool_ops = {
 
 static bool zswap_is_full(void)
 {
-	return totalram_pages * zswap_max_pool_percent / 100 <
-		DIV_ROUND_UP(zswap_pool_total_size, PAGE_SIZE);
+	return totalram_pages() * zswap_max_pool_percent / 100 <
+			DIV_ROUND_UP(zswap_pool_total_size, PAGE_SIZE);
 }
 
 static void zswap_update_total_size(void)
@@ -1026,6 +1017,15 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 			ret = -ENOMEM;
 			goto reject;
 		}
+
+		/* A second zswap_is_full() check after
+		 * zswap_shrink() to make sure it's now
+		 * under the max_pool_percent
+		 */
+		if (zswap_is_full()) {
+			ret = -ENOMEM;
+			goto reject;
+		}
 	}
 
 	/* allocate entry */
@@ -1256,26 +1256,26 @@ static int __init zswap_debugfs_init(void)
 	if (!zswap_debugfs_root)
 		return -ENOMEM;
 
-	debugfs_create_u64("pool_limit_hit", S_IRUGO,
-			zswap_debugfs_root, &zswap_pool_limit_hit);
-	debugfs_create_u64("reject_reclaim_fail", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_reclaim_fail);
-	debugfs_create_u64("reject_alloc_fail", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_alloc_fail);
-	debugfs_create_u64("reject_kmemcache_fail", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_kmemcache_fail);
-	debugfs_create_u64("reject_compress_poor", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_compress_poor);
-	debugfs_create_u64("written_back_pages", S_IRUGO,
-			zswap_debugfs_root, &zswap_written_back_pages);
-	debugfs_create_u64("duplicate_entry", S_IRUGO,
-			zswap_debugfs_root, &zswap_duplicate_entry);
-	debugfs_create_u64("pool_total_size", S_IRUGO,
-			zswap_debugfs_root, &zswap_pool_total_size);
-	debugfs_create_atomic_t("stored_pages", S_IRUGO,
-			zswap_debugfs_root, &zswap_stored_pages);
+	debugfs_create_u64("pool_limit_hit", 0444,
+			   zswap_debugfs_root, &zswap_pool_limit_hit);
+	debugfs_create_u64("reject_reclaim_fail", 0444,
+			   zswap_debugfs_root, &zswap_reject_reclaim_fail);
+	debugfs_create_u64("reject_alloc_fail", 0444,
+			   zswap_debugfs_root, &zswap_reject_alloc_fail);
+	debugfs_create_u64("reject_kmemcache_fail", 0444,
+			   zswap_debugfs_root, &zswap_reject_kmemcache_fail);
+	debugfs_create_u64("reject_compress_poor", 0444,
+			   zswap_debugfs_root, &zswap_reject_compress_poor);
+	debugfs_create_u64("written_back_pages", 0444,
+			   zswap_debugfs_root, &zswap_written_back_pages);
+	debugfs_create_u64("duplicate_entry", 0444,
+			   zswap_debugfs_root, &zswap_duplicate_entry);
+	debugfs_create_u64("pool_total_size", 0444,
+			   zswap_debugfs_root, &zswap_pool_total_size);
+	debugfs_create_atomic_t("stored_pages", 0444,
+				zswap_debugfs_root, &zswap_stored_pages);
 	debugfs_create_atomic_t("same_filled_pages", 0444,
-			zswap_debugfs_root, &zswap_same_filled_pages);
+				zswap_debugfs_root, &zswap_same_filled_pages);
 
 	return 0;
 }

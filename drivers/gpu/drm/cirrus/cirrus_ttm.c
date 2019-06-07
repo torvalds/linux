@@ -36,63 +36,6 @@ cirrus_bdev(struct ttm_bo_device *bd)
 	return container_of(bd, struct cirrus_device, ttm.bdev);
 }
 
-static int
-cirrus_ttm_mem_global_init(struct drm_global_reference *ref)
-{
-	return ttm_mem_global_init(ref->object);
-}
-
-static void
-cirrus_ttm_mem_global_release(struct drm_global_reference *ref)
-{
-	ttm_mem_global_release(ref->object);
-}
-
-static int cirrus_ttm_global_init(struct cirrus_device *cirrus)
-{
-	struct drm_global_reference *global_ref;
-	int r;
-
-	global_ref = &cirrus->ttm.mem_global_ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_MEM;
-	global_ref->size = sizeof(struct ttm_mem_global);
-	global_ref->init = &cirrus_ttm_mem_global_init;
-	global_ref->release = &cirrus_ttm_mem_global_release;
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM memory accounting "
-			  "subsystem.\n");
-		return r;
-	}
-
-	cirrus->ttm.bo_global_ref.mem_glob =
-		cirrus->ttm.mem_global_ref.object;
-	global_ref = &cirrus->ttm.bo_global_ref.ref;
-	global_ref->global_type = DRM_GLOBAL_TTM_BO;
-	global_ref->size = sizeof(struct ttm_bo_global);
-	global_ref->init = &ttm_bo_global_init;
-	global_ref->release = &ttm_bo_global_release;
-	r = drm_global_item_ref(global_ref);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up TTM BO subsystem.\n");
-		drm_global_item_unref(&cirrus->ttm.mem_global_ref);
-		return r;
-	}
-	return 0;
-}
-
-static void
-cirrus_ttm_global_release(struct cirrus_device *cirrus)
-{
-	if (cirrus->ttm.mem_global_ref.release == NULL)
-		return;
-
-	drm_global_item_unref(&cirrus->ttm.bo_global_ref.ref);
-	drm_global_item_unref(&cirrus->ttm.mem_global_ref);
-	cirrus->ttm.mem_global_ref.release = NULL;
-}
-
-
 static void cirrus_bo_ttm_destroy(struct ttm_buffer_object *tbo)
 {
 	struct cirrus_bo *bo;
@@ -232,15 +175,9 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 	struct drm_device *dev = cirrus->dev;
 	struct ttm_bo_device *bdev = &cirrus->ttm.bdev;
 
-	ret = cirrus_ttm_global_init(cirrus);
-	if (ret)
-		return ret;
-
 	ret = ttm_bo_device_init(&cirrus->ttm.bdev,
-				 cirrus->ttm.bo_global_ref.ref.object,
 				 &cirrus_bo_driver,
 				 dev->anon_inode->i_mapping,
-				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {
 		DRM_ERROR("Error initialising bo driver; %d\n", ret);
@@ -272,8 +209,6 @@ void cirrus_mm_fini(struct cirrus_device *cirrus)
 		return;
 
 	ttm_bo_device_release(&cirrus->ttm.bdev);
-
-	cirrus_ttm_global_release(cirrus);
 
 	arch_phys_wc_del(cirrus->fb_mtrr);
 	cirrus->fb_mtrr = 0;
@@ -395,13 +330,8 @@ int cirrus_bo_push_sysram(struct cirrus_bo *bo)
 
 int cirrus_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct drm_file *file_priv;
-	struct cirrus_device *cirrus;
+	struct drm_file *file_priv = filp->private_data;
+	struct cirrus_device *cirrus = file_priv->minor->dev->dev_private;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
-		return -EINVAL;
-
-	file_priv = filp->private_data;
-	cirrus = file_priv->minor->dev->dev_private;
 	return ttm_bo_mmap(filp, vma, &cirrus->ttm.bdev);
 }

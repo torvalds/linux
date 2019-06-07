@@ -3,7 +3,7 @@
  *
  * Name: acpredef - Information table for ACPI predefined methods and objects
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -630,6 +630,21 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 
 	{{"_MTL", METHOD_0ARGS,	/* ACPI 6.0 */
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
+
+	{{"_NBS", METHOD_0ARGS,	/* ACPI 6.3 */
+	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
+
+	{{"_NCH", METHOD_0ARGS,	/* ACPI 6.3 */
+	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
+
+	{{"_NIC", METHOD_0ARGS,	/* ACPI 6.3 */
+	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
+
+	{{"_NIG", METHOD_1ARGS(ACPI_TYPE_BUFFER),	/* ACPI 6.3 */
+	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
+
+	{{"_NIH", METHOD_0ARGS,	/* ACPI 6.3 */
+	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
 
 	{{"_NTT", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},

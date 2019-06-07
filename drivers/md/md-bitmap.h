@@ -236,43 +236,43 @@ struct bitmap {
 /* the bitmap API */
 
 /* these are used only by md/bitmap */
-struct bitmap *bitmap_create(struct mddev *mddev, int slot);
-int bitmap_load(struct mddev *mddev);
-void bitmap_flush(struct mddev *mddev);
-void bitmap_destroy(struct mddev *mddev);
+struct bitmap *md_bitmap_create(struct mddev *mddev, int slot);
+int md_bitmap_load(struct mddev *mddev);
+void md_bitmap_flush(struct mddev *mddev);
+void md_bitmap_destroy(struct mddev *mddev);
 
-void bitmap_print_sb(struct bitmap *bitmap);
-void bitmap_update_sb(struct bitmap *bitmap);
-void bitmap_status(struct seq_file *seq, struct bitmap *bitmap);
+void md_bitmap_print_sb(struct bitmap *bitmap);
+void md_bitmap_update_sb(struct bitmap *bitmap);
+void md_bitmap_status(struct seq_file *seq, struct bitmap *bitmap);
 
-int  bitmap_setallbits(struct bitmap *bitmap);
-void bitmap_write_all(struct bitmap *bitmap);
+int  md_bitmap_setallbits(struct bitmap *bitmap);
+void md_bitmap_write_all(struct bitmap *bitmap);
 
-void bitmap_dirty_bits(struct bitmap *bitmap, unsigned long s, unsigned long e);
+void md_bitmap_dirty_bits(struct bitmap *bitmap, unsigned long s, unsigned long e);
 
 /* these are exported */
-int bitmap_startwrite(struct bitmap *bitmap, sector_t offset,
-			unsigned long sectors, int behind);
-void bitmap_endwrite(struct bitmap *bitmap, sector_t offset,
+int md_bitmap_startwrite(struct bitmap *bitmap, sector_t offset,
+			 unsigned long sectors, int behind);
+void md_bitmap_endwrite(struct bitmap *bitmap, sector_t offset,
 			unsigned long sectors, int success, int behind);
-int bitmap_start_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int degraded);
-void bitmap_end_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int aborted);
-void bitmap_close_sync(struct bitmap *bitmap);
-void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector, bool force);
-void bitmap_sync_with_cluster(struct mddev *mddev,
-			      sector_t old_lo, sector_t old_hi,
-			      sector_t new_lo, sector_t new_hi);
+int md_bitmap_start_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int degraded);
+void md_bitmap_end_sync(struct bitmap *bitmap, sector_t offset, sector_t *blocks, int aborted);
+void md_bitmap_close_sync(struct bitmap *bitmap);
+void md_bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector, bool force);
+void md_bitmap_sync_with_cluster(struct mddev *mddev,
+				 sector_t old_lo, sector_t old_hi,
+				 sector_t new_lo, sector_t new_hi);
 
-void bitmap_unplug(struct bitmap *bitmap);
-void bitmap_daemon_work(struct mddev *mddev);
+void md_bitmap_unplug(struct bitmap *bitmap);
+void md_bitmap_daemon_work(struct mddev *mddev);
 
-int bitmap_resize(struct bitmap *bitmap, sector_t blocks,
-		  int chunksize, int init);
+int md_bitmap_resize(struct bitmap *bitmap, sector_t blocks,
+		     int chunksize, int init);
 struct bitmap *get_bitmap_from_slot(struct mddev *mddev, int slot);
-int bitmap_copy_from_slot(struct mddev *mddev, int slot,
-				sector_t *lo, sector_t *hi, bool clear_bits);
-void bitmap_free(struct bitmap *bitmap);
-void bitmap_wait_behind_writes(struct mddev *mddev);
+int md_bitmap_copy_from_slot(struct mddev *mddev, int slot,
+			     sector_t *lo, sector_t *hi, bool clear_bits);
+void md_bitmap_free(struct bitmap *bitmap);
+void md_bitmap_wait_behind_writes(struct mddev *mddev);
 #endif
 
 #endif

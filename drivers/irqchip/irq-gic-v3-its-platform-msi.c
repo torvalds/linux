@@ -73,6 +73,8 @@ static int its_pmsi_prepare(struct irq_domain *domain, struct device *dev,
 	/* ITS specific DeviceID, as the core ITS ignores dev. */
 	info->scratchpad[0].ul = dev_id;
 
+	/* Allocate at least 32 MSIs, and always as a power of 2 */
+	nvec = max_t(int, 32, roundup_pow_of_two(nvec));
 	return msi_info->ops->msi_prepare(domain->parent,
 					  dev, nvec, info);
 }
@@ -115,7 +117,7 @@ static int __init its_pmsi_init_one(struct fwnode_handle *fwnode,
 
 #ifdef CONFIG_ACPI
 static int __init
-its_pmsi_parse_madt(struct acpi_subtable_header *header,
+its_pmsi_parse_madt(union acpi_subtable_headers *header,
 			const unsigned long end)
 {
 	struct acpi_madt_generic_translator *its_entry;

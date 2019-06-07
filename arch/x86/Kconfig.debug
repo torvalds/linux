@@ -1,10 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "Kernel hacking"
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
-
-source "lib/Kconfig.debug"
 
 config EARLY_PRINTK_USB
 	bool
@@ -43,16 +40,6 @@ config EARLY_PRINTK_DBGP
 	  with klogd/syslogd or the X server. You should normally say N here,
 	  unless you want to debug such a crash. You need usb debug device.
 
-config EARLY_PRINTK_EFI
-	bool "Early printk via the EFI framebuffer"
-	depends on EFI && EARLY_PRINTK
-	select FONT_SUPPORT
-	---help---
-	  Write kernel log output directly into the EFI framebuffer.
-
-	  This is useful for kernel debugging when your machine crashes very
-	  early before the console code is initialized.
-
 config EARLY_PRINTK_USB_XDBC
 	bool "Early printk via the xHCI debug port"
 	depends on EARLY_PRINTK && PCI
@@ -71,6 +58,9 @@ config EARLY_PRINTK_USB_XDBC
 
 	  You should normally say N here, unless you want to debug early
 	  crashes or need a very simple printk logging facility.
+
+config MCSAFE_TEST
+	def_bool n
 
 config X86_PTDUMP_CORE
 	def_bool n
@@ -276,20 +266,6 @@ config CPA_DEBUG
 	---help---
 	  Do change_page_attr() self-tests every 30 seconds.
 
-config OPTIMIZE_INLINING
-	bool "Allow gcc to uninline functions marked 'inline'"
-	---help---
-	  This option determines if the kernel forces gcc to inline the functions
-	  developers have marked 'inline'. Doing so takes away freedom from gcc to
-	  do what it thinks is best, which is desirable for the gcc 3.x series of
-	  compilers. The gcc 4.x series have a rewritten inlining algorithm and
-	  enabling this option will generate a smaller kernel there. Hopefully
-	  this algorithm is so good that allowing gcc 4.x and above to make the
-	  decision will become the default in the future. Until then this option
-	  is there to test gcc for this.
-
-	  If unsure, say N.
-
 config DEBUG_ENTRY
 	bool "Debug low-level entry code"
 	depends on DEBUG_KERNEL
@@ -314,7 +290,6 @@ config DEBUG_NMI_SELFTEST
 
 config DEBUG_IMR_SELFTEST
 	bool "Isolated Memory Region self test"
-	default n
 	depends on INTEL_IMR
 	---help---
 	  This option enables automated sanity testing of the IMR code.
@@ -407,5 +382,3 @@ endchoice
 config FRAME_POINTER
 	depends on !UNWINDER_ORC && !UNWINDER_GUESS
 	bool
-
-endmenu

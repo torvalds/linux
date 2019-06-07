@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
  *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include "saa7164.h"
@@ -208,8 +198,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
-	strcpy(cap->driver, dev->name);
-	strlcpy(cap->card, saa7164_boards[dev->board].name,
+	strscpy(cap->driver, dev->name, sizeof(cap->driver));
+	strscpy(cap->card, saa7164_boards[dev->board].name,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
 
@@ -629,12 +619,12 @@ static __poll_t fops_poll(struct file *file, poll_table *wait)
 		port->last_poll_msecs_diff);
 
 	if (!video_is_registered(port->v4l_device))
-		return -EIO;
+		return EPOLLERR;
 
 	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
 		if (atomic_inc_return(&port->v4l_reader_count) == 1) {
 			if (saa7164_vbi_initialize(port) < 0)
-				return -EINVAL;
+				return EPOLLERR;
 			saa7164_vbi_start_streaming(port);
 			msleep(200);
 		}
@@ -644,7 +634,7 @@ static __poll_t fops_poll(struct file *file, poll_table *wait)
 	if ((file->f_flags & O_NONBLOCK) == 0) {
 		if (wait_event_interruptible(port->wait_read,
 			saa7164_vbi_next_buf(port))) {
-				return -ERESTARTSYS;
+				return EPOLLERR;
 		}
 	}
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     On Screen Display cx23415 Framebuffer driver
 
@@ -23,19 +24,6 @@
 
     Copyright (C) 2006  Ian Armstrong <ian@iarmst.demon.co.uk>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include "ivtv-driver.h"
@@ -55,6 +43,7 @@
 /* card parameters */
 static int ivtvfb_card_id = -1;
 static int ivtvfb_debug = 0;
+static bool ivtvfb_force_pat = IS_ENABLED(CONFIG_VIDEO_FB_IVTV_FORCE_PAT);
 static bool osd_laced;
 static int osd_depth;
 static int osd_upper;
@@ -64,6 +53,7 @@ static int osd_xres;
 
 module_param(ivtvfb_card_id, int, 0444);
 module_param_named(debug,ivtvfb_debug, int, 0644);
+module_param_named(force_pat, ivtvfb_force_pat, bool, 0644);
 module_param(osd_laced, bool, 0444);
 module_param(osd_depth, int, 0444);
 module_param(osd_upper, int, 0444);
@@ -78,6 +68,9 @@ MODULE_PARM_DESC(ivtvfb_card_id,
 MODULE_PARM_DESC(debug,
 		 "Debug level (bitmask). Default: errors only\n"
 		 "\t\t\t(debug = 3 gives full debugging)");
+
+MODULE_PARM_DESC(force_pat,
+		 "Force initialization on x86 PAT-enabled systems (bool).\n");
 
 /* Why upper, left, xres, yres, depth, laced ? To match terminology used
    by fbset.
@@ -356,7 +349,7 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 		IVTVFB_WARN("ivtvfb_prep_frame: Count not a multiple of 4 (%d)\n", count);
 
 	/* Check Source */
-	if (!access_ok(VERIFY_READ, source + dest_offset, count)) {
+	if (!access_ok(source + dest_offset, count)) {
 		IVTVFB_WARN("Invalid userspace pointer %p\n", source);
 
 		IVTVFB_DEBUG_WARN("access_ok() failed for offset 0x%08lx source %p count %d\n",
@@ -624,7 +617,7 @@ static int ivtvfb_get_fix(struct ivtv *itv, struct fb_fix_screeninfo *fix)
 
 	IVTVFB_DEBUG_INFO("ivtvfb_get_fix\n");
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
-	strlcpy(fix->id, "cx23415 TV out", sizeof(fix->id));
+	strscpy(fix->id, "cx23415 TV out", sizeof(fix->id));
 	fix->smem_start = oi->video_pbase;
 	fix->smem_len = oi->video_buffer_size;
 	fix->type = FB_TYPE_PACKED_PIXELS;
@@ -1077,7 +1070,7 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 
 	/* Allocate the pseudo palette */
 	oi->ivtvfb_info.pseudo_palette =
-		kmalloc(sizeof(u32) * 16, GFP_KERNEL|__GFP_NOWARN);
+		kmalloc_array(16, sizeof(u32), GFP_KERNEL|__GFP_NOWARN);
 
 	if (!oi->ivtvfb_info.pseudo_palette) {
 		IVTVFB_ERR("abort, unable to alloc pseudo palette\n");
@@ -1167,8 +1160,15 @@ static int ivtvfb_init_card(struct ivtv *itv)
 
 #ifdef CONFIG_X86_64
 	if (pat_enabled()) {
-		pr_warn("ivtvfb needs PAT disabled, boot with nopat kernel parameter\n");
-		return -ENODEV;
+		if (ivtvfb_force_pat) {
+			pr_info("PAT is enabled. Write-combined framebuffer caching will be disabled.\n");
+			pr_info("To enable caching, boot with nopat kernel parameter\n");
+		} else {
+			pr_warn("ivtvfb needs PAT disabled for write-combined framebuffer caching.\n");
+			pr_warn("Boot with nopat kernel parameter to use caching, or use the\n");
+			pr_warn("force_pat module parameter to run with caching disabled\n");
+			return -ENODEV;
+		}
 	}
 #endif
 
@@ -1178,7 +1178,7 @@ static int ivtvfb_init_card(struct ivtv *itv)
 	}
 
 	itv->osd_info = kzalloc(sizeof(struct osd_info),
-					GFP_ATOMIC|__GFP_NOWARN);
+					GFP_KERNEL|__GFP_NOWARN);
 	if (itv->osd_info == NULL) {
 		IVTVFB_ERR("Failed to allocate memory for osd_info\n");
 		return -ENOMEM;

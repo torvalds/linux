@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux/arm64 port of the OpenSSL SHA512 implementation for AArch64
  *
  * Copyright (c) 2016 Linaro Ltd. <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/hash.h>
@@ -63,7 +58,6 @@ static struct shash_alg algs[] = { {
 	.base.cra_name		= "sha512",
 	.base.cra_driver_name	= "sha512-arm64",
 	.base.cra_priority	= 150,
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA512_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 }, {
@@ -76,7 +70,6 @@ static struct shash_alg algs[] = { {
 	.base.cra_name		= "sha384",
 	.base.cra_driver_name	= "sha384-arm64",
 	.base.cra_priority	= 150,
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA384_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 } };

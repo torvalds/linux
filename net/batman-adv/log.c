@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2010-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2010-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "log.h"
@@ -39,6 +27,11 @@
 #include <linux/uaccess.h>
 #include <linux/wait.h>
 #include <stdarg.h>
+
+#include "debugfs.h"
+#include "trace.h"
+
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 
 #define BATADV_LOG_BUFF_MASK (batadv_log_buff_len - 1)
 
@@ -89,33 +82,15 @@ static int batadv_fdebug_log(struct batadv_priv_debug_log *debug_log,
 	return 0;
 }
 
-/**
- * batadv_debug_log() - Add debug log entry
- * @bat_priv: the bat priv with all the soft interface information
- * @fmt: format string
- *
- * Return: 0 on success or negative error number in case of failure
- */
-int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
-{
-	va_list args;
-	char tmp_log_buf[256];
-
-	va_start(args, fmt);
-	vscnprintf(tmp_log_buf, sizeof(tmp_log_buf), fmt, args);
-	batadv_fdebug_log(bat_priv->debug_log, "[%10u] %s",
-			  jiffies_to_msecs(jiffies), tmp_log_buf);
-	va_end(args);
-
-	return 0;
-}
-
 static int batadv_log_open(struct inode *inode, struct file *file)
 {
 	if (!try_module_get(THIS_MODULE))
 		return -EBUSY;
 
-	nonseekable_open(inode, file);
+	batadv_debugfs_deprecated(file,
+				  "Use tracepoint batadv:batadv_dbg instead\n");
+
+	stream_open(inode, file);
 	file->private_data = inode->i_private;
 	return 0;
 }
@@ -149,7 +124,7 @@ static ssize_t batadv_log_read(struct file *file, char __user *buf,
 	if (count == 0)
 		return 0;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	error = wait_event_interruptible(debug_log->queue_wait,
@@ -246,4 +221,35 @@ void batadv_debug_log_cleanup(struct batadv_priv *bat_priv)
 {
 	kfree(bat_priv->debug_log);
 	bat_priv->debug_log = NULL;
+}
+
+#endif /* CONFIG_BATMAN_ADV_DEBUGFS */
+
+/**
+ * batadv_debug_log() - Add debug log entry
+ * @bat_priv: the bat priv with all the soft interface information
+ * @fmt: format string
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
+int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
+	batadv_fdebug_log(bat_priv->debug_log, "[%10u] %pV",
+			  jiffies_to_msecs(jiffies), &vaf);
+#endif
+
+	trace_batadv_dbg(bat_priv, &vaf);
+
+	va_end(args);
+
+	return 0;
 }

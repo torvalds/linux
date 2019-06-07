@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2016-17 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _VAS_H
@@ -15,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/dcache.h>
 #include <linux/mutex.h>
+#include <linux/stringify.h>
 
 /*
  * Overview of Virtual Accelerator Switchboard (VAS).

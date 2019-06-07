@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/sock_diag.h>
@@ -10,7 +11,8 @@
 
 static int sk_diag_dump_name(struct sock *sk, struct sk_buff *nlskb)
 {
-	struct unix_address *addr = unix_sk(sk)->addr;
+	/* might or might not have unix_table_lock */
+	struct unix_address *addr = smp_load_acquire(&unix_sk(sk)->addr);
 
 	if (!addr)
 		return 0;

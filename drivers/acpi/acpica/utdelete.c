@@ -257,6 +257,10 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 
 			acpi_ut_delete_object_desc(second_desc);
 		}
+		if (object->field.internal_pcc_buffer) {
+			ACPI_FREE(object->field.internal_pcc_buffer);
+		}
+
 		break;
 
 	case ACPI_TYPE_BUFFER_FIELD:
@@ -355,6 +359,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	u16 original_count;
 	u16 new_count = 0;
 	acpi_cpu_flags lock_flags;
+	char *message;
 
 	ACPI_FUNCTION_NAME(ut_update_ref_count);
 
@@ -391,6 +396,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 				  object, object->common.type,
 				  acpi_ut_get_object_type_name(object),
 				  new_count));
+		message = "Incremement";
 		break;
 
 	case REF_DECREMENT:
@@ -420,6 +426,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 		if (new_count == 0) {
 			acpi_ut_delete_internal_obj(object);
 		}
+		message = "Decrement";
 		break;
 
 	default:
@@ -436,8 +443,8 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 	 */
 	if (new_count > ACPI_MAX_REFERENCE_COUNT) {
 		ACPI_WARNING((AE_INFO,
-			      "Large Reference Count (0x%X) in object %p, Type=0x%.2X",
-			      new_count, object, object->common.type));
+			      "Large Reference Count (0x%X) in object %p, Type=0x%.2X Operation=%s",
+			      new_count, object, object->common.type, message));
 	}
 }
 

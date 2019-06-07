@@ -20,13 +20,26 @@ for that device, by setting low_latency to 0. See Section 3 for
 details on how to configure BFQ for the desired tradeoff between
 latency and throughput, or on how to maximize throughput.
 
-BFQ has a non-null overhead, which limits the maximum IOPS that a CPU
-can process for a device scheduled with BFQ. To give an idea of the
-limits on slow or average CPUs, here are, first, the limits of BFQ for
-three different CPUs, on, respectively, an average laptop, an old
-desktop, and a cheap embedded system, in case full hierarchical
-support is enabled (i.e., CONFIG_BFQ_GROUP_IOSCHED is set), but
-CONFIG_DEBUG_BLK_CGROUP is not set (Section 4-2):
+As every I/O scheduler, BFQ adds some overhead to per-I/O-request
+processing. To give an idea of this overhead, the total,
+single-lock-protected, per-request processing time of BFQ---i.e., the
+sum of the execution times of the request insertion, dispatch and
+completion hooks---is, e.g., 1.9 us on an Intel Core i7-2760QM@2.40GHz
+(dated CPU for notebooks; time measured with simple code
+instrumentation, and using the throughput-sync.sh script of the S
+suite [1], in performance-profiling mode). To put this result into
+context, the total, single-lock-protected, per-request execution time
+of the lightest I/O scheduler available in blk-mq, mq-deadline, is 0.7
+us (mq-deadline is ~800 LOC, against ~10500 LOC for BFQ).
+
+Scheduling overhead further limits the maximum IOPS that a CPU can
+process (already limited by the execution of the rest of the I/O
+stack). To give an idea of the limits with BFQ, on slow or average
+CPUs, here are, first, the limits of BFQ for three different CPUs, on,
+respectively, an average laptop, an old desktop, and a cheap embedded
+system, in case full hierarchical support is enabled (i.e.,
+CONFIG_BFQ_GROUP_IOSCHED is set), but CONFIG_DEBUG_BLK_CGROUP is not
+set (Section 4-2):
 - Intel i7-4850HQ: 400 KIOPS
 - AMD A8-3850: 250 KIOPS
 - ARM CortexTM-A53 Octa-core: 80 KIOPS
@@ -357,6 +370,13 @@ video playing/streaming, a very low drop rate may be more important
 than maximum throughput. In these cases, consider setting the
 strict_guarantees parameter.
 
+slice_idle_us
+-------------
+
+Controls the same tuning parameter as slice_idle, but in microseconds.
+Either tunable can be used to set idling behavior.  Afterwards, the
+other tunable will reflect the newly set value in sysfs.
+
 strict_guarantees
 -----------------
 
@@ -559,3 +579,5 @@ applications. Unset this tunable if you need/want to control weights.
     Slightly extended version:
     http://algogroup.unimore.it/people/paolo/disk_sched/bfq-v1-suite-
 							results.pdf
+
+[3] https://github.com/Algodev-github/S

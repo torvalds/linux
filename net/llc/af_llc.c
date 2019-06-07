@@ -320,14 +320,13 @@ static int llc_ui_bind(struct socket *sock, struct sockaddr *uaddr, int addrlen)
 	struct llc_sap *sap;
 	int rc = -EINVAL;
 
-	dprintk("%s: binding %02X\n", __func__, addr->sllc_sap);
-
 	lock_sock(sk);
 	if (unlikely(!sock_flag(sk, SOCK_ZAPPED) || addrlen != sizeof(*addr)))
 		goto out;
 	rc = -EAFNOSUPPORT;
 	if (unlikely(addr->sllc_family != AF_LLC))
 		goto out;
+	dprintk("%s: binding %02X\n", __func__, addr->sllc_sap);
 	rc = -ENODEV;
 	rcu_read_lock();
 	if (sk->sk_bound_dev_if) {
@@ -730,7 +729,6 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	struct sk_buff *skb = NULL;
 	struct sock *sk = sock->sk;
 	struct llc_sock *llc = llc_sk(sk);
-	unsigned long cpu_flags;
 	size_t copied = 0;
 	u32 peek_seq = 0;
 	u32 *seq, skb_len;
@@ -855,9 +853,8 @@ static int llc_ui_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			goto copy_uaddr;
 
 		if (!(flags & MSG_PEEK)) {
-			spin_lock_irqsave(&sk->sk_receive_queue.lock, cpu_flags);
-			sk_eat_skb(sk, skb);
-			spin_unlock_irqrestore(&sk->sk_receive_queue.lock, cpu_flags);
+			skb_unlink(skb, &sk->sk_receive_queue);
+			kfree_skb(skb);
 			*seq = 0;
 		}
 
@@ -878,9 +875,8 @@ copy_uaddr:
 		llc_cmsg_rcv(msg, skb);
 
 	if (!(flags & MSG_PEEK)) {
-		spin_lock_irqsave(&sk->sk_receive_queue.lock, cpu_flags);
-		sk_eat_skb(sk, skb);
-		spin_unlock_irqrestore(&sk->sk_receive_queue.lock, cpu_flags);
+		skb_unlink(skb, &sk->sk_receive_queue);
+		kfree_skb(skb);
 		*seq = 0;
 	}
 

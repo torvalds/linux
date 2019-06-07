@@ -198,11 +198,14 @@ void flush_dcache_page(struct page *page)
 EXPORT_SYMBOL(flush_dcache_page);
 
 void update_mmu_cache(struct vm_area_struct *vma,
-		      unsigned long address, pte_t *pte)
+		      unsigned long address, pte_t *ptep)
 {
-	unsigned long pfn = pte_pfn(*pte);
+	pte_t pte = *ptep;
+	unsigned long pfn = pte_pfn(pte);
 	struct page *page;
 	struct address_space *mapping;
+
+	reload_tlb_page(vma, address, pte);
 
 	if (!pfn_valid(pfn))
 		return;

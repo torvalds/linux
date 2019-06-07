@@ -395,7 +395,7 @@ static int nat_h245(struct sk_buff *skb, struct nf_conn *ct,
 static void ip_nat_q931_expect(struct nf_conn *new,
 			       struct nf_conntrack_expect *this)
 {
-	struct nf_nat_range range;
+	struct nf_nat_range2 range;
 
 	if (this->tuple.src.u3.ip != 0) {	/* Only accept calls from GK */
 		nf_nat_follow_master(new, this);
@@ -497,7 +497,7 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 static void ip_nat_callforwarding_expect(struct nf_conn *new,
 					 struct nf_conntrack_expect *this)
 {
-	struct nf_nat_range range;
+	struct nf_nat_range2 range;
 
 	/* This must be a fresh one. */
 	BUG_ON(new->status & IPS_NAT_DONE_MASK);
@@ -631,4 +631,4 @@ module_exit(fini);
 MODULE_AUTHOR("Jing Min Zhao <zhaojingmin@users.sourceforge.net>");
 MODULE_DESCRIPTION("H.323 NAT helper");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("ip_nat_h323");
+MODULE_ALIAS_NF_NAT_HELPER("h323");

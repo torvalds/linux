@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2012 Texas Instruments Inc
  *
@@ -9,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Contributors:
  *      Manjunath Hadli <manjunath.hadli@ti.com>
@@ -436,9 +433,9 @@ static int isif_get_params(struct v4l2_subdev *sd, void *params)
 	return 0;
 }
 
-static int isif_validate_df_csc_params(struct vpfe_isif_df_csc *df_csc)
+static int isif_validate_df_csc_params(const struct vpfe_isif_df_csc *df_csc)
 {
-	struct vpfe_isif_color_space_conv *csc;
+	const struct vpfe_isif_color_space_conv *csc;
 	int err = -EINVAL;
 	int i;
 
@@ -484,7 +481,7 @@ static int isif_validate_df_csc_params(struct vpfe_isif_df_csc *df_csc)
 #define DM365_ISIF_MAX_DFCMEM0		0x1fff
 #define DM365_ISIF_MAX_DFCMEM1		0x1fff
 
-static int isif_validate_dfc_params(struct vpfe_isif_dfc *dfc)
+static int isif_validate_dfc_params(const struct vpfe_isif_dfc *dfc)
 {
 	int err = -EINVAL;
 	int i;
@@ -535,7 +532,7 @@ static int isif_validate_dfc_params(struct vpfe_isif_dfc *dfc)
 #define DM365_ISIF_MAX_CLVSV			0x1fff
 #define DM365_ISIF_MAX_HEIGHT_BLACK_REGION	0x1fff
 
-static int isif_validate_bclamp_params(struct vpfe_isif_black_clamp *bclamp)
+static int isif_validate_bclamp_params(const struct vpfe_isif_black_clamp *bclamp)
 {
 	int err = -EINVAL;
 
@@ -583,7 +580,7 @@ static int isif_validate_bclamp_params(struct vpfe_isif_black_clamp *bclamp)
 }
 
 static int
-isif_validate_raw_params(struct vpfe_isif_raw_config *params)
+isif_validate_raw_params(const struct vpfe_isif_raw_config *params)
 {
 	int ret;
 
@@ -596,20 +593,18 @@ isif_validate_raw_params(struct vpfe_isif_raw_config *params)
 	return isif_validate_bclamp_params(&params->bclamp);
 }
 
-static int isif_set_params(struct v4l2_subdev *sd, void *params)
+static int isif_set_params(struct v4l2_subdev *sd, const struct vpfe_isif_raw_config *params)
 {
 	struct vpfe_isif_device *isif = v4l2_get_subdevdata(sd);
-	struct vpfe_isif_raw_config isif_raw_params;
 	int ret = -EINVAL;
 
 	/* only raw module parameters can be set through the IOCTL */
 	if (isif->formats[ISIF_PAD_SINK].code != MEDIA_BUS_FMT_SGRBG12_1X12)
 		return ret;
 
-	memcpy(&isif_raw_params, params, sizeof(isif_raw_params));
-	if (!isif_validate_raw_params(&isif_raw_params)) {
-		memcpy(&isif->isif_cfg.bayer.config_params, &isif_raw_params,
-			sizeof(isif_raw_params));
+	if (!isif_validate_raw_params(params)) {
+		memcpy(&isif->isif_cfg.bayer.config_params, params,
+			sizeof(*params));
 		ret = 0;
 	}
 	return ret;
@@ -678,7 +673,7 @@ static void isif_config_bclamp(struct vpfe_isif_device *isif,
 	val = (bc->bc_mode_color & ISIF_BC_MODE_COLOR_MASK) <<
 		ISIF_BC_MODE_COLOR_SHIFT;
 
-	/* Enable BC and horizontal clamp calculation paramaters */
+	/* Enable BC and horizontal clamp calculation parameters */
 	val = val | 1 | ((bc->horz.mode & ISIF_HORZ_BC_MODE_MASK) <<
 	      ISIF_HORZ_BC_MODE_SHIFT);
 
@@ -715,7 +710,7 @@ static void isif_config_bclamp(struct vpfe_isif_device *isif,
 		isif_write(isif->isif_cfg.base_addr, val, CLHWIN2);
 	}
 
-	/* vertical clamp calculation paramaters */
+	/* vertical clamp calculation parameters */
 	/* OB H Valid */
 	val = bc->vert.ob_h_sz_calc & ISIF_VERT_BC_OB_H_SZ_MASK;
 
@@ -1397,14 +1392,9 @@ __isif_get_format(struct vpfe_isif_device *isif,
 		  struct v4l2_subdev_pad_config *cfg, unsigned int pad,
 		  enum v4l2_subdev_format_whence which)
 {
-	if (which == V4L2_SUBDEV_FORMAT_TRY) {
-		struct v4l2_subdev_format fmt;
-
-		fmt.pad = pad;
-		fmt.which = which;
-
+	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(&isif->subdev, cfg, pad);
-	}
+
 	return &isif->formats[pad];
 }
 
@@ -2043,7 +2033,7 @@ int vpfe_isif_init(struct vpfe_isif_device *isif, struct platform_device *pdev)
 	isif->video_out.ops = &isif_video_ops;
 	v4l2_subdev_init(sd, &isif_v4l2_ops);
 	sd->internal_ops = &isif_v4l2_internal_ops;
-	strlcpy(sd->name, "DAVINCI ISIF", sizeof(sd->name));
+	strscpy(sd->name, "DAVINCI ISIF", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for davinci subdevs */
 	v4l2_set_subdevdata(sd, isif);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;

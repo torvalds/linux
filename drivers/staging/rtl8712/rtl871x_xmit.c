@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  * rtl871x_xmit.c
  *
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
  * Linux device driver for RTL8192SU
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
@@ -87,8 +75,8 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	 * and initialize free_xmit_frame below.
 	 * Please also apply  free_txobj to link_up all the xmit_frames...
 	 */
-	pxmitpriv->pallocated_frame_buf = kmalloc(NR_XMITFRAME * sizeof(struct xmit_frame) + 4,
-						  GFP_ATOMIC);
+	pxmitpriv->pallocated_frame_buf =
+		kmalloc(NR_XMITFRAME * sizeof(struct xmit_frame) + 4, GFP_ATOMIC);
 	if (!pxmitpriv->pallocated_frame_buf) {
 		pxmitpriv->pxmit_frame_buf = NULL;
 		return _FAIL;
@@ -126,8 +114,8 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	/*init xmit_buf*/
 	_init_queue(&pxmitpriv->free_xmitbuf_queue);
 	_init_queue(&pxmitpriv->pending_xmitbuf_queue);
-	pxmitpriv->pallocated_xmitbuf = kmalloc(NR_XMITBUFF * sizeof(struct xmit_buf) + 4,
-						GFP_ATOMIC);
+	pxmitpriv->pallocated_xmitbuf =
+		kmalloc(NR_XMITBUFF * sizeof(struct xmit_buf) + 4, GFP_ATOMIC);
 	if (!pxmitpriv->pallocated_xmitbuf) {
 		kfree(pxmitpriv->pallocated_frame_buf);
 		pxmitpriv->pallocated_frame_buf = NULL;
@@ -205,8 +193,8 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 
 	pattrib->ether_type = ntohs(etherhdr.h_proto);
 
-{
-	/*If driver xmit ARP packet, driver can set ps mode to initial
+	/*
+	 * If driver xmit ARP packet, driver can set ps mode to initial
 	 * setting. It stands for getting DHCP or fix IP.
 	 */
 	if (pattrib->ether_type == 0x0806) {
@@ -218,7 +206,7 @@ sint r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 					  padapter->registrypriv.smart_ps);
 		}
 	}
-}
+
 	memcpy(pattrib->dst, &etherhdr.h_dest, ETH_ALEN);
 	memcpy(pattrib->src, &etherhdr.h_source, ETH_ALEN);
 	pattrib->pctrl = 0;
@@ -433,7 +421,7 @@ static sint xmitframe_addmic(struct _adapter *padapter,
 					r8712_secmicappend(&micdata, payload,
 							   length);
 					payload = payload + length;
-				} else{
+				} else {
 					length = pxmitpriv->frag_len -
 					    pattrib->hdrlen - pattrib->iv_len -
 					    ((psecuritypriv->sw_encrypt) ?
@@ -961,7 +949,7 @@ static void alloc_hwxmits(struct _adapter *padapter)
 		pxmitpriv->vo_txqueue.head = 0;
 		hwxmits[1] .phwtxqueue = &pxmitpriv->vo_txqueue;
 		hwxmits[1] .sta_queue = &pxmitpriv->vo_pending;
-	pxmitpriv->vi_txqueue.head = 0;
+		pxmitpriv->vi_txqueue.head = 0;
 		hwxmits[2] .phwtxqueue = &pxmitpriv->vi_txqueue;
 		hwxmits[2] .sta_queue = &pxmitpriv->vi_pending;
 		pxmitpriv->bk_txqueue.head = 0;

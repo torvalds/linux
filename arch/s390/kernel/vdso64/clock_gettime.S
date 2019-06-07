@@ -10,6 +10,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/dwarf.h>
+#include <asm/ptrace.h>
 
 	.text
 	.align 4
@@ -18,8 +19,8 @@
 __kernel_clock_gettime:
 	CFI_STARTPROC
 	aghi	%r15,-16
-	CFI_DEF_CFA_OFFSET 176
-	CFI_VAL_OFFSET 15, -160
+	CFI_DEF_CFA_OFFSET STACK_FRAME_OVERHEAD+16
+	CFI_VAL_OFFSET 15, -STACK_FRAME_OVERHEAD
 	larl	%r5,_vdso_data
 	cghi	%r2,__CLOCK_REALTIME_COARSE
 	je	4f
@@ -56,13 +57,13 @@ __kernel_clock_gettime:
 	stg	%r1,8(%r3)			/* store tp->tv_nsec */
 	lghi	%r2,0
 	aghi	%r15,16
-	CFI_DEF_CFA_OFFSET 160
+	CFI_DEF_CFA_OFFSET STACK_FRAME_OVERHEAD
 	CFI_RESTORE 15
 	br	%r14
 
 	/* CLOCK_MONOTONIC_COARSE */
-	CFI_DEF_CFA_OFFSET 176
-	CFI_VAL_OFFSET 15, -160
+	CFI_DEF_CFA_OFFSET STACK_FRAME_OVERHEAD+16
+	CFI_VAL_OFFSET 15, -STACK_FRAME_OVERHEAD
 3:	lg	%r4,__VDSO_UPD_COUNT(%r5)	/* load update counter */
 	tmll	%r4,0x0001			/* pending update ? loop */
 	jnz	3b
@@ -115,13 +116,13 @@ __kernel_clock_gettime:
 	stg	%r1,8(%r3)			/* store tp->tv_nsec */
 	lghi	%r2,0
 	aghi	%r15,16
-	CFI_DEF_CFA_OFFSET 160
+	CFI_DEF_CFA_OFFSET STACK_FRAME_OVERHEAD
 	CFI_RESTORE 15
 	br	%r14
 
 	/* CPUCLOCK_VIRT for this thread */
-	CFI_DEF_CFA_OFFSET 176
-	CFI_VAL_OFFSET 15, -160
+	CFI_DEF_CFA_OFFSET STACK_FRAME_OVERHEAD+16
+	CFI_VAL_OFFSET 15, -STACK_FRAME_OVERHEAD
 9:	lghi	%r4,0
 	icm	%r0,15,__VDSO_ECTG_OK(%r5)
 	jz	12f
@@ -142,17 +143,17 @@ __kernel_clock_gettime:
 	stg	%r4,8(%r3)
 	lghi	%r2,0
 	aghi	%r15,16
-	CFI_DEF_CFA_OFFSET 160
+	CFI_DEF_CFA_OFFSET STACK_FRAME_OVERHEAD
 	CFI_RESTORE 15
 	br	%r14
 
 	/* Fallback to system call */
-	CFI_DEF_CFA_OFFSET 176
-	CFI_VAL_OFFSET 15, -160
+	CFI_DEF_CFA_OFFSET STACK_FRAME_OVERHEAD+16
+	CFI_VAL_OFFSET 15, -STACK_FRAME_OVERHEAD
 12:	lghi	%r1,__NR_clock_gettime
 	svc	0
 	aghi	%r15,16
-	CFI_DEF_CFA_OFFSET 160
+	CFI_DEF_CFA_OFFSET STACK_FRAME_OVERHEAD
 	CFI_RESTORE 15
 	br	%r14
 	CFI_ENDPROC

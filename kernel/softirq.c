@@ -49,8 +49,8 @@
  */
 
 #ifndef __ARCH_IRQ_STAT
-irq_cpustat_t irq_stat[NR_CPUS] ____cacheline_aligned;
-EXPORT_SYMBOL(irq_stat);
+DEFINE_PER_CPU_ALIGNED(irq_cpustat_t, irq_stat);
+EXPORT_PER_CPU_SYMBOL(irq_stat);
 #endif
 
 static struct softirq_action softirq_vec[NR_SOFTIRQS] __cacheline_aligned_in_smp;
@@ -79,13 +79,18 @@ static void wakeup_softirqd(void)
 
 /*
  * If ksoftirqd is scheduled, we do not want to process pending softirqs
- * right now. Let ksoftirqd handle this at its own rate, to get fairness.
+ * right now. Let ksoftirqd handle this at its own rate, to get fairness,
+ * unless we're doing some of the synchronous softirqs.
  */
-static bool ksoftirqd_running(void)
+#define SOFTIRQ_NOW_MASK ((1 << HI_SOFTIRQ) | (1 << TASKLET_SOFTIRQ))
+static bool ksoftirqd_running(unsigned long pending)
 {
 	struct task_struct *tsk = __this_cpu_read(ksoftirqd);
 
-	return tsk && (tsk->state == TASK_RUNNING);
+	if (pending & SOFTIRQ_NOW_MASK)
+		return false;
+	return tsk && (tsk->state == TASK_RUNNING) &&
+		!__kthread_should_park(tsk);
 }
 
 /*
@@ -139,14 +144,17 @@ static void __local_bh_enable(unsigned int cnt)
 {
 	lockdep_assert_irqs_disabled();
 
+	if (preempt_count() == cnt)
+		trace_preempt_on(CALLER_ADDR0, get_lock_parent_ip());
+
 	if (softirq_count() == (cnt & SOFTIRQ_MASK))
 		trace_softirqs_on(_RET_IP_);
-	preempt_count_sub(cnt);
+
+	__preempt_count_sub(cnt);
 }
 
 /*
- * Special-case - softirqs can safely be enabled in
- * cond_resched_softirq(), or by __do_softirq(),
+ * Special-case - softirqs can safely be enabled by __do_softirq(),
  * without processing still-pending softirqs:
  */
 void _local_bh_enable(void)
@@ -250,9 +258,9 @@ asmlinkage __visible void __softirq_entry __do_softirq(void)
 	int softirq_bit;
 
 	/*
-	 * Mask out PF_MEMALLOC s current task context is borrowed for the
-	 * softirq. A softirq handled such as network RX might set PF_MEMALLOC
-	 * again if the socket is related to swap
+	 * Mask out PF_MEMALLOC as the current task context is borrowed for the
+	 * softirq. A softirq handled, such as network RX, might set PF_MEMALLOC
+	 * again if the socket is related to swapping.
 	 */
 	current->flags &= ~PF_MEMALLOC;
 
@@ -294,7 +302,8 @@ restart:
 		pending >>= softirq_bit;
 	}
 
-	rcu_bh_qs();
+	if (__this_cpu_read(ksoftirqd) == current)
+		rcu_softirq_qs();
 	local_irq_disable();
 
 	pending = local_softirq_pending();
@@ -325,7 +334,7 @@ asmlinkage __visible void do_softirq(void)
 
 	pending = local_softirq_pending();
 
-	if (pending && !ksoftirqd_running())
+	if (pending && !ksoftirqd_running(pending))
 		do_softirq_own_stack();
 
 	local_irq_restore(flags);
@@ -352,7 +361,7 @@ void irq_enter(void)
 
 static inline void invoke_softirq(void)
 {
-	if (ksoftirqd_running())
+	if (ksoftirqd_running(local_softirq_pending()))
 		return;
 
 	if (!force_irqthreads) {
@@ -383,7 +392,7 @@ static inline void tick_irq_exit(void)
 
 	/* Make sure that timer wheel updates are propagated */
 	if ((idle_cpu(cpu) && !need_resched()) || tick_nohz_full_cpu(cpu)) {
-		if (!in_interrupt())
+		if (!in_irq())
 			tick_nohz_irq_exit();
 	}
 #endif
@@ -563,57 +572,6 @@ void tasklet_kill(struct tasklet_struct *t)
 	clear_bit(TASKLET_STATE_SCHED, &t->state);
 }
 EXPORT_SYMBOL(tasklet_kill);
-
-/*
- * tasklet_hrtimer
- */
-
-/*
- * The trampoline is called when the hrtimer expires. It schedules a tasklet
- * to run __tasklet_hrtimer_trampoline() which in turn will call the intended
- * hrtimer callback, but from softirq context.
- */
-static enum hrtimer_restart __hrtimer_tasklet_trampoline(struct hrtimer *timer)
-{
-	struct tasklet_hrtimer *ttimer =
-		container_of(timer, struct tasklet_hrtimer, timer);
-
-	tasklet_hi_schedule(&ttimer->tasklet);
-	return HRTIMER_NORESTART;
-}
-
-/*
- * Helper function which calls the hrtimer callback from
- * tasklet/softirq context
- */
-static void __tasklet_hrtimer_trampoline(unsigned long data)
-{
-	struct tasklet_hrtimer *ttimer = (void *)data;
-	enum hrtimer_restart restart;
-
-	restart = ttimer->function(&ttimer->timer);
-	if (restart != HRTIMER_NORESTART)
-		hrtimer_restart(&ttimer->timer);
-}
-
-/**
- * tasklet_hrtimer_init - Init a tasklet/hrtimer combo for softirq callbacks
- * @ttimer:	 tasklet_hrtimer which is initialized
- * @function:	 hrtimer callback function which gets called from softirq context
- * @which_clock: clock id (CLOCK_MONOTONIC/CLOCK_REALTIME)
- * @mode:	 hrtimer mode (HRTIMER_MODE_ABS/HRTIMER_MODE_REL)
- */
-void tasklet_hrtimer_init(struct tasklet_hrtimer *ttimer,
-			  enum hrtimer_restart (*function)(struct hrtimer *),
-			  clockid_t which_clock, enum hrtimer_mode mode)
-{
-	hrtimer_init(&ttimer->timer, which_clock, mode);
-	ttimer->timer.function = __hrtimer_tasklet_trampoline;
-	tasklet_init(&ttimer->tasklet, __tasklet_hrtimer_trampoline,
-		     (unsigned long)ttimer);
-	ttimer->function = function;
-}
-EXPORT_SYMBOL_GPL(tasklet_hrtimer_init);
 
 void __init softirq_init(void)
 {

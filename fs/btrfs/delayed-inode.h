@@ -50,8 +50,8 @@ struct btrfs_delayed_node {
 	 * is waiting to be dealt with by the async worker.
 	 */
 	struct list_head p_list;
-	struct rb_root ins_root;
-	struct rb_root del_root;
+	struct rb_root_cached ins_root;
+	struct rb_root_cached del_root;
 	struct mutex mutex;
 	struct btrfs_inode_item inode_item;
 	refcount_t refs;
@@ -86,14 +86,12 @@ static inline void btrfs_init_delayed_root(
 }
 
 int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
-				   struct btrfs_fs_info *fs_info,
 				   const char *name, int name_len,
 				   struct btrfs_inode *dir,
 				   struct btrfs_disk_key *disk_key, u8 type,
 				   u64 index);
 
 int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
-				   struct btrfs_fs_info *fs_info,
 				   struct btrfs_inode *dir, u64 index);
 
 int btrfs_inode_delayed_dir_index_count(struct btrfs_inode *inode);

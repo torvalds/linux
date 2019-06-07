@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "routing.h"
@@ -1043,6 +1031,8 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 							hdr_size))
 			goto rx_success;
 
+		batadv_dat_snoop_incoming_dhcp_ack(bat_priv, skb, hdr_size);
+
 		batadv_interface_rx(recv_if->soft_iface, skb, hdr_size,
 				    orig_node);
 
@@ -1277,6 +1267,8 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 		goto rx_success;
 	if (batadv_dat_snoop_incoming_arp_reply(bat_priv, skb, hdr_size))
 		goto rx_success;
+
+	batadv_dat_snoop_incoming_dhcp_ack(bat_priv, skb, hdr_size);
 
 	/* broadcast for me */
 	batadv_interface_rx(recv_if->soft_iface, skb, hdr_size, orig_node);

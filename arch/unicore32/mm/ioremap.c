@@ -34,7 +34,7 @@
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <mach/map.h>
 #include "mm.h"

@@ -24,7 +24,7 @@
  * @microcode_name:	Name of the firmware file with the microcode
  * @qam_demod_parameter_count:	The number of parameters used for the command
  *				to set the demodulator parameters. All
- *				firmwares are using the 2-parameter commmand.
+ *				firmwares are using the 2-parameter command.
  *				An exception is the ``drxk_a3.mc`` firmware,
  *				which uses the 4-parameter command.
  *				A value of 0 (default) or lower indicates that

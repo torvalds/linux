@@ -45,12 +45,14 @@ through bpf(2) and passing a verifier in the kernel, a JIT will then
 translate these BPF proglets into native CPU instructions. There are
 two flavors of JITs, the newer eBPF JIT currently supported on:
   - x86_64
+  - x86_32
   - arm64
   - arm32
   - ppc64
   - sparc64
   - mips64
   - s390x
+  - riscv
 
 And the older cBPF JIT supported on the following archs:
   - mips
@@ -90,6 +92,14 @@ feature is disabled.
 Values :
 	0 - disable JIT kallsyms export (default value)
 	1 - enable JIT kallsyms export for privileged users only
+
+bpf_jit_limit
+-------------
+
+This enforces a global limit for memory allocations to the BPF JIT
+compiler in order to reject unprivileged JIT requests once it has
+been surpassed. bpf_jit_limit contains the value of the global limit
+in bytes.
 
 dev_weight
 --------------
@@ -279,6 +289,20 @@ network namespace is created, if corresponding tunnel is present
 in initial network namespace.
 If set to 1, these devices are not automatically created, and
 user space is responsible for creating them if needed.
+
+Default : 0  (for compatibility reasons)
+
+devconf_inherit_init_net
+----------------------------
+
+Controls if a new network namespace should inherit all current
+settings under /proc/sys/net/{ipv4,ipv6}/conf/{all,default}/. By
+default, we keep the current behavior: for IPv4 we inherit all current
+settings from init_net and for IPv6 we reset all settings to default.
+
+If set to 1, both IPv4 and IPv6 settings are forced to inherit from
+current ones in init_net. If set to 2, both IPv4 and IPv6 settings are
+forced to reset to their default values.
 
 Default : 0  (for compatibility reasons)
 

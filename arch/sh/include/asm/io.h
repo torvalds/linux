@@ -24,6 +24,7 @@
 #define __IO_PREFIX     generic
 #include <asm/io_generic.h>
 #include <asm/io_trapped.h>
+#include <asm-generic/pci_iomap.h>
 #include <mach/mangle-port.h>
 
 #define __raw_writeb(v,a)	(__chk_io_ptr(a), *(volatile u8  __force *)(a) = (v))
@@ -227,9 +228,6 @@ __BUILD_IOPORT_STRING(q, u64)
 
 
 #define IO_SPACE_LIMIT 0xffffffff
-
-/* synco on SH-4A, otherwise a nop */
-#define mmiowb()		wmb()
 
 /* We really want to try and get these to memcpy etc */
 void memcpy_fromio(void *, const volatile void __iomem *, unsigned long);

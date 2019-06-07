@@ -253,6 +253,7 @@ static struct ir_raw_handler nec_handler = {
 	.decode		= ir_nec_decode,
 	.encode		= ir_nec_encode,
 	.carrier	= 38000,
+	.min_timeout	= NEC_TRAILER_SPACE,
 };
 
 static int __init ir_nec_decode_init(void)

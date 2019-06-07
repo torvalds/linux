@@ -85,7 +85,7 @@ static bool __check_shared_memory(size_t alloc_size)
 	a = shared_memory_amount + alloc_size;
 	if (a < shared_memory_amount)
 		return false;
-	if (a >> PAGE_SHIFT > totalram_pages / DM_STATS_MEMORY_FACTOR)
+	if (a >> PAGE_SHIFT > totalram_pages() / DM_STATS_MEMORY_FACTOR)
 		return false;
 #ifdef CONFIG_MMU
 	if (a > (VMALLOC_END - VMALLOC_START) / DM_STATS_VMALLOC_FACTOR)
@@ -915,7 +915,9 @@ static int parse_histogram(const char *h, unsigned *n_histogram_entries,
 		if (*q == ',')
 			(*n_histogram_entries)++;
 
-	*histogram_boundaries = kmalloc(*n_histogram_entries * sizeof(unsigned long long), GFP_KERNEL);
+	*histogram_boundaries = kmalloc_array(*n_histogram_entries,
+					      sizeof(unsigned long long),
+					      GFP_KERNEL);
 	if (!*histogram_boundaries)
 		return -ENOMEM;
 

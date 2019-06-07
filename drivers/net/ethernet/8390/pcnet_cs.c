@@ -289,6 +289,11 @@ static struct hw_info *get_hwinfo(struct pcmcia_device *link)
 
     virt = ioremap(link->resource[2]->start,
 	    resource_size(link->resource[2]));
+    if (unlikely(!virt)) {
+	    pcmcia_release_window(link, link->resource[2]);
+	    return NULL;
+    }
+
     for (i = 0; i < NR_INFO; i++) {
 	pcmcia_map_mem_page(link, link->resource[2],
 		hw_info[i].offset & ~(resource_size(link->resource[2])-1));
@@ -1423,6 +1428,11 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     /* Try scribbling on the buffer */
     info->base = ioremap(link->resource[3]->start,
 			resource_size(link->resource[3]));
+    if (unlikely(!info->base)) {
+	    ret = -ENOMEM;
+	    goto failed;
+    }
+
     for (i = 0; i < (TX_PAGES<<8); i += 2)
 	__raw_writew((i>>1), info->base+offset+i);
     udelay(100);

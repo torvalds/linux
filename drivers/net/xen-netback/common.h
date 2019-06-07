@@ -241,10 +241,27 @@ struct xenvif_hash_cache {
 struct xenvif_hash {
 	unsigned int alg;
 	u32 flags;
+	bool mapping_sel;
 	u8 key[XEN_NETBK_MAX_HASH_KEY_SIZE];
-	u32 mapping[XEN_NETBK_MAX_HASH_MAPPING_SIZE];
+	u32 mapping[2][XEN_NETBK_MAX_HASH_MAPPING_SIZE];
 	unsigned int size;
 	struct xenvif_hash_cache cache;
+};
+
+struct backend_info {
+	struct xenbus_device *dev;
+	struct xenvif *vif;
+
+	/* This is the state that will be reflected in xenstore when any
+	 * active hotplug script completes.
+	 */
+	enum xenbus_state state;
+
+	enum xenbus_state frontend_state;
+	struct xenbus_watch hotplug_status_watch;
+	u8 have_hotplug_status_watch:1;
+
+	const char *hotplug_script;
 };
 
 struct xenvif {
@@ -281,6 +298,8 @@ struct xenvif {
 
 	struct xenbus_watch credit_watch;
 	struct xenbus_watch mcast_ctrl_watch;
+
+	struct backend_info *be;
 
 	spinlock_t lock;
 

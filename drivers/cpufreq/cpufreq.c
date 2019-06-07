@@ -19,6 +19,7 @@
 
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
+#include <linux/cpu_cooling.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/init.h>
@@ -32,11 +33,6 @@
 #include <trace/events/power.h>
 
 static LIST_HEAD(cpufreq_policy_list);
-
-static inline bool policy_is_inactive(struct cpufreq_policy *policy)
-{
-	return cpumask_empty(policy->cpus);
-}
 
 /* Macros to iterate over CPU policies */
 #define for_each_suitable_policy(__policy, __active)			 \
@@ -89,16 +85,7 @@ static void cpufreq_governor_limits(struct cpufreq_policy *policy);
  * The mutex locks both lists.
  */
 static BLOCKING_NOTIFIER_HEAD(cpufreq_policy_notifier_list);
-static struct srcu_notifier_head cpufreq_transition_notifier_list;
-
-static bool init_cpufreq_transition_notifier_list_called;
-static int __init init_cpufreq_transition_notifier_list(void)
-{
-	srcu_init_notifier_head(&cpufreq_transition_notifier_list);
-	init_cpufreq_transition_notifier_list_called = true;
-	return 0;
-}
-pure_initcall(init_cpufreq_transition_notifier_list);
+SRCU_NOTIFIER_HEAD_STATIC(cpufreq_transition_notifier_list);
 
 static int off __read_mostly;
 static int cpufreq_disabled(void)
@@ -214,17 +201,15 @@ unsigned int cpufreq_generic_get(unsigned int cpu)
 EXPORT_SYMBOL_GPL(cpufreq_generic_get);
 
 /**
- * cpufreq_cpu_get: returns policy for a cpu and marks it busy.
+ * cpufreq_cpu_get - Return policy for a CPU and mark it as busy.
+ * @cpu: CPU to find the policy for.
  *
- * @cpu: cpu to find policy for.
+ * Call cpufreq_cpu_get_raw() to obtain a cpufreq policy for @cpu and increment
+ * the kobject reference counter of that policy.  Return a valid policy on
+ * success or NULL on failure.
  *
- * This returns policy for 'cpu', returns NULL if it doesn't exist.
- * It also increments the kobject reference count to mark it busy and so would
- * require a corresponding call to cpufreq_cpu_put() to decrement it back.
- * If corresponding call cpufreq_cpu_put() isn't made, the policy wouldn't be
- * freed as that depends on the kobj count.
- *
- * Return: A valid policy on success, otherwise NULL on failure.
+ * The policy returned by this function has to be released with the help of
+ * cpufreq_cpu_put() to balance its kobject reference counter properly.
  */
 struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 {
@@ -251,18 +236,59 @@ struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 EXPORT_SYMBOL_GPL(cpufreq_cpu_get);
 
 /**
- * cpufreq_cpu_put: Decrements the usage count of a policy
- *
- * @policy: policy earlier returned by cpufreq_cpu_get().
- *
- * This decrements the kobject reference count incremented earlier by calling
- * cpufreq_cpu_get().
+ * cpufreq_cpu_put - Decrement kobject usage counter for cpufreq policy.
+ * @policy: cpufreq policy returned by cpufreq_cpu_get().
  */
 void cpufreq_cpu_put(struct cpufreq_policy *policy)
 {
 	kobject_put(&policy->kobj);
 }
 EXPORT_SYMBOL_GPL(cpufreq_cpu_put);
+
+/**
+ * cpufreq_cpu_release - Unlock a policy and decrement its usage counter.
+ * @policy: cpufreq policy returned by cpufreq_cpu_acquire().
+ */
+void cpufreq_cpu_release(struct cpufreq_policy *policy)
+{
+	if (WARN_ON(!policy))
+		return;
+
+	lockdep_assert_held(&policy->rwsem);
+
+	up_write(&policy->rwsem);
+
+	cpufreq_cpu_put(policy);
+}
+
+/**
+ * cpufreq_cpu_acquire - Find policy for a CPU, mark it as busy and lock it.
+ * @cpu: CPU to find the policy for.
+ *
+ * Call cpufreq_cpu_get() to get a reference on the cpufreq policy for @cpu and
+ * if the policy returned by it is not NULL, acquire its rwsem for writing.
+ * Return the policy if it is active or release it and return NULL otherwise.
+ *
+ * The policy returned by this function has to be released with the help of
+ * cpufreq_cpu_release() in order to release its rwsem and balance its usage
+ * counter properly.
+ */
+struct cpufreq_policy *cpufreq_cpu_acquire(unsigned int cpu)
+{
+	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
+
+	if (!policy)
+		return NULL;
+
+	down_write(&policy->rwsem);
+
+	if (policy_is_inactive(policy)) {
+		cpufreq_cpu_release(policy);
+		return NULL;
+	}
+
+	return policy;
+}
 
 /*********************************************************************
  *            EXTERNALLY AFFECTING FREQUENCY CHANGES                 *
@@ -300,65 +326,67 @@ static void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
 #endif
 }
 
-static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
-		struct cpufreq_freqs *freqs, unsigned int state)
-{
-	BUG_ON(irqs_disabled());
-
-	if (cpufreq_disabled())
-		return;
-
-	freqs->flags = cpufreq_driver->flags;
-	pr_debug("notification %u of frequency transition to %u kHz\n",
-		 state, freqs->new);
-
-	switch (state) {
-
-	case CPUFREQ_PRECHANGE:
-		/* detect if the driver reported a value as "old frequency"
-		 * which is not equal to what the cpufreq core thinks is
-		 * "old frequency".
-		 */
-		if (!(cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)) {
-			if ((policy) && (policy->cpu == freqs->cpu) &&
-			    (policy->cur) && (policy->cur != freqs->old)) {
-				pr_debug("Warning: CPU frequency is %u, cpufreq assumed %u kHz\n",
-					 freqs->old, policy->cur);
-				freqs->old = policy->cur;
-			}
-		}
-		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
-				CPUFREQ_PRECHANGE, freqs);
-		adjust_jiffies(CPUFREQ_PRECHANGE, freqs);
-		break;
-
-	case CPUFREQ_POSTCHANGE:
-		adjust_jiffies(CPUFREQ_POSTCHANGE, freqs);
-		pr_debug("FREQ: %lu - CPU: %lu\n",
-			 (unsigned long)freqs->new, (unsigned long)freqs->cpu);
-		trace_cpu_frequency(freqs->new, freqs->cpu);
-		cpufreq_stats_record_transition(policy, freqs->new);
-		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
-				CPUFREQ_POSTCHANGE, freqs);
-		if (likely(policy) && likely(policy->cpu == freqs->cpu))
-			policy->cur = freqs->new;
-		break;
-	}
-}
-
 /**
- * cpufreq_notify_transition - call notifier chain and adjust_jiffies
- * on frequency transition.
+ * cpufreq_notify_transition - Notify frequency transition and adjust_jiffies.
+ * @policy: cpufreq policy to enable fast frequency switching for.
+ * @freqs: contain details of the frequency update.
+ * @state: set to CPUFREQ_PRECHANGE or CPUFREQ_POSTCHANGE.
  *
  * This function calls the transition notifiers and the "adjust_jiffies"
  * function. It is called twice on all CPU frequency changes that have
  * external effects.
  */
 static void cpufreq_notify_transition(struct cpufreq_policy *policy,
-		struct cpufreq_freqs *freqs, unsigned int state)
+				      struct cpufreq_freqs *freqs,
+				      unsigned int state)
 {
-	for_each_cpu(freqs->cpu, policy->cpus)
-		__cpufreq_notify_transition(policy, freqs, state);
+	int cpu;
+
+	BUG_ON(irqs_disabled());
+
+	if (cpufreq_disabled())
+		return;
+
+	freqs->policy = policy;
+	freqs->flags = cpufreq_driver->flags;
+	pr_debug("notification %u of frequency transition to %u kHz\n",
+		 state, freqs->new);
+
+	switch (state) {
+	case CPUFREQ_PRECHANGE:
+		/*
+		 * Detect if the driver reported a value as "old frequency"
+		 * which is not equal to what the cpufreq core thinks is
+		 * "old frequency".
+		 */
+		if (!(cpufreq_driver->flags & CPUFREQ_CONST_LOOPS)) {
+			if (policy->cur && (policy->cur != freqs->old)) {
+				pr_debug("Warning: CPU frequency is %u, cpufreq assumed %u kHz\n",
+					 freqs->old, policy->cur);
+				freqs->old = policy->cur;
+			}
+		}
+
+		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
+					 CPUFREQ_PRECHANGE, freqs);
+
+		adjust_jiffies(CPUFREQ_PRECHANGE, freqs);
+		break;
+
+	case CPUFREQ_POSTCHANGE:
+		adjust_jiffies(CPUFREQ_POSTCHANGE, freqs);
+		pr_debug("FREQ: %u - CPUs: %*pbl\n", freqs->new,
+			 cpumask_pr_args(policy->cpus));
+
+		for_each_cpu(cpu, policy->cpus)
+			trace_cpu_frequency(freqs->new, cpu);
+
+		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
+					 CPUFREQ_POSTCHANGE, freqs);
+
+		cpufreq_stats_record_transition(policy, freqs->new);
+		policy->cur = freqs->new;
+	}
 }
 
 /* Do post notifications when there are chances that transition has failed */
@@ -411,7 +439,7 @@ EXPORT_SYMBOL_GPL(cpufreq_freq_transition_begin);
 void cpufreq_freq_transition_end(struct cpufreq_policy *policy,
 		struct cpufreq_freqs *freqs, int transition_failed)
 {
-	if (unlikely(WARN_ON(!policy->transition_ongoing)))
+	if (WARN_ON(!policy->transition_ongoing))
 		return;
 
 	cpufreq_notify_post_transition(policy, freqs, transition_failed);
@@ -439,7 +467,7 @@ static void cpufreq_list_transition_notifiers(void)
 	mutex_lock(&cpufreq_transition_notifier_list.mutex);
 
 	for (nb = cpufreq_transition_notifier_list.head; nb; nb = nb->next)
-		pr_info("%pF\n", nb->notifier_call);
+		pr_info("%pS\n", nb->notifier_call);
 
 	mutex_unlock(&cpufreq_transition_notifier_list.mutex);
 }
@@ -553,13 +581,13 @@ EXPORT_SYMBOL_GPL(cpufreq_policy_transition_delay_us);
  *                          SYSFS INTERFACE                          *
  *********************************************************************/
 static ssize_t show_boost(struct kobject *kobj,
-				 struct attribute *attr, char *buf)
+			  struct kobj_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", cpufreq_driver->boost_enabled);
 }
 
-static ssize_t store_boost(struct kobject *kobj, struct attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t store_boost(struct kobject *kobj, struct kobj_attribute *attr,
+			   const char *buf, size_t count)
 {
 	int ret, enable;
 
@@ -591,50 +619,52 @@ static struct cpufreq_governor *find_governor(const char *str_governor)
 	return NULL;
 }
 
+static int cpufreq_parse_policy(char *str_governor,
+				struct cpufreq_policy *policy)
+{
+	if (!strncasecmp(str_governor, "performance", CPUFREQ_NAME_LEN)) {
+		policy->policy = CPUFREQ_POLICY_PERFORMANCE;
+		return 0;
+	}
+	if (!strncasecmp(str_governor, "powersave", CPUFREQ_NAME_LEN)) {
+		policy->policy = CPUFREQ_POLICY_POWERSAVE;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 /**
- * cpufreq_parse_governor - parse a governor string
+ * cpufreq_parse_governor - parse a governor string only for !setpolicy
  */
 static int cpufreq_parse_governor(char *str_governor,
 				  struct cpufreq_policy *policy)
 {
-	if (cpufreq_driver->setpolicy) {
-		if (!strncasecmp(str_governor, "performance", CPUFREQ_NAME_LEN)) {
-			policy->policy = CPUFREQ_POLICY_PERFORMANCE;
-			return 0;
-		}
+	struct cpufreq_governor *t;
 
-		if (!strncasecmp(str_governor, "powersave", CPUFREQ_NAME_LEN)) {
-			policy->policy = CPUFREQ_POLICY_POWERSAVE;
-			return 0;
-		}
-	} else {
-		struct cpufreq_governor *t;
+	mutex_lock(&cpufreq_governor_mutex);
+
+	t = find_governor(str_governor);
+	if (!t) {
+		int ret;
+
+		mutex_unlock(&cpufreq_governor_mutex);
+
+		ret = request_module("cpufreq_%s", str_governor);
+		if (ret)
+			return -EINVAL;
 
 		mutex_lock(&cpufreq_governor_mutex);
 
 		t = find_governor(str_governor);
-		if (!t) {
-			int ret;
+	}
+	if (t && !try_module_get(t->owner))
+		t = NULL;
 
-			mutex_unlock(&cpufreq_governor_mutex);
+	mutex_unlock(&cpufreq_governor_mutex);
 
-			ret = request_module("cpufreq_%s", str_governor);
-			if (ret)
-				return -EINVAL;
-
-			mutex_lock(&cpufreq_governor_mutex);
-
-			t = find_governor(str_governor);
-		}
-		if (t && !try_module_get(t->owner))
-			t = NULL;
-
-		mutex_unlock(&cpufreq_governor_mutex);
-
-		if (t) {
-			policy->governor = t;
-			return 0;
-		}
+	if (t) {
+		policy->governor = t;
+		return 0;
 	}
 
 	return -EINVAL;
@@ -682,9 +712,6 @@ static ssize_t show_scaling_cur_freq(struct cpufreq_policy *policy, char *buf)
 	return ret;
 }
 
-static int cpufreq_set_policy(struct cpufreq_policy *policy,
-				struct cpufreq_policy *new_policy);
-
 /**
  * cpufreq_per_cpu_attr_write() / store_##file_name() - sysfs write access
  */
@@ -696,6 +723,8 @@ static ssize_t store_##file_name					\
 	struct cpufreq_policy new_policy;				\
 									\
 	memcpy(&new_policy, policy, sizeof(*policy));			\
+	new_policy.min = policy->user_policy.min;			\
+	new_policy.max = policy->user_policy.max;			\
 									\
 	ret = sscanf(buf, "%u", &new_policy.object);			\
 	if (ret != 1)							\
@@ -757,8 +786,13 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	if (ret != 1)
 		return -EINVAL;
 
-	if (cpufreq_parse_governor(str_governor, &new_policy))
-		return -EINVAL;
+	if (cpufreq_driver->setpolicy) {
+		if (cpufreq_parse_policy(str_governor, &new_policy))
+			return -EINVAL;
+	} else {
+		if (cpufreq_parse_governor(str_governor, &new_policy))
+			return -EINVAL;
+	}
 
 	ret = cpufreq_set_policy(policy, &new_policy);
 
@@ -868,11 +902,9 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 {
 	unsigned int limit;
 	int ret;
-	if (cpufreq_driver->bios_limit) {
-		ret = cpufreq_driver->bios_limit(policy->cpu, &limit);
-		if (!ret)
-			return sprintf(buf, "%u\n", limit);
-	}
+	ret = cpufreq_driver->bios_limit(policy->cpu, &limit);
+	if (!ret)
+		return sprintf(buf, "%u\n", limit);
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
@@ -929,7 +961,12 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 	struct freq_attr *fattr = to_attr(attr);
 	ssize_t ret = -EINVAL;
 
-	cpus_read_lock();
+	/*
+	 * cpus_read_trylock() is used here to work around a circular lock
+	 * dependency problem with respect to the cpufreq_register_driver().
+	 */
+	if (!cpus_read_trylock())
+		return -EBUSY;
 
 	if (cpu_online(policy->cpu)) {
 		down_write(&policy->rwsem);
@@ -1021,32 +1058,39 @@ __weak struct cpufreq_governor *cpufreq_default_governor(void)
 
 static int cpufreq_init_policy(struct cpufreq_policy *policy)
 {
-	struct cpufreq_governor *gov = NULL;
+	struct cpufreq_governor *gov = NULL, *def_gov = NULL;
 	struct cpufreq_policy new_policy;
 
 	memcpy(&new_policy, policy, sizeof(*policy));
 
-	/* Update governor of new_policy to the governor used before hotplug */
-	gov = find_governor(policy->last_governor);
-	if (gov) {
-		pr_debug("Restoring governor %s for cpu %d\n",
+	def_gov = cpufreq_default_governor();
+
+	if (has_target()) {
+		/*
+		 * Update governor of new_policy to the governor used before
+		 * hotplug
+		 */
+		gov = find_governor(policy->last_governor);
+		if (gov) {
+			pr_debug("Restoring governor %s for cpu %d\n",
 				policy->governor->name, policy->cpu);
+		} else {
+			if (!def_gov)
+				return -ENODATA;
+			gov = def_gov;
+		}
+		new_policy.governor = gov;
 	} else {
-		gov = cpufreq_default_governor();
-		if (!gov)
-			return -ENODATA;
-	}
-
-	new_policy.governor = gov;
-
-	/* Use the default policy if there is no last_policy. */
-	if (cpufreq_driver->setpolicy) {
-		if (policy->last_policy)
+		/* Use the default policy if there is no last_policy. */
+		if (policy->last_policy) {
 			new_policy.policy = policy->last_policy;
-		else
-			cpufreq_parse_governor(gov->name, &new_policy);
+		} else {
+			if (!def_gov)
+				return -ENODATA;
+			cpufreq_parse_policy(def_gov->name, &new_policy);
+		}
 	}
-	/* set default policy */
+
 	return cpufreq_set_policy(policy, &new_policy);
 }
 
@@ -1104,6 +1148,12 @@ static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 				   cpufreq_global_kobject, "policy%u", cpu);
 	if (ret) {
 		pr_err("%s: failed to init policy->kobj: %d\n", __func__, ret);
+		/*
+		 * The entire policy object will be freed below, but the extra
+		 * memory allocated for the kobject name needs to be freed by
+		 * releasing the kobject.
+		 */
+		kobject_put(&policy->kobj);
 		goto err_free_real_cpus;
 	}
 
@@ -1201,28 +1251,39 @@ static int cpufreq_online(unsigned int cpu)
 			return -ENOMEM;
 	}
 
-	cpumask_copy(policy->cpus, cpumask_of(cpu));
+	if (!new_policy && cpufreq_driver->online) {
+		ret = cpufreq_driver->online(policy);
+		if (ret) {
+			pr_debug("%s: %d: initialization failed\n", __func__,
+				 __LINE__);
+			goto out_exit_policy;
+		}
 
-	/* call driver. From then on the cpufreq must be able
-	 * to accept all calls to ->verify and ->setpolicy for this CPU
-	 */
-	ret = cpufreq_driver->init(policy);
-	if (ret) {
-		pr_debug("initialization failed\n");
-		goto out_free_policy;
-	}
+		/* Recover policy->cpus using related_cpus */
+		cpumask_copy(policy->cpus, policy->related_cpus);
+	} else {
+		cpumask_copy(policy->cpus, cpumask_of(cpu));
 
-	ret = cpufreq_table_validate_and_sort(policy);
-	if (ret)
-		goto out_exit_policy;
+		/*
+		 * Call driver. From then on the cpufreq must be able
+		 * to accept all calls to ->verify and ->setpolicy for this CPU.
+		 */
+		ret = cpufreq_driver->init(policy);
+		if (ret) {
+			pr_debug("%s: %d: initialization failed\n", __func__,
+				 __LINE__);
+			goto out_free_policy;
+		}
 
-	down_write(&policy->rwsem);
+		ret = cpufreq_table_validate_and_sort(policy);
+		if (ret)
+			goto out_exit_policy;
 
-	if (new_policy) {
 		/* related_cpus should at least include policy->cpus. */
 		cpumask_copy(policy->related_cpus, policy->cpus);
 	}
 
+	down_write(&policy->rwsem);
 	/*
 	 * affected cpus must always be the one, which are online. We aren't
 	 * managing offline cpus here.
@@ -1306,8 +1367,6 @@ static int cpufreq_online(unsigned int cpu)
 	if (ret) {
 		pr_err("%s: Failed to initialize policy for cpu: %d (%d)\n",
 		       __func__, cpu, ret);
-		/* cpufreq_policy_free() will notify based on this */
-		new_policy = false;
 		goto out_destroy_policy;
 	}
 
@@ -1318,6 +1377,10 @@ static int cpufreq_online(unsigned int cpu)
 	/* Callback for handling stuff after policy is ready */
 	if (cpufreq_driver->ready)
 		cpufreq_driver->ready(policy);
+
+	if (IS_ENABLED(CONFIG_CPU_THERMAL) &&
+	    cpufreq_driver->flags & CPUFREQ_IS_COOLING_DEV)
+		policy->cdev = of_cpufreq_cooling_register(policy);
 
 	pr_debug("initialization complete\n");
 
@@ -1406,6 +1469,12 @@ static int cpufreq_offline(unsigned int cpu)
 		goto unlock;
 	}
 
+	if (IS_ENABLED(CONFIG_CPU_THERMAL) &&
+	    cpufreq_driver->flags & CPUFREQ_IS_COOLING_DEV) {
+		cpufreq_cooling_unregister(policy->cdev);
+		policy->cdev = NULL;
+	}
+
 	if (cpufreq_driver->stop_cpu)
 		cpufreq_driver->stop_cpu(policy);
 
@@ -1413,11 +1482,12 @@ static int cpufreq_offline(unsigned int cpu)
 		cpufreq_exit_governor(policy);
 
 	/*
-	 * Perform the ->exit() even during light-weight tear-down,
-	 * since this is a core component, and is essential for the
-	 * subsequent light-weight ->init() to succeed.
+	 * Perform the ->offline() during light-weight tear-down, as
+	 * that allows fast recovery when the CPU comes back.
 	 */
-	if (cpufreq_driver->exit) {
+	if (cpufreq_driver->offline) {
+		cpufreq_driver->offline(policy);
+	} else if (cpufreq_driver->exit) {
 		cpufreq_driver->exit(policy);
 		policy->freq_table = NULL;
 	}
@@ -1446,8 +1516,13 @@ static void cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif)
 	cpumask_clear_cpu(cpu, policy->real_cpus);
 	remove_cpu_dev_symlink(policy, dev);
 
-	if (cpumask_empty(policy->real_cpus))
+	if (cpumask_empty(policy->real_cpus)) {
+		/* We did light-weight exit earlier, do full tear down now */
+		if (cpufreq_driver->offline)
+			cpufreq_driver->exit(policy);
+
 		cpufreq_policy_free(policy);
+	}
 }
 
 /**
@@ -1531,17 +1606,16 @@ static unsigned int __cpufreq_get(struct cpufreq_policy *policy)
 {
 	unsigned int ret_freq = 0;
 
-	if (!cpufreq_driver->get)
+	if (unlikely(policy_is_inactive(policy)))
 		return ret_freq;
 
 	ret_freq = cpufreq_driver->get(policy->cpu);
 
 	/*
-	 * Updating inactive policies is invalid, so avoid doing that.  Also
-	 * if fast frequency switching is used with the given policy, the check
+	 * If fast frequency switching is used with the given policy, the check
 	 * against policy->cur is pointless, so skip it in that case too.
 	 */
-	if (unlikely(policy_is_inactive(policy)) || policy->fast_switch_enabled)
+	if (policy->fast_switch_enabled)
 		return ret_freq;
 
 	if (ret_freq && policy->cur &&
@@ -1570,10 +1644,8 @@ unsigned int cpufreq_get(unsigned int cpu)
 
 	if (policy) {
 		down_read(&policy->rwsem);
-
-		if (!policy_is_inactive(policy))
+		if (cpufreq_driver->get)
 			ret_freq = __cpufreq_get(policy);
-
 		up_read(&policy->rwsem);
 
 		cpufreq_cpu_put(policy);
@@ -1763,8 +1835,6 @@ int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list)
 
 	if (cpufreq_disabled())
 		return -EINVAL;
-
-	WARN_ON(!init_cpufreq_transition_notifier_list_called);
 
 	switch (list) {
 	case CPUFREQ_TRANSITION_NOTIFIER:
@@ -2199,12 +2269,25 @@ int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu)
 }
 EXPORT_SYMBOL(cpufreq_get_policy);
 
-/*
- * policy : current policy.
- * new_policy: policy to be set.
+/**
+ * cpufreq_set_policy - Modify cpufreq policy parameters.
+ * @policy: Policy object to modify.
+ * @new_policy: New policy data.
+ *
+ * Pass @new_policy to the cpufreq driver's ->verify() callback, run the
+ * installed policy notifiers for it with the CPUFREQ_ADJUST value, pass it to
+ * the driver's ->verify() callback again and run the notifiers for it again
+ * with the CPUFREQ_NOTIFY value.  Next, copy the min and max parameters
+ * of @new_policy to @policy and either invoke the driver's ->setpolicy()
+ * callback (if present) or carry out a governor update for @policy.  That is,
+ * run the current governor's ->limits() callback (if the governor field in
+ * @new_policy points to the same object as the one in @policy) or replace the
+ * governor for @policy with the new one stored in @new_policy.
+ *
+ * The cpuinfo part of @policy is not updated by this function.
  */
-static int cpufreq_set_policy(struct cpufreq_policy *policy,
-				struct cpufreq_policy *new_policy)
+int cpufreq_set_policy(struct cpufreq_policy *policy,
+		       struct cpufreq_policy *new_policy)
 {
 	struct cpufreq_governor *old_gov;
 	int ret;
@@ -2244,6 +2327,7 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 
 	policy->min = new_policy->min;
 	policy->max = new_policy->max;
+	trace_cpu_frequency_limits(policy);
 
 	policy->cached_target_freq = UINT_MAX;
 
@@ -2253,11 +2337,11 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 	if (cpufreq_driver->setpolicy) {
 		policy->policy = new_policy->policy;
 		pr_debug("setting range\n");
-		return cpufreq_driver->setpolicy(new_policy);
+		return cpufreq_driver->setpolicy(policy);
 	}
 
 	if (new_policy->governor == policy->governor) {
-		pr_debug("cpufreq: governor limits update\n");
+		pr_debug("governor limits update\n");
 		cpufreq_governor_limits(policy);
 		return 0;
 	}
@@ -2278,7 +2362,8 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 	if (!ret) {
 		ret = cpufreq_start_governor(policy);
 		if (!ret) {
-			pr_debug("cpufreq: governor change\n");
+			pr_debug("governor change\n");
+			sched_cpufreq_governor_change(policy, old_gov);
 			return 0;
 		}
 		cpufreq_exit_governor(policy);
@@ -2298,23 +2383,29 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 }
 
 /**
- *	cpufreq_update_policy - re-evaluate an existing cpufreq policy
- *	@cpu: CPU which shall be re-evaluated
+ * cpufreq_update_policy - Re-evaluate an existing cpufreq policy.
+ * @cpu: CPU to re-evaluate the policy for.
  *
- *	Useful for policy notifiers which have different necessities
- *	at different times.
+ * Update the current frequency for the cpufreq policy of @cpu and use
+ * cpufreq_set_policy() to re-apply the min and max limits saved in the
+ * user_policy sub-structure of that policy, which triggers the evaluation
+ * of policy notifiers and the cpufreq driver's ->verify() callback for the
+ * policy in question, among other things.
  */
 void cpufreq_update_policy(unsigned int cpu)
 {
-	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
+	struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpu);
 	struct cpufreq_policy new_policy;
 
 	if (!policy)
 		return;
 
-	down_write(&policy->rwsem);
-
-	if (policy_is_inactive(policy))
+	/*
+	 * BIOS might change freq behind our back
+	 * -> ask driver for current freq and notify governors about a change
+	 */
+	if (cpufreq_driver->get && !cpufreq_driver->setpolicy &&
+	    (cpufreq_suspended || WARN_ON(!cpufreq_update_current_freq(policy))))
 		goto unlock;
 
 	pr_debug("updating policy for CPU %u\n", cpu);
@@ -2322,27 +2413,28 @@ void cpufreq_update_policy(unsigned int cpu)
 	new_policy.min = policy->user_policy.min;
 	new_policy.max = policy->user_policy.max;
 
-	/*
-	 * BIOS might change freq behind our back
-	 * -> ask driver for current freq and notify governors about a change
-	 */
-	if (cpufreq_driver->get && !cpufreq_driver->setpolicy) {
-		if (cpufreq_suspended)
-			goto unlock;
-
-		new_policy.cur = cpufreq_update_current_freq(policy);
-		if (WARN_ON(!new_policy.cur))
-			goto unlock;
-	}
-
 	cpufreq_set_policy(policy, &new_policy);
 
 unlock:
-	up_write(&policy->rwsem);
-
-	cpufreq_cpu_put(policy);
+	cpufreq_cpu_release(policy);
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
+
+/**
+ * cpufreq_update_limits - Update policy limits for a given CPU.
+ * @cpu: CPU to update the policy limits for.
+ *
+ * Invoke the driver's ->update_limits callback if present or call
+ * cpufreq_update_policy() for @cpu.
+ */
+void cpufreq_update_limits(unsigned int cpu)
+{
+	if (cpufreq_driver->update_limits)
+		cpufreq_driver->update_limits(cpu);
+	else
+		cpufreq_update_policy(cpu);
+}
+EXPORT_SYMBOL_GPL(cpufreq_update_limits);
 
 /*********************************************************************
  *               BOOST						     *
@@ -2400,7 +2492,7 @@ int cpufreq_boost_trigger_state(int state)
 
 static bool cpufreq_boost_supported(void)
 {
-	return likely(cpufreq_driver) && cpufreq_driver->set_boost;
+	return cpufreq_driver->set_boost;
 }
 
 static int create_boost_sysfs_file(void)
@@ -2484,7 +2576,8 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 		    driver_data->target) ||
 	     (driver_data->setpolicy && (driver_data->target_index ||
 		    driver_data->target)) ||
-	     (!!driver_data->get_intermediate != !!driver_data->target_intermediate))
+	     (!driver_data->get_intermediate != !driver_data->target_intermediate) ||
+	     (!driver_data->online != !driver_data->offline))
 		return -EINVAL;
 
 	pr_debug("trying to register driver %s\n", driver_data->name);

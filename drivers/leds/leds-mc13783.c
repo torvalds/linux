@@ -136,7 +136,7 @@ static struct mc13xxx_leds_platform_data __init *mc13xxx_led_probe_dt(
 
 	pdata->num_leds = of_get_child_count(parent);
 
-	pdata->led = devm_kzalloc(dev, pdata->num_leds * sizeof(*pdata->led),
+	pdata->led = devm_kcalloc(dev, pdata->num_leds, sizeof(*pdata->led),
 				  GFP_KERNEL);
 	if (!pdata->led) {
 		ret = -ENOMEM;
@@ -210,7 +210,7 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	leds->led = devm_kzalloc(dev, leds->num_leds * sizeof(*leds->led),
+	leds->led = devm_kcalloc(dev, leds->num_leds, sizeof(*leds->led),
 				 GFP_KERNEL);
 	if (!leds->led)
 		return -ENOMEM;

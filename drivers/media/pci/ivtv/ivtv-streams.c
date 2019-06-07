@@ -51,6 +51,9 @@ static const struct v4l2_file_operations ivtv_v4l2_enc_fops = {
 	.write = ivtv_v4l2_write,
 	.open = ivtv_v4l2_open,
 	.unlocked_ioctl = video_ioctl2,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = video_ioctl2, /* for ivtv_default() */
+#endif
 	.release = ivtv_v4l2_close,
 	.poll = ivtv_v4l2_enc_poll,
 };
@@ -61,6 +64,9 @@ static const struct v4l2_file_operations ivtv_v4l2_dec_fops = {
 	.write = ivtv_v4l2_write,
 	.open = ivtv_v4l2_open,
 	.unlocked_ioctl = video_ioctl2,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = video_ioctl2, /* for ivtv_default() */
+#endif
 	.release = ivtv_v4l2_close,
 	.poll = ivtv_v4l2_dec_poll,
 };
@@ -69,6 +75,9 @@ static const struct v4l2_file_operations ivtv_v4l2_radio_fops = {
 	.owner = THIS_MODULE,
 	.open = ivtv_v4l2_open,
 	.unlocked_ioctl = video_ioctl2,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = video_ioctl2, /* for ivtv_default() */
+#endif
 	.release = ivtv_v4l2_close,
 	.poll = ivtv_v4l2_enc_poll,
 };

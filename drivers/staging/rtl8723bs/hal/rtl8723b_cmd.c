@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTL8723B_CMD_C_
@@ -1488,7 +1480,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 	MaxRsvdPageBufSize = RsvdPageNum*PageSize;
 
 	pcmdframe = rtw_alloc_cmdxmitframe(pxmitpriv);
-	if (pcmdframe == NULL) {
+	if (!pcmdframe) {
 		DBG_871X("%s: alloc ReservedPagePacket fail!\n", __func__);
 		return;
 	}
@@ -1628,7 +1620,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 
 	/* if the ap staion info. exists, get the kek, kck from staion info. */
 	psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
-	if (psta == NULL) {
+	if (!psta) {
 		memset(kek, 0, RTW_KEK_LEN);
 		memset(kck, 0, RTW_KCK_LEN);
 		DBG_8192C("%s, KEK, KCK download rsvd page all zero\n", __func__);
@@ -1864,7 +1856,7 @@ static void rtl8723b_set_AP_FwRsvdPagePkt(
 	MaxRsvdPageBufSize = RsvdPageNum*PageSize;
 
 	pcmdframe = rtw_alloc_cmdxmitframe(pxmitpriv);
-	if (pcmdframe == NULL) {
+	if (!pcmdframe) {
 		DBG_871X("%s: alloc ReservedPagePacket fail!\n", __func__);
 		return;
 	}
@@ -2077,7 +2069,7 @@ void rtl8723b_Add_RateATid(
 	u32 mask = bitmap&0x0FFFFFFF;
 
 	psta = pmlmeinfo->FW_sta_info[mac_id].psta;
-	if (psta == NULL)
+	if (!psta)
 		return;
 
 	bw = psta->bw_mode;
@@ -2115,7 +2107,7 @@ static void ConstructBtNullFunctionData(
 	pmlmeext = &padapter->mlmeextpriv;
 	pmlmeinfo = &pmlmeext->mlmext_info;
 
-	if (NULL == StaAddr) {
+	if (!StaAddr) {
 		memcpy(bssid, myid(&padapter->eeprompriv), ETH_ALEN);
 		StaAddr = bssid;
 	}
@@ -2184,7 +2176,7 @@ static void SetFwRsvdPagePkt_BTCoex(struct adapter *padapter)
 	MaxRsvdPageBufSize = RsvdPageNum*PageSize;
 
 	pcmdframe = rtw_alloc_cmdxmitframe(pxmitpriv);
-	if (pcmdframe == NULL) {
+	if (!pcmdframe) {
 		DBG_8192C("%s: alloc ReservedPagePacket fail!\n", __func__);
 		return;
 	}

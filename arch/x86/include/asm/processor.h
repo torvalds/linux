@@ -42,18 +42,6 @@ struct vm86;
 #define NET_IP_ALIGN	0
 
 #define HBP_NUM 4
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-static inline void *current_text_addr(void)
-{
-	void *pc;
-
-	asm volatile("mov $1f, %0; 1:":"=r" (pc));
-
-	return pc;
-}
 
 /*
  * These alignment constraints are for performance in the vSMP case,
@@ -132,6 +120,8 @@ struct cpuinfo_x86 {
 	/* Index into per_cpu list: */
 	u16			cpu_index;
 	u32			microcode;
+	/* Address space bits used by the cache internally */
+	u8			x86_cache_bits;
 	unsigned		initialized : 1;
 } __randomize_layout;
 
@@ -153,7 +143,8 @@ enum cpuid_regs_idx {
 #define X86_VENDOR_CENTAUR	5
 #define X86_VENDOR_TRANSMETA	7
 #define X86_VENDOR_NSC		8
-#define X86_VENDOR_NUM		9
+#define X86_VENDOR_HYGON	9
+#define X86_VENDOR_NUM		10
 
 #define X86_VENDOR_UNKNOWN	0xff
 
@@ -181,20 +172,16 @@ extern const struct seq_operations cpuinfo_op;
 
 extern void cpu_detect(struct cpuinfo_x86 *c);
 
+static inline unsigned long long l1tf_pfn_limit(void)
+{
+	return BIT_ULL(boot_cpu_data.x86_cache_bits - 1 - PAGE_SHIFT);
+}
+
 extern void early_cpu_init(void);
 extern void identify_boot_cpu(void);
 extern void identify_secondary_cpu(struct cpuinfo_x86 *);
 extern void print_cpu_info(struct cpuinfo_x86 *);
 void print_cpu_msr(struct cpuinfo_x86 *);
-extern void init_scattered_cpuid_features(struct cpuinfo_x86 *c);
-extern u32 get_scattered_cpuid_leaf(unsigned int level,
-				    unsigned int sub_leaf,
-				    enum cpuid_regs_idx reg);
-extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
-extern void init_amd_cacheinfo(struct cpuinfo_x86 *c);
-
-extern void detect_extended_topology(struct cpuinfo_x86 *c);
-extern void detect_ht(struct cpuinfo_x86 *c);
 
 #ifdef CONFIG_X86_32
 extern int have_cpuid_p(void);
@@ -317,7 +304,13 @@ struct x86_hw_tss {
 	 */
 	u64			sp1;
 
+	/*
+	 * Since Linux does not use ring 2, the 'sp2' slot is unused by
+	 * hardware.  entry_SYSCALL_64 uses it as scratch space to stash
+	 * the user RSP value.
+	 */
 	u64			sp2;
+
 	u64			reserved2;
 	u64			ist[7];
 	u32			reserved3;
@@ -374,6 +367,13 @@ DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
 #define __KERNEL_TSS_LIMIT	\
 	(IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
 
+/* Per CPU interrupt stacks */
+struct irq_stack {
+	char		stack[IRQ_STACK_SIZE];
+} __aligned(IRQ_STACK_SIZE);
+
+DECLARE_PER_CPU(struct irq_stack *, hardirq_stack_ptr);
+
 #ifdef CONFIG_X86_32
 DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
 #else
@@ -381,38 +381,25 @@ DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
 #define cpu_current_top_of_stack cpu_tss_rw.x86_tss.sp1
 #endif
 
-/*
- * Save the original ist values for checking stack pointers during debugging
- */
-struct orig_ist {
-	unsigned long		ist[7];
-};
-
 #ifdef CONFIG_X86_64
-DECLARE_PER_CPU(struct orig_ist, orig_ist);
-
-union irq_stack_union {
-	char irq_stack[IRQ_STACK_SIZE];
+struct fixed_percpu_data {
 	/*
 	 * GCC hardcodes the stack canary as %gs:40.  Since the
 	 * irq_stack is the object at %gs:0, we reserve the bottom
 	 * 48 bytes of the irq stack for the canary.
 	 */
-	struct {
-		char gs_base[40];
-		unsigned long stack_canary;
-	};
+	char		gs_base[40];
+	unsigned long	stack_canary;
 };
 
-DECLARE_PER_CPU_FIRST(union irq_stack_union, irq_stack_union) __visible;
-DECLARE_INIT_PER_CPU(irq_stack_union);
+DECLARE_PER_CPU_FIRST(struct fixed_percpu_data, fixed_percpu_data) __visible;
+DECLARE_INIT_PER_CPU(fixed_percpu_data);
 
 static inline unsigned long cpu_kernelmode_gs_base(int cpu)
 {
-	return (unsigned long)per_cpu(irq_stack_union.gs_base, cpu);
+	return (unsigned long)per_cpu(fixed_percpu_data.gs_base, cpu);
 }
 
-DECLARE_PER_CPU(char *, irq_stack_ptr);
 DECLARE_PER_CPU(unsigned int, irq_count);
 extern asmlinkage void ignore_sysret(void);
 
@@ -421,7 +408,7 @@ extern asmlinkage void ignore_sysret(void);
 void save_fsgs_for_kvm(void);
 #endif
 #else	/* X86_64 */
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 /*
  * Make sure stack canary segment base is cached-aligned:
  *   "For Intel Atom processors, avoid non zero segment base address
@@ -434,15 +421,8 @@ struct stack_canary {
 };
 DECLARE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
 #endif
-/*
- * per-CPU IRQ handling stacks
- */
-struct irq_stack {
-	u32                     stack[THREAD_SIZE/sizeof(u32)];
-} __aligned(THREAD_SIZE);
-
-DECLARE_PER_CPU(struct irq_stack *, hardirq_stack);
-DECLARE_PER_CPU(struct irq_stack *, softirq_stack);
+/* Per CPU softirq stack pointer */
+DECLARE_PER_CPU(struct irq_stack *, softirq_stack_ptr);
 #endif	/* X86_64 */
 
 extern unsigned int fpu_kernel_xstate_size;
@@ -580,7 +560,7 @@ static inline bool on_thread_stack(void)
 			       current_stack_pointer) < THREAD_SIZE;
 }
 
-#ifdef CONFIG_PARAVIRT
+#ifdef CONFIG_PARAVIRT_XXL
 #include <asm/paravirt.h>
 #else
 #define __cpuid			native_cpuid
@@ -591,7 +571,7 @@ static inline void load_sp0(unsigned long sp0)
 }
 
 #define set_iopl_mask native_set_iopl_mask
-#endif /* CONFIG_PARAVIRT */
+#endif /* CONFIG_PARAVIRT_XXL */
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
@@ -749,7 +729,6 @@ enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_NOMWAIT,
 extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
 
-void early_trap_pf_init(void);
 
 /* Defined in head.S */
 extern struct desc_ptr		early_gdt_descr;
@@ -974,7 +953,8 @@ static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
 }
 
 extern unsigned long arch_align_stack(unsigned long sp);
-extern void free_init_pages(char *what, unsigned long begin, unsigned long end);
+void free_init_pages(const char *what, unsigned long begin, unsigned long end);
+extern void free_kernel_image_pages(void *begin, void *end);
 
 void default_idle(void);
 #ifdef	CONFIG_XEN
@@ -986,4 +966,22 @@ bool xen_set_default_idle(void);
 void stop_this_cpu(void *dummy);
 void df_debug(struct pt_regs *regs, long error_code);
 void microcode_check(void);
+
+enum l1tf_mitigations {
+	L1TF_MITIGATION_OFF,
+	L1TF_MITIGATION_FLUSH_NOWARN,
+	L1TF_MITIGATION_FLUSH,
+	L1TF_MITIGATION_FLUSH_NOSMT,
+	L1TF_MITIGATION_FULL,
+	L1TF_MITIGATION_FULL_FORCE
+};
+
+extern enum l1tf_mitigations l1tf_mitigation;
+
+enum mds_mitigations {
+	MDS_MITIGATION_OFF,
+	MDS_MITIGATION_FULL,
+	MDS_MITIGATION_VMWERV,
+};
+
 #endif /* _ASM_X86_PROCESSOR_H */

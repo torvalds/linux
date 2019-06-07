@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: GPL-2.0
 #please run as root
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 mnt=./huge
 exitcode=0
 
@@ -36,7 +39,7 @@ if [ -n "$freepgs" ] && [ -n "$hpgsize_KB" ]; then
 		echo $(( $lackpgs + $nr_hugepgs )) > /proc/sys/vm/nr_hugepages
 		if [ $? -ne 0 ]; then
 			echo "Please run this test as root"
-			exit 1
+			exit $ksft_skip
 		fi
 		while read name size unit; do
 			if [ "$name" = "HugePages_Free:" ]; then
@@ -165,6 +168,17 @@ else
 fi
 
 echo "--------------------"
+echo "running map_populate"
+echo "--------------------"
+./map_populate
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
+echo "--------------------"
 echo "running mlock2-tests"
 echo "--------------------"
 ./mlock2-tests
@@ -195,6 +209,22 @@ if [ $? -ne 0 ]; then
     exitcode=1
 else
     echo "[PASS]"
+fi
+
+echo "------------------------------------"
+echo "running vmalloc stability smoke test"
+echo "------------------------------------"
+./test_vmalloc.sh smoke
+ret_val=$?
+
+if [ $ret_val -eq 0 ]; then
+	echo "[PASS]"
+elif [ $ret_val -eq $ksft_skip ]; then
+	 echo "[SKIP]"
+	 exitcode=$ksft_skip
+else
+	echo "[FAIL]"
+	exitcode=1
 fi
 
 exit $exitcode

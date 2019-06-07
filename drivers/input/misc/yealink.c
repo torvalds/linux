@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/usb/input/yealink.c
  *
  * Copyright (c) 2005 Henk Vergonet <Henk.Vergonet@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 /*
  * Description:
@@ -894,12 +881,12 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	/* allocate usb buffers */
 	yld->irq_data = usb_alloc_coherent(udev, USB_PKT_LEN,
-					   GFP_ATOMIC, &yld->irq_dma);
+					   GFP_KERNEL, &yld->irq_dma);
 	if (yld->irq_data == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 
 	yld->ctl_data = usb_alloc_coherent(udev, USB_PKT_LEN,
-					   GFP_ATOMIC, &yld->ctl_dma);
+					   GFP_KERNEL, &yld->ctl_dma);
 	if (!yld->ctl_data)
 		return usb_cleanup(yld, -ENOMEM);
 

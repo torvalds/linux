@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PPP synchronous tty channel driver for Linux.
  *
@@ -14,11 +15,6 @@
  * Copyright 1999 Paul Mackerras.
  *
  * Also touched by the grubby hands of Paul Fulghum paulkf@microgate.com
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  * This driver provides the encapsulation and framing for sending
  * and receiving PPP frames over sync serial lines.  It relies on
@@ -709,11 +705,10 @@ ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
 		p = skb_pull(skb, 2);
 	}
 
-	/* decompress protocol field if compressed */
-	if (p[0] & 1) {
-		/* protocol is compressed */
-		*(u8 *)skb_push(skb, 1) = 0;
-	} else if (skb->len < 2)
+	/* PPP packet length should be >= 2 bytes when protocol field is not
+	 * compressed.
+	 */
+	if (!(p[0] & 0x01) && skb->len < 2)
 		goto err;
 
 	/* queue the frame to be processed */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
    cx231xx-cards.c - driver for Conexant Cx23100/101/102
 				USB video capture devices
@@ -5,19 +6,6 @@
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
 				Based on em28xx driver
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx231xx.h"
@@ -715,7 +703,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_i2c_master = I2C_1_MUX_3,
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
-		.demod_addr = 0x0e,
+		.demod_addr = 0x64, /* 0xc8 >> 1 */
 		.norm = V4L2_STD_PAL,
 
 		.input = {{
@@ -754,7 +742,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_i2c_master = I2C_1_MUX_3,
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
-		.demod_addr = 0x0e,
+		.demod_addr = 0x64, /* 0xc8 >> 1 */
 		.norm = V4L2_STD_PAL,
 
 		.input = {{
@@ -793,7 +781,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_i2c_master = I2C_1_MUX_3,
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
-		.demod_addr = 0x0e,
+		.demod_addr = 0x59, /* 0xb2 >> 1 */
 		.norm = V4L2_STD_NTSC,
 
 		.input = {{
@@ -1024,6 +1012,9 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_CNXT_RDE_250},
 	{USB_DEVICE(0x0572, 0x58A0),
 	 .driver_info = CX231XX_BOARD_CNXT_RDU_250},
+	/* AverMedia DVD EZMaker 7 */
+	{USB_DEVICE(0x07ca, 0xc039),
+	 .driver_info = CX231XX_BOARD_CNXT_VIDEO_GRABBER},
 	{USB_DEVICE(0x2040, 0xb110),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL},
 	{USB_DEVICE(0x2040, 0xb111),

@@ -19,7 +19,7 @@
 #include <linux/node.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/nodemask.h>
 #include <linux/notifier.h>
 #include <linux/export.h>
@@ -85,7 +85,7 @@ static int __init topology_init(void)
 	}
 #endif
 
-	sysfs_cpus = kzalloc(sizeof(struct ia64_cpu) * NR_CPUS, GFP_KERNEL);
+	sysfs_cpus = kcalloc(NR_CPUS, sizeof(struct ia64_cpu), GFP_KERNEL);
 	if (!sysfs_cpus)
 		panic("kzalloc in topology_init failed - NR_CPUS too big?");
 
@@ -319,8 +319,8 @@ static int cpu_cache_sysfs_init(unsigned int cpu)
 		return -1;
 	}
 
-	this_cache=kzalloc(sizeof(struct cache_info)*unique_caches,
-			GFP_KERNEL);
+	this_cache=kcalloc(unique_caches, sizeof(struct cache_info),
+			   GFP_KERNEL);
 	if (this_cache == NULL)
 		return -ENOMEM;
 

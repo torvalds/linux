@@ -1,22 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IPV6 GSO/GRO offload support
  *	Linux INET6 implementation
  *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
- *
  *      TCPv6 GSO/GRO support
  */
+#include <linux/indirect_call_wrapper.h>
 #include <linux/skbuff.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
 #include <net/ip6_checksum.h>
 #include "ip6_offload.h"
 
-static struct sk_buff **tcp6_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb)
+INDIRECT_CALLABLE_SCOPE
+struct sk_buff *tcp6_gro_receive(struct list_head *head, struct sk_buff *skb)
 {
 	/* Don't bother verifying checksum if we're going to flush anyway. */
 	if (!NAPI_GRO_CB(skb)->flush &&
@@ -29,7 +26,7 @@ static struct sk_buff **tcp6_gro_receive(struct sk_buff **head,
 	return tcp_gro_receive(head, skb);
 }
 
-static int tcp6_gro_complete(struct sk_buff *skb, int thoff)
+INDIRECT_CALLABLE_SCOPE int tcp6_gro_complete(struct sk_buff *skb, int thoff)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct tcphdr *th = tcp_hdr(skb);

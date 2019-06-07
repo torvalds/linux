@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ads7828.c - driver for TI ADS7828 8-channel A/D converter and compatibles
  * (C) 2007 EADS Astrium
@@ -8,21 +9,7 @@
  *
  * ADS7830 support, by Guillaume Roguez <guillaume.roguez@savoirfairelinux.com>
  *
- * For further information, see the Documentation/hwmon/ads7828 file.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * For further information, see the Documentation/hwmon/ads7828.rst file.
  */
 
 #include <linux/err.h>
@@ -62,8 +49,8 @@ static inline u8 ads7828_cmd_byte(u8 cmd, int ch)
 }
 
 /* sysfs callback function */
-static ssize_t ads7828_show_in(struct device *dev, struct device_attribute *da,
-			       char *buf)
+static ssize_t ads7828_in_show(struct device *dev,
+			       struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct ads7828_data *data = dev_get_drvdata(dev);
@@ -79,14 +66,14 @@ static ssize_t ads7828_show_in(struct device *dev, struct device_attribute *da,
 		       DIV_ROUND_CLOSEST(regval * data->lsb_resol, 1000));
 }
 
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, ads7828_show_in, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, ads7828_show_in, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, ads7828_show_in, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_input, S_IRUGO, ads7828_show_in, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_input, S_IRUGO, ads7828_show_in, NULL, 4);
-static SENSOR_DEVICE_ATTR(in5_input, S_IRUGO, ads7828_show_in, NULL, 5);
-static SENSOR_DEVICE_ATTR(in6_input, S_IRUGO, ads7828_show_in, NULL, 6);
-static SENSOR_DEVICE_ATTR(in7_input, S_IRUGO, ads7828_show_in, NULL, 7);
+static SENSOR_DEVICE_ATTR_RO(in0_input, ads7828_in, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_input, ads7828_in, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, ads7828_in, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_input, ads7828_in, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_input, ads7828_in, 4);
+static SENSOR_DEVICE_ATTR_RO(in5_input, ads7828_in, 5);
+static SENSOR_DEVICE_ATTR_RO(in6_input, ads7828_in, 6);
+static SENSOR_DEVICE_ATTR_RO(in7_input, ads7828_in, 7);
 
 static struct attribute *ads7828_attrs[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
@@ -200,7 +187,7 @@ static const struct i2c_device_id ads7828_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ads7828_device_ids);
 
-static const struct of_device_id ads7828_of_match[] = {
+static const struct of_device_id __maybe_unused ads7828_of_match[] = {
 	{
 		.compatible = "ti,ads7828",
 		.data = (void *)ads7828

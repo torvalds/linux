@@ -1,17 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016 Sargun Dhillon <sargun@sargun.me>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <linux/bpf.h>
 #include <unistd.h>
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
-#include <linux/bpf.h>
 #include "cgroup_helpers.h"
 
 #define CGROUP_PATH		"/my-cgroup"
@@ -33,7 +29,7 @@ int main(int argc, char **argv)
 
 	cg2 = create_and_get_cgroup(CGROUP_PATH);
 
-	if (!cg2)
+	if (cg2 < 0)
 		goto err;
 
 	if (bpf_map_update_elem(map_fd[0], &idx, &cg2, BPF_ANY)) {

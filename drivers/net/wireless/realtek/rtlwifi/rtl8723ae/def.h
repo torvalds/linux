@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __RTL8723E_DEF_H__
 #define __RTL8723E_DEF_H__
@@ -116,7 +94,7 @@
 #define IS_VENDOR_8723A_B_CUT(version)	((IS_8723_SERIES(version))\
 		? ((GET_CVID_CUT_VERSION(version) == \
 		B_CUT_VERSION) ? true : false) : false)
-#define IS_81xxC_VENDOR_UMC_B_CUT(version)	((IS_CHIP_VENDOR_UMC(version))\
+#define IS_81XXC_VENDOR_UMC_B_CUT(version)	((IS_CHIP_VENDOR_UMC(version))\
 		? ((GET_CVID_CUT_VERSION(version) == \
 		B_CUT_VERSION) ? true : false) : false)
 
@@ -150,31 +128,6 @@ enum interface_select_pci {
 	INTF_SEL0_PCIE = 1,
 	INTF_SEL2_RSV = 2,
 	INTF_SEL3_RSV = 3,
-};
-
-enum hal_fw_c2h_cmd_id {
-	HAL_FW_C2H_CMD_Read_MACREG = 0,
-	HAL_FW_C2H_CMD_Read_BBREG = 1,
-	HAL_FW_C2H_CMD_Read_RFREG = 2,
-	HAL_FW_C2H_CMD_Read_EEPROM = 3,
-	HAL_FW_C2H_CMD_Read_EFUSE = 4,
-	HAL_FW_C2H_CMD_Read_CAM = 5,
-	HAL_FW_C2H_CMD_Get_BasicRate = 6,
-	HAL_FW_C2H_CMD_Get_DataRate = 7,
-	HAL_FW_C2H_CMD_Survey = 8,
-	HAL_FW_C2H_CMD_SurveyDone = 9,
-	HAL_FW_C2H_CMD_JoinBss = 10,
-	HAL_FW_C2H_CMD_AddSTA = 11,
-	HAL_FW_C2H_CMD_DelSTA = 12,
-	HAL_FW_C2H_CMD_AtimDone = 13,
-	HAL_FW_C2H_CMD_TX_Report = 14,
-	HAL_FW_C2H_CMD_CCX_Report = 15,
-	HAL_FW_C2H_CMD_DTM_Report = 16,
-	HAL_FW_C2H_CMD_TX_Rate_Statistics = 17,
-	HAL_FW_C2H_CMD_C2HLBK = 18,
-	HAL_FW_C2H_CMD_C2HDBG = 19,
-	HAL_FW_C2H_CMD_C2HFEEDBACK = 20,
-	HAL_FW_C2H_CMD_MAX
 };
 
 enum rtl_desc_qsel {

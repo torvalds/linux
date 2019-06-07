@@ -199,12 +199,8 @@ add_node(struct snd_efw *efw, struct snd_info_entry *root, const char *name,
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_card_entry(efw->card, name, root);
-	if (entry == NULL)
-		return;
-
-	snd_info_set_text_ops(entry, efw, op);
-	if (snd_info_register(entry) < 0)
-		snd_info_free_entry(entry);
+	if (entry)
+		snd_info_set_text_ops(entry, efw, op);
 }
 
 void snd_efw_proc_init(struct snd_efw *efw)
@@ -219,11 +215,7 @@ void snd_efw_proc_init(struct snd_efw *efw)
 					  efw->card->proc_root);
 	if (root == NULL)
 		return;
-	root->mode = S_IFDIR | S_IRUGO | S_IXUGO;
-	if (snd_info_register(root) < 0) {
-		snd_info_free_entry(root);
-		return;
-	}
+	root->mode = S_IFDIR | 0555;
 
 	add_node(efw, root, "clock", proc_read_clock);
 	add_node(efw, root, "firmware", proc_read_hwinfo);

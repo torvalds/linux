@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * twl4030_usb - TWL4030 USB transceiver, talking to OMAP OTG controller
  *
  * Copyright (C) 2004-2007 Texas Instruments
  * Copyright (C) 2008 Nokia Corporation
  * Contact: Felipe Balbi <felipe.balbi@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Current status:
  *	- HS USB ULPI mode works.
@@ -144,6 +131,7 @@
 #define PMBR1				0x0D
 #define GPIO_USB_4PIN_ULPI_2430C	(3 << 0)
 
+static irqreturn_t twl4030_usb_irq(int irq, void *_twl);
 /*
  * If VBUS is valid or ID is ground, then we know a
  * cable is present and we need to be runtime-enabled
@@ -171,6 +159,7 @@ struct twl4030_usb {
 
 	int			irq;
 	enum musb_vbus_id_status linkstat;
+	atomic_t		connected;
 	bool			vbus_supplied;
 	bool			musb_mailbox_pending;
 
@@ -395,6 +384,33 @@ static void __twl4030_phy_power(struct twl4030_usb *twl, int on)
 	WARN_ON(twl4030_usb_write_verify(twl, PHY_PWR_CTRL, pwr) < 0);
 }
 
+static int __maybe_unused twl4030_usb_suspend(struct device *dev)
+{
+	struct twl4030_usb *twl = dev_get_drvdata(dev);
+
+	/*
+	 * we need enabled runtime on resume,
+	 * so turn irq off here, so we do not get it early
+	 * note: wakeup on usb plug works independently of this
+	 */
+	dev_dbg(twl->dev, "%s\n", __func__);
+	disable_irq(twl->irq);
+
+	return 0;
+}
+
+static int __maybe_unused twl4030_usb_resume(struct device *dev)
+{
+	struct twl4030_usb *twl = dev_get_drvdata(dev);
+
+	dev_dbg(twl->dev, "%s\n", __func__);
+	enable_irq(twl->irq);
+	/* check whether cable status changed */
+	twl4030_usb_irq(0, twl);
+
+	return 0;
+}
+
 static int __maybe_unused twl4030_usb_runtime_suspend(struct device *dev)
 {
 	struct twl4030_usb *twl = dev_get_drvdata(dev);
@@ -547,39 +563,29 @@ static irqreturn_t twl4030_usb_irq(int irq, void *_twl)
 {
 	struct twl4030_usb *twl = _twl;
 	enum musb_vbus_id_status status;
-	bool status_changed = false;
 	int err;
 
 	status = twl4030_usb_linkstat(twl);
 
 	mutex_lock(&twl->lock);
-	if (status >= 0 && status != twl->linkstat) {
-		status_changed =
-			cable_present(twl->linkstat) !=
-			cable_present(status);
-		twl->linkstat = status;
-	}
+	twl->linkstat = status;
 	mutex_unlock(&twl->lock);
 
-	if (status_changed) {
-		/* FIXME add a set_power() method so that B-devices can
-		 * configure the charger appropriately.  It's not always
-		 * correct to consume VBUS power, and how much current to
-		 * consume is a function of the USB configuration chosen
-		 * by the host.
-		 *
-		 * REVISIT usb_gadget_vbus_connect(...) as needed, ditto
-		 * its disconnect() sibling, when changing to/from the
-		 * USB_LINK_VBUS state.  musb_hdrc won't care until it
-		 * starts to handle softconnect right.
-		 */
-		if (cable_present(status)) {
+	if (cable_present(status)) {
+		if (atomic_add_unless(&twl->connected, 1, 1)) {
+			dev_dbg(twl->dev, "%s: cable connected %i\n",
+				__func__, status);
 			pm_runtime_get_sync(twl->dev);
-		} else {
+			twl->musb_mailbox_pending = true;
+		}
+	} else {
+		if (atomic_add_unless(&twl->connected, -1, 0)) {
+			dev_dbg(twl->dev, "%s: cable disconnected %i\n",
+				__func__, status);
 			pm_runtime_mark_last_busy(twl->dev);
 			pm_runtime_put_autosuspend(twl->dev);
+			twl->musb_mailbox_pending = true;
 		}
-		twl->musb_mailbox_pending = true;
 	}
 	if (twl->musb_mailbox_pending) {
 		err = musb_mailbox(status);
@@ -655,6 +661,7 @@ static const struct phy_ops ops = {
 static const struct dev_pm_ops twl4030_usb_pm_ops = {
 	SET_RUNTIME_PM_OPS(twl4030_usb_runtime_suspend,
 			   twl4030_usb_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(twl4030_usb_suspend, twl4030_usb_resume)
 };
 
 static int twl4030_usb_probe(struct platform_device *pdev)

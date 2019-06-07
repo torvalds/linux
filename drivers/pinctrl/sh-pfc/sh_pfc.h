@@ -1,11 +1,8 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * SuperH Pin Function Controller Support
  *
  * Copyright (c) 2008 Magnus Damm
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #ifndef __SH_PFC_H
@@ -44,7 +41,8 @@ struct sh_pfc_pin {
 		.name = #alias,				\
 		.pins = n##_pins,			\
 		.mux = n##_mux,				\
-		.nr_pins = ARRAY_SIZE(n##_pins),	\
+		.nr_pins = ARRAY_SIZE(n##_pins) +	\
+		BUILD_BUG_ON_ZERO(sizeof(n##_pins) != sizeof(n##_mux)), \
 	}
 #define SH_PFC_PIN_GROUP(n)	SH_PFC_PIN_GROUP_ALIAS(n, n)
 
@@ -56,17 +54,31 @@ struct sh_pfc_pin_group {
 };
 
 /*
- * Using union vin_data saves memory occupied by the VIN data pins.
- * VIN_DATA_PIN_GROUP() is  a macro  used  to describe the VIN pin groups
- * in this case.
+ * Using union vin_data{,12,16} saves memory occupied by the VIN data pins.
+ * VIN_DATA_PIN_GROUP() is a macro used to describe the VIN pin groups
+ * in this case. It accepts an optional 'version' argument used when the
+ * same group can appear on a different set of pins.
  */
-#define VIN_DATA_PIN_GROUP(n, s)				\
-	{							\
-		.name = #n#s,					\
-		.pins = n##_pins.data##s,			\
-		.mux = n##_mux.data##s,				\
-		.nr_pins = ARRAY_SIZE(n##_pins.data##s),	\
+#define VIN_DATA_PIN_GROUP(n, s, ...)					\
+	{								\
+		.name = #n#s#__VA_ARGS__,				\
+		.pins = n##__VA_ARGS__##_pins.data##s,			\
+		.mux = n##__VA_ARGS__##_mux.data##s,			\
+		.nr_pins = ARRAY_SIZE(n##__VA_ARGS__##_pins.data##s),	\
 	}
+
+union vin_data12 {
+	unsigned int data12[12];
+	unsigned int data10[10];
+	unsigned int data8[8];
+};
+
+union vin_data16 {
+	unsigned int data16[16];
+	unsigned int data12[12];
+	unsigned int data10[10];
+	unsigned int data8[8];
+};
 
 union vin_data {
 	unsigned int data24[24];
@@ -99,9 +111,17 @@ struct pinmux_func {
 struct pinmux_cfg_reg {
 	u32 reg;
 	u8 reg_width, field_width;
+#ifdef DEBUG
+	u16 nr_enum_ids;	/* for variable width regs only */
+#define SET_NR_ENUM_IDS(n)	.nr_enum_ids = n,
+#else
+#define SET_NR_ENUM_IDS(n)
+#endif
 	const u16 *enum_ids;
 	const u8 *var_field_width;
 };
+
+#define GROUP(...)	__VA_ARGS__
 
 /*
  * Describe a config register consisting of several fields of the same width
@@ -109,30 +129,36 @@ struct pinmux_cfg_reg {
  *   - r: Physical register address
  *   - r_width: Width of the register (in bits)
  *   - f_width: Width of the fixed-width register fields (in bits)
- * This macro must be followed by initialization data: For each register field
- * (from left to right, i.e. MSB to LSB), 2^f_width enum IDs must be specified,
- * one for each possible combination of the register field bit values.
+ *   - ids: For each register field (from left to right, i.e. MSB to LSB),
+ *          2^f_width enum IDs must be specified, one for each possible
+ *          combination of the register field bit values, all wrapped using
+ *          the GROUP() macro.
  */
-#define PINMUX_CFG_REG(name, r, r_width, f_width) \
-	.reg = r, .reg_width = r_width, .field_width = f_width,		\
-	.enum_ids = (const u16 [(r_width / f_width) * (1 << f_width)])
+#define PINMUX_CFG_REG(name, r, r_width, f_width, ids)			\
+	.reg = r, .reg_width = r_width,					\
+	.field_width = f_width + BUILD_BUG_ON_ZERO(r_width % f_width) +	\
+	BUILD_BUG_ON_ZERO(sizeof((const u16 []) { ids }) / sizeof(u16) != \
+			  (r_width / f_width) * (1 << f_width)),	\
+	.enum_ids = (const u16 [(r_width / f_width) * (1 << f_width)])	\
+		{ ids }
 
 /*
  * Describe a config register consisting of several fields of different widths
  *   - name: Register name (unused, for documentation purposes only)
  *   - r: Physical register address
  *   - r_width: Width of the register (in bits)
- *   - var_fw0, var_fwn...: List of widths of the register fields (in bits),
- *                          From left to right (i.e. MSB to LSB)
- * This macro must be followed by initialization data: For each register field
- * (from left to right, i.e. MSB to LSB), 2^var_fwi enum IDs must be specified,
- * one for each possible combination of the register field bit values.
+ *   - f_widths: List of widths of the register fields (in bits), from left
+ *               to right (i.e. MSB to LSB), wrapped using the GROUP() macro.
+ *   - ids: For each register field (from left to right, i.e. MSB to LSB),
+ *          2^f_widths[i] enum IDs must be specified, one for each possible
+ *          combination of the register field bit values, all wrapped using
+ *          the GROUP() macro.
  */
-#define PINMUX_CFG_REG_VAR(name, r, r_width, var_fw0, var_fwn...) \
-	.reg = r, .reg_width = r_width,	\
-	.var_field_width = (const u8 [r_width]) \
-		{ var_fw0, var_fwn, 0 }, \
-	.enum_ids = (const u16 [])
+#define PINMUX_CFG_REG_VAR(name, r, r_width, f_widths, ids)		\
+	.reg = r, .reg_width = r_width,					\
+	.var_field_width = (const u8 []) { f_widths, 0 },		\
+	SET_NR_ENUM_IDS(sizeof((const u16 []) { ids }) / sizeof(u16))	\
+	.enum_ids = (const u16 []) { ids }
 
 struct pinmux_drive_reg_field {
 	u16 pin;
@@ -175,12 +201,14 @@ struct pinmux_data_reg {
  *   - name: Register name (unused, for documentation purposes only)
  *   - r: Physical register address
  *   - r_width: Width of the register (in bits)
- * This macro must be followed by initialization data: For each register bit
- * (from left to right, i.e. MSB to LSB), one enum ID must be specified.
+ *   - ids: For each register bit (from left to right, i.e. MSB to LSB), one
+ *          enum ID must be specified, all wrapped using the GROUP() macro.
  */
-#define PINMUX_DATA_REG(name, r, r_width) \
-	.reg = r, .reg_width = r_width,	\
-	.enum_ids = (const u16 [r_width]) \
+#define PINMUX_DATA_REG(name, r, r_width, ids)				\
+	.reg = r, .reg_width = r_width +				\
+	BUILD_BUG_ON_ZERO(sizeof((const u16 []) { ids }) / sizeof(u16) != \
+			  r_width),					\
+	.enum_ids = (const u16 [r_width]) { ids }
 
 struct pinmux_irq {
 	const short *gpios;
@@ -249,7 +277,7 @@ struct sh_pfc_soc_info {
 	const struct sh_pfc_function *functions;
 	unsigned int nr_functions;
 
-#ifdef CONFIG_SUPERH
+#ifdef CONFIG_PINCTRL_SH_FUNC_GPIO
 	const struct pinmux_func *func_gpios;
 	unsigned int nr_func_gpios;
 #endif
@@ -273,7 +301,11 @@ extern const struct sh_pfc_soc_info emev2_pinmux_info;
 extern const struct sh_pfc_soc_info r8a73a4_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7740_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7743_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7744_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7745_pinmux_info;
+extern const struct sh_pfc_soc_info r8a77470_pinmux_info;
+extern const struct sh_pfc_soc_info r8a774a1_pinmux_info;
+extern const struct sh_pfc_soc_info r8a774c0_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7778_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7779_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7790_pinmux_info;
@@ -287,6 +319,7 @@ extern const struct sh_pfc_soc_info r8a7796_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77965_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77970_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77980_pinmux_info;
+extern const struct sh_pfc_soc_info r8a77990_pinmux_info;
 extern const struct sh_pfc_soc_info r8a77995_pinmux_info;
 extern const struct sh_pfc_soc_info sh7203_pinmux_info;
 extern const struct sh_pfc_soc_info sh7264_pinmux_info;
@@ -371,6 +404,28 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	PINMUX_DATA(fn##_MARK, FN_##msel, FN_##fn, FN_##ipsr)
 
 /*
+ * Describe a pinmux configuration similar to PINMUX_IPSR_MSEL, but with
+ * an additional select register that controls physical multiplexing
+ * with another pin.
+ *   - ipsr: IPSR field
+ *   - fn: Function name, also referring to the IPSR field
+ *   - psel: Physical multiplexing selector
+ *   - msel: Module selector
+ */
+#define PINMUX_IPSR_PHYS_MSEL(ipsr, fn, psel, msel) \
+	PINMUX_DATA(fn##_MARK, FN_##psel, FN_##msel, FN_##fn, FN_##ipsr)
+
+/*
+ * Describe a pinmux configuration in which a pin is physically multiplexed
+ * with other pins.
+ *   - ipsr: IPSR field (unused, for documentation purposes only)
+ *   - fn: Function name
+ *   - psel: Physical multiplexing selector
+ */
+#define PINMUX_IPSR_PHYS(ipsr, fn, psel) \
+	PINMUX_DATA(fn##_MARK, FN_##psel)
+
+/*
  * Describe a pinmux configuration for a single-function pin with GPIO
  * capability.
  *   - fn: Function name
@@ -415,9 +470,13 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 	PORT_GP_CFG_1(bank, 9,  fn, sfx, cfg)
 #define PORT_GP_10(bank, fn, sfx)	PORT_GP_CFG_10(bank, fn, sfx, 0)
 
-#define PORT_GP_CFG_12(bank, fn, sfx, cfg)				\
+#define PORT_GP_CFG_11(bank, fn, sfx, cfg)				\
 	PORT_GP_CFG_10(bank, fn, sfx, cfg),				\
-	PORT_GP_CFG_1(bank, 10, fn, sfx, cfg),				\
+	PORT_GP_CFG_1(bank, 10, fn, sfx, cfg)
+#define PORT_GP_11(bank, fn, sfx)	PORT_GP_CFG_11(bank, fn, sfx, 0)
+
+#define PORT_GP_CFG_12(bank, fn, sfx, cfg)				\
+	PORT_GP_CFG_11(bank, fn, sfx, cfg),				\
 	PORT_GP_CFG_1(bank, 11, fn, sfx, cfg)
 #define PORT_GP_12(bank, fn, sfx)	PORT_GP_CFG_12(bank, fn, sfx, 0)
 
@@ -620,7 +679,9 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
  */
 #define PORTCR(nr, reg)							\
 	{								\
-		PINMUX_CFG_REG_VAR("PORT" nr "CR", reg, 8, 2, 2, 1, 3) {\
+		PINMUX_CFG_REG_VAR("PORT" nr "CR", reg, 8,		\
+				   GROUP(2, 2, 1, 3),			\
+				   GROUP(				\
 			/* PULMD[1:0], handled by .set_bias() */	\
 			0, 0, 0, 0,					\
 			/* IE and OE */					\
@@ -632,7 +693,7 @@ extern const struct sh_pfc_soc_info shx3_pinmux_info;
 			PORT##nr##_FN2, PORT##nr##_FN3,			\
 			PORT##nr##_FN4, PORT##nr##_FN5,			\
 			PORT##nr##_FN6, PORT##nr##_FN7			\
-		}							\
+		))							\
 	}
 
 /*

@@ -83,7 +83,7 @@ nvif_object_sclass_get(struct nvif_object *object, struct nvif_sclass **psclass)
 			return ret;
 	}
 
-	*psclass = kzalloc(sizeof(**psclass) * args->sclass.count, GFP_KERNEL);
+	*psclass = kcalloc(args->sclass.count, sizeof(**psclass), GFP_KERNEL);
 	if (*psclass) {
 		for (i = 0; i < args->sclass.count; i++) {
 			(*psclass)[i].oclass = args->sclass.oclass[i].oclass;

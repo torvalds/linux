@@ -31,4 +31,6 @@ GenuineIntel-6-2A,v15,sandybridge,core
 GenuineIntel-6-2C,v2,westmereep-dp,core
 GenuineIntel-6-25,v2,westmereep-sp,core
 GenuineIntel-6-2F,v2,westmereex,core
-GenuineIntel-6-55,v1,skylakex,core
+GenuineIntel-6-55-[01234],v1,skylakex,core
+GenuineIntel-6-55-[56789ABCDEF],v1,cascadelakex,core
+AuthenticAMD-23-[[:xdigit:]]+,v1,amdfam17h,core

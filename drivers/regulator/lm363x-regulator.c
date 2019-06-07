@@ -16,7 +16,7 @@
 #include <linux/mfd/ti-lmu-register.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
@@ -48,7 +48,7 @@ static const int ldo_cont_enable_time[] = {
 static int lm363x_regulator_enable_time(struct regulator_dev *rdev)
 {
 	enum lm363x_regulator_id id = rdev_get_id(rdev);
-	u8 val, addr, mask;
+	unsigned int val, addr, mask;
 
 	switch (id) {
 	case LM3631_LDO_CONT:
@@ -71,7 +71,7 @@ static int lm363x_regulator_enable_time(struct regulator_dev *rdev)
 		return 0;
 	}
 
-	if (regmap_read(rdev->regmap, addr, (unsigned int *)&val))
+	if (regmap_read(rdev->regmap, addr, &val))
 		return -EINVAL;
 
 	val = (val & mask) >> LM3631_ENTIME_SHIFT;
@@ -82,13 +82,13 @@ static int lm363x_regulator_enable_time(struct regulator_dev *rdev)
 		return ENABLE_TIME_USEC * val;
 }
 
-static struct regulator_ops lm363x_boost_voltage_table_ops = {
+static const struct regulator_ops lm363x_boost_voltage_table_ops = {
 	.list_voltage     = regulator_list_voltage_linear,
 	.set_voltage_sel  = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel  = regulator_get_voltage_sel_regmap,
 };
 
-static struct regulator_ops lm363x_regulator_voltage_table_ops = {
+static const struct regulator_ops lm363x_regulator_voltage_table_ops = {
 	.list_voltage     = regulator_list_voltage_linear,
 	.set_voltage_sel  = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel  = regulator_get_voltage_sel_regmap,
@@ -219,19 +219,23 @@ static const struct regulator_desc lm363x_regulator_desc[] = {
 	},
 };
 
-static int lm363x_regulator_of_get_enable_gpio(struct device_node *np, int id)
+static struct gpio_desc *lm363x_regulator_of_get_enable_gpio(struct device *dev, int id)
 {
 	/*
 	 * Check LCM_EN1/2_GPIO is configured.
 	 * Those pins are used for enabling VPOS/VNEG LDOs.
+	 * Do not use devm* here: the regulator core takes over the
+	 * lifecycle management of the GPIO descriptor.
 	 */
 	switch (id) {
 	case LM3632_LDO_POS:
-		return of_get_named_gpio(np, "enable-gpios", 0);
+		return gpiod_get_index_optional(dev, "enable", 0,
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
 	case LM3632_LDO_NEG:
-		return of_get_named_gpio(np, "enable-gpios", 1);
+		return gpiod_get_index_optional(dev, "enable", 1,
+				GPIOD_OUT_LOW | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
 	default:
-		return -EINVAL;
+		return NULL;
 	}
 }
 
@@ -243,7 +247,8 @@ static int lm363x_regulator_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct device *dev = &pdev->dev;
 	int id = pdev->id;
-	int ret, ena_gpio;
+	struct gpio_desc *gpiod;
+	int ret;
 
 	cfg.dev = dev;
 	cfg.regmap = regmap;
@@ -252,15 +257,18 @@ static int lm363x_regulator_probe(struct platform_device *pdev)
 	 * LM3632 LDOs can be controlled by external pin.
 	 * Register update is required if the pin is used.
 	 */
-	ena_gpio = lm363x_regulator_of_get_enable_gpio(dev->of_node, id);
-	if (gpio_is_valid(ena_gpio)) {
-		cfg.ena_gpio = ena_gpio;
-		cfg.ena_gpio_flags = GPIOF_OUT_INIT_LOW;
+	gpiod = lm363x_regulator_of_get_enable_gpio(dev, id);
+	if (IS_ERR(gpiod))
+		return PTR_ERR(gpiod);
+
+	if (gpiod) {
+		cfg.ena_gpiod = gpiod;
 
 		ret = regmap_update_bits(regmap, LM3632_REG_BIAS_CONFIG,
 					 LM3632_EXT_EN_MASK,
 					 LM3632_EXT_EN_MASK);
 		if (ret) {
+			gpiod_put(gpiod);
 			dev_err(dev, "External pin err: %d\n", ret);
 			return ret;
 		}

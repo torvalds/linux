@@ -420,7 +420,7 @@ static int sq_allocate_buffers(struct sound_queue *sq, int num, int size)
 		return 0;
 	sq->numBufs = num;
 	sq->bufSize = size;
-	sq->buffers = kmalloc (num * sizeof(char *), GFP_KERNEL);
+	sq->buffers = kmalloc_array (num, sizeof(char *), GFP_KERNEL);
 	if (!sq->buffers)
 		return -ENOMEM;
 	for (i = 0; i < num; i++) {

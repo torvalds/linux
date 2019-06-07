@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Cryptographic scatter and gather helpers.
  *
@@ -5,12 +6,6 @@
  * Copyright (c) 2002 Adam J. Richter <adam@yggdrasil.com>
  * Copyright (c) 2004 Jean-Luc Cooke <jlcooke@certainkey.com>
  * Copyright (c) 2007 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #ifndef _CRYPTO_SCATTERWALK_H
@@ -22,25 +17,12 @@
 #include <linux/scatterlist.h>
 
 static inline void scatterwalk_crypto_chain(struct scatterlist *head,
-					    struct scatterlist *sg,
-					    int chain, int num)
+					    struct scatterlist *sg, int num)
 {
-	if (chain) {
-		head->length += sg->length;
-		sg = sg_next(sg);
-	}
-
 	if (sg)
 		sg_chain(head, num, sg);
 	else
 		sg_mark_end(head);
-}
-
-static inline unsigned long scatterwalk_samebuf(struct scatter_walk *walk_in,
-						struct scatter_walk *walk_out)
-{
-	return !(((sg_page(walk_in->sg) - sg_page(walk_out->sg)) << PAGE_SHIFT) +
-		 (int)(walk_in->offset - walk_out->offset));
 }
 
 static inline unsigned int scatterwalk_pagelen(struct scatter_walk *walk)

@@ -2030,13 +2030,6 @@ static inline void
 _il_release_nic_access(struct il_priv *il)
 {
 	_il_clear_bit(il, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-	/*
-	 * In above we are reading CSR_GP_CNTRL register, what will flush any
-	 * previous writes, but still want write, which clear MAC_ACCESS_REQ
-	 * bit, be performed on PCI bus before any other writes scheduled on
-	 * different CPUs (after we drop reg_lock).
-	 */
-	mmiowb();
 }
 
 static inline u32
@@ -2974,13 +2967,11 @@ il_print_hex_dump(struct il_priv *il, int level, const void *p, u32 len)
 #endif /* CONFIG_IWLEGACY_DEBUG */
 
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-int il_dbgfs_register(struct il_priv *il, const char *name);
+void il_dbgfs_register(struct il_priv *il, const char *name);
 void il_dbgfs_unregister(struct il_priv *il);
 #else
-static inline int
-il_dbgfs_register(struct il_priv *il, const char *name)
+static inline void il_dbgfs_register(struct il_priv *il, const char *name)
 {
-	return 0;
 }
 
 static inline void

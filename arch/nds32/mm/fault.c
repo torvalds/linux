@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/hardirq.h>
 #include <linux/uaccess.h>
+#include <linux/perf_event.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -72,15 +73,15 @@ void do_page_fault(unsigned long entry, unsigned long addr,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct *vma;
-	siginfo_t info;
-	int fault;
+	int si_code;
+	vm_fault_t fault;
 	unsigned int mask = VM_READ | VM_WRITE | VM_EXEC;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	error_code = error_code & (ITYPE_mskINST | ITYPE_mskETYPE);
 	tsk = current;
 	mm = tsk->mm;
-	info.si_code = SEGV_MAPERR;
+	si_code = SEGV_MAPERR;
 	/*
 	 * We fault-in kernel-space virtual memory on-demand. The
 	 * 'reference' page table is init_mm.pgd.
@@ -161,7 +162,7 @@ retry:
 	 */
 
 good_area:
-	info.si_code = SEGV_ACCERR;
+	si_code = SEGV_ACCERR;
 
 	/* first do some preliminary protection checks */
 	if (entry == ENTRY_PTE_NOT_PRESENT) {
@@ -169,8 +170,6 @@ good_area:
 			mask = VM_EXEC;
 		else {
 			mask = VM_READ | VM_WRITE;
-			if (vma->vm_flags & VM_WRITE)
-				flags |= FAULT_FLAG_WRITE;
 		}
 	} else if (entry == ENTRY_TLB_MISC) {
 		switch (error_code & ITYPE_mskETYPE) {
@@ -231,11 +230,17 @@ good_area:
 	 * attempt. If we go through a retry, it is extremely likely that the
 	 * page will be found in page cache at that point.
 	 */
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-		if (fault & VM_FAULT_MAJOR)
+		if (fault & VM_FAULT_MAJOR) {
 			tsk->maj_flt++;
-		else
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ,
+				      1, regs, addr);
+		} else {
 			tsk->min_flt++;
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN,
+				      1, regs, addr);
+		}
 		if (fault & VM_FAULT_RETRY) {
 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
 			flags |= FAULT_FLAG_TRIED;
@@ -266,11 +271,7 @@ bad_area_nosemaphore:
 		tsk->thread.address = addr;
 		tsk->thread.error_code = error_code;
 		tsk->thread.trap_no = entry;
-		info.si_signo = SIGSEGV;
-		info.si_errno = 0;
-		/* info.si_code has been set above */
-		info.si_addr = (void *)addr;
-		force_sig_info(SIGSEGV, &info, tsk);
+		force_sig_fault(SIGSEGV, si_code, (void __user *)addr, tsk);
 		return;
 	}
 
@@ -339,11 +340,7 @@ do_sigbus:
 	tsk->thread.address = addr;
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = entry;
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_ADRERR;
-	info.si_addr = (void *)addr;
-	force_sig_info(SIGBUS, &info, tsk);
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)addr, tsk);
 
 	return;
 

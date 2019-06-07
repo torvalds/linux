@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  scsi_error.c Copyright (C) 1997 Eric Youngdale
  *
@@ -38,6 +39,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/scsi_dh.h>
+#include <scsi/scsi_devinfo.h>
 #include <scsi/sg.h>
 
 #include "scsi_priv.h"
@@ -65,7 +67,7 @@ void scsi_eh_wakeup(struct Scsi_Host *shost)
 {
 	lockdep_assert_held(shost->host_lock);
 
-	if (atomic_read(&shost->host_busy) == shost->host_failed) {
+	if (scsi_host_busy(shost) == shost->host_failed) {
 		trace_scsi_eh_wakeup(shost);
 		wake_up_process(shost->ehandler);
 		SCSI_LOG_ERROR_RECOVERY(5, shost_printk(KERN_INFO, shost,
@@ -282,7 +284,7 @@ void scsi_eh_scmd_add(struct scsi_cmnd *scmd)
 enum blk_eh_timer_return scsi_times_out(struct request *req)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
-	enum blk_eh_timer_return rtn = BLK_EH_NOT_HANDLED;
+	enum blk_eh_timer_return rtn = BLK_EH_DONE;
 	struct Scsi_Host *host = scmd->device->host;
 
 	trace_scsi_dispatch_cmd_timeout(scmd);
@@ -294,7 +296,21 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 	if (host->hostt->eh_timed_out)
 		rtn = host->hostt->eh_timed_out(scmd);
 
-	if (rtn == BLK_EH_NOT_HANDLED) {
+	if (rtn == BLK_EH_DONE) {
+		/*
+		 * Set the command to complete first in order to prevent a real
+		 * completion from releasing the command while error handling
+		 * is using it. If the command was already completed, then the
+		 * lower level driver beat the timeout handler, and it is safe
+		 * to return without escalating error recovery.
+		 *
+		 * If timeout handling lost the race to a real completion, the
+		 * block layer may ignore that due to a fake timeout injection,
+		 * so return RESET_TIMER to allow error handling another shot
+		 * at this command.
+		 */
+		if (test_and_set_bit(SCMD_STATE_COMPLETE, &scmd->state))
+			return BLK_EH_RESET_TIMER;
 		if (scsi_abort_command(scmd) != SUCCESS) {
 			set_host_byte(scmd, DID_TIME_OUT);
 			scsi_eh_scmd_add(scmd);
@@ -322,9 +338,6 @@ int scsi_block_when_processing_errors(struct scsi_device *sdev)
 	wait_event(sdev->host->host_wait, !scsi_host_in_recovery(sdev->host));
 
 	online = scsi_device_online(sdev);
-
-	SCSI_LOG_ERROR_RECOVERY(5, sdev_printk(KERN_INFO, sdev,
-		"%s: rtn: %d\n", __func__, online));
 
 	return online;
 }
@@ -524,6 +537,12 @@ int scsi_check_sense(struct scsi_cmnd *scmd)
 	case ABORTED_COMMAND:
 		if (sshdr.asc == 0x10) /* DIF */
 			return SUCCESS;
+
+		if (sshdr.asc == 0x44 && sdev->sdev_bflags & BLIST_RETRY_ITF)
+			return ADD_TO_MLQUEUE;
+		if (sshdr.asc == 0xc1 && sshdr.ascq == 0x01 &&
+		    sdev->sdev_bflags & BLIST_RETRY_ASC_C1)
+			return ADD_TO_MLQUEUE;
 
 		return NEEDS_RETRY;
 	case NOT_READY:
@@ -947,7 +966,6 @@ void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd, struct scsi_eh_save *ses,
 	ses->cmnd = scmd->cmnd;
 	ses->data_direction = scmd->sc_data_direction;
 	ses->sdb = scmd->sdb;
-	ses->next_rq = scmd->request->next_rq;
 	ses->result = scmd->result;
 	ses->underflow = scmd->underflow;
 	ses->prot_op = scmd->prot_op;
@@ -958,7 +976,6 @@ void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd, struct scsi_eh_save *ses,
 	scmd->cmnd = ses->eh_cmnd;
 	memset(scmd->cmnd, 0, BLK_MAX_CDB);
 	memset(&scmd->sdb, 0, sizeof(scmd->sdb));
-	scmd->request->next_rq = NULL;
 	scmd->result = 0;
 
 	if (sense_bytes) {
@@ -1011,7 +1028,6 @@ void scsi_eh_restore_cmnd(struct scsi_cmnd* scmd, struct scsi_eh_save *ses)
 	scmd->cmnd = ses->cmnd;
 	scmd->sc_data_direction = ses->data_direction;
 	scmd->sdb = ses->sdb;
-	scmd->request->next_rq = ses->next_rq;
 	scmd->result = ses->result;
 	scmd->underflow = ses->underflow;
 	scmd->prot_op = ses->prot_op;
@@ -1914,7 +1930,7 @@ maybe_retry:
 
 static void eh_lock_door_done(struct request *req, blk_status_t status)
 {
-	__blk_put_request(req->q, req);
+	blk_put_request(req);
 }
 
 /**
@@ -1933,11 +1949,7 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	struct request *req;
 	struct scsi_request *rq;
 
-	/*
-	 * blk_get_request with GFP_KERNEL (__GFP_RECLAIM) sleeps until a
-	 * request becomes available
-	 */
-	req = blk_get_request(sdev->request_queue, REQ_OP_SCSI_IN, GFP_KERNEL);
+	req = blk_get_request(sdev->request_queue, REQ_OP_SCSI_IN, 0);
 	if (IS_ERR(req))
 		return;
 	rq = scsi_req(req);
@@ -2152,7 +2164,7 @@ int scsi_error_handler(void *data)
 			break;
 
 		if ((shost->host_failed == 0 && shost->host_eh_scheduled == 0) ||
-		    shost->host_failed != atomic_read(&shost->host_busy)) {
+		    shost->host_failed != scsi_host_busy(shost)) {
 			SCSI_LOG_ERROR_RECOVERY(1,
 				shost_printk(KERN_INFO, shost,
 					     "scsi_eh_%d: sleeping\n",
@@ -2167,7 +2179,7 @@ int scsi_error_handler(void *data)
 				     "scsi_eh_%d: waking up %d/%d/%d\n",
 				     shost->host_no, shost->host_eh_scheduled,
 				     shost->host_failed,
-				     atomic_read(&shost->host_busy)));
+				     scsi_host_busy(shost)));
 
 		/*
 		 * We have a host that is failing for some reason.  Figure out
@@ -2382,7 +2394,6 @@ out_put_autopm_host:
 	scsi_autopm_put_host(shost);
 	return error;
 }
-EXPORT_SYMBOL(scsi_ioctl_reset);
 
 bool scsi_command_normalize_sense(const struct scsi_cmnd *cmd,
 				  struct scsi_sense_hdr *sshdr)

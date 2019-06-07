@@ -228,8 +228,8 @@ typedef union {
 } fifo_area;
 
 
-#define Write_hfc(a, b, c) (*(((u_char *)a->hw.hfcpci.pci_io) + b) = c)
-#define Read_hfc(a, b) (*(((u_char *)a->hw.hfcpci.pci_io) + b))
+#define Write_hfc(a, b, c) (writeb(c, (a->hw.hfcpci.pci_io) + b))
+#define Read_hfc(a, b) (readb((a->hw.hfcpci.pci_io) + b))
 
 extern void main_irq_hcpci(struct BCState *bcs);
 extern void releasehfcpci(struct IsdnCardState *cs);

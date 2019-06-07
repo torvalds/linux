@@ -12,13 +12,13 @@
 #include "ctree.h"
 
 enum btrfs_trans_state {
-	TRANS_STATE_RUNNING		= 0,
-	TRANS_STATE_BLOCKED		= 1,
-	TRANS_STATE_COMMIT_START	= 2,
-	TRANS_STATE_COMMIT_DOING	= 3,
-	TRANS_STATE_UNBLOCKED		= 4,
-	TRANS_STATE_COMPLETED		= 5,
-	TRANS_STATE_MAX			= 6,
+	TRANS_STATE_RUNNING,
+	TRANS_STATE_BLOCKED,
+	TRANS_STATE_COMMIT_START,
+	TRANS_STATE_COMMIT_DOING,
+	TRANS_STATE_UNBLOCKED,
+	TRANS_STATE_COMPLETED,
+	TRANS_STATE_MAX,
 };
 
 #define BTRFS_TRANS_HAVE_FREE_BGS	0
@@ -39,7 +39,6 @@ struct btrfs_transaction {
 	 */
 	atomic_t num_writers;
 	refcount_t use_count;
-	atomic_t pending_ordered;
 
 	unsigned long flags;
 
@@ -48,12 +47,11 @@ struct btrfs_transaction {
 	int aborted;
 	struct list_head list;
 	struct extent_io_tree dirty_pages;
-	unsigned long start_time;
+	time64_t start_time;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
-	wait_queue_head_t pending_wait;
 	struct list_head pending_snapshots;
-	struct list_head pending_chunks;
+	struct list_head dev_update_list;
 	struct list_head switch_commits;
 	struct list_head dirty_bgs;
 
@@ -82,7 +80,6 @@ struct btrfs_transaction {
 	 */
 	struct mutex cache_write_mutex;
 	spinlock_t dirty_bgs_lock;
-	unsigned int num_dirty_bgs;
 	/* Protected by spin lock fs_info->unused_bgs_lock. */
 	struct list_head deleted_bgs;
 	spinlock_t dropped_roots_lock;
@@ -122,7 +119,6 @@ struct btrfs_trans_handle {
 	bool allocating_chunk;
 	bool can_flush_pending_bgs;
 	bool reloc_reserved;
-	bool sync;
 	bool dirty;
 	struct btrfs_root *root;
 	struct btrfs_fs_info *fs_info;
@@ -139,7 +135,6 @@ struct btrfs_pending_snapshot {
 	struct btrfs_path *path;
 	/* block reservation for the operation */
 	struct btrfs_block_rsv block_rsv;
-	u64 qgroup_reserved;
 	/* extra metadata reservation for relocation */
 	int error;
 	bool readonly;

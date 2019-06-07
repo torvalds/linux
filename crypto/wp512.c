@@ -1127,7 +1127,6 @@ static struct shash_alg wp_algs[3] = { {
 	.descsize	=	sizeof(struct wp512_ctx),
 	.base		=	{
 		.cra_name	=	"wp512",
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	WP512_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -1139,7 +1138,6 @@ static struct shash_alg wp_algs[3] = { {
 	.descsize	=	sizeof(struct wp512_ctx),
 	.base		=	{
 		.cra_name	=	"wp384",
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	WP512_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -1151,7 +1149,6 @@ static struct shash_alg wp_algs[3] = { {
 	.descsize	=	sizeof(struct wp512_ctx),
 	.base		=	{
 		.cra_name	=	"wp256",
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	WP512_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -1171,7 +1168,7 @@ MODULE_ALIAS_CRYPTO("wp512");
 MODULE_ALIAS_CRYPTO("wp384");
 MODULE_ALIAS_CRYPTO("wp256");
 
-module_init(wp512_mod_init);
+subsys_initcall(wp512_mod_init);
 module_exit(wp512_mod_fini);
 
 MODULE_LICENSE("GPL");

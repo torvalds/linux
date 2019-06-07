@@ -30,6 +30,7 @@ config BCMA_HOST_PCI
 
 config BCMA_HOST_SOC
 	bool "Support for BCMA in a SoC"
+	depends on HAS_IOMEM
 	help
 	  Host interface for a Broadcom AIX bus directly mapped into
 	  the memory. This only works with the Broadcom SoCs from the
@@ -61,7 +62,7 @@ config BCMA_DRIVER_PCI_HOSTMODE
 
 config BCMA_DRIVER_MIPS
 	bool "BCMA Broadcom MIPS core driver"
-	depends on MIPS
+	depends on MIPS || COMPILE_TEST
 	help
 	  Driver for the Broadcom MIPS core attached to Broadcom specific
 	  Advanced Microcontroller Bus.

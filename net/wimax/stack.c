@@ -419,26 +419,26 @@ static const struct nla_policy wimax_gnl_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 static const struct genl_ops wimax_gnl_ops[] = {
 	{
 		.cmd = WIMAX_GNL_OP_MSG_FROM_USER,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_msg_from_user,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_RESET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_reset,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_RFKILL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_rfkill,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_STATE_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_state_get,
 	},
 };
@@ -486,7 +486,8 @@ int wimax_dev_add(struct wimax_dev *wimax_dev, struct net_device *net_dev)
 	d_fnstart(3, dev, "(wimax_dev %p net_dev %p)\n", wimax_dev, net_dev);
 
 	/* Do the RFKILL setup before locking, as RFKILL will call
-	 * into our functions. */
+	 * into our functions.
+	 */
 	wimax_dev->net_dev = net_dev;
 	result = wimax_rfkill_add(wimax_dev);
 	if (result < 0)
@@ -581,6 +582,7 @@ struct genl_family wimax_gnl_family __ro_after_init = {
 	.version = WIMAX_GNL_VERSION,
 	.hdrsize = 0,
 	.maxattr = WIMAX_GNL_ATTR_MAX,
+	.policy = wimax_gnl_policy,
 	.module = THIS_MODULE,
 	.ops = wimax_gnl_ops,
 	.n_ops = ARRAY_SIZE(wimax_gnl_ops),
@@ -629,4 +631,3 @@ module_exit(wimax_subsys_exit);
 MODULE_AUTHOR("Intel Corporation <linux-wimax@intel.com>");
 MODULE_DESCRIPTION("Linux WiMAX stack");
 MODULE_LICENSE("GPL");
-

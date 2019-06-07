@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mm/truncate.c - code for taking down pages from address_spaces
  *
@@ -33,15 +34,12 @@
 static inline void __clear_shadow_entry(struct address_space *mapping,
 				pgoff_t index, void *entry)
 {
-	struct radix_tree_node *node;
-	void **slot;
+	XA_STATE(xas, &mapping->i_pages, index);
 
-	if (!__radix_tree_lookup(&mapping->i_pages, index, &node, &slot))
+	xas_set_update(&xas, workingset_update_node);
+	if (xas_load(&xas) != entry)
 		return;
-	if (*slot != entry)
-		return;
-	__radix_tree_replace(&mapping->i_pages, node, slot, NULL,
-			     workingset_update_node);
+	xas_store(&xas, NULL);
 	mapping->nrexceptional--;
 }
 
@@ -70,7 +68,7 @@ static void truncate_exceptional_pvec_entries(struct address_space *mapping,
 		return;
 
 	for (j = 0; j < pagevec_count(pvec); j++)
-		if (radix_tree_exceptional_entry(pvec->pages[j]))
+		if (xa_is_value(pvec->pages[j]))
 			break;
 
 	if (j == pagevec_count(pvec))
@@ -85,7 +83,7 @@ static void truncate_exceptional_pvec_entries(struct address_space *mapping,
 		struct page *page = pvec->pages[i];
 		pgoff_t index = indices[i];
 
-		if (!radix_tree_exceptional_entry(page)) {
+		if (!xa_is_value(page)) {
 			pvec->pages[j++] = page;
 			continue;
 		}
@@ -347,7 +345,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 			if (index >= end)
 				break;
 
-			if (radix_tree_exceptional_entry(page))
+			if (xa_is_value(page))
 				continue;
 
 			if (!trylock_page(page))
@@ -442,7 +440,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 				break;
 			}
 
-			if (radix_tree_exceptional_entry(page))
+			if (xa_is_value(page))
 				continue;
 
 			lock_page(page);
@@ -520,9 +518,13 @@ void truncate_inode_pages_final(struct address_space *mapping)
 		 */
 		xa_lock_irq(&mapping->i_pages);
 		xa_unlock_irq(&mapping->i_pages);
-
-		truncate_inode_pages(mapping, 0);
 	}
+
+	/*
+	 * Cleancache needs notification even if there are no pages or shadow
+	 * entries.
+	 */
+	truncate_inode_pages(mapping, 0);
 }
 EXPORT_SYMBOL(truncate_inode_pages_final);
 
@@ -538,6 +540,8 @@ EXPORT_SYMBOL(truncate_inode_pages_final);
  * invalidate_mapping_pages() will not block on IO activity. It will not
  * invalidate pages which are dirty, locked, under writeback or mapped into
  * pagetables.
+ *
+ * Return: the number of the pages that were invalidated
  */
 unsigned long invalidate_mapping_pages(struct address_space *mapping,
 		pgoff_t start, pgoff_t end)
@@ -561,7 +565,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 			if (index > end)
 				break;
 
-			if (radix_tree_exceptional_entry(page)) {
+			if (xa_is_value(page)) {
 				invalidate_exceptional_entry(mapping, index,
 							     page);
 				continue;
@@ -663,7 +667,7 @@ static int do_launder_page(struct address_space *mapping, struct page *page)
  * Any pages which are found to be mapped into pagetables are unmapped prior to
  * invalidation.
  *
- * Returns -EBUSY if any pages could not be invalidated.
+ * Return: -EBUSY if any pages could not be invalidated.
  */
 int invalidate_inode_pages2_range(struct address_space *mapping,
 				  pgoff_t start, pgoff_t end)
@@ -692,7 +696,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 			if (index > end)
 				break;
 
-			if (radix_tree_exceptional_entry(page)) {
+			if (xa_is_value(page)) {
 				if (!invalidate_exceptional_entry2(mapping,
 								   index, page))
 					ret = -EBUSY;
@@ -738,10 +742,10 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 		index++;
 	}
 	/*
-	 * For DAX we invalidate page tables after invalidating radix tree.  We
+	 * For DAX we invalidate page tables after invalidating page cache.  We
 	 * could invalidate page tables while invalidating each entry however
 	 * that would be expensive. And doing range unmapping before doesn't
-	 * work as we have no cheap way to find whether radix tree entry didn't
+	 * work as we have no cheap way to find whether page cache entry didn't
 	 * get remapped later.
 	 */
 	if (dax_mapping(mapping)) {
@@ -760,7 +764,7 @@ EXPORT_SYMBOL_GPL(invalidate_inode_pages2_range);
  * Any pages which are found to be mapped into pagetables are unmapped prior to
  * invalidation.
  *
- * Returns -EBUSY if any pages could not be invalidated.
+ * Return: -EBUSY if any pages could not be invalidated.
  */
 int invalidate_inode_pages2(struct address_space *mapping)
 {

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Port for PPC64 David Engebretsen, IBM Corp.
  * Contains common pci routines for ppc64 platform, pSeries and iSeries brands.
  * 
  * Copyright (C) 2003 Anton Blanchard <anton@au.ibm.com>, IBM
  *   Rework, based on alpha PCI code.
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #undef DEBUG
@@ -159,7 +155,7 @@ static int pcibios_map_phb_io_space(struct pci_controller *hose)
 
 	/* Establish the mapping */
 	if (__ioremap_at(phys_page, area->addr, size_page,
-			 pgprot_val(pgprot_noncached(__pgprot(0)))) == NULL)
+			 pgprot_noncached(PAGE_KERNEL)) == NULL)
 		return -ENOMEM;
 
 	/* Fixup hose IO resource */
@@ -203,8 +199,8 @@ void pcibios_setup_phb_io_space(struct pci_controller *hose)
 #define IOBASE_ISA_IO		3
 #define IOBASE_ISA_MEM		4
 
-long sys_pciconfig_iobase(long which, unsigned long in_bus,
-			  unsigned long in_devfn)
+SYSCALL_DEFINE3(pciconfig_iobase, long, which, unsigned long, in_bus,
+			  unsigned long, in_devfn)
 {
 	struct pci_controller* hose;
 	struct pci_bus *tmp_bus, *bus = NULL;

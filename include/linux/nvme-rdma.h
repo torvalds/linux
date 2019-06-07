@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _LINUX_NVME_RDMA_H
@@ -85,7 +77,7 @@ struct nvme_rdma_cm_rep {
  * struct nvme_rdma_cm_rej - rdma connect reject
  *
  * @recfmt:        format of the RDMA Private Data
- * @fsts:          error status for the associated connect request
+ * @sts:           error status for the associated connect request
  */
 struct nvme_rdma_cm_rej {
 	__le16		recfmt;

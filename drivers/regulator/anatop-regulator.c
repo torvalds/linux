@@ -1,22 +1,6 @@
-/*
- * Copyright (C) 2011 Freescale Semiconductor, Inc. All Rights Reserved.
- */
-
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright (C) 2011 Freescale Semiconductor, Inc. All Rights Reserved.
 
 #include <linux/slab.h>
 #include <linux/device.h>
@@ -39,18 +23,10 @@
 #define LDO_FET_FULL_ON			0x1f
 
 struct anatop_regulator {
-	u32 control_reg;
-	struct regmap *anatop;
-	int vol_bit_shift;
-	int vol_bit_width;
 	u32 delay_reg;
 	int delay_bit_shift;
 	int delay_bit_width;
-	int min_bit_val;
-	int min_voltage;
-	int max_voltage;
 	struct regulator_desc rdesc;
-	struct regulator_init_data *initdata;
 	bool bypass;
 	int sel;
 };
@@ -71,7 +47,7 @@ static int anatop_regmap_set_voltage_time_sel(struct regulator_dev *reg,
 		 * to calculate how many steps LDO need to
 		 * ramp up, and how much delay needed. (us)
 		 */
-		regmap_read(anatop_reg->anatop, anatop_reg->delay_reg, &val);
+		regmap_read(reg->regmap, anatop_reg->delay_reg, &val);
 		val = (val >> anatop_reg->delay_bit_shift) &
 			((1 << anatop_reg->delay_bit_width) - 1);
 		ret = (new_sel - old_sel) * (LDO_RAMP_UP_UNIT_IN_CYCLES <<
@@ -186,6 +162,13 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	struct anatop_regulator *sreg;
 	struct regulator_init_data *initdata;
 	struct regulator_config config = { };
+	struct regmap *regmap;
+	u32 control_reg;
+	u32 vol_bit_shift;
+	u32 vol_bit_width;
+	u32 min_bit_val;
+	u32 min_voltage;
+	u32 max_voltage;
 	int ret = 0;
 	u32 val;
 
@@ -208,48 +191,41 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	initdata->supply_regulator = "vin";
-	sreg->initdata = initdata;
 
 	anatop_np = of_get_parent(np);
 	if (!anatop_np)
 		return -ENODEV;
-	sreg->anatop = syscon_node_to_regmap(anatop_np);
+	regmap = syscon_node_to_regmap(anatop_np);
 	of_node_put(anatop_np);
-	if (IS_ERR(sreg->anatop))
-		return PTR_ERR(sreg->anatop);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
 
-	ret = of_property_read_u32(np, "anatop-reg-offset",
-				   &sreg->control_reg);
+	ret = of_property_read_u32(np, "anatop-reg-offset", &control_reg);
 	if (ret) {
 		dev_err(dev, "no anatop-reg-offset property set\n");
 		return ret;
 	}
-	ret = of_property_read_u32(np, "anatop-vol-bit-width",
-				   &sreg->vol_bit_width);
+	ret = of_property_read_u32(np, "anatop-vol-bit-width", &vol_bit_width);
 	if (ret) {
 		dev_err(dev, "no anatop-vol-bit-width property set\n");
 		return ret;
 	}
-	ret = of_property_read_u32(np, "anatop-vol-bit-shift",
-				   &sreg->vol_bit_shift);
+	ret = of_property_read_u32(np, "anatop-vol-bit-shift", &vol_bit_shift);
 	if (ret) {
 		dev_err(dev, "no anatop-vol-bit-shift property set\n");
 		return ret;
 	}
-	ret = of_property_read_u32(np, "anatop-min-bit-val",
-				   &sreg->min_bit_val);
+	ret = of_property_read_u32(np, "anatop-min-bit-val", &min_bit_val);
 	if (ret) {
 		dev_err(dev, "no anatop-min-bit-val property set\n");
 		return ret;
 	}
-	ret = of_property_read_u32(np, "anatop-min-voltage",
-				   &sreg->min_voltage);
+	ret = of_property_read_u32(np, "anatop-min-voltage", &min_voltage);
 	if (ret) {
 		dev_err(dev, "no anatop-min-voltage property set\n");
 		return ret;
 	}
-	ret = of_property_read_u32(np, "anatop-max-voltage",
-				   &sreg->max_voltage);
+	ret = of_property_read_u32(np, "anatop-max-voltage", &max_voltage);
 	if (ret) {
 		dev_err(dev, "no anatop-max-voltage property set\n");
 		return ret;
@@ -263,24 +239,23 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 	of_property_read_u32(np, "anatop-delay-bit-shift",
 			     &sreg->delay_bit_shift);
 
-	rdesc->n_voltages = (sreg->max_voltage - sreg->min_voltage) / 25000 + 1
-			    + sreg->min_bit_val;
-	rdesc->min_uV = sreg->min_voltage;
+	rdesc->n_voltages = (max_voltage - min_voltage) / 25000 + 1
+			    + min_bit_val;
+	rdesc->min_uV = min_voltage;
 	rdesc->uV_step = 25000;
-	rdesc->linear_min_sel = sreg->min_bit_val;
-	rdesc->vsel_reg = sreg->control_reg;
-	rdesc->vsel_mask = ((1 << sreg->vol_bit_width) - 1) <<
-			   sreg->vol_bit_shift;
+	rdesc->linear_min_sel = min_bit_val;
+	rdesc->vsel_reg = control_reg;
+	rdesc->vsel_mask = ((1 << vol_bit_width) - 1) << vol_bit_shift;
 	rdesc->min_dropout_uV = 125000;
 
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
 	config.driver_data = sreg;
 	config.of_node = pdev->dev.of_node;
-	config.regmap = sreg->anatop;
+	config.regmap = regmap;
 
 	/* Only core regulators have the ramp up delay configuration. */
-	if (sreg->control_reg && sreg->delay_bit_width) {
+	if (control_reg && sreg->delay_bit_width) {
 		rdesc->ops = &anatop_core_rops;
 
 		ret = regmap_read(config.regmap, rdesc->vsel_reg, &val);
@@ -289,7 +264,7 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		sreg->sel = (val & rdesc->vsel_mask) >> sreg->vol_bit_shift;
+		sreg->sel = (val & rdesc->vsel_mask) >> vol_bit_shift;
 		if (sreg->sel == LDO_FET_FULL_ON) {
 			sreg->sel = 0;
 			sreg->bypass = true;
@@ -322,7 +297,7 @@ static int anatop_regulator_probe(struct platform_device *pdev)
 			anatop_rops.disable = regulator_disable_regmap;
 			anatop_rops.is_enabled = regulator_is_enabled_regmap;
 
-			rdesc->enable_reg = sreg->control_reg;
+			rdesc->enable_reg = control_reg;
 			rdesc->enable_mask = BIT(enable_bit);
 		}
 	}

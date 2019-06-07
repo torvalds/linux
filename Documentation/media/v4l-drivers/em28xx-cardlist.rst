@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 EM28xx cards list
 =================
 
@@ -233,7 +235,7 @@ EM28xx cards list
      - em2882
      - eb1a:e323
    * - 55
-     - Terratec Cinnergy Hybrid T USB XS (em2882)
+     - Terratec Cinergy Hybrid T USB XS (em2882)
      - em2882
      - 0ccd:005e, 0ccd:0042
    * - 56
@@ -391,7 +393,7 @@ EM28xx cards list
    * - 94
      - PCTV tripleStick (292e)
      - em28178
-     - 2013:025f, 2040:0264
+     - 2013:025f, 2013:0264, 2040:0264, 2040:8264, 2040:8268, 2040:8268
    * - 95
      - Leadtek VC100
      - em2861
@@ -411,12 +413,16 @@ EM28xx cards list
    * - 99
      - Hauppauge WinTV-dualHD DVB
      - em28174
-     - 2040:0265
+     - 2040:0265, 2040:8265
    * - 100
      - Hauppauge WinTV-dualHD 01595 ATSC/QAM
      - em28174
-     - 2040:026d
+     - 2040:026d, 2040:826d
    * - 101
      - Terratec Cinergy H6 rev. 2
      - em2884
      - 0ccd:10b2
+   * - 102
+     - :ZOLID HYBRID TV STICK
+     - em2882
+     -

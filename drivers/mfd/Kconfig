@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Multifunction miscellaneous devices
 #
@@ -16,7 +17,7 @@ config MFD_CS5535
 	depends on PCI && (X86_32 || (X86 && COMPILE_TEST))
 	---help---
 	  This is the core driver for CS5535/CS5536 MFD functions.  This is
-          necessary for using the board's GPIO and MFGPT functionality.
+	  necessary for using the board's GPIO and MFGPT functionality.
 
 config MFD_ALTERA_A10SR
 	bool "Altera Arria10 DevKit System Resource chip"
@@ -28,6 +29,16 @@ config MFD_ALTERA_A10SR
 	  using the SPI interface. This driver provides common support for
 	  accessing the external gpio extender (LEDs & buttons) and
 	  power supply alarms (hwmon).
+
+config MFD_ALTERA_SYSMGR
+	bool "Altera SOCFPGA System Manager"
+	depends on (ARCH_SOCFPGA || ARCH_STRATIX10) && OF
+	select MFD_SYSCON
+	help
+	  Select this to get System Manager support for all Altera branded
+	  SOCFPGAs. The SOCFPGA System Manager handles all SOCFPGAs by
+	  using regmap_mmio accesses for ARM32 parts and SMC calls to
+	  EL3 for ARM64 parts.
 
 config MFD_ACT8945A
 	tristate "Active-semi ACT8945A"
@@ -98,6 +109,16 @@ config MFD_AAT2870_CORE
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
+
+config MFD_AT91_USART
+	tristate "AT91 USART Driver"
+	select MFD_CORE
+	depends on ARCH_AT91 || COMPILE_TEST
+	help
+	  Select this to get support for AT91 USART IP. This is a wrapper
+	  over at91-usart-serial driver and usart-spi-driver. Only one function
+	  can be used at a time. The choice is done at boot time by the probe
+	  function of this MFD driver according to a device tree property.
 
 config MFD_ATMEL_FLEXCOM
 	tristate "Atmel Flexcom (Flexible Serial Communication Unit)"
@@ -202,35 +223,64 @@ config MFD_CROS_EC
 	  You also need to enable the driver for the bus you are using. The
 	  protocol for talking to the EC is defined by the bus driver.
 
-config MFD_CROS_EC_I2C
-	tristate "ChromeOS Embedded Controller (I2C)"
-	depends on MFD_CROS_EC && I2C
-
-	help
-	  If you say Y here, you get support for talking to the ChromeOS
-	  EC through an I2C bus. This uses a simple byte-level protocol with
-	  a checksum. Failing accesses will be retried three times to
-	  improve reliability.
-
-config MFD_CROS_EC_SPI
-	tristate "ChromeOS Embedded Controller (SPI)"
-	depends on MFD_CROS_EC && SPI
-
-	---help---
-	  If you say Y here, you get support for talking to the ChromeOS EC
-	  through a SPI bus, using a byte-level protocol. Since the EC's
-	  response time cannot be guaranteed, we support ignoring
-	  'pre-amble' bytes before the response actually starts.
-
 config MFD_CROS_EC_CHARDEV
-        tristate "Chrome OS Embedded Controller userspace device interface"
-        depends on MFD_CROS_EC
-        select CROS_EC_CTL
-        ---help---
-          This driver adds support to talk with the ChromeOS EC from userspace.
+	tristate "Chrome OS Embedded Controller userspace device interface"
+	depends on MFD_CROS_EC
+	---help---
+	  This driver adds support to talk with the ChromeOS EC from userspace.
 
-          If you have a supported Chromebook, choose Y or M here.
-          The module will be called cros_ec_dev.
+	  If you have a supported Chromebook, choose Y or M here.
+	  The module will be called cros_ec_dev.
+
+config MFD_MADERA
+	tristate "Cirrus Logic Madera codecs"
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_IRQ
+	select MADERA_IRQ
+	select PINCTRL
+	select PINCTRL_MADERA
+	help
+	  Support for the Cirrus Logic Madera platform audio codecs
+
+config MFD_MADERA_I2C
+	tristate "Cirrus Logic Madera codecs with I2C"
+	depends on MFD_MADERA
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Support for the Cirrus Logic Madera platform audio SoC
+	  core functionality controlled via I2C.
+
+config MFD_MADERA_SPI
+	tristate "Cirrus Logic Madera codecs with SPI"
+	depends on MFD_MADERA
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	help
+	  Support for the Cirrus Logic Madera platform audio SoC
+	  core functionality controlled via SPI.
+
+config MFD_CS47L35
+	bool "Cirrus Logic CS47L35"
+	select PINCTRL_CS47L35
+	depends on MFD_MADERA
+	help
+	  Support for Cirrus Logic CS47L35 Smart Codec
+
+config MFD_CS47L85
+	bool "Cirrus Logic CS47L85"
+	select PINCTRL_CS47L85
+	depends on MFD_MADERA
+	help
+	  Support for Cirrus Logic CS47L85 Smart Codec
+
+config MFD_CS47L90
+	bool "Cirrus Logic CS47L90/91"
+	select PINCTRL_CS47L90
+	depends on MFD_MADERA
+	help
+	  Support for Cirrus Logic CS47L90 and CS47L91 Smart Codecs
 
 config MFD_ASIC3
 	bool "Compaq ASIC3"
@@ -479,10 +529,10 @@ config INTEL_SOC_PMIC
 	bool "Support for Crystal Cove PMIC"
 	depends on ACPI && HAS_IOMEM && I2C=y && GPIOLIB && COMMON_CLK
 	depends on X86 || COMPILE_TEST
+	depends on I2C_DESIGNWARE_PLATFORM=y
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
-	select I2C_DESIGNWARE_PLATFORM
 	help
 	  Select this option to enable support for Crystal Cove PMIC
 	  on some Intel SoC systems. The PMIC provides ADC, GPIO,
@@ -508,10 +558,10 @@ config INTEL_SOC_PMIC_CHTWC
 	bool "Support for Intel Cherry Trail Whiskey Cove PMIC"
 	depends on ACPI && HAS_IOMEM && I2C=y && COMMON_CLK
 	depends on X86 || COMPILE_TEST
+	depends on I2C_DESIGNWARE_PLATFORM=y
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
-	select I2C_DESIGNWARE_PLATFORM
 	help
 	  Select this option to enable support for the Intel Cherry Trail
 	  Whiskey Cove PMIC found on some Intel Cherry Trail systems.
@@ -694,6 +744,20 @@ config MFD_MAX77620
 	  provides common support for accessing the device; additional drivers
 	  must be enabled in order to use the functionality of the device.
 
+config MFD_MAX77650
+	tristate "Maxim MAX77650/77651 PMIC Support"
+	depends on I2C
+	depends on OF || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Say Y here to add support for Maxim Semiconductor MAX77650 and
+	  MAX77651 Power Management ICs. This is the core multifunction
+	  driver for interacting with the device. The module name is
+	  'max77650'. Additional drivers can be enabled in order to use
+	  the following functionalities of the device: GPIO, regulator,
+	  charger, LED, onkey.
+
 config MFD_MAX77686
 	tristate "Maxim Semiconductor MAX77686/802 PMIC Support"
 	depends on I2C
@@ -828,7 +892,7 @@ config MFD_CPCAP
 	  At least Motorola Droid 4 is known to use CPCAP.
 
 config MFD_VIPERBOARD
-        tristate "Nano River Technologies Viperboard"
+	tristate "Nano River Technologies Viperboard"
 	select MFD_CORE
 	depends on USB
 	default n
@@ -864,15 +928,15 @@ config PCF50633_ADC
 	tristate "NXP PCF50633 ADC"
 	depends on MFD_PCF50633
 	help
-	 Say yes here if you want to include support for ADC in the
-	 NXP PCF50633 chip.
+	  Say yes here if you want to include support for ADC in the
+	  NXP PCF50633 chip.
 
 config PCF50633_GPIO
 	tristate "NXP PCF50633 GPIO"
 	depends on MFD_PCF50633
 	help
-	 Say yes here if you want to include support GPIO for pins on
-	 the PCF50633 chip.
+	  Say yes here if you want to include support GPIO for pins on
+	  the PCF50633 chip.
 
 config UCB1400_CORE
 	tristate "Philips UCB1400 Core driver"
@@ -888,7 +952,7 @@ config UCB1400_CORE
 config MFD_PM8XXX
 	tristate "Qualcomm PM8xxx PMIC chips driver"
 	depends on (ARM || HEXAGON || COMPILE_TEST)
-	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
 	select MFD_CORE
 	select REGMAP
 	help
@@ -987,22 +1051,29 @@ config MFD_RN5T618
 	select REGMAP_I2C
 	help
 	  Say yes here to add support for the Ricoh RN5T567,
-          RN5T618, RC5T619 PMIC.
+	  RN5T618, RC5T619 PMIC.
 	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
 config MFD_SEC_CORE
-	bool "SAMSUNG Electronics PMIC Series Support"
+	tristate "SAMSUNG Electronics PMIC Series Support"
 	depends on I2C=y
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
 	help
-	 Support for the Samsung Electronics MFD series.
-	 This driver provides common support for accessing the device,
-	 additional drivers must be enabled in order to use the functionality
-	 of the device
+	  Support for the Samsung Electronics PMIC devices coming
+	  usually along with Samsung Exynos SoC chipset.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sec-core.
+	  Have in mind that important core drivers (like regulators) depend
+	  on this driver so building this as a module might require proper
+	  initial ramdisk or might not boot up as well in certain scenarios.
 
 config MFD_SI476X_CORE
 	tristate "Silicon Laboratories 4761/64/68 AM/FM radio."
@@ -1019,6 +1090,8 @@ config MFD_SI476X_CORE
 
 config MFD_SM501
 	tristate "Silicon Motion SM501"
+	depends on HAS_DMA
+	select DMA_DECLARE_COHERENT
 	 ---help---
 	  This is the core driver for the Silicon Motion SM501 multimedia
 	  companion chip. This device is a multifunction device which may
@@ -1031,9 +1104,9 @@ config MFD_SM501_GPIO
 	bool "Export GPIO via GPIO layer"
 	depends on MFD_SM501 && GPIOLIB
 	 ---help---
-	 This option uses the gpio library layer to export the 64 GPIO
-	 lines on the SM501. The platform data is used to supply the
-	 base number for the first GPIO line to register.
+	  This option uses the gpio library layer to export the 64 GPIO
+	  lines on the SM501. The platform data is used to supply the
+	  base number for the first GPIO line to register.
 
 config MFD_SKY81452
 	tristate "Skyworks Solutions SKY81452"
@@ -1048,16 +1121,16 @@ config MFD_SKY81452
 	  will be called sky81452.
 
 config MFD_SMSC
-       bool "SMSC ECE1099 series chips"
-       depends on I2C=y
-       select MFD_CORE
-       select REGMAP_I2C
-       help
-        If you say yes here you get support for the
-        ece1099 chips from SMSC.
+	bool "SMSC ECE1099 series chips"
+	depends on I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the
+	  ece1099 chips from SMSC.
 
-        To compile this driver as a module, choose M here: the
-        module will be called smsc.
+	  To compile this driver as a module, choose M here: the
+	  module will be called smsc.
 
 config MFD_SC27XX_PMIC
 	tristate "Spreadtrum SC27xx PMICs"
@@ -1123,12 +1196,12 @@ config AB8500_CORE
 	  This chip embeds various other multimedia funtionalities as well.
 
 config AB8500_DEBUG
-       bool "Enable debug info via debugfs"
-       depends on AB8500_GPADC && DEBUG_FS
-       default y if DEBUG_FS
-       help
-         Select this option if you want debug information using the debug
-         filesystem, debugfs.
+	bool "Enable debug info via debugfs"
+	depends on AB8500_GPADC && DEBUG_FS
+	default y if DEBUG_FS
+	help
+	  Select this option if you want debug information using the debug
+	  filesystem, debugfs.
 
 config AB8500_GPADC
 	bool "ST-Ericsson AB8500 GPADC driver"
@@ -1158,7 +1231,7 @@ config MFD_STMPE
 
 	  Currently supported devices are:
 
-		STMPE811: GPIO, Touchscreen
+		STMPE811: GPIO, Touchscreen, ADC
 		STMPE1601: GPIO, Keypad
 		STMPE1801: GPIO, Keypad
 		STMPE2401: GPIO, Keypad
@@ -1171,6 +1244,7 @@ config MFD_STMPE
 		GPIO: stmpe-gpio
 		Keypad: stmpe-keypad
 		Touchscreen: stmpe-ts
+		ADC: stmpe-adc
 
 menu "STMicroelectronics STMPE Interface Drivers"
 depends on MFD_STMPE
@@ -1197,7 +1271,7 @@ config MFD_STA2X11
 
 config MFD_SUN6I_PRCM
 	bool "Allwinner A31 PRCM controller"
-	depends on ARCH_SUNXI
+	depends on ARCH_SUNXI || COMPILE_TEST
 	select MFD_CORE
 	help
 	  Support for the PRCM (Power/Reset/Clock Management) unit available
@@ -1372,10 +1446,10 @@ config MFD_TPS65217
 
 config MFD_TPS68470
 	bool "TI TPS68470 Power Management / LED chips"
-	depends on ACPI && I2C=y
+	depends on ACPI && PCI && I2C=y
+	depends on I2C_DESIGNWARE_PLATFORM=y
 	select MFD_CORE
 	select REGMAP_I2C
-	select I2C_DESIGNWARE_PLATFORM
 	help
 	  If you say yes here you get support for the TPS68470 series of
 	  Power Management / LED chips.
@@ -1627,8 +1701,17 @@ config MFD_TC6393XB
 	select GPIOLIB
 	select MFD_CORE
 	select MFD_TMIO
+	select DMA_DECLARE_COHERENT
 	help
 	  Support for Toshiba Mobile IO Controller TC6393XB
+
+config MFD_TQMX86
+	tristate "TQ-Systems IO controller TQMX86"
+	select MFD_CORE
+	help
+	  Say yes here to enable support for various functions of the
+	  TQ-Systems IO controller and watchdog device, found on their
+	  ComExpress CPU modules.
 
 config MFD_VX855
 	tristate "VIA VX855/VX875 integrated south bridge"
@@ -1638,6 +1721,14 @@ config MFD_VX855
 	  Say yes here to enable support for various functions of the
 	  VIA VX855/VX875 south bridge. You will need to enable the vx855_spi
 	  and/or vx855_gpio drivers for this to do anything useful.
+
+config MFD_LOCHNAGAR
+	bool "Cirrus Logic Lochnagar Audio Development Board"
+	select MFD_CORE
+	select REGMAP_I2C
+	depends on I2C=y && OF
+	help
+	  Support for Cirrus Logic Lochnagar audio development board.
 
 config MFD_ARIZONA
 	select REGMAP
@@ -1787,6 +1878,19 @@ config MFD_STW481X
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
 
+config MFD_ROHM_BD718XX
+	tristate "ROHM BD71837 Power Management IC"
+	depends on I2C=y
+	depends on OF
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  Select this option to get support for the ROHM BD71837
+	  Power Management ICs. BD71837 is designed to power processors like
+	  NXP i.MX8. It contains 8 BUCK outputs and 7 LDOs, voltage monitoring
+	  and emergency shut down as well as 32,768KHz clock output.
+
 config MFD_STM32_LPTIMER
 	tristate "Support for STM32 Low-Power Timer"
 	depends on (ARCH_STM32 && OF) || COMPILE_TEST
@@ -1811,6 +1915,35 @@ config MFD_STM32_TIMERS
 	  Select this option to enable STM32 timers driver used
 	  for PWM and IIO Timer. This driver allow to share the
 	  registers between the others drivers.
+
+config MFD_STPMIC1
+	tristate "Support for STPMIC1 PMIC"
+	depends on (I2C=y && OF)
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  Support for ST Microelectronics STPMIC1 PMIC. STPMIC1 has power on
+	  key, watchdog and regulator functionalities which are supported via
+	  the relevant subsystems. This driver provides core support for the
+	  STPMIC1. In order to use the actual functionaltiy of the device other
+	  drivers must be enabled.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stpmic1.
+
+config MFD_STMFX
+	tristate "Support for STMicroelectronics Multi-Function eXpander (STMFX)"
+	depends on I2C
+	depends on OF || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Support for the STMicroelectronics Multi-Function eXpander.
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
 
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100

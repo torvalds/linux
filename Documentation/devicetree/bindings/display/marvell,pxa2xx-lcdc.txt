@@ -10,6 +10,9 @@ Required properties:
  - interrupts : framebuffer controller interrupt.
  - clocks: phandle to input clocks
 
+Optional properties:
+ - lcd-supply: A phandle to a power regulator that controls the LCD voltage.
+
 Required nodes:
  - port: connection to the LCD panel (see video-interfaces.txt)
 	 This node must have its properties bus-width and remote-endpoint set.

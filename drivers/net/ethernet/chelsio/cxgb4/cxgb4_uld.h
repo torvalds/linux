@@ -336,6 +336,7 @@ struct cxgb4_lld_info {
 	unsigned int cclk_ps;                /* Core clock period in psec */
 	unsigned short udb_density;          /* # of user DB/page */
 	unsigned short ucq_density;          /* # of user CQs/page */
+	unsigned int sge_host_page_size;     /* SGE host page size */
 	unsigned short filt_mode;            /* filter optional components */
 	unsigned short tx_modq[NCHAN];       /* maps each tx channel to a */
 					     /* scheduler queue */
@@ -384,7 +385,7 @@ struct cxgb4_uld_info {
 	int (*tx_handler)(struct sk_buff *skb, struct net_device *dev);
 };
 
-int cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
+void cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
 int cxgb4_immdata_send(struct net_device *dev, unsigned int idx,

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AFS filesystem file handling
  *
  * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -17,6 +13,7 @@
 #include <linux/writeback.h>
 #include <linux/gfp.h>
 #include <linux/task_io_accounting_ops.h>
+#include <linux/mm.h>
 #include "internal.h"
 
 static int afs_file_mmap(struct file *file, struct vm_area_struct *vma);
@@ -121,7 +118,7 @@ int afs_open(struct inode *inode, struct file *file)
 	struct key *key;
 	int ret;
 
-	_enter("{%x:%u},", vnode->fid.vid, vnode->fid.vnode);
+	_enter("{%llx:%llu},", vnode->fid.vid, vnode->fid.vnode);
 
 	key = afs_request_key(vnode->volume->cell);
 	if (IS_ERR(key)) {
@@ -169,11 +166,12 @@ int afs_release(struct inode *inode, struct file *file)
 {
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	struct afs_file *af = file->private_data;
+	int ret = 0;
 
-	_enter("{%x:%u},", vnode->fid.vid, vnode->fid.vnode);
+	_enter("{%llx:%llu},", vnode->fid.vid, vnode->fid.vnode);
 
 	if ((file->f_mode & FMODE_WRITE))
-		return vfs_fsync(file, 0);
+		ret = vfs_fsync(file, 0);
 
 	file->private_data = NULL;
 	if (af->wb)
@@ -181,8 +179,8 @@ int afs_release(struct inode *inode, struct file *file)
 	key_put(af->key);
 	kfree(af);
 	afs_prune_wb_keys(vnode);
-	_leave(" = 0");
-	return 0;
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*
@@ -226,24 +224,32 @@ static void afs_file_readpage_read_complete(struct page *page,
 int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *desc)
 {
 	struct afs_fs_cursor fc;
+	struct afs_status_cb *scb;
 	int ret;
 
-	_enter("%s{%x:%u.%u},%x,,,",
+	_enter("%s{%llx:%llu.%u},%x,,,",
 	       vnode->volume->name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
 	       vnode->fid.unique,
 	       key_serial(key));
 
+	scb = kzalloc(sizeof(struct afs_status_cb), GFP_KERNEL);
+	if (!scb)
+		return -ENOMEM;
+
 	ret = -ERESTARTSYS;
-	if (afs_begin_vnode_operation(&fc, vnode, key)) {
+	if (afs_begin_vnode_operation(&fc, vnode, key, true)) {
+		afs_dataversion_t data_version = vnode->status.data_version;
+
 		while (afs_select_fileserver(&fc)) {
 			fc.cb_break = afs_calc_vnode_cb_break(vnode);
-			afs_fs_fetch_data(&fc, desc);
+			afs_fs_fetch_data(&fc, scb, desc);
 		}
 
-		afs_check_for_remote_deletion(&fc, fc.vnode);
-		afs_vnode_commit_status(&fc, vnode, fc.cb_break);
+		afs_check_for_remote_deletion(&fc, vnode);
+		afs_vnode_commit_status(&fc, vnode, fc.cb_break,
+					&data_version, scb);
 		ret = afs_end_vnode_operation(&fc);
 	}
 
@@ -253,6 +259,7 @@ int afs_fetch_data(struct afs_vnode *vnode, struct key *key, struct afs_read *de
 				&afs_v2net(vnode)->n_fetch_bytes);
 	}
 
+	kfree(scb);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -299,6 +306,8 @@ int afs_page_filler(void *data, struct page *page)
 		/* page will not be cached */
 	case -ENOBUFS:
 		_debug("cache said ENOBUFS");
+
+		/* fall through */
 	default:
 	go_on:
 		req = kzalloc(sizeof(struct afs_read) + sizeof(struct page *),
@@ -401,10 +410,10 @@ static int afs_readpage(struct file *file, struct page *page)
 /*
  * Make pages available as they're filled.
  */
-static void afs_readpages_page_done(struct afs_call *call, struct afs_read *req)
+static void afs_readpages_page_done(struct afs_read *req)
 {
 #ifdef CONFIG_AFS_FSCACHE
-	struct afs_vnode *vnode = call->reply[0];
+	struct afs_vnode *vnode = req->vnode;
 #endif
 	struct page *page = req->pages[req->index];
 
@@ -441,7 +450,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 	/* Count the number of contiguous pages at the front of the list.  Note
 	 * that the list goes prev-wards rather than next-wards.
 	 */
-	first = list_entry(pages->prev, struct page, lru);
+	first = lru_to_page(pages);
 	index = first->index + 1;
 	n = 1;
 	for (p = first->lru.prev; p != pages; p = p->prev) {
@@ -458,6 +467,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 		return -ENOMEM;
 
 	refcount_set(&req->usage, 1);
+	req->vnode = vnode;
 	req->page_done = afs_readpages_page_done;
 	req->pos = first->index;
 	req->pos <<= PAGE_SHIFT;
@@ -473,7 +483,7 @@ static int afs_readpages_one(struct file *file, struct address_space *mapping,
 	 * page at the end of the file.
 	 */
 	do {
-		page = list_entry(pages->prev, struct page, lru);
+		page = lru_to_page(pages);
 		list_del(&page->lru);
 		index = page->index;
 		if (add_to_page_cache_lru(page, mapping, index,
@@ -634,7 +644,7 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
 	unsigned long priv;
 
-	_enter("{{%x:%u}[%lu],%lx},%x",
+	_enter("{{%llx:%llu}[%lu],%lx},%x",
 	       vnode->fid.vid, vnode->fid.vnode, page->index, page->flags,
 	       gfp_flags);
 

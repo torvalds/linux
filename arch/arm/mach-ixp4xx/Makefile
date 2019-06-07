@@ -6,6 +6,9 @@
 obj-pci-y	:=
 obj-pci-n	:=
 
+# Device tree platform
+obj-pci-$(CONFIG_MACH_IXP4XX_OF)	+= ixp4xx-of.o
+
 obj-pci-$(CONFIG_ARCH_IXDP4XX)		+= ixdp425-pci.o
 obj-pci-$(CONFIG_MACH_AVILA)		+= avila-pci.o
 obj-pci-$(CONFIG_MACH_IXDPG425)		+= ixdpg425-pci.o
@@ -40,5 +43,3 @@ obj-$(CONFIG_MACH_GORAMO_MLR)	+= goramo_mlr.o
 obj-$(CONFIG_MACH_ARCOM_VULCAN)	+= vulcan-setup.o
 
 obj-$(CONFIG_PCI)		+= $(obj-pci-$(CONFIG_PCI)) common-pci.o
-obj-$(CONFIG_IXP4XX_QMGR)	+= ixp4xx_qmgr.o
-obj-$(CONFIG_IXP4XX_NPE)	+= ixp4xx_npe.o

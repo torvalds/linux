@@ -27,6 +27,33 @@ struct workspace {
 	int level;
 };
 
+static struct workspace_manager wsm;
+
+static void zlib_init_workspace_manager(void)
+{
+	btrfs_init_workspace_manager(&wsm, &btrfs_zlib_compress);
+}
+
+static void zlib_cleanup_workspace_manager(void)
+{
+	btrfs_cleanup_workspace_manager(&wsm);
+}
+
+static struct list_head *zlib_get_workspace(unsigned int level)
+{
+	struct list_head *ws = btrfs_get_workspace(&wsm, level);
+	struct workspace *workspace = list_entry(ws, struct workspace, list);
+
+	workspace->level = level;
+
+	return ws;
+}
+
+static void zlib_put_workspace(struct list_head *ws)
+{
+	btrfs_put_workspace(&wsm, ws);
+}
+
 static void zlib_free_workspace(struct list_head *ws)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
@@ -36,7 +63,7 @@ static void zlib_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-static struct list_head *zlib_alloc_workspace(void)
+static struct list_head *zlib_alloc_workspace(unsigned int level)
 {
 	struct workspace *workspace;
 	int workspacesize;
@@ -48,6 +75,7 @@ static struct list_head *zlib_alloc_workspace(void)
 	workspacesize = max(zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL),
 			zlib_inflate_workspacesize());
 	workspace->strm.workspace = kvmalloc(workspacesize, GFP_KERNEL);
+	workspace->level = level;
 	workspace->buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!workspace->strm.workspace || !workspace->buf)
 		goto fail;
@@ -390,18 +418,19 @@ next:
 	return ret;
 }
 
-static void zlib_set_level(struct list_head *ws, unsigned int type)
+static unsigned int zlib_set_level(unsigned int level)
 {
-	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	unsigned level = (type & 0xF0) >> 4;
+	if (!level)
+		return BTRFS_ZLIB_DEFAULT_LEVEL;
 
-	if (level > 9)
-		level = 9;
-
-	workspace->level = level > 0 ? level : 3;
+	return min_t(unsigned int, level, 9);
 }
 
 const struct btrfs_compress_op btrfs_zlib_compress = {
+	.init_workspace_manager	= zlib_init_workspace_manager,
+	.cleanup_workspace_manager = zlib_cleanup_workspace_manager,
+	.get_workspace		= zlib_get_workspace,
+	.put_workspace		= zlib_put_workspace,
 	.alloc_workspace	= zlib_alloc_workspace,
 	.free_workspace		= zlib_free_workspace,
 	.compress_pages		= zlib_compress_pages,

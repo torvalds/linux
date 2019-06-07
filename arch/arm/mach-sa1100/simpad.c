@@ -18,7 +18,6 @@
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/gpio/driver.h>
-#include <linux/gpio/machine.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -37,7 +36,7 @@
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <linux/leds.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
 
 #include "generic.h"
 

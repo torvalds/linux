@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
@@ -6,21 +7,6 @@
  * Code which implements an OCFS2 specific interface to our DLM.
  *
  * Copyright (C) 2003, 2004 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/types.h>
@@ -96,7 +82,9 @@ struct ocfs2_unblock_ctl {
 };
 
 /* Lockdep class keys */
-struct lock_class_key lockdep_keys[OCFS2_NUM_LOCK_TYPES];
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+static struct lock_class_key lockdep_keys[OCFS2_NUM_LOCK_TYPES];
+#endif
 
 static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
 					int new_level);
@@ -684,6 +672,9 @@ void ocfs2_trim_fs_lock_res_init(struct ocfs2_super *osb)
 {
 	struct ocfs2_lock_res *lockres = &osb->osb_trim_fs_lockres;
 
+	/* Only one trimfs thread are allowed to work at the same time. */
+	mutex_lock(&osb->obs_trim_fs_mutex);
+
 	ocfs2_lock_res_init_once(lockres);
 	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_TRIM_FS, 0, 0, lockres->l_name);
 	ocfs2_lock_res_init_common(osb, lockres, OCFS2_LOCK_TYPE_TRIM_FS,
@@ -696,6 +687,8 @@ void ocfs2_trim_fs_lock_res_uninit(struct ocfs2_super *osb)
 
 	ocfs2_simple_drop_lockres(osb, lockres);
 	ocfs2_lock_res_free(lockres);
+
+	mutex_unlock(&osb->obs_trim_fs_mutex);
 }
 
 static void ocfs2_orphan_scan_lock_res_init(struct ocfs2_lock_res *res,
@@ -788,6 +781,23 @@ static inline void ocfs2_add_holder(struct ocfs2_lock_res *lockres,
 	spin_unlock(&lockres->l_lock);
 }
 
+static struct ocfs2_lock_holder *
+ocfs2_pid_holder(struct ocfs2_lock_res *lockres,
+		struct pid *pid)
+{
+	struct ocfs2_lock_holder *oh;
+
+	spin_lock(&lockres->l_lock);
+	list_for_each_entry(oh, &lockres->l_holders, oh_list) {
+		if (oh->oh_owner_pid == pid) {
+			spin_unlock(&lockres->l_lock);
+			return oh;
+		}
+	}
+	spin_unlock(&lockres->l_lock);
+	return NULL;
+}
+
 static inline void ocfs2_remove_holder(struct ocfs2_lock_res *lockres,
 				       struct ocfs2_lock_holder *oh)
 {
@@ -798,24 +808,6 @@ static inline void ocfs2_remove_holder(struct ocfs2_lock_res *lockres,
 	put_pid(oh->oh_owner_pid);
 }
 
-static inline int ocfs2_is_locked_by_me(struct ocfs2_lock_res *lockres)
-{
-	struct ocfs2_lock_holder *oh;
-	struct pid *pid;
-
-	/* look in the list of holders for one with the current task as owner */
-	spin_lock(&lockres->l_lock);
-	pid = task_pid(current);
-	list_for_each_entry(oh, &lockres->l_holders, oh_list) {
-		if (oh->oh_owner_pid == pid) {
-			spin_unlock(&lockres->l_lock);
-			return 1;
-		}
-	}
-	spin_unlock(&lockres->l_lock);
-
-	return 0;
-}
 
 static inline void ocfs2_inc_holders(struct ocfs2_lock_res *lockres,
 				     int level)
@@ -2122,10 +2114,10 @@ static void ocfs2_downconvert_on_unlock(struct ocfs2_super *osb,
 
 /* LVB only has room for 64 bits of time here so we pack it for
  * now. */
-static u64 ocfs2_pack_timespec(struct timespec *spec)
+static u64 ocfs2_pack_timespec(struct timespec64 *spec)
 {
 	u64 res;
-	u64 sec = spec->tv_sec;
+	u64 sec = clamp_t(time64_t, spec->tv_sec, 0, 0x3ffffffffull);
 	u32 nsec = spec->tv_nsec;
 
 	res = (sec << OCFS2_SEC_SHIFT) | (nsec & OCFS2_NSEC_MASK);
@@ -2175,7 +2167,7 @@ out:
 	mlog_meta_lvb(0, lockres);
 }
 
-static void ocfs2_unpack_timespec(struct timespec *spec,
+static void ocfs2_unpack_timespec(struct timespec64 *spec,
 				  u64 packed_time)
 {
 	spec->tv_sec = packed_time >> OCFS2_SEC_SHIFT;
@@ -2610,34 +2602,93 @@ void ocfs2_inode_unlock(struct inode *inode,
  *
  * return < 0 on error, return == 0 if there's no lock holder on the stack
  * before this call, return == 1 if this call would be a recursive locking.
+ * return == -1 if this lock attempt will cause an upgrade which is forbidden.
+ *
+ * When taking lock levels into account,we face some different situations.
+ *
+ * 1. no lock is held
+ *    In this case, just lock the inode as requested and return 0
+ *
+ * 2. We are holding a lock
+ *    For this situation, things diverges into several cases
+ *
+ *    wanted     holding	     what to do
+ *    ex		ex	    see 2.1 below
+ *    ex		pr	    see 2.2 below
+ *    pr		ex	    see 2.1 below
+ *    pr		pr	    see 2.1 below
+ *
+ *    2.1 lock level that is been held is compatible
+ *    with the wanted level, so no lock action will be tacken.
+ *
+ *    2.2 Otherwise, an upgrade is needed, but it is forbidden.
+ *
+ * Reason why upgrade within a process is forbidden is that
+ * lock upgrade may cause dead lock. The following illustrates
+ * how it happens.
+ *
+ *         thread on node1                             thread on node2
+ * ocfs2_inode_lock_tracker(ex=0)
+ *
+ *                                <======   ocfs2_inode_lock_tracker(ex=1)
+ *
+ * ocfs2_inode_lock_tracker(ex=1)
  */
 int ocfs2_inode_lock_tracker(struct inode *inode,
 			     struct buffer_head **ret_bh,
 			     int ex,
 			     struct ocfs2_lock_holder *oh)
 {
-	int status;
-	int arg_flags = 0, has_locked;
+	int status = 0;
 	struct ocfs2_lock_res *lockres;
+	struct ocfs2_lock_holder *tmp_oh;
+	struct pid *pid = task_pid(current);
+
 
 	lockres = &OCFS2_I(inode)->ip_inode_lockres;
-	has_locked = ocfs2_is_locked_by_me(lockres);
-	/* Just get buffer head if the cluster lock has been taken */
-	if (has_locked)
-		arg_flags = OCFS2_META_LOCK_GETBH;
+	tmp_oh = ocfs2_pid_holder(lockres, pid);
 
-	if (likely(!has_locked || ret_bh)) {
-		status = ocfs2_inode_lock_full(inode, ret_bh, ex, arg_flags);
+	if (!tmp_oh) {
+		/*
+		 * This corresponds to the case 1.
+		 * We haven't got any lock before.
+		 */
+		status = ocfs2_inode_lock_full(inode, ret_bh, ex, 0);
+		if (status < 0) {
+			if (status != -ENOENT)
+				mlog_errno(status);
+			return status;
+		}
+
+		oh->oh_ex = ex;
+		ocfs2_add_holder(lockres, oh);
+		return 0;
+	}
+
+	if (unlikely(ex && !tmp_oh->oh_ex)) {
+		/*
+		 * case 2.2 upgrade may cause dead lock, forbid it.
+		 */
+		mlog(ML_ERROR, "Recursive locking is not permitted to "
+		     "upgrade to EX level from PR level.\n");
+		dump_stack();
+		return -EINVAL;
+	}
+
+	/*
+	 *  case 2.1 OCFS2_META_LOCK_GETBH flag make ocfs2_inode_lock_full.
+	 *  ignore the lock level and just update it.
+	 */
+	if (ret_bh) {
+		status = ocfs2_inode_lock_full(inode, ret_bh, ex,
+					       OCFS2_META_LOCK_GETBH);
 		if (status < 0) {
 			if (status != -ENOENT)
 				mlog_errno(status);
 			return status;
 		}
 	}
-	if (!has_locked)
-		ocfs2_add_holder(lockres, oh);
-
-	return has_locked;
+	return tmp_oh ? 1 : 0;
 }
 
 void ocfs2_inode_unlock_tracker(struct inode *inode,
@@ -2649,12 +2700,13 @@ void ocfs2_inode_unlock_tracker(struct inode *inode,
 
 	lockres = &OCFS2_I(inode)->ip_inode_lockres;
 	/* had_lock means that the currect process already takes the cluster
-	 * lock previously. If had_lock is 1, we have nothing to do here, and
-	 * it will get unlocked where we got the lock.
+	 * lock previously.
+	 * If had_lock is 1, we have nothing to do here.
+	 * If had_lock is 0, we will release the lock.
 	 */
 	if (!had_lock) {
+		ocfs2_inode_unlock(inode, oh->oh_ex);
 		ocfs2_remove_holder(lockres, oh);
-		ocfs2_inode_unlock(inode, ex);
 	}
 }
 
@@ -3534,7 +3586,7 @@ static int ocfs2_downconvert_lock(struct ocfs2_super *osb,
 	 * we can recover correctly from node failure. Otherwise, we may get
 	 * invalid LVB in LKB, but without DLM_SBF_VALNOTVALID being set.
 	 */
-	if (!ocfs2_is_o2cb_active() &&
+	if (ocfs2_userspace_stack(osb) &&
 	    lockres->l_ops->flags & LOCK_TYPE_USES_LVB)
 		lvb = 1;
 

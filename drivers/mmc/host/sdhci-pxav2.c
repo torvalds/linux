@@ -23,7 +23,6 @@
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_data/pxa_sdhci.h>
@@ -221,10 +220,8 @@ static int sdhci_pxav2_probe(struct platform_device *pdev)
 	host->ops = &pxav2_sdhci_ops;
 
 	ret = sdhci_add_host(host);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add host\n");
+	if (ret)
 		goto disable_clk;
-	}
 
 	return 0;
 

@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTW_IOCTL_SET_C_
@@ -52,7 +44,7 @@ u8 rtw_validate_ssid(struct ndis_802_11_ssid *ssid)
 	for (i = 0; i < ssid->SsidLength; i++) {
 		/* wifi, printable ascii code must be supported */
 		if (!((ssid->Ssid[i] >= 0x20) && (ssid->Ssid[i] <= 0x7e))) {
-			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("ssid has nonprintabl ascii\n"));
+			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("ssid has non-printable ascii\n"));
 			ret = false;
 			break;
 		}
@@ -103,20 +95,20 @@ u8 rtw_do_join(struct adapter *padapter)
 				pmlmepriv->to_join = false;
 				RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("rtw_do_join(): site survey return error\n."));
 			}
-		} else{
+		} else {
 			pmlmepriv->to_join = false;
 			ret = _FAIL;
 		}
 
 		goto exit;
-	} else{
+	} else {
 		int select_ret;
 		spin_unlock_bh(&(pmlmepriv->scanned_queue.lock));
 		select_ret = rtw_select_and_join_from_scanned_queue(pmlmepriv);
 		if (select_ret == _SUCCESS) {
 			pmlmepriv->to_join = false;
 			_set_timer(&pmlmepriv->assoc_timer, MAX_JOIN_TIMEOUT);
-		} else{
+		} else {
 			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == true) {
 				/*  submit createbss_cmd to change to a ADHOC_MASTER */
 
@@ -143,7 +135,7 @@ u8 rtw_do_join(struct adapter *padapter)
 
 				RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("***Error => rtw_select_and_join_from_scanned_queue FAIL under STA_Mode***\n "));
 
-			} else{
+			} else {
 				/*  can't associate ; reset under-linking */
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 
@@ -158,7 +150,7 @@ u8 rtw_do_join(struct adapter *padapter)
 						pmlmepriv->to_join = false;
 						RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("do_join(): site survey return error\n."));
 					}
-				} else{
+				} else {
 					ret = _FAIL;
 					pmlmepriv->to_join = false;
 				}
@@ -297,13 +289,13 @@ u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 						_clr_fwstate_(pmlmepriv, WIFI_ADHOC_MASTER_STATE);
 						set_fwstate(pmlmepriv, WIFI_ADHOC_STATE);
 					}
-				} else{
+				} else {
 					goto release_mlme_lock;/* it means driver is in WIFI_ADHOC_MASTER_STATE, we needn't create bss again. */
 				}
 			} else {
 				rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_JOINBSS, 1);
 			}
-		} else{
+		} else {
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("Set SSID not the same ssid\n"));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("set_ssid =[%s] len = 0x%x\n", ssid->Ssid, (unsigned int)ssid->SsidLength));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("assoc_ssid =[%s] len = 0x%x\n", pmlmepriv->assoc_ssid.Ssid, (unsigned int)pmlmepriv->assoc_ssid.SsidLength));
@@ -678,7 +670,7 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 			short_GI,
 			psta->htpriv.ht_cap.supp_mcs_set
 		);
-	} else{
+	} else {
 		while ((pcur_bss->SupportedRates[i] != 0) && (pcur_bss->SupportedRates[i] != 0xFF)) {
 			rate = pcur_bss->SupportedRates[i]&0x7F;
 			if (rate > max_rate)

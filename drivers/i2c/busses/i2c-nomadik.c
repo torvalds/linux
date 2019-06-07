@@ -1012,8 +1012,6 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_no_mem;
 	}
 
-	pm_suspend_ignore_children(&adev->dev, true);
-
 	dev->clk = devm_clk_get(&adev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		dev_err(&adev->dev, "could not get i2c clock\n");
@@ -1072,8 +1070,7 @@ static int nmk_i2c_remove(struct amba_device *adev)
 	/* disable the controller */
 	i2c_clr_bit(dev->virtbase + I2C_CR, I2C_CR_PE);
 	clk_disable_unprepare(dev->clk);
-	if (res)
-		release_mem_region(res->start, resource_size(res));
+	release_mem_region(res->start, resource_size(res));
 
 	return 0;
 }

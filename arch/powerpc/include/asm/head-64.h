@@ -260,22 +260,22 @@ name:
 
 #define EXC_REAL(name, start, size)					\
 	EXC_REAL_BEGIN(name, start, size);				\
-	STD_EXCEPTION_PSERIES(start, name##_common);			\
+	STD_EXCEPTION(start, name##_common);				\
 	EXC_REAL_END(name, start, size);
 
 #define EXC_VIRT(name, start, size, realvec)				\
 	EXC_VIRT_BEGIN(name, start, size);				\
-	STD_RELON_EXCEPTION_PSERIES(start, realvec, name##_common);	\
+	STD_RELON_EXCEPTION(start, realvec, name##_common);		\
 	EXC_VIRT_END(name, start, size);
 
 #define EXC_REAL_MASKABLE(name, start, size, bitmask)			\
 	EXC_REAL_BEGIN(name, start, size);				\
-	MASKABLE_EXCEPTION_PSERIES(start, start, name##_common, bitmask);\
+	MASKABLE_EXCEPTION(start, name##_common, bitmask);		\
 	EXC_REAL_END(name, start, size);
 
 #define EXC_VIRT_MASKABLE(name, start, size, realvec, bitmask)		\
 	EXC_VIRT_BEGIN(name, start, size);				\
-	MASKABLE_RELON_EXCEPTION_PSERIES(start, realvec, name##_common, bitmask);\
+	MASKABLE_RELON_EXCEPTION(realvec, name##_common, bitmask);	\
 	EXC_VIRT_END(name, start, size);
 
 #define EXC_REAL_HV(name, start, size)					\
@@ -295,7 +295,7 @@ name:
 
 #define __TRAMP_REAL_OOL(name, vec)					\
 	TRAMP_REAL_BEGIN(tramp_real_##name);				\
-	STD_EXCEPTION_PSERIES_OOL(vec, name##_common);			\
+	STD_EXCEPTION_OOL(vec, name##_common);
 
 #define EXC_REAL_OOL(name, start, size)					\
 	__EXC_REAL_OOL(name, start, size);				\
@@ -306,7 +306,7 @@ name:
 
 #define __TRAMP_REAL_OOL_MASKABLE(name, vec, bitmask)			\
 	TRAMP_REAL_BEGIN(tramp_real_##name);				\
-	MASKABLE_EXCEPTION_PSERIES_OOL(vec, name##_common, bitmask);	\
+	MASKABLE_EXCEPTION_OOL(vec, name##_common, bitmask);
 
 #define EXC_REAL_OOL_MASKABLE(name, start, size, bitmask)		\
 	__EXC_REAL_OOL_MASKABLE(name, start, size);			\
@@ -346,7 +346,7 @@ name:
 
 #define __TRAMP_VIRT_OOL(name, realvec)					\
 	TRAMP_VIRT_BEGIN(tramp_virt_##name);				\
-	STD_RELON_EXCEPTION_PSERIES_OOL(realvec, name##_common);	\
+	STD_RELON_EXCEPTION_OOL(realvec, name##_common);
 
 #define EXC_VIRT_OOL(name, start, size, realvec)			\
 	__EXC_VIRT_OOL(name, start, size);				\
@@ -357,7 +357,7 @@ name:
 
 #define __TRAMP_VIRT_OOL_MASKABLE(name, realvec, bitmask)		\
 	TRAMP_VIRT_BEGIN(tramp_virt_##name);				\
-	MASKABLE_RELON_EXCEPTION_PSERIES_OOL(realvec, name##_common, bitmask);\
+	MASKABLE_RELON_EXCEPTION_OOL(realvec, name##_common, bitmask);
 
 #define EXC_VIRT_OOL_MASKABLE(name, start, size, realvec, bitmask)	\
 	__EXC_VIRT_OOL_MASKABLE(name, start, size);			\

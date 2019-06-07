@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux I2C core OF support code
  *
@@ -5,11 +6,6 @@
  * based on a previous patch from Jon Smirl <jonsmirl@gmail.com>
  *
  * Copyright (C) 2013, 2018 Wolfram Sang <wsa@the-dreams.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <dt-bindings/i2c/i2c.h>
@@ -22,53 +18,64 @@
 
 #include "i2c-core.h"
 
-static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
-						 struct device_node *node)
+int of_i2c_get_board_info(struct device *dev, struct device_node *node,
+			  struct i2c_board_info *info)
 {
-	struct i2c_client *client;
-	struct i2c_board_info info = {};
-	struct dev_archdata dev_ad = {};
 	u32 addr;
 	int ret;
 
-	dev_dbg(&adap->dev, "of_i2c: register %pOF\n", node);
+	memset(info, 0, sizeof(*info));
 
-	if (of_modalias_node(node, info.type, sizeof(info.type)) < 0) {
-		dev_err(&adap->dev, "of_i2c: modalias failure on %pOF\n",
-			node);
-		return ERR_PTR(-EINVAL);
+	if (of_modalias_node(node, info->type, sizeof(info->type)) < 0) {
+		dev_err(dev, "of_i2c: modalias failure on %pOF\n", node);
+		return -EINVAL;
 	}
 
 	ret = of_property_read_u32(node, "reg", &addr);
 	if (ret) {
-		dev_err(&adap->dev, "of_i2c: invalid reg on %pOF\n", node);
-		return ERR_PTR(ret);
+		dev_err(dev, "of_i2c: invalid reg on %pOF\n", node);
+		return ret;
 	}
 
 	if (addr & I2C_TEN_BIT_ADDRESS) {
 		addr &= ~I2C_TEN_BIT_ADDRESS;
-		info.flags |= I2C_CLIENT_TEN;
+		info->flags |= I2C_CLIENT_TEN;
 	}
 
 	if (addr & I2C_OWN_SLAVE_ADDRESS) {
 		addr &= ~I2C_OWN_SLAVE_ADDRESS;
-		info.flags |= I2C_CLIENT_SLAVE;
+		info->flags |= I2C_CLIENT_SLAVE;
 	}
 
-	info.addr = addr;
-	info.archdata = &dev_ad;
-	info.of_node = of_node_get(node);
+	info->addr = addr;
+	info->of_node = node;
 
 	if (of_property_read_bool(node, "host-notify"))
-		info.flags |= I2C_CLIENT_HOST_NOTIFY;
+		info->flags |= I2C_CLIENT_HOST_NOTIFY;
 
 	if (of_get_property(node, "wakeup-source", NULL))
-		info.flags |= I2C_CLIENT_WAKE;
+		info->flags |= I2C_CLIENT_WAKE;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_i2c_get_board_info);
+
+static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
+						 struct device_node *node)
+{
+	struct i2c_client *client;
+	struct i2c_board_info info;
+	int ret;
+
+	dev_dbg(&adap->dev, "of_i2c: register %pOF\n", node);
+
+	ret = of_i2c_get_board_info(&adap->dev, node, &info);
+	if (ret)
+		return ERR_PTR(ret);
 
 	client = i2c_new_device(adap, &info);
 	if (!client) {
 		dev_err(&adap->dev, "of_i2c: Failure registering %pOF\n", node);
-		of_node_put(node);
 		return ERR_PTR(-EINVAL);
 	}
 	return client;
@@ -110,6 +117,17 @@ static int of_dev_node_match(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
+static int of_dev_or_parent_node_match(struct device *dev, void *data)
+{
+	if (dev->of_node == data)
+		return 1;
+
+	if (dev->parent)
+		return dev->parent->of_node == data;
+
+	return 0;
+}
+
 /* must call put_device() when done with returned i2c_client device */
 struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
 {
@@ -134,7 +152,8 @@ struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
 	struct device *dev;
 	struct i2c_adapter *adapter;
 
-	dev = bus_find_device(&i2c_bus_type, NULL, node, of_dev_node_match);
+	dev = bus_find_device(&i2c_bus_type, NULL, node,
+			      of_dev_or_parent_node_match);
 	if (!dev)
 		return NULL;
 

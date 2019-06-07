@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * algif_aead: User-space interface for AEAD algorithms
  *
  * Copyright (C) 2014, Stephan Mueller <smueller@chronox.de>
  *
  * This file provides the user-space API for AEAD ciphers.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  *
  * The following concept of the memory management is used:
  *
@@ -42,7 +38,7 @@
 
 struct aead_tfm {
 	struct crypto_aead *aead;
-	struct crypto_skcipher *null_tfm;
+	struct crypto_sync_skcipher *null_tfm;
 };
 
 static inline bool aead_sufficient_data(struct sock *sk)
@@ -75,13 +71,13 @@ static int aead_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	return af_alg_sendmsg(sock, msg, size, ivsize);
 }
 
-static int crypto_aead_copy_sgl(struct crypto_skcipher *null_tfm,
+static int crypto_aead_copy_sgl(struct crypto_sync_skcipher *null_tfm,
 				struct scatterlist *src,
 				struct scatterlist *dst, unsigned int len)
 {
-	SKCIPHER_REQUEST_ON_STACK(skreq, null_tfm);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(skreq, null_tfm);
 
-	skcipher_request_set_tfm(skreq, null_tfm);
+	skcipher_request_set_sync_tfm(skreq, null_tfm);
 	skcipher_request_set_callback(skreq, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				      NULL, NULL);
 	skcipher_request_set_crypt(skreq, src, dst, len, NULL);
@@ -99,7 +95,7 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	struct af_alg_ctx *ctx = ask->private;
 	struct aead_tfm *aeadc = pask->private;
 	struct crypto_aead *tfm = aeadc->aead;
-	struct crypto_skcipher *null_tfm = aeadc->null_tfm;
+	struct crypto_sync_skcipher *null_tfm = aeadc->null_tfm;
 	unsigned int i, as = crypto_aead_authsize(tfm);
 	struct af_alg_async_req *areq;
 	struct af_alg_tsgl *tsgl, *tmp;
@@ -255,8 +251,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 						       processed - as);
 		if (!areq->tsgl_entries)
 			areq->tsgl_entries = 1;
-		areq->tsgl = sock_kmalloc(sk, sizeof(*areq->tsgl) *
-					      areq->tsgl_entries,
+		areq->tsgl = sock_kmalloc(sk, array_size(sizeof(*areq->tsgl),
+							 areq->tsgl_entries),
 					  GFP_KERNEL);
 		if (!areq->tsgl) {
 			err = -ENOMEM;
@@ -478,7 +474,7 @@ static void *aead_bind(const char *name, u32 type, u32 mask)
 {
 	struct aead_tfm *tfm;
 	struct crypto_aead *aead;
-	struct crypto_skcipher *null_tfm;
+	struct crypto_sync_skcipher *null_tfm;
 
 	tfm = kzalloc(sizeof(*tfm), GFP_KERNEL);
 	if (!tfm)

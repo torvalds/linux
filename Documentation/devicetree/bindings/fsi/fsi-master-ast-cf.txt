@@ -1,0 +1,36 @@
+Device-tree bindings for ColdFire offloaded gpio-based FSI master driver
+------------------------------------------------------------------------
+
+Required properties:
+ - compatible =
+	"aspeed,ast2400-cf-fsi-master" for an AST2400 based system
+   or
+	"aspeed,ast2500-cf-fsi-master" for an AST2500 based system
+
+ - clock-gpios = <gpio-descriptor>;	: GPIO for FSI clock
+ - data-gpios = <gpio-descriptor>;	: GPIO for FSI data signal
+ - enable-gpios = <gpio-descriptor>;	: GPIO for enable signal
+ - trans-gpios = <gpio-descriptor>;	: GPIO for voltage translator enable
+ - mux-gpios = <gpio-descriptor>;	: GPIO for pin multiplexing with other
+                                          functions (eg, external FSI masters)
+ - memory-region = <phandle>;		: Reference to the reserved memory for
+                                          the ColdFire. Must be 2M aligned on
+					  AST2400 and 1M aligned on AST2500
+ - aspeed,sram = <phandle>;		: Reference to the SRAM node.
+ - aspeed,cvic = <phandle>;		: Reference to the CVIC node.
+
+Examples:
+
+    fsi-master {
+        compatible = "aspeed,ast2500-cf-fsi-master", "fsi-master";
+
+	clock-gpios = <&gpio 0>;
+        data-gpios = <&gpio 1>;
+        enable-gpios = <&gpio 2>;
+        trans-gpios = <&gpio 3>;
+        mux-gpios = <&gpio 4>;
+
+	memory-region = <&coldfire_memory>;
+	aspeed,sram = <&sram>;
+	aspeed,cvic = <&cvic>;
+    }

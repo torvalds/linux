@@ -16,9 +16,9 @@
 
 #include "dt-bindings/clock/bcm21664.h"
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "BCM21664 SoC";
 	compatible = "brcm,bcm21664";
 	interrupt-parent = <&gic>;

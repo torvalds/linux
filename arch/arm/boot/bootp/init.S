@@ -44,7 +44,7 @@ _start:		add	lr, pc, #-0x8		@ lr = current load addr
  */
 		movne	r10, #0			@ terminator
 		movne	r4, #2			@ Size of this entry (2 words)
-		stmneia	r9, {r4, r5, r10}	@ Size, ATAG_CORE, terminator
+		stmiane	r9, {r4, r5, r10}	@ Size, ATAG_CORE, terminator
 
 /*
  * find the end of the tag list, and then add an INITRD tag on the end.

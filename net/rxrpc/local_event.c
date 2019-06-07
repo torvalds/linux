@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AF_RXRPC local endpoint management
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -39,7 +35,7 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 
 	_enter("");
 
-	if (rxrpc_extract_addr_from_skb(local, &srx, skb) < 0)
+	if (rxrpc_extract_addr_from_skb(&srx, skb) < 0)
 		return;
 
 	msg.msg_name	= &srx.transport;
@@ -72,7 +68,10 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 	ret = kernel_sendmsg(local->socket, &msg, iov, 2, len);
 	if (ret < 0)
 		trace_rxrpc_tx_fail(local->debug_id, 0, ret,
-				    rxrpc_tx_fail_version_reply);
+				    rxrpc_tx_point_version_reply);
+	else
+		trace_rxrpc_tx_packet(local->debug_id, &whdr,
+				      rxrpc_tx_point_version_reply);
 
 	_leave("");
 }

@@ -15,7 +15,7 @@
  * XXX these should be marked initdata for multi-OMAP kernels
  */
 
-#include <linux/i2c-omap.h>
+#include <linux/platform_data/i2c-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/platform_data/hsmmc-omap.h>
 
@@ -484,7 +484,6 @@ static struct omap_hwmod am35xx_uart4_hwmod = {
 static struct omap_hwmod_class i2c_class = {
 	.name	= "i2c",
 	.sysc	= &i2c_sysc,
-	.rev	= OMAP_I2C_IP_VERSION_1,
 	.reset	= &omap_i2c_reset,
 };
 
@@ -707,7 +706,6 @@ static struct omap_hwmod_class_sysconfig omap3xxx_gpio_sysc = {
 static struct omap_hwmod_class omap3xxx_gpio_hwmod_class = {
 	.name = "gpio",
 	.sysc = &omap3xxx_gpio_sysc,
-	.rev = 1,
 };
 
 /* gpio1 */
@@ -885,6 +883,7 @@ static struct omap_hwmod omap3xxx_dma_system_hwmod = {
  */
 
 static struct omap_hwmod_class_sysconfig omap3xxx_mcbsp_sysc = {
+	.rev_offs	= -ENODEV,
 	.sysc_offs	= 0x008c,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_ENAWAKEUP |
 			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
@@ -990,6 +989,7 @@ static struct omap_hwmod omap3xxx_mcbsp5_hwmod = {
 
 /* 'mcbsp sidetone' class */
 static struct omap_hwmod_class_sysconfig omap3xxx_mcbsp_sidetone_sysc = {
+	.rev_offs	= -ENODEV,
 	.sysc_offs	= 0x0010,
 	.sysc_flags	= SYSC_HAS_AUTOIDLE,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
@@ -1018,6 +1018,7 @@ static struct omap_hwmod omap3xxx_mcbsp3_sidetone_hwmod = {
 
 /* SR common */
 static struct omap_hwmod_class_sysconfig omap34xx_sr_sysc = {
+	.rev_offs	= -ENODEV,
 	.sysc_offs	= 0x24,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_NO_CACHE),
 	.sysc_fields	= &omap34xx_sr_sysc_fields,
@@ -1026,10 +1027,10 @@ static struct omap_hwmod_class_sysconfig omap34xx_sr_sysc = {
 static struct omap_hwmod_class omap34xx_smartreflex_hwmod_class = {
 	.name = "smartreflex",
 	.sysc = &omap34xx_sr_sysc,
-	.rev  = 1,
 };
 
 static struct omap_hwmod_class_sysconfig omap36xx_sr_sysc = {
+	.rev_offs	= -ENODEV,
 	.sysc_offs	= 0x38,
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_ENAWAKEUP |
@@ -1040,7 +1041,6 @@ static struct omap_hwmod_class_sysconfig omap36xx_sr_sysc = {
 static struct omap_hwmod_class omap36xx_smartreflex_hwmod_class = {
 	.name = "smartreflex",
 	.sysc = &omap36xx_sr_sysc,
-	.rev  = 2,
 };
 
 /* SR1 */

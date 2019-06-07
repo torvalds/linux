@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 32-bit compatibility support for ELF format executables and core dumps.
  *
  * Copyright (C) 2007 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License v.2.
  *
  * Red Hat Author: Roland McGrath.
  *
@@ -52,7 +49,7 @@
 #define elf_prpsinfo	compat_elf_prpsinfo
 
 #undef ns_to_timeval
-#define ns_to_timeval ns_to_compat_timeval
+#define ns_to_timeval ns_to_old_timeval32
 
 /*
  * To use this file, asm/elf.h must define compat_elf_check_arch.

@@ -25,11 +25,17 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include "skeleton64.dtsi"
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
 	/* SOC compatibility */
 	compatible = "al,alpine";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0 0 0>;
+	};
 
 	/* CPU Configuration */
 	cpus {

@@ -507,7 +507,6 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 	unsigned short insn = *(unsigned short *)regs->pc;
 	unsigned short finsn;
 	unsigned long nextpc;
-	siginfo_t info;
 	int nib[4] = {
 		(insn >> 12) & 0xf,
 		(insn >> 8) & 0xf,
@@ -560,11 +559,8 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 				~(FPSCR_CAUSE_MASK | FPSCR_FLAG_MASK);
 			task_thread_info(tsk)->status |= TS_USEDFPU;
 		} else {
-			info.si_signo = SIGFPE;
-			info.si_errno = 0;
-			info.si_code = FPE_FLTINV;
-			info.si_addr = (void __user *)regs->pc;
-			force_sig_info(SIGFPE, &info, tsk);
+			force_sig_fault(SIGFPE, FPE_FLTINV,
+					(void __user *)regs->pc, tsk);
 		}
 
 		regs->pc = nextpc;

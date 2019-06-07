@@ -8,11 +8,12 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * For further information, see the Documentation/hwmon/max197 file.
+ * For further information, see the Documentation/hwmon/max197.rst file.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/slab.h>

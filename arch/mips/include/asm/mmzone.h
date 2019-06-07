@@ -7,7 +7,18 @@
 #define _ASM_MMZONE_H_
 
 #include <asm/page.h>
-#include <mmzone.h>
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+# include <mmzone.h>
+#endif
+
+#ifndef pa_to_nid
+#define pa_to_nid(addr) 0
+#endif
+
+#ifndef nid_to_addrbase
+#define nid_to_addrbase(nid) 0
+#endif
 
 #ifdef CONFIG_DISCONTIGMEM
 

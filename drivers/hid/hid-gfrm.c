@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * HID driver for Google Fiber TV Box remote controls
  *
  * Copyright (c) 2014-2015 Google Inc.
  *
  * Author: Petri Gynther <pgynther@google.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 #include <linux/device.h>
 #include <linux/hid.h>
@@ -116,7 +112,7 @@ static int gfrm_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		 * those reports reach gfrm_raw_event() from hid_input_report().
 		 */
 		if (!hid_register_report(hdev, HID_INPUT_REPORT,
-					 GFRM100_SEARCH_KEY_REPORT_ID)) {
+					 GFRM100_SEARCH_KEY_REPORT_ID, 0)) {
 			ret = -ENOMEM;
 			goto done;
 		}

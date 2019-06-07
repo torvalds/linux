@@ -60,25 +60,7 @@ rt_status SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	return RT_STATUS_SUCCESS;
 }
 
-/*-----------------------------------------------------------------------------
- * Function:    cmpk_counttxstatistic()
- *
- * Overview:
- *
- * Input:       PADAPTER	pAdapter
- *              CMPK_TXFB_T	*psTx_FB
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When		Who	Remark
- *  05/12/2008		amy	Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------
- */
-static void cmpk_count_txstatistic(struct net_device *dev, cmpk_txfb_t *pstx_fb)
+static void cmpk_count_txstatistic(struct net_device *dev, struct cmd_pkt_tx_feedback *pstx_fb)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 #ifdef ENABLE_PS
@@ -163,7 +145,7 @@ static void cmpk_count_txstatistic(struct net_device *dev, cmpk_txfb_t *pstx_fb)
 static void cmpk_handle_tx_feedback(struct net_device *dev, u8 *pmsg)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	cmpk_txfb_t		rx_tx_fb;
+	struct cmd_pkt_tx_feedback rx_tx_fb;
 
 	priv->stats.txfeedback++;
 
@@ -173,7 +155,7 @@ static void cmpk_handle_tx_feedback(struct net_device *dev, u8 *pmsg)
 	 * endian type before copy the message copy.
 	 */
 	/* Use pointer to transfer structure memory. */
-	memcpy((u8 *)&rx_tx_fb, pmsg, sizeof(cmpk_txfb_t));
+	memcpy((u8 *)&rx_tx_fb, pmsg, sizeof(struct cmd_pkt_tx_feedback));
 	/* 2. Use tx feedback info to count TX statistics. */
 	cmpk_count_txstatistic(dev, &rx_tx_fb);
 	/* Comment previous method for TX statistic function. */
@@ -225,7 +207,7 @@ static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
  */
 static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 {
-	cmpk_intr_sta_t		rx_intr_status;	/* */
+	struct cmd_pkt_interrupt_status	 rx_intr_status;	/* */
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	DMESG("---> cmpk_Handle_Interrupt_Status()\n");
@@ -236,7 +218,7 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 	 * endian type before copy the message copy.
 	 */
 	rx_intr_status.length = pmsg[1];
-	if (rx_intr_status.length != (sizeof(cmpk_intr_sta_t) - 2)) {
+	if (rx_intr_status.length != (sizeof(struct cmd_pkt_interrupt_status) - 2)) {
 		DMESG("cmpk_Handle_Interrupt_Status: wrong length!\n");
 		return;
 	}
@@ -249,19 +231,19 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 		DMESG("interrupt status = 0x%x\n",
 		      rx_intr_status.interrupt_status);
 
-		if (rx_intr_status.interrupt_status & ISR_TxBcnOk) {
+		if (rx_intr_status.interrupt_status & ISR_TX_BCN_OK) {
 			priv->ieee80211->bibsscoordinator = true;
 			priv->stats.txbeaconokint++;
-		} else if (rx_intr_status.interrupt_status & ISR_TxBcnErr) {
+		} else if (rx_intr_status.interrupt_status & ISR_TX_BCN_ERR) {
 			priv->ieee80211->bibsscoordinator = false;
 			priv->stats.txbeaconerr++;
 		}
 
-		if (rx_intr_status.interrupt_status & ISR_BcnTimerIntr)
+		if (rx_intr_status.interrupt_status & ISR_BCN_TIMER_INTR)
 			cmdpkt_beacontimerinterrupt_819xusb(dev);
 	}
 
-	/* Other informations in interrupt status we need? */
+	/* Other information in interrupt status we need? */
 
 	DMESG("<---- cmpk_handle_interrupt_status()\n");
 }
@@ -288,7 +270,7 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
  */
 static void cmpk_handle_query_config_rx(struct net_device *dev, u8 *pmsg)
 {
-	cmpk_query_cfg_t	rx_query_cfg;
+	struct cmpk_query_cfg	rx_query_cfg;
 
 	/* 1. Extract TX feedback info from RFD to temp structure buffer. */
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in
@@ -528,7 +510,7 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 
 		case RX_INTERRUPT_STATUS:
 			cmpk_handle_interrupt_status(dev, pcmd_buff);
-			cmd_length = sizeof(cmpk_intr_sta_t);
+			cmd_length = sizeof(struct cmd_pkt_interrupt_status);
 			break;
 
 		case BOTH_QUERY_CONFIG:

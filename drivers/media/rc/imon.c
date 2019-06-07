@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   imon.c:	input and display driver for SoundGraph iMON IR/VFD/LCD
  *
@@ -10,16 +11,6 @@
  *   which the support for them wouldn't be nearly as good. Thanks
  *   also to the numerous 0xffdc device owners that tested auto-config
  *   support for me and provided debug dumps from their devices.
- *
- *   imon is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
@@ -772,9 +763,9 @@ static ssize_t show_associate_remote(struct device *d,
 
 	mutex_lock(&ictx->lock);
 	if (ictx->rf_isassociating)
-		strcpy(buf, "associating\n");
+		strscpy(buf, "associating\n", PAGE_SIZE);
 	else
-		strcpy(buf, "closed\n");
+		strscpy(buf, "closed\n", PAGE_SIZE);
 
 	dev_info(d, "Visit http://www.lirc.org/html/imon-24g.html for instructions on how to associate your iMON 2.4G DT/LT remote\n");
 	mutex_unlock(&ictx->lock);

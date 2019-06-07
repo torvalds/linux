@@ -1,13 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADAU7002 Stereo PDM-to-I2S/TDM converter driver
  *
  * Copyright 2014-2016 Analog Devices
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/acpi.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -15,12 +15,55 @@
 
 #include <sound/soc.h>
 
+struct adau7002_priv {
+	int wakeup_delay;
+};
+
+static int adau7002_aif_event(struct snd_soc_dapm_widget *w,
+			      struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component =
+			snd_soc_dapm_to_component(w->dapm);
+	struct adau7002_priv *adau7002 =
+			snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (adau7002->wakeup_delay)
+			msleep(adau7002->wakeup_delay);
+		break;
+	}
+
+	return 0;
+}
+
+static int adau7002_component_probe(struct snd_soc_component *component)
+{
+	struct adau7002_priv *adau7002;
+
+	adau7002 = devm_kzalloc(component->dev, sizeof(*adau7002),
+				GFP_KERNEL);
+	if (!adau7002)
+		return -ENOMEM;
+
+	device_property_read_u32(component->dev, "wakeup-delay-ms",
+				 &adau7002->wakeup_delay);
+
+	snd_soc_component_set_drvdata(component, adau7002);
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget adau7002_widgets[] = {
+	SND_SOC_DAPM_AIF_OUT_E("ADAU AIF", "Capture", 0,
+			       SND_SOC_NOPM, 0, 0, adau7002_aif_event,
+			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_INPUT("PDM_DAT"),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("IOVDD", 0, 0),
 };
 
 static const struct snd_soc_dapm_route adau7002_routes[] = {
+	{ "ADAU AIF", NULL, "PDM_DAT"},
 	{ "Capture", NULL, "PDM_DAT" },
 	{ "Capture", NULL, "IOVDD" },
 };
@@ -40,6 +83,7 @@ static struct snd_soc_dai_driver adau7002_dai = {
 };
 
 static const struct snd_soc_component_driver adau7002_component_driver = {
+	.probe			= adau7002_component_probe,
 	.dapm_widgets		= adau7002_widgets,
 	.num_dapm_widgets	= ARRAY_SIZE(adau7002_widgets),
 	.dapm_routes		= adau7002_routes,

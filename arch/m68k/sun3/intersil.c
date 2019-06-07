@@ -22,13 +22,6 @@
 #define STOP_VAL (INTERSIL_STOP | INTERSIL_INT_ENABLE | INTERSIL_24H_MODE)
 #define START_VAL (INTERSIL_RUN | INTERSIL_INT_ENABLE | INTERSIL_24H_MODE)
 
-/* does this need to be implemented? */
-u32 sun3_gettimeoffset(void)
-{
-  return 1000;
-}
-
-
 /* get/set hwclock */
 
 int sun3_hwclk(int set, struct rtc_time *t)
@@ -48,9 +41,9 @@ int sun3_hwclk(int set, struct rtc_time *t)
 		todintersil->hour = t->tm_hour;
 		todintersil->minute = t->tm_min;
 		todintersil->second = t->tm_sec;
-		todintersil->month = t->tm_mon;
+		todintersil->month = t->tm_mon + 1;
 		todintersil->day = t->tm_mday;
-		todintersil->year = t->tm_year - 68;
+		todintersil->year = (t->tm_year - 68) % 100;
 		todintersil->weekday = t->tm_wday;
 	} else {
 		/* read clock */
@@ -58,10 +51,12 @@ int sun3_hwclk(int set, struct rtc_time *t)
 		t->tm_hour = todintersil->hour;
 		t->tm_min = todintersil->minute;
 		t->tm_sec = todintersil->second;
-		t->tm_mon = todintersil->month;
+		t->tm_mon = todintersil->month - 1;
 		t->tm_mday = todintersil->day;
 		t->tm_year = todintersil->year + 68;
 		t->tm_wday = todintersil->weekday;
+		if (t->tm_year < 70)
+			t->tm_year += 100;
 	}
 
 	intersil_clock->cmd_reg = START_VAL;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * address space "slices" (meta-segments) support
  *
@@ -6,20 +7,6 @@
  * Based on hugetlb implementation
  *
  * Copyright (C) 2003 David Gibson, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #undef DEBUG
@@ -31,6 +18,8 @@
 #include <linux/spinlock.h>
 #include <linux/export.h>
 #include <linux/hugetlb.h>
+#include <linux/sched/mm.h>
+#include <linux/security.h>
 #include <asm/mman.h>
 #include <asm/mmu.h>
 #include <asm/copro.h>
@@ -61,6 +50,13 @@ static void slice_print_mask(const char *label, const struct slice_mask *mask) {
 
 #endif
 
+static inline bool slice_addr_is_low(unsigned long addr)
+{
+	u64 tmp = (u64)addr;
+
+	return tmp < SLICE_LOW_TOP;
+}
+
 static void slice_range_to_mask(unsigned long start, unsigned long len,
 				struct slice_mask *ret)
 {
@@ -70,7 +66,7 @@ static void slice_range_to_mask(unsigned long start, unsigned long len,
 	if (SLICE_NUM_HIGH)
 		bitmap_zero(ret->high_slices, SLICE_NUM_HIGH);
 
-	if (start < SLICE_LOW_TOP) {
+	if (slice_addr_is_low(start)) {
 		unsigned long mend = min(end,
 					 (unsigned long)(SLICE_LOW_TOP - 1));
 
@@ -78,7 +74,7 @@ static void slice_range_to_mask(unsigned long start, unsigned long len,
 			- (1u << GET_LOW_SLICE_INDEX(start));
 	}
 
-	if ((start + len) > SLICE_LOW_TOP) {
+	if (SLICE_NUM_HIGH && !slice_addr_is_low(end)) {
 		unsigned long start_index = GET_HIGH_SLICE_INDEX(start);
 		unsigned long align_end = ALIGN(end, (1UL << SLICE_HIGH_SHIFT));
 		unsigned long count = GET_HIGH_SLICE_INDEX(align_end) - start_index;
@@ -92,7 +88,7 @@ static int slice_area_is_free(struct mm_struct *mm, unsigned long addr,
 {
 	struct vm_area_struct *vma;
 
-	if ((mm->context.slb_addr_limit - len) < addr)
+	if ((mm_ctx_slb_addr_limit(&mm->context) - len) < addr)
 		return 0;
 	vma = find_vma(mm, addr);
 	return (!vma || (addr + len) <= vm_start_gap(vma));
@@ -109,13 +105,11 @@ static int slice_high_has_vma(struct mm_struct *mm, unsigned long slice)
 	unsigned long start = slice << SLICE_HIGH_SHIFT;
 	unsigned long end = start + (1ul << SLICE_HIGH_SHIFT);
 
-#ifdef CONFIG_PPC64
 	/* Hack, so that each addresses is controlled by exactly one
 	 * of the high or low area bitmaps, the first high area starts
 	 * at 4GB, not 0 */
 	if (start == 0)
-		start = SLICE_LOW_TOP;
-#endif
+		start = (unsigned long)SLICE_LOW_TOP;
 
 	return !slice_area_is_free(mm, start, end - start);
 }
@@ -133,47 +127,13 @@ static void slice_mask_for_free(struct mm_struct *mm, struct slice_mask *ret,
 		if (!slice_low_has_vma(mm, i))
 			ret->low_slices |= 1u << i;
 
-	if (high_limit <= SLICE_LOW_TOP)
+	if (slice_addr_is_low(high_limit - 1))
 		return;
 
 	for (i = 0; i < GET_HIGH_SLICE_INDEX(high_limit); i++)
 		if (!slice_high_has_vma(mm, i))
 			__set_bit(i, ret->high_slices);
 }
-
-#ifdef CONFIG_PPC_BOOK3S_64
-static struct slice_mask *slice_mask_for_size(struct mm_struct *mm, int psize)
-{
-#ifdef CONFIG_PPC_64K_PAGES
-	if (psize == MMU_PAGE_64K)
-		return &mm->context.mask_64k;
-#endif
-	if (psize == MMU_PAGE_4K)
-		return &mm->context.mask_4k;
-#ifdef CONFIG_HUGETLB_PAGE
-	if (psize == MMU_PAGE_16M)
-		return &mm->context.mask_16m;
-	if (psize == MMU_PAGE_16G)
-		return &mm->context.mask_16g;
-#endif
-	BUG();
-}
-#elif defined(CONFIG_PPC_8xx)
-static struct slice_mask *slice_mask_for_size(struct mm_struct *mm, int psize)
-{
-	if (psize == mmu_virtual_psize)
-		return &mm->context.mask_base_psize;
-#ifdef CONFIG_HUGETLB_PAGE
-	if (psize == MMU_PAGE_512K)
-		return &mm->context.mask_512k;
-	if (psize == MMU_PAGE_8M)
-		return &mm->context.mask_8m;
-#endif
-	BUG();
-}
-#else
-#error "Must define the slice masks for page sizes supported by the platform"
-#endif
 
 static bool slice_check_range_fits(struct mm_struct *mm,
 			   const struct slice_mask *available,
@@ -182,7 +142,7 @@ static bool slice_check_range_fits(struct mm_struct *mm,
 	unsigned long end = start + len - 1;
 	u64 low_slices = 0;
 
-	if (start < SLICE_LOW_TOP) {
+	if (slice_addr_is_low(start)) {
 		unsigned long mend = min(end,
 					 (unsigned long)(SLICE_LOW_TOP - 1));
 
@@ -192,7 +152,7 @@ static bool slice_check_range_fits(struct mm_struct *mm,
 	if ((low_slices & available->low_slices) != low_slices)
 		return false;
 
-	if (SLICE_NUM_HIGH && ((start + len) > SLICE_LOW_TOP)) {
+	if (SLICE_NUM_HIGH && !slice_addr_is_low(end)) {
 		unsigned long start_index = GET_HIGH_SLICE_INDEX(start);
 		unsigned long align_end = ALIGN(end, (1UL << SLICE_HIGH_SHIFT));
 		unsigned long count = GET_HIGH_SLICE_INDEX(align_end) - start_index;
@@ -219,7 +179,7 @@ static void slice_flush_segments(void *parm)
 	copy_mm_to_paca(current->active_mm);
 
 	local_irq_save(flags);
-	slb_flush_and_rebolt();
+	slb_flush_and_restore_bolted();
 	local_irq_restore(flags);
 #endif
 }
@@ -237,14 +197,14 @@ static void slice_convert(struct mm_struct *mm,
 	slice_dbg("slice_convert(mm=%p, psize=%d)\n", mm, psize);
 	slice_print_mask(" mask", mask);
 
-	psize_mask = slice_mask_for_size(mm, psize);
+	psize_mask = slice_mask_for_size(&mm->context, psize);
 
 	/* We need to use a spinlock here to protect against
 	 * concurrent 64k -> 4k demotion ...
 	 */
 	spin_lock_irqsave(&slice_convert_lock, flags);
 
-	lpsizes = mm->context.low_slices_psize;
+	lpsizes = mm_ctx_low_slices(&mm->context);
 	for (i = 0; i < SLICE_NUM_LOW; i++) {
 		if (!(mask->low_slices & (1u << i)))
 			continue;
@@ -254,7 +214,7 @@ static void slice_convert(struct mm_struct *mm,
 
 		/* Update the slice_mask */
 		old_psize = (lpsizes[index] >> (mask_index * 4)) & 0xf;
-		old_mask = slice_mask_for_size(mm, old_psize);
+		old_mask = slice_mask_for_size(&mm->context, old_psize);
 		old_mask->low_slices &= ~(1u << i);
 		psize_mask->low_slices |= 1u << i;
 
@@ -263,8 +223,8 @@ static void slice_convert(struct mm_struct *mm,
 				(((unsigned long)psize) << (mask_index * 4));
 	}
 
-	hpsizes = mm->context.high_slices_psize;
-	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm->context.slb_addr_limit); i++) {
+	hpsizes = mm_ctx_high_slices(&mm->context);
+	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm_ctx_slb_addr_limit(&mm->context)); i++) {
 		if (!test_bit(i, mask->high_slices))
 			continue;
 
@@ -273,7 +233,7 @@ static void slice_convert(struct mm_struct *mm,
 
 		/* Update the slice_mask */
 		old_psize = (hpsizes[index] >> (mask_index * 4)) & 0xf;
-		old_mask = slice_mask_for_size(mm, old_psize);
+		old_mask = slice_mask_for_size(&mm->context, old_psize);
 		__clear_bit(i, old_mask->high_slices);
 		__set_bit(i, psize_mask->high_slices);
 
@@ -283,8 +243,8 @@ static void slice_convert(struct mm_struct *mm,
 	}
 
 	slice_dbg(" lsps=%lx, hsps=%lx\n",
-		  (unsigned long)mm->context.low_slices_psize,
-		  (unsigned long)mm->context.high_slices_psize);
+		  (unsigned long)mm_ctx_low_slices(&mm->context),
+		  (unsigned long)mm_ctx_high_slices(&mm->context));
 
 	spin_unlock_irqrestore(&slice_convert_lock, flags);
 
@@ -303,7 +263,7 @@ static bool slice_scan_available(unsigned long addr,
 				 int end, unsigned long *boundary_addr)
 {
 	unsigned long slice;
-	if (addr < SLICE_LOW_TOP) {
+	if (slice_addr_is_low(addr)) {
 		slice = GET_LOW_SLICE_INDEX(addr);
 		*boundary_addr = (slice + end) << SLICE_LOW_SHIFT;
 		return !!(available->low_slices & (1u << slice));
@@ -369,6 +329,7 @@ static unsigned long slice_find_area_topdown(struct mm_struct *mm,
 	int pshift = max_t(int, mmu_psize_defs[psize].shift, PAGE_SHIFT);
 	unsigned long addr, found, prev;
 	struct vm_unmapped_area_info info;
+	unsigned long min_addr = max(PAGE_SIZE, mmap_min_addr);
 
 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
 	info.length = len;
@@ -383,9 +344,9 @@ static unsigned long slice_find_area_topdown(struct mm_struct *mm,
 	 * DEFAULT_MAP_WINDOW we should apply this.
 	 */
 	if (high_limit > DEFAULT_MAP_WINDOW)
-		addr += mm->context.slb_addr_limit - DEFAULT_MAP_WINDOW;
+		addr += mm_ctx_slb_addr_limit(&mm->context) - DEFAULT_MAP_WINDOW;
 
-	while (addr > PAGE_SIZE) {
+	while (addr > min_addr) {
 		info.high_limit = addr;
 		if (!slice_scan_available(addr - 1, available, 0, &addr))
 			continue;
@@ -397,8 +358,8 @@ static unsigned long slice_find_area_topdown(struct mm_struct *mm,
 		 * Check if we need to reduce the range, or if we can
 		 * extend it to cover the previous available slice.
 		 */
-		if (addr < PAGE_SIZE)
-			addr = PAGE_SIZE;
+		if (addr < min_addr)
+			addr = min_addr;
 		else if (slice_scan_available(addr - 1, available, 0, &prev)) {
 			addr = prev;
 			goto prev_slice;
@@ -495,20 +456,20 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 			return -ENOMEM;
 	}
 
-	if (high_limit > mm->context.slb_addr_limit) {
+	if (high_limit > mm_ctx_slb_addr_limit(&mm->context)) {
 		/*
 		 * Increasing the slb_addr_limit does not require
 		 * slice mask cache to be recalculated because it should
 		 * be already initialised beyond the old address limit.
 		 */
-		mm->context.slb_addr_limit = high_limit;
+		mm_ctx_set_slb_addr_limit(&mm->context, high_limit);
 
 		on_each_cpu(slice_flush_segments, mm, 1);
 	}
 
 	/* Sanity checks */
 	BUG_ON(mm->task_size == 0);
-	BUG_ON(mm->context.slb_addr_limit == 0);
+	BUG_ON(mm_ctx_slb_addr_limit(&mm->context) == 0);
 	VM_BUG_ON(radix_enabled());
 
 	slice_dbg("slice_get_unmapped_area(mm=%p, psize=%d...\n", mm, psize);
@@ -520,7 +481,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 		addr = _ALIGN_UP(addr, page_size);
 		slice_dbg(" aligned addr=%lx\n", addr);
 		/* Ignore hint if it's too large or overlaps a VMA */
-		if (addr > high_limit - len ||
+		if (addr > high_limit - len || addr < mmap_min_addr ||
 		    !slice_area_is_free(mm, addr, len))
 			addr = 0;
 	}
@@ -528,7 +489,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	/* First make up a "good" mask of slices that have the right size
 	 * already
 	 */
-	maskp = slice_mask_for_size(mm, psize);
+	maskp = slice_mask_for_size(&mm->context, psize);
 
 	/*
 	 * Here "good" means slices that are already the right page size,
@@ -555,7 +516,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	 * a pointer to good mask for the next code to use.
 	 */
 	if (IS_ENABLED(CONFIG_PPC_64K_PAGES) && psize == MMU_PAGE_64K) {
-		compat_maskp = slice_mask_for_size(mm, MMU_PAGE_4K);
+		compat_maskp = slice_mask_for_size(&mm->context, MMU_PAGE_4K);
 		if (fixed)
 			slice_or_mask(&good_mask, maskp, compat_maskp);
 		else
@@ -632,14 +593,13 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	newaddr = slice_find_area(mm, len, &potential_mask,
 				  psize, topdown, high_limit);
 
-#ifdef CONFIG_PPC_64K_PAGES
-	if (newaddr == -ENOMEM && psize == MMU_PAGE_64K) {
+	if (IS_ENABLED(CONFIG_PPC_64K_PAGES) && newaddr == -ENOMEM &&
+	    psize == MMU_PAGE_64K) {
 		/* retry the search with 4k-page slices included */
 		slice_or_mask(&potential_mask, &potential_mask, compat_maskp);
 		newaddr = slice_find_area(mm, len, &potential_mask,
 					  psize, topdown, high_limit);
 	}
-#endif
 
 	if (newaddr == -ENOMEM)
 		return -ENOMEM;
@@ -686,7 +646,7 @@ unsigned long arch_get_unmapped_area(struct file *filp,
 				     unsigned long flags)
 {
 	return slice_get_unmapped_area(addr, len, flags,
-				       current->mm->context.user_psize, 0);
+				       mm_ctx_user_psize(&current->mm->context), 0);
 }
 
 unsigned long arch_get_unmapped_area_topdown(struct file *filp,
@@ -696,7 +656,7 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp,
 					     const unsigned long flags)
 {
 	return slice_get_unmapped_area(addr0, len, flags,
-				       current->mm->context.user_psize, 1);
+				       mm_ctx_user_psize(&current->mm->context), 1);
 }
 
 unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
@@ -706,11 +666,11 @@ unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
 
 	VM_BUG_ON(radix_enabled());
 
-	if (addr < SLICE_LOW_TOP) {
-		psizes = mm->context.low_slices_psize;
+	if (slice_addr_is_low(addr)) {
+		psizes = mm_ctx_low_slices(&mm->context);
 		index = GET_LOW_SLICE_INDEX(addr);
 	} else {
-		psizes = mm->context.high_slices_psize;
+		psizes = mm_ctx_high_slices(&mm->context);
 		index = GET_HIGH_SLICE_INDEX(addr);
 	}
 	mask_index = index & 0x1;
@@ -731,31 +691,40 @@ void slice_init_new_context_exec(struct mm_struct *mm)
 	 * case of fork it is just inherited from the mm being
 	 * duplicated.
 	 */
-#ifdef CONFIG_PPC64
-	mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
-#else
-	mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW;
-#endif
-
-	mm->context.user_psize = psize;
+	mm_ctx_set_slb_addr_limit(&mm->context, SLB_ADDR_LIMIT_DEFAULT);
+	mm_ctx_set_user_psize(&mm->context, psize);
 
 	/*
 	 * Set all slice psizes to the default.
 	 */
-	lpsizes = mm->context.low_slices_psize;
+	lpsizes = mm_ctx_low_slices(&mm->context);
 	memset(lpsizes, (psize << 4) | psize, SLICE_NUM_LOW >> 1);
 
-	hpsizes = mm->context.high_slices_psize;
+	hpsizes = mm_ctx_high_slices(&mm->context);
 	memset(hpsizes, (psize << 4) | psize, SLICE_NUM_HIGH >> 1);
 
 	/*
 	 * Slice mask cache starts zeroed, fill the default size cache.
 	 */
-	mask = slice_mask_for_size(mm, psize);
+	mask = slice_mask_for_size(&mm->context, psize);
 	mask->low_slices = ~0UL;
 	if (SLICE_NUM_HIGH)
 		bitmap_fill(mask->high_slices, SLICE_NUM_HIGH);
 }
+
+#ifdef CONFIG_PPC_BOOK3S_64
+void slice_setup_new_exec(void)
+{
+	struct mm_struct *mm = current->mm;
+
+	slice_dbg("slice_setup_new_exec(mm=%p)\n", mm);
+
+	if (!is_32bit_task())
+		return;
+
+	mm_ctx_set_slb_addr_limit(&mm->context, DEFAULT_MAP_WINDOW);
+}
+#endif
 
 void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 			   unsigned long len, unsigned int psize)
@@ -792,22 +761,21 @@ int slice_is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 			   unsigned long len)
 {
 	const struct slice_mask *maskp;
-	unsigned int psize = mm->context.user_psize;
+	unsigned int psize = mm_ctx_user_psize(&mm->context);
 
 	VM_BUG_ON(radix_enabled());
 
-	maskp = slice_mask_for_size(mm, psize);
-#ifdef CONFIG_PPC_64K_PAGES
+	maskp = slice_mask_for_size(&mm->context, psize);
+
 	/* We need to account for 4k slices too */
-	if (psize == MMU_PAGE_64K) {
+	if (IS_ENABLED(CONFIG_PPC_64K_PAGES) && psize == MMU_PAGE_64K) {
 		const struct slice_mask *compat_maskp;
 		struct slice_mask available;
 
-		compat_maskp = slice_mask_for_size(mm, MMU_PAGE_4K);
+		compat_maskp = slice_mask_for_size(&mm->context, MMU_PAGE_4K);
 		slice_or_mask(&available, maskp, compat_maskp);
 		return !slice_check_range_fits(mm, &available, addr, len);
 	}
-#endif
 
 	return !slice_check_range_fits(mm, maskp, addr, len);
 }

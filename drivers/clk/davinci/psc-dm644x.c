@@ -6,6 +6,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk/davinci.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/init.h>
@@ -20,7 +21,8 @@ LPSC_CLKDEV2(emac_clkdev,		NULL,		"davinci_emac.1",
 					"fck",		"davinci_mdio.0");
 LPSC_CLKDEV1(usb_clkdev,		"usb",		NULL);
 LPSC_CLKDEV1(ide_clkdev,		NULL,		"palm_bk3710");
-LPSC_CLKDEV1(aemif_clkdev,		"aemif",	NULL);
+LPSC_CLKDEV2(aemif_clkdev,		"aemif",	NULL,
+					NULL,		"ti-aemif");
 LPSC_CLKDEV1(mmcsd_clkdev,		NULL,		"dm6441-mmc.0");
 LPSC_CLKDEV1(asp0_clkdev,		NULL,		"davinci-mcbsp");
 LPSC_CLKDEV1(i2c_clkdev,		NULL,		"i2c_davinci.1");
@@ -63,7 +65,7 @@ static const struct davinci_lpsc_clk_info dm644x_psc_info[] = {
 	{ }
 };
 
-static int dm644x_psc_init(struct device *dev, void __iomem *base)
+int dm644x_psc_init(struct device *dev, void __iomem *base)
 {
 	return davinci_psc_register_clocks(dev, dm644x_psc_info, 41, base);
 }

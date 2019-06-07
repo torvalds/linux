@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Allwinner sunXi IR controller
  *
@@ -7,16 +8,6 @@
  * Based on sun5i-ir.c:
  * Copyright (C) 2007-2012 Daniel Wang
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -99,7 +90,7 @@ static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
 	unsigned char dt;
 	unsigned int cnt, rc;
 	struct sunxi_ir *ir = dev_id;
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 
 	spin_lock(&ir->ir_lock);
 

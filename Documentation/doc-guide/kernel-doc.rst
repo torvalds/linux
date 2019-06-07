@@ -77,7 +77,7 @@ The general format of a function and function-like macro kernel-doc comment is::
    * Context: Describes whether the function can sleep, what locks it takes,
    *          releases, or expects to be held. It can extend over multiple
    *          lines.
-   * Return: Describe the return value of foobar.
+   * Return: Describe the return value of function_name.
    *
    * The return value description can also have multiple paragraphs, and should
    * be placed at the end of the comment block.
@@ -488,13 +488,18 @@ doc: *title*
     .. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
        :doc: High Definition Audio over HDMI and Display Port
 
-functions: *function* *[...]*
+functions: *[ function ...]*
   Include documentation for each *function* in *source*.
+  If no *function* is specified, the documentation for all functions
+  and types in the *source* will be included.
 
-  Example::
+  Examples::
 
     .. kernel-doc:: lib/bitmap.c
        :functions: bitmap_parselist bitmap_parselist_user
+
+    .. kernel-doc:: lib/idr.c
+       :functions:
 
 Without options, the kernel-doc directive includes all documentation comments
 from the source file.
@@ -512,4 +517,17 @@ How to use kernel-doc to generate man pages
 If you just want to use kernel-doc to generate man pages you can do this
 from the kernel git tree::
 
-  $ scripts/kernel-doc -man $(git grep -l '/\*\*' -- :^Documentation :^tools) | scripts/split-man.pl /tmp/man
+  $ scripts/kernel-doc -man \
+    $(git grep -l '/\*\*' -- :^Documentation :^tools) \
+    | scripts/split-man.pl /tmp/man
+
+Some older versions of git do not support some of the variants of syntax for
+path exclusion.  One of the following commands may work for those versions::
+
+  $ scripts/kernel-doc -man \
+    $(git grep -l '/\*\*' -- . ':!Documentation' ':!tools') \
+    | scripts/split-man.pl /tmp/man
+
+  $ scripts/kernel-doc -man \
+    $(git grep -l '/\*\*' -- . ":(exclude)Documentation" ":(exclude)tools") \
+    | scripts/split-man.pl /tmp/man

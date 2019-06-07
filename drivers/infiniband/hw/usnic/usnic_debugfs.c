@@ -113,42 +113,21 @@ static const struct file_operations flowinfo_ops = {
 void usnic_debugfs_init(void)
 {
 	debugfs_root = debugfs_create_dir(DRV_NAME, NULL);
-	if (IS_ERR(debugfs_root)) {
-		usnic_err("Failed to create debugfs root dir, check if debugfs is enabled in kernel configuration\n");
-		goto out_clear_root;
-	}
 
 	flows_dentry = debugfs_create_dir("flows", debugfs_root);
-	if (IS_ERR_OR_NULL(flows_dentry)) {
-		usnic_err("Failed to create debugfs flow dir with err %ld\n",
-				PTR_ERR(flows_dentry));
-		goto out_free_root;
-	}
 
 	debugfs_create_file("build-info", S_IRUGO, debugfs_root,
 				NULL, &usnic_debugfs_buildinfo_ops);
-	return;
-
-out_free_root:
-	debugfs_remove_recursive(debugfs_root);
-out_clear_root:
-	debugfs_root = NULL;
 }
 
 void usnic_debugfs_exit(void)
 {
-	if (!debugfs_root)
-		return;
-
 	debugfs_remove_recursive(debugfs_root);
 	debugfs_root = NULL;
 }
 
 void usnic_debugfs_flow_add(struct usnic_ib_qp_grp_flow *qp_flow)
 {
-	if (IS_ERR_OR_NULL(flows_dentry))
-		return;
-
 	scnprintf(qp_flow->dentry_name, sizeof(qp_flow->dentry_name),
 			"%u", qp_flow->flow->flow_id);
 	qp_flow->dbgfs_dentry = debugfs_create_file(qp_flow->dentry_name,
@@ -156,15 +135,9 @@ void usnic_debugfs_flow_add(struct usnic_ib_qp_grp_flow *qp_flow)
 							flows_dentry,
 							qp_flow,
 							&flowinfo_ops);
-	if (IS_ERR_OR_NULL(qp_flow->dbgfs_dentry)) {
-		usnic_err("Failed to create dbg fs entry for flow %u with error %ld\n",
-				qp_flow->flow->flow_id,
-				PTR_ERR(qp_flow->dbgfs_dentry));
-	}
 }
 
 void usnic_debugfs_flow_remove(struct usnic_ib_qp_grp_flow *qp_flow)
 {
-	if (!IS_ERR_OR_NULL(qp_flow->dbgfs_dentry))
-		debugfs_remove(qp_flow->dbgfs_dentry);
+	debugfs_remove(qp_flow->dbgfs_dentry);
 }

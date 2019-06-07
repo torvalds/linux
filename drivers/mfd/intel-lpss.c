@@ -18,6 +18,7 @@
 #include <linux/clk-provider.h>
 #include <linux/debugfs.h>
 #include <linux/idr.h>
+#include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -27,6 +28,8 @@
 #include <linux/property.h>
 #include <linux/seq_file.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+
+#include <linux/dma/idma64.h>
 
 #include "intel-lpss.h"
 
@@ -40,8 +43,8 @@
 
 /* Offsets from lpss->priv */
 #define LPSS_PRIV_RESETS		0x04
-#define LPSS_PRIV_RESETS_FUNC		BIT(2)
-#define LPSS_PRIV_RESETS_IDMA		0x3
+#define LPSS_PRIV_RESETS_IDMA		BIT(2)
+#define LPSS_PRIV_RESETS_FUNC		0x3
 
 #define LPSS_PRIV_ACTIVELTR		0x10
 #define LPSS_PRIV_IDLELTR		0x14
@@ -95,8 +98,6 @@ static const struct resource intel_lpss_idma64_resources[] = {
 	DEFINE_RES_MEM(LPSS_IDMA64_OFFSET, LPSS_IDMA64_SIZE),
 	DEFINE_RES_IRQ(0),
 };
-
-#define LPSS_IDMA64_DRIVER_NAME		"idma64"
 
 /*
  * Cells needs to be ordered so that the iDMA is created first. This is
@@ -273,12 +274,15 @@ static void intel_lpss_init_dev(const struct intel_lpss *lpss)
 {
 	u32 value = LPSS_PRIV_SSP_REG_DIS_DMA_FIN;
 
+	/* Set the device in reset state */
+	writel(0, lpss->priv + LPSS_PRIV_RESETS);
+
 	intel_lpss_deassert_reset(lpss);
+
+	intel_lpss_set_remap_addr(lpss);
 
 	if (!intel_lpss_has_idma(lpss))
 		return;
-
-	intel_lpss_set_remap_addr(lpss);
 
 	/* Make sure that SPI multiblock DMA transfers are re-enabled */
 	if (lpss->type == LPSS_DEV_SPI)

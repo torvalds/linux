@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* cpwd.c - driver implementation for hardware watchdog
  * timers found on Sun Microsystems CP1400 and CP1500 boards.
  *
@@ -394,7 +395,7 @@ static int cpwd_open(struct inode *inode, struct file *f)
 
 	mutex_unlock(&cpwd_mutex);
 
-	return nonseekable_open(inode, f);
+	return stream_open(inode, f);
 }
 
 static int cpwd_release(struct inode *inode, struct file *file)
@@ -569,6 +570,8 @@ static int cpwd_probe(struct platform_device *op)
 	str_prop = of_get_property(options, "watchdog-timeout", NULL);
 	if (str_prop)
 		p->timeout = simple_strtoul(str_prop, NULL, 10);
+
+	of_node_put(options);
 
 	/* CP1400s seem to have broken PLD implementations-- the
 	 * interrupt_mask register cannot be written, so no timer

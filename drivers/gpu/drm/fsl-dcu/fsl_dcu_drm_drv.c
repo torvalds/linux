@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015 Freescale Semiconductor, Inc.
  *
  * Freescale DCU drm device driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -24,10 +20,11 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_probe_helper.h>
 
 #include "fsl_dcu_drm_crtc.h"
 #include "fsl_dcu_drm_drv.h"
@@ -89,19 +86,10 @@ static int fsl_dcu_load(struct drm_device *dev, unsigned long flags)
 			"Invalid legacyfb_depth.  Defaulting to 24bpp\n");
 		legacyfb_depth = 24;
 	}
-	fsl_dev->fbdev = drm_fbdev_cma_init(dev, legacyfb_depth, 1);
-	if (IS_ERR(fsl_dev->fbdev)) {
-		ret = PTR_ERR(fsl_dev->fbdev);
-		fsl_dev->fbdev = NULL;
-		goto done;
-	}
 
 	return 0;
 done:
 	drm_kms_helper_poll_fini(dev);
-
-	if (fsl_dev->fbdev)
-		drm_fbdev_cma_fini(fsl_dev->fbdev);
 
 	drm_mode_config_cleanup(dev);
 	drm_irq_uninstall(dev);
@@ -112,13 +100,8 @@ done:
 
 static void fsl_dcu_unload(struct drm_device *dev)
 {
-	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
-
 	drm_atomic_helper_shutdown(dev);
 	drm_kms_helper_poll_fini(dev);
-
-	if (fsl_dev->fbdev)
-		drm_fbdev_cma_fini(fsl_dev->fbdev);
 
 	drm_mode_config_cleanup(dev);
 	drm_irq_uninstall(dev);
@@ -147,19 +130,11 @@ static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static void fsl_dcu_drm_lastclose(struct drm_device *dev)
-{
-	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
-
-	drm_fbdev_cma_restore_mode(fsl_dev->fbdev);
-}
-
 DEFINE_DRM_GEM_CMA_FOPS(fsl_dcu_drm_fops);
 
 static struct drm_driver fsl_dcu_drm_driver = {
-	.driver_features	= DRIVER_HAVE_IRQ | DRIVER_GEM | DRIVER_MODESET
+	.driver_features	= DRIVER_GEM | DRIVER_MODESET
 				| DRIVER_PRIME | DRIVER_ATOMIC,
-	.lastclose		= fsl_dcu_drm_lastclose,
 	.load			= fsl_dcu_load,
 	.unload			= fsl_dcu_unload,
 	.irq_handler		= fsl_dcu_drm_irq,
@@ -353,12 +328,14 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
-		goto unref;
+		goto put;
+
+	drm_fbdev_generic_setup(drm, legacyfb_depth);
 
 	return 0;
 
-unref:
-	drm_dev_unref(drm);
+put:
+	drm_dev_put(drm);
 unregister_pix_clk:
 	clk_unregister(fsl_dev->pix_clk);
 disable_clk:
@@ -371,7 +348,7 @@ static int fsl_dcu_drm_remove(struct platform_device *pdev)
 	struct fsl_dcu_drm_device *fsl_dev = platform_get_drvdata(pdev);
 
 	drm_dev_unregister(fsl_dev->drm);
-	drm_dev_unref(fsl_dev->drm);
+	drm_dev_put(fsl_dev->drm);
 	clk_disable_unprepare(fsl_dev->clk);
 	clk_unregister(fsl_dev->pix_clk);
 

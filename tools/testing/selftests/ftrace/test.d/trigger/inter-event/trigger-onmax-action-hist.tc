@@ -1,14 +1,8 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test inter-event histogram trigger onmax action
 
-do_reset() {
-    reset_trigger
-    echo > set_event
-    clear_trace
-}
-
 fail() { #msg
-    do_reset
     echo $1
     exit_fail
 }
@@ -23,10 +17,6 @@ if [ ! -f synthetic_events ]; then
     exit_unsupported
 fi
 
-clear_synthetic_events
-reset_tracer
-do_reset
-
 echo "Test create synthetic event"
 
 echo 'wakeup_latency  u64 lat pid_t pid char comm[16]' > synthetic_events
@@ -38,11 +28,10 @@ echo "Test onmax action"
 
 echo 'hist:keys=pid:ts0=common_timestamp.usecs if comm=="ping"' >> events/sched/sched_waking/trigger
 echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0:onmax($wakeup_lat).save(next_comm,prev_pid,prev_prio,prev_comm) if next_comm=="ping"' >> events/sched/sched_switch/trigger
-ping localhost -c 3
+
+ping $LOCALHOST -c 3
 if ! grep -q "max:" events/sched/sched_switch/hist; then
     fail "Failed to create onmax action inter-event histogram"
 fi
-
-do_reset
 
 exit 0

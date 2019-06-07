@@ -1,25 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * HW_breakpoint: a unified kernel/user-space hardware breakpoint facility,
  * using the CPU's debug registers. Derived from
  * "arch/x86/kernel/hw_breakpoint.c"
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- *
  * Copyright 2010 IBM Corporation
  * Author: K.Prasad <prasad@linux.vnet.ibm.com>
- *
  */
 
 #include <linux/hw_breakpoint.h>
@@ -29,11 +15,15 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
+#include <linux/debugfs.h>
+#include <linux/init.h>
 
 #include <asm/hw_breakpoint.h>
 #include <asm/processor.h>
 #include <asm/sstep.h>
 #include <asm/debug.h>
+#include <asm/debugfs.h>
+#include <asm/hvcall.h>
 #include <linux/uaccess.h>
 
 /*
@@ -119,11 +109,9 @@ void arch_unregister_hw_breakpoint(struct perf_event *bp)
 /*
  * Check for virtual address in kernel space.
  */
-int arch_check_bp_in_kernelspace(struct perf_event *bp)
+int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw)
 {
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-
-	return is_kernel_addr(info->address);
+	return is_kernel_addr(hw->address);
 }
 
 int arch_bp_generic_fields(int type, int *gen_bp_type)
@@ -141,30 +129,31 @@ int arch_bp_generic_fields(int type, int *gen_bp_type)
 /*
  * Validate the arch-specific HW Breakpoint register settings
  */
-int arch_validate_hwbkpt_settings(struct perf_event *bp)
+int hw_breakpoint_arch_parse(struct perf_event *bp,
+			     const struct perf_event_attr *attr,
+			     struct arch_hw_breakpoint *hw)
 {
 	int ret = -EINVAL, length_max;
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 
 	if (!bp)
 		return ret;
 
-	info->type = HW_BRK_TYPE_TRANSLATE;
-	if (bp->attr.bp_type & HW_BREAKPOINT_R)
-		info->type |= HW_BRK_TYPE_READ;
-	if (bp->attr.bp_type & HW_BREAKPOINT_W)
-		info->type |= HW_BRK_TYPE_WRITE;
-	if (info->type == HW_BRK_TYPE_TRANSLATE)
+	hw->type = HW_BRK_TYPE_TRANSLATE;
+	if (attr->bp_type & HW_BREAKPOINT_R)
+		hw->type |= HW_BRK_TYPE_READ;
+	if (attr->bp_type & HW_BREAKPOINT_W)
+		hw->type |= HW_BRK_TYPE_WRITE;
+	if (hw->type == HW_BRK_TYPE_TRANSLATE)
 		/* must set alteast read or write */
 		return ret;
-	if (!(bp->attr.exclude_user))
-		info->type |= HW_BRK_TYPE_USER;
-	if (!(bp->attr.exclude_kernel))
-		info->type |= HW_BRK_TYPE_KERNEL;
-	if (!(bp->attr.exclude_hv))
-		info->type |= HW_BRK_TYPE_HYP;
-	info->address = bp->attr.bp_addr;
-	info->len = bp->attr.bp_len;
+	if (!attr->exclude_user)
+		hw->type |= HW_BRK_TYPE_USER;
+	if (!attr->exclude_kernel)
+		hw->type |= HW_BRK_TYPE_KERNEL;
+	if (!attr->exclude_hv)
+		hw->type |= HW_BRK_TYPE_HYP;
+	hw->address = attr->bp_addr;
+	hw->len = attr->bp_len;
 
 	/*
 	 * Since breakpoint length can be a maximum of HW_BREAKPOINT_LEN(8)
@@ -175,15 +164,15 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	if (!ppc_breakpoint_available())
 		return -ENODEV;
 	length_max = 8; /* DABR */
-	if (cpu_has_feature(CPU_FTR_DAWR)) {
+	if (dawr_enabled()) {
 		length_max = 512 ; /* 64 doublewords */
 		/* DAWR region can't cross 512 boundary */
-		if ((bp->attr.bp_addr >> 10) != 
-		    ((bp->attr.bp_addr + bp->attr.bp_len - 1) >> 10))
+		if ((attr->bp_addr >> 9) !=
+		    ((attr->bp_addr + attr->bp_len - 1) >> 9))
 			return -EINVAL;
 	}
-	if (info->len >
-	    (length_max - (info->address & HW_BREAKPOINT_ALIGN)))
+	if (hw->len >
+	    (length_max - (hw->address & HW_BREAKPOINT_ALIGN)))
 		return -EINVAL;
 	return 0;
 }
@@ -377,3 +366,59 @@ void hw_breakpoint_pmu_read(struct perf_event *bp)
 {
 	/* TODO */
 }
+
+bool dawr_force_enable;
+EXPORT_SYMBOL_GPL(dawr_force_enable);
+
+static ssize_t dawr_write_file_bool(struct file *file,
+				    const char __user *user_buf,
+				    size_t count, loff_t *ppos)
+{
+	struct arch_hw_breakpoint null_brk = {0, 0, 0};
+	size_t rc;
+
+	/* Send error to user if they hypervisor won't allow us to write DAWR */
+	if ((!dawr_force_enable) &&
+	    (firmware_has_feature(FW_FEATURE_LPAR)) &&
+	    (set_dawr(&null_brk) != H_SUCCESS))
+		return -1;
+
+	rc = debugfs_write_file_bool(file, user_buf, count, ppos);
+	if (rc)
+		return rc;
+
+	/* If we are clearing, make sure all CPUs have the DAWR cleared */
+	if (!dawr_force_enable)
+		smp_call_function((smp_call_func_t)set_dawr, &null_brk, 0);
+
+	return rc;
+}
+
+static const struct file_operations dawr_enable_fops = {
+	.read =		debugfs_read_file_bool,
+	.write =	dawr_write_file_bool,
+	.open =		simple_open,
+	.llseek =	default_llseek,
+};
+
+static int __init dawr_force_setup(void)
+{
+	dawr_force_enable = false;
+
+	if (cpu_has_feature(CPU_FTR_DAWR)) {
+		/* Don't setup sysfs file for user control on P8 */
+		dawr_force_enable = true;
+		return 0;
+	}
+
+	if (PVR_VER(mfspr(SPRN_PVR)) == PVR_POWER9) {
+		/* Turn DAWR off by default, but allow admin to turn it on */
+		dawr_force_enable = false;
+		debugfs_create_file_unsafe("dawr_enable_dangerous", 0600,
+					   powerpc_debugfs_root,
+					   &dawr_force_enable,
+					   &dawr_enable_fops);
+	}
+	return 0;
+}
+arch_initcall(dawr_force_setup);

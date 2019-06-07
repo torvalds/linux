@@ -189,9 +189,9 @@ struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
 static void gfs2_meta_read_endio(struct bio *bio)
 {
 	struct bio_vec *bvec;
-	int i;
+	struct bvec_iter_all iter_all;
 
-	bio_for_each_segment_all(bvec, bio, i) {
+	bio_for_each_segment_all(bvec, bio, iter_all) {
 		struct page *page = bvec->bv_page;
 		struct buffer_head *bh = page_buffers(page);
 		unsigned int len = bvec->bv_len;
@@ -293,7 +293,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 	if (unlikely(!buffer_uptodate(bh))) {
 		struct gfs2_trans *tr = current->journal_info;
 		if (tr && test_bit(TR_TOUCHED, &tr->tr_flags))
-			gfs2_io_error_bh(sdp, bh);
+			gfs2_io_error_bh_wd(sdp, bh);
 		brelse(bh);
 		*bhp = NULL;
 		return -EIO;
@@ -320,7 +320,7 @@ int gfs2_meta_wait(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	if (!buffer_uptodate(bh)) {
 		struct gfs2_trans *tr = current->journal_info;
 		if (tr && test_bit(TR_TOUCHED, &tr->tr_flags))
-			gfs2_io_error_bh(sdp, bh);
+			gfs2_io_error_bh_wd(sdp, bh);
 		return -EIO;
 	}
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))

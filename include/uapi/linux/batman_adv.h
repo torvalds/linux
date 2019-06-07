@@ -1,25 +1,7 @@
 /* SPDX-License-Identifier: MIT */
-/* Copyright (C) 2016-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2016-2019  B.A.T.M.A.N. contributors:
  *
  * Matthias Schiffer
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
  */
 
 #ifndef _UAPI_LINUX_BATMAN_ADV_H_
@@ -27,6 +9,7 @@
 
 #define BATADV_NL_NAME "batadv"
 
+#define BATADV_NL_MCAST_GROUP_CONFIG	"config"
 #define BATADV_NL_MCAST_GROUP_TPMETER	"tpmeter"
 
 /**
@@ -136,6 +119,20 @@ enum batadv_mcast_flags_priv {
 	 * (i.e. querier is behind our own bridge segment)
 	 */
 	BATADV_MCAST_FLAGS_QUERIER_IPV6_SHADOWING	= (1 << 4),
+};
+
+/**
+ * enum batadv_gw_modes - gateway mode of node
+ */
+enum batadv_gw_modes {
+	/** @BATADV_GW_MODE_OFF: gw mode disabled */
+	BATADV_GW_MODE_OFF,
+
+	/** @BATADV_GW_MODE_CLIENT: send DHCP requests to gw servers */
+	BATADV_GW_MODE_CLIENT,
+
+	/** @BATADV_GW_MODE_SERVER: announce itself as gatway server */
+	BATADV_GW_MODE_SERVER,
 };
 
 /**
@@ -344,6 +341,145 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_MCAST_FLAGS_PRIV,
 
+	/**
+	 * @BATADV_ATTR_VLANID: VLAN id on top of soft interface
+	 */
+	BATADV_ATTR_VLANID,
+
+	/**
+	 * @BATADV_ATTR_AGGREGATED_OGMS_ENABLED: whether the batman protocol
+	 *  messages of the mesh interface shall be aggregated or not.
+	 */
+	BATADV_ATTR_AGGREGATED_OGMS_ENABLED,
+
+	/**
+	 * @BATADV_ATTR_AP_ISOLATION_ENABLED: whether the data traffic going
+	 *  from a wireless client to another wireless client will be silently
+	 *  dropped.
+	 */
+	BATADV_ATTR_AP_ISOLATION_ENABLED,
+
+	/**
+	 * @BATADV_ATTR_ISOLATION_MARK: the isolation mark which is used to
+	 *  classify clients as "isolated" by the Extended Isolation feature.
+	 */
+	BATADV_ATTR_ISOLATION_MARK,
+
+	/**
+	 * @BATADV_ATTR_ISOLATION_MASK: the isolation (bit)mask which is used to
+	 *  classify clients as "isolated" by the Extended Isolation feature.
+	 */
+	BATADV_ATTR_ISOLATION_MASK,
+
+	/**
+	 * @BATADV_ATTR_BONDING_ENABLED: whether the data traffic going through
+	 *  the mesh will be sent using multiple interfaces at the same time.
+	 */
+	BATADV_ATTR_BONDING_ENABLED,
+
+	/**
+	 * @BATADV_ATTR_BRIDGE_LOOP_AVOIDANCE_ENABLED: whether the bridge loop
+	 *  avoidance feature is enabled. This feature detects and avoids loops
+	 *  between the mesh and devices bridged with the soft interface
+	 */
+	BATADV_ATTR_BRIDGE_LOOP_AVOIDANCE_ENABLED,
+
+	/**
+	 * @BATADV_ATTR_DISTRIBUTED_ARP_TABLE_ENABLED: whether the distributed
+	 *  arp table feature is enabled. This feature uses a distributed hash
+	 *  table to answer ARP requests without flooding the request through
+	 *  the whole mesh.
+	 */
+	BATADV_ATTR_DISTRIBUTED_ARP_TABLE_ENABLED,
+
+	/**
+	 * @BATADV_ATTR_FRAGMENTATION_ENABLED: whether the data traffic going
+	 *  through the mesh will be fragmented or silently discarded if the
+	 *  packet size exceeds the outgoing interface MTU.
+	 */
+	BATADV_ATTR_FRAGMENTATION_ENABLED,
+
+	/**
+	 * @BATADV_ATTR_GW_BANDWIDTH_DOWN: defines the download bandwidth which
+	 *  is propagated by this node if %BATADV_ATTR_GW_BANDWIDTH_MODE was set
+	 *  to 'server'.
+	 */
+	BATADV_ATTR_GW_BANDWIDTH_DOWN,
+
+	/**
+	 * @BATADV_ATTR_GW_BANDWIDTH_UP: defines the upload bandwidth which
+	 *  is propagated by this node if %BATADV_ATTR_GW_BANDWIDTH_MODE was set
+	 *  to 'server'.
+	 */
+	BATADV_ATTR_GW_BANDWIDTH_UP,
+
+	/**
+	 * @BATADV_ATTR_GW_MODE: defines the state of the gateway features.
+	 * Possible values are specified in enum batadv_gw_modes
+	 */
+	BATADV_ATTR_GW_MODE,
+
+	/**
+	 * @BATADV_ATTR_GW_SEL_CLASS: defines the selection criteria this node
+	 *  will use to choose a gateway if gw_mode was set to 'client'.
+	 */
+	BATADV_ATTR_GW_SEL_CLASS,
+
+	/**
+	 * @BATADV_ATTR_HOP_PENALTY: defines the penalty which will be applied
+	 *  to an originator message's tq-field on every hop.
+	 */
+	BATADV_ATTR_HOP_PENALTY,
+
+	/**
+	 * @BATADV_ATTR_LOG_LEVEL: bitmask with to define which debug messages
+	 *  should be send to the debug log/trace ring buffer
+	 */
+	BATADV_ATTR_LOG_LEVEL,
+
+	/**
+	 * @BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED: whether multicast
+	 *  optimizations should be replaced by simple broadcast-like flooding
+	 *  of multicast packets. If set to non-zero then all nodes in the mesh
+	 *  are going to use classic flooding for any multicast packet with no
+	 *  optimizations.
+	 */
+	BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED,
+
+	/**
+	 * @BATADV_ATTR_NETWORK_CODING_ENABLED: whether Network Coding (using
+	 *  some magic to send fewer wifi packets but still the same content) is
+	 *  enabled or not.
+	 */
+	BATADV_ATTR_NETWORK_CODING_ENABLED,
+
+	/**
+	 * @BATADV_ATTR_ORIG_INTERVAL: defines the interval in milliseconds in
+	 *  which batman sends its protocol messages.
+	 */
+	BATADV_ATTR_ORIG_INTERVAL,
+
+	/**
+	 * @BATADV_ATTR_ELP_INTERVAL: defines the interval in milliseconds in
+	 *  which batman emits probing packets for neighbor sensing (ELP).
+	 */
+	BATADV_ATTR_ELP_INTERVAL,
+
+	/**
+	 * @BATADV_ATTR_THROUGHPUT_OVERRIDE: defines the throughput value to be
+	 *  used by B.A.T.M.A.N. V when estimating the link throughput using
+	 *  this interface. If the value is set to 0 then batman-adv will try to
+	 *  estimate the throughput by itself.
+	 */
+	BATADV_ATTR_THROUGHPUT_OVERRIDE,
+
+	/**
+	 * @BATADV_ATTR_MULTICAST_FANOUT: defines the maximum number of packet
+	 * copies that may be generated for a multicast-to-unicast conversion.
+	 * Once this limit is exceeded distribution will fall back to broadcast.
+	 */
+	BATADV_ATTR_MULTICAST_FANOUT,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**
@@ -372,10 +508,14 @@ enum batadv_nl_commands {
 	BATADV_CMD_UNSPEC,
 
 	/**
-	 * @BATADV_CMD_GET_MESH_INFO: Query basic information about batman-adv
-	 * device
+	 * @BATADV_CMD_GET_MESH: Get attributes from softif/mesh
 	 */
-	BATADV_CMD_GET_MESH_INFO,
+	BATADV_CMD_GET_MESH,
+
+	/**
+	 * @BATADV_CMD_GET_MESH_INFO: Alias for @BATADV_CMD_GET_MESH
+	 */
+	BATADV_CMD_GET_MESH_INFO = BATADV_CMD_GET_MESH,
 
 	/**
 	 * @BATADV_CMD_TP_METER: Start a tp meter session
@@ -393,9 +533,15 @@ enum batadv_nl_commands {
 	BATADV_CMD_GET_ROUTING_ALGOS,
 
 	/**
-	 * @BATADV_CMD_GET_HARDIFS: Query list of hard interfaces
+	 * @BATADV_CMD_GET_HARDIF: Get attributes from a hardif of the
+	 *  current softif
 	 */
-	BATADV_CMD_GET_HARDIFS,
+	BATADV_CMD_GET_HARDIF,
+
+	/**
+	 * @BATADV_CMD_GET_HARDIFS: Alias for @BATADV_CMD_GET_HARDIF
+	 */
+	BATADV_CMD_GET_HARDIFS = BATADV_CMD_GET_HARDIF,
 
 	/**
 	 * @BATADV_CMD_GET_TRANSTABLE_LOCAL: Query list of local translations
@@ -442,6 +588,29 @@ enum batadv_nl_commands {
 	 * @BATADV_CMD_GET_MCAST_FLAGS: Query list of multicast flags
 	 */
 	BATADV_CMD_GET_MCAST_FLAGS,
+
+	/**
+	 * @BATADV_CMD_SET_MESH: Set attributes for softif/mesh
+	 */
+	BATADV_CMD_SET_MESH,
+
+	/**
+	 * @BATADV_CMD_SET_HARDIF: Set attributes for hardif of the
+	 *  current softif
+	 */
+	BATADV_CMD_SET_HARDIF,
+
+	/**
+	 * @BATADV_CMD_GET_VLAN: Get attributes from a VLAN of the
+	 *  current softif
+	 */
+	BATADV_CMD_GET_VLAN,
+
+	/**
+	 * @BATADV_CMD_SET_VLAN: Set attributes for VLAN of the
+	 *  current softif
+	 */
+	BATADV_CMD_SET_VLAN,
 
 	/* add new commands above here */
 

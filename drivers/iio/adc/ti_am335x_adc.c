@@ -142,7 +142,10 @@ static void tiadc_step_config(struct iio_dev *indio_dev)
 			stepconfig |= STEPCONFIG_MODE_SWCNT;
 
 		tiadc_writel(adc_dev, REG_STEPCONFIG(steps),
-				stepconfig | STEPCONFIG_INP(chan));
+				stepconfig | STEPCONFIG_INP(chan) |
+				STEPCONFIG_INM_ADCREFM |
+				STEPCONFIG_RFP_VREFP |
+				STEPCONFIG_RFM_VREFN);
 
 		if (adc_dev->open_delay[i] > STEPDELAY_OPEN_MASK) {
 			dev_warn(dev, "chan %d open delay truncating to 0x3FFFF\n",
@@ -693,16 +696,12 @@ static int __maybe_unused tiadc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct tiadc_device *adc_dev = iio_priv(indio_dev);
-	struct ti_tscadc_dev *tscadc_dev;
 	unsigned int idle;
 
-	tscadc_dev = ti_tscadc_dev_get(to_platform_device(dev));
-	if (!device_may_wakeup(tscadc_dev->dev)) {
-		idle = tiadc_readl(adc_dev, REG_CTRL);
-		idle &= ~(CNTRLREG_TSCSSENB);
-		tiadc_writel(adc_dev, REG_CTRL, (idle |
-				CNTRLREG_POWERDOWN));
-	}
+	idle = tiadc_readl(adc_dev, REG_CTRL);
+	idle &= ~(CNTRLREG_TSCSSENB);
+	tiadc_writel(adc_dev, REG_CTRL, (idle |
+			CNTRLREG_POWERDOWN));
 
 	return 0;
 }

@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "main.h"
@@ -22,6 +10,7 @@
 #include <linux/build_bug.h>
 #include <linux/byteorder/generic.h>
 #include <linux/crc32c.h>
+#include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/genetlink.h>
 #include <linux/gfp.h>
@@ -31,6 +20,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/kernel.h>
+#include <linux/kobject.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -40,6 +30,7 @@
 #include <linux/rcupdate.h>
 #include <linux/seq_file.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
@@ -74,6 +65,7 @@
  * list traversals just rcu-locked
  */
 struct list_head batadv_hardif_list;
+unsigned int batadv_hardif_generation;
 static int (*batadv_rx_handler[256])(struct sk_buff *skb,
 				     struct batadv_hard_iface *recv_if);
 
@@ -82,6 +74,22 @@ unsigned char batadv_broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 struct workqueue_struct *batadv_event_workqueue;
 
 static void batadv_recv_handler_init(void);
+
+#define BATADV_UEV_TYPE_VAR	"BATTYPE="
+#define BATADV_UEV_ACTION_VAR	"BATACTION="
+#define BATADV_UEV_DATA_VAR	"BATDATA="
+
+static char *batadv_uev_action_str[] = {
+	"add",
+	"del",
+	"change",
+	"loopdetect",
+};
+
+static char *batadv_uev_type_str[] = {
+	"gw",
+	"bla",
+};
 
 static int __init batadv_init(void)
 {
@@ -160,6 +168,7 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	spin_lock_init(&bat_priv->tt.commit_lock);
 	spin_lock_init(&bat_priv->gw.list_lock);
 #ifdef CONFIG_BATMAN_ADV_MCAST
+	spin_lock_init(&bat_priv->mcast.mla_lock);
 	spin_lock_init(&bat_priv->mcast.want_lists_lock);
 #endif
 	spin_lock_init(&bat_priv->tvlv.container_list_lock);
@@ -185,6 +194,8 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	INIT_HLIST_HEAD(&bat_priv->tvlv.handler_list);
 	INIT_HLIST_HEAD(&bat_priv->softif_vlan_list);
 	INIT_HLIST_HEAD(&bat_priv->tp_list);
+
+	bat_priv->gw.generation = 0;
 
 	ret = batadv_v_mesh_init(bat_priv);
 	if (ret < 0)
@@ -673,6 +684,60 @@ bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid)
 	}
 
 	return ap_isolation_enabled;
+}
+
+/**
+ * batadv_throw_uevent() - Send an uevent with batman-adv specific env data
+ * @bat_priv: the bat priv with all the soft interface information
+ * @type: subsystem type of event. Stored in uevent's BATTYPE
+ * @action: action type of event. Stored in uevent's BATACTION
+ * @data: string with additional information to the event (ignored for
+ *  BATADV_UEV_DEL). Stored in uevent's BATDATA
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
+int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
+			enum batadv_uev_action action, const char *data)
+{
+	int ret = -ENOMEM;
+	struct kobject *bat_kobj;
+	char *uevent_env[4] = { NULL, NULL, NULL, NULL };
+
+	bat_kobj = &bat_priv->soft_iface->dev.kobj;
+
+	uevent_env[0] = kasprintf(GFP_ATOMIC,
+				  "%s%s", BATADV_UEV_TYPE_VAR,
+				  batadv_uev_type_str[type]);
+	if (!uevent_env[0])
+		goto out;
+
+	uevent_env[1] = kasprintf(GFP_ATOMIC,
+				  "%s%s", BATADV_UEV_ACTION_VAR,
+				  batadv_uev_action_str[action]);
+	if (!uevent_env[1])
+		goto out;
+
+	/* If the event is DEL, ignore the data field */
+	if (action != BATADV_UEV_DEL) {
+		uevent_env[2] = kasprintf(GFP_ATOMIC,
+					  "%s%s", BATADV_UEV_DATA_VAR, data);
+		if (!uevent_env[2])
+			goto out;
+	}
+
+	ret = kobject_uevent_env(bat_kobj, KOBJ_CHANGE, uevent_env);
+out:
+	kfree(uevent_env[0]);
+	kfree(uevent_env[1]);
+	kfree(uevent_env[2]);
+
+	if (ret)
+		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
+			   "Impossible to send uevent for (%s,%s,%s) event (err: %d)\n",
+			   batadv_uev_type_str[type],
+			   batadv_uev_action_str[action],
+			   (action == BATADV_UEV_DEL ? "NULL" : data), ret);
+	return ret;
 }
 
 module_init(batadv_init);

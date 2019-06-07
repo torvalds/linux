@@ -15,12 +15,12 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drmP.h>
 
 #include "zx_common_regs.h"
@@ -627,9 +627,10 @@ void zx_vou_layer_enable(struct drm_plane *plane)
 	zx_writel_mask(vou->osd + OSD_CTRL0, bits->enable, bits->enable);
 }
 
-void zx_vou_layer_disable(struct drm_plane *plane)
+void zx_vou_layer_disable(struct drm_plane *plane,
+			  struct drm_plane_state *old_state)
 {
-	struct zx_crtc *zcrtc = to_zx_crtc(plane->crtc);
+	struct zx_crtc *zcrtc = to_zx_crtc(old_state->crtc);
 	struct zx_vou_hw *vou = zcrtc->vou;
 	struct zx_plane *zplane = to_zx_plane(plane);
 	const struct vou_layer_bits *bits = zplane->bits;

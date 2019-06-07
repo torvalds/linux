@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/cpu.h>
 #include <linux/dma-mapping.h>
-#include <linux/bootmem.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/export.h>
@@ -8,7 +8,6 @@
 #include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 #include <linux/swiotlb.h>
 

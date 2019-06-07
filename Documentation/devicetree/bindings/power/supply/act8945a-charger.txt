@@ -9,8 +9,6 @@ Required properties:
  - interrupts: <a b> where a is the interrupt number and b is a
    field that represents an encoding of the sense and level
    information for the interrupt.
- - interrupt-parent: the phandle for the interrupt controller that
-   services interrupts for this device.
 
 Optional properties:
  - active-semi,input-voltage-threshold-microvolt: unit: mV;

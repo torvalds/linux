@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
@@ -119,21 +120,6 @@
  *
  *  This code was initially based on code from ALSA's emu10k1x.c which is:
  *  Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -1402,21 +1388,17 @@ static int snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 	for(substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; 
 	    substream; 
 	    substream = substream->next) {
-		if ((err = snd_pcm_lib_preallocate_pages(substream, 
-							 SNDRV_DMA_TYPE_DEV, 
-							 snd_dma_pci_data(emu->pci), 
-							 64*1024, 64*1024)) < 0) /* FIXME: 32*1024 for sound buffer, between 32and64 for Periods table. */
-			return err;
+		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_pci_data(emu->pci),
+					      64*1024, 64*1024);
 	}
 
 	for (substream = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream; 
 	      substream; 
 	      substream = substream->next) {
- 		if ((err = snd_pcm_lib_preallocate_pages(substream, 
-	                                           SNDRV_DMA_TYPE_DEV, 
-	                                           snd_dma_pci_data(emu->pci), 
-	                                           64*1024, 64*1024)) < 0)
-			return err;
+		snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_pci_data(emu->pci),
+					      64*1024, 64*1024);
 	}
   
 	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK, map, 2,
@@ -1910,11 +1892,8 @@ static int snd_ca0106_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ca0106 *chip = card->private_data;
-	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	for (i = 0; i < 4; i++)
-		snd_pcm_suspend_all(chip->pcm[i]);
 	if (chip->details->ac97)
 		snd_ac97_suspend(chip->ac97);
 	snd_ca0106_mixer_suspend(chip);

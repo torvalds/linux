@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * lec.c: Lan Emulation driver
  *
@@ -182,9 +183,8 @@ lec_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 
 	ATM_SKB(skb)->vcc = vcc;
-	ATM_SKB(skb)->atm_options = vcc->atm_options;
+	atm_account_tx(vcc, skb);
 
-	refcount_add(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
 	if (vcc->send(vcc, skb) < 0) {
 		dev->stats.tx_dropped++;
 		return;
@@ -711,7 +711,10 @@ static int lec_vcc_attach(struct atm_vcc *vcc, void __user *arg)
 
 static int lec_mcast_attach(struct atm_vcc *vcc, int arg)
 {
-	if (arg < 0 || arg >= MAX_LEC_ITF || !dev_lec[arg])
+	if (arg < 0 || arg >= MAX_LEC_ITF)
+		return -EINVAL;
+	arg = array_index_nospec(arg, MAX_LEC_ITF);
+	if (!dev_lec[arg])
 		return -EINVAL;
 	vcc->proto_data = dev_lec[arg];
 	return lec_mcast_make(netdev_priv(dev_lec[arg]), vcc);
@@ -724,11 +727,10 @@ static int lecd_attach(struct atm_vcc *vcc, int arg)
 	struct lec_priv *priv;
 
 	if (arg < 0)
-		i = 0;
-	else
-		i = arg;
+		arg = 0;
 	if (arg >= MAX_LEC_ITF)
 		return -EINVAL;
+	i = array_index_nospec(arg, MAX_LEC_ITF);
 	if (!dev_lec[i]) {
 		int size;
 
@@ -990,18 +992,6 @@ static const struct seq_operations lec_seq_ops = {
 	.stop = lec_seq_stop,
 	.show = lec_seq_show,
 };
-
-static int lec_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_private(file, &lec_seq_ops, sizeof(struct lec_state));
-}
-
-static const struct file_operations lec_seq_fops = {
-	.open = lec_seq_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release_private,
-};
 #endif
 
 static int lane_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
@@ -1047,7 +1037,8 @@ static int __init lane_module_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *p;
 
-	p = proc_create("lec", 0444, atm_proc_root, &lec_seq_fops);
+	p = proc_create_seq_private("lec", 0444, atm_proc_root, &lec_seq_ops,
+			sizeof(struct lec_state), NULL);
 	if (!p) {
 		pr_err("Unable to initialize /proc/net/atm/lec\n");
 		return -ENOMEM;

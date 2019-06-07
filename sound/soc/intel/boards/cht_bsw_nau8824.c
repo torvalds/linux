@@ -25,6 +25,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-acpi.h>
 #include <sound/jack.h>
 #include <linux/input.h>
 #include "../atom/sst-atom-controls.h"
@@ -120,7 +121,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	 * KEY_VOLUMEUP
 	 * KEY_VOLUMEDOWN
 	 */
-	jack_type = SND_JACK_HEADPHONE | SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+	jack_type = SND_JACK_HEADSET | SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 		SND_JACK_BTN_2 | SND_JACK_BTN_3;
 	ret = snd_soc_card_jack_new(runtime->card, "Headset", jack_type, jack,
 		cht_bsw_jack_pins, ARRAY_SIZE(cht_bsw_jack_pins));
@@ -246,12 +247,23 @@ static struct snd_soc_card snd_soc_card_cht = {
 static int snd_cht_mc_probe(struct platform_device *pdev)
 {
 	struct cht_mc_private *drv;
+	struct snd_soc_acpi_mach *mach;
+	const char *platform_name;
 	int ret_val;
 
-	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_ATOMIC);
+	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
 		return -ENOMEM;
 	snd_soc_card_set_drvdata(&snd_soc_card_cht, drv);
+
+	/* override plaform name, if required */
+	mach = (&pdev->dev)->platform_data;
+	platform_name = mach->mach_params.platform;
+
+	ret_val = snd_soc_fixup_dai_links_platform_name(&snd_soc_card_cht,
+							platform_name);
+	if (ret_val)
+		return ret_val;
 
 	/* register the soc card */
 	snd_soc_card_cht.dev = &pdev->dev;

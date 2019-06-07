@@ -55,6 +55,7 @@ int tm_sigreturn(void)
 	uint64_t ret = 0;
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(!is_ppc64le());
 
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = handler;

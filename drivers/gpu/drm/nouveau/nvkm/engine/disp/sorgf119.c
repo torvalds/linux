@@ -120,13 +120,16 @@ void
 gf119_sor_clock(struct nvkm_ior *sor)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
-	const int  div = sor->asy.link == 3;
 	const u32 soff = nv50_ior_base(sor);
+	u32 div1 = sor->asy.link == 3;
+	u32 div2 = sor->asy.link == 3;
 	if (sor->asy.proto == TMDS) {
-		/* NFI why, but this sets DP_LINK_BW_2_7 when using TMDS. */
-		nvkm_mask(device, 0x612300 + soff, 0x007c0000, 0x0a << 18);
+		const u32 speed = sor->tmds.high_speed ? 0x14 : 0x0a;
+		nvkm_mask(device, 0x612300 + soff, 0x007c0000, speed << 18);
+		if (sor->tmds.high_speed)
+			div2 = 1;
 	}
-	nvkm_mask(device, 0x612300 + soff, 0x00000707, (div << 8) | div);
+	nvkm_mask(device, 0x612300 + soff, 0x00000707, (div2 << 8) | div1);
 }
 
 void
@@ -150,15 +153,6 @@ gf119_sor_state(struct nvkm_ior *sor, struct nvkm_ior_state *state)
 	}
 
 	state->head = ctrl & 0x0000000f;
-}
-
-int
-gf119_sor_new_(const struct nvkm_ior_func *func, struct nvkm_disp *disp, int id)
-{
-	struct nvkm_device *device = disp->engine.subdev.device;
-	if (!(nvkm_rd32(device, 0x612004) & (0x00000100 << id)))
-		return 0;
-	return nvkm_ior_new_(func, disp, SOR, id);
 }
 
 static const struct nvkm_ior_func
@@ -189,5 +183,13 @@ gf119_sor = {
 int
 gf119_sor_new(struct nvkm_disp *disp, int id)
 {
-	return gf119_sor_new_(&gf119_sor, disp, id);
+	return nvkm_ior_new_(&gf119_sor, disp, SOR, id);
+}
+
+int
+gf119_sor_cnt(struct nvkm_disp *disp, unsigned long *pmask)
+{
+	struct nvkm_device *device = disp->engine.subdev.device;
+	*pmask = (nvkm_rd32(device, 0x612004) & 0x0000ff00) >> 8;
+	return 8;
 }

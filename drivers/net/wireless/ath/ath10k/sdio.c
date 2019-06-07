@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2004-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2012,2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2016-2017 Erik Stromdahl <erik.stromdahl@gmail.com>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/module.h>
@@ -30,6 +19,7 @@
 #include "debug.h"
 #include "hif.h"
 #include "htc.h"
+#include "mac.h"
 #include "targaddrs.h"
 #include "trace.h"
 #include "sdio.h"
@@ -396,6 +386,7 @@ static int ath10k_sdio_mbox_rx_process_packet(struct ath10k *ar,
 	int ret;
 
 	payload_len = le16_to_cpu(htc_hdr->len);
+	skb->len = payload_len + sizeof(struct ath10k_htc_hdr);
 
 	if (trailer_present) {
 		trailer = skb->data + sizeof(*htc_hdr) +
@@ -434,12 +425,14 @@ static int ath10k_sdio_mbox_rx_process_packets(struct ath10k *ar,
 	enum ath10k_htc_ep_id id;
 	int ret, i, *n_lookahead_local;
 	u32 *lookaheads_local;
+	int lookahead_idx = 0;
 
 	for (i = 0; i < ar_sdio->n_rx_pkts; i++) {
 		lookaheads_local = lookaheads;
 		n_lookahead_local = n_lookahead;
 
-		id = ((struct ath10k_htc_hdr *)&lookaheads[i])->eid;
+		id = ((struct ath10k_htc_hdr *)
+		      &lookaheads[lookahead_idx++])->eid;
 
 		if (id >= ATH10K_HTC_EP_COUNT) {
 			ath10k_warn(ar, "invalid endpoint in look-ahead: %d\n",
@@ -462,6 +455,7 @@ static int ath10k_sdio_mbox_rx_process_packets(struct ath10k *ar,
 			/* Only read lookahead's from RX trailers
 			 * for the last packet in a bundle.
 			 */
+			lookahead_idx--;
 			lookaheads_local = NULL;
 			n_lookahead_local = NULL;
 		}
@@ -505,11 +499,11 @@ static int ath10k_sdio_mbox_alloc_pkt_bundle(struct ath10k *ar,
 
 	*bndl_cnt = FIELD_GET(ATH10K_HTC_FLAG_BUNDLE_MASK, htc_hdr->flags);
 
-	if (*bndl_cnt > HTC_HOST_MAX_MSG_PER_BUNDLE) {
+	if (*bndl_cnt > HTC_HOST_MAX_MSG_PER_RX_BUNDLE) {
 		ath10k_warn(ar,
 			    "HTC bundle length %u exceeds maximum %u\n",
 			    le16_to_cpu(htc_hdr->len),
-			    HTC_HOST_MAX_MSG_PER_BUNDLE);
+			    HTC_HOST_MAX_MSG_PER_RX_BUNDLE);
 		return -ENOMEM;
 	}
 
@@ -600,6 +594,9 @@ static int ath10k_sdio_mbox_rx_alloc(struct ath10k *ar,
 		 * ATH10K_HTC_FLAG_BUNDLE_MASK flag set, all bundled
 		 * packet skb's have been allocated in the previous step.
 		 */
+		if (htc_hdr->flags & ATH10K_HTC_FLAGS_RECV_1MORE_BLOCK)
+			full_len += ATH10K_HIF_MBOX_BLOCK_SIZE;
+
 		ret = ath10k_sdio_mbox_alloc_rx_pkt(&ar_sdio->rx_pkts[i],
 						    act_len,
 						    full_len,
@@ -1342,6 +1339,8 @@ static void ath10k_sdio_irq_handler(struct sdio_func *func)
 			break;
 	} while (time_before(jiffies, timeout) && !done);
 
+	ath10k_mac_tx_push_pending(ar);
+
 	sdio_claim_host(ar_sdio->func);
 
 	if (ret && ret != -ECANCELED)
@@ -1371,7 +1370,8 @@ static int ath10k_sdio_hif_disable_intrs(struct ath10k *ar)
 	return ret;
 }
 
-static int ath10k_sdio_hif_power_up(struct ath10k *ar)
+static int ath10k_sdio_hif_power_up(struct ath10k *ar,
+				    enum ath10k_firmware_mode fw_mode)
 {
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
 	struct sdio_func *func = ar_sdio->func;
@@ -1381,6 +1381,12 @@ static int ath10k_sdio_hif_power_up(struct ath10k *ar)
 		return 0;
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "sdio power on\n");
+
+	ret = ath10k_sdio_config(ar);
+	if (ret) {
+		ath10k_err(ar, "failed to config sdio: %d\n", ret);
+		return ret;
+	}
 
 	sdio_claim_host(func);
 
@@ -1419,11 +1425,19 @@ static void ath10k_sdio_hif_power_down(struct ath10k *ar)
 
 	/* Disable the card */
 	sdio_claim_host(ar_sdio->func);
-	ret = sdio_disable_func(ar_sdio->func);
-	sdio_release_host(ar_sdio->func);
 
-	if (ret)
+	ret = sdio_disable_func(ar_sdio->func);
+	if (ret) {
 		ath10k_warn(ar, "unable to disable sdio function: %d\n", ret);
+		sdio_release_host(ar_sdio->func);
+		return;
+	}
+
+	ret = mmc_hw_reset(ar_sdio->func->card->host);
+	if (ret)
+		ath10k_warn(ar, "unable to reset sdio: %d\n", ret);
+
+	sdio_release_host(ar_sdio->func);
 
 	ar_sdio->is_disabled = true;
 }
@@ -1605,12 +1619,33 @@ static int ath10k_sdio_hif_diag_write_mem(struct ath10k *ar, u32 address,
 	return 0;
 }
 
+static int ath10k_sdio_hif_swap_mailbox(struct ath10k *ar)
+{
+	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
+	u32 addr, val;
+	int ret = 0;
+
+	addr = host_interest_item_address(HI_ITEM(hi_acs_flags));
+
+	ret = ath10k_sdio_hif_diag_read32(ar, addr, &val);
+	if (ret) {
+		ath10k_warn(ar, "unable to read hi_acs_flags : %d\n", ret);
+		return ret;
+	}
+
+	if (val & HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_FW_ACK) {
+		ath10k_dbg(ar, ATH10K_DBG_SDIO,
+			   "sdio mailbox swap service enabled\n");
+		ar_sdio->swap_mbox = true;
+	}
+	return 0;
+}
+
 /* HIF start/stop */
 
 static int ath10k_sdio_hif_start(struct ath10k *ar)
 {
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
-	u32 addr, val;
 	int ret;
 
 	/* Sleep 20 ms before HIF interrupts are disabled.
@@ -1643,20 +1678,6 @@ static int ath10k_sdio_hif_start(struct ath10k *ar)
 	ret = ath10k_sdio_hif_enable_intrs(ar);
 	if (ret)
 		ath10k_warn(ar, "failed to enable sdio interrupts: %d\n", ret);
-
-	addr = host_interest_item_address(HI_ITEM(hi_acs_flags));
-
-	ret = ath10k_sdio_hif_diag_read32(ar, addr, &val);
-	if (ret) {
-		ath10k_warn(ar, "unable to read hi_acs_flags address: %d\n", ret);
-		return ret;
-	}
-
-	if (val & HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_FW_ACK) {
-		ath10k_dbg(ar, ATH10K_DBG_SDIO,
-			   "sdio mailbox swap service enabled\n");
-		ar_sdio->swap_mbox = true;
-	}
 
 	/* Enable sleep and then disable it again */
 	ret = ath10k_sdio_hif_set_mbox_sleep(ar, true);
@@ -1888,6 +1909,7 @@ static const struct ath10k_hif_ops ath10k_sdio_hif_ops = {
 	.exchange_bmi_msg	= ath10k_sdio_bmi_exchange_msg,
 	.start			= ath10k_sdio_hif_start,
 	.stop			= ath10k_sdio_hif_stop,
+	.swap_mailbox		= ath10k_sdio_hif_swap_mailbox,
 	.map_service_to_pipe	= ath10k_sdio_hif_map_service_to_pipe,
 	.get_default_pipe	= ath10k_sdio_hif_get_default_pipe,
 	.send_complete_check	= ath10k_sdio_hif_send_complete_check,
@@ -1931,7 +1953,8 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	struct ath10k_sdio *ar_sdio;
 	struct ath10k *ar;
 	enum ath10k_hw_rev hw_rev;
-	u32 chip_id, dev_id_base;
+	u32 dev_id_base;
+	struct ath10k_bus_params bus_params;
 	int ret, i;
 
 	/* Assumption: All SDIO based chipsets (so far) are QCA6174 based.
@@ -1957,25 +1980,25 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	ar_sdio = ath10k_sdio_priv(ar);
 
 	ar_sdio->irq_data.irq_proc_reg =
-		kzalloc(sizeof(struct ath10k_sdio_irq_proc_regs),
-			GFP_KERNEL);
+		devm_kzalloc(ar->dev, sizeof(struct ath10k_sdio_irq_proc_regs),
+			     GFP_KERNEL);
 	if (!ar_sdio->irq_data.irq_proc_reg) {
 		ret = -ENOMEM;
 		goto err_core_destroy;
 	}
 
 	ar_sdio->irq_data.irq_en_reg =
-		kzalloc(sizeof(struct ath10k_sdio_irq_enable_regs),
-			GFP_KERNEL);
+		devm_kzalloc(ar->dev, sizeof(struct ath10k_sdio_irq_enable_regs),
+			     GFP_KERNEL);
 	if (!ar_sdio->irq_data.irq_en_reg) {
 		ret = -ENOMEM;
-		goto err_free_proc_reg;
+		goto err_core_destroy;
 	}
 
-	ar_sdio->bmi_buf = kzalloc(BMI_MAX_CMDBUF_SIZE, GFP_KERNEL);
+	ar_sdio->bmi_buf = devm_kzalloc(ar->dev, BMI_MAX_CMDBUF_SIZE, GFP_KERNEL);
 	if (!ar_sdio->bmi_buf) {
 		ret = -ENOMEM;
-		goto err_free_en_reg;
+		goto err_core_destroy;
 	}
 
 	ar_sdio->func = func;
@@ -1995,7 +2018,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	ar_sdio->workqueue = create_singlethread_workqueue("ath10k_sdio_wq");
 	if (!ar_sdio->workqueue) {
 		ret = -ENOMEM;
-		goto err_free_bmi_buf;
+		goto err_core_destroy;
 	}
 
 	for (i = 0; i < ATH10K_SDIO_BUS_REQUEST_MAX_NUM; i++)
@@ -2011,7 +2034,7 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 		ret = -ENODEV;
 		ath10k_err(ar, "unsupported device id %u (0x%x)\n",
 			   dev_id_base, id->device);
-		goto err_free_bmi_buf;
+		goto err_free_wq;
 	}
 
 	ar->id.vendor = id->vendor;
@@ -2019,15 +2042,10 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 
 	ath10k_sdio_set_mbox_info(ar);
 
-	ret = ath10k_sdio_config(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to config sdio: %d\n", ret);
-		goto err_free_wq;
-	}
-
+	bus_params.dev_type = ATH10K_DEV_TYPE_HL;
 	/* TODO: don't know yet how to get chip_id with SDIO */
-	chip_id = 0;
-	ret = ath10k_core_register(ar, chip_id);
+	bus_params.chip_id = 0;
+	ret = ath10k_core_register(ar, &bus_params);
 	if (ret) {
 		ath10k_err(ar, "failed to register driver core: %d\n", ret);
 		goto err_free_wq;
@@ -2040,12 +2058,6 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 
 err_free_wq:
 	destroy_workqueue(ar_sdio->workqueue);
-err_free_bmi_buf:
-	kfree(ar_sdio->bmi_buf);
-err_free_en_reg:
-	kfree(ar_sdio->irq_data.irq_en_reg);
-err_free_proc_reg:
-	kfree(ar_sdio->irq_data.irq_proc_reg);
 err_core_destroy:
 	ath10k_core_destroy(ar);
 
@@ -2082,7 +2094,10 @@ static struct sdio_driver ath10k_sdio_driver = {
 	.id_table = ath10k_sdio_devices,
 	.probe = ath10k_sdio_probe,
 	.remove = ath10k_sdio_remove,
-	.drv.pm = ATH10K_SDIO_PM_OPS,
+	.drv = {
+		.owner = THIS_MODULE,
+		.pm = ATH10K_SDIO_PM_OPS,
+	},
 };
 
 static int __init ath10k_sdio_init(void)

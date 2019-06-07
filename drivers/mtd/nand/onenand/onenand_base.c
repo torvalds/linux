@@ -2458,7 +2458,7 @@ static int onenand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
                 bbm->bbt[block >> 2] |= 0x01 << ((block & 0x03) << 1);
 
         /* We write two bytes, so we don't have to mess with 16-bit access */
-        ofs += mtd->oobsize + (bbm->badblockpos & ~0x01);
+        ofs += mtd->oobsize + (this->badblockpos & ~0x01);
 	/* FIXME : What to do when marking SLC block in partition
 	 * 	   with MLC erasesize? For now, it is not advisable to
 	 *	   create partitions containing both SLC and MLC regions.
@@ -3721,8 +3721,10 @@ static int onenand_probe(struct mtd_info *mtd)
 		this->dies = ONENAND_IS_DDP(this) ? 2 : 1;
 		/* Maximum possible erase regions */
 		mtd->numeraseregions = this->dies << 1;
-		mtd->eraseregions = kzalloc(sizeof(struct mtd_erase_region_info)
-					* (this->dies << 1), GFP_KERNEL);
+		mtd->eraseregions =
+			kcalloc(this->dies << 1,
+				sizeof(struct mtd_erase_region_info),
+				GFP_KERNEL);
 		if (!mtd->eraseregions)
 			return -ENOMEM;
 	}
@@ -3964,6 +3966,9 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	/* Unlock whole block */
 	if (!(this->options & ONENAND_SKIP_INITIAL_UNLOCKING))
 		this->unlock_all(mtd);
+
+	/* Set the bad block marker position */
+	this->badblockpos = ONENAND_BADBLOCK_POS;
 
 	ret = this->scan_bbt(mtd);
 	if ((!FLEXONENAND(this)) || ret)

@@ -58,6 +58,7 @@
 #include <net/neighbour.h>
 #include <net/route.h>
 #include <net/ip_fib.h>
+#include <net/secure_seq.h>
 #include <net/tcp.h>
 #include <linux/fcntl.h>
 
@@ -1406,7 +1407,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 		if (neigh->nud_state & NUD_VALID) {
 			nes_debug(NES_DBG_CM, "Neighbor MAC address for 0x%08X"
 				  " is %pM, Gateway is 0x%08X \n", dst_ip,
-				  neigh->ha, ntohl(rt->rt_gateway));
+				  neigh->ha, ntohl(rt->rt_gw4));
 
 			if (arpindex >= 0) {
 				if (ether_addr_equal(nesadapter->arp_table[arpindex].mac_addr, neigh->ha)) {
@@ -1445,7 +1446,6 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 					struct nes_cm_listener *listener)
 {
 	struct nes_cm_node *cm_node;
-	struct timespec ts;
 	int oldarpindex = 0;
 	int arpindex = 0;
 	struct nes_device *nesdev;
@@ -1496,8 +1496,10 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 	cm_node->tcp_cntxt.rcv_wscale = NES_CM_DEFAULT_RCV_WND_SCALE;
 	cm_node->tcp_cntxt.rcv_wnd = NES_CM_DEFAULT_RCV_WND_SCALED >>
 				     NES_CM_DEFAULT_RCV_WND_SCALE;
-	ts = current_kernel_time();
-	cm_node->tcp_cntxt.loc_seq_num = htonl(ts.tv_nsec);
+	cm_node->tcp_cntxt.loc_seq_num = secure_tcp_seq(htonl(cm_node->loc_addr),
+							htonl(cm_node->rem_addr),
+							htons(cm_node->loc_port),
+							htons(cm_node->rem_port));
 	cm_node->tcp_cntxt.mss = nesvnic->max_frame_size - sizeof(struct iphdr) -
 				 sizeof(struct tcphdr) - ETH_HLEN - VLAN_HLEN;
 	cm_node->tcp_cntxt.rcv_nxt = 0;
@@ -3031,7 +3033,8 @@ static int nes_disconnect(struct nes_qp *nesqp, int abrupt)
 		/* Need to free the Last Streaming Mode Message */
 		if (nesqp->ietf_frame) {
 			if (nesqp->lsmm_mr)
-				nesibdev->ibdev.dereg_mr(nesqp->lsmm_mr);
+				nesibdev->ibdev.ops.dereg_mr(nesqp->lsmm_mr,
+							     NULL);
 			pci_free_consistent(nesdev->pcidev,
 					    nesqp->private_data_len + nesqp->ietf_frame_size,
 					    nesqp->ietf_frame, nesqp->ietf_frame_pbase);

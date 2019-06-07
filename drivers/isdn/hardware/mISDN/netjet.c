@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NETJet mISDN driver
  *
  * Author       Karsten Keil <keil@isdn4linux.de>
  *
  * Copyright 2009  by Karsten Keil <keil@isdn4linux.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/interrupt.h>
@@ -1084,7 +1071,7 @@ nj_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	card = kzalloc(sizeof(struct tiger_hw), GFP_ATOMIC);
+	card = kzalloc(sizeof(struct tiger_hw), GFP_KERNEL);
 	if (!card) {
 		pr_info("No kmem for Netjet\n");
 		return err;

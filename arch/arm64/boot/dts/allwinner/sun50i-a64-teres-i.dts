@@ -21,6 +21,15 @@
 		serial0 = &uart0;
 	};
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 0 50000 0>;
+		power-supply = <&reg_dcdc1>;
+		brightness-levels = <0 5 7 10 14 20 28 40 56 80 112>;
+		default-brightness-level = <5>;
+		enable-gpios = <&pio 3 23 GPIO_ACTIVE_HIGH>; /* PD23 */
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 
@@ -38,6 +47,7 @@
 			gpios = <&r_pio 0 8 GPIO_ACTIVE_LOW>; /* PL8 */
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
+			wakeup-source;
 		};
 	};
 
@@ -130,6 +140,10 @@
 	status = "okay";
 };
 
+&pwm {
+	status = "okay";
+};
+
 &r_rsb {
 	status = "okay";
 
@@ -143,6 +157,14 @@
 };
 
 #include "axp803.dtsi"
+
+&ac_power_supply {
+	status = "okay";
+};
+
+&battery_power_supply {
+	status = "okay";
+};
 
 &reg_aldo1 {
 	regulator-always-on;
@@ -210,7 +232,7 @@
 &reg_dldo3 {
 	regulator-min-microvolt = <1200000>;
 	regulator-max-microvolt = <1200000>;
-	regulator-name = "eDP12";
+	regulator-name = "vdd-edp";
 };
 
 &reg_dldo4 {
@@ -238,7 +260,7 @@
 };
 
 /*
- * The A64 chip cannot work without this regulator off, although
+ * The A64 chip cannot work with this regulator off, although
  * it seems to be only driving the AR100 core.
  * Maybe we don't still know well about CPUs domain.
  */
@@ -253,9 +275,13 @@
 	regulator-name = "vcc-rtc";
 };
 
+&simplefb_hdmi {
+	vcc-hdmi-supply = <&reg_dldo1>;
+};
+
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

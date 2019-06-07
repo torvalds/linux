@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015, Michael Neuling, IBM Corp.
- * Licensed under GPLv2.
  *
  * Original: Michael Neuling 3/4/2014
  * Modified: Rashmica Gupta 8/12/2015
@@ -21,7 +21,6 @@
  * 	(a) begin transaction
  *    	(b) abort transaction
  *	(c) check TEXASR to see if FS has been corrupted
- *
  */
 
 #define _GNU_SOURCE
@@ -98,7 +97,7 @@ void texasr(void *in)
 
 int test_tmspr()
 {
-	pthread_t 	thread;
+	pthread_t	*thread;
 	int	   	thread_num;
 	unsigned long	i;
 
@@ -107,21 +106,28 @@ int test_tmspr()
 	/* To cause some context switching */
 	thread_num = 10 * sysconf(_SC_NPROCESSORS_ONLN);
 
-	/* Test TFIAR and TFHAR */
-	for (i = 0 ; i < thread_num ; i += 2){
-		if (pthread_create(&thread, NULL, (void*)tfiar_tfhar, (void *)i))
-			return EXIT_FAILURE;
-	}
-	if (pthread_join(thread, NULL) != 0)
+	thread = malloc(thread_num * sizeof(pthread_t));
+	if (thread == NULL)
 		return EXIT_FAILURE;
 
-	/* Test TEXASR */
-	for (i = 0 ; i < thread_num ; i++){
-		if (pthread_create(&thread, NULL, (void*)texasr, (void *)i))
+	/* Test TFIAR and TFHAR */
+	for (i = 0; i < thread_num; i += 2) {
+		if (pthread_create(&thread[i], NULL, (void *)tfiar_tfhar,
+				   (void *)i))
 			return EXIT_FAILURE;
 	}
-	if (pthread_join(thread, NULL) != 0)
-		return EXIT_FAILURE;
+	/* Test TEXASR */
+	for (i = 1; i < thread_num; i += 2) {
+		if (pthread_create(&thread[i], NULL, (void *)texasr, (void *)i))
+			return EXIT_FAILURE;
+	}
+
+	for (i = 0; i < thread_num; i++) {
+		if (pthread_join(thread[i], NULL) != 0)
+			return EXIT_FAILURE;
+	}
+
+	free(thread);
 
 	if (passed)
 		return 0;

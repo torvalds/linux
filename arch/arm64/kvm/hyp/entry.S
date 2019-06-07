@@ -24,6 +24,7 @@
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmu.h>
+#include <asm/kvm_ptrauth.h>
 
 #define CPU_GP_REG_OFFSET(x)	(CPU_GP_REGS + x)
 #define CPU_XREG_OFFSET(x)	CPU_GP_REG_OFFSET(CPU_USER_PT_REGS + 8*x)
@@ -64,6 +65,13 @@ ENTRY(__guest_enter)
 
 	add	x18, x0, #VCPU_CONTEXT
 
+	// Macro ptrauth_switch_to_guest format:
+	// 	ptrauth_switch_to_guest(guest cxt, tmp1, tmp2, tmp3)
+	// The below macro to restore guest keys is not implemented in C code
+	// as it may cause Pointer Authentication key signing mismatch errors
+	// when this feature is enabled for kernel code.
+	ptrauth_switch_to_guest x18, x0, x1, x2
+
 	// Restore guest regs x0-x17
 	ldp	x0, x1,   [x18, #CPU_XREG_OFFSET(0)]
 	ldp	x2, x3,   [x18, #CPU_XREG_OFFSET(2)]
@@ -83,6 +91,7 @@ ENTRY(__guest_enter)
 
 	// Do not touch any register after this!
 	eret
+	sb
 ENDPROC(__guest_enter)
 
 ENTRY(__guest_exit)
@@ -116,6 +125,13 @@ ENTRY(__guest_exit)
 	save_callee_saved_regs x1
 
 	get_host_ctxt	x2, x3
+
+	// Macro ptrauth_switch_to_guest format:
+	// 	ptrauth_switch_to_host(guest cxt, host cxt, tmp1, tmp2, tmp3)
+	// The below macro to save/restore keys is not implemented in C code
+	// as it may cause Pointer Authentication key signing mismatch errors
+	// when this feature is enabled for kernel code.
+	ptrauth_switch_to_host x1, x2, x3, x4, x5
 
 	// Now restore the host regs
 	restore_callee_saved_regs x2
@@ -166,46 +182,3 @@ abort_guest_exit_end:
 	orr	x0, x0, x5
 1:	ret
 ENDPROC(__guest_exit)
-
-ENTRY(__fpsimd_guest_restore)
-	// x0: esr
-	// x1: vcpu
-	// x2-x29,lr: vcpu regs
-	// vcpu x0-x1 on the stack
-	stp	x2, x3, [sp, #-16]!
-	stp	x4, lr, [sp, #-16]!
-
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
-	mrs	x2, cptr_el2
-	bic	x2, x2, #CPTR_EL2_TFP
-	msr	cptr_el2, x2
-alternative_else
-	mrs	x2, cpacr_el1
-	orr	x2, x2, #CPACR_EL1_FPEN
-	msr	cpacr_el1, x2
-alternative_endif
-	isb
-
-	mov	x3, x1
-
-	ldr	x0, [x3, #VCPU_HOST_CONTEXT]
-	kern_hyp_va x0
-	add	x0, x0, #CPU_GP_REG_OFFSET(CPU_FP_REGS)
-	bl	__fpsimd_save_state
-
-	add	x2, x3, #VCPU_CONTEXT
-	add	x0, x2, #CPU_GP_REG_OFFSET(CPU_FP_REGS)
-	bl	__fpsimd_restore_state
-
-	// Skip restoring fpexc32 for AArch64 guests
-	mrs	x1, hcr_el2
-	tbnz	x1, #HCR_RW_SHIFT, 1f
-	ldr	x4, [x3, #VCPU_FPEXC32_EL2]
-	msr	fpexc32_el2, x4
-1:
-	ldp	x4, lr, [sp], #16
-	ldp	x2, x3, [sp], #16
-	ldp	x0, x1, [sp], #16
-
-	eret
-ENDPROC(__fpsimd_guest_restore)

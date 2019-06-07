@@ -148,9 +148,9 @@ FN_ENTRY
 		strb	r5, [dst], #1
 		mov	r5, r4, get_byte_2
 .Lexit:		tst	len, #1
-		strneb	r5, [dst], #1
+		strbne	r5, [dst], #1
 		andne	r5, r5, #255
-		adcnes	sum, sum, r5, put_byte_0
+		adcsne	sum, sum, r5, put_byte_0
 
 		/*
 		 * If the dst pointer was not 16-bit aligned, we

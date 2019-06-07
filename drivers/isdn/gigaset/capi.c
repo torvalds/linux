@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Kernel CAPI interface for the Gigaset driver
  *
  * Copyright (c) 2009 by Tilman Schmidt <tilman@imap.cc>.
  *
  * =====================================================================
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation; either version 2 of
- *	the License, or (at your option) any later version.
  * =====================================================================
  */
 
@@ -252,7 +249,7 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
 		return;
 	if (l > 64)
 		l = 64; /* arbitrary limit */
-	dbgline = kmalloc(3 * l, GFP_ATOMIC);
+	dbgline = kmalloc_array(3, l, GFP_ATOMIC);
 	if (!dbgline)
 		return;
 	for (i = 0; i < l; i++) {
@@ -272,7 +269,7 @@ static inline void dump_rawmsg(enum debuglevel level, const char *tag,
 			return;
 		if (l > 64)
 			l = 64; /* arbitrary limit */
-		dbgline = kmalloc(3 * l, GFP_ATOMIC);
+		dbgline = kmalloc_array(3, l, GFP_ATOMIC);
 		if (!dbgline)
 			return;
 		data += CAPIMSG_LEN(data);
@@ -1370,7 +1367,7 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	cmsg->adr.adrPLCI |= (bcs->channel + 1) << 8;
 
 	/* build command table */
-	commands = kzalloc(AT_NUM * (sizeof *commands), GFP_KERNEL);
+	commands = kcalloc(AT_NUM, sizeof(*commands), GFP_KERNEL);
 	if (!commands)
 		goto oom;
 
@@ -2437,19 +2434,6 @@ static int gigaset_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int gigaset_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, gigaset_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations gigaset_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= gigaset_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 /**
  * gigaset_isdn_regdev() - register device to LL
  * @cs:		device descriptor structure.
@@ -2479,7 +2463,7 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	iif->ctr.release_appl  = gigaset_release_appl;
 	iif->ctr.send_message  = gigaset_send_message;
 	iif->ctr.procinfo      = gigaset_procinfo;
-	iif->ctr.proc_fops = &gigaset_proc_fops;
+	iif->ctr.proc_show     = gigaset_proc_show,
 	INIT_LIST_HEAD(&iif->appls);
 	skb_queue_head_init(&iif->sendqueue);
 	atomic_set(&iif->sendqlen, 0);

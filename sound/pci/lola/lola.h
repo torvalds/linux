@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Support for Digigram Lola PCI-e boards
  *
  *  Copyright (c) 2011 Takashi Iwai <tiwai@suse.de>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the Free
- *  Software Foundation; either version 2 of the License, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc., 59
- *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #ifndef _LOLA_H
@@ -220,7 +207,7 @@ struct lola_bar {
 
 /* CORB/RIRB */
 struct lola_rb {
-	u32 *buf;		/* CORB/RIRB buffer, 8 byte per each entry */
+	__le32 *buf;		/* CORB/RIRB buffer, 8 byte per each entry */
 	dma_addr_t addr;	/* physical address of CORB/RIRB buffer */
 	unsigned short rp, wp;	/* read/write pointers */
 	int cmds;		/* number of pending requests */
@@ -275,7 +262,7 @@ struct lola_mixer_array {
 struct lola_mixer_widget {
 	unsigned int nid;
 	unsigned int caps;
-	struct lola_mixer_array __user *array;
+	struct lola_mixer_array __iomem *array;
 	struct lola_mixer_array *array_saved;
 	unsigned int src_stream_outs;
 	unsigned int src_phys_ins;

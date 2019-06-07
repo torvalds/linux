@@ -20,8 +20,12 @@
 #include <linux/of.h>
 #include <asm/processor.h>
 #include <asm/hwcap.h>
+#include <asm/smp.h>
 
 unsigned long elf_hwcap __read_mostly;
+#ifdef CONFIG_FPU
+bool has_fpu __read_mostly;
+#endif
 
 void riscv_fill_hwcap(void)
 {
@@ -39,23 +43,42 @@ void riscv_fill_hwcap(void)
 
 	elf_hwcap = 0;
 
-	/*
-	 * We don't support running Linux on hertergenous ISA systems.  For
-	 * now, we just check the ISA of the first processor.
-	 */
-	node = of_find_node_by_type(NULL, "cpu");
-	if (!node) {
-		pr_warning("Unable to find \"cpu\" devicetree entry");
-		return;
+	for_each_of_cpu_node(node) {
+		unsigned long this_hwcap = 0;
+
+		if (riscv_of_processor_hartid(node) < 0)
+			continue;
+
+		if (of_property_read_string(node, "riscv,isa", &isa)) {
+			pr_warn("Unable to find \"riscv,isa\" devicetree entry\n");
+			continue;
+		}
+
+		for (i = 0; i < strlen(isa); ++i)
+			this_hwcap |= isa2hwcap[(unsigned char)(isa[i])];
+
+		/*
+		 * All "okay" hart should have same isa. Set HWCAP based on
+		 * common capabilities of every "okay" hart, in case they don't
+		 * have.
+		 */
+		if (elf_hwcap)
+			elf_hwcap &= this_hwcap;
+		else
+			elf_hwcap = this_hwcap;
 	}
 
-	if (of_property_read_string(node, "riscv,isa", &isa)) {
-		pr_warning("Unable to find \"riscv,isa\" devicetree entry");
-		return;
+	/* We don't support systems with F but without D, so mask those out
+	 * here. */
+	if ((elf_hwcap & COMPAT_HWCAP_ISA_F) && !(elf_hwcap & COMPAT_HWCAP_ISA_D)) {
+		pr_info("This kernel does not support systems with F but not D\n");
+		elf_hwcap &= ~COMPAT_HWCAP_ISA_F;
 	}
 
-	for (i = 0; i < strlen(isa); ++i)
-		elf_hwcap |= isa2hwcap[(unsigned char)(isa[i])];
+	pr_info("elf_hwcap is 0x%lx\n", elf_hwcap);
 
-	pr_info("elf_hwcap is 0x%lx", elf_hwcap);
+#ifdef CONFIG_FPU
+	if (elf_hwcap & (COMPAT_HWCAP_ISA_F | COMPAT_HWCAP_ISA_D))
+		has_fpu = true;
+#endif
 }

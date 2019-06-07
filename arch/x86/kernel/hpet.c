@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -19,10 +21,6 @@
 #include <asm/time.h>
 
 #define HPET_MASK			CLOCKSOURCE_MASK(32)
-
-/* FSEC = 10^-15
-   NSEC = 10^-9 */
-#define FSEC_PER_NSEC			1000000L
 
 #define HPET_DEV_USED_BIT		2
 #define HPET_DEV_USED			(1 << HPET_DEV_USED_BIT)
@@ -610,7 +608,7 @@ static void hpet_msi_capability_lookup(unsigned int start_timer)
 	if (!hpet_domain)
 		return;
 
-	hpet_devs = kzalloc(sizeof(struct hpet_dev) * num_timers, GFP_KERNEL);
+	hpet_devs = kcalloc(num_timers, sizeof(struct hpet_dev), GFP_KERNEL);
 	if (!hpet_devs)
 		return;
 
@@ -908,6 +906,8 @@ int __init hpet_enable(void)
 		return 0;
 
 	hpet_set_mapping();
+	if (!hpet_virt_address)
+		return 0;
 
 	/*
 	 * Read the period and check for a sane value:
@@ -966,8 +966,8 @@ int __init hpet_enable(void)
 #endif
 
 	cfg = hpet_readl(HPET_CFG);
-	hpet_boot_cfg = kmalloc((last + 2) * sizeof(*hpet_boot_cfg),
-				GFP_KERNEL);
+	hpet_boot_cfg = kmalloc_array(last + 2, sizeof(*hpet_boot_cfg),
+				      GFP_KERNEL);
 	if (hpet_boot_cfg)
 		*hpet_boot_cfg = cfg;
 	else
@@ -975,8 +975,7 @@ int __init hpet_enable(void)
 	cfg &= ~(HPET_CFG_ENABLE | HPET_CFG_LEGACY);
 	hpet_writel(cfg, HPET_CFG);
 	if (cfg)
-		pr_warn("HPET: Unrecognized bits %#x set in global cfg\n",
-			cfg);
+		pr_warn("Unrecognized bits %#x set in global cfg\n", cfg);
 
 	for (i = 0; i <= last; ++i) {
 		cfg = hpet_readl(HPET_Tn_CFG(i));
@@ -988,7 +987,7 @@ int __init hpet_enable(void)
 			 | HPET_TN_64BIT_CAP | HPET_TN_32BIT | HPET_TN_ROUTE
 			 | HPET_TN_FSB | HPET_TN_FSB_CAP);
 		if (cfg)
-			pr_warn("HPET: Unrecognized bits %#x set in cfg#%u\n",
+			pr_warn("Unrecognized bits %#x set in cfg#%u\n",
 				cfg, i);
 	}
 	hpet_print_config();

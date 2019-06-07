@@ -158,7 +158,7 @@ static void __init zynq_clk_register_fclk(enum zynq_clk fclk,
 	clks[fclk] = clk_register_gate(NULL, clk_name,
 			div1_name, CLK_SET_RATE_PARENT, fclk_gate_reg,
 			0, CLK_GATE_SET_TO_DISABLE, fclk_gate_lock);
-	enable_reg = clk_readl(fclk_gate_reg) & 1;
+	enable_reg = readl(fclk_gate_reg) & 1;
 	if (enable && !enable_reg) {
 		if (clk_prepare_enable(clks[fclk]))
 			pr_warn("%s: FCLK%u enable failed\n", __func__,
@@ -287,7 +287,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 			SLCR_IOPLL_CTRL, 4, 1, 0, &iopll_lock);
 
 	/* CPU clocks */
-	tmp = clk_readl(SLCR_621_TRUE) & 1;
+	tmp = readl(SLCR_621_TRUE) & 1;
 	clk = clk_register_mux(NULL, "cpu_mux", cpu_parents, 4,
 			CLK_SET_RATE_NO_REPARENT, SLCR_ARM_CLK_CTRL, 4, 2, 0,
 			&armclk_lock);
@@ -510,7 +510,7 @@ static void __init zynq_clk_setup(struct device_node *np)
 			&dbgclk_lock);
 
 	/* leave debug clocks in the state the bootloader set them up to */
-	tmp = clk_readl(SLCR_DBG_CLK_CTRL);
+	tmp = readl(SLCR_DBG_CLK_CTRL);
 	if (tmp & DBG_CLK_CTRL_CLKACT_TRC)
 		if (clk_prepare_enable(clks[dbg_trc]))
 			pr_warn("%s: trace clk enable failed\n", __func__);
@@ -602,7 +602,7 @@ void __init zynq_clock_init(void)
 	}
 
 	if (of_address_to_resource(np, 0, &res)) {
-		pr_err("%s: failed to get resource\n", np->name);
+		pr_err("%pOFn: failed to get resource\n", np);
 		goto np_err;
 	}
 
@@ -611,7 +611,7 @@ void __init zynq_clock_init(void)
 	if (slcr->data) {
 		zynq_clkc_base = (__force void __iomem *)slcr->data + res.start;
 	} else {
-		pr_err("%s: Unable to get I/O memory\n", np->name);
+		pr_err("%pOFn: Unable to get I/O memory\n", np);
 		of_node_put(slcr);
 		goto np_err;
 	}

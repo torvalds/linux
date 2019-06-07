@@ -48,9 +48,12 @@ int __init early_set_memory_encrypted(unsigned long vaddr, unsigned long size);
 
 /* Architecture __weak replacement functions */
 void __init mem_encrypt_init(void);
+void __init mem_encrypt_free_decrypted_mem(void);
 
 bool sme_active(void);
 bool sev_active(void);
+
+#define __bss_decrypted __attribute__((__section__(".bss..decrypted")))
 
 #else	/* !CONFIG_AMD_MEM_ENCRYPT */
 
@@ -77,6 +80,8 @@ early_set_memory_decrypted(unsigned long vaddr, unsigned long size) { return 0; 
 static inline int __init
 early_set_memory_encrypted(unsigned long vaddr, unsigned long size) { return 0; }
 
+#define __bss_decrypted
+
 #endif	/* CONFIG_AMD_MEM_ENCRYPT */
 
 /*
@@ -87,6 +92,8 @@ early_set_memory_encrypted(unsigned long vaddr, unsigned long size) { return 0; 
  */
 #define __sme_pa(x)		(__pa(x) | sme_me_mask)
 #define __sme_pa_nodebug(x)	(__pa_nodebug(x) | sme_me_mask)
+
+extern char __start_bss_decrypted[], __end_bss_decrypted[], __start_bss_decrypted_unused[];
 
 #endif	/* __ASSEMBLY__ */
 

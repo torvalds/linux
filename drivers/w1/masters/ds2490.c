@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	ds2490.c  USB to one wire bridge
  *
  * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/module.h>
@@ -134,8 +120,7 @@
 #define EP_DATA_OUT			2
 #define EP_DATA_IN			3
 
-struct ds_device
-{
+struct ds_device {
 	struct list_head	ds_entry;
 
 	struct usb_device	*udev;
@@ -158,8 +143,7 @@ struct ds_device
 	struct w1_bus_master	master;
 };
 
-struct ds_status
-{
+struct ds_status {
 	u8			enable;
 	u8			speed;
 	u8			pullup_dur;
@@ -236,7 +220,7 @@ static void ds_dump_status(struct ds_device *dev, unsigned char *buf, int count)
 	int i;
 
 	pr_info("0x%x: count=%d, status: ", dev->ep[EP_STATUS], count);
-	for (i=0; i<count; ++i)
+	for (i = 0; i < count; ++i)
 		pr_info("%02x ", buf[i]);
 	pr_info("\n");
 
@@ -358,7 +342,7 @@ static int ds_recv_data(struct ds_device *dev, unsigned char *buf, int size)
 		int i;
 
 		printk("%s: count=%d: ", __func__, count);
-		for (i=0; i<count; ++i)
+		for (i = 0; i < count; ++i)
 			printk("%02x ", buf[i]);
 		printk("\n");
 	}
@@ -404,7 +388,7 @@ int ds_stop_pulse(struct ds_device *dev, int limit)
 			if (err)
 				break;
 		}
-	} while(++count < limit);
+	} while (++count < limit);
 
 	return err;
 }
@@ -447,7 +431,7 @@ static int ds_wait_status(struct ds_device *dev, struct ds_status *st)
 		if (err >= 0) {
 			int i;
 			printk("0x%x: count=%d, status: ", dev->ep[EP_STATUS], err);
-			for (i=0; i<err; ++i)
+			for (i = 0; i < err; ++i)
 				printk("%02x ", dev->st_buf[i]);
 			printk("\n");
 		}
@@ -613,7 +597,7 @@ static int ds_read_byte(struct ds_device *dev, u8 *byte)
 	int err;
 	struct ds_status st;
 
-	err = ds_send_control(dev, COMM_BYTE_IO | COMM_IM , 0xff);
+	err = ds_send_control(dev, COMM_BYTE_IO | COMM_IM, 0xff);
 	if (err)
 		return err;
 
@@ -1018,15 +1002,15 @@ static int ds_probe(struct usb_interface *intf,
 	/* alternative 3, 1ms interrupt (greatly speeds search), 64 byte bulk */
 	alt = 3;
 	err = usb_set_interface(dev->udev,
-		intf->altsetting[alt].desc.bInterfaceNumber, alt);
+		intf->cur_altsetting->desc.bInterfaceNumber, alt);
 	if (err) {
 		dev_err(&dev->udev->dev, "Failed to set alternative setting %d "
 			"for %d interface: err=%d.\n", alt,
-			intf->altsetting[alt].desc.bInterfaceNumber, err);
+			intf->cur_altsetting->desc.bInterfaceNumber, err);
 		goto err_out_clear;
 	}
 
-	iface_desc = &intf->altsetting[alt];
+	iface_desc = intf->cur_altsetting;
 	if (iface_desc->desc.bNumEndpoints != NUM_EP-1) {
 		pr_info("Num endpoints=%d. It is not DS9490R.\n",
 			iface_desc->desc.bNumEndpoints);

@@ -1,20 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __RTW_CMD_H_
 #define __RTW_CMD_H_
 
+#include <linux/completion.h>
 
 #define C2H_MEM_SZ (16*1024)
 
@@ -35,7 +28,6 @@
 		u8 *rsp;
 		u32 rspsz;
 		struct submit_ctx *sctx;
-		/* _sema		cmd_sem; */
 		struct list_head	list;
 	};
 
@@ -46,9 +38,8 @@
 	};
 
 	struct cmd_priv {
-		_sema	cmd_queue_sema;
-		/* _sema	cmd_done_sema; */
-		_sema	terminate_cmdthread_sema;
+		struct completion cmd_queue_comp;
+		struct completion terminate_cmdthread_comp;
 		struct __queue	cmd_queue;
 		u8 cmd_seq;
 		u8 *cmd_buf;	/* shall be non-paged, and 4 bytes aligned */
@@ -131,17 +122,15 @@ struct P2P_PS_CTWPeriod_t {
 	u8 CTWPeriod;	/* TU */
 };
 
-extern u32 rtw_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj);
+int rtw_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj);
 extern struct cmd_obj *rtw_dequeue_cmd(struct cmd_priv *pcmdpriv);
 extern void rtw_free_cmd_obj(struct cmd_obj *pcmd);
 
 void rtw_stop_cmd_thread(struct adapter *adapter);
 int rtw_cmd_thread(void *context);
 
-extern u32 rtw_init_cmd_priv (struct cmd_priv *pcmdpriv);
 extern void rtw_free_cmd_priv (struct cmd_priv *pcmdpriv);
 
-extern u32 rtw_init_evt_priv (struct evt_priv *pevtpriv);
 extern void rtw_free_evt_priv (struct evt_priv *pevtpriv);
 extern void rtw_evt_notify_isr(struct evt_priv *pevtpriv);
 
@@ -551,7 +540,7 @@ struct Tx_Beacon_param
 
 	mac[0] == 0
 	==> CMD mode, return H2C_SUCCESS.
-	The following condition must be ture under CMD mode
+	The following condition must be true under CMD mode
 		mac[1] == mac[4], mac[2] == mac[3], mac[0]=mac[5]= 0;
 		s0 == 0x1234, s1 == 0xabcd, w0 == 0x78563412, w1 == 0x5aa5def7;
 		s2 == (b1 << 8 | b0);
@@ -838,7 +827,7 @@ Result:
 
 u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, int ssid_num, struct rtw_ieee80211_channel *ch, int ch_num);
 extern u8 rtw_createbss_cmd(struct adapter  *padapter);
-u8 rtw_startbss_cmd(struct adapter  *padapter, int flags);
+int rtw_startbss_cmd(struct adapter  *padapter, int flags);
 
 struct sta_info;
 extern u8 rtw_setstakey_cmd(struct adapter  *padapter, struct sta_info *sta, u8 unicast_key, bool enqueue);

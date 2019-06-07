@@ -245,6 +245,18 @@ void qed_port_unpretend(struct qed_hwfn *p_hwfn,
 			struct qed_ptt *p_ptt);
 
 /**
+ * @brief qed_port_fid_pretend - pretend to another port and another function
+ *        when accessing the ptt window
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param port_id - the port to pretend to
+ * @param fid - fid field of pxp_pretend structure. Can contain either pf / vf.
+ */
+void qed_port_fid_pretend(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 port_id, u16 fid);
+
+/**
  * @brief qed_vfid_to_concrete - build a concrete FID for a
  *        given VF ID
  *

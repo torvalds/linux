@@ -1,21 +1,7 @@
-/*
- * cros_ec_debugfs - debug logs for Chrome OS EC
- *
- * Copyright 2015 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Debug logs for the ChromeOS EC
+//
+// Copyright (C) 2015 Google, Inc.
 
 #include <linux/circ_buf.h>
 #include <linux/debugfs.h>
@@ -23,11 +9,15 @@
 #include <linux/fs.h>
 #include <linux/mfd/cros_ec.h>
 #include <linux/mfd/cros_ec_commands.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
+
+#define DRV_NAME "cros-ec-debugfs"
 
 #define LOG_SHIFT		14
 #define LOG_SIZE		(1 << LOG_SHIFT)
@@ -82,15 +72,9 @@ static void cros_ec_console_log_work(struct work_struct *__work)
 	int buf_space;
 	int ret;
 
-	ret = cros_ec_cmd_xfer(ec->ec_dev, &snapshot_msg);
-	if (ret < 0) {
-		dev_err(ec->dev, "EC communication failed\n");
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, &snapshot_msg);
+	if (ret < 0)
 		goto resched;
-	}
-	if (snapshot_msg.result != EC_RES_SUCCESS) {
-		dev_err(ec->dev, "EC failed to snapshot the console log\n");
-		goto resched;
-	}
 
 	/* Loop until we have read everything, or there's an error. */
 	mutex_lock(&debug_info->log_mutex);
@@ -105,16 +89,10 @@ static void cros_ec_console_log_work(struct work_struct *__work)
 
 		memset(read_params, '\0', sizeof(*read_params));
 		read_params->subcmd = CONSOLE_READ_RECENT;
-		ret = cros_ec_cmd_xfer(ec->ec_dev, debug_info->read_msg);
-		if (ret < 0) {
-			dev_err(ec->dev, "EC communication failed\n");
+		ret = cros_ec_cmd_xfer_status(ec->ec_dev,
+					      debug_info->read_msg);
+		if (ret < 0)
 			break;
-		}
-		if (debug_info->read_msg->result != EC_RES_SUCCESS) {
-			dev_err(ec->dev,
-				"EC failed to read the console log\n");
-			break;
-		}
 
 		/* If the buffer is empty, we're done here. */
 		if (ret == 0 || ec_buffer[0] == '\0')
@@ -142,7 +120,7 @@ static int cros_ec_console_log_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static ssize_t cros_ec_console_log_read(struct file *file, char __user *buf,
@@ -300,9 +278,8 @@ static int ec_read_version_supported(struct cros_ec_dev *ec)
 	params->cmd = EC_CMD_CONSOLE_READ;
 	response = (struct ec_response_get_cmd_versions *)msg->data;
 
-	ret = cros_ec_cmd_xfer(ec->ec_dev, msg) >= 0 &&
-		msg->result == EC_RES_SUCCESS &&
-		(response->version_mask & EC_VER_MASK(1));
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg) >= 0 &&
+	      response->version_mask & EC_VER_MASK(1);
 
 	kfree(msg);
 
@@ -316,11 +293,12 @@ static int cros_ec_create_console_log(struct cros_ec_debugfs *debug_info)
 	int read_params_size;
 	int read_response_size;
 
-	if (!ec_read_version_supported(ec)) {
-		dev_warn(ec->dev,
-			"device does not support reading the console log\n");
+	/*
+	 * If the console log feature is not supported return silently and
+	 * don't create the console_log entry.
+	 */
+	if (!ec_read_version_supported(ec))
 		return 0;
-	}
 
 	buf = devm_kzalloc(ec->dev, LOG_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -346,12 +324,8 @@ static int cros_ec_create_console_log(struct cros_ec_debugfs *debug_info)
 	mutex_init(&debug_info->log_mutex);
 	init_waitqueue_head(&debug_info->log_wq);
 
-	if (!debugfs_create_file("console_log",
-				 S_IFREG | 0444,
-				 debug_info->dir,
-				 debug_info,
-				 &cros_ec_console_log_fops))
-		return -ENOMEM;
+	debugfs_create_file("console_log", S_IFREG | 0444, debug_info->dir,
+			    debug_info, &cros_ec_console_log_fops);
 
 	INIT_DELAYED_WORK(&debug_info->log_poll_work,
 			  cros_ec_console_log_work);
@@ -385,9 +359,8 @@ static int cros_ec_create_panicinfo(struct cros_ec_debugfs *debug_info)
 	msg->command = EC_CMD_GET_PANIC_INFO;
 	msg->insize = insize;
 
-	ret = cros_ec_cmd_xfer(ec_dev, msg);
+	ret = cros_ec_cmd_xfer_status(ec_dev, msg);
 	if (ret < 0) {
-		dev_warn(debug_info->ec->dev, "Cannot read panicinfo.\n");
 		ret = 0;
 		goto free;
 	}
@@ -399,13 +372,8 @@ static int cros_ec_create_panicinfo(struct cros_ec_debugfs *debug_info)
 	debug_info->panicinfo_blob.data = msg->data;
 	debug_info->panicinfo_blob.size = ret;
 
-	if (!debugfs_create_blob("panicinfo",
-				 S_IFREG | 0444,
-				 debug_info->dir,
-				 &debug_info->panicinfo_blob)) {
-		ret = -ENOMEM;
-		goto free;
-	}
+	debugfs_create_blob("panicinfo", S_IFREG | 0444, debug_info->dir,
+			    &debug_info->panicinfo_blob);
 
 	return 0;
 
@@ -414,17 +382,9 @@ free:
 	return ret;
 }
 
-static int cros_ec_create_pdinfo(struct cros_ec_debugfs *debug_info)
+static int cros_ec_debugfs_probe(struct platform_device *pd)
 {
-	if (!debugfs_create_file("pdinfo", 0444, debug_info->dir, debug_info,
-				 &cros_ec_pdinfo_fops))
-		return -ENOMEM;
-
-	return 0;
-}
-
-int cros_ec_debugfs_init(struct cros_ec_dev *ec)
-{
+	struct cros_ec_dev *ec = dev_get_drvdata(pd->dev.parent);
 	struct cros_ec_platform *ec_platform = dev_get_platdata(ec->dev);
 	const char *name = ec_platform->ec_name;
 	struct cros_ec_debugfs *debug_info;
@@ -436,8 +396,6 @@ int cros_ec_debugfs_init(struct cros_ec_dev *ec)
 
 	debug_info->ec = ec;
 	debug_info->dir = debugfs_create_dir(name, NULL);
-	if (!debug_info->dir)
-		return -ENOMEM;
 
 	ret = cros_ec_create_panicinfo(debug_info);
 	if (ret)
@@ -447,11 +405,12 @@ int cros_ec_debugfs_init(struct cros_ec_dev *ec)
 	if (ret)
 		goto remove_debugfs;
 
-	ret = cros_ec_create_pdinfo(debug_info);
-	if (ret)
-		goto remove_debugfs;
+	debugfs_create_file("pdinfo", 0444, debug_info->dir, debug_info,
+			    &cros_ec_pdinfo_fops);
 
 	ec->debug_info = debug_info;
+
+	dev_set_drvdata(&pd->dev, ec);
 
 	return 0;
 
@@ -459,14 +418,51 @@ remove_debugfs:
 	debugfs_remove_recursive(debug_info->dir);
 	return ret;
 }
-EXPORT_SYMBOL(cros_ec_debugfs_init);
 
-void cros_ec_debugfs_remove(struct cros_ec_dev *ec)
+static int cros_ec_debugfs_remove(struct platform_device *pd)
 {
-	if (!ec->debug_info)
-		return;
+	struct cros_ec_dev *ec = dev_get_drvdata(pd->dev.parent);
 
 	debugfs_remove_recursive(ec->debug_info->dir);
 	cros_ec_cleanup_console_log(ec->debug_info);
+
+	return 0;
 }
-EXPORT_SYMBOL(cros_ec_debugfs_remove);
+
+static int __maybe_unused cros_ec_debugfs_suspend(struct device *dev)
+{
+	struct cros_ec_dev *ec = dev_get_drvdata(dev);
+
+	if (ec->debug_info->log_buffer.buf)
+		cancel_delayed_work_sync(&ec->debug_info->log_poll_work);
+
+	return 0;
+}
+
+static int __maybe_unused cros_ec_debugfs_resume(struct device *dev)
+{
+	struct cros_ec_dev *ec = dev_get_drvdata(dev);
+
+	if (ec->debug_info->log_buffer.buf)
+		schedule_delayed_work(&ec->debug_info->log_poll_work, 0);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(cros_ec_debugfs_pm_ops,
+			 cros_ec_debugfs_suspend, cros_ec_debugfs_resume);
+
+static struct platform_driver cros_ec_debugfs_driver = {
+	.driver = {
+		.name = DRV_NAME,
+		.pm = &cros_ec_debugfs_pm_ops,
+	},
+	.probe = cros_ec_debugfs_probe,
+	.remove = cros_ec_debugfs_remove,
+};
+
+module_platform_driver(cros_ec_debugfs_driver);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Debug logs for ChromeOS EC");
+MODULE_ALIAS("platform:" DRV_NAME);

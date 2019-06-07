@@ -53,6 +53,7 @@ static int find_max_nr_alloc(void)
 static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 			    int *buffer)
 {
+	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
 	int i, last_alloc, as_len, start, end;
 	int *alloc_sizes, *p;
 	/* statistics */
@@ -121,9 +122,9 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 	P("nr_alloc", chunk->nr_alloc);
 	P("max_alloc_size", chunk->max_alloc_size);
 	P("empty_pop_pages", chunk->nr_empty_pop_pages);
-	P("first_bit", chunk->first_bit);
+	P("first_bit", chunk_md->first_free);
 	P("free_bytes", chunk->free_bytes);
-	P("contig_bytes", chunk->contig_bits * PCPU_MIN_ALLOC_SIZE);
+	P("contig_bytes", chunk_md->contig_hint * PCPU_MIN_ALLOC_SIZE);
 	P("sum_frag", sum_frag);
 	P("max_frag", max_frag);
 	P("cur_min_alloc", cur_min_alloc);
@@ -144,7 +145,7 @@ alloc_buffer:
 	spin_unlock_irq(&pcpu_lock);
 
 	/* there can be at most this many free and allocated fragments */
-	buffer = vmalloc((2 * max_nr_alloc + 1) * sizeof(int));
+	buffer = vmalloc(array_size(sizeof(int), (2 * max_nr_alloc + 1)));
 	if (!buffer)
 		return -ENOMEM;
 

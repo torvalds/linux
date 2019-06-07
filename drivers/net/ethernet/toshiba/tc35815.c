@@ -474,7 +474,8 @@ static void free_rxbuf_skb(struct pci_dev *hwdev, struct sk_buff *skb, dma_addr_
 /* Index to functions, as function prototypes. */
 
 static int	tc35815_open(struct net_device *dev);
-static int	tc35815_send_packet(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t	tc35815_send_packet(struct sk_buff *skb,
+					    struct net_device *dev);
 static irqreturn_t	tc35815_interrupt(int irq, void *dev_id);
 static int	tc35815_rx(struct net_device *dev, int limit);
 static int	tc35815_poll(struct napi_struct *napi, int budget);
@@ -606,9 +607,9 @@ static void tc_handle_link_change(struct net_device *dev)
 
 static int tc_mii_probe(struct net_device *dev)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct tc35815_local *lp = netdev_priv(dev);
 	struct phy_device *phydev;
-	u32 dropmask;
 
 	phydev = phy_find_first(lp->mii_bus);
 	if (!phydev) {
@@ -628,18 +629,23 @@ static int tc_mii_probe(struct net_device *dev)
 	phy_attached_info(phydev);
 
 	/* mask with MAC supported features */
-	phydev->supported &= PHY_BASIC_FEATURES;
-	dropmask = 0;
-	if (options.speed == 10)
-		dropmask |= SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full;
-	else if (options.speed == 100)
-		dropmask |= SUPPORTED_10baseT_Half | SUPPORTED_10baseT_Full;
-	if (options.duplex == 1)
-		dropmask |= SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Full;
-	else if (options.duplex == 2)
-		dropmask |= SUPPORTED_10baseT_Half | SUPPORTED_100baseT_Half;
-	phydev->supported &= ~dropmask;
-	phydev->advertising = phydev->supported;
+	phy_set_max_speed(phydev, SPEED_100);
+	if (options.speed == 10) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mask);
+	} else if (options.speed == 100) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, mask);
+	}
+	if (options.duplex == 1) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mask);
+	} else if (options.duplex == 2) {
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, mask);
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mask);
+	}
+	linkmode_and(phydev->supported, phydev->supported, mask);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
 	lp->link = 0;
 	lp->speed = 0;
@@ -1248,7 +1254,8 @@ tc35815_open(struct net_device *dev)
  * invariant will hold if you make sure that the netif_*_queue()
  * calls are done at the proper times.
  */
-static int tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t
+tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	struct tc35815_local *lp = netdev_priv(dev);
 	struct TxFD *txfd;

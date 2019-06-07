@@ -110,6 +110,15 @@ static inline bool is_la57_mode(struct kvm_vcpu *vcpu)
 #endif
 }
 
+static inline bool x86_exception_has_error_code(unsigned int vector)
+{
+	static u32 exception_has_error_code = BIT(DF_VECTOR) | BIT(TS_VECTOR) |
+			BIT(NP_VECTOR) | BIT(SS_VECTOR) | BIT(GP_VECTOR) |
+			BIT(PF_VECTOR) | BIT(AC_VECTOR);
+
+	return (1U << vector) & exception_has_error_code;
+}
+
 static inline bool mmu_is_nested(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.walk_mmu == &vcpu->arch.nested_mmu;
@@ -172,6 +181,11 @@ static inline bool emul_is_noncanonical_address(u64 la,
 static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
 					gva_t gva, gfn_t gfn, unsigned access)
 {
+	u64 gen = kvm_memslots(vcpu->kvm)->generation;
+
+	if (unlikely(gen & KVM_MEMSLOT_GEN_UPDATE_IN_PROGRESS))
+		return;
+
 	/*
 	 * If this is a shadow nested page table, the "GVA" is
 	 * actually a nGPA.
@@ -179,7 +193,7 @@ static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,
 	vcpu->arch.mmio_gva = mmu_is_nested(vcpu) ? 0 : gva & PAGE_MASK;
 	vcpu->arch.access = access;
 	vcpu->arch.mmio_gfn = gfn;
-	vcpu->arch.mmio_gen = kvm_memslots(vcpu->kvm)->generation;
+	vcpu->arch.mmio_gen = gen;
 }
 
 static inline bool vcpu_match_mmio_gen(struct kvm_vcpu *vcpu)
@@ -247,15 +261,17 @@ int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip);
 void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr);
 u64 get_kvmclock_ns(struct kvm *kvm);
 
-int kvm_read_guest_virt(struct x86_emulate_ctxt *ctxt,
+int kvm_read_guest_virt(struct kvm_vcpu *vcpu,
 	gva_t addr, void *val, unsigned int bytes,
 	struct x86_exception *exception);
 
-int kvm_write_guest_virt_system(struct x86_emulate_ctxt *ctxt,
+int kvm_write_guest_virt_system(struct kvm_vcpu *vcpu,
 	gva_t addr, void *val, unsigned int bytes,
 	struct x86_exception *exception);
 
 int handle_ud(struct kvm_vcpu *vcpu);
+
+void kvm_deliver_exception_payload(struct kvm_vcpu *vcpu);
 
 void kvm_vcpu_mtrr_init(struct kvm_vcpu *vcpu);
 u8 kvm_mtrr_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn);
@@ -265,6 +281,8 @@ int kvm_mtrr_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);
 bool kvm_mtrr_check_gfn_range_consistency(struct kvm_vcpu *vcpu, gfn_t gfn,
 					  int page_num);
 bool kvm_vector_hashing_enabled(void);
+int x86_emulate_instruction(struct kvm_vcpu *vcpu, unsigned long cr2,
+			    int emulation_type, void *insn, int insn_len);
 
 #define KVM_SUPPORTED_XCR0     (XFEATURE_MASK_FP | XFEATURE_MASK_SSE \
 				| XFEATURE_MASK_YMM | XFEATURE_MASK_BNDREGS \
@@ -275,8 +293,6 @@ extern u64 host_xcr0;
 extern u64 kvm_supported_xcr0(void);
 
 extern unsigned int min_timer_period_us;
-
-extern unsigned int lapic_timer_advance_ns;
 
 extern bool enable_vmware_backdoor;
 
@@ -328,5 +344,17 @@ static inline void kvm_after_interrupt(struct kvm_vcpu *vcpu)
 {
 	__this_cpu_write(current_vcpu, NULL);
 }
+
+
+static inline bool kvm_pat_valid(u64 data)
+{
+	if (data & 0xF8F8F8F8F8F8F8F8ull)
+		return false;
+	/* 0, 1, 4, 5, 6, 7 are valid values.  */
+	return (data | ((data & 0x0202020202020202ull) << 1)) == data;
+}
+
+void kvm_load_guest_xcr0(struct kvm_vcpu *vcpu);
+void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu);
 
 #endif

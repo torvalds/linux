@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2014 Fraunhofer ITWM
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Written by:
  * Phoebe Buckheister <phoebe.buckheister@itwm.fraunhofer.de>
@@ -29,7 +21,7 @@ struct mac802154_llsec_key {
 
 	/* one tfm for each authsize (4/8/16) */
 	struct crypto_aead *tfm[3];
-	struct crypto_skcipher *tfm0;
+	struct crypto_sync_skcipher *tfm0;
 
 	struct kref ref;
 };

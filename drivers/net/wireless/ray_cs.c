@@ -470,7 +470,6 @@ static inline struct rcs __iomem *rcs_base(ray_dev_t *dev)
 static int ray_init(struct net_device *dev)
 {
 	int i;
-	UCHAR *p;
 	struct ccs __iomem *pccs;
 	ray_dev_t *local = netdev_priv(dev);
 	struct pcmcia_device *link = local->finder;
@@ -513,12 +512,9 @@ static int ray_init(struct net_device *dev)
 	init_startup_params(local);
 
 	/* copy mac address to startup parameters */
-	if (parse_addr(phy_addr, local->sparm.b4.a_mac_addr)) {
-		p = local->sparm.b4.a_mac_addr;
-	} else {
+	if (!parse_addr(phy_addr, local->sparm.b4.a_mac_addr)) {
 		memcpy(&local->sparm.b4.a_mac_addr,
 		       &local->startup_res.station_addr, ADDRLEN);
-		p = local->sparm.b4.a_mac_addr;
 	}
 
 	clear_interrupt(local);	/* Clear any interrupt from the card */
@@ -893,8 +889,10 @@ static int ray_hw_xmit(unsigned char *data, int len, struct net_device *dev,
 	switch (ccsindex = get_free_tx_ccs(local)) {
 	case ECCSBUSY:
 		pr_debug("ray_hw_xmit tx_ccs table busy\n");
+		/* fall through */
 	case ECCSFULL:
 		pr_debug("ray_hw_xmit No free tx ccs\n");
+		/* fall through */
 	case ECARDGONE:
 		netif_stop_queue(dev);
 		return XMIT_NO_CCS;
@@ -961,7 +959,7 @@ static int translate_frame(ray_dev_t *local, struct tx_msg __iomem *ptx,
 		if (proto == htons(ETH_P_AARP) || proto == htons(ETH_P_IPX)) {
 			/* This is the selective translation table, only 2 entries */
 			writeb(0xf8,
-			       &((struct snaphdr_t __iomem *)ptx->var)->org[3]);
+			       &((struct snaphdr_t __iomem *)ptx->var)->org[2]);
 		}
 		/* Copy body of ethernet packet without ethernet header */
 		memcpy_toio((void __iomem *)&ptx->var +
@@ -2213,7 +2211,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 			untranslate(local, skb, total_len);
 		}
 	} else { /* sniffer mode, so just pass whole packet */
-	};
+	}
 
 /************************/
 	/* Now pick up the rest of the fragments if any */
@@ -2663,19 +2661,6 @@ static int ray_cs_proc_show(struct seq_file *m, void *v)
 	}
 	return 0;
 }
-
-static int ray_cs_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ray_cs_proc_show, NULL);
-}
-
-static const struct file_operations ray_cs_proc_fops = {
-	.owner = THIS_MODULE,
-	.open = ray_cs_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
 #endif
 /*===========================================================================*/
 static int build_auth_frame(ray_dev_t *local, UCHAR *dest, int auth_type)
@@ -2810,11 +2795,13 @@ static int __init init_ray_cs(void)
 	rc = pcmcia_register_driver(&ray_driver);
 	pr_debug("raylink init_module register_pcmcia_driver returns 0x%x\n",
 	      rc);
+	if (rc)
+		return rc;
 
 #ifdef CONFIG_PROC_FS
 	proc_mkdir("driver/ray_cs", NULL);
 
-	proc_create("driver/ray_cs/ray_cs", 0, NULL, &ray_cs_proc_fops);
+	proc_create_single("driver/ray_cs/ray_cs", 0, NULL, ray_cs_proc_show);
 	proc_create("driver/ray_cs/essid", 0200, NULL, &ray_cs_essid_proc_fops);
 	proc_create_data("driver/ray_cs/net_type", 0200, NULL, &int_proc_fops,
 			 &net_type);
@@ -2833,11 +2820,7 @@ static void __exit exit_ray_cs(void)
 	pr_debug("ray_cs: cleanup_module\n");
 
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry("driver/ray_cs/ray_cs", NULL);
-	remove_proc_entry("driver/ray_cs/essid", NULL);
-	remove_proc_entry("driver/ray_cs/net_type", NULL);
-	remove_proc_entry("driver/ray_cs/translate", NULL);
-	remove_proc_entry("driver/ray_cs", NULL);
+	remove_proc_subtree("driver/ray_cs", NULL);
 #endif
 
 	pcmcia_unregister_driver(&ray_driver);

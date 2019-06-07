@@ -150,6 +150,13 @@ enum {
 	RTM_NEWCACHEREPORT = 96,
 #define RTM_NEWCACHEREPORT RTM_NEWCACHEREPORT
 
+	RTM_NEWCHAIN = 100,
+#define RTM_NEWCHAIN RTM_NEWCHAIN
+	RTM_DELCHAIN,
+#define RTM_DELCHAIN RTM_DELCHAIN
+	RTM_GETCHAIN,
+#define RTM_GETCHAIN RTM_GETCHAIN
+
 	__RTM_MAX,
 #define RTM_MAX		(((__RTM_MAX + 3) & ~3) - 1)
 };
@@ -254,6 +261,11 @@ enum {
 #define RTPROT_DHCP	16      /* DHCP client */
 #define RTPROT_MROUTED	17      /* Multicast daemon */
 #define RTPROT_BABEL	42      /* Babel daemon */
+#define RTPROT_BGP	186     /* BGP Routes */
+#define RTPROT_ISIS	187     /* ISIS Routes */
+#define RTPROT_OSPF	188     /* OSPF Routes */
+#define RTPROT_RIP	189     /* RIP Routes */
+#define RTPROT_EIGRP	192     /* EIGRP Routes */
 
 /* rtm_scope
 
@@ -327,6 +339,9 @@ enum rtattr_type_t {
 	RTA_PAD,
 	RTA_UID,
 	RTA_TTL_PROPAGATE,
+	RTA_IP_PROTO,
+	RTA_SPORT,
+	RTA_DPORT,
 	__RTA_MAX
 };
 

@@ -3,7 +3,7 @@
  *
  * Module Name: acapps - common include for ACPI applications/tools
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -17,7 +17,7 @@
 /* Common info for tool signons */
 
 #define ACPICA_NAME                 "Intel ACPI Component Architecture"
-#define ACPICA_COPYRIGHT            "Copyright (c) 2000 - 2018 Intel Corporation"
+#define ACPICA_COPYRIGHT            "Copyright (c) 2000 - 2019 Intel Corporation"
 
 #if ACPI_MACHINE_WIDTH == 64
 #define ACPI_WIDTH          " (64-bit version)"
@@ -142,6 +142,8 @@ char *fl_generate_filename(char *input_filename, char *suffix);
 acpi_status
 fl_split_input_pathname(char *input_path,
 			char **out_directory_path, char **out_filename);
+
+char *fl_get_file_basename(char *file_pathname);
 
 char *ad_generate_filename(char *prefix, char *table_id);
 

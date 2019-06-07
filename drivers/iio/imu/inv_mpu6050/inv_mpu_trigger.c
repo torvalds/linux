@@ -49,49 +49,66 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 		if (result)
 			return result;
 		inv_scan_query(indio_dev);
+		st->skip_samples = 0;
 		if (st->chip_config.gyro_fifo_enable) {
 			result = inv_mpu6050_switch_engine(st, true,
 					INV_MPU6050_BIT_PWR_GYRO_STBY);
 			if (result)
-				return result;
+				goto error_power_off;
+			/* gyro first sample is out of specs, skip it */
+			st->skip_samples = 1;
 		}
 		if (st->chip_config.accl_fifo_enable) {
 			result = inv_mpu6050_switch_engine(st, true,
 					INV_MPU6050_BIT_PWR_ACCL_STBY);
 			if (result)
-				return result;
+				goto error_gyro_off;
 		}
 		result = inv_reset_fifo(indio_dev);
 		if (result)
-			return result;
+			goto error_accl_off;
 	} else {
 		result = regmap_write(st->map, st->reg->fifo_en, 0);
 		if (result)
-			return result;
+			goto error_accl_off;
 
 		result = regmap_write(st->map, st->reg->int_enable, 0);
 		if (result)
-			return result;
+			goto error_accl_off;
 
-		result = regmap_write(st->map, st->reg->user_ctrl, 0);
+		result = regmap_write(st->map, st->reg->user_ctrl,
+				      st->chip_config.user_ctrl);
 		if (result)
-			return result;
-
-		result = inv_mpu6050_switch_engine(st, false,
-					INV_MPU6050_BIT_PWR_GYRO_STBY);
-		if (result)
-			return result;
+			goto error_accl_off;
 
 		result = inv_mpu6050_switch_engine(st, false,
 					INV_MPU6050_BIT_PWR_ACCL_STBY);
 		if (result)
-			return result;
+			goto error_accl_off;
+
+		result = inv_mpu6050_switch_engine(st, false,
+					INV_MPU6050_BIT_PWR_GYRO_STBY);
+		if (result)
+			goto error_gyro_off;
+
 		result = inv_mpu6050_set_power_itg(st, false);
 		if (result)
-			return result;
+			goto error_power_off;
 	}
 
 	return 0;
+
+error_accl_off:
+	if (st->chip_config.accl_fifo_enable)
+		inv_mpu6050_switch_engine(st, false,
+					  INV_MPU6050_BIT_PWR_ACCL_STBY);
+error_gyro_off:
+	if (st->chip_config.gyro_fifo_enable)
+		inv_mpu6050_switch_engine(st, false,
+					  INV_MPU6050_BIT_PWR_GYRO_STBY);
+error_power_off:
+	inv_mpu6050_set_power_itg(st, false);
+	return result;
 }
 
 /**
@@ -117,7 +134,7 @@ static const struct iio_trigger_ops inv_mpu_trigger_ops = {
 	.set_trigger_state = &inv_mpu_data_rdy_trigger_set_state,
 };
 
-int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev)
+int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev, int irq_type)
 {
 	int ret;
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
@@ -131,7 +148,7 @@ int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev)
 
 	ret = devm_request_irq(&indio_dev->dev, st->irq,
 			       &iio_trigger_generic_data_rdy_poll,
-			       IRQF_TRIGGER_RISING,
+			       irq_type,
 			       "inv_mpu",
 			       st->trig);
 	if (ret)
@@ -141,16 +158,11 @@ int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev)
 	st->trig->ops = &inv_mpu_trigger_ops;
 	iio_trigger_set_drvdata(st->trig, indio_dev);
 
-	ret = iio_trigger_register(st->trig);
+	ret = devm_iio_trigger_register(&indio_dev->dev, st->trig);
 	if (ret)
 		return ret;
 
 	indio_dev->trig = iio_trigger_get(st->trig);
 
 	return 0;
-}
-
-void inv_mpu6050_remove_trigger(struct inv_mpu6050_state *st)
-{
-	iio_trigger_unregister(st->trig);
 }

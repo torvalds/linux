@@ -30,33 +30,13 @@
  * fnic directory and statistics directory for trace buffer and
  * stats logging
  */
-
-int
-snic_debugfs_init(void)
+void snic_debugfs_init(void)
 {
-	int rc = -1;
-	struct dentry *de = NULL;
+	snic_glob->trc_root = debugfs_create_dir("snic", NULL);
 
-	de = debugfs_create_dir("snic", NULL);
-	if (!de) {
-		SNIC_DBG("Cannot create debugfs root\n");
-
-		return rc;
-	}
-	snic_glob->trc_root = de;
-
-	de = debugfs_create_dir("statistics", snic_glob->trc_root);
-	if (!de) {
-		SNIC_DBG("Cannot create Statistics directory\n");
-
-		return rc;
-	}
-	snic_glob->stats_root = de;
-
-	rc = 0;
-
-	return rc;
-} /* end of snic_debugfs_init */
+	snic_glob->stats_root = debugfs_create_dir("statistics",
+						   snic_glob->trc_root);
+}
 
 /*
  * snic_debugfs_term - Tear down debugfs intrastructure
@@ -200,7 +180,7 @@ snic_stats_show(struct seq_file *sfp, void *data)
 {
 	struct snic *snic = (struct snic *) sfp->private;
 	struct snic_stats *stats = &snic->s_stats;
-	struct timespec last_isr_tms, last_ack_tms;
+	struct timespec64 last_isr_tms, last_ack_tms;
 	u64 maxio_tm;
 	int i;
 
@@ -312,12 +292,12 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   "\t\t Other Statistics\n"
 		   "\n---------------------------------------------\n");
 
-	jiffies_to_timespec(stats->misc.last_isr_time, &last_isr_tms);
-	jiffies_to_timespec(stats->misc.last_ack_time, &last_ack_tms);
+	jiffies_to_timespec64(stats->misc.last_isr_time, &last_isr_tms);
+	jiffies_to_timespec64(stats->misc.last_ack_time, &last_ack_tms);
 
 	seq_printf(sfp,
-		   "Last ISR Time               : %llu (%8lu.%8lu)\n"
-		   "Last Ack Time               : %llu (%8lu.%8lu)\n"
+		   "Last ISR Time               : %llu (%8llu.%09lu)\n"
+		   "Last Ack Time               : %llu (%8llu.%09lu)\n"
 		   "Ack ISRs                    : %llu\n"
 		   "IO Cmpl ISRs                : %llu\n"
 		   "Err Notify ISRs             : %llu\n"
@@ -391,56 +371,23 @@ static const struct file_operations snic_reset_stats_fops = {
  * It will create file stats and reset_stats under statistics/host# directory
  * to log per snic stats
  */
-int
-snic_stats_debugfs_init(struct snic *snic)
+void snic_stats_debugfs_init(struct snic *snic)
 {
-	int rc = -1;
 	char name[16];
-	struct dentry *de = NULL;
 
 	snprintf(name, sizeof(name), "host%d", snic->shost->host_no);
-	if (!snic_glob->stats_root) {
-		SNIC_DBG("snic_stats root doesn't exist\n");
 
-		return rc;
-	}
+	snic->stats_host = debugfs_create_dir(name, snic_glob->stats_root);
 
-	de = debugfs_create_dir(name, snic_glob->stats_root);
-	if (!de) {
-		SNIC_DBG("Cannot create host directory\n");
+	snic->stats_file = debugfs_create_file("stats", S_IFREG|S_IRUGO,
+					       snic->stats_host, snic,
+					       &snic_stats_fops);
 
-		return rc;
-	}
-	snic->stats_host = de;
-
-	de = debugfs_create_file("stats",
-				S_IFREG|S_IRUGO,
-				snic->stats_host,
-				snic,
-				&snic_stats_fops);
-	if (!de) {
-		SNIC_DBG("Cannot create host's stats file\n");
-
-		return rc;
-	}
-	snic->stats_file = de;
-
-	de = debugfs_create_file("reset_stats",
-				S_IFREG|S_IRUGO|S_IWUSR,
-				snic->stats_host,
-				snic,
-				&snic_reset_stats_fops);
-
-	if (!de) {
-		SNIC_DBG("Cannot create host's reset_stats file\n");
-
-		return rc;
-	}
-	snic->reset_stats_file = de;
-	rc = 0;
-
-	return rc;
-} /* end of snic_stats_debugfs_init */
+	snic->reset_stats_file = debugfs_create_file("reset_stats",
+						     S_IFREG|S_IRUGO|S_IWUSR,
+						     snic->stats_host, snic,
+						     &snic_reset_stats_fops);
+}
 
 /*
  * snic_stats_debugfs_remove - Tear down debugfs infrastructure of stats
@@ -517,46 +464,18 @@ static const struct file_operations snic_trc_fops = {
  * snic_trc_debugfs_init : creates trace/tracing_enable files for trace
  * under debugfs
  */
-int
-snic_trc_debugfs_init(void)
+void snic_trc_debugfs_init(void)
 {
-	struct dentry *de = NULL;
-	int ret = -1;
+	snic_glob->trc.trc_enable = debugfs_create_bool("tracing_enable",
+							S_IFREG | S_IRUGO | S_IWUSR,
+							snic_glob->trc_root,
+							&snic_glob->trc.enable);
 
-	if (!snic_glob->trc_root) {
-		SNIC_ERR("Debugfs root directory for snic doesn't exist.\n");
-
-		return ret;
-	}
-
-	de = debugfs_create_bool("tracing_enable",
-				 S_IFREG | S_IRUGO | S_IWUSR,
-				 snic_glob->trc_root,
-				 &snic_glob->trc.enable);
-
-	if (!de) {
-		SNIC_ERR("Can't create trace_enable file.\n");
-
-		return ret;
-	}
-	snic_glob->trc.trc_enable = de;
-
-	de = debugfs_create_file("trace",
-				 S_IFREG | S_IRUGO | S_IWUSR,
-				 snic_glob->trc_root,
-				 NULL,
-				 &snic_trc_fops);
-
-	if (!de) {
-		SNIC_ERR("Cannot create trace file.\n");
-
-		return ret;
-	}
-	snic_glob->trc.trc_file = de;
-	ret = 0;
-
-	return ret;
-} /* end of snic_trc_debugfs_init */
+	snic_glob->trc.trc_file = debugfs_create_file("trace",
+						      S_IFREG | S_IRUGO | S_IWUSR,
+						      snic_glob->trc_root, NULL,
+						      &snic_trc_fops);
+}
 
 /*
  * snic_trc_debugfs_term : cleans up the files created for trace under debugfs

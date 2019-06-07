@@ -3,7 +3,7 @@
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -488,6 +488,17 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	 * extremely rare if not completely unused.
 	 */
 	ACPI_WARNING((AE_INFO, "Received request to unload an ACPI table"));
+
+	/*
+	 * May 2018: Unload is no longer supported for the following reasons:
+	 * 1) A correct implementation on some hosts may not be possible.
+	 * 2) Other ACPI implementations do not correctly/fully support it.
+	 * 3) It requires host device driver support which does not exist.
+	 *    (To properly support namespace unload out from underneath.)
+	 * 4) This AML operator has never been seen in the field.
+	 */
+	ACPI_EXCEPTION((AE_INFO, AE_NOT_IMPLEMENTED,
+			"AML Unload operator is not supported"));
 
 	/*
 	 * Validate the handle

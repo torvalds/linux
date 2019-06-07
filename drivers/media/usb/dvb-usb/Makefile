@@ -71,9 +71,6 @@ obj-$(CONFIG_DVB_USB_DTV5100) += dvb-usb-dtv5100.o
 dvb-usb-cinergyT2-objs := cinergyT2-core.o cinergyT2-fe.o
 obj-$(CONFIG_DVB_USB_CINERGY_T2) += dvb-usb-cinergyT2.o
 
-dvb-usb-friio-objs := friio.o friio-fe.o
-obj-$(CONFIG_DVB_USB_FRIIO) += dvb-usb-friio.o
-
 dvb-usb-az6027-objs := az6027.o
 obj-$(CONFIG_DVB_USB_AZ6027) += dvb-usb-az6027.o
 

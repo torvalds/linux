@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2015 Etnaviv Project
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2015-2018 Etnaviv Project
  */
 
 #ifndef __ETNAVIV_GPU_H__
 #define __ETNAVIV_GPU_H__
-
-#include <linux/clk.h>
-#include <linux/regulator/consumer.h>
 
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
@@ -99,6 +85,8 @@ struct etnaviv_event {
 
 struct etnaviv_cmdbuf_suballoc;
 struct etnaviv_cmdbuf;
+struct regulator;
+struct clk;
 
 #define ETNA_NR_EVENTS 30
 
@@ -109,7 +97,6 @@ struct etnaviv_gpu {
 	struct mutex lock;
 	struct etnaviv_chip_identity identity;
 	enum etnaviv_sec_mode sec_mode;
-	struct etnaviv_file_private *lastctx;
 	struct workqueue_struct *wq;
 	struct drm_gpu_scheduler sched;
 
@@ -129,10 +116,9 @@ struct etnaviv_gpu {
 	u32 idle_mask;
 
 	/* Fencing support */
-	struct mutex fence_idr_lock;
+	struct mutex fence_lock;
 	struct idr fence_idr;
 	u32 next_fence;
-	u32 active_fence;
 	u32 completed_fence;
 	wait_queue_head_t fence_event;
 	u64 fence_context;
@@ -141,6 +127,9 @@ struct etnaviv_gpu {
 	/* worker for handling 'sync' points: */
 	struct work_struct sync_point_work;
 	int sync_point_event;
+
+	/* hang detection */
+	u32 hangcheck_dma_addr;
 
 	void __iomem *mmio;
 	int irq;
@@ -161,17 +150,12 @@ struct etnaviv_gpu {
 
 static inline void gpu_write(struct etnaviv_gpu *gpu, u32 reg, u32 data)
 {
-	etnaviv_writel(data, gpu->mmio + reg);
+	writel(data, gpu->mmio + reg);
 }
 
 static inline u32 gpu_read(struct etnaviv_gpu *gpu, u32 reg)
 {
-	return etnaviv_readl(gpu->mmio + reg);
-}
-
-static inline bool fence_completed(struct etnaviv_gpu *gpu, u32 fence)
-{
-	return fence_after_eq(gpu->completed_fence, fence);
+	return readl(gpu->mmio + reg);
 }
 
 int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value);

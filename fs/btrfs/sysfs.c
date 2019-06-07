@@ -7,10 +7,8 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
-#include <linux/buffer_head.h>
 #include <linux/kobject.h>
 #include <linux/bug.h>
-#include <linux/genhd.h>
 #include <linux/debugfs.h>
 
 #include "ctree.h"
@@ -193,6 +191,7 @@ BTRFS_FEAT_ATTR_INCOMPAT(extended_iref, EXTENDED_IREF);
 BTRFS_FEAT_ATTR_INCOMPAT(raid56, RAID56);
 BTRFS_FEAT_ATTR_INCOMPAT(skinny_metadata, SKINNY_METADATA);
 BTRFS_FEAT_ATTR_INCOMPAT(no_holes, NO_HOLES);
+BTRFS_FEAT_ATTR_INCOMPAT(metadata_uuid, METADATA_UUID);
 BTRFS_FEAT_ATTR_COMPAT_RO(free_space_tree, FREE_SPACE_TREE);
 
 static struct attribute *btrfs_supported_feature_attrs[] = {
@@ -206,14 +205,45 @@ static struct attribute *btrfs_supported_feature_attrs[] = {
 	BTRFS_FEAT_ATTR_PTR(raid56),
 	BTRFS_FEAT_ATTR_PTR(skinny_metadata),
 	BTRFS_FEAT_ATTR_PTR(no_holes),
+	BTRFS_FEAT_ATTR_PTR(metadata_uuid),
 	BTRFS_FEAT_ATTR_PTR(free_space_tree),
 	NULL
 };
 
+/*
+ * Features which depend on feature bits and may differ between each fs.
+ *
+ * /sys/fs/btrfs/features lists all available features of this kernel while
+ * /sys/fs/btrfs/UUID/features shows features of the fs which are enabled or
+ * can be changed online.
+ */
 static const struct attribute_group btrfs_feature_attr_group = {
 	.name = "features",
 	.is_visible = btrfs_feature_visible,
 	.attrs = btrfs_supported_feature_attrs,
+};
+
+static ssize_t rmdir_subvol_show(struct kobject *kobj,
+				 struct kobj_attribute *ka, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0\n");
+}
+BTRFS_ATTR(static_feature, rmdir_subvol, rmdir_subvol_show);
+
+static struct attribute *btrfs_supported_static_feature_attrs[] = {
+	BTRFS_ATTR_PTR(static_feature, rmdir_subvol),
+	NULL
+};
+
+/*
+ * Features which only depend on kernel version.
+ *
+ * These are listed in /sys/fs/btrfs/features along with
+ * btrfs_feature_attr_group
+ */
+static const struct attribute_group btrfs_static_feature_attr_group = {
+	.name = "features",
+	.attrs = btrfs_supported_static_feature_attrs,
 };
 
 static ssize_t btrfs_show_u64(u64 *value_ptr, spinlock_t *lock, char *buf)
@@ -477,12 +507,24 @@ static ssize_t quota_override_store(struct kobject *kobj,
 
 BTRFS_ATTR_RW(, quota_override, quota_override_show, quota_override_store);
 
+static ssize_t btrfs_metadata_uuid_show(struct kobject *kobj,
+				struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+
+	return snprintf(buf, PAGE_SIZE, "%pU\n",
+			fs_info->fs_devices->metadata_uuid);
+}
+
+BTRFS_ATTR(, metadata_uuid, btrfs_metadata_uuid_show);
+
 static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, label),
 	BTRFS_ATTR_PTR(, nodesize),
 	BTRFS_ATTR_PTR(, sectorsize),
 	BTRFS_ATTR_PTR(, clone_alignment),
 	BTRFS_ATTR_PTR(, quota_override),
+	BTRFS_ATTR_PTR(, metadata_uuid),
 	NULL,
 };
 
@@ -514,10 +556,11 @@ static inline struct btrfs_fs_info *to_fs_info(struct kobject *kobj)
 }
 
 #define NUM_FEATURE_BITS 64
-static char btrfs_unknown_feature_names[3][NUM_FEATURE_BITS][13];
-static struct btrfs_feature_attr btrfs_feature_attrs[3][NUM_FEATURE_BITS];
+#define BTRFS_FEATURE_NAME_MAX 13
+static char btrfs_unknown_feature_names[FEAT_MAX][NUM_FEATURE_BITS][BTRFS_FEATURE_NAME_MAX];
+static struct btrfs_feature_attr btrfs_feature_attrs[FEAT_MAX][NUM_FEATURE_BITS];
 
-static const u64 supported_feature_masks[3] = {
+static const u64 supported_feature_masks[FEAT_MAX] = {
 	[FEAT_COMPAT]    = BTRFS_FEATURE_COMPAT_SUPP,
 	[FEAT_COMPAT_RO] = BTRFS_FEATURE_COMPAT_RO_SUPP,
 	[FEAT_INCOMPAT]  = BTRFS_FEATURE_INCOMPAT_SUPP,
@@ -589,7 +632,7 @@ void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs)
 		return;
 	}
 
-	list_for_each_entry(fs_devs, fs_uuids, list) {
+	list_for_each_entry(fs_devs, fs_uuids, fs_list) {
 		__btrfs_sysfs_remove_fsid(fs_devs);
 	}
 }
@@ -609,7 +652,7 @@ void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 	btrfs_sysfs_rm_device_link(fs_info->fs_devices, NULL);
 }
 
-const char * const btrfs_feature_set_names[3] = {
+const char * const btrfs_feature_set_names[FEAT_MAX] = {
 	[FEAT_COMPAT]	 = "compat",
 	[FEAT_COMPAT_RO] = "compat_ro",
 	[FEAT_INCOMPAT]	 = "incompat",
@@ -673,7 +716,7 @@ static void init_feature_attrs(void)
 			if (fa->kobj_attr.attr.name)
 				continue;
 
-			snprintf(name, 13, "%s:%u",
+			snprintf(name, BTRFS_FEATURE_NAME_MAX, "%s:%u",
 				 btrfs_feature_set_names[set], i);
 
 			fa->kobj_attr.attr.name = name;
@@ -782,7 +825,12 @@ int btrfs_sysfs_add_fsid(struct btrfs_fs_devices *fs_devs,
 	fs_devs->fsid_kobj.kset = btrfs_kset;
 	error = kobject_init_and_add(&fs_devs->fsid_kobj,
 				&btrfs_ktype, parent, "%pU", fs_devs->fsid);
-	return error;
+	if (error) {
+		kobject_put(&fs_devs->fsid_kobj);
+		return error;
+	}
+
+	return 0;
 }
 
 int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
@@ -900,8 +948,15 @@ int __init btrfs_init_sysfs(void)
 	ret = sysfs_create_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
 	if (ret)
 		goto out2;
+	ret = sysfs_merge_group(&btrfs_kset->kobj,
+				&btrfs_static_feature_attr_group);
+	if (ret)
+		goto out_remove_group;
 
 	return 0;
+
+out_remove_group:
+	sysfs_remove_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
 out2:
 	debugfs_remove_recursive(btrfs_debugfs_root_dentry);
 out1:
@@ -912,6 +967,8 @@ out1:
 
 void __cold btrfs_exit_sysfs(void)
 {
+	sysfs_unmerge_group(&btrfs_kset->kobj,
+			    &btrfs_static_feature_attr_group);
 	sysfs_remove_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
 	kset_unregister(btrfs_kset);
 	debugfs_remove_recursive(btrfs_debugfs_root_dentry);

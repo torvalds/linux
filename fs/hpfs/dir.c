@@ -244,6 +244,7 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
 	result = iget_locked(dir->i_sb, ino);
 	if (!result) {
 		hpfs_error(dir->i_sb, "hpfs_lookup: can't get inode");
+		result = ERR_PTR(-ENOMEM);
 		goto bail1;
 	}
 	if (result->i_state & I_NEW) {
@@ -266,6 +267,8 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
 
 	if (de->has_acl || de->has_xtd_perm) if (!sb_rdonly(dir->i_sb)) {
 		hpfs_error(result->i_sb, "ACLs or XPERM found. This is probably HPFS386. This driver doesn't support it now. Send me some info on these structures");
+		iput(result);
+		result = ERR_PTR(-EINVAL);
 		goto bail1;
 	}
 
@@ -301,29 +304,17 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
 		}
 	}
 
+bail1:
 	hpfs_brelse4(&qbh);
 
 	/*
 	 * Made it.
 	 */
 
-	end:
-	end_add:
+end:
+end_add:
 	hpfs_unlock(dir->i_sb);
-	d_add(dentry, result);
-	return NULL;
-
-	/*
-	 * Didn't.
-	 */
-	bail1:
-	
-	hpfs_brelse4(&qbh);
-	
-	/*bail:*/
-
-	hpfs_unlock(dir->i_sb);
-	return ERR_PTR(-ENOENT);
+	return d_splice_alias(result, dentry);
 }
 
 const struct file_operations hpfs_dir_ops =

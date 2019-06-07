@@ -118,18 +118,18 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 		      tbl->win_size;
 
 	for (i = 0; i < pkt_to_send; ++i) {
-		spin_lock_irqsave(&priv->rx_pkt_lock, flags);
+		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 		rx_tmp_ptr = NULL;
 		if (tbl->rx_reorder_ptr[i]) {
 			rx_tmp_ptr = tbl->rx_reorder_ptr[i];
 			tbl->rx_reorder_ptr[i] = NULL;
 		}
-		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
+		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 		if (rx_tmp_ptr)
 			mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
 	}
 
-	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	/*
 	 * We don't have a circular buffer, hence use rotation to simulate
 	 * circular buffer
@@ -140,7 +140,7 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 	}
 
 	tbl->start_win = start_win;
-	spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
+	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 }
 
 /*
@@ -160,18 +160,19 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 	unsigned long flags;
 
 	for (i = 0; i < tbl->win_size; ++i) {
-		spin_lock_irqsave(&priv->rx_pkt_lock, flags);
+		spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 		if (!tbl->rx_reorder_ptr[i]) {
-			spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
+			spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock,
+					       flags);
 			break;
 		}
 		rx_tmp_ptr = tbl->rx_reorder_ptr[i];
 		tbl->rx_reorder_ptr[i] = NULL;
-		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
+		spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 		mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
 	}
 
-	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
+	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	/*
 	 * We don't have a circular buffer, hence use rotation to simulate
 	 * circular buffer
@@ -184,7 +185,7 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 		}
 	}
 	tbl->start_win = (tbl->start_win + i) & (MAX_TID_VALUE - 1);
-	spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
+	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
 }
 
 /*
@@ -399,8 +400,8 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 
 	new_node->win_size = win_size;
 
-	new_node->rx_reorder_ptr = kzalloc(sizeof(void *) * win_size,
-					GFP_KERNEL);
+	new_node->rx_reorder_ptr = kcalloc(win_size, sizeof(void *),
+					   GFP_KERNEL);
 	if (!new_node->rx_reorder_ptr) {
 		kfree((u8 *) new_node);
 		mwifiex_dbg(priv->adapter, ERROR,

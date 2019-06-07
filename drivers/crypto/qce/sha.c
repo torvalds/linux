@@ -378,8 +378,7 @@ static int qce_ahash_hmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	else
 		return -EINVAL;
 
-	ahash_tfm = crypto_alloc_ahash(alg_name, CRYPTO_ALG_TYPE_AHASH,
-				       CRYPTO_ALG_TYPE_AHASH_MASK);
+	ahash_tfm = crypto_alloc_ahash(alg_name, 0, 0);
 	if (IS_ERR(ahash_tfm))
 		return PTR_ERR(ahash_tfm);
 
@@ -509,7 +508,6 @@ static int qce_ahash_register_one(const struct qce_ahash_def *def,
 	base->cra_alignmask = 0;
 	base->cra_module = THIS_MODULE;
 	base->cra_init = qce_ahash_cra_init;
-	INIT_LIST_HEAD(&base->cra_list);
 
 	snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "%s", def->name);
 	snprintf(base->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",

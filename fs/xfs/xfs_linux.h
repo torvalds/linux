@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_LINUX__
 #define __XFS_LINUX__
@@ -38,6 +26,7 @@ typedef __u32			xfs_nlink_t;
 
 #include <linux/semaphore.h>
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
@@ -151,8 +140,6 @@ typedef __u32			xfs_nlink_t;
 
 #define XFS_PROJID_DEFAULT	0
 
-#define MIN(a,b)	(min(a,b))
-#define MAX(a,b)	(max(a,b))
 #define howmany(x, y)	(((x)+((y)-1))/(y))
 
 static inline void delay(long ticks)
@@ -219,25 +206,6 @@ static inline xfs_dev_t linux_to_xfs_dev_t(dev_t dev)
  */
 #define xfs_sort(a,n,s,fn)	sort(a,n,s,fn,NULL)
 #define xfs_stack_trace()	dump_stack()
-
-/* Side effect free 64 bit mod operation */
-static inline __u32 xfs_do_mod(void *a, __u32 b, int n)
-{
-	switch (n) {
-		case 4:
-			return *(__u32 *)a % b;
-		case 8:
-			{
-			__u64	c = *(__u64 *)a;
-			return do_div(c, b);
-			}
-	}
-
-	/* NOTREACHED */
-	return 0;
-}
-
-#define do_mod(a, b)	xfs_do_mod(&(a), (b), sizeof(a))
 
 static inline uint64_t roundup_64(uint64_t x, uint32_t y)
 {

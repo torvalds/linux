@@ -1,26 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2014  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2014  Realtek Corporation.*/
 
 #ifndef __RTL8723BE__FW__H__
 #define __RTL8723BE__FW__H__
@@ -100,16 +79,6 @@ enum rtl8723b_h2c_cmd {
 	MAX_8723B_H2CCMD
 };
 
-enum rtl8723b_c2h_evt {
-	C2H_8723B_DBG = 0,
-	C2H_8723B_LB = 1,
-	C2H_8723B_TXBF = 2,
-	C2H_8723B_TX_REPORT = 3,
-	C2H_8723B_BT_INFO = 9,
-	C2H_8723B_BT_MP = 11,
-	MAX_8723B_C2HEVENT
-};
-
 #define pagenum_128(_len) (u32)(((_len)>>7) + ((_len)&0x7F ? 1 : 0))
 
 
@@ -153,7 +122,4 @@ void rtl8723be_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
 void rtl8723be_set_fw_media_status_rpt_cmd(struct ieee80211_hw *hw, u8 mstatus);
 void rtl8723be_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished);
 void rtl8723be_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state);
-void rtl8723be_c2h_packet_handler(struct ieee80211_hw *hw, u8 *buffer, u8 len);
-void rtl8723be_c2h_content_parsing(struct ieee80211_hw *hw, u8 c2h_cmd_id,
-				   u8 c2h_cmd_len, u8 *tmp_buf);
 #endif

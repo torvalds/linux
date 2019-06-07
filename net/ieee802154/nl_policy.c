@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * nl802154.h
  *
  * Copyright (C) 2007, 2008 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -75,4 +66,3 @@ const struct nla_policy ieee802154_policy[IEEE802154_ATTR_MAX + 1] = {
 	[IEEE802154_ATTR_LLSEC_DEV_OVERRIDE] = { .type = NLA_U8, },
 	[IEEE802154_ATTR_LLSEC_DEV_KEY_MODE] = { .type = NLA_U8, },
 };
-

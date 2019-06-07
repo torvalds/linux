@@ -51,7 +51,6 @@
 extern void kernel_exception(void);
 extern void user_exception(void);
 
-extern void fast_syscall_kernel(void);
 extern void fast_syscall_user(void);
 extern void fast_alloca(void);
 extern void fast_unaligned(void);
@@ -89,7 +88,6 @@ typedef struct {
 static dispatch_init_table_t __initdata dispatch_init_table[] = {
 
 { EXCCAUSE_ILLEGAL_INSTRUCTION,	0,	   do_illegal_instruction},
-{ EXCCAUSE_SYSTEM_CALL,		KRNL,	   fast_syscall_kernel },
 { EXCCAUSE_SYSTEM_CALL,		USER,	   fast_syscall_user },
 { EXCCAUSE_SYSTEM_CALL,		0,	   system_call },
 /* EXCCAUSE_INSTRUCTION_FETCH unhandled */
@@ -215,8 +213,8 @@ extern void do_IRQ(int, struct pt_regs *);
 
 static inline void check_valid_nmi(void)
 {
-	unsigned intread = get_sr(interrupt);
-	unsigned intenable = get_sr(intenable);
+	unsigned intread = xtensa_get_sr(interrupt);
+	unsigned intenable = xtensa_get_sr(intenable);
 
 	BUG_ON(intread & intenable &
 	       ~(XTENSA_INTLEVEL_ANDBELOW_MASK(PROFILING_INTLEVEL) ^
@@ -273,8 +271,8 @@ void do_interrupt(struct pt_regs *regs)
 	irq_enter();
 
 	for (;;) {
-		unsigned intread = get_sr(interrupt);
-		unsigned intenable = get_sr(intenable);
+		unsigned intread = xtensa_get_sr(interrupt);
+		unsigned intenable = xtensa_get_sr(intenable);
 		unsigned int_at_level = intread & intenable;
 		unsigned level;
 
@@ -323,8 +321,6 @@ do_illegal_instruction(struct pt_regs *regs)
 void
 do_unaligned_user (struct pt_regs *regs)
 {
-	siginfo_t info;
-
 	__die_if_kernel("Unhandled unaligned exception in kernel",
 			regs, SIGKILL);
 
@@ -334,12 +330,7 @@ do_unaligned_user (struct pt_regs *regs)
 			    "(pid = %d, pc = %#010lx)\n",
 			    regs->excvaddr, current->comm,
 			    task_pid_nr(current), regs->pc);
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_ADRALN;
-	info.si_addr = (void *) regs->excvaddr;
-	force_sig_info(SIGSEGV, &info, current);
-
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void *) regs->excvaddr, current);
 }
 #endif
 
@@ -429,16 +420,15 @@ void __init trap_init(void)
 	/* Setup specific handlers. */
 
 	for(i = 0; dispatch_init_table[i].cause >= 0; i++) {
-
 		int fast = dispatch_init_table[i].fast;
 		int cause = dispatch_init_table[i].cause;
 		void *handler = dispatch_init_table[i].handler;
 
 		if (fast == 0)
 			set_handler(default_handler, cause, handler);
-		if (fast && fast & USER)
+		if ((fast & USER) != 0)
 			set_handler(fast_user_handler, cause, handler);
-		if (fast && fast & KRNL)
+		if ((fast & KRNL) != 0)
 			set_handler(fast_kernel_handler, cause, handler);
 	}
 

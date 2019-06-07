@@ -37,7 +37,7 @@ nvif_vmm_map(struct nvif_vmm *vmm, u64 addr, u64 size, void *argv, u32 argc,
 	     struct nvif_mem *mem, u64 offset)
 {
 	struct nvif_vmm_map_v0 *args;
-	u8 stack[16];
+	u8 stack[48];
 	int ret;
 
 	if (sizeof(*args) + argc > sizeof(stack)) {
@@ -112,8 +112,8 @@ nvif_vmm_fini(struct nvif_vmm *vmm)
 }
 
 int
-nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, u64 addr, u64 size,
-	      void *argv, u32 argc, struct nvif_vmm *vmm)
+nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, bool managed, u64 addr,
+	      u64 size, void *argv, u32 argc, struct nvif_vmm *vmm)
 {
 	struct nvif_vmm_v0 *args;
 	u32 argn = sizeof(*args) + argc;
@@ -125,6 +125,7 @@ nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, u64 addr, u64 size,
 	if (!(args = kmalloc(argn, GFP_KERNEL)))
 		return -ENOMEM;
 	args->version = 0;
+	args->managed = managed;
 	args->addr = addr;
 	args->size = size;
 	memcpy(args->data, argv, argc);
@@ -138,7 +139,8 @@ nvif_vmm_init(struct nvif_mmu *mmu, s32 oclass, u64 addr, u64 size,
 	vmm->limit = args->size;
 
 	vmm->page_nr = args->page_nr;
-	vmm->page = kmalloc(sizeof(*vmm->page) * vmm->page_nr, GFP_KERNEL);
+	vmm->page = kmalloc_array(vmm->page_nr, sizeof(*vmm->page),
+				  GFP_KERNEL);
 	if (!vmm->page) {
 		ret = -ENOMEM;
 		goto done;

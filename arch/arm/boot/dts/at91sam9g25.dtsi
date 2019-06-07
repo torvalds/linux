@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91sam9g25.dtsi - Device Tree Include file for AT91SAM9G25 SoC
  *
  * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
- *
- * Licensed under GPLv2.
  */
 
 #include "at91sam9x5.dtsi"
@@ -25,6 +24,10 @@
 				       0x80000000 0x07c0ffff 0xb83fffff  /* pioC */
 				       0x003fffff 0x003f8000 0x00000000  /* pioD */
 				      >;
+			};
+
+			pmc: pmc@fffffc00 {
+				compatible = "atmel,at91sam9g25-pmc", "atmel,at91sam9x5-pmc", "syscon";
 			};
 		};
 	};

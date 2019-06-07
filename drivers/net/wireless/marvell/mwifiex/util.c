@@ -197,9 +197,11 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 		info->is_deep_sleep = adapter->is_deep_sleep;
 		info->pm_wakeup_card_req = adapter->pm_wakeup_card_req;
 		info->pm_wakeup_fw_try = adapter->pm_wakeup_fw_try;
-		info->is_hs_configured = adapter->is_hs_configured;
+		info->is_hs_configured = test_bit(MWIFIEX_IS_HS_CONFIGURED,
+						  &adapter->work_flags);
 		info->hs_activated = adapter->hs_activated;
-		info->is_cmd_timedout = adapter->is_cmd_timedout;
+		info->is_cmd_timedout = test_bit(MWIFIEX_IS_CMD_TIMEDOUT,
+						 &adapter->work_flags);
 		info->num_cmd_host_to_card_failure
 				= adapter->dbg.num_cmd_host_to_card_failure;
 		info->num_cmd_sleep_cfm_host_to_card_failure
@@ -708,12 +710,14 @@ void mwifiex_hist_data_set(struct mwifiex_private *priv, u8 rx_rate, s8 snr,
 			   s8 nflr)
 {
 	struct mwifiex_histogram_data *phist_data = priv->hist_data;
+	s8 nf   = -nflr;
+	s8 rssi = snr - nflr;
 
 	atomic_inc(&phist_data->num_samples);
 	atomic_inc(&phist_data->rx_rate[rx_rate]);
-	atomic_inc(&phist_data->snr[snr]);
-	atomic_inc(&phist_data->noise_flr[128 + nflr]);
-	atomic_inc(&phist_data->sig_str[nflr - snr]);
+	atomic_inc(&phist_data->snr[snr + 128]);
+	atomic_inc(&phist_data->noise_flr[nf + 128]);
+	atomic_inc(&phist_data->sig_str[rssi + 128]);
 }
 
 /* function to reset histogram data during init/reset */
@@ -755,3 +759,10 @@ void *mwifiex_alloc_dma_align_buf(int rx_len, gfp_t flags)
 	return skb;
 }
 EXPORT_SYMBOL_GPL(mwifiex_alloc_dma_align_buf);
+
+void mwifiex_fw_dump_event(struct mwifiex_private *priv)
+{
+	mwifiex_send_cmd(priv, HostCmd_CMD_FW_DUMP_EVENT, HostCmd_ACT_GEN_SET,
+			 0, NULL, true);
+}
+EXPORT_SYMBOL_GPL(mwifiex_fw_dump_event);

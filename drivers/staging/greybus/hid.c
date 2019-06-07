@@ -49,8 +49,8 @@ static int gb_hid_get_report_desc(struct gb_hid *ghid, char *rdesc)
 		return ret;
 
 	ret = gb_operation_sync(ghid->connection, GB_HID_TYPE_GET_REPORT_DESC,
-				 NULL, 0, rdesc,
-				 le16_to_cpu(ghid->hdesc.wReportDescLength));
+				NULL, 0, rdesc,
+				le16_to_cpu(ghid->hdesc.wReportDescLength));
 
 	gb_pm_runtime_put_autosuspend(ghid->bundle);
 
@@ -86,7 +86,7 @@ static int gb_hid_get_report(struct gb_hid *ghid, u8 report_type, u8 report_id,
 	request.report_id = report_id;
 
 	ret = gb_operation_sync(ghid->connection, GB_HID_TYPE_GET_REPORT,
-				 &request, sizeof(request), buf, len);
+				&request, sizeof(request), buf, len);
 
 	gb_pm_runtime_put_autosuspend(ghid->bundle);
 
@@ -211,11 +211,13 @@ static void gb_hid_init_reports(struct gb_hid *ghid)
 	struct hid_report *report;
 
 	list_for_each_entry(report,
-		&hid->report_enum[HID_INPUT_REPORT].report_list, list)
+			    &hid->report_enum[HID_INPUT_REPORT].report_list,
+			    list)
 		gb_hid_init_report(ghid, report);
 
 	list_for_each_entry(report,
-		&hid->report_enum[HID_FEATURE_REPORT].report_list, list)
+			    &hid->report_enum[HID_FEATURE_REPORT].report_list,
+			    list)
 		gb_hid_init_report(ghid, report);
 }
 
@@ -259,8 +261,8 @@ static int __gb_hid_output_raw_report(struct hid_device *hid, __u8 *buf,
 }
 
 static int gb_hid_raw_request(struct hid_device *hid, unsigned char reportnum,
-			       __u8 *buf, size_t len, unsigned char rtype,
-			       int reqtype)
+			      __u8 *buf, size_t len, unsigned char rtype,
+			      int reqtype)
 {
 	switch (reqtype) {
 	case HID_REQ_GET_REPORT:
@@ -290,7 +292,6 @@ static int gb_hid_parse(struct hid_device *hid)
 
 	rdesc = kzalloc(rsize, GFP_KERNEL);
 	if (!rdesc) {
-		dbg_hid("couldn't allocate rdesc memory\n");
 		return -ENOMEM;
 	}
 
@@ -440,7 +441,7 @@ static int gb_hid_probe(struct gb_bundle *bundle,
 		return -ENOMEM;
 
 	connection = gb_connection_create(bundle, le16_to_cpu(cport_desc->id),
-						gb_hid_request_handler);
+					  gb_hid_request_handler);
 	if (IS_ERR(connection)) {
 		ret = PTR_ERR(connection);
 		goto err_free_ghid;

@@ -46,6 +46,7 @@
 	};
 
 	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x10000000>;
 	};
 };
@@ -94,4 +95,8 @@
 		label = "rootfs";
 		reg = <0x00700000 0x00900000>;
 	};
+};
+
+&usb3_phy {
+	status = "okay";
 };

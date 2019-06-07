@@ -1,23 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for generic ESS AudioDrive ES18xx soundcards
  *  Copyright (c) by Christian Fischbach <fishbach@pool.informatik.rwth-aachen.de>
  *  Copyright (c) by Abramo Bagnara <abramo@alsa-project.org>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 /* GENERAL NOTES:
  *
@@ -1024,6 +1009,7 @@ static int snd_es18xx_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 			val = 3;
 		} else
 			retVal = snd_es18xx_mixer_bits(chip, 0x7a, 0x08, 0x00) != 0x00;
+		/* fall through */
  /* 4 source chips */
 	case 0x1868:
 	case 0x1878:
@@ -1716,7 +1702,7 @@ static int snd_es18xx_pcm(struct snd_card *card, int device)
         chip->pcm = pcm;
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
+					      card->dev,
 					      64*1024,
 					      chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 	return 0;
@@ -1729,8 +1715,6 @@ static int snd_es18xx_suspend(struct snd_card *card, pm_message_t state)
 	struct snd_es18xx *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-
-	snd_pcm_suspend_all(chip->pcm);
 
 	/* power down */
 	chip->pm_reg = (unsigned char)snd_es18xx_read(chip, ES18XX_PM);

@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Legend Silicon LGS-8GL5 DMB-TH OFDM demodulator driver
 
     Copyright (C) 2008 Sirius International (Hong Kong) Limited
 	Timothy Lee <timothy.lee@siriushk.com>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
 
@@ -416,10 +404,9 @@ static const struct dvb_frontend_ops lgs8gl5_ops = {
 	.delsys = { SYS_DTMB },
 	.info = {
 		.name			= "Legend Silicon LGS-8GL5 DMB-TH",
-		.frequency_min		= 474000000,
-		.frequency_max		= 858000000,
-		.frequency_stepsize	= 10000,
-		.frequency_tolerance	= 0,
+		.frequency_min_hz	= 474 * MHz,
+		.frequency_max_hz	= 858 * MHz,
+		.frequency_stepsize_hz	=  10 * kHz,
 		.caps = FE_CAN_FEC_AUTO |
 			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_32 |
 			FE_CAN_QAM_64 | FE_CAN_QAM_AUTO |

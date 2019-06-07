@@ -264,8 +264,6 @@ static const char * const gcc_xo_gpll1_emclk_sleep[] = {
 	"sleep_clk",
 };
 
-#define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
-
 static struct clk_pll gpll0 = {
 	.l_reg = 0x21004,
 	.m_reg = 0x21008,
@@ -546,7 +544,11 @@ static struct clk_rcg2 blsp1_qup1_i2c_apps_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_blsp1_qup1_6_spi_apps_clk[] = {
+	F(100000, P_XO, 16, 2, 24),
+	F(250000, P_XO, 16, 5, 24),
+	F(500000, P_XO, 8, 5, 24),
 	F(960000, P_XO, 10, 1, 2),
+	F(1000000, P_XO, 4, 5, 24),
 	F(4800000, P_XO, 4, 0, 0),
 	F(9600000, P_XO, 2, 0, 0),
 	F(16000000, P_GPLL0, 10, 1, 5),

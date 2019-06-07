@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __RTW_MLME_EXT_H_
@@ -656,7 +648,6 @@ void report_survey_event(struct adapter *padapter, union recv_frame *precv_frame
 void report_surveydone_event(struct adapter *padapter);
 void report_del_sta_event(struct adapter *padapter, unsigned char* MacAddr, unsigned short reason);
 void report_add_sta_event(struct adapter *padapter, unsigned char* MacAddr, int cam_idx);
-bool rtw_port_switch_chk(struct adapter *adapter);
 void report_wmm_edca_update(struct adapter *padapter);
 
 void beacon_timing_control(struct adapter *padapter);

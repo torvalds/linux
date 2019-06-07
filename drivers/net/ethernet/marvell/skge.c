@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * New driver for Marvell Yukon chipset and SysKonnect Gigabit
  * Ethernet adapters. Based on earlier sk98lin, e100 and
@@ -8,19 +9,6 @@
  * those should be done at higher levels.
  *
  * Copyright (C) 2004, 2005 Stephen Hemminger <shemminger@osdl.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -152,8 +140,10 @@ static void skge_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	memset(p, 0, regs->len);
 	memcpy_fromio(p, io, B3_RAM_ADDR);
 
-	memcpy_fromio(p + B3_RI_WTO_R1, io + B3_RI_WTO_R1,
-		      regs->len - B3_RI_WTO_R1);
+	if (regs->len > B3_RI_WTO_R1) {
+		memcpy_fromio(p + B3_RI_WTO_R1, io + B3_RI_WTO_R1,
+			      regs->len - B3_RI_WTO_R1);
+	}
 }
 
 /* Wake on Lan only supported on Yukon chips with rev 1 or above */
@@ -3732,19 +3722,7 @@ static int skge_debug_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-
-static int skge_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, skge_debug_show, inode->i_private);
-}
-
-static const struct file_operations skge_debug_fops = {
-	.owner		= THIS_MODULE,
-	.open		= skge_debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(skge_debug);
 
 /*
  * Use network device events to create/remove/rename

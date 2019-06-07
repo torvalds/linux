@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 config USB_DWC3
 	tristate "DesignWare USB3 DRD Core Support"
 	depends on (USB || USB_GADGET) && HAS_DMA
@@ -52,7 +54,8 @@ comment "Platform Glue Driver Support"
 
 config USB_DWC3_OMAP
 	tristate "Texas Instruments OMAP5 and similar Platforms"
-	depends on EXTCON && (ARCH_OMAP2PLUS || COMPILE_TEST)
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	depends on EXTCON || !EXTCON
 	depends on OF
 	default USB_DWC3
 	help
@@ -74,19 +77,34 @@ config USB_DWC3_PCI
 	depends on USB_PCI && ACPI
 	default USB_DWC3
 	help
-	  If you're using the DesignWare Core IP with a PCIe, please say
-	  'Y' or 'M' here.
+	  If you're using the DesignWare Core IP with a PCIe (but not HAPS
+	  platform), please say 'Y' or 'M' here.
 
-	  One such PCIe-based platform is Synopsys' PCIe HAPS model of
-	  this IP.
-
-config USB_DWC3_KEYSTONE
-	tristate "Texas Instruments Keystone2 Platforms"
-	depends on ARCH_KEYSTONE || COMPILE_TEST
+config USB_DWC3_HAPS
+	tristate "Synopsys PCIe-based HAPS Platforms"
+	depends on USB_PCI
 	default USB_DWC3
 	help
-	  Support of USB2/3 functionality in TI Keystone2 platforms.
+	  If you're using the DesignWare Core IP with a Synopsys PCIe HAPS
+	  platform, please say 'Y' or 'M' here.
+
+config USB_DWC3_KEYSTONE
+	tristate "Texas Instruments Keystone2/AM654 Platforms"
+	depends on ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
+	default USB_DWC3
+	help
+	  Support of USB2/3 functionality in TI Keystone2 and AM654 platforms.
 	  Say 'Y' or 'M' here if you have one such device
+
+config USB_DWC3_MESON_G12A
+       tristate "Amlogic Meson G12A Platforms"
+       depends on OF && COMMON_CLK
+       depends on ARCH_MESON || COMPILE_TEST
+       default USB_DWC3
+       select USB_ROLE_SWITCH
+       help
+         Support USB2/3 functionality in Amlogic G12A platforms.
+	 Say 'Y' or 'M' if you have one such device.
 
 config USB_DWC3_OF_SIMPLE
        tristate "Generic OF Simple Glue Layer"
@@ -104,6 +122,19 @@ config USB_DWC3_ST
 	help
 	  STMicroelectronics SoCs with one DesignWare Core USB3 IP
 	  inside (i.e. STiH407).
+	  Say 'Y' or 'M' if you have one such device.
+
+config USB_DWC3_QCOM
+	tristate "Qualcomm Platform"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on EXTCON || !EXTCON
+	depends on OF
+	default USB_DWC3
+	help
+	  Some Qualcomm SoCs use DesignWare Core IP for USB2/3
+	  functionality.
+	  This driver also handles Qscratch wrapper which is needed
+	  for peripheral mode support.
 	  Say 'Y' or 'M' if you have one such device.
 
 endif

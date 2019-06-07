@@ -535,14 +535,12 @@ void i2400m_net_erx(struct i2400m *i2400m, struct sk_buff *skb,
 {
 	struct net_device *net_dev = i2400m->wimax_dev.net_dev;
 	struct device *dev = i2400m_dev(i2400m);
-	int protocol;
 
 	d_fnstart(2, dev, "(i2400m %p skb %p [%u] cs %d)\n",
 		  i2400m, skb, skb->len, cs);
 	switch(cs) {
 	case I2400M_CS_IPV4_0:
 	case I2400M_CS_IPV4:
-		protocol = ETH_P_IP;
 		i2400m_rx_fake_eth_header(i2400m->wimax_dev.net_dev,
 					  skb->data - ETH_HLEN,
 					  cpu_to_be16(ETH_P_IP));

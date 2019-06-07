@@ -18,16 +18,21 @@
 
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_helper.h>
+#include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
 #include <linux/netfilter/nf_conntrack_sip.h>
 
+#define NAT_HELPER_NAME "sip"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hentschel <chentschel@arnet.com.ar>");
 MODULE_DESCRIPTION("SIP NAT helper");
-MODULE_ALIAS("ip_nat_sip");
+MODULE_ALIAS_NF_NAT_HELPER(NAT_HELPER_NAME);
 
+static struct nf_conntrack_nat_helper nat_helper_sip =
+	NF_CT_NAT_HELPER_INIT(NAT_HELPER_NAME);
 
 static unsigned int mangle_packet(struct sk_buff *skb, unsigned int protoff,
 				  unsigned int dataoff,
@@ -316,7 +321,10 @@ static void nf_nat_sip_seq_adjust(struct sk_buff *skb, unsigned int protoff,
 static void nf_nat_sip_expected(struct nf_conn *ct,
 				struct nf_conntrack_expect *exp)
 {
-	struct nf_nat_range range;
+	struct nf_conn_help *help = nfct_help(ct->master);
+	struct nf_conntrack_expect *pair_exp;
+	int range_set_for_snat = 0;
+	struct nf_nat_range2 range;
 
 	/* This must be a fresh one. */
 	BUG_ON(ct->status & IPS_NAT_DONE_MASK);
@@ -327,15 +335,42 @@ static void nf_nat_sip_expected(struct nf_conn *ct,
 	range.min_addr = range.max_addr = exp->saved_addr;
 	nf_nat_setup_info(ct, &range, NF_NAT_MANIP_DST);
 
-	/* Change src to where master sends to, but only if the connection
-	 * actually came from the same source. */
-	if (nf_inet_addr_cmp(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3,
+	/* Do media streams SRC manip according with the parameters
+	 * found in the paired expectation.
+	 */
+	if (exp->class != SIP_EXPECT_SIGNALLING) {
+		spin_lock_bh(&nf_conntrack_expect_lock);
+		hlist_for_each_entry(pair_exp, &help->expectations, lnode) {
+			if (pair_exp->tuple.src.l3num == nf_ct_l3num(ct) &&
+			    pair_exp->tuple.dst.protonum == ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum &&
+			    nf_inet_addr_cmp(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3, &pair_exp->saved_addr) &&
+			    ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.all == pair_exp->saved_proto.all) {
+				range.flags = (NF_NAT_RANGE_MAP_IPS | NF_NAT_RANGE_PROTO_SPECIFIED);
+				range.min_proto.all = range.max_proto.all = pair_exp->tuple.dst.u.all;
+				range.min_addr = range.max_addr = pair_exp->tuple.dst.u3;
+				range_set_for_snat = 1;
+				break;
+			}
+		}
+		spin_unlock_bh(&nf_conntrack_expect_lock);
+	}
+
+	/* When no paired expectation has been found, change src to
+	 * where master sends to, but only if the connection actually came
+	 * from the same source.
+	 */
+	if (!range_set_for_snat &&
+	    nf_inet_addr_cmp(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3,
 			     &ct->master->tuplehash[exp->dir].tuple.src.u3)) {
 		range.flags = NF_NAT_RANGE_MAP_IPS;
 		range.min_addr = range.max_addr
 			= ct->master->tuplehash[!exp->dir].tuple.dst.u3;
-		nf_nat_setup_info(ct, &range, NF_NAT_MANIP_SRC);
+		range_set_for_snat = 1;
 	}
+
+	/* Perform SRC manip. */
+	if (range_set_for_snat)
+		nf_nat_setup_info(ct, &range, NF_NAT_MANIP_SRC);
 }
 
 static unsigned int nf_nat_sip_expect(struct sk_buff *skb, unsigned int protoff,
@@ -625,8 +660,8 @@ static struct nf_ct_helper_expectfn sip_nat = {
 
 static void __exit nf_nat_sip_fini(void)
 {
+	nf_nat_helper_unregister(&nat_helper_sip);
 	RCU_INIT_POINTER(nf_nat_sip_hooks, NULL);
-
 	nf_ct_helper_expectfn_unregister(&sip_nat);
 	synchronize_rcu();
 }
@@ -644,6 +679,7 @@ static const struct nf_nat_sip_hooks sip_hooks = {
 static int __init nf_nat_sip_init(void)
 {
 	BUG_ON(nf_nat_sip_hooks != NULL);
+	nf_nat_helper_register(&nat_helper_sip);
 	RCU_INIT_POINTER(nf_nat_sip_hooks, &sip_hooks);
 	nf_ct_helper_expectfn_register(&sip_nat);
 	return 0;

@@ -3,11 +3,12 @@
 #define __PERF_KVM_STAT_H
 
 #include "../perf.h"
-#include "evsel.h"
-#include "evlist.h"
-#include "session.h"
 #include "tool.h"
 #include "stat.h"
+
+struct perf_evsel;
+struct perf_evlist;
+struct perf_session;
 
 struct event_key {
 	#define INVALID_KEY     (~0ULL)

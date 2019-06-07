@@ -39,16 +39,20 @@ String Manipulation
 .. kernel-doc:: lib/string.c
    :export:
 
-Bit Operations
---------------
-
-.. kernel-doc:: arch/x86/include/asm/bitops.h
-   :internal:
+.. kernel-doc:: mm/util.c
+   :functions: kstrdup kstrdup_const kstrndup kmemdup kmemdup_nul memdup_user
+               vmemdup_user strndup_user memdup_user_nul
 
 Basic Kernel Library Functions
 ==============================
 
 The Linux kernel provides more basic utility functions.
+
+Bit Operations
+--------------
+
+.. kernel-doc:: arch/x86/include/asm/bitops.h
+   :internal:
 
 Bitmap Operations
 -----------------
@@ -80,6 +84,31 @@ Command-line Parsing
 .. kernel-doc:: lib/cmdline.c
    :export:
 
+Sorting
+-------
+
+.. kernel-doc:: lib/sort.c
+   :export:
+
+.. kernel-doc:: lib/list_sort.c
+   :export:
+
+Text Searching
+--------------
+
+.. kernel-doc:: lib/textsearch.c
+   :doc: ts_intro
+
+.. kernel-doc:: lib/textsearch.c
+   :export:
+
+.. kernel-doc:: include/linux/textsearch.h
+   :functions: textsearch_find textsearch_next \
+               textsearch_get_pattern textsearch_get_pattern_len
+
+CRC and Math Functions in Linux
+===============================
+
 CRC Functions
 -------------
 
@@ -103,9 +132,6 @@ CRC Functions
 .. kernel-doc:: lib/crc-itu-t.c
    :export:
 
-Math Functions in Linux
-=======================
-
 Base 2 log and power Functions
 ------------------------------
 
@@ -121,92 +147,16 @@ Division Functions
 .. kernel-doc:: include/linux/math64.h
    :internal:
 
-.. kernel-doc:: lib/div64.c
+.. kernel-doc:: lib/math/div64.c
    :functions: div_s64_rem div64_u64_rem div64_u64 div64_s64
 
-.. kernel-doc:: lib/gcd.c
+.. kernel-doc:: lib/math/gcd.c
    :export:
-
-Sorting
--------
-
-.. kernel-doc:: lib/sort.c
-   :export:
-
-.. kernel-doc:: lib/list_sort.c
-   :export:
-
-Text Searching
---------------
-
-.. kernel-doc:: lib/textsearch.c
-   :doc: ts_intro
-
-.. kernel-doc:: lib/textsearch.c
-   :export:
-
-.. kernel-doc:: include/linux/textsearch.h
-   :functions: textsearch_find textsearch_next \
-               textsearch_get_pattern textsearch_get_pattern_len
 
 UUID/GUID
 ---------
 
 .. kernel-doc:: lib/uuid.c
-   :export:
-
-Memory Management in Linux
-==========================
-
-The Slab Cache
---------------
-
-.. kernel-doc:: include/linux/slab.h
-   :internal:
-
-.. kernel-doc:: mm/slab.c
-   :export:
-
-.. kernel-doc:: mm/util.c
-   :export:
-
-User Space Memory Access
-------------------------
-
-.. kernel-doc:: arch/x86/include/asm/uaccess.h
-   :internal:
-
-.. kernel-doc:: arch/x86/lib/usercopy_32.c
-   :export:
-
-More Memory Management Functions
---------------------------------
-
-.. kernel-doc:: mm/readahead.c
-   :export:
-
-.. kernel-doc:: mm/filemap.c
-   :export:
-
-.. kernel-doc:: mm/memory.c
-   :export:
-
-.. kernel-doc:: mm/vmalloc.c
-   :export:
-
-.. kernel-doc:: mm/page_alloc.c
-   :internal:
-
-.. kernel-doc:: mm/mempool.c
-   :export:
-
-.. kernel-doc:: mm/dmapool.c
-   :export:
-
-.. kernel-doc:: mm/page-writeback.c
-   :export:
-
-.. kernel-doc:: mm/truncate.c
    :export:
 
 Kernel IPC facilities
@@ -284,7 +234,7 @@ Resources Management
 MTRR Handling
 -------------
 
-.. kernel-doc:: arch/x86/kernel/cpu/mtrr/main.c
+.. kernel-doc:: arch/x86/kernel/cpu/mtrr/mtrr.c
    :export:
 
 Security Framework
@@ -340,12 +290,6 @@ Block Devices
 
 .. kernel-doc:: block/blk-lib.c
    :export:
-
-.. kernel-doc:: block/blk-tag.c
-   :export:
-
-.. kernel-doc:: block/blk-tag.c
-   :internal:
 
 .. kernel-doc:: block/blk-integrity.c
    :export:
@@ -412,10 +356,6 @@ Read-Copy Update (RCU)
 
 .. kernel-doc:: include/linux/rcupdate.h
 
-.. kernel-doc:: include/linux/rcupdate_wait.h
-
-.. kernel-doc:: include/linux/rcutree.h
-
 .. kernel-doc:: kernel/rcu/tree.c
 
 .. kernel-doc:: kernel/rcu/tree_plugin.h
@@ -437,4 +377,3 @@ Read-Copy Update (RCU)
 .. kernel-doc:: include/linux/rcu_sync.h
 
 .. kernel-doc:: kernel/rcu/sync.c
-

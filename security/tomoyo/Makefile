@@ -4,7 +4,7 @@ obj-y = audit.o common.o condition.o domain.o environ.o file.o gc.o group.o load
 targets += builtin-policy.h
 define do_policy
 echo "static char tomoyo_builtin_$(1)[] __initdata ="; \
-$(objtree)/scripts/basic/bin2c <$(firstword $(wildcard $(obj)/policy/$(1).conf $(srctree)/$(src)/policy/$(1).conf.default) /dev/null); \
+$(objtree)/scripts/bin2c <$(firstword $(wildcard $(obj)/policy/$(1).conf $(srctree)/$(src)/policy/$(1).conf.default) /dev/null); \
 echo ";"
 endef
 quiet_cmd_policy  = POLICY  $@

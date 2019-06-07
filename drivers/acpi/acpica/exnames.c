@@ -3,7 +3,7 @@
  *
  * Module Name: exnames - interpreter/scanner name load/execute
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -53,10 +53,10 @@ static char *acpi_ex_allocate_name_string(u32 prefix_count, u32 num_name_segs)
 
 		/* Special case for root */
 
-		size_needed = 1 + (ACPI_NAME_SIZE * num_name_segs) + 2 + 1;
+		size_needed = 1 + (ACPI_NAMESEG_SIZE * num_name_segs) + 2 + 1;
 	} else {
 		size_needed =
-		    prefix_count + (ACPI_NAME_SIZE * num_name_segs) + 2 + 1;
+		    prefix_count + (ACPI_NAMESEG_SIZE * num_name_segs) + 2 + 1;
 	}
 
 	/*
@@ -141,7 +141,7 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 	}
 
 	for (index = 0;
-	     (index < ACPI_NAME_SIZE)
+	     (index < ACPI_NAMESEG_SIZE)
 	     && (acpi_ut_valid_name_char(*aml_address, 0)); index++) {
 		char_buf[index] = *aml_address++;
 	}

@@ -29,7 +29,6 @@
 #include <linux/mm.h>
 #include <linux/i8042.h>
 #include <linux/debugfs.h>
-#include <linux/dell-led.h>
 #include <linux/seq_file.h>
 #include <acpi/video.h>
 #include "dell-rbtn.h"
@@ -38,6 +37,7 @@
 struct quirk_entry {
 	bool touchpad_led;
 	bool kbd_led_levels_off_1;
+	bool kbd_missing_ac_tag;
 
 	bool needs_kbd_timeouts;
 	/*
@@ -66,6 +66,10 @@ static int __init dmi_matched(const struct dmi_system_id *dmi)
 static struct quirk_entry quirk_dell_xps13_9333 = {
 	.needs_kbd_timeouts = true,
 	.kbd_timeouts = { 0, 5, 15, 60, 5 * 60, 15 * 60, -1 },
+};
+
+static struct quirk_entry quirk_dell_xps13_9370 = {
+	.kbd_missing_ac_tag = true,
 };
 
 static struct quirk_entry quirk_dell_latitude_e6410 = {
@@ -290,6 +294,15 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "XPS13 9333"),
 		},
 		.driver_data = &quirk_dell_xps13_9333,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell XPS 13 9370",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "XPS 13 9370"),
+		},
+		.driver_data = &quirk_dell_xps13_9370,
 	},
 	{
 		.callback = dmi_matched,
@@ -518,7 +531,7 @@ static void dell_rfkill_query(struct rfkill *rfkill, void *data)
 		return;
 	}
 
-	dell_fill_request(&buffer, 0, 0x2, 0, 0);
+	dell_fill_request(&buffer, 0x2, 0, 0, 0);
 	ret = dell_send_request(&buffer, CLASS_INFO, SELECT_RFKILL);
 	hwswitch = buffer.output[1];
 
@@ -549,7 +562,7 @@ static int dell_debugfs_show(struct seq_file *s, void *data)
 		return ret;
 	status = buffer.output[1];
 
-	dell_fill_request(&buffer, 0, 0x2, 0, 0);
+	dell_fill_request(&buffer, 0x2, 0, 0, 0);
 	hwswitch_ret = dell_send_request(&buffer, CLASS_INFO, SELECT_RFKILL);
 	if (hwswitch_ret)
 		return hwswitch_ret;
@@ -634,7 +647,7 @@ static void dell_update_rfkill(struct work_struct *ignored)
 	if (ret != 0)
 		return;
 
-	dell_fill_request(&buffer, 0, 0x2, 0, 0);
+	dell_fill_request(&buffer, 0x2, 0, 0, 0);
 	ret = dell_send_request(&buffer, CLASS_INFO, SELECT_RFKILL);
 
 	if (ret == 0 && (status & BIT(0)))
@@ -1401,7 +1414,8 @@ static inline int kbd_init_info(void)
 	 *       timeout value which is shared for both battery and AC power
 	 *       settings. So do not try to set AC values on old models.
 	 */
-	if (dell_smbios_find_token(KBD_LED_AC_TOKEN))
+	if ((quirks && quirks->kbd_missing_ac_tag) ||
+	    dell_smbios_find_token(KBD_LED_AC_TOKEN))
 		kbd_timeout_ac_supported = true;
 
 	kbd_get_state(&state);
@@ -1550,8 +1564,10 @@ static ssize_t kbd_led_timeout_store(struct device *dev,
 		switch (unit) {
 		case KBD_TIMEOUT_DAYS:
 			value *= 24;
+			/* fall through */
 		case KBD_TIMEOUT_HOURS:
 			value *= 60;
+			/* fall through */
 		case KBD_TIMEOUT_MINUTES:
 			value *= 60;
 			unit = KBD_TIMEOUT_SECONDS;
@@ -2094,17 +2110,17 @@ static struct notifier_block dell_laptop_notifier = {
 	.notifier_call = dell_laptop_notifier_call,
 };
 
-int dell_micmute_led_set(int state)
+static int micmute_led_set(struct led_classdev *led_cdev,
+			   enum led_brightness brightness)
 {
 	struct calling_interface_buffer buffer;
 	struct calling_interface_token *token;
+	int state = brightness != LED_OFF;
 
 	if (state == 0)
 		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_DISABLE);
-	else if (state == 1)
-		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
 	else
-		return -EINVAL;
+		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
 
 	if (!token)
 		return -ENODEV;
@@ -2112,9 +2128,15 @@ int dell_micmute_led_set(int state)
 	dell_fill_request(&buffer, token->location, token->value, 0, 0);
 	dell_send_request(&buffer, CLASS_TOKEN_WRITE, SELECT_TOKEN_STD);
 
-	return state;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(dell_micmute_led_set);
+
+static struct led_classdev micmute_led_cdev = {
+	.name = "platform::micmute",
+	.max_brightness = 1,
+	.brightness_set_blocking = micmute_led_set,
+	.default_trigger = "audio-micmute",
+};
 
 static int __init dell_init(void)
 {
@@ -2160,6 +2182,11 @@ static int __init dell_init(void)
 
 	dell_laptop_register_notifier(&dell_laptop_notifier);
 
+	micmute_led_cdev.brightness = ledtrig_audio_get(LED_AUDIO_MICMUTE);
+	ret = led_classdev_register(&platform_device->dev, &micmute_led_cdev);
+	if (ret < 0)
+		goto fail_led;
+
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
 		return 0;
 
@@ -2170,7 +2197,7 @@ static int __init dell_init(void)
 		dell_fill_request(&buffer, token->location, 0, 0, 0);
 		ret = dell_send_request(&buffer,
 					CLASS_TOKEN_READ, SELECT_TOKEN_AC);
-		if (ret)
+		if (ret == 0)
 			max_intensity = buffer.output[3];
 	}
 
@@ -2205,6 +2232,8 @@ static int __init dell_init(void)
 fail_get_brightness:
 	backlight_device_unregister(dell_backlight_device);
 fail_backlight:
+	led_classdev_unregister(&micmute_led_cdev);
+fail_led:
 	dell_cleanup_rfkill();
 fail_rfkill:
 	platform_device_del(platform_device);
@@ -2224,6 +2253,7 @@ static void __exit dell_exit(void)
 		touchpad_led_exit();
 	kbd_led_exit();
 	backlight_device_unregister(dell_backlight_device);
+	led_classdev_unregister(&micmute_led_cdev);
 	dell_cleanup_rfkill();
 	if (platform_device) {
 		platform_device_unregister(platform_device);

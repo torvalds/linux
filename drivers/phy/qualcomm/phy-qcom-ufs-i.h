@@ -17,30 +17,14 @@
 
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/phy/phy.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
-#include <linux/phy/phy-qcom-ufs.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-
-#define readl_poll_timeout(addr, val, cond, sleep_us, timeout_us) \
-({ \
-	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us); \
-	might_sleep_if(timeout_us); \
-	for (;;) { \
-		(val) = readl(addr); \
-		if (cond) \
-			break; \
-		if (timeout_us && ktime_compare(ktime_get(), timeout) > 0) { \
-			(val) = readl(addr); \
-			break; \
-		} \
-		if (sleep_us) \
-			usleep_range(DIV_ROUND_UP(sleep_us, 4), sleep_us); \
-	} \
-	(cond) ? 0 : -ETIMEDOUT; \
-})
+#include <linux/iopoll.h>
 
 #define UFS_QCOM_PHY_CAL_ENTRY(reg, val)	\
 	{				\
@@ -113,11 +97,10 @@ struct ufs_qcom_phy {
 	char name[UFS_QCOM_PHY_NAME_LEN];
 	struct ufs_qcom_phy_calibration *cached_regs;
 	int cached_regs_table_size;
-	bool is_powered_on;
-	bool is_started;
 	struct ufs_qcom_phy_specific_ops *phy_spec_ops;
 
 	enum phy_mode mode;
+	struct reset_control *ufs_reset;
 };
 
 /**
@@ -132,6 +115,7 @@ struct ufs_qcom_phy {
  * and writes to QSERDES_RX_SIGDET_CNTRL attribute
  */
 struct ufs_qcom_phy_specific_ops {
+	int (*calibrate)(struct ufs_qcom_phy *ufs_qcom_phy, bool is_rate_B);
 	void (*start_serdes)(struct ufs_qcom_phy *phy);
 	int (*is_physical_coding_sublayer_ready)(struct ufs_qcom_phy *phy);
 	void (*set_tx_lane_enable)(struct ufs_qcom_phy *phy, u32 val);

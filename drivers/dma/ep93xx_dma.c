@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the Cirrus Logic EP93xx DMA Controller
  *
@@ -11,11 +12,6 @@
  *   Copyright (C) 2009 Ryan Mallon <rmallon@gmail.com>
  *
  * This driver is based on dw_dmac and amba-pl08x drivers.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -23,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -108,6 +105,9 @@
 #define DMA_MAX_CHAN_DESCRIPTORS	32
 
 struct ep93xx_dma_engine;
+static int ep93xx_dma_slave_config_write(struct dma_chan *chan,
+					 enum dma_transfer_direction dir,
+					 struct dma_slave_config *config);
 
 /**
  * struct ep93xx_dma_desc - EP93xx specific transaction descriptor
@@ -179,6 +179,7 @@ struct ep93xx_dma_chan {
 	struct list_head		free_list;
 	u32				runtime_addr;
 	u32				runtime_ctrl;
+	struct dma_slave_config		slave_config;
 };
 
 /**
@@ -992,7 +993,7 @@ ep93xx_dma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest,
 	for (offset = 0; offset < len; offset += bytes) {
 		desc = ep93xx_dma_desc_get(edmac);
 		if (!desc) {
-			dev_warn(chan2dev(edmac), "couln't get descriptor\n");
+			dev_warn(chan2dev(edmac), "couldn't get descriptor\n");
 			goto fail;
 		}
 
@@ -1050,6 +1051,8 @@ ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		return NULL;
 	}
 
+	ep93xx_dma_slave_config_write(chan, dir, &edmac->slave_config);
+
 	first = NULL;
 	for_each_sg(sgl, sg, sg_len, i) {
 		size_t len = sg_dma_len(sg);
@@ -1062,7 +1065,7 @@ ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 		desc = ep93xx_dma_desc_get(edmac);
 		if (!desc) {
-			dev_warn(chan2dev(edmac), "couln't get descriptor\n");
+			dev_warn(chan2dev(edmac), "couldn't get descriptor\n");
 			goto fail;
 		}
 
@@ -1135,12 +1138,14 @@ ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 		return NULL;
 	}
 
+	ep93xx_dma_slave_config_write(chan, dir, &edmac->slave_config);
+
 	/* Split the buffer into period size chunks */
 	first = NULL;
 	for (offset = 0; offset < buf_len; offset += period_len) {
 		desc = ep93xx_dma_desc_get(edmac);
 		if (!desc) {
-			dev_warn(chan2dev(edmac), "couln't get descriptor\n");
+			dev_warn(chan2dev(edmac), "couldn't get descriptor\n");
 			goto fail;
 		}
 
@@ -1226,6 +1231,17 @@ static int ep93xx_dma_slave_config(struct dma_chan *chan,
 				   struct dma_slave_config *config)
 {
 	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
+
+	memcpy(&edmac->slave_config, config, sizeof(*config));
+
+	return 0;
+}
+
+static int ep93xx_dma_slave_config_write(struct dma_chan *chan,
+					 enum dma_transfer_direction dir,
+					 struct dma_slave_config *config)
+{
+	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
 	enum dma_slave_buswidth width;
 	unsigned long flags;
 	u32 addr, ctrl;
@@ -1233,7 +1249,7 @@ static int ep93xx_dma_slave_config(struct dma_chan *chan,
 	if (!edmac->edma->m2m)
 		return -EINVAL;
 
-	switch (config->direction) {
+	switch (dir) {
 	case DMA_DEV_TO_MEM:
 		width = config->src_addr_width;
 		addr = config->src_addr;

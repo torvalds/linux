@@ -3,8 +3,6 @@
 Required properties:
   - compatible: Should be "maxim,max1027" or "maxim,max1029" or "maxim,max1031"
   - reg: SPI chip select number for the device
-  - interrupt-parent: phandle to the parent interrupt controller
-  see: Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
   - interrupts: IRQ line for the ADC
   see: Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 

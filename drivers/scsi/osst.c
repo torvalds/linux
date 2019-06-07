@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
   SCSI Tape Driver for Linux version 1.1 and newer. See the accompanying
   file Documentation/scsi/st.txt for more information.
@@ -139,7 +140,7 @@ static int debugging = 1;
 #define OSST_TIMEOUT (200 * HZ)
 #define OSST_LONG_TIMEOUT (1800 * HZ)
 
-#define TAPE_NR(x) (iminor(x) & ~(-1 << ST_MODE_SHIFT))
+#define TAPE_NR(x) (iminor(x) & ((1 << ST_MODE_SHIFT)-1))
 #define TAPE_MODE(x) ((iminor(x) & ST_MODE_MASK) >> ST_MODE_SHIFT)
 #define TAPE_REWIND(x) ((iminor(x) & 0x80) == 0)
 #define TAPE_IS_RAW(x) (TAPE_MODE(x) & (ST_NBR_MODES >> 1))
@@ -216,12 +217,14 @@ static void osst_analyze_sense(struct osst_request *SRpnt, struct st_cmdstatus *
 		switch (sense[0] & 0x7f) {
 		case 0x71:
 			s->deferred = 1;
+			/* fall through */
 		case 0x70:
 			s->fixed_format = 1;
 			s->flags = sense[2] & 0xe0;
 			break;
 		case 0x73:
 			s->deferred = 1;
+			/* fall through */
 		case 0x72:
 			s->fixed_format = 0;
 			ucp = scsi_sense_desc_find(sense, SCSI_SENSE_BUFFERSIZE, 4);
@@ -341,7 +344,7 @@ static void osst_end_async(struct request *req, blk_status_t status)
 		blk_rq_unmap_user(SRpnt->bio);
 	}
 
-	__blk_put_request(req->q, req);
+	blk_put_request(req);
 }
 
 /* osst_request memory management */
@@ -368,7 +371,7 @@ static int osst_execute(struct osst_request *SRpnt, const unsigned char *cmd,
 	int write = (data_direction == DMA_TO_DEVICE);
 
 	req = blk_get_request(SRpnt->stp->device->request_queue,
-			write ? REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, GFP_KERNEL);
+			write ? REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, 0);
 	if (IS_ERR(req))
 		return DRIVER_ERROR << 24;
 
@@ -381,7 +384,7 @@ static int osst_execute(struct osst_request *SRpnt, const unsigned char *cmd,
 		struct scatterlist *sg, *sgl = (struct scatterlist *)buffer;
 		int i;
 
-		pages = kzalloc(use_sg * sizeof(struct page *), GFP_KERNEL);
+		pages = kcalloc(use_sg, sizeof(struct page *), GFP_KERNEL);
 		if (!pages)
 			goto free_req;
 
@@ -591,6 +594,7 @@ static void osst_init_aux(struct osst_tape * STp, int frame_type, int frame_seq_
 		dat->dat_list[0].flags    = frame_type==OS_FRAME_TYPE_MARKER?
 							OS_DAT_FLAGS_MARK:OS_DAT_FLAGS_DATA;
 		dat->dat_list[0].reserved = 0;
+		/* fall through */
 	  case	OS_FRAME_TYPE_EOD:
 		aux->update_frame_cntr    = htonl(0);
 		par->partition_num        = OS_DATA_PARTITION;
@@ -1488,7 +1492,7 @@ static int osst_read_back_buffer_and_rewrite(struct osst_tape * STp, struct osst
 	int			dbg              = debugging;
 #endif
 
-	if ((buffer = vmalloc((nframes + 1) * OS_DATA_SIZE)) == NULL)
+	if ((buffer = vmalloc(array_size((nframes + 1), OS_DATA_SIZE))) == NULL)
 		return (-EIO);
 
 	printk(KERN_INFO "%s:I: Reading back %d frames from drive buffer%s\n",
@@ -4086,6 +4090,7 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 	switch (cmd_in) {
 	 case MTFSFM:
 		chg_eof = 0; /* Changed from the FSF after this */
+		/* fall through */
 	 case MTFSF:
 		if (STp->raw)
 		   return (-EIO);
@@ -4101,6 +4106,7 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 
 	 case MTBSF:
 		chg_eof = 0; /* Changed from the FSF after this */
+		/* fall through */
 	 case MTBSFM:
 		if (STp->raw)
 		   return (-EIO);
@@ -4312,6 +4318,7 @@ static int osst_int_ioctl(struct osst_tape * STp, struct osst_request ** aSRpnt,
 					   name, STp->block_size);
 			 return 0;
 		 }
+		/* fall through */
 	 case MTSETDENSITY:       /* Set tape density */
 	 case MTSETDRVBUFFER:     /* Set drive buffering */
 	 case SET_DENS_AND_BLK:   /* Set density and block size */
@@ -5856,7 +5863,9 @@ static int osst_probe(struct device *dev)
 	/* if this is the first attach, build the infrastructure */
 	write_lock(&os_scsi_tapes_lock);
 	if (os_scsi_tapes == NULL) {
-		os_scsi_tapes = kmalloc(osst_max_dev * sizeof(struct osst_tape *), GFP_ATOMIC);
+		os_scsi_tapes = kmalloc_array(osst_max_dev,
+                                              sizeof(struct osst_tape *),
+                                              GFP_ATOMIC);
 		if (os_scsi_tapes == NULL) {
 			write_unlock(&os_scsi_tapes_lock);
 			printk(KERN_ERR "osst :E: Unable to allocate array for OnStream SCSI tapes.\n");

@@ -122,6 +122,11 @@ static int update_usages_of_a_phandle_reference(struct device_node *overlay,
 			goto err_fail;
 		}
 
+		if (offset < 0 || offset + sizeof(__be32) > prop->length) {
+			err = -EINVAL;
+			goto err_fail;
+		}
+
 		*(__be32 *)(prop->value + offset) = cpu_to_be32(phandle);
 	}
 
@@ -276,7 +281,7 @@ int of_resolve_phandles(struct device_node *overlay)
 	adjust_overlay_phandles(overlay, phandle_delta);
 
 	for_each_child_of_node(overlay, local_fixups)
-		if (!of_node_cmp(local_fixups->name, "__local_fixups__"))
+		if (of_node_name_eq(local_fixups, "__local_fixups__"))
 			break;
 
 	err = adjust_local_phandle_references(local_fixups, overlay, phandle_delta);
@@ -286,7 +291,7 @@ int of_resolve_phandles(struct device_node *overlay)
 	overlay_fixups = NULL;
 
 	for_each_child_of_node(overlay, child) {
-		if (!of_node_cmp(child->name, "__fixups__"))
+		if (of_node_name_eq(child, "__fixups__"))
 			overlay_fixups = child;
 	}
 

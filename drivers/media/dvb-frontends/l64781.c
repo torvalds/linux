@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     driver for LSI L64781 COFDM demodulator
 
     Copyright (C) 2001 Holger Waechtler for Convergence Integrated Media GmbH
 		       Marko Kohtala <marko.kohtala@luukku.com>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
 
@@ -546,7 +534,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/* Responds to all reads with 0 */
 	if (l64781_readreg(state, 0x1a) != 0) {
-		dprintk("Read 1 returned unexpcted value\n");
+		dprintk("Read 1 returned unexpected value\n");
 		goto error;
 	}
 
@@ -555,7 +543,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/* Responds with register default value */
 	if (l64781_readreg(state, 0x1a) != 0xa1) {
-		dprintk("Read 2 returned unexpcted value\n");
+		dprintk("Read 2 returned unexpected value\n");
 		goto error;
 	}
 
@@ -575,10 +563,9 @@ static const struct dvb_frontend_ops l64781_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "LSI L64781 DVB-T",
-	/*	.frequency_min = ???,*/
-	/*	.frequency_max = ???,*/
-		.frequency_stepsize = 166666,
-	/*      .frequency_tolerance = ???,*/
+	/*	.frequency_min_hz = ???,*/
+	/*	.frequency_max_hz = ???,*/
+		.frequency_stepsize_hz = 166666,
 	/*      .symbol_rate_tolerance = ???,*/
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		      FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 |

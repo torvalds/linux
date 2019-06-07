@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Original code based Host AP (software wireless LAN access point) driver
  * for Intersil Prism2/2.5/3 - hostap.o module, common routines
@@ -7,20 +8,11 @@
  * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
  * Copyright (c) 2004, Intel Corporation
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
- ******************************************************************************
-
-  Few modifications for Realtek's Wi-Fi drivers by
-  Andrea Merello <andrea.merello@gmail.com>
-
-  A special thanks goes to Realtek for their support !
-
-******************************************************************************/
-
-
+ * Few modifications for Realtek's Wi-Fi drivers by
+ * Andrea Merello <andrea.merello@gmail.com>
+ *
+ * A special thanks goes to Realtek for their support !
+ */
 #include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
@@ -913,7 +905,7 @@ static size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee,
 		rx_stats->bContainHTC = true;
 	}
 
-	 if (RTLLIB_QOS_HAS_SEQ(fc))
+	if (RTLLIB_QOS_HAS_SEQ(fc))
 		rx_stats->bIsQosData = true;
 
 	return hdrlen;
@@ -1812,7 +1804,7 @@ static inline void rtllib_extract_country_ie(
 					netdev_info(ieee->dev,
 						    "Received beacon ContryIE, SSID: <%s>\n",
 						    network->ssid);
-				Dot11d_UpdateCountryIe(ieee, addr2,
+				dot11d_update_country(ieee, addr2,
 						       info_element->len,
 						       info_element->data);
 			}

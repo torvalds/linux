@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*  Diffie-Hellman Key Agreement Method [RFC2631]
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Salvatore Benedetto <salvatore.benedetto@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -16,14 +12,16 @@
 #include <linux/mpi.h>
 
 struct dh_ctx {
-	MPI p;
-	MPI g;
-	MPI xa;
+	MPI p;	/* Value is guaranteed to be set. */
+	MPI q;	/* Value is optional. */
+	MPI g;	/* Value is guaranteed to be set. */
+	MPI xa;	/* Value is guaranteed to be set. */
 };
 
 static void dh_clear_ctx(struct dh_ctx *ctx)
 {
 	mpi_free(ctx->p);
+	mpi_free(ctx->q);
 	mpi_free(ctx->g);
 	mpi_free(ctx->xa);
 	memset(ctx, 0, sizeof(*ctx));
@@ -60,6 +58,12 @@ static int dh_set_params(struct dh_ctx *ctx, struct dh *params)
 	if (!ctx->p)
 		return -EINVAL;
 
+	if (params->q && params->q_size) {
+		ctx->q = mpi_read_raw_data(params->q, params->q_size);
+		if (!ctx->q)
+			return -EINVAL;
+	}
+
 	ctx->g = mpi_read_raw_data(params->g, params->g_size);
 	if (!ctx->g)
 		return -EINVAL;
@@ -93,6 +97,55 @@ err_clear_ctx:
 	return -EINVAL;
 }
 
+/*
+ * SP800-56A public key verification:
+ *
+ * * If Q is provided as part of the domain paramenters, a full validation
+ *   according to SP800-56A section 5.6.2.3.1 is performed.
+ *
+ * * If Q is not provided, a partial validation according to SP800-56A section
+ *   5.6.2.3.2 is performed.
+ */
+static int dh_is_pubkey_valid(struct dh_ctx *ctx, MPI y)
+{
+	if (unlikely(!ctx->p))
+		return -EINVAL;
+
+	/*
+	 * Step 1: Verify that 2 <= y <= p - 2.
+	 *
+	 * The upper limit check is actually y < p instead of y < p - 1
+	 * as the mpi_sub_ui function is yet missing.
+	 */
+	if (mpi_cmp_ui(y, 1) < 1 || mpi_cmp(y, ctx->p) >= 0)
+		return -EINVAL;
+
+	/* Step 2: Verify that 1 = y^q mod p */
+	if (ctx->q) {
+		MPI val = mpi_alloc(0);
+		int ret;
+
+		if (!val)
+			return -ENOMEM;
+
+		ret = mpi_powm(val, y, ctx->q, ctx->p);
+
+		if (ret) {
+			mpi_free(val);
+			return ret;
+		}
+
+		ret = mpi_cmp_ui(val, 1);
+
+		mpi_free(val);
+
+		if (ret != 0)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int dh_compute_value(struct kpp_request *req)
 {
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
@@ -115,6 +168,9 @@ static int dh_compute_value(struct kpp_request *req)
 			ret = -EINVAL;
 			goto err_free_val;
 		}
+		ret = dh_is_pubkey_valid(ctx, base);
+		if (ret)
+			goto err_free_base;
 	} else {
 		base = ctx->g;
 	}
@@ -176,7 +232,7 @@ static void dh_exit(void)
 	crypto_unregister_kpp(&dh);
 }
 
-module_init(dh_init);
+subsys_initcall(dh_init);
 module_exit(dh_exit);
 MODULE_ALIAS_CRYPTO("dh");
 MODULE_LICENSE("GPL");

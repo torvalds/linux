@@ -1,14 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Cryptographic API.
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2005 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #ifndef _CRYPTO_INTERNAL_H
 #define _CRYPTO_INTERNAL_H
@@ -25,12 +20,6 @@
 #include <linux/notifier.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
-
-/* Crypto notification events. */
-enum {
-	CRYPTO_MSG_ALG_REQUEST,
-	CRYPTO_MSG_ALG_REGISTER,
-};
 
 struct crypto_instance;
 struct crypto_template;
@@ -90,8 +79,6 @@ struct crypto_alg *crypto_find_alg(const char *alg_name,
 void *crypto_alloc_tfm(const char *alg_name,
 		       const struct crypto_type *frontend, u32 type, u32 mask);
 
-int crypto_register_notifier(struct notifier_block *nb);
-int crypto_unregister_notifier(struct notifier_block *nb);
 int crypto_probing_notify(unsigned long val, void *v);
 
 unsigned int crypto_alg_extsize(struct crypto_alg *alg);

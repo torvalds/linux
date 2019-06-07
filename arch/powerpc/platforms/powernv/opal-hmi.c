@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OPAL hypervisor Maintenance interrupt handling support in PowerNV.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; If not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright 2014 IBM Corporation
  * Author: Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>
@@ -177,7 +165,7 @@ static void print_hmi_event_info(struct OpalHMIEvent *hmi_evt)
 		"Processor recovery occurred for masked error",
 		"Timer facility experienced an error",
 		"TFMR SPR is corrupted",
-		"UPS (Uniterrupted Power System) Overflow indication",
+		"UPS (Uninterrupted Power System) Overflow indication",
 		"An XSCOM operation failure",
 		"An XSCOM operation completed",
 		"SCOM has set a reserved FIR bit to cause recovery",

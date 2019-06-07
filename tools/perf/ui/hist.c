@@ -3,6 +3,7 @@
 #include <math.h>
 #include <linux/compiler.h>
 
+#include "../util/callchain.h"
 #include "../util/hist.h"
 #include "../util/util.h"
 #include "../util/sort.h"
@@ -207,7 +208,7 @@ static int __hpp__sort_acc(struct hist_entry *a, struct hist_entry *b,
 		if (ret)
 			return ret;
 
-		if (a->thread != b->thread || !symbol_conf.use_callchain)
+		if (a->thread != b->thread || !hist_entry__has_callchains(a) || !symbol_conf.use_callchain)
 			return 0;
 
 		ret = b->callchain->max_depth - a->callchain->max_depth;

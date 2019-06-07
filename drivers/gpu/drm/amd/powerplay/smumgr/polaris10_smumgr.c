@@ -44,7 +44,6 @@
 
 #include "smu7_hwmgr.h"
 #include "hardwaremanager.h"
-#include "ppatomctrl.h"
 #include "atombios.h"
 #include "pppcielanes.h"
 
@@ -52,8 +51,6 @@
 #include "dce/dce_10_0_sh_mask.h"
 
 #define POLARIS10_SMC_SIZE 0x20000
-#define VOLTAGE_VID_OFFSET_SCALE1   625
-#define VOLTAGE_VID_OFFSET_SCALE2   100
 #define POWERTUNE_DEFAULT_SET_MAX    1
 #define VDDC_VDDCI_DELTA            200
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -295,24 +292,15 @@ static int polaris10_start_smu(struct pp_hwmgr *hwmgr)
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!(smu7_is_smc_ram_running(hwmgr)
-		|| cgs_is_virtualization_enabled(hwmgr->device))) {
+	if (!smu7_is_smc_ram_running(hwmgr) && hwmgr->not_vf) {
 		smu_data->protected_mode = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_MODE));
 		smu_data->smu7_data.security_hard_key = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_SEL));
 
 		/* Check if SMU is running in protected mode */
-		if (smu_data->protected_mode == 0) {
+		if (smu_data->protected_mode == 0)
 			result = polaris10_start_smu_in_non_protection_mode(hwmgr);
-		} else {
+		else
 			result = polaris10_start_smu_in_protection_mode(hwmgr);
-
-			/* If failed, try with different security Key. */
-			if (result != 0) {
-				smu_data->smu7_data.security_hard_key ^= 1;
-				cgs_rel_firmware(hwmgr->device, CGS_UCODE_ID_SMU);
-				result = polaris10_start_smu_in_protection_mode(hwmgr);
-			}
-		}
 
 		if (result != 0)
 			PP_ASSERT_WITH_CODE(0, "Failed to load SMU ucode.", return result);
@@ -951,11 +939,11 @@ static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	level->DownHyst = data->current_profile_setting.sclk_down_hyst;
 	level->VoltageDownHyst = 0;
 	level->PowerThrottle = 0;
-	data->display_timing.min_clock_in_sr = hwmgr->display_config.min_core_set_clock_in_sr;
+	data->display_timing.min_clock_in_sr = hwmgr->display_config->min_core_set_clock_in_sr;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_SclkDeepSleep))
 		level->DeepSleepDivId = smu7_get_sleep_divider_id_from_clock(clock,
-								hwmgr->display_config.min_core_set_clock_in_sr);
+								hwmgr->display_config->min_core_set_clock_in_sr);
 
 	/* Default to slow, highest DPM level will be
 	 * set to PPSMC_DISPLAY_WATERMARK_LOW later.
@@ -1085,11 +1073,9 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	int result = 0;
-	struct cgs_display_info info = {0, 0, NULL};
 	uint32_t mclk_stutter_mode_threshold = 40000;
 	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
 
 	if (hwmgr->od_enabled)
 		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_mclk;
@@ -1115,7 +1101,8 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	mem_level->StutterEnable = false;
 	mem_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
 
-	data->display_timing.num_existing_displays = info.display_count;
+	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
+	data->display_timing.vrefresh = hwmgr->display_config->vrefresh;
 
 	if (mclk_stutter_mode_threshold &&
 		(clock <= mclk_stutter_mode_threshold) &&
@@ -1217,7 +1204,6 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	SMIO_Pattern vol_level;
 	uint32_t mvdd;
-	uint16_t us_mvdd;
 
 	table->ACPILevel.Flags &= ~PPSMC_SWSTATE_FLAG_DC;
 
@@ -1268,16 +1254,11 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 			"in Clock Dependency Table",
 			);
 
-	us_mvdd = 0;
-	if ((SMU7_VOLTAGE_CONTROL_NONE == data->mvdd_control) ||
-			(data->mclk_dpm_key_disabled))
-		us_mvdd = data->vbios_boot_state.mvdd_bootup_value;
-	else {
-		if (!polaris10_populate_mvdd_value(hwmgr,
+	if (!((SMU7_VOLTAGE_CONTROL_NONE == data->mvdd_control) ||
+			(data->mclk_dpm_key_disabled)))
+		polaris10_populate_mvdd_value(hwmgr,
 				data->dpm_table.mclk_table.dpm_levels[0].value,
-				&vol_level))
-			us_mvdd = vol_level.Voltage;
-	}
+				&vol_level);
 
 	if (0 == polaris10_populate_mvdd_value(hwmgr, 0, &vol_level))
 		table->MemoryACPILevel.MinMvdd = PP_HOST_TO_SMC_UL(vol_level.Voltage);
@@ -1346,55 +1327,6 @@ static int polaris10_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 
 		CONVERT_FROM_HOST_TO_SMC_UL(table->VceLevel[count].Frequency);
 		CONVERT_FROM_HOST_TO_SMC_UL(table->VceLevel[count].MinVoltage);
-	}
-	return result;
-}
-
-
-static int polaris10_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
-		SMU74_Discrete_DpmTable *table)
-{
-	int result = -EINVAL;
-	uint8_t count;
-	struct pp_atomctrl_clock_dividers_vi dividers;
-	struct phm_ppt_v1_information *table_info =
-			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table =
-			table_info->mm_dep_table;
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	uint32_t vddci;
-
-	table->SamuBootLevel = 0;
-	table->SamuLevelCount = (uint8_t)(mm_table->count);
-
-	for (count = 0; count < table->SamuLevelCount; count++) {
-		/* not sure whether we need evclk or not */
-		table->SamuLevel[count].MinVoltage = 0;
-		table->SamuLevel[count].Frequency = mm_table->entries[count].samclock;
-		table->SamuLevel[count].MinVoltage |= (mm_table->entries[count].vddc *
-				VOLTAGE_SCALE) << VDDC_SHIFT;
-
-		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control)
-			vddci = (uint32_t)phm_find_closest_vddci(&(data->vddci_voltage_table),
-						mm_table->entries[count].vddc - VDDC_VDDCI_DELTA);
-		else if (SMU7_VOLTAGE_CONTROL_BY_SVID2 == data->vddci_control)
-			vddci = mm_table->entries[count].vddc - VDDC_VDDCI_DELTA;
-		else
-			vddci = (data->vbios_boot_state.vddci_bootup_value * VOLTAGE_SCALE) << VDDCI_SHIFT;
-
-		table->SamuLevel[count].MinVoltage |= (vddci * VOLTAGE_SCALE) << VDDCI_SHIFT;
-		table->SamuLevel[count].MinVoltage |= 1 << PHASES_SHIFT;
-
-		/* retrieve divider value for VBIOS */
-		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
-				table->SamuLevel[count].Frequency, &dividers);
-		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for samu clock", return result);
-
-		table->SamuLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
-
-		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].Frequency);
-		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].MinVoltage);
 	}
 	return result;
 }
@@ -1579,7 +1511,7 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 	uint32_t ro, efuse, volt_without_cks, volt_with_cks, value, max, min;
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
-	uint8_t i, stretch_amount, stretch_amount2, volt_offset = 0;
+	uint8_t i, stretch_amount, volt_offset = 0;
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table =
@@ -1596,8 +1528,21 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 	efuse = efuse >> 24;
 
 	if (hwmgr->chip_id == CHIP_POLARIS10) {
-		min = 1000;
-		max = 2300;
+		if (hwmgr->is_kicker) {
+			min = 1200;
+			max = 2500;
+		} else {
+			min = 1000;
+			max = 2300;
+		}
+	} else if (hwmgr->chip_id == CHIP_POLARIS11) {
+		if (hwmgr->is_kicker) {
+			min = 900;
+			max = 2100;
+		} else {
+			min = 1100;
+			max = 2100;
+		}
 	} else {
 		min = 1100;
 		max = 2100;
@@ -1630,11 +1575,7 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 
 	smu_data->smc_state_table.LdoRefSel = (table_info->cac_dtp_table->ucCKS_LDO_REFSEL != 0) ? table_info->cac_dtp_table->ucCKS_LDO_REFSEL : 6;
 	/* Populate CKS Lookup Table */
-	if (stretch_amount == 1 || stretch_amount == 2 || stretch_amount == 5)
-		stretch_amount2 = 0;
-	else if (stretch_amount == 3 || stretch_amount == 4)
-		stretch_amount2 = 1;
-	else {
+	if (stretch_amount == 0 || stretch_amount > 5) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ClockStretcher);
 		PP_ASSERT_WITH_CODE(false,
@@ -1698,6 +1639,7 @@ static int polaris10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	SMU74_Discrete_DpmTable  *table = &(smu_data->smc_state_table);
 	int result = 0;
@@ -1716,6 +1658,59 @@ static int polaris10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 		return 0;
 
 	result = atomctrl_get_avfs_information(hwmgr, &avfs_params);
+
+	if (0 == result) {
+		if (((adev->pdev->device == 0x67ef) &&
+		     ((adev->pdev->revision == 0xe0) ||
+		      (adev->pdev->revision == 0xe5))) ||
+		    ((adev->pdev->device == 0x67ff) &&
+		     ((adev->pdev->revision == 0xcf) ||
+		      (adev->pdev->revision == 0xef) ||
+		      (adev->pdev->revision == 0xff)))) {
+			avfs_params.ucEnableApplyAVFS_CKS_OFF_Voltage = 1;
+			if ((adev->pdev->device == 0x67ef && adev->pdev->revision == 0xe5) ||
+			    (adev->pdev->device == 0x67ff && adev->pdev->revision == 0xef)) {
+				if ((avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a0 == 0xEA522DD3) &&
+				    (avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a1 == 0x5645A) &&
+				    (avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a2 == 0x33F9E) &&
+				    (avfs_params.ulAVFSGB_FUSE_TABLE_CKSOFF_m1 == 0xFFFFC5CC) &&
+				    (avfs_params.usAVFSGB_FUSE_TABLE_CKSOFF_m2 == 0x1B1A) &&
+				    (avfs_params.ulAVFSGB_FUSE_TABLE_CKSOFF_b == 0xFFFFFCED)) {
+					avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a0   = 0xF718F1D4;
+					avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a1   = 0x323FD;
+					avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a2   = 0x1E455;
+					avfs_params.ulAVFSGB_FUSE_TABLE_CKSOFF_m1 = 0;
+					avfs_params.usAVFSGB_FUSE_TABLE_CKSOFF_m2 = 0;
+					avfs_params.ulAVFSGB_FUSE_TABLE_CKSOFF_b  = 0x23;
+				}
+			}
+		} else if (hwmgr->chip_id == CHIP_POLARIS12 && !hwmgr->is_kicker) {
+			avfs_params.ucEnableApplyAVFS_CKS_OFF_Voltage = 1;
+			avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a0   = 0xF6B024DD;
+			avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a1   = 0x3005E;
+			avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a2   = 0x18A5F;
+			avfs_params.ulAVFSGB_FUSE_TABLE_CKSOFF_m1 = 0x315;
+			avfs_params.usAVFSGB_FUSE_TABLE_CKSOFF_m2 = 0xFED1;
+			avfs_params.ulAVFSGB_FUSE_TABLE_CKSOFF_b  = 0x3B;
+		} else if (((adev->pdev->device == 0x67df) &&
+			    ((adev->pdev->revision == 0xe0) ||
+			     (adev->pdev->revision == 0xe3) ||
+			     (adev->pdev->revision == 0xe4) ||
+			     (adev->pdev->revision == 0xe5) ||
+			     (adev->pdev->revision == 0xe7) ||
+			     (adev->pdev->revision == 0xef))) ||
+			   ((adev->pdev->device == 0x6fdf) &&
+			    ((adev->pdev->revision == 0xef) ||
+			     (adev->pdev->revision == 0xff)))) {
+			avfs_params.ucEnableApplyAVFS_CKS_OFF_Voltage = 1;
+			avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a0   = 0xF843B66B;
+			avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a1   = 0x59CB5;
+			avfs_params.ulGB_VDROOP_TABLE_CKSOFF_a2   = 0xFFFF287F;
+			avfs_params.ulAVFSGB_FUSE_TABLE_CKSOFF_m1 = 0;
+			avfs_params.usAVFSGB_FUSE_TABLE_CKSOFF_m2 = 0xFF23;
+			avfs_params.ulAVFSGB_FUSE_TABLE_CKSOFF_b  = 0x58;
+		}
+	}
 
 	if (0 == result) {
 		table->BTCGB_VDROOP_TABLE[0].a0  = PP_HOST_TO_SMC_UL(avfs_params.ulGB_VDROOP_TABLE_CKSON_a0);
@@ -1877,10 +1872,6 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = polaris10_populate_smc_vce_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize VCE Level!", return result);
-
-	result = polaris10_populate_smc_samu_level(hwmgr, table);
-	PP_ASSERT_WITH_CODE(0 == result,
-			"Failed to initialize SAMU Level!", return result);
 
 	/* Since only the initial state is completely set up at this point
 	 * (the other states are just copies of the boot state) we only
@@ -2060,6 +2051,12 @@ int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs);
 
+	/* Apply avfs cks-off voltages to avoid the overshoot
+	 * when switching to the highest sclk frequency
+	 */
+	if (data->apply_avfs_cks_off_voltage)
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ApplyAvfsCksOffVoltage);
+
 	return 0;
 }
 
@@ -2235,34 +2232,6 @@ static int polaris10_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int polaris10_update_samu_smc_table(struct pp_hwmgr *hwmgr)
-{
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
-	uint32_t mm_boot_level_offset, mm_boot_level_value;
-
-
-	smu_data->smc_state_table.SamuBootLevel = 0;
-	mm_boot_level_offset = smu_data->smu7_data.dpm_table_start +
-				offsetof(SMU74_Discrete_DpmTable, SamuBootLevel);
-
-	mm_boot_level_offset /= 4;
-	mm_boot_level_offset *= 4;
-	mm_boot_level_value = cgs_read_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC, mm_boot_level_offset);
-	mm_boot_level_value &= 0xFFFFFF00;
-	mm_boot_level_value |= smu_data->smc_state_table.SamuBootLevel << 0;
-	cgs_write_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC, mm_boot_level_offset, mm_boot_level_value);
-
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_StablePState))
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_SAMUDPM_SetEnabledMask,
-				(uint32_t)(1 << smu_data->smc_state_table.SamuBootLevel));
-	return 0;
-}
-
-
 static int polaris10_update_bif_smc_table(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
@@ -2288,9 +2257,6 @@ static int polaris10_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 		break;
 	case SMU_VCE_TABLE:
 		polaris10_update_vce_smc_table(hwmgr);
-		break;
-	case SMU_SAMU_TABLE:
-		polaris10_update_samu_smc_table(hwmgr);
 		break;
 	case SMU_BIF_TABLE:
 		polaris10_update_bif_smc_table(hwmgr);
@@ -2364,17 +2330,17 @@ static uint32_t polaris10_get_offsetof(uint32_t type, uint32_t member)
 		case DRAM_LOG_BUFF_SIZE:
 			return offsetof(SMU74_SoftRegisters, DRAM_LOG_BUFF_SIZE);
 		}
+		break;
 	case SMU_Discrete_DpmTable:
 		switch (member) {
 		case UvdBootLevel:
 			return offsetof(SMU74_Discrete_DpmTable, UvdBootLevel);
 		case VceBootLevel:
 			return offsetof(SMU74_Discrete_DpmTable, VceBootLevel);
-		case SamuBootLevel:
-			return offsetof(SMU74_Discrete_DpmTable, SamuBootLevel);
 		case LowSclkInterruptThreshold:
 			return offsetof(SMU74_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
+		break;
 	}
 	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;

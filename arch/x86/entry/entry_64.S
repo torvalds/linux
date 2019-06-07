@@ -92,7 +92,7 @@ END(native_usergs_sysret64)
 .endm
 
 .macro TRACE_IRQS_IRETQ_DEBUG
-	bt	$9, EFLAGS(%rsp)		/* interrupts off? */
+	btl	$9, EFLAGS(%rsp)		/* interrupts off? */
 	jnc	1f
 	TRACE_IRQS_ON_DEBUG
 1:
@@ -142,67 +142,6 @@ END(native_usergs_sysret64)
  * with them due to bugs in both AMD and Intel CPUs.
  */
 
-	.pushsection .entry_trampoline, "ax"
-
-/*
- * The code in here gets remapped into cpu_entry_area's trampoline.  This means
- * that the assembler and linker have the wrong idea as to where this code
- * lives (and, in fact, it's mapped more than once, so it's not even at a
- * fixed address).  So we can't reference any symbols outside the entry
- * trampoline and expect it to work.
- *
- * Instead, we carefully abuse %rip-relative addressing.
- * _entry_trampoline(%rip) refers to the start of the remapped) entry
- * trampoline.  We can thus find cpu_entry_area with this macro:
- */
-
-#define CPU_ENTRY_AREA \
-	_entry_trampoline - CPU_ENTRY_AREA_entry_trampoline(%rip)
-
-/* The top word of the SYSENTER stack is hot and is usable as scratch space. */
-#define RSP_SCRATCH	CPU_ENTRY_AREA_entry_stack + \
-			SIZEOF_entry_stack - 8 + CPU_ENTRY_AREA
-
-ENTRY(entry_SYSCALL_64_trampoline)
-	UNWIND_HINT_EMPTY
-	swapgs
-
-	/* Stash the user RSP. */
-	movq	%rsp, RSP_SCRATCH
-
-	/* Note: using %rsp as a scratch reg. */
-	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
-
-	/* Load the top of the task stack into RSP */
-	movq	CPU_ENTRY_AREA_tss + TSS_sp1 + CPU_ENTRY_AREA, %rsp
-
-	/* Start building the simulated IRET frame. */
-	pushq	$__USER_DS			/* pt_regs->ss */
-	pushq	RSP_SCRATCH			/* pt_regs->sp */
-	pushq	%r11				/* pt_regs->flags */
-	pushq	$__USER_CS			/* pt_regs->cs */
-	pushq	%rcx				/* pt_regs->ip */
-
-	/*
-	 * x86 lacks a near absolute jump, and we can't jump to the real
-	 * entry text with a relative jump.  We could push the target
-	 * address and then use retq, but this destroys the pipeline on
-	 * many CPUs (wasting over 20 cycles on Sandy Bridge).  Instead,
-	 * spill RDI and restore it in a second-stage trampoline.
-	 */
-	pushq	%rdi
-	movq	$entry_SYSCALL_64_stage2, %rdi
-	JMP_NOSPEC %rdi
-END(entry_SYSCALL_64_trampoline)
-
-	.popsection
-
-ENTRY(entry_SYSCALL_64_stage2)
-	UNWIND_HINT_EMPTY
-	popq	%rdi
-	jmp	entry_SYSCALL_64_after_hwframe
-END(entry_SYSCALL_64_stage2)
-
 ENTRY(entry_SYSCALL_64)
 	UNWIND_HINT_EMPTY
 	/*
@@ -212,21 +151,19 @@ ENTRY(entry_SYSCALL_64)
 	 */
 
 	swapgs
-	/*
-	 * This path is only taken when PAGE_TABLE_ISOLATION is disabled so it
-	 * is not required to switch CR3.
-	 */
-	movq	%rsp, PER_CPU_VAR(rsp_scratch)
+	/* tss.sp2 is scratch space. */
+	movq	%rsp, PER_CPU_VAR(cpu_tss_rw + TSS_sp2)
+	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
 	/* Construct struct pt_regs on stack */
-	pushq	$__USER_DS			/* pt_regs->ss */
-	pushq	PER_CPU_VAR(rsp_scratch)	/* pt_regs->sp */
-	pushq	%r11				/* pt_regs->flags */
-	pushq	$__USER_CS			/* pt_regs->cs */
-	pushq	%rcx				/* pt_regs->ip */
+	pushq	$__USER_DS				/* pt_regs->ss */
+	pushq	PER_CPU_VAR(cpu_tss_rw + TSS_sp2)	/* pt_regs->sp */
+	pushq	%r11					/* pt_regs->flags */
+	pushq	$__USER_CS				/* pt_regs->cs */
+	pushq	%rcx					/* pt_regs->ip */
 GLOBAL(entry_SYSCALL_64_after_hwframe)
-	pushq	%rax				/* pt_regs->orig_ax */
+	pushq	%rax					/* pt_regs->orig_ax */
 
 	PUSH_AND_CLEAR_REGS rax=$-ENOSYS
 
@@ -329,6 +266,8 @@ syscall_return_via_sysret:
 	 * We are on the trampoline stack.  All regs except RDI are live.
 	 * We can do future final exit work right here.
 	 */
+	STACKLEAK_ERASE_NOCLOBBER
+
 	SWITCH_TO_USER_CR3_STACK scratch_reg=%rdi
 
 	popq	%rdi
@@ -357,9 +296,9 @@ ENTRY(__switch_to_asm)
 	movq	%rsp, TASK_threadsp(%rdi)
 	movq	TASK_threadsp(%rsi), %rsp
 
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 	movq	TASK_stack_canary(%rsi), %rbx
-	movq	%rbx, PER_CPU_VAR(irq_stack_union)+stack_canary_offset
+	movq	%rbx, PER_CPU_VAR(fixed_percpu_data) + stack_canary_offset
 #endif
 
 #ifdef CONFIG_RETPOLINE
@@ -408,6 +347,7 @@ ENTRY(ret_from_fork)
 
 1:
 	/* kernel thread */
+	UNWIND_HINT_EMPTY
 	movq	%r12, %rdi
 	CALL_NOSPEC %rbx
 	/*
@@ -490,8 +430,8 @@ END(irq_entries_start)
 	 * it before we actually move ourselves to the IRQ stack.
 	 */
 
-	movq	\old_rsp, PER_CPU_VAR(irq_stack_union + IRQ_STACK_SIZE - 8)
-	movq	PER_CPU_VAR(irq_stack_ptr), %rsp
+	movq	\old_rsp, PER_CPU_VAR(irq_stack_backing_store + IRQ_STACK_SIZE - 8)
+	movq	PER_CPU_VAR(hardirq_stack_ptr), %rsp
 
 #ifdef CONFIG_DEBUG_ENTRY
 	/*
@@ -626,6 +566,7 @@ ENTRY(interrupt_entry)
 
 	ret
 END(interrupt_entry)
+_ASM_NOKPROBE(interrupt_entry)
 
 
 /* Interrupt entry/exit. */
@@ -687,6 +628,7 @@ GLOBAL(swapgs_restore_regs_and_return_to_usermode)
 	 * We are on the trampoline stack.  All regs except RDI are live.
 	 * We can do future final exit work right here.
 	 */
+	STACKLEAK_ERASE_NOCLOBBER
 
 	SWITCH_TO_USER_CR3_STACK scratch_reg=%rdi
 
@@ -701,12 +643,11 @@ retint_kernel:
 #ifdef CONFIG_PREEMPT
 	/* Interrupts are off */
 	/* Check if we need preemption */
-	bt	$9, EFLAGS(%rsp)		/* were interrupts off? */
+	btl	$9, EFLAGS(%rsp)		/* were interrupts off? */
 	jnc	1f
-0:	cmpl	$0, PER_CPU_VAR(__preempt_count)
+	cmpl	$0, PER_CPU_VAR(__preempt_count)
 	jnz	1f
 	call	preempt_schedule_irq
-	jmp	0b
 1:
 #endif
 	/*
@@ -825,6 +766,7 @@ native_irq_return_ldt:
 	jmp	native_irq_return_iret
 #endif
 END(common_interrupt)
+_ASM_NOKPROBE(common_interrupt)
 
 /*
  * APIC interrupts.
@@ -839,6 +781,7 @@ ENTRY(\sym)
 	call	\do_sym	/* rdi points to pt_regs */
 	jmp	ret_from_intr
 END(\sym)
+_ASM_NOKPROBE(\sym)
 .endm
 
 /* Make sure APIC interrupt handlers end up in the irqentry section: */
@@ -897,9 +840,45 @@ apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt
 /*
  * Exception entry points.
  */
-#define CPU_TSS_IST(x) PER_CPU_VAR(cpu_tss_rw) + (TSS_ist + ((x) - 1) * 8)
+#define CPU_TSS_IST(x) PER_CPU_VAR(cpu_tss_rw) + (TSS_ist + (x) * 8)
 
-.macro idtentry sym do_sym has_error_code:req paranoid=0 shift_ist=-1
+/**
+ * idtentry - Generate an IDT entry stub
+ * @sym:		Name of the generated entry point
+ * @do_sym: 		C function to be called
+ * @has_error_code: 	True if this IDT vector has an error code on the stack
+ * @paranoid: 		non-zero means that this vector may be invoked from
+ *			kernel mode with user GSBASE and/or user CR3.
+ *			2 is special -- see below.
+ * @shift_ist:		Set to an IST index if entries from kernel mode should
+ *             		decrement the IST stack so that nested entries get a
+ *			fresh stack.  (This is for #DB, which has a nasty habit
+ *             		of recursing.)
+ *
+ * idtentry generates an IDT stub that sets up a usable kernel context,
+ * creates struct pt_regs, and calls @do_sym.  The stub has the following
+ * special behaviors:
+ *
+ * On an entry from user mode, the stub switches from the trampoline or
+ * IST stack to the normal thread stack.  On an exit to user mode, the
+ * normal exit-to-usermode path is invoked.
+ *
+ * On an exit to kernel mode, if @paranoid == 0, we check for preemption,
+ * whereas we omit the preemption check if @paranoid != 0.  This is purely
+ * because the implementation is simpler this way.  The kernel only needs
+ * to check for asynchronous kernel preemption when IRQ handlers return.
+ *
+ * If @paranoid == 0, then the stub will handle IRET faults by pretending
+ * that the fault came from user mode.  It will handle gs_change faults by
+ * pretending that the fault happened with kernel GSBASE.  Since this handling
+ * is omitted for @paranoid != 0, the #GP, #SS, and #NP stubs must have
+ * @paranoid == 0.  This special handling will do the wrong thing for
+ * espfix-induced #DF on IRET, so #DF must not use @paranoid == 0.
+ *
+ * @paranoid == 2 is special: the stub will never switch stacks.  This is for
+ * #DF: if the thread stack is somehow unusable, we'll still get a useful OOPS.
+ */
+.macro idtentry sym do_sym has_error_code:req paranoid=0 shift_ist=-1 ist_offset=0 create_gap=0
 ENTRY(\sym)
 	UNWIND_HINT_IRET_REGS offset=\has_error_code*8
 
@@ -917,6 +896,20 @@ ENTRY(\sym)
 	.if \paranoid == 1
 	testb	$3, CS-ORIG_RAX(%rsp)		/* If coming from userspace, switch stacks */
 	jnz	.Lfrom_usermode_switch_stack_\@
+	.endif
+
+	.if \create_gap == 1
+	/*
+	 * If coming from kernel space, create a 6-word gap to allow the
+	 * int3 handler to emulate a call instruction.
+	 */
+	testb	$3, CS-ORIG_RAX(%rsp)
+	jnz	.Lfrom_usermode_no_gap_\@
+	.rept	6
+	pushq	5*8(%rsp)
+	.endr
+	UNWIND_HINT_IRET_REGS offset=8
+.Lfrom_usermode_no_gap_\@:
 	.endif
 
 	.if \paranoid
@@ -945,13 +938,13 @@ ENTRY(\sym)
 	.endif
 
 	.if \shift_ist != -1
-	subq	$EXCEPTION_STKSZ, CPU_TSS_IST(\shift_ist)
+	subq	$\ist_offset, CPU_TSS_IST(\shift_ist)
 	.endif
 
 	call	\do_sym
 
 	.if \shift_ist != -1
-	addq	$EXCEPTION_STKSZ, CPU_TSS_IST(\shift_ist)
+	addq	$\ist_offset, CPU_TSS_IST(\shift_ist)
 	.endif
 
 	/* these procedures expect "no swapgs" flag in ebx */
@@ -981,8 +974,9 @@ ENTRY(\sym)
 
 	call	\do_sym
 
-	jmp	error_exit			/* %ebx: no swapgs flag */
+	jmp	error_exit
 	.endif
+_ASM_NOKPROBE(\sym)
 END(\sym)
 .endm
 
@@ -1049,7 +1043,7 @@ ENTRY(do_softirq_own_stack)
 	ret
 ENDPROC(do_softirq_own_stack)
 
-#ifdef CONFIG_XEN
+#ifdef CONFIG_XEN_PV
 idtentry hypervisor_callback xen_do_hypervisor_callback has_error_code=0
 
 /*
@@ -1129,11 +1123,13 @@ ENTRY(xen_failsafe_callback)
 	ENCODE_FRAME_POINTER
 	jmp	error_exit
 END(xen_failsafe_callback)
+#endif /* CONFIG_XEN_PV */
 
+#ifdef CONFIG_XEN_PVHVM
 apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
 	xen_hvm_callback_vector xen_evtchn_do_upcall
+#endif
 
-#endif /* CONFIG_XEN */
 
 #if IS_ENABLED(CONFIG_HYPERV)
 apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
@@ -1146,11 +1142,11 @@ apicinterrupt3 HYPERV_STIMER0_VECTOR \
 	hv_stimer0_callback_vector hv_stimer0_vector_handler
 #endif /* CONFIG_HYPERV */
 
-idtentry debug			do_debug		has_error_code=0	paranoid=1 shift_ist=DEBUG_STACK
-idtentry int3			do_int3			has_error_code=0
+idtentry debug			do_debug		has_error_code=0	paranoid=1 shift_ist=IST_INDEX_DB ist_offset=DB_STACK_OFFSET
+idtentry int3			do_int3			has_error_code=0	create_gap=1
 idtentry stack_segment		do_stack_segment	has_error_code=1
 
-#ifdef CONFIG_XEN
+#ifdef CONFIG_XEN_PV
 idtentry xennmi			do_nmi			has_error_code=0
 idtentry xendebug		do_debug		has_error_code=0
 idtentry xenint3		do_int3			has_error_code=0
@@ -1186,6 +1182,16 @@ ENTRY(paranoid_entry)
 	xorl	%ebx, %ebx
 
 1:
+	/*
+	 * Always stash CR3 in %r14.  This value will be restored,
+	 * verbatim, at exit.  Needed if paranoid_entry interrupted
+	 * another entry that already switched to the user CR3 value
+	 * but has not yet returned to userspace.
+	 *
+	 * This is also why CS (stashed in the "iret frame" by the
+	 * hardware at entry) can not be used: this may be a return
+	 * to kernel code, but with a user CR3 value.
+	 */
 	SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg=%rax save_reg=%r14
 
 	ret
@@ -1210,11 +1216,13 @@ ENTRY(paranoid_exit)
 	testl	%ebx, %ebx			/* swapgs needed? */
 	jnz	.Lparanoid_exit_no_swapgs
 	TRACE_IRQS_IRETQ
+	/* Always restore stashed CR3 value (see paranoid_entry) */
 	RESTORE_CR3	scratch_reg=%rbx save_reg=%r14
 	SWAPGS_UNSAFE_STACK
 	jmp	.Lparanoid_exit_restore
 .Lparanoid_exit_no_swapgs:
 	TRACE_IRQS_IRETQ_DEBUG
+	/* Always restore stashed CR3 value (see paranoid_entry) */
 	RESTORE_CR3	scratch_reg=%rbx save_reg=%r14
 .Lparanoid_exit_restore:
 	jmp restore_regs_and_return_to_kernel
@@ -1222,7 +1230,6 @@ END(paranoid_exit)
 
 /*
  * Save all registers in pt_regs, and switch GS if needed.
- * Return: EBX=0: came from user mode; EBX=1: otherwise
  */
 ENTRY(error_entry)
 	UNWIND_HINT_FUNC
@@ -1269,7 +1276,6 @@ ENTRY(error_entry)
 	 * for these here too.
 	 */
 .Lerror_kernelspace:
-	incl	%ebx
 	leaq	native_irq_return_iret(%rip), %rcx
 	cmpq	%rcx, RIP+8(%rsp)
 	je	.Lerror_bad_iret
@@ -1303,28 +1309,20 @@ ENTRY(error_entry)
 
 	/*
 	 * Pretend that the exception came from user mode: set up pt_regs
-	 * as if we faulted immediately after IRET and clear EBX so that
-	 * error_exit knows that we will be returning to user mode.
+	 * as if we faulted immediately after IRET.
 	 */
 	mov	%rsp, %rdi
 	call	fixup_bad_iret
 	mov	%rax, %rsp
-	decl	%ebx
 	jmp	.Lerror_entry_from_usermode_after_swapgs
 END(error_entry)
 
-
-/*
- * On entry, EBX is a "return to kernel mode" flag:
- *   1: already in kernel mode, don't need SWAPGS
- *   0: user gsbase is loaded, we need SWAPGS and standard preparation for return to usermode
- */
 ENTRY(error_exit)
 	UNWIND_HINT_REGS
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
-	testl	%ebx, %ebx
-	jnz	retint_kernel
+	testb	$3, CS(%rsp)
+	jz	retint_kernel
 	jmp	retint_user
 END(error_exit)
 
@@ -1635,6 +1633,7 @@ end_repeat_nmi:
 	movq	$-1, %rsi
 	call	do_nmi
 
+	/* Always restore stashed CR3 value (see paranoid_entry) */
 	RESTORE_CR3 scratch_reg=%r15 save_reg=%r14
 
 	testl	%ebx, %ebx			/* swapgs needed? */

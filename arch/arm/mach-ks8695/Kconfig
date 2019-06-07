@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_KS8695
 
 menu "Kendin/Micrel KS8695 Implementations"
 
 config MACH_KS8695
 	bool "KS8695 development board"
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI
 	help
 	  Say 'Y' here if you want your kernel to run on the original
 	  Kendin-Micrel KS8695 development board.
@@ -52,7 +53,7 @@ config MACH_CM4002
 
 config MACH_CM4008
 	bool "OpenGear CM4008"
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support the OpenGear
 	  CM4008 Console Server. See http://www.opengear.com for more
@@ -60,7 +61,7 @@ config MACH_CM4008
 
 config MACH_CM41xx
 	bool "OpenGear CM41xx"
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support the OpenGear
 	  CM4016 or CM4048 Console Servers. See http://www.opengear.com for
@@ -68,7 +69,7 @@ config MACH_CM41xx
 
 config MACH_IM4004
 	bool "OpenGear IM4004"
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support the OpenGear
 	  IM4004 Secure Access Server. See http://www.opengear.com for
@@ -76,7 +77,7 @@ config MACH_IM4004
 
 config MACH_IM42xx
 	bool "OpenGear IM42xx"
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support the OpenGear
 	  IM4216 or IM4248 Console Servers. See http://www.opengear.com for

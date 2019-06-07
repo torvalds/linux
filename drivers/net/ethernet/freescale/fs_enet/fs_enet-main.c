@@ -481,7 +481,8 @@ static struct sk_buff *tx_skb_align_workaround(struct net_device *dev,
 }
 #endif
 
-static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t
+fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	cbd_t __iomem *bdp;
@@ -1013,8 +1014,8 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	spin_lock_init(&fep->tx_lock);
 
 	mac_addr = of_get_mac_address(ofdev->dev.of_node);
-	if (mac_addr)
-		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+	if (!IS_ERR(mac_addr))
+		ether_addr_copy(ndev->dev_addr, mac_addr);
 
 	ret = fep->ops->allocate_bd(ndev);
 	if (ret)

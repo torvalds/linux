@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 """
 Hide tristate choice values with mod dependency in y choice.
 

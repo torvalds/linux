@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Author	Karsten Keil <kkeil@novell.com>
  *
  * Copyright 2008  by Karsten Keil <kkeil@novell.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/slab.h>
@@ -539,6 +530,7 @@ create_l2entity(struct mISDNdevice *dev, struct mISDNchannel *ch,
 		rq.protocol = ISDN_P_NT_S0;
 		if (dev->Dprotocols & (1 << ISDN_P_NT_E1))
 			rq.protocol = ISDN_P_NT_E1;
+		/* fall through */
 	case ISDN_P_LAPD_TE:
 		ch->recv = mISDN_queue_message;
 		ch->peer = &dev->D.st->own;

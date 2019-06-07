@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SH_SE7722_H
 #define __ASM_SH_SE7722_H
 
@@ -7,11 +8,6 @@
  * Copyright (C) 2007  Nobuhiro Iwamatsu
  *
  * Hitachi UL SolutionEngine 7722 Support.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  */
 #include <linux/sh_intc.h>
 #include <asm/addrspace.h>

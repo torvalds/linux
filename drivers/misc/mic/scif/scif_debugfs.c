@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2014 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
  * Intel SCIF driver.
- *
  */
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -24,7 +15,7 @@
 /* Debugfs parent dir */
 static struct dentry *scif_dbg;
 
-static int scif_dev_test(struct seq_file *s, void *unused)
+static int scif_dev_show(struct seq_file *s, void *unused)
 {
 	int node;
 
@@ -44,23 +35,7 @@ static int scif_dev_test(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int scif_dev_test_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, scif_dev_test, inode->i_private);
-}
-
-static int scif_dev_test_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations scif_dev_ops = {
-	.owner   = THIS_MODULE,
-	.open    = scif_dev_test_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = scif_dev_test_release
-};
+DEFINE_SHOW_ATTRIBUTE(scif_dev);
 
 static void scif_display_window(struct scif_window *window, struct seq_file *s)
 {
@@ -104,7 +79,7 @@ static void scif_display_all_windows(struct list_head *head, struct seq_file *s)
 	}
 }
 
-static int scif_rma_test(struct seq_file *s, void *unused)
+static int scif_rma_show(struct seq_file *s, void *unused)
 {
 	struct scif_endpt *ep;
 	struct list_head *pos;
@@ -123,23 +98,7 @@ static int scif_rma_test(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int scif_rma_test_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, scif_rma_test, inode->i_private);
-}
-
-static int scif_rma_test_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations scif_rma_ops = {
-	.owner   = THIS_MODULE,
-	.open    = scif_rma_test_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = scif_rma_test_release
-};
+DEFINE_SHOW_ATTRIBUTE(scif_rma);
 
 void __init scif_init_debugfs(void)
 {
@@ -150,8 +109,8 @@ void __init scif_init_debugfs(void)
 		return;
 	}
 
-	debugfs_create_file("scif_dev", 0444, scif_dbg, NULL, &scif_dev_ops);
-	debugfs_create_file("scif_rma", 0444, scif_dbg, NULL, &scif_rma_ops);
+	debugfs_create_file("scif_dev", 0444, scif_dbg, NULL, &scif_dev_fops);
+	debugfs_create_file("scif_rma", 0444, scif_dbg, NULL, &scif_rma_fops);
 	debugfs_create_u8("en_msg_log", 0666, scif_dbg, &scif_info.en_msg_log);
 	debugfs_create_u8("p2p_enable", 0666, scif_dbg, &scif_info.p2p_enable);
 }

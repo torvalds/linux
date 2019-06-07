@@ -17,6 +17,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/libata.h>
@@ -608,17 +609,15 @@ static int __exit pata_s3c_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int pata_s3c_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ata_host *host = platform_get_drvdata(pdev);
+	struct ata_host *host = dev_get_drvdata(dev);
 
 	return ata_host_suspend(host, PMSG_SUSPEND);
 }
 
 static int pata_s3c_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct ata_host *host = platform_get_drvdata(pdev);
-	struct s3c_ide_platdata *pdata = dev_get_platdata(&pdev->dev);
+	struct ata_host *host = dev_get_drvdata(dev);
+	struct s3c_ide_platdata *pdata = dev_get_platdata(dev);
 	struct s3c_ide_info *info = host->private_data;
 
 	pata_s3c_hwinit(info, pdata);

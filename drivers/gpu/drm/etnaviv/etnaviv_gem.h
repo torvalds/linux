@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2015 Etnaviv Project
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2015-2018 Etnaviv Project
  */
 
 #ifndef __ETNAVIV_GEM_H__
@@ -58,10 +47,6 @@ struct etnaviv_gem_object {
 	struct sg_table *sgt;
 	void *vaddr;
 
-	/* normally (resv == &_resv) except for imported bo's */
-	struct reservation_object *resv;
-	struct reservation_object _resv;
-
 	struct list_head vram_list;
 
 	/* cache maintenance */
@@ -106,6 +91,7 @@ struct etnaviv_gem_submit_bo {
 struct etnaviv_gem_submit {
 	struct drm_sched_job sched_job;
 	struct kref refcount;
+	struct etnaviv_file_private *ctx;
 	struct etnaviv_gpu *gpu;
 	struct dma_fence *out_fence, *in_fence;
 	int out_fence_id;

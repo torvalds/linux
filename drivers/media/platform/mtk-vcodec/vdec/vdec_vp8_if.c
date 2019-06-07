@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Jungchang Tsao <jungchang.tsao@mediatek.com>
  *	   PC Chen <pc.chen@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/slab.h>
@@ -120,7 +112,7 @@ struct vdec_vp8_hw_reg_base {
 /**
  * struct vdec_vp8_vpu_inst - VPU instance for VP8 decode
  * @wq_hd	: Wait queue to wait VPU message ack
- * @signaled	: 1 - Host has received ack message from VPU, 0 - not recevie
+ * @signaled	: 1 - Host has received ack message from VPU, 0 - not receive
  * @failure	: VPU execution result status 0 - success, others - fail
  * @inst_addr	: VPU decoder instance address
  */
@@ -294,8 +286,8 @@ static void get_pic_info(struct vdec_vp8_inst *inst, struct vdec_pic_info *pic)
 
 	mtk_vcodec_debug(inst, "pic(%d, %d), buf(%d, %d)",
 			 pic->pic_w, pic->pic_h, pic->buf_w, pic->buf_h);
-	mtk_vcodec_debug(inst, "Y(%d, %d), C(%d, %d)", pic->y_bs_sz,
-			 pic->y_len_sz, pic->c_bs_sz, pic->c_len_sz);
+	mtk_vcodec_debug(inst, "fb size: Y(%d), C(%d)",
+			 pic->fb_sz[0], pic->fb_sz[1]);
 }
 
 static void vp8_dec_finish(struct vdec_vp8_inst *inst)

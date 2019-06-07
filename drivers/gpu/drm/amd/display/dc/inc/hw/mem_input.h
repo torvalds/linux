@@ -64,7 +64,7 @@ struct stutter_modes {
 };
 
 struct mem_input {
-	struct mem_input_funcs *funcs;
+	const struct mem_input_funcs *funcs;
 	struct dc_context *ctx;
 	struct dc_plane_address request_address;
 	struct dc_plane_address current_address;
@@ -104,6 +104,7 @@ struct mem_input_funcs {
 		struct mem_input *mem_input,
 		struct dce_watermarks nbp,
 		struct dce_watermarks stutter,
+		struct dce_watermarks stutter_enter,
 		struct dce_watermarks urgent,
 		uint32_t total_dest_line_time_ns);
 

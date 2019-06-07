@@ -65,7 +65,7 @@ u64 ring_buffer_event_time_stamp(struct ring_buffer_event *event);
 
 /*
  * ring_buffer_discard_commit will remove an event that has not
- *   ben committed yet. If this is used, then ring_buffer_unlock_commit
+ *   been committed yet. If this is used, then ring_buffer_unlock_commit
  *   must not be called on the discarded event. This function
  *   will try to remove the event from the ring buffer completely
  *   if another event has not been written after it.
@@ -97,7 +97,7 @@ __ring_buffer_alloc(unsigned long size, unsigned flags, struct lock_class_key *k
 	__ring_buffer_alloc((size), (flags), &__key);	\
 })
 
-int ring_buffer_wait(struct ring_buffer *buffer, int cpu, bool full);
+int ring_buffer_wait(struct ring_buffer *buffer, int cpu, int full);
 __poll_t ring_buffer_poll_wait(struct ring_buffer *buffer, int cpu,
 			  struct file *filp, poll_table *poll_table);
 
@@ -128,7 +128,7 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts,
 		    unsigned long *lost_events);
 
 struct ring_buffer_iter *
-ring_buffer_read_prepare(struct ring_buffer *buffer, int cpu);
+ring_buffer_read_prepare(struct ring_buffer *buffer, int cpu, gfp_t flags);
 void ring_buffer_read_prepare_sync(void);
 void ring_buffer_read_start(struct ring_buffer_iter *iter);
 void ring_buffer_read_finish(struct ring_buffer_iter *iter);
@@ -164,7 +164,8 @@ void ring_buffer_record_disable(struct ring_buffer *buffer);
 void ring_buffer_record_enable(struct ring_buffer *buffer);
 void ring_buffer_record_off(struct ring_buffer *buffer);
 void ring_buffer_record_on(struct ring_buffer *buffer);
-int ring_buffer_record_is_on(struct ring_buffer *buffer);
+bool ring_buffer_record_is_on(struct ring_buffer *buffer);
+bool ring_buffer_record_is_set_on(struct ring_buffer *buffer);
 void ring_buffer_record_disable_cpu(struct ring_buffer *buffer, int cpu);
 void ring_buffer_record_enable_cpu(struct ring_buffer *buffer, int cpu);
 
@@ -186,8 +187,8 @@ void ring_buffer_set_clock(struct ring_buffer *buffer,
 void ring_buffer_set_time_stamp_abs(struct ring_buffer *buffer, bool abs);
 bool ring_buffer_time_stamp_abs(struct ring_buffer *buffer);
 
-size_t ring_buffer_page_len(void *page);
-
+size_t ring_buffer_nr_pages(struct ring_buffer *buffer, int cpu);
+size_t ring_buffer_nr_dirty_pages(struct ring_buffer *buffer, int cpu);
 
 void *ring_buffer_alloc_read_page(struct ring_buffer *buffer, int cpu);
 void ring_buffer_free_read_page(struct ring_buffer *buffer, int cpu, void *data);

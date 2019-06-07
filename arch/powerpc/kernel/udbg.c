@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * polling mode stateless debugging stuff, originally for NS16550 Serial Ports
  *
  * c 2001 PPC 64 Team, IBM Corp
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <stdarg.h>
@@ -74,7 +70,7 @@ void __init udbg_early_init(void)
 #endif
 
 #ifdef CONFIG_PPC_EARLY_DEBUG
-	console_loglevel = 10;
+	console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
 
 	register_early_udbg_console();
 #endif

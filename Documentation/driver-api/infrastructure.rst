@@ -49,10 +49,10 @@ Device Drivers Base
 Device Drivers DMA Management
 -----------------------------
 
-.. kernel-doc:: drivers/base/dma-coherent.c
+.. kernel-doc:: kernel/dma/coherent.c
    :export:
 
-.. kernel-doc:: drivers/base/dma-mapping.c
+.. kernel-doc:: kernel/dma/mapping.c
    :export:
 
 Device drivers PnP support

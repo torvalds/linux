@@ -126,4 +126,12 @@ int bman_release(struct bman_pool *pool, const struct bm_buffer *bufs, u8 num);
  */
 int bman_acquire(struct bman_pool *pool, struct bm_buffer *bufs, u8 num);
 
+/**
+ * bman_is_probed - Check if bman is probed
+ *
+ * Returns 1 if the bman driver successfully probed, -1 if the bman driver
+ * failed to probe or 0 if the bman driver did not probed yet.
+ */
+int bman_is_probed(void);
+
 #endif	/* __FSL_BMAN_H */

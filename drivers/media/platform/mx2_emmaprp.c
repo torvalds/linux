@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support eMMa-PrP through mem2mem framework.
  *
@@ -10,11 +11,6 @@
  *
  * Copyright (c) 2011 Vista Silicon S.L.
  * Javier Martin <javier.martin@vista-silicon.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version
  */
 #include <linux/module.h>
 #include <linux/clk.h>
@@ -250,20 +246,6 @@ static void emmaprp_job_abort(void *priv)
 	v4l2_m2m_job_finish(pcdev->m2m_dev, ctx->m2m_ctx);
 }
 
-static void emmaprp_lock(void *priv)
-{
-	struct emmaprp_ctx *ctx = priv;
-	struct emmaprp_dev *pcdev = ctx->dev;
-	mutex_lock(&pcdev->dev_mutex);
-}
-
-static void emmaprp_unlock(void *priv)
-{
-	struct emmaprp_ctx *ctx = priv;
-	struct emmaprp_dev *pcdev = ctx->dev;
-	mutex_unlock(&pcdev->dev_mutex);
-}
-
 static inline void emmaprp_dump_regs(struct emmaprp_dev *pcdev)
 {
 	dprintk(pcdev,
@@ -288,7 +270,7 @@ static void emmaprp_device_run(void *priv)
 {
 	struct emmaprp_ctx *ctx = priv;
 	struct emmaprp_q_data *s_q_data, *d_q_data;
-	struct vb2_buffer *src_buf, *dst_buf;
+	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	struct emmaprp_dev *pcdev = ctx->dev;
 	unsigned int s_width, s_height;
 	unsigned int d_width, d_height;
@@ -308,8 +290,8 @@ static void emmaprp_device_run(void *priv)
 	d_height = d_q_data->height;
 	d_size = d_width * d_height;
 
-	p_in = vb2_dma_contig_plane_dma_addr(src_buf, 0);
-	p_out = vb2_dma_contig_plane_dma_addr(dst_buf, 0);
+	p_in = vb2_dma_contig_plane_dma_addr(&src_buf->vb2_buf, 0);
+	p_out = vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0);
 	if (!p_in || !p_out) {
 		v4l2_err(&pcdev->v4l2_dev,
 			 "Acquiring kernel pointers to buffers failed\n");
@@ -399,8 +381,8 @@ static irqreturn_t emmaprp_irq(int irq_emma, void *data)
 static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	strncpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver) - 1);
-	strncpy(cap->card, MEM2MEM_NAME, sizeof(cap->card) - 1);
+	strscpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver));
+	strscpy(cap->card, MEM2MEM_NAME, sizeof(cap->card));
 	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
@@ -427,7 +409,7 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 	if (i < NUM_FORMATS) {
 		/* Format found */
 		fmt = &formats[i];
-		strlcpy(f->description, fmt->name, sizeof(f->description) - 1);
+		strscpy(f->description, fmt->name, sizeof(f->description) - 1);
 		f->pixelformat = fmt->fourcc;
 		return 0;
 	}
@@ -747,6 +729,8 @@ static const struct vb2_ops emmaprp_qops = {
 	.queue_setup	 = emmaprp_queue_setup,
 	.buf_prepare	 = emmaprp_buf_prepare,
 	.buf_queue	 = emmaprp_buf_queue,
+	.wait_prepare	 = vb2_ops_wait_prepare,
+	.wait_finish	 = vb2_ops_wait_finish,
 };
 
 static int queue_init(void *priv, struct vb2_queue *src_vq,
@@ -763,6 +747,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->dev = ctx->dev->v4l2_dev.dev;
+	src_vq->lock = &ctx->dev->dev_mutex;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -776,6 +761,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->mem_ops = &vb2_dma_contig_memops;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->dev = ctx->dev->v4l2_dev.dev;
+	dst_vq->lock = &ctx->dev->dev_mutex;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -885,8 +871,6 @@ static const struct video_device emmaprp_videodev = {
 static const struct v4l2_m2m_ops m2m_ops = {
 	.device_run	= emmaprp_device_run,
 	.job_abort	= emmaprp_job_abort,
-	.lock		= emmaprp_lock,
-	.unlock		= emmaprp_unlock,
 };
 
 static int emmaprp_probe(struct platform_device *pdev)
@@ -934,7 +918,6 @@ static int emmaprp_probe(struct platform_device *pdev)
 	vfd->v4l2_dev = &pcdev->v4l2_dev;
 
 	video_set_drvdata(vfd, pcdev);
-	snprintf(vfd->name, sizeof(vfd->name), "%s", emmaprp_videodev.name);
 	pcdev->vfd = vfd;
 	v4l2_info(&pcdev->v4l2_dev, EMMAPRP_MODULE_NAME
 		  " Device registered as /dev/video%d\n", vfd->num);

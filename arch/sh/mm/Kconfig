@@ -225,8 +225,6 @@ config HUGETLB_PAGE_SIZE_512MB
 
 endchoice
 
-source "mm/Kconfig"
-
 config SCHED_MC
 	bool "Multi-core scheduler support"
 	depends on SMP

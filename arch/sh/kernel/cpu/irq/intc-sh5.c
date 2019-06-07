@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/kernel/cpu/irq/intc-sh5.c
  *
@@ -9,10 +10,6 @@
  * Per-interrupt selective. IRLM=0 (Fixed priority) is not
  * supported being useless without a cascaded interrupt
  * controller.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/init.h>
 #include <linux/interrupt.h>

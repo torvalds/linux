@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Renesas Technology Corp. R0P7785LC0011RL Support.
  *
  * Copyright (C) 2008  Yoshihiro Shimoda
  * Copyright (C) 2009  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -17,7 +14,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/i2c-pca-platform.h>
+#include <linux/platform_data/i2c-pca-platform.h>
 #include <linux/i2c-algo-pca.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/sh_intc.h>

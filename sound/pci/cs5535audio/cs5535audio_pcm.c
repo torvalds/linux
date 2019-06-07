@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for audio on multifunction CS5535 companion device
  * Copyright (C) Jaya Kumar
  *
  * Based on Jaroslav Kysela and Takashi Iwai's examples.
  * This work was sponsored by CIS(M) Sdn Bhd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * todo: add be fmt support, spdif, pm
  */
@@ -158,8 +145,8 @@ static int cs5535audio_build_dma_packets(struct cs5535audio *cs5535au,
 	lastdesc->addr = cpu_to_le32((u32) dma->desc_buf.addr);
 	lastdesc->size = 0;
 	lastdesc->ctlreserved = cpu_to_le16(PRD_JMP);
-	jmpprd_addr = cpu_to_le32(lastdesc->addr +
-				  (sizeof(struct cs5535audio_dma_desc)*periods));
+	jmpprd_addr = (u32)dma->desc_buf.addr +
+		sizeof(struct cs5535audio_dma_desc) * periods;
 
 	dma->substream = substream;
 	dma->period_bytes = period_bytes;

@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __USBAUDIO_H
 #define __USBAUDIO_H
 /*
  *   (Tentative) USB Audio Driver for ALSA
  *
  *   Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 /* handling of USB vendor/product ID pairs as 32-bit numbers */
@@ -29,6 +15,9 @@
 /*
  *
  */
+
+struct media_device;
+struct media_intf_devnode;
 
 struct snd_usb_audio {
 	int index;
@@ -49,6 +38,8 @@ struct snd_usb_audio {
 	int num_suspended_intf;
 	int sample_rate_read_error;
 
+	int badd_profile;		/* UAC3 BADD profile */
+
 	struct list_head pcm_list;	/* list of pcm streams */
 	struct list_head ep_list;	/* list of audio-related endpoints */
 	int pcm_devs;
@@ -59,8 +50,13 @@ struct snd_usb_audio {
 
 	int setup;			/* from the 'device_setup' module param */
 	bool autoclock;			/* from the 'autoclock' module param */
+	bool keep_iface;		/* keep interface/altset after closing
+					 * or parameter change
+					 */
 
 	struct usb_host_interface *ctrl_intf;	/* the audio control interface */
+	struct media_device *media_dev;
+	struct media_intf_devnode *ctl_intf_media_devnode;
 };
 
 #define usb_audio_err(chip, fmt, args...) \
@@ -109,8 +105,10 @@ enum quirk_type {
 struct snd_usb_audio_quirk {
 	const char *vendor_name;
 	const char *product_name;
+	const char *profile_name;	/* override the card->longname */
 	int16_t ifnum;
 	uint16_t type;
+	bool shares_media_device;
 	const void *data;
 };
 
@@ -120,5 +118,7 @@ struct snd_usb_audio_quirk {
 
 int snd_usb_lock_shutdown(struct snd_usb_audio *chip);
 void snd_usb_unlock_shutdown(struct snd_usb_audio *chip);
+
+extern bool snd_usb_use_vmalloc;
 
 #endif /* __USBAUDIO_H */

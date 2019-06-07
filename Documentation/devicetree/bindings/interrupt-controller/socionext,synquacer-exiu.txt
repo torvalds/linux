@@ -12,7 +12,6 @@ Required properties:
 - interrupt-controller : Identifies the node as an interrupt controller.
 - #interrupt-cells     : Specifies the number of cells needed to encode an
                          interrupt source. The value must be 3.
-- interrupt-parent     : phandle of the GIC these interrupts are routed to.
 - socionext,spi-base   : The SPI number of the first SPI of the 32 adjacent
                          ones the EXIU forwards its interrups to.
 

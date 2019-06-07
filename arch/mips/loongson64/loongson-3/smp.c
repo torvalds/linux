@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2010, 2011, 2012, Lemote, Inc.
  * Author: Chen Huacai, chenhc@lemote.com
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/init.h>
@@ -21,6 +11,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/smp.h>
 #include <linux/cpufreq.h>
+#include <linux/kexec.h>
 #include <asm/processor.h>
 #include <asm/time.h>
 #include <asm/clock.h>
@@ -349,7 +340,7 @@ static void loongson3_smp_finish(void)
 	write_c0_compare(read_c0_count() + mips_hpt_frequency/HZ);
 	local_irq_enable();
 	loongson3_ipi_write64(0,
-			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x0));
+			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x0);
 	pr_info("CPU#%d finished, CP0_ST=%x\n",
 			smp_processor_id(), read_c0_status());
 }
@@ -416,13 +407,13 @@ static int loongson3_boot_secondary(int cpu, struct task_struct *idle)
 			cpu, startargs[0], startargs[1], startargs[2]);
 
 	loongson3_ipi_write64(startargs[3],
-			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x18));
+			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x18);
 	loongson3_ipi_write64(startargs[2],
-			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x10));
+			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x10);
 	loongson3_ipi_write64(startargs[1],
-			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x8));
+			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x8);
 	loongson3_ipi_write64(startargs[0],
-			(void *)(ipi_mailbox_buf[cpu_logical_map(cpu)]+0x0));
+			ipi_mailbox_buf[cpu_logical_map(cpu)] + 0x0);
 	return 0;
 }
 
@@ -681,8 +672,10 @@ void play_dead(void)
 		play_dead_at_ckseg1 =
 			(void *)CKSEG1ADDR((unsigned long)loongson3a_r1_play_dead);
 		break;
-	case PRID_REV_LOONGSON3A_R2:
-	case PRID_REV_LOONGSON3A_R3:
+	case PRID_REV_LOONGSON3A_R2_0:
+	case PRID_REV_LOONGSON3A_R2_1:
+	case PRID_REV_LOONGSON3A_R3_0:
+	case PRID_REV_LOONGSON3A_R3_1:
 		play_dead_at_ckseg1 =
 			(void *)CKSEG1ADDR((unsigned long)loongson3a_r2r3_play_dead);
 		break;
@@ -747,5 +740,8 @@ const struct plat_smp_ops loongson3_smp_ops = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable = loongson3_cpu_disable,
 	.cpu_die = loongson3_cpu_die,
+#endif
+#ifdef CONFIG_KEXEC
+	.kexec_nonboot_cpu = kexec_nonboot_cpu_jump,
 #endif
 };

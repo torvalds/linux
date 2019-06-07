@@ -435,17 +435,18 @@ static int efx_tx_map_data(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 	} while (1);
 }
 
-/* Remove buffers put into a tx_queue.  None of the buffers must have
- * an skb attached.
+/* Remove buffers put into a tx_queue for the current packet.
+ * None of the buffers must have an skb attached.
  */
-static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
+static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue,
+			       unsigned int insert_count)
 {
 	struct efx_tx_buffer *buffer;
 	unsigned int bytes_compl = 0;
 	unsigned int pkts_compl = 0;
 
 	/* Work backwards until we hit the original insert pointer value */
-	while (tx_queue->insert_count != tx_queue->write_count) {
+	while (tx_queue->insert_count != insert_count) {
 		--tx_queue->insert_count;
 		buffer = __efx_tx_queue_get_insert_buffer(tx_queue);
 		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
@@ -470,15 +471,13 @@ static int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue,
 	if (IS_ERR(segments))
 		return PTR_ERR(segments);
 
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 	skb = segments;
 
 	while (skb) {
 		next = skb->next;
 		skb->next = NULL;
 
-		if (next)
-			skb->xmit_more = true;
 		efx_enqueue_skb(tx_queue, skb);
 		skb = next;
 	}
@@ -504,6 +503,8 @@ static int efx_tx_tso_fallback(struct efx_tx_queue *tx_queue,
  */
 netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 {
+	unsigned int old_insert_count = tx_queue->insert_count;
+	bool xmit_more = netdev_xmit_more();
 	bool data_mapped = false;
 	unsigned int segments;
 	unsigned int skb_len;
@@ -530,7 +531,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 		if (rc)
 			goto err;
 #ifdef EFX_USE_PIO
-	} else if (skb_len <= efx_piobuf_size && !skb->xmit_more &&
+	} else if (skb_len <= efx_piobuf_size && !xmit_more &&
 		   efx_nic_may_tx_pio(tx_queue)) {
 		/* Use PIO for short packets with an empty queue. */
 		if (efx_enqueue_skb_pio(tx_queue, skb))
@@ -550,15 +551,14 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	if (!data_mapped && (efx_tx_map_data(tx_queue, skb, segments)))
 		goto err;
 
-	/* Update BQL */
-	netdev_tx_sent_queue(tx_queue->core_txq, skb_len);
+	efx_tx_maybe_stop_queue(tx_queue);
 
 	/* Pass off to hardware */
-	if (!skb->xmit_more || netif_xmit_stopped(tx_queue->core_txq)) {
+	if (__netdev_tx_sent_queue(tx_queue->core_txq, skb_len, xmit_more)) {
 		struct efx_tx_queue *txq2 = efx_tx_queue_partner(tx_queue);
 
-		/* There could be packets left on the partner queue if those
-		 * SKBs had skb->xmit_more set. If we do not push those they
+		/* There could be packets left on the partner queue if
+		 * xmit_more was set. If we do not push those they
 		 * could be left for a long time and cause a netdev watchdog.
 		 */
 		if (txq2->xmit_more_available)
@@ -566,7 +566,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 
 		efx_nic_push_buffers(tx_queue);
 	} else {
-		tx_queue->xmit_more_available = skb->xmit_more;
+		tx_queue->xmit_more_available = xmit_more;
 	}
 
 	if (segments) {
@@ -577,14 +577,26 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 		tx_queue->tx_packets++;
 	}
 
-	efx_tx_maybe_stop_queue(tx_queue);
-
 	return NETDEV_TX_OK;
 
 
 err:
-	efx_enqueue_unwind(tx_queue);
+	efx_enqueue_unwind(tx_queue, old_insert_count);
 	dev_kfree_skb_any(skb);
+
+	/* If we're not expecting another transmit and we had something to push
+	 * on this queue or a partner queue then we need to push here to get the
+	 * previous packets out.
+	 */
+	if (!xmit_more) {
+		struct efx_tx_queue *txq2 = efx_tx_queue_partner(tx_queue);
+
+		if (txq2->xmit_more_available)
+			efx_nic_push_buffers(txq2);
+
+		efx_nic_push_buffers(tx_queue);
+	}
+
 	return NETDEV_TX_OK;
 }
 

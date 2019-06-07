@@ -1,0 +1,7 @@
+Innolux Corporation 10.1" EE101IA-01D WXGA (1280x800) LVDS panel
+
+Required properties:
+- compatible: should be "innolux,ee101ia-01d"
+
+This binding is compatible with the lvds-panel binding, which is specified
+in panel-lvds.txt in this directory.

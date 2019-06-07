@@ -20,7 +20,7 @@
 #define __MACH_TEGRA_IOMAP_H
 
 #include <asm/pgtable.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #define TEGRA_IRAM_BASE			0x40000000
 #define TEGRA_IRAM_SIZE			SZ_256K

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Driver for VES1893 and VES1993 QPSK Demodulators
 
@@ -6,20 +7,6 @@
     Copyright (C) 2002 Dennis Noermann <dennis.noermann@noernet.de>
     Copyright (C) 2002-2003 Andreas Oberritter <obi@linuxtv.org>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
 
@@ -516,10 +503,10 @@ static const struct dvb_frontend_ops ves1x93_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "VLSI VES1x93 DVB-S",
-		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
-		.frequency_stepsize	= 125,		 /* kHz for QPSK frontends */
-		.frequency_tolerance	= 29500,
+		.frequency_min_hz	=   950 * MHz,
+		.frequency_max_hz	=  2150 * MHz,
+		.frequency_stepsize_hz	=   125 * kHz,
+		.frequency_tolerance_hz	= 29500 * kHz,
 		.symbol_rate_min	= 1000000,
 		.symbol_rate_max	= 45000000,
 	/*	.symbol_rate_tolerance	=	???,*/

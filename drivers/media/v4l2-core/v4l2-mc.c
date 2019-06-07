@@ -28,7 +28,7 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 	struct media_entity *io_v4l = NULL, *io_vbi = NULL, *io_swradio = NULL;
 	bool is_webcam = false;
 	u32 flags;
-	int ret;
+	int ret, pad_sink, pad_source;
 
 	if (!mdev)
 		return 0;
@@ -63,8 +63,10 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 	}
 
 	/* It should have at least one I/O entity */
-	if (!io_v4l && !io_vbi && !io_swradio)
+	if (!io_v4l && !io_vbi && !io_swradio) {
+		dev_warn(mdev->dev, "Didn't find any I/O entity\n");
 		return -EINVAL;
+	}
 
 	/*
 	 * Here, webcams are modelled on a very simple way: the sensor is
@@ -74,8 +76,10 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 	 * PC-consumer's hardware.
 	 */
 	if (is_webcam) {
-		if (!io_v4l)
+		if (!io_v4l) {
+			dev_warn(mdev->dev, "Didn't find a MEDIA_ENT_F_IO_V4L\n");
 			return -EINVAL;
+		}
 
 		media_device_for_each_entity(entity, mdev) {
 			if (entity->function != MEDIA_ENT_F_CAM_SENSOR)
@@ -83,46 +87,91 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 			ret = media_create_pad_link(entity, 0,
 						    io_v4l, 0,
 						    MEDIA_LNK_FL_ENABLED);
-			if (ret)
+			if (ret) {
+				dev_warn(mdev->dev, "Failed to create a sensor link\n");
 				return ret;
+			}
 		}
 		if (!decoder)
 			return 0;
 	}
 
 	/* The device isn't a webcam. So, it should have a decoder */
-	if (!decoder)
+	if (!decoder) {
+		dev_warn(mdev->dev, "Decoder not found\n");
 		return -EINVAL;
+	}
 
 	/* Link the tuner and IF video output pads */
 	if (tuner) {
 		if (if_vid) {
-			ret = media_create_pad_link(tuner, TUNER_PAD_OUTPUT,
-						    if_vid,
-						    IF_VID_DEC_PAD_IF_INPUT,
+			pad_source = media_get_pad_index(tuner, false,
+							 PAD_SIGNAL_ANALOG);
+			pad_sink = media_get_pad_index(if_vid, true,
+						       PAD_SIGNAL_ANALOG);
+			if (pad_source < 0 || pad_sink < 0) {
+				dev_warn(mdev->dev, "Couldn't get tuner and/or PLL pad(s): (%d, %d)\n",
+					 pad_source, pad_sink);
+				return -EINVAL;
+			}
+			ret = media_create_pad_link(tuner, pad_source,
+						    if_vid, pad_sink,
 						    MEDIA_LNK_FL_ENABLED);
-			if (ret)
+			if (ret) {
+				dev_warn(mdev->dev, "Couldn't create tuner->PLL link)\n");
 				return ret;
-			ret = media_create_pad_link(if_vid, IF_VID_DEC_PAD_OUT,
-						decoder, DEMOD_PAD_IF_INPUT,
-						MEDIA_LNK_FL_ENABLED);
-			if (ret)
+			}
+
+			pad_source = media_get_pad_index(if_vid, false,
+							 PAD_SIGNAL_ANALOG);
+			pad_sink = media_get_pad_index(decoder, true,
+						       PAD_SIGNAL_ANALOG);
+			if (pad_source < 0 || pad_sink < 0) {
+				dev_warn(mdev->dev, "get decoder and/or PLL pad(s): (%d, %d)\n",
+					 pad_source, pad_sink);
+				return -EINVAL;
+			}
+			ret = media_create_pad_link(if_vid, pad_source,
+						    decoder, pad_sink,
+						    MEDIA_LNK_FL_ENABLED);
+			if (ret) {
+				dev_warn(mdev->dev, "couldn't link PLL to decoder\n");
 				return ret;
+			}
 		} else {
-			ret = media_create_pad_link(tuner, TUNER_PAD_OUTPUT,
-						decoder, DEMOD_PAD_IF_INPUT,
-						MEDIA_LNK_FL_ENABLED);
+			pad_source = media_get_pad_index(tuner, false,
+							 PAD_SIGNAL_ANALOG);
+			pad_sink = media_get_pad_index(decoder, true,
+						       PAD_SIGNAL_ANALOG);
+			if (pad_source < 0 || pad_sink < 0) {
+				dev_warn(mdev->dev, "couldn't get tuner and/or decoder pad(s): (%d, %d)\n",
+					 pad_source, pad_sink);
+				return -EINVAL;
+			}
+			ret = media_create_pad_link(tuner, pad_source,
+						    decoder, pad_sink,
+						    MEDIA_LNK_FL_ENABLED);
 			if (ret)
 				return ret;
 		}
 
 		if (if_aud) {
-			ret = media_create_pad_link(tuner, TUNER_PAD_AUD_OUT,
-						    if_aud,
-						    IF_AUD_DEC_PAD_IF_INPUT,
+			pad_source = media_get_pad_index(tuner, false,
+							 PAD_SIGNAL_AUDIO);
+			pad_sink = media_get_pad_index(if_aud, true,
+						       PAD_SIGNAL_AUDIO);
+			if (pad_source < 0 || pad_sink < 0) {
+				dev_warn(mdev->dev, "couldn't get tuner and/or decoder pad(s) for audio: (%d, %d)\n",
+					 pad_source, pad_sink);
+				return -EINVAL;
+			}
+			ret = media_create_pad_link(tuner, pad_source,
+						    if_aud, pad_sink,
 						    MEDIA_LNK_FL_ENABLED);
-			if (ret)
+			if (ret) {
+				dev_warn(mdev->dev, "couldn't link tuner->audio PLL\n");
 				return ret;
+			}
 		} else {
 			if_aud = tuner;
 		}
@@ -131,27 +180,48 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 
 	/* Create demod to V4L, VBI and SDR radio links */
 	if (io_v4l) {
-		ret = media_create_pad_link(decoder, DEMOD_PAD_VID_OUT,
-					io_v4l, 0,
-					MEDIA_LNK_FL_ENABLED);
-		if (ret)
+		pad_source = media_get_pad_index(decoder, false, PAD_SIGNAL_DV);
+		if (pad_source < 0) {
+			dev_warn(mdev->dev, "couldn't get decoder output pad for V4L I/O\n");
+			return -EINVAL;
+		}
+		ret = media_create_pad_link(decoder, pad_source,
+					    io_v4l, 0,
+					    MEDIA_LNK_FL_ENABLED);
+		if (ret) {
+			dev_warn(mdev->dev, "couldn't link decoder output to V4L I/O\n");
 			return ret;
+		}
 	}
 
 	if (io_swradio) {
-		ret = media_create_pad_link(decoder, DEMOD_PAD_VID_OUT,
-					io_swradio, 0,
-					MEDIA_LNK_FL_ENABLED);
-		if (ret)
+		pad_source = media_get_pad_index(decoder, false, PAD_SIGNAL_DV);
+		if (pad_source < 0) {
+			dev_warn(mdev->dev, "couldn't get decoder output pad for SDR\n");
+			return -EINVAL;
+		}
+		ret = media_create_pad_link(decoder, pad_source,
+					    io_swradio, 0,
+					    MEDIA_LNK_FL_ENABLED);
+		if (ret) {
+			dev_warn(mdev->dev, "couldn't link decoder output to SDR\n");
 			return ret;
+		}
 	}
 
 	if (io_vbi) {
-		ret = media_create_pad_link(decoder, DEMOD_PAD_VBI_OUT,
+		pad_source = media_get_pad_index(decoder, false, PAD_SIGNAL_DV);
+		if (pad_source < 0) {
+			dev_warn(mdev->dev, "couldn't get decoder output pad for VBI\n");
+			return -EINVAL;
+		}
+		ret = media_create_pad_link(decoder, pad_source,
 					    io_vbi, 0,
 					    MEDIA_LNK_FL_ENABLED);
-		if (ret)
+		if (ret) {
+			dev_warn(mdev->dev, "couldn't link decoder output to VBI\n");
 			return ret;
+		}
 	}
 
 	/* Create links for the media connectors */
@@ -161,15 +231,26 @@ int v4l2_mc_create_media_graph(struct media_device *mdev)
 		case MEDIA_ENT_F_CONN_RF:
 			if (!tuner)
 				continue;
-
+			pad_sink = media_get_pad_index(tuner, true,
+						       PAD_SIGNAL_ANALOG);
+			if (pad_sink < 0) {
+				dev_warn(mdev->dev, "couldn't get tuner analog pad sink\n");
+				return -EINVAL;
+			}
 			ret = media_create_pad_link(entity, 0, tuner,
-						    TUNER_PAD_RF_INPUT,
+						    pad_sink,
 						    flags);
 			break;
 		case MEDIA_ENT_F_CONN_SVIDEO:
 		case MEDIA_ENT_F_CONN_COMPOSITE:
+			pad_sink = media_get_pad_index(decoder, true,
+						       PAD_SIGNAL_ANALOG);
+			if (pad_sink < 0) {
+				dev_warn(mdev->dev, "couldn't get tuner analog pad sink\n");
+				return -EINVAL;
+			}
 			ret = media_create_pad_link(entity, 0, decoder,
-						    DEMOD_PAD_IF_INPUT,
+						    pad_sink,
 						    flags);
 			break;
 		default:

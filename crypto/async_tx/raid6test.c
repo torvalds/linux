@@ -81,10 +81,12 @@ static void raid6_dual_recov(int disks, size_t bytes, int faila, int failb, stru
 			init_async_submit(&submit, 0, NULL, NULL, NULL, addr_conv);
 			tx = async_gen_syndrome(ptrs, 0, disks, bytes, &submit);
 		} else {
-			struct page *blocks[disks];
+			struct page *blocks[NDISKS];
 			struct page *dest;
 			int count = 0;
 			int i;
+
+			BUG_ON(disks > NDISKS);
 
 			/* data+Q failure.  Reconstruct data from P,
 			 * then rebuild syndrome

@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Generic driver for the OLPC Embedded Controller.
  *
  * Author: Andres Salomon <dilinger@queued.net>
  *
  * Copyright (C) 2011-2012 One Laptop per Child Foundation.
- *
- * Licensed under the GPL v2 or later.
  */
 #include <linux/completion.h>
 #include <linux/debugfs.h>

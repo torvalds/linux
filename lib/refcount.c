@@ -33,15 +33,18 @@
  * Note that the allocator is responsible for ordering things between free()
  * and alloc().
  *
+ * The decrements dec_and_test() and sub_and_test() also provide acquire
+ * ordering on success.
+ *
  */
 
+#include <linux/mutex.h>
 #include <linux/refcount.h>
+#include <linux/spinlock.h>
 #include <linux/bug.h>
 
-#ifdef CONFIG_REFCOUNT_FULL
-
 /**
- * refcount_add_not_zero - add a value to a refcount unless it is 0
+ * refcount_add_not_zero_checked - add a value to a refcount unless it is 0
  * @i: the value to add to the refcount
  * @r: the refcount
  *
@@ -58,7 +61,7 @@
  *
  * Return: false if the passed refcount is 0, true otherwise
  */
-bool refcount_add_not_zero(unsigned int i, refcount_t *r)
+bool refcount_add_not_zero_checked(unsigned int i, refcount_t *r)
 {
 	unsigned int new, val = atomic_read(&r->refs);
 
@@ -79,10 +82,10 @@ bool refcount_add_not_zero(unsigned int i, refcount_t *r)
 
 	return true;
 }
-EXPORT_SYMBOL(refcount_add_not_zero);
+EXPORT_SYMBOL(refcount_add_not_zero_checked);
 
 /**
- * refcount_add - add a value to a refcount
+ * refcount_add_checked - add a value to a refcount
  * @i: the value to add to the refcount
  * @r: the refcount
  *
@@ -97,14 +100,14 @@ EXPORT_SYMBOL(refcount_add_not_zero);
  * cases, refcount_inc(), or one of its variants, should instead be used to
  * increment a reference count.
  */
-void refcount_add(unsigned int i, refcount_t *r)
+void refcount_add_checked(unsigned int i, refcount_t *r)
 {
-	WARN_ONCE(!refcount_add_not_zero(i, r), "refcount_t: addition on 0; use-after-free.\n");
+	WARN_ONCE(!refcount_add_not_zero_checked(i, r), "refcount_t: addition on 0; use-after-free.\n");
 }
-EXPORT_SYMBOL(refcount_add);
+EXPORT_SYMBOL(refcount_add_checked);
 
 /**
- * refcount_inc_not_zero - increment a refcount unless it is 0
+ * refcount_inc_not_zero_checked - increment a refcount unless it is 0
  * @r: the refcount to increment
  *
  * Similar to atomic_inc_not_zero(), but will saturate at UINT_MAX and WARN.
@@ -115,7 +118,7 @@ EXPORT_SYMBOL(refcount_add);
  *
  * Return: true if the increment was successful, false otherwise
  */
-bool refcount_inc_not_zero(refcount_t *r)
+bool refcount_inc_not_zero_checked(refcount_t *r)
 {
 	unsigned int new, val = atomic_read(&r->refs);
 
@@ -134,10 +137,10 @@ bool refcount_inc_not_zero(refcount_t *r)
 
 	return true;
 }
-EXPORT_SYMBOL(refcount_inc_not_zero);
+EXPORT_SYMBOL(refcount_inc_not_zero_checked);
 
 /**
- * refcount_inc - increment a refcount
+ * refcount_inc_checked - increment a refcount
  * @r: the refcount to increment
  *
  * Similar to atomic_inc(), but will saturate at UINT_MAX and WARN.
@@ -148,14 +151,14 @@ EXPORT_SYMBOL(refcount_inc_not_zero);
  * Will WARN if the refcount is 0, as this represents a possible use-after-free
  * condition.
  */
-void refcount_inc(refcount_t *r)
+void refcount_inc_checked(refcount_t *r)
 {
-	WARN_ONCE(!refcount_inc_not_zero(r), "refcount_t: increment on 0; use-after-free.\n");
+	WARN_ONCE(!refcount_inc_not_zero_checked(r), "refcount_t: increment on 0; use-after-free.\n");
 }
-EXPORT_SYMBOL(refcount_inc);
+EXPORT_SYMBOL(refcount_inc_checked);
 
 /**
- * refcount_sub_and_test - subtract from a refcount and test if it is 0
+ * refcount_sub_and_test_checked - subtract from a refcount and test if it is 0
  * @i: amount to subtract from the refcount
  * @r: the refcount
  *
@@ -164,8 +167,8 @@ EXPORT_SYMBOL(refcount_inc);
  * at UINT_MAX.
  *
  * Provides release memory ordering, such that prior loads and stores are done
- * before, and provides a control dependency such that free() must come after.
- * See the comment on top.
+ * before, and provides an acquire ordering on success such that free()
+ * must come after.
  *
  * Use of this function is not recommended for the normal reference counting
  * use case in which references are taken and released one at a time.  In these
@@ -174,7 +177,7 @@ EXPORT_SYMBOL(refcount_inc);
  *
  * Return: true if the resulting refcount is 0, false otherwise
  */
-bool refcount_sub_and_test(unsigned int i, refcount_t *r)
+bool refcount_sub_and_test_checked(unsigned int i, refcount_t *r)
 {
 	unsigned int new, val = atomic_read(&r->refs);
 
@@ -190,31 +193,36 @@ bool refcount_sub_and_test(unsigned int i, refcount_t *r)
 
 	} while (!atomic_try_cmpxchg_release(&r->refs, &val, new));
 
-	return !new;
+	if (!new) {
+		smp_acquire__after_ctrl_dep();
+		return true;
+	}
+	return false;
+
 }
-EXPORT_SYMBOL(refcount_sub_and_test);
+EXPORT_SYMBOL(refcount_sub_and_test_checked);
 
 /**
- * refcount_dec_and_test - decrement a refcount and test if it is 0
+ * refcount_dec_and_test_checked - decrement a refcount and test if it is 0
  * @r: the refcount
  *
  * Similar to atomic_dec_and_test(), it will WARN on underflow and fail to
  * decrement when saturated at UINT_MAX.
  *
  * Provides release memory ordering, such that prior loads and stores are done
- * before, and provides a control dependency such that free() must come after.
- * See the comment on top.
+ * before, and provides an acquire ordering on success such that free()
+ * must come after.
  *
  * Return: true if the resulting refcount is 0, false otherwise
  */
-bool refcount_dec_and_test(refcount_t *r)
+bool refcount_dec_and_test_checked(refcount_t *r)
 {
-	return refcount_sub_and_test(1, r);
+	return refcount_sub_and_test_checked(1, r);
 }
-EXPORT_SYMBOL(refcount_dec_and_test);
+EXPORT_SYMBOL(refcount_dec_and_test_checked);
 
 /**
- * refcount_dec - decrement a refcount
+ * refcount_dec_checked - decrement a refcount
  * @r: the refcount
  *
  * Similar to atomic_dec(), it will WARN on underflow and fail to decrement
@@ -223,12 +231,11 @@ EXPORT_SYMBOL(refcount_dec_and_test);
  * Provides release memory ordering, such that prior loads and stores are done
  * before.
  */
-void refcount_dec(refcount_t *r)
+void refcount_dec_checked(refcount_t *r)
 {
-	WARN_ONCE(refcount_dec_and_test(r), "refcount_t: decrement hit 0; leaking memory.\n");
+	WARN_ONCE(refcount_dec_and_test_checked(r), "refcount_t: decrement hit 0; leaking memory.\n");
 }
-EXPORT_SYMBOL(refcount_dec);
-#endif /* CONFIG_REFCOUNT_FULL */
+EXPORT_SYMBOL(refcount_dec_checked);
 
 /**
  * refcount_dec_if_one - decrement a refcount if it is 1
@@ -350,3 +357,31 @@ bool refcount_dec_and_lock(refcount_t *r, spinlock_t *lock)
 }
 EXPORT_SYMBOL(refcount_dec_and_lock);
 
+/**
+ * refcount_dec_and_lock_irqsave - return holding spinlock with disabled
+ *                                 interrupts if able to decrement refcount to 0
+ * @r: the refcount
+ * @lock: the spinlock to be locked
+ * @flags: saved IRQ-flags if the is acquired
+ *
+ * Same as refcount_dec_and_lock() above except that the spinlock is acquired
+ * with disabled interupts.
+ *
+ * Return: true and hold spinlock if able to decrement refcount to 0, false
+ *         otherwise
+ */
+bool refcount_dec_and_lock_irqsave(refcount_t *r, spinlock_t *lock,
+				   unsigned long *flags)
+{
+	if (refcount_dec_not_one(r))
+		return false;
+
+	spin_lock_irqsave(lock, *flags);
+	if (!refcount_dec_and_test(r)) {
+		spin_unlock_irqrestore(lock, *flags);
+		return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL(refcount_dec_and_lock_irqsave);

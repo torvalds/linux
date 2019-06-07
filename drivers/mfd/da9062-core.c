@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Core, IRQ and I2C device driver for DA9061 and DA9062 PMICs
  * Copyright (C) 2015-2017  Dialog Semiconductor
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -365,186 +356,69 @@ static int da9062_get_device_type(struct da9062 *chip)
 }
 
 static const struct regmap_range da9061_aa_readable_ranges[] = {
-	{
-		.range_min = DA9062AA_PAGE_CON,
-		.range_max = DA9062AA_STATUS_B,
-	}, {
-		.range_min = DA9062AA_STATUS_D,
-		.range_max = DA9062AA_EVENT_C,
-	}, {
-		.range_min = DA9062AA_IRQ_MASK_A,
-		.range_max = DA9062AA_IRQ_MASK_C,
-	}, {
-		.range_min = DA9062AA_CONTROL_A,
-		.range_max = DA9062AA_GPIO_4,
-	}, {
-		.range_min = DA9062AA_GPIO_WKUP_MODE,
-		.range_max = DA9062AA_GPIO_OUT3_4,
-	}, {
-		.range_min = DA9062AA_BUCK1_CONT,
-		.range_max = DA9062AA_BUCK4_CONT,
-	}, {
-		.range_min = DA9062AA_BUCK3_CONT,
-		.range_max = DA9062AA_BUCK3_CONT,
-	}, {
-		.range_min = DA9062AA_LDO1_CONT,
-		.range_max = DA9062AA_LDO4_CONT,
-	}, {
-		.range_min = DA9062AA_DVC_1,
-		.range_max = DA9062AA_DVC_1,
-	}, {
-		.range_min = DA9062AA_SEQ,
-		.range_max = DA9062AA_ID_4_3,
-	}, {
-		.range_min = DA9062AA_ID_12_11,
-		.range_max = DA9062AA_ID_16_15,
-	}, {
-		.range_min = DA9062AA_ID_22_21,
-		.range_max = DA9062AA_ID_32_31,
-	}, {
-		.range_min = DA9062AA_SEQ_A,
-		.range_max = DA9062AA_WAIT,
-	}, {
-		.range_min = DA9062AA_RESET,
-		.range_max = DA9062AA_BUCK_ILIM_C,
-	}, {
-		.range_min = DA9062AA_BUCK1_CFG,
-		.range_max = DA9062AA_BUCK3_CFG,
-	}, {
-		.range_min = DA9062AA_VBUCK1_A,
-		.range_max = DA9062AA_VBUCK4_A,
-	}, {
-		.range_min = DA9062AA_VBUCK3_A,
-		.range_max = DA9062AA_VBUCK3_A,
-	}, {
-		.range_min = DA9062AA_VLDO1_A,
-		.range_max = DA9062AA_VLDO4_A,
-	}, {
-		.range_min = DA9062AA_VBUCK1_B,
-		.range_max = DA9062AA_VBUCK4_B,
-	}, {
-		.range_min = DA9062AA_VBUCK3_B,
-		.range_max = DA9062AA_VBUCK3_B,
-	}, {
-		.range_min = DA9062AA_VLDO1_B,
-		.range_max = DA9062AA_VLDO4_B,
-	}, {
-		.range_min = DA9062AA_INTERFACE,
-		.range_max = DA9062AA_CONFIG_E,
-	}, {
-		.range_min = DA9062AA_CONFIG_G,
-		.range_max = DA9062AA_CONFIG_K,
-	}, {
-		.range_min = DA9062AA_CONFIG_M,
-		.range_max = DA9062AA_CONFIG_M,
-	}, {
-		.range_min = DA9062AA_GP_ID_0,
-		.range_max = DA9062AA_GP_ID_19,
-	}, {
-		.range_min = DA9062AA_DEVICE_ID,
-		.range_max = DA9062AA_CONFIG_ID,
-	},
+	regmap_reg_range(DA9062AA_PAGE_CON, DA9062AA_STATUS_B),
+	regmap_reg_range(DA9062AA_STATUS_D, DA9062AA_EVENT_C),
+	regmap_reg_range(DA9062AA_IRQ_MASK_A, DA9062AA_IRQ_MASK_C),
+	regmap_reg_range(DA9062AA_CONTROL_A, DA9062AA_GPIO_4),
+	regmap_reg_range(DA9062AA_GPIO_WKUP_MODE, DA9062AA_GPIO_OUT3_4),
+	regmap_reg_range(DA9062AA_BUCK1_CONT, DA9062AA_BUCK4_CONT),
+	regmap_reg_range(DA9062AA_BUCK3_CONT, DA9062AA_BUCK3_CONT),
+	regmap_reg_range(DA9062AA_LDO1_CONT, DA9062AA_LDO4_CONT),
+	regmap_reg_range(DA9062AA_DVC_1, DA9062AA_DVC_1),
+	regmap_reg_range(DA9062AA_SEQ, DA9062AA_ID_4_3),
+	regmap_reg_range(DA9062AA_ID_12_11, DA9062AA_ID_16_15),
+	regmap_reg_range(DA9062AA_ID_22_21, DA9062AA_ID_32_31),
+	regmap_reg_range(DA9062AA_SEQ_A, DA9062AA_WAIT),
+	regmap_reg_range(DA9062AA_RESET, DA9062AA_BUCK_ILIM_C),
+	regmap_reg_range(DA9062AA_BUCK1_CFG, DA9062AA_BUCK3_CFG),
+	regmap_reg_range(DA9062AA_VBUCK1_A, DA9062AA_VBUCK4_A),
+	regmap_reg_range(DA9062AA_VBUCK3_A, DA9062AA_VBUCK3_A),
+	regmap_reg_range(DA9062AA_VLDO1_A, DA9062AA_VLDO4_A),
+	regmap_reg_range(DA9062AA_VBUCK1_B, DA9062AA_VBUCK4_B),
+	regmap_reg_range(DA9062AA_VBUCK3_B, DA9062AA_VBUCK3_B),
+	regmap_reg_range(DA9062AA_VLDO1_B, DA9062AA_VLDO4_B),
+	regmap_reg_range(DA9062AA_INTERFACE, DA9062AA_CONFIG_E),
+	regmap_reg_range(DA9062AA_CONFIG_G, DA9062AA_CONFIG_K),
+	regmap_reg_range(DA9062AA_CONFIG_M, DA9062AA_CONFIG_M),
+	regmap_reg_range(DA9062AA_GP_ID_0, DA9062AA_GP_ID_19),
+	regmap_reg_range(DA9062AA_DEVICE_ID, DA9062AA_CONFIG_ID),
 };
 
 static const struct regmap_range da9061_aa_writeable_ranges[] = {
-	{
-		.range_min = DA9062AA_PAGE_CON,
-		.range_max = DA9062AA_PAGE_CON,
-	}, {
-		.range_min = DA9062AA_FAULT_LOG,
-		.range_max = DA9062AA_EVENT_C,
-	}, {
-		.range_min = DA9062AA_IRQ_MASK_A,
-		.range_max = DA9062AA_IRQ_MASK_C,
-	}, {
-		.range_min = DA9062AA_CONTROL_A,
-		.range_max = DA9062AA_GPIO_4,
-	}, {
-		.range_min = DA9062AA_GPIO_WKUP_MODE,
-		.range_max = DA9062AA_GPIO_OUT3_4,
-	}, {
-		.range_min = DA9062AA_BUCK1_CONT,
-		.range_max = DA9062AA_BUCK4_CONT,
-	}, {
-		.range_min = DA9062AA_BUCK3_CONT,
-		.range_max = DA9062AA_BUCK3_CONT,
-	}, {
-		.range_min = DA9062AA_LDO1_CONT,
-		.range_max = DA9062AA_LDO4_CONT,
-	}, {
-		.range_min = DA9062AA_DVC_1,
-		.range_max = DA9062AA_DVC_1,
-	}, {
-		.range_min = DA9062AA_SEQ,
-		.range_max = DA9062AA_ID_4_3,
-	}, {
-		.range_min = DA9062AA_ID_12_11,
-		.range_max = DA9062AA_ID_16_15,
-	}, {
-		.range_min = DA9062AA_ID_22_21,
-		.range_max = DA9062AA_ID_32_31,
-	}, {
-		.range_min = DA9062AA_SEQ_A,
-		.range_max = DA9062AA_WAIT,
-	}, {
-		.range_min = DA9062AA_RESET,
-		.range_max = DA9062AA_BUCK_ILIM_C,
-	}, {
-		.range_min = DA9062AA_BUCK1_CFG,
-		.range_max = DA9062AA_BUCK3_CFG,
-	}, {
-		.range_min = DA9062AA_VBUCK1_A,
-		.range_max = DA9062AA_VBUCK4_A,
-	}, {
-		.range_min = DA9062AA_VBUCK3_A,
-		.range_max = DA9062AA_VBUCK3_A,
-	}, {
-		.range_min = DA9062AA_VLDO1_A,
-		.range_max = DA9062AA_VLDO4_A,
-	}, {
-		.range_min = DA9062AA_VBUCK1_B,
-		.range_max = DA9062AA_VBUCK4_B,
-	}, {
-		.range_min = DA9062AA_VBUCK3_B,
-		.range_max = DA9062AA_VBUCK3_B,
-	}, {
-		.range_min = DA9062AA_VLDO1_B,
-		.range_max = DA9062AA_VLDO4_B,
-	}, {
-		.range_min = DA9062AA_GP_ID_0,
-		.range_max = DA9062AA_GP_ID_19,
-	},
+	regmap_reg_range(DA9062AA_PAGE_CON, DA9062AA_PAGE_CON),
+	regmap_reg_range(DA9062AA_FAULT_LOG, DA9062AA_EVENT_C),
+	regmap_reg_range(DA9062AA_IRQ_MASK_A, DA9062AA_IRQ_MASK_C),
+	regmap_reg_range(DA9062AA_CONTROL_A, DA9062AA_GPIO_4),
+	regmap_reg_range(DA9062AA_GPIO_WKUP_MODE, DA9062AA_GPIO_OUT3_4),
+	regmap_reg_range(DA9062AA_BUCK1_CONT, DA9062AA_BUCK4_CONT),
+	regmap_reg_range(DA9062AA_BUCK3_CONT, DA9062AA_BUCK3_CONT),
+	regmap_reg_range(DA9062AA_LDO1_CONT, DA9062AA_LDO4_CONT),
+	regmap_reg_range(DA9062AA_DVC_1, DA9062AA_DVC_1),
+	regmap_reg_range(DA9062AA_SEQ, DA9062AA_ID_4_3),
+	regmap_reg_range(DA9062AA_ID_12_11, DA9062AA_ID_16_15),
+	regmap_reg_range(DA9062AA_ID_22_21, DA9062AA_ID_32_31),
+	regmap_reg_range(DA9062AA_SEQ_A, DA9062AA_WAIT),
+	regmap_reg_range(DA9062AA_RESET, DA9062AA_BUCK_ILIM_C),
+	regmap_reg_range(DA9062AA_BUCK1_CFG, DA9062AA_BUCK3_CFG),
+	regmap_reg_range(DA9062AA_VBUCK1_A, DA9062AA_VBUCK4_A),
+	regmap_reg_range(DA9062AA_VBUCK3_A, DA9062AA_VBUCK3_A),
+	regmap_reg_range(DA9062AA_VLDO1_A, DA9062AA_VLDO4_A),
+	regmap_reg_range(DA9062AA_VBUCK1_B, DA9062AA_VBUCK4_B),
+	regmap_reg_range(DA9062AA_VBUCK3_B, DA9062AA_VBUCK3_B),
+	regmap_reg_range(DA9062AA_VLDO1_B, DA9062AA_VLDO4_B),
+	regmap_reg_range(DA9062AA_GP_ID_0, DA9062AA_GP_ID_19),
 };
 
 static const struct regmap_range da9061_aa_volatile_ranges[] = {
-	{
-		.range_min = DA9062AA_PAGE_CON,
-		.range_max = DA9062AA_STATUS_B,
-	}, {
-		.range_min = DA9062AA_STATUS_D,
-		.range_max = DA9062AA_EVENT_C,
-	}, {
-		.range_min = DA9062AA_CONTROL_A,
-		.range_max = DA9062AA_CONTROL_B,
-	}, {
-		.range_min = DA9062AA_CONTROL_E,
-		.range_max = DA9062AA_CONTROL_F,
-	}, {
-		.range_min = DA9062AA_BUCK1_CONT,
-		.range_max = DA9062AA_BUCK4_CONT,
-	}, {
-		.range_min = DA9062AA_BUCK3_CONT,
-		.range_max = DA9062AA_BUCK3_CONT,
-	}, {
-		.range_min = DA9062AA_LDO1_CONT,
-		.range_max = DA9062AA_LDO4_CONT,
-	}, {
-		.range_min = DA9062AA_DVC_1,
-		.range_max = DA9062AA_DVC_1,
-	}, {
-		.range_min = DA9062AA_SEQ,
-		.range_max = DA9062AA_SEQ,
-	},
+	regmap_reg_range(DA9062AA_PAGE_CON, DA9062AA_STATUS_B),
+	regmap_reg_range(DA9062AA_STATUS_D, DA9062AA_EVENT_C),
+	regmap_reg_range(DA9062AA_CONTROL_A, DA9062AA_CONTROL_B),
+	regmap_reg_range(DA9062AA_CONTROL_E, DA9062AA_CONTROL_F),
+	regmap_reg_range(DA9062AA_BUCK1_CONT, DA9062AA_BUCK4_CONT),
+	regmap_reg_range(DA9062AA_BUCK3_CONT, DA9062AA_BUCK3_CONT),
+	regmap_reg_range(DA9062AA_LDO1_CONT, DA9062AA_LDO4_CONT),
+	regmap_reg_range(DA9062AA_DVC_1, DA9062AA_DVC_1),
+	regmap_reg_range(DA9062AA_SEQ, DA9062AA_SEQ),
 };
 
 static const struct regmap_access_table da9061_aa_readable_table = {
@@ -587,186 +461,69 @@ static struct regmap_config da9061_regmap_config = {
 };
 
 static const struct regmap_range da9062_aa_readable_ranges[] = {
-	{
-		.range_min = DA9062AA_PAGE_CON,
-		.range_max = DA9062AA_STATUS_B,
-	}, {
-		.range_min = DA9062AA_STATUS_D,
-		.range_max = DA9062AA_EVENT_C,
-	}, {
-		.range_min = DA9062AA_IRQ_MASK_A,
-		.range_max = DA9062AA_IRQ_MASK_C,
-	}, {
-		.range_min = DA9062AA_CONTROL_A,
-		.range_max = DA9062AA_GPIO_4,
-	}, {
-		.range_min = DA9062AA_GPIO_WKUP_MODE,
-		.range_max = DA9062AA_BUCK4_CONT,
-	}, {
-		.range_min = DA9062AA_BUCK3_CONT,
-		.range_max = DA9062AA_BUCK3_CONT,
-	}, {
-		.range_min = DA9062AA_LDO1_CONT,
-		.range_max = DA9062AA_LDO4_CONT,
-	}, {
-		.range_min = DA9062AA_DVC_1,
-		.range_max = DA9062AA_DVC_1,
-	}, {
-		.range_min = DA9062AA_COUNT_S,
-		.range_max = DA9062AA_SECOND_D,
-	}, {
-		.range_min = DA9062AA_SEQ,
-		.range_max = DA9062AA_ID_4_3,
-	}, {
-		.range_min = DA9062AA_ID_12_11,
-		.range_max = DA9062AA_ID_16_15,
-	}, {
-		.range_min = DA9062AA_ID_22_21,
-		.range_max = DA9062AA_ID_32_31,
-	}, {
-		.range_min = DA9062AA_SEQ_A,
-		.range_max = DA9062AA_BUCK3_CFG,
-	}, {
-		.range_min = DA9062AA_VBUCK2_A,
-		.range_max = DA9062AA_VBUCK4_A,
-	}, {
-		.range_min = DA9062AA_VBUCK3_A,
-		.range_max = DA9062AA_VBUCK3_A,
-	}, {
-		.range_min = DA9062AA_VLDO1_A,
-		.range_max = DA9062AA_VLDO4_A,
-	}, {
-		.range_min = DA9062AA_VBUCK2_B,
-		.range_max = DA9062AA_VBUCK4_B,
-	}, {
-		.range_min = DA9062AA_VBUCK3_B,
-		.range_max = DA9062AA_VBUCK3_B,
-	}, {
-		.range_min = DA9062AA_VLDO1_B,
-		.range_max = DA9062AA_VLDO4_B,
-	}, {
-		.range_min = DA9062AA_BBAT_CONT,
-		.range_max = DA9062AA_BBAT_CONT,
-	}, {
-		.range_min = DA9062AA_INTERFACE,
-		.range_max = DA9062AA_CONFIG_E,
-	}, {
-		.range_min = DA9062AA_CONFIG_G,
-		.range_max = DA9062AA_CONFIG_K,
-	}, {
-		.range_min = DA9062AA_CONFIG_M,
-		.range_max = DA9062AA_CONFIG_M,
-	}, {
-		.range_min = DA9062AA_TRIM_CLDR,
-		.range_max = DA9062AA_GP_ID_19,
-	}, {
-		.range_min = DA9062AA_DEVICE_ID,
-		.range_max = DA9062AA_CONFIG_ID,
-	},
+	regmap_reg_range(DA9062AA_PAGE_CON, DA9062AA_STATUS_B),
+	regmap_reg_range(DA9062AA_STATUS_D, DA9062AA_EVENT_C),
+	regmap_reg_range(DA9062AA_IRQ_MASK_A, DA9062AA_IRQ_MASK_C),
+	regmap_reg_range(DA9062AA_CONTROL_A, DA9062AA_GPIO_4),
+	regmap_reg_range(DA9062AA_GPIO_WKUP_MODE, DA9062AA_BUCK4_CONT),
+	regmap_reg_range(DA9062AA_BUCK3_CONT, DA9062AA_BUCK3_CONT),
+	regmap_reg_range(DA9062AA_LDO1_CONT, DA9062AA_LDO4_CONT),
+	regmap_reg_range(DA9062AA_DVC_1, DA9062AA_DVC_1),
+	regmap_reg_range(DA9062AA_COUNT_S, DA9062AA_SECOND_D),
+	regmap_reg_range(DA9062AA_SEQ, DA9062AA_ID_4_3),
+	regmap_reg_range(DA9062AA_ID_12_11, DA9062AA_ID_16_15),
+	regmap_reg_range(DA9062AA_ID_22_21, DA9062AA_ID_32_31),
+	regmap_reg_range(DA9062AA_SEQ_A, DA9062AA_BUCK3_CFG),
+	regmap_reg_range(DA9062AA_VBUCK2_A, DA9062AA_VBUCK4_A),
+	regmap_reg_range(DA9062AA_VBUCK3_A, DA9062AA_VBUCK3_A),
+	regmap_reg_range(DA9062AA_VLDO1_A, DA9062AA_VLDO4_A),
+	regmap_reg_range(DA9062AA_VBUCK2_B, DA9062AA_VBUCK4_B),
+	regmap_reg_range(DA9062AA_VBUCK3_B, DA9062AA_VBUCK3_B),
+	regmap_reg_range(DA9062AA_VLDO1_B, DA9062AA_VLDO4_B),
+	regmap_reg_range(DA9062AA_BBAT_CONT, DA9062AA_BBAT_CONT),
+	regmap_reg_range(DA9062AA_INTERFACE, DA9062AA_CONFIG_E),
+	regmap_reg_range(DA9062AA_CONFIG_G, DA9062AA_CONFIG_K),
+	regmap_reg_range(DA9062AA_CONFIG_M, DA9062AA_CONFIG_M),
+	regmap_reg_range(DA9062AA_TRIM_CLDR, DA9062AA_GP_ID_19),
+	regmap_reg_range(DA9062AA_DEVICE_ID, DA9062AA_CONFIG_ID),
 };
 
 static const struct regmap_range da9062_aa_writeable_ranges[] = {
-	{
-		.range_min = DA9062AA_PAGE_CON,
-		.range_max = DA9062AA_PAGE_CON,
-	}, {
-		.range_min = DA9062AA_FAULT_LOG,
-		.range_max = DA9062AA_EVENT_C,
-	}, {
-		.range_min = DA9062AA_IRQ_MASK_A,
-		.range_max = DA9062AA_IRQ_MASK_C,
-	}, {
-		.range_min = DA9062AA_CONTROL_A,
-		.range_max = DA9062AA_GPIO_4,
-	}, {
-		.range_min = DA9062AA_GPIO_WKUP_MODE,
-		.range_max = DA9062AA_BUCK4_CONT,
-	}, {
-		.range_min = DA9062AA_BUCK3_CONT,
-		.range_max = DA9062AA_BUCK3_CONT,
-	}, {
-		.range_min = DA9062AA_LDO1_CONT,
-		.range_max = DA9062AA_LDO4_CONT,
-	}, {
-		.range_min = DA9062AA_DVC_1,
-		.range_max = DA9062AA_DVC_1,
-	}, {
-		.range_min = DA9062AA_COUNT_S,
-		.range_max = DA9062AA_ALARM_Y,
-	}, {
-		.range_min = DA9062AA_SEQ,
-		.range_max = DA9062AA_ID_4_3,
-	}, {
-		.range_min = DA9062AA_ID_12_11,
-		.range_max = DA9062AA_ID_16_15,
-	}, {
-		.range_min = DA9062AA_ID_22_21,
-		.range_max = DA9062AA_ID_32_31,
-	}, {
-		.range_min = DA9062AA_SEQ_A,
-		.range_max = DA9062AA_BUCK3_CFG,
-	}, {
-		.range_min = DA9062AA_VBUCK2_A,
-		.range_max = DA9062AA_VBUCK4_A,
-	}, {
-		.range_min = DA9062AA_VBUCK3_A,
-		.range_max = DA9062AA_VBUCK3_A,
-	}, {
-		.range_min = DA9062AA_VLDO1_A,
-		.range_max = DA9062AA_VLDO4_A,
-	}, {
-		.range_min = DA9062AA_VBUCK2_B,
-		.range_max = DA9062AA_VBUCK4_B,
-	}, {
-		.range_min = DA9062AA_VBUCK3_B,
-		.range_max = DA9062AA_VBUCK3_B,
-	}, {
-		.range_min = DA9062AA_VLDO1_B,
-		.range_max = DA9062AA_VLDO4_B,
-	}, {
-		.range_min = DA9062AA_BBAT_CONT,
-		.range_max = DA9062AA_BBAT_CONT,
-	}, {
-		.range_min = DA9062AA_GP_ID_0,
-		.range_max = DA9062AA_GP_ID_19,
-	},
+	regmap_reg_range(DA9062AA_PAGE_CON, DA9062AA_PAGE_CON),
+	regmap_reg_range(DA9062AA_FAULT_LOG, DA9062AA_EVENT_C),
+	regmap_reg_range(DA9062AA_IRQ_MASK_A, DA9062AA_IRQ_MASK_C),
+	regmap_reg_range(DA9062AA_CONTROL_A, DA9062AA_GPIO_4),
+	regmap_reg_range(DA9062AA_GPIO_WKUP_MODE, DA9062AA_BUCK4_CONT),
+	regmap_reg_range(DA9062AA_BUCK3_CONT, DA9062AA_BUCK3_CONT),
+	regmap_reg_range(DA9062AA_LDO1_CONT, DA9062AA_LDO4_CONT),
+	regmap_reg_range(DA9062AA_DVC_1, DA9062AA_DVC_1),
+	regmap_reg_range(DA9062AA_COUNT_S, DA9062AA_ALARM_Y),
+	regmap_reg_range(DA9062AA_SEQ, DA9062AA_ID_4_3),
+	regmap_reg_range(DA9062AA_ID_12_11, DA9062AA_ID_16_15),
+	regmap_reg_range(DA9062AA_ID_22_21, DA9062AA_ID_32_31),
+	regmap_reg_range(DA9062AA_SEQ_A, DA9062AA_BUCK3_CFG),
+	regmap_reg_range(DA9062AA_VBUCK2_A, DA9062AA_VBUCK4_A),
+	regmap_reg_range(DA9062AA_VBUCK3_A, DA9062AA_VBUCK3_A),
+	regmap_reg_range(DA9062AA_VLDO1_A, DA9062AA_VLDO4_A),
+	regmap_reg_range(DA9062AA_VBUCK2_B, DA9062AA_VBUCK4_B),
+	regmap_reg_range(DA9062AA_VBUCK3_B, DA9062AA_VBUCK3_B),
+	regmap_reg_range(DA9062AA_VLDO1_B, DA9062AA_VLDO4_B),
+	regmap_reg_range(DA9062AA_BBAT_CONT, DA9062AA_BBAT_CONT),
+	regmap_reg_range(DA9062AA_GP_ID_0, DA9062AA_GP_ID_19),
 };
 
 static const struct regmap_range da9062_aa_volatile_ranges[] = {
-	{
-		.range_min = DA9062AA_PAGE_CON,
-		.range_max = DA9062AA_STATUS_B,
-	}, {
-		.range_min = DA9062AA_STATUS_D,
-		.range_max = DA9062AA_EVENT_C,
-	}, {
-		.range_min = DA9062AA_CONTROL_A,
-		.range_max = DA9062AA_CONTROL_B,
-	}, {
-		.range_min = DA9062AA_CONTROL_E,
-		.range_max = DA9062AA_CONTROL_F,
-	}, {
-		.range_min = DA9062AA_BUCK2_CONT,
-		.range_max = DA9062AA_BUCK4_CONT,
-	}, {
-		.range_min = DA9062AA_BUCK3_CONT,
-		.range_max = DA9062AA_BUCK3_CONT,
-	}, {
-		.range_min = DA9062AA_LDO1_CONT,
-		.range_max = DA9062AA_LDO4_CONT,
-	}, {
-		.range_min = DA9062AA_DVC_1,
-		.range_max = DA9062AA_DVC_1,
-	}, {
-		.range_min = DA9062AA_COUNT_S,
-		.range_max = DA9062AA_SECOND_D,
-	}, {
-		.range_min = DA9062AA_SEQ,
-		.range_max = DA9062AA_SEQ,
-	}, {
-		.range_min = DA9062AA_EN_32K,
-		.range_max = DA9062AA_EN_32K,
-	},
+	regmap_reg_range(DA9062AA_PAGE_CON, DA9062AA_STATUS_B),
+	regmap_reg_range(DA9062AA_STATUS_D, DA9062AA_EVENT_C),
+	regmap_reg_range(DA9062AA_CONTROL_A, DA9062AA_CONTROL_B),
+	regmap_reg_range(DA9062AA_CONTROL_E, DA9062AA_CONTROL_F),
+	regmap_reg_range(DA9062AA_BUCK2_CONT, DA9062AA_BUCK4_CONT),
+	regmap_reg_range(DA9062AA_BUCK3_CONT, DA9062AA_BUCK3_CONT),
+	regmap_reg_range(DA9062AA_LDO1_CONT, DA9062AA_LDO4_CONT),
+	regmap_reg_range(DA9062AA_DVC_1, DA9062AA_DVC_1),
+	regmap_reg_range(DA9062AA_COUNT_S, DA9062AA_SECOND_D),
+	regmap_reg_range(DA9062AA_SEQ, DA9062AA_SEQ),
+	regmap_reg_range(DA9062AA_EN_32K, DA9062AA_EN_32K),
 };
 
 static const struct regmap_access_table da9062_aa_readable_table = {

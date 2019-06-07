@@ -297,6 +297,7 @@ static inline u64 jiffies_to_nsecs(const unsigned long j)
 }
 
 extern u64 jiffies64_to_nsecs(u64 j);
+extern u64 jiffies64_to_msecs(u64 j);
 
 extern unsigned long __msecs_to_jiffies(const unsigned int m);
 #if HZ <= MSEC_PER_SEC && !(MSEC_PER_SEC % HZ)
@@ -445,6 +446,11 @@ extern clock_t jiffies_to_clock_t(unsigned long x);
 static inline clock_t jiffies_delta_to_clock_t(long delta)
 {
 	return jiffies_to_clock_t(max(0L, delta));
+}
+
+static inline unsigned int jiffies_delta_to_msecs(long delta)
+{
+	return jiffies_to_msecs(max(0L, delta));
 }
 
 extern unsigned long clock_t_to_jiffies(unsigned long x);

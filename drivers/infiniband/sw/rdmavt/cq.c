@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -47,10 +47,11 @@
 
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/kthread.h>
 #include "cq.h"
 #include "vt.h"
 #include "trace.h"
+
+static struct workqueue_struct *comp_vector_wq;
 
 /**
  * rvt_cq_enter - add a new entry to the completion queue
@@ -124,20 +125,17 @@ void rvt_cq_enter(struct rvt_cq *cq, struct ib_wc *entry, bool solicited)
 		 * This will cause send_complete() to be called in
 		 * another thread.
 		 */
-		spin_lock(&cq->rdi->n_cqs_lock);
-		if (likely(cq->rdi->worker)) {
-			cq->notify = RVT_CQ_NONE;
-			cq->triggered++;
-			kthread_queue_work(cq->rdi->worker, &cq->comptask);
-		}
-		spin_unlock(&cq->rdi->n_cqs_lock);
+		cq->notify = RVT_CQ_NONE;
+		cq->triggered++;
+		queue_work_on(cq->comp_vector_cpu, comp_vector_wq,
+			      &cq->comptask);
 	}
 
 	spin_unlock_irqrestore(&cq->lock, flags);
 }
 EXPORT_SYMBOL(rvt_cq_enter);
 
-static void send_complete(struct kthread_work *work)
+static void send_complete(struct work_struct *work)
 {
 	struct rvt_cq *cq = container_of(work, struct rvt_cq, comptask);
 
@@ -170,7 +168,6 @@ static void send_complete(struct kthread_work *work)
  * rvt_create_cq - create a completion queue
  * @ibdev: the device this completion queue is attached to
  * @attr: creation attributes
- * @context: unused by the QLogic_IB driver
  * @udata: user data for libibverbs.so
  *
  * Called by ib_create_cq() in the generic verbs code.
@@ -180,7 +177,6 @@ static void send_complete(struct kthread_work *work)
  */
 struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 			    const struct ib_cq_init_attr *attr,
-			    struct ib_ucontext *context,
 			    struct ib_udata *udata)
 {
 	struct rvt_dev_info *rdi = ib_to_rvt(ibdev);
@@ -189,12 +185,18 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 	struct ib_cq *ret;
 	u32 sz;
 	unsigned int entries = attr->cqe;
+	int comp_vector = attr->comp_vector;
 
 	if (attr->flags)
 		return ERR_PTR(-EINVAL);
 
 	if (entries < 1 || entries > rdi->dparms.props.max_cqe)
 		return ERR_PTR(-EINVAL);
+
+	if (comp_vector < 0)
+		comp_vector = 0;
+
+	comp_vector = comp_vector % rdi->ibdev.num_comp_vectors;
 
 	/* Allocate the completion queue structure. */
 	cq = kzalloc_node(sizeof(*cq), GFP_KERNEL, rdi->dparms.node);
@@ -228,7 +230,7 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 	if (udata && udata->outlen >= sizeof(__u64)) {
 		int err;
 
-		cq->ip = rvt_create_mmap_info(rdi, sz, context, wc);
+		cq->ip = rvt_create_mmap_info(rdi, sz, udata, wc);
 		if (!cq->ip) {
 			ret = ERR_PTR(-ENOMEM);
 			goto bail_wc;
@@ -264,14 +266,22 @@ struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
 	 * an error.
 	 */
 	cq->rdi = rdi;
+	if (rdi->driver_f.comp_vect_cpu_lookup)
+		cq->comp_vector_cpu =
+			rdi->driver_f.comp_vect_cpu_lookup(rdi, comp_vector);
+	else
+		cq->comp_vector_cpu =
+			cpumask_first(cpumask_of_node(rdi->dparms.node));
+
 	cq->ibcq.cqe = entries;
 	cq->notify = RVT_CQ_NONE;
 	spin_lock_init(&cq->lock);
-	kthread_init_work(&cq->comptask, send_complete);
+	INIT_WORK(&cq->comptask, send_complete);
 	cq->queue = wc;
 
 	ret = &cq->ibcq;
 
+	trace_rvt_create_cq(cq, attr);
 	goto done;
 
 bail_ip:
@@ -287,17 +297,18 @@ done:
 /**
  * rvt_destroy_cq - destroy a completion queue
  * @ibcq: the completion queue to destroy.
+ * @udata: user data or NULL for kernel object
  *
  * Called by ib_destroy_cq() in the generic verbs code.
  *
  * Return: always 0
  */
-int rvt_destroy_cq(struct ib_cq *ibcq)
+int rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 {
 	struct rvt_cq *cq = ibcq_to_rvtcq(ibcq);
 	struct rvt_dev_info *rdi = cq->rdi;
 
-	kthread_flush_work(&cq->comptask);
+	flush_work(&cq->comptask);
 	spin_lock_irq(&rdi->n_cqs_lock);
 	rdi->n_cqs_allocated--;
 	spin_unlock_irq(&rdi->n_cqs_lock);
@@ -507,24 +518,13 @@ int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry)
  *
  * Return: 0 on success
  */
-int rvt_driver_cq_init(struct rvt_dev_info *rdi)
+int rvt_driver_cq_init(void)
 {
-	int cpu;
-	struct kthread_worker *worker;
+	comp_vector_wq = alloc_workqueue("%s", WQ_HIGHPRI | WQ_CPU_INTENSIVE,
+					 0, "rdmavt_cq");
+	if (!comp_vector_wq)
+		return -ENOMEM;
 
-	if (rdi->worker)
-		return 0;
-
-	spin_lock_init(&rdi->n_cqs_lock);
-
-	cpu = cpumask_first(cpumask_of_node(rdi->dparms.node));
-	worker = kthread_create_worker_on_cpu(cpu, 0,
-					      "%s", rdi->dparms.cq_name);
-	if (IS_ERR(worker))
-		return PTR_ERR(worker);
-
-	set_user_nice(worker->task, MIN_NICE);
-	rdi->worker = worker;
 	return 0;
 }
 
@@ -532,19 +532,8 @@ int rvt_driver_cq_init(struct rvt_dev_info *rdi)
  * rvt_cq_exit - tear down cq reources
  * @rdi: rvt dev structure
  */
-void rvt_cq_exit(struct rvt_dev_info *rdi)
+void rvt_cq_exit(void)
 {
-	struct kthread_worker *worker;
-
-	/* block future queuing from send_complete() */
-	spin_lock_irq(&rdi->n_cqs_lock);
-	worker = rdi->worker;
-	if (!worker) {
-		spin_unlock_irq(&rdi->n_cqs_lock);
-		return;
-	}
-	rdi->worker = NULL;
-	spin_unlock_irq(&rdi->n_cqs_lock);
-
-	kthread_destroy_worker(worker);
+	destroy_workqueue(comp_vector_wq);
+	comp_vector_wq = NULL;
 }

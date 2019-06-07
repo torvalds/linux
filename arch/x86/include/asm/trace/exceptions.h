@@ -30,7 +30,7 @@ DECLARE_EVENT_CLASS(x86_exceptions,
 		__entry->error_code = error_code;
 	),
 
-	TP_printk("address=%pf ip=%pf error_code=0x%lx",
+	TP_printk("address=%ps ip=%ps error_code=0x%lx",
 		  (void *)__entry->address, (void *)__entry->ip,
 		  __entry->error_code) );
 
@@ -45,6 +45,7 @@ DEFINE_PAGE_FAULT_EVENT(page_fault_user);
 DEFINE_PAGE_FAULT_EVENT(page_fault_kernel);
 
 #undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_PATH .
 #define TRACE_INCLUDE_FILE exceptions
 #endif /*  _TRACE_PAGE_FAULT_H */

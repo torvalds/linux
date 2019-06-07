@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for ESS Maestro3/Allegro (ES1988) soundcards.
  * Copyright (c) 2000 by Zach Brown <zab@zabbo.net>
@@ -6,26 +7,10 @@
  * Most of the hardware init stuffs are based on maestro3 driver for
  * OSS/Free by Zach Brown.  Many thanks to Zach!
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
- *
  * ChangeLog:
  * Aug. 27, 2001
  *     - Fixed deadlock on capture
  *     - Added Canyon3D-2 support by Rob Riggs <rob@pangalactic.org>
- *
  */
  
 #define CARD_NAME "ESS Maestro3/Allegro/Canyon3D-2"
@@ -2103,7 +2088,7 @@ static const u16 minisrc_lpf[MINISRC_LPF_LEN] = {
 static void snd_m3_assp_init(struct snd_m3 *chip)
 {
 	unsigned int i;
-	const u16 *data;
+	const __le16 *data;
 
 	/* zero kernel data */
 	for (i = 0; i < (REV_B_DATA_MEMORY_UNIT_LENGTH * NUM_UNITS_KERNEL_DATA) / 2; i++)
@@ -2121,7 +2106,7 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 			  KDATA_DMA_XFER0);
 
 	/* write kernel into code memory.. */
-	data = (const u16 *)chip->assp_kernel_image->data;
+	data = (const __le16 *)chip->assp_kernel_image->data;
 	for (i = 0 ; i * 2 < chip->assp_kernel_image->size; i++) {
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, 
 				  REV_B_CODE_MEMORY_BEGIN + i,
@@ -2134,7 +2119,7 @@ static void snd_m3_assp_init(struct snd_m3 *chip)
 	 * drop it there.  It seems that the minisrc doesn't
 	 * need vectors, so we won't bother with them..
 	 */
-	data = (const u16 *)chip->assp_minisrc_image->data;
+	data = (const __le16 *)chip->assp_minisrc_image->data;
 	for (i = 0; i * 2 < chip->assp_minisrc_image->size; i++) {
 		snd_m3_assp_write(chip, MEMTYPE_INTERNAL_CODE, 
 				  0x400 + i, le16_to_cpu(data[i]));
@@ -2422,7 +2407,6 @@ static int m3_suspend(struct device *dev)
 	chip->in_suspend = 1;
 	cancel_work_sync(&chip->hwvol_work);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 
 	msleep(10); /* give the assp a chance to idle.. */
@@ -2657,7 +2641,10 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	chip->irq = pci->irq;
 
 #ifdef CONFIG_PM_SLEEP
-	chip->suspend_mem = vmalloc(sizeof(u16) * (REV_B_CODE_MEMORY_LENGTH + REV_B_DATA_MEMORY_LENGTH));
+	chip->suspend_mem =
+		vmalloc(array_size(sizeof(u16),
+				   REV_B_CODE_MEMORY_LENGTH +
+					REV_B_DATA_MEMORY_LENGTH));
 	if (chip->suspend_mem == NULL)
 		dev_warn(card->dev, "can't allocate apm buffer\n");
 #endif

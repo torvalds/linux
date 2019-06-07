@@ -183,7 +183,7 @@ struct csis_drvdata {
  * @index: the hardware instance index
  * @pdev: CSIS platform device
  * @phy: pointer to the CSIS generic PHY
- * @regs: mmaped I/O registers memory
+ * @regs: mmapped I/O registers memory
  * @supplies: CSIS regulator supplies
  * @clock: CSIS clocks
  * @irq: requested s5p-mipi-csis irq number
@@ -718,7 +718,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 			    struct csis_state *state)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct v4l2_fwnode_endpoint endpoint;
+	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
 	int ret;
 
 	if (of_property_read_u32(node, "clock-frequency",
@@ -745,7 +745,7 @@ static int s5pcsis_parse_dt(struct platform_device *pdev,
 		goto err;
 	}
 
-	/* Get MIPI CSI-2 bus configration from the endpoint node. */
+	/* Get MIPI CSI-2 bus configuration from the endpoint node. */
 	of_property_read_u32(node, "samsung,csis-hs-settle",
 					&state->hs_settle);
 	state->wclk_ext = of_property_read_bool(node,
@@ -891,8 +891,7 @@ e_clkput:
 
 static int s5pcsis_pm_suspend(struct device *dev, bool runtime)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csis_state *state = sd_to_csis_state(sd);
 	int ret = 0;
 
@@ -921,8 +920,7 @@ static int s5pcsis_pm_suspend(struct device *dev, bool runtime)
 
 static int s5pcsis_pm_resume(struct device *dev, bool runtime)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csis_state *state = sd_to_csis_state(sd);
 	int ret = 0;
 

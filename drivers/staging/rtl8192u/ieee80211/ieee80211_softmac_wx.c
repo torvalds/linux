@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* IEEE 802.11 SoftMAC layer
  * Copyright (c) 2005 Andrea Merello <andrea.merello@gmail.com>
  *
@@ -9,8 +10,6 @@
  *
  * PS wx handler mostly stolen from hostap, copyright who
  * own it's copyright ;-)
- *
- * released under the GPL
  */
 
 
@@ -302,8 +301,8 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 {
 	struct ieee80211_device *ieee = container_of(work, struct ieee80211_device, wx_sync_scan_wq);
 	short chan;
-	HT_EXTCHNL_OFFSET chan_offset = 0;
-	HT_CHANNEL_WIDTH bandwidth = 0;
+	enum ht_extension_chan_offset chan_offset = 0;
+	enum ht_channel_width bandwidth = 0;
 	int b40M = 0;
 
 	chan = ieee->current_network.channel;
@@ -320,7 +319,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT && ieee->pHTInfo->bCurBW40MHz) {
 		b40M = 1;
 		chan_offset = ieee->pHTInfo->CurSTAExtChnlOffset;
-		bandwidth = (HT_CHANNEL_WIDTH)ieee->pHTInfo->bCurBW40MHz;
+		bandwidth = (enum ht_channel_width)ieee->pHTInfo->bCurBW40MHz;
 		printk("Scan in 40M, force to 20M first:%d, %d\n", chan_offset, bandwidth);
 		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 		}

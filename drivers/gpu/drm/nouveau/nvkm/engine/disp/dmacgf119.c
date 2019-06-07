@@ -21,29 +21,27 @@
  *
  * Authors: Ben Skeggs
  */
-#include "dmacnv50.h"
-#include "rootnv50.h"
+#include "channv50.h"
 
 #include <core/ramht.h>
 #include <subdev/timer.h>
 
 int
-gf119_disp_dmac_bind(struct nv50_disp_dmac *chan,
+gf119_disp_dmac_bind(struct nv50_disp_chan *chan,
 		     struct nvkm_object *object, u32 handle)
 {
-	return nvkm_ramht_insert(chan->base.root->ramht, object,
-				 chan->base.chid.user, -9, handle,
-				 chan->base.chid.user << 27 | 0x00000001);
+	return nvkm_ramht_insert(chan->disp->ramht, object,
+				 chan->chid.user, -9, handle,
+				 chan->chid.user << 27 | 0x00000001);
 }
 
 void
-gf119_disp_dmac_fini(struct nv50_disp_dmac *chan)
+gf119_disp_dmac_fini(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int ctrl = chan->base.chid.ctrl;
-	int user = chan->base.chid.user;
+	int ctrl = chan->chid.ctrl;
+	int user = chan->chid.user;
 
 	/* deactivate channel */
 	nvkm_mask(device, 0x610490 + (ctrl * 0x0010), 0x00001010, 0x00001000);
@@ -55,23 +53,15 @@ gf119_disp_dmac_fini(struct nv50_disp_dmac *chan)
 		nvkm_error(subdev, "ch %d fini: %08x\n", user,
 			   nvkm_rd32(device, 0x610490 + (ctrl * 0x10)));
 	}
-
-	/* disable error reporting and completion notification */
-	nvkm_mask(device, 0x610090, 0x00000001 << user, 0x00000000);
-	nvkm_mask(device, 0x6100a0, 0x00000001 << user, 0x00000000);
 }
 
 static int
-gf119_disp_dmac_init(struct nv50_disp_dmac *chan)
+gf119_disp_dmac_init(struct nv50_disp_chan *chan)
 {
-	struct nv50_disp *disp = chan->base.root->disp;
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int ctrl = chan->base.chid.ctrl;
-	int user = chan->base.chid.user;
-
-	/* enable error reporting */
-	nvkm_mask(device, 0x6100a0, 0x00000001 << user, 0x00000001 << user);
+	int ctrl = chan->chid.ctrl;
+	int user = chan->chid.user;
 
 	/* initialise channel for dma command submission */
 	nvkm_wr32(device, 0x610494 + (ctrl * 0x0010), chan->push);
@@ -94,9 +84,11 @@ gf119_disp_dmac_init(struct nv50_disp_dmac *chan)
 	return 0;
 }
 
-const struct nv50_disp_dmac_func
+const struct nv50_disp_chan_func
 gf119_disp_dmac_func = {
 	.init = gf119_disp_dmac_init,
 	.fini = gf119_disp_dmac_fini,
+	.intr = gf119_disp_chan_intr,
+	.user = nv50_disp_chan_user,
 	.bind = gf119_disp_dmac_bind,
 };

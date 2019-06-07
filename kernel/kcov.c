@@ -20,6 +20,7 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/kcov.h>
+#include <linux/refcount.h>
 #include <asm/setup.h>
 
 /* Number of 64-bit words written per one comparison: */
@@ -44,7 +45,7 @@ struct kcov {
 	 *  - opened file descriptor
 	 *  - task with enabled coverage (we can't unwire it from another task)
 	 */
-	atomic_t		refcount;
+	refcount_t		refcount;
 	/* The lock protects mode, size, area and t. */
 	spinlock_t		lock;
 	enum kcov_mode		mode;
@@ -56,9 +57,9 @@ struct kcov {
 	struct task_struct	*t;
 };
 
-static bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
+static notrace bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
 {
-	enum kcov_mode mode;
+	unsigned int mode;
 
 	/*
 	 * We are interested in code coverage as a function of a syscall inputs,
@@ -78,7 +79,7 @@ static bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
 	return mode == needed_mode;
 }
 
-static unsigned long canonicalize_ip(unsigned long ip)
+static notrace unsigned long canonicalize_ip(unsigned long ip)
 {
 #ifdef CONFIG_RANDOMIZE_BASE
 	ip -= kaslr_offset();
@@ -112,7 +113,7 @@ void notrace __sanitizer_cov_trace_pc(void)
 EXPORT_SYMBOL(__sanitizer_cov_trace_pc);
 
 #ifdef CONFIG_KCOV_ENABLE_COMPARISONS
-static void write_comp_data(u64 type, u64 arg1, u64 arg2, u64 ip)
+static void notrace write_comp_data(u64 type, u64 arg1, u64 arg2, u64 ip)
 {
 	struct task_struct *t;
 	u64 *area;
@@ -228,12 +229,12 @@ EXPORT_SYMBOL(__sanitizer_cov_trace_switch);
 
 static void kcov_get(struct kcov *kcov)
 {
-	atomic_inc(&kcov->refcount);
+	refcount_inc(&kcov->refcount);
 }
 
 static void kcov_put(struct kcov *kcov)
 {
-	if (atomic_dec_and_test(&kcov->refcount)) {
+	if (refcount_dec_and_test(&kcov->refcount)) {
 		vfree(kcov->area);
 		kfree(kcov);
 	}
@@ -241,7 +242,8 @@ static void kcov_put(struct kcov *kcov)
 
 void kcov_task_init(struct task_struct *t)
 {
-	t->kcov_mode = KCOV_MODE_DISABLED;
+	WRITE_ONCE(t->kcov_mode, KCOV_MODE_DISABLED);
+	barrier();
 	t->kcov_size = 0;
 	t->kcov_area = NULL;
 	t->kcov = NULL;
@@ -311,7 +313,7 @@ static int kcov_open(struct inode *inode, struct file *filep)
 	if (!kcov)
 		return -ENOMEM;
 	kcov->mode = KCOV_MODE_DISABLED;
-	atomic_set(&kcov->refcount, 1);
+	refcount_set(&kcov->refcount, 1);
 	spin_lock_init(&kcov->lock);
 	filep->private_data = kcov;
 	return nonseekable_open(inode, filep);
@@ -321,6 +323,21 @@ static int kcov_close(struct inode *inode, struct file *filep)
 {
 	kcov_put(filep->private_data);
 	return 0;
+}
+
+/*
+ * Fault in a lazily-faulted vmalloc area before it can be used by
+ * __santizer_cov_trace_pc(), to avoid recursion issues if any code on the
+ * vmalloc fault handling path is instrumented.
+ */
+static void kcov_fault_in_area(struct kcov *kcov)
+{
+	unsigned long stride = PAGE_SIZE / sizeof(unsigned long);
+	unsigned long *area = kcov->area;
+	unsigned long offset;
+
+	for (offset = 0; offset < kcov->size; offset += stride)
+		READ_ONCE(area[offset]);
 }
 
 static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
@@ -371,6 +388,7 @@ static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
 #endif
 		else
 			return -EINVAL;
+		kcov_fault_in_area(kcov);
 		/* Cache in task struct for performance. */
 		t->kcov_size = kcov->size;
 		t->kcov_area = kcov->area;
@@ -427,10 +445,8 @@ static int __init kcov_init(void)
 	 * there is no need to protect it against removal races. The
 	 * use of debugfs_create_file_unsafe() is actually safe here.
 	 */
-	if (!debugfs_create_file_unsafe("kcov", 0600, NULL, NULL, &kcov_fops)) {
-		pr_err("failed to create kcov in debugfs\n");
-		return -ENOMEM;
-	}
+	debugfs_create_file_unsafe("kcov", 0600, NULL, NULL, &kcov_fops);
+
 	return 0;
 }
 

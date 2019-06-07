@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Broadcom tag support
  *
  * Copyright (C) 2014 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/etherdevice.h>
@@ -58,6 +54,9 @@
 #define BRCM_EG_TC_SHIFT	5
 #define BRCM_EG_TC_MASK		0x7
 #define BRCM_EG_PID_MASK	0x1f
+
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM) || \
+	IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_PREPEND)
 
 static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
 					struct net_device *dev,
@@ -143,8 +142,9 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 
 	return skb;
 }
+#endif
 
-#ifdef CONFIG_NET_DSA_TAG_BRCM
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM)
 static struct sk_buff *brcm_tag_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
@@ -171,13 +171,19 @@ static struct sk_buff *brcm_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	return nskb;
 }
 
-const struct dsa_device_ops brcm_netdev_ops = {
+static const struct dsa_device_ops brcm_netdev_ops = {
+	.name	= "brcm",
+	.proto	= DSA_TAG_PROTO_BRCM,
 	.xmit	= brcm_tag_xmit,
 	.rcv	= brcm_tag_rcv,
+	.overhead = BRCM_TAG_LEN,
 };
+
+DSA_TAG_DRIVER(brcm_netdev_ops);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM);
 #endif
 
-#ifdef CONFIG_NET_DSA_TAG_BRCM_PREPEND
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_PREPEND)
 static struct sk_buff *brcm_tag_xmit_prepend(struct sk_buff *skb,
 					     struct net_device *dev)
 {
@@ -193,8 +199,27 @@ static struct sk_buff *brcm_tag_rcv_prepend(struct sk_buff *skb,
 	return brcm_tag_rcv_ll(skb, dev, pt, ETH_HLEN);
 }
 
-const struct dsa_device_ops brcm_prepend_netdev_ops = {
+static const struct dsa_device_ops brcm_prepend_netdev_ops = {
+	.name	= "brcm-prepend",
+	.proto	= DSA_TAG_PROTO_BRCM_PREPEND,
 	.xmit	= brcm_tag_xmit_prepend,
 	.rcv	= brcm_tag_rcv_prepend,
+	.overhead = BRCM_TAG_LEN,
 };
+
+DSA_TAG_DRIVER(brcm_prepend_netdev_ops);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM_PREPEND);
 #endif
+
+static struct dsa_tag_driver *dsa_tag_driver_array[] =	{
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM)
+	&DSA_TAG_DRIVER_NAME(brcm_netdev_ops),
+#endif
+#if IS_ENABLED(CONFIG_NET_DSA_TAG_BRCM_PREPEND)
+	&DSA_TAG_DRIVER_NAME(brcm_prepend_netdev_ops),
+#endif
+};
+
+module_dsa_tag_drivers(dsa_tag_driver_array);
+
+MODULE_LICENSE("GPL");

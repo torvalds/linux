@@ -1,19 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * wm831x-core.c  --  Device access for Wolfson WM831x PMICs
  *
  * Copyright 2009 Wolfson Microelectronics PLC.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/bcd.h>
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
@@ -33,7 +29,7 @@
 /* Current settings - values are 2*2^(reg_val/4) microamps.  These are
  * exported since they are used by multiple drivers.
  */
-int wm831x_isinkv_values[WM831X_ISINK_MAX_ISEL + 1] = {
+const unsigned int wm831x_isinkv_values[WM831X_ISINK_MAX_ISEL + 1] = {
 	2,
 	2,
 	3,
@@ -1892,14 +1888,6 @@ err:
 	return ret;
 }
 
-void wm831x_device_exit(struct wm831x *wm831x)
-{
-	wm831x_otp_exit(wm831x);
-	mfd_remove_devices(wm831x->dev);
-	free_irq(wm831x_irq(wm831x, WM831X_IRQ_AUXADC_DATA), wm831x);
-	wm831x_irq_exit(wm831x);
-}
-
 int wm831x_device_suspend(struct wm831x *wm831x)
 {
 	int reg, mask;
@@ -1944,7 +1932,3 @@ void wm831x_device_shutdown(struct wm831x *wm831x)
 	}
 }
 EXPORT_SYMBOL_GPL(wm831x_device_shutdown);
-
-MODULE_DESCRIPTION("Core support for the WM831X AudioPlus PMIC");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mark Brown");

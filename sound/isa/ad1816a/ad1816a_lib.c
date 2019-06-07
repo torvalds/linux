@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     ad1816a.c - lowlevel code for Analog Devices AD1816A chip.
     Copyright (C) 1999-2000 by Massimo Piccioni <dafastidio@libero.it>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
 #include <linux/delay.h>
@@ -85,7 +73,8 @@ static void snd_ad1816a_write_mask(struct snd_ad1816a *chip, unsigned char reg,
 
 
 static unsigned char snd_ad1816a_get_format(struct snd_ad1816a *chip,
-					    unsigned int format, int channels)
+					    snd_pcm_format_t format,
+					    int channels)
 {
 	unsigned char retval = AD1816A_FMT_LINEAR_8;
 
@@ -517,7 +506,6 @@ void snd_ad1816a_suspend(struct snd_ad1816a *chip)
 	int reg;
 	unsigned long flags;
 
-	snd_pcm_suspend_all(chip->pcm);
 	spin_lock_irqsave(&chip->lock, flags);
 	for (reg = 0; reg < 48; reg++)
 		chip->image[reg] = snd_ad1816a_read(chip, reg);
@@ -693,7 +681,7 @@ int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device)
 	snd_ad1816a_init(chip);
 
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_isa_data(),
+					      chip->card->dev,
 					      64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
 
 	chip->pcm = pcm;

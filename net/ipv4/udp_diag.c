@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * udp_diag.c	Module for monitoring UDP transport protocols sockets.
  *
  * Authors:	Pavel Emelyanov, <xemul@parallels.com>
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 
@@ -42,6 +38,7 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 
 	rcu_read_lock();
 	if (req->sdiag_family == AF_INET)
+		/* src and dst are swapped for historical reasons */
 		sk = __udp4_lib_lookup(net,
 				req->id.idiag_src[0], req->id.idiag_sport,
 				req->id.idiag_dst[0], req->id.idiag_dport,
@@ -163,7 +160,7 @@ static int udp_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
 static void udp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 		void *info)
 {
-	r->idiag_rqueue = sk_rmem_alloc_get(sk);
+	r->idiag_rqueue = udp_rqueue_get(sk);
 	r->idiag_wqueue = sk_wmem_alloc_get(sk);
 }
 

@@ -400,7 +400,7 @@ struct phy_reg {
 	u32 addr;
 };
 
-struct phy_reg usb3_pll_cfg[] = {
+static struct phy_reg usb3_pll_cfg[] = {
 	{ 0xf0,		CMN_PLL0_VCOCAL_INIT },
 	{ 0x18,		CMN_PLL0_VCOCAL_ITER },
 	{ 0xd0,		CMN_PLL0_INTDIV },
@@ -417,7 +417,7 @@ struct phy_reg usb3_pll_cfg[] = {
 	{ 0x8,		CMN_DIAG_PLL0_LF_PROG },
 };
 
-struct phy_reg dp_pll_cfg[] = {
+static struct phy_reg dp_pll_cfg[] = {
 	{ 0xf0,		CMN_PLL1_VCOCAL_INIT },
 	{ 0x18,		CMN_PLL1_VCOCAL_ITER },
 	{ 0x30b9,	CMN_PLL1_VCOCAL_START },
@@ -1145,8 +1145,8 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 	}
 
 	if (!tcphy->port_cfgs) {
-		dev_err(dev, "no phy-config can be matched with %s node\n",
-			np->name);
+		dev_err(dev, "no phy-config can be matched with %pOFn node\n",
+			np);
 		return -EINVAL;
 	}
 
@@ -1176,18 +1176,18 @@ static int rockchip_typec_phy_probe(struct platform_device *pdev)
 	for_each_available_child_of_node(np, child_np) {
 		struct phy *phy;
 
-		if (!of_node_cmp(child_np->name, "dp-port"))
+		if (of_node_name_eq(child_np, "dp-port"))
 			phy = devm_phy_create(dev, child_np,
 					      &rockchip_dp_phy_ops);
-		else if (!of_node_cmp(child_np->name, "usb3-port"))
+		else if (of_node_name_eq(child_np, "usb3-port"))
 			phy = devm_phy_create(dev, child_np,
 					      &rockchip_usb3_phy_ops);
 		else
 			continue;
 
 		if (IS_ERR(phy)) {
-			dev_err(dev, "failed to create phy: %s\n",
-				child_np->name);
+			dev_err(dev, "failed to create phy: %pOFn\n",
+				child_np);
 			pm_runtime_disable(dev);
 			return PTR_ERR(phy);
 		}

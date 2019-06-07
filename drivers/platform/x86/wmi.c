@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  ACPI-WMI mapping driver
  *
@@ -11,24 +12,6 @@
  *  WMI bus infrastructure by Andrew Lutomirski and Darren Hart:
  *    Copyright (C) 2015 Andrew Lutomirski
  *    Copyright (C) 2017 VMware, Inc. All Rights Reserved.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -768,7 +751,10 @@ static int wmi_dev_match(struct device *dev, struct device_driver *driver)
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	const struct wmi_device_id *id = wmi_driver->id_table;
 
-	while (id->guid_string) {
+	if (id == NULL)
+		return 0;
+
+	while (*id->guid_string) {
 		uuid_le driver_guid;
 
 		if (WARN_ON(uuid_le_to_bin(id->guid_string, &driver_guid)))
@@ -895,7 +881,6 @@ static int wmi_dev_probe(struct device *dev)
 	struct wmi_driver *wdriver =
 		container_of(dev->driver, struct wmi_driver, driver);
 	int ret = 0;
-	int count;
 	char *buf;
 
 	if (ACPI_FAILURE(wmi_method_enable(wblock, 1)))
@@ -917,9 +902,8 @@ static int wmi_dev_probe(struct device *dev)
 			goto probe_failure;
 		}
 
-		count = get_order(wblock->req_buf_size);
-		wblock->handler_data = (void *)__get_free_pages(GFP_KERNEL,
-								count);
+		wblock->handler_data = kmalloc(wblock->req_buf_size,
+					       GFP_KERNEL);
 		if (!wblock->handler_data) {
 			ret = -ENOMEM;
 			goto probe_failure;
@@ -964,8 +948,7 @@ static int wmi_dev_remove(struct device *dev)
 	if (wdriver->filter_callback) {
 		misc_deregister(&wblock->char_dev);
 		kfree(wblock->char_dev.name);
-		free_pages((unsigned long)wblock->handler_data,
-			   get_order(wblock->req_buf_size));
+		kfree(wblock->handler_data);
 	}
 
 	if (wdriver->remove)
@@ -990,19 +973,19 @@ static struct bus_type wmi_bus_type = {
 	.remove = wmi_dev_remove,
 };
 
-static struct device_type wmi_type_event = {
+static const struct device_type wmi_type_event = {
 	.name = "event",
 	.groups = wmi_event_groups,
 	.release = wmi_dev_release,
 };
 
-static struct device_type wmi_type_method = {
+static const struct device_type wmi_type_method = {
 	.name = "method",
 	.groups = wmi_method_groups,
 	.release = wmi_dev_release,
 };
 
-static struct device_type wmi_type_data = {
+static const struct device_type wmi_type_data = {
 	.name = "data",
 	.groups = wmi_data_groups,
 	.release = wmi_dev_release,

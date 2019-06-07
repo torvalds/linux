@@ -13,17 +13,19 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/io.h>
-
-#include <mach/board-ams-delta.h>
+#include <linux/platform_data/ams-delta-fiq.h>
+#include <linux/platform_device.h>
 
 #include <asm/fiq.h>
 
-#include <mach/ams-delta-fiq.h>
+#include "ams-delta-fiq.h"
+#include "board-ams-delta.h"
 
 static struct fiq_handler fh = {
 	.name	= "ams-delta-fiq"
@@ -34,20 +36,24 @@ static struct fiq_handler fh = {
  * The FIQ and IRQ isrs can both read and write it.
  * It is structured as a header section several 32bit slots,
  * followed by the circular buffer where the FIQ isr stores
- * keystrokes received from the qwerty keyboard.
- * See ams-delta-fiq.h for details of offsets.
+ * keystrokes received from the qwerty keyboard.  See
+ * <linux/platform_data/ams-delta-fiq.h> for details of offsets.
  */
-unsigned int fiq_buffer[1024];
-EXPORT_SYMBOL(fiq_buffer);
+static unsigned int fiq_buffer[1024];
 
+static struct irq_chip *irq_chip;
+static struct irq_data *irq_data[16];
 static unsigned int irq_counter[16];
+
+static const char *pin_name[16] __initconst = {
+	[AMS_DELTA_GPIO_PIN_KEYBRD_DATA]	= "keybrd_data",
+	[AMS_DELTA_GPIO_PIN_KEYBRD_CLK]		= "keybrd_clk",
+};
 
 static irqreturn_t deferred_fiq(int irq, void *dev_id)
 {
+	struct irq_data *d;
 	int gpio, irq_num, fiq_count;
-	struct irq_chip *irq_chip;
-
-	irq_chip = irq_get_chip(gpio_to_irq(AMS_DELTA_GPIO_PIN_KEYBRD_CLK));
 
 	/*
 	 * For each handled GPIO interrupt, keep calling its interrupt handler
@@ -55,24 +61,21 @@ static irqreturn_t deferred_fiq(int irq, void *dev_id)
 	 */
 	for (gpio = AMS_DELTA_GPIO_PIN_KEYBRD_CLK;
 			gpio <= AMS_DELTA_GPIO_PIN_HOOK_SWITCH; gpio++) {
-		irq_num = gpio_to_irq(gpio);
+		d = irq_data[gpio];
+		irq_num = d->irq;
 		fiq_count = fiq_buffer[FIQ_CNT_INT_00 + gpio];
 
 		if (irq_counter[gpio] < fiq_count &&
 				gpio != AMS_DELTA_GPIO_PIN_KEYBRD_CLK) {
-			struct irq_data *d = irq_get_irq_data(irq_num);
-
 			/*
 			 * handle_simple_irq() that OMAP GPIO edge
 			 * interrupts default to since commit 80ac93c27441
 			 * requires interrupt already acked and unmasked.
 			 */
-			if (irq_chip) {
-				if (irq_chip->irq_ack)
-					irq_chip->irq_ack(d);
-				if (irq_chip->irq_unmask)
-					irq_chip->irq_unmask(d);
-			}
+			if (irq_chip->irq_ack)
+				irq_chip->irq_ack(d);
+			if (irq_chip->irq_unmask)
+				irq_chip->irq_unmask(d);
 		}
 		for (; irq_counter[gpio] < fiq_count; irq_counter[gpio]++)
 			generic_handle_irq(irq_num);
@@ -80,13 +83,55 @@ static irqreturn_t deferred_fiq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void __init ams_delta_init_fiq(void)
+void __init ams_delta_init_fiq(struct gpio_chip *chip,
+			       struct platform_device *serio)
 {
+	struct gpio_desc *gpiod, *data = NULL, *clk = NULL;
 	void *fiqhandler_start;
 	unsigned int fiqhandler_length;
 	struct pt_regs FIQ_regs;
 	unsigned long val, offset;
 	int i, retval;
+
+	/* Store irq_chip location for IRQ handler use */
+	irq_chip = chip->irq.chip;
+	if (!irq_chip) {
+		pr_err("%s: GPIO chip %s is missing IRQ function\n", __func__,
+		       chip->label);
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(irq_data); i++) {
+		gpiod = gpiochip_request_own_desc(chip, i, pin_name[i], 0);
+		if (IS_ERR(gpiod)) {
+			pr_err("%s: failed to get GPIO pin %d (%ld)\n",
+			       __func__, i, PTR_ERR(gpiod));
+			return;
+		}
+		/* Store irq_data location for IRQ handler use */
+		irq_data[i] = irq_get_irq_data(gpiod_to_irq(gpiod));
+
+		/*
+		 * FIQ handler takes full control over serio data and clk GPIO
+		 * pins.  Initiaize them and keep requested so nobody can
+		 * interfere.  Fail if any of those two couldn't be requested.
+		 */
+		switch (i) {
+		case AMS_DELTA_GPIO_PIN_KEYBRD_DATA:
+			data = gpiod;
+			gpiod_direction_input(data);
+			break;
+		case AMS_DELTA_GPIO_PIN_KEYBRD_CLK:
+			clk = gpiod;
+			gpiod_direction_input(clk);
+			break;
+		default:
+			gpiochip_free_own_desc(gpiod);
+			break;
+		}
+	}
+	if (!data || !clk)
+		goto out_gpio;
 
 	fiqhandler_start = &qwerty_fiqin_start;
 	fiqhandler_length = &qwerty_fiqin_end - &qwerty_fiqin_start;
@@ -97,7 +142,7 @@ void __init ams_delta_init_fiq(void)
 	if (retval) {
 		pr_err("ams_delta_init_fiq(): couldn't claim FIQ, ret=%d\n",
 				retval);
-		return;
+		goto out_gpio;
 	}
 
 	retval = request_irq(INT_DEFERRED_FIQ, deferred_fiq,
@@ -105,7 +150,7 @@ void __init ams_delta_init_fiq(void)
 	if (retval < 0) {
 		pr_err("Failed to get deferred_fiq IRQ, ret=%d\n", retval);
 		release_fiq(&fh);
-		return;
+		goto out_gpio;
 	}
 	/*
 	 * Since no set_type() method is provided by OMAP irq chip,
@@ -155,4 +200,29 @@ void __init ams_delta_init_fiq(void)
 	offset = IRQ_ILR0_REG_OFFSET + (INT_GPIO_BANK1 - NR_IRQS_LEGACY) * 0x4;
 	val = omap_readl(OMAP_IH1_BASE + offset) | 1;
 	omap_writel(val, OMAP_IH1_BASE + offset);
+
+	/* Initialize serio device IRQ resource and platform_data */
+	serio->resource[0].start = gpiod_to_irq(clk);
+	serio->resource[0].end = serio->resource[0].start;
+	serio->dev.platform_data = fiq_buffer;
+
+	/*
+	 * Since FIQ handler performs handling of GPIO registers for
+	 * "keybrd_clk" IRQ pin, ams_delta_serio driver used to set
+	 * handle_simple_irq() as active IRQ handler for that pin to avoid
+	 * bad interaction with gpio-omap driver.  This is no longer needed
+	 * as handle_simple_irq() is now the default handler for OMAP GPIO
+	 * edge interrupts.
+	 * This comment replaces the obsolete code which has been removed
+	 * from the ams_delta_serio driver and stands here only as a reminder
+	 * of that dependency on gpio-omap driver behavior.
+	 */
+
+	return;
+
+out_gpio:
+	if (data)
+		gpiochip_free_own_desc(data);
+	if (clk)
+		gpiochip_free_own_desc(clk);
 }

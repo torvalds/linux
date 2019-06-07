@@ -273,65 +273,10 @@
 #define MUSB_RXHUBADDR		0x06
 #define MUSB_RXHUBPORT		0x07
 
-static inline void musb_write_txfifosz(void __iomem *mbase, u8 c_size)
-{
-	musb_writeb(mbase, MUSB_TXFIFOSZ, c_size);
-}
-
-static inline void musb_write_txfifoadd(void __iomem *mbase, u16 c_off)
-{
-	musb_writew(mbase, MUSB_TXFIFOADD, c_off);
-}
-
-static inline void musb_write_rxfifosz(void __iomem *mbase, u8 c_size)
-{
-	musb_writeb(mbase, MUSB_RXFIFOSZ, c_size);
-}
-
-static inline void  musb_write_rxfifoadd(void __iomem *mbase, u16 c_off)
-{
-	musb_writew(mbase, MUSB_RXFIFOADD, c_off);
-}
-
-static inline void musb_write_ulpi_buscontrol(void __iomem *mbase, u8 val)
-{
-	musb_writeb(mbase, MUSB_ULPI_BUSCONTROL, val);
-}
-
-static inline u8 musb_read_txfifosz(void __iomem *mbase)
-{
-	return musb_readb(mbase, MUSB_TXFIFOSZ);
-}
-
-static inline u16 musb_read_txfifoadd(void __iomem *mbase)
-{
-	return musb_readw(mbase, MUSB_TXFIFOADD);
-}
-
-static inline u8 musb_read_rxfifosz(void __iomem *mbase)
-{
-	return musb_readb(mbase, MUSB_RXFIFOSZ);
-}
-
-static inline u16  musb_read_rxfifoadd(void __iomem *mbase)
-{
-	return musb_readw(mbase, MUSB_RXFIFOADD);
-}
-
-static inline u8 musb_read_ulpi_buscontrol(void __iomem *mbase)
-{
-	return musb_readb(mbase, MUSB_ULPI_BUSCONTROL);
-}
-
 static inline u8 musb_read_configdata(void __iomem *mbase)
 {
 	musb_writeb(mbase, MUSB_INDEX, 0);
 	return musb_readb(mbase, 0x10 + MUSB_CONFIGDATA);
-}
-
-static inline u16 musb_read_hwvers(void __iomem *mbase)
-{
-	return musb_readw(mbase, MUSB_HWVERS);
 }
 
 static inline void musb_write_rxfunaddr(struct musb *musb, u8 epnum,

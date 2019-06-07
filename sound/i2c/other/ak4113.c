@@ -1,24 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Routines for control of the AK4113 via I2C/4-wire serial interface
  *  IEC958 (S/PDIF) receiver by Asahi Kasei
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Copyright (c) by Pavel Hofman <pavel.hofman@ivitera.com>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/slab.h>
@@ -492,9 +477,8 @@ static void snd_ak4113_proc_regs_read(struct snd_info_entry *entry,
 
 static void snd_ak4113_proc_init(struct ak4113 *ak4113)
 {
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(ak4113->card, "ak4113", &entry))
-		snd_info_set_text_ops(entry, ak4113, snd_ak4113_proc_regs_read);
+	snd_card_ro_proc_new(ak4113->card, "ak4113", ak4113,
+			     snd_ak4113_proc_regs_read);
 }
 
 int snd_ak4113_build(struct ak4113 *ak4113,

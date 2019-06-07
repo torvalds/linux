@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2006-2010 Freescale Semiconductor, Inc. All rights reserved.
  *
@@ -8,11 +9,6 @@
  * Description:
  * General Purpose functions for the global management of the
  * QUICC Engine (QE).
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -588,11 +584,7 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 	}
 
 	/* Find the 'firmware' child node */
-	for_each_child_of_node(qe, fw) {
-		if (strcmp(fw->name, "firmware") == 0)
-			break;
-	}
-
+	fw = of_get_child_by_name(qe, "firmware");
 	of_node_put(qe);
 
 	/* Did we find the 'firmware' node? */

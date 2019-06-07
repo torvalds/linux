@@ -289,9 +289,9 @@ bool xt_find_jump_offset(const unsigned int *offsets,
 
 int xt_check_proc_name(const char *name, unsigned int size);
 
-int xt_check_match(struct xt_mtchk_param *, unsigned int size, u_int8_t proto,
+int xt_check_match(struct xt_mtchk_param *, unsigned int size, u16 proto,
 		   bool inv_proto);
-int xt_check_target(struct xt_tgchk_param *, unsigned int size, u_int8_t proto,
+int xt_check_target(struct xt_tgchk_param *, unsigned int size, u16 proto,
 		    bool inv_proto);
 
 int xt_match_to_user(const struct xt_entry_match *m,
@@ -317,7 +317,6 @@ struct xt_table_info *xt_replace_table(struct xt_table *table,
 				       int *error);
 
 struct xt_match *xt_find_match(u8 af, const char *name, u8 revision);
-struct xt_target *xt_find_target(u8 af, const char *name, u8 revision);
 struct xt_match *xt_request_find_match(u8 af, const char *name, u8 revision);
 struct xt_target *xt_request_find_target(u8 af, const char *name, u8 revision);
 int xt_find_revision(u8 af, const char *name, u8 revision, int target,

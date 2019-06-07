@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      broadcast connection tracking helper
  *
  *      (c) 2005 Patrick McHardy <kaber@trash.net>
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -32,7 +28,7 @@ int nf_conntrack_broadcast_help(struct sk_buff *skb,
 	__be32 mask = 0;
 
 	/* we're only interested in locally generated packets */
-	if (skb->sk == NULL)
+	if (skb->sk == NULL || !net_eq(nf_ct_net(ct), sock_net(skb->sk)))
 		goto out;
 	if (rt == NULL || !(rt->rt_flags & RTCF_BROADCAST))
 		goto out;

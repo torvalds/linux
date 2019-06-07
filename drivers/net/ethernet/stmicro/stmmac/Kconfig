@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config STMMAC_ETH
 	tristate "STMicroelectronics 10/100/1000/EQOS Ethernet driver"
 	depends on HAS_IOMEM && HAS_DMA
@@ -75,6 +76,14 @@ config DWMAC_LPC18XX
 	---help---
 	  Support for NXP LPC18xx/43xx DWMAC Ethernet.
 
+config DWMAC_MEDIATEK
+	tristate "MediaTek MT27xx GMAC support"
+	depends on OF && (ARCH_MEDIATEK || COMPILE_TEST)
+	help
+	  Support for MediaTek GMAC Ethernet controller.
+
+	  This selects the MT2712 SoC support for the stmmac driver.
+
 config DWMAC_MESON
 	tristate "Amlogic Meson dwmac support"
 	default ARCH_MESON
@@ -97,6 +106,16 @@ config DWMAC_OXNAS
 	  This selects the Oxford Semiconductor OXNASSoC glue layer support for
 	  the stmmac device driver. This driver is used for OX820.
 
+config DWMAC_QCOM_ETHQOS
+	tristate "Qualcomm ETHQOS support"
+	default ARCH_QCOM
+	depends on OF && (ARCH_QCOM || COMPILE_TEST)
+	help
+	  Support for the Qualcomm ETHQOS core.
+
+	  This selects the Qualcomm ETHQOS glue layer support for the
+	  stmmac device driver.
+
 config DWMAC_ROCKCHIP
 	tristate "Rockchip dwmac support"
 	default ARCH_ROCKCHIP
@@ -110,8 +129,8 @@ config DWMAC_ROCKCHIP
 
 config DWMAC_SOCFPGA
 	tristate "SOCFPGA dwmac support"
-	default ARCH_SOCFPGA
-	depends on OF && (ARCH_SOCFPGA || COMPILE_TEST)
+	default (ARCH_SOCFPGA || ARCH_STRATIX10)
+	depends on OF && (ARCH_SOCFPGA || ARCH_STRATIX10 || COMPILE_TEST)
 	select MFD_SYSCON
 	help
 	  Support for ethernet controller on Altera SOCFPGA

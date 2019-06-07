@@ -1,20 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2015-2017 Google, Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __LINUX_USB_PD_H
 #define __LINUX_USB_PD_H
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/usb/typec.h>
 
@@ -103,8 +95,8 @@ enum pd_ext_msg_type {
 	 (((cnt) & PD_HEADER_CNT_MASK) << PD_HEADER_CNT_SHIFT) |	\
 	 ((ext_hdr) ? PD_HEADER_EXT_HDR : 0))
 
-#define PD_HEADER_LE(type, pwr, data, id, cnt) \
-	cpu_to_le16(PD_HEADER((type), (pwr), (data), PD_REV20, (id), (cnt), (0)))
+#define PD_HEADER_LE(type, pwr, data, rev, id, cnt) \
+	cpu_to_le16(PD_HEADER((type), (pwr), (data), (rev), (id), (cnt), (0)))
 
 static inline unsigned int pd_header_cnt(u16 header)
 {

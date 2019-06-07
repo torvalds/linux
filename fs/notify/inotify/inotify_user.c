@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * fs/inotify_user.c - inotify support for userspace
  *
@@ -10,16 +11,6 @@
  *
  * Copyright (C) 2009 Eric Paris <Red Hat Inc>
  * inotify was largely rewriten to make use of the fsnotify infrastructure
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/file.h>
@@ -38,6 +29,7 @@
 #include <linux/uaccess.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
+#include <linux/memcontrol.h>
 
 #include "inotify.h"
 #include "../fdinfo.h"
@@ -188,7 +180,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	 */
 	pad_name_len = round_event_name_len(fsn_event);
 	inotify_event.len = pad_name_len;
-	inotify_event.mask = inotify_mask_to_arg(fsn_event->mask);
+	inotify_event.mask = inotify_mask_to_arg(event->mask);
 	inotify_event.wd = event->wd;
 	inotify_event.cookie = event->sync_cookie;
 
@@ -485,10 +477,14 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 				    struct fsnotify_group *group)
 {
 	struct inotify_inode_mark *i_mark;
+	struct fsnotify_iter_info iter_info = { };
+
+	fsnotify_iter_set_report_type_mark(&iter_info, FSNOTIFY_OBJ_TYPE_INODE,
+					   fsn_mark);
 
 	/* Queue ignore event for the watch */
-	inotify_handle_event(group, NULL, fsn_mark, NULL, FS_IN_IGNORED,
-			     NULL, FSNOTIFY_EVENT_NONE, NULL, 0, NULL);
+	inotify_handle_event(group, NULL, FS_IN_IGNORED, NULL,
+			     FSNOTIFY_EVENT_NONE, NULL, 0, &iter_info);
 
 	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
 	/* remove this mark from the idr */
@@ -506,6 +502,7 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 	__u32 old_mask, new_mask;
 	__u32 mask;
 	int add = (arg & IN_MASK_ADD);
+	int create = (arg & IN_MASK_CREATE);
 	int ret;
 
 	mask = inotify_arg_to_mask(arg);
@@ -513,6 +510,10 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 	fsn_mark = fsnotify_find_mark(&inode->i_fsnotify_marks, group);
 	if (!fsn_mark)
 		return -ENOENT;
+	else if (create) {
+		ret = -EEXIST;
+		goto out;
+	}
 
 	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
 
@@ -540,6 +541,7 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 	/* return the wd */
 	ret = i_mark->wd;
 
+out:
 	/* match the get from fsnotify_find_mark() */
 	fsnotify_put_mark(fsn_mark);
 
@@ -578,7 +580,7 @@ static int inotify_new_watch(struct fsnotify_group *group,
 	}
 
 	/* we are on the idr, now get on the inode */
-	ret = fsnotify_add_mark_locked(&tmp_i_mark->fsn_mark, inode, NULL, 0);
+	ret = fsnotify_add_inode_mark_locked(&tmp_i_mark->fsn_mark, inode, 0);
 	if (ret) {
 		/* we failed to get on the inode, get off the idr */
 		inotify_remove_from_idr(group, tmp_i_mark);
@@ -626,12 +628,14 @@ static struct fsnotify_group *inotify_new_group(unsigned int max_events)
 		return ERR_PTR(-ENOMEM);
 	}
 	group->overflow_event = &oevent->fse;
-	fsnotify_init_event(group->overflow_event, NULL, FS_Q_OVERFLOW);
+	fsnotify_init_event(group->overflow_event, NULL);
+	oevent->mask = FS_Q_OVERFLOW;
 	oevent->wd = -1;
 	oevent->sync_cookie = 0;
 	oevent->name_len = 0;
 
 	group->max_events = max_events;
+	group->memcg = get_mem_cgroup_from_mm(current->mm);
 
 	spin_lock_init(&group->inotify_data.idr_lock);
 	idr_init(&group->inotify_data.idr);
@@ -713,6 +717,12 @@ SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,
 	f = fdget(fd);
 	if (unlikely(!f.file))
 		return -EBADF;
+
+	/* IN_MASK_ADD and IN_MASK_CREATE don't make sense together */
+	if (unlikely((mask & IN_MASK_ADD) && (mask & IN_MASK_CREATE))) {
+		ret = -EINVAL;
+		goto fput_and_out;
+	}
 
 	/* verify that this is indeed an inotify instance */
 	if (unlikely(f.file->f_op != &inotify_fops)) {
@@ -802,9 +812,10 @@ static int __init inotify_user_setup(void)
 	BUILD_BUG_ON(IN_ISDIR != FS_ISDIR);
 	BUILD_BUG_ON(IN_ONESHOT != FS_IN_ONESHOT);
 
-	BUG_ON(hweight32(ALL_INOTIFY_BITS) != 21);
+	BUILD_BUG_ON(HWEIGHT32(ALL_INOTIFY_BITS) != 22);
 
-	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC);
+	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark,
+					       SLAB_PANIC|SLAB_ACCOUNT);
 
 	inotify_max_queued_events = 16384;
 	init_user_ns.ucount_max[UCOUNT_INOTIFY_INSTANCES] = 128;

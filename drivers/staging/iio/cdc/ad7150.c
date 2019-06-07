@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * AD7150 capacitive sensor driver supporting AD7150/1/6
  *
  * Copyright 2010-2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/interrupt.h>
@@ -102,18 +101,19 @@ static int ad7150_read_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
+	int channel = chan->channel;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		ret = i2c_smbus_read_word_data(chip->client,
-					ad7150_addresses[chan->channel][0]);
+					       ad7150_addresses[channel][0]);
 		if (ret < 0)
 			return ret;
 		*val = swab16(ret);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_AVERAGE_RAW:
 		ret = i2c_smbus_read_word_data(chip->client,
-					ad7150_addresses[chan->channel][1]);
+					       ad7150_addresses[channel][1]);
 		if (ret < 0)
 			return ret;
 		*val = swab16(ret);
@@ -182,8 +182,8 @@ static int ad7150_write_event_params(struct iio_dev *indio_dev,
 	case IIO_EV_TYPE_THRESH:
 		value = chip->threshold[rising][chan];
 		return i2c_smbus_write_word_data(chip->client,
-						ad7150_addresses[chan][3],
-						swab16(value));
+						 ad7150_addresses[chan][3],
+						 swab16(value));
 	case IIO_EV_TYPE_MAG_ADAPTIVE:
 		sens = chip->mag_sensitivity[rising][chan];
 		timeout = chip->mag_timeout[rising][chan];

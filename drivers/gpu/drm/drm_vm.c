@@ -100,7 +100,7 @@ static pgprot_t drm_dma_prot(uint32_t map_type, struct vm_area_struct *vma)
  * map, get the page, increment the use count and return it.
  */
 #if IS_ENABLED(CONFIG_AGP)
-static int drm_vm_fault(struct vm_fault *vmf)
+static vm_fault_t drm_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_file *priv = vma->vm_file->private_data;
@@ -173,7 +173,7 @@ vm_fault_error:
 	return VM_FAULT_SIGBUS;	/* Disallow mremap */
 }
 #else
-static int drm_vm_fault(struct vm_fault *vmf)
+static vm_fault_t drm_vm_fault(struct vm_fault *vmf)
 {
 	return VM_FAULT_SIGBUS;
 }
@@ -189,7 +189,7 @@ static int drm_vm_fault(struct vm_fault *vmf)
  * Get the mapping, find the real physical page to map, get the page, and
  * return it.
  */
-static int drm_vm_shm_fault(struct vm_fault *vmf)
+static vm_fault_t drm_vm_shm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_local_map *map = vma->vm_private_data;
@@ -291,7 +291,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
  *
  * Determine the page number from the page offset and get it from drm_device_dma::pagelist.
  */
-static int drm_vm_dma_fault(struct vm_fault *vmf)
+static vm_fault_t drm_vm_dma_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_file *priv = vma->vm_file->private_data;
@@ -326,7 +326,7 @@ static int drm_vm_dma_fault(struct vm_fault *vmf)
  *
  * Determine the map offset from the page offset and get it from drm_sg_mem::pagelist.
  */
-static int drm_vm_sg_fault(struct vm_fault *vmf)
+static vm_fault_t drm_vm_sg_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_local_map *map = vma->vm_private_data;
@@ -584,8 +584,8 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 			vma->vm_ops = &drm_vm_ops;
 			break;
 		}
-		/* fall through to _DRM_FRAME_BUFFER... */
 #endif
+		/* fall through - to _DRM_FRAME_BUFFER... */
 	case _DRM_FRAME_BUFFER:
 	case _DRM_REGISTERS:
 		offset = drm_core_get_reg_ofs(dev);
@@ -610,7 +610,7 @@ static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 		    vma->vm_end - vma->vm_start, vma->vm_page_prot))
 			return -EAGAIN;
 		vma->vm_page_prot = drm_dma_prot(map->type, vma);
-	/* fall through to _DRM_SHM */
+		/* fall through - to _DRM_SHM */
 	case _DRM_SHM:
 		vma->vm_ops = &drm_vm_shm_ops;
 		vma->vm_private_data = (void *)map;
@@ -646,6 +646,7 @@ int drm_legacy_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 EXPORT_SYMBOL(drm_legacy_mmap);
 
+#if IS_ENABLED(CONFIG_DRM_LEGACY)
 void drm_legacy_vma_flush(struct drm_device *dev)
 {
 	struct drm_vma_entry *vma, *vma_temp;
@@ -656,3 +657,4 @@ void drm_legacy_vma_flush(struct drm_device *dev)
 		kfree(vma);
 	}
 }
+#endif

@@ -730,9 +730,9 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	/* normal [4.15.1.2] or error [4.15.1.1] completion */
 	if (likely ((status & (STS_INT|STS_ERR)) != 0)) {
 		if (likely ((status & STS_ERR) == 0))
-			COUNT (ehci->stats.normal);
+			INCR(ehci->stats.normal);
 		else
-			COUNT (ehci->stats.error);
+			INCR(ehci->stats.error);
 		bh = 1;
 	}
 
@@ -756,7 +756,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		if (cmd & CMD_IAAD)
 			ehci_dbg(ehci, "IAA with IAAD still set?\n");
 		if (ehci->iaa_in_progress)
-			COUNT(ehci->stats.iaa);
+			INCR(ehci->stats.iaa);
 		end_iaa_cycle(ehci);
 	}
 
@@ -1226,6 +1226,7 @@ static const struct hc_driver ehci_hc_driver = {
 	.bus_resume =		ehci_bus_resume,
 	.relinquish_port =	ehci_relinquish_port,
 	.port_handed_over =	ehci_port_handed_over,
+	.get_resuming_ports =	ehci_get_resuming_ports,
 
 	/*
 	 * device support
@@ -1285,11 +1286,6 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_grlib_driver
 #endif
 
-#ifdef CONFIG_USB_EHCI_MV
-#include "ehci-mv.c"
-#define        PLATFORM_DRIVER         ehci_mv_driver
-#endif
-
 static int __init ehci_hcd_init(void)
 {
 	int retval = 0;
@@ -1311,10 +1307,6 @@ static int __init ehci_hcd_init(void)
 
 #ifdef CONFIG_DYNAMIC_DEBUG
 	ehci_debug_root = debugfs_create_dir("ehci", usb_debug_root);
-	if (!ehci_debug_root) {
-		retval = -ENOENT;
-		goto err_debug;
-	}
 #endif
 
 #ifdef PLATFORM_DRIVER
@@ -1361,7 +1353,6 @@ clean0:
 #ifdef CONFIG_DYNAMIC_DEBUG
 	debugfs_remove(ehci_debug_root);
 	ehci_debug_root = NULL;
-err_debug:
 #endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	return retval;

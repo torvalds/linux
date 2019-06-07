@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_MESON
 	tristate "DRM Support for Amlogic Meson Display Controller"
 	depends on DRM && OF && (ARM || ARM64)
@@ -7,6 +8,7 @@ config DRM_MESON
 	select DRM_GEM_CMA_HELPER
 	select VIDEOMODE_HELPERS
 	select REGMAP_MMIO
+	select MESON_CANVAS
 
 config DRM_MESON_DW_HDMI
 	tristate "HDMI Synopsys Controller support for Amlogic Meson Display"

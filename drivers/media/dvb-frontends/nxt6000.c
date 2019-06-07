@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	NxtWave Communications - NXT6000 demodulator driver
 
     Copyright (C) 2002-2003 Florian Schirmer <jolt@tuxbox.org>
     Copyright (C) 2003 Paul Andreassen <paul@andreassen.com.au>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -596,9 +584,9 @@ static const struct dvb_frontend_ops nxt6000_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "NxtWave NXT6000 DVB-T",
-		.frequency_min = 0,
-		.frequency_max = 863250000,
-		.frequency_stepsize = 62500,
+		.frequency_min_hz = 0,
+		.frequency_max_hz = 863250 * kHz,
+		.frequency_stepsize_hz = 62500,
 		/*.frequency_tolerance = *//* FIXME: 12% of SR */
 		.symbol_rate_min = 0,	/* FIXME */
 		.symbol_rate_max = 9360000,	/* FIXME */

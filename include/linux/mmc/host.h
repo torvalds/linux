@@ -22,6 +22,7 @@
 struct mmc_ios {
 	unsigned int	clock;			/* clock rate */
 	unsigned short	vdd;
+	unsigned int	power_delay_ms;		/* waiting for stable power */
 
 /* vdd stores the bit number of the selected voltage range from below. */
 
@@ -145,6 +146,16 @@ struct mmc_host_ops {
 
 	/* Prepare HS400 target operating frequency depending host driver */
 	int	(*prepare_hs400_tuning)(struct mmc_host *host, struct mmc_ios *ios);
+
+	/* Prepare switch to DDR during the HS400 init sequence */
+	int	(*hs400_prepare_ddr)(struct mmc_host *host);
+
+	/* Prepare for switching from HS400 to HS200 */
+	void	(*hs400_downgrade)(struct mmc_host *host);
+
+	/* Complete selection of HS400 */
+	void	(*hs400_complete)(struct mmc_host *host);
+
 	/* Prepare enhanced strobe depending host driver */
 	void	(*hs400_enhanced_strobe)(struct mmc_host *host,
 					 struct mmc_ios *ios);
@@ -320,7 +331,10 @@ struct mmc_host {
 #define MMC_CAP_UHS_SDR50	(1 << 18)	/* Host supports UHS SDR50 mode */
 #define MMC_CAP_UHS_SDR104	(1 << 19)	/* Host supports UHS SDR104 mode */
 #define MMC_CAP_UHS_DDR50	(1 << 20)	/* Host supports UHS DDR50 mode */
-/* (1 << 21) is free for reuse */
+#define MMC_CAP_UHS		(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 | \
+				 MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 | \
+				 MMC_CAP_UHS_DDR50)
+#define MMC_CAP_SYNC_RUNTIME_PM	(1 << 21)	/* Synced runtime PM suspends. */
 #define MMC_CAP_DRIVER_TYPE_A	(1 << 23)	/* Host supports Driver Type A */
 #define MMC_CAP_DRIVER_TYPE_C	(1 << 24)	/* Host supports Driver Type C */
 #define MMC_CAP_DRIVER_TYPE_D	(1 << 25)	/* Host supports Driver Type D */
@@ -345,6 +359,7 @@ struct mmc_host {
 #define MMC_CAP2_HS400_1_2V	(1 << 16)	/* Can support HS400 1.2V */
 #define MMC_CAP2_HS400		(MMC_CAP2_HS400_1_8V | \
 				 MMC_CAP2_HS400_1_2V)
+#define MMC_CAP2_HSX00_1_8V	(MMC_CAP2_HS200_1_8V_SDR | MMC_CAP2_HS400_1_8V)
 #define MMC_CAP2_HSX00_1_2V	(MMC_CAP2_HS200_1_2V_SDR | MMC_CAP2_HS400_1_2V)
 #define MMC_CAP2_SDIO_IRQ_NOTHREAD (1 << 17)
 #define MMC_CAP2_NO_WRITE_PROTECT (1 << 18)	/* No physical write protect pin, assume that card is always read-write */
@@ -354,6 +369,7 @@ struct mmc_host {
 #define MMC_CAP2_NO_MMC		(1 << 22)	/* Do not send (e)MMC commands during initialization */
 #define MMC_CAP2_CQE		(1 << 23)	/* Has eMMC command queue engine */
 #define MMC_CAP2_CQE_DCMD	(1 << 24)	/* CQE can issue a direct command */
+#define MMC_CAP2_AVOID_3_3V	(1 << 25)	/* Host must negotiate down from 3.3V */
 
 	int			fixed_drv_type;	/* fixed driver type for non-removable media */
 
@@ -462,14 +478,16 @@ static inline void *mmc_priv(struct mmc_host *host)
 	return (void *)host->private;
 }
 
+static inline struct mmc_host *mmc_from_priv(void *priv)
+{
+	return container_of(priv, struct mmc_host, private);
+}
+
 #define mmc_host_is_spi(host)	((host)->caps & MMC_CAP_SPI)
 
 #define mmc_dev(x)	((x)->parent)
 #define mmc_classdev(x)	(&(x)->class_dev)
 #define mmc_hostname(x)	(dev_name(&(x)->class_dev))
-
-int mmc_power_save_host(struct mmc_host *host);
-int mmc_power_restore_host(struct mmc_host *host);
 
 void mmc_detect_change(struct mmc_host *, unsigned long delay);
 void mmc_request_done(struct mmc_host *, struct mmc_request *);
@@ -489,17 +507,11 @@ void sdio_run_irqs(struct mmc_host *host);
 void sdio_signal_irq(struct mmc_host *host);
 
 #ifdef CONFIG_REGULATOR
-int mmc_regulator_get_ocrmask(struct regulator *supply);
 int mmc_regulator_set_ocr(struct mmc_host *mmc,
 			struct regulator *supply,
 			unsigned short vdd_bit);
 int mmc_regulator_set_vqmmc(struct mmc_host *mmc, struct mmc_ios *ios);
 #else
-static inline int mmc_regulator_get_ocrmask(struct regulator *supply)
-{
-	return 0;
-}
-
 static inline int mmc_regulator_set_ocr(struct mmc_host *mmc,
 				 struct regulator *supply,
 				 unsigned short vdd_bit)
@@ -514,7 +526,6 @@ static inline int mmc_regulator_set_vqmmc(struct mmc_host *mmc,
 }
 #endif
 
-u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max);
 int mmc_regulator_get_supply(struct mmc_host *mmc);
 
 static inline int mmc_card_is_removable(struct mmc_host *host)
@@ -557,6 +568,11 @@ static inline void mmc_retune_needed(struct mmc_host *host)
 static inline bool mmc_can_retune(struct mmc_host *host)
 {
 	return host->can_retune == 1;
+}
+
+static inline bool mmc_doing_retune(struct mmc_host *host)
+{
+	return host->doing_retune == 1;
 }
 
 static inline enum dma_data_direction mmc_get_dma_dir(struct mmc_data *data)

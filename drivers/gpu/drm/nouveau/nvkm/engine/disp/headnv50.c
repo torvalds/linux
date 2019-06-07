@@ -90,3 +90,10 @@ nv50_head_new(struct nvkm_disp *disp, int id)
 {
 	return nvkm_head_new_(&nv50_head, disp, id);
 }
+
+int
+nv50_head_cnt(struct nvkm_disp *disp, unsigned long *pmask)
+{
+	*pmask = 3;
+	return 2;
+}

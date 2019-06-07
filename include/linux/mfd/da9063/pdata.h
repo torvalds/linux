@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Platform configuration options for DA9063
  *
@@ -5,12 +6,6 @@
  *
  * Author: Michal Hajduk, Dialog Semiconductor
  * Author: Krystian Garbaciak, Dialog Semiconductor
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #ifndef __MFD_DA9063_PDATA_H__
@@ -21,7 +16,7 @@
 /*
  * Regulator configuration
  */
-/* DA9063 regulator IDs */
+/* DA9063 and DA9063L regulator IDs */
 enum {
 	/* BUCKs */
 	DA9063_ID_BCORE1,
@@ -37,18 +32,20 @@ enum {
 	DA9063_ID_BMEM_BIO_MERGED,
 	/* When two BUCKs are merged, they cannot be reused separately */
 
-	/* LDOs */
-	DA9063_ID_LDO1,
-	DA9063_ID_LDO2,
+	/* LDOs on both DA9063 and DA9063L */
 	DA9063_ID_LDO3,
-	DA9063_ID_LDO4,
-	DA9063_ID_LDO5,
-	DA9063_ID_LDO6,
 	DA9063_ID_LDO7,
 	DA9063_ID_LDO8,
 	DA9063_ID_LDO9,
-	DA9063_ID_LDO10,
 	DA9063_ID_LDO11,
+
+	/* DA9063-only LDOs */
+	DA9063_ID_LDO1,
+	DA9063_ID_LDO2,
+	DA9063_ID_LDO4,
+	DA9063_ID_LDO5,
+	DA9063_ID_LDO6,
+	DA9063_ID_LDO10,
 };
 
 /* Regulators platform data */

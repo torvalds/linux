@@ -10,6 +10,9 @@
 #include <sys/mman.h>
 #include <inttypes.h>
 #include <asm/bug.h>
+#ifdef HAVE_LIBNUMA_SUPPORT
+#include <numaif.h>
+#endif
 #include "debug.h"
 #include "event.h"
 #include "mmap.h"
@@ -153,8 +156,163 @@ void __weak auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp __mayb
 {
 }
 
+#ifdef HAVE_AIO_SUPPORT
+static int perf_mmap__aio_enabled(struct perf_mmap *map)
+{
+	return map->aio.nr_cblocks > 0;
+}
+
+#ifdef HAVE_LIBNUMA_SUPPORT
+static int perf_mmap__aio_alloc(struct perf_mmap *map, int idx)
+{
+	map->aio.data[idx] = mmap(NULL, perf_mmap__mmap_len(map), PROT_READ|PROT_WRITE,
+				  MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+	if (map->aio.data[idx] == MAP_FAILED) {
+		map->aio.data[idx] = NULL;
+		return -1;
+	}
+
+	return 0;
+}
+
+static void perf_mmap__aio_free(struct perf_mmap *map, int idx)
+{
+	if (map->aio.data[idx]) {
+		munmap(map->aio.data[idx], perf_mmap__mmap_len(map));
+		map->aio.data[idx] = NULL;
+	}
+}
+
+static int perf_mmap__aio_bind(struct perf_mmap *map, int idx, int cpu, int affinity)
+{
+	void *data;
+	size_t mmap_len;
+	unsigned long node_mask;
+
+	if (affinity != PERF_AFFINITY_SYS && cpu__max_node() > 1) {
+		data = map->aio.data[idx];
+		mmap_len = perf_mmap__mmap_len(map);
+		node_mask = 1UL << cpu__get_node(cpu);
+		if (mbind(data, mmap_len, MPOL_BIND, &node_mask, 1, 0)) {
+			pr_err("Failed to bind [%p-%p] AIO buffer to node %d: error %m\n",
+				data, data + mmap_len, cpu__get_node(cpu));
+			return -1;
+		}
+	}
+
+	return 0;
+}
+#else /* !HAVE_LIBNUMA_SUPPORT */
+static int perf_mmap__aio_alloc(struct perf_mmap *map, int idx)
+{
+	map->aio.data[idx] = malloc(perf_mmap__mmap_len(map));
+	if (map->aio.data[idx] == NULL)
+		return -1;
+
+	return 0;
+}
+
+static void perf_mmap__aio_free(struct perf_mmap *map, int idx)
+{
+	zfree(&(map->aio.data[idx]));
+}
+
+static int perf_mmap__aio_bind(struct perf_mmap *map __maybe_unused, int idx __maybe_unused,
+		int cpu __maybe_unused, int affinity __maybe_unused)
+{
+	return 0;
+}
+#endif
+
+static int perf_mmap__aio_mmap(struct perf_mmap *map, struct mmap_params *mp)
+{
+	int delta_max, i, prio, ret;
+
+	map->aio.nr_cblocks = mp->nr_cblocks;
+	if (map->aio.nr_cblocks) {
+		map->aio.aiocb = calloc(map->aio.nr_cblocks, sizeof(struct aiocb *));
+		if (!map->aio.aiocb) {
+			pr_debug2("failed to allocate aiocb for data buffer, error %m\n");
+			return -1;
+		}
+		map->aio.cblocks = calloc(map->aio.nr_cblocks, sizeof(struct aiocb));
+		if (!map->aio.cblocks) {
+			pr_debug2("failed to allocate cblocks for data buffer, error %m\n");
+			return -1;
+		}
+		map->aio.data = calloc(map->aio.nr_cblocks, sizeof(void *));
+		if (!map->aio.data) {
+			pr_debug2("failed to allocate data buffer, error %m\n");
+			return -1;
+		}
+		delta_max = sysconf(_SC_AIO_PRIO_DELTA_MAX);
+		for (i = 0; i < map->aio.nr_cblocks; ++i) {
+			ret = perf_mmap__aio_alloc(map, i);
+			if (ret == -1) {
+				pr_debug2("failed to allocate data buffer area, error %m");
+				return -1;
+			}
+			ret = perf_mmap__aio_bind(map, i, map->cpu, mp->affinity);
+			if (ret == -1)
+				return -1;
+			/*
+			 * Use cblock.aio_fildes value different from -1
+			 * to denote started aio write operation on the
+			 * cblock so it requires explicit record__aio_sync()
+			 * call prior the cblock may be reused again.
+			 */
+			map->aio.cblocks[i].aio_fildes = -1;
+			/*
+			 * Allocate cblocks with priority delta to have
+			 * faster aio write system calls because queued requests
+			 * are kept in separate per-prio queues and adding
+			 * a new request will iterate thru shorter per-prio
+			 * list. Blocks with numbers higher than
+			 *  _SC_AIO_PRIO_DELTA_MAX go with priority 0.
+			 */
+			prio = delta_max - i;
+			map->aio.cblocks[i].aio_reqprio = prio >= 0 ? prio : 0;
+		}
+	}
+
+	return 0;
+}
+
+static void perf_mmap__aio_munmap(struct perf_mmap *map)
+{
+	int i;
+
+	for (i = 0; i < map->aio.nr_cblocks; ++i)
+		perf_mmap__aio_free(map, i);
+	if (map->aio.data)
+		zfree(&map->aio.data);
+	zfree(&map->aio.cblocks);
+	zfree(&map->aio.aiocb);
+}
+#else /* !HAVE_AIO_SUPPORT */
+static int perf_mmap__aio_enabled(struct perf_mmap *map __maybe_unused)
+{
+	return 0;
+}
+
+static int perf_mmap__aio_mmap(struct perf_mmap *map __maybe_unused,
+			       struct mmap_params *mp __maybe_unused)
+{
+	return 0;
+}
+
+static void perf_mmap__aio_munmap(struct perf_mmap *map __maybe_unused)
+{
+}
+#endif
+
 void perf_mmap__munmap(struct perf_mmap *map)
 {
+	perf_mmap__aio_munmap(map);
+	if (map->data != NULL) {
+		munmap(map->data, perf_mmap__mmap_len(map));
+		map->data = NULL;
+	}
 	if (map->base != NULL) {
 		munmap(map->base, perf_mmap__mmap_len(map));
 		map->base = NULL;
@@ -164,7 +322,33 @@ void perf_mmap__munmap(struct perf_mmap *map)
 	auxtrace_mmap__munmap(&map->auxtrace_mmap);
 }
 
-int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd)
+static void build_node_mask(int node, cpu_set_t *mask)
+{
+	int c, cpu, nr_cpus;
+	const struct cpu_map *cpu_map = NULL;
+
+	cpu_map = cpu_map__online();
+	if (!cpu_map)
+		return;
+
+	nr_cpus = cpu_map__nr(cpu_map);
+	for (c = 0; c < nr_cpus; c++) {
+		cpu = cpu_map->map[c]; /* map c index to online cpu index */
+		if (cpu__get_node(cpu) == node)
+			CPU_SET(cpu, mask);
+	}
+}
+
+static void perf_mmap__setup_affinity_mask(struct perf_mmap *map, struct mmap_params *mp)
+{
+	CPU_ZERO(&map->affinity_mask);
+	if (mp->affinity == PERF_AFFINITY_NODE && cpu__max_node() > 1)
+		build_node_mask(cpu__get_node(map->cpu), &map->affinity_mask);
+	else if (mp->affinity == PERF_AFFINITY_CPU)
+		CPU_SET(map->cpu, &map->affinity_mask);
+}
+
+int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd, int cpu)
 {
 	/*
 	 * The last one will be done at perf_mmap__consume(), so that we
@@ -191,12 +375,30 @@ int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd)
 		return -1;
 	}
 	map->fd = fd;
+	map->cpu = cpu;
+
+	perf_mmap__setup_affinity_mask(map, mp);
+
+	map->flush = mp->flush;
+
+	map->comp_level = mp->comp_level;
+
+	if (map->comp_level && !perf_mmap__aio_enabled(map)) {
+		map->data = mmap(NULL, perf_mmap__mmap_len(map), PROT_READ|PROT_WRITE,
+				 MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+		if (map->data == MAP_FAILED) {
+			pr_debug2("failed to mmap data buffer, error %d\n",
+					errno);
+			map->data = NULL;
+			return -1;
+		}
+	}
 
 	if (auxtrace_mmap__mmap(&map->auxtrace_mmap,
 				&mp->auxtrace_mp, map->base, fd))
 		return -1;
 
-	return 0;
+	return perf_mmap__aio_mmap(map, mp);
 }
 
 static int overwrite_rb_find_range(void *buf, int mask, u64 *start, u64 *end)
@@ -244,7 +446,7 @@ static int __perf_mmap__read_init(struct perf_mmap *md)
 	md->start = md->overwrite ? head : old;
 	md->end = md->overwrite ? old : head;
 
-	if (md->start == md->end)
+	if ((md->end - md->start) < md->flush)
 		return -EAGAIN;
 
 	size = md->end - md->start;
@@ -280,7 +482,7 @@ int perf_mmap__read_init(struct perf_mmap *map)
 }
 
 int perf_mmap__push(struct perf_mmap *md, void *to,
-		    int push(void *to, void *buf, size_t size))
+		    int push(struct perf_mmap *map, void *to, void *buf, size_t size))
 {
 	u64 head = perf_mmap__read_head(md);
 	unsigned char *data = md->base + page_size;
@@ -290,7 +492,7 @@ int perf_mmap__push(struct perf_mmap *md, void *to,
 
 	rc = perf_mmap__read_init(md);
 	if (rc < 0)
-		return (rc == -EAGAIN) ? 0 : -1;
+		return (rc == -EAGAIN) ? 1 : -1;
 
 	size = md->end - md->start;
 
@@ -299,7 +501,7 @@ int perf_mmap__push(struct perf_mmap *md, void *to,
 		size = md->mask + 1 - (md->start & md->mask);
 		md->start += size;
 
-		if (push(to, buf, size) < 0) {
+		if (push(md, to, buf, size) < 0) {
 			rc = -1;
 			goto out;
 		}
@@ -309,7 +511,7 @@ int perf_mmap__push(struct perf_mmap *md, void *to,
 	size = md->end - md->start;
 	md->start += size;
 
-	if (push(to, buf, size) < 0) {
+	if (push(md, to, buf, size) < 0) {
 		rc = -1;
 		goto out;
 	}

@@ -34,7 +34,8 @@
 	ethernet@2490000 {
 		status = "okay";
 
-		phy-reset-gpios = <&gpio TEGRA_MAIN_GPIO(M, 4) GPIO_ACTIVE_LOW>;
+		phy-reset-gpios = <&gpio TEGRA186_MAIN_GPIO(M, 4)
+					 GPIO_ACTIVE_LOW>;
 		phy-handle = <&phy>;
 		phy-mode = "rgmii";
 
@@ -46,7 +47,8 @@
 				compatible = "ethernet-phy-ieee802.3-c22";
 				reg = <0x0>;
 				interrupt-parent = <&gpio>;
-				interrupts = <TEGRA_MAIN_GPIO(M, 5) IRQ_TYPE_LEVEL_LOW>;
+				interrupts = <TEGRA186_MAIN_GPIO(M, 5)
+					      IRQ_TYPE_LEVEL_LOW>;
 			};
 		};
 	};
@@ -91,8 +93,8 @@
 
 	/* SDMMC1 (SD/MMC) */
 	sdhci@3400000 {
-		cd-gpios = <&gpio TEGRA_MAIN_GPIO(P, 5) GPIO_ACTIVE_LOW>;
-		wp-gpios = <&gpio TEGRA_MAIN_GPIO(P, 4) GPIO_ACTIVE_HIGH>;
+		cd-gpios = <&gpio TEGRA186_MAIN_GPIO(P, 5) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA186_MAIN_GPIO(P, 4) GPIO_ACTIVE_HIGH>;
 
 		vqmmc-supply = <&vddio_sdmmc1>;
 	};
@@ -121,6 +123,10 @@
 	};
 
 	i2c@c250000 {
+		status = "okay";
+	};
+
+	rtc@c2a0000 {
 		status = "okay";
 	};
 
@@ -262,43 +268,30 @@
 						regulator-name = "AVDD_DSI_CSI_1V2";
 						regulator-min-microvolt = <1200000>;
 						regulator-max-microvolt = <1200000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
 					vdd_1v8: sd2 {
 						regulator-name = "VDD_1V8";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
 					vdd_3v3_sys: sd3 {
 						regulator-name = "VDD_3V3_SYS";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
-					ldo0 {
+					vdd_1v8_pll: ldo0 {
 						regulator-name = "VDD_1V8_AP_PLL";
 						regulator-min-microvolt = <1800000>;
 						regulator-max-microvolt = <1800000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
 					ldo2 {
 						regulator-name = "VDDIO_3V3_AOHV";
 						regulator-min-microvolt = <3300000>;
 						regulator-max-microvolt = <3300000>;
-						/* XXX */
 						regulator-always-on;
 						regulator-boot-on;
 					};
@@ -325,18 +318,12 @@
 						regulator-name = "VDD_HDMI_1V05";
 						regulator-min-microvolt = <1050000>;
 						regulator-max-microvolt = <1050000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 
 					vdd_pex: ldo8 {
 						regulator-name = "VDD_PEX_1V05";
 						regulator-min-microvolt = <1050000>;
 						regulator-max-microvolt = <1050000>;
-						/* XXX */
-						regulator-always-on;
-						regulator-boot-on;
 					};
 				};
 			};
@@ -354,9 +341,20 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		vdd_5v0_sys: regulator@0 {
+		gnd: regulator@0 {
 			compatible = "regulator-fixed";
 			reg = <0>;
+
+			regulator-name = "GND";
+			regulator-min-microvolt = <0>;
+			regulator-max-microvolt = <0>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		vdd_5v0_sys: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
 
 			regulator-name = "VDD_5V0_SYS";
 			regulator-min-microvolt = <5000000>;
@@ -365,17 +363,13 @@
 			regulator-boot-on;
 		};
 
-		vdd_1v8_ap: regulator@1 {
+		vdd_1v8_ap: regulator@2 {
 			compatible = "regulator-fixed";
-			reg = <1>;
+			reg = <2>;
 
 			regulator-name = "VDD_1V8_AP";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
-
-			/* XXX */
-			regulator-always-on;
-			regulator-boot-on;
 
 			gpio = <&pmic 1 GPIO_ACTIVE_HIGH>;
 			enable-active-high;

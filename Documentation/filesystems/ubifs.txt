@@ -91,6 +91,13 @@ chk_data_crc		do not skip checking CRCs on data nodes
 compr=none              override default compressor and set it to "none"
 compr=lzo               override default compressor and set it to "lzo"
 compr=zlib              override default compressor and set it to "zlib"
+auth_key=		specify the key used for authenticating the filesystem.
+			Passing this option makes authentication mandatory.
+			The passed key must be present in the kernel keyring
+			and must be of type 'logon'
+auth_hash_name=		The hash algorithm used for authentication. Used for
+			both hashing and for creating HMACs. Typical values
+			include "sha256" or "sha512"
 
 
 Quick usage instructions

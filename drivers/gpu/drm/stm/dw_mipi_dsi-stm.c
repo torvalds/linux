@@ -215,7 +215,7 @@ static int dw_mipi_dsi_phy_init(void *priv_data)
 }
 
 static int
-dw_mipi_dsi_get_lane_mbps(void *priv_data, struct drm_display_mode *mode,
+dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 			  unsigned long mode_flags, u32 lanes, u32 format,
 			  unsigned int *lane_mbps)
 {
@@ -356,12 +356,40 @@ static int dw_mipi_dsi_stm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused dw_mipi_dsi_stm_suspend(struct device *dev)
+{
+	struct dw_mipi_dsi_stm *dsi = dw_mipi_dsi_stm_plat_data.priv_data;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	clk_disable_unprepare(dsi->pllref_clk);
+
+	return 0;
+}
+
+static int __maybe_unused dw_mipi_dsi_stm_resume(struct device *dev)
+{
+	struct dw_mipi_dsi_stm *dsi = dw_mipi_dsi_stm_plat_data.priv_data;
+
+	DRM_DEBUG_DRIVER("\n");
+
+	clk_prepare_enable(dsi->pllref_clk);
+
+	return 0;
+}
+
+static const struct dev_pm_ops dw_mipi_dsi_stm_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dw_mipi_dsi_stm_suspend,
+				dw_mipi_dsi_stm_resume)
+};
+
 static struct platform_driver dw_mipi_dsi_stm_driver = {
 	.probe		= dw_mipi_dsi_stm_probe,
 	.remove		= dw_mipi_dsi_stm_remove,
 	.driver		= {
 		.of_match_table = dw_mipi_dsi_stm_dt_ids,
 		.name	= "stm32-display-dsi",
+		.pm = &dw_mipi_dsi_stm_pm_ops,
 	},
 };
 

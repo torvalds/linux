@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  This file contains the power_save function for 6xx & 7xxx CPUs
  *  rewritten in assembler
@@ -6,11 +7,6 @@
  *  it will have PLL 1 set to low speed mode (used during NAP/DOZE).
  *  if this is not the case some additional changes will have to
  *  be done to check a runtime var (a bit like powersave-nap)
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/threads.h>
@@ -20,6 +16,7 @@
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/feature-fixups.h>
 
 	.text
 
@@ -135,10 +132,9 @@ BEGIN_FTR_SECTION
 	DSSALL
 	sync
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
-	CURRENT_THREAD_INFO(r9, r1)
-	lwz	r8,TI_LOCAL_FLAGS(r9)	/* set napping bit */
+	lwz	r8,TI_LOCAL_FLAGS(r2)	/* set napping bit */
 	ori	r8,r8,_TLF_NAPPING	/* so when we take an exception */
-	stw	r8,TI_LOCAL_FLAGS(r9)	/* it will return to our caller */
+	stw	r8,TI_LOCAL_FLAGS(r2)	/* it will return to our caller */
 	mfmsr	r7
 	ori	r7,r7,MSR_EE
 	oris	r7,r7,MSR_POW@h
@@ -158,8 +154,7 @@ _GLOBAL(power_save_ppc32_restore)
 	stw	r9,_NIP(r11)		/* make it do a blr */
 
 #ifdef CONFIG_SMP
-	CURRENT_THREAD_INFO(r12, r11)
-	lwz	r11,TI_CPU(r12)		/* get cpu number * 4 */
+	lwz	r11,TASK_CPU(r2)	/* get cpu number * 4 */
 	slwi	r11,r11,2
 #else
 	li	r11,0

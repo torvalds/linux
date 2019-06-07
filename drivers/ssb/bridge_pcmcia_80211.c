@@ -6,6 +6,8 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "ssb_private.h"
+
 #include <linux/ssb/ssb.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -14,8 +16,6 @@
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/cisreg.h>
-
-#include "ssb_private.h"
 
 static const struct pcmcia_device_id ssb_host_pcmcia_tbl[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x2D0, 0x448),
@@ -70,7 +70,7 @@ err_disable:
 err_kfree_ssb:
 	kfree(ssb);
 out_error:
-	ssb_err("Initialization failed (%d, %d)\n", res, err);
+	dev_err(&dev->dev, "Initialization failed (%d, %d)\n", res, err);
 	return err;
 }
 
@@ -113,16 +113,21 @@ static struct pcmcia_driver ssb_host_pcmcia_driver = {
 	.resume		= ssb_host_pcmcia_resume,
 };
 
+static int pcmcia_init_failed;
+
 /*
  * These are not module init/exit functions!
  * The module_pcmcia_driver() helper cannot be used here.
  */
 int ssb_host_pcmcia_init(void)
 {
-	return pcmcia_register_driver(&ssb_host_pcmcia_driver);
+	pcmcia_init_failed = pcmcia_register_driver(&ssb_host_pcmcia_driver);
+
+	return pcmcia_init_failed;
 }
 
 void ssb_host_pcmcia_exit(void)
 {
-	pcmcia_unregister_driver(&ssb_host_pcmcia_driver);
+	if (!pcmcia_init_failed)
+		pcmcia_unregister_driver(&ssb_host_pcmcia_driver);
 }

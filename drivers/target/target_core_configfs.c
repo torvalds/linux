@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  target_core_configfs.c
  *
@@ -9,15 +10,6 @@
  *
  * based on configfs Copyright (C) 2005 Oracle.  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ****************************************************************************/
 
 #include <linux/module.h>
@@ -155,6 +147,8 @@ static ssize_t target_core_item_dbroot_store(struct config_item *item,
 
 	mutex_unlock(&g_tf_lock);
 
+	pr_debug("Target_Core_ConfigFS: db_root set to %s\n", db_root);
+
 	return read_bytes;
 }
 
@@ -170,7 +164,10 @@ static struct target_fabric_configfs *target_core_get_fabric(
 
 	mutex_lock(&g_tf_lock);
 	list_for_each_entry(tf, &g_tf_list, tf_list) {
-		if (!strcmp(tf->tf_ops->name, name)) {
+		const char *cmp_name = tf->tf_ops->fabric_alias;
+		if (!cmp_name)
+			cmp_name = tf->tf_ops->fabric_name;
+		if (!strcmp(cmp_name, name)) {
 			atomic_inc(&tf->tf_access_cnt);
 			mutex_unlock(&g_tf_lock);
 			return tf;
@@ -247,7 +244,7 @@ static struct config_group *target_core_register_fabric(
 		return ERR_PTR(-EINVAL);
 	}
 	pr_debug("Target_Core_ConfigFS: REGISTER -> Located fabric:"
-			" %s\n", tf->tf_ops->name);
+			" %s\n", tf->tf_ops->fabric_name);
 	/*
 	 * On a successful target_core_get_fabric() look, the returned
 	 * struct target_fabric_configfs *tf will contain a usage reference.
@@ -261,8 +258,8 @@ static struct config_group *target_core_register_fabric(
 			&tf->tf_discovery_cit);
 	configfs_add_default_group(&tf->tf_disc_group, &tf->tf_group);
 
-	pr_debug("Target_Core_ConfigFS: REGISTER -> Allocated Fabric:"
-			" %s\n", tf->tf_group.cg_item.ci_name);
+	pr_debug("Target_Core_ConfigFS: REGISTER -> Allocated Fabric: %s\n",
+		 config_item_name(&tf->tf_group.cg_item));
 	return &tf->tf_group;
 }
 
@@ -280,7 +277,7 @@ static void target_core_deregister_fabric(
 		" tf list\n", config_item_name(item));
 
 	pr_debug("Target_Core_ConfigFS: DEREGISTER -> located fabric:"
-			" %s\n", tf->tf_ops->name);
+			" %s\n", tf->tf_ops->fabric_name);
 	atomic_dec(&tf->tf_access_cnt);
 
 	pr_debug("Target_Core_ConfigFS: DEREGISTER -> Releasing ci"
@@ -340,17 +337,20 @@ EXPORT_SYMBOL(target_undepend_item);
 
 static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 {
-	if (!tfo->name) {
-		pr_err("Missing tfo->name\n");
+	if (tfo->fabric_alias) {
+		if (strlen(tfo->fabric_alias) >= TARGET_FABRIC_NAME_SIZE) {
+			pr_err("Passed alias: %s exceeds "
+				"TARGET_FABRIC_NAME_SIZE\n", tfo->fabric_alias);
+			return -EINVAL;
+		}
+	}
+	if (!tfo->fabric_name) {
+		pr_err("Missing tfo->fabric_name\n");
 		return -EINVAL;
 	}
-	if (strlen(tfo->name) >= TARGET_FABRIC_NAME_SIZE) {
-		pr_err("Passed name: %s exceeds TARGET_FABRIC"
-			"_NAME_SIZE\n", tfo->name);
-		return -EINVAL;
-	}
-	if (!tfo->get_fabric_name) {
-		pr_err("Missing tfo->get_fabric_name()\n");
+	if (strlen(tfo->fabric_name) >= TARGET_FABRIC_NAME_SIZE) {
+		pr_err("Passed name: %s exceeds "
+			"TARGET_FABRIC_NAME_SIZE\n", tfo->fabric_name);
 		return -EINVAL;
 	}
 	if (!tfo->tpg_get_wwn) {
@@ -391,10 +391,6 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 	}
 	if (!tfo->write_pending) {
 		pr_err("Missing tfo->write_pending()\n");
-		return -EINVAL;
-	}
-	if (!tfo->write_pending_status) {
-		pr_err("Missing tfo->write_pending_status()\n");
 		return -EINVAL;
 	}
 	if (!tfo->set_default_node_attributes) {
@@ -484,7 +480,7 @@ void target_unregister_template(const struct target_core_fabric_ops *fo)
 
 	mutex_lock(&g_tf_lock);
 	list_for_each_entry(t, &g_tf_list, tf_list) {
-		if (!strcmp(t->tf_ops->name, fo->name)) {
+		if (!strcmp(t->tf_ops->fabric_name, fo->fabric_name)) {
 			BUG_ON(atomic_read(&t->tf_access_cnt));
 			list_del(&t->tf_list);
 			mutex_unlock(&g_tf_lock);
@@ -530,9 +526,9 @@ DEF_CONFIGFS_ATTRIB_SHOW(emulate_tpu);
 DEF_CONFIGFS_ATTRIB_SHOW(emulate_tpws);
 DEF_CONFIGFS_ATTRIB_SHOW(emulate_caw);
 DEF_CONFIGFS_ATTRIB_SHOW(emulate_3pc);
+DEF_CONFIGFS_ATTRIB_SHOW(emulate_pr);
 DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_type);
 DEF_CONFIGFS_ATTRIB_SHOW(hw_pi_prot_type);
-DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_format);
 DEF_CONFIGFS_ATTRIB_SHOW(pi_prot_verify);
 DEF_CONFIGFS_ATTRIB_SHOW(enforce_pr_isids);
 DEF_CONFIGFS_ATTRIB_SHOW(is_nonrot);
@@ -590,6 +586,7 @@ static ssize_t _name##_store(struct config_item *item, const char *page,	\
 DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_fua_write);
 DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_caw);
 DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_3pc);
+DEF_CONFIGFS_ATTRIB_STORE_BOOL(emulate_pr);
 DEF_CONFIGFS_ATTRIB_STORE_BOOL(enforce_pr_isids);
 DEF_CONFIGFS_ATTRIB_STORE_BOOL(is_nonrot);
 
@@ -611,12 +608,17 @@ static void dev_set_t10_wwn_model_alias(struct se_device *dev)
 	const char *configname;
 
 	configname = config_item_name(&dev->dev_group.cg_item);
-	if (strlen(configname) >= 16) {
+	if (strlen(configname) >= INQUIRY_MODEL_LEN) {
 		pr_warn("dev[%p]: Backstore name '%s' is too long for "
-			"INQUIRY_MODEL, truncating to 16 bytes\n", dev,
+			"INQUIRY_MODEL, truncating to 15 characters\n", dev,
 			configname);
 	}
-	snprintf(&dev->t10_wwn.model[0], 16, "%s", configname);
+	/*
+	 * XXX We can't use sizeof(dev->t10_wwn.model) (INQUIRY_MODEL_LEN + 1)
+	 * here without potentially breaking existing setups, so continue to
+	 * truncate one byte shorter than what can be carried in INQUIRY.
+	 */
+	strlcpy(dev->t10_wwn.model, configname, INQUIRY_MODEL_LEN);
 }
 
 static ssize_t emulate_model_alias_store(struct config_item *item,
@@ -638,11 +640,12 @@ static ssize_t emulate_model_alias_store(struct config_item *item,
 	if (ret < 0)
 		return ret;
 
+	BUILD_BUG_ON(sizeof(dev->t10_wwn.model) != INQUIRY_MODEL_LEN + 1);
 	if (flag) {
 		dev_set_t10_wwn_model_alias(dev);
 	} else {
-		strncpy(&dev->t10_wwn.model[0],
-			dev->transport->inquiry_prod, 16);
+		strlcpy(dev->t10_wwn.model, dev->transport->inquiry_prod,
+			sizeof(dev->t10_wwn.model));
 	}
 	da->emulate_model_alias = flag;
 	return count;
@@ -808,7 +811,7 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 		       dev->transport->name);
 		return -ENOSYS;
 	}
-	if (!(dev->dev_flags & DF_CONFIGURED)) {
+	if (!target_dev_configured(dev)) {
 		pr_err("DIF protection requires device to be configured\n");
 		return -ENODEV;
 	}
@@ -837,6 +840,12 @@ static ssize_t pi_prot_type_store(struct config_item *item,
 	return count;
 }
 
+/* always zero, but attr needs to remain RW to avoid userspace breakage */
+static ssize_t pi_prot_format_show(struct config_item *item, char *page)
+{
+	return snprintf(page, PAGE_SIZE, "0\n");
+}
+
 static ssize_t pi_prot_format_store(struct config_item *item,
 		const char *page, size_t count)
 {
@@ -857,7 +866,7 @@ static ssize_t pi_prot_format_store(struct config_item *item,
 		       dev->transport->name);
 		return -ENOSYS;
 	}
-	if (!(dev->dev_flags & DF_CONFIGURED)) {
+	if (!target_dev_configured(dev)) {
 		pr_err("DIF protection format requires device to be configured\n");
 		return -ENODEV;
 	}
@@ -1114,6 +1123,7 @@ CONFIGFS_ATTR(, emulate_tpu);
 CONFIGFS_ATTR(, emulate_tpws);
 CONFIGFS_ATTR(, emulate_caw);
 CONFIGFS_ATTR(, emulate_3pc);
+CONFIGFS_ATTR(, emulate_pr);
 CONFIGFS_ATTR(, pi_prot_type);
 CONFIGFS_ATTR_RO(, hw_pi_prot_type);
 CONFIGFS_ATTR(, pi_prot_format);
@@ -1154,6 +1164,7 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_emulate_tpws,
 	&attr_emulate_caw,
 	&attr_emulate_3pc,
+	&attr_emulate_pr,
 	&attr_pi_prot_type,
 	&attr_hw_pi_prot_type,
 	&attr_pi_prot_format,
@@ -1206,6 +1217,200 @@ TB_CIT_SETUP_DRV(dev_action, NULL, NULL);
 static struct t10_wwn *to_t10_wwn(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct t10_wwn, t10_wwn_group);
+}
+
+static ssize_t target_check_inquiry_data(char *buf)
+{
+	size_t len;
+	int i;
+
+	len = strlen(buf);
+
+	/*
+	 * SPC 4.3.1:
+	 * ASCII data fields shall contain only ASCII printable characters
+	 * (i.e., code values 20h to 7Eh) and may be terminated with one or
+	 * more ASCII null (00h) characters.
+	 */
+	for (i = 0; i < len; i++) {
+		if (buf[i] < 0x20 || buf[i] > 0x7E) {
+			pr_err("Emulated T10 Inquiry Data contains non-ASCII-printable characters\n");
+			return -EINVAL;
+		}
+	}
+
+	return len;
+}
+
+/*
+ * STANDARD and VPD page 0x83 T10 Vendor Identification
+ */
+static ssize_t target_wwn_vendor_id_show(struct config_item *item,
+		char *page)
+{
+	return sprintf(page, "%s\n", &to_t10_wwn(item)->vendor[0]);
+}
+
+static ssize_t target_wwn_vendor_id_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct t10_wwn *t10_wwn = to_t10_wwn(item);
+	struct se_device *dev = t10_wwn->t10_dev;
+	/* +2 to allow for a trailing (stripped) '\n' and null-terminator */
+	unsigned char buf[INQUIRY_VENDOR_LEN + 2];
+	char *stripped = NULL;
+	size_t len;
+	ssize_t ret;
+
+	len = strlcpy(buf, page, sizeof(buf));
+	if (len < sizeof(buf)) {
+		/* Strip any newline added from userspace. */
+		stripped = strstrip(buf);
+		len = strlen(stripped);
+	}
+	if (len > INQUIRY_VENDOR_LEN) {
+		pr_err("Emulated T10 Vendor Identification exceeds"
+			" INQUIRY_VENDOR_LEN: " __stringify(INQUIRY_VENDOR_LEN)
+			"\n");
+		return -EOVERFLOW;
+	}
+
+	ret = target_check_inquiry_data(stripped);
+
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Check to see if any active exports exist.  If they do exist, fail
+	 * here as changing this information on the fly (underneath the
+	 * initiator side OS dependent multipath code) could cause negative
+	 * effects.
+	 */
+	if (dev->export_count) {
+		pr_err("Unable to set T10 Vendor Identification while"
+			" active %d exports exist\n", dev->export_count);
+		return -EINVAL;
+	}
+
+	BUILD_BUG_ON(sizeof(dev->t10_wwn.vendor) != INQUIRY_VENDOR_LEN + 1);
+	strlcpy(dev->t10_wwn.vendor, stripped, sizeof(dev->t10_wwn.vendor));
+
+	pr_debug("Target_Core_ConfigFS: Set emulated T10 Vendor Identification:"
+		 " %s\n", dev->t10_wwn.vendor);
+
+	return count;
+}
+
+static ssize_t target_wwn_product_id_show(struct config_item *item,
+		char *page)
+{
+	return sprintf(page, "%s\n", &to_t10_wwn(item)->model[0]);
+}
+
+static ssize_t target_wwn_product_id_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct t10_wwn *t10_wwn = to_t10_wwn(item);
+	struct se_device *dev = t10_wwn->t10_dev;
+	/* +2 to allow for a trailing (stripped) '\n' and null-terminator */
+	unsigned char buf[INQUIRY_MODEL_LEN + 2];
+	char *stripped = NULL;
+	size_t len;
+	ssize_t ret;
+
+	len = strlcpy(buf, page, sizeof(buf));
+	if (len < sizeof(buf)) {
+		/* Strip any newline added from userspace. */
+		stripped = strstrip(buf);
+		len = strlen(stripped);
+	}
+	if (len > INQUIRY_MODEL_LEN) {
+		pr_err("Emulated T10 Vendor exceeds INQUIRY_MODEL_LEN: "
+			 __stringify(INQUIRY_MODEL_LEN)
+			"\n");
+		return -EOVERFLOW;
+	}
+
+	ret = target_check_inquiry_data(stripped);
+
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Check to see if any active exports exist.  If they do exist, fail
+	 * here as changing this information on the fly (underneath the
+	 * initiator side OS dependent multipath code) could cause negative
+	 * effects.
+	 */
+	if (dev->export_count) {
+		pr_err("Unable to set T10 Model while active %d exports exist\n",
+			dev->export_count);
+		return -EINVAL;
+	}
+
+	BUILD_BUG_ON(sizeof(dev->t10_wwn.model) != INQUIRY_MODEL_LEN + 1);
+	strlcpy(dev->t10_wwn.model, stripped, sizeof(dev->t10_wwn.model));
+
+	pr_debug("Target_Core_ConfigFS: Set emulated T10 Model Identification: %s\n",
+		 dev->t10_wwn.model);
+
+	return count;
+}
+
+static ssize_t target_wwn_revision_show(struct config_item *item,
+		char *page)
+{
+	return sprintf(page, "%s\n", &to_t10_wwn(item)->revision[0]);
+}
+
+static ssize_t target_wwn_revision_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct t10_wwn *t10_wwn = to_t10_wwn(item);
+	struct se_device *dev = t10_wwn->t10_dev;
+	/* +2 to allow for a trailing (stripped) '\n' and null-terminator */
+	unsigned char buf[INQUIRY_REVISION_LEN + 2];
+	char *stripped = NULL;
+	size_t len;
+	ssize_t ret;
+
+	len = strlcpy(buf, page, sizeof(buf));
+	if (len < sizeof(buf)) {
+		/* Strip any newline added from userspace. */
+		stripped = strstrip(buf);
+		len = strlen(stripped);
+	}
+	if (len > INQUIRY_REVISION_LEN) {
+		pr_err("Emulated T10 Revision exceeds INQUIRY_REVISION_LEN: "
+			 __stringify(INQUIRY_REVISION_LEN)
+			"\n");
+		return -EOVERFLOW;
+	}
+
+	ret = target_check_inquiry_data(stripped);
+
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Check to see if any active exports exist.  If they do exist, fail
+	 * here as changing this information on the fly (underneath the
+	 * initiator side OS dependent multipath code) could cause negative
+	 * effects.
+	 */
+	if (dev->export_count) {
+		pr_err("Unable to set T10 Revision while active %d exports exist\n",
+			dev->export_count);
+		return -EINVAL;
+	}
+
+	BUILD_BUG_ON(sizeof(dev->t10_wwn.revision) != INQUIRY_REVISION_LEN + 1);
+	strlcpy(dev->t10_wwn.revision, stripped, sizeof(dev->t10_wwn.revision));
+
+	pr_debug("Target_Core_ConfigFS: Set emulated T10 Revision: %s\n",
+		 dev->t10_wwn.revision);
+
+	return count;
 }
 
 /*
@@ -1354,6 +1559,9 @@ DEF_DEV_WWN_ASSOC_SHOW(vpd_assoc_target_port, 0x10);
 /* VPD page 0x83 Association: SCSI Target Device */
 DEF_DEV_WWN_ASSOC_SHOW(vpd_assoc_scsi_target_device, 0x20);
 
+CONFIGFS_ATTR(target_wwn_, vendor_id);
+CONFIGFS_ATTR(target_wwn_, product_id);
+CONFIGFS_ATTR(target_wwn_, revision);
 CONFIGFS_ATTR(target_wwn_, vpd_unit_serial);
 CONFIGFS_ATTR_RO(target_wwn_, vpd_protocol_identifier);
 CONFIGFS_ATTR_RO(target_wwn_, vpd_assoc_logical_unit);
@@ -1361,6 +1569,9 @@ CONFIGFS_ATTR_RO(target_wwn_, vpd_assoc_target_port);
 CONFIGFS_ATTR_RO(target_wwn_, vpd_assoc_scsi_target_device);
 
 static struct configfs_attribute *target_core_dev_wwn_attrs[] = {
+	&target_wwn_attr_vendor_id,
+	&target_wwn_attr_product_id,
+	&target_wwn_attr_revision,
 	&target_wwn_attr_vpd_unit_serial,
 	&target_wwn_attr_vpd_protocol_identifier,
 	&target_wwn_attr_vpd_assoc_logical_unit,
@@ -1398,21 +1609,22 @@ static ssize_t target_core_dev_pr_show_spc3_res(struct se_device *dev,
 	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 
 	return sprintf(page, "SPC-3 Reservation: %s Initiator: %s%s\n",
-		se_nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
+		se_nacl->se_tpg->se_tpg_tfo->fabric_name,
 		se_nacl->initiatorname, i_buf);
 }
 
 static ssize_t target_core_dev_pr_show_spc2_res(struct se_device *dev,
 		char *page)
 {
+	struct se_session *sess = dev->reservation_holder;
 	struct se_node_acl *se_nacl;
 	ssize_t len;
 
-	se_nacl = dev->dev_reserved_node_acl;
-	if (se_nacl) {
+	if (sess) {
+		se_nacl = sess->se_node_acl;
 		len = sprintf(page,
 			      "SPC-2 Reservation: %s Initiator: %s\n",
-			      se_nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
+			      se_nacl->se_tpg->se_tpg_tfo->fabric_name,
 			      se_nacl->initiatorname);
 	} else {
 		len = sprintf(page, "No SPC-2 Reservation holder\n");
@@ -1424,6 +1636,9 @@ static ssize_t target_pr_res_holder_show(struct config_item *item, char *page)
 {
 	struct se_device *dev = pr_to_dev(item);
 	int ret;
+
+	if (!dev->dev_attrib.emulate_pr)
+		return sprintf(page, "SPC_RESERVATIONS_DISABLED\n");
 
 	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return sprintf(page, "Passthrough\n");
@@ -1487,13 +1702,13 @@ static ssize_t target_pr_res_pr_holder_tg_port_show(struct config_item *item,
 	tfo = se_tpg->se_tpg_tfo;
 
 	len += sprintf(page+len, "SPC-3 Reservation: %s"
-		" Target Node Endpoint: %s\n", tfo->get_fabric_name(),
+		" Target Node Endpoint: %s\n", tfo->fabric_name,
 		tfo->tpg_get_wwn(se_tpg));
 	len += sprintf(page+len, "SPC-3 Reservation: Relative Port"
 		" Identifier Tag: %hu %s Portal Group Tag: %hu"
 		" %s Logical Unit: %llu\n", pr_reg->tg_pt_sep_rtpi,
-		tfo->get_fabric_name(), tfo->tpg_get_tag(se_tpg),
-		tfo->get_fabric_name(), pr_reg->pr_aptpl_target_lun);
+		tfo->fabric_name, tfo->tpg_get_tag(se_tpg),
+		tfo->fabric_name, pr_reg->pr_aptpl_target_lun);
 
 out_unlock:
 	spin_unlock(&dev->dev_reservation_lock);
@@ -1524,7 +1739,7 @@ static ssize_t target_pr_res_pr_registered_i_pts_show(struct config_item *item,
 		core_pr_dump_initiator_port(pr_reg, i_buf,
 					PR_REG_ISID_ID_LEN);
 		sprintf(buf, "%s Node: %s%s Key: 0x%016Lx PRgen: 0x%08x\n",
-			tfo->get_fabric_name(),
+			tfo->fabric_name,
 			pr_reg->pr_reg_nacl->initiatorname, i_buf, pr_reg->pr_res_key,
 			pr_reg->pr_res_generation);
 
@@ -1565,12 +1780,14 @@ static ssize_t target_pr_res_type_show(struct config_item *item, char *page)
 {
 	struct se_device *dev = pr_to_dev(item);
 
+	if (!dev->dev_attrib.emulate_pr)
+		return sprintf(page, "SPC_RESERVATIONS_DISABLED\n");
 	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
 		return sprintf(page, "SPC_PASSTHROUGH\n");
-	else if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
+	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return sprintf(page, "SPC2_RESERVATIONS\n");
-	else
-		return sprintf(page, "SPC3_PERSISTENT_RESERVATIONS\n");
+
+	return sprintf(page, "SPC3_PERSISTENT_RESERVATIONS\n");
 }
 
 static ssize_t target_pr_res_aptpl_active_show(struct config_item *item,
@@ -1578,7 +1795,8 @@ static ssize_t target_pr_res_aptpl_active_show(struct config_item *item,
 {
 	struct se_device *dev = pr_to_dev(item);
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
+	if (!dev->dev_attrib.emulate_pr ||
+	    (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
 		return 0;
 
 	return sprintf(page, "APTPL Bit Status: %s\n",
@@ -1590,7 +1808,8 @@ static ssize_t target_pr_res_aptpl_metadata_show(struct config_item *item,
 {
 	struct se_device *dev = pr_to_dev(item);
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
+	if (!dev->dev_attrib.emulate_pr ||
+	    (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
 		return 0;
 
 	return sprintf(page, "Ready to process PR APTPL metadata..\n");
@@ -1636,7 +1855,8 @@ static ssize_t target_pr_res_aptpl_metadata_store(struct config_item *item,
 	u16 tpgt = 0;
 	u8 type = 0;
 
-	if (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR)
+	if (!dev->dev_attrib.emulate_pr ||
+	    (dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_PGR))
 		return count;
 	if (dev->dev_reservation_flags & DRF_SPC2_RESERVATIONS)
 		return count;
@@ -1946,7 +2166,7 @@ static ssize_t target_dev_enable_show(struct config_item *item, char *page)
 {
 	struct se_device *dev = to_device(item);
 
-	return snprintf(page, PAGE_SIZE, "%d\n", !!(dev->dev_flags & DF_CONFIGURED));
+	return snprintf(page, PAGE_SIZE, "%d\n", target_dev_configured(dev));
 }
 
 static ssize_t target_dev_enable_store(struct config_item *item,
@@ -2471,7 +2691,7 @@ static ssize_t target_tg_pt_gp_alua_access_state_store(struct config_item *item,
 			" tg_pt_gp ID: %hu\n", tg_pt_gp->tg_pt_gp_valid_id);
 		return -EINVAL;
 	}
-	if (!(dev->dev_flags & DF_CONFIGURED)) {
+	if (!target_dev_configured(dev)) {
 		pr_err("Unable to set alua_access_state while device is"
 		       " not configured\n");
 		return -ENODEV;
@@ -2744,7 +2964,7 @@ static ssize_t target_tg_pt_gp_members_show(struct config_item *item,
 		struct se_portal_group *tpg = lun->lun_tpg;
 
 		cur_len = snprintf(buf, TG_PT_GROUP_NAME_BUF, "%s/%s/tpgt_%hu"
-			"/%s\n", tpg->se_tpg_tfo->get_fabric_name(),
+			"/%s\n", tpg->se_tpg_tfo->fabric_name,
 			tpg->se_tpg_tfo->tpg_get_wwn(tpg),
 			tpg->se_tpg_tfo->tpg_get_tag(tpg),
 			config_item_name(&lun->lun_group.cg_item));
@@ -3213,6 +3433,27 @@ void target_setup_backend_cits(struct target_backend *tb)
 	target_core_setup_dev_stat_cit(tb);
 }
 
+static void target_init_dbroot(void)
+{
+	struct file *fp;
+
+	snprintf(db_root_stage, DB_ROOT_LEN, DB_ROOT_PREFERRED);
+	fp = filp_open(db_root_stage, O_RDONLY, 0);
+	if (IS_ERR(fp)) {
+		pr_err("db_root: cannot open: %s\n", db_root_stage);
+		return;
+	}
+	if (!S_ISDIR(file_inode(fp)->i_mode)) {
+		filp_close(fp, NULL);
+		pr_err("db_root: not a valid directory: %s\n", db_root_stage);
+		return;
+	}
+	filp_close(fp, NULL);
+
+	strncpy(db_root, db_root_stage, DB_ROOT_LEN);
+	pr_debug("Target_Core_ConfigFS: db_root set to %s\n", db_root);
+}
+
 static int __init target_core_init_configfs(void)
 {
 	struct configfs_subsystem *subsys = &target_core_fabrics;
@@ -3292,6 +3533,8 @@ static int __init target_core_init_configfs(void)
 	ret = target_xcopy_setup_pt();
 	if (ret < 0)
 		goto out;
+
+	target_init_dbroot();
 
 	return 0;
 

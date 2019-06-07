@@ -1,41 +1,9 @@
-/*
- * drivers/net/ethernet/mellanox/mlxsw/spectrum_mr_tcam.c
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Yotam Gigi <yotamg@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
-#include <linux/parman.h>
 
 #include "spectrum_mr_tcam.h"
 #include "reg.h"
@@ -43,15 +11,8 @@
 #include "core_acl_flex_actions.h"
 #include "spectrum_mr.h"
 
-struct mlxsw_sp_mr_tcam_region {
-	struct mlxsw_sp *mlxsw_sp;
-	enum mlxsw_reg_rtar_key_type rtar_key_type;
-	struct parman *parman;
-	struct parman_prio *parman_prios;
-};
-
 struct mlxsw_sp_mr_tcam {
-	struct mlxsw_sp_mr_tcam_region tcam_regions[MLXSW_SP_L3_PROTO_MAX];
+	void *priv;
 };
 
 /* This struct maps to one RIGR2 register entry */
@@ -84,8 +45,6 @@ mlxsw_sp_mr_erif_list_init(struct mlxsw_sp_mr_tcam_erif_list *erif_list)
 	INIT_LIST_HEAD(&erif_list->erif_sublists);
 }
 
-#define MLXSW_SP_KVDL_RIGR2_SIZE 1
-
 static struct mlxsw_sp_mr_erif_sublist *
 mlxsw_sp_mr_erif_sublist_create(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_mr_tcam_erif_list *erif_list)
@@ -96,8 +55,8 @@ mlxsw_sp_mr_erif_sublist_create(struct mlxsw_sp *mlxsw_sp,
 	erif_sublist = kzalloc(sizeof(*erif_sublist), GFP_KERNEL);
 	if (!erif_sublist)
 		return ERR_PTR(-ENOMEM);
-	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_RIGR2_SIZE,
-				  &erif_sublist->rigr2_kvdl_index);
+	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,
+				  1, &erif_sublist->rigr2_kvdl_index);
 	if (err) {
 		kfree(erif_sublist);
 		return ERR_PTR(err);
@@ -112,7 +71,8 @@ mlxsw_sp_mr_erif_sublist_destroy(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_mr_erif_sublist *erif_sublist)
 {
 	list_del(&erif_sublist->list);
-	mlxsw_sp_kvdl_free(mlxsw_sp, erif_sublist->rigr2_kvdl_index);
+	mlxsw_sp_kvdl_free(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_MCRIGR,
+			   1, erif_sublist->rigr2_kvdl_index);
 	kfree(erif_sublist);
 }
 
@@ -221,12 +181,11 @@ struct mlxsw_sp_mr_tcam_route {
 	struct mlxsw_sp_mr_tcam_erif_list erif_list;
 	struct mlxsw_afa_block *afa_block;
 	u32 counter_index;
-	struct parman_item parman_item;
-	struct parman_prio *parman_prio;
 	enum mlxsw_sp_mr_route_action action;
 	struct mlxsw_sp_mr_route_key key;
 	u16 irif_index;
 	u16 min_mtu;
+	void *priv;
 };
 
 static struct mlxsw_afa_block *
@@ -297,60 +256,6 @@ mlxsw_sp_mr_tcam_afa_block_destroy(struct mlxsw_afa_block *afa_block)
 	mlxsw_afa_block_destroy(afa_block);
 }
 
-static int mlxsw_sp_mr_tcam_route_replace(struct mlxsw_sp *mlxsw_sp,
-					  struct parman_item *parman_item,
-					  struct mlxsw_sp_mr_route_key *key,
-					  struct mlxsw_afa_block *afa_block)
-{
-	char rmft2_pl[MLXSW_REG_RMFT2_LEN];
-
-	switch (key->proto) {
-	case MLXSW_SP_L3_PROTO_IPV4:
-		mlxsw_reg_rmft2_ipv4_pack(rmft2_pl, true, parman_item->index,
-					  key->vrid,
-					  MLXSW_REG_RMFT2_IRIF_MASK_IGNORE, 0,
-					  ntohl(key->group.addr4),
-					  ntohl(key->group_mask.addr4),
-					  ntohl(key->source.addr4),
-					  ntohl(key->source_mask.addr4),
-					  mlxsw_afa_block_first_set(afa_block));
-		break;
-	case MLXSW_SP_L3_PROTO_IPV6:
-		mlxsw_reg_rmft2_ipv6_pack(rmft2_pl, true, parman_item->index,
-					  key->vrid,
-					  MLXSW_REG_RMFT2_IRIF_MASK_IGNORE, 0,
-					  key->group.addr6,
-					  key->group_mask.addr6,
-					  key->source.addr6,
-					  key->source_mask.addr6,
-					  mlxsw_afa_block_first_set(afa_block));
-	}
-
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rmft2), rmft2_pl);
-}
-
-static int mlxsw_sp_mr_tcam_route_remove(struct mlxsw_sp *mlxsw_sp, int vrid,
-					 struct mlxsw_sp_mr_route_key *key,
-					 struct parman_item *parman_item)
-{
-	struct in6_addr zero_addr = IN6ADDR_ANY_INIT;
-	char rmft2_pl[MLXSW_REG_RMFT2_LEN];
-
-	switch (key->proto) {
-	case MLXSW_SP_L3_PROTO_IPV4:
-		mlxsw_reg_rmft2_ipv4_pack(rmft2_pl, false, parman_item->index,
-					  vrid, 0, 0, 0, 0, 0, 0, NULL);
-		break;
-	case MLXSW_SP_L3_PROTO_IPV6:
-		mlxsw_reg_rmft2_ipv6_pack(rmft2_pl, false, parman_item->index,
-					  vrid, 0, 0, zero_addr, zero_addr,
-					  zero_addr, zero_addr, NULL);
-		break;
-	}
-
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rmft2), rmft2_pl);
-}
-
 static int
 mlxsw_sp_mr_tcam_erif_populate(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_mr_tcam_erif_list *erif_list,
@@ -370,51 +275,12 @@ mlxsw_sp_mr_tcam_erif_populate(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
-static struct mlxsw_sp_mr_tcam_region *
-mlxsw_sp_mr_tcam_protocol_region(struct mlxsw_sp_mr_tcam *mr_tcam,
-				 enum mlxsw_sp_l3proto proto)
-{
-	return &mr_tcam->tcam_regions[proto];
-}
-
-static int
-mlxsw_sp_mr_tcam_route_parman_item_add(struct mlxsw_sp_mr_tcam *mr_tcam,
-				       struct mlxsw_sp_mr_tcam_route *route,
-				       enum mlxsw_sp_mr_route_prio prio)
-{
-	struct mlxsw_sp_mr_tcam_region *tcam_region;
-	int err;
-
-	tcam_region = mlxsw_sp_mr_tcam_protocol_region(mr_tcam,
-						       route->key.proto);
-	err = parman_item_add(tcam_region->parman,
-			      &tcam_region->parman_prios[prio],
-			      &route->parman_item);
-	if (err)
-		return err;
-
-	route->parman_prio = &tcam_region->parman_prios[prio];
-	return 0;
-}
-
-static void
-mlxsw_sp_mr_tcam_route_parman_item_remove(struct mlxsw_sp_mr_tcam *mr_tcam,
-					  struct mlxsw_sp_mr_tcam_route *route)
-{
-	struct mlxsw_sp_mr_tcam_region *tcam_region;
-
-	tcam_region = mlxsw_sp_mr_tcam_protocol_region(mr_tcam,
-						       route->key.proto);
-
-	parman_item_remove(tcam_region->parman,
-			   route->parman_prio, &route->parman_item);
-}
-
 static int
 mlxsw_sp_mr_tcam_route_create(struct mlxsw_sp *mlxsw_sp, void *priv,
 			      void *route_priv,
 			      struct mlxsw_sp_mr_route_params *route_params)
 {
+	const struct mlxsw_sp_mr_tcam_ops *ops = mlxsw_sp->mr_tcam_ops;
 	struct mlxsw_sp_mr_tcam_route *route = route_priv;
 	struct mlxsw_sp_mr_tcam *mr_tcam = priv;
 	int err;
@@ -448,22 +314,23 @@ mlxsw_sp_mr_tcam_route_create(struct mlxsw_sp *mlxsw_sp, void *priv,
 		goto err_afa_block_create;
 	}
 
-	/* Allocate place in the TCAM */
-	err = mlxsw_sp_mr_tcam_route_parman_item_add(mr_tcam, route,
-						     route_params->prio);
-	if (err)
-		goto err_parman_item_add;
+	route->priv = kzalloc(ops->route_priv_size, GFP_KERNEL);
+	if (!route->priv) {
+		err = -ENOMEM;
+		goto err_route_priv_alloc;
+	}
 
 	/* Write the route to the TCAM */
-	err = mlxsw_sp_mr_tcam_route_replace(mlxsw_sp, &route->parman_item,
-					     &route->key, route->afa_block);
+	err = ops->route_create(mlxsw_sp, mr_tcam->priv, route->priv,
+				&route->key, route->afa_block,
+				route_params->prio);
 	if (err)
-		goto err_route_replace;
+		goto err_route_create;
 	return 0;
 
-err_route_replace:
-	mlxsw_sp_mr_tcam_route_parman_item_remove(mr_tcam, route);
-err_parman_item_add:
+err_route_create:
+	kfree(route->priv);
+err_route_priv_alloc:
 	mlxsw_sp_mr_tcam_afa_block_destroy(route->afa_block);
 err_afa_block_create:
 	mlxsw_sp_flow_counter_free(mlxsw_sp, route->counter_index);
@@ -476,12 +343,12 @@ err_counter_alloc:
 static void mlxsw_sp_mr_tcam_route_destroy(struct mlxsw_sp *mlxsw_sp,
 					   void *priv, void *route_priv)
 {
+	const struct mlxsw_sp_mr_tcam_ops *ops = mlxsw_sp->mr_tcam_ops;
 	struct mlxsw_sp_mr_tcam_route *route = route_priv;
 	struct mlxsw_sp_mr_tcam *mr_tcam = priv;
 
-	mlxsw_sp_mr_tcam_route_remove(mlxsw_sp, route->key.vrid,
-				      &route->key, &route->parman_item);
-	mlxsw_sp_mr_tcam_route_parman_item_remove(mr_tcam, route);
+	ops->route_destroy(mlxsw_sp, mr_tcam->priv, route->priv, &route->key);
+	kfree(route->priv);
 	mlxsw_sp_mr_tcam_afa_block_destroy(route->afa_block);
 	mlxsw_sp_flow_counter_free(mlxsw_sp, route->counter_index);
 	mlxsw_sp_mr_erif_list_flush(mlxsw_sp, &route->erif_list);
@@ -502,6 +369,7 @@ mlxsw_sp_mr_tcam_route_action_update(struct mlxsw_sp *mlxsw_sp,
 				     void *route_priv,
 				     enum mlxsw_sp_mr_route_action route_action)
 {
+	const struct mlxsw_sp_mr_tcam_ops *ops = mlxsw_sp->mr_tcam_ops;
 	struct mlxsw_sp_mr_tcam_route *route = route_priv;
 	struct mlxsw_afa_block *afa_block;
 	int err;
@@ -516,8 +384,7 @@ mlxsw_sp_mr_tcam_route_action_update(struct mlxsw_sp *mlxsw_sp,
 		return PTR_ERR(afa_block);
 
 	/* Update the TCAM route entry */
-	err = mlxsw_sp_mr_tcam_route_replace(mlxsw_sp, &route->parman_item,
-					     &route->key, afa_block);
+	err = ops->route_update(mlxsw_sp, route->priv, &route->key, afa_block);
 	if (err)
 		goto err;
 
@@ -534,6 +401,7 @@ err:
 static int mlxsw_sp_mr_tcam_route_min_mtu_update(struct mlxsw_sp *mlxsw_sp,
 						 void *route_priv, u16 min_mtu)
 {
+	const struct mlxsw_sp_mr_tcam_ops *ops = mlxsw_sp->mr_tcam_ops;
 	struct mlxsw_sp_mr_tcam_route *route = route_priv;
 	struct mlxsw_afa_block *afa_block;
 	int err;
@@ -549,8 +417,7 @@ static int mlxsw_sp_mr_tcam_route_min_mtu_update(struct mlxsw_sp *mlxsw_sp,
 		return PTR_ERR(afa_block);
 
 	/* Update the TCAM route entry */
-	err = mlxsw_sp_mr_tcam_route_replace(mlxsw_sp, &route->parman_item,
-					     &route->key, afa_block);
+	err = ops->route_update(mlxsw_sp, route->priv, &route->key, afa_block);
 	if (err)
 		goto err;
 
@@ -596,6 +463,7 @@ static int mlxsw_sp_mr_tcam_route_erif_add(struct mlxsw_sp *mlxsw_sp,
 static int mlxsw_sp_mr_tcam_route_erif_del(struct mlxsw_sp *mlxsw_sp,
 					   void *route_priv, u16 erif_index)
 {
+	const struct mlxsw_sp_mr_tcam_ops *ops = mlxsw_sp->mr_tcam_ops;
 	struct mlxsw_sp_mr_tcam_route *route = route_priv;
 	struct mlxsw_sp_mr_erif_sublist *erif_sublist;
 	struct mlxsw_sp_mr_tcam_erif_list erif_list;
@@ -630,8 +498,7 @@ static int mlxsw_sp_mr_tcam_route_erif_del(struct mlxsw_sp *mlxsw_sp,
 	}
 
 	/* Update the TCAM route entry */
-	err = mlxsw_sp_mr_tcam_route_replace(mlxsw_sp, &route->parman_item,
-					     &route->key, afa_block);
+	err = ops->route_update(mlxsw_sp, route->priv, &route->key, afa_block);
 	if (err)
 		goto err_route_write;
 
@@ -653,6 +520,7 @@ static int
 mlxsw_sp_mr_tcam_route_update(struct mlxsw_sp *mlxsw_sp, void *route_priv,
 			      struct mlxsw_sp_mr_route_info *route_info)
 {
+	const struct mlxsw_sp_mr_tcam_ops *ops = mlxsw_sp->mr_tcam_ops;
 	struct mlxsw_sp_mr_tcam_route *route = route_priv;
 	struct mlxsw_sp_mr_tcam_erif_list erif_list;
 	struct mlxsw_afa_block *afa_block;
@@ -677,8 +545,7 @@ mlxsw_sp_mr_tcam_route_update(struct mlxsw_sp *mlxsw_sp, void *route_priv,
 	}
 
 	/* Update the TCAM route entry */
-	err = mlxsw_sp_mr_tcam_route_replace(mlxsw_sp, &route->parman_item,
-					     &route->key, afa_block);
+	err = ops->route_update(mlxsw_sp, route->priv, &route->key, afa_block);
 	if (err)
 		goto err_route_write;
 
@@ -699,167 +566,36 @@ err_erif_populate:
 	return err;
 }
 
-#define MLXSW_SP_MR_TCAM_REGION_BASE_COUNT 16
-#define MLXSW_SP_MR_TCAM_REGION_RESIZE_STEP 16
-
-static int
-mlxsw_sp_mr_tcam_region_alloc(struct mlxsw_sp_mr_tcam_region *mr_tcam_region)
-{
-	struct mlxsw_sp *mlxsw_sp = mr_tcam_region->mlxsw_sp;
-	char rtar_pl[MLXSW_REG_RTAR_LEN];
-
-	mlxsw_reg_rtar_pack(rtar_pl, MLXSW_REG_RTAR_OP_ALLOCATE,
-			    mr_tcam_region->rtar_key_type,
-			    MLXSW_SP_MR_TCAM_REGION_BASE_COUNT);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rtar), rtar_pl);
-}
-
-static void
-mlxsw_sp_mr_tcam_region_free(struct mlxsw_sp_mr_tcam_region *mr_tcam_region)
-{
-	struct mlxsw_sp *mlxsw_sp = mr_tcam_region->mlxsw_sp;
-	char rtar_pl[MLXSW_REG_RTAR_LEN];
-
-	mlxsw_reg_rtar_pack(rtar_pl, MLXSW_REG_RTAR_OP_DEALLOCATE,
-			    mr_tcam_region->rtar_key_type, 0);
-	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rtar), rtar_pl);
-}
-
-static int mlxsw_sp_mr_tcam_region_parman_resize(void *priv,
-						 unsigned long new_count)
-{
-	struct mlxsw_sp_mr_tcam_region *mr_tcam_region = priv;
-	struct mlxsw_sp *mlxsw_sp = mr_tcam_region->mlxsw_sp;
-	char rtar_pl[MLXSW_REG_RTAR_LEN];
-	u64 max_tcam_rules;
-
-	max_tcam_rules = MLXSW_CORE_RES_GET(mlxsw_sp->core, ACL_MAX_TCAM_RULES);
-	if (new_count > max_tcam_rules)
-		return -EINVAL;
-	mlxsw_reg_rtar_pack(rtar_pl, MLXSW_REG_RTAR_OP_RESIZE,
-			    mr_tcam_region->rtar_key_type, new_count);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rtar), rtar_pl);
-}
-
-static void mlxsw_sp_mr_tcam_region_parman_move(void *priv,
-						unsigned long from_index,
-						unsigned long to_index,
-						unsigned long count)
-{
-	struct mlxsw_sp_mr_tcam_region *mr_tcam_region = priv;
-	struct mlxsw_sp *mlxsw_sp = mr_tcam_region->mlxsw_sp;
-	char rrcr_pl[MLXSW_REG_RRCR_LEN];
-
-	mlxsw_reg_rrcr_pack(rrcr_pl, MLXSW_REG_RRCR_OP_MOVE,
-			    from_index, count,
-			    mr_tcam_region->rtar_key_type, to_index);
-	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rrcr), rrcr_pl);
-}
-
-static const struct parman_ops mlxsw_sp_mr_tcam_region_parman_ops = {
-	.base_count	= MLXSW_SP_MR_TCAM_REGION_BASE_COUNT,
-	.resize_step	= MLXSW_SP_MR_TCAM_REGION_RESIZE_STEP,
-	.resize		= mlxsw_sp_mr_tcam_region_parman_resize,
-	.move		= mlxsw_sp_mr_tcam_region_parman_move,
-	.algo		= PARMAN_ALGO_TYPE_LSORT,
-};
-
-static int
-mlxsw_sp_mr_tcam_region_init(struct mlxsw_sp *mlxsw_sp,
-			     struct mlxsw_sp_mr_tcam_region *mr_tcam_region,
-			     enum mlxsw_reg_rtar_key_type rtar_key_type)
-{
-	struct parman_prio *parman_prios;
-	struct parman *parman;
-	int err;
-	int i;
-
-	mr_tcam_region->rtar_key_type = rtar_key_type;
-	mr_tcam_region->mlxsw_sp = mlxsw_sp;
-
-	err = mlxsw_sp_mr_tcam_region_alloc(mr_tcam_region);
-	if (err)
-		return err;
-
-	parman = parman_create(&mlxsw_sp_mr_tcam_region_parman_ops,
-			       mr_tcam_region);
-	if (!parman) {
-		err = -ENOMEM;
-		goto err_parman_create;
-	}
-	mr_tcam_region->parman = parman;
-
-	parman_prios = kmalloc_array(MLXSW_SP_MR_ROUTE_PRIO_MAX + 1,
-				     sizeof(*parman_prios), GFP_KERNEL);
-	if (!parman_prios) {
-		err = -ENOMEM;
-		goto err_parman_prios_alloc;
-	}
-	mr_tcam_region->parman_prios = parman_prios;
-
-	for (i = 0; i < MLXSW_SP_MR_ROUTE_PRIO_MAX + 1; i++)
-		parman_prio_init(mr_tcam_region->parman,
-				 &mr_tcam_region->parman_prios[i], i);
-	return 0;
-
-err_parman_prios_alloc:
-	parman_destroy(parman);
-err_parman_create:
-	mlxsw_sp_mr_tcam_region_free(mr_tcam_region);
-	return err;
-}
-
-static void
-mlxsw_sp_mr_tcam_region_fini(struct mlxsw_sp_mr_tcam_region *mr_tcam_region)
-{
-	int i;
-
-	for (i = 0; i < MLXSW_SP_MR_ROUTE_PRIO_MAX + 1; i++)
-		parman_prio_fini(&mr_tcam_region->parman_prios[i]);
-	kfree(mr_tcam_region->parman_prios);
-	parman_destroy(mr_tcam_region->parman);
-	mlxsw_sp_mr_tcam_region_free(mr_tcam_region);
-}
-
 static int mlxsw_sp_mr_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv)
 {
+	const struct mlxsw_sp_mr_tcam_ops *ops = mlxsw_sp->mr_tcam_ops;
 	struct mlxsw_sp_mr_tcam *mr_tcam = priv;
-	struct mlxsw_sp_mr_tcam_region *region = &mr_tcam->tcam_regions[0];
-	u32 rtar_key;
 	int err;
 
-	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MC_ERIF_LIST_ENTRIES) ||
-	    !MLXSW_CORE_RES_VALID(mlxsw_sp->core, ACL_MAX_TCAM_RULES))
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MC_ERIF_LIST_ENTRIES))
 		return -EIO;
 
-	rtar_key = MLXSW_REG_RTAR_KEY_TYPE_IPV4_MULTICAST;
-	err = mlxsw_sp_mr_tcam_region_init(mlxsw_sp,
-					   &region[MLXSW_SP_L3_PROTO_IPV4],
-					   rtar_key);
-	if (err)
-		return err;
+	mr_tcam->priv = kzalloc(ops->priv_size, GFP_KERNEL);
+	if (!mr_tcam->priv)
+		return -ENOMEM;
 
-	rtar_key = MLXSW_REG_RTAR_KEY_TYPE_IPV6_MULTICAST;
-	err = mlxsw_sp_mr_tcam_region_init(mlxsw_sp,
-					   &region[MLXSW_SP_L3_PROTO_IPV6],
-					   rtar_key);
+	err = ops->init(mlxsw_sp, mr_tcam->priv);
 	if (err)
-		goto err_ipv6_region_init;
-
+		goto err_init;
 	return 0;
 
-err_ipv6_region_init:
-	mlxsw_sp_mr_tcam_region_fini(&region[MLXSW_SP_L3_PROTO_IPV4]);
+err_init:
+	kfree(mr_tcam->priv);
 	return err;
 }
 
-static void mlxsw_sp_mr_tcam_fini(void *priv)
+static void mlxsw_sp_mr_tcam_fini(struct mlxsw_sp *mlxsw_sp, void *priv)
 {
+	const struct mlxsw_sp_mr_tcam_ops *ops = mlxsw_sp->mr_tcam_ops;
 	struct mlxsw_sp_mr_tcam *mr_tcam = priv;
-	struct mlxsw_sp_mr_tcam_region *region = &mr_tcam->tcam_regions[0];
 
-	mlxsw_sp_mr_tcam_region_fini(&region[MLXSW_SP_L3_PROTO_IPV6]);
-	mlxsw_sp_mr_tcam_region_fini(&region[MLXSW_SP_L3_PROTO_IPV4]);
+	ops->fini(mr_tcam->priv);
+	kfree(mr_tcam->priv);
 }
 
 const struct mlxsw_sp_mr_ops mlxsw_sp_mr_tcam_ops = {

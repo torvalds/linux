@@ -1,5 +1,4 @@
-# UAPI Header export list
-
+# SPDX-License-Identifier: GPL-2.0
 ifeq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/uapi/asm/a.out.h),)
 no-export-headers += a.out.h
 endif
@@ -9,5 +8,7 @@ no-export-headers += kvm.h
 endif
 
 ifeq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/uapi/asm/kvm_para.h),)
+ifeq ($(wildcard $(objtree)/arch/$(SRCARCH)/include/generated/uapi/asm/kvm_para.h),)
 no-export-headers += kvm_para.h
+endif
 endif

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * eCryptfs: Linux filesystem encryption layer
  *
@@ -6,21 +7,6 @@
  * Copyright (C) 2004-2007 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *   		Michael C. Thompson <mcthomps@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
  */
 
 #include <crypto/hash.h>
@@ -68,7 +54,6 @@ static int ecryptfs_hash_digest(struct crypto_shash *tfm,
 	int err;
 
 	desc->tfm = tfm;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 	err = crypto_shash_digest(desc, src, len, dst);
 	shash_desc_zero(desc);
 	return err;
@@ -610,7 +595,8 @@ int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat)
 				full_alg_name);
 		goto out_free;
 	}
-	crypto_skcipher_set_flags(crypt_stat->tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+	crypto_skcipher_set_flags(crypt_stat->tfm,
+				  CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
 	rc = 0;
 out_free:
 	kfree(full_alg_name);
@@ -1590,7 +1576,7 @@ ecryptfs_process_key_cipher(struct crypto_skcipher **key_tfm,
 		       "[%s]; rc = [%d]\n", full_alg_name, rc);
 		goto out;
 	}
-	crypto_skcipher_set_flags(*key_tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+	crypto_skcipher_set_flags(*key_tfm, CRYPTO_TFM_REQ_FORBID_WEAK_KEYS);
 	if (*key_size == 0)
 		*key_size = crypto_skcipher_default_keysize(*key_tfm);
 	get_random_bytes(dummy_key, *key_size);

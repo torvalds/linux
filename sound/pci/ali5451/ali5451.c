@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Matt Wu <Matt_Wu@acersoftech.com.cn>
  *  Apr 26, 2001
@@ -8,21 +9,6 @@
  *
  *  TODO:
  *    --
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public Lcodecnse as published by
- *   the Free Software Foundation; either version 2 of the Lcodecnse, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public Lcodecnse for more details.
- *
- *   You should have received a copy of the GNU General Public Lcodecnse
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/io.h>
@@ -1484,12 +1470,9 @@ static struct snd_pcm_hardware snd_ali_capture =
 static void snd_ali_pcm_free_substream(struct snd_pcm_runtime *runtime)
 {
 	struct snd_ali_voice *pvoice = runtime->private_data;
-	struct snd_ali *codec;
 
-	if (pvoice) {
-		codec = pvoice->codec;
+	if (pvoice)
 		snd_ali_free_voice(pvoice->codec, pvoice);
-	}
 }
 
 static int snd_ali_open(struct snd_pcm_substream *substream, int rec,
@@ -1885,10 +1868,8 @@ static int ali_suspend(struct device *dev)
 		return 0;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	for (i = 0; i < chip->num_of_codecs; i++) {
-		snd_pcm_suspend_all(chip->pcm[i]);
+	for (i = 0; i < chip->num_of_codecs; i++)
 		snd_ac97_suspend(chip->ac97[i]);
-	}
 
 	spin_lock_irq(&chip->reg_lock);
 	
@@ -2054,9 +2035,7 @@ static void snd_ali_proc_read(struct snd_info_entry *entry,
 
 static void snd_ali_proc_init(struct snd_ali *codec)
 {
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(codec->card, "ali5451", &entry))
-		snd_info_set_text_ops(entry, codec, snd_ali_proc_read);
+	snd_card_ro_proc_new(codec->card, "ali5451", codec, snd_ali_proc_read);
 }
 
 static int snd_ali_resources(struct snd_ali *codec)

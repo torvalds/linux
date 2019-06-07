@@ -336,7 +336,8 @@ static unsigned int tifm_sd_op_flags(struct mmc_command *cmd)
 		rc |= TIFM_MMCSD_RSP_R0;
 		break;
 	case MMC_RSP_R1B:
-		rc |= TIFM_MMCSD_RSP_BUSY; // deliberate fall-through
+		rc |= TIFM_MMCSD_RSP_BUSY;
+		/* fall-through */
 	case MMC_RSP_R1:
 		rc |= TIFM_MMCSD_RSP_R1;
 		break;
@@ -888,7 +889,6 @@ static int tifm_sd_initialize_host(struct tifm_sd *host)
 	struct tifm_dev *sock = host->dev;
 
 	writel(0, sock->addr + SOCK_MMCSD_INT_ENABLE);
-	mmiowb();
 	host->clk_div = 61;
 	host->clk_freq = 20000000;
 	writel(TIFM_MMCSD_RESET, sock->addr + SOCK_MMCSD_SYSTEM_CONTROL);
@@ -939,7 +939,6 @@ static int tifm_sd_initialize_host(struct tifm_sd *host)
 	writel(TIFM_MMCSD_CERR | TIFM_MMCSD_BRS | TIFM_MMCSD_EOC
 	       | TIFM_MMCSD_ERRMASK,
 	       sock->addr + SOCK_MMCSD_INT_ENABLE);
-	mmiowb();
 
 	return 0;
 }
@@ -1004,7 +1003,6 @@ static void tifm_sd_remove(struct tifm_dev *sock)
 	spin_lock_irqsave(&sock->lock, flags);
 	host->eject = 1;
 	writel(0, sock->addr + SOCK_MMCSD_INT_ENABLE);
-	mmiowb();
 	spin_unlock_irqrestore(&sock->lock, flags);
 
 	tasklet_kill(&host->finish_tasklet);

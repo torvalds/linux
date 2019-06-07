@@ -28,8 +28,8 @@
 #include <linux/spinlock.h>
 #include <net/udp.h>
 
-static struct sk_buff **esp4_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb)
+static struct sk_buff *esp4_gro_receive(struct list_head *head,
+					struct sk_buff *skb)
 {
 	int offset = skb_gro_offset(skb);
 	struct xfrm_offload *xo;
@@ -46,26 +46,27 @@ static struct sk_buff **esp4_gro_receive(struct sk_buff **head,
 
 	xo = xfrm_offload(skb);
 	if (!xo || !(xo->flags & CRYPTO_DONE)) {
-		err = secpath_set(skb);
-		if (err)
+		struct sec_path *sp = secpath_set(skb);
+
+		if (!sp)
 			goto out;
 
-		if (skb->sp->len == XFRM_MAX_DEPTH)
-			goto out;
+		if (sp->len == XFRM_MAX_DEPTH)
+			goto out_reset;
 
 		x = xfrm_state_lookup(dev_net(skb->dev), skb->mark,
 				      (xfrm_address_t *)&ip_hdr(skb)->daddr,
 				      spi, IPPROTO_ESP, AF_INET);
 		if (!x)
-			goto out;
+			goto out_reset;
 
-		skb->sp->xvec[skb->sp->len++] = x;
-		skb->sp->olen++;
+		sp->xvec[sp->len++] = x;
+		sp->olen++;
 
 		xo = xfrm_offload(skb);
 		if (!xo) {
 			xfrm_state_put(x);
-			goto out;
+			goto out_reset;
 		}
 	}
 
@@ -81,6 +82,8 @@ static struct sk_buff **esp4_gro_receive(struct sk_buff **head,
 	xfrm_input(skb, IPPROTO_ESP, spi, -2);
 
 	return ERR_PTR(-EINPROGRESS);
+out_reset:
+	secpath_reset(skb);
 out:
 	skb_push(skb, offset);
 	NAPI_GRO_CB(skb)->same_flow = 0;
@@ -106,6 +109,44 @@ static void esp4_gso_encap(struct xfrm_state *x, struct sk_buff *skb)
 	xo->proto = proto;
 }
 
+static struct sk_buff *xfrm4_tunnel_gso_segment(struct xfrm_state *x,
+						struct sk_buff *skb,
+						netdev_features_t features)
+{
+	__skb_push(skb, skb->mac_len);
+	return skb_mac_gso_segment(skb, features);
+}
+
+static struct sk_buff *xfrm4_transport_gso_segment(struct xfrm_state *x,
+						   struct sk_buff *skb,
+						   netdev_features_t features)
+{
+	const struct net_offload *ops;
+	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	struct xfrm_offload *xo = xfrm_offload(skb);
+
+	skb->transport_header += x->props.header_len;
+	ops = rcu_dereference(inet_offloads[xo->proto]);
+	if (likely(ops && ops->callbacks.gso_segment))
+		segs = ops->callbacks.gso_segment(skb, features);
+
+	return segs;
+}
+
+static struct sk_buff *xfrm4_outer_mode_gso_segment(struct xfrm_state *x,
+						    struct sk_buff *skb,
+						    netdev_features_t features)
+{
+	switch (x->outer_mode.encap) {
+	case XFRM_MODE_TUNNEL:
+		return xfrm4_tunnel_gso_segment(x, skb, features);
+	case XFRM_MODE_TRANSPORT:
+		return xfrm4_transport_gso_segment(x, skb, features);
+	}
+
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
 static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
 				        netdev_features_t features)
 {
@@ -114,6 +155,7 @@ static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
 	struct crypto_aead *aead;
 	netdev_features_t esp_features = features;
 	struct xfrm_offload *xo = xfrm_offload(skb);
+	struct sec_path *sp;
 
 	if (!xo)
 		return ERR_PTR(-EINVAL);
@@ -121,7 +163,8 @@ static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
 	if (!(skb_shinfo(skb)->gso_type & SKB_GSO_ESP))
 		return ERR_PTR(-EINVAL);
 
-	x = skb->sp->xvec[skb->sp->len - 1];
+	sp = skb_sec_path(skb);
+	x = sp->xvec[sp->len - 1];
 	aead = x->data;
 	esph = ip_esp_hdr(skb);
 
@@ -135,15 +178,16 @@ static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
 
 	skb->encap_hdr_csum = 1;
 
-	if (!(features & NETIF_F_HW_ESP) || !x->xso.offload_handle ||
-	    (x->xso.dev != skb->dev))
+	if ((!(skb->dev->gso_partial_features & NETIF_F_HW_ESP) &&
+	     !(features & NETIF_F_HW_ESP)) || x->xso.dev != skb->dev)
 		esp_features = features & ~(NETIF_F_SG | NETIF_F_CSUM_MASK);
-	else if (!(features & NETIF_F_HW_ESP_TX_CSUM))
+	else if (!(features & NETIF_F_HW_ESP_TX_CSUM) &&
+		 !(skb->dev->gso_partial_features & NETIF_F_HW_ESP_TX_CSUM))
 		esp_features = features & ~NETIF_F_CSUM_MASK;
 
 	xo->flags |= XFRM_GSO_SEGMENT;
 
-	return x->outer_mode->gso_segment(x, skb, esp_features);
+	return xfrm4_outer_mode_gso_segment(x, skb, esp_features);
 }
 
 static int esp_input_tail(struct xfrm_state *x, struct sk_buff *skb)
@@ -179,8 +223,9 @@ static int esp_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features_
 	if (!xo)
 		return -EINVAL;
 
-	if (!(features & NETIF_F_HW_ESP) || !x->xso.offload_handle ||
-	    (x->xso.dev != skb->dev)) {
+	if ((!(features & NETIF_F_HW_ESP) &&
+	     !(skb->dev->gso_partial_features & NETIF_F_HW_ESP)) ||
+	    x->xso.dev != skb->dev) {
 		xo->flags |= CRYPTO_FALLBACK;
 		hw_offload = false;
 	}

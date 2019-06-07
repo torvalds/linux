@@ -147,6 +147,21 @@ out:
 }
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_generic_probe);
 
+static int ufs_qcom_phy_get_reset(struct ufs_qcom_phy *phy_common)
+{
+	struct reset_control *reset;
+
+	if (phy_common->ufs_reset)
+		return 0;
+
+	reset = devm_reset_control_get_exclusive_by_index(phy_common->dev, 0);
+	if (IS_ERR(reset))
+		return PTR_ERR(reset);
+
+	phy_common->ufs_reset = reset;
+	return 0;
+}
+
 static int __ufs_qcom_phy_clk_get(struct device *dev,
 			 const char *name, struct clk **clk_out, bool err_print)
 {
@@ -431,56 +446,6 @@ static void ufs_qcom_phy_disable_ref_clk(struct ufs_qcom_phy *phy)
 	}
 }
 
-#define UFS_REF_CLK_EN	(1 << 5)
-
-static void ufs_qcom_phy_dev_ref_clk_ctrl(struct phy *generic_phy, bool enable)
-{
-	struct ufs_qcom_phy *phy = get_ufs_qcom_phy(generic_phy);
-
-	if (phy->dev_ref_clk_ctrl_mmio &&
-	    (enable ^ phy->is_dev_ref_clk_enabled)) {
-		u32 temp = readl_relaxed(phy->dev_ref_clk_ctrl_mmio);
-
-		if (enable)
-			temp |= UFS_REF_CLK_EN;
-		else
-			temp &= ~UFS_REF_CLK_EN;
-
-		/*
-		 * If we are here to disable this clock immediately after
-		 * entering into hibern8, we need to make sure that device
-		 * ref_clk is active atleast 1us after the hibern8 enter.
-		 */
-		if (!enable)
-			udelay(1);
-
-		writel_relaxed(temp, phy->dev_ref_clk_ctrl_mmio);
-		/* ensure that ref_clk is enabled/disabled before we return */
-		wmb();
-		/*
-		 * If we call hibern8 exit after this, we need to make sure that
-		 * device ref_clk is stable for atleast 1us before the hibern8
-		 * exit command.
-		 */
-		if (enable)
-			udelay(1);
-
-		phy->is_dev_ref_clk_enabled = enable;
-	}
-}
-
-void ufs_qcom_phy_enable_dev_ref_clk(struct phy *generic_phy)
-{
-	ufs_qcom_phy_dev_ref_clk_ctrl(generic_phy, true);
-}
-EXPORT_SYMBOL_GPL(ufs_qcom_phy_enable_dev_ref_clk);
-
-void ufs_qcom_phy_disable_dev_ref_clk(struct phy *generic_phy)
-{
-	ufs_qcom_phy_dev_ref_clk_ctrl(generic_phy, false);
-}
-EXPORT_SYMBOL_GPL(ufs_qcom_phy_disable_dev_ref_clk);
-
 /* Turn ON M-PHY RMMI interface clocks */
 static int ufs_qcom_phy_enable_iface_clk(struct ufs_qcom_phy *phy)
 {
@@ -509,7 +474,7 @@ out:
 }
 
 /* Turn OFF M-PHY RMMI interface clocks */
-void ufs_qcom_phy_disable_iface_clk(struct ufs_qcom_phy *phy)
+static void ufs_qcom_phy_disable_iface_clk(struct ufs_qcom_phy *phy)
 {
 	if (phy->is_iface_clk_enabled) {
 		clk_disable_unprepare(phy->tx_iface_clk);
@@ -578,22 +543,37 @@ int ufs_qcom_phy_power_on(struct phy *generic_phy)
 {
 	struct ufs_qcom_phy *phy_common = get_ufs_qcom_phy(generic_phy);
 	struct device *dev = phy_common->dev;
+	bool is_rate_B = false;
 	int err;
 
-	if (phy_common->is_powered_on)
-		return 0;
+	err = ufs_qcom_phy_get_reset(phy_common);
+	if (err)
+		return err;
 
-	if (!phy_common->is_started) {
-		err = ufs_qcom_phy_start_serdes(phy_common);
-		if (err)
-			return err;
+	err = reset_control_assert(phy_common->ufs_reset);
+	if (err)
+		return err;
 
-		err = ufs_qcom_phy_is_pcs_ready(phy_common);
-		if (err)
-			return err;
+	if (phy_common->mode == PHY_MODE_UFS_HS_B)
+		is_rate_B = true;
 
-		phy_common->is_started = true;
+	err = phy_common->phy_spec_ops->calibrate(phy_common, is_rate_B);
+	if (err)
+		return err;
+
+	err = reset_control_deassert(phy_common->ufs_reset);
+	if (err) {
+		dev_err(dev, "Failed to assert UFS PHY reset");
+		return err;
 	}
+
+	err = ufs_qcom_phy_start_serdes(phy_common);
+	if (err)
+		return err;
+
+	err = ufs_qcom_phy_is_pcs_ready(phy_common);
+	if (err)
+		return err;
 
 	err = ufs_qcom_phy_enable_vreg(dev, &phy_common->vdda_phy);
 	if (err) {
@@ -637,7 +617,6 @@ int ufs_qcom_phy_power_on(struct phy *generic_phy)
 		}
 	}
 
-	phy_common->is_powered_on = true;
 	goto out;
 
 out_disable_ref_clk:
@@ -657,9 +636,6 @@ int ufs_qcom_phy_power_off(struct phy *generic_phy)
 {
 	struct ufs_qcom_phy *phy_common = get_ufs_qcom_phy(generic_phy);
 
-	if (!phy_common->is_powered_on)
-		return 0;
-
 	phy_common->phy_spec_ops->power_control(phy_common, false);
 
 	if (phy_common->vddp_ref_clk.reg)
@@ -670,8 +646,7 @@ int ufs_qcom_phy_power_off(struct phy *generic_phy)
 
 	ufs_qcom_phy_disable_vreg(phy_common->dev, &phy_common->vdda_pll);
 	ufs_qcom_phy_disable_vreg(phy_common->dev, &phy_common->vdda_phy);
-	phy_common->is_powered_on = false;
-
+	reset_control_assert(phy_common->ufs_reset);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_power_off);

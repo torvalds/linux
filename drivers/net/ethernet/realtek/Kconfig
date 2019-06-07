@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Realtek device configuration
 #
@@ -99,7 +100,8 @@ config R8169
 	depends on PCI
 	select FW_LOADER
 	select CRC32
-	select MII
+	select PHYLIB
+	select REALTEK_PHY
 	---help---
 	  Say Y here if you have a Realtek 8169 PCI Gigabit Ethernet adapter.
 

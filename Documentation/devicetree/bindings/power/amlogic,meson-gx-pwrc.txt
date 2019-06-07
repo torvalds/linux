@@ -16,7 +16,9 @@ Device Tree Bindings:
 ---------------------
 
 Required properties:
-- compatible: should be "amlogic,meson-gx-pwrc-vpu" for the Meson GX SoCs
+- compatible: should be one of the following :
+	- "amlogic,meson-gx-pwrc-vpu" for the Meson GX SoCs
+	- "amlogic,meson-g12a-pwrc-vpu" for the Meson G12A SoCs
 - #power-domain-cells: should be 0
 - amlogic,hhi-sysctrl: phandle to the HHI sysctrl node
 - resets: phandles to the reset lines needed for this power demain sequence

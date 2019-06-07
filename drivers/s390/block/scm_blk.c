@@ -455,6 +455,7 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	bdev->tag_set.nr_hw_queues = nr_requests;
 	bdev->tag_set.queue_depth = nr_requests_per_io * nr_requests;
 	bdev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+	bdev->tag_set.numa_node = NUMA_NO_NODE;
 
 	ret = blk_mq_alloc_tag_set(&bdev->tag_set);
 	if (ret)
@@ -499,7 +500,7 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 
 	/* 512 byte sectors */
 	set_capacity(bdev->gendisk, scmdev->size >> 9);
-	device_add_disk(&scmdev->dev, bdev->gendisk);
+	device_add_disk(&scmdev->dev, bdev->gendisk, NULL);
 	return 0;
 
 out_queue:

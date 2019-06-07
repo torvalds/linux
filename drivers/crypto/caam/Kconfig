@@ -1,7 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+config CRYPTO_DEV_FSL_CAAM_COMMON
+	tristate
+
 config CRYPTO_DEV_FSL_CAAM
-	tristate "Freescale CAAM-Multicore driver backend"
+	tristate "Freescale CAAM-Multicore platform driver backend"
 	depends on FSL_SOC || ARCH_MXC || ARCH_LAYERSCAPE
 	select SOC_BUS
+	select CRYPTO_DEV_FSL_CAAM_COMMON
 	help
 	  Enables the driver module for Freescale's Cryptographic Accelerator
 	  and Assurance Module (CAAM), also known as the SEC version 4 (SEC4).
@@ -12,9 +17,16 @@ config CRYPTO_DEV_FSL_CAAM
 	  To compile this driver as a module, choose M here: the module
 	  will be called caam.
 
+if CRYPTO_DEV_FSL_CAAM
+
+config CRYPTO_DEV_FSL_CAAM_DEBUG
+	bool "Enable debug output in CAAM driver"
+	help
+	  Selecting this will enable printing of various debug
+	  information in the CAAM driver.
+
 config CRYPTO_DEV_FSL_CAAM_JR
 	tristate "Freescale CAAM Job Ring driver backend"
-	depends on CRYPTO_DEV_FSL_CAAM
 	default y
 	help
 	  Enables the driver module for Job Rings which are part of
@@ -25,9 +37,10 @@ config CRYPTO_DEV_FSL_CAAM_JR
 	  To compile this driver as a module, choose M here: the module
 	  will be called caam_jr.
 
+if CRYPTO_DEV_FSL_CAAM_JR
+
 config CRYPTO_DEV_FSL_CAAM_RINGSIZE
 	int "Job Ring size"
-	depends on CRYPTO_DEV_FSL_CAAM_JR
 	range 2 9
 	default "9"
 	help
@@ -45,7 +58,6 @@ config CRYPTO_DEV_FSL_CAAM_RINGSIZE
 
 config CRYPTO_DEV_FSL_CAAM_INTC
 	bool "Job Ring interrupt coalescing"
-	depends on CRYPTO_DEV_FSL_CAAM_JR
 	help
 	  Enable the Job Ring's interrupt coalescing feature.
 
@@ -75,11 +87,11 @@ config CRYPTO_DEV_FSL_CAAM_INTC_TIME_THLD
 
 config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
 	tristate "Register algorithm implementations with the Crypto API"
-	depends on CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_DES
 	help
 	  Selecting this will offload crypto for users of the
 	  scatterlist crypto API (such as the linux native IPSec
@@ -90,7 +102,7 @@ config CRYPTO_DEV_FSL_CAAM_CRYPTO_API
 
 config CRYPTO_DEV_FSL_CAAM_CRYPTO_API_QI
 	tristate "Queue Interface as Crypto API backend"
-	depends on CRYPTO_DEV_FSL_CAAM_JR && FSL_DPAA && NET
+	depends on FSL_DPAA && NET
 	default y
 	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
@@ -107,7 +119,6 @@ config CRYPTO_DEV_FSL_CAAM_CRYPTO_API_QI
 
 config CRYPTO_DEV_FSL_CAAM_AHASH_API
 	tristate "Register hash algorithm implementations with Crypto API"
-	depends on CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_HASH
 	help
@@ -119,7 +130,6 @@ config CRYPTO_DEV_FSL_CAAM_AHASH_API
 
 config CRYPTO_DEV_FSL_CAAM_PKC_API
         tristate "Register public key cryptography implementations with Crypto API"
-        depends on CRYPTO_DEV_FSL_CAAM_JR
         default y
         select CRYPTO_RSA
         help
@@ -131,7 +141,6 @@ config CRYPTO_DEV_FSL_CAAM_PKC_API
 
 config CRYPTO_DEV_FSL_CAAM_RNG_API
 	tristate "Register caam device for hwrng API"
-	depends on CRYPTO_DEV_FSL_CAAM_JR
 	default y
 	select CRYPTO_RNG
 	select HW_RANDOM
@@ -142,13 +151,32 @@ config CRYPTO_DEV_FSL_CAAM_RNG_API
 	  To compile this as a module, choose M here: the module
 	  will be called caamrng.
 
-config CRYPTO_DEV_FSL_CAAM_DEBUG
-	bool "Enable debug output in CAAM driver"
-	depends on CRYPTO_DEV_FSL_CAAM
+endif # CRYPTO_DEV_FSL_CAAM_JR
+
+endif # CRYPTO_DEV_FSL_CAAM
+
+config CRYPTO_DEV_FSL_DPAA2_CAAM
+	tristate "QorIQ DPAA2 CAAM (DPSECI) driver"
+	depends on FSL_MC_DPIO
+	depends on NETDEVICES
+	select CRYPTO_DEV_FSL_CAAM_COMMON
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_AUTHENC
+	select CRYPTO_AEAD
+	select CRYPTO_HASH
 	help
-	  Selecting this will enable printing of various debug
-	  information in the CAAM driver.
+	  CAAM driver for QorIQ Data Path Acceleration Architecture 2.
+	  It handles DPSECI DPAA2 objects that sit on the Management Complex
+	  (MC) fsl-mc bus.
+
+	  To compile this as a module, choose M here: the module
+	  will be called dpaa2_caam.
 
 config CRYPTO_DEV_FSL_CAAM_CRYPTO_API_DESC
 	def_tristate (CRYPTO_DEV_FSL_CAAM_CRYPTO_API || \
-		      CRYPTO_DEV_FSL_CAAM_CRYPTO_API_QI)
+		      CRYPTO_DEV_FSL_CAAM_CRYPTO_API_QI || \
+		      CRYPTO_DEV_FSL_DPAA2_CAAM)
+
+config CRYPTO_DEV_FSL_CAAM_AHASH_API_DESC
+	def_tristate (CRYPTO_DEV_FSL_CAAM_AHASH_API || \
+		      CRYPTO_DEV_FSL_DPAA2_CAAM)

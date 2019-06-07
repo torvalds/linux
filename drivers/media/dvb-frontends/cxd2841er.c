@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cxd2841er.c
  *
@@ -9,16 +10,6 @@
  * Copyright (C) 2014 NetUP Inc.
  * Copyright (C) 2014 Sergey Kozlov <serjk@netup.ru>
  * Copyright (C) 2014 Abylay Ospan <aospan@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
   */
 
 #include <linux/module.h>
@@ -2947,7 +2938,7 @@ static int cxd2841er_sleep_tc_to_active_t(struct cxd2841er_priv *priv,
 		((priv->flags & CXD2841ER_ASCOT) ? 0x01 : 0x00), 0x01);
 	/* Set SLV-T Bank : 0x18 */
 	cxd2841er_write_reg(priv, I2C_SLVT, 0x00, 0x18);
-	/* Pre-RS BER moniter setting */
+	/* Pre-RS BER monitor setting */
 	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x36, 0x40, 0x07);
 	/* FEC Auto Recovery setting */
 	cxd2841er_set_reg_bits(priv, I2C_SLVT, 0x30, 0x01, 0x01);
@@ -3942,9 +3933,8 @@ static const struct dvb_frontend_ops cxd2841er_dvbs_s2_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name		= "Sony CXD2841ER DVB-S/S2 demodulator",
-		.frequency_min	= 500000,
-		.frequency_max	= 2500000,
-		.frequency_stepsize	= 0,
+		.frequency_min_hz	=  500 * MHz,
+		.frequency_max_hz	= 2500 * MHz,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.symbol_rate_tolerance = 500,
@@ -3988,8 +3978,8 @@ static struct dvb_frontend_ops cxd2841er_t_c_ops = {
 			FE_CAN_HIERARCHY_AUTO |
 			FE_CAN_MUTE_TS |
 			FE_CAN_2G_MODULATION,
-		.frequency_min = 42000000,
-		.frequency_max = 1002000000,
+		.frequency_min_hz =   42 * MHz,
+		.frequency_max_hz = 1002 * MHz,
 		.symbol_rate_min = 870000,
 		.symbol_rate_max = 11700000
 	},

@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Pengutronix, Juergen Borleis <jbe@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/dsa/lan9303.h>
 #include <linux/etherdevice.h>
@@ -137,7 +128,15 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev,
 	return skb;
 }
 
-const struct dsa_device_ops lan9303_netdev_ops = {
+static const struct dsa_device_ops lan9303_netdev_ops = {
+	.name = "lan9303",
+	.proto	= DSA_TAG_PROTO_LAN9303,
 	.xmit = lan9303_xmit,
 	.rcv = lan9303_rcv,
+	.overhead = LAN9303_TAG_LEN,
 };
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_LAN9303);
+
+module_dsa_tag_driver(lan9303_netdev_ops);

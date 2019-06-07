@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mt2701-cs42448.c  --  MT2701 CS42448 ALSA SoC machine driver
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Ir Lian <ir.lian@mediatek.com>
- *              Garlic Tseng <garlic.tseng@mediatek.com>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *	   Garlic Tseng <garlic.tseng@mediatek.com>
  */
 
 #include <linux/module.h>
@@ -308,6 +299,7 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 		devm_kzalloc(&pdev->dev, sizeof(struct mt2701_cs42448_private),
 			     GFP_KERNEL);
 	struct device *dev = &pdev->dev;
+	struct snd_soc_dai_link *dai_link;
 
 	if (!priv)
 		return -ENOMEM;
@@ -318,10 +310,10 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt2701_cs42448_dai_links[i].platform_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->platform_name)
 			continue;
-		mt2701_cs42448_dai_links[i].platform_of_node = platform_node;
+		dai_link->platform_of_node = platform_node;
 	}
 
 	card->dev = dev;
@@ -333,10 +325,10 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt2701_cs42448_dai_links[i].codec_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->codec_name)
 			continue;
-		mt2701_cs42448_dai_links[i].codec_of_node = codec_node;
+		dai_link->codec_of_node = codec_node;
 	}
 
 	codec_node_bt_mrg = of_parse_phandle(pdev->dev.of_node,

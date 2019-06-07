@@ -47,14 +47,22 @@ MODULE_PARM_DESC(rx_frag_size, "Size of a fragment that holds rcvd data.");
 static struct workqueue_struct *be_err_recovery_workq;
 
 static const struct pci_device_id be_dev_ids[] = {
+#ifdef CONFIG_BE2NET_BE2
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
-	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID1) },
+#endif /* CONFIG_BE2NET_BE2 */
+#ifdef CONFIG_BE2NET_BE3
+	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID2) },
+#endif /* CONFIG_BE2NET_BE3 */
+#ifdef CONFIG_BE2NET_LANCER
 	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID3)},
 	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID4)},
+#endif /* CONFIG_BE2NET_LANCER */
+#ifdef CONFIG_BE2NET_SKYHAWK
 	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID5)},
 	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID6)},
+#endif /* CONFIG_BE2NET_SKYHAWK */
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -159,8 +167,8 @@ static int be_queue_alloc(struct be_adapter *adapter, struct be_queue_info *q,
 	q->len = len;
 	q->entry_size = entry_size;
 	mem->size = len * entry_size;
-	mem->va = dma_zalloc_coherent(&adapter->pdev->dev, mem->size, &mem->dma,
-				      GFP_KERNEL);
+	mem->va = dma_alloc_coherent(&adapter->pdev->dev, mem->size,
+				     &mem->dma, GFP_KERNEL);
 	if (!mem->va)
 		return -ENOMEM;
 	return 0;
@@ -788,7 +796,7 @@ static inline u16 be_get_tx_vlan_tag(struct be_adapter *adapter,
 	u16 vlan_tag;
 
 	vlan_tag = skb_vlan_tag_get(skb);
-	vlan_prio = (vlan_tag & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+	vlan_prio = skb_vlan_tag_get_prio(skb);
 	/* If vlan priority provided by OS is NOT in available bmap */
 	if (!(adapter->vlan_prio_bmap & (1 << vlan_prio)))
 		vlan_tag = (vlan_tag & ~VLAN_PRIO_MASK) |
@@ -1041,30 +1049,35 @@ static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
 					     struct be_wrb_params
 					     *wrb_params)
 {
+	bool insert_vlan = false;
 	u16 vlan_tag = 0;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
 		return skb;
 
-	if (skb_vlan_tag_present(skb))
+	if (skb_vlan_tag_present(skb)) {
 		vlan_tag = be_get_tx_vlan_tag(adapter, skb);
+		insert_vlan = true;
+	}
 
 	if (qnq_async_evt_rcvd(adapter) && adapter->pvid) {
-		if (!vlan_tag)
+		if (!insert_vlan) {
 			vlan_tag = adapter->pvid;
+			insert_vlan = true;
+		}
 		/* f/w workaround to set skip_hw_vlan = 1, informs the F/W to
 		 * skip VLAN insertion
 		 */
 		BE_WRB_F_SET(wrb_params->features, VLAN_SKIP_HW, 1);
 	}
 
-	if (vlan_tag) {
+	if (insert_vlan) {
 		skb = vlan_insert_tag_set_proto(skb, htons(ETH_P_8021Q),
 						vlan_tag);
 		if (unlikely(!skb))
 			return skb;
-		skb->vlan_tci = 0;
+		__vlan_hwaccel_clear_tag(skb);
 	}
 
 	/* Insert the outer VLAN, if any */
@@ -1257,10 +1270,6 @@ static void be_xmit_flush(struct be_adapter *adapter, struct be_tx_obj *txo)
 #define is_arp_allowed_on_bmc(adapter, skb)	\
 	(is_arp(skb) && is_arp_filt_enabled(adapter))
 
-#define is_broadcast_packet(eh, adapter)	\
-		(is_multicast_ether_addr(eh->h_dest) && \
-		!compare_ether_addr(eh->h_dest, adapter->netdev->broadcast))
-
 #define is_arp(skb)	(skb->protocol == htons(ETH_P_ARP))
 
 #define is_arp_filt_enabled(adapter)	\
@@ -1367,7 +1376,7 @@ static netdev_tx_t be_xmit(struct sk_buff *skb, struct net_device *netdev)
 	u16 q_idx = skb_get_queue_mapping(skb);
 	struct be_tx_obj *txo = &adapter->tx_obj[q_idx];
 	struct be_wrb_params wrb_params = { 0 };
-	bool flush = !skb->xmit_more;
+	bool flush = !netdev_xmit_more();
 	u16 wrb_cnt;
 
 	skb = be_xmit_workarounds(adapter, skb, &wrb_params);
@@ -1410,6 +1419,83 @@ drop:
 		be_xmit_flush(adapter, txo);
 
 	return NETDEV_TX_OK;
+}
+
+static void be_tx_timeout(struct net_device *netdev)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	struct device *dev = &adapter->pdev->dev;
+	struct be_tx_obj *txo;
+	struct sk_buff *skb;
+	struct tcphdr *tcphdr;
+	struct udphdr *udphdr;
+	u32 *entry;
+	int status;
+	int i, j;
+
+	for_all_tx_queues(adapter, txo, i) {
+		dev_info(dev, "TXQ Dump: %d H: %d T: %d used: %d, qid: 0x%x\n",
+			 i, txo->q.head, txo->q.tail,
+			 atomic_read(&txo->q.used), txo->q.id);
+
+		entry = txo->q.dma_mem.va;
+		for (j = 0; j < TX_Q_LEN * 4; j += 4) {
+			if (entry[j] != 0 || entry[j + 1] != 0 ||
+			    entry[j + 2] != 0 || entry[j + 3] != 0) {
+				dev_info(dev, "Entry %d 0x%x 0x%x 0x%x 0x%x\n",
+					 j, entry[j], entry[j + 1],
+					 entry[j + 2], entry[j + 3]);
+			}
+		}
+
+		entry = txo->cq.dma_mem.va;
+		dev_info(dev, "TXCQ Dump: %d  H: %d T: %d used: %d\n",
+			 i, txo->cq.head, txo->cq.tail,
+			 atomic_read(&txo->cq.used));
+		for (j = 0; j < TX_CQ_LEN * 4; j += 4) {
+			if (entry[j] != 0 || entry[j + 1] != 0 ||
+			    entry[j + 2] != 0 || entry[j + 3] != 0) {
+				dev_info(dev, "Entry %d 0x%x 0x%x 0x%x 0x%x\n",
+					 j, entry[j], entry[j + 1],
+					 entry[j + 2], entry[j + 3]);
+			}
+		}
+
+		for (j = 0; j < TX_Q_LEN; j++) {
+			if (txo->sent_skb_list[j]) {
+				skb = txo->sent_skb_list[j];
+				if (ip_hdr(skb)->protocol == IPPROTO_TCP) {
+					tcphdr = tcp_hdr(skb);
+					dev_info(dev, "TCP source port %d\n",
+						 ntohs(tcphdr->source));
+					dev_info(dev, "TCP dest port %d\n",
+						 ntohs(tcphdr->dest));
+					dev_info(dev, "TCP sequence num %d\n",
+						 ntohs(tcphdr->seq));
+					dev_info(dev, "TCP ack_seq %d\n",
+						 ntohs(tcphdr->ack_seq));
+				} else if (ip_hdr(skb)->protocol ==
+					   IPPROTO_UDP) {
+					udphdr = udp_hdr(skb);
+					dev_info(dev, "UDP source port %d\n",
+						 ntohs(udphdr->source));
+					dev_info(dev, "UDP dest port %d\n",
+						 ntohs(udphdr->dest));
+				}
+				dev_info(dev, "skb[%d] %p len %d proto 0x%x\n",
+					 j, skb, skb->len, skb->protocol);
+			}
+		}
+	}
+
+	if (lancer_chip(adapter)) {
+		dev_info(dev, "Initiating reset due to tx timeout\n");
+		dev_info(dev, "Resetting adapter\n");
+		status = lancer_physdev_ctrl(adapter,
+					     PHYSDEV_CONTROL_FW_RESET_MASK);
+		if (status)
+			dev_err(dev, "Reset failed .. Reboot server\n");
+	}
 }
 
 static inline bool be_in_all_promisc(struct be_adapter *adapter)
@@ -3274,7 +3360,7 @@ void be_detect_error(struct be_adapter *adapter)
 			/* Do not log error messages if its a FW reset */
 			if (sliport_err1 == SLIPORT_ERROR_FW_RESET1 &&
 			    sliport_err2 == SLIPORT_ERROR_FW_RESET2) {
-				dev_info(dev, "Firmware update in progress\n");
+				dev_info(dev, "Reset is in progress\n");
 			} else {
 				dev_err(dev, "Error detected in the card\n");
 				dev_err(dev, "ERR: sliport status 0x%x\n",
@@ -3309,7 +3395,9 @@ void be_detect_error(struct be_adapter *adapter)
 				if ((val & POST_STAGE_FAT_LOG_START)
 				     != POST_STAGE_FAT_LOG_START &&
 				    (val & POST_STAGE_ARMFW_UE)
-				     != POST_STAGE_ARMFW_UE)
+				     != POST_STAGE_ARMFW_UE &&
+				    (val & POST_STAGE_RECOVERABLE_ERR)
+				     != POST_STAGE_RECOVERABLE_ERR)
 					return;
 			}
 
@@ -3913,8 +4001,6 @@ static int be_enable_vxlan_offloads(struct be_adapter *adapter)
 	netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 				   NETIF_F_TSO | NETIF_F_TSO6 |
 				   NETIF_F_GSO_UDP_TUNNEL;
-	netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL;
-	netdev->features |= NETIF_F_GSO_UDP_TUNNEL;
 
 	dev_info(dev, "Enabled VxLAN offloads for UDP port %d\n",
 		 be16_to_cpu(port));
@@ -3936,8 +4022,6 @@ static void be_disable_vxlan_offloads(struct be_adapter *adapter)
 	adapter->vxlan_port = 0;
 
 	netdev->hw_enc_features = 0;
-	netdev->hw_features &= ~(NETIF_F_GSO_UDP_TUNNEL);
-	netdev->features &= ~(NETIF_F_GSO_UDP_TUNNEL);
 }
 
 static void be_calculate_vf_res(struct be_adapter *adapter, u16 num_vfs,
@@ -4867,7 +4951,7 @@ fw_exit:
 }
 
 static int be_ndo_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
-				 u16 flags)
+				 u16 flags, struct netlink_ext_ack *extack)
 {
 	struct be_adapter *adapter = netdev_priv(dev);
 	struct nlattr *attr, *br_spec;
@@ -5214,6 +5298,7 @@ static const struct net_device_ops be_netdev_ops = {
 	.ndo_get_vf_config	= be_get_vf_config,
 	.ndo_set_vf_link_state  = be_set_vf_link_state,
 	.ndo_set_vf_spoofchk    = be_set_vf_spoofchk,
+	.ndo_tx_timeout		= be_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= be_netpoll,
 #endif
@@ -5230,6 +5315,7 @@ static void be_netdev_init(struct net_device *netdev)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	netdev->hw_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
+		NETIF_F_GSO_UDP_TUNNEL |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |
 		NETIF_F_HW_VLAN_CTAG_TX;
 	if ((be_if_cap_flags(adapter) & BE_IF_FLAGS_RSS))
@@ -5676,9 +5762,9 @@ static int be_drv_init(struct be_adapter *adapter)
 	int status = 0;
 
 	mbox_mem_alloc->size = sizeof(struct be_mcc_mailbox) + 16;
-	mbox_mem_alloc->va = dma_zalloc_coherent(dev, mbox_mem_alloc->size,
-						 &mbox_mem_alloc->dma,
-						 GFP_KERNEL);
+	mbox_mem_alloc->va = dma_alloc_coherent(dev, mbox_mem_alloc->size,
+						&mbox_mem_alloc->dma,
+						GFP_KERNEL);
 	if (!mbox_mem_alloc->va)
 		return -ENOMEM;
 
@@ -5687,8 +5773,8 @@ static int be_drv_init(struct be_adapter *adapter)
 	mbox_mem_align->dma = PTR_ALIGN(mbox_mem_alloc->dma, 16);
 
 	rx_filter->size = sizeof(struct be_cmd_req_rx_filter);
-	rx_filter->va = dma_zalloc_coherent(dev, rx_filter->size,
-					    &rx_filter->dma, GFP_KERNEL);
+	rx_filter->va = dma_alloc_coherent(dev, rx_filter->size,
+					   &rx_filter->dma, GFP_KERNEL);
 	if (!rx_filter->va) {
 		status = -ENOMEM;
 		goto free_mbox;
@@ -5702,8 +5788,8 @@ static int be_drv_init(struct be_adapter *adapter)
 		stats_cmd->size = sizeof(struct be_cmd_req_get_stats_v1);
 	else
 		stats_cmd->size = sizeof(struct be_cmd_req_get_stats_v2);
-	stats_cmd->va = dma_zalloc_coherent(dev, stats_cmd->size,
-					    &stats_cmd->dma, GFP_KERNEL);
+	stats_cmd->va = dma_alloc_coherent(dev, stats_cmd->size,
+					   &stats_cmd->dma, GFP_KERNEL);
 	if (!stats_cmd->va) {
 		status = -ENOMEM;
 		goto free_rx_filter;
@@ -6061,7 +6147,6 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 	if (status)
 		return PCI_ERS_RESULT_DISCONNECT;
 
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 	be_clear_error(adapter, BE_CLEAR_ALL);
 	return PCI_ERS_RESULT_RECOVERED;
 }

@@ -17,6 +17,16 @@
 
 static struct vfsmount *test_mnt = NULL;
 
+const char *test_error[] = {
+	[TEST_ALLOC_FS_INFO]	     = "cannot allocate fs_info",
+	[TEST_ALLOC_ROOT]	     = "cannot allocate root",
+	[TEST_ALLOC_EXTENT_BUFFER]   = "cannot extent buffer",
+	[TEST_ALLOC_PATH]	     = "cannot allocate path",
+	[TEST_ALLOC_INODE]	     = "cannot allocate inode",
+	[TEST_ALLOC_BLOCK_GROUP]     = "cannot allocate block group",
+	[TEST_ALLOC_EXTENT_MAP]      = "cannot allocate extent map",
+};
+
 static const struct super_operations btrfs_test_super_ops = {
 	.alloc_inode	= btrfs_alloc_inode,
 	.destroy_inode	= btrfs_test_destroy_inode,
@@ -99,7 +109,6 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 
 	spin_lock_init(&fs_info->buffer_lock);
 	spin_lock_init(&fs_info->qgroup_lock);
-	spin_lock_init(&fs_info->qgroup_op_lock);
 	spin_lock_init(&fs_info->super_lock);
 	spin_lock_init(&fs_info->fs_roots_radix_lock);
 	spin_lock_init(&fs_info->tree_mod_seq_lock);
@@ -115,8 +124,10 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 	INIT_LIST_HEAD(&fs_info->tree_mod_seq_list);
 	INIT_RADIX_TREE(&fs_info->buffer_radix, GFP_ATOMIC);
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
-	extent_io_tree_init(&fs_info->freed_extents[0], NULL);
-	extent_io_tree_init(&fs_info->freed_extents[1], NULL);
+	extent_io_tree_init(fs_info, &fs_info->freed_extents[0],
+			    IO_TREE_FS_INFO_FREED_EXTENTS0, NULL);
+	extent_io_tree_init(fs_info, &fs_info->freed_extents[1],
+			    IO_TREE_FS_INFO_FREED_EXTENTS1, NULL);
 	fs_info->pinned_extents = &fs_info->freed_extents[0];
 	set_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 
@@ -174,8 +185,10 @@ void btrfs_free_dummy_root(struct btrfs_root *root)
 	/* Will be freed by btrfs_free_fs_roots */
 	if (WARN_ON(test_bit(BTRFS_ROOT_IN_RADIX, &root->state)))
 		return;
-	if (root->node)
+	if (root->node) {
+		/* One for allocate_extent_buffer */
 		free_extent_buffer(root->node);
+	}
 	kfree(root);
 }
 
@@ -219,11 +232,13 @@ void btrfs_free_dummy_block_group(struct btrfs_block_group_cache *cache)
 	kfree(cache);
 }
 
-void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans)
+void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
+			    struct btrfs_fs_info *fs_info)
 {
 	memset(trans, 0, sizeof(*trans));
 	trans->transid = 1;
 	trans->type = __TRANS_DUMMY;
+	trans->fs_info = fs_info;
 }
 
 int btrfs_run_sanity_tests(void)

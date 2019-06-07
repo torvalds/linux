@@ -40,7 +40,7 @@ static LIST_HEAD(tiq_list);
 static DEFINE_MUTEX(tiq_list_lock);
 
 /* Adapter interrupt definitions */
-static void tiqdio_thinint_handler(struct airq_struct *airq);
+static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating);
 
 static struct airq_struct tiqdio_airq = {
 	.handler = tiqdio_thinint_handler,
@@ -179,7 +179,7 @@ static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
  * tiqdio_thinint_handler - thin interrupt handler for qdio
  * @airq: pointer to adapter interrupt descriptor
  */
-static void tiqdio_thinint_handler(struct airq_struct *airq)
+static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating)
 {
 	u32 si_used = clear_shared_ind();
 	struct qdio_q *q;
@@ -241,8 +241,9 @@ out:
 /* allocate non-shared indicators and shared indicator */
 int __init tiqdio_allocate_memory(void)
 {
-	q_indicators = kzalloc(sizeof(struct indicator_t) * TIQDIO_NR_INDICATORS,
-			     GFP_KERNEL);
+	q_indicators = kcalloc(TIQDIO_NR_INDICATORS,
+			       sizeof(struct indicator_t),
+			       GFP_KERNEL);
 	if (!q_indicators)
 		return -ENOMEM;
 	return 0;

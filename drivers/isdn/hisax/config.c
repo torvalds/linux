@@ -1029,7 +1029,7 @@ static int hisax_cs_new(int cardnr, char *id, struct IsdnCard *card,
 
 	*cs_out = NULL;
 
-	cs = kzalloc(sizeof(struct IsdnCardState), GFP_ATOMIC);
+	cs = kzalloc(sizeof(struct IsdnCardState), GFP_KERNEL);
 	if (!cs) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for IsdnCardState(card %d)\n",
@@ -1059,12 +1059,12 @@ static int hisax_cs_new(int cardnr, char *id, struct IsdnCard *card,
 		       "HiSax: Card Type %d out of range\n", card->typ);
 		goto outf_cs;
 	}
-	if (!(cs->dlog = kmalloc(MAX_DLOG_SPACE, GFP_ATOMIC))) {
+	if (!(cs->dlog = kmalloc(MAX_DLOG_SPACE, GFP_KERNEL))) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for dlog(card %d)\n", cardnr + 1);
 		goto outf_cs;
 	}
-	if (!(cs->status_buf = kmalloc(HISAX_STATUS_BUFSIZE, GFP_ATOMIC))) {
+	if (!(cs->status_buf = kmalloc(HISAX_STATUS_BUFSIZE, GFP_KERNEL))) {
 		printk(KERN_WARNING
 		       "HiSax: No memory for status_buf(card %d)\n",
 		       cardnr + 1);
@@ -1123,7 +1123,7 @@ static int hisax_cs_setup(int cardnr, struct IsdnCard *card,
 {
 	int ret;
 
-	if (!(cs->rcvbuf = kmalloc(MAX_DFRAME_LEN_L1, GFP_ATOMIC))) {
+	if (!(cs->rcvbuf = kmalloc(MAX_DFRAME_LEN_L1, GFP_KERNEL))) {
 		printk(KERN_WARNING "HiSax: No memory for isac rcvbuf\n");
 		ll_unload(cs);
 		goto outf_cs;
@@ -1294,9 +1294,9 @@ void HiSax_reportcard(int cardnr, int sel)
 	printk(KERN_DEBUG "HiSax: reportcard No %d\n", cardnr + 1);
 	printk(KERN_DEBUG "HiSax: Type %s\n", CardType[cs->typ]);
 	printk(KERN_DEBUG "HiSax: debuglevel %x\n", cs->debug);
-	printk(KERN_DEBUG "HiSax: HiSax_reportcard address 0x%lX\n",
-	       (ulong) & HiSax_reportcard);
-	printk(KERN_DEBUG "HiSax: cs 0x%lX\n", (ulong) cs);
+	printk(KERN_DEBUG "HiSax: HiSax_reportcard address 0x%px\n",
+		HiSax_reportcard);
+	printk(KERN_DEBUG "HiSax: cs 0x%px\n", cs);
 	printk(KERN_DEBUG "HiSax: HW_Flags %lx bc0 flg %lx bc1 flg %lx\n",
 	       cs->HW_Flags, cs->bcs[0].Flag, cs->bcs[1].Flag);
 	printk(KERN_DEBUG "HiSax: bcs 0 mode %d ch%d\n",
@@ -1843,6 +1843,7 @@ static void hisax_b_l2l1(struct PStack *st, int pr, void *arg)
 	case PH_DEACTIVATE | REQUEST:
 		test_and_clear_bit(BC_FLG_BUSY, &bcs->Flag);
 		skb_queue_purge(&bcs->squeue);
+		/* fall through */
 	default:
 		B_L2L1(b_if, pr, arg);
 		break;

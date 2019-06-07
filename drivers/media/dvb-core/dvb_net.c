@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * dvb_net.c
  *
@@ -13,18 +14,6 @@
  *                      and Wolfram Stering <wstering@cosy.sbg.ac.at>
  *
  * ULE Decaps according to RFC 4326.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /*
@@ -1005,7 +994,7 @@ static int dvb_net_sec_callback(const u8 *buffer1, size_t buffer1_len,
 	return 0;
 }
 
-static int dvb_net_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t dvb_net_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  atakbd.c
  *
@@ -21,23 +22,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
- * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
 #include <linux/module.h>
@@ -79,8 +63,7 @@ MODULE_LICENSE("GPL");
  */
 
 
-static unsigned char atakbd_keycode[0x72] = {	/* American layout */
-	[0]	 = KEY_GRAVE,
+static unsigned char atakbd_keycode[0x73] = {	/* American layout */
 	[1]	 = KEY_ESC,
 	[2]	 = KEY_1,
 	[3]	 = KEY_2,
@@ -121,9 +104,9 @@ static unsigned char atakbd_keycode[0x72] = {	/* American layout */
 	[38]	 = KEY_L,
 	[39]	 = KEY_SEMICOLON,
 	[40]	 = KEY_APOSTROPHE,
-	[41]	 = KEY_BACKSLASH,	/* FIXME, '#' */
+	[41]	 = KEY_GRAVE,
 	[42]	 = KEY_LEFTSHIFT,
-	[43]	 = KEY_GRAVE,		/* FIXME: '~' */
+	[43]	 = KEY_BACKSLASH,
 	[44]	 = KEY_Z,
 	[45]	 = KEY_X,
 	[46]	 = KEY_C,
@@ -149,45 +132,34 @@ static unsigned char atakbd_keycode[0x72] = {	/* American layout */
 	[66]	 = KEY_F8,
 	[67]	 = KEY_F9,
 	[68]	 = KEY_F10,
-	[69]	 = KEY_ESC,
-	[70]	 = KEY_DELETE,
-	[71]	 = KEY_KP7,
-	[72]	 = KEY_KP8,
-	[73]	 = KEY_KP9,
+	[71]	 = KEY_HOME,
+	[72]	 = KEY_UP,
 	[74]	 = KEY_KPMINUS,
-	[75]	 = KEY_KP4,
-	[76]	 = KEY_KP5,
-	[77]	 = KEY_KP6,
+	[75]	 = KEY_LEFT,
+	[77]	 = KEY_RIGHT,
 	[78]	 = KEY_KPPLUS,
-	[79]	 = KEY_KP1,
-	[80]	 = KEY_KP2,
-	[81]	 = KEY_KP3,
-	[82]	 = KEY_KP0,
-	[83]	 = KEY_KPDOT,
-	[90]	 = KEY_KPLEFTPAREN,
-	[91]	 = KEY_KPRIGHTPAREN,
-	[92]	 = KEY_KPASTERISK,	/* FIXME */
-	[93]	 = KEY_KPASTERISK,
-	[94]	 = KEY_KPPLUS,
-	[95]	 = KEY_HELP,
+	[80]	 = KEY_DOWN,
+	[82]	 = KEY_INSERT,
+	[83]	 = KEY_DELETE,
 	[96]	 = KEY_102ND,
-	[97]	 = KEY_KPASTERISK,	/* FIXME */
-	[98]	 = KEY_KPSLASH,
+	[97]	 = KEY_UNDO,
+	[98]	 = KEY_HELP,
 	[99]	 = KEY_KPLEFTPAREN,
 	[100]	 = KEY_KPRIGHTPAREN,
 	[101]	 = KEY_KPSLASH,
 	[102]	 = KEY_KPASTERISK,
-	[103]	 = KEY_UP,
-	[104]	 = KEY_KPASTERISK,	/* FIXME */
-	[105]	 = KEY_LEFT,
-	[106]	 = KEY_RIGHT,
-	[107]	 = KEY_KPASTERISK,	/* FIXME */
-	[108]	 = KEY_DOWN,
-	[109]	 = KEY_KPASTERISK,	/* FIXME */
-	[110]	 = KEY_KPASTERISK,	/* FIXME */
-	[111]	 = KEY_KPASTERISK,	/* FIXME */
-	[112]	 = KEY_KPASTERISK,	/* FIXME */
-	[113]	 = KEY_KPASTERISK	/* FIXME */
+	[103]	 = KEY_KP7,
+	[104]	 = KEY_KP8,
+	[105]	 = KEY_KP9,
+	[106]	 = KEY_KP4,
+	[107]	 = KEY_KP5,
+	[108]	 = KEY_KP6,
+	[109]	 = KEY_KP1,
+	[110]	 = KEY_KP2,
+	[111]	 = KEY_KP3,
+	[112]	 = KEY_KP0,
+	[113]	 = KEY_KPDOT,
+	[114]	 = KEY_KPENTER,
 };
 
 static struct input_dev *atakbd_dev;
@@ -195,21 +167,15 @@ static struct input_dev *atakbd_dev;
 static void atakbd_interrupt(unsigned char scancode, char down)
 {
 
-	if (scancode < 0x72) {		/* scancodes < 0xf2 are keys */
+	if (scancode < 0x73) {		/* scancodes < 0xf3 are keys */
 
 		// report raw events here?
 
 		scancode = atakbd_keycode[scancode];
 
-		if (scancode == KEY_CAPSLOCK) {	/* CapsLock is a toggle switch key on Amiga */
-			input_report_key(atakbd_dev, scancode, 1);
-			input_report_key(atakbd_dev, scancode, 0);
-			input_sync(atakbd_dev);
-		} else {
-			input_report_key(atakbd_dev, scancode, down);
-			input_sync(atakbd_dev);
-		}
-	} else				/* scancodes >= 0xf2 are mouse data, most likely */
+		input_report_key(atakbd_dev, scancode, down);
+		input_sync(atakbd_dev);
+	} else				/* scancodes >= 0xf3 are mouse data, most likely */
 		printk(KERN_INFO "atakbd: unhandled scancode %x\n", scancode);
 
 	return;

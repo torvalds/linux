@@ -1,24 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *
  *  Generic Bluetooth HCI UART driver
  *
  *  Copyright (C) 2015-2018  Intel Corporation
- *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <asm/unaligned.h>
@@ -60,11 +45,12 @@ static inline struct sk_buff *h4_recv_buf(struct hci_dev *hdev,
 					  const struct h4_recv_pkt *pkts,
 					  int pkts_count)
 {
+	/* Check for error from previous call */
+	if (IS_ERR(skb))
+		skb = NULL;
+
 	while (count) {
 		int i, len;
-
-		if (!count)
-			break;
 
 		if (!skb) {
 			for (i = 0; i < pkts_count; i++) {

@@ -7,44 +7,37 @@
 
 /dts-v1/;
 /plugin/;
-/ {
-	fragment@0 {
-		target-path = "/";
-		__overlay__ {
-			#address-cells = <2>;
-			#size-cells = <2>;
 
-			lvds@feb90000 {
-				compatible = "renesas,r8a7793-lvds";
-				reg = <0 0xfeb90000 0 0x1c>;
+&{/} {
+	#address-cells = <2>;
+	#size-cells = <2>;
 
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
+	lvds@feb90000 {
+		compatible = "renesas,r8a7793-lvds";
+		reg = <0 0xfeb90000 0 0x1c>;
 
-					port@0 {
-						reg = <0>;
-						lvds0_input: endpoint {
-						};
-					};
-					port@1 {
-						reg = <1>;
-						lvds0_out: endpoint {
-						};
-					};
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				lvds0_input: endpoint {
+				};
+			};
+			port@1 {
+				reg = <1>;
+				lvds0_out: endpoint {
 				};
 			};
 		};
 	};
+};
 
-	fragment@1 {
-		target-path = "/display@feb00000/ports";
-		__overlay__ {
-			port@1 {
-				endpoint {
-					remote-endpoint = <&lvds0_input>;
-				};
-			};
+&{/display@feb00000/ports} {
+	port@1 {
+		endpoint {
+			remote-endpoint = <&lvds0_input>;
 		};
 	};
 };

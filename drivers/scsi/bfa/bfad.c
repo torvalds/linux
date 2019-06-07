@@ -727,7 +727,7 @@ bfad_init_timer(struct bfad_s *bfad)
 int
 bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 {
-	int		rc = -ENODEV;
+	int rc = -ENODEV;
 
 	if (pci_enable_device(pdev)) {
 		printk(KERN_ERR "pci_enable_device fail %p\n", pdev);
@@ -739,14 +739,14 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 
 	pci_set_master(pdev);
 
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (rc)
+		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 
-	if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) ||
-	    (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) != 0)) {
-		if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) ||
-		   (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) != 0)) {
-			printk(KERN_ERR "pci_set_dma_mask fail %p\n", pdev);
-			goto out_release_region;
-		}
+	if (rc) {
+		rc = -ENODEV;
+		printk(KERN_ERR "dma_set_mask_and_coherent fail %p\n", pdev);
+		goto out_release_region;
 	}
 
 	/* Enable PCIE Advanced Error Recovery (AER) if kernel supports */
@@ -1538,6 +1538,7 @@ bfad_pci_slot_reset(struct pci_dev *pdev)
 {
 	struct bfad_s *bfad = pci_get_drvdata(pdev);
 	u8 byte;
+	int rc;
 
 	dev_printk(KERN_ERR, &pdev->dev,
 		   "bfad_pci_slot_reset flags: 0x%x\n", bfad->bfad_flags);
@@ -1565,11 +1566,12 @@ bfad_pci_slot_reset(struct pci_dev *pdev)
 	pci_save_state(pdev);
 	pci_set_master(pdev);
 
-	if (pci_set_dma_mask(bfad->pcidev, DMA_BIT_MASK(64)) != 0)
-		if (pci_set_dma_mask(bfad->pcidev, DMA_BIT_MASK(32)) != 0)
-			goto out_disable_device;
-
-	pci_cleanup_aer_uncorrect_error_status(pdev);
+	rc = dma_set_mask_and_coherent(&bfad->pcidev->dev, DMA_BIT_MASK(64));
+	if (rc)
+		rc = dma_set_mask_and_coherent(&bfad->pcidev->dev,
+					       DMA_BIT_MASK(32));
+	if (rc)
+		goto out_disable_device;
 
 	if (restart_bfa(bfad) == -1)
 		goto out_disable_device;

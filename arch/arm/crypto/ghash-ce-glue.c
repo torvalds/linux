@@ -1,7 +1,7 @@
 /*
  * Accelerated GHASH implementation with ARMv8 vmull.p64 instructions.
  *
- * Copyright (C) 2015 Linaro Ltd. <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2015 - 2018 Linaro Ltd. <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -14,6 +14,7 @@
 #include <asm/unaligned.h>
 #include <crypto/cryptd.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/gf128mul.h>
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
@@ -28,8 +29,10 @@ MODULE_ALIAS_CRYPTO("ghash");
 #define GHASH_DIGEST_SIZE	16
 
 struct ghash_key {
-	u64	a;
-	u64	b;
+	u64	h[2];
+	u64	h2[2];
+	u64	h3[2];
+	u64	h4[2];
 };
 
 struct ghash_desc_ctx {
@@ -117,26 +120,40 @@ static int ghash_final(struct shash_desc *desc, u8 *dst)
 	return 0;
 }
 
+static void ghash_reflect(u64 h[], const be128 *k)
+{
+	u64 carry = be64_to_cpu(k->a) >> 63;
+
+	h[0] = (be64_to_cpu(k->b) << 1) | carry;
+	h[1] = (be64_to_cpu(k->a) << 1) | (be64_to_cpu(k->b) >> 63);
+
+	if (carry)
+		h[1] ^= 0xc200000000000000UL;
+}
+
 static int ghash_setkey(struct crypto_shash *tfm,
 			const u8 *inkey, unsigned int keylen)
 {
 	struct ghash_key *key = crypto_shash_ctx(tfm);
-	u64 a, b;
+	be128 h, k;
 
 	if (keylen != GHASH_BLOCK_SIZE) {
 		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
-	/* perform multiplication by 'x' in GF(2^128) */
-	b = get_unaligned_be64(inkey);
-	a = get_unaligned_be64(inkey + 8);
+	memcpy(&k, inkey, GHASH_BLOCK_SIZE);
+	ghash_reflect(key->h, &k);
 
-	key->a = (a << 1) | (b >> 63);
-	key->b = (b << 1) | (a >> 63);
+	h = k;
+	gf128mul_lle(&h, &k);
+	ghash_reflect(key->h2, &h);
 
-	if (b >> 63)
-		key->b ^= 0xc200000000000000UL;
+	gf128mul_lle(&h, &k);
+	ghash_reflect(key->h3, &h);
+
+	gf128mul_lle(&h, &k);
+	ghash_reflect(key->h4, &h);
 
 	return 0;
 }
@@ -152,7 +169,7 @@ static struct shash_alg ghash_alg = {
 		.cra_name	= "__ghash",
 		.cra_driver_name = "__driver-ghash-ce",
 		.cra_priority	= 0,
-		.cra_flags	= CRYPTO_ALG_TYPE_SHASH | CRYPTO_ALG_INTERNAL,
+		.cra_flags	= CRYPTO_ALG_INTERNAL,
 		.cra_blocksize	= GHASH_BLOCK_SIZE,
 		.cra_ctxsize	= sizeof(struct ghash_key),
 		.cra_module	= THIS_MODULE,
@@ -169,7 +186,6 @@ static int ghash_async_init(struct ahash_request *req)
 	struct crypto_shash *child = cryptd_ahash_child(cryptd_tfm);
 
 	desc->tfm = child;
-	desc->flags = req->base.flags;
 	return crypto_shash_init(desc);
 }
 
@@ -180,7 +196,7 @@ static int ghash_async_update(struct ahash_request *req)
 	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct cryptd_ahash *cryptd_tfm = ctx->cryptd_tfm;
 
-	if (!may_use_simd() ||
+	if (!crypto_simd_usable() ||
 	    (in_atomic() && cryptd_ahash_queued(cryptd_tfm))) {
 		memcpy(cryptd_req, req, sizeof(*req));
 		ahash_request_set_tfm(cryptd_req, &cryptd_tfm->base);
@@ -198,7 +214,7 @@ static int ghash_async_final(struct ahash_request *req)
 	struct ghash_async_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct cryptd_ahash *cryptd_tfm = ctx->cryptd_tfm;
 
-	if (!may_use_simd() ||
+	if (!crypto_simd_usable() ||
 	    (in_atomic() && cryptd_ahash_queued(cryptd_tfm))) {
 		memcpy(cryptd_req, req, sizeof(*req));
 		ahash_request_set_tfm(cryptd_req, &cryptd_tfm->base);
@@ -216,7 +232,7 @@ static int ghash_async_digest(struct ahash_request *req)
 	struct ahash_request *cryptd_req = ahash_request_ctx(req);
 	struct cryptd_ahash *cryptd_tfm = ctx->cryptd_tfm;
 
-	if (!may_use_simd() ||
+	if (!crypto_simd_usable() ||
 	    (in_atomic() && cryptd_ahash_queued(cryptd_tfm))) {
 		memcpy(cryptd_req, req, sizeof(*req));
 		ahash_request_set_tfm(cryptd_req, &cryptd_tfm->base);
@@ -226,7 +242,6 @@ static int ghash_async_digest(struct ahash_request *req)
 		struct crypto_shash *child = cryptd_ahash_child(cryptd_tfm);
 
 		desc->tfm = child;
-		desc->flags = req->base.flags;
 		return shash_ahash_digest(req, desc);
 	}
 }
@@ -239,7 +254,6 @@ static int ghash_async_import(struct ahash_request *req, const void *in)
 	struct shash_desc *desc = cryptd_shash_desc(cryptd_req);
 
 	desc->tfm = cryptd_ahash_child(ctx->cryptd_tfm);
-	desc->flags = req->base.flags;
 
 	return crypto_shash_import(desc, in);
 }
@@ -308,9 +322,8 @@ static struct ahash_alg ghash_async_alg = {
 		.cra_name	= "ghash",
 		.cra_driver_name = "ghash-ce",
 		.cra_priority	= 300,
-		.cra_flags	= CRYPTO_ALG_TYPE_AHASH | CRYPTO_ALG_ASYNC,
+		.cra_flags	= CRYPTO_ALG_ASYNC,
 		.cra_blocksize	= GHASH_BLOCK_SIZE,
-		.cra_type	= &crypto_ahash_type,
 		.cra_ctxsize	= sizeof(struct ghash_async_ctx),
 		.cra_module	= THIS_MODULE,
 		.cra_init	= ghash_async_init_tfm,

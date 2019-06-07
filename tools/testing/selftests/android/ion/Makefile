@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 INCLUDEDIR := -I. -I../../../../../drivers/staging/android/uapi/ -I../../../../../usr/include/
 CFLAGS := $(CFLAGS) $(INCLUDEDIR) -Wall -O2 -g
@@ -10,6 +11,8 @@ $(TEST_GEN_FILES): ipcsocket.c ionutils.c
 
 TEST_PROGS := ion_test.sh
 
+KSFT_KHDR_INSTALL := 1
+top_srcdir = ../../../../..
 include ../../lib.mk
 
 $(OUTPUT)/ionapp_export: ionapp_export.c ipcsocket.c ionutils.c

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * trace_output.c
  *
@@ -338,43 +339,24 @@ static inline const char *kretprobed(const char *name)
 #endif /* CONFIG_KRETPROBES */
 
 static void
-seq_print_sym_short(struct trace_seq *s, const char *fmt, unsigned long address)
+seq_print_sym(struct trace_seq *s, unsigned long address, bool offset)
 {
-	char str[KSYM_SYMBOL_LEN];
 #ifdef CONFIG_KALLSYMS
+	char str[KSYM_SYMBOL_LEN];
 	const char *name;
 
-	kallsyms_lookup(address, NULL, NULL, NULL, str);
-
+	if (offset)
+		sprint_symbol(str, address);
+	else
+		kallsyms_lookup(address, NULL, NULL, NULL, str);
 	name = kretprobed(str);
 
 	if (name && strlen(name)) {
-		trace_seq_printf(s, fmt, name);
+		trace_seq_puts(s, name);
 		return;
 	}
 #endif
-	snprintf(str, KSYM_SYMBOL_LEN, "0x%08lx", address);
-	trace_seq_printf(s, fmt, str);
-}
-
-static void
-seq_print_sym_offset(struct trace_seq *s, const char *fmt,
-		     unsigned long address)
-{
-	char str[KSYM_SYMBOL_LEN];
-#ifdef CONFIG_KALLSYMS
-	const char *name;
-
-	sprint_symbol(str, address);
-	name = kretprobed(str);
-
-	if (name && strlen(name)) {
-		trace_seq_printf(s, fmt, name);
-		return;
-	}
-#endif
-	snprintf(str, KSYM_SYMBOL_LEN, "0x%08lx", address);
-	trace_seq_printf(s, fmt, str);
+	trace_seq_printf(s, "0x%08lx", address);
 }
 
 #ifndef CONFIG_64BIT
@@ -423,10 +405,7 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 		goto out;
 	}
 
-	if (sym_flags & TRACE_ITER_SYM_OFFSET)
-		seq_print_sym_offset(s, "%s", ip);
-	else
-		seq_print_sym_short(s, "%s", ip);
+	seq_print_sym(s, ip, sym_flags & TRACE_ITER_SYM_OFFSET);
 
 	if (sym_flags & TRACE_ITER_SYM_ADDR)
 		trace_seq_printf(s, " <" IP_FMT ">", ip);
@@ -594,8 +573,7 @@ int trace_print_context(struct trace_iterator *iter)
 
 	trace_find_cmdline(entry->pid, comm);
 
-	trace_seq_printf(s, "%16s-%-5d [%03d] ",
-			       comm, entry->pid, iter->cpu);
+	trace_seq_printf(s, "%16s-%-5d ", comm, entry->pid);
 
 	if (tr->trace_flags & TRACE_ITER_RECORD_TGID) {
 		unsigned int tgid = trace_find_tgid(entry->pid);
@@ -605,6 +583,8 @@ int trace_print_context(struct trace_iterator *iter)
 		else
 			trace_seq_printf(s, "(%5d) ", tgid);
 	}
+
+	trace_seq_printf(s, "[%03d] ", iter->cpu);
 
 	if (tr->trace_flags & TRACE_ITER_IRQ_INFO)
 		trace_print_lat_fmt(s, entry);

@@ -513,7 +513,7 @@ void kvmppc_mmu_itlb_miss(struct kvm_vcpu *vcpu)
 {
 	unsigned int as = !!(vcpu->arch.shared->msr & MSR_IS);
 
-	kvmppc_e500_deliver_tlb_miss(vcpu, vcpu->arch.pc, as);
+	kvmppc_e500_deliver_tlb_miss(vcpu, vcpu->arch.regs.nip, as);
 }
 
 void kvmppc_mmu_dtlb_miss(struct kvm_vcpu *vcpu)
@@ -783,7 +783,7 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 	if (!pages)
 		return -ENOMEM;
 
-	ret = get_user_pages_fast(cfg->array, num_pages, 1, pages);
+	ret = get_user_pages_fast(cfg->array, num_pages, FOLL_WRITE, pages);
 	if (ret < 0)
 		goto free_pages;
 

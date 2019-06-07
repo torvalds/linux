@@ -75,7 +75,7 @@ static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 	typeof(ubuf->st_gid) gid = 0;
 	SET_UID(uid, from_kuid_munged(current_user_ns(), stat->uid));
 	SET_GID(gid, from_kgid_munged(current_user_ns(), stat->gid));
-	if (!access_ok(VERIFY_WRITE, ubuf, sizeof(struct stat64)) ||
+	if (!access_ok(ubuf, sizeof(struct stat64)) ||
 	    __put_user(huge_encode_dev(stat->dev), &ubuf->st_dev) ||
 	    __put_user(stat->ino, &ubuf->__st_ino) ||
 	    __put_user(stat->ino, &ubuf->st_ino) ||

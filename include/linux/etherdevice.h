@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  NET  is implemented using the  BSD Socket
@@ -12,12 +13,6 @@
  *
  *		Relocated to include/linux where it belongs by Alan Cox 
  *							<gw4pts@gw4pts.ampr.org>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
- *
  */
 #ifndef _LINUX_ETHERDEVICE_H
 #define _LINUX_ETHERDEVICE_H
@@ -32,7 +27,8 @@
 struct device;
 int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr);
 unsigned char *arch_get_platform_mac_address(void);
-u32 eth_get_headlen(void *data, unsigned int max_len);
+int nvmem_get_mac_address(struct device *dev, void *addrbuf);
+u32 eth_get_headlen(const struct net_device *dev, void *data, unsigned int len);
 __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev);
 extern const struct header_ops eth_header_ops;
 
@@ -43,6 +39,7 @@ int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh,
 		     __be16 type);
 void eth_header_cache_update(struct hh_cache *hh, const struct net_device *dev,
 			     const unsigned char *haddr);
+__be16 eth_header_parse_protocol(const struct sk_buff *skb);
 int eth_prepare_mac_addr_change(struct net_device *dev, void *p);
 void eth_commit_mac_addr_change(struct net_device *dev, void *p);
 int eth_mac_addr(struct net_device *dev, void *p);
@@ -59,8 +56,7 @@ struct net_device *devm_alloc_etherdev_mqs(struct device *dev, int sizeof_priv,
 					   unsigned int rxqs);
 #define devm_alloc_etherdev(dev, sizeof_priv) devm_alloc_etherdev_mqs(dev, sizeof_priv, 1, 1)
 
-struct sk_buff **eth_gro_receive(struct sk_buff **head,
-				 struct sk_buff *skb);
+struct sk_buff *eth_gro_receive(struct list_head *head, struct sk_buff *skb);
 int eth_gro_complete(struct sk_buff *skb, int nhoff);
 
 /* Reserved Ethernet Addresses per IEEE 802.1Q */
@@ -444,6 +440,18 @@ static inline void eth_addr_dec(u8 *addr)
 	u64 u = ether_addr_to_u64(addr);
 
 	u--;
+	u64_to_ether_addr(u, addr);
+}
+
+/**
+ * eth_addr_inc() - Increment the given MAC address.
+ * @addr: Pointer to a six-byte array containing Ethernet address to increment.
+ */
+static inline void eth_addr_inc(u8 *addr)
+{
+	u64 u = ether_addr_to_u64(addr);
+
+	u++;
 	u64_to_ether_addr(u, addr);
 }
 

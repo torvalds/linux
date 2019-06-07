@@ -32,8 +32,6 @@ Optional properties:
 		  A standard property.   It represents the CCSR registers of
 		  all child PAMUs combined.  Include it to provide support
 		  for legacy drivers.
-- interrupt-parent : <phandle>
-		  Phandle to interrupt controller
 - fsl,portid-mapping : <u32>
 		  The Coherency Subdomain ID Port Mapping Registers and
 		  Snoop ID Port Mapping registers, which are part of the

@@ -1,22 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  ALSA sequencer Memory Manager
  *  Copyright (c) 1998 by Frank van de Pol <fvdpol@coil.demon.nl>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 #ifndef __SND_SEQ_MEMORYMGR_H
 #define __SND_SEQ_MEMORYMGR_H
@@ -93,12 +78,6 @@ struct snd_seq_pool *snd_seq_pool_new(int poolsize);
 
 /* remove pool */
 int snd_seq_pool_delete(struct snd_seq_pool **pool);
-
-/* init memory */
-int snd_sequencer_memory_init(void);
-            
-/* release event memory */
-void snd_sequencer_memory_done(void);
 
 /* polling */
 int snd_seq_pool_poll_wait(struct snd_seq_pool *pool, struct file *file, poll_table *wait);

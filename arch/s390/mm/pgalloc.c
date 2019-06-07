@@ -28,7 +28,7 @@ static struct ctl_table page_table_sysctl[] = {
 		.data		= &page_table_allocate_pgste,
 		.maxlen		= sizeof(int),
 		.mode		= S_IRUGO | S_IWUSR,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &page_table_allocate_pgste_min,
 		.extra2		= &page_table_allocate_pgste_max,
 	},
@@ -101,6 +101,7 @@ int crst_table_upgrade(struct mm_struct *mm, unsigned long end)
 			mm->context.asce_limit = _REGION1_SIZE;
 			mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
 				_ASCE_USER_BITS | _ASCE_TYPE_REGION2;
+			mm_inc_nr_puds(mm);
 		} else {
 			crst_table_init(table, _REGION1_ENTRY_EMPTY);
 			pgd_populate(mm, (pgd_t *) table, (p4d_t *) pgd);
@@ -130,6 +131,7 @@ void crst_table_downgrade(struct mm_struct *mm)
 	}
 
 	pgd = mm->pgd;
+	mm_dec_nr_pmds(mm);
 	mm->pgd = (pgd_t *) (pgd_val(*pgd) & _REGION_ENTRY_ORIGIN);
 	mm->context.asce_limit = _REGION3_SIZE;
 	mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
@@ -190,14 +192,15 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 		if (!list_empty(&mm->context.pgtable_list)) {
 			page = list_first_entry(&mm->context.pgtable_list,
 						struct page, lru);
-			mask = atomic_read(&page->_mapcount);
+			mask = atomic_read(&page->_refcount) >> 24;
 			mask = (mask | (mask >> 4)) & 3;
 			if (mask != 3) {
 				table = (unsigned long *) page_to_phys(page);
 				bit = mask & 1;		/* =1 -> second 2K */
 				if (bit)
 					table += PTRS_PER_PTE;
-				atomic_xor_bits(&page->_mapcount, 1U << bit);
+				atomic_xor_bits(&page->_refcount,
+							1U << (bit + 24));
 				list_del(&page->lru);
 			}
 		}
@@ -218,12 +221,12 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	table = (unsigned long *) page_to_phys(page);
 	if (mm_alloc_pgste(mm)) {
 		/* Return 4K page table with PGSTEs */
-		atomic_set(&page->_mapcount, 3);
+		atomic_xor_bits(&page->_refcount, 3 << 24);
 		memset64((u64 *)table, _PAGE_INVALID, PTRS_PER_PTE);
 		memset64((u64 *)table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
 	} else {
 		/* Return the first 2K fragment of the page */
-		atomic_set(&page->_mapcount, 1);
+		atomic_xor_bits(&page->_refcount, 1 << 24);
 		memset64((u64 *)table, _PAGE_INVALID, 2 * PTRS_PER_PTE);
 		spin_lock_bh(&mm->context.lock);
 		list_add(&page->lru, &mm->context.pgtable_list);
@@ -242,7 +245,8 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 		/* Free 2K page table fragment of a 4K page */
 		bit = (__pa(table) & ~PAGE_MASK)/(PTRS_PER_PTE*sizeof(pte_t));
 		spin_lock_bh(&mm->context.lock);
-		mask = atomic_xor_bits(&page->_mapcount, 1U << bit);
+		mask = atomic_xor_bits(&page->_refcount, 1U << (bit + 24));
+		mask >>= 24;
 		if (mask & 3)
 			list_add(&page->lru, &mm->context.pgtable_list);
 		else
@@ -250,10 +254,11 @@ void page_table_free(struct mm_struct *mm, unsigned long *table)
 		spin_unlock_bh(&mm->context.lock);
 		if (mask != 0)
 			return;
+	} else {
+		atomic_xor_bits(&page->_refcount, 3U << 24);
 	}
 
 	pgtable_page_dtor(page);
-	atomic_set(&page->_mapcount, -1);
 	__free_page(page);
 }
 
@@ -274,7 +279,8 @@ void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
 	}
 	bit = (__pa(table) & ~PAGE_MASK) / (PTRS_PER_PTE*sizeof(pte_t));
 	spin_lock_bh(&mm->context.lock);
-	mask = atomic_xor_bits(&page->_mapcount, 0x11U << bit);
+	mask = atomic_xor_bits(&page->_refcount, 0x11U << (bit + 24));
+	mask >>= 24;
 	if (mask & 3)
 		list_add_tail(&page->lru, &mm->context.pgtable_list);
 	else
@@ -284,7 +290,7 @@ void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
 	tlb_remove_table(tlb, table);
 }
 
-static void __tlb_remove_table(void *_table)
+void __tlb_remove_table(void *_table)
 {
 	unsigned int mask = (unsigned long) _table & 3;
 	void *table = (void *)((unsigned long) _table ^ mask);
@@ -296,76 +302,18 @@ static void __tlb_remove_table(void *_table)
 		break;
 	case 1:		/* lower 2K of a 4K page table */
 	case 2:		/* higher 2K of a 4K page table */
-		if (atomic_xor_bits(&page->_mapcount, mask << 4) != 0)
+		mask = atomic_xor_bits(&page->_refcount, mask << (4 + 24));
+		mask >>= 24;
+		if (mask != 0)
 			break;
 		/* fallthrough */
 	case 3:		/* 4K page table with pgstes */
+		if (mask & 3)
+			atomic_xor_bits(&page->_refcount, 3 << 24);
 		pgtable_page_dtor(page);
-		atomic_set(&page->_mapcount, -1);
 		__free_page(page);
 		break;
 	}
-}
-
-static void tlb_remove_table_smp_sync(void *arg)
-{
-	/* Simply deliver the interrupt */
-}
-
-static void tlb_remove_table_one(void *table)
-{
-	/*
-	 * This isn't an RCU grace period and hence the page-tables cannot be
-	 * assumed to be actually RCU-freed.
-	 *
-	 * It is however sufficient for software page-table walkers that rely
-	 * on IRQ disabling. See the comment near struct mmu_table_batch.
-	 */
-	smp_call_function(tlb_remove_table_smp_sync, NULL, 1);
-	__tlb_remove_table(table);
-}
-
-static void tlb_remove_table_rcu(struct rcu_head *head)
-{
-	struct mmu_table_batch *batch;
-	int i;
-
-	batch = container_of(head, struct mmu_table_batch, rcu);
-
-	for (i = 0; i < batch->nr; i++)
-		__tlb_remove_table(batch->tables[i]);
-
-	free_page((unsigned long)batch);
-}
-
-void tlb_table_flush(struct mmu_gather *tlb)
-{
-	struct mmu_table_batch **batch = &tlb->batch;
-
-	if (*batch) {
-		call_rcu_sched(&(*batch)->rcu, tlb_remove_table_rcu);
-		*batch = NULL;
-	}
-}
-
-void tlb_remove_table(struct mmu_gather *tlb, void *table)
-{
-	struct mmu_table_batch **batch = &tlb->batch;
-
-	tlb->mm->context.flush_mm = 1;
-	if (*batch == NULL) {
-		*batch = (struct mmu_table_batch *)
-			__get_free_page(GFP_NOWAIT | __GFP_NOWARN);
-		if (*batch == NULL) {
-			__tlb_flush_mm_lazy(tlb->mm);
-			tlb_remove_table_one(table);
-			return;
-		}
-		(*batch)->nr = 0;
-	}
-	(*batch)->tables[(*batch)->nr++] = table;
-	if ((*batch)->nr == MAX_TABLE_BATCH)
-		tlb_flush_mmu(tlb);
 }
 
 /*

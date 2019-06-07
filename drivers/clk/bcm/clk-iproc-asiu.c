@@ -197,8 +197,8 @@ void __init iproc_asiu_setup(struct device_node *node,
 	if (WARN_ON(!asiu))
 		return;
 
-	asiu->clk_data = kzalloc(sizeof(*asiu->clk_data->hws) * num_clks +
-				 sizeof(*asiu->clk_data), GFP_KERNEL);
+	asiu->clk_data = kzalloc(struct_size(asiu->clk_data, hws, num_clks),
+				 GFP_KERNEL);
 	if (WARN_ON(!asiu->clk_data))
 		goto err_clks;
 	asiu->clk_data->num = num_clks;

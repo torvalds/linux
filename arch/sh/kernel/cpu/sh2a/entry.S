@@ -1,14 +1,11 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * arch/sh/kernel/cpu/sh2a/entry.S
  *
  * The SH-2A exception entry
  *
  * Copyright (C) 2008 Yoshinori Sato
  * Based on arch/sh/kernel/cpu/sh2/entry.S
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #include <linux/linkage.h>

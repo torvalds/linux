@@ -1,8 +1,8 @@
 #!/usr/bin/python
+# SPDX-License-Identifier: GPL-2.0-only
 
 """
 Copyright 2008 (c) Frederic Weisbecker <fweisbec@gmail.com>
-Licensed under the terms of the GNU GPL License version 2
 
 This script parses a trace provided by the function tracer in
 kernel/trace/trace_functions.c
@@ -123,7 +123,7 @@ def main():
 		tree = tree.getParent(caller)
 		tree = tree.calls(callee, calltime)
 
-	print CallTree.ROOT
+	print(CallTree.ROOT)
 
 if __name__ == "__main__":
 	main()

@@ -6,6 +6,8 @@
 
 #include <asm/cachectl.h>
 #include <asm/proc-fns.h>
+#include <asm/fpu.h>
+#include <asm/fp_udfiex_crtl.h>
 
 SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
 	       unsigned long, prot, unsigned long, flags,
@@ -47,4 +49,36 @@ SYSCALL_DEFINE3(cacheflush, unsigned int, start, unsigned int, end, int, cache)
 	cpu_cache_wbinval_range_check(vma, start, end, flushi, wbd);
 
 	return 0;
+}
+
+SYSCALL_DEFINE2(fp_udfiex_crtl, unsigned int, cmd, unsigned int, act)
+{
+#if IS_ENABLED(CONFIG_SUPPORT_DENORMAL_ARITHMETIC)
+	int old_udf_iex;
+
+	if (!used_math()) {
+		load_fpu(&init_fpuregs);
+		current->thread.fpu.UDF_IEX_trap = init_fpuregs.UDF_IEX_trap;
+		set_used_math();
+	}
+
+	old_udf_iex = current->thread.fpu.UDF_IEX_trap;
+	act &= (FPCSR_mskUDFE | FPCSR_mskIEXE);
+
+	switch (cmd) {
+	case DISABLE_UDF_IEX_TRAP:
+		current->thread.fpu.UDF_IEX_trap &= ~act;
+		break;
+	case ENABLE_UDF_IEX_TRAP:
+		current->thread.fpu.UDF_IEX_trap |= act;
+		break;
+	case GET_UDF_IEX_TRAP:
+		break;
+	default:
+		return -EINVAL;
+	}
+	return old_udf_iex;
+#else
+	return -ENOTSUPP;
+#endif
 }

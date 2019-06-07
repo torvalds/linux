@@ -1,18 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Altivec XOR operations
  *
  * Copyright 2017 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/preempt.h>
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <asm/switch_to.h>
+#include <asm/xor_altivec.h>
 #include "xor_vmx.h"
 
 void xor_altivec_2(unsigned long bytes, unsigned long *v1_in,

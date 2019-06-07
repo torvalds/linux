@@ -12,7 +12,9 @@
 #include <linux/unistd.h>
 #include <linux/miscdevice.h>	/* for misc_register, and SYNTH_MINOR */
 #include <linux/poll.h>		/* for poll_wait() */
-#include <linux/sched/signal.h> /* schedule(), signal_pending(), TASK_INTERRUPTIBLE */
+
+/* schedule(), signal_pending(), TASK_INTERRUPTIBLE */
+#include <linux/sched/signal.h>
 
 #include "spk_priv.h"
 #include "speakup.h"
@@ -35,6 +37,7 @@ static int misc_registered;
 static struct var_t vars[] = {
 	{ CAPS_START, .u.s = {"\x01+3p" } },
 	{ CAPS_STOP, .u.s = {"\x01-3p" } },
+	{ PAUSE, .u.n = {"\x01P" } },
 	{ RATE, .u.n = {"\x01%ds", 2, 0, 9, 0, 0, NULL } },
 	{ PITCH, .u.n = {"\x01%dp", 5, 0, 9, 0, 0, NULL } },
 	{ VOL, .u.n = {"\x01%dv", 5, 0, 9, 0, 0, NULL } },
@@ -154,7 +157,7 @@ static char *get_initstring(void)
 	var = synth_soft.vars;
 	while (var->var_id != MAXVARS) {
 		if (var->var_id != CAPS_START && var->var_id != CAPS_STOP &&
-		    var->var_id != DIRECT)
+		    var->var_id != PAUSE && var->var_id != DIRECT)
 			cp = cp + sprintf(cp, var->u.n.synth_fmt,
 					  var->u.n.value);
 		var++;
@@ -197,18 +200,25 @@ static ssize_t softsynthx_read(struct file *fp, char __user *buf, size_t count,
 	int chars_sent = 0;
 	char __user *cp;
 	char *init;
+	size_t bytes_per_ch = unicode ? 3 : 1;
 	u16 ch;
 	int empty;
 	unsigned long flags;
 	DEFINE_WAIT(wait);
 
+	if (count < bytes_per_ch)
+		return -EINVAL;
+
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
+	synth_soft.alive = 1;
 	while (1) {
 		prepare_to_wait(&speakup_event, &wait, TASK_INTERRUPTIBLE);
-		if (!unicode)
-			synth_buffer_skip_nonlatin1();
-		if (!synth_buffer_empty() || speakup_info.flushing)
-			break;
+		if (synth_current() == &synth_soft) {
+			if (!unicode)
+				synth_buffer_skip_nonlatin1();
+			if (!synth_buffer_empty() || speakup_info.flushing)
+				break;
+		}
 		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 		if (fp->f_flags & O_NONBLOCK) {
 			finish_wait(&speakup_event, &wait);
@@ -227,7 +237,9 @@ static ssize_t softsynthx_read(struct file *fp, char __user *buf, size_t count,
 	init = get_initstring();
 
 	/* Keep 3 bytes available for a 16bit UTF-8-encoded character */
-	while (chars_sent <= count - 3) {
+	while (chars_sent <= count - bytes_per_ch) {
+		if (synth_current() != &synth_soft)
+			break;
 		if (speakup_info.flushing) {
 			speakup_info.flushing = 0;
 			ch = '\x18';
@@ -324,7 +336,8 @@ static __poll_t softsynth_poll(struct file *fp, struct poll_table_struct *wait)
 	poll_wait(fp, &speakup_event, wait);
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
-	if (!synth_buffer_empty() || speakup_info.flushing)
+	if (synth_current() == &synth_soft &&
+	    (!synth_buffer_empty() || speakup_info.flushing))
 		ret = EPOLLIN | EPOLLRDNORM;
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	return ret;

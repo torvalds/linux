@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Chelsio device configuration
 #
@@ -24,7 +25,8 @@ config CHELSIO_T1
 	---help---
 	  This driver supports Chelsio gigabit and 10-gigabit
 	  Ethernet cards. More information about adapter features and
-	  performance tuning is in <file:Documentation/networking/cxgb.txt>.
+	  performance tuning is in
+	  <file:Documentation/networking/device_drivers/chelsio/cxgb.txt>.
 
 	  For general information about Chelsio and our products, visit
 	  our website at <http://www.chelsio.com>.

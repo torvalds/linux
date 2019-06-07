@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018        Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -262,6 +262,7 @@ enum iwl_scan_channel_flags {
 	IWL_SCAN_CHANNEL_FLAG_EBS		= BIT(0),
 	IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE	= BIT(1),
 	IWL_SCAN_CHANNEL_FLAG_CACHE_ADD		= BIT(2),
+	IWL_SCAN_CHANNEL_FLAG_EBS_FRAG		= BIT(3),
 };
 
 /* struct iwl_scan_channel_opt - CHANNEL_OPTIMIZATION_API_S
@@ -433,7 +434,7 @@ struct iwl_periodic_scan_complete {
 /* The maximum of either of these cannot exceed 8, because we use an
  * 8-bit mask (see IWL_MVM_SCAN_MASK in mvm.h).
  */
-#define IWL_MVM_MAX_UMAC_SCANS 8
+#define IWL_MVM_MAX_UMAC_SCANS 4
 #define IWL_MVM_MAX_LMAC_SCANS 1
 
 enum scan_config_flags {
@@ -595,9 +596,12 @@ enum iwl_umac_scan_general_flags {
  * enum iwl_umac_scan_general_flags2 - UMAC scan general flags #2
  * @IWL_UMAC_SCAN_GEN_FLAGS2_NOTIF_PER_CHNL: Whether to send a complete
  *	notification per channel or not.
+ * @IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER: Whether to allow channel
+ *	reorder optimization or not.
  */
 enum iwl_umac_scan_general_flags2 {
-	IWL_UMAC_SCAN_GEN_FLAGS2_NOTIF_PER_CHNL	= BIT(0),
+	IWL_UMAC_SCAN_GEN_FLAGS2_NOTIF_PER_CHNL		= BIT(0),
+	IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER	= BIT(1),
 };
 
 /**
@@ -784,7 +788,53 @@ struct iwl_umac_scan_complete {
 	__le32 reserved;
 } __packed; /* SCAN_COMPLETE_NTF_UMAC_API_S_VER_1 */
 
-#define SCAN_OFFLOAD_MATCHING_CHANNELS_LEN 5
+#define SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V1 5
+#define SCAN_OFFLOAD_MATCHING_CHANNELS_LEN    7
+
+/**
+ * struct iwl_scan_offload_profile_match_v1 - match information
+ * @bssid: matched bssid
+ * @reserved: reserved
+ * @channel: channel where the match occurred
+ * @energy: energy
+ * @matching_feature: feature matches
+ * @matching_channels: bitmap of channels that matched, referencing
+ *	the channels passed in the scan offload request.
+ */
+struct iwl_scan_offload_profile_match_v1 {
+	u8 bssid[ETH_ALEN];
+	__le16 reserved;
+	u8 channel;
+	u8 energy;
+	u8 matching_feature;
+	u8 matching_channels[SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V1];
+} __packed; /* SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S_VER_1 */
+
+/**
+ * struct iwl_scan_offload_profiles_query_v1 - match results query response
+ * @matched_profiles: bitmap of matched profiles, referencing the
+ *	matches passed in the scan offload request
+ * @last_scan_age: age of the last offloaded scan
+ * @n_scans_done: number of offloaded scans done
+ * @gp2_d0u: GP2 when D0U occurred
+ * @gp2_invoked: GP2 when scan offload was invoked
+ * @resume_while_scanning: not used
+ * @self_recovery: obsolete
+ * @reserved: reserved
+ * @matches: array of match information, one for each match
+ */
+struct iwl_scan_offload_profiles_query_v1 {
+	__le32 matched_profiles;
+	__le32 last_scan_age;
+	__le32 n_scans_done;
+	__le32 gp2_d0u;
+	__le32 gp2_invoked;
+	u8 resume_while_scanning;
+	u8 self_recovery;
+	__le16 reserved;
+	struct iwl_scan_offload_profile_match_v1 matches[IWL_SCAN_MAX_PROFILES];
+} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_2 */
+
 /**
  * struct iwl_scan_offload_profile_match - match information
  * @bssid: matched bssid
@@ -793,7 +843,7 @@ struct iwl_umac_scan_complete {
  * @energy: energy
  * @matching_feature: feature matches
  * @matching_channels: bitmap of channels that matched, referencing
- *	the channels passed in tue scan offload request
+ *	the channels passed in the scan offload request.
  */
 struct iwl_scan_offload_profile_match {
 	u8 bssid[ETH_ALEN];
@@ -802,7 +852,7 @@ struct iwl_scan_offload_profile_match {
 	u8 energy;
 	u8 matching_feature;
 	u8 matching_channels[SCAN_OFFLOAD_MATCHING_CHANNELS_LEN];
-} __packed; /* SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S_VER_1 */
+} __packed; /* SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S_VER_2 */
 
 /**
  * struct iwl_scan_offload_profiles_query - match results query response
@@ -827,7 +877,7 @@ struct iwl_scan_offload_profiles_query {
 	u8 self_recovery;
 	__le16 reserved;
 	struct iwl_scan_offload_profile_match matches[IWL_SCAN_MAX_PROFILES];
-} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_2 */
+} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_3 */
 
 /**
  * struct iwl_umac_scan_iter_complete_notif - notifies end of scanning iteration

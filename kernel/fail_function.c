@@ -173,8 +173,7 @@ static void fei_debugfs_remove_attr(struct fei_attr *attr)
 	struct dentry *dir;
 
 	dir = debugfs_lookup(attr->kp.symbol_name, fei_debugfs_dir);
-	if (dir)
-		debugfs_remove_recursive(dir);
+	debugfs_remove_recursive(dir);
 }
 
 static int fei_kprobe_handler(struct kprobe *kp, struct pt_regs *regs)
@@ -184,9 +183,6 @@ static int fei_kprobe_handler(struct kprobe *kp, struct pt_regs *regs)
 	if (should_fail(&fei_fault_attr, 1)) {
 		regs_set_return_value(regs, attr->retval);
 		override_function_with_return(regs);
-		/* Kprobe specific fixup */
-		reset_current_kprobe();
-		preempt_enable_no_resched();
 		return 1;
 	}
 
@@ -214,7 +210,7 @@ static int fei_seq_show(struct seq_file *m, void *v)
 {
 	struct fei_attr *attr = list_entry(v, struct fei_attr, list);
 
-	seq_printf(m, "%pf\n", attr->kp.addr);
+	seq_printf(m, "%ps\n", attr->kp.addr);
 	return 0;
 }
 
@@ -258,7 +254,7 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 	/* cut off if it is too long */
 	if (count > KSYM_NAME_LEN)
 		count = KSYM_NAME_LEN;
-	buf = kmalloc(sizeof(char) * (count + 1), GFP_KERNEL);
+	buf = kmalloc(count + 1, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 

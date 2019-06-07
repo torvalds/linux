@@ -1,17 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * mt2701-reg.h  --  Mediatek 2701 audio driver reg definition
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Garlic Tseng <garlic.tseng@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _MT2701_REG_H_
@@ -138,6 +130,7 @@
 #define ASYS_I2S_CON_FS_SET(x)		((x) << 8)
 #define ASYS_I2S_CON_RESET		(0x1 << 30)
 #define ASYS_I2S_CON_I2S_EN		(0x1 << 0)
+#define ASYS_I2S_CON_ONE_HEART_MODE	(0x1 << 16)
 #define ASYS_I2S_CON_I2S_COUPLE_MODE	(0x1 << 17)
 /* 0:EIAJ 1:I2S */
 #define ASYS_I2S_CON_I2S_MODE		(0x1 << 3)

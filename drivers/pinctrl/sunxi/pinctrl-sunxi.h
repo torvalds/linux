@@ -79,6 +79,10 @@
 #define IRQ_LEVEL_LOW		0x03
 #define IRQ_EDGE_BOTH		0x04
 
+#define GRP_CFG_REG		0x300
+
+#define IO_BIAS_MASK		GENMASK(3, 0)
+
 #define SUN4I_FUNC_INPUT	0
 #define SUN4I_FUNC_IRQ		6
 
@@ -90,6 +94,22 @@
 #define PINCTRL_SUN4I_A10	BIT(6)
 #define PINCTRL_SUN7I_A20	BIT(7)
 #define PINCTRL_SUN8I_R40	BIT(8)
+
+#define PIO_POW_MOD_SEL_REG	0x340
+
+enum sunxi_desc_bias_voltage {
+	BIAS_VOLTAGE_NONE,
+	/*
+	 * Bias voltage configuration is done through
+	 * Pn_GRP_CONFIG registers, as seen on A80 SoC.
+	 */
+	BIAS_VOLTAGE_GRP_CONFIG,
+	/*
+	 * Bias voltage is set through PIO_POW_MOD_SEL_REG
+	 * register, as seen on H6 SoC, for example.
+	 */
+	BIAS_VOLTAGE_PIO_POW_MODE_SEL,
+};
 
 struct sunxi_desc_function {
 	unsigned long	variant;
@@ -113,6 +133,7 @@ struct sunxi_pinctrl_desc {
 	const unsigned int		*irq_bank_map;
 	bool				irq_read_needs_mux;
 	bool				disable_strict_mode;
+	enum sunxi_desc_bias_voltage	io_bias_cfg_variant;
 };
 
 struct sunxi_pinctrl_function {
@@ -126,11 +147,17 @@ struct sunxi_pinctrl_group {
 	unsigned	pin;
 };
 
+struct sunxi_pinctrl_regulator {
+	struct regulator	*regulator;
+	refcount_t		refcount;
+};
+
 struct sunxi_pinctrl {
 	void __iomem			*membase;
 	struct gpio_chip		*chip;
 	const struct sunxi_pinctrl_desc	*desc;
 	struct device			*dev;
+	struct sunxi_pinctrl_regulator	regulators[9];
 	struct irq_domain		*domain;
 	struct sunxi_pinctrl_function	*functions;
 	unsigned			nfunctions;
@@ -330,6 +357,13 @@ static inline u32 sunxi_irq_status_offset(u16 irq)
 {
 	u32 irq_num = irq % IRQ_STATUS_IRQ_PER_REG;
 	return irq_num * IRQ_STATUS_IRQ_BITS;
+}
+
+static inline u32 sunxi_grp_config_reg(u16 pin)
+{
+	u8 bank = pin / PINS_PER_BANK;
+
+	return GRP_CFG_REG + bank * 0x4;
 }
 
 int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,

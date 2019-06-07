@@ -40,23 +40,31 @@ mock_context(struct drm_i915_private *i915,
 	INIT_LIST_HEAD(&ctx->link);
 	ctx->i915 = i915;
 
+	ctx->hw_contexts = RB_ROOT;
+	spin_lock_init(&ctx->hw_contexts_lock);
+
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
+	INIT_LIST_HEAD(&ctx->hw_id_link);
+	INIT_LIST_HEAD(&ctx->active_engines);
+	mutex_init(&ctx->mutex);
 
-	ret = ida_simple_get(&i915->contexts.hw_ida,
-			     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
+	ret = i915_gem_context_pin_hw_id(ctx);
 	if (ret < 0)
 		goto err_handles;
-	ctx->hw_id = ret;
 
 	if (name) {
+		struct i915_hw_ppgtt *ppgtt;
+
 		ctx->name = kstrdup(name, GFP_KERNEL);
 		if (!ctx->name)
 			goto err_put;
 
-		ctx->ppgtt = mock_ppgtt(i915, name);
-		if (!ctx->ppgtt)
+		ppgtt = mock_ppgtt(i915, name);
+		if (!ppgtt)
 			goto err_put;
+
+		__set_ppgtt(ctx, ppgtt);
 	}
 
 	return ctx;
@@ -78,19 +86,30 @@ void mock_context_close(struct i915_gem_context *ctx)
 
 void mock_init_contexts(struct drm_i915_private *i915)
 {
-	INIT_LIST_HEAD(&i915->contexts.list);
-	ida_init(&i915->contexts.hw_ida);
-
-	INIT_WORK(&i915->contexts.free_work, contexts_free_worker);
-	init_llist_head(&i915->contexts.free_list);
+	init_contexts(i915);
 }
 
 struct i915_gem_context *
 live_context(struct drm_i915_private *i915, struct drm_file *file)
 {
+	struct i915_gem_context *ctx;
+	int err;
+
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	return i915_gem_create_context(i915, file->driver_priv);
+	ctx = i915_gem_create_context(i915, 0);
+	if (IS_ERR(ctx))
+		return ctx;
+
+	err = gem_context_register(ctx, file->driver_priv);
+	if (err < 0)
+		goto err_ctx;
+
+	return ctx;
+
+err_ctx:
+	context_close(ctx);
+	return ERR_PTR(err);
 }
 
 struct i915_gem_context *

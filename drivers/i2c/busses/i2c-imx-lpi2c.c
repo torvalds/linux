@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * This is i.MX low power i2c controller driver.
  *
  * Copyright 2016 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/clk.h>
@@ -180,15 +170,13 @@ static int lpi2c_imx_start(struct lpi2c_imx_struct *lpi2c_imx,
 			   struct i2c_msg *msgs)
 {
 	unsigned int temp;
-	u8 read;
 
 	temp = readl(lpi2c_imx->base + LPI2C_MCR);
 	temp |= MCR_RRF | MCR_RTF;
 	writel(temp, lpi2c_imx->base + LPI2C_MCR);
 	writel(0x7f00, lpi2c_imx->base + LPI2C_MSR);
 
-	read = msgs->flags & I2C_M_RD;
-	temp = (msgs->addr << 1 | read) | (GEN_START << 8);
+	temp = i2c_8bit_addr_from_msg(msgs) | (GEN_START << 8);
 	writel(temp, lpi2c_imx->base + LPI2C_MTDR);
 
 	return lpi2c_imx_bus_busy(lpi2c_imx);
@@ -550,7 +538,6 @@ static const struct i2c_algorithm lpi2c_imx_algo = {
 
 static const struct of_device_id lpi2c_imx_of_match[] = {
 	{ .compatible = "fsl,imx7ulp-lpi2c" },
-	{ .compatible = "fsl,imx8dv-lpi2c" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, lpi2c_imx_of_match);
@@ -652,8 +639,7 @@ static int lpi2c_imx_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int lpi2c_runtime_suspend(struct device *dev)
+static int __maybe_unused lpi2c_runtime_suspend(struct device *dev)
 {
 	struct lpi2c_imx_struct *lpi2c_imx = dev_get_drvdata(dev);
 
@@ -663,7 +649,7 @@ static int lpi2c_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int lpi2c_runtime_resume(struct device *dev)
+static int __maybe_unused lpi2c_runtime_resume(struct device *dev)
 {
 	struct lpi2c_imx_struct *lpi2c_imx = dev_get_drvdata(dev);
 	int ret;
@@ -684,10 +670,6 @@ static const struct dev_pm_ops lpi2c_pm_ops = {
 	SET_RUNTIME_PM_OPS(lpi2c_runtime_suspend,
 			   lpi2c_runtime_resume, NULL)
 };
-#define IMX_LPI2C_PM      (&lpi2c_pm_ops)
-#else
-#define IMX_LPI2C_PM      NULL
-#endif
 
 static struct platform_driver lpi2c_imx_driver = {
 	.probe = lpi2c_imx_probe,
@@ -695,7 +677,7 @@ static struct platform_driver lpi2c_imx_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = lpi2c_imx_of_match,
-		.pm = IMX_LPI2C_PM,
+		.pm = &lpi2c_pm_ops,
 	},
 };
 

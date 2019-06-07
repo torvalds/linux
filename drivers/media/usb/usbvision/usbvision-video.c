@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * USB USBVISION Video device driver 0.9.10
- *
- *
  *
  * Copyright (c) 1999-2005 Joerg Heckenbach <joerg@heckenbach-aw.de>
  *
  * This module is part of usbvision driver project.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Let's call the version 0.... until compression decoding is completely
  * implemented.
@@ -27,7 +16,6 @@
  * Gerd Knorr and zoran 36120/36125 driver by Pauline Middelink
  * Updates to driver completed by Dwaine P. Garden
  *
- *
  * TODO:
  *     - use submit_urb for all setup packets
  *     - Fix memory settings for nt1004. It is 4 times as big as the
@@ -38,7 +26,6 @@
  *     - optimization for performance.
  *     - Add Videotext capability (VBI).  Working on it.....
  *     - Check audio for other devices
- *
  */
 
 #include <linux/kernel.h>
@@ -467,8 +454,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
 
-	strlcpy(vc->driver, "USBVision", sizeof(vc->driver));
-	strlcpy(vc->card,
+	strscpy(vc->driver, "USBVision", sizeof(vc->driver));
+	strscpy(vc->card,
 		usbvision_device_data[usbvision->dev_model].model_string,
 		sizeof(vc->card));
 	usb_make_path(usbvision->dev, vc->bus_info, sizeof(vc->bus_info));
@@ -504,9 +491,9 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	switch (chan) {
 	case 0:
 		if (usbvision_device_data[usbvision->dev_model].video_channels == 4) {
-			strcpy(vi->name, "White Video Input");
+			strscpy(vi->name, "White Video Input", sizeof(vi->name));
 		} else {
-			strcpy(vi->name, "Television");
+			strscpy(vi->name, "Television", sizeof(vi->name));
 			vi->type = V4L2_INPUT_TYPE_TUNER;
 			vi->tuner = chan;
 			vi->std = USBVISION_NORMS;
@@ -515,22 +502,23 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	case 1:
 		vi->type = V4L2_INPUT_TYPE_CAMERA;
 		if (usbvision_device_data[usbvision->dev_model].video_channels == 4)
-			strcpy(vi->name, "Green Video Input");
+			strscpy(vi->name, "Green Video Input", sizeof(vi->name));
 		else
-			strcpy(vi->name, "Composite Video Input");
+			strscpy(vi->name, "Composite Video Input",
+				sizeof(vi->name));
 		vi->std = USBVISION_NORMS;
 		break;
 	case 2:
 		vi->type = V4L2_INPUT_TYPE_CAMERA;
 		if (usbvision_device_data[usbvision->dev_model].video_channels == 4)
-			strcpy(vi->name, "Yellow Video Input");
+			strscpy(vi->name, "Yellow Video Input", sizeof(vi->name));
 		else
-			strcpy(vi->name, "S-Video Input");
+			strscpy(vi->name, "S-Video Input", sizeof(vi->name));
 		vi->std = USBVISION_NORMS;
 		break;
 	case 3:
 		vi->type = V4L2_INPUT_TYPE_CAMERA;
-		strcpy(vi->name, "Red Video Input");
+		strscpy(vi->name, "Red Video Input", sizeof(vi->name));
 		vi->std = USBVISION_NORMS;
 		break;
 	}
@@ -589,9 +577,9 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (vt->index)	/* Only tuner 0 */
 		return -EINVAL;
 	if (vt->type == V4L2_TUNER_RADIO)
-		strcpy(vt->name, "Radio");
+		strscpy(vt->name, "Radio", sizeof(vt->name));
 	else
-		strcpy(vt->name, "Television");
+		strscpy(vt->name, "Television", sizeof(vt->name));
 
 	/* Let clients fill in the remainder of this struct */
 	call_all(usbvision, tuner, g_tuner, vt);
@@ -705,7 +693,7 @@ static int vidioc_querybuf(struct file *file,
 	vb->length = usbvision->curwidth *
 		usbvision->curheight *
 		usbvision->palette.bytes_per_pixel;
-	vb->timestamp = usbvision->frame[vb->index].timestamp;
+	vb->timestamp = ns_to_timeval(usbvision->frame[vb->index].ts);
 	vb->sequence = usbvision->frame[vb->index].sequence;
 	return 0;
 }
@@ -774,7 +762,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *vb)
 		V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	vb->index = f->index;
 	vb->sequence = f->sequence;
-	vb->timestamp = f->timestamp;
+	vb->timestamp = ns_to_timeval(f->ts);
 	vb->field = V4L2_FIELD_NONE;
 	vb->bytesused = f->scanlength;
 
@@ -814,7 +802,8 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 {
 	if (vfd->index >= USBVISION_SUPPORTED_PALETTES - 1)
 		return -EINVAL;
-	strcpy(vfd->description, usbvision_v4l2_format[vfd->index].desc);
+	strscpy(vfd->description, usbvision_v4l2_format[vfd->index].desc,
+		sizeof(vfd->description));
 	vfd->pixelformat = usbvision_v4l2_format[vfd->index].format;
 	return 0;
 }
@@ -1492,7 +1481,8 @@ static int usbvision_probe(struct usb_interface *intf,
 
 	usbvision->num_alt = uif->num_altsetting;
 	PDEBUG(DBG_PROBE, "Alternate settings: %i", usbvision->num_alt);
-	usbvision->alt_max_pkt_size = kmalloc(32 * usbvision->num_alt, GFP_KERNEL);
+	usbvision->alt_max_pkt_size = kmalloc_array(32, usbvision->num_alt,
+						    GFP_KERNEL);
 	if (!usbvision->alt_max_pkt_size) {
 		ret = -ENOMEM;
 		goto err_pkt;

@@ -317,9 +317,9 @@ struct omap_hwmod_ocp_if {
  * then this field has to be populated with the correct offset structure.
  */
 struct omap_hwmod_class_sysconfig {
-	u32 rev_offs;
-	u32 sysc_offs;
-	u32 syss_offs;
+	s32 rev_offs;
+	s32 sysc_offs;
+	s32 syss_offs;
 	u16 sysc_flags;
 	struct sysc_regbits *sysc_fields;
 	u8 srst_udelay;
@@ -493,11 +493,16 @@ struct omap_hwmod_omap4_prcm {
 #define _HWMOD_STATE_IDLE			5
 #define _HWMOD_STATE_DISABLED			6
 
+#ifdef CONFIG_PM
+#define _HWMOD_STATE_DEFAULT			_HWMOD_STATE_IDLE
+#else
+#define _HWMOD_STATE_DEFAULT			_HWMOD_STATE_ENABLED
+#endif
+
 /**
  * struct omap_hwmod_class - the type of an IP block
  * @name: name of the hwmod_class
  * @sysc: device SYSCONFIG/SYSSTATUS register data
- * @rev: revision of the IP class
  * @pre_shutdown: ptr to fn to be executed immediately prior to device shutdown
  * @reset: ptr to fn to be executed in place of the standard hwmod reset fn
  * @enable_preprogram:  ptr to fn to be executed during device enable
@@ -523,7 +528,6 @@ struct omap_hwmod_omap4_prcm {
 struct omap_hwmod_class {
 	const char				*name;
 	struct omap_hwmod_class_sysconfig	*sysc;
-	u32					rev;
 	int					(*pre_shutdown)(struct omap_hwmod *oh);
 	int					(*reset)(struct omap_hwmod *oh);
 	int					(*enable_preprogram)(struct omap_hwmod *oh);
