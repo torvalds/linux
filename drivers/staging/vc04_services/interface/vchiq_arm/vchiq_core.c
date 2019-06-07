@@ -3100,9 +3100,8 @@ VCHIQ_STATUS_T vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 			       QMFLAGS_IS_BLOCKING |
 			       QMFLAGS_NO_MUTEX_LOCK |
 			       QMFLAGS_NO_MUTEX_UNLOCK);
-	if (status != VCHIQ_SUCCESS) {
+	if (status != VCHIQ_SUCCESS)
 		goto unlock_both_error_exit;
-	}
 
 	queue->local_insert++;
 
