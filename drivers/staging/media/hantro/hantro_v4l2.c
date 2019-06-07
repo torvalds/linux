@@ -613,7 +613,7 @@ static int hantro_start_streaming(struct vb2_queue *q, unsigned int count)
 
 		vpu_debug(4, "Codec mode = %d\n", codec_mode);
 		ctx->codec_ops = &ctx->dev->variant->codec_ops[codec_mode];
-		if (ctx->codec_ops && ctx->codec_ops->init)
+		if (ctx->codec_ops->init)
 			ret = ctx->codec_ops->init(ctx);
 	}
 
