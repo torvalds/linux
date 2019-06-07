@@ -43,6 +43,9 @@ enum hclge_shaper_level {
 static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 				  u8 *ir_b, u8 *ir_u, u8 *ir_s)
 {
+#define DIVISOR_CLK		(1000 * 8)
+#define DIVISOR_IR_B_126	(126 * DIVISOR_CLK)
+
 	const u16 tick_array[HCLGE_SHAPER_LVL_CNT] = {
 		6 * 256,        /* Prioriy level */
 		6 * 32,         /* Prioriy group level */
@@ -66,7 +69,7 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 	 * ir_calc = ---------------- * 1000
 	 *		tick * 1
 	 */
-	ir_calc = (1008000 + (tick >> 1) - 1) / tick;
+	ir_calc = (DIVISOR_IR_B_126 + (tick >> 1) - 1) / tick;
 
 	if (ir_calc == ir) {
 		*ir_b = 126;
@@ -78,27 +81,28 @@ static int hclge_shaper_para_calc(u32 ir, u8 shaper_level,
 		/* Increasing the denominator to select ir_s value */
 		while (ir_calc > ir) {
 			ir_s_calc++;
-			ir_calc = 1008000 / (tick * (1 << ir_s_calc));
+			ir_calc = DIVISOR_IR_B_126 / (tick * (1 << ir_s_calc));
 		}
 
 		if (ir_calc == ir)
 			*ir_b = 126;
 		else
-			*ir_b = (ir * tick * (1 << ir_s_calc) + 4000) / 8000;
+			*ir_b = (ir * tick * (1 << ir_s_calc) +
+				 (DIVISOR_CLK >> 1)) / DIVISOR_CLK;
 	} else {
 		/* Increasing the numerator to select ir_u value */
 		u32 numerator;
 
 		while (ir_calc < ir) {
 			ir_u_calc++;
-			numerator = 1008000 * (1 << ir_u_calc);
+			numerator = DIVISOR_IR_B_126 * (1 << ir_u_calc);
 			ir_calc = (numerator + (tick >> 1)) / tick;
 		}
 
 		if (ir_calc == ir) {
 			*ir_b = 126;
 		} else {
-			u32 denominator = (8000 * (1 << --ir_u_calc));
+			u32 denominator = (DIVISOR_CLK * (1 << --ir_u_calc));
 			*ir_b = (ir * tick + (denominator >> 1)) / denominator;
 		}
 	}
@@ -604,12 +608,14 @@ static void hclge_tm_tc_info_init(struct hclge_dev *hdev)
 
 static void hclge_tm_pg_info_init(struct hclge_dev *hdev)
 {
+#define BW_PERCENT	100
+
 	u8 i;
 
 	for (i = 0; i < hdev->tm_info.num_pg; i++) {
 		int k;
 
-		hdev->tm_info.pg_dwrr[i] = i ? 0 : 100;
+		hdev->tm_info.pg_dwrr[i] = i ? 0 : BW_PERCENT;
 
 		hdev->tm_info.pg_info[i].pg_id = i;
 		hdev->tm_info.pg_info[i].pg_sch_mode = HCLGE_SCH_MODE_DWRR;
@@ -621,7 +627,7 @@ static void hclge_tm_pg_info_init(struct hclge_dev *hdev)
 
 		hdev->tm_info.pg_info[i].tc_bit_map = hdev->hw_tc_map;
 		for (k = 0; k < hdev->tm_info.num_tc; k++)
-			hdev->tm_info.pg_info[i].tc_dwrr[k] = 100;
+			hdev->tm_info.pg_info[i].tc_dwrr[k] = BW_PERCENT;
 	}
 }
 

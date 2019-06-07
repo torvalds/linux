@@ -1243,7 +1243,7 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	u8 msg_data[HCLGEVF_VLAN_MBX_MSG_LEN];
 
-	if (vlan_id > 4095)
+	if (vlan_id > HCLGEVF_MAX_VLAN_ID)
 		return -EINVAL;
 
 	if (proto != htons(ETH_P_8021Q))
@@ -1652,7 +1652,8 @@ static void hclgevf_service_timer(struct timer_list *t)
 {
 	struct hclgevf_dev *hdev = from_timer(hdev, t, service_timer);
 
-	mod_timer(&hdev->service_timer, jiffies + 5 * HZ);
+	mod_timer(&hdev->service_timer, jiffies +
+		  HCLGEVF_GENERAL_TASK_INTERVAL * HZ);
 
 	hdev->stats_timer++;
 	hclgevf_task_schedule(hdev);
@@ -1752,7 +1753,8 @@ static void hclgevf_keep_alive_timer(struct timer_list *t)
 	struct hclgevf_dev *hdev = from_timer(hdev, t, keep_alive_timer);
 
 	schedule_work(&hdev->keep_alive_task);
-	mod_timer(&hdev->keep_alive_timer, jiffies + 2 * HZ);
+	mod_timer(&hdev->keep_alive_timer, jiffies +
+		  HCLGEVF_KEEP_ALIVE_TASK_INTERVAL * HZ);
 }
 
 static void hclgevf_keep_alive_task(struct work_struct *work)
@@ -2084,7 +2086,8 @@ static int hclgevf_client_start(struct hnae3_handle *handle)
 	if (ret)
 		return ret;
 
-	mod_timer(&hdev->keep_alive_timer, jiffies + 2 * HZ);
+	mod_timer(&hdev->keep_alive_timer, jiffies +
+		  HCLGEVF_KEEP_ALIVE_TASK_INTERVAL * HZ);
 
 	return 0;
 }

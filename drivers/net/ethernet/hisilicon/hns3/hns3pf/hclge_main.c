@@ -28,6 +28,8 @@
 #define HCLGE_MAC_STATS_FIELD_OFF(f) (offsetof(struct hclge_mac_stats, f))
 
 #define HCLGE_BUF_SIZE_UNIT	256
+#define HCLGE_BUF_MUL_BY	2
+#define HCLGE_BUF_DIV_BY	2
 
 static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mps);
 static int hclge_init_vlan_config(struct hclge_dev *hdev);
@@ -728,6 +730,8 @@ static int hclge_parse_func_status(struct hclge_dev *hdev,
 
 static int hclge_query_function_status(struct hclge_dev *hdev)
 {
+#define HCLGE_QUERY_MAX_CNT	5
+
 	struct hclge_func_status_cmd *req;
 	struct hclge_desc desc;
 	int timeout = 0;
@@ -750,7 +754,7 @@ static int hclge_query_function_status(struct hclge_dev *hdev)
 		if (req->pf_state)
 			break;
 		usleep_range(1000, 2000);
-	} while (timeout++ < 5);
+	} while (timeout++ < HCLGE_QUERY_MAX_CNT);
 
 	ret = hclge_parse_func_status(hdev, req);
 
@@ -1662,7 +1666,8 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev,
 	aligned_mps = roundup(hdev->mps, HCLGE_BUF_SIZE_UNIT);
 
 	if (hnae3_dev_dcb_supported(hdev))
-		shared_buf_min = 2 * aligned_mps + hdev->dv_buf_size;
+		shared_buf_min = HCLGE_BUF_MUL_BY * aligned_mps +
+					hdev->dv_buf_size;
 	else
 		shared_buf_min = aligned_mps + HCLGE_NON_DCB_ADDITIONAL_BUF
 					+ hdev->dv_buf_size;
@@ -1680,7 +1685,8 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev,
 	if (hnae3_dev_dcb_supported(hdev)) {
 		buf_alloc->s_buf.self.high = shared_buf - hdev->dv_buf_size;
 		buf_alloc->s_buf.self.low = buf_alloc->s_buf.self.high
-			- roundup(aligned_mps / 2, HCLGE_BUF_SIZE_UNIT);
+			- roundup(aligned_mps / HCLGE_BUF_DIV_BY,
+				  HCLGE_BUF_SIZE_UNIT);
 	} else {
 		buf_alloc->s_buf.self.high = aligned_mps +
 						HCLGE_NON_DCB_ADDITIONAL_BUF;
@@ -1693,9 +1699,9 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev,
 		else
 			hi_thrd = shared_buf - hdev->dv_buf_size;
 
-		hi_thrd = max_t(u32, hi_thrd, 2 * aligned_mps);
+		hi_thrd = max_t(u32, hi_thrd, HCLGE_BUF_MUL_BY * aligned_mps);
 		hi_thrd = rounddown(hi_thrd, HCLGE_BUF_SIZE_UNIT);
-		lo_thrd = hi_thrd - aligned_mps / 2;
+		lo_thrd = hi_thrd - aligned_mps / HCLGE_BUF_DIV_BY;
 	} else {
 		hi_thrd = aligned_mps + HCLGE_NON_DCB_ADDITIONAL_BUF;
 		lo_thrd = aligned_mps;
@@ -1756,12 +1762,13 @@ static bool hclge_rx_buf_calc_all(struct hclge_dev *hdev, bool max,
 		priv->enable = 1;
 
 		if (hdev->tm_info.hw_pfc_map & BIT(i)) {
-			priv->wl.low = max ? aligned_mps : 256;
+			priv->wl.low = max ? aligned_mps : HCLGE_BUF_SIZE_UNIT;
 			priv->wl.high = roundup(priv->wl.low + aligned_mps,
 						HCLGE_BUF_SIZE_UNIT);
 		} else {
 			priv->wl.low = 0;
-			priv->wl.high = max ? (aligned_mps * 2) : aligned_mps;
+			priv->wl.high = max ? (aligned_mps * HCLGE_BUF_MUL_BY) :
+					aligned_mps;
 		}
 
 		priv->buf_size = priv->wl.high + hdev->dv_buf_size;
@@ -3213,7 +3220,6 @@ static int hclge_reset_prepare_wait(struct hclge_dev *hdev)
 static bool hclge_reset_err_handle(struct hclge_dev *hdev, bool is_timeout)
 {
 #define MAX_RESET_FAIL_CNT 5
-#define RESET_UPGRADE_DELAY_SEC 10
 
 	if (hdev->reset_pending) {
 		dev_info(&hdev->pdev->dev, "Reset pending %lu\n",
@@ -3238,7 +3244,7 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev, bool is_timeout)
 		dev_info(&hdev->pdev->dev, "Upgrade reset level\n");
 		hclge_clear_reset_cause(hdev);
 		mod_timer(&hdev->reset_timer,
-			  jiffies + RESET_UPGRADE_DELAY_SEC * HZ);
+			  jiffies + HCLGE_RESET_INTERVAL);
 
 		return false;
 	}
@@ -3382,7 +3388,8 @@ static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 	if (!handle)
 		handle = &hdev->vport[0].nic;
 
-	if (time_before(jiffies, (hdev->last_reset_time + 3 * HZ)))
+	if (time_before(jiffies, (hdev->last_reset_time +
+				  HCLGE_RESET_INTERVAL)))
 		return;
 	else if (hdev->default_reset_request)
 		hdev->reset_level =
@@ -6150,11 +6157,11 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 	if (op == HCLGE_MAC_VLAN_ADD) {
 		if ((!resp_code) || (resp_code == 1)) {
 			return_status = 0;
-		} else if (resp_code == 2) {
+		} else if (resp_code == HCLGE_ADD_UC_OVERFLOW) {
 			return_status = -ENOSPC;
 			dev_err(&hdev->pdev->dev,
 				"add mac addr failed for uc_overflow.\n");
-		} else if (resp_code == 3) {
+		} else if (resp_code == HCLGE_ADD_MC_OVERFLOW) {
 			return_status = -ENOSPC;
 			dev_err(&hdev->pdev->dev,
 				"add mac addr failed for mc_overflow.\n");
@@ -6199,13 +6206,15 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 
 static int hclge_update_desc_vfid(struct hclge_desc *desc, int vfid, bool clr)
 {
+#define HCLGE_VF_NUM_IN_FIRST_DESC 192
+
 	int word_num;
 	int bit_num;
 
 	if (vfid > 255 || vfid < 0)
 		return -EIO;
 
-	if (vfid >= 0 && vfid <= 191) {
+	if (vfid >= 0 && vfid < HCLGE_VF_NUM_IN_FIRST_DESC) {
 		word_num = vfid / 32;
 		bit_num  = vfid % 32;
 		if (clr)
@@ -6213,7 +6222,7 @@ static int hclge_update_desc_vfid(struct hclge_desc *desc, int vfid, bool clr)
 		else
 			desc[1].data[word_num] |= cpu_to_le32(1 << bit_num);
 	} else {
-		word_num = (vfid - 192) / 32;
+		word_num = (vfid - HCLGE_VF_NUM_IN_FIRST_DESC) / 32;
 		bit_num  = vfid % 32;
 		if (clr)
 			desc[2].data[word_num] &= cpu_to_le32(~(1 << bit_num));
@@ -8896,10 +8905,12 @@ static int hclge_get_32_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 				 void *data)
 {
 #define HCLGE_32_BIT_REG_RTN_DATANUM 8
+#define HCLGE_32_BIT_DESC_NODATA_LEN 2
 
 	struct hclge_desc *desc;
 	u32 *reg_val = data;
 	__le32 *desc_data;
+	int nodata_num;
 	int cmd_num;
 	int i, k, n;
 	int ret;
@@ -8907,7 +8918,9 @@ static int hclge_get_32_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 	if (regs_num == 0)
 		return 0;
 
-	cmd_num = DIV_ROUND_UP(regs_num + 2, HCLGE_32_BIT_REG_RTN_DATANUM);
+	nodata_num = HCLGE_32_BIT_DESC_NODATA_LEN;
+	cmd_num = DIV_ROUND_UP(regs_num + nodata_num,
+			       HCLGE_32_BIT_REG_RTN_DATANUM);
 	desc = kcalloc(cmd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
@@ -8924,7 +8937,7 @@ static int hclge_get_32_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 	for (i = 0; i < cmd_num; i++) {
 		if (i == 0) {
 			desc_data = (__le32 *)(&desc[i].data[0]);
-			n = HCLGE_32_BIT_REG_RTN_DATANUM - 2;
+			n = HCLGE_32_BIT_REG_RTN_DATANUM - nodata_num;
 		} else {
 			desc_data = (__le32 *)(&desc[i]);
 			n = HCLGE_32_BIT_REG_RTN_DATANUM;
@@ -8946,10 +8959,12 @@ static int hclge_get_64_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 				 void *data)
 {
 #define HCLGE_64_BIT_REG_RTN_DATANUM 4
+#define HCLGE_64_BIT_DESC_NODATA_LEN 1
 
 	struct hclge_desc *desc;
 	u64 *reg_val = data;
 	__le64 *desc_data;
+	int nodata_len;
 	int cmd_num;
 	int i, k, n;
 	int ret;
@@ -8957,7 +8972,9 @@ static int hclge_get_64_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 	if (regs_num == 0)
 		return 0;
 
-	cmd_num = DIV_ROUND_UP(regs_num + 1, HCLGE_64_BIT_REG_RTN_DATANUM);
+	nodata_len = HCLGE_64_BIT_DESC_NODATA_LEN;
+	cmd_num = DIV_ROUND_UP(regs_num + nodata_len,
+			       HCLGE_64_BIT_REG_RTN_DATANUM);
 	desc = kcalloc(cmd_num, sizeof(struct hclge_desc), GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
@@ -8974,7 +8991,7 @@ static int hclge_get_64_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 	for (i = 0; i < cmd_num; i++) {
 		if (i == 0) {
 			desc_data = (__le64 *)(&desc[i].data[0]);
-			n = HCLGE_64_BIT_REG_RTN_DATANUM - 1;
+			n = HCLGE_64_BIT_REG_RTN_DATANUM - nodata_len;
 		} else {
 			desc_data = (__le64 *)(&desc[i]);
 			n = HCLGE_64_BIT_REG_RTN_DATANUM;
