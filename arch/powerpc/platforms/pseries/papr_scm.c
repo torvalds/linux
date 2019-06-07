@@ -28,6 +28,7 @@ struct papr_scm_priv {
 	uint64_t blocks;
 	uint64_t block_size;
 	int metadata_size;
+	bool is_volatile;
 
 	uint64_t bound_addr;
 
@@ -248,7 +249,10 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 	ndr_desc.nd_set = &p->nd_set;
 	set_bit(ND_REGION_PAGEMAP, &ndr_desc.flags);
 
-	p->region = nvdimm_pmem_region_create(p->bus, &ndr_desc);
+	if (p->is_volatile)
+		p->region = nvdimm_volatile_region_create(p->bus, &ndr_desc);
+	else
+		p->region = nvdimm_pmem_region_create(p->bus, &ndr_desc);
 	if (!p->region) {
 		dev_err(dev, "Error registering region %pR from %pOF\n",
 				ndr_desc.res, p->dn);
@@ -293,6 +297,7 @@ static int papr_scm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -304,6 +309,7 @@ static int papr_scm_probe(struct platform_device *pdev)
 	p->drc_index = drc_index;
 	p->block_size = block_size;
 	p->blocks = blocks;
+	p->is_volatile = !of_property_read_bool(dn, "ibm,cache-flush-required");
 
 	/* We just need to ensure that set cookies are unique across */
 	uuid_parse(uuid_str, (uuid_t *) uuid);
