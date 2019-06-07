@@ -73,7 +73,7 @@ static long dmaengine_ref_count;
 /* --- sysfs implementation --- */
 
 /**
- * dev_to_dma_chan - convert a device pointer to the its sysfs container object
+ * dev_to_dma_chan - convert a device pointer to its sysfs container object
  * @dev - device node
  *
  * Must be called under dma_list_mutex
@@ -717,7 +717,7 @@ struct dma_chan *dma_request_chan(struct device *dev, const char *name)
 		chan = acpi_dma_request_slave_chan_by_name(dev, name);
 
 	if (chan) {
-		/* Valid channel found or requester need to be deferred */
+		/* Valid channel found or requester needs to be deferred */
 		if (!IS_ERR(chan) || PTR_ERR(chan) == -EPROBE_DEFER)
 			return chan;
 	}
