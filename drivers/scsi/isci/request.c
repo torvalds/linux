@@ -224,7 +224,7 @@ static void scu_ssp_request_construct_task_context(
 	idev = ireq->target_device;
 	iport = idev->owning_port;
 
-	/* Fill in the TC with the its required data */
+	/* Fill in the TC with its required data */
 	task_context->abort = 0;
 	task_context->priority = 0;
 	task_context->initiator_request = 1;
@@ -506,7 +506,7 @@ static void scu_sata_request_construct_task_context(
 	idev = ireq->target_device;
 	iport = idev->owning_port;
 
-	/* Fill in the TC with the its required data */
+	/* Fill in the TC with its required data */
 	task_context->abort = 0;
 	task_context->priority = SCU_TASK_PRIORITY_NORMAL;
 	task_context->initiator_request = 1;
@@ -3235,7 +3235,7 @@ sci_io_request_construct_smp(struct device *dev,
 	iport = idev->owning_port;
 
 	/*
-	 * Fill in the TC with the its required data
+	 * Fill in the TC with its required data
 	 * 00h
 	 */
 	task_context->priority = 0;
