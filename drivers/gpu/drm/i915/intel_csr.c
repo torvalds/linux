@@ -71,6 +71,7 @@ MODULE_FIRMWARE(BXT_CSR_PATH);
 
 #define CSR_DEFAULT_FW_OFFSET		0xFFFFFFFF
 #define PACKAGE_MAX_FW_INFO_ENTRIES	20
+#define PACKAGE_V2_MAX_FW_INFO_ENTRIES	32
 
 struct intel_css_header {
 	/* 0x09 for DMC */
@@ -133,7 +134,7 @@ struct intel_package_header {
 	/* DMC container header length in dwords */
 	u8 header_len;
 
-	/* always value would be 0x01 */
+	/* 0x01, 0x02 */
 	u8 header_ver;
 
 	u8 reserved[10];
@@ -339,7 +340,7 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 	struct intel_dmc_header *dmc_header;
 	struct intel_csr *csr = &dev_priv->csr;
 	const struct stepping_info *si = intel_get_stepping_info(dev_priv);
-	u32 dmc_offset, num_entries, readcount = 0, nbytes;
+	u32 dmc_offset, num_entries, max_entries, readcount = 0, nbytes;
 	u32 i;
 	u32 *dmc_payload;
 	size_t fsize;
@@ -381,20 +382,32 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 	/* Extract Package Header information*/
 	package_header = (struct intel_package_header *)
 		&fw->data[readcount];
-	if (sizeof(struct intel_package_header) !=
-	    (package_header->header_len * 4)) {
-		DRM_ERROR("DMC firmware has wrong package header length "
-			  "(%u bytes)\n",
-			  (package_header->header_len * 4));
+
+	readcount += sizeof(struct intel_package_header);
+
+	if (package_header->header_ver == 1) {
+		max_entries = PACKAGE_MAX_FW_INFO_ENTRIES;
+	} else if (package_header->header_ver == 2) {
+		max_entries = PACKAGE_V2_MAX_FW_INFO_ENTRIES;
+	} else {
+		DRM_ERROR("DMC firmware has unknown header version %u\n",
+			  package_header->header_ver);
 		return NULL;
 	}
 
-	readcount += sizeof(struct intel_package_header);
-	num_entries = package_header->num_entries;
-	if (WARN_ON(package_header->num_entries > PACKAGE_MAX_FW_INFO_ENTRIES))
-		num_entries = PACKAGE_MAX_FW_INFO_ENTRIES;
+	if (package_header->header_len * 4 !=
+	    sizeof(struct intel_package_header) +
+	    max_entries * sizeof(struct intel_fw_info)) {
+		DRM_ERROR("DMC firmware has wrong package header length "
+			  "(%u bytes)\n", package_header->header_len * 4);
+		return NULL;
+	}
 
-	fsize += PACKAGE_MAX_FW_INFO_ENTRIES * sizeof(struct intel_fw_info);
+	num_entries = package_header->num_entries;
+	if (WARN_ON(package_header->num_entries > max_entries))
+		num_entries = max_entries;
+
+	fsize += max_entries * sizeof(struct intel_fw_info);
 	if (fsize > fw->size)
 		goto error_truncated;
 
@@ -405,8 +418,9 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 			  si->stepping);
 		return NULL;
 	}
-	/* we always have space for PACKAGE_MAX_FW_INFO_ENTRIES */
-	readcount += PACKAGE_MAX_FW_INFO_ENTRIES * sizeof(struct intel_fw_info);
+
+	/* we always have space for max_entries, even if not all are used */
+	readcount += max_entries * sizeof(struct intel_fw_info);
 
 	/* Convert dmc_offset into number of bytes. By default it is in dwords*/
 	dmc_offset *= 4;
