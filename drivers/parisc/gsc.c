@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Interrupt management for most GSC and related devices.
  *
@@ -6,11 +7,6 @@
  * (c) Copyright 1999 Matthew Wilcox
  * (c) Copyright 2000 Helge Deller
  * (c) Copyright 2001 Matthew Wilcox for Hewlett-Packard
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
  */
 
 #include <linux/bitops.h>

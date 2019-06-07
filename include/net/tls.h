@@ -209,6 +209,10 @@ struct tls_offload_context_tx {
 #define TLS_OFFLOAD_CONTEXT_SIZE_TX                                            \
 	(sizeof(struct tls_offload_context_tx) + TLS_DRIVER_STATE_SIZE_TX)
 
+enum tls_context_flags {
+	TLS_RX_SYNC_RUNNING = 0,
+};
+
 struct cipher_context {
 	char *iv;
 	char *rec_seq;

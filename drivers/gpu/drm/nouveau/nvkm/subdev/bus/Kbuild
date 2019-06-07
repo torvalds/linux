@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 nvkm-y += nvkm/subdev/bus/base.o
 nvkm-y += nvkm/subdev/bus/hwsq.o
 nvkm-y += nvkm/subdev/bus/nv04.o

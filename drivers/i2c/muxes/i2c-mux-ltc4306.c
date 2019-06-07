@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linear Technology LTC4306 and LTC4305 I2C multiplexer/switch
  *
  * Copyright (C) 2017 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  *
  * Based on: i2c-mux-pca954x.c
  *

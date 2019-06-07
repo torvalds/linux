@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sun4i-ss-cipher.c - hardware cryptographic accelerator for Allwinner A20 SoC
  *
@@ -8,11 +9,6 @@
  * Add support also for DES and 3DES in CBC and ECB mode.
  *
  * You could find the datasheet in Documentation/arm/sunxi/README
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include "sun4i-ss.h"
 
