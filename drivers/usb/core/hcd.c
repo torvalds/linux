@@ -3052,8 +3052,8 @@ int usb_hcd_setup_local_mem(struct usb_hcd *hcd, phys_addr_t phys_addr,
 
 	local_mem = devm_memremap(hcd->self.sysdev, phys_addr,
 				  size, MEMREMAP_WC);
-	if (!local_mem)
-		return -ENOMEM;
+	if (IS_ERR(local_mem))
+		return PTR_ERR(local_mem);
 
 	/*
 	 * Here we pass a dma_addr_t but the arg type is a phys_addr_t.
