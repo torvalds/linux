@@ -3630,6 +3630,51 @@ static const struct soc15_reg_entry sec_ded_counter_registers[] = {
    { SOC15_REG_ENTRY(GC, 0, mmSQC_EDC_CNT3), 0, 4, 6},
 };
 
+
+static int gfx_v9_0_do_edc_gds_workarounds(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring = &adev->gfx.compute_ring[0];
+	int r;
+
+	r = amdgpu_ring_alloc(ring, 17);
+	if (r) {
+		DRM_ERROR("amdgpu: GDS workarounds failed to lock ring %s (%d).\n",
+			ring->name, r);
+		return r;
+	}
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	amdgpu_ring_write(ring, WRITE_DATA_ENGINE_SEL(0) |
+				WRITE_DATA_DST_SEL(0));
+	amdgpu_ring_write(ring, SOC15_REG_OFFSET(GC, 0, mmGDS_VMID0_SIZE));
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring, adev->gds.gds_size);
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_DMA_DATA, 5));
+	amdgpu_ring_write(ring, (PACKET3_DMA_DATA_CP_SYNC |
+				PACKET3_DMA_DATA_DST_SEL(1) |
+				PACKET3_DMA_DATA_SRC_SEL(2) |
+				PACKET3_DMA_DATA_ENGINE(0)));
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring, PACKET3_DMA_DATA_CMD_RAW_WAIT |
+				adev->gds.gds_size);
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	amdgpu_ring_write(ring, WRITE_DATA_ENGINE_SEL(0) |
+				WRITE_DATA_DST_SEL(0));
+	amdgpu_ring_write(ring, SOC15_REG_OFFSET(GC, 0, mmGDS_VMID0_SIZE));
+	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring, 0x0);
+
+	amdgpu_ring_commit(ring);
+
+	return 0;
+}
+
+
 static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = &adev->gfx.compute_ring[0];
@@ -3805,6 +3850,10 @@ static int gfx_v9_0_ecc_late_init(void *handle)
 		amdgpu_ras_feature_enable_on_boot(adev, &ras_block, 0);
 		return 0;
 	}
+
+	r = gfx_v9_0_do_edc_gds_workarounds(adev);
+	if (r)
+		return r;
 
 	/* requires IBs so do in late init after IB pool is initialized */
 	r = gfx_v9_0_do_edc_gpr_workarounds(adev);
