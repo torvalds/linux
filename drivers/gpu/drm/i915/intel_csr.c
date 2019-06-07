@@ -557,7 +557,7 @@ static u32 parse_csr_fw_css(struct intel_csr *csr,
 	return sizeof(struct intel_css_header);
 }
 
-static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
+static void parse_csr_fw(struct drm_i915_private *dev_priv,
 			 const struct firmware *fw)
 {
 	struct intel_css_header *css_header;
@@ -569,13 +569,13 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 	u32 r;
 
 	if (!fw)
-		return NULL;
+		return;
 
 	/* Extract CSS Header information */
 	css_header = (struct intel_css_header *)fw->data;
 	r = parse_csr_fw_css(csr, css_header, fw->size);
 	if (!r)
-		return NULL;
+		return;
 
 	readcount += r;
 
@@ -583,17 +583,13 @@ static u32 *parse_csr_fw(struct drm_i915_private *dev_priv,
 	package_header = (struct intel_package_header *)&fw->data[readcount];
 	r = parse_csr_fw_package(csr, package_header, si, fw->size - readcount);
 	if (!r)
-		return NULL;
+		return;
 
 	readcount += r;
 
 	/* Extract dmc_header information */
 	dmc_header = (struct intel_dmc_header_base *)&fw->data[readcount];
-	r = parse_csr_fw_dmc(csr, dmc_header, fw->size - readcount);
-	if (!r)
-		return NULL;
-
-	return csr->dmc_payload;
+	parse_csr_fw_dmc(csr, dmc_header, fw->size - readcount);
 }
 
 static void intel_csr_runtime_pm_get(struct drm_i915_private *dev_priv)
@@ -621,8 +617,7 @@ static void csr_load_work_fn(struct work_struct *work)
 	csr = &dev_priv->csr;
 
 	request_firmware(&fw, dev_priv->csr.fw_path, &dev_priv->drm.pdev->dev);
-	if (fw)
-		dev_priv->csr.dmc_payload = parse_csr_fw(dev_priv, fw);
+	parse_csr_fw(dev_priv, fw);
 
 	if (dev_priv->csr.dmc_payload) {
 		intel_csr_load_program(dev_priv);
