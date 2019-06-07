@@ -299,6 +299,7 @@ static struct attribute *gfs2_attrs[] = {
 	&gfs2_attr_demote_rq.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(gfs2);
 
 static void gfs2_sbd_release(struct kobject *kobj)
 {
@@ -309,7 +310,7 @@ static void gfs2_sbd_release(struct kobject *kobj)
 
 static struct kobj_type gfs2_ktype = {
 	.release = gfs2_sbd_release,
-	.default_attrs = gfs2_attrs,
+	.default_groups = gfs2_groups,
 	.sysfs_ops     = &gfs2_attr_ops,
 };
 
