@@ -339,7 +339,7 @@ a code like this::
 There are also devm_* versions of these functions which release the
 descriptors once the device is released.
 
-See Documentation/acpi/gpio-properties.txt for more information about the
+See Documentation/firmware-guide/acpi/gpio-properties.rst for more information about the
 _DSD binding related to GPIOs.
 
 MFD devices
