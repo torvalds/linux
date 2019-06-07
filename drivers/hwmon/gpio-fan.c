@@ -524,7 +524,9 @@ static int gpio_fan_probe(struct platform_device *pdev)
 		err = fan_ctrl_init(fan_data);
 		if (err)
 			return err;
-		devm_add_action_or_reset(dev, gpio_fan_stop, fan_data);
+		err = devm_add_action_or_reset(dev, gpio_fan_stop, fan_data);
+		if (err)
+			return err;
 	}
 
 	/* Make this driver part of hwmon class. */
