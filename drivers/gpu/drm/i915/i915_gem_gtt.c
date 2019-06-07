@@ -2359,7 +2359,7 @@ void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
 	else
 		return;
 
-	i915_clear_error_registers(dev_priv);
+	i915_clear_error_registers(dev_priv, ALL_ENGINES);
 }
 
 void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
