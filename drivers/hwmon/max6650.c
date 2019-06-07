@@ -157,14 +157,19 @@ static struct max6650_data *max6650_update_device(struct device *dev)
 {
 	struct max6650_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
+	int reg, err = 0;
 	int i;
 
 	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
 		for (i = 0; i < data->nr_fans; i++) {
-			data->tach[i] = i2c_smbus_read_byte_data(client,
-								 tach_reg[i]);
+			reg = i2c_smbus_read_byte_data(client, tach_reg[i]);
+			if (reg < 0) {
+				err = reg;
+				goto error;
+			}
+			data->tach[i] = reg;
 		}
 
 		/*
@@ -172,15 +177,20 @@ static struct max6650_data *max6650_update_device(struct device *dev)
 		 * caused the alarm is removed. Keep the value latched here
 		 * for providing the register through different alarm files.
 		 */
-		data->alarm |= i2c_smbus_read_byte_data(client,
-							MAX6650_REG_ALARM);
-
+		reg = i2c_smbus_read_byte_data(client, MAX6650_REG_ALARM);
+		if (reg < 0) {
+			err = reg;
+			goto error;
+		}
+		data->alarm |= reg;
 		data->last_updated = jiffies;
 		data->valid = true;
 	}
 
+error:
 	mutex_unlock(&data->update_lock);
-
+	if (err)
+		data = ERR_PTR(err);
 	return data;
 }
 
@@ -289,8 +299,12 @@ static ssize_t alarm_show(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct max6650_data *data = max6650_update_device(dev);
-	bool alarm = data->alarm & attr->index;
+	bool alarm;
 
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	alarm = data->alarm & attr->index;
 	if (alarm) {
 		mutex_lock(&data->update_lock);
 		data->alarm &= ~attr->index;
@@ -511,6 +525,9 @@ static int max6650_read(struct device *dev, enum hwmon_sensor_types type,
 {
 	struct max6650_data *data = max6650_update_device(dev);
 	int mode;
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	switch (type) {
 	case hwmon_pwm:
