@@ -373,8 +373,15 @@ static int papr_scm_probe(struct platform_device *pdev)
 
 	/* We just need to ensure that set cookies are unique across */
 	uuid_parse(uuid_str, (uuid_t *) uuid);
-	p->nd_set.cookie1 = uuid[0];
-	p->nd_set.cookie2 = uuid[1];
+	/*
+	 * cookie1 and cookie2 are not really little endian
+	 * we store a little endian representation of the
+	 * uuid str so that we can compare this with the label
+	 * area cookie irrespective of the endian config with which
+	 * the kernel is built.
+	 */
+	p->nd_set.cookie1 = cpu_to_le64(uuid[0]);
+	p->nd_set.cookie2 = cpu_to_le64(uuid[1]);
 
 	/* might be zero */
 	p->metadata_size = metadata_size;
