@@ -1203,7 +1203,7 @@ fail_fw_init:
 int
 megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend) {
 	int ret = 0;
-	u32 pd_seq_map_sz;
+	size_t pd_seq_map_sz;
 	struct megasas_cmd *cmd;
 	struct megasas_dcmd_frame *dcmd;
 	struct fusion_context *fusion = instance->ctrl_context;
@@ -1212,9 +1212,7 @@ megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend) {
 
 	pd_sync = (void *)fusion->pd_seq_sync[(instance->pd_seq_map_id & 1)];
 	pd_seq_h = fusion->pd_seq_phys[(instance->pd_seq_map_id & 1)];
-	pd_seq_map_sz = sizeof(struct MR_PD_CFG_SEQ_NUM_SYNC) +
-			(sizeof(struct MR_PD_CFG_SEQ) *
-			(MAX_PHYSICAL_DEVICES - 1));
+	pd_seq_map_sz = struct_size(pd_sync, seq, MAX_PHYSICAL_DEVICES - 1);
 
 	cmd = megasas_get_cmd(instance);
 	if (!cmd) {
