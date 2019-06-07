@@ -604,8 +604,8 @@ static int max6650_init_client(struct max6650_data *data,
 			       struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	int config;
-	int err = -EIO;
+	int reg;
+	int err;
 	u32 voltage;
 	u32 prescale;
 	u32 target_rpm;
@@ -619,21 +619,20 @@ static int max6650_init_client(struct max6650_data *data,
 				 &prescale))
 		prescale = prescaler;
 
-	config = i2c_smbus_read_byte_data(client, MAX6650_REG_CONFIG);
-
-	if (config < 0) {
-		dev_err(dev, "Error reading config, aborting.\n");
-		return err;
+	reg = i2c_smbus_read_byte_data(client, MAX6650_REG_CONFIG);
+	if (reg < 0) {
+		dev_err(dev, "Error reading config register, aborting.\n");
+		return reg;
 	}
 
 	switch (voltage) {
 	case 0:
 		break;
 	case 5:
-		config &= ~MAX6650_CFG_V12;
+		reg &= ~MAX6650_CFG_V12;
 		break;
 	case 12:
-		config |= MAX6650_CFG_V12;
+		reg |= MAX6650_CFG_V12;
 		break;
 	default:
 		dev_err(dev, "illegal value for fan_voltage (%d)\n", voltage);
@@ -643,22 +642,22 @@ static int max6650_init_client(struct max6650_data *data,
 	case 0:
 		break;
 	case 1:
-		config &= ~MAX6650_CFG_PRESCALER_MASK;
+		reg &= ~MAX6650_CFG_PRESCALER_MASK;
 		break;
 	case 2:
-		config = (config & ~MAX6650_CFG_PRESCALER_MASK)
+		reg = (reg & ~MAX6650_CFG_PRESCALER_MASK)
 			 | MAX6650_CFG_PRESCALER_2;
 		break;
 	case  4:
-		config = (config & ~MAX6650_CFG_PRESCALER_MASK)
+		reg = (reg & ~MAX6650_CFG_PRESCALER_MASK)
 			 | MAX6650_CFG_PRESCALER_4;
 		break;
 	case  8:
-		config = (config & ~MAX6650_CFG_PRESCALER_MASK)
+		reg = (reg & ~MAX6650_CFG_PRESCALER_MASK)
 			 | MAX6650_CFG_PRESCALER_8;
 		break;
 	case 16:
-		config = (config & ~MAX6650_CFG_PRESCALER_MASK)
+		reg = (reg & ~MAX6650_CFG_PRESCALER_MASK)
 			 | MAX6650_CFG_PRESCALER_16;
 		break;
 	default:
@@ -666,16 +665,22 @@ static int max6650_init_client(struct max6650_data *data,
 	}
 
 	dev_info(dev, "Fan voltage: %dV, prescaler: %d.\n",
-		 (config & MAX6650_CFG_V12) ? 12 : 5,
-		 1 << (config & MAX6650_CFG_PRESCALER_MASK));
+		 (reg & MAX6650_CFG_V12) ? 12 : 5,
+		 1 << (reg & MAX6650_CFG_PRESCALER_MASK));
 
-	if (i2c_smbus_write_byte_data(client, MAX6650_REG_CONFIG, config)) {
+	err = i2c_smbus_write_byte_data(client, MAX6650_REG_CONFIG, reg);
+	if (err) {
 		dev_err(dev, "Config write error, aborting.\n");
 		return err;
 	}
 
-	data->config = config;
-	data->count = i2c_smbus_read_byte_data(client, MAX6650_REG_COUNT);
+	data->config = reg;
+	reg = i2c_smbus_read_byte_data(client, MAX6650_REG_COUNT);
+	if (reg < 0) {
+		dev_err(dev, "Failed to read count register, aborting.\n");
+		return reg;
+	}
+	data->count = reg;
 
 	if (!of_property_read_u32(client->dev.of_node, "maxim,fan-target-rpm",
 				  &target_rpm)) {
