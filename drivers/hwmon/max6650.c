@@ -101,7 +101,6 @@ module_param(clock, int, 0444);
 struct max6650_data {
 	struct i2c_client *client;
 	const struct attribute_group *groups[3];
-	struct thermal_cooling_device *cooling_dev;
 	struct mutex update_lock;
 	int nr_fans;
 	char valid; /* zero until following fields are valid */
@@ -744,6 +743,7 @@ static const struct thermal_cooling_device_ops max6650_cooling_ops = {
 static int max6650_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
+	struct thermal_cooling_device *cooling_dev;
 	struct device *dev = &client->dev;
 	const struct of_device_id *of_id =
 		of_match_device(of_match_ptr(max6650_dt_match), dev);
@@ -780,25 +780,13 @@ static int max6650_probe(struct i2c_client *client,
 		return err;
 
 #if IS_ENABLED(CONFIG_THERMAL)
-	data->cooling_dev =
-		thermal_of_cooling_device_register(client->dev.of_node,
-						   client->name, data,
-						   &max6650_cooling_ops);
-	if (IS_ERR(data->cooling_dev))
-		dev_warn(&client->dev,
-			 "thermal cooling device register failed: %ld\n",
-			 PTR_ERR(data->cooling_dev));
+	cooling_dev = devm_thermal_of_cooling_device_register(dev, dev->of_node,
+				client->name, data, &max6650_cooling_ops);
+	if (IS_ERR(cooling_dev)) {
+		dev_warn(dev, "thermal cooling device register failed: %ld\n",
+			 PTR_ERR(cooling_dev));
+	}
 #endif
-	return 0;
-}
-
-static int max6650_remove(struct i2c_client *client)
-{
-	struct max6650_data *data = i2c_get_clientdata(client);
-
-	if (!IS_ERR(data->cooling_dev))
-		thermal_cooling_device_unregister(data->cooling_dev);
-
 	return 0;
 }
 
@@ -815,7 +803,6 @@ static struct i2c_driver max6650_driver = {
 		.of_match_table = of_match_ptr(max6650_dt_match),
 	},
 	.probe		= max6650_probe,
-	.remove		= max6650_remove,
 	.id_table	= max6650_id,
 };
 
