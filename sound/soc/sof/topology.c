@@ -2341,7 +2341,7 @@ static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
 				return -ENOMEM;
 
 			/* set cpu_dai_name */
-			dai->cpu_dai_name = link->cpu_dai_name;
+			dai->cpu_dai_name = link->cpus->dai_name;
 
 			found = 1;
 		}
@@ -2594,7 +2594,7 @@ static int sof_link_hda_process(struct snd_sof_dev *sdev,
 			if (!sof_dai->dai_config)
 				return -ENOMEM;
 
-			sof_dai->cpu_dai_name = link->cpu_dai_name;
+			sof_dai->cpu_dai_name = link->cpus->dai_name;
 
 			/* send message to DSP */
 			ret = sof_ipc_tx_message(sdev->ipc,
