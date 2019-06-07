@@ -2367,7 +2367,7 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 	/* Avoid re-using remote pages, or the stack is still using the page
 	 * when page_offset rollback to zero, flag default unreuse
 	 */
-	if (unlikely(page_to_nid(desc_cb->priv) != numa_node_id()) ||
+	if (unlikely(page_to_nid(desc_cb->priv) != numa_mem_id()) ||
 	    (!desc_cb->page_offset && page_count(desc_cb->priv) > 1))
 		return;
 
@@ -2583,7 +2583,7 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, int length,
 		memcpy(__skb_put(skb, length), va, ALIGN(length, sizeof(long)));
 
 		/* We can reuse buffer as-is, just make sure it is local */
-		if (likely(page_to_nid(desc_cb->priv) == numa_node_id()))
+		if (likely(page_to_nid(desc_cb->priv) == numa_mem_id()))
 			desc_cb->reuse_flag = 1;
 		else /* This page cannot be reused so discard it */
 			put_page(desc_cb->priv);
