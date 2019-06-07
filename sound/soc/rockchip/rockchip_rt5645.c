@@ -123,15 +123,20 @@ static const struct snd_soc_ops rk_aif1_ops = {
 	.hw_params = rk_aif1_hw_params,
 };
 
+SND_SOC_DAILINK_DEFS(pcm,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "rt5645-aif1")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link rk_dailink = {
 	.name = "rt5645",
 	.stream_name = "rt5645 PCM",
-	.codec_dai_name = "rt5645-aif1",
 	.init = rk_init,
 	.ops = &rk_aif1_ops,
 	/* set rt5645 as slave */
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		SND_SOC_DAIFMT_CBS_CFS,
+	SND_SOC_DAILINK_REG(pcm),
 };
 
 static struct snd_soc_card snd_soc_card_rk = {
@@ -156,24 +161,24 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 	/* register the soc card */
 	card->dev = &pdev->dev;
 
-	rk_dailink.codec_of_node = of_parse_phandle(np,
+	rk_dailink.codecs->of_node = of_parse_phandle(np,
 			"rockchip,audio-codec", 0);
-	if (!rk_dailink.codec_of_node) {
+	if (!rk_dailink.codecs->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
 
-	rk_dailink.cpu_of_node = of_parse_phandle(np,
+	rk_dailink.cpus->of_node = of_parse_phandle(np,
 			"rockchip,i2s-controller", 0);
-	if (!rk_dailink.cpu_of_node) {
+	if (!rk_dailink.cpus->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
 		goto put_codec_of_node;
 	}
 
-	rk_dailink.platform_of_node = rk_dailink.cpu_of_node;
+	rk_dailink.platforms->of_node = rk_dailink.cpus->of_node;
 
 	ret = snd_soc_of_parse_card_name(card, "rockchip,model");
 	if (ret) {
@@ -192,21 +197,21 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 	return ret;
 
 put_cpu_of_node:
-	of_node_put(rk_dailink.cpu_of_node);
-	rk_dailink.cpu_of_node = NULL;
+	of_node_put(rk_dailink.cpus->of_node);
+	rk_dailink.cpus->of_node = NULL;
 put_codec_of_node:
-	of_node_put(rk_dailink.codec_of_node);
-	rk_dailink.codec_of_node = NULL;
+	of_node_put(rk_dailink.codecs->of_node);
+	rk_dailink.codecs->of_node = NULL;
 
 	return ret;
 }
 
 static int snd_rk_mc_remove(struct platform_device *pdev)
 {
-	of_node_put(rk_dailink.cpu_of_node);
-	rk_dailink.cpu_of_node = NULL;
-	of_node_put(rk_dailink.codec_of_node);
-	rk_dailink.codec_of_node = NULL;
+	of_node_put(rk_dailink.cpus->of_node);
+	rk_dailink.cpus->of_node = NULL;
+	of_node_put(rk_dailink.codecs->of_node);
+	rk_dailink.codecs->of_node = NULL;
 
 	return 0;
 }

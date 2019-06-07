@@ -81,13 +81,18 @@ static const struct snd_soc_dapm_widget tegra_sgtl5000_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 };
 
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "sgtl5000")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link tegra_sgtl5000_dai = {
 	.name = "sgtl5000",
 	.stream_name = "HiFi",
-	.codec_dai_name = "sgtl5000",
 	.ops = &tegra_sgtl5000_ops,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
+	SND_SOC_DAILINK_REG(hifi),
 };
 
 static struct snd_soc_card snd_soc_tegra_sgtl5000 = {
@@ -123,25 +128,25 @@ static int tegra_sgtl5000_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	tegra_sgtl5000_dai.codec_of_node = of_parse_phandle(np,
+	tegra_sgtl5000_dai.codecs->of_node = of_parse_phandle(np,
 			"nvidia,audio-codec", 0);
-	if (!tegra_sgtl5000_dai.codec_of_node) {
+	if (!tegra_sgtl5000_dai.codecs->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,audio-codec' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	tegra_sgtl5000_dai.cpu_of_node = of_parse_phandle(np,
+	tegra_sgtl5000_dai.cpus->of_node = of_parse_phandle(np,
 			"nvidia,i2s-controller", 0);
-	if (!tegra_sgtl5000_dai.cpu_of_node) {
+	if (!tegra_sgtl5000_dai.cpus->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,i2s-controller' missing/invalid\n");
 		ret = -EINVAL;
 		goto err_put_codec_of_node;
 	}
 
-	tegra_sgtl5000_dai.platform_of_node = tegra_sgtl5000_dai.cpu_of_node;
+	tegra_sgtl5000_dai.platforms->of_node = tegra_sgtl5000_dai.cpus->of_node;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)
@@ -159,12 +164,12 @@ static int tegra_sgtl5000_driver_probe(struct platform_device *pdev)
 err_fini_utils:
 	tegra_asoc_utils_fini(&machine->util_data);
 err_put_cpu_of_node:
-	of_node_put(tegra_sgtl5000_dai.cpu_of_node);
-	tegra_sgtl5000_dai.cpu_of_node = NULL;
-	tegra_sgtl5000_dai.platform_of_node = NULL;
+	of_node_put(tegra_sgtl5000_dai.cpus->of_node);
+	tegra_sgtl5000_dai.cpus->of_node = NULL;
+	tegra_sgtl5000_dai.platforms->of_node = NULL;
 err_put_codec_of_node:
-	of_node_put(tegra_sgtl5000_dai.codec_of_node);
-	tegra_sgtl5000_dai.codec_of_node = NULL;
+	of_node_put(tegra_sgtl5000_dai.codecs->of_node);
+	tegra_sgtl5000_dai.codecs->of_node = NULL;
 err:
 	return ret;
 }
@@ -179,11 +184,11 @@ static int tegra_sgtl5000_driver_remove(struct platform_device *pdev)
 
 	tegra_asoc_utils_fini(&machine->util_data);
 
-	of_node_put(tegra_sgtl5000_dai.cpu_of_node);
-	tegra_sgtl5000_dai.cpu_of_node = NULL;
-	tegra_sgtl5000_dai.platform_of_node = NULL;
-	of_node_put(tegra_sgtl5000_dai.codec_of_node);
-	tegra_sgtl5000_dai.codec_of_node = NULL;
+	of_node_put(tegra_sgtl5000_dai.cpus->of_node);
+	tegra_sgtl5000_dai.cpus->of_node = NULL;
+	tegra_sgtl5000_dai.platforms->of_node = NULL;
+	of_node_put(tegra_sgtl5000_dai.codecs->of_node);
+	tegra_sgtl5000_dai.codecs->of_node = NULL;
 
 	return ret;
 }
