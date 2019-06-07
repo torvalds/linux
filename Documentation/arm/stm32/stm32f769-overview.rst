@@ -1,3 +1,5 @@
+:orphan:
+
 STM32F769 Overview
 ==================
 

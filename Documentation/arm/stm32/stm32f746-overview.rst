@@ -1,3 +1,5 @@
+:orphan:
+
 STM32F746 Overview
 ==================
 
