@@ -599,8 +599,8 @@ static int sii902x_audio_hw_params(struct device *dev, void *data,
 	if (ret)
 		goto out;
 
-	for (i = 0; sii902x->audio.i2s_fifo_sequence[i] &&
-		     i < ARRAY_SIZE(sii902x->audio.i2s_fifo_sequence); i++)
+	for (i = 0; i < ARRAY_SIZE(sii902x->audio.i2s_fifo_sequence) &&
+		    sii902x->audio.i2s_fifo_sequence[i]; i++)
 		regmap_write(sii902x->regmap,
 			     SII902X_TPI_I2S_ENABLE_MAPPING_REG,
 			     sii902x->audio.i2s_fifo_sequence[i]);
