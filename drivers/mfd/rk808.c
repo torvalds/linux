@@ -474,17 +474,29 @@ static void rk805_device_shutdown(void)
 	int ret;
 	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
 
-	if (!rk808) {
-		dev_warn(&rk808_i2c_client->dev,
-			 "have no rk805, so do nothing here\n");
+	if (!rk808)
 		return;
-	}
 
 	ret = regmap_update_bits(rk808->regmap,
 				 RK805_DEV_CTRL_REG,
 				 DEV_OFF, DEV_OFF);
 	if (ret)
-		dev_err(&rk808_i2c_client->dev, "power off error!\n");
+		dev_err(&rk808_i2c_client->dev, "Failed to shutdown device!\n");
+}
+
+static void rk805_device_shutdown_prepare(void)
+{
+	int ret;
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+
+	if (!rk808)
+		return;
+
+	ret = regmap_update_bits(rk808->regmap,
+				 RK805_GPIO_IO_POL_REG,
+				 SLP_SD_MSK, SHUTDOWN_FUN);
+	if (ret)
+		dev_err(&rk808_i2c_client->dev, "Failed to shutdown device!\n");
 }
 
 static void rk808_device_shutdown(void)
@@ -492,17 +504,14 @@ static void rk808_device_shutdown(void)
 	int ret;
 	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
 
-	if (!rk808) {
-		dev_warn(&rk808_i2c_client->dev,
-			 "have no rk808, so do nothing here\n");
+	if (!rk808)
 		return;
-	}
 
 	ret = regmap_update_bits(rk808->regmap,
 				 RK808_DEVCTRL_REG,
 				 DEV_OFF_RST, DEV_OFF_RST);
 	if (ret)
-		dev_err(&rk808_i2c_client->dev, "power off error!\n");
+		dev_err(&rk808_i2c_client->dev, "Failed to shutdown device!\n");
 }
 
 static void rk818_device_shutdown(void)
@@ -510,17 +519,14 @@ static void rk818_device_shutdown(void)
 	int ret;
 	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
 
-	if (!rk808) {
-		dev_warn(&rk808_i2c_client->dev,
-			 "have no rk818, so do nothing here\n");
+	if (!rk808)
 		return;
-	}
 
 	ret = regmap_update_bits(rk808->regmap,
 				 RK818_DEVCTRL_REG,
 				 DEV_OFF, DEV_OFF);
 	if (ret)
-		dev_err(&rk808_i2c_client->dev, "power off error!\n");
+		dev_err(&rk808_i2c_client->dev, "Failed to shutdown device!\n");
 }
 
 static void rk8xx_syscore_shutdown(void)
@@ -609,6 +615,7 @@ static int rk808_probe(struct i2c_client *client,
 		cells = rk805s;
 		nr_cells = ARRAY_SIZE(rk805s);
 		rk808->pm_pwroff_fn = rk805_device_shutdown;
+		rk808->pm_pwroff_prep_fn = rk805_device_shutdown_prepare;
 		break;
 	case RK808_ID:
 		rk808->regmap_cfg = &rk808_regmap_config;
@@ -694,6 +701,12 @@ static int rk808_probe(struct i2c_client *client,
 		pm_power_off = rk808->pm_pwroff_fn;
 	}
 
+	if (pm_off && !pm_power_off_prepare) {
+		if (!rk808_i2c_client)
+			rk808_i2c_client = client;
+		pm_power_off_prepare = rk808->pm_pwroff_prep_fn;
+	}
+
 	return 0;
 
 err_irq:
@@ -713,6 +726,13 @@ static int rk808_remove(struct i2c_client *client)
 	 */
 	if (rk808->pm_pwroff_fn && pm_power_off == rk808->pm_pwroff_fn)
 		pm_power_off = NULL;
+
+	/**
+	 * As above, check if the pointer is set by us before overwrite.
+	 */
+	if (rk808->pm_pwroff_prep_fn &&
+	    pm_power_off_prepare == rk808->pm_pwroff_prep_fn)
+		pm_power_off_prepare = NULL;
 
 	return 0;
 }
