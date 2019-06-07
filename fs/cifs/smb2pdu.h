@@ -123,7 +123,7 @@ struct smb2_sync_pdu {
 	__le16 StructureSize2; /* size of wct area (varies, request specific) */
 } __packed;
 
-#define SMB3_AES128CMM_NONCE 11
+#define SMB3_AES128CCM_NONCE 11
 #define SMB3_AES128GCM_NONCE 12
 
 struct smb2_transform_hdr {
@@ -293,7 +293,7 @@ struct smb2_encryption_neg_context {
 	__le16	DataLength;
 	__le32	Reserved;
 	__le16	CipherCount; /* AES-128-GCM and AES-128-CCM */
-	__le16	Ciphers[1]; /* Ciphers[0] since only one used now */
+	__le16	Ciphers[2];
 } __packed;
 
 /* See MS-SMB2 2.2.3.1.3 */
