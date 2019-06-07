@@ -1219,7 +1219,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	if (HAS_PPGTT(dev_priv)) {
 		int i;
 
-		ee->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(engine));
+		ee->vm_info.gfx_mode = ENGINE_READ(engine, RING_MODE_GEN7);
 
 		if (IS_GEN(dev_priv, 6)) {
 			ee->vm_info.pp_dir_base =

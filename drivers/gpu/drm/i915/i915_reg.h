@@ -2698,7 +2698,7 @@ enum i915_power_well_id {
 
 #define GFX_MODE	_MMIO(0x2520)
 #define GFX_MODE_GEN7	_MMIO(0x229c)
-#define RING_MODE_GEN7(engine)	_MMIO((engine)->mmio_base + 0x29c)
+#define RING_MODE_GEN7(base)	_MMIO((base) + 0x29c)
 #define   GFX_RUN_LIST_ENABLE		(1 << 15)
 #define   GFX_INTERRUPT_STEERING	(1 << 14)
 #define   GFX_TLB_INVALIDATE_EXPLICIT	(1 << 13)
