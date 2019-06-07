@@ -2046,38 +2046,48 @@ static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 	esw_destroy_offloads_acl_tables(esw);
 }
 
+static void
+esw_vfs_changed_event_handler(struct mlx5_eswitch *esw, const u32 *out)
+{
+	bool host_pf_disabled;
+	u16 new_num_vfs;
+
+	new_num_vfs = MLX5_GET(query_esw_functions_out, out,
+			       host_params_context.host_num_of_vfs);
+	host_pf_disabled = MLX5_GET(query_esw_functions_out, out,
+				    host_params_context.host_pf_disabled);
+
+	if (new_num_vfs == esw->esw_funcs.num_vfs || host_pf_disabled)
+		return;
+
+	/* Number of VFs can only change from "0 to x" or "x to 0". */
+	if (esw->esw_funcs.num_vfs > 0) {
+		esw_offloads_unload_vf_reps(esw, esw->esw_funcs.num_vfs);
+	} else {
+		int err;
+
+		err = esw_offloads_load_vf_reps(esw, new_num_vfs);
+		if (err)
+			return;
+	}
+	esw->esw_funcs.num_vfs = new_num_vfs;
+}
+
 static void esw_functions_changed_event_handler(struct work_struct *work)
 {
 	u32 out[MLX5_ST_SZ_DW(query_esw_functions_out)] = {};
 	struct mlx5_host_work *host_work;
 	struct mlx5_eswitch *esw;
-	bool host_pf_disabled;
-	u16 num_vfs = 0;
 	int err;
 
 	host_work = container_of(work, struct mlx5_host_work, work);
 	esw = host_work->esw;
 
 	err = mlx5_esw_query_functions(esw->dev, out, sizeof(out));
-	num_vfs = MLX5_GET(query_esw_functions_out, out,
-			   host_params_context.host_num_of_vfs);
-	host_pf_disabled = MLX5_GET(query_esw_functions_out, out,
-				    host_params_context.host_pf_disabled);
-	if (err || host_pf_disabled || num_vfs == esw->esw_funcs.num_vfs)
+	if (err)
 		goto out;
 
-	/* Number of VFs can only change from "0 to x" or "x to 0". */
-	if (esw->esw_funcs.num_vfs > 0) {
-		esw_offloads_unload_vf_reps(esw, esw->esw_funcs.num_vfs);
-	} else {
-		err = esw_offloads_load_vf_reps(esw, num_vfs);
-
-		if (err)
-			goto out;
-	}
-
-	esw->esw_funcs.num_vfs = num_vfs;
-
+	esw_vfs_changed_event_handler(esw, out);
 out:
 	kfree(host_work);
 }
