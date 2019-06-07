@@ -234,6 +234,8 @@ static const struct nf_ipv6_ops ipv6ops = {
 	.route_me_harder	= ip6_route_me_harder,
 	.dev_get_saddr		= ipv6_dev_get_saddr,
 	.route			= __nf_ip6_route,
+	.cookie_init_sequence	= __cookie_v6_init_sequence,
+	.cookie_v6_check	= __cookie_v6_check,
 #endif
 	.route_input		= ip6_route_input,
 	.fragment		= ip6_fragment,

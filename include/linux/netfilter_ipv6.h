@@ -8,6 +8,7 @@
 #define __LINUX_IP6_NETFILTER_H
 
 #include <uapi/linux/netfilter_ipv6.h>
+#include <net/tcp.h>
 
 /* Extra routing may needed on local out, as the QUEUE target never returns
  * control to the table.
@@ -35,6 +36,10 @@ struct nf_ipv6_ops {
 		       struct in6_addr *saddr);
 	int (*route)(struct net *net, struct dst_entry **dst, struct flowi *fl,
 		     bool strict);
+	u32 (*cookie_init_sequence)(const struct ipv6hdr *iph,
+				    const struct tcphdr *th, u16 *mssp);
+	int (*cookie_v6_check)(const struct ipv6hdr *iph,
+			       const struct tcphdr *th, __u32 cookie);
 #endif
 	void (*route_input)(struct sk_buff *skb);
 	int (*fragment)(struct net *net, struct sock *sk, struct sk_buff *skb,
@@ -151,6 +156,37 @@ static inline int nf_ip6_route_me_harder(struct net *net, struct sk_buff *skb)
 	return v6_ops->route_me_harder(net, skb);
 #else
 	return ip6_route_me_harder(net, skb);
+#endif
+}
+
+static inline u32 nf_ipv6_cookie_init_sequence(const struct ipv6hdr *iph,
+					       const struct tcphdr *th,
+					       u16 *mssp)
+{
+#if IS_MODULE(CONFIG_IPV6)
+	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
+
+	if (v6_ops)
+		return v6_ops->cookie_init_sequence(iph, th, mssp);
+
+	return 0;
+#else
+	return __cookie_v6_init_sequence(iph, th, mssp);
+#endif
+}
+
+static inline int nf_cookie_v6_check(const struct ipv6hdr *iph,
+				     const struct tcphdr *th, __u32 cookie)
+{
+#if IS_MODULE(CONFIG_IPV6)
+	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
+
+	if (v6_ops)
+		return v6_ops->cookie_v6_check(iph, th, cookie);
+
+	return 0;
+#else
+	return __cookie_v6_check(iph, th, cookie);
 #endif
 }
 
