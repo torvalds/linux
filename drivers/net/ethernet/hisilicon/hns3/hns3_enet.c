@@ -17,6 +17,7 @@
 #include <linux/sctp.h>
 #include <linux/vermagic.h>
 #include <net/gre.h>
+#include <net/ip6_checksum.h>
 #include <net/pkt_cls.h>
 #include <net/tcp.h>
 #include <net/vxlan.h>
@@ -2384,13 +2385,13 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 	}
 }
 
-static int hns3_gro_complete(struct sk_buff *skb)
+static int hns3_gro_complete(struct sk_buff *skb, u32 l234info)
 {
 	__be16 type = skb->protocol;
 	struct tcphdr *th;
 	int depth = 0;
 
-	while (type == htons(ETH_P_8021Q)) {
+	while (eth_type_vlan(type)) {
 		struct vlan_hdr *vh;
 
 		if ((depth + VLAN_HLEN) > skb_headlen(skb))
@@ -2401,10 +2402,24 @@ static int hns3_gro_complete(struct sk_buff *skb)
 		depth += VLAN_HLEN;
 	}
 
+	skb_set_network_header(skb, depth);
+
 	if (type == htons(ETH_P_IP)) {
+		const struct iphdr *iph = ip_hdr(skb);
+
 		depth += sizeof(struct iphdr);
+		skb_set_transport_header(skb, depth);
+		th = tcp_hdr(skb);
+		th->check = ~tcp_v4_check(skb->len - depth, iph->saddr,
+					  iph->daddr, 0);
 	} else if (type == htons(ETH_P_IPV6)) {
+		const struct ipv6hdr *iph = ipv6_hdr(skb);
+
 		depth += sizeof(struct ipv6hdr);
+		skb_set_transport_header(skb, depth);
+		th = tcp_hdr(skb);
+		th->check = ~tcp_v6_check(skb->len - depth, &iph->saddr,
+					  &iph->daddr, 0);
 	} else {
 		netdev_err(skb->dev,
 			   "Error: FW GRO supports only IPv4/IPv6, not 0x%04x, depth: %d\n",
@@ -2412,13 +2427,16 @@ static int hns3_gro_complete(struct sk_buff *skb)
 		return -EFAULT;
 	}
 
-	th = (struct tcphdr *)(skb->data + depth);
 	skb_shinfo(skb)->gso_segs = NAPI_GRO_CB(skb)->count;
 	if (th->cwr)
 		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
 
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	if (l234info & BIT(HNS3_RXD_GRO_FIXID_B))
+		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_FIXEDID;
 
+	skb->csum_start = (unsigned char *)th - skb->head;
+	skb->csum_offset = offsetof(struct tcphdr, check);
+	skb->ip_summed = CHECKSUM_PARTIAL;
 	return 0;
 }
 
@@ -2656,18 +2674,20 @@ static int hns3_set_gro_and_checksum(struct hns3_enet_ring *ring,
 				     struct sk_buff *skb, u32 l234info,
 				     u32 bd_base_info, u32 ol_info)
 {
-	u16 gro_count;
 	u32 l3_type;
 
-	gro_count = hnae3_get_field(l234info, HNS3_RXD_GRO_COUNT_M,
-				    HNS3_RXD_GRO_COUNT_S);
+	skb_shinfo(skb)->gso_size = hnae3_get_field(bd_base_info,
+						    HNS3_RXD_GRO_SIZE_M,
+						    HNS3_RXD_GRO_SIZE_S);
 	/* if there is no HW GRO, do not set gro params */
-	if (!gro_count) {
+	if (!skb_shinfo(skb)->gso_size) {
 		hns3_rx_checksum(ring, skb, l234info, bd_base_info, ol_info);
 		return 0;
 	}
 
-	NAPI_GRO_CB(skb)->count = gro_count;
+	NAPI_GRO_CB(skb)->count = hnae3_get_field(l234info,
+						  HNS3_RXD_GRO_COUNT_M,
+						  HNS3_RXD_GRO_COUNT_S);
 
 	l3_type = hnae3_get_field(l234info, HNS3_RXD_L3ID_M,
 				  HNS3_RXD_L3ID_S);
@@ -2678,11 +2698,7 @@ static int hns3_set_gro_and_checksum(struct hns3_enet_ring *ring,
 	else
 		return -EFAULT;
 
-	skb_shinfo(skb)->gso_size = hnae3_get_field(bd_base_info,
-						    HNS3_RXD_GRO_SIZE_M,
-						    HNS3_RXD_GRO_SIZE_S);
-
-	return  hns3_gro_complete(skb);
+	return  hns3_gro_complete(skb, l234info);
 }
 
 static void hns3_set_rx_skb_rss_type(struct hns3_enet_ring *ring,
