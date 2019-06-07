@@ -5,7 +5,7 @@ Please refer to pinctrl-bindings.txt, ../gpio/gpio.txt, and
 pin controller, GPIO, and interrupt bindings.
 
 PIC32 'pin configuration node' is a node of a group of pins which can be
-used for a specific device or function. This node represents configuraions of
+used for a specific device or function. This node represents configurations of
 pins, optional function, and optional mux related configuration.
 
 Required properties for pin controller node:
