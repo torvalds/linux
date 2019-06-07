@@ -40,7 +40,7 @@ mount options are:
 	Enable the MBA Software Controller(mba_sc) to specify MBA
 	bandwidth in MBps
 
-L2 and L3 CDP are controlled seperately.
+L2 and L3 CDP are controlled separately.
 
 RDT features are orthogonal. A particular system may support only
 monitoring, only control, or both monitoring and control.  Cache
@@ -118,7 +118,7 @@ related to allocation:
 			      Corresponding region is pseudo-locked. No
 			      sharing allowed.
 
-Memory bandwitdh(MB) subdirectory contains the following files
+Memory bandwidth(MB) subdirectory contains the following files
 with respect to allocation:
 
 "min_bandwidth":
@@ -209,7 +209,7 @@ All groups contain the following files:
 	CPUs to/from this group. As with the tasks file a hierarchy is
 	maintained where MON groups may only include CPUs owned by the
 	parent CTRL_MON group.
-	When the resouce group is in pseudo-locked mode this file will
+	When the resource group is in pseudo-locked mode this file will
 	only be readable, reflecting the CPUs associated with the
 	pseudo-locked region.
 
@@ -380,7 +380,7 @@ where L2 external  is 10GBps (hence aggregate L2 external bandwidth is
 240GBps) and L3 external bandwidth is 100GBps. Now a workload with '20
 threads, having 50% bandwidth, each consuming 5GBps' consumes the max L3
 bandwidth of 100GBps although the percentage value specified is only 50%
-<< 100%. Hence increasing the bandwidth percentage will not yeild any
+<< 100%. Hence increasing the bandwidth percentage will not yield any
 more bandwidth. This is because although the L2 external bandwidth still
 has capacity, the L3 external bandwidth is fully used. Also note that
 this would be dependent on number of cores the benchmark is run on.
@@ -398,7 +398,7 @@ In order to mitigate this and make the interface more user friendly,
 resctrl added support for specifying the bandwidth in MBps as well.  The
 kernel underneath would use a software feedback mechanism or a "Software
 Controller(mba_sc)" which reads the actual bandwidth using MBM counters
-and adjust the memowy bandwidth percentages to ensure::
+and adjust the memory bandwidth percentages to ensure::
 
 	"actual bandwidth < user specified bandwidth".
 
