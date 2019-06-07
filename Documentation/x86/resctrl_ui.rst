@@ -418,15 +418,21 @@ L3 schemata file details (CDP enabled via mount option to resctrl)
 When CDP is enabled L3 control is split into two separate resources
 so you can specify independent masks for code and data like this::
 
-	L3data:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
-	L3code:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+	L3DATA:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+	L3CODE:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
 
 L2 schemata file details
 ------------------------
-L2 cache does not support code and data prioritization, so the
-schemata format is always::
+CDP is supported at L2 using the 'cdpl2' mount option. The schemata
+format is either::
 
 	L2:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+
+or
+
+	L2DATA:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+	L2CODE:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
+
 
 Memory bandwidth Allocation (default mode)
 ------------------------------------------
