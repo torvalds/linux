@@ -75,6 +75,8 @@ int tpm_read_log_efi(struct tpm_chip *chip)
 		goto out;
 	}
 
+	efi_tpm_final_log_size -= log_tbl->final_events_preboot_size;
+
 	tmp = krealloc(log->bios_event_log,
 		       log_size + efi_tpm_final_log_size,
 		       GFP_KERNEL);
@@ -85,8 +87,15 @@ int tpm_read_log_efi(struct tpm_chip *chip)
 	}
 
 	log->bios_event_log = tmp;
+
+	/*
+	 * Copy any of the final events log that didn't also end up in the
+	 * main log. Events can be logged in both if events are generated
+	 * between GetEventLog() and ExitBootServices().
+	 */
 	memcpy((void *)log->bios_event_log + log_size,
-	       final_tbl->events, efi_tpm_final_log_size);
+	       final_tbl->events + log_tbl->final_events_preboot_size,
+	       efi_tpm_final_log_size);
 	log->bios_event_log_end = log->bios_event_log +
 		log_size + efi_tpm_final_log_size;
 

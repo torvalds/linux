@@ -64,11 +64,13 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
 	efi_status_t status;
 	efi_physical_addr_t log_location = 0, log_last_entry = 0;
 	struct linux_efi_tpm_eventlog *log_tbl = NULL;
+	struct efi_tcg2_final_events_table *final_events_table;
 	unsigned long first_entry_addr, last_entry_addr;
 	size_t log_size, last_entry_size;
 	efi_bool_t truncated;
 	int version = EFI_TCG2_EVENT_LOG_FORMAT_TCG_2;
 	void *tcg2_protocol = NULL;
+	int final_events_size = 0;
 
 	status = efi_call_early(locate_protocol, &tcg2_guid, NULL,
 				&tcg2_protocol);
@@ -134,8 +136,36 @@ void efi_retrieve_tpm2_eventlog(efi_system_table_t *sys_table_arg)
 		return;
 	}
 
+	/*
+	 * Figure out whether any events have already been logged to the
+	 * final events structure, and if so how much space they take up
+	 */
+	final_events_table = get_efi_config_table(sys_table_arg,
+						LINUX_EFI_TPM_FINAL_LOG_GUID);
+	if (final_events_table && final_events_table->nr_events) {
+		struct tcg_pcr_event2_head *header;
+		int offset;
+		void *data;
+		int event_size;
+		int i = final_events_table->nr_events;
+
+		data = (void *)final_events_table;
+		offset = sizeof(final_events_table->version) +
+			sizeof(final_events_table->nr_events);
+
+		while (i > 0) {
+			header = data + offset + final_events_size;
+			event_size = __calc_tpm2_event_size(header,
+						   (void *)(long)log_location,
+						   false);
+			final_events_size += event_size;
+			i--;
+		}
+	}
+
 	memset(log_tbl, 0, sizeof(*log_tbl) + log_size);
 	log_tbl->size = log_size;
+	log_tbl->final_events_preboot_size = final_events_size;
 	log_tbl->version = version;
 	memcpy(log_tbl->log, (void *) first_entry_addr, log_size);
 
