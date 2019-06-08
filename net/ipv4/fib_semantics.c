@@ -325,14 +325,32 @@ static inline unsigned int fib_devindex_hashfn(unsigned int val)
 		(val >> (DEVINDEX_HASHBITS * 2))) & mask;
 }
 
-static inline unsigned int fib_info_hashfn(const struct fib_info *fi)
+static unsigned int fib_info_hashfn_1(int init_val, u8 protocol, u8 scope,
+				      u32 prefsrc, u32 priority)
+{
+	unsigned int val = init_val;
+
+	val ^= (protocol << 8) | scope;
+	val ^= prefsrc;
+	val ^= priority;
+
+	return val;
+}
+
+static unsigned int fib_info_hashfn_result(unsigned int val)
 {
 	unsigned int mask = (fib_info_hash_size - 1);
-	unsigned int val = fi->fib_nhs;
 
-	val ^= (fi->fib_protocol << 8) | fi->fib_scope;
-	val ^= (__force u32)fi->fib_prefsrc;
-	val ^= fi->fib_priority;
+	return (val ^ (val >> 7) ^ (val >> 12)) & mask;
+}
+
+static inline unsigned int fib_info_hashfn(struct fib_info *fi)
+{
+	unsigned int val;
+
+	val = fib_info_hashfn_1(fi->fib_nhs, fi->fib_protocol,
+				fi->fib_scope, (__force u32)fi->fib_prefsrc,
+				fi->fib_priority);
 
 	if (fi->nh) {
 		val ^= fib_devindex_hashfn(fi->nh->id);
@@ -342,7 +360,40 @@ static inline unsigned int fib_info_hashfn(const struct fib_info *fi)
 		} endfor_nexthops(fi)
 	}
 
-	return (val ^ (val >> 7) ^ (val >> 12)) & mask;
+	return fib_info_hashfn_result(val);
+}
+
+/* no metrics, only nexthop id */
+static struct fib_info *fib_find_info_nh(struct net *net,
+					 const struct fib_config *cfg)
+{
+	struct hlist_head *head;
+	struct fib_info *fi;
+	unsigned int hash;
+
+	hash = fib_info_hashfn_1(fib_devindex_hashfn(cfg->fc_nh_id),
+				 cfg->fc_protocol, cfg->fc_scope,
+				 (__force u32)cfg->fc_prefsrc,
+				 cfg->fc_priority);
+	hash = fib_info_hashfn_result(hash);
+	head = &fib_info_hash[hash];
+
+	hlist_for_each_entry(fi, head, fib_hash) {
+		if (!net_eq(fi->fib_net, net))
+			continue;
+		if (!fi->nh || fi->nh->id != cfg->fc_nh_id)
+			continue;
+		if (cfg->fc_protocol == fi->fib_protocol &&
+		    cfg->fc_scope == fi->fib_scope &&
+		    cfg->fc_prefsrc == fi->fib_prefsrc &&
+		    cfg->fc_priority == fi->fib_priority &&
+		    cfg->fc_type == fi->fib_type &&
+		    cfg->fc_table == fi->fib_tb_id &&
+		    !((cfg->fc_flags ^ fi->fib_flags) & ~RTNH_COMPARE_MASK))
+			return fi;
+	}
+
+	return NULL;
 }
 
 static struct fib_info *fib_find_info(struct fib_info *nfi)
@@ -1309,6 +1360,14 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	}
 
 	if (cfg->fc_nh_id) {
+		if (!cfg->fc_mx) {
+			fi = fib_find_info_nh(net, cfg);
+			if (fi) {
+				fi->fib_treeref++;
+				return fi;
+			}
+		}
+
 		nh = nexthop_find_by_id(net, cfg->fc_nh_id);
 		if (!nh) {
 			NL_SET_ERR_MSG(extack, "Nexthop id does not exist");
