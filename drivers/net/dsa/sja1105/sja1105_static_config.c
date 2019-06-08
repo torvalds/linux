@@ -35,6 +35,7 @@ void sja1105_pack(void *buf, const u64 *val, int start, int end, size_t len)
 	}
 	dump_stack();
 }
+EXPORT_SYMBOL_GPL(sja1105_pack);
 
 void sja1105_unpack(const void *buf, u64 *val, int start, int end, size_t len)
 {
@@ -52,6 +53,7 @@ void sja1105_unpack(const void *buf, u64 *val, int start, int end, size_t len)
 		       start, end);
 	dump_stack();
 }
+EXPORT_SYMBOL_GPL(sja1105_unpack);
 
 void sja1105_packing(void *buf, u64 *val, int start, int end,
 		     size_t len, enum packing_op op)
@@ -74,6 +76,7 @@ void sja1105_packing(void *buf, u64 *val, int start, int end,
 	}
 	dump_stack();
 }
+EXPORT_SYMBOL_GPL(sja1105_packing);
 
 /* Little-endian Ethernet CRC32 of data packed as big-endian u32 words */
 u32 sja1105_crc32(const void *buf, size_t len)
