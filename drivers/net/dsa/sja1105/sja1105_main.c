@@ -1289,23 +1289,6 @@ out:
 	return rc;
 }
 
-/* The TPID setting belongs to the General Parameters table,
- * which can only be partially reconfigured at runtime (and not the TPID).
- * So a switch reset is required.
- */
-static int sja1105_change_tpid(struct sja1105_private *priv,
-			       u16 tpid, u16 tpid2)
-{
-	struct sja1105_general_params_entry *general_params;
-	struct sja1105_table *table;
-
-	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
-	general_params = table->entries;
-	general_params->tpid = tpid;
-	general_params->tpid2 = tpid2;
-	return sja1105_static_config_reload(priv);
-}
-
 static int sja1105_pvid_apply(struct sja1105_private *priv, int port, u16 pvid)
 {
 	struct sja1105_mac_config_entry *mac;
@@ -1424,17 +1407,34 @@ static int sja1105_vlan_prepare(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+/* The TPID setting belongs to the General Parameters table,
+ * which can only be partially reconfigured at runtime (and not the TPID).
+ * So a switch reset is required.
+ */
 static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 {
+	struct sja1105_general_params_entry *general_params;
 	struct sja1105_private *priv = ds->priv;
+	struct sja1105_table *table;
+	u16 tpid, tpid2;
 	int rc;
 
-	if (enabled)
+	if (enabled) {
 		/* Enable VLAN filtering. */
-		rc = sja1105_change_tpid(priv, ETH_P_8021Q, ETH_P_8021AD);
-	else
+		tpid  = ETH_P_8021Q;
+		tpid2 = ETH_P_8021AD;
+	} else {
 		/* Disable VLAN filtering. */
-		rc = sja1105_change_tpid(priv, ETH_P_SJA1105, ETH_P_SJA1105);
+		tpid  = ETH_P_SJA1105;
+		tpid2 = ETH_P_SJA1105;
+	}
+
+	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
+	general_params = table->entries;
+	general_params->tpid = tpid;
+	general_params->tpid2 = tpid2;
+
+	rc = sja1105_static_config_reload(priv);
 	if (rc)
 		dev_err(ds->dev, "Failed to change VLAN Ethertype\n");
 
