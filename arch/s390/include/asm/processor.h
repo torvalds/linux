@@ -222,12 +222,6 @@ static __no_kasan_or_inline unsigned short stap(void)
 	return cpu_address;
 }
 
-/*
- * Give up the time slice of the virtual PU.
- */
-#define cpu_relax_yield cpu_relax_yield
-void cpu_relax_yield(const struct cpumask *cpumask);
-
 #define cpu_relax() barrier()
 
 #define ECAG_CACHE_ATTRIBUTE	0

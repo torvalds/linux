@@ -7,6 +7,7 @@
 #define KMSG_COMPONENT "cpu"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/stop_machine.h>
 #include <linux/cpufeature.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -59,7 +60,7 @@ void s390_update_cpu_mhz(void)
 		on_each_cpu(update_cpu_mhz, NULL, 0);
 }
 
-void notrace cpu_relax_yield(const struct cpumask *cpumask)
+void notrace stop_machine_yield(const struct cpumask *cpumask)
 {
 	int cpu, this_cpu;
 
@@ -73,7 +74,6 @@ void notrace cpu_relax_yield(const struct cpumask *cpumask)
 			smp_yield_cpu(cpu);
 	}
 }
-EXPORT_SYMBOL(cpu_relax_yield);
 
 /*
  * cpu_init - initializes state that is per-CPU.
