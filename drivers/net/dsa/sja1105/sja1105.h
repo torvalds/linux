@@ -161,6 +161,7 @@ typedef enum {
 	SJA1105_SPEED_AUTO	= 0,
 } sja1105_speed_t;
 
+int sja1105pqrs_setup_rgmii_delay(const void *ctx, int port);
 int sja1105_clocking_setup_port(struct sja1105_private *priv, int port);
 int sja1105_clocking_setup(struct sja1105_private *priv);
 
