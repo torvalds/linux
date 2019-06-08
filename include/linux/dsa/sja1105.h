@@ -22,6 +22,7 @@
 
 struct sja1105_port {
 	struct dsa_port *dp;
+	bool hwts_tx_en;
 	int mgmt_slot;
 };
 
