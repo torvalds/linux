@@ -408,6 +408,9 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 
 	dsa_switch_unregister_notifier(ds);
 
+	if (ds->ops->teardown)
+		ds->ops->teardown(ds);
+
 	if (ds->devlink) {
 		devlink_unregister(ds->devlink);
 		devlink_free(ds->devlink);
