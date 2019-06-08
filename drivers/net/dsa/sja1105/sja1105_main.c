@@ -1828,6 +1828,7 @@ static int sja1105_check_device_id(struct sja1105_private *priv)
 
 static int sja1105_probe(struct spi_device *spi)
 {
+	struct sja1105_tagger_data *tagger_data;
 	struct device *dev = &spi->dev;
 	struct sja1105_private *priv;
 	struct dsa_switch *ds;
@@ -1882,12 +1883,16 @@ static int sja1105_probe(struct spi_device *spi)
 	ds->priv = priv;
 	priv->ds = ds;
 
+	tagger_data = &priv->tagger_data;
+	skb_queue_head_init(&tagger_data->skb_rxtstamp_queue);
+
 	/* Connections between dsa_port and sja1105_port */
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
 		struct sja1105_port *sp = &priv->ports[i];
 
 		ds->ports[i].priv = sp;
 		sp->dp = &ds->ports[i];
+		sp->data = tagger_data;
 	}
 	mutex_init(&priv->mgmt_lock);
 

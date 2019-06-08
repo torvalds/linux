@@ -103,6 +103,7 @@ struct sja1105_private {
 	 * the switch doesn't confuse them with one another.
 	 */
 	struct mutex mgmt_lock;
+	struct sja1105_tagger_data tagger_data;
 };
 
 #include "sja1105_dynamic_config.h"
