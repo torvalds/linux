@@ -6,8 +6,6 @@
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
-#include <drm/drmP.h>
-
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM radeon
 #define TRACE_INCLUDE_FILE radeon_trace
