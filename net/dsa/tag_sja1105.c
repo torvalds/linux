@@ -13,6 +13,8 @@ static inline bool sja1105_is_link_local(const struct sk_buff *skb)
 	const struct ethhdr *hdr = eth_hdr(skb);
 	u64 dmac = ether_addr_to_u64(hdr->h_dest);
 
+	if (ntohs(hdr->h_proto) == ETH_P_SJA1105_META)
+		return false;
 	if ((dmac & SJA1105_LINKLOCAL_FILTER_A_MASK) ==
 		    SJA1105_LINKLOCAL_FILTER_A)
 		return true;
