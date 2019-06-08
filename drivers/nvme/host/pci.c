@@ -2451,10 +2451,8 @@ static void nvme_pci_free_ctrl(struct nvme_ctrl *ctrl)
 	kfree(dev);
 }
 
-static void nvme_remove_dead_ctrl(struct nvme_dev *dev, int status)
+static void nvme_remove_dead_ctrl(struct nvme_dev *dev)
 {
-	dev_warn(dev->ctrl.device, "Removing after probe failure status: %d\n", status);
-
 	nvme_get_ctrl(&dev->ctrl);
 	nvme_dev_disable(dev, false);
 	nvme_kill_queues(&dev->ctrl);
@@ -2588,7 +2586,10 @@ static void nvme_reset_work(struct work_struct *work)
  out_unlock:
 	mutex_unlock(&dev->shutdown_lock);
  out:
-	nvme_remove_dead_ctrl(dev, result);
+	if (result)
+		dev_warn(dev->ctrl.device,
+			 "Removing after probe failure status: %d\n", result);
+	nvme_remove_dead_ctrl(dev);
 }
 
 static void nvme_remove_dead_ctrl_work(struct work_struct *work)
