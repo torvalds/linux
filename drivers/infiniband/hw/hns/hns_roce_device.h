@@ -341,6 +341,29 @@ struct hns_roce_mtt {
 	enum hns_roce_mtt_type	mtt_type;
 };
 
+struct hns_roce_buf_region {
+	int offset; /* page offset */
+	u32 count; /* page count*/
+	int hopnum; /* addressing hop num */
+};
+
+#define HNS_ROCE_MAX_BT_REGION	3
+#define HNS_ROCE_MAX_BT_LEVEL	3
+struct hns_roce_hem_list {
+	struct list_head root_bt;
+	/* link all bt dma mem by hop config */
+	struct list_head mid_bt[HNS_ROCE_MAX_BT_REGION][HNS_ROCE_MAX_BT_LEVEL];
+	struct list_head btm_bt; /* link all bottom bt in @mid_bt */
+	dma_addr_t root_ba; /* pointer to the root ba table */
+	int bt_pg_shift;
+};
+
+/* memory translate region */
+struct hns_roce_mtr {
+	struct hns_roce_hem_list hem_list;
+	int buf_pg_shift;
+};
+
 struct hns_roce_mw {
 	struct ib_mw		ibmw;
 	u32			pdn;
@@ -1110,6 +1133,19 @@ void hns_roce_mtt_cleanup(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_mtt *mtt);
 int hns_roce_buf_write_mtt(struct hns_roce_dev *hr_dev,
 			   struct hns_roce_mtt *mtt, struct hns_roce_buf *buf);
+
+void hns_roce_mtr_init(struct hns_roce_mtr *mtr, int bt_pg_shift,
+		       int buf_pg_shift);
+int hns_roce_mtr_attach(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+			dma_addr_t **bufs, struct hns_roce_buf_region *regions,
+			int region_cnt);
+void hns_roce_mtr_cleanup(struct hns_roce_dev *hr_dev,
+			  struct hns_roce_mtr *mtr);
+
+/* hns roce hw need current block and next block addr from mtt */
+#define MTT_MIN_COUNT	 2
+int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+		      int offset, u64 *mtt_buf, int mtt_max, u64 *base_addr);
 
 int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev);

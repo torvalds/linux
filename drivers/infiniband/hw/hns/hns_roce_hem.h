@@ -133,6 +133,20 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 			   struct hns_roce_hem_mhop *mhop);
 bool hns_roce_check_whether_mhop(struct hns_roce_dev *hr_dev, u32 type);
 
+void hns_roce_hem_list_init(struct hns_roce_hem_list *hem_list,
+			    int bt_page_order);
+int hns_roce_hem_list_calc_root_ba(const struct hns_roce_buf_region *regions,
+				   int region_cnt, int unit);
+int hns_roce_hem_list_request(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_hem_list *hem_list,
+			      const struct hns_roce_buf_region *regions,
+			      int region_cnt);
+void hns_roce_hem_list_release(struct hns_roce_dev *hr_dev,
+			       struct hns_roce_hem_list *hem_list);
+void *hns_roce_hem_list_find_mtt(struct hns_roce_dev *hr_dev,
+				 struct hns_roce_hem_list *hem_list,
+				 int offset, int *mtt_cnt, u64 *phy_addr);
+
 static inline void hns_roce_hem_first(struct hns_roce_hem *hem,
 				      struct hns_roce_hem_iter *iter)
 {

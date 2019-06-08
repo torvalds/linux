@@ -1496,3 +1496,121 @@ int hns_roce_dealloc_mw(struct ib_mw *ibmw)
 
 	return 0;
 }
+
+void hns_roce_mtr_init(struct hns_roce_mtr *mtr, int bt_pg_shift,
+		       int buf_pg_shift)
+{
+	hns_roce_hem_list_init(&mtr->hem_list, bt_pg_shift);
+	mtr->buf_pg_shift = buf_pg_shift;
+}
+
+void hns_roce_mtr_cleanup(struct hns_roce_dev *hr_dev,
+			  struct hns_roce_mtr *mtr)
+{
+	hns_roce_hem_list_release(hr_dev, &mtr->hem_list);
+}
+EXPORT_SYMBOL_GPL(hns_roce_mtr_cleanup);
+
+static int hns_roce_write_mtr(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_mtr *mtr, dma_addr_t *bufs,
+			      struct hns_roce_buf_region *r)
+{
+	int offset;
+	int count;
+	int npage;
+	u64 *mtts;
+	int end;
+	int i;
+
+	offset = r->offset;
+	end = offset + r->count;
+	npage = 0;
+	while (offset < end) {
+		mtts = hns_roce_hem_list_find_mtt(hr_dev, &mtr->hem_list,
+						  offset, &count, NULL);
+		if (!mtts)
+			return -ENOBUFS;
+
+		/* Save page addr, low 12 bits : 0 */
+		for (i = 0; i < count; i++) {
+			if (hr_dev->hw_rev == HNS_ROCE_HW_VER1)
+				mtts[i] = cpu_to_le64(bufs[npage] >>
+							PAGE_ADDR_SHIFT);
+			else
+				mtts[i] = cpu_to_le64(bufs[npage]);
+
+			npage++;
+		}
+		offset += count;
+	}
+
+	return 0;
+}
+
+int hns_roce_mtr_attach(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+			dma_addr_t **bufs, struct hns_roce_buf_region *regions,
+			int region_cnt)
+{
+	struct hns_roce_buf_region *r;
+	int ret;
+	int i;
+
+	ret = hns_roce_hem_list_request(hr_dev, &mtr->hem_list, regions,
+					region_cnt);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < region_cnt; i++) {
+		r = &regions[i];
+		ret = hns_roce_write_mtr(hr_dev, mtr, bufs[i], r);
+		if (ret) {
+			dev_err(hr_dev->dev,
+				"write mtr[%d/%d] err %d,offset=%d.\n",
+				i, region_cnt, ret,  r->offset);
+			goto err_write;
+		}
+	}
+
+	return 0;
+
+err_write:
+	hns_roce_hem_list_release(hr_dev, &mtr->hem_list);
+
+	return ret;
+}
+
+int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+		      int offset, u64 *mtt_buf, int mtt_max, u64 *base_addr)
+{
+	u64 *mtts = mtt_buf;
+	int mtt_count;
+	int total = 0;
+	u64 *addr;
+	int npage;
+	int left;
+
+	if (mtts == NULL || mtt_max < 1)
+		goto done;
+
+	left = mtt_max;
+	while (left > 0) {
+		mtt_count = 0;
+		addr = hns_roce_hem_list_find_mtt(hr_dev, &mtr->hem_list,
+						  offset + total,
+						  &mtt_count, NULL);
+		if (!addr || !mtt_count)
+			goto done;
+
+		npage = min(mtt_count, left);
+		memcpy(&mtts[total], addr, BA_BYTE_LEN * npage);
+		left -= npage;
+		total += npage;
+	}
+
+done:
+	if (base_addr)
+		*base_addr = mtr->hem_list.root_ba;
+
+	return total;
+}
+EXPORT_SYMBOL_GPL(hns_roce_mtr_find);
