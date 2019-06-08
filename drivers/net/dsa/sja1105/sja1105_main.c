@@ -1530,6 +1530,11 @@ static int sja1105_setup(struct dsa_switch *ds)
 		return rc;
 	}
 
+	rc = sja1105_ptp_clock_register(priv);
+	if (rc < 0) {
+		dev_err(ds->dev, "Failed to register PTP clock: %d\n", rc);
+		return rc;
+	}
 	/* Create and send configuration down to device */
 	rc = sja1105_static_config_load(priv, ports);
 	if (rc < 0) {
@@ -1681,6 +1686,7 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_strings		= sja1105_get_strings,
 	.get_ethtool_stats	= sja1105_get_ethtool_stats,
 	.get_sset_count		= sja1105_get_sset_count,
+	.get_ts_info		= sja1105_get_ts_info,
 	.port_fdb_dump		= sja1105_fdb_dump,
 	.port_fdb_add		= sja1105_fdb_add,
 	.port_fdb_del		= sja1105_fdb_del,
@@ -1805,6 +1811,7 @@ static int sja1105_remove(struct spi_device *spi)
 {
 	struct sja1105_private *priv = spi_get_drvdata(spi);
 
+	sja1105_ptp_clock_unregister(priv);
 	dsa_unregister_switch(priv->ds);
 	sja1105_static_config_free(&priv->static_config);
 	return 0;
