@@ -292,6 +292,10 @@ drm_fb_helper tasks
 - The max connector argument for drm_fb_helper_init() and
   drm_fb_helper_fbdev_setup() isn't used anymore and can be removed.
 
+- The helper doesn't keep an array of connectors anymore so these can be
+  removed: drm_fb_helper_single_add_all_connectors(),
+  drm_fb_helper_add_one_connector() and drm_fb_helper_remove_one_connector().
+
 Core refactorings
 =================
 
