@@ -66,17 +66,14 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 				   struct net_device *netdev,
 				   struct packet_type *pt)
 {
-	struct ethhdr *hdr = eth_hdr(skb);
-	u64 source_port, switch_id;
-	struct sk_buff *nskb;
+	int source_port, switch_id;
+	struct vlan_ethhdr *hdr;
 	u16 tpid, vid, tci;
 	bool is_tagged;
 
-	nskb = dsa_8021q_rcv(skb, netdev, pt, &tpid, &tci);
-	is_tagged = (nskb && tpid == ETH_P_SJA1105);
-
-	skb->priority = (tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
-	vid = tci & VLAN_VID_MASK;
+	hdr = vlan_eth_hdr(skb);
+	tpid = ntohs(hdr->h_vlan_proto);
+	is_tagged = (tpid == ETH_P_SJA1105);
 
 	skb->offload_fwd_mark = 1;
 
@@ -92,8 +89,11 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 		hdr->h_dest[4] = 0;
 	} else {
 		/* Normal traffic path. */
+		tci = ntohs(hdr->h_vlan_TCI);
+		vid = tci & VLAN_VID_MASK;
 		source_port = dsa_8021q_rx_source_port(vid);
 		switch_id = dsa_8021q_rx_switch_id(vid);
+		skb->priority = (tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
 	}
 
 	skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
@@ -106,8 +106,7 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 	 * it there, see dsa_switch_rcv: skb_push(skb, ETH_HLEN).
 	 */
 	if (is_tagged)
-		memmove(skb->data - ETH_HLEN, skb->data - ETH_HLEN - VLAN_HLEN,
-			ETH_HLEN - VLAN_HLEN);
+		skb = dsa_8021q_remove_header(skb);
 
 	return skb;
 }
