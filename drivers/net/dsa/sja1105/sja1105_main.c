@@ -70,8 +70,7 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 		/* Keep standard IFG of 12 bytes on egress. */
 		.ifg = 0,
 		/* Always put the MAC speed in automatic mode, where it can be
-		 * retrieved from the PHY object through phylib and
-		 * sja1105_adjust_port_config.
+		 * adjusted at runtime by PHYLINK.
 		 */
 		.speed = SJA1105_SPEED_AUTO,
 		/* No static correction for 1-step 1588 events */
@@ -116,7 +115,6 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 	if (!table->entries)
 		return -ENOMEM;
 
-	/* Override table based on phylib DT bindings */
 	table->entry_count = SJA1105_NUM_PORTS;
 
 	mac = table->entries;
@@ -157,7 +155,7 @@ static int sja1105_init_mii_settings(struct sja1105_private *priv,
 	if (!table->entries)
 		return -ENOMEM;
 
-	/* Override table based on phylib DT bindings */
+	/* Override table based on PHYLINK DT bindings */
 	table->entry_count = SJA1105_MAX_XMII_PARAMS_COUNT;
 
 	mii = table->entries;
