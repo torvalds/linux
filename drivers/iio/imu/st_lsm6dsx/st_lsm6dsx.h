@@ -198,7 +198,7 @@ struct st_lsm6dsx_ext_dev_settings {
  * struct st_lsm6dsx_settings - ST IMU sensor settings
  * @wai: Sensor WhoAmI default value.
  * @max_fifo_size: Sensor max fifo length in FIFO words.
- * @id: List of hw id supported by the driver configuration.
+ * @id: List of hw id/device name supported by the driver configuration.
  * @decimator: List of decimator register info (addr + mask).
  * @batch: List of FIFO batching register info (addr + mask).
  * @fifo_ops: Sensor hw FIFO parameters.
@@ -208,7 +208,10 @@ struct st_lsm6dsx_ext_dev_settings {
 struct st_lsm6dsx_settings {
 	u8 wai;
 	u16 max_fifo_size;
-	enum st_lsm6dsx_hw_id id[ST_LSM6DSX_MAX_ID];
+	struct {
+		enum st_lsm6dsx_hw_id hw_id;
+		const char *name;
+	} id[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_reg decimator[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_reg batch[ST_LSM6DSX_MAX_ID];
 	struct st_lsm6dsx_fifo_ops fifo_ops;
@@ -302,7 +305,7 @@ struct st_lsm6dsx_hw {
 static const unsigned long st_lsm6dsx_available_scan_masks[] = {0x7, 0x0};
 extern const struct dev_pm_ops st_lsm6dsx_pm_ops;
 
-int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
+int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 		     struct regmap *regmap);
 int st_lsm6dsx_sensor_set_enable(struct st_lsm6dsx_sensor *sensor,
 				 bool enable);

@@ -125,7 +125,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.wai = 0x69,
 		.max_fifo_size = 1365,
 		.id = {
-			[0] = ST_LSM6DS3_ID,
+			{
+				.hw_id = ST_LSM6DS3_ID,
+				.name = ST_LSM6DS3_DEV_NAME,
+			},
 		},
 		.decimator = {
 			[ST_LSM6DSX_ID_ACC] = {
@@ -172,7 +175,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.wai = 0x69,
 		.max_fifo_size = 682,
 		.id = {
-			[0] = ST_LSM6DS3H_ID,
+			{
+				.hw_id = ST_LSM6DS3H_ID,
+				.name = ST_LSM6DS3H_DEV_NAME,
+			},
 		},
 		.decimator = {
 			[ST_LSM6DSX_ID_ACC] = {
@@ -219,9 +225,16 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.wai = 0x6a,
 		.max_fifo_size = 682,
 		.id = {
-			[0] = ST_LSM6DSL_ID,
-			[1] = ST_LSM6DSM_ID,
-			[2] = ST_ISM330DLC_ID,
+			{
+				.hw_id = ST_LSM6DSL_ID,
+				.name = ST_LSM6DSL_DEV_NAME,
+			}, {
+				.hw_id = ST_LSM6DSM_ID,
+				.name = ST_LSM6DSM_DEV_NAME,
+			}, {
+				.hw_id = ST_ISM330DLC_ID,
+				.name = ST_ISM330DLC_DEV_NAME,
+			},
 		},
 		.decimator = {
 			[ST_LSM6DSX_ID_ACC] = {
@@ -268,8 +281,13 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.wai = 0x6c,
 		.max_fifo_size = 512,
 		.id = {
-			[0] = ST_LSM6DSO_ID,
-			[1] = ST_LSM6DSOX_ID,
+			{
+				.hw_id = ST_LSM6DSO_ID,
+				.name = ST_LSM6DSO_DEV_NAME,
+			}, {
+				.hw_id = ST_LSM6DSOX_ID,
+				.name = ST_LSM6DSOX_DEV_NAME,
+			},
 		},
 		.batch = {
 			[ST_LSM6DSX_ID_ACC] = {
@@ -334,7 +352,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.wai = 0x6b,
 		.max_fifo_size = 512,
 		.id = {
-			[0] = ST_ASM330LHH_ID,
+			{
+				.hw_id = ST_ASM330LHH_ID,
+				.name = ST_ASM330LHH_DEV_NAME,
+			},
 		},
 		.batch = {
 			[ST_LSM6DSX_ID_ACC] = {
@@ -373,7 +394,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 		.wai = 0x6b,
 		.max_fifo_size = 512,
 		.id = {
-			[0] = ST_LSM6DSR_ID,
+			{
+				.hw_id = ST_LSM6DSR_ID,
+				.name = ST_LSM6DSR_DEV_NAME,
+			},
 		},
 		.batch = {
 			[ST_LSM6DSX_ID_ACC] = {
@@ -471,13 +495,14 @@ int st_lsm6dsx_set_page(struct st_lsm6dsx_hw *hw, bool enable)
 	return err;
 }
 
-static int st_lsm6dsx_check_whoami(struct st_lsm6dsx_hw *hw, int id)
+static int st_lsm6dsx_check_whoami(struct st_lsm6dsx_hw *hw, int id,
+				   const char **name)
 {
 	int err, i, j, data;
 
 	for (i = 0; i < ARRAY_SIZE(st_lsm6dsx_sensor_settings); i++) {
 		for (j = 0; j < ST_LSM6DSX_MAX_ID; j++) {
-			if (id == st_lsm6dsx_sensor_settings[i].id[j])
+			if (id == st_lsm6dsx_sensor_settings[i].id[j].hw_id)
 				break;
 		}
 		if (j < ST_LSM6DSX_MAX_ID)
@@ -500,6 +525,7 @@ static int st_lsm6dsx_check_whoami(struct st_lsm6dsx_hw *hw, int id)
 		return -ENODEV;
 	}
 
+	*name = st_lsm6dsx_sensor_settings[i].id[j].name;
 	hw->settings = &st_lsm6dsx_sensor_settings[i];
 
 	return 0;
@@ -1041,11 +1067,12 @@ static struct iio_dev *st_lsm6dsx_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 	return iio_dev;
 }
 
-int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
+int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 		     struct regmap *regmap)
 {
 	const struct st_lsm6dsx_shub_settings *hub_settings;
 	struct st_lsm6dsx_hw *hw;
+	const char *name = NULL;
 	int i, err;
 
 	hw = devm_kzalloc(dev, sizeof(*hw), GFP_KERNEL);
@@ -1066,7 +1093,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id, const char *name,
 	hw->irq = irq;
 	hw->regmap = regmap;
 
-	err = st_lsm6dsx_check_whoami(hw, hw_id);
+	err = st_lsm6dsx_check_whoami(hw, hw_id, &name);
 	if (err < 0)
 		return err;
 
