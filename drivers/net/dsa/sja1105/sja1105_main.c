@@ -392,11 +392,11 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.hostprio = 0,
 		.mac_fltres1 = SJA1105_LINKLOCAL_FILTER_A,
 		.mac_flt1    = SJA1105_LINKLOCAL_FILTER_A_MASK,
-		.incl_srcpt1 = true,
+		.incl_srcpt1 = false,
 		.send_meta1  = false,
 		.mac_fltres0 = SJA1105_LINKLOCAL_FILTER_B,
 		.mac_flt0    = SJA1105_LINKLOCAL_FILTER_B_MASK,
-		.incl_srcpt0 = true,
+		.incl_srcpt0 = false,
 		.send_meta0  = false,
 		/* The destination for traffic matching mac_fltres1 and
 		 * mac_fltres0 on all ports except host_port. Such traffic
@@ -1435,6 +1435,11 @@ static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 	general_params->tpid = tpid;
 	/* EtherType used to identify inner tagged (C-tag) VLAN traffic */
 	general_params->tpid2 = tpid2;
+	/* When VLAN filtering is on, we need to at least be able to
+	 * decode management traffic through the "backup plan".
+	 */
+	general_params->incl_srcpt1 = enabled;
+	general_params->incl_srcpt0 = enabled;
 
 	rc = sja1105_static_config_reload(priv);
 	if (rc)
