@@ -3,8 +3,10 @@
 #define _RADEON_TRACE_H_
 
 #include <linux/stringify.h>
-#include <linux/types.h>
 #include <linux/tracepoint.h>
+#include <linux/types.h>
+
+#include <drm/drm_file.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM radeon
