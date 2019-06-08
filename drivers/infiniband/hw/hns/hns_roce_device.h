@@ -1211,6 +1211,18 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_mtt *mtt, struct ib_umem *umem);
 
+void hns_roce_init_buf_region(struct hns_roce_buf_region *region, int hopnum,
+			      int offset, int buf_cnt);
+int hns_roce_alloc_buf_list(struct hns_roce_buf_region *regions,
+			    dma_addr_t **bufs, int count);
+void hns_roce_free_buf_list(dma_addr_t **bufs, int count);
+
+int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
+			   int buf_cnt, int start, struct hns_roce_buf *buf);
+int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
+			   int buf_cnt, int start, struct ib_umem *umem,
+			   int page_shift);
+
 int hns_roce_create_srq(struct ib_srq *srq,
 			struct ib_srq_init_attr *srq_init_attr,
 			struct ib_udata *udata);
