@@ -77,6 +77,7 @@ static void unmap_udmabuf(struct dma_buf_attachment *at,
 			  struct sg_table *sg,
 			  enum dma_data_direction direction)
 {
+	dma_unmap_sg(at->dev, sg->sgl, sg->nents, direction);
 	sg_free_table(sg);
 	kfree(sg);
 }
