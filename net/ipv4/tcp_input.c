@@ -2648,7 +2648,7 @@ static void tcp_process_loss(struct sock *sk, int flag, int num_dupack,
 	struct tcp_sock *tp = tcp_sk(sk);
 	bool recovered = !before(tp->snd_una, tp->high_seq);
 
-	if ((flag & FLAG_SND_UNA_ADVANCED) &&
+	if ((flag & FLAG_SND_UNA_ADVANCED || tp->fastopen_rsk) &&
 	    tcp_try_undo_loss(sk, false))
 		return;
 
