@@ -329,7 +329,7 @@ try_to_claim_workgroup(struct z_erofs_vle_workgroup *grp,
 		       z_erofs_vle_owned_workgrp_t *owned_head,
 		       bool *hosted)
 {
-	DBG_BUGON(*hosted == true);
+	DBG_BUGON(*hosted);
 
 	/* let's claim these following types of workgroup */
 retry:
