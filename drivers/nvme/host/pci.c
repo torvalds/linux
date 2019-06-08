@@ -68,20 +68,14 @@ static int io_queue_depth = 1024;
 module_param_cb(io_queue_depth, &io_queue_depth_ops, &io_queue_depth, 0644);
 MODULE_PARM_DESC(io_queue_depth, "set io queue depth, should >= 2");
 
-static int queue_count_set(const char *val, const struct kernel_param *kp);
-static const struct kernel_param_ops queue_count_ops = {
-	.set = queue_count_set,
-	.get = param_get_int,
-};
-
 static int write_queues;
-module_param_cb(write_queues, &queue_count_ops, &write_queues, 0644);
+module_param(write_queues, int, 0644);
 MODULE_PARM_DESC(write_queues,
 	"Number of queues to use for writes. If not set, reads and writes "
 	"will share a queue set.");
 
 static int poll_queues;
-module_param_cb(poll_queues, &queue_count_ops, &poll_queues, 0644);
+module_param(poll_queues, int, 0644);
 MODULE_PARM_DESC(poll_queues, "Number of queues to use for polled IO.");
 
 struct nvme_dev;
@@ -142,19 +136,6 @@ static int io_queue_depth_set(const char *val, const struct kernel_param *kp)
 	ret = kstrtoint(val, 10, &n);
 	if (ret != 0 || n < 2)
 		return -EINVAL;
-
-	return param_set_int(val, kp);
-}
-
-static int queue_count_set(const char *val, const struct kernel_param *kp)
-{
-	int n, ret;
-
-	ret = kstrtoint(val, 10, &n);
-	if (ret)
-		return ret;
-	if (n > num_possible_cpus())
-		n = num_possible_cpus();
 
 	return param_set_int(val, kp);
 }
