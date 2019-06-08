@@ -49,6 +49,7 @@ struct fib6_config {
 	u16		fc_delete_all_nh : 1,
 			fc_ignore_dev_down:1,
 			__unused : 14;
+	u32		fc_nh_id;
 
 	struct in6_addr	fc_dst;
 	struct in6_addr	fc_src;
