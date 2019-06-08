@@ -373,7 +373,7 @@ static int sja1105_rgmii_cfg_pad_tx_config(struct sja1105_private *priv,
 	sja1105_cfg_pad_mii_tx_packing(packed_buf, &pad_mii_tx, PACK);
 
 	return sja1105_spi_send_packed_buf(priv, SPI_WRITE,
-					   regs->rgmii_pad_mii_tx[port],
+					   regs->pad_mii_tx[port],
 					   packed_buf, SJA1105_SIZE_CGU_CMD);
 }
 
