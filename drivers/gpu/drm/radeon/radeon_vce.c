@@ -771,7 +771,7 @@ int radeon_vce_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		if (vce_v1_0_get_rptr(rdev, ring) != rptr)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i < rdev->usec_timeout) {

@@ -350,7 +350,7 @@ int r300_mc_wait_for_idle(struct radeon_device *rdev)
 		if (tmp & R300_MC_IDLE) {
 			return 0;
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	return -1;
 }

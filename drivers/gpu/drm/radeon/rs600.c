@@ -35,6 +35,9 @@
  * close to the one of the R600 family (R600 likely being an evolution
  * of the RS600 GART block).
  */
+
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"

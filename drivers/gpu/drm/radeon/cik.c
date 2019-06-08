@@ -3480,7 +3480,7 @@ int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
@@ -3825,7 +3825,7 @@ int cik_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib.fence->ring, i);
