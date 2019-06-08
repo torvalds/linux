@@ -671,6 +671,7 @@ const struct nla_policy rtm_ipv4_policy[RTA_MAX + 1] = {
 	[RTA_IP_PROTO]		= { .type = NLA_U8 },
 	[RTA_SPORT]		= { .type = NLA_U16 },
 	[RTA_DPORT]		= { .type = NLA_U16 },
+	[RTA_NH_ID]		= { .type = NLA_U32 },
 };
 
 int fib_gw_from_via(struct fib_config *cfg, struct nlattr *nla,
@@ -808,6 +809,18 @@ static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
 			if (err < 0)
 				goto errout;
 			break;
+		case RTA_NH_ID:
+			cfg->fc_nh_id = nla_get_u32(attr);
+			break;
+		}
+	}
+
+	if (cfg->fc_nh_id) {
+		if (cfg->fc_oif || cfg->fc_gw_family ||
+		    cfg->fc_encap || cfg->fc_mp) {
+			NL_SET_ERR_MSG(extack,
+				       "Nexthop specification and nexthop id are mutually exclusive");
+			return -EINVAL;
 		}
 	}
 
@@ -833,6 +846,12 @@ static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 	err = rtm_to_fib_config(net, skb, nlh, &cfg, extack);
 	if (err < 0)
 		goto errout;
+
+	if (cfg.fc_nh_id && !nexthop_find_by_id(net, cfg.fc_nh_id)) {
+		NL_SET_ERR_MSG(extack, "Nexthop id does not exist");
+		err = -EINVAL;
+		goto errout;
+	}
 
 	tb = fib_get_table(net, cfg.fc_table);
 	if (!tb) {

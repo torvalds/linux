@@ -789,6 +789,12 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi,
 	if (cfg->fc_priority && cfg->fc_priority != fi->fib_priority)
 		return 1;
 
+	if (cfg->fc_nh_id) {
+		if (fi->nh && cfg->fc_nh_id == fi->nh->id)
+			return 0;
+		return 1;
+	}
+
 	if (cfg->fc_oif || cfg->fc_gw_family) {
 		struct fib_nh *nh = fib_info_nh(fi, 0);
 
@@ -1300,6 +1306,15 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 		NL_SET_ERR_MSG(extack,
 			       "Invalid rtm_flags - can not contain DEAD or LINKDOWN");
 		goto err_inval;
+	}
+
+	if (cfg->fc_nh_id) {
+		nh = nexthop_find_by_id(net, cfg->fc_nh_id);
+		if (!nh) {
+			NL_SET_ERR_MSG(extack, "Nexthop id does not exist");
+			goto err_inval;
+		}
+		nhs = 0;
 	}
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
