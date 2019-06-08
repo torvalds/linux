@@ -48,6 +48,10 @@
 
 #include "drm_internal.h"
 
+struct drm_client_offset {
+	int x, y;
+};
+
 static bool drm_fbdev_emulation = true;
 module_param_named(fbdev_emulation, drm_fbdev_emulation, bool, 0600);
 MODULE_PARM_DESC(fbdev_emulation,
@@ -1809,7 +1813,7 @@ static bool drm_client_target_cloned(struct drm_device *dev,
 				     struct drm_connector **connectors,
 				     unsigned int connector_count,
 				     struct drm_display_mode **modes,
-				     struct drm_fb_offset *offsets,
+				     struct drm_client_offset *offsets,
 				     bool *enabled, int width, int height)
 {
 	int count, i, j;
@@ -1888,7 +1892,7 @@ static bool drm_client_target_cloned(struct drm_device *dev,
 static int drm_client_get_tile_offsets(struct drm_connector **connectors,
 				       unsigned int connector_count,
 				       struct drm_display_mode **modes,
-				       struct drm_fb_offset *offsets,
+				       struct drm_client_offset *offsets,
 				       int idx,
 				       int h_idx, int v_idx)
 {
@@ -1921,7 +1925,7 @@ static int drm_client_get_tile_offsets(struct drm_connector **connectors,
 static bool drm_client_target_preferred(struct drm_connector **connectors,
 					unsigned int connector_count,
 					struct drm_display_mode **modes,
-					struct drm_fb_offset *offsets,
+					struct drm_client_offset *offsets,
 					bool *enabled, int width, int height)
 {
 	const u64 mask = BIT_ULL(connector_count) - 1;
@@ -2085,7 +2089,7 @@ static bool drm_client_firmware_config(struct drm_client_dev *client,
 				       unsigned int connector_count,
 				       struct drm_crtc **crtcs,
 				       struct drm_display_mode **modes,
-				       struct drm_fb_offset *offsets,
+				       struct drm_client_offset *offsets,
 				       bool *enabled, int width, int height)
 {
 	unsigned int count = min_t(unsigned int, connector_count, BITS_PER_LONG);
@@ -2255,30 +2259,47 @@ bail:
 	return ret;
 }
 
-static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
-			    u32 width, u32 height)
+/**
+ * drm_client_modeset_probe() - Probe for displays
+ * @client: DRM client
+ * @width: Maximum display mode width (optional)
+ * @height: Maximum display mode height (optional)
+ *
+ * This function sets up display pipelines for enabled connectors and stores the
+ * config in the client's modeset array.
+ *
+ * Returns:
+ * Zero on success or negative error code on failure.
+ */
+int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, unsigned int height)
 {
 	struct drm_connector *connector, **connectors = NULL;
-	struct drm_client_dev *client = &fb_helper->client;
 	struct drm_connector_list_iter conn_iter;
-	struct drm_device *dev = fb_helper->dev;
+	struct drm_device *dev = client->dev;
 	unsigned int total_modes_count = 0;
+	struct drm_client_offset *offsets;
 	unsigned int connector_count = 0;
 	struct drm_display_mode **modes;
-	struct drm_fb_offset *offsets;
 	struct drm_crtc **crtcs;
+	int i, ret = 0;
 	bool *enabled;
-	int i;
 
 	DRM_DEBUG_KMS("\n");
+
+	if (!width)
+		width = dev->mode_config.max_width;
+	if (!height)
+		height = dev->mode_config.max_height;
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_client_for_each_connector_iter(connector, &conn_iter) {
 		struct drm_connector **tmp;
 
 		tmp = krealloc(connectors, (connector_count + 1) * sizeof(*connectors), GFP_KERNEL);
-		if (!tmp)
+		if (!tmp) {
+			ret = -ENOMEM;
 			goto free_connectors;
+		}
 
 		connectors = tmp;
 		drm_connector_get(connector);
@@ -2287,7 +2308,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 	drm_connector_list_iter_end(&conn_iter);
 
 	if (!connector_count)
-		return;
+		return 0;
 
 	crtcs = kcalloc(connector_count, sizeof(*crtcs), GFP_KERNEL);
 	modes = kcalloc(connector_count, sizeof(*modes), GFP_KERNEL);
@@ -2295,12 +2316,13 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 	enabled = kcalloc(connector_count, sizeof(bool), GFP_KERNEL);
 	if (!crtcs || !modes || !enabled || !offsets) {
 		DRM_ERROR("Memory allocation failed\n");
+		ret = -ENOMEM;
 		goto out;
 	}
 
 	mutex_lock(&client->modeset_mutex);
 
-	mutex_lock(&fb_helper->dev->mode_config.mutex);
+	mutex_lock(&dev->mode_config.mutex);
 	for (i = 0; i < connector_count; i++)
 		total_modes_count += connectors[i]->funcs->fill_modes(connectors[i], width, height);
 	if (!total_modes_count)
@@ -2325,14 +2347,14 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 		drm_client_pick_crtcs(client, connectors, connector_count,
 				      crtcs, modes, 0, width, height);
 	}
-	mutex_unlock(&fb_helper->dev->mode_config.mutex);
+	mutex_unlock(&dev->mode_config.mutex);
 
 	drm_client_modeset_release(client);
 
 	for (i = 0; i < connector_count; i++) {
 		struct drm_display_mode *mode = modes[i];
 		struct drm_crtc *crtc = crtcs[i];
-		struct drm_fb_offset *offset = &offsets[i];
+		struct drm_client_offset *offset = &offsets[i];
 
 		if (mode && crtc) {
 			struct drm_mode_set *modeset = drm_client_find_modeset(client, crtc);
@@ -2342,8 +2364,10 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 				      mode->name, crtc->base.id, offset->x, offset->y);
 
 			if (WARN_ON_ONCE(modeset->num_connectors == DRM_CLIENT_MAX_CLONED_CONNECTORS ||
-					 (dev->mode_config.num_crtc > 1 && modeset->num_connectors == 1)))
+					 (dev->mode_config.num_crtc > 1 && modeset->num_connectors == 1))) {
+				ret = -EINVAL;
 				break;
+			}
 
 			modeset->mode = drm_mode_duplicate(dev, mode);
 			drm_connector_get(connector);
@@ -2363,6 +2387,8 @@ free_connectors:
 	for (i = 0; i < connector_count; i++)
 		drm_connector_put(connectors[i]);
 	kfree(connectors);
+
+	return ret;
 }
 
 /*
@@ -2444,7 +2470,7 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
 	width = dev->mode_config.max_width;
 	height = dev->mode_config.max_height;
 
-	drm_setup_crtcs(fb_helper, width, height);
+	drm_client_modeset_probe(&fb_helper->client, width, height);
 	ret = drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
 	if (ret < 0) {
 		if (ret == -EAGAIN) {
@@ -2591,7 +2617,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 
 	DRM_DEBUG_KMS("\n");
 
-	drm_setup_crtcs(fb_helper, fb_helper->fb->width, fb_helper->fb->height);
+	drm_client_modeset_probe(&fb_helper->client, fb_helper->fb->width, fb_helper->fb->height);
 	drm_setup_crtcs_fb(fb_helper);
 	mutex_unlock(&fb_helper->lock);
 
