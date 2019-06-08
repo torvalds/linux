@@ -12,6 +12,7 @@
 #include <net/dsa.h>
 
 #define ETH_P_SJA1105				ETH_P_DSA_8021Q
+#define ETH_P_SJA1105_META			0x0008
 
 /* IEEE 802.3 Annex 57A: Slow Protocols PDUs (01:80:C2:xx:xx:xx) */
 #define SJA1105_LINKLOCAL_FILTER_A		0x0180C2000000ull
@@ -19,6 +20,16 @@
 /* IEEE 1588 Annex F: Transport of PTP over Ethernet (01:1B:19:xx:xx:xx) */
 #define SJA1105_LINKLOCAL_FILTER_B		0x011B19000000ull
 #define SJA1105_LINKLOCAL_FILTER_B_MASK		0xFFFFFF000000ull
+
+/* Source and Destination MAC of follow-up meta frames.
+ * Whereas the choice of SMAC only affects the unique identification of the
+ * switch as sender of meta frames, the DMAC must be an address that is present
+ * in the DSA master port's multicast MAC filter.
+ * 01-80-C2-00-00-0E is a good choice for this, as all profiles of IEEE 1588
+ * over L2 use this address for some purpose already.
+ */
+#define SJA1105_META_SMAC			0x222222222222ull
+#define SJA1105_META_DMAC			0x0180C200000Eull
 
 struct sja1105_port {
 	struct dsa_port *dp;

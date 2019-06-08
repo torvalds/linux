@@ -22,6 +22,21 @@ static inline bool sja1105_is_link_local(const struct sk_buff *skb)
 	return false;
 }
 
+static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
+{
+	const struct ethhdr *hdr = eth_hdr(skb);
+	u64 smac = ether_addr_to_u64(hdr->h_source);
+	u64 dmac = ether_addr_to_u64(hdr->h_dest);
+
+	if (smac != SJA1105_META_SMAC)
+		return false;
+	if (dmac != SJA1105_META_DMAC)
+		return false;
+	if (ntohs(hdr->h_proto) != ETH_P_SJA1105_META)
+		return false;
+	return true;
+}
+
 /* This is the first time the tagger sees the frame on RX.
  * Figure out if we can decode it, and if we can, annotate skb->cb with how we
  * plan to do that, so we don't need to check again in the rcv function.
