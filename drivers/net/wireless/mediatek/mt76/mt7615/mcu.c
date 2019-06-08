@@ -1040,30 +1040,11 @@ int mt7615_mcu_set_sta_rec_bmc(struct mt7615_dev *dev,
 				   &req, sizeof(req), true);
 }
 
-static void sta_rec_convert_vif_type(enum nl80211_iftype type, u32 *conn_type)
-{
-	switch (type) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_MESH_POINT:
-		if (conn_type)
-			*conn_type = CONNECTION_INFRA_STA;
-		break;
-	case NL80211_IFTYPE_STATION:
-		if (conn_type)
-			*conn_type = CONNECTION_INFRA_AP;
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	};
-}
-
 int mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, bool en)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct mt7615_sta *msta = (struct mt7615_sta *)sta->drv_priv;
-	u32 conn_type = 0;
 
 	struct {
 		struct sta_req_hdr hdr;
@@ -1085,8 +1066,18 @@ int mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	};
 	memcpy(req.basic.peer_addr, sta->addr, ETH_ALEN);
 
-	sta_rec_convert_vif_type(vif->type, &conn_type);
-	req.basic.conn_type = cpu_to_le32(conn_type);
+	switch (vif->type) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
+		req.basic.conn_type = cpu_to_le32(CONNECTION_INFRA_STA);
+		break;
+	case NL80211_IFTYPE_STATION:
+		req.basic.conn_type = cpu_to_le32(CONNECTION_INFRA_AP);
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	};
 
 	if (en) {
 		req.basic.conn_state = CONN_STATE_PORT_SECURE;
