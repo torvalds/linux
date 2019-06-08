@@ -517,6 +517,37 @@ struct nexthop *nexthop_select_path(struct nexthop *nh, int hash)
 }
 EXPORT_SYMBOL_GPL(nexthop_select_path);
 
+int nexthop_for_each_fib6_nh(struct nexthop *nh,
+			     int (*cb)(struct fib6_nh *nh, void *arg),
+			     void *arg)
+{
+	struct nh_info *nhi;
+	int err;
+
+	if (nh->is_group) {
+		struct nh_group *nhg;
+		int i;
+
+		nhg = rcu_dereference_rtnl(nh->nh_grp);
+		for (i = 0; i < nhg->num_nh; i++) {
+			struct nh_grp_entry *nhge = &nhg->nh_entries[i];
+
+			nhi = rcu_dereference_rtnl(nhge->nh->nh_info);
+			err = cb(&nhi->fib6_nh, arg);
+			if (err)
+				return err;
+		}
+	} else {
+		nhi = rcu_dereference_rtnl(nh->nh_info);
+		err = cb(&nhi->fib6_nh, arg);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nexthop_for_each_fib6_nh);
+
 int fib6_check_nexthop(struct nexthop *nh, struct fib6_config *cfg,
 		       struct netlink_ext_ack *extack)
 {
