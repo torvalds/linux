@@ -100,7 +100,7 @@ struct fmc_gpio {
 	char *carrier_name; /* name or NULL for virtual pins */
 	int gpio;
 	int _gpio;	/* internal use by the carrier */
-	int mode;	/* GPIOF_DIR_OUT etc, from <linux/gpio.h> */
+	int mode;	/* GPIOF_DIR_OUT etc */
 	int irqmode;	/* IRQF_TRIGGER_LOW and so on */
 };
 
@@ -114,13 +114,15 @@ struct fmc_gpio {
 #define FMC_GPIO_USER(x)	((x) + 0x1400)	/*  256 of them */
 /* We may add SCL and SDA, or other roles if the need arises */
 
-/* GPIOF_DIR_IN etc are missing before 3.0. copy from <linux/gpio.h> */
-#ifndef GPIOF_DIR_IN
-#  define GPIOF_DIR_OUT   (0 << 0)
-#  define GPIOF_DIR_IN    (1 << 0)
-#  define GPIOF_INIT_LOW  (0 << 1)
-#  define GPIOF_INIT_HIGH (1 << 1)
-#endif
+/*
+ * These are similar to the legacy Linux GPIO defines from <linux/gpio.h>
+ * but in fact FMC has its own GPIO handling and is not using the Linux
+ * GPIO subsystem.
+ */
+#define GPIOF_DIR_OUT   (0 << 0)
+#define GPIOF_DIR_IN    (1 << 0)
+#define GPIOF_INIT_LOW  (0 << 1)
+#define GPIOF_INIT_HIGH (1 << 1)
 
 /*
  * The operations are offered by each carrier and should make driver
