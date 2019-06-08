@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * WHCI UWB Multi-interface Controller enumerator.
  *
  * Copyright (C) 2007 Cambridge Silicon Radio Ltd.
- *
- * This file is released under the GNU GPL v2.
  */
 #include <linux/delay.h>
 #include <linux/kernel.h>

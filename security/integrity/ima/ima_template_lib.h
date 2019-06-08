@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2013 Politecnico di Torino, Italy
  *                    TORSEC group -- http://security.polito.it
  *
  * Author: Roberto Sassu <roberto.sassu@polito.it>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  *
  * File: ima_template_lib.h
  *      Header for the library of supported template fields.

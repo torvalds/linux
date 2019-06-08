@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MTD SPI driver for ST M25Pxx (and similar) serial flash chips
  *
@@ -8,11 +9,6 @@
  * Some parts are based on lart.c by Abraham Van Der Merwe
  *
  * Cleaned up and generalized based on mtd_dataflash.c
- *
- * This code is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/err.h>

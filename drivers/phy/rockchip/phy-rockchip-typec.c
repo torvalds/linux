@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author: Chris Zhong <zyw@rock-chips.com>
  *         Kever Yang <kever.yang@rock-chips.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * The ROCKCHIP Type-C PHY has two PLL clocks. The first PLL clock
  * is used for USB3, the second PLL clock is used for DP. This Type-C PHY has
@@ -42,7 +34,6 @@
  * This Type-C PHY driver supports normal and flip orientation. The orientation
  * is reported by the EXTCON_PROP_USB_TYPEC_POLARITY property: true is flip
  * orientation, false is normal orientation.
- *
  */
 
 #include <linux/clk.h>

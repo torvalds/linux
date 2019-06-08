@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  AMD CPU Microcode Update Driver for Linux
  *
@@ -17,9 +18,6 @@
  *
  *  Author: Jacob Shin <jacob.shin@amd.com>
  *  Fixes: Borislav Petkov <bp@suse.de>
- *
- *  Licensed under the terms of the GNU General Public
- *  License version 2. See file COPYING for details.
  */
 #define pr_fmt(fmt) "microcode: " fmt
 
