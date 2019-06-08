@@ -422,6 +422,91 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
+static int split_wqe_buf_region(struct hns_roce_dev *hr_dev,
+				struct hns_roce_qp *hr_qp,
+				struct hns_roce_buf_region *regions,
+				int region_max, int page_shift)
+{
+	int page_size = 1 << page_shift;
+	bool is_extend_sge;
+	int region_cnt = 0;
+	int buf_size;
+	int buf_cnt;
+
+	if (hr_qp->buff_size < 1 || region_max < 1)
+		return region_cnt;
+
+	if (hr_qp->sge.sge_cnt > 0)
+		is_extend_sge = true;
+	else
+		is_extend_sge = false;
+
+	/* sq region */
+	if (is_extend_sge)
+		buf_size = hr_qp->sge.offset - hr_qp->sq.offset;
+	else
+		buf_size = hr_qp->rq.offset - hr_qp->sq.offset;
+
+	if (buf_size > 0 && region_cnt < region_max) {
+		buf_cnt = DIV_ROUND_UP(buf_size, page_size);
+		hns_roce_init_buf_region(&regions[region_cnt],
+					 hr_dev->caps.wqe_sq_hop_num,
+					 hr_qp->sq.offset / page_size,
+					 buf_cnt);
+		region_cnt++;
+	}
+
+	/* sge region */
+	if (is_extend_sge) {
+		buf_size = hr_qp->rq.offset - hr_qp->sge.offset;
+		if (buf_size > 0 && region_cnt < region_max) {
+			buf_cnt = DIV_ROUND_UP(buf_size, page_size);
+			hns_roce_init_buf_region(&regions[region_cnt],
+						 hr_dev->caps.wqe_sge_hop_num,
+						 hr_qp->sge.offset / page_size,
+						 buf_cnt);
+			region_cnt++;
+		}
+	}
+
+	/* rq region */
+	buf_size = hr_qp->buff_size - hr_qp->rq.offset;
+	if (buf_size > 0) {
+		buf_cnt = DIV_ROUND_UP(buf_size, page_size);
+		hns_roce_init_buf_region(&regions[region_cnt],
+					 hr_dev->caps.wqe_rq_hop_num,
+					 hr_qp->rq.offset / page_size,
+					 buf_cnt);
+		region_cnt++;
+	}
+
+	return region_cnt;
+}
+
+static int calc_wqe_bt_page_shift(struct hns_roce_dev *hr_dev,
+				  struct hns_roce_buf_region *regions,
+				  int region_cnt)
+{
+	int bt_pg_shift;
+	int ba_num;
+	int ret;
+
+	bt_pg_shift = PAGE_SHIFT + hr_dev->caps.mtt_ba_pg_sz;
+
+	/* all root ba entries must in one bt page */
+	do {
+		ba_num = (1 << bt_pg_shift) / BA_BYTE_LEN;
+		ret = hns_roce_hem_list_calc_root_ba(regions, region_cnt,
+						     ba_num);
+		if (ret <= ba_num)
+			break;
+
+		bt_pg_shift++;
+	} while (ret > ba_num);
+
+	return bt_pg_shift - PAGE_SHIFT;
+}
+
 static int hns_roce_set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 				       struct ib_qp_cap *cap,
 				       struct hns_roce_qp *hr_qp)
@@ -534,15 +619,17 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				     struct ib_udata *udata, unsigned long sqpn,
 				     struct hns_roce_qp *hr_qp)
 {
+	dma_addr_t *buf_list[ARRAY_SIZE(hr_qp->regions)] = { 0 };
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_qp ucmd;
 	struct hns_roce_ib_create_qp_resp resp = {};
 	struct hns_roce_ucontext *uctx = rdma_udata_to_drv_context(
 		udata, struct hns_roce_ucontext, ibucontext);
+	struct hns_roce_buf_region *r;
 	unsigned long qpn = 0;
-	int ret = 0;
 	u32 page_shift;
-	u32 npages;
+	int buf_count;
+	int ret;
 	int i;
 
 	mutex_init(&hr_qp->mutex);
@@ -596,6 +683,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				init_attr->cap.max_recv_sge];
 	}
 
+	page_shift = PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
 	if (udata) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
 			dev_err(dev, "ib_copy_from_udata error for create qp\n");
@@ -617,32 +705,28 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			ret = PTR_ERR(hr_qp->umem);
 			goto err_rq_sge_list;
 		}
-
-		hr_qp->mtt.mtt_type = MTT_TYPE_WQE;
-		page_shift = PAGE_SHIFT;
-		if (hr_dev->caps.mtt_buf_pg_sz) {
-			npages = (ib_umem_page_count(hr_qp->umem) +
-				  (1 << hr_dev->caps.mtt_buf_pg_sz) - 1) /
-				 (1 << hr_dev->caps.mtt_buf_pg_sz);
-			page_shift += hr_dev->caps.mtt_buf_pg_sz;
-			ret = hns_roce_mtt_init(hr_dev, npages,
-				    page_shift,
-				    &hr_qp->mtt);
-		} else {
-			ret = hns_roce_mtt_init(hr_dev,
-						ib_umem_page_count(hr_qp->umem),
-						page_shift, &hr_qp->mtt);
-		}
+		hr_qp->region_cnt = split_wqe_buf_region(hr_dev, hr_qp,
+				hr_qp->regions, ARRAY_SIZE(hr_qp->regions),
+				page_shift);
+		ret = hns_roce_alloc_buf_list(hr_qp->regions, buf_list,
+					      hr_qp->region_cnt);
 		if (ret) {
-			dev_err(dev, "hns_roce_mtt_init error for create qp\n");
-			goto err_buf;
+			dev_err(dev, "alloc buf_list error for create qp\n");
+			goto err_alloc_list;
 		}
 
-		ret = hns_roce_ib_umem_write_mtt(hr_dev, &hr_qp->mtt,
-						 hr_qp->umem);
-		if (ret) {
-			dev_err(dev, "hns_roce_ib_umem_write_mtt error for create qp\n");
-			goto err_mtt;
+		for (i = 0; i < hr_qp->region_cnt; i++) {
+			r = &hr_qp->regions[i];
+			buf_count = hns_roce_get_umem_bufs(hr_dev,
+					buf_list[i], r->count, r->offset,
+					hr_qp->umem, page_shift);
+			if (buf_count != r->count) {
+				dev_err(dev,
+					"get umem buf err, expect %d,ret %d.\n",
+					r->count, buf_count);
+				ret = -ENOBUFS;
+				goto err_get_bufs;
+			}
 		}
 
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SQ_RECORD_DB) &&
@@ -653,7 +737,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 						   &hr_qp->sdb);
 			if (ret) {
 				dev_err(dev, "sq record doorbell map failed!\n");
-				goto err_mtt;
+				goto err_get_bufs;
 			}
 
 			/* indicate kernel supports sq record db */
@@ -715,7 +799,6 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		}
 
 		/* Allocate QP buf */
-		page_shift = PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
 		if (hns_roce_buf_alloc(hr_dev, hr_qp->buff_size,
 				       (1 << page_shift) * 2,
 				       &hr_qp->hr_buf, page_shift)) {
@@ -723,21 +806,28 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			ret = -ENOMEM;
 			goto err_db;
 		}
-
-		hr_qp->mtt.mtt_type = MTT_TYPE_WQE;
-		/* Write MTT */
-		ret = hns_roce_mtt_init(hr_dev, hr_qp->hr_buf.npages,
-					hr_qp->hr_buf.page_shift, &hr_qp->mtt);
+		hr_qp->region_cnt = split_wqe_buf_region(hr_dev, hr_qp,
+				hr_qp->regions, ARRAY_SIZE(hr_qp->regions),
+				page_shift);
+		ret = hns_roce_alloc_buf_list(hr_qp->regions, buf_list,
+					      hr_qp->region_cnt);
 		if (ret) {
-			dev_err(dev, "hns_roce_mtt_init error for kernel create qp\n");
-			goto err_buf;
+			dev_err(dev, "alloc buf_list error for create qp!\n");
+			goto err_alloc_list;
 		}
 
-		ret = hns_roce_buf_write_mtt(hr_dev, &hr_qp->mtt,
-					     &hr_qp->hr_buf);
-		if (ret) {
-			dev_err(dev, "hns_roce_buf_write_mtt error for kernel create qp\n");
-			goto err_mtt;
+		for (i = 0; i < hr_qp->region_cnt; i++) {
+			r = &hr_qp->regions[i];
+			buf_count = hns_roce_get_kmem_bufs(hr_dev,
+					buf_list[i], r->count, r->offset,
+					&hr_qp->hr_buf);
+			if (buf_count != r->count) {
+				dev_err(dev,
+					"get kmem buf err, expect %d,ret %d.\n",
+					r->count, buf_count);
+				ret = -ENOBUFS;
+				goto err_get_bufs;
+			}
 		}
 
 		hr_qp->sq.wrid = kcalloc(hr_qp->sq.wqe_cnt, sizeof(u64),
@@ -759,6 +849,17 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			dev_err(dev, "hns_roce_reserve_range_qp alloc qpn error\n");
 			goto err_wrid;
 		}
+	}
+
+	hr_qp->wqe_bt_pg_shift = calc_wqe_bt_page_shift(hr_dev, hr_qp->regions,
+							hr_qp->region_cnt);
+	hns_roce_mtr_init(&hr_qp->mtr, PAGE_SHIFT + hr_qp->wqe_bt_pg_shift,
+			  page_shift);
+	ret = hns_roce_mtr_attach(hr_dev, &hr_qp->mtr, buf_list,
+				  hr_qp->regions, hr_qp->region_cnt);
+	if (ret) {
+		dev_err(dev, "mtr attatch error for create qp\n");
+		goto err_mtr;
 	}
 
 	if (init_attr->qp_type == IB_QPT_GSI &&
@@ -796,6 +897,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	}
 
 	hr_qp->event = hns_roce_ib_qp_event;
+	hns_roce_free_buf_list(buf_list, hr_qp->region_cnt);
 
 	return 0;
 
@@ -809,6 +911,9 @@ err_qp:
 err_qpn:
 	if (!sqpn)
 		hns_roce_release_range_qp(hr_dev, qpn, 1);
+
+err_mtr:
+	hns_roce_mtr_cleanup(hr_dev, &hr_qp->mtr);
 
 err_wrid:
 	if (udata) {
@@ -829,10 +934,10 @@ err_sq_dbmap:
 		    hns_roce_qp_has_sq(init_attr))
 			hns_roce_db_unmap_user(uctx, &hr_qp->sdb);
 
-err_mtt:
-	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
+err_get_bufs:
+	hns_roce_free_buf_list(buf_list, hr_qp->region_cnt);
 
-err_buf:
+err_alloc_list:
 	if (hr_qp->umem)
 		ib_umem_release(hr_qp->umem);
 	else
