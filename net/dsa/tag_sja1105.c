@@ -24,6 +24,36 @@ static inline bool sja1105_is_link_local(const struct sk_buff *skb)
 	return false;
 }
 
+struct sja1105_meta {
+	u64 tstamp;
+	u64 dmac_byte_4;
+	u64 dmac_byte_3;
+	u64 source_port;
+	u64 switch_id;
+};
+
+static void sja1105_meta_unpack(const struct sk_buff *skb,
+				struct sja1105_meta *meta)
+{
+	u8 *buf = skb_mac_header(skb) + ETH_HLEN;
+
+	/* UM10944.pdf section 4.2.17 AVB Parameters:
+	 * Structure of the meta-data follow-up frame.
+	 * It is in network byte order, so there are no quirks
+	 * while unpacking the meta frame.
+	 *
+	 * Also SJA1105 E/T only populates bits 23:0 of the timestamp
+	 * whereas P/Q/R/S does 32 bits. Since the structure is the
+	 * same and the E/T puts zeroes in the high-order byte, use
+	 * a unified unpacking command for both device series.
+	 */
+	packing(buf,     &meta->tstamp,     31, 0, 4, UNPACK, 0);
+	packing(buf + 4, &meta->dmac_byte_4, 7, 0, 1, UNPACK, 0);
+	packing(buf + 5, &meta->dmac_byte_3, 7, 0, 1, UNPACK, 0);
+	packing(buf + 6, &meta->source_port, 7, 0, 1, UNPACK, 0);
+	packing(buf + 7, &meta->switch_id,   7, 0, 1, UNPACK, 0);
+}
+
 static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
 {
 	const struct ethhdr *hdr = eth_hdr(skb);
@@ -40,14 +70,15 @@ static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
 }
 
 /* This is the first time the tagger sees the frame on RX.
- * Figure out if we can decode it, and if we can, annotate skb->cb with how we
- * plan to do that, so we don't need to check again in the rcv function.
+ * Figure out if we can decode it.
  */
 static bool sja1105_filter(const struct sk_buff *skb, struct net_device *dev)
 {
+	if (!dsa_port_is_vlan_filtering(dev->dsa_ptr))
+		return true;
 	if (sja1105_is_link_local(skb))
 		return true;
-	if (!dsa_port_is_vlan_filtering(dev->dsa_ptr))
+	if (sja1105_is_meta_frame(skb))
 		return true;
 	return false;
 }
@@ -83,16 +114,19 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 				   struct net_device *netdev,
 				   struct packet_type *pt)
 {
+	struct sja1105_meta meta = {0};
 	int source_port, switch_id;
 	struct vlan_ethhdr *hdr;
 	u16 tpid, vid, tci;
 	bool is_link_local;
 	bool is_tagged;
+	bool is_meta;
 
 	hdr = vlan_eth_hdr(skb);
 	tpid = ntohs(hdr->h_vlan_proto);
 	is_tagged = (tpid == ETH_P_SJA1105);
 	is_link_local = sja1105_is_link_local(skb);
+	is_meta = sja1105_is_meta_frame(skb);
 
 	skb->offload_fwd_mark = 1;
 
@@ -113,6 +147,10 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 		/* Clear the DMAC bytes that were mangled by the switch */
 		hdr->h_dest[3] = 0;
 		hdr->h_dest[4] = 0;
+	} else if (is_meta) {
+		sja1105_meta_unpack(skb, &meta);
+		source_port = meta.source_port;
+		switch_id = meta.switch_id;
 	} else {
 		return NULL;
 	}
