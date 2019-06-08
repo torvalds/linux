@@ -1098,7 +1098,7 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	if (ret == CMD_RST_PRC_SUCCESS)
 		return 0;
 	if (ret == CMD_RST_PRC_EBUSY)
-		return ret;
+		return -EBUSY;
 
 	ret = __hns_roce_cmq_send(hr_dev, desc, num);
 	if (ret) {
@@ -1106,7 +1106,7 @@ static int hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 		if (retval == CMD_RST_PRC_SUCCESS)
 			return 0;
 		else if (retval == CMD_RST_PRC_EBUSY)
-			return retval;
+			return -EBUSY;
 	}
 
 	return ret;
