@@ -689,12 +689,12 @@ static int sja1105_parse_dt(struct sja1105_private *priv,
 	return rc;
 }
 
-/* Convert back and forth MAC speed from Mbps to SJA1105 encoding */
+/* Convert link speed from SJA1105 to ethtool encoding */
 static int sja1105_speed[] = {
-	[SJA1105_SPEED_AUTO]     = 0,
-	[SJA1105_SPEED_10MBPS]   = 10,
-	[SJA1105_SPEED_100MBPS]  = 100,
-	[SJA1105_SPEED_1000MBPS] = 1000,
+	[SJA1105_SPEED_AUTO]		= SPEED_UNKNOWN,
+	[SJA1105_SPEED_10MBPS]		= SPEED_10,
+	[SJA1105_SPEED_100MBPS]		= SPEED_100,
+	[SJA1105_SPEED_1000MBPS]	= SPEED_1000,
 };
 
 /* Set link speed and enable/disable traffic I/O in the MAC configuration
@@ -720,17 +720,17 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
 
 	switch (speed_mbps) {
-	case 0:
+	case SPEED_UNKNOWN:
 		/* No speed update requested */
 		speed = SJA1105_SPEED_AUTO;
 		break;
-	case 10:
+	case SPEED_10:
 		speed = SJA1105_SPEED_10MBPS;
 		break;
-	case 100:
+	case SPEED_100:
 		speed = SJA1105_SPEED_100MBPS;
 		break;
-	case 1000:
+	case SPEED_1000:
 		speed = SJA1105_SPEED_1000MBPS;
 		break;
 	default:
@@ -786,7 +786,7 @@ static void sja1105_mac_config(struct dsa_switch *ds, int port,
 	struct sja1105_private *priv = ds->priv;
 
 	if (!state->link)
-		sja1105_adjust_port_config(priv, port, 0, false);
+		sja1105_adjust_port_config(priv, port, SPEED_UNKNOWN, false);
 	else
 		sja1105_adjust_port_config(priv, port, state->speed, true);
 }
@@ -1311,7 +1311,7 @@ static int sja1105_static_config_reload(struct sja1105_private *priv)
 		goto out;
 
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
-		bool enabled = (speed_mbps[i] != 0);
+		bool enabled = (speed_mbps[i] != SPEED_UNKNOWN);
 
 		if (i != dsa_upstream_port(priv->ds, i))
 			sja1105_bridge_stp_state_set(priv->ds, i, stp_state[i]);
