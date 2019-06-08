@@ -94,6 +94,28 @@ u32 sja1105_crc32(const void *buf, size_t len)
 	return ~crc;
 }
 
+static size_t sja1105et_avb_params_entry_packing(void *buf, void *entry_ptr,
+						 enum packing_op op)
+{
+	const size_t size = SJA1105ET_SIZE_AVB_PARAMS_ENTRY;
+	struct sja1105_avb_params_entry *entry = entry_ptr;
+
+	sja1105_packing(buf, &entry->destmeta, 95, 48, size, op);
+	sja1105_packing(buf, &entry->srcmeta,  47,  0, size, op);
+	return size;
+}
+
+static size_t sja1105pqrs_avb_params_entry_packing(void *buf, void *entry_ptr,
+						   enum packing_op op)
+{
+	const size_t size = SJA1105PQRS_SIZE_AVB_PARAMS_ENTRY;
+	struct sja1105_avb_params_entry *entry = entry_ptr;
+
+	sja1105_packing(buf, &entry->destmeta,   125,  78, size, op);
+	sja1105_packing(buf, &entry->srcmeta,     77,  30, size, op);
+	return size;
+}
+
 static size_t sja1105et_general_params_entry_packing(void *buf, void *entry_ptr,
 						     enum packing_op op)
 {
@@ -426,6 +448,7 @@ static u64 blk_id_map[BLK_IDX_MAX] = {
 	[BLK_IDX_MAC_CONFIG] = BLKID_MAC_CONFIG,
 	[BLK_IDX_L2_LOOKUP_PARAMS] = BLKID_L2_LOOKUP_PARAMS,
 	[BLK_IDX_L2_FORWARDING_PARAMS] = BLKID_L2_FORWARDING_PARAMS,
+	[BLK_IDX_AVB_PARAMS] = BLKID_AVB_PARAMS,
 	[BLK_IDX_GENERAL_PARAMS] = BLKID_GENERAL_PARAMS,
 	[BLK_IDX_XMII_PARAMS] = BLKID_XMII_PARAMS,
 };
@@ -627,6 +650,12 @@ struct sja1105_table_ops sja1105e_table_ops[BLK_IDX_MAX] = {
 		.packed_entry_size = SJA1105_SIZE_L2_FORWARDING_PARAMS_ENTRY,
 		.max_entry_count = SJA1105_MAX_L2_FORWARDING_PARAMS_COUNT,
 	},
+	[BLK_IDX_AVB_PARAMS] = {
+		.packing = sja1105et_avb_params_entry_packing,
+		.unpacked_entry_size = sizeof(struct sja1105_avb_params_entry),
+		.packed_entry_size = SJA1105ET_SIZE_AVB_PARAMS_ENTRY,
+		.max_entry_count = SJA1105_MAX_AVB_PARAMS_COUNT,
+	},
 	[BLK_IDX_GENERAL_PARAMS] = {
 		.packing = sja1105et_general_params_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_general_params_entry),
@@ -684,6 +713,12 @@ struct sja1105_table_ops sja1105t_table_ops[BLK_IDX_MAX] = {
 		.unpacked_entry_size = sizeof(struct sja1105_l2_forwarding_params_entry),
 		.packed_entry_size = SJA1105_SIZE_L2_FORWARDING_PARAMS_ENTRY,
 		.max_entry_count = SJA1105_MAX_L2_FORWARDING_PARAMS_COUNT,
+	},
+	[BLK_IDX_AVB_PARAMS] = {
+		.packing = sja1105et_avb_params_entry_packing,
+		.unpacked_entry_size = sizeof(struct sja1105_avb_params_entry),
+		.packed_entry_size = SJA1105ET_SIZE_AVB_PARAMS_ENTRY,
+		.max_entry_count = SJA1105_MAX_AVB_PARAMS_COUNT,
 	},
 	[BLK_IDX_GENERAL_PARAMS] = {
 		.packing = sja1105et_general_params_entry_packing,
@@ -743,6 +778,12 @@ struct sja1105_table_ops sja1105p_table_ops[BLK_IDX_MAX] = {
 		.packed_entry_size = SJA1105_SIZE_L2_FORWARDING_PARAMS_ENTRY,
 		.max_entry_count = SJA1105_MAX_L2_FORWARDING_PARAMS_COUNT,
 	},
+	[BLK_IDX_AVB_PARAMS] = {
+		.packing = sja1105pqrs_avb_params_entry_packing,
+		.unpacked_entry_size = sizeof(struct sja1105_avb_params_entry),
+		.packed_entry_size = SJA1105PQRS_SIZE_AVB_PARAMS_ENTRY,
+		.max_entry_count = SJA1105_MAX_AVB_PARAMS_COUNT,
+	},
 	[BLK_IDX_GENERAL_PARAMS] = {
 		.packing = sja1105pqrs_general_params_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_general_params_entry),
@@ -800,6 +841,12 @@ struct sja1105_table_ops sja1105q_table_ops[BLK_IDX_MAX] = {
 		.unpacked_entry_size = sizeof(struct sja1105_l2_forwarding_params_entry),
 		.packed_entry_size = SJA1105_SIZE_L2_FORWARDING_PARAMS_ENTRY,
 		.max_entry_count = SJA1105_MAX_L2_FORWARDING_PARAMS_COUNT,
+	},
+	[BLK_IDX_AVB_PARAMS] = {
+		.packing = sja1105pqrs_avb_params_entry_packing,
+		.unpacked_entry_size = sizeof(struct sja1105_avb_params_entry),
+		.packed_entry_size = SJA1105PQRS_SIZE_AVB_PARAMS_ENTRY,
+		.max_entry_count = SJA1105_MAX_AVB_PARAMS_COUNT,
 	},
 	[BLK_IDX_GENERAL_PARAMS] = {
 		.packing = sja1105pqrs_general_params_entry_packing,
@@ -859,6 +906,12 @@ struct sja1105_table_ops sja1105r_table_ops[BLK_IDX_MAX] = {
 		.packed_entry_size = SJA1105_SIZE_L2_FORWARDING_PARAMS_ENTRY,
 		.max_entry_count = SJA1105_MAX_L2_FORWARDING_PARAMS_COUNT,
 	},
+	[BLK_IDX_AVB_PARAMS] = {
+		.packing = sja1105pqrs_avb_params_entry_packing,
+		.unpacked_entry_size = sizeof(struct sja1105_avb_params_entry),
+		.packed_entry_size = SJA1105PQRS_SIZE_AVB_PARAMS_ENTRY,
+		.max_entry_count = SJA1105_MAX_AVB_PARAMS_COUNT,
+	},
 	[BLK_IDX_GENERAL_PARAMS] = {
 		.packing = sja1105pqrs_general_params_entry_packing,
 		.unpacked_entry_size = sizeof(struct sja1105_general_params_entry),
@@ -916,6 +969,12 @@ struct sja1105_table_ops sja1105s_table_ops[BLK_IDX_MAX] = {
 		.unpacked_entry_size = sizeof(struct sja1105_l2_forwarding_params_entry),
 		.packed_entry_size = SJA1105_SIZE_L2_FORWARDING_PARAMS_ENTRY,
 		.max_entry_count = SJA1105_MAX_L2_FORWARDING_PARAMS_COUNT,
+	},
+	[BLK_IDX_AVB_PARAMS] = {
+		.packing = sja1105pqrs_avb_params_entry_packing,
+		.unpacked_entry_size = sizeof(struct sja1105_avb_params_entry),
+		.packed_entry_size = SJA1105PQRS_SIZE_AVB_PARAMS_ENTRY,
+		.max_entry_count = SJA1105_MAX_AVB_PARAMS_COUNT,
 	},
 	[BLK_IDX_GENERAL_PARAMS] = {
 		.packing = sja1105pqrs_general_params_entry_packing,
