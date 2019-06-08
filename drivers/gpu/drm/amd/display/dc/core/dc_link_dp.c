@@ -1035,7 +1035,7 @@ static void initialize_training_settings(
 	if (link->preferred_training_settings.cr_pattern_time != NULL)
 		lt_settings->cr_pattern_time = *link->preferred_training_settings.cr_pattern_time;
 	else
-		lt_settings->cr_pattern_time = get_training_aux_rd_interval(link, 100);
+		lt_settings->cr_pattern_time = 100;
 
 	if (link->preferred_training_settings.eq_pattern_time != NULL)
 		lt_settings->eq_pattern_time = *link->preferred_training_settings.eq_pattern_time;
