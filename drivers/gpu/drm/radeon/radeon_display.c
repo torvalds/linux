@@ -23,22 +23,27 @@
  * Authors: Dave Airlie
  *          Alex Deucher
  */
-#include <drm/drmP.h>
-#include <drm/radeon_drm.h>
-#include "radeon.h"
-
-#include "atom.h"
-#include <asm/div64.h>
 
 #include <linux/pm_runtime.h>
+#include <linux/gcd.h>
+
+#include <asm/div64.h>
+
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_pci.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_edid.h>
+#include <drm/drm_vblank.h>
+#include <drm/radeon_drm.h>
 
-#include <linux/gcd.h>
+#include "atom.h"
+#include "radeon.h"
 
 static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 {

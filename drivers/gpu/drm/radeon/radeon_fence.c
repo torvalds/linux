@@ -37,10 +37,12 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
 
-#include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_reg.h"
 #include "radeon_trace.h"
 
 /*

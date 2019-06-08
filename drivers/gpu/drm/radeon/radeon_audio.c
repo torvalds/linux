@@ -23,7 +23,7 @@
  */
 
 #include <linux/gcd.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_crtc.h>
 #include "radeon.h"
 #include "atom.h"
