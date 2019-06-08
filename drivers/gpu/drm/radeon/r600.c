@@ -25,19 +25,25 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_vblank.h>
 #include <drm/radeon_drm.h>
+
+#include "atom.h"
+#include "avivod.h"
+#include "r600d.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
 #include "radeon_mode.h"
-#include "r600d.h"
-#include "atom.h"
-#include "avivod.h"
 #include "radeon_ucode.h"
 
 /* Firmware Names */

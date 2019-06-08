@@ -25,24 +25,30 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
-#include <drm/radeon_drm.h>
-#include "radeon_reg.h"
-#include "radeon.h"
-#include "radeon_asic.h"
-#include "r100d.h"
-#include "rs100d.h"
-#include "rv200d.h"
-#include "rv250d.h"
-#include "atom.h"
-
 #include <linux/firmware.h>
 #include <linux/module.h>
 
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_vblank.h>
+#include <drm/radeon_drm.h>
+
+#include "atom.h"
 #include "r100_reg_safe.h"
+#include "r100d.h"
+#include "radeon.h"
+#include "radeon_asic.h"
+#include "radeon_reg.h"
 #include "rn50_reg_safe.h"
+#include "rs100d.h"
+#include "rv200d.h"
+#include "rv250d.h"
 
 /* Firmware Names */
 #define FIRMWARE_R100		"radeon/R100_cp.bin"

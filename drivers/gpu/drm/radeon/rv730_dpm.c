@@ -22,7 +22,6 @@
  * Authors: Alex Deucher
  */
 
-#include <drm/drmP.h>
 #include "radeon.h"
 #include "rv730d.h"
 #include "r600_dpm.h"

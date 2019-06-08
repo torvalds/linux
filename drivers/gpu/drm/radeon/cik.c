@@ -21,18 +21,22 @@
  *
  * Authors: Alex Deucher
  */
+
 #include <linux/firmware.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_pci.h>
+#include <drm/drm_vblank.h>
+
+#include "atom.h"
+#include "cik_blit_shaders.h"
+#include "cikd.h"
+#include "clearstate_ci.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
-#include "cikd.h"
-#include "atom.h"
-#include "cik_blit_shaders.h"
 #include "radeon_ucode.h"
-#include "clearstate_ci.h"
 
 #define SH_MEM_CONFIG_GFX_DEFAULT \
 	ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED)
