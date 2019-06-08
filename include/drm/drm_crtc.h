@@ -39,6 +39,7 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_connector.h>
+#include <drm/drm_device.h>
 #include <drm/drm_property.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
