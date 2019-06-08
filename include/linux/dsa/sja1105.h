@@ -45,6 +45,13 @@ struct sja1105_tagger_data {
 	bool hwts_rx_en;
 };
 
+struct sja1105_skb_cb {
+	u32 meta_tstamp;
+};
+
+#define SJA1105_SKB_CB(skb) \
+	((struct sja1105_skb_cb *)DSA_SKB_CB_PRIV(skb))
+
 struct sja1105_port {
 	struct sja1105_tagger_data *data;
 	struct dsa_port *dp;
