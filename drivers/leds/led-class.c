@@ -254,17 +254,31 @@ int led_classdev_register_ext(struct device *parent,
 			      struct led_classdev *led_cdev,
 			      struct led_init_data *init_data)
 {
-	char name[LED_MAX_NAME_SIZE];
+	char composed_name[LED_MAX_NAME_SIZE];
+	char final_name[LED_MAX_NAME_SIZE];
+	const char *proposed_name = composed_name;
 	int ret;
 
-	ret = led_classdev_next_name(led_cdev->name, name, sizeof(name));
+	if (init_data) {
+		if (init_data->devname_mandatory && !init_data->devicename) {
+			dev_err(parent, "Mandatory device name is missing");
+			return -EINVAL;
+		}
+		ret = led_compose_name(parent, init_data, composed_name);
+		if (ret < 0)
+			return ret;
+	} else {
+		proposed_name = led_cdev->name;
+	}
+
+	ret = led_classdev_next_name(proposed_name, final_name, sizeof(final_name));
 	if (ret < 0)
 		return ret;
 
 	mutex_init(&led_cdev->led_access);
 	mutex_lock(&led_cdev->led_access);
 	led_cdev->dev = device_create_with_groups(leds_class, parent, 0,
-				led_cdev, led_cdev->groups, "%s", name);
+				led_cdev, led_cdev->groups, "%s", final_name);
 	if (IS_ERR(led_cdev->dev)) {
 		mutex_unlock(&led_cdev->led_access);
 		return PTR_ERR(led_cdev->dev);
