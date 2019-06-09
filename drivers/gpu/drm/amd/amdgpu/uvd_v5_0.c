@@ -22,7 +22,9 @@
  * Authors: Christian König <christian.koenig@amd.com>
  */
 
+#include <linux/delay.h>
 #include <linux/firmware.h>
+
 #include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_uvd.h"
@@ -506,7 +508,7 @@ static int uvd_v5_0_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = RREG32(mmUVD_CONTEXT_ID);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)

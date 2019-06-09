@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/delay.h>
+
 #include "dm_services.h"
 
 #include "dce/dce_11_2_d.h"

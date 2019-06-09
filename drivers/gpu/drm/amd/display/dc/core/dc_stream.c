@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/delay.h>
+
 #include "dm_services.h"
 #include "dc.h"
 #include "core_types.h"

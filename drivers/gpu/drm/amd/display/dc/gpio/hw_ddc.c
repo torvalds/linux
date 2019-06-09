@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/delay.h>
+
 #include "dm_services.h"
 
 #include "include/gpio_types.h"

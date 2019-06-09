@@ -29,6 +29,16 @@
  *    Thomas Hellstrom <thomas-at-tungstengraphics-dot-com>
  *    Dave Airlie
  */
+
+#include <linux/debugfs.h>
+#include <linux/iommu.h>
+#include <linux/pagemap.h>
+#include <linux/sched/task.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/swap.h>
+#include <linux/swiotlb.h>
+
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
@@ -36,13 +46,6 @@
 #include <drm/ttm/ttm_page_alloc.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
-#include <linux/seq_file.h>
-#include <linux/slab.h>
-#include <linux/swiotlb.h>
-#include <linux/swap.h>
-#include <linux/pagemap.h>
-#include <linux/debugfs.h>
-#include <linux/iommu.h>
 #include "amdgpu.h"
 #include "amdgpu_object.h"
 #include "amdgpu_trace.h"
