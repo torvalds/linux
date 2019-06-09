@@ -100,6 +100,25 @@
 	assigned-clock-rates = <133333334>, <33333334>, <33333334>;
 };
 
+&ecspi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2>;
+	cs-gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>, <&gpio2 27 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+
+	spidev@0 {
+		compatible = "menlo,m53cpld";
+		spi-max-frequency = <25000000>;
+		reg = <0>;
+	};
+
+	spidev@1 {
+		compatible = "menlo,m53cpld";
+		spi-max-frequency = <25000000>;
+		reg = <1>;
+	};
+};
+
 &esdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
@@ -298,6 +317,16 @@
 				MX53_PAD_PATA_DATA9__GPIO2_9		0x1e4 /* Reset */
 				MX53_PAD_CSI0_DAT19__GPIO6_5		0x1c4 /* Interrupt */
 				MX53_PAD_PATA_DATA10__GPIO2_10		0x1e4 /* Wake */
+			>;
+		};
+
+		pinctrl_ecspi2: ecspi2grp {
+			fsl,pins = <
+				MX53_PAD_EIM_CS0__ECSPI2_SCLK		0xe4
+				MX53_PAD_EIM_OE__ECSPI2_MISO		0xe4
+				MX53_PAD_EIM_CS1__ECSPI2_MOSI		0xe4
+				MX53_PAD_EIM_RW__GPIO2_26		0xe4
+				MX53_PAD_EIM_LBA__GPIO2_27		0xe4
 			>;
 		};
 
