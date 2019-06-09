@@ -21,6 +21,8 @@
  *
  */
 #include <linux/firmware.h>
+#include <linux/module.h>
+
 #include "amdgpu.h"
 #include "amdgpu_ih.h"
 #include "amdgpu_gfx.h"
