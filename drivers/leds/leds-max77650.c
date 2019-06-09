@@ -118,7 +118,7 @@ static int max77650_led_probe(struct platform_device *pdev)
 		of_property_read_string(child, "linux,default-trigger",
 					&led->cdev.default_trigger);
 
-		rv = devm_of_led_classdev_register(dev, child, &led->cdev);
+		rv = devm_led_classdev_register(dev, &led->cdev);
 		if (rv)
 			goto err_node_put;
 
