@@ -810,9 +810,9 @@ config CRASH_DUMP
 	  Crash dump kernels are loaded in the main kernel with kexec-tools
 	  into a specially reserved region and then later executed after
 	  a crash by kdump/kexec.
-	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
+	  Refer to <file:Documentation/s390/zfcpdump.rst> for more details on this.
 	  This option also enables s390 zfcpdump.
-	  See also <file:Documentation/s390/zfcpdump.txt>
+	  See also <file:Documentation/s390/zfcpdump.rst>
 
 endmenu
 
