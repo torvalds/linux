@@ -2477,13 +2477,13 @@ lpfc_nvme_create_localport(struct lpfc_vport *vport)
 	lpfc_nvme_template.max_sgl_segments = phba->cfg_nvme_seg_cnt + 1;
 	lpfc_nvme_template.max_hw_queues = phba->cfg_nvme_io_channel;
 
+	if (!IS_ENABLED(CONFIG_NVME_FC))
+		return ret;
+
 	cstat = kmalloc((sizeof(struct lpfc_nvme_ctrl_stat) *
 			phba->cfg_nvme_io_channel), GFP_KERNEL);
 	if (!cstat)
 		return -ENOMEM;
-
-	if (!IS_ENABLED(CONFIG_NVME_FC))
-		return ret;
 
 	/* localport is allocated from the stack, but the registration
 	 * call allocates heap memory as well as the private area.
