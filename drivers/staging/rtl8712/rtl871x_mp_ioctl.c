@@ -661,11 +661,6 @@ uint oid_rt_pro_write_register_hdl(struct oid_par_priv *poid_par_priv)
 			status = RNDIS_STATUS_NOT_ACCEPTED;
 			break;
 		}
-
-		if ((status == RNDIS_STATUS_SUCCESS) &&
-		    (RegRWStruct->offset == HIMR) &&
-		    (RegRWStruct->width == 4))
-			Adapter->ImrContent = RegRWStruct->value;
 	}
 	return status;
 }
