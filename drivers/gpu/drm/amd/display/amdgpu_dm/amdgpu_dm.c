@@ -53,15 +53,17 @@
 #include <linux/version.h>
 #include <linux/types.h>
 #include <linux/pm_runtime.h>
+#include <linux/pci.h>
 #include <linux/firmware.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_vblank.h>
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "ivsrcid/irqsrcs_dcn_1_0.h"
