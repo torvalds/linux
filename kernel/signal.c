@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/kernel/signal.c
  *
@@ -2484,6 +2485,8 @@ relock:
 	if (signal_group_exit(signal)) {
 		ksig->info.si_signo = signr = SIGKILL;
 		sigdelset(&current->pending.signal, SIGKILL);
+		trace_signal_deliver(SIGKILL, SEND_SIG_NOINFO,
+				&sighand->action[SIGKILL - 1]);
 		recalc_sigpending();
 		goto fatal;
 	}
@@ -3618,12 +3621,11 @@ static struct pid *pidfd_to_pid(const struct file *file)
 }
 
 /**
- * sys_pidfd_send_signal - send a signal to a process through a task file
- *                          descriptor
- * @pidfd:  the file descriptor of the process
- * @sig:    signal to be sent
- * @info:   the signal info
- * @flags:  future flags to be passed
+ * sys_pidfd_send_signal - Signal a process through a pidfd
+ * @pidfd:  file descriptor of the process
+ * @sig:    signal to send
+ * @info:   signal info
+ * @flags:  future flags
  *
  * The syscall currently only signals via PIDTYPE_PID which covers
  * kill(<positive-pid>, <signal>. It does not signal threads or process

@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/drivers/misc/xillybus.h
  *
  * Copyright 2011 Xillybus Ltd, http://xillybus.com
  *
  * Header file for the Xillybus FPGA/host framework.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the smems of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #ifndef __XILLYBUS_H

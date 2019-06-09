@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config WILCO_EC
 	tristate "ChromeOS Wilco Embedded Controller"
 	depends on ACPI && X86 && CROS_EC_LPC && CROS_EC_LPC_MEC

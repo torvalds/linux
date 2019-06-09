@@ -896,12 +896,16 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	}
 
 	/* TODO
-	 * Right now only scan LRI command on KBL and in inhibit context.
-	 * It's good enough to support initializing mmio by lri command in
-	 * vgpu inhibit context on KBL.
+	 * In order to let workload with inhibit context to generate
+	 * correct image data into memory, vregs values will be loaded to
+	 * hw via LRIs in the workload with inhibit context. But as
+	 * indirect context is loaded prior to LRIs in workload, we don't
+	 * want reg values specified in indirect context overwritten by
+	 * LRIs in workloads. So, when scanning an indirect context, we
+	 * update reg values in it into vregs, so LRIs in workload with
+	 * inhibit context will restore with correct values
 	 */
-	if ((IS_KABYLAKE(s->vgpu->gvt->dev_priv)
-		|| IS_COFFEELAKE(s->vgpu->gvt->dev_priv)) &&
+	if (IS_GEN(gvt->dev_priv, 9) &&
 			intel_gvt_mmio_is_in_ctx(gvt, offset) &&
 			!strncmp(cmd, "lri", 3)) {
 		intel_gvt_hypervisor_read_gpa(s->vgpu,
@@ -2526,7 +2530,7 @@ static const struct cmd_info cmd_info[] = {
 		0, 12, NULL},
 
 	{"VEB_DI_IECP", OP_VEB_DNDI_IECP_STATE, F_LEN_VAR, R_VECS, D_BDW_PLUS,
-		0, 20, NULL},
+		0, 12, NULL},
 };
 
 static void add_cmd_entry(struct intel_gvt *gvt, struct cmd_entry *e)

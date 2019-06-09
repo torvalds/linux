@@ -1,28 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Linux WiMAX
  * Collection of tools to manage debug operations.
  *
- *
  * Copyright (C) 2005-2007 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
- *
  * Don't #include this file directly, read on!
- *
  *
  * EXECUTING DEBUGGING ACTIONS OR NOT
  *
@@ -43,7 +27,6 @@
  * always false at compile time will get the code depending on it
  * compiled out by optimization.
  *
- *
  * DEBUG LEVELS
  *
  * It is up to the caller to define how much a debugging level is.
@@ -52,13 +35,11 @@
  * will always be taken). The increasing debug levels are used for
  * increased verbosity.
  *
- *
  * USAGE
  *
  * Group the code in modules and submodules inside each module [which
  * in most cases maps to Linux modules and .c files that compose
  * those].
- *
  *
  * For each module, there is:
  *
@@ -128,7 +109,6 @@
  * NOTE: remember that even if this will show attached to some
  *     particular instance of a device, the settings are *global*.
  *
- *
  * On each submodule (for example, .c files), the debug infrastructure
  * should be included like this:
  *
@@ -136,7 +116,6 @@
  *     #include "debug-levels.h"
  *
  * after #including all your include files.
- *
  *
  * Now you can use the d_*() macros below [d_test(), d_fnstart(),
  * d_fnend(), d_printf(), d_dump()].

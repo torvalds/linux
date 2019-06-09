@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* dummy.c: a dummy net driver
 
 	The purpose of this driver is to provide a device to point a

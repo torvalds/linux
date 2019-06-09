@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel IXP4xx Ethernet driver for Linux
  *
  * Copyright (C) 2007 Krzysztof Halasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  *
  * Ethernet port config (0x00 is not present on IXP42X):
  *
@@ -15,7 +12,6 @@
  * TX queue		23		24		25
  * RX-free queue	26		27		28
  * TX-done queue is always 31, per-port RX and TX-ready queues are configurable
- *
  *
  * Queue entries:
  * bits 0 -> 1	- NPE ID (RX and TX-done)

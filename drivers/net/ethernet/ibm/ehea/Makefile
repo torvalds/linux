@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Makefile for the eHEA ethernet device driver for IBM eServer System p
 #

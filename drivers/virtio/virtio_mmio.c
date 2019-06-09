@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Virtio memory mapped device driver
  *
@@ -48,12 +49,7 @@
  *		virtio_mmio.device=0x100@0x100b0000:48 \
  *				virtio_mmio.device=1K@0x1001e000:74
  *
- *
- *
  * Based on Virtio PCI driver by Anthony Liguori, copyright IBM Corp. 2007
- *
- * This work is licensed under the terms of the GNU GPL, version 2 or later.
- * See the COPYING file in the top-level directory.
  */
 
 #define pr_fmt(fmt) "virtio-mmio: " fmt

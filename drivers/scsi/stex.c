@@ -1,16 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SuperTrak EX Series Storage Controller driver for Linux
  *
  *	Copyright (C) 2005-2015 Promise Technology Inc.
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  *	Written By:
  *		Ed Lin <promise_linux@promise.com>
- *
  */
 
 #include <linux/init.h>

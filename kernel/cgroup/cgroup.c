@@ -1460,8 +1460,8 @@ struct cgroup *task_cgroup_from_root(struct task_struct *task,
 
 static struct kernfs_syscall_ops cgroup_kf_syscall_ops;
 
-static char *cgroup_file_name(struct cgroup *cgrp, const struct cftype *cft,
-			      char *buf)
+static char *cgroup_fill_name(struct cgroup *cgrp, const struct cftype *cft,
+			      char *buf, bool write_link_name)
 {
 	struct cgroup_subsys *ss = cft->ss;
 
@@ -1471,11 +1471,24 @@ static char *cgroup_file_name(struct cgroup *cgrp, const struct cftype *cft,
 
 		snprintf(buf, CGROUP_FILE_NAME_MAX, "%s%s.%s",
 			 dbg, cgroup_on_dfl(cgrp) ? ss->name : ss->legacy_name,
-			 cft->name);
+			 write_link_name ? cft->link_name : cft->name);
 	} else {
-		strscpy(buf, cft->name, CGROUP_FILE_NAME_MAX);
+		strscpy(buf, write_link_name ? cft->link_name : cft->name,
+			CGROUP_FILE_NAME_MAX);
 	}
 	return buf;
+}
+
+static char *cgroup_file_name(struct cgroup *cgrp, const struct cftype *cft,
+			      char *buf)
+{
+	return cgroup_fill_name(cgrp, cft, buf, false);
+}
+
+static char *cgroup_link_name(struct cgroup *cgrp, const struct cftype *cft,
+			      char *buf)
+{
+	return cgroup_fill_name(cgrp, cft, buf, true);
 }
 
 /**
@@ -1636,6 +1649,9 @@ static void cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 	}
 
 	kernfs_remove_by_name(cgrp->kn, cgroup_file_name(cgrp, cft, name));
+	if (cft->flags & CFTYPE_SYMLINKED)
+		kernfs_remove_by_name(cgrp->kn,
+				      cgroup_link_name(cgrp, cft, name));
 }
 
 /**
@@ -1810,11 +1826,13 @@ int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 
 enum cgroup2_param {
 	Opt_nsdelegate,
+	Opt_memory_localevents,
 	nr__cgroup2_params
 };
 
 static const struct fs_parameter_spec cgroup2_param_specs[] = {
-	fsparam_flag  ("nsdelegate",		Opt_nsdelegate),
+	fsparam_flag("nsdelegate",		Opt_nsdelegate),
+	fsparam_flag("memory_localevents",	Opt_memory_localevents),
 	{}
 };
 
@@ -1837,6 +1855,9 @@ static int cgroup2_parse_param(struct fs_context *fc, struct fs_parameter *param
 	case Opt_nsdelegate:
 		ctx->flags |= CGRP_ROOT_NS_DELEGATE;
 		return 0;
+	case Opt_memory_localevents:
+		ctx->flags |= CGRP_ROOT_MEMORY_LOCAL_EVENTS;
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -1848,6 +1869,11 @@ static void apply_cgroup_root_flags(unsigned int root_flags)
 			cgrp_dfl_root.flags |= CGRP_ROOT_NS_DELEGATE;
 		else
 			cgrp_dfl_root.flags &= ~CGRP_ROOT_NS_DELEGATE;
+
+		if (root_flags & CGRP_ROOT_MEMORY_LOCAL_EVENTS)
+			cgrp_dfl_root.flags |= CGRP_ROOT_MEMORY_LOCAL_EVENTS;
+		else
+			cgrp_dfl_root.flags &= ~CGRP_ROOT_MEMORY_LOCAL_EVENTS;
 	}
 }
 
@@ -1855,6 +1881,8 @@ static int cgroup_show_options(struct seq_file *seq, struct kernfs_root *kf_root
 {
 	if (cgrp_dfl_root.flags & CGRP_ROOT_NS_DELEGATE)
 		seq_puts(seq, ",nsdelegate");
+	if (cgrp_dfl_root.flags & CGRP_ROOT_MEMORY_LOCAL_EVENTS)
+		seq_puts(seq, ",memory_localevents");
 	return 0;
 }
 
@@ -3809,6 +3837,7 @@ static int cgroup_add_file(struct cgroup_subsys_state *css, struct cgroup *cgrp,
 {
 	char name[CGROUP_FILE_NAME_MAX];
 	struct kernfs_node *kn;
+	struct kernfs_node *kn_link;
 	struct lock_class_key *key = NULL;
 	int ret;
 
@@ -3837,6 +3866,14 @@ static int cgroup_add_file(struct cgroup_subsys_state *css, struct cgroup *cgrp,
 		spin_lock_irq(&cgroup_file_kn_lock);
 		cfile->kn = kn;
 		spin_unlock_irq(&cgroup_file_kn_lock);
+	}
+
+	if (cft->flags & CFTYPE_SYMLINKED) {
+		kn_link = kernfs_create_link(cgrp->kn,
+					     cgroup_link_name(cgrp, cft, name),
+					     kn);
+		if (IS_ERR(kn_link))
+			return PTR_ERR(kn_link);
 	}
 
 	return 0;
@@ -6325,7 +6362,7 @@ static struct kobj_attribute cgroup_delegate_attr = __ATTR_RO(delegate);
 static ssize_t features_show(struct kobject *kobj, struct kobj_attribute *attr,
 			     char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "nsdelegate\n");
+	return snprintf(buf, PAGE_SIZE, "nsdelegate\nmemory_localevents\n");
 }
 static struct kobj_attribute cgroup_features_attr = __ATTR_RO(features);
 

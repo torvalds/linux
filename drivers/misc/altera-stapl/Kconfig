@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 comment "Altera FPGA firmware download module (requires I2C)"
 	depends on !I2C
 

@@ -208,7 +208,7 @@ static const struct tegra_soctherm_fuse tegra210_soctherm_fuse = {
 	.fuse_spare_realignment = 0,
 };
 
-struct tsensor_group_thermtrips tegra210_tsensor_thermtrips[] = {
+static struct tsensor_group_thermtrips tegra210_tsensor_thermtrips[] = {
 	{.id = TEGRA124_SOCTHERM_SENSOR_NUM},
 	{.id = TEGRA124_SOCTHERM_SENSOR_NUM},
 	{.id = TEGRA124_SOCTHERM_SENSOR_NUM},

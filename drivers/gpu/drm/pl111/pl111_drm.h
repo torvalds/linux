@@ -1,19 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
  * (C) COPYRIGHT 2012-2013 ARM Limited. All rights reserved.
- *
  *
  * Parts of this file were based on sources as follows:
  *
  * Copyright (c) 2006-2008 Intel Corporation
  * Copyright (c) 2007 Dave Airlie <airlied@linux.ie>
  * Copyright (C) 2011 Texas Instruments
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms of
- * such GNU licence.
- *
  */
 
 #ifndef _PL111_DRM_H_

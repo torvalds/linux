@@ -840,6 +840,36 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
 	kmem_cache_free(blk_requestq_cachep, q);
 }
 
+/* Unconfigure the I/O scheduler and dissociate from the cgroup controller. */
+static void blk_exit_queue(struct request_queue *q)
+{
+	/*
+	 * Since the I/O scheduler exit code may access cgroup information,
+	 * perform I/O scheduler exit before disassociating from the block
+	 * cgroup controller.
+	 */
+	if (q->elevator) {
+		ioc_clear_queue(q);
+		__elevator_exit(q, q->elevator);
+		q->elevator = NULL;
+	}
+
+	/*
+	 * Remove all references to @q from the block cgroup controller before
+	 * restoring @q->queue_lock to avoid that restoring this pointer causes
+	 * e.g. blkcg_print_blkgs() to crash.
+	 */
+	blkcg_exit_queue(q);
+
+	/*
+	 * Since the cgroup code may dereference the @q->backing_dev_info
+	 * pointer, only decrease its reference count after having removed the
+	 * association with the block cgroup controller.
+	 */
+	bdi_put(q->backing_dev_info);
+}
+
+
 /**
  * __blk_release_queue - release a request queue
  * @work: pointer to the release_work member of the request queue to be released
@@ -860,22 +890,9 @@ static void __blk_release_queue(struct work_struct *work)
 		blk_stat_remove_callback(q, q->poll_cb);
 	blk_stat_free_callback(q->poll_cb);
 
-	if (!blk_queue_dead(q)) {
-		/*
-		 * Last reference was dropped without having called
-		 * blk_cleanup_queue().
-		 */
-		WARN_ONCE(blk_queue_init_done(q),
-			  "request queue %p has been registered but blk_cleanup_queue() has not been called for that queue\n",
-			  q);
-		blk_exit_queue(q);
-	}
-
-	WARN(blk_queue_root_blkg(q),
-	     "request queue %p is being released but it has not yet been removed from the blkcg controller\n",
-	     q);
-
 	blk_free_queue_stats(q->stats);
+
+	blk_exit_queue(q);
 
 	blk_queue_free_zone_bitmaps(q);
 

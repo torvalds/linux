@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  HID driver for some samsung "special" devices
  *
@@ -8,7 +9,6 @@
  *  Copyright (c) 2008 Jiri Slaby
  *  Copyright (c) 2010 Don Prince <dhprince.devel@yahoo.co.uk>
  *
- *
  *  This driver supports several HID devices:
  *
  *  [0419:0001] Samsung IrDA remote controller (reports as Cypress USB Mouse).
@@ -17,14 +17,9 @@
  *  [0419:0600] Creative Desktop Wireless 6000 keyboard/mouse combo
  *	several key mappings used from the consumer usage page
  *	deviate from the USB HUT 1.12 standard.
- *
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <linux/device.h>

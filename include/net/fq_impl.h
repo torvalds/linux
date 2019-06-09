@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016 Qualcomm Atheros, Inc
- *
- * GPL v2
  *
  * Based on net/sched/sch_fq_codel.c
  */

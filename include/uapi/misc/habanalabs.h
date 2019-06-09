@@ -413,6 +413,10 @@ struct hl_debug_params_spmu {
 #define HL_DEBUG_OP_SPMU	5
 /* Opcode for timestamp */
 #define HL_DEBUG_OP_TIMESTAMP	6
+/* Opcode for setting the device into or out of debug mode. The enable
+ * variable should be 1 for enabling debug mode and 0 for disabling it
+ */
+#define HL_DEBUG_OP_SET_MODE	7
 
 struct hl_debug_args {
 	/*
@@ -574,8 +578,22 @@ struct hl_debug_args {
  *
  * This IOCTL allows the user to get debug traces from the chip.
  *
- * The user needs to provide the register index and essential data such as
- * buffer address and size.
+ * Before the user can send configuration requests of the various
+ * debug/profile engines, it needs to set the device into debug mode.
+ * This is because the debug/profile infrastructure is shared component in the
+ * device and we can't allow multiple users to access it at the same time.
+ *
+ * Once a user set the device into debug mode, the driver won't allow other
+ * users to "work" with the device, i.e. open a FD. If there are multiple users
+ * opened on the device, the driver won't allow any user to debug the device.
+ *
+ * For each configuration request, the user needs to provide the register index
+ * and essential data such as buffer address and size.
+ *
+ * Once the user has finished using the debug/profile engines, he should
+ * set the device into non-debug mode, i.e. disable debug mode.
+ *
+ * The driver can decide to "kick out" the user if he abuses this interface.
  *
  */
 #define HL_IOCTL_DEBUG		\

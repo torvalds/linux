@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel 7300 class Memory Controllers kernel module (Clarksboro)
- *
- * This file may be distributed under the terms of the
- * GNU General Public License version 2 only.
  *
  * Copyright (c) 2010 by:
  *	 Mauro Carvalho Chehab
