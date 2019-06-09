@@ -261,8 +261,6 @@ int ovs_vport_set_options(struct vport *vport, struct nlattr *options)
  */
 void ovs_vport_del(struct vport *vport)
 {
-	ASSERT_OVSL();
-
 	hlist_del_rcu(&vport->hash_node);
 	module_put(vport->ops->owner);
 	vport->ops->destroy(vport);
