@@ -172,7 +172,6 @@ extern struct pinctrl_dev *devm_pinctrl_register(struct device *dev,
 extern void devm_pinctrl_unregister(struct device *dev,
 				struct pinctrl_dev *pctldev);
 
-extern bool pin_is_valid(struct pinctrl_dev *pctldev, int pin);
 extern void pinctrl_add_gpio_range(struct pinctrl_dev *pctldev,
 				struct pinctrl_gpio_range *range);
 extern void pinctrl_add_gpio_ranges(struct pinctrl_dev *pctldev,
@@ -203,15 +202,6 @@ struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
 extern const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev);
 extern const char *pinctrl_dev_get_devname(struct pinctrl_dev *pctldev);
 extern void *pinctrl_dev_get_drvdata(struct pinctrl_dev *pctldev);
-#else
-
-struct pinctrl_dev;
-
-/* Sufficiently stupid default functions when pinctrl is not in use */
-static inline bool pin_is_valid(struct pinctrl_dev *pctldev, int pin)
-{
-	return pin >= 0;
-}
 
 #endif /* !CONFIG_PINCTRL */
 

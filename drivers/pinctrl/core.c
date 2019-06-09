@@ -178,29 +178,6 @@ const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin)
 	return desc->name;
 }
 
-/**
- * pin_is_valid() - check if pin exists on controller
- * @pctldev: the pin control device to check the pin on
- * @pin: pin to check, use the local pin controller index number
- *
- * This tells us whether a certain pin exist on a certain pin controller or
- * not. Pin lists may be sparse, so some pins may not exist.
- */
-bool pin_is_valid(struct pinctrl_dev *pctldev, int pin)
-{
-	struct pin_desc *pindesc;
-
-	if (pin < 0)
-		return false;
-
-	mutex_lock(&pctldev->mutex);
-	pindesc = pin_desc_get(pctldev, pin);
-	mutex_unlock(&pctldev->mutex);
-
-	return pindesc != NULL;
-}
-EXPORT_SYMBOL_GPL(pin_is_valid);
-
 /* Deletes a range of pin descriptors */
 static void pinctrl_free_pindescs(struct pinctrl_dev *pctldev,
 				  const struct pinctrl_pin_desc *pins,
