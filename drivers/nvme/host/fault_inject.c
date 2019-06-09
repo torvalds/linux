@@ -60,9 +60,6 @@ void nvme_should_fail(struct request *req)
 	struct nvme_fault_inject *fault_inject = NULL;
 	u16 status;
 
-	/*
-	 * make sure this request is coming from a valid namespace
-	 */
 	if (disk) {
 		struct nvme_ns *ns = disk->private_data;
 
@@ -70,6 +67,8 @@ void nvme_should_fail(struct request *req)
 			fault_inject = &ns->fault_inject;
 		else
 			WARN_ONCE(1, "No namespace found for request\n");
+	} else {
+		fault_inject = &nvme_req(req)->ctrl->fault_inject;
 	}
 
 	if (fault_inject && should_fail(&fault_inject->attr, 1)) {

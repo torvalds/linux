@@ -256,6 +256,8 @@ struct nvme_ctrl {
 
 	struct page *discard_page;
 	unsigned long discard_page_busy;
+
+	struct nvme_fault_inject fault_inject;
 };
 
 enum nvme_iopolicy {
