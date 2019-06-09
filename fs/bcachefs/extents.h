@@ -386,7 +386,7 @@ void bch2_extent_debugcheck(struct bch_fs *, struct btree *, struct bkey_s_c);
 void bch2_extent_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 bool bch2_extent_normalize(struct bch_fs *, struct bkey_s);
 enum merge_result bch2_extent_merge(struct bch_fs *,
-				    struct bkey_i *, struct bkey_i *);
+				    struct bkey_s, struct bkey_s);
 
 #define bch2_bkey_ops_extent (struct bkey_ops) {		\
 	.key_invalid	= bch2_extent_invalid,			\
@@ -402,7 +402,7 @@ enum merge_result bch2_extent_merge(struct bch_fs *,
 const char *bch2_reservation_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_reservation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 enum merge_result bch2_reservation_merge(struct bch_fs *,
-					 struct bkey_i *, struct bkey_i *);
+					 struct bkey_s, struct bkey_s);
 
 #define bch2_bkey_ops_reservation (struct bkey_ops) {		\
 	.key_invalid	= bch2_reservation_invalid,		\

@@ -1521,21 +1521,21 @@ void bch2_extent_mark_replicas_cached(struct bch_fs *c,
 }
 
 enum merge_result bch2_extent_merge(struct bch_fs *c,
-				    struct bkey_i *l, struct bkey_i *r)
+				    struct bkey_s _l, struct bkey_s _r)
 {
-	struct bkey_s_extent el = bkey_i_to_s_extent(l);
-	struct bkey_s_extent er = bkey_i_to_s_extent(r);
-	union bch_extent_entry *en_l = el.v->start;
-	union bch_extent_entry *en_r = er.v->start;
+	struct bkey_s_extent l = bkey_s_to_extent(_l);
+	struct bkey_s_extent r = bkey_s_to_extent(_r);
+	union bch_extent_entry *en_l = l.v->start;
+	union bch_extent_entry *en_r = r.v->start;
 	struct bch_extent_crc_unpacked crc_l, crc_r;
 
-	if (bkey_val_u64s(&l->k) != bkey_val_u64s(&r->k))
+	if (bkey_val_u64s(l.k) != bkey_val_u64s(r.k))
 		return BCH_MERGE_NOMERGE;
 
-	crc_l = bch2_extent_crc_unpack(el.k, NULL);
+	crc_l = bch2_extent_crc_unpack(l.k, NULL);
 
-	extent_for_each_entry(el, en_l) {
-		en_r = vstruct_idx(er.v, (u64 *) en_l - el.v->_data);
+	extent_for_each_entry(l, en_l) {
+		en_r = vstruct_idx(r.v, (u64 *) en_l - l.v->_data);
 
 		if (extent_entry_type(en_l) != extent_entry_type(en_r))
 			return BCH_MERGE_NOMERGE;
@@ -1567,8 +1567,8 @@ enum merge_result bch2_extent_merge(struct bch_fs *c,
 		case BCH_EXTENT_ENTRY_crc32:
 		case BCH_EXTENT_ENTRY_crc64:
 		case BCH_EXTENT_ENTRY_crc128:
-			crc_l = bch2_extent_crc_unpack(el.k, entry_to_crc(en_l));
-			crc_r = bch2_extent_crc_unpack(er.k, entry_to_crc(en_r));
+			crc_l = bch2_extent_crc_unpack(l.k, entry_to_crc(en_l));
+			crc_r = bch2_extent_crc_unpack(r.k, entry_to_crc(en_r));
 
 			if (crc_l.csum_type		!= crc_r.csum_type ||
 			    crc_l.compression_type	!= crc_r.compression_type ||
@@ -1600,16 +1600,16 @@ enum merge_result bch2_extent_merge(struct bch_fs *c,
 		}
 	}
 
-	extent_for_each_entry(el, en_l) {
+	extent_for_each_entry(l, en_l) {
 		struct bch_extent_crc_unpacked crc_l, crc_r;
 
-		en_r = vstruct_idx(er.v, (u64 *) en_l - el.v->_data);
+		en_r = vstruct_idx(r.v, (u64 *) en_l - l.v->_data);
 
 		if (!extent_entry_is_crc(en_l))
 			continue;
 
-		crc_l = bch2_extent_crc_unpack(el.k, entry_to_crc(en_l));
-		crc_r = bch2_extent_crc_unpack(er.k, entry_to_crc(en_r));
+		crc_l = bch2_extent_crc_unpack(l.k, entry_to_crc(en_l));
+		crc_r = bch2_extent_crc_unpack(r.k, entry_to_crc(en_r));
 
 		crc_l.csum = bch2_checksum_merge(crc_l.csum_type,
 						 crc_l.csum,
@@ -1622,7 +1622,7 @@ enum merge_result bch2_extent_merge(struct bch_fs *c,
 		bch2_extent_crc_pack(entry_to_crc(en_l), crc_l);
 	}
 
-	bch2_key_resize(&l->k, l->k.size + r->k.size);
+	bch2_key_resize(l.k, l.k->size + r.k->size);
 
 	return BCH_MERGE_MERGE;
 }
@@ -1662,7 +1662,9 @@ static bool bch2_extent_merge_inline(struct bch_fs *c,
 	bch2_bkey_unpack(b, &li.k, l);
 	bch2_bkey_unpack(b, &ri.k, r);
 
-	ret = bch2_bkey_merge(c, &li.k, &ri.k);
+	ret = bch2_bkey_merge(c,
+			      bkey_i_to_s(&li.k),
+			      bkey_i_to_s(&ri.k));
 	if (ret == BCH_MERGE_NOMERGE)
 		return false;
 
@@ -1785,22 +1787,22 @@ void bch2_reservation_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 enum merge_result bch2_reservation_merge(struct bch_fs *c,
-					 struct bkey_i *l, struct bkey_i *r)
+					 struct bkey_s _l, struct bkey_s _r)
 {
-	struct bkey_i_reservation *li = bkey_i_to_reservation(l);
-	struct bkey_i_reservation *ri = bkey_i_to_reservation(r);
+	struct bkey_s_reservation l = bkey_s_to_reservation(_l);
+	struct bkey_s_reservation r = bkey_s_to_reservation(_r);
 
-	if (li->v.generation != ri->v.generation ||
-	    li->v.nr_replicas != ri->v.nr_replicas)
+	if (l.v->generation != r.v->generation ||
+	    l.v->nr_replicas != r.v->nr_replicas)
 		return BCH_MERGE_NOMERGE;
 
-	if ((u64) l->k.size + r->k.size > KEY_SIZE_MAX) {
-		bch2_key_resize(&l->k, KEY_SIZE_MAX);
-		bch2_cut_front(l->k.p, r);
+	if ((u64) l.k->size + r.k->size > KEY_SIZE_MAX) {
+		bch2_key_resize(l.k, KEY_SIZE_MAX);
+		__bch2_cut_front(l.k->p, r.s);
 		return BCH_MERGE_PARTIAL;
 	}
 
-	bch2_key_resize(&l->k, l->k.size + r->k.size);
+	bch2_key_resize(l.k, l.k->size + r.k->size);
 
 	return BCH_MERGE_MERGE;
 }

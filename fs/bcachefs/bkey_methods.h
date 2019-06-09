@@ -33,7 +33,7 @@ struct bkey_ops {
 	void		(*swab)(const struct bkey_format *, struct bkey_packed *);
 	bool		(*key_normalize)(struct bch_fs *, struct bkey_s);
 	enum merge_result (*key_merge)(struct bch_fs *,
-				       struct bkey_i *, struct bkey_i *);
+				       struct bkey_s, struct bkey_s);
 };
 
 const char *bch2_bkey_val_invalid(struct bch_fs *, struct bkey_s_c);
@@ -57,7 +57,7 @@ void bch2_bkey_swab(const struct bkey_format *, struct bkey_packed *);
 bool bch2_bkey_normalize(struct bch_fs *, struct bkey_s);
 
 enum merge_result bch2_bkey_merge(struct bch_fs *,
-				  struct bkey_i *, struct bkey_i *);
+				  struct bkey_s, struct bkey_s);
 
 void bch2_bkey_renumber(enum btree_node_type, struct bkey_packed *, int);
 

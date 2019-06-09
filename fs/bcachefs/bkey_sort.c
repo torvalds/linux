@@ -257,7 +257,7 @@ static void extent_sort_append(struct bch_fs *c,
 	bch2_bkey_unpack(b, &tmp.k, k);
 
 	if (*prev &&
-	    bch2_bkey_merge(c, (void *) *prev, &tmp.k))
+	    bch2_bkey_merge(c, bkey_i_to_s((void *) *prev), bkey_i_to_s(&tmp.k)))
 		return;
 
 	if (*prev) {
@@ -436,7 +436,9 @@ bch2_sort_repack_merge(struct bch_fs *c,
 		/* prev is always unpacked, for key merging: */
 
 		if (prev &&
-		    bch2_bkey_merge(c, (void *) prev, &tmp.k) ==
+		    bch2_bkey_merge(c,
+				    bkey_i_to_s((void *) prev),
+				    bkey_i_to_s(&tmp.k)) ==
 		    BCH_MERGE_MERGE)
 			continue;
 
