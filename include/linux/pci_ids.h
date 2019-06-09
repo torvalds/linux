@@ -3098,6 +3098,4 @@
 
 #define PCI_VENDOR_ID_NCUBE		0x10ff
 
-#define PCI_VENDOR_ID_SK_HYNIX		0x1c5c
-
 #endif /* _LINUX_PCI_IDS_H */
