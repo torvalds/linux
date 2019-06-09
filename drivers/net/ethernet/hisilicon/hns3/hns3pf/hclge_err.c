@@ -673,19 +673,19 @@ static int hclge_cmd_query_error(struct hclge_dev *hdev,
 				 enum hclge_err_int_type int_type)
 {
 	struct device *dev = &hdev->pdev->dev;
-	int num = 1;
+	int desc_num = 1;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc[0], cmd, true);
 	if (flag) {
 		desc[0].flag |= cpu_to_le16(flag);
 		hclge_cmd_setup_basic_desc(&desc[1], cmd, true);
-		num = 2;
+		desc_num = 2;
 	}
 	if (w_num)
 		desc[0].data[w_num] = cpu_to_le32(int_type);
 
-	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], desc_num);
 	if (ret)
 		dev_err(dev, "query error cmd failed (%d)\n", ret);
 
@@ -941,7 +941,7 @@ static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
 {
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_desc desc[2];
-	int num = 1;
+	int desc_num = 1;
 	int ret;
 
 	/* configure PPU error interrupts */
@@ -960,7 +960,7 @@ static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
 		desc[1].data[1] = HCLGE_PPU_MPF_ABNORMAL_INT1_EN_MASK;
 		desc[1].data[2] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN_MASK;
 		desc[1].data[3] |= HCLGE_PPU_MPF_ABNORMAL_INT3_EN_MASK;
-		num = 2;
+		desc_num = 2;
 	} else if (cmd == HCLGE_PPU_MPF_OTHER_INT_CMD) {
 		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
 		if (en)
@@ -978,7 +978,7 @@ static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
 		return -EINVAL;
 	}
 
-	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], desc_num);
 
 	return ret;
 }
@@ -1388,6 +1388,66 @@ static int hclge_handle_all_ras_errors(struct hclge_dev *hdev)
 	return ret;
 }
 
+static int hclge_log_rocee_axi_error(struct hclge_dev *hdev)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc[3];
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_ROCEE_AXI_RAS_INFO_CMD,
+				   true);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_QUERY_ROCEE_AXI_RAS_INFO_CMD,
+				   true);
+	hclge_cmd_setup_basic_desc(&desc[2], HCLGE_QUERY_ROCEE_AXI_RAS_INFO_CMD,
+				   true);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], 3);
+	if (ret) {
+		dev_err(dev, "failed(%d) to query ROCEE AXI error sts\n", ret);
+		return ret;
+	}
+
+	dev_info(dev, "AXI1: %08X %08X %08X %08X %08X %08X\n",
+		 le32_to_cpu(desc[0].data[0]), le32_to_cpu(desc[0].data[1]),
+		 le32_to_cpu(desc[0].data[2]), le32_to_cpu(desc[0].data[3]),
+		 le32_to_cpu(desc[0].data[4]), le32_to_cpu(desc[0].data[5]));
+	dev_info(dev, "AXI2: %08X %08X %08X %08X %08X %08X\n",
+		 le32_to_cpu(desc[1].data[0]), le32_to_cpu(desc[1].data[1]),
+		 le32_to_cpu(desc[1].data[2]), le32_to_cpu(desc[1].data[3]),
+		 le32_to_cpu(desc[1].data[4]), le32_to_cpu(desc[1].data[5]));
+	dev_info(dev, "AXI3: %08X %08X %08X %08X\n",
+		 le32_to_cpu(desc[2].data[0]), le32_to_cpu(desc[2].data[1]),
+		 le32_to_cpu(desc[2].data[2]), le32_to_cpu(desc[2].data[3]));
+
+	return 0;
+}
+
+static int hclge_log_rocee_ecc_error(struct hclge_dev *hdev)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc[2];
+	int ret;
+
+	ret = hclge_cmd_query_error(hdev, &desc[0],
+				    HCLGE_QUERY_ROCEE_ECC_RAS_INFO_CMD,
+				    HCLGE_CMD_FLAG_NEXT, 0, 0);
+	if (ret) {
+		dev_err(dev, "failed(%d) to query ROCEE ECC error sts\n", ret);
+		return ret;
+	}
+
+	dev_info(dev, "ECC1: %08X %08X %08X %08X %08X %08X\n",
+		 le32_to_cpu(desc[0].data[0]), le32_to_cpu(desc[0].data[1]),
+		 le32_to_cpu(desc[0].data[2]), le32_to_cpu(desc[0].data[3]),
+		 le32_to_cpu(desc[0].data[4]), le32_to_cpu(desc[0].data[5]));
+	dev_info(dev, "ECC2: %08X %08X %08X\n", le32_to_cpu(desc[1].data[0]),
+		 le32_to_cpu(desc[1].data[1]), le32_to_cpu(desc[1].data[2]));
+
+	return 0;
+}
+
 static int hclge_log_rocee_ovf_error(struct hclge_dev *hdev)
 {
 	struct device *dev = &hdev->pdev->dev;
@@ -1395,8 +1455,7 @@ static int hclge_log_rocee_ovf_error(struct hclge_dev *hdev)
 	int ret;
 
 	/* read overflow error status */
-	ret = hclge_cmd_query_error(hdev, &desc[0],
-				    HCLGE_ROCEE_PF_RAS_INT_CMD,
+	ret = hclge_cmd_query_error(hdev, &desc[0], HCLGE_ROCEE_PF_RAS_INT_CMD,
 				    0, 0, 0);
 	if (ret) {
 		dev_err(dev, "failed(%d) to query ROCEE OVF error sts\n", ret);
@@ -1456,19 +1515,27 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 
 	status = le32_to_cpu(desc[0].data[0]);
 
-	if (status & HCLGE_ROCEE_RERR_INT_MASK) {
-		dev_warn(dev, "ROCEE RAS AXI rresp error\n");
-		reset_type = HNAE3_FUNC_RESET;
-	}
+	if (status & HCLGE_ROCEE_AXI_ERR_INT_MASK) {
+		if (status & HCLGE_ROCEE_RERR_INT_MASK)
+			dev_warn(dev, "ROCEE RAS AXI rresp error\n");
 
-	if (status & HCLGE_ROCEE_BERR_INT_MASK) {
-		dev_warn(dev, "ROCEE RAS AXI bresp error\n");
+		if (status & HCLGE_ROCEE_BERR_INT_MASK)
+			dev_warn(dev, "ROCEE RAS AXI bresp error\n");
+
 		reset_type = HNAE3_FUNC_RESET;
+
+		ret = hclge_log_rocee_axi_error(hdev);
+		if (ret)
+			return HNAE3_GLOBAL_RESET;
 	}
 
 	if (status & HCLGE_ROCEE_ECC_INT_MASK) {
 		dev_warn(dev, "ROCEE RAS 2bit ECC error\n");
 		reset_type = HNAE3_GLOBAL_RESET;
+
+		ret = hclge_log_rocee_ecc_error(hdev);
+		if (ret)
+			return HNAE3_GLOBAL_RESET;
 	}
 
 	if (status & HCLGE_ROCEE_OVF_INT_MASK) {
@@ -1478,7 +1545,6 @@ hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
 			/* reset everything for now */
 			return HNAE3_GLOBAL_RESET;
 		}
-		reset_type = HNAE3_FUNC_RESET;
 	}
 
 	/* clear error status */
@@ -1620,6 +1686,81 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
+/* hclge_query_8bd_info: query information about over_8bd_nfe_err
+ * @hdev: pointer to struct hclge_dev
+ * @vf_id: Index of the virtual function with error
+ * @q_id: Physical index of the queue with error
+ *
+ * This function get specific index of queue and function which causes
+ * over_8bd_nfe_err by using command. If vf_id is 0, it means error is
+ * caused by PF instead of VF.
+ */
+static int hclge_query_over_8bd_err_info(struct hclge_dev *hdev, u16 *vf_id,
+					 u16 *q_id)
+{
+	struct hclge_query_ppu_pf_other_int_dfx_cmd *req;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_PPU_PF_OTHER_INT_DFX, true);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		return ret;
+
+	req = (struct hclge_query_ppu_pf_other_int_dfx_cmd *)desc.data;
+	*vf_id = le16_to_cpu(req->over_8bd_no_fe_vf_id);
+	*q_id = le16_to_cpu(req->over_8bd_no_fe_qid);
+
+	return 0;
+}
+
+/* hclge_handle_over_8bd_err: handle MSI-X error named over_8bd_nfe_err
+ * @hdev: pointer to struct hclge_dev
+ * @reset_requests: reset level that we need to trigger later
+ *
+ * over_8bd_nfe_err is a special MSI-X because it may caused by a VF, in
+ * that case, we need to trigger VF reset. Otherwise, a PF reset is needed.
+ */
+static void hclge_handle_over_8bd_err(struct hclge_dev *hdev,
+				      unsigned long *reset_requests)
+{
+	struct device *dev = &hdev->pdev->dev;
+	u16 vf_id;
+	u16 q_id;
+	int ret;
+
+	ret = hclge_query_over_8bd_err_info(hdev, &vf_id, &q_id);
+	if (ret) {
+		dev_err(dev, "fail(%d) to query over_8bd_no_fe info\n",
+			ret);
+		return;
+	}
+
+	dev_warn(dev, "PPU_PF_ABNORMAL_INT_ST over_8bd_no_fe found, vf_id(%d), queue_id(%d)\n",
+		 vf_id, q_id);
+
+	if (vf_id) {
+		if (vf_id >= hdev->num_alloc_vport) {
+			dev_err(dev, "invalid vf id(%d)\n", vf_id);
+			return;
+		}
+
+		/* If we need to trigger other reset whose level is higher
+		 * than HNAE3_VF_FUNC_RESET, no need to trigger a VF reset
+		 * here.
+		 */
+		if (*reset_requests != 0)
+			return;
+
+		ret = hclge_inform_reset_assert_to_vf(&hdev->vport[vf_id]);
+		if (ret)
+			dev_warn(dev, "inform reset to vf(%d) failed %d!\n",
+				 hdev->vport->vport_id, ret);
+	} else {
+		set_bit(HNAE3_FUNC_RESET, reset_requests);
+	}
+}
+
 int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 			       unsigned long *reset_requests)
 {
@@ -1731,6 +1872,10 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 					      status);
 		set_bit(reset_level, reset_requests);
 	}
+
+	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_OVER_8BD_ERR_MASK;
+	if (status)
+		hclge_handle_over_8bd_err(hdev, reset_requests);
 
 	/* clear all PF MSIx errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
