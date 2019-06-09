@@ -19,7 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/component.h>
 #include <linux/phy/phy.h>
 
@@ -1603,12 +1603,18 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	dp->force_hpd = of_property_read_bool(dev->of_node, "force-hpd");
 
-	dp->hpd_gpio = of_get_named_gpio(dev->of_node, "hpd-gpios", 0);
-	if (!gpio_is_valid(dp->hpd_gpio))
-		dp->hpd_gpio = of_get_named_gpio(dev->of_node,
-						 "samsung,hpd-gpio", 0);
+	/* Try two different names */
+	dp->hpd_gpiod = devm_gpiod_get_optional(dev, "hpd", GPIOD_IN);
+	if (!dp->hpd_gpiod)
+		dp->hpd_gpiod = devm_gpiod_get_optional(dev, "samsung,hpd",
+							GPIOD_IN);
+	if (IS_ERR(dp->hpd_gpiod)) {
+		dev_err(dev, "error getting HDP GPIO: %ld\n",
+			PTR_ERR(dp->hpd_gpiod));
+		return ERR_CAST(dp->hpd_gpiod);
+	}
 
-	if (gpio_is_valid(dp->hpd_gpio)) {
+	if (dp->hpd_gpiod) {
 		/*
 		 * Set up the hotplug GPIO from the device tree as an interrupt.
 		 * Simply specifying a different interrupt in the device tree
@@ -1616,16 +1622,9 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		 * using a GPIO.  We also need the actual GPIO specifier so
 		 * that we can get the current state of the GPIO.
 		 */
-		ret = devm_gpio_request_one(&pdev->dev, dp->hpd_gpio, GPIOF_IN,
-					    "hpd_gpio");
-		if (ret) {
-			dev_err(&pdev->dev, "failed to get hpd gpio\n");
-			return ERR_PTR(ret);
-		}
-		dp->irq = gpio_to_irq(dp->hpd_gpio);
+		dp->irq = gpiod_to_irq(dp->hpd_gpiod);
 		irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
 	} else {
-		dp->hpd_gpio = -ENODEV;
 		dp->irq = platform_get_irq(pdev, 0);
 		irq_flags = 0;
 	}
