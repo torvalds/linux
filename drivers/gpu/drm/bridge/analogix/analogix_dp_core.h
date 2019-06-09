@@ -38,6 +38,8 @@
 #define DPCD_VOLTAGE_SWING_SET(x)		(((x) & 0x3) << 0)
 #define DPCD_VOLTAGE_SWING_GET(x)		(((x) >> 0) & 0x3)
 
+struct gpio_desc;
+
 enum link_lane_count_type {
 	LANE_COUNT1 = 1,
 	LANE_COUNT2 = 2,
@@ -171,7 +173,7 @@ struct analogix_dp_device {
 	struct link_train	link_train;
 	struct phy		*phy;
 	int			dpms_mode;
-	int			hpd_gpio;
+	struct gpio_desc	*hpd_gpiod;
 	bool                    force_hpd;
 	bool			psr_enable;
 	bool			fast_train_enable;

@@ -12,7 +12,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 
@@ -397,7 +397,7 @@ void analogix_dp_clear_hotplug_interrupts(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	if (gpio_is_valid(dp->hpd_gpio))
+	if (dp->hpd_gpiod)
 		return;
 
 	reg = HOTPLUG_CHG | HPD_LOST | PLUG;
@@ -411,7 +411,7 @@ void analogix_dp_init_hpd(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	if (gpio_is_valid(dp->hpd_gpio))
+	if (dp->hpd_gpiod)
 		return;
 
 	analogix_dp_clear_hotplug_interrupts(dp);
@@ -434,8 +434,8 @@ enum dp_irq_type analogix_dp_get_irq_type(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	if (gpio_is_valid(dp->hpd_gpio)) {
-		reg = gpio_get_value(dp->hpd_gpio);
+	if (dp->hpd_gpiod) {
+		reg = gpiod_get_value(dp->hpd_gpiod);
 		if (reg)
 			return DP_IRQ_TYPE_HP_CABLE_IN;
 		else
@@ -507,8 +507,8 @@ int analogix_dp_get_plug_in_status(struct analogix_dp_device *dp)
 {
 	u32 reg;
 
-	if (gpio_is_valid(dp->hpd_gpio)) {
-		if (gpio_get_value(dp->hpd_gpio))
+	if (dp->hpd_gpiod) {
+		if (gpiod_get_value(dp->hpd_gpiod))
 			return 0;
 	} else {
 		reg = readl(dp->reg_base + ANALOGIX_DP_SYS_CTL_3);
