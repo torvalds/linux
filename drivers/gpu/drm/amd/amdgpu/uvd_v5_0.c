@@ -25,7 +25,6 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 
-#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_uvd.h"
 #include "vid.h"

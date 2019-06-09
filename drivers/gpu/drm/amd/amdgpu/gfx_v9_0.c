@@ -24,8 +24,9 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/firmware.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 
-#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "soc15.h"
