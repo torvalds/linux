@@ -1,4 +1,6 @@
-IP OVER INFINIBAND
+==================
+IP over InfiniBand
+==================
 
   The ib_ipoib driver is an implementation of the IP over InfiniBand
   protocol as specified by RFC 4391 and 4392, issued by the IETF ipoib
@@ -8,16 +10,17 @@ IP OVER INFINIBAND
   masqueraded to the kernel as ethernet interfaces).
 
 Partitions and P_Keys
+=====================
 
   When the IPoIB driver is loaded, it creates one interface for each
   port using the P_Key at index 0.  To create an interface with a
   different P_Key, write the desired P_Key into the main interface's
-  /sys/class/net/<intf name>/create_child file.  For example:
+  /sys/class/net/<intf name>/create_child file.  For example::
 
     echo 0x8001 > /sys/class/net/ib0/create_child
 
   This will create an interface named ib0.8001 with P_Key 0x8001.  To
-  remove a subinterface, use the "delete_child" file:
+  remove a subinterface, use the "delete_child" file::
 
     echo 0x8001 > /sys/class/net/ib0/delete_child
 
@@ -28,6 +31,7 @@ Partitions and P_Keys
   rtnl_link_ops, where children created using either way behave the same.
 
 Datagram vs Connected modes
+===========================
 
   The IPoIB driver supports two modes of operation: datagram and
   connected.  The mode is set and read through an interface's
@@ -51,6 +55,7 @@ Datagram vs Connected modes
   networking stack to use the smaller UD MTU for these neighbours.
 
 Stateless offloads
+==================
 
   If the IB HW supports IPoIB stateless offloads, IPoIB advertises
   TCP/IP checksum and/or Large Send (LSO) offloading capability to the
@@ -60,9 +65,10 @@ Stateless offloads
   on/off using ethtool calls.  Currently LRO is supported only for
   checksum offload capable devices.
 
-  Stateless offloads are supported only in datagram mode.  
+  Stateless offloads are supported only in datagram mode.
 
 Interrupt moderation
+====================
 
   If the underlying IB device supports CQ event moderation, one can
   use ethtool to set interrupt mitigation parameters and thus reduce
@@ -71,6 +77,7 @@ Interrupt moderation
   moderation is supported.
 
 Debugging Information
+=====================
 
   By compiling the IPoIB driver with CONFIG_INFINIBAND_IPOIB_DEBUG set
   to 'y', tracing messages are compiled into the driver.  They are
@@ -79,7 +86,7 @@ Debugging Information
   runtime through files in /sys/module/ib_ipoib/.
 
   CONFIG_INFINIBAND_IPOIB_DEBUG also enables files in the debugfs
-  virtual filesystem.  By mounting this filesystem, for example with
+  virtual filesystem.  By mounting this filesystem, for example with::
 
     mount -t debugfs none /sys/kernel/debug
 
@@ -96,10 +103,13 @@ Debugging Information
   performance, because it adds tests to the fast path.
 
 References
+==========
 
   Transmission of IP over InfiniBand (IPoIB) (RFC 4391)
-    http://ietf.org/rfc/rfc4391.txt 
+    http://ietf.org/rfc/rfc4391.txt
+
   IP over InfiniBand (IPoIB) Architecture (RFC 4392)
-    http://ietf.org/rfc/rfc4392.txt 
+    http://ietf.org/rfc/rfc4392.txt
+
   IP over InfiniBand: Connected Mode (RFC 4755)
     http://ietf.org/rfc/rfc4755.txt

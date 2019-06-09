@@ -745,7 +745,7 @@ found:
 				"process %s did not enable P_Key index support.\n",
 				current->comm);
 			dev_warn(&file->port->dev,
-				"   Documentation/infiniband/user_mad.txt has info on the new ABI.\n");
+				"   Documentation/infiniband/user_mad.rst has info on the new ABI.\n");
 		}
 	}
 

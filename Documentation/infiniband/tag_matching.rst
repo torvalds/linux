@@ -1,12 +1,16 @@
+==================
 Tag matching logic
+==================
 
 The MPI standard defines a set of rules, known as tag-matching, for matching
 source send operations to destination receives.  The following parameters must
 match the following source and destination parameters:
+
 *	Communicator
 *	User tag - wild card may be specified by the receiver
 *	Source rank – wild car may be specified by the receiver
 *	Destination rank – wild
+
 The ordering rules require that when more than one pair of send and receive
 message envelopes may match, the pair that includes the earliest posted-send
 and the earliest posted-receive is the pair that must be used to satisfy the
@@ -35,6 +39,7 @@ the header to initiate an RDMA READ operation directly to the matching buffer.
 A fin message needs to be received in order for the buffer to be reused.
 
 Tag matching implementation
+===========================
 
 There are two types of matching objects used, the posted receive list and the
 unexpected message list. The application posts receive buffers through calls
