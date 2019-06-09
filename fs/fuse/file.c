@@ -1377,10 +1377,17 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 		if (err && !nbytes)
 			break;
 
-		if (write)
+		if (write) {
+			if (!capable(CAP_FSETID)) {
+				struct fuse_write_in *inarg;
+
+				inarg = &req->misc.write.in;
+				inarg->write_flags |= FUSE_WRITE_KILL_PRIV;
+			}
 			nres = fuse_send_write(req, io, pos, nbytes, owner);
-		else
+		} else {
 			nres = fuse_send_read(req, io, pos, nbytes, owner);
+		}
 
 		if (!io->async)
 			fuse_release_user_pages(req, io->should_dirty);
@@ -3014,6 +3021,16 @@ fuse_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 	return ret;
 }
 
+static int fuse_writeback_range(struct inode *inode, loff_t start, loff_t end)
+{
+	int err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+
+	if (!err)
+		fuse_sync_writes(inode);
+
+	return err;
+}
+
 static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 				loff_t length)
 {
@@ -3042,12 +3059,10 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 		inode_lock(inode);
 		if (mode & FALLOC_FL_PUNCH_HOLE) {
 			loff_t endbyte = offset + length - 1;
-			err = filemap_write_and_wait_range(inode->i_mapping,
-							   offset, endbyte);
+
+			err = fuse_writeback_range(inode, offset, endbyte);
 			if (err)
 				goto out;
-
-			fuse_sync_writes(inode);
 		}
 	}
 
@@ -3055,7 +3070,7 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	    offset + length > i_size_read(inode)) {
 		err = inode_newsize_ok(inode, offset + length);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE))
@@ -3103,6 +3118,7 @@ static ssize_t fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 {
 	struct fuse_file *ff_in = file_in->private_data;
 	struct fuse_file *ff_out = file_out->private_data;
+	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
 	struct fuse_inode *fi_out = get_fuse_inode(inode_out);
 	struct fuse_conn *fc = ff_in->fc;
@@ -3126,15 +3142,20 @@ static ssize_t fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 	if (fc->no_copy_file_range)
 		return -EOPNOTSUPP;
 
+	if (fc->writeback_cache) {
+		inode_lock(inode_in);
+		err = fuse_writeback_range(inode_in, pos_in, pos_in + len);
+		inode_unlock(inode_in);
+		if (err)
+			return err;
+	}
+
 	inode_lock(inode_out);
 
 	if (fc->writeback_cache) {
-		err = filemap_write_and_wait_range(inode_out->i_mapping,
-						   pos_out, pos_out + len);
+		err = fuse_writeback_range(inode_out, pos_out, pos_out + len);
 		if (err)
 			goto out;
-
-		fuse_sync_writes(inode_out);
 	}
 
 	if (is_unstable)

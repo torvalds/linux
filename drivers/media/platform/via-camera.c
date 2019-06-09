@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the VIA Chrome integrated camera controller.
  *
  * Copyright 2009,2010 Jonathan Corbet <corbet@lwn.net>
- * Distributable under the terms of the GNU General Public License, version 2
  *
  * This work was supported by the One Laptop Per Child project
  */

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Line 6 Pod HD
  *
  * Copyright (C) 2011 Stefan Hajnoczi <stefanha@gmail.com>
  * Copyright (C) 2015 Andrej Krutak <dev@andree.sk>
  * Copyright (C) 2017 Hans P. Moller <hmoller@uc.cl>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  */
 
 #include <linux/usb.h>

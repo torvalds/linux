@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 configuration hooks for cfg80211
  *
@@ -5,8 +6,6 @@
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  * Copyright (C) 2018 Intel Corporation
- *
- * This file is GPLv2 as found in COPYING.
  */
 
 #include <linux/ieee80211.h>

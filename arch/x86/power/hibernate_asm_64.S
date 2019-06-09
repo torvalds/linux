@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Hibernation support for x86-64
- *
- * Distribute under GPLv2.
  *
  * Copyright 2007 Rafael J. Wysocki <rjw@sisk.pl>
  * Copyright 2005 Andi Kleen <ak@suse.de>
