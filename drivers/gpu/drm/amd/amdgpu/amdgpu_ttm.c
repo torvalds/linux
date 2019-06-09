@@ -30,7 +30,7 @@
  *    Dave Airlie
  */
 
-#include <linux/debugfs.h>
+#include <linux/dma-mapping.h>
 #include <linux/iommu.h>
 #include <linux/pagemap.h>
 #include <linux/sched/task.h>
@@ -44,7 +44,8 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_module.h>
 #include <drm/ttm/ttm_page_alloc.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_debugfs.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_object.h"

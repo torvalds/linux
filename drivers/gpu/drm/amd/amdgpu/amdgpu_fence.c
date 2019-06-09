@@ -34,7 +34,9 @@
 #include <linux/kref.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_debugfs.h>
+
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
