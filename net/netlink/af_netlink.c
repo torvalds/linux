@@ -2544,12 +2544,10 @@ struct nl_seq_iter {
 	int link;
 };
 
-static int netlink_walk_start(struct nl_seq_iter *iter)
+static void netlink_walk_start(struct nl_seq_iter *iter)
 {
 	rhashtable_walk_enter(&nl_table[iter->link].hash, &iter->hti);
 	rhashtable_walk_start(&iter->hti);
-
-	return 0;
 }
 
 static void netlink_walk_stop(struct nl_seq_iter *iter)
@@ -2565,8 +2563,6 @@ static void *__netlink_seq_next(struct seq_file *seq)
 
 	do {
 		for (;;) {
-			int err;
-
 			nlk = rhashtable_walk_next(&iter->hti);
 
 			if (IS_ERR(nlk)) {
@@ -2583,9 +2579,7 @@ static void *__netlink_seq_next(struct seq_file *seq)
 			if (++iter->link >= MAX_LINKS)
 				return NULL;
 
-			err = netlink_walk_start(iter);
-			if (err)
-				return ERR_PTR(err);
+			netlink_walk_start(iter);
 		}
 	} while (sock_net(&nlk->sk) != seq_file_net(seq));
 
@@ -2597,13 +2591,10 @@ static void *netlink_seq_start(struct seq_file *seq, loff_t *posp)
 	struct nl_seq_iter *iter = seq->private;
 	void *obj = SEQ_START_TOKEN;
 	loff_t pos;
-	int err;
 
 	iter->link = 0;
 
-	err = netlink_walk_start(iter);
-	if (err)
-		return ERR_PTR(err);
+	netlink_walk_start(iter);
 
 	for (pos = *posp; pos && obj && !IS_ERR(obj); pos--)
 		obj = __netlink_seq_next(seq);
