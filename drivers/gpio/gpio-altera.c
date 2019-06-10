@@ -30,6 +30,7 @@ struct altera_gpio_chip {
 	raw_spinlock_t gpio_lock;
 	int interrupt_trigger;
 	int mapped_irq;
+	struct irq_chip irq_chip;
 };
 
 static void altera_gpio_irq_unmask(struct irq_data *d)
@@ -100,15 +101,6 @@ static unsigned int altera_gpio_irq_startup(struct irq_data *d)
 
 	return 0;
 }
-
-static struct irq_chip altera_irq_chip = {
-	.name		= "altera-gpio",
-	.irq_mask	= altera_gpio_irq_mask,
-	.irq_unmask	= altera_gpio_irq_unmask,
-	.irq_set_type	= altera_gpio_irq_set_type,
-	.irq_startup	= altera_gpio_irq_startup,
-	.irq_shutdown	= altera_gpio_irq_mask,
-};
 
 static int altera_gpio_get(struct gpio_chip *gc, unsigned offset)
 {
@@ -294,8 +286,15 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	}
 	altera_gc->interrupt_trigger = reg;
 
-	ret = gpiochip_irqchip_add(&altera_gc->mmchip.gc, &altera_irq_chip, 0,
-		handle_bad_irq, IRQ_TYPE_NONE);
+	altera_gc->irq_chip.name = "altera-gpio";
+	altera_gc->irq_chip.irq_mask     = altera_gpio_irq_mask;
+	altera_gc->irq_chip.irq_unmask   = altera_gpio_irq_unmask;
+	altera_gc->irq_chip.irq_set_type = altera_gpio_irq_set_type;
+	altera_gc->irq_chip.irq_startup  = altera_gpio_irq_startup;
+	altera_gc->irq_chip.irq_shutdown = altera_gpio_irq_mask;
+
+	ret = gpiochip_irqchip_add(&altera_gc->mmchip.gc, &altera_gc->irq_chip,
+		0, handle_bad_irq, IRQ_TYPE_NONE);
 
 	if (ret) {
 		dev_err(&pdev->dev, "could not add irqchip\n");
@@ -303,7 +302,7 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	}
 
 	gpiochip_set_chained_irqchip(&altera_gc->mmchip.gc,
-		&altera_irq_chip,
+		&altera_gc->irq_chip,
 		altera_gc->mapped_irq,
 		altera_gc->interrupt_trigger == IRQ_TYPE_LEVEL_HIGH ?
 		altera_gpio_irq_leveL_high_handler :
