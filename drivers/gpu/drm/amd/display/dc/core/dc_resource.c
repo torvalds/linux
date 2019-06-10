@@ -940,7 +940,14 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 	data->inits.v_c_bot = dc_fixpt_add(data->inits.v_c, data->ratios.vert_c);
 
 }
+static bool are_rect_integer_multiples(struct rect src, struct rect dest)
+{
+	if (dest.width  >= src.width  && dest.width  % src.width  == 0 &&
+		dest.height >= src.height && dest.height % src.height == 0)
+		return true;
 
+	return false;
+}
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
@@ -983,6 +990,15 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->plane_res.dpp != NULL)
 		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
 				pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+
+	if (res &&
+	    plane_state->scaling_quality.integer_scaling &&
+	    are_rect_integer_multiples(pipe_ctx->plane_res.scl_data.viewport,
+				       pipe_ctx->plane_res.scl_data.recout)) {
+		pipe_ctx->plane_res.scl_data.taps.v_taps = 1;
+		pipe_ctx->plane_res.scl_data.taps.h_taps = 1;
+	}
+
 	if (!res) {
 		/* Try 24 bpp linebuffer */
 		pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_24BPP;

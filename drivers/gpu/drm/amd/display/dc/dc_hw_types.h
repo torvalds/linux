@@ -614,6 +614,7 @@ struct scaling_taps {
 	uint32_t h_taps;
 	uint32_t v_taps_c;
 	uint32_t h_taps_c;
+	bool integer_scaling;
 };
 
 enum dc_timing_standard {
