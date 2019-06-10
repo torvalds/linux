@@ -395,7 +395,7 @@ static int geneve_udp_encap_err_lookup(struct sock *sk, struct sk_buff *skb)
 	u8 zero_vni[3] = { 0 };
 	u8 *vni = zero_vni;
 
-	if (skb->len < GENEVE_BASE_HLEN)
+	if (!pskb_may_pull(skb, skb_transport_offset(skb) + GENEVE_BASE_HLEN))
 		return -EINVAL;
 
 	geneveh = geneve_hdr(skb);
