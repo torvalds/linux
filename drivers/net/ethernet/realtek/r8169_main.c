@@ -5136,20 +5136,11 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 {
 	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
 
-	/* Workaround for RxFIFO overflow. */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_11) {
-		tp->irq_mask |= RxFIFOOver;
-		tp->irq_mask &= ~RxOverflow;
-	}
-
 	rtl_hw_config(tp);
 }
 
 static void rtl_hw_start_8101(struct rtl8169_private *tp)
 {
-	if (tp->mac_version >= RTL_GIGA_MAC_VER_30)
-		tp->irq_mask &= ~RxFIFOOver;
-
 	if (tp->mac_version == RTL_GIGA_MAC_VER_13 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_16)
 		pcie_capability_set_word(tp->pci_dev, PCI_EXP_DEVCTL,
@@ -6491,28 +6482,37 @@ static const struct net_device_ops rtl_netdev_ops = {
 
 static const struct rtl_cfg_info {
 	void (*hw_start)(struct rtl8169_private *tp);
-	u16 irq_mask;
 	unsigned int has_gmii:1;
 	const struct rtl_coalesce_info *coalesce_info;
 } rtl_cfg_infos [] = {
 	[RTL_CFG_0] = {
 		.hw_start	= rtl_hw_start_8169,
-		.irq_mask	= SYSErr | LinkChg | RxOverflow | RxFIFOOver,
 		.has_gmii	= 1,
 		.coalesce_info	= rtl_coalesce_info_8169,
 	},
 	[RTL_CFG_1] = {
 		.hw_start	= rtl_hw_start_8168,
-		.irq_mask	= LinkChg | RxOverflow,
 		.has_gmii	= 1,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
 	},
 	[RTL_CFG_2] = {
 		.hw_start	= rtl_hw_start_8101,
-		.irq_mask	= LinkChg | RxOverflow | RxFIFOOver,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
 	}
 };
+
+static void rtl_set_irq_mask(struct rtl8169_private *tp)
+{
+	tp->irq_mask = RTL_EVENT_NAPI | LinkChg;
+
+	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
+		tp->irq_mask |= SYSErr | RxOverflow | RxFIFOOver;
+	else if (tp->mac_version == RTL_GIGA_MAC_VER_11)
+		/* special workaround needed */
+		tp->irq_mask |= RxFIFOOver;
+	else
+		tp->irq_mask |= RxOverflow;
+}
 
 static int rtl_alloc_irq(struct rtl8169_private *tp)
 {
@@ -6874,8 +6874,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	jumbo_max = rtl_jumbo_max(tp);
 	dev->max_mtu = jumbo_max;
 
+	rtl_set_irq_mask(tp);
 	tp->hw_start = cfg->hw_start;
-	tp->irq_mask = RTL_EVENT_NAPI | cfg->irq_mask;
 	tp->coalesce_info = cfg->coalesce_info;
 
 	tp->fw_name = rtl_chip_infos[chipset].fw_name;
