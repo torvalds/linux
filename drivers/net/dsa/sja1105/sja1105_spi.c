@@ -285,20 +285,22 @@ static int sja1105_cold_reset(const struct sja1105_private *priv)
 	return priv->info->reset_cmd(priv, &reset);
 }
 
-static int sja1105_inhibit_tx(const struct sja1105_private *priv,
-			      const unsigned long *port_bitmap)
+int sja1105_inhibit_tx(const struct sja1105_private *priv,
+		       unsigned long port_bitmap, bool tx_inhibited)
 {
 	const struct sja1105_regs *regs = priv->info->regs;
 	u64 inhibit_cmd;
-	int port, rc;
+	int rc;
 
 	rc = sja1105_spi_send_int(priv, SPI_READ, regs->port_control,
 				  &inhibit_cmd, SJA1105_SIZE_PORT_CTRL);
 	if (rc < 0)
 		return rc;
 
-	for_each_set_bit(port, port_bitmap, SJA1105_NUM_PORTS)
-		inhibit_cmd |= BIT(port);
+	if (tx_inhibited)
+		inhibit_cmd |= port_bitmap;
+	else
+		inhibit_cmd &= ~port_bitmap;
 
 	return sja1105_spi_send_int(priv, SPI_WRITE, regs->port_control,
 				    &inhibit_cmd, SJA1105_SIZE_PORT_CTRL);
@@ -415,7 +417,7 @@ int sja1105_static_config_upload(struct sja1105_private *priv)
 	 * Tx on all ports and waiting for current packet to drain.
 	 * Otherwise, the PHY will see an unterminated Ethernet packet.
 	 */
-	rc = sja1105_inhibit_tx(priv, &port_bitmap);
+	rc = sja1105_inhibit_tx(priv, port_bitmap, true);
 	if (rc < 0) {
 		dev_err(dev, "Failed to inhibit Tx on ports\n");
 		return -ENXIO;
