@@ -972,11 +972,12 @@ u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
 	return mcr_s_ss_select;
 }
 
-static inline u32
-read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
-		  int subslice, i915_reg_t reg)
+static u32
+read_subslice_reg(struct intel_engine_cs *engine, int slice, int subslice,
+		  i915_reg_t reg)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct drm_i915_private *i915 = engine->i915;
+	struct intel_uncore *uncore = engine->uncore;
 	u32 mcr_slice_subslice_mask;
 	u32 mcr_slice_subslice_select;
 	u32 default_mcr_s_ss_select;
@@ -984,7 +985,7 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 	u32 ret;
 	enum forcewake_domains fw_domains;
 
-	if (INTEL_GEN(dev_priv) >= 11) {
+	if (INTEL_GEN(i915) >= 11) {
 		mcr_slice_subslice_mask = GEN11_MCR_SLICE_MASK |
 					  GEN11_MCR_SUBSLICE_MASK;
 		mcr_slice_subslice_select = GEN11_MCR_SLICE(slice) |
@@ -996,7 +997,7 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 					    GEN8_MCR_SUBSLICE(subslice);
 	}
 
-	default_mcr_s_ss_select = intel_calculate_mcr_s_ss_select(dev_priv);
+	default_mcr_s_ss_select = intel_calculate_mcr_s_ss_select(i915);
 
 	fw_domains = intel_uncore_forcewake_for_reg(uncore, reg,
 						    FW_REG_READ);
@@ -1033,7 +1034,7 @@ read_subslice_reg(struct drm_i915_private *dev_priv, int slice,
 void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct drm_i915_private *i915 = engine->i915;
 	struct intel_uncore *uncore = engine->uncore;
 	u32 mmio_base = engine->mmio_base;
 	int slice;
@@ -1041,7 +1042,7 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 
 	memset(instdone, 0, sizeof(*instdone));
 
-	switch (INTEL_GEN(dev_priv)) {
+	switch (INTEL_GEN(i915)) {
 	default:
 		instdone->instdone =
 			intel_uncore_read(uncore, RING_INSTDONE(mmio_base));
@@ -1051,12 +1052,12 @@ void intel_engine_get_instdone(struct intel_engine_cs *engine,
 
 		instdone->slice_common =
 			intel_uncore_read(uncore, GEN7_SC_INSTDONE);
-		for_each_instdone_slice_subslice(dev_priv, slice, subslice) {
+		for_each_instdone_slice_subslice(i915, slice, subslice) {
 			instdone->sampler[slice][subslice] =
-				read_subslice_reg(dev_priv, slice, subslice,
+				read_subslice_reg(engine, slice, subslice,
 						  GEN7_SAMPLER_INSTDONE);
 			instdone->row[slice][subslice] =
-				read_subslice_reg(dev_priv, slice, subslice,
+				read_subslice_reg(engine, slice, subslice,
 						  GEN7_ROW_INSTDONE);
 		}
 		break;
