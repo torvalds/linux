@@ -35,8 +35,8 @@ struct sja1105_regs {
 	u64 ptptsclk;
 	u64 ptpegr_ts[SJA1105_NUM_PORTS];
 	u64 pad_mii_tx[SJA1105_NUM_PORTS];
+	u64 pad_mii_id[SJA1105_NUM_PORTS];
 	u64 cgu_idiv[SJA1105_NUM_PORTS];
-	u64 rgmii_pad_mii_tx[SJA1105_NUM_PORTS];
 	u64 mii_tx_clk[SJA1105_NUM_PORTS];
 	u64 mii_rx_clk[SJA1105_NUM_PORTS];
 	u64 mii_ext_tx_clk[SJA1105_NUM_PORTS];
@@ -161,6 +161,7 @@ typedef enum {
 	SJA1105_SPEED_AUTO	= 0,
 } sja1105_speed_t;
 
+int sja1105pqrs_setup_rgmii_delay(const void *ctx, int port);
 int sja1105_clocking_setup_port(struct sja1105_private *priv, int port);
 int sja1105_clocking_setup(struct sja1105_private *priv);
 
