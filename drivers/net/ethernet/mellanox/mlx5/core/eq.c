@@ -143,16 +143,22 @@ static struct mlx5_irq_info *mlx5_irq_get(struct mlx5_core_dev *dev, int vecidx)
 	return &irq_table->irq_info[vecidx];
 }
 
-static int mlx5_irq_attach_nb(struct mlx5_irq_info *irq,
+static int mlx5_irq_attach_nb(struct mlx5_irq_table *irq_table, int vecidx,
 			      struct notifier_block *nb)
 {
-	return atomic_notifier_chain_register(&irq->nh, nb);
+	struct mlx5_irq_info *irq_info;
+
+	irq_info = &irq_table->irq_info[vecidx];
+	return atomic_notifier_chain_register(&irq_info->nh, nb);
 }
 
-static int mlx5_irq_detach_nb(struct mlx5_irq_info *irq,
+static int mlx5_irq_detach_nb(struct mlx5_irq_table *irq_table, int vecidx,
 			      struct notifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&irq->nh, nb);
+	struct mlx5_irq_info *irq_info;
+
+	irq_info = &irq_table->irq_info[vecidx];
+	return atomic_notifier_chain_unregister(&irq_info->nh, nb);
 }
 
 static irqreturn_t mlx5_irq_int_handler(int irq, void *nh)
@@ -465,7 +471,8 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	eq->doorbell = priv->uar->map + MLX5_EQ_DOORBEL_OFFSET;
 	eq->irq_nb = param->nb;
 
-	err = mlx5_irq_attach_nb(mlx5_irq_get(dev, vecidx), param->nb);
+	err = mlx5_irq_attach_nb(dev->priv.eq_table->irq_table, vecidx,
+				 param->nb);
 	if (err)
 		goto err_eq;
 
@@ -481,7 +488,7 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	return 0;
 
 err_detach:
-	mlx5_irq_detach_nb(mlx5_irq_get(dev, vecidx), eq->irq_nb);
+	mlx5_irq_detach_nb(dev->priv.eq_table->irq_table, vecidx, eq->irq_nb);
 
 err_eq:
 	mlx5_cmd_destroy_eq(dev, eq->eqn);
@@ -500,7 +507,8 @@ static int destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 
 	mlx5_debug_eq_remove(dev, eq);
 
-	err = mlx5_irq_detach_nb(mlx5_irq_get(dev, eq->vecidx), eq->irq_nb);
+	err = mlx5_irq_detach_nb(dev->priv.eq_table->irq_table,
+				 eq->vecidx, eq->irq_nb);
 	if (err)
 		mlx5_core_warn(eq->dev, "eq failed to detach from irq. err %d",
 			       err);
@@ -1023,19 +1031,31 @@ unsigned int mlx5_comp_vectors_count(struct mlx5_core_dev *dev)
 }
 EXPORT_SYMBOL(mlx5_comp_vectors_count);
 
+static struct cpumask *
+mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table, int vecidx)
+{
+	return irq_table->irq_info[vecidx].mask;
+}
+
 struct cpumask *
 mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector)
 {
 	int vecidx = vector + MLX5_EQ_VEC_COMP_BASE;
 
-	return dev->priv.eq_table->irq_table->irq_info[vecidx].mask;
+	return mlx5_irq_get_affinity_mask(dev->priv.eq_table->irq_table,
+					  vecidx);
 }
 EXPORT_SYMBOL(mlx5_comp_irq_get_affinity_mask);
 
 #ifdef CONFIG_RFS_ACCEL
+static struct cpu_rmap *mlx5_irq_get_rmap(struct mlx5_irq_table *irq_table)
+{
+	return irq_table->rmap;
+}
+
 struct cpu_rmap *mlx5_eq_table_get_rmap(struct mlx5_core_dev *dev)
 {
-	return dev->priv.eq_table->irq_table->rmap;
+	return mlx5_irq_get_rmap(dev->priv.eq_table->irq_table);
 }
 #endif
 
