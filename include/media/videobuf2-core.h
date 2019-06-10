@@ -1163,6 +1163,24 @@ static inline void vb2_clear_last_buffer_dequeued(struct vb2_queue *q)
 	q->last_buffer_dequeued = false;
 }
 
+/**
+ * vb2_get_buffer() - get a buffer from a queue
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @index:	buffer index
+ *
+ * This function obtains a buffer from a queue, by its index.
+ * Keep in mind that there is no refcounting involved in this
+ * operation, so the buffer lifetime should be taken into
+ * consideration.
+ */
+static inline struct vb2_buffer *vb2_get_buffer(struct vb2_queue *q,
+						unsigned int index)
+{
+	if (index < q->num_buffers)
+		return q->bufs[index];
+	return NULL;
+}
+
 /*
  * The following functions are not part of the vb2 core API, but are useful
  * functions for videobuf2-*.
