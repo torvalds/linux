@@ -92,8 +92,6 @@ int  setup_dma_engine(struct kpc_dma_device *eng, u32 desc_cnt)
 	unsigned int i;
 	int rv;
 
-	dev_dbg(&eng->pldev->dev, "Setting up DMA engine [%p]\n", eng);
-
 	caps = GetEngineCapabilities(eng);
 
 	if (WARN(!(caps & ENG_CAP_PRESENT), "%s() called for DMA Engine at %p which isn't present in hardware!\n", __func__, eng))
@@ -160,8 +158,6 @@ int  setup_dma_engine(struct kpc_dma_device *eng, u32 desc_cnt)
 void  stop_dma_engine(struct kpc_dma_device *eng)
 {
 	unsigned long timeout;
-
-	dev_dbg(&eng->pldev->dev, "Destroying DMA engine [%p]\n", eng);
 
 	// Disable the descriptor engine
 	WriteEngineControl(eng, 0);
