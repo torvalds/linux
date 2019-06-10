@@ -146,20 +146,6 @@ static void omap_set_gpio_dataout_mask(struct gpio_bank *bank, unsigned offset,
 	bank->context.dataout = l;
 }
 
-static int omap_get_gpio_datain(struct gpio_bank *bank, int offset)
-{
-	void __iomem *reg = bank->base + bank->regs->datain;
-
-	return (readl_relaxed(reg) & (BIT(offset))) != 0;
-}
-
-static int omap_get_gpio_dataout(struct gpio_bank *bank, int offset)
-{
-	void __iomem *reg = bank->base + bank->regs->dataout;
-
-	return (readl_relaxed(reg) & (BIT(offset))) != 0;
-}
-
 /* set multiple data out values using dedicate set/clear register */
 static void omap_set_gpio_dataout_reg_multiple(struct gpio_bank *bank,
 					       unsigned long *mask,
@@ -973,14 +959,15 @@ static int omap_gpio_input(struct gpio_chip *chip, unsigned offset)
 
 static int omap_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_bank *bank;
-
-	bank = gpiochip_get_data(chip);
+	struct gpio_bank *bank = gpiochip_get_data(chip);
+	void __iomem *reg;
 
 	if (omap_gpio_is_input(bank, offset))
-		return omap_get_gpio_datain(bank, offset);
+		reg = bank->base + bank->regs->datain;
 	else
-		return omap_get_gpio_dataout(bank, offset);
+		reg = bank->base + bank->regs->dataout;
+
+	return (readl_relaxed(reg) & BIT(offset)) != 0;
 }
 
 static int omap_gpio_output(struct gpio_chip *chip, unsigned offset, int value)
