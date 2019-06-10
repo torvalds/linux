@@ -248,6 +248,7 @@ struct mlx5_ib_flow_db {
  * rely on the range reserved for that use in the ib_qp_create_flags enum.
  */
 #define MLX5_IB_QP_CREATE_SQPN_QP1	IB_QP_CREATE_RESERVED_START
+#define MLX5_IB_QP_CREATE_WC_TEST	(IB_QP_CREATE_RESERVED_START << 1)
 
 struct wr_list {
 	u16	opcode;
@@ -966,6 +967,7 @@ struct mlx5_ib_dev {
 	u8				fill_delay:1;
 	u8				is_rep:1;
 	u8				lag_active:1;
+	u8				wc_support:1;
 	struct umr_common		umrc;
 	/* sync used page count stats
 	 */
@@ -993,6 +995,7 @@ struct mlx5_ib_dev {
 	/* Array with num_ports elements */
 	struct mlx5_ib_port	*port;
 	struct mlx5_sq_bfreg	bfreg;
+	struct mlx5_sq_bfreg	wc_bfreg;
 	struct mlx5_sq_bfreg	fp_bfreg;
 	struct mlx5_ib_delay_drop	delay_drop;
 	const struct mlx5_ib_profile	*profile;
@@ -1506,4 +1509,7 @@ static inline bool mlx5_ib_can_use_umr(struct mlx5_ib_dev *dev,
 
 	return true;
 }
+
+int mlx5_ib_enable_driver(struct ib_device *dev);
+int mlx5_ib_test_wc(struct mlx5_ib_dev *dev);
 #endif /* MLX5_IB_H */
