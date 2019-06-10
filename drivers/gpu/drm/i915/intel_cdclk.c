@@ -1865,21 +1865,12 @@ static void icl_set_cdclk(struct drm_i915_private *dev_priv,
 
 static u8 icl_calc_voltage_level(int cdclk)
 {
-	switch (cdclk) {
-	case 50000:
-	case 307200:
-	case 312000:
-		return 0;
-	case 556800:
-	case 552000:
-		return 1;
-	default:
-		MISSING_CASE(cdclk);
-		/* fall through */
-	case 652800:
-	case 648000:
+	if (cdclk > 556800)
 		return 2;
-	}
+	else if (cdclk > 312000)
+		return 1;
+	else
+		return 0;
 }
 
 static void icl_get_cdclk(struct drm_i915_private *dev_priv,
