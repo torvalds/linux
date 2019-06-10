@@ -74,8 +74,6 @@ struct gpio_bank {
 	int context_loss_count;
 
 	void (*set_dataout)(struct gpio_bank *bank, unsigned gpio, int enable);
-	void (*set_dataout_multiple)(struct gpio_bank *bank,
-				     unsigned long *mask, unsigned long *bits);
 	int (*get_context_loss_count)(struct device *dev);
 
 	struct omap_gpio_reg_offs *regs;
@@ -142,35 +140,6 @@ static void omap_set_gpio_dataout_mask(struct gpio_bank *bank, unsigned offset,
 		l |= gpio_bit;
 	else
 		l &= ~gpio_bit;
-	writel_relaxed(l, reg);
-	bank->context.dataout = l;
-}
-
-/* set multiple data out values using dedicate set/clear register */
-static void omap_set_gpio_dataout_reg_multiple(struct gpio_bank *bank,
-					       unsigned long *mask,
-					       unsigned long *bits)
-{
-	void __iomem *reg = bank->base;
-	u32 l;
-
-	l = *bits & *mask;
-	writel_relaxed(l, reg + bank->regs->set_dataout);
-	bank->context.dataout |= l;
-
-	l = ~*bits & *mask;
-	writel_relaxed(l, reg + bank->regs->clr_dataout);
-	bank->context.dataout &= ~l;
-}
-
-/* set multiple data out values using mask register */
-static void omap_set_gpio_dataout_mask_multiple(struct gpio_bank *bank,
-						unsigned long *mask,
-						unsigned long *bits)
-{
-	void __iomem *reg = bank->base + bank->regs->dataout;
-	u32 l = (readl_relaxed(reg) & ~*mask) | (*bits & *mask);
-
 	writel_relaxed(l, reg);
 	bank->context.dataout = l;
 }
@@ -1037,10 +1006,14 @@ static void omap_gpio_set_multiple(struct gpio_chip *chip, unsigned long *mask,
 				   unsigned long *bits)
 {
 	struct gpio_bank *bank = gpiochip_get_data(chip);
+	void __iomem *reg = bank->base + bank->regs->dataout;
 	unsigned long flags;
+	u32 l;
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
-	bank->set_dataout_multiple(bank, mask, bits);
+	l = (readl_relaxed(reg) & ~*mask) | (*bits & *mask);
+	writel_relaxed(l, reg);
+	bank->context.dataout = l;
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
 }
 
@@ -1530,14 +1503,10 @@ static int omap_gpio_probe(struct platform_device *pdev)
 				pdata->get_context_loss_count;
 	}
 
-	if (bank->regs->set_dataout && bank->regs->clr_dataout) {
+	if (bank->regs->set_dataout && bank->regs->clr_dataout)
 		bank->set_dataout = omap_set_gpio_dataout_reg;
-		bank->set_dataout_multiple = omap_set_gpio_dataout_reg_multiple;
-	} else {
+	else
 		bank->set_dataout = omap_set_gpio_dataout_mask;
-		bank->set_dataout_multiple =
-				omap_set_gpio_dataout_mask_multiple;
-	}
 
 	raw_spin_lock_init(&bank->lock);
 	raw_spin_lock_init(&bank->wa_lock);
