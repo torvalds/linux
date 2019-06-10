@@ -169,17 +169,27 @@ static struct mlx5_profile profile[] = {
 
 #define FW_INIT_TIMEOUT_MILI		2000
 #define FW_INIT_WAIT_MS			2
-#define FW_PRE_INIT_TIMEOUT_MILI	10000
+#define FW_PRE_INIT_TIMEOUT_MILI	120000
+#define FW_INIT_WARN_MESSAGE_INTERVAL	20000
 
-static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili)
+static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili,
+			u32 warn_time_mili)
 {
+	unsigned long warn = jiffies + msecs_to_jiffies(warn_time_mili);
 	unsigned long end = jiffies + msecs_to_jiffies(max_wait_mili);
 	int err = 0;
+
+	BUILD_BUG_ON(FW_PRE_INIT_TIMEOUT_MILI < FW_INIT_WARN_MESSAGE_INTERVAL);
 
 	while (fw_initializing(dev)) {
 		if (time_after(jiffies, end)) {
 			err = -EBUSY;
 			break;
+		}
+		if (warn_time_mili && time_after(jiffies, warn)) {
+			mlx5_core_warn(dev, "Waiting for FW initialization, timeout abort in %ds\n",
+				       jiffies_to_msecs(end - warn) / 1000);
+			warn = jiffies + msecs_to_jiffies(warn_time_mili);
 		}
 		msleep(FW_INIT_WAIT_MS);
 	}
@@ -911,7 +921,7 @@ static int mlx5_function_setup(struct mlx5_core_dev *dev, bool boot)
 
 	/* wait for firmware to accept initialization segments configurations
 	 */
-	err = wait_fw_init(dev, FW_PRE_INIT_TIMEOUT_MILI);
+	err = wait_fw_init(dev, FW_PRE_INIT_TIMEOUT_MILI, FW_INIT_WARN_MESSAGE_INTERVAL);
 	if (err) {
 		mlx5_core_err(dev, "Firmware over %d MS in pre-initializing state, aborting\n",
 			      FW_PRE_INIT_TIMEOUT_MILI);
@@ -924,7 +934,7 @@ static int mlx5_function_setup(struct mlx5_core_dev *dev, bool boot)
 		return err;
 	}
 
-	err = wait_fw_init(dev, FW_INIT_TIMEOUT_MILI);
+	err = wait_fw_init(dev, FW_INIT_TIMEOUT_MILI, 0);
 	if (err) {
 		mlx5_core_err(dev, "Firmware over %d MS in initializing state, aborting\n",
 			      FW_INIT_TIMEOUT_MILI);
