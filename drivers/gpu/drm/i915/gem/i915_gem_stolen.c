@@ -325,11 +325,11 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	*size = stolen_top - *base;
 }
 
-static void icl_get_stolen_reserved(struct drm_i915_private *dev_priv,
+static void icl_get_stolen_reserved(struct drm_i915_private *i915,
 				    resource_size_t *base,
 				    resource_size_t *size)
 {
-	u64 reg_val = I915_READ64(GEN6_STOLEN_RESERVED);
+	u64 reg_val = intel_uncore_read64(&i915->uncore, GEN6_STOLEN_RESERVED);
 
 	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = 0x%016llx\n", reg_val);
 
