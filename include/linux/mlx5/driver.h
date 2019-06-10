@@ -492,6 +492,7 @@ struct mlx5_eswitch;
 struct mlx5_lag;
 struct mlx5_devcom;
 struct mlx5_eq_table;
+struct mlx5_irq_table;
 
 struct mlx5_rate_limit {
 	u32			rate;
@@ -521,6 +522,8 @@ struct mlx5_core_roce {
 };
 
 struct mlx5_priv {
+	/* IRQ table valid only for real pci devices PF or VF */
+	struct mlx5_irq_table   *irq_table;
 	struct mlx5_eq_table	*eq_table;
 
 	/* pages stuff */

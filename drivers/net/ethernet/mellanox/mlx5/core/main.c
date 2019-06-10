@@ -804,10 +804,16 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 		goto err_devcom;
 	}
 
+	err = mlx5_irq_table_init(dev);
+	if (err) {
+		mlx5_core_err(dev, "failed to initialize irq table\n");
+		goto err_devcom;
+	}
+
 	err = mlx5_eq_table_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "failed to initialize eq\n");
-		goto err_devcom;
+		goto err_irq_cleanup;
 	}
 
 	err = mlx5_events_init(dev);
@@ -883,6 +889,8 @@ err_events_cleanup:
 	mlx5_events_cleanup(dev);
 err_eq_cleanup:
 	mlx5_eq_table_cleanup(dev);
+err_irq_cleanup:
+	mlx5_irq_table_cleanup(dev);
 err_devcom:
 	mlx5_devcom_unregister_device(dev->priv.devcom);
 
@@ -905,6 +913,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_cq_debugfs_cleanup(dev);
 	mlx5_events_cleanup(dev);
 	mlx5_eq_table_cleanup(dev);
+	mlx5_irq_table_cleanup(dev);
 	mlx5_devcom_unregister_device(dev->priv.devcom);
 }
 
