@@ -529,57 +529,26 @@ static u32 omap_get_gpio_irqbank_mask(struct gpio_bank *bank)
 	return l;
 }
 
-static void omap_enable_gpio_irqbank(struct gpio_bank *bank, int gpio_mask)
-{
-	void __iomem *reg = bank->base;
-	u32 l;
-
-	if (bank->regs->set_irqenable) {
-		reg += bank->regs->set_irqenable;
-		l = gpio_mask;
-		bank->context.irqenable1 |= gpio_mask;
-	} else {
-		reg += bank->regs->irqenable;
-		l = readl_relaxed(reg);
-		if (bank->regs->irqenable_inv)
-			l &= ~gpio_mask;
-		else
-			l |= gpio_mask;
-		bank->context.irqenable1 = l;
-	}
-
-	writel_relaxed(l, reg);
-}
-
-static void omap_disable_gpio_irqbank(struct gpio_bank *bank, int gpio_mask)
-{
-	void __iomem *reg = bank->base;
-	u32 l;
-
-	if (bank->regs->clr_irqenable) {
-		reg += bank->regs->clr_irqenable;
-		l = gpio_mask;
-		bank->context.irqenable1 &= ~gpio_mask;
-	} else {
-		reg += bank->regs->irqenable;
-		l = readl_relaxed(reg);
-		if (bank->regs->irqenable_inv)
-			l |= gpio_mask;
-		else
-			l &= ~gpio_mask;
-		bank->context.irqenable1 = l;
-	}
-
-	writel_relaxed(l, reg);
-}
-
 static inline void omap_set_gpio_irqenable(struct gpio_bank *bank,
 					   unsigned offset, int enable)
 {
-	if (enable)
-		omap_enable_gpio_irqbank(bank, BIT(offset));
-	else
-		omap_disable_gpio_irqbank(bank, BIT(offset));
+	void __iomem *reg = bank->base;
+	u32 gpio_mask = BIT(offset);
+
+	if (bank->regs->set_irqenable && bank->regs->clr_irqenable) {
+		if (enable) {
+			reg += bank->regs->set_irqenable;
+			bank->context.irqenable1 |= gpio_mask;
+		} else {
+			reg += bank->regs->clr_irqenable;
+			bank->context.irqenable1 &= ~gpio_mask;
+		}
+		writel_relaxed(gpio_mask, reg);
+	} else {
+		bank->context.irqenable1 =
+			omap_gpio_rmw(reg + bank->regs->irqenable, gpio_mask,
+				      enable ^ bank->regs->irqenable_inv);
+	}
 }
 
 /* Use disable_irq_wake() and enable_irq_wake() functions from drivers */
