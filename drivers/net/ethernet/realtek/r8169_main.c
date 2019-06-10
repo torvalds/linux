@@ -6461,18 +6461,14 @@ static const struct net_device_ops rtl_netdev_ops = {
 
 static const struct rtl_cfg_info {
 	unsigned int has_gmii:1;
-	const struct rtl_coalesce_info *coalesce_info;
 } rtl_cfg_infos [] = {
 	[RTL_CFG_0] = {
 		.has_gmii	= 1,
-		.coalesce_info	= rtl_coalesce_info_8169,
 	},
 	[RTL_CFG_1] = {
 		.has_gmii	= 1,
-		.coalesce_info	= rtl_coalesce_info_8168_8136,
 	},
 	[RTL_CFG_2] = {
-		.coalesce_info	= rtl_coalesce_info_8168_8136,
 	}
 };
 
@@ -6850,7 +6846,11 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->max_mtu = jumbo_max;
 
 	rtl_set_irq_mask(tp);
-	tp->coalesce_info = cfg->coalesce_info;
+
+	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
+		tp->coalesce_info = rtl_coalesce_info_8169;
+	else
+		tp->coalesce_info = rtl_coalesce_info_8168_8136;
 
 	tp->fw_name = rtl_chip_infos[chipset].fw_name;
 
