@@ -562,6 +562,8 @@ struct iwl_trans_ops {
 	void (*reclaim)(struct iwl_trans *trans, int queue, int ssn,
 			struct sk_buff_head *skbs);
 
+	void (*set_q_ptrs)(struct iwl_trans *trans, int queue, int ptr);
+
 	bool (*txq_enable)(struct iwl_trans *trans, int queue, u16 ssn,
 			   const struct iwl_trans_txq_scd_cfg *cfg,
 			   unsigned int queue_wdg_timeout);
@@ -997,6 +999,17 @@ static inline void iwl_trans_reclaim(struct iwl_trans *trans, int queue,
 	}
 
 	trans->ops->reclaim(trans, queue, ssn, skbs);
+}
+
+static inline void iwl_trans_set_q_ptrs(struct iwl_trans *trans, int queue,
+					int ptr)
+{
+	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
+		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
+		return;
+	}
+
+	trans->ops->set_q_ptrs(trans, queue, ptr);
 }
 
 static inline void iwl_trans_txq_disable(struct iwl_trans *trans, int queue,
