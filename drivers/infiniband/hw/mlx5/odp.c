@@ -1488,9 +1488,11 @@ static void mlx5_ib_eq_pf_process(struct mlx5_ib_pf_eq *eq)
 	mlx5_eq_update_ci(eq->core, cc, 1);
 }
 
-static irqreturn_t mlx5_ib_eq_pf_int(int irq, void *eq_ptr)
+static int mlx5_ib_eq_pf_int(struct notifier_block *nb, unsigned long type,
+			     void *data)
 {
-	struct mlx5_ib_pf_eq *eq = eq_ptr;
+	struct mlx5_ib_pf_eq *eq =
+		container_of(nb, struct mlx5_ib_pf_eq, irq_nb);
 	unsigned long flags;
 
 	if (spin_trylock_irqsave(&eq->lock, flags)) {
@@ -1553,12 +1555,12 @@ mlx5_ib_create_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 		goto err_mempool;
 	}
 
+	eq->irq_nb.notifier_call = mlx5_ib_eq_pf_int;
 	param = (struct mlx5_eq_param) {
 		.index = MLX5_EQ_PFAULT_IDX,
 		.mask = 1 << MLX5_EVENT_TYPE_PAGE_FAULT,
 		.nent = MLX5_IB_NUM_PF_EQE,
-		.context = eq,
-		.handler = mlx5_ib_eq_pf_int
+		.nb = &eq->irq_nb,
 	};
 	eq->core = mlx5_eq_create_generic(dev->mdev, "mlx5_ib_page_fault_eq", &param);
 	if (IS_ERR(eq->core)) {

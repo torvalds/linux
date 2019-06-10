@@ -34,10 +34,17 @@ struct mlx5_eq {
 	u8                      eqn;
 	int                     nent;
 	struct mlx5_rsc_debug   *dbg;
+	struct notifier_block   *irq_nb; /* For destroy only */
+};
+
+struct mlx5_eq_async {
+	struct mlx5_eq          core;
+	struct notifier_block   irq_nb;
 };
 
 struct mlx5_eq_comp {
-	struct mlx5_eq          core; /* Must be first */
+	struct mlx5_eq          core;
+	struct notifier_block   irq_nb;
 	struct mlx5_eq_tasklet  tasklet_ctx;
 	struct list_head        list;
 };

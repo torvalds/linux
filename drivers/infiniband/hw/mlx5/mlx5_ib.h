@@ -920,6 +920,7 @@ struct mlx5_ib_lb_state {
 };
 
 struct mlx5_ib_pf_eq {
+	struct notifier_block irq_nb;
 	struct mlx5_ib_dev *dev;
 	struct mlx5_eq *core;
 	struct work_struct work;
