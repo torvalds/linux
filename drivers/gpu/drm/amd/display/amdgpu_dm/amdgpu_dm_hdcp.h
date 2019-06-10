@@ -38,8 +38,11 @@ struct cp_psp;
 
 struct hdcp_workqueue {
 	struct work_struct cpirq_work;
+	struct work_struct property_update_work;
 	struct delayed_work callback_dwork;
 	struct delayed_work watchdog_timer_dwork;
+	struct delayed_work property_validate_dwork;
+	struct amdgpu_dm_connector *aconnector;
 	struct mutex mutex;
 
 	struct mod_hdcp hdcp;
@@ -47,10 +50,12 @@ struct hdcp_workqueue {
 	struct mod_hdcp_display display;
 	struct mod_hdcp_link link;
 
+	enum mod_hdcp_encryption_status encryption_status;
 	uint8_t max_link;
 };
 
-void hdcp_add_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index);
+void hdcp_add_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index,
+		      struct amdgpu_dm_connector *aconnector);
 void hdcp_remove_display(struct hdcp_workqueue *work, unsigned int link_index, unsigned int display_index);
 void hdcp_reset_display(struct hdcp_workqueue *work, unsigned int link_index);
 void hdcp_handle_cpirq(struct hdcp_workqueue *work, unsigned int link_index);

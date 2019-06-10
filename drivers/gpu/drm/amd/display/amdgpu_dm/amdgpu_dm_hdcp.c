@@ -27,6 +27,7 @@
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
 #include "dm_helpers.h"
+#include <drm/drm_hdcp.h>
 
 bool lp_write_i2c(void *handle, uint32_t address, const uint8_t *data, uint32_t size)
 {
@@ -82,15 +83,18 @@ static void process_output(struct hdcp_workqueue *hdcp_work)
 
 }
 
-void hdcp_add_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index)
+void hdcp_add_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index, struct amdgpu_dm_connector *aconnector)
 {
 	struct hdcp_workqueue *hdcp_w = &hdcp_work[link_index];
 	struct mod_hdcp_display *display = &hdcp_work[link_index].display;
 	struct mod_hdcp_link *link = &hdcp_work[link_index].link;
 
 	mutex_lock(&hdcp_w->mutex);
+	hdcp_w->aconnector = aconnector;
 
 	mod_hdcp_add_display(&hdcp_w->hdcp, link, display, &hdcp_w->output);
+
+	schedule_delayed_work(&hdcp_w->property_validate_dwork, msecs_to_jiffies(DRM_HDCP_CHECK_PERIOD_MS));
 
 	process_output(hdcp_w);
 
@@ -106,6 +110,9 @@ void hdcp_remove_display(struct hdcp_workqueue *hdcp_work, unsigned int link_ind
 
 	mod_hdcp_remove_display(&hdcp_w->hdcp, display_index, &hdcp_w->output);
 
+	cancel_delayed_work(&hdcp_w->property_validate_dwork);
+	hdcp_w->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
+
 	process_output(hdcp_w);
 
 	mutex_unlock(&hdcp_w->mutex);
@@ -119,6 +126,9 @@ void hdcp_reset_display(struct hdcp_workqueue *hdcp_work, unsigned int link_inde
 	mutex_lock(&hdcp_w->mutex);
 
 	mod_hdcp_reset_connection(&hdcp_w->hdcp,  &hdcp_w->output);
+
+	cancel_delayed_work(&hdcp_w->property_validate_dwork);
+	hdcp_w->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
 
 	process_output(hdcp_w);
 
@@ -155,7 +165,58 @@ static void event_callback(struct work_struct *work)
 
 
 }
+static void event_property_update(struct work_struct *work)
+{
 
+	struct hdcp_workqueue *hdcp_work = container_of(work, struct hdcp_workqueue, property_update_work);
+	struct amdgpu_dm_connector *aconnector = hdcp_work->aconnector;
+	struct drm_device *dev = hdcp_work->aconnector->base.dev;
+	long ret;
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	mutex_lock(&hdcp_work->mutex);
+
+
+	if (aconnector->base.state->commit) {
+		ret = wait_for_completion_interruptible_timeout(&aconnector->base.state->commit->hw_done, 10 * HZ);
+
+		if (ret == 0) {
+			DRM_ERROR("HDCP state unknown! Setting it to DESIRED");
+			hdcp_work->encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
+		}
+	}
+
+	if (hdcp_work->encryption_status == MOD_HDCP_ENCRYPTION_STATUS_HDCP1_ON)
+		drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_ENABLED);
+	else
+		drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_DESIRED);
+
+
+	mutex_unlock(&hdcp_work->mutex);
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+}
+
+static void event_property_validate(struct work_struct *work)
+{
+	struct hdcp_workqueue *hdcp_work =
+		container_of(to_delayed_work(work), struct hdcp_workqueue, property_validate_dwork);
+	struct mod_hdcp_display_query query;
+	struct amdgpu_dm_connector *aconnector = hdcp_work->aconnector;
+
+	mutex_lock(&hdcp_work->mutex);
+
+	query.encryption_status = MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF;
+	mod_hdcp_query_display(&hdcp_work->hdcp, aconnector->base.index, &query);
+
+	if (query.encryption_status != hdcp_work->encryption_status) {
+		hdcp_work->encryption_status = query.encryption_status;
+		schedule_work(&hdcp_work->property_update_work);
+	}
+
+	schedule_delayed_work(&hdcp_work->property_validate_dwork, msecs_to_jiffies(DRM_HDCP_CHECK_PERIOD_MS));
+
+	mutex_unlock(&hdcp_work->mutex);
+}
 
 static void event_watchdog_timer(struct work_struct *work)
 {
@@ -250,8 +311,10 @@ struct hdcp_workqueue *hdcp_create_workqueue(void *psp_context, struct cp_psp *c
 		mutex_init(&hdcp_work[i].mutex);
 
 		INIT_WORK(&hdcp_work[i].cpirq_work, event_cpirq);
+		INIT_WORK(&hdcp_work[i].property_update_work, event_property_update);
 		INIT_DELAYED_WORK(&hdcp_work[i].callback_dwork, event_callback);
 		INIT_DELAYED_WORK(&hdcp_work[i].watchdog_timer_dwork, event_watchdog_timer);
+		INIT_DELAYED_WORK(&hdcp_work[i].property_validate_dwork, event_property_validate);
 
 		hdcp_work[i].hdcp.config.psp.handle =  psp_context;
 		hdcp_work[i].hdcp.config.ddc.handle = dc_get_link_at_index(dc, i);

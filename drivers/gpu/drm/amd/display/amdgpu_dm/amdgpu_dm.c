@@ -5436,19 +5436,9 @@ static void update_content_protection(struct drm_connector_state *state, const s
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 
-	if (state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED) {
-		hdcp_add_display(hdcp_w, aconnector->dc_link->link_index);
-
-		/*
-		 * TODO: ENABLED should be verified using psp, it is planned later.
-		 * Just set this to ENABLED for now
-		 */
-		state->content_protection = DRM_MODE_CONTENT_PROTECTION_ENABLED;
-
-		return;
-	}
-
-	if (state->content_protection == DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
+	if (state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED)
+		hdcp_add_display(hdcp_w, aconnector->dc_link->link_index, aconnector);
+	else if (state->content_protection == DRM_MODE_CONTENT_PROTECTION_UNDESIRED)
 		hdcp_remove_display(hdcp_w, aconnector->dc_link->link_index, aconnector->base.index);
 
 }
