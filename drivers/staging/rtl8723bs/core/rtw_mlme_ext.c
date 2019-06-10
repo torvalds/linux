@@ -6771,10 +6771,6 @@ int rtw_get_ch_setting_union(struct adapter *adapter, u8 *ch, u8 *bw, u8 *offset
 {
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
 	struct adapter *iface;
-	struct mlme_ext_priv *mlmeext;
-	u8 ch_ret = 0;
-	u8 bw_ret = CHANNEL_WIDTH_20;
-	u8 offset_ret = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
 	if (ch)
 		*ch = 0;
@@ -6784,14 +6780,9 @@ int rtw_get_ch_setting_union(struct adapter *adapter, u8 *ch, u8 *bw, u8 *offset
 		*offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 
 	iface = dvobj->padapters;
-	mlmeext = &iface->mlmeextpriv;
 
 	if (!check_fwstate(&iface->mlmepriv, _FW_LINKED|_FW_UNDER_LINKING))
 		return 0;
-
-	ch_ret = mlmeext->cur_channel;
-	bw_ret = mlmeext->cur_bwmode;
-	offset_ret = mlmeext->cur_ch_offset;
 
 	return 1;
 }
