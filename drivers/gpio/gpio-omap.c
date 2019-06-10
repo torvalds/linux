@@ -1087,11 +1087,7 @@ static void omap_gpio_init_context(struct gpio_bank *p)
 	p->context.fallingdetect = readl_relaxed(base + regs->fallingdetect);
 	p->context.irqenable1	= readl_relaxed(base + regs->irqenable);
 	p->context.irqenable2	= readl_relaxed(base + regs->irqenable2);
-
-	if (regs->set_dataout && p->regs->clr_dataout)
-		p->context.dataout = readl_relaxed(base + regs->set_dataout);
-	else
-		p->context.dataout = readl_relaxed(base + regs->dataout);
+	p->context.dataout	= readl_relaxed(base + regs->dataout);
 
 	p->context_valid = true;
 }
@@ -1109,11 +1105,7 @@ static void omap_gpio_restore_context(struct gpio_bank *bank)
 				bank->base + bank->regs->risingdetect);
 	writel_relaxed(bank->context.fallingdetect,
 				bank->base + bank->regs->fallingdetect);
-	if (bank->regs->set_dataout && bank->regs->clr_dataout)
-		writel_relaxed(bank->context.dataout,
-				bank->base + bank->regs->set_dataout);
-	else
-		writel_relaxed(bank->context.dataout,
+	writel_relaxed(bank->context.dataout,
 				bank->base + bank->regs->dataout);
 	writel_relaxed(bank->context.oe, bank->base + bank->regs->direction);
 
