@@ -123,34 +123,35 @@ TRACING=0
 # Some systems don't have a ping6 binary anymore
 which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
 
+#               Name                          Description                  re-run with nh
 tests="
-	pmtu_ipv4_exception		ipv4: PMTU exceptions
-	pmtu_ipv6_exception		ipv6: PMTU exceptions
-	pmtu_ipv4_vxlan4_exception	IPv4 over vxlan4: PMTU exceptions
-	pmtu_ipv6_vxlan4_exception	IPv6 over vxlan4: PMTU exceptions
-	pmtu_ipv4_vxlan6_exception	IPv4 over vxlan6: PMTU exceptions
-	pmtu_ipv6_vxlan6_exception	IPv6 over vxlan6: PMTU exceptions
-	pmtu_ipv4_geneve4_exception	IPv4 over geneve4: PMTU exceptions
-	pmtu_ipv6_geneve4_exception	IPv6 over geneve4: PMTU exceptions
-	pmtu_ipv4_geneve6_exception	IPv4 over geneve6: PMTU exceptions
-	pmtu_ipv6_geneve6_exception	IPv6 over geneve6: PMTU exceptions
-	pmtu_ipv4_fou4_exception	IPv4 over fou4: PMTU exceptions
-	pmtu_ipv6_fou4_exception	IPv6 over fou4: PMTU exceptions
-	pmtu_ipv4_fou6_exception	IPv4 over fou6: PMTU exceptions
-	pmtu_ipv6_fou6_exception	IPv6 over fou6: PMTU exceptions
-	pmtu_ipv4_gue4_exception	IPv4 over gue4: PMTU exceptions
-	pmtu_ipv6_gue4_exception	IPv6 over gue4: PMTU exceptions
-	pmtu_ipv4_gue6_exception	IPv4 over gue6: PMTU exceptions
-	pmtu_ipv6_gue6_exception	IPv6 over gue6: PMTU exceptions
-	pmtu_vti6_exception		vti6: PMTU exceptions
-	pmtu_vti4_exception		vti4: PMTU exceptions
-	pmtu_vti4_default_mtu		vti4: default MTU assignment
-	pmtu_vti6_default_mtu		vti6: default MTU assignment
-	pmtu_vti4_link_add_mtu		vti4: MTU setting on link creation
-	pmtu_vti6_link_add_mtu		vti6: MTU setting on link creation
-	pmtu_vti6_link_change_mtu	vti6: MTU changes on link changes
-	cleanup_ipv4_exception		ipv4: cleanup of cached exceptions
-	cleanup_ipv6_exception		ipv6: cleanup of cached exceptions"
+	pmtu_ipv4_exception		ipv4: PMTU exceptions			1
+	pmtu_ipv6_exception		ipv6: PMTU exceptions			1
+	pmtu_ipv4_vxlan4_exception	IPv4 over vxlan4: PMTU exceptions	1
+	pmtu_ipv6_vxlan4_exception	IPv6 over vxlan4: PMTU exceptions	1
+	pmtu_ipv4_vxlan6_exception	IPv4 over vxlan6: PMTU exceptions	1
+	pmtu_ipv6_vxlan6_exception	IPv6 over vxlan6: PMTU exceptions	1
+	pmtu_ipv4_geneve4_exception	IPv4 over geneve4: PMTU exceptions	1
+	pmtu_ipv6_geneve4_exception	IPv6 over geneve4: PMTU exceptions	1
+	pmtu_ipv4_geneve6_exception	IPv4 over geneve6: PMTU exceptions	1
+	pmtu_ipv6_geneve6_exception	IPv6 over geneve6: PMTU exceptions	1
+	pmtu_ipv4_fou4_exception	IPv4 over fou4: PMTU exceptions		1
+	pmtu_ipv6_fou4_exception	IPv6 over fou4: PMTU exceptions		1
+	pmtu_ipv4_fou6_exception	IPv4 over fou6: PMTU exceptions		1
+	pmtu_ipv6_fou6_exception	IPv6 over fou6: PMTU exceptions		1
+	pmtu_ipv4_gue4_exception	IPv4 over gue4: PMTU exceptions		1
+	pmtu_ipv6_gue4_exception	IPv6 over gue4: PMTU exceptions		1
+	pmtu_ipv4_gue6_exception	IPv4 over gue6: PMTU exceptions		1
+	pmtu_ipv6_gue6_exception	IPv6 over gue6: PMTU exceptions		1
+	pmtu_vti6_exception		vti6: PMTU exceptions			0
+	pmtu_vti4_exception		vti4: PMTU exceptions			0
+	pmtu_vti4_default_mtu		vti4: default MTU assignment		0
+	pmtu_vti6_default_mtu		vti6: default MTU assignment		0
+	pmtu_vti4_link_add_mtu		vti4: MTU setting on link creation	0
+	pmtu_vti6_link_add_mtu		vti6: MTU setting on link creation	0
+	pmtu_vti6_link_change_mtu	vti6: MTU changes on link changes	0
+	cleanup_ipv4_exception		ipv4: cleanup of cached exceptions	1
+	cleanup_ipv6_exception		ipv6: cleanup of cached exceptions	1"
 
 NS_A="ns-A"
 NS_B="ns-B"
@@ -192,6 +193,30 @@ routes="
 	A	default			${prefix6}:${a_r1}::2
 	A	${prefix6}:${b_r2}::1	${prefix6}:${a_r2}::2
 	B	default			${prefix6}:${b_r1}::2
+"
+
+USE_NH="no"
+#	ns	family	nh id	   destination		gateway
+nexthops="
+	A	4	41	${prefix4}.${a_r1}.2	veth_A-R1
+	A	4	42	${prefix4}.${a_r2}.2	veth_A-R2
+	B	4	41	${prefix4}.${b_r1}.2	veth_B-R1
+
+	A	6	61	${prefix6}:${a_r1}::2	veth_A-R1
+	A	6	62	${prefix6}:${a_r2}::2	veth_A-R2
+	B	6	61	${prefix6}:${b_r1}::2	veth_B-R1
+"
+
+# nexthop id correlates to id in nexthops config above
+#	ns    family	prefix			nh id
+routes_nh="
+	A	4	default			41
+	A	4	${prefix4}.${b_r2}.1	42
+	B	4	default			41
+
+	A	6	default			61
+	A	6	${prefix6}:${b_r2}::1	62
+	B	6	default			61
 "
 
 veth4_a_addr="192.168.1.1"
@@ -448,6 +473,50 @@ setup_xfrm6() {
 	setup_xfrm 6 ${veth6_a_addr} ${veth6_b_addr}
 }
 
+setup_routing_old() {
+	for i in ${routes}; do
+		[ "${ns}" = "" ]	&& ns="${i}"		&& continue
+		[ "${addr}" = "" ]	&& addr="${i}"		&& continue
+		[ "${gw}" = "" ]	&& gw="${i}"
+
+		ns_name="$(nsname ${ns})"
+
+		ip -n ${ns_name} route add ${addr} via ${gw}
+
+		ns=""; addr=""; gw=""
+	done
+}
+
+setup_routing_new() {
+	for i in ${nexthops}; do
+		[ "${ns}" = "" ]	&& ns="${i}"		&& continue
+		[ "${fam}" = "" ]	&& fam="${i}"		&& continue
+		[ "${nhid}" = "" ]	&& nhid="${i}"		&& continue
+		[ "${gw}" = "" ]	&& gw="${i}"		&& continue
+		[ "${dev}" = "" ]	&& dev="${i}"
+
+		ns_name="$(nsname ${ns})"
+
+		ip -n ${ns_name} -${fam} nexthop add id ${nhid} via ${gw} dev ${dev}
+
+		ns=""; fam=""; nhid=""; gw=""; dev=""
+
+	done
+
+	for i in ${routes_nh}; do
+		[ "${ns}" = "" ]	&& ns="${i}"		&& continue
+		[ "${fam}" = "" ]	&& fam="${i}"		&& continue
+		[ "${addr}" = "" ]	&& addr="${i}"		&& continue
+		[ "${nhid}" = "" ]	&& nhid="${i}"
+
+		ns_name="$(nsname ${ns})"
+
+		ip -n ${ns_name} -${fam} route add ${addr} nhid ${nhid}
+
+		ns=""; fam=""; addr=""; nhid=""
+	done
+}
+
 setup_routing() {
 	for i in ${NS_R1} ${NS_R2}; do
 		ip netns exec ${i} sysctl -q net/ipv4/ip_forward=1
@@ -478,17 +547,13 @@ setup_routing() {
 		ns=""; peer=""; segment=""
 	done
 
-	for i in ${routes}; do
-		[ "${ns}" = "" ]	&& ns="${i}"		&& continue
-		[ "${addr}" = "" ]	&& addr="${i}"		&& continue
-		[ "${gw}" = "" ]	&& gw="${i}"
+	if [ "$USE_NH" = "yes" ]; then
+		setup_routing_new
+	else
+		setup_routing_old
+	fi
 
-		ns_name="$(nsname ${ns})"
-
-		ip -n ${ns_name} route add ${addr} via ${gw}
-
-		ns=""; addr=""; gw=""
-	done
+	return 0
 }
 
 setup() {
@@ -1090,6 +1155,53 @@ test_cleanup_ipv4_exception() {
 	test_cleanup_vxlanX_exception 4
 }
 
+run_test() {
+	(
+	tname="$1"
+	tdesc="$2"
+
+	unset IFS
+
+	if [ "$VERBOSE" = "1" ]; then
+		printf "\n##########################################################################\n\n"
+	fi
+
+	eval test_${tname}
+	ret=$?
+
+	if [ $ret -eq 0 ]; then
+		printf "TEST: %-60s  [ OK ]\n" "${tdesc}"
+	elif [ $ret -eq 1 ]; then
+		printf "TEST: %-60s  [FAIL]\n" "${tdesc}"
+		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+			echo
+			echo "Pausing. Hit enter to continue"
+			read a
+		fi
+		err_flush
+		exit 1
+	elif [ $ret -eq 2 ]; then
+		printf "TEST: %-60s  [SKIP]\n" "${tdesc}"
+		err_flush
+	fi
+
+	return $ret
+	)
+	ret=$?
+	[ $ret -ne 0 ] && exitcode=1
+
+	return $ret
+}
+
+run_test_nh() {
+	tname="$1"
+	tdesc="$2"
+
+	USE_NH=yes
+	run_test "${tname}" "${tdesc} - nexthop objects"
+	USE_NH=no
+}
+
 usage() {
 	echo
 	echo "$0 [OPTIONS] [TEST]..."
@@ -1136,8 +1248,20 @@ trap cleanup EXIT
 # start clean
 cleanup
 
+HAVE_NH=no
+ip nexthop ls >/dev/null 2>&1
+[ $? -eq 0 ] && HAVE_NH=yes
+
+name=""
+desc=""
+rerun_nh=0
 for t in ${tests}; do
-	[ $desc -eq 0 ] && name="${t}" && desc=1 && continue || desc=0
+	[ "${name}" = "" ]	&& name="${t}"	&& continue
+	[ "${desc}" = "" ]	&& desc="${t}"	&& continue
+
+	if [ "${HAVE_NH}" = "yes" ]; then
+		rerun_nh="${t}"
+	fi
 
 	run_this=1
 	for arg do
@@ -1145,35 +1269,18 @@ for t in ${tests}; do
 		[ "${arg}" = "${name}" ] && run_this=1 && break
 		run_this=0
 	done
-	[ $run_this -eq 0 ] && continue
+	if [ $run_this -eq 1 ]; then
+		run_test "${name}" "${desc}"
+		# if test was skipped no need to retry with nexthop objects
+		[ $? -eq 2 ] && rerun_nh=0
 
-	(
-		unset IFS
-
-		if [ "$VERBOSE" = "1" ]; then
-			printf "\n##########################################################################\n\n"
+		if [ "${rerun_nh}" = "1" ]; then
+			run_test_nh "${name}" "${desc}"
 		fi
-
-		eval test_${name}
-		ret=$?
-
-		if [ $ret -eq 0 ]; then
-			printf "TEST: %-60s  [ OK ]\n" "${t}"
-		elif [ $ret -eq 1 ]; then
-			printf "TEST: %-60s  [FAIL]\n" "${t}"
-			if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
-				echo
-				echo "Pausing. Hit enter to continue"
-				read a
-			fi
-			err_flush
-			exit 1
-		elif [ $ret -eq 2 ]; then
-			printf "TEST: %-60s  [SKIP]\n" "${t}"
-			err_flush
-		fi
-	)
-	[ $? -ne 0 ] && exitcode=1
+	fi
+	name=""
+	desc=""
+	rerun_nh=0
 done
 
 exit ${exitcode}

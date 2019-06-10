@@ -305,4 +305,8 @@ static inline void nexthop_path_fib6_result(struct fib6_result *res, int hash)
 		res->nh = &nhi->fib6_nh;
 	}
 }
+
+int nexthop_for_each_fib6_nh(struct nexthop *nh,
+			     int (*cb)(struct fib6_nh *nh, void *arg),
+			     void *arg);
 #endif
