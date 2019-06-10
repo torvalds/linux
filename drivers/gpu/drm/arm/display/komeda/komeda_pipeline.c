@@ -91,6 +91,9 @@ komeda_pipeline_get_component_pos(struct komeda_pipeline *pipe, int id)
 	case KOMEDA_COMPONENT_SCALER1:
 		pos = to_cpos(pipe->scalers[id - KOMEDA_COMPONENT_SCALER0]);
 		break;
+	case KOMEDA_COMPONENT_MERGER:
+		pos = to_cpos(pipe->merger);
+		break;
 	case KOMEDA_COMPONENT_IPS0:
 	case KOMEDA_COMPONENT_IPS1:
 		temp = mdev->pipelines[id - KOMEDA_COMPONENT_IPS0];

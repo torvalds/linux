@@ -147,6 +147,49 @@ static int komeda_compiz_obj_add(struct komeda_kms_dev *kms,
 }
 
 static struct drm_private_state *
+komeda_merger_atomic_duplicate_state(struct drm_private_obj *obj)
+{
+	struct komeda_merger_state *st;
+
+	st = kmemdup(obj->state, sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return NULL;
+
+	komeda_component_state_reset(&st->base);
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &st->base.obj);
+
+	return &st->base.obj;
+}
+
+static void komeda_merger_atomic_destroy_state(struct drm_private_obj *obj,
+					       struct drm_private_state *state)
+{
+	kfree(to_merger_st(priv_to_comp_st(state)));
+}
+
+static const struct drm_private_state_funcs komeda_merger_obj_funcs = {
+	.atomic_duplicate_state	= komeda_merger_atomic_duplicate_state,
+	.atomic_destroy_state	= komeda_merger_atomic_destroy_state,
+};
+
+static int komeda_merger_obj_add(struct komeda_kms_dev *kms,
+				 struct komeda_merger *merger)
+{
+	struct komeda_merger_state *st;
+
+	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return -ENOMEM;
+
+	st->base.component = &merger->base;
+	drm_atomic_private_obj_init(&kms->base,
+				    &merger->base.obj, &st->base.obj,
+				    &komeda_merger_obj_funcs);
+
+	return 0;
+}
+
+static struct drm_private_state *
 komeda_improc_atomic_duplicate_state(struct drm_private_obj *obj)
 {
 	struct komeda_improc_state *st;
@@ -310,6 +353,12 @@ int komeda_kms_add_private_objs(struct komeda_kms_dev *kms,
 		err = komeda_compiz_obj_add(kms, pipe->compiz);
 		if (err)
 			return err;
+
+		if (pipe->merger) {
+			err = komeda_merger_obj_add(kms, pipe->merger);
+			if (err)
+				return err;
+		}
 
 		err = komeda_improc_obj_add(kms, pipe->improc);
 		if (err)

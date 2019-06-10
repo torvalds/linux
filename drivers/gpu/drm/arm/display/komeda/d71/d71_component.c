@@ -767,6 +767,77 @@ static int d71_downscaling_clk_check(struct komeda_pipeline *pipe,
 	       0 : -EINVAL;
 }
 
+static void d71_merger_update(struct komeda_component *c,
+			      struct komeda_component_state *state)
+{
+	struct komeda_merger_state *st = to_merger_st(state);
+	u32 __iomem *reg = c->reg;
+	u32 index;
+
+	for_each_changed_input(state, index)
+		malidp_write32(reg, MG_INPUT_ID0 + index * 4,
+			       to_d71_input_id(&state->inputs[index]));
+
+	malidp_write32(reg, MG_SIZE, HV_SIZE(st->hsize_merged,
+					     st->vsize_merged));
+	malidp_write32(reg, BLK_CONTROL, BLK_CTRL_EN);
+}
+
+static void d71_merger_dump(struct komeda_component *c, struct seq_file *sf)
+{
+	u32 v;
+
+	dump_block_header(sf, c->reg);
+
+	get_values_from_reg(c->reg, MG_INPUT_ID0, 1, &v);
+	seq_printf(sf, "MG_INPUT_ID0:\t\t0x%X\n", v);
+
+	get_values_from_reg(c->reg, MG_INPUT_ID1, 1, &v);
+	seq_printf(sf, "MG_INPUT_ID1:\t\t0x%X\n", v);
+
+	get_values_from_reg(c->reg, BLK_CONTROL, 1, &v);
+	seq_printf(sf, "MG_CONTROL:\t\t0x%X\n", v);
+
+	get_values_from_reg(c->reg, MG_SIZE, 1, &v);
+	seq_printf(sf, "MG_SIZE:\t\t0x%X\n", v);
+}
+
+static const struct komeda_component_funcs d71_merger_funcs = {
+	.update		= d71_merger_update,
+	.disable	= d71_component_disable,
+	.dump_register	= d71_merger_dump,
+};
+
+static int d71_merger_init(struct d71_dev *d71,
+			   struct block_header *blk, u32 __iomem *reg)
+{
+	struct komeda_component *c;
+	struct komeda_merger *merger;
+	u32 pipe_id, comp_id;
+
+	get_resources_id(blk->block_info, &pipe_id, &comp_id);
+
+	c = komeda_component_add(&d71->pipes[pipe_id]->base, sizeof(*merger),
+				 comp_id,
+				 BLOCK_INFO_INPUT_ID(blk->block_info),
+				 &d71_merger_funcs,
+				 MG_NUM_INPUTS_IDS, get_valid_inputs(blk),
+				 MG_NUM_OUTPUTS_IDS, reg,
+				 "CU%d_MERGER", pipe_id);
+
+	if (IS_ERR(c)) {
+		DRM_ERROR("Failed to initialize merger.\n");
+		return PTR_ERR(c);
+	}
+
+	merger = to_merger(c);
+
+	set_range(&merger->hsize_merged, 4, 4032);
+	set_range(&merger->vsize_merged, 4, 4096);
+
+	return 0;
+}
+
 static void d71_improc_update(struct komeda_component *c,
 			      struct komeda_component_state *state)
 {
@@ -992,7 +1063,10 @@ int d71_probe_block(struct d71_dev *d71,
 		break;
 
 	case D71_BLK_TYPE_CU_SPLITTER:
+		break;
+
 	case D71_BLK_TYPE_CU_MERGER:
+		err = d71_merger_init(d71, blk, reg);
 		break;
 
 	case D71_BLK_TYPE_DOU:
