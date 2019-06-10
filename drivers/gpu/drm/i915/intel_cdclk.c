@@ -1531,15 +1531,12 @@ static int cnl_calc_cdclk(int min_cdclk)
 
 static u8 cnl_calc_voltage_level(int cdclk)
 {
-	switch (cdclk) {
-	default:
-	case 168000:
-		return 0;
-	case 336000:
-		return 1;
-	case 528000:
+	if (cdclk > 336000)
 		return 2;
-	}
+	else if (cdclk > 168000)
+		return 1;
+	else
+		return 0;
 }
 
 static void cnl_cdclk_pll_update(struct drm_i915_private *dev_priv,
