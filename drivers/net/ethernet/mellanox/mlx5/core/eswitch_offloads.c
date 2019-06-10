@@ -1436,34 +1436,13 @@ err_reps:
 	return err;
 }
 
-static int __load_reps_all_vport(struct mlx5_eswitch *esw, int nvports,
-				 u8 rep_type)
-{
-	int err;
-
-	/* Special vports must be loaded first. */
-	err = __load_reps_special_vport(esw, rep_type);
-	if (err)
-		return err;
-
-	err = __load_reps_vf_vport(esw, nvports, rep_type);
-	if (err)
-		goto err_vfs;
-
-	return 0;
-
-err_vfs:
-	__unload_reps_special_vport(esw, rep_type);
-	return err;
-}
-
-static int esw_offloads_load_all_reps(struct mlx5_eswitch *esw, int nvports)
+static int esw_offloads_load_special_vport(struct mlx5_eswitch *esw)
 {
 	u8 rep_type = 0;
 	int err;
 
 	for (rep_type = 0; rep_type < NUM_REP_TYPES; rep_type++) {
-		err = __load_reps_all_vport(esw, nvports, rep_type);
+		err = __load_reps_special_vport(esw, rep_type);
 		if (err)
 			goto err_reps;
 	}
@@ -1472,7 +1451,7 @@ static int esw_offloads_load_all_reps(struct mlx5_eswitch *esw, int nvports)
 
 err_reps:
 	while (rep_type-- > 0)
-		__unload_reps_all_vport(esw, nvports, rep_type);
+		__unload_reps_special_vport(esw, rep_type);
 	return err;
 }
 
@@ -1811,6 +1790,21 @@ out:
 	kfree(host_work);
 }
 
+static void esw_emulate_event_handler(struct work_struct *work)
+{
+	struct mlx5_host_work *host_work =
+		container_of(work, struct mlx5_host_work, work);
+	struct mlx5_eswitch *esw = host_work->esw;
+	int err;
+
+	if (esw->esw_funcs.num_vfs) {
+		err = esw_offloads_load_vf_reps(esw, esw->esw_funcs.num_vfs);
+		if (err)
+			esw_warn(esw->dev, "Load vf reps err=%d\n", err);
+	}
+	kfree(host_work);
+}
+
 static int esw_functions_changed_event(struct notifier_block *nb,
 				       unsigned long type, void *data)
 {
@@ -1827,7 +1821,11 @@ static int esw_functions_changed_event(struct notifier_block *nb,
 
 	host_work->esw = esw;
 
-	INIT_WORK(&host_work->work, esw_functions_changed_event_handler);
+	if (mlx5_eswitch_is_funcs_handler(esw->dev))
+		INIT_WORK(&host_work->work,
+			  esw_functions_changed_event_handler);
+	else
+		INIT_WORK(&host_work->work, esw_emulate_event_handler);
 	queue_work(esw->work_queue, &host_work->work);
 
 	return NOTIFY_OK;
@@ -1836,13 +1834,14 @@ static int esw_functions_changed_event(struct notifier_block *nb,
 static void esw_functions_changed_event_init(struct mlx5_eswitch *esw,
 					     u16 vf_nvports)
 {
-	if (!mlx5_eswitch_is_funcs_handler(esw->dev))
-		return;
-
-	MLX5_NB_INIT(&esw->esw_funcs.nb, esw_functions_changed_event,
-		     ESW_FUNCTIONS_CHANGED);
-	mlx5_eq_notifier_register(esw->dev, &esw->esw_funcs.nb);
-	esw->esw_funcs.num_vfs = vf_nvports;
+	if (mlx5_eswitch_is_funcs_handler(esw->dev)) {
+		esw->esw_funcs.num_vfs = 0;
+		MLX5_NB_INIT(&esw->esw_funcs.nb, esw_functions_changed_event,
+			     ESW_FUNCTIONS_CHANGED);
+		mlx5_eq_notifier_register(esw->dev, &esw->esw_funcs.nb);
+	} else {
+		esw->esw_funcs.num_vfs = vf_nvports;
+	}
 }
 
 static void esw_functions_changed_event_cleanup(struct mlx5_eswitch *esw)
@@ -1863,7 +1862,11 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
 	if (err)
 		return err;
 
-	err = esw_offloads_load_all_reps(esw, vf_nvports);
+	/* Only load special vports reps. VF reps will be loaded in
+	 * context of functions_changed event handler through real
+	 * or emulated event.
+	 */
+	err = esw_offloads_load_special_vport(esw);
 	if (err)
 		goto err_reps;
 
@@ -1872,6 +1875,16 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int vf_nvports,
 	esw_functions_changed_event_init(esw, vf_nvports);
 
 	mlx5_rdma_enable_roce(esw->dev);
+
+	/* Call esw_functions_changed event to load VF reps:
+	 * 1. HW does not support the event then emulate it
+	 * Or
+	 * 2. The event was already notified when num_vfs changed
+	 * and eswitch was in legacy mode
+	 */
+	esw_functions_changed_event(&esw->esw_funcs.nb.nb,
+				    MLX5_EVENT_TYPE_ESW_FUNCTIONS_CHANGED,
+				    NULL);
 
 	return 0;
 
@@ -1901,18 +1914,10 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 
 void esw_offloads_cleanup(struct mlx5_eswitch *esw)
 {
-	u16 num_vfs;
-
 	esw_functions_changed_event_cleanup(esw);
-
-	if (mlx5_eswitch_is_funcs_handler(esw->dev))
-		num_vfs = esw->esw_funcs.num_vfs;
-	else
-		num_vfs = esw->dev->priv.sriov.num_vfs;
-
 	mlx5_rdma_disable_roce(esw->dev);
 	esw_offloads_devcom_cleanup(esw);
-	esw_offloads_unload_all_reps(esw, num_vfs);
+	esw_offloads_unload_all_reps(esw, esw->esw_funcs.num_vfs);
 	esw_offloads_steering_cleanup(esw);
 }
 
