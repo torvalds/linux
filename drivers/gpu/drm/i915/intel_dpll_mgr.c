@@ -775,7 +775,7 @@ static struct intel_shared_dpll *hsw_ddi_hdmi_get_dpll(struct intel_crtc_state *
 
 	hsw_ddi_calculate_wrpll(crtc_state->port_clock * 1000, &r2, &n2, &p);
 
-	val = WRPLL_PLL_ENABLE | WRPLL_PLL_LCPLL |
+	val = WRPLL_PLL_ENABLE | WRPLL_REF_LCPLL |
 	      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
 	      WRPLL_DIVIDER_POST(p);
 
@@ -839,7 +839,7 @@ hsw_get_dpll(struct intel_crtc_state *crtc_state,
 			return NULL;
 
 		crtc_state->dpll_hw_state.spll =
-			SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC;
+			SPLL_PLL_ENABLE | SPLL_FREQ_1350MHz | SPLL_REF_MUXED_SSC;
 
 		pll = intel_find_shared_dpll(crtc_state,
 					     DPLL_ID_SPLL, DPLL_ID_SPLL);

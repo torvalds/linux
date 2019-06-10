@@ -1231,9 +1231,9 @@ static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	u32 wrpll;
 
 	wrpll = I915_READ(reg);
-	switch (wrpll & WRPLL_PLL_REF_MASK) {
-	case WRPLL_PLL_SSC:
-	case WRPLL_PLL_NON_SSC:
+	switch (wrpll & WRPLL_REF_MASK) {
+	case WRPLL_REF_SPECIAL_HSW:
+	case WRPLL_REF_PCH_SSC:
 		/*
 		 * We could calculate spread here, but our checking
 		 * code only cares about 5% accuracy, and spread is a max of
@@ -1241,7 +1241,7 @@ static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
 		 */
 		refclk = 135;
 		break;
-	case WRPLL_PLL_LCPLL:
+	case WRPLL_REF_LCPLL:
 		refclk = LC_FREQ;
 		break;
 	default:
@@ -1613,12 +1613,12 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 		link_clock = hsw_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL(1));
 		break;
 	case PORT_CLK_SEL_SPLL:
-		pll = I915_READ(SPLL_CTL) & SPLL_PLL_FREQ_MASK;
-		if (pll == SPLL_PLL_FREQ_810MHz)
+		pll = I915_READ(SPLL_CTL) & SPLL_FREQ_MASK;
+		if (pll == SPLL_FREQ_810MHz)
 			link_clock = 81000;
-		else if (pll == SPLL_PLL_FREQ_1350MHz)
+		else if (pll == SPLL_FREQ_1350MHz)
 			link_clock = 135000;
-		else if (pll == SPLL_PLL_FREQ_2700MHz)
+		else if (pll == SPLL_FREQ_2700MHz)
 			link_clock = 270000;
 		else {
 			WARN(1, "bad spll freq\n");

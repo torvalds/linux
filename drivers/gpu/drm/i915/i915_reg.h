@@ -9466,24 +9466,28 @@ enum skl_power_gate {
 /* SPLL */
 #define SPLL_CTL			_MMIO(0x46020)
 #define  SPLL_PLL_ENABLE		(1 << 31)
-#define  SPLL_PLL_SSC			(1 << 28)
-#define  SPLL_PLL_NON_SSC		(2 << 28)
-#define  SPLL_PLL_LCPLL			(3 << 28)
-#define  SPLL_PLL_REF_MASK		(3 << 28)
-#define  SPLL_PLL_FREQ_810MHz		(0 << 26)
-#define  SPLL_PLL_FREQ_1350MHz		(1 << 26)
-#define  SPLL_PLL_FREQ_2700MHz		(2 << 26)
-#define  SPLL_PLL_FREQ_MASK		(3 << 26)
+#define  SPLL_REF_BCLK			(0 << 28)
+#define  SPLL_REF_MUXED_SSC		(1 << 28) /* CPU SSC if fused enabled, PCH SSC otherwise */
+#define  SPLL_REF_NON_SSC_HSW		(2 << 28)
+#define  SPLL_REF_PCH_SSC_BDW		(2 << 28)
+#define  SPLL_REF_LCPLL			(3 << 28)
+#define  SPLL_REF_MASK			(3 << 28)
+#define  SPLL_FREQ_810MHz		(0 << 26)
+#define  SPLL_FREQ_1350MHz		(1 << 26)
+#define  SPLL_FREQ_2700MHz		(2 << 26)
+#define  SPLL_FREQ_MASK			(3 << 26)
 
 /* WRPLL */
 #define _WRPLL_CTL1			0x46040
 #define _WRPLL_CTL2			0x46060
 #define WRPLL_CTL(pll)			_MMIO_PIPE(pll, _WRPLL_CTL1, _WRPLL_CTL2)
 #define  WRPLL_PLL_ENABLE		(1 << 31)
-#define  WRPLL_PLL_SSC			(1 << 28)
-#define  WRPLL_PLL_NON_SSC		(2 << 28)
-#define  WRPLL_PLL_LCPLL		(3 << 28)
-#define  WRPLL_PLL_REF_MASK		(3 << 28)
+#define  WRPLL_REF_BCLK			(0 << 28)
+#define  WRPLL_REF_PCH_SSC		(1 << 28)
+#define  WRPLL_REF_MUXED_SSC_BDW	(2 << 28) /* CPU SSC if fused enabled, PCH SSC otherwise */
+#define  WRPLL_REF_SPECIAL_HSW		(2 << 28) /* muxed SSC (ULT), non-SSC (non-ULT) */
+#define  WRPLL_REF_LCPLL		(3 << 28)
+#define  WRPLL_REF_MASK			(3 << 28)
 /* WRPLL divider programming */
 #define  WRPLL_DIVIDER_REFERENCE(x)	((x) << 0)
 #define  WRPLL_DIVIDER_REF_MASK		(0xff)
@@ -9549,6 +9553,10 @@ enum skl_power_gate {
 #define LCPLL_CTL			_MMIO(0x130040)
 #define  LCPLL_PLL_DISABLE		(1 << 31)
 #define  LCPLL_PLL_LOCK			(1 << 30)
+#define  LCPLL_REF_NON_SSC		(0 << 28)
+#define  LCPLL_REF_BCLK			(2 << 28)
+#define  LCPLL_REF_PCH_SSC		(3 << 28)
+#define  LCPLL_REF_MASK			(3 << 28)
 #define  LCPLL_CLK_FREQ_MASK		(3 << 26)
 #define  LCPLL_CLK_FREQ_450		(0 << 26)
 #define  LCPLL_CLK_FREQ_54O_BDW		(1 << 26)

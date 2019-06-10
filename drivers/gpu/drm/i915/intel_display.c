@@ -9134,12 +9134,12 @@ static bool spll_uses_pch_ssc(struct drm_i915_private *dev_priv)
 	if ((ctl & SPLL_PLL_ENABLE) == 0)
 		return false;
 
-	if ((ctl & SPLL_PLL_REF_MASK) == SPLL_PLL_SSC &&
+	if ((ctl & SPLL_REF_MASK) == SPLL_REF_MUXED_SSC &&
 	    (fuse_strap & HSW_CPU_SSC_ENABLE) == 0)
 		return true;
 
 	if (IS_BROADWELL(dev_priv) &&
-	    (ctl & SPLL_PLL_REF_MASK) == SPLL_PLL_NON_SSC)
+	    (ctl & SPLL_REF_MASK) == SPLL_REF_PCH_SSC_BDW)
 		return true;
 
 	return false;
@@ -9154,11 +9154,11 @@ static bool wrpll_uses_pch_ssc(struct drm_i915_private *dev_priv,
 	if ((ctl & WRPLL_PLL_ENABLE) == 0)
 		return false;
 
-	if ((ctl & WRPLL_PLL_REF_MASK) == WRPLL_PLL_SSC)
+	if ((ctl & WRPLL_REF_MASK) == WRPLL_REF_PCH_SSC)
 		return true;
 
 	if ((IS_BROADWELL(dev_priv) || IS_HSW_ULT(dev_priv)) &&
-	    (ctl & WRPLL_PLL_REF_MASK) == WRPLL_PLL_NON_SSC &&
+	    (ctl & WRPLL_REF_MASK) == WRPLL_REF_MUXED_SSC_BDW &&
 	    (fuse_strap & HSW_CPU_SSC_ENABLE) == 0)
 		return true;
 
