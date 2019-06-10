@@ -68,8 +68,8 @@ struct tp_probes {
 
 static inline void *allocate_probes(int count)
 {
-	struct tp_probes *p  = kmalloc(count * sizeof(struct tracepoint_func)
-			+ sizeof(struct tp_probes), GFP_KERNEL);
+	struct tp_probes *p  = kmalloc(struct_size(p, probes, count),
+				       GFP_KERNEL);
 	return p == NULL ? NULL : p->probes;
 }
 
