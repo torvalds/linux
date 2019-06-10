@@ -73,6 +73,8 @@ static const int multicast_filter_limit = 32;
 #define R8169_TX_RING_BYTES	(NUM_TX_DESC * sizeof(struct TxDesc))
 #define R8169_RX_RING_BYTES	(NUM_RX_DESC * sizeof(struct RxDesc))
 
+#define RTL_CFG_NO_GBIT	1
+
 /* write/read MMIO register */
 #define RTL_W8(tp, reg, val8)	writeb((val8), tp->mmio_addr + (reg))
 #define RTL_W16(tp, reg, val16)	writew((val16), tp->mmio_addr + (reg))
@@ -200,32 +202,26 @@ static const struct {
 	[RTL_GIGA_MAC_VER_51] = {"RTL8168ep/8111ep"			},
 };
 
-enum cfg_version {
-	RTL_CFG_0 = 0x00,
-	RTL_CFG_1,
-	RTL_CFG_2
-};
-
 static const struct pci_device_id rtl8169_pci_tbl[] = {
-	{ PCI_VDEVICE(REALTEK,	0x2502), RTL_CFG_1 },
-	{ PCI_VDEVICE(REALTEK,	0x2600), RTL_CFG_1 },
-	{ PCI_VDEVICE(REALTEK,	0x8129), RTL_CFG_0 },
-	{ PCI_VDEVICE(REALTEK,	0x8136), RTL_CFG_2 },
-	{ PCI_VDEVICE(REALTEK,	0x8161), RTL_CFG_1 },
-	{ PCI_VDEVICE(REALTEK,	0x8167), RTL_CFG_0 },
-	{ PCI_VDEVICE(REALTEK,	0x8168), RTL_CFG_1 },
-	{ PCI_VDEVICE(NCUBE,	0x8168), RTL_CFG_1 },
-	{ PCI_VDEVICE(REALTEK,	0x8169), RTL_CFG_0 },
+	{ PCI_VDEVICE(REALTEK,	0x2502) },
+	{ PCI_VDEVICE(REALTEK,	0x2600) },
+	{ PCI_VDEVICE(REALTEK,	0x8129) },
+	{ PCI_VDEVICE(REALTEK,	0x8136), RTL_CFG_NO_GBIT },
+	{ PCI_VDEVICE(REALTEK,	0x8161) },
+	{ PCI_VDEVICE(REALTEK,	0x8167) },
+	{ PCI_VDEVICE(REALTEK,	0x8168) },
+	{ PCI_VDEVICE(NCUBE,	0x8168) },
+	{ PCI_VDEVICE(REALTEK,	0x8169) },
 	{ PCI_VENDOR_ID_DLINK,	0x4300,
-		PCI_VENDOR_ID_DLINK, 0x4b10, 0, 0, RTL_CFG_1 },
-	{ PCI_VDEVICE(DLINK,	0x4300), RTL_CFG_0 },
-	{ PCI_VDEVICE(DLINK,	0x4302), RTL_CFG_0 },
-	{ PCI_VDEVICE(AT,	0xc107), RTL_CFG_0 },
-	{ PCI_VDEVICE(USR,	0x0116), RTL_CFG_0 },
+		PCI_VENDOR_ID_DLINK, 0x4b10, 0, 0 },
+	{ PCI_VDEVICE(DLINK,	0x4300), },
+	{ PCI_VDEVICE(DLINK,	0x4302), },
+	{ PCI_VDEVICE(AT,	0xc107), },
+	{ PCI_VDEVICE(USR,	0x0116), },
 	{ PCI_VENDOR_ID_LINKSYS,		0x1032,
-		PCI_ANY_ID, 0x0024, 0, 0, RTL_CFG_0 },
+		PCI_ANY_ID, 0x0024, 0, 0 },
 	{ 0x0001,				0x8168,
-		PCI_ANY_ID, 0x2410, 0, 0, RTL_CFG_2 },
+		PCI_ANY_ID, 0x2410, 0, 0, RTL_CFG_NO_GBIT },
 	{}
 };
 
@@ -490,6 +486,7 @@ enum rtl_register_content {
 	PCIDAC		= (1 << 4),
 	PCIMulRW	= (1 << 3),
 #define INTT_MASK	GENMASK(1, 0)
+#define CPCMD_MASK	(Normal_mode | RxVlan | RxChkSum | INTT_MASK)
 
 	/* rtl8169_PHYstatus */
 	TBI_Enable	= 0x80,
@@ -573,7 +570,6 @@ enum rtl_rx_desc_bit {
 };
 
 #define RsvdMask	0x3fffc000
-#define CPCMD_QUIRK_MASK	(Normal_mode | RxVlan | RxChkSum | INTT_MASK)
 
 struct TxDesc {
 	__le32 opts1;
@@ -651,8 +647,6 @@ struct rtl8169_private {
 	u16 irq_mask;
 	const struct rtl_coalesce_info *coalesce_info;
 	struct clk *clk;
-
-	void (*hw_start)(struct rtl8169_private *tp);
 
 	struct {
 		DECLARE_BITMAP(flags, RTL_FLAG_MAX);
@@ -4206,53 +4200,6 @@ static void rtl_set_rx_mode(struct net_device *dev)
 	RTL_W32(tp, RxConfig, tmp);
 }
 
-static void rtl_hw_start(struct  rtl8169_private *tp)
-{
-	rtl_unlock_config_regs(tp);
-
-	tp->hw_start(tp);
-
-	rtl_set_rx_max_size(tp);
-	rtl_set_rx_tx_desc_registers(tp);
-	rtl_lock_config_regs(tp);
-
-	/* disable interrupt coalescing */
-	RTL_W16(tp, IntrMitigate, 0x0000);
-	/* Initially a 10 us delay. Turned it into a PCI commit. - FR */
-	RTL_R8(tp, IntrMask);
-	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
-	rtl_init_rxcfg(tp);
-	rtl_set_tx_config_registers(tp);
-
-	rtl_set_rx_mode(tp->dev);
-	/* no early-rx interrupts */
-	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
-	rtl_irq_enable(tp);
-}
-
-static void rtl_hw_start_8169(struct rtl8169_private *tp)
-{
-	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
-		pci_write_config_byte(tp->pci_dev, PCI_CACHE_LINE_SIZE, 0x08);
-
-	RTL_W8(tp, EarlyTxThres, NoEarlyTx);
-
-	tp->cp_cmd |= PCIMulRW;
-
-	if (tp->mac_version == RTL_GIGA_MAC_VER_02 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_03) {
-		netif_dbg(tp, drv, tp->dev,
-			  "Set MAC Reg C+CR Offset 0xe0. Bit 3 and Bit 14 MUST be 1\n");
-		tp->cp_cmd |= (1 << 14);
-	}
-
-	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
-
-	rtl8169_set_magic_reg(tp, tp->mac_version);
-
-	RTL_W32(tp, RxMissed, 0);
-}
-
 DECLARE_RTL_COND(rtl_csiar_cond)
 {
 	return RTL_R32(tp, CSIAR) & CSIAR_FLAG;
@@ -4377,9 +4324,6 @@ static void rtl_hw_start_8168bb(struct rtl8169_private *tp)
 {
 	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Beacon_en);
 
-	tp->cp_cmd &= CPCMD_QUIRK_MASK;
-	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
-
 	if (tp->dev->mtu <= ETH_DATA_LEN) {
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B |
 					 PCI_EXP_DEVCTL_NOSNOOP_EN);
@@ -4405,9 +4349,6 @@ static void __rtl_hw_start_8168cp(struct rtl8169_private *tp)
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
 
 	rtl_disable_clock_request(tp);
-
-	tp->cp_cmd &= CPCMD_QUIRK_MASK;
-	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 }
 
 static void rtl_hw_start_8168cp_1(struct rtl8169_private *tp)
@@ -4435,9 +4376,6 @@ static void rtl_hw_start_8168cp_2(struct rtl8169_private *tp)
 
 	if (tp->dev->mtu <= ETH_DATA_LEN)
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
-
-	tp->cp_cmd &= CPCMD_QUIRK_MASK;
-	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 }
 
 static void rtl_hw_start_8168cp_3(struct rtl8169_private *tp)
@@ -4453,9 +4391,6 @@ static void rtl_hw_start_8168cp_3(struct rtl8169_private *tp)
 
 	if (tp->dev->mtu <= ETH_DATA_LEN)
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
-
-	tp->cp_cmd &= CPCMD_QUIRK_MASK;
-	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 }
 
 static void rtl_hw_start_8168c_1(struct rtl8169_private *tp)
@@ -4511,9 +4446,6 @@ static void rtl_hw_start_8168d(struct rtl8169_private *tp)
 
 	if (tp->dev->mtu <= ETH_DATA_LEN)
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
-
-	tp->cp_cmd &= CPCMD_QUIRK_MASK;
-	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 }
 
 static void rtl_hw_start_8168dp(struct rtl8169_private *tp)
@@ -5134,22 +5066,6 @@ static void rtl_hw_config(struct rtl8169_private *tp)
 
 static void rtl_hw_start_8168(struct rtl8169_private *tp)
 {
-	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
-
-	/* Workaround for RxFIFO overflow. */
-	if (tp->mac_version == RTL_GIGA_MAC_VER_11) {
-		tp->irq_mask |= RxFIFOOver;
-		tp->irq_mask &= ~RxOverflow;
-	}
-
-	rtl_hw_config(tp);
-}
-
-static void rtl_hw_start_8101(struct rtl8169_private *tp)
-{
-	if (tp->mac_version >= RTL_GIGA_MAC_VER_30)
-		tp->irq_mask &= ~RxFIFOOver;
-
 	if (tp->mac_version == RTL_GIGA_MAC_VER_13 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_16)
 		pcie_capability_set_word(tp->pci_dev, PCI_EXP_DEVCTL,
@@ -5157,10 +5073,60 @@ static void rtl_hw_start_8101(struct rtl8169_private *tp)
 
 	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
 
-	tp->cp_cmd &= CPCMD_QUIRK_MASK;
+	rtl_hw_config(tp);
+}
+
+static void rtl_hw_start_8169(struct rtl8169_private *tp)
+{
+	if (tp->mac_version == RTL_GIGA_MAC_VER_05)
+		pci_write_config_byte(tp->pci_dev, PCI_CACHE_LINE_SIZE, 0x08);
+
+	RTL_W8(tp, EarlyTxThres, NoEarlyTx);
+
+	tp->cp_cmd |= PCIMulRW;
+
+	if (tp->mac_version == RTL_GIGA_MAC_VER_02 ||
+	    tp->mac_version == RTL_GIGA_MAC_VER_03) {
+		netif_dbg(tp, drv, tp->dev,
+			  "Set MAC Reg C+CR Offset 0xe0. Bit 3 and Bit 14 MUST be 1\n");
+		tp->cp_cmd |= (1 << 14);
+	}
+
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 
-	rtl_hw_config(tp);
+	rtl8169_set_magic_reg(tp, tp->mac_version);
+
+	RTL_W32(tp, RxMissed, 0);
+}
+
+static void rtl_hw_start(struct  rtl8169_private *tp)
+{
+	rtl_unlock_config_regs(tp);
+
+	tp->cp_cmd &= CPCMD_MASK;
+	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
+
+	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
+		rtl_hw_start_8169(tp);
+	else
+		rtl_hw_start_8168(tp);
+
+	rtl_set_rx_max_size(tp);
+	rtl_set_rx_tx_desc_registers(tp);
+	rtl_lock_config_regs(tp);
+
+	/* disable interrupt coalescing */
+	RTL_W16(tp, IntrMitigate, 0x0000);
+	/* Initially a 10 us delay. Turned it into a PCI commit. - FR */
+	RTL_R8(tp, IntrMask);
+	RTL_W8(tp, ChipCmd, CmdTxEnb | CmdRxEnb);
+	rtl_init_rxcfg(tp);
+	rtl_set_tx_config_registers(tp);
+
+	rtl_set_rx_mode(tp->dev);
+	/* no early-rx interrupts */
+	RTL_W16(tp, MultiIntr, RTL_R16(tp, MultiIntr) & 0xf000);
+	rtl_irq_enable(tp);
 }
 
 static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
@@ -6489,30 +6455,18 @@ static const struct net_device_ops rtl_netdev_ops = {
 
 };
 
-static const struct rtl_cfg_info {
-	void (*hw_start)(struct rtl8169_private *tp);
-	u16 irq_mask;
-	unsigned int has_gmii:1;
-	const struct rtl_coalesce_info *coalesce_info;
-} rtl_cfg_infos [] = {
-	[RTL_CFG_0] = {
-		.hw_start	= rtl_hw_start_8169,
-		.irq_mask	= SYSErr | LinkChg | RxOverflow | RxFIFOOver,
-		.has_gmii	= 1,
-		.coalesce_info	= rtl_coalesce_info_8169,
-	},
-	[RTL_CFG_1] = {
-		.hw_start	= rtl_hw_start_8168,
-		.irq_mask	= LinkChg | RxOverflow,
-		.has_gmii	= 1,
-		.coalesce_info	= rtl_coalesce_info_8168_8136,
-	},
-	[RTL_CFG_2] = {
-		.hw_start	= rtl_hw_start_8101,
-		.irq_mask	= LinkChg | RxOverflow | RxFIFOOver,
-		.coalesce_info	= rtl_coalesce_info_8168_8136,
-	}
-};
+static void rtl_set_irq_mask(struct rtl8169_private *tp)
+{
+	tp->irq_mask = RTL_EVENT_NAPI | LinkChg;
+
+	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
+		tp->irq_mask |= SYSErr | RxOverflow | RxFIFOOver;
+	else if (tp->mac_version == RTL_GIGA_MAC_VER_11)
+		/* special workaround needed */
+		tp->irq_mask |= RxFIFOOver;
+	else
+		tp->irq_mask |= RxOverflow;
+}
 
 static int rtl_alloc_irq(struct rtl8169_private *tp)
 {
@@ -6724,7 +6678,6 @@ static int rtl_get_ether_clk(struct rtl8169_private *tp)
 
 static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	const struct rtl_cfg_info *cfg = rtl_cfg_infos + ent->driver_data;
 	/* align to u16 for is_valid_ether_addr() */
 	u8 mac_addr[ETH_ALEN] __aligned(2) = {};
 	struct rtl8169_private *tp;
@@ -6742,7 +6695,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->dev = dev;
 	tp->pci_dev = pdev;
 	tp->msg_enable = netif_msg_init(debug.msg_enable, R8169_MSG_DEFAULT);
-	tp->supports_gmii = cfg->has_gmii;
+	tp->supports_gmii = ent->driver_data == RTL_CFG_NO_GBIT ? 0 : 1;
 
 	/* Get the *optional* external "ether_clk" used on some boards */
 	rc = rtl_get_ether_clk(tp);
@@ -6874,9 +6827,12 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	jumbo_max = rtl_jumbo_max(tp);
 	dev->max_mtu = jumbo_max;
 
-	tp->hw_start = cfg->hw_start;
-	tp->irq_mask = RTL_EVENT_NAPI | cfg->irq_mask;
-	tp->coalesce_info = cfg->coalesce_info;
+	rtl_set_irq_mask(tp);
+
+	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
+		tp->coalesce_info = rtl_coalesce_info_8169;
+	else
+		tp->coalesce_info = rtl_coalesce_info_8168_8136;
 
 	tp->fw_name = rtl_chip_infos[chipset].fw_name;
 
