@@ -73,6 +73,8 @@ static const int multicast_filter_limit = 32;
 #define R8169_TX_RING_BYTES	(NUM_TX_DESC * sizeof(struct TxDesc))
 #define R8169_RX_RING_BYTES	(NUM_RX_DESC * sizeof(struct RxDesc))
 
+#define RTL_CFG_NO_GBIT	1
+
 /* write/read MMIO register */
 #define RTL_W8(tp, reg, val8)	writeb((val8), tp->mmio_addr + (reg))
 #define RTL_W16(tp, reg, val16)	writew((val16), tp->mmio_addr + (reg))
@@ -200,32 +202,26 @@ static const struct {
 	[RTL_GIGA_MAC_VER_51] = {"RTL8168ep/8111ep"			},
 };
 
-enum cfg_version {
-	RTL_CFG_0 = 0x00,
-	RTL_CFG_1,
-	RTL_CFG_2
-};
-
 static const struct pci_device_id rtl8169_pci_tbl[] = {
-	{ PCI_VDEVICE(REALTEK,	0x2502), RTL_CFG_1 },
-	{ PCI_VDEVICE(REALTEK,	0x2600), RTL_CFG_1 },
-	{ PCI_VDEVICE(REALTEK,	0x8129), RTL_CFG_0 },
-	{ PCI_VDEVICE(REALTEK,	0x8136), RTL_CFG_2 },
-	{ PCI_VDEVICE(REALTEK,	0x8161), RTL_CFG_1 },
-	{ PCI_VDEVICE(REALTEK,	0x8167), RTL_CFG_0 },
-	{ PCI_VDEVICE(REALTEK,	0x8168), RTL_CFG_1 },
-	{ PCI_VDEVICE(NCUBE,	0x8168), RTL_CFG_1 },
-	{ PCI_VDEVICE(REALTEK,	0x8169), RTL_CFG_0 },
+	{ PCI_VDEVICE(REALTEK,	0x2502) },
+	{ PCI_VDEVICE(REALTEK,	0x2600) },
+	{ PCI_VDEVICE(REALTEK,	0x8129) },
+	{ PCI_VDEVICE(REALTEK,	0x8136), RTL_CFG_NO_GBIT },
+	{ PCI_VDEVICE(REALTEK,	0x8161) },
+	{ PCI_VDEVICE(REALTEK,	0x8167) },
+	{ PCI_VDEVICE(REALTEK,	0x8168) },
+	{ PCI_VDEVICE(NCUBE,	0x8168) },
+	{ PCI_VDEVICE(REALTEK,	0x8169) },
 	{ PCI_VENDOR_ID_DLINK,	0x4300,
-		PCI_VENDOR_ID_DLINK, 0x4b10, 0, 0, RTL_CFG_1 },
-	{ PCI_VDEVICE(DLINK,	0x4300), RTL_CFG_0 },
-	{ PCI_VDEVICE(DLINK,	0x4302), RTL_CFG_0 },
-	{ PCI_VDEVICE(AT,	0xc107), RTL_CFG_0 },
-	{ PCI_VDEVICE(USR,	0x0116), RTL_CFG_0 },
+		PCI_VENDOR_ID_DLINK, 0x4b10, 0, 0 },
+	{ PCI_VDEVICE(DLINK,	0x4300), },
+	{ PCI_VDEVICE(DLINK,	0x4302), },
+	{ PCI_VDEVICE(AT,	0xc107), },
+	{ PCI_VDEVICE(USR,	0x0116), },
 	{ PCI_VENDOR_ID_LINKSYS,		0x1032,
-		PCI_ANY_ID, 0x0024, 0, 0, RTL_CFG_0 },
+		PCI_ANY_ID, 0x0024, 0, 0 },
 	{ 0x0001,				0x8168,
-		PCI_ANY_ID, 0x2410, 0, 0, RTL_CFG_2 },
+		PCI_ANY_ID, 0x2410, 0, 0, RTL_CFG_NO_GBIT },
 	{}
 };
 
@@ -6459,19 +6455,6 @@ static const struct net_device_ops rtl_netdev_ops = {
 
 };
 
-static const struct rtl_cfg_info {
-	unsigned int has_gmii:1;
-} rtl_cfg_infos [] = {
-	[RTL_CFG_0] = {
-		.has_gmii	= 1,
-	},
-	[RTL_CFG_1] = {
-		.has_gmii	= 1,
-	},
-	[RTL_CFG_2] = {
-	}
-};
-
 static void rtl_set_irq_mask(struct rtl8169_private *tp)
 {
 	tp->irq_mask = RTL_EVENT_NAPI | LinkChg;
@@ -6695,7 +6678,6 @@ static int rtl_get_ether_clk(struct rtl8169_private *tp)
 
 static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	const struct rtl_cfg_info *cfg = rtl_cfg_infos + ent->driver_data;
 	/* align to u16 for is_valid_ether_addr() */
 	u8 mac_addr[ETH_ALEN] __aligned(2) = {};
 	struct rtl8169_private *tp;
@@ -6713,7 +6695,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->dev = dev;
 	tp->pci_dev = pdev;
 	tp->msg_enable = netif_msg_init(debug.msg_enable, R8169_MSG_DEFAULT);
-	tp->supports_gmii = cfg->has_gmii;
+	tp->supports_gmii = ent->driver_data == RTL_CFG_NO_GBIT ? 0 : 1;
 
 	/* Get the *optional* external "ether_clk" used on some boards */
 	rc = rtl_get_ether_clk(tp);
