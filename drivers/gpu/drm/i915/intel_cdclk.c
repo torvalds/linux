@@ -516,7 +516,8 @@ static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
 }
 
 static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
-			  const struct intel_cdclk_state *cdclk_state)
+			  const struct intel_cdclk_state *cdclk_state,
+			  enum pipe pipe)
 {
 	int cdclk = cdclk_state->cdclk;
 	u32 val, cmd = cdclk_state->voltage_level;
@@ -597,7 +598,8 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 }
 
 static void chv_set_cdclk(struct drm_i915_private *dev_priv,
-			  const struct intel_cdclk_state *cdclk_state)
+			  const struct intel_cdclk_state *cdclk_state,
+			  enum pipe pipe)
 {
 	int cdclk = cdclk_state->cdclk;
 	u32 val, cmd = cdclk_state->voltage_level;
@@ -695,7 +697,8 @@ static void bdw_get_cdclk(struct drm_i915_private *dev_priv,
 }
 
 static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
-			  const struct intel_cdclk_state *cdclk_state)
+			  const struct intel_cdclk_state *cdclk_state,
+			  enum pipe pipe)
 {
 	int cdclk = cdclk_state->cdclk;
 	uint32_t val;
@@ -985,7 +988,8 @@ static void skl_dpll0_disable(struct drm_i915_private *dev_priv)
 }
 
 static void skl_set_cdclk(struct drm_i915_private *dev_priv,
-			  const struct intel_cdclk_state *cdclk_state)
+			  const struct intel_cdclk_state *cdclk_state,
+			  enum pipe pipe)
 {
 	int cdclk = cdclk_state->cdclk;
 	int vco = cdclk_state->vco;
@@ -1156,7 +1160,7 @@ void skl_init_cdclk(struct drm_i915_private *dev_priv)
 	cdclk_state.cdclk = skl_calc_cdclk(0, cdclk_state.vco);
 	cdclk_state.voltage_level = skl_calc_voltage_level(cdclk_state.cdclk);
 
-	skl_set_cdclk(dev_priv, &cdclk_state);
+	skl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
 /**
@@ -1174,7 +1178,7 @@ void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 	cdclk_state.vco = 0;
 	cdclk_state.voltage_level = skl_calc_voltage_level(cdclk_state.cdclk);
 
-	skl_set_cdclk(dev_priv, &cdclk_state);
+	skl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
 static int bxt_calc_cdclk(int min_cdclk)
@@ -1353,7 +1357,8 @@ static void bxt_de_pll_enable(struct drm_i915_private *dev_priv, int vco)
 }
 
 static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
-			  const struct intel_cdclk_state *cdclk_state)
+			  const struct intel_cdclk_state *cdclk_state,
+			  enum pipe pipe)
 {
 	int cdclk = cdclk_state->cdclk;
 	int vco = cdclk_state->vco;
@@ -1406,11 +1411,10 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 		bxt_de_pll_enable(dev_priv, vco);
 
 	val = divider | skl_cdclk_decimal(cdclk);
-	/*
-	 * FIXME if only the cd2x divider needs changing, it could be done
-	 * without shutting off the pipe (if only one pipe is active).
-	 */
-	val |= BXT_CDCLK_CD2X_PIPE_NONE;
+	if (pipe == INVALID_PIPE)
+		val |= BXT_CDCLK_CD2X_PIPE_NONE;
+	else
+		val |= BXT_CDCLK_CD2X_PIPE(pipe);
 	/*
 	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
 	 * enable otherwise.
@@ -1418,6 +1422,9 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	if (cdclk >= 500000)
 		val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
 	I915_WRITE(CDCLK_CTL, val);
+
+	if (pipe != INVALID_PIPE)
+		intel_wait_for_vblank(dev_priv, pipe);
 
 	mutex_lock(&dev_priv->pcu_lock);
 	/*
@@ -1523,7 +1530,7 @@ void bxt_init_cdclk(struct drm_i915_private *dev_priv)
 	}
 	cdclk_state.voltage_level = bxt_calc_voltage_level(cdclk_state.cdclk);
 
-	bxt_set_cdclk(dev_priv, &cdclk_state);
+	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
 /**
@@ -1541,7 +1548,7 @@ void bxt_uninit_cdclk(struct drm_i915_private *dev_priv)
 	cdclk_state.vco = 0;
 	cdclk_state.voltage_level = bxt_calc_voltage_level(cdclk_state.cdclk);
 
-	bxt_set_cdclk(dev_priv, &cdclk_state);
+	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
 static int cnl_calc_cdclk(int min_cdclk)
@@ -1661,7 +1668,8 @@ static void cnl_cdclk_pll_enable(struct drm_i915_private *dev_priv, int vco)
 }
 
 static void cnl_set_cdclk(struct drm_i915_private *dev_priv,
-			  const struct intel_cdclk_state *cdclk_state)
+			  const struct intel_cdclk_state *cdclk_state,
+			  enum pipe pipe)
 {
 	int cdclk = cdclk_state->cdclk;
 	int vco = cdclk_state->vco;
@@ -1702,12 +1710,14 @@ static void cnl_set_cdclk(struct drm_i915_private *dev_priv,
 		cnl_cdclk_pll_enable(dev_priv, vco);
 
 	val = divider | skl_cdclk_decimal(cdclk);
-	/*
-	 * FIXME if only the cd2x divider needs changing, it could be done
-	 * without shutting off the pipe (if only one pipe is active).
-	 */
-	val |= BXT_CDCLK_CD2X_PIPE_NONE;
+	if (pipe == INVALID_PIPE)
+		val |= BXT_CDCLK_CD2X_PIPE_NONE;
+	else
+		val |= BXT_CDCLK_CD2X_PIPE(pipe);
 	I915_WRITE(CDCLK_CTL, val);
+
+	if (pipe != INVALID_PIPE)
+		intel_wait_for_vblank(dev_priv, pipe);
 
 	/* inform PCU of the change */
 	mutex_lock(&dev_priv->pcu_lock);
@@ -1845,7 +1855,8 @@ static int icl_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 }
 
 static void icl_set_cdclk(struct drm_i915_private *dev_priv,
-			  const struct intel_cdclk_state *cdclk_state)
+			  const struct intel_cdclk_state *cdclk_state,
+			  enum pipe pipe)
 {
 	unsigned int cdclk = cdclk_state->cdclk;
 	unsigned int vco = cdclk_state->vco;
@@ -1870,6 +1881,11 @@ static void icl_set_cdclk(struct drm_i915_private *dev_priv,
 	if (dev_priv->cdclk.hw.vco != vco)
 		cnl_cdclk_pll_enable(dev_priv, vco);
 
+	/*
+	 * On ICL CD2X_DIV can only be 1, so we'll never end up changing the
+	 * divider here synchronized to a pipe while CDCLK is on, nor will we
+	 * need the corresponding vblank wait.
+	 */
 	I915_WRITE(CDCLK_CTL, ICL_CDCLK_CD2X_PIPE_NONE |
 			      skl_cdclk_decimal(cdclk));
 
@@ -2000,7 +2016,7 @@ sanitize:
 	sanitized_state.voltage_level =
 				icl_calc_voltage_level(sanitized_state.cdclk);
 
-	icl_set_cdclk(dev_priv, &sanitized_state);
+	icl_set_cdclk(dev_priv, &sanitized_state, INVALID_PIPE);
 }
 
 /**
@@ -2018,7 +2034,7 @@ void icl_uninit_cdclk(struct drm_i915_private *dev_priv)
 	cdclk_state.vco = 0;
 	cdclk_state.voltage_level = icl_calc_voltage_level(cdclk_state.cdclk);
 
-	icl_set_cdclk(dev_priv, &cdclk_state);
+	icl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
 /**
@@ -2046,7 +2062,7 @@ void cnl_init_cdclk(struct drm_i915_private *dev_priv)
 	cdclk_state.vco = cnl_cdclk_pll_vco(dev_priv, cdclk_state.cdclk);
 	cdclk_state.voltage_level = cnl_calc_voltage_level(cdclk_state.cdclk);
 
-	cnl_set_cdclk(dev_priv, &cdclk_state);
+	cnl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
 /**
@@ -2064,7 +2080,7 @@ void cnl_uninit_cdclk(struct drm_i915_private *dev_priv)
 	cdclk_state.vco = 0;
 	cdclk_state.voltage_level = cnl_calc_voltage_level(cdclk_state.cdclk);
 
-	cnl_set_cdclk(dev_priv, &cdclk_state);
+	cnl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
 /**
@@ -2081,6 +2097,27 @@ bool intel_cdclk_needs_modeset(const struct intel_cdclk_state *a,
 	return a->cdclk != b->cdclk ||
 		a->vco != b->vco ||
 		a->ref != b->ref;
+}
+
+/**
+ * intel_cdclk_needs_cd2x_update - Determine if two CDCLK states require a cd2x divider update
+ * @a: first CDCLK state
+ * @b: second CDCLK state
+ *
+ * Returns:
+ * True if the CDCLK states require just a cd2x divider update, false if not.
+ */
+bool intel_cdclk_needs_cd2x_update(struct drm_i915_private *dev_priv,
+				   const struct intel_cdclk_state *a,
+				   const struct intel_cdclk_state *b)
+{
+	/* Older hw doesn't have the capability */
+	if (INTEL_GEN(dev_priv) < 10 && !IS_GEN9_LP(dev_priv))
+		return false;
+
+	return a->cdclk != b->cdclk &&
+		a->vco == b->vco &&
+		a->ref == b->ref;
 }
 
 /**
@@ -2131,12 +2168,14 @@ void intel_dump_cdclk_state(const struct intel_cdclk_state *cdclk_state,
  * intel_set_cdclk - Push the CDCLK state to the hardware
  * @dev_priv: i915 device
  * @cdclk_state: new CDCLK state
+ * @pipe: pipe with which to synchronize the update
  *
  * Program the hardware based on the passed in CDCLK state,
  * if necessary.
  */
-void intel_set_cdclk(struct drm_i915_private *dev_priv,
-		     const struct intel_cdclk_state *cdclk_state)
+static void intel_set_cdclk(struct drm_i915_private *dev_priv,
+			    const struct intel_cdclk_state *cdclk_state,
+			    enum pipe pipe)
 {
 	if (!intel_cdclk_changed(&dev_priv->cdclk.hw, cdclk_state))
 		return;
@@ -2146,13 +2185,53 @@ void intel_set_cdclk(struct drm_i915_private *dev_priv,
 
 	intel_dump_cdclk_state(cdclk_state, "Changing CDCLK to");
 
-	dev_priv->display.set_cdclk(dev_priv, cdclk_state);
+	dev_priv->display.set_cdclk(dev_priv, cdclk_state, pipe);
 
 	if (WARN(intel_cdclk_changed(&dev_priv->cdclk.hw, cdclk_state),
 		 "cdclk state doesn't match!\n")) {
 		intel_dump_cdclk_state(&dev_priv->cdclk.hw, "[hw state]");
 		intel_dump_cdclk_state(cdclk_state, "[sw state]");
 	}
+}
+
+/**
+ * intel_set_cdclk_pre_plane_update - Push the CDCLK state to the hardware
+ * @dev_priv: i915 device
+ * @old_state: old CDCLK state
+ * @new_state: new CDCLK state
+ * @pipe: pipe with which to synchronize the update
+ *
+ * Program the hardware before updating the HW plane state based on the passed
+ * in CDCLK state, if necessary.
+ */
+void
+intel_set_cdclk_pre_plane_update(struct drm_i915_private *dev_priv,
+				 const struct intel_cdclk_state *old_state,
+				 const struct intel_cdclk_state *new_state,
+				 enum pipe pipe)
+{
+	if (pipe == INVALID_PIPE || old_state->cdclk <= new_state->cdclk)
+		intel_set_cdclk(dev_priv, new_state, pipe);
+}
+
+/**
+ * intel_set_cdclk_post_plane_update - Push the CDCLK state to the hardware
+ * @dev_priv: i915 device
+ * @old_state: old CDCLK state
+ * @new_state: new CDCLK state
+ * @pipe: pipe with which to synchronize the update
+ *
+ * Program the hardware after updating the HW plane state based on the passed
+ * in CDCLK state, if necessary.
+ */
+void
+intel_set_cdclk_post_plane_update(struct drm_i915_private *dev_priv,
+				  const struct intel_cdclk_state *old_state,
+				  const struct intel_cdclk_state *new_state,
+				  enum pipe pipe)
+{
+	if (pipe != INVALID_PIPE && old_state->cdclk > new_state->cdclk)
+		intel_set_cdclk(dev_priv, new_state, pipe);
 }
 
 static int intel_pixel_rate_to_cdclk(struct drm_i915_private *dev_priv,
