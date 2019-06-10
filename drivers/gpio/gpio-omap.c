@@ -953,17 +953,10 @@ static void omap_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 static int omap_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_bank *bank;
-	unsigned long flags;
-	void __iomem *reg;
-	int dir;
+	struct gpio_bank *bank = gpiochip_get_data(chip);
 
-	bank = gpiochip_get_data(chip);
-	reg = bank->base + bank->regs->direction;
-	raw_spin_lock_irqsave(&bank->lock, flags);
-	dir = !!(readl_relaxed(reg) & BIT(offset));
-	raw_spin_unlock_irqrestore(&bank->lock, flags);
-	return dir;
+	return !!(readl_relaxed(bank->base + bank->regs->direction) &
+		  BIT(offset));
 }
 
 static int omap_gpio_input(struct gpio_chip *chip, unsigned offset)
