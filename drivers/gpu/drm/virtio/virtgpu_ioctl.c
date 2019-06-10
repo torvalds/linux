@@ -540,6 +540,9 @@ copy_exit:
 	if (!ret)
 		return -EBUSY;
 
+	/* is_valid check must proceed before copy of the cache entry. */
+	smp_rmb();
+
 	ptr = cache_ent->caps_cache;
 
 	if (copy_to_user(u64_to_user_ptr(args->addr), ptr, size))
