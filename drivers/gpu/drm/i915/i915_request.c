@@ -784,8 +784,11 @@ struct i915_request *
 i915_request_create(struct intel_context *ce)
 {
 	struct i915_request *rq;
+	int err;
 
-	intel_context_timeline_lock(ce);
+	err = intel_context_timeline_lock(ce);
+	if (err)
+		return ERR_PTR(err);
 
 	/* Move our oldest request to the slab-cache (if not in use!) */
 	rq = list_first_entry(&ce->ring->request_list, typeof(*rq), ring_link);

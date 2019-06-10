@@ -113,10 +113,11 @@ static inline void intel_context_put(struct intel_context *ce)
 	kref_put(&ce->ref, ce->ops->destroy);
 }
 
-static inline void intel_context_timeline_lock(struct intel_context *ce)
+static inline int __must_check
+intel_context_timeline_lock(struct intel_context *ce)
 	__acquires(&ce->ring->timeline->mutex)
 {
-	mutex_lock(&ce->ring->timeline->mutex);
+	return mutex_lock_interruptible(&ce->ring->timeline->mutex);
 }
 
 static inline void intel_context_timeline_unlock(struct intel_context *ce)
