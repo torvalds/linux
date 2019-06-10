@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 ifdef CONFIG_KCOV
 
 kcov-flags-$(CONFIG_CC_HAS_SANCOV_TRACE_PC)	+= -fsanitize-coverage=trace-pc

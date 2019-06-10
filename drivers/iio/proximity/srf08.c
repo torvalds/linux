@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * srf08.c - Support for Devantech SRFxx ultrasonic ranger
  *           with i2c interface
  * actually supported are srf02, srf08, srf10
  *
  * Copyright (c) 2016, 2017 Andreas Klinger <ak@it-klinger.de>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License. See the file COPYING in the main
- * directory of this archive for more details.
  *
  * For details about the device see:
  * http://www.robot-electronics.co.uk/htm/srf08tech.html

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NET_DSA_SJA1105
 tristate "NXP SJA1105 Ethernet switch family support"
 	depends on NET_DSA && SPI

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SDLA		An implementation of a driver for the Sangoma S502/S508 series
  *		multi-protocol PC interface card.  Initial offering is with 
@@ -25,11 +26,6 @@
  *					from non DLCI devices.
  *		0.30	Mike McLagan	Fixed kernel panic when used with modified
  *					ifconfig
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

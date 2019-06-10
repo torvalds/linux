@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Texas Instruments
- *
- * License Terms: GNU General Public License v2
  *
  * Simple driver for Texas Instruments LM355x LED driver chip
  *

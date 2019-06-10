@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config USB_PULSE8_CEC
 	tristate "Pulse Eight HDMI CEC"
 	depends on USB_ACM

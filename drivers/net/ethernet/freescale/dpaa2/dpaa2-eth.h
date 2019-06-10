@@ -467,7 +467,7 @@ enum dpaa2_eth_rx_dist {
 #define DPAA2_ETH_DIST_IPPROTO		BIT(6)
 #define DPAA2_ETH_DIST_L4SRC		BIT(7)
 #define DPAA2_ETH_DIST_L4DST		BIT(8)
-#define DPAA2_ETH_DIST_ALL		(~0U)
+#define DPAA2_ETH_DIST_ALL		(~0ULL)
 
 static inline
 unsigned int dpaa2_eth_needed_headroom(struct dpaa2_eth_priv *priv,

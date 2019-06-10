@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* IEEE754 floating point arithmetic
  * single precision
  */
@@ -6,18 +7,6 @@
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  * Copyright (C) 2017 Imagination Technologies, Ltd.
  * Author: Aleksandar Markovic <aleksandar.markovic@imgtec.com>
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program.
  */
 
 #include "ieee754sp.h"

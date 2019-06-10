@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/sched/cls_tcindex.c	Packet classifier for skb->tc_index
  *

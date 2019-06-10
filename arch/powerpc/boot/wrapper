@@ -1,8 +1,7 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Copyright (C) 2006 Paul Mackerras, IBM Corporation <paulus@samba.org>
-# This program may be used under the terms of version 2 of the GNU
-# General Public License.
 
 # This script takes a kernel binary and optionally an initrd image
 # and/or a device-tree blob, and creates a bootable zImage for a

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Atmel SAMA5D4 Watchdog Timer
  *
  * Copyright (C) 2015 Atmel Corporation
- *
- * Licensed under GPLv2.
  */
 
 #include <linux/delay.h>

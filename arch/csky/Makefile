@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 OBJCOPYFLAGS		:=-O binary
 GZFLAGS			:=-9
 KBUILD_DEFCONFIG	:= defconfig

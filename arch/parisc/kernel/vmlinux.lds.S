@@ -35,6 +35,15 @@ OUTPUT_FORMAT("elf64-hppa-linux")
 OUTPUT_ARCH(hppa:hppa2.0w)
 #endif
 
+#define EXIT_TEXT_SECTIONS()	.exit.text : { EXIT_TEXT }
+#if !defined(CONFIG_64BIT) || defined(CONFIG_MLONGCALLS)
+#define MLONGCALL_KEEP(x)
+#define MLONGCALL_DISCARD(x)	x
+#else
+#define MLONGCALL_KEEP(x)	x
+#define MLONGCALL_DISCARD(x)
+#endif
+
 ENTRY(parisc_kernel_start)
 #ifndef CONFIG_64BIT
 jiffies = jiffies_64 + 4;
@@ -47,15 +56,11 @@ SECTIONS
 
 	__init_begin = .;
 	HEAD_TEXT_SECTION
-	INIT_TEXT_SECTION(8)
+	MLONGCALL_DISCARD(INIT_TEXT_SECTION(8))
 
 	. = ALIGN(PAGE_SIZE);
 	INIT_DATA_SECTION(PAGE_SIZE)
-	/* we have to discard exit text and such at runtime, not link time */
-	.exit.text :
-	{
-		EXIT_TEXT
-	}
+	MLONGCALL_DISCARD(EXIT_TEXT_SECTIONS())
 	.exit.data :
 	{
 		EXIT_DATA
@@ -73,11 +78,12 @@ SECTIONS
 
 	_text = .;		/* Text and read-only data */
 	_stext = .;
+	MLONGCALL_KEEP(INIT_TEXT_SECTION(8))
 	.text ALIGN(PAGE_SIZE) : {
 		TEXT_TEXT
+		LOCK_TEXT
 		SCHED_TEXT
 		CPUIDLE_TEXT
-		LOCK_TEXT
 		KPROBES_TEXT
 		IRQENTRY_TEXT
 		SOFTIRQENTRY_TEXT
@@ -92,6 +98,7 @@ SECTIONS
 		*(.lock.text)		/* out-of-line lock text */
 		*(.gnu.warning)
 	}
+	MLONGCALL_KEEP(EXIT_TEXT_SECTIONS())
 	. = ALIGN(PAGE_SIZE);
 	_etext = .;
 	/* End of text section */

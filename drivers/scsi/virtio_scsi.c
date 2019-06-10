@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Virtio SCSI HBA driver
  *
@@ -7,10 +8,6 @@
  * Authors:
  *  Stefan Hajnoczi   <stefanha@linux.vnet.ibm.com>
  *  Paolo Bonzini   <pbonzini@redhat.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2 or later.
- * See the COPYING file in the top-level directory.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

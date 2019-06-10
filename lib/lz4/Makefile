@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 ccflags-y += -O3
 
 obj-$(CONFIG_LZ4_COMPRESS) += lz4_compress.o
