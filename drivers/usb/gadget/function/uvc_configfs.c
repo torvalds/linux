@@ -2171,6 +2171,8 @@ UVC_ATTR(f_uvc_opts_, cname, cname)
 
 #define identity_conv(x) (x)
 
+UVCG_OPTS_ATTR(streaming_bulk, streaming_bulk, identity_conv,
+	       kstrtou8, u8, identity_conv, 1);
 UVCG_OPTS_ATTR(streaming_interval, streaming_interval, identity_conv,
 	       kstrtou8, u8, identity_conv, 16);
 UVCG_OPTS_ATTR(streaming_maxpacket, streaming_maxpacket, le16_to_cpu,
@@ -2183,6 +2185,7 @@ UVCG_OPTS_ATTR(streaming_maxburst, streaming_maxburst, identity_conv,
 #undef UVCG_OPTS_ATTR
 
 static struct configfs_attribute *uvc_attrs[] = {
+	&f_uvc_opts_attr_streaming_bulk,
 	&f_uvc_opts_attr_streaming_interval,
 	&f_uvc_opts_attr_streaming_maxpacket,
 	&f_uvc_opts_attr_streaming_maxburst,
