@@ -603,11 +603,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	if (kfd->kfd2kgd->get_hive_id)
 		kfd->hive_id = kfd->kfd2kgd->get_hive_id(kfd->kgd);
 
-	if (kfd_topology_add_device(kfd)) {
-		dev_err(kfd_device, "Error adding device to topology\n");
-		goto kfd_topology_add_device_error;
-	}
-
 	if (kfd_interrupt_init(kfd)) {
 		dev_err(kfd_device, "Error initializing interrupts\n");
 		goto kfd_interrupt_error;
@@ -631,6 +626,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	kfd->dbgmgr = NULL;
 
+	if (kfd_topology_add_device(kfd)) {
+		dev_err(kfd_device, "Error adding device to topology\n");
+		goto kfd_topology_add_device_error;
+	}
+
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device %x:%x\n", kfd->pdev->vendor,
 		 kfd->pdev->device);
@@ -640,14 +640,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	goto out;
 
+kfd_topology_add_device_error:
 kfd_resume_error:
 device_iommu_error:
 	device_queue_manager_uninit(kfd->dqm);
 device_queue_manager_error:
 	kfd_interrupt_exit(kfd);
 kfd_interrupt_error:
-	kfd_topology_remove_device(kfd);
-kfd_topology_add_device_error:
 	kfd_doorbell_fini(kfd);
 kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
