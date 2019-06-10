@@ -88,6 +88,14 @@ config ALPINE_MSI
 	select PCI_MSI
 	select GENERIC_IRQ_CHIP
 
+config AL_FIC
+	bool "Amazon's Annapurna Labs Fabric Interrupt Controller"
+	depends on OF || COMPILE_TEST
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	help
+	  Support Amazon's Annapurna Labs Fabric Interrupt Controller.
+
 config ATMEL_AIC_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
