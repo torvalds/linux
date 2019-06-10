@@ -852,14 +852,6 @@ static void gpio_irq_bus_sync_unlock(struct irq_data *data)
 	pm_runtime_put(bank->chip.parent);
 }
 
-static void omap_gpio_ack_irq(struct irq_data *d)
-{
-	struct gpio_bank *bank = omap_irq_data_get_bank(d);
-	unsigned offset = d->hwirq;
-
-	omap_clear_gpio_irqstatus(bank, offset);
-}
-
 static void omap_gpio_mask_irq(struct irq_data *d)
 {
 	struct gpio_bank *bank = omap_irq_data_get_bank(d);
@@ -1181,11 +1173,8 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 #endif
 
 	/* MPUIO is a bit different, reading IRQ status clears it */
-	if (bank->is_mpuio) {
-		irqc->irq_ack = dummy_irq_chip.irq_ack;
-		if (!bank->regs->wkup_en)
-			irqc->irq_set_wake = NULL;
-	}
+	if (bank->is_mpuio && !bank->regs->wkup_en)
+		irqc->irq_set_wake = NULL;
 
 	irq = &bank->chip.irq;
 	irq->chip = irqc;
@@ -1531,7 +1520,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 
 	irqc->irq_startup = omap_gpio_irq_startup,
 	irqc->irq_shutdown = omap_gpio_irq_shutdown,
-	irqc->irq_ack = omap_gpio_ack_irq,
+	irqc->irq_ack = dummy_irq_chip.irq_ack,
 	irqc->irq_mask = omap_gpio_mask_irq,
 	irqc->irq_unmask = omap_gpio_unmask_irq,
 	irqc->irq_set_type = omap_gpio_irq_type,
