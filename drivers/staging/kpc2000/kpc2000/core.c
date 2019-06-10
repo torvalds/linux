@@ -311,9 +311,6 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	unsigned long dma_bar_phys_len;
 	u16 regval;
 
-	dev_dbg(&pdev->dev, "%s(pdev = [%p], id = [%p])\n",
-		__func__, pdev, id);
-
 	/*
 	 * Step 1: Allocate a struct for the pcard
 	 */
@@ -506,7 +503,6 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	writel(KPC_DMA_CARD_IRQ_ENABLE | KPC_DMA_CARD_USER_INTERRUPT_MODE,
 	       pcard->dma_common_regs);
 
-	dev_dbg(&pcard->pdev->dev, "%s() complete!\n", __func__);
 	mutex_unlock(&pcard->sem);
 	return 0;
 
@@ -539,8 +535,6 @@ out2:
 static void kp2000_pcie_remove(struct pci_dev *pdev)
 {
 	struct kp2000_device *pcard = pci_get_drvdata(pdev);
-
-	dev_dbg(&pdev->dev, "%s(pdev=%p)\n", __func__, pdev);
 
 	if (!pcard)
 		return;
