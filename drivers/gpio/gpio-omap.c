@@ -305,12 +305,6 @@ static inline void omap_set_gpio_trigger(struct gpio_bank *bank, int gpio,
 	bank->level_mask = bank->context.leveldetect0 |
 			   bank->context.leveldetect1;
 
-	if (likely(!(bank->non_wakeup_gpios & gpio_bit))) {
-		omap_gpio_rmw(base + bank->regs->wkup_en, gpio_bit, trigger != 0);
-		bank->context.wake_en =
-			readl_relaxed(bank->base + bank->regs->wkup_en);
-	}
-
 	/* This part needs to be executed always for OMAP{34xx, 44xx} */
 	if (!bank->regs->irqctrl && !omap_gpio_is_off_wakeup_capable(bank, gpio)) {
 		/*
@@ -343,7 +337,6 @@ static int omap_set_gpio_triggering(struct gpio_bank *bank, int gpio,
 				    unsigned trigger)
 {
 	void __iomem *reg = bank->base;
-	void __iomem *base = bank->base;
 	u32 l = 0;
 
 	if (bank->regs->leveldetect0 && bank->regs->wkup_en) {
@@ -375,11 +368,6 @@ static int omap_set_gpio_triggering(struct gpio_bank *bank, int gpio,
 			l |= 2 << (gpio << 1);
 		if (trigger & IRQ_TYPE_EDGE_FALLING)
 			l |= BIT(gpio << 1);
-
-		/* Enable wake-up during idle for dynamic tick */
-		omap_gpio_rmw(base + bank->regs->wkup_en, BIT(gpio), trigger);
-		bank->context.wake_en =
-			readl_relaxed(bank->base + bank->regs->wkup_en);
 		writel_relaxed(l, reg);
 	}
 	return 0;
@@ -408,17 +396,6 @@ static void omap_enable_gpio_module(struct gpio_bank *bank, unsigned offset)
 
 static void omap_disable_gpio_module(struct gpio_bank *bank, unsigned offset)
 {
-	void __iomem *base = bank->base;
-
-	if (bank->regs->wkup_en &&
-	    !LINE_USED(bank->mod_usage, offset) &&
-	    !LINE_USED(bank->irq_usage, offset)) {
-		/* Disable wake-up during idle for dynamic tick */
-		omap_gpio_rmw(base + bank->regs->wkup_en, BIT(offset), 0);
-		bank->context.wake_en =
-			readl_relaxed(bank->base + bank->regs->wkup_en);
-	}
-
 	if (bank->regs->ctrl && !BANK_USED(bank)) {
 		void __iomem *reg = bank->base + bank->regs->ctrl;
 		u32 ctrl;
@@ -548,6 +525,19 @@ static inline void omap_set_gpio_irqenable(struct gpio_bank *bank,
 		bank->context.irqenable1 =
 			omap_gpio_rmw(reg + bank->regs->irqenable, gpio_mask,
 				      enable ^ bank->regs->irqenable_inv);
+	}
+
+	/*
+	 * Program GPIO wakeup along with IRQ enable to satisfy OMAP4430 TRM
+	 * note requiring correlation between the IRQ enable registers and
+	 * the wakeup registers.  In any case, we want wakeup from idle
+	 * enabled for the GPIOs which support this feature.
+	 */
+	if (bank->regs->wkup_en &&
+	    (bank->regs->edgectrl1 || !(bank->non_wakeup_gpios & gpio_mask))) {
+		bank->context.wake_en =
+			omap_gpio_rmw(bank->base + bank->regs->wkup_en,
+				      gpio_mask, enable);
 	}
 }
 
