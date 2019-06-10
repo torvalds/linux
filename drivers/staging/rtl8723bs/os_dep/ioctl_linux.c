@@ -2601,9 +2601,7 @@ static int rtw_p2p_set(struct net_device *dev,
                                union iwreq_data *wrqu, char *extra)
 {
 
-	int ret = 0;
-
-	return ret;
+	return 0;
 
 }
 
@@ -2612,9 +2610,7 @@ static int rtw_p2p_get(struct net_device *dev,
                                union iwreq_data *wrqu, char *extra)
 {
 
-	int ret = 0;
-
-	return ret;
+	return 0;
 
 }
 
@@ -2623,9 +2619,7 @@ static int rtw_p2p_get2(struct net_device *dev,
 						union iwreq_data *wrqu, char *extra)
 {
 
-	int ret = 0;
-
-	return ret;
+	return 0;
 
 }
 
