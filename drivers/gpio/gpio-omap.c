@@ -635,8 +635,6 @@ static unsigned int omap_gpio_irq_startup(struct irq_data *d)
 
 	if (!LINE_USED(bank->mod_usage, offset))
 		omap_set_gpio_direction(bank, offset, 1);
-	else if (!omap_gpio_is_input(bank, offset))
-		goto err;
 	omap_enable_gpio_module(bank, offset);
 	bank->irq_usage |= BIT(offset);
 
@@ -644,9 +642,6 @@ static unsigned int omap_gpio_irq_startup(struct irq_data *d)
 	omap_gpio_unmask_irq(d);
 
 	return 0;
-err:
-	raw_spin_unlock_irqrestore(&bank->lock, flags);
-	return -EINVAL;
 }
 
 static void omap_gpio_irq_shutdown(struct irq_data *d)
