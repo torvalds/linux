@@ -250,7 +250,7 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	struct mlx5_cq_table *cq_table = &eq->cq_table;
 	u32 out[MLX5_ST_SZ_DW(create_eq_out)] = {0};
 	struct mlx5_priv *priv = &dev->priv;
-	u8 vecidx = param->index;
+	u8 vecidx = param->irq_index;
 	__be64 *pas;
 	void *eqc;
 	int inlen;
@@ -435,8 +435,9 @@ static int create_async_eq(struct mlx5_core_dev *dev,
 	int err;
 
 	mutex_lock(&eq_table->lock);
-	if (param->index >= MLX5_EQ_MAX_ASYNC_EQS) {
-		err = -ENOSPC;
+	/* Async EQs must share irq index 0 */
+	if (param->irq_index != 0) {
+		err = -EINVAL;
 		goto unlock;
 	}
 
@@ -540,7 +541,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 
 	table->cmd_eq.irq_nb.notifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
-		.index = MLX5_EQ_CMD_IDX,
+		.irq_index = 0,
 		.mask = 1ull << MLX5_EVENT_TYPE_CMD,
 		.nent = MLX5_NUM_CMD_EQE,
 		.nb = &table->cmd_eq.irq_nb,
@@ -555,7 +556,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 
 	table->async_eq.irq_nb.notifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
-		.index = MLX5_EQ_ASYNC_IDX,
+		.irq_index = 0,
 		.mask = gather_async_events_mask(dev),
 		.nent = MLX5_NUM_ASYNC_EQE,
 		.nb = &table->async_eq.irq_nb,
@@ -568,7 +569,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 
 	table->pages_eq.irq_nb.notifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
-		.index = MLX5_EQ_PAGEREQ_IDX,
+		.irq_index = 0,
 		.mask =  1 << MLX5_EVENT_TYPE_PAGE_REQUEST,
 		.nent = /* TODO: sriov max_vf + */ 1,
 		.nb = &table->pages_eq.irq_nb,
@@ -731,7 +732,7 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 	ncomp_eqs = table->num_comp_eqs;
 	nent = MLX5_COMP_EQ_SIZE;
 	for (i = 0; i < ncomp_eqs; i++) {
-		int vecidx = i + MLX5_EQ_VEC_COMP_BASE;
+		int vecidx = i + MLX5_IRQ_VEC_COMP_BASE;
 		struct mlx5_eq_param param = {};
 
 		eq = kzalloc(sizeof(*eq), GFP_KERNEL);
@@ -748,7 +749,7 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 
 		eq->irq_nb.notifier_call = mlx5_eq_comp_int;
 		param = (struct mlx5_eq_param) {
-			.index = vecidx,
+			.irq_index = vecidx,
 			.mask = 0,
 			.nent = nent,
 			.nb = &eq->irq_nb,
@@ -800,7 +801,7 @@ EXPORT_SYMBOL(mlx5_comp_vectors_count);
 struct cpumask *
 mlx5_comp_irq_get_affinity_mask(struct mlx5_core_dev *dev, int vector)
 {
-	int vecidx = vector + MLX5_EQ_VEC_COMP_BASE;
+	int vecidx = vector + MLX5_IRQ_VEC_COMP_BASE;
 
 	return mlx5_irq_get_affinity_mask(dev->priv.eq_table->irq_table,
 					  vecidx);

@@ -45,7 +45,7 @@ void mlx5_irq_table_cleanup(struct mlx5_core_dev *dev)
 
 int mlx5_irq_get_num_comp(struct mlx5_irq_table *table)
 {
-	return table->nvec - MLX5_EQ_VEC_COMP_BASE;
+	return table->nvec - MLX5_IRQ_VEC_COMP_BASE;
 }
 
 static struct mlx5_irq *mlx5_irq_get(struct mlx5_core_dev *dev, int vecidx)
@@ -81,24 +81,14 @@ static irqreturn_t mlx5_irq_int_handler(int irq, void *nh)
 
 static void irq_set_name(char *name, int vecidx)
 {
-	switch (vecidx) {
-	case MLX5_EQ_CMD_IDX:
-		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_cmd_eq");
-		break;
-	case MLX5_EQ_ASYNC_IDX:
-		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_async_eq");
-		break;
-	case MLX5_EQ_PAGEREQ_IDX:
-		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_pages_eq");
-		break;
-	case MLX5_EQ_PFAULT_IDX:
-		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_ib_page_fault_eq");
-		break;
-	default:
-		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d",
-			 vecidx - MLX5_EQ_VEC_COMP_BASE);
-		break;
+	if (vecidx == 0) {
+		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_async");
+		return;
 	}
+
+	snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d",
+		 vecidx - MLX5_IRQ_VEC_COMP_BASE);
+	return;
 }
 
 static int request_irqs(struct mlx5_core_dev *dev, int nvec)
@@ -159,7 +149,7 @@ static int irq_set_rmap(struct mlx5_core_dev *mdev)
 		goto err_out;
 	}
 
-	vecidx = MLX5_EQ_VEC_COMP_BASE;
+	vecidx = MLX5_IRQ_VEC_COMP_BASE;
 	for (; vecidx < irq_table->nvec; vecidx++) {
 		err = irq_cpu_rmap_add(irq_table->rmap,
 				       pci_irq_vector(mdev->pdev, vecidx));
@@ -182,7 +172,7 @@ err_out:
 
 static int set_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
 {
-	int vecidx = MLX5_EQ_VEC_COMP_BASE + i;
+	int vecidx = MLX5_IRQ_VEC_COMP_BASE + i;
 	struct mlx5_irq *irq;
 	int irqn;
 
@@ -205,7 +195,7 @@ static int set_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
 
 static void clear_comp_irq_affinity_hint(struct mlx5_core_dev *mdev, int i)
 {
-	int vecidx = MLX5_EQ_VEC_COMP_BASE + i;
+	int vecidx = MLX5_IRQ_VEC_COMP_BASE + i;
 	struct mlx5_irq *irq;
 	int irqn;
 
@@ -279,16 +269,16 @@ int mlx5_irq_table_create(struct mlx5_core_dev *dev)
 	int err;
 
 	nvec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() +
-	       MLX5_EQ_VEC_COMP_BASE;
+	       MLX5_IRQ_VEC_COMP_BASE;
 	nvec = min_t(int, nvec, num_eqs);
-	if (nvec <= MLX5_EQ_VEC_COMP_BASE)
+	if (nvec <= MLX5_IRQ_VEC_COMP_BASE)
 		return -ENOMEM;
 
 	table->irq = kcalloc(nvec, sizeof(*table->irq), GFP_KERNEL);
 	if (!table->irq)
 		return -ENOMEM;
 
-	nvec = pci_alloc_irq_vectors(dev->pdev, MLX5_EQ_VEC_COMP_BASE + 1,
+	nvec = pci_alloc_irq_vectors(dev->pdev, MLX5_IRQ_VEC_COMP_BASE + 1,
 				     nvec, PCI_IRQ_MSIX);
 	if (nvec < 0) {
 		err = nvec;
