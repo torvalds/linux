@@ -21,13 +21,9 @@ void rtw_os_free_recvframe(union recv_frame *precvframe)
 }
 
 /* alloc os related resource in union recv_frame */
-int rtw_os_recv_resource_alloc(struct adapter *padapter, union recv_frame *precvframe)
+void rtw_os_recv_resource_alloc(struct adapter *padapter, union recv_frame *precvframe)
 {
-	int	res = _SUCCESS;
-
 	precvframe->u.hdr.pkt_newalloc = precvframe->u.hdr.pkt = NULL;
-
-	return res;
 }
 
 /* free os related resource in union recv_frame */
