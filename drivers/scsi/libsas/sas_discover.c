@@ -293,7 +293,7 @@ void sas_free_device(struct kref *kref)
 	dev->phy = NULL;
 
 	/* remove the phys and ports, everything else should be gone */
-	if (dev->dev_type == SAS_EDGE_EXPANDER_DEVICE || dev->dev_type == SAS_FANOUT_EXPANDER_DEVICE)
+	if (dev_is_expander(dev->dev_type))
 		kfree(dev->ex_dev.ex_phy);
 
 	if (dev_is_sata(dev) && dev->sata_dev.ap) {
@@ -503,8 +503,7 @@ static void sas_revalidate_domain(struct work_struct *work)
 	pr_debug("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
 		 task_pid_nr(current));
 
-	if (ddev && (ddev->dev_type == SAS_FANOUT_EXPANDER_DEVICE ||
-		     ddev->dev_type == SAS_EDGE_EXPANDER_DEVICE))
+	if (ddev && dev_is_expander(ddev->dev_type))
 		res = sas_ex_revalidate_domain(ddev);
 
 	pr_debug("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",

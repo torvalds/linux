@@ -3101,7 +3101,7 @@ sci_io_request_construct(struct isci_host *ihost,
 		/* pass */;
 	else if (dev_is_sata(dev))
 		memset(&ireq->stp.cmd, 0, sizeof(ireq->stp.cmd));
-	else if (dev_is_expander(dev))
+	else if (dev_is_expander(dev->dev_type))
 		/* pass */;
 	else
 		return SCI_FAILURE_UNSUPPORTED_PROTOCOL;
