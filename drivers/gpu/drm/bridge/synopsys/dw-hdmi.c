@@ -256,7 +256,7 @@ static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 static bool dw_hdmi_i2c_unwedge(struct dw_hdmi *hdmi)
 {
 	/* If no unwedge state then give up */
-	if (IS_ERR(hdmi->unwedge_state))
+	if (!hdmi->unwedge_state)
 		return false;
 
 	dev_info(hdmi->dev, "Attempting to unwedge stuck i2c bus\n");
@@ -2691,11 +2691,13 @@ __dw_hdmi_probe(struct platform_device *pdev,
 			hdmi->default_state =
 				pinctrl_lookup_state(hdmi->pinctrl, "default");
 
-			if (IS_ERR(hdmi->default_state) &&
-			    !IS_ERR(hdmi->unwedge_state)) {
-				dev_warn(dev,
-					 "Unwedge requires default pinctrl\n");
-				hdmi->unwedge_state = ERR_PTR(-ENODEV);
+			if (IS_ERR(hdmi->default_state) ||
+			    IS_ERR(hdmi->unwedge_state)) {
+				if (!IS_ERR(hdmi->unwedge_state))
+					dev_warn(dev,
+						 "Unwedge requires default pinctrl\n");
+				hdmi->default_state = NULL;
+				hdmi->unwedge_state = NULL;
 			}
 		}
 
