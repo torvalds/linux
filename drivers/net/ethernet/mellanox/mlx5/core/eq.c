@@ -61,6 +61,16 @@ enum {
 	MLX5_EQ_DOORBEL_OFFSET	= 0x40,
 };
 
+/* budget must be smaller than MLX5_NUM_SPARE_EQE to guarantee that we update
+ * the ci before we polled all the entries in the EQ. MLX5_NUM_SPARE_EQE is
+ * used to set the EQ size, budget must be smaller than the EQ size.
+ */
+enum {
+	MLX5_EQ_POLLING_BUDGET	= 128,
+};
+
+static_assert(MLX5_EQ_POLLING_BUDGET <= MLX5_NUM_SPARE_EQE);
+
 struct mlx5_irq_info {
 	cpumask_var_t mask;
 	char name[MLX5_MAX_IRQ_NAME];
@@ -129,11 +139,16 @@ static irqreturn_t mlx5_eq_comp_int(int irq, void *eq_ptr)
 	struct mlx5_eq_comp *eq_comp = eq_ptr;
 	struct mlx5_eq *eq = eq_ptr;
 	struct mlx5_eqe *eqe;
-	int set_ci = 0;
+	int num_eqes = 0;
 	u32 cqn = -1;
 
-	while ((eqe = next_eqe_sw(eq))) {
+	eqe = next_eqe_sw(eq);
+	if (!eqe)
+		goto out;
+
+	do {
 		struct mlx5_core_cq *cq;
+
 		/* Make sure we read EQ entry contents after we've
 		 * checked the ownership bit.
 		 */
@@ -151,20 +166,10 @@ static irqreturn_t mlx5_eq_comp_int(int irq, void *eq_ptr)
 		}
 
 		++eq->cons_index;
-		++set_ci;
 
-		/* The HCA will think the queue has overflowed if we
-		 * don't tell it we've been processing events.  We
-		 * create our EQs with MLX5_NUM_SPARE_EQE extra
-		 * entries, so we must update our consumer index at
-		 * least that often.
-		 */
-		if (unlikely(set_ci >= MLX5_NUM_SPARE_EQE)) {
-			eq_update_ci(eq, 0);
-			set_ci = 0;
-		}
-	}
+	} while ((++num_eqes < MLX5_EQ_POLLING_BUDGET) && (eqe = next_eqe_sw(eq)));
 
+out:
 	eq_update_ci(eq, 1);
 
 	if (cqn != -1)
@@ -197,12 +202,16 @@ static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 	struct mlx5_eq_table *eqt;
 	struct mlx5_core_dev *dev;
 	struct mlx5_eqe *eqe;
-	int set_ci = 0;
+	int num_eqes = 0;
 
 	dev = eq->dev;
 	eqt = dev->priv.eq_table;
 
-	while ((eqe = next_eqe_sw(eq))) {
+	eqe = next_eqe_sw(eq);
+	if (!eqe)
+		goto out;
+
+	do {
 		/*
 		 * Make sure we read EQ entry contents after we've
 		 * checked the ownership bit.
@@ -217,20 +226,10 @@ static irqreturn_t mlx5_eq_async_int(int irq, void *eq_ptr)
 		atomic_notifier_call_chain(&eqt->nh[MLX5_EVENT_TYPE_NOTIFY_ANY], eqe->type, eqe);
 
 		++eq->cons_index;
-		++set_ci;
 
-		/* The HCA will think the queue has overflowed if we
-		 * don't tell it we've been processing events.  We
-		 * create our EQs with MLX5_NUM_SPARE_EQE extra
-		 * entries, so we must update our consumer index at
-		 * least that often.
-		 */
-		if (unlikely(set_ci >= MLX5_NUM_SPARE_EQE)) {
-			eq_update_ci(eq, 0);
-			set_ci = 0;
-		}
-	}
+	} while ((++num_eqes < MLX5_EQ_POLLING_BUDGET) && (eqe = next_eqe_sw(eq)));
 
+out:
 	eq_update_ci(eq, 1);
 
 	return IRQ_HANDLED;
