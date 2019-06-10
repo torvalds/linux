@@ -7,7 +7,7 @@
  * This source code is licensed under General Public License version 2.
  *
  * Based on the 'brute force' H.323 NAT module by
- * Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Jozsef Kadlecsik <kadlec@netfilter.org>
  */
 
 #include <linux/module.h>
