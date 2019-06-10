@@ -72,9 +72,9 @@ void tcp_fastopen_ctx_destroy(struct net *net)
 		call_rcu(&ctxt->rcu, tcp_fastopen_ctx_free);
 }
 
-struct tcp_fastopen_context *tcp_fastopen_alloc_ctx(void *primary_key,
-						    void *backup_key,
-						    unsigned int len)
+static struct tcp_fastopen_context *tcp_fastopen_alloc_ctx(void *primary_key,
+							   void *backup_key,
+							   unsigned int len)
 {
 	struct tcp_fastopen_context *new_ctx;
 	void *key = primary_key;
