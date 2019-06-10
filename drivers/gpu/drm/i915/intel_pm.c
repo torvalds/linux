@@ -2813,6 +2813,8 @@ hsw_compute_linetime_wm(const struct intel_crtc_state *cstate)
 static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 				  u16 wm[8])
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
+
 	if (INTEL_GEN(dev_priv) >= 9) {
 		u32 val;
 		int ret, i;
@@ -2894,7 +2896,7 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 			wm[0] += 1;
 
 	} else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-		u64 sskpd = I915_READ64(MCH_SSKPD);
+		u64 sskpd = intel_uncore_read64(uncore, MCH_SSKPD);
 
 		wm[0] = (sskpd >> 56) & 0xFF;
 		if (wm[0] == 0)
@@ -2904,14 +2906,14 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		wm[3] = (sskpd >> 20) & 0x1FF;
 		wm[4] = (sskpd >> 32) & 0x1FF;
 	} else if (INTEL_GEN(dev_priv) >= 6) {
-		u32 sskpd = I915_READ(MCH_SSKPD);
+		u32 sskpd = intel_uncore_read(uncore, MCH_SSKPD);
 
 		wm[0] = (sskpd >> SSKPD_WM0_SHIFT) & SSKPD_WM_MASK;
 		wm[1] = (sskpd >> SSKPD_WM1_SHIFT) & SSKPD_WM_MASK;
 		wm[2] = (sskpd >> SSKPD_WM2_SHIFT) & SSKPD_WM_MASK;
 		wm[3] = (sskpd >> SSKPD_WM3_SHIFT) & SSKPD_WM_MASK;
 	} else if (INTEL_GEN(dev_priv) >= 5) {
-		u32 mltr = I915_READ(MLTR_ILK);
+		u32 mltr = intel_uncore_read(uncore, MLTR_ILK);
 
 		/* ILK primary LP0 latency is 700 ns */
 		wm[0] = 7;
