@@ -228,6 +228,12 @@ struct komeda_layer {
 	struct malidp_range hsize_in, vsize_in;
 	u32 layer_type; /* RICH, SIMPLE or WB */
 	u32 supported_rots;
+	/* komeda supports layer split which splits a whole image to two parts
+	 * left and right and handle them by two individual layer processors
+	 * Note: left/right are always according to the final display rect,
+	 * not the source buffer.
+	 */
+	struct komeda_layer *right;
 };
 
 struct komeda_layer_state {
@@ -339,6 +345,7 @@ struct komeda_data_flow_cfg {
 	u8 en_scaling : 1,
 	   en_img_enhancement : 1,
 	   en_split : 1,
+	   is_yuv : 1,
 	   right_part : 1; /* right part of display image if split enabled */
 };
 
@@ -492,6 +499,11 @@ int komeda_build_wb_data_flow(struct komeda_layer *wb_layer,
 			      struct komeda_data_flow_cfg *dflow);
 int komeda_build_display_data_flow(struct komeda_crtc *kcrtc,
 				   struct komeda_crtc_state *kcrtc_st);
+
+int komeda_build_layer_split_data_flow(struct komeda_layer *left,
+				       struct komeda_plane_state *kplane_st,
+				       struct komeda_crtc_state *kcrtc_st,
+				       struct komeda_data_flow_cfg *dflow);
 
 int komeda_release_unclaimed_resources(struct komeda_pipeline *pipe,
 				       struct komeda_crtc_state *kcrtc_st);

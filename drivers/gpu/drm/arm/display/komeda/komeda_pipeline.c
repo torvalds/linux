@@ -265,15 +265,34 @@ static void komeda_component_verify_inputs(struct komeda_component *c)
 	}
 }
 
+static struct komeda_layer *
+komeda_get_layer_split_right_layer(struct komeda_pipeline *pipe,
+				   struct komeda_layer *left)
+{
+	int index = left->base.id - KOMEDA_COMPONENT_LAYER0;
+	int i;
+
+	for (i = index + 1; i < pipe->n_layers; i++)
+		if (left->layer_type == pipe->layers[i]->layer_type)
+			return pipe->layers[i];
+	return NULL;
+}
+
 static void komeda_pipeline_assemble(struct komeda_pipeline *pipe)
 {
 	struct komeda_component *c;
-	int id;
+	struct komeda_layer *layer;
+	int i, id;
 
 	dp_for_each_set_bit(id, pipe->avail_comps) {
 		c = komeda_pipeline_get_component(pipe, id);
-
 		komeda_component_verify_inputs(c);
+	}
+	/* calculate right layer for the layer split */
+	for (i = 0; i < pipe->n_layers; i++) {
+		layer = pipe->layers[i];
+
+		layer->right = komeda_get_layer_split_right_layer(pipe, layer);
 	}
 }
 

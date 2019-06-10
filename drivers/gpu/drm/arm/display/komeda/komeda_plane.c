@@ -45,7 +45,8 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 		return -EINVAL;
 	}
 
-	dflow->en_img_enhancement = kplane_st->img_enhancement;
+	dflow->en_img_enhancement = !!kplane_st->img_enhancement;
+	dflow->en_split = !!kplane_st->layer_split;
 
 	komeda_complete_data_flow_cfg(dflow, fb);
 
@@ -91,7 +92,12 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 	if (err)
 		return err;
 
-	err = komeda_build_layer_data_flow(layer, kplane_st, kcrtc_st, &dflow);
+	if (dflow.en_split)
+		err = komeda_build_layer_split_data_flow(layer,
+				kplane_st, kcrtc_st, &dflow);
+	else
+		err = komeda_build_layer_data_flow(layer,
+				kplane_st, kcrtc_st, &dflow);
 
 	return err;
 }
@@ -181,6 +187,8 @@ komeda_plane_atomic_get_property(struct drm_plane *plane,
 
 	if (property == kplane->prop_img_enhancement)
 		*val = st->img_enhancement;
+	else if (property == kplane->prop_layer_split)
+		*val = st->layer_split;
 	else
 		return -EINVAL;
 
@@ -198,6 +206,8 @@ komeda_plane_atomic_set_property(struct drm_plane *plane,
 
 	if (property == kplane->prop_img_enhancement)
 		st->img_enhancement = !!val;
+	else if (property == kplane->prop_layer_split)
+		st->layer_split = !!val;
 	else
 		return -EINVAL;
 
@@ -245,6 +255,16 @@ komeda_plane_create_layer_properties(struct komeda_plane *kplane,
 
 		drm_object_attach_property(&plane->base, prop, 0);
 		kplane->prop_img_enhancement = prop;
+	}
+
+	/* property: layer split */
+	if (layer->right) {
+		prop = drm_property_create_bool(drm, DRM_MODE_PROP_ATOMIC,
+						"layer_split");
+		if (!prop)
+			return -ENOMEM;
+		kplane->prop_layer_split = prop;
+		drm_object_attach_property(&plane->base, prop, 0);
 	}
 
 	return 0;

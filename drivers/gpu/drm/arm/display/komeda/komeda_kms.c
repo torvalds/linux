@@ -173,6 +173,14 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 		plane = plane_st->plane;
 
 		plane_st->normalized_zpos = order++;
+		/* When layer_split has been enabled, one plane will be handled
+		 * by two separated komeda layers (left/right), which may needs
+		 * two zorders.
+		 * - zorder: for left_layer for left display part.
+		 * - zorder + 1: will be reserved for right layer.
+		 */
+		if (to_kplane_st(plane_st)->layer_split)
+			order++;
 
 		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] zpos:%d, normalized zpos: %d\n",
 				 plane->base.id, plane->name,

@@ -36,6 +36,8 @@ struct komeda_plane {
 
 	/** @prop_img_enhancement: for on/off image enhancement */
 	struct drm_property *prop_img_enhancement;
+	/** @prop_layer_split: for on/off layer_split */
+	struct drm_property *prop_layer_split;
 };
 
 /**
@@ -50,8 +52,11 @@ struct komeda_plane_state {
 	/** @zlist_node: zorder list node */
 	struct list_head zlist_node;
 
-	/* @img_enhancement: on/off image enhancement */
-	u8 img_enhancement : 1;
+	/* @img_enhancement: on/off image enhancement
+	 * @layer_split: on/off layer_split
+	 */
+	u8 img_enhancement : 1,
+	   layer_split : 1;
 };
 
 /**
@@ -153,6 +158,19 @@ is_only_changed_connector(struct drm_crtc_state *st, struct drm_connector *conn)
 	changed_connectors = st->connector_mask ^ old_st->connector_mask;
 
 	return BIT(drm_connector_index(conn)) == changed_connectors;
+}
+
+static inline bool has_flip_h(u32 rot)
+{
+	u32 rotation = drm_rotation_simplify(rot,
+					     DRM_MODE_ROTATE_0 |
+					     DRM_MODE_ROTATE_90 |
+					     DRM_MODE_REFLECT_MASK);
+
+	if (rotation & DRM_MODE_ROTATE_90)
+		return !!(rotation & DRM_MODE_REFLECT_Y);
+	else
+		return !!(rotation & DRM_MODE_REFLECT_X);
 }
 
 unsigned long komeda_calc_aclk(struct komeda_crtc_state *kcrtc_st);

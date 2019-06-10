@@ -211,13 +211,14 @@ komeda_component_check_input(struct komeda_component_state *state,
 	struct komeda_component *c = state->component;
 
 	if ((idx < 0) || (idx >= c->max_active_inputs)) {
-		DRM_DEBUG_ATOMIC("%s invalid input id: %d.\n", c->name, idx);
+		DRM_DEBUG_ATOMIC("%s required an invalid %s-input[%d].\n",
+				 input->component->name, c->name, idx);
 		return -EINVAL;
 	}
 
 	if (has_bit(idx, state->active_inputs)) {
-		DRM_DEBUG_ATOMIC("%s required input_id: %d has been occupied already.\n",
-				 c->name, idx);
+		DRM_DEBUG_ATOMIC("%s required %s-input[%d] has been occupied already.\n",
+				 input->component->name, c->name, idx);
 		return -EINVAL;
 	}
 
@@ -267,6 +268,15 @@ komeda_component_get_avail_scaler(struct komeda_component *c,
 	c = komeda_component_pickup_output(c, avail_scalers);
 
 	return to_scaler(c);
+}
+
+static void
+komeda_rotate_data_flow(struct komeda_data_flow_cfg *dflow, u32 rot)
+{
+	if (drm_rotation_90_or_270(rot)) {
+		swap(dflow->in_h, dflow->in_w);
+		swap(dflow->total_in_h, dflow->total_in_w);
+	}
 }
 
 static int
@@ -360,8 +370,7 @@ komeda_layer_validate(struct komeda_layer *layer,
 	 * The rotation has been handled by layer, so adjusted the data flow for
 	 * the next stage.
 	 */
-	if (drm_rotation_90_or_270(st->rot))
-		swap(dflow->in_h, dflow->in_w);
+	komeda_rotate_data_flow(dflow, st->rot);
 
 	return 0;
 }
@@ -525,6 +534,52 @@ komeda_scaler_validate(void *user,
 	return err;
 }
 
+static int
+komeda_merger_validate(struct komeda_merger *merger,
+		       void *user,
+		       struct komeda_crtc_state *kcrtc_st,
+		       struct komeda_data_flow_cfg *left_input,
+		       struct komeda_data_flow_cfg *right_input,
+		       struct komeda_data_flow_cfg *output)
+{
+	struct komeda_component_state *c_st;
+	struct komeda_merger_state *st;
+	int err = 0;
+
+	if (!merger) {
+		DRM_DEBUG_ATOMIC("No merger is available");
+		return -EINVAL;
+	}
+
+	if (!in_range(&merger->hsize_merged, output->out_w)) {
+		DRM_DEBUG_ATOMIC("merged_w: %d is out of the accepted range.\n",
+				 output->out_w);
+		return -EINVAL;
+	}
+
+	if (!in_range(&merger->vsize_merged, output->out_h)) {
+		DRM_DEBUG_ATOMIC("merged_h: %d is out of the accepted range.\n",
+				 output->out_h);
+		return -EINVAL;
+	}
+
+	c_st = komeda_component_get_state_and_set_user(&merger->base,
+			kcrtc_st->base.state, kcrtc_st->base.crtc, kcrtc_st->base.crtc);
+
+	if (IS_ERR(c_st))
+		return PTR_ERR(c_st);
+
+	st = to_merger_st(c_st);
+	st->hsize_merged = output->out_w;
+	st->vsize_merged = output->out_h;
+
+	komeda_component_add_input(c_st, &left_input->input, 0);
+	komeda_component_add_input(c_st, &right_input->input, 1);
+	komeda_component_set_output(&output->input, &merger->base, 0);
+
+	return err;
+}
+
 void pipeline_composition_size(struct komeda_crtc_state *kcrtc_st,
 			       u16 *hsize, u16 *vsize)
 {
@@ -583,6 +638,7 @@ komeda_compiz_set_input(struct komeda_compiz *compiz,
 		c_st->changed_active_inputs |= BIT(idx);
 
 	komeda_component_add_input(c_st, &dflow->input, idx);
+	komeda_component_set_output(&dflow->input, &compiz->base, 0);
 
 	return 0;
 }
@@ -690,6 +746,16 @@ void komeda_complete_data_flow_cfg(struct komeda_data_flow_cfg *dflow,
 		swap(w, h);
 
 	dflow->en_scaling = (w != dflow->out_w) || (h != dflow->out_h);
+	dflow->is_yuv = fb->format->is_yuv;
+}
+
+static bool merger_is_available(struct komeda_pipeline *pipe,
+				struct komeda_data_flow_cfg *dflow)
+{
+	u32 avail_inputs = pipe->merger ?
+			   pipe->merger->base.supported_inputs : 0;
+
+	return has_bit(dflow->input.component->id, avail_inputs);
 }
 
 int komeda_build_layer_data_flow(struct komeda_layer *layer,
@@ -711,6 +777,230 @@ int komeda_build_layer_data_flow(struct komeda_layer *layer,
 		return err;
 
 	err = komeda_scaler_validate(plane, kcrtc_st, dflow);
+	if (err)
+		return err;
+
+	/* if split, check if can put the data flow into merger */
+	if (dflow->en_split && merger_is_available(pipe, dflow))
+		return 0;
+
+	err = komeda_compiz_set_input(pipe->compiz, kcrtc_st, dflow);
+
+	return err;
+}
+
+/*
+ * Split is introduced for workaround scaler's input/output size limitation.
+ * The idea is simple, if one scaler can not fit the requirement, use two.
+ * So split splits the big source image to two half parts (left/right) and do
+ * the scaling by two scaler separately and independently.
+ * But split also imports an edge problem in the middle of the image when
+ * scaling, to avoid it, split isn't a simple half-and-half, but add an extra
+ * pixels (overlap) to both side, after split the left/right will be:
+ * - left: [0, src_length/2 + overlap]
+ * - right: [src_length/2 - overlap, src_length]
+ * The extra overlap do eliminate the edge problem, but which may also generates
+ * unnecessary pixels when scaling, we need to crop them before scaler output
+ * the result to the next stage. and for the how to crop, it depends on the
+ * unneeded pixels, another words the position where overlay has been added.
+ * - left: crop the right
+ * - right: crop the left
+ *
+ * The diagram for how to do the split
+ *
+ *  <---------------------left->out_w ---------------->
+ * |--------------------------------|---right_crop-----| <- left after split
+ *  \                                \                /
+ *   \                                \<--overlap--->/
+ *   |-----------------|-------------|(Middle)------|-----------------| <- src
+ *                     /<---overlap--->\                               \
+ *                    /                 \                               \
+ * right after split->|-----left_crop---|--------------------------------|
+ *                    ^<------------------- right->out_w --------------->^
+ *
+ * NOTE: To consistent with HW the output_w always contains the crop size.
+ */
+
+static void komeda_split_data_flow(struct komeda_scaler *scaler,
+				   struct komeda_data_flow_cfg *dflow,
+				   struct komeda_data_flow_cfg *l_dflow,
+				   struct komeda_data_flow_cfg *r_dflow)
+{
+	bool r90 = drm_rotation_90_or_270(dflow->rot);
+	bool flip_h = has_flip_h(dflow->rot);
+	u32 l_out, r_out, overlap;
+
+	memcpy(l_dflow, dflow, sizeof(*dflow));
+	memcpy(r_dflow, dflow, sizeof(*dflow));
+
+	l_dflow->right_part = false;
+	r_dflow->right_part = true;
+	r_dflow->blending_zorder = dflow->blending_zorder + 1;
+
+	overlap = 0;
+	if (dflow->en_scaling && scaler)
+		overlap += scaler->scaling_split_overlap;
+
+	/* original dflow may fed into splitter, and which doesn't need
+	 * enhancement overlap
+	 */
+	dflow->overlap = overlap;
+
+	if (dflow->en_img_enhancement && scaler)
+		overlap += scaler->enh_split_overlap;
+
+	l_dflow->overlap = overlap;
+	r_dflow->overlap = overlap;
+
+	/* split the origin content */
+	/* left/right here always means the left/right part of display image,
+	 * not the source Image
+	 */
+	/* DRM rotation is anti-clockwise */
+	if (r90) {
+		if (dflow->en_scaling) {
+			l_dflow->in_h = ALIGN(dflow->in_h, 2) / 2 + l_dflow->overlap;
+			r_dflow->in_h = l_dflow->in_h;
+		} else if (dflow->en_img_enhancement) {
+			/* enhancer only */
+			l_dflow->in_h = ALIGN(dflow->in_h, 2) / 2 + l_dflow->overlap;
+			r_dflow->in_h = dflow->in_h / 2 + r_dflow->overlap;
+		} else {
+			/* split without scaler, no overlap */
+			l_dflow->in_h = ALIGN(((dflow->in_h + 1) >> 1), 2);
+			r_dflow->in_h = dflow->in_h - l_dflow->in_h;
+		}
+
+		/* Consider YUV format, after split, the split source w/h
+		 * may not aligned to 2. we have two choices for such case.
+		 * 1. scaler is enabled (overlap != 0), we can do a alignment
+		 *    both left/right and crop the extra data by scaler.
+		 * 2. scaler is not enabled, only align the split left
+		 *    src/disp, and the rest part assign to right
+		 */
+		if ((overlap != 0) && dflow->is_yuv) {
+			l_dflow->in_h = ALIGN(l_dflow->in_h, 2);
+			r_dflow->in_h = ALIGN(r_dflow->in_h, 2);
+		}
+
+		if (flip_h)
+			l_dflow->in_y = dflow->in_y + dflow->in_h - l_dflow->in_h;
+		else
+			r_dflow->in_y = dflow->in_y + dflow->in_h - r_dflow->in_h;
+	} else {
+		if (dflow->en_scaling) {
+			l_dflow->in_w = ALIGN(dflow->in_w, 2) / 2 + l_dflow->overlap;
+			r_dflow->in_w = l_dflow->in_w;
+		} else if (dflow->en_img_enhancement) {
+			l_dflow->in_w = ALIGN(dflow->in_w, 2) / 2 + l_dflow->overlap;
+			r_dflow->in_w = dflow->in_w / 2 + r_dflow->overlap;
+		} else {
+			l_dflow->in_w = ALIGN(((dflow->in_w + 1) >> 1), 2);
+			r_dflow->in_w = dflow->in_w - l_dflow->in_w;
+		}
+
+		/* do YUV alignment when scaler enabled */
+		if ((overlap != 0) && dflow->is_yuv) {
+			l_dflow->in_w = ALIGN(l_dflow->in_w, 2);
+			r_dflow->in_w = ALIGN(r_dflow->in_w, 2);
+		}
+
+		/* on flip_h, the left display content from the right-source */
+		if (flip_h)
+			l_dflow->in_x = dflow->in_w + dflow->in_x - l_dflow->in_w;
+		else
+			r_dflow->in_x = dflow->in_w + dflow->in_x - r_dflow->in_w;
+	}
+
+	/* split the disp_rect */
+	if (dflow->en_scaling || dflow->en_img_enhancement)
+		l_dflow->out_w = ((dflow->out_w + 1) >> 1);
+	else
+		l_dflow->out_w = ALIGN(((dflow->out_w + 1) >> 1), 2);
+
+	r_dflow->out_w = dflow->out_w - l_dflow->out_w;
+
+	l_dflow->out_x = dflow->out_x;
+	r_dflow->out_x = l_dflow->out_w + l_dflow->out_x;
+
+	/* calculate the scaling crop */
+	/* left scaler output more data and do crop */
+	if (r90) {
+		l_out = (dflow->out_w * l_dflow->in_h) / dflow->in_h;
+		r_out = (dflow->out_w * r_dflow->in_h) / dflow->in_h;
+	} else {
+		l_out = (dflow->out_w * l_dflow->in_w) / dflow->in_w;
+		r_out = (dflow->out_w * r_dflow->in_w) / dflow->in_w;
+	}
+
+	l_dflow->left_crop  = 0;
+	l_dflow->right_crop = l_out - l_dflow->out_w;
+	r_dflow->left_crop  = r_out - r_dflow->out_w;
+	r_dflow->right_crop = 0;
+
+	/* out_w includes the crop length */
+	l_dflow->out_w += l_dflow->right_crop + l_dflow->left_crop;
+	r_dflow->out_w += r_dflow->right_crop + r_dflow->left_crop;
+}
+
+/* For layer split, a plane state will be split to two data flows and handled
+ * by two separated komeda layer input pipelines. komeda supports two types of
+ * layer split:
+ * - none-scaling split:
+ *             / layer-left -> \
+ * plane_state                  compiz-> ...
+ *             \ layer-right-> /
+ *
+ * - scaling split:
+ *             / layer-left -> scaler->\
+ * plane_state                          merger -> compiz-> ...
+ *             \ layer-right-> scaler->/
+ *
+ * Since merger only supports scaler as input, so for none-scaling split, two
+ * layer data flows will be output to compiz directly. for scaling_split, two
+ * data flow will be merged by merger firstly, then merger outputs one merged
+ * data flow to compiz.
+ */
+int komeda_build_layer_split_data_flow(struct komeda_layer *left,
+				       struct komeda_plane_state *kplane_st,
+				       struct komeda_crtc_state *kcrtc_st,
+				       struct komeda_data_flow_cfg *dflow)
+{
+	struct drm_plane *plane = kplane_st->base.plane;
+	struct komeda_pipeline *pipe = left->base.pipeline;
+	struct komeda_layer *right = left->right;
+	struct komeda_data_flow_cfg l_dflow, r_dflow;
+	int err;
+
+	komeda_split_data_flow(pipe->scalers[0], dflow, &l_dflow, &r_dflow);
+
+	DRM_DEBUG_ATOMIC("Assign %s + %s to [PLANE:%d:%s]: "
+			 "src[x/y:%d/%d, w/h:%d/%d] disp[x/y:%d/%d, w/h:%d/%d]",
+			 left->base.name, right->base.name,
+			 plane->base.id, plane->name,
+			 dflow->in_x, dflow->in_y, dflow->in_w, dflow->in_h,
+			 dflow->out_x, dflow->out_y, dflow->out_w, dflow->out_h);
+
+	err = komeda_build_layer_data_flow(left, kplane_st, kcrtc_st, &l_dflow);
+	if (err)
+		return err;
+
+	err = komeda_build_layer_data_flow(right, kplane_st, kcrtc_st, &r_dflow);
+	if (err)
+		return err;
+
+	/* The rotation has been handled by layer, so adjusted the data flow */
+	komeda_rotate_data_flow(dflow, dflow->rot);
+
+	/* left and right dflow has been merged to compiz already,
+	 * no need merger to merge them anymore.
+	 */
+	if (r_dflow.input.component == l_dflow.input.component)
+		return 0;
+
+	/* line merger path */
+	err = komeda_merger_validate(pipe->merger, plane, kcrtc_st,
+				     &l_dflow, &r_dflow, dflow);
 	if (err)
 		return err;
 
