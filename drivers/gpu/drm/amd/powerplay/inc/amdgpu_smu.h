@@ -26,6 +26,10 @@
 #include "kgd_pp_interface.h"
 #include "dm_pp_interface.h"
 
+#define SMU_THERMAL_MINIMUM_ALERT_TEMP		0
+#define SMU_THERMAL_MAXIMUM_ALERT_TEMP		255
+#define SMU_TEMPERATURE_UNITS_PER_CENTIGRADES	1000
+
 struct smu_hw_power_state {
 	unsigned int magic;
 };
@@ -106,6 +110,13 @@ struct smu_state_software_algorithm_block {
 struct smu_temperature_range {
 	int min;
 	int max;
+	int edge_emergency_max;
+	int hotspot_min;
+	int hotspot_crit_max;
+	int hotspot_emergency_max;
+	int mem_min;
+	int mem_crit_max;
+	int mem_emergency_max;
 };
 
 struct smu_state_validation_block {
@@ -597,6 +608,7 @@ struct pptable_funcs {
 	int (*get_current_clk_freq_by_table)(struct smu_context *smu,
 					     enum smu_clk_type clk_type,
 					     uint32_t *value);
+	int (*get_thermal_temperature_range)(struct smu_context *smu, struct smu_temperature_range *range);
 };
 
 struct smu_funcs
@@ -881,6 +893,8 @@ struct smu_funcs
 	((smu)->ppt_funcs->set_watermarks_table ? (smu)->ppt_funcs->set_watermarks_table((smu), (tab), (clock_ranges)) : 0)
 #define smu_get_current_clk_freq_by_table(smu, clk_type, value) \
 	((smu)->ppt_funcs->get_current_clk_freq_by_table ? (smu)->ppt_funcs->get_current_clk_freq_by_table((smu), (clk_type), (value)) : 0)
+#define smu_get_thermal_temperature_range(smu, range) \
+	((smu)->ppt_funcs->get_thermal_temperature_range? (smu)->ppt_funcs->get_thermal_temperature_range((smu), (range)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,

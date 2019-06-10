@@ -31,7 +31,6 @@
 #include "atom.h"
 #include "vega20_ppt.h"
 #include "navi10_ppt.h"
-#include "pp_thermal.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
@@ -44,10 +43,6 @@
 MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
 MODULE_FIRMWARE("amdgpu/navi10_smc.bin");
 
-#define SMU11_THERMAL_MINIMUM_ALERT_TEMP      0
-#define SMU11_THERMAL_MAXIMUM_ALERT_TEMP      255
-
-#define SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES 1000
 #define SMU11_VOLTAGE_SCALE 4
 
 static int smu_v11_0_send_msg_without_waiting(struct smu_context *smu,
@@ -1112,37 +1107,18 @@ static int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
 	return ret;
 }
 
-static int smu_v11_0_get_thermal_range(struct smu_context *smu,
-				struct PP_TemperatureRange *range)
-{
-	PPTable_t *pptable = smu->smu_table.driver_pptable;
-	memcpy(range, &SMU7ThermalWithDelayPolicy[0], sizeof(struct PP_TemperatureRange));
-
-	range->max = pptable->TedgeLimit *
-		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->edge_emergency_max = (pptable->TedgeLimit + CTF_OFFSET_EDGE) *
-		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->hotspot_crit_max = pptable->ThotspotLimit *
-		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->hotspot_emergency_max = (pptable->ThotspotLimit + CTF_OFFSET_HOTSPOT) *
-		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->mem_crit_max = pptable->ThbmLimit *
-		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	range->mem_emergency_max = (pptable->ThbmLimit + CTF_OFFSET_HBM)*
-		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-
-	return 0;
-}
-
 static int smu_v11_0_set_thermal_range(struct smu_context *smu,
-			struct PP_TemperatureRange *range)
+				       struct smu_temperature_range *range)
 {
 	struct amdgpu_device *adev = smu->adev;
-	int low = SMU11_THERMAL_MINIMUM_ALERT_TEMP *
-		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	int high = SMU11_THERMAL_MAXIMUM_ALERT_TEMP *
-		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	int low = SMU_THERMAL_MINIMUM_ALERT_TEMP *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	int high = SMU_THERMAL_MAXIMUM_ALERT_TEMP *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	uint32_t val;
+
+	if (!range)
+		return -EINVAL;
 
 	if (low < range->min)
 		low = range->min;
@@ -1155,8 +1131,8 @@ static int smu_v11_0_set_thermal_range(struct smu_context *smu,
 	val = RREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL);
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, MAX_IH_CREDIT, 5);
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES));
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES));
 	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
 
 	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);
@@ -1181,7 +1157,7 @@ static int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 {
 	int ret = 0;
-	struct PP_TemperatureRange range = {
+	struct smu_temperature_range range = {
 		TEMP_RANGE_MIN,
 		TEMP_RANGE_MAX,
 		TEMP_RANGE_MAX,
@@ -1195,7 +1171,7 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 
 	if (!smu->pm_enabled)
 		return ret;
-	smu_v11_0_get_thermal_range(smu, &range);
+	ret = smu_get_thermal_temperature_range(smu, &range);
 
 	if (smu->smu_table.thermal_controller_type) {
 		ret = smu_v11_0_set_thermal_range(smu, &range);
@@ -1223,48 +1199,6 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 	return ret;
 }
 
-static int smu_v11_0_thermal_get_temperature(struct smu_context *smu,
-					     enum amd_pp_sensors sensor,
-					     uint32_t *value)
-{
-	struct amdgpu_device *adev = smu->adev;
-	SmuMetrics_t metrics;
-	uint32_t temp = 0;
-	int ret = 0;
-
-	if (!value)
-		return -EINVAL;
-
-	ret = smu_v11_0_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
-		temp = RREG32_SOC15(THM, 0, mmCG_MULT_THERMAL_STATUS);
-		temp = (temp & CG_MULT_THERMAL_STATUS__CTF_TEMP_MASK) >>
-				CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT;
-
-		temp = temp & 0x1ff;
-		temp *= SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES;
-
-		*value = temp;
-		break;
-	case AMDGPU_PP_SENSOR_EDGE_TEMP:
-		*value = metrics.TemperatureEdge *
-			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	case AMDGPU_PP_SENSOR_MEM_TEMP:
-		*value = metrics.TemperatureHBM *
-			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	default:
-		pr_err("Invalid sensor for retrieving temp\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
 static uint16_t convert_to_vddc(uint8_t vid)
 {
 	return (uint16_t) ((6200 - (vid * 25)) / SMU11_VOLTAGE_SCALE);

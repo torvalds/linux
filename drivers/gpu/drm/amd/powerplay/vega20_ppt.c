@@ -36,9 +36,15 @@
 #include "vega20_pptable.h"
 #include "vega20_ppsmc.h"
 #include "nbio/nbio_7_4_sh_mask.h"
+#include "asic_reg/thm/thm_11_0_2_offset.h"
+#include "asic_reg/thm/thm_11_0_2_sh_mask.h"
 
 #define smnPCIE_LC_SPEED_CNTL			0x11140290
 #define smnPCIE_LC_LINK_WIDTH_CNTL		0x11140288
+
+#define CTF_OFFSET_EDGE			5
+#define CTF_OFFSET_HOTSPOT		5
+#define CTF_OFFSET_HBM			5
 
 #define MSG_MAP(msg) \
 	[SMU_MSG_##msg] = PPSMC_MSG_##msg
@@ -3023,17 +3029,17 @@ static int vega20_thermal_get_temperature(struct smu_context *smu,
 				CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT;
 
 		temp = temp & 0x1ff;
-		temp *= SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		temp *= SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 		*value = temp;
 		break;
 	case AMDGPU_PP_SENSOR_EDGE_TEMP:
 		*value = metrics.TemperatureEdge *
-			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case AMDGPU_PP_SENSOR_MEM_TEMP:
 		*value = metrics.TemperatureHBM *
-			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	default:
 		pr_err("Invalid sensor for retrieving temp\n");
@@ -3139,6 +3145,40 @@ static int vega20_set_watermarks_table(struct smu_context *smu,
 	return 0;
 }
 
+static const struct smu_temperature_range vega20_thermal_policy[] =
+{
+	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
+	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
+};
+
+static int vega20_get_thermal_temperature_range(struct smu_context *smu,
+						struct smu_temperature_range *range)
+{
+
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
+
+	if (!range)
+		return -EINVAL;
+
+	memcpy(range, &vega20_thermal_policy[0], sizeof(struct smu_temperature_range));
+
+	range->max = pptable->TedgeLimit *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->edge_emergency_max = (pptable->TedgeLimit + CTF_OFFSET_EDGE) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_crit_max = pptable->ThotspotLimit *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_emergency_max = (pptable->ThotspotLimit + CTF_OFFSET_HOTSPOT) *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_crit_max = pptable->ThbmLimit *
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_emergency_max = (pptable->ThbmLimit + CTF_OFFSET_HBM)*
+		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.tables_init = vega20_tables_init,
 	.alloc_dpm_context = vega20_allocate_dpm_context,
@@ -3183,6 +3223,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.set_thermal_fan_table = vega20_set_thermal_fan_table,
 	.get_fan_speed_percent = vega20_get_fan_speed_percent,
 	.set_watermarks_table = vega20_set_watermarks_table,
+	.get_thermal_temperature_range = vega20_get_thermal_temperature_range
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)
