@@ -175,22 +175,6 @@ static void omap_set_gpio_dataout_mask_multiple(struct gpio_bank *bank,
 	bank->context.dataout = l;
 }
 
-static unsigned long omap_get_gpio_datain_multiple(struct gpio_bank *bank,
-					      unsigned long *mask)
-{
-	void __iomem *reg = bank->base + bank->regs->datain;
-
-	return readl_relaxed(reg) & *mask;
-}
-
-static unsigned long omap_get_gpio_dataout_multiple(struct gpio_bank *bank,
-					       unsigned long *mask)
-{
-	void __iomem *reg = bank->base + bank->regs->dataout;
-
-	return readl_relaxed(reg) & *mask;
-}
-
 static inline void omap_gpio_rmw(void __iomem *base, u32 reg, u32 mask, bool set)
 {
 	int l = readl_relaxed(base + reg);
@@ -987,18 +971,20 @@ static int omap_gpio_get_multiple(struct gpio_chip *chip, unsigned long *mask,
 				  unsigned long *bits)
 {
 	struct gpio_bank *bank = gpiochip_get_data(chip);
-	void __iomem *reg = bank->base + bank->regs->direction;
-	unsigned long in = readl_relaxed(reg), l;
+	void __iomem *base = bank->base;
+	u32 direction, m, val = 0;
 
-	*bits = 0;
+	direction = readl_relaxed(base + bank->regs->direction);
 
-	l = in & *mask;
-	if (l)
-		*bits |= omap_get_gpio_datain_multiple(bank, &l);
+	m = direction & *mask;
+	if (m)
+		val |= readl_relaxed(base + bank->regs->datain) & m;
 
-	l = ~in & *mask;
-	if (l)
-		*bits |= omap_get_gpio_dataout_multiple(bank, &l);
+	m = ~direction & *mask;
+	if (m)
+		val |= readl_relaxed(base + bank->regs->dataout) & m;
+
+	*bits = val;
 
 	return 0;
 }
