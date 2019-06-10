@@ -35,6 +35,8 @@
 #include "config.h"
 #include "time-utils.h"
 
+#include "../arch/x86/include/uapi/asm/perf_regs.h"
+
 #include "intel-pt-decoder/intel-pt-log.h"
 #include "intel-pt-decoder/intel-pt-decoder.h"
 #include "intel-pt-decoder/intel-pt-insn-decoder.h"
@@ -1547,6 +1549,60 @@ static int intel_pt_synth_pwrx_sample(struct intel_pt_queue *ptq)
 					    pt->pwr_events_sample_type);
 }
 
+/*
+ * PEBS gp_regs array indexes plus 1 so that 0 means not present. Refer
+ * intel_pt_add_gp_regs().
+ */
+static const int pebs_gp_regs[] = {
+	[PERF_REG_X86_FLAGS]	= 1,
+	[PERF_REG_X86_IP]	= 2,
+	[PERF_REG_X86_AX]	= 3,
+	[PERF_REG_X86_CX]	= 4,
+	[PERF_REG_X86_DX]	= 5,
+	[PERF_REG_X86_BX]	= 6,
+	[PERF_REG_X86_SP]	= 7,
+	[PERF_REG_X86_BP]	= 8,
+	[PERF_REG_X86_SI]	= 9,
+	[PERF_REG_X86_DI]	= 10,
+	[PERF_REG_X86_R8]	= 11,
+	[PERF_REG_X86_R9]	= 12,
+	[PERF_REG_X86_R10]	= 13,
+	[PERF_REG_X86_R11]	= 14,
+	[PERF_REG_X86_R12]	= 15,
+	[PERF_REG_X86_R13]	= 16,
+	[PERF_REG_X86_R14]	= 17,
+	[PERF_REG_X86_R15]	= 18,
+};
+
+static u64 *intel_pt_add_gp_regs(struct regs_dump *intr_regs, u64 *pos,
+				 const struct intel_pt_blk_items *items,
+				 u64 regs_mask)
+{
+	const u64 *gp_regs = items->val[INTEL_PT_GP_REGS_POS];
+	u32 mask = items->mask[INTEL_PT_GP_REGS_POS];
+	u32 bit;
+	int i;
+
+	for (i = 0, bit = 1; i < PERF_REG_X86_64_MAX; i++, bit <<= 1) {
+		/* Get the PEBS gp_regs array index */
+		int n = pebs_gp_regs[i] - 1;
+
+		if (n < 0)
+			continue;
+		/*
+		 * Add only registers that were requested (i.e. 'regs_mask') and
+		 * that were provided (i.e. 'mask'), and update the resulting
+		 * mask (i.e. 'intr_regs->mask') accordingly.
+		 */
+		if (mask & 1 << n && regs_mask & bit) {
+			intr_regs->mask |= bit;
+			*pos++ = gp_regs[n];
+		}
+	}
+
+	return pos;
+}
+
 static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 {
 	const struct intel_pt_blk_items *items = &ptq->state->items;
@@ -1595,6 +1651,19 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 			timestamp = ptq->timestamp;
 		if (timestamp)
 			sample.time = tsc_to_perf_time(timestamp, &pt->tc);
+	}
+
+	if (sample_type & PERF_SAMPLE_REGS_INTR &&
+	    items->mask[INTEL_PT_GP_REGS_POS]) {
+		u64 regs[sizeof(sample.intr_regs.mask)];
+		u64 regs_mask = evsel->attr.sample_regs_intr;
+
+		sample.intr_regs.abi = items->is_32_bit ?
+				       PERF_SAMPLE_REGS_ABI_32 :
+				       PERF_SAMPLE_REGS_ABI_64;
+		sample.intr_regs.regs = regs;
+
+		intel_pt_add_gp_regs(&sample.intr_regs, regs, items, regs_mask);
 	}
 
 	return intel_pt_deliver_synth_event(pt, ptq, event, &sample, sample_type);
