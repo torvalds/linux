@@ -733,7 +733,7 @@ static void omap_gpio_free(struct gpio_chip *chip, unsigned offset)
 static irqreturn_t omap_gpio_irq_handler(int irq, void *gpiobank)
 {
 	void __iomem *isr_reg = NULL;
-	u32 enabled, isr, level_mask;
+	u32 enabled, isr, edge;
 	unsigned int bit;
 	struct gpio_bank *bank = gpiobank;
 	unsigned long wa_lock_flags;
@@ -753,16 +753,14 @@ static irqreturn_t omap_gpio_irq_handler(int irq, void *gpiobank)
 		enabled = omap_get_gpio_irqbank_mask(bank);
 		isr = readl_relaxed(isr_reg) & enabled;
 
-		if (bank->level_mask)
-			level_mask = bank->level_mask & enabled;
-		else
-			level_mask = 0;
-
-		/* clear edge sensitive interrupts before handler(s) are
-		called so that we don't miss any interrupt occurred while
-		executing them */
-		if (isr & ~level_mask)
-			omap_clear_gpio_irqbank(bank, isr & ~level_mask);
+		/*
+		 * Clear edge sensitive interrupts before calling handler(s)
+		 * so subsequent edge transitions are not missed while the
+		 * handlers are running.
+		 */
+		edge = isr & ~bank->level_mask;
+		if (edge)
+			omap_clear_gpio_irqbank(bank, edge);
 
 		raw_spin_unlock_irqrestore(&bank->lock, lock_flags);
 
