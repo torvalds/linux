@@ -200,7 +200,7 @@ struct omap_gpio_platform_data {
 	bool is_mpuio;		/* whether the bank is of type MPUIO */
 	u32 non_wakeup_gpios;
 
-	struct omap_gpio_reg_offs *regs;
+	const struct omap_gpio_reg_offs *regs;
 
 	/* Return context loss count due to PM states changing */
 	int (*get_context_loss_count)(struct device *dev);

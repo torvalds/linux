@@ -48,6 +48,8 @@ struct gpio_regs {
 
 struct gpio_bank {
 	void __iomem *base;
+	const struct omap_gpio_reg_offs *regs;
+
 	int irq;
 	u32 non_wakeup_gpios;
 	u32 enabled_non_wakeup_gpios;
@@ -75,8 +77,6 @@ struct gpio_bank {
 
 	void (*set_dataout)(struct gpio_bank *bank, unsigned gpio, int enable);
 	int (*get_context_loss_count)(struct device *dev);
-
-	struct omap_gpio_reg_offs *regs;
 };
 
 #define GPIO_MOD_CTRL_BIT	BIT(0)
@@ -1075,7 +1075,7 @@ static int omap_gpio_chip_init(struct gpio_bank *bank, struct irq_chip *irqc)
 
 static void omap_gpio_init_context(struct gpio_bank *p)
 {
-	struct omap_gpio_reg_offs *regs = p->regs;
+	const struct omap_gpio_reg_offs *regs = p->regs;
 	void __iomem *base = p->base;
 
 	p->context.ctrl		= readl_relaxed(base + regs->ctrl);
@@ -1094,7 +1094,7 @@ static void omap_gpio_init_context(struct gpio_bank *p)
 
 static void omap_gpio_restore_context(struct gpio_bank *bank)
 {
-	struct omap_gpio_reg_offs *regs = bank->regs;
+	const struct omap_gpio_reg_offs *regs = bank->regs;
 	void __iomem *base = bank->base;
 
 	writel_relaxed(bank->context.wake_en, base + regs->wkup_en);
@@ -1267,7 +1267,7 @@ static int gpio_omap_cpu_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct omap_gpio_reg_offs omap2_gpio_regs = {
+static const struct omap_gpio_reg_offs omap2_gpio_regs = {
 	.revision =		OMAP24XX_GPIO_REVISION,
 	.direction =		OMAP24XX_GPIO_OE,
 	.datain =		OMAP24XX_GPIO_DATAIN,
@@ -1290,7 +1290,7 @@ static struct omap_gpio_reg_offs omap2_gpio_regs = {
 	.fallingdetect =	OMAP24XX_GPIO_FALLINGDETECT,
 };
 
-static struct omap_gpio_reg_offs omap4_gpio_regs = {
+static const struct omap_gpio_reg_offs omap4_gpio_regs = {
 	.revision =		OMAP4_GPIO_REVISION,
 	.direction =		OMAP4_GPIO_OE,
 	.datain =		OMAP4_GPIO_DATAIN,
