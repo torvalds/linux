@@ -689,38 +689,6 @@ static int omap_gpio_wake_enable(struct irq_data *d, unsigned int enable)
 	return irq_set_irq_wake(bank->irq, enable);
 }
 
-static int omap_gpio_request(struct gpio_chip *chip, unsigned offset)
-{
-	struct gpio_bank *bank = gpiochip_get_data(chip);
-	unsigned long flags;
-
-	pm_runtime_get_sync(chip->parent);
-
-	raw_spin_lock_irqsave(&bank->lock, flags);
-	omap_enable_gpio_module(bank, offset);
-	bank->mod_usage |= BIT(offset);
-	raw_spin_unlock_irqrestore(&bank->lock, flags);
-
-	return 0;
-}
-
-static void omap_gpio_free(struct gpio_chip *chip, unsigned offset)
-{
-	struct gpio_bank *bank = gpiochip_get_data(chip);
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&bank->lock, flags);
-	bank->mod_usage &= ~(BIT(offset));
-	if (!LINE_USED(bank->irq_usage, offset)) {
-		omap_set_gpio_direction(bank, offset, 1);
-		omap_clear_gpio_debounce(bank, offset);
-	}
-	omap_disable_gpio_module(bank, offset);
-	raw_spin_unlock_irqrestore(&bank->lock, flags);
-
-	pm_runtime_put(chip->parent);
-}
-
 /*
  * We need to unmask the GPIO bank interrupt as soon as possible to
  * avoid missing GPIO interrupts for other lines in the bank.
@@ -950,6 +918,38 @@ static inline void omap_mpuio_init(struct gpio_bank *bank)
 }
 
 /*---------------------------------------------------------------------*/
+
+static int omap_gpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	struct gpio_bank *bank = gpiochip_get_data(chip);
+	unsigned long flags;
+
+	pm_runtime_get_sync(chip->parent);
+
+	raw_spin_lock_irqsave(&bank->lock, flags);
+	omap_enable_gpio_module(bank, offset);
+	bank->mod_usage |= BIT(offset);
+	raw_spin_unlock_irqrestore(&bank->lock, flags);
+
+	return 0;
+}
+
+static void omap_gpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	struct gpio_bank *bank = gpiochip_get_data(chip);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&bank->lock, flags);
+	bank->mod_usage &= ~(BIT(offset));
+	if (!LINE_USED(bank->irq_usage, offset)) {
+		omap_set_gpio_direction(bank, offset, 1);
+		omap_clear_gpio_debounce(bank, offset);
+	}
+	omap_disable_gpio_module(bank, offset);
+	raw_spin_unlock_irqrestore(&bank->lock, flags);
+
+	pm_runtime_put(chip->parent);
+}
 
 static int omap_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 {
