@@ -31,6 +31,7 @@
 #include <linux/bug.h>
 #include <linux/compat.h>
 #include <linux/version.h>
+#include <linux/sched/mm.h>
 
 #include <mali_kbase_config.h>
 #include <mali_kbase.h>
