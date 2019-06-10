@@ -160,9 +160,6 @@ int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq);
  */
 void gic_init(void __iomem *dist , void __iomem *cpu);
 
-int gicv2m_init(struct fwnode_handle *parent_handle,
-		struct irq_domain *parent);
-
 void gic_send_sgi(unsigned int cpu_id, unsigned int irq);
 int gic_get_cpu_id(unsigned int cpu);
 void gic_migrate_target(unsigned int new_cpu_id);
