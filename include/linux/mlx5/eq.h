@@ -30,8 +30,7 @@ struct mlx5_eq_param {
 };
 
 struct mlx5_eq *
-mlx5_eq_create_generic(struct mlx5_core_dev *dev, const char *name,
-		       struct mlx5_eq_param *param);
+mlx5_eq_create_generic(struct mlx5_core_dev *dev, struct mlx5_eq_param *param);
 int
 mlx5_eq_destroy_generic(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 

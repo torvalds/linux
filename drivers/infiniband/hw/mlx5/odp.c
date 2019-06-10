@@ -1562,7 +1562,7 @@ mlx5_ib_create_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 		.nent = MLX5_IB_NUM_PF_EQE,
 		.nb = &eq->irq_nb,
 	};
-	eq->core = mlx5_eq_create_generic(dev->mdev, "mlx5_ib_page_fault_eq", &param);
+	eq->core = mlx5_eq_create_generic(dev->mdev, &param);
 	if (IS_ERR(eq->core)) {
 		err = PTR_ERR(eq->core);
 		goto err_wq;

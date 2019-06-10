@@ -134,6 +134,64 @@ static irqreturn_t mlx5_irq_int_handler(int irq, void *nh)
 	return IRQ_HANDLED;
 }
 
+static void irq_set_name(char *name, int vecidx)
+{
+	switch (vecidx) {
+	case MLX5_EQ_CMD_IDX:
+		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_cmd_eq");
+		break;
+	case MLX5_EQ_ASYNC_IDX:
+		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_async_eq");
+		break;
+	case MLX5_EQ_PAGEREQ_IDX:
+		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_pages_eq");
+		break;
+	case MLX5_EQ_PFAULT_IDX:
+		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_ib_page_fault_eq");
+		break;
+	default:
+		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d",
+			 vecidx - MLX5_EQ_VEC_COMP_BASE);
+		break;
+	}
+}
+
+static int request_irqs(struct mlx5_core_dev *dev, int nvec)
+{
+	struct mlx5_priv *priv = &dev->priv;
+	struct mlx5_eq_table *eq_table;
+	char name[MLX5_MAX_IRQ_NAME];
+	int err;
+	int i;
+
+	eq_table = priv->eq_table;
+	for (i = 0; i < nvec; i++) {
+		struct mlx5_irq_info *irq_info = &eq_table->irq_info[i];
+		int irqn = pci_irq_vector(dev->pdev, i);
+
+		irq_set_name(name, i);
+		ATOMIC_INIT_NOTIFIER_HEAD(&irq_info->nh);
+		snprintf(irq_info->name, MLX5_MAX_IRQ_NAME,
+			 "%s@pci:%s", name, pci_name(dev->pdev));
+		err = request_irq(irqn, mlx5_irq_int_handler, 0, irq_info->name,
+				  &irq_info->nh);
+		if (err) {
+			mlx5_core_err(dev, "Failed to request irq\n");
+			goto err_request_irq;
+		}
+	}
+	return 0;
+
+err_request_irq:
+	for (; i >= 0; i--) {
+		struct mlx5_irq_info *irq_info = &eq_table->irq_info[i];
+		int irqn = pci_irq_vector(dev->pdev, i);
+
+		free_irq(irqn, &irq_info->nh);
+	}
+	return  err;
+}
+
 static int mlx5_cmd_destroy_eq(struct mlx5_core_dev *dev, u8 eqn)
 {
 	u32 out[MLX5_ST_SZ_DW(destroy_eq_out)] = {0};
@@ -278,14 +336,12 @@ static void init_eq_buf(struct mlx5_eq *eq)
 }
 
 static int
-create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, const char *name,
+create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	      struct mlx5_eq_param *param)
 {
-	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
 	struct mlx5_cq_table *cq_table = &eq->cq_table;
 	u32 out[MLX5_ST_SZ_DW(create_eq_out)] = {0};
 	struct mlx5_priv *priv = &dev->priv;
-	struct mlx5_irq_info *irq_info;
 	u8 vecidx = param->index;
 	__be64 *pas;
 	void *eqc;
@@ -335,11 +391,6 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, const char *name,
 	if (err)
 		goto err_in;
 
-	irq_info = mlx5_irq_get(dev, vecidx);
-	ATOMIC_INIT_NOTIFIER_HEAD(&irq_info->nh);
-	snprintf(irq_info->name, MLX5_MAX_IRQ_NAME,
-		 "%s@pci:%s", name, pci_name(dev->pdev));
-
 	eq->vecidx = vecidx;
 	eq->eqn = MLX5_GET(create_eq_out, out, eq_number);
 	eq->irqn = pci_irq_vector(dev->pdev, vecidx);
@@ -347,14 +398,9 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, const char *name,
 	eq->doorbell = priv->uar->map + MLX5_EQ_DOORBEL_OFFSET;
 	eq->irq_nb = param->nb;
 
-	err = request_irq(eq->irqn, mlx5_irq_int_handler, 0, irq_info->name,
-			  &irq_info->nh);
+	err = mlx5_irq_attach_nb(mlx5_irq_get(dev, vecidx), param->nb);
 	if (err)
 		goto err_eq;
-
-	err = mlx5_irq_attach_nb(irq_info, param->nb);
-	if (err)
-		goto err_irq;
 
 	err = mlx5_debug_eq_add(dev, eq);
 	if (err)
@@ -368,10 +414,7 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, const char *name,
 	return 0;
 
 err_detach:
-	mlx5_irq_detach_nb(irq_info, param->nb);
-
-err_irq:
-	free_irq(eq->irqn, &eq_table->irq_info[vecidx].nh);
+	mlx5_irq_detach_nb(mlx5_irq_get(dev, vecidx), eq->irq_nb);
 
 err_eq:
 	mlx5_cmd_destroy_eq(dev, eq->eqn);
@@ -386,19 +429,14 @@ err_buf:
 
 static int destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 {
-	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
-	struct mlx5_irq_info *irq_info;
 	int err;
-
-	irq_info = &eq_table->irq_info[eq->vecidx];
 
 	mlx5_debug_eq_remove(dev, eq);
 
-	err = mlx5_irq_detach_nb(irq_info, eq->irq_nb);
+	err = mlx5_irq_detach_nb(mlx5_irq_get(dev, eq->vecidx), eq->irq_nb);
 	if (err)
 		mlx5_core_warn(eq->dev, "eq failed to detach from irq. err %d",
 			       err);
-	free_irq(eq->irqn, &eq_table->irq_info[eq->vecidx].nh);
 	err = mlx5_cmd_destroy_eq(dev, eq->eqn);
 	if (err)
 		mlx5_core_warn(dev, "failed to destroy a previously created eq: eqn %d\n",
@@ -479,7 +517,7 @@ void mlx5_eq_table_cleanup(struct mlx5_core_dev *dev)
 
 /* Async EQs */
 
-static int create_async_eq(struct mlx5_core_dev *dev, const char *name,
+static int create_async_eq(struct mlx5_core_dev *dev,
 			   struct mlx5_eq *eq, struct mlx5_eq_param *param)
 {
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
@@ -491,7 +529,7 @@ static int create_async_eq(struct mlx5_core_dev *dev, const char *name,
 		goto unlock;
 	}
 
-	err = create_map_eq(dev, eq, name, param);
+	err = create_map_eq(dev, eq, param);
 unlock:
 	mutex_unlock(&eq_table->lock);
 	return err;
@@ -596,7 +634,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 		.nent = MLX5_NUM_CMD_EQE,
 		.nb = &table->cmd_eq.irq_nb,
 	};
-	err = create_async_eq(dev, "mlx5_cmd_eq", &table->cmd_eq.core, &param);
+	err = create_async_eq(dev, &table->cmd_eq.core, &param);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create cmd EQ %d\n", err);
 		goto err0;
@@ -611,8 +649,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 		.nent = MLX5_NUM_ASYNC_EQE,
 		.nb = &table->async_eq.irq_nb,
 	};
-	err = create_async_eq(dev, "mlx5_async_eq",
-			      &table->async_eq.core, &param);
+	err = create_async_eq(dev, &table->async_eq.core, &param);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create async EQ %d\n", err);
 		goto err1;
@@ -625,8 +662,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 		.nent = /* TODO: sriov max_vf + */ 1,
 		.nb = &table->pages_eq.irq_nb,
 	};
-	err = create_async_eq(dev, "mlx5_pages_eq",
-			      &table->pages_eq.core, &param);
+	err = create_async_eq(dev, &table->pages_eq.core, &param);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create pages EQ %d\n", err);
 		goto err2;
@@ -689,7 +725,7 @@ void mlx5_eq_synchronize_cmd_irq(struct mlx5_core_dev *dev)
  * Needed For RDMA ODP EQ for now
  */
 struct mlx5_eq *
-mlx5_eq_create_generic(struct mlx5_core_dev *dev, const char *name,
+mlx5_eq_create_generic(struct mlx5_core_dev *dev,
 		       struct mlx5_eq_param *param)
 {
 	struct mlx5_eq *eq = kvzalloc(sizeof(*eq), GFP_KERNEL);
@@ -698,7 +734,7 @@ mlx5_eq_create_generic(struct mlx5_core_dev *dev, const char *name,
 	if (!eq)
 		return ERR_PTR(-ENOMEM);
 
-	err = create_async_eq(dev, name, eq, param);
+	err = create_async_eq(dev, eq, param);
 	if (err) {
 		kvfree(eq);
 		eq = ERR_PTR(err);
@@ -845,7 +881,6 @@ static void destroy_comp_eqs(struct mlx5_core_dev *dev)
 static int create_comp_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
-	char name[MLX5_MAX_IRQ_NAME];
 	struct mlx5_eq_comp *eq;
 	int ncomp_vec;
 	int nent;
@@ -879,7 +914,6 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 #ifdef CONFIG_RFS_ACCEL
 		irq_cpu_rmap_add(table->rmap, pci_irq_vector(dev->pdev, vecidx));
 #endif
-		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", i);
 		eq->irq_nb.notifier_call = mlx5_eq_comp_int;
 		param = (struct mlx5_eq_param) {
 			.index = vecidx,
@@ -887,7 +921,7 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 			.nent = nent,
 			.nb = &eq->irq_nb,
 		};
-		err = create_map_eq(dev, &eq->core, name, &param);
+		err = create_map_eq(dev, &eq->core, &param);
 		if (err) {
 			kfree(eq);
 			goto clean;
@@ -1018,8 +1052,14 @@ static int alloc_irq_vectors(struct mlx5_core_dev *dev)
 
 	table->num_comp_vectors = nvec - MLX5_EQ_VEC_COMP_BASE;
 
+	err = request_irqs(dev, nvec);
+	if (err)
+		goto err_free_irqs;
+
 	return 0;
 
+err_free_irqs:
+	pci_free_irq_vectors(dev->pdev);
 err_free_irq_info:
 	kfree(table->irq_info);
 	return err;
@@ -1027,10 +1067,13 @@ err_free_irq_info:
 
 static void free_irq_vectors(struct mlx5_core_dev *dev)
 {
-	struct mlx5_priv *priv = &dev->priv;
+	struct mlx5_eq_table *table = dev->priv.eq_table;
+	int i;
 
+	for (i = 0; i < table->num_comp_vectors + MLX5_EQ_VEC_COMP_BASE; i++)
+		free_irq(pci_irq_vector(dev->pdev, i), &table->irq_info[i].nh);
 	pci_free_irq_vectors(dev->pdev);
-	kfree(priv->eq_table->irq_info);
+	kfree(table->irq_info);
 }
 
 int mlx5_eq_table_create(struct mlx5_core_dev *dev)
@@ -1039,7 +1082,7 @@ int mlx5_eq_table_create(struct mlx5_core_dev *dev)
 
 	err = alloc_irq_vectors(dev);
 	if (err) {
-		mlx5_core_err(dev, "alloc irq vectors failed\n");
+		mlx5_core_err(dev, "Failed to create IRQ vectors\n");
 		return err;
 	}
 
