@@ -865,12 +865,18 @@ static int vb2ops_venc_start_streaming(struct vb2_queue *q, unsigned int count)
 
 err_set_param:
 	for (i = 0; i < q->num_buffers; ++i) {
-		if (q->bufs[i]->state == VB2_BUF_STATE_ACTIVE) {
+		struct vb2_buffer *buf = vb2_get_buffer(q, i);
+
+		/*
+		 * FIXME: This check is not needed as only active buffers
+		 * can be marked as done.
+		 */
+		if (buf->state == VB2_BUF_STATE_ACTIVE) {
 			mtk_v4l2_debug(0, "[%d] id=%d, type=%d, %d -> VB2_BUF_STATE_QUEUED",
 					ctx->id, i, q->type,
-					(int)q->bufs[i]->state);
-			v4l2_m2m_buf_done(to_vb2_v4l2_buffer(q->bufs[i]),
-					VB2_BUF_STATE_QUEUED);
+					(int)buf->state);
+			v4l2_m2m_buf_done(to_vb2_v4l2_buffer(buf),
+					  VB2_BUF_STATE_QUEUED);
 		}
 	}
 
