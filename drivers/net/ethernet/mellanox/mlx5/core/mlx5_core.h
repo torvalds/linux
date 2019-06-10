@@ -155,6 +155,8 @@ void mlx5_lag_remove(struct mlx5_core_dev *dev);
 
 int mlx5_irq_table_init(struct mlx5_core_dev *dev);
 void mlx5_irq_table_cleanup(struct mlx5_core_dev *dev);
+int mlx5_irq_table_create(struct mlx5_core_dev *dev);
+void mlx5_irq_table_destroy(struct mlx5_core_dev *dev);
 
 int mlx5_events_init(struct mlx5_core_dev *dev);
 void mlx5_events_cleanup(struct mlx5_core_dev *dev);
