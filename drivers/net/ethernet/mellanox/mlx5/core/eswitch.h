@@ -387,7 +387,7 @@ bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0,
 bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 			       struct mlx5_core_dev *dev1);
 
-int mlx5_esw_query_functions(struct mlx5_core_dev *dev, u16 *num_vfs);
+int mlx5_esw_query_functions(struct mlx5_core_dev *dev, u32 *out, int outlen);
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 
@@ -514,6 +514,11 @@ static inline int  mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs,
 static inline void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw) {}
 static inline bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0, struct mlx5_core_dev *dev1) { return true; }
 static inline bool mlx5_eswitch_is_funcs_handler(struct mlx5_core_dev *dev) { return false; }
+static inline int
+mlx5_esw_query_functions(struct mlx5_core_dev *dev, u32 *out, int outlen)
+{
+	return -EOPNOTSUPP;
+}
 
 #define FDB_MAX_CHAIN 1
 #define FDB_SLOW_PATH_CHAIN (FDB_MAX_CHAIN + 1)

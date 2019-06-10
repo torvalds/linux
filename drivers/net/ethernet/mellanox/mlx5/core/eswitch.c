@@ -1686,31 +1686,14 @@ static int eswitch_vport_event(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static int query_esw_functions(struct mlx5_core_dev *dev,
-			       u32 *out, int outlen)
+int mlx5_esw_query_functions(struct mlx5_core_dev *dev, u32 *out, int outlen)
 {
-	u32 in[MLX5_ST_SZ_DW(query_esw_functions_in)] = {0};
+	u32 in[MLX5_ST_SZ_DW(query_esw_functions_in)] = {};
 
 	MLX5_SET(query_esw_functions_in, in, opcode,
 		 MLX5_CMD_OP_QUERY_ESW_FUNCTIONS);
 
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
-}
-
-int mlx5_esw_query_functions(struct mlx5_core_dev *dev, u16 *num_vfs)
-{
-	u32 out[MLX5_ST_SZ_DW(query_esw_functions_out)] = {0};
-	int err;
-
-	err = query_esw_functions(dev, out, sizeof(out));
-	if (err)
-		return err;
-
-	*num_vfs = MLX5_GET(query_esw_functions_out, out,
-			    host_params_context.host_num_of_vfs);
-	esw_debug(dev, "host_num_of_vfs=%d\n", *num_vfs);
-
-	return 0;
 }
 
 /* Public E-Switch API */
