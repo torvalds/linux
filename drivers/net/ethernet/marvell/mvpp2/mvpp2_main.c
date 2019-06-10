@@ -1359,12 +1359,7 @@ static int mvpp2_ethtool_get_sset_count(struct net_device *dev, int sset)
 
 static void mvpp2_mac_reset_assert(struct mvpp2_port *port)
 {
-	unsigned int i;
 	u32 val;
-
-	/* Read the GOP statistics to reset the hardware counters */
-	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
-		mvpp2_read_count(port, &mvpp2_ethtool_regs[i]);
 
 	val = readl(port->base + MVPP2_GMAC_CTRL_2_REG) |
 	      MVPP2_GMAC_PORT_RESET_MASK;
@@ -4265,7 +4260,7 @@ static int mvpp2_port_init(struct mvpp2_port *port)
 	struct mvpp2 *priv = port->priv;
 	struct mvpp2_txq_pcpu *txq_pcpu;
 	unsigned int thread;
-	int queue, err;
+	int queue, err, i;
 
 	/* Checks for hardware constraints */
 	if (port->first_rxq + port->nrxqs >
@@ -4371,6 +4366,10 @@ static int mvpp2_port_init(struct mvpp2_port *port)
 	err = mvpp2_swf_bm_pool_init(port);
 	if (err)
 		goto err_free_percpu;
+
+	/* Read the GOP statistics to reset the hardware counters */
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
+		mvpp2_read_count(port, &mvpp2_ethtool_regs[i]);
 
 	return 0;
 
