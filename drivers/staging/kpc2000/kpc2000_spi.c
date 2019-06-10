@@ -496,7 +496,7 @@ free_master:
 	static int
 kp_spi_remove(struct platform_device *pldev)
 {
-	struct spi_master * master = platform_get_drvdata(pldev);
+	struct spi_master *master = platform_get_drvdata(pldev);
 	spi_unregister_master(master);
 	return 0;
 }
