@@ -809,20 +809,14 @@ static int skl_calc_cdclk(int min_cdclk, int vco)
 
 static u8 skl_calc_voltage_level(int cdclk)
 {
-	switch (cdclk) {
-	default:
-	case 308571:
-	case 337500:
-		return 0;
-	case 450000:
-	case 432000:
-		return 1;
-	case 540000:
-		return 2;
-	case 617143:
-	case 675000:
+	if (cdclk > 540000)
 		return 3;
-	}
+	else if (cdclk > 450000)
+		return 2;
+	else if (cdclk > 337500)
+		return 1;
+	else
+		return 0;
 }
 
 static void skl_dpll0_update(struct drm_i915_private *dev_priv,
