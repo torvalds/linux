@@ -16,12 +16,14 @@
 #include <soc/rockchip/rockchip_opp_select.h>
 
 #include "../../clk/rockchip/clk.h"
-#include "../../base/power/opp/opp.h"
+#include "../../opp/opp.h"
 #include "../../devfreq/governor.h"
 
 #define MAX_PROP_NAME_LEN	6
 #define SEL_TABLE_END		~1
 #define LEAKAGE_INVALID		0xff
+#define AVS_DELETE_OPP		0
+#define AVS_SCALING_RATE	1
 
 #define to_thermal_opp_info(nb) container_of(nb, struct thermal_opp_info, \
 					     thermal_nb)
@@ -573,9 +575,9 @@ void rockchip_get_scale_volt_sel(struct device *dev, char *lkg_name,
 }
 EXPORT_SYMBOL(rockchip_get_scale_volt_sel);
 
-int rockchip_set_opp_info(struct device *dev, int process, int volt_sel)
+struct opp_table *rockchip_set_opp_prop_name(struct device *dev, int process,
+					     int volt_sel)
 {
-	int ret = 0;
 	char name[MAX_PROP_NAME_LEN];
 
 	if (process >= 0) {
@@ -587,90 +589,80 @@ int rockchip_set_opp_info(struct device *dev, int process, int volt_sel)
 	} else if (volt_sel >= 0) {
 		snprintf(name, MAX_PROP_NAME_LEN, "L%d", volt_sel);
 	} else {
-		return 0;
+		return NULL;
 	}
 
-	ret = dev_pm_opp_set_prop_name(dev, name);
-	if (ret)
-		dev_err(dev, "Failed to set prop name\n");
-
-	return ret;
+	return dev_pm_opp_set_prop_name(dev, name);
 }
-EXPORT_SYMBOL(rockchip_set_opp_info);
-
-static int rockchip_of_get_irdrop(struct device_node *np, unsigned long rate)
-{
-	int irdrop, ret;
-
-	ret = rockchip_get_sel(np, "rockchip,board-irdrop", rate / 1000000,
-			       &irdrop);
-	return ret ? ret : irdrop;
-}
+EXPORT_SYMBOL(rockchip_set_opp_prop_name);
 
 static int rockchip_adjust_opp_by_irdrop(struct device *dev,
 					 struct device_node *np,
 					 unsigned long *safe_rate,
 					 unsigned long *max_rate)
 {
-	struct dev_pm_opp *opp, *safe_opp = NULL;
-	unsigned long rate;
-	u32 max_volt = UINT_MAX;
+	struct sel_table *irdrop_table = NULL;
+	struct opp_table *opp_table;
+	struct dev_pm_opp *opp;
 	int evb_irdrop = 0, board_irdrop, delta_irdrop;
-	int i, count, ret = 0;
+	int tmp_safe_rate = 0, opp_rate, i, ret = 0;
+	u32 max_volt = UINT_MAX;
 	bool reach_max_volt = false;
 
 	of_property_read_u32_index(np, "rockchip,max-volt", 0, &max_volt);
 	of_property_read_u32_index(np, "rockchip,evb-irdrop", 0, &evb_irdrop);
+	rockchip_get_sel_table(np, "rockchip,board-irdrop", &irdrop_table);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
-	rcu_read_lock();
-#endif
-	count = dev_pm_opp_get_opp_count(dev);
-	if (count <= 0) {
-		ret = count ? count : -ENODATA;
-		goto unlock;
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (!opp_table) {
+		ret =  -ENOMEM;
+		goto out;
 	}
 
-	for (i = 0, rate = 0; i < count; i++, rate++) {
-		/* find next rate */
-		opp = dev_pm_opp_find_freq_ceil(dev, &rate);
-		if (IS_ERR(opp)) {
-			ret = PTR_ERR(opp);
-			goto unlock;
-		}
-		board_irdrop = rockchip_of_get_irdrop(np, opp->rate);
-		if (IS_ERR_VALUE(board_irdrop))
-			/* Assume it has the same IR-Drop as evb */
+	mutex_lock(&opp_table->lock);
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (!irdrop_table) {
 			delta_irdrop = 0;
-		else
-			delta_irdrop = board_irdrop - evb_irdrop;
-		if ((opp->u_volt + delta_irdrop) <= max_volt) {
-			opp->u_volt += delta_irdrop;
-			opp->u_volt_min += delta_irdrop;
-			opp->u_volt_max += delta_irdrop;
+		} else {
+			opp_rate = opp->rate / 1000;
+			board_irdrop = -EINVAL;
+			for (i = 0; irdrop_table[i].sel != SEL_TABLE_END; i++) {
+				if (opp_rate >= irdrop_table[i].min)
+					board_irdrop = irdrop_table[i].sel;
+			}
+			if (board_irdrop == -EINVAL)
+				delta_irdrop = 0;
+			else
+				delta_irdrop = board_irdrop - evb_irdrop;
+		}
+		if ((opp->supplies[0].u_volt + delta_irdrop) <= max_volt) {
+			opp->supplies[0].u_volt += delta_irdrop;
+			opp->supplies[0].u_volt_min += delta_irdrop;
+			if (opp->supplies[0].u_volt_max + delta_irdrop <=
+			    max_volt)
+				opp->supplies[0].u_volt_max += delta_irdrop;
+			else
+				opp->supplies[0].u_volt_max = max_volt;
 			if (!reach_max_volt)
-				safe_opp = opp;
-			if (opp->u_volt == max_volt)
+				tmp_safe_rate = opp->rate;
+			if (opp->supplies[0].u_volt == max_volt)
 				reach_max_volt = true;
 		} else {
-			opp->u_volt = max_volt;
-			opp->u_volt_min = max_volt;
-			opp->u_volt_max = max_volt;
+			opp->supplies[0].u_volt = max_volt;
+			opp->supplies[0].u_volt_min = max_volt;
+			opp->supplies[0].u_volt_max = max_volt;
 		}
+		if (max_rate)
+			*max_rate = opp->rate;
+		if (safe_rate && tmp_safe_rate != opp->rate)
+			*safe_rate = tmp_safe_rate;
 	}
+	mutex_unlock(&opp_table->lock);
 
-unlock:
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
-	rcu_read_unlock();
-#endif
-	if (ret)
-		goto out;
-	if (safe_opp && safe_opp != opp && safe_rate)
-		*safe_rate = safe_opp->rate;
-	if (max_rate)
-		*max_rate = opp->rate;
-
+	dev_pm_opp_put_opp_table(opp_table);
 out:
+	kfree(irdrop_table);
+
 	return ret;
 }
 
@@ -681,9 +673,6 @@ static int rockchip_adjust_opp_table(struct device *dev,
 	unsigned long rate;
 	int i, count, ret = 0;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
-	rcu_read_lock();
-#endif
 	count = dev_pm_opp_get_opp_count(dev);
 	if (count <= 0) {
 		ret = count ? count : -ENODATA;
@@ -699,11 +688,9 @@ static int rockchip_adjust_opp_table(struct device *dev,
 		}
 		if (opp->rate > scale_rate)
 			dev_pm_opp_remove(dev, opp->rate);
+		dev_pm_opp_put(opp);
 	}
 out:
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
-	rcu_read_unlock();
-#endif
 	return ret;
 }
 
@@ -730,24 +717,15 @@ int rockchip_adjust_power_scale(struct device *dev, int scale)
 	dev_info(dev, "avs=%d\n", avs);
 	clk = of_clk_get_by_name(np, NULL);
 	if (IS_ERR(clk)) {
-		if (avs == 1) {
-			avs = 0;
-			dev_err(dev, "Failed to get clk, set avs 0\n");
-		}
 		if (!safe_rate)
 			goto out_np;
-		dev_info(dev, "safe_rate=%lu\n", safe_rate);
-		if (avs == 2) {
-			ret = rockchip_cpufreq_set_scale_rate(dev, safe_rate);
-			if (ret)
-				dev_err(dev, "Failed to set cpu scale rate\n");
-		} else {
-			ret = rockchip_adjust_opp_table(dev, safe_rate);
-			if (ret)
-				dev_err(dev, "Failed to adjust opp table\n");
-		}
+		dev_dbg(dev, "Failed to get clk, safe_rate=%lu\n", safe_rate);
+		ret = rockchip_adjust_opp_table(dev, safe_rate);
+		if (ret)
+			dev_err(dev, "Failed to adjust opp table\n");
 		goto out_np;
 	}
+
 	if (safe_rate)
 		irdrop_scale = rockchip_pll_clk_rate_to_scale(clk, safe_rate);
 	if (max_rate)
@@ -755,49 +733,42 @@ int rockchip_adjust_power_scale(struct device *dev, int scale)
 	target_scale = max(irdrop_scale, scale);
 	if (target_scale <= 0)
 		goto out_clk;
-
 	dev_dbg(dev, "target_scale=%d, irdrop_scale=%d, scale=%d\n",
 		target_scale, irdrop_scale, scale);
 
-	if (avs == 1) {
+	if (avs == AVS_SCALING_RATE) {
 		ret = rockchip_pll_clk_adaptive_scaling(clk, target_scale);
 		if (ret)
 			dev_err(dev, "Failed to adaptive scaling\n");
-		if (opp_scale < avs_scale) {
-			dev_info(dev, "avs-scale=%d, opp-scale=%d\n",
-				 avs_scale, opp_scale);
-			scale_rate = rockchip_pll_clk_scale_to_rate(clk,
-								    avs_scale);
-			if (scale_rate <= 0) {
-				dev_err(dev,
-					"Failed to get avs scale rate, %d\n",
-					avs_scale);
-				goto out_clk;
-			}
-			dev_info(dev, "avs scale_rate=%lu\n", scale_rate);
-			ret = rockchip_adjust_opp_table(dev, scale_rate);
-			if (ret)
-				dev_err(dev, "Failed to adjust opp table\n");
+		if (opp_scale >= avs_scale)
+			goto out_clk;
+		dev_info(dev, "avs-scale=%d, opp-scale=%d\n", avs_scale,
+			 opp_scale);
+		scale_rate = rockchip_pll_clk_scale_to_rate(clk, avs_scale);
+		if (scale_rate <= 0) {
+			dev_err(dev, "Failed to get avs scale rate, %d\n",
+				avs_scale);
+			goto out_clk;
 		}
-	} else {
+		dev_dbg(dev, "scale_rate=%lu\n", scale_rate);
+		ret = rockchip_adjust_opp_table(dev, scale_rate);
+		if (ret)
+			dev_err(dev, "Failed to adjust opp table\n");
+	} else if (avs == AVS_DELETE_OPP) {
 		if (opp_scale >= target_scale)
 			goto out_clk;
+		dev_info(dev, "target_scale=%d, opp-scale=%d\n", target_scale,
+			 opp_scale);
 		scale_rate = rockchip_pll_clk_scale_to_rate(clk, target_scale);
 		if (scale_rate <= 0) {
 			dev_err(dev, "Failed to get scale rate, %d\n",
 				target_scale);
 			goto out_clk;
 		}
-		dev_info(dev, "scale_rate=%lu\n", scale_rate);
-		if (avs == 2) {
-			ret = rockchip_cpufreq_set_scale_rate(dev, scale_rate);
-			if (ret)
-				dev_err(dev, "Failed to set cpu scale rate\n");
-		} else {
-			ret = rockchip_adjust_opp_table(dev, scale_rate);
-			if (ret)
-				dev_err(dev, "Failed to adjust opp table\n");
-		}
+		dev_dbg(dev, "scale_rate=%lu\n", scale_rate);
+		ret = rockchip_adjust_opp_table(dev, scale_rate);
+		if (ret)
+			dev_err(dev, "Failed to adjust opp table\n");
 	}
 
 out_clk:
@@ -805,7 +776,7 @@ out_clk:
 out_np:
 	of_node_put(np);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(rockchip_adjust_power_scale);
 
@@ -829,7 +800,7 @@ int rockchip_init_opp_table(struct device *dev,
 	rockchip_get_soc_info(dev, matches, &bin, &process);
 	rockchip_get_scale_volt_sel(dev, lkg_name, reg_name, bin, process,
 				    &scale, &volt_sel);
-	rockchip_set_opp_info(dev, process, volt_sel);
+	rockchip_set_opp_prop_name(dev, process, volt_sel);
 	ret = dev_pm_opp_of_add_table(dev);
 	if (ret) {
 		dev_err(dev, "Invalid operating-points in device tree.\n");

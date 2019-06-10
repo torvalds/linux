@@ -45,6 +45,13 @@ config ROCKCHIP_IPA
 
 	  If unsure, say N.
 
+config ROCKCHIP_OPP
+	bool "Rockchip OPP select support"
+	depends on PM_DEVFREQ
+	default y
+	help
+	  Say y here to enable rockchip OPP support.
+
 config ROCKCHIP_PM_DOMAINS
         bool "Rockchip generic power domain"
         depends on PM
