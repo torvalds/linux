@@ -2851,24 +2851,6 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 #define I915_READ_NOTRACE(reg__)	 __I915_REG_OP(read_notrace, dev_priv, (reg__))
 #define I915_WRITE_NOTRACE(reg__, val__) __I915_REG_OP(write_notrace, dev_priv, (reg__), (val__))
 
-/* Be very careful with read/write 64-bit values. On 32-bit machines, they
- * will be implemented using 2 32-bit writes in an arbitrary order with
- * an arbitrary delay between them. This can cause the hardware to
- * act upon the intermediate value, possibly leading to corruption and
- * machine death. For this reason we do not support I915_WRITE64, or
- * dev_priv->uncore.funcs.mmio_writeq.
- *
- * When reading a 64-bit value as two 32-bit values, the delay may cause
- * the two reads to mismatch, e.g. a timestamp overflowing. Also note that
- * occasionally a 64-bit register does not actualy support a full readq
- * and must be read using two 32-bit reads.
- *
- * You have been warned.
- */
-#define I915_READ64(reg__)	__I915_REG_OP(read64, dev_priv, (reg__))
-#define I915_READ64_2x32(lower_reg__, upper_reg__) \
-	__I915_REG_OP(read64_2x32, dev_priv, (lower_reg__), (upper_reg__))
-
 #define POSTING_READ(reg__)	__I915_REG_OP(posting_read, dev_priv, (reg__))
 #define POSTING_READ16(reg__)	__I915_REG_OP(posting_read16, dev_priv, (reg__))
 
