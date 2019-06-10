@@ -2516,6 +2516,12 @@ static void dcn10_apply_ctx_for_surface(
 		if (removed_pipe[i])
 			dcn10_disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
 
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
+		if (removed_pipe[i]) {
+			dc->hwss.optimize_bandwidth(dc, context);
+			break;
+		}
+
 	if (dc->hwseq->wa.DEGVIDCN10_254)
 		hubbub1_wm_change_req_wa(dc->res_pool->hubbub);
 }
