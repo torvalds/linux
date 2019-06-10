@@ -898,7 +898,7 @@ static void caam_unmap(struct device *dev, struct scatterlist *src,
 	}
 
 	if (iv_dma)
-		dma_unmap_single(dev, iv_dma, ivsize, DMA_TO_DEVICE);
+		dma_unmap_single(dev, iv_dma, ivsize, DMA_BIDIRECTIONAL);
 	if (sec4_sg_bytes)
 		dma_unmap_single(dev, sec4_sg_dma, sec4_sg_bytes,
 				 DMA_TO_DEVICE);
@@ -977,7 +977,6 @@ static void skcipher_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 	struct skcipher_request *req = context;
 	struct skcipher_edesc *edesc;
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
-	struct caam_ctx *ctx = crypto_skcipher_ctx(skcipher);
 	int ivsize = crypto_skcipher_ivsize(skcipher);
 
 	dev_dbg(jrdev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
@@ -991,16 +990,17 @@ static void skcipher_encrypt_done(struct device *jrdev, u32 *desc, u32 err,
 
 	/*
 	 * The crypto API expects us to set the IV (req->iv) to the last
-	 * ciphertext block when running in CBC mode.
+	 * ciphertext block (CBC mode) or last counter (CTR mode).
+	 * This is used e.g. by the CTS mode.
 	 */
-	if ((ctx->cdata.algtype & OP_ALG_AAI_MASK) == OP_ALG_AAI_CBC)
-		scatterwalk_map_and_copy(req->iv, req->dst, req->cryptlen -
-					 ivsize, ivsize, 0);
+	if (ivsize) {
+		memcpy(req->iv, (u8 *)edesc->sec4_sg + edesc->sec4_sg_bytes,
+		       ivsize);
 
-	if (ivsize)
 		print_hex_dump_debug("dstiv  @"__stringify(__LINE__)": ",
 				     DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
 				     edesc->src_nents > 1 ? 100 : ivsize, 1);
+	}
 
 	caam_dump_sg("dst    @" __stringify(__LINE__)": ",
 		     DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
@@ -1027,8 +1027,20 @@ static void skcipher_decrypt_done(struct device *jrdev, u32 *desc, u32 err,
 
 	skcipher_unmap(jrdev, edesc, req);
 
-	print_hex_dump_debug("dstiv  @"__stringify(__LINE__)": ",
-			     DUMP_PREFIX_ADDRESS, 16, 4, req->iv, ivsize, 1);
+	/*
+	 * The crypto API expects us to set the IV (req->iv) to the last
+	 * ciphertext block (CBC mode) or last counter (CTR mode).
+	 * This is used e.g. by the CTS mode.
+	 */
+	if (ivsize) {
+		memcpy(req->iv, (u8 *)edesc->sec4_sg + edesc->sec4_sg_bytes,
+		       ivsize);
+
+		print_hex_dump_debug("dstiv  @" __stringify(__LINE__)": ",
+				     DUMP_PREFIX_ADDRESS, 16, 4, req->iv,
+				     ivsize, 1);
+	}
+
 	caam_dump_sg("dst    @" __stringify(__LINE__)": ",
 		     DUMP_PREFIX_ADDRESS, 16, 4, req->dst,
 		     edesc->dst_nents > 1 ? 100 : req->cryptlen, 1);
@@ -1260,7 +1272,7 @@ static void init_skcipher_job(struct skcipher_request *req,
 	if (likely(req->src == req->dst)) {
 		dst_dma = src_dma + !!ivsize * sizeof(struct sec4_sg_entry);
 		out_options = in_options;
-	} else if (edesc->mapped_dst_nents == 1) {
+	} else if (!ivsize && edesc->mapped_dst_nents == 1) {
 		dst_dma = sg_dma_address(req->dst);
 	} else {
 		dst_dma = edesc->sec4_sg_dma + sec4_sg_index *
@@ -1268,7 +1280,7 @@ static void init_skcipher_job(struct skcipher_request *req,
 		out_options = LDST_SGF;
 	}
 
-	append_seq_out_ptr(desc, dst_dma, req->cryptlen, out_options);
+	append_seq_out_ptr(desc, dst_dma, req->cryptlen + ivsize, out_options);
 }
 
 /*
@@ -1699,22 +1711,26 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 	dst_sg_idx = sec4_sg_ents;
 
 	/*
+	 * Input, output HW S/G tables: [IV, src][dst, IV]
+	 * IV entries point to the same buffer
+	 * If src == dst, S/G entries are reused (S/G tables overlap)
+	 *
 	 * HW reads 4 S/G entries at a time; make sure the reads don't go beyond
 	 * the end of the table by allocating more S/G entries. Logic:
-	 * if (src != dst && output S/G)
+	 * if (output S/G)
 	 *      pad output S/G, if needed
-	 * else if (src == dst && S/G)
-	 *      overlapping S/Gs; pad one of them
 	 * else if (input S/G) ...
 	 *      pad input S/G, if needed
 	 */
-	if (mapped_dst_nents > 1)
-		sec4_sg_ents += pad_sg_nents(mapped_dst_nents);
-	else if ((req->src == req->dst) && (mapped_src_nents > 1))
-		sec4_sg_ents = max(pad_sg_nents(sec4_sg_ents),
-				   !!ivsize + pad_sg_nents(mapped_src_nents));
-	else
+	if (ivsize || mapped_dst_nents > 1) {
+		if (req->src == req->dst)
+			sec4_sg_ents = !!ivsize + pad_sg_nents(sec4_sg_ents);
+		else
+			sec4_sg_ents += pad_sg_nents(mapped_dst_nents +
+						     !!ivsize);
+	} else {
 		sec4_sg_ents = pad_sg_nents(sec4_sg_ents);
+	}
 
 	sec4_sg_bytes = sec4_sg_ents * sizeof(struct sec4_sg_entry);
 
@@ -1740,10 +1756,10 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 
 	/* Make sure IV is located in a DMAable area */
 	if (ivsize) {
-		iv = (u8 *)edesc->hw_desc + desc_bytes + sec4_sg_bytes;
+		iv = (u8 *)edesc->sec4_sg + sec4_sg_bytes;
 		memcpy(iv, req->iv, ivsize);
 
-		iv_dma = dma_map_single(jrdev, iv, ivsize, DMA_TO_DEVICE);
+		iv_dma = dma_map_single(jrdev, iv, ivsize, DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(jrdev, iv_dma)) {
 			dev_err(jrdev, "unable to map IV\n");
 			caam_unmap(jrdev, req->src, req->dst, src_nents,
@@ -1755,13 +1771,20 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 		dma_to_sec4_sg_one(edesc->sec4_sg, iv_dma, ivsize, 0);
 	}
 	if (dst_sg_idx)
-		sg_to_sec4_sg_last(req->src, req->cryptlen, edesc->sec4_sg +
-				   !!ivsize, 0);
+		sg_to_sec4_sg(req->src, req->cryptlen, edesc->sec4_sg +
+			      !!ivsize, 0);
 
-	if (mapped_dst_nents > 1) {
-		sg_to_sec4_sg_last(req->dst, req->cryptlen,
-				   edesc->sec4_sg + dst_sg_idx, 0);
-	}
+	if (req->src != req->dst && (ivsize || mapped_dst_nents > 1))
+		sg_to_sec4_sg(req->dst, req->cryptlen, edesc->sec4_sg +
+			      dst_sg_idx, 0);
+
+	if (ivsize)
+		dma_to_sec4_sg_one(edesc->sec4_sg + dst_sg_idx +
+				   mapped_dst_nents, iv_dma, ivsize, 0);
+
+	if (ivsize || mapped_dst_nents > 1)
+		sg_to_sec4_set_last(edesc->sec4_sg + dst_sg_idx +
+				    mapped_dst_nents);
 
 	if (sec4_sg_bytes) {
 		edesc->sec4_sg_dma = dma_map_single(jrdev, edesc->sec4_sg,
@@ -1824,7 +1847,6 @@ static int skcipher_decrypt(struct skcipher_request *req)
 	struct skcipher_edesc *edesc;
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
 	struct caam_ctx *ctx = crypto_skcipher_ctx(skcipher);
-	int ivsize = crypto_skcipher_ivsize(skcipher);
 	struct device *jrdev = ctx->jrdev;
 	u32 *desc;
 	int ret = 0;
@@ -1833,14 +1855,6 @@ static int skcipher_decrypt(struct skcipher_request *req)
 	edesc = skcipher_edesc_alloc(req, DESC_JOB_IO_LEN * CAAM_CMD_SZ);
 	if (IS_ERR(edesc))
 		return PTR_ERR(edesc);
-
-	/*
-	 * The crypto API expects us to set the IV (req->iv) to the last
-	 * ciphertext block when running in CBC mode.
-	 */
-	if ((ctx->cdata.algtype & OP_ALG_AAI_MASK) == OP_ALG_AAI_CBC)
-		scatterwalk_map_and_copy(req->iv, req->src, req->cryptlen -
-					 ivsize, ivsize, 0);
 
 	/* Create and submit job descriptor*/
 	init_skcipher_job(req, edesc, false);
