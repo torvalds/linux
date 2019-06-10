@@ -23,7 +23,7 @@ void __init imx_mmdc_mask_handshake(void __iomem *ccm_base,
 	writel_relaxed(reg, ccm_base + CCM_CCDR);
 }
 
-void __init imx_check_clocks(struct clk *clks[], unsigned int count)
+void imx_check_clocks(struct clk *clks[], unsigned int count)
 {
 	unsigned i;
 
