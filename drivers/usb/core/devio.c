@@ -1308,6 +1308,39 @@ static int proc_connectinfo(struct usb_dev_state *ps, void __user *arg)
 	return 0;
 }
 
+static int proc_conninfo_ex(struct usb_dev_state *ps,
+			    void __user *arg, size_t size)
+{
+	struct usbdevfs_conninfo_ex ci;
+	struct usb_device *udev = ps->dev;
+
+	if (size < sizeof(ci.size))
+		return -EINVAL;
+
+	memset(&ci, 0, sizeof(ci));
+	ci.size = sizeof(ci);
+	ci.busnum = udev->bus->busnum;
+	ci.devnum = udev->devnum;
+	ci.speed = udev->speed;
+
+	while (udev && udev->portnum != 0) {
+		if (++ci.num_ports <= ARRAY_SIZE(ci.ports))
+			ci.ports[ARRAY_SIZE(ci.ports) - ci.num_ports] =
+					udev->portnum;
+		udev = udev->parent;
+	}
+
+	if (ci.num_ports < ARRAY_SIZE(ci.ports))
+		memmove(&ci.ports[0],
+			&ci.ports[ARRAY_SIZE(ci.ports) - ci.num_ports],
+			ci.num_ports);
+
+	if (copy_to_user(arg, &ci, min(sizeof(ci), size)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int proc_resetdevice(struct usb_dev_state *ps)
 {
 	struct usb_host_config *actconfig = ps->dev->actconfig;
@@ -2250,7 +2283,7 @@ static int proc_get_capabilities(struct usb_dev_state *ps, void __user *arg)
 
 	caps = USBDEVFS_CAP_ZERO_PACKET | USBDEVFS_CAP_NO_PACKET_SIZE_LIM |
 			USBDEVFS_CAP_REAP_AFTER_DISCONNECT | USBDEVFS_CAP_MMAP |
-			USBDEVFS_CAP_DROP_PRIVILEGES;
+			USBDEVFS_CAP_DROP_PRIVILEGES | USBDEVFS_CAP_CONNINFO_EX;
 	if (!ps->dev->bus->no_stop_on_short)
 		caps |= USBDEVFS_CAP_BULK_CONTINUATION;
 	if (ps->dev->bus->sg_tablesize)
@@ -2546,6 +2579,13 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case USBDEVFS_GET_SPEED:
 		ret = ps->dev->speed;
+		break;
+	}
+
+	/* Handle variable-length commands */
+	switch (cmd & ~IOCSIZE_MASK) {
+	case USBDEVFS_CONNINFO_EX(0):
+		ret = proc_conninfo_ex(ps, p, _IOC_SIZE(cmd));
 		break;
 	}
 
