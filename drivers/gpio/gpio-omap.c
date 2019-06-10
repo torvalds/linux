@@ -47,7 +47,6 @@ struct gpio_regs {
 };
 
 struct gpio_bank {
-	struct list_head node;
 	void __iomem *base;
 	int irq;
 	u32 non_wakeup_gpios;
@@ -1641,7 +1640,6 @@ static int omap_gpio_remove(struct platform_device *pdev)
 	struct gpio_bank *bank = platform_get_drvdata(pdev);
 
 	cpu_pm_unregister_notifier(&bank->nb);
-	list_del(&bank->node);
 	gpiochip_remove(&bank->chip);
 	pm_runtime_disable(&pdev->dev);
 	if (bank->dbck_flag)
