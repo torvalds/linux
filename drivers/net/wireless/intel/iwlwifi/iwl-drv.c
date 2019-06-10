@@ -647,9 +647,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 	len -= sizeof(*ucode);
 
-	if (iwlwifi_mod_params.enable_ini)
-		iwl_dbg_tlv_alloc(drv->trans, len, data, false);
-
 	while (len >= sizeof(*tlv)) {
 		len -= sizeof(*tlv);
 		tlv = (void *)data;
