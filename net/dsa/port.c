@@ -618,7 +618,7 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 	}
 
 	err = phylink_of_phy_connect(dp->pl, port_dn, 0);
-	if (err) {
+	if (err && err != -ENODEV) {
 		pr_err("could not attach to PHY: %d\n", err);
 		goto err_phy_connect;
 	}
