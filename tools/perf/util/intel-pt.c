@@ -1766,6 +1766,33 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 		}
 	}
 
+	if (sample_type & PERF_SAMPLE_ADDR && items->has_mem_access_address)
+		sample.addr = items->mem_access_address;
+
+	if (sample_type & PERF_SAMPLE_WEIGHT) {
+		/*
+		 * Refer kernel's setup_pebs_adaptive_sample_data() and
+		 * intel_hsw_weight().
+		 */
+		if (items->has_mem_access_latency)
+			sample.weight = items->mem_access_latency;
+		if (!sample.weight && items->has_tsx_aux_info) {
+			/* Cycles last block */
+			sample.weight = (u32)items->tsx_aux_info;
+		}
+	}
+
+	if (sample_type & PERF_SAMPLE_TRANSACTION && items->has_tsx_aux_info) {
+		u64 ax = items->has_rax ? items->rax : 0;
+		/* Refer kernel's intel_hsw_transaction() */
+		u64 txn = (u8)(items->tsx_aux_info >> 32);
+
+		/* For RTM XABORTs also log the abort code from AX */
+		if (txn & PERF_TXN_TRANSACTION && ax & 1)
+			txn |= ((ax >> 24) & 0xff) << PERF_TXN_ABORT_SHIFT;
+		sample.transaction = txn;
+	}
+
 	return intel_pt_deliver_synth_event(pt, ptq, event, &sample, sample_type);
 }
 
