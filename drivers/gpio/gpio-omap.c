@@ -325,6 +325,9 @@ static inline void omap_set_gpio_trigger(struct gpio_bank *bank, int gpio,
 	bank->context.fallingdetect =
 			readl_relaxed(bank->base + bank->regs->fallingdetect);
 
+	bank->level_mask = bank->context.leveldetect0 |
+			   bank->context.leveldetect1;
+
 	if (likely(!(bank->non_wakeup_gpios & gpio_bit))) {
 		omap_gpio_rmw(base, bank->regs->wkup_en, gpio_bit, trigger != 0);
 		bank->context.wake_en =
@@ -344,10 +347,6 @@ static inline void omap_set_gpio_trigger(struct gpio_bank *bank, int gpio,
 		else
 			bank->enabled_non_wakeup_gpios &= ~gpio_bit;
 	}
-
-	bank->level_mask =
-		readl_relaxed(bank->base + bank->regs->leveldetect0) |
-		readl_relaxed(bank->base + bank->regs->leveldetect1);
 }
 
 #ifdef CONFIG_ARCH_OMAP1
