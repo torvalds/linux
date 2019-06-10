@@ -177,13 +177,14 @@ static void intel_pt_dump(struct intel_pt *pt __maybe_unused,
 	int ret, pkt_len, i;
 	char desc[INTEL_PT_PKT_DESC_MAX];
 	const char *color = PERF_COLOR_BLUE;
+	enum intel_pt_pkt_ctx ctx = INTEL_PT_NO_CTX;
 
 	color_fprintf(stdout, color,
 		      ". ... Intel Processor Trace data: size %zu bytes\n",
 		      len);
 
 	while (len) {
-		ret = intel_pt_get_packet(buf, len, &packet);
+		ret = intel_pt_get_packet(buf, len, &packet, &ctx);
 		if (ret > 0)
 			pkt_len = ret;
 		else
