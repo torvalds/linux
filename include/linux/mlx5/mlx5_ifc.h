@@ -9711,7 +9711,7 @@ struct mlx5_ifc_host_params_context_bits {
 	u8         reserved_at_8[0x8];
 	u8         host_num_of_vfs[0x10];
 
-	u8         reserved_at_20[0x10];
+	u8         host_total_vfs[0x10];
 	u8         host_pci_bus[0x10];
 
 	u8         reserved_at_40[0x10];

@@ -844,32 +844,32 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 		goto err_rl_cleanup;
 	}
 
-	err = mlx5_eswitch_init(dev);
-	if (err) {
-		mlx5_core_err(dev, "Failed to init eswitch %d\n", err);
-		goto err_mpfs_cleanup;
-	}
-
 	err = mlx5_sriov_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init sriov %d\n", err);
-		goto err_eswitch_cleanup;
+		goto err_mpfs_cleanup;
+	}
+
+	err = mlx5_eswitch_init(dev);
+	if (err) {
+		mlx5_core_err(dev, "Failed to init eswitch %d\n", err);
+		goto err_sriov_cleanup;
 	}
 
 	err = mlx5_fpga_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init fpga device %d\n", err);
-		goto err_sriov_cleanup;
+		goto err_eswitch_cleanup;
 	}
 
 	dev->tracer = mlx5_fw_tracer_create(dev);
 
 	return 0;
 
-err_sriov_cleanup:
-	mlx5_sriov_cleanup(dev);
 err_eswitch_cleanup:
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
+err_sriov_cleanup:
+	mlx5_sriov_cleanup(dev);
 err_mpfs_cleanup:
 	mlx5_mpfs_cleanup(dev);
 err_rl_cleanup:
@@ -893,8 +893,8 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 {
 	mlx5_fw_tracer_destroy(dev->tracer);
 	mlx5_fpga_cleanup(dev);
-	mlx5_sriov_cleanup(dev);
 	mlx5_eswitch_cleanup(dev->priv.eswitch);
+	mlx5_sriov_cleanup(dev);
 	mlx5_mpfs_cleanup(dev);
 	mlx5_cleanup_rl_table(dev);
 	mlx5_vxlan_destroy(dev->vxlan);
