@@ -1547,9 +1547,57 @@ static int intel_pt_synth_pwrx_sample(struct intel_pt_queue *ptq)
 					    pt->pwr_events_sample_type);
 }
 
-static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq __maybe_unused)
+static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 {
-	return 0;
+	const struct intel_pt_blk_items *items = &ptq->state->items;
+	struct perf_sample sample = { .ip = 0, };
+	union perf_event *event = ptq->event_buf;
+	struct intel_pt *pt = ptq->pt;
+	struct perf_evsel *evsel = pt->pebs_evsel;
+	u64 sample_type = evsel->attr.sample_type;
+	u64 id = evsel->id[0];
+	u8 cpumode;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_a_sample(ptq, event, &sample);
+
+	sample.id = id;
+	sample.stream_id = id;
+
+	if (!evsel->attr.freq)
+		sample.period = evsel->attr.sample_period;
+
+	/* No support for non-zero CS base */
+	if (items->has_ip)
+		sample.ip = items->ip;
+	else if (items->has_rip)
+		sample.ip = items->rip;
+	else
+		sample.ip = ptq->state->from_ip;
+
+	/* No support for guest mode at this time */
+	cpumode = sample.ip < ptq->pt->kernel_start ?
+		  PERF_RECORD_MISC_USER :
+		  PERF_RECORD_MISC_KERNEL;
+
+	event->sample.header.misc = cpumode | PERF_RECORD_MISC_EXACT_IP;
+
+	sample.cpumode = cpumode;
+
+	if (sample_type & PERF_SAMPLE_TIME) {
+		u64 timestamp = 0;
+
+		if (items->has_timestamp)
+			timestamp = items->timestamp;
+		else if (!pt->timeless_decoding)
+			timestamp = ptq->timestamp;
+		if (timestamp)
+			sample.time = tsc_to_perf_time(timestamp, &pt->tc);
+	}
+
+	return intel_pt_deliver_synth_event(pt, ptq, event, &sample, sample_type);
 }
 
 static int intel_pt_synth_error(struct intel_pt *pt, int code, int cpu,
