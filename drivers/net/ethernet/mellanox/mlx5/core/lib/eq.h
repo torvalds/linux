@@ -7,7 +7,6 @@
 #include <linux/mlx5/eq.h>
 #include <linux/mlx5/cq.h>
 
-#define MLX5_MAX_IRQ_NAME   (32)
 #define MLX5_EQE_SIZE       (sizeof(struct mlx5_eqe))
 
 struct mlx5_eq_tasklet {

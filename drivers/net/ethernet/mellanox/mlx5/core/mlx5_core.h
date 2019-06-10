@@ -157,6 +157,14 @@ int mlx5_irq_table_init(struct mlx5_core_dev *dev);
 void mlx5_irq_table_cleanup(struct mlx5_core_dev *dev);
 int mlx5_irq_table_create(struct mlx5_core_dev *dev);
 void mlx5_irq_table_destroy(struct mlx5_core_dev *dev);
+int mlx5_irq_attach_nb(struct mlx5_irq_table *irq_table, int vecidx,
+		       struct notifier_block *nb);
+int mlx5_irq_detach_nb(struct mlx5_irq_table *irq_table, int vecidx,
+		       struct notifier_block *nb);
+struct cpumask *
+mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table, int vecidx);
+struct cpu_rmap *mlx5_irq_get_rmap(struct mlx5_irq_table *table);
+int mlx5_irq_get_num_comp(struct mlx5_irq_table *table);
 
 int mlx5_events_init(struct mlx5_core_dev *dev);
 void mlx5_events_cleanup(struct mlx5_core_dev *dev);
