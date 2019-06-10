@@ -98,6 +98,52 @@ int rockchip_pll_clk_adaptive_scaling(struct clk *clk, int sel)
 	return 0;
 }
 
+int rockchip_pll_clk_rate_to_scale(struct clk *clk, unsigned long rate)
+{
+	const struct rockchip_pll_rate_table *rate_table;
+	struct clk *parent = clk_get_parent(clk);
+	struct rockchip_clk_pll *pll;
+	unsigned int i;
+
+	if (IS_ERR_OR_NULL(parent))
+		return -EINVAL;
+
+	pll = to_rockchip_clk_pll(__clk_get_hw(parent));
+	if (!pll)
+		return -EINVAL;
+
+	rate_table = pll->rate_table;
+	for (i = 0; i < pll->rate_count; i++) {
+		if (rate >= rate_table[i].rate)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+int rockchip_pll_clk_scale_to_rate(struct clk *clk, unsigned int scale)
+{
+	const struct rockchip_pll_rate_table *rate_table;
+	struct clk *parent = clk_get_parent(clk);
+	struct rockchip_clk_pll *pll;
+	unsigned int i;
+
+	if (IS_ERR_OR_NULL(parent))
+		return -EINVAL;
+
+	pll = to_rockchip_clk_pll(__clk_get_hw(parent));
+	if (!pll)
+		return -EINVAL;
+
+	rate_table = pll->rate_table;
+	for (i = 0; i < pll->rate_count; i++) {
+		if (i == scale)
+			return rate_table[i].rate;
+	}
+
+	return -EINVAL;
+}
+
 static struct rockchip_pll_rate_table *rk_pll_rate_table_get(void)
 {
 	return &auto_table;

@@ -900,6 +900,8 @@ void rockchip_clk_register_armclk(struct rockchip_clk_provider *ctx,
 			const struct rockchip_cpuclk_rate_table *rates,
 			int nrates);
 void rockchip_clk_protect_critical(const char *const clocks[], int nclocks);
+int rockchip_pll_clk_rate_to_scale(struct clk *clk, unsigned long rate);
+int rockchip_pll_clk_scale_to_rate(struct clk *clk, unsigned int scale);
 int rockchip_pll_clk_adaptive_scaling(struct clk *clk, int sel);
 void rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
 					unsigned int reg, void (*cb)(void));
