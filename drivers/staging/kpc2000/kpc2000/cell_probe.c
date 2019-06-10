@@ -344,8 +344,6 @@ static int  create_dma_engine_core(struct kp2000_device *pcard, size_t engine_re
 	struct mfd_cell  cell = { .id = engine_num };
 	struct resource  resources[2];
 
-	dev_dbg(&pcard->pdev->dev, "create_dma_core(pcard = [%p], engine_regs_offset = %zx, engine_num = %d)\n", pcard, engine_regs_offset, engine_num);
-
 	cell.platform_data = NULL;
 	cell.pdata_size = 0;
 	cell.name = KP_DRIVER_NAME_DMA_CONTROLLER;
@@ -413,9 +411,6 @@ int  kp2000_probe_cores(struct kp2000_device *pcard)
 	u64 read_val;
 	unsigned int highest_core_id = 0;
 	struct core_table_entry cte;
-
-	dev_dbg(&pcard->pdev->dev, "%s(pcard = %p / %d)\n", __func__, pcard,
-		pcard->card_num);
 
 	err = kp2000_setup_dma_controller(pcard);
 	if (err)
