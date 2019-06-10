@@ -305,6 +305,7 @@ static int gfx_v9_0_get_cu_info(struct amdgpu_device *adev,
 static uint64_t gfx_v9_0_get_gpu_clock_counter(struct amdgpu_device *adev);
 static void gfx_v9_0_select_se_sh(struct amdgpu_device *adev, u32 se_num, u32 sh_num, u32 instance);
 static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring);
+static u64 gfx_v9_0_ring_get_rptr_compute(struct amdgpu_ring *ring);
 
 static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 {
@@ -3630,25 +3631,20 @@ static const struct soc15_reg_entry sec_ded_counter_registers[] = {
    { SOC15_REG_ENTRY(GC, 0, mmSQC_EDC_CNT3), 0, 4, 6},
 };
 
-
 static int gfx_v9_0_do_edc_gds_workarounds(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = &adev->gfx.compute_ring[0];
-	int r;
+	int i, r;
 
-	r = amdgpu_ring_alloc(ring, 17);
+	r = amdgpu_ring_alloc(ring, 7);
 	if (r) {
 		DRM_ERROR("amdgpu: GDS workarounds failed to lock ring %s (%d).\n",
 			ring->name, r);
 		return r;
 	}
 
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, WRITE_DATA_ENGINE_SEL(0) |
-				WRITE_DATA_DST_SEL(0));
-	amdgpu_ring_write(ring, SOC15_REG_OFFSET(GC, 0, mmGDS_VMID0_SIZE));
-	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, adev->gds.gds_size);
+	WREG32_SOC15(GC, 0, mmGDS_VMID0_BASE, 0x00000000);
+	WREG32_SOC15(GC, 0, mmGDS_VMID0_SIZE, adev->gds.gds_size);
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_DMA_DATA, 5));
 	amdgpu_ring_write(ring, (PACKET3_DMA_DATA_CP_SYNC |
@@ -3662,18 +3658,21 @@ static int gfx_v9_0_do_edc_gds_workarounds(struct amdgpu_device *adev)
 	amdgpu_ring_write(ring, PACKET3_DMA_DATA_CMD_RAW_WAIT |
 				adev->gds.gds_size);
 
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, WRITE_DATA_ENGINE_SEL(0) |
-				WRITE_DATA_DST_SEL(0));
-	amdgpu_ring_write(ring, SOC15_REG_OFFSET(GC, 0, mmGDS_VMID0_SIZE));
-	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, 0x0);
-
 	amdgpu_ring_commit(ring);
 
-	return 0;
-}
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (ring->wptr == gfx_v9_0_ring_get_rptr_compute(ring))
+			break;
+		udelay(1);
+	}
 
+	if (i >= adev->usec_timeout)
+		r = -ETIMEDOUT;
+
+	WREG32_SOC15(GC, 0, mmGDS_VMID0_SIZE, 0x00000000);
+
+	return r;
+}
 
 static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 {
