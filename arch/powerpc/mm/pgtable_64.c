@@ -108,14 +108,30 @@ unsigned long ioremap_bot;
 unsigned long ioremap_bot = IOREMAP_BASE;
 #endif
 
+static int ioremap_range(unsigned long ea, phys_addr_t pa, unsigned long size, pgprot_t prot, int nid)
+{
+	unsigned long i;
+
+	for (i = 0; i < size; i += PAGE_SIZE) {
+		int err = map_kernel_page(ea + i, pa + i, prot);
+		if (err) {
+			if (slab_is_available())
+				unmap_kernel_range(ea, size);
+			else
+				WARN_ON_ONCE(1); /* Should clean up */
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * __ioremap_at - Low level function to establish the page tables
  *                for an IO mapping
  */
 void __iomem *__ioremap_at(phys_addr_t pa, void *ea, unsigned long size, pgprot_t prot)
 {
-	unsigned long i;
-
 	/* We don't support the 4K PFN hack with ioremap */
 	if (pgprot_val(prot) & H_PAGE_4K_PFN)
 		return NULL;
@@ -129,9 +145,8 @@ void __iomem *__ioremap_at(phys_addr_t pa, void *ea, unsigned long size, pgprot_
 	WARN_ON(((unsigned long)ea) & ~PAGE_MASK);
 	WARN_ON(size & ~PAGE_MASK);
 
-	for (i = 0; i < size; i += PAGE_SIZE)
-		if (map_kernel_page((unsigned long)ea + i, pa + i, prot))
-			return NULL;
+	if (ioremap_range((unsigned long)ea, pa, size, prot, NUMA_NO_NODE))
+		return NULL;
 
 	return (void __iomem *)ea;
 }
@@ -182,8 +197,6 @@ void __iomem * __ioremap_caller(phys_addr_t addr, unsigned long size,
 
 		area->phys_addr = paligned;
 		ret = __ioremap_at(paligned, area->addr, size, prot);
-		if (!ret)
-			vunmap(area->addr);
 	} else {
 		ret = __ioremap_at(paligned, (void *)ioremap_bot, size, prot);
 		if (ret)
