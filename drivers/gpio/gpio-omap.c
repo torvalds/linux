@@ -326,32 +326,18 @@ static inline void omap_set_gpio_trigger(struct gpio_bank *bank, int gpio,
 	}
 }
 
-#ifdef CONFIG_ARCH_OMAP1
 /*
  * This only applies to chips that can't do both rising and falling edge
  * detection at once.  For all other chips, this function is a noop.
  */
 static void omap_toggle_gpio_edge_triggering(struct gpio_bank *bank, int gpio)
 {
-	void __iomem *reg = bank->base;
-	u32 l = 0;
+	if (IS_ENABLED(CONFIG_ARCH_OMAP1) && bank->regs->irqctrl) {
+		void __iomem *reg = bank->base + bank->regs->irqctrl;
 
-	if (!bank->regs->irqctrl)
-		return;
-
-	reg += bank->regs->irqctrl;
-
-	l = readl_relaxed(reg);
-	if ((l >> gpio) & 1)
-		l &= ~(BIT(gpio));
-	else
-		l |= BIT(gpio);
-
-	writel_relaxed(l, reg);
+		writel_relaxed(readl_relaxed(reg) ^ BIT(gpio), reg);
+	}
 }
-#else
-static void omap_toggle_gpio_edge_triggering(struct gpio_bank *bank, int gpio) {}
-#endif
 
 static int omap_set_gpio_triggering(struct gpio_bank *bank, int gpio,
 				    unsigned trigger)
