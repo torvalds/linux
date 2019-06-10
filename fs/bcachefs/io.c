@@ -1013,23 +1013,23 @@ static inline bool should_promote(struct bch_fs *c, struct bkey_s_c k,
 				  struct bch_io_opts opts,
 				  unsigned flags)
 {
-	if (!opts.promote_target)
+	if (!bkey_extent_is_data(k.k))
 		return false;
 
 	if (!(flags & BCH_READ_MAY_PROMOTE))
 		return false;
 
-	if (percpu_ref_is_dying(&c->writes))
+	if (!opts.promote_target)
 		return false;
 
-	if (!bkey_extent_is_data(k.k))
+	if (bch2_extent_has_target(c, bkey_s_c_to_extent(k),
+				   opts.promote_target))
 		return false;
 
-	if (bch2_extent_has_target(c, bkey_s_c_to_extent(k), opts.promote_target))
+	if (bch2_target_congested(c, opts.promote_target)) {
+		/* XXX trace this */
 		return false;
-
-	if (bch2_target_congested(c, opts.promote_target))
-		return false;
+	}
 
 	if (rhashtable_lookup_fast(&c->promote_table, &pos,
 				   bch_promote_params))

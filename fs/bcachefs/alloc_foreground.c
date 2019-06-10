@@ -377,6 +377,25 @@ void bch2_dev_stripe_increment(struct bch_fs *c, struct bch_dev *ca,
 #define BUCKET_MAY_ALLOC_PARTIAL	(1 << 0)
 #define BUCKET_ALLOC_USE_DURABILITY	(1 << 1)
 
+static void add_new_bucket(struct bch_fs *c,
+			   struct open_buckets *ptrs,
+			   struct bch_devs_mask *devs_may_alloc,
+			   unsigned *nr_effective,
+			   bool *have_cache,
+			   unsigned flags,
+			   struct open_bucket *ob)
+{
+	unsigned durability =
+		bch_dev_bkey_exists(c, ob->ptr.dev)->mi.durability;
+
+	__clear_bit(ob->ptr.dev, devs_may_alloc->d);
+	*nr_effective	+= (flags & BUCKET_ALLOC_USE_DURABILITY)
+		? durability : 1;
+	*have_cache	|= !durability;
+
+	ob_push(c, ptrs, ob);
+}
+
 static int bch2_bucket_alloc_set(struct bch_fs *c,
 				 struct open_buckets *ptrs,
 				 struct dev_stripe_state *stripe,
@@ -392,7 +411,7 @@ static int bch2_bucket_alloc_set(struct bch_fs *c,
 		bch2_dev_alloc_list(c, stripe, devs_may_alloc);
 	struct bch_dev *ca;
 	bool alloc_failure = false;
-	unsigned i, durability;
+	unsigned i;
 
 	BUG_ON(*nr_effective >= nr_replicas);
 
@@ -422,14 +441,8 @@ static int bch2_bucket_alloc_set(struct bch_fs *c,
 			continue;
 		}
 
-		durability = (flags & BUCKET_ALLOC_USE_DURABILITY)
-			? ca->mi.durability : 1;
-
-		__clear_bit(ca->dev_idx, devs_may_alloc->d);
-		*nr_effective	+= durability;
-		*have_cache	|= !durability;
-
-		ob_push(c, ptrs, ob);
+		add_new_bucket(c, ptrs, devs_may_alloc,
+			       nr_effective, have_cache, flags, ob);
 
 		bch2_dev_stripe_increment(c, ca, stripe);
 
@@ -524,7 +537,8 @@ static void bucket_alloc_from_stripe(struct bch_fs *c,
 				     unsigned erasure_code,
 				     unsigned nr_replicas,
 				     unsigned *nr_effective,
-				     bool *have_cache)
+				     bool *have_cache,
+				     unsigned flags)
 {
 	struct dev_alloc_list devs_sorted;
 	struct ec_stripe_head *h;
@@ -564,11 +578,8 @@ got_bucket:
 	ob->ec_idx	= ec_idx;
 	ob->ec		= h->s;
 
-	__clear_bit(ob->ptr.dev, devs_may_alloc->d);
-	*nr_effective	+= ca->mi.durability;
-	*have_cache	|= !ca->mi.durability;
-
-	ob_push(c, ptrs, ob);
+	add_new_bucket(c, ptrs, devs_may_alloc,
+		       nr_effective, have_cache, flags, ob);
 	atomic_inc(&h->s->pin);
 out_put_head:
 	bch2_ec_stripe_head_put(h);
@@ -583,6 +594,7 @@ static void get_buckets_from_writepoint(struct bch_fs *c,
 					unsigned nr_replicas,
 					unsigned *nr_effective,
 					bool *have_cache,
+					unsigned flags,
 					bool need_ec)
 {
 	struct open_buckets ptrs_skip = { .nr = 0 };
@@ -597,11 +609,9 @@ static void get_buckets_from_writepoint(struct bch_fs *c,
 		    (ca->mi.durability ||
 		     (wp->type == BCH_DATA_USER && !*have_cache)) &&
 		    (ob->ec || !need_ec)) {
-			__clear_bit(ob->ptr.dev, devs_may_alloc->d);
-			*nr_effective	+= ca->mi.durability;
-			*have_cache	|= !ca->mi.durability;
-
-			ob_push(c, ptrs, ob);
+			add_new_bucket(c, ptrs, devs_may_alloc,
+				       nr_effective, have_cache,
+				       flags, ob);
 		} else {
 			ob_push(c, &ptrs_skip, ob);
 		}
@@ -619,16 +629,14 @@ static int open_bucket_add_buckets(struct bch_fs *c,
 				   unsigned *nr_effective,
 				   bool *have_cache,
 				   enum alloc_reserve reserve,
+				   unsigned flags,
 				   struct closure *_cl)
 {
 	struct bch_devs_mask devs;
 	struct open_bucket *ob;
 	struct closure *cl = NULL;
-	unsigned i, flags = BUCKET_ALLOC_USE_DURABILITY;
+	unsigned i;
 	int ret;
-
-	if (wp->type == BCH_DATA_USER)
-		flags |= BUCKET_MAY_ALLOC_PARTIAL;
 
 	rcu_read_lock();
 	devs = target_rw_devs(c, wp->type, target);
@@ -644,21 +652,21 @@ static int open_bucket_add_buckets(struct bch_fs *c,
 	if (erasure_code) {
 		get_buckets_from_writepoint(c, ptrs, wp, &devs,
 					    nr_replicas, nr_effective,
-					    have_cache, true);
+					    have_cache, flags, true);
 		if (*nr_effective >= nr_replicas)
 			return 0;
 
 		bucket_alloc_from_stripe(c, ptrs, wp, &devs,
 					 target, erasure_code,
 					 nr_replicas, nr_effective,
-					 have_cache);
+					 have_cache, flags);
 		if (*nr_effective >= nr_replicas)
 			return 0;
 	}
 
 	get_buckets_from_writepoint(c, ptrs, wp, &devs,
 				    nr_replicas, nr_effective,
-				    have_cache, false);
+				    have_cache, flags, false);
 	if (*nr_effective >= nr_replicas)
 		return 0;
 
@@ -863,8 +871,12 @@ struct write_point *bch2_alloc_sectors_start(struct bch_fs *c,
 	struct open_bucket *ob;
 	struct open_buckets ptrs;
 	unsigned nr_effective, write_points_nr;
+	unsigned ob_flags = 0;
 	bool have_cache;
 	int ret, i;
+
+	if (!(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS))
+		ob_flags |= BUCKET_ALLOC_USE_DURABILITY;
 
 	BUG_ON(!nr_replicas || !nr_replicas_required);
 retry:
@@ -875,6 +887,9 @@ retry:
 
 	wp = writepoint_find(c, write_point.v);
 
+	if (wp->type == BCH_DATA_USER)
+		ob_flags |= BUCKET_MAY_ALLOC_PARTIAL;
+
 	/* metadata may not allocate on cache devices: */
 	if (wp->type != BCH_DATA_USER)
 		have_cache = true;
@@ -883,19 +898,22 @@ retry:
 		ret = open_bucket_add_buckets(c, &ptrs, wp, devs_have,
 					      target, erasure_code,
 					      nr_replicas, &nr_effective,
-					      &have_cache, reserve, cl);
+					      &have_cache, reserve,
+					      ob_flags, cl);
 	} else {
 		ret = open_bucket_add_buckets(c, &ptrs, wp, devs_have,
 					      target, erasure_code,
 					      nr_replicas, &nr_effective,
-					      &have_cache, reserve, NULL);
+					      &have_cache, reserve,
+					      ob_flags, NULL);
 		if (!ret)
 			goto alloc_done;
 
 		ret = open_bucket_add_buckets(c, &ptrs, wp, devs_have,
 					      0, erasure_code,
 					      nr_replicas, &nr_effective,
-					      &have_cache, reserve, cl);
+					      &have_cache, reserve,
+					      ob_flags, cl);
 	}
 alloc_done:
 	BUG_ON(!ret && nr_effective < nr_replicas);
