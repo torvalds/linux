@@ -318,8 +318,10 @@ int cxgbit_ddp_init(struct cxgbit_device *cdev)
 
 	ret = cxgbi_ppm_init(lldi->iscsi_ppm, cdev->lldi.ports[0],
 			     cdev->lldi.pdev, &cdev->lldi, &tformat,
-			     ppmax, lldi->iscsi_llimit,
-			     lldi->vr->iscsi.start, 2);
+			     lldi->vr->iscsi.size, lldi->iscsi_llimit,
+			     lldi->vr->iscsi.start, 2,
+			     lldi->vr->ppod_edram.start,
+			     lldi->vr->ppod_edram.size);
 	if (ret >= 0) {
 		struct cxgbi_ppm *ppm = (struct cxgbi_ppm *)(*lldi->iscsi_ppm);
 

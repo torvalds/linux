@@ -782,6 +782,40 @@ static void free_msix_queue_irqs(struct adapter *adap)
 	}
 }
 
+static int setup_ppod_edram(struct adapter *adap)
+{
+	unsigned int param, val;
+	int ret;
+
+	/* Driver sends FW_PARAMS_PARAM_DEV_PPOD_EDRAM read command to check
+	 * if firmware supports ppod edram feature or not. If firmware
+	 * returns 1, then driver can enable this feature by sending
+	 * FW_PARAMS_PARAM_DEV_PPOD_EDRAM write command with value 1 to
+	 * enable ppod edram feature.
+	 */
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PPOD_EDRAM));
+
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+	if (ret < 0) {
+		dev_warn(adap->pdev_dev,
+			 "querying PPOD_EDRAM support failed: %d\n",
+			 ret);
+		return -1;
+	}
+
+	if (val != 1)
+		return -1;
+
+	ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+	if (ret < 0) {
+		dev_err(adap->pdev_dev,
+			"setting PPOD_EDRAM failed: %d\n", ret);
+		return -1;
+	}
+	return 0;
+}
+
 /**
  *	cxgb4_write_rss - write the RSS table for a given port
  *	@pi: the port
@@ -4166,6 +4200,13 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		dev_err(adapter->pdev_dev,
 			"HMA configuration failed with error %d\n", ret);
 
+	if (is_t6(adapter->params.chip)) {
+		ret = setup_ppod_edram(adapter);
+		if (!ret)
+			dev_info(adapter->pdev_dev, "Successfully enabled "
+				 "ppod edram feature\n");
+	}
+
 	/*
 	 * And finally tell the firmware to initialize itself using the
 	 * parameters from the Configuration File.
@@ -4789,6 +4830,22 @@ static int adap_init0(struct adapter *adap)
 			goto bye;
 		adap->vres.iscsi.start = val[0];
 		adap->vres.iscsi.size = val[1] - val[0] + 1;
+		if (is_t6(adap->params.chip)) {
+			params[0] = FW_PARAM_PFVF(PPOD_EDRAM_START);
+			params[1] = FW_PARAM_PFVF(PPOD_EDRAM_END);
+			ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
+					      params, val);
+			if (!ret) {
+				adap->vres.ppod_edram.start = val[0];
+				adap->vres.ppod_edram.size =
+					val[1] - val[0] + 1;
+
+				dev_info(adap->pdev_dev,
+					 "ppod edram start 0x%x end 0x%x size 0x%x\n",
+					 val[0], val[1],
+					 adap->vres.ppod_edram.size);
+			}
+		}
 		/* LIO target and cxgb4i initiaitor */
 		adap->num_ofld_uld += 2;
 	}
