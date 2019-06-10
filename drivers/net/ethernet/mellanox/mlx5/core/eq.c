@@ -216,6 +216,49 @@ err_request_irq:
 	return  err;
 }
 
+static void irq_clear_rmap(struct mlx5_core_dev *dev)
+{
+#ifdef CONFIG_RFS_ACCEL
+	struct mlx5_irq_table *irq_table = dev->priv.irq_table;
+
+	free_irq_cpu_rmap(irq_table->rmap);
+#endif
+}
+
+static int irq_set_rmap(struct mlx5_core_dev *mdev)
+{
+	int err = 0;
+#ifdef CONFIG_RFS_ACCEL
+	struct mlx5_irq_table *irq_table = mdev->priv.irq_table;
+	int num_affinity_vec;
+	int vecidx;
+
+	num_affinity_vec = mlx5_irq_get_num_comp(irq_table);
+	irq_table->rmap = alloc_irq_cpu_rmap(num_affinity_vec);
+	if (!irq_table->rmap) {
+		err = -ENOMEM;
+		mlx5_core_err(mdev, "failed to allocate cpu_rmap. err %d", err);
+		goto err_out;
+	}
+
+	vecidx = MLX5_EQ_VEC_COMP_BASE;
+	for (; vecidx < irq_table->nvec; vecidx++) {
+		err = irq_cpu_rmap_add(irq_table->rmap,
+				       pci_irq_vector(mdev->pdev, vecidx));
+		if (err) {
+			mlx5_core_err(mdev, "irq_cpu_rmap_add failed. err %d", err);
+			goto err_irq_cpu_rmap_add;
+		}
+	}
+	return 0;
+
+err_irq_cpu_rmap_add:
+	irq_clear_rmap(mdev);
+err_out:
+#endif
+	return err;
+}
+
 static int mlx5_cmd_destroy_eq(struct mlx5_core_dev *dev, u8 eqn)
 {
 	u32 out[MLX5_ST_SZ_DW(destroy_eq_out)] = {0};
@@ -893,12 +936,6 @@ static void destroy_comp_eqs(struct mlx5_core_dev *dev)
 
 	clear_comp_irqs_affinity_hints(dev);
 
-#ifdef CONFIG_RFS_ACCEL
-	if (table->irq_table->rmap) {
-		free_irq_cpu_rmap(table->irq_table->rmap);
-		table->irq_table->rmap = NULL;
-	}
-#endif
 	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
 		list_del(&eq->list);
 		if (destroy_unmap_eq(dev, &eq->core))
@@ -921,11 +958,6 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 	INIT_LIST_HEAD(&table->comp_eqs_list);
 	ncomp_eqs = table->num_comp_eqs;
 	nent = MLX5_COMP_EQ_SIZE;
-#ifdef CONFIG_RFS_ACCEL
-	table->irq_table->rmap = alloc_irq_cpu_rmap(ncomp_eqs);
-	if (!table->irq_table->rmap)
-		return -ENOMEM;
-#endif
 	for (i = 0; i < ncomp_eqs; i++) {
 		int vecidx = i + MLX5_EQ_VEC_COMP_BASE;
 		struct mlx5_eq_param param = {};
@@ -942,10 +974,6 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 		tasklet_init(&eq->tasklet_ctx.task, mlx5_cq_tasklet_cb,
 			     (unsigned long)&eq->tasklet_ctx);
 
-#ifdef CONFIG_RFS_ACCEL
-		irq_cpu_rmap_add(table->irq_table->rmap,
-				 pci_irq_vector(dev->pdev, vecidx));
-#endif
 		eq->irq_nb.notifier_call = mlx5_eq_comp_int;
 		param = (struct mlx5_eq_param) {
 			.index = vecidx,
@@ -1039,14 +1067,7 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
 	int i, max_eqs;
 
 	clear_comp_irqs_affinity_hints(dev);
-
-#ifdef CONFIG_RFS_ACCEL
-	if (table->irq_table->rmap) {
-		free_irq_cpu_rmap(table->irq_table->rmap);
-		table->irq_table->rmap = NULL;
-	}
-#endif
-
+	irq_clear_rmap(dev);
 	mutex_lock(&table->lock); /* sync with create/destroy_async_eq */
 	max_eqs = table->num_comp_eqs + MLX5_EQ_VEC_COMP_BASE;
 	for (i = max_eqs - 1; i >= 0; i--) {
@@ -1086,13 +1107,19 @@ static int alloc_irq_vectors(struct mlx5_core_dev *dev)
 
 	table->nvec = nvec;
 
+	err = irq_set_rmap(dev);
+	if (err)
+		goto err_set_rmap;
+
 	err = request_irqs(dev, nvec);
 	if (err)
-		goto err_free_irqs;
+		goto err_request_irqs;
 
 	return 0;
 
-err_free_irqs:
+err_request_irqs:
+	irq_clear_rmap(dev);
+err_set_rmap:
 	pci_free_irq_vectors(dev->pdev);
 err_free_irq_info:
 	kfree(table->irq_info);
@@ -1104,6 +1131,11 @@ static void free_irq_vectors(struct mlx5_core_dev *dev)
 	struct mlx5_irq_table *table = dev->priv.irq_table;
 	int i;
 
+	/* free_irq requires that affinity and rmap will be cleared
+	 * before calling it. This is why there is asymmetry with set_rmap
+	 * which should be called after alloc_irq but before request_irq.
+	 */
+	irq_clear_rmap(dev);
 	for (i = 0; i < table->nvec; i++)
 		free_irq(pci_irq_vector(dev->pdev, i),
 			 &mlx5_irq_get(dev, i)->nh);
