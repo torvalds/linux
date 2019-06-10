@@ -1718,7 +1718,7 @@ static int lm90_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct i2c_adapter *adapter = to_i2c_adapter(dev->parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct hwmon_channel_info *info;
 	struct regulator *regulator;
 	struct device *hwmon_dev;
