@@ -2842,12 +2842,9 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 	intel_uncore_##op__(&(dev_priv__)->uncore, __VA_ARGS__)
 
 #define I915_READ8(reg__)	  __I915_REG_OP(read8, dev_priv, (reg__))
-#define I915_WRITE8(reg__, val__) __I915_REG_OP(write8, dev_priv, (reg__), (val__))
 
 #define I915_READ16(reg__)	   __I915_REG_OP(read16, dev_priv, (reg__))
 #define I915_WRITE16(reg__, val__) __I915_REG_OP(write16, dev_priv, (reg__), (val__))
-#define I915_READ16_NOTRACE(reg__)	   __I915_REG_OP(read16_notrace, dev_priv, (reg__))
-#define I915_WRITE16_NOTRACE(reg__, val__) __I915_REG_OP(write16_notrace, dev_priv, (reg__), (val__))
 
 #define I915_READ(reg__)	 __I915_REG_OP(read, dev_priv, (reg__))
 #define I915_WRITE(reg__, val__) __I915_REG_OP(write, dev_priv, (reg__), (val__))
@@ -2903,7 +2900,6 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
  */
 #define I915_READ_FW(reg__) __I915_REG_OP(read_fw, dev_priv, (reg__))
 #define I915_WRITE_FW(reg__, val__) __I915_REG_OP(write_fw, dev_priv, (reg__), (val__))
-#define I915_WRITE64_FW(reg__, val__) __I915_REG_OP(write64_fw, dev_priv, (reg__), (val__))
 #define POSTING_READ_FW(reg__) __I915_REG_OP(posting_read_fw, dev_priv, (reg__))
 
 /* "Broadcast RGB" property */
