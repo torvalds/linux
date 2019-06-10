@@ -1267,7 +1267,7 @@ static u64 mvpp2_read_count(struct mvpp2_port *port,
  * Hence, statistics gathered from userspace with ifconfig (software) and
  * ethtool (hardware) cannot be compared.
  */
-static const struct mvpp2_ethtool_counter mvpp2_ethtool_regs[] = {
+static const struct mvpp2_ethtool_counter mvpp2_ethtool_mib_regs[] = {
 	{ MVPP2_MIB_GOOD_OCTETS_RCVD, "good_octets_received", true },
 	{ MVPP2_MIB_BAD_OCTETS_RCVD, "bad_octets_received" },
 	{ MVPP2_MIB_CRC_ERRORS_SENT, "crc_errors_sent" },
@@ -1303,9 +1303,10 @@ static void mvpp2_ethtool_get_strings(struct net_device *netdev, u32 sset,
 	if (sset == ETH_SS_STATS) {
 		int i;
 
-		for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
+		for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_mib_regs); i++)
 			strscpy(data + i * ETH_GSTRING_LEN,
-			        mvpp2_ethtool_regs[i].string, ETH_GSTRING_LEN);
+				mvpp2_ethtool_mib_regs[i].string,
+				ETH_GSTRING_LEN);
 	}
 }
 
@@ -1320,8 +1321,8 @@ static void mvpp2_gather_hw_statistics(struct work_struct *work)
 	mutex_lock(&port->gather_stats_lock);
 
 	pstats = port->ethtool_stats;
-	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
-		*pstats++ += mvpp2_read_count(port, &mvpp2_ethtool_regs[i]);
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_mib_regs); i++)
+		*pstats++ += mvpp2_read_count(port, &mvpp2_ethtool_mib_regs[i]);
 
 	/* No need to read again the counters right after this function if it
 	 * was called asynchronously by the user (ie. use of ethtool).
@@ -1345,14 +1346,14 @@ static void mvpp2_ethtool_get_stats(struct net_device *dev,
 
 	mutex_lock(&port->gather_stats_lock);
 	memcpy(data, port->ethtool_stats,
-	       sizeof(u64) * ARRAY_SIZE(mvpp2_ethtool_regs));
+	       sizeof(u64) * ARRAY_SIZE(mvpp2_ethtool_mib_regs));
 	mutex_unlock(&port->gather_stats_lock);
 }
 
 static int mvpp2_ethtool_get_sset_count(struct net_device *dev, int sset)
 {
 	if (sset == ETH_SS_STATS)
-		return ARRAY_SIZE(mvpp2_ethtool_regs);
+		return ARRAY_SIZE(mvpp2_ethtool_mib_regs);
 
 	return -EOPNOTSUPP;
 }
@@ -4368,8 +4369,8 @@ static int mvpp2_port_init(struct mvpp2_port *port)
 		goto err_free_percpu;
 
 	/* Read the GOP statistics to reset the hardware counters */
-	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_regs); i++)
-		mvpp2_read_count(port, &mvpp2_ethtool_regs[i]);
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_mib_regs); i++)
+		mvpp2_read_count(port, &mvpp2_ethtool_mib_regs[i]);
 
 	return 0;
 
@@ -5052,7 +5053,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	}
 
 	port->ethtool_stats = devm_kcalloc(&pdev->dev,
-					   ARRAY_SIZE(mvpp2_ethtool_regs),
+					   ARRAY_SIZE(mvpp2_ethtool_mib_regs),
 					   sizeof(u64), GFP_KERNEL);
 	if (!port->ethtool_stats) {
 		err = -ENOMEM;
