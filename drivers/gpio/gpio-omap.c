@@ -1094,32 +1094,26 @@ static void omap_gpio_init_context(struct gpio_bank *p)
 
 static void omap_gpio_restore_context(struct gpio_bank *bank)
 {
-	writel_relaxed(bank->context.wake_en,
-				bank->base + bank->regs->wkup_en);
-	writel_relaxed(bank->context.ctrl, bank->base + bank->regs->ctrl);
-	writel_relaxed(bank->context.leveldetect0,
-				bank->base + bank->regs->leveldetect0);
-	writel_relaxed(bank->context.leveldetect1,
-				bank->base + bank->regs->leveldetect1);
-	writel_relaxed(bank->context.risingdetect,
-				bank->base + bank->regs->risingdetect);
-	writel_relaxed(bank->context.fallingdetect,
-				bank->base + bank->regs->fallingdetect);
-	writel_relaxed(bank->context.dataout,
-				bank->base + bank->regs->dataout);
-	writel_relaxed(bank->context.oe, bank->base + bank->regs->direction);
+	struct omap_gpio_reg_offs *regs = bank->regs;
+	void __iomem *base = bank->base;
+
+	writel_relaxed(bank->context.wake_en, base + regs->wkup_en);
+	writel_relaxed(bank->context.ctrl, base + regs->ctrl);
+	writel_relaxed(bank->context.leveldetect0, base + regs->leveldetect0);
+	writel_relaxed(bank->context.leveldetect1, base + regs->leveldetect1);
+	writel_relaxed(bank->context.risingdetect, base + regs->risingdetect);
+	writel_relaxed(bank->context.fallingdetect, base + regs->fallingdetect);
+	writel_relaxed(bank->context.dataout, base + regs->dataout);
+	writel_relaxed(bank->context.oe, base + regs->direction);
 
 	if (bank->dbck_enable_mask) {
-		writel_relaxed(bank->context.debounce, bank->base +
-					bank->regs->debounce);
+		writel_relaxed(bank->context.debounce, base + regs->debounce);
 		writel_relaxed(bank->context.debounce_en,
-					bank->base + bank->regs->debounce_en);
+			       base + regs->debounce_en);
 	}
 
-	writel_relaxed(bank->context.irqenable1,
-				bank->base + bank->regs->irqenable);
-	writel_relaxed(bank->context.irqenable2,
-				bank->base + bank->regs->irqenable2);
+	writel_relaxed(bank->context.irqenable1, base + regs->irqenable);
+	writel_relaxed(bank->context.irqenable2, base + regs->irqenable2);
 }
 
 static void omap_gpio_idle(struct gpio_bank *bank, bool may_lose_context)
