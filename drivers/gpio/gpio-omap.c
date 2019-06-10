@@ -181,7 +181,6 @@ static inline void omap_gpio_dbck_disable(struct gpio_bank *bank)
 static int omap2_set_gpio_debounce(struct gpio_bank *bank, unsigned offset,
 				   unsigned debounce)
 {
-	void __iomem		*reg;
 	u32			val;
 	u32			l;
 	bool			enable = !!debounce;
@@ -198,8 +197,7 @@ static int omap2_set_gpio_debounce(struct gpio_bank *bank, unsigned offset,
 	l = BIT(offset);
 
 	clk_enable(bank->dbck);
-	reg = bank->base + bank->regs->debounce;
-	writel_relaxed(debounce, reg);
+	writel_relaxed(debounce, bank->base + bank->regs->debounce);
 
 	val = omap_gpio_rmw(bank->base + bank->regs->debounce_en, l, enable);
 	bank->dbck_enable_mask = val;
