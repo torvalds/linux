@@ -1284,37 +1284,36 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 	gfp_t flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
 		       GFP_KERNEL : GFP_ATOMIC;
 	int src_nents, mapped_src_nents, dst_nents = 0, mapped_dst_nents = 0;
+	int src_len, dst_len = 0;
 	struct aead_edesc *edesc;
 	int sec4_sg_index, sec4_sg_len, sec4_sg_bytes;
 	unsigned int authsize = ctx->authsize;
 
 	if (unlikely(req->dst != req->src)) {
-		src_nents = sg_nents_for_len(req->src, req->assoclen +
-					     req->cryptlen);
+		src_len = req->assoclen + req->cryptlen;
+		dst_len = src_len + (encrypt ? authsize : (-authsize));
+
+		src_nents = sg_nents_for_len(req->src, src_len);
 		if (unlikely(src_nents < 0)) {
 			dev_err(jrdev, "Insufficient bytes (%d) in src S/G\n",
-				req->assoclen + req->cryptlen);
+				src_len);
 			return ERR_PTR(src_nents);
 		}
 
-		dst_nents = sg_nents_for_len(req->dst, req->assoclen +
-					     req->cryptlen +
-						(encrypt ? authsize :
-							   (-authsize)));
+		dst_nents = sg_nents_for_len(req->dst, dst_len);
 		if (unlikely(dst_nents < 0)) {
 			dev_err(jrdev, "Insufficient bytes (%d) in dst S/G\n",
-				req->assoclen + req->cryptlen +
-				(encrypt ? authsize : (-authsize)));
+				dst_len);
 			return ERR_PTR(dst_nents);
 		}
 	} else {
-		src_nents = sg_nents_for_len(req->src, req->assoclen +
-					     req->cryptlen +
-					     (encrypt ? authsize : 0));
+		src_len = req->assoclen + req->cryptlen +
+			  (encrypt ? authsize : 0);
+
+		src_nents = sg_nents_for_len(req->src, src_len);
 		if (unlikely(src_nents < 0)) {
 			dev_err(jrdev, "Insufficient bytes (%d) in src S/G\n",
-				req->assoclen + req->cryptlen +
-				(encrypt ? authsize : 0));
+				src_len);
 			return ERR_PTR(src_nents);
 		}
 	}
@@ -1386,12 +1385,12 @@ static struct aead_edesc *aead_edesc_alloc(struct aead_request *req,
 
 	sec4_sg_index = 0;
 	if (mapped_src_nents > 1) {
-		sg_to_sec4_sg_last(req->src, mapped_src_nents,
+		sg_to_sec4_sg_last(req->src, src_len,
 				   edesc->sec4_sg + sec4_sg_index, 0);
 		sec4_sg_index += mapped_src_nents;
 	}
 	if (mapped_dst_nents > 1) {
-		sg_to_sec4_sg_last(req->dst, mapped_dst_nents,
+		sg_to_sec4_sg_last(req->dst, dst_len,
 				   edesc->sec4_sg + sec4_sg_index, 0);
 	}
 
@@ -1756,11 +1755,11 @@ static struct skcipher_edesc *skcipher_edesc_alloc(struct skcipher_request *req,
 		dma_to_sec4_sg_one(edesc->sec4_sg, iv_dma, ivsize, 0);
 	}
 	if (dst_sg_idx)
-		sg_to_sec4_sg_last(req->src, mapped_src_nents, edesc->sec4_sg +
+		sg_to_sec4_sg_last(req->src, req->cryptlen, edesc->sec4_sg +
 				   !!ivsize, 0);
 
 	if (mapped_dst_nents > 1) {
-		sg_to_sec4_sg_last(req->dst, mapped_dst_nents,
+		sg_to_sec4_sg_last(req->dst, req->cryptlen,
 				   edesc->sec4_sg + dst_sg_idx, 0);
 	}
 

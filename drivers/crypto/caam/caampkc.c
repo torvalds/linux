@@ -306,11 +306,11 @@ static struct rsa_edesc *rsa_edesc_alloc(struct akcipher_request *req,
 				   0);
 
 	if (sec4_sg_index)
-		sg_to_sec4_sg_last(req_ctx->fixup_src, src_nents,
+		sg_to_sec4_sg_last(req_ctx->fixup_src, req_ctx->fixup_src_len,
 				   edesc->sec4_sg + !!diff_size, 0);
 
 	if (dst_nents > 1)
-		sg_to_sec4_sg_last(req->dst, dst_nents,
+		sg_to_sec4_sg_last(req->dst, req->dst_len,
 				   edesc->sec4_sg + sec4_sg_index, 0);
 
 	/* Save nents for later use in Job Descriptor */
