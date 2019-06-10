@@ -2120,13 +2120,19 @@
 	};
 
 	gpu: gpu@ff9a0000 {
-		compatible = "rockchip,rk3399-mali", "arm,mali-t860";
+		compatible = "arm,malit860",
+			     "arm,malit86x",
+			     "arm,malit8xx",
+			     "arm,mali-midgard";
+
 		reg = <0x0 0xff9a0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH 0>,
 			     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH 0>,
 			     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH 0>;
-		interrupt-names = "gpu", "job", "mmu";
+		interrupt-names = "GPU", "JOB", "MMU";
+
 		clocks = <&cru ACLK_GPU>;
+		clock-names = "clk_mali";
 		#cooling-cells = <2>; /* min followed by max */
 		power-domains = <&power RK3399_PD_GPU>;
 		power-off-delay-ms = <200>;
@@ -2134,10 +2140,8 @@
 
 		gpu_power_model: power_model {
 			compatible = "arm,mali-simple-power-model";
-			voltage = <900>;
-			frequency = <500>;
-			static-power = <300>;
-			dynamic-power = <396>;
+			static-coefficient = <411000>;
+			dynamic-coefficient = <733>;
 			ts = <32000 4700 (-80) 2>;
 			thermal-zone = "gpu-thermal";
 		};
