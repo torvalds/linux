@@ -87,6 +87,7 @@ uvc_video_encode_bulk(struct usb_request *req, struct uvc_video *video,
 		video->fid ^= UVC_STREAM_FID;
 
 		video->payload_size = 0;
+		req->zero = 1;
 	}
 
 	if (video->payload_size == video->max_payload_size ||
@@ -135,7 +136,7 @@ static int uvcg_video_ep_queue(struct uvc_video *video, struct usb_request *req)
 			 ret);
 
 		/* Isochronous endpoints can't be halted. */
-		if (usb_endpoint_xfer_bulk(video->ep->desc))
+		if (video->ep->desc && usb_endpoint_xfer_bulk(video->ep->desc))
 			usb_ep_set_halt(video->ep);
 	}
 
@@ -203,9 +204,14 @@ uvc_video_alloc_requests(struct uvc_video *video)
 
 	BUG_ON(video->req_size);
 
-	req_size = video->ep->maxpacket
-		 * max_t(unsigned int, video->ep->maxburst, 1)
-		 * (video->ep->mult);
+	if (!usb_endpoint_xfer_bulk(video->ep->desc)) {
+		req_size = video->ep->maxpacket
+			 * max_t(unsigned int, video->ep->maxburst, 1)
+			 * (video->ep->mult);
+	} else {
+		req_size = video->ep->maxpacket
+			 * max_t(unsigned int, video->ep->maxburst, 1);
+	}
 
 	for (i = 0; i < UVC_NUM_REQUESTS; ++i) {
 		video->req_buffer[i] = kmalloc(req_size, GFP_KERNEL);
