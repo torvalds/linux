@@ -16,6 +16,7 @@
 	compatible = "fsl,ls1028a-rdb", "fsl,ls1028a";
 
 	aliases {
+		crypto = &crypto;
 		serial0 = &duart0;
 		serial1 = &duart1;
 	};
