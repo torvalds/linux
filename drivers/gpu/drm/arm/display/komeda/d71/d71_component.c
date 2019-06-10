@@ -642,23 +642,58 @@ static void d71_scaler_update(struct komeda_component *c,
 
 	malidp_write32(reg, BLK_IN_SIZE, HV_SIZE(st->hsize_in, st->vsize_in));
 	malidp_write32(reg, SC_OUT_SIZE, HV_SIZE(st->hsize_out, st->vsize_out));
+	malidp_write32(reg, SC_H_CROP, HV_CROP(st->left_crop, st->right_crop));
 
-	init_ph = (st->hsize_in << 15) / st->hsize_out;
+	/* for right part, HW only sample the valid pixel which means the pixels
+	 * in left_crop will be jumpped, and the first sample pixel is:
+	 *
+	 * dst_a = st->total_hsize_out - st->hsize_out + st->left_crop + 0.5;
+	 *
+	 * Then the corresponding texel in src is:
+	 *
+	 * h_delta_phase = st->total_hsize_in / st->total_hsize_out;
+	 * src_a = dst_A * h_delta_phase;
+	 *
+	 * and h_init_phase is src_a deduct the real source start src_S;
+	 *
+	 * src_S = st->total_hsize_in - st->hsize_in;
+	 * h_init_phase = src_a - src_S;
+	 *
+	 * And HW precision for the initial/delta_phase is 16:16 fixed point,
+	 * the following is the simplified formula
+	 */
+	if (st->right_part) {
+		u32 dst_a = st->total_hsize_out - st->hsize_out + st->left_crop;
+
+		if (st->en_img_enhancement)
+			dst_a -= 1;
+
+		init_ph = ((st->total_hsize_in * (2 * dst_a + 1) -
+			    2 * st->total_hsize_out * (st->total_hsize_in -
+			    st->hsize_in)) << 15) / st->total_hsize_out;
+	} else {
+		init_ph = (st->total_hsize_in << 15) / st->total_hsize_out;
+	}
+
 	malidp_write32(reg, SC_H_INIT_PH, init_ph);
 
-	delta_ph = (st->hsize_in << 16) / st->hsize_out;
+	delta_ph = (st->total_hsize_in << 16) / st->total_hsize_out;
 	malidp_write32(reg, SC_H_DELTA_PH, delta_ph);
 
-	init_ph = (st->vsize_in << 15) / st->vsize_out;
+	init_ph = (st->total_vsize_in << 15) / st->vsize_out;
 	malidp_write32(reg, SC_V_INIT_PH, init_ph);
 
-	delta_ph = (st->vsize_in << 16) / st->vsize_out;
+	delta_ph = (st->total_vsize_in << 16) / st->vsize_out;
 	malidp_write32(reg, SC_V_DELTA_PH, delta_ph);
 
 	ctrl = 0;
 	ctrl |= st->en_scaling ? SC_CTRL_SCL : 0;
 	ctrl |= st->en_alpha ? SC_CTRL_AP : 0;
 	ctrl |= st->en_img_enhancement ? SC_CTRL_IENH : 0;
+	/* If we use the hardware splitter we shouldn't set SC_CTRL_LS */
+	if (st->en_split &&
+	    state->inputs[0].component->id != KOMEDA_COMPONENT_SPLITTER)
+		ctrl |= SC_CTRL_LS;
 
 	malidp_write32(reg, BLK_CONTROL, ctrl);
 	malidp_write32(reg, BLK_INPUT_ID0, to_d71_input_id(&state->inputs[0]));
@@ -716,10 +751,12 @@ static int d71_scaler_init(struct d71_dev *d71,
 	}
 
 	scaler = to_scaler(c);
-	set_range(&scaler->hsize, 4, d71->max_line_size);
+	set_range(&scaler->hsize, 4, 2048);
 	set_range(&scaler->vsize, 4, 4096);
 	scaler->max_downscaling = 6;
 	scaler->max_upscaling = 64;
+	scaler->scaling_split_overlap = 8;
+	scaler->enh_split_overlap = 1;
 
 	malidp_write32(c->reg, BLK_CONTROL, 0);
 

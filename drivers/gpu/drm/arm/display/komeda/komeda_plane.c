@@ -23,10 +23,7 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 	memset(dflow, 0, sizeof(*dflow));
 
 	dflow->blending_zorder = st->normalized_zpos;
-
-	/* if format doesn't have alpha, fix blend mode to PIXEL_NONE */
-	dflow->pixel_blend_mode = fb->format->has_alpha ?
-			st->pixel_blend_mode : DRM_MODE_BLEND_PIXEL_NONE;
+	dflow->pixel_blend_mode = st->pixel_blend_mode;
 	dflow->layer_alpha = st->alpha >> 8;
 
 	dflow->out_x = st->crtc_x;
@@ -39,8 +36,6 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 	dflow->in_w = st->src_w >> 16;
 	dflow->in_h = st->src_h >> 16;
 
-	dflow->en_img_enhancement = kplane_st->img_enhancement;
-
 	dflow->rot = drm_rotation_simplify(st->rotation, caps->supported_rots);
 	if (!has_bits(dflow->rot, caps->supported_rots)) {
 		DRM_DEBUG_ATOMIC("rotation(0x%x) isn't supported by %s.\n",
@@ -50,7 +45,9 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 		return -EINVAL;
 	}
 
-	komeda_complete_data_flow_cfg(dflow);
+	dflow->en_img_enhancement = kplane_st->img_enhancement;
+
+	komeda_complete_data_flow_cfg(dflow, fb);
 
 	return 0;
 }

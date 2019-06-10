@@ -247,15 +247,22 @@ struct komeda_scaler {
 	struct malidp_range hsize, vsize;
 	u32 max_upscaling;
 	u32 max_downscaling;
+	u8 scaling_split_overlap; /* split overlap for scaling */
+	u8 enh_split_overlap; /* split overlap for image enhancement */
 };
 
 struct komeda_scaler_state {
 	struct komeda_component_state base;
 	u16 hsize_in, vsize_in;
 	u16 hsize_out, vsize_out;
+	u16 total_hsize_in, total_vsize_in;
+	u16 total_hsize_out; /* total_xxxx are size before split */
+	u16 left_crop, right_crop;
 	u8 en_scaling : 1,
 	   en_alpha : 1, /* enable alpha processing */
-	   en_img_enhancement : 1;
+	   en_img_enhancement : 1,
+	   en_split : 1,
+	   right_part : 1; /* right part of split image */
 };
 
 struct komeda_compiz {
@@ -323,11 +330,16 @@ struct komeda_data_flow_cfg {
 	struct komeda_component_output input;
 	u16 in_x, in_y, in_w, in_h;
 	u32 out_x, out_y, out_w, out_h;
+	u16 total_in_h, total_in_w;
+	u16 total_out_w;
+	u16 left_crop, right_crop, overlap;
 	u32 rot;
 	int blending_zorder;
 	u8 pixel_blend_mode, layer_alpha;
 	u8 en_scaling : 1,
-	   en_img_enhancement : 1;
+	   en_img_enhancement : 1,
+	   en_split : 1,
+	   right_part : 1; /* right part of display image if split enabled */
 };
 
 struct komeda_pipeline_funcs {
@@ -492,6 +504,7 @@ void komeda_pipeline_disable(struct komeda_pipeline *pipe,
 void komeda_pipeline_update(struct komeda_pipeline *pipe,
 			    struct drm_atomic_state *old_state);
 
-void komeda_complete_data_flow_cfg(struct komeda_data_flow_cfg *dflow);
+void komeda_complete_data_flow_cfg(struct komeda_data_flow_cfg *dflow,
+				   struct drm_framebuffer *fb);
 
 #endif /* _KOMEDA_PIPELINE_H_*/

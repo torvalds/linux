@@ -507,11 +507,18 @@ komeda_scaler_validate(void *user,
 	st->vsize_in = dflow->in_h;
 	st->hsize_out = dflow->out_w;
 	st->vsize_out = dflow->out_h;
+	st->right_crop = dflow->right_crop;
+	st->left_crop = dflow->left_crop;
+	st->total_vsize_in = dflow->total_in_h;
+	st->total_hsize_in = dflow->total_in_w;
+	st->total_hsize_out = dflow->total_out_w;
 
 	/* Enable alpha processing if the next stage needs the pixel alpha */
 	st->en_alpha = dflow->pixel_blend_mode != DRM_MODE_BLEND_PIXEL_NONE;
 	st->en_scaling = dflow->en_scaling;
 	st->en_img_enhancement = dflow->en_img_enhancement;
+	st->en_split = dflow->en_split;
+	st->right_part = dflow->right_part;
 
 	komeda_component_add_input(&st->base, &dflow->input, 0);
 	komeda_component_set_output(&dflow->input, &scaler->base, 0);
@@ -665,10 +672,19 @@ komeda_timing_ctrlr_validate(struct komeda_timing_ctrlr *ctrlr,
 	return 0;
 }
 
-void komeda_complete_data_flow_cfg(struct komeda_data_flow_cfg *dflow)
+void komeda_complete_data_flow_cfg(struct komeda_data_flow_cfg *dflow,
+				   struct drm_framebuffer *fb)
 {
 	u32 w = dflow->in_w;
 	u32 h = dflow->in_h;
+
+	dflow->total_in_w = dflow->in_w;
+	dflow->total_in_h = dflow->in_h;
+	dflow->total_out_w = dflow->out_w;
+
+	/* if format doesn't have alpha, fix blend mode to PIXEL_NONE */
+	if (!fb->format->has_alpha)
+		dflow->pixel_blend_mode = DRM_MODE_BLEND_PIXEL_NONE;
 
 	if (drm_rotation_90_or_270(dflow->rot))
 		swap(w, h);
