@@ -33,7 +33,6 @@ struct mlx5_eq {
 	u8                      eqn;
 	int                     nent;
 	struct mlx5_rsc_debug   *dbg;
-	struct notifier_block   *irq_nb; /* For destroy only */
 };
 
 struct mlx5_eq_async {

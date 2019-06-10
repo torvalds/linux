@@ -1560,15 +1560,21 @@ mlx5_ib_create_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 		.irq_index = 0,
 		.mask = 1 << MLX5_EVENT_TYPE_PAGE_FAULT,
 		.nent = MLX5_IB_NUM_PF_EQE,
-		.nb = &eq->irq_nb,
 	};
 	eq->core = mlx5_eq_create_generic(dev->mdev, &param);
 	if (IS_ERR(eq->core)) {
 		err = PTR_ERR(eq->core);
 		goto err_wq;
 	}
+	err = mlx5_eq_enable(dev->mdev, eq->core, &eq->irq_nb);
+	if (err) {
+		mlx5_ib_err(dev, "failed to enable odp EQ %d\n", err);
+		goto err_eq;
+	}
 
 	return 0;
+err_eq:
+	mlx5_eq_destroy_generic(dev->mdev, eq->core);
 err_wq:
 	destroy_workqueue(eq->wq);
 err_mempool:
@@ -1581,6 +1587,7 @@ mlx5_ib_destroy_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 {
 	int err;
 
+	mlx5_eq_disable(dev->mdev, eq->core, &eq->irq_nb);
 	err = mlx5_eq_destroy_generic(dev->mdev, eq->core);
 	cancel_work_sync(&eq->work);
 	destroy_workqueue(eq->wq);

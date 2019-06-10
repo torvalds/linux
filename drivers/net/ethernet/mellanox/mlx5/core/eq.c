@@ -304,26 +304,13 @@ create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	eq->irqn = pci_irq_vector(dev->pdev, vecidx);
 	eq->dev = dev;
 	eq->doorbell = priv->uar->map + MLX5_EQ_DOORBEL_OFFSET;
-	eq->irq_nb = param->nb;
-
-	err = mlx5_irq_attach_nb(dev->priv.eq_table->irq_table, vecidx,
-				 param->nb);
-	if (err)
-		goto err_eq;
 
 	err = mlx5_debug_eq_add(dev, eq);
 	if (err)
-		goto err_detach;
-
-	/* EQs are created in ARMED state
-	 */
-	eq_update_ci(eq, 1);
+		goto err_eq;
 
 	kvfree(in);
 	return 0;
-
-err_detach:
-	mlx5_irq_detach_nb(dev->priv.eq_table->irq_table, vecidx, eq->irq_nb);
 
 err_eq:
 	mlx5_cmd_destroy_eq(dev, eq->eqn);
@@ -336,17 +323,49 @@ err_buf:
 	return err;
 }
 
+/**
+ * mlx5_eq_enable - Enable EQ for receiving EQEs
+ * @dev - Device which owns the eq
+ * @eq - EQ to enable
+ * @nb - notifier call block
+ * mlx5_eq_enable - must be called after EQ is created in device.
+ */
+int mlx5_eq_enable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
+		   struct notifier_block *nb)
+{
+	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
+	int err;
+
+	err = mlx5_irq_attach_nb(eq_table->irq_table, eq->vecidx, nb);
+	if (!err)
+		eq_update_ci(eq, 1);
+
+	return err;
+}
+EXPORT_SYMBOL(mlx5_eq_enable);
+
+/**
+ * mlx5_eq_disable - Enable EQ for receiving EQEs
+ * @dev - Device which owns the eq
+ * @eq - EQ to disable
+ * @nb - notifier call block
+ * mlx5_eq_disable - must be called before EQ is destroyed.
+ */
+void mlx5_eq_disable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
+		     struct notifier_block *nb)
+{
+	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
+
+	mlx5_irq_detach_nb(eq_table->irq_table, eq->vecidx, nb);
+}
+EXPORT_SYMBOL(mlx5_eq_disable);
+
 static int destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 {
 	int err;
 
 	mlx5_debug_eq_remove(dev, eq);
 
-	err = mlx5_irq_detach_nb(dev->priv.eq_table->irq_table,
-				 eq->vecidx, eq->irq_nb);
-	if (err)
-		mlx5_core_warn(eq->dev, "eq failed to detach from irq. err %d",
-			       err);
 	err = mlx5_cmd_destroy_eq(dev, eq->eqn);
 	if (err)
 		mlx5_core_warn(dev, "failed to destroy a previously created eq: eqn %d\n",
@@ -544,14 +563,17 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 		.irq_index = 0,
 		.mask = 1ull << MLX5_EVENT_TYPE_CMD,
 		.nent = MLX5_NUM_CMD_EQE,
-		.nb = &table->cmd_eq.irq_nb,
 	};
 	err = create_async_eq(dev, &table->cmd_eq.core, &param);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create cmd EQ %d\n", err);
 		goto err0;
 	}
-
+	err = mlx5_eq_enable(dev, &table->cmd_eq.core, &table->cmd_eq.irq_nb);
+	if (err) {
+		mlx5_core_warn(dev, "failed to enable cmd EQ %d\n", err);
+		goto err1;
+	}
 	mlx5_cmd_use_events(dev);
 
 	table->async_eq.irq_nb.notifier_call = mlx5_eq_async_int;
@@ -559,12 +581,17 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 		.irq_index = 0,
 		.mask = gather_async_events_mask(dev),
 		.nent = MLX5_NUM_ASYNC_EQE,
-		.nb = &table->async_eq.irq_nb,
 	};
 	err = create_async_eq(dev, &table->async_eq.core, &param);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create async EQ %d\n", err);
-		goto err1;
+		goto err2;
+	}
+	err = mlx5_eq_enable(dev, &table->async_eq.core,
+			     &table->async_eq.irq_nb);
+	if (err) {
+		mlx5_core_warn(dev, "failed to enable async EQ %d\n", err);
+		goto err3;
 	}
 
 	table->pages_eq.irq_nb.notifier_call = mlx5_eq_async_int;
@@ -572,21 +599,31 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 		.irq_index = 0,
 		.mask =  1 << MLX5_EVENT_TYPE_PAGE_REQUEST,
 		.nent = /* TODO: sriov max_vf + */ 1,
-		.nb = &table->pages_eq.irq_nb,
 	};
 	err = create_async_eq(dev, &table->pages_eq.core, &param);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create pages EQ %d\n", err);
-		goto err2;
+		goto err4;
+	}
+	err = mlx5_eq_enable(dev, &table->pages_eq.core,
+			     &table->pages_eq.irq_nb);
+	if (err) {
+		mlx5_core_warn(dev, "failed to enable pages EQ %d\n", err);
+		goto err5;
 	}
 
 	return err;
 
-err2:
+err5:
+	destroy_async_eq(dev, &table->pages_eq.core);
+err4:
+	mlx5_eq_disable(dev, &table->async_eq.core, &table->async_eq.irq_nb);
+err3:
 	destroy_async_eq(dev, &table->async_eq.core);
-
-err1:
+err2:
 	mlx5_cmd_use_polling(dev);
+	mlx5_eq_disable(dev, &table->cmd_eq.core, &table->cmd_eq.irq_nb);
+err1:
 	destroy_async_eq(dev, &table->cmd_eq.core);
 err0:
 	mlx5_eq_notifier_unregister(dev, &table->cq_err_nb);
@@ -598,11 +635,13 @@ static void destroy_async_eqs(struct mlx5_core_dev *dev)
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 	int err;
 
+	mlx5_eq_disable(dev, &table->pages_eq.core, &table->pages_eq.irq_nb);
 	err = destroy_async_eq(dev, &table->pages_eq.core);
 	if (err)
 		mlx5_core_err(dev, "failed to destroy pages eq, err(%d)\n",
 			      err);
 
+	mlx5_eq_disable(dev, &table->async_eq.core, &table->async_eq.irq_nb);
 	err = destroy_async_eq(dev, &table->async_eq.core);
 	if (err)
 		mlx5_core_err(dev, "failed to destroy async eq, err(%d)\n",
@@ -610,6 +649,7 @@ static void destroy_async_eqs(struct mlx5_core_dev *dev)
 
 	mlx5_cmd_use_polling(dev);
 
+	mlx5_eq_disable(dev, &table->cmd_eq.core, &table->cmd_eq.irq_nb);
 	err = destroy_async_eq(dev, &table->cmd_eq.core);
 	if (err)
 		mlx5_core_err(dev, "failed to destroy command eq, err(%d)\n",
@@ -711,6 +751,7 @@ static void destroy_comp_eqs(struct mlx5_core_dev *dev)
 
 	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
 		list_del(&eq->list);
+		mlx5_eq_disable(dev, &eq->core, &eq->irq_nb);
 		if (destroy_unmap_eq(dev, &eq->core))
 			mlx5_core_warn(dev, "failed to destroy comp EQ 0x%x\n",
 				       eq->core.eqn);
@@ -752,13 +793,19 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 			.irq_index = vecidx,
 			.mask = 0,
 			.nent = nent,
-			.nb = &eq->irq_nb,
 		};
 		err = create_map_eq(dev, &eq->core, &param);
 		if (err) {
 			kfree(eq);
 			goto clean;
 		}
+		err = mlx5_eq_enable(dev, &eq->core, &eq->irq_nb);
+		if (err) {
+			destroy_unmap_eq(dev, &eq->core);
+			kfree(eq);
+			goto clean;
+		}
+
 		mlx5_core_dbg(dev, "allocated completion EQN %d\n", eq->core.eqn);
 		/* add tail, to keep the list ordered, for mlx5_vector2eqn to work */
 		list_add_tail(&eq->list, &table->comp_eqs_list);
