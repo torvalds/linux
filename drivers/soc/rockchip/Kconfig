@@ -49,6 +49,12 @@ config ROCKCHIP_IPA
 
 	  If unsure, say N.
 
+config ROCKCHIP_OPP
+	tristate "Rockchip OPP select support"
+	depends on PM_DEVFREQ
+	help
+	  Say y here to enable rockchip OPP support.
+
 config ROCKCHIP_PM_DOMAINS
         tristate "Rockchip generic power domain"
         depends on PM
