@@ -1291,9 +1291,6 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 
 const char *bch2_extent_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
-	if (bkey_val_u64s(k.k) > BKEY_EXTENT_VAL_U64s_MAX)
-		return "value too big";
-
 	return bch2_bkey_ptrs_invalid(c, k);
 }
 

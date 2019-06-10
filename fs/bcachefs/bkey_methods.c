@@ -82,6 +82,11 @@ const char *__bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	if (k.k->u64s < BKEY_U64s)
 		return "u64s too small";
 
+	if ((btree_node_type_is_extents(type) ||
+	     type == BKEY_TYPE_BTREE) &&
+	    bkey_val_u64s(k.k) > BKEY_EXTENT_VAL_U64s_MAX)
+		return "value too big";
+
 	if (btree_node_type_is_extents(type)) {
 		if ((k.k->size == 0) != bkey_deleted(k.k))
 			return "bad size field";
