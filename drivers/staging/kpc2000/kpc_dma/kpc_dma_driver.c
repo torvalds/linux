@@ -106,8 +106,6 @@ int  kpc_dma_probe(struct platform_device *pldev)
 		goto err_rv;
 	}
 
-	dev_dbg(&pldev->dev, "%s(pldev = [%p]) ldev = [%p]\n", __func__, pldev, ldev);
-
 	INIT_LIST_HEAD(&ldev->list);
 
 	ldev->pldev = pldev;
@@ -182,8 +180,6 @@ int  kpc_dma_remove(struct platform_device *pldev)
 
 	if (!ldev)
 		return -ENXIO;
-
-	dev_dbg(&ldev->pldev->dev, "%s(pldev = [%p]) ldev = [%p]\n", __func__, pldev, ldev);
 
 	lock_engine(ldev);
 	sysfs_remove_files(&(ldev->pldev->dev.kobj), ndd_attr_list);
