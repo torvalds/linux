@@ -934,8 +934,6 @@ static void destroy_comp_eqs(struct mlx5_core_dev *dev)
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 	struct mlx5_eq_comp *eq, *n;
 
-	clear_comp_irqs_affinity_hints(dev);
-
 	list_for_each_entry_safe(eq, n, &table->comp_eqs_list, list) {
 		list_del(&eq->list);
 		if (destroy_unmap_eq(dev, &eq->core))
@@ -989,12 +987,6 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 		mlx5_core_dbg(dev, "allocated completion EQN %d\n", eq->core.eqn);
 		/* add tail, to keep the list ordered, for mlx5_vector2eqn to work */
 		list_add_tail(&eq->list, &table->comp_eqs_list);
-	}
-
-	err = set_comp_irq_affinity_hints(dev);
-	if (err) {
-		mlx5_core_err(dev, "Failed to alloc affinity hint cpumask\n");
-		goto clean;
 	}
 
 	return 0;
@@ -1078,6 +1070,16 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
 	pci_free_irq_vectors(dev->pdev);
 }
 
+static void unrequest_irqs(struct mlx5_core_dev *dev)
+{
+	struct mlx5_irq_table *table = dev->priv.irq_table;
+	int i;
+
+	for (i = 0; i < table->nvec; i++)
+		free_irq(pci_irq_vector(dev->pdev, i),
+			 &mlx5_irq_get(dev, i)->nh);
+}
+
 static int alloc_irq_vectors(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
@@ -1115,8 +1117,14 @@ static int alloc_irq_vectors(struct mlx5_core_dev *dev)
 	if (err)
 		goto err_request_irqs;
 
+	err = set_comp_irq_affinity_hints(dev);
+	if (err)
+		goto err_set_affinity;
+
 	return 0;
 
+err_set_affinity:
+	unrequest_irqs(dev);
 err_request_irqs:
 	irq_clear_rmap(dev);
 err_set_rmap:
@@ -1136,6 +1144,7 @@ static void free_irq_vectors(struct mlx5_core_dev *dev)
 	 * which should be called after alloc_irq but before request_irq.
 	 */
 	irq_clear_rmap(dev);
+	clear_comp_irqs_affinity_hints(dev);
 	for (i = 0; i < table->nvec; i++)
 		free_irq(pci_irq_vector(dev->pdev, i),
 			 &mlx5_irq_get(dev, i)->nh);
