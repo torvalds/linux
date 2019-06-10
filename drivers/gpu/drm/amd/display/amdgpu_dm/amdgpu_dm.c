@@ -1626,6 +1626,12 @@ static void handle_hpd_rx_irq(void *param)
 	struct dc_link *dc_link = aconnector->dc_link;
 	bool is_mst_root_connector = aconnector->mst_mgr.mst_state;
 	enum dc_connection_type new_connection_type = dc_connection_none;
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	union hpd_irq_data hpd_irq_data;
+	struct amdgpu_device *adev = dev->dev_private;
+
+	memset(&hpd_irq_data, 0, sizeof(hpd_irq_data));
+#endif
 
 	/*
 	 * TODO:Temporary add mutex to protect hpd interrupt not have a gpio
@@ -1635,7 +1641,12 @@ static void handle_hpd_rx_irq(void *param)
 	if (dc_link->type != dc_connection_mst_branch)
 		mutex_lock(&aconnector->hpd_lock);
 
+
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	if (dc_link_handle_hpd_rx_irq(dc_link, &hpd_irq_data, NULL) &&
+#else
 	if (dc_link_handle_hpd_rx_irq(dc_link, NULL, NULL) &&
+#endif
 			!is_mst_root_connector) {
 		/* Downstream Port status changed. */
 		if (!dc_link_detect_sink(dc_link, &new_connection_type))
@@ -1670,6 +1681,10 @@ static void handle_hpd_rx_irq(void *param)
 			drm_kms_helper_hotplug_event(dev);
 		}
 	}
+#ifdef CONFIG_DRM_AMD_DC_HDCP
+	if (hpd_irq_data.bytes.device_service_irq.bits.CP_IRQ)
+		hdcp_handle_cpirq(adev->dm.hdcp_workqueue,  aconnector->base.index);
+#endif
 	if ((dc_link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN) ||
 	    (dc_link->type == dc_connection_mst_branch))
 		dm_handle_hpd_rx_irq(aconnector);
