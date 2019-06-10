@@ -80,11 +80,14 @@ static void vma_print_allocator(struct i915_vma *vma, const char *reason)
 static void obj_bump_mru(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	unsigned long flags;
 
-	spin_lock(&i915->mm.obj_lock);
+	spin_lock_irqsave(&i915->mm.obj_lock, flags);
+
 	if (obj->bind_count)
 		list_move_tail(&obj->mm.link, &i915->mm.bound_list);
-	spin_unlock(&i915->mm.obj_lock);
+
+	spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
 	obj->mm.dirty = true; /* be paranoid  */
 }
@@ -678,8 +681,9 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 
 	if (vma->obj) {
 		struct drm_i915_gem_object *obj = vma->obj;
+		unsigned long flags;
 
-		spin_lock(&dev_priv->mm.obj_lock);
+		spin_lock_irqsave(&dev_priv->mm.obj_lock, flags);
 
 		if (i915_gem_object_is_shrinkable(obj))
 			list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);
@@ -687,7 +691,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		obj->bind_count++;
 		assert_bind_count(obj);
 
-		spin_unlock(&dev_priv->mm.obj_lock);
+		spin_unlock_irqrestore(&dev_priv->mm.obj_lock, flags);
 	}
 
 	return 0;
@@ -721,8 +725,9 @@ i915_vma_remove(struct i915_vma *vma)
 	 */
 	if (vma->obj) {
 		struct drm_i915_gem_object *obj = vma->obj;
+		unsigned long flags;
 
-		spin_lock(&i915->mm.obj_lock);
+		spin_lock_irqsave(&i915->mm.obj_lock, flags);
 
 		GEM_BUG_ON(obj->bind_count == 0);
 		if (--obj->bind_count == 0 &&
@@ -730,7 +735,7 @@ i915_vma_remove(struct i915_vma *vma)
 		    obj->mm.madv == I915_MADV_WILLNEED)
 			list_move_tail(&obj->mm.link, &i915->mm.unbound_list);
 
-		spin_unlock(&i915->mm.obj_lock);
+		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
 		/*
 		 * And finally now the object is completely decoupled from this

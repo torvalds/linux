@@ -269,6 +269,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 	struct drm_i915_gem_object *obj;
 	u64 total_obj_size, total_gtt_size;
 	unsigned long total, count, n;
+	unsigned long flags;
 	int ret;
 
 	total = READ_ONCE(dev_priv->mm.shrink_count);
@@ -282,7 +283,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 
 	total_obj_size = total_gtt_size = count = 0;
 
-	spin_lock(&dev_priv->mm.obj_lock);
+	spin_lock_irqsave(&dev_priv->mm.obj_lock, flags);
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, mm.link) {
 		if (count == total)
 			break;
@@ -305,7 +306,7 @@ static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
 		objects[count++] = obj;
 		total_obj_size += obj->base.size;
 	}
-	spin_unlock(&dev_priv->mm.obj_lock);
+	spin_unlock_irqrestore(&dev_priv->mm.obj_lock, flags);
 
 	sort(objects, count, sizeof(*objects), obj_rank_by_stolen, NULL);
 
@@ -457,6 +458,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	u64 size, mapped_size, purgeable_size, dpy_size, huge_size;
 	struct drm_i915_gem_object *obj;
 	unsigned int page_sizes = 0;
+	unsigned long flags;
 	char buf[80];
 	int ret;
 
@@ -469,7 +471,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	purgeable_size = purgeable_count = 0;
 	huge_size = huge_count = 0;
 
-	spin_lock(&dev_priv->mm.obj_lock);
+	spin_lock_irqsave(&dev_priv->mm.obj_lock, flags);
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, mm.link) {
 		size += obj->base.size;
 		++count;
@@ -518,7 +520,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 			page_sizes |= obj->mm.page_sizes.sg;
 		}
 	}
-	spin_unlock(&dev_priv->mm.obj_lock);
+	spin_unlock_irqrestore(&dev_priv->mm.obj_lock, flags);
 
 	seq_printf(m, "%u bound objects, %llu bytes\n",
 		   count, size);

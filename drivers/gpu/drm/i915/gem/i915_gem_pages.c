@@ -57,11 +57,15 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(!HAS_PAGE_SIZES(i915, obj->mm.page_sizes.sg));
 
 	if (i915_gem_object_is_shrinkable(obj)) {
-		spin_lock(&i915->mm.obj_lock);
+		unsigned long flags;
+
+		spin_lock_irqsave(&i915->mm.obj_lock, flags);
+
 		i915->mm.shrink_count++;
 		i915->mm.shrink_memory += obj->base.size;
 		list_add(&obj->mm.link, &i915->mm.unbound_list);
-		spin_unlock(&i915->mm.obj_lock);
+
+		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 	}
 }
 
@@ -151,11 +155,15 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj)
 		return pages;
 
 	if (i915_gem_object_is_shrinkable(obj)) {
-		spin_lock(&i915->mm.obj_lock);
+		unsigned long flags;
+
+		spin_lock_irqsave(&i915->mm.obj_lock, flags);
+
 		list_del(&obj->mm.link);
 		i915->mm.shrink_count--;
 		i915->mm.shrink_memory -= obj->base.size;
-		spin_unlock(&i915->mm.obj_lock);
+
+		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 	}
 
 	if (obj->mm.mapping) {

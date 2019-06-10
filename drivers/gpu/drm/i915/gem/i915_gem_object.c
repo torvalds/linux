@@ -207,9 +207,11 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		 */
 		if (i915_gem_object_has_pages(obj) &&
 		    i915_gem_object_is_shrinkable(obj)) {
-			spin_lock(&i915->mm.obj_lock);
+			unsigned long flags;
+
+			spin_lock_irqsave(&i915->mm.obj_lock, flags);
 			list_del_init(&obj->mm.link);
-			spin_unlock(&i915->mm.obj_lock);
+			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 		}
 
 		mutex_unlock(&i915->drm.struct_mutex);
@@ -330,9 +332,11 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 		obj->mm.madv = I915_MADV_DONTNEED;
 
 		if (i915_gem_object_has_pages(obj)) {
-			spin_lock(&i915->mm.obj_lock);
+			unsigned long flags;
+
+			spin_lock_irqsave(&i915->mm.obj_lock, flags);
 			list_move_tail(&obj->mm.link, &i915->mm.purge_list);
-			spin_unlock(&i915->mm.obj_lock);
+			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 		}
 	}
 

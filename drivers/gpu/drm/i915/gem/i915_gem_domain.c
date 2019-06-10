@@ -475,15 +475,20 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 	}
 	mutex_unlock(&i915->ggtt.vm.mutex);
 
-	if (i915_gem_object_is_shrinkable(obj) &&
-	    obj->mm.madv == I915_MADV_WILLNEED) {
-		struct list_head *list;
+	if (i915_gem_object_is_shrinkable(obj)) {
+		unsigned long flags;
 
-		spin_lock(&i915->mm.obj_lock);
-		list = obj->bind_count ?
-			&i915->mm.bound_list : &i915->mm.unbound_list;
-		list_move_tail(&obj->mm.link, list);
-		spin_unlock(&i915->mm.obj_lock);
+		spin_lock_irqsave(&i915->mm.obj_lock, flags);
+
+		if (obj->mm.madv == I915_MADV_WILLNEED) {
+			struct list_head *list;
+
+			list = obj->bind_count ?
+				&i915->mm.bound_list : &i915->mm.unbound_list;
+			list_move_tail(&obj->mm.link, list);
+		}
+
+		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 	}
 }
 

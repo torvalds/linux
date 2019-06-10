@@ -138,7 +138,7 @@ unsigned long
 i915_gem_shrink(struct drm_i915_private *i915,
 		unsigned long target,
 		unsigned long *nr_scanned,
-		unsigned flags)
+		unsigned int shrink)
 {
 	const struct {
 		struct list_head *list;
@@ -154,7 +154,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	unsigned long scanned = 0;
 	bool unlock;
 
-	if (!shrinker_lock(i915, flags, &unlock))
+	if (!shrinker_lock(i915, shrink, &unlock))
 		return 0;
 
 	/*
@@ -166,12 +166,12 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	 * We don't care about errors here; if we cannot wait upon the GPU,
 	 * we will free as much as we can and hope to get a second chance.
 	 */
-	if (flags & I915_SHRINK_ACTIVE)
+	if (shrink & I915_SHRINK_ACTIVE)
 		i915_gem_wait_for_idle(i915,
 				       I915_WAIT_LOCKED,
 				       MAX_SCHEDULE_TIMEOUT);
 
-	trace_i915_gem_shrink(i915, target, flags);
+	trace_i915_gem_shrink(i915, target, shrink);
 	i915_retire_requests(i915);
 
 	/*
@@ -179,10 +179,10 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	 * device just to recover a little memory. If absolutely necessary,
 	 * we will force the wake during oom-notifier.
 	 */
-	if (flags & I915_SHRINK_BOUND) {
+	if (shrink & I915_SHRINK_BOUND) {
 		wakeref = intel_runtime_pm_get_if_in_use(i915);
 		if (!wakeref)
-			flags &= ~I915_SHRINK_BOUND;
+			shrink &= ~I915_SHRINK_BOUND;
 	}
 
 	/*
@@ -207,8 +207,9 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	for (phase = phases; phase->list; phase++) {
 		struct list_head still_in_list;
 		struct drm_i915_gem_object *obj;
+		unsigned long flags;
 
-		if ((flags & phase->bit) == 0)
+		if ((shrink & phase->bit) == 0)
 			continue;
 
 		INIT_LIST_HEAD(&still_in_list);
@@ -220,50 +221,50 @@ i915_gem_shrink(struct drm_i915_private *i915,
 		 * to be able to shrink their pages, so they remain on
 		 * the unbound/bound list until actually freed.
 		 */
-		spin_lock(&i915->mm.obj_lock);
+		spin_lock_irqsave(&i915->mm.obj_lock, flags);
 		while (count < target &&
 		       (obj = list_first_entry_or_null(phase->list,
 						       typeof(*obj),
 						       mm.link))) {
 			list_move_tail(&obj->mm.link, &still_in_list);
 
-			if (flags & I915_SHRINK_VMAPS &&
+			if (shrink & I915_SHRINK_VMAPS &&
 			    !is_vmalloc_addr(obj->mm.mapping))
 				continue;
 
-			if (!(flags & I915_SHRINK_ACTIVE) &&
+			if (!(shrink & I915_SHRINK_ACTIVE) &&
 			    (i915_gem_object_is_active(obj) ||
 			     i915_gem_object_is_framebuffer(obj)))
 				continue;
 
-			if (!(flags & I915_SHRINK_BOUND) &&
+			if (!(shrink & I915_SHRINK_BOUND) &&
 			    READ_ONCE(obj->bind_count))
 				continue;
 
 			if (!can_release_pages(obj))
 				continue;
 
-			spin_unlock(&i915->mm.obj_lock);
+			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
 			if (unsafe_drop_pages(obj)) {
 				/* May arrive from get_pages on another bo */
 				mutex_lock_nested(&obj->mm.lock,
 						  I915_MM_SHRINKER);
 				if (!i915_gem_object_has_pages(obj)) {
-					try_to_writeback(obj, flags);
+					try_to_writeback(obj, shrink);
 					count += obj->base.size >> PAGE_SHIFT;
 				}
 				mutex_unlock(&obj->mm.lock);
 			}
 			scanned += obj->base.size >> PAGE_SHIFT;
 
-			spin_lock(&i915->mm.obj_lock);
+			spin_lock_irqsave(&i915->mm.obj_lock, flags);
 		}
 		list_splice_tail(&still_in_list, phase->list);
-		spin_unlock(&i915->mm.obj_lock);
+		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 	}
 
-	if (flags & I915_SHRINK_BOUND)
+	if (shrink & I915_SHRINK_BOUND)
 		intel_runtime_pm_put(i915, wakeref);
 
 	i915_retire_requests(i915);
@@ -379,6 +380,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	struct drm_i915_gem_object *obj;
 	unsigned long unevictable, bound, unbound, freed_pages;
 	intel_wakeref_t wakeref;
+	unsigned long flags;
 
 	freed_pages = 0;
 	with_intel_runtime_pm(i915, wakeref)
@@ -392,7 +394,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	 * being pointed to by hardware.
 	 */
 	unbound = bound = unevictable = 0;
-	spin_lock(&i915->mm.obj_lock);
+	spin_lock_irqsave(&i915->mm.obj_lock, flags);
 	list_for_each_entry(obj, &i915->mm.unbound_list, mm.link) {
 		if (!can_release_pages(obj))
 			unevictable += obj->base.size >> PAGE_SHIFT;
@@ -405,7 +407,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 		else
 			bound += obj->base.size >> PAGE_SHIFT;
 	}
-	spin_unlock(&i915->mm.obj_lock);
+	spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
 	if (freed_pages || unbound || bound)
 		pr_info("Purging GPU memory, %lu pages freed, "
