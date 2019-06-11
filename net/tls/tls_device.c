@@ -551,7 +551,7 @@ void tls_device_write_space(struct sock *sk, struct tls_context *ctx)
 }
 
 static void tls_device_resync_rx(struct tls_context *tls_ctx,
-				 struct sock *sk, u32 seq, u64 rcd_sn)
+				 struct sock *sk, u32 seq, u8 *rcd_sn)
 {
 	struct net_device *netdev;
 
@@ -563,7 +563,7 @@ static void tls_device_resync_rx(struct tls_context *tls_ctx,
 	clear_bit_unlock(TLS_RX_SYNC_RUNNING, &tls_ctx->flags);
 }
 
-void handle_device_resync(struct sock *sk, u32 seq, u64 rcd_sn)
+void handle_device_resync(struct sock *sk, u32 seq)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_rx *rx_ctx;
@@ -582,7 +582,7 @@ void handle_device_resync(struct sock *sk, u32 seq, u64 rcd_sn)
 
 	if (unlikely(is_req_pending) && req_seq == seq &&
 	    atomic64_try_cmpxchg(&rx_ctx->resync_req, &resync_req, 0))
-		tls_device_resync_rx(tls_ctx, sk, seq, rcd_sn);
+		tls_device_resync_rx(tls_ctx, sk, seq, tls_ctx->rx.rec_seq);
 }
 
 static int tls_device_reencrypt(struct sock *sk, struct sk_buff *skb)
@@ -756,6 +756,12 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		 ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->rec_seq;
 		break;
 	default:
+		rc = -EINVAL;
+		goto free_offload_ctx;
+	}
+
+	/* Sanity-check the rec_seq_size for stack allocations */
+	if (rec_seq_size > TLS_MAX_REC_SEQ_SIZE) {
 		rc = -EINVAL;
 		goto free_offload_ctx;
 	}

@@ -161,11 +161,12 @@ static void mlx5e_tls_del(struct net_device *netdev,
 }
 
 static void mlx5e_tls_resync_rx(struct net_device *netdev, struct sock *sk,
-				u32 seq, u64 rcd_sn)
+				u32 seq, u8 *rcd_sn_data)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_tls_offload_context_rx *rx_ctx;
+	u64 rcd_sn = *(u64 *)rcd_sn_data;
 
 	rx_ctx = mlx5e_get_tls_rx_context(tls_ctx);
 
