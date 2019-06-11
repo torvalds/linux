@@ -201,27 +201,37 @@ static u32 get_reserved(struct intel_gmbus *bus)
 static int get_clock(void *data)
 {
 	struct intel_gmbus *bus = data;
-	struct drm_i915_private *dev_priv = bus->dev_priv;
+	struct intel_uncore *uncore = &bus->dev_priv->uncore;
 	u32 reserved = get_reserved(bus);
-	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | GPIO_CLOCK_DIR_MASK);
-	I915_WRITE_NOTRACE(bus->gpio_reg, reserved);
-	return (I915_READ_NOTRACE(bus->gpio_reg) & GPIO_CLOCK_VAL_IN) != 0;
+
+	intel_uncore_write_notrace(uncore,
+				   bus->gpio_reg,
+				   reserved | GPIO_CLOCK_DIR_MASK);
+	intel_uncore_write_notrace(uncore, bus->gpio_reg, reserved);
+
+	return (intel_uncore_read_notrace(uncore, bus->gpio_reg) &
+		GPIO_CLOCK_VAL_IN) != 0;
 }
 
 static int get_data(void *data)
 {
 	struct intel_gmbus *bus = data;
-	struct drm_i915_private *dev_priv = bus->dev_priv;
+	struct intel_uncore *uncore = &bus->dev_priv->uncore;
 	u32 reserved = get_reserved(bus);
-	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | GPIO_DATA_DIR_MASK);
-	I915_WRITE_NOTRACE(bus->gpio_reg, reserved);
-	return (I915_READ_NOTRACE(bus->gpio_reg) & GPIO_DATA_VAL_IN) != 0;
+
+	intel_uncore_write_notrace(uncore,
+				   bus->gpio_reg,
+				   reserved | GPIO_DATA_DIR_MASK);
+	intel_uncore_write_notrace(uncore, bus->gpio_reg, reserved);
+
+	return (intel_uncore_read_notrace(uncore, bus->gpio_reg) &
+		GPIO_DATA_VAL_IN) != 0;
 }
 
 static void set_clock(void *data, int state_high)
 {
 	struct intel_gmbus *bus = data;
-	struct drm_i915_private *dev_priv = bus->dev_priv;
+	struct intel_uncore *uncore = &bus->dev_priv->uncore;
 	u32 reserved = get_reserved(bus);
 	u32 clock_bits;
 
@@ -229,16 +239,18 @@ static void set_clock(void *data, int state_high)
 		clock_bits = GPIO_CLOCK_DIR_IN | GPIO_CLOCK_DIR_MASK;
 	else
 		clock_bits = GPIO_CLOCK_DIR_OUT | GPIO_CLOCK_DIR_MASK |
-			GPIO_CLOCK_VAL_MASK;
+			     GPIO_CLOCK_VAL_MASK;
 
-	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | clock_bits);
-	POSTING_READ(bus->gpio_reg);
+	intel_uncore_write_notrace(uncore,
+				   bus->gpio_reg,
+				   reserved | clock_bits);
+	intel_uncore_posting_read(uncore, bus->gpio_reg);
 }
 
 static void set_data(void *data, int state_high)
 {
 	struct intel_gmbus *bus = data;
-	struct drm_i915_private *dev_priv = bus->dev_priv;
+	struct intel_uncore *uncore = &bus->dev_priv->uncore;
 	u32 reserved = get_reserved(bus);
 	u32 data_bits;
 
@@ -248,8 +260,8 @@ static void set_data(void *data, int state_high)
 		data_bits = GPIO_DATA_DIR_OUT | GPIO_DATA_DIR_MASK |
 			GPIO_DATA_VAL_MASK;
 
-	I915_WRITE_NOTRACE(bus->gpio_reg, reserved | data_bits);
-	POSTING_READ(bus->gpio_reg);
+	intel_uncore_write_notrace(uncore, bus->gpio_reg, reserved | data_bits);
+	intel_uncore_posting_read(uncore, bus->gpio_reg);
 }
 
 static int
