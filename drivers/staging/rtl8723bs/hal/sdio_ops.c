@@ -1190,12 +1190,11 @@ u8 HalQueryTxBufferStatus8723BSdio(struct adapter *adapter)
 /* 	Description: */
 /* 		Query SDIO Local register to get the current number of TX OQT Free Space. */
 /*  */
-u8 HalQueryTxOQTBufferStatus8723BSdio(struct adapter *adapter)
+void HalQueryTxOQTBufferStatus8723BSdio(struct adapter *adapter)
 {
 	struct hal_com_data *haldata = GET_HAL_DATA(adapter);
 
 	haldata->SdioTxOQTFreeSpace = SdioLocalCmd52Read1Byte(adapter, SDIO_REG_OQT_FREE_PG);
-	return true;
 }
 
 #if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
