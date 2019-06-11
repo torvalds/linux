@@ -239,10 +239,54 @@ out:
 	opp_dev->dentry = NULL;
 }
 
+static int opp_summary_show(struct seq_file *s, void *data)
+{
+	struct list_head *lists = (struct list_head *)s->private;
+	struct opp_table *opp_table;
+	struct dev_pm_opp *opp;
+
+	mutex_lock(&opp_table_lock);
+
+	seq_puts(s, " device                rate(Hz)    target(uV)    min(uV)    max(uV)\n");
+	seq_puts(s, "-------------------------------------------------------------------\n");
+
+	list_for_each_entry(opp_table, lists, node) {
+		seq_printf(s, " %s\n", opp_table->dentry_name);
+		mutex_lock(&opp_table->lock);
+		list_for_each_entry(opp, &opp_table->opp_list, node) {
+			seq_printf(s, "%31lu %12lu %11lu %11lu\n",
+				   opp->rate,
+				   opp->supplies[0].u_volt,
+				   opp->supplies[0].u_volt_min,
+				   opp->supplies[0].u_volt_max);
+		}
+		mutex_unlock(&opp_table->lock);
+	}
+
+	mutex_unlock(&opp_table_lock);
+
+	return 0;
+}
+
+static int opp_summary_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, opp_summary_show, inode->i_private);
+}
+
+static const struct file_operations opp_summary_fops = {
+	.open		= opp_summary_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int __init opp_debug_init(void)
 {
 	/* Create /sys/kernel/debug/opp directory */
 	rootdir = debugfs_create_dir("opp", NULL);
+
+	debugfs_create_file("opp_summary", 0444, rootdir, &opp_tables,
+			    &opp_summary_fops);
 
 	return 0;
 }
