@@ -47,10 +47,16 @@ __nfp_net_tls_conn_cnt_changed(struct nfp_net *nn, int add,
 	u8 opcode;
 	int cnt;
 
-	opcode = NFP_NET_CRYPTO_OP_TLS_1_2_AES_GCM_128_ENC;
-	nn->ktls_tx_conn_cnt += add;
-	cnt = nn->ktls_tx_conn_cnt;
-	nn->dp.ktls_tx = !!nn->ktls_tx_conn_cnt;
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
+		opcode = NFP_NET_CRYPTO_OP_TLS_1_2_AES_GCM_128_ENC;
+		nn->ktls_tx_conn_cnt += add;
+		cnt = nn->ktls_tx_conn_cnt;
+		nn->dp.ktls_tx = !!nn->ktls_tx_conn_cnt;
+	} else {
+		opcode = NFP_NET_CRYPTO_OP_TLS_1_2_AES_GCM_128_DEC;
+		nn->ktls_rx_conn_cnt += add;
+		cnt = nn->ktls_rx_conn_cnt;
+	}
 
 	/* Care only about 0 -> 1 and 1 -> 0 transitions */
 	if (cnt > 1)
@@ -228,7 +234,7 @@ nfp_net_cipher_supported(struct nfp_net *nn, u16 cipher_type,
 		if (direction == TLS_OFFLOAD_CTX_DIR_TX)
 			bit = NFP_NET_CRYPTO_OP_TLS_1_2_AES_GCM_128_ENC;
 		else
-			return false;
+			bit = NFP_NET_CRYPTO_OP_TLS_1_2_AES_GCM_128_DEC;
 		break;
 	default:
 		return false;
@@ -256,6 +262,8 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 
 	BUILD_BUG_ON(sizeof(struct nfp_net_tls_offload_ctx) >
 		     TLS_DRIVER_STATE_SIZE_TX);
+	BUILD_BUG_ON(offsetof(struct nfp_net_tls_offload_ctx, rx_end) >
+		     TLS_DRIVER_STATE_SIZE_RX);
 
 	if (!nfp_net_cipher_supported(nn, crypto_info->cipher_type, direction))
 		return -EOPNOTSUPP;
@@ -341,7 +349,8 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 
 	ntls = tls_driver_ctx(sk, direction);
 	memcpy(ntls->fw_handle, reply->handle, sizeof(ntls->fw_handle));
-	ntls->next_seq = start_offload_tcp_sn;
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX)
+		ntls->next_seq = start_offload_tcp_sn;
 	dev_consume_skb_any(skb);
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX)
@@ -450,6 +459,10 @@ int nfp_net_tls_init(struct nfp_net *nn)
 	if (err)
 		return err;
 
+	if (nn->tlv_caps.crypto_ops & NFP_NET_TLS_OPCODE_MASK_RX) {
+		netdev->hw_features |= NETIF_F_HW_TLS_RX;
+		netdev->features |= NETIF_F_HW_TLS_RX;
+	}
 	if (nn->tlv_caps.crypto_ops & NFP_NET_TLS_OPCODE_MASK_TX) {
 		netdev->hw_features |= NETIF_F_HW_TLS_TX;
 		netdev->features |= NETIF_F_HW_TLS_TX;

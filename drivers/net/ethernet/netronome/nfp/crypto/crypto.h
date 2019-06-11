@@ -7,6 +7,11 @@
 struct nfp_net_tls_offload_ctx {
 	__be32 fw_handle[2];
 
+	u8 rx_end[0];
+	/* Tx only fields follow - Rx side does not have enough driver state
+	 * to fit these
+	 */
+
 	u32 next_seq;
 	bool out_of_sync;
 };

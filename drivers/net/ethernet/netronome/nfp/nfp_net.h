@@ -582,6 +582,7 @@ struct nfp_net_dp {
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @tlv_caps:		Parsed TLV capabilities
  * @ktls_tx_conn_cnt:	Number of offloaded kTLS TX connections
+ * @ktls_rx_conn_cnt:	Number of offloaded kTLS RX connections
  * @ktls_no_space:	Counter of firmware rejecting kTLS connection due to
  *			lack of space
  * @mbox_cmsg:		Common Control Message via vNIC mailbox state
@@ -667,6 +668,7 @@ struct nfp_net {
 	struct nfp_net_tlv_caps tlv_caps;
 
 	unsigned int ktls_tx_conn_cnt;
+	unsigned int ktls_rx_conn_cnt;
 
 	atomic_t ktls_no_space;
 
