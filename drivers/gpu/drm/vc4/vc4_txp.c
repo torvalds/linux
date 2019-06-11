@@ -246,18 +246,19 @@ static const u32 txp_fmts[] = {
 };
 
 static int vc4_txp_connector_atomic_check(struct drm_connector *conn,
-					struct drm_connector_state *conn_state)
+					  struct drm_atomic_state *state)
 {
+	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_gem_cma_object *gem;
 	struct drm_framebuffer *fb;
 	int i;
 
+	conn_state = drm_atomic_get_new_connector_state(state, conn);
 	if (!conn_state->writeback_job || !conn_state->writeback_job->fb)
 		return 0;
 
-	crtc_state = drm_atomic_get_new_crtc_state(conn_state->state,
-						   conn_state->crtc);
+	crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
 
 	fb = conn_state->writeback_job->fb;
 	if (fb->width != crtc_state->mode.hdisplay ||

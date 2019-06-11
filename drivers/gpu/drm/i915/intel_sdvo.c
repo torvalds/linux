@@ -2295,9 +2295,10 @@ static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
 };
 
 static int intel_sdvo_atomic_check(struct drm_connector *conn,
-				   struct drm_connector_state *new_conn_state)
+				   struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = new_conn_state->state;
+	struct drm_connector_state *new_conn_state =
+		drm_atomic_get_new_connector_state(state, conn);
 	struct drm_connector_state *old_conn_state =
 		drm_atomic_get_old_connector_state(state, conn);
 	struct intel_sdvo_connector_state *old_state =
@@ -2309,13 +2310,13 @@ static int intel_sdvo_atomic_check(struct drm_connector *conn,
 	    (memcmp(&old_state->tv, &new_state->tv, sizeof(old_state->tv)) ||
 	     memcmp(&old_conn_state->tv, &new_conn_state->tv, sizeof(old_conn_state->tv)))) {
 		struct drm_crtc_state *crtc_state =
-			drm_atomic_get_new_crtc_state(new_conn_state->state,
+			drm_atomic_get_new_crtc_state(state,
 						      new_conn_state->crtc);
 
 		crtc_state->connectors_changed = true;
 	}
 
-	return intel_digital_connector_atomic_check(conn, new_conn_state);
+	return intel_digital_connector_atomic_check(conn, state);
 }
 
 static const struct drm_connector_helper_funcs intel_sdvo_connector_helper_funcs = {
