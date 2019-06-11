@@ -1,4 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2016 MediaTek Inc.
+ * Author: Daniel Hsiao <daniel.hsiao@mediatek.com>
+ *	Kai-Sean Yang <kai-sean.yang@mediatek.com>
+ *	Tiffany Lin <tiffany.lin@mediatek.com>
+ */
 
 #include <linux/fs.h>
 #include <linux/slab.h>

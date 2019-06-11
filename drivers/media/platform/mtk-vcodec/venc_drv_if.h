@@ -1,4 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (c) 2016 MediaTek Inc.
+ * Author: Daniel Hsiao <daniel.hsiao@mediatek.com>
+ *		Jungchang Tsao <jungchang.tsao@mediatek.com>
+ *		Tiffany Lin <tiffany.lin@mediatek.com>
+ */
 
 #ifndef _VENC_DRV_IF_H_
 #define _VENC_DRV_IF_H_

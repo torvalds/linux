@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2016 MediaTek Inc.
+ * Author: Jungchang Tsao <jungchang.tsao@mediatek.com>
+ *	   PC Chen <pc.chen@mediatek.com>
+ */
 
 #include <linux/slab.h>
 #include "../vdec_drv_if.h"

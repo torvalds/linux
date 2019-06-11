@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * dice.h - a part of driver for Dice based devices
  *
  * Copyright (c) Clemens Ladisch
  * Copyright (c) 2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #ifndef SOUND_DICE_H_INCLUDED

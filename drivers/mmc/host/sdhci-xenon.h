@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2016 Marvell, All Rights Reserved.
  *
  * Author:	Hu Ziji <huziji@marvell.com>
  * Date:	2016-8-24
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
  */
 #ifndef SDHCI_XENON_H_
 #define SDHCI_XENON_H_

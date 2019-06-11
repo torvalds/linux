@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ingenic JZ4780 DMA controller
  *
  * Copyright (c) 2015 Imagination Technologies
  * Author: Alex Smith <alex@alex-smith.me.uk>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/clk.h>
@@ -666,10 +662,11 @@ static enum dma_status jz4780_dma_tx_status(struct dma_chan *chan,
 	return status;
 }
 
-static void jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
-	struct jz4780_dma_chan *jzchan)
+static bool jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
+				struct jz4780_dma_chan *jzchan)
 {
 	uint32_t dcs;
+	bool ack = true;
 
 	spin_lock(&jzchan->vchan.lock);
 
@@ -692,12 +689,20 @@ static void jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
 		if ((dcs & (JZ_DMA_DCS_AR | JZ_DMA_DCS_HLT)) == 0) {
 			if (jzchan->desc->type == DMA_CYCLIC) {
 				vchan_cyclic_callback(&jzchan->desc->vdesc);
-			} else {
+
+				jz4780_dma_begin(jzchan);
+			} else if (dcs & JZ_DMA_DCS_TT) {
 				vchan_cookie_complete(&jzchan->desc->vdesc);
 				jzchan->desc = NULL;
-			}
 
-			jz4780_dma_begin(jzchan);
+				jz4780_dma_begin(jzchan);
+			} else {
+				/* False positive - continue the transfer */
+				ack = false;
+				jz4780_dma_chn_writel(jzdma, jzchan->id,
+						      JZ_DMA_REG_DCS,
+						      JZ_DMA_DCS_CTE);
+			}
 		}
 	} else {
 		dev_err(&jzchan->vchan.chan.dev->device,
@@ -705,21 +710,22 @@ static void jz4780_dma_chan_irq(struct jz4780_dma_dev *jzdma,
 	}
 
 	spin_unlock(&jzchan->vchan.lock);
+
+	return ack;
 }
 
 static irqreturn_t jz4780_dma_irq_handler(int irq, void *data)
 {
 	struct jz4780_dma_dev *jzdma = data;
+	unsigned int nb_channels = jzdma->soc_data->nb_channels;
 	uint32_t pending, dmac;
 	int i;
 
 	pending = jz4780_dma_ctrl_readl(jzdma, JZ_DMA_REG_DIRQP);
 
-	for (i = 0; i < jzdma->soc_data->nb_channels; i++) {
-		if (!(pending & (1<<i)))
-			continue;
-
-		jz4780_dma_chan_irq(jzdma, &jzdma->chan[i]);
+	for_each_set_bit(i, (unsigned long *)&pending, nb_channels) {
+		if (jz4780_dma_chan_irq(jzdma, &jzdma->chan[i]))
+			pending &= ~BIT(i);
 	}
 
 	/* Clear halt and address error status of all channels. */
@@ -728,7 +734,7 @@ static irqreturn_t jz4780_dma_irq_handler(int irq, void *data)
 	jz4780_dma_ctrl_writel(jzdma, JZ_DMA_REG_DMAC, dmac);
 
 	/* Clear interrupt pending status. */
-	jz4780_dma_ctrl_writel(jzdma, JZ_DMA_REG_DIRQP, 0);
+	jz4780_dma_ctrl_writel(jzdma, JZ_DMA_REG_DIRQP, pending);
 
 	return IRQ_HANDLED;
 }

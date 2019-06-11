@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File hw_atl_utils_fw2x.c: Definition of firmware 2.x functions for
@@ -384,7 +381,7 @@ static int aq_fw2x_set_sleep_proxy(struct aq_hw_s *self, u8 *mac)
 	err = readx_poll_timeout_atomic(aq_fw2x_state2_get,
 					self, val,
 					val & HW_ATL_FW2X_CTRL_SLEEP_PROXY,
-					1U, 10000U);
+					1U, 100000U);
 
 err_exit:
 	return err;
@@ -403,6 +400,8 @@ static int aq_fw2x_set_wol_params(struct aq_hw_s *self, u8 *mac)
 		goto err_exit;
 
 	msg = (struct fw2x_msg_wol *)rpc;
+
+	memset(msg, 0, sizeof(*msg));
 
 	msg->msg_id = HAL_ATLANTIC_UTILS_FW2X_MSG_WOL;
 	msg->magic_packet_enabled = true;

@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) ST-Ericsson SA 2011
  *
  * Author: Mian Yousaf Kaukab <mian.yousaf.kaukab@stericsson.com>
- * License terms: GNU General Public License (GPL) version 2
  */
 #ifndef __ASM_ARCH_USB_H
 #define __ASM_ARCH_USB_H

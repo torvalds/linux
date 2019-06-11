@@ -1,11 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2006, Intel Corporation.
  *
- * This file is released under the GPLv2.
- *
  * Copyright (C) 2006-2008 Intel Corporation
  * Author: Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
- *
  */
 
 #ifndef _IOVA_H_
