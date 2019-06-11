@@ -125,8 +125,12 @@ int snd_dg00x_stream_get_external_rate(struct snd_dg00x *dg00x,
 
 static void finish_session(struct snd_dg00x *dg00x)
 {
-	__be32 data = cpu_to_be32(0x00000003);
+	__be32 data;
 
+	amdtp_stream_stop(&dg00x->tx_stream);
+	amdtp_stream_stop(&dg00x->rx_stream);
+
+	data = cpu_to_be32(0x00000003);
 	snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
 			   DG00X_ADDR_BASE + DG00X_OFFSET_STREAMING_SET,
 			   &data, sizeof(data), 0);
@@ -136,6 +140,10 @@ static void finish_session(struct snd_dg00x *dg00x)
 	snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
 			   DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
 			   &data, sizeof(data), 0);
+
+	// Just after finishing the session, the device may lost transmitting
+	// functionality for a short time.
+	msleep(50);
 }
 
 static int begin_session(struct snd_dg00x *dg00x)
@@ -289,8 +297,6 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x, unsigned int rate)
 	    amdtp_streaming_error(&dg00x->rx_stream)) {
 		finish_session(dg00x);
 
-		amdtp_stream_stop(&dg00x->tx_stream);
-		amdtp_stream_stop(&dg00x->rx_stream);
 		release_resources(dg00x);
 	}
 
@@ -346,8 +352,6 @@ end:
 error:
 	finish_session(dg00x);
 
-	amdtp_stream_stop(&dg00x->tx_stream);
-	amdtp_stream_stop(&dg00x->rx_stream);
 	release_resources(dg00x);
 
 	return err;
@@ -358,16 +362,8 @@ void snd_dg00x_stream_stop_duplex(struct snd_dg00x *dg00x)
 	if (dg00x->substreams_counter > 0)
 		return;
 
-	amdtp_stream_stop(&dg00x->tx_stream);
-	amdtp_stream_stop(&dg00x->rx_stream);
 	finish_session(dg00x);
 	release_resources(dg00x);
-
-	/*
-	 * Just after finishing the session, the device may lost transmitting
-	 * functionality for a short time.
-	 */
-	msleep(50);
 }
 
 void snd_dg00x_stream_update_duplex(struct snd_dg00x *dg00x)
