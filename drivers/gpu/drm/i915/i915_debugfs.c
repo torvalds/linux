@@ -826,6 +826,7 @@ static const struct file_operations i915_error_state_fops = {
 static int i915_frequency_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
 	intel_wakeref_t wakeref;
 	int ret = 0;
@@ -833,8 +834,8 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	wakeref = intel_runtime_pm_get(dev_priv);
 
 	if (IS_GEN(dev_priv, 5)) {
-		u16 rgvswctl = I915_READ16(MEMSWCTL);
-		u16 rgvstat = I915_READ16(MEMSTAT_ILK);
+		u16 rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
+		u16 rgvstat = intel_uncore_read16(uncore, MEMSTAT_ILK);
 
 		seq_printf(m, "Requested P-state: %d\n", (rgvswctl >> 8) & 0xf);
 		seq_printf(m, "Requested VID: %d\n", rgvswctl & 0x3f);
@@ -1156,13 +1157,14 @@ static int i915_reset_info(struct seq_file *m, void *unused)
 
 static int ironlake_drpc_info(struct seq_file *m)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct intel_uncore *uncore = &i915->uncore;
 	u32 rgvmodectl, rstdbyctl;
 	u16 crstandvid;
 
-	rgvmodectl = I915_READ(MEMMODECTL);
-	rstdbyctl = I915_READ(RSTDBYCTL);
-	crstandvid = I915_READ16(CRSTANDVID);
+	rgvmodectl = intel_uncore_read(uncore, MEMMODECTL);
+	rstdbyctl = intel_uncore_read(uncore, RSTDBYCTL);
+	crstandvid = intel_uncore_read16(uncore, CRSTANDVID);
 
 	seq_printf(m, "HD boost: %s\n", yesno(rgvmodectl & MEMMODE_BOOST_EN));
 	seq_printf(m, "Boost freq: %d\n",
@@ -1745,6 +1747,7 @@ static const char *swizzle_string(unsigned swizzle)
 static int i915_swizzle_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	intel_wakeref_t wakeref;
 
 	wakeref = intel_runtime_pm_get(dev_priv);
@@ -1756,30 +1759,30 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 
 	if (IS_GEN_RANGE(dev_priv, 3, 4)) {
 		seq_printf(m, "DDC = 0x%08x\n",
-			   I915_READ(DCC));
+			   intel_uncore_read(uncore, DCC));
 		seq_printf(m, "DDC2 = 0x%08x\n",
-			   I915_READ(DCC2));
+			   intel_uncore_read(uncore, DCC2));
 		seq_printf(m, "C0DRB3 = 0x%04x\n",
-			   I915_READ16(C0DRB3));
+			   intel_uncore_read16(uncore, C0DRB3));
 		seq_printf(m, "C1DRB3 = 0x%04x\n",
-			   I915_READ16(C1DRB3));
+			   intel_uncore_read16(uncore, C1DRB3));
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		seq_printf(m, "MAD_DIMM_C0 = 0x%08x\n",
-			   I915_READ(MAD_DIMM_C0));
+			   intel_uncore_read(uncore, MAD_DIMM_C0));
 		seq_printf(m, "MAD_DIMM_C1 = 0x%08x\n",
-			   I915_READ(MAD_DIMM_C1));
+			   intel_uncore_read(uncore, MAD_DIMM_C1));
 		seq_printf(m, "MAD_DIMM_C2 = 0x%08x\n",
-			   I915_READ(MAD_DIMM_C2));
+			   intel_uncore_read(uncore, MAD_DIMM_C2));
 		seq_printf(m, "TILECTL = 0x%08x\n",
-			   I915_READ(TILECTL));
+			   intel_uncore_read(uncore, TILECTL));
 		if (INTEL_GEN(dev_priv) >= 8)
 			seq_printf(m, "GAMTARBMODE = 0x%08x\n",
-				   I915_READ(GAMTARBMODE));
+				   intel_uncore_read(uncore, GAMTARBMODE));
 		else
 			seq_printf(m, "ARB_MODE = 0x%08x\n",
-				   I915_READ(ARB_MODE));
+				   intel_uncore_read(uncore, ARB_MODE));
 		seq_printf(m, "DISP_ARB_CTL = 0x%08x\n",
-			   I915_READ(DISP_ARB_CTL));
+			   intel_uncore_read(uncore, DISP_ARB_CTL));
 	}
 
 	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)

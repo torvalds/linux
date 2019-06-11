@@ -986,10 +986,10 @@ i8xx_irq_enable(struct intel_engine_cs *engine)
 static void
 i8xx_irq_disable(struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
+	struct drm_i915_private *i915 = engine->i915;
 
-	dev_priv->irq_mask |= engine->irq_enable_mask;
-	I915_WRITE16(GEN2_IMR, dev_priv->irq_mask);
+	i915->irq_mask |= engine->irq_enable_mask;
+	intel_uncore_write16(&i915->uncore, GEN2_IMR, i915->irq_mask);
 }
 
 static int

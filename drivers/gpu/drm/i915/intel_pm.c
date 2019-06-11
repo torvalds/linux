@@ -191,8 +191,8 @@ static void i915_ironlake_get_mem_freq(struct drm_i915_private *dev_priv)
 {
 	u16 ddrpll, csipll;
 
-	ddrpll = I915_READ16(DDRMPLL1);
-	csipll = I915_READ16(CSIPLL0);
+	ddrpll = intel_uncore_read16(&dev_priv->uncore, DDRMPLL1);
+	csipll = intel_uncore_read16(&dev_priv->uncore, CSIPLL0);
 
 	switch (ddrpll & 0xff) {
 	case 0xc:
@@ -6432,26 +6432,27 @@ bool ironlake_set_drps(struct drm_i915_private *i915, u8 val)
 
 static void ironlake_enable_drps(struct drm_i915_private *dev_priv)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 rgvmodectl;
 	u8 fmax, fmin, fstart, vstart;
 
 	spin_lock_irq(&mchdev_lock);
 
-	rgvmodectl = I915_READ(MEMMODECTL);
+	rgvmodectl = intel_uncore_read(uncore, MEMMODECTL);
 
 	/* Enable temp reporting */
-	I915_WRITE16(PMMISC, I915_READ(PMMISC) | MCPPCE_EN);
-	I915_WRITE16(TSC1, I915_READ(TSC1) | TSE);
+	intel_uncore_write16(uncore, PMMISC, I915_READ(PMMISC) | MCPPCE_EN);
+	intel_uncore_write16(uncore, TSC1, I915_READ(TSC1) | TSE);
 
 	/* 100ms RC evaluation intervals */
-	I915_WRITE(RCUPEI, 100000);
-	I915_WRITE(RCDNEI, 100000);
+	intel_uncore_write(uncore, RCUPEI, 100000);
+	intel_uncore_write(uncore, RCDNEI, 100000);
 
 	/* Set max/min thresholds to 90ms and 80ms respectively */
-	I915_WRITE(RCBMAXAVG, 90000);
-	I915_WRITE(RCBMINAVG, 80000);
+	intel_uncore_write(uncore, RCBMAXAVG, 90000);
+	intel_uncore_write(uncore, RCBMINAVG, 80000);
 
-	I915_WRITE(MEMIHYST, 1);
+	intel_uncore_write(uncore, MEMIHYST, 1);
 
 	/* Set up min, max, and cur for interrupt handling */
 	fmax = (rgvmodectl & MEMMODE_FMAX_MASK) >> MEMMODE_FMAX_SHIFT;
@@ -6459,8 +6460,8 @@ static void ironlake_enable_drps(struct drm_i915_private *dev_priv)
 	fstart = (rgvmodectl & MEMMODE_FSTART_MASK) >>
 		MEMMODE_FSTART_SHIFT;
 
-	vstart = (I915_READ(PXVFREQ(fstart)) & PXVFREQ_PX_MASK) >>
-		PXVFREQ_PX_SHIFT;
+	vstart = (intel_uncore_read(uncore, PXVFREQ(fstart)) &
+		  PXVFREQ_PX_MASK) >> PXVFREQ_PX_SHIFT;
 
 	dev_priv->ips.fmax = fmax; /* IPS callback will increase this */
 	dev_priv->ips.fstart = fstart;
@@ -6472,53 +6473,66 @@ static void ironlake_enable_drps(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_DRIVER("fmax: %d, fmin: %d, fstart: %d\n",
 			 fmax, fmin, fstart);
 
-	I915_WRITE(MEMINTREN, MEMINT_CX_SUPR_EN | MEMINT_EVAL_CHG_EN);
+	intel_uncore_write(uncore,
+			   MEMINTREN,
+			   MEMINT_CX_SUPR_EN | MEMINT_EVAL_CHG_EN);
 
 	/*
 	 * Interrupts will be enabled in ironlake_irq_postinstall
 	 */
 
-	I915_WRITE(VIDSTART, vstart);
-	POSTING_READ(VIDSTART);
+	intel_uncore_write(uncore, VIDSTART, vstart);
+	intel_uncore_posting_read(uncore, VIDSTART);
 
 	rgvmodectl |= MEMMODE_SWMODE_EN;
-	I915_WRITE(MEMMODECTL, rgvmodectl);
+	intel_uncore_write(uncore, MEMMODECTL, rgvmodectl);
 
-	if (wait_for_atomic((I915_READ(MEMSWCTL) & MEMCTL_CMD_STS) == 0, 10))
+	if (wait_for_atomic((intel_uncore_read(uncore, MEMSWCTL) &
+			     MEMCTL_CMD_STS) == 0, 10))
 		DRM_ERROR("stuck trying to change perf mode\n");
 	mdelay(1);
 
 	ironlake_set_drps(dev_priv, fstart);
 
-	dev_priv->ips.last_count1 = I915_READ(DMIEC) +
-		I915_READ(DDREC) + I915_READ(CSIEC);
+	dev_priv->ips.last_count1 =
+		intel_uncore_read(uncore, DMIEC) +
+		intel_uncore_read(uncore, DDREC) +
+		intel_uncore_read(uncore, CSIEC);
 	dev_priv->ips.last_time1 = jiffies_to_msecs(jiffies);
-	dev_priv->ips.last_count2 = I915_READ(GFXEC);
+	dev_priv->ips.last_count2 = intel_uncore_read(uncore, GFXEC);
 	dev_priv->ips.last_time2 = ktime_get_raw_ns();
 
 	spin_unlock_irq(&mchdev_lock);
 }
 
-static void ironlake_disable_drps(struct drm_i915_private *dev_priv)
+static void ironlake_disable_drps(struct drm_i915_private *i915)
 {
+	struct intel_uncore *uncore = &i915->uncore;
 	u16 rgvswctl;
 
 	spin_lock_irq(&mchdev_lock);
 
-	rgvswctl = I915_READ16(MEMSWCTL);
+	rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 
 	/* Ack interrupts, disable EFC interrupt */
-	I915_WRITE(MEMINTREN, I915_READ(MEMINTREN) & ~MEMINT_EVAL_CHG_EN);
-	I915_WRITE(MEMINTRSTS, MEMINT_EVAL_CHG);
-	I915_WRITE(DEIER, I915_READ(DEIER) & ~DE_PCU_EVENT);
-	I915_WRITE(DEIIR, DE_PCU_EVENT);
-	I915_WRITE(DEIMR, I915_READ(DEIMR) | DE_PCU_EVENT);
+	intel_uncore_write(uncore,
+			   MEMINTREN,
+			   intel_uncore_read(uncore, MEMINTREN) &
+			   ~MEMINT_EVAL_CHG_EN);
+	intel_uncore_write(uncore, MEMINTRSTS, MEMINT_EVAL_CHG);
+	intel_uncore_write(uncore,
+			   DEIER,
+			   intel_uncore_read(uncore, DEIER) & ~DE_PCU_EVENT);
+	intel_uncore_write(uncore, DEIIR, DE_PCU_EVENT);
+	intel_uncore_write(uncore,
+			   DEIMR,
+			   intel_uncore_read(uncore, DEIMR) | DE_PCU_EVENT);
 
 	/* Go back to the starting frequency */
-	ironlake_set_drps(dev_priv, dev_priv->ips.fstart);
+	ironlake_set_drps(i915, i915->ips.fstart);
 	mdelay(1);
 	rgvswctl |= MEMCTL_CMD_STS;
-	I915_WRITE(MEMSWCTL, rgvswctl);
+	intel_uncore_write(uncore, MEMSWCTL, rgvswctl);
 	mdelay(1);
 
 	spin_unlock_irq(&mchdev_lock);
@@ -9504,16 +9518,21 @@ static void g4x_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void i965gm_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE(RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
-	I915_WRITE(RENCLK_GATE_D2, 0);
-	I915_WRITE(DSPCLK_GATE_D, 0);
-	I915_WRITE(RAMCLK_GATE_D, 0);
-	I915_WRITE16(DEUC, 0);
-	I915_WRITE(MI_ARB_STATE,
-		   _MASKED_BIT_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
+	struct intel_uncore *uncore = &dev_priv->uncore;
+
+	intel_uncore_write(uncore, RENCLK_GATE_D1, I965_RCC_CLOCK_GATE_DISABLE);
+	intel_uncore_write(uncore, RENCLK_GATE_D2, 0);
+	intel_uncore_write(uncore, DSPCLK_GATE_D, 0);
+	intel_uncore_write(uncore, RAMCLK_GATE_D, 0);
+	intel_uncore_write16(uncore, DEUC, 0);
+	intel_uncore_write(uncore,
+			   MI_ARB_STATE,
+			   _MASKED_BIT_ENABLE(MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE));
 
 	/* WaDisable_RenderCache_OperationalFlush:gen4 */
-	I915_WRITE(CACHE_MODE_0, _MASKED_BIT_DISABLE(RC_OP_FLUSH_ENABLE));
+	intel_uncore_write(uncore,
+			   CACHE_MODE_0,
+			   _MASKED_BIT_DISABLE(RC_OP_FLUSH_ENABLE));
 }
 
 static void i965g_init_clock_gating(struct drm_i915_private *dev_priv)

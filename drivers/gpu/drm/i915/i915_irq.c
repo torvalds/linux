@@ -1232,20 +1232,23 @@ int intel_get_crtc_scanline(struct intel_crtc *crtc)
 
 static void ironlake_rps_change_irq_handler(struct drm_i915_private *dev_priv)
 {
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 busy_up, busy_down, max_avg, min_avg;
 	u8 new_delay;
 
 	spin_lock(&mchdev_lock);
 
-	I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
+	intel_uncore_write16(uncore,
+			     MEMINTRSTS,
+			     intel_uncore_read(uncore, MEMINTRSTS));
 
 	new_delay = dev_priv->ips.cur_delay;
 
-	I915_WRITE16(MEMINTRSTS, MEMINT_EVAL_CHG);
-	busy_up = I915_READ(RCPREVBSYTUPAVG);
-	busy_down = I915_READ(RCPREVBSYTDNAVG);
-	max_avg = I915_READ(RCBMAXAVG);
-	min_avg = I915_READ(RCBMINAVG);
+	intel_uncore_write16(uncore, MEMINTRSTS, MEMINT_EVAL_CHG);
+	busy_up = intel_uncore_read(uncore, RCPREVBSYTUPAVG);
+	busy_down = intel_uncore_read(uncore, RCPREVBSYTDNAVG);
+	max_avg = intel_uncore_read(uncore, RCBMAXAVG);
+	min_avg = intel_uncore_read(uncore, RCBMINAVG);
 
 	/* Handle RCS change request from hw */
 	if (busy_up > max_avg) {
@@ -4324,8 +4327,10 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u16 enable_mask;
 
-	I915_WRITE16(EMR, ~(I915_ERROR_PAGE_TABLE |
-			    I915_ERROR_MEMORY_REFRESH));
+	intel_uncore_write16(uncore,
+			     EMR,
+			     ~(I915_ERROR_PAGE_TABLE |
+			       I915_ERROR_MEMORY_REFRESH));
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask =
@@ -4351,17 +4356,18 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static void i8xx_error_irq_ack(struct drm_i915_private *dev_priv,
+static void i8xx_error_irq_ack(struct drm_i915_private *i915,
 			       u16 *eir, u16 *eir_stuck)
 {
+	struct intel_uncore *uncore = &i915->uncore;
 	u16 emr;
 
-	*eir = I915_READ16(EIR);
+	*eir = intel_uncore_read16(uncore, EIR);
 
 	if (*eir)
-		I915_WRITE16(EIR, *eir);
+		intel_uncore_write16(uncore, EIR, *eir);
 
-	*eir_stuck = I915_READ16(EIR);
+	*eir_stuck = intel_uncore_read16(uncore, EIR);
 	if (*eir_stuck == 0)
 		return;
 
@@ -4375,9 +4381,9 @@ static void i8xx_error_irq_ack(struct drm_i915_private *dev_priv,
 	 * (or by a GPU reset) so we mask any bit that
 	 * remains set.
 	 */
-	emr = I915_READ16(EMR);
-	I915_WRITE16(EMR, 0xffff);
-	I915_WRITE16(EMR, emr | *eir_stuck);
+	emr = intel_uncore_read16(uncore, EMR);
+	intel_uncore_write16(uncore, EMR, 0xffff);
+	intel_uncore_write16(uncore, EMR, emr | *eir_stuck);
 }
 
 static void i8xx_error_irq_handler(struct drm_i915_private *dev_priv,
@@ -4443,7 +4449,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		u16 eir = 0, eir_stuck = 0;
 		u16 iir;
 
-		iir = I915_READ16(GEN2_IIR);
+		iir = intel_uncore_read16(&dev_priv->uncore, GEN2_IIR);
 		if (iir == 0)
 			break;
 
@@ -4456,7 +4462,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			i8xx_error_irq_ack(dev_priv, &eir, &eir_stuck);
 
-		I915_WRITE16(GEN2_IIR, iir);
+		intel_uncore_write16(&dev_priv->uncore, GEN2_IIR, iir);
 
 		if (iir & I915_USER_INTERRUPT)
 			intel_engine_breadcrumbs_irq(dev_priv->engine[RCS0]);
