@@ -6406,13 +6406,14 @@ void intel_init_ipc(struct drm_i915_private *dev_priv)
  */
 DEFINE_SPINLOCK(mchdev_lock);
 
-bool ironlake_set_drps(struct drm_i915_private *dev_priv, u8 val)
+bool ironlake_set_drps(struct drm_i915_private *i915, u8 val)
 {
+	struct intel_uncore *uncore = &i915->uncore;
 	u16 rgvswctl;
 
 	lockdep_assert_held(&mchdev_lock);
 
-	rgvswctl = I915_READ16(MEMSWCTL);
+	rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 	if (rgvswctl & MEMCTL_CMD_STS) {
 		DRM_DEBUG("gpu busy, RCS change rejected\n");
 		return false; /* still busy with another command */
@@ -6420,11 +6421,11 @@ bool ironlake_set_drps(struct drm_i915_private *dev_priv, u8 val)
 
 	rgvswctl = (MEMCTL_CMD_CHFREQ << MEMCTL_CMD_SHIFT) |
 		(val << MEMCTL_FREQ_SHIFT) | MEMCTL_SFCAVM;
-	I915_WRITE16(MEMSWCTL, rgvswctl);
-	POSTING_READ16(MEMSWCTL);
+	intel_uncore_write16(uncore, MEMSWCTL, rgvswctl);
+	intel_uncore_posting_read16(uncore, MEMSWCTL);
 
 	rgvswctl |= MEMCTL_CMD_STS;
-	I915_WRITE16(MEMSWCTL, rgvswctl);
+	intel_uncore_write16(uncore, MEMSWCTL, rgvswctl);
 
 	return true;
 }

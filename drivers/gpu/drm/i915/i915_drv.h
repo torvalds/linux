@@ -2847,7 +2847,6 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 #define I915_WRITE_NOTRACE(reg__, val__) __I915_REG_OP(write_notrace, dev_priv, (reg__), (val__))
 
 #define POSTING_READ(reg__)	__I915_REG_OP(posting_read, dev_priv, (reg__))
-#define POSTING_READ16(reg__)	__I915_REG_OP(posting_read16, dev_priv, (reg__))
 
 /* These are untraced mmio-accessors that are only valid to be used inside
  * critical sections, such as inside IRQ handlers, where forcewake is explicitly
