@@ -33,17 +33,27 @@
 /* Size of vardata block used for some of the cca requests/replies */
 #define VARDATASIZE 4096
 
-/* struct to hold cached mkvp info for each CCA card/domain */
-struct mkvp_info {
+/* struct to hold cached info for each CCA card/domain */
+struct cca_info {
+	char new_mk_state;  /* '1' Empty, '2' Partially full, '3' Full */
+	char cur_mk_state;  /* '1' Invalid, '2' Valid */
+	char old_mk_state;  /* '1' Invalid, '2' Valid */
+	u64  new_mkvp;	    /* truncated sha256 hash of new master key */
+	u64  cur_mkvp;	    /* truncated sha256 hash of current master key */
+	u64  old_mkvp;	    /* truncated sha256 hash of old master key */
+	char serial[9];
+};
+
+struct cca_info_list_entry {
 	struct list_head list;
 	u16 cardnr;
 	u16 domain;
-	u64 mkvp[2];
+	struct cca_info info;
 };
 
-/* a list with mkvp_info entries */
-static LIST_HEAD(mkvp_list);
-static DEFINE_SPINLOCK(mkvp_list_lock);
+/* a list with cca_info_list_entry entries */
+static LIST_HEAD(cca_info_list);
+static DEFINE_SPINLOCK(cca_info_list_lock);
 
 /*
  * Simple check if the token is a valid CCA secure AES key
@@ -697,35 +707,35 @@ out:
 }
 EXPORT_SYMBOL(cca_query_crypto_facility);
 
-static int mkvp_cache_fetch(u16 cardnr, u16 domain, u64 mkvp[2])
+static int cca_info_cache_fetch(u16 cardnr, u16 domain, struct cca_info *ci)
 {
 	int rc = -ENOENT;
-	struct mkvp_info *ptr;
+	struct cca_info_list_entry *ptr;
 
-	spin_lock_bh(&mkvp_list_lock);
-	list_for_each_entry(ptr, &mkvp_list, list) {
-		if (ptr->cardnr == cardnr &&
-		    ptr->domain == domain) {
-			memcpy(mkvp, ptr->mkvp, 2 * sizeof(u64));
+	spin_lock_bh(&cca_info_list_lock);
+	list_for_each_entry(ptr, &cca_info_list, list) {
+		if (ptr->cardnr == cardnr && ptr->domain == domain) {
+			memcpy(ci, &ptr->info, sizeof(*ci));
 			rc = 0;
 			break;
 		}
 	}
-	spin_unlock_bh(&mkvp_list_lock);
+	spin_unlock_bh(&cca_info_list_lock);
 
 	return rc;
 }
 
-static void mkvp_cache_update(u16 cardnr, u16 domain, u64 mkvp[2])
+static void cca_info_cache_update(u16 cardnr, u16 domain,
+				  const struct cca_info *ci)
 {
 	int found = 0;
-	struct mkvp_info *ptr;
+	struct cca_info_list_entry *ptr;
 
-	spin_lock_bh(&mkvp_list_lock);
-	list_for_each_entry(ptr, &mkvp_list, list) {
+	spin_lock_bh(&cca_info_list_lock);
+	list_for_each_entry(ptr, &cca_info_list, list) {
 		if (ptr->cardnr == cardnr &&
 		    ptr->domain == domain) {
-			memcpy(ptr->mkvp, mkvp, 2 * sizeof(u64));
+			memcpy(&ptr->info, ci, sizeof(*ci));
 			found = 1;
 			break;
 		}
@@ -733,23 +743,23 @@ static void mkvp_cache_update(u16 cardnr, u16 domain, u64 mkvp[2])
 	if (!found) {
 		ptr = kmalloc(sizeof(*ptr), GFP_ATOMIC);
 		if (!ptr) {
-			spin_unlock_bh(&mkvp_list_lock);
+			spin_unlock_bh(&cca_info_list_lock);
 			return;
 		}
 		ptr->cardnr = cardnr;
 		ptr->domain = domain;
-		memcpy(ptr->mkvp, mkvp, 2 * sizeof(u64));
-		list_add(&ptr->list, &mkvp_list);
+		memcpy(&ptr->info, ci, sizeof(*ci));
+		list_add(&ptr->list, &cca_info_list);
 	}
-	spin_unlock_bh(&mkvp_list_lock);
+	spin_unlock_bh(&cca_info_list_lock);
 }
 
-static void mkvp_cache_scrub(u16 cardnr, u16 domain)
+static void cca_info_cache_scrub(u16 cardnr, u16 domain)
 {
-	struct mkvp_info *ptr;
+	struct cca_info_list_entry *ptr;
 
-	spin_lock_bh(&mkvp_list_lock);
-	list_for_each_entry(ptr, &mkvp_list, list) {
+	spin_lock_bh(&cca_info_list_lock);
+	list_for_each_entry(ptr, &cca_info_list, list) {
 		if (ptr->cardnr == cardnr &&
 		    ptr->domain == domain) {
 			list_del(&ptr->list);
@@ -757,26 +767,25 @@ static void mkvp_cache_scrub(u16 cardnr, u16 domain)
 			break;
 		}
 	}
-	spin_unlock_bh(&mkvp_list_lock);
+	spin_unlock_bh(&cca_info_list_lock);
 }
 
 static void __exit mkvp_cache_free(void)
 {
-	struct mkvp_info *ptr, *pnext;
+	struct cca_info_list_entry *ptr, *pnext;
 
-	spin_lock_bh(&mkvp_list_lock);
-	list_for_each_entry_safe(ptr, pnext, &mkvp_list, list) {
+	spin_lock_bh(&cca_info_list_lock);
+	list_for_each_entry_safe(ptr, pnext, &cca_info_list, list) {
 		list_del(&ptr->list);
 		kfree(ptr);
 	}
-	spin_unlock_bh(&mkvp_list_lock);
+	spin_unlock_bh(&cca_info_list_lock);
 }
 
 /*
- * Fetch the current and old mkvp values via
- * query_crypto_facility from adapter.
+ * Fetch cca_info values via query_crypto_facility from adapter.
  */
-static int fetch_mkvp(u16 cardnr, u16 domain, u64 mkvp[2])
+static int fetch_cca_info(u16 cardnr, u16 domain, struct cca_info *ci)
 {
 	int rc, found = 0;
 	size_t rlen, vlen;
@@ -791,13 +800,19 @@ static int fetch_mkvp(u16 cardnr, u16 domain, u64 mkvp[2])
 
 	rc = cca_query_crypto_facility(cardnr, domain, "STATICSA",
 				       rarray, &rlen, varray, &vlen);
-	if (rc == 0 && rlen > 8*8 && vlen > 184+8) {
-		if (rarray[8*8] == '2') {
-			/* current master key state is valid */
-			mkvp[0] = *((u64 *)(varray + 184));
-			mkvp[1] = *((u64 *)(varray + 172));
-			found = 1;
-		}
+	if (rc == 0 && rlen >= 10*8 && vlen >= 204) {
+		memset(ci, 0, sizeof(*ci));
+		memcpy(ci->serial, rarray, 8);
+		ci->new_mk_state = (char) rarray[7*8];
+		ci->cur_mk_state = (char) rarray[8*8];
+		ci->old_mk_state = (char) rarray[9*8];
+		if (ci->old_mk_state == '2')
+			memcpy(&ci->old_mkvp, varray + 172, 8);
+		if (ci->cur_mk_state == '2')
+			memcpy(&ci->cur_mkvp, varray + 184, 8);
+		if (ci->new_mk_state == '3')
+			memcpy(&ci->new_mkvp, varray + 196, 8);
+		found = 1;
 	}
 
 	free_page((unsigned long) pg);
@@ -816,7 +831,7 @@ int cca_findcard(const u8 *seckey, u16 *pcardnr, u16 *pdomain, int verify)
 	const struct secaeskeytoken *t = (const struct secaeskeytoken *) seckey;
 	struct zcrypt_device_status_ext *device_status;
 	u16 card, dom;
-	u64 mkvp[2];
+	struct cca_info ci;
 	int i, rc, oi = -1;
 
 	/* some simple checks of the given secure key token */
@@ -839,23 +854,24 @@ int cca_findcard(const u8 *seckey, u16 *pcardnr, u16 *pdomain, int verify)
 		dom = AP_QID_QUEUE(device_status[i].qid);
 		if (device_status[i].online &&
 		    device_status[i].functions & 0x04) {
-			/* an enabled CCA Coprocessor card */
-			/* try cached mkvp */
-			if (mkvp_cache_fetch(card, dom, mkvp) == 0 &&
-			    t->mkvp == mkvp[0]) {
+			/* enabled CCA card, check current mkvp from cache */
+			if (cca_info_cache_fetch(card, dom, &ci) == 0 &&
+			    ci.cur_mk_state == '2' &&
+			    ci.cur_mkvp == t->mkvp) {
 				if (!verify)
 					break;
-				/* verify: fetch mkvp from adapter */
-				if (fetch_mkvp(card, dom, mkvp) == 0) {
-					mkvp_cache_update(card, dom, mkvp);
-					if (t->mkvp == mkvp[0])
+				/* verify: refresh card info */
+				if (fetch_cca_info(card, dom, &ci) == 0) {
+					cca_info_cache_update(card, dom, &ci);
+					if (ci.cur_mk_state == '2' &&
+					    ci.cur_mkvp == t->mkvp)
 						break;
 				}
 			}
 		} else {
 			/* Card is offline and/or not a CCA card. */
 			/* del mkvp entry from cache if it exists */
-			mkvp_cache_scrub(card, dom);
+			cca_info_cache_scrub(card, dom);
 		}
 	}
 	if (i >= MAX_ZDEV_ENTRIES_EXT) {
@@ -867,11 +883,14 @@ int cca_findcard(const u8 *seckey, u16 *pcardnr, u16 *pdomain, int verify)
 			card = AP_QID_CARD(device_status[i].qid);
 			dom = AP_QID_QUEUE(device_status[i].qid);
 			/* fresh fetch mkvp from adapter */
-			if (fetch_mkvp(card, dom, mkvp) == 0) {
-				mkvp_cache_update(card, dom, mkvp);
-				if (t->mkvp == mkvp[0])
+			if (fetch_cca_info(card, dom, &ci) == 0) {
+				cca_info_cache_update(card, dom, &ci);
+				if (ci.cur_mk_state == '2' &&
+				    ci.cur_mkvp == t->mkvp)
 					break;
-				if (t->mkvp == mkvp[1] && oi < 0)
+				if (ci.old_mk_state == '2' &&
+				    ci.old_mkvp == t->mkvp &&
+				    oi < 0)
 					oi = i;
 			}
 		}
