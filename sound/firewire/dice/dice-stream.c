@@ -230,6 +230,15 @@ static int keep_resources(struct snd_dice *dice,
 				fw_parent_device(dice->unit)->max_speed);
 }
 
+static void finish_session(struct snd_dice *dice, struct reg_params *tx_params,
+			   struct reg_params *rx_params)
+{
+	stop_streams(dice, AMDTP_IN_STREAM, tx_params);
+	stop_streams(dice, AMDTP_OUT_STREAM, rx_params);
+
+	snd_dice_transaction_clear_enable(dice);
+}
+
 static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 			 unsigned int rate, struct reg_params *params)
 {
@@ -328,10 +337,8 @@ static int start_duplex_streams(struct snd_dice *dice, unsigned int rate)
 	if (err < 0)
 		return err;
 
-	/* Stop transmission. */
-	stop_streams(dice, AMDTP_IN_STREAM, &tx_params);
-	stop_streams(dice, AMDTP_OUT_STREAM, &rx_params);
-	snd_dice_transaction_clear_enable(dice);
+	// Stop transmission.
+	finish_session(dice, &tx_params, &rx_params);
 	release_resources(dice);
 
 	err = ensure_phase_lock(dice, rate);
@@ -373,9 +380,7 @@ static int start_duplex_streams(struct snd_dice *dice, unsigned int rate)
 
 	return 0;
 error:
-	stop_streams(dice, AMDTP_IN_STREAM, &tx_params);
-	stop_streams(dice, AMDTP_OUT_STREAM, &rx_params);
-	snd_dice_transaction_clear_enable(dice);
+	finish_session(dice, &tx_params, &rx_params);
 	release_resources(dice);
 	return err;
 }
@@ -449,12 +454,8 @@ void snd_dice_stream_stop_duplex(struct snd_dice *dice)
 	if (dice->substreams_counter > 0)
 		return;
 
-	snd_dice_transaction_clear_enable(dice);
-
-	if (get_register_params(dice, &tx_params, &rx_params) == 0) {
-		stop_streams(dice, AMDTP_IN_STREAM, &tx_params);
-		stop_streams(dice, AMDTP_OUT_STREAM, &rx_params);
-	}
+	if (get_register_params(dice, &tx_params, &rx_params) >= 0)
+		finish_session(dice, &tx_params, &rx_params);
 
 	release_resources(dice);
 }
