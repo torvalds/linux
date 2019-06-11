@@ -165,6 +165,46 @@ static int mt7615_init_debugfs(struct mt7615_dev *dev)
 	return 0;
 }
 
+static void
+mt7615_init_txpower(struct mt7615_dev *dev,
+		    struct ieee80211_supported_band *sband)
+{
+	int i, n_chains = hweight8(dev->mt76.antenna_mask);
+	u8 *eep = (u8 *)dev->mt76.eeprom.data;
+
+	for (i = 0; i < sband->n_channels; i++) {
+		struct ieee80211_channel *chan = &sband->channels[i];
+		u8 target_power = 0;
+		int j;
+
+		for (j = 0; j < n_chains; j++) {
+			int index;
+
+			index = mt7615_eeprom_get_power_index(chan, j);
+			target_power = max(target_power, eep[index]);
+		}
+
+		target_power = DIV_ROUND_UP(target_power, 2);
+		switch (n_chains) {
+		case 4:
+			target_power += 6;
+			break;
+		case 3:
+			target_power += 4;
+			break;
+		case 2:
+			target_power += 3;
+			break;
+		default:
+			break;
+		}
+
+		chan->max_power = min_t(int, chan->max_reg_power,
+					target_power);
+		chan->orig_mpwr = target_power;
+	}
+}
+
 int mt7615_register_device(struct mt7615_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
@@ -211,6 +251,9 @@ int mt7615_register_device(struct mt7615_dev *dev)
 				   ARRAY_SIZE(mt7615_rates));
 	if (ret)
 		return ret;
+
+	mt7615_init_txpower(dev, &dev->mt76.sband_2g.sband);
+	mt7615_init_txpower(dev, &dev->mt76.sband_5g.sband);
 
 	hw->max_tx_fragments = MT_TXP_MAX_BUF_NUM;
 
