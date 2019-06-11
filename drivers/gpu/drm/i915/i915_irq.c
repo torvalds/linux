@@ -387,7 +387,7 @@ static void ilk_update_gt_irq(struct drm_i915_private *dev_priv,
 void gen5_enable_gt_irq(struct drm_i915_private *dev_priv, u32 mask)
 {
 	ilk_update_gt_irq(dev_priv, mask, mask);
-	POSTING_READ_FW(GTIMR);
+	intel_uncore_posting_read_fw(&dev_priv->uncore, GTIMR);
 }
 
 void gen5_disable_gt_irq(struct drm_i915_private *dev_priv, u32 mask)

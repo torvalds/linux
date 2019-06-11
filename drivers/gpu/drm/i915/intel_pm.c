@@ -1949,6 +1949,7 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	const struct vlv_fifo_state *fifo_state =
 		&crtc_state->wm.vlv.fifo_state;
 	int sprite0_start, sprite1_start, fifo_size;
@@ -1974,13 +1975,13 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 	 * intel_pipe_update_start() has already disabled interrupts
 	 * for us, so a plain spin_lock() is sufficient here.
 	 */
-	spin_lock(&dev_priv->uncore.lock);
+	spin_lock(&uncore->lock);
 
 	switch (crtc->pipe) {
 		u32 dsparb, dsparb2, dsparb3;
 	case PIPE_A:
-		dsparb = I915_READ_FW(DSPARB);
-		dsparb2 = I915_READ_FW(DSPARB2);
+		dsparb = intel_uncore_read_fw(uncore, DSPARB);
+		dsparb2 = intel_uncore_read_fw(uncore, DSPARB2);
 
 		dsparb &= ~(VLV_FIFO(SPRITEA, 0xff) |
 			    VLV_FIFO(SPRITEB, 0xff));
@@ -1992,12 +1993,12 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 		dsparb2 |= (VLV_FIFO(SPRITEA_HI, sprite0_start >> 8) |
 			   VLV_FIFO(SPRITEB_HI, sprite1_start >> 8));
 
-		I915_WRITE_FW(DSPARB, dsparb);
-		I915_WRITE_FW(DSPARB2, dsparb2);
+		intel_uncore_write_fw(uncore, DSPARB, dsparb);
+		intel_uncore_write_fw(uncore, DSPARB2, dsparb2);
 		break;
 	case PIPE_B:
-		dsparb = I915_READ_FW(DSPARB);
-		dsparb2 = I915_READ_FW(DSPARB2);
+		dsparb = intel_uncore_read_fw(uncore, DSPARB);
+		dsparb2 = intel_uncore_read_fw(uncore, DSPARB2);
 
 		dsparb &= ~(VLV_FIFO(SPRITEC, 0xff) |
 			    VLV_FIFO(SPRITED, 0xff));
@@ -2009,12 +2010,12 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 		dsparb2 |= (VLV_FIFO(SPRITEC_HI, sprite0_start >> 8) |
 			   VLV_FIFO(SPRITED_HI, sprite1_start >> 8));
 
-		I915_WRITE_FW(DSPARB, dsparb);
-		I915_WRITE_FW(DSPARB2, dsparb2);
+		intel_uncore_write_fw(uncore, DSPARB, dsparb);
+		intel_uncore_write_fw(uncore, DSPARB2, dsparb2);
 		break;
 	case PIPE_C:
-		dsparb3 = I915_READ_FW(DSPARB3);
-		dsparb2 = I915_READ_FW(DSPARB2);
+		dsparb3 = intel_uncore_read_fw(uncore, DSPARB3);
+		dsparb2 = intel_uncore_read_fw(uncore, DSPARB2);
 
 		dsparb3 &= ~(VLV_FIFO(SPRITEE, 0xff) |
 			     VLV_FIFO(SPRITEF, 0xff));
@@ -2026,16 +2027,16 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 		dsparb2 |= (VLV_FIFO(SPRITEE_HI, sprite0_start >> 8) |
 			   VLV_FIFO(SPRITEF_HI, sprite1_start >> 8));
 
-		I915_WRITE_FW(DSPARB3, dsparb3);
-		I915_WRITE_FW(DSPARB2, dsparb2);
+		intel_uncore_write_fw(uncore, DSPARB3, dsparb3);
+		intel_uncore_write_fw(uncore, DSPARB2, dsparb2);
 		break;
 	default:
 		break;
 	}
 
-	POSTING_READ_FW(DSPARB);
+	intel_uncore_posting_read_fw(uncore, DSPARB);
 
-	spin_unlock(&dev_priv->uncore.lock);
+	spin_unlock(&uncore->lock);
 }
 
 #undef VLV_FIFO

@@ -557,10 +557,10 @@ static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
  */
 static void flush_ggtt_writes(struct i915_vma *vma)
 {
-	struct drm_i915_private *dev_priv = vma->vm->i915;
+	struct drm_i915_private *i915 = vma->vm->i915;
 
 	if (i915_vma_is_map_and_fenceable(vma))
-		POSTING_READ_FW(GUC_STATUS);
+		intel_uncore_posting_read_fw(&i915->uncore, GUC_STATUS);
 }
 
 static void inject_preempt_context(struct work_struct *work)
