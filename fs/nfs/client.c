@@ -176,6 +176,7 @@ struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_init)
 	clp->cl_rpcclient = ERR_PTR(-EINVAL);
 
 	clp->cl_proto = cl_init->proto;
+	clp->cl_nconnect = cl_init->nconnect;
 	clp->cl_net = get_net(cl_init->net);
 
 	clp->cl_principal = "*";
@@ -494,6 +495,7 @@ int nfs_create_rpc_client(struct nfs_client *clp,
 	struct rpc_create_args args = {
 		.net		= clp->cl_net,
 		.protocol	= clp->cl_proto,
+		.nconnect	= clp->cl_nconnect,
 		.address	= (struct sockaddr *)&clp->cl_addr,
 		.addrsize	= clp->cl_addrlen,
 		.timeout	= cl_init->timeparms,
@@ -659,6 +661,7 @@ static int nfs_init_server(struct nfs_server *server,
 		.net = data->net,
 		.timeparms = &timeparms,
 		.cred = server->cred,
+		.nconnect = data->nfs_server.nconnect,
 	};
 	struct nfs_client *clp;
 	int error;

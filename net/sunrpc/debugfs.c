@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * debugfs interface for sunrpc
  *
  * (c) 2014 Jeff Layton <jlayton@primarydata.com>
@@ -118,12 +118,38 @@ static const struct file_operations tasks_fops = {
 	.release	= tasks_release,
 };
 
+static int do_xprt_debugfs(struct rpc_clnt *clnt, struct rpc_xprt *xprt, void *numv)
+{
+	int len;
+	char name[24]; /* enough for "../../rpc_xprt/ + 8 hex digits + NULL */
+	char link[9]; /* enough for 8 hex digits + NULL */
+	int *nump = numv;
+
+	if (IS_ERR_OR_NULL(xprt->debugfs))
+		return 0;
+	len = snprintf(name, sizeof(name), "../../rpc_xprt/%s",
+		       xprt->debugfs->d_name.name);
+	if (len > sizeof(name))
+		return -1;
+	if (*nump == 0)
+		strcpy(link, "xprt");
+	else {
+		len = snprintf(link, sizeof(link), "xprt%d", *nump);
+		if (len > sizeof(link))
+			return -1;
+	}
+	if (!debugfs_create_symlink(link, clnt->cl_debugfs, name))
+		return -1;
+	(*nump)++;
+	return 0;
+}
+
 void
 rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
 {
 	int len;
-	char name[24]; /* enough for "../../rpc_xprt/ + 8 hex digits + NULL */
-	struct rpc_xprt *xprt;
+	char name[9]; /* enough for 8 hex digits + NULL */
+	int xprtnum = 0;
 
 	/* Already registered? */
 	if (clnt->cl_debugfs || !rpc_clnt_dir)
@@ -143,21 +169,7 @@ rpc_clnt_debugfs_register(struct rpc_clnt *clnt)
 				 clnt, &tasks_fops))
 		goto out_err;
 
-	rcu_read_lock();
-	xprt = rcu_dereference(clnt->cl_xprt);
-	/* no "debugfs" dentry? Don't bother with the symlink. */
-	if (IS_ERR_OR_NULL(xprt->debugfs)) {
-		rcu_read_unlock();
-		return;
-	}
-	len = snprintf(name, sizeof(name), "../../rpc_xprt/%s",
-			xprt->debugfs->d_name.name);
-	rcu_read_unlock();
-
-	if (len >= sizeof(name))
-		goto out_err;
-
-	if (!debugfs_create_symlink("xprt", clnt->cl_debugfs, name))
+	if (rpc_clnt_iterate_for_each_xprt(clnt, do_xprt_debugfs, &xprtnum) < 0)
 		goto out_err;
 
 	return;

@@ -240,9 +240,16 @@ static void _print_rpc_iostats(struct seq_file *seq, struct rpc_iostats *stats,
 		   stats->om_error_status);
 }
 
+static int do_print_stats(struct rpc_clnt *clnt, struct rpc_xprt *xprt, void *seqv)
+{
+	struct seq_file *seq = seqv;
+
+	xprt->ops->print_stats(xprt, seq);
+	return 0;
+}
+
 void rpc_clnt_show_stats(struct seq_file *seq, struct rpc_clnt *clnt)
 {
-	struct rpc_xprt *xprt;
 	unsigned int op, maxproc = clnt->cl_maxproc;
 
 	if (!clnt->cl_metrics)
@@ -252,11 +259,7 @@ void rpc_clnt_show_stats(struct seq_file *seq, struct rpc_clnt *clnt)
 	seq_printf(seq, "p/v: %u/%u (%s)\n",
 			clnt->cl_prog, clnt->cl_vers, clnt->cl_program->name);
 
-	rcu_read_lock();
-	xprt = rcu_dereference(clnt->cl_xprt);
-	if (xprt)
-		xprt->ops->print_stats(xprt, seq);
-	rcu_read_unlock();
+	rpc_clnt_iterate_for_each_xprt(clnt, do_print_stats, seq);
 
 	seq_printf(seq, "\tper-op statistics\n");
 	for (op = 0; op < maxproc; op++) {
