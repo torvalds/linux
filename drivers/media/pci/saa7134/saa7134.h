@@ -98,7 +98,6 @@ struct saa7134_tvaudio {
 };
 
 struct saa7134_format {
-	char           *name;
 	unsigned int   fourcc;
 	unsigned int   depth;
 	unsigned int   pm;

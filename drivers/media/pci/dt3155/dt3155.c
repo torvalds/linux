@@ -306,7 +306,6 @@ static int dt3155_enum_fmt_vid_cap(struct file *filp,
 	if (f->index)
 		return -EINVAL;
 	f->pixelformat = V4L2_PIX_FMT_GREY;
-	strscpy(f->description, "8-bit Greyscale", sizeof(f->description));
 	return 0;
 }
 
