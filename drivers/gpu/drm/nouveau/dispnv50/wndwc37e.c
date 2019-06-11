@@ -107,10 +107,10 @@ wndwc37e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 		       asyw->state.crtc_w);
 
 	/*XXX: Composition-related stuff.  Need to implement properly. */
-	evo_mthd(push, 0x02ec, 1);
+	evo_mthd(push, 0x02ec, 7);
 	evo_data(push, (2 - (wndw->id & 1)) << 4);
-	evo_mthd(push, 0x02f4, 5);
-	evo_data(push, 0x00000011);
+	evo_data(push, 0x000000ff);
+	evo_data(push, 0x00007722);
 	evo_data(push, 0xffff0000);
 	evo_data(push, 0xffff0000);
 	evo_data(push, 0xffff0000);
