@@ -75,34 +75,27 @@ static const struct v4l2_fract
 /* video formats */
 static struct mmal_fmt formats[] = {
 	{
-		.name = "4:2:0, planar, YUV",
 		.fourcc = V4L2_PIX_FMT_YUV420,
-		.flags = 0,
 		.mmal = MMAL_ENCODING_I420,
 		.depth = 12,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 1,
 		.remove_padding = 1,
 	}, {
-		.name = "4:2:2, packed, YUYV",
 		.fourcc = V4L2_PIX_FMT_YUYV,
-		.flags = 0,
 		.mmal = MMAL_ENCODING_YUYV,
 		.depth = 16,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 2,
 		.remove_padding = 0,
 	}, {
-		.name = "RGB24 (LE)",
 		.fourcc = V4L2_PIX_FMT_RGB24,
-		.flags = 0,
 		.mmal = MMAL_ENCODING_RGB24,
 		.depth = 24,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 3,
 		.remove_padding = 0,
 	}, {
-		.name = "JPEG",
 		.fourcc = V4L2_PIX_FMT_JPEG,
 		.flags = V4L2_FMT_FLAG_COMPRESSED,
 		.mmal = MMAL_ENCODING_JPEG,
@@ -111,7 +104,6 @@ static struct mmal_fmt formats[] = {
 		.ybbp = 0,
 		.remove_padding = 0,
 	}, {
-		.name = "H264",
 		.fourcc = V4L2_PIX_FMT_H264,
 		.flags = V4L2_FMT_FLAG_COMPRESSED,
 		.mmal = MMAL_ENCODING_H264,
@@ -120,7 +112,6 @@ static struct mmal_fmt formats[] = {
 		.ybbp = 0,
 		.remove_padding = 0,
 	}, {
-		.name = "MJPEG",
 		.fourcc = V4L2_PIX_FMT_MJPEG,
 		.flags = V4L2_FMT_FLAG_COMPRESSED,
 		.mmal = MMAL_ENCODING_MJPEG,
@@ -129,72 +120,56 @@ static struct mmal_fmt formats[] = {
 		.ybbp = 0,
 		.remove_padding = 0,
 	}, {
-		.name = "4:2:2, packed, YVYU",
 		.fourcc = V4L2_PIX_FMT_YVYU,
-		.flags = 0,
 		.mmal = MMAL_ENCODING_YVYU,
 		.depth = 16,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 2,
 		.remove_padding = 0,
 	}, {
-		.name = "4:2:2, packed, VYUY",
 		.fourcc = V4L2_PIX_FMT_VYUY,
-		.flags = 0,
 		.mmal = MMAL_ENCODING_VYUY,
 		.depth = 16,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 2,
 		.remove_padding = 0,
 	}, {
-		.name = "4:2:2, packed, UYVY",
 		.fourcc = V4L2_PIX_FMT_UYVY,
-		.flags = 0,
 		.mmal = MMAL_ENCODING_UYVY,
 		.depth = 16,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 2,
 		.remove_padding = 0,
 	}, {
-		.name = "4:2:0, planar, NV12",
 		.fourcc = V4L2_PIX_FMT_NV12,
-		.flags = 0,
 		.mmal = MMAL_ENCODING_NV12,
 		.depth = 12,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 1,
 		.remove_padding = 1,
 	}, {
-		.name = "RGB24 (BE)",
 		.fourcc = V4L2_PIX_FMT_BGR24,
-		.flags = 0,
 		.mmal = MMAL_ENCODING_BGR24,
 		.depth = 24,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 3,
 		.remove_padding = 0,
 	}, {
-		.name = "4:2:0, planar, YVU",
 		.fourcc = V4L2_PIX_FMT_YVU420,
-		.flags = 0,
 		.mmal = MMAL_ENCODING_YV12,
 		.depth = 12,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 1,
 		.remove_padding = 1,
 	}, {
-		.name = "4:2:0, planar, NV21",
 		.fourcc = V4L2_PIX_FMT_NV21,
-		.flags = 0,
 		.mmal = MMAL_ENCODING_NV21,
 		.depth = 12,
 		.mmal_component = COMP_CAMERA,
 		.ybbp = 1,
 		.remove_padding = 1,
 	}, {
-		.name = "RGB32 (BE)",
 		.fourcc = V4L2_PIX_FMT_BGR32,
-		.flags = 0,
 		.mmal = MMAL_ENCODING_BGRA,
 		.depth = 32,
 		.mmal_component = COMP_CAMERA,
@@ -716,9 +691,7 @@ static int vidioc_enum_fmt_vid_overlay(struct file *file, void *priv,
 
 	fmt = &formats[f->index];
 
-	strlcpy((char *)f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
-	f->flags = fmt->flags;
 
 	return 0;
 }
@@ -919,9 +892,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = &formats[f->index];
 
-	strlcpy((char *)f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
-	f->flags = fmt->flags;
 
 	return 0;
 }
