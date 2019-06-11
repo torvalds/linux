@@ -442,9 +442,9 @@ static int calc_send_wqe(struct ib_qp_init_attr *attr)
 	}
 
 	size += attr->cap.max_send_sge * sizeof(struct mlx5_wqe_data_seg);
-	if (attr->create_flags & IB_QP_CREATE_SIGNATURE_EN &&
+	if (attr->create_flags & IB_QP_CREATE_INTEGRITY_EN &&
 	    ALIGN(max_t(int, inl_size, size), MLX5_SEND_WQE_BB) < MLX5_SIG_WQE_SIZE)
-			return MLX5_SIG_WQE_SIZE;
+		return MLX5_SIG_WQE_SIZE;
 	else
 		return ALIGN(max_t(int, inl_size, size), MLX5_SEND_WQE_BB);
 }
@@ -496,8 +496,8 @@ static int calc_sq_size(struct mlx5_ib_dev *dev, struct ib_qp_init_attr *attr,
 			      sizeof(struct mlx5_wqe_inline_seg);
 	attr->cap.max_inline_data = qp->max_inline_data;
 
-	if (attr->create_flags & IB_QP_CREATE_SIGNATURE_EN)
-		qp->signature_en = true;
+	if (attr->create_flags & IB_QP_CREATE_INTEGRITY_EN)
+		qp->integrity_en = true;
 
 	wq_size = roundup_pow_of_two(attr->cap.max_send_wr * wqe_size);
 	qp->sq.wqe_cnt = wq_size / MLX5_SEND_WQE_BB;
@@ -1039,7 +1039,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	void *qpc;
 	int err;
 
-	if (init_attr->create_flags & ~(IB_QP_CREATE_SIGNATURE_EN |
+	if (init_attr->create_flags & ~(IB_QP_CREATE_INTEGRITY_EN |
 					IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK |
 					IB_QP_CREATE_IPOIB_UD_LSO |
 					IB_QP_CREATE_NETIF_QP |
@@ -4714,7 +4714,7 @@ static int set_pi_umr_wr(const struct ib_send_wr *send_wr,
 
 	if (unlikely(send_wr->num_sge != 0) ||
 	    unlikely(wr->access & IB_ACCESS_REMOTE_ATOMIC) ||
-	    unlikely(!sig_mr->sig) || unlikely(!qp->signature_en) ||
+	    unlikely(!sig_mr->sig) || unlikely(!qp->integrity_en) ||
 	    unlikely(!sig_mr->sig->sig_status_checked))
 		return -EINVAL;
 
@@ -4763,7 +4763,7 @@ static int set_sig_umr_wr(const struct ib_send_wr *send_wr,
 
 	if (unlikely(wr->wr.num_sge != 1) ||
 	    unlikely(wr->access_flags & IB_ACCESS_REMOTE_ATOMIC) ||
-	    unlikely(!sig_mr->sig) || unlikely(!qp->signature_en) ||
+	    unlikely(!sig_mr->sig) || unlikely(!qp->integrity_en) ||
 	    unlikely(!sig_mr->sig->sig_status_checked))
 		return -EINVAL;
 

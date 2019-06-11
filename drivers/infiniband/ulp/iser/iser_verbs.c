@@ -399,7 +399,7 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	init_attr.qp_type	= IB_QPT_RC;
 	if (ib_conn->pi_support) {
 		init_attr.cap.max_send_wr = ISER_QP_SIG_MAX_REQ_DTOS + 1;
-		init_attr.create_flags |= IB_QP_CREATE_SIGNATURE_EN;
+		init_attr.create_flags |= IB_QP_CREATE_INTEGRITY_EN;
 		iser_conn->max_cmds =
 			ISER_GET_MAX_XMIT_CMDS(ISER_QP_SIG_MAX_REQ_DTOS);
 	} else {
@@ -712,7 +712,7 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 	/* connection T10-PI support */
 	if (iser_pi_enable) {
 		if (!(device->ib_device->attrs.device_cap_flags &
-		      IB_DEVICE_SIGNATURE_HANDOVER)) {
+		      IB_DEVICE_INTEGRITY_HANDOVER)) {
 			iser_warn("T10-PI requested but not supported on %s, "
 				  "continue without T10-PI\n",
 				  dev_name(&ib_conn->device->ib_device->dev));

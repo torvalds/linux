@@ -688,7 +688,7 @@ void rdma_rw_init_qp(struct ib_device *dev, struct ib_qp_init_attr *attr)
 	 * we'll need two additional MRs for the registrations and the
 	 * invalidation.
 	 */
-	if (attr->create_flags & IB_QP_CREATE_SIGNATURE_EN)
+	if (attr->create_flags & IB_QP_CREATE_INTEGRITY_EN)
 		factor += 6;	/* (inv + reg) * (data + prot + sig) */
 	else if (rdma_rw_can_use_mr(dev, attr->port_num))
 		factor += 2;	/* inv + reg */
@@ -709,7 +709,7 @@ int rdma_rw_init_mrs(struct ib_qp *qp, struct ib_qp_init_attr *attr)
 	u32 nr_mrs = 0, nr_sig_mrs = 0;
 	int ret = 0;
 
-	if (attr->create_flags & IB_QP_CREATE_SIGNATURE_EN) {
+	if (attr->create_flags & IB_QP_CREATE_INTEGRITY_EN) {
 		nr_sig_mrs = attr->cap.max_rdma_ctxs;
 		nr_mrs = attr->cap.max_rdma_ctxs * 2;
 	} else if (rdma_rw_can_use_mr(dev, attr->port_num)) {

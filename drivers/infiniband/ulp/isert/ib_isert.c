@@ -141,7 +141,7 @@ isert_create_qp(struct isert_conn *isert_conn,
 	attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	attr.qp_type = IB_QPT_RC;
 	if (device->pi_capable)
-		attr.create_flags |= IB_QP_CREATE_SIGNATURE_EN;
+		attr.create_flags |= IB_QP_CREATE_INTEGRITY_EN;
 
 	ret = rdma_create_qp(cma_id, device->pd, &attr);
 	if (ret) {
@@ -317,7 +317,7 @@ isert_create_device_ib_res(struct isert_device *device)
 
 	/* Check signature cap */
 	device->pi_capable = ib_dev->attrs.device_cap_flags &
-			     IB_DEVICE_SIGNATURE_HANDOVER ? true : false;
+			     IB_DEVICE_INTEGRITY_HANDOVER ? true : false;
 
 	return 0;
 

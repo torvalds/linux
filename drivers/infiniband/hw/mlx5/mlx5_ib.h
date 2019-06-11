@@ -431,8 +431,7 @@ struct mlx5_ib_qp {
 
 	int			create_type;
 
-	/* Store signature errors */
-	bool			signature_en;
+	bool			integrity_en;
 
 	struct list_head	qps_list;
 	struct list_head	cq_recv_list;
