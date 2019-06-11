@@ -189,13 +189,6 @@ static int begin_session(struct snd_dg00x *dg00x)
 	return err;
 }
 
-static void release_resources(struct snd_dg00x *dg00x)
-{
-	/* Release isochronous resources. */
-	fw_iso_resources_free(&dg00x->tx_resources);
-	fw_iso_resources_free(&dg00x->rx_resources);
-}
-
 static int keep_resources(struct snd_dg00x *dg00x, struct amdtp_stream *stream,
 			  unsigned int rate)
 {
@@ -265,45 +258,65 @@ void snd_dg00x_stream_destroy_duplex(struct snd_dg00x *dg00x)
 	fw_iso_resources_destroy(&dg00x->tx_resources);
 }
 
-int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x, unsigned int rate)
+int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate)
 {
 	unsigned int curr_rate;
+	int err;
+
+	err = snd_dg00x_stream_get_local_rate(dg00x, &curr_rate);
+	if (err < 0)
+		return err;
+	if (rate == 0)
+		rate = curr_rate;
+
+	if (dg00x->substreams_counter == 0 || curr_rate != rate) {
+		finish_session(dg00x);
+
+		fw_iso_resources_free(&dg00x->tx_resources);
+		fw_iso_resources_free(&dg00x->rx_resources);
+
+		err = snd_dg00x_stream_set_local_rate(dg00x, rate);
+		if (err < 0)
+			return err;
+
+		err = keep_resources(dg00x, &dg00x->rx_stream, rate);
+		if (err < 0)
+			return err;
+
+		err = keep_resources(dg00x, &dg00x->tx_stream, rate);
+		if (err < 0) {
+			fw_iso_resources_free(&dg00x->rx_resources);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+void snd_dg00x_stream_release_duplex(struct snd_dg00x *dg00x)
+{
+	if (dg00x->substreams_counter == 0) {
+		fw_iso_resources_free(&dg00x->tx_resources);
+		fw_iso_resources_free(&dg00x->rx_resources);
+	}
+}
+
+int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
+{
 	int err = 0;
 
 	if (dg00x->substreams_counter == 0)
-		goto end;
+		return 0;
 
-	/* Check current sampling rate. */
-	err = snd_dg00x_stream_get_local_rate(dg00x, &curr_rate);
-	if (err < 0)
-		goto error;
-	if (rate == 0)
-		rate = curr_rate;
-	if (curr_rate != rate ||
-	    amdtp_streaming_error(&dg00x->tx_stream) ||
-	    amdtp_streaming_error(&dg00x->rx_stream)) {
+	if (amdtp_streaming_error(&dg00x->tx_stream) ||
+	    amdtp_streaming_error(&dg00x->rx_stream))
 		finish_session(dg00x);
-
-		release_resources(dg00x);
-	}
 
 	/*
 	 * No packets are transmitted without receiving packets, reagardless of
 	 * which source of clock is used.
 	 */
 	if (!amdtp_stream_running(&dg00x->rx_stream)) {
-		err = snd_dg00x_stream_set_local_rate(dg00x, rate);
-		if (err < 0)
-			goto error;
-
-		err = keep_resources(dg00x, &dg00x->rx_stream, rate);
-		if (err < 0)
-			goto error;
-
-		err = keep_resources(dg00x, &dg00x->tx_stream, rate);
-		if (err < 0)
-			goto error;
-
 		err = begin_session(dg00x);
 		if (err < 0)
 			goto error;
@@ -338,23 +351,18 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x, unsigned int rate)
 			goto error;
 		}
 	}
-end:
-	return err;
+
+	return 0;
 error:
 	finish_session(dg00x);
-
-	release_resources(dg00x);
 
 	return err;
 }
 
 void snd_dg00x_stream_stop_duplex(struct snd_dg00x *dg00x)
 {
-	if (dg00x->substreams_counter > 0)
-		return;
-
-	finish_session(dg00x);
-	release_resources(dg00x);
+	if (dg00x->substreams_counter == 0)
+		finish_session(dg00x);
 }
 
 void snd_dg00x_stream_update_duplex(struct snd_dg00x *dg00x)
