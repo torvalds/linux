@@ -45,6 +45,7 @@
 #include <linux/seq_file.h>
 #endif /* CONFIG_DEBUG_FS */
 #include <linux/net_tstamp.h>
+#include <linux/phylink.h>
 #include <net/pkt_cls.h>
 #include "stmmac_ptp.h"
 #include "stmmac.h"
@@ -848,6 +849,39 @@ static void stmmac_mac_flow_ctrl(struct stmmac_priv *priv, u32 duplex)
 			priv->pause, tx_cnt);
 }
 
+static void stmmac_validate(struct phylink_config *config,
+			    unsigned long *supported,
+			    struct phylink_link_state *state)
+{
+	struct stmmac_priv *priv = netdev_priv(to_net_dev(config->dev));
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+	int tx_cnt = priv->plat->tx_queues_to_use;
+	int max_speed = priv->plat->max_speed;
+
+	/* Cut down 1G if asked to */
+	if ((max_speed > 0) && (max_speed < 1000)) {
+		phylink_set(mask, 1000baseT_Full);
+		phylink_set(mask, 1000baseX_Full);
+	}
+
+	/* Half-Duplex can only work with single queue */
+	if (tx_cnt > 1) {
+		phylink_set(mask, 10baseT_Half);
+		phylink_set(mask, 100baseT_Half);
+		phylink_set(mask, 1000baseT_Half);
+	}
+
+	bitmap_andnot(supported, supported, mask, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_andnot(state->advertising, state->advertising, mask,
+		      __ETHTOOL_LINK_MODE_MASK_NBITS);
+}
+
+static int stmmac_mac_link_state(struct phylink_config *config,
+				 struct phylink_link_state *state)
+{
+	return -EOPNOTSUPP;
+}
+
 static void stmmac_mac_config(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
@@ -900,6 +934,11 @@ static void stmmac_mac_config(struct net_device *dev)
 	writel(ctrl, priv->ioaddr + MAC_CTRL_REG);
 }
 
+static void stmmac_mac_an_restart(struct phylink_config *config)
+{
+	/* Not Supported */
+}
+
 static void stmmac_mac_link_down(struct net_device *dev, bool autoneg)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
@@ -913,6 +952,15 @@ static void stmmac_mac_link_up(struct net_device *dev, bool autoneg)
 
 	stmmac_mac_set(priv, priv->ioaddr, true);
 }
+
+static const struct phylink_mac_ops __maybe_unused stmmac_phylink_mac_ops = {
+	.validate = stmmac_validate,
+	.mac_link_state = stmmac_mac_link_state,
+	.mac_config = NULL, /* TO BE FILLED */
+	.mac_an_restart = stmmac_mac_an_restart,
+	.mac_link_down = NULL, /* TO BE FILLED */
+	.mac_link_up = NULL, /* TO BE FILLED */
+};
 
 /**
  * stmmac_adjust_link - adjusts the link parameters
