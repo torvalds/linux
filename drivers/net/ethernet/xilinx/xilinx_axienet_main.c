@@ -1679,13 +1679,13 @@ static int axienet_probe(struct platform_device *pdev)
 	lp->tx_bd_num = TX_BD_NUM_DEFAULT;
 	/* Map device registers */
 	ethres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	lp->regs_start = ethres->start;
 	lp->regs = devm_ioremap_resource(&pdev->dev, ethres);
 	if (IS_ERR(lp->regs)) {
 		dev_err(&pdev->dev, "could not map Axi Ethernet regs.\n");
 		ret = PTR_ERR(lp->regs);
 		goto free_netdev;
 	}
+	lp->regs_start = ethres->start;
 
 	/* Setup checksum offload, but default to off if not specified */
 	lp->features = 0;
