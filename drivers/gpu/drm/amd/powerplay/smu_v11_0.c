@@ -260,12 +260,12 @@ static int smu_v11_0_check_fw_version(struct smu_context *smu)
 	smu_minor = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 
-	pr_info("SMU Driver IF Version = 0x%08x, SMU FW IF Version = 0x%08x,"
-		" SMU FW Version = 0x%08x (%d.%d.%d)\n",
-		if_version, smu->smc_if_version,
-		smu_version, smu_major, smu_minor, smu_debug);
 
 	if (if_version != smu->smc_if_version) {
+		pr_info("smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
+			"smu fw version = 0x%08x (%d.%d.%d)\n",
+			smu->smc_if_version, if_version,
+			smu_version, smu_major, smu_minor, smu_debug);
 		pr_err("SMU driver if version not matched\n");
 		ret = -EINVAL;
 	}
