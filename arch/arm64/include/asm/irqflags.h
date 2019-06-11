@@ -119,8 +119,8 @@ static inline void arch_local_irq_restore(unsigned long flags)
 			__msr_s(SYS_ICC_PMR_EL1, "%0")
 			"dsb	sy",
 			ARM64_HAS_IRQ_PRIO_MASKING)
-		: "+r" (flags)
 		:
+		: "r" (flags)
 		: "memory");
 }
 
