@@ -309,6 +309,14 @@ swiotlb_late_init_with_default_size(size_t default_size)
 	return rc;
 }
 
+static void swiotlb_cleanup(void)
+{
+	io_tlb_end = 0;
+	io_tlb_start = 0;
+	io_tlb_nslabs = 0;
+	max_segment = 0;
+}
+
 int
 swiotlb_late_init_with_tbl(char *tlb, unsigned long nslabs)
 {
@@ -359,10 +367,7 @@ cleanup4:
 	                                                 sizeof(int)));
 	io_tlb_list = NULL;
 cleanup3:
-	io_tlb_end = 0;
-	io_tlb_start = 0;
-	io_tlb_nslabs = 0;
-	max_segment = 0;
+	swiotlb_cleanup();
 	return -ENOMEM;
 }
 
@@ -386,10 +391,7 @@ void __init swiotlb_exit(void)
 		memblock_free_late(io_tlb_start,
 				   PAGE_ALIGN(io_tlb_nslabs << IO_TLB_SHIFT));
 	}
-	io_tlb_start = 0;
-	io_tlb_end = 0;
-	io_tlb_nslabs = 0;
-	max_segment = 0;
+	swiotlb_cleanup();
 }
 
 /*
