@@ -4566,7 +4566,7 @@ static int set_sig_data_segment(const struct ib_send_wr *send_wr,
 	if (pi_mr->meta_ndescs) {
 		prot_len = pi_mr->meta_length;
 		prot_key = pi_mr->ibmr.lkey;
-		prot_va = pi_mr->ibmr.iova + data_len;
+		prot_va = pi_mr->pi_iova;
 		prot = true;
 	}
 

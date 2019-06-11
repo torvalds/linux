@@ -605,7 +605,12 @@ struct mlx5_ib_mr {
 	int			access_flags; /* Needed for rereg MR */
 
 	struct mlx5_ib_mr      *parent;
-	struct mlx5_ib_mr      *pi_mr; /* Needed for IB_MR_TYPE_INTEGRITY */
+	/* Needed for IB_MR_TYPE_INTEGRITY */
+	struct mlx5_ib_mr      *pi_mr;
+	struct mlx5_ib_mr      *klm_mr;
+	struct mlx5_ib_mr      *mtt_mr;
+	u64			pi_iova;
+
 	atomic_t		num_leaf_free;
 	wait_queue_head_t       q_leaf_free;
 	struct mlx5_async_work  cb_work;
