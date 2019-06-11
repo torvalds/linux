@@ -9,9 +9,9 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/syscore_ops.h>
 #include <dt-bindings/clock/jz4770-cgu.h>
 #include "cgu.h"
+#include "pm.h"
 
 /*
  * CPM registers offset address definition
@@ -37,9 +37,6 @@
 #define CGU_REG_MSC1CDR		0xA4
 #define CGU_REG_MSC2CDR		0xA8
 #define CGU_REG_BCHCDR		0xAC
-
-/* bits within the LCR register */
-#define LCR_LPM			BIT(0)		/* Low Power Mode */
 
 /* bits within the OPCR register */
 #define OPCR_SPENDH		BIT(5)		/* UHC PHY suspend */
@@ -429,30 +426,6 @@ static const struct ingenic_cgu_clk_info jz4770_cgu_clocks[] = {
 	},
 };
 
-#if IS_ENABLED(CONFIG_PM_SLEEP)
-static int jz4770_cgu_pm_suspend(void)
-{
-	u32 val;
-
-	val = readl(cgu->base + CGU_REG_LCR);
-	writel(val | LCR_LPM, cgu->base + CGU_REG_LCR);
-	return 0;
-}
-
-static void jz4770_cgu_pm_resume(void)
-{
-	u32 val;
-
-	val = readl(cgu->base + CGU_REG_LCR);
-	writel(val & ~LCR_LPM, cgu->base + CGU_REG_LCR);
-}
-
-static struct syscore_ops jz4770_cgu_pm_ops = {
-	.suspend = jz4770_cgu_pm_suspend,
-	.resume = jz4770_cgu_pm_resume,
-};
-#endif /* CONFIG_PM_SLEEP */
-
 static void __init jz4770_cgu_init(struct device_node *np)
 {
 	int retval;
@@ -466,9 +439,7 @@ static void __init jz4770_cgu_init(struct device_node *np)
 	if (retval)
 		pr_err("%s: failed to register CGU Clocks\n", __func__);
 
-#if IS_ENABLED(CONFIG_PM_SLEEP)
-	register_syscore_ops(&jz4770_cgu_pm_ops);
-#endif
+	ingenic_cgu_register_syscore_ops(cgu);
 }
 
 /* We only probe via devicetree, no need for a platform driver */

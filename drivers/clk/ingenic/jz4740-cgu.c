@@ -22,6 +22,7 @@
 #include <dt-bindings/clock/jz4740-cgu.h>
 #include <asm/mach-jz4740/clock.h>
 #include "cgu.h"
+#include "pm.h"
 
 /* CGU register offsets */
 #define CGU_REG_CPCCR		0x00
@@ -247,6 +248,8 @@ static void __init jz4740_cgu_init(struct device_node *np)
 	retval = ingenic_cgu_register_clocks(cgu);
 	if (retval)
 		pr_err("%s: failed to register CGU Clocks\n", __func__);
+
+	ingenic_cgu_register_syscore_ops(cgu);
 }
 CLK_OF_DECLARE(jz4740_cgu, "ingenic,jz4740-cgu", jz4740_cgu_init);
 
