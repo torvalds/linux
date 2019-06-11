@@ -686,23 +686,6 @@ err:
 	return vma;
 }
 
-/**
- * intel_guc_reserved_gtt_size()
- * @guc:	intel_guc structure
- *
- * The GuC WOPCM mapping shadows the lower part of the GGTT, so if we are using
- * GuC we can't have any objects pinned in that region. This function returns
- * the size of the shadowed region.
- *
- * Returns:
- * 0 if GuC is not present or not in use.
- * Otherwise, the GuC WOPCM size.
- */
-u32 intel_guc_reserved_gtt_size(struct intel_guc *guc)
-{
-	return guc_to_i915(guc)->wopcm.guc.size;
-}
-
 int intel_guc_reserve_ggtt_top(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_i915(guc);

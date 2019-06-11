@@ -172,7 +172,6 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset);
 int intel_guc_suspend(struct intel_guc *guc);
 int intel_guc_resume(struct intel_guc *guc);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
-u32 intel_guc_reserved_gtt_size(struct intel_guc *guc);
 int intel_guc_reserve_ggtt_top(struct intel_guc *guc);
 void intel_guc_release_ggtt_top(struct intel_guc *guc);
 

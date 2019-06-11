@@ -2831,7 +2831,7 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	 * why.
 	 */
 	ggtt->pin_bias = max_t(u32, I915_GTT_PAGE_SIZE,
-			       intel_guc_reserved_gtt_size(&dev_priv->guc));
+			       intel_wopcm_guc_size(&dev_priv->wopcm));
 
 	ret = intel_vgt_balloon(dev_priv);
 	if (ret)
