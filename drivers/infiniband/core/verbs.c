@@ -2011,6 +2011,9 @@ struct ib_mr *ib_alloc_mr_user(struct ib_pd *pd, enum ib_mr_type mr_type,
 	if (!pd->device->ops.alloc_mr)
 		return ERR_PTR(-EOPNOTSUPP);
 
+	if (WARN_ON_ONCE(mr_type == IB_MR_TYPE_INTEGRITY))
+		return ERR_PTR(-EINVAL);
+
 	mr = pd->device->ops.alloc_mr(pd, mr_type, max_num_sg, udata);
 	if (!IS_ERR(mr)) {
 		mr->device  = pd->device;
@@ -2027,6 +2030,49 @@ struct ib_mr *ib_alloc_mr_user(struct ib_pd *pd, enum ib_mr_type mr_type,
 	return mr;
 }
 EXPORT_SYMBOL(ib_alloc_mr_user);
+
+/**
+ * ib_alloc_mr_integrity() - Allocates an integrity memory region
+ * @pd:                      protection domain associated with the region
+ * @max_num_data_sg:         maximum data sg entries available for registration
+ * @max_num_meta_sg:         maximum metadata sg entries available for
+ *                           registration
+ *
+ * Notes:
+ * Memory registration page/sg lists must not exceed max_num_sg,
+ * also the integrity page/sg lists must not exceed max_num_meta_sg.
+ *
+ */
+struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
+				    u32 max_num_data_sg,
+				    u32 max_num_meta_sg)
+{
+	struct ib_mr *mr;
+
+	if (!pd->device->ops.alloc_mr_integrity)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	if (!max_num_meta_sg)
+		return ERR_PTR(-EINVAL);
+
+	mr = pd->device->ops.alloc_mr_integrity(pd, max_num_data_sg,
+						max_num_meta_sg);
+	if (IS_ERR(mr))
+		return mr;
+
+	mr->device = pd->device;
+	mr->pd = pd;
+	mr->dm = NULL;
+	mr->uobject = NULL;
+	atomic_inc(&pd->usecnt);
+	mr->need_inval = false;
+	mr->res.type = RDMA_RESTRACK_MR;
+	rdma_restrack_kadd(&mr->res);
+	mr->type = IB_MR_TYPE_INTEGRITY;
+
+	return mr;
+}
+EXPORT_SYMBOL(ib_alloc_mr_integrity);
 
 /* "Fast" memory regions */
 

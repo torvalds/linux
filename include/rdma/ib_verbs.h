@@ -788,6 +788,8 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate);
  *                            application
  * @IB_MR_TYPE_DMA:           memory region that is used for DMA operations
  *                            without address translations (VA=PA)
+ * @IB_MR_TYPE_INTEGRITY:     memory region that is used for
+ *                            data integrity operations
  */
 enum ib_mr_type {
 	IB_MR_TYPE_MEM_REG,
@@ -796,6 +798,7 @@ enum ib_mr_type {
 	IB_MR_TYPE_DM,
 	IB_MR_TYPE_USER,
 	IB_MR_TYPE_DMA,
+	IB_MR_TYPE_INTEGRITY,
 };
 
 enum ib_mr_status_check {
@@ -2363,6 +2366,9 @@ struct ib_device_ops {
 	int (*dereg_mr)(struct ib_mr *mr, struct ib_udata *udata);
 	struct ib_mr *(*alloc_mr)(struct ib_pd *pd, enum ib_mr_type mr_type,
 				  u32 max_num_sg, struct ib_udata *udata);
+	struct ib_mr *(*alloc_mr_integrity)(struct ib_pd *pd,
+					    u32 max_num_data_sg,
+					    u32 max_num_meta_sg);
 	int (*advise_mr)(struct ib_pd *pd,
 			 enum ib_uverbs_advise_mr_advice advice, u32 flags,
 			 struct ib_sge *sg_list, u32 num_sge,
@@ -4041,6 +4047,10 @@ static inline struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 {
 	return ib_alloc_mr_user(pd, mr_type, max_num_sg, NULL);
 }
+
+struct ib_mr *ib_alloc_mr_integrity(struct ib_pd *pd,
+				    u32 max_num_data_sg,
+				    u32 max_num_meta_sg);
 
 /**
  * ib_update_fast_reg_key - updates the key portion of the fast_reg MR
