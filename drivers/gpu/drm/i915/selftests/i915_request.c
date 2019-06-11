@@ -754,8 +754,7 @@ out_unlock:
 static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 {
 	struct i915_gem_context *ctx = i915->kernel_context;
-	struct i915_address_space *vm =
-		ctx->ppgtt ? &ctx->ppgtt->vm : &i915->ggtt.vm;
+	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
 	struct drm_i915_gem_object *obj;
 	const int gen = INTEL_GEN(i915);
 	struct i915_vma *vma;

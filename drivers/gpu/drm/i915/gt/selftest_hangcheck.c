@@ -128,8 +128,7 @@ static struct i915_request *
 hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = h->i915;
-	struct i915_address_space *vm =
-		h->ctx->ppgtt ? &h->ctx->ppgtt->vm : &i915->ggtt.vm;
+	struct i915_address_space *vm = h->ctx->vm ?: &i915->ggtt.vm;
 	struct i915_request *rq = NULL;
 	struct i915_vma *hws, *vma;
 	unsigned int flags;
@@ -1354,8 +1353,8 @@ static int igt_reset_evict_ppgtt(void *arg)
 	}
 
 	err = 0;
-	if (ctx->ppgtt) /* aliasing == global gtt locking, covered above */
-		err = __igt_reset_evict_vma(i915, &ctx->ppgtt->vm,
+	if (ctx->vm) /* aliasing == global gtt locking, covered above */
+		err = __igt_reset_evict_vma(i915, ctx->vm,
 					    evict_vma, EXEC_OBJECT_WRITE);
 
 out:

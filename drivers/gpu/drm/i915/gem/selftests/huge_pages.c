@@ -1038,8 +1038,7 @@ static int __igt_write_huge(struct i915_gem_context *ctx,
 			    u32 dword, u32 val)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_address_space *vm =
-		ctx->ppgtt ? &ctx->ppgtt->vm : &i915->ggtt.vm;
+	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
 	unsigned int flags = PIN_USER | PIN_OFFSET_FIXED;
 	struct i915_vma *vma;
 	int err;
@@ -1092,8 +1091,7 @@ static int igt_write_huge(struct i915_gem_context *ctx,
 			  struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_address_space *vm =
-		ctx->ppgtt ? &ctx->ppgtt->vm : &i915->ggtt.vm;
+	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
 	static struct intel_engine_cs *engines[I915_NUM_ENGINES];
 	struct intel_engine_cs *engine;
 	I915_RND_STATE(prng);
@@ -1419,7 +1417,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	struct i915_gem_context *ctx = arg;
 	struct drm_i915_private *dev_priv = ctx->i915;
 	unsigned long supported = INTEL_INFO(dev_priv)->page_sizes;
-	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
+	struct i915_address_space *vm = ctx->vm;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	unsigned int flags = PIN_USER | PIN_OFFSET_FIXED;
@@ -1434,7 +1432,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	 * huge-gtt-pages.
 	 */
 
-	if (!ppgtt || !i915_vm_is_4lvl(&ppgtt->vm)) {
+	if (!vm || !i915_vm_is_4lvl(vm)) {
 		pr_info("48b PPGTT not supported, skipping\n");
 		return 0;
 	}
@@ -1449,7 +1447,7 @@ static int igt_ppgtt_pin_update(void *arg)
 		if (IS_ERR(obj))
 			return PTR_ERR(obj);
 
-		vma = i915_vma_instance(obj, &ppgtt->vm, NULL);
+		vma = i915_vma_instance(obj, vm, NULL);
 		if (IS_ERR(vma)) {
 			err = PTR_ERR(vma);
 			goto out_put;
@@ -1503,7 +1501,7 @@ static int igt_ppgtt_pin_update(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	vma = i915_vma_instance(obj, &ppgtt->vm, NULL);
+	vma = i915_vma_instance(obj, vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto out_put;
@@ -1541,8 +1539,7 @@ static int igt_tmpfs_fallback(void *arg)
 	struct i915_gem_context *ctx = arg;
 	struct drm_i915_private *i915 = ctx->i915;
 	struct vfsmount *gemfs = i915->mm.gemfs;
-	struct i915_address_space *vm =
-		ctx->ppgtt ? &ctx->ppgtt->vm : &i915->ggtt.vm;
+	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	u32 *vaddr;
@@ -1599,8 +1596,7 @@ static int igt_shrink_thp(void *arg)
 {
 	struct i915_gem_context *ctx = arg;
 	struct drm_i915_private *i915 = ctx->i915;
-	struct i915_address_space *vm =
-		ctx->ppgtt ? &ctx->ppgtt->vm : &i915->ggtt.vm;
+	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	unsigned int flags = PIN_USER;
@@ -1721,7 +1717,7 @@ int i915_gem_huge_page_mock_selftests(void)
 	err = i915_subtests(tests, ppgtt);
 
 out_close:
-	i915_ppgtt_put(ppgtt);
+	i915_vm_put(&ppgtt->vm);
 
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
@@ -1766,8 +1762,8 @@ int i915_gem_huge_page_live_selftests(struct drm_i915_private *dev_priv)
 		goto out_unlock;
 	}
 
-	if (ctx->ppgtt)
-		ctx->ppgtt->vm.scrub_64K = true;
+	if (ctx->vm)
+		ctx->vm->scrub_64K = true;
 
 	err = i915_subtests(tests, ctx);
 

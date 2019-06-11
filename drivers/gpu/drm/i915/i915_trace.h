@@ -977,7 +977,7 @@ DECLARE_EVENT_CLASS(i915_context,
 			__entry->dev = ctx->i915->drm.primary->index;
 			__entry->ctx = ctx;
 			__entry->hw_id = ctx->hw_id;
-			__entry->vm = ctx->ppgtt ? &ctx->ppgtt->vm : NULL;
+			__entry->vm = ctx->vm;
 	),
 
 	TP_printk("dev=%u, ctx=%p, ctx_vm=%p, hw_id=%u",

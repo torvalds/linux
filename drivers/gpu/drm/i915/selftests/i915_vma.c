@@ -38,7 +38,7 @@ static bool assert_vma(struct i915_vma *vma,
 {
 	bool ok = true;
 
-	if (vma->vm != &ctx->ppgtt->vm) {
+	if (vma->vm != ctx->vm) {
 		pr_err("VMA created with wrong VM\n");
 		ok = false;
 	}
@@ -113,7 +113,7 @@ static int create_vmas(struct drm_i915_private *i915,
 	list_for_each_entry(obj, objects, st_link) {
 		for (pinned = 0; pinned <= 1; pinned++) {
 			list_for_each_entry(ctx, contexts, link) {
-				struct i915_address_space *vm = &ctx->ppgtt->vm;
+				struct i915_address_space *vm = ctx->vm;
 				struct i915_vma *vma;
 				int err;
 

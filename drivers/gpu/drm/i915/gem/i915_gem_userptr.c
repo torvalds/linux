@@ -768,14 +768,14 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 		return -EFAULT;
 
 	if (args->flags & I915_USERPTR_READ_ONLY) {
-		struct i915_hw_ppgtt *ppgtt;
+		struct i915_address_space *vm;
 
 		/*
 		 * On almost all of the older hw, we cannot tell the GPU that
 		 * a page is readonly.
 		 */
-		ppgtt = dev_priv->kernel_context->ppgtt;
-		if (!ppgtt || !ppgtt->vm.has_read_only)
+		vm = dev_priv->kernel_context->vm;
+		if (!vm || !vm->has_read_only)
 			return -ENODEV;
 	}
 

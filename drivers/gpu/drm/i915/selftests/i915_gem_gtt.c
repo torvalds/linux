@@ -209,7 +209,7 @@ static int igt_ppgtt_alloc(void *arg)
 
 err_ppgtt_cleanup:
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	i915_ppgtt_put(ppgtt);
+	i915_vm_put(&ppgtt->vm);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return err;
 }
@@ -1021,7 +1021,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 
 	err = func(dev_priv, &ppgtt->vm, 0, ppgtt->vm.total, end_time);
 
-	i915_ppgtt_put(ppgtt);
+	i915_vm_put(&ppgtt->vm);
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
@@ -1251,7 +1251,6 @@ static int exercise_mock(struct drm_i915_private *i915,
 {
 	const u64 limit = totalram_pages() << PAGE_SHIFT;
 	struct i915_gem_context *ctx;
-	struct i915_hw_ppgtt *ppgtt;
 	IGT_TIMEOUT(end_time);
 	int err;
 
@@ -1259,10 +1258,7 @@ static int exercise_mock(struct drm_i915_private *i915,
 	if (!ctx)
 		return -ENOMEM;
 
-	ppgtt = ctx->ppgtt;
-	GEM_BUG_ON(!ppgtt);
-
-	err = func(i915, &ppgtt->vm, 0, min(ppgtt->vm.total, limit), end_time);
+	err = func(i915, ctx->vm, 0, min(ctx->vm->total, limit), end_time);
 
 	mock_context_close(ctx);
 	return err;

@@ -89,17 +89,16 @@ igt_spinner_create_request(struct igt_spinner *spin,
 			   struct intel_engine_cs *engine,
 			   u32 arbitration_command)
 {
-	struct i915_address_space *vm = &ctx->ppgtt->vm;
 	struct i915_request *rq = NULL;
 	struct i915_vma *hws, *vma;
 	u32 *batch;
 	int err;
 
-	vma = i915_vma_instance(spin->obj, vm, NULL);
+	vma = i915_vma_instance(spin->obj, ctx->vm, NULL);
 	if (IS_ERR(vma))
 		return ERR_CAST(vma);
 
-	hws = i915_vma_instance(spin->hws, vm, NULL);
+	hws = i915_vma_instance(spin->hws, ctx->vm, NULL);
 	if (IS_ERR(hws))
 		return ERR_CAST(hws);
 

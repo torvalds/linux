@@ -248,8 +248,7 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 		    unsigned int dw)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_address_space *vm =
-		ctx->ppgtt ? &ctx->ppgtt->vm : &i915->ggtt.vm;
+	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
 	struct i915_request *rq;
 	struct i915_vma *vma;
 	struct i915_vma *batch;
@@ -438,8 +437,7 @@ create_test_object(struct i915_gem_context *ctx,
 		   struct list_head *objects)
 {
 	struct drm_i915_gem_object *obj;
-	struct i915_address_space *vm =
-		ctx->ppgtt ? &ctx->ppgtt->vm : &ctx->i915->ggtt.vm;
+	struct i915_address_space *vm = ctx->vm ?: &ctx->i915->ggtt.vm;
 	u64 size;
 	int err;
 
@@ -541,7 +539,7 @@ static int igt_ctx_exec(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       engine->name, ctx->hw_id,
-				       yesno(!!ctx->ppgtt), err);
+				       yesno(!!ctx->vm), err);
 				goto out_unlock;
 			}
 
@@ -612,7 +610,7 @@ static int igt_shared_ctx_exec(void *arg)
 		goto out_unlock;
 	}
 
-	if (!parent->ppgtt) { /* not full-ppgtt; nothing to share */
+	if (!parent->vm) { /* not full-ppgtt; nothing to share */
 		err = 0;
 		goto out_unlock;
 	}
@@ -643,7 +641,7 @@ static int igt_shared_ctx_exec(void *arg)
 				goto out_test;
 			}
 
-			__assign_ppgtt(ctx, parent->ppgtt);
+			__assign_ppgtt(ctx, parent->vm);
 
 			if (!obj) {
 				obj = create_test_object(parent, file, &objects);
@@ -661,7 +659,7 @@ static int igt_shared_ctx_exec(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       engine->name, ctx->hw_id,
-				       yesno(!!ctx->ppgtt), err);
+				       yesno(!!ctx->vm), err);
 				kernel_context_close(ctx);
 				goto out_test;
 			}
@@ -758,7 +756,7 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 
 	GEM_BUG_ON(!intel_engine_can_store_dword(ce->engine));
 
-	vma = i915_vma_instance(obj, &ce->gem_context->ppgtt->vm, NULL);
+	vma = i915_vma_instance(obj, ce->gem_context->vm, NULL);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
@@ -1176,8 +1174,8 @@ static int igt_ctx_readonly(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct drm_i915_gem_object *obj = NULL;
+	struct i915_address_space *vm;
 	struct i915_gem_context *ctx;
-	struct i915_hw_ppgtt *ppgtt;
 	unsigned long idx, ndwords, dw;
 	struct igt_live_test t;
 	struct drm_file *file;
@@ -1208,8 +1206,8 @@ static int igt_ctx_readonly(void *arg)
 		goto out_unlock;
 	}
 
-	ppgtt = ctx->ppgtt ?: i915->mm.aliasing_ppgtt;
-	if (!ppgtt || !ppgtt->vm.has_read_only) {
+	vm = ctx->vm ?: &i915->mm.aliasing_ppgtt->vm;
+	if (!vm || !vm->has_read_only) {
 		err = 0;
 		goto out_unlock;
 	}
@@ -1244,7 +1242,7 @@ static int igt_ctx_readonly(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       engine->name, ctx->hw_id,
-				       yesno(!!ctx->ppgtt), err);
+				       yesno(!!ctx->vm), err);
 				goto out_unlock;
 			}
 
@@ -1288,7 +1286,7 @@ out_unlock:
 static int check_scratch(struct i915_gem_context *ctx, u64 offset)
 {
 	struct drm_mm_node *node =
-		__drm_mm_interval_first(&ctx->ppgtt->vm.mm,
+		__drm_mm_interval_first(&ctx->vm->mm,
 					offset, offset + sizeof(u32) - 1);
 	if (!node || node->start > offset)
 		return 0;
@@ -1336,7 +1334,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
-	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
+	vma = i915_vma_instance(obj, ctx->vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err;
@@ -1433,7 +1431,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 
-	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
+	vma = i915_vma_instance(obj, ctx->vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err;
@@ -1542,11 +1540,11 @@ static int igt_vm_isolation(void *arg)
 	}
 
 	/* We can only test vm isolation, if the vm are distinct */
-	if (ctx_a->ppgtt == ctx_b->ppgtt)
+	if (ctx_a->vm == ctx_b->vm)
 		goto out_unlock;
 
-	vm_total = ctx_a->ppgtt->vm.total;
-	GEM_BUG_ON(ctx_b->ppgtt->vm.total != vm_total);
+	vm_total = ctx_a->vm->total;
+	GEM_BUG_ON(ctx_b->vm->total != vm_total);
 	vm_total -= I915_GTT_PAGE_SIZE;
 
 	wakeref = intel_runtime_pm_get(i915);

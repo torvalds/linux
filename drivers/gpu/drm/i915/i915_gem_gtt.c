@@ -483,6 +483,8 @@ static void vm_free_page(struct i915_address_space *vm, struct page *page)
 
 static void i915_address_space_init(struct i915_address_space *vm, int subclass)
 {
+	kref_init(&vm->ref);
+
 	/*
 	 * The vm->mutex must be reclaim safe (for use in the shrinker).
 	 * Do a dummy acquire now under fs_reclaim so that any allocation
@@ -1230,9 +1232,8 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	 */
 	if (vm->has_read_only &&
 	    vm->i915->kernel_context &&
-	    vm->i915->kernel_context->ppgtt) {
-		struct i915_address_space *clone =
-			&vm->i915->kernel_context->ppgtt->vm;
+	    vm->i915->kernel_context->vm) {
+		struct i915_address_space *clone = vm->i915->kernel_context->vm;
 
 		GEM_BUG_ON(!clone->has_read_only);
 
@@ -1591,8 +1592,6 @@ unwind:
 static void ppgtt_init(struct drm_i915_private *i915,
 		       struct i915_hw_ppgtt *ppgtt)
 {
-	kref_init(&ppgtt->ref);
-
 	ppgtt->vm.i915 = i915;
 	ppgtt->vm.dma = &i915->drm.pdev->dev;
 	ppgtt->vm.total = BIT_ULL(INTEL_INFO(i915)->ppgtt_size);
@@ -2272,21 +2271,23 @@ static void ppgtt_destroy_vma(struct i915_address_space *vm)
 	}
 }
 
-void i915_ppgtt_release(struct kref *kref)
+void i915_vm_release(struct kref *kref)
 {
-	struct i915_hw_ppgtt *ppgtt =
-		container_of(kref, struct i915_hw_ppgtt, ref);
+	struct i915_address_space *vm =
+		container_of(kref, struct i915_address_space, ref);
 
-	trace_i915_ppgtt_release(&ppgtt->vm);
+	GEM_BUG_ON(i915_is_ggtt(vm));
+	trace_i915_ppgtt_release(vm);
 
-	ppgtt_destroy_vma(&ppgtt->vm);
+	ppgtt_destroy_vma(vm);
 
-	GEM_BUG_ON(!list_empty(&ppgtt->vm.bound_list));
-	GEM_BUG_ON(!list_empty(&ppgtt->vm.unbound_list));
+	GEM_BUG_ON(!list_empty(&vm->bound_list));
+	GEM_BUG_ON(!list_empty(&vm->unbound_list));
 
-	ppgtt->vm.cleanup(&ppgtt->vm);
-	i915_address_space_fini(&ppgtt->vm);
-	kfree(ppgtt);
+	vm->cleanup(vm);
+	i915_address_space_fini(vm);
+
+	kfree(vm);
 }
 
 /* Certain Gen5 chipsets require require idling the GPU before
@@ -2788,7 +2789,7 @@ static int init_aliasing_ppgtt(struct drm_i915_private *i915)
 	return 0;
 
 err_ppgtt:
-	i915_ppgtt_put(ppgtt);
+	i915_vm_put(&ppgtt->vm);
 	return err;
 }
 
@@ -2801,7 +2802,7 @@ static void fini_aliasing_ppgtt(struct drm_i915_private *i915)
 	if (!ppgtt)
 		return;
 
-	i915_ppgtt_put(ppgtt);
+	i915_vm_put(&ppgtt->vm);
 
 	ggtt->vm.vma_ops.bind_vma   = ggtt_bind_vma;
 	ggtt->vm.vma_ops.unbind_vma = ggtt_unbind_vma;

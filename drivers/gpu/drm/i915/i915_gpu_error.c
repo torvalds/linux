@@ -1431,7 +1431,7 @@ static void gem_record_rings(struct i915_gpu_state *error)
 			struct i915_gem_context *ctx = request->gem_context;
 			struct intel_ring *ring;
 
-			ee->vm = ctx->ppgtt ? &ctx->ppgtt->vm : &ggtt->vm;
+			ee->vm = ctx->vm ?: &ggtt->vm;
 
 			record_context(&ee->context, ctx);
 

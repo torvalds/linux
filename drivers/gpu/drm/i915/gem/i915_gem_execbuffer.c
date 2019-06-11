@@ -723,8 +723,8 @@ static int eb_select_context(struct i915_execbuffer *eb)
 		return -ENOENT;
 
 	eb->gem_context = ctx;
-	if (ctx->ppgtt) {
-		eb->vm = &ctx->ppgtt->vm;
+	if (ctx->vm) {
+		eb->vm = ctx->vm;
 		eb->invalid_flags |= EXEC_OBJECT_NEEDS_GTT;
 	} else {
 		eb->vm = &eb->i915->ggtt.vm;

@@ -1330,23 +1330,23 @@ static void ring_context_destroy(struct kref *ref)
 
 static int __context_pin_ppgtt(struct i915_gem_context *ctx)
 {
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_address_space *vm;
 	int err = 0;
 
-	ppgtt = ctx->ppgtt ?: ctx->i915->mm.aliasing_ppgtt;
-	if (ppgtt)
-		err = gen6_ppgtt_pin(ppgtt);
+	vm = ctx->vm ?: &ctx->i915->mm.aliasing_ppgtt->vm;
+	if (vm)
+		err = gen6_ppgtt_pin(i915_vm_to_ppgtt((vm)));
 
 	return err;
 }
 
 static void __context_unpin_ppgtt(struct i915_gem_context *ctx)
 {
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_address_space *vm;
 
-	ppgtt = ctx->ppgtt ?: ctx->i915->mm.aliasing_ppgtt;
-	if (ppgtt)
-		gen6_ppgtt_unpin(ppgtt);
+	vm = ctx->vm ?: &ctx->i915->mm.aliasing_ppgtt->vm;
+	if (vm)
+		gen6_ppgtt_unpin(i915_vm_to_ppgtt(vm));
 }
 
 static int __context_pin(struct intel_context *ce)
@@ -1704,14 +1704,16 @@ static int switch_context(struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
 	struct i915_gem_context *ctx = rq->gem_context;
-	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt ?: rq->i915->mm.aliasing_ppgtt;
+	struct i915_address_space *vm =
+		ctx->vm ?: &rq->i915->mm.aliasing_ppgtt->vm;
 	unsigned int unwind_mm = 0;
 	u32 hw_flags = 0;
 	int ret, i;
 
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
-	if (ppgtt) {
+	if (vm) {
+		struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 		int loops;
 
 		/*
@@ -1758,7 +1760,7 @@ static int switch_context(struct i915_request *rq)
 			goto err_mm;
 	}
 
-	if (ppgtt) {
+	if (vm) {
 		ret = engine->emit_flush(rq, EMIT_INVALIDATE);
 		if (ret)
 			goto err_mm;
@@ -1801,7 +1803,7 @@ static int switch_context(struct i915_request *rq)
 
 err_mm:
 	if (unwind_mm)
-		ppgtt->pd_dirty_engines |= unwind_mm;
+		i915_vm_to_ppgtt(vm)->pd_dirty_engines |= unwind_mm;
 err:
 	return ret;
 }

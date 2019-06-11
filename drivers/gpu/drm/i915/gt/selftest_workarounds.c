@@ -358,7 +358,7 @@ static struct i915_vma *create_batch(struct i915_gem_context *ctx)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	vma = i915_vma_instance(obj, &ctx->ppgtt->vm, NULL);
+	vma = i915_vma_instance(obj, ctx->vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);
 		goto err_obj;
@@ -442,7 +442,7 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 	int err = 0, i, v;
 	u32 *cs, *results;
 
-	scratch = create_scratch(&ctx->ppgtt->vm, 2 * ARRAY_SIZE(values) + 1);
+	scratch = create_scratch(ctx->vm, 2 * ARRAY_SIZE(values) + 1);
 	if (IS_ERR(scratch))
 		return PTR_ERR(scratch);
 
@@ -925,7 +925,7 @@ static int live_isolated_whitelist(void *arg)
 	if (!intel_engines_has_context_isolation(i915))
 		return 0;
 
-	if (!i915->kernel_context->ppgtt)
+	if (!i915->kernel_context->vm)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(client); i++) {
@@ -937,14 +937,14 @@ static int live_isolated_whitelist(void *arg)
 			goto err;
 		}
 
-		client[i].scratch[0] = create_scratch(&c->ppgtt->vm, 1024);
+		client[i].scratch[0] = create_scratch(c->vm, 1024);
 		if (IS_ERR(client[i].scratch[0])) {
 			err = PTR_ERR(client[i].scratch[0]);
 			kernel_context_close(c);
 			goto err;
 		}
 
-		client[i].scratch[1] = create_scratch(&c->ppgtt->vm, 1024);
+		client[i].scratch[1] = create_scratch(c->vm, 1024);
 		if (IS_ERR(client[i].scratch[1])) {
 			err = PTR_ERR(client[i].scratch[1]);
 			i915_vma_unpin_and_release(&client[i].scratch[0], 0);

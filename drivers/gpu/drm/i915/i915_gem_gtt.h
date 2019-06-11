@@ -293,6 +293,8 @@ struct pagestash {
 };
 
 struct i915_address_space {
+	struct kref ref;
+
 	struct drm_mm mm;
 	struct drm_i915_private *i915;
 	struct device *dma;
@@ -412,7 +414,6 @@ struct i915_ggtt {
 
 struct i915_hw_ppgtt {
 	struct i915_address_space vm;
-	struct kref ref;
 
 	intel_engine_mask_t pd_dirty_engines;
 	union {
@@ -582,8 +583,17 @@ i915_page_dir_dma_addr(const struct i915_hw_ppgtt *ppgtt, const unsigned n)
 static inline struct i915_ggtt *
 i915_vm_to_ggtt(struct i915_address_space *vm)
 {
+	BUILD_BUG_ON(offsetof(struct i915_ggtt, vm));
 	GEM_BUG_ON(!i915_is_ggtt(vm));
 	return container_of(vm, struct i915_ggtt, vm);
+}
+
+static inline struct i915_hw_ppgtt *
+i915_vm_to_ppgtt(struct i915_address_space *vm)
+{
+	BUILD_BUG_ON(offsetof(struct i915_hw_ppgtt, vm));
+	GEM_BUG_ON(i915_is_ggtt(vm));
+	return container_of(vm, struct i915_hw_ppgtt, vm);
 }
 
 #define INTEL_MAX_PPAT_ENTRIES 8
@@ -628,18 +638,19 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv);
 int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv);
 
 struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv);
-void i915_ppgtt_release(struct kref *kref);
 
-static inline struct i915_hw_ppgtt *i915_ppgtt_get(struct i915_hw_ppgtt *ppgtt)
+static inline struct i915_address_space *
+i915_vm_get(struct i915_address_space *vm)
 {
-	kref_get(&ppgtt->ref);
-	return ppgtt;
+	kref_get(&vm->ref);
+	return vm;
 }
 
-static inline void i915_ppgtt_put(struct i915_hw_ppgtt *ppgtt)
+void i915_vm_release(struct kref *kref);
+
+static inline void i915_vm_put(struct i915_address_space *vm)
 {
-	if (ppgtt)
-		kref_put(&ppgtt->ref, i915_ppgtt_release);
+	kref_put(&vm->ref, i915_vm_release);
 }
 
 int gen6_ppgtt_pin(struct i915_hw_ppgtt *base);

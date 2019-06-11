@@ -48,7 +48,8 @@ mock_context(struct drm_i915_private *i915,
 		if (!ppgtt)
 			goto err_put;
 
-		__set_ppgtt(ctx, ppgtt);
+		__set_ppgtt(ctx, &ppgtt->vm);
+		i915_vm_put(&ppgtt->vm);
 	}
 
 	return ctx;

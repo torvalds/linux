@@ -25,7 +25,7 @@ struct pid;
 
 struct drm_i915_private;
 struct drm_i915_file_private;
-struct i915_hw_ppgtt;
+struct i915_address_space;
 struct i915_timeline;
 struct intel_ring;
 
@@ -80,7 +80,7 @@ struct i915_gem_context {
 	struct i915_timeline *timeline;
 
 	/**
-	 * @ppgtt: unique address space (GTT)
+	 * @vm: unique address space (GTT)
 	 *
 	 * In full-ppgtt mode, each context has its own address space ensuring
 	 * complete seperation of one client from all others.
@@ -88,7 +88,7 @@ struct i915_gem_context {
 	 * In other modes, this is a NULL pointer with the expectation that
 	 * the caller uses the shared global GTT.
 	 */
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_address_space *vm;
 
 	/**
 	 * @pid: process id of creator

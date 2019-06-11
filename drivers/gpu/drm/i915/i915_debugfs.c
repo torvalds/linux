@@ -427,7 +427,7 @@ static void print_context_stats(struct seq_file *m,
 		i915_gem_context_unlock_engines(ctx);
 
 		if (!IS_ERR_OR_NULL(ctx->file_priv)) {
-			struct file_stats stats = { .vm = &ctx->ppgtt->vm, };
+			struct file_stats stats = { .vm = ctx->vm, };
 			struct drm_file *file = ctx->file_priv->file;
 			struct task_struct *task;
 			char name[80];

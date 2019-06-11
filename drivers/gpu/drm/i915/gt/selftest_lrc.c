@@ -1090,7 +1090,7 @@ static int smoke_submit(struct preempt_smoke *smoke,
 	int err = 0;
 
 	if (batch) {
-		vma = i915_vma_instance(batch, &ctx->ppgtt->vm, NULL);
+		vma = i915_vma_instance(batch, ctx->vm, NULL);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
 

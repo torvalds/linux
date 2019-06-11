@@ -368,7 +368,7 @@ static int set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 					 struct i915_gem_context *ctx)
 {
 	struct intel_vgpu_mm *mm = workload->shadow_mm;
-	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
+	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(ctx->vm);
 	int i = 0;
 
 	if (mm->type != INTEL_GVT_MM_PPGTT || !mm->ppgtt_mm.shadowed)
@@ -1130,7 +1130,7 @@ void intel_vgpu_clean_submission(struct intel_vgpu *vgpu)
 
 	intel_vgpu_select_submission_ops(vgpu, ALL_ENGINES, 0);
 
-	i915_context_ppgtt_root_restore(s, s->shadow[0]->gem_context->ppgtt);
+	i915_context_ppgtt_root_restore(s, i915_vm_to_ppgtt(s->shadow[0]->gem_context->vm));
 	for_each_engine(engine, vgpu->gvt->dev_priv, id)
 		intel_context_unpin(s->shadow[id]);
 
@@ -1195,7 +1195,7 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	i915_context_ppgtt_root_save(s, ctx->ppgtt);
+	i915_context_ppgtt_root_save(s, i915_vm_to_ppgtt(ctx->vm));
 
 	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
 		struct intel_context *ce;
@@ -1238,7 +1238,7 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	return 0;
 
 out_shadow_ctx:
-	i915_context_ppgtt_root_restore(s, ctx->ppgtt);
+	i915_context_ppgtt_root_restore(s, i915_vm_to_ppgtt(ctx->vm));
 	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
 		if (IS_ERR(s->shadow[i]))
 			break;

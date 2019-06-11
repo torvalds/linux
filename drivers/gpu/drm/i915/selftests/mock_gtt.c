@@ -65,7 +65,6 @@ mock_ppgtt(struct drm_i915_private *i915,
 	if (!ppgtt)
 		return NULL;
 
-	kref_init(&ppgtt->ref);
 	ppgtt->vm.i915 = i915;
 	ppgtt->vm.total = round_down(U64_MAX, PAGE_SIZE);
 	ppgtt->vm.file = ERR_PTR(-ENODEV);

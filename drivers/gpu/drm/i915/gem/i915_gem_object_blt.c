@@ -49,14 +49,12 @@ int i915_gem_object_fill_blt(struct drm_i915_gem_object *obj,
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct i915_gem_context *ctx = ce->gem_context;
-	struct i915_address_space *vm;
+	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
 	struct i915_request *rq;
 	struct i915_vma *vma;
 	int err;
 
 	/* XXX: ce->vm please */
-	vm = ctx->ppgtt ? &ctx->ppgtt->vm : &i915->ggtt.vm;
-
 	vma = i915_vma_instance(obj, vm, NULL);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);

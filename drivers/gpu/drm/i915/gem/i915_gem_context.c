@@ -309,7 +309,8 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	GEM_BUG_ON(!i915_gem_context_is_closed(ctx));
 
 	release_hw_id(ctx);
-	i915_ppgtt_put(ctx->ppgtt);
+	if (ctx->vm)
+		i915_vm_put(ctx->vm);
 
 	free_engines(rcu_access_pointer(ctx->engines));
 	mutex_destroy(&ctx->engines_mutex);
@@ -397,7 +398,7 @@ static void context_close(struct i915_gem_context *ctx)
 }
 
 static u32 default_desc_template(const struct drm_i915_private *i915,
-				 const struct i915_hw_ppgtt *ppgtt)
+				 const struct i915_address_space *vm)
 {
 	u32 address_mode;
 	u32 desc;
@@ -405,7 +406,7 @@ static u32 default_desc_template(const struct drm_i915_private *i915,
 	desc = GEN8_CTX_VALID | GEN8_CTX_PRIVILEGE;
 
 	address_mode = INTEL_LEGACY_32B_CONTEXT;
-	if (ppgtt && i915_vm_is_4lvl(&ppgtt->vm))
+	if (vm && i915_vm_is_4lvl(vm))
 		address_mode = INTEL_LEGACY_64B_CONTEXT;
 	desc |= address_mode << GEN8_CTX_ADDRESSING_MODE_SHIFT;
 
@@ -421,7 +422,7 @@ static u32 default_desc_template(const struct drm_i915_private *i915,
 }
 
 static struct i915_gem_context *
-__create_context(struct drm_i915_private *dev_priv)
+__create_context(struct drm_i915_private *i915)
 {
 	struct i915_gem_context *ctx;
 	struct i915_gem_engines *e;
@@ -433,8 +434,8 @@ __create_context(struct drm_i915_private *dev_priv)
 		return ERR_PTR(-ENOMEM);
 
 	kref_init(&ctx->ref);
-	list_add_tail(&ctx->link, &dev_priv->contexts.list);
-	ctx->i915 = dev_priv;
+	list_add_tail(&ctx->link, &i915->contexts.list);
+	ctx->i915 = i915;
 	ctx->sched.priority = I915_USER_PRIORITY(I915_PRIORITY_NORMAL);
 	mutex_init(&ctx->mutex);
 
@@ -452,14 +453,14 @@ __create_context(struct drm_i915_private *dev_priv)
 	/* NB: Mark all slices as needing a remap so that when the context first
 	 * loads it will restore whatever remap state already exists. If there
 	 * is no remap info, it will be a NOP. */
-	ctx->remap_slice = ALL_L3_SLICES(dev_priv);
+	ctx->remap_slice = ALL_L3_SLICES(i915);
 
 	i915_gem_context_set_bannable(ctx);
 	i915_gem_context_set_recoverable(ctx);
 
 	ctx->ring_size = 4 * PAGE_SIZE;
 	ctx->desc_template =
-		default_desc_template(dev_priv, dev_priv->mm.aliasing_ppgtt);
+		default_desc_template(i915, &i915->mm.aliasing_ppgtt->vm);
 
 	for (i = 0; i < ARRAY_SIZE(ctx->hang_timestamp); i++)
 		ctx->hang_timestamp[i] = jiffies - CONTEXT_FAST_HANG_JIFFIES;
@@ -471,26 +472,26 @@ err_free:
 	return ERR_PTR(err);
 }
 
-static struct i915_hw_ppgtt *
-__set_ppgtt(struct i915_gem_context *ctx, struct i915_hw_ppgtt *ppgtt)
+static struct i915_address_space *
+__set_ppgtt(struct i915_gem_context *ctx, struct i915_address_space *vm)
 {
-	struct i915_hw_ppgtt *old = ctx->ppgtt;
+	struct i915_address_space *old = ctx->vm;
 
-	ctx->ppgtt = i915_ppgtt_get(ppgtt);
-	ctx->desc_template = default_desc_template(ctx->i915, ppgtt);
+	ctx->vm = i915_vm_get(vm);
+	ctx->desc_template = default_desc_template(ctx->i915, vm);
 
 	return old;
 }
 
 static void __assign_ppgtt(struct i915_gem_context *ctx,
-			   struct i915_hw_ppgtt *ppgtt)
+			   struct i915_address_space *vm)
 {
-	if (ppgtt == ctx->ppgtt)
+	if (vm == ctx->vm)
 		return;
 
-	ppgtt = __set_ppgtt(ctx, ppgtt);
-	if (ppgtt)
-		i915_ppgtt_put(ppgtt);
+	vm = __set_ppgtt(ctx, vm);
+	if (vm)
+		i915_vm_put(vm);
 }
 
 static struct i915_gem_context *
@@ -522,8 +523,8 @@ i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 			return ERR_CAST(ppgtt);
 		}
 
-		__assign_ppgtt(ctx, ppgtt);
-		i915_ppgtt_put(ppgtt);
+		__assign_ppgtt(ctx, &ppgtt->vm);
+		i915_vm_put(&ppgtt->vm);
 	}
 
 	if (flags & I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE) {
@@ -723,7 +724,7 @@ static int context_idr_cleanup(int id, void *p, void *data)
 
 static int vm_idr_cleanup(int id, void *p, void *data)
 {
-	i915_ppgtt_put(p);
+	i915_vm_put(p);
 	return 0;
 }
 
@@ -733,8 +734,8 @@ static int gem_context_register(struct i915_gem_context *ctx,
 	int ret;
 
 	ctx->file_priv = fpriv;
-	if (ctx->ppgtt)
-		ctx->ppgtt->vm.file = fpriv;
+	if (ctx->vm)
+		ctx->vm->file = fpriv;
 
 	ctx->pid = get_task_pid(current, PIDTYPE_PID);
 	ctx->name = kasprintf(GFP_KERNEL, "%s[%d]",
@@ -844,7 +845,7 @@ int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		goto err_put;
 
-	err = idr_alloc(&file_priv->vm_idr, ppgtt, 0, 0, GFP_KERNEL);
+	err = idr_alloc(&file_priv->vm_idr, &ppgtt->vm, 0, 0, GFP_KERNEL);
 	if (err < 0)
 		goto err_unlock;
 
@@ -858,7 +859,7 @@ int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
 err_unlock:
 	mutex_unlock(&file_priv->vm_idr_lock);
 err_put:
-	i915_ppgtt_put(ppgtt);
+	i915_vm_put(&ppgtt->vm);
 	return err;
 }
 
@@ -867,7 +868,7 @@ int i915_gem_vm_destroy_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	struct drm_i915_gem_vm_control *args = data;
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_address_space *vm;
 	int err;
 	u32 id;
 
@@ -885,13 +886,13 @@ int i915_gem_vm_destroy_ioctl(struct drm_device *dev, void *data,
 	if (err)
 		return err;
 
-	ppgtt = idr_remove(&file_priv->vm_idr, id);
+	vm = idr_remove(&file_priv->vm_idr, id);
 
 	mutex_unlock(&file_priv->vm_idr_lock);
-	if (!ppgtt)
+	if (!vm)
 		return -ENOENT;
 
-	i915_ppgtt_put(ppgtt);
+	i915_vm_put(vm);
 	return 0;
 }
 
@@ -981,10 +982,10 @@ static int get_ppgtt(struct drm_i915_file_private *file_priv,
 		     struct i915_gem_context *ctx,
 		     struct drm_i915_gem_context_param *args)
 {
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_address_space *vm;
 	int ret;
 
-	if (!ctx->ppgtt)
+	if (!ctx->vm)
 		return -ENODEV;
 
 	/* XXX rcu acquire? */
@@ -992,19 +993,19 @@ static int get_ppgtt(struct drm_i915_file_private *file_priv,
 	if (ret)
 		return ret;
 
-	ppgtt = i915_ppgtt_get(ctx->ppgtt);
+	vm = i915_vm_get(ctx->vm);
 	mutex_unlock(&ctx->i915->drm.struct_mutex);
 
 	ret = mutex_lock_interruptible(&file_priv->vm_idr_lock);
 	if (ret)
 		goto err_put;
 
-	ret = idr_alloc(&file_priv->vm_idr, ppgtt, 0, 0, GFP_KERNEL);
+	ret = idr_alloc(&file_priv->vm_idr, vm, 0, 0, GFP_KERNEL);
 	GEM_BUG_ON(!ret);
 	if (ret < 0)
 		goto err_unlock;
 
-	i915_ppgtt_get(ppgtt);
+	i915_vm_get(vm);
 
 	args->size = 0;
 	args->value = ret;
@@ -1013,29 +1014,30 @@ static int get_ppgtt(struct drm_i915_file_private *file_priv,
 err_unlock:
 	mutex_unlock(&file_priv->vm_idr_lock);
 err_put:
-	i915_ppgtt_put(ppgtt);
+	i915_vm_put(vm);
 	return ret;
 }
 
 static void set_ppgtt_barrier(void *data)
 {
-	struct i915_hw_ppgtt *old = data;
+	struct i915_address_space *old = data;
 
-	if (INTEL_GEN(old->vm.i915) < 8)
-		gen6_ppgtt_unpin_all(old);
+	if (INTEL_GEN(old->i915) < 8)
+		gen6_ppgtt_unpin_all(i915_vm_to_ppgtt(old));
 
-	i915_ppgtt_put(old);
+	i915_vm_put(old);
 }
 
 static int emit_ppgtt_update(struct i915_request *rq, void *data)
 {
-	struct i915_hw_ppgtt *ppgtt = rq->gem_context->ppgtt;
+	struct i915_address_space *vm = rq->gem_context->vm;
 	struct intel_engine_cs *engine = rq->engine;
 	u32 base = engine->mmio_base;
 	u32 *cs;
 	int i;
 
-	if (i915_vm_is_4lvl(&ppgtt->vm)) {
+	if (i915_vm_is_4lvl(vm)) {
+		struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 		const dma_addr_t pd_daddr = px_dma(&ppgtt->pml4);
 
 		cs = intel_ring_begin(rq, 6);
@@ -1052,6 +1054,8 @@ static int emit_ppgtt_update(struct i915_request *rq, void *data)
 		*cs++ = MI_NOOP;
 		intel_ring_advance(rq, cs);
 	} else if (HAS_LOGICAL_RING_CONTEXTS(engine->i915)) {
+		struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+
 		cs = intel_ring_begin(rq, 4 * GEN8_3LVL_PDPES + 2);
 		if (IS_ERR(cs))
 			return PTR_ERR(cs);
@@ -1069,7 +1073,7 @@ static int emit_ppgtt_update(struct i915_request *rq, void *data)
 		intel_ring_advance(rq, cs);
 	} else {
 		/* ppGTT is not part of the legacy context image */
-		gen6_ppgtt_pin(ppgtt);
+		gen6_ppgtt_pin(i915_vm_to_ppgtt(vm));
 	}
 
 	return 0;
@@ -1087,13 +1091,13 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 		     struct i915_gem_context *ctx,
 		     struct drm_i915_gem_context_param *args)
 {
-	struct i915_hw_ppgtt *ppgtt, *old;
+	struct i915_address_space *vm, *old;
 	int err;
 
 	if (args->size)
 		return -EINVAL;
 
-	if (!ctx->ppgtt)
+	if (!ctx->vm)
 		return -ENODEV;
 
 	if (upper_32_bits(args->value))
@@ -1103,18 +1107,18 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 	if (err)
 		return err;
 
-	ppgtt = idr_find(&file_priv->vm_idr, args->value);
-	if (ppgtt)
-		i915_ppgtt_get(ppgtt);
+	vm = idr_find(&file_priv->vm_idr, args->value);
+	if (vm)
+		i915_vm_get(vm);
 	mutex_unlock(&file_priv->vm_idr_lock);
-	if (!ppgtt)
+	if (!vm)
 		return -ENOENT;
 
 	err = mutex_lock_interruptible(&ctx->i915->drm.struct_mutex);
 	if (err)
 		goto out;
 
-	if (ppgtt == ctx->ppgtt)
+	if (vm == ctx->vm)
 		goto unlock;
 
 	/* Teardown the existing obj:vma cache, it will have to be rebuilt. */
@@ -1122,7 +1126,7 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 	lut_close(ctx);
 	mutex_unlock(&ctx->mutex);
 
-	old = __set_ppgtt(ctx, ppgtt);
+	old = __set_ppgtt(ctx, vm);
 
 	/*
 	 * We need to flush any requests using the current ppgtt before
@@ -1135,16 +1139,16 @@ static int set_ppgtt(struct drm_i915_file_private *file_priv,
 				   set_ppgtt_barrier,
 				   old);
 	if (err) {
-		ctx->ppgtt = old;
+		ctx->vm = old;
 		ctx->desc_template = default_desc_template(ctx->i915, old);
-		i915_ppgtt_put(ppgtt);
+		i915_vm_put(vm);
 	}
 
 unlock:
 	mutex_unlock(&ctx->i915->drm.struct_mutex);
 
 out:
-	i915_ppgtt_put(ppgtt);
+	i915_vm_put(vm);
 	return err;
 }
 
@@ -2033,15 +2037,15 @@ static int clone_timeline(struct i915_gem_context *dst,
 static int clone_vm(struct i915_gem_context *dst,
 		    struct i915_gem_context *src)
 {
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_address_space *vm;
 
 	rcu_read_lock();
 	do {
-		ppgtt = READ_ONCE(src->ppgtt);
-		if (!ppgtt)
+		vm = READ_ONCE(src->vm);
+		if (!vm)
 			break;
 
-		if (!kref_get_unless_zero(&ppgtt->ref))
+		if (!kref_get_unless_zero(&vm->ref))
 			continue;
 
 		/*
@@ -2059,16 +2063,16 @@ static int clone_vm(struct i915_gem_context *dst,
 		 * it cannot be reallocated elsewhere.
 		 */
 
-		if (ppgtt == READ_ONCE(src->ppgtt))
+		if (vm == READ_ONCE(src->vm))
 			break;
 
-		i915_ppgtt_put(ppgtt);
+		i915_vm_put(vm);
 	} while (1);
 	rcu_read_unlock();
 
-	if (ppgtt) {
-		__assign_ppgtt(dst, ppgtt);
-		i915_ppgtt_put(ppgtt);
+	if (vm) {
+		__assign_ppgtt(dst, vm);
+		i915_vm_put(vm);
 	}
 
 	return 0;
@@ -2293,8 +2297,8 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 
 	case I915_CONTEXT_PARAM_GTT_SIZE:
 		args->size = 0;
-		if (ctx->ppgtt)
-			args->value = ctx->ppgtt->vm.total;
+		if (ctx->vm)
+			args->value = ctx->vm->total;
 		else if (to_i915(dev)->mm.aliasing_ppgtt)
 			args->value = to_i915(dev)->mm.aliasing_ppgtt->vm.total;
 		else
