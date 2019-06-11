@@ -1004,7 +1004,7 @@ static int qeth_get_problem(struct qeth_card *card, struct ccw_device *cdev,
 }
 
 static int qeth_check_irb_error(struct qeth_card *card, struct ccw_device *cdev,
-				unsigned long intparm, struct irb *irb)
+				struct irb *irb)
 {
 	if (!IS_ERR(irb))
 		return 0;
@@ -1021,12 +1021,6 @@ static int qeth_check_irb_error(struct qeth_card *card, struct ccw_device *cdev,
 			" on the device\n");
 		QETH_CARD_TEXT(card, 2, "ckirberr");
 		QETH_CARD_TEXT_(card, 2, "  rc%d", -ETIMEDOUT);
-		if (intparm == QETH_RCD_PARM) {
-			if (card->data.ccwdev == cdev) {
-				card->data.state = CH_STATE_DOWN;
-				wake_up(&card->wait_q);
-			}
-		}
 		return -ETIMEDOUT;
 	default:
 		QETH_DBF_MESSAGE(2, "unknown error %ld on channel %x\n",
@@ -1069,7 +1063,7 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 	if (qeth_intparm_is_iob(intparm))
 		iob = (struct qeth_cmd_buffer *) __va((addr_t)intparm);
 
-	rc = qeth_check_irb_error(card, cdev, intparm, irb);
+	rc = qeth_check_irb_error(card, cdev, irb);
 	if (rc) {
 		/* IO was terminated, free its resources. */
 		if (iob)
@@ -1086,11 +1080,6 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 
 	if (irb->scsw.cmd.fctl & (SCSW_FCTL_HALT_FUNC))
 		channel->state = CH_STATE_HALTED;
-
-	/*let's wake up immediately on data channel*/
-	if ((channel == &card->data) && (intparm != 0) &&
-	    (intparm != QETH_RCD_PARM))
-		goto out;
 
 	if (intparm == QETH_CLEAR_CHANNEL_PARM) {
 		QETH_CARD_TEXT(card, 6, "clrchpar");
@@ -1121,10 +1110,7 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 			print_hex_dump(KERN_WARNING, "qeth: sense data ",
 				DUMP_PREFIX_OFFSET, 16, 1, irb->ecw, 32, 1);
 		}
-		if (intparm == QETH_RCD_PARM) {
-			channel->state = CH_STATE_DOWN;
-			goto out;
-		}
+
 		rc = qeth_get_problem(card, cdev, irb);
 		if (rc) {
 			card->read_or_write_problem = 1;
@@ -1135,13 +1121,6 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 			goto out;
 		}
 	}
-
-	if (intparm == QETH_RCD_PARM) {
-		channel->state = CH_STATE_RCD_DONE;
-		goto out;
-	}
-	if (channel == &card->data)
-		return;
 
 	if (iob && iob->callback)
 		iob->callback(card, iob);
@@ -1606,62 +1585,6 @@ int qeth_qdio_clear_card(struct qeth_card *card, int use_halt)
 }
 EXPORT_SYMBOL_GPL(qeth_qdio_clear_card);
 
-static int qeth_read_conf_data(struct qeth_card *card, void **buffer,
-			       int *length)
-{
-	struct ciw *ciw;
-	char *rcd_buf;
-	int ret;
-	struct qeth_channel *channel = &card->data;
-
-	/*
-	 * scan for RCD command in extended SenseID data
-	 */
-	ciw = ccw_device_get_ciw(channel->ccwdev, CIW_TYPE_RCD);
-	if (!ciw || ciw->cmd == 0)
-		return -EOPNOTSUPP;
-	rcd_buf = kzalloc(ciw->count, GFP_KERNEL | GFP_DMA);
-	if (!rcd_buf)
-		return -ENOMEM;
-
-	qeth_setup_ccw(channel->ccw, ciw->cmd, 0, ciw->count, rcd_buf);
-	channel->state = CH_STATE_RCD;
-	spin_lock_irq(get_ccwdev_lock(channel->ccwdev));
-	ret = ccw_device_start_timeout(channel->ccwdev, channel->ccw,
-				       QETH_RCD_PARM, LPM_ANYPATH, 0,
-				       QETH_RCD_TIMEOUT);
-	spin_unlock_irq(get_ccwdev_lock(channel->ccwdev));
-	if (!ret)
-		wait_event(card->wait_q,
-			   (channel->state == CH_STATE_RCD_DONE ||
-			    channel->state == CH_STATE_DOWN));
-	if (channel->state == CH_STATE_DOWN)
-		ret = -EIO;
-	else
-		channel->state = CH_STATE_DOWN;
-	if (ret) {
-		kfree(rcd_buf);
-		*buffer = NULL;
-		*length = 0;
-	} else {
-		*length = ciw->count;
-		*buffer = rcd_buf;
-	}
-	return ret;
-}
-
-static void qeth_configure_unitaddr(struct qeth_card *card, char *prcd)
-{
-	QETH_CARD_TEXT(card, 2, "cfgunit");
-	card->info.chpid = prcd[30];
-	card->info.unit_addr2 = prcd[31];
-	card->info.cula = prcd[63];
-	card->info.is_vm_nic = ((prcd[0x10] == _ascebc['V']) &&
-				(prcd[0x11] == _ascebc['M']));
-	card->info.use_v1_blkt = prcd[74] == 0xF0 && prcd[75] == 0xF0 &&
-				 prcd[76] >= 0xF1 && prcd[76] <= 0xF4;
-}
-
 static enum qeth_discipline_id qeth_vm_detect_layer(struct qeth_card *card)
 {
 	enum qeth_discipline_id disc = QETH_DISCIPLINE_UNDETERMINED;
@@ -1888,7 +1811,8 @@ static int qeth_send_control_data(struct qeth_card *card, int len,
 		return (timeout == -ERESTARTSYS) ? -EINTR : -ETIME;
 	}
 
-	iob->finalize(card, iob, len);
+	if (iob->finalize)
+		iob->finalize(card, iob, len);
 	QETH_DBF_HEX(CTRL, 2, iob->data, min(len, QETH_DBF_CTRL_LEN));
 
 	qeth_enqueue_reply(card, reply);
@@ -1920,6 +1844,46 @@ static int qeth_send_control_data(struct qeth_card *card, int len,
 		rc = reply->rc;
 	qeth_put_reply(reply);
 	return rc;
+}
+
+static void qeth_read_conf_data_cb(struct qeth_card *card,
+				   struct qeth_cmd_buffer *iob)
+{
+	unsigned char *prcd = iob->data;
+
+	QETH_CARD_TEXT(card, 2, "cfgunit");
+	card->info.chpid = prcd[30];
+	card->info.unit_addr2 = prcd[31];
+	card->info.cula = prcd[63];
+	card->info.is_vm_nic = ((prcd[0x10] == _ascebc['V']) &&
+				(prcd[0x11] == _ascebc['M']));
+	card->info.use_v1_blkt = prcd[74] == 0xF0 && prcd[75] == 0xF0 &&
+				 prcd[76] >= 0xF1 && prcd[76] <= 0xF4;
+
+	qeth_notify_reply(iob->reply, 0);
+	qeth_release_buffer(iob);
+}
+
+static int qeth_read_conf_data(struct qeth_card *card)
+{
+	struct qeth_channel *channel = &card->data;
+	struct qeth_cmd_buffer *iob;
+	struct ciw *ciw;
+
+	/* scan for RCD command in extended SenseID data */
+	ciw = ccw_device_get_ciw(channel->ccwdev, CIW_TYPE_RCD);
+	if (!ciw || ciw->cmd == 0)
+		return -EOPNOTSUPP;
+
+	iob = qeth_alloc_cmd(channel, ciw->count, 1, QETH_RCD_TIMEOUT);
+	if (!iob)
+		return -ENOMEM;
+
+	iob->callback = qeth_read_conf_data_cb;
+	qeth_setup_ccw(__ccw_from_cmd(iob), ciw->cmd, 0, iob->length,
+		       iob->data);
+
+	return qeth_send_control_data(card, iob->length, iob, NULL, NULL);
 }
 
 static int qeth_idx_check_activate_response(struct qeth_card *card,
@@ -4772,8 +4736,6 @@ EXPORT_SYMBOL_GPL(qeth_vm_request_mac);
 static void qeth_determine_capabilities(struct qeth_card *card)
 {
 	int rc;
-	int length;
-	char *prcd;
 	struct ccw_device *ddev;
 	int ddev_offline = 0;
 
@@ -4788,15 +4750,13 @@ static void qeth_determine_capabilities(struct qeth_card *card)
 		}
 	}
 
-	rc = qeth_read_conf_data(card, (void **) &prcd, &length);
+	rc = qeth_read_conf_data(card);
 	if (rc) {
 		QETH_DBF_MESSAGE(2, "qeth_read_conf_data on device %x returned %i\n",
 				 CARD_DEVID(card), rc);
 		QETH_CARD_TEXT_(card, 2, "5err%d", rc);
 		goto out_offline;
 	}
-	qeth_configure_unitaddr(card, prcd);
-	kfree(prcd);
 
 	rc = qdio_get_ssqd_desc(ddev, &card->ssqd);
 	if (rc)

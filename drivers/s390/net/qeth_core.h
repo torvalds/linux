@@ -537,8 +537,6 @@ enum qeth_channel_states {
 	CH_STATE_DOWN,
 	CH_STATE_HALTED,
 	CH_STATE_STOPPED,
-	CH_STATE_RCD,
-	CH_STATE_RCD_DONE,
 };
 /**
  * card state machine
