@@ -486,7 +486,7 @@ static int nvme_rdma_create_queue_ib(struct nvme_rdma_queue *queue)
 	ret = ib_mr_pool_init(queue->qp, &queue->qp->rdma_mrs,
 			      queue->queue_size,
 			      IB_MR_TYPE_MEM_REG,
-			      nvme_rdma_get_max_fr_pages(ibdev));
+			      nvme_rdma_get_max_fr_pages(ibdev), 0);
 	if (ret) {
 		dev_err(queue->ctrl->ctrl.device,
 			"failed to initialize MR pool sized %d for QID %d\n",
