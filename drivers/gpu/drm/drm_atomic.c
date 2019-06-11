@@ -847,6 +847,75 @@ drm_atomic_get_new_private_obj_state(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_get_new_private_obj_state);
 
 /**
+ * drm_atomic_get_old_connector_for_encoder - Get old connector for an encoder
+ * @state: Atomic state
+ * @encoder: The encoder to fetch the connector state for
+ *
+ * This function finds and returns the connector that was connected to @encoder
+ * as specified by the @state.
+ *
+ * If there is no connector in @state which previously had @encoder connected to
+ * it, this function will return NULL. While this may seem like an invalid use
+ * case, it is sometimes useful to differentiate commits which had no prior
+ * connectors attached to @encoder vs ones that did (and to inspect their
+ * state). This is especially true in enable hooks because the pipeline has
+ * changed.
+ *
+ * Returns: The old connector connected to @encoder, or NULL if the encoder is
+ * not connected.
+ */
+struct drm_connector *
+drm_atomic_get_old_connector_for_encoder(struct drm_atomic_state *state,
+					 struct drm_encoder *encoder)
+{
+	struct drm_connector_state *conn_state;
+	struct drm_connector *connector;
+	unsigned int i;
+
+	for_each_old_connector_in_state(state, connector, conn_state, i) {
+		if (conn_state->best_encoder == encoder)
+			return connector;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(drm_atomic_get_old_connector_for_encoder);
+
+/**
+ * drm_atomic_get_new_connector_for_encoder - Get new connector for an encoder
+ * @state: Atomic state
+ * @encoder: The encoder to fetch the connector state for
+ *
+ * This function finds and returns the connector that will be connected to
+ * @encoder as specified by the @state.
+ *
+ * If there is no connector in @state which will have @encoder connected to it,
+ * this function will return NULL. While this may seem like an invalid use case,
+ * it is sometimes useful to differentiate commits which have no connectors
+ * attached to @encoder vs ones that do (and to inspect their state). This is
+ * especially true in disable hooks because the pipeline will change.
+ *
+ * Returns: The new connector connected to @encoder, or NULL if the encoder is
+ * not connected.
+ */
+struct drm_connector *
+drm_atomic_get_new_connector_for_encoder(struct drm_atomic_state *state,
+					 struct drm_encoder *encoder)
+{
+	struct drm_connector_state *conn_state;
+	struct drm_connector *connector;
+	unsigned int i;
+
+	for_each_new_connector_in_state(state, connector, conn_state, i) {
+		if (conn_state->best_encoder == encoder)
+			return connector;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(drm_atomic_get_new_connector_for_encoder);
+
+/**
  * drm_atomic_get_connector_state - get connector state
  * @state: global atomic state object
  * @connector: connector to get state object for

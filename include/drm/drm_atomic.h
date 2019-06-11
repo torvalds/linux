@@ -459,6 +459,13 @@ struct drm_private_state *
 drm_atomic_get_new_private_obj_state(struct drm_atomic_state *state,
 				     struct drm_private_obj *obj);
 
+struct drm_connector *
+drm_atomic_get_old_connector_for_encoder(struct drm_atomic_state *state,
+					 struct drm_encoder *encoder);
+struct drm_connector *
+drm_atomic_get_new_connector_for_encoder(struct drm_atomic_state *state,
+					 struct drm_encoder *encoder);
+
 /**
  * drm_atomic_get_existing_crtc_state - get crtc state, if it exists
  * @state: global atomic state object
