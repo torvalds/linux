@@ -86,6 +86,9 @@ struct komeda_crtc {
 	 */
 	struct komeda_pipeline *slave;
 
+	/** @slave_planes: komeda slave planes mask */
+	u32 slave_planes;
+
 	/** @wb_conn: komeda write back connector */
 	struct komeda_wb_connector *wb_conn;
 
@@ -94,6 +97,9 @@ struct komeda_crtc {
 
 	/** @clock_ratio_property: property for ratio of (aclk << 32)/pxlclk */
 	struct drm_property *clock_ratio_property;
+
+	/** @slave_planes_property: property for slaves of the planes */
+	struct drm_property *slave_planes_property;
 };
 
 /**
@@ -119,6 +125,9 @@ struct komeda_crtc_state {
 
 	/** @clock_ratio: ratio of (aclk << 32)/pxlclk */
 	u64 clock_ratio;
+
+	/** @max_slave_zorder: the maximum of slave zorder */
+	u32 max_slave_zorder;
 };
 
 /** struct komeda_kms_dev - for gather KMS related things */

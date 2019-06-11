@@ -143,6 +143,8 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 				      struct drm_crtc_state *crtc_st)
 {
 	struct drm_atomic_state *state = crtc_st->state;
+	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
+	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(crtc_st);
 	struct komeda_plane_state *kplane_st;
 	struct drm_plane_state *plane_st;
 	struct drm_framebuffer *fb;
@@ -167,6 +169,8 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 			return err;
 	}
 
+	kcrtc_st->max_slave_zorder = 0;
+
 	list_for_each_entry(kplane_st, &zorder_list, zlist_node) {
 		plane_st = &kplane_st->base;
 		fb = plane_st->fb;
@@ -185,6 +189,12 @@ static int komeda_crtc_normalize_zpos(struct drm_crtc *crtc,
 		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] zpos:%d, normalized zpos: %d\n",
 				 plane->base.id, plane->name,
 				 plane_st->zpos, plane_st->normalized_zpos);
+
+		/* calculate max slave zorder */
+		if (has_bit(drm_plane_index(plane), kcrtc->slave_planes))
+			kcrtc_st->max_slave_zorder =
+				max(plane_st->normalized_zpos,
+				    kcrtc_st->max_slave_zorder);
 	}
 
 	crtc_st->zpos_changed = true;

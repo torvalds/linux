@@ -64,6 +64,10 @@ komeda_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	/* release unclaimed pipeline resources */
+	err = komeda_release_unclaimed_resources(kcrtc->slave, kcrtc_st);
+	if (err)
+		return err;
+
 	err = komeda_release_unclaimed_resources(kcrtc->master, kcrtc_st);
 	if (err)
 		return err;
@@ -226,6 +230,7 @@ komeda_crtc_do_flush(struct drm_crtc *crtc,
 	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(crtc->state);
 	struct komeda_dev *mdev = kcrtc->base.dev->dev_private;
 	struct komeda_pipeline *master = kcrtc->master;
+	struct komeda_pipeline *slave = kcrtc->slave;
 	struct komeda_wb_connector *wb_conn = kcrtc->wb_conn;
 	struct drm_connector_state *conn_st;
 
@@ -236,6 +241,9 @@ komeda_crtc_do_flush(struct drm_crtc *crtc,
 	/* step 1: update the pipeline/component state to HW */
 	if (has_bit(master->id, kcrtc_st->affected_pipes))
 		komeda_pipeline_update(master, old->state);
+
+	if (slave && has_bit(slave->id, kcrtc_st->affected_pipes))
+		komeda_pipeline_update(slave, old->state);
 
 	conn_st = wb_conn ? wb_conn->base.base.state : NULL;
 	if (conn_st && conn_st->writeback_job)
@@ -262,6 +270,7 @@ komeda_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct komeda_crtc_state *old_st = to_kcrtc_st(old);
 	struct komeda_dev *mdev = crtc->dev->dev_private;
 	struct komeda_pipeline *master = kcrtc->master;
+	struct komeda_pipeline *slave  = kcrtc->slave;
 	struct completion *disable_done = &crtc->state->commit->flip_done;
 	struct completion temp;
 	int timeout;
@@ -269,6 +278,9 @@ komeda_crtc_atomic_disable(struct drm_crtc *crtc,
 	DRM_DEBUG_ATOMIC("CRTC%d_DISABLE: active_pipes: 0x%x, affected: 0x%x.\n",
 			 drm_crtc_index(crtc),
 			 old_st->active_pipes, old_st->affected_pipes);
+
+	if (slave && has_bit(slave->id, old_st->active_pipes))
+		komeda_pipeline_disable(slave, old->state);
 
 	if (has_bit(master->id, old_st->active_pipes))
 		komeda_pipeline_disable(master, old->state);
@@ -414,6 +426,7 @@ komeda_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 
 	new->affected_pipes = old->active_pipes;
 	new->clock_ratio = old->clock_ratio;
+	new->max_slave_zorder = old->max_slave_zorder;
 
 	return &new->base;
 }
@@ -488,7 +501,7 @@ int komeda_kms_setup_crtcs(struct komeda_kms_dev *kms,
 		master = mdev->pipelines[i];
 
 		crtc->master = master;
-		crtc->slave  = NULL;
+		crtc->slave  = komeda_pipeline_get_slave(master);
 
 		if (crtc->slave)
 			sprintf(str, "pipe-%d", crtc->slave->id);
@@ -518,6 +531,26 @@ static int komeda_crtc_create_clock_ratio_property(struct komeda_crtc *kcrtc)
 
 	drm_object_attach_property(&crtc->base, prop, 0);
 	kcrtc->clock_ratio_property = prop;
+
+	return 0;
+}
+
+static int komeda_crtc_create_slave_planes_property(struct komeda_crtc *kcrtc)
+{
+	struct drm_crtc *crtc = &kcrtc->base;
+	struct drm_property *prop;
+
+	if (kcrtc->slave_planes == 0)
+		return 0;
+
+	prop = drm_property_create_range(crtc->dev, DRM_MODE_PROP_IMMUTABLE,
+					 "slave_planes", 0, U32_MAX);
+	if (!prop)
+		return -ENOMEM;
+
+	drm_object_attach_property(&crtc->base, prop, kcrtc->slave_planes);
+
+	kcrtc->slave_planes_property = prop;
 
 	return 0;
 }
@@ -562,7 +595,11 @@ static int komeda_crtc_add(struct komeda_kms_dev *kms,
 	if (err)
 		return err;
 
-	return 0;
+	err = komeda_crtc_create_slave_planes_property(kcrtc);
+	if (err)
+		return err;
+
+	return err;
 }
 
 int komeda_kms_add_crtcs(struct komeda_kms_dev *kms, struct komeda_dev *mdev)

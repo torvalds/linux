@@ -14,15 +14,27 @@
 
 static int
 komeda_plane_init_data_flow(struct drm_plane_state *st,
+			    struct komeda_crtc_state *kcrtc_st,
 			    struct komeda_data_flow_cfg *dflow)
 {
+	struct komeda_plane *kplane = to_kplane(st->plane);
 	struct komeda_plane_state *kplane_st = to_kplane_st(st);
 	struct drm_framebuffer *fb = st->fb;
 	const struct komeda_format_caps *caps = to_kfb(fb)->format_caps;
+	struct komeda_pipeline *pipe = kplane->layer->base.pipeline;
 
 	memset(dflow, 0, sizeof(*dflow));
 
 	dflow->blending_zorder = st->normalized_zpos;
+	if (pipe == to_kcrtc(st->crtc)->master)
+		dflow->blending_zorder -= kcrtc_st->max_slave_zorder;
+	if (dflow->blending_zorder < 0) {
+		DRM_DEBUG_ATOMIC("%s zorder:%d < max_slave_zorder: %d.\n",
+				 st->plane->name, st->normalized_zpos,
+				 kcrtc_st->max_slave_zorder);
+		return -EINVAL;
+	}
+
 	dflow->pixel_blend_mode = st->pixel_blend_mode;
 	dflow->layer_alpha = st->alpha >> 8;
 
@@ -88,7 +100,7 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 
 	kcrtc_st = to_kcrtc_st(crtc_st);
 
-	err = komeda_plane_init_data_flow(state, &dflow);
+	err = komeda_plane_init_data_flow(state, kcrtc_st, &dflow);
 	if (err)
 		return err;
 
@@ -288,6 +300,22 @@ static u32 get_possible_crtcs(struct komeda_kms_dev *kms,
 	return possible_crtcs;
 }
 
+static void
+komeda_set_crtc_plane_mask(struct komeda_kms_dev *kms,
+			   struct komeda_pipeline *pipe,
+			   struct drm_plane *plane)
+{
+	struct komeda_crtc *kcrtc;
+	int i;
+
+	for (i = 0; i < kms->n_crtcs; i++) {
+		kcrtc = &kms->crtcs[i];
+
+		if (pipe == kcrtc->slave)
+			kcrtc->slave_planes |= BIT(drm_plane_index(plane));
+	}
+}
+
 /* use Layer0 as primary */
 static u32 get_plane_type(struct komeda_kms_dev *kms,
 			  struct komeda_component *c)
@@ -365,6 +393,8 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 	err = drm_plane_create_zpos_property(plane, layer->base.id, 0, 8);
 	if (err)
 		goto cleanup;
+
+	komeda_set_crtc_plane_mask(kms, c->pipeline, plane);
 
 	return 0;
 cleanup:

@@ -142,6 +142,14 @@ komeda_pipeline_get_first_component(struct komeda_pipeline *pipe,
 	return c;
 }
 
+static struct komeda_component *
+komeda_component_pickup_input(struct komeda_component *c, u32 avail_comps)
+{
+	u32 avail_inputs = c->supported_inputs & (avail_comps);
+
+	return komeda_pipeline_get_first_component(c->pipeline, avail_inputs);
+}
+
 /** komeda_component_add - Add a component to &komeda_pipeline */
 struct komeda_component *
 komeda_component_add(struct komeda_pipeline *pipe,
@@ -294,6 +302,20 @@ static void komeda_pipeline_assemble(struct komeda_pipeline *pipe)
 
 		layer->right = komeda_get_layer_split_right_layer(pipe, layer);
 	}
+}
+
+/* if pipeline_A accept another pipeline_B's component as input, treat
+ * pipeline_B as slave of pipeline_A.
+ */
+struct komeda_pipeline *
+komeda_pipeline_get_slave(struct komeda_pipeline *master)
+{
+	struct komeda_component *slave;
+
+	slave = komeda_component_pickup_input(&master->compiz->base,
+					      KOMEDA_PIPELINE_COMPIZS);
+
+	return slave ? slave->pipeline : NULL;
 }
 
 int komeda_assemble_pipelines(struct komeda_dev *mdev)

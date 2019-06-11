@@ -452,6 +452,8 @@ komeda_pipeline_add(struct komeda_dev *mdev, size_t size,
 		    const struct komeda_pipeline_funcs *funcs);
 void komeda_pipeline_destroy(struct komeda_dev *mdev,
 			     struct komeda_pipeline *pipe);
+struct komeda_pipeline *
+komeda_pipeline_get_slave(struct komeda_pipeline *master);
 int komeda_assemble_pipelines(struct komeda_dev *mdev);
 struct komeda_component *
 komeda_pipeline_get_component(struct komeda_pipeline *pipe, int id);
