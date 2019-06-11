@@ -87,14 +87,14 @@
 static int usbvision_nr;
 
 static struct usbvision_v4l2_format_st usbvision_v4l2_format[] = {
-	{ 1, 1,  8, V4L2_PIX_FMT_GREY    , "GREY" },
-	{ 1, 2, 16, V4L2_PIX_FMT_RGB565  , "RGB565" },
-	{ 1, 3, 24, V4L2_PIX_FMT_RGB24   , "RGB24" },
-	{ 1, 4, 32, V4L2_PIX_FMT_RGB32   , "RGB32" },
-	{ 1, 2, 16, V4L2_PIX_FMT_RGB555  , "RGB555" },
-	{ 1, 2, 16, V4L2_PIX_FMT_YUYV    , "YUV422" },
-	{ 1, 2, 12, V4L2_PIX_FMT_YVU420  , "YUV420P" }, /* 1.5 ! */
-	{ 1, 2, 16, V4L2_PIX_FMT_YUV422P , "YUV422P" }
+	{ 1, 1,  8, V4L2_PIX_FMT_GREY },
+	{ 1, 2, 16, V4L2_PIX_FMT_RGB565 },
+	{ 1, 3, 24, V4L2_PIX_FMT_RGB24 },
+	{ 1, 4, 32, V4L2_PIX_FMT_RGB32 },
+	{ 1, 2, 16, V4L2_PIX_FMT_RGB555 },
+	{ 1, 2, 16, V4L2_PIX_FMT_YUYV },
+	{ 1, 2, 12, V4L2_PIX_FMT_YVU420 }, /* 1.5 ! */
+	{ 1, 2, 16, V4L2_PIX_FMT_YUV422P }
 };
 
 /* Function prototypes */
@@ -796,8 +796,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 {
 	if (vfd->index >= USBVISION_SUPPORTED_PALETTES - 1)
 		return -EINVAL;
-	strscpy(vfd->description, usbvision_v4l2_format[vfd->index].desc,
-		sizeof(vfd->description));
 	vfd->pixelformat = usbvision_v4l2_format[vfd->index].format;
 	return 0;
 }

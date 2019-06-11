@@ -273,7 +273,6 @@ static inline struct s2255_dev *to_s2255_dev(struct v4l2_device *v4l2_dev)
 }
 
 struct s2255_fmt {
-	char *name;
 	u32 fourcc;
 	int depth;
 };
@@ -385,29 +384,23 @@ MODULE_DEVICE_TABLE(usb, s2255_table);
 /* JPEG formats must be defined last to support jpeg_enable parameter */
 static const struct s2255_fmt formats[] = {
 	{
-		.name = "4:2:2, packed, YUYV",
 		.fourcc = V4L2_PIX_FMT_YUYV,
 		.depth = 16
 
 	}, {
-		.name = "4:2:2, packed, UYVY",
 		.fourcc = V4L2_PIX_FMT_UYVY,
 		.depth = 16
 	}, {
-		.name = "4:2:2, planar, YUV422P",
 		.fourcc = V4L2_PIX_FMT_YUV422P,
 		.depth = 16
 
 	}, {
-		.name = "8bpp GREY",
 		.fourcc = V4L2_PIX_FMT_GREY,
 		.depth = 8
 	}, {
-		.name = "JPG",
 		.fourcc = V4L2_PIX_FMT_JPEG,
 		.depth = 24
 	}, {
-		.name = "MJPG",
 		.fourcc = V4L2_PIX_FMT_MJPEG,
 		.depth = 24
 	}
@@ -737,7 +730,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (!jpeg_enable && ((formats[index].fourcc == V4L2_PIX_FMT_JPEG) ||
 			(formats[index].fourcc == V4L2_PIX_FMT_MJPEG)))
 		return -EINVAL;
-	strscpy(f->description, formats[index].name, sizeof(f->description));
 	f->pixelformat = formats[index].fourcc;
 	return 0;
 }

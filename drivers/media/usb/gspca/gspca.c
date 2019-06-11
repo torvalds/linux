@@ -1024,15 +1024,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 		return -EINVAL;		/* no more format */
 
 	fmtdesc->pixelformat = fmt_tb[index];
-	if (gspca_dev->cam.cam_mode[i].sizeimage <
-			gspca_dev->cam.cam_mode[i].width *
-				gspca_dev->cam.cam_mode[i].height)
-		fmtdesc->flags = V4L2_FMT_FLAG_COMPRESSED;
-	fmtdesc->description[0] = fmtdesc->pixelformat & 0xff;
-	fmtdesc->description[1] = (fmtdesc->pixelformat >> 8) & 0xff;
-	fmtdesc->description[2] = (fmtdesc->pixelformat >> 16) & 0xff;
-	fmtdesc->description[3] = fmtdesc->pixelformat >> 24;
-	fmtdesc->description[4] = '\0';
 	return 0;
 }
 

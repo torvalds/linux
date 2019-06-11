@@ -251,13 +251,11 @@ struct em28xx_usb_ctl {
 /**
  * struct em28xx_fmt - Struct to enumberate video formats
  *
- * @name:	Name for the video standard
  * @fourcc:	v4l2 format id
  * @depth:	mean number of bits to represent a pixel
  * @reg:	em28xx register value to set it
  */
 struct em28xx_fmt {
-	char	*name;
 	u32	fourcc;
 	int	depth;
 	int	reg;

@@ -1207,10 +1207,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 
 	dprintk(1, "%s called\n", __func__);
 
-	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	strscpy(f->description, "Packed YUV2", sizeof(f->description));
-
-	f->flags = 0;
 	f->pixelformat = V4L2_PIX_FMT_UYVY;
 
 	return 0;

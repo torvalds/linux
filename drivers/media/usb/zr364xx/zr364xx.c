@@ -141,7 +141,6 @@ struct zr364xx_pipeinfo {
 };
 
 struct zr364xx_fmt {
-	char *name;
 	u32 fourcc;
 	int depth;
 };
@@ -149,7 +148,6 @@ struct zr364xx_fmt {
 /* image formats.  */
 static const struct zr364xx_fmt formats[] = {
 	{
-		.name = "JPG",
 		.fourcc = V4L2_PIX_FMT_JPEG,
 		.depth = 24
 	}
@@ -376,8 +374,7 @@ static int buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 						  vb);
 	int rc;
 
-	DBG("%s, field=%d, fmt name = %s\n", __func__, field,
-	    cam->fmt ? cam->fmt->name : "");
+	DBG("%s, field=%d\n", __func__, field);
 	if (!cam->fmt)
 		return -EINVAL;
 
@@ -751,8 +748,6 @@ static int zr364xx_vidioc_enum_fmt_vid_cap(struct file *file,
 {
 	if (f->index > 0)
 		return -EINVAL;
-	f->flags = V4L2_FMT_FLAG_COMPRESSED;
-	strscpy(f->description, formats[0].name, sizeof(f->description));
 	f->pixelformat = formats[0].fourcc;
 	return 0;
 }
