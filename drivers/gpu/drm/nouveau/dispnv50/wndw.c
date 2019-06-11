@@ -528,6 +528,13 @@ nv50_wndw_atomic_duplicate_state(struct drm_plane *plane)
 	return &asyw->state;
 }
 
+static int
+nv50_wndw_zpos_default(struct drm_plane *plane)
+{
+	return (plane->type == DRM_PLANE_TYPE_PRIMARY) ? 0 :
+	       (plane->type == DRM_PLANE_TYPE_OVERLAY) ? 1 : 255;
+}
+
 static void
 nv50_wndw_reset(struct drm_plane *plane)
 {
@@ -540,6 +547,8 @@ nv50_wndw_reset(struct drm_plane *plane)
 		plane->funcs->atomic_destroy_state(plane, plane->state);
 
 	__drm_atomic_helper_plane_reset(plane, &asyw->state);
+	plane->state->zpos = nv50_wndw_zpos_default(plane);
+	plane->state->normalized_zpos = nv50_wndw_zpos_default(plane);
 }
 
 static void
@@ -634,6 +643,14 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	}
 
 	wndw->notify.func = nv50_wndw_notify;
+
+	if (1) {
+		ret = drm_plane_create_zpos_immutable_property(&wndw->plane,
+				nv50_wndw_zpos_default(&wndw->plane));
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
