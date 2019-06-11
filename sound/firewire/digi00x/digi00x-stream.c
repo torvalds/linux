@@ -303,6 +303,7 @@ void snd_dg00x_stream_release_duplex(struct snd_dg00x *dg00x)
 
 int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
 {
+	unsigned int generation = dg00x->rx_resources.generation;
 	int err = 0;
 
 	if (dg00x->substreams_counter == 0)
@@ -311,6 +312,16 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x)
 	if (amdtp_streaming_error(&dg00x->tx_stream) ||
 	    amdtp_streaming_error(&dg00x->rx_stream))
 		finish_session(dg00x);
+
+	if (generation != fw_parent_device(dg00x->unit)->card->generation) {
+		err = fw_iso_resources_update(&dg00x->tx_resources);
+		if (err < 0)
+			goto error;
+
+		err = fw_iso_resources_update(&dg00x->rx_resources);
+		if (err < 0)
+			goto error;
+	}
 
 	/*
 	 * No packets are transmitted without receiving packets, reagardless of
