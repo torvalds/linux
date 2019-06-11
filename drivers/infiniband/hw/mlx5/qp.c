@@ -4645,17 +4645,15 @@ static int set_sig_data_segment(const struct ib_sig_handover_wr *wr,
 }
 
 static void set_sig_mkey_segment(struct mlx5_mkey_seg *seg,
-				 const struct ib_sig_handover_wr *wr, u32 size,
-				 u32 length, u32 pdn)
+				 struct ib_mr *sig_mr, int access_flags,
+				 u32 size, u32 length, u32 pdn)
 {
-	struct ib_mr *sig_mr = wr->sig_mr;
 	u32 sig_key = sig_mr->rkey;
 	u8 sigerr = to_mmr(sig_mr)->sig->sigerr_count & 1;
 
 	memset(seg, 0, sizeof(*seg));
 
-	seg->flags = get_umr_flags(wr->access_flags) |
-				   MLX5_MKC_ACCESS_MODE_KLMS;
+	seg->flags = get_umr_flags(access_flags) | MLX5_MKC_ACCESS_MODE_KLMS;
 	seg->qpn_mkey7_0 = cpu_to_be32((sig_key & 0xff) | 0xffffff00);
 	seg->flags_pd = cpu_to_be32(MLX5_MKEY_REMOTE_INVAL | sigerr << 26 |
 				    MLX5_MKEY_BSF_EN | pdn);
@@ -4712,7 +4710,8 @@ static int set_sig_umr_wr(const struct ib_send_wr *send_wr,
 	*size += sizeof(struct mlx5_wqe_umr_ctrl_seg) / 16;
 	handle_post_send_edge(&qp->sq, seg, *size, cur_edge);
 
-	set_sig_mkey_segment(*seg, wr, xlt_size, region_len, pdn);
+	set_sig_mkey_segment(*seg, wr->sig_mr, wr->access_flags, xlt_size,
+			     region_len, pdn);
 	*seg += sizeof(struct mlx5_mkey_seg);
 	*size += sizeof(struct mlx5_mkey_seg) / 16;
 	handle_post_send_edge(&qp->sq, seg, *size, cur_edge);
