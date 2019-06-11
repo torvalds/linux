@@ -1984,6 +1984,8 @@ int genphy_read_abilities(struct phy_device *phydev)
 				 phydev->supported, val & ESTATUS_1000_TFULL);
 		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 				 phydev->supported, val & ESTATUS_1000_THALF);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+				 phydev->supported, val & ESTATUS_1000_XFULL);
 	}
 
 	return 0;
