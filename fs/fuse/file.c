@@ -2981,7 +2981,7 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	    offset + length > i_size_read(inode)) {
 		err = inode_newsize_ok(inode, offset + length);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE))

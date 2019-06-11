@@ -161,6 +161,10 @@ enum {
 	TLS_PENDING_CLOSED_RECORD
 };
 
+enum tls_context_flags {
+	TLS_RX_SYNC_RUNNING = 0,
+};
+
 struct cipher_context {
 	u16 prepend_size;
 	u16 tag_size;
