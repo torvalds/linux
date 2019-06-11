@@ -150,6 +150,7 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 
 	if (asyw->set.csc  ) wndw->func->csc_set  (wndw, asyw);
 	if (asyw->set.scale) wndw->func->scale_set(wndw, asyw);
+	if (asyw->set.blend) wndw->func->blend_set(wndw, asyw);
 	if (asyw->set.point) {
 		if (asyw->set.point = false, asyw->set.mask)
 			interlock[wndw->interlock.type] |= wndw->interlock.data;
@@ -283,6 +284,12 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 		asyw->scale.dh = asyw->state.crtc_h;
 		if (memcmp(&armw->scale, &asyw->scale, sizeof(asyw->scale)))
 			asyw->set.scale = true;
+	}
+
+	if (wndw->func->blend_set) {
+		asyw->blend.depth = 255 - asyw->state.normalized_zpos;
+		if (memcmp(&armw->blend, &asyw->blend, sizeof(asyw->blend)))
+			asyw->set.blend = true;
 	}
 
 	if (wndw->immd) {
@@ -644,7 +651,12 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 
 	wndw->notify.func = nv50_wndw_notify;
 
-	if (1) {
+	if (wndw->func->blend_set) {
+		ret = drm_plane_create_zpos_property(&wndw->plane,
+				nv50_wndw_zpos_default(&wndw->plane), 0, 254);
+		if (ret)
+			return ret;
+	} else {
 		ret = drm_plane_create_zpos_immutable_property(&wndw->plane,
 				nv50_wndw_zpos_default(&wndw->plane));
 		if (ret)

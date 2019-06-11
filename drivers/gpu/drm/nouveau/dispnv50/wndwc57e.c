@@ -190,6 +190,7 @@ wndwc57e = {
 	.csc_clr = wndwc57e_csc_clr,
 	.image_set = wndwc57e_image_set,
 	.image_clr = wndwc37e_image_clr,
+	.blend_set = wndwc37e_blend_set,
 	.update = wndwc37e_update,
 };
 

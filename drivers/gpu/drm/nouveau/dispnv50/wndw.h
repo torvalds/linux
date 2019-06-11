@@ -76,6 +76,7 @@ struct nv50_wndw_func {
 	void (*image_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*image_clr)(struct nv50_wndw *);
 	void (*scale_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	void (*blend_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
 	void (*update)(struct nv50_wndw *, u32 *interlock);
 };
@@ -110,6 +111,7 @@ void wndwc37e_sema_clr(struct nv50_wndw *);
 void wndwc37e_ntfy_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void wndwc37e_ntfy_clr(struct nv50_wndw *);
 void wndwc37e_image_clr(struct nv50_wndw *);
+void wndwc37e_blend_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void wndwc37e_update(struct nv50_wndw *, u32 *);
 
 int wndwc57e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,

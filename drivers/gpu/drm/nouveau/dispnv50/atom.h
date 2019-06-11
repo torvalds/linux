@@ -221,6 +221,10 @@ struct nv50_wndw_atom {
 		u16 y;
 	} point;
 
+	struct {
+		u8 depth;
+	} blend;
+
 	union nv50_wndw_atom_mask {
 		struct {
 			bool ntfy:1;
@@ -230,6 +234,7 @@ struct nv50_wndw_atom {
 			bool image:1;
 			bool scale:1;
 			bool point:1;
+			bool blend:1;
 		};
 		u8 mask;
 	} set, clr;
