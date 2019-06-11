@@ -288,6 +288,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 
 	if (wndw->func->blend_set) {
 		asyw->blend.depth = 255 - asyw->state.normalized_zpos;
+		asyw->blend.k1 = asyw->state.alpha >> 8;
 		if (memcmp(&armw->blend, &asyw->blend, sizeof(asyw->blend)))
 			asyw->set.blend = true;
 	}
@@ -654,6 +655,10 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	if (wndw->func->blend_set) {
 		ret = drm_plane_create_zpos_property(&wndw->plane,
 				nv50_wndw_zpos_default(&wndw->plane), 0, 254);
+		if (ret)
+			return ret;
+
+		ret = drm_plane_create_alpha_property(&wndw->plane);
 		if (ret)
 			return ret;
 	} else {

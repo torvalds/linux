@@ -223,6 +223,7 @@ struct nv50_wndw_atom {
 
 	struct {
 		u8 depth;
+		u8 k1;
 	} blend;
 
 	union nv50_wndw_atom_mask {
