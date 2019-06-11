@@ -3236,13 +3236,6 @@ static void qeth_handle_send_error(struct qeth_card *card,
 	int sbalf15 = buffer->buffer->element[15].sflags;
 
 	QETH_CARD_TEXT(card, 6, "hdsnderr");
-	if (IS_IQD(card)) {
-		if (sbalf15 == 0) {
-			qdio_err = 0;
-		} else {
-			qdio_err = 1;
-		}
-	}
 	qeth_check_qdio_errors(card, buffer->buffer, qdio_err, "qouterr");
 
 	if (!qdio_err)
