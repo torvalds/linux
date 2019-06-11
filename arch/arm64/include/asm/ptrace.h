@@ -24,9 +24,15 @@
  * means masking more IRQs (or at least that the same IRQs remain masked).
  *
  * To mask interrupts, we clear the most significant bit of PMR.
+ *
+ * Some code sections either automatically switch back to PSR.I or explicitly
+ * require to not use priority masking. If bit GIC_PRIO_PSR_I_SET is included
+ * in the  the priority mask, it indicates that PSR.I should be set and
+ * interrupt disabling temporarily does not rely on IRQ priorities.
  */
-#define GIC_PRIO_IRQON		0xf0
-#define GIC_PRIO_IRQOFF		(GIC_PRIO_IRQON & ~0x80)
+#define GIC_PRIO_IRQON			0xc0
+#define GIC_PRIO_IRQOFF			(GIC_PRIO_IRQON & ~0x80)
+#define GIC_PRIO_PSR_I_SET		(1 << 4)
 
 /* Additional SPSR bits not exposed in the UABI */
 #define PSR_IL_BIT		(1 << 20)
