@@ -685,30 +685,3 @@ err:
 	i915_gem_object_put(obj);
 	return vma;
 }
-
-int intel_guc_reserve_ggtt_top(struct intel_guc *guc)
-{
-	struct drm_i915_private *i915 = guc_to_i915(guc);
-	struct i915_ggtt *ggtt = &i915->ggtt;
-	u64 size;
-	int ret;
-
-	size = ggtt->vm.total - GUC_GGTT_TOP;
-
-	ret = i915_gem_gtt_reserve(&ggtt->vm, &ggtt->uc_fw, size,
-				   GUC_GGTT_TOP, I915_COLOR_UNEVICTABLE,
-				   PIN_NOEVICT);
-	if (ret)
-		DRM_DEBUG_DRIVER("GuC: failed to reserve top of ggtt\n");
-
-	return ret;
-}
-
-void intel_guc_release_ggtt_top(struct intel_guc *guc)
-{
-	struct drm_i915_private *i915 = guc_to_i915(guc);
-	struct i915_ggtt *ggtt = &i915->ggtt;
-
-	if (drm_mm_node_allocated(&ggtt->uc_fw))
-		drm_mm_remove_node(&ggtt->uc_fw);
-}

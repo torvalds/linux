@@ -2808,6 +2808,32 @@ static void fini_aliasing_ppgtt(struct drm_i915_private *i915)
 	ggtt->vm.vma_ops.unbind_vma = ggtt_unbind_vma;
 }
 
+static int ggtt_reserve_guc_top(struct i915_ggtt *ggtt)
+{
+	u64 size;
+	int ret;
+
+	if (!USES_GUC(ggtt->vm.i915))
+		return 0;
+
+	GEM_BUG_ON(ggtt->vm.total <= GUC_GGTT_TOP);
+	size = ggtt->vm.total - GUC_GGTT_TOP;
+
+	ret = i915_gem_gtt_reserve(&ggtt->vm, &ggtt->uc_fw, size,
+				   GUC_GGTT_TOP, I915_COLOR_UNEVICTABLE,
+				   PIN_NOEVICT);
+	if (ret)
+		DRM_DEBUG_DRIVER("Failed to reserve top of GGTT for GuC\n");
+
+	return ret;
+}
+
+static void ggtt_release_guc_top(struct i915_ggtt *ggtt)
+{
+	if (drm_mm_node_allocated(&ggtt->uc_fw))
+		drm_mm_remove_node(&ggtt->uc_fw);
+}
+
 int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 {
 	/* Let GEM Manage all of the aperture.
@@ -2845,11 +2871,14 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
-	if (USES_GUC(dev_priv)) {
-		ret = intel_guc_reserve_ggtt_top(&dev_priv->guc);
-		if (ret)
-			goto err_reserve;
-	}
+	/*
+	 * The upper portion of the GuC address space has a sizeable hole
+	 * (several MB) that is inaccessible by GuC. Reserve this range within
+	 * GGTT as it can comfortably hold GuC/HuC firmware images.
+	 */
+	ret = ggtt_reserve_guc_top(ggtt);
+	if (ret)
+		goto err_reserve;
 
 	/* Clear any non-preallocated blocks */
 	drm_mm_for_each_hole(entry, &ggtt->vm.mm, hole_start, hole_end) {
@@ -2871,7 +2900,7 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	return 0;
 
 err_appgtt:
-	intel_guc_release_ggtt_top(&dev_priv->guc);
+	ggtt_release_guc_top(ggtt);
 err_reserve:
 	drm_mm_remove_node(&ggtt->error_capture);
 	return ret;
@@ -2898,7 +2927,7 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	if (drm_mm_node_allocated(&ggtt->error_capture))
 		drm_mm_remove_node(&ggtt->error_capture);
 
-	intel_guc_release_ggtt_top(&dev_priv->guc);
+	ggtt_release_guc_top(ggtt);
 
 	if (drm_mm_initialized(&ggtt->vm.mm)) {
 		intel_vgt_deballoon(dev_priv);
