@@ -1040,10 +1040,8 @@ static inline int lpuart_start_rx_dma(struct lpuart_port *sport)
 		sport->rx_dma_rng_buf_len = 16;
 
 	ring->buf = kmalloc(sport->rx_dma_rng_buf_len, GFP_ATOMIC);
-	if (!ring->buf) {
-		dev_err(sport->port.dev, "Ring buf alloc failed\n");
+	if (!ring->buf)
 		return -ENOMEM;
-	}
 
 	sg_init_one(&sport->rx_sgl, ring->buf, sport->rx_dma_rng_buf_len);
 	sg_set_buf(&sport->rx_sgl, ring->buf, sport->rx_dma_rng_buf_len);
