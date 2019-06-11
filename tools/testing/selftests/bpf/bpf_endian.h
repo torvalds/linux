@@ -2,6 +2,7 @@
 #ifndef __BPF_ENDIAN__
 #define __BPF_ENDIAN__
 
+#include <linux/stddef.h>
 #include <linux/swab.h>
 
 /* LLVM's BPF target selects the endianness of the CPU
