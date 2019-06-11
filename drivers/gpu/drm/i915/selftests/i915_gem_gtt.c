@@ -148,7 +148,7 @@ err:
 static int igt_ppgtt_alloc(void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_ppgtt *ppgtt;
 	u64 size, last, limit;
 	int err = 0;
 
@@ -157,7 +157,7 @@ static int igt_ppgtt_alloc(void *arg)
 	if (!HAS_PPGTT(dev_priv))
 		return 0;
 
-	ppgtt = __hw_ppgtt_create(dev_priv);
+	ppgtt = __ppgtt_create(dev_priv);
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 
@@ -999,7 +999,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 				      unsigned long end_time))
 {
 	struct drm_file *file;
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_ppgtt *ppgtt;
 	IGT_TIMEOUT(end_time);
 	int err;
 

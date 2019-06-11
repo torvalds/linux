@@ -368,7 +368,7 @@ static int set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 					 struct i915_gem_context *ctx)
 {
 	struct intel_vgpu_mm *mm = workload->shadow_mm;
-	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(ctx->vm);
+	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(ctx->vm);
 	int i = 0;
 
 	if (mm->type != INTEL_GVT_MM_PPGTT || !mm->ppgtt_mm.shadowed)
@@ -1102,7 +1102,7 @@ err:
 
 static void
 i915_context_ppgtt_root_restore(struct intel_vgpu_submission *s,
-				struct i915_hw_ppgtt *ppgtt)
+				struct i915_ppgtt *ppgtt)
 {
 	int i;
 
@@ -1160,7 +1160,7 @@ void intel_vgpu_reset_submission(struct intel_vgpu *vgpu,
 
 static void
 i915_context_ppgtt_root_save(struct intel_vgpu_submission *s,
-			     struct i915_hw_ppgtt *ppgtt)
+			     struct i915_ppgtt *ppgtt)
 {
 	int i;
 

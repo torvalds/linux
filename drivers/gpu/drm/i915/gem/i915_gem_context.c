@@ -513,7 +513,7 @@ i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 		return ctx;
 
 	if (HAS_FULL_PPGTT(dev_priv)) {
-		struct i915_hw_ppgtt *ppgtt;
+		struct i915_ppgtt *ppgtt;
 
 		ppgtt = i915_ppgtt_create(dev_priv);
 		if (IS_ERR(ppgtt)) {
@@ -818,7 +818,7 @@ int i915_gem_vm_create_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_private *i915 = to_i915(dev);
 	struct drm_i915_gem_vm_control *args = data;
 	struct drm_i915_file_private *file_priv = file->driver_priv;
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_ppgtt *ppgtt;
 	int err;
 
 	if (!HAS_FULL_PPGTT(i915))
@@ -1037,7 +1037,7 @@ static int emit_ppgtt_update(struct i915_request *rq, void *data)
 	int i;
 
 	if (i915_vm_is_4lvl(vm)) {
-		struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+		struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 		const dma_addr_t pd_daddr = px_dma(&ppgtt->pml4);
 
 		cs = intel_ring_begin(rq, 6);
@@ -1054,7 +1054,7 @@ static int emit_ppgtt_update(struct i915_request *rq, void *data)
 		*cs++ = MI_NOOP;
 		intel_ring_advance(rq, cs);
 	} else if (HAS_LOGICAL_RING_CONTEXTS(engine->i915)) {
-		struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+		struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 
 		cs = intel_ring_begin(rq, 4 * GEN8_3LVL_PDPES + 2);
 		if (IS_ERR(cs))

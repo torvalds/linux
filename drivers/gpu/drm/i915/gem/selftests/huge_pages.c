@@ -368,7 +368,7 @@ static int igt_check_page_sizes(struct i915_vma *vma)
 
 static int igt_mock_exhaust_device_supported_pages(void *arg)
 {
-	struct i915_hw_ppgtt *ppgtt = arg;
+	struct i915_ppgtt *ppgtt = arg;
 	struct drm_i915_private *i915 = ppgtt->vm.i915;
 	unsigned int saved_mask = INTEL_INFO(i915)->page_sizes;
 	struct drm_i915_gem_object *obj;
@@ -447,7 +447,7 @@ out_device:
 
 static int igt_mock_ppgtt_misaligned_dma(void *arg)
 {
-	struct i915_hw_ppgtt *ppgtt = arg;
+	struct i915_ppgtt *ppgtt = arg;
 	struct drm_i915_private *i915 = ppgtt->vm.i915;
 	unsigned long supported = INTEL_INFO(i915)->page_sizes;
 	struct drm_i915_gem_object *obj;
@@ -575,7 +575,7 @@ out_put:
 }
 
 static void close_object_list(struct list_head *objects,
-			      struct i915_hw_ppgtt *ppgtt)
+			      struct i915_ppgtt *ppgtt)
 {
 	struct drm_i915_gem_object *obj, *on;
 
@@ -595,7 +595,7 @@ static void close_object_list(struct list_head *objects,
 
 static int igt_mock_ppgtt_huge_fill(void *arg)
 {
-	struct i915_hw_ppgtt *ppgtt = arg;
+	struct i915_ppgtt *ppgtt = arg;
 	struct drm_i915_private *i915 = ppgtt->vm.i915;
 	unsigned long max_pages = ppgtt->vm.total >> PAGE_SHIFT;
 	unsigned long page_num;
@@ -716,7 +716,7 @@ static int igt_mock_ppgtt_huge_fill(void *arg)
 
 static int igt_mock_ppgtt_64K(void *arg)
 {
-	struct i915_hw_ppgtt *ppgtt = arg;
+	struct i915_ppgtt *ppgtt = arg;
 	struct drm_i915_private *i915 = ppgtt->vm.i915;
 	struct drm_i915_gem_object *obj;
 	const struct object_info {
@@ -1683,7 +1683,7 @@ int i915_gem_huge_page_mock_selftests(void)
 		SUBTEST(igt_mock_ppgtt_64K),
 	};
 	struct drm_i915_private *dev_priv;
-	struct i915_hw_ppgtt *ppgtt;
+	struct i915_ppgtt *ppgtt;
 	int err;
 
 	dev_priv = mock_gem_device();

@@ -1508,8 +1508,7 @@ static const struct intel_context_ops ring_context_ops = {
 	.destroy = ring_context_destroy,
 };
 
-static int load_pd_dir(struct i915_request *rq,
-		       const struct i915_hw_ppgtt *ppgtt)
+static int load_pd_dir(struct i915_request *rq, const struct i915_ppgtt *ppgtt)
 {
 	const struct intel_engine_cs * const engine = rq->engine;
 	u32 *cs;
@@ -1713,7 +1712,7 @@ static int switch_context(struct i915_request *rq)
 	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
 
 	if (vm) {
-		struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
+		struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
 		int loops;
 
 		/*

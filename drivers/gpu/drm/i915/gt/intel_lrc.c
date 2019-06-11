@@ -1621,7 +1621,7 @@ static int gen8_emit_init_breadcrumb(struct i915_request *rq)
 static int emit_pdps(struct i915_request *rq)
 {
 	const struct intel_engine_cs * const engine = rq->engine;
-	struct i915_hw_ppgtt * const ppgtt =
+	struct i915_ppgtt * const ppgtt =
 		i915_vm_to_ppgtt(rq->gem_context->vm);
 	int err, i;
 	u32 *cs;
@@ -2825,7 +2825,7 @@ static void execlists_init_reg_state(u32 *regs,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring)
 {
-	struct i915_hw_ppgtt *ppgtt = i915_vm_to_ppgtt(ce->gem_context->vm);
+	struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(ce->gem_context->vm);
 	bool rcs = engine->class == RENDER_CLASS;
 	u32 base = engine->mmio_base;
 

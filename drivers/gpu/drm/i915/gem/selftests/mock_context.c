@@ -38,7 +38,7 @@ mock_context(struct drm_i915_private *i915,
 		goto err_engines;
 
 	if (name) {
-		struct i915_hw_ppgtt *ppgtt;
+		struct i915_ppgtt *ppgtt;
 
 		ctx->name = kstrdup(name, GFP_KERNEL);
 		if (!ctx->name)
