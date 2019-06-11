@@ -383,6 +383,72 @@ error:
 	kfree(msg);
 }
 
+static struct cros_ec_sensor_platform sensor_platforms[] = {
+	{ .sensor_num = 0 },
+	{ .sensor_num = 1 }
+};
+
+static const struct mfd_cell cros_ec_accel_legacy_cells[] = {
+	{
+		.name = "cros-ec-accel-legacy",
+		.platform_data = &sensor_platforms[0],
+		.pdata_size = sizeof(struct cros_ec_sensor_platform),
+	},
+	{
+		.name = "cros-ec-accel-legacy",
+		.platform_data = &sensor_platforms[1],
+		.pdata_size = sizeof(struct cros_ec_sensor_platform),
+	}
+};
+
+static void cros_ec_accel_legacy_register(struct cros_ec_dev *ec)
+{
+	struct cros_ec_device *ec_dev = ec->ec_dev;
+	u8 status;
+	int ret;
+
+	/*
+	 * ECs that need legacy support are the main EC, directly connected to
+	 * the AP.
+	 */
+	if (ec->cmd_offset != 0)
+		return;
+
+	/*
+	 * Check if EC supports direct memory reads and if EC has
+	 * accelerometers.
+	 */
+	if (ec_dev->cmd_readmem) {
+		ret = ec_dev->cmd_readmem(ec_dev, EC_MEMMAP_ACC_STATUS, 1,
+					  &status);
+		if (ret < 0) {
+			dev_warn(ec->dev, "EC direct read error.\n");
+			return;
+		}
+
+		/* Check if EC has accelerometers. */
+		if (!(status & EC_MEMMAP_ACC_STATUS_PRESENCE_BIT)) {
+			dev_info(ec->dev, "EC does not have accelerometers.\n");
+			return;
+		}
+	}
+
+	/*
+	 * The device may still support accelerometers:
+	 * it would be an older ARM based device that do not suppor the
+	 * EC_CMD_GET_FEATURES command.
+	 *
+	 * Register 2 accelerometers, we will fail in the IIO driver if there
+	 * are no sensors.
+	 */
+	ret = mfd_add_devices(ec->dev, PLATFORM_DEVID_AUTO,
+			      cros_ec_accel_legacy_cells,
+			      ARRAY_SIZE(cros_ec_accel_legacy_cells),
+			      NULL, 0, NULL);
+	if (ret)
+		dev_err(ec_dev->dev, "failed to add EC sensors\n");
+}
+
 static const struct mfd_cell cros_ec_cec_cells[] = {
 	{ .name = "cros-ec-cec" }
 };
@@ -488,6 +554,9 @@ static int ec_device_probe(struct platform_device *pdev)
 	/* check whether this EC is a sensor hub. */
 	if (cros_ec_check_features(ec, EC_FEATURE_MOTION_SENSE))
 		cros_ec_sensors_register(ec);
+	else
+		/* Workaroud for older EC firmware */
+		cros_ec_accel_legacy_register(ec);
 
 	/* Check whether this EC instance has CEC host command support */
 	if (cros_ec_check_features(ec, EC_FEATURE_CEC)) {
