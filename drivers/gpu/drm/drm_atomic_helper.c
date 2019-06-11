@@ -1002,7 +1002,9 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		/* Right function depends upon target state. */
 		if (funcs) {
-			if (new_conn_state->crtc && funcs->prepare)
+			if (funcs->atomic_disable)
+				funcs->atomic_disable(encoder, old_state);
+			else if (new_conn_state->crtc && funcs->prepare)
 				funcs->prepare(encoder);
 			else if (funcs->disable)
 				funcs->disable(encoder);
@@ -1311,7 +1313,9 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 		drm_bridge_pre_enable(encoder->bridge);
 
 		if (funcs) {
-			if (funcs->enable)
+			if (funcs->atomic_enable)
+				funcs->atomic_enable(encoder, old_state);
+			else if (funcs->enable)
 				funcs->enable(encoder);
 			else if (funcs->commit)
 				funcs->commit(encoder);
