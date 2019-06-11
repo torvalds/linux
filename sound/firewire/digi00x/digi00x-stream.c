@@ -159,13 +159,13 @@ static int begin_session(struct snd_dg00x *dg00x)
 				 DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
 				 &data, sizeof(data), 0);
 	if (err < 0)
-		goto error;
+		return err;
 
 	err = snd_fw_transaction(dg00x->unit, TCODE_READ_QUADLET_REQUEST,
 				 DG00X_ADDR_BASE + DG00X_OFFSET_STREAMING_STATE,
 				 &data, sizeof(data), 0);
 	if (err < 0)
-		goto error;
+		return err;
 	curr = be32_to_cpu(data);
 
 	if (curr == 0)
@@ -180,15 +180,12 @@ static int begin_session(struct snd_dg00x *dg00x)
 					 DG00X_OFFSET_STREAMING_SET,
 					 &data, sizeof(data), 0);
 		if (err < 0)
-			goto error;
+			break;
 
 		msleep(20);
 		curr--;
 	}
 
-	return 0;
-error:
-	finish_session(dg00x);
 	return err;
 }
 
