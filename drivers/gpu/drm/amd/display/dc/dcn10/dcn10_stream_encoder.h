@@ -605,8 +605,8 @@ void enc1_se_enable_dp_audio(
 
 void get_audio_clock_info(
 	enum dc_color_depth color_depth,
-	uint32_t crtc_pixel_clock_in_khz,
-	uint32_t actual_pixel_clock_in_khz,
+	uint32_t crtc_pixel_clock_100Hz,
+	uint32_t actual_pixel_clock_100Hz,
 	struct audio_clock_info *audio_clock_info);
 
 #endif /* __DC_STREAM_ENCODER_DCN10_H__ */

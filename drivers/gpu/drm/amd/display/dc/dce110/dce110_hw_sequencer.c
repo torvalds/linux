@@ -1162,27 +1162,27 @@ static void build_audio_output(
 			stream->timing.flags.INTERLACE;
 
 	audio_output->crtc_info.refresh_rate =
-		(stream->timing.pix_clk_100hz*10000)/
+		(stream->timing.pix_clk_100hz*100)/
 		(stream->timing.h_total*stream->timing.v_total);
 
 	audio_output->crtc_info.color_depth =
 		stream->timing.display_color_depth;
 
-	audio_output->crtc_info.requested_pixel_clock =
-			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz / 10;
+	audio_output->crtc_info.requested_pixel_clock_100Hz =
+			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
-	audio_output->crtc_info.calculated_pixel_clock =
-			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz / 10;
+	audio_output->crtc_info.calculated_pixel_clock_100Hz =
+			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
 /*for HDMI, audio ACR is with deep color ratio factor*/
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal) &&
-		audio_output->crtc_info.requested_pixel_clock ==
-				(stream->timing.pix_clk_100hz / 10)) {
+		audio_output->crtc_info.requested_pixel_clock_100Hz ==
+				(stream->timing.pix_clk_100hz)) {
 		if (pipe_ctx->stream_res.pix_clk_params.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
-			audio_output->crtc_info.requested_pixel_clock =
-					audio_output->crtc_info.requested_pixel_clock/2;
-			audio_output->crtc_info.calculated_pixel_clock =
-					pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz/20;
+			audio_output->crtc_info.requested_pixel_clock_100Hz =
+					audio_output->crtc_info.requested_pixel_clock_100Hz/2;
+			audio_output->crtc_info.calculated_pixel_clock_100Hz =
+					pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz/2;
 
 		}
 	}

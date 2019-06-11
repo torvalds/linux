@@ -38,8 +38,8 @@ struct audio_crtc_info {
 	uint32_t h_active;
 	uint32_t v_active;
 	uint32_t pixel_repetition;
-	uint32_t requested_pixel_clock; /* in KHz */
-	uint32_t calculated_pixel_clock; /* in KHz */
+	uint32_t requested_pixel_clock_100Hz; /* in 100Hz */
+	uint32_t calculated_pixel_clock_100Hz; /* in 100Hz */
 	uint32_t refresh_rate;
 	enum dc_color_depth color_depth;
 	bool interlaced;
