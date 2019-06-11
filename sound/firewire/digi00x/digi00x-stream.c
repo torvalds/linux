@@ -130,6 +130,12 @@ static void finish_session(struct snd_dg00x *dg00x)
 	snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
 			   DG00X_ADDR_BASE + DG00X_OFFSET_STREAMING_SET,
 			   &data, sizeof(data), 0);
+
+	// Unregister isochronous channels for both direction.
+	data = 0;
+	snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
+			   DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
+			   &data, sizeof(data), 0);
 }
 
 static int begin_session(struct snd_dg00x *dg00x)
@@ -137,6 +143,15 @@ static int begin_session(struct snd_dg00x *dg00x)
 	__be32 data;
 	u32 curr;
 	int err;
+
+	// Register isochronous channels for both direction.
+	data = cpu_to_be32((dg00x->tx_resources.channel << 16) |
+			   dg00x->rx_resources.channel);
+	err = snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
+				 DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
+				 &data, sizeof(data), 0);
+	if (err < 0)
+		goto error;
 
 	err = snd_fw_transaction(dg00x->unit, TCODE_READ_QUADLET_REQUEST,
 				 DG00X_ADDR_BASE + DG00X_OFFSET_STREAMING_STATE,
@@ -171,13 +186,6 @@ error:
 
 static void release_resources(struct snd_dg00x *dg00x)
 {
-	__be32 data = 0;
-
-	/* Unregister isochronous channels for both direction. */
-	snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
-			   DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
-			   &data, sizeof(data), 0);
-
 	/* Release isochronous resources. */
 	fw_iso_resources_free(&dg00x->tx_resources);
 	fw_iso_resources_free(&dg00x->rx_resources);
@@ -186,7 +194,6 @@ static void release_resources(struct snd_dg00x *dg00x)
 static int keep_resources(struct snd_dg00x *dg00x, unsigned int rate)
 {
 	unsigned int i;
-	__be32 data;
 	int err;
 
 	/* Check sampling rate. */
@@ -216,22 +223,12 @@ static int keep_resources(struct snd_dg00x *dg00x, unsigned int rate)
 	err = fw_iso_resources_allocate(&dg00x->tx_resources,
 				amdtp_stream_get_max_payload(&dg00x->tx_stream),
 				fw_parent_device(dg00x->unit)->max_speed);
-	if (err < 0)
-		goto error;
-
-	/* Register isochronous channels for both direction. */
-	data = cpu_to_be32((dg00x->tx_resources.channel << 16) |
-			   dg00x->rx_resources.channel);
-	err = snd_fw_transaction(dg00x->unit, TCODE_WRITE_QUADLET_REQUEST,
-				 DG00X_ADDR_BASE + DG00X_OFFSET_ISOC_CHANNELS,
-				 &data, sizeof(data), 0);
-	if (err < 0)
-		goto error;
+	if (err < 0) {
+		fw_iso_resources_free(&dg00x->rx_resources);
+		return err;
+	}
 
 	return 0;
-error:
-	release_resources(dg00x);
-	return err;
 }
 
 int snd_dg00x_stream_init_duplex(struct snd_dg00x *dg00x)
