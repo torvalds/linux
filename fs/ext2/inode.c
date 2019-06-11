@@ -1640,7 +1640,7 @@ int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 int ext2_getattr(const struct path *path, struct kstat *stat,
-		u32 request_mask, unsigned int query_falgs)
+		u32 request_mask, unsigned int query_flags)
 {
 	struct inode *inode = d_inode(path->dentry);
 	struct ext2_inode_info *ei = EXT2_I(inode);
