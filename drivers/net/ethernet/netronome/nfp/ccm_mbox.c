@@ -41,12 +41,14 @@ enum nfp_net_mbox_cmsg_state {
  * @err:	error encountered during processing if any
  * @max_len:	max(request_len, reply_len)
  * @exp_reply:	expected reply length (0 means don't validate)
+ * @posted:	the message was posted and nobody waits for the reply
  */
 struct nfp_ccm_mbox_cmsg_cb {
 	enum nfp_net_mbox_cmsg_state state;
 	int err;
 	unsigned int max_len;
 	unsigned int exp_reply;
+	bool posted;
 };
 
 static u32 nfp_ccm_mbox_max_msg(struct nfp_net *nn)
@@ -65,6 +67,7 @@ nfp_ccm_mbox_msg_init(struct sk_buff *skb, unsigned int exp_reply, int max_len)
 	cb->err = 0;
 	cb->max_len = max_len;
 	cb->exp_reply = exp_reply;
+	cb->posted = false;
 }
 
 static int nfp_ccm_mbox_maxlen(const struct sk_buff *skb)
@@ -96,6 +99,20 @@ static void nfp_ccm_mbox_set_busy(struct sk_buff *skb)
 	cb->state = NFP_NET_MBOX_CMSG_STATE_BUSY;
 }
 
+static bool nfp_ccm_mbox_is_posted(struct sk_buff *skb)
+{
+	struct nfp_ccm_mbox_cmsg_cb *cb = (void *)skb->cb;
+
+	return cb->posted;
+}
+
+static void nfp_ccm_mbox_mark_posted(struct sk_buff *skb)
+{
+	struct nfp_ccm_mbox_cmsg_cb *cb = (void *)skb->cb;
+
+	cb->posted = true;
+}
+
 static bool nfp_ccm_mbox_is_first(struct nfp_net *nn, struct sk_buff *skb)
 {
 	return skb_queue_is_first(&nn->mbox_cmsg.queue, skb);
@@ -119,6 +136,8 @@ static void nfp_ccm_mbox_mark_next_runner(struct nfp_net *nn)
 
 	cb = (void *)skb->cb;
 	cb->state = NFP_NET_MBOX_CMSG_STATE_NEXT;
+	if (cb->posted)
+		queue_work(nn->mbox_cmsg.workq, &nn->mbox_cmsg.runq_work);
 }
 
 static void
@@ -205,9 +224,7 @@ static void nfp_ccm_mbox_copy_out(struct nfp_net *nn, struct sk_buff *last)
 	while (true) {
 		unsigned int length, offset, type;
 		struct nfp_ccm_hdr hdr;
-		__be32 *skb_data;
 		u32 tlv_hdr;
-		int i, cnt;
 
 		tlv_hdr = readl(data);
 		type = FIELD_GET(NFP_NET_MBOX_TLV_TYPE, tlv_hdr);
@@ -278,20 +295,26 @@ static void nfp_ccm_mbox_copy_out(struct nfp_net *nn, struct sk_buff *last)
 			goto next_tlv;
 		}
 
-		if (length <= skb->len)
-			__skb_trim(skb, length);
-		else
-			skb_put(skb, length - skb->len);
+		if (!cb->posted) {
+			__be32 *skb_data;
+			int i, cnt;
 
-		/* We overcopy here slightly, but that's okay, the skb is large
-		 * enough, and the garbage will be ignored (beyond skb->len).
-		 */
-		skb_data = (__be32 *)skb->data;
-		memcpy(skb_data, &hdr, 4);
+			if (length <= skb->len)
+				__skb_trim(skb, length);
+			else
+				skb_put(skb, length - skb->len);
 
-		cnt = DIV_ROUND_UP(length, 4);
-		for (i = 1 ; i < cnt; i++)
-			skb_data[i] = cpu_to_be32(readl(data + i * 4));
+			/* We overcopy here slightly, but that's okay,
+			 * the skb is large enough, and the garbage will
+			 * be ignored (beyond skb->len).
+			 */
+			skb_data = (__be32 *)skb->data;
+			memcpy(skb_data, &hdr, 4);
+
+			cnt = DIV_ROUND_UP(length, 4);
+			for (i = 1 ; i < cnt; i++)
+				skb_data[i] = cpu_to_be32(readl(data + i * 4));
+		}
 
 		cb->state = NFP_NET_MBOX_CMSG_STATE_REPLY_FOUND;
 next_tlv:
@@ -314,6 +337,14 @@ next_tlv:
 			smp_wmb(); /* order the cb->err vs. cb->state */
 		}
 		cb->state = NFP_NET_MBOX_CMSG_STATE_DONE;
+
+		if (cb->posted) {
+			if (cb->err)
+				nn_dp_warn(&nn->dp,
+					   "mailbox posted msg failed type:%u err:%d\n",
+					   nfp_ccm_get_type(skb), cb->err);
+			dev_consume_skb_any(skb);
+		}
 	} while (skb != last);
 
 	nfp_ccm_mbox_mark_next_runner(nn);
@@ -563,6 +594,89 @@ err_free_skb:
 	return err;
 }
 
+static void nfp_ccm_mbox_post_runq_work(struct work_struct *work)
+{
+	struct sk_buff *skb;
+	struct nfp_net *nn;
+
+	nn = container_of(work, struct nfp_net, mbox_cmsg.runq_work);
+
+	spin_lock_bh(&nn->mbox_cmsg.queue.lock);
+
+	skb = __skb_peek(&nn->mbox_cmsg.queue);
+	if (WARN_ON(!skb || !nfp_ccm_mbox_is_posted(skb) ||
+		    !nfp_ccm_mbox_should_run(nn, skb))) {
+		spin_unlock_bh(&nn->mbox_cmsg.queue.lock);
+		return;
+	}
+
+	nfp_ccm_mbox_run_queue_unlock(nn);
+}
+
+static void nfp_ccm_mbox_post_wait_work(struct work_struct *work)
+{
+	struct sk_buff *skb;
+	struct nfp_net *nn;
+	int err;
+
+	nn = container_of(work, struct nfp_net, mbox_cmsg.wait_work);
+
+	skb = skb_peek(&nn->mbox_cmsg.queue);
+	if (WARN_ON(!skb || !nfp_ccm_mbox_is_posted(skb)))
+		/* Should never happen so it's unclear what to do here.. */
+		goto exit_unlock_wake;
+
+	err = nfp_net_mbox_reconfig_wait_posted(nn);
+	if (!err)
+		nfp_ccm_mbox_copy_out(nn, skb);
+	else
+		nfp_ccm_mbox_mark_all_err(nn, skb, -EIO);
+exit_unlock_wake:
+	nn_ctrl_bar_unlock(nn);
+	wake_up_all(&nn->mbox_cmsg.wq);
+}
+
+int nfp_ccm_mbox_post(struct nfp_net *nn, struct sk_buff *skb,
+		      enum nfp_ccm_type type, unsigned int max_reply_size)
+{
+	int err;
+
+	err = nfp_ccm_mbox_msg_prepare(nn, skb, type, 0, max_reply_size,
+				       GFP_ATOMIC);
+	if (err)
+		goto err_free_skb;
+
+	nfp_ccm_mbox_mark_posted(skb);
+
+	spin_lock_bh(&nn->mbox_cmsg.queue.lock);
+
+	err = nfp_ccm_mbox_msg_enqueue(nn, skb, type);
+	if (err)
+		goto err_unlock;
+
+	if (nfp_ccm_mbox_is_first(nn, skb)) {
+		if (nn_ctrl_bar_trylock(nn)) {
+			nfp_ccm_mbox_copy_in(nn, skb);
+			nfp_net_mbox_reconfig_post(nn,
+						   NFP_NET_CFG_MBOX_CMD_TLV_CMSG);
+			queue_work(nn->mbox_cmsg.workq,
+				   &nn->mbox_cmsg.wait_work);
+		} else {
+			nfp_ccm_mbox_mark_next_runner(nn);
+		}
+	}
+
+	spin_unlock_bh(&nn->mbox_cmsg.queue.lock);
+
+	return 0;
+
+err_unlock:
+	spin_unlock_bh(&nn->mbox_cmsg.queue.lock);
+err_free_skb:
+	dev_kfree_skb_any(skb);
+	return err;
+}
+
 struct sk_buff *
 nfp_ccm_mbox_msg_alloc(struct nfp_net *nn, unsigned int req_size,
 		       unsigned int reply_size, gfp_t flags)
@@ -588,4 +702,33 @@ nfp_ccm_mbox_msg_alloc(struct nfp_net *nn, unsigned int req_size,
 bool nfp_ccm_mbox_fits(struct nfp_net *nn, unsigned int size)
 {
 	return nfp_ccm_mbox_max_msg(nn) >= size;
+}
+
+int nfp_ccm_mbox_init(struct nfp_net *nn)
+{
+	return 0;
+}
+
+void nfp_ccm_mbox_clean(struct nfp_net *nn)
+{
+	drain_workqueue(nn->mbox_cmsg.workq);
+}
+
+int nfp_ccm_mbox_alloc(struct nfp_net *nn)
+{
+	skb_queue_head_init(&nn->mbox_cmsg.queue);
+	init_waitqueue_head(&nn->mbox_cmsg.wq);
+	INIT_WORK(&nn->mbox_cmsg.wait_work, nfp_ccm_mbox_post_wait_work);
+	INIT_WORK(&nn->mbox_cmsg.runq_work, nfp_ccm_mbox_post_runq_work);
+
+	nn->mbox_cmsg.workq = alloc_workqueue("nfp-ccm-mbox", WQ_UNBOUND, 0);
+	if (!nn->mbox_cmsg.workq)
+		return -ENOMEM;
+	return 0;
+}
+
+void nfp_ccm_mbox_free(struct nfp_net *nn)
+{
+	destroy_workqueue(nn->mbox_cmsg.workq);
+	WARN_ON(!skb_queue_empty(&nn->mbox_cmsg.queue));
 }

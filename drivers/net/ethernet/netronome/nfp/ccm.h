@@ -100,7 +100,7 @@ struct nfp_ccm {
 	u16 tag_alloc_last;
 
 	struct sk_buff_head replies;
-	struct wait_queue_head wq;
+	wait_queue_head_t wq;
 };
 
 int nfp_ccm_init(struct nfp_ccm *ccm, struct nfp_app *app);
@@ -110,6 +110,10 @@ struct sk_buff *
 nfp_ccm_communicate(struct nfp_ccm *ccm, struct sk_buff *skb,
 		    enum nfp_ccm_type type, unsigned int reply_size);
 
+int nfp_ccm_mbox_alloc(struct nfp_net *nn);
+void nfp_ccm_mbox_free(struct nfp_net *nn);
+int nfp_ccm_mbox_init(struct nfp_net *nn);
+void nfp_ccm_mbox_clean(struct nfp_net *nn);
 bool nfp_ccm_mbox_fits(struct nfp_net *nn, unsigned int size);
 struct sk_buff *
 nfp_ccm_mbox_msg_alloc(struct nfp_net *nn, unsigned int req_size,
@@ -118,4 +122,6 @@ int nfp_ccm_mbox_communicate(struct nfp_net *nn, struct sk_buff *skb,
 			     enum nfp_ccm_type type,
 			     unsigned int reply_size,
 			     unsigned int max_reply_size);
+int nfp_ccm_mbox_post(struct nfp_net *nn, struct sk_buff *skb,
+		      enum nfp_ccm_type type, unsigned int max_reply_size);
 #endif

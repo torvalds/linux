@@ -19,6 +19,7 @@
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/semaphore.h>
+#include <linux/workqueue.h>
 #include <net/xdp.h>
 
 #include "nfp_net_ctrl.h"
@@ -586,6 +587,9 @@ struct nfp_net_dp {
  * @mbox_cmsg:		Common Control Message via vNIC mailbox state
  * @mbox_cmsg.queue:	CCM mbox queue of pending messages
  * @mbox_cmsg.wq:	CCM mbox wait queue of waiting processes
+ * @mbox_cmsg.workq:	CCM mbox work queue for @wait_work and @runq_work
+ * @mbox_cmsg.wait_work:    CCM mbox posted msg reconfig wait work
+ * @mbox_cmsg.runq_work:    CCM mbox posted msg queue runner work
  * @mbox_cmsg.tag:	CCM mbox message tag allocator
  * @debugfs_dir:	Device directory in debugfs
  * @vnic_list:		Entry on device vNIC list
@@ -669,6 +673,9 @@ struct nfp_net {
 	struct {
 		struct sk_buff_head queue;
 		wait_queue_head_t wq;
+		struct workqueue_struct *workq;
+		struct work_struct wait_work;
+		struct work_struct runq_work;
 		u16 tag;
 	} mbox_cmsg;
 
@@ -886,6 +893,11 @@ static inline void nn_ctrl_bar_lock(struct nfp_net *nn)
 	down(&nn->bar_lock);
 }
 
+static inline bool nn_ctrl_bar_trylock(struct nfp_net *nn)
+{
+	return !down_trylock(&nn->bar_lock);
+}
+
 static inline void nn_ctrl_bar_unlock(struct nfp_net *nn)
 {
 	up(&nn->bar_lock);
@@ -927,6 +939,8 @@ void nfp_net_coalesce_write_cfg(struct nfp_net *nn);
 int nfp_net_mbox_lock(struct nfp_net *nn, unsigned int data_size);
 int nfp_net_mbox_reconfig(struct nfp_net *nn, u32 mbox_cmd);
 int nfp_net_mbox_reconfig_and_unlock(struct nfp_net *nn, u32 mbox_cmd);
+void nfp_net_mbox_reconfig_post(struct nfp_net *nn, u32 update);
+int nfp_net_mbox_reconfig_wait_posted(struct nfp_net *nn);
 
 unsigned int
 nfp_net_irqs_alloc(struct pci_dev *pdev, struct msix_entry *irq_entries,
