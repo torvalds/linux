@@ -20,6 +20,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/mii.h>
+#include <linux/mm.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/if_vlan.h>
@@ -3723,8 +3724,8 @@ check_layout:
 			__elements = 1 + qeth_count_elements(skb, proto_len);
 		else
 			__elements = qeth_count_elements(skb, 0);
-	} else if (!proto_len && qeth_get_elements_for_range(start, end) == 1) {
-		/* Push HW header into a new page. */
+	} else if (!proto_len && PAGE_ALIGNED(skb->data)) {
+		/* Push HW header into preceding page, flush with skb->data. */
 		push_ok = true;
 		__elements = 1 + qeth_count_elements(skb, 0);
 	} else {
@@ -3778,18 +3779,16 @@ static void __qeth_fill_buffer(struct sk_buff *skb,
 	int element = buf->next_element_to_fill;
 	int length = skb_headlen(skb) - offset;
 	char *data = skb->data + offset;
-	int length_here, cnt;
+	unsigned int elem_length, cnt;
 
 	/* map linear part into buffer element(s) */
 	while (length > 0) {
-		/* length_here is the remaining amount of data in this page */
-		length_here = PAGE_SIZE - ((unsigned long) data % PAGE_SIZE);
-		if (length < length_here)
-			length_here = length;
+		elem_length = min_t(unsigned int, length,
+				    PAGE_SIZE - offset_in_page(data));
 
 		buffer->element[element].addr = data;
-		buffer->element[element].length = length_here;
-		length -= length_here;
+		buffer->element[element].length = elem_length;
+		length -= elem_length;
 		if (is_first_elem) {
 			is_first_elem = false;
 			if (length || skb_is_nonlinear(skb))
@@ -3802,7 +3801,8 @@ static void __qeth_fill_buffer(struct sk_buff *skb,
 			buffer->element[element].eflags =
 				SBAL_EFLAGS_MIDDLE_FRAG;
 		}
-		data += length_here;
+
+		data += elem_length;
 		element++;
 	}
 
@@ -3813,17 +3813,16 @@ static void __qeth_fill_buffer(struct sk_buff *skb,
 		data = skb_frag_address(frag);
 		length = skb_frag_size(frag);
 		while (length > 0) {
-			length_here = PAGE_SIZE -
-				((unsigned long) data % PAGE_SIZE);
-			if (length < length_here)
-				length_here = length;
+			elem_length = min_t(unsigned int, length,
+					    PAGE_SIZE - offset_in_page(data));
 
 			buffer->element[element].addr = data;
-			buffer->element[element].length = length_here;
+			buffer->element[element].length = elem_length;
 			buffer->element[element].eflags =
 				SBAL_EFLAGS_MIDDLE_FRAG;
-			length -= length_here;
-			data += length_here;
+
+			length -= elem_length;
+			data += elem_length;
 			element++;
 		}
 	}
