@@ -135,8 +135,12 @@ int assign_fw(struct firmware *fw, struct device *device,
 
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 void fw_free_paged_buf(struct fw_priv *fw_priv);
+int fw_grow_paged_buf(struct fw_priv *fw_priv, int pages_needed);
+int fw_map_paged_buf(struct fw_priv *fw_priv);
 #else
 static inline void fw_free_paged_buf(struct fw_priv *fw_priv) {}
+int fw_grow_paged_buf(struct fw_priv *fw_priv, int pages_needed) { return -ENXIO; }
+int fw_map_paged_buf(struct fw_priv *fw_priv) { return -ENXIO; }
 #endif
 
 #endif /* __FIRMWARE_LOADER_H */
