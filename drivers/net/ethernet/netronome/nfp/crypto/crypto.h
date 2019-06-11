@@ -13,7 +13,6 @@ struct nfp_net_tls_offload_ctx {
 	 */
 
 	u32 next_seq;
-	bool out_of_sync;
 };
 
 #ifdef CONFIG_TLS_DEVICE

@@ -390,25 +390,30 @@ nfp_net_tls_resync(struct net_device *netdev, struct sock *sk, u32 seq,
 	struct nfp_net_tls_offload_ctx *ntls;
 	struct nfp_crypto_req_update *req;
 	struct sk_buff *skb;
+	gfp_t flags;
 
-	if (WARN_ON_ONCE(direction != TLS_OFFLOAD_CTX_DIR_RX))
-		return;
-
-	skb = nfp_net_tls_alloc_simple(nn, sizeof(*req), GFP_ATOMIC);
+	flags = direction == TLS_OFFLOAD_CTX_DIR_TX ? GFP_KERNEL : GFP_ATOMIC;
+	skb = nfp_net_tls_alloc_simple(nn, sizeof(*req), flags);
 	if (!skb)
 		return;
 
-	ntls = tls_driver_ctx(sk, TLS_OFFLOAD_CTX_DIR_RX);
+	ntls = tls_driver_ctx(sk, direction);
 	req = (void *)skb->data;
 	req->ep_id = 0;
-	req->opcode = NFP_NET_CRYPTO_OP_TLS_1_2_AES_GCM_128_DEC;
+	req->opcode = nfp_tls_1_2_dir_to_opcode(direction);
 	memset(req->resv, 0, sizeof(req->resv));
 	memcpy(req->handle, ntls->fw_handle, sizeof(ntls->fw_handle));
 	req->tcp_seq = cpu_to_be32(seq);
 	memcpy(req->rec_no, rcd_sn, sizeof(req->rec_no));
 
-	nfp_ccm_mbox_post(nn, skb, NFP_CCM_TYPE_CRYPTO_UPDATE,
-			  sizeof(struct nfp_crypto_reply_simple));
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
+		nfp_net_tls_communicate_simple(nn, skb, "sync",
+					       NFP_CCM_TYPE_CRYPTO_UPDATE);
+		ntls->next_seq = seq;
+	} else {
+		nfp_ccm_mbox_post(nn, skb, NFP_CCM_TYPE_CRYPTO_UPDATE,
+				  sizeof(struct nfp_crypto_reply_simple));
+	}
 }
 
 static const struct tlsdev_ops nfp_net_tls_ops = {

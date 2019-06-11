@@ -829,6 +829,7 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 {
 	struct nfp_net_tls_offload_ctx *ntls;
 	struct sk_buff *nskb;
+	bool resync_pending;
 	u32 datalen, seq;
 
 	if (likely(!dp->ktls_tx))
@@ -839,7 +840,8 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 	datalen = skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb));
 	seq = ntohl(tcp_hdr(skb)->seq);
 	ntls = tls_driver_ctx(skb->sk, TLS_OFFLOAD_CTX_DIR_TX);
-	if (unlikely(ntls->next_seq != seq || ntls->out_of_sync)) {
+	resync_pending = tls_offload_tx_resync_pending(skb->sk);
+	if (unlikely(resync_pending || ntls->next_seq != seq)) {
 		/* Pure ACK out of order already */
 		if (!datalen)
 			return skb;
@@ -869,8 +871,8 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 		}
 
 		/* jump forward, a TX may have gotten lost, need to sync TX */
-		if (!ntls->out_of_sync && seq - ntls->next_seq < U32_MAX / 4)
-			ntls->out_of_sync = true;
+		if (!resync_pending && seq - ntls->next_seq < U32_MAX / 4)
+			tls_offload_tx_resync_request(nskb->sk);
 
 		*nr_frags = 0;
 		return nskb;
