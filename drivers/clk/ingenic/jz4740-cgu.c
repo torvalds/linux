@@ -20,7 +20,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <dt-bindings/clock/jz4740-cgu.h>
-#include <asm/mach-jz4740/clock.h>
 #include "cgu.h"
 #include "pm.h"
 
@@ -252,75 +251,3 @@ static void __init jz4740_cgu_init(struct device_node *np)
 	ingenic_cgu_register_syscore_ops(cgu);
 }
 CLK_OF_DECLARE(jz4740_cgu, "ingenic,jz4740-cgu", jz4740_cgu_init);
-
-void jz4740_clock_set_wait_mode(enum jz4740_wait_mode mode)
-{
-	uint32_t lcr = readl(cgu->base + CGU_REG_LCR);
-
-	switch (mode) {
-	case JZ4740_WAIT_MODE_IDLE:
-		lcr &= ~LCR_SLEEP;
-		break;
-
-	case JZ4740_WAIT_MODE_SLEEP:
-		lcr |= LCR_SLEEP;
-		break;
-	}
-
-	writel(lcr, cgu->base + CGU_REG_LCR);
-}
-
-void jz4740_clock_udc_disable_auto_suspend(void)
-{
-	uint32_t clkgr = readl(cgu->base + CGU_REG_CLKGR);
-
-	clkgr &= ~CLKGR_UDC;
-	writel(clkgr, cgu->base + CGU_REG_CLKGR);
-}
-EXPORT_SYMBOL_GPL(jz4740_clock_udc_disable_auto_suspend);
-
-void jz4740_clock_udc_enable_auto_suspend(void)
-{
-	uint32_t clkgr = readl(cgu->base + CGU_REG_CLKGR);
-
-	clkgr |= CLKGR_UDC;
-	writel(clkgr, cgu->base + CGU_REG_CLKGR);
-}
-EXPORT_SYMBOL_GPL(jz4740_clock_udc_enable_auto_suspend);
-
-#define JZ_CLOCK_GATE_UART0	BIT(0)
-#define JZ_CLOCK_GATE_TCU	BIT(1)
-#define JZ_CLOCK_GATE_DMAC	BIT(12)
-
-void jz4740_clock_suspend(void)
-{
-	uint32_t clkgr, cppcr;
-
-	clkgr = readl(cgu->base + CGU_REG_CLKGR);
-	clkgr |= JZ_CLOCK_GATE_TCU | JZ_CLOCK_GATE_DMAC | JZ_CLOCK_GATE_UART0;
-	writel(clkgr, cgu->base + CGU_REG_CLKGR);
-
-	cppcr = readl(cgu->base + CGU_REG_CPPCR);
-	cppcr &= ~BIT(jz4740_cgu_clocks[JZ4740_CLK_PLL].pll.enable_bit);
-	writel(cppcr, cgu->base + CGU_REG_CPPCR);
-}
-
-void jz4740_clock_resume(void)
-{
-	uint32_t clkgr, cppcr, stable;
-
-	cppcr = readl(cgu->base + CGU_REG_CPPCR);
-	cppcr |= BIT(jz4740_cgu_clocks[JZ4740_CLK_PLL].pll.enable_bit);
-	writel(cppcr, cgu->base + CGU_REG_CPPCR);
-
-	stable = BIT(jz4740_cgu_clocks[JZ4740_CLK_PLL].pll.stable_bit);
-	do {
-		cppcr = readl(cgu->base + CGU_REG_CPPCR);
-	} while (!(cppcr & stable));
-
-	clkgr = readl(cgu->base + CGU_REG_CLKGR);
-	clkgr &= ~JZ_CLOCK_GATE_TCU;
-	clkgr &= ~JZ_CLOCK_GATE_DMAC;
-	clkgr &= ~JZ_CLOCK_GATE_UART0;
-	writel(clkgr, cgu->base + CGU_REG_CLKGR);
-}
