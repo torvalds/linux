@@ -559,7 +559,8 @@ static void tls_device_resync_rx(struct tls_context *tls_ctx,
 		return;
 	netdev = READ_ONCE(tls_ctx->netdev);
 	if (netdev)
-		netdev->tlsdev_ops->tls_dev_resync_rx(netdev, sk, seq, rcd_sn);
+		netdev->tlsdev_ops->tls_dev_resync(netdev, sk, seq, rcd_sn,
+						   TLS_OFFLOAD_CTX_DIR_RX);
 	clear_bit_unlock(TLS_RX_SYNC_RUNNING, &tls_ctx->flags);
 }
 
@@ -1105,7 +1106,7 @@ static int tls_dev_event(struct notifier_block *this, unsigned long event,
 	case NETDEV_REGISTER:
 	case NETDEV_FEAT_CHANGE:
 		if ((dev->features & NETIF_F_HW_TLS_RX) &&
-		    !dev->tlsdev_ops->tls_dev_resync_rx)
+		    !dev->tlsdev_ops->tls_dev_resync)
 			return NOTIFY_BAD;
 
 		if  (dev->tlsdev_ops &&

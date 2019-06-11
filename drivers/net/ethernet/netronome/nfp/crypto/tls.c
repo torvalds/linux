@@ -383,13 +383,16 @@ nfp_net_tls_del(struct net_device *netdev, struct tls_context *tls_ctx,
 }
 
 static void
-nfp_net_tls_resync_rx(struct net_device *netdev, struct sock *sk, u32 seq,
-		      u8 *rcd_sn)
+nfp_net_tls_resync(struct net_device *netdev, struct sock *sk, u32 seq,
+		   u8 *rcd_sn, enum tls_offload_ctx_dir direction)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	struct nfp_net_tls_offload_ctx *ntls;
 	struct nfp_crypto_req_update *req;
 	struct sk_buff *skb;
+
+	if (WARN_ON_ONCE(direction != TLS_OFFLOAD_CTX_DIR_RX))
+		return;
 
 	skb = nfp_net_tls_alloc_simple(nn, sizeof(*req), GFP_ATOMIC);
 	if (!skb)
@@ -411,7 +414,7 @@ nfp_net_tls_resync_rx(struct net_device *netdev, struct sock *sk, u32 seq,
 static const struct tlsdev_ops nfp_net_tls_ops = {
 	.tls_dev_add = nfp_net_tls_add,
 	.tls_dev_del = nfp_net_tls_del,
-	.tls_dev_resync_rx = nfp_net_tls_resync_rx,
+	.tls_dev_resync = nfp_net_tls_resync,
 };
 
 static int nfp_net_tls_reset(struct nfp_net *nn)
