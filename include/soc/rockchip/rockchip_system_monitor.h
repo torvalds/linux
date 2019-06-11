@@ -120,7 +120,7 @@ int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low);
 int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high);
-int rockchip_monitor_suspend_low_temp_adjust(struct monitor_dev_info *info);
+int rockchip_monitor_suspend_low_temp_adjust(int cpu);
 int
 rockchip_system_monitor_adjust_cdev_state(struct thermal_cooling_device *cdev,
 					  int temp, unsigned long *state);
@@ -163,8 +163,7 @@ rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
 	return 0;
 };
 
-static inline int
-rockchip_monitor_suspend_low_temp_adjust(struct monitor_dev_info *info)
+static inline int rockchip_monitor_suspend_low_temp_adjust(in cpu)
 {
 	return 0;
 };

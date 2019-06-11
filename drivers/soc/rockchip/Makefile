@@ -11,7 +11,7 @@ obj-$(CONFIG_ROCKCHIP_IPA)	+= rockchip_ipa.o
 obj-$(CONFIG_ROCKCHIP_OPP)	+= rockchip_opp_select.o
 obj-$(CONFIG_ROCKCHIP_PVTM)	+= rockchip_pvtm.o
 obj-$(CONFIG_ROCKCHIP_SUSPEND_MODE) += rockchip_pm_config.o
+obj-$(CONFIG_ROCKCHIP_SYSTEM_MONITOR) += rockchip_system_monitor.o
 
 obj-y += rk_vendor_storage.o
-obj-y += rockchip-system-status.o
 obj-$(CONFIG_RK_FLASH) += flash_vendor_storage.o

@@ -78,4 +78,10 @@ config ROCKCHIP_SUSPEND_MODE
 	help
 	  Say Y here if you want to set the suspend mode to the ATF.
 
+config ROCKCHIP_SYSTEM_MONITOR
+	bool "Rockchip system monitor support"
+	default y
+	help
+	  Say y here to enable rockchip system monitor support.
+
 endif
