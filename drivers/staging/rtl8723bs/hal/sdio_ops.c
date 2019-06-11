@@ -1045,13 +1045,11 @@ void sd_int_dpc(struct adapter *adapter)
 		}
 	}
 
-	if (hal->sdio_hisr & SDIO_HISR_TXBCNOK) {
+	if (hal->sdio_hisr & SDIO_HISR_TXBCNOK)
 		DBG_8192C("%s: SDIO_HISR_TXBCNOK\n", __func__);
-	}
 
-	if (hal->sdio_hisr & SDIO_HISR_TXBCNERR) {
+	if (hal->sdio_hisr & SDIO_HISR_TXBCNERR)
 		DBG_8192C("%s: SDIO_HISR_TXBCNERR\n", __func__);
-	}
 #ifndef CONFIG_C2H_PACKET_EN
 	if (hal->sdio_hisr & SDIO_HISR_C2HCMD) {
 		struct c2h_evt_hdr_88xx *c2h_evt;
@@ -1077,13 +1075,12 @@ void sd_int_dpc(struct adapter *adapter)
 	}
 #endif
 
-	if (hal->sdio_hisr & SDIO_HISR_RXFOVW) {
+	if (hal->sdio_hisr & SDIO_HISR_RXFOVW)
 		DBG_8192C("%s: Rx Overflow\n", __func__);
-	}
 
-	if (hal->sdio_hisr & SDIO_HISR_RXERR) {
+	if (hal->sdio_hisr & SDIO_HISR_RXERR)
 		DBG_8192C("%s: Rx Error\n", __func__);
-	}
+
 
 	if (hal->sdio_hisr & SDIO_HISR_RX_REQUEST) {
 		struct recv_buf *recvbuf;
@@ -1143,9 +1140,8 @@ void sd_int_hdl(struct adapter *adapter)
 
 		/*  clear HISR */
 		v32 = hal->sdio_hisr & MASK_SDIO_HISR_CLEAR;
-		if (v32) {
+		if (v32)
 			SdioLocalCmd52Write4Byte(adapter, SDIO_REG_HISR, v32);
-		}
 
 		sd_int_dpc(adapter);
 	} else {
