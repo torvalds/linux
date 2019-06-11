@@ -134,8 +134,8 @@ int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 {
 	struct mlx5_mpfs *mpfs = dev->priv.mpfs;
 	struct l2table_node *l2addr;
+	int err = 0;
 	u32 index;
-	int err;
 
 	if (!MLX5_ESWITCH_MANAGER(dev))
 		return 0;
@@ -145,29 +145,33 @@ int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 	l2addr = l2addr_hash_find(mpfs->hash, mac, struct l2table_node);
 	if (l2addr) {
 		err = -EEXIST;
-		goto abort;
+		goto out;
 	}
 
 	err = alloc_l2table_index(mpfs, &index);
 	if (err)
-		goto abort;
+		goto out;
 
 	l2addr = l2addr_hash_add(mpfs->hash, mac, struct l2table_node, GFP_KERNEL);
 	if (!l2addr) {
-		free_l2table_index(mpfs, index);
 		err = -ENOMEM;
-		goto abort;
+		goto hash_add_err;
 	}
+
+	err = set_l2table_entry_cmd(dev, index, mac);
+	if (err)
+		goto set_table_entry_err;
 
 	l2addr->index = index;
-	err = set_l2table_entry_cmd(dev, index, mac);
-	if (err) {
-		l2addr_hash_del(l2addr);
-		free_l2table_index(mpfs, index);
-	}
 
 	mlx5_core_dbg(dev, "MPFS mac added %pM, index (%d)\n", mac, index);
-abort:
+	goto out;
+
+set_table_entry_err:
+	l2addr_hash_del(l2addr);
+hash_add_err:
+	free_l2table_index(mpfs, index);
+out:
 	mutex_unlock(&mpfs->lock);
 	return err;
 }
