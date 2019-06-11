@@ -326,7 +326,7 @@ static void ena_free_all_io_tx_resources(struct ena_adapter *adapter)
 		ena_free_tx_resources(adapter, i);
 }
 
-static inline int validate_rx_req_id(struct ena_ring *rx_ring, u16 req_id)
+static int validate_rx_req_id(struct ena_ring *rx_ring, u16 req_id)
 {
 	if (likely(req_id < rx_ring->ring_size))
 		return 0;
@@ -460,7 +460,7 @@ static void ena_free_all_io_rx_resources(struct ena_adapter *adapter)
 		ena_free_rx_resources(adapter, i);
 }
 
-static inline int ena_alloc_rx_page(struct ena_ring *rx_ring,
+static int ena_alloc_rx_page(struct ena_ring *rx_ring,
 				    struct ena_rx_buffer *rx_info, gfp_t gfp)
 {
 	struct ena_com_buf *ena_buf;
@@ -620,7 +620,7 @@ static void ena_free_all_rx_bufs(struct ena_adapter *adapter)
 		ena_free_rx_bufs(adapter, i);
 }
 
-static inline void ena_unmap_tx_skb(struct ena_ring *tx_ring,
+static void ena_unmap_tx_skb(struct ena_ring *tx_ring,
 				    struct ena_tx_buffer *tx_info)
 {
 	struct ena_com_buf *ena_buf;
@@ -955,7 +955,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
  * @ena_rx_ctx: received packet context/metadata
  * @skb: skb currently being received and modified
  */
-static inline void ena_rx_checksum(struct ena_ring *rx_ring,
+static void ena_rx_checksum(struct ena_ring *rx_ring,
 				   struct ena_com_rx_ctx *ena_rx_ctx,
 				   struct sk_buff *skb)
 {
@@ -1155,7 +1155,7 @@ error:
 	return 0;
 }
 
-inline void ena_adjust_intr_moderation(struct ena_ring *rx_ring,
+void ena_adjust_intr_moderation(struct ena_ring *rx_ring,
 				       struct ena_ring *tx_ring)
 {
 	/* We apply adaptive moderation on Rx path only.
@@ -1174,7 +1174,7 @@ inline void ena_adjust_intr_moderation(struct ena_ring *rx_ring,
 	rx_ring->per_napi_bytes = 0;
 }
 
-static inline void ena_unmask_interrupt(struct ena_ring *tx_ring,
+static void ena_unmask_interrupt(struct ena_ring *tx_ring,
 					struct ena_ring *rx_ring)
 {
 	struct ena_eth_io_intr_reg intr_reg;
@@ -1194,7 +1194,7 @@ static inline void ena_unmask_interrupt(struct ena_ring *tx_ring,
 	ena_com_unmask_intr(rx_ring->ena_com_io_cq, &intr_reg);
 }
 
-static inline void ena_update_ring_numa_node(struct ena_ring *tx_ring,
+static void ena_update_ring_numa_node(struct ena_ring *tx_ring,
 					     struct ena_ring *rx_ring)
 {
 	int cpu = get_cpu();
@@ -3337,7 +3337,7 @@ static void ena_release_bars(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 	pci_release_selected_regions(pdev, release_bars);
 }
 
-static inline void set_default_llq_configurations(struct ena_llq_configurations *llq_config)
+static void set_default_llq_configurations(struct ena_llq_configurations *llq_config)
 {
 	llq_config->llq_header_location = ENA_ADMIN_INLINE_HEADER;
 	llq_config->llq_ring_entry_size = ENA_ADMIN_LIST_ENTRY_SIZE_128B;

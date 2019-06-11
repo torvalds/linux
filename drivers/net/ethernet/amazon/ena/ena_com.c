@@ -91,7 +91,7 @@ struct ena_com_stats_ctx {
 	struct ena_admin_acq_get_stats_resp get_resp;
 };
 
-static inline int ena_com_mem_addr_set(struct ena_com_dev *ena_dev,
+static int ena_com_mem_addr_set(struct ena_com_dev *ena_dev,
 				       struct ena_common_mem_addr *ena_addr,
 				       dma_addr_t addr)
 {
@@ -190,7 +190,7 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *dev,
 	return 0;
 }
 
-static inline void comp_ctxt_release(struct ena_com_admin_queue *queue,
+static void comp_ctxt_release(struct ena_com_admin_queue *queue,
 				     struct ena_comp_ctx *comp_ctx)
 {
 	comp_ctx->occupied = false;
@@ -277,7 +277,7 @@ static struct ena_comp_ctx *__ena_com_submit_admin_cmd(struct ena_com_admin_queu
 	return comp_ctx;
 }
 
-static inline int ena_com_init_comp_ctxt(struct ena_com_admin_queue *queue)
+static int ena_com_init_comp_ctxt(struct ena_com_admin_queue *queue)
 {
 	size_t size = queue->q_depth * sizeof(struct ena_comp_ctx);
 	struct ena_comp_ctx *comp_ctx;
