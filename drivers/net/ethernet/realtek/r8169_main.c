@@ -814,7 +814,7 @@ static void r8168_phy_ocp_write(struct rtl8169_private *tp, u32 reg, u32 data)
 	rtl_udelay_loop_wait_low(tp, &rtl_ocp_gphy_cond, 25, 10);
 }
 
-static u16 r8168_phy_ocp_read(struct rtl8169_private *tp, u32 reg)
+static int r8168_phy_ocp_read(struct rtl8169_private *tp, u32 reg)
 {
 	if (rtl_ocp_reg_failure(tp, reg))
 		return 0;
@@ -822,7 +822,7 @@ static u16 r8168_phy_ocp_read(struct rtl8169_private *tp, u32 reg)
 	RTL_W32(tp, GPHY_OCP, reg << 15);
 
 	return rtl_udelay_loop_wait_high(tp, &rtl_ocp_gphy_cond, 25, 10) ?
-		(RTL_R32(tp, GPHY_OCP) & 0xffff) : ~0;
+		(RTL_R32(tp, GPHY_OCP) & 0xffff) : -ETIMEDOUT;
 }
 
 static void r8168_mac_ocp_write(struct rtl8169_private *tp, u32 reg, u32 data)
@@ -905,7 +905,7 @@ static int r8169_mdio_read(struct rtl8169_private *tp, int reg)
 	RTL_W32(tp, PHYAR, 0x0 | (reg & 0x1f) << 16);
 
 	value = rtl_udelay_loop_wait_high(tp, &rtl_phyar_cond, 25, 20) ?
-		RTL_R32(tp, PHYAR) & 0xffff : ~0;
+		RTL_R32(tp, PHYAR) & 0xffff : -ETIMEDOUT;
 
 	/*
 	 * According to hardware specs a 20us delay is required after read
@@ -945,7 +945,7 @@ static int r8168dp_1_mdio_read(struct rtl8169_private *tp, int reg)
 	RTL_W32(tp, EPHY_RXER_NUM, 0);
 
 	return rtl_udelay_loop_wait_high(tp, &rtl_ocpar_cond, 1000, 100) ?
-		RTL_R32(tp, OCPDR) & OCPDR_DATA_MASK : ~0;
+		RTL_R32(tp, OCPDR) & OCPDR_DATA_MASK : -ETIMEDOUT;
 }
 
 #define R8168DP_1_MDIO_ACCESS_BIT	0x00020000
