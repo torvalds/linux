@@ -122,14 +122,14 @@ int rtw_drv_proc_init(void)
 	ssize_t i;
 	struct proc_dir_entry *entry = NULL;
 
-	if (rtw_proc != NULL) {
+	if (rtw_proc) {
 		rtw_warn_on(1);
 		goto exit;
 	}
 
 	rtw_proc = rtw_proc_create_dir(RTW_PROC_NAME, get_proc_net, NULL);
 
-	if (rtw_proc == NULL) {
+	if (!rtw_proc) {
 		rtw_warn_on(1);
 		goto exit;
 	}
@@ -152,7 +152,7 @@ void rtw_drv_proc_deinit(void)
 {
 	int i;
 
-	if (rtw_proc == NULL)
+	if (!rtw_proc)
 		return;
 
 	for (i = 0; i < drv_proc_hdls_num; i++)
@@ -637,18 +637,18 @@ static struct proc_dir_entry *rtw_odm_proc_init(struct net_device *dev)
 	struct adapter	*adapter = rtw_netdev_priv(dev);
 	ssize_t i;
 
-	if (adapter->dir_dev == NULL) {
+	if (!adapter->dir_dev) {
 		rtw_warn_on(1);
 		goto exit;
 	}
 
-	if (adapter->dir_odm != NULL) {
+	if (adapter->dir_odm) {
 		rtw_warn_on(1);
 		goto exit;
 	}
 
 	dir_odm = rtw_proc_create_dir("odm", adapter->dir_dev, dev);
-	if (dir_odm == NULL) {
+	if (!dir_odm) {
 		rtw_warn_on(1);
 		goto exit;
 	}
@@ -674,7 +674,7 @@ static void rtw_odm_proc_deinit(struct adapter	*adapter)
 
 	dir_odm = adapter->dir_odm;
 
-	if (dir_odm == NULL) {
+	if (!dir_odm) {
 		rtw_warn_on(1);
 		return;
 	}
@@ -695,18 +695,18 @@ struct proc_dir_entry *rtw_adapter_proc_init(struct net_device *dev)
 	struct adapter *adapter = rtw_netdev_priv(dev);
 	ssize_t i;
 
-	if (drv_proc == NULL) {
+	if (!drv_proc) {
 		rtw_warn_on(1);
 		goto exit;
 	}
 
-	if (adapter->dir_dev != NULL) {
+	if (adapter->dir_dev) {
 		rtw_warn_on(1);
 		goto exit;
 	}
 
 	dir_dev = rtw_proc_create_dir(dev->name, drv_proc, dev);
-	if (dir_dev == NULL) {
+	if (!dir_dev) {
 		rtw_warn_on(1);
 		goto exit;
 	}
@@ -736,7 +736,7 @@ void rtw_adapter_proc_deinit(struct net_device *dev)
 
 	dir_dev = adapter->dir_dev;
 
-	if (dir_dev == NULL) {
+	if (!dir_dev) {
 		rtw_warn_on(1);
 		return;
 	}
@@ -760,7 +760,7 @@ void rtw_adapter_proc_replace(struct net_device *dev)
 
 	dir_dev = adapter->dir_dev;
 
-	if (dir_dev == NULL) {
+	if (!dir_dev) {
 		rtw_warn_on(1);
 		return;
 	}
