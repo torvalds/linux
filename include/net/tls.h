@@ -212,6 +212,11 @@ struct tls_offload_context_tx {
 
 enum tls_context_flags {
 	TLS_RX_SYNC_RUNNING = 0,
+	/* Unlike RX where resync is driven entirely by the core in TX only
+	 * the driver knows when things went out of sync, so we need the flag
+	 * to be atomic.
+	 */
+	TLS_TX_SYNC_SCHED = 1,
 };
 
 struct cipher_context {
@@ -617,6 +622,24 @@ tls_offload_rx_resync_set_type(struct sock *sk, enum tls_offload_sync_type type)
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 
 	tls_offload_ctx_rx(tls_ctx)->resync_type = type;
+}
+
+static inline void tls_offload_tx_resync_request(struct sock *sk)
+{
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+
+	WARN_ON(test_and_set_bit(TLS_TX_SYNC_SCHED, &tls_ctx->flags));
+}
+
+/* Driver's seq tracking has to be disabled until resync succeeded */
+static inline bool tls_offload_tx_resync_pending(struct sock *sk)
+{
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+	bool ret;
+
+	ret = test_bit(TLS_TX_SYNC_SCHED, &tls_ctx->flags);
+	smp_mb__after_atomic();
+	return ret;
 }
 
 int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,

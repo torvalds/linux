@@ -209,6 +209,29 @@ void tls_device_free_resources_tx(struct sock *sk)
 	tls_free_partial_record(sk, tls_ctx);
 }
 
+static void tls_device_resync_tx(struct sock *sk, struct tls_context *tls_ctx,
+				 u32 seq)
+{
+	struct net_device *netdev;
+	struct sk_buff *skb;
+	u8 *rcd_sn;
+
+	skb = tcp_write_queue_tail(sk);
+	if (skb)
+		TCP_SKB_CB(skb)->eor = 1;
+
+	rcd_sn = tls_ctx->tx.rec_seq;
+
+	down_read(&device_offload_lock);
+	netdev = tls_ctx->netdev;
+	if (netdev)
+		netdev->tlsdev_ops->tls_dev_resync(netdev, sk, seq, rcd_sn,
+						   TLS_OFFLOAD_CTX_DIR_TX);
+	up_read(&device_offload_lock);
+
+	clear_bit_unlock(TLS_TX_SYNC_SCHED, &tls_ctx->flags);
+}
+
 static void tls_append_frag(struct tls_record_info *record,
 			    struct page_frag *pfrag,
 			    int size)
@@ -264,6 +287,10 @@ static int tls_push_record(struct sock *sk,
 	list_add_tail(&record->list, &offload_ctx->records_list);
 	spin_unlock_irq(&offload_ctx->lock);
 	offload_ctx->open_record = NULL;
+
+	if (test_bit(TLS_TX_SYNC_SCHED, &ctx->flags))
+		tls_device_resync_tx(sk, ctx, tp->write_seq);
+
 	tls_advance_record_sn(sk, prot, &ctx->tx);
 
 	for (i = 0; i < record->num_frags; i++) {

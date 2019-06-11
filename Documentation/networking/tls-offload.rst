@@ -206,7 +206,11 @@ TX
 
 Segments transmitted from an offloaded socket can get out of sync
 in similar ways to the receive side-retransmissions - local drops
-are possible, though network reorders are not.
+are possible, though network reorders are not. There are currently
+two mechanisms for dealing with out of order segments.
+
+Crypto state rebuilding
+~~~~~~~~~~~~~~~~~~~~~~~
 
 Whenever an out of order segment is transmitted the driver provides
 the device with enough information to perform cryptographic operations.
@@ -224,6 +228,35 @@ with the previous stream state - assuming that the out of order segment
 was just a retransmission. The former is simpler, and does not require
 retransmission detection therefore it is the recommended method until
 such time it is proven inefficient.
+
+Next record sync
+~~~~~~~~~~~~~~~~
+
+Whenever an out of order segment is detected the driver requests
+that the ``ktls`` software fallback code encrypt it. If the segment's
+sequence number is lower than expected the driver assumes retransmission
+and doesn't change device state. If the segment is in the future, it
+may imply a local drop, the driver asks the stack to sync the device
+to the next record state and falls back to software.
+
+Resync request is indicated with:
+
+.. code-block:: c
+
+  void tls_offload_tx_resync_request(struct sock *sk, u32 got_seq, u32 exp_seq)
+
+Until resync is complete driver should not access its expected TCP
+sequence number (as it will be updated from a different context).
+Following helper should be used to test if resync is complete:
+
+.. code-block:: c
+
+  bool tls_offload_tx_resync_pending(struct sock *sk)
+
+Next time ``ktls`` pushes a record it will first send its TCP sequence number
+and TLS record number to the driver. Stack will also make sure that
+the new record will start on a segment boundary (like it does when
+the connection is initially added).
 
 RX
 --
