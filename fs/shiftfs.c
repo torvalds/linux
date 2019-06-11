@@ -1507,9 +1507,14 @@ out_restore:
 	return ret;
 }
 
-static bool in_ioctl_whitelist(int flag)
+static bool in_ioctl_whitelist(int flag, unsigned long arg)
 {
+	void __user *argp = (void __user *)arg;
+	u64 flags = 0;
+
 	switch (flag) {
+	case BTRFS_IOC_FS_INFO:
+		return true;
 	case BTRFS_IOC_SNAP_CREATE:
 		return true;
 	case BTRFS_IOC_SNAP_CREATE_V2:
@@ -1517,6 +1522,16 @@ static bool in_ioctl_whitelist(int flag)
 	case BTRFS_IOC_SUBVOL_CREATE:
 		return true;
 	case BTRFS_IOC_SUBVOL_CREATE_V2:
+		return true;
+	case BTRFS_IOC_SUBVOL_GETFLAGS:
+		return true;
+	case BTRFS_IOC_SUBVOL_SETFLAGS:
+		if (copy_from_user(&flags, arg, sizeof(flags)))
+			return false;
+
+		if (flags & ~BTRFS_SUBVOL_RDONLY)
+			return false;
+
 		return true;
 	case BTRFS_IOC_SNAP_DESTROY:
 		return true;
@@ -1536,7 +1551,7 @@ static long shiftfs_ioctl(struct file *file, unsigned int cmd,
 	case FS_IOC_SETFLAGS:
 		break;
 	default:
-		if (!in_ioctl_whitelist(cmd) ||
+		if (!in_ioctl_whitelist(cmd, arg) ||
 		    !shiftfs_passthrough_ioctls(file->f_path.dentry->d_sb->s_fs_info))
 			return -ENOTTY;
 	}
@@ -1555,7 +1570,7 @@ static long shiftfs_compat_ioctl(struct file *file, unsigned int cmd,
 	case FS_IOC32_SETFLAGS:
 		break;
 	default:
-		if (!in_ioctl_whitelist(cmd) ||
+		if (!in_ioctl_whitelist(cmd, arg) ||
 		    !shiftfs_passthrough_ioctls(file->f_path.dentry->d_sb->s_fs_info))
 			return -ENOIOCTLCMD;
 	}
