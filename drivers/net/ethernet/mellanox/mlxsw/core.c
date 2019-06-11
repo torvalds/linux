@@ -2026,6 +2026,18 @@ int mlxsw_core_resources_query(struct mlxsw_core *mlxsw_core, char *mbox,
 }
 EXPORT_SYMBOL(mlxsw_core_resources_query);
 
+u32 mlxsw_core_read_frc_h(struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_core->bus->read_frc_h(mlxsw_core->bus_priv);
+}
+EXPORT_SYMBOL(mlxsw_core_read_frc_h);
+
+u32 mlxsw_core_read_frc_l(struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_core->bus->read_frc_l(mlxsw_core->bus_priv);
+}
+EXPORT_SYMBOL(mlxsw_core_read_frc_l);
+
 static int __init mlxsw_core_module_init(void)
 {
 	int err;
