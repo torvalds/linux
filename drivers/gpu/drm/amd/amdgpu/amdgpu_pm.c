@@ -2753,7 +2753,7 @@ void amdgpu_pm_virt_sysfs_fini(struct amdgpu_device *adev)
 
 int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_version)
 {
-	int r = -EINVAL;
+	int r;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
@@ -2766,7 +2766,7 @@ int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_versio
 		}
 		*smu_version = adev->pm.fw_version;
 	}
-	return r;
+	return 0;
 }
 
 int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
