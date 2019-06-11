@@ -65,7 +65,6 @@ static struct lock_class_key qdio_out_skb_queue_key;
 static void qeth_issue_next_read_cb(struct qeth_card *card,
 				    struct qeth_channel *channel,
 				    struct qeth_cmd_buffer *iob);
-static struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *);
 static void qeth_free_buffer_pool(struct qeth_card *);
 static int qeth_qdio_establish(struct qeth_card *);
 static void qeth_free_qdio_queues(struct qeth_card *card);
@@ -746,7 +745,7 @@ static void qeth_cancel_cmd(struct qeth_cmd_buffer *iob, int rc)
 	qeth_release_buffer(iob->channel, iob);
 }
 
-static struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *channel)
+struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *channel)
 {
 	struct qeth_cmd_buffer *buffer = NULL;
 	unsigned long flags;
@@ -756,15 +755,7 @@ static struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *channel)
 	spin_unlock_irqrestore(&channel->iob_lock, flags);
 	return buffer;
 }
-
-struct qeth_cmd_buffer *qeth_wait_for_buffer(struct qeth_channel *channel)
-{
-	struct qeth_cmd_buffer *buffer;
-	wait_event(channel->wait_q,
-		   ((buffer = qeth_get_buffer(channel)) != NULL));
-	return buffer;
-}
-EXPORT_SYMBOL_GPL(qeth_wait_for_buffer);
+EXPORT_SYMBOL_GPL(qeth_get_buffer);
 
 void qeth_clear_cmd_buffers(struct qeth_channel *channel)
 {
@@ -1794,6 +1785,16 @@ static void qeth_mpc_finalize_cmd(struct qeth_card *card,
 	iob->callback = qeth_release_buffer_cb;
 }
 
+static struct qeth_cmd_buffer *qeth_mpc_get_cmd_buffer(struct qeth_card *card)
+{
+	struct qeth_cmd_buffer *iob;
+
+	iob = qeth_get_buffer(&card->write);
+	if (iob)
+		iob->finalize = qeth_mpc_finalize_cmd;
+	return iob;
+}
+
 /**
  * qeth_send_control_data() -	send control command to the card
  * @card:			qeth_card structure pointer
@@ -2102,10 +2103,11 @@ static int qeth_cm_enable(struct qeth_card *card)
 
 	QETH_DBF_TEXT(SETUP, 2, "cmenable");
 
-	iob = qeth_wait_for_buffer(&card->write);
-	iob->finalize = qeth_mpc_finalize_cmd;
-	memcpy(iob->data, CM_ENABLE, CM_ENABLE_SIZE);
+	iob = qeth_mpc_get_cmd_buffer(card);
+	if (!iob)
+		return -ENOMEM;
 
+	memcpy(iob->data, CM_ENABLE, CM_ENABLE_SIZE);
 	memcpy(QETH_CM_ENABLE_ISSUER_RM_TOKEN(iob->data),
 	       &card->token.issuer_rm_r, QETH_MPC_TOKEN_LENGTH);
 	memcpy(QETH_CM_ENABLE_FILTER_TOKEN(iob->data),
@@ -2137,10 +2139,11 @@ static int qeth_cm_setup(struct qeth_card *card)
 
 	QETH_DBF_TEXT(SETUP, 2, "cmsetup");
 
-	iob = qeth_wait_for_buffer(&card->write);
-	iob->finalize = qeth_mpc_finalize_cmd;
-	memcpy(iob->data, CM_SETUP, CM_SETUP_SIZE);
+	iob = qeth_mpc_get_cmd_buffer(card);
+	if (!iob)
+		return -ENOMEM;
 
+	memcpy(iob->data, CM_SETUP, CM_SETUP_SIZE);
 	memcpy(QETH_CM_SETUP_DEST_ADDR(iob->data),
 	       &card->token.issuer_rm_r, QETH_MPC_TOKEN_LENGTH);
 	memcpy(QETH_CM_SETUP_CONNECTION_TOKEN(iob->data),
@@ -2256,10 +2259,11 @@ static int qeth_ulp_enable(struct qeth_card *card)
 	/*FIXME: trace view callbacks*/
 	QETH_DBF_TEXT(SETUP, 2, "ulpenabl");
 
-	iob = qeth_wait_for_buffer(&card->write);
-	iob->finalize = qeth_mpc_finalize_cmd;
-	memcpy(iob->data, ULP_ENABLE, ULP_ENABLE_SIZE);
+	iob = qeth_mpc_get_cmd_buffer(card);
+	if (!iob)
+		return -ENOMEM;
 
+	memcpy(iob->data, ULP_ENABLE, ULP_ENABLE_SIZE);
 	*(QETH_ULP_ENABLE_LINKNUM(iob->data)) = (u8) card->dev->dev_port;
 	memcpy(QETH_ULP_ENABLE_PROT_TYPE(iob->data), &prot_type, 1);
 	memcpy(QETH_ULP_ENABLE_DEST_ADDR(iob->data),
@@ -2303,10 +2307,11 @@ static int qeth_ulp_setup(struct qeth_card *card)
 
 	QETH_DBF_TEXT(SETUP, 2, "ulpsetup");
 
-	iob = qeth_wait_for_buffer(&card->write);
-	iob->finalize = qeth_mpc_finalize_cmd;
-	memcpy(iob->data, ULP_SETUP, ULP_SETUP_SIZE);
+	iob = qeth_mpc_get_cmd_buffer(card);
+	if (!iob)
+		return -ENOMEM;
 
+	memcpy(iob->data, ULP_SETUP, ULP_SETUP_SIZE);
 	memcpy(QETH_ULP_SETUP_DEST_ADDR(iob->data),
 	       &card->token.cm_connection_r, QETH_MPC_TOKEN_LENGTH);
 	memcpy(QETH_ULP_SETUP_CONNECTION_TOKEN(iob->data),
@@ -2492,10 +2497,11 @@ static int qeth_dm_act(struct qeth_card *card)
 
 	QETH_DBF_TEXT(SETUP, 2, "dmact");
 
-	iob = qeth_wait_for_buffer(&card->write);
-	iob->finalize = qeth_mpc_finalize_cmd;
-	memcpy(iob->data, DM_ACT, DM_ACT_SIZE);
+	iob = qeth_mpc_get_cmd_buffer(card);
+	if (!iob)
+		return -ENOMEM;
 
+	memcpy(iob->data, DM_ACT, DM_ACT_SIZE);
 	memcpy(QETH_DM_ACT_DEST_ADDR(iob->data),
 	       &card->token.cm_connection_r, QETH_MPC_TOKEN_LENGTH);
 	memcpy(QETH_DM_ACT_CONNECTION_TOKEN(iob->data),

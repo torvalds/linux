@@ -1084,7 +1084,10 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 	QETH_CARD_TEXT(card, 2, "osnsdmc");
 	if (!qeth_card_hw_is_reachable(card))
 		return -ENODEV;
-	iob = qeth_wait_for_buffer(&card->write);
+	iob = qeth_get_buffer(&card->write);
+	if (!iob)
+		return -ENOMEM;
+
 	qeth_prepare_ipa_cmd(card, iob, (u16) data_len);
 	memcpy(__ipa_cmd(iob), data, data_len);
 	return qeth_osn_send_ipa_cmd(card, iob);
