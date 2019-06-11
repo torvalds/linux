@@ -643,9 +643,7 @@ struct rtl8169_private {
 	void *Rx_databuff[NUM_RX_DESC];	/* Rx data buffers */
 	struct ring_info tx_skb[NUM_TX_DESC];	/* Tx data buffers */
 	u16 cp_cmd;
-
 	u16 irq_mask;
-	const struct rtl_coalesce_info *coalesce_info;
 	struct clk *clk;
 
 	struct {
@@ -1785,18 +1783,16 @@ static const struct rtl_coalesce_info rtl_coalesce_info_8168_8136[] = {
 static const struct rtl_coalesce_info *rtl_coalesce_info(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct ethtool_link_ksettings ecmd;
 	const struct rtl_coalesce_info *ci;
-	int rc;
 
-	rc = phy_ethtool_get_link_ksettings(dev, &ecmd);
-	if (rc < 0)
-		return ERR_PTR(rc);
+	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
+		ci = rtl_coalesce_info_8169;
+	else
+		ci = rtl_coalesce_info_8168_8136;
 
-	for (ci = tp->coalesce_info; ci->speed != 0; ci++) {
-		if (ecmd.base.speed == ci->speed) {
+	for (; ci->speed; ci++) {
+		if (tp->phydev->speed == ci->speed)
 			return ci;
-		}
 	}
 
 	return ERR_PTR(-ELNRNG);
@@ -6828,11 +6824,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->max_mtu = jumbo_max;
 
 	rtl_set_irq_mask(tp);
-
-	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
-		tp->coalesce_info = rtl_coalesce_info_8169;
-	else
-		tp->coalesce_info = rtl_coalesce_info_8168_8136;
 
 	tp->fw_name = rtl_chip_infos[chipset].fw_name;
 
