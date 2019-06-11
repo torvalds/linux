@@ -81,7 +81,6 @@
 #define ENA_DEFAULT_RING_SIZE	(1024)
 #define ENA_MIN_RING_SIZE	(256)
 
-
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
 #define ENA_DEFAULT_RX_COPYBREAK	(256 - NET_IP_ALIGN)
 
@@ -388,6 +387,10 @@ void ena_set_ethtool_ops(struct net_device *netdev);
 void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
 
 void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
+
+int ena_update_queue_sizes(struct ena_adapter *adapter,
+			   u32 new_tx_size,
+			   u32 new_rx_size);
 
 int ena_get_sset_count(struct net_device *netdev, int sset);
 

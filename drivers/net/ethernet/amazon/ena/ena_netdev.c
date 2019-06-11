@@ -2031,6 +2031,20 @@ static int ena_close(struct net_device *netdev)
 	return 0;
 }
 
+int ena_update_queue_sizes(struct ena_adapter *adapter,
+			   u32 new_tx_size,
+			   u32 new_rx_size)
+{
+	bool dev_up;
+
+	dev_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
+	ena_close(adapter->netdev);
+	adapter->requested_tx_ring_size = new_tx_size;
+	adapter->requested_rx_ring_size = new_rx_size;
+	ena_init_io_rings(adapter);
+	return dev_up ? ena_up(adapter) : 0;
+}
+
 static void ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct sk_buff *skb)
 {
 	u32 mss = skb_shinfo(skb)->gso_size;
