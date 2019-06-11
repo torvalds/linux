@@ -1845,8 +1845,8 @@ static void sja1105_rxtstamp_work(struct work_struct *work)
 }
 
 /* Called from dsa_skb_defer_rx_timestamp */
-bool sja1105_port_rxtstamp(struct dsa_switch *ds, int port,
-			   struct sk_buff *skb, unsigned int type)
+static bool sja1105_port_rxtstamp(struct dsa_switch *ds, int port,
+				  struct sk_buff *skb, unsigned int type)
 {
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_tagger_data *data = &priv->tagger_data;
@@ -1866,8 +1866,8 @@ bool sja1105_port_rxtstamp(struct dsa_switch *ds, int port,
  * the skb and have it available in DSA_SKB_CB in the .port_deferred_xmit
  * callback, where we will timestamp it synchronously.
  */
-bool sja1105_port_txtstamp(struct dsa_switch *ds, int port,
-			   struct sk_buff *skb, unsigned int type)
+static bool sja1105_port_txtstamp(struct dsa_switch *ds, int port,
+				  struct sk_buff *skb, unsigned int type)
 {
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_port *sp = &priv->ports[port];
