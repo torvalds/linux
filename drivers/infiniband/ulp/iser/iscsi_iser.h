@@ -225,13 +225,11 @@ enum iser_desc_type {
 	ISCSI_TX_DATAOUT
 };
 
-/* Maximum number of work requests per task:
- * Data memory region local invalidate + fast registration
- * Protection memory region local invalidate + fast registration
- * Signature memory region local invalidate + fast registration
- * PDU send
+/*
+ * Maximum number of work requests per task
+ * (invalidate, registration, send)
  */
-#define ISER_MAX_WRS 7
+#define ISER_MAX_WRS 3
 
 /**
  * struct iser_tx_desc - iSER TX descriptor
@@ -247,9 +245,6 @@ enum iser_desc_type {
  * @mapped:        Is the task header mapped
  * @wr_idx:        Current WR index
  * @wrs:           Array of WRs per task
- * @data_reg:      Data buffer registration details
- * @prot_reg:      Protection buffer registration details
- * @sig_attrs:     Signature attributes
  */
 struct iser_tx_desc {
 	struct iser_ctrl             iser_header;
@@ -264,11 +259,7 @@ struct iser_tx_desc {
 	union iser_wr {
 		struct ib_send_wr		send;
 		struct ib_reg_wr		fast_reg;
-		struct ib_sig_handover_wr	sig;
 	} wrs[ISER_MAX_WRS];
-	struct iser_mem_reg          data_reg;
-	struct iser_mem_reg          prot_reg;
-	struct ib_sig_attrs          sig_attrs;
 };
 
 #define ISER_RX_PAD_SIZE	(256 - (ISER_RX_PAYLOAD_SIZE + \
@@ -388,6 +379,7 @@ struct iser_device {
  *
  * @mr:         memory region
  * @fmr_pool:   pool of fmrs
+ * @sig_mr:     signature memory region
  * @page_vec:   fast reg page list used by fmr pool
  * @mr_valid:   is mr valid indicator
  */
@@ -396,23 +388,9 @@ struct iser_reg_resources {
 		struct ib_mr             *mr;
 		struct ib_fmr_pool       *fmr_pool;
 	};
+	struct ib_mr                     *sig_mr;
 	struct iser_page_vec             *page_vec;
 	u8				  mr_valid:1;
-};
-
-/**
- * struct iser_pi_context - Protection information context
- *
- * @rsc:             protection buffer registration resources
- * @sig_mr:          signature enable memory region
- * @sig_mr_valid:    is sig_mr valid indicator
- * @sig_protected:   is region protected indicator
- */
-struct iser_pi_context {
-	struct iser_reg_resources	rsc;
-	struct ib_mr                   *sig_mr;
-	u8                              sig_mr_valid:1;
-	u8                              sig_protected:1;
 };
 
 /**
@@ -420,12 +398,12 @@ struct iser_pi_context {
  *
  * @list:           entry in connection fastreg pool
  * @rsc:            data buffer registration resources
- * @pi_ctx:         protection information context
+ * @sig_protected:  is region protected indicator
  */
 struct iser_fr_desc {
 	struct list_head		  list;
 	struct iser_reg_resources	  rsc;
-	struct iser_pi_context		 *pi_ctx;
+	bool				  sig_protected;
 	struct list_head                  all_list;
 };
 

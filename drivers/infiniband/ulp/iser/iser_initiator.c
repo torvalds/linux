@@ -592,14 +592,13 @@ void iser_login_rsp(struct ib_cq *cq, struct ib_wc *wc)
 static inline int
 iser_inv_desc(struct iser_fr_desc *desc, u32 rkey)
 {
-	if (likely(rkey == desc->rsc.mr->rkey)) {
-		desc->rsc.mr_valid = 0;
-	} else if (likely(desc->pi_ctx && rkey == desc->pi_ctx->sig_mr->rkey)) {
-		desc->pi_ctx->sig_mr_valid = 0;
-	} else {
+	if (unlikely((!desc->sig_protected && rkey != desc->rsc.mr->rkey) ||
+		     (desc->sig_protected && rkey != desc->rsc.sig_mr->rkey))) {
 		iser_err("Bogus remote invalidation for rkey %#x\n", rkey);
 		return -EINVAL;
 	}
+
+	desc->rsc.mr_valid = 0;
 
 	return 0;
 }
@@ -749,6 +748,9 @@ void iser_task_rdma_init(struct iscsi_iser_task *iser_task)
 
 	iser_task->prot[ISER_DIR_IN].data_len  = 0;
 	iser_task->prot[ISER_DIR_OUT].data_len = 0;
+
+	iser_task->prot[ISER_DIR_IN].dma_nents = 0;
+	iser_task->prot[ISER_DIR_OUT].dma_nents = 0;
 
 	memset(&iser_task->rdma_reg[ISER_DIR_IN], 0,
 	       sizeof(struct iser_mem_reg));

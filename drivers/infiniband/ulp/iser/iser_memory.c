@@ -376,16 +376,16 @@ iser_inv_rkey(struct ib_send_wr *inv_wr,
 
 static int
 iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
-		struct iser_pi_context *pi_ctx,
-		struct iser_mem_reg *data_reg,
-		struct iser_mem_reg *prot_reg,
+		struct iser_data_buf *mem,
+		struct iser_data_buf *sig_mem,
+		struct iser_reg_resources *rsc,
 		struct iser_mem_reg *sig_reg)
 {
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
-	struct ib_sig_attrs *sig_attrs = &tx_desc->sig_attrs;
 	struct ib_cqe *cqe = &iser_task->iser_conn->ib_conn.reg_cqe;
-	struct ib_sig_handover_wr *wr;
-	struct ib_mr *mr = pi_ctx->sig_mr;
+	struct ib_mr *mr = rsc->sig_mr;
+	struct ib_sig_attrs *sig_attrs = mr->sig_attrs;
+	struct ib_reg_wr *wr;
 	int ret;
 
 	memset(sig_attrs, 0, sizeof(*sig_attrs));
@@ -395,33 +395,36 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 
 	iser_set_prot_checks(iser_task->sc, &sig_attrs->check_mask);
 
-	if (pi_ctx->sig_mr_valid)
+	if (rsc->mr_valid)
 		iser_inv_rkey(iser_tx_next_wr(tx_desc), mr, cqe);
 
 	ib_update_fast_reg_key(mr, ib_inc_rkey(mr->rkey));
 
-	wr = container_of(iser_tx_next_wr(tx_desc), struct ib_sig_handover_wr,
-			  wr);
-	wr->wr.opcode = IB_WR_REG_SIG_MR;
+	ret = ib_map_mr_sg_pi(mr, mem->sg, mem->dma_nents, NULL,
+			      sig_mem->sg, sig_mem->dma_nents, NULL, SZ_4K);
+	if (unlikely(ret)) {
+		iser_err("failed to map PI sg (%d)\n",
+			 mem->dma_nents + sig_mem->dma_nents);
+		goto err;
+	}
+
+	wr = container_of(iser_tx_next_wr(tx_desc), struct ib_reg_wr, wr);
+	memset(wr, 0, sizeof(*wr));
+	wr->wr.opcode = IB_WR_REG_MR_INTEGRITY;
 	wr->wr.wr_cqe = cqe;
-	wr->wr.sg_list = &data_reg->sge;
-	wr->wr.num_sge = 1;
+	wr->wr.num_sge = 0;
 	wr->wr.send_flags = 0;
-	wr->sig_attrs = sig_attrs;
-	wr->sig_mr = mr;
-	if (scsi_prot_sg_count(iser_task->sc))
-		wr->prot = &prot_reg->sge;
-	else
-		wr->prot = NULL;
-	wr->access_flags = IB_ACCESS_LOCAL_WRITE |
-			   IB_ACCESS_REMOTE_READ |
-			   IB_ACCESS_REMOTE_WRITE;
-	pi_ctx->sig_mr_valid = 1;
+	wr->mr = mr;
+	wr->key = mr->rkey;
+	wr->access = IB_ACCESS_LOCAL_WRITE |
+		     IB_ACCESS_REMOTE_READ |
+		     IB_ACCESS_REMOTE_WRITE;
+	rsc->mr_valid = 1;
 
 	sig_reg->sge.lkey = mr->lkey;
 	sig_reg->rkey = mr->rkey;
-	sig_reg->sge.addr = 0;
-	sig_reg->sge.length = scsi_transfer_length(iser_task->sc);
+	sig_reg->sge.addr = mr->iova;
+	sig_reg->sge.length = mr->length;
 
 	iser_dbg("lkey=0x%x rkey=0x%x addr=0x%llx length=%u\n",
 		 sig_reg->sge.lkey, sig_reg->rkey, sig_reg->sge.addr,
@@ -478,21 +481,6 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 }
 
 static int
-iser_reg_prot_sg(struct iscsi_iser_task *task,
-		 struct iser_data_buf *mem,
-		 struct iser_fr_desc *desc,
-		 bool use_dma_key,
-		 struct iser_mem_reg *reg)
-{
-	struct iser_device *device = task->iser_conn->ib_conn.device;
-
-	if (use_dma_key)
-		return iser_reg_dma(device, mem, reg);
-
-	return device->reg_ops->reg_mem(task, mem, &desc->pi_ctx->rsc, reg);
-}
-
-static int
 iser_reg_data_sg(struct iscsi_iser_task *task,
 		 struct iser_data_buf *mem,
 		 struct iser_fr_desc *desc,
@@ -515,7 +503,6 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *task,
 	struct iser_device *device = ib_conn->device;
 	struct iser_data_buf *mem = &task->data[dir];
 	struct iser_mem_reg *reg = &task->rdma_reg[dir];
-	struct iser_mem_reg *data_reg;
 	struct iser_fr_desc *desc = NULL;
 	bool use_dma_key;
 	int err;
@@ -528,32 +515,17 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *task,
 		reg->mem_h = desc;
 	}
 
-	if (scsi_get_prot_op(task->sc) == SCSI_PROT_NORMAL)
-		data_reg = reg;
-	else
-		data_reg = &task->desc.data_reg;
-
-	err = iser_reg_data_sg(task, mem, desc, use_dma_key, data_reg);
-	if (unlikely(err))
-		goto err_reg;
-
-	if (scsi_get_prot_op(task->sc) != SCSI_PROT_NORMAL) {
-		struct iser_mem_reg *prot_reg = &task->desc.prot_reg;
-
-		if (scsi_prot_sg_count(task->sc)) {
-			mem = &task->prot[dir];
-			err = iser_reg_prot_sg(task, mem, desc,
-					       use_dma_key, prot_reg);
-			if (unlikely(err))
-				goto err_reg;
-		}
-
-		err = iser_reg_sig_mr(task, desc->pi_ctx, data_reg,
-				      prot_reg, reg);
+	if (scsi_get_prot_op(task->sc) == SCSI_PROT_NORMAL) {
+		err = iser_reg_data_sg(task, mem, desc, use_dma_key, reg);
+		if (unlikely(err))
+			goto err_reg;
+	} else {
+		err = iser_reg_sig_mr(task, mem, &task->prot[dir],
+				      &desc->rsc, reg);
 		if (unlikely(err))
 			goto err_reg;
 
-		desc->pi_ctx->sig_protected = 1;
+		desc->sig_protected = 1;
 	}
 
 	return 0;
