@@ -793,6 +793,31 @@ config LEDS_SPI_BYTE
 	  for controlling the brightness. Currently the following controller is
 	  supported: Ubiquiti airCube ISP microcontroller based LED controller.
 
+config LEDS_TI_LMU_COMMON
+	tristate "LED driver for TI LMU"
+	depends on LEDS_CLASS
+	depends on REGMAP
+	help
+	  Say Y to enable the LED driver for TI LMU devices.
+	  This supports common features between the TI LM3532, LM3631, LM3632,
+	  LM3633, LM3695 and LM3697.
+
+config LEDS_LM3697
+	tristate "LED driver for LM3697"
+	depends on LEDS_TI_LMU_COMMON
+	depends on I2C && OF
+	help
+	  Say Y to enable the LM3697 LED driver for TI LMU devices.
+	  This supports the LED device LM3697.
+
+config LEDS_LM36274
+	tristate "LED driver for LM36274"
+	depends on LEDS_TI_LMU_COMMON
+	depends on MFD_TI_LMU
+	help
+	  Say Y to enable the LM36274 LED driver for TI LMU devices.
+	  This supports the LED device LM36274.
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 

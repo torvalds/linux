@@ -26,7 +26,7 @@ enum ti_lmu_id {
 	LM3632,
 	LM3633,
 	LM3695,
-	LM3697,
+	LM36274,
 	LMU_MAX_ID,
 };
 
@@ -68,6 +68,9 @@ enum lm363x_regulator_id {
 	LM3632_BOOST,		/* Boost output */
 	LM3632_LDO_POS,		/* Positive display bias output */
 	LM3632_LDO_NEG,		/* Negative display bias output */
+	LM36274_BOOST,		/* Boost output */
+	LM36274_LDO_POS,	/* Positive display bias output */
+	LM36274_LDO_NEG,	/* Negative display bias output */
 };
 
 /**
