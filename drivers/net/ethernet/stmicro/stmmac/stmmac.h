@@ -24,7 +24,6 @@
 
 #include <linux/clk.h>
 #include <linux/stmmac.h>
-#include <linux/phy.h>
 #include <linux/phylink.h>
 #include <linux/pci.h>
 #include "common.h"
@@ -148,9 +147,7 @@ struct stmmac_priv {
 	/* Generic channel for NAPI */
 	struct stmmac_channel channel[STMMAC_CH_MAX];
 
-	bool oldlink;
 	int speed;
-	int oldduplex;
 	unsigned int flow_ctrl;
 	unsigned int pause;
 	struct mii_bus *mii;
