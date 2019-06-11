@@ -171,8 +171,8 @@ struct analogix_dp_device {
 	int			dpms_mode;
 	struct gpio_desc	*hpd_gpiod;
 	bool                    force_hpd;
-	bool			psr_enable;
 	bool			fast_train_enable;
+	bool			psr_supported;
 
 	struct mutex		panel_lock;
 	bool			panel_is_modeset;
