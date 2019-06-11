@@ -64,12 +64,14 @@ struct fw_priv {
 	void *data;
 	size_t size;
 	size_t allocated_size;
-#ifdef CONFIG_FW_LOADER_USER_HELPER
+#ifdef CONFIG_FW_LOADER_PAGED_BUF
 	bool is_paged_buf;
-	bool need_uevent;
 	struct page **pages;
 	int nr_pages;
 	int page_array_size;
+#endif
+#ifdef CONFIG_FW_LOADER_USER_HELPER
+	bool need_uevent;
 	struct list_head pending_list;
 #endif
 	const char *fw_name;
@@ -133,7 +135,7 @@ static inline void fw_state_done(struct fw_priv *fw_priv)
 int assign_fw(struct firmware *fw, struct device *device,
 	      enum fw_opt opt_flags);
 
-#ifdef CONFIG_FW_LOADER_USER_HELPER
+#ifdef CONFIG_FW_LOADER_PAGED_BUF
 void fw_free_paged_buf(struct fw_priv *fw_priv);
 int fw_grow_paged_buf(struct fw_priv *fw_priv, int pages_needed);
 int fw_map_paged_buf(struct fw_priv *fw_priv);

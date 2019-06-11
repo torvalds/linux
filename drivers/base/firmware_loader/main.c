@@ -33,6 +33,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/reboot.h>
 #include <linux/security.h>
+#include <linux/xz.h>
 
 #include <generated/utsrelease.h>
 
@@ -266,7 +267,7 @@ static void free_fw_priv(struct fw_priv *fw_priv)
 		spin_unlock(&fwc->lock);
 }
 
-#ifdef CONFIG_FW_LOADER_USER_HELPER
+#ifdef CONFIG_FW_LOADER_PAGED_BUF
 void fw_free_paged_buf(struct fw_priv *fw_priv)
 {
 	int i;
@@ -335,6 +336,105 @@ int fw_map_paged_buf(struct fw_priv *fw_priv)
 }
 #endif
 
+/*
+ * XZ-compressed firmware support
+ */
+#ifdef CONFIG_FW_LOADER_COMPRESS
+/* show an error and return the standard error code */
+static int fw_decompress_xz_error(struct device *dev, enum xz_ret xz_ret)
+{
+	if (xz_ret != XZ_STREAM_END) {
+		dev_warn(dev, "xz decompression failed (xz_ret=%d)\n", xz_ret);
+		return xz_ret == XZ_MEM_ERROR ? -ENOMEM : -EINVAL;
+	}
+	return 0;
+}
+
+/* single-shot decompression onto the pre-allocated buffer */
+static int fw_decompress_xz_single(struct device *dev, struct fw_priv *fw_priv,
+				   size_t in_size, const void *in_buffer)
+{
+	struct xz_dec *xz_dec;
+	struct xz_buf xz_buf;
+	enum xz_ret xz_ret;
+
+	xz_dec = xz_dec_init(XZ_SINGLE, (u32)-1);
+	if (!xz_dec)
+		return -ENOMEM;
+
+	xz_buf.in_size = in_size;
+	xz_buf.in = in_buffer;
+	xz_buf.in_pos = 0;
+	xz_buf.out_size = fw_priv->allocated_size;
+	xz_buf.out = fw_priv->data;
+	xz_buf.out_pos = 0;
+
+	xz_ret = xz_dec_run(xz_dec, &xz_buf);
+	xz_dec_end(xz_dec);
+
+	fw_priv->size = xz_buf.out_pos;
+	return fw_decompress_xz_error(dev, xz_ret);
+}
+
+/* decompression on paged buffer and map it */
+static int fw_decompress_xz_pages(struct device *dev, struct fw_priv *fw_priv,
+				  size_t in_size, const void *in_buffer)
+{
+	struct xz_dec *xz_dec;
+	struct xz_buf xz_buf;
+	enum xz_ret xz_ret;
+	struct page *page;
+	int err = 0;
+
+	xz_dec = xz_dec_init(XZ_DYNALLOC, (u32)-1);
+	if (!xz_dec)
+		return -ENOMEM;
+
+	xz_buf.in_size = in_size;
+	xz_buf.in = in_buffer;
+	xz_buf.in_pos = 0;
+
+	fw_priv->is_paged_buf = true;
+	fw_priv->size = 0;
+	do {
+		if (fw_grow_paged_buf(fw_priv, fw_priv->nr_pages + 1)) {
+			err = -ENOMEM;
+			goto out;
+		}
+
+		/* decompress onto the new allocated page */
+		page = fw_priv->pages[fw_priv->nr_pages - 1];
+		xz_buf.out = kmap(page);
+		xz_buf.out_pos = 0;
+		xz_buf.out_size = PAGE_SIZE;
+		xz_ret = xz_dec_run(xz_dec, &xz_buf);
+		kunmap(page);
+		fw_priv->size += xz_buf.out_pos;
+		/* partial decompression means either end or error */
+		if (xz_buf.out_pos != PAGE_SIZE)
+			break;
+	} while (xz_ret == XZ_OK);
+
+	err = fw_decompress_xz_error(dev, xz_ret);
+	if (!err)
+		err = fw_map_paged_buf(fw_priv);
+
+ out:
+	xz_dec_end(xz_dec);
+	return err;
+}
+
+static int fw_decompress_xz(struct device *dev, struct fw_priv *fw_priv,
+			    size_t in_size, const void *in_buffer)
+{
+	/* if the buffer is pre-allocated, we can perform in single-shot mode */
+	if (fw_priv->data)
+		return fw_decompress_xz_single(dev, fw_priv, in_size, in_buffer);
+	else
+		return fw_decompress_xz_pages(dev, fw_priv, in_size, in_buffer);
+}
+#endif /* CONFIG_FW_LOADER_COMPRESS */
+
 /* direct firmware loading support */
 static char fw_path_para[256];
 static const char * const fw_path[] = {
@@ -354,7 +454,12 @@ module_param_string(path, fw_path_para, sizeof(fw_path_para), 0644);
 MODULE_PARM_DESC(path, "customized firmware image search path with a higher priority than default path");
 
 static int
-fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv)
+fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv,
+			   const char *suffix,
+			   int (*decompress)(struct device *dev,
+					     struct fw_priv *fw_priv,
+					     size_t in_size,
+					     const void *in_buffer))
 {
 	loff_t size;
 	int i, len;
@@ -362,9 +467,11 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv)
 	char *path;
 	enum kernel_read_file_id id = READING_FIRMWARE;
 	size_t msize = INT_MAX;
+	void *buffer = NULL;
 
 	/* Already populated data member means we're loading into a buffer */
-	if (fw_priv->data) {
+	if (!decompress && fw_priv->data) {
+		buffer = fw_priv->data;
 		id = READING_FIRMWARE_PREALLOC_BUFFER;
 		msize = fw_priv->allocated_size;
 	}
@@ -378,15 +485,15 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv)
 		if (!fw_path[i][0])
 			continue;
 
-		len = snprintf(path, PATH_MAX, "%s/%s",
-			       fw_path[i], fw_priv->fw_name);
+		len = snprintf(path, PATH_MAX, "%s/%s%s",
+			       fw_path[i], fw_priv->fw_name, suffix);
 		if (len >= PATH_MAX) {
 			rc = -ENAMETOOLONG;
 			break;
 		}
 
 		fw_priv->size = 0;
-		rc = kernel_read_file_from_path(path, &fw_priv->data, &size,
+		rc = kernel_read_file_from_path(path, &buffer, &size,
 						msize, id);
 		if (rc) {
 			if (rc != -ENOENT)
@@ -397,8 +504,24 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv)
 					 path);
 			continue;
 		}
-		dev_dbg(device, "direct-loading %s\n", fw_priv->fw_name);
-		fw_priv->size = size;
+		if (decompress) {
+			dev_dbg(device, "f/w decompressing %s\n",
+				fw_priv->fw_name);
+			rc = decompress(device, fw_priv, size, buffer);
+			/* discard the superfluous original content */
+			vfree(buffer);
+			buffer = NULL;
+			if (rc) {
+				fw_free_paged_buf(fw_priv);
+				continue;
+			}
+		} else {
+			dev_dbg(device, "direct-loading %s\n",
+				fw_priv->fw_name);
+			if (!fw_priv->data)
+				fw_priv->data = buffer;
+			fw_priv->size = size;
+		}
 		fw_state_done(fw_priv);
 		break;
 	}
@@ -645,7 +768,13 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	if (ret <= 0) /* error or already assigned */
 		goto out;
 
-	ret = fw_get_filesystem_firmware(device, fw->priv);
+	ret = fw_get_filesystem_firmware(device, fw->priv, "", NULL);
+#ifdef CONFIG_FW_LOADER_COMPRESS
+	if (ret == -ENOENT)
+		ret = fw_get_filesystem_firmware(device, fw->priv, ".xz",
+						 fw_decompress_xz);
+#endif
+
 	if (ret) {
 		if (!(opt_flags & FW_OPT_NO_WARN))
 			dev_warn(device,
