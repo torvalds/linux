@@ -609,6 +609,7 @@ struct mlx5_ib_mr {
 	struct mlx5_ib_mr      *pi_mr;
 	struct mlx5_ib_mr      *klm_mr;
 	struct mlx5_ib_mr      *mtt_mr;
+	u64			data_iova;
 	u64			pi_iova;
 
 	atomic_t		num_leaf_free;

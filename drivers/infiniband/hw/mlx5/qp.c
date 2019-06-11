@@ -4562,7 +4562,7 @@ static int set_sig_data_segment(const struct ib_send_wr *send_wr,
 
 	data_len = pi_mr->data_length;
 	data_key = pi_mr->ibmr.lkey;
-	data_va = pi_mr->ibmr.iova;
+	data_va = pi_mr->data_iova;
 	if (pi_mr->meta_ndescs) {
 		prot_len = pi_mr->meta_length;
 		prot_key = pi_mr->ibmr.lkey;
@@ -4912,6 +4912,7 @@ static int _mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	struct mlx5_ib_qp *qp;
 	struct mlx5_ib_mr *mr;
 	struct mlx5_ib_mr *pi_mr;
+	struct mlx5_ib_mr pa_pi_mr;
 	struct ib_sig_attrs *sig_attrs;
 	struct mlx5_wqe_xrc_seg *xrc;
 	struct mlx5_bf *bf;
@@ -5026,35 +5027,62 @@ static int _mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				break;
 
 			case IB_WR_REG_MR_INTEGRITY:
-				memset(&reg_pi_wr, 0, sizeof(struct ib_reg_wr));
+				qp->sq.wr_data[idx] = IB_WR_REG_MR_INTEGRITY;
 
 				mr = to_mmr(reg_wr(wr)->mr);
 				pi_mr = mr->pi_mr;
 
-				reg_pi_wr.mr = &pi_mr->ibmr;
-				reg_pi_wr.access = reg_wr(wr)->access;
-				reg_pi_wr.key = pi_mr->ibmr.rkey;
+				if (pi_mr) {
+					memset(&reg_pi_wr, 0,
+					       sizeof(struct ib_reg_wr));
 
-				qp->sq.wr_data[idx] = IB_WR_REG_MR_INTEGRITY;
-				ctrl->imm = cpu_to_be32(reg_pi_wr.key);
-				/* UMR for data + protection registration */
-				err = set_reg_wr(qp, &reg_pi_wr, &seg, &size,
-						 &cur_edge, false);
-				if (err) {
-					*bad_wr = wr;
-					goto out;
-				}
-				finish_wqe(qp, ctrl, seg, size, cur_edge, idx,
-					   wr->wr_id, nreq, fence,
-					   MLX5_OPCODE_UMR);
+					reg_pi_wr.mr = &pi_mr->ibmr;
+					reg_pi_wr.access = reg_wr(wr)->access;
+					reg_pi_wr.key = pi_mr->ibmr.rkey;
 
-				err = begin_wqe(qp, &seg, &ctrl, wr, &idx,
-						&size, &cur_edge, nreq);
-				if (err) {
-					mlx5_ib_warn(dev, "\n");
-					err = -ENOMEM;
-					*bad_wr = wr;
-					goto out;
+					ctrl->imm = cpu_to_be32(reg_pi_wr.key);
+					/* UMR for data + prot registration */
+					err = set_reg_wr(qp, &reg_pi_wr, &seg,
+							 &size, &cur_edge,
+							 false);
+					if (err) {
+						*bad_wr = wr;
+						goto out;
+					}
+					finish_wqe(qp, ctrl, seg, size,
+						   cur_edge, idx, wr->wr_id,
+						   nreq, fence,
+						   MLX5_OPCODE_UMR);
+
+					err = begin_wqe(qp, &seg, &ctrl, wr,
+							&idx, &size, &cur_edge,
+							nreq);
+					if (err) {
+						mlx5_ib_warn(dev, "\n");
+						err = -ENOMEM;
+						*bad_wr = wr;
+						goto out;
+					}
+				} else {
+					memset(&pa_pi_mr, 0,
+					       sizeof(struct mlx5_ib_mr));
+					/* No UMR, use local_dma_lkey */
+					pa_pi_mr.ibmr.lkey =
+						mr->ibmr.pd->local_dma_lkey;
+
+					pa_pi_mr.ndescs = mr->ndescs;
+					pa_pi_mr.data_length = mr->data_length;
+					pa_pi_mr.data_iova = mr->data_iova;
+					if (mr->meta_ndescs) {
+						pa_pi_mr.meta_ndescs =
+							mr->meta_ndescs;
+						pa_pi_mr.meta_length =
+							mr->meta_length;
+						pa_pi_mr.pi_iova = mr->pi_iova;
+					}
+
+					pa_pi_mr.ibmr.length = mr->ibmr.length;
+					mr->pi_mr = &pa_pi_mr;
 				}
 				ctrl->imm = cpu_to_be32(mr->ibmr.rkey);
 				/* UMR for sig MR */

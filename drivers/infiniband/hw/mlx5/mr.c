@@ -2002,6 +2002,40 @@ done:
 }
 
 static int
+mlx5_ib_map_pa_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
+			int data_sg_nents, unsigned int *data_sg_offset,
+			struct scatterlist *meta_sg, int meta_sg_nents,
+			unsigned int *meta_sg_offset)
+{
+	struct mlx5_ib_mr *mr = to_mmr(ibmr);
+	unsigned int sg_offset = 0;
+	int n = 0;
+
+	mr->meta_length = 0;
+	if (data_sg_nents == 1) {
+		n++;
+		mr->ndescs = 1;
+		if (data_sg_offset)
+			sg_offset = *data_sg_offset;
+		mr->data_length = sg_dma_len(data_sg) - sg_offset;
+		mr->data_iova = sg_dma_address(data_sg) + sg_offset;
+		if (meta_sg_nents == 1) {
+			n++;
+			mr->meta_ndescs = 1;
+			if (meta_sg_offset)
+				sg_offset = *meta_sg_offset;
+			else
+				sg_offset = 0;
+			mr->meta_length = sg_dma_len(meta_sg) - sg_offset;
+			mr->pi_iova = sg_dma_address(meta_sg) + sg_offset;
+		}
+		ibmr->length = mr->data_length + mr->meta_length;
+	}
+
+	return n;
+}
+
+static int
 mlx5_ib_sg_to_klms(struct mlx5_ib_mr *mr,
 		   struct scatterlist *sgl,
 		   unsigned short sg_nents,
@@ -2099,7 +2133,6 @@ mlx5_ib_map_mtt_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
 	struct mlx5_ib_mr *pi_mr = mr->mtt_mr;
 	int n;
-	u64 iova;
 
 	pi_mr->ndescs = 0;
 	pi_mr->meta_ndescs = 0;
@@ -2115,13 +2148,14 @@ mlx5_ib_map_mtt_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 	if (n != data_sg_nents)
 		return n;
 
-	iova = pi_mr->ibmr.iova;
+	pi_mr->data_iova = pi_mr->ibmr.iova;
 	pi_mr->data_length = pi_mr->ibmr.length;
 	pi_mr->ibmr.length = pi_mr->data_length;
 	ibmr->length = pi_mr->data_length;
 
 	if (meta_sg_nents) {
 		u64 page_mask = ~((u64)ibmr->page_size - 1);
+		u64 iova = pi_mr->data_iova;
 
 		n += ib_sg_to_pages(&pi_mr->ibmr, meta_sg, meta_sg_nents,
 				    meta_sg_offset, mlx5_set_page_pi);
@@ -2181,6 +2215,7 @@ mlx5_ib_map_klm_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 				      DMA_TO_DEVICE);
 
 	/* This is zero-based memory region */
+	pi_mr->data_iova = 0;
 	pi_mr->ibmr.iova = 0;
 	pi_mr->pi_iova = pi_mr->data_length;
 	ibmr->length = pi_mr->ibmr.length;
@@ -2194,11 +2229,27 @@ int mlx5_ib_map_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 			 unsigned int *meta_sg_offset)
 {
 	struct mlx5_ib_mr *mr = to_mmr(ibmr);
-	struct mlx5_ib_mr *pi_mr = mr->mtt_mr;
+	struct mlx5_ib_mr *pi_mr = NULL;
 	int n;
 
 	WARN_ON(ibmr->type != IB_MR_TYPE_INTEGRITY);
 
+	mr->ndescs = 0;
+	mr->data_length = 0;
+	mr->data_iova = 0;
+	mr->meta_ndescs = 0;
+	mr->pi_iova = 0;
+	/*
+	 * As a performance optimization, if possible, there is no need to
+	 * perform UMR operation to register the data/metadata buffers.
+	 * First try to map the sg lists to PA descriptors with local_dma_lkey.
+	 * Fallback to UMR only in case of a failure.
+	 */
+	n = mlx5_ib_map_pa_mr_sg_pi(ibmr, data_sg, data_sg_nents,
+				    data_sg_offset, meta_sg, meta_sg_nents,
+				    meta_sg_offset);
+	if (n == data_sg_nents + meta_sg_nents)
+		goto out;
 	/*
 	 * As a performance optimization, if possible, there is no need to map
 	 * the sg lists to KLM descriptors. First try to map the sg lists to MTT
@@ -2207,6 +2258,7 @@ int mlx5_ib_map_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
 	 * (especially in high load).
 	 * Use KLM (indirect access) only if it's mandatory.
 	 */
+	pi_mr = mr->mtt_mr;
 	n = mlx5_ib_map_mtt_mr_sg_pi(ibmr, data_sg, data_sg_nents,
 				     data_sg_offset, meta_sg, meta_sg_nents,
 				     meta_sg_offset);
@@ -2224,7 +2276,10 @@ out:
 	/* This is zero-based memory region */
 	ibmr->iova = 0;
 	mr->pi_mr = pi_mr;
-	ibmr->sig_attrs->meta_length = pi_mr->meta_length;
+	if (pi_mr)
+		ibmr->sig_attrs->meta_length = pi_mr->meta_length;
+	else
+		ibmr->sig_attrs->meta_length = mr->meta_length;
 
 	return 0;
 }
