@@ -577,11 +577,12 @@ static void qeth_dequeue_reply(struct qeth_card *card, struct qeth_reply *reply)
 	spin_unlock_irq(&card->lock);
 }
 
-static void qeth_notify_reply(struct qeth_reply *reply, int reason)
+void qeth_notify_reply(struct qeth_reply *reply, int reason)
 {
 	reply->rc = reason;
 	complete(&reply->received);
 }
+EXPORT_SYMBOL_GPL(qeth_notify_reply);
 
 static void qeth_issue_ipa_msg(struct qeth_ipa_cmd *cmd, int rc,
 		struct qeth_card *card)
