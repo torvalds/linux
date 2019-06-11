@@ -80,11 +80,13 @@ struct ib_sig_domain {
  * @check_mask: bitmask for signature byte check (8 bytes)
  * @mem: memory domain layout descriptor.
  * @wire: wire domain layout descriptor.
+ * @meta_length: metadata length
  */
 struct ib_sig_attrs {
 	u8			check_mask;
 	struct ib_sig_domain	mem;
 	struct ib_sig_domain	wire;
+	int			meta_length;
 };
 
 enum ib_sig_err_type {

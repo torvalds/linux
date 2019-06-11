@@ -1739,7 +1739,7 @@ struct ib_mr {
 	};
 
 	struct ib_dm      *dm;
-
+	struct ib_sig_attrs *sig_attrs; /* only for IB_MR_TYPE_INTEGRITY MRs */
 	/*
 	 * Implementation details of the RDMA core, don't use in drivers:
 	 */
