@@ -563,7 +563,7 @@ static void tls_device_resync_rx(struct tls_context *tls_ctx,
 	clear_bit_unlock(TLS_RX_SYNC_RUNNING, &tls_ctx->flags);
 }
 
-void handle_device_resync(struct sock *sk, u32 seq)
+void tls_device_rx_resync_new_rec(struct sock *sk, u32 seq)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_rx *rx_ctx;

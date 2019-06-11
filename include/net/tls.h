@@ -608,6 +608,6 @@ int tls_sw_fallback_init(struct sock *sk,
 int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx);
 
 void tls_device_offload_cleanup_rx(struct sock *sk);
-void handle_device_resync(struct sock *sk, u32 seq);
+void tls_device_rx_resync_new_rec(struct sock *sk, u32 seq);
 
 #endif /* _TLS_OFFLOAD_H */
