@@ -101,7 +101,7 @@ csc_drm_to_base(u64 in)
 	}
 }
 
-static void
+void
 base907c_csc(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	     const struct drm_color_ctm *ctm)
 {

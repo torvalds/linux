@@ -512,8 +512,7 @@ nv50_head_create(struct drm_device *dev, int index)
 				  &nv50_head_func, "head-%d", head->base.index);
 	drm_crtc_helper_add(crtc, &nv50_head_help);
 	drm_mode_crtc_set_gamma_size(crtc, 256);
-	if (disp->disp->object.oclass >= GF110_DISP &&
-	    disp->disp->object.oclass < GV100_DISP)
+	if (disp->disp->object.oclass >= GF110_DISP)
 		drm_crtc_enable_color_mgmt(crtc, 256, true, 256);
 	else
 		drm_crtc_enable_color_mgmt(crtc, 0, false, 256);
