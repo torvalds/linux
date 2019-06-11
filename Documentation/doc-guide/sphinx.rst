@@ -217,7 +217,7 @@ Here are some specific guidelines for the kernel documentation:
   examples, etc.), use ``::`` for anything that doesn't really benefit
   from syntax highlighting, especially short snippets. Use
   ``.. code-block:: <language>`` for longer code blocks that benefit
-  from highlighting.
+  from highlighting. For a short snippet of code embedded in the text, use \`\`.
 
 
 the C domain
