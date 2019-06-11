@@ -1677,7 +1677,7 @@ isert_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	isert_dbg("Cmd %p\n", isert_cmd);
 
-	ret = isert_check_pi_status(cmd, isert_cmd->rw.sig->sig_mr);
+	ret = isert_check_pi_status(cmd, isert_cmd->rw.reg->mr);
 	isert_rdma_rw_ctx_destroy(isert_cmd, isert_conn);
 
 	if (ret) {
@@ -1723,7 +1723,7 @@ isert_rdma_read_done(struct ib_cq *cq, struct ib_wc *wc)
 	iscsit_stop_dataout_timer(cmd);
 
 	if (isert_prot_cmd(isert_conn, se_cmd))
-		ret = isert_check_pi_status(se_cmd, isert_cmd->rw.sig->sig_mr);
+		ret = isert_check_pi_status(se_cmd, isert_cmd->rw.reg->mr);
 	isert_rdma_rw_ctx_destroy(isert_cmd, isert_conn);
 	cmd->write_data_done = 0;
 
