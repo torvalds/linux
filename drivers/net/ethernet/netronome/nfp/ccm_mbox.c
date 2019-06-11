@@ -564,8 +564,8 @@ err_free_skb:
 }
 
 struct sk_buff *
-nfp_ccm_mbox_alloc(struct nfp_net *nn, unsigned int req_size,
-		   unsigned int reply_size, gfp_t flags)
+nfp_ccm_mbox_msg_alloc(struct nfp_net *nn, unsigned int req_size,
+		       unsigned int reply_size, gfp_t flags)
 {
 	unsigned int max_size;
 	struct sk_buff *skb;

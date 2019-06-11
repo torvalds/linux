@@ -94,9 +94,9 @@ nfp_net_tls_conn_remove(struct nfp_net *nn, enum tls_offload_ctx_dir direction)
 static struct sk_buff *
 nfp_net_tls_alloc_simple(struct nfp_net *nn, size_t req_sz, gfp_t flags)
 {
-	return nfp_ccm_mbox_alloc(nn, req_sz,
-				  sizeof(struct nfp_crypto_reply_simple),
-				  flags);
+	return nfp_ccm_mbox_msg_alloc(nn, req_sz,
+				      sizeof(struct nfp_crypto_reply_simple),
+				      flags);
 }
 
 static int
@@ -283,7 +283,7 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 	if (err)
 		return err;
 
-	skb = nfp_ccm_mbox_alloc(nn, req_sz, sizeof(*reply), GFP_KERNEL);
+	skb = nfp_ccm_mbox_msg_alloc(nn, req_sz, sizeof(*reply), GFP_KERNEL);
 	if (!skb) {
 		err = -ENOMEM;
 		goto err_conn_remove;

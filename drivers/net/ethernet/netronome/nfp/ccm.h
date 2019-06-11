@@ -112,8 +112,8 @@ nfp_ccm_communicate(struct nfp_ccm *ccm, struct sk_buff *skb,
 
 bool nfp_ccm_mbox_fits(struct nfp_net *nn, unsigned int size);
 struct sk_buff *
-nfp_ccm_mbox_alloc(struct nfp_net *nn, unsigned int req_size,
-		   unsigned int reply_size, gfp_t flags);
+nfp_ccm_mbox_msg_alloc(struct nfp_net *nn, unsigned int req_size,
+		       unsigned int reply_size, gfp_t flags);
 int nfp_ccm_mbox_communicate(struct nfp_net *nn, struct sk_buff *skb,
 			     enum nfp_ccm_type type,
 			     unsigned int reply_size,
