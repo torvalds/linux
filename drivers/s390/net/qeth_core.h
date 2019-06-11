@@ -579,6 +579,7 @@ struct qeth_channel;
 struct qeth_cmd_buffer {
 	enum qeth_cmd_buffer_state state;
 	unsigned int length;
+	refcount_t ref_count;
 	struct qeth_channel *channel;
 	struct qeth_reply *reply;
 	long timeout;
@@ -587,6 +588,11 @@ struct qeth_cmd_buffer {
 			 unsigned int length);
 	void (*callback)(struct qeth_card *card, struct qeth_cmd_buffer *iob);
 };
+
+static inline void qeth_get_cmd(struct qeth_cmd_buffer *iob)
+{
+	refcount_inc(&iob->ref_count);
+}
 
 static inline struct qeth_ipa_cmd *__ipa_cmd(struct qeth_cmd_buffer *iob)
 {
@@ -771,6 +777,7 @@ struct qeth_card {
 	enum qeth_card_states state;
 	spinlock_t lock;
 	struct ccwgroup_device *gdev;
+	struct qeth_cmd_buffer *read_cmd;
 	struct qeth_channel read;
 	struct qeth_channel write;
 	struct qeth_channel data;

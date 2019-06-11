@@ -496,26 +496,21 @@ static void qeth_setup_ccw(struct ccw1 *ccw, u8 cmd_code, u8 flags, u32 len,
 
 static int __qeth_issue_next_read(struct qeth_card *card)
 {
-	struct qeth_channel *channel = &card->read;
-	struct qeth_cmd_buffer *iob;
-	struct ccw1 *ccw;
+	struct qeth_cmd_buffer *iob = card->read_cmd;
+	struct qeth_channel *channel = iob->channel;
+	struct ccw1 *ccw = __ccw_from_cmd(iob);
 	int rc;
 
 	QETH_CARD_TEXT(card, 5, "issnxrd");
 	if (channel->state != CH_STATE_UP)
 		return -EIO;
-	iob = qeth_get_buffer(channel);
-	if (!iob) {
-		dev_warn(&card->gdev->dev, "The qeth device driver "
-			"failed to recover an error on the device\n");
-		QETH_DBF_MESSAGE(2, "issue_next_read on device %x failed: no iob available\n",
-				 CARD_DEVID(card));
-		return -ENOMEM;
-	}
 
-	ccw = __ccw_from_cmd(iob);
-	qeth_setup_ccw(ccw, CCW_CMD_READ, 0, QETH_BUFSIZE, iob->data);
+	memset(iob->data, 0, iob->length);
+	qeth_setup_ccw(ccw, CCW_CMD_READ, 0, iob->length, iob->data);
 	iob->callback = qeth_issue_next_read_cb;
+	/* keep the cmd alive after completion: */
+	qeth_get_cmd(iob);
+
 	QETH_CARD_TEXT(card, 6, "noirqpnd");
 	rc = ccw_device_start(channel->ccwdev, ccw, (addr_t) iob, 0, 0);
 	if (rc) {
@@ -694,6 +689,16 @@ static int qeth_check_idx_response(struct qeth_card *card,
 	return 0;
 }
 
+static void qeth_put_cmd(struct qeth_cmd_buffer *iob)
+{
+	if (refcount_dec_and_test(&iob->ref_count)) {
+		if (iob->reply)
+			qeth_put_reply(iob->reply);
+		kfree(iob->data);
+		kfree(iob);
+	}
+}
+
 static struct qeth_cmd_buffer *__qeth_get_buffer(struct qeth_channel *channel)
 {
 	__u8 index;
@@ -720,10 +725,7 @@ void qeth_release_buffer(struct qeth_cmd_buffer *iob)
 	unsigned long flags;
 
 	if (iob->state == BUF_STATE_MALLOC) {
-		if (iob->reply)
-			qeth_put_reply(iob->reply);
-		kfree(iob->data);
-		kfree(iob);
+		qeth_put_cmd(iob);
 		return;
 	}
 
@@ -787,6 +789,7 @@ static struct qeth_cmd_buffer *qeth_alloc_cmd(struct qeth_channel *channel,
 	}
 
 	iob->state = BUF_STATE_MALLOC;
+	refcount_set(&iob->ref_count, 1);
 	iob->channel = channel;
 	iob->timeout = timeout;
 	iob->length = length;
@@ -1445,10 +1448,14 @@ static struct qeth_card *qeth_alloc_card(struct ccwgroup_device *gdev)
 						 dev_name(&gdev->dev));
 	if (!card->event_wq)
 		goto out_wq;
-	if (qeth_setup_channel(&card->read, true))
-		goto out_ip;
+
+	card->read_cmd = qeth_alloc_cmd(&card->read, QETH_BUFSIZE, 1, 0);
+	if (!card->read_cmd)
+		goto out_read_cmd;
+	if (qeth_setup_channel(&card->read, false))
+		goto out_read;
 	if (qeth_setup_channel(&card->write, true))
-		goto out_channel;
+		goto out_write;
 	if (qeth_setup_channel(&card->data, false))
 		goto out_data;
 	card->qeth_service_level.seq_print = qeth_core_sl_print;
@@ -1457,9 +1464,11 @@ static struct qeth_card *qeth_alloc_card(struct ccwgroup_device *gdev)
 
 out_data:
 	qeth_clean_channel(&card->write);
-out_channel:
+out_write:
 	qeth_clean_channel(&card->read);
-out_ip:
+out_read:
+	qeth_release_buffer(card->read_cmd);
+out_read_cmd:
 	destroy_workqueue(card->event_wq);
 out_wq:
 	dev_set_drvdata(&gdev->dev, NULL);
@@ -4892,6 +4901,7 @@ static void qeth_core_free_card(struct qeth_card *card)
 	qeth_clean_channel(&card->read);
 	qeth_clean_channel(&card->write);
 	qeth_clean_channel(&card->data);
+	qeth_release_buffer(card->read_cmd);
 	destroy_workqueue(card->event_wq);
 	qeth_free_qdio_queues(card);
 	unregister_service_level(&card->qeth_service_level);

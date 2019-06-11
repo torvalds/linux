@@ -1436,7 +1436,6 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 		card->state = CARD_STATE_DOWN;
 	}
 
-	qeth_clear_cmd_buffers(&card->read);
 	qeth_clear_cmd_buffers(&card->write);
 	flush_workqueue(card->event_wq);
 }
