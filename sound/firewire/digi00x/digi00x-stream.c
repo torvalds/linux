@@ -196,12 +196,14 @@ static void release_resources(struct snd_dg00x *dg00x)
 	fw_iso_resources_free(&dg00x->rx_resources);
 }
 
-static int keep_resources(struct snd_dg00x *dg00x, unsigned int rate)
+static int keep_resources(struct snd_dg00x *dg00x, struct amdtp_stream *stream,
+			  unsigned int rate)
 {
-	unsigned int i;
+	struct fw_iso_resources *resources;
+	int i;
 	int err;
 
-	/* Check sampling rate. */
+	// Check sampling rate.
 	for (i = 0; i < SND_DG00X_RATE_COUNT; i++) {
 		if (snd_dg00x_stream_rates[i] == rate)
 			break;
@@ -209,31 +211,19 @@ static int keep_resources(struct snd_dg00x *dg00x, unsigned int rate)
 	if (i == SND_DG00X_RATE_COUNT)
 		return -EINVAL;
 
-	/* Keep resources for out-stream. */
-	err = amdtp_dot_set_parameters(&dg00x->rx_stream, rate,
+	if (stream == &dg00x->tx_stream)
+		resources = &dg00x->tx_resources;
+	else
+		resources = &dg00x->rx_resources;
+
+	err = amdtp_dot_set_parameters(stream, rate,
 				       snd_dg00x_stream_pcm_channels[i]);
 	if (err < 0)
 		return err;
-	err = fw_iso_resources_allocate(&dg00x->rx_resources,
-				amdtp_stream_get_max_payload(&dg00x->rx_stream),
-				fw_parent_device(dg00x->unit)->max_speed);
-	if (err < 0)
-		return err;
 
-	/* Keep resources for in-stream. */
-	err = amdtp_dot_set_parameters(&dg00x->tx_stream, rate,
-				       snd_dg00x_stream_pcm_channels[i]);
-	if (err < 0)
-		return err;
-	err = fw_iso_resources_allocate(&dg00x->tx_resources,
-				amdtp_stream_get_max_payload(&dg00x->tx_stream),
+	return fw_iso_resources_allocate(resources,
+				amdtp_stream_get_max_payload(stream),
 				fw_parent_device(dg00x->unit)->max_speed);
-	if (err < 0) {
-		fw_iso_resources_free(&dg00x->rx_resources);
-		return err;
-	}
-
-	return 0;
 }
 
 int snd_dg00x_stream_init_duplex(struct snd_dg00x *dg00x)
@@ -306,7 +296,11 @@ int snd_dg00x_stream_start_duplex(struct snd_dg00x *dg00x, unsigned int rate)
 		if (err < 0)
 			goto error;
 
-		err = keep_resources(dg00x, rate);
+		err = keep_resources(dg00x, &dg00x->rx_stream, rate);
+		if (err < 0)
+			goto error;
+
+		err = keep_resources(dg00x, &dg00x->tx_stream, rate);
 		if (err < 0)
 			goto error;
 
