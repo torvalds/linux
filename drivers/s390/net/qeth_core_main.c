@@ -63,7 +63,6 @@ static struct device *qeth_core_root_dev;
 static struct lock_class_key qdio_out_skb_queue_key;
 
 static void qeth_issue_next_read_cb(struct qeth_card *card,
-				    struct qeth_channel *channel,
 				    struct qeth_cmd_buffer *iob);
 static void qeth_free_buffer_pool(struct qeth_card *);
 static int qeth_qdio_establish(struct qeth_card *);
@@ -521,7 +520,7 @@ static int __qeth_issue_next_read(struct qeth_card *card)
 		QETH_DBF_MESSAGE(2, "error %i on device %x when starting next read ccw!\n",
 				 rc, CARD_DEVID(card));
 		atomic_set(&channel->irq_pending, 0);
-		qeth_release_buffer(channel, iob);
+		qeth_release_buffer(iob);
 		card->read_or_write_problem = 1;
 		qeth_schedule_recovery(card);
 		wake_up(&card->wait_q);
@@ -713,9 +712,9 @@ static struct qeth_cmd_buffer *__qeth_get_buffer(struct qeth_channel *channel)
 	return NULL;
 }
 
-void qeth_release_buffer(struct qeth_channel *channel,
-		struct qeth_cmd_buffer *iob)
+void qeth_release_buffer(struct qeth_cmd_buffer *iob)
 {
+	struct qeth_channel *channel = iob->channel;
 	unsigned long flags;
 
 	spin_lock_irqsave(&channel->iob_lock, flags);
@@ -731,10 +730,9 @@ void qeth_release_buffer(struct qeth_channel *channel,
 EXPORT_SYMBOL_GPL(qeth_release_buffer);
 
 static void qeth_release_buffer_cb(struct qeth_card *card,
-				   struct qeth_channel *channel,
 				   struct qeth_cmd_buffer *iob)
 {
-	qeth_release_buffer(channel, iob);
+	qeth_release_buffer(iob);
 }
 
 static void qeth_cancel_cmd(struct qeth_cmd_buffer *iob, int rc)
@@ -743,7 +741,7 @@ static void qeth_cancel_cmd(struct qeth_cmd_buffer *iob, int rc)
 
 	if (reply)
 		qeth_notify_reply(reply, rc);
-	qeth_release_buffer(iob->channel, iob);
+	qeth_release_buffer(iob);
 }
 
 struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *channel)
@@ -763,13 +761,12 @@ void qeth_clear_cmd_buffers(struct qeth_channel *channel)
 	int cnt;
 
 	for (cnt = 0; cnt < QETH_CMD_BUFFER_NO; cnt++)
-		qeth_release_buffer(channel, &channel->iob[cnt]);
+		qeth_release_buffer(&channel->iob[cnt]);
 	channel->io_buf_no = 0;
 }
 EXPORT_SYMBOL_GPL(qeth_clear_cmd_buffers);
 
 static void qeth_issue_next_read_cb(struct qeth_card *card,
-				    struct qeth_channel *channel,
 				    struct qeth_cmd_buffer *iob)
 {
 	struct qeth_ipa_cmd *cmd = NULL;
@@ -842,7 +839,7 @@ out:
 	memcpy(&card->seqno.pdu_hdr_ack,
 		QETH_PDU_HEADER_SEQ_NO(iob->data),
 		QETH_SEQ_NO_LENGTH);
-	qeth_release_buffer(channel, iob);
+	qeth_release_buffer(iob);
 	__qeth_issue_next_read(card);
 }
 
@@ -1110,7 +1107,7 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 		return;
 
 	if (iob && iob->callback)
-		iob->callback(card, iob->channel, iob);
+		iob->callback(card, iob);
 
 out:
 	wake_up(&card->wait_q);
@@ -1834,7 +1831,7 @@ static int qeth_send_control_data(struct qeth_card *card, int len,
 
 	reply = qeth_alloc_reply(card);
 	if (!reply) {
-		qeth_release_buffer(channel, iob);
+		qeth_release_buffer(iob);
 		return -ENOMEM;
 	}
 	reply->callback = reply_cb;
@@ -1849,7 +1846,7 @@ static int qeth_send_control_data(struct qeth_card *card, int len,
 						   timeout);
 	if (timeout <= 0) {
 		qeth_put_reply(reply);
-		qeth_release_buffer(channel, iob);
+		qeth_release_buffer(iob);
 		return (timeout == -ERESTARTSYS) ? -EINTR : -ETIME;
 	}
 
@@ -1869,7 +1866,7 @@ static int qeth_send_control_data(struct qeth_card *card, int len,
 		QETH_CARD_TEXT_(card, 2, " err%d", rc);
 		qeth_dequeue_reply(card, reply);
 		qeth_put_reply(reply);
-		qeth_release_buffer(channel, iob);
+		qeth_release_buffer(iob);
 		atomic_set(&channel->irq_pending, 0);
 		wake_up(&card->wait_q);
 		return rc;
@@ -1922,9 +1919,9 @@ static int qeth_idx_check_activate_response(struct qeth_card *card,
 }
 
 static void qeth_idx_query_read_cb(struct qeth_card *card,
-				   struct qeth_channel *channel,
 				   struct qeth_cmd_buffer *iob)
 {
+	struct qeth_channel *channel = iob->channel;
 	u16 peer_level;
 	int rc;
 
@@ -1951,13 +1948,13 @@ static void qeth_idx_query_read_cb(struct qeth_card *card,
 
 out:
 	qeth_notify_reply(iob->reply, rc);
-	qeth_release_buffer(channel, iob);
+	qeth_release_buffer(iob);
 }
 
 static void qeth_idx_query_write_cb(struct qeth_card *card,
-				    struct qeth_channel *channel,
 				    struct qeth_cmd_buffer *iob)
 {
+	struct qeth_channel *channel = iob->channel;
 	u16 peer_level;
 	int rc;
 
@@ -1978,7 +1975,7 @@ static void qeth_idx_query_write_cb(struct qeth_card *card,
 
 out:
 	qeth_notify_reply(iob->reply, rc);
-	qeth_release_buffer(channel, iob);
+	qeth_release_buffer(iob);
 }
 
 static void qeth_idx_finalize_query_cmd(struct qeth_card *card,
@@ -1989,11 +1986,10 @@ static void qeth_idx_finalize_query_cmd(struct qeth_card *card,
 }
 
 static void qeth_idx_activate_cb(struct qeth_card *card,
-				 struct qeth_channel *channel,
 				 struct qeth_cmd_buffer *iob)
 {
 	qeth_notify_reply(iob->reply, 0);
-	qeth_release_buffer(channel, iob);
+	qeth_release_buffer(iob);
 }
 
 static void qeth_idx_setup_activate_cmd(struct qeth_card *card,
@@ -2852,7 +2848,7 @@ int qeth_send_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 	QETH_CARD_TEXT(card, 4, "sendipa");
 
 	if (card->read_or_write_problem) {
-		qeth_release_buffer(iob->channel, iob);
+		qeth_release_buffer(iob);
 		return -EIO;
 	}
 

@@ -585,8 +585,7 @@ struct qeth_cmd_buffer {
 	unsigned char *data;
 	void (*finalize)(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 			 unsigned int length);
-	void (*callback)(struct qeth_card *card, struct qeth_channel *channel,
-			 struct qeth_cmd_buffer *iob);
+	void (*callback)(struct qeth_card *card, struct qeth_cmd_buffer *iob);
 };
 
 static inline struct qeth_ipa_cmd *__ipa_cmd(struct qeth_cmd_buffer *iob)
@@ -995,7 +994,7 @@ void qeth_drain_output_queues(struct qeth_card *card);
 void qeth_setadp_promisc_mode(struct qeth_card *);
 int qeth_setadpparms_change_macaddr(struct qeth_card *);
 void qeth_tx_timeout(struct net_device *);
-void qeth_release_buffer(struct qeth_channel *, struct qeth_cmd_buffer *);
+void qeth_release_buffer(struct qeth_cmd_buffer *iob);
 void qeth_notify_reply(struct qeth_reply *reply, int reason);
 void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 			  u16 cmd_length);

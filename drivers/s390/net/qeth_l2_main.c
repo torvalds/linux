@@ -1030,11 +1030,10 @@ struct qeth_discipline qeth_l2_discipline = {
 EXPORT_SYMBOL_GPL(qeth_l2_discipline);
 
 static void qeth_osn_assist_cb(struct qeth_card *card,
-			       struct qeth_channel *channel,
 			       struct qeth_cmd_buffer *iob)
 {
 	qeth_notify_reply(iob->reply, 0);
-	qeth_release_buffer(channel, iob);
+	qeth_release_buffer(iob);
 }
 
 int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
@@ -1812,7 +1811,7 @@ static int qeth_l2_vnicc_request(struct qeth_card *card,
 		req->getset_timeout.vnic_char = cbctl->param.vnic_char;
 		break;
 	default:
-		qeth_release_buffer(iob->channel, iob);
+		qeth_release_buffer(iob);
 		return -EOPNOTSUPP;
 	}
 
