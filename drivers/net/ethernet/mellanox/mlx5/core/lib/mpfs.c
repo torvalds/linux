@@ -67,6 +67,7 @@ static int del_l2table_entry_cmd(struct mlx5_core_dev *dev, u32 index)
 struct l2table_node {
 	struct l2addr_node node;
 	u32                index; /* index in HW l2 table */
+	int                ref_count;
 };
 
 struct mlx5_mpfs {
@@ -144,7 +145,7 @@ int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 
 	l2addr = l2addr_hash_find(mpfs->hash, mac, struct l2table_node);
 	if (l2addr) {
-		err = -EEXIST;
+		l2addr->ref_count++;
 		goto out;
 	}
 
@@ -163,6 +164,7 @@ int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 		goto set_table_entry_err;
 
 	l2addr->index = index;
+	l2addr->ref_count = 1;
 
 	mlx5_core_dbg(dev, "MPFS mac added %pM, index (%d)\n", mac, index);
 	goto out;
@@ -193,6 +195,9 @@ int mlx5_mpfs_del_mac(struct mlx5_core_dev *dev, u8 *mac)
 		err = -ENOENT;
 		goto unlock;
 	}
+
+	if (--l2addr->ref_count > 0)
+		goto unlock;
 
 	index = l2addr->index;
 	del_l2table_entry_cmd(dev, index);
