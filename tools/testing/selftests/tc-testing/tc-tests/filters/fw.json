@@ -57,6 +57,30 @@
         ]
     },
     {
+        "id": "c591",
+        "name": "Add fw filter with action ok by reference",
+        "__comment": "We add sleep here because action might have not been deleted by workqueue just yet. Remove this when the behaviour is fixed.",
+        "category": [
+            "filter",
+            "fw"
+        ],
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions add action gact ok index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 prio 1 fw action gact index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol all fw",
+        "matchPattern": "handle 0x1.*gact action pass.*index 1 ref 2 bind 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions del action gact index 1"
+        ]
+    },
+    {
         "id": "affe",
         "name": "Add fw filter with action continue",
         "category": [
@@ -73,6 +97,30 @@
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "38b3",
+        "name": "Add fw filter with action continue by reference",
+        "__comment": "We add sleep here because action might have not been deleted by workqueue just yet. Remove this when the behaviour is fixed.",
+        "category": [
+            "filter",
+            "fw"
+        ],
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions add action gact continue index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 prio 1 fw action gact index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol all fw",
+        "matchPattern": "handle 0x1.*gact action continue.*index 1 ref 2 bind 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions del action gact index 1"
         ]
     },
     {
@@ -95,6 +143,30 @@
         ]
     },
     {
+        "id": "6753",
+        "name": "Add fw filter with action pipe by reference",
+        "__comment": "We add sleep here because action might have not been deleted by workqueue just yet.",
+        "category": [
+            "filter",
+            "fw"
+        ],
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions add action gact pipe index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 prio 1 fw action gact index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol all fw",
+        "matchPattern": "handle 0x1.*gact action pipe.*index 1 ref 2 bind 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions del action gact index 1"
+        ]
+    },
+    {
         "id": "8da2",
         "name": "Add fw filter with action drop",
         "category": [
@@ -111,6 +183,30 @@
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "6dc6",
+        "name": "Add fw filter with action drop by reference",
+        "__comment": "We add sleep here because action might have not been deleted by workqueue just yet.",
+        "category": [
+            "filter",
+            "fw"
+        ],
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions add action gact drop index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 prio 1 fw action gact index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol all fw",
+        "matchPattern": "handle 0x1.*gact action drop.*index 1 ref 2 bind 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions del action gact index 1"
         ]
     },
     {
@@ -133,6 +229,30 @@
         ]
     },
     {
+        "id": "3bc2",
+        "name": "Add fw filter with action reclassify by reference",
+        "__comment": "We add sleep here because action might have not been deleted by workqueue just yet.",
+        "category": [
+            "filter",
+            "fw"
+        ],
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions add action gact reclassify index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 prio 1 fw action gact index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol all fw",
+        "matchPattern": "handle 0x1.*gact action reclassify.*index 1 ref 2 bind 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions del action gact index 1"
+        ]
+    },
+    {
         "id": "95bb",
         "name": "Add fw filter with action jump 10",
         "category": [
@@ -149,6 +269,30 @@
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress"
+        ]
+    },
+    {
+        "id": "36f7",
+        "name": "Add fw filter with action jump 10 by reference",
+        "__comment": "We add sleep here because action might have not been deleted by workqueue just yet.",
+        "category": [
+            "filter",
+            "fw"
+        ],
+        "setup": [
+            "$TC qdisc add dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions add action gact jump 10 index 1"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 prio 1 fw action gact index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol all fw",
+        "matchPattern": "handle 0x1.*gact action jump 10.*index 1 ref 2 bind 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress",
+            "/bin/sleep 1",
+            "$TC actions del action gact index 1"
         ]
     },
     {
