@@ -8160,15 +8160,15 @@ unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 	return val;
 }
 
-unsigned long i915_mch_val(struct drm_i915_private *dev_priv)
+unsigned long i915_mch_val(struct drm_i915_private *i915)
 {
 	unsigned long m, x, b;
 	u32 tsfs;
 
-	tsfs = I915_READ(TSFS);
+	tsfs = intel_uncore_read(&i915->uncore, TSFS);
 
 	m = ((tsfs & TSFS_SLOPE_MASK) >> TSFS_SLOPE_SHIFT);
-	x = I915_READ8(TR1);
+	x = intel_uncore_read8(&i915->uncore, TR1);
 
 	b = tsfs & TSFS_INTR_MASK;
 

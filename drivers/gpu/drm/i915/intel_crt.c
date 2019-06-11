@@ -643,6 +643,7 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 {
 	struct drm_device *dev = crt->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 save_bclrpat;
 	u32 save_vtotal;
 	u32 vtotal, vactive;
@@ -663,9 +664,9 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 	pipeconf_reg = PIPECONF(pipe);
 	pipe_dsl_reg = PIPEDSL(pipe);
 
-	save_bclrpat = I915_READ(bclrpat_reg);
-	save_vtotal = I915_READ(vtotal_reg);
-	vblank = I915_READ(vblank_reg);
+	save_bclrpat = intel_uncore_read(uncore, bclrpat_reg);
+	save_vtotal = intel_uncore_read(uncore, vtotal_reg);
+	vblank = intel_uncore_read(uncore, vblank_reg);
 
 	vtotal = ((save_vtotal >> 16) & 0xfff) + 1;
 	vactive = (save_vtotal & 0x7ff) + 1;
@@ -674,21 +675,23 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 	vblank_end = ((vblank >> 16) & 0xfff) + 1;
 
 	/* Set the border color to purple. */
-	I915_WRITE(bclrpat_reg, 0x500050);
+	intel_uncore_write(uncore, bclrpat_reg, 0x500050);
 
 	if (!IS_GEN(dev_priv, 2)) {
-		u32 pipeconf = I915_READ(pipeconf_reg);
-		I915_WRITE(pipeconf_reg, pipeconf | PIPECONF_FORCE_BORDER);
-		POSTING_READ(pipeconf_reg);
+		u32 pipeconf = intel_uncore_read(uncore, pipeconf_reg);
+		intel_uncore_write(uncore,
+				   pipeconf_reg,
+				   pipeconf | PIPECONF_FORCE_BORDER);
+		intel_uncore_posting_read(uncore, pipeconf_reg);
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
 		intel_wait_for_vblank(dev_priv, pipe);
-		st00 = I915_READ8(_VGA_MSR_WRITE);
+		st00 = intel_uncore_read8(uncore, _VGA_MSR_WRITE);
 		status = ((st00 & (1 << 4)) != 0) ?
 			connector_status_connected :
 			connector_status_disconnected;
 
-		I915_WRITE(pipeconf_reg, pipeconf);
+		intel_uncore_write(uncore, pipeconf_reg, pipeconf);
 	} else {
 		bool restore_vblank = false;
 		int count, detect;
@@ -702,9 +705,10 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 			u32 vsync_start = (vsync & 0xffff) + 1;
 
 			vblank_start = vsync_start;
-			I915_WRITE(vblank_reg,
-				   (vblank_start - 1) |
-				   ((vblank_end - 1) << 16));
+			intel_uncore_write(uncore,
+					   vblank_reg,
+					   (vblank_start - 1) |
+					   ((vblank_end - 1) << 16));
 			restore_vblank = true;
 		}
 		/* sample in the vertical border, selecting the larger one */
@@ -716,9 +720,10 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 		/*
 		 * Wait for the border to be displayed
 		 */
-		while (I915_READ(pipe_dsl_reg) >= vactive)
+		while (intel_uncore_read(uncore, pipe_dsl_reg) >= vactive)
 			;
-		while ((dsl = I915_READ(pipe_dsl_reg)) <= vsample)
+		while ((dsl = intel_uncore_read(uncore, pipe_dsl_reg)) <=
+		       vsample)
 			;
 		/*
 		 * Watch ST00 for an entire scanline
@@ -728,14 +733,14 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 		do {
 			count++;
 			/* Read the ST00 VGA status register */
-			st00 = I915_READ8(_VGA_MSR_WRITE);
+			st00 = intel_uncore_read8(uncore, _VGA_MSR_WRITE);
 			if (st00 & (1 << 4))
 				detect++;
-		} while ((I915_READ(pipe_dsl_reg) == dsl));
+		} while ((intel_uncore_read(uncore, pipe_dsl_reg) == dsl));
 
 		/* restore vblank if necessary */
 		if (restore_vblank)
-			I915_WRITE(vblank_reg, vblank);
+			intel_uncore_write(uncore, vblank_reg, vblank);
 		/*
 		 * If more than 3/4 of the scanline detected a monitor,
 		 * then it is assumed to be present. This works even on i830,
@@ -748,7 +753,7 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 	}
 
 	/* Restore previous settings */
-	I915_WRITE(bclrpat_reg, save_bclrpat);
+	intel_uncore_write(uncore, bclrpat_reg, save_bclrpat);
 
 	return status;
 }
