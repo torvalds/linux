@@ -1,0 +1,160 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd.
+set -e
+
+usage() {
+	cat >&2 << USAGE
+usage: $0 [-h] [-z] --boot_img BOOT_IMG [--out OUT] [--kernel KERNEL] [--ramdisk RAMDISK] [--second SECOND] [--dtb DTB ] [--recovery_dtbo RECOVERY_DTBO] -o OUTPUT
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -z                    pack compressed kernel image
+  --boot_img BOOT_IMG   path to the original boot image
+  --out OUT             path to out binaries (default: out)
+  --kernel KERNEL       path to the new kernel
+  --ramdisk RAMDISK     path to the new ramdisk
+  --second SECOND       path to the new 2nd bootloader (default: resource.img)
+  --dtb DTB             path to the new dtb
+  --recovery_dtbo RECOVERY_DTBO
+                        path to the new recovery DTBO
+  -o OUTPUT, --output OUTPUT
+                        output file name
+USAGE
+}
+
+# Parse command-line arguments
+while [ $# -gt 0 ]; do
+	case $1 in
+		--boot_img)
+			boot_img=$2
+			shift 2
+			;;
+		--out)
+			out=$2
+			shift 2
+			;;
+		--kernel)
+			kernel=$2
+			shift 2
+			;;
+		--ramdisk)
+			ramdisk=$2
+			shift 2
+			;;
+		--second)
+			second=$2
+			shift 2
+			;;
+		--dtb)
+			dtb=$2
+			shift 2
+			;;
+		--recovery_dtbo)
+			recovery_dtbo=$2
+			shift 2
+			;;
+		-h)
+			usage
+			exit 0
+			;;
+		--help)
+			usage
+			exit 0
+			;;
+		-z)
+			compressed_kernel=y
+			shift
+			;;
+		-o)
+			output=$2
+			shift 2
+			;;
+		--output)
+			output=$2
+			shift 2
+			;;
+		*)
+			shift
+			;;
+        esac
+done
+
+if [ "$boot_img" == "" -o ! -e "$boot_img" ]; then
+	echo "No boot img"
+	usage
+	exit 1
+fi
+
+if [ "$output" == "" ]; then
+	echo "No output file name"
+	usage
+	exit 1
+fi
+
+srctree=${srctree-"."}
+objtree=${objtree-"."}
+out=${out-"out"}
+if [ "$($srctree/scripts/config --state CONFIG_ARM64)" == "y" ]; then
+	if [ "$compressed_kernel" == "y" ]; then
+		default_kernel=arch/arm64/boot/Image.lz4
+	else
+		default_kernel=arch/arm64/boot/Image
+	fi
+else
+	if [ "$compressed_kernel" == "y" ]; then
+		default_kernel=arch/arm/boot/zImage
+	else
+		default_kernel=arch/arm/boot/Image
+	fi
+fi
+kernel=${kernel-$objtree/$default_kernel}
+second=${second-$objtree/resource.img}
+ramdisk=${ramdisk-$out/ramdisk}
+dtb=${dtb-$out/dtb}
+recovery_dtbo=${recovery_dtbo-$out/recovery_dtbo}
+log="$out/unpack.log"
+
+mkdir -p $out
+$srctree/scripts/unpack_bootimg --boot_img $boot_img --out $out > $log
+
+cmdline=$(grep -a "^command line args: " $log | tr '\0' '\n'| sed "s/^command line args: //")
+extra_cmdline=$(grep -a "^additional command line args: " $log | tr '\0' '\n'| sed "s/^additional command line args: //")
+version=$(grep -a "^boot image header version: " $log | sed "s/^boot image header version: //")
+
+os_version_patch_level=$(grep -a "^os version and patch level: " $log | sed "s/^os version and patch level: //")
+
+v=$(($os_version_patch_level >> 11))
+a=$(($v >> 14))
+b=$((($v >> 7) & 0x7f))
+c=$(($v & 0x7f))
+os_version=$(printf '%d.%d.%d' $a $b $c)
+
+v=$(($os_version_patch_level & 0x7ff))
+y=$((($v >> 4) + 2000))
+m=$((($v & 15)))
+os_patch_level=$(printf '%d-%02d-01' $y $m)
+
+dtb_size=$(grep -a "^dtb size: " $log | sed "s/^dtb size: //")
+dtb_size=${dtb_size:-0}
+if [ $dtb_size -gt 0 -a -e "$dtb" ]; then
+	DTB="--dtb $dtb"
+fi
+
+recovery_dtbo_size=$(grep -a "^recovery dtbo size: " $log | sed "s/^recovery dtbo size: //")
+recovery_dtbo_size=${recovery_dtbo_size:-0}
+if [ $recovery_dtbo_size -gt 0 -a -e "$recovery_dtbo" ]; then
+	RECOVERY_DTBO="--recovery_dtbo $recovery_dtbo"
+fi
+
+$srctree/scripts/mkbootimg \
+--kernel $kernel \
+--second $second \
+--ramdisk $ramdisk \
+$DTB \
+$RECOVERY_DTBO \
+--cmdline "${cmdline}${extra_cmdline}" \
+--header_version $version \
+--os_version $os_version \
+--os_patch_level $os_patch_level \
+--output $output
