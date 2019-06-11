@@ -214,7 +214,7 @@ static u32 sdio_read32(struct intf_hdl *intfhdl, u32 addr)
 
 		ftaddr &= ~(u16)0x3;
 		sd_read(intfhdl, ftaddr, 8, tmpbuf);
-		memcpy(&le_tmp, tmpbuf+shift, 4);
+		memcpy(&le_tmp, tmpbuf + shift, 4);
 		val = le32_to_cpu(le_tmp);
 
 		kfree(tmpbuf);
@@ -261,7 +261,7 @@ static s32 sdio_readN(struct intf_hdl *intfhdl, u32 addr, u32 cnt, u8 *buf)
 
 		err = sd_read(intfhdl, ftaddr, n, tmpbuf);
 		if (!err)
-			memcpy(buf, tmpbuf+shift, cnt);
+			memcpy(buf, tmpbuf + shift, cnt);
 		kfree(tmpbuf);
 	}
 	return err;
@@ -366,7 +366,7 @@ static s32 sdio_writeN(struct intf_hdl *intfhdl, u32 addr, u32 cnt, u8 *buf)
 			kfree(tmpbuf);
 			return err;
 		}
-		memcpy(tmpbuf+shift, buf, cnt);
+		memcpy(tmpbuf + shift, buf, cnt);
 		err = sd_write(intfhdl, ftaddr, n, tmpbuf);
 		kfree(tmpbuf);
 	}
@@ -727,8 +727,8 @@ static s32 ReadInterrupt8723BSdio(struct adapter *adapter, u32 *phisr)
 	hisr = 0;
 	while (hisr_len != 0) {
 		hisr_len--;
-		val8 = SdioLocalCmd52Read1Byte(adapter, SDIO_REG_HISR+hisr_len);
-		hisr |= (val8 << (8*hisr_len));
+		val8 = SdioLocalCmd52Read1Byte(adapter, SDIO_REG_HISR + hisr_len);
+		hisr |= (val8 << (8 * hisr_len));
 	}
 
 	*phisr = hisr;
@@ -952,7 +952,7 @@ static struct recv_buf *sd_recv_rxfifo(struct adapter *adapter, u32 size)
 			recvbuf->pskb->dev = adapter->pnetdev;
 
 			tmpaddr = (SIZE_PTR)recvbuf->pskb->data;
-			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ-1);
+			alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
 			skb_reserve(recvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
 		}
 
