@@ -776,9 +776,6 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate);
  * enum ib_mr_type - memory region type
  * @IB_MR_TYPE_MEM_REG:       memory region that is used for
  *                            normal registration
- * @IB_MR_TYPE_SIGNATURE:     memory region that is used for
- *                            signature operations (data-integrity
- *                            capable regions)
  * @IB_MR_TYPE_SG_GAPS:       memory region that is capable to
  *                            register any arbitrary sg lists (without
  *                            the normal mr constraints - see
@@ -794,7 +791,6 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate);
  */
 enum ib_mr_type {
 	IB_MR_TYPE_MEM_REG,
-	IB_MR_TYPE_SIGNATURE,
 	IB_MR_TYPE_SG_GAPS,
 	IB_MR_TYPE_DM,
 	IB_MR_TYPE_USER,
@@ -1235,7 +1231,6 @@ enum ib_wr_opcode {
 
 	/* These are kernel only and can not be issued by userspace */
 	IB_WR_REG_MR = 0x20,
-	IB_WR_REG_SIG_MR,
 	IB_WR_REG_MR_INTEGRITY,
 
 	/* reserve values for low level drivers' internal use.
@@ -1344,20 +1339,6 @@ struct ib_reg_wr {
 static inline const struct ib_reg_wr *reg_wr(const struct ib_send_wr *wr)
 {
 	return container_of(wr, struct ib_reg_wr, wr);
-}
-
-struct ib_sig_handover_wr {
-	struct ib_send_wr	wr;
-	struct ib_sig_attrs    *sig_attrs;
-	struct ib_mr	       *sig_mr;
-	int			access_flags;
-	struct ib_sge	       *prot;
-};
-
-static inline const struct ib_sig_handover_wr *
-sig_handover_wr(const struct ib_send_wr *wr)
-{
-	return container_of(wr, struct ib_sig_handover_wr, wr);
 }
 
 struct ib_recv_wr {

@@ -1760,8 +1760,7 @@ static struct ib_mr *__mlx5_ib_alloc_mr(struct ib_pd *pd,
 			goto err_free_in;
 		mr->desc_size = sizeof(struct mlx5_klm);
 		mr->max_descs = ndescs;
-	} else if (mr_type == IB_MR_TYPE_SIGNATURE ||
-		   mr_type == IB_MR_TYPE_INTEGRITY) {
+	} else if (mr_type == IB_MR_TYPE_INTEGRITY) {
 		u32 psv_index[2];
 
 		MLX5_SET(mkc, mkc, bsf_en, 1);
@@ -1787,13 +1786,11 @@ static struct ib_mr *__mlx5_ib_alloc_mr(struct ib_pd *pd,
 		mr->sig->sig_err_exists = false;
 		/* Next UMR, Arm SIGERR */
 		++mr->sig->sigerr_count;
-		if (mr_type == IB_MR_TYPE_INTEGRITY) {
-			mr->pi_mr = mlx5_ib_alloc_pi_mr(pd, max_num_sg,
-							max_num_meta_sg);
-			if (IS_ERR(mr->pi_mr)) {
-				err = PTR_ERR(mr->pi_mr);
-				goto err_destroy_psv;
-			}
+		mr->pi_mr = mlx5_ib_alloc_pi_mr(pd, max_num_sg,
+						max_num_meta_sg);
+		if (IS_ERR(mr->pi_mr)) {
+			err = PTR_ERR(mr->pi_mr);
+			goto err_destroy_psv;
 		}
 	} else {
 		mlx5_ib_warn(dev, "Invalid mr type %d\n", mr_type);

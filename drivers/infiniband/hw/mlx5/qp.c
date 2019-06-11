@@ -4557,32 +4557,17 @@ static int set_sig_data_segment(const struct ib_send_wr *send_wr,
 	bool prot = false;
 	int ret;
 	int wqe_size;
+	struct mlx5_ib_mr *mr = to_mmr(sig_mr);
+	struct mlx5_ib_mr *pi_mr = mr->pi_mr;
 
-	if (send_wr->opcode == IB_WR_REG_SIG_MR) {
-		const struct ib_sig_handover_wr *wr = sig_handover_wr(send_wr);
-
-		data_len = wr->wr.sg_list->length;
-		data_key = wr->wr.sg_list->lkey;
-		data_va = wr->wr.sg_list->addr;
-		if (wr->prot) {
-			prot_len = wr->prot->length;
-			prot_key = wr->prot->lkey;
-			prot_va = wr->prot->addr;
-			prot = true;
-		}
-	} else {
-		struct mlx5_ib_mr *mr = to_mmr(sig_mr);
-		struct mlx5_ib_mr *pi_mr = mr->pi_mr;
-
-		data_len = pi_mr->data_length;
-		data_key = pi_mr->ibmr.lkey;
-		data_va = pi_mr->ibmr.iova;
-		if (pi_mr->meta_ndescs) {
-			prot_len = pi_mr->meta_length;
-			prot_key = pi_mr->ibmr.lkey;
-			prot_va = pi_mr->ibmr.iova + data_len;
-			prot = true;
-		}
+	data_len = pi_mr->data_length;
+	data_key = pi_mr->ibmr.lkey;
+	data_va = pi_mr->ibmr.iova;
+	if (pi_mr->meta_ndescs) {
+		prot_len = pi_mr->meta_length;
+		prot_key = pi_mr->ibmr.lkey;
+		prot_va = pi_mr->ibmr.iova + data_len;
+		prot = true;
 	}
 
 	if (!prot || (data_key == prot_key && data_va == prot_va &&
@@ -4741,57 +4726,6 @@ static int set_pi_umr_wr(const struct ib_send_wr *send_wr,
 
 	ret = set_sig_data_segment(send_wr, wr->mr, sig_attrs, qp, seg, size,
 				   cur_edge);
-	if (ret)
-		return ret;
-
-	sig_mr->sig->sig_status_checked = false;
-	return 0;
-}
-
-static int set_sig_umr_wr(const struct ib_send_wr *send_wr,
-			  struct mlx5_ib_qp *qp, void **seg, int *size,
-			  void **cur_edge)
-{
-	const struct ib_sig_handover_wr *wr = sig_handover_wr(send_wr);
-	struct mlx5_ib_mr *sig_mr = to_mmr(wr->sig_mr);
-	u32 pdn = get_pd(qp)->pdn;
-	u32 xlt_size;
-	int region_len, ret;
-
-	if (unlikely(wr->wr.num_sge != 1) ||
-	    unlikely(wr->access_flags & IB_ACCESS_REMOTE_ATOMIC) ||
-	    unlikely(!sig_mr->sig) || unlikely(!qp->ibqp.integrity_en) ||
-	    unlikely(!sig_mr->sig->sig_status_checked))
-		return -EINVAL;
-
-	/* length of the protected region, data + protection */
-	region_len = wr->wr.sg_list->length;
-	if (wr->prot &&
-	    (wr->prot->lkey != wr->wr.sg_list->lkey  ||
-	     wr->prot->addr != wr->wr.sg_list->addr  ||
-	     wr->prot->length != wr->wr.sg_list->length))
-		region_len += wr->prot->length;
-
-	/**
-	 * KLM octoword size - if protection was provided
-	 * then we use strided block format (3 octowords),
-	 * else we use single KLM (1 octoword)
-	 **/
-	xlt_size = wr->prot ? 0x30 : sizeof(struct mlx5_klm);
-
-	set_sig_umr_segment(*seg, xlt_size);
-	*seg += sizeof(struct mlx5_wqe_umr_ctrl_seg);
-	*size += sizeof(struct mlx5_wqe_umr_ctrl_seg) / 16;
-	handle_post_send_edge(&qp->sq, seg, *size, cur_edge);
-
-	set_sig_mkey_segment(*seg, wr->sig_mr, wr->access_flags, xlt_size,
-			     region_len, pdn);
-	*seg += sizeof(struct mlx5_mkey_seg);
-	*size += sizeof(struct mlx5_mkey_seg) / 16;
-	handle_post_send_edge(&qp->sq, seg, *size, cur_edge);
-
-	ret = set_sig_data_segment(send_wr, wr->sig_mr, wr->sig_attrs, qp, seg,
-				   size, cur_edge);
 	if (ret)
 		return ret;
 
@@ -5184,74 +5118,6 @@ static int _mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 
 				qp->next_fence =
 					MLX5_FENCE_MODE_INITIATOR_SMALL;
-				num_sge = 0;
-				goto skip_psv;
-
-			case IB_WR_REG_SIG_MR:
-				qp->sq.wr_data[idx] = IB_WR_REG_SIG_MR;
-				mr = to_mmr(sig_handover_wr(wr)->sig_mr);
-
-				ctrl->imm = cpu_to_be32(mr->ibmr.rkey);
-				err = set_sig_umr_wr(wr, qp, &seg, &size,
-						     &cur_edge);
-				if (err) {
-					mlx5_ib_warn(dev, "\n");
-					*bad_wr = wr;
-					goto out;
-				}
-
-				finish_wqe(qp, ctrl, seg, size, cur_edge, idx,
-					   wr->wr_id, nreq, fence,
-					   MLX5_OPCODE_UMR);
-				/*
-				 * SET_PSV WQEs are not signaled and solicited
-				 * on error
-				 */
-				err = __begin_wqe(qp, &seg, &ctrl, wr, &idx,
-						  &size, &cur_edge, nreq, false,
-						  true);
-				if (err) {
-					mlx5_ib_warn(dev, "\n");
-					err = -ENOMEM;
-					*bad_wr = wr;
-					goto out;
-				}
-
-				err = set_psv_wr(&sig_handover_wr(wr)->sig_attrs->mem,
-						 mr->sig->psv_memory.psv_idx, &seg,
-						 &size);
-				if (err) {
-					mlx5_ib_warn(dev, "\n");
-					*bad_wr = wr;
-					goto out;
-				}
-
-				finish_wqe(qp, ctrl, seg, size, cur_edge, idx,
-					   wr->wr_id, nreq, fence,
-					   MLX5_OPCODE_SET_PSV);
-				err = __begin_wqe(qp, &seg, &ctrl, wr, &idx,
-						  &size, &cur_edge, nreq, false,
-						  true);
-				if (err) {
-					mlx5_ib_warn(dev, "\n");
-					err = -ENOMEM;
-					*bad_wr = wr;
-					goto out;
-				}
-
-				err = set_psv_wr(&sig_handover_wr(wr)->sig_attrs->wire,
-						 mr->sig->psv_wire.psv_idx, &seg,
-						 &size);
-				if (err) {
-					mlx5_ib_warn(dev, "\n");
-					*bad_wr = wr;
-					goto out;
-				}
-
-				finish_wqe(qp, ctrl, seg, size, cur_edge, idx,
-					   wr->wr_id, nreq, fence,
-					   MLX5_OPCODE_SET_PSV);
-				qp->next_fence = MLX5_FENCE_MODE_INITIATOR_SMALL;
 				num_sge = 0;
 				goto skip_psv;
 
