@@ -92,7 +92,7 @@ static inline unsigned long arch_local_save_flags(void)
 			ARM64_HAS_IRQ_PRIO_MASKING)
 		: "=&r" (flags), "+r" (daif_bits)
 		: "r" ((unsigned long) GIC_PRIO_IRQOFF)
-		: "memory");
+		: "cc", "memory");
 
 	return flags;
 }
@@ -136,7 +136,7 @@ static inline int arch_irqs_disabled_flags(unsigned long flags)
 			ARM64_HAS_IRQ_PRIO_MASKING)
 		: "=&r" (res)
 		: "r" ((int) flags)
-		: "memory");
+		: "cc", "memory");
 
 	return res;
 }
