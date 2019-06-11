@@ -65,6 +65,22 @@ static inline u32 rdma_rw_fr_page_list_len(struct ib_device *dev)
 	return min_t(u32, dev->attrs.max_fast_reg_page_list_len, 256);
 }
 
+static inline int rdma_rw_inv_key(struct rdma_rw_reg_ctx *reg)
+{
+	int count = 0;
+
+	if (reg->mr->need_inval) {
+		reg->inv_wr.opcode = IB_WR_LOCAL_INV;
+		reg->inv_wr.ex.invalidate_rkey = reg->mr->lkey;
+		reg->inv_wr.next = &reg->reg_wr.wr;
+		count++;
+	} else {
+		reg->inv_wr.next = NULL;
+	}
+
+	return count;
+}
+
 /* Caller must have zero-initialized *reg. */
 static int rdma_rw_init_one_mr(struct ib_qp *qp, u8 port_num,
 		struct rdma_rw_reg_ctx *reg, struct scatterlist *sg,
@@ -78,14 +94,7 @@ static int rdma_rw_init_one_mr(struct ib_qp *qp, u8 port_num,
 	if (!reg->mr)
 		return -EAGAIN;
 
-	if (reg->mr->need_inval) {
-		reg->inv_wr.opcode = IB_WR_LOCAL_INV;
-		reg->inv_wr.ex.invalidate_rkey = reg->mr->lkey;
-		reg->inv_wr.next = &reg->reg_wr.wr;
-		count++;
-	} else {
-		reg->inv_wr.next = NULL;
-	}
+	count += rdma_rw_inv_key(reg);
 
 	ret = ib_map_mr_sg(reg->mr, sg, nents, &offset, PAGE_SIZE);
 	if (ret < 0 || ret < nents) {
