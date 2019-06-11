@@ -851,6 +851,7 @@ out:
 		QETH_PDU_HEADER_SEQ_NO(iob->data),
 		QETH_SEQ_NO_LENGTH);
 	qeth_release_buffer(channel, iob);
+	__qeth_issue_next_read(card);
 }
 
 static int qeth_set_thread_start_bit(struct qeth_card *card,
@@ -1115,9 +1116,6 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 	}
 	if (channel == &card->data)
 		return;
-	if (channel == &card->read &&
-	    channel->state == CH_STATE_UP)
-		__qeth_issue_next_read(card);
 
 	if (iob && iob->callback)
 		iob->callback(card, iob->channel, iob);
