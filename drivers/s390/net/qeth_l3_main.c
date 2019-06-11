@@ -1436,11 +1436,9 @@ static void qeth_l3_stop_card(struct qeth_card *card)
 		qeth_clear_working_pool_list(card);
 		card->state = CARD_STATE_DOWN;
 	}
-	if (card->state == CARD_STATE_DOWN) {
-		qeth_clear_cmd_buffers(&card->read);
-		qeth_clear_cmd_buffers(&card->write);
-	}
 
+	qeth_clear_cmd_buffers(&card->read);
+	qeth_clear_cmd_buffers(&card->write);
 	flush_workqueue(card->event_wq);
 }
 
@@ -2420,7 +2418,6 @@ out_remove:
 	ccw_device_set_offline(CARD_WDEV(card));
 	ccw_device_set_offline(CARD_RDEV(card));
 	qdio_free(CARD_DDEV(card));
-	card->state = CARD_STATE_DOWN;
 
 	mutex_unlock(&card->conf_mutex);
 	mutex_unlock(&card->discipline_mutex);
