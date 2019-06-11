@@ -79,6 +79,8 @@
 #define ENA_BAR_MASK (BIT(ENA_REG_BAR) | BIT(ENA_MEM_BAR))
 
 #define ENA_DEFAULT_RING_SIZE	(1024)
+#define ENA_MIN_RING_SIZE	(256)
+
 
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
 #define ENA_DEFAULT_RX_COPYBREAK	(256 - NET_IP_ALIGN)
@@ -331,8 +333,8 @@ struct ena_adapter {
 	u32 tx_usecs, rx_usecs; /* interrupt moderation */
 	u32 tx_frames, rx_frames; /* interrupt moderation */
 
-	u32 tx_ring_size;
-	u32 rx_ring_size;
+	u32 requested_tx_ring_size;
+	u32 requested_rx_ring_size;
 
 	u32 max_tx_ring_size;
 	u32 max_rx_ring_size;

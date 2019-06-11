@@ -489,8 +489,8 @@ static void ena_get_ringparam(struct net_device *netdev,
 
 	ring->tx_max_pending = adapter->max_tx_ring_size;
 	ring->rx_max_pending = adapter->max_rx_ring_size;
-	ring->tx_pending = adapter->tx_ring_size;
-	ring->rx_pending = adapter->rx_ring_size;
+	ring->tx_pending = adapter->tx_ring[0].ring_size;
+	ring->rx_pending = adapter->rx_ring[0].ring_size;
 }
 
 static u32 ena_flow_hash_to_flow_type(u16 hash_fields)
