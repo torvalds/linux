@@ -848,6 +848,72 @@ static void stmmac_mac_flow_ctrl(struct stmmac_priv *priv, u32 duplex)
 			priv->pause, tx_cnt);
 }
 
+static void stmmac_mac_config(struct net_device *dev)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	struct phy_device *phydev = dev->phydev;
+	u32 ctrl;
+
+	ctrl = readl(priv->ioaddr + MAC_CTRL_REG);
+
+	if (phydev->speed != priv->speed) {
+		ctrl &= ~priv->hw->link.speed_mask;
+
+		switch (phydev->speed) {
+		case SPEED_1000:
+			ctrl |= priv->hw->link.speed1000;
+			break;
+		case SPEED_100:
+			ctrl |= priv->hw->link.speed100;
+			break;
+		case SPEED_10:
+			ctrl |= priv->hw->link.speed10;
+			break;
+		default:
+			netif_warn(priv, link, priv->dev,
+				   "broken speed: %d\n", phydev->speed);
+			phydev->speed = SPEED_UNKNOWN;
+			break;
+		}
+
+		if (phydev->speed != SPEED_UNKNOWN)
+			stmmac_hw_fix_mac_speed(priv);
+
+		priv->speed = phydev->speed;
+	}
+
+	/* Now we make sure that we can be in full duplex mode.
+	 * If not, we operate in half-duplex mode. */
+	if (phydev->duplex != priv->oldduplex) {
+		if (!phydev->duplex)
+			ctrl &= ~priv->hw->link.duplex;
+		else
+			ctrl |= priv->hw->link.duplex;
+
+		priv->oldduplex = phydev->duplex;
+	}
+
+	/* Flow Control operation */
+	if (phydev->pause)
+		stmmac_mac_flow_ctrl(priv, phydev->duplex);
+
+	writel(ctrl, priv->ioaddr + MAC_CTRL_REG);
+}
+
+static void stmmac_mac_link_down(struct net_device *dev, bool autoneg)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	stmmac_mac_set(priv, priv->ioaddr, false);
+}
+
+static void stmmac_mac_link_up(struct net_device *dev, bool autoneg)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	stmmac_mac_set(priv, priv->ioaddr, true);
+}
+
 /**
  * stmmac_adjust_link - adjusts the link parameters
  * @dev: net device structure
@@ -869,47 +935,7 @@ static void stmmac_adjust_link(struct net_device *dev)
 	mutex_lock(&priv->lock);
 
 	if (phydev->link) {
-		u32 ctrl = readl(priv->ioaddr + MAC_CTRL_REG);
-
-		/* Now we make sure that we can be in full duplex mode.
-		 * If not, we operate in half-duplex mode. */
-		if (phydev->duplex != priv->oldduplex) {
-			new_state = true;
-			if (!phydev->duplex)
-				ctrl &= ~priv->hw->link.duplex;
-			else
-				ctrl |= priv->hw->link.duplex;
-			priv->oldduplex = phydev->duplex;
-		}
-		/* Flow Control operation */
-		if (phydev->pause)
-			stmmac_mac_flow_ctrl(priv, phydev->duplex);
-
-		if (phydev->speed != priv->speed) {
-			new_state = true;
-			ctrl &= ~priv->hw->link.speed_mask;
-			switch (phydev->speed) {
-			case SPEED_1000:
-				ctrl |= priv->hw->link.speed1000;
-				break;
-			case SPEED_100:
-				ctrl |= priv->hw->link.speed100;
-				break;
-			case SPEED_10:
-				ctrl |= priv->hw->link.speed10;
-				break;
-			default:
-				netif_warn(priv, link, priv->dev,
-					   "broken speed: %d\n", phydev->speed);
-				phydev->speed = SPEED_UNKNOWN;
-				break;
-			}
-			if (phydev->speed != SPEED_UNKNOWN)
-				stmmac_hw_fix_mac_speed(priv);
-			priv->speed = phydev->speed;
-		}
-
-		writel(ctrl, priv->ioaddr + MAC_CTRL_REG);
+		stmmac_mac_config(dev);
 
 		if (!priv->oldlink) {
 			new_state = true;
@@ -921,6 +947,11 @@ static void stmmac_adjust_link(struct net_device *dev)
 		priv->speed = SPEED_UNKNOWN;
 		priv->oldduplex = DUPLEX_UNKNOWN;
 	}
+
+	if (phydev->link)
+		stmmac_mac_link_up(dev, false);
+	else
+		stmmac_mac_link_down(dev, false);
 
 	if (new_state && netif_msg_link(priv))
 		phy_print_status(phydev);
