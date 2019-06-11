@@ -1242,6 +1242,8 @@ void dcn20_pipe_control_lock_global(
 				CRTC_STATE_VACTIVE);
 		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
 				CRTC_STATE_VBLANK);
+		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg,
+				CRTC_STATE_VACTIVE);
 		pipe->stream_res.tg->funcs->lock_doublebuffer_disable(
 				pipe->stream_res.tg);
 	}
