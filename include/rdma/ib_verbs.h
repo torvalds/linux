@@ -1236,6 +1236,7 @@ enum ib_wr_opcode {
 	/* These are kernel only and can not be issued by userspace */
 	IB_WR_REG_MR = 0x20,
 	IB_WR_REG_SIG_MR,
+	IB_WR_REG_MR_INTEGRITY,
 
 	/* reserve values for low level drivers' internal use.
 	 * These values will not be used at all in the ib core layer.
