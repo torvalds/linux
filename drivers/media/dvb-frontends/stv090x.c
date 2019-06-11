@@ -4942,7 +4942,6 @@ static int stv090x_setup_compound(struct stv090x_state *state)
 	return 0;
 
 error:
-	kfree(state);
 	return -ENOMEM;
 err_remove:
 	remove_dev(state->internal);
