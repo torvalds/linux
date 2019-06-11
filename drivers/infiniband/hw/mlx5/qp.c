@@ -4167,15 +4167,13 @@ static __be64 sig_mkey_mask(void)
 }
 
 static void set_reg_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr,
-			    struct mlx5_ib_mr *mr, bool umr_inline)
+			    struct mlx5_ib_mr *mr, u8 flags)
 {
 	int size = mr->ndescs * mr->desc_size;
 
 	memset(umr, 0, sizeof(*umr));
 
-	umr->flags = MLX5_UMR_CHECK_NOT_FREE;
-	if (umr_inline)
-		umr->flags |= MLX5_UMR_INLINE;
+	umr->flags = flags;
 	umr->xlt_octowords = cpu_to_be16(get_xlt_octo(size));
 	umr->mkey_mask = frwr_mkey_mask();
 }
@@ -4756,12 +4754,14 @@ static int set_psv_wr(struct ib_sig_domain *domain,
 
 static int set_reg_wr(struct mlx5_ib_qp *qp,
 		      const struct ib_reg_wr *wr,
-		      void **seg, int *size, void **cur_edge)
+		      void **seg, int *size, void **cur_edge,
+		      bool check_not_free)
 {
 	struct mlx5_ib_mr *mr = to_mmr(wr->mr);
 	struct mlx5_ib_pd *pd = to_mpd(qp->ibqp.pd);
 	size_t mr_list_size = mr->ndescs * mr->desc_size;
 	bool umr_inline = mr_list_size <= MLX5_IB_SQ_UMR_INLINE_THRESHOLD;
+	u8 flags = 0;
 
 	if (unlikely(wr->wr.send_flags & IB_SEND_INLINE)) {
 		mlx5_ib_warn(to_mdev(qp->ibqp.device),
@@ -4769,7 +4769,12 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 		return -EINVAL;
 	}
 
-	set_reg_umr_seg(*seg, mr, umr_inline);
+	if (check_not_free)
+		flags |= MLX5_UMR_CHECK_NOT_FREE;
+	if (umr_inline)
+		flags |= MLX5_UMR_INLINE;
+
+	set_reg_umr_seg(*seg, mr, flags);
 	*seg += sizeof(struct mlx5_wqe_umr_ctrl_seg);
 	*size += sizeof(struct mlx5_wqe_umr_ctrl_seg) / 16;
 	handle_post_send_edge(&qp->sq, seg, *size, cur_edge);
@@ -5000,7 +5005,7 @@ static int _mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 				qp->sq.wr_data[idx] = IB_WR_REG_MR;
 				ctrl->imm = cpu_to_be32(reg_wr(wr)->key);
 				err = set_reg_wr(qp, reg_wr(wr), &seg, &size,
-						 &cur_edge);
+						 &cur_edge, true);
 				if (err) {
 					*bad_wr = wr;
 					goto out;
