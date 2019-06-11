@@ -9,6 +9,7 @@
 #include <linux/etherdevice.h>
 #include "mt7615.h"
 #include "mac.h"
+#include "eeprom.h"
 
 static void mt7615_phy_init(struct mt7615_dev *dev)
 {
@@ -169,18 +170,20 @@ static void
 mt7615_init_txpower(struct mt7615_dev *dev,
 		    struct ieee80211_supported_band *sband)
 {
-	int i, n_chains = hweight8(dev->mt76.antenna_mask);
+	int i, n_chains = hweight8(dev->mt76.antenna_mask), target_chains;
 	u8 *eep = (u8 *)dev->mt76.eeprom.data;
+	enum nl80211_band band = sband->band;
 
+	target_chains = mt7615_ext_pa_enabled(dev, band) ? 1 : n_chains;
 	for (i = 0; i < sband->n_channels; i++) {
 		struct ieee80211_channel *chan = &sband->channels[i];
 		u8 target_power = 0;
 		int j;
 
-		for (j = 0; j < n_chains; j++) {
+		for (j = 0; j < target_chains; j++) {
 			int index;
 
-			index = mt7615_eeprom_get_power_index(chan, j);
+			index = mt7615_eeprom_get_power_index(dev, chan, j);
 			target_power = max(target_power, eep[index]);
 		}
 

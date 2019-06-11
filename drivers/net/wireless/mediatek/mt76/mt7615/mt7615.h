@@ -105,7 +105,8 @@ u32 mt7615_reg_map(struct mt7615_dev *dev, u32 addr);
 int mt7615_register_device(struct mt7615_dev *dev);
 void mt7615_unregister_device(struct mt7615_dev *dev);
 int mt7615_eeprom_init(struct mt7615_dev *dev);
-int mt7615_eeprom_get_power_index(struct ieee80211_channel *chan,
+int mt7615_eeprom_get_power_index(struct mt7615_dev *dev,
+				  struct ieee80211_channel *chan,
 				  u8 chain_idx);
 int mt7615_dma_init(struct mt7615_dev *dev);
 void mt7615_dma_cleanup(struct mt7615_dev *dev);

@@ -1149,9 +1149,10 @@ int mt7615_mcu_set_tx_power(struct mt7615_dev *dev)
 {
 	int i, ret, n_chains = hweight8(dev->mt76.antenna_mask);
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	int freq = chandef->center_freq1, len, target_chains;
 	u8 *req, *data, *eep = (u8 *)dev->mt76.eeprom.data;
+	enum nl80211_band band = chandef->chan->band;
 	struct ieee80211_hw *hw = mt76_hw(dev);
-	int freq = chandef->center_freq1, len;
 	struct {
 		u8 center_chan;
 		u8 dbdc_idx;
@@ -1159,7 +1160,7 @@ int mt7615_mcu_set_tx_power(struct mt7615_dev *dev)
 		u8 rsv;
 	} __packed req_hdr = {
 		.center_chan = ieee80211_frequency_to_channel(freq),
-		.band = chandef->chan->band,
+		.band = band,
 	};
 	s8 tx_power;
 
@@ -1190,10 +1191,11 @@ int mt7615_mcu_set_tx_power(struct mt7615_dev *dev)
 	tx_power = max_t(s8, tx_power, 0);
 	dev->mt76.txpower_cur = tx_power;
 
-	for (i = 0; i < n_chains; i++) {
+	target_chains = mt7615_ext_pa_enabled(dev, band) ? 1 : n_chains;
+	for (i = 0; i < target_chains; i++) {
 		int index = -MT_EE_NIC_CONF_0;
 
-		ret = mt7615_eeprom_get_power_index(chandef->chan, i);
+		ret = mt7615_eeprom_get_power_index(dev, chandef->chan, i);
 		if (ret < 0)
 			goto out;
 
