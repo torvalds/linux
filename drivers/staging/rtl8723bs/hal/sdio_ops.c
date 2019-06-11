@@ -1058,7 +1058,7 @@ void sd_int_dpc(struct adapter *adapter)
 
 		DBG_8192C("%s: C2H Command\n", __func__);
 		c2h_evt = rtw_zmalloc(16);
-		if (c2h_evt != NULL) {
+		if (c2h_evt) {
 			if (rtw_hal_c2h_evt_read(adapter, (u8 *)c2h_evt) == _SUCCESS) {
 				if (c2h_id_filter_ccx_8723b((u8 *)c2h_evt)) {
 					/* Handle CCX report here */
