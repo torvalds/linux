@@ -268,6 +268,9 @@ Device can only detect that segment 4 also contains a TLS header
 if it knows the length of the previous record from segment 2. In this case
 the device will lose synchronization with the stream.
 
+Stream scan resynchronization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 When the device gets out of sync and the stream reaches TCP sequence
 numbers more than a max size record past the expected TCP sequence number,
 the device starts scanning for a known header pattern. For example
@@ -297,6 +300,22 @@ periodic restart is not deemed necessary.
 Special care has to be taken if the confirmation request is passed
 asynchronously to the packet stream and record may get processed
 by the kernel before the confirmation request.
+
+Stack-driven resynchronization
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The driver may also request the stack to perform resynchronization
+whenever it sees the records are no longer getting decrypted.
+If the connection is configured in this mode the stack automatically
+schedules resynchronization after it has received two completely encrypted
+records.
+
+The stack waits for the socket to drain and informs the device about
+the next expected record number and its TCP sequence number. If the
+records continue to be received fully encrypted stack retries the
+synchronization with an exponential back off (first after 2 encrypted
+records, then after 4 records, after 8, after 16... up until every
+128 records).
 
 Error handling
 ==============

@@ -303,10 +303,33 @@ struct tlsdev_ops {
 				  struct sock *sk, u32 seq, u8 *rcd_sn);
 };
 
+enum tls_offload_sync_type {
+	TLS_OFFLOAD_SYNC_TYPE_DRIVER_REQ = 0,
+	TLS_OFFLOAD_SYNC_TYPE_CORE_NEXT_HINT = 1,
+};
+
+#define TLS_DEVICE_RESYNC_NH_START_IVAL		2
+#define TLS_DEVICE_RESYNC_NH_MAX_IVAL		128
+
 struct tls_offload_context_rx {
 	/* sw must be the first member of tls_offload_context_rx */
 	struct tls_sw_context_rx sw;
-	atomic64_t resync_req;
+	enum tls_offload_sync_type resync_type;
+	/* this member is set regardless of resync_type, to avoid branches */
+	u8 resync_nh_reset:1;
+	/* CORE_NEXT_HINT-only member, but use the hole here */
+	u8 resync_nh_do_now:1;
+	union {
+		/* TLS_OFFLOAD_SYNC_TYPE_DRIVER_REQ */
+		struct {
+			atomic64_t resync_req;
+		};
+		/* TLS_OFFLOAD_SYNC_TYPE_CORE_NEXT_HINT */
+		struct {
+			u32 decrypted_failed;
+			u32 decrypted_tgt;
+		} resync_nh;
+	};
 	u8 driver_state[] __aligned(8);
 	/* The TLS layer reserves room for driver specific state
 	 * Currently the belief is that there is not enough
@@ -587,6 +610,13 @@ static inline void tls_offload_rx_resync_request(struct sock *sk, __be32 seq)
 	atomic64_set(&rx_ctx->resync_req, ((u64)ntohl(seq) << 32) | 1);
 }
 
+static inline void
+tls_offload_rx_resync_set_type(struct sock *sk, enum tls_offload_sync_type type)
+{
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+
+	tls_offload_ctx_rx(tls_ctx)->resync_type = type;
+}
 
 int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
 		      unsigned char *record_type);
@@ -608,6 +638,6 @@ int tls_sw_fallback_init(struct sock *sk,
 int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx);
 
 void tls_device_offload_cleanup_rx(struct sock *sk);
-void tls_device_rx_resync_new_rec(struct sock *sk, u32 seq);
+void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq);
 
 #endif /* _TLS_OFFLOAD_H */
