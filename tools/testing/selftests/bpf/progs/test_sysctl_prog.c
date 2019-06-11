@@ -8,13 +8,16 @@
 #include <linux/bpf.h>
 
 #include "bpf_helpers.h"
-#include "bpf_util.h"
 
 /* Max supported length of a string with unsigned long in base 10 (pow2 - 1). */
 #define MAX_ULONG_STR_LEN 0xF
 
 /* Max supported length of sysctl value string (pow2). */
 #define MAX_VALUE_STR_LEN 0x40
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
 
 static __always_inline int is_tcp_mem(struct bpf_sysctl *ctx)
 {
