@@ -78,6 +78,7 @@ void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
 		kfd2kgd = amdgpu_amdkfd_gfx_8_0_get_functions();
 		break;
 	case CHIP_VEGA10:
