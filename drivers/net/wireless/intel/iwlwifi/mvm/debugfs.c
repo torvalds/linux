@@ -1056,18 +1056,10 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 static ssize_t iwl_dbgfs_fw_nmi_write(struct iwl_mvm *mvm, char *buf,
 				      size_t count, loff_t *ppos)
 {
-	int ret;
-
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EIO;
 
-	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_NMI);
-	if (ret)
-		return ret;
-
 	iwl_force_nmi(mvm->trans);
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_NMI);
 
 	return count;
 }
@@ -1380,18 +1372,11 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 					      char *buf, size_t count,
 					      loff_t *ppos)
 {
-	int ret;
-
-	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PRPH_WRITE);
-	if (ret)
-		return ret;
 	if (count == 0)
 		return 0;
 
 	iwl_fw_dbg_collect(&mvm->fwrt, FW_DBG_TRIGGER_USER, buf,
 			   (count - 1), NULL);
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_WRITE);
 
 	return count;
 }
@@ -1579,87 +1564,6 @@ static ssize_t iwl_dbgfs_bcast_filters_macs_write(struct iwl_mvm *mvm,
 }
 #endif
 
-#define PRINT_MVM_REF(ref) do {						\
-	if (mvm->refs[ref])						\
-		pos += scnprintf(buf + pos, bufsz - pos,		\
-				 "\t(0x%lx): %d %s\n",			\
-				 BIT(ref), mvm->refs[ref], #ref);	\
-} while (0)
-
-static ssize_t iwl_dbgfs_d0i3_refs_read(struct file *file,
-					char __user *user_buf,
-					size_t count, loff_t *ppos)
-{
-	struct iwl_mvm *mvm = file->private_data;
-	int i, pos = 0;
-	char buf[256];
-	const size_t bufsz = sizeof(buf);
-	u32 refs = 0;
-
-	for (i = 0; i < IWL_MVM_REF_COUNT; i++)
-		if (mvm->refs[i])
-			refs |= BIT(i);
-
-	pos += scnprintf(buf + pos, bufsz - pos, "taken mvm refs: 0x%x\n",
-			 refs);
-
-	PRINT_MVM_REF(IWL_MVM_REF_UCODE_DOWN);
-	PRINT_MVM_REF(IWL_MVM_REF_SCAN);
-	PRINT_MVM_REF(IWL_MVM_REF_ROC);
-	PRINT_MVM_REF(IWL_MVM_REF_ROC_AUX);
-	PRINT_MVM_REF(IWL_MVM_REF_P2P_CLIENT);
-	PRINT_MVM_REF(IWL_MVM_REF_AP_IBSS);
-	PRINT_MVM_REF(IWL_MVM_REF_USER);
-	PRINT_MVM_REF(IWL_MVM_REF_TX);
-	PRINT_MVM_REF(IWL_MVM_REF_TX_AGG);
-	PRINT_MVM_REF(IWL_MVM_REF_ADD_IF);
-	PRINT_MVM_REF(IWL_MVM_REF_START_AP);
-	PRINT_MVM_REF(IWL_MVM_REF_BSS_CHANGED);
-	PRINT_MVM_REF(IWL_MVM_REF_PREPARE_TX);
-	PRINT_MVM_REF(IWL_MVM_REF_PROTECT_TDLS);
-	PRINT_MVM_REF(IWL_MVM_REF_CHECK_CTKILL);
-	PRINT_MVM_REF(IWL_MVM_REF_PRPH_READ);
-	PRINT_MVM_REF(IWL_MVM_REF_PRPH_WRITE);
-	PRINT_MVM_REF(IWL_MVM_REF_NMI);
-	PRINT_MVM_REF(IWL_MVM_REF_TM_CMD);
-	PRINT_MVM_REF(IWL_MVM_REF_EXIT_WORK);
-	PRINT_MVM_REF(IWL_MVM_REF_PROTECT_CSA);
-	PRINT_MVM_REF(IWL_MVM_REF_FW_DBG_COLLECT);
-	PRINT_MVM_REF(IWL_MVM_REF_INIT_UCODE);
-	PRINT_MVM_REF(IWL_MVM_REF_SENDING_CMD);
-	PRINT_MVM_REF(IWL_MVM_REF_RX);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-}
-
-static ssize_t iwl_dbgfs_d0i3_refs_write(struct iwl_mvm *mvm, char *buf,
-					 size_t count, loff_t *ppos)
-{
-	unsigned long value;
-	int ret;
-	bool taken;
-
-	ret = kstrtoul(buf, 10, &value);
-	if (ret < 0)
-		return ret;
-
-	mutex_lock(&mvm->mutex);
-
-	taken = mvm->refs[IWL_MVM_REF_USER];
-	if (value == 1 && !taken)
-		iwl_mvm_ref(mvm, IWL_MVM_REF_USER);
-	else if (value == 0 && taken)
-		iwl_mvm_unref(mvm, IWL_MVM_REF_USER);
-	else
-		ret = -EINVAL;
-
-	mutex_unlock(&mvm->mutex);
-
-	if (ret < 0)
-		return ret;
-	return count;
-}
-
 #define MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz) \
 	_MVM_DEBUGFS_WRITE_FILE_OPS(name, bufsz, struct iwl_mvm)
 #define MVM_DEBUGFS_READ_WRITE_FILE_OPS(name, bufsz) \
@@ -1692,20 +1596,13 @@ iwl_dbgfs_prph_reg_read(struct file *file,
 	int pos = 0;
 	char buf[32];
 	const size_t bufsz = sizeof(buf);
-	int ret;
 
 	if (!mvm->dbgfs_prph_reg_addr)
 		return -EINVAL;
 
-	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PRPH_READ);
-	if (ret)
-		return ret;
-
 	pos += scnprintf(buf + pos, bufsz - pos, "Reg 0x%x: (0x%x)\n",
 		mvm->dbgfs_prph_reg_addr,
 		iwl_read_prph(mvm->trans, mvm->dbgfs_prph_reg_addr));
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_READ);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -1716,7 +1613,6 @@ iwl_dbgfs_prph_reg_write(struct iwl_mvm *mvm, char *buf,
 {
 	u8 args;
 	u32 value;
-	int ret;
 
 	args = sscanf(buf, "%i %i", &mvm->dbgfs_prph_reg_addr, &value);
 	/* if we only want to set the reg address - nothing more to do */
@@ -1727,13 +1623,8 @@ iwl_dbgfs_prph_reg_write(struct iwl_mvm *mvm, char *buf,
 	if (args != 2)
 		return -EINVAL;
 
-	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_PRPH_WRITE);
-	if (ret)
-		return ret;
-
 	iwl_write_prph(mvm->trans, mvm->dbgfs_prph_reg_addr, value);
 
-	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_WRITE);
 out:
 	return count;
 }
@@ -1892,7 +1783,6 @@ MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(bt_tx_prio, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(bt_force_ant, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(d0i3_refs, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
@@ -2091,7 +1981,6 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(bt_force_ant, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(prph_reg, mvm->debugfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE(d0i3_refs, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_conf, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, 0200);

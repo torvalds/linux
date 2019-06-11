@@ -566,22 +566,15 @@ unlock:
 static int iwl_mvm_fwrt_dump_start(void *ctx)
 {
 	struct iwl_mvm *mvm = ctx;
-	int ret = 0;
 
 	mutex_lock(&mvm->mutex);
 
-	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
-	if (ret)
-		mutex_unlock(&mvm->mutex);
-
-	return ret;
+	return 0;
 }
 
 static void iwl_mvm_fwrt_dump_end(void *ctx)
 {
 	struct iwl_mvm *mvm = ctx;
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
 
 	mutex_unlock(&mvm->mutex);
 }
@@ -721,7 +714,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	INIT_LIST_HEAD(&mvm->add_stream_txqs);
 
 	spin_lock_init(&mvm->d0i3_tx_lock);
-	spin_lock_init(&mvm->refs_lock);
 	skb_queue_head_init(&mvm->d0i3_tx);
 	init_waitqueue_head(&mvm->d0i3_exit_waitq);
 	init_waitqueue_head(&mvm->rx_sync_waitq);
@@ -834,13 +826,11 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		goto out_free;
 
 	mutex_lock(&mvm->mutex);
-	iwl_mvm_ref(mvm, IWL_MVM_REF_INIT_UCODE);
 	err = iwl_run_init_mvm_ucode(mvm, true);
 	if (err && err != -ERFKILL)
 		iwl_fw_dbg_error_collect(&mvm->fwrt, FW_DBG_TRIGGER_DRIVER);
 	if (!iwlmvm_mod_params.init_dbg || !err)
 		iwl_mvm_stop_device(mvm);
-	iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
 	mutex_unlock(&mvm->mutex);
 	if (err < 0) {
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
@@ -872,11 +862,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	else
 		memset(&mvm->rx_stats, 0, sizeof(struct mvm_statistics_rx));
 
-	/* The transport always starts with a taken reference, we can
-	 * release it now if d0i3 is supported */
-	if (iwl_mvm_is_d0i3_supported(mvm))
-		iwl_trans_unref(mvm->trans);
-
 	iwl_mvm_toggle_tx_ant(mvm, &mvm->mgmt_last_antenna_idx);
 
 	return op_mode;
@@ -899,13 +884,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	int i;
-
-	/* If d0i3 is supported, we have released the reference that
-	 * the transport started with, so we should take it back now
-	 * that we are leaving.
-	 */
-	if (iwl_mvm_is_d0i3_supported(mvm))
-		iwl_trans_ref(mvm->trans);
 
 	iwl_mvm_leds_exit(mvm);
 
@@ -1320,9 +1298,6 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	} else if (mvm->fwrt.cur_fw_img == IWL_UCODE_REGULAR &&
 		   mvm->hw_registered &&
 		   !test_bit(STATUS_TRANS_DEAD, &mvm->trans->status)) {
-		/* don't let the transport/FW power down */
-		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
-
 		if (mvm->fw->ucode_capa.error_log_size) {
 			u32 src_size = mvm->fw->ucode_capa.error_log_size;
 			u32 src_addr = mvm->fw->ucode_capa.error_log_addr;
@@ -1520,19 +1495,6 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 
 	set_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
 
-	/*
-	 * iwl_mvm_ref_sync takes a reference before checking the flag.
-	 * so by checking there is no held reference we prevent a state
-	 * in which iwl_mvm_ref_sync continues successfully while we
-	 * configure the firmware to enter d0i3
-	 */
-	if (iwl_mvm_ref_taken(mvm)) {
-		IWL_DEBUG_RPM(mvm->trans, "abort d0i3 due to taken ref\n");
-		clear_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
-		wake_up(&mvm->d0i3_exit_waitq);
-		return 1;
-	}
-
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
 						   IEEE80211_IFACE_ITER_NORMAL,
 						   iwl_mvm_enter_d0i3_iterator,
@@ -1728,7 +1690,6 @@ out:
 	iwl_mvm_update_changed_regdom(mvm);
 
 	iwl_mvm_resume_tcm(mvm);
-	iwl_mvm_unref(mvm, IWL_MVM_REF_EXIT_WORK);
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -1769,7 +1730,6 @@ int iwl_mvm_exit_d0i3(struct iwl_op_mode *op_mode)
 {
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 
-	iwl_mvm_ref(mvm, IWL_MVM_REF_EXIT_WORK);
 	return _iwl_mvm_exit_d0i3(mvm);
 }
 
