@@ -138,18 +138,9 @@ static int get_register_params(struct snd_dice *dice,
 
 static void release_resources(struct snd_dice *dice)
 {
-	unsigned int i;
+	int i;
 
-	for (i = 0; i < MAX_STREAMS; i++) {
-		if (amdtp_stream_running(&dice->tx_stream[i])) {
-			amdtp_stream_pcm_abort(&dice->tx_stream[i]);
-			amdtp_stream_stop(&dice->tx_stream[i]);
-		}
-		if (amdtp_stream_running(&dice->rx_stream[i])) {
-			amdtp_stream_pcm_abort(&dice->rx_stream[i]);
-			amdtp_stream_stop(&dice->rx_stream[i]);
-		}
-
+	for (i = 0; i < MAX_STREAMS; ++i) {
 		fw_iso_resources_free(&dice->tx_resources[i]);
 		fw_iso_resources_free(&dice->rx_resources[i]);
 	}
@@ -164,10 +155,14 @@ static void stop_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 	for (i = 0; i < params->count; i++) {
 		reg = cpu_to_be32((u32)-1);
 		if (dir == AMDTP_IN_STREAM) {
+			amdtp_stream_stop(&dice->tx_stream[i]);
+
 			snd_dice_transaction_write_tx(dice,
 					params->size * i + TX_ISOCHRONOUS,
 					&reg, sizeof(reg));
 		} else {
+			amdtp_stream_stop(&dice->rx_stream[i]);
+
 			snd_dice_transaction_write_rx(dice,
 					params->size * i + RX_ISOCHRONOUS,
 					&reg, sizeof(reg));
@@ -288,16 +283,71 @@ static void finish_session(struct snd_dice *dice, struct reg_params *tx_params,
 	snd_dice_transaction_clear_enable(dice);
 }
 
+int snd_dice_stream_reserve_duplex(struct snd_dice *dice, unsigned int rate)
+{
+	unsigned int curr_rate;
+	int err;
+
+	// Check sampling transmission frequency.
+	err = snd_dice_transaction_get_rate(dice, &curr_rate);
+	if (err < 0)
+		return err;
+	if (rate == 0)
+		rate = curr_rate;
+
+	if (dice->substreams_counter == 0 || curr_rate != rate) {
+		struct reg_params tx_params, rx_params;
+
+		err = get_register_params(dice, &tx_params, &rx_params);
+		if (err < 0)
+			return err;
+
+		finish_session(dice, &tx_params, &rx_params);
+
+		release_resources(dice);
+
+		// Just after owning the unit (GLOBAL_OWNER), the unit can
+		// return invalid stream formats. Selecting clock parameters
+		// have an effect for the unit to refine it.
+		err = ensure_phase_lock(dice, rate);
+		if (err < 0)
+			return err;
+
+		// After changing sampling transfer frequency, the value of
+		// register can be changed.
+		err = get_register_params(dice, &tx_params, &rx_params);
+		if (err < 0)
+			return err;
+
+		err = keep_dual_resources(dice, rate, AMDTP_IN_STREAM,
+					  &tx_params);
+		if (err < 0)
+			goto error;
+
+		err = keep_dual_resources(dice, rate, AMDTP_OUT_STREAM,
+					  &rx_params);
+		if (err < 0)
+			goto error;
+	}
+
+	return 0;
+error:
+	release_resources(dice);
+	return err;
+}
+
+void snd_dice_stream_release_duplex(struct snd_dice *dice)
+{
+	if (dice->substreams_counter == 0)
+		release_resources(dice);
+}
+
 static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 			 unsigned int rate, struct reg_params *params)
 {
 	unsigned int max_speed = fw_parent_device(dice->unit)->max_speed;
 	int i;
 	int err;
-
-	err = keep_dual_resources(dice, rate, dir, params);
-	if (err < 0)
-		return err;
 
 	for (i = 0; i < params->count; i++) {
 		struct amdtp_stream *stream;
@@ -342,102 +392,39 @@ static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 	return err;
 }
 
-static int start_duplex_streams(struct snd_dice *dice, unsigned int rate)
-{
-	struct reg_params tx_params, rx_params;
-	int i;
-	int err;
-
-	err = get_register_params(dice, &tx_params, &rx_params);
-	if (err < 0)
-		return err;
-
-	// Stop transmission.
-	finish_session(dice, &tx_params, &rx_params);
-	release_resources(dice);
-
-	err = ensure_phase_lock(dice, rate);
-	if (err < 0) {
-		dev_err(&dice->unit->device, "fail to ensure phase lock\n");
-		return err;
-	}
-
-	/* Likely to have changed stream formats. */
-	err = get_register_params(dice, &tx_params, &rx_params);
-	if (err < 0)
-		return err;
-
-	/* Start both streams. */
-	err = start_streams(dice, AMDTP_IN_STREAM, rate, &tx_params);
-	if (err < 0)
-		goto error;
-	err = start_streams(dice, AMDTP_OUT_STREAM, rate, &rx_params);
-	if (err < 0)
-		goto error;
-
-	err = snd_dice_transaction_set_enable(dice);
-	if (err < 0) {
-		dev_err(&dice->unit->device, "fail to enable interface\n");
-		goto error;
-	}
-
-	for (i = 0; i < MAX_STREAMS; i++) {
-		if ((i < tx_params.count &&
-		    !amdtp_stream_wait_callback(&dice->tx_stream[i],
-						CALLBACK_TIMEOUT)) ||
-		    (i < rx_params.count &&
-		     !amdtp_stream_wait_callback(&dice->rx_stream[i],
-						 CALLBACK_TIMEOUT))) {
-			err = -ETIMEDOUT;
-			goto error;
-		}
-	}
-
-	return 0;
-error:
-	finish_session(dice, &tx_params, &rx_params);
-	release_resources(dice);
-	return err;
-}
-
 /*
  * MEMO: After this function, there're two states of streams:
  *  - None streams are running.
  *  - All streams are running.
  */
-int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate)
+int snd_dice_stream_start_duplex(struct snd_dice *dice)
 {
-	unsigned int curr_rate;
+	struct reg_params tx_params, rx_params;
 	unsigned int i;
+	unsigned int rate;
 	enum snd_dice_rate_mode mode;
 	int err;
 
 	if (dice->substreams_counter == 0)
 		return -EIO;
 
-	/* Check sampling transmission frequency. */
-	err = snd_dice_transaction_get_rate(dice, &curr_rate);
-	if (err < 0) {
-		dev_err(&dice->unit->device,
-			"fail to get sampling rate\n");
+	err = get_register_params(dice, &tx_params, &rx_params);
+	if (err < 0)
 		return err;
-	}
-	if (rate == 0)
-		rate = curr_rate;
-	if (rate != curr_rate)
-		goto restart;
 
-	/* Check error of packet streaming. */
+	// Check error of packet streaming.
 	for (i = 0; i < MAX_STREAMS; ++i) {
-		if (amdtp_streaming_error(&dice->tx_stream[i]))
+		if (amdtp_streaming_error(&dice->tx_stream[i]) ||
+		    amdtp_streaming_error(&dice->rx_stream[i])) {
+			finish_session(dice, &tx_params, &rx_params);
 			break;
-		if (amdtp_streaming_error(&dice->rx_stream[i]))
-			break;
+		}
 	}
-	if (i < MAX_STREAMS)
-		goto restart;
 
-	/* Check required streams are running or not. */
+	// Check required streams are running or not.
+	err = snd_dice_transaction_get_rate(dice, &rate);
+	if (err < 0)
+		return err;
 	err = snd_dice_stream_get_rate_mode(dice, rate, &mode);
 	if (err < 0)
 		return err;
@@ -449,12 +436,40 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate)
 		    !amdtp_stream_running(&dice->rx_stream[i]))
 			break;
 	}
-	if (i < MAX_STREAMS)
-		goto restart;
+	if (i < MAX_STREAMS) {
+		// Start both streams.
+		err = start_streams(dice, AMDTP_IN_STREAM, rate, &tx_params);
+		if (err < 0)
+			goto error;
+
+		err = start_streams(dice, AMDTP_OUT_STREAM, rate, &rx_params);
+		if (err < 0)
+			goto error;
+
+		err = snd_dice_transaction_set_enable(dice);
+		if (err < 0) {
+			dev_err(&dice->unit->device,
+				"fail to enable interface\n");
+			goto error;
+		}
+
+		for (i = 0; i < MAX_STREAMS; i++) {
+			if ((i < tx_params.count &&
+			    !amdtp_stream_wait_callback(&dice->tx_stream[i],
+							CALLBACK_TIMEOUT)) ||
+			    (i < rx_params.count &&
+			     !amdtp_stream_wait_callback(&dice->rx_stream[i],
+							 CALLBACK_TIMEOUT))) {
+				err = -ETIMEDOUT;
+				goto error;
+			}
+		}
+	}
 
 	return 0;
-restart:
-	return start_duplex_streams(dice, rate);
+error:
+	finish_session(dice, &tx_params, &rx_params);
+	return err;
 }
 
 /*
@@ -466,13 +481,10 @@ void snd_dice_stream_stop_duplex(struct snd_dice *dice)
 {
 	struct reg_params tx_params, rx_params;
 
-	if (dice->substreams_counter > 0)
-		return;
-
-	if (get_register_params(dice, &tx_params, &rx_params) >= 0)
-		finish_session(dice, &tx_params, &rx_params);
-
-	release_resources(dice);
+	if (dice->substreams_counter == 0) {
+		if (get_register_params(dice, &tx_params, &rx_params) >= 0)
+			finish_session(dice, &tx_params, &rx_params);
+	}
 }
 
 static int init_stream(struct snd_dice *dice, enum amdtp_stream_direction dir,
