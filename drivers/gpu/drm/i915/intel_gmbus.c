@@ -186,14 +186,15 @@ static void bxt_gmbus_clock_gating(struct drm_i915_private *dev_priv,
 
 static u32 get_reserved(struct intel_gmbus *bus)
 {
-	struct drm_i915_private *dev_priv = bus->dev_priv;
+	struct drm_i915_private *i915 = bus->dev_priv;
+	struct intel_uncore *uncore = &i915->uncore;
 	u32 reserved = 0;
 
 	/* On most chips, these bits must be preserved in software. */
-	if (!IS_I830(dev_priv) && !IS_I845G(dev_priv))
-		reserved = I915_READ_NOTRACE(bus->gpio_reg) &
-					     (GPIO_DATA_PULLUP_DISABLE |
-					      GPIO_CLOCK_PULLUP_DISABLE);
+	if (!IS_I830(i915) && !IS_I845G(i915))
+		reserved = intel_uncore_read_notrace(uncore, bus->gpio_reg) &
+			   (GPIO_DATA_PULLUP_DISABLE |
+			    GPIO_CLOCK_PULLUP_DISABLE);
 
 	return reserved;
 }

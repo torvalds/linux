@@ -1082,13 +1082,13 @@ intel_dp_check_edp(struct intel_dp *intel_dp)
 static u32
 intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	i915_reg_t ch_ctl = intel_dp->aux_ch_ctl_reg(intel_dp);
 	u32 status;
 	bool done;
 
-#define C (((status = I915_READ_NOTRACE(ch_ctl)) & DP_AUX_CH_CTL_SEND_BUSY) == 0)
-	done = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
+#define C (((status = intel_uncore_read_notrace(&i915->uncore, ch_ctl)) & DP_AUX_CH_CTL_SEND_BUSY) == 0)
+	done = wait_event_timeout(i915->gmbus_wait_queue, C,
 				  msecs_to_jiffies_timeout(10));
 
 	/* just trace the final value */
@@ -1221,8 +1221,9 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 		  u32 aux_send_ctl_flags)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv =
+	struct drm_i915_private *i915 =
 			to_i915(intel_dig_port->base.base.dev);
+	struct intel_uncore *uncore = &i915->uncore;
 	i915_reg_t ch_ctl, ch_data[5];
 	u32 aux_clock_divider;
 	enum intel_display_power_domain aux_domain =
@@ -1238,7 +1239,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	for (i = 0; i < ARRAY_SIZE(ch_data); i++)
 		ch_data[i] = intel_dp->aux_ch_data_reg(intel_dp, i);
 
-	aux_wakeref = intel_display_power_get(dev_priv, aux_domain);
+	aux_wakeref = intel_display_power_get(i915, aux_domain);
 	pps_wakeref = pps_lock(intel_dp);
 
 	/*
@@ -1253,13 +1254,13 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	 * lowest possible wakeup latency and so prevent the cpu from going into
 	 * deep sleep states.
 	 */
-	pm_qos_update_request(&dev_priv->pm_qos, 0);
+	pm_qos_update_request(&i915->pm_qos, 0);
 
 	intel_dp_check_edp(intel_dp);
 
 	/* Try to wait for any previous AUX channel activity */
 	for (try = 0; try < 3; try++) {
-		status = I915_READ_NOTRACE(ch_ctl);
+		status = intel_uncore_read_notrace(uncore, ch_ctl);
 		if ((status & DP_AUX_CH_CTL_SEND_BUSY) == 0)
 			break;
 		msleep(1);
@@ -1269,7 +1270,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 
 	if (try == 3) {
 		static u32 last_status = -1;
-		const u32 status = I915_READ(ch_ctl);
+		const u32 status = intel_uncore_read(uncore, ch_ctl);
 
 		if (status != last_status) {
 			WARN(1, "dp_aux_ch not started status 0x%08x\n",
@@ -1298,21 +1299,23 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 		for (try = 0; try < 5; try++) {
 			/* Load the send data into the aux channel data registers */
 			for (i = 0; i < send_bytes; i += 4)
-				I915_WRITE(ch_data[i >> 2],
-					   intel_dp_pack_aux(send + i,
-							     send_bytes - i));
+				intel_uncore_write(uncore,
+						   ch_data[i >> 2],
+						   intel_dp_pack_aux(send + i,
+								     send_bytes - i));
 
 			/* Send the command and wait for it to complete */
-			I915_WRITE(ch_ctl, send_ctl);
+			intel_uncore_write(uncore, ch_ctl, send_ctl);
 
 			status = intel_dp_aux_wait_done(intel_dp);
 
 			/* Clear done status and any errors */
-			I915_WRITE(ch_ctl,
-				   status |
-				   DP_AUX_CH_CTL_DONE |
-				   DP_AUX_CH_CTL_TIME_OUT_ERROR |
-				   DP_AUX_CH_CTL_RECEIVE_ERROR);
+			intel_uncore_write(uncore,
+					   ch_ctl,
+					   status |
+					   DP_AUX_CH_CTL_DONE |
+					   DP_AUX_CH_CTL_TIME_OUT_ERROR |
+					   DP_AUX_CH_CTL_RECEIVE_ERROR);
 
 			/* DP CTS 1.2 Core Rev 1.1, 4.2.1.1 & 4.2.1.2
 			 *   400us delay required for errors and timeouts
@@ -1375,18 +1378,18 @@ done:
 		recv_bytes = recv_size;
 
 	for (i = 0; i < recv_bytes; i += 4)
-		intel_dp_unpack_aux(I915_READ(ch_data[i >> 2]),
+		intel_dp_unpack_aux(intel_uncore_read(uncore, ch_data[i >> 2]),
 				    recv + i, recv_bytes - i);
 
 	ret = recv_bytes;
 out:
-	pm_qos_update_request(&dev_priv->pm_qos, PM_QOS_DEFAULT_VALUE);
+	pm_qos_update_request(&i915->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	if (vdd)
 		edp_panel_vdd_off(intel_dp, false);
 
 	pps_unlock(intel_dp, pps_wakeref);
-	intel_display_power_put_async(dev_priv, aux_domain, aux_wakeref);
+	intel_display_power_put_async(i915, aux_domain, aux_wakeref);
 
 	return ret;
 }

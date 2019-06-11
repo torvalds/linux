@@ -2708,7 +2708,7 @@ static void vlv_restore_gunit_s0ix_state(struct drm_i915_private *dev_priv)
 	I915_WRITE(VLV_GUNIT_CLOCK_GATE2,	s->clock_gate_dis2);
 }
 
-static int vlv_wait_for_pw_status(struct drm_i915_private *dev_priv,
+static int vlv_wait_for_pw_status(struct drm_i915_private *i915,
 				  u32 mask, u32 val)
 {
 	i915_reg_t reg = VLV_GTLC_PW_STATUS;
@@ -2722,7 +2722,9 @@ static int vlv_wait_for_pw_status(struct drm_i915_private *dev_priv,
 	 * Transitioning between RC6 states should be at most 2ms (see
 	 * valleyview_enable_rps) so use a 3ms timeout.
 	 */
-	ret = wait_for(((reg_value = I915_READ_NOTRACE(reg)) & mask) == val, 3);
+	ret = wait_for(((reg_value =
+			 intel_uncore_read_notrace(&i915->uncore, reg)) & mask)
+		       == val, 3);
 
 	/* just trace the final value */
 	trace_i915_reg_rw(false, reg, reg_value, sizeof(reg_value), true);

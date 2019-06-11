@@ -2843,7 +2843,6 @@ extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 
 #define I915_READ(reg__)	 __I915_REG_OP(read, dev_priv, (reg__))
 #define I915_WRITE(reg__, val__) __I915_REG_OP(write, dev_priv, (reg__), (val__))
-#define I915_READ_NOTRACE(reg__)	 __I915_REG_OP(read_notrace, dev_priv, (reg__))
 
 #define POSTING_READ(reg__)	__I915_REG_OP(posting_read, dev_priv, (reg__))
 
