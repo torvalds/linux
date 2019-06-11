@@ -209,6 +209,29 @@ void tls_device_free_resources_tx(struct sock *sk)
 	tls_free_partial_record(sk, tls_ctx);
 }
 
+static void tls_device_resync_tx(struct sock *sk, struct tls_context *tls_ctx,
+				 u32 seq)
+{
+	struct net_device *netdev;
+	struct sk_buff *skb;
+	u8 *rcd_sn;
+
+	skb = tcp_write_queue_tail(sk);
+	if (skb)
+		TCP_SKB_CB(skb)->eor = 1;
+
+	rcd_sn = tls_ctx->tx.rec_seq;
+
+	down_read(&device_offload_lock);
+	netdev = tls_ctx->netdev;
+	if (netdev)
+		netdev->tlsdev_ops->tls_dev_resync(netdev, sk, seq, rcd_sn,
+						   TLS_OFFLOAD_CTX_DIR_TX);
+	up_read(&device_offload_lock);
+
+	clear_bit_unlock(TLS_TX_SYNC_SCHED, &tls_ctx->flags);
+}
+
 static void tls_append_frag(struct tls_record_info *record,
 			    struct page_frag *pfrag,
 			    int size)
@@ -264,6 +287,10 @@ static int tls_push_record(struct sock *sk,
 	list_add_tail(&record->list, &offload_ctx->records_list);
 	spin_unlock_irq(&offload_ctx->lock);
 	offload_ctx->open_record = NULL;
+
+	if (test_bit(TLS_TX_SYNC_SCHED, &ctx->flags))
+		tls_device_resync_tx(sk, ctx, tp->write_seq);
+
 	tls_advance_record_sn(sk, prot, &ctx->tx);
 
 	for (i = 0; i < record->num_frags; i++) {
@@ -551,7 +578,7 @@ void tls_device_write_space(struct sock *sk, struct tls_context *ctx)
 }
 
 static void tls_device_resync_rx(struct tls_context *tls_ctx,
-				 struct sock *sk, u32 seq, u64 rcd_sn)
+				 struct sock *sk, u32 seq, u8 *rcd_sn)
 {
 	struct net_device *netdev;
 
@@ -559,14 +586,17 @@ static void tls_device_resync_rx(struct tls_context *tls_ctx,
 		return;
 	netdev = READ_ONCE(tls_ctx->netdev);
 	if (netdev)
-		netdev->tlsdev_ops->tls_dev_resync_rx(netdev, sk, seq, rcd_sn);
+		netdev->tlsdev_ops->tls_dev_resync(netdev, sk, seq, rcd_sn,
+						   TLS_OFFLOAD_CTX_DIR_RX);
 	clear_bit_unlock(TLS_RX_SYNC_RUNNING, &tls_ctx->flags);
 }
 
-void handle_device_resync(struct sock *sk, u32 seq, u64 rcd_sn)
+void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_offload_context_rx *rx_ctx;
+	u8 rcd_sn[TLS_MAX_REC_SEQ_SIZE];
+	struct tls_prot_info *prot;
 	u32 is_req_pending;
 	s64 resync_req;
 	u32 req_seq;
@@ -574,15 +604,83 @@ void handle_device_resync(struct sock *sk, u32 seq, u64 rcd_sn)
 	if (tls_ctx->rx_conf != TLS_HW)
 		return;
 
+	prot = &tls_ctx->prot_info;
 	rx_ctx = tls_offload_ctx_rx(tls_ctx);
-	resync_req = atomic64_read(&rx_ctx->resync_req);
-	req_seq = (resync_req >> 32) - ((u32)TLS_HEADER_SIZE - 1);
-	is_req_pending = resync_req;
+	memcpy(rcd_sn, tls_ctx->rx.rec_seq, prot->rec_seq_size);
 
-	if (unlikely(is_req_pending) && req_seq == seq &&
-	    atomic64_try_cmpxchg(&rx_ctx->resync_req, &resync_req, 0)) {
+	switch (rx_ctx->resync_type) {
+	case TLS_OFFLOAD_SYNC_TYPE_DRIVER_REQ:
+		resync_req = atomic64_read(&rx_ctx->resync_req);
+		req_seq = resync_req >> 32;
 		seq += TLS_HEADER_SIZE - 1;
-		tls_device_resync_rx(tls_ctx, sk, seq, rcd_sn);
+		is_req_pending = resync_req;
+
+		if (likely(!is_req_pending) || req_seq != seq ||
+		    !atomic64_try_cmpxchg(&rx_ctx->resync_req, &resync_req, 0))
+			return;
+		break;
+	case TLS_OFFLOAD_SYNC_TYPE_CORE_NEXT_HINT:
+		if (likely(!rx_ctx->resync_nh_do_now))
+			return;
+
+		/* head of next rec is already in, note that the sock_inq will
+		 * include the currently parsed message when called from parser
+		 */
+		if (tcp_inq(sk) > rcd_len)
+			return;
+
+		rx_ctx->resync_nh_do_now = 0;
+		seq += rcd_len;
+		tls_bigint_increment(rcd_sn, prot->rec_seq_size);
+		break;
+	}
+
+	tls_device_resync_rx(tls_ctx, sk, seq, rcd_sn);
+}
+
+static void tls_device_core_ctrl_rx_resync(struct tls_context *tls_ctx,
+					   struct tls_offload_context_rx *ctx,
+					   struct sock *sk, struct sk_buff *skb)
+{
+	struct strp_msg *rxm;
+
+	/* device will request resyncs by itself based on stream scan */
+	if (ctx->resync_type != TLS_OFFLOAD_SYNC_TYPE_CORE_NEXT_HINT)
+		return;
+	/* already scheduled */
+	if (ctx->resync_nh_do_now)
+		return;
+	/* seen decrypted fragments since last fully-failed record */
+	if (ctx->resync_nh_reset) {
+		ctx->resync_nh_reset = 0;
+		ctx->resync_nh.decrypted_failed = 1;
+		ctx->resync_nh.decrypted_tgt = TLS_DEVICE_RESYNC_NH_START_IVAL;
+		return;
+	}
+
+	if (++ctx->resync_nh.decrypted_failed <= ctx->resync_nh.decrypted_tgt)
+		return;
+
+	/* doing resync, bump the next target in case it fails */
+	if (ctx->resync_nh.decrypted_tgt < TLS_DEVICE_RESYNC_NH_MAX_IVAL)
+		ctx->resync_nh.decrypted_tgt *= 2;
+	else
+		ctx->resync_nh.decrypted_tgt += TLS_DEVICE_RESYNC_NH_MAX_IVAL;
+
+	rxm = strp_msg(skb);
+
+	/* head of next rec is already in, parser will sync for us */
+	if (tcp_inq(sk) > rxm->full_len) {
+		ctx->resync_nh_do_now = 1;
+	} else {
+		struct tls_prot_info *prot = &tls_ctx->prot_info;
+		u8 rcd_sn[TLS_MAX_REC_SEQ_SIZE];
+
+		memcpy(rcd_sn, tls_ctx->rx.rec_seq, prot->rec_seq_size);
+		tls_bigint_increment(rcd_sn, prot->rec_seq_size);
+
+		tls_device_resync_rx(tls_ctx, sk, tcp_sk(sk)->copied_seq,
+				     rcd_sn);
 	}
 }
 
@@ -687,12 +785,21 @@ int tls_device_decrypted(struct sock *sk, struct sk_buff *skb)
 
 	ctx->sw.decrypted |= is_decrypted;
 
-	/* Return immedeatly if the record is either entirely plaintext or
+	/* Return immediately if the record is either entirely plaintext or
 	 * entirely ciphertext. Otherwise handle reencrypt partially decrypted
 	 * record.
 	 */
-	return (is_encrypted || is_decrypted) ? 0 :
-		tls_device_reencrypt(sk, skb);
+	if (is_decrypted) {
+		ctx->resync_nh_reset = 1;
+		return 0;
+	}
+	if (is_encrypted) {
+		tls_device_core_ctrl_rx_resync(tls_ctx, ctx, sk, skb);
+		return 0;
+	}
+
+	ctx->resync_nh_reset = 1;
+	return tls_device_reencrypt(sk, skb);
 }
 
 static void tls_device_attach(struct tls_context *ctx, struct sock *sk,
@@ -757,6 +864,12 @@ int tls_set_device_offload(struct sock *sk, struct tls_context *ctx)
 		 ((struct tls12_crypto_info_aes_gcm_128 *)crypto_info)->rec_seq;
 		break;
 	default:
+		rc = -EINVAL;
+		goto free_offload_ctx;
+	}
+
+	/* Sanity-check the rec_seq_size for stack allocations */
+	if (rec_seq_size > TLS_MAX_REC_SEQ_SIZE) {
 		rc = -EINVAL;
 		goto free_offload_ctx;
 	}
@@ -912,6 +1025,7 @@ int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx)
 		rc = -ENOMEM;
 		goto release_netdev;
 	}
+	context->resync_nh_reset = 1;
 
 	ctx->priv_ctx_rx = context;
 	rc = tls_set_sw_offload(sk, ctx, 0);
@@ -1019,7 +1133,7 @@ static int tls_dev_event(struct notifier_block *this, unsigned long event,
 	case NETDEV_REGISTER:
 	case NETDEV_FEAT_CHANGE:
 		if ((dev->features & NETIF_F_HW_TLS_RX) &&
-		    !dev->tlsdev_ops->tls_dev_resync_rx)
+		    !dev->tlsdev_ops->tls_dev_resync)
 			return NOTIFY_BAD;
 
 		if  (dev->tlsdev_ops &&

@@ -2015,8 +2015,8 @@ static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
 		goto read_failure;
 	}
 #ifdef CONFIG_TLS_DEVICE
-	handle_device_resync(strp->sk, TCP_SKB_CB(skb)->seq + rxm->offset,
-			     *(u64*)tls_ctx->rx.rec_seq);
+	tls_device_rx_resync_new_rec(strp->sk, data_len + TLS_HEADER_SIZE,
+				     TCP_SKB_CB(skb)->seq + rxm->offset);
 #endif
 	return data_len + TLS_HEADER_SIZE;
 
@@ -2283,8 +2283,9 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		goto free_priv;
 	}
 
-	/* Sanity-check the IV size for stack allocations. */
-	if (iv_size > MAX_IV_SIZE || nonce_size > MAX_IV_SIZE) {
+	/* Sanity-check the sizes for stack allocations. */
+	if (iv_size > MAX_IV_SIZE || nonce_size > MAX_IV_SIZE ||
+	    rec_seq_size > TLS_MAX_REC_SEQ_SIZE) {
 		rc = -EINVAL;
 		goto free_priv;
 	}

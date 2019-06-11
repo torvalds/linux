@@ -47,10 +47,16 @@ __nfp_net_tls_conn_cnt_changed(struct nfp_net *nn, int add,
 	u8 opcode;
 	int cnt;
 
-	opcode = NFP_NET_CRYPTO_OP_TLS_1_2_AES_GCM_128_ENC;
-	nn->ktls_tx_conn_cnt += add;
-	cnt = nn->ktls_tx_conn_cnt;
-	nn->dp.ktls_tx = !!nn->ktls_tx_conn_cnt;
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
+		opcode = NFP_NET_CRYPTO_OP_TLS_1_2_AES_GCM_128_ENC;
+		nn->ktls_tx_conn_cnt += add;
+		cnt = nn->ktls_tx_conn_cnt;
+		nn->dp.ktls_tx = !!nn->ktls_tx_conn_cnt;
+	} else {
+		opcode = NFP_NET_CRYPTO_OP_TLS_1_2_AES_GCM_128_DEC;
+		nn->ktls_rx_conn_cnt += add;
+		cnt = nn->ktls_rx_conn_cnt;
+	}
 
 	/* Care only about 0 -> 1 and 1 -> 0 transitions */
 	if (cnt > 1)
@@ -94,9 +100,9 @@ nfp_net_tls_conn_remove(struct nfp_net *nn, enum tls_offload_ctx_dir direction)
 static struct sk_buff *
 nfp_net_tls_alloc_simple(struct nfp_net *nn, size_t req_sz, gfp_t flags)
 {
-	return nfp_ccm_mbox_alloc(nn, req_sz,
-				  sizeof(struct nfp_crypto_reply_simple),
-				  flags);
+	return nfp_ccm_mbox_msg_alloc(nn, req_sz,
+				      sizeof(struct nfp_crypto_reply_simple),
+				      flags);
 }
 
 static int
@@ -228,7 +234,7 @@ nfp_net_cipher_supported(struct nfp_net *nn, u16 cipher_type,
 		if (direction == TLS_OFFLOAD_CTX_DIR_TX)
 			bit = NFP_NET_CRYPTO_OP_TLS_1_2_AES_GCM_128_ENC;
 		else
-			return false;
+			bit = NFP_NET_CRYPTO_OP_TLS_1_2_AES_GCM_128_DEC;
 		break;
 	default:
 		return false;
@@ -256,6 +262,8 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 
 	BUILD_BUG_ON(sizeof(struct nfp_net_tls_offload_ctx) >
 		     TLS_DRIVER_STATE_SIZE_TX);
+	BUILD_BUG_ON(offsetof(struct nfp_net_tls_offload_ctx, rx_end) >
+		     TLS_DRIVER_STATE_SIZE_RX);
 
 	if (!nfp_net_cipher_supported(nn, crypto_info->cipher_type, direction))
 		return -EOPNOTSUPP;
@@ -283,7 +291,7 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 	if (err)
 		return err;
 
-	skb = nfp_ccm_mbox_alloc(nn, req_sz, sizeof(*reply), GFP_KERNEL);
+	skb = nfp_ccm_mbox_msg_alloc(nn, req_sz, sizeof(*reply), GFP_KERNEL);
 	if (!skb) {
 		err = -ENOMEM;
 		goto err_conn_remove;
@@ -341,9 +349,15 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 
 	ntls = tls_driver_ctx(sk, direction);
 	memcpy(ntls->fw_handle, reply->handle, sizeof(ntls->fw_handle));
-	ntls->next_seq = start_offload_tcp_sn;
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX)
+		ntls->next_seq = start_offload_tcp_sn;
 	dev_consume_skb_any(skb);
 
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX)
+		return 0;
+
+	tls_offload_rx_resync_set_type(sk,
+				       TLS_OFFLOAD_SYNC_TYPE_CORE_NEXT_HINT);
 	return 0;
 
 err_fw_remove:
@@ -368,9 +382,44 @@ nfp_net_tls_del(struct net_device *netdev, struct tls_context *tls_ctx,
 	nfp_net_tls_del_fw(nn, ntls->fw_handle);
 }
 
+static void
+nfp_net_tls_resync(struct net_device *netdev, struct sock *sk, u32 seq,
+		   u8 *rcd_sn, enum tls_offload_ctx_dir direction)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	struct nfp_net_tls_offload_ctx *ntls;
+	struct nfp_crypto_req_update *req;
+	struct sk_buff *skb;
+	gfp_t flags;
+
+	flags = direction == TLS_OFFLOAD_CTX_DIR_TX ? GFP_KERNEL : GFP_ATOMIC;
+	skb = nfp_net_tls_alloc_simple(nn, sizeof(*req), flags);
+	if (!skb)
+		return;
+
+	ntls = tls_driver_ctx(sk, direction);
+	req = (void *)skb->data;
+	req->ep_id = 0;
+	req->opcode = nfp_tls_1_2_dir_to_opcode(direction);
+	memset(req->resv, 0, sizeof(req->resv));
+	memcpy(req->handle, ntls->fw_handle, sizeof(ntls->fw_handle));
+	req->tcp_seq = cpu_to_be32(seq);
+	memcpy(req->rec_no, rcd_sn, sizeof(req->rec_no));
+
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
+		nfp_net_tls_communicate_simple(nn, skb, "sync",
+					       NFP_CCM_TYPE_CRYPTO_UPDATE);
+		ntls->next_seq = seq;
+	} else {
+		nfp_ccm_mbox_post(nn, skb, NFP_CCM_TYPE_CRYPTO_UPDATE,
+				  sizeof(struct nfp_crypto_reply_simple));
+	}
+}
+
 static const struct tlsdev_ops nfp_net_tls_ops = {
 	.tls_dev_add = nfp_net_tls_add,
 	.tls_dev_del = nfp_net_tls_del,
+	.tls_dev_resync = nfp_net_tls_resync,
 };
 
 static int nfp_net_tls_reset(struct nfp_net *nn)
@@ -418,6 +467,10 @@ int nfp_net_tls_init(struct nfp_net *nn)
 	if (err)
 		return err;
 
+	if (nn->tlv_caps.crypto_ops & NFP_NET_TLS_OPCODE_MASK_RX) {
+		netdev->hw_features |= NETIF_F_HW_TLS_RX;
+		netdev->features |= NETIF_F_HW_TLS_RX;
+	}
 	if (nn->tlv_caps.crypto_ops & NFP_NET_TLS_OPCODE_MASK_TX) {
 		netdev->hw_features |= NETIF_F_HW_TLS_TX;
 		netdev->features |= NETIF_F_HW_TLS_TX;

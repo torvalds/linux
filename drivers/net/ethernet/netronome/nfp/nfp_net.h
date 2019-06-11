@@ -19,6 +19,7 @@
 #include <linux/pci.h>
 #include <linux/io-64-nonatomic-hi-lo.h>
 #include <linux/semaphore.h>
+#include <linux/workqueue.h>
 #include <net/xdp.h>
 
 #include "nfp_net_ctrl.h"
@@ -240,7 +241,7 @@ struct nfp_net_tx_ring {
 #define PCIE_DESC_RX_I_TCP_CSUM_OK	cpu_to_le16(BIT(11))
 #define PCIE_DESC_RX_I_UDP_CSUM		cpu_to_le16(BIT(10))
 #define PCIE_DESC_RX_I_UDP_CSUM_OK	cpu_to_le16(BIT(9))
-#define PCIE_DESC_RX_BPF		cpu_to_le16(BIT(8))
+#define PCIE_DESC_RX_DECRYPTED		cpu_to_le16(BIT(8))
 #define PCIE_DESC_RX_EOP		cpu_to_le16(BIT(7))
 #define PCIE_DESC_RX_IP4_CSUM		cpu_to_le16(BIT(6))
 #define PCIE_DESC_RX_IP4_CSUM_OK	cpu_to_le16(BIT(5))
@@ -367,6 +368,7 @@ struct nfp_net_rx_ring {
  * @hw_csum_rx_inner_ok: Counter of packets where the inner HW checksum was OK
  * @hw_csum_rx_complete: Counter of packets with CHECKSUM_COMPLETE reported
  * @hw_csum_rx_error:	 Counter of packets with bad checksums
+ * @hw_tls_rx:	    Number of packets with TLS decrypted by hardware
  * @tx_sync:	    Seqlock for atomic updates of TX stats
  * @tx_pkts:	    Number of Transmitted packets
  * @tx_bytes:	    Number of Transmitted bytes
@@ -415,6 +417,7 @@ struct nfp_net_r_vector {
 	u64 hw_csum_rx_ok;
 	u64 hw_csum_rx_inner_ok;
 	u64 hw_csum_rx_complete;
+	u64 hw_tls_rx;
 
 	u64 hw_csum_rx_error;
 	u64 rx_replace_buf_alloc_fail;
@@ -579,11 +582,15 @@ struct nfp_net_dp {
  * @rx_bar:             Pointer to mapped FL/RX queues
  * @tlv_caps:		Parsed TLV capabilities
  * @ktls_tx_conn_cnt:	Number of offloaded kTLS TX connections
+ * @ktls_rx_conn_cnt:	Number of offloaded kTLS RX connections
  * @ktls_no_space:	Counter of firmware rejecting kTLS connection due to
  *			lack of space
  * @mbox_cmsg:		Common Control Message via vNIC mailbox state
  * @mbox_cmsg.queue:	CCM mbox queue of pending messages
  * @mbox_cmsg.wq:	CCM mbox wait queue of waiting processes
+ * @mbox_cmsg.workq:	CCM mbox work queue for @wait_work and @runq_work
+ * @mbox_cmsg.wait_work:    CCM mbox posted msg reconfig wait work
+ * @mbox_cmsg.runq_work:    CCM mbox posted msg queue runner work
  * @mbox_cmsg.tag:	CCM mbox message tag allocator
  * @debugfs_dir:	Device directory in debugfs
  * @vnic_list:		Entry on device vNIC list
@@ -661,12 +668,16 @@ struct nfp_net {
 	struct nfp_net_tlv_caps tlv_caps;
 
 	unsigned int ktls_tx_conn_cnt;
+	unsigned int ktls_rx_conn_cnt;
 
 	atomic_t ktls_no_space;
 
 	struct {
 		struct sk_buff_head queue;
 		wait_queue_head_t wq;
+		struct workqueue_struct *workq;
+		struct work_struct wait_work;
+		struct work_struct runq_work;
 		u16 tag;
 	} mbox_cmsg;
 
@@ -884,6 +895,11 @@ static inline void nn_ctrl_bar_lock(struct nfp_net *nn)
 	down(&nn->bar_lock);
 }
 
+static inline bool nn_ctrl_bar_trylock(struct nfp_net *nn)
+{
+	return !down_trylock(&nn->bar_lock);
+}
+
 static inline void nn_ctrl_bar_unlock(struct nfp_net *nn)
 {
 	up(&nn->bar_lock);
@@ -925,6 +941,8 @@ void nfp_net_coalesce_write_cfg(struct nfp_net *nn);
 int nfp_net_mbox_lock(struct nfp_net *nn, unsigned int data_size);
 int nfp_net_mbox_reconfig(struct nfp_net *nn, u32 mbox_cmd);
 int nfp_net_mbox_reconfig_and_unlock(struct nfp_net *nn, u32 mbox_cmd);
+void nfp_net_mbox_reconfig_post(struct nfp_net *nn, u32 update);
+int nfp_net_mbox_reconfig_wait_posted(struct nfp_net *nn);
 
 unsigned int
 nfp_net_irqs_alloc(struct pci_dev *pdev, struct msix_entry *irq_entries,

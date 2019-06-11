@@ -40,6 +40,7 @@
 #include <net/vxlan.h>
 
 #include "nfpcore/nfp_nsp.h"
+#include "ccm.h"
 #include "nfp_app.h"
 #include "nfp_net_ctrl.h"
 #include "nfp_net.h"
@@ -229,6 +230,7 @@ static void nfp_net_reconfig_sync_enter(struct nfp_net *nn)
 
 	spin_lock_bh(&nn->reconfig_lock);
 
+	WARN_ON(nn->reconfig_sync_present);
 	nn->reconfig_sync_present = true;
 
 	if (nn->reconfig_timer_active) {
@@ -337,6 +339,24 @@ int nfp_net_mbox_reconfig(struct nfp_net *nn, u32 mbox_cmd)
 		nn_err(nn, "Mailbox update error\n");
 		return ret;
 	}
+
+	return -nn_readl(nn, mbox + NFP_NET_CFG_MBOX_SIMPLE_RET);
+}
+
+void nfp_net_mbox_reconfig_post(struct nfp_net *nn, u32 mbox_cmd)
+{
+	u32 mbox = nn->tlv_caps.mbox_off;
+
+	nn_writeq(nn, mbox + NFP_NET_CFG_MBOX_SIMPLE_CMD, mbox_cmd);
+
+	nfp_net_reconfig_post(nn, NFP_NET_CFG_UPDATE_MBOX);
+}
+
+int nfp_net_mbox_reconfig_wait_posted(struct nfp_net *nn)
+{
+	u32 mbox = nn->tlv_caps.mbox_off;
+
+	nfp_net_reconfig_wait_posted(nn);
 
 	return -nn_readl(nn, mbox + NFP_NET_CFG_MBOX_SIMPLE_RET);
 }
@@ -809,6 +829,7 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 {
 	struct nfp_net_tls_offload_ctx *ntls;
 	struct sk_buff *nskb;
+	bool resync_pending;
 	u32 datalen, seq;
 
 	if (likely(!dp->ktls_tx))
@@ -819,7 +840,8 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 	datalen = skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb));
 	seq = ntohl(tcp_hdr(skb)->seq);
 	ntls = tls_driver_ctx(skb->sk, TLS_OFFLOAD_CTX_DIR_TX);
-	if (unlikely(ntls->next_seq != seq || ntls->out_of_sync)) {
+	resync_pending = tls_offload_tx_resync_pending(skb->sk);
+	if (unlikely(resync_pending || ntls->next_seq != seq)) {
 		/* Pure ACK out of order already */
 		if (!datalen)
 			return skb;
@@ -849,8 +871,8 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 		}
 
 		/* jump forward, a TX may have gotten lost, need to sync TX */
-		if (!ntls->out_of_sync && seq - ntls->next_seq < U32_MAX / 4)
-			ntls->out_of_sync = true;
+		if (!resync_pending && seq - ntls->next_seq < U32_MAX / 4)
+			tls_offload_tx_resync_request(nskb->sk);
 
 		*nr_frags = 0;
 		return nskb;
@@ -1950,6 +1972,15 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 		skb->protocol = eth_type_trans(skb, netdev);
 
 		nfp_net_rx_csum(dp, r_vec, rxd, &meta, skb);
+
+#ifdef CONFIG_TLS_DEVICE
+		if (rxd->rxd.flags & PCIE_DESC_RX_DECRYPTED) {
+			skb->decrypted = true;
+			u64_stats_update_begin(&r_vec->rx_sync);
+			r_vec->hw_tls_rx++;
+			u64_stats_update_end(&r_vec->rx_sync);
+		}
+#endif
 
 		if (rxd->rxd.flags & PCIE_DESC_RX_VLAN)
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
@@ -3805,11 +3836,12 @@ nfp_net_alloc(struct pci_dev *pdev, void __iomem *ctrl_bar, bool needs_netdev,
 
 	timer_setup(&nn->reconfig_timer, nfp_net_reconfig_timer, 0);
 
-	skb_queue_head_init(&nn->mbox_cmsg.queue);
-	init_waitqueue_head(&nn->mbox_cmsg.wq);
-
 	err = nfp_net_tlv_caps_parse(&nn->pdev->dev, nn->dp.ctrl_bar,
 				     &nn->tlv_caps);
+	if (err)
+		goto err_free_nn;
+
+	err = nfp_ccm_mbox_alloc(nn);
 	if (err)
 		goto err_free_nn;
 
@@ -3830,7 +3862,7 @@ err_free_nn:
 void nfp_net_free(struct nfp_net *nn)
 {
 	WARN_ON(timer_pending(&nn->reconfig_timer) || nn->reconfig_posted);
-	WARN_ON(!skb_queue_empty(&nn->mbox_cmsg.queue));
+	nfp_ccm_mbox_free(nn);
 
 	if (nn->dp.netdev)
 		free_netdev(nn->dp.netdev);
@@ -4108,9 +4140,13 @@ int nfp_net_init(struct nfp_net *nn)
 	if (nn->dp.netdev) {
 		nfp_net_netdev_init(nn);
 
-		err = nfp_net_tls_init(nn);
+		err = nfp_ccm_mbox_init(nn);
 		if (err)
 			return err;
+
+		err = nfp_net_tls_init(nn);
+		if (err)
+			goto err_clean_mbox;
 	}
 
 	nfp_net_vecs_init(nn);
@@ -4118,6 +4154,10 @@ int nfp_net_init(struct nfp_net *nn)
 	if (!nn->dp.netdev)
 		return 0;
 	return register_netdev(nn->dp.netdev);
+
+err_clean_mbox:
+	nfp_ccm_mbox_clean(nn);
+	return err;
 }
 
 /**
@@ -4130,5 +4170,6 @@ void nfp_net_clean(struct nfp_net *nn)
 		return;
 
 	unregister_netdev(nn->dp.netdev);
+	nfp_ccm_mbox_clean(nn);
 	nfp_net_reconfig_wait_posted(nn);
 }
