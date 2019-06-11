@@ -365,13 +365,15 @@ iser_set_prot_checks(struct scsi_cmnd *sc, u8 *mask)
 static inline void
 iser_inv_rkey(struct ib_send_wr *inv_wr,
 	      struct ib_mr *mr,
-	      struct ib_cqe *cqe)
+	      struct ib_cqe *cqe,
+	      struct ib_send_wr *next_wr)
 {
 	inv_wr->opcode = IB_WR_LOCAL_INV;
 	inv_wr->wr_cqe = cqe;
 	inv_wr->ex.invalidate_rkey = mr->rkey;
 	inv_wr->send_flags = 0;
 	inv_wr->num_sge = 0;
+	inv_wr->next = next_wr;
 }
 
 static int
@@ -385,7 +387,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 	struct ib_cqe *cqe = &iser_task->iser_conn->ib_conn.reg_cqe;
 	struct ib_mr *mr = rsc->sig_mr;
 	struct ib_sig_attrs *sig_attrs = mr->sig_attrs;
-	struct ib_reg_wr *wr;
+	struct ib_reg_wr *wr = &tx_desc->reg_wr;
 	int ret;
 
 	memset(sig_attrs, 0, sizeof(*sig_attrs));
@@ -396,7 +398,7 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 	iser_set_prot_checks(iser_task->sc, &sig_attrs->check_mask);
 
 	if (rsc->mr_valid)
-		iser_inv_rkey(iser_tx_next_wr(tx_desc), mr, cqe);
+		iser_inv_rkey(&tx_desc->inv_wr, mr, cqe, &wr->wr);
 
 	ib_update_fast_reg_key(mr, ib_inc_rkey(mr->rkey));
 
@@ -408,8 +410,8 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 		goto err;
 	}
 
-	wr = container_of(iser_tx_next_wr(tx_desc), struct ib_reg_wr, wr);
 	memset(wr, 0, sizeof(*wr));
+	wr->wr.next = &tx_desc->send_wr;
 	wr->wr.opcode = IB_WR_REG_MR_INTEGRITY;
 	wr->wr.wr_cqe = cqe;
 	wr->wr.num_sge = 0;
@@ -441,11 +443,11 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
 	struct ib_cqe *cqe = &iser_task->iser_conn->ib_conn.reg_cqe;
 	struct ib_mr *mr = rsc->mr;
-	struct ib_reg_wr *wr;
+	struct ib_reg_wr *wr = &tx_desc->reg_wr;
 	int n;
 
 	if (rsc->mr_valid)
-		iser_inv_rkey(iser_tx_next_wr(tx_desc), mr, cqe);
+		iser_inv_rkey(&tx_desc->inv_wr, mr, cqe, &wr->wr);
 
 	ib_update_fast_reg_key(mr, ib_inc_rkey(mr->rkey));
 
@@ -456,7 +458,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 		return n < 0 ? n : -EINVAL;
 	}
 
-	wr = container_of(iser_tx_next_wr(tx_desc), struct ib_reg_wr, wr);
+	wr->wr.next = &tx_desc->send_wr;
 	wr->wr.opcode = IB_WR_REG_MR;
 	wr->wr.wr_cqe = cqe;
 	wr->wr.send_flags = 0;
