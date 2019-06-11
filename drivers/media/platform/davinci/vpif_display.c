@@ -601,11 +601,7 @@ static int vpif_enum_fmt_vid_out(struct file *file, void  *priv,
 		return -EINVAL;
 
 	/* Fill in the information about format */
-	fmt->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-	strscpy(fmt->description, "YCbCr4:2:2 YC Planar",
-		sizeof(fmt->description));
 	fmt->pixelformat = V4L2_PIX_FMT_YUV422P;
-	fmt->flags = 0;
 	return 0;
 }
 

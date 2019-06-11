@@ -524,8 +524,6 @@ xvip_dma_enum_format(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 		return -EINVAL;
 
 	f->pixelformat = dma->format.pixelformat;
-	strscpy(f->description, dma->fmtinfo->description,
-		sizeof(f->description));
 
 	return 0;
 }

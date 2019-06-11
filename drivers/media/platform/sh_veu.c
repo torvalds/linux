@@ -86,7 +86,6 @@ struct sh_veu_file {
 };
 
 struct sh_veu_format {
-	char *name;
 	u32 fourcc;
 	unsigned int depth;
 	unsigned int ydepth;
@@ -144,14 +143,14 @@ enum sh_veu_fmt_idx {
  * aligned for NV24.
  */
 static const struct sh_veu_format sh_veu_fmt[] = {
-	[SH_VEU_FMT_NV12]   = { .ydepth = 8, .depth = 12, .name = "NV12", .fourcc = V4L2_PIX_FMT_NV12 },
-	[SH_VEU_FMT_NV16]   = { .ydepth = 8, .depth = 16, .name = "NV16", .fourcc = V4L2_PIX_FMT_NV16 },
-	[SH_VEU_FMT_NV24]   = { .ydepth = 8, .depth = 24, .name = "NV24", .fourcc = V4L2_PIX_FMT_NV24 },
-	[SH_VEU_FMT_RGB332] = { .ydepth = 8, .depth = 8, .name = "RGB332", .fourcc = V4L2_PIX_FMT_RGB332 },
-	[SH_VEU_FMT_RGB444] = { .ydepth = 16, .depth = 16, .name = "RGB444", .fourcc = V4L2_PIX_FMT_RGB444 },
-	[SH_VEU_FMT_RGB565] = { .ydepth = 16, .depth = 16, .name = "RGB565", .fourcc = V4L2_PIX_FMT_RGB565 },
-	[SH_VEU_FMT_RGB666] = { .ydepth = 32, .depth = 32, .name = "BGR666", .fourcc = V4L2_PIX_FMT_BGR666 },
-	[SH_VEU_FMT_RGB24]  = { .ydepth = 24, .depth = 24, .name = "RGB24", .fourcc = V4L2_PIX_FMT_RGB24 },
+	[SH_VEU_FMT_NV12]   = { .ydepth = 8, .depth = 12, .fourcc = V4L2_PIX_FMT_NV12 },
+	[SH_VEU_FMT_NV16]   = { .ydepth = 8, .depth = 16, .fourcc = V4L2_PIX_FMT_NV16 },
+	[SH_VEU_FMT_NV24]   = { .ydepth = 8, .depth = 24, .fourcc = V4L2_PIX_FMT_NV24 },
+	[SH_VEU_FMT_RGB332] = { .ydepth = 8, .depth = 8, .fourcc = V4L2_PIX_FMT_RGB332 },
+	[SH_VEU_FMT_RGB444] = { .ydepth = 16, .depth = 16, .fourcc = V4L2_PIX_FMT_RGB444 },
+	[SH_VEU_FMT_RGB565] = { .ydepth = 16, .depth = 16, .fourcc = V4L2_PIX_FMT_RGB565 },
+	[SH_VEU_FMT_RGB666] = { .ydepth = 32, .depth = 32, .fourcc = V4L2_PIX_FMT_BGR666 },
+	[SH_VEU_FMT_RGB24]  = { .ydepth = 24, .depth = 24, .fourcc = V4L2_PIX_FMT_RGB24 },
 };
 
 #define DEFAULT_IN_VFMT (struct sh_veu_vfmt){						\
@@ -359,8 +358,6 @@ static int sh_veu_enum_fmt(struct v4l2_fmtdesc *f, const int *fmt, int fmt_num)
 	if (f->index >= fmt_num)
 		return -EINVAL;
 
-	strscpy(f->description, sh_veu_fmt[fmt[f->index]].name,
-		sizeof(f->description));
 	f->pixelformat = sh_veu_fmt[fmt[f->index]].fourcc;
 	return 0;
 }

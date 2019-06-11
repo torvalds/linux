@@ -685,10 +685,7 @@ static int s3c_camif_vidioc_enum_fmt(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 
-	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
-
-	pr_debug("fmt(%d): %s\n", f->index, f->description);
 	return 0;
 }
 
@@ -802,10 +799,10 @@ static int s3c_camif_vidioc_s_fmt(struct file *file, void *priv,
 	if (vp->owner == NULL)
 		vp->owner = priv;
 
-	pr_debug("%ux%u. payload: %u. fmt: %s. %d %d. sizeimage: %d. bpl: %d\n",
-		out_frame->f_width, out_frame->f_height, vp->payload, fmt->name,
-		pix->width * pix->height * fmt->depth, fmt->depth,
-		pix->sizeimage, pix->bytesperline);
+	pr_debug("%ux%u. payload: %u. fmt: 0x%08x. %d %d. sizeimage: %d. bpl: %d\n",
+		 out_frame->f_width, out_frame->f_height, vp->payload,
+		 fmt->fourcc, pix->width * pix->height * fmt->depth,
+		 fmt->depth, pix->sizeimage, pix->bytesperline);
 
 	return 0;
 }

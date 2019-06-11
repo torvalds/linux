@@ -114,14 +114,12 @@ static const struct v4l2_fmtdesc omap_formats[] = {
 		 *      Byte 0                    Byte 1
 		 *      g2 g1 g0 b4 b3 b2 b1 b0   r4 r3 r2 r1 r0 g5 g4 g3
 		 */
-		.description = "RGB565, le",
 		.pixelformat = V4L2_PIX_FMT_RGB565,
 	},
 	{
 		/* Note:  V4L2 defines RGB32 as: RGB-8-8-8-8  we use
 		 *  this for RGB24 unpack mode, the last 8 bits are ignored
 		 * */
-		.description = "RGB32, le",
 		.pixelformat = V4L2_PIX_FMT_RGB32,
 	},
 	{
@@ -129,15 +127,12 @@ static const struct v4l2_fmtdesc omap_formats[] = {
 		 *        this for RGB24 packed mode
 		 *
 		 */
-		.description = "RGB24, le",
 		.pixelformat = V4L2_PIX_FMT_RGB24,
 	},
 	{
-		.description = "YUYV (YUV 4:2:2), packed",
 		.pixelformat = V4L2_PIX_FMT_YUYV,
 	},
 	{
-		.description = "UYVY, packed",
 		.pixelformat = V4L2_PIX_FMT_UYVY,
 	},
 };
@@ -1060,8 +1055,6 @@ static int vidioc_enum_fmt_vid_out(struct file *file, void *fh,
 		return -EINVAL;
 
 	fmt->flags = omap_formats[index].flags;
-	strscpy(fmt->description, omap_formats[index].description,
-		sizeof(fmt->description));
 	fmt->pixelformat = omap_formats[index].pixelformat;
 
 	return 0;

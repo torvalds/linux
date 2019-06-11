@@ -108,7 +108,6 @@ struct xvip_device {
  * @code: media bus format code
  * @bpp: bytes per pixel (when stored in memory)
  * @fourcc: V4L2 pixel format FCC identifier
- * @description: format description, suitable for userspace
  */
 struct xvip_video_format {
 	unsigned int vf_code;
@@ -117,7 +116,6 @@ struct xvip_video_format {
 	unsigned int code;
 	unsigned int bpp;
 	u32 fourcc;
-	const char *description;
 };
 
 const struct xvip_video_format *xvip_get_format_by_code(unsigned int code);

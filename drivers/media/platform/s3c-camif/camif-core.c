@@ -42,7 +42,6 @@ static char *camif_clocks[CLK_MAX_NUM] = {
 
 static const struct camif_fmt camif_formats[] = {
 	{
-		.name		= "YUV 4:2:2 planar, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV422P,
 		.depth		= 16,
 		.ybpp		= 1,
@@ -51,7 +50,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_CODEC |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "YUV 4:2:0 planar, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV420,
 		.depth		= 12,
 		.ybpp		= 1,
@@ -60,7 +58,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_CODEC |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "YVU 4:2:0 planar, Y/Cr/Cb",
 		.fourcc		= V4L2_PIX_FMT_YVU420,
 		.depth		= 12,
 		.ybpp		= 1,
@@ -69,7 +66,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_CODEC |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "RGB565, 16 bpp",
 		.fourcc		= V4L2_PIX_FMT_RGB565X,
 		.depth		= 16,
 		.ybpp		= 2,
@@ -78,7 +74,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_PREVIEW |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "XRGB8888, 32 bpp",
 		.fourcc		= V4L2_PIX_FMT_RGB32,
 		.depth		= 32,
 		.ybpp		= 4,
@@ -87,7 +82,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_PREVIEW |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "BGR666",
 		.fourcc		= V4L2_PIX_FMT_BGR666,
 		.depth		= 32,
 		.ybpp		= 4,

@@ -792,7 +792,6 @@ static int vpbe_display_enum_fmt(struct file *file, void  *priv,
 {
 	struct vpbe_layer *layer = video_drvdata(file);
 	struct vpbe_device *vpbe_dev = layer->disp_dev->vpbe_dev;
-	unsigned int index = 0;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,
 				"VIDIOC_ENUM_FMT, layer id = %d\n",
@@ -803,19 +802,10 @@ static int vpbe_display_enum_fmt(struct file *file, void  *priv,
 	}
 
 	/* Fill in the information about format */
-	index = fmt->index;
-	memset(fmt, 0, sizeof(*fmt));
-	fmt->index = index;
-	fmt->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-	if (index == 0) {
-		strscpy(fmt->description, "YUV 4:2:2 - UYVY",
-			sizeof(fmt->description));
+	if (fmt->index == 0)
 		fmt->pixelformat = V4L2_PIX_FMT_UYVY;
-	} else {
-		strscpy(fmt->description, "Y/CbCr 4:2:0",
-			sizeof(fmt->description));
+	else
 		fmt->pixelformat = V4L2_PIX_FMT_NV12;
-	}
 
 	return 0;
 }

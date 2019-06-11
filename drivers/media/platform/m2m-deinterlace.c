@@ -37,7 +37,6 @@ module_param(debug, bool, 0644);
 	v4l2_dbg(1, debug, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
 
 struct deinterlace_fmt {
-	char	*name;
 	u32	fourcc;
 	/* Types the format can be used for */
 	u32	types;
@@ -45,12 +44,10 @@ struct deinterlace_fmt {
 
 static struct deinterlace_fmt formats[] = {
 	{
-		.name	= "YUV 4:2:0 Planar",
 		.fourcc	= V4L2_PIX_FMT_YUV420,
 		.types	= MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	},
 	{
-		.name	= "YUYV 4:2:2",
 		.fourcc	= V4L2_PIX_FMT_YUYV,
 		.types	= MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
 	},
@@ -470,7 +467,6 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 	if (i < NUM_FORMATS) {
 		/* Format found */
 		fmt = &formats[i];
-		strscpy(f->description, fmt->name, sizeof(f->description));
 		f->pixelformat = fmt->fourcc;
 		return 0;
 	}

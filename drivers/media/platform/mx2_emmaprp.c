@@ -145,7 +145,6 @@ module_param(debug, bool, 0644);
 #define PRP_INTR_ST_CH2OVF	(1 << 8)
 
 struct emmaprp_fmt {
-	char	*name;
 	u32	fourcc;
 	/* Types the format can be used for */
 	u32	types;
@@ -153,12 +152,10 @@ struct emmaprp_fmt {
 
 static struct emmaprp_fmt formats[] = {
 	{
-		.name	= "YUV 4:2:0 Planar",
 		.fourcc	= V4L2_PIX_FMT_YUV420,
 		.types	= MEM2MEM_CAPTURE,
 	},
 	{
-		.name	= "4:2:2, packed, YUYV",
 		.fourcc	= V4L2_PIX_FMT_YUYV,
 		.types	= MEM2MEM_OUTPUT,
 	},
@@ -409,7 +406,6 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 	if (i < NUM_FORMATS) {
 		/* Format found */
 		fmt = &formats[i];
-		strscpy(f->description, fmt->name, sizeof(f->description) - 1);
 		f->pixelformat = fmt->fourcc;
 		return 0;
 	}

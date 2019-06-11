@@ -142,13 +142,11 @@ static struct via_camera *via_cam_info;
  * now this information must be managed at this level too.
  */
 static struct via_format {
-	__u8 *desc;
 	__u32 pixelformat;
 	int bpp;   /* Bytes per pixel */
 	u32 mbus_code;
 } via_formats[] = {
 	{
-		.desc		= "YUYV 4:2:2",
 		.pixelformat	= V4L2_PIX_FMT_YUYV,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp		= 2,
@@ -860,8 +858,6 @@ static int viacam_enum_fmt_vid_cap(struct file *filp, void *priv,
 {
 	if (fmt->index >= N_VIA_FMTS)
 		return -EINVAL;
-	strscpy(fmt->description, via_formats[fmt->index].desc,
-		sizeof(fmt->description));
 	fmt->pixelformat = via_formats[fmt->index].pixelformat;
 	return 0;
 }

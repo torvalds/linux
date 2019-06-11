@@ -76,7 +76,6 @@ struct bus_format {
 
 /*
  * struct vpfe_fmt - VPFE media bus format information
- * @name: V4L2 format description
  * @code: V4L2 media bus format code
  * @shifted: V4L2 media bus format code for the same pixel layout but
  *	shifted to be 8 bits per pixel. =0 if format is not shiftable.
@@ -86,7 +85,6 @@ struct bus_format {
  * @supported: Indicates format supported by subdev
  */
 struct vpfe_fmt {
-	const char *name;
 	u32 fourcc;
 	u32 code;
 	struct bus_format l;
@@ -97,7 +95,6 @@ struct vpfe_fmt {
 
 static struct vpfe_fmt formats[] = {
 	{
-		.name		= "YUV 4:2:2 packed, YCbYCr",
 		.fourcc		= V4L2_PIX_FMT_YUYV,
 		.code		= MEDIA_BUS_FMT_YUYV8_2X8,
 		.l.width	= 10,
@@ -106,7 +103,6 @@ static struct vpfe_fmt formats[] = {
 		.s.bpp		= 2,
 		.supported	= false,
 	}, {
-		.name		= "YUV 4:2:2 packed, CbYCrY",
 		.fourcc		= V4L2_PIX_FMT_UYVY,
 		.code		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.l.width	= 10,
@@ -115,7 +111,6 @@ static struct vpfe_fmt formats[] = {
 		.s.bpp		= 2,
 		.supported	= false,
 	}, {
-		.name		= "YUV 4:2:2 packed, YCrYCb",
 		.fourcc		= V4L2_PIX_FMT_YVYU,
 		.code		= MEDIA_BUS_FMT_YVYU8_2X8,
 		.l.width	= 10,
@@ -124,7 +119,6 @@ static struct vpfe_fmt formats[] = {
 		.s.bpp		= 2,
 		.supported	= false,
 	}, {
-		.name		= "YUV 4:2:2 packed, CrYCbY",
 		.fourcc		= V4L2_PIX_FMT_VYUY,
 		.code		= MEDIA_BUS_FMT_VYUY8_2X8,
 		.l.width	= 10,
@@ -133,7 +127,6 @@ static struct vpfe_fmt formats[] = {
 		.s.bpp		= 2,
 		.supported	= false,
 	}, {
-		.name		= "RAW8 BGGR",
 		.fourcc		= V4L2_PIX_FMT_SBGGR8,
 		.code		= MEDIA_BUS_FMT_SBGGR8_1X8,
 		.l.width	= 10,
@@ -142,7 +135,6 @@ static struct vpfe_fmt formats[] = {
 		.s.bpp		= 1,
 		.supported	= false,
 	}, {
-		.name		= "RAW8 GBRG",
 		.fourcc		= V4L2_PIX_FMT_SGBRG8,
 		.code		= MEDIA_BUS_FMT_SGBRG8_1X8,
 		.l.width	= 10,
@@ -151,7 +143,6 @@ static struct vpfe_fmt formats[] = {
 		.s.bpp		= 1,
 		.supported	= false,
 	}, {
-		.name		= "RAW8 GRBG",
 		.fourcc		= V4L2_PIX_FMT_SGRBG8,
 		.code		= MEDIA_BUS_FMT_SGRBG8_1X8,
 		.l.width	= 10,
@@ -160,7 +151,6 @@ static struct vpfe_fmt formats[] = {
 		.s.bpp		= 1,
 		.supported	= false,
 	}, {
-		.name		= "RAW8 RGGB",
 		.fourcc		= V4L2_PIX_FMT_SRGGB8,
 		.code		= MEDIA_BUS_FMT_SRGGB8_1X8,
 		.l.width	= 10,
@@ -169,7 +159,6 @@ static struct vpfe_fmt formats[] = {
 		.s.bpp		= 1,
 		.supported	= false,
 	}, {
-		.name		= "RGB565 (LE)",
 		.fourcc		= V4L2_PIX_FMT_RGB565,
 		.code		= MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.l.width	= 10,
@@ -178,7 +167,6 @@ static struct vpfe_fmt formats[] = {
 		.s.bpp		= 2,
 		.supported	= false,
 	}, {
-		.name		= "RGB565 (BE)",
 		.fourcc		= V4L2_PIX_FMT_RGB565X,
 		.code		= MEDIA_BUS_FMT_RGB565_2X8_BE,
 		.l.width	= 10,
@@ -1540,12 +1528,10 @@ static int vpfe_enum_fmt(struct file *file, void  *priv,
 	if (!fmt)
 		return -EINVAL;
 
-	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
-	f->type = vpfe->fmt.type;
 
-	vpfe_dbg(1, vpfe, "vpfe_enum_format: mbus index: %d code: %x pixelformat: %s [%s]\n",
-		f->index, fmt->code, print_fourcc(fmt->fourcc), fmt->name);
+	vpfe_dbg(1, vpfe, "vpfe_enum_format: mbus index: %d code: %x pixelformat: %s\n",
+		 f->index, fmt->code, print_fourcc(fmt->fourcc));
 
 	return 0;
 }

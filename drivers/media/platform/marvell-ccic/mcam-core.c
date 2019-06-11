@@ -98,56 +98,48 @@ MODULE_PARM_DESC(buffer_mode,
 	container_of(notifier, struct mcam_camera, notifier)
 
 static struct mcam_format_struct {
-	__u8 *desc;
 	__u32 pixelformat;
 	int bpp;   /* Bytes per pixel */
 	bool planar;
 	u32 mbus_code;
 } mcam_formats[] = {
 	{
-		.desc		= "YUYV 4:2:2",
 		.pixelformat	= V4L2_PIX_FMT_YUYV,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp		= 2,
 		.planar		= false,
 	},
 	{
-		.desc		= "YVYU 4:2:2",
 		.pixelformat	= V4L2_PIX_FMT_YVYU,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp		= 2,
 		.planar		= false,
 	},
 	{
-		.desc		= "YUV 4:2:0 PLANAR",
 		.pixelformat	= V4L2_PIX_FMT_YUV420,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp		= 1,
 		.planar		= true,
 	},
 	{
-		.desc		= "YVU 4:2:0 PLANAR",
 		.pixelformat	= V4L2_PIX_FMT_YVU420,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp		= 1,
 		.planar		= true,
 	},
 	{
-		.desc		= "XRGB 444",
 		.pixelformat	= V4L2_PIX_FMT_XRGB444,
 		.mbus_code	= MEDIA_BUS_FMT_RGB444_2X8_PADHI_LE,
 		.bpp		= 2,
 		.planar		= false,
 	},
 	{
-		.desc		= "RGB 565",
 		.pixelformat	= V4L2_PIX_FMT_RGB565,
 		.mbus_code	= MEDIA_BUS_FMT_RGB565_2X8_LE,
 		.bpp		= 2,
 		.planar		= false,
 	},
 	{
-		.desc		= "Raw RGB Bayer",
 		.pixelformat	= V4L2_PIX_FMT_SBGGR8,
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR8_1X8,
 		.bpp		= 1,
@@ -1369,8 +1361,6 @@ static int mcam_vidioc_enum_fmt_vid_cap(struct file *filp,
 {
 	if (fmt->index >= N_MCAM_FMTS)
 		return -EINVAL;
-	strscpy(fmt->description, mcam_formats[fmt->index].desc,
-		sizeof(fmt->description));
 	fmt->pixelformat = mcam_formats[fmt->index].pixelformat;
 	return 0;
 }

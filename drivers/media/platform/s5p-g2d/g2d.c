@@ -29,31 +29,26 @@
 
 static struct g2d_fmt formats[] = {
 	{
-		.name	= "XRGB_8888",
 		.fourcc	= V4L2_PIX_FMT_RGB32,
 		.depth	= 32,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_8888),
 	},
 	{
-		.name	= "RGB_565",
 		.fourcc	= V4L2_PIX_FMT_RGB565X,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_RGB_565),
 	},
 	{
-		.name	= "XRGB_1555",
 		.fourcc	= V4L2_PIX_FMT_RGB555X,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_1555),
 	},
 	{
-		.name	= "XRGB_4444",
 		.fourcc	= V4L2_PIX_FMT_RGB444,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_4444),
 	},
 	{
-		.name	= "PACKED_RGB_888",
 		.fourcc	= V4L2_PIX_FMT_RGB24,
 		.depth	= 24,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_PACKED_RGB_888),
@@ -303,12 +298,9 @@ static int vidioc_querycap(struct file *file, void *priv,
 
 static int vidioc_enum_fmt(struct file *file, void *prv, struct v4l2_fmtdesc *f)
 {
-	struct g2d_fmt *fmt;
 	if (f->index >= NUM_FORMATS)
 		return -EINVAL;
-	fmt = &formats[f->index];
-	f->pixelformat = fmt->fourcc;
-	strscpy(f->description, fmt->name, sizeof(f->description));
+	f->pixelformat = formats[f->index].fourcc;
 	return 0;
 }
 
