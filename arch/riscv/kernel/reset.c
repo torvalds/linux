@@ -21,6 +21,7 @@ static void default_power_off(void)
 }
 
 void (*pm_power_off)(void) = default_power_off;
+EXPORT_SYMBOL(pm_power_off);
 
 void machine_restart(char *cmd)
 {
