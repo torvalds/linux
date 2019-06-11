@@ -399,6 +399,7 @@ static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
  */
 int snd_dice_stream_start_duplex(struct snd_dice *dice)
 {
+	unsigned int generation = dice->rx_resources[0].generation;
 	struct reg_params tx_params, rx_params;
 	unsigned int i;
 	unsigned int rate;
@@ -418,6 +419,15 @@ int snd_dice_stream_start_duplex(struct snd_dice *dice)
 		    amdtp_streaming_error(&dice->rx_stream[i])) {
 			finish_session(dice, &tx_params, &rx_params);
 			break;
+		}
+	}
+
+	if (generation != fw_parent_device(dice->unit)->card->generation) {
+		for (i = 0; i < MAX_STREAMS; ++i) {
+			if (i < tx_params.count)
+				fw_iso_resources_update(dice->tx_resources + i);
+			if (i < rx_params.count)
+				fw_iso_resources_update(dice->rx_resources + i);
 		}
 	}
 
