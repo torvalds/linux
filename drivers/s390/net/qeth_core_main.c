@@ -485,10 +485,11 @@ static inline int qeth_is_cq(struct qeth_card *card, unsigned int queue)
 	    queue == card->qdio.no_in_queues - 1;
 }
 
-static void qeth_setup_ccw(struct ccw1 *ccw, u8 cmd_code, u32 len, void *data)
+static void qeth_setup_ccw(struct ccw1 *ccw, u8 cmd_code, u8 flags, u32 len,
+			   void *data)
 {
 	ccw->cmd_code = cmd_code;
-	ccw->flags = CCW_FLAG_SLI;
+	ccw->flags = flags | CCW_FLAG_SLI;
 	ccw->count = len;
 	ccw->cda = (__u32) __pa(data);
 }
@@ -497,6 +498,7 @@ static int __qeth_issue_next_read(struct qeth_card *card)
 {
 	struct qeth_channel *channel = &card->read;
 	struct qeth_cmd_buffer *iob;
+	struct ccw1 *ccw;
 	int rc;
 
 	QETH_CARD_TEXT(card, 5, "issnxrd");
@@ -511,11 +513,11 @@ static int __qeth_issue_next_read(struct qeth_card *card)
 		return -ENOMEM;
 	}
 
-	qeth_setup_ccw(channel->ccw, CCW_CMD_READ, QETH_BUFSIZE, iob->data);
+	ccw = __ccw_from_cmd(iob);
+	qeth_setup_ccw(ccw, CCW_CMD_READ, 0, QETH_BUFSIZE, iob->data);
 	iob->callback = qeth_issue_next_read_cb;
 	QETH_CARD_TEXT(card, 6, "noirqpnd");
-	rc = ccw_device_start(channel->ccwdev, channel->ccw,
-			      (addr_t) iob, 0, 0);
+	rc = ccw_device_start(channel->ccwdev, ccw, (addr_t) iob, 0, 0);
 	if (rc) {
 		QETH_DBF_MESSAGE(2, "error %i on device %x when starting next read ccw!\n",
 				 rc, CARD_DEVID(card));
@@ -717,6 +719,14 @@ void qeth_release_buffer(struct qeth_cmd_buffer *iob)
 	struct qeth_channel *channel = iob->channel;
 	unsigned long flags;
 
+	if (iob->state == BUF_STATE_MALLOC) {
+		if (iob->reply)
+			qeth_put_reply(iob->reply);
+		kfree(iob->data);
+		kfree(iob);
+		return;
+	}
+
 	spin_lock_irqsave(&channel->iob_lock, flags);
 	iob->state = BUF_STATE_FREE;
 	iob->callback = NULL;
@@ -755,6 +765,33 @@ struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *channel)
 	return buffer;
 }
 EXPORT_SYMBOL_GPL(qeth_get_buffer);
+
+static struct qeth_cmd_buffer *qeth_alloc_cmd(struct qeth_channel *channel,
+					      unsigned int length,
+					      unsigned int ccws, long timeout)
+{
+	struct qeth_cmd_buffer *iob;
+
+	if (length > QETH_BUFSIZE)
+		return NULL;
+
+	iob = kzalloc(sizeof(*iob), GFP_KERNEL);
+	if (!iob)
+		return NULL;
+
+	iob->data = kzalloc(ALIGN(length, 8) + ccws * sizeof(struct ccw1),
+			    GFP_KERNEL | GFP_DMA);
+	if (!iob->data) {
+		kfree(iob);
+		return NULL;
+	}
+
+	iob->state = BUF_STATE_MALLOC;
+	iob->channel = channel;
+	iob->timeout = timeout;
+	iob->length = length;
+	return iob;
+}
 
 void qeth_clear_cmd_buffers(struct qeth_channel *channel)
 {
@@ -1587,7 +1624,7 @@ static int qeth_read_conf_data(struct qeth_card *card, void **buffer,
 	if (!rcd_buf)
 		return -ENOMEM;
 
-	qeth_setup_ccw(channel->ccw, ciw->cmd, ciw->count, rcd_buf);
+	qeth_setup_ccw(channel->ccw, ciw->cmd, 0, ciw->count, rcd_buf);
 	channel->state = CH_STATE_RCD;
 	spin_lock_irq(get_ccwdev_lock(channel->ccwdev));
 	ret = ccw_device_start_timeout(channel->ccwdev, channel->ccw,
@@ -1749,7 +1786,8 @@ static void qeth_idx_finalize_cmd(struct qeth_card *card,
 				  struct qeth_cmd_buffer *iob,
 				  unsigned int length)
 {
-	qeth_setup_ccw(iob->channel->ccw, CCW_CMD_WRITE, length, iob->data);
+	qeth_setup_ccw(__ccw_from_cmd(iob), CCW_CMD_WRITE, 0, length,
+		       iob->data);
 
 	memcpy(QETH_TRANSPORT_HEADER_SEQ_NO(iob->data), &card->seqno.trans_hdr,
 	       QETH_SEQ_NO_LENGTH);
@@ -1857,7 +1895,7 @@ static int qeth_send_control_data(struct qeth_card *card, int len,
 
 	QETH_CARD_TEXT(card, 6, "noirqpnd");
 	spin_lock_irq(get_ccwdev_lock(channel->ccwdev));
-	rc = ccw_device_start_timeout(channel->ccwdev, channel->ccw,
+	rc = ccw_device_start_timeout(channel->ccwdev, __ccw_from_cmd(iob),
 				      (addr_t) iob, 0, 0, timeout);
 	spin_unlock_irq(get_ccwdev_lock(channel->ccwdev));
 	if (rc) {
@@ -1982,7 +2020,7 @@ static void qeth_idx_finalize_query_cmd(struct qeth_card *card,
 					struct qeth_cmd_buffer *iob,
 					unsigned int length)
 {
-	qeth_setup_ccw(iob->channel->ccw, CCW_CMD_READ, length, iob->data);
+	qeth_setup_ccw(__ccw_from_cmd(iob), CCW_CMD_READ, 0, length, iob->data);
 }
 
 static void qeth_idx_activate_cb(struct qeth_card *card,
