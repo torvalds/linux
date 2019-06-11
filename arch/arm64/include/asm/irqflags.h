@@ -67,34 +67,32 @@ static inline void arch_local_irq_disable(void)
  */
 static inline unsigned long arch_local_save_flags(void)
 {
-	unsigned long daif_bits;
 	unsigned long flags;
 
-	daif_bits = read_sysreg(daif);
-
-	/*
-	 * The asm is logically equivalent to:
-	 *
-	 * if (system_uses_irq_prio_masking())
-	 *	flags = (daif_bits & PSR_I_BIT) ?
-	 *			GIC_PRIO_IRQOFF :
-	 *			read_sysreg_s(SYS_ICC_PMR_EL1);
-	 * else
-	 *	flags = daif_bits;
-	 */
 	asm volatile(ALTERNATIVE(
-			"mov	%0, %1\n"
-			"nop\n"
-			"nop",
-			__mrs_s("%0", SYS_ICC_PMR_EL1)
-			"ands	%1, %1, " __stringify(PSR_I_BIT) "\n"
-			"csel	%0, %0, %2, eq",
-			ARM64_HAS_IRQ_PRIO_MASKING)
-		: "=&r" (flags), "+r" (daif_bits)
-		: "r" ((unsigned long) GIC_PRIO_IRQOFF)
-		: "cc", "memory");
+		"mrs	%0, daif",
+		__mrs_s("%0", SYS_ICC_PMR_EL1),
+		ARM64_HAS_IRQ_PRIO_MASKING)
+		: "=&r" (flags)
+		:
+		: "memory");
 
 	return flags;
+}
+
+static inline int arch_irqs_disabled_flags(unsigned long flags)
+{
+	int res;
+
+	asm volatile(ALTERNATIVE(
+		"and	%w0, %w1, #" __stringify(PSR_I_BIT),
+		"eor	%w0, %w1, #" __stringify(GIC_PRIO_IRQON),
+		ARM64_HAS_IRQ_PRIO_MASKING)
+		: "=&r" (res)
+		: "r" ((int) flags)
+		: "memory");
+
+	return res;
 }
 
 static inline unsigned long arch_local_irq_save(void)
@@ -103,7 +101,12 @@ static inline unsigned long arch_local_irq_save(void)
 
 	flags = arch_local_save_flags();
 
-	arch_local_irq_disable();
+	/*
+	 * There are too many states with IRQs disabled, just keep the current
+	 * state if interrupts are already disabled/masked.
+	 */
+	if (!arch_irqs_disabled_flags(flags))
+		arch_local_irq_disable();
 
 	return flags;
 }
@@ -124,21 +127,5 @@ static inline void arch_local_irq_restore(unsigned long flags)
 		: "memory");
 }
 
-static inline int arch_irqs_disabled_flags(unsigned long flags)
-{
-	int res;
-
-	asm volatile(ALTERNATIVE(
-			"and	%w0, %w1, #" __stringify(PSR_I_BIT) "\n"
-			"nop",
-			"cmp	%w1, #" __stringify(GIC_PRIO_IRQOFF) "\n"
-			"cset	%w0, ls",
-			ARM64_HAS_IRQ_PRIO_MASKING)
-		: "=&r" (res)
-		: "r" ((int) flags)
-		: "cc", "memory");
-
-	return res;
-}
 #endif
 #endif
