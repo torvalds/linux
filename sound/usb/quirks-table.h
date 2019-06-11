@@ -2422,7 +2422,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	USB_DEVICE(0x086a, 0x0001),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "Emagic",
-		/* .product_name = "Unitor8", */
+		.product_name = "Unitor8",
 		.ifnum = 2,
 		.type = QUIRK_MIDI_EMAGIC,
 		.data = & (const struct snd_usb_midi_endpoint_info) {
