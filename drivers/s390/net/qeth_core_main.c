@@ -1709,9 +1709,6 @@ static void qeth_idx_finalize_cmd(struct qeth_card *card,
 				  struct qeth_cmd_buffer *iob,
 				  unsigned int length)
 {
-	qeth_setup_ccw(__ccw_from_cmd(iob), CCW_CMD_WRITE, 0, length,
-		       iob->data);
-
 	memcpy(QETH_TRANSPORT_HEADER_SEQ_NO(iob->data), &card->seqno.trans_hdr,
 	       QETH_SEQ_NO_LENGTH);
 	if (iob->channel == &card->write)
@@ -1731,6 +1728,8 @@ static void qeth_mpc_finalize_cmd(struct qeth_card *card,
 				  struct qeth_cmd_buffer *iob,
 				  unsigned int length)
 {
+	qeth_setup_ccw(__ccw_from_cmd(iob), CCW_CMD_WRITE, 0, length,
+		       iob->data);
 	qeth_idx_finalize_cmd(card, iob, length);
 
 	memcpy(QETH_PDU_HEADER_SEQ_NO(iob->data),
@@ -1920,8 +1919,8 @@ static int qeth_idx_check_activate_response(struct qeth_card *card,
 	}
 }
 
-static void qeth_idx_query_read_cb(struct qeth_card *card,
-				   struct qeth_cmd_buffer *iob)
+static void qeth_idx_activate_read_channel_cb(struct qeth_card *card,
+					      struct qeth_cmd_buffer *iob)
 {
 	struct qeth_channel *channel = iob->channel;
 	u16 peer_level;
@@ -1953,8 +1952,8 @@ out:
 	qeth_release_buffer(iob);
 }
 
-static void qeth_idx_query_write_cb(struct qeth_card *card,
-				    struct qeth_cmd_buffer *iob)
+static void qeth_idx_activate_write_channel_cb(struct qeth_card *card,
+					       struct qeth_cmd_buffer *iob)
 {
 	struct qeth_channel *channel = iob->channel;
 	u16 peer_level;
@@ -1980,30 +1979,19 @@ out:
 	qeth_release_buffer(iob);
 }
 
-static void qeth_idx_finalize_query_cmd(struct qeth_card *card,
-					struct qeth_cmd_buffer *iob,
-					unsigned int length)
-{
-	qeth_setup_ccw(__ccw_from_cmd(iob), CCW_CMD_READ, 0, length, iob->data);
-}
-
-static void qeth_idx_activate_cb(struct qeth_card *card,
-				 struct qeth_cmd_buffer *iob)
-{
-	qeth_notify_reply(iob->reply, 0);
-	qeth_release_buffer(iob);
-}
-
 static void qeth_idx_setup_activate_cmd(struct qeth_card *card,
 					struct qeth_cmd_buffer *iob)
 {
 	u16 addr = (card->info.cula << 8) + card->info.unit_addr2;
 	u8 port = ((u8)card->dev->dev_port) | 0x80;
+	struct ccw1 *ccw = __ccw_from_cmd(iob);
 	struct ccw_dev_id dev_id;
 
+	qeth_setup_ccw(&ccw[0], CCW_CMD_WRITE, CCW_FLAG_CC, IDX_ACTIVATE_SIZE,
+		       iob->data);
+	qeth_setup_ccw(&ccw[1], CCW_CMD_READ, 0, iob->length, iob->data);
 	ccw_device_get_id(CARD_DDEV(card), &dev_id);
 	iob->finalize = qeth_idx_finalize_cmd;
-	iob->callback = qeth_idx_activate_cb;
 
 	memcpy(QETH_IDX_ACT_PNO(iob->data), &port, 1);
 	memcpy(QETH_IDX_ACT_ISSUER_RM_TOKEN(iob->data),
@@ -2022,24 +2010,15 @@ static int qeth_idx_activate_read_channel(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 2, "idxread");
 
-	iob = qeth_get_buffer(channel);
+	iob = qeth_alloc_cmd(channel, QETH_BUFSIZE, 2, QETH_TIMEOUT);
 	if (!iob)
 		return -ENOMEM;
 
 	memcpy(iob->data, IDX_ACTIVATE_READ, IDX_ACTIVATE_SIZE);
 	qeth_idx_setup_activate_cmd(card, iob);
+	iob->callback = qeth_idx_activate_read_channel_cb;
 
 	rc = qeth_send_control_data(card, IDX_ACTIVATE_SIZE, iob, NULL, NULL);
-	if (rc)
-		return rc;
-
-	iob = qeth_get_buffer(channel);
-	if (!iob)
-		return -ENOMEM;
-
-	iob->finalize = qeth_idx_finalize_query_cmd;
-	iob->callback = qeth_idx_query_read_cb;
-	rc = qeth_send_control_data(card, QETH_BUFSIZE, iob, NULL, NULL);
 	if (rc)
 		return rc;
 
@@ -2055,24 +2034,15 @@ static int qeth_idx_activate_write_channel(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 2, "idxwrite");
 
-	iob = qeth_get_buffer(channel);
+	iob = qeth_alloc_cmd(channel, QETH_BUFSIZE, 2, QETH_TIMEOUT);
 	if (!iob)
 		return -ENOMEM;
 
 	memcpy(iob->data, IDX_ACTIVATE_WRITE, IDX_ACTIVATE_SIZE);
 	qeth_idx_setup_activate_cmd(card, iob);
+	iob->callback = qeth_idx_activate_write_channel_cb;
 
 	rc = qeth_send_control_data(card, IDX_ACTIVATE_SIZE, iob, NULL, NULL);
-	if (rc)
-		return rc;
-
-	iob = qeth_get_buffer(channel);
-	if (!iob)
-		return -ENOMEM;
-
-	iob->finalize = qeth_idx_finalize_query_cmd;
-	iob->callback = qeth_idx_query_write_cb;
-	rc = qeth_send_control_data(card, QETH_BUFSIZE, iob, NULL, NULL);
 	if (rc)
 		return rc;
 
