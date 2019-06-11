@@ -240,7 +240,7 @@ struct nfp_net_tx_ring {
 #define PCIE_DESC_RX_I_TCP_CSUM_OK	cpu_to_le16(BIT(11))
 #define PCIE_DESC_RX_I_UDP_CSUM		cpu_to_le16(BIT(10))
 #define PCIE_DESC_RX_I_UDP_CSUM_OK	cpu_to_le16(BIT(9))
-#define PCIE_DESC_RX_BPF		cpu_to_le16(BIT(8))
+#define PCIE_DESC_RX_DECRYPTED		cpu_to_le16(BIT(8))
 #define PCIE_DESC_RX_EOP		cpu_to_le16(BIT(7))
 #define PCIE_DESC_RX_IP4_CSUM		cpu_to_le16(BIT(6))
 #define PCIE_DESC_RX_IP4_CSUM_OK	cpu_to_le16(BIT(5))
@@ -367,6 +367,7 @@ struct nfp_net_rx_ring {
  * @hw_csum_rx_inner_ok: Counter of packets where the inner HW checksum was OK
  * @hw_csum_rx_complete: Counter of packets with CHECKSUM_COMPLETE reported
  * @hw_csum_rx_error:	 Counter of packets with bad checksums
+ * @hw_tls_rx:	    Number of packets with TLS decrypted by hardware
  * @tx_sync:	    Seqlock for atomic updates of TX stats
  * @tx_pkts:	    Number of Transmitted packets
  * @tx_bytes:	    Number of Transmitted bytes
@@ -415,6 +416,7 @@ struct nfp_net_r_vector {
 	u64 hw_csum_rx_ok;
 	u64 hw_csum_rx_inner_ok;
 	u64 hw_csum_rx_complete;
+	u64 hw_tls_rx;
 
 	u64 hw_csum_rx_error;
 	u64 rx_replace_buf_alloc_fail;
