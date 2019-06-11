@@ -6146,6 +6146,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 
 	.add_gid = mlx5_ib_add_gid,
 	.alloc_mr = mlx5_ib_alloc_mr,
+	.alloc_mr_integrity = mlx5_ib_alloc_mr_integrity,
 	.alloc_pd = mlx5_ib_alloc_pd,
 	.alloc_ucontext = mlx5_ib_alloc_ucontext,
 	.attach_mcast = mlx5_ib_mcg_attach,
@@ -6175,6 +6176,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.get_dma_mr = mlx5_ib_get_dma_mr,
 	.get_link_layer = mlx5_ib_port_link_layer,
 	.map_mr_sg = mlx5_ib_map_mr_sg,
+	.map_mr_sg_pi = mlx5_ib_map_mr_sg_pi,
 	.mmap = mlx5_ib_mmap,
 	.modify_cq = mlx5_ib_modify_cq,
 	.modify_device = mlx5_ib_modify_device,

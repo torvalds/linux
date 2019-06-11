@@ -587,6 +587,9 @@ struct mlx5_ib_mr {
 	void			*descs;
 	dma_addr_t		desc_map;
 	int			ndescs;
+	int			data_length;
+	int			meta_ndescs;
+	int			meta_length;
 	int			max_descs;
 	int			desc_size;
 	int			access_mode;
@@ -605,6 +608,7 @@ struct mlx5_ib_mr {
 	int			access_flags; /* Needed for rereg MR */
 
 	struct mlx5_ib_mr      *parent;
+	struct mlx5_ib_mr      *pi_mr; /* Needed for IB_MR_TYPE_INTEGRITY */
 	atomic_t		num_leaf_free;
 	wait_queue_head_t       q_leaf_free;
 	struct mlx5_async_work  cb_work;
@@ -1148,8 +1152,15 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			       u32 max_num_sg, struct ib_udata *udata);
+struct ib_mr *mlx5_ib_alloc_mr_integrity(struct ib_pd *pd,
+					 u32 max_num_sg,
+					 u32 max_num_meta_sg);
 int mlx5_ib_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		      unsigned int *sg_offset);
+int mlx5_ib_map_mr_sg_pi(struct ib_mr *ibmr, struct scatterlist *data_sg,
+			 int data_sg_nents, unsigned int *data_sg_offset,
+			 struct scatterlist *meta_sg, int meta_sg_nents,
+			 unsigned int *meta_sg_offset);
 int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 			const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 			const struct ib_mad_hdr *in, size_t in_mad_size,
