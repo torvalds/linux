@@ -2516,22 +2516,16 @@ static int fake_panic_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(fake_panic_fops, fake_panic_get, fake_panic_set,
 			 "%llu\n");
 
-static int __init mcheck_debugfs_init(void)
+static void __init mcheck_debugfs_init(void)
 {
-	struct dentry *dmce, *ffake_panic;
+	struct dentry *dmce;
 
 	dmce = mce_get_debugfs_dir();
-	if (!dmce)
-		return -ENOMEM;
-	ffake_panic = debugfs_create_file_unsafe("fake_panic", 0444, dmce,
-						 NULL, &fake_panic_fops);
-	if (!ffake_panic)
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_file_unsafe("fake_panic", 0444, dmce, NULL,
+				   &fake_panic_fops);
 }
 #else
-static int __init mcheck_debugfs_init(void) { return -EINVAL; }
+static void __init mcheck_debugfs_init(void) { }
 #endif
 
 DEFINE_STATIC_KEY_FALSE(mcsafe_key);

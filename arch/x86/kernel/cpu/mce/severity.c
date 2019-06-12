@@ -404,21 +404,13 @@ static const struct file_operations severities_coverage_fops = {
 
 static int __init severities_debugfs_init(void)
 {
-	struct dentry *dmce, *fsev;
+	struct dentry *dmce;
 
 	dmce = mce_get_debugfs_dir();
-	if (!dmce)
-		goto err_out;
 
-	fsev = debugfs_create_file("severities-coverage", 0444, dmce, NULL,
-				   &severities_coverage_fops);
-	if (!fsev)
-		goto err_out;
-
+	debugfs_create_file("severities-coverage", 0444, dmce, NULL,
+			    &severities_coverage_fops);
 	return 0;
-
-err_out:
-	return -ENOMEM;
 }
 late_initcall(severities_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
