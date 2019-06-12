@@ -781,16 +781,21 @@ static int rvin_open(struct file *file)
 	if (ret)
 		goto err_unlock;
 
-	if (v4l2_fh_is_singular_file(file)) {
-		ret = rvin_power_parallel(vin, true);
+	if (vin->info->use_mc) {
+		ret = v4l2_pipeline_pm_use(&vin->vdev.entity, 1);
 		if (ret < 0)
 			goto err_open;
+	} else {
+		if (v4l2_fh_is_singular_file(file)) {
+			ret = rvin_power_parallel(vin, true);
+			if (ret < 0)
+				goto err_open;
 
-		ret = v4l2_ctrl_handler_setup(&vin->ctrl_handler);
-		if (ret)
-			goto err_parallel;
+			ret = v4l2_ctrl_handler_setup(&vin->ctrl_handler);
+			if (ret)
+				goto err_parallel;
+		}
 	}
-
 	mutex_unlock(&vin->lock);
 
 	return 0;
@@ -820,12 +825,12 @@ static int rvin_release(struct file *file)
 	/* the release helper will cleanup any on-going streaming */
 	ret = _vb2_fop_release(file, NULL);
 
-	/*
-	 * If this was the last open file.
-	 * Then de-initialize hw module.
-	 */
-	if (fh_singular)
-		rvin_power_parallel(vin, false);
+	if (vin->info->use_mc) {
+		v4l2_pipeline_pm_use(&vin->vdev.entity, 0);
+	} else {
+		if (fh_singular)
+			rvin_power_parallel(vin, false);
+	}
 
 	mutex_unlock(&vin->lock);
 
@@ -839,74 +844,6 @@ static const struct v4l2_file_operations rvin_fops = {
 	.unlocked_ioctl	= video_ioctl2,
 	.open		= rvin_open,
 	.release	= rvin_release,
-	.poll		= vb2_fop_poll,
-	.mmap		= vb2_fop_mmap,
-	.read		= vb2_fop_read,
-};
-
-/* -----------------------------------------------------------------------------
- * Media controller file operations
- */
-
-static int rvin_mc_open(struct file *file)
-{
-	struct rvin_dev *vin = video_drvdata(file);
-	int ret;
-
-	ret = mutex_lock_interruptible(&vin->lock);
-	if (ret)
-		return ret;
-
-	ret = pm_runtime_get_sync(vin->dev);
-	if (ret < 0)
-		goto err_unlock;
-
-	ret = v4l2_pipeline_pm_use(&vin->vdev.entity, 1);
-	if (ret < 0)
-		goto err_pm;
-
-	file->private_data = vin;
-
-	ret = v4l2_fh_open(file);
-	if (ret)
-		goto err_v4l2pm;
-
-	mutex_unlock(&vin->lock);
-
-	return 0;
-err_v4l2pm:
-	v4l2_pipeline_pm_use(&vin->vdev.entity, 0);
-err_pm:
-	pm_runtime_put(vin->dev);
-err_unlock:
-	mutex_unlock(&vin->lock);
-
-	return ret;
-}
-
-static int rvin_mc_release(struct file *file)
-{
-	struct rvin_dev *vin = video_drvdata(file);
-	int ret;
-
-	mutex_lock(&vin->lock);
-
-	/* the release helper will cleanup any on-going streaming. */
-	ret = _vb2_fop_release(file, NULL);
-
-	v4l2_pipeline_pm_use(&vin->vdev.entity, 0);
-	pm_runtime_put(vin->dev);
-
-	mutex_unlock(&vin->lock);
-
-	return ret;
-}
-
-static const struct v4l2_file_operations rvin_mc_fops = {
-	.owner		= THIS_MODULE,
-	.unlocked_ioctl	= video_ioctl2,
-	.open		= rvin_mc_open,
-	.release	= rvin_mc_release,
 	.poll		= vb2_fop_poll,
 	.mmap		= vb2_fop_mmap,
 	.read		= vb2_fop_read,
@@ -952,6 +889,7 @@ int rvin_v4l2_register(struct rvin_dev *vin)
 	snprintf(vdev->name, sizeof(vdev->name), "VIN%u output", vin->id);
 	vdev->release = video_device_release_empty;
 	vdev->lock = &vin->lock;
+	vdev->fops = &rvin_fops;
 	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
 		V4L2_CAP_READWRITE;
 
@@ -963,10 +901,8 @@ int rvin_v4l2_register(struct rvin_dev *vin)
 	vin->format.colorspace = RVIN_DEFAULT_COLORSPACE;
 
 	if (vin->info->use_mc) {
-		vdev->fops = &rvin_mc_fops;
 		vdev->ioctl_ops = &rvin_mc_ioctl_ops;
 	} else {
-		vdev->fops = &rvin_fops;
 		vdev->ioctl_ops = &rvin_ioctl_ops;
 		rvin_reset_format(vin);
 	}
