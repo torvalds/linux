@@ -33,17 +33,6 @@
 /* Size of vardata block used for some of the cca requests/replies */
 #define VARDATASIZE 4096
 
-/* struct to hold cached info for each CCA card/domain */
-struct cca_info {
-	char new_mk_state;  /* '1' Empty, '2' Partially full, '3' Full */
-	char cur_mk_state;  /* '1' Invalid, '2' Valid */
-	char old_mk_state;  /* '1' Invalid, '2' Valid */
-	u64  new_mkvp;	    /* truncated sha256 hash of new master key */
-	u64  cur_mkvp;	    /* truncated sha256 hash of current master key */
-	u64  old_mkvp;	    /* truncated sha256 hash of old master key */
-	char serial[9];
-};
-
 struct cca_info_list_entry {
 	struct list_head list;
 	u16 cardnr;
@@ -164,9 +153,9 @@ static inline void prep_xcrb(struct ica_xcRB *pxcrb,
 	pxcrb->user_defined = (cardnr == 0xFFFF ? AUTOSELECT : cardnr);
 	pxcrb->request_control_blk_length =
 		preqcblk->cprb_len + preqcblk->req_parml;
-	pxcrb->request_control_blk_addr = (void *) preqcblk;
+	pxcrb->request_control_blk_addr = (void __user *) preqcblk;
 	pxcrb->reply_control_blk_length = preqcblk->rpl_msgbl;
-	pxcrb->reply_control_blk_addr = (void *) prepcblk;
+	pxcrb->reply_control_blk_addr = (void __user *) prepcblk;
 }
 
 /*
@@ -819,6 +808,24 @@ static int fetch_cca_info(u16 cardnr, u16 domain, struct cca_info *ci)
 
 	return found ? 0 : -ENOENT;
 }
+
+/*
+ * Fetch cca information about a CCA queue.
+ */
+int cca_get_info(u16 card, u16 dom, struct cca_info *ci, int verify)
+{
+	int rc;
+
+	rc = cca_info_cache_fetch(card, dom, ci);
+	if (rc || verify) {
+		rc = fetch_cca_info(card, dom, ci);
+		if (rc == 0)
+			cca_info_cache_update(card, dom, ci);
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(cca_get_info);
 
 /*
  * Search for a matching crypto card based on the Master Key

@@ -90,6 +90,22 @@ int cca_query_crypto_facility(u16 cardnr, u16 domain,
  */
 int cca_findcard(const u8 *seckey, u16 *pcardnr, u16 *pdomain, int verify);
 
+/* struct to hold info for each CCA queue */
+struct cca_info {
+	char new_mk_state;  /* '1' empty, '2' partially full, '3' full */
+	char cur_mk_state;  /* '1' invalid, '2' valid */
+	char old_mk_state;  /* '1' invalid, '2' valid */
+	u64  new_mkvp;	    /* truncated sha256 hash of new master key */
+	u64  cur_mkvp;	    /* truncated sha256 hash of current master key */
+	u64  old_mkvp;	    /* truncated sha256 hash of old master key */
+	char serial[9];     /* serial number string (8 ascii numbers + 0x00) */
+};
+
+/*
+ * Fetch cca information about an CCA queue.
+ */
+int cca_get_info(u16 card, u16 dom, struct cca_info *ci, int verify);
+
 void zcrypt_ccamisc_exit(void);
 
 #endif /* _ZCRYPT_CCAMISC_H_ */

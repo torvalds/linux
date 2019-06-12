@@ -18,6 +18,7 @@
 #include "zcrypt_msgtype50.h"
 #include "zcrypt_error.h"
 #include "zcrypt_cex4.h"
+#include "zcrypt_ccamisc.h"
 
 #define CEX4A_MIN_MOD_SIZE	  1	/*    8 bits	*/
 #define CEX4A_MAX_MOD_SIZE_2K	256	/* 2048 bits	*/
@@ -64,6 +65,85 @@ static struct ap_device_id zcrypt_cex4_queue_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(ap, zcrypt_cex4_queue_ids);
+
+/*
+ * CCA card addditional device attributes
+ */
+static ssize_t serialnr_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	struct cca_info ci;
+	struct ap_card *ac = to_ap_card(dev);
+	struct zcrypt_card *zc = ac->private;
+
+	memset(&ci, 0, sizeof(ci));
+
+	if (ap_domain_index >= 0)
+		cca_get_info(ac->id, ap_domain_index, &ci, zc->online);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", ci.serial);
+}
+static DEVICE_ATTR_RO(serialnr);
+
+static struct attribute *cca_card_attrs[] = {
+	&dev_attr_serialnr.attr,
+	NULL,
+};
+
+static const struct attribute_group cca_card_attr_group = {
+	.attrs = cca_card_attrs,
+};
+
+/*
+ * CCA queue addditional device attributes
+ */
+static ssize_t mkvps_show(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	int n = 0;
+	struct cca_info ci;
+	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
+	static const char * const cao_state[] = { "invalid", "valid" };
+	static const char * const new_state[] = { "empty", "partial", "full" };
+
+	memset(&ci, 0, sizeof(ci));
+
+	cca_get_info(AP_QID_CARD(zq->queue->qid),
+		     AP_QID_QUEUE(zq->queue->qid),
+		     &ci, zq->online);
+
+	if (ci.new_mk_state >= '1' && ci.new_mk_state <= '3')
+		n = snprintf(buf, PAGE_SIZE, "AES NEW: %s 0x%016llx\n",
+			     new_state[ci.new_mk_state - '1'], ci.new_mkvp);
+	else
+		n = snprintf(buf, PAGE_SIZE, "AES NEW: - -\n");
+
+	if (ci.cur_mk_state >= '1' && ci.cur_mk_state <= '2')
+		n += snprintf(buf + n, PAGE_SIZE - n, "AES CUR: %s 0x%016llx\n",
+			      cao_state[ci.cur_mk_state - '1'], ci.cur_mkvp);
+	else
+		n += snprintf(buf + n, PAGE_SIZE - n, "AES CUR: - -\n");
+
+	if (ci.old_mk_state >= '1' && ci.old_mk_state <= '2')
+		n += snprintf(buf + n, PAGE_SIZE - n, "AES OLD: %s 0x%016llx\n",
+			      cao_state[ci.old_mk_state - '1'], ci.old_mkvp);
+	else
+		n += snprintf(buf + n, PAGE_SIZE - n, "AES OLD: - -\n");
+
+	return n;
+}
+static DEVICE_ATTR_RO(mkvps);
+
+static struct attribute *cca_queue_attrs[] = {
+	&dev_attr_mkvps.attr,
+	NULL,
+};
+
+static const struct attribute_group cca_queue_attr_group = {
+	.attrs = cca_queue_attrs,
+};
 
 /**
  * Probe function for CEX4/CEX5/CEX6 card device. It always
@@ -194,8 +274,17 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
 	if (rc) {
 		ac->private = NULL;
 		zcrypt_card_free(zc);
+		goto out;
 	}
 
+	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO)) {
+		rc = sysfs_create_group(&ap_dev->device.kobj,
+					&cca_card_attr_group);
+		if (rc)
+			zcrypt_card_unregister(zc);
+	}
+
+out:
 	return rc;
 }
 
@@ -205,8 +294,11 @@ static int zcrypt_cex4_card_probe(struct ap_device *ap_dev)
  */
 static void zcrypt_cex4_card_remove(struct ap_device *ap_dev)
 {
-	struct zcrypt_card *zc = to_ap_card(&ap_dev->device)->private;
+	struct ap_card *ac = to_ap_card(&ap_dev->device);
+	struct zcrypt_card *zc = ac->private;
 
+	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO))
+		sysfs_remove_group(&ap_dev->device.kobj, &cca_card_attr_group);
 	if (zc)
 		zcrypt_card_unregister(zc);
 }
@@ -251,6 +343,7 @@ static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
 	} else {
 		return -ENODEV;
 	}
+
 	zq->queue = aq;
 	zq->online = 1;
 	atomic_set(&zq->load, 0);
@@ -261,8 +354,17 @@ static int zcrypt_cex4_queue_probe(struct ap_device *ap_dev)
 	if (rc) {
 		aq->private = NULL;
 		zcrypt_queue_free(zq);
+		goto out;
 	}
 
+	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO)) {
+		rc = sysfs_create_group(&ap_dev->device.kobj,
+					&cca_queue_attr_group);
+		if (rc)
+			zcrypt_queue_unregister(zq);
+	}
+
+out:
 	return rc;
 }
 
@@ -275,6 +377,8 @@ static void zcrypt_cex4_queue_remove(struct ap_device *ap_dev)
 	struct ap_queue *aq = to_ap_queue(&ap_dev->device);
 	struct zcrypt_queue *zq = aq->private;
 
+	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO))
+		sysfs_remove_group(&ap_dev->device.kobj, &cca_queue_attr_group);
 	if (zq)
 		zcrypt_queue_unregister(zq);
 }
