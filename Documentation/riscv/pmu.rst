@@ -1,5 +1,7 @@
+===================================
 Supporting PMUs on RISC-V platforms
-==========================================
+===================================
+
 Alan Kao <alankao@andestech.com>, Mar 2018
 
 Introduction
@@ -77,13 +79,13 @@ Note that some features can be done in this stage as well:
 (2) privilege level setting (user space only, kernel space only, both);
 (3) destructor setting.  Normally it is sufficient to apply *riscv_destroy_event*;
 (4) tweaks for non-sampling events, which will be utilized by functions such as
-*perf_adjust_period*, usually something like the follows:
+    *perf_adjust_period*, usually something like the follows::
 
-if (!is_sampling_event(event)) {
-        hwc->sample_period = x86_pmu.max_period;
-        hwc->last_period = hwc->sample_period;
-        local64_set(&hwc->period_left, hwc->sample_period);
-}
+      if (!is_sampling_event(event)) {
+              hwc->sample_period = x86_pmu.max_period;
+              hwc->last_period = hwc->sample_period;
+              local64_set(&hwc->period_left, hwc->sample_period);
+      }
 
 In the case of *riscv_base_pmu*, only (3) is provided for now.
 
@@ -94,10 +96,10 @@ In the case of *riscv_base_pmu*, only (3) is provided for now.
 3.1. Interrupt Initialization
 
 This often occurs at the beginning of the *event_init* method. In common
-practice, this should be a code segment like
+practice, this should be a code segment like::
 
-int x86_reserve_hardware(void)
-{
+  int x86_reserve_hardware(void)
+  {
         int err = 0;
 
         if (!atomic_inc_not_zero(&pmc_refcount)) {
@@ -114,7 +116,7 @@ int x86_reserve_hardware(void)
         }
 
         return err;
-}
+  }
 
 And the magic is in *reserve_pmc_hardware*, which usually does atomic
 operations to make implemented IRQ accessible from some global function pointer.
@@ -128,28 +130,28 @@ which will be introduced in the next section.)
 
 3.2. IRQ Structure
 
-Basically, a IRQ runs the following pseudo code:
+Basically, a IRQ runs the following pseudo code::
 
-for each hardware counter that triggered this overflow
+  for each hardware counter that triggered this overflow
 
-    get the event of this counter
+      get the event of this counter
 
-    // following two steps are defined as *read()*,
-    // check the section Reading/Writing Counters for details.
-    count the delta value since previous interrupt
-    update the event->count (# event occurs) by adding delta, and
-               event->hw.period_left by subtracting delta
+      // following two steps are defined as *read()*,
+      // check the section Reading/Writing Counters for details.
+      count the delta value since previous interrupt
+      update the event->count (# event occurs) by adding delta, and
+                 event->hw.period_left by subtracting delta
 
-    if the event overflows
-        sample data
-        set the counter appropriately for the next overflow
+      if the event overflows
+          sample data
+          set the counter appropriately for the next overflow
 
-        if the event overflows again
-            too frequently, throttle this event
-        fi
-    fi
+          if the event overflows again
+              too frequently, throttle this event
+          fi
+      fi
 
-end for
+  end for
 
 However as of this writing, none of the RISC-V implementations have designed an
 interrupt for perf, so the details are to be completed in the future.
@@ -195,23 +197,26 @@ A normal flow of these state transitions are as follows:
   At this stage, a general event is bound to a physical counter, if any.
   The state changes to PERF_HES_STOPPED and PERF_HES_UPTODATE, because it is now
   stopped, and the (software) event count does not need updating.
-** *start* is then called, and the counter is enabled.
-   With flag PERF_EF_RELOAD, it writes an appropriate value to the counter (check
-   previous section for detail).
-   Nothing is written if the flag does not contain PERF_EF_RELOAD.
-   The state now is reset to none, because it is neither stopped nor updated
-   (the counting already started)
+
+  - *start* is then called, and the counter is enabled.
+    With flag PERF_EF_RELOAD, it writes an appropriate value to the counter (check
+    previous section for detail).
+    Nothing is written if the flag does not contain PERF_EF_RELOAD.
+    The state now is reset to none, because it is neither stopped nor updated
+    (the counting already started)
+
 * When being context-switched out, *del* is called.  It then checks out all the
   events in the PMU and calls *stop* to update their counts.
-** *stop* is called by *del*
-   and the perf core with flag PERF_EF_UPDATE, and it often shares the same
-   subroutine as *read* with the same logic.
-   The state changes to PERF_HES_STOPPED and PERF_HES_UPTODATE, again.
 
-** Life cycle of these two pairs: *add* and *del* are called repeatedly as
-  tasks switch in-and-out; *start* and *stop* is also called when the perf core
-  needs a quick stop-and-start, for instance, when the interrupt period is being
-  adjusted.
+  - *stop* is called by *del*
+    and the perf core with flag PERF_EF_UPDATE, and it often shares the same
+    subroutine as *read* with the same logic.
+    The state changes to PERF_HES_STOPPED and PERF_HES_UPTODATE, again.
+
+  - Life cycle of these two pairs: *add* and *del* are called repeatedly as
+    tasks switch in-and-out; *start* and *stop* is also called when the perf core
+    needs a quick stop-and-start, for instance, when the interrupt period is being
+    adjusted.
 
 Current implementation is sufficient for now and can be easily extended to
 features in the future.
@@ -225,25 +230,26 @@ A. Related Structures
   Both structures are designed to be read-only.
 
   *struct pmu* defines some function pointer interfaces, and most of them take
-*struct perf_event* as a main argument, dealing with perf events according to
-perf's internal state machine (check kernel/events/core.c for details).
+  *struct perf_event* as a main argument, dealing with perf events according to
+  perf's internal state machine (check kernel/events/core.c for details).
 
   *struct riscv_pmu* defines PMU-specific parameters.  The naming follows the
-convention of all other architectures.
+  convention of all other architectures.
 
 * struct perf_event: include/linux/perf_event.h
 * struct hw_perf_event
 
   The generic structure that represents perf events, and the hardware-related
-details.
+  details.
 
 * struct riscv_hw_events: arch/riscv/include/asm/perf_event.h
 
   The structure that holds the status of events, has two fixed members:
-the number of events and the array of the events.
+  the number of events and the array of the events.
 
 References
 ----------
 
 [1] https://github.com/riscv/riscv-linux/pull/124
+
 [2] https://groups.google.com/a/groups.riscv.org/forum/#!topic/sw-dev/f19TmCNP6yA
