@@ -1,5 +1,9 @@
-		Mellanox watchdog drivers
-		for x86 based system switches
+=========================
+Mellanox watchdog drivers
+=========================
+
+for x86 based system switches
+=============================
 
 This driver provides watchdog functionality for various Mellanox
 Ethernet and Infiniband switch systems.
@@ -9,16 +13,16 @@ Mellanox watchdog device is implemented in a programmable logic device.
 There are 2 types of HW watchdog implementations.
 
 Type 1:
-Actual HW timeout can be defined as a power of 2 msec.
-e.g. timeout 20 sec will be rounded up to 32768 msec.
-The maximum timeout period is 32 sec (32768 msec.),
-Get time-left isn't supported
+  Actual HW timeout can be defined as a power of 2 msec.
+  e.g. timeout 20 sec will be rounded up to 32768 msec.
+  The maximum timeout period is 32 sec (32768 msec.),
+  Get time-left isn't supported
 
 Type 2:
-Actual HW timeout is defined in sec. and it's the same as
-a user-defined timeout.
-Maximum timeout is 255 sec.
-Get time-left is supported.
+  Actual HW timeout is defined in sec. and it's the same as
+  a user-defined timeout.
+  Maximum timeout is 255 sec.
+  Get time-left is supported.
 
 Type 1 HW watchdog implementation exist in old systems and
 all new systems have type 2 HW watchdog.

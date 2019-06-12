@@ -1,8 +1,13 @@
+===================================
+Berkshire Products PC Watchdog Card
+===================================
+
 Last reviewed: 10/05/2007
 
-                     Berkshire Products PC Watchdog Card
-                   Support for ISA Cards  Revision A and C
-           Documentation and Driver by Ken Hollis <kenji@bitgate.com>
+Support for ISA Cards  Revision A and C
+=======================================
+
+Documentation and Driver by Ken Hollis <kenji@bitgate.com>
 
  The PC Watchdog is a card that offers the same type of functionality that
  the WDT card does, only it doesn't require an IRQ to run.  Furthermore,
@@ -33,6 +38,7 @@ Last reviewed: 10/05/2007
 	WDIOC_GETSUPPORT
 		This returns the support of the card itself.  This
 		returns in structure "PCWDS" which returns:
+
 			options = WDIOS_TEMPPANIC
 				  (This card supports temperature)
 			firmware_version = xxxx
@@ -63,4 +69,3 @@ Last reviewed: 10/05/2007
 
  -- Ken Hollis
     (kenji@bitgate.com)
-

@@ -1,7 +1,12 @@
+===========================
+HPE iLO NMI Watchdog Driver
+===========================
+
+for iLO based ProLiant Servers
+==============================
+
 Last reviewed: 08/20/2018
 
-                     HPE iLO NMI Watchdog Driver
-                   for iLO based ProLiant Servers
 
  The HPE iLO NMI Watchdog driver is a kernel module that provides basic
  watchdog functionality and handler for the iLO "Generate NMI to System"
@@ -20,15 +25,16 @@ Last reviewed: 08/20/2018
 
  The hpwdt driver also has the following module parameters:
 
- soft_margin - allows the user to set the watchdog timer value.
+ ============  ================================================================
+ soft_margin   allows the user to set the watchdog timer value.
                Default value is 30 seconds.
- timeout     - an alias of soft_margin.
- pretimeout  - allows the user to set the watchdog pretimeout value.
+ timeout       an alias of soft_margin.
+ pretimeout    allows the user to set the watchdog pretimeout value.
                This is the number of seconds before timeout when an
                NMI is delivered to the system. Setting the value to
                zero disables the pretimeout NMI.
                Default value is 9 seconds.
- nowayout    - basic watchdog parameter that does not allow the timer to
+ nowayout      basic watchdog parameter that does not allow the timer to
                be restarted or an impending ASR to be escaped.
                Default value is set when compiling the kernel. If it is set
                to "Y", then there is no way of disabling the watchdog once
@@ -37,10 +43,12 @@ Last reviewed: 08/20/2018
                before calling panic. (-1) disables the watchdog.  When value
                is > 0, the timer is reprogrammed with the greater of
                value or current timeout value.
+ ============  ================================================================
 
- NOTE: More information about watchdog drivers in general, including the ioctl
+ NOTE:
+       More information about watchdog drivers in general, including the ioctl
        interface to /dev/watchdog can be found in
-       Documentation/watchdog/watchdog-api.txt and Documentation/IPMI.txt.
+       Documentation/watchdog/watchdog-api.rst and Documentation/IPMI.txt.
 
  Due to limitations in the iLO hardware, the NMI pretimeout if enabled,
  can only be set to 9 seconds.  Attempts to set pretimeout to other
@@ -67,4 +75,3 @@ Last reviewed: 08/20/2018
 
  The HPE iLO NMI Watchdog Driver and documentation were originally developed
  by Tom Mingarelli.
-
