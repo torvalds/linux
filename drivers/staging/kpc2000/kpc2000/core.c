@@ -327,7 +327,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	if (err < 0) {
 		dev_err(&pdev->dev, "probe: failed to get card number (%d)\n",
 			err);
-		goto out2;
+		goto err_free_pcard;
 	}
 	pcard->card_num = err;
 	scnprintf(pcard->name, 16, "kpcard%u", pcard->card_num);
@@ -346,7 +346,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 		dev_err(&pcard->pdev->dev,
 			"probe: failed to enable PCIE2000 PCIe device (%d)\n",
 			err);
-		goto out3;
+		goto err_remove_ida;
 	}
 
 	/*
@@ -360,7 +360,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 		dev_err(&pcard->pdev->dev,
 			"probe: REG_BAR could not remap memory to virtual space\n");
 		err = -ENODEV;
-		goto out4;
+		goto err_disable_device;
 	}
 	dev_dbg(&pcard->pdev->dev,
 		"probe: REG_BAR virt hardware address start [%p]\n",
@@ -373,7 +373,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 			"probe: failed to acquire PCI region (%d)\n",
 			err);
 		err = -ENODEV;
-		goto out4;
+		goto err_disable_device;
 	}
 
 	pcard->regs_base_resource.start = reg_bar_phys_addr;
@@ -393,7 +393,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 		dev_err(&pcard->pdev->dev,
 			"probe: DMA_BAR could not remap memory to virtual space\n");
 		err = -ENODEV;
-		goto out5;
+		goto err_unmap_regs;
 	}
 	dev_dbg(&pcard->pdev->dev,
 		"probe: DMA_BAR virt hardware address start [%p]\n",
@@ -407,7 +407,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 		dev_err(&pcard->pdev->dev,
 			"probe: failed to acquire PCI region (%d)\n", err);
 		err = -ENODEV;
-		goto out5;
+		goto err_unmap_regs;
 	}
 
 	pcard->dma_base_resource.start = dma_bar_phys_addr;
@@ -421,7 +421,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	pcard->sysinfo_regs_base = pcard->regs_bar_base;
 	err = read_system_regs(pcard);
 	if (err)
-		goto out6;
+		goto err_unmap_dma;
 
 	// Disable all "user" interrupts because they're not used yet.
 	writeq(0xFFFFFFFFFFFFFFFF,
@@ -461,7 +461,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	if (err) {
 		dev_err(&pcard->pdev->dev,
 			"CANNOT use DMA mask %0llx\n", DMA_BIT_MASK(64));
-		goto out7;
+		goto err_unmap_dma;
 	}
 	dev_dbg(&pcard->pdev->dev,
 		"Using DMA mask %0llx\n", dma_get_mask(PCARD_TO_DEV(pcard)));
@@ -471,14 +471,14 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	 */
 	err = pci_enable_msi(pcard->pdev);
 	if (err < 0)
-		goto out8a;
+		goto err_unmap_dma;
 
 	rv = request_irq(pcard->pdev->irq, kp2000_irq_handler, IRQF_SHARED,
 			 pcard->name, pcard);
 	if (rv) {
 		dev_err(&pcard->pdev->dev,
 			"%s: failed to request_irq: %d\n", __func__, rv);
-		goto out8b;
+		goto err_disable_msi;
 	}
 
 	/*
@@ -487,7 +487,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	err = sysfs_create_files(&pdev->dev.kobj, kp_attr_list);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add sysfs files: %d\n", err);
-		goto out9;
+		goto err_free_irq;
 	}
 
 	/*
@@ -495,7 +495,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	 */
 	err = kp2000_probe_cores(pcard);
 	if (err)
-		goto out10;
+		goto err_remove_sysfs;
 
 	/*
 	 * Step 11: Enable IRQs in HW
@@ -506,28 +506,26 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	mutex_unlock(&pcard->sem);
 	return 0;
 
-out10:
+err_remove_sysfs:
 	sysfs_remove_files(&pdev->dev.kobj, kp_attr_list);
-out9:
+err_free_irq:
 	free_irq(pcard->pdev->irq, pcard);
-out8b:
+err_disable_msi:
 	pci_disable_msi(pcard->pdev);
-out8a:
-out7:
-out6:
+err_unmap_dma:
 	iounmap(pcard->dma_bar_base);
 	pci_release_region(pdev, DMA_BAR);
 	pcard->dma_bar_base = NULL;
-out5:
+err_unmap_regs:
 	iounmap(pcard->regs_bar_base);
 	pci_release_region(pdev, REG_BAR);
 	pcard->regs_bar_base = NULL;
-out4:
+err_disable_device:
 	pci_disable_device(pcard->pdev);
-out3:
+err_remove_ida:
 	mutex_unlock(&pcard->sem);
 	ida_simple_remove(&card_num_ida, pcard->card_num);
-out2:
+err_free_pcard:
 	kfree(pcard);
 	return err;
 }
