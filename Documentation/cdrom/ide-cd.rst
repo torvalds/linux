@@ -1,18 +1,20 @@
 IDE-CD driver documentation
-Originally by scott snyder  <snyder@fnald0.fnal.gov> (19 May 1996)
-Carrying on the torch is: Erik Andersen <andersee@debian.org>
-New maintainers (19 Oct 1998): Jens Axboe <axboe@image.dk>
+===========================
+
+:Originally by: scott snyder  <snyder@fnald0.fnal.gov> (19 May 1996)
+:Carrying on the torch is: Erik Andersen <andersee@debian.org>
+:New maintainers (19 Oct 1998): Jens Axboe <axboe@image.dk>
 
 1. Introduction
 ---------------
 
-The ide-cd driver should work with all ATAPI ver 1.2 to ATAPI 2.6 compliant 
+The ide-cd driver should work with all ATAPI ver 1.2 to ATAPI 2.6 compliant
 CDROM drives which attach to an IDE interface.  Note that some CDROM vendors
 (including Mitsumi, Sony, Creative, Aztech, and Goldstar) have made
 both ATAPI-compliant drives and drives which use a proprietary
 interface.  If your drive uses one of those proprietary interfaces,
 this driver will not work with it (but one of the other CDROM drivers
-probably will).  This driver will not work with `ATAPI' drives which
+probably will).  This driver will not work with `ATAPI` drives which
 attach to the parallel port.  In addition, there is at least one drive
 (CyCDROM CR520ie) which attaches to the IDE port but is not ATAPI;
 this driver will not work with drives like that either (but see the
@@ -31,7 +33,7 @@ This driver provides the following features:
    from audio tracks.  The program cdda2wav can be used for this.
    Note, however, that only some drives actually support this.
 
- - There is now support for CDROM changers which comply with the 
+ - There is now support for CDROM changers which comply with the
    ATAPI 2.6 draft standard (such as the NEC CDR-251).  This additional
    functionality includes a function call to query which slot is the
    currently selected slot, a function call to query which slots contain
@@ -49,11 +51,11 @@ This driver provides the following features:
    driver.
 
 1. Make sure that the ide and ide-cd drivers are compiled into the
-   kernel you're using.  When configuring the kernel, in the section 
-   entitled "Floppy, IDE, and other block devices", say either `Y' 
-   (which will compile the support directly into the kernel) or `M'
+   kernel you're using.  When configuring the kernel, in the section
+   entitled "Floppy, IDE, and other block devices", say either `Y`
+   (which will compile the support directly into the kernel) or `M`
    (to compile support as a module which can be loaded and unloaded)
-   to the options: 
+   to the options::
 
       ATA/ATAPI/MFM/RLL support
       Include IDE/ATAPI CDROM support
@@ -72,35 +74,35 @@ This driver provides the following features:
    address and an IRQ number, the standard assignments being
    0x1f0 and 14 for the primary interface and 0x170 and 15 for the
    secondary interface.  Each interface can control up to two devices,
-   where each device can be a hard drive, a CDROM drive, a floppy drive, 
-   or a tape drive.  The two devices on an interface are called `master'
-   and `slave'; this is usually selectable via a jumper on the drive.
+   where each device can be a hard drive, a CDROM drive, a floppy drive,
+   or a tape drive.  The two devices on an interface are called `master`
+   and `slave`; this is usually selectable via a jumper on the drive.
 
    Linux names these devices as follows.  The master and slave devices
-   on the primary IDE interface are called `hda' and `hdb',
+   on the primary IDE interface are called `hda` and `hdb`,
    respectively.  The drives on the secondary interface are called
-   `hdc' and `hdd'.  (Interfaces at other locations get other letters
+   `hdc` and `hdd`.  (Interfaces at other locations get other letters
    in the third position; see Documentation/ide/ide.txt.)
 
    If you want your CDROM drive to be found automatically by the
    driver, you should make sure your IDE interface uses either the
    primary or secondary addresses mentioned above.  In addition, if
    the CDROM drive is the only device on the IDE interface, it should
-   be jumpered as `master'.  (If for some reason you cannot configure
+   be jumpered as `master`.  (If for some reason you cannot configure
    your system in this manner, you can probably still use the driver.
    You may have to pass extra configuration information to the kernel
    when you boot, however.  See Documentation/ide/ide.txt for more
    information.)
 
 4. Boot the system.  If the drive is recognized, you should see a
-   message which looks like
+   message which looks like::
 
      hdb: NEC CD-ROM DRIVE:260, ATAPI CDROM drive
 
    If you do not see this, see section 5 below.
 
 5. You may want to create a symbolic link /dev/cdrom pointing to the
-   actual device.  You can do this with the command
+   actual device.  You can do this with the command::
 
      ln -s  /dev/hdX  /dev/cdrom
 
@@ -108,14 +110,14 @@ This driver provides the following features:
    drive is installed.
 
 6. You should be able to see any error messages from the driver with
-   the `dmesg' command.
+   the `dmesg` command.
 
 
 3. Basic usage
 --------------
 
-An ISO 9660 CDROM can be mounted by putting the disc in the drive and 
-typing (as root)
+An ISO 9660 CDROM can be mounted by putting the disc in the drive and
+typing (as root)::
 
   mount -t iso9660 /dev/cdrom /mnt/cdrom
 
@@ -123,7 +125,7 @@ where it is assumed that /dev/cdrom is a link pointing to the actual
 device (as described in step 5 of the last section) and /mnt/cdrom is
 an empty directory.  You should now be able to see the contents of the
 CDROM under the /mnt/cdrom directory.  If you want to eject the CDROM,
-you must first dismount it with a command like
+you must first dismount it with a command like::
 
   umount /mnt/cdrom
 
@@ -148,7 +150,7 @@ such as cdda2wav.  The only types of drive which I've heard support
 this are Sony and Toshiba drives.  You will get errors if you try to
 use this function on a drive which does not support it.
 
-For supported changers, you can use the `cdchange' program (appended to
+For supported changers, you can use the `cdchange` program (appended to
 the end of this file) to switch between changer slots.  Note that the
 drive should be unmounted before attempting this.  The program takes
 two arguments:  the CDROM device, and the slot number to which you wish
@@ -165,7 +167,7 @@ Documentation/ide/ide.txt for current information about the underlying
 IDE support code.  Some of these items apply only to earlier versions
 of the driver, but are mentioned here for completeness.
 
-In most cases, you should probably check with `dmesg' for any errors
+In most cases, you should probably check with `dmesg` for any errors
 from the driver.
 
 a. Drive is not detected during booting.
@@ -184,9 +186,9 @@ a. Drive is not detected during booting.
 
    - If the autoprobing is not finding your drive, you can tell the
      driver to assume that one exists by using a lilo option of the
-     form `hdX=cdrom', where X is the drive letter corresponding to
-     where your drive is installed.  Note that if you do this and you 
-     see a boot message like
+     form `hdX=cdrom`, where X is the drive letter corresponding to
+     where your drive is installed.  Note that if you do this and you
+     see a boot message like::
 
        hdX: ATAPI cdrom (?)
 
@@ -220,7 +222,7 @@ b. Timeout/IRQ errors.
     probably not making it to the host.
 
   - IRQ problems may also be indicated by the message
-    `IRQ probe failed (<n>)' while booting.  If <n> is zero, that
+    `IRQ probe failed (<n>)` while booting.  If <n> is zero, that
     means that the system did not see an interrupt from the drive when
     it was expecting one (on any feasible IRQ).  If <n> is negative,
     that means the system saw interrupts on multiple IRQ lines, when
@@ -240,27 +242,27 @@ b. Timeout/IRQ errors.
     there are hardware problems with the interrupt setup; they
     apparently don't use interrupts.
 
-  - If you own a Pioneer DR-A24X, you _will_ get nasty error messages 
+  - If you own a Pioneer DR-A24X, you _will_ get nasty error messages
     on boot such as "irq timeout: status=0x50 { DriveReady SeekComplete }"
     The Pioneer DR-A24X CDROM drives are fairly popular these days.
     Unfortunately, these drives seem to become very confused when we perform
     the standard Linux ATA disk drive probe. If you own one of these drives,
-    you can bypass the ATA probing which confuses these CDROM drives, by 
-    adding `append="hdX=noprobe hdX=cdrom"' to your lilo.conf file and running 
-    lilo (again where X is the drive letter corresponding to where your drive 
+    you can bypass the ATA probing which confuses these CDROM drives, by
+    adding `append="hdX=noprobe hdX=cdrom"` to your lilo.conf file and running
+    lilo (again where X is the drive letter corresponding to where your drive
     is installed.)
-    
+
 c. System hangups.
 
   - If the system locks up when you try to access the CDROM, the most
     likely cause is that you have a buggy IDE adapter which doesn't
     properly handle simultaneous transactions on multiple interfaces.
     The most notorious of these is the CMD640B chip.  This problem can
-    be worked around by specifying the `serialize' option when
+    be worked around by specifying the `serialize` option when
     booting.  Recent kernels should be able to detect the need for
     this automatically in most cases, but the detection is not
     foolproof.  See Documentation/ide/ide.txt for more information
-    about the `serialize' option and the CMD640B.
+    about the `serialize` option and the CMD640B.
 
   - Note that many MS-DOS CDROM drivers will work with such buggy
     hardware, apparently because they never attempt to overlap CDROM
@@ -269,14 +271,14 @@ c. System hangups.
 
 d. Can't mount a CDROM.
 
-  - If you get errors from mount, it may help to check `dmesg' to see
+  - If you get errors from mount, it may help to check `dmesg` to see
     if there are any more specific errors from the driver or from the
     filesystem.
 
   - Make sure there's a CDROM loaded in the drive, and that's it's an
     ISO 9660 disc.  You can't mount an audio CD.
 
-  - With the CDROM in the drive and unmounted, try something like
+  - With the CDROM in the drive and unmounted, try something like::
 
       cat /dev/cdrom | od | more
 
@@ -284,9 +286,9 @@ d. Can't mount a CDROM.
     OK, and the problem is at the filesystem level (i.e., the CDROM is
     not ISO 9660 or has errors in the filesystem structure).
 
-  - If you see `not a block device' errors, check that the definitions
+  - If you see `not a block device` errors, check that the definitions
     of the device special files are correct.  They should be as
-    follows:
+    follows::
 
       brw-rw----   1 root     disk       3,   0 Nov 11 18:48 /dev/hda
       brw-rw----   1 root     disk       3,  64 Nov 11 18:48 /dev/hdb
@@ -301,7 +303,7 @@ d. Can't mount a CDROM.
     If you have a /dev/cdrom symbolic link, check that it is pointing
     to the correct device file.
 
-    If you hear people talking of the devices `hd1a' and `hd1b', these
+    If you hear people talking of the devices `hd1a` and `hd1b`, these
     were old names for what are now called hdc and hdd.  Those names
     should be considered obsolete.
 
@@ -311,8 +313,8 @@ d. Can't mount a CDROM.
     always give meaningful error messages.
 
 
-e. Directory listings are unpredictably truncated, and `dmesg' shows
-   `buffer botch' error messages from the driver.
+e. Directory listings are unpredictably truncated, and `dmesg` shows
+   `buffer botch` error messages from the driver.
 
   - There was a bug in the version of the driver in 1.2.x kernels
     which could cause this.  It was fixed in 1.3.0.  If you can't
@@ -335,34 +337,36 @@ f. Data corruption.
 5. cdchange.c
 -------------
 
-/*
- * cdchange.c  [-v]  <device>  [<slot>]
- *
- * This loads a CDROM from a specified slot in a changer, and displays 
- * information about the changer status.  The drive should be unmounted before 
- * using this program.
- *
- * Changer information is displayed if either the -v flag is specified
- * or no slot was specified.
- *
- * Based on code originally from Gerhard Zuber <zuber@berlin.snafu.de>.
- * Changer status information, and rewrite for the new Uniform CDROM driver
- * interface by Erik Andersen <andersee@debian.org>.
- */
+::
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <linux/cdrom.h>
+  /*
+   * cdchange.c  [-v]  <device>  [<slot>]
+   *
+   * This loads a CDROM from a specified slot in a changer, and displays
+   * information about the changer status.  The drive should be unmounted before
+   * using this program.
+   *
+   * Changer information is displayed if either the -v flag is specified
+   * or no slot was specified.
+   *
+   * Based on code originally from Gerhard Zuber <zuber@berlin.snafu.de>.
+   * Changer status information, and rewrite for the new Uniform CDROM driver
+   * interface by Erik Andersen <andersee@debian.org>.
+   */
+
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <errno.h>
+  #include <string.h>
+  #include <unistd.h>
+  #include <fcntl.h>
+  #include <sys/ioctl.h>
+  #include <linux/cdrom.h>
 
 
-int
-main (int argc, char **argv)
-{
+  int
+  main (int argc, char **argv)
+  {
 	char *program;
 	char *device;
 	int fd;           /* file descriptor for CD-ROM device */
@@ -382,30 +386,30 @@ main (int argc, char **argv)
 		fprintf (stderr, "       Slots are numbered 1 -- n.\n");
 		exit (1);
 	}
- 
+
        if (strcmp (argv[0], "-v") == 0) {
                 verbose = 1;
                 ++argv;
                 --argc;
         }
- 
+
 	device = argv[0];
- 
+
 	if (argc == 2)
 		slot = atoi (argv[1]) - 1;
 
-	/* open device */ 
+	/* open device */
 	fd = open(device, O_RDONLY | O_NONBLOCK);
 	if (fd < 0) {
-		fprintf (stderr, "%s: open failed for `%s': %s\n",
+		fprintf (stderr, "%s: open failed for `%s`: %s\n",
 			 program, device, strerror (errno));
 		exit (1);
 	}
 
-	/* Check CD player status */ 
+	/* Check CD player status */
 	total_slots_available = ioctl (fd, CDROM_CHANGER_NSLOTS);
 	if (total_slots_available <= 1 ) {
-		fprintf (stderr, "%s: Device `%s' is not an ATAPI "
+		fprintf (stderr, "%s: Device `%s` is not an ATAPI "
 			"compliant CD changer.\n", program, device);
 		exit (1);
 	}
@@ -418,7 +422,7 @@ main (int argc, char **argv)
 			exit (1);
 		}
 
-		/* load */ 
+		/* load */
 		slot=ioctl (fd, CDROM_SELECT_DISC, slot);
 		if (slot<0) {
 			fflush(stdout);
@@ -462,14 +466,14 @@ main (int argc, char **argv)
 
 		for (x_slot=0; x_slot<total_slots_available; x_slot++) {
 			printf ("Slot %2d: ", x_slot+1);
-             		status = ioctl (fd, CDROM_DRIVE_STATUS, x_slot);
-             		if (status<0) {
-             		     perror(" CDROM_DRIVE_STATUS");
-             		} else switch(status) {
+			status = ioctl (fd, CDROM_DRIVE_STATUS, x_slot);
+			if (status<0) {
+			     perror(" CDROM_DRIVE_STATUS");
+			} else switch(status) {
 			case CDS_DISC_OK:
 				printf ("Disc present.");
 				break;
-			case CDS_NO_DISC: 
+			case CDS_NO_DISC:
 				printf ("Empty slot.");
 				break;
 			case CDS_TRAY_OPEN:
@@ -507,11 +511,11 @@ main (int argc, char **argv)
 				break;
 			}
 			}
-                  	status = ioctl (fd, CDROM_MEDIA_CHANGED, x_slot);
-                  	if (status<0) {
+			status = ioctl (fd, CDROM_MEDIA_CHANGED, x_slot);
+			if (status<0) {
 				perror(" CDROM_MEDIA_CHANGED");
-                  	}
-		  	switch (status) {
+			}
+			switch (status) {
 			case 1:
 				printf ("Changed.\n");
 				break;
@@ -525,10 +529,10 @@ main (int argc, char **argv)
 	/* close device */
 	status = close (fd);
 	if (status != 0) {
-		fprintf (stderr, "%s: close failed for `%s': %s\n",
+		fprintf (stderr, "%s: close failed for `%s`: %s\n",
 			 program, device, strerror (errno));
 		exit (1);
 	}
- 
+
 	exit (0);
-}
+  }

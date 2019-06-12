@@ -1,3 +1,7 @@
+==============
+Packet writing
+==============
+
 Getting started quick
 ---------------------
 
@@ -10,13 +14,16 @@ Getting started quick
   Download from http://sourceforge.net/projects/linux-udf/
 
 - Grab a new CD-RW disc and format it (assuming CD-RW is hdc, substitute
-  as appropriate):
+  as appropriate)::
+
 	# cdrwtool -d /dev/hdc -q
 
-- Setup your writer
+- Setup your writer::
+
 	# pktsetup dev_name /dev/hdc
 
-- Now you can mount /dev/pktcdvd/dev_name and copy files to it. Enjoy!
+- Now you can mount /dev/pktcdvd/dev_name and copy files to it. Enjoy::
+
 	# mount /dev/pktcdvd/dev_name /cdrom -t udf -o rw,noatime
 
 
@@ -25,11 +32,11 @@ Packet writing for DVD-RW media
 
 DVD-RW discs can be written to much like CD-RW discs if they are in
 the so called "restricted overwrite" mode. To put a disc in restricted
-overwrite mode, run:
+overwrite mode, run::
 
 	# dvd+rw-format /dev/hdc
 
-You can then use the disc the same way you would use a CD-RW disc:
+You can then use the disc the same way you would use a CD-RW disc::
 
 	# pktsetup dev_name /dev/hdc
 	# mount /dev/pktcdvd/dev_name /cdrom -t udf -o rw,noatime
@@ -41,7 +48,7 @@ Packet writing for DVD+RW media
 According to the DVD+RW specification, a drive supporting DVD+RW discs
 shall implement "true random writes with 2KB granularity", which means
 that it should be possible to put any filesystem with a block size >=
-2KB on such a disc. For example, it should be possible to do:
+2KB on such a disc. For example, it should be possible to do::
 
 	# dvd+rw-format /dev/hdc   (only needed if the disc has never
 	                            been formatted)
@@ -54,7 +61,7 @@ follow the specification, but suffer bad performance problems if the
 writes are not 32KB aligned.
 
 Both problems can be solved by using the pktcdvd driver, which always
-generates aligned writes.
+generates aligned writes::
 
 	# dvd+rw-format /dev/hdc
 	# pktsetup dev_name /dev/hdc
@@ -83,7 +90,7 @@ Notes
 
 - Since the pktcdvd driver makes the disc appear as a regular block
   device with a 2KB block size, you can put any filesystem you like on
-  the disc. For example, run:
+  the disc. For example, run::
 
 	# /sbin/mke2fs /dev/pktcdvd/dev_name
 
@@ -97,7 +104,7 @@ Since Linux 2.6.20, the pktcdvd module has a sysfs interface
 and can be controlled by it. For example the "pktcdvd" tool uses
 this interface. (see http://tom.ist-im-web.de/download/pktcdvd )
 
-"pktcdvd" works similar to "pktsetup", e.g.:
+"pktcdvd" works similar to "pktsetup", e.g.::
 
 	# pktcdvd -a dev_name /dev/hdc
 	# mkudffs /dev/pktcdvd/dev_name
@@ -115,7 +122,7 @@ For a description of the sysfs interface look into the file:
 Using the pktcdvd debugfs interface
 -----------------------------------
 
-To read pktcdvd device infos in human readable form, do:
+To read pktcdvd device infos in human readable form, do::
 
 	# cat /sys/kernel/debug/pktcdvd/pktcdvd[0-7]/info
 

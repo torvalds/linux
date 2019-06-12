@@ -7610,7 +7610,7 @@ IDE/ATAPI DRIVERS
 M:	Borislav Petkov <bp@alien8.de>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
-F:	Documentation/cdrom/ide-cd
+F:	Documentation/cdrom/ide-cd.rst
 F:	drivers/ide/ide-cd*
 
 IDEAPAD LAPTOP EXTRAS DRIVER
