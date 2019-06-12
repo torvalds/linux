@@ -762,20 +762,6 @@ static int rvin_power_parallel(struct rvin_dev *vin, bool on)
 	return 0;
 }
 
-static int rvin_initialize_device(struct file *file)
-{
-	struct rvin_dev *vin = video_drvdata(file);
-	int ret;
-
-	ret = rvin_power_parallel(vin, true);
-	if (ret < 0)
-		return ret;
-
-	v4l2_ctrl_handler_setup(&vin->ctrl_handler);
-
-	return 0;
-}
-
 static int rvin_open(struct file *file)
 {
 	struct rvin_dev *vin = video_drvdata(file);
@@ -796,14 +782,20 @@ static int rvin_open(struct file *file)
 		goto err_unlock;
 
 	if (v4l2_fh_is_singular_file(file)) {
-		ret = rvin_initialize_device(file);
-		if (ret)
+		ret = rvin_power_parallel(vin, true);
+		if (ret < 0)
 			goto err_open;
+
+		ret = v4l2_ctrl_handler_setup(&vin->ctrl_handler);
+		if (ret)
+			goto err_parallel;
 	}
 
 	mutex_unlock(&vin->lock);
 
 	return 0;
+err_parallel:
+	rvin_power_parallel(vin, false);
 err_open:
 	v4l2_fh_release(file);
 err_unlock:
