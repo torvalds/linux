@@ -44,6 +44,8 @@
 #define S10_RP_RXCPL_STATUS		0x200C
 #define S10_RP_CFG_ADDR(pcie, reg)	\
 	(((pcie)->hip_base) + (reg) + (1 << 20))
+#define S10_RP_SECONDARY(pcie)		\
+	readb(S10_RP_CFG_ADDR(pcie, PCI_SECONDARY_BUS))
 
 /* TLP configuration type 0 and 1 */
 #define TLP_FMTTYPE_CFGRD0		0x04	/* Configuration Read Type 0 */
@@ -55,14 +57,9 @@
 #define TLP_WRITE_TAG			0x10
 #define RP_DEVFN			0
 #define TLP_REQ_ID(bus, devfn)		(((bus) << 8) | (devfn))
-#define TLP_CFGRD_DW0(pcie, bus)					\
-	((((bus == pcie->root_bus_nr) ? pcie->pcie_data->cfgrd0		\
-				: pcie->pcie_data->cfgrd1) << 24) |	\
-				TLP_PAYLOAD_SIZE)
-#define TLP_CFGWR_DW0(pcie, bus)					\
-	((((bus == pcie->root_bus_nr) ? pcie->pcie_data->cfgwr0		\
-				: pcie->pcie_data->cfgwr1) << 24) |	\
-				TLP_PAYLOAD_SIZE)
+#define TLP_CFG_DW0(pcie, cfg)		\
+		(((cfg) << 24) |	\
+		  TLP_PAYLOAD_SIZE)
 #define TLP_CFG_DW1(pcie, tag, be)	\
 	(((TLP_REQ_ID(pcie->root_bus_nr,  RP_DEVFN)) << 16) | (tag << 8) | (be))
 #define TLP_CFG_DW2(bus, devfn, offset)	\
@@ -322,14 +319,31 @@ static void s10_tlp_write_packet(struct altera_pcie *pcie, u32 *headers,
 	s10_tlp_write_tx(pcie, data, RP_TX_EOP);
 }
 
+static void get_tlp_header(struct altera_pcie *pcie, u8 bus, u32 devfn,
+			   int where, u8 byte_en, bool read, u32 *headers)
+{
+	u8 cfg;
+	u8 cfg0 = read ? pcie->pcie_data->cfgrd0 : pcie->pcie_data->cfgwr0;
+	u8 cfg1 = read ? pcie->pcie_data->cfgrd1 : pcie->pcie_data->cfgwr1;
+	u8 tag = read ? TLP_READ_TAG : TLP_WRITE_TAG;
+
+	if (pcie->pcie_data->version == ALTERA_PCIE_V1)
+		cfg = (bus == pcie->root_bus_nr) ? cfg0 : cfg1;
+	else
+		cfg = (bus > S10_RP_SECONDARY(pcie)) ? cfg0 : cfg1;
+
+	headers[0] = TLP_CFG_DW0(pcie, cfg);
+	headers[1] = TLP_CFG_DW1(pcie, tag, byte_en);
+	headers[2] = TLP_CFG_DW2(bus, devfn, where);
+}
+
 static int tlp_cfg_dword_read(struct altera_pcie *pcie, u8 bus, u32 devfn,
 			      int where, u8 byte_en, u32 *value)
 {
 	u32 headers[TLP_HDR_SIZE];
 
-	headers[0] = TLP_CFGRD_DW0(pcie, bus);
-	headers[1] = TLP_CFG_DW1(pcie, TLP_READ_TAG, byte_en);
-	headers[2] = TLP_CFG_DW2(bus, devfn, where);
+	get_tlp_header(pcie, bus, devfn, where, byte_en, true,
+		       headers);
 
 	pcie->pcie_data->ops->tlp_write_pkt(pcie, headers, 0, false);
 
@@ -342,9 +356,8 @@ static int tlp_cfg_dword_write(struct altera_pcie *pcie, u8 bus, u32 devfn,
 	u32 headers[TLP_HDR_SIZE];
 	int ret;
 
-	headers[0] = TLP_CFGWR_DW0(pcie, bus);
-	headers[1] = TLP_CFG_DW1(pcie, TLP_WRITE_TAG, byte_en);
-	headers[2] = TLP_CFG_DW2(bus, devfn, where);
+	get_tlp_header(pcie, bus, devfn, where, byte_en, false,
+		       headers);
 
 	/* check alignment to Qword */
 	if ((where & 0x7) == 0)
