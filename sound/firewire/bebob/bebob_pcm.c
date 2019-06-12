@@ -198,12 +198,16 @@ pcm_capture_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		unsigned int rate = params_rate(hw_params);
+
 		mutex_lock(&bebob->mutex);
-		bebob->substreams_counter++;
+		err = snd_bebob_stream_reserve_duplex(bebob, rate);
+		if (err >= 0)
+			++bebob->substreams_counter;
 		mutex_unlock(&bebob->mutex);
 	}
 
-	return 0;
+	return err;
 }
 static int
 pcm_playback_hw_params(struct snd_pcm_substream *substream,
@@ -218,12 +222,16 @@ pcm_playback_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		unsigned int rate = params_rate(hw_params);
+
 		mutex_lock(&bebob->mutex);
-		bebob->substreams_counter++;
+		err = snd_bebob_stream_reserve_duplex(bebob, rate);
+		if (err >= 0)
+			++bebob->substreams_counter;
 		mutex_unlock(&bebob->mutex);
 	}
 
-	return 0;
+	return err;
 }
 
 static int
@@ -261,10 +269,9 @@ static int
 pcm_capture_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	err = snd_bebob_stream_start_duplex(bebob, runtime->rate);
+	err = snd_bebob_stream_start_duplex(bebob);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&bebob->tx_stream);
 
@@ -274,10 +281,9 @@ static int
 pcm_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	err = snd_bebob_stream_start_duplex(bebob, runtime->rate);
+	err = snd_bebob_stream_start_duplex(bebob);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&bebob->rx_stream);
 
