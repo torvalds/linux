@@ -99,7 +99,6 @@ static char *debug_help_string;
 static char client_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
 static char client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
 
-static struct dentry *help_file_dentry;
 static struct dentry *client_debug_dentry;
 static struct dentry *debug_dir;
 
@@ -183,20 +182,9 @@ int orangefs_debugfs_init(int debug_mask)
 		(unsigned long long)orangefs_gossip_debug_mask);
 
 	debug_dir = debugfs_create_dir("orangefs", NULL);
-	if (!debug_dir) {
-		pr_info("%s: debugfs_create_dir failed.\n", __func__);
-		goto out;
-	}
 
-	help_file_dentry = debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE,
-				  0444,
-				  debug_dir,
-				  debug_help_string,
-				  &debug_help_fops);
-	if (!help_file_dentry) {
-		pr_info("%s: debugfs_create_file failed.\n", __func__);
-		goto out;
-	}
+	debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE, 0444, debug_dir,
+			    debug_help_string, &debug_help_fops);
 
 	orangefs_debug_disabled = 0;
 
@@ -230,17 +218,8 @@ static int orangefs_kernel_debug_init(void)
 		pr_info("%s: overflow 1!\n", __func__);
 	}
 
-	ret = debugfs_create_file(ORANGEFS_KMOD_DEBUG_FILE,
-				  0444,
-				  debug_dir,
-				  k_buffer,
-				  &kernel_debug_fops);
-	if (!ret) {
-		pr_info("%s: failed to create %s.\n",
-			__func__,
-			ORANGEFS_KMOD_DEBUG_FILE);
-		goto out;
-	}
+	debugfs_create_file(ORANGEFS_KMOD_DEBUG_FILE, 0444, debug_dir, k_buffer,
+			    &kernel_debug_fops);
 
 	rc = 0;
 
@@ -353,12 +332,6 @@ static int orangefs_client_debug_init(void)
 						  debug_dir,
 						  c_buffer,
 						  &kernel_debug_fops);
-	if (!client_debug_dentry) {
-		pr_info("%s: failed to create updated %s.\n",
-			__func__,
-			ORANGEFS_CLIENT_DEBUG_FILE);
-		goto out;
-	}
 
 	rc = 0;
 
