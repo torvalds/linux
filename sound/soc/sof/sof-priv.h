@@ -297,6 +297,8 @@ struct snd_sof_pcm {
 struct snd_sof_control {
 	struct snd_sof_dev *sdev;
 	int comp_id;
+	int min_volume_step; /* min volume step for volume_table */
+	int max_volume_step; /* max volume step for volume_table */
 	int num_channels;
 	u32 readback_offset; /* offset to mmaped data if used */
 	struct sof_ipc_ctrl_data *control_data;
