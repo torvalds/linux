@@ -301,14 +301,3 @@ _func_enter_;
 _func_exit_;
 	return true;
 }
-
-
-
-void read_eeprom_content(_adapter *padapter)
-{
-
-_func_enter_;
-
-
-_func_exit_;
-}
