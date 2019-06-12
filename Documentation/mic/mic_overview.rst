@@ -1,3 +1,7 @@
+======================================================
+Intel Many Integrated Core (MIC) architecture overview
+======================================================
+
 An Intel MIC X100 device is a PCIe form factor add-in coprocessor
 card based on the Intel Many Integrated Core (MIC) architecture
 that runs a Linux OS. It is a PCIe endpoint in a platform and therefore
@@ -45,7 +49,7 @@ Here is a block diagram of the various components described above. The
 virtio backends are situated on the host rather than the card given better
 single threaded performance for the host compared to MIC, the ability of
 the host to initiate DMA's to/from the card using the MIC DMA engine and
-the fact that the virtio block storage backend can only be on the host.
+the fact that the virtio block storage backend can only be on the host::
 
                +----------+           |             +----------+
                | Card OS  |           |             | Host OS  |

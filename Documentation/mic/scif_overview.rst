@@ -1,3 +1,7 @@
+========================================
+Symmetric Communication Interface (SCIF)
+========================================
+
 The Symmetric Communication Interface (SCIF (pronounced as skiff)) is a low
 level communications API across PCIe currently implemented for MIC. Currently
 SCIF provides inter-node communication within a single host platform, where a
@@ -8,8 +12,11 @@ is to deliver the maximum possible performance given the communication
 abilities of the hardware. SCIF has been used to implement an offload compiler
 runtime and OFED support for MPI implementations for MIC coprocessors.
 
-==== SCIF API Components ====
+SCIF API Components
+===================
+
 The SCIF API has the following parts:
+
 1. Connection establishment using a client server model
 2. Byte stream messaging intended for short messages
 3. Node enumeration to determine online nodes
@@ -28,9 +35,12 @@ can also register local memory which is followed by data transfer using either
 DMA, CPU copies or remote memory mapping via mmap. SCIF supports both user and
 kernel mode clients which are functionally equivalent.
 
-==== SCIF Performance for MIC ====
+SCIF Performance for MIC
+========================
+
 DMA bandwidth comparison between the TCP (over ethernet over PCIe) stack versus
-SCIF shows the performance advantages of SCIF for HPC applications and runtimes.
+SCIF shows the performance advantages of SCIF for HPC applications and
+runtimes::
 
              Comparison of TCP and SCIF based BW
 
@@ -66,33 +76,33 @@ space API similar to the kernel API in scif.h. The SCIF user space library
 is distributed @ https://software.intel.com/en-us/mic-developer
 
 Here is some pseudo code for an example of how two applications on two PCIe
-nodes would typically use the SCIF API:
+nodes would typically use the SCIF API::
 
-Process A (on node A)			Process B (on node B)
+  Process A (on node A)			Process B (on node B)
 
-/* get online node information */
-scif_get_node_ids(..)			scif_get_node_ids(..)
-scif_open(..)				scif_open(..)
-scif_bind(..)				scif_bind(..)
-scif_listen(..)
-scif_accept(..)				scif_connect(..)
-/* SCIF connection established */
+  /* get online node information */
+  scif_get_node_ids(..)			scif_get_node_ids(..)
+  scif_open(..)				scif_open(..)
+  scif_bind(..)				scif_bind(..)
+  scif_listen(..)
+  scif_accept(..)				scif_connect(..)
+  /* SCIF connection established */
 
-/* Send and receive short messages */
-scif_send(..)/scif_recv(..)		scif_send(..)/scif_recv(..)
+  /* Send and receive short messages */
+  scif_send(..)/scif_recv(..)		scif_send(..)/scif_recv(..)
 
-/* Register memory */
-scif_register(..)			scif_register(..)
+  /* Register memory */
+  scif_register(..)			scif_register(..)
 
-/* RDMA */
-scif_readfrom(..)/scif_writeto(..)	scif_readfrom(..)/scif_writeto(..)
+  /* RDMA */
+  scif_readfrom(..)/scif_writeto(..)	scif_readfrom(..)/scif_writeto(..)
 
-/* Fence DMAs */
-scif_fence_signal(..)			scif_fence_signal(..)
+  /* Fence DMAs */
+  scif_fence_signal(..)			scif_fence_signal(..)
 
-mmap(..)				mmap(..)
+  mmap(..)				mmap(..)
 
-/* Access remote registered memory */
+  /* Access remote registered memory */
 
-/* Close the endpoints */
-scif_close(..)				scif_close(..)
+  /* Close the endpoints */
+  scif_close(..)				scif_close(..)
