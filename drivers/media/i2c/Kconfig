@@ -511,6 +511,7 @@ config VIDEO_ADV7393
 config VIDEO_ADV7511
 	tristate "Analog Devices ADV7511 encoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on DRM_I2C_ADV7511=n || COMPILE_TEST
 	select HDMI
 	help
 	  Support for the Analog Devices ADV7511 video encoder.
