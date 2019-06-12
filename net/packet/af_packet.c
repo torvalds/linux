@@ -1082,10 +1082,10 @@ static void *packet_current_rx_frame(struct packet_sock *po,
 	}
 }
 
-static void *prb_lookup_block(struct packet_sock *po,
-				     struct packet_ring_buffer *rb,
-				     unsigned int idx,
-				     int status)
+static void *prb_lookup_block(const struct packet_sock *po,
+			      const struct packet_ring_buffer *rb,
+			      unsigned int idx,
+			      int status)
 {
 	struct tpacket_kbdq_core *pkc  = GET_PBDQC_FROM_RB(rb);
 	struct tpacket_block_desc *pbd = GET_PBLOCK_DESC(pkc, idx);
@@ -1211,12 +1211,12 @@ static bool __tpacket_has_room(const struct packet_sock *po, int pow_off)
 	return packet_lookup_frame(po, &po->rx_ring, idx, TP_STATUS_KERNEL);
 }
 
-static bool __tpacket_v3_has_room(struct packet_sock *po, int pow_off)
+static bool __tpacket_v3_has_room(const struct packet_sock *po, int pow_off)
 {
 	int idx, len;
 
-	len = po->rx_ring.prb_bdqc.knum_blocks;
-	idx = po->rx_ring.prb_bdqc.kactive_blk_num;
+	len = READ_ONCE(po->rx_ring.prb_bdqc.knum_blocks);
+	idx = READ_ONCE(po->rx_ring.prb_bdqc.kactive_blk_num);
 	if (pow_off)
 		idx += len >> pow_off;
 	if (idx >= len)
