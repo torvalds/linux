@@ -1876,7 +1876,8 @@ void ipu_image_convert_adjust(struct ipu_image *in, struct ipu_image *out,
 			      enum ipu_rotate_mode rot_mode)
 {
 	const struct ipu_image_pixfmt *infmt, *outfmt;
-	u32 w_align, h_align;
+	u32 w_align_out, h_align_out;
+	u32 w_align_in, h_align_in;
 
 	infmt = get_format(in->pix.pixelformat);
 	outfmt = get_format(out->pix.pixelformat);
@@ -1908,22 +1909,31 @@ void ipu_image_convert_adjust(struct ipu_image *in, struct ipu_image *out,
 	}
 
 	/* align input width/height */
-	w_align = ilog2(tile_width_align(IMAGE_CONVERT_IN, infmt, rot_mode));
-	h_align = ilog2(tile_height_align(IMAGE_CONVERT_IN, infmt, rot_mode));
-	in->pix.width = clamp_align(in->pix.width, MIN_W, MAX_W, w_align);
-	in->pix.height = clamp_align(in->pix.height, MIN_H, MAX_H, h_align);
+	w_align_in = ilog2(tile_width_align(IMAGE_CONVERT_IN, infmt,
+					    rot_mode));
+	h_align_in = ilog2(tile_height_align(IMAGE_CONVERT_IN, infmt,
+					     rot_mode));
+	in->pix.width = clamp_align(in->pix.width, MIN_W, MAX_W,
+				    w_align_in);
+	in->pix.height = clamp_align(in->pix.height, MIN_H, MAX_H,
+				     h_align_in);
 
 	/* align output width/height */
-	w_align = ilog2(tile_width_align(IMAGE_CONVERT_OUT, outfmt, rot_mode));
-	h_align = ilog2(tile_height_align(IMAGE_CONVERT_OUT, outfmt, rot_mode));
-	out->pix.width = clamp_align(out->pix.width, MIN_W, MAX_W, w_align);
-	out->pix.height = clamp_align(out->pix.height, MIN_H, MAX_H, h_align);
+	w_align_out = ilog2(tile_width_align(IMAGE_CONVERT_OUT, outfmt,
+					     rot_mode));
+	h_align_out = ilog2(tile_height_align(IMAGE_CONVERT_OUT, outfmt,
+					      rot_mode));
+	out->pix.width = clamp_align(out->pix.width, MIN_W, MAX_W,
+				     w_align_out);
+	out->pix.height = clamp_align(out->pix.height, MIN_H, MAX_H,
+				      h_align_out);
 
 	/* set input/output strides and image sizes */
 	in->pix.bytesperline = infmt->planar ?
-		clamp_align(in->pix.width, 2 << w_align, MAX_W, w_align) :
+		clamp_align(in->pix.width, 2 << w_align_in, MAX_W,
+			    w_align_in) :
 		clamp_align((in->pix.width * infmt->bpp) >> 3,
-			    2 << w_align, MAX_W, w_align);
+			    2 << w_align_in, MAX_W, w_align_in);
 	in->pix.sizeimage = infmt->planar ?
 		(in->pix.height * in->pix.bytesperline * infmt->bpp) >> 3 :
 		in->pix.height * in->pix.bytesperline;
