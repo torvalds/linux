@@ -797,8 +797,6 @@ static int rvin_initialize_device(struct file *file)
 	if (ret < 0)
 		return ret;
 
-	pm_runtime_enable(&vin->vdev.dev);
-
 	/*
 	 * Try to configure with default parameters. Notice: this is the
 	 * very first open, so, we cannot race against other calls,
@@ -813,7 +811,6 @@ static int rvin_initialize_device(struct file *file)
 
 	return 0;
 esfmt:
-	pm_runtime_disable(&vin->vdev.dev);
 	rvin_power_off(vin);
 
 	return ret;
@@ -863,10 +860,8 @@ static int rvin_release(struct file *file)
 	 * If this was the last open file.
 	 * Then de-initialize hw module.
 	 */
-	if (fh_singular) {
-		pm_runtime_disable(&vin->vdev.dev);
+	if (fh_singular)
 		rvin_power_off(vin);
-	}
 
 	mutex_unlock(&vin->lock);
 
