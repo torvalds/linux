@@ -460,10 +460,10 @@ static __u32 __packet_set_timestamp(struct packet_sock *po, void *frame,
 	return ts_status;
 }
 
-static void *packet_lookup_frame(struct packet_sock *po,
-		struct packet_ring_buffer *rb,
-		unsigned int position,
-		int status)
+static void *packet_lookup_frame(const struct packet_sock *po,
+				 const struct packet_ring_buffer *rb,
+				 unsigned int position,
+				 int status)
 {
 	unsigned int pg_vec_pos, frame_offset;
 	union tpacket_uhdr h;
@@ -1198,12 +1198,12 @@ static void packet_free_pending(struct packet_sock *po)
 #define ROOM_LOW	0x1
 #define ROOM_NORMAL	0x2
 
-static bool __tpacket_has_room(struct packet_sock *po, int pow_off)
+static bool __tpacket_has_room(const struct packet_sock *po, int pow_off)
 {
 	int idx, len;
 
-	len = po->rx_ring.frame_max + 1;
-	idx = po->rx_ring.head;
+	len = READ_ONCE(po->rx_ring.frame_max) + 1;
+	idx = READ_ONCE(po->rx_ring.head);
 	if (pow_off)
 		idx += len >> pow_off;
 	if (idx >= len)
