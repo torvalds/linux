@@ -6251,7 +6251,7 @@ FPGA DFL DRIVERS
 M:	Wu Hao <hao.wu@intel.com>
 L:	linux-fpga@vger.kernel.org
 S:	Maintained
-F:	Documentation/fpga/dfl.txt
+F:	Documentation/fpga/dfl.rst
 F:	include/uapi/linux/fpga-dfl.h
 F:	drivers/fpga/dfl*
 
