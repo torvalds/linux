@@ -295,10 +295,8 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	hda_dsp_ipc_int_disable(sdev);
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	if (IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC) && runtime_suspend)
-		/* enable controller wake up event */
-		snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK,
-				      hda->hda_codec_mask);
+	if (runtime_suspend)
+		hda_codec_jack_wake_enable(sdev);
 
 	/* power down all hda link */
 	snd_hdac_ext_bus_link_power_down_all(bus);
@@ -339,7 +337,6 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hdac_ext_link *hlink = NULL;
-	int status;
 #endif
 	int ret;
 
@@ -348,13 +345,6 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 	 * codecs. PCI TCSEL is defined in the Intel manuals.
 	 */
 	snd_sof_pci_update_bits(sdev, PCI_TCSEL, 0x07, 0);
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	if (runtime_resume) {
-		/* read STATESTS before controller reset */
-		status = snd_hdac_chip_readw(bus, STATESTS);
-	}
-#endif
 
 	/* reset and start hda controller */
 	ret = hda_dsp_ctrl_init_chip(sdev, true);
@@ -365,9 +355,9 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 	}
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* check jack status based on controller status */
+	/* check jack status */
 	if (runtime_resume)
-		hda_codec_jack_check(sdev, status);
+		hda_codec_jack_check(sdev);
 
 	/* turn off the links that were off before suspend */
 	list_for_each_entry(hlink, &bus->hlink_list, list) {

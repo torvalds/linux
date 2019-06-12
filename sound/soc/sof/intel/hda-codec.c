@@ -38,53 +38,55 @@ static void hda_codec_load_module(struct hda_codec *codec)
 static void hda_codec_load_module(struct hda_codec *codec) {}
 #endif
 
-/* check jack status after resuming from suspend mode */
-void hda_codec_jack_check(struct snd_sof_dev *sdev, int status)
+/* enable controller wake up event for all codecs with jack connectors */
+void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev)
 {
-	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hda_bus *hbus = sof_to_hbus(sdev);
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hda_codec *codec;
-	int mask;
-
-	/*
-	 * there are two reasons for runtime resume
-	 * (1) waken up by interrupt triggered by WAKEEN feature
-	 * (2) waken up by pm get functions for some audio operations
-	 * For case (1), the bits in status mean which codec triggers
-	 * the interrupt and jacks will be checked on these codecs.
-	 * For case (2), we need to check all the non-hdmi codecs for some
-	 * cases like playback with HDMI or capture with DMIC. In these
-	 * cases, only controller is active and codecs are suspended, so
-	 * codecs can't send unsolicited event to controller. The jack polling
-	 * operation will activate codecs and unsolicited event can work
-	 * even codecs become suspended later.
-	 */
-	mask = status ? status : hda->hda_codec_mask;
+	unsigned int mask = 0;
 
 	list_for_each_codec(codec, hbus)
-		if (mask & BIT(codec->core.addr))
-			schedule_delayed_work(&codec->jackpoll_work,
-					      codec->jackpoll_interval);
+		if (codec->jacktbl.used)
+			mask |= BIT(codec->core.addr);
+
+	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, mask);
+}
+
+/* check jack status after resuming from suspend mode */
+void hda_codec_jack_check(struct snd_sof_dev *sdev)
+{
+	struct hda_bus *hbus = sof_to_hbus(sdev);
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct hda_codec *codec;
 
 	/* disable controller Wake Up event*/
 	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, 0);
+
+	list_for_each_codec(codec, hbus)
+		/*
+		 * Wake up all jack-detecting codecs regardless whether an event
+		 * has been recorded in STATESTS
+		 */
+		if (codec->jacktbl.used)
+			schedule_delayed_work(&codec->jackpoll_work,
+					      codec->jackpoll_interval);
 }
 #else
-void hda_codec_jack_check(struct snd_sof_dev *sdev, int status) {}
+void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev) {}
+void hda_codec_jack_check(struct snd_sof_dev *sdev) {}
 #endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
+EXPORT_SYMBOL(hda_codec_jack_wake_enable);
 EXPORT_SYMBOL(hda_codec_jack_check);
 
 /* probe individual codec */
 static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
-	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_hda_priv *hda_priv;
 #endif
 	struct hda_bus *hbus = sof_to_hbus(sdev);
 	struct hdac_device *hdev;
-
 	u32 hda_cmd = (address << 28) | (AC_NODE_ROOT << 20) |
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	u32 resp = -1;
@@ -114,7 +116,6 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 	/* use legacy bus only for HDA codecs, idisp uses ext bus */
 	if ((resp & 0xFFFF0000) != IDISP_VID_INTEL) {
 		hdev->type = HDA_DEV_LEGACY;
-		hda->hda_codec_mask |= BIT(address);
 		hda_codec_load_module(&hda_priv->codec);
 	}
 
