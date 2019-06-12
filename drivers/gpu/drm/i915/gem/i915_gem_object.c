@@ -216,7 +216,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 		mutex_unlock(&i915->drm.struct_mutex);
 
-		GEM_BUG_ON(obj->bind_count);
+		GEM_BUG_ON(atomic_read(&obj->bind_count));
 		GEM_BUG_ON(obj->userfault_count);
 		GEM_BUG_ON(atomic_read(&obj->frontbuffer_bits));
 		GEM_BUG_ON(!list_empty(&obj->lut_list));

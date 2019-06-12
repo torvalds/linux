@@ -1233,7 +1233,7 @@ static void track_vma_bind(struct i915_vma *vma)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 
-	obj->bind_count++; /* track for eviction later */
+	atomic_inc(&obj->bind_count); /* track for eviction later */
 	__i915_gem_object_pin_pages(obj);
 
 	vma->pages = obj->mm.pages;

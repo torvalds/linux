@@ -1144,10 +1144,8 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 			if (obj->mm.madv != I915_MADV_WILLNEED)
 				list = &i915->mm.purge_list;
-			else if (obj->bind_count)
-				list = &i915->mm.bound_list;
 			else
-				list = &i915->mm.unbound_list;
+				list = &i915->mm.shrink_list;
 			list_move_tail(&obj->mm.link, list);
 
 			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
@@ -1770,8 +1768,7 @@ static void i915_gem_init__mm(struct drm_i915_private *i915)
 	init_llist_head(&i915->mm.free_list);
 
 	INIT_LIST_HEAD(&i915->mm.purge_list);
-	INIT_LIST_HEAD(&i915->mm.unbound_list);
-	INIT_LIST_HEAD(&i915->mm.bound_list);
+	INIT_LIST_HEAD(&i915->mm.shrink_list);
 	INIT_LIST_HEAD(&i915->mm.fence_list);
 
 	INIT_LIST_HEAD(&i915->mm.userfault_list);
@@ -1837,11 +1834,7 @@ int i915_gem_freeze(struct drm_i915_private *dev_priv)
 int i915_gem_freeze_late(struct drm_i915_private *i915)
 {
 	struct drm_i915_gem_object *obj;
-	struct list_head *phases[] = {
-		&i915->mm.unbound_list,
-		&i915->mm.bound_list,
-		NULL
-	}, **phase;
+	intel_wakeref_t wakeref;
 
 	/*
 	 * Called just before we write the hibernation image.
@@ -1858,17 +1851,18 @@ int i915_gem_freeze_late(struct drm_i915_private *i915)
 	 * the objects as well, see i915_gem_freeze()
 	 */
 
-	i915_gem_shrink(i915, -1UL, NULL, I915_SHRINK_UNBOUND);
+	wakeref = intel_runtime_pm_get(i915);
+
+	i915_gem_shrink(i915, -1UL, NULL, ~0);
 	i915_gem_drain_freed_objects(i915);
 
-	for (phase = phases; *phase; phase++) {
-		list_for_each_entry(obj, *phase, mm.link) {
-			i915_gem_object_lock(obj);
-			WARN_ON(i915_gem_object_set_to_cpu_domain(obj, true));
-			i915_gem_object_unlock(obj);
-		}
+	list_for_each_entry(obj, &i915->mm.shrink_list, mm.link) {
+		i915_gem_object_lock(obj);
+		WARN_ON(i915_gem_object_set_to_cpu_domain(obj, true));
+		i915_gem_object_unlock(obj);
 	}
-	GEM_BUG_ON(!list_empty(&i915->mm.purge_list));
+
+	intel_runtime_pm_put(i915, wakeref);
 
 	return 0;
 }

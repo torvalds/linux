@@ -158,15 +158,22 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 	intel_uc_suspend(i915);
 }
 
+static struct drm_i915_gem_object *first_mm_object(struct list_head *list)
+{
+	return list_first_entry_or_null(list,
+					struct drm_i915_gem_object,
+					mm.link);
+}
+
 void i915_gem_suspend_late(struct drm_i915_private *i915)
 {
 	struct drm_i915_gem_object *obj;
 	struct list_head *phases[] = {
-		&i915->mm.unbound_list,
-		&i915->mm.bound_list,
+		&i915->mm.shrink_list,
 		&i915->mm.purge_list,
 		NULL
 	}, **phase;
+	unsigned long flags;
 
 	/*
 	 * Neither the BIOS, ourselves or any other kernel
@@ -188,13 +195,30 @@ void i915_gem_suspend_late(struct drm_i915_private *i915)
 	 * machine in an unusable condition.
 	 */
 
+	spin_lock_irqsave(&i915->mm.obj_lock, flags);
 	for (phase = phases; *phase; phase++) {
-		list_for_each_entry(obj, *phase, mm.link) {
+		LIST_HEAD(keep);
+
+		while ((obj = first_mm_object(*phase))) {
+			list_move_tail(&obj->mm.link, &keep);
+
+			/* Beware the background _i915_gem_free_objects */
+			if (!kref_get_unless_zero(&obj->base.refcount))
+				continue;
+
+			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
+
 			i915_gem_object_lock(obj);
 			WARN_ON(i915_gem_object_set_to_gtt_domain(obj, false));
 			i915_gem_object_unlock(obj);
+			i915_gem_object_put(obj);
+
+			spin_lock_irqsave(&i915->mm.obj_lock, flags);
 		}
+
+		list_splice_tail(&keep, *phase);
 	}
+	spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
 	intel_uc_sanitize(i915);
 	i915_gem_sanitize(i915);

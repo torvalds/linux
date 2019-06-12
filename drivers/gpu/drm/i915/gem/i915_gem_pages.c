@@ -57,13 +57,19 @@ void __i915_gem_object_set_pages(struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(!HAS_PAGE_SIZES(i915, obj->mm.page_sizes.sg));
 
 	if (i915_gem_object_is_shrinkable(obj)) {
+		struct list_head *list;
 		unsigned long flags;
 
 		spin_lock_irqsave(&i915->mm.obj_lock, flags);
 
 		i915->mm.shrink_count++;
 		i915->mm.shrink_memory += obj->base.size;
-		list_add(&obj->mm.link, &i915->mm.unbound_list);
+
+		if (obj->mm.madv != I915_MADV_WILLNEED)
+			list = &i915->mm.purge_list;
+		else
+			list = &i915->mm.shrink_list;
+		list_add_tail(&obj->mm.link, list);
 
 		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 	}
@@ -193,7 +199,7 @@ int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj,
 	if (i915_gem_object_has_pinned_pages(obj))
 		return -EBUSY;
 
-	GEM_BUG_ON(obj->bind_count);
+	GEM_BUG_ON(atomic_read(&obj->bind_count));
 
 	/* May be called by shrinker from within get_pages() (on another bo) */
 	mutex_lock_nested(&obj->mm.lock, subclass);

@@ -83,10 +83,7 @@ static void obj_bump_mru(struct drm_i915_gem_object *obj)
 	unsigned long flags;
 
 	spin_lock_irqsave(&i915->mm.obj_lock, flags);
-
-	if (obj->bind_count)
-		list_move_tail(&obj->mm.link, &i915->mm.bound_list);
-
+	list_move_tail(&obj->mm.link, &i915->mm.shrink_list);
 	spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
 	obj->mm.dirty = true; /* be paranoid  */
@@ -538,7 +535,7 @@ static void assert_bind_count(const struct drm_i915_gem_object *obj)
 	 * assume that no else is pinning the pages, but as a rough assertion
 	 * that we will not run into problems later, this will do!)
 	 */
-	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < obj->bind_count);
+	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < atomic_read(&obj->bind_count));
 }
 
 /**
@@ -680,18 +677,8 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	mutex_unlock(&vma->vm->mutex);
 
 	if (vma->obj) {
-		struct drm_i915_gem_object *obj = vma->obj;
-		unsigned long flags;
-
-		spin_lock_irqsave(&dev_priv->mm.obj_lock, flags);
-
-		if (i915_gem_object_is_shrinkable(obj))
-			list_move_tail(&obj->mm.link, &dev_priv->mm.bound_list);
-
-		obj->bind_count++;
-		assert_bind_count(obj);
-
-		spin_unlock_irqrestore(&dev_priv->mm.obj_lock, flags);
+		atomic_inc(&vma->obj->bind_count);
+		assert_bind_count(vma->obj);
 	}
 
 	return 0;
@@ -707,8 +694,6 @@ err_unpin:
 static void
 i915_vma_remove(struct i915_vma *vma)
 {
-	struct drm_i915_private *i915 = vma->vm->i915;
-
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 	GEM_BUG_ON(vma->flags & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND));
 
@@ -725,17 +710,8 @@ i915_vma_remove(struct i915_vma *vma)
 	 */
 	if (vma->obj) {
 		struct drm_i915_gem_object *obj = vma->obj;
-		unsigned long flags;
 
-		spin_lock_irqsave(&i915->mm.obj_lock, flags);
-
-		GEM_BUG_ON(obj->bind_count == 0);
-		if (--obj->bind_count == 0 &&
-		    i915_gem_object_is_shrinkable(obj) &&
-		    obj->mm.madv == I915_MADV_WILLNEED)
-			list_move_tail(&obj->mm.link, &i915->mm.unbound_list);
-
-		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
+		atomic_dec(&obj->bind_count);
 
 		/*
 		 * And finally now the object is completely decoupled from this

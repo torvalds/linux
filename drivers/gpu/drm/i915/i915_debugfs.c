@@ -104,19 +104,6 @@ static char get_pin_mapped_flag(struct drm_i915_gem_object *obj)
 	return obj->mm.mapping ? 'M' : ' ';
 }
 
-static u64 i915_gem_obj_total_ggtt_size(struct drm_i915_gem_object *obj)
-{
-	u64 size = 0;
-	struct i915_vma *vma;
-
-	for_each_ggtt_vma(vma, obj) {
-		if (drm_mm_node_allocated(&vma->node))
-			size += vma->node.size;
-	}
-
-	return size;
-}
-
 static const char *
 stringify_page_sizes(unsigned int page_sizes, char *buf, size_t len)
 {
@@ -247,84 +234,6 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (frontbuffer: 0x%03x)", frontbuffer_bits);
 }
 
-static int obj_rank_by_stolen(const void *A, const void *B)
-{
-	const struct drm_i915_gem_object *a =
-		*(const struct drm_i915_gem_object **)A;
-	const struct drm_i915_gem_object *b =
-		*(const struct drm_i915_gem_object **)B;
-
-	if (a->stolen->start < b->stolen->start)
-		return -1;
-	if (a->stolen->start > b->stolen->start)
-		return 1;
-	return 0;
-}
-
-static int i915_gem_stolen_list_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct drm_i915_gem_object **objects;
-	struct drm_i915_gem_object *obj;
-	u64 total_obj_size, total_gtt_size;
-	unsigned long total, count, n;
-	unsigned long flags;
-	int ret;
-
-	total = READ_ONCE(dev_priv->mm.shrink_count);
-	objects = kvmalloc_array(total, sizeof(*objects), GFP_KERNEL);
-	if (!objects)
-		return -ENOMEM;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		goto out;
-
-	total_obj_size = total_gtt_size = count = 0;
-
-	spin_lock_irqsave(&dev_priv->mm.obj_lock, flags);
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, mm.link) {
-		if (count == total)
-			break;
-
-		if (obj->stolen == NULL)
-			continue;
-
-		objects[count++] = obj;
-		total_obj_size += obj->base.size;
-		total_gtt_size += i915_gem_obj_total_ggtt_size(obj);
-
-	}
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, mm.link) {
-		if (count == total)
-			break;
-
-		if (obj->stolen == NULL)
-			continue;
-
-		objects[count++] = obj;
-		total_obj_size += obj->base.size;
-	}
-	spin_unlock_irqrestore(&dev_priv->mm.obj_lock, flags);
-
-	sort(objects, count, sizeof(*objects), obj_rank_by_stolen, NULL);
-
-	seq_puts(m, "Stolen:\n");
-	for (n = 0; n < count; n++) {
-		seq_puts(m, "   ");
-		describe_obj(m, objects[n]);
-		seq_putc(m, '\n');
-	}
-	seq_printf(m, "Total %lu objects, %llu bytes, %llu GTT size\n",
-		   count, total_obj_size, total_gtt_size);
-
-	mutex_unlock(&dev->struct_mutex);
-out:
-	kvfree(objects);
-	return ret;
-}
-
 struct file_stats {
 	struct i915_address_space *vm;
 	unsigned long count;
@@ -344,7 +253,7 @@ static int per_file_stats(int id, void *ptr, void *data)
 
 	stats->count++;
 	stats->total += obj->base.size;
-	if (!obj->bind_count)
+	if (!atomic_read(&obj->bind_count))
 		stats->unbound += obj->base.size;
 	if (obj->base.name || obj->base.dma_buf)
 		stats->shared += obj->base.size;
@@ -451,105 +360,22 @@ static void print_context_stats(struct seq_file *m,
 
 static int i915_gem_object_info(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	u32 count, mapped_count, purgeable_count, dpy_count, huge_count;
-	u64 size, mapped_size, purgeable_size, dpy_size, huge_size;
-	struct drm_i915_gem_object *obj;
-	unsigned int page_sizes = 0;
-	unsigned long flags;
-	char buf[80];
+	struct drm_i915_private *i915 = node_to_i915(m->private);
 	int ret;
 
 	seq_printf(m, "%u shrinkable objects, %llu bytes\n",
-		   dev_priv->mm.shrink_count,
-		   dev_priv->mm.shrink_memory);
-
-	size = count = 0;
-	mapped_size = mapped_count = 0;
-	purgeable_size = purgeable_count = 0;
-	huge_size = huge_count = 0;
-
-	spin_lock_irqsave(&dev_priv->mm.obj_lock, flags);
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, mm.link) {
-		size += obj->base.size;
-		++count;
-
-		if (obj->mm.madv == I915_MADV_DONTNEED) {
-			purgeable_size += obj->base.size;
-			++purgeable_count;
-		}
-
-		if (obj->mm.mapping) {
-			mapped_count++;
-			mapped_size += obj->base.size;
-		}
-
-		if (obj->mm.page_sizes.sg > I915_GTT_PAGE_SIZE) {
-			huge_count++;
-			huge_size += obj->base.size;
-			page_sizes |= obj->mm.page_sizes.sg;
-		}
-	}
-	seq_printf(m, "%u unbound objects, %llu bytes\n", count, size);
-
-	size = count = dpy_size = dpy_count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.bound_list, mm.link) {
-		size += obj->base.size;
-		++count;
-
-		if (obj->pin_global) {
-			dpy_size += obj->base.size;
-			++dpy_count;
-		}
-
-		if (obj->mm.madv == I915_MADV_DONTNEED) {
-			purgeable_size += obj->base.size;
-			++purgeable_count;
-		}
-
-		if (obj->mm.mapping) {
-			mapped_count++;
-			mapped_size += obj->base.size;
-		}
-
-		if (obj->mm.page_sizes.sg > I915_GTT_PAGE_SIZE) {
-			huge_count++;
-			huge_size += obj->base.size;
-			page_sizes |= obj->mm.page_sizes.sg;
-		}
-	}
-	spin_unlock_irqrestore(&dev_priv->mm.obj_lock, flags);
-
-	seq_printf(m, "%u bound objects, %llu bytes\n",
-		   count, size);
-	seq_printf(m, "%u purgeable objects, %llu bytes\n",
-		   purgeable_count, purgeable_size);
-	seq_printf(m, "%u mapped objects, %llu bytes\n",
-		   mapped_count, mapped_size);
-	seq_printf(m, "%u huge-paged objects (%s) %llu bytes\n",
-		   huge_count,
-		   stringify_page_sizes(page_sizes, buf, sizeof(buf)),
-		   huge_size);
-	seq_printf(m, "%u display objects (globally pinned), %llu bytes\n",
-		   dpy_count, dpy_size);
-
-	seq_printf(m, "%llu [%pa] gtt total\n",
-		   ggtt->vm.total, &ggtt->mappable_end);
-	seq_printf(m, "Supported page sizes: %s\n",
-		   stringify_page_sizes(INTEL_INFO(dev_priv)->page_sizes,
-					buf, sizeof(buf)));
+		   i915->mm.shrink_count,
+		   i915->mm.shrink_memory);
 
 	seq_putc(m, '\n');
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&i915->drm.struct_mutex);
 	if (ret)
 		return ret;
 
-	print_batch_pool_stats(m, dev_priv);
-	print_context_stats(m, dev_priv);
-	mutex_unlock(&dev->struct_mutex);
+	print_batch_pool_stats(m, i915);
+	print_context_stats(m, i915);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	return 0;
 }
@@ -4535,7 +4361,6 @@ static const struct file_operations i915_fifo_underrun_reset_ops = {
 static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
-	{"i915_gem_stolen", i915_gem_stolen_list_info },
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
 	{"i915_gem_batch_pool", i915_gem_batch_pool_info, 0},

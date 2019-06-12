@@ -747,19 +747,15 @@ struct i915_gem_mm {
 	/* Protects bound_list/unbound_list and #drm_i915_gem_object.mm.link */
 	spinlock_t obj_lock;
 
-	/** List of all objects in gtt_space. Used to restore gtt
-	 * mappings on resume */
-	struct list_head bound_list;
 	/**
-	 * List of objects which are not bound to the GTT (thus
-	 * are idle and not used by the GPU). These objects may or may
-	 * not actually have any pages attached.
-	 */
-	struct list_head unbound_list;
-	/**
-	 * List of objects which are purgeable. May be active.
+	 * List of objects which are purgeable.
 	 */
 	struct list_head purge_list;
+
+	/**
+	 * List of objects which have allocated pages and are shrinkable.
+	 */
+	struct list_head shrink_list;
 
 	/** List of all objects in gtt_space, currently mmaped by userspace.
 	 * All objects within this list must also be on bound_list.

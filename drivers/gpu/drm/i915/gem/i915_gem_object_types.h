@@ -155,7 +155,7 @@ struct drm_i915_gem_object {
 #define STRIDE_MASK (~TILING_MASK)
 
 	/** Count of VMA actually bound by this object */
-	unsigned int bind_count;
+	atomic_t bind_count;
 	unsigned int active_count;
 	/** Count of how many global VMA are currently pinned for use by HW */
 	unsigned int pin_global;

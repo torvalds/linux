@@ -613,7 +613,6 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node *stolen;
 	struct i915_vma *vma;
-	unsigned long flags;
 	int ret;
 
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
@@ -690,10 +689,8 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	list_move_tail(&vma->vm_link, &ggtt->vm.bound_list);
 	mutex_unlock(&ggtt->vm.mutex);
 
-	spin_lock_irqsave(&dev_priv->mm.obj_lock, flags);
 	GEM_BUG_ON(i915_gem_object_is_shrinkable(obj));
-	obj->bind_count++;
-	spin_unlock_irqrestore(&dev_priv->mm.obj_lock, flags);
+	atomic_inc(&obj->bind_count);
 
 	return obj;
 

@@ -69,7 +69,7 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	 * to the GPU, simply unbinding from the GPU is not going to succeed
 	 * in releasing our pin count on the pages themselves.
 	 */
-	if (atomic_read(&obj->mm.pages_pin_count) > obj->bind_count)
+	if (atomic_read(&obj->mm.pages_pin_count) > atomic_read(&obj->bind_count))
 		return false;
 
 	/* If any vma are "permanently" pinned, it will prevent us from
@@ -145,8 +145,10 @@ i915_gem_shrink(struct drm_i915_private *i915,
 		unsigned int bit;
 	} phases[] = {
 		{ &i915->mm.purge_list, ~0u },
-		{ &i915->mm.unbound_list, I915_SHRINK_UNBOUND },
-		{ &i915->mm.bound_list, I915_SHRINK_BOUND },
+		{
+			&i915->mm.shrink_list,
+			I915_SHRINK_BOUND | I915_SHRINK_UNBOUND
+		},
 		{ NULL, 0 },
 	}, *phase;
 	intel_wakeref_t wakeref = 0;
@@ -238,7 +240,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 				continue;
 
 			if (!(shrink & I915_SHRINK_BOUND) &&
-			    READ_ONCE(obj->bind_count))
+			    atomic_read(&obj->bind_count))
 				continue;
 
 			if (!can_release_pages(obj))
@@ -378,7 +380,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	struct drm_i915_private *i915 =
 		container_of(nb, struct drm_i915_private, mm.oom_notifier);
 	struct drm_i915_gem_object *obj;
-	unsigned long unevictable, bound, unbound, freed_pages;
+	unsigned long unevictable, available, freed_pages;
 	intel_wakeref_t wakeref;
 	unsigned long flags;
 
@@ -393,26 +395,20 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	 * assert that there are no objects with pinned pages that are not
 	 * being pointed to by hardware.
 	 */
-	unbound = bound = unevictable = 0;
+	available = unevictable = 0;
 	spin_lock_irqsave(&i915->mm.obj_lock, flags);
-	list_for_each_entry(obj, &i915->mm.unbound_list, mm.link) {
+	list_for_each_entry(obj, &i915->mm.shrink_list, mm.link) {
 		if (!can_release_pages(obj))
 			unevictable += obj->base.size >> PAGE_SHIFT;
 		else
-			unbound += obj->base.size >> PAGE_SHIFT;
-	}
-	list_for_each_entry(obj, &i915->mm.bound_list, mm.link) {
-		if (!can_release_pages(obj))
-			unevictable += obj->base.size >> PAGE_SHIFT;
-		else
-			bound += obj->base.size >> PAGE_SHIFT;
+			available += obj->base.size >> PAGE_SHIFT;
 	}
 	spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
-	if (freed_pages || unbound || bound)
+	if (freed_pages || available)
 		pr_info("Purging GPU memory, %lu pages freed, "
-			"%lu pages still pinned.\n",
-			freed_pages, unevictable);
+			"%lu pages still pinned, %lu pages left available.\n",
+			freed_pages, unevictable, available);
 
 	*(unsigned long *)ptr += freed_pages;
 	return NOTIFY_DONE;
