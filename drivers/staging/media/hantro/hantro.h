@@ -45,6 +45,17 @@ struct hantro_codec_ops;
 #define HANTRO_DECODERS		0xffff0000
 
 /**
+ * struct hantro_irq - irq handler and name
+ *
+ * @name:			irq name for device tree lookup
+ * @handler:			interrupt handler
+ */
+struct hantro_irq {
+	const char *name;
+	irqreturn_t (*handler)(int irq, void *priv);
+};
+
+/**
  * struct hantro_variant - information about VPU hardware variant
  *
  * @enc_offset:			Offset from VPU base to encoder registers.
@@ -57,8 +68,8 @@ struct hantro_codec_ops;
  * @codec_ops:			Codec ops.
  * @init:			Initialize hardware.
  * @runtime_resume:		reenable hardware after power gating
- * @vepu_irq:			encoder interrupt handler
- * @vdpu_irq:			decoder interrupt handler
+ * @irqs:			array of irq names and interrupt handlers
+ * @num_irqs:			number of irqs in the array
  * @clk_names:			array of clock names
  * @num_clocks:			number of clocks in the array
  */
@@ -73,8 +84,8 @@ struct hantro_variant {
 	const struct hantro_codec_ops *codec_ops;
 	int (*init)(struct hantro_dev *vpu);
 	int (*runtime_resume)(struct hantro_dev *vpu);
-	irqreturn_t (*vepu_irq)(int irq, void *priv);
-	irqreturn_t (*vdpu_irq)(int irq, void *priv);
+	const struct hantro_irq *irqs;
+	int num_irqs;
 	const char *clk_names[HANTRO_MAX_CLOCKS];
 	int num_clocks;
 };
