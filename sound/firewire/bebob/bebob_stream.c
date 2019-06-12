@@ -687,10 +687,7 @@ error:
 void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
 {
 	if (bebob->substreams_counter == 0) {
-		amdtp_stream_pcm_abort(&bebob->rx_stream);
 		amdtp_stream_stop(&bebob->rx_stream);
-
-		amdtp_stream_pcm_abort(&bebob->tx_stream);
 		amdtp_stream_stop(&bebob->tx_stream);
 
 		break_both_connections(bebob);
