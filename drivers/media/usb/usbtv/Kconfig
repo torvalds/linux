@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_USBTV
 	tristate "USBTV007 video capture support"
 	depends on VIDEO_V4L2 && SND

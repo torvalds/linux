@@ -6,10 +6,10 @@ set -e
 # Check uniqueness of module names
 check_same_name_modules()
 {
-	for m in $(sed 's:.*/::' modules.order modules.builtin | sort | uniq -d)
+	for m in $(sed 's:.*/::' modules.order | sort | uniq -d)
 	do
-		echo "warning: same basename if the following are built as modules:" >&2
-		sed "/\/$m/!d;s:^kernel/:  :" modules.order modules.builtin >&2
+		echo "warning: same module names found:" >&2
+		sed -n "/\/$m/s:^kernel/:  :p" modules.order >&2
 	done
 }
 

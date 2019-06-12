@@ -216,18 +216,20 @@ static int wm1133_ev1_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 
+SND_SOC_DAILINK_DEFS(ev1,
+	DAILINK_COMP_ARRAY(COMP_CPU("imx-ssi.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8350-codec.0-0x1a", "wm8350-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("imx-ssi.0")));
+
 static struct snd_soc_dai_link wm1133_ev1_dai = {
 	.name = "WM1133-EV1",
 	.stream_name = "Audio",
-	.cpu_dai_name = "imx-ssi.0",
-	.codec_dai_name = "wm8350-hifi",
-	.platform_name = "imx-ssi.0",
-	.codec_name = "wm8350-codec.0-0x1a",
 	.init = wm1133_ev1_init,
 	.ops = &wm1133_ev1_ops,
 	.symmetric_rates = 1,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBM_CFM,
+	SND_SOC_DAILINK_REG(ev1),
 };
 
 static struct snd_soc_card wm1133_ev1 = {

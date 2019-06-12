@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config LPC_ENET
         tristate "NXP ethernet MAC on LPC devices"
         depends on ARCH_LPC32XX

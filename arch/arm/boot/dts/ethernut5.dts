@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ethernut5.dts - Device Tree file for Ethernut 5 board
  *
  * Copyright (C) 2012 egnite GmbH <info@egnite.de>
- *
- * Licensed under GPLv2.
  */
 /dts-v1/;
 #include "at91sam9xe.dtsi"

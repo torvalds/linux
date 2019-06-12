@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Architecture specific (i386/x86_64) functions for kexec based crash dumps.
  *

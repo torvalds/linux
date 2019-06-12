@@ -27,7 +27,7 @@ static int io_uring_mmap(int fd, struct io_uring_params *p,
 	sq->kdropped = ptr + p->sq_off.dropped;
 	sq->array = ptr + p->sq_off.array;
 
-	size = p->sq_entries * sizeof(struct io_uring_sqe),
+	size = p->sq_entries * sizeof(struct io_uring_sqe);
 	sq->sqes = mmap(0, size, PROT_READ | PROT_WRITE,
 				MAP_SHARED | MAP_POPULATE, fd,
 				IORING_OFF_SQES);
@@ -79,7 +79,7 @@ int io_uring_queue_mmap(int fd, struct io_uring_params *p, struct io_uring *ring
 int io_uring_queue_init(unsigned entries, struct io_uring *ring, unsigned flags)
 {
 	struct io_uring_params p;
-	int fd;
+	int fd, ret;
 
 	memset(&p, 0, sizeof(p));
 	p.flags = flags;
@@ -88,7 +88,11 @@ int io_uring_queue_init(unsigned entries, struct io_uring *ring, unsigned flags)
 	if (fd < 0)
 		return fd;
 
-	return io_uring_queue_mmap(fd, &p, ring);
+	ret = io_uring_queue_mmap(fd, &p, ring);
+	if (ret)
+		close(fd);
+
+	return ret;
 }
 
 void io_uring_queue_exit(struct io_uring *ring)

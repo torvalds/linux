@@ -294,13 +294,18 @@ static const struct snd_soc_dapm_route tse850_intercon[] = {
 	{ "DAC", NULL, "OUTL" },
 };
 
+SND_SOC_DAILINK_DEFS(pcm,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "pcm512x-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link tse850_dailink = {
 	.name = "TSE-850",
 	.stream_name = "TSE-850-PCM",
-	.codec_dai_name = "pcm512x-hifi",
 	.dai_fmt = SND_SOC_DAIFMT_I2S
 		 | SND_SOC_DAIFMT_NB_NF
 		 | SND_SOC_DAIFMT_CBM_CFS,
+	SND_SOC_DAILINK_REG(pcm),
 };
 
 static struct snd_soc_card tse850_card = {
@@ -331,8 +336,8 @@ static int tse850_dt_init(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get cpu dai\n");
 		return -EINVAL;
 	}
-	dailink->cpu_of_node = cpu_np;
-	dailink->platform_of_node = cpu_np;
+	dailink->cpus->of_node = cpu_np;
+	dailink->platforms->of_node = cpu_np;
 	of_node_put(cpu_np);
 
 	codec_np = of_parse_phandle(np, "axentia,audio-codec", 0);
@@ -340,7 +345,7 @@ static int tse850_dt_init(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get codec info\n");
 		return -EINVAL;
 	}
-	dailink->codec_of_node = codec_np;
+	dailink->codecs->of_node = codec_np;
 	of_node_put(codec_np);
 
 	return 0;

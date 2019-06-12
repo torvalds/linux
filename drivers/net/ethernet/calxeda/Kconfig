@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NET_CALXEDA_XGMAC
 	tristate "Calxeda 1G/10G XGMAC Ethernet driver"
 	depends on HAS_IOMEM

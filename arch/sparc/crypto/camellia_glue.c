@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Glue code for CAMELLIA encryption optimized for sparc64 crypto opcodes.
  *
  * Copyright (C) 2012 David S. Miller <davem@davemloft.net>

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config FB_OMAP
 	tristate "OMAP frame buffer support"
 	depends on FB

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SECURITY_LOADPIN
 	bool "Pin load of kernel files (modules, fw, etc) to one filesystem"
 	depends on SECURITY && BLOCK

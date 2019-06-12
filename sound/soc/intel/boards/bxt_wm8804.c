@@ -179,23 +179,29 @@ static struct snd_soc_ops snd_rpi_hifiberry_digi_ops = {
 	.shutdown = snd_rpi_hifiberry_digi_shutdown,
 };
 
+SND_SOC_DAILINK_DEF(ssp5_pin,
+	DAILINK_COMP_ARRAY(COMP_CPU("SSP5 Pin")));
+
+SND_SOC_DAILINK_DEF(ssp5_codec,
+	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-1AEC8804:00", "wm8804-spdif")));
+
+SND_SOC_DAILINK_DEF(platform,
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("0000:00:0e.0")));
+
 static struct snd_soc_dai_link dailink[] = {
 	/* CODEC<->CODEC link */
 	/* back ends */
 	{
 		.name = "SSP5-Codec",
 		.id = 0,
-		.cpu_dai_name = "SSP5 Pin",
-		.platform_name = "sof-audio",
 		.no_pcm = 1,
-		.codec_dai_name = "wm8804-spdif",
-		.codec_name = "i2c-1AEC8804:00",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 						| SND_SOC_DAIFMT_CBM_CFM,
 		.nonatomic = true,
 		.dpcm_playback = 1,
 		.ops		= &snd_rpi_hifiberry_digi_ops,
 		.init		= snd_rpi_hifiberry_digi_init,
+		SND_SOC_DAILINK_REG(ssp5_pin, ssp5_codec, platform),
 	},
 };
 
@@ -225,7 +231,7 @@ static int bxt_wm8804_probe(struct platform_device *pdev)
 
 	/* fix index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(dailink); i++) {
-		if (!strcmp(dailink[i].codec_name, "i2c-1AEC8804:00")) {
+		if (!strcmp(dailink[i].codecs->name, "i2c-1AEC8804:00")) {
 			dai_index = i;
 			break;
 		}
@@ -237,7 +243,7 @@ static int bxt_wm8804_probe(struct platform_device *pdev)
 		snprintf(codec_name, sizeof(codec_name),
 			 "%s%s", "i2c-", acpi_dev_name(adev));
 		put_device(&adev->dev);
-		dailink[dai_index].codec_name = codec_name;
+		dailink[dai_index].codecs->name = codec_name;
 	}
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, card);

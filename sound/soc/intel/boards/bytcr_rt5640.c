@@ -1026,41 +1026,51 @@ static const struct snd_soc_ops byt_rt5640_be_ssp2_ops = {
 	.hw_params = byt_rt5640_aif1_hw_params,
 };
 
+SND_SOC_DAILINK_DEF(dummy,
+	DAILINK_COMP_ARRAY(COMP_DUMMY()));
+
+SND_SOC_DAILINK_DEF(media,
+	DAILINK_COMP_ARRAY(COMP_CPU("media-cpu-dai")));
+
+SND_SOC_DAILINK_DEF(deepbuffer,
+	DAILINK_COMP_ARRAY(COMP_CPU("deepbuffer-cpu-dai")));
+
+SND_SOC_DAILINK_DEF(ssp2_port,
+	/* overwritten for ssp0 routing */
+	DAILINK_COMP_ARRAY(COMP_CPU("ssp2-port")));
+SND_SOC_DAILINK_DEF(ssp2_codec,
+	DAILINK_COMP_ARRAY(COMP_CODEC(
+	/* overwritten with HID */ "i2c-10EC5640:00",
+	/* changed w/ quirk */	"rt5640-aif1")));
+
+SND_SOC_DAILINK_DEF(platform,
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("sst-mfld-platform")));
+
 static struct snd_soc_dai_link byt_rt5640_dais[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Baytrail Audio Port",
 		.stream_name = "Baytrail Audio",
-		.cpu_dai_name = "media-cpu-dai",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-		.platform_name = "sst-mfld-platform",
 		.nonatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.ops = &byt_rt5640_aif1_ops,
+		SND_SOC_DAILINK_REG(media, dummy, platform),
 	},
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.cpu_dai_name = "deepbuffer-cpu-dai",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-		.platform_name = "sst-mfld-platform",
 		.nonatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &byt_rt5640_aif1_ops,
+		SND_SOC_DAILINK_REG(deepbuffer, dummy, platform),
 	},
 		/* back ends */
 	{
 		.name = "SSP2-Codec",
 		.id = 0,
-		.cpu_dai_name = "ssp2-port", /* overwritten for ssp0 routing */
-		.platform_name = "sst-mfld-platform",
 		.no_pcm = 1,
-		.codec_dai_name = "rt5640-aif1", /* changed w/ quirk */
-		.codec_name = "i2c-10EC5640:00", /* overwritten with HID */
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 						| SND_SOC_DAIFMT_CBS_CFS,
 		.be_hw_params_fixup = byt_rt5640_codec_fixup,
@@ -1070,6 +1080,7 @@ static struct snd_soc_dai_link byt_rt5640_dais[] = {
 		.dpcm_capture = 1,
 		.init = byt_rt5640_init,
 		.ops = &byt_rt5640_be_ssp2_ops,
+		SND_SOC_DAILINK_REG(ssp2_port, ssp2_codec, platform),
 	},
 };
 
@@ -1159,7 +1170,8 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 
 	/* fix index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(byt_rt5640_dais); i++) {
-		if (!strcmp(byt_rt5640_dais[i].codec_name, "i2c-10EC5640:00")) {
+		if (!strcmp(byt_rt5640_dais[i].codecs->name,
+			    "i2c-10EC5640:00")) {
 			dai_index = i;
 			break;
 		}
@@ -1171,7 +1183,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 		snprintf(byt_rt5640_codec_name, sizeof(byt_rt5640_codec_name),
 			 "i2c-%s", acpi_dev_name(adev));
 		put_device(&adev->dev);
-		byt_rt5640_dais[dai_index].codec_name = byt_rt5640_codec_name;
+		byt_rt5640_dais[dai_index].codecs->name = byt_rt5640_codec_name;
 	}
 
 	/*
@@ -1263,7 +1275,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 			sizeof(byt_rt5640_codec_aif_name),
 			"%s", "rt5640-aif2");
 
-		byt_rt5640_dais[dai_index].codec_dai_name =
+		byt_rt5640_dais[dai_index].codecs->dai_name =
 			byt_rt5640_codec_aif_name;
 	}
 
@@ -1275,7 +1287,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 			sizeof(byt_rt5640_cpu_dai_name),
 			"%s", "ssp0-port");
 
-		byt_rt5640_dais[dai_index].cpu_dai_name =
+		byt_rt5640_dais[dai_index].cpus->dai_name =
 			byt_rt5640_cpu_dai_name;
 	}
 

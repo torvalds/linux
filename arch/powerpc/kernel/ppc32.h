@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _PPC64_PPC32_H
 #define _PPC64_PPC32_H
 
@@ -7,11 +8,6 @@
 
 /*
  * Data types and macros for providing 32b PowerPC support.
- * 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 /* These are here to support 32-bit syscalls on a 64-bit kernel. */

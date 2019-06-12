@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Driver for Adaptec AHA-1542 SCSI host adapters
  *

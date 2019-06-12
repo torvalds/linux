@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SoC audio for HP iPAQ hx4700
  *
  * Copyright (c) 2009 Philipp Zabel
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -139,17 +134,19 @@ static int hx4700_ak4641_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* hx4700 digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(ak4641,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("ak4641.0-0012", "ak4641-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link hx4700_dai = {
 	.name = "ak4641",
 	.stream_name = "AK4641",
-	.cpu_dai_name = "pxa2xx-i2s",
-	.codec_dai_name = "ak4641-hifi",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name = "ak4641.0-0012",
 	.init = hx4700_ak4641_init,
 	.dai_fmt = SND_SOC_DAIFMT_MSB | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &hx4700_ops,
+	SND_SOC_DAILINK_REG(ak4641),
 };
 
 /* hx4700 audio machine driver */

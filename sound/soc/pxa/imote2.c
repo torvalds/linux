@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/module.h>
 #include <sound/soc.h>
@@ -46,16 +47,19 @@ static const struct snd_soc_ops imote2_asoc_ops = {
 	.hw_params = imote2_asoc_hw_params,
 };
 
+SND_SOC_DAILINK_DEFS(wm8940,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8940-codec.0-0034",
+				      "wm8940-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link imote2_dai = {
 	.name = "WM8940",
 	.stream_name = "WM8940",
-	.cpu_dai_name = "pxa2xx-i2s",
-	.codec_dai_name = "wm8940-hifi",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm8940-codec.0-0034",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &imote2_asoc_ops,
+	SND_SOC_DAILINK_REG(wm8940),
 };
 
 static struct snd_soc_card imote2 = {

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/core/ethtool.c - Ethtool ioctl handler
  * Copyright (c) 2003 Matthew Wilcox <matthew@wil.cx>
  *
  * This file is where we call all the ethtool_ops commands to get
  * the information ethtool needs.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -3010,11 +3006,12 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 		const struct ethtool_flow_ext *ext_h_spec = &fs->h_ext;
 		const struct ethtool_flow_ext *ext_m_spec = &fs->m_ext;
 
-		if (ext_m_spec->vlan_etype &&
-		    ext_m_spec->vlan_tci) {
+		if (ext_m_spec->vlan_etype) {
 			match->key.vlan.vlan_tpid = ext_h_spec->vlan_etype;
 			match->mask.vlan.vlan_tpid = ext_m_spec->vlan_etype;
+		}
 
+		if (ext_m_spec->vlan_tci) {
 			match->key.vlan.vlan_id =
 				ntohs(ext_h_spec->vlan_tci) & 0x0fff;
 			match->mask.vlan.vlan_id =
@@ -3024,7 +3021,10 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 				(ntohs(ext_h_spec->vlan_tci) & 0xe000) >> 13;
 			match->mask.vlan.vlan_priority =
 				(ntohs(ext_m_spec->vlan_tci) & 0xe000) >> 13;
+		}
 
+		if (ext_m_spec->vlan_etype ||
+		    ext_m_spec->vlan_tci) {
 			match->dissector.used_keys |=
 				BIT(FLOW_DISSECTOR_KEY_VLAN);
 			match->dissector.offset[FLOW_DISSECTOR_KEY_VLAN] =

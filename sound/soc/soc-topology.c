@@ -560,7 +560,7 @@ static void remove_link(struct snd_soc_component *comp,
 
 	kfree(link->name);
 	kfree(link->stream_name);
-	kfree(link->cpu_dai_name);
+	kfree(link->cpus->dai_name);
 
 	list_del(&dobj->list);
 	snd_soc_remove_dai_link(comp->card, link);
@@ -1879,11 +1879,23 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	struct snd_soc_tplg_pcm *pcm)
 {
 	struct snd_soc_dai_link *link;
+	struct snd_soc_dai_link_component *dlc;
 	int ret;
 
-	link = kzalloc(sizeof(struct snd_soc_dai_link), GFP_KERNEL);
+	/* link + cpu + codec + platform */
+	link = kzalloc(sizeof(*link) + (3 * sizeof(*dlc)), GFP_KERNEL);
 	if (link == NULL)
 		return -ENOMEM;
+
+	dlc = (struct snd_soc_dai_link_component *)(link + 1);
+
+	link->cpus	= &dlc[0];
+	link->codecs	= &dlc[1];
+	link->platforms	= &dlc[2];
+
+	link->num_cpus	 = 1;
+	link->num_codecs = 1;
+	link->num_platforms = 1;
 
 	if (strlen(pcm->pcm_name)) {
 		link->name = kstrdup(pcm->pcm_name, GFP_KERNEL);
@@ -1892,10 +1904,12 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 	link->id = le32_to_cpu(pcm->pcm_id);
 
 	if (strlen(pcm->dai_name))
-		link->cpu_dai_name = kstrdup(pcm->dai_name, GFP_KERNEL);
+		link->cpus->dai_name = kstrdup(pcm->dai_name, GFP_KERNEL);
 
-	link->codec_name = "snd-soc-dummy";
-	link->codec_dai_name = "snd-soc-dummy-dai";
+	link->codecs->name = "snd-soc-dummy";
+	link->codecs->dai_name = "snd-soc-dummy-dai";
+
+	link->platforms->name = "snd-soc-dummy";
 
 	/* enable DPCM */
 	link->dynamic = 1;
@@ -1912,7 +1926,7 @@ static int soc_tplg_fe_link_create(struct soc_tplg *tplg,
 		dev_err(tplg->comp->dev, "ASoC: FE link loading failed\n");
 		kfree(link->name);
 		kfree(link->stream_name);
-		kfree(link->cpu_dai_name);
+		kfree(link->cpus->dai_name);
 		kfree(link);
 		return ret;
 	}
