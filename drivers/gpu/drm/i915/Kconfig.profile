@@ -13,7 +13,7 @@ config DRM_I915_USERFAULT_AUTOSUSPEND
 	  runtime pm autosuspend delay tunable.
 
 config DRM_I915_SPIN_REQUEST
-	int
+	int "Busywait for request completion (us)"
 	default 5 # microseconds
 	help
 	  Before sleeping waiting for a request (GPU operation) to complete,
