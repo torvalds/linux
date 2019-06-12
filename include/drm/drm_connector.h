@@ -549,6 +549,20 @@ struct drm_connector_state {
 	struct drm_tv_connector_state tv;
 
 	/**
+	 * @self_refresh_aware:
+	 *
+	 * This tracks whether a connector is aware of the self refresh state.
+	 * It should be set to true for those connector implementations which
+	 * understand the self refresh state. This is needed since the crtc
+	 * registers the self refresh helpers and it doesn't know if the
+	 * connectors downstream have implemented self refresh entry/exit.
+	 *
+	 * Drivers should set this to true in atomic_check if they know how to
+	 * handle self_refresh requests.
+	 */
+	bool self_refresh_aware;
+
+	/**
 	 * @picture_aspect_ratio: Connector property to control the
 	 * HDMI infoframe aspect ratio setting.
 	 *

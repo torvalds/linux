@@ -54,6 +54,7 @@ struct drm_mode_set;
 struct drm_file;
 struct drm_clip_rect;
 struct drm_printer;
+struct drm_self_refresh_data;
 struct device_node;
 struct dma_fence;
 struct edid;
@@ -299,6 +300,17 @@ struct drm_crtc_state {
 	 * hardware capabiltiy - lacking support is not treated as failure.
 	 */
 	bool vrr_enabled;
+
+	/**
+	 * @self_refresh_active:
+	 *
+	 * Used by the self refresh helpers to denote when a self refresh
+	 * transition is occurring. This will be set on enable/disable callbacks
+	 * when self refresh is being enabled or disabled. In some cases, it may
+	 * not be desirable to fully shut off the crtc during self refresh.
+	 * CRTC's can inspect this flag and determine the best course of action.
+	 */
+	bool self_refresh_active;
 
 	/**
 	 * @event:
@@ -1088,6 +1100,13 @@ struct drm_crtc {
 	 * The name of the CRTC's fence timeline.
 	 */
 	char timeline_name[32];
+
+	/**
+	 * @self_refresh_data: Holds the state for the self refresh helpers
+	 *
+	 * Initialized via drm_self_refresh_helper_register().
+	 */
+	struct drm_self_refresh_data *self_refresh_data;
 };
 
 /**

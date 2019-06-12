@@ -957,4 +957,19 @@ drm_atomic_crtc_needs_modeset(const struct drm_crtc_state *state)
 	       state->connectors_changed;
 }
 
+/**
+ * drm_atomic_crtc_effectively_active - compute whether crtc is actually active
+ * @state: &drm_crtc_state for the CRTC
+ *
+ * When in self refresh mode, the crtc_state->active value will be false, since
+ * the crtc is off. However in some cases we're interested in whether the crtc
+ * is active, or effectively active (ie: it's connected to an active display).
+ * In these cases, use this function instead of just checking active.
+ */
+static inline bool
+drm_atomic_crtc_effectively_active(const struct drm_crtc_state *state)
+{
+	return state->active || state->self_refresh_active;
+}
+
 #endif /* DRM_ATOMIC_H_ */

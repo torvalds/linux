@@ -129,6 +129,10 @@ void __drm_atomic_helper_crtc_duplicate_state(struct drm_crtc *crtc,
 	state->commit = NULL;
 	state->event = NULL;
 	state->pageflip_flags = 0;
+
+	/* Self refresh should be canceled when a new update is available */
+	state->active = drm_atomic_crtc_effectively_active(state);
+	state->self_refresh_active = false;
 }
 EXPORT_SYMBOL(__drm_atomic_helper_crtc_duplicate_state);
 

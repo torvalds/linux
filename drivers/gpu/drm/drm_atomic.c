@@ -384,6 +384,7 @@ static void drm_atomic_crtc_print_state(struct drm_printer *p,
 	drm_printf(p, "crtc[%u]: %s\n", crtc->base.id, crtc->name);
 	drm_printf(p, "\tenable=%d\n", state->enable);
 	drm_printf(p, "\tactive=%d\n", state->active);
+	drm_printf(p, "\tself_refresh_active=%d\n", state->self_refresh_active);
 	drm_printf(p, "\tplanes_changed=%d\n", state->planes_changed);
 	drm_printf(p, "\tmode_changed=%d\n", state->mode_changed);
 	drm_printf(p, "\tactive_changed=%d\n", state->active_changed);
@@ -999,6 +1000,7 @@ static void drm_atomic_connector_print_state(struct drm_printer *p,
 
 	drm_printf(p, "connector[%u]: %s\n", connector->base.id, connector->name);
 	drm_printf(p, "\tcrtc=%s\n", state->crtc ? state->crtc->name : "(null)");
+	drm_printf(p, "\tself_refresh_aware=%d\n", state->self_refresh_aware);
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
 		if (state->writeback_job && state->writeback_job->fb)

@@ -34,6 +34,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
+#include <drm/drm_self_refresh_helper.h>
 #include <drm/drm_vblank.h>
 #include <drm/drm_writeback.h>
 
@@ -953,9 +954,32 @@ int drm_atomic_helper_check(struct drm_device *dev,
 	if (state->legacy_cursor_update)
 		state->async_update = !drm_atomic_helper_async_check(dev, state);
 
+	drm_self_refresh_helper_alter_state(state);
+
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_check);
+
+static bool
+crtc_needs_disable(struct drm_crtc_state *old_state,
+		   struct drm_crtc_state *new_state)
+{
+	/*
+	 * No new_state means the crtc is off, so the only criteria is whether
+	 * it's currently active or in self refresh mode.
+	 */
+	if (!new_state)
+		return drm_atomic_crtc_effectively_active(old_state);
+
+	/*
+	 * We need to run through the crtc_funcs->disable() function if the crtc
+	 * is currently on, if it's transitioning to self refresh mode, or if
+	 * it's in self refresh mode and needs to be fully disabled.
+	 */
+	return old_state->active ||
+	       (old_state->self_refresh_active && !new_state->enable) ||
+	       new_state->self_refresh_active;
+}
 
 static void
 disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
@@ -977,7 +1001,14 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		old_crtc_state = drm_atomic_get_old_crtc_state(old_state, old_conn_state->crtc);
 
-		if (!old_crtc_state->active ||
+		if (new_conn_state->crtc)
+			new_crtc_state = drm_atomic_get_new_crtc_state(
+						old_state,
+						new_conn_state->crtc);
+		else
+			new_crtc_state = NULL;
+
+		if (!crtc_needs_disable(old_crtc_state, new_crtc_state) ||
 		    !drm_atomic_crtc_needs_modeset(old_conn_state->crtc->state))
 			continue;
 
@@ -1023,7 +1054,7 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
 			continue;
 
-		if (!old_crtc_state->active)
+		if (!crtc_needs_disable(old_crtc_state, new_crtc_state))
 			continue;
 
 		funcs = crtc->helper_private;
