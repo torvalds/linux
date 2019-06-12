@@ -1,3 +1,4 @@
+====================
 HugeTLBpage on ARM64
 ====================
 
@@ -31,8 +32,10 @@ and level of the page table.
 
 The following hugepage sizes are supported -
 
-         CONT PTE    PMD    CONT PMD    PUD
-         --------    ---    --------    ---
+  ====== ========   ====    ========    ===
+  -      CONT PTE    PMD    CONT PMD    PUD
+  ====== ========   ====    ========    ===
   4K:         64K     2M         32M     1G
   16K:         2M    32M          1G
   64K:         2M   512M         16G
+  ====== ========   ====    ========    ===

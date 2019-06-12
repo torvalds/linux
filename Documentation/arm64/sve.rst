@@ -1,7 +1,9 @@
-            Scalable Vector Extension support for AArch64 Linux
-            ===================================================
+===================================================
+Scalable Vector Extension support for AArch64 Linux
+===================================================
 
 Author: Dave Martin <Dave.Martin@arm.com>
+
 Date:   4 August 2017
 
 This document outlines briefly the interface provided to userspace by Linux in
@@ -426,7 +428,7 @@ In A64 state, SVE adds the following:
 
 * FPSR and FPCR are retained from ARMv8-A, and interact with SVE floating-point
   operations in a similar way to the way in which they interact with ARMv8
-  floating-point operations.
+  floating-point operations::
 
          8VL-1                       128               0  bit index
         +----          ////            -----------------+
@@ -483,6 +485,8 @@ ARMv8-A defines the following floating-point / SIMD register state:
 * 32 128-bit vector registers V0..V31
 * 2 32-bit status/control registers FPSR, FPCR
 
+::
+
          127           0  bit index
         +---------------+
      V0 |               |
@@ -517,7 +521,7 @@ References
 [2] arch/arm64/include/uapi/asm/ptrace.h
     AArch64 Linux ptrace ABI definitions
 
-[3] Documentation/arm64/cpu-feature-registers.txt
+[3] Documentation/arm64/cpu-feature-registers.rst
 
 [4] ARM IHI0055C
     http://infocenter.arm.com/help/topic/com.arm.doc.ihi0055c/IHI0055C_beta_aapcs64.pdf

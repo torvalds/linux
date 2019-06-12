@@ -1,5 +1,7 @@
+=====================
 ACPI on ARMv8 Servers
----------------------
+=====================
+
 ACPI can be used for ARMv8 general purpose servers designed to follow
 the ARM SBSA (Server Base System Architecture) [0] and SBBR (Server
 Base Boot Requirements) [1] specifications.  Please note that the SBBR
@@ -34,28 +36,28 @@ of the summary text almost directly, to be honest.
 
 The short form of the rationale for ACPI on ARM is:
 
--- ACPI’s byte code (AML) allows the platform to encode hardware behavior,
+-  ACPI’s byte code (AML) allows the platform to encode hardware behavior,
    while DT explicitly does not support this.  For hardware vendors, being
    able to encode behavior is a key tool used in supporting operating
    system releases on new hardware.
 
--- ACPI’s OSPM defines a power management model that constrains what the
+-  ACPI’s OSPM defines a power management model that constrains what the
    platform is allowed to do into a specific model, while still providing
    flexibility in hardware design.
 
--- In the enterprise server environment, ACPI has established bindings (such
+-  In the enterprise server environment, ACPI has established bindings (such
    as for RAS) which are currently used in production systems.  DT does not.
    Such bindings could be defined in DT at some point, but doing so means ARM
    and x86 would end up using completely different code paths in both firmware
    and the kernel.
 
--- Choosing a single interface to describe the abstraction between a platform
+-  Choosing a single interface to describe the abstraction between a platform
    and an OS is important.  Hardware vendors would not be required to implement
    both DT and ACPI if they want to support multiple operating systems.  And,
    agreeing on a single interface instead of being fragmented into per OS
    interfaces makes for better interoperability overall.
 
--- The new ACPI governance process works well and Linux is now at the same
+-  The new ACPI governance process works well and Linux is now at the same
    table as hardware vendors and other OS vendors.  In fact, there is no
    longer any reason to feel that ACPI only belongs to Windows or that
    Linux is in any way secondary to Microsoft in this arena.  The move of
@@ -169,31 +171,31 @@ For the ACPI core to operate properly, and in turn provide the information
 the kernel needs to configure devices, it expects to find the following
 tables (all section numbers refer to the ACPI 6.1 specification):
 
-    -- RSDP (Root System Description Pointer), section 5.2.5
+    -  RSDP (Root System Description Pointer), section 5.2.5
 
-    -- XSDT (eXtended System Description Table), section 5.2.8
+    -  XSDT (eXtended System Description Table), section 5.2.8
 
-    -- FADT (Fixed ACPI Description Table), section 5.2.9
+    -  FADT (Fixed ACPI Description Table), section 5.2.9
 
-    -- DSDT (Differentiated System Description Table), section
+    -  DSDT (Differentiated System Description Table), section
        5.2.11.1
 
-    -- MADT (Multiple APIC Description Table), section 5.2.12
+    -  MADT (Multiple APIC Description Table), section 5.2.12
 
-    -- GTDT (Generic Timer Description Table), section 5.2.24
+    -  GTDT (Generic Timer Description Table), section 5.2.24
 
-    -- If PCI is supported, the MCFG (Memory mapped ConFiGuration
+    -  If PCI is supported, the MCFG (Memory mapped ConFiGuration
        Table), section 5.2.6, specifically Table 5-31.
 
-    -- If booting without a console=<device> kernel parameter is
+    -  If booting without a console=<device> kernel parameter is
        supported, the SPCR (Serial Port Console Redirection table),
        section 5.2.6, specifically Table 5-31.
 
-    -- If necessary to describe the I/O topology, SMMUs and GIC ITSs,
+    -  If necessary to describe the I/O topology, SMMUs and GIC ITSs,
        the IORT (Input Output Remapping Table, section 5.2.6, specifically
        Table 5-31).
 
-    -- If NUMA is supported, the SRAT (System Resource Affinity Table)
+    -  If NUMA is supported, the SRAT (System Resource Affinity Table)
        and SLIT (System Locality distance Information Table), sections
        5.2.16 and 5.2.17, respectively.
 
@@ -269,9 +271,9 @@ describes how to define the structure of an object returned via _DSD, and
 how specific data structures are defined by specific UUIDs.  Linux should
 only use the _DSD Device Properties UUID [5]:
 
-   -- UUID: daffd814-6eba-4d8c-8a91-bc9bbf4aa301
+   - UUID: daffd814-6eba-4d8c-8a91-bc9bbf4aa301
 
-   -- http://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf
+   - http://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf
 
 The UEFI Forum provides a mechanism for registering device properties [4]
 so that they may be used across all operating systems supporting ACPI.
@@ -327,10 +329,10 @@ turning a device full off.
 
 There are two options for using those Power Resources.  They can:
 
-   -- be managed in a _PSx method which gets called on entry to power
+   -  be managed in a _PSx method which gets called on entry to power
       state Dx.
 
-   -- be declared separately as power resources with their own _ON and _OFF
+   -  be declared separately as power resources with their own _ON and _OFF
       methods.  They are then tied back to D-states for a particular device
       via _PRx which specifies which power resources a device needs to be on
       while in Dx.  Kernel then tracks number of devices using a power resource
@@ -339,16 +341,16 @@ There are two options for using those Power Resources.  They can:
 The kernel ACPI code will also assume that the _PSx methods follow the normal
 ACPI rules for such methods:
 
-   -- If either _PS0 or _PS3 is implemented, then the other method must also
+   -  If either _PS0 or _PS3 is implemented, then the other method must also
       be implemented.
 
-   -- If a device requires usage or setup of a power resource when on, the ASL
+   -  If a device requires usage or setup of a power resource when on, the ASL
       should organize that it is allocated/enabled using the _PS0 method.
 
-   -- Resources allocated or enabled in the _PS0 method should be disabled
+   -  Resources allocated or enabled in the _PS0 method should be disabled
       or de-allocated in the _PS3 method.
 
-   -- Firmware will leave the resources in a reasonable state before handing
+   -  Firmware will leave the resources in a reasonable state before handing
       over control to the kernel.
 
 Such code in _PSx methods will of course be very platform specific.  But,
@@ -394,52 +396,52 @@ else must be discovered by the driver probe function.  Then, have the rest
 of the driver operate off of the contents of that struct.  Doing so should
 allow most divergence between ACPI and DT functionality to be kept local to
 the probe function instead of being scattered throughout the driver.  For
-example:
+example::
 
-static int device_probe_dt(struct platform_device *pdev)
-{
-       /* DT specific functionality */
-       ...
-}
+  static int device_probe_dt(struct platform_device *pdev)
+  {
+         /* DT specific functionality */
+         ...
+  }
 
-static int device_probe_acpi(struct platform_device *pdev)
-{
-       /* ACPI specific functionality */
-       ...
-}
+  static int device_probe_acpi(struct platform_device *pdev)
+  {
+         /* ACPI specific functionality */
+         ...
+  }
 
-static int device_probe(struct platform_device *pdev)
-{
-       ...
-       struct device_node node = pdev->dev.of_node;
-       ...
+  static int device_probe(struct platform_device *pdev)
+  {
+         ...
+         struct device_node node = pdev->dev.of_node;
+         ...
 
-       if (node)
-               ret = device_probe_dt(pdev);
-       else if (ACPI_HANDLE(&pdev->dev))
-               ret = device_probe_acpi(pdev);
-       else
-               /* other initialization */
-               ...
-       /* Continue with any generic probe operations */
-       ...
-}
+         if (node)
+                 ret = device_probe_dt(pdev);
+         else if (ACPI_HANDLE(&pdev->dev))
+                 ret = device_probe_acpi(pdev);
+         else
+                 /* other initialization */
+                 ...
+         /* Continue with any generic probe operations */
+         ...
+  }
 
 DO keep the MODULE_DEVICE_TABLE entries together in the driver to make it
 clear the different names the driver is probed for, both from DT and from
-ACPI:
+ACPI::
 
-static struct of_device_id virtio_mmio_match[] = {
-        { .compatible = "virtio,mmio", },
-        { }
-};
-MODULE_DEVICE_TABLE(of, virtio_mmio_match);
+  static struct of_device_id virtio_mmio_match[] = {
+          { .compatible = "virtio,mmio", },
+          { }
+  };
+  MODULE_DEVICE_TABLE(of, virtio_mmio_match);
 
-static const struct acpi_device_id virtio_mmio_acpi_match[] = {
-        { "LNRO0005", },
-        { }
-};
-MODULE_DEVICE_TABLE(acpi, virtio_mmio_acpi_match);
+  static const struct acpi_device_id virtio_mmio_acpi_match[] = {
+          { "LNRO0005", },
+          { }
+  };
+  MODULE_DEVICE_TABLE(acpi, virtio_mmio_acpi_match);
 
 
 ASWG
@@ -471,7 +473,8 @@ Linux Code
 Individual items specific to Linux on ARM, contained in the the Linux
 source code, are in the list that follows:
 
-ACPI_OS_NAME           This macro defines the string to be returned when
+ACPI_OS_NAME
+                       This macro defines the string to be returned when
                        an ACPI method invokes the _OS method.  On ARM64
                        systems, this macro will be "Linux" by default.
                        The command line parameter acpi_os=<string>
@@ -482,38 +485,44 @@ ACPI_OS_NAME           This macro defines the string to be returned when
 ACPI Objects
 ------------
 Detailed expectations for ACPI tables and object are listed in the file
-Documentation/arm64/acpi_object_usage.txt.
+Documentation/arm64/acpi_object_usage.rst.
 
 
 References
 ----------
-[0] http://silver.arm.com -- document ARM-DEN-0029, or newer
+[0] http://silver.arm.com
+    document ARM-DEN-0029, or newer:
     "Server Base System Architecture", version 2.3, dated 27 Mar 2014
 
 [1] http://infocenter.arm.com/help/topic/com.arm.doc.den0044a/Server_Base_Boot_Requirements.pdf
     Document ARM-DEN-0044A, or newer: "Server Base Boot Requirements, System
     Software on ARM Platforms", dated 16 Aug 2014
 
-[2] http://www.secretlab.ca/archives/151, 10 Jan 2015, Copyright (c) 2015,
+[2] http://www.secretlab.ca/archives/151,
+    10 Jan 2015, Copyright (c) 2015,
     Linaro Ltd., written by Grant Likely.
 
-[3] AMD ACPI for Seattle platform documentation:
+[3] AMD ACPI for Seattle platform documentation
     http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2012/10/Seattle_ACPI_Guide.pdf
 
-[4] http://www.uefi.org/acpi -- please see the link for the "ACPI _DSD Device
+
+[4] http://www.uefi.org/acpi
+    please see the link for the "ACPI _DSD Device
     Property Registry Instructions"
 
-[5] http://www.uefi.org/acpi -- please see the link for the "_DSD (Device
+[5] http://www.uefi.org/acpi
+    please see the link for the "_DSD (Device
     Specific Data) Implementation Guide"
 
-[6] Kernel code for the unified device property interface can be found in
+[6] Kernel code for the unified device
+    property interface can be found in
     include/linux/property.h and drivers/base/property.c.
 
 
 Authors
 -------
-Al Stone <al.stone@linaro.org>
-Graeme Gregory <graeme.gregory@linaro.org>
-Hanjun Guo <hanjun.guo@linaro.org>
+- Al Stone <al.stone@linaro.org>
+- Graeme Gregory <graeme.gregory@linaro.org>
+- Hanjun Guo <hanjun.guo@linaro.org>
 
-Grant Likely <grant.likely@linaro.org>, for the "Why ACPI on ARM?" section
+- Grant Likely <grant.likely@linaro.org>, for the "Why ACPI on ARM?" section

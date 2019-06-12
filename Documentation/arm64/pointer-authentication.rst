@@ -1,7 +1,9 @@
+=======================================
 Pointer authentication in AArch64 Linux
 =======================================
 
 Author: Mark Rutland <mark.rutland@arm.com>
+
 Date: 2017-07-19
 
 This document briefly describes the provision of pointer authentication

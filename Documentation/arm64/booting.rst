@@ -1,7 +1,9 @@
-			Booting AArch64 Linux
-			=====================
+=====================
+Booting AArch64 Linux
+=====================
 
 Author: Will Deacon <will.deacon@arm.com>
+
 Date  : 07 September 2012
 
 This document is based on the ARM booting document by Russell King and
@@ -12,7 +14,7 @@ The AArch64 exception model is made up of a number of exception levels
 counterpart.  EL2 is the hypervisor level and exists only in non-secure
 mode. EL3 is the highest priority level and exists only in secure mode.
 
-For the purposes of this document, we will use the term `boot loader'
+For the purposes of this document, we will use the term `boot loader`
 simply to define all software that executes on the CPU(s) before control
 is passed to the Linux kernel.  This may include secure monitor and
 hypervisor code, or it may just be a handful of instructions for
@@ -70,7 +72,7 @@ Image target is available instead.
 
 Requirement: MANDATORY
 
-The decompressed kernel image contains a 64-byte header as follows:
+The decompressed kernel image contains a 64-byte header as follows::
 
   u32 code0;			/* Executable code */
   u32 code1;			/* Executable code */
@@ -103,19 +105,26 @@ Header notes:
 
 - The flags field (introduced in v3.17) is a little-endian 64-bit field
   composed as follows:
-  Bit 0:	Kernel endianness.  1 if BE, 0 if LE.
-  Bit 1-2:	Kernel Page size.
-			0 - Unspecified.
-			1 - 4K
-			2 - 16K
-			3 - 64K
-  Bit 3:	Kernel physical placement
-			0 - 2MB aligned base should be as close as possible
-			    to the base of DRAM, since memory below it is not
-			    accessible via the linear mapping
-			1 - 2MB aligned base may be anywhere in physical
-			    memory
-  Bits 4-63:	Reserved.
+
+  ============= ===============================================================
+  Bit 0		Kernel endianness.  1 if BE, 0 if LE.
+  Bit 1-2	Kernel Page size.
+
+			* 0 - Unspecified.
+			* 1 - 4K
+			* 2 - 16K
+			* 3 - 64K
+  Bit 3		Kernel physical placement
+
+			0
+			  2MB aligned base should be as close as possible
+			  to the base of DRAM, since memory below it is not
+			  accessible via the linear mapping
+			1
+			  2MB aligned base may be anywhere in physical
+			  memory
+  Bits 4-63	Reserved.
+  ============= ===============================================================
 
 - When image_size is zero, a bootloader should attempt to keep as much
   memory as possible free for use by the kernel immediately after the
@@ -147,19 +156,22 @@ Before jumping into the kernel, the following conditions must be met:
   corrupted by bogus network packets or disk data.  This will save
   you many hours of debug.
 
-- Primary CPU general-purpose register settings
-  x0 = physical address of device tree blob (dtb) in system RAM.
-  x1 = 0 (reserved for future use)
-  x2 = 0 (reserved for future use)
-  x3 = 0 (reserved for future use)
+- Primary CPU general-purpose register settings:
+
+    - x0 = physical address of device tree blob (dtb) in system RAM.
+    - x1 = 0 (reserved for future use)
+    - x2 = 0 (reserved for future use)
+    - x3 = 0 (reserved for future use)
 
 - CPU mode
+
   All forms of interrupts must be masked in PSTATE.DAIF (Debug, SError,
   IRQ and FIQ).
   The CPU must be in either EL2 (RECOMMENDED in order to have access to
   the virtualisation extensions) or non-secure EL1.
 
 - Caches, MMUs
+
   The MMU must be off.
   Instruction cache may be on or off.
   The address range corresponding to the loaded kernel image must be
@@ -172,18 +184,21 @@ Before jumping into the kernel, the following conditions must be met:
   operations (not recommended) must be configured and disabled.
 
 - Architected timers
+
   CNTFRQ must be programmed with the timer frequency and CNTVOFF must
   be programmed with a consistent value on all CPUs.  If entering the
   kernel at EL1, CNTHCTL_EL2 must have EL1PCTEN (bit 0) set where
   available.
 
 - Coherency
+
   All CPUs to be booted by the kernel must be part of the same coherency
   domain on entry to the kernel.  This may require IMPLEMENTATION DEFINED
   initialisation to enable the receiving of maintenance operations on
   each CPU.
 
 - System registers
+
   All writable architected system registers at the exception level where
   the kernel image will be entered must be initialised by software at a
   higher exception level to prevent execution in an UNKNOWN state.
@@ -195,28 +210,40 @@ Before jumping into the kernel, the following conditions must be met:
 
   For systems with a GICv3 interrupt controller to be used in v3 mode:
   - If EL3 is present:
-    ICC_SRE_EL3.Enable (bit 3) must be initialiased to 0b1.
-    ICC_SRE_EL3.SRE (bit 0) must be initialised to 0b1.
+
+      - ICC_SRE_EL3.Enable (bit 3) must be initialiased to 0b1.
+      - ICC_SRE_EL3.SRE (bit 0) must be initialised to 0b1.
+
   - If the kernel is entered at EL1:
-    ICC.SRE_EL2.Enable (bit 3) must be initialised to 0b1
-    ICC_SRE_EL2.SRE (bit 0) must be initialised to 0b1.
+
+      - ICC.SRE_EL2.Enable (bit 3) must be initialised to 0b1
+      - ICC_SRE_EL2.SRE (bit 0) must be initialised to 0b1.
+
   - The DT or ACPI tables must describe a GICv3 interrupt controller.
 
   For systems with a GICv3 interrupt controller to be used in
   compatibility (v2) mode:
+
   - If EL3 is present:
-    ICC_SRE_EL3.SRE (bit 0) must be initialised to 0b0.
+
+      ICC_SRE_EL3.SRE (bit 0) must be initialised to 0b0.
+
   - If the kernel is entered at EL1:
-    ICC_SRE_EL2.SRE (bit 0) must be initialised to 0b0.
+
+      ICC_SRE_EL2.SRE (bit 0) must be initialised to 0b0.
+
   - The DT or ACPI tables must describe a GICv2 interrupt controller.
 
   For CPUs with pointer authentication functionality:
   - If EL3 is present:
-    SCR_EL3.APK (bit 16) must be initialised to 0b1
-    SCR_EL3.API (bit 17) must be initialised to 0b1
+
+    - SCR_EL3.APK (bit 16) must be initialised to 0b1
+    - SCR_EL3.API (bit 17) must be initialised to 0b1
+
   - If the kernel is entered at EL1:
-    HCR_EL2.APK (bit 40) must be initialised to 0b1
-    HCR_EL2.API (bit 41) must be initialised to 0b1
+
+    - HCR_EL2.APK (bit 40) must be initialised to 0b1
+    - HCR_EL2.API (bit 41) must be initialised to 0b1
 
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must

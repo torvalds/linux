@@ -1,5 +1,7 @@
+===========
 ACPI Tables
------------
+===========
+
 The expectations of individual ACPI tables are discussed in the list that
 follows.
 
@@ -11,54 +13,71 @@ outside of the UEFI Forum (see Section 5.2.6 of the specification).
 
 For ACPI on arm64, tables also fall into the following categories:
 
-       -- Required: DSDT, FADT, GTDT, MADT, MCFG, RSDP, SPCR, XSDT
+       -  Required: DSDT, FADT, GTDT, MADT, MCFG, RSDP, SPCR, XSDT
 
-       -- Recommended: BERT, EINJ, ERST, HEST, PCCT, SSDT
+       -  Recommended: BERT, EINJ, ERST, HEST, PCCT, SSDT
 
-       -- Optional: BGRT, CPEP, CSRT, DBG2, DRTM, ECDT, FACS, FPDT, IORT,
+       -  Optional: BGRT, CPEP, CSRT, DBG2, DRTM, ECDT, FACS, FPDT, IORT,
           MCHI, MPST, MSCT, NFIT, PMTT, RASF, SBST, SLIT, SPMI, SRAT, STAO,
 	  TCPA, TPM2, UEFI, XENV
 
-       -- Not supported: BOOT, DBGP, DMAR, ETDT, HPET, IBFT, IVRS, LPIT,
+       -  Not supported: BOOT, DBGP, DMAR, ETDT, HPET, IBFT, IVRS, LPIT,
           MSDM, OEMx, PSDT, RSDT, SLIC, WAET, WDAT, WDRT, WPBT
 
+====== ========================================================================
 Table  Usage for ARMv8 Linux
------  ----------------------------------------------------------------
+====== ========================================================================
 BERT   Section 18.3 (signature == "BERT")
-       == Boot Error Record Table ==
+
+       **Boot Error Record Table**
+
        Must be supplied if RAS support is provided by the platform.  It
        is recommended this table be supplied.
 
 BOOT   Signature Reserved (signature == "BOOT")
-       == simple BOOT flag table ==
+
+       **simple BOOT flag table**
+
        Microsoft only table, will not be supported.
 
 BGRT   Section 5.2.22 (signature == "BGRT")
-       == Boot Graphics Resource Table ==
+
+       **Boot Graphics Resource Table**
+
        Optional, not currently supported, with no real use-case for an
        ARM server.
 
 CPEP   Section 5.2.18 (signature == "CPEP")
-       == Corrected Platform Error Polling table ==
+
+       **Corrected Platform Error Polling table**
+
        Optional, not currently supported, and not recommended until such
        time as ARM-compatible hardware is available, and the specification
        suitably modified.
 
 CSRT   Signature Reserved (signature == "CSRT")
-       == Core System Resources Table ==
+
+       **Core System Resources Table**
+
        Optional, not currently supported.
 
 DBG2   Signature Reserved (signature == "DBG2")
-       == DeBuG port table 2 ==
+
+       **DeBuG port table 2**
+
        License has changed and should be usable.  Optional if used instead
        of earlycon=<device> on the command line.
 
 DBGP   Signature Reserved (signature == "DBGP")
-       == DeBuG Port table ==
+
+       **DeBuG Port table**
+
        Microsoft only table, will not be supported.
 
 DSDT   Section 5.2.11.1 (signature == "DSDT")
-       == Differentiated System Description Table ==
+
+       **Differentiated System Description Table**
+
        A DSDT is required; see also SSDT.
 
        ACPI tables contain only one DSDT but can contain one or more SSDTs,
@@ -66,22 +85,30 @@ DSDT   Section 5.2.11.1 (signature == "DSDT")
        but cannot modify or replace anything in the DSDT.
 
 DMAR   Signature Reserved (signature == "DMAR")
-       == DMA Remapping table ==
+
+       **DMA Remapping table**
+
        x86 only table, will not be supported.
 
 DRTM   Signature Reserved (signature == "DRTM")
-       == Dynamic Root of Trust for Measurement table ==
+
+       **Dynamic Root of Trust for Measurement table**
+
        Optional, not currently supported.
 
 ECDT   Section 5.2.16 (signature == "ECDT")
-       == Embedded Controller Description Table ==
+
+       **Embedded Controller Description Table**
+
        Optional, not currently supported, but could be used on ARM if and
        only if one uses the GPE_BIT field to represent an IRQ number, since
        there are no GPE blocks defined in hardware reduced mode.  This would
        need to be modified in the ACPI specification.
 
 EINJ   Section 18.6 (signature == "EINJ")
-       == Error Injection table ==
+
+       **Error Injection table**
+
        This table is very useful for testing platform response to error
        conditions; it allows one to inject an error into the system as
        if it had actually occurred.  However, this table should not be
@@ -89,26 +116,34 @@ EINJ   Section 18.6 (signature == "EINJ")
        and executed with the ACPICA tools only during testing.
 
 ERST   Section 18.5 (signature == "ERST")
-       == Error Record Serialization Table ==
+
+       **Error Record Serialization Table**
+
        On a platform supports RAS, this table must be supplied if it is not
        UEFI-based; if it is UEFI-based, this table may be supplied. When this
        table is not present, UEFI run time service will be utilized to save
        and retrieve hardware error information to and from a persistent store.
 
 ETDT   Signature Reserved (signature == "ETDT")
-       == Event Timer Description Table ==
+
+       **Event Timer Description Table**
+
        Obsolete table, will not be supported.
 
 FACS   Section 5.2.10 (signature == "FACS")
-       == Firmware ACPI Control Structure ==
+
+       **Firmware ACPI Control Structure**
+
        It is unlikely that this table will be terribly useful.  If it is
        provided, the Global Lock will NOT be used since it is not part of
        the hardware reduced profile, and only 64-bit address fields will
        be considered valid.
 
 FADT   Section 5.2.9 (signature == "FACP")
-       == Fixed ACPI Description Table ==
+
+       **Fixed ACPI Description Table**
        Required for arm64.
+
 
        The HW_REDUCED_ACPI flag must be set.  All of the fields that are
        to be ignored when HW_REDUCED_ACPI is set are expected to be set to
@@ -118,22 +153,28 @@ FADT   Section 5.2.9 (signature == "FACP")
        used, not FIRMWARE_CTRL.
 
        If PSCI is used (as is recommended), make sure that ARM_BOOT_ARCH is
-       filled in properly -- that the PSCI_COMPLIANT flag is set and that
+       filled in properly - that the PSCI_COMPLIANT flag is set and that
        PSCI_USE_HVC is set or unset as needed (see table 5-37).
 
        For the DSDT that is also required, the X_DSDT field is to be used,
        not the DSDT field.
 
 FPDT   Section 5.2.23 (signature == "FPDT")
-       == Firmware Performance Data Table ==
+
+       **Firmware Performance Data Table**
+
        Optional, not currently supported.
 
 GTDT   Section 5.2.24 (signature == "GTDT")
-       == Generic Timer Description Table ==
+
+       **Generic Timer Description Table**
+
        Required for arm64.
 
 HEST   Section 18.3.2 (signature == "HEST")
-       == Hardware Error Source Table ==
+
+       **Hardware Error Source Table**
+
        ARM-specific error sources have been defined; please use those or the
        PCI types such as type 6 (AER Root Port), 7 (AER Endpoint), or 8 (AER
        Bridge), or use type 9 (Generic Hardware Error Source).  Firmware first
@@ -144,122 +185,174 @@ HEST   Section 18.3.2 (signature == "HEST")
        is recommended this table be supplied.
 
 HPET   Signature Reserved (signature == "HPET")
-       == High Precision Event timer Table ==
+
+       **High Precision Event timer Table**
+
        x86 only table, will not be supported.
 
 IBFT   Signature Reserved (signature == "IBFT")
-       == iSCSI Boot Firmware Table ==
+
+       **iSCSI Boot Firmware Table**
+
        Microsoft defined table, support TBD.
 
 IORT   Signature Reserved (signature == "IORT")
-       == Input Output Remapping Table ==
+
+       **Input Output Remapping Table**
+
        arm64 only table, required in order to describe IO topology, SMMUs,
        and GIC ITSs, and how those various components are connected together,
        such as identifying which components are behind which SMMUs/ITSs.
        This table will only be required on certain SBSA platforms (e.g.,
-       when using GICv3-ITS and an SMMU); on SBSA Level 0 platforms, it 
+       when using GICv3-ITS and an SMMU); on SBSA Level 0 platforms, it
        remains optional.
 
 IVRS   Signature Reserved (signature == "IVRS")
-       == I/O Virtualization Reporting Structure ==
+
+       **I/O Virtualization Reporting Structure**
+
        x86_64 (AMD) only table, will not be supported.
 
 LPIT   Signature Reserved (signature == "LPIT")
-       == Low Power Idle Table ==
+
+       **Low Power Idle Table**
+
        x86 only table as of ACPI 5.1; starting with ACPI 6.0, processor
        descriptions and power states on ARM platforms should use the DSDT
        and define processor container devices (_HID ACPI0010, Section 8.4,
        and more specifically 8.4.3 and and 8.4.4).
 
 MADT   Section 5.2.12 (signature == "APIC")
-       == Multiple APIC Description Table ==
+
+       **Multiple APIC Description Table**
+
        Required for arm64.  Only the GIC interrupt controller structures
        should be used (types 0xA - 0xF).
 
 MCFG   Signature Reserved (signature == "MCFG")
-       == Memory-mapped ConFiGuration space ==
+
+       **Memory-mapped ConFiGuration space**
+
        If the platform supports PCI/PCIe, an MCFG table is required.
 
 MCHI   Signature Reserved (signature == "MCHI")
-       == Management Controller Host Interface table ==
+
+       **Management Controller Host Interface table**
+
        Optional, not currently supported.
 
 MPST   Section 5.2.21 (signature == "MPST")
-       == Memory Power State Table ==
+
+       **Memory Power State Table**
+
        Optional, not currently supported.
 
 MSCT   Section 5.2.19 (signature == "MSCT")
-       == Maximum System Characteristic Table ==
+
+       **Maximum System Characteristic Table**
+
        Optional, not currently supported.
 
 MSDM   Signature Reserved (signature == "MSDM")
-       == Microsoft Data Management table ==
+
+       **Microsoft Data Management table**
+
        Microsoft only table, will not be supported.
 
 NFIT   Section 5.2.25 (signature == "NFIT")
-       == NVDIMM Firmware Interface Table ==
+
+       **NVDIMM Firmware Interface Table**
+
        Optional, not currently supported.
 
 OEMx   Signature of "OEMx" only
-       == OEM Specific Tables ==
+
+       **OEM Specific Tables**
+
        All tables starting with a signature of "OEM" are reserved for OEM
        use.  Since these are not meant to be of general use but are limited
        to very specific end users, they are not recommended for use and are
        not supported by the kernel for arm64.
 
 PCCT   Section 14.1 (signature == "PCCT)
-       == Platform Communications Channel Table ==
+
+       **Platform Communications Channel Table**
+
        Recommend for use on arm64; use of PCC is recommended when using CPPC
        to control performance and power for platform processors.
 
 PMTT   Section 5.2.21.12 (signature == "PMTT")
-       == Platform Memory Topology Table ==
+
+       **Platform Memory Topology Table**
+
        Optional, not currently supported.
 
 PSDT   Section 5.2.11.3 (signature == "PSDT")
-       == Persistent System Description Table ==
+
+       **Persistent System Description Table**
+
        Obsolete table, will not be supported.
 
 RASF   Section 5.2.20 (signature == "RASF")
-       == RAS Feature table ==
+
+       **RAS Feature table**
+
        Optional, not currently supported.
 
 RSDP   Section 5.2.5 (signature == "RSD PTR")
-       == Root System Description PoinTeR ==
+
+       **Root System Description PoinTeR**
+
        Required for arm64.
 
 RSDT   Section 5.2.7 (signature == "RSDT")
-       == Root System Description Table ==
+
+       **Root System Description Table**
+
        Since this table can only provide 32-bit addresses, it is deprecated
        on arm64, and will not be used.  If provided, it will be ignored.
 
 SBST   Section 5.2.14 (signature == "SBST")
-       == Smart Battery Subsystem Table ==
+
+       **Smart Battery Subsystem Table**
+
        Optional, not currently supported.
 
 SLIC   Signature Reserved (signature == "SLIC")
-       == Software LIcensing table ==
+
+       **Software LIcensing table**
+
        Microsoft only table, will not be supported.
 
 SLIT   Section 5.2.17 (signature == "SLIT")
-       == System Locality distance Information Table ==
+
+       **System Locality distance Information Table**
+
        Optional in general, but required for NUMA systems.
 
 SPCR   Signature Reserved (signature == "SPCR")
-       == Serial Port Console Redirection table ==
+
+       **Serial Port Console Redirection table**
+
        Required for arm64.
 
 SPMI   Signature Reserved (signature == "SPMI")
-       == Server Platform Management Interface table ==
+
+       **Server Platform Management Interface table**
+
        Optional, not currently supported.
 
 SRAT   Section 5.2.16 (signature == "SRAT")
-       == System Resource Affinity Table ==
+
+       **System Resource Affinity Table**
+
        Optional, but if used, only the GICC Affinity structures are read.
        To support arm64 NUMA, this table is required.
 
 SSDT   Section 5.2.11.2 (signature == "SSDT")
-       == Secondary System Description Table ==
+
+       **Secondary System Description Table**
+
        These tables are a continuation of the DSDT; these are recommended
        for use with devices that can be added to a running system, but can
        also serve the purpose of dividing up device descriptions into more
@@ -272,49 +365,69 @@ SSDT   Section 5.2.11.2 (signature == "SSDT")
        one DSDT but can contain many SSDTs.
 
 STAO   Signature Reserved (signature == "STAO")
-       == _STA Override table ==
+
+       **_STA Override table**
+
        Optional, but only necessary in virtualized environments in order to
        hide devices from guest OSs.
 
 TCPA   Signature Reserved (signature == "TCPA")
-       == Trusted Computing Platform Alliance table ==
+
+       **Trusted Computing Platform Alliance table**
+
        Optional, not currently supported, and may need changes to fully
        interoperate with arm64.
 
 TPM2   Signature Reserved (signature == "TPM2")
-       == Trusted Platform Module 2 table ==
+
+       **Trusted Platform Module 2 table**
+
        Optional, not currently supported, and may need changes to fully
        interoperate with arm64.
 
 UEFI   Signature Reserved (signature == "UEFI")
-       == UEFI ACPI data table ==
+
+       **UEFI ACPI data table**
+
        Optional, not currently supported.  No known use case for arm64,
        at present.
 
 WAET   Signature Reserved (signature == "WAET")
-       == Windows ACPI Emulated devices Table ==
+
+       **Windows ACPI Emulated devices Table**
+
        Microsoft only table, will not be supported.
 
 WDAT   Signature Reserved (signature == "WDAT")
-       == Watch Dog Action Table ==
+
+       **Watch Dog Action Table**
+
        Microsoft only table, will not be supported.
 
 WDRT   Signature Reserved (signature == "WDRT")
-       == Watch Dog Resource Table ==
+
+       **Watch Dog Resource Table**
+
        Microsoft only table, will not be supported.
 
 WPBT   Signature Reserved (signature == "WPBT")
-       == Windows Platform Binary Table ==
+
+       **Windows Platform Binary Table**
+
        Microsoft only table, will not be supported.
 
 XENV   Signature Reserved (signature == "XENV")
-       == Xen project table ==
+
+       **Xen project table**
+
        Optional, used only by Xen at present.
 
 XSDT   Section 5.2.8 (signature == "XSDT")
-       == eXtended System Description Table ==
-       Required for arm64.
 
+       **eXtended System Description Table**
+
+       Required for arm64.
+====== ========================================================================
 
 ACPI Objects
 ------------
@@ -323,10 +436,11 @@ shown in the list that follows; any object not explicitly mentioned below
 should be used as needed for a particular platform or particular subsystem,
 such as power management or PCI.
 
+===== ================ ========================================================
 Name   Section         Usage for ARMv8 Linux
-----   ------------    -------------------------------------------------
+===== ================ ========================================================
 _CCA   6.2.17          This method must be defined for all bus masters
-                       on arm64 -- there are no assumptions made about
+                       on arm64 - there are no assumptions made about
                        whether such devices are cache coherent or not.
                        The _CCA value is inherited by all descendants of
                        these devices so it does not need to be repeated.
@@ -422,8 +536,8 @@ _OSC   6.2.11          This method can be a global method in ACPI (i.e.,
                        by the kernel community, then register it with the
                        UEFI Forum.
 
-\_OSI  5.7.2           Deprecated on ARM64.  As far as ACPI firmware is 
-		       concerned, _OSI is not to be used to determine what 
+\_OSI  5.7.2           Deprecated on ARM64.  As far as ACPI firmware is
+		       concerned, _OSI is not to be used to determine what
 		       sort of system is being used or what functionality
 		       is provided.  The _OSC method is to be used instead.
 
@@ -447,7 +561,7 @@ _PSx   7.3.2-5         Use as needed; power management specific.  If _PS0 is
                        usage, change them in these methods.
 
 _RDI   8.4.4.4         Recommended for use with processor definitions (_HID
-		       ACPI0010) on arm64.  This should only be used in 
+		       ACPI0010) on arm64.  This should only be used in
 		       conjunction with _LPI.
 
 \_REV  5.7.4           Always returns the latest version of ACPI supported.
@@ -476,6 +590,7 @@ _SWS   7.4.3           Use as needed; power management specific; this may
 
 _UID   6.1.12          Recommended for distinguishing devices of the same
                        class; define it if at all possible.
+===== ================ ========================================================
 
 
 
@@ -488,7 +603,7 @@ platforms, ACPI events must be signaled differently.
 
 There are two options: GPIO-signaled interrupts (Section 5.6.5), and
 interrupt-signaled events (Section 5.6.9).  Interrupt-signaled events are a
-new feature in the ACPI 6.1 specification.  Either -- or both -- can be used
+new feature in the ACPI 6.1 specification.  Either - or both - can be used
 on a given platform, and which to use may be dependent of limitations in any
 given SoC.  If possible, interrupt-signaled events are recommended.
 
@@ -564,39 +679,40 @@ supported.
 
 The following classes of objects are not supported:
 
-       -- Section 9.2: ambient light sensor devices
+       -  Section 9.2: ambient light sensor devices
 
-       -- Section 9.3: battery devices
+       -  Section 9.3: battery devices
 
-       -- Section 9.4: lids (e.g., laptop lids)
+       -  Section 9.4: lids (e.g., laptop lids)
 
-       -- Section 9.8.2: IDE controllers
+       -  Section 9.8.2: IDE controllers
 
-       -- Section 9.9: floppy controllers
+       -  Section 9.9: floppy controllers
 
-       -- Section 9.10: GPE block devices
+       -  Section 9.10: GPE block devices
 
-       -- Section 9.15: PC/AT RTC/CMOS devices
+       -  Section 9.15: PC/AT RTC/CMOS devices
 
-       -- Section 9.16: user presence detection devices
+       -  Section 9.16: user presence detection devices
 
-       -- Section 9.17: I/O APIC devices; all GICs must be enumerable via MADT
+       -  Section 9.17: I/O APIC devices; all GICs must be enumerable via MADT
 
-       -- Section 9.18: time and alarm devices (see 9.15)
+       -  Section 9.18: time and alarm devices (see 9.15)
 
-       -- Section 10: power source and power meter devices
+       -  Section 10: power source and power meter devices
 
-       -- Section 11: thermal management
+       -  Section 11: thermal management
 
-       -- Section 12: embedded controllers interface
+       -  Section 12: embedded controllers interface
 
-       -- Section 13: SMBus interfaces
+       -  Section 13: SMBus interfaces
 
 
 This also means that there is no support for the following objects:
 
+====   =========================== ====   ==========
 Name   Section                     Name   Section
-----   ------------                ----   ------------
+====   =========================== ====   ==========
 _ALC   9.3.4                       _FDM   9.10.3
 _ALI   9.3.2                       _FIX   6.2.7
 _ALP   9.3.6                       _GAI   10.4.5
@@ -619,4 +735,4 @@ _DCK   6.5.2                       _UPD   9.16.1
 _EC    12.12                       _UPP   9.16.2
 _FDE   9.10.1                      _WPC   10.5.2
 _FDI   9.10.2                      _WPP   10.5.3
-
+====   =========================== ====   ==========

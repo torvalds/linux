@@ -1,7 +1,9 @@
-		Tagged virtual addresses in AArch64 Linux
-		=========================================
+=========================================
+Tagged virtual addresses in AArch64 Linux
+=========================================
 
 Author: Will Deacon <will.deacon@arm.com>
+
 Date  : 12 June 2013
 
 This document briefly describes the provision of tagged virtual
