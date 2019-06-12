@@ -1,3 +1,7 @@
+==============
+Cgroup Freezer
+==============
+
 The cgroup freezer is useful to batch job management system which start
 and stop sets of tasks in order to schedule the resources of a machine
 according to the desires of a system administrator. This sort of program
@@ -23,7 +27,7 @@ blocked, or ignored it can be seen by waiting or ptracing parent tasks.
 SIGCONT is especially unsuitable since it can be caught by the task. Any
 programs designed to watch for SIGSTOP and SIGCONT could be broken by
 attempting to use SIGSTOP and SIGCONT to stop and resume tasks. We can
-demonstrate this problem using nested bash shells:
+demonstrate this problem using nested bash shells::
 
 	$ echo $$
 	16644
@@ -93,19 +97,19 @@ The following cgroupfs files are created by cgroup freezer.
 The root cgroup is non-freezable and the above interface files don't
 exist.
 
-* Examples of usage :
+* Examples of usage::
 
    # mkdir /sys/fs/cgroup/freezer
    # mount -t cgroup -ofreezer freezer /sys/fs/cgroup/freezer
    # mkdir /sys/fs/cgroup/freezer/0
    # echo $some_pid > /sys/fs/cgroup/freezer/0/tasks
 
-to get status of the freezer subsystem :
+to get status of the freezer subsystem::
 
    # cat /sys/fs/cgroup/freezer/0/freezer.state
    THAWED
 
-to freeze all tasks in the container :
+to freeze all tasks in the container::
 
    # echo FROZEN > /sys/fs/cgroup/freezer/0/freezer.state
    # cat /sys/fs/cgroup/freezer/0/freezer.state
@@ -113,7 +117,7 @@ to freeze all tasks in the container :
    # cat /sys/fs/cgroup/freezer/0/freezer.state
    FROZEN
 
-to unfreeze all tasks in the container :
+to unfreeze all tasks in the container::
 
    # echo THAWED > /sys/fs/cgroup/freezer/0/freezer.state
    # cat /sys/fs/cgroup/freezer/0/freezer.state

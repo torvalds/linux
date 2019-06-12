@@ -15,7 +15,7 @@ assign them to cpusets and their attached tasks.  This is a way of limiting the
 amount of system memory that are available to a certain class of tasks.
 
 For more information on the features of cpusets, see
-Documentation/cgroup-v1/cpusets.txt.
+Documentation/cgroup-v1/cpusets.rst.
 There are a number of different configurations you can use for your needs.  For
 more information on the numa=fake command line option and its various ways of
 configuring fake nodes, see Documentation/x86/x86_64/boot-options.txt.
@@ -40,7 +40,7 @@ A machine may be split as follows with "numa=fake=4*512," as reported by dmesg::
 	On node 3 totalpages: 131072
 
 Now following the instructions for mounting the cpusets filesystem from
-Documentation/cgroup-v1/cpusets.txt, you can assign fake nodes (i.e. contiguous memory
+Documentation/cgroup-v1/cpusets.rst, you can assign fake nodes (i.e. contiguous memory
 address spaces) to individual cpusets::
 
 	[root@xroads /]# mkdir exampleset

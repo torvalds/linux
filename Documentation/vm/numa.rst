@@ -67,7 +67,7 @@ nodes.  Each emulated node will manage a fraction of the underlying cells'
 physical memory.  NUMA emluation is useful for testing NUMA kernel and
 application features on non-NUMA platforms, and as a sort of memory resource
 management mechanism when used together with cpusets.
-[see Documentation/cgroup-v1/cpusets.txt]
+[see Documentation/cgroup-v1/cpusets.rst]
 
 For each node with memory, Linux constructs an independent memory management
 subsystem, complete with its own free page lists, in-use page lists, usage
@@ -114,7 +114,7 @@ allocation behavior using Linux NUMA memory policy. [see
 
 System administrators can restrict the CPUs and nodes' memories that a non-
 privileged user can specify in the scheduling or NUMA commands and functions
-using control groups and CPUsets.  [see Documentation/cgroup-v1/cpusets.txt]
+using control groups and CPUsets.  [see Documentation/cgroup-v1/cpusets.rst]
 
 On architectures that do not hide memoryless nodes, Linux will include only
 zones [nodes] with memory in the zonelists.  This means that for a memoryless

@@ -1,6 +1,9 @@
+===========================
 Device Whitelist Controller
+===========================
 
-1. Description:
+1. Description
+==============
 
 Implement a cgroup to track and enforce open and mknod restrictions
 on device files.  A device cgroup associates a device access
@@ -16,24 +19,26 @@ devices from the whitelist or add new entries.  A child cgroup can
 never receive a device access which is denied by its parent.
 
 2. User Interface
+=================
 
 An entry is added using devices.allow, and removed using
-devices.deny.  For instance
+devices.deny.  For instance::
 
 	echo 'c 1:3 mr' > /sys/fs/cgroup/1/devices.allow
 
 allows cgroup 1 to read and mknod the device usually known as
-/dev/null.  Doing
+/dev/null.  Doing::
 
 	echo a > /sys/fs/cgroup/1/devices.deny
 
-will remove the default 'a *:* rwm' entry. Doing
+will remove the default 'a *:* rwm' entry. Doing::
 
 	echo a > /sys/fs/cgroup/1/devices.allow
 
 will add the 'a *:* rwm' entry to the whitelist.
 
 3. Security
+===========
 
 Any task can move itself between cgroups.  This clearly won't
 suffice, but we can decide the best way to adequately restrict
@@ -50,6 +55,7 @@ A cgroup may not be granted more permissions than the cgroup's
 parent has.
 
 4. Hierarchy
+============
 
 device cgroups maintain hierarchy by making sure a cgroup never has more
 access permissions than its parent.  Every time an entry is written to
@@ -58,7 +64,8 @@ from their whitelist and all the locally set whitelist entries will be
 re-evaluated.  In case one of the locally set whitelist entries would provide
 more access than the cgroup's parent, it'll be removed from the whitelist.
 
-Example:
+Example::
+
       A
      / \
         B
@@ -67,10 +74,12 @@ Example:
     A            allow		"b 8:* rwm", "c 116:1 rw"
     B            deny		"c 1:3 rwm", "c 116:2 rwm", "b 3:* rwm"
 
-If a device is denied in group A:
+If a device is denied in group A::
+
 	# echo "c 116:* r" > A/devices.deny
+
 it'll propagate down and after revalidating B's entries, the whitelist entry
-"c 116:2 rwm" will be removed:
+"c 116:2 rwm" will be removed::
 
     group        whitelist entries                        denied devices
     A            all                                      "b 8:* rwm", "c 116:* rw"
@@ -79,7 +88,8 @@ it'll propagate down and after revalidating B's entries, the whitelist entry
 In case parent's exceptions change and local exceptions are not allowed
 anymore, they'll be deleted.
 
-Notice that new whitelist entries will not be propagated:
+Notice that new whitelist entries will not be propagated::
+
       A
      / \
         B
@@ -88,24 +98,30 @@ Notice that new whitelist entries will not be propagated:
     A            "c 1:3 rwm", "c 1:5 r"                   all the rest
     B            "c 1:3 rwm", "c 1:5 r"                   all the rest
 
-when adding "c *:3 rwm":
+when adding ``c *:3 rwm``::
+
 	# echo "c *:3 rwm" >A/devices.allow
 
-the result:
+the result::
+
     group        whitelist entries                        denied devices
     A            "c *:3 rwm", "c 1:5 r"                   all the rest
     B            "c 1:3 rwm", "c 1:5 r"                   all the rest
 
-but now it'll be possible to add new entries to B:
+but now it'll be possible to add new entries to B::
+
 	# echo "c 2:3 rwm" >B/devices.allow
 	# echo "c 50:3 r" >B/devices.allow
-or even
+
+or even::
+
 	# echo "c *:3 rwm" >B/devices.allow
 
 Allowing or denying all by writing 'a' to devices.allow or devices.deny will
 not be possible once the device cgroups has children.
 
 4.1 Hierarchy (internal implementation)
+---------------------------------------
 
 device cgroups is implemented internally using a behavior (ALLOW, DENY) and a
 list of exceptions.  The internal state is controlled using the same user

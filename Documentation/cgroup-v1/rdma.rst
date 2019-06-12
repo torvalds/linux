@@ -1,16 +1,17 @@
-				RDMA Controller
-				----------------
+===============
+RDMA Controller
+===============
 
-Contents
---------
+.. Contents
+
+   1. Overview
+     1-1. What is RDMA controller?
+     1-2. Why RDMA controller needed?
+     1-3. How is RDMA controller implemented?
+   2. Usage Examples
 
 1. Overview
-  1-1. What is RDMA controller?
-  1-2. Why RDMA controller needed?
-  1-3. How is RDMA controller implemented?
-2. Usage Examples
-
-1. Overview
+===========
 
 1-1. What is RDMA controller?
 -----------------------------
@@ -83,27 +84,34 @@ what is configured by user for a given cgroup and what is supported by
 IB device.
 
 Following resources can be accounted by rdma controller.
+
+  ==========    =============================
   hca_handle	Maximum number of HCA Handles
   hca_object 	Maximum number of HCA Objects
+  ==========    =============================
 
 2. Usage Examples
------------------
+=================
 
-(a) Configure resource limit:
-echo mlx4_0 hca_handle=2 hca_object=2000 > /sys/fs/cgroup/rdma/1/rdma.max
-echo ocrdma1 hca_handle=3 > /sys/fs/cgroup/rdma/2/rdma.max
+(a) Configure resource limit::
 
-(b) Query resource limit:
-cat /sys/fs/cgroup/rdma/2/rdma.max
-#Output:
-mlx4_0 hca_handle=2 hca_object=2000
-ocrdma1 hca_handle=3 hca_object=max
+	echo mlx4_0 hca_handle=2 hca_object=2000 > /sys/fs/cgroup/rdma/1/rdma.max
+	echo ocrdma1 hca_handle=3 > /sys/fs/cgroup/rdma/2/rdma.max
 
-(c) Query current usage:
-cat /sys/fs/cgroup/rdma/2/rdma.current
-#Output:
-mlx4_0 hca_handle=1 hca_object=20
-ocrdma1 hca_handle=1 hca_object=23
+(b) Query resource limit::
 
-(d) Delete resource limit:
-echo echo mlx4_0 hca_handle=max hca_object=max > /sys/fs/cgroup/rdma/1/rdma.max
+	cat /sys/fs/cgroup/rdma/2/rdma.max
+	#Output:
+	mlx4_0 hca_handle=2 hca_object=2000
+	ocrdma1 hca_handle=3 hca_object=max
+
+(c) Query current usage::
+
+	cat /sys/fs/cgroup/rdma/2/rdma.current
+	#Output:
+	mlx4_0 hca_handle=1 hca_object=20
+	ocrdma1 hca_handle=1 hca_object=23
+
+(d) Delete resource limit::
+
+	echo echo mlx4_0 hca_handle=max hca_object=max > /sys/fs/cgroup/rdma/1/rdma.max

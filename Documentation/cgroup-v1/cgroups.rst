@@ -1,35 +1,39 @@
-				CGROUPS
-				-------
+==============
+Control Groups
+==============
 
 Written by Paul Menage <menage@google.com> based on
-Documentation/cgroup-v1/cpusets.txt
+Documentation/cgroup-v1/cpusets.rst
 
 Original copyright statements from cpusets.txt:
+
 Portions Copyright (C) 2004 BULL SA.
+
 Portions Copyright (c) 2004-2006 Silicon Graphics, Inc.
+
 Modified by Paul Jackson <pj@sgi.com>
+
 Modified by Christoph Lameter <cl@linux.com>
 
-CONTENTS:
-=========
+.. CONTENTS:
 
-1. Control Groups
-  1.1 What are cgroups ?
-  1.2 Why are cgroups needed ?
-  1.3 How are cgroups implemented ?
-  1.4 What does notify_on_release do ?
-  1.5 What does clone_children do ?
-  1.6 How do I use cgroups ?
-2. Usage Examples and Syntax
-  2.1 Basic Usage
-  2.2 Attaching processes
-  2.3 Mounting hierarchies by name
-3. Kernel API
-  3.1 Overview
-  3.2 Synchronization
-  3.3 Subsystem API
-4. Extended attributes usage
-5. Questions
+	1. Control Groups
+	1.1 What are cgroups ?
+	1.2 Why are cgroups needed ?
+	1.3 How are cgroups implemented ?
+	1.4 What does notify_on_release do ?
+	1.5 What does clone_children do ?
+	1.6 How do I use cgroups ?
+	2. Usage Examples and Syntax
+	2.1 Basic Usage
+	2.2 Attaching processes
+	2.3 Mounting hierarchies by name
+	3. Kernel API
+	3.1 Overview
+	3.2 Synchronization
+	3.3 Subsystem API
+	4. Extended attributes usage
+	5. Questions
 
 1. Control Groups
 =================
@@ -72,7 +76,7 @@ On their own, the only use for cgroups is for simple job
 tracking. The intention is that other subsystems hook into the generic
 cgroup support to provide new attributes for cgroups, such as
 accounting/limiting the resources which processes in a cgroup can
-access. For example, cpusets (see Documentation/cgroup-v1/cpusets.txt) allow
+access. For example, cpusets (see Documentation/cgroup-v1/cpusets.rst) allow
 you to associate a set of CPUs and a set of memory nodes with the
 tasks in each cgroup.
 
@@ -108,7 +112,7 @@ As an example of a scenario (originally proposed by vatsa@in.ibm.com)
 that can benefit from multiple hierarchies, consider a large
 university server with various users - students, professors, system
 tasks etc. The resource planning for this server could be along the
-following lines:
+following lines::
 
        CPU :          "Top cpuset"
                        /       \
@@ -136,7 +140,7 @@ depending on who launched it (prof/student).
 With the ability to classify tasks differently for different resources
 (by putting those resource subsystems in different hierarchies),
 the admin can easily set up a script which receives exec notifications
-and depending on who is launching the browser he can
+and depending on who is launching the browser he can::
 
     # echo browser_pid > /sys/fs/cgroup/<restype>/<userclass>/tasks
 
@@ -151,7 +155,7 @@ wants to do online gaming :))  OR give one of the student's simulation
 apps enhanced CPU power.
 
 With ability to write PIDs directly to resource classes, it's just a
-matter of:
+matter of::
 
        # echo pid > /sys/fs/cgroup/network/<new_class>/tasks
        (after some time)
@@ -306,7 +310,7 @@ configuration from the parent during initialization.
 --------------------------
 
 To start a new job that is to be contained within a cgroup, using
-the "cpuset" cgroup subsystem, the steps are something like:
+the "cpuset" cgroup subsystem, the steps are something like::
 
  1) mount -t tmpfs cgroup_root /sys/fs/cgroup
  2) mkdir /sys/fs/cgroup/cpuset
@@ -320,7 +324,7 @@ the "cpuset" cgroup subsystem, the steps are something like:
 
 For example, the following sequence of commands will setup a cgroup
 named "Charlie", containing just CPUs 2 and 3, and Memory Node 1,
-and then start a subshell 'sh' in that cgroup:
+and then start a subshell 'sh' in that cgroup::
 
   mount -t tmpfs cgroup_root /sys/fs/cgroup
   mkdir /sys/fs/cgroup/cpuset
@@ -345,8 +349,9 @@ and then start a subshell 'sh' in that cgroup:
 Creating, modifying, using cgroups can be done through the cgroup
 virtual filesystem.
 
-To mount a cgroup hierarchy with all available subsystems, type:
-# mount -t cgroup xxx /sys/fs/cgroup
+To mount a cgroup hierarchy with all available subsystems, type::
+
+  # mount -t cgroup xxx /sys/fs/cgroup
 
 The "xxx" is not interpreted by the cgroup code, but will appear in
 /proc/mounts so may be any useful identifying string that you like.
@@ -355,18 +360,19 @@ Note: Some subsystems do not work without some user input first.  For instance,
 if cpusets are enabled the user will have to populate the cpus and mems files
 for each new cgroup created before that group can be used.
 
-As explained in section `1.2 Why are cgroups needed?' you should create
+As explained in section `1.2 Why are cgroups needed?` you should create
 different hierarchies of cgroups for each single resource or group of
 resources you want to control. Therefore, you should mount a tmpfs on
 /sys/fs/cgroup and create directories for each cgroup resource or resource
-group.
+group::
 
-# mount -t tmpfs cgroup_root /sys/fs/cgroup
-# mkdir /sys/fs/cgroup/rg1
+  # mount -t tmpfs cgroup_root /sys/fs/cgroup
+  # mkdir /sys/fs/cgroup/rg1
 
 To mount a cgroup hierarchy with just the cpuset and memory
-subsystems, type:
-# mount -t cgroup -o cpuset,memory hier1 /sys/fs/cgroup/rg1
+subsystems, type::
+
+  # mount -t cgroup -o cpuset,memory hier1 /sys/fs/cgroup/rg1
 
 While remounting cgroups is currently supported, it is not recommend
 to use it. Remounting allows changing bound subsystems and
@@ -375,9 +381,10 @@ hierarchy is empty and release_agent itself should be replaced with
 conventional fsnotify. The support for remounting will be removed in
 the future.
 
-To Specify a hierarchy's release_agent:
-# mount -t cgroup -o cpuset,release_agent="/sbin/cpuset_release_agent" \
-  xxx /sys/fs/cgroup/rg1
+To Specify a hierarchy's release_agent::
+
+  # mount -t cgroup -o cpuset,release_agent="/sbin/cpuset_release_agent" \
+    xxx /sys/fs/cgroup/rg1
 
 Note that specifying 'release_agent' more than once will return failure.
 
@@ -390,32 +397,39 @@ Then under /sys/fs/cgroup/rg1 you can find a tree that corresponds to the
 tree of the cgroups in the system. For instance, /sys/fs/cgroup/rg1
 is the cgroup that holds the whole system.
 
-If you want to change the value of release_agent:
-# echo "/sbin/new_release_agent" > /sys/fs/cgroup/rg1/release_agent
+If you want to change the value of release_agent::
+
+  # echo "/sbin/new_release_agent" > /sys/fs/cgroup/rg1/release_agent
 
 It can also be changed via remount.
 
-If you want to create a new cgroup under /sys/fs/cgroup/rg1:
-# cd /sys/fs/cgroup/rg1
-# mkdir my_cgroup
+If you want to create a new cgroup under /sys/fs/cgroup/rg1::
 
-Now you want to do something with this cgroup.
-# cd my_cgroup
+  # cd /sys/fs/cgroup/rg1
+  # mkdir my_cgroup
 
-In this directory you can find several files:
-# ls
-cgroup.procs notify_on_release tasks
-(plus whatever files added by the attached subsystems)
+Now you want to do something with this cgroup:
 
-Now attach your shell to this cgroup:
-# /bin/echo $$ > tasks
+  # cd my_cgroup
+
+In this directory you can find several files::
+
+  # ls
+  cgroup.procs notify_on_release tasks
+  (plus whatever files added by the attached subsystems)
+
+Now attach your shell to this cgroup::
+
+  # /bin/echo $$ > tasks
 
 You can also create cgroups inside your cgroup by using mkdir in this
-directory.
-# mkdir my_sub_cs
+directory::
 
-To remove a cgroup, just use rmdir:
-# rmdir my_sub_cs
+  # mkdir my_sub_cs
+
+To remove a cgroup, just use rmdir::
+
+  # rmdir my_sub_cs
 
 This will fail if the cgroup is in use (has cgroups inside, or
 has processes attached, or is held alive by other subsystem-specific
@@ -424,19 +438,21 @@ reference).
 2.2 Attaching processes
 -----------------------
 
-# /bin/echo PID > tasks
+::
+
+  # /bin/echo PID > tasks
 
 Note that it is PID, not PIDs. You can only attach ONE task at a time.
-If you have several tasks to attach, you have to do it one after another:
+If you have several tasks to attach, you have to do it one after another::
 
-# /bin/echo PID1 > tasks
-# /bin/echo PID2 > tasks
-	...
-# /bin/echo PIDn > tasks
+  # /bin/echo PID1 > tasks
+  # /bin/echo PID2 > tasks
+	  ...
+  # /bin/echo PIDn > tasks
 
-You can attach the current shell task by echoing 0:
+You can attach the current shell task by echoing 0::
 
-# echo 0 > tasks
+  # echo 0 > tasks
 
 You can use the cgroup.procs file instead of the tasks file to move all
 threads in a threadgroup at once. Echoing the PID of any task in a
@@ -529,7 +545,7 @@ Each subsystem may export the following methods. The only mandatory
 methods are css_alloc/free. Any others that are null are presumed to
 be successful no-ops.
 
-struct cgroup_subsys_state *css_alloc(struct cgroup *cgrp)
+``struct cgroup_subsys_state *css_alloc(struct cgroup *cgrp)``
 (cgroup_mutex held by caller)
 
 Called to allocate a subsystem state object for a cgroup. The
@@ -544,7 +560,7 @@ identified by the passed cgroup object having a NULL parent (since
 it's the root of the hierarchy) and may be an appropriate place for
 initialization code.
 
-int css_online(struct cgroup *cgrp)
+``int css_online(struct cgroup *cgrp)``
 (cgroup_mutex held by caller)
 
 Called after @cgrp successfully completed all allocations and made
@@ -554,7 +570,7 @@ callback can be used to implement reliable state sharing and
 propagation along the hierarchy. See the comment on
 cgroup_for_each_descendant_pre() for details.
 
-void css_offline(struct cgroup *cgrp);
+``void css_offline(struct cgroup *cgrp);``
 (cgroup_mutex held by caller)
 
 This is the counterpart of css_online() and called iff css_online()
@@ -564,7 +580,7 @@ all references it's holding on @cgrp. When all references are dropped,
 cgroup removal will proceed to the next step - css_free(). After this
 callback, @cgrp should be considered dead to the subsystem.
 
-void css_free(struct cgroup *cgrp)
+``void css_free(struct cgroup *cgrp)``
 (cgroup_mutex held by caller)
 
 The cgroup system is about to free @cgrp; the subsystem should free
@@ -573,7 +589,7 @@ is completely unused; @cgrp->parent is still valid. (Note - can also
 be called for a newly-created cgroup if an error occurs after this
 subsystem's create() method has been called for the new cgroup).
 
-int can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+``int can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)``
 (cgroup_mutex held by caller)
 
 Called prior to moving one or more tasks into a cgroup; if the
@@ -594,7 +610,7 @@ fork. If this method returns 0 (success) then this should remain valid
 while the caller holds cgroup_mutex and it is ensured that either
 attach() or cancel_attach() will be called in future.
 
-void css_reset(struct cgroup_subsys_state *css)
+``void css_reset(struct cgroup_subsys_state *css)``
 (cgroup_mutex held by caller)
 
 An optional operation which should restore @css's configuration to the
@@ -608,7 +624,7 @@ This prevents unexpected resource control from a hidden css and
 ensures that the configuration is in the initial state when it is made
 visible again later.
 
-void cancel_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+``void cancel_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)``
 (cgroup_mutex held by caller)
 
 Called when a task attach operation has failed after can_attach() has succeeded.
@@ -617,26 +633,26 @@ function, so that the subsystem can implement a rollback. If not, not necessary.
 This will be called only about subsystems whose can_attach() operation have
 succeeded. The parameters are identical to can_attach().
 
-void attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
+``void attach(struct cgroup *cgrp, struct cgroup_taskset *tset)``
 (cgroup_mutex held by caller)
 
 Called after the task has been attached to the cgroup, to allow any
 post-attachment activity that requires memory allocations or blocking.
 The parameters are identical to can_attach().
 
-void fork(struct task_struct *task)
+``void fork(struct task_struct *task)``
 
 Called when a task is forked into a cgroup.
 
-void exit(struct task_struct *task)
+``void exit(struct task_struct *task)``
 
 Called during task exit.
 
-void free(struct task_struct *task)
+``void free(struct task_struct *task)``
 
 Called when the task_struct is freed.
 
-void bind(struct cgroup *root)
+``void bind(struct cgroup *root)``
 (cgroup_mutex held by caller)
 
 Called when a cgroup subsystem is rebound to a different hierarchy
@@ -649,6 +665,7 @@ that is being created/destroyed (and hence has no sub-cgroups).
 
 cgroup filesystem supports certain types of extended attributes in its
 directories and files.  The current supported types are:
+
 	- Trusted (XATTR_TRUSTED)
 	- Security (XATTR_SECURITY)
 
@@ -666,12 +683,13 @@ in containers and systemd for assorted meta data like main PID in a cgroup
 5. Questions
 ============
 
-Q: what's up with this '/bin/echo' ?
-A: bash's builtin 'echo' command does not check calls to write() against
-   errors. If you use it in the cgroup file system, you won't be
-   able to tell whether a command succeeded or failed.
+::
 
-Q: When I attach processes, only the first of the line gets really attached !
-A: We can only return one error code per call to write(). So you should also
-   put only ONE PID.
+  Q: what's up with this '/bin/echo' ?
+  A: bash's builtin 'echo' command does not check calls to write() against
+     errors. If you use it in the cgroup file system, you won't be
+     able to tell whether a command succeeded or failed.
 
+  Q: When I attach processes, only the first of the line gets really attached !
+  A: We can only return one error code per call to write(). So you should also
+     put only ONE PID.
