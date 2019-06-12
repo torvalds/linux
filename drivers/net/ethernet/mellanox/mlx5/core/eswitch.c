@@ -2457,6 +2457,17 @@ u8 mlx5_eswitch_mode(struct mlx5_eswitch *esw)
 }
 EXPORT_SYMBOL_GPL(mlx5_eswitch_mode);
 
+enum devlink_eswitch_encap_mode
+mlx5_eswitch_get_encap_mode(const struct mlx5_core_dev *dev)
+{
+	struct mlx5_eswitch *esw;
+
+	esw = dev->priv.eswitch;
+	return ESW_ALLOWED(esw) ? esw->offloads.encap :
+		DEVLINK_ESWITCH_ENCAP_MODE_NONE;
+}
+EXPORT_SYMBOL(mlx5_eswitch_get_encap_mode);
+
 bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0, struct mlx5_core_dev *dev1)
 {
 	if ((dev0->priv.eswitch->mode == SRIOV_NONE &&
