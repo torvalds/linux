@@ -1,3 +1,4 @@
+===========================================
 Fault injection capabilities infrastructure
 ===========================================
 
@@ -7,36 +8,36 @@ See also drivers/md/md-faulty.c and "every_nth" module option for scsi_debug.
 Available fault injection capabilities
 --------------------------------------
 
-o failslab
+- failslab
 
   injects slab allocation failures. (kmalloc(), kmem_cache_alloc(), ...)
 
-o fail_page_alloc
+- fail_page_alloc
 
   injects page allocation failures. (alloc_pages(), get_free_pages(), ...)
 
-o fail_futex
+- fail_futex
 
   injects futex deadlock and uaddr fault errors.
 
-o fail_make_request
+- fail_make_request
 
   injects disk IO errors on devices permitted by setting
   /sys/block/<device>/make-it-fail or
   /sys/block/<device>/<partition>/make-it-fail. (generic_make_request())
 
-o fail_mmc_request
+- fail_mmc_request
 
   injects MMC data errors on devices permitted by setting
   debugfs entries under /sys/kernel/debug/mmc0/fail_mmc_request
 
-o fail_function
+- fail_function
 
   injects error return on specific functions, which are marked by
   ALLOW_ERROR_INJECTION() macro, by setting debugfs entries
   under /sys/kernel/debug/fail_function. No boot option supported.
 
-o NVMe fault injection
+- NVMe fault injection
 
   inject NVMe status code and retry flag on devices permitted by setting
   debugfs entries under /sys/kernel/debug/nvme*/fault_inject. The default
@@ -47,7 +48,8 @@ o NVMe fault injection
 Configure fault-injection capabilities behavior
 -----------------------------------------------
 
-o debugfs entries
+debugfs entries
+^^^^^^^^^^^^^^^
 
 fault-inject-debugfs kernel module provides some debugfs entries for runtime
 configuration of fault-injection capabilities.
@@ -55,6 +57,7 @@ configuration of fault-injection capabilities.
 - /sys/kernel/debug/fail*/probability:
 
 	likelihood of failure injection, in percent.
+
 	Format: <percent>
 
 	Note that one-failure-per-hundred is a very high error rate
@@ -83,6 +86,7 @@ configuration of fault-injection capabilities.
 - /sys/kernel/debug/fail*/verbose
 
 	Format: { 0 | 1 | 2 }
+
 	specifies the verbosity of the messages when failure is
 	injected.  '0' means no messages; '1' will print only a single
 	log line per failure; '2' will print a call trace too -- useful
@@ -91,14 +95,15 @@ configuration of fault-injection capabilities.
 - /sys/kernel/debug/fail*/task-filter:
 
 	Format: { 'Y' | 'N' }
+
 	A value of 'N' disables filtering by process (default).
 	Any positive value limits failures to only processes indicated by
 	/proc/<pid>/make-it-fail==1.
 
-- /sys/kernel/debug/fail*/require-start:
-- /sys/kernel/debug/fail*/require-end:
-- /sys/kernel/debug/fail*/reject-start:
-- /sys/kernel/debug/fail*/reject-end:
+- /sys/kernel/debug/fail*/require-start,
+  /sys/kernel/debug/fail*/require-end,
+  /sys/kernel/debug/fail*/reject-start,
+  /sys/kernel/debug/fail*/reject-end:
 
 	specifies the range of virtual addresses tested during
 	stacktrace walking.  Failure is injected only if some caller
@@ -116,6 +121,7 @@ configuration of fault-injection capabilities.
 - /sys/kernel/debug/fail_page_alloc/ignore-gfp-highmem:
 
 	Format: { 'Y' | 'N' }
+
 	default is 'N', setting it to 'Y' won't inject failures into
 	highmem/user allocations.
 
@@ -123,6 +129,7 @@ configuration of fault-injection capabilities.
 - /sys/kernel/debug/fail_page_alloc/ignore-gfp-wait:
 
 	Format: { 'Y' | 'N' }
+
 	default is 'N', setting it to 'Y' will inject failures
 	only into non-sleep allocations (GFP_ATOMIC allocations).
 
@@ -134,12 +141,14 @@ configuration of fault-injection capabilities.
 - /sys/kernel/debug/fail_futex/ignore-private:
 
 	Format: { 'Y' | 'N' }
+
 	default is 'N', setting it to 'Y' will disable failure injections
 	when dealing with private (address space) futexes.
 
 - /sys/kernel/debug/fail_function/inject:
 
 	Format: { 'function-name' | '!function-name' | '' }
+
 	specifies the target function of error injection by name.
 	If the function name leads '!' prefix, given function is
 	removed from injection list. If nothing specified ('')
@@ -160,10 +169,11 @@ configuration of fault-injection capabilities.
 	function for given function. This will be created when
 	user specifies new injection entry.
 
-o Boot option
+Boot option
+^^^^^^^^^^^
 
 In order to inject faults while debugfs is not available (early boot time),
-use the boot option:
+use the boot option::
 
 	failslab=
 	fail_page_alloc=
@@ -171,10 +181,11 @@ use the boot option:
 	fail_futex=
 	mmc_core.fail_request=<interval>,<probability>,<space>,<times>
 
-o proc entries
+proc entries
+^^^^^^^^^^^^
 
-- /proc/<pid>/fail-nth:
-- /proc/self/task/<tid>/fail-nth:
+- /proc/<pid>/fail-nth,
+  /proc/self/task/<tid>/fail-nth:
 
 	Write to this file of integer N makes N-th call in the task fail.
 	Read from this file returns a integer value. A value of '0' indicates
@@ -191,16 +202,16 @@ o proc entries
 How to add new fault injection capability
 -----------------------------------------
 
-o #include <linux/fault-inject.h>
+- #include <linux/fault-inject.h>
 
-o define the fault attributes
+- define the fault attributes
 
   DECLARE_FAULT_ATTR(name);
 
   Please see the definition of struct fault_attr in fault-inject.h
   for details.
 
-o provide a way to configure fault attributes
+- provide a way to configure fault attributes
 
 - boot option
 
@@ -222,126 +233,126 @@ o provide a way to configure fault attributes
   single kernel module, it is better to provide module parameters to
   configure the fault attributes.
 
-o add a hook to insert failures
+- add a hook to insert failures
 
-  Upon should_fail() returning true, client code should inject a failure.
+  Upon should_fail() returning true, client code should inject a failure:
 
 	should_fail(attr, size);
 
 Application Examples
 --------------------
 
-o Inject slab allocation failures into module init/exit code
+- Inject slab allocation failures into module init/exit code::
 
-#!/bin/bash
+    #!/bin/bash
 
-FAILTYPE=failslab
-echo Y > /sys/kernel/debug/$FAILTYPE/task-filter
-echo 10 > /sys/kernel/debug/$FAILTYPE/probability
-echo 100 > /sys/kernel/debug/$FAILTYPE/interval
-echo -1 > /sys/kernel/debug/$FAILTYPE/times
-echo 0 > /sys/kernel/debug/$FAILTYPE/space
-echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
+    FAILTYPE=failslab
+    echo Y > /sys/kernel/debug/$FAILTYPE/task-filter
+    echo 10 > /sys/kernel/debug/$FAILTYPE/probability
+    echo 100 > /sys/kernel/debug/$FAILTYPE/interval
+    echo -1 > /sys/kernel/debug/$FAILTYPE/times
+    echo 0 > /sys/kernel/debug/$FAILTYPE/space
+    echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
+    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
 
-faulty_system()
-{
+    faulty_system()
+    {
 	bash -c "echo 1 > /proc/self/make-it-fail && exec $*"
-}
+    }
 
-if [ $# -eq 0 ]
-then
+    if [ $# -eq 0 ]
+    then
 	echo "Usage: $0 modulename [ modulename ... ]"
 	exit 1
-fi
+    fi
 
-for m in $*
-do
+    for m in $*
+    do
 	echo inserting $m...
 	faulty_system modprobe $m
 
 	echo removing $m...
 	faulty_system modprobe -r $m
-done
+    done
 
 ------------------------------------------------------------------------------
 
-o Inject page allocation failures only for a specific module
+- Inject page allocation failures only for a specific module::
 
-#!/bin/bash
+    #!/bin/bash
 
-FAILTYPE=fail_page_alloc
-module=$1
+    FAILTYPE=fail_page_alloc
+    module=$1
 
-if [ -z $module ]
-then
+    if [ -z $module ]
+    then
 	echo "Usage: $0 <modulename>"
 	exit 1
-fi
+    fi
 
-modprobe $module
+    modprobe $module
 
-if [ ! -d /sys/module/$module/sections ]
-then
+    if [ ! -d /sys/module/$module/sections ]
+    then
 	echo Module $module is not loaded
 	exit 1
-fi
+    fi
 
-cat /sys/module/$module/sections/.text > /sys/kernel/debug/$FAILTYPE/require-start
-cat /sys/module/$module/sections/.data > /sys/kernel/debug/$FAILTYPE/require-end
+    cat /sys/module/$module/sections/.text > /sys/kernel/debug/$FAILTYPE/require-start
+    cat /sys/module/$module/sections/.data > /sys/kernel/debug/$FAILTYPE/require-end
 
-echo N > /sys/kernel/debug/$FAILTYPE/task-filter
-echo 10 > /sys/kernel/debug/$FAILTYPE/probability
-echo 100 > /sys/kernel/debug/$FAILTYPE/interval
-echo -1 > /sys/kernel/debug/$FAILTYPE/times
-echo 0 > /sys/kernel/debug/$FAILTYPE/space
-echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
-echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-highmem
-echo 10 > /sys/kernel/debug/$FAILTYPE/stacktrace-depth
+    echo N > /sys/kernel/debug/$FAILTYPE/task-filter
+    echo 10 > /sys/kernel/debug/$FAILTYPE/probability
+    echo 100 > /sys/kernel/debug/$FAILTYPE/interval
+    echo -1 > /sys/kernel/debug/$FAILTYPE/times
+    echo 0 > /sys/kernel/debug/$FAILTYPE/space
+    echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
+    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
+    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-highmem
+    echo 10 > /sys/kernel/debug/$FAILTYPE/stacktrace-depth
 
-trap "echo 0 > /sys/kernel/debug/$FAILTYPE/probability" SIGINT SIGTERM EXIT
+    trap "echo 0 > /sys/kernel/debug/$FAILTYPE/probability" SIGINT SIGTERM EXIT
 
-echo "Injecting errors into the module $module... (interrupt to stop)"
-sleep 1000000
+    echo "Injecting errors into the module $module... (interrupt to stop)"
+    sleep 1000000
 
 ------------------------------------------------------------------------------
 
-o Inject open_ctree error while btrfs mount
+- Inject open_ctree error while btrfs mount::
 
-#!/bin/bash
+    #!/bin/bash
 
-rm -f testfile.img
-dd if=/dev/zero of=testfile.img bs=1M seek=1000 count=1
-DEVICE=$(losetup --show -f testfile.img)
-mkfs.btrfs -f $DEVICE
-mkdir -p tmpmnt
+    rm -f testfile.img
+    dd if=/dev/zero of=testfile.img bs=1M seek=1000 count=1
+    DEVICE=$(losetup --show -f testfile.img)
+    mkfs.btrfs -f $DEVICE
+    mkdir -p tmpmnt
 
-FAILTYPE=fail_function
-FAILFUNC=open_ctree
-echo $FAILFUNC > /sys/kernel/debug/$FAILTYPE/inject
-echo -12 > /sys/kernel/debug/$FAILTYPE/$FAILFUNC/retval
-echo N > /sys/kernel/debug/$FAILTYPE/task-filter
-echo 100 > /sys/kernel/debug/$FAILTYPE/probability
-echo 0 > /sys/kernel/debug/$FAILTYPE/interval
-echo -1 > /sys/kernel/debug/$FAILTYPE/times
-echo 0 > /sys/kernel/debug/$FAILTYPE/space
-echo 1 > /sys/kernel/debug/$FAILTYPE/verbose
+    FAILTYPE=fail_function
+    FAILFUNC=open_ctree
+    echo $FAILFUNC > /sys/kernel/debug/$FAILTYPE/inject
+    echo -12 > /sys/kernel/debug/$FAILTYPE/$FAILFUNC/retval
+    echo N > /sys/kernel/debug/$FAILTYPE/task-filter
+    echo 100 > /sys/kernel/debug/$FAILTYPE/probability
+    echo 0 > /sys/kernel/debug/$FAILTYPE/interval
+    echo -1 > /sys/kernel/debug/$FAILTYPE/times
+    echo 0 > /sys/kernel/debug/$FAILTYPE/space
+    echo 1 > /sys/kernel/debug/$FAILTYPE/verbose
 
-mount -t btrfs $DEVICE tmpmnt
-if [ $? -ne 0 ]
-then
+    mount -t btrfs $DEVICE tmpmnt
+    if [ $? -ne 0 ]
+    then
 	echo "SUCCESS!"
-else
+    else
 	echo "FAILED!"
 	umount tmpmnt
-fi
+    fi
 
-echo > /sys/kernel/debug/$FAILTYPE/inject
+    echo > /sys/kernel/debug/$FAILTYPE/inject
 
-rmdir tmpmnt
-losetup -d $DEVICE
-rm testfile.img
+    rmdir tmpmnt
+    losetup -d $DEVICE
+    rm testfile.img
 
 
 Tool to run command with failslab or fail_page_alloc
@@ -354,43 +365,43 @@ see the following examples.
 Examples:
 
 Run a command "make -C tools/testing/selftests/ run_tests" with injecting slab
-allocation failure.
+allocation failure::
 
 	# ./tools/testing/fault-injection/failcmd.sh \
 		-- make -C tools/testing/selftests/ run_tests
 
 Same as above except to specify 100 times failures at most instead of one time
-at most by default.
+at most by default::
 
 	# ./tools/testing/fault-injection/failcmd.sh --times=100 \
 		-- make -C tools/testing/selftests/ run_tests
 
 Same as above except to inject page allocation failure instead of slab
-allocation failure.
+allocation failure::
 
 	# env FAILCMD_TYPE=fail_page_alloc \
 		./tools/testing/fault-injection/failcmd.sh --times=100 \
-                -- make -C tools/testing/selftests/ run_tests
+		-- make -C tools/testing/selftests/ run_tests
 
 Systematic faults using fail-nth
 ---------------------------------
 
 The following code systematically faults 0-th, 1-st, 2-nd and so on
-capabilities in the socketpair() system call.
+capabilities in the socketpair() system call::
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/syscall.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
+  #include <sys/types.h>
+  #include <sys/stat.h>
+  #include <sys/socket.h>
+  #include <sys/syscall.h>
+  #include <fcntl.h>
+  #include <unistd.h>
+  #include <string.h>
+  #include <stdlib.h>
+  #include <stdio.h>
+  #include <errno.h>
 
-int main()
-{
+  int main()
+  {
 	int i, err, res, fail_nth, fds[2];
 	char buf[128];
 
@@ -413,23 +424,23 @@ int main()
 			break;
 	}
 	return 0;
-}
+  }
 
-An example output:
+An example output::
 
-1-th fault Y: res=-1/23
-2-th fault Y: res=-1/23
-3-th fault Y: res=-1/12
-4-th fault Y: res=-1/12
-5-th fault Y: res=-1/23
-6-th fault Y: res=-1/23
-7-th fault Y: res=-1/23
-8-th fault Y: res=-1/12
-9-th fault Y: res=-1/12
-10-th fault Y: res=-1/12
-11-th fault Y: res=-1/12
-12-th fault Y: res=-1/12
-13-th fault Y: res=-1/12
-14-th fault Y: res=-1/12
-15-th fault Y: res=-1/12
-16-th fault N: res=0/12
+	1-th fault Y: res=-1/23
+	2-th fault Y: res=-1/23
+	3-th fault Y: res=-1/12
+	4-th fault Y: res=-1/12
+	5-th fault Y: res=-1/23
+	6-th fault Y: res=-1/23
+	7-th fault Y: res=-1/23
+	8-th fault Y: res=-1/12
+	9-th fault Y: res=-1/12
+	10-th fault Y: res=-1/12
+	11-th fault Y: res=-1/12
+	12-th fault Y: res=-1/12
+	13-th fault Y: res=-1/12
+	14-th fault Y: res=-1/12
+	15-th fault Y: res=-1/12
+	16-th fault N: res=0/12

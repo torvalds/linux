@@ -14,7 +14,8 @@ modules that can be used to test the following notifiers.
 PM notifier error injection module
 ----------------------------------
 This feature is controlled through debugfs interface
-/sys/kernel/debug/notifier-error-inject/pm/actions/<notifier event>/error
+
+  /sys/kernel/debug/notifier-error-inject/pm/actions/<notifier event>/error
 
 Possible PM notifier events to be failed are:
 
@@ -22,7 +23,7 @@ Possible PM notifier events to be failed are:
  * PM_SUSPEND_PREPARE
  * PM_RESTORE_PREPARE
 
-Example: Inject PM suspend error (-12 = -ENOMEM)
+Example: Inject PM suspend error (-12 = -ENOMEM)::
 
 	# cd /sys/kernel/debug/notifier-error-inject/pm/
 	# echo -12 > actions/PM_SUSPEND_PREPARE/error
@@ -32,14 +33,15 @@ Example: Inject PM suspend error (-12 = -ENOMEM)
 Memory hotplug notifier error injection module
 ----------------------------------------------
 This feature is controlled through debugfs interface
-/sys/kernel/debug/notifier-error-inject/memory/actions/<notifier event>/error
+
+  /sys/kernel/debug/notifier-error-inject/memory/actions/<notifier event>/error
 
 Possible memory notifier events to be failed are:
 
  * MEM_GOING_ONLINE
  * MEM_GOING_OFFLINE
 
-Example: Inject memory hotplug offline error (-12 == -ENOMEM)
+Example: Inject memory hotplug offline error (-12 == -ENOMEM)::
 
 	# cd /sys/kernel/debug/notifier-error-inject/memory
 	# echo -12 > actions/MEM_GOING_OFFLINE/error
@@ -49,7 +51,8 @@ Example: Inject memory hotplug offline error (-12 == -ENOMEM)
 powerpc pSeries reconfig notifier error injection module
 --------------------------------------------------------
 This feature is controlled through debugfs interface
-/sys/kernel/debug/notifier-error-inject/pSeries-reconfig/actions/<notifier event>/error
+
+  /sys/kernel/debug/notifier-error-inject/pSeries-reconfig/actions/<notifier event>/error
 
 Possible pSeries reconfig notifier events to be failed are:
 
@@ -61,7 +64,8 @@ Possible pSeries reconfig notifier events to be failed are:
 Netdevice notifier error injection module
 ----------------------------------------------
 This feature is controlled through debugfs interface
-/sys/kernel/debug/notifier-error-inject/netdev/actions/<notifier event>/error
+
+  /sys/kernel/debug/notifier-error-inject/netdev/actions/<notifier event>/error
 
 Netdevice notifier events which can be failed are:
 
@@ -75,7 +79,7 @@ Netdevice notifier events which can be failed are:
  * NETDEV_PRECHANGEUPPER
  * NETDEV_CHANGEUPPER
 
-Example: Inject netdevice mtu change error (-22 == -EINVAL)
+Example: Inject netdevice mtu change error (-22 == -EINVAL)::
 
 	# cd /sys/kernel/debug/notifier-error-inject/netdev
 	# echo -22 > actions/NETDEV_CHANGEMTU/error

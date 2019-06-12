@@ -205,7 +205,7 @@ Linus对这个问题给出了最佳答案:
 启用故障注入后，内存分配的可配置百分比将失败；这些失败可以限制在特定的代码
 范围内。在启用了故障注入的情况下运行，程序员可以看到当情况恶化时代码如何响
 应。有关如何使用此工具的详细信息，请参阅
-Documentation/fault-injection/fault-injection.txt。
+Documentation/fault-injection/fault-injection.rst。
 
 使用“sparse”静态分析工具可以发现其他类型的错误。对于sparse，可以警告程序员
 用户空间和内核空间地址之间的混淆、big endian和small endian数量的混合、在需

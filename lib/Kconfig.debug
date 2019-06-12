@@ -1701,7 +1701,7 @@ config LKDTM
 	called lkdtm.
 
 	Documentation on how to use the module can be found in
-	Documentation/fault-injection/provoke-crashes.txt
+	Documentation/fault-injection/provoke-crashes.rst
 
 config TEST_LIST_SORT
 	tristate "Linked list sorting test"
