@@ -8,11 +8,12 @@ menuconfig CAN
 	tristate "CAN bus subsystem support"
 	---help---
 	  Controller Area Network (CAN) is a slow (up to 1Mbit/s) serial
-	  communications protocol which was developed by Bosch in
-	  1991, mainly for automotive, but now widely used in marine
-	  (NMEA2000), industrial, and medical applications.
-	  More information on the CAN network protocol family PF_CAN
-	  is contained in <Documentation/networking/can.rst>.
+	  communications protocol. Development of the CAN bus started in
+	  1983 at Robert Bosch GmbH, and the protocol was officially
+	  released in 1986. The CAN bus was originally mainly for automotive,
+	  but is now widely used in marine (NMEA2000), industrial, and medical
+	  applications. More information on the CAN network protocol family
+	  PF_CAN is contained in <Documentation/networking/can.rst>.
 
 	  If you want CAN support you should say Y here and also to the
 	  specific driver for your controller(s) below.
