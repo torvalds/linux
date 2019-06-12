@@ -18,76 +18,18 @@
 #include <linux/init.h>
 #include <linux/module.h>
 
-struct arc4_ctx {
-	u32 S[256];
-	u32 x, y;
-};
-
 static int arc4_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 			unsigned int key_len)
 {
 	struct arc4_ctx *ctx = crypto_tfm_ctx(tfm);
-	int i, j = 0, k = 0;
 
-	ctx->x = 1;
-	ctx->y = 0;
-
-	for (i = 0; i < 256; i++)
-		ctx->S[i] = i;
-
-	for (i = 0; i < 256; i++) {
-		u32 a = ctx->S[i];
-		j = (j + in_key[k] + a) & 0xff;
-		ctx->S[i] = ctx->S[j];
-		ctx->S[j] = a;
-		if (++k >= key_len)
-			k = 0;
-	}
-
-	return 0;
+	return arc4_setkey(ctx, in_key, key_len);
 }
 
 static int arc4_set_key_skcipher(struct crypto_skcipher *tfm, const u8 *in_key,
 				 unsigned int key_len)
 {
 	return arc4_set_key(&tfm->base, in_key, key_len);
-}
-
-static void arc4_crypt(struct arc4_ctx *ctx, u8 *out, const u8 *in,
-		       unsigned int len)
-{
-	u32 *const S = ctx->S;
-	u32 x, y, a, b;
-	u32 ty, ta, tb;
-
-	if (len == 0)
-		return;
-
-	x = ctx->x;
-	y = ctx->y;
-
-	a = S[x];
-	y = (y + a) & 0xff;
-	b = S[y];
-
-	do {
-		S[y] = a;
-		a = (a + b) & 0xff;
-		S[x] = b;
-		x = (x + 1) & 0xff;
-		ta = S[x];
-		ty = (y + ta) & 0xff;
-		tb = S[ty];
-		*out++ = *in++ ^ S[a];
-		if (--len == 0)
-			break;
-		y = ty;
-		a = ta;
-		b = tb;
-	} while (true);
-
-	ctx->x = x;
-	ctx->y = y;
 }
 
 static void arc4_crypt_one(struct crypto_tfm *tfm, u8 *out, const u8 *in)
