@@ -1,10 +1,13 @@
+========================================
 NetLabel Linux Security Module Interface
-==============================================================================
+========================================
+
 Paul Moore, paul.moore@hp.com
 
 May 17, 2006
 
- * Overview
+Overview
+========
 
 NetLabel is a mechanism which can set and retrieve security attributes from
 network packets.  It is intended to be used by LSM developers who want to make
@@ -12,7 +15,8 @@ use of a common code base for several different packet labeling protocols.
 The NetLabel security module API is defined in 'include/net/netlabel.h' but a
 brief overview is given below.
 
- * NetLabel Security Attributes
+NetLabel Security Attributes
+============================
 
 Since NetLabel supports multiple different packet labeling protocols and LSMs
 it uses the concept of security attributes to refer to the packet's security
@@ -24,7 +28,8 @@ configuration.  It is up to the LSM developer to translate the NetLabel
 security attributes into whatever security identifiers are in use for their
 particular LSM.
 
- * NetLabel LSM Protocol Operations
+NetLabel LSM Protocol Operations
+================================
 
 These are the functions which allow the LSM developer to manipulate the labels
 on outgoing packets as well as read the labels on incoming packets.  Functions
@@ -32,7 +37,8 @@ exist to operate both on sockets as well as the sk_buffs directly.  These high
 level functions are translated into low level protocol operations based on how
 the administrator has configured the NetLabel subsystem.
 
- * NetLabel Label Mapping Cache Operations
+NetLabel Label Mapping Cache Operations
+=======================================
 
 Depending on the exact configuration, translation between the network packet
 label and the internal LSM security identifier can be time consuming.  The
