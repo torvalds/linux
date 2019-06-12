@@ -1,5 +1,8 @@
+:orphan:
 
-* PTP hardware clock infrastructure for Linux
+===========================================
+PTP hardware clock infrastructure for Linux
+===========================================
 
   This patch set introduces support for IEEE 1588 PTP clocks in
   Linux. Together with the SO_TIMESTAMPING socket options, this
@@ -22,7 +25,8 @@
     - Period output signals configurable from user space
     - Synchronization of the Linux system time via the PPS subsystem
 
-** PTP hardware clock kernel API
+PTP hardware clock kernel API
+=============================
 
    A PTP clock driver registers itself with the class driver. The
    class driver handles all of the dealings with user space. The
@@ -36,7 +40,8 @@
    development, it can be useful to have more than one clock in a
    single system, in order to allow performance comparisons.
 
-** PTP hardware clock user space API
+PTP hardware clock user space API
+=================================
 
    The class driver also creates a character device for each
    registered clock. User space can use an open file descriptor from
@@ -49,7 +54,8 @@
    ancillary clock features. User space can receive time stamped
    events via blocking read() and poll().
 
-** Writing clock drivers
+Writing clock drivers
+=====================
 
    Clock drivers include include/linux/ptp_clock_kernel.h and register
    themselves by presenting a 'struct ptp_clock_info' to the
@@ -66,14 +72,17 @@
    class driver, since the lock may also be needed by the clock
    driver's interrupt service routine.
 
-** Supported hardware
+Supported hardware
+==================
 
-   + Freescale eTSEC gianfar
+   * Freescale eTSEC gianfar
+
      - 2 Time stamp external triggers, programmable polarity (opt. interrupt)
      - 2 Alarm registers (optional interrupt)
      - 3 Periodic signals (optional interrupt)
 
-   + National DP83640
+   * National DP83640
+
      - 6 GPIOs programmable as inputs or outputs
      - 6 GPIOs with dedicated functions (LED/JTAG/clock) can also be
        used as general inputs or outputs
@@ -81,6 +90,7 @@
      - GPIO outputs can produce periodic signals
      - 1 interrupt pin
 
-   + Intel IXP465
+   * Intel IXP465
+
      - Auxiliary Slave/Master Mode Snapshot (optional interrupt)
      - Target Time (optional interrupt)
