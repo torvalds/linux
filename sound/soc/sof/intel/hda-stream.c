@@ -556,7 +556,9 @@ static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 {
 	struct hdac_bus *bus = context;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	u32 rirb_status;
+#endif
 	bool active;
 	u32 status;
 	int i;
