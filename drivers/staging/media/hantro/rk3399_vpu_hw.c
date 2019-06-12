@@ -184,3 +184,20 @@ const struct hantro_variant rk3399_vpu_variant = {
 	.clk_names = rk3399_clk_names,
 	.num_clocks = ARRAY_SIZE(rk3399_clk_names)
 };
+
+static const struct hantro_irq rk3328_irqs[] = {
+	{ "vdpu", rk3399_vdpu_irq },
+};
+
+const struct hantro_variant rk3328_vpu_variant = {
+	.dec_offset = 0x400,
+	.dec_fmts = rk3399_vpu_dec_fmts,
+	.num_dec_fmts = ARRAY_SIZE(rk3399_vpu_dec_fmts),
+	.codec = HANTRO_MPEG2_DECODER,
+	.codec_ops = rk3399_vpu_codec_ops,
+	.irqs = rk3328_irqs,
+	.num_irqs = ARRAY_SIZE(rk3328_irqs),
+	.init = rk3399_vpu_hw_init,
+	.clk_names = rk3399_clk_names,
+	.num_clocks = ARRAY_SIZE(rk3399_clk_names),
+};
