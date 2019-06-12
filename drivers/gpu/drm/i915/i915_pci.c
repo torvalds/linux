@@ -747,7 +747,7 @@ static const struct intel_device_info intel_cannonlake_info = {
 	GEN(11), \
 	.ddb_size = 2048, \
 	.has_logical_ring_elsq = 1, \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 1024 }
+	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 }
 
 static const struct intel_device_info intel_icelake_11_info = {
 	GEN11_FEATURES,

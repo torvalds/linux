@@ -41,6 +41,7 @@
 #define CTM_COEFF_ABS(coeff)		((coeff) & (CTM_COEFF_SIGN - 1))
 
 #define LEGACY_LUT_LENGTH		256
+
 /*
  * Extract the CSC coefficient from a CTM coefficient (in U32.32 fixed point
  * format). This macro takes the coefficient we want transformed and the
@@ -767,6 +768,116 @@ static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 	}
 }
 
+/* ilk+ "12.4" interpolated format (high 10 bits) */
+static u32 ilk_lut_12p4_udw(const struct drm_color_lut *color)
+{
+	return (color->red >> 6) << 20 | (color->green >> 6) << 10 |
+		(color->blue >> 6);
+}
+
+/* ilk+ "12.4" interpolated format (low 6 bits) */
+static u32 ilk_lut_12p4_ldw(const struct drm_color_lut *color)
+{
+	return (color->red & 0x3f) << 24 | (color->green & 0x3f) << 14 |
+		(color->blue & 0x3f) << 4;
+}
+
+static void
+icl_load_gcmax(const struct intel_crtc_state *crtc_state,
+	       const struct drm_color_lut *color)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	/* Fixme: LUT entries are 16 bit only, so we can prog 0xFFFF max */
+	I915_WRITE(PREC_PAL_GC_MAX(pipe, 0), color->red);
+	I915_WRITE(PREC_PAL_GC_MAX(pipe, 1), color->green);
+	I915_WRITE(PREC_PAL_GC_MAX(pipe, 2), color->blue);
+}
+
+static void
+icl_program_gamma_superfine_segment(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_property_blob *blob = crtc_state->base.gamma_lut;
+	const struct drm_color_lut *lut = blob->data;
+	enum pipe pipe = crtc->pipe;
+	u32 i;
+
+	/*
+	 * Every entry in the multi-segment LUT is corresponding to a superfine
+	 * segment step which is 1/(8 * 128 * 256).
+	 *
+	 * Superfine segment has 9 entries, corresponding to values
+	 * 0, 1/(8 * 128 * 256), 2/(8 * 128 * 256) .... 8/(8 * 128 * 256).
+	 */
+	I915_WRITE(PREC_PAL_MULTI_SEG_INDEX(pipe), PAL_PREC_AUTO_INCREMENT);
+
+	for (i = 0; i < 9; i++) {
+		const struct drm_color_lut *entry = &lut[i];
+
+		I915_WRITE(PREC_PAL_MULTI_SEG_DATA(pipe),
+			   ilk_lut_12p4_ldw(entry));
+		I915_WRITE(PREC_PAL_MULTI_SEG_DATA(pipe),
+			   ilk_lut_12p4_udw(entry));
+	}
+}
+
+static void
+icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_property_blob *blob = crtc_state->base.gamma_lut;
+	const struct drm_color_lut *lut = blob->data;
+	const struct drm_color_lut *entry;
+	enum pipe pipe = crtc->pipe;
+	u32 i;
+
+	/*
+	 *
+	 * Program Fine segment (let's call it seg2)...
+	 *
+	 * Fine segment's step is 1/(128 * 256) ie 1/(128 * 256),  2/(128*256)
+	 * ... 256/(128*256). So in order to program fine segment of LUT we
+	 * need to pick every 8'th entry in LUT, and program 256 indexes.
+	 *
+	 * PAL_PREC_INDEX[0] and PAL_PREC_INDEX[1] map to seg2[1],
+	 * with seg2[0] being unused by the hardware.
+	 */
+	I915_WRITE(PREC_PAL_INDEX(pipe), PAL_PREC_AUTO_INCREMENT);
+	for (i = 1; i < 257; i++) {
+		entry = &lut[i * 8];
+		I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_12p4_ldw(entry));
+		I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_12p4_udw(entry));
+	}
+
+	/*
+	 * Program Coarse segment (let's call it seg3)...
+	 *
+	 * Coarse segment's starts from index 0 and it's step is 1/256 ie 0,
+	 * 1/256, 2/256 ...256/256. As per the description of each entry in LUT
+	 * above, we need to pick every (8 * 128)th entry in LUT, and
+	 * program 256 of those.
+	 *
+	 * Spec is not very clear about if entries seg3[0] and seg3[1] are
+	 * being used or not, but we still need to program these to advance
+	 * the index.
+	 */
+	for (i = 0; i < 256; i++) {
+		entry = &lut[i * 8 * 128];
+		I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_12p4_ldw(entry));
+		I915_WRITE(PREC_PAL_DATA(pipe), ilk_lut_12p4_udw(entry));
+	}
+
+	/* The last entry in the LUT is to be programmed in GCMAX */
+	entry = &lut[256 * 8 * 128];
+	icl_load_gcmax(crtc_state, entry);
+	ivb_load_lut_ext_max(crtc);
+}
+
 static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	const struct drm_property_blob *gamma_lut = crtc_state->base.gamma_lut;
@@ -775,10 +886,17 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->base.degamma_lut)
 		glk_load_degamma_lut(crtc_state);
 
-	if ((crtc_state->gamma_mode & GAMMA_MODE_MODE_MASK) ==
-	    GAMMA_MODE_MODE_8BIT) {
+	switch (crtc_state->gamma_mode & GAMMA_MODE_MODE_MASK) {
+	case GAMMA_MODE_MODE_8BIT:
 		i9xx_load_luts(crtc_state);
-	} else {
+		break;
+
+	case GAMMA_MODE_MODE_12BIT_MULTI_SEGMENTED:
+		icl_program_gamma_superfine_segment(crtc_state);
+		icl_program_gamma_multi_segment(crtc_state);
+		break;
+
+	default:
 		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_ext_max(crtc);
 	}
@@ -1219,7 +1337,7 @@ static u32 icl_gamma_mode(const struct intel_crtc_state *crtc_state)
 	    crtc_state_is_legacy_gamma(crtc_state))
 		gamma_mode |= GAMMA_MODE_MODE_8BIT;
 	else
-		gamma_mode |= GAMMA_MODE_MODE_10BIT;
+		gamma_mode |= GAMMA_MODE_MODE_12BIT_MULTI_SEGMENTED;
 
 	return gamma_mode;
 }
