@@ -1,5 +1,6 @@
+===========================================================
 Clock sources, Clock events, sched_clock() and delay timers
------------------------------------------------------------
+===========================================================
 
 This document tries to briefly explain some basic kernel timekeeping
 abstractions. It partly pertains to the drivers usually found in

@@ -1,5 +1,6 @@
+=====================================================
 High resolution timers and dynamic ticks design notes
------------------------------------------------------
+=====================================================
 
 Further information can be found in the paper of the OLS 2006 talk "hrtimers
 and beyond". The paper is part of the OLS 2006 Proceedings Volume 1, which can
@@ -30,11 +31,12 @@ hrtimer base infrastructure
 ---------------------------
 
 The hrtimer base infrastructure was merged into the 2.6.16 kernel. Details of
-the base implementation are covered in Documentation/timers/hrtimers.txt. See
+the base implementation are covered in Documentation/timers/hrtimers.rst. See
 also figure #2 (OLS slides p. 15)
 
 The main differences to the timer wheel, which holds the armed timer_list type
 timers are:
+
        - time ordered enqueueing into a rb-tree
        - independent of ticks (the processing is based on nanoseconds)
 
@@ -55,7 +57,8 @@ merged into the 2.6.18 kernel.
 
 Further information about the Generic Time Of Day framework is available in the
 OLS 2005 Proceedings Volume 1:
-http://www.linuxsymposium.org/2005/linuxsymposium_procv1.pdf
+
+	http://www.linuxsymposium.org/2005/linuxsymposium_procv1.pdf
 
 The paper "We Are Not Getting Any Younger: A New Approach to Time and
 Timers" was written by J. Stultz, D.V. Hart, & N. Aravamudan.
@@ -100,6 +103,7 @@ accounting, profiling, and high resolution timers.
 
 The management layer assigns one or more of the following functions to a clock
 event device:
+
       - system global periodic tick (jiffies update)
       - cpu local update_process_times
       - cpu local profiling
@@ -244,6 +248,3 @@ extended to x86_64 and ARM already. Initial (work in progress) support is also
 available for MIPS and PowerPC.
 
 	  Thomas, Ingo
-
-
-

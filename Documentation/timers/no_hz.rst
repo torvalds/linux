@@ -1,4 +1,6 @@
-		NO_HZ: Reducing Scheduling-Clock Ticks
+﻿======================================
+NO_HZ: Reducing Scheduling-Clock Ticks
+======================================
 
 
 This document describes Kconfig options and boot parameters that can
@@ -28,7 +30,8 @@ by a third section on RCU-specific considerations, a fourth section
 discussing testing, and a fifth and final section listing known issues.
 
 
-NEVER OMIT SCHEDULING-CLOCK TICKS
+Never Omit Scheduling-Clock Ticks
+=================================
 
 Very old versions of Linux from the 1990s and the very early 2000s
 are incapable of omitting scheduling-clock ticks.  It turns out that
@@ -59,7 +62,8 @@ degrade your applications performance.  If this describes your workload,
 you should read the following two sections.
 
 
-OMIT SCHEDULING-CLOCK TICKS FOR IDLE CPUs
+Omit Scheduling-Clock Ticks For Idle CPUs
+=========================================
 
 If a CPU is idle, there is little point in sending it a scheduling-clock
 interrupt.  After all, the primary purpose of a scheduling-clock interrupt
@@ -97,7 +101,8 @@ By default, CONFIG_NO_HZ_IDLE=y kernels boot with "nohz=on", enabling
 dyntick-idle mode.
 
 
-OMIT SCHEDULING-CLOCK TICKS FOR CPUs WITH ONLY ONE RUNNABLE TASK
+Omit Scheduling-Clock Ticks For CPUs With Only One Runnable Task
+================================================================
 
 If a CPU has only one runnable task, there is little point in sending it
 a scheduling-clock interrupt because there is no other task to switch to.
@@ -174,7 +179,8 @@ However, the drawbacks listed above mean that adaptive ticks should not
 (yet) be enabled by default.
 
 
-RCU IMPLICATIONS
+RCU Implications
+================
 
 There are situations in which idle CPUs cannot be permitted to
 enter either dyntick-idle mode or adaptive-tick mode, the most
@@ -199,7 +205,8 @@ scheduler will decide where to run them, which might or might not be
 where you want them to run.
 
 
-TESTING
+Testing
+=======
 
 So you enable all the OS-jitter features described in this document,
 but do not see any change in your workload's behavior.  Is this because
@@ -222,9 +229,10 @@ We do not currently have a good way to remove OS jitter from single-CPU
 systems.
 
 
-KNOWN ISSUES
+Known Issues
+============
 
-o	Dyntick-idle slows transitions to and from idle slightly.
+*	Dyntick-idle slows transitions to and from idle slightly.
 	In practice, this has not been a problem except for the most
 	aggressive real-time workloads, which have the option of disabling
 	dyntick-idle mode, an option that most of them take.  However,
@@ -248,13 +256,13 @@ o	Dyntick-idle slows transitions to and from idle slightly.
 		this parameter effectively disables Turbo Mode on Intel
 		CPUs, which can significantly reduce maximum performance.
 
-o	Adaptive-ticks slows user/kernel transitions slightly.
+*	Adaptive-ticks slows user/kernel transitions slightly.
 	This is not expected to be a problem for computationally intensive
 	workloads, which have few such transitions.  Careful benchmarking
 	will be required to determine whether or not other workloads
 	are significantly affected by this effect.
 
-o	Adaptive-ticks does not do anything unless there is only one
+*	Adaptive-ticks does not do anything unless there is only one
 	runnable task for a given CPU, even though there are a number
 	of other situations where the scheduling-clock tick is not
 	needed.  To give but one example, consider a CPU that has one
@@ -275,7 +283,7 @@ o	Adaptive-ticks does not do anything unless there is only one
 
 	Better handling of these sorts of situations is future work.
 
-o	A reboot is required to reconfigure both adaptive idle and RCU
+*	A reboot is required to reconfigure both adaptive idle and RCU
 	callback offloading.  Runtime reconfiguration could be provided
 	if needed, however, due to the complexity of reconfiguring RCU at
 	runtime, there would need to be an earthshakingly good reason.
@@ -283,12 +291,12 @@ o	A reboot is required to reconfigure both adaptive idle and RCU
 	simply offloading RCU callbacks from all CPUs and pinning them
 	where you want them whenever you want them pinned.
 
-o	Additional configuration is required to deal with other sources
+*	Additional configuration is required to deal with other sources
 	of OS jitter, including interrupts and system-utility tasks
 	and processes.  This configuration normally involves binding
 	interrupts and tasks to particular CPUs.
 
-o	Some sources of OS jitter can currently be eliminated only by
+*	Some sources of OS jitter can currently be eliminated only by
 	constraining the workload.  For example, the only way to eliminate
 	OS jitter due to global TLB shootdowns is to avoid the unmapping
 	operations (such as kernel module unload operations) that
@@ -299,17 +307,17 @@ o	Some sources of OS jitter can currently be eliminated only by
 	helpful, especially when combined with the mlock() and mlockall()
 	system calls.
 
-o	Unless all CPUs are idle, at least one CPU must keep the
+*	Unless all CPUs are idle, at least one CPU must keep the
 	scheduling-clock interrupt going in order to support accurate
 	timekeeping.
 
-o	If there might potentially be some adaptive-ticks CPUs, there
+*	If there might potentially be some adaptive-ticks CPUs, there
 	will be at least one CPU keeping the scheduling-clock interrupt
 	going, even if all CPUs are otherwise idle.
 
 	Better handling of this situation is ongoing work.
 
-o	Some process-handling operations still require the occasional
+*	Some process-handling operations still require the occasional
 	scheduling-clock tick.	These operations include calculating CPU
 	load, maintaining sched average, computing CFS entity vruntime,
 	computing avenrun, and carrying out load balancing.  They are

@@ -7192,7 +7192,7 @@ F:	drivers/net/ethernet/hp/hp100.*
 HPET:	High Precision Event Timers driver
 M:	Clemens Ladisch <clemens@ladisch.de>
 S:	Maintained
-F:	Documentation/timers/hpet.txt
+F:	Documentation/timers/hpet.rst
 F:	drivers/char/hpet.c
 F:	include/linux/hpet.h
 F:	include/uapi/linux/hpet.h

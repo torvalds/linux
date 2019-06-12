@@ -1,5 +1,6 @@
+===================================================================
 delays - Information on the various kernel delay / sleep mechanisms
--------------------------------------------------------------------
+===================================================================
 
 This document seeks to answer the common question: "What is the
 RightWay (TM) to insert a delay?"
@@ -17,7 +18,7 @@ code in an atomic context?"  This should be followed closely by "Does
 it really need to delay in atomic context?" If so...
 
 ATOMIC CONTEXT:
-	You must use the *delay family of functions. These
+	You must use the `*delay` family of functions. These
 	functions use the jiffie estimation of clock speed
 	and will busy wait for enough loop cycles to achieve
 	the desired delay:
@@ -35,21 +36,26 @@ ATOMIC CONTEXT:
 	be refactored to allow for the use of msleep.
 
 NON-ATOMIC CONTEXT:
-	You should use the *sleep[_range] family of functions.
+	You should use the `*sleep[_range]` family of functions.
 	There are a few more options here, while any of them may
 	work correctly, using the "right" sleep function will
 	help the scheduler, power management, and just make your
 	driver better :)
 
 	-- Backed by busy-wait loop:
+
 		udelay(unsigned long usecs)
+
 	-- Backed by hrtimers:
+
 		usleep_range(unsigned long min, unsigned long max)
+
 	-- Backed by jiffies / legacy_timers
+
 		msleep(unsigned long msecs)
 		msleep_interruptible(unsigned long msecs)
 
-	Unlike the *delay family, the underlying mechanism
+	Unlike the `*delay` family, the underlying mechanism
 	driving each of these calls varies, thus there are
 	quirks you should be aware of.
 
@@ -70,6 +76,7 @@ NON-ATOMIC CONTEXT:
 		- Why not msleep for (1ms - 20ms)?
 			Explained originally here:
 				http://lkml.org/lkml/2007/8/3/250
+
 			msleep(1~20) may not do what the caller intends, and
 			will often sleep longer (~20 ms actual sleep for any
 			value given in the 1~20ms range). In many cases this

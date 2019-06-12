@@ -1,6 +1,6 @@
-
+======================================================
 hrtimers - subsystem for high-resolution kernel timers
-----------------------------------------------------
+======================================================
 
 This patch introduces a new subsystem for high-resolution kernel timers.
 
@@ -146,7 +146,7 @@ the clock_getres() interface. This will return whatever real resolution
 a given clock has - be it low-res, high-res, or artificially-low-res.
 
 hrtimers - testing and verification
-----------------------------------
+-----------------------------------
 
 We used the high-resolution clock subsystem ontop of hrtimers to verify
 the hrtimer implementation details in praxis, and we also ran the posix
