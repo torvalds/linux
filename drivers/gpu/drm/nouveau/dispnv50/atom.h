@@ -224,6 +224,8 @@ struct nv50_wndw_atom {
 	struct {
 		u8 depth;
 		u8 k1;
+		u8 src_color:4;
+		u8 dst_color:4;
 	} blend;
 
 	union nv50_wndw_atom_mask {

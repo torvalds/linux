@@ -89,7 +89,10 @@ wndwc37e_blend_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 		evo_mthd(push, 0x02ec, 7);
 		evo_data(push, asyw->blend.depth << 4);
 		evo_data(push, asyw->blend.k1);
-		evo_data(push, 0x00007722);
+		evo_data(push, asyw->blend.dst_color << 12 |
+			       asyw->blend.dst_color << 8 |
+			       asyw->blend.src_color << 4 |
+			       asyw->blend.src_color);
 		evo_data(push, 0xffff0000);
 		evo_data(push, 0xffff0000);
 		evo_data(push, 0xffff0000);

@@ -289,6 +289,21 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 	if (wndw->func->blend_set) {
 		asyw->blend.depth = 255 - asyw->state.normalized_zpos;
 		asyw->blend.k1 = asyw->state.alpha >> 8;
+		switch (asyw->state.pixel_blend_mode) {
+		case DRM_MODE_BLEND_PREMULTI:
+			asyw->blend.src_color = 2; /* K1 */
+			asyw->blend.dst_color = 7; /* NEG_K1_TIMES_SRC */
+			break;
+		case DRM_MODE_BLEND_COVERAGE:
+			asyw->blend.src_color = 5; /* K1_TIMES_SRC */
+			asyw->blend.dst_color = 7; /* NEG_K1_TIMES_SRC */
+			break;
+		case DRM_MODE_BLEND_PIXEL_NONE:
+		default:
+			asyw->blend.src_color = 2; /* K1 */
+			asyw->blend.dst_color = 4; /* NEG_K1 */
+			break;
+		}
 		if (memcmp(&armw->blend, &asyw->blend, sizeof(asyw->blend)))
 			asyw->set.blend = true;
 	}
@@ -659,6 +674,13 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 			return ret;
 
 		ret = drm_plane_create_alpha_property(&wndw->plane);
+		if (ret)
+			return ret;
+
+		ret = drm_plane_create_blend_mode_property(&wndw->plane,
+				BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+				BIT(DRM_MODE_BLEND_PREMULTI) |
+				BIT(DRM_MODE_BLEND_COVERAGE));
 		if (ret)
 			return ret;
 	} else {
