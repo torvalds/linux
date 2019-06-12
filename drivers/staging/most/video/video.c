@@ -540,8 +540,18 @@ static struct core_component comp = {
 
 static int __init comp_init(void)
 {
+	int err;
+
 	spin_lock_init(&list_lock);
-	return most_register_component(&comp);
+	err = most_register_component(&comp);
+	if (err)
+		return err;
+	err = most_register_configfs_subsys(&comp);
+	if (err) {
+		most_deregister_component(&comp);
+		return err;
+	}
+	return 0;
 }
 
 static void __exit comp_exit(void)
