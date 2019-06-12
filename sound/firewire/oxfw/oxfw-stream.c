@@ -254,96 +254,92 @@ int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw,
 				  struct amdtp_stream *stream,
 				  unsigned int rate, unsigned int pcm_channels)
 {
-	struct amdtp_stream *opposite;
 	struct snd_oxfw_stream_formation formation;
 	enum avc_general_plug_dir dir;
-	unsigned int substreams, opposite_substreams;
 	int err = 0;
 
-	if (stream == &oxfw->tx_stream) {
-		substreams = oxfw->capture_substreams;
-		opposite = &oxfw->rx_stream;
-		opposite_substreams = oxfw->playback_substreams;
-		dir = AVC_GENERAL_PLUG_DIR_OUT;
-	} else {
-		substreams = oxfw->playback_substreams;
-		opposite_substreams = oxfw->capture_substreams;
+	if (oxfw->capture_substreams == 0 && oxfw->playback_substreams == 0)
+		return -EIO;
 
-		if (oxfw->has_output)
-			opposite = &oxfw->rx_stream;
-		else
-			opposite = NULL;
-
-		dir = AVC_GENERAL_PLUG_DIR_IN;
+	// Considering JACK/FFADO streaming:
+	// TODO: This can be removed hwdep functionality becomes popular.
+	err = check_connection_used_by_others(oxfw, &oxfw->rx_stream);
+	if (err < 0)
+		return err;
+	if (oxfw->has_output) {
+		err = check_connection_used_by_others(oxfw, &oxfw->tx_stream);
+		if (err < 0)
+			return err;
 	}
 
-	if (substreams == 0)
-		goto end;
-
-	/*
-	 * Considering JACK/FFADO streaming:
-	 * TODO: This can be removed hwdep functionality becomes popular.
-	 */
-	err = check_connection_used_by_others(oxfw, stream);
-	if (err < 0)
-		goto end;
+	if (stream == &oxfw->tx_stream)
+		dir = AVC_GENERAL_PLUG_DIR_OUT;
+	else
+		dir = AVC_GENERAL_PLUG_DIR_IN;
 
 	err = snd_oxfw_stream_get_current_formation(oxfw, dir, &formation);
 	if (err < 0)
-		goto end;
+		return err;
 	if (rate == 0)
 		rate = formation.rate;
 	if (pcm_channels == 0)
 		pcm_channels = formation.pcm;
 
 	if (formation.rate != rate || formation.pcm != pcm_channels ||
-	    amdtp_streaming_error(stream)) {
-		if (opposite != NULL) {
-			err = check_connection_used_by_others(oxfw, opposite);
-			if (err < 0)
-				goto end;
-			stop_stream(oxfw, opposite);
-		}
-		stop_stream(oxfw, stream);
+	    amdtp_streaming_error(&oxfw->rx_stream) ||
+	    amdtp_streaming_error(&oxfw->tx_stream)) {
+		stop_stream(oxfw, &oxfw->rx_stream);
+		if (oxfw->has_output)
+			stop_stream(oxfw, &oxfw->tx_stream);
 
 		err = set_stream_format(oxfw, stream, rate, pcm_channels);
 		if (err < 0) {
 			dev_err(&oxfw->unit->device,
 				"fail to set stream format: %d\n", err);
-			goto end;
+			return err;
 		}
+	}
 
-		/* Start opposite stream if needed. */
-		if (opposite && !amdtp_stream_running(opposite) &&
-		    (opposite_substreams > 0)) {
-			err = start_stream(oxfw, opposite);
+	if (!amdtp_stream_running(&oxfw->rx_stream)) {
+		err = start_stream(oxfw, &oxfw->rx_stream);
+		if (err < 0) {
+			dev_err(&oxfw->unit->device,
+				"fail to start rx stream: %d\n", err);
+			goto error;
+		}
+	}
+
+	if (oxfw->has_output) {
+		if (!amdtp_stream_running(&oxfw->tx_stream)) {
+			err = start_stream(oxfw, &oxfw->tx_stream);
 			if (err < 0) {
 				dev_err(&oxfw->unit->device,
-					"fail to restart stream: %d\n", err);
-				goto end;
+					"fail to start tx stream: %d\n", err);
+				goto error;
 			}
 		}
 	}
 
-	/* Start requested stream. */
-	if (!amdtp_stream_running(stream)) {
-		err = start_stream(oxfw, stream);
-		if (err < 0)
-			dev_err(&oxfw->unit->device,
-				"fail to start stream: %d\n", err);
+	return 0;
+error:
+	stop_stream(oxfw, &oxfw->rx_stream);
+	cmp_connection_break(&oxfw->in_conn);
+	if (oxfw->has_output) {
+		stop_stream(oxfw, &oxfw->tx_stream);
+		cmp_connection_break(&oxfw->out_conn);
 	}
-end:
 	return err;
 }
 
 void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw,
 				  struct amdtp_stream *stream)
 {
-	if (((stream == &oxfw->tx_stream) && (oxfw->capture_substreams > 0)) ||
-	    ((stream == &oxfw->rx_stream) && (oxfw->playback_substreams > 0)))
-		return;
+	if (oxfw->capture_substreams == 0 && oxfw->playback_substreams == 0) {
+		stop_stream(oxfw, &oxfw->rx_stream);
 
-	stop_stream(oxfw, stream);
+		if (oxfw->has_output)
+			stop_stream(oxfw, &oxfw->tx_stream);
+	}
 }
 
 /*
