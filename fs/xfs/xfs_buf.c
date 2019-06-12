@@ -1613,16 +1613,11 @@ xfs_buf_offset(
 	return page_address(page) + (offset & (PAGE_SIZE-1));
 }
 
-/*
- *	Move data into or out of a buffer.
- */
 void
-xfs_buf_iomove(
-	xfs_buf_t		*bp,	/* buffer to process		*/
-	size_t			boff,	/* starting buffer offset	*/
-	size_t			bsize,	/* length to copy		*/
-	void			*data,	/* data address			*/
-	xfs_buf_rw_t		mode)	/* read/write/zero flag		*/
+xfs_buf_zero(
+	struct xfs_buf		*bp,
+	size_t			boff,
+	size_t			bsize)
 {
 	size_t			bend;
 
@@ -1639,19 +1634,9 @@ xfs_buf_iomove(
 
 		ASSERT((csize + page_offset) <= PAGE_SIZE);
 
-		switch (mode) {
-		case XBRW_ZERO:
-			memset(page_address(page) + page_offset, 0, csize);
-			break;
-		case XBRW_READ:
-			memcpy(data, page_address(page) + page_offset, csize);
-			break;
-		case XBRW_WRITE:
-			memcpy(page_address(page) + page_offset, data, csize);
-		}
+		memset(page_address(page) + page_offset, 0, csize);
 
 		boff += csize;
-		data += csize;
 	}
 }
 
