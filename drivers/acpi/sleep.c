@@ -454,14 +454,6 @@ static int acpi_pm_prepare(void)
 	return error;
 }
 
-static int find_powerf_dev(struct device *dev, void *data)
-{
-	struct acpi_device *device = to_acpi_device(dev);
-	const char *hid = acpi_device_hid(device);
-
-	return !strcmp(hid, ACPI_BUTTON_HID_POWERF);
-}
-
 /**
  *	acpi_pm_finish - Instruct the platform to leave a sleep state.
  *
@@ -470,7 +462,7 @@ static int find_powerf_dev(struct device *dev, void *data)
  */
 static void acpi_pm_finish(void)
 {
-	struct device *pwr_btn_dev;
+	struct acpi_device *pwr_btn_adev;
 	u32 acpi_state = acpi_target_sleep_state;
 
 	acpi_ec_unblock_transactions();
@@ -501,11 +493,11 @@ static void acpi_pm_finish(void)
 		return;
 
 	pwr_btn_event_pending = false;
-	pwr_btn_dev = bus_find_device(&acpi_bus_type, NULL, NULL,
-				      find_powerf_dev);
-	if (pwr_btn_dev) {
-		pm_wakeup_event(pwr_btn_dev, 0);
-		put_device(pwr_btn_dev);
+	pwr_btn_adev = acpi_dev_get_first_match_dev(ACPI_BUTTON_HID_POWERF,
+						    NULL, -1);
+	if (pwr_btn_adev) {
+		pm_wakeup_event(&pwr_btn_adev->dev, 0);
+		acpi_dev_put(pwr_btn_adev);
 	}
 }
 
