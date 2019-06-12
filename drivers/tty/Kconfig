@@ -95,7 +95,7 @@ config VT_HW_CONSOLE_BINDING
 
 	 See <file:Documentation/console/console.txt> for more
 	 information. For framebuffer console users, please refer to
-	 <file:Documentation/fb/fbcon.txt>.
+	 <file:Documentation/fb/fbcon.rst>.
 
 config UNIX98_PTYS
 	bool "Unix98 PTY support" if EXPERT

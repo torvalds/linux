@@ -4789,7 +4789,7 @@ S:	Maintained
 W:	http://plugable.com/category/projects/udlfb/
 F:	drivers/video/fbdev/udlfb.c
 F:	include/video/udlfb.h
-F:	Documentation/fb/udlfb.txt
+F:	Documentation/fb/udlfb.rst
 
 DISTRIBUTED LOCK MANAGER (DLM)
 M:	Christine Caulfield <ccaulfie@redhat.com>
@@ -7923,7 +7923,7 @@ INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
 M:	Maik Broemme <mbroemme@libmpq.org>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
-F:	Documentation/fb/intelfb.txt
+F:	Documentation/fb/intelfb.rst
 F:	drivers/video/fbdev/intelfb/
 
 INTEL GPIO DRIVERS
@@ -14350,7 +14350,7 @@ M:	Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/sm712*
-F:	Documentation/fb/sm712fb.txt
+F:	Documentation/fb/sm712fb.rst
 
 SIMPLE FIRMWARE INTERFACE (SFI)
 M:	Len Brown <lenb@kernel.org>
@@ -14420,7 +14420,7 @@ SIS FRAMEBUFFER DRIVER
 M:	Thomas Winischhofer <thomas@winischhofer.net>
 W:	http://www.winischhofer.net/linuxsisvga.shtml
 S:	Maintained
-F:	Documentation/fb/sisfb.txt
+F:	Documentation/fb/sisfb.rst
 F:	drivers/video/fbdev/sis/
 F:	include/video/sisfb.h
 
@@ -16608,7 +16608,7 @@ M:	Michal Januszewski <spock@gentoo.org>
 L:	linux-fbdev@vger.kernel.org
 W:	https://github.com/mjanusz/v86d
 S:	Maintained
-F:	Documentation/fb/uvesafb.txt
+F:	Documentation/fb/uvesafb.rst
 F:	drivers/video/fbdev/uvesafb.*
 
 VF610 NAND DRIVER

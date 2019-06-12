@@ -5024,7 +5024,7 @@
 			vector=percpu: enable percpu vector domain
 
 	video=		[FB] Frame buffer configuration
-			See Documentation/fb/modedb.txt.
+			See Documentation/fb/modedb.rst.
 
 	video.brightness_switch_enabled= [0,1]
 			If set to 1, on receiving an ACPI notify event
