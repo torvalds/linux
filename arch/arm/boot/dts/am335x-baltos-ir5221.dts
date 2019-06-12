@@ -128,7 +128,7 @@
 };
 
 &cpsw_emac1 {
-	phy-mode = "rgmii-txid";
+	phy-mode = "rgmii-id";
 	dual_emac_res_vlan = <2>;
 	phy-handle = <&phy1>;
 };
