@@ -113,7 +113,6 @@ static const u16 srcr[] = {
  * @base: CPG/MSSR register block base address
  * @rmw_lock: protects RMW register accesses
  * @np: Device node in DT for this CPG/MSSR module
- * @clks: Array containing all Core and Module Clocks
  * @num_core_clks: Number of Core Clocks in clks[]
  * @num_mod_clks: Number of Module Clocks in clks[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
@@ -121,6 +120,7 @@ static const u16 srcr[] = {
  * @notifiers: Notifier chain to save/restore clock state for system resume
  * @smstpcr_saved[].mask: Mask of SMSTPCR[] bits under our control
  * @smstpcr_saved[].val: Saved values of SMSTPCR[]
+ * @clks: Array containing all Core and Module Clocks
  */
 struct cpg_mssr_priv {
 #ifdef CONFIG_RESET_CONTROLLER
@@ -131,7 +131,6 @@ struct cpg_mssr_priv {
 	spinlock_t rmw_lock;
 	struct device_node *np;
 
-	struct clk **clks;
 	unsigned int num_core_clks;
 	unsigned int num_mod_clks;
 	unsigned int last_dt_core_clk;
@@ -142,6 +141,8 @@ struct cpg_mssr_priv {
 		u32 mask;
 		u32 val;
 	} smstpcr_saved[ARRAY_SIZE(smstpcr)];
+
+	struct clk *clks[];
 };
 
 static struct cpg_mssr_priv *cpg_mssr_priv;
@@ -891,7 +892,6 @@ static int __init cpg_mssr_common_init(struct device *dev,
 				       const struct cpg_mssr_info *info)
 {
 	struct cpg_mssr_priv *priv;
-	struct clk **clks = NULL;
 	unsigned int nclks, i;
 	int error;
 
@@ -901,7 +901,8 @@ static int __init cpg_mssr_common_init(struct device *dev,
 			return error;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	nclks = info->num_total_core_clks + info->num_hw_mod_clks;
+	priv = kzalloc(struct_size(priv, clks, nclks), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -915,15 +916,7 @@ static int __init cpg_mssr_common_init(struct device *dev,
 		goto out_err;
 	}
 
-	nclks = info->num_total_core_clks + info->num_hw_mod_clks;
-	clks = kmalloc_array(nclks, sizeof(*clks), GFP_KERNEL);
-	if (!clks) {
-		error = -ENOMEM;
-		goto out_err;
-	}
-
 	cpg_mssr_priv = priv;
-	priv->clks = clks;
 	priv->num_core_clks = info->num_total_core_clks;
 	priv->num_mod_clks = info->num_hw_mod_clks;
 	priv->last_dt_core_clk = info->last_dt_core_clk;
@@ -931,7 +924,7 @@ static int __init cpg_mssr_common_init(struct device *dev,
 	priv->stbyctrl = info->stbyctrl;
 
 	for (i = 0; i < nclks; i++)
-		clks[i] = ERR_PTR(-ENOENT);
+		priv->clks[i] = ERR_PTR(-ENOENT);
 
 	error = of_clk_add_provider(np, cpg_mssr_clk_src_twocell_get, priv);
 	if (error)
@@ -940,7 +933,6 @@ static int __init cpg_mssr_common_init(struct device *dev,
 	return 0;
 
 out_err:
-	kfree(clks);
 	if (priv->base)
 		iounmap(priv->base);
 	kfree(priv);
