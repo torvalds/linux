@@ -84,9 +84,9 @@ struct sof_ipc_buffer {
 struct sof_ipc_comp_config {
 	struct sof_ipc_cmd_hdr hdr;
 	uint32_t periods_sink;	/**< 0 means variable */
-	uint32_t periods_source;	/**< 0 means variable */
+	uint32_t periods_source;/**< 0 means variable */
 	uint32_t reserved1;	/**< reserved */
-	uint32_t frame_fmt;		/**< SOF_IPC_FRAME_ */
+	uint32_t frame_fmt;	/**< SOF_IPC_FRAME_ */
 	uint32_t xrun_action;
 
 	/* reserved for future use */
