@@ -3016,6 +3016,49 @@ err:
 	return ret;
 }
 
+/* Function to set the initial value of SOF kcontrols.
+ * The value will be stored in scontrol->control_data
+ */
+static int snd_sof_cache_kcontrol_val(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_control *scontrol = NULL;
+	int ipc_cmd, ctrl_type;
+	int ret = 0;
+
+	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
+
+		/* notify DSP of kcontrol values */
+		switch (scontrol->cmd) {
+		case SOF_CTRL_CMD_VOLUME:
+		case SOF_CTRL_CMD_ENUM:
+		case SOF_CTRL_CMD_SWITCH:
+			ipc_cmd = SOF_IPC_COMP_GET_VALUE;
+			ctrl_type = SOF_CTRL_TYPE_VALUE_CHAN_GET;
+			break;
+		case SOF_CTRL_CMD_BINARY:
+			ipc_cmd = SOF_IPC_COMP_GET_DATA;
+			ctrl_type = SOF_CTRL_TYPE_DATA_GET;
+			break;
+		default:
+			dev_err(sdev->dev,
+				"error: Invalid scontrol->cmd: %d\n",
+				scontrol->cmd);
+			return -EINVAL;
+		}
+		ret = snd_sof_ipc_set_get_comp_data(sdev->ipc, scontrol,
+						    ipc_cmd, ctrl_type,
+						    scontrol->cmd,
+						    false);
+		if (ret < 0) {
+			dev_warn(sdev->dev,
+				"error: kcontrol value get for widget: %d\n",
+				scontrol->comp_id);
+		}
+	}
+
+	return ret;
+}
+
 int snd_sof_complete_pipeline(struct snd_sof_dev *sdev,
 			      struct snd_sof_widget *swidget)
 {
@@ -3059,6 +3102,11 @@ static void sof_complete(struct snd_soc_component *scomp)
 			break;
 		}
 	}
+	/*
+	 * cache initial values of SOF kcontrols by reading DSP value over
+	 * IPC. It may be overwritten by alsa-mixer after booting up
+	 */
+	snd_sof_cache_kcontrol_val(sdev);
 }
 
 /* manifest - optional to inform component of manifest */
