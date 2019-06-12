@@ -127,7 +127,7 @@ static int __init init(void)
 	int ret;
 
 	if (!cpacf_query_func(CPACF_KIMD, CPACF_KIMD_SHA_512))
-		return -EOPNOTSUPP;
+		return -ENODEV;
 	if ((ret = crypto_register_shash(&sha512_alg)) < 0)
 		goto out;
 	if ((ret = crypto_register_shash(&sha384_alg)) < 0)
