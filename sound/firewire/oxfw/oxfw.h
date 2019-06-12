@@ -99,9 +99,10 @@ int avc_general_inquiry_sig_fmt(struct fw_unit *unit, unsigned int rate,
 				unsigned short pid);
 
 int snd_oxfw_stream_init_duplex(struct snd_oxfw *oxfw);
-int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw,
-				  struct amdtp_stream *stream,
-				  unsigned int rate, unsigned int pcm_channels);
+int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
+				   struct amdtp_stream *stream,
+				   unsigned int rate, unsigned int pcm_channels);
+int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_stop_duplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_destroy_duplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_update_duplex(struct snd_oxfw *oxfw);

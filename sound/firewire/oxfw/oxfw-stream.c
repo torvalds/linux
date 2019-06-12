@@ -236,16 +236,13 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	return 0;
 }
 
-int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw,
-				 struct amdtp_stream *stream,
-				 unsigned int rate, unsigned int pcm_channels)
+int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
+				   struct amdtp_stream *stream,
+				   unsigned int rate, unsigned int pcm_channels)
 {
 	struct snd_oxfw_stream_formation formation;
 	enum avc_general_plug_dir dir;
-	int err = 0;
-
-	if (oxfw->substreams_count == 0)
-		return -EIO;
+	int err;
 
 	// Considering JACK/FFADO streaming:
 	// TODO: This can be removed hwdep functionality becomes popular.
@@ -266,14 +263,11 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw,
 	err = snd_oxfw_stream_get_current_formation(oxfw, dir, &formation);
 	if (err < 0)
 		return err;
-	if (rate == 0)
+	if (rate == 0) {
 		rate = formation.rate;
-	if (pcm_channels == 0)
 		pcm_channels = formation.pcm;
-
-	if (formation.rate != rate || formation.pcm != pcm_channels ||
-	    amdtp_streaming_error(&oxfw->rx_stream) ||
-	    amdtp_streaming_error(&oxfw->tx_stream)) {
+	}
+	if (formation.rate != rate || formation.pcm != pcm_channels) {
 		amdtp_stream_stop(&oxfw->rx_stream);
 		cmp_connection_break(&oxfw->in_conn);
 
@@ -281,12 +275,36 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw,
 			amdtp_stream_stop(&oxfw->tx_stream);
 			cmp_connection_break(&oxfw->out_conn);
 		}
+	}
 
+	if (oxfw->substreams_count == 0 ||
+	    formation.rate != rate || formation.pcm != pcm_channels) {
 		err = set_stream_format(oxfw, stream, rate, pcm_channels);
 		if (err < 0) {
 			dev_err(&oxfw->unit->device,
 				"fail to set stream format: %d\n", err);
 			return err;
+		}
+	}
+
+	return 0;
+}
+
+int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw)
+{
+	int err;
+
+	if (oxfw->substreams_count == 0)
+		return -EIO;
+
+	if (amdtp_streaming_error(&oxfw->rx_stream) ||
+	    amdtp_streaming_error(&oxfw->tx_stream)) {
+		amdtp_stream_stop(&oxfw->rx_stream);
+		cmp_connection_break(&oxfw->in_conn);
+
+		if (oxfw->has_output) {
+			amdtp_stream_stop(&oxfw->tx_stream);
+			cmp_connection_break(&oxfw->out_conn);
 		}
 	}
 
