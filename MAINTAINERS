@@ -14341,7 +14341,7 @@ M:	Paul Walmsley <paul.walmsley@sifive.com>
 L:	linux-riscv@lists.infradead.org
 T:	git git://github.com/sifive/riscv-linux.git
 S:	Supported
-K:	sifive
+K:	[^@]sifive
 N:	sifive
 
 SIFIVE FU540 SYSTEM-ON-CHIP
