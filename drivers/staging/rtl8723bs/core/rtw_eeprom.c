@@ -268,53 +268,6 @@ _func_exit_;
 
 }
 
-
-
-
-/*From even offset*/
-void eeprom_read_sz(_adapter *padapter, u16 reg, u8 *data, u32 sz)
-{
-
-	u16 x, data16;
-	u32 i;
-_func_enter_;
-	if (padapter->bSurpriseRemoved == true) {
-		RT_TRACE(_module_rtl871x_eeprom_c_, _drv_err_, ("padapter->bSurpriseRemoved==true"));
-		goto out;
-	}
-	/* select EEPROM, reset bits, set _EECS*/
-	x = rtw_read8(padapter, EE_9346CR);
-
-	if (padapter->bSurpriseRemoved == true) {
-		RT_TRACE(_module_rtl871x_eeprom_c_, _drv_err_, ("padapter->bSurpriseRemoved==true"));
-		goto out;
-	}
-
-	x &= ~(_EEDI | _EEDO | _EESK | _EEM0);
-	x |= _EEM1 | _EECS;
-	rtw_write8(padapter, EE_9346CR, (unsigned char)x);
-
-	/* write the read opcode and register number in that order*/
-	/* The opcode is 3bits in length, reg is 6 bits long*/
-	shift_out_bits(padapter, EEPROM_READ_OPCODE, 3);
-	shift_out_bits(padapter, reg, padapter->EepromAddressSize);
-
-
-	for (i = 0; i < sz; i += 2) {
-		data16 = shift_in_bits(padapter);
-		data[i] = data16 & 0xff;
-		data[i+1] = data16 >> 8;
-	}
-
-	eeprom_clean(padapter);
-out:
-_func_exit_;
-
-
-
-}
-
-
 /*addr_off : address offset of the entry in eeprom (not the tuple number of eeprom (reg); that is addr_off !=reg)*/
 u8 eeprom_read(_adapter *padapter, u32 addr_off, u8 sz, u8 *rbuf)
 {
