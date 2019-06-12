@@ -194,8 +194,7 @@ static int check_connection_used_by_others(struct snd_oxfw *oxfw,
 	return err;
 }
 
-int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw,
-				 struct amdtp_stream *stream)
+static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 {
 	struct cmp_connection *conn;
 	enum cmp_direction c_dir;
@@ -214,13 +213,12 @@ int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw,
 
 	err = cmp_connection_init(conn, oxfw->unit, c_dir, 0);
 	if (err < 0)
-		goto end;
+		return err;
 
 	err = amdtp_am824_init(stream, oxfw->unit, s_dir, CIP_NONBLOCKING);
 	if (err < 0) {
-		amdtp_stream_destroy(stream);
 		cmp_connection_destroy(conn);
-		goto end;
+		return err;
 	}
 
 	/*
@@ -234,13 +232,13 @@ int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw,
 		if (oxfw->wrong_dbs)
 			oxfw->tx_stream.flags |= CIP_WRONG_DBS;
 	}
-end:
-	return err;
+
+	return 0;
 }
 
-int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw,
-				  struct amdtp_stream *stream,
-				  unsigned int rate, unsigned int pcm_channels)
+int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw,
+				 struct amdtp_stream *stream,
+				 unsigned int rate, unsigned int pcm_channels)
 {
 	struct snd_oxfw_stream_formation formation;
 	enum avc_general_plug_dir dir;
@@ -323,8 +321,7 @@ error:
 	return err;
 }
 
-void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw,
-				  struct amdtp_stream *stream)
+void snd_oxfw_stream_stop_duplex(struct snd_oxfw *oxfw)
 {
 	if (oxfw->capture_substreams == 0 && oxfw->playback_substreams == 0) {
 		amdtp_stream_stop(&oxfw->rx_stream);
@@ -337,12 +334,7 @@ void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw,
 	}
 }
 
-/*
- * This function should be called before starting the stream or after stopping
- * the streams.
- */
-void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw,
-				     struct amdtp_stream *stream)
+static void destroy_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 {
 	struct cmp_connection *conn;
 
@@ -355,8 +347,36 @@ void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw,
 	cmp_connection_destroy(conn);
 }
 
-void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw,
-				    struct amdtp_stream *stream)
+int snd_oxfw_stream_init_duplex(struct snd_oxfw *oxfw)
+{
+	int err;
+
+	err = init_stream(oxfw, &oxfw->rx_stream);
+	if (err < 0)
+		return err;
+
+	if (oxfw->has_output) {
+		err = init_stream(oxfw, &oxfw->tx_stream);
+		if (err < 0) {
+			destroy_stream(oxfw, &oxfw->rx_stream);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+// This function should be called before starting the stream or after stopping
+// the streams.
+void snd_oxfw_stream_destroy_duplex(struct snd_oxfw *oxfw)
+{
+	destroy_stream(oxfw, &oxfw->rx_stream);
+
+	if (oxfw->has_output)
+		destroy_stream(oxfw, &oxfw->tx_stream);
+}
+
+void snd_oxfw_stream_update_duplex(struct snd_oxfw *oxfw)
 {
 	amdtp_stream_stop(&oxfw->rx_stream);
 	cmp_connection_break(&oxfw->in_conn);

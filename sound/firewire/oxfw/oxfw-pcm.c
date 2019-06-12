@@ -255,7 +255,7 @@ static int pcm_capture_hw_free(struct snd_pcm_substream *substream)
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
 		oxfw->capture_substreams--;
 
-	snd_oxfw_stream_stop_simplex(oxfw, &oxfw->tx_stream);
+	snd_oxfw_stream_stop_duplex(oxfw);
 
 	mutex_unlock(&oxfw->mutex);
 
@@ -270,7 +270,7 @@ static int pcm_playback_hw_free(struct snd_pcm_substream *substream)
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
 		oxfw->playback_substreams--;
 
-	snd_oxfw_stream_stop_simplex(oxfw, &oxfw->rx_stream);
+	snd_oxfw_stream_stop_duplex(oxfw);
 
 	mutex_unlock(&oxfw->mutex);
 
@@ -284,8 +284,8 @@ static int pcm_capture_prepare(struct snd_pcm_substream *substream)
 	int err;
 
 	mutex_lock(&oxfw->mutex);
-	err = snd_oxfw_stream_start_simplex(oxfw, &oxfw->tx_stream,
-					    runtime->rate, runtime->channels);
+	err = snd_oxfw_stream_start_duplex(oxfw, &oxfw->tx_stream,
+					   runtime->rate, runtime->channels);
 	mutex_unlock(&oxfw->mutex);
 	if (err < 0)
 		goto end;
@@ -301,8 +301,8 @@ static int pcm_playback_prepare(struct snd_pcm_substream *substream)
 	int err;
 
 	mutex_lock(&oxfw->mutex);
-	err = snd_oxfw_stream_start_simplex(oxfw, &oxfw->rx_stream,
-					    runtime->rate, runtime->channels);
+	err = snd_oxfw_stream_start_duplex(oxfw, &oxfw->rx_stream,
+					   runtime->rate, runtime->channels);
 	mutex_unlock(&oxfw->mutex);
 	if (err < 0)
 		goto end;
