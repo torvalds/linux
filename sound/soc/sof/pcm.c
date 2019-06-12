@@ -251,6 +251,13 @@ static int sof_pcm_hw_free(struct snd_pcm_substream *substream)
 
 	cancel_work_sync(&spcm->stream[substream->stream].period_elapsed_work);
 
+	if (ret < 0)
+		return ret;
+
+	ret = snd_sof_pcm_platform_hw_free(sdev, substream);
+	if (ret < 0)
+		dev_err(sdev->dev, "error: platform hw free failed\n");
+
 	return ret;
 }
 

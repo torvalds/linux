@@ -143,6 +143,10 @@ struct snd_sof_dsp_ops {
 			     struct snd_pcm_hw_params *params,
 			     struct sof_ipc_stream_params *ipc_params); /* optional */
 
+	/* host stream hw_free */
+	int (*pcm_hw_free)(struct snd_sof_dev *sdev,
+			   struct snd_pcm_substream *substream); /* optional */
+
 	/* host stream trigger */
 	int (*pcm_trigger)(struct snd_sof_dev *sdev,
 			   struct snd_pcm_substream *substream,
