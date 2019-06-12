@@ -267,6 +267,24 @@ bool hubp2_program_surface_flip_and_addr(
 	const struct dc_plane_address *address,
 	bool flip_immediate);
 
+void hubp2_dcc_control(struct hubp *hubp, bool enable,
+		bool independent_64b_blks);
+
+void hubp2_program_size(
+	struct hubp *hubp,
+	enum surface_pixel_format format,
+	const union plane_size *plane_size,
+	struct dc_plane_dcc_param *dcc);
+
+void hubp2_program_rotation(
+	struct hubp *hubp,
+	enum dc_rotation_angle rotation,
+	bool horizontal_mirror);
+
+void hubp2_program_pixel_format(
+	struct hubp *hubp,
+	enum surface_pixel_format format);
+
 void hubp2_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
@@ -276,6 +294,25 @@ void hubp2_program_surface_config(
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror,
 	unsigned int compat_level);
+
+bool hubp2_is_flip_pending(struct hubp *hubp);
+
+void hubp2_set_blank(struct hubp *hubp, bool blank);
+
+void hubp2_cursor_set_position(
+		struct hubp *hubp,
+		const struct dc_cursor_position *pos,
+		const struct dc_cursor_mi_param *param);
+
+void hubp2_clk_cntl(struct hubp *hubp, bool enable);
+
+void hubp2_vtg_sel(struct hubp *hubp, uint32_t otg_inst);
+
+void hubp2_clear_underflow(struct hubp *hubp);
+
+void hubp2_read_state_common(struct hubp *hubp);
+
+void hubp2_read_state(struct hubp *hubp);
 
 #endif /* __DC_MEM_INPUT_DCN20_H__ */
 
