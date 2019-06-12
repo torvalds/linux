@@ -106,6 +106,7 @@ struct iommu_fault_page_request {
  * @padding: reserved for future use (should be zero)
  * @event: fault event, when @type is %IOMMU_FAULT_DMA_UNRECOV
  * @prm: Page Request message, when @type is %IOMMU_FAULT_PAGE_REQ
+ * @padding2: sets the fault size to allow for future extensions
  */
 struct iommu_fault {
 	__u32	type;
@@ -113,6 +114,7 @@ struct iommu_fault {
 	union {
 		struct iommu_fault_unrecoverable event;
 		struct iommu_fault_page_request prm;
+		__u8 padding2[56];
 	};
 };
 
