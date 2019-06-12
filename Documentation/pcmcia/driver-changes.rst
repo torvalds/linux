@@ -1,15 +1,21 @@
+==============
+Driver changes
+==============
+
 This file details changes in 2.6 which affect PCMCIA card driver authors:
+
 * pcmcia_loop_config() and autoconfiguration (as of 2.6.36)
-   If struct pcmcia_device *p_dev->config_flags is set accordingly,
+   If `struct pcmcia_device *p_dev->config_flags` is set accordingly,
    pcmcia_loop_config() now sets up certain configuration values
    automatically, though the driver may still override the settings
    in the callback function. The following autoconfiguration options
    are provided at the moment:
-	CONF_AUTO_CHECK_VCC : check for matching Vcc
-	CONF_AUTO_SET_VPP   : set Vpp
-	CONF_AUTO_AUDIO     : auto-enable audio line, if required
-	CONF_AUTO_SET_IO    : set ioport resources (->resource[0,1])
-	CONF_AUTO_SET_IOMEM : set first iomem resource (->resource[2])
+
+	- CONF_AUTO_CHECK_VCC : check for matching Vcc
+	- CONF_AUTO_SET_VPP   : set Vpp
+	- CONF_AUTO_AUDIO     : auto-enable audio line, if required
+	- CONF_AUTO_SET_IO    : set ioport resources (->resource[0,1])
+	- CONF_AUTO_SET_IOMEM : set first iomem resource (->resource[2])
 
 * pcmcia_request_configuration -> pcmcia_enable_device (as of 2.6.36)
    pcmcia_request_configuration() got renamed to pcmcia_enable_device(),
@@ -19,14 +25,14 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
 
 * pcmcia_request_window changes (as of 2.6.36)
    Instead of win_req_t, drivers are now requested to fill out
-   struct pcmcia_device *p_dev->resource[2,3,4,5] for up to four ioport
+   `struct pcmcia_device *p_dev->resource[2,3,4,5]` for up to four ioport
    ranges. After a call to pcmcia_request_window(), the regions found there
    are reserved and may be used immediately -- until pcmcia_release_window()
    is called.
 
 * pcmcia_request_io changes (as of 2.6.36)
    Instead of io_req_t, drivers are now requested to fill out
-   struct pcmcia_device *p_dev->resource[0,1] for up to two ioport
+   `struct pcmcia_device *p_dev->resource[0,1]` for up to two ioport
    ranges. After a call to pcmcia_request_io(), the ports found there
    are reserved, after calling pcmcia_request_configuration(), they may
    be used.
@@ -42,7 +48,8 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
 * New IRQ request rules (as of 2.6.35)
    Instead of the old pcmcia_request_irq() interface, drivers may now
    choose between:
-   - calling request_irq/free_irq directly. Use the IRQ from *p_dev->irq.
+
+   - calling request_irq/free_irq directly. Use the IRQ from `*p_dev->irq`.
    - use pcmcia_request_irq(p_dev, handler_t); the PCMCIA core will
      clean up automatically on calls to pcmcia_disable_device() or
      device ejection.
@@ -72,13 +79,16 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
    exports for them were removed.
 
 * Unify detach and REMOVAL event code, as well as attach and INSERTION
-  code (as of 2.6.16)
+  code (as of 2.6.16)::
+
        void (*remove)          (struct pcmcia_device *dev);
        int (*probe)            (struct pcmcia_device *dev);
 
-* Move suspend, resume and reset out of event handler (as of 2.6.16)
+* Move suspend, resume and reset out of event handler (as of 2.6.16)::
+
        int (*suspend)          (struct pcmcia_device *dev);
        int (*resume)           (struct pcmcia_device *dev);
+
   should be initialized in struct pcmcia_driver, and handle
   (SUSPEND == RESET_PHYSICAL) and (RESUME == CARD_RESET) events
 
@@ -117,7 +127,8 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
 * core functions no longer available (as of 2.6.11)
    The following functions have been removed from the kernel source
    because they are unused by all in-kernel drivers, and no external
-   driver was reported to rely on them:
+   driver was reported to rely on them::
+
 	pcmcia_get_first_region()
 	pcmcia_get_next_region()
 	pcmcia_modify_window()

@@ -1,3 +1,7 @@
+=======
+Locking
+=======
+
 This file explains the locking and exclusion scheme used in the PCCARD
 and PCMCIA subsystems.
 
@@ -5,16 +9,21 @@ and PCMCIA subsystems.
 A) Overview, Locking Hierarchy:
 ===============================
 
-pcmcia_socket_list_rwsem	- protects only the list of sockets
-- skt_mutex			- serializes card insert / ejection
-  - ops_mutex			- serializes socket operation
+pcmcia_socket_list_rwsem
+	- protects only the list of sockets
+
+- skt_mutex
+	- serializes card insert / ejection
+
+  - ops_mutex
+	- serializes socket operation
 
 
 B) Exclusion
 ============
 
 The following functions and callbacks to struct pcmcia_socket must
-be called with "skt_mutex" held:
+be called with "skt_mutex" held::
 
 	socket_detect_change()
 	send_event()
@@ -31,7 +40,7 @@ be called with "skt_mutex" held:
 	struct pcmcia_callback	*callback
 
 The following functions and callbacks to struct pcmcia_socket must
-be called with "ops_mutex" held:
+be called with "ops_mutex" held::
 
 	socket_reset()
 	socket_setup()
@@ -39,7 +48,7 @@ be called with "ops_mutex" held:
 	struct pccard_operations	*ops
 	struct pccard_resource_ops	*resource_ops;
 
-Note that send_event() and struct pcmcia_callback *callback must not be
+Note that send_event() and `struct pcmcia_callback *callback` must not be
 called with "ops_mutex" held.
 
 
@@ -60,19 +69,23 @@ The resource_ops and their data are protected by ops_mutex.
 The "main" struct pcmcia_socket is protected as follows (read-only fields
 or single-use fields not mentioned):
 
-- by pcmcia_socket_list_rwsem:
+- by pcmcia_socket_list_rwsem::
+
 	struct list_head	socket_list;
 
-- by thread_lock:
+- by thread_lock::
+
 	unsigned int		thread_events;
 
-- by skt_mutex:
+- by skt_mutex::
+
 	u_int			suspended_state;
 	void			(*tune_bridge);
 	struct pcmcia_callback	*callback;
 	int			resume_status;
 
-- by ops_mutex:
+- by ops_mutex::
+
 	socket_state_t		socket;
 	u_int			state;
 	u_short			lock_count;
@@ -100,7 +113,8 @@ The "main" struct pcmcia_device is protected as follows (read-only fields
 or single-use fields not mentioned):
 
 
-- by pcmcia_socket->ops_mutex:
+- by pcmcia_socket->ops_mutex::
+
 	struct list_head	socket_device_list;
 	struct config_t		*function_config;
 	u16			_irq:1;
@@ -111,7 +125,8 @@ or single-use fields not mentioned):
 	u16			suspended:1;
 	u16			_removed:1;
 
-- by the PCMCIA driver:
+- by the PCMCIA driver::
+
 	io_req_t		io;
 	irq_req_t		irq;
 	config_req_t		conf;

@@ -1,3 +1,7 @@
+============
+Device table
+============
+
 Matching of PCMCIA devices to drivers is done using one or more of the
 following criteria:
 
