@@ -1767,9 +1767,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 	eth_broadcast_addr(addr.mac);
 
 	do {
-		mutex_lock(&chip->reg_lock);
 		err = mv88e6xxx_g1_atu_getnext(chip, fid, &addr);
-		mutex_unlock(&chip->reg_lock);
 		if (err)
 			return err;
 
@@ -1802,10 +1800,7 @@ static int mv88e6xxx_port_db_dump(struct mv88e6xxx_chip *chip, int port,
 	int err;
 
 	/* Dump port's default Filtering Information Database (VLAN ID 0) */
-	mutex_lock(&chip->reg_lock);
 	err = mv88e6xxx_port_get_fid(chip, port, &fid);
-	mutex_unlock(&chip->reg_lock);
-
 	if (err)
 		return err;
 
@@ -1815,9 +1810,7 @@ static int mv88e6xxx_port_db_dump(struct mv88e6xxx_chip *chip, int port,
 
 	/* Dump VLANs' Filtering Information Databases */
 	do {
-		mutex_lock(&chip->reg_lock);
 		err = mv88e6xxx_vtu_getnext(chip, &vlan);
-		mutex_unlock(&chip->reg_lock);
 		if (err)
 			return err;
 
@@ -1837,8 +1830,13 @@ static int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
 				   dsa_fdb_dump_cb_t *cb, void *data)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
 
-	return mv88e6xxx_port_db_dump(chip, port, cb, data);
+	mutex_lock(&chip->reg_lock);
+	err = mv88e6xxx_port_db_dump(chip, port, cb, data);
+	mutex_unlock(&chip->reg_lock);
+
+	return err;
 }
 
 static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
