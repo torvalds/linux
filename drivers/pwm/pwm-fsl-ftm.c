@@ -63,6 +63,21 @@ static inline struct fsl_pwm_chip *to_fsl_chip(struct pwm_chip *chip)
 	return container_of(chip, struct fsl_pwm_chip, chip);
 }
 
+static void ftm_clear_write_protection(struct fsl_pwm_chip *fpc)
+{
+	u32 val;
+
+	regmap_read(fpc->regmap, FTM_FMS, &val);
+	if (val & FTM_FMS_WPEN)
+		regmap_update_bits(fpc->regmap, FTM_MODE, FTM_MODE_WPDIS,
+				   FTM_MODE_WPDIS);
+}
+
+static void ftm_set_write_protection(struct fsl_pwm_chip *fpc)
+{
+	regmap_update_bits(fpc->regmap, FTM_FMS, FTM_FMS_WPEN, FTM_FMS_WPEN);
+}
+
 static bool fsl_pwm_periodcfg_are_equal(const struct fsl_pwm_periodcfg *a,
 					const struct fsl_pwm_periodcfg *b)
 {
@@ -257,6 +272,8 @@ static int fsl_pwm_apply_config(struct fsl_pwm_chip *fpc,
 		do_write_period = true;
 	}
 
+	ftm_clear_write_protection(fpc);
+
 	if (do_write_period) {
 		regmap_update_bits(fpc->regmap, FTM_SC, FTM_SC_CLK_MASK,
 				   FTM_SC_CLK(periodcfg.clk_select));
@@ -282,6 +299,8 @@ static int fsl_pwm_apply_config(struct fsl_pwm_chip *fpc,
 	newstate->period = fsl_pwm_ticks_to_ns(fpc,
 					       fpc->period.mod_period + 1);
 	newstate->duty_cycle = fsl_pwm_ticks_to_ns(fpc, duty);
+
+	ftm_set_write_protection(fpc);
 
 	return 0;
 }
@@ -367,6 +386,8 @@ static int fsl_pwm_init(struct fsl_pwm_chip *fpc)
 static bool fsl_pwm_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case FTM_FMS:
+	case FTM_MODE:
 	case FTM_CNT:
 		return true;
 	}
