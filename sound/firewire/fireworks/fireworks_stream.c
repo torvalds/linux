@@ -52,54 +52,38 @@ stop_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 		cmp_connection_break(&efw->in_conn);
 }
 
-static int
-start_stream(struct snd_efw *efw, struct amdtp_stream *stream,
-	     unsigned int sampling_rate)
+static int start_stream(struct snd_efw *efw, struct amdtp_stream *stream,
+			unsigned int rate)
 {
 	struct cmp_connection *conn;
-	unsigned int mode, pcm_channels, midi_ports;
 	int err;
 
-	err = snd_efw_get_multiplier_mode(sampling_rate, &mode);
-	if (err < 0)
-		goto end;
-	if (stream == &efw->tx_stream) {
+	if (stream == &efw->tx_stream)
 		conn = &efw->out_conn;
-		pcm_channels = efw->pcm_capture_channels[mode];
-		midi_ports = efw->midi_out_ports;
-	} else {
+	else
 		conn = &efw->in_conn;
-		pcm_channels = efw->pcm_playback_channels[mode];
-		midi_ports = efw->midi_in_ports;
-	}
 
-	err = amdtp_am824_set_parameters(stream, sampling_rate,
-					 pcm_channels, midi_ports, false);
-	if (err < 0)
-		goto end;
-
-	/*  establish connection via CMP */
+	// Establish connection via CMP.
 	err = cmp_connection_establish(conn,
-				amdtp_stream_get_max_payload(stream));
+				       amdtp_stream_get_max_payload(stream));
 	if (err < 0)
-		goto end;
+		return err;
 
-	/* start amdtp stream */
-	err = amdtp_stream_start(stream,
-				 conn->resources.channel,
-				 conn->speed);
+	// Start amdtp stream.
+	err = amdtp_stream_start(stream, conn->resources.channel, conn->speed);
 	if (err < 0) {
-		stop_stream(efw, stream);
-		goto end;
+		cmp_connection_break(conn);
+		return err;
 	}
 
-	/* wait first callback */
+	// Wait first callback.
 	if (!amdtp_stream_wait_callback(stream, CALLBACK_TIMEOUT)) {
-		stop_stream(efw, stream);
-		err = -ETIMEDOUT;
+		amdtp_stream_stop(stream);
+		cmp_connection_break(conn);
+		return -ETIMEDOUT;
 	}
-end:
-	return err;
+
+	return 0;
 }
 
 /*
@@ -189,6 +173,24 @@ end:
 	return err;
 }
 
+static int keep_resources(struct snd_efw *efw, struct amdtp_stream *stream,
+			  unsigned int rate, unsigned int mode)
+{
+	unsigned int pcm_channels;
+	unsigned int midi_ports;
+
+	if (stream == &efw->tx_stream) {
+		pcm_channels = efw->pcm_capture_channels[mode];
+		midi_ports = efw->midi_out_ports;
+	} else {
+		pcm_channels = efw->pcm_playback_channels[mode];
+		midi_ports = efw->midi_in_ports;
+	}
+
+	return amdtp_am824_set_parameters(stream, rate, pcm_channels,
+					  midi_ports, false);
+}
+
 int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate)
 {
 	unsigned int curr_rate;
@@ -212,7 +214,21 @@ int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate)
 	}
 
 	if (efw->substreams_counter == 0 || rate != curr_rate) {
+		unsigned int mode;
+
 		err = snd_efw_command_set_sampling_rate(efw, rate);
+		if (err < 0)
+			return err;
+
+		err = snd_efw_get_multiplier_mode(rate, &mode);
+		if (err < 0)
+			return err;
+
+		err = keep_resources(efw, &efw->tx_stream, rate, mode);
+		if (err < 0)
+			return err;
+
+		err = keep_resources(efw, &efw->rx_stream, rate, mode);
 		if (err < 0)
 			return err;
 	}
