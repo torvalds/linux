@@ -34,6 +34,7 @@
 struct raspberrypi_clk {
 	struct device *dev;
 	struct rpi_firmware *firmware;
+	struct platform_device *cpufreq;
 
 	unsigned long min_rate;
 	unsigned long max_rate;
@@ -272,6 +273,7 @@ static int raspberrypi_clk_probe(struct platform_device *pdev)
 
 	rpi->dev = dev;
 	rpi->firmware = firmware;
+	platform_set_drvdata(pdev, rpi);
 
 	ret = raspberrypi_register_pllb(rpi);
 	if (ret) {
@@ -283,6 +285,18 @@ static int raspberrypi_clk_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	rpi->cpufreq = platform_device_register_data(dev, "raspberrypi-cpufreq",
+						     -1, NULL, 0);
+
+	return 0;
+}
+
+static int raspberrypi_clk_remove(struct platform_device *pdev)
+{
+	struct raspberrypi_clk *rpi = platform_get_drvdata(pdev);
+
+	platform_device_unregister(rpi->cpufreq);
+
 	return 0;
 }
 
@@ -291,6 +305,7 @@ static struct platform_driver raspberrypi_clk_driver = {
 		.name = "raspberrypi-clk",
 	},
 	.probe          = raspberrypi_clk_probe,
+	.remove		= raspberrypi_clk_remove,
 };
 module_platform_driver(raspberrypi_clk_driver);
 
