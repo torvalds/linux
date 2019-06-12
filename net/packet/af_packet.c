@@ -384,7 +384,7 @@ static void __packet_set_status(struct packet_sock *po, void *frame, int status)
 	smp_wmb();
 }
 
-static int __packet_get_status(struct packet_sock *po, void *frame)
+static int __packet_get_status(const struct packet_sock *po, void *frame)
 {
 	union tpacket_uhdr h;
 
