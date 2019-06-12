@@ -105,7 +105,7 @@ TRACE_EVENT(nvme_complete_rq,
 		__entry->status = nvme_req(req)->status;
 		__assign_disk_name(__entry->disk, req->rq_disk);
 	    ),
-	    TP_printk("nvme%d: %sqid=%d, cmdid=%u, res=%llu, retries=%u, flags=0x%x, status=%u",
+	    TP_printk("nvme%d: %sqid=%d, cmdid=%u, res=%#llx, retries=%u, flags=0x%x, status=%#x",
 		      __entry->ctrl_id, __print_disk_name(__entry->disk),
 		      __entry->qid, __entry->cid, __entry->result,
 		      __entry->retries, __entry->flags, __entry->status)
