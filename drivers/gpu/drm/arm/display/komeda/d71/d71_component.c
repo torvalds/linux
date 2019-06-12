@@ -808,6 +808,68 @@ static int d71_downscaling_clk_check(struct komeda_pipeline *pipe,
 	       0 : -EINVAL;
 }
 
+static void d71_splitter_update(struct komeda_component *c,
+				struct komeda_component_state *state)
+{
+	struct komeda_splitter_state *st = to_splitter_st(state);
+	u32 __iomem *reg = c->reg;
+
+	malidp_write32(reg, BLK_INPUT_ID0, to_d71_input_id(state, 0));
+	malidp_write32(reg, BLK_SIZE, HV_SIZE(st->hsize, st->vsize));
+	malidp_write32(reg, SP_OVERLAP_SIZE, st->overlap & 0x1FFF);
+	malidp_write32(reg, BLK_CONTROL, BLK_CTRL_EN);
+}
+
+static void d71_splitter_dump(struct komeda_component *c, struct seq_file *sf)
+{
+	u32 v[3];
+
+	dump_block_header(sf, c->reg);
+
+	get_values_from_reg(c->reg, BLK_INPUT_ID0, 1, v);
+	seq_printf(sf, "SP_INPUT_ID0:\t\t0x%X\n", v[0]);
+
+	get_values_from_reg(c->reg, BLK_CONTROL, 3, v);
+	seq_printf(sf, "SP_CONTROL:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "SP_SIZE:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "SP_OVERLAP_SIZE:\t0x%X\n", v[2]);
+}
+
+static const struct komeda_component_funcs d71_splitter_funcs = {
+	.update		= d71_splitter_update,
+	.disable	= d71_component_disable,
+	.dump_register	= d71_splitter_dump,
+};
+
+static int d71_splitter_init(struct d71_dev *d71,
+			     struct block_header *blk, u32 __iomem *reg)
+{
+	struct komeda_component *c;
+	struct komeda_splitter *splitter;
+	u32 pipe_id, comp_id;
+
+	get_resources_id(blk->block_info, &pipe_id, &comp_id);
+
+	c = komeda_component_add(&d71->pipes[pipe_id]->base, sizeof(*splitter),
+				 comp_id,
+				 BLOCK_INFO_INPUT_ID(blk->block_info),
+				 &d71_splitter_funcs,
+				 1, get_valid_inputs(blk), 2, reg,
+				 "CU%d_SPLITTER", pipe_id);
+
+	if (IS_ERR(c)) {
+		DRM_ERROR("Failed to initialize splitter");
+		return -1;
+	}
+
+	splitter = to_splitter(c);
+
+	set_range(&splitter->hsize, 4, d71->max_line_size);
+	set_range(&splitter->vsize, 4, d71->max_vsize);
+
+	return 0;
+}
+
 static void d71_merger_update(struct komeda_component *c,
 			      struct komeda_component_state *state)
 {
@@ -1102,6 +1164,7 @@ int d71_probe_block(struct d71_dev *d71,
 		break;
 
 	case D71_BLK_TYPE_CU_SPLITTER:
+		err = d71_splitter_init(d71, blk, reg);
 		break;
 
 	case D71_BLK_TYPE_CU_MERGER:

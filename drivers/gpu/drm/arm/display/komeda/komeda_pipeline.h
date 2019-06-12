@@ -301,6 +301,17 @@ struct komeda_merger_state {
 	u16 vsize_merged;
 };
 
+struct komeda_splitter {
+	struct komeda_component base;
+	struct malidp_range hsize, vsize;
+};
+
+struct komeda_splitter_state {
+	struct komeda_component_state base;
+	u16 hsize, vsize;
+	u16 overlap;
+};
+
 struct komeda_improc {
 	struct komeda_component base;
 	u32 supported_color_formats;  /* DRM_RGB/YUV444/YUV420*/
@@ -388,6 +399,8 @@ struct komeda_pipeline {
 	struct komeda_scaler *scalers[KOMEDA_PIPELINE_MAX_SCALERS];
 	/** @compiz: compositor */
 	struct komeda_compiz *compiz;
+	/** @splitter: for split the compiz output to two half data flows */
+	struct komeda_splitter *splitter;
 	/** @merger: merger */
 	struct komeda_merger *merger;
 	/** @wb_layer: writeback layer */
@@ -432,14 +445,16 @@ struct komeda_pipeline_state {
 #define to_layer(c)	container_of(c, struct komeda_layer, base)
 #define to_compiz(c)	container_of(c, struct komeda_compiz, base)
 #define to_scaler(c)	container_of(c, struct komeda_scaler, base)
+#define to_splitter(c)	container_of(c, struct komeda_splitter, base)
 #define to_merger(c)	container_of(c, struct komeda_merger, base)
 #define to_improc(c)	container_of(c, struct komeda_improc, base)
 #define to_ctrlr(c)	container_of(c, struct komeda_timing_ctrlr, base)
 
 #define to_layer_st(c)	container_of(c, struct komeda_layer_state, base)
 #define to_compiz_st(c)	container_of(c, struct komeda_compiz_state, base)
-#define to_scaler_st(c) container_of(c, struct komeda_scaler_state, base)
-#define to_merger_st(c) container_of(c, struct komeda_merger_state, base)
+#define to_scaler_st(c)	container_of(c, struct komeda_scaler_state, base)
+#define to_splitter_st(c) container_of(c, struct komeda_splitter_state, base)
+#define to_merger_st(c)	container_of(c, struct komeda_merger_state, base)
 #define to_improc_st(c)	container_of(c, struct komeda_improc_state, base)
 #define to_ctrlr_st(c)	container_of(c, struct komeda_timing_ctrlr_state, base)
 
