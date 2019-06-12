@@ -284,30 +284,33 @@ komeda_layer_check_cfg(struct komeda_layer *layer,
 		       struct komeda_fb *kfb,
 		       struct komeda_data_flow_cfg *dflow)
 {
-	u32 hsize_in, vsize_in;
+	u32 src_x, src_y, src_w, src_h;
 
 	if (!komeda_fb_is_layer_supported(kfb, layer->layer_type, dflow->rot))
 		return -EINVAL;
 
-	if (komeda_fb_check_src_coords(kfb, dflow->in_x, dflow->in_y,
-				       dflow->in_w, dflow->in_h))
-		return -EINVAL;
-
 	if (layer->base.id == KOMEDA_COMPONENT_WB_LAYER) {
-		hsize_in = dflow->out_w;
-		vsize_in = dflow->out_h;
+		src_x = dflow->out_x;
+		src_y = dflow->out_y;
+		src_w = dflow->out_w;
+		src_h = dflow->out_h;
 	} else {
-		hsize_in = dflow->in_w;
-		vsize_in = dflow->in_h;
+		src_x = dflow->in_x;
+		src_y = dflow->in_y;
+		src_w = dflow->in_w;
+		src_h = dflow->in_h;
 	}
 
-	if (!in_range(&layer->hsize_in, hsize_in)) {
-		DRM_DEBUG_ATOMIC("invalidate src_w %d.\n", hsize_in);
+	if (komeda_fb_check_src_coords(kfb, src_x, src_y, src_w, src_h))
+		return -EINVAL;
+
+	if (!in_range(&layer->hsize_in, src_w)) {
+		DRM_DEBUG_ATOMIC("invalidate src_w %d.\n", src_w);
 		return -EINVAL;
 	}
 
-	if (!in_range(&layer->vsize_in, vsize_in)) {
-		DRM_DEBUG_ATOMIC("invalidate src_h %d.\n", vsize_in);
+	if (!in_range(&layer->vsize_in, src_h)) {
+		DRM_DEBUG_ATOMIC("invalidate src_h %d.\n", src_h);
 		return -EINVAL;
 	}
 
@@ -532,6 +535,59 @@ komeda_scaler_validate(void *user,
 	komeda_component_add_input(&st->base, &dflow->input, 0);
 	komeda_component_set_output(&dflow->input, &scaler->base, 0);
 	return err;
+}
+
+static void komeda_split_data_flow(struct komeda_scaler *scaler,
+				   struct komeda_data_flow_cfg *dflow,
+				   struct komeda_data_flow_cfg *l_dflow,
+				   struct komeda_data_flow_cfg *r_dflow);
+
+static int
+komeda_splitter_validate(struct komeda_splitter *splitter,
+			 struct drm_connector_state *conn_st,
+			 struct komeda_data_flow_cfg *dflow,
+			 struct komeda_data_flow_cfg *l_output,
+			 struct komeda_data_flow_cfg *r_output)
+{
+	struct komeda_component_state *c_st;
+	struct komeda_splitter_state *st;
+
+	if (!splitter) {
+		DRM_DEBUG_ATOMIC("Current HW doesn't support splitter.\n");
+		return -EINVAL;
+	}
+
+	if (!in_range(&splitter->hsize, dflow->in_w)) {
+		DRM_DEBUG_ATOMIC("split in_w:%d is out of the acceptable range.\n",
+				 dflow->in_w);
+		return -EINVAL;
+	}
+
+	if (!in_range(&splitter->vsize, dflow->in_h)) {
+		DRM_DEBUG_ATOMIC("split in_in: %d exceed the acceptable range.\n",
+				 dflow->in_w);
+		return -EINVAL;
+	}
+
+	c_st = komeda_component_get_state_and_set_user(&splitter->base,
+			conn_st->state, conn_st->connector, conn_st->crtc);
+
+	if (IS_ERR(c_st))
+		return PTR_ERR(c_st);
+
+	komeda_split_data_flow(splitter->base.pipeline->scalers[0],
+			       dflow, l_output, r_output);
+
+	st = to_splitter_st(c_st);
+	st->hsize = dflow->in_w;
+	st->vsize = dflow->in_h;
+	st->overlap = dflow->overlap;
+
+	komeda_component_add_input(&st->base, &dflow->input, 0);
+	komeda_component_set_output(&l_output->input, &splitter->base, 0);
+	komeda_component_set_output(&r_output->input, &splitter->base, 1);
+
+	return 0;
 }
 
 static int
@@ -1019,6 +1075,41 @@ int komeda_build_wb_data_flow(struct komeda_layer *wb_layer,
 	int err;
 
 	err = komeda_scaler_validate(conn, kcrtc_st, dflow);
+	if (err)
+		return err;
+
+	return komeda_wb_layer_validate(wb_layer, conn_st, dflow);
+}
+
+/* writeback scaling split data path:
+ *                   /-> scaler ->\
+ * compiz -> splitter              merger -> wb_layer -> memory
+ *                   \-> scaler ->/
+ */
+int komeda_build_wb_split_data_flow(struct komeda_layer *wb_layer,
+				    struct drm_connector_state *conn_st,
+				    struct komeda_crtc_state *kcrtc_st,
+				    struct komeda_data_flow_cfg *dflow)
+{
+	struct komeda_pipeline *pipe = wb_layer->base.pipeline;
+	struct drm_connector *conn = conn_st->connector;
+	struct komeda_data_flow_cfg l_dflow, r_dflow;
+	int err;
+
+	err = komeda_splitter_validate(pipe->splitter, conn_st,
+				       dflow, &l_dflow, &r_dflow);
+	if (err)
+		return err;
+	err = komeda_scaler_validate(conn, kcrtc_st, &l_dflow);
+	if (err)
+		return err;
+
+	err = komeda_scaler_validate(conn, kcrtc_st, &r_dflow);
+	if (err)
+		return err;
+
+	err = komeda_merger_validate(pipe->merger, conn_st, kcrtc_st,
+				     &l_dflow, &r_dflow, dflow);
 	if (err)
 		return err;
 

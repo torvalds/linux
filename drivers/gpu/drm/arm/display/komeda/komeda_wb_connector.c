@@ -13,6 +13,7 @@ komeda_wb_init_data_flow(struct komeda_layer *wb_layer,
 			 struct komeda_crtc_state *kcrtc_st,
 			 struct komeda_data_flow_cfg *dflow)
 {
+	struct komeda_scaler *scaler = wb_layer->base.pipeline->scalers[0];
 	struct drm_framebuffer *fb = conn_st->writeback_job->fb;
 
 	memset(dflow, 0, sizeof(*dflow));
@@ -28,6 +29,13 @@ komeda_wb_init_data_flow(struct komeda_layer *wb_layer,
 	dflow->rot = DRM_MODE_ROTATE_0;
 
 	komeda_complete_data_flow_cfg(dflow, fb);
+
+	/* if scaling exceed the acceptable scaler input/output range, try to
+	 * enable split.
+	 */
+	if (dflow->en_scaling && scaler)
+		dflow->en_split = !in_range(&scaler->hsize, dflow->in_w) ||
+				  !in_range(&scaler->hsize, dflow->out_w);
 
 	return 0;
 }
@@ -66,7 +74,14 @@ komeda_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	if (err)
 		return err;
 
-	return komeda_build_wb_data_flow(wb_layer, conn_st, kcrtc_st, &dflow);
+	if (dflow.en_split)
+		err = komeda_build_wb_split_data_flow(wb_layer,
+				conn_st, kcrtc_st, &dflow);
+	else
+		err = komeda_build_wb_data_flow(wb_layer,
+				conn_st, kcrtc_st, &dflow);
+
+	return err;
 }
 
 static const struct drm_encoder_helper_funcs komeda_wb_encoder_helper_funcs = {
