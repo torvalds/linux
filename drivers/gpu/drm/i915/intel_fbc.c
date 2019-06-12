@@ -344,6 +344,10 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 			   HSW_FBCQ_DIS);
 	}
 
+	if (IS_GEN(dev_priv, 11))
+		/* Wa_1409120013:icl,ehl */
+		I915_WRITE(ILK_DPFC_CHICKEN, ILK_DPFC_CHICKEN_COMP_DUMMY_PIXEL);
+
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
 	intel_fbc_recompress(dev_priv);
