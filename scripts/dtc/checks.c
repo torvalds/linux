@@ -660,6 +660,8 @@ ERROR(path_references, fixup_path_references, NULL, &duplicate_node_names);
 static void fixup_omit_unused_nodes(struct check *c, struct dt_info *dti,
 				    struct node *node)
 {
+	if (generate_symbols && node->labels)
+		return;
 	if (node->omit_if_unused && !node->is_referenced)
 		delete_node(node);
 }
@@ -1212,8 +1214,24 @@ static void check_avoid_unnecessary_addr_size(struct check *c, struct dt_info *d
 }
 WARNING(avoid_unnecessary_addr_size, check_avoid_unnecessary_addr_size, NULL, &avoid_default_addr_size);
 
-static void check_unique_unit_address(struct check *c, struct dt_info *dti,
-					      struct node *node)
+static bool node_is_disabled(struct node *node)
+{
+	struct property *prop;
+
+	prop = get_property(node, "status");
+	if (prop) {
+		char *str = prop->val.val;
+		if (streq("disabled", str))
+			return true;
+	}
+
+	return false;
+}
+
+static void check_unique_unit_address_common(struct check *c,
+						struct dt_info *dti,
+						struct node *node,
+						bool disable_check)
 {
 	struct node *childa;
 
@@ -1230,17 +1248,37 @@ static void check_unique_unit_address(struct check *c, struct dt_info *dti,
 		if (!strlen(addr_a))
 			continue;
 
+		if (disable_check && node_is_disabled(childa))
+			continue;
+
 		for_each_child(node, childb) {
 			const char *addr_b = get_unitname(childb);
 			if (childa == childb)
 				break;
+
+			if (disable_check && node_is_disabled(childb))
+				continue;
 
 			if (streq(addr_a, addr_b))
 				FAIL(c, dti, childb, "duplicate unit-address (also used in node %s)", childa->fullpath);
 		}
 	}
 }
+
+static void check_unique_unit_address(struct check *c, struct dt_info *dti,
+					      struct node *node)
+{
+	check_unique_unit_address_common(c, dti, node, false);
+}
 WARNING(unique_unit_address, check_unique_unit_address, NULL, &avoid_default_addr_size);
+
+static void check_unique_unit_address_if_enabled(struct check *c, struct dt_info *dti,
+					      struct node *node)
+{
+	check_unique_unit_address_common(c, dti, node, true);
+}
+CHECK_ENTRY(unique_unit_address_if_enabled, check_unique_unit_address_if_enabled,
+	    NULL, false, false, &avoid_default_addr_size);
 
 static void check_obsolete_chosen_interrupt_controller(struct check *c,
 						       struct dt_info *dti,
@@ -1542,10 +1580,14 @@ static void check_interrupts_property(struct check *c,
 		prop = get_property(parent, "interrupt-parent");
 		if (prop) {
 			phandle = propval_cell(prop);
-			/* Give up if this is an overlay with external references */
-			if ((phandle == 0 || phandle == -1) &&
-			    (dti->dtsflags & DTSF_PLUGIN))
+			if ((phandle == 0) || (phandle == -1)) {
+				/* Give up if this is an overlay with
+				 * external references */
+				if (dti->dtsflags & DTSF_PLUGIN)
 					return;
+				FAIL_PROP(c, dti, parent, prop, "Invalid phandle");
+				continue;
+			}
 
 			irq_node = get_node_by_phandle(root, phandle);
 			if (!irq_node) {
@@ -1714,7 +1756,7 @@ static void check_graph_endpoint(struct check *c, struct dt_info *dti,
 		return;
 
 	if (!strprefixeq(node->name, node->basenamelen, "endpoint"))
-		FAIL(c, dti, node, "graph endpont node name should be 'endpoint'");
+		FAIL(c, dti, node, "graph endpoint node name should be 'endpoint'");
 
 	check_graph_reg(c, dti, node);
 
@@ -1769,6 +1811,7 @@ static struct check *check_table[] = {
 	&avoid_default_addr_size,
 	&avoid_unnecessary_addr_size,
 	&unique_unit_address,
+	&unique_unit_address_if_enabled,
 	&obsolete_chosen_interrupt_controller,
 	&chosen_node_is_root, &chosen_node_bootargs, &chosen_node_stdout_path,
 
