@@ -1271,6 +1271,13 @@ static int packet_rcv_has_room(struct packet_sock *po, struct sk_buff *skb)
 	return ret;
 }
 
+static void packet_rcv_try_clear_pressure(struct packet_sock *po)
+{
+	if (READ_ONCE(po->pressure) &&
+	    __packet_rcv_has_room(po, NULL) == ROOM_NORMAL)
+		WRITE_ONCE(po->pressure,  0);
+}
+
 static void packet_sock_destruct(struct sock *sk)
 {
 	skb_queue_purge(&sk->sk_error_queue);
@@ -3308,8 +3315,7 @@ static int packet_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (skb == NULL)
 		goto out;
 
-	if (READ_ONCE(pkt_sk(sk)->pressure))
-		packet_rcv_has_room(pkt_sk(sk), NULL);
+	packet_rcv_try_clear_pressure(pkt_sk(sk));
 
 	if (pkt_sk(sk)->has_vnet_hdr) {
 		err = packet_rcv_vnet(msg, skb, &len);
@@ -4127,8 +4133,7 @@ static __poll_t packet_poll(struct file *file, struct socket *sock,
 			TP_STATUS_KERNEL))
 			mask |= EPOLLIN | EPOLLRDNORM;
 	}
-	if (READ_ONCE(po->pressure) && __packet_rcv_has_room(po, NULL) == ROOM_NORMAL)
-		WRITE_ONCE(po->pressure, 0);
+	packet_rcv_try_clear_pressure(po);
 	spin_unlock_bh(&sk->sk_receive_queue.lock);
 	spin_lock_bh(&sk->sk_write_queue.lock);
 	if (po->tx_ring.pg_vec) {
