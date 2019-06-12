@@ -288,10 +288,6 @@ int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw,
 	if (err < 0)
 		goto end;
 
-	/* packet queueing error */
-	if (amdtp_streaming_error(stream))
-		stop_stream(oxfw, stream);
-
 	err = snd_oxfw_stream_get_current_formation(oxfw, dir, &formation);
 	if (err < 0)
 		goto end;
@@ -300,7 +296,8 @@ int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw,
 	if (pcm_channels == 0)
 		pcm_channels = formation.pcm;
 
-	if ((formation.rate != rate) || (formation.pcm != pcm_channels)) {
+	if (formation.rate != rate || formation.pcm != pcm_channels ||
+	    amdtp_streaming_error(stream)) {
 		if (opposite != NULL) {
 			err = check_connection_used_by_others(oxfw, opposite);
 			if (err < 0)
