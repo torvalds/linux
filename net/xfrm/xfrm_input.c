@@ -376,6 +376,7 @@ static int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 		break;
 	case AF_INET6:
 		skb->protocol = htons(ETH_P_IPV6);
+		break;
 	default:
 		WARN_ON_ONCE(1);
 		break;
