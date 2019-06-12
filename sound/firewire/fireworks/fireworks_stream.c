@@ -43,7 +43,6 @@ end:
 static void
 stop_stream(struct snd_efw *efw, struct amdtp_stream *stream)
 {
-	amdtp_stream_pcm_abort(stream);
 	amdtp_stream_stop(stream);
 
 	if (stream == &efw->tx_stream)
