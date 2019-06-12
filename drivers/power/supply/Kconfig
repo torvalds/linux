@@ -14,6 +14,20 @@ config POWER_SUPPLY_DEBUG
 	  Say Y here to enable debugging messages for power supply class
 	  and drivers.
 
+config POWER_SUPPLY_HWMON
+	bool
+	prompt "Expose power supply sensors as hwmon device"
+	depends on HWMON=y || HWMON=POWER_SUPPLY
+	default y
+	help
+	  This options enables API that allows sensors found on a
+	  power supply device (current, voltage, temperature) to be
+	  exposed as a hwmon device.
+
+	  Say 'Y' here if you want power supplies to
+	  have hwmon sysfs interface too.
+
+
 config PDA_POWER
 	tristate "Generic PDA/phone power driver"
 	depends on !S390
