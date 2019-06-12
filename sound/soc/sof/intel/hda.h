@@ -415,6 +415,9 @@ struct sof_intel_hda_stream {
 	int hw_params_upon_resume; /* set up hw_params upon resume */
 };
 
+#define hstream_to_sof_hda_stream(hstream) \
+	container_of(hstream, struct sof_intel_hda_stream, hda_stream)
+
 #define bus_to_sof_hda(bus) \
 	container_of(bus, struct sof_intel_hda_dev, hbus.core)
 
