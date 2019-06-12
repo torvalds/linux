@@ -1615,16 +1615,10 @@ void Update_RA_Entry(struct adapter *padapter, struct sta_info *psta)
 	rtw_hal_update_ra_mask(psta, 0);
 }
 
-void enable_rate_adaptive(struct adapter *padapter, struct sta_info *psta);
-void enable_rate_adaptive(struct adapter *padapter, struct sta_info *psta)
-{
-	Update_RA_Entry(padapter, psta);
-}
-
 void set_sta_rate(struct adapter *padapter, struct sta_info *psta)
 {
 	/* rate adaptive */
-	enable_rate_adaptive(padapter, psta);
+	Update_RA_Entry(padapter, psta);
 }
 
 unsigned char check_assoc_AP(u8 *pframe, uint len)
