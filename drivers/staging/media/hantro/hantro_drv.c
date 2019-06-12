@@ -832,9 +832,22 @@ static int hantro_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int hantro_runtime_resume(struct device *dev)
+{
+	struct hantro_dev *vpu = dev_get_drvdata(dev);
+
+	if (vpu->variant->runtime_resume)
+		return vpu->variant->runtime_resume(vpu);
+
+	return 0;
+}
+#endif
+
 static const struct dev_pm_ops hantro_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(NULL, hantro_runtime_resume, NULL)
 };
 
 static struct platform_driver hantro_driver = {

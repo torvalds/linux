@@ -56,6 +56,7 @@ struct hantro_codec_ops;
  * @codec:			Supported codecs
  * @codec_ops:			Codec ops.
  * @init:			Initialize hardware.
+ * @runtime_resume:		reenable hardware after power gating
  * @vepu_irq:			encoder interrupt handler
  * @vdpu_irq:			decoder interrupt handler
  * @clk_names:			array of clock names
@@ -71,6 +72,7 @@ struct hantro_variant {
 	unsigned int codec;
 	const struct hantro_codec_ops *codec_ops;
 	int (*init)(struct hantro_dev *vpu);
+	int (*runtime_resume)(struct hantro_dev *vpu);
 	irqreturn_t (*vepu_irq)(int irq, void *priv);
 	irqreturn_t (*vdpu_irq)(int irq, void *priv);
 	const char *clk_names[HANTRO_MAX_CLOCKS];
