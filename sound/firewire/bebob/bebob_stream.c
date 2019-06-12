@@ -418,49 +418,28 @@ check_connection_used_by_others(struct snd_bebob *bebob, struct amdtp_stream *s)
 	return err;
 }
 
-static int
-make_both_connections(struct snd_bebob *bebob, unsigned int rate)
+static int make_both_connections(struct snd_bebob *bebob)
 {
-	int index, pcm_channels, midi_channels, err = 0;
+	int err = 0;
 
 	if (bebob->connected)
-		goto end;
+		return 0;
 
-	/* confirm params for both streams */
-	err = get_formation_index(rate, &index);
-	if (err < 0)
-		goto end;
-	pcm_channels = bebob->tx_stream_formations[index].pcm;
-	midi_channels = bebob->tx_stream_formations[index].midi;
-	err = amdtp_am824_set_parameters(&bebob->tx_stream, rate,
-					 pcm_channels, midi_channels * 8,
-					 false);
-	if (err < 0)
-		goto end;
-
-	pcm_channels = bebob->rx_stream_formations[index].pcm;
-	midi_channels = bebob->rx_stream_formations[index].midi;
-	err = amdtp_am824_set_parameters(&bebob->rx_stream, rate,
-					 pcm_channels, midi_channels * 8,
-					 false);
-	if (err < 0)
-		goto end;
-
-	/* establish connections for both streams */
 	err = cmp_connection_establish(&bebob->out_conn,
 			amdtp_stream_get_max_payload(&bebob->tx_stream));
 	if (err < 0)
-		goto end;
+		return err;
+
 	err = cmp_connection_establish(&bebob->in_conn,
 			amdtp_stream_get_max_payload(&bebob->rx_stream));
 	if (err < 0) {
 		cmp_connection_break(&bebob->out_conn);
-		goto end;
+		return err;
 	}
 
 	bebob->connected = true;
-end:
-	return err;
+
+	return 0;
 }
 
 static void
@@ -484,8 +463,7 @@ destroy_both_connections(struct snd_bebob *bebob)
 }
 
 static int
-start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream,
-	     unsigned int rate)
+start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 {
 	struct cmp_connection *conn;
 	int err = 0;
@@ -555,132 +533,154 @@ end:
 	return err;
 }
 
-int snd_bebob_stream_start_duplex(struct snd_bebob *bebob, unsigned int rate)
+static int keep_resources(struct snd_bebob *bebob, struct amdtp_stream *stream,
+			  unsigned int rate, unsigned int index)
 {
-	const struct snd_bebob_rate_spec *rate_spec = bebob->spec->rate;
+	struct snd_bebob_stream_formation *formation;
+
+	if (stream == &bebob->tx_stream)
+		formation = bebob->tx_stream_formations + index;
+	else
+		formation = bebob->rx_stream_formations + index;
+
+	return amdtp_am824_set_parameters(stream, rate, formation->pcm,
+					  formation->midi, false);
+}
+
+int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate)
+{
 	unsigned int curr_rate;
-	int err = 0;
+	int err;
 
-	/* Need no substreams */
-	if (bebob->substreams_counter == 0)
-		goto end;
-
-	/*
-	 * Considering JACK/FFADO streaming:
-	 * TODO: This can be removed hwdep functionality becomes popular.
-	 */
+	// Considering JACK/FFADO streaming:
+	// TODO: This can be removed hwdep functionality becomes popular.
 	err = check_connection_used_by_others(bebob, &bebob->rx_stream);
 	if (err < 0)
-		goto end;
+		return err;
 
-	/*
-	 * packet queueing error or detecting discontinuity
-	 *
-	 * At bus reset, connections should not be broken here. So streams need
-	 * to be re-started. This is a reason to use SKIP_INIT_DBC_CHECK flag.
-	 */
-	if (amdtp_streaming_error(&bebob->rx_stream))
-		amdtp_stream_stop(&bebob->rx_stream);
-	if (amdtp_streaming_error(&bebob->tx_stream))
-		amdtp_stream_stop(&bebob->tx_stream);
-	if (!amdtp_stream_running(&bebob->rx_stream) &&
-	    !amdtp_stream_running(&bebob->tx_stream))
-		break_both_connections(bebob);
-
-	/* stop streams if rate is different */
-	err = rate_spec->get(bebob, &curr_rate);
-	if (err < 0) {
-		dev_err(&bebob->unit->device,
-			"fail to get sampling rate: %d\n", err);
-		goto end;
-	}
+	err = bebob->spec->rate->get(bebob, &curr_rate);
+	if (err < 0)
+		return err;
 	if (rate == 0)
 		rate = curr_rate;
-	if (rate != curr_rate) {
-		amdtp_stream_stop(&bebob->rx_stream);
+	if (curr_rate != rate) {
 		amdtp_stream_stop(&bebob->tx_stream);
+		amdtp_stream_stop(&bebob->rx_stream);
+
 		break_both_connections(bebob);
 	}
 
-	/* master should be always running */
-	if (!amdtp_stream_running(&bebob->rx_stream)) {
-		/*
-		 * NOTE:
-		 * If establishing connections at first, Yamaha GO46
-		 * (and maybe Terratec X24) don't generate sound.
-		 *
-		 * For firmware customized by M-Audio, refer to next NOTE.
-		 */
-		if (bebob->maudio_special_quirk == NULL) {
-			err = rate_spec->set(bebob, rate);
-			if (err < 0) {
-				dev_err(&bebob->unit->device,
-					"fail to set sampling rate: %d\n",
-					err);
-				goto end;
-			}
+	if (bebob->substreams_counter == 0 || curr_rate != rate) {
+		unsigned int index;
+
+		// NOTE:
+		// If establishing connections at first, Yamaha GO46
+		// (and maybe Terratec X24) don't generate sound.
+		//
+		// For firmware customized by M-Audio, refer to next NOTE.
+		err = bebob->spec->rate->set(bebob, rate);
+		if (err < 0) {
+			dev_err(&bebob->unit->device,
+				"fail to set sampling rate: %d\n",
+				err);
+			return err;
 		}
 
-		err = make_both_connections(bebob, rate);
+		err = get_formation_index(rate, &index);
 		if (err < 0)
-			goto end;
+			return err;
 
-		err = start_stream(bebob, &bebob->rx_stream, rate);
+		err = keep_resources(bebob, &bebob->tx_stream, rate, index);
+		if (err < 0)
+			return err;
+
+		err = keep_resources(bebob, &bebob->rx_stream, rate, index);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
+{
+	int err;
+
+	// Need no substreams.
+	if (bebob->substreams_counter == 0)
+		return -EIO;
+
+	// packet queueing error or detecting discontinuity
+	if (amdtp_streaming_error(&bebob->rx_stream) ||
+	    amdtp_streaming_error(&bebob->tx_stream)) {
+		amdtp_stream_stop(&bebob->rx_stream);
+		amdtp_stream_stop(&bebob->tx_stream);
+
+		break_both_connections(bebob);
+	}
+
+	if (!amdtp_stream_running(&bebob->rx_stream)) {
+		unsigned int curr_rate;
+
+		if (bebob->maudio_special_quirk) {
+			err = bebob->spec->rate->get(bebob, &curr_rate);
+			if (err < 0)
+				return err;
+		}
+
+		err = make_both_connections(bebob);
+		if (err < 0)
+			return err;
+
+		err = start_stream(bebob, &bebob->rx_stream);
 		if (err < 0) {
 			dev_err(&bebob->unit->device,
 				"fail to run AMDTP master stream:%d\n", err);
-			break_both_connections(bebob);
-			goto end;
+			goto error;
 		}
 
-		/*
-		 * NOTE:
-		 * The firmware customized by M-Audio uses these commands to
-		 * start transmitting stream. This is not usual way.
-		 */
-		if (bebob->maudio_special_quirk != NULL) {
-			err = rate_spec->set(bebob, rate);
+		// NOTE:
+		// The firmware customized by M-Audio uses these commands to
+		// start transmitting stream. This is not usual way.
+		if (bebob->maudio_special_quirk) {
+			err = bebob->spec->rate->set(bebob, curr_rate);
 			if (err < 0) {
 				dev_err(&bebob->unit->device,
 					"fail to ensure sampling rate: %d\n",
 					err);
-				amdtp_stream_stop(&bebob->rx_stream);
-				break_both_connections(bebob);
-				goto end;
+				goto error;
 			}
 		}
 
-		/* wait first callback */
 		if (!amdtp_stream_wait_callback(&bebob->rx_stream,
 						CALLBACK_TIMEOUT)) {
 			amdtp_stream_stop(&bebob->rx_stream);
 			break_both_connections(bebob);
 			err = -ETIMEDOUT;
-			goto end;
+			goto error;
 		}
 	}
 
-	/* start slave if needed */
 	if (!amdtp_stream_running(&bebob->tx_stream)) {
-		err = start_stream(bebob, &bebob->tx_stream, rate);
+		err = start_stream(bebob, &bebob->tx_stream);
 		if (err < 0) {
 			dev_err(&bebob->unit->device,
 				"fail to run AMDTP slave stream:%d\n", err);
-			amdtp_stream_stop(&bebob->rx_stream);
-			break_both_connections(bebob);
-			goto end;
+			goto error;
 		}
 
-		/* wait first callback */
 		if (!amdtp_stream_wait_callback(&bebob->tx_stream,
 						CALLBACK_TIMEOUT)) {
-			amdtp_stream_stop(&bebob->tx_stream);
-			amdtp_stream_stop(&bebob->rx_stream);
-			break_both_connections(bebob);
 			err = -ETIMEDOUT;
+			goto error;
 		}
 	}
-end:
+
+	return 0;
+error:
+	amdtp_stream_stop(&bebob->tx_stream);
+	amdtp_stream_stop(&bebob->rx_stream);
+	break_both_connections(bebob);
 	return err;
 }
 
