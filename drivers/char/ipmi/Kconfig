@@ -134,6 +134,7 @@ config ASPEED_BT_IPMI_BMC
 
 config IPMB_DEVICE_INTERFACE
 	tristate 'IPMB Interface handler'
+	depends on I2C
 	depends on I2C_SLAVE
 	help
 	  Provides a driver for a device (Satellite MC) to
