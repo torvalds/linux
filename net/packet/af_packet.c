@@ -1260,15 +1260,13 @@ static int __packet_rcv_has_room(const struct packet_sock *po,
 
 static int packet_rcv_has_room(struct packet_sock *po, struct sk_buff *skb)
 {
-	int ret;
-	bool has_room;
+	int pressure, ret;
 
-	spin_lock_bh(&po->sk.sk_receive_queue.lock);
 	ret = __packet_rcv_has_room(po, skb);
-	has_room = ret == ROOM_NORMAL;
-	if (po->pressure == has_room)
-		po->pressure = !has_room;
-	spin_unlock_bh(&po->sk.sk_receive_queue.lock);
+	pressure = ret != ROOM_NORMAL;
+
+	if (READ_ONCE(po->pressure) != pressure)
+		WRITE_ONCE(po->pressure, pressure);
 
 	return ret;
 }
@@ -1353,7 +1351,7 @@ static unsigned int fanout_demux_rollover(struct packet_fanout *f,
 	i = j = min_t(int, po->rollover->sock, num - 1);
 	do {
 		po_next = pkt_sk(f->arr[i]);
-		if (po_next != po_skip && !po_next->pressure &&
+		if (po_next != po_skip && !READ_ONCE(po_next->pressure) &&
 		    packet_rcv_has_room(po_next, skb) == ROOM_NORMAL) {
 			if (i != j)
 				po->rollover->sock = i;
@@ -3310,7 +3308,7 @@ static int packet_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (skb == NULL)
 		goto out;
 
-	if (pkt_sk(sk)->pressure)
+	if (READ_ONCE(pkt_sk(sk)->pressure))
 		packet_rcv_has_room(pkt_sk(sk), NULL);
 
 	if (pkt_sk(sk)->has_vnet_hdr) {
@@ -4129,8 +4127,8 @@ static __poll_t packet_poll(struct file *file, struct socket *sock,
 			TP_STATUS_KERNEL))
 			mask |= EPOLLIN | EPOLLRDNORM;
 	}
-	if (po->pressure && __packet_rcv_has_room(po, NULL) == ROOM_NORMAL)
-		po->pressure = 0;
+	if (READ_ONCE(po->pressure) && __packet_rcv_has_room(po, NULL) == ROOM_NORMAL)
+		WRITE_ONCE(po->pressure, 0);
 	spin_unlock_bh(&sk->sk_receive_queue.lock);
 	spin_lock_bh(&sk->sk_write_queue.lock);
 	if (po->tx_ring.pg_vec) {
