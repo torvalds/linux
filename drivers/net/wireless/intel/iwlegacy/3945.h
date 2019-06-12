@@ -87,9 +87,6 @@ struct il3945_rs_sta {
 	u8 start_rate;
 	struct timer_list rate_scale_flush;
 	struct il3945_rate_scale_data win[RATE_COUNT_3945];
-#ifdef CONFIG_MAC80211_DEBUGFS
-	struct dentry *rs_sta_dbgfs_stats_table_file;
-#endif
 
 	/* used to be in sta_info */
 	int last_txrate_idx;
