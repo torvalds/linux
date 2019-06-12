@@ -89,46 +89,6 @@ thermal_cooling_device_stats_update(struct thermal_cooling_device *cdev,
 				    unsigned long new_state) {}
 #endif /* CONFIG_THERMAL_STATISTICS */
 
-#ifdef CONFIG_THERMAL_GOV_STEP_WISE
-int thermal_gov_step_wise_register(void);
-void thermal_gov_step_wise_unregister(void);
-#else
-static inline int thermal_gov_step_wise_register(void) { return 0; }
-static inline void thermal_gov_step_wise_unregister(void) {}
-#endif /* CONFIG_THERMAL_GOV_STEP_WISE */
-
-#ifdef CONFIG_THERMAL_GOV_FAIR_SHARE
-int thermal_gov_fair_share_register(void);
-void thermal_gov_fair_share_unregister(void);
-#else
-static inline int thermal_gov_fair_share_register(void) { return 0; }
-static inline void thermal_gov_fair_share_unregister(void) {}
-#endif /* CONFIG_THERMAL_GOV_FAIR_SHARE */
-
-#ifdef CONFIG_THERMAL_GOV_BANG_BANG
-int thermal_gov_bang_bang_register(void);
-void thermal_gov_bang_bang_unregister(void);
-#else
-static inline int thermal_gov_bang_bang_register(void) { return 0; }
-static inline void thermal_gov_bang_bang_unregister(void) {}
-#endif /* CONFIG_THERMAL_GOV_BANG_BANG */
-
-#ifdef CONFIG_THERMAL_GOV_USER_SPACE
-int thermal_gov_user_space_register(void);
-void thermal_gov_user_space_unregister(void);
-#else
-static inline int thermal_gov_user_space_register(void) { return 0; }
-static inline void thermal_gov_user_space_unregister(void) {}
-#endif /* CONFIG_THERMAL_GOV_USER_SPACE */
-
-#ifdef CONFIG_THERMAL_GOV_POWER_ALLOCATOR
-int thermal_gov_power_allocator_register(void);
-void thermal_gov_power_allocator_unregister(void);
-#else
-static inline int thermal_gov_power_allocator_register(void) { return 0; }
-static inline void thermal_gov_power_allocator_unregister(void) {}
-#endif /* CONFIG_THERMAL_GOV_POWER_ALLOCATOR */
-
 /* device tree support */
 #ifdef CONFIG_THERMAL_OF
 int of_parse_thermal_zones(void);
