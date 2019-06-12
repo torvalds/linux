@@ -233,11 +233,10 @@ static inline struct xfs_buf *
 xfs_buf_get(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		blkno,
-	size_t			numblks,
-	xfs_buf_flags_t		flags)
+	size_t			numblks)
 {
 	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
-	return xfs_buf_get_map(target, &map, 1, flags);
+	return xfs_buf_get_map(target, &map, 1, 0);
 }
 
 static inline struct xfs_buf *

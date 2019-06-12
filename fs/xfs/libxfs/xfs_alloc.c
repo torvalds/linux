@@ -1627,7 +1627,7 @@ xfs_alloc_ag_vextent_small(
 				xfs_buf_t	*bp;
 
 				bp = xfs_btree_get_bufs(args->mp, args->tp,
-					args->agno, fbno, 0);
+					args->agno, fbno);
 				if (!bp) {
 					error = -EFSCORRUPTED;
 					goto error0;
@@ -2095,7 +2095,7 @@ xfs_free_agfl_block(
 	if (error)
 		return error;
 
-	bp = xfs_btree_get_bufs(tp->t_mountp, tp, agno, agbno, 0);
+	bp = xfs_btree_get_bufs(tp->t_mountp, tp, agno, agbno);
 	if (!bp)
 		return -EFSCORRUPTED;
 	xfs_trans_binval(tp, bp);

@@ -301,8 +301,7 @@ struct xfs_buf *				/* buffer for fsbno */
 xfs_btree_get_bufl(
 	struct xfs_mount	*mp,	/* file system mount point */
 	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_fsblock_t		fsbno,	/* file system block number */
-	uint			lock);	/* lock flags for get_buf */
+	xfs_fsblock_t		fsbno);	/* file system block number */
 
 /*
  * Get a buffer for the block, return it with no data read.
@@ -313,8 +312,7 @@ xfs_btree_get_bufs(
 	struct xfs_mount	*mp,	/* file system mount point */
 	struct xfs_trans	*tp,	/* transaction pointer */
 	xfs_agnumber_t		agno,	/* allocation group number */
-	xfs_agblock_t		agbno,	/* allocation group block number */
-	uint			lock);	/* lock flags for get_buf */
+	xfs_agblock_t		agbno);	/* allocation group block number */
 
 /*
  * Check for the cursor referring to the last block at the given level.
@@ -345,7 +343,6 @@ xfs_btree_read_bufl(
 	struct xfs_mount	*mp,	/* file system mount point */
 	struct xfs_trans	*tp,	/* transaction pointer */
 	xfs_fsblock_t		fsbno,	/* file system block number */
-	uint			lock,	/* lock flags for read_buf */
 	struct xfs_buf		**bpp,	/* buffer for fsbno */
 	int			refval,	/* ref count value for buffer */
 	const struct xfs_buf_ops *ops);
@@ -383,8 +380,7 @@ xfs_btree_init_block(
 	xfs_btnum_t	btnum,
 	__u16		level,
 	__u16		numrecs,
-	__u64		owner,
-	unsigned int	flags);
+	__u64		owner);
 
 void
 xfs_btree_init_block_int(

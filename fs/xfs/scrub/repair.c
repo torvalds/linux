@@ -357,7 +357,7 @@ xrep_init_btblock(
 	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, XFS_FSB_TO_DADDR(mp, fsb),
 			XFS_FSB_TO_BB(mp, 1), 0);
 	xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
-	xfs_btree_init_block(mp, bp, btnum, 0, 0, sc->sa.agno, 0);
+	xfs_btree_init_block(mp, bp, btnum, 0, 0, sc->sa.agno);
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_BTREE_BUF);
 	xfs_trans_log_buf(tp, bp, 0, bp->b_length);
 	bp->b_ops = ops;
