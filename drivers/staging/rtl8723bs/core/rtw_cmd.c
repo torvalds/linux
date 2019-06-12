@@ -1660,22 +1660,6 @@ exit:
 
 }
 
-static void power_saving_wk_hdl(struct adapter *padapter)
-{
-	 rtw_ps_processor(padapter);
-}
-
-/* add for CONFIG_IEEE80211W, none 11w can use it */
-static void reset_securitypriv_hdl(struct adapter *padapter)
-{
-	 rtw_reset_securitypriv(padapter);
-}
-
-static void free_assoc_resources_hdl(struct adapter *padapter)
-{
-	 rtw_free_assoc_resources(padapter, 1);
-}
-
 u8 rtw_ps_cmd(struct adapter *padapter)
 {
 	struct cmd_obj		*ppscmd;
@@ -1977,7 +1961,7 @@ u8 rtw_drvextra_cmd_hdl(struct adapter *padapter, unsigned char *pbuf)
 		dynamic_chk_wk_hdl(padapter);
 		break;
 	case POWER_SAVING_CTRL_WK_CID:
-		power_saving_wk_hdl(padapter);
+		rtw_ps_processor(padapter);
 		break;
 	case LPS_CTRL_WK_CID:
 		lps_ctrl_wk_hdl(padapter, (u8)pdrvextra_cmd->type);
@@ -1993,10 +1977,10 @@ u8 rtw_drvextra_cmd_hdl(struct adapter *padapter, unsigned char *pbuf)
 		break;
 	/* add for CONFIG_IEEE80211W, none 11w can use it */
 	case RESET_SECURITYPRIV:
-		reset_securitypriv_hdl(padapter);
+		rtw_reset_securitypriv(padapter);
 		break;
 	case FREE_ASSOC_RESOURCES:
-		free_assoc_resources_hdl(padapter);
+		rtw_free_assoc_resources(padapter, 1);
 		break;
 	case C2H_WK_CID:
 		rtw_hal_set_hwreg_with_buf(padapter, HW_VAR_C2H_HANDLE, pdrvextra_cmd->pbuf, pdrvextra_cmd->size);
