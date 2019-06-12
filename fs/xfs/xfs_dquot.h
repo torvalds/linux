@@ -34,7 +34,6 @@ typedef struct xfs_dquot {
 	uint		 dq_flags;	/* various flags (XFS_DQ_*) */
 	struct list_head q_lru;		/* global free list of dquots */
 	struct xfs_mount*q_mount;	/* filesystem this relates to */
-	struct xfs_trans*q_transp;	/* trans this belongs to currently */
 	uint		 q_nrefs;	/* # active refs from inodes */
 	xfs_daddr_t	 q_blkno;	/* blkno of dquot buffer */
 	int		 q_bufoffset;	/* off of dq in buffer (# dquots) */

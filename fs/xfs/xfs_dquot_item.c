@@ -224,11 +224,6 @@ xfs_qm_dquot_logitem_unlock(
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 
 	/*
-	 * Clear the transaction pointer in the dquot
-	 */
-	dqp->q_transp = NULL;
-
-	/*
 	 * dquots are never 'held' from getting unlocked at the end of
 	 * a transaction.  Their locking and unlocking is hidden inside the
 	 * transaction layer, within trans_commit. Hence, no LI_HOLD flag
