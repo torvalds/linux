@@ -45,7 +45,7 @@ MODULE_PARM_DESC(sensor_preferred,
 		 "Sensor is preferred to output the specified format (1-on 0-off), default 1");
 
 /* This is a list of the formats that the ISC can *output* */
-struct isc_format controller_formats[] = {
+const struct isc_format controller_formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_ARGB444,
 	},
@@ -231,7 +231,7 @@ static inline void isc_update_awb_ctrls(struct isc_device *isc)
 
 static inline void isc_reset_awb_ctrls(struct isc_device *isc)
 {
-	int c;
+	unsigned int c;
 
 	for (c = ISC_HIS_CFG_MODE_GR; c <= ISC_HIS_CFG_MODE_B; c++) {
 		/* gains have a fixed point at 9 decimals */
@@ -1456,7 +1456,7 @@ static int isc_enum_frameintervals(struct file *file, void *fh,
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
 	int ret = -EINVAL;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < isc->num_user_formats; i++)
 		if (isc->user_formats[i]->fourcc == fival->pixel_format)
@@ -1883,6 +1883,12 @@ static int isc_ctrl_init(struct isc_device *isc)
 	isc->do_wb_ctrl = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_DO_WHITE_BALANCE,
 					    0, 0, 0, 0);
 
+	if (!isc->do_wb_ctrl) {
+		ret = hdl->error;
+		v4l2_ctrl_handler_free(hdl);
+		return ret;
+	}
+
 	v4l2_ctrl_activate(isc->do_wb_ctrl, false);
 
 	v4l2_ctrl_handler_setup(hdl);
@@ -2010,7 +2016,7 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 					      struct isc_device, v4l2_dev);
 	struct video_device *vdev = &isc->video_dev;
 	struct vb2_queue *q = &isc->vb2_vidq;
-	int ret;
+	int ret = 0;
 
 	INIT_WORK(&isc->awb_work, isc_awb_work);
 
@@ -2041,7 +2047,7 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	if (ret < 0) {
 		v4l2_err(&isc->v4l2_dev,
 			 "vb2_queue_init() failed: %d\n", ret);
-		return ret;
+		goto isc_async_complete_err;
 	}
 
 	/* Init video dma queues */
@@ -2053,19 +2059,19 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	if (ret < 0) {
 		v4l2_err(&isc->v4l2_dev,
 			 "Init format failed: %d\n", ret);
-		return ret;
+		goto isc_async_complete_err;
 	}
 
 	ret = isc_set_default_fmt(isc);
 	if (ret) {
 		v4l2_err(&isc->v4l2_dev, "Could not set default format\n");
-		return ret;
+		goto isc_async_complete_err;
 	}
 
 	ret = isc_ctrl_init(isc);
 	if (ret) {
 		v4l2_err(&isc->v4l2_dev, "Init isc ctrols failed: %d\n", ret);
-		return ret;
+		goto isc_async_complete_err;
 	}
 
 	/* Register video device */
@@ -2085,10 +2091,14 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	if (ret < 0) {
 		v4l2_err(&isc->v4l2_dev,
 			 "video_register_device failed: %d\n", ret);
-		return ret;
+		goto isc_async_complete_err;
 	}
 
 	return 0;
+
+isc_async_complete_err:
+	mutex_destroy(&isc->lock);
+	return ret;
 }
 
 const struct v4l2_async_notifier_operations isc_async_ops = {

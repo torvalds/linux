@@ -122,8 +122,7 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 					ISC_PFE_CFG0_CCIR656;
 
 		subdev_entity->asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		subdev_entity->asd->match.fwnode =
-			of_fwnode_handle(rem);
+		subdev_entity->asd->match.fwnode = of_fwnode_handle(rem);
 		list_add_tail(&subdev_entity->list, &isc->subdev_entities);
 	}
 
@@ -282,12 +281,13 @@ static int atmel_isc_remove(struct platform_device *pdev)
 	struct isc_device *isc = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
-	clk_disable_unprepare(isc->ispck);
-	clk_disable_unprepare(isc->hclock);
 
 	isc_subdev_cleanup(isc);
 
 	v4l2_device_unregister(&isc->v4l2_dev);
+
+	clk_disable_unprepare(isc->ispck);
+	clk_disable_unprepare(isc->hclock);
 
 	isc_clk_cleanup(isc);
 
@@ -313,7 +313,11 @@ static int __maybe_unused isc_runtime_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	return clk_prepare_enable(isc->ispck);
+	ret = clk_prepare_enable(isc->ispck);
+	if (ret)
+		clk_disable_unprepare(isc->hclock);
+
+	return ret;
 }
 
 static const struct dev_pm_ops atmel_isc_dev_pm_ops = {
