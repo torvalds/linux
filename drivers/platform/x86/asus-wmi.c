@@ -2018,50 +2018,29 @@ static void asus_wmi_debugfs_exit(struct asus_wmi *asus)
 	debugfs_remove_recursive(asus->debug.root);
 }
 
-static int asus_wmi_debugfs_init(struct asus_wmi *asus)
+static void asus_wmi_debugfs_init(struct asus_wmi *asus)
 {
-	struct dentry *dent;
 	int i;
 
 	asus->debug.root = debugfs_create_dir(asus->driver->name, NULL);
-	if (!asus->debug.root) {
-		pr_err("failed to create debugfs directory\n");
-		goto error_debugfs;
-	}
 
-	dent = debugfs_create_x32("method_id", S_IRUGO | S_IWUSR,
-				  asus->debug.root, &asus->debug.method_id);
-	if (!dent)
-		goto error_debugfs;
+	debugfs_create_x32("method_id", S_IRUGO | S_IWUSR, asus->debug.root,
+			   &asus->debug.method_id);
 
-	dent = debugfs_create_x32("dev_id", S_IRUGO | S_IWUSR,
-				  asus->debug.root, &asus->debug.dev_id);
-	if (!dent)
-		goto error_debugfs;
+	debugfs_create_x32("dev_id", S_IRUGO | S_IWUSR, asus->debug.root,
+			   &asus->debug.dev_id);
 
-	dent = debugfs_create_x32("ctrl_param", S_IRUGO | S_IWUSR,
-				  asus->debug.root, &asus->debug.ctrl_param);
-	if (!dent)
-		goto error_debugfs;
+	debugfs_create_x32("ctrl_param", S_IRUGO | S_IWUSR, asus->debug.root,
+			   &asus->debug.ctrl_param);
 
 	for (i = 0; i < ARRAY_SIZE(asus_wmi_debug_files); i++) {
 		struct asus_wmi_debugfs_node *node = &asus_wmi_debug_files[i];
 
 		node->asus = asus;
-		dent = debugfs_create_file(node->name, S_IFREG | S_IRUGO,
-					   asus->debug.root, node,
-					   &asus_wmi_debugfs_io_ops);
-		if (!dent) {
-			pr_err("failed to create debug file: %s\n", node->name);
-			goto error_debugfs;
-		}
+		debugfs_create_file(node->name, S_IFREG | S_IRUGO,
+				    asus->debug.root, node,
+				    &asus_wmi_debugfs_io_ops);
 	}
-
-	return 0;
-
-error_debugfs:
-	asus_wmi_debugfs_exit(asus);
-	return -ENOMEM;
 }
 
 static int asus_wmi_fan_init(struct asus_wmi *asus)
@@ -2175,14 +2154,10 @@ static int asus_wmi_add(struct platform_device *pdev)
 		goto fail_wmi_handler;
 	}
 
-	err = asus_wmi_debugfs_init(asus);
-	if (err)
-		goto fail_debugfs;
+	asus_wmi_debugfs_init(asus);
 
 	return 0;
 
-fail_debugfs:
-	wmi_remove_notify_handler(asus->driver->event_guid);
 fail_wmi_handler:
 	asus_wmi_backlight_exit(asus);
 fail_backlight:
