@@ -19,7 +19,7 @@ static int midi_capture_open(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&oxfw->mutex);
 
-	oxfw->capture_substreams++;
+	++oxfw->substreams_count;
 	err = snd_oxfw_stream_start_duplex(oxfw, &oxfw->tx_stream, 0, 0);
 
 	mutex_unlock(&oxfw->mutex);
@@ -41,7 +41,7 @@ static int midi_playback_open(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&oxfw->mutex);
 
-	oxfw->playback_substreams++;
+	++oxfw->substreams_count;
 	err = snd_oxfw_stream_start_duplex(oxfw, &oxfw->rx_stream, 0, 0);
 
 	mutex_unlock(&oxfw->mutex);
@@ -58,7 +58,7 @@ static int midi_capture_close(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&oxfw->mutex);
 
-	oxfw->capture_substreams--;
+	--oxfw->substreams_count;
 	snd_oxfw_stream_stop_duplex(oxfw);
 
 	mutex_unlock(&oxfw->mutex);
@@ -73,7 +73,7 @@ static int midi_playback_close(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&oxfw->mutex);
 
-	oxfw->playback_substreams--;
+	--oxfw->substreams_count;
 	snd_oxfw_stream_stop_duplex(oxfw);
 
 	mutex_unlock(&oxfw->mutex);

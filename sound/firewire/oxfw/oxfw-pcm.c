@@ -220,7 +220,7 @@ static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		mutex_lock(&oxfw->mutex);
-		oxfw->capture_substreams++;
+		++oxfw->substreams_count;
 		mutex_unlock(&oxfw->mutex);
 	}
 
@@ -239,7 +239,7 @@ static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		mutex_lock(&oxfw->mutex);
-		oxfw->playback_substreams++;
+		++oxfw->substreams_count;
 		mutex_unlock(&oxfw->mutex);
 	}
 
@@ -253,7 +253,7 @@ static int pcm_capture_hw_free(struct snd_pcm_substream *substream)
 	mutex_lock(&oxfw->mutex);
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		oxfw->capture_substreams--;
+		--oxfw->substreams_count;
 
 	snd_oxfw_stream_stop_duplex(oxfw);
 
@@ -268,7 +268,7 @@ static int pcm_playback_hw_free(struct snd_pcm_substream *substream)
 	mutex_lock(&oxfw->mutex);
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		oxfw->playback_substreams--;
+		--oxfw->substreams_count;
 
 	snd_oxfw_stream_stop_duplex(oxfw);
 

@@ -244,7 +244,7 @@ int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw,
 	enum avc_general_plug_dir dir;
 	int err = 0;
 
-	if (oxfw->capture_substreams == 0 && oxfw->playback_substreams == 0)
+	if (oxfw->substreams_count == 0)
 		return -EIO;
 
 	// Considering JACK/FFADO streaming:
@@ -323,7 +323,7 @@ error:
 
 void snd_oxfw_stream_stop_duplex(struct snd_oxfw *oxfw)
 {
-	if (oxfw->capture_substreams == 0 && oxfw->playback_substreams == 0) {
+	if (oxfw->substreams_count == 0) {
 		amdtp_stream_stop(&oxfw->rx_stream);
 		cmp_connection_break(&oxfw->in_conn);
 
