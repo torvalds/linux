@@ -1472,7 +1472,7 @@ void hal_btcoex_HaltNotify(struct adapter *padapter)
 	EXhalbtcoutsrc_HaltNotify(&GLBtCoexist);
 }
 
-void hal_btcoex_Hanlder(struct adapter *padapter)
+void hal_btcoex_Handler(struct adapter *padapter)
 {
 	EXhalbtcoutsrc_Periodical(&GLBtCoexist);
 }

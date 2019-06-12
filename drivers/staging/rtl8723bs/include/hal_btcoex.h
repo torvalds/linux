@@ -43,7 +43,7 @@ void hal_btcoex_BtInfoNotify(struct adapter *padapter, u8 length, u8 *tmpBuf);
 void hal_btcoex_SuspendNotify(struct adapter *padapter, u8 state);
 void hal_btcoex_HaltNotify(struct adapter *padapter);
 
-void hal_btcoex_Hanlder(struct adapter *padapter);
+void hal_btcoex_Handler(struct adapter *padapter);
 
 s32 hal_btcoex_IsBTCoexCtrlAMPDUSize(struct adapter *padapter);
 void hal_btcoex_SetManualControl(struct adapter *padapter, u8 bmanual);
