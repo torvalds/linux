@@ -166,6 +166,10 @@ static const struct hantro_irq rk3288_irqs[] = {
 	{ "vdpu", rk3288_vdpu_irq },
 };
 
+static const char * const rk3288_clk_names[] = {
+	"aclk", "hclk"
+};
+
 const struct hantro_variant rk3288_vpu_variant = {
 	.enc_offset = 0x0,
 	.enc_fmts = rk3288_vpu_enc_fmts,
@@ -178,6 +182,6 @@ const struct hantro_variant rk3288_vpu_variant = {
 	.irqs = rk3288_irqs,
 	.num_irqs = ARRAY_SIZE(rk3288_irqs),
 	.init = rk3288_vpu_hw_init,
-	.clk_names = {"aclk", "hclk"},
-	.num_clocks = 2
+	.clk_names = rk3288_clk_names,
+	.num_clocks = ARRAY_SIZE(rk3288_clk_names)
 };

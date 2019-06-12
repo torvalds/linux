@@ -25,8 +25,6 @@
 
 #include "hantro_hw.h"
 
-#define HANTRO_MAX_CLOCKS		4
-
 #define MPEG2_MB_DIM			16
 #define MPEG2_MB_WIDTH(w)		DIV_ROUND_UP(w, MPEG2_MB_DIM)
 #define MPEG2_MB_HEIGHT(h)		DIV_ROUND_UP(h, MPEG2_MB_DIM)
@@ -88,7 +86,7 @@ struct hantro_variant {
 	int (*runtime_resume)(struct hantro_dev *vpu);
 	const struct hantro_irq *irqs;
 	int num_irqs;
-	const char *clk_names[HANTRO_MAX_CLOCKS];
+	const char * const *clk_names;
 	int num_clocks;
 	const char * const *reg_names;
 	int num_regs;
@@ -182,7 +180,7 @@ struct hantro_dev {
 	struct hantro_func *decoder;
 	struct platform_device *pdev;
 	struct device *dev;
-	struct clk_bulk_data clocks[HANTRO_MAX_CLOCKS];
+	struct clk_bulk_data *clocks;
 	void __iomem **reg_bases;
 	void __iomem *enc_base;
 	void __iomem *dec_base;

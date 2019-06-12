@@ -687,6 +687,11 @@ static int hantro_probe(struct platform_device *pdev)
 
 	INIT_DELAYED_WORK(&vpu->watchdog_work, hantro_watchdog);
 
+	vpu->clocks = devm_kcalloc(&pdev->dev, vpu->variant->num_clocks,
+				   sizeof(*vpu->clocks), GFP_KERNEL);
+	if (!vpu->clocks)
+		return -ENOMEM;
+
 	for (i = 0; i < vpu->variant->num_clocks; i++)
 		vpu->clocks[i].id = vpu->variant->clk_names[i];
 	ret = devm_clk_bulk_get(&pdev->dev, vpu->variant->num_clocks,
