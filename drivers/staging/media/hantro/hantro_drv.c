@@ -670,6 +670,7 @@ static int hantro_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct hantro_dev *vpu;
 	struct resource *res;
+	int num_bases;
 	int i, ret;
 
 	vpu = devm_kzalloc(&pdev->dev, sizeof(*vpu), GFP_KERNEL);
@@ -693,12 +694,23 @@ static int hantro_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	res = platform_get_resource(vpu->pdev, IORESOURCE_MEM, 0);
-	vpu->base = devm_ioremap_resource(vpu->dev, res);
-	if (IS_ERR(vpu->base))
-		return PTR_ERR(vpu->base);
-	vpu->enc_base = vpu->base + vpu->variant->enc_offset;
-	vpu->dec_base = vpu->base + vpu->variant->dec_offset;
+	num_bases = vpu->variant->num_regs ?: 1;
+	vpu->reg_bases = devm_kcalloc(&pdev->dev, num_bases,
+				      sizeof(*vpu->reg_bases), GFP_KERNEL);
+	if (!vpu->reg_bases)
+		return -ENOMEM;
+
+	for (i = 0; i < num_bases; i++) {
+		res = vpu->variant->reg_names ?
+		      platform_get_resource_byname(vpu->pdev, IORESOURCE_MEM,
+						   vpu->variant->reg_names[i]) :
+		      platform_get_resource(vpu->pdev, IORESOURCE_MEM, 0);
+		vpu->reg_bases[i] = devm_ioremap_resource(vpu->dev, res);
+		if (IS_ERR(vpu->reg_bases[i]))
+			return PTR_ERR(vpu->reg_bases[i]);
+	}
+	vpu->enc_base = vpu->reg_bases[0] + vpu->variant->enc_offset;
+	vpu->dec_base = vpu->reg_bases[0] + vpu->variant->dec_offset;
 
 	ret = dma_set_coherent_mask(vpu->dev, DMA_BIT_MASK(32));
 	if (ret) {
