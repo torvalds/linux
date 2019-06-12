@@ -1477,9 +1477,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_infos;
 
-	err = dbg_debugfs_init_fs(c);
-	if (err)
-		goto out_infos;
+	dbg_debugfs_init_fs(c);
 
 	c->mounting = 0;
 
@@ -2364,9 +2362,7 @@ static int __init ubifs_init(void)
 	if (err)
 		goto out_shrinker;
 
-	err = dbg_debugfs_init();
-	if (err)
-		goto out_compr;
+	dbg_debugfs_init();
 
 	err = register_filesystem(&ubifs_fs_type);
 	if (err) {
@@ -2378,7 +2374,6 @@ static int __init ubifs_init(void)
 
 out_dbg:
 	dbg_debugfs_exit();
-out_compr:
 	ubifs_compressors_exit();
 out_shrinker:
 	unregister_shrinker(&ubifs_shrinker_info);

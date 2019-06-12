@@ -309,9 +309,9 @@ int dbg_leb_unmap(struct ubifs_info *c, int lnum);
 int dbg_leb_map(struct ubifs_info *c, int lnum);
 
 /* Debugfs-related stuff */
-int dbg_debugfs_init(void);
+void dbg_debugfs_init(void);
 void dbg_debugfs_exit(void);
-int dbg_debugfs_init_fs(struct ubifs_info *c);
+void dbg_debugfs_init_fs(struct ubifs_info *c);
 void dbg_debugfs_exit_fs(struct ubifs_info *c);
 
 #endif /* !__UBIFS_DEBUG_H__ */
