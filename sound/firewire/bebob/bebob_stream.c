@@ -377,24 +377,6 @@ end:
 }
 
 static int
-init_both_connections(struct snd_bebob *bebob)
-{
-	int err;
-
-	err = cmp_connection_init(&bebob->in_conn,
-				  bebob->unit, CMP_INPUT, 0);
-	if (err < 0)
-		goto end;
-
-	err = cmp_connection_init(&bebob->out_conn,
-				  bebob->unit, CMP_OUTPUT, 0);
-	if (err < 0)
-		cmp_connection_destroy(&bebob->in_conn);
-end:
-	return err;
-}
-
-static int
 check_connection_used_by_others(struct snd_bebob *bebob, struct amdtp_stream *s)
 {
 	struct cmp_connection *conn;
@@ -448,13 +430,6 @@ break_both_connections(struct snd_bebob *bebob)
 		msleep(200);
 }
 
-static void
-destroy_both_connections(struct snd_bebob *bebob)
-{
-	cmp_connection_destroy(&bebob->in_conn);
-	cmp_connection_destroy(&bebob->out_conn);
-}
-
 static int
 start_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 {
@@ -481,49 +456,77 @@ end:
 	return err;
 }
 
+static int init_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
+{
+	enum amdtp_stream_direction dir_stream;
+	struct cmp_connection *conn;
+	enum cmp_direction dir_conn;
+	int err;
+
+	if (stream == &bebob->tx_stream) {
+		dir_stream = AMDTP_IN_STREAM;
+		conn = &bebob->out_conn;
+		dir_conn = CMP_OUTPUT;
+	} else {
+		dir_stream = AMDTP_OUT_STREAM;
+		conn = &bebob->in_conn;
+		dir_conn = CMP_INPUT;
+	}
+
+	err = cmp_connection_init(conn, bebob->unit, dir_conn, 0);
+	if (err < 0)
+		return err;
+
+	err = amdtp_am824_init(stream, bebob->unit, dir_stream, CIP_BLOCKING);
+	if (err < 0) {
+		cmp_connection_destroy(conn);
+		return err;
+	}
+
+	if (stream == &bebob->tx_stream) {
+		// BeBoB v3 transfers packets with these qurks:
+		//  - In the beginning of streaming, the value of dbc is
+		//    incremented even if no data blocks are transferred.
+		//  - The value of dbc is reset suddenly.
+		if (bebob->version > 2)
+			bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC |
+						  CIP_SKIP_DBC_ZERO_CHECK;
+
+		// At high sampling rate, M-Audio special firmware transmits
+		// empty packet with the value of dbc incremented by 8 but the
+		// others are valid to IEC 61883-1.
+		if (bebob->maudio_special_quirk)
+			bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC;
+	}
+
+	return 0;
+}
+
+static void destroy_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
+{
+	amdtp_stream_destroy(stream);
+
+	if (stream == &bebob->tx_stream)
+		cmp_connection_destroy(&bebob->out_conn);
+	else
+		cmp_connection_destroy(&bebob->in_conn);
+}
+
 int snd_bebob_stream_init_duplex(struct snd_bebob *bebob)
 {
 	int err;
 
-	err = init_both_connections(bebob);
+	err = init_stream(bebob, &bebob->tx_stream);
 	if (err < 0)
-		goto end;
+		return err;
 
-	err = amdtp_am824_init(&bebob->tx_stream, bebob->unit,
-			       AMDTP_IN_STREAM, CIP_BLOCKING);
+	err = init_stream(bebob, &bebob->rx_stream);
 	if (err < 0) {
-		amdtp_stream_destroy(&bebob->tx_stream);
-		destroy_both_connections(bebob);
-		goto end;
+		destroy_stream(bebob, &bebob->tx_stream);
+		return err;
 	}
 
-	/*
-	 * BeBoB v3 transfers packets with these qurks:
-	 *  - In the beginning of streaming, the value of dbc is incremented
-	 *    even if no data blocks are transferred.
-	 *  - The value of dbc is reset suddenly.
-	 */
-	if (bebob->version > 2)
-		bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC |
-					  CIP_SKIP_DBC_ZERO_CHECK;
-
-	/*
-	 * At high sampling rate, M-Audio special firmware transmits empty
-	 * packet with the value of dbc incremented by 8 but the others are
-	 * valid to IEC 61883-1.
-	 */
-	if (bebob->maudio_special_quirk)
-		bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC;
-
-	err = amdtp_am824_init(&bebob->rx_stream, bebob->unit,
-			       AMDTP_OUT_STREAM, CIP_BLOCKING);
-	if (err < 0) {
-		amdtp_stream_destroy(&bebob->tx_stream);
-		amdtp_stream_destroy(&bebob->rx_stream);
-		destroy_both_connections(bebob);
-	}
-end:
-	return err;
+	return 0;
 }
 
 static int keep_resources(struct snd_bebob *bebob, struct amdtp_stream *stream,
@@ -693,10 +696,8 @@ void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
  */
 void snd_bebob_stream_destroy_duplex(struct snd_bebob *bebob)
 {
-	amdtp_stream_destroy(&bebob->rx_stream);
-	amdtp_stream_destroy(&bebob->tx_stream);
-
-	destroy_both_connections(bebob);
+	destroy_stream(bebob, &bebob->tx_stream);
+	destroy_stream(bebob, &bebob->rx_stream);
 }
 
 /*
