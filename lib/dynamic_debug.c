@@ -993,20 +993,14 @@ static __initdata int ddebug_init_success;
 
 static int __init dynamic_debug_init_debugfs(void)
 {
-	struct dentry *dir, *file;
+	struct dentry *dir;
 
 	if (!ddebug_init_success)
 		return -ENODEV;
 
 	dir = debugfs_create_dir("dynamic_debug", NULL);
-	if (!dir)
-		return -ENOMEM;
-	file = debugfs_create_file("control", 0644, dir, NULL,
-					&ddebug_proc_fops);
-	if (!file) {
-		debugfs_remove(dir);
-		return -ENOMEM;
-	}
+	debugfs_create_file("control", 0644, dir, NULL, &ddebug_proc_fops);
+
 	return 0;
 }
 
