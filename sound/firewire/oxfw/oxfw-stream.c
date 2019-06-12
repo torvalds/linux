@@ -363,17 +363,10 @@ void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw,
 void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw,
 				    struct amdtp_stream *stream)
 {
-	struct cmp_connection *conn;
+	stop_stream(oxfw, &oxfw->rx_stream);
 
-	if (stream == &oxfw->tx_stream)
-		conn = &oxfw->out_conn;
-	else
-		conn = &oxfw->in_conn;
-
-	if (cmp_connection_update(conn) < 0)
-		stop_stream(oxfw, stream);
-	else
-		amdtp_stream_update(stream);
+	if (oxfw->has_output)
+		stop_stream(oxfw, &oxfw->tx_stream);
 }
 
 int snd_oxfw_stream_get_current_formation(struct snd_oxfw *oxfw,
