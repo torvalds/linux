@@ -15,6 +15,21 @@
 /* Initial state of a cooling device during binding */
 #define THERMAL_NO_TARGET -1UL
 
+/* Init section thermal table */
+extern struct thermal_governor *__governor_thermal_table[];
+extern struct thermal_governor *__governor_thermal_table_end[];
+
+#define THERMAL_TABLE_ENTRY(table, name)			\
+	static typeof(name) *__thermal_table_entry_##name	\
+	__used __section(__##table##_thermal_table) = &name
+
+#define THERMAL_GOVERNOR_DECLARE(name)	THERMAL_TABLE_ENTRY(governor, name)
+
+#define for_each_governor_table(__governor)		\
+	for (__governor = __governor_thermal_table;	\
+	     __governor < __governor_thermal_table_end;	\
+	     __governor++)
+
 /*
  * This structure is used to describe the behavior of
  * a certain cooling device on a certain trip point
