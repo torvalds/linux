@@ -124,7 +124,7 @@ while (<IN>) {
 		# Remove sched-pelt false-positive
 		next if ($fulref =~ m,^Documentation/scheduler/sched-pelt$,);
 
-		# Discard some build examples from Documentation/target/tcm_mod_builder.txt
+		# Discard some build examples from Documentation/target/tcm_mod_builder.rst
 		next if ($fulref =~ m,mnt/sdb/lio-core-2.6.git/Documentation/target,);
 
 		# Check if exists, evaluating wildcards
