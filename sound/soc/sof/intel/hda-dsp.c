@@ -307,18 +307,14 @@ static int hda_suspend(struct snd_sof_dev *sdev, int state)
 		return ret;
 	}
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* disable ppcap interrupt */
-	snd_hdac_ext_bus_ppcap_int_enable(bus, false);
-	snd_hdac_ext_bus_ppcap_enable(bus, false);
-
-	/* disable hda bus irq and i/o */
-	snd_hdac_bus_stop_chip(bus);
-#else
 	/* disable ppcap interrupt */
 	hda_dsp_ctrl_ppcap_enable(sdev, false);
 	hda_dsp_ctrl_ppcap_int_enable(sdev, false);
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	/* disable hda bus irq and i/o */
+	snd_hdac_bus_stop_chip(bus);
+#else
 	/* disable hda bus irq */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
 				SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_GLOBAL_EN,
@@ -370,10 +366,6 @@ static int hda_resume(struct snd_sof_dev *sdev)
 		bus->io_ops->reg_writel(0, hlink->ml_addr + AZX_REG_ML_LOSIDV);
 
 	hda_dsp_ctrl_misc_clock_gating(sdev, true);
-
-	/* enable ppcap interrupt */
-	snd_hdac_ext_bus_ppcap_enable(bus, true);
-	snd_hdac_ext_bus_ppcap_int_enable(bus, true);
 #else
 
 	hda_dsp_ctrl_misc_clock_gating(sdev, false);
@@ -400,11 +392,11 @@ static int hda_resume(struct snd_sof_dev *sdev)
 				SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_GLOBAL_EN);
 
 	hda_dsp_ctrl_misc_clock_gating(sdev, true);
+#endif
 
 	/* enable ppcap interrupt */
 	hda_dsp_ctrl_ppcap_enable(sdev, true);
 	hda_dsp_ctrl_ppcap_int_enable(sdev, true);
-#endif
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* turn off the links that were off before suspend */
