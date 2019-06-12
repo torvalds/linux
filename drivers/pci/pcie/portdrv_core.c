@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -378,6 +379,67 @@ static int pm_iter(struct device *dev, void *data)
 	return 0;
 }
 
+static int get_downstream_delay(struct pci_bus *bus)
+{
+	struct pci_dev *pdev;
+	int min_delay = 100;
+	int max_delay = 0;
+
+	list_for_each_entry(pdev, &bus->devices, bus_list) {
+		if (!pdev->imm_ready)
+			min_delay = 0;
+		else if (pdev->d3cold_delay < min_delay)
+			min_delay = pdev->d3cold_delay;
+		if (pdev->d3cold_delay > max_delay)
+			max_delay = pdev->d3cold_delay;
+	}
+
+	return max(min_delay, max_delay);
+}
+
+/*
+ * wait_for_downstream_link - Wait for downstream link to establish
+ * @pdev: PCIe port whose downstream link is waited
+ *
+ * Handle delays according to PCIe 4.0 section 6.6.1 before configuration
+ * access to the downstream component is permitted.
+ *
+ * This blocks PCI core resume of the hierarchy below this port until the
+ * link is trained. Should be called before resuming port services to
+ * prevent pciehp from starting to tear-down the hierarchy too soon.
+ */
+static void wait_for_downstream_link(struct pci_dev *pdev)
+{
+	int delay;
+
+	if (pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT &&
+	    pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM)
+		return;
+
+	if (pci_dev_is_disconnected(pdev))
+		return;
+
+	if (!pdev->subordinate || list_empty(&pdev->subordinate->devices) ||
+	    !pdev->bridge_d3)
+		return;
+
+	delay = get_downstream_delay(pdev->subordinate);
+	if (!delay)
+		return;
+
+	dev_dbg(&pdev->dev, "waiting downstream link for %d ms\n", delay);
+
+	/*
+	 * If downstream port does not support speeds greater than 5 GT/s
+	 * need to wait 100ms. For higher speeds (gen3) we need to wait
+	 * first for the data link layer to become active.
+	 */
+	if (pcie_get_speed_cap(pdev) <= PCIE_SPEED_5_0GT)
+		msleep(delay);
+	else
+		pcie_wait_for_link_delay(pdev, true, delay);
+}
+
 /**
  * pcie_port_device_suspend - suspend port services associated with a PCIe port
  * @dev: PCI Express port to handle
@@ -391,6 +453,8 @@ int pcie_port_device_suspend(struct device *dev)
 int pcie_port_device_resume_noirq(struct device *dev)
 {
 	size_t off = offsetof(struct pcie_port_service_driver, resume_noirq);
+
+	wait_for_downstream_link(to_pci_dev(dev));
 	return device_for_each_child(dev, &off, pm_iter);
 }
 
@@ -421,6 +485,8 @@ int pcie_port_device_runtime_suspend(struct device *dev)
 int pcie_port_device_runtime_resume(struct device *dev)
 {
 	size_t off = offsetof(struct pcie_port_service_driver, runtime_resume);
+
+	wait_for_downstream_link(to_pci_dev(dev));
 	return device_for_each_child(dev, &off, pm_iter);
 }
 #endif /* PM */
