@@ -1224,15 +1224,18 @@ static bool __tpacket_v3_has_room(const struct packet_sock *po, int pow_off)
 	return prb_lookup_block(po, &po->rx_ring, idx, TP_STATUS_KERNEL);
 }
 
-static int __packet_rcv_has_room(struct packet_sock *po, struct sk_buff *skb)
+static int __packet_rcv_has_room(const struct packet_sock *po,
+				 const struct sk_buff *skb)
 {
-	struct sock *sk = &po->sk;
+	const struct sock *sk = &po->sk;
 	int ret = ROOM_NONE;
 
 	if (po->prot_hook.func != tpacket_rcv) {
-		int avail = sk->sk_rcvbuf - atomic_read(&sk->sk_rmem_alloc)
-					  - (skb ? skb->truesize : 0);
-		if (avail > (sk->sk_rcvbuf >> ROOM_POW_OFF))
+		int rcvbuf = READ_ONCE(sk->sk_rcvbuf);
+		int avail = rcvbuf - atomic_read(&sk->sk_rmem_alloc)
+				   - (skb ? skb->truesize : 0);
+
+		if (avail > (rcvbuf >> ROOM_POW_OFF))
 			return ROOM_NORMAL;
 		else if (avail > 0)
 			return ROOM_LOW;
