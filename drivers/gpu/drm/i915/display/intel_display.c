@@ -12310,16 +12310,16 @@ intel_compare_infoframe(const union hdmi_infoframe *a,
 }
 
 static void
-pipe_config_infoframe_err(struct drm_i915_private *dev_priv,
-			  bool adjust, const char *name,
-			  const union hdmi_infoframe *a,
-			  const union hdmi_infoframe *b)
+pipe_config_infoframe_mismatch(struct drm_i915_private *dev_priv,
+			       bool fastset, const char *name,
+			       const union hdmi_infoframe *a,
+			       const union hdmi_infoframe *b)
 {
-	if (adjust) {
+	if (fastset) {
 		if ((drm_debug & DRM_UT_KMS) == 0)
 			return;
 
-		drm_dbg(DRM_UT_KMS, "mismatch in %s infoframe", name);
+		drm_dbg(DRM_UT_KMS, "fastset mismatch in %s infoframe", name);
 		drm_dbg(DRM_UT_KMS, "expected:");
 		hdmi_infoframe_log(KERN_DEBUG, dev_priv->drm.dev, a);
 		drm_dbg(DRM_UT_KMS, "found");
@@ -12334,7 +12334,7 @@ pipe_config_infoframe_err(struct drm_i915_private *dev_priv,
 }
 
 static void __printf(3, 4)
-pipe_config_err(bool adjust, const char *name, const char *format, ...)
+pipe_config_mismatch(bool fastset, const char *name, const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -12343,8 +12343,8 @@ pipe_config_err(bool adjust, const char *name, const char *format, ...)
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	if (adjust)
-		drm_dbg(DRM_UT_KMS, "mismatch in %s %pV", name, &vaf);
+	if (fastset)
+		drm_dbg(DRM_UT_KMS, "fastset mismatch in %s %pV", name, &vaf);
 	else
 		drm_err("mismatch in %s %pV", name, &vaf);
 
@@ -12371,11 +12371,11 @@ static bool fastboot_enabled(struct drm_i915_private *dev_priv)
 static bool
 intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 			  const struct intel_crtc_state *pipe_config,
-			  bool adjust)
+			  bool fastset)
 {
 	struct drm_i915_private *dev_priv = to_i915(current_config->base.crtc->dev);
 	bool ret = true;
-	bool fixup_inherited = adjust &&
+	bool fixup_inherited = fastset &&
 		(current_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED) &&
 		!(pipe_config->base.mode.private_flags & I915_MODE_FLAG_INHERITED);
 
@@ -12386,30 +12386,30 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 #define PIPE_CONF_CHECK_X(name) do { \
 	if (current_config->name != pipe_config->name) { \
-		pipe_config_err(adjust, __stringify(name), \
-			  "(expected 0x%08x, found 0x%08x)\n", \
-			  current_config->name, \
-			  pipe_config->name); \
+		pipe_config_mismatch(fastset, __stringify(name), \
+				     "(expected 0x%08x, found 0x%08x)\n", \
+				     current_config->name, \
+				     pipe_config->name); \
 		ret = false; \
 	} \
 } while (0)
 
 #define PIPE_CONF_CHECK_I(name) do { \
 	if (current_config->name != pipe_config->name) { \
-		pipe_config_err(adjust, __stringify(name), \
-			  "(expected %i, found %i)\n", \
-			  current_config->name, \
-			  pipe_config->name); \
+		pipe_config_mismatch(fastset, __stringify(name), \
+				     "(expected %i, found %i)\n", \
+				     current_config->name, \
+				     pipe_config->name); \
 		ret = false; \
 	} \
 } while (0)
 
 #define PIPE_CONF_CHECK_BOOL(name) do { \
 	if (current_config->name != pipe_config->name) { \
-		pipe_config_err(adjust, __stringify(name), \
-			  "(expected %s, found %s)\n", \
-			  yesno(current_config->name), \
-			  yesno(pipe_config->name)); \
+		pipe_config_mismatch(fastset, __stringify(name), \
+				     "(expected %s, found %s)\n", \
+				     yesno(current_config->name), \
+				     yesno(pipe_config->name)); \
 		ret = false; \
 	} \
 } while (0)
@@ -12423,20 +12423,20 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	if (!fixup_inherited || (!current_config->name && !pipe_config->name)) { \
 		PIPE_CONF_CHECK_BOOL(name); \
 	} else { \
-		pipe_config_err(adjust, __stringify(name), \
-			  "unable to verify whether state matches exactly, forcing modeset (expected %s, found %s)\n", \
-			  yesno(current_config->name), \
-			  yesno(pipe_config->name)); \
+		pipe_config_mismatch(fastset, __stringify(name), \
+				     "unable to verify whether state matches exactly, forcing modeset (expected %s, found %s)\n", \
+				     yesno(current_config->name), \
+				     yesno(pipe_config->name)); \
 		ret = false; \
 	} \
 } while (0)
 
 #define PIPE_CONF_CHECK_P(name) do { \
 	if (current_config->name != pipe_config->name) { \
-		pipe_config_err(adjust, __stringify(name), \
-			  "(expected %p, found %p)\n", \
-			  current_config->name, \
-			  pipe_config->name); \
+		pipe_config_mismatch(fastset, __stringify(name), \
+				     "(expected %p, found %p)\n", \
+				     current_config->name, \
+				     pipe_config->name); \
 		ret = false; \
 	} \
 } while (0)
@@ -12444,20 +12444,20 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 #define PIPE_CONF_CHECK_M_N(name) do { \
 	if (!intel_compare_link_m_n(&current_config->name, \
 				    &pipe_config->name,\
-				    !adjust)) { \
-		pipe_config_err(adjust, __stringify(name), \
-			  "(expected tu %i gmch %i/%i link %i/%i, " \
-			  "found tu %i, gmch %i/%i link %i/%i)\n", \
-			  current_config->name.tu, \
-			  current_config->name.gmch_m, \
-			  current_config->name.gmch_n, \
-			  current_config->name.link_m, \
-			  current_config->name.link_n, \
-			  pipe_config->name.tu, \
-			  pipe_config->name.gmch_m, \
-			  pipe_config->name.gmch_n, \
-			  pipe_config->name.link_m, \
-			  pipe_config->name.link_n); \
+				    !fastset)) { \
+		pipe_config_mismatch(fastset, __stringify(name), \
+				     "(expected tu %i gmch %i/%i link %i/%i, " \
+				     "found tu %i, gmch %i/%i link %i/%i)\n", \
+				     current_config->name.tu, \
+				     current_config->name.gmch_m, \
+				     current_config->name.gmch_n, \
+				     current_config->name.link_m, \
+				     current_config->name.link_n, \
+				     pipe_config->name.tu, \
+				     pipe_config->name.gmch_m, \
+				     pipe_config->name.gmch_n, \
+				     pipe_config->name.link_m, \
+				     pipe_config->name.link_n); \
 		ret = false; \
 	} \
 } while (0)
@@ -12469,49 +12469,49 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
  */
 #define PIPE_CONF_CHECK_M_N_ALT(name, alt_name) do { \
 	if (!intel_compare_link_m_n(&current_config->name, \
-				    &pipe_config->name, !adjust) && \
+				    &pipe_config->name, !fastset) && \
 	    !intel_compare_link_m_n(&current_config->alt_name, \
-				    &pipe_config->name, !adjust)) { \
-		pipe_config_err(adjust, __stringify(name), \
-			  "(expected tu %i gmch %i/%i link %i/%i, " \
-			  "or tu %i gmch %i/%i link %i/%i, " \
-			  "found tu %i, gmch %i/%i link %i/%i)\n", \
-			  current_config->name.tu, \
-			  current_config->name.gmch_m, \
-			  current_config->name.gmch_n, \
-			  current_config->name.link_m, \
-			  current_config->name.link_n, \
-			  current_config->alt_name.tu, \
-			  current_config->alt_name.gmch_m, \
-			  current_config->alt_name.gmch_n, \
-			  current_config->alt_name.link_m, \
-			  current_config->alt_name.link_n, \
-			  pipe_config->name.tu, \
-			  pipe_config->name.gmch_m, \
-			  pipe_config->name.gmch_n, \
-			  pipe_config->name.link_m, \
-			  pipe_config->name.link_n); \
+				    &pipe_config->name, !fastset)) { \
+		pipe_config_mismatch(fastset, __stringify(name), \
+				     "(expected tu %i gmch %i/%i link %i/%i, " \
+				     "or tu %i gmch %i/%i link %i/%i, " \
+				     "found tu %i, gmch %i/%i link %i/%i)\n", \
+				     current_config->name.tu, \
+				     current_config->name.gmch_m, \
+				     current_config->name.gmch_n, \
+				     current_config->name.link_m, \
+				     current_config->name.link_n, \
+				     current_config->alt_name.tu, \
+				     current_config->alt_name.gmch_m, \
+				     current_config->alt_name.gmch_n, \
+				     current_config->alt_name.link_m, \
+				     current_config->alt_name.link_n, \
+				     pipe_config->name.tu, \
+				     pipe_config->name.gmch_m, \
+				     pipe_config->name.gmch_n, \
+				     pipe_config->name.link_m, \
+				     pipe_config->name.link_n); \
 		ret = false; \
 	} \
 } while (0)
 
 #define PIPE_CONF_CHECK_FLAGS(name, mask) do { \
 	if ((current_config->name ^ pipe_config->name) & (mask)) { \
-		pipe_config_err(adjust, __stringify(name), \
-			  "(%x) (expected %i, found %i)\n", \
-			  (mask), \
-			  current_config->name & (mask), \
-			  pipe_config->name & (mask)); \
+		pipe_config_mismatch(fastset, __stringify(name), \
+				     "(%x) (expected %i, found %i)\n", \
+				     (mask), \
+				     current_config->name & (mask), \
+				     pipe_config->name & (mask)); \
 		ret = false; \
 	} \
 } while (0)
 
 #define PIPE_CONF_CHECK_CLOCK_FUZZY(name) do { \
 	if (!intel_fuzzy_clock_check(current_config->name, pipe_config->name)) { \
-		pipe_config_err(adjust, __stringify(name), \
-			  "(expected %i, found %i)\n", \
-			  current_config->name, \
-			  pipe_config->name); \
+		pipe_config_mismatch(fastset, __stringify(name), \
+				     "(expected %i, found %i)\n", \
+				     current_config->name, \
+				     pipe_config->name); \
 		ret = false; \
 	} \
 } while (0)
@@ -12519,9 +12519,9 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 #define PIPE_CONF_CHECK_INFOFRAME(name) do { \
 	if (!intel_compare_infoframe(&current_config->infoframes.name, \
 				     &pipe_config->infoframes.name)) { \
-		pipe_config_infoframe_err(dev_priv, adjust, __stringify(name), \
-					  &current_config->infoframes.name, \
-					  &pipe_config->infoframes.name); \
+		pipe_config_infoframe_mismatch(dev_priv, fastset, __stringify(name), \
+					       &current_config->infoframes.name, \
+					       &pipe_config->infoframes.name); \
 		ret = false; \
 	} \
 } while (0)
@@ -12601,7 +12601,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	 */
 	PIPE_CONF_CHECK_BOOL(pch_pfit.force_thru);
 
-	if (!adjust) {
+	if (!fastset) {
 		PIPE_CONF_CHECK_I(pipe_src_w);
 		PIPE_CONF_CHECK_I(pipe_src_h);
 
