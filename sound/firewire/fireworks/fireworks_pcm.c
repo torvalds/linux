@@ -231,12 +231,16 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		unsigned int rate = params_rate(hw_params);
+
 		mutex_lock(&efw->mutex);
-		++efw->substreams_counter;
+		err = snd_efw_stream_reserve_duplex(efw, rate);
+		if (err >= 0)
+			++efw->substreams_counter;
 		mutex_unlock(&efw->mutex);
 	}
 
-	return 0;
+	return err;
 }
 
 static int pcm_hw_free(struct snd_pcm_substream *substream)
@@ -257,10 +261,9 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 static int pcm_capture_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	err = snd_efw_stream_start_duplex(efw, runtime->rate);
+	err = snd_efw_stream_start_duplex(efw);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&efw->tx_stream);
 
@@ -269,10 +272,9 @@ static int pcm_capture_prepare(struct snd_pcm_substream *substream)
 static int pcm_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	err = snd_efw_stream_start_duplex(efw, runtime->rate);
+	err = snd_efw_stream_start_duplex(efw);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&efw->rx_stream);
 

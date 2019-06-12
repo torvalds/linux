@@ -189,47 +189,63 @@ end:
 	return err;
 }
 
-int snd_efw_stream_start_duplex(struct snd_efw *efw, unsigned int rate)
+int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate)
 {
 	unsigned int curr_rate;
+	int err;
+
+	// Considering JACK/FFADO streaming:
+	// TODO: This can be removed hwdep functionality becomes popular.
+	err = check_connection_used_by_others(efw, &efw->rx_stream);
+	if (err < 0)
+		return err;
+
+	// stop streams if rate is different.
+	err = snd_efw_command_get_sampling_rate(efw, &curr_rate);
+	if (err < 0)
+		return err;
+	if (rate == 0)
+		rate = curr_rate;
+	if (rate != curr_rate) {
+		stop_stream(efw, &efw->tx_stream);
+		stop_stream(efw, &efw->rx_stream);
+	}
+
+	if (efw->substreams_counter == 0 || rate != curr_rate) {
+		err = snd_efw_command_set_sampling_rate(efw, rate);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+int snd_efw_stream_start_duplex(struct snd_efw *efw)
+{
+	unsigned int rate;
 	int err = 0;
 
 	// Need no substreams.
 	if (efw->substreams_counter == 0)
 		return -EIO;
 
-	/*
-	 * Considering JACK/FFADO streaming:
-	 * TODO: This can be removed hwdep functionality becomes popular.
-	 */
-	err = check_connection_used_by_others(efw, &efw->rx_stream);
+	err = snd_efw_command_get_sampling_rate(efw, &rate);
 	if (err < 0)
-		goto end;
+		return err;
 
-	/* stop streams if rate is different */
-	err = snd_efw_command_get_sampling_rate(efw, &curr_rate);
-	if (err < 0)
-		goto end;
-	if (rate == 0)
-		rate = curr_rate;
-	if (rate != curr_rate ||
-	    amdtp_streaming_error(&efw->tx_stream) ||
-	    amdtp_streaming_error(&efw->rx_stream)) {
-		stop_stream(efw, &efw->tx_stream);
+	if (amdtp_streaming_error(&efw->rx_stream) ||
+	    amdtp_streaming_error(&efw->tx_stream)) {
 		stop_stream(efw, &efw->rx_stream);
+		stop_stream(efw, &efw->tx_stream);
 	}
 
 	/* master should be always running */
 	if (!amdtp_stream_running(&efw->rx_stream)) {
-		err = snd_efw_command_set_sampling_rate(efw, rate);
-		if (err < 0)
-			goto end;
-
 		err = start_stream(efw, &efw->rx_stream, rate);
 		if (err < 0) {
 			dev_err(&efw->unit->device,
 				"fail to start AMDTP master stream:%d\n", err);
-			goto end;
+			goto error;
 		}
 	}
 
@@ -238,11 +254,14 @@ int snd_efw_stream_start_duplex(struct snd_efw *efw, unsigned int rate)
 		if (err < 0) {
 			dev_err(&efw->unit->device,
 				"fail to start AMDTP slave stream:%d\n", err);
-			stop_stream(efw, &efw->tx_stream);
-			stop_stream(efw, &efw->rx_stream);
+			goto error;
 		}
 	}
-end:
+
+	return 0;
+error:
+	stop_stream(efw, &efw->rx_stream);
+	stop_stream(efw, &efw->tx_stream);
 	return err;
 }
 
