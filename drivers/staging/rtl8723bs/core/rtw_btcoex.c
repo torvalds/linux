@@ -9,12 +9,6 @@
 #include <rtw_btcoex.h>
 #include <hal_btcoex.h>
 
-
-void rtw_btcoex_Initialize(struct adapter *padapter)
-{
-	hal_btcoex_Initialize(padapter);
-}
-
 void rtw_btcoex_PowerOnSetting(struct adapter *padapter)
 {
 	hal_btcoex_PowerOnSetting(padapter);
