@@ -18,7 +18,7 @@ menuconfig WATCHDOG
 	  reboot the machine) and a driver for hardware watchdog boards, which
 	  are more robust and can also keep track of the temperature inside
 	  your computer. For details, read
-	  <file:Documentation/watchdog/watchdog-api.txt> in the kernel source.
+	  <file:Documentation/watchdog/watchdog-api.rst> in the kernel source.
 
 	  The watchdog is usually used together with the watchdog daemon
 	  which is available from
@@ -1870,7 +1870,7 @@ config BOOKE_WDT
 	  Watchdog driver for PowerPC Book-E chips, such as the Freescale
 	  MPC85xx SOCs and the IBM PowerPC 440.
 
-	  Please see Documentation/watchdog/watchdog-api.txt for
+	  Please see Documentation/watchdog/watchdog-api.rst for
 	  more information.
 
 config BOOKE_WDT_DEFAULT_TIMEOUT
@@ -2019,7 +2019,7 @@ config PCWATCHDOG
 	  This card simply watches your kernel to make sure it doesn't freeze,
 	  and if it does, it reboots your computer after a certain amount of
 	  time. This driver is like the WDT501 driver but for different
-	  hardware. Please read <file:Documentation/watchdog/pcwd-watchdog.txt>. The PC
+	  hardware. Please read <file:Documentation/watchdog/pcwd-watchdog.rst>. The PC
 	  watchdog cards can be ordered from <http://www.berkprod.com/>.
 
 	  To compile this driver as a module, choose M here: the

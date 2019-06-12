@@ -5160,7 +5160,7 @@
 			Default: 3 = cyan.
 
 	watchdog timers	[HW,WDT] For information on watchdog timers,
-			see Documentation/watchdog/watchdog-parameters.txt
+			see Documentation/watchdog/watchdog-parameters.rst
 			or other driver-specific files in the
 			Documentation/watchdog/ directory.
 
