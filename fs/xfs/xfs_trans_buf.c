@@ -174,8 +174,7 @@ xfs_trans_get_buf_map(
 xfs_buf_t *
 xfs_trans_getsb(
 	xfs_trans_t		*tp,
-	struct xfs_mount	*mp,
-	int			flags)
+	struct xfs_mount	*mp)
 {
 	xfs_buf_t		*bp;
 	struct xfs_buf_log_item	*bip;
@@ -185,7 +184,7 @@ xfs_trans_getsb(
 	 * if tp is NULL.
 	 */
 	if (tp == NULL)
-		return xfs_getsb(mp, flags);
+		return xfs_getsb(mp);
 
 	/*
 	 * If the superblock buffer already has this transaction
@@ -203,7 +202,7 @@ xfs_trans_getsb(
 		return bp;
 	}
 
-	bp = xfs_getsb(mp, flags);
+	bp = xfs_getsb(mp);
 	if (bp == NULL)
 		return NULL;
 

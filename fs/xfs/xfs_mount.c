@@ -1309,24 +1309,14 @@ xfs_mod_frextents(
  * xfs_getsb() is called to obtain the buffer for the superblock.
  * The buffer is returned locked and read in from disk.
  * The buffer should be released with a call to xfs_brelse().
- *
- * If the flags parameter is BUF_TRYLOCK, then we'll only return
- * the superblock buffer if it can be locked without sleeping.
- * If it can't then we'll return NULL.
  */
 struct xfs_buf *
 xfs_getsb(
-	struct xfs_mount	*mp,
-	int			flags)
+	struct xfs_mount	*mp)
 {
 	struct xfs_buf		*bp = mp->m_sb_bp;
 
-	if (!xfs_buf_trylock(bp)) {
-		if (flags & XBF_TRYLOCK)
-			return NULL;
-		xfs_buf_lock(bp);
-	}
-
+	xfs_buf_lock(bp);
 	xfs_buf_hold(bp);
 	ASSERT(bp->b_flags & XBF_DONE);
 	return bp;

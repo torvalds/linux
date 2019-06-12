@@ -452,7 +452,7 @@ xfs_trans_apply_sb_deltas(
 	xfs_buf_t	*bp;
 	int		whole = 0;
 
-	bp = xfs_trans_getsb(tp, tp->t_mountp, 0);
+	bp = xfs_trans_getsb(tp, tp->t_mountp);
 	sbp = XFS_BUF_TO_SBP(bp);
 
 	/*
