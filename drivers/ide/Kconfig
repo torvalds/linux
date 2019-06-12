@@ -25,13 +25,13 @@ menuconfig IDE
 	  To compile this driver as a module, choose M here: the
 	  module will be called ide-core.
 
-	  For further information, please read <file:Documentation/ide/ide.txt>.
+	  For further information, please read <file:Documentation/ide/ide.rst>.
 
 	  If unsure, say N.
 
 if IDE
 
-comment "Please see Documentation/ide/ide.txt for help/info on IDE drives"
+comment "Please see Documentation/ide/ide.rst for help/info on IDE drives"
 
 config IDE_XFER_MODE
 	bool
@@ -163,7 +163,7 @@ config BLK_DEV_IDETAPE
 	  along with other IDE devices, as "hdb" or "hdc", or something
 	  similar, and will be mapped to a character device such as "ht0"
 	  (check the boot messages with dmesg).  Be sure to consult the
-	  <file:drivers/ide/ide-tape.c> and <file:Documentation/ide/ide.txt>
+	  <file:drivers/ide/ide-tape.c> and <file:Documentation/ide/ide.rst>
 	  files for usage information.
 
 	  To compile this driver as a module, choose M here: the
@@ -251,7 +251,7 @@ config BLK_DEV_CMD640
 
 	  The CMD640 chip is also used on add-in cards by Acculogic, and on
 	  the "CSA-6400E PCI to IDE controller" that some people have. For
-	  details, read <file:Documentation/ide/ide.txt>.
+	  details, read <file:Documentation/ide/ide.rst>.
 
 config BLK_DEV_CMD640_ENHANCED
 	bool "CMD640 enhanced support"
@@ -259,7 +259,7 @@ config BLK_DEV_CMD640_ENHANCED
 	help
 	  This option includes support for setting/autotuning PIO modes and
 	  prefetch on CMD640 IDE interfaces.  For details, read
-	  <file:Documentation/ide/ide.txt>. If you have a CMD640 IDE interface
+	  <file:Documentation/ide/ide.rst>. If you have a CMD640 IDE interface
 	  and your BIOS does not already do this for you, then say Y here.
 	  Otherwise say N.
 
@@ -819,7 +819,7 @@ config BLK_DEV_ALI14XX
 	  boot parameter.  It enables support for the secondary IDE interface
 	  of the ALI M1439/1443/1445/1487/1489 chipsets, and permits faster
 	  I/O speeds to be set as well.
-	  See the files <file:Documentation/ide/ide.txt> and
+	  See the files <file:Documentation/ide/ide.rst> and
 	  <file:drivers/ide/ali14xx.c> for more info.
 
 config BLK_DEV_DTC2278
@@ -830,7 +830,7 @@ config BLK_DEV_DTC2278
 	  This driver is enabled at runtime using the "dtc2278.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface
 	  of the DTC-2278 card, and permits faster I/O speeds to be set as
-	  well. See the <file:Documentation/ide/ide.txt> and
+	  well. See the <file:Documentation/ide/ide.rst> and
 	  <file:drivers/ide/dtc2278.c> files for more info.
 
 config BLK_DEV_HT6560B
@@ -841,7 +841,7 @@ config BLK_DEV_HT6560B
 	  This driver is enabled at runtime using the "ht6560b.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface
 	  of the Holtek card, and permits faster I/O speeds to be set as well.
-	  See the <file:Documentation/ide/ide.txt> and
+	  See the <file:Documentation/ide/ide.rst> and
 	  <file:drivers/ide/ht6560b.c> files for more info.
 
 config BLK_DEV_QD65XX
@@ -851,7 +851,7 @@ config BLK_DEV_QD65XX
 	help
 	  This driver is enabled at runtime using the "qd65xx.probe" kernel
 	  boot parameter.  It permits faster I/O speeds to be set.  See the
-	  <file:Documentation/ide/ide.txt> and <file:drivers/ide/qd65xx.c>
+	  <file:Documentation/ide/ide.rst> and <file:drivers/ide/qd65xx.c>
 	  for more info.
 
 config BLK_DEV_UMC8672
@@ -862,7 +862,7 @@ config BLK_DEV_UMC8672
 	  This driver is enabled at runtime using the "umc8672.probe" kernel
 	  boot parameter. It enables support for the secondary IDE interface
 	  of the UMC-8672, and permits faster I/O speeds to be set as well.
-	  See the files <file:Documentation/ide/ide.txt> and
+	  See the files <file:Documentation/ide/ide.rst> and
 	  <file:drivers/ide/umc8672.c> for more info.
 
 endif

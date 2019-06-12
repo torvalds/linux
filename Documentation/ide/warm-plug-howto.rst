@@ -1,14 +1,14 @@
-
+===================
 IDE warm-plug HOWTO
 ===================
 
-To warm-plug devices on a port 'idex':
+To warm-plug devices on a port 'idex'::
 
-# echo -n "1" > /sys/class/ide_port/idex/delete_devices
+	# echo -n "1" > /sys/class/ide_port/idex/delete_devices
 
-unplug old device(s) and plug new device(s)
+unplug old device(s) and plug new device(s)::
 
-# echo -n "1" > /sys/class/ide_port/idex/scan
+	# echo -n "1" > /sys/class/ide_port/idex/scan
 
 done
 

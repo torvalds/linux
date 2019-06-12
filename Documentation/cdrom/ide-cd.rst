@@ -47,7 +47,7 @@ This driver provides the following features:
 ---------------
 
 0. The ide-cd relies on the ide disk driver.  See
-   Documentation/ide/ide.txt for up-to-date information on the ide
+   Documentation/ide/ide.rst for up-to-date information on the ide
    driver.
 
 1. Make sure that the ide and ide-cd drivers are compiled into the
@@ -62,7 +62,7 @@ This driver provides the following features:
 
    Depending on what type of IDE interface you have, you may need to
    specify additional configuration options.  See
-   Documentation/ide/ide.txt.
+   Documentation/ide/ide.rst.
 
 2. You should also ensure that the iso9660 filesystem is either
    compiled into the kernel or available as a loadable module.  You
@@ -82,7 +82,7 @@ This driver provides the following features:
    on the primary IDE interface are called `hda` and `hdb`,
    respectively.  The drives on the secondary interface are called
    `hdc` and `hdd`.  (Interfaces at other locations get other letters
-   in the third position; see Documentation/ide/ide.txt.)
+   in the third position; see Documentation/ide/ide.rst.)
 
    If you want your CDROM drive to be found automatically by the
    driver, you should make sure your IDE interface uses either the
@@ -91,7 +91,7 @@ This driver provides the following features:
    be jumpered as `master`.  (If for some reason you cannot configure
    your system in this manner, you can probably still use the driver.
    You may have to pass extra configuration information to the kernel
-   when you boot, however.  See Documentation/ide/ide.txt for more
+   when you boot, however.  See Documentation/ide/ide.rst for more
    information.)
 
 4. Boot the system.  If the drive is recognized, you should see a
@@ -163,7 +163,7 @@ to change.  If the slot number is -1, the drive is unloaded.
 This section discusses some common problems encountered when trying to
 use the driver, and some possible solutions.  Note that if you are
 experiencing problems, you should probably also review
-Documentation/ide/ide.txt for current information about the underlying
+Documentation/ide/ide.rst for current information about the underlying
 IDE support code.  Some of these items apply only to earlier versions
 of the driver, but are mentioned here for completeness.
 
@@ -173,7 +173,7 @@ from the driver.
 a. Drive is not detected during booting.
 
    - Review the configuration instructions above and in
-     Documentation/ide/ide.txt, and check how your hardware is
+     Documentation/ide/ide.rst, and check how your hardware is
      configured.
 
    - If your drive is the only device on an IDE interface, it should
@@ -181,7 +181,7 @@ a. Drive is not detected during booting.
 
    - If your IDE interface is not at the standard addresses of 0x170
      or 0x1f0, you'll need to explicitly inform the driver using a
-     lilo option.  See Documentation/ide/ide.txt.  (This feature was
+     lilo option.  See Documentation/ide/ide.rst.  (This feature was
      added around kernel version 1.3.30.)
 
    - If the autoprobing is not finding your drive, you can tell the
@@ -207,7 +207,7 @@ a. Drive is not detected during booting.
      Support for some interfaces needing extra initialization is
      provided in later 1.3.x kernels.  You may need to turn on
      additional kernel configuration options to get them to work;
-     see Documentation/ide/ide.txt.
+     see Documentation/ide/ide.rst.
 
      Even if support is not available for your interface, you may be
      able to get it to work with the following procedure.  First boot
@@ -261,7 +261,7 @@ c. System hangups.
     be worked around by specifying the `serialize` option when
     booting.  Recent kernels should be able to detect the need for
     this automatically in most cases, but the detection is not
-    foolproof.  See Documentation/ide/ide.txt for more information
+    foolproof.  See Documentation/ide/ide.rst for more information
     about the `serialize` option and the CMD640B.
 
   - Note that many MS-DOS CDROM drivers will work with such buggy

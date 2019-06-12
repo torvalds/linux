@@ -1,4 +1,6 @@
-IDE ATAPI streaming tape driver.
+===============================
+IDE ATAPI streaming tape driver
+===============================
 
 This driver is a part of the Linux ide driver.
 
@@ -10,14 +12,14 @@ to the request-list of the block device, and waits for their completion.
 The block device major and minor numbers are determined from the
 tape's relative position in the ide interfaces, as explained in ide.c.
 
-The character device interface consists of the following devices:
+The character device interface consists of the following devices::
 
-ht0		major 37, minor 0	first  IDE tape, rewind on close.
-ht1		major 37, minor 1	second IDE tape, rewind on close.
-...
-nht0		major 37, minor 128	first  IDE tape, no rewind on close.
-nht1		major 37, minor 129	second IDE tape, no rewind on close.
-...
+  ht0		major 37, minor 0	first  IDE tape, rewind on close.
+  ht1		major 37, minor 1	second IDE tape, rewind on close.
+  ...
+  nht0		major 37, minor 128	first  IDE tape, no rewind on close.
+  nht1		major 37, minor 129	second IDE tape, no rewind on close.
+  ...
 
 The general magnetic tape commands compatible interface, as defined by
 include/linux/mtio.h, is accessible through the character device.
@@ -40,9 +42,10 @@ Testing was done with a 2 GB CONNER CTMA 4000 IDE ATAPI Streaming Tape Drive.
 Here are some words from the first releases of hd.c, which are quoted
 in ide.c and apply here as well:
 
-| Special care is recommended.  Have Fun!
+* Special care is recommended.  Have Fun!
 
-Possible improvements:
+Possible improvements
+=====================
 
 1. Support for the ATAPI overlap protocol.
 
