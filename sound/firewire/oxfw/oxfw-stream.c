@@ -101,17 +101,6 @@ static int set_stream_format(struct snd_oxfw *oxfw, struct amdtp_stream *s,
 	return 0;
 }
 
-static void stop_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
-{
-	amdtp_stream_pcm_abort(stream);
-	amdtp_stream_stop(stream);
-
-	if (stream == &oxfw->tx_stream)
-		cmp_connection_break(&oxfw->out_conn);
-	else
-		cmp_connection_break(&oxfw->in_conn);
-}
-
 static int start_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 {
 	u8 **formats;
@@ -158,28 +147,27 @@ static int start_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	err = amdtp_am824_set_parameters(stream, formation.rate, formation.pcm,
 					 formation.midi * 8, false);
 	if (err < 0)
-		goto end;
+		return err;
 
 	err = cmp_connection_establish(conn,
 				       amdtp_stream_get_max_payload(stream));
 	if (err < 0)
-		goto end;
+		return err;
 
-	err = amdtp_stream_start(stream,
-				 conn->resources.channel,
-				 conn->speed);
+	err = amdtp_stream_start(stream, conn->resources.channel, conn->speed);
 	if (err < 0) {
 		cmp_connection_break(conn);
-		goto end;
+		return err;
 	}
 
-	/* Wait first packet */
+	// Wait first packet.
 	if (!amdtp_stream_wait_callback(stream, CALLBACK_TIMEOUT)) {
-		stop_stream(oxfw, stream);
-		err = -ETIMEDOUT;
+		amdtp_stream_stop(stream);
+		cmp_connection_break(conn);
+		return -ETIMEDOUT;
 	}
-end:
-	return err;
+
+	return 0;
 }
 
 static int check_connection_used_by_others(struct snd_oxfw *oxfw,
@@ -288,9 +276,13 @@ int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw,
 	if (formation.rate != rate || formation.pcm != pcm_channels ||
 	    amdtp_streaming_error(&oxfw->rx_stream) ||
 	    amdtp_streaming_error(&oxfw->tx_stream)) {
-		stop_stream(oxfw, &oxfw->rx_stream);
-		if (oxfw->has_output)
-			stop_stream(oxfw, &oxfw->tx_stream);
+		amdtp_stream_stop(&oxfw->rx_stream);
+		cmp_connection_break(&oxfw->in_conn);
+
+		if (oxfw->has_output) {
+			amdtp_stream_stop(&oxfw->tx_stream);
+			cmp_connection_break(&oxfw->out_conn);
+		}
 
 		err = set_stream_format(oxfw, stream, rate, pcm_channels);
 		if (err < 0) {
@@ -322,10 +314,10 @@ int snd_oxfw_stream_start_simplex(struct snd_oxfw *oxfw,
 
 	return 0;
 error:
-	stop_stream(oxfw, &oxfw->rx_stream);
+	amdtp_stream_stop(&oxfw->rx_stream);
 	cmp_connection_break(&oxfw->in_conn);
 	if (oxfw->has_output) {
-		stop_stream(oxfw, &oxfw->tx_stream);
+		amdtp_stream_stop(&oxfw->tx_stream);
 		cmp_connection_break(&oxfw->out_conn);
 	}
 	return err;
@@ -335,10 +327,13 @@ void snd_oxfw_stream_stop_simplex(struct snd_oxfw *oxfw,
 				  struct amdtp_stream *stream)
 {
 	if (oxfw->capture_substreams == 0 && oxfw->playback_substreams == 0) {
-		stop_stream(oxfw, &oxfw->rx_stream);
+		amdtp_stream_stop(&oxfw->rx_stream);
+		cmp_connection_break(&oxfw->in_conn);
 
-		if (oxfw->has_output)
-			stop_stream(oxfw, &oxfw->tx_stream);
+		if (oxfw->has_output) {
+			amdtp_stream_stop(&oxfw->tx_stream);
+			cmp_connection_break(&oxfw->out_conn);
+		}
 	}
 }
 
@@ -363,10 +358,17 @@ void snd_oxfw_stream_destroy_simplex(struct snd_oxfw *oxfw,
 void snd_oxfw_stream_update_simplex(struct snd_oxfw *oxfw,
 				    struct amdtp_stream *stream)
 {
-	stop_stream(oxfw, &oxfw->rx_stream);
+	amdtp_stream_stop(&oxfw->rx_stream);
+	cmp_connection_break(&oxfw->in_conn);
 
-	if (oxfw->has_output)
-		stop_stream(oxfw, &oxfw->tx_stream);
+	amdtp_stream_pcm_abort(&oxfw->rx_stream);
+
+	if (oxfw->has_output) {
+		amdtp_stream_stop(&oxfw->tx_stream);
+		cmp_connection_break(&oxfw->out_conn);
+
+		amdtp_stream_pcm_abort(&oxfw->tx_stream);
+	}
 }
 
 int snd_oxfw_stream_get_current_formation(struct snd_oxfw *oxfw,
