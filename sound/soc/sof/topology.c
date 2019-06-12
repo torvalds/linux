@@ -2591,9 +2591,7 @@ err:
  */
 static int sof_link_hda_process(struct snd_sof_dev *sdev,
 				struct snd_soc_dai_link *link,
-				struct sof_ipc_dai_config *config,
-				int tx_slot,
-				int rx_slot)
+				struct sof_ipc_dai_config *config)
 {
 	struct sof_ipc_reply reply;
 	u32 size = sizeof(*config);
@@ -2606,21 +2604,10 @@ static int sof_link_hda_process(struct snd_sof_dev *sdev,
 			continue;
 
 		if (strcmp(link->name, sof_dai->name) == 0) {
-			if (sof_dai->comp_dai.direction ==
-			    SNDRV_PCM_STREAM_PLAYBACK) {
-				if (!link->dpcm_playback)
-					return -EINVAL;
-
-				config->hda.link_dma_ch = tx_slot;
-			} else {
-				if (!link->dpcm_capture)
-					return -EINVAL;
-
-				config->hda.link_dma_ch = rx_slot;
-			}
-
 			config->dai_index = sof_dai->comp_dai.dai_index;
 			found = 1;
+
+			config->hda.link_dma_ch = DMA_CHAN_INVALID;
 
 			/* save config in dai component */
 			sof_dai->dai_config = kmemdup(config, size, GFP_KERNEL);
@@ -2667,10 +2654,6 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 	struct snd_soc_tplg_private *private = &cfg->priv;
 	struct snd_soc_dai *dai;
 	u32 size = sizeof(*config);
-	u32 tx_num = 0;
-	u32 tx_slot = 0;
-	u32 rx_num = 0;
-	u32 rx_slot = 0;
 	int ret;
 
 	/* init IPC */
@@ -2694,22 +2677,7 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 		return -EINVAL;
 	}
 
-	if (link->dpcm_playback)
-		tx_num = 1;
-
-	if (link->dpcm_capture)
-		rx_num = 1;
-
-	ret = snd_soc_dai_get_channel_map(dai, &tx_num, &tx_slot,
-					  &rx_num, &rx_slot);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to get dma channel for HDA%d\n",
-			config->dai_index);
-
-		return ret;
-	}
-
-	ret = sof_link_hda_process(sdev, link, config, tx_slot, rx_slot);
+	ret = sof_link_hda_process(sdev, link, config);
 	if (ret < 0)
 		dev_err(sdev->dev, "error: failed to process hda dai link %s",
 			link->name);
@@ -2836,17 +2804,6 @@ static int sof_link_hda_unload(struct snd_sof_dev *sdev,
 			link->cpus->dai_name, __func__);
 		return -EINVAL;
 	}
-
-	/*
-	 * FIXME: this call to hw_free is mainly to release the link DMA ID.
-	 * This is abusing the API and handling SOC internals is not
-	 * recommended. This part will be reworked.
-	 */
-	if (dai->driver->ops->hw_free)
-		ret = dai->driver->ops->hw_free(NULL, dai);
-	if (ret < 0)
-		dev_err(sdev->dev, "error: failed to free hda resource for %s\n",
-			link->name);
 
 	return ret;
 }
