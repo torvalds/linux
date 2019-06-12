@@ -167,9 +167,10 @@ struct sof_ipc_dai_dmic_params {
 
 	uint32_t wake_up_time;      /**< Time from clock start to data (us) */
 	uint32_t min_clock_on_time; /**< Min. time that clk is kept on (us) */
+	uint32_t unmute_ramp_time;  /**< Length of logarithmic gain ramp (ms) */
 
 	/* reserved for future use */
-	uint32_t reserved[6];
+	uint32_t reserved[5];
 
 	/**< variable number of pdm controller config */
 	struct sof_ipc_dai_dmic_pdm_ctrl pdm[0];
