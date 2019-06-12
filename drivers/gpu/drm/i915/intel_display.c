@@ -13436,7 +13436,7 @@ static int calc_watermark_data(struct intel_atomic_state *state)
 /**
  * intel_atomic_check - validate state object
  * @dev: drm device
- * @state: state to validate
+ * @_state: state to validate
  */
 static int intel_atomic_check(struct drm_device *dev,
 			      struct drm_atomic_state *_state)

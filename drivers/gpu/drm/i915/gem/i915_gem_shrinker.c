@@ -114,7 +114,7 @@ static void try_to_writeback(struct drm_i915_gem_object *obj,
  * @i915: i915 device
  * @target: amount of memory to make available, in pages
  * @nr_scanned: optional output for number of pages scanned (incremental)
- * @flags: control flags for selecting cache types
+ * @shrink: control flags for selecting cache types
  *
  * This function is the main interface to the shrinker. It will try to release
  * up to @target pages of main memory backing storage from buffer objects.
