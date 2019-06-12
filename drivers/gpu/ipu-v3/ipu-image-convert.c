@@ -1933,7 +1933,9 @@ void ipu_image_convert_adjust(struct ipu_image *in, struct ipu_image *out,
 		clamp_align(in->pix.width, 2 << w_align_in, MAX_W,
 			    w_align_in) :
 		clamp_align((in->pix.width * infmt->bpp) >> 3,
-			    2 << w_align_in, MAX_W, w_align_in);
+			    ((2 << w_align_in) * infmt->bpp) >> 3,
+			    (MAX_W * infmt->bpp) >> 3,
+			    w_align_in);
 	in->pix.sizeimage = infmt->planar ?
 		(in->pix.height * in->pix.bytesperline * infmt->bpp) >> 3 :
 		in->pix.height * in->pix.bytesperline;
