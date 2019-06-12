@@ -1,8 +1,7 @@
-================================================================
-			VMCOREINFO
-================================================================
+==========
+VMCOREINFO
+==========
 
-===========
 What is it?
 ===========
 
@@ -12,7 +11,6 @@ values, field offsets, etc. These data are packed into an ELF note
 section and used by user-space tools like crash and makedumpfile to
 analyze a kernel's memory layout.
 
-================
 Common variables
 ================
 
@@ -49,7 +47,7 @@ in a system, one bit position per node number. Used to keep track of
 which nodes are in the system and online.
 
 swapper_pg_dir
--------------
+--------------
 
 The global page directory pointer of the kernel. Used to translate
 virtual to physical addresses.
@@ -132,16 +130,14 @@ nodemask_t
 The size of a nodemask_t type. Used to compute the number of online
 nodes.
 
-(page, flags|_refcount|mapping|lru|_mapcount|private|compound_dtor|
-       compound_order|compound_head)
--------------------------------------------------------------------
+(page, flags|_refcount|mapping|lru|_mapcount|private|compound_dtor|compound_order|compound_head)
+-------------------------------------------------------------------------------------------------
 
 User-space tools compute their values based on the offset of these
 variables. The variables are used when excluding unnecessary pages.
 
-(pglist_data, node_zones|nr_zones|node_mem_map|node_start_pfn|node_
-              spanned_pages|node_id)
--------------------------------------------------------------------
+(pglist_data, node_zones|nr_zones|node_mem_map|node_start_pfn|node_spanned_pages|node_id)
+-----------------------------------------------------------------------------------------
 
 On NUMA machines, each NUMA node has a pg_data_t to describe its memory
 layout. On UMA machines there is a single pglist_data which describes the
@@ -245,13 +241,18 @@ NR_FREE_PAGES
 On linux-2.6.21 or later, the number of free pages is in
 vm_stat[NR_FREE_PAGES]. Used to get the number of free pages.
 
-PG_lru|PG_private|PG_swapcache|PG_swapbacked|PG_slab|PG_hwpoision
-|PG_head_mask|PAGE_BUDDY_MAPCOUNT_VALUE(~PG_buddy)
-|PAGE_OFFLINE_MAPCOUNT_VALUE(~PG_offline)
------------------------------------------------------------------
+PG_lru|PG_private|PG_swapcache|PG_swapbacked|PG_slab|PG_hwpoision|PG_head_mask
+------------------------------------------------------------------------------
 
 Page attributes. These flags are used to filter various unnecessary for
 dumping pages.
+
+PAGE_BUDDY_MAPCOUNT_VALUE(~PG_buddy)|PAGE_OFFLINE_MAPCOUNT_VALUE(~PG_offline)
+-----------------------------------------------------------------------------
+
+More page attributes. These flags are used to filter various unnecessary for
+dumping pages.
+
 
 HUGETLB_PAGE_DTOR
 -----------------
@@ -259,7 +260,6 @@ HUGETLB_PAGE_DTOR
 The HUGETLB_PAGE_DTOR flag denotes hugetlbfs pages. Makedumpfile
 excludes these pages.
 
-======
 x86_64
 ======
 
@@ -318,12 +318,12 @@ address.
 Currently, sme_mask stores the value of the C-bit position. If needed,
 additional SME-relevant info can be placed in that variable.
 
-For example:
-[ misc	        ][ enc bit  ][ other misc SME info       ]
-0000_0000_0000_0000_1000_0000_0000_0000_0000_0000_..._0000
-63   59   55   51   47   43   39   35   31   27   ... 3
+For example::
 
-======
+  [ misc	        ][ enc bit  ][ other misc SME info       ]
+  0000_0000_0000_0000_1000_0000_0000_0000_0000_0000_..._0000
+  63   59   55   51   47   43   39   35   31   27   ... 3
+
 x86_32
 ======
 
@@ -335,7 +335,6 @@ of a higher page table lookup overhead, and also consumes more page
 table space per process. Used to check whether PAE was enabled in the
 crash kernel when converting virtual addresses to physical addresses.
 
-====
 ia64
 ====
 
@@ -366,7 +365,6 @@ PGTABLE_3|PGTABLE_4
 User-space tools need to know whether the crash kernel was in 3-level or
 4-level paging mode. Used to distinguish the page table.
 
-=====
 ARM64
 =====
 
@@ -395,9 +393,8 @@ KERNELOFFSET
 The kernel randomization offset. Used to compute the page offset. If
 KASLR is disabled, this value is zero.
 
-====
 arm
-====
+===
 
 ARM_LPAE
 --------
@@ -405,12 +402,11 @@ ARM_LPAE
 It indicates whether the crash kernel supports large physical address
 extensions. Used to translate virtual to physical addresses.
 
-====
 s390
 ====
 
 lowcore_ptr
-----------
+-----------
 
 An array with a pointer to the lowcore of every CPU. Used to print the
 psw and all registers information.
@@ -425,7 +421,6 @@ Used to get the vmalloc_start address from the high_memory symbol.
 
 The maximum number of CPUs.
 
-=======
 powerpc
 =======
 
@@ -460,9 +455,8 @@ Page size definitions, i.e. 4k, 64k, or 16M.
 
 Used to make vtop translations.
 
-vmemmap_backing|(vmemmap_backing, list)|(vmemmap_backing, phys)|
-(vmemmap_backing, virt_addr)
-----------------------------------------------------------------
+vmemmap_backing|(vmemmap_backing, list)|(vmemmap_backing, phys)|(vmemmap_backing, virt_addr)
+--------------------------------------------------------------------------------------------
 
 The vmemmap virtual address space management does not have a traditional
 page table to track which virtual struct pages are backed by a physical
@@ -480,7 +474,6 @@ member.
 
 Used in vtop translations.
 
-==
 sh
 ==
 

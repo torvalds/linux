@@ -90,7 +90,7 @@ the disk is not available then you have three options:
     run a null modem to a second machine and capture the output there
     using your favourite communication program.  Minicom works well.
 
-(3) Use Kdump (see Documentation/kdump/kdump.txt),
+(3) Use Kdump (see Documentation/kdump/kdump.rst),
     extract the kernel ring buffer from old memory with using dmesg
     gdbmacro in Documentation/kdump/gdbmacros.txt.
 
