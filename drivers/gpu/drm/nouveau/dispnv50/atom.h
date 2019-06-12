@@ -185,6 +185,11 @@ struct nv50_wndw_atom {
 	} xlut;
 
 	struct {
+		u32 matrix[12];
+		bool valid;
+	} csc;
+
+	struct {
 		u8  mode:2;
 		u8  interval:4;
 
@@ -221,6 +226,7 @@ struct nv50_wndw_atom {
 			bool ntfy:1;
 			bool sema:1;
 			bool xlut:1;
+			bool csc:1;
 			bool image:1;
 			bool scale:1;
 			bool point:1;

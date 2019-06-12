@@ -120,6 +120,7 @@ nv50_wndw_flush_clr(struct nv50_wndw *wndw, u32 *interlock, bool flush,
 	if (clr.sema ) wndw->func-> sema_clr(wndw);
 	if (clr.ntfy ) wndw->func-> ntfy_clr(wndw);
 	if (clr.xlut ) wndw->func-> xlut_clr(wndw);
+	if (clr.csc  ) wndw->func->  csc_clr(wndw);
 	if (clr.image) wndw->func->image_clr(wndw);
 
 	interlock[wndw->interlock.type] |= wndw->interlock.data;
@@ -147,6 +148,7 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 		wndw->func->xlut_set(wndw, asyw);
 	}
 
+	if (asyw->set.csc  ) wndw->func->csc_set  (wndw, asyw);
 	if (asyw->set.scale) wndw->func->scale_set(wndw, asyw);
 	if (asyw->set.point) {
 		if (asyw->set.point = false, asyw->set.mask)
@@ -347,6 +349,16 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 	    (!armw->visible || (armw->xlut.handle && !asyw->xlut.handle)))
 		asyw->set.xlut = true;
 
+	if (wndw->func->csc && asyh->state.ctm) {
+		const struct drm_color_ctm *ctm = asyh->state.ctm->data;
+		wndw->func->csc(wndw, asyw, ctm);
+		asyw->csc.valid = true;
+		asyw->set.csc = true;
+	} else {
+		asyw->csc.valid = false;
+		asyw->clr.csc = armw->csc.valid;
+	}
+
 	/* Can't do an immediate flip while changing the LUT. */
 	asyh->state.pageflip_flags &= ~DRM_MODE_PAGE_FLIP_ASYNC;
 }
@@ -416,6 +428,7 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 		asyw->clr.ntfy = armw->ntfy.handle != 0;
 		asyw->clr.sema = armw->sema.handle != 0;
 		asyw->clr.xlut = armw->xlut.handle != 0;
+		asyw->clr.csc  = armw->csc.valid;
 		if (wndw->func->image_clr)
 			asyw->clr.image = armw->image.handle[0] != 0;
 	}
@@ -507,6 +520,7 @@ nv50_wndw_atomic_duplicate_state(struct drm_plane *plane)
 	asyw->ntfy = armw->ntfy;
 	asyw->ilut = NULL;
 	asyw->xlut = armw->xlut;
+	asyw->csc  = armw->csc;
 	asyw->image = armw->image;
 	asyw->point = armw->point;
 	asyw->clr.mask = 0;
