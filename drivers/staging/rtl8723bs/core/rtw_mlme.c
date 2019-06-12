@@ -1930,11 +1930,6 @@ inline void rtw_clear_scan_deny(struct adapter *adapter)
 	DBG_871X(FUNC_ADPT_FMT"\n", FUNC_ADPT_ARG(adapter));
 }
 
-void rtw_set_scan_deny_timer_hdl(struct adapter *adapter)
-{
-	rtw_clear_scan_deny(adapter);
-}
-
 void rtw_set_scan_deny(struct adapter *adapter, u32 ms)
 {
 	struct mlme_priv *mlmepriv = &adapter->mlmepriv;

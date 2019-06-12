@@ -26,7 +26,7 @@ static void _rtw_set_scan_deny_timer_hdl(struct timer_list *t)
 	struct adapter *adapter =
 		from_timer(adapter, t, mlmepriv.set_scan_deny_timer);
 
-	rtw_set_scan_deny_timer_hdl(adapter);
+	rtw_clear_scan_deny(adapter);
 }
 
 void rtw_init_mlme_timer(struct adapter *padapter)
