@@ -754,8 +754,6 @@ static int rvin_power_on(struct rvin_dev *vin)
 	int ret;
 	struct v4l2_subdev *sd = vin_to_source(vin);
 
-	pm_runtime_get_sync(vin->v4l2_dev.dev);
-
 	ret = v4l2_subdev_call(sd, core, s_power, 1);
 	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 		return ret;
@@ -768,9 +766,6 @@ static int rvin_power_off(struct rvin_dev *vin)
 	struct v4l2_subdev *sd = vin_to_source(vin);
 
 	ret = v4l2_subdev_call(sd, core, s_power, 0);
-
-	pm_runtime_put(vin->v4l2_dev.dev);
-
 	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 		return ret;
 
@@ -796,26 +791,36 @@ static int rvin_open(struct file *file)
 	struct rvin_dev *vin = video_drvdata(file);
 	int ret;
 
+	ret = pm_runtime_get_sync(vin->dev);
+	if (ret < 0)
+		return ret;
+
 	ret = mutex_lock_interruptible(&vin->lock);
 	if (ret)
-		return ret;
+		goto err_pm;
 
 	file->private_data = vin;
 
 	ret = v4l2_fh_open(file);
 	if (ret)
-		goto unlock;
+		goto err_unlock;
 
-	if (!v4l2_fh_is_singular_file(file))
-		goto unlock;
-
-	if (rvin_initialize_device(file)) {
-		v4l2_fh_release(file);
-		ret = -ENODEV;
+	if (v4l2_fh_is_singular_file(file)) {
+		ret = rvin_initialize_device(file);
+		if (ret)
+			goto err_open;
 	}
 
-unlock:
 	mutex_unlock(&vin->lock);
+
+	return 0;
+err_open:
+	v4l2_fh_release(file);
+err_unlock:
+	mutex_unlock(&vin->lock);
+err_pm:
+	pm_runtime_put(vin->dev);
+
 	return ret;
 }
 
@@ -841,6 +846,8 @@ static int rvin_release(struct file *file)
 		rvin_power_off(vin);
 
 	mutex_unlock(&vin->lock);
+
+	pm_runtime_put(vin->dev);
 
 	return ret;
 }
