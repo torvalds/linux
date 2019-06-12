@@ -389,12 +389,9 @@ CEPH_DEFINE_SHOW_FUNC(monc_show)
 CEPH_DEFINE_SHOW_FUNC(osdc_show)
 CEPH_DEFINE_SHOW_FUNC(client_options_show)
 
-int __init ceph_debugfs_init(void)
+void __init ceph_debugfs_init(void)
 {
 	ceph_debugfs_dir = debugfs_create_dir("ceph", NULL);
-	if (!ceph_debugfs_dir)
-		return -ENOMEM;
-	return 0;
 }
 
 void ceph_debugfs_cleanup(void)
@@ -402,9 +399,8 @@ void ceph_debugfs_cleanup(void)
 	debugfs_remove(ceph_debugfs_dir);
 }
 
-int ceph_debugfs_client_init(struct ceph_client *client)
+void ceph_debugfs_client_init(struct ceph_client *client)
 {
-	int ret = -ENOMEM;
 	char name[80];
 
 	snprintf(name, sizeof(name), "%pU.client%lld", &client->fsid,
@@ -412,56 +408,37 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 
 	dout("ceph_debugfs_client_init %p %s\n", client, name);
 
-	BUG_ON(client->debugfs_dir);
 	client->debugfs_dir = debugfs_create_dir(name, ceph_debugfs_dir);
-	if (!client->debugfs_dir)
-		goto out;
 
 	client->monc.debugfs_file = debugfs_create_file("monc",
 						      0400,
 						      client->debugfs_dir,
 						      client,
 						      &monc_show_fops);
-	if (!client->monc.debugfs_file)
-		goto out;
 
 	client->osdc.debugfs_file = debugfs_create_file("osdc",
 						      0400,
 						      client->debugfs_dir,
 						      client,
 						      &osdc_show_fops);
-	if (!client->osdc.debugfs_file)
-		goto out;
 
 	client->debugfs_monmap = debugfs_create_file("monmap",
 					0400,
 					client->debugfs_dir,
 					client,
 					&monmap_show_fops);
-	if (!client->debugfs_monmap)
-		goto out;
 
 	client->debugfs_osdmap = debugfs_create_file("osdmap",
 					0400,
 					client->debugfs_dir,
 					client,
 					&osdmap_show_fops);
-	if (!client->debugfs_osdmap)
-		goto out;
 
 	client->debugfs_options = debugfs_create_file("client_options",
 					0400,
 					client->debugfs_dir,
 					client,
 					&client_options_show_fops);
-	if (!client->debugfs_options)
-		goto out;
-
-	return 0;
-
-out:
-	ceph_debugfs_client_cleanup(client);
-	return ret;
 }
 
 void ceph_debugfs_client_cleanup(struct ceph_client *client)
@@ -477,18 +454,16 @@ void ceph_debugfs_client_cleanup(struct ceph_client *client)
 
 #else  /* CONFIG_DEBUG_FS */
 
-int __init ceph_debugfs_init(void)
+void __init ceph_debugfs_init(void)
 {
-	return 0;
 }
 
 void ceph_debugfs_cleanup(void)
 {
 }
 
-int ceph_debugfs_client_init(struct ceph_client *client)
+void ceph_debugfs_client_init(struct ceph_client *client)
 {
-	return 0;
 }
 
 void ceph_debugfs_client_cleanup(struct ceph_client *client)

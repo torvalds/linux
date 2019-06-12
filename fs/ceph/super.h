@@ -1099,7 +1099,7 @@ extern int ceph_locks_to_pagelist(struct ceph_filelock *flocks,
 				  int num_fcntl_locks, int num_flock_locks);
 
 /* debugfs.c */
-extern int ceph_fs_debugfs_init(struct ceph_fs_client *client);
+extern void ceph_fs_debugfs_init(struct ceph_fs_client *client);
 extern void ceph_fs_debugfs_cleanup(struct ceph_fs_client *client);
 
 /* quota.c */
