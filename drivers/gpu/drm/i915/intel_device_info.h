@@ -177,8 +177,8 @@ struct intel_device_info {
 	int cursor_offsets[I915_MAX_PIPES];
 
 	struct color_luts {
-		u16 degamma_lut_size;
-		u16 gamma_lut_size;
+		u32 degamma_lut_size;
+		u32 gamma_lut_size;
 		u32 degamma_lut_tests;
 		u32 gamma_lut_tests;
 	} color;
