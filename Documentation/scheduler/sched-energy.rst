@@ -1,6 +1,6 @@
-			   =======================
-			   Energy Aware Scheduling
-			   =======================
+=======================
+Energy Aware Scheduling
+=======================
 
 1. Introduction
 ---------------
@@ -12,7 +12,7 @@ with a minimal impact on throughput. This document aims at providing an
 introduction on how EAS works, what are the main design decisions behind it, and
 details what is needed to get it to run.
 
-Before going any further, please note that at the time of writing:
+Before going any further, please note that at the time of writing::
 
    /!\ EAS does not support platforms with symmetric CPU topologies /!\
 
@@ -33,13 +33,13 @@ To make it clear from the start:
  - power = energy/time = [joule/second] = [watt]
 
 The goal of EAS is to minimize energy, while still getting the job done. That
-is, we want to maximize:
+is, we want to maximize::
 
 	performance [inst/s]
 	--------------------
 	    power [W]
 
-which is equivalent to minimizing:
+which is equivalent to minimizing::
 
 	energy [J]
 	-----------
@@ -97,7 +97,7 @@ domains can contain duplicate elements.
 
 Example 1.
     Let us consider a platform with 12 CPUs, split in 3 performance domains
-    (pd0, pd4 and pd8), organized as follows:
+    (pd0, pd4 and pd8), organized as follows::
 
 	          CPUs:   0 1 2 3 4 5 6 7 8 9 10 11
 	          PDs:   |--pd0--|--pd4--|---pd8---|
@@ -108,6 +108,7 @@ Example 1.
     containing 6 CPUs. The two root domains are denoted rd1 and rd2 in the
     above figure. Since pd4 intersects with both rd1 and rd2, it will be
     present in the linked list '->pd' attached to each of them:
+
        * rd1->pd: pd0 -> pd4
        * rd2->pd: pd4 -> pd8
 
@@ -159,9 +160,9 @@ Example 2.
     Each performance domain has three Operating Performance Points (OPPs).
     The CPU capacity and power cost associated with each OPP is listed in
     the Energy Model table. The util_avg of P is shown on the figures
-    below as 'PP'.
+    below as 'PP'::
 
-    CPU util.
+     CPU util.
       1024                 - - - - - - -              Energy Model
                                                +-----------+-------------+
                                                |  Little   |     Big     |
@@ -188,8 +189,7 @@ Example 2.
     (which is coherent with the behaviour of the schedutil CPUFreq
     governor, see Section 6. for more details on this topic).
 
-    Case 1. P is migrated to CPU1
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    **Case 1. P is migrated to CPU1**::
 
       1024                 - - - - - - -
 
@@ -207,8 +207,7 @@ Example 2.
             CPU0   CPU1     CPU2   CPU3
 
 
-    Case 2. P is migrated to CPU3
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    **Case 2. P is migrated to CPU3**::
 
       1024                 - - - - - - -
 
@@ -226,8 +225,7 @@ Example 2.
             CPU0   CPU1     CPU2   CPU3
 
 
-    Case 3. P stays on prev_cpu / CPU 0
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    **Case 3. P stays on prev_cpu / CPU 0**::
 
       1024                 - - - - - - -
 
@@ -324,7 +322,9 @@ hardware properties and on other features of the kernel being enabled. This
 section lists these dependencies and provides hints as to how they can be met.
 
 
-  6.1 - Asymmetric CPU topology
+6.1 - Asymmetric CPU topology
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 As mentioned in the introduction, EAS is only supported on platforms with
 asymmetric CPU topologies for now. This requirement is checked at run-time by
@@ -347,7 +347,8 @@ significant savings on SMP platforms have been observed yet. This restriction
 could be amended in the future if proven otherwise.
 
 
-  6.2 - Energy Model presence
+6.2 - Energy Model presence
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 EAS uses the EM of a platform to estimate the impact of scheduling decisions on
 energy. So, your platform must provide power cost tables to the EM framework in
@@ -358,7 +359,8 @@ Please also note that the scheduling domains need to be re-built after the
 EM has been registered in order to start EAS.
 
 
-  6.3 - Energy Model complexity
+6.3 - Energy Model complexity
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The task wake-up path is very latency-sensitive. When the EM of a platform is
 too complex (too many CPUs, too many performance domains, too many performance
@@ -388,7 +390,8 @@ two possible options:
        hence enabling it to cope with larger EMs in reasonable time.
 
 
-  6.4 - Schedutil governor
+6.4 - Schedutil governor
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 EAS tries to predict at which OPP will the CPUs be running in the close future
 in order to estimate their energy consumption. To do so, it is assumed that OPPs
@@ -405,7 +408,8 @@ frequency requests and energy predictions.
 Using EAS with any other governor than schedutil is not supported.
 
 
-  6.5 Scale-invariant utilization signals
+6.5 Scale-invariant utilization signals
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In order to make accurate prediction across CPUs and for all performance
 states, EAS needs frequency-invariant and CPU-invariant PELT signals. These can
@@ -416,7 +420,8 @@ Using EAS on a platform that doesn't implement these two callbacks is not
 supported.
 
 
-  6.6 Multithreading (SMT)
+6.6 Multithreading (SMT)
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 EAS in its current form is SMT unaware and is not able to leverage
 multithreaded hardware to save energy. EAS considers threads as independent

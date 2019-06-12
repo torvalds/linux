@@ -1,3 +1,7 @@
+=================
+Scheduler Domains
+=================
+
 Each CPU has a "base" scheduling domain (struct sched_domain). The domain
 hierarchy is built from these base domains via the ->parent pointer. ->parent
 MUST be NULL terminated, and domain structures should be per-CPU as they are
@@ -46,7 +50,9 @@ CPU's runqueue and the newly found busiest one and starts moving tasks from it
 to our runqueue. The exact number of tasks amounts to an imbalance previously
 computed while iterating over this sched domain's groups.
 
-*** Implementing sched domains ***
+Implementing sched domains
+==========================
+
 The "base" domain will "span" the first level of the hierarchy. In the case
 of SMT, you'll span all siblings of the physical CPU, with each group being
 a single virtual CPU.

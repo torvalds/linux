@@ -1,3 +1,4 @@
+================================================
 Completions - "wait for completion" barrier APIs
 ================================================
 
@@ -46,7 +47,7 @@ it has to wait for it.
 
 To use completions you need to #include <linux/completion.h> and
 create a static or dynamic variable of type 'struct completion',
-which has only two fields:
+which has only two fields::
 
 	struct completion {
 		unsigned int done;
@@ -57,7 +58,7 @@ This provides the ->wait waitqueue to place tasks on for waiting (if any), and
 the ->done completion flag for indicating whether it's completed or not.
 
 Completions should be named to refer to the event that is being synchronized on.
-A good example is:
+A good example is::
 
 	wait_for_completion(&early_console_added);
 
@@ -81,7 +82,7 @@ have taken place, even if these wait functions return prematurely due to a timeo
 or a signal triggering.
 
 Initializing of dynamically allocated completion objects is done via a call to
-init_completion():
+init_completion()::
 
 	init_completion(&dynamic_object->done);
 
@@ -100,7 +101,8 @@ but be aware of other races.
 
 For static declaration and initialization, macros are available.
 
-For static (or global) declarations in file scope you can use DECLARE_COMPLETION():
+For static (or global) declarations in file scope you can use
+DECLARE_COMPLETION()::
 
 	static DECLARE_COMPLETION(setup_done);
 	DECLARE_COMPLETION(setup_done);
@@ -111,7 +113,7 @@ initialized to 'not done' and doesn't require an init_completion() call.
 When a completion is declared as a local variable within a function,
 then the initialization should always use DECLARE_COMPLETION_ONSTACK()
 explicitly, not just to make lockdep happy, but also to make it clear
-that limited scope had been considered and is intentional:
+that limited scope had been considered and is intentional::
 
 	DECLARE_COMPLETION_ONSTACK(setup_done)
 
@@ -140,11 +142,11 @@ Waiting for completions:
 ------------------------
 
 For a thread to wait for some concurrent activity to finish, it
-calls wait_for_completion() on the initialized completion structure:
+calls wait_for_completion() on the initialized completion structure::
 
 	void wait_for_completion(struct completion *done)
 
-A typical usage scenario is:
+A typical usage scenario is::
 
 	CPU#1					CPU#2
 
@@ -192,17 +194,17 @@ A common problem that occurs is to have unclean assignment of return types,
 so take care to assign return-values to variables of the proper type.
 
 Checking for the specific meaning of return values also has been found
-to be quite inaccurate, e.g. constructs like:
+to be quite inaccurate, e.g. constructs like::
 
 	if (!wait_for_completion_interruptible_timeout(...))
 
 ... would execute the same code path for successful completion and for the
-interrupted case - which is probably not what you want.
+interrupted case - which is probably not what you want::
 
 	int wait_for_completion_interruptible(struct completion *done)
 
 This function marks the task TASK_INTERRUPTIBLE while it is waiting.
-If a signal was received while waiting it will return -ERESTARTSYS; 0 otherwise.
+If a signal was received while waiting it will return -ERESTARTSYS; 0 otherwise::
 
 	unsigned long wait_for_completion_timeout(struct completion *done, unsigned long timeout)
 
@@ -214,7 +216,7 @@ Timeouts are preferably calculated with msecs_to_jiffies() or usecs_to_jiffies()
 to make the code largely HZ-invariant.
 
 If the returned timeout value is deliberately ignored a comment should probably explain
-why (e.g. see drivers/mfd/wm8350-core.c wm8350_read_auxadc()).
+why (e.g. see drivers/mfd/wm8350-core.c wm8350_read_auxadc())::
 
 	long wait_for_completion_interruptible_timeout(struct completion *done, unsigned long timeout)
 
@@ -225,14 +227,14 @@ jiffies if completion occurred.
 
 Further variants include _killable which uses TASK_KILLABLE as the
 designated tasks state and will return -ERESTARTSYS if it is interrupted,
-or 0 if completion was achieved.  There is a _timeout variant as well:
+or 0 if completion was achieved.  There is a _timeout variant as well::
 
 	long wait_for_completion_killable(struct completion *done)
 	long wait_for_completion_killable_timeout(struct completion *done, unsigned long timeout)
 
 The _io variants wait_for_completion_io() behave the same as the non-_io
 variants, except for accounting waiting time as 'waiting on IO', which has
-an impact on how the task is accounted in scheduling/IO stats:
+an impact on how the task is accounted in scheduling/IO stats::
 
 	void wait_for_completion_io(struct completion *done)
 	unsigned long wait_for_completion_io_timeout(struct completion *done, unsigned long timeout)
@@ -243,11 +245,11 @@ Signaling completions:
 
 A thread that wants to signal that the conditions for continuation have been
 achieved calls complete() to signal exactly one of the waiters that it can
-continue:
+continue::
 
 	void complete(struct completion *done)
 
-... or calls complete_all() to signal all current and future waiters:
+... or calls complete_all() to signal all current and future waiters::
 
 	void complete_all(struct completion *done)
 
@@ -268,7 +270,7 @@ probably are a design bug.
 
 Signaling completion from IRQ context is fine as it will appropriately
 lock with spin_lock_irqsave()/spin_unlock_irqrestore() and it will never
-sleep. 
+sleep.
 
 
 try_wait_for_completion()/completion_done():
@@ -276,14 +278,14 @@ try_wait_for_completion()/completion_done():
 
 The try_wait_for_completion() function will not put the thread on the wait
 queue but rather returns false if it would need to enqueue (block) the thread,
-else it consumes one posted completion and returns true.
+else it consumes one posted completion and returns true::
 
 	bool try_wait_for_completion(struct completion *done)
 
 Finally, to check the state of a completion without changing it in any way,
 call completion_done(), which returns false if there are no posted
 completions that were not yet consumed by waiters (implying that there are
-waiters) and true otherwise;
+waiters) and true otherwise::
 
 	bool completion_done(struct completion *done)
 

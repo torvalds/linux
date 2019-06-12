@@ -1,9 +1,10 @@
-                      =============
-                      CFS Scheduler
-                      =============
+=============
+CFS Scheduler
+=============
 
 
 1.  OVERVIEW
+============
 
 CFS stands for "Completely Fair Scheduler," and is the new "desktop" process
 scheduler implemented by Ingo Molnar and merged in Linux 2.6.23.  It is the
@@ -27,6 +28,7 @@ is its actual runtime normalized to the total number of running tasks.
 
 
 2.  FEW IMPLEMENTATION DETAILS
+==============================
 
 In CFS the virtual runtime is expressed and tracked via the per-task
 p->se.vruntime (nanosec-unit) value.  This way, it's possible to accurately
@@ -49,6 +51,7 @@ algorithm variants to recognize sleepers.
 
 
 3.  THE RBTREE
+==============
 
 CFS's design is quite radical: it does not use the old data structures for the
 runqueues, but it uses a time-ordered rbtree to build a "timeline" of future
@@ -84,6 +87,7 @@ picked and the current task is preempted.
 
 
 4.  SOME FEATURES OF CFS
+========================
 
 CFS uses nanosecond granularity accounting and does not rely on any jiffies or
 other HZ detail.  Thus the CFS scheduler has no notion of "timeslices" in the
@@ -113,6 +117,7 @@ result.
 
 
 5. Scheduling policies
+======================
 
 CFS implements three scheduling policies:
 
@@ -137,6 +142,7 @@ SCHED_IDLE.
 
 
 6.  SCHEDULING CLASSES
+======================
 
 The new CFS scheduler has been designed in such a way to introduce "Scheduling
 Classes," an extensible hierarchy of scheduler modules.  These modules
@@ -197,6 +203,7 @@ This is the (partial) list of the hooks:
 
 
 7.  GROUP SCHEDULER EXTENSIONS TO CFS
+=====================================
 
 Normally, the scheduler operates on individual tasks and strives to provide
 fair CPU time to each task.  Sometimes, it may be desirable to group tasks and
@@ -219,7 +226,7 @@ SCHED_BATCH) tasks.
 
 When CONFIG_FAIR_GROUP_SCHED is defined, a "cpu.shares" file is created for each
 group created using the pseudo filesystem.  See example steps below to create
-task groups and modify their CPU share using the "cgroups" pseudo filesystem.
+task groups and modify their CPU share using the "cgroups" pseudo filesystem::
 
 	# mount -t tmpfs cgroup_root /sys/fs/cgroup
 	# mkdir /sys/fs/cgroup/cpu

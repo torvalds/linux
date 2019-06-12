@@ -99,7 +99,7 @@ Local allocation will tend to keep subsequent access to the allocated memory
 as long as the task on whose behalf the kernel allocated some memory does not
 later migrate away from that memory.  The Linux scheduler is aware of the
 NUMA topology of the platform--embodied in the "scheduling domains" data
-structures [see Documentation/scheduler/sched-domains.txt]--and the scheduler
+structures [see Documentation/scheduler/sched-domains.rst]--and the scheduler
 attempts to minimize task migration to distant scheduling domains.  However,
 the scheduler does not take a task's NUMA footprint into account directly.
 Thus, under sufficient imbalance, tasks can migrate between nodes, remote

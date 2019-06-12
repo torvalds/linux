@@ -1,29 +1,29 @@
-			  Deadline Task Scheduling
-			  ------------------------
+========================
+Deadline Task Scheduling
+========================
 
-CONTENTS
-========
+.. CONTENTS
 
- 0. WARNING
- 1. Overview
- 2. Scheduling algorithm
-   2.1 Main algorithm
-   2.2 Bandwidth reclaiming
- 3. Scheduling Real-Time Tasks
-   3.1 Definitions
-   3.2 Schedulability Analysis for Uniprocessor Systems
-   3.3 Schedulability Analysis for Multiprocessor Systems
-   3.4 Relationship with SCHED_DEADLINE Parameters
- 4. Bandwidth management
-   4.1 System-wide settings
-   4.2 Task interface
-   4.3 Default behavior
-   4.4 Behavior of sched_yield()
- 5. Tasks CPU affinity
-   5.1 SCHED_DEADLINE and cpusets HOWTO
- 6. Future plans
- A. Test suite
- B. Minimal main()
+    0. WARNING
+    1. Overview
+    2. Scheduling algorithm
+      2.1 Main algorithm
+      2.2 Bandwidth reclaiming
+    3. Scheduling Real-Time Tasks
+      3.1 Definitions
+      3.2 Schedulability Analysis for Uniprocessor Systems
+      3.3 Schedulability Analysis for Multiprocessor Systems
+      3.4 Relationship with SCHED_DEADLINE Parameters
+    4. Bandwidth management
+      4.1 System-wide settings
+      4.2 Task interface
+      4.3 Default behavior
+      4.4 Behavior of sched_yield()
+    5. Tasks CPU affinity
+      5.1 SCHED_DEADLINE and cpusets HOWTO
+    6. Future plans
+    A. Test suite
+    B. Minimal main()
 
 
 0. WARNING
@@ -44,7 +44,7 @@ CONTENTS
 
 
 2. Scheduling algorithm
-==================
+=======================
 
 2.1 Main algorithm
 ------------------
@@ -80,7 +80,7 @@ CONTENTS
     a "remaining runtime". These two parameters are initially set to 0;
 
   - When a SCHED_DEADLINE task wakes up (becomes ready for execution),
-    the scheduler checks if
+    the scheduler checks if::
 
                  remaining runtime                  runtime
         ----------------------------------    >    ---------
@@ -97,7 +97,7 @@ CONTENTS
     left unchanged;
 
   - When a SCHED_DEADLINE task executes for an amount of time t, its
-    remaining runtime is decreased as
+    remaining runtime is decreased as::
 
          remaining runtime = remaining runtime - t
 
@@ -112,7 +112,7 @@ CONTENTS
 
   - When the current time is equal to the replenishment time of a
     throttled task, the scheduling deadline and the remaining runtime are
-    updated as
+    updated as::
 
          scheduling deadline = scheduling deadline + period
          remaining runtime = remaining runtime + runtime
@@ -129,7 +129,7 @@ CONTENTS
  Reclamation of Unused Bandwidth) algorithm [15, 16, 17] and it is enabled
  when flag SCHED_FLAG_RECLAIM is set.
 
- The following diagram illustrates the state names for tasks handled by GRUB:
+ The following diagram illustrates the state names for tasks handled by GRUB::
 
                              ------------
                  (d)        |   Active   |
@@ -168,7 +168,7 @@ CONTENTS
       breaking the real-time guarantees.
 
       The 0-lag time for a task entering the ActiveNonContending state is
-      computed as
+      computed as::
 
                         (runtime * dl_period)
              deadline - ---------------------
@@ -183,7 +183,7 @@ CONTENTS
       the task's utilization must be removed from the previous runqueue's active
       utilization and must be added to the new runqueue's active utilization.
       In order to avoid races between a task waking up on a runqueue while the
-       "inactive timer" is running on a different CPU, the "dl_non_contending"
+      "inactive timer" is running on a different CPU, the "dl_non_contending"
       flag is used to indicate that a task is not on a runqueue but is active
       (so, the flag is set when the task blocks and is cleared when the
       "inactive timer" fires or when the task  wakes up).
@@ -222,36 +222,36 @@ CONTENTS
 
 
  Let's now see a trivial example of two deadline tasks with runtime equal
- to 4 and period equal to 8 (i.e., bandwidth equal to 0.5):
+ to 4 and period equal to 8 (i.e., bandwidth equal to 0.5)::
 
-     A            Task T1
-     |
-     |                               |
-     |                               |
-     |--------                       |----
-     |       |                       V
-     |---|---|---|---|---|---|---|---|--------->t
-     0   1   2   3   4   5   6   7   8
-
-
-     A            Task T2
-     |
-     |                               |
-     |                               |
-     |       ------------------------|
-     |       |                       V
-     |---|---|---|---|---|---|---|---|--------->t
-     0   1   2   3   4   5   6   7   8
+         A            Task T1
+         |
+         |                               |
+         |                               |
+         |--------                       |----
+         |       |                       V
+         |---|---|---|---|---|---|---|---|--------->t
+         0   1   2   3   4   5   6   7   8
 
 
-     A            running_bw
-     |
-   1 -----------------               ------
-     |               |               |
-  0.5-               -----------------
-     |                               |
-     |---|---|---|---|---|---|---|---|--------->t
-     0   1   2   3   4   5   6   7   8
+         A            Task T2
+         |
+         |                               |
+         |                               |
+         |       ------------------------|
+         |       |                       V
+         |---|---|---|---|---|---|---|---|--------->t
+         0   1   2   3   4   5   6   7   8
+
+
+         A            running_bw
+         |
+       1 -----------------               ------
+         |               |               |
+      0.5-               -----------------
+         |                               |
+         |---|---|---|---|---|---|---|---|--------->t
+         0   1   2   3   4   5   6   7   8
 
 
   - Time t = 0:
@@ -284,7 +284,7 @@ CONTENTS
 
 
 2.3 Energy-aware scheduling
-------------------------
+---------------------------
 
  When cpufreq's schedutil governor is selected, SCHED_DEADLINE implements the
  GRUB-PA [19] algorithm, reducing the CPU operating frequency to the minimum
@@ -299,15 +299,20 @@ CONTENTS
 3. Scheduling Real-Time Tasks
 =============================
 
- * BIG FAT WARNING ******************************************************
- *
- * This section contains a (not-thorough) summary on classical deadline
- * scheduling theory, and how it applies to SCHED_DEADLINE.
- * The reader can "safely" skip to Section 4 if only interested in seeing
- * how the scheduling policy can be used. Anyway, we strongly recommend
- * to come back here and continue reading (once the urge for testing is
- * satisfied :P) to be sure of fully understanding all technical details.
- ************************************************************************
+
+
+ ..  BIG FAT WARNING ******************************************************
+
+ .. warning::
+
+   This section contains a (not-thorough) summary on classical deadline
+   scheduling theory, and how it applies to SCHED_DEADLINE.
+   The reader can "safely" skip to Section 4 if only interested in seeing
+   how the scheduling policy can be used. Anyway, we strongly recommend
+   to come back here and continue reading (once the urge for testing is
+   satisfied :P) to be sure of fully understanding all technical details.
+
+ .. ************************************************************************
 
  There are no limitations on what kind of task can exploit this new
  scheduling discipline, even if it must be said that it is particularly
@@ -329,6 +334,7 @@ CONTENTS
  sporadic with minimum inter-arrival time P is r_{j+1} >= r_j + P. Finally,
  d_j = r_j + D, where D is the task's relative deadline.
  Summing up, a real-time task can be described as
+
 	Task = (WCET, D, P)
 
  The utilization of a real-time task is defined as the ratio between its
@@ -352,13 +358,15 @@ CONTENTS
  between the finishing time of a job and its absolute deadline).
  More precisely, it can be proven that using a global EDF scheduler the
  maximum tardiness of each task is smaller or equal than
+
 	((M − 1) · WCET_max − WCET_min)/(M − (M − 2) · U_max) + WCET_max
+
  where WCET_max = max{WCET_i} is the maximum WCET, WCET_min=min{WCET_i}
  is the minimum WCET, and U_max = max{WCET_i/P_i} is the maximum
  utilization[12].
 
 3.2 Schedulability Analysis for Uniprocessor Systems
-------------------------
+----------------------------------------------------
 
  If M=1 (uniprocessor system), or in case of partitioned scheduling (each
  real-time task is statically assigned to one and only one CPU), it is
@@ -370,7 +378,9 @@ CONTENTS
  a task as WCET_i/min{D_i,P_i}, and EDF is able to respect all the deadlines
  of all the tasks running on a CPU if the sum of the densities of the tasks
  running on such a CPU is smaller or equal than 1:
+
 	sum(WCET_i / min{D_i, P_i}) <= 1
+
  It is important to notice that this condition is only sufficient, and not
  necessary: there are task sets that are schedulable, but do not respect the
  condition. For example, consider the task set {Task_1,Task_2} composed by
@@ -379,7 +389,9 @@ CONTENTS
  (Task_1 is scheduled as soon as it is released, and finishes just in time
  to respect its deadline; Task_2 is scheduled immediately after Task_1, hence
  its response time cannot be larger than 50ms + 10ms = 60ms) even if
+
 	50 / min{50,100} + 10 / min{100, 100} = 50 / 50 + 10 / 100 = 1.1
+
  Of course it is possible to test the exact schedulability of tasks with
  D_i != P_i (checking a condition that is both sufficient and necessary),
  but this cannot be done by comparing the total utilization or density with
@@ -399,7 +411,7 @@ CONTENTS
  4 Linux uses an admission test based on the tasks' utilizations.
 
 3.3 Schedulability Analysis for Multiprocessor Systems
-------------------------
+------------------------------------------------------
 
  On multiprocessor systems with global EDF scheduling (non partitioned
  systems), a sufficient test for schedulability can not be based on the
@@ -428,7 +440,9 @@ CONTENTS
  between total utilization (or density) and a fixed constant. If all tasks
  have D_i = P_i, a sufficient schedulability condition can be expressed in
  a simple way:
+
 	sum(WCET_i / P_i) <= M - (M - 1) · U_max
+
  where U_max = max{WCET_i / P_i}[10]. Notice that for U_max = 1,
  M - (M - 1) · U_max becomes M - M + 1 = 1 and this schedulability condition
  just confirms the Dhall's effect. A more complete survey of the literature
@@ -447,7 +461,7 @@ CONTENTS
  the tasks are limited.
 
 3.4 Relationship with SCHED_DEADLINE Parameters
-------------------------
+-----------------------------------------------
 
  Finally, it is important to understand the relationship between the
  SCHED_DEADLINE scheduling parameters described in Section 2 (runtime,
@@ -473,6 +487,7 @@ CONTENTS
  this task, as it is not possible to respect its temporal constraints.
 
  References:
+
   1 - C. L. Liu and J. W. Layland. Scheduling algorithms for multiprogram-
       ming in a hard-real-time environment. Journal of the Association for
       Computing Machinery, 20(1), 1973.
@@ -550,7 +565,7 @@ CONTENTS
  The interface used to control the CPU bandwidth that can be allocated
  to -deadline tasks is similar to the one already used for -rt
  tasks with real-time group scheduling (a.k.a. RT-throttling - see
- Documentation/scheduler/sched-rt-group.txt), and is based on readable/
+ Documentation/scheduler/sched-rt-group.rst), and is based on readable/
  writable control files located in procfs (for system wide settings).
  Notice that per-group settings (controlled through cgroupfs) are still not
  defined for -deadline tasks, because more discussion is needed in order to
@@ -596,11 +611,13 @@ CONTENTS
  Specifying a periodic/sporadic task that executes for a given amount of
  runtime at each instance, and that is scheduled according to the urgency of
  its own timing constraints needs, in general, a way of declaring:
+
   - a (maximum/typical) instance execution time,
   - a minimum interval between consecutive instances,
   - a time constraint by which each instance must be completed.
 
  Therefore:
+
   * a new struct sched_attr, containing all the necessary fields is
     provided;
   * the new scheduling related syscalls that manipulate it, i.e.,
@@ -658,21 +675,21 @@ CONTENTS
 ------------------------------------
 
  An example of a simple configuration (pin a -deadline task to CPU0)
- follows (rt-app is used to create a -deadline task).
+ follows (rt-app is used to create a -deadline task)::
 
- mkdir /dev/cpuset
- mount -t cgroup -o cpuset cpuset /dev/cpuset
- cd /dev/cpuset
- mkdir cpu0
- echo 0 > cpu0/cpuset.cpus
- echo 0 > cpu0/cpuset.mems
- echo 1 > cpuset.cpu_exclusive
- echo 0 > cpuset.sched_load_balance
- echo 1 > cpu0/cpuset.cpu_exclusive
- echo 1 > cpu0/cpuset.mem_exclusive
- echo $$ > cpu0/tasks
- rt-app -t 100000:10000:d:0 -D5 (it is now actually superfluous to specify
- task affinity)
+   mkdir /dev/cpuset
+   mount -t cgroup -o cpuset cpuset /dev/cpuset
+   cd /dev/cpuset
+   mkdir cpu0
+   echo 0 > cpu0/cpuset.cpus
+   echo 0 > cpu0/cpuset.mems
+   echo 1 > cpuset.cpu_exclusive
+   echo 0 > cpuset.sched_load_balance
+   echo 1 > cpu0/cpuset.cpu_exclusive
+   echo 1 > cpu0/cpuset.mem_exclusive
+   echo $$ > cpu0/tasks
+   rt-app -t 100000:10000:d:0 -D5 # it is now actually superfluous to specify
+				  # task affinity
 
 6. Future plans
 ===============
@@ -711,7 +728,7 @@ Appendix A. Test suite
  rt-app is available at: https://github.com/scheduler-tools/rt-app.
 
  Thread parameters can be specified from the command line, with something like
- this:
+ this::
 
   # rt-app -t 100000:10000:d -t 150000:20000:f:10 -D5
 
@@ -721,27 +738,27 @@ Appendix A. Test suite
  of 5 seconds.
 
  More interestingly, configurations can be described with a json file that
- can be passed as input to rt-app with something like this:
+ can be passed as input to rt-app with something like this::
 
   # rt-app my_config.json
 
  The parameters that can be specified with the second method are a superset
  of the command line options. Please refer to rt-app documentation for more
- details (<rt-app-sources>/doc/*.json).
+ details (`<rt-app-sources>/doc/*.json`).
 
  The second testing application is a modification of schedtool, called
  schedtool-dl, which can be used to setup SCHED_DEADLINE parameters for a
  certain pid/application. schedtool-dl is available at:
  https://github.com/scheduler-tools/schedtool-dl.git.
 
- The usage is straightforward:
+ The usage is straightforward::
 
   # schedtool -E -t 10000000:100000000 -e ./my_cpuhog_app
 
  With this, my_cpuhog_app is put to run inside a SCHED_DEADLINE reservation
  of 10ms every 100ms (note that parameters are expressed in microseconds).
  You can also use schedtool to create a reservation for an already running
- application, given that you know its pid:
+ application, given that you know its pid::
 
   # schedtool -E -t 10000000:100000000 my_app_pid
 
@@ -750,43 +767,43 @@ Appendix B. Minimal main()
 
  We provide in what follows a simple (ugly) self-contained code snippet
  showing how SCHED_DEADLINE reservations can be created by a real-time
- application developer.
+ application developer::
 
- #define _GNU_SOURCE
- #include <unistd.h>
- #include <stdio.h>
- #include <stdlib.h>
- #include <string.h>
- #include <time.h>
- #include <linux/unistd.h>
- #include <linux/kernel.h>
- #include <linux/types.h>
- #include <sys/syscall.h>
- #include <pthread.h>
+   #define _GNU_SOURCE
+   #include <unistd.h>
+   #include <stdio.h>
+   #include <stdlib.h>
+   #include <string.h>
+   #include <time.h>
+   #include <linux/unistd.h>
+   #include <linux/kernel.h>
+   #include <linux/types.h>
+   #include <sys/syscall.h>
+   #include <pthread.h>
 
- #define gettid() syscall(__NR_gettid)
+   #define gettid() syscall(__NR_gettid)
 
- #define SCHED_DEADLINE	6
+   #define SCHED_DEADLINE	6
 
- /* XXX use the proper syscall numbers */
- #ifdef __x86_64__
- #define __NR_sched_setattr		314
- #define __NR_sched_getattr		315
- #endif
+   /* XXX use the proper syscall numbers */
+   #ifdef __x86_64__
+   #define __NR_sched_setattr		314
+   #define __NR_sched_getattr		315
+   #endif
 
- #ifdef __i386__
- #define __NR_sched_setattr		351
- #define __NR_sched_getattr		352
- #endif
+   #ifdef __i386__
+   #define __NR_sched_setattr		351
+   #define __NR_sched_getattr		352
+   #endif
 
- #ifdef __arm__
- #define __NR_sched_setattr		380
- #define __NR_sched_getattr		381
- #endif
+   #ifdef __arm__
+   #define __NR_sched_setattr		380
+   #define __NR_sched_getattr		381
+   #endif
 
- static volatile int done;
+   static volatile int done;
 
- struct sched_attr {
+   struct sched_attr {
 	__u32 size;
 
 	__u32 sched_policy;
@@ -802,25 +819,25 @@ Appendix B. Minimal main()
 	__u64 sched_runtime;
 	__u64 sched_deadline;
 	__u64 sched_period;
- };
+   };
 
- int sched_setattr(pid_t pid,
+   int sched_setattr(pid_t pid,
 		  const struct sched_attr *attr,
 		  unsigned int flags)
- {
+   {
 	return syscall(__NR_sched_setattr, pid, attr, flags);
- }
+   }
 
- int sched_getattr(pid_t pid,
+   int sched_getattr(pid_t pid,
 		  struct sched_attr *attr,
 		  unsigned int size,
 		  unsigned int flags)
- {
+   {
 	return syscall(__NR_sched_getattr, pid, attr, size, flags);
- }
+   }
 
- void *run_deadline(void *data)
- {
+   void *run_deadline(void *data)
+   {
 	struct sched_attr attr;
 	int x = 0;
 	int ret;
@@ -851,10 +868,10 @@ Appendix B. Minimal main()
 
 	printf("deadline thread dies [%ld]\n", gettid());
 	return NULL;
- }
+   }
 
- int main (int argc, char **argv)
- {
+   int main (int argc, char **argv)
+   {
 	pthread_t thread;
 
 	printf("main thread [%ld]\n", gettid());
@@ -868,4 +885,4 @@ Appendix B. Minimal main()
 
 	printf("main dies [%ld]\n", gettid());
 	return 0;
- }
+   }

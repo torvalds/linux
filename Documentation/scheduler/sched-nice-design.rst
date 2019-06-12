@@ -1,3 +1,7 @@
+=====================
+Scheduler Nice Design
+=====================
+
 This document explains the thinking about the revamped and streamlined
 nice-levels implementation in the new Linux scheduler.
 
@@ -14,7 +18,7 @@ much stronger than they were before in 2.4 (and people were happy about
 that change), and we also intentionally calibrated the linear timeslice
 rule so that nice +19 level would be _exactly_ 1 jiffy. To better
 understand it, the timeslice graph went like this (cheesy ASCII art
-alert!):
+alert!)::
 
 
                    A

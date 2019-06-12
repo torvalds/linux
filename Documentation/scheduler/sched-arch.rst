@@ -1,4 +1,6 @@
-	CPU Scheduler implementation hints for architecture specific code
+=================================================================
+CPU Scheduler implementation hints for architecture specific code
+=================================================================
 
 	Nick Piggin, 2005
 
@@ -35,9 +37,10 @@ Your cpu_idle routines need to obey the following rules:
 4. The only time interrupts need to be disabled when checking
    need_resched is if we are about to sleep the processor until
    the next interrupt (this doesn't provide any protection of
-   need_resched, it prevents losing an interrupt).
+   need_resched, it prevents losing an interrupt):
 
-	4a. Common problem with this type of sleep appears to be:
+	4a. Common problem with this type of sleep appears to be::
+
 	        local_irq_disable();
 	        if (!need_resched()) {
 	                local_irq_enable();
@@ -51,10 +54,10 @@ Your cpu_idle routines need to obey the following rules:
    although it may be reasonable to do some background work or enter
    a low CPU priority.
 
-   	5a. If TIF_POLLING_NRFLAG is set, and we do decide to enter
-	    an interrupt sleep, it needs to be cleared then a memory
-	    barrier issued (followed by a test of need_resched with
-	    interrupts disabled, as explained in 3).
+      - 5a. If TIF_POLLING_NRFLAG is set, and we do decide to enter
+	an interrupt sleep, it needs to be cleared then a memory
+	barrier issued (followed by a test of need_resched with
+	interrupts disabled, as explained in 3).
 
 arch/x86/kernel/process.c has examples of both polling and
 sleeping idle functions.
@@ -71,4 +74,3 @@ sh64 - Is sleeping racy vs interrupts? (See #4a)
 
 sparc - IRQs on at this point(?), change local_irq_save to _disable.
       - TODO: needs secondary CPUs to disable preempt (See #1)
-

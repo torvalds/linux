@@ -1,3 +1,7 @@
+====================
+Scheduler Statistics
+====================
+
 Version 15 of schedstats dropped counters for some sched_yield:
 yld_exp_empty, yld_act_empty and yld_both_empty. Otherwise, it is
 identical to version 14.
@@ -35,19 +39,23 @@ CPU statistics
 cpu<N> 1 2 3 4 5 6 7 8 9
 
 First field is a sched_yield() statistic:
+
      1) # of times sched_yield() was called
 
 Next three are schedule() statistics:
+
      2) This field is a legacy array expiration count field used in the O(1)
 	scheduler. We kept it for ABI compatibility, but it is always set to zero.
      3) # of times schedule() was called
      4) # of times schedule() left the processor idle
 
 Next two are try_to_wake_up() statistics:
+
      5) # of times try_to_wake_up() was called
      6) # of times try_to_wake_up() was called to wake up the local cpu
 
 Next three are statistics describing scheduling latency:
+
      7) sum of all time spent running by tasks on this processor (in jiffies)
      8) sum of all time spent waiting to run by tasks on this processor (in
         jiffies)
@@ -67,24 +75,23 @@ The first field is a bit mask indicating what cpus this domain operates over.
 The next 24 are a variety of load_balance() statistics in grouped into types
 of idleness (idle, busy, and newly idle):
 
-     1) # of times in this domain load_balance() was called when the
+    1)  # of times in this domain load_balance() was called when the
         cpu was idle
-     2) # of times in this domain load_balance() checked but found
+    2)  # of times in this domain load_balance() checked but found
         the load did not require balancing when the cpu was idle
-     3) # of times in this domain load_balance() tried to move one or
+    3)  # of times in this domain load_balance() tried to move one or
         more tasks and failed, when the cpu was idle
-     4) sum of imbalances discovered (if any) with each call to
+    4)  sum of imbalances discovered (if any) with each call to
         load_balance() in this domain when the cpu was idle
-     5) # of times in this domain pull_task() was called when the cpu
+    5)  # of times in this domain pull_task() was called when the cpu
         was idle
-     6) # of times in this domain pull_task() was called even though
+    6)  # of times in this domain pull_task() was called even though
         the target task was cache-hot when idle
-     7) # of times in this domain load_balance() was called but did
+    7)  # of times in this domain load_balance() was called but did
         not find a busier queue while the cpu was idle
-     8) # of times in this domain a busier queue was found while the
+    8)  # of times in this domain a busier queue was found while the
         cpu was idle but no busier group was found
-
-     9) # of times in this domain load_balance() was called when the
+    9)  # of times in this domain load_balance() was called when the
         cpu was busy
     10) # of times in this domain load_balance() checked but found the
         load did not require balancing when busy
@@ -117,21 +124,25 @@ of idleness (idle, busy, and newly idle):
         was just becoming idle but no busier group was found
 
    Next three are active_load_balance() statistics:
+
     25) # of times active_load_balance() was called
     26) # of times active_load_balance() tried to move a task and failed
     27) # of times active_load_balance() successfully moved a task
 
    Next three are sched_balance_exec() statistics:
+
     28) sbe_cnt is not used
     29) sbe_balanced is not used
     30) sbe_pushed is not used
 
    Next three are sched_balance_fork() statistics:
+
     31) sbf_cnt is not used
     32) sbf_balanced is not used
     33) sbf_pushed is not used
 
    Next three are try_to_wake_up() statistics:
+
     34) # of times in this domain try_to_wake_up() awoke a task that
         last ran on a different cpu in this domain
     35) # of times in this domain try_to_wake_up() moved a task to the
@@ -139,10 +150,11 @@ of idleness (idle, busy, and newly idle):
     36) # of times in this domain try_to_wake_up() started passive balancing
 
 /proc/<pid>/schedstat
-----------------
+---------------------
 schedstats also adds a new /proc/<pid>/schedstat file to include some of
 the same information on a per-process level.  There are three fields in
 this file correlating for that process to:
+
      1) time spent on the cpu
      2) time spent waiting on a runqueue
      3) # of timeslices run on this cpu
@@ -151,4 +163,5 @@ A program could be easily written to make use of these extra fields to
 report on how well a particular process or set of processes is faring
 under the scheduler's policies.  A simple version of such a program is
 available at
+
     http://eaglet.rain.com/rick/linux/schedstat/v12/latency.c
