@@ -311,18 +311,12 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	unsigned long dma_bar_phys_len;
 	u16 regval;
 
-	/*
-	 * Step 1: Allocate a struct for the pcard
-	 */
 	pcard = kzalloc(sizeof(*pcard), GFP_KERNEL);
 	if (!pcard)
 		return -ENOMEM;
 	dev_dbg(&pdev->dev, "probe: allocated struct kp2000_device @ %p\n",
 		pcard);
 
-	/*
-	 * Step 2: Initialize trivial pcard elements
-	 */
 	err = ida_simple_get(&card_num_ida, 1, INT_MAX, GFP_KERNEL);
 	if (err < 0) {
 		dev_err(&pdev->dev, "probe: failed to get card number (%d)\n",
@@ -338,9 +332,6 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	pcard->pdev = pdev;
 	pci_set_drvdata(pdev, pcard);
 
-	/*
-	 * Step 3: Enable PCI device
-	 */
 	err = pci_enable_device(pcard->pdev);
 	if (err) {
 		dev_err(&pcard->pdev->dev,
@@ -349,9 +340,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 		goto err_remove_ida;
 	}
 
-	/*
-	 * Step 4: Setup the Register BAR
-	 */
+	/* Setup the Register BAR */
 	reg_bar_phys_addr = pci_resource_start(pcard->pdev, REG_BAR);
 	reg_bar_phys_len = pci_resource_len(pcard->pdev, REG_BAR);
 
@@ -381,9 +370,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 					  reg_bar_phys_len - 1;
 	pcard->regs_base_resource.flags = IORESOURCE_MEM;
 
-	/*
-	 * Step 5: Setup the DMA BAR
-	 */
+	/* Setup the DMA BAR */
 	dma_bar_phys_addr = pci_resource_start(pcard->pdev, DMA_BAR);
 	dma_bar_phys_len = pci_resource_len(pcard->pdev, DMA_BAR);
 
@@ -415,9 +402,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 					 dma_bar_phys_len - 1;
 	pcard->dma_base_resource.flags = IORESOURCE_MEM;
 
-	/*
-	 * Step 6: System Regs
-	 */
+	/* Read System Regs */
 	pcard->sysinfo_regs_base = pcard->regs_bar_base;
 	err = read_system_regs(pcard);
 	if (err)
@@ -427,11 +412,9 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	writeq(0xFFFFFFFFFFFFFFFF,
 	       pcard->sysinfo_regs_base + REG_INTERRUPT_MASK);
 
-	/*
-	 * Step 7: Configure PCI thingies
-	 */
 	// let the card master PCIe
 	pci_set_master(pcard->pdev);
+
 	// enable IO and mem if not already done
 	pci_read_config_word(pcard->pdev, PCI_COMMAND, &regval);
 	regval |= (PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
@@ -466,9 +449,6 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	dev_dbg(&pcard->pdev->dev,
 		"Using DMA mask %0llx\n", dma_get_mask(PCARD_TO_DEV(pcard)));
 
-	/*
-	 * Step 8: Configure IRQs
-	 */
 	err = pci_enable_msi(pcard->pdev);
 	if (err < 0)
 		goto err_unmap_dma;
@@ -481,25 +461,17 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 		goto err_disable_msi;
 	}
 
-	/*
-	 * Step 9: Setup sysfs attributes
-	 */
 	err = sysfs_create_files(&pdev->dev.kobj, kp_attr_list);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add sysfs files: %d\n", err);
 		goto err_free_irq;
 	}
 
-	/*
-	 * Step 10: Probe cores
-	 */
 	err = kp2000_probe_cores(pcard);
 	if (err)
 		goto err_remove_sysfs;
 
-	/*
-	 * Step 11: Enable IRQs in HW
-	 */
+	/* Enable IRQs in HW */
 	writel(KPC_DMA_CARD_IRQ_ENABLE | KPC_DMA_CARD_USER_INTERRUPT_MODE,
 	       pcard->dma_common_regs);
 
