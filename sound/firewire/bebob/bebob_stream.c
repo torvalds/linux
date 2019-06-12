@@ -422,9 +422,6 @@ static int make_both_connections(struct snd_bebob *bebob)
 {
 	int err = 0;
 
-	if (bebob->connected)
-		return 0;
-
 	err = cmp_connection_establish(&bebob->out_conn,
 			amdtp_stream_get_max_payload(&bebob->tx_stream));
 	if (err < 0)
@@ -437,8 +434,6 @@ static int make_both_connections(struct snd_bebob *bebob)
 		return err;
 	}
 
-	bebob->connected = true;
-
 	return 0;
 }
 
@@ -447,8 +442,6 @@ break_both_connections(struct snd_bebob *bebob)
 {
 	cmp_connection_break(&bebob->in_conn);
 	cmp_connection_break(&bebob->out_conn);
-
-	bebob->connected = false;
 
 	/* These models seems to be in transition state for a longer time. */
 	if (bebob->maudio_special_quirk != NULL)
