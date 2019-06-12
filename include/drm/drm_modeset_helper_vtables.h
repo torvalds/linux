@@ -719,11 +719,11 @@ struct drm_encoder_helper_funcs {
 	 * hooks and call them from CRTC's callback by looping over all encoders
 	 * connected to it using for_each_encoder_on_crtc().
 	 *
-	 * This hook is used only by atomic helpers, for symmetry with @disable.
-	 * Atomic drivers don't need to implement it if there's no need to
-	 * enable anything at the encoder level. To ensure that runtime PM handling
-	 * (using either DPMS or the new "ACTIVE" property) works
-	 * @enable must be the inverse of @disable for atomic drivers.
+	 * This hook is only used by atomic helpers, it is the opposite of
+	 * @disable. Atomic drivers don't need to implement it if there's no
+	 * need to enable anything at the encoder level. To ensure that
+	 * runtime PM handling (using either DPMS or the new "ACTIVE" property)
+	 * works @enable must be the inverse of @disable for atomic drivers.
 	 */
 	void (*enable)(struct drm_encoder *encoder);
 
