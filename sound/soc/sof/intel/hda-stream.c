@@ -564,6 +564,8 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 		if (!hda_stream)
 			return -ENOMEM;
 
+		hda_stream->sdev = sdev;
+
 		stream = &hda_stream->hda_stream;
 
 		stream->pphc_addr = sdev->bar[HDA_DSP_PP_BAR] +
@@ -616,6 +618,8 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 					  GFP_KERNEL);
 		if (!hda_stream)
 			return -ENOMEM;
+
+		hda_stream->sdev = sdev;
 
 		stream = &hda_stream->hda_stream;
 
