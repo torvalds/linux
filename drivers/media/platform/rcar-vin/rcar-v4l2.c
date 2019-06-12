@@ -782,38 +782,13 @@ static int rvin_initialize_device(struct file *file)
 	struct rvin_dev *vin = video_drvdata(file);
 	int ret;
 
-	struct v4l2_format f = {
-		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
-		.fmt.pix = {
-			.width		= vin->format.width,
-			.height		= vin->format.height,
-			.field		= vin->format.field,
-			.colorspace	= vin->format.colorspace,
-			.pixelformat	= vin->format.pixelformat,
-		},
-	};
-
 	ret = rvin_power_on(vin);
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * Try to configure with default parameters. Notice: this is the
-	 * very first open, so, we cannot race against other calls,
-	 * apart from someone else calling open() simultaneously, but
-	 * .host_lock is protecting us against it.
-	 */
-	ret = rvin_s_fmt_vid_cap(file, NULL, &f);
-	if (ret < 0)
-		goto esfmt;
-
 	v4l2_ctrl_handler_setup(&vin->ctrl_handler);
 
 	return 0;
-esfmt:
-	rvin_power_off(vin);
-
-	return ret;
 }
 
 static int rvin_open(struct file *file)
