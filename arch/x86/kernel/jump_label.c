@@ -35,40 +35,42 @@ static void bug_at(unsigned char *ip, int line)
 	BUG();
 }
 
-static void __ref __jump_label_transform(struct jump_entry *entry,
-					 enum jump_label_type type,
-					 int init)
+static void __jump_label_set_jump_code(struct jump_entry *entry,
+				       enum jump_label_type type,
+				       union jump_code_union *code,
+				       int init)
 {
-	union jump_code_union jmp;
 	const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
 	const unsigned char *ideal_nop = ideal_nops[NOP_ATOMIC5];
-	const void *expect, *code;
+	const void *expect;
 	int line;
 
-	jmp.jump = 0xe9;
-	jmp.offset = jump_entry_target(entry) -
-		     (jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
+	code->jump = 0xe9;
+	code->offset = jump_entry_target(entry) -
+		       (jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
 
-	if (type == JUMP_LABEL_JMP) {
-		if (init) {
-			expect = default_nop; line = __LINE__;
-		} else {
-			expect = ideal_nop; line = __LINE__;
-		}
-
-		code = &jmp.code;
+	if (init) {
+		expect = default_nop; line = __LINE__;
+	} else if (type == JUMP_LABEL_JMP) {
+		expect = ideal_nop; line = __LINE__;
 	} else {
-		if (init) {
-			expect = default_nop; line = __LINE__;
-		} else {
-			expect = &jmp.code; line = __LINE__;
-		}
-
-		code = ideal_nop;
+		expect = code->code; line = __LINE__;
 	}
 
 	if (memcmp((void *)jump_entry_code(entry), expect, JUMP_LABEL_NOP_SIZE))
 		bug_at((void *)jump_entry_code(entry), line);
+
+	if (type == JUMP_LABEL_NOP)
+		memcpy(code, ideal_nop, JUMP_LABEL_NOP_SIZE);
+}
+
+static void __ref __jump_label_transform(struct jump_entry *entry,
+					 enum jump_label_type type,
+					 int init)
+{
+	union jump_code_union code;
+
+	__jump_label_set_jump_code(entry, type, &code, init);
 
 	/*
 	 * As long as only a single processor is running and the code is still
@@ -82,12 +84,12 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
 	 * always nop being the 'currently valid' instruction
 	 */
 	if (init || system_state == SYSTEM_BOOTING) {
-		text_poke_early((void *)jump_entry_code(entry), code,
+		text_poke_early((void *)jump_entry_code(entry), &code,
 				JUMP_LABEL_NOP_SIZE);
 		return;
 	}
 
-	text_poke_bp((void *)jump_entry_code(entry), code, JUMP_LABEL_NOP_SIZE,
+	text_poke_bp((void *)jump_entry_code(entry), &code, JUMP_LABEL_NOP_SIZE,
 		     (void *)jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
 }
 
