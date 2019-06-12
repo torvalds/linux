@@ -696,7 +696,7 @@ nella stringa di titolo::
 	...
 
 Per la documentazione completa sui file di configurazione, consultate
-il documento Documentation/kbuild/kconfig-language.txt
+il documento Documentation/kbuild/kconfig-language.rst
 
 
 11) Strutture dati

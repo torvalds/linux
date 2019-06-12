@@ -38,7 +38,7 @@ Linux内核补丁提交清单
    违规行为。
 
 6) 任何新的或修改过的 ``CONFIG`` 选项都不会弄脏配置菜单，并默认为关闭，除非
-   它们符合 ``Documentation/kbuild/kconfig-language.txt`` 中记录的异常条件,
+   它们符合 ``Documentation/kbuild/kconfig-language.rst`` 中记录的异常条件,
    菜单属性：默认值.
 
 7) 所有新的 ``kconfig`` 选项都有帮助文本。

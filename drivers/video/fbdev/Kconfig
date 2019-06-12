@@ -289,7 +289,7 @@ config FB_ARMCLCD
 
 	  If you want to compile this as a module (=code which can be
 	  inserted into and removed from the running kernel), say M
-	  here and read <file:Documentation/kbuild/modules.txt>.  The module
+	  here and read <file:Documentation/kbuild/modules.rst>.  The module
 	  will be called amba-clcd.
 
 config FB_ACORN
@@ -1752,7 +1752,7 @@ config FB_PXA
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called pxafb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If unsure, say N.
 
@@ -1833,7 +1833,7 @@ config FB_W100
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called w100fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If unsure, say N.
 
@@ -1862,7 +1862,7 @@ config FB_TMIO
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called tmiofb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If unsure, say N.
 
@@ -1908,7 +1908,7 @@ config FB_S3C2410
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called s3c2410fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If unsure, say N.
 config FB_S3C2410_DEBUG
@@ -1945,7 +1945,7 @@ config FB_SM501
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called sm501fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If unsure, say N.
 
@@ -2288,7 +2288,7 @@ config FB_SM712
 
 	  This driver is also available as a module. The module will be
 	  called sm712fb. If you want to compile it as a module, say M
-	  here and read <file:Documentation/kbuild/modules.txt>.
+	  here and read <file:Documentation/kbuild/modules.rst>.
 
 source "drivers/video/fbdev/omap/Kconfig"
 source "drivers/video/fbdev/omap2/Kconfig"

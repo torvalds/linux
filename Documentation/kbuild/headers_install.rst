@@ -1,3 +1,4 @@
+=============================================
 Exporting kernel headers for use by userspace
 =============================================
 
@@ -22,14 +23,14 @@ older kernel.
 
 The "make headers_install" command can be run in the top level directory of the
 kernel source code (or using a standard out-of-tree build).  It takes two
-optional arguments:
+optional arguments::
 
   make headers_install ARCH=i386 INSTALL_HDR_PATH=/usr
 
 ARCH indicates which architecture to produce headers for, and defaults to the
 current architecture.  The linux/asm directory of the exported kernel headers
 is platform-specific, to see a complete list of supported architectures use
-the command:
+the command::
 
   ls -d include/asm-* | sed 's/.*-//'
 

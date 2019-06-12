@@ -1,8 +1,12 @@
+================
+Kconfig Language
+================
+
 Introduction
 ------------
 
 The configuration database is a collection of configuration options
-organized in a tree structure:
+organized in a tree structure::
 
 	+- Code maturity level options
 	|  +- Prompt for development and/or incomplete code/drivers
@@ -25,9 +29,9 @@ Menu entries
 ------------
 
 Most entries define a config option; all other entries help to organize
-them. A single configuration option is defined like this:
+them. A single configuration option is defined like this::
 
-config MODVERSIONS
+  config MODVERSIONS
 	bool "Set version information on all module symbols"
 	depends on MODULES
 	help
@@ -52,10 +56,12 @@ applicable everywhere (see syntax).
   Every config option must have a type. There are only two basic types:
   tristate and string; the other types are based on these two. The type
   definition optionally accepts an input prompt, so these two examples
-  are equivalent:
+  are equivalent::
 
 	bool "Networking support"
-  and
+
+  and::
+
 	bool
 	prompt "Networking support"
 
@@ -98,8 +104,10 @@ applicable everywhere (see syntax).
 	d) Hardware or infrastructure that everybody expects, such as CONFIG_NET
 	   or CONFIG_BLOCK. These are rare exceptions.
 
-- type definition + default value:
+- type definition + default value::
+
 	"def_bool"/"def_tristate" <expr> ["if" <expr>]
+
   This is a shorthand notation for a type definition plus a value.
   Optionally dependencies for this default value can be added with "if".
 
@@ -107,11 +115,13 @@ applicable everywhere (see syntax).
   This defines a dependency for this menu entry. If multiple
   dependencies are defined, they are connected with '&&'. Dependencies
   are applied to all other options within this menu entry (which also
-  accept an "if" expression), so these two examples are equivalent:
+  accept an "if" expression), so these two examples are equivalent::
 
 	bool "foo" if BAR
 	default y if BAR
-  and
+
+  and::
+
 	depends on BAR
 	bool "foo"
 	default y
@@ -124,6 +134,7 @@ applicable everywhere (see syntax).
   times, the limit is set to the largest selection.
   Reverse dependencies can only be used with boolean or tristate
   symbols.
+
   Note:
 	select should be used with care. select will force
 	a symbol to a value without visiting the dependencies.
@@ -139,24 +150,26 @@ applicable everywhere (see syntax).
   symbol except that the "implied" symbol's value may still be set to n
   from a direct dependency or with a visible prompt.
 
-  Given the following example:
+  Given the following example::
 
-  config FOO
+    config FOO
 	tristate
 	imply BAZ
 
-  config BAZ
+    config BAZ
 	tristate
 	depends on BAR
 
   The following values are possible:
 
+	===		===		=============	==============
 	FOO		BAR		BAZ's default	choice for BAZ
-	---		---		-------------	--------------
+	===		===		=============	==============
 	n		y		n		N/m/y
 	m		y		m		M/y/n
 	y		y		y		Y/n
 	y		n		*		N
+	===		===		=============	==============
 
   This is useful e.g. with multiple drivers that want to indicate their
   ability to hook into a secondary subsystem while allowing the user to
@@ -208,9 +221,9 @@ Menu dependencies
 Dependencies define the visibility of a menu entry and can also reduce
 the input range of tristate symbols. The tristate logic used in the
 expressions uses one more state than normal boolean logic to express the
-module state. Dependency expressions have the following syntax:
+module state. Dependency expressions have the following syntax::
 
-<expr> ::= <symbol>                             (1)
+  <expr> ::= <symbol>                           (1)
            <symbol> '=' <symbol>                (2)
            <symbol> '!=' <symbol>               (3)
            <symbol1> '<' <symbol2>              (4)
@@ -222,7 +235,7 @@ module state. Dependency expressions have the following syntax:
            <expr> '&&' <expr>                   (7)
            <expr> '||' <expr>                   (8)
 
-Expressions are listed in decreasing order of precedence. 
+Expressions are listed in decreasing order of precedence.
 
 (1) Convert the symbol into an expression. Boolean and tristate symbols
     are simply converted into the respective expression values. All
@@ -255,15 +268,15 @@ Menu structure
 --------------
 
 The position of a menu entry in the tree is determined in two ways. First
-it can be specified explicitly:
+it can be specified explicitly::
 
-menu "Network device support"
+  menu "Network device support"
 	depends on NET
 
-config NETDEVICES
+  config NETDEVICES
 	...
 
-endmenu
+  endmenu
 
 All entries within the "menu" ... "endmenu" block become a submenu of
 "Network device support". All subentries inherit the dependencies from
@@ -275,17 +288,18 @@ dependencies. If a menu entry somehow depends on the previous entry, it
 can be made a submenu of it. First, the previous (parent) symbol must
 be part of the dependency list and then one of these two conditions
 must be true:
-- the child entry must become invisible, if the parent is set to 'n'
-- the child entry must only be visible, if the parent is visible
 
-config MODULES
+- the child entry must become invisible, if the parent is set to 'n'
+- the child entry must only be visible, if the parent is visible::
+
+    config MODULES
 	bool "Enable loadable module support"
 
-config MODVERSIONS
+    config MODVERSIONS
 	bool "Set version information on all module symbols"
 	depends on MODULES
 
-comment "module support disabled"
+    comment "module support disabled"
 	depends on !MODULES
 
 MODVERSIONS directly depends on MODULES, this means it's only visible if
@@ -299,6 +313,7 @@ Kconfig syntax
 The configuration file describes a series of menu entries, where every
 line starts with a keyword (except help texts). The following keywords
 end a menu entry:
+
 - config
 - menuconfig
 - choice/endchoice
@@ -306,17 +321,17 @@ end a menu entry:
 - menu/endmenu
 - if/endif
 - source
+
 The first five also start the definition of a menu entry.
 
-config:
-
+config::
 	"config" <symbol>
 	<config options>
 
 This defines a config symbol <symbol> and accepts any of above
 attributes as options.
 
-menuconfig:
+menuconfig::
 	"menuconfig" <symbol>
 	<config options>
 
@@ -325,43 +340,43 @@ hint to front ends, that all suboptions should be displayed as a
 separate list of options. To make sure all the suboptions will really
 show up under the menuconfig entry and not outside of it, every item
 from the <config options> list must depend on the menuconfig symbol.
-In practice, this is achieved by using one of the next two constructs:
+In practice, this is achieved by using one of the next two constructs::
 
-(1):
-menuconfig M
-if M
-    config C1
-    config C2
-endif
+  (1):
+  menuconfig M
+  if M
+      config C1
+      config C2
+  endif
 
-(2):
-menuconfig M
-config C1
-    depends on M
-config C2
-    depends on M
+  (2):
+  menuconfig M
+  config C1
+      depends on M
+  config C2
+      depends on M
 
 In the following examples (3) and (4), C1 and C2 still have the M
 dependency, but will not appear under menuconfig M anymore, because
-of C0, which doesn't depend on M:
+of C0, which doesn't depend on M::
 
-(3):
-menuconfig M
-    config C0
-if M
-    config C1
-    config C2
-endif
+  (3):
+  menuconfig M
+      config C0
+  if M
+      config C1
+      config C2
+  endif
 
-(4):
-menuconfig M
-config C0
-config C1
-    depends on M
-config C2
-    depends on M
+  (4):
+  menuconfig M
+  config C0
+  config C1
+      depends on M
+  config C2
+      depends on M
 
-choices:
+choices::
 
 	"choice" [symbol]
 	<choice options>
@@ -387,7 +402,7 @@ definitions of that choice. If a [symbol] is associated to the choice,
 then you may define the same choice (i.e. with the same entries) in another
 place.
 
-comment:
+comment::
 
 	"comment" <prompt>
 	<comment options>
@@ -396,7 +411,7 @@ This defines a comment which is displayed to the user during the
 configuration process and is also echoed to the output files. The only
 possible options are dependencies.
 
-menu:
+menu::
 
 	"menu" <prompt>
 	<menu options>
@@ -407,7 +422,7 @@ This defines a menu block, see "Menu structure" above for more
 information. The only possible options are dependencies and "visible"
 attributes.
 
-if:
+if::
 
 	"if" <expr>
 	<if block>
@@ -416,13 +431,13 @@ if:
 This defines an if block. The dependency expression <expr> is appended
 to all enclosed menu entries.
 
-source:
+source::
 
 	"source" <prompt>
 
 This reads the specified configuration file. This file is always parsed.
 
-mainmenu:
+mainmenu::
 
 	"mainmenu" <prompt>
 
@@ -452,20 +467,21 @@ that is defined in a common Kconfig file and selected by the relevant
 architectures.
 An example is the generic IOMAP functionality.
 
-We would in lib/Kconfig see:
+We would in lib/Kconfig see::
 
-# Generic IOMAP is used to ...
-config HAVE_GENERIC_IOMAP
+  # Generic IOMAP is used to ...
+  config HAVE_GENERIC_IOMAP
 
-config GENERIC_IOMAP
+  config GENERIC_IOMAP
 	depends on HAVE_GENERIC_IOMAP && FOO
 
-And in lib/Makefile we would see:
-obj-$(CONFIG_GENERIC_IOMAP) += iomap.o
+And in lib/Makefile we would see::
 
-For each architecture using the generic IOMAP functionality we would see:
+	obj-$(CONFIG_GENERIC_IOMAP) += iomap.o
 
-config X86
+For each architecture using the generic IOMAP functionality we would see::
+
+  config X86
 	select ...
 	select HAVE_GENERIC_IOMAP
 	select ...
@@ -484,25 +500,25 @@ Adding features that need compiler support
 
 There are several features that need compiler support. The recommended way
 to describe the dependency on the compiler feature is to use "depends on"
-followed by a test macro.
+followed by a test macro::
 
-config STACKPROTECTOR
+  config STACKPROTECTOR
 	bool "Stack Protector buffer overflow detection"
 	depends on $(cc-option,-fstack-protector)
 	...
 
 If you need to expose a compiler capability to makefiles and/or C source files,
-CC_HAS_ is the recommended prefix for the config option.
+`CC_HAS_` is the recommended prefix for the config option::
 
-config CC_HAS_STACKPROTECTOR_NONE
+  config CC_HAS_STACKPROTECTOR_NONE
 	def_bool $(cc-option,-fno-stack-protector)
 
 Build as module only
 ~~~~~~~~~~~~~~~~~~~~
 To restrict a component build to module-only, qualify its config symbol
-with "depends on m".  E.g.:
+with "depends on m".  E.g.::
 
-config FOO
+  config FOO
 	depends on BAR && m
 
 limits FOO to module (=m) or disabled (=n).
@@ -529,18 +545,18 @@ Simple Kconfig recursive issue
 
 Read: Documentation/kbuild/Kconfig.recursion-issue-01
 
-Test with:
+Test with::
 
-make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-01 allnoconfig
+  make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-01 allnoconfig
 
 Cumulative Kconfig recursive issue
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Read: Documentation/kbuild/Kconfig.recursion-issue-02
 
-Test with:
+Test with::
 
-make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-02 allnoconfig
+  make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-02 allnoconfig
 
 Practical solutions to kconfig recursive issue
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -551,7 +567,9 @@ historical issues resolved through these different solutions.
 
   a) Remove any superfluous "select FOO" or "depends on FOO"
   b) Match dependency semantics:
+
 	b1) Swap all "select FOO" to "depends on FOO" or,
+
 	b2) Swap all "depends on FOO" to "select FOO"
 
 The resolution to a) can be tested with the sample Kconfig file
@@ -566,8 +584,9 @@ Documentation/kbuild/Kconfig.recursion-issue-02.
 Below is a list of examples of prior fixes for these types of recursive issues;
 all errors appear to involve one or more select's and one or more "depends on".
 
+============    ===================================
 commit          fix
-======          ===
+============    ===================================
 06b718c01208    select A -> depends on A
 c22eacfe82f9    depends on A -> depends on B
 6a91e854442c    select A -> depends on A
@@ -590,6 +609,7 @@ d9f9ab51e55e    select A -> depends on A
 0c51a4d8abd6    depends on A -> select A        (3)
 e98062ed6dc4    select A -> depends on A        (3)
 91e5d284a7f1    select A -> (null)
+============    ===================================
 
 (1) Partial (or no) quote of error.
 (2) That seems to be the gist of that fix.
@@ -616,11 +636,11 @@ Semantics of Kconfig
 ~~~~~~~~~~~~~~~~~~~~
 
 The use of Kconfig is broad, Linux is now only one of Kconfig's users:
-one study has completed a broad analysis of Kconfig use in 12 projects [0].
+one study has completed a broad analysis of Kconfig use in 12 projects [0]_.
 Despite its widespread use, and although this document does a reasonable job
 in documenting basic Kconfig syntax a more precise definition of Kconfig
 semantics is welcomed. One project deduced Kconfig semantics through
-the use of the xconfig configurator [1]. Work should be done to confirm if
+the use of the xconfig configurator [1]_. Work should be done to confirm if
 the deduced semantics matches our intended Kconfig design goals.
 
 Having well defined semantics can be useful for tools for practical
@@ -628,42 +648,42 @@ evaluation of depenencies, for instance one such use known case was work to
 express in boolean abstraction of the inferred semantics of Kconfig to
 translate Kconfig logic into boolean formulas and run a SAT solver on this to
 find dead code / features (always inactive), 114 dead features were found in
-Linux using this methodology [1] (Section 8: Threats to validity).
+Linux using this methodology [1]_ (Section 8: Threats to validity).
 
 Confirming this could prove useful as Kconfig stands as one of the the leading
-industrial variability modeling languages [1] [2]. Its study would help
+industrial variability modeling languages [1]_ [2]_. Its study would help
 evaluate practical uses of such languages, their use was only theoretical
 and real world requirements were not well understood. As it stands though
 only reverse engineering techniques have been used to deduce semantics from
-variability modeling languages such as Kconfig [3].
+variability modeling languages such as Kconfig [3]_.
 
-[0] http://www.eng.uwaterloo.ca/~shshe/kconfig_semantics.pdf
-[1] http://gsd.uwaterloo.ca/sites/default/files/vm-2013-berger.pdf
-[2] http://gsd.uwaterloo.ca/sites/default/files/ase241-berger_0.pdf
-[3] http://gsd.uwaterloo.ca/sites/default/files/icse2011.pdf
+.. [0] http://www.eng.uwaterloo.ca/~shshe/kconfig_semantics.pdf
+.. [1] http://gsd.uwaterloo.ca/sites/default/files/vm-2013-berger.pdf
+.. [2] http://gsd.uwaterloo.ca/sites/default/files/ase241-berger_0.pdf
+.. [3] http://gsd.uwaterloo.ca/sites/default/files/icse2011.pdf
 
 Full SAT solver for Kconfig
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Although SAT solvers [0] haven't yet been used by Kconfig directly, as noted in
-the previous subsection, work has been done however to express in boolean
+Although SAT solvers [4]_ haven't yet been used by Kconfig directly, as noted
+in the previous subsection, work has been done however to express in boolean
 abstraction the inferred semantics of Kconfig to translate Kconfig logic into
-boolean formulas and run a SAT solver on it [1]. Another known related project
-is CADOS [2] (former VAMOS [3]) and the tools, mainly undertaker [4], which has
-been introduced first with [5].  The basic concept of undertaker is to exract
-variability models from Kconfig, and put them together with a propositional
-formula extracted from CPP #ifdefs and build-rules into a SAT solver in order
-to find dead code, dead files, and dead symbols. If using a SAT solver is
-desirable on Kconfig one approach would be to evaluate repurposing such efforts
-somehow on Kconfig. There is enough interest from mentors of existing projects
-to not only help advise how to integrate this work upstream but also help
-maintain it long term. Interested developers should visit:
+boolean formulas and run a SAT solver on it [5]_. Another known related project
+is CADOS [6]_ (former VAMOS [7]_) and the tools, mainly undertaker [8]_, which
+has been introduced first with [9]_.  The basic concept of undertaker is to
+exract variability models from Kconfig, and put them together with a
+propositional formula extracted from CPP #ifdefs and build-rules into a SAT
+solver in order to find dead code, dead files, and dead symbols. If using a SAT
+solver is desirable on Kconfig one approach would be to evaluate repurposing
+such efforts somehow on Kconfig. There is enough interest from mentors of
+existing projects to not only help advise how to integrate this work upstream
+but also help maintain it long term. Interested developers should visit:
 
 http://kernelnewbies.org/KernelProjects/kconfig-sat
 
-[0] http://www.cs.cornell.edu/~sabhar/chapters/SATSolvers-KR-Handbook.pdf
-[1] http://gsd.uwaterloo.ca/sites/default/files/vm-2013-berger.pdf
-[2] https://cados.cs.fau.de
-[3] https://vamos.cs.fau.de
-[4] https://undertaker.cs.fau.de
-[5] https://www4.cs.fau.de/Publications/2011/tartler_11_eurosys.pdf
+.. [4] http://www.cs.cornell.edu/~sabhar/chapters/SATSolvers-KR-Handbook.pdf
+.. [5] http://gsd.uwaterloo.ca/sites/default/files/vm-2013-berger.pdf
+.. [6] https://cados.cs.fau.de
+.. [7] https://vamos.cs.fau.de
+.. [8] https://undertaker.cs.fau.de
+.. [9] https://www4.cs.fau.de/Publications/2011/tartler_11_eurosys.pdf

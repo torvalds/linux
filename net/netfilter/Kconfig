@@ -1056,7 +1056,7 @@ config NETFILTER_XT_TARGET_TRACE
 	  the tables, chains, rules.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_TARGET_SECMARK
 	tristate '"SECMARK" target support'
@@ -1115,7 +1115,7 @@ config NETFILTER_XT_MATCH_ADDRTYPE
 	  eg. UNICAST, LOCAL, BROADCAST, ...
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_BPF
 	tristate '"bpf" match support'
@@ -1160,7 +1160,7 @@ config NETFILTER_XT_MATCH_COMMENT
 	  comments in your iptables ruleset.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_CONNBYTES
 	tristate  '"connbytes" per-connection counter match support'
@@ -1171,7 +1171,7 @@ config NETFILTER_XT_MATCH_CONNBYTES
 	  number of bytes and/or packets for each direction within a connection.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_CONNLABEL
 	tristate '"connlabel" match support'
@@ -1237,7 +1237,7 @@ config NETFILTER_XT_MATCH_DCCP
 	  and DCCP flags.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_DEVGROUP
 	tristate '"devgroup" match support'
@@ -1473,7 +1473,7 @@ config NETFILTER_XT_MATCH_QUOTA
 	  byte counter.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_RATEEST
 	tristate '"rateest" match support'
@@ -1497,7 +1497,7 @@ config NETFILTER_XT_MATCH_REALM
 	  in tc world.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_RECENT
 	tristate '"recent" match support'
@@ -1519,7 +1519,7 @@ config NETFILTER_XT_MATCH_SCTP
 	  and SCTP chunk types.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_SOCKET
 	tristate '"socket" match support'
