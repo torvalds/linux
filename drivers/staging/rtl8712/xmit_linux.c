@@ -102,9 +102,9 @@ void r8712_SetFilter(struct work_struct *work)
 	newvalue = oldvalue & 0xfe;
 	r8712_write8(adapter, 0x117, newvalue);
 
-	spin_lock_irqsave(&adapter->lockRxFF0Filter, irqL);
+	spin_lock_irqsave(&adapter->lock_rx_ff0_filter, irqL);
 	adapter->blnEnableRxFF0Filter = 1;
-	spin_unlock_irqrestore(&adapter->lockRxFF0Filter, irqL);
+	spin_unlock_irqrestore(&adapter->lock_rx_ff0_filter, irqL);
 	do {
 		msleep(100);
 	} while (adapter->blnEnableRxFF0Filter == 1);
