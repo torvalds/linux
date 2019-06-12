@@ -275,7 +275,7 @@ exit:
 	return pnetwork;
 }
 
-void _rtw_free_network_queue(struct adapter *padapter, u8 isfreeall)
+void rtw_free_network_queue(struct adapter *padapter, u8 isfreeall)
 {
 	struct list_head *phead, *plist;
 	struct wlan_network *pnetwork;
@@ -373,12 +373,6 @@ void rtw_free_network_nolock(struct adapter *padapter, struct wlan_network *pnet
 	/* RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("rtw_free_network ==> ssid = %s\n\n" , pnetwork->network.Ssid.Ssid)); */
 	_rtw_free_network_nolock(&(padapter->mlmepriv), pnetwork);
 	rtw_cfg80211_unlink_bss(padapter, pnetwork);
-}
-
-
-void rtw_free_network_queue(struct adapter *dev, u8 isfreeall)
-{
-	_rtw_free_network_queue(dev, isfreeall);
 }
 
 /*
