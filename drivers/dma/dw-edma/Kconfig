@@ -2,6 +2,7 @@
 
 config DW_EDMA
 	tristate "Synopsys DesignWare eDMA controller driver"
+	depends on PCI && PCI_MSI
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
