@@ -607,7 +607,7 @@ static void bdw_load_lut_10(struct intel_crtc *crtc,
 	I915_WRITE(PREC_PAL_INDEX(pipe), 0);
 }
 
-static void ivb_load_lut_10_max(struct intel_crtc *crtc)
+static void ivb_load_lut_ext_max(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
@@ -640,7 +640,7 @@ static void ivb_load_luts(const struct intel_crtc_state *crtc_state)
 	} else if (crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT) {
 		ivb_load_lut_10(crtc, degamma_lut, PAL_PREC_SPLIT_MODE |
 				PAL_PREC_INDEX_VALUE(0));
-		ivb_load_lut_10_max(crtc);
+		ivb_load_lut_ext_max(crtc);
 		ivb_load_lut_10(crtc, gamma_lut, PAL_PREC_SPLIT_MODE |
 				PAL_PREC_INDEX_VALUE(512));
 	} else {
@@ -648,7 +648,7 @@ static void ivb_load_luts(const struct intel_crtc_state *crtc_state)
 
 		ivb_load_lut_10(crtc, blob,
 				PAL_PREC_INDEX_VALUE(0));
-		ivb_load_lut_10_max(crtc);
+		ivb_load_lut_ext_max(crtc);
 	}
 }
 
@@ -663,7 +663,7 @@ static void bdw_load_luts(const struct intel_crtc_state *crtc_state)
 	} else if (crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT) {
 		bdw_load_lut_10(crtc, degamma_lut, PAL_PREC_SPLIT_MODE |
 				PAL_PREC_INDEX_VALUE(0));
-		ivb_load_lut_10_max(crtc);
+		ivb_load_lut_ext_max(crtc);
 		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_SPLIT_MODE |
 				PAL_PREC_INDEX_VALUE(512));
 	} else {
@@ -671,7 +671,7 @@ static void bdw_load_luts(const struct intel_crtc_state *crtc_state)
 
 		bdw_load_lut_10(crtc, blob,
 				PAL_PREC_INDEX_VALUE(0));
-		ivb_load_lut_10_max(crtc);
+		ivb_load_lut_ext_max(crtc);
 	}
 }
 
@@ -763,7 +763,7 @@ static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 		i9xx_load_luts(crtc_state);
 	} else {
 		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_INDEX_VALUE(0));
-		ivb_load_lut_10_max(crtc);
+		ivb_load_lut_ext_max(crtc);
 	}
 }
 
@@ -780,7 +780,7 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 		i9xx_load_luts(crtc_state);
 	} else {
 		bdw_load_lut_10(crtc, gamma_lut, PAL_PREC_INDEX_VALUE(0));
-		ivb_load_lut_10_max(crtc);
+		ivb_load_lut_ext_max(crtc);
 	}
 }
 
