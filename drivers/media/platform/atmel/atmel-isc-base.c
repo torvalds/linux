@@ -1,24 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Atmel Image Sensor Controller (ISC) driver
+ * Microchip Image Sensor Controller (ISC) common driver base
  *
- * Copyright (C) 2016 Atmel
+ * Copyright (C) 2016-2019 Microchip Technology, Inc.
  *
- * Author: Songjun Wu <songjun.wu@microchip.com>
+ * Author: Songjun Wu
+ * Author: Eugen Hristev <eugen.hristev@microchip.com>
  *
- * Sensor-->PFE-->WB-->CFA-->CC-->GAM-->CSC-->CBC-->SUB-->RLP-->DMA
- *
- * ISC video pipeline integrates the following submodules:
- * PFE: Parallel Front End to sample the camera sensor input stream
- *  WB: Programmable white balance in the Bayer domain
- * CFA: Color filter array interpolation module
- *  CC: Programmable color correction
- * GAM: Gamma correction
- * CSC: Programmable color space conversion
- * CBC: Contrast and Brightness control
- * SUB: This module performs YCbCr444 to YCbCr420 chrominance subsampling
- * RLP: This module performs rounding, range limiting
- *      and packing of the incoming data
  */
 
 #include <linux/clk.h>
@@ -45,185 +33,19 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "atmel-isc-regs.h"
+#include "atmel-isc.h"
 
-#define ATMEL_ISC_NAME		"atmel_isc"
+unsigned int debug;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "debug level (0-2)");
 
-#define ISC_MAX_SUPPORT_WIDTH   2592
-#define ISC_MAX_SUPPORT_HEIGHT  1944
-
-#define ISC_CLK_MAX_DIV		255
-
-enum isc_clk_id {
-	ISC_ISPCK = 0,
-	ISC_MCK = 1,
-};
-
-struct isc_clk {
-	struct clk_hw   hw;
-	struct clk      *clk;
-	struct regmap   *regmap;
-	spinlock_t	lock;
-	u8		id;
-	u8		parent_id;
-	u32		div;
-	struct device	*dev;
-};
-
-#define to_isc_clk(hw) container_of(hw, struct isc_clk, hw)
-
-struct isc_buffer {
-	struct vb2_v4l2_buffer  vb;
-	struct list_head	list;
-};
-
-struct isc_subdev_entity {
-	struct v4l2_subdev		*sd;
-	struct v4l2_async_subdev	*asd;
-	struct v4l2_async_notifier      notifier;
-
-	u32 pfe_cfg0;
-
-	struct list_head list;
-};
-
-/*
- * struct isc_format - ISC media bus format information
-			This structure represents the interface between the ISC
-			and the sensor. It's the input format received by
-			the ISC.
- * @fourcc:		Fourcc code for this format
- * @mbus_code:		V4L2 media bus format code.
- * @cfa_baycfg:		If this format is RAW BAYER, indicate the type of bayer.
-			this is either BGBG, RGRG, etc.
- * @pfe_cfg0_bps:	Number of hardware data lines connected to the ISC
- */
-
-struct isc_format {
-	u32	fourcc;
-	u32	mbus_code;
-	u32	cfa_baycfg;
-
-	bool	sd_support;
-	u32	pfe_cfg0_bps;
-};
-
-/* Pipeline bitmap */
-#define WB_ENABLE	BIT(0)
-#define CFA_ENABLE	BIT(1)
-#define CC_ENABLE	BIT(2)
-#define GAM_ENABLE	BIT(3)
-#define GAM_BENABLE	BIT(4)
-#define GAM_GENABLE	BIT(5)
-#define GAM_RENABLE	BIT(6)
-#define CSC_ENABLE	BIT(7)
-#define CBC_ENABLE	BIT(8)
-#define SUB422_ENABLE	BIT(9)
-#define SUB420_ENABLE	BIT(10)
-
-#define GAM_ENABLES	(GAM_RENABLE | GAM_GENABLE | GAM_BENABLE | GAM_ENABLE)
-
-/*
- * struct fmt_config - ISC format configuration and internal pipeline
-			This structure represents the internal configuration
-			of the ISC.
-			It also holds the format that ISC will present to v4l2.
- * @sd_format:		Pointer to an isc_format struct that holds the sensor
-			configuration.
- * @fourcc:		Fourcc code for this format.
- * @bpp:		Bytes per pixel in the current format.
- * @rlp_cfg_mode:	Configuration of the RLP (rounding, limiting packaging)
- * @dcfg_imode:		Configuration of the input of the DMA module
- * @dctrl_dview:	Configuration of the output of the DMA module
- * @bits_pipeline:	Configuration of the pipeline, which modules are enabled
- */
-struct fmt_config {
-	struct isc_format	*sd_format;
-
-	u32			fourcc;
-	u8			bpp;
-
-	u32			rlp_cfg_mode;
-	u32			dcfg_imode;
-	u32			dctrl_dview;
-
-	u32			bits_pipeline;
-};
-
-#define HIST_ENTRIES		512
-#define HIST_BAYER		(ISC_HIS_CFG_MODE_B + 1)
-
-enum{
-	HIST_INIT = 0,
-	HIST_ENABLED,
-	HIST_DISABLED,
-};
-
-struct isc_ctrls {
-	struct v4l2_ctrl_handler handler;
-
-	u32 brightness;
-	u32 contrast;
-	u8 gamma_index;
-#define ISC_WB_NONE	0
-#define ISC_WB_AUTO	1
-#define ISC_WB_ONETIME	2
-	u8 awb;
-
-	/* one for each component : GR, R, GB, B */
-	u32 gain[HIST_BAYER];
-	u32 offset[HIST_BAYER];
-
-	u32 hist_entry[HIST_ENTRIES];
-	u32 hist_count[HIST_BAYER];
-	u8 hist_id;
-	u8 hist_stat;
-#define HIST_MIN_INDEX		0
-#define HIST_MAX_INDEX		1
-	u32 hist_minmax[HIST_BAYER][2];
-};
-
-#define ISC_PIPE_LINE_NODE_NUM	11
-
-struct isc_device {
-	struct regmap		*regmap;
-	struct clk		*hclock;
-	struct clk		*ispck;
-	struct isc_clk		isc_clks[2];
-
-	struct device		*dev;
-	struct v4l2_device	v4l2_dev;
-	struct video_device	video_dev;
-
-	struct vb2_queue	vb2_vidq;
-	spinlock_t		dma_queue_lock;
-	struct list_head	dma_queue;
-	struct isc_buffer	*cur_frm;
-	unsigned int		sequence;
-	bool			stop;
-	struct completion	comp;
-
-	struct v4l2_format	fmt;
-	struct isc_format	**user_formats;
-	unsigned int		num_user_formats;
-
-	struct fmt_config	config;
-	struct fmt_config	try_config;
-
-	struct isc_ctrls	ctrls;
-	struct v4l2_ctrl	*do_wb_ctrl;
-	struct work_struct	awb_work;
-
-	struct mutex		lock;
-	spinlock_t		awb_lock;
-
-	struct regmap_field	*pipeline[ISC_PIPE_LINE_NODE_NUM];
-
-	struct isc_subdev_entity	*current_subdev;
-	struct list_head		subdev_entities;
-};
+unsigned int sensor_preferred = 1;
+module_param(sensor_preferred, uint, 0644);
+MODULE_PARM_DESC(sensor_preferred,
+		 "Sensor is preferred to output the specified format (1-on 0-off), default 1");
 
 /* This is a list of the formats that the ISC can *output* */
-static struct isc_format controller_formats[] = {
+struct isc_format controller_formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_ARGB444,
 	},
@@ -254,7 +76,7 @@ static struct isc_format controller_formats[] = {
 };
 
 /* This is a list of formats that the ISC can receive as *input* */
-static struct isc_format formats_list[] = {
+struct isc_format formats_list[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_SBGGR8,
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR8_1X8,
@@ -344,11 +166,8 @@ static struct isc_format formats_list[] = {
 	},
 };
 
-#define GAMMA_MAX	2
-#define GAMMA_ENTRIES	64
-
 /* Gamma table with gamma 1/2.2 */
-static const u32 isc_gamma_table[GAMMA_MAX + 1][GAMMA_ENTRIES] = {
+const u32 isc_gamma_table[GAMMA_MAX + 1][GAMMA_ENTRIES] = {
 	/* 0 --> gamma 1/1.8 */
 	{      0x65,  0x66002F,  0x950025,  0xBB0020,  0xDB001D,  0xF8001A,
 	  0x1130018, 0x12B0017, 0x1420016, 0x1580014, 0x16D0013, 0x1810012,
@@ -391,15 +210,6 @@ static const u32 isc_gamma_table[GAMMA_MAX + 1][GAMMA_ENTRIES] = {
 
 #define ISC_IS_FORMAT_RAW(mbus_code) \
 	(((mbus_code) & 0xf000) == 0x3000)
-
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-2)");
-
-static unsigned int sensor_preferred = 1;
-module_param(sensor_preferred, uint, 0644);
-MODULE_PARM_DESC(sensor_preferred,
-		 "Sensor is preferred to output the specified format (1-on 0-off), default 1");
 
 static inline void isc_update_awb_ctrls(struct isc_device *isc)
 {
@@ -689,7 +499,7 @@ static int isc_clk_register(struct isc_device *isc, unsigned int id)
 	return 0;
 }
 
-static int isc_clk_init(struct isc_device *isc)
+int isc_clk_init(struct isc_device *isc)
 {
 	unsigned int i;
 	int ret;
@@ -706,7 +516,7 @@ static int isc_clk_init(struct isc_device *isc)
 	return 0;
 }
 
-static void isc_clk_cleanup(struct isc_device *isc)
+void isc_clk_cleanup(struct isc_device *isc)
 {
 	unsigned int i;
 
@@ -1766,7 +1576,7 @@ static const struct v4l2_file_operations isc_fops = {
 	.poll		= vb2_fop_poll,
 };
 
-static irqreturn_t isc_interrupt(int irq, void *dev_id)
+irqreturn_t isc_interrupt(int irq, void *dev_id)
 {
 	struct isc_device *isc = (struct isc_device *)dev_id;
 	struct regmap *regmap = isc->regmap;
@@ -2281,13 +2091,13 @@ static int isc_async_complete(struct v4l2_async_notifier *notifier)
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations isc_async_ops = {
+const struct v4l2_async_notifier_operations isc_async_ops = {
 	.bound = isc_async_bound,
 	.unbind = isc_async_unbind,
 	.complete = isc_async_complete,
 };
 
-static void isc_subdev_cleanup(struct isc_device *isc)
+void isc_subdev_cleanup(struct isc_device *isc)
 {
 	struct isc_subdev_entity *subdev_entity;
 
@@ -2299,7 +2109,7 @@ static void isc_subdev_cleanup(struct isc_device *isc)
 	INIT_LIST_HEAD(&isc->subdev_entities);
 }
 
-static int isc_pipeline_init(struct isc_device *isc)
+int isc_pipeline_init(struct isc_device *isc)
 {
 	struct device *dev = isc->dev;
 	struct regmap *regmap = isc->regmap;
@@ -2332,300 +2142,12 @@ static int isc_pipeline_init(struct isc_device *isc)
 	return 0;
 }
 
-static int isc_parse_dt(struct device *dev, struct isc_device *isc)
-{
-	struct device_node *np = dev->of_node;
-	struct device_node *epn = NULL, *rem;
-	struct isc_subdev_entity *subdev_entity;
-	unsigned int flags;
-	int ret;
-
-	INIT_LIST_HEAD(&isc->subdev_entities);
-
-	while (1) {
-		struct v4l2_fwnode_endpoint v4l2_epn = { .bus_type = 0 };
-
-		epn = of_graph_get_next_endpoint(np, epn);
-		if (!epn)
-			return 0;
-
-		rem = of_graph_get_remote_port_parent(epn);
-		if (!rem) {
-			dev_notice(dev, "Remote device at %pOF not found\n",
-				   epn);
-			continue;
-		}
-
-		ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(epn),
-						 &v4l2_epn);
-		if (ret) {
-			of_node_put(rem);
-			ret = -EINVAL;
-			dev_err(dev, "Could not parse the endpoint\n");
-			break;
-		}
-
-		subdev_entity = devm_kzalloc(dev,
-					  sizeof(*subdev_entity), GFP_KERNEL);
-		if (!subdev_entity) {
-			of_node_put(rem);
-			ret = -ENOMEM;
-			break;
-		}
-
-		/* asd will be freed by the subsystem once it's added to the
-		 * notifier list
-		 */
-		subdev_entity->asd = kzalloc(sizeof(*subdev_entity->asd),
-					     GFP_KERNEL);
-		if (!subdev_entity->asd) {
-			of_node_put(rem);
-			ret = -ENOMEM;
-			break;
-		}
-
-		flags = v4l2_epn.bus.parallel.flags;
-
-		if (flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
-			subdev_entity->pfe_cfg0 = ISC_PFE_CFG0_HPOL_LOW;
-
-		if (flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
-			subdev_entity->pfe_cfg0 |= ISC_PFE_CFG0_VPOL_LOW;
-
-		if (flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
-			subdev_entity->pfe_cfg0 |= ISC_PFE_CFG0_PPOL_LOW;
-
-		if (v4l2_epn.bus_type == V4L2_MBUS_BT656)
-			subdev_entity->pfe_cfg0 |= ISC_PFE_CFG0_CCIR_CRC |
-					ISC_PFE_CFG0_CCIR656;
-
-		subdev_entity->asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
-		subdev_entity->asd->match.fwnode =
-			of_fwnode_handle(rem);
-		list_add_tail(&subdev_entity->list, &isc->subdev_entities);
-	}
-
-	of_node_put(epn);
-	return ret;
-}
-
 /* regmap configuration */
 #define ATMEL_ISC_REG_MAX    0xbfc
-static const struct regmap_config isc_regmap_config = {
+const struct regmap_config isc_regmap_config = {
 	.reg_bits       = 32,
 	.reg_stride     = 4,
 	.val_bits       = 32,
 	.max_register	= ATMEL_ISC_REG_MAX,
 };
 
-static int atmel_isc_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct isc_device *isc;
-	struct resource *res;
-	void __iomem *io_base;
-	struct isc_subdev_entity *subdev_entity;
-	int irq;
-	int ret;
-
-	isc = devm_kzalloc(dev, sizeof(*isc), GFP_KERNEL);
-	if (!isc)
-		return -ENOMEM;
-
-	platform_set_drvdata(pdev, isc);
-	isc->dev = dev;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	io_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(io_base))
-		return PTR_ERR(io_base);
-
-	isc->regmap = devm_regmap_init_mmio(dev, io_base, &isc_regmap_config);
-	if (IS_ERR(isc->regmap)) {
-		ret = PTR_ERR(isc->regmap);
-		dev_err(dev, "failed to init register map: %d\n", ret);
-		return ret;
-	}
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		dev_err(dev, "failed to get irq: %d\n", ret);
-		return ret;
-	}
-
-	ret = devm_request_irq(dev, irq, isc_interrupt, 0,
-			       ATMEL_ISC_NAME, isc);
-	if (ret < 0) {
-		dev_err(dev, "can't register ISR for IRQ %u (ret=%i)\n",
-			irq, ret);
-		return ret;
-	}
-
-	ret = isc_pipeline_init(isc);
-	if (ret)
-		return ret;
-
-	isc->hclock = devm_clk_get(dev, "hclock");
-	if (IS_ERR(isc->hclock)) {
-		ret = PTR_ERR(isc->hclock);
-		dev_err(dev, "failed to get hclock: %d\n", ret);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(isc->hclock);
-	if (ret) {
-		dev_err(dev, "failed to enable hclock: %d\n", ret);
-		return ret;
-	}
-
-	ret = isc_clk_init(isc);
-	if (ret) {
-		dev_err(dev, "failed to init isc clock: %d\n", ret);
-		goto unprepare_hclk;
-	}
-
-	isc->ispck = isc->isc_clks[ISC_ISPCK].clk;
-
-	ret = clk_prepare_enable(isc->ispck);
-	if (ret) {
-		dev_err(dev, "failed to enable ispck: %d\n", ret);
-		goto unprepare_hclk;
-	}
-
-	/* ispck should be greater or equal to hclock */
-	ret = clk_set_rate(isc->ispck, clk_get_rate(isc->hclock));
-	if (ret) {
-		dev_err(dev, "failed to set ispck rate: %d\n", ret);
-		goto unprepare_clk;
-	}
-
-	ret = v4l2_device_register(dev, &isc->v4l2_dev);
-	if (ret) {
-		dev_err(dev, "unable to register v4l2 device.\n");
-		goto unprepare_clk;
-	}
-
-	ret = isc_parse_dt(dev, isc);
-	if (ret) {
-		dev_err(dev, "fail to parse device tree\n");
-		goto unregister_v4l2_device;
-	}
-
-	if (list_empty(&isc->subdev_entities)) {
-		dev_err(dev, "no subdev found\n");
-		ret = -ENODEV;
-		goto unregister_v4l2_device;
-	}
-
-	list_for_each_entry(subdev_entity, &isc->subdev_entities, list) {
-		v4l2_async_notifier_init(&subdev_entity->notifier);
-
-		ret = v4l2_async_notifier_add_subdev(&subdev_entity->notifier,
-						     subdev_entity->asd);
-		if (ret) {
-			fwnode_handle_put(subdev_entity->asd->match.fwnode);
-			kfree(subdev_entity->asd);
-			goto cleanup_subdev;
-		}
-
-		subdev_entity->notifier.ops = &isc_async_ops;
-
-		ret = v4l2_async_notifier_register(&isc->v4l2_dev,
-						   &subdev_entity->notifier);
-		if (ret) {
-			dev_err(dev, "fail to register async notifier\n");
-			goto cleanup_subdev;
-		}
-
-		if (video_is_registered(&isc->video_dev))
-			break;
-	}
-
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_request_idle(dev);
-
-	return 0;
-
-cleanup_subdev:
-	isc_subdev_cleanup(isc);
-
-unregister_v4l2_device:
-	v4l2_device_unregister(&isc->v4l2_dev);
-
-unprepare_clk:
-	clk_disable_unprepare(isc->ispck);
-unprepare_hclk:
-	clk_disable_unprepare(isc->hclock);
-
-	isc_clk_cleanup(isc);
-
-	return ret;
-}
-
-static int atmel_isc_remove(struct platform_device *pdev)
-{
-	struct isc_device *isc = platform_get_drvdata(pdev);
-
-	pm_runtime_disable(&pdev->dev);
-	clk_disable_unprepare(isc->ispck);
-	clk_disable_unprepare(isc->hclock);
-
-	isc_subdev_cleanup(isc);
-
-	v4l2_device_unregister(&isc->v4l2_dev);
-
-	isc_clk_cleanup(isc);
-
-	return 0;
-}
-
-static int __maybe_unused isc_runtime_suspend(struct device *dev)
-{
-	struct isc_device *isc = dev_get_drvdata(dev);
-
-	clk_disable_unprepare(isc->ispck);
-	clk_disable_unprepare(isc->hclock);
-
-	return 0;
-}
-
-static int __maybe_unused isc_runtime_resume(struct device *dev)
-{
-	struct isc_device *isc = dev_get_drvdata(dev);
-	int ret;
-
-	ret = clk_prepare_enable(isc->hclock);
-	if (ret)
-		return ret;
-
-	return clk_prepare_enable(isc->ispck);
-}
-
-static const struct dev_pm_ops atmel_isc_dev_pm_ops = {
-	SET_RUNTIME_PM_OPS(isc_runtime_suspend, isc_runtime_resume, NULL)
-};
-
-static const struct of_device_id atmel_isc_of_match[] = {
-	{ .compatible = "atmel,sama5d2-isc" },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, atmel_isc_of_match);
-
-static struct platform_driver atmel_isc_driver = {
-	.probe	= atmel_isc_probe,
-	.remove	= atmel_isc_remove,
-	.driver	= {
-		.name		= ATMEL_ISC_NAME,
-		.pm		= &atmel_isc_dev_pm_ops,
-		.of_match_table = of_match_ptr(atmel_isc_of_match),
-	},
-};
-
-module_platform_driver(atmel_isc_driver);
-
-MODULE_AUTHOR("Songjun Wu <songjun.wu@microchip.com>");
-MODULE_DESCRIPTION("The V4L2 driver for Atmel-ISC");
-MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("video");
