@@ -103,51 +103,13 @@ static int set_stream_format(struct snd_oxfw *oxfw, struct amdtp_stream *s,
 
 static int start_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 {
-	u8 **formats;
-	enum avc_general_plug_dir dir;
 	struct cmp_connection *conn;
-	struct snd_oxfw_stream_formation formation;
-	int i;
 	int err;
 
-	if (stream == &oxfw->rx_stream) {
-		dir = AVC_GENERAL_PLUG_DIR_IN;
-		formats = oxfw->rx_stream_formats;
+	if (stream == &oxfw->rx_stream)
 		conn = &oxfw->in_conn;
-	} else {
-		dir = AVC_GENERAL_PLUG_DIR_OUT;
-		formats = oxfw->tx_stream_formats;
+	else
 		conn = &oxfw->out_conn;
-	}
-
-	err = snd_oxfw_stream_get_current_formation(oxfw, dir, &formation);
-	if (err < 0)
-		return err;
-
-	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
-		struct snd_oxfw_stream_formation fmt;
-
-		if (formats[i] == NULL)
-			break;
-
-		err = snd_oxfw_stream_parse_format(formats[i], &fmt);
-		if (err < 0)
-			return err;
-		if (fmt.rate == formation.rate && fmt.pcm == formation.pcm &&
-		    fmt.midi == formation.midi)
-			break;
-	}
-	if (i == SND_OXFW_STREAM_FORMAT_ENTRIES)
-		return -EINVAL;
-
-	// The stream should have one pcm channels at least.
-	if (formation.pcm == 0)
-		return -EINVAL;
-
-	err = amdtp_am824_set_parameters(stream, formation.rate, formation.pcm,
-					 formation.midi * 8, false);
-	if (err < 0)
-		return err;
 
 	err = cmp_connection_establish(conn,
 				       amdtp_stream_get_max_payload(stream));
@@ -236,6 +198,51 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	return 0;
 }
 
+static int keep_resources(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
+{
+	enum avc_general_plug_dir dir;
+	u8 **formats;
+	struct snd_oxfw_stream_formation formation;
+	int i;
+	int err;
+
+	if (stream == &oxfw->rx_stream) {
+		dir = AVC_GENERAL_PLUG_DIR_IN;
+		formats = oxfw->rx_stream_formats;
+	} else {
+		dir = AVC_GENERAL_PLUG_DIR_OUT;
+		formats = oxfw->tx_stream_formats;
+	}
+
+	err = snd_oxfw_stream_get_current_formation(oxfw, dir, &formation);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < SND_OXFW_STREAM_FORMAT_ENTRIES; i++) {
+		struct snd_oxfw_stream_formation fmt;
+
+		if (formats[i] == NULL)
+			break;
+
+		err = snd_oxfw_stream_parse_format(formats[i], &fmt);
+		if (err < 0)
+			return err;
+
+		if (fmt.rate == formation.rate && fmt.pcm == formation.pcm &&
+		    fmt.midi == formation.midi)
+			break;
+	}
+	if (i == SND_OXFW_STREAM_FORMAT_ENTRIES)
+		return -EINVAL;
+
+	// The stream should have one pcm channels at least.
+	if (formation.pcm == 0)
+		return -EINVAL;
+
+	return amdtp_am824_set_parameters(stream, formation.rate, formation.pcm,
+					 formation.midi * 8, false);
+}
+
 int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
 				   struct amdtp_stream *stream,
 				   unsigned int rate, unsigned int pcm_channels)
@@ -284,6 +291,16 @@ int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
 			dev_err(&oxfw->unit->device,
 				"fail to set stream format: %d\n", err);
 			return err;
+		}
+
+		err = keep_resources(oxfw, &oxfw->rx_stream);
+		if (err < 0)
+			return err;
+
+		if (oxfw->has_output) {
+			err = keep_resources(oxfw, &oxfw->tx_stream);
+			if (err < 0)
+				return err;
 		}
 	}
 
