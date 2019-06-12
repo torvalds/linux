@@ -30,6 +30,45 @@ enum drm_rockchip_gem_mem_type {
 				ROCKCHIP_BO_WC
 };
 
+/**
+ * User-desired buffer creation information structure.
+ *
+ * @size: user-desired memory allocation size.
+ * @flags: user request for setting memory type or cache attributes.
+ * @handle: returned a handle to created gem object.
+ *     - this handle will be set by gem module of kernel side.
+ */
+struct drm_rockchip_gem_create {
+	uint64_t size;
+	uint32_t flags;
+	uint32_t handle;
+};
+
+struct drm_rockchip_gem_phys {
+	uint32_t handle;
+	uint32_t phy_addr;
+};
+
+/**
+ * A structure for getting buffer offset.
+ *
+ * @handle: a pointer to gem object created.
+ * @pad: just padding to be 64-bit aligned.
+ * @offset: relatived offset value of the memory region allocated.
+ *     - this value should be set by user.
+ */
+struct drm_rockchip_gem_map_off {
+	uint32_t handle;
+	uint32_t pad;
+	uint64_t offset;
+};
+
+/* acquire type definitions. */
+enum drm_rockchip_gem_cpu_acquire_type {
+	DRM_ROCKCHIP_GEM_CPU_ACQUIRE_SHARED = 0x0,
+	DRM_ROCKCHIP_GEM_CPU_ACQUIRE_EXCLUSIVE = 0x1,
+};
+
 enum rockchip_plane_feture {
 	ROCKCHIP_DRM_PLANE_FEATURE_SCALE,
 	ROCKCHIP_DRM_PLANE_FEATURE_ALPHA,
@@ -51,4 +90,24 @@ enum rockchip_cabc_mode {
 	ROCKCHIP_DRM_CABC_MODE_USERSPACE,
 };
 
+#define DRM_ROCKCHIP_GEM_CREATE		0x00
+#define DRM_ROCKCHIP_GEM_MAP_OFFSET	0x01
+#define DRM_ROCKCHIP_GEM_CPU_ACQUIRE	0x02
+#define DRM_ROCKCHIP_GEM_CPU_RELEASE	0x03
+#define DRM_ROCKCHIP_GEM_GET_PHYS	0x04
+
+#define DRM_IOCTL_ROCKCHIP_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_ROCKCHIP_GEM_CREATE, struct drm_rockchip_gem_create)
+
+#define DRM_IOCTL_ROCKCHIP_GEM_MAP_OFFSET	DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_ROCKCHIP_GEM_MAP_OFFSET, struct drm_rockchip_gem_map_off)
+
+#define DRM_IOCTL_ROCKCHIP_GEM_CPU_ACQUIRE	DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_ROCKCHIP_GEM_CPU_ACQUIRE, struct drm_rockchip_gem_cpu_acquire)
+
+#define DRM_IOCTL_ROCKCHIP_GEM_CPU_RELEASE	DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_ROCKCHIP_GEM_CPU_RELEASE, struct drm_rockchip_gem_cpu_release)
+
+#define DRM_IOCTL_ROCKCHIP_GEM_GET_PHYS		DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_ROCKCHIP_GEM_GET_PHYS, struct drm_rockchip_gem_phys)
 #endif /* _UAPI_ROCKCHIP_DRM_H */

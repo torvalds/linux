@@ -839,6 +839,80 @@ void rockchip_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 	/* Nothing to do if allocated by DMA mapping API. */
 }
 
+static int rockchip_gem_dumb_map_offset(struct drm_file *file_priv,
+					struct drm_device *dev, uint32_t handle,
+					uint64_t *offset)
+{
+	struct drm_gem_object *obj;
+	int ret;
+
+	obj = drm_gem_object_lookup(file_priv, handle);
+	if (!obj) {
+		DRM_ERROR("failed to lookup gem object.\n");
+		return -EINVAL;
+	}
+
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto out;
+
+	*offset = drm_vma_node_offset_addr(&obj->vma_node);
+	DRM_DEBUG_KMS("offset = 0x%llx\n", *offset);
+
+out:
+	drm_gem_object_unreference_unlocked(obj);
+
+	return 0;
+}
+
+int rockchip_gem_create_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv)
+{
+	struct drm_rockchip_gem_create *args = data;
+	struct rockchip_gem_object *rk_obj;
+
+	rk_obj = rockchip_gem_create_with_handle(file_priv, dev, args->size,
+						 &args->handle, args->flags);
+	return PTR_ERR_OR_ZERO(rk_obj);
+}
+
+int rockchip_gem_map_offset_ioctl(struct drm_device *drm, void *data,
+				  struct drm_file *file_priv)
+{
+	struct drm_rockchip_gem_map_off *args = data;
+
+	return rockchip_gem_dumb_map_offset(file_priv, drm, args->handle,
+					    &args->offset);
+}
+
+int rockchip_gem_get_phys_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv)
+{
+	struct drm_rockchip_gem_phys *args = data;
+	struct rockchip_gem_object *rk_obj;
+	struct drm_gem_object *obj;
+	int ret = 0;
+
+	obj = drm_gem_object_lookup(file_priv, args->handle);
+	if (!obj) {
+		DRM_ERROR("failed to lookup gem object.\n");
+		return -EINVAL;
+	}
+	rk_obj = to_rockchip_obj(obj);
+
+	if (!(rk_obj->flags & ROCKCHIP_BO_CONTIG)) {
+		DRM_ERROR("Can't get phys address from non-continue buf.\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	args->phy_addr = page_to_phys(rk_obj->pages[0]);
+
+out:
+	drm_gem_object_unreference_unlocked(obj);
+	return ret;
+}
+
 int rockchip_gem_prime_begin_cpu_access(struct drm_gem_object *obj,
 					enum dma_data_direction dir)
 {
