@@ -20,11 +20,15 @@ const char *nvme_trace_parse_admin_cmd(struct trace_seq *p, u8 opcode,
 		u8 *cdw10);
 const char *nvme_trace_parse_nvm_cmd(struct trace_seq *p, u8 opcode,
 		u8 *cdw10);
+const char *nvme_trace_parse_fabrics_cmd(struct trace_seq *p, u8 fctype,
+		u8 *spc);
 
-#define parse_nvme_cmd(qid, opcode, cdw10) 			\
-	(qid ?							\
-	 nvme_trace_parse_nvm_cmd(p, opcode, cdw10) : 		\
-	 nvme_trace_parse_admin_cmd(p, opcode, cdw10))
+#define parse_nvme_cmd(qid, opcode, fctype, cdw10)			\
+	((opcode) == nvme_fabrics_command ?				\
+	 nvme_trace_parse_fabrics_cmd(p, fctype, cdw10) :		\
+	((qid) ?							\
+	 nvme_trace_parse_nvm_cmd(p, opcode, cdw10) :			\
+	 nvme_trace_parse_admin_cmd(p, opcode, cdw10)))
 
 const char *nvme_trace_disk_name(struct trace_seq *p, char *name);
 #define __print_disk_name(name)				\
@@ -49,6 +53,7 @@ TRACE_EVENT(nvme_setup_cmd,
 		__field(int, qid)
 		__field(u8, opcode)
 		__field(u8, flags)
+		__field(u8, fctype)
 		__field(u16, cid)
 		__field(u32, nsid)
 		__field(u64, metadata)
@@ -62,6 +67,7 @@ TRACE_EVENT(nvme_setup_cmd,
 		__entry->cid = cmd->common.command_id;
 		__entry->nsid = le32_to_cpu(cmd->common.nsid);
 		__entry->metadata = le64_to_cpu(cmd->common.metadata);
+		__entry->fctype = cmd->fabrics.fctype;
 		__assign_disk_name(__entry->disk, req->rq_disk);
 		memcpy(__entry->cdw10, &cmd->common.cdw10,
 			sizeof(__entry->cdw10));
@@ -70,8 +76,10 @@ TRACE_EVENT(nvme_setup_cmd,
 		      __entry->ctrl_id, __print_disk_name(__entry->disk),
 		      __entry->qid, __entry->cid, __entry->nsid,
 		      __entry->flags, __entry->metadata,
-		      show_opcode_name(__entry->qid, __entry->opcode),
-		      parse_nvme_cmd(__entry->qid, __entry->opcode, __entry->cdw10))
+		      show_opcode_name(__entry->qid, __entry->opcode,
+				__entry->fctype),
+		      parse_nvme_cmd(__entry->qid, __entry->opcode,
+				__entry->fctype, __entry->cdw10))
 );
 
 TRACE_EVENT(nvme_complete_rq,
