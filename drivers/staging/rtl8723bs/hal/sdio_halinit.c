@@ -397,7 +397,7 @@ static void _InitNormalChipThreeOutEpPriority(struct adapter *padapter)
 	_InitNormalChipRegPriority(padapter, beQ, bkQ, viQ, voQ, mgtQ, hiQ);
 }
 
-static void _InitNormalChipQueuePriority(struct adapter *Adapter)
+static void _InitQueuePriority(struct adapter *Adapter)
 {
 	struct hal_com_data *pHalData = GET_HAL_DATA(Adapter);
 
@@ -417,11 +417,6 @@ static void _InitNormalChipQueuePriority(struct adapter *Adapter)
 	}
 
 
-}
-
-static void _InitQueuePriority(struct adapter *padapter)
-{
-	_InitNormalChipQueuePriority(padapter);
 }
 
 static void _InitPageBoundary(struct adapter *padapter)
