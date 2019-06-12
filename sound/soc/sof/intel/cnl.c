@@ -168,6 +168,8 @@ static void cnl_ipc_dump(struct snd_sof_dev *sdev)
 	u32 hipcida;
 	u32 hipctdr;
 
+	hda_ipc_irq_dump(sdev);
+
 	/* read IPC status */
 	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
 	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCCTL);
