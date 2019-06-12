@@ -929,7 +929,6 @@ static struct dma_pte *pfn_to_dma_pte(struct dmar_domain *domain,
 	return pte;
 }
 
-
 /* return address's pte at specific level */
 static struct dma_pte *dma_pfn_level_pte(struct dmar_domain *domain,
 					 unsigned long pfn,
@@ -1598,7 +1597,6 @@ static void iommu_disable_translation(struct intel_iommu *iommu)
 	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
-
 static int iommu_init_domains(struct intel_iommu *iommu)
 {
 	u32 ndomains, nlongs;
@@ -1635,8 +1633,6 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 		iommu->domains    = NULL;
 		return -ENOMEM;
 	}
-
-
 
 	/*
 	 * If Caching mode is set, then invalid translations are tagged
@@ -2664,29 +2660,6 @@ static struct dmar_domain *set_domain_for_dev(struct device *dev,
 	return domain;
 }
 
-static struct dmar_domain *get_domain_for_dev(struct device *dev, int gaw)
-{
-	struct dmar_domain *domain, *tmp;
-
-	domain = find_domain(dev);
-	if (domain)
-		goto out;
-
-	domain = find_or_alloc_domain(dev, gaw);
-	if (!domain)
-		goto out;
-
-	tmp = set_domain_for_dev(dev, domain);
-	if (!tmp || domain != tmp) {
-		domain_exit(domain);
-		domain = tmp;
-	}
-
-out:
-
-	return domain;
-}
-
 static int iommu_domain_identity_map(struct dmar_domain *domain,
 				     unsigned long long start,
 				     unsigned long long end)
@@ -2749,33 +2722,6 @@ static int domain_prepare_identity_map(struct device *dev,
 	}
 
 	return iommu_domain_identity_map(domain, start, end);
-}
-
-static int iommu_prepare_identity_map(struct device *dev,
-				      unsigned long long start,
-				      unsigned long long end)
-{
-	struct dmar_domain *domain;
-	int ret;
-
-	domain = get_domain_for_dev(dev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
-	if (!domain)
-		return -ENOMEM;
-
-	ret = domain_prepare_identity_map(dev, domain, start, end);
-	if (ret)
-		domain_exit(domain);
-
-	return ret;
-}
-
-static inline int iommu_prepare_rmrr_dev(struct dmar_rmrr_unit *rmrr,
-					 struct device *dev)
-{
-	if (dev->archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO)
-		return 0;
-	return iommu_prepare_identity_map(dev, rmrr->base_address,
-					  rmrr->end_address);
 }
 
 static int md_domain_init(struct dmar_domain *domain, int guest_width);
@@ -4093,7 +4039,6 @@ static void __init init_iommu_pm_ops(void)
 #else
 static inline void init_iommu_pm_ops(void) {}
 #endif	/* CONFIG_PM */
-
 
 int __init dmar_parse_one_rmrr(struct acpi_dmar_header *header, void *arg)
 {
