@@ -798,9 +798,6 @@ static int rvin_initialize_device(struct file *file)
 		return ret;
 
 	pm_runtime_enable(&vin->vdev.dev);
-	ret = pm_runtime_resume(&vin->vdev.dev);
-	if (ret < 0 && ret != -ENOSYS)
-		goto eresume;
 
 	/*
 	 * Try to configure with default parameters. Notice: this is the
@@ -817,7 +814,6 @@ static int rvin_initialize_device(struct file *file)
 	return 0;
 esfmt:
 	pm_runtime_disable(&vin->vdev.dev);
-eresume:
 	rvin_power_off(vin);
 
 	return ret;
@@ -868,7 +864,6 @@ static int rvin_release(struct file *file)
 	 * Then de-initialize hw module.
 	 */
 	if (fh_singular) {
-		pm_runtime_suspend(&vin->vdev.dev);
 		pm_runtime_disable(&vin->vdev.dev);
 		rvin_power_off(vin);
 	}
