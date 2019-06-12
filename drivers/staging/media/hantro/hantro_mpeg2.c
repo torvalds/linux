@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Rockchip VPU codec driver
+ * Hantro VPU codec driver
  *
  * Copyright (C) 2018 Rockchip Electronics Co., Ltd.
  */
 
-#include "rockchip_vpu.h"
+#include "hantro.h"
 
 static const u8 zigzag[64] = {
 	0,   1,  8, 16,  9,  2,  3, 10,
@@ -18,7 +18,7 @@ static const u8 zigzag[64] = {
 	53, 60, 61, 54, 47, 55, 62, 63
 };
 
-void rockchip_vpu_mpeg2_dec_copy_qtable(u8 *qtable,
+void hantro_mpeg2_dec_copy_qtable(u8 *qtable,
 	const struct v4l2_ctrl_mpeg2_quantization *ctrl)
 {
 	int i, n;
@@ -35,9 +35,9 @@ void rockchip_vpu_mpeg2_dec_copy_qtable(u8 *qtable,
 	}
 }
 
-int rockchip_vpu_mpeg2_dec_init(struct rockchip_vpu_ctx *ctx)
+int hantro_mpeg2_dec_init(struct hantro_ctx *ctx)
 {
-	struct rockchip_vpu_dev *vpu = ctx->dev;
+	struct hantro_dev *vpu = ctx->dev;
 
 	ctx->mpeg2_dec.qtable.size = ARRAY_SIZE(zigzag) * 4;
 	ctx->mpeg2_dec.qtable.cpu =
@@ -50,9 +50,9 @@ int rockchip_vpu_mpeg2_dec_init(struct rockchip_vpu_ctx *ctx)
 	return 0;
 }
 
-void rockchip_vpu_mpeg2_dec_exit(struct rockchip_vpu_ctx *ctx)
+void hantro_mpeg2_dec_exit(struct hantro_ctx *ctx)
 {
-	struct rockchip_vpu_dev *vpu = ctx->dev;
+	struct hantro_dev *vpu = ctx->dev;
 
 	dma_free_coherent(vpu->dev,
 			  ctx->mpeg2_dec.qtable.size,

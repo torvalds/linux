@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Rockchip VPU codec driver
+ * Hantro VPU codec driver
  *
  * Copyright 2018 Google LLC.
  *	Tomasz Figa <tfiga@chromium.org>
@@ -9,8 +9,8 @@
  * Copyright (C) 2011 Samsung Electronics Co., Ltd.
  */
 
-#ifndef ROCKCHIP_VPU_H_
-#define ROCKCHIP_VPU_H_
+#ifndef HANTRO_H_
+#define HANTRO_H_
 
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
@@ -23,9 +23,9 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
 
-#include "rockchip_vpu_hw.h"
+#include "hantro_hw.h"
 
-#define ROCKCHIP_VPU_MAX_CLOCKS		4
+#define HANTRO_MAX_CLOCKS		4
 
 #define MPEG2_MB_DIM			16
 #define MPEG2_MB_WIDTH(w)		DIV_ROUND_UP(w, MPEG2_MB_DIM)
@@ -35,17 +35,17 @@
 #define JPEG_MB_WIDTH(w)		DIV_ROUND_UP(w, JPEG_MB_DIM)
 #define JPEG_MB_HEIGHT(h)		DIV_ROUND_UP(h, JPEG_MB_DIM)
 
-struct rockchip_vpu_ctx;
-struct rockchip_vpu_codec_ops;
+struct hantro_ctx;
+struct hantro_codec_ops;
 
-#define RK_VPU_JPEG_ENCODER	BIT(0)
-#define RK_VPU_ENCODERS		0x0000ffff
+#define HANTRO_JPEG_ENCODER	BIT(0)
+#define HANTRO_ENCODERS		0x0000ffff
 
-#define RK_VPU_MPEG2_DECODER	BIT(16)
-#define RK_VPU_DECODERS		0xffff0000
+#define HANTRO_MPEG2_DECODER	BIT(16)
+#define HANTRO_DECODERS		0xffff0000
 
 /**
- * struct rockchip_vpu_variant - information about VPU hardware variant
+ * struct hantro_variant - information about VPU hardware variant
  *
  * @enc_offset:			Offset from VPU base to encoder registers.
  * @dec_offset:			Offset from VPU base to decoder registers.
@@ -61,48 +61,48 @@ struct rockchip_vpu_codec_ops;
  * @clk_names:			array of clock names
  * @num_clocks:			number of clocks in the array
  */
-struct rockchip_vpu_variant {
+struct hantro_variant {
 	unsigned int enc_offset;
 	unsigned int dec_offset;
-	const struct rockchip_vpu_fmt *enc_fmts;
+	const struct hantro_fmt *enc_fmts;
 	unsigned int num_enc_fmts;
-	const struct rockchip_vpu_fmt *dec_fmts;
+	const struct hantro_fmt *dec_fmts;
 	unsigned int num_dec_fmts;
 	unsigned int codec;
-	const struct rockchip_vpu_codec_ops *codec_ops;
-	int (*init)(struct rockchip_vpu_dev *vpu);
+	const struct hantro_codec_ops *codec_ops;
+	int (*init)(struct hantro_dev *vpu);
 	irqreturn_t (*vepu_irq)(int irq, void *priv);
 	irqreturn_t (*vdpu_irq)(int irq, void *priv);
-	const char *clk_names[ROCKCHIP_VPU_MAX_CLOCKS];
+	const char *clk_names[HANTRO_MAX_CLOCKS];
 	int num_clocks;
 };
 
 /**
- * enum rockchip_vpu_codec_mode - codec operating mode.
- * @RK_VPU_MODE_NONE:  No operating mode. Used for RAW video formats.
- * @RK_VPU_MODE_JPEG_ENC: JPEG encoder.
- * @RK_VPU_MODE_MPEG2_DEC: MPEG-2 decoder.
+ * enum hantro_codec_mode - codec operating mode.
+ * @HANTRO_MODE_NONE:  No operating mode. Used for RAW video formats.
+ * @HANTRO_MODE_JPEG_ENC: JPEG encoder.
+ * @HANTRO_MODE_MPEG2_DEC: MPEG-2 decoder.
  */
-enum rockchip_vpu_codec_mode {
-	RK_VPU_MODE_NONE = -1,
-	RK_VPU_MODE_JPEG_ENC,
-	RK_VPU_MODE_MPEG2_DEC,
+enum hantro_codec_mode {
+	HANTRO_MODE_NONE = -1,
+	HANTRO_MODE_JPEG_ENC,
+	HANTRO_MODE_MPEG2_DEC,
 };
 
 /*
- * struct rockchip_vpu_ctrl - helper type to declare supported controls
+ * struct hantro_ctrl - helper type to declare supported controls
  * @id:		V4L2 control ID (V4L2_CID_xxx)
- * @codec:	codec id this control belong to (RK_VPU_JPEG_ENCODER, etc.)
+ * @codec:	codec id this control belong to (HANTRO_JPEG_ENCODER, etc.)
  * @cfg:	control configuration
  */
-struct rockchip_vpu_ctrl {
+struct hantro_ctrl {
 	unsigned int id;
 	unsigned int codec;
 	struct v4l2_ctrl_config cfg;
 };
 
 /*
- * struct rockchip_vpu_func - rockchip VPU functionality
+ * struct hantro_func - Hantro VPU functionality
  *
  * @id:			processing functionality ID (can be
  *			%MEDIA_ENT_F_PROC_VIDEO_ENCODER or
@@ -119,7 +119,7 @@ struct rockchip_vpu_ctrl {
  *
  * Contains everything needed to attach the video device to the media device.
  */
-struct rockchip_vpu_func {
+struct hantro_func {
 	unsigned int id;
 	struct video_device vdev;
 	struct media_pad source_pad;
@@ -130,14 +130,14 @@ struct rockchip_vpu_func {
 	struct media_intf_devnode *intf_devnode;
 };
 
-static inline struct rockchip_vpu_func *
-rockchip_vpu_vdev_to_func(struct video_device *vdev)
+static inline struct hantro_func *
+hantro_vdev_to_func(struct video_device *vdev)
 {
-	return container_of(vdev, struct rockchip_vpu_func, vdev);
+	return container_of(vdev, struct hantro_func, vdev);
 }
 
 /**
- * struct rockchip_vpu_dev - driver data
+ * struct hantro_dev - driver data
  * @v4l2_dev:		V4L2 device to register video devices for.
  * @m2m_dev:		mem2mem device associated to this device.
  * @mdev:		media device associated to this device.
@@ -156,27 +156,27 @@ rockchip_vpu_vdev_to_func(struct video_device *vdev)
  * @variant:		Hardware variant-specific parameters.
  * @watchdog_work:	Delayed work for hardware timeout handling.
  */
-struct rockchip_vpu_dev {
+struct hantro_dev {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_m2m_dev *m2m_dev;
 	struct media_device mdev;
-	struct rockchip_vpu_func *encoder;
-	struct rockchip_vpu_func *decoder;
+	struct hantro_func *encoder;
+	struct hantro_func *decoder;
 	struct platform_device *pdev;
 	struct device *dev;
-	struct clk_bulk_data clocks[ROCKCHIP_VPU_MAX_CLOCKS];
+	struct clk_bulk_data clocks[HANTRO_MAX_CLOCKS];
 	void __iomem *base;
 	void __iomem *enc_base;
 	void __iomem *dec_base;
 
 	struct mutex vpu_mutex;	/* video_device lock */
 	spinlock_t irqlock;
-	const struct rockchip_vpu_variant *variant;
+	const struct hantro_variant *variant;
 	struct delayed_work watchdog_work;
 };
 
 /**
- * struct rockchip_vpu_ctx - Context (instance) private data.
+ * struct hantro_ctx - Context (instance) private data.
  *
  * @dev:		VPU driver data to which the context belongs.
  * @fh:			V4L2 file handler.
@@ -199,52 +199,52 @@ struct rockchip_vpu_dev {
  * @jpeg_enc:		JPEG-encoding context.
  * @mpeg2_dec:		MPEG-2-decoding context.
  */
-struct rockchip_vpu_ctx {
-	struct rockchip_vpu_dev *dev;
+struct hantro_ctx {
+	struct hantro_dev *dev;
 	struct v4l2_fh fh;
 
 	u32 sequence_cap;
 	u32 sequence_out;
 
-	const struct rockchip_vpu_fmt *vpu_src_fmt;
+	const struct hantro_fmt *vpu_src_fmt;
 	struct v4l2_pix_format_mplane src_fmt;
-	const struct rockchip_vpu_fmt *vpu_dst_fmt;
+	const struct hantro_fmt *vpu_dst_fmt;
 	struct v4l2_pix_format_mplane dst_fmt;
 
 	struct v4l2_ctrl_handler ctrl_handler;
 	int jpeg_quality;
 
-	int (*buf_finish)(struct rockchip_vpu_ctx *ctx,
+	int (*buf_finish)(struct hantro_ctx *ctx,
 			  struct vb2_buffer *buf,
 			  unsigned int bytesused);
 
-	const struct rockchip_vpu_codec_ops *codec_ops;
+	const struct hantro_codec_ops *codec_ops;
 
 	/* Specific for particular codec modes. */
 	union {
-		struct rockchip_vpu_jpeg_enc_hw_ctx jpeg_enc;
-		struct rockchip_vpu_mpeg2_dec_hw_ctx mpeg2_dec;
+		struct hantro_jpeg_enc_hw_ctx jpeg_enc;
+		struct hantro_mpeg2_dec_hw_ctx mpeg2_dec;
 	};
 };
 
 /**
- * struct rockchip_vpu_fmt - information about supported video formats.
+ * struct hantro_fmt - information about supported video formats.
  * @name:	Human readable name of the format.
  * @fourcc:	FourCC code of the format. See V4L2_PIX_FMT_*.
  * @codec_mode:	Codec mode related to this format. See
- *		enum rockchip_vpu_codec_mode.
+ *		enum hantro_codec_mode.
  * @header_size: Optional header size. Currently used by JPEG encoder.
  * @max_depth:	Maximum depth, for bitstream formats
  * @enc_fmt:	Format identifier for encoder registers.
  * @frmsize:	Supported range of frame sizes (only for bitstream formats).
  */
-struct rockchip_vpu_fmt {
+struct hantro_fmt {
 	char *name;
 	u32 fourcc;
-	enum rockchip_vpu_codec_mode codec_mode;
+	enum hantro_codec_mode codec_mode;
 	int header_size;
 	int max_depth;
-	enum rockchip_vpu_enc_fmt enc_fmt;
+	enum hantro_enc_fmt enc_fmt;
 	struct v4l2_frmsize_stepwise frmsize;
 };
 
@@ -265,11 +265,11 @@ struct rockchip_vpu_fmt {
  * bit 5 - detail function enter/leave trace information
  * bit 6 - register write/read information
  */
-extern int rockchip_vpu_debug;
+extern int hantro_debug;
 
 #define vpu_debug(level, fmt, args...)				\
 	do {							\
-		if (rockchip_vpu_debug & BIT(level))		\
+		if (hantro_debug & BIT(level))		\
 			pr_info("%s:%d: " fmt,	                \
 				 __func__, __LINE__, ##args);	\
 	} while (0)
@@ -278,26 +278,26 @@ extern int rockchip_vpu_debug;
 	pr_err("%s:%d: " fmt, __func__, __LINE__, ##args)
 
 /* Structure access helpers. */
-static inline struct rockchip_vpu_ctx *fh_to_ctx(struct v4l2_fh *fh)
+static inline struct hantro_ctx *fh_to_ctx(struct v4l2_fh *fh)
 {
-	return container_of(fh, struct rockchip_vpu_ctx, fh);
+	return container_of(fh, struct hantro_ctx, fh);
 }
 
 /* Register accessors. */
-static inline void vepu_write_relaxed(struct rockchip_vpu_dev *vpu,
+static inline void vepu_write_relaxed(struct hantro_dev *vpu,
 				      u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel_relaxed(val, vpu->enc_base + reg);
 }
 
-static inline void vepu_write(struct rockchip_vpu_dev *vpu, u32 val, u32 reg)
+static inline void vepu_write(struct hantro_dev *vpu, u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel(val, vpu->enc_base + reg);
 }
 
-static inline u32 vepu_read(struct rockchip_vpu_dev *vpu, u32 reg)
+static inline u32 vepu_read(struct hantro_dev *vpu, u32 reg)
 {
 	u32 val = readl(vpu->enc_base + reg);
 
@@ -305,20 +305,20 @@ static inline u32 vepu_read(struct rockchip_vpu_dev *vpu, u32 reg)
 	return val;
 }
 
-static inline void vdpu_write_relaxed(struct rockchip_vpu_dev *vpu,
+static inline void vdpu_write_relaxed(struct hantro_dev *vpu,
 				      u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel_relaxed(val, vpu->dec_base + reg);
 }
 
-static inline void vdpu_write(struct rockchip_vpu_dev *vpu, u32 val, u32 reg)
+static inline void vdpu_write(struct hantro_dev *vpu, u32 val, u32 reg)
 {
 	vpu_debug(6, "0x%04x = 0x%08x\n", reg / 4, val);
 	writel(val, vpu->dec_base + reg);
 }
 
-static inline u32 vdpu_read(struct rockchip_vpu_dev *vpu, u32 reg)
+static inline u32 vdpu_read(struct hantro_dev *vpu, u32 reg)
 {
 	u32 val = readl(vpu->dec_base + reg);
 
@@ -326,9 +326,9 @@ static inline u32 vdpu_read(struct rockchip_vpu_dev *vpu, u32 reg)
 	return val;
 }
 
-bool rockchip_vpu_is_encoder_ctx(const struct rockchip_vpu_ctx *ctx);
+bool hantro_is_encoder_ctx(const struct hantro_ctx *ctx);
 
-void *rockchip_vpu_get_ctrl(struct rockchip_vpu_ctx *ctx, u32 id);
-dma_addr_t rockchip_vpu_get_ref(struct vb2_queue *q, u64 ts);
+void *hantro_get_ctrl(struct hantro_ctx *ctx, u32 id);
+dma_addr_t hantro_get_ref(struct vb2_queue *q, u64 ts);
 
-#endif /* ROCKCHIP_VPU_H_ */
+#endif /* HANTRO_H_ */

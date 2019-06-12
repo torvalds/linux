@@ -9,8 +9,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include "rockchip_vpu_jpeg.h"
-#include "rockchip_vpu.h"
+#include "hantro_jpeg.h"
+#include "hantro.h"
 
 #define LUMA_QUANT_OFF		7
 #define CHROMA_QUANT_OFF	72
@@ -118,7 +118,7 @@ static const unsigned char chroma_ac_table[] = {
  * and we'll use fixed offsets to change the width, height
  * quantization tables, etc.
  */
-static const unsigned char rockchip_vpu_jpeg_header[JPEG_HEADER_SIZE] = {
+static const unsigned char hantro_jpeg_header[JPEG_HEADER_SIZE] = {
 	/* SOI */
 	0xff, 0xd8,
 
@@ -262,19 +262,19 @@ static void jpeg_set_quality(unsigned char *buffer, int quality)
 }
 
 unsigned char *
-rockchip_vpu_jpeg_get_qtable(struct rockchip_vpu_jpeg_ctx *ctx, int index)
+hantro_jpeg_get_qtable(struct hantro_jpeg_ctx *ctx, int index)
 {
 	if (index == 0)
 		return ctx->buffer + LUMA_QUANT_OFF;
 	return ctx->buffer + CHROMA_QUANT_OFF;
 }
 
-void rockchip_vpu_jpeg_header_assemble(struct rockchip_vpu_jpeg_ctx *ctx)
+void hantro_jpeg_header_assemble(struct hantro_jpeg_ctx *ctx)
 {
 	char *buf = ctx->buffer;
 
-	memcpy(buf, rockchip_vpu_jpeg_header,
-	       sizeof(rockchip_vpu_jpeg_header));
+	memcpy(buf, hantro_jpeg_header,
+	       sizeof(hantro_jpeg_header));
 
 	buf[HEIGHT_OFF + 0] = ctx->height >> 8;
 	buf[HEIGHT_OFF + 1] = ctx->height;
@@ -291,7 +291,7 @@ void rockchip_vpu_jpeg_header_assemble(struct rockchip_vpu_jpeg_ctx *ctx)
 	jpeg_set_quality(buf, ctx->quality);
 }
 
-int rockchip_vpu_jpeg_enc_init(struct rockchip_vpu_ctx *ctx)
+int hantro_jpeg_enc_init(struct hantro_ctx *ctx)
 {
 	ctx->jpeg_enc.bounce_buffer.size =
 		ctx->dst_fmt.plane_fmt[0].sizeimage -
@@ -309,7 +309,7 @@ int rockchip_vpu_jpeg_enc_init(struct rockchip_vpu_ctx *ctx)
 	return 0;
 }
 
-void rockchip_vpu_jpeg_enc_exit(struct rockchip_vpu_ctx *ctx)
+void hantro_jpeg_enc_exit(struct hantro_ctx *ctx)
 {
 	dma_free_attrs(ctx->dev->dev,
 		       ctx->jpeg_enc.bounce_buffer.size,

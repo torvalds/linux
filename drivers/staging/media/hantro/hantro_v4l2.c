@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Rockchip VPU codec driver
+ * Hantro VPU codec driver
  *
  * Copyright (C) 2018 Collabora, Ltd.
  * Copyright (C) 2018 Rockchip Electronics Co., Ltd.
@@ -26,17 +26,16 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-sg.h>
 
-#include "rockchip_vpu.h"
-#include "rockchip_vpu_hw.h"
-#include "rockchip_vpu_v4l2.h"
+#include "hantro.h"
+#include "hantro_hw.h"
+#include "hantro_v4l2.h"
 
-static const struct rockchip_vpu_fmt *
-rockchip_vpu_get_formats(const struct rockchip_vpu_ctx *ctx,
-			 unsigned int *num_fmts)
+static const struct hantro_fmt *
+hantro_get_formats(const struct hantro_ctx *ctx, unsigned int *num_fmts)
 {
-	const struct rockchip_vpu_fmt *formats;
+	const struct hantro_fmt *formats;
 
-	if (rockchip_vpu_is_encoder_ctx(ctx)) {
+	if (hantro_is_encoder_ctx(ctx)) {
 		formats = ctx->dev->variant->enc_fmts;
 		*num_fmts = ctx->dev->variant->num_enc_fmts;
 	} else {
@@ -47,9 +46,9 @@ rockchip_vpu_get_formats(const struct rockchip_vpu_ctx *ctx,
 	return formats;
 }
 
-static const struct rockchip_vpu_fmt *
-rockchip_vpu_find_format(const struct rockchip_vpu_fmt *formats,
-			 unsigned int num_fmts, u32 fourcc)
+static const struct hantro_fmt *
+hantro_find_format(const struct hantro_fmt *formats, unsigned int num_fmts,
+		   u32 fourcc)
 {
 	unsigned int i;
 
@@ -59,14 +58,15 @@ rockchip_vpu_find_format(const struct rockchip_vpu_fmt *formats,
 	return NULL;
 }
 
-static const struct rockchip_vpu_fmt *
-rockchip_vpu_get_default_fmt(const struct rockchip_vpu_fmt *formats,
-			     unsigned int num_fmts, bool bitstream)
+static const struct hantro_fmt *
+hantro_get_default_fmt(const struct hantro_fmt *formats, unsigned int num_fmts,
+		       bool bitstream)
 {
 	unsigned int i;
 
 	for (i = 0; i < num_fmts; i++) {
-		if (bitstream == (formats[i].codec_mode != RK_VPU_MODE_NONE))
+		if (bitstream == (formats[i].codec_mode !=
+				  HANTRO_MODE_NONE))
 			return &formats[i];
 	}
 	return NULL;
@@ -75,7 +75,7 @@ rockchip_vpu_get_default_fmt(const struct rockchip_vpu_fmt *formats,
 static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	struct rockchip_vpu_dev *vpu = video_drvdata(file);
+	struct hantro_dev *vpu = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
 
 	strscpy(cap->driver, vpu->dev->driver->name, sizeof(cap->driver));
@@ -88,8 +88,8 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_enum_framesizes(struct file *file, void *priv,
 				  struct v4l2_frmsizeenum *fsize)
 {
-	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
-	const struct rockchip_vpu_fmt *formats, *fmt;
+	struct hantro_ctx *ctx = fh_to_ctx(priv);
+	const struct hantro_fmt *formats, *fmt;
 	unsigned int num_fmts;
 
 	if (fsize->index != 0) {
@@ -98,8 +98,8 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	formats = rockchip_vpu_get_formats(ctx, &num_fmts);
-	fmt = rockchip_vpu_find_format(formats, num_fmts, fsize->pixel_format);
+	formats = hantro_get_formats(ctx, &num_fmts);
+	fmt = hantro_find_format(formats, num_fmts, fsize->pixel_format);
 	if (!fmt) {
 		vpu_debug(0, "unsupported bitstream format (%08x)\n",
 			  fsize->pixel_format);
@@ -107,7 +107,7 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 	}
 
 	/* This only makes sense for coded formats */
-	if (fmt->codec_mode == RK_VPU_MODE_NONE)
+	if (fmt->codec_mode == HANTRO_MODE_NONE)
 		return -EINVAL;
 
 	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
@@ -120,8 +120,8 @@ static int vidioc_enum_fmt(struct file *file, void *priv,
 			   struct v4l2_fmtdesc *f, bool capture)
 
 {
-	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
-	const struct rockchip_vpu_fmt *fmt, *formats;
+	struct hantro_ctx *ctx = fh_to_ctx(priv);
+	const struct hantro_fmt *fmt, *formats;
 	unsigned int num_fmts, i, j = 0;
 	bool skip_mode_none;
 
@@ -135,11 +135,11 @@ static int vidioc_enum_fmt(struct file *file, void *priv,
 	 *    not MODE_NONE.
 	 *  - on the output side we want to filter out all MODE_NONE formats.
 	 */
-	skip_mode_none = capture == rockchip_vpu_is_encoder_ctx(ctx);
+	skip_mode_none = capture == hantro_is_encoder_ctx(ctx);
 
-	formats = rockchip_vpu_get_formats(ctx, &num_fmts);
+	formats = hantro_get_formats(ctx, &num_fmts);
 	for (i = 0; i < num_fmts; i++) {
-		bool mode_none = formats[i].codec_mode == RK_VPU_MODE_NONE;
+		bool mode_none = formats[i].codec_mode == HANTRO_MODE_NONE;
 
 		if (skip_mode_none == mode_none)
 			continue;
@@ -169,7 +169,7 @@ static int vidioc_g_fmt_out_mplane(struct file *file, void *priv,
 				   struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
-	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct hantro_ctx *ctx = fh_to_ctx(priv);
 
 	vpu_debug(4, "f->type = %d\n", f->type);
 
@@ -182,7 +182,7 @@ static int vidioc_g_fmt_cap_mplane(struct file *file, void *priv,
 				   struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
-	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct hantro_ctx *ctx = fh_to_ctx(priv);
 
 	vpu_debug(4, "f->type = %d\n", f->type);
 
@@ -194,13 +194,13 @@ static int vidioc_g_fmt_cap_mplane(struct file *file, void *priv,
 static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
 			  bool capture)
 {
-	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
+	struct hantro_ctx *ctx = fh_to_ctx(priv);
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
-	const struct rockchip_vpu_fmt *formats, *fmt, *vpu_fmt;
+	const struct hantro_fmt *formats, *fmt, *vpu_fmt;
 	unsigned int num_fmts;
 	bool coded;
 
-	coded = capture == rockchip_vpu_is_encoder_ctx(ctx);
+	coded = capture == hantro_is_encoder_ctx(ctx);
 
 	vpu_debug(4, "trying format %c%c%c%c\n",
 		  (pix_mp->pixelformat & 0x7f),
@@ -208,17 +208,17 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f,
 		  (pix_mp->pixelformat >> 16) & 0x7f,
 		  (pix_mp->pixelformat >> 24) & 0x7f);
 
-	formats = rockchip_vpu_get_formats(ctx, &num_fmts);
-	fmt = rockchip_vpu_find_format(formats, num_fmts, pix_mp->pixelformat);
+	formats = hantro_get_formats(ctx, &num_fmts);
+	fmt = hantro_find_format(formats, num_fmts, pix_mp->pixelformat);
 	if (!fmt) {
-		fmt = rockchip_vpu_get_default_fmt(formats, num_fmts, coded);
+		fmt = hantro_get_default_fmt(formats, num_fmts, coded);
 		f->fmt.pix_mp.pixelformat = fmt->fourcc;
 	}
 
 	if (coded) {
 		pix_mp->num_planes = 1;
 		vpu_fmt = fmt;
-	} else if (rockchip_vpu_is_encoder_ctx(ctx)) {
+	} else if (hantro_is_encoder_ctx(ctx)) {
 		vpu_fmt = ctx->vpu_dst_fmt;
 	} else {
 		vpu_fmt = ctx->vpu_src_fmt;
@@ -265,8 +265,8 @@ static int vidioc_try_fmt_out_mplane(struct file *file, void *priv,
 }
 
 static void
-rockchip_vpu_reset_fmt(struct v4l2_pix_format_mplane *fmt,
-		       const struct rockchip_vpu_fmt *vpu_fmt)
+hantro_reset_fmt(struct v4l2_pix_format_mplane *fmt,
+		 const struct hantro_fmt *vpu_fmt)
 {
 	memset(fmt, 0, sizeof(*fmt));
 
@@ -279,16 +279,16 @@ rockchip_vpu_reset_fmt(struct v4l2_pix_format_mplane *fmt,
 }
 
 static void
-rockchip_vpu_reset_encoded_fmt(struct rockchip_vpu_ctx *ctx)
+hantro_reset_encoded_fmt(struct hantro_ctx *ctx)
 {
-	const struct rockchip_vpu_fmt *vpu_fmt, *formats;
+	const struct hantro_fmt *vpu_fmt, *formats;
 	struct v4l2_pix_format_mplane *fmt;
 	unsigned int num_fmts;
 
-	formats = rockchip_vpu_get_formats(ctx, &num_fmts);
-	vpu_fmt = rockchip_vpu_get_default_fmt(formats, num_fmts, true);
+	formats = hantro_get_formats(ctx, &num_fmts);
+	vpu_fmt = hantro_get_default_fmt(formats, num_fmts, true);
 
-	if (rockchip_vpu_is_encoder_ctx(ctx)) {
+	if (hantro_is_encoder_ctx(ctx)) {
 		ctx->vpu_dst_fmt = vpu_fmt;
 		fmt = &ctx->dst_fmt;
 	} else {
@@ -296,7 +296,7 @@ rockchip_vpu_reset_encoded_fmt(struct rockchip_vpu_ctx *ctx)
 		fmt = &ctx->src_fmt;
 	}
 
-	rockchip_vpu_reset_fmt(fmt, vpu_fmt);
+	hantro_reset_fmt(fmt, vpu_fmt);
 	fmt->num_planes = 1;
 	fmt->width = vpu_fmt->frmsize.min_width;
 	fmt->height = vpu_fmt->frmsize.min_height;
@@ -305,16 +305,16 @@ rockchip_vpu_reset_encoded_fmt(struct rockchip_vpu_ctx *ctx)
 }
 
 static void
-rockchip_vpu_reset_raw_fmt(struct rockchip_vpu_ctx *ctx)
+hantro_reset_raw_fmt(struct hantro_ctx *ctx)
 {
-	const struct rockchip_vpu_fmt *raw_vpu_fmt, *formats;
+	const struct hantro_fmt *raw_vpu_fmt, *formats;
 	struct v4l2_pix_format_mplane *raw_fmt, *encoded_fmt;
 	unsigned int num_fmts;
 
-	formats = rockchip_vpu_get_formats(ctx, &num_fmts);
-	raw_vpu_fmt = rockchip_vpu_get_default_fmt(formats, num_fmts, false);
+	formats = hantro_get_formats(ctx, &num_fmts);
+	raw_vpu_fmt = hantro_get_default_fmt(formats, num_fmts, false);
 
-	if (rockchip_vpu_is_encoder_ctx(ctx)) {
+	if (hantro_is_encoder_ctx(ctx)) {
 		ctx->vpu_src_fmt = raw_vpu_fmt;
 		raw_fmt = &ctx->src_fmt;
 		encoded_fmt = &ctx->dst_fmt;
@@ -324,21 +324,20 @@ rockchip_vpu_reset_raw_fmt(struct rockchip_vpu_ctx *ctx)
 		encoded_fmt = &ctx->src_fmt;
 	}
 
-	rockchip_vpu_reset_fmt(raw_fmt, raw_vpu_fmt);
+	hantro_reset_fmt(raw_fmt, raw_vpu_fmt);
 	v4l2_fill_pixfmt_mp(raw_fmt, raw_vpu_fmt->fourcc,
 			    encoded_fmt->width,
 			    encoded_fmt->height);
 }
 
-void rockchip_vpu_reset_fmts(struct rockchip_vpu_ctx *ctx)
+void hantro_reset_fmts(struct hantro_ctx *ctx)
 {
-	rockchip_vpu_reset_encoded_fmt(ctx);
-	rockchip_vpu_reset_raw_fmt(ctx);
+	hantro_reset_encoded_fmt(ctx);
+	hantro_reset_raw_fmt(ctx);
 }
 
 static void
-rockchip_vpu_update_requires_request(struct rockchip_vpu_ctx *ctx,
-				     u32 fourcc)
+hantro_update_requires_request(struct hantro_ctx *ctx, u32 fourcc)
 {
 	switch (fourcc) {
 	case V4L2_PIX_FMT_JPEG:
@@ -356,8 +355,8 @@ static int
 vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
-	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
-	const struct rockchip_vpu_fmt *formats;
+	struct hantro_ctx *ctx = fh_to_ctx(priv);
+	const struct hantro_fmt *formats;
 	unsigned int num_fmts;
 	struct vb2_queue *vq;
 	int ret;
@@ -367,7 +366,7 @@ vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 	if (vb2_is_busy(vq))
 		return -EBUSY;
 
-	if (!rockchip_vpu_is_encoder_ctx(ctx)) {
+	if (!hantro_is_encoder_ctx(ctx)) {
 		struct vb2_queue *peer_vq;
 
 		/*
@@ -385,9 +384,9 @@ vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 	if (ret)
 		return ret;
 
-	formats = rockchip_vpu_get_formats(ctx, &num_fmts);
-	ctx->vpu_src_fmt = rockchip_vpu_find_format(formats, num_fmts,
-						    pix_mp->pixelformat);
+	formats = hantro_get_formats(ctx, &num_fmts);
+	ctx->vpu_src_fmt = hantro_find_format(formats, num_fmts,
+					      pix_mp->pixelformat);
 	ctx->src_fmt = *pix_mp;
 
 	/*
@@ -396,11 +395,11 @@ vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 	 * keep internal driver state sane. User is mandated to set
 	 * the raw format again after we return, so we don't need
 	 * anything smarter.
-	 * Note that rockchip_vpu_reset_raw_fmt() also propagates size
+	 * Note that hantro_reset_raw_fmt() also propagates size
 	 * changes to the raw format.
 	 */
-	if (!rockchip_vpu_is_encoder_ctx(ctx))
-		rockchip_vpu_reset_raw_fmt(ctx);
+	if (!hantro_is_encoder_ctx(ctx))
+		hantro_reset_raw_fmt(ctx);
 
 	/* Colorimetry information are always propagated. */
 	ctx->dst_fmt.colorspace = pix_mp->colorspace;
@@ -408,7 +407,7 @@ vidioc_s_fmt_out_mplane(struct file *file, void *priv, struct v4l2_format *f)
 	ctx->dst_fmt.xfer_func = pix_mp->xfer_func;
 	ctx->dst_fmt.quantization = pix_mp->quantization;
 
-	rockchip_vpu_update_requires_request(ctx, pix_mp->pixelformat);
+	hantro_update_requires_request(ctx, pix_mp->pixelformat);
 
 	vpu_debug(0, "OUTPUT codec mode: %d\n", ctx->vpu_src_fmt->codec_mode);
 	vpu_debug(0, "fmt - w: %d, h: %d\n",
@@ -420,8 +419,8 @@ static int vidioc_s_fmt_cap_mplane(struct file *file, void *priv,
 				   struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
-	struct rockchip_vpu_ctx *ctx = fh_to_ctx(priv);
-	const struct rockchip_vpu_fmt *formats;
+	struct hantro_ctx *ctx = fh_to_ctx(priv);
+	const struct hantro_fmt *formats;
 	struct vb2_queue *vq;
 	unsigned int num_fmts;
 	int ret;
@@ -431,7 +430,7 @@ static int vidioc_s_fmt_cap_mplane(struct file *file, void *priv,
 	if (vb2_is_busy(vq))
 		return -EBUSY;
 
-	if (rockchip_vpu_is_encoder_ctx(ctx)) {
+	if (hantro_is_encoder_ctx(ctx)) {
 		struct vb2_queue *peer_vq;
 
 		/*
@@ -452,9 +451,9 @@ static int vidioc_s_fmt_cap_mplane(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	formats = rockchip_vpu_get_formats(ctx, &num_fmts);
-	ctx->vpu_dst_fmt = rockchip_vpu_find_format(formats, num_fmts,
-						    pix_mp->pixelformat);
+	formats = hantro_get_formats(ctx, &num_fmts);
+	ctx->vpu_dst_fmt = hantro_find_format(formats, num_fmts,
+					      pix_mp->pixelformat);
 	ctx->dst_fmt = *pix_mp;
 
 	/*
@@ -463,11 +462,11 @@ static int vidioc_s_fmt_cap_mplane(struct file *file, void *priv,
 	 * keep internal driver state sane. User is mandated to set
 	 * the raw format again after we return, so we don't need
 	 * anything smarter.
-	 * Note that rockchip_vpu_reset_raw_fmt() also propagates size
+	 * Note that hantro_reset_raw_fmt() also propagates size
 	 * changes to the raw format.
 	 */
-	if (rockchip_vpu_is_encoder_ctx(ctx))
-		rockchip_vpu_reset_raw_fmt(ctx);
+	if (hantro_is_encoder_ctx(ctx))
+		hantro_reset_raw_fmt(ctx);
 
 	/* Colorimetry information are always propagated. */
 	ctx->src_fmt.colorspace = pix_mp->colorspace;
@@ -479,12 +478,12 @@ static int vidioc_s_fmt_cap_mplane(struct file *file, void *priv,
 	vpu_debug(0, "fmt - w: %d, h: %d\n",
 		  pix_mp->width, pix_mp->height);
 
-	rockchip_vpu_update_requires_request(ctx, pix_mp->pixelformat);
+	hantro_update_requires_request(ctx, pix_mp->pixelformat);
 
 	return 0;
 }
 
-const struct v4l2_ioctl_ops rockchip_vpu_ioctl_ops = {
+const struct v4l2_ioctl_ops hantro_ioctl_ops = {
 	.vidioc_querycap = vidioc_querycap,
 	.vidioc_enum_framesizes = vidioc_enum_framesizes,
 
@@ -513,13 +512,11 @@ const struct v4l2_ioctl_ops rockchip_vpu_ioctl_ops = {
 };
 
 static int
-rockchip_vpu_queue_setup(struct vb2_queue *vq,
-			 unsigned int *num_buffers,
-			 unsigned int *num_planes,
-			 unsigned int sizes[],
-			 struct device *alloc_devs[])
+hantro_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
+		   unsigned int *num_planes, unsigned int sizes[],
+		   struct device *alloc_devs[])
 {
-	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(vq);
+	struct hantro_ctx *ctx = vb2_get_drv_priv(vq);
 	struct v4l2_pix_format_mplane *pixfmt;
 	int i;
 
@@ -551,9 +548,8 @@ rockchip_vpu_queue_setup(struct vb2_queue *vq,
 }
 
 static int
-rockchip_vpu_buf_plane_check(struct vb2_buffer *vb,
-			     const struct rockchip_vpu_fmt *vpu_fmt,
-			     struct v4l2_pix_format_mplane *pixfmt)
+hantro_buf_plane_check(struct vb2_buffer *vb, const struct hantro_fmt *vpu_fmt,
+		       struct v4l2_pix_format_mplane *pixfmt)
 {
 	unsigned int sz;
 	int i;
@@ -570,38 +566,36 @@ rockchip_vpu_buf_plane_check(struct vb2_buffer *vb,
 	return 0;
 }
 
-static int rockchip_vpu_buf_prepare(struct vb2_buffer *vb)
+static int hantro_buf_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
-	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(vq);
+	struct hantro_ctx *ctx = vb2_get_drv_priv(vq);
 
 	if (V4L2_TYPE_IS_OUTPUT(vq->type))
-		return rockchip_vpu_buf_plane_check(vb, ctx->vpu_src_fmt,
-						    &ctx->src_fmt);
+		return hantro_buf_plane_check(vb, ctx->vpu_src_fmt,
+						  &ctx->src_fmt);
 
-	return rockchip_vpu_buf_plane_check(vb, ctx->vpu_dst_fmt,
-					    &ctx->dst_fmt);
+	return hantro_buf_plane_check(vb, ctx->vpu_dst_fmt, &ctx->dst_fmt);
 }
 
-static void rockchip_vpu_buf_queue(struct vb2_buffer *vb)
+static void hantro_buf_queue(struct vb2_buffer *vb)
 {
-	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	struct hantro_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
 	v4l2_m2m_buf_queue(ctx->fh.m2m_ctx, vbuf);
 }
 
-static bool rockchip_vpu_vq_is_coded(struct vb2_queue *q)
+static bool hantro_vq_is_coded(struct vb2_queue *q)
 {
-	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(q);
+	struct hantro_ctx *ctx = vb2_get_drv_priv(q);
 
-	return rockchip_vpu_is_encoder_ctx(ctx) != V4L2_TYPE_IS_OUTPUT(q->type);
+	return hantro_is_encoder_ctx(ctx) != V4L2_TYPE_IS_OUTPUT(q->type);
 }
 
-static int rockchip_vpu_start_streaming(struct vb2_queue *q,
-					unsigned int count)
+static int hantro_start_streaming(struct vb2_queue *q, unsigned int count)
 {
-	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(q);
+	struct hantro_ctx *ctx = vb2_get_drv_priv(q);
 	int ret = 0;
 
 	if (V4L2_TYPE_IS_OUTPUT(q->type))
@@ -609,8 +603,8 @@ static int rockchip_vpu_start_streaming(struct vb2_queue *q,
 	else
 		ctx->sequence_cap = 0;
 
-	if (rockchip_vpu_vq_is_coded(q)) {
-		enum rockchip_vpu_codec_mode codec_mode;
+	if (hantro_vq_is_coded(q)) {
+		enum hantro_codec_mode codec_mode;
 
 		if (V4L2_TYPE_IS_OUTPUT(q->type))
 			codec_mode = ctx->vpu_src_fmt->codec_mode;
@@ -627,10 +621,10 @@ static int rockchip_vpu_start_streaming(struct vb2_queue *q,
 }
 
 static void
-rockchip_vpu_return_bufs(struct vb2_queue *q,
-			 struct vb2_v4l2_buffer *(*buf_remove)(struct v4l2_m2m_ctx *))
+hantro_return_bufs(struct vb2_queue *q,
+		   struct vb2_v4l2_buffer *(*buf_remove)(struct v4l2_m2m_ctx *))
 {
-	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(q);
+	struct hantro_ctx *ctx = vb2_get_drv_priv(q);
 
 	for (;;) {
 		struct vb2_v4l2_buffer *vbuf;
@@ -644,11 +638,11 @@ rockchip_vpu_return_bufs(struct vb2_queue *q,
 	}
 }
 
-static void rockchip_vpu_stop_streaming(struct vb2_queue *q)
+static void hantro_stop_streaming(struct vb2_queue *q)
 {
-	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(q);
+	struct hantro_ctx *ctx = vb2_get_drv_priv(q);
 
-	if (rockchip_vpu_vq_is_coded(q)) {
+	if (hantro_vq_is_coded(q)) {
 		if (ctx->codec_ops && ctx->codec_ops->exit)
 			ctx->codec_ops->exit(ctx);
 	}
@@ -659,19 +653,19 @@ static void rockchip_vpu_stop_streaming(struct vb2_queue *q)
 	 * it is safe to return all the buffers.
 	 */
 	if (V4L2_TYPE_IS_OUTPUT(q->type))
-		rockchip_vpu_return_bufs(q, v4l2_m2m_src_buf_remove);
+		hantro_return_bufs(q, v4l2_m2m_src_buf_remove);
 	else
-		rockchip_vpu_return_bufs(q, v4l2_m2m_dst_buf_remove);
+		hantro_return_bufs(q, v4l2_m2m_dst_buf_remove);
 }
 
-static void rockchip_vpu_buf_request_complete(struct vb2_buffer *vb)
+static void hantro_buf_request_complete(struct vb2_buffer *vb)
 {
-	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
+	struct hantro_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 
 	v4l2_ctrl_request_complete(vb->req_obj.req, &ctx->ctrl_handler);
 }
 
-static int rockchip_vpu_buf_out_validate(struct vb2_buffer *vb)
+static int hantro_buf_out_validate(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
@@ -679,14 +673,14 @@ static int rockchip_vpu_buf_out_validate(struct vb2_buffer *vb)
 	return 0;
 }
 
-const struct vb2_ops rockchip_vpu_queue_ops = {
-	.queue_setup = rockchip_vpu_queue_setup,
-	.buf_prepare = rockchip_vpu_buf_prepare,
-	.buf_queue = rockchip_vpu_buf_queue,
-	.buf_out_validate = rockchip_vpu_buf_out_validate,
-	.buf_request_complete = rockchip_vpu_buf_request_complete,
-	.start_streaming = rockchip_vpu_start_streaming,
-	.stop_streaming = rockchip_vpu_stop_streaming,
+const struct vb2_ops hantro_queue_ops = {
+	.queue_setup = hantro_queue_setup,
+	.buf_prepare = hantro_buf_prepare,
+	.buf_queue = hantro_buf_queue,
+	.buf_out_validate = hantro_buf_out_validate,
+	.buf_request_complete = hantro_buf_request_complete,
+	.start_streaming = hantro_start_streaming,
+	.stop_streaming = hantro_stop_streaming,
 	.wait_prepare = vb2_ops_wait_prepare,
 	.wait_finish = vb2_ops_wait_finish,
 };

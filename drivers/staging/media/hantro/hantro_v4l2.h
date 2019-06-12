@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Rockchip VPU codec driver
+ * Hantro VPU codec driver
  *
  * Copyright (C) 2018 Rockchip Electronics Co., Ltd.
  *	Alpha Lin <Alpha.Lin@rock-chips.com>
@@ -13,14 +13,14 @@
  * Copyright (C) 2011 Samsung Electronics Co., Ltd.
  */
 
-#ifndef ROCKCHIP_VPU_V4L2_H_
-#define ROCKCHIP_VPU_V4L2_H_
+#ifndef HANTRO_V4L2_H_
+#define HANTRO_V4L2_H_
 
-#include "rockchip_vpu.h"
+#include "hantro.h"
 
-extern const struct v4l2_ioctl_ops rockchip_vpu_ioctl_ops;
-extern const struct vb2_ops rockchip_vpu_queue_ops;
+extern const struct v4l2_ioctl_ops hantro_ioctl_ops;
+extern const struct vb2_ops hantro_queue_ops;
 
-void rockchip_vpu_reset_fmts(struct rockchip_vpu_ctx *ctx);
+void hantro_reset_fmts(struct hantro_ctx *ctx);
 
-#endif /* ROCKCHIP_VPU_V4L2_H_ */
+#endif /* HANTRO_V4L2_H_ */

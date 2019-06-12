@@ -13512,11 +13512,11 @@ S:	Maintained
 F:	drivers/media/platform/rockchip/rga/
 F:	Documentation/devicetree/bindings/media/rockchip-rga.txt
 
-ROCKCHIP VPU CODEC DRIVER
+HANTRO VPU CODEC DRIVER
 M:	Ezequiel Garcia <ezequiel@collabora.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
-F:	drivers/staging/media/platform/rockchip/vpu/
+F:	drivers/staging/media/platform/hantro/
 F:	Documentation/devicetree/bindings/media/rockchip-vpu.txt
 
 ROCKER DRIVER

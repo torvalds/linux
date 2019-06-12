@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Rockchip VPU codec driver
+ * Hantro VPU codec driver
  *
  * Copyright (C) 2018 Rockchip Electronics Co., Ltd.
  */
@@ -8,8 +8,8 @@
 #include <asm/unaligned.h>
 #include <linux/bitfield.h>
 #include <media/v4l2-mem2mem.h>
-#include "rockchip_vpu.h"
-#include "rockchip_vpu_hw.h"
+#include "hantro.h"
+#include "hantro_hw.h"
 
 #define VDPU_SWREG(nr)			((nr) * 4)
 
@@ -84,22 +84,21 @@
 #define PICT_FRAME         3
 
 static void
-rk3399_vpu_mpeg2_dec_set_quantization(struct rockchip_vpu_dev *vpu,
-				      struct rockchip_vpu_ctx *ctx)
+rk3399_vpu_mpeg2_dec_set_quantization(struct hantro_dev *vpu,
+				      struct hantro_ctx *ctx)
 {
 	struct v4l2_ctrl_mpeg2_quantization *quantization;
 
-	quantization = rockchip_vpu_get_ctrl(ctx,
-				V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION);
-	rockchip_vpu_mpeg2_dec_copy_qtable(ctx->mpeg2_dec.qtable.cpu,
-					   quantization);
+	quantization = hantro_get_ctrl(ctx,
+				       V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION);
+	hantro_mpeg2_dec_copy_qtable(ctx->mpeg2_dec.qtable.cpu, quantization);
 	vdpu_write_relaxed(vpu, ctx->mpeg2_dec.qtable.dma,
 			   VDPU_REG_QTABLE_BASE);
 }
 
 static void
-rk3399_vpu_mpeg2_dec_set_buffers(struct rockchip_vpu_dev *vpu,
-				 struct rockchip_vpu_ctx *ctx,
+rk3399_vpu_mpeg2_dec_set_buffers(struct hantro_dev *vpu,
+				 struct hantro_ctx *ctx,
 				 struct vb2_buffer *src_buf,
 				 struct vb2_buffer *dst_buf,
 				 const struct v4l2_mpeg2_sequence *sequence,
@@ -114,12 +113,12 @@ rk3399_vpu_mpeg2_dec_set_buffers(struct rockchip_vpu_dev *vpu,
 
 	switch (picture->picture_coding_type) {
 	case V4L2_MPEG2_PICTURE_CODING_TYPE_B:
-		backward_addr = rockchip_vpu_get_ref(vq,
-						slice_params->backward_ref_ts);
+		backward_addr = hantro_get_ref(vq,
+					       slice_params->backward_ref_ts);
 		/* fall-through */
 	case V4L2_MPEG2_PICTURE_CODING_TYPE_P:
-		forward_addr = rockchip_vpu_get_ref(vq,
-						slice_params->forward_ref_ts);
+		forward_addr = hantro_get_ref(vq,
+					      slice_params->forward_ref_ts);
 	}
 
 	/* Source bitstream buffer */
@@ -161,9 +160,9 @@ rk3399_vpu_mpeg2_dec_set_buffers(struct rockchip_vpu_dev *vpu,
 	vdpu_write_relaxed(vpu, backward_addr, VDPU_REG_REFER3_BASE);
 }
 
-void rk3399_vpu_mpeg2_dec_run(struct rockchip_vpu_ctx *ctx)
+void rk3399_vpu_mpeg2_dec_run(struct hantro_ctx *ctx)
 {
-	struct rockchip_vpu_dev *vpu = ctx->dev;
+	struct hantro_dev *vpu = ctx->dev;
 	struct vb2_v4l2_buffer *src_buf, *dst_buf;
 	const struct v4l2_ctrl_mpeg2_slice_params *slice_params;
 	const struct v4l2_mpeg2_sequence *sequence;
@@ -177,8 +176,8 @@ void rk3399_vpu_mpeg2_dec_run(struct rockchip_vpu_ctx *ctx)
 	v4l2_ctrl_request_setup(src_buf->vb2_buf.req_obj.req,
 				&ctx->ctrl_handler);
 
-	slice_params = rockchip_vpu_get_ctrl(ctx,
-				V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS);
+	slice_params = hantro_get_ctrl(ctx,
+				       V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS);
 	sequence = &slice_params->sequence;
 	picture = &slice_params->picture;
 

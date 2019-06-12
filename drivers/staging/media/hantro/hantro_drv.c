@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Rockchip VPU codec driver
+ * Hantro VPU codec driver
  *
  * Copyright (C) 2018 Collabora, Ltd.
  * Copyright 2018 Google LLC.
@@ -24,18 +24,18 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-vmalloc.h>
 
-#include "rockchip_vpu_v4l2.h"
-#include "rockchip_vpu.h"
-#include "rockchip_vpu_hw.h"
+#include "hantro_v4l2.h"
+#include "hantro.h"
+#include "hantro_hw.h"
 
-#define DRIVER_NAME "rockchip-vpu"
+#define DRIVER_NAME "hantro-vpu"
 
-int rockchip_vpu_debug;
-module_param_named(debug, rockchip_vpu_debug, int, 0644);
+int hantro_debug;
+module_param_named(debug, hantro_debug, int, 0644);
 MODULE_PARM_DESC(debug,
 		 "Debug level - higher value produces more verbose messages");
 
-void *rockchip_vpu_get_ctrl(struct rockchip_vpu_ctx *ctx, u32 id)
+void *hantro_get_ctrl(struct hantro_ctx *ctx, u32 id)
 {
 	struct v4l2_ctrl *ctrl;
 
@@ -43,7 +43,7 @@ void *rockchip_vpu_get_ctrl(struct rockchip_vpu_ctx *ctx, u32 id)
 	return ctrl ? ctrl->p_cur.p : NULL;
 }
 
-dma_addr_t rockchip_vpu_get_ref(struct vb2_queue *q, u64 ts)
+dma_addr_t hantro_get_ref(struct vb2_queue *q, u64 ts)
 {
 	int index;
 
@@ -54,9 +54,8 @@ dma_addr_t rockchip_vpu_get_ref(struct vb2_queue *q, u64 ts)
 }
 
 static int
-rockchip_vpu_enc_buf_finish(struct rockchip_vpu_ctx *ctx,
-			    struct vb2_buffer *buf,
-			    unsigned int bytesused)
+hantro_enc_buf_finish(struct hantro_ctx *ctx, struct vb2_buffer *buf,
+		      unsigned int bytesused)
 {
 	size_t avail_size;
 
@@ -79,19 +78,18 @@ rockchip_vpu_enc_buf_finish(struct rockchip_vpu_ctx *ctx,
 }
 
 static int
-rockchip_vpu_dec_buf_finish(struct rockchip_vpu_ctx *ctx,
-			    struct vb2_buffer *buf,
-			    unsigned int bytesused)
+hantro_dec_buf_finish(struct hantro_ctx *ctx, struct vb2_buffer *buf,
+		      unsigned int bytesused)
 {
 	/* For decoders set bytesused as per the output picture. */
 	buf->planes[0].bytesused = ctx->dst_fmt.plane_fmt[0].sizeimage;
 	return 0;
 }
 
-static void rockchip_vpu_job_finish(struct rockchip_vpu_dev *vpu,
-				    struct rockchip_vpu_ctx *ctx,
-				    unsigned int bytesused,
-				    enum vb2_buffer_state result)
+static void hantro_job_finish(struct hantro_dev *vpu,
+			      struct hantro_ctx *ctx,
+			      unsigned int bytesused,
+			      enum vb2_buffer_state result)
 {
 	struct vb2_v4l2_buffer *src, *dst;
 	int ret;
@@ -123,11 +121,10 @@ static void rockchip_vpu_job_finish(struct rockchip_vpu_dev *vpu,
 	v4l2_m2m_job_finish(vpu->m2m_dev, ctx->fh.m2m_ctx);
 }
 
-void rockchip_vpu_irq_done(struct rockchip_vpu_dev *vpu,
-			   unsigned int bytesused,
-			   enum vb2_buffer_state result)
+void hantro_irq_done(struct hantro_dev *vpu, unsigned int bytesused,
+		     enum vb2_buffer_state result)
 {
-	struct rockchip_vpu_ctx *ctx =
+	struct hantro_ctx *ctx =
 		v4l2_m2m_get_curr_priv(vpu->m2m_dev);
 
 	/*
@@ -136,27 +133,27 @@ void rockchip_vpu_irq_done(struct rockchip_vpu_dev *vpu,
 	 * and will take care of finishing the job.
 	 */
 	if (cancel_delayed_work(&vpu->watchdog_work))
-		rockchip_vpu_job_finish(vpu, ctx, bytesused, result);
+		hantro_job_finish(vpu, ctx, bytesused, result);
 }
 
-void rockchip_vpu_watchdog(struct work_struct *work)
+void hantro_watchdog(struct work_struct *work)
 {
-	struct rockchip_vpu_dev *vpu;
-	struct rockchip_vpu_ctx *ctx;
+	struct hantro_dev *vpu;
+	struct hantro_ctx *ctx;
 
 	vpu = container_of(to_delayed_work(work),
-			   struct rockchip_vpu_dev, watchdog_work);
+			   struct hantro_dev, watchdog_work);
 	ctx = v4l2_m2m_get_curr_priv(vpu->m2m_dev);
 	if (ctx) {
 		vpu_err("frame processing timed out!\n");
 		ctx->codec_ops->reset(ctx);
-		rockchip_vpu_job_finish(vpu, ctx, 0, VB2_BUF_STATE_ERROR);
+		hantro_job_finish(vpu, ctx, 0, VB2_BUF_STATE_ERROR);
 	}
 }
 
 static void device_run(void *priv)
 {
-	struct rockchip_vpu_ctx *ctx = priv;
+	struct hantro_ctx *ctx = priv;
 	int ret;
 
 	ret = clk_bulk_enable(ctx->dev->variant->num_clocks, ctx->dev->clocks);
@@ -170,12 +167,12 @@ static void device_run(void *priv)
 	return;
 
 err_cancel_job:
-	rockchip_vpu_job_finish(ctx->dev, ctx, 0, VB2_BUF_STATE_ERROR);
+	hantro_job_finish(ctx->dev, ctx, 0, VB2_BUF_STATE_ERROR);
 }
 
-bool rockchip_vpu_is_encoder_ctx(const struct rockchip_vpu_ctx *ctx)
+bool hantro_is_encoder_ctx(const struct hantro_ctx *ctx)
 {
-	return ctx->buf_finish == rockchip_vpu_enc_buf_finish;
+	return ctx->buf_finish == hantro_enc_buf_finish;
 }
 
 static struct v4l2_m2m_ops vpu_m2m_ops = {
@@ -185,13 +182,13 @@ static struct v4l2_m2m_ops vpu_m2m_ops = {
 static int
 queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 {
-	struct rockchip_vpu_ctx *ctx = priv;
+	struct hantro_ctx *ctx = priv;
 	int ret;
 
 	src_vq->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 	src_vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	src_vq->drv_priv = ctx;
-	src_vq->ops = &rockchip_vpu_queue_ops;
+	src_vq->ops = &hantro_queue_ops;
 	src_vq->mem_ops = &vb2_dma_contig_memops;
 
 	/*
@@ -218,7 +215,7 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 	 *
 	 * For the DMA destination buffer, we use a bounce buffer.
 	 */
-	if (rockchip_vpu_is_encoder_ctx(ctx)) {
+	if (hantro_is_encoder_ctx(ctx)) {
 		dst_vq->mem_ops = &vb2_vmalloc_memops;
 	} else {
 		dst_vq->bidirectional = true;
@@ -230,7 +227,7 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	dst_vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	dst_vq->drv_priv = ctx;
-	dst_vq->ops = &rockchip_vpu_queue_ops;
+	dst_vq->ops = &hantro_queue_ops;
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = &ctx->dev->vpu_mutex;
@@ -239,12 +236,12 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 	return vb2_queue_init(dst_vq);
 }
 
-static int rockchip_vpu_s_ctrl(struct v4l2_ctrl *ctrl)
+static int hantro_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct rockchip_vpu_ctx *ctx;
+	struct hantro_ctx *ctx;
 
 	ctx = container_of(ctrl->handler,
-			   struct rockchip_vpu_ctx, ctrl_handler);
+			   struct hantro_ctx, ctrl_handler);
 
 	vpu_debug(1, "s_ctrl: id = %d, val = %d\n", ctrl->id, ctrl->val);
 
@@ -259,14 +256,14 @@ static int rockchip_vpu_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static const struct v4l2_ctrl_ops rockchip_vpu_ctrl_ops = {
-	.s_ctrl = rockchip_vpu_s_ctrl,
+static const struct v4l2_ctrl_ops hantro_ctrl_ops = {
+	.s_ctrl = hantro_s_ctrl,
 };
 
-static struct rockchip_vpu_ctrl controls[] = {
+static struct hantro_ctrl controls[] = {
 	{
 		.id = V4L2_CID_JPEG_COMPRESSION_QUALITY,
-		.codec = RK_VPU_JPEG_ENCODER,
+		.codec = HANTRO_JPEG_ENCODER,
 		.cfg = {
 			.min = 5,
 			.max = 100,
@@ -275,22 +272,22 @@ static struct rockchip_vpu_ctrl controls[] = {
 		},
 	}, {
 		.id = V4L2_CID_MPEG_VIDEO_MPEG2_SLICE_PARAMS,
-		.codec = RK_VPU_MPEG2_DECODER,
+		.codec = HANTRO_MPEG2_DECODER,
 		.cfg = {
 			.elem_size = sizeof(struct v4l2_ctrl_mpeg2_slice_params),
 		},
 	}, {
 		.id = V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION,
-		.codec = RK_VPU_MPEG2_DECODER,
+		.codec = HANTRO_MPEG2_DECODER,
 		.cfg = {
 			.elem_size = sizeof(struct v4l2_ctrl_mpeg2_quantization),
 		},
 	},
 };
 
-static int rockchip_vpu_ctrls_setup(struct rockchip_vpu_dev *vpu,
-				    struct rockchip_vpu_ctx *ctx,
-				    int allowed_codecs)
+static int hantro_ctrls_setup(struct hantro_dev *vpu,
+			      struct hantro_ctx *ctx,
+			      int allowed_codecs)
 {
 	int i, num_ctrls = ARRAY_SIZE(controls);
 
@@ -301,7 +298,7 @@ static int rockchip_vpu_ctrls_setup(struct rockchip_vpu_dev *vpu,
 			continue;
 		if (!controls[i].cfg.elem_size) {
 			v4l2_ctrl_new_std(&ctx->ctrl_handler,
-					  &rockchip_vpu_ctrl_ops,
+					  &hantro_ctrl_ops,
 					  controls[i].id, controls[i].cfg.min,
 					  controls[i].cfg.max,
 					  controls[i].cfg.step,
@@ -327,12 +324,12 @@ static int rockchip_vpu_ctrls_setup(struct rockchip_vpu_dev *vpu,
  * V4L2 file operations.
  */
 
-static int rockchip_vpu_open(struct file *filp)
+static int hantro_open(struct file *filp)
 {
-	struct rockchip_vpu_dev *vpu = video_drvdata(filp);
+	struct hantro_dev *vpu = video_drvdata(filp);
 	struct video_device *vdev = video_devdata(filp);
-	struct rockchip_vpu_func *func = rockchip_vpu_vdev_to_func(vdev);
-	struct rockchip_vpu_ctx *ctx;
+	struct hantro_func *func = hantro_vdev_to_func(vdev);
+	struct hantro_ctx *ctx;
 	int allowed_codecs, ret;
 
 	/*
@@ -350,13 +347,13 @@ static int rockchip_vpu_open(struct file *filp)
 
 	ctx->dev = vpu;
 	if (func->id == MEDIA_ENT_F_PROC_VIDEO_ENCODER) {
-		allowed_codecs = vpu->variant->codec & RK_VPU_ENCODERS;
-		ctx->buf_finish = rockchip_vpu_enc_buf_finish;
+		allowed_codecs = vpu->variant->codec & HANTRO_ENCODERS;
+		ctx->buf_finish = hantro_enc_buf_finish;
 		ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(vpu->m2m_dev, ctx,
 						    queue_init);
 	} else if (func->id == MEDIA_ENT_F_PROC_VIDEO_DECODER) {
-		allowed_codecs = vpu->variant->codec & RK_VPU_DECODERS;
-		ctx->buf_finish = rockchip_vpu_dec_buf_finish;
+		allowed_codecs = vpu->variant->codec & HANTRO_DECODERS;
+		ctx->buf_finish = hantro_dec_buf_finish;
 		ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(vpu->m2m_dev, ctx,
 						    queue_init);
 	} else {
@@ -372,9 +369,9 @@ static int rockchip_vpu_open(struct file *filp)
 	filp->private_data = &ctx->fh;
 	v4l2_fh_add(&ctx->fh);
 
-	rockchip_vpu_reset_fmts(ctx);
+	hantro_reset_fmts(ctx);
 
-	ret = rockchip_vpu_ctrls_setup(vpu, ctx, allowed_codecs);
+	ret = hantro_ctrls_setup(vpu, ctx, allowed_codecs);
 	if (ret) {
 		vpu_err("Failed to set up controls\n");
 		goto err_fh_free;
@@ -390,10 +387,10 @@ err_fh_free:
 	return ret;
 }
 
-static int rockchip_vpu_release(struct file *filp)
+static int hantro_release(struct file *filp)
 {
-	struct rockchip_vpu_ctx *ctx =
-		container_of(filp->private_data, struct rockchip_vpu_ctx, fh);
+	struct hantro_ctx *ctx =
+		container_of(filp->private_data, struct hantro_ctx, fh);
 
 	/*
 	 * No need for extra locking because this was the last reference
@@ -408,28 +405,29 @@ static int rockchip_vpu_release(struct file *filp)
 	return 0;
 }
 
-static const struct v4l2_file_operations rockchip_vpu_fops = {
+static const struct v4l2_file_operations hantro_fops = {
 	.owner = THIS_MODULE,
-	.open = rockchip_vpu_open,
-	.release = rockchip_vpu_release,
+	.open = hantro_open,
+	.release = hantro_release,
 	.poll = v4l2_m2m_fop_poll,
 	.unlocked_ioctl = video_ioctl2,
 	.mmap = v4l2_m2m_fop_mmap,
 };
 
-static const struct of_device_id of_rockchip_vpu_match[] = {
+static const struct of_device_id of_hantro_match[] = {
+#ifdef CONFIG_VIDEO_HANTRO_ROCKCHIP
 	{ .compatible = "rockchip,rk3399-vpu", .data = &rk3399_vpu_variant, },
 	{ .compatible = "rockchip,rk3288-vpu", .data = &rk3288_vpu_variant, },
+#endif
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, of_rockchip_vpu_match);
+MODULE_DEVICE_TABLE(of, of_hantro_match);
 
-static int rockchip_vpu_register_entity(struct media_device *mdev,
-					struct media_entity *entity,
-					const char *entity_name,
-					struct media_pad *pads, int num_pads,
-					int function,
-					struct video_device *vdev)
+static int hantro_register_entity(struct media_device *mdev,
+				  struct media_entity *entity,
+				  const char *entity_name,
+				  struct media_pad *pads, int num_pads,
+				  int function, struct video_device *vdev)
 {
 	char *name;
 	int ret;
@@ -459,8 +457,8 @@ static int rockchip_vpu_register_entity(struct media_device *mdev,
 	return 0;
 }
 
-static int rockchip_attach_func(struct rockchip_vpu_dev *vpu,
-				struct rockchip_vpu_func *func)
+static int hantro_attach_func(struct hantro_dev *vpu,
+			      struct hantro_func *func)
 {
 	struct media_device *mdev = &vpu->mdev;
 	struct media_link *link;
@@ -468,24 +466,24 @@ static int rockchip_attach_func(struct rockchip_vpu_dev *vpu,
 
 	/* Create the three encoder entities with their pads */
 	func->source_pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = rockchip_vpu_register_entity(mdev, &func->vdev.entity,
-					   "source", &func->source_pad, 1,
-					   MEDIA_ENT_F_IO_V4L, &func->vdev);
+	ret = hantro_register_entity(mdev, &func->vdev.entity, "source",
+				     &func->source_pad, 1, MEDIA_ENT_F_IO_V4L,
+				     &func->vdev);
 	if (ret)
 		return ret;
 
 	func->proc_pads[0].flags = MEDIA_PAD_FL_SINK;
 	func->proc_pads[1].flags = MEDIA_PAD_FL_SOURCE;
-	ret = rockchip_vpu_register_entity(mdev, &func->proc, "proc",
-					   func->proc_pads, 2, func->id,
-					   &func->vdev);
+	ret = hantro_register_entity(mdev, &func->proc, "proc",
+				     func->proc_pads, 2, func->id,
+				     &func->vdev);
 	if (ret)
 		goto err_rel_entity0;
 
 	func->sink_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = rockchip_vpu_register_entity(mdev, &func->sink, "sink",
-					   &func->sink_pad, 1,
-					   MEDIA_ENT_F_IO_V4L, &func->vdev);
+	ret = hantro_register_entity(mdev, &func->sink, "sink",
+				     &func->sink_pad, 1, MEDIA_ENT_F_IO_V4L,
+				     &func->vdev);
 	if (ret)
 		goto err_rel_entity1;
 
@@ -551,7 +549,7 @@ err_rel_entity0:
 	return ret;
 }
 
-static void rockchip_detach_func(struct rockchip_vpu_func *func)
+static void hantro_detach_func(struct hantro_func *func)
 {
 	media_devnode_remove(func->intf_devnode);
 	media_entity_remove_links(&func->sink);
@@ -562,15 +560,14 @@ static void rockchip_detach_func(struct rockchip_vpu_func *func)
 	media_device_unregister_entity(&func->vdev.entity);
 }
 
-static int rockchip_vpu_add_func(struct rockchip_vpu_dev *vpu,
-				 unsigned int funcid)
+static int hantro_add_func(struct hantro_dev *vpu, unsigned int funcid)
 {
 	const struct of_device_id *match;
-	struct rockchip_vpu_func *func;
+	struct hantro_func *func;
 	struct video_device *vfd;
 	int ret;
 
-	match = of_match_node(of_rockchip_vpu_match, vpu->dev->of_node);
+	match = of_match_node(of_hantro_match, vpu->dev->of_node);
 	func = devm_kzalloc(vpu->dev, sizeof(*func), GFP_KERNEL);
 	if (!func) {
 		v4l2_err(&vpu->v4l2_dev, "Failed to allocate video device\n");
@@ -580,13 +577,13 @@ static int rockchip_vpu_add_func(struct rockchip_vpu_dev *vpu,
 	func->id = funcid;
 
 	vfd = &func->vdev;
-	vfd->fops = &rockchip_vpu_fops;
+	vfd->fops = &hantro_fops;
 	vfd->release = video_device_release_empty;
 	vfd->lock = &vpu->vpu_mutex;
 	vfd->v4l2_dev = &vpu->v4l2_dev;
 	vfd->vfl_dir = VFL_DIR_M2M;
 	vfd->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE;
-	vfd->ioctl_ops = &rockchip_vpu_ioctl_ops;
+	vfd->ioctl_ops = &hantro_ioctl_ops;
 	snprintf(vfd->name, sizeof(vfd->name), "%s-%s", match->compatible,
 		 funcid == MEDIA_ENT_F_PROC_VIDEO_ENCODER ? "enc" : "dec");
 
@@ -603,7 +600,7 @@ static int rockchip_vpu_add_func(struct rockchip_vpu_dev *vpu,
 		return ret;
 	}
 
-	ret = rockchip_attach_func(vpu, func);
+	ret = hantro_attach_func(vpu, func);
 	if (ret) {
 		v4l2_err(&vpu->v4l2_dev,
 			 "Failed to attach functionality to the media device\n");
@@ -619,26 +616,26 @@ err_unreg_dev:
 	return ret;
 }
 
-static int rockchip_vpu_add_enc_func(struct rockchip_vpu_dev *vpu)
+static int hantro_add_enc_func(struct hantro_dev *vpu)
 {
 	if (!vpu->variant->enc_fmts)
 		return 0;
 
-	return rockchip_vpu_add_func(vpu, MEDIA_ENT_F_PROC_VIDEO_ENCODER);
+	return hantro_add_func(vpu, MEDIA_ENT_F_PROC_VIDEO_ENCODER);
 }
 
-static int rockchip_vpu_add_dec_func(struct rockchip_vpu_dev *vpu)
+static int hantro_add_dec_func(struct hantro_dev *vpu)
 {
 	if (!vpu->variant->dec_fmts)
 		return 0;
 
-	return rockchip_vpu_add_func(vpu, MEDIA_ENT_F_PROC_VIDEO_DECODER);
+	return hantro_add_func(vpu, MEDIA_ENT_F_PROC_VIDEO_DECODER);
 }
 
-static void rockchip_vpu_remove_func(struct rockchip_vpu_dev *vpu,
-				     unsigned int funcid)
+static void hantro_remove_func(struct hantro_dev *vpu,
+			       unsigned int funcid)
 {
-	struct rockchip_vpu_func *func;
+	struct hantro_func *func;
 
 	if (funcid == MEDIA_ENT_F_PROC_VIDEO_ENCODER)
 		func = vpu->encoder;
@@ -648,29 +645,29 @@ static void rockchip_vpu_remove_func(struct rockchip_vpu_dev *vpu,
 	if (!func)
 		return;
 
-	rockchip_detach_func(func);
+	hantro_detach_func(func);
 	video_unregister_device(&func->vdev);
 }
 
-static void rockchip_vpu_remove_enc_func(struct rockchip_vpu_dev *vpu)
+static void hantro_remove_enc_func(struct hantro_dev *vpu)
 {
-	rockchip_vpu_remove_func(vpu, MEDIA_ENT_F_PROC_VIDEO_ENCODER);
+	hantro_remove_func(vpu, MEDIA_ENT_F_PROC_VIDEO_ENCODER);
 }
 
-static void rockchip_vpu_remove_dec_func(struct rockchip_vpu_dev *vpu)
+static void hantro_remove_dec_func(struct hantro_dev *vpu)
 {
-	rockchip_vpu_remove_func(vpu, MEDIA_ENT_F_PROC_VIDEO_DECODER);
+	hantro_remove_func(vpu, MEDIA_ENT_F_PROC_VIDEO_DECODER);
 }
 
-static const struct media_device_ops rockchip_m2m_media_ops = {
+static const struct media_device_ops hantro_m2m_media_ops = {
 	.req_validate = vb2_request_validate,
 	.req_queue = v4l2_m2m_request_queue,
 };
 
-static int rockchip_vpu_probe(struct platform_device *pdev)
+static int hantro_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
-	struct rockchip_vpu_dev *vpu;
+	struct hantro_dev *vpu;
 	struct resource *res;
 	int i, ret;
 
@@ -683,10 +680,10 @@ static int rockchip_vpu_probe(struct platform_device *pdev)
 	mutex_init(&vpu->vpu_mutex);
 	spin_lock_init(&vpu->irqlock);
 
-	match = of_match_node(of_rockchip_vpu_match, pdev->dev.of_node);
+	match = of_match_node(of_hantro_match, pdev->dev.of_node);
 	vpu->variant = match->data;
 
-	INIT_DELAYED_WORK(&vpu->watchdog_work, rockchip_vpu_watchdog);
+	INIT_DELAYED_WORK(&vpu->watchdog_work, hantro_watchdog);
 
 	for (i = 0; i < vpu->variant->num_clocks; i++)
 		vpu->clocks[i].id = vpu->variant->clk_names[i];
@@ -777,16 +774,16 @@ static int rockchip_vpu_probe(struct platform_device *pdev)
 	strscpy(vpu->mdev.bus_info, "platform: " DRIVER_NAME,
 		sizeof(vpu->mdev.model));
 	media_device_init(&vpu->mdev);
-	vpu->mdev.ops = &rockchip_m2m_media_ops;
+	vpu->mdev.ops = &hantro_m2m_media_ops;
 	vpu->v4l2_dev.mdev = &vpu->mdev;
 
-	ret = rockchip_vpu_add_enc_func(vpu);
+	ret = hantro_add_enc_func(vpu);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register encoder\n");
 		goto err_m2m_rel;
 	}
 
-	ret = rockchip_vpu_add_dec_func(vpu);
+	ret = hantro_add_dec_func(vpu);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register decoder\n");
 		goto err_rm_enc_func;
@@ -801,9 +798,9 @@ static int rockchip_vpu_probe(struct platform_device *pdev)
 	return 0;
 
 err_rm_dec_func:
-	rockchip_vpu_remove_dec_func(vpu);
+	hantro_remove_dec_func(vpu);
 err_rm_enc_func:
-	rockchip_vpu_remove_enc_func(vpu);
+	hantro_remove_enc_func(vpu);
 err_m2m_rel:
 	media_device_cleanup(&vpu->mdev);
 	v4l2_m2m_release(vpu->m2m_dev);
@@ -816,15 +813,15 @@ err_clk_unprepare:
 	return ret;
 }
 
-static int rockchip_vpu_remove(struct platform_device *pdev)
+static int hantro_remove(struct platform_device *pdev)
 {
-	struct rockchip_vpu_dev *vpu = platform_get_drvdata(pdev);
+	struct hantro_dev *vpu = platform_get_drvdata(pdev);
 
 	v4l2_info(&vpu->v4l2_dev, "Removing %s\n", pdev->name);
 
 	media_device_unregister(&vpu->mdev);
-	rockchip_vpu_remove_dec_func(vpu);
-	rockchip_vpu_remove_enc_func(vpu);
+	hantro_remove_dec_func(vpu);
+	hantro_remove_enc_func(vpu);
 	media_device_cleanup(&vpu->mdev);
 	v4l2_m2m_release(vpu->m2m_dev);
 	v4l2_device_unregister(&vpu->v4l2_dev);
@@ -834,24 +831,24 @@ static int rockchip_vpu_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct dev_pm_ops rockchip_vpu_pm_ops = {
+static const struct dev_pm_ops hantro_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
 };
 
-static struct platform_driver rockchip_vpu_driver = {
-	.probe = rockchip_vpu_probe,
-	.remove = rockchip_vpu_remove,
+static struct platform_driver hantro_driver = {
+	.probe = hantro_probe,
+	.remove = hantro_remove,
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .of_match_table = of_match_ptr(of_rockchip_vpu_match),
-		   .pm = &rockchip_vpu_pm_ops,
+		   .of_match_table = of_match_ptr(of_hantro_match),
+		   .pm = &hantro_pm_ops,
 	},
 };
-module_platform_driver(rockchip_vpu_driver);
+module_platform_driver(hantro_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Alpha Lin <Alpha.Lin@Rock-Chips.com>");
 MODULE_AUTHOR("Tomasz Figa <tfiga@chromium.org>");
 MODULE_AUTHOR("Ezequiel Garcia <ezequiel@collabora.com>");
-MODULE_DESCRIPTION("Rockchip VPU codec driver");
+MODULE_DESCRIPTION("Hantro VPU codec driver");
