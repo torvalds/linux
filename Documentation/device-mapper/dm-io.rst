@@ -1,3 +1,4 @@
+=====
 dm-io
 =====
 
@@ -7,7 +8,7 @@ version.
 
 The user must set up an io_region structure to describe the desired location
 of the I/O. Each io_region indicates a block-device along with the starting
-sector and size of the region.
+sector and size of the region::
 
    struct io_region {
       struct block_device *bdev;
@@ -19,7 +20,7 @@ Dm-io can read from one io_region or write to one or more io_regions. Writes
 to multiple regions are specified by an array of io_region structures.
 
 The first I/O service type takes a list of memory pages as the data buffer for
-the I/O, along with an offset into the first page.
+the I/O, along with an offset into the first page::
 
    struct page_list {
       struct page_list *next;
@@ -35,7 +36,7 @@ the I/O, along with an offset into the first page.
 
 The second I/O service type takes an array of bio vectors as the data buffer
 for the I/O. This service can be handy if the caller has a pre-assembled bio,
-but wants to direct different portions of the bio to different devices.
+but wants to direct different portions of the bio to different devices::
 
    int dm_io_sync_bvec(unsigned int num_regions, struct io_region *where,
                        int rw, struct bio_vec *bvec,
@@ -47,7 +48,7 @@ but wants to direct different portions of the bio to different devices.
 The third I/O service type takes a pointer to a vmalloc'd memory buffer as the
 data buffer for the I/O. This service can be handy if the caller needs to do
 I/O to a large region but doesn't want to allocate a large number of individual
-memory pages.
+memory pages::
 
    int dm_io_sync_vm(unsigned int num_regions, struct io_region *where, int rw,
                      void *data, unsigned long *error_bits);
@@ -55,11 +56,11 @@ memory pages.
                       void *data, io_notify_fn fn, void *context);
 
 Callers of the asynchronous I/O services must include the name of a completion
-callback routine and a pointer to some context data for the I/O.
+callback routine and a pointer to some context data for the I/O::
 
    typedef void (*io_notify_fn)(unsigned long error, void *context);
 
-The "error" parameter in this callback, as well as the "*error" parameter in
+The "error" parameter in this callback, as well as the `*error` parameter in
 all of the synchronous versions, is a bitset (instead of a simple error value).
 In the case of an write-I/O to multiple regions, this bitset allows dm-io to
 indicate success or failure on each individual region.
@@ -72,4 +73,3 @@ always available in order to avoid unnecessary waiting while performing I/O.
 When the user is finished using the dm-io services, they should call
 dm_io_put() and specify the same number of pages that were given on the
 dm_io_get() call.
-

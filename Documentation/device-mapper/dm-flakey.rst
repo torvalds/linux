@@ -1,3 +1,4 @@
+=========
 dm-flakey
 =========
 
@@ -15,17 +16,26 @@ underlying devices.
 
 Table parameters
 ----------------
+
+::
+
   <dev path> <offset> <up interval> <down interval> \
     [<num_features> [<feature arguments>]]
 
 Mandatory parameters:
-    <dev path>: Full pathname to the underlying block-device, or a
-                "major:minor" device-number.
-    <offset>: Starting sector within the device.
-    <up interval>: Number of seconds device is available.
-    <down interval>: Number of seconds device returns errors.
+
+    <dev path>:
+        Full pathname to the underlying block-device, or a
+        "major:minor" device-number.
+    <offset>:
+        Starting sector within the device.
+    <up interval>:
+        Number of seconds device is available.
+    <down interval>:
+        Number of seconds device returns errors.
 
 Optional feature parameters:
+
   If no feature parameters are present, during the periods of
   unreliability, all I/O returns errors.
 
@@ -41,17 +51,24 @@ Optional feature parameters:
 	During <down interval>, replace <Nth_byte> of the data of
 	each matching bio with <value>.
 
-    <Nth_byte>: The offset of the byte to replace.
-		Counting starts at 1, to replace the first byte.
-    <direction>: Either 'r' to corrupt reads or 'w' to corrupt writes.
-		 'w' is incompatible with drop_writes.
-    <value>: The value (from 0-255) to write.
-    <flags>: Perform the replacement only if bio->bi_opf has all the
-	     selected flags set.
+    <Nth_byte>:
+	The offset of the byte to replace.
+	Counting starts at 1, to replace the first byte.
+    <direction>:
+	Either 'r' to corrupt reads or 'w' to corrupt writes.
+	'w' is incompatible with drop_writes.
+    <value>:
+	The value (from 0-255) to write.
+    <flags>:
+	Perform the replacement only if bio->bi_opf has all the
+	selected flags set.
 
 Examples:
+
+Replaces the 32nd byte of READ bios with the value 1::
+
   corrupt_bio_byte 32 r 1 0
-	- replaces the 32nd byte of READ bios with the value 1
+
+Replaces the 224th byte of REQ_META (=32) bios with the value 0::
 
   corrupt_bio_byte 224 w 0 32
-	- replaces the 224th byte of REQ_META (=32) bios with the value 0

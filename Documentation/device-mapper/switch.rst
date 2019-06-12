@@ -1,3 +1,4 @@
+=========
 dm-switch
 =========
 
@@ -67,27 +68,25 @@ b-tree can achieve.
 Construction Parameters
 =======================
 
-    <num_paths> <region_size> <num_optional_args> [<optional_args>...]
-    [<dev_path> <offset>]+
+    <num_paths> <region_size> <num_optional_args> [<optional_args>...] [<dev_path> <offset>]+
+	<num_paths>
+	    The number of paths across which to distribute the I/O.
 
-<num_paths>
-    The number of paths across which to distribute the I/O.
+	<region_size>
+	    The number of 512-byte sectors in a region. Each region can be redirected
+	    to any of the available paths.
 
-<region_size>
-    The number of 512-byte sectors in a region. Each region can be redirected
-    to any of the available paths.
+	<num_optional_args>
+	    The number of optional arguments. Currently, no optional arguments
+	    are supported and so this must be zero.
 
-<num_optional_args>
-    The number of optional arguments. Currently, no optional arguments
-    are supported and so this must be zero.
+	<dev_path>
+	    The block device that represents a specific path to the device.
 
-<dev_path>
-    The block device that represents a specific path to the device.
-
-<offset>
-    The offset of the start of data on the specific <dev_path> (in units
-    of 512-byte sectors). This number is added to the sector number when
-    forwarding the request to the specific path. Typically it is zero.
+	<offset>
+	    The offset of the start of data on the specific <dev_path> (in units
+	    of 512-byte sectors). This number is added to the sector number when
+	    forwarding the request to the specific path. Typically it is zero.
 
 Messages
 ========
@@ -122,17 +121,21 @@ Example
 Assume that you have volumes vg1/switch0 vg1/switch1 vg1/switch2 with
 the same size.
 
-Create a switch device with 64kB region size:
+Create a switch device with 64kB region size::
+
     dmsetup create switch --table "0 `blockdev --getsz /dev/vg1/switch0`
 	switch 3 128 0 /dev/vg1/switch0 0 /dev/vg1/switch1 0 /dev/vg1/switch2 0"
 
 Set mappings for the first 7 entries to point to devices switch0, switch1,
-switch2, switch0, switch1, switch2, switch1:
+switch2, switch0, switch1, switch2, switch1::
+
     dmsetup message switch 0 set_region_mappings 0:0 :1 :2 :0 :1 :2 :1
 
-Set repetitive mapping. This command:
+Set repetitive mapping. This command::
+
     dmsetup message switch 0 set_region_mappings 1000:1 :2 R2,10
-is equivalent to:
+
+is equivalent to::
+
     dmsetup message switch 0 set_region_mappings 1000:1 :2 :1 :2 :1 :2 :1 :2 \
 	:1 :2 :1 :2 :1 :2 :1 :2 :1 :2
-

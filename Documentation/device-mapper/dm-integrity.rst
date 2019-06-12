@@ -1,3 +1,7 @@
+============
+dm-integrity
+============
+
 The dm-integrity target emulates a block device that has additional
 per-sector tags that can be used for storing integrity information.
 
@@ -35,15 +39,16 @@ zeroes. If the superblock is neither valid nor zeroed, the dm-integrity
 target can't be loaded.
 
 To use the target for the first time:
+
 1. overwrite the superblock with zeroes
 2. load the dm-integrity target with one-sector size, the kernel driver
-	will format the device
+   will format the device
 3. unload the dm-integrity target
 4. read the "provided_data_sectors" value from the superblock
 5. load the dm-integrity target with the the target size
-	"provided_data_sectors"
+   "provided_data_sectors"
 6. if you want to use dm-integrity with dm-crypt, load the dm-crypt target
-	with the size "provided_data_sectors"
+   with the size "provided_data_sectors"
 
 
 Target arguments:
@@ -51,17 +56,20 @@ Target arguments:
 1. the underlying block device
 
 2. the number of reserved sector at the beginning of the device - the
-	dm-integrity won't read of write these sectors
+   dm-integrity won't read of write these sectors
 
 3. the size of the integrity tag (if "-" is used, the size is taken from
-	the internal-hash algorithm)
+   the internal-hash algorithm)
 
 4. mode:
-	D - direct writes (without journal) - in this mode, journaling is
+
+	D - direct writes (without journal)
+		in this mode, journaling is
 		not used and data sectors and integrity tags are written
 		separately. In case of crash, it is possible that the data
 		and integrity tag doesn't match.
-	J - journaled writes - data and integrity tags are written to the
+	J - journaled writes
+		data and integrity tags are written to the
 		journal and atomicity is guaranteed. In case of crash,
 		either both data and tag or none of them are written. The
 		journaled mode degrades write throughput twice because the
@@ -178,9 +186,12 @@ and the reloaded target would be non-functional.
 
 
 The layout of the formatted block device:
-* reserved sectors (they are not used by this target, they can be used for
-  storing LUKS metadata or for other purpose), the size of the reserved
-  area is specified in the target arguments
+
+* reserved sectors
+    (they are not used by this target, they can be used for
+    storing LUKS metadata or for other purpose), the size of the reserved
+    area is specified in the target arguments
+
 * superblock (4kiB)
 	* magic string - identifies that the device was formatted
 	* version
@@ -192,40 +203,55 @@ The layout of the formatted block device:
 	  metadata and padding). The user of this target should not send
 	  bios that access data beyond the "provided data sectors" limit.
 	* flags
-	  SB_FLAG_HAVE_JOURNAL_MAC - a flag is set if journal_mac is used
-	  SB_FLAG_RECALCULATING - recalculating is in progress
-	  SB_FLAG_DIRTY_BITMAP - journal area contains the bitmap of dirty
-		blocks
+	    SB_FLAG_HAVE_JOURNAL_MAC
+		- a flag is set if journal_mac is used
+	    SB_FLAG_RECALCULATING
+		- recalculating is in progress
+	    SB_FLAG_DIRTY_BITMAP
+		- journal area contains the bitmap of dirty
+		  blocks
 	* log2(sectors per block)
 	* a position where recalculating finished
 * journal
 	The journal is divided into sections, each section contains:
+
 	* metadata area (4kiB), it contains journal entries
-	  every journal entry contains:
+
+	  - every journal entry contains:
+
 		* logical sector (specifies where the data and tag should
 		  be written)
 		* last 8 bytes of data
 		* integrity tag (the size is specified in the superblock)
-	    every metadata sector ends with
+
+	  - every metadata sector ends with
+
 		* mac (8-bytes), all the macs in 8 metadata sectors form a
 		  64-byte value. It is used to store hmac of sector
 		  numbers in the journal section, to protect against a
 		  possibility that the attacker tampers with sector
 		  numbers in the journal.
 		* commit id
+
 	* data area (the size is variable; it depends on how many journal
 	  entries fit into the metadata area)
-	    every sector in the data area contains:
+
+	    - every sector in the data area contains:
+
 		* data (504 bytes of data, the last 8 bytes are stored in
 		  the journal entry)
 		* commit id
+
 	To test if the whole journal section was written correctly, every
 	512-byte sector of the journal ends with 8-byte commit id. If the
 	commit id matches on all sectors in a journal section, then it is
 	assumed that the section was written correctly. If the commit id
 	doesn't match, the section was written partially and it should not
 	be replayed.
-* one or more runs of interleaved tags and data. Each run contains:
+
+* one or more runs of interleaved tags and data.
+    Each run contains:
+
 	* tag area - it contains integrity tags. There is one tag for each
 	  sector in the data area
 	* data area - it contains data sectors. The number of data sectors

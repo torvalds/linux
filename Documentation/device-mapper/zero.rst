@@ -1,3 +1,4 @@
+=======
 dm-zero
 =======
 
@@ -18,20 +19,19 @@ filesystem limitations.
 
 To create a sparse device, start by creating a dm-zero device that's the
 desired size of the sparse device. For this example, we'll assume a 10TB
-sparse device.
+sparse device::
 
-TEN_TERABYTES=`expr 10 \* 1024 \* 1024 \* 1024 \* 2`   # 10 TB in sectors
-echo "0 $TEN_TERABYTES zero" | dmsetup create zero1
+  TEN_TERABYTES=`expr 10 \* 1024 \* 1024 \* 1024 \* 2`   # 10 TB in sectors
+  echo "0 $TEN_TERABYTES zero" | dmsetup create zero1
 
 Then create a snapshot of the zero device, using any available block-device as
 the COW device. The size of the COW device will determine the amount of real
 space available to the sparse device. For this example, we'll assume /dev/sdb1
-is an available 10GB partition.
+is an available 10GB partition::
 
-echo "0 $TEN_TERABYTES snapshot /dev/mapper/zero1 /dev/sdb1 p 128" | \
-   dmsetup create sparse1
+  echo "0 $TEN_TERABYTES snapshot /dev/mapper/zero1 /dev/sdb1 p 128" | \
+     dmsetup create sparse1
 
 This will create a 10TB sparse device called /dev/mapper/sparse1 that has
 10GB of actual storage space available. If more than 10GB of data is written
 to this device, it will start returning I/O errors.
-

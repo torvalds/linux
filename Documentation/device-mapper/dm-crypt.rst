@@ -1,5 +1,6 @@
+========
 dm-crypt
-=========
+========
 
 Device-Mapper's "crypt" target provides transparent encryption of block devices
 using the kernel crypto API.
@@ -7,15 +8,20 @@ using the kernel crypto API.
 For a more detailed description of supported parameters see:
 https://gitlab.com/cryptsetup/cryptsetup/wikis/DMCrypt
 
-Parameters: <cipher> <key> <iv_offset> <device path> \
+Parameters::
+
+	      <cipher> <key> <iv_offset> <device path> \
 	      <offset> [<#opt_params> <opt_params>]
 
 <cipher>
     Encryption cipher, encryption mode and Initial Vector (IV) generator.
 
-    The cipher specifications format is:
+    The cipher specifications format is::
+
        cipher[:keycount]-chainmode-ivmode[:ivopts]
-    Examples:
+
+    Examples::
+
        aes-cbc-essiv:sha256
        aes-xts-plain64
        serpent-xts-plain64
@@ -25,12 +31,17 @@ Parameters: <cipher> <key> <iv_offset> <device path> \
     as for the first format type.
     This format is mainly used for specification of authenticated modes.
 
-    The crypto API cipher specifications format is:
+    The crypto API cipher specifications format is::
+
         capi:cipher_api_spec-ivmode[:ivopts]
-    Examples:
+
+    Examples::
+
         capi:cbc(aes)-essiv:sha256
         capi:xts(aes)-plain64
-    Examples of authenticated modes:
+
+    Examples of authenticated modes::
+
         capi:gcm(aes)-random
         capi:authenc(hmac(sha256),xts(aes))-random
         capi:rfc7539(chacha20,poly1305)-random
@@ -142,21 +153,21 @@ LUKS (Linux Unified Key Setup) is now the preferred way to set up disk
 encryption with dm-crypt using the 'cryptsetup' utility, see
 https://gitlab.com/cryptsetup/cryptsetup
 
-[[
-#!/bin/sh
-# Create a crypt device using dmsetup
-dmsetup create crypt1 --table "0 `blockdev --getsz $1` crypt aes-cbc-essiv:sha256 babebabebabebabebabebabebabebabe 0 $1 0"
-]]
+::
 
-[[
-#!/bin/sh
-# Create a crypt device using dmsetup when encryption key is stored in keyring service
-dmsetup create crypt2 --table "0 `blockdev --getsize $1` crypt aes-cbc-essiv:sha256 :32:logon:my_prefix:my_key 0 $1 0"
-]]
+	#!/bin/sh
+	# Create a crypt device using dmsetup
+	dmsetup create crypt1 --table "0 `blockdev --getsz $1` crypt aes-cbc-essiv:sha256 babebabebabebabebabebabebabebabe 0 $1 0"
 
-[[
-#!/bin/sh
-# Create a crypt device using cryptsetup and LUKS header with default cipher
-cryptsetup luksFormat $1
-cryptsetup luksOpen $1 crypt1
-]]
+::
+
+	#!/bin/sh
+	# Create a crypt device using dmsetup when encryption key is stored in keyring service
+	dmsetup create crypt2 --table "0 `blockdev --getsize $1` crypt aes-cbc-essiv:sha256 :32:logon:my_prefix:my_key 0 $1 0"
+
+::
+
+	#!/bin/sh
+	# Create a crypt device using cryptsetup and LUKS header with default cipher
+	cryptsetup luksFormat $1
+	cryptsetup luksOpen $1 crypt1

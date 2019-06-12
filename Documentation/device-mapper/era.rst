@@ -1,3 +1,7 @@
+======
+dm-era
+======
+
 Introduction
 ============
 
@@ -14,12 +18,14 @@ coherency after rolling back a vendor snapshot.
 Constructor
 ===========
 
- era <metadata dev> <origin dev> <block size>
+era <metadata dev> <origin dev> <block size>
 
- metadata dev    : fast device holding the persistent metadata
- origin dev	 : device holding data blocks that may change
- block size      : block size of origin data device, granularity that is
-		     tracked by the target
+ ================ ======================================================
+ metadata dev     fast device holding the persistent metadata
+ origin dev	  device holding data blocks that may change
+ block size       block size of origin data device, granularity that is
+		  tracked by the target
+ ================ ======================================================
 
 Messages
 ========
@@ -49,14 +55,16 @@ Status
 <metadata block size> <#used metadata blocks>/<#total metadata blocks>
 <current era> <held metadata root | '-'>
 
-metadata block size	 : Fixed block size for each metadata block in
-			     sectors
-#used metadata blocks	 : Number of metadata blocks used
-#total metadata blocks	 : Total number of metadata blocks
-current era		 : The current era
-held metadata root	 : The location, in blocks, of the metadata root
-			     that has been 'held' for userspace read
-			     access. '-' indicates there is no held root
+========================= ==============================================
+metadata block size	  Fixed block size for each metadata block in
+			  sectors
+#used metadata blocks	  Number of metadata blocks used
+#total metadata blocks	  Total number of metadata blocks
+current era		  The current era
+held metadata root	  The location, in blocks, of the metadata root
+			  that has been 'held' for userspace read
+			  access. '-' indicates there is no held root
+========================= ==============================================
 
 Detailed use case
 =================
@@ -88,7 +96,7 @@ Memory usage
 
 The target uses a bitset to record writes in the current era.  It also
 has a spare bitset ready for switching over to a new era.  Other than
-that it uses a few 4k blocks for updating metadata.
+that it uses a few 4k blocks for updating metadata::
 
    (4 * nr_blocks) bytes + buffers
 

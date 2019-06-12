@@ -1,3 +1,4 @@
+=============
 DM statistics
 =============
 
@@ -11,7 +12,7 @@ Individual statistics will be collected for each step-sized area within
 the range specified.
 
 The I/O statistics counters for each step-sized area of a region are
-in the same format as /sys/block/*/stat or /proc/diskstats (see:
+in the same format as `/sys/block/*/stat` or `/proc/diskstats` (see:
 Documentation/iostats.txt).  But two extra counters (12 and 13) are
 provided: total time spent reading and writing.  When the histogram
 argument is used, the 14th parameter is reported that represents the
@@ -32,40 +33,45 @@ on each other's data.
 The creation of DM statistics will allocate memory via kmalloc or
 fallback to using vmalloc space.  At most, 1/4 of the overall system
 memory may be allocated by DM statistics.  The admin can see how much
-memory is used by reading
-/sys/module/dm_mod/parameters/stats_current_allocated_bytes
+memory is used by reading:
+
+	/sys/module/dm_mod/parameters/stats_current_allocated_bytes
 
 Messages
 ========
 
-    @stats_create <range> <step>
-		[<number_of_optional_arguments> <optional_arguments>...]
-		[<program_id> [<aux_data>]]
-
+    @stats_create <range> <step> [<number_of_optional_arguments> <optional_arguments>...] [<program_id> [<aux_data>]]
 	Create a new region and return the region_id.
 
 	<range>
-	  "-" - whole device
-	  "<start_sector>+<length>" - a range of <length> 512-byte sectors
-				      starting with <start_sector>.
+	  "-"
+		whole device
+	  "<start_sector>+<length>"
+		a range of <length> 512-byte sectors
+		starting with <start_sector>.
 
 	<step>
-	  "<area_size>" - the range is subdivided into areas each containing
-			  <area_size> sectors.
-	  "/<number_of_areas>" - the range is subdivided into the specified
-				 number of areas.
+	  "<area_size>"
+		the range is subdivided into areas each containing
+		<area_size> sectors.
+	  "/<number_of_areas>"
+		the range is subdivided into the specified
+		number of areas.
 
 	<number_of_optional_arguments>
 	  The number of optional arguments
 
 	<optional_arguments>
-	  The following optional arguments are supported
-	  precise_timestamps - use precise timer with nanosecond resolution
+	  The following optional arguments are supported:
+
+	  precise_timestamps
+		use precise timer with nanosecond resolution
 		instead of the "jiffies" variable.  When this argument is
 		used, the resulting times are in nanoseconds instead of
 		milliseconds.  Precise timestamps are a little bit slower
 		to obtain than jiffies-based timestamps.
-	  histogram:n1,n2,n3,n4,... - collect histogram of latencies.  The
+	  histogram:n1,n2,n3,n4,...
+		collect histogram of latencies.  The
 		numbers n1, n2, etc are times that represent the boundaries
 		of the histogram.  If precise_timestamps is not used, the
 		times are in milliseconds, otherwise they are in
@@ -96,21 +102,18 @@ Messages
 	  @stats_list message, but it doesn't use this value for anything.
 
     @stats_delete <region_id>
-
 	Delete the region with the specified id.
 
 	<region_id>
 	  region_id returned from @stats_create
 
     @stats_clear <region_id>
-
 	Clear all the counters except the in-flight i/o counters.
 
 	<region_id>
 	  region_id returned from @stats_create
 
     @stats_list [<program_id>]
-
 	List all regions registered with @stats_create.
 
 	<program_id>
@@ -127,7 +130,6 @@ Messages
 	if they were specified when creating the region.
 
     @stats_print <region_id> [<starting_line> <number_of_lines>]
-
 	Print counters for each step-sized area of a region.
 
 	<region_id>
@@ -143,10 +145,11 @@ Messages
 
 	Output format for each step-sized area of a region:
 
-	  <start_sector>+<length> counters
+	  <start_sector>+<length>
+		counters
 
 	  The first 11 counters have the same meaning as
-	  /sys/block/*/stat or /proc/diskstats.
+	  `/sys/block/*/stat or /proc/diskstats`.
 
 	  Please refer to Documentation/iostats.txt for details.
 
@@ -163,11 +166,11 @@ Messages
 	  11. the weighted number of milliseconds spent doing I/Os
 
 	  Additional counters:
+
 	  12. the total time spent reading in milliseconds
 	  13. the total time spent writing in milliseconds
 
     @stats_print_clear <region_id> [<starting_line> <number_of_lines>]
-
 	Atomically print and then clear all the counters except the
 	in-flight i/o counters.	 Useful when the client consuming the
 	statistics does not want to lose any statistics (those updated
@@ -185,7 +188,6 @@ Messages
 	  If omitted, all lines are printed and then cleared.
 
     @stats_set_aux <region_id> <aux_data>
-
 	Store auxiliary data aux_data for the specified region.
 
 	<region_id>
@@ -201,23 +203,23 @@ Examples
 ========
 
 Subdivide the DM device 'vol' into 100 pieces and start collecting
-statistics on them:
+statistics on them::
 
   dmsetup message vol 0 @stats_create - /100
 
 Set the auxiliary data string to "foo bar baz" (the escape for each
-space must also be escaped, otherwise the shell will consume them):
+space must also be escaped, otherwise the shell will consume them)::
 
   dmsetup message vol 0 @stats_set_aux 0 foo\\ bar\\ baz
 
-List the statistics:
+List the statistics::
 
   dmsetup message vol 0 @stats_list
 
-Print the statistics:
+Print the statistics::
 
   dmsetup message vol 0 @stats_print 0
 
-Delete the statistics:
+Delete the statistics::
 
   dmsetup message vol 0 @stats_delete 0

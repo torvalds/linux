@@ -1,3 +1,7 @@
+=================
+Thin provisioning
+=================
+
 Introduction
 ============
 
@@ -95,6 +99,8 @@ previously.)
 Using an existing pool device
 -----------------------------
 
+::
+
     dmsetup create pool \
 	--table "0 20971520 thin-pool $metadata_dev $data_dev \
 		 $data_block_size $low_water_mark"
@@ -154,7 +160,7 @@ Thin provisioning
 i) Creating a new thinly-provisioned volume.
 
   To create a new thinly- provisioned volume you must send a message to an
-  active pool device, /dev/mapper/pool in this example.
+  active pool device, /dev/mapper/pool in this example::
 
     dmsetup message /dev/mapper/pool 0 "create_thin 0"
 
@@ -164,7 +170,7 @@ i) Creating a new thinly-provisioned volume.
 
 ii) Using a thinly-provisioned volume.
 
-  Thinly-provisioned volumes are activated using the 'thin' target:
+  Thinly-provisioned volumes are activated using the 'thin' target::
 
     dmsetup create thin --table "0 2097152 thin /dev/mapper/pool 0"
 
@@ -180,6 +186,8 @@ i) Creating an internal snapshot.
   N.B.  If the origin device that you wish to snapshot is active, you
   must suspend it before creating the snapshot to avoid corruption.
   This is NOT enforced at the moment, so please be careful!
+
+  ::
 
     dmsetup suspend /dev/mapper/thin
     dmsetup message /dev/mapper/pool 0 "create_snap 1 0"
@@ -198,14 +206,14 @@ ii) Using an internal snapshot.
   activating or removing them both.  (This differs from conventional
   device-mapper snapshots.)
 
-  Activate it exactly the same way as any other thinly-provisioned volume:
+  Activate it exactly the same way as any other thinly-provisioned volume::
 
     dmsetup create snap --table "0 2097152 thin /dev/mapper/pool 1"
 
 External snapshots
 ------------------
 
-You can use an external _read only_ device as an origin for a
+You can use an external **read only** device as an origin for a
 thinly-provisioned volume.  Any read to an unprovisioned area of the
 thin device will be passed through to the origin.  Writes trigger
 the allocation of new blocks as usual.
@@ -223,11 +231,13 @@ i) Creating a snapshot of an external device
   This is the same as creating a thin device.
   You don't mention the origin at this stage.
 
+  ::
+
     dmsetup message /dev/mapper/pool 0 "create_thin 0"
 
 ii) Using a snapshot of an external device.
 
-  Append an extra parameter to the thin target specifying the origin:
+  Append an extra parameter to the thin target specifying the origin::
 
     dmsetup create snap --table "0 2097152 thin /dev/mapper/pool 0 /dev/image"
 
@@ -239,6 +249,8 @@ Deactivation
 
 All devices using a pool must be deactivated before the pool itself
 can be.
+
+::
 
     dmsetup remove thin
     dmsetup remove snap
@@ -252,25 +264,32 @@ Reference
 
 i) Constructor
 
-    thin-pool <metadata dev> <data dev> <data block size (sectors)> \
-	      <low water mark (blocks)> [<number of feature args> [<arg>]*]
+    ::
+
+      thin-pool <metadata dev> <data dev> <data block size (sectors)> \
+	        <low water mark (blocks)> [<number of feature args> [<arg>]*]
 
     Optional feature arguments:
 
-      skip_block_zeroing: Skip the zeroing of newly-provisioned blocks.
+      skip_block_zeroing:
+	Skip the zeroing of newly-provisioned blocks.
 
-      ignore_discard: Disable discard support.
+      ignore_discard:
+	Disable discard support.
 
-      no_discard_passdown: Don't pass discards down to the underlying
-			   data device, but just remove the mapping.
+      no_discard_passdown:
+	Don't pass discards down to the underlying
+	data device, but just remove the mapping.
 
-      read_only: Don't allow any changes to be made to the pool
+      read_only:
+		 Don't allow any changes to be made to the pool
 		 metadata.  This mode is only available after the
 		 thin-pool has been created and first used in full
 		 read/write mode.  It cannot be specified on initial
 		 thin-pool creation.
 
-      error_if_no_space: Error IOs, instead of queueing, if no space.
+      error_if_no_space:
+	Error IOs, instead of queueing, if no space.
 
     Data block size must be between 64KB (128 sectors) and 1GB
     (2097152 sectors) inclusive.
@@ -278,10 +297,12 @@ i) Constructor
 
 ii) Status
 
-    <transaction id> <used metadata blocks>/<total metadata blocks>
-    <used data blocks>/<total data blocks> <held metadata root>
-    ro|rw|out_of_data_space [no_]discard_passdown [error|queue]_if_no_space
-    needs_check|- metadata_low_watermark
+    ::
+
+      <transaction id> <used metadata blocks>/<total metadata blocks>
+      <used data blocks>/<total data blocks> <held metadata root>
+      ro|rw|out_of_data_space [no_]discard_passdown [error|queue]_if_no_space
+      needs_check|- metadata_low_watermark
 
     transaction id:
 	A 64-bit number used by userspace to help synchronise with metadata
@@ -336,13 +357,11 @@ ii) Status
 iii) Messages
 
     create_thin <dev id>
-
 	Create a new thinly-provisioned device.
 	<dev id> is an arbitrary unique 24-bit identifier chosen by
 	the caller.
 
     create_snap <dev id> <origin id>
-
 	Create a new snapshot of another thinly-provisioned device.
 	<dev id> is an arbitrary unique 24-bit identifier chosen by
 	the caller.
@@ -350,11 +369,9 @@ iii) Messages
 	of which the new device will be a snapshot.
 
     delete <dev id>
-
 	Deletes a thin device.  Irreversible.
 
     set_transaction_id <current id> <new id>
-
 	Userland volume managers, such as LVM, need a way to
 	synchronise their external metadata with the internal metadata of the
 	pool target.  The thin-pool target offers to store an
@@ -364,14 +381,12 @@ iii) Messages
 	compare-and-swap message.
 
     reserve_metadata_snap
-
         Reserve a copy of the data mapping btree for use by userland.
         This allows userland to inspect the mappings as they were when
         this message was executed.  Use the pool's status command to
         get the root block associated with the metadata snapshot.
 
     release_metadata_snap
-
         Release a previously reserved copy of the data mapping btree.
 
 'thin' target
@@ -379,7 +394,9 @@ iii) Messages
 
 i) Constructor
 
-    thin <pool dev> <dev id> [<external origin dev>]
+    ::
+
+        thin <pool dev> <dev id> [<external origin dev>]
 
     pool dev:
 	the thin-pool device, e.g. /dev/mapper/my_pool or 253:0
@@ -401,8 +418,7 @@ provisioned as and when needed.
 
 ii) Status
 
-     <nr mapped sectors> <highest mapped sector>
-
+    <nr mapped sectors> <highest mapped sector>
 	If the pool has encountered device errors and failed, the status
 	will just contain the string 'Fail'.  The userspace recovery
 	tools should then be used.

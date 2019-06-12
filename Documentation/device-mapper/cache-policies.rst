@@ -1,3 +1,4 @@
+=============================
 Guidance for writing policies
 =============================
 
@@ -30,7 +31,7 @@ multiqueue (mq)
 
 This policy is now an alias for smq (see below).
 
-The following tunables are accepted, but have no effect:
+The following tunables are accepted, but have no effect::
 
 	'sequential_threshold <#nr_sequential_ios>'
 	'random_threshold <#nr_random_ios>'
@@ -56,7 +57,9 @@ mq policy's hints to be dropped.  Also, performance of the cache may
 degrade slightly until smq recalculates the origin device's hotspots
 that should be cached.
 
-Memory usage:
+Memory usage
+^^^^^^^^^^^^
+
 The mq policy used a lot of memory; 88 bytes per cache block on a 64
 bit machine.
 
@@ -69,7 +72,9 @@ cache block).
 All this means smq uses ~25bytes per cache block.  Still a lot of
 memory, but a substantial improvement nontheless.
 
-Level balancing:
+Level balancing
+^^^^^^^^^^^^^^^
+
 mq placed entries in different levels of the multiqueue structures
 based on their hit count (~ln(hit count)).  This meant the bottom
 levels generally had the most entries, and the top ones had very
@@ -94,7 +99,9 @@ is used to decide which blocks to promote.  If the hotspot queue is
 performing badly then it starts moving entries more quickly between
 levels.  This lets it adapt to new IO patterns very quickly.
 
-Performance:
+Performance
+^^^^^^^^^^^
+
 Testing smq shows substantially better performance than mq.
 
 cleaner
@@ -105,16 +112,19 @@ The cleaner writes back all dirty blocks in a cache to decommission it.
 Examples
 ========
 
-The syntax for a table is:
+The syntax for a table is::
+
 	cache <metadata dev> <cache dev> <origin dev> <block size>
 	<#feature_args> [<feature arg>]*
 	<policy> <#policy_args> [<policy arg>]*
 
-The syntax to send a message using the dmsetup command is:
+The syntax to send a message using the dmsetup command is::
+
 	dmsetup message <mapped device> 0 sequential_threshold 1024
 	dmsetup message <mapped device> 0 random_threshold 8
 
-Using dmsetup:
+Using dmsetup::
+
 	dmsetup create blah --table "0 268435456 cache /dev/sdb /dev/sdc \
 	    /dev/sdd 512 0 mq 4 sequential_threshold 1024 random_threshold 8"
 	creates a 128GB large mapped device named 'blah' with the

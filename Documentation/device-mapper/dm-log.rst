@@ -1,3 +1,4 @@
+=====================
 Device-Mapper Logging
 =====================
 The device-mapper logging code is used by some of the device-mapper
@@ -16,11 +17,13 @@ dm_dirty_log_type in include/linux/dm-dirty-log.h).  Various different
 logging implementations are available and provide different
 capabilities.  The list includes:
 
+==============	==============================================================
 Type		Files
-====		=====
+==============	==============================================================
 disk		drivers/md/dm-log.c
 core		drivers/md/dm-log.c
 userspace	drivers/md/dm-log-userspace* include/linux/dm-log-userspace.h
+==============	==============================================================
 
 The "disk" log type
 -------------------

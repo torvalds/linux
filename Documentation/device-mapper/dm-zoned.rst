@@ -1,3 +1,4 @@
+========
 dm-zoned
 ========
 
@@ -133,12 +134,13 @@ A zoned block device must first be formatted using the dmzadm tool. This
 will analyze the device zone configuration, determine where to place the
 metadata sets on the device and initialize the metadata sets.
 
-Ex:
+Ex::
 
-dmzadm --format /dev/sdxx
+	dmzadm --format /dev/sdxx
 
 For a formatted device, the target can be created normally with the
 dmsetup utility. The only parameter that dm-zoned requires is the
-underlying zoned block device name. Ex:
+underlying zoned block device name. Ex::
 
-echo "0 `blockdev --getsize ${dev}` zoned ${dev}" | dmsetup create dmz-`basename ${dev}`
+	echo "0 `blockdev --getsize ${dev}` zoned ${dev}" | \
+	dmsetup create dmz-`basename ${dev}`

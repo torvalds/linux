@@ -1,3 +1,7 @@
+=================
+Writecache target
+=================
+
 The writecache target caches writes on persistent memory or on SSD. It
 doesn't cache reads because reads are supposed to be cached in page cache
 in normal RAM.
@@ -6,15 +10,18 @@ When the device is constructed, the first sector should be zeroed or the
 first sector should contain valid superblock from previous invocation.
 
 Constructor parameters:
+
 1. type of the cache device - "p" or "s"
-	p - persistent memory
-	s - SSD
+
+	- p - persistent memory
+	- s - SSD
 2. the underlying device that will be cached
 3. the cache device
 4. block size (4096 is recommended; the maximum block size is the page
    size)
 5. the number of optional parameters (the parameters with an argument
    count as two)
+
 	start_sector n		(default: 0)
 		offset from the start of cache device in 512-byte sectors
 	high_watermark n	(default: 50)
@@ -43,6 +50,7 @@ Constructor parameters:
 		applicable only to persistent memory - don't use the FUA
 		flag when writing back data and send the FLUSH request
 		afterwards
+
 		- some underlying devices perform better with fua, some
 		  with nofua. The user should test it
 
@@ -60,6 +68,7 @@ Messages:
 		flush the cache device on next suspend. Use this message
 		when you are going to remove the cache device. The proper
 		sequence for removing the cache device is:
+
 		1. send the "flush_on_suspend" message
 		2. load an inactive table with a linear target that maps
 		   to the underlying device

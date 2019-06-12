@@ -1,3 +1,4 @@
+===============
 dm-service-time
 ===============
 
@@ -12,25 +13,34 @@ in a path-group, and it can be specified as a table argument.
 
 The path selector name is 'service-time'.
 
-Table parameters for each path: [<repeat_count> [<relative_throughput>]]
-	<repeat_count>: The number of I/Os to dispatch using the selected
+Table parameters for each path:
+
+    [<repeat_count> [<relative_throughput>]]
+	<repeat_count>:
+			The number of I/Os to dispatch using the selected
 			path before switching to the next path.
 			If not given, internal default is used.  To check
 			the default value, see the activated table.
-	<relative_throughput>: The relative throughput value of the path
+	<relative_throughput>:
+			The relative throughput value of the path
 			among all paths in the path-group.
 			The valid range is 0-100.
 			If not given, minimum value '1' is used.
 			If '0' is given, the path isn't selected while
 			other paths having a positive value are available.
 
-Status for each path: <status> <fail-count> <in-flight-size> \
-		      <relative_throughput>
-	<status>: 'A' if the path is active, 'F' if the path is failed.
-	<fail-count>: The number of path failures.
-	<in-flight-size>: The size of in-flight I/Os on the path.
-	<relative_throughput>: The relative throughput value of the path
-			among all paths in the path-group.
+Status for each path:
+
+    <status> <fail-count> <in-flight-size> <relative_throughput>
+	<status>:
+		'A' if the path is active, 'F' if the path is failed.
+	<fail-count>:
+		The number of path failures.
+	<in-flight-size>:
+		The size of in-flight I/Os on the path.
+	<relative_throughput>:
+		The relative throughput value of the path
+		among all paths in the path-group.
 
 
 Algorithm
@@ -39,7 +49,7 @@ Algorithm
 dm-service-time adds the I/O size to 'in-flight-size' when the I/O is
 dispatched and subtracts when completed.
 Basically, dm-service-time selects a path having minimum service time
-which is calculated by:
+which is calculated by::
 
 	('in-flight-size' + 'size-of-incoming-io') / 'relative_throughput'
 
@@ -67,25 +77,25 @@ Examples
 ========
 In case that 2 paths (sda and sdb) are used with repeat_count == 128
 and sda has an average throughput 1GB/s and sdb has 4GB/s,
-'relative_throughput' value may be '1' for sda and '4' for sdb.
+'relative_throughput' value may be '1' for sda and '4' for sdb::
 
-# echo "0 10 multipath 0 0 1 1 service-time 0 2 2 8:0 128 1 8:16 128 4" \
-  dmsetup create test
-#
-# dmsetup table
-test: 0 10 multipath 0 0 1 1 service-time 0 2 2 8:0 128 1 8:16 128 4
-#
-# dmsetup status
-test: 0 10 multipath 2 0 0 0 1 1 E 0 2 2 8:0 A 0 0 1 8:16 A 0 0 4
+  # echo "0 10 multipath 0 0 1 1 service-time 0 2 2 8:0 128 1 8:16 128 4" \
+    dmsetup create test
+  #
+  # dmsetup table
+  test: 0 10 multipath 0 0 1 1 service-time 0 2 2 8:0 128 1 8:16 128 4
+  #
+  # dmsetup status
+  test: 0 10 multipath 2 0 0 0 1 1 E 0 2 2 8:0 A 0 0 1 8:16 A 0 0 4
 
 
-Or '2' for sda and '8' for sdb would be also true.
+Or '2' for sda and '8' for sdb would be also true::
 
-# echo "0 10 multipath 0 0 1 1 service-time 0 2 2 8:0 128 2 8:16 128 8" \
-  dmsetup create test
-#
-# dmsetup table
-test: 0 10 multipath 0 0 1 1 service-time 0 2 2 8:0 128 2 8:16 128 8
-#
-# dmsetup status
-test: 0 10 multipath 2 0 0 0 1 1 E 0 2 2 8:0 A 0 0 2 8:16 A 0 0 8
+  # echo "0 10 multipath 0 0 1 1 service-time 0 2 2 8:0 128 2 8:16 128 8" \
+    dmsetup create test
+  #
+  # dmsetup table
+  test: 0 10 multipath 0 0 1 1 service-time 0 2 2 8:0 128 2 8:16 128 8
+  #
+  # dmsetup status
+  test: 0 10 multipath 2 0 0 0 1 1 E 0 2 2 8:0 A 0 0 2 8:16 A 0 0 8
