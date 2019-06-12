@@ -343,11 +343,20 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 #endif
 	/* notify DSP of upcoming power down */
 	ret = sof_send_pm_ipc(sdev, SOF_IPC_PM_CTX_SAVE);
-	if (ret < 0) {
+	if (ret == -EBUSY || ret == -EAGAIN) {
+		/*
+		 * runtime PM has logic to handle -EBUSY/-EAGAIN so
+		 * pass these errors up
+		 */
 		dev_err(sdev->dev,
 			"error: ctx_save ipc error during suspend %d\n",
 			ret);
 		return ret;
+	} else if (ret < 0) {
+		/* FW in unexpected state, continue to power down */
+		dev_warn(sdev->dev,
+			 "ctx_save ipc error %d, proceeding with suspend\n",
+			 ret);
 	}
 
 	/* power down all DSP cores */
