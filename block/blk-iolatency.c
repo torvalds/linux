@@ -778,8 +778,10 @@ static int iolatency_set_min_lat_nsec(struct blkcg_gq *blkg, u64 val)
 
 	if (!oldval && val)
 		return 1;
-	if (oldval && !val)
+	if (oldval && !val) {
+		blkcg_clear_delay(blkg);
 		return -1;
+	}
 	return 0;
 }
 
