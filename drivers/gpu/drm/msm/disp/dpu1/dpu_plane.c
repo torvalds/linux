@@ -1329,9 +1329,6 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 		debugfs_create_dir(pdpu->pipe_name,
 				plane->dev->primary->debugfs_root);
 
-	if (!pdpu->debugfs_root)
-		return -ENOMEM;
-
 	/* don't error check these */
 	debugfs_create_x32("features", 0600,
 			pdpu->debugfs_root, &pdpu->features);

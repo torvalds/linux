@@ -1266,10 +1266,7 @@ static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 
 	dpu_crtc->debugfs_root = debugfs_create_dir(dpu_crtc->name,
 			crtc->dev->primary->debugfs_root);
-	if (!dpu_crtc->debugfs_root)
-		return -ENOMEM;
 
-	/* don't error check these */
 	debugfs_create_file("status", 0400,
 			dpu_crtc->debugfs_root,
 			dpu_crtc, &debugfs_status_fops);

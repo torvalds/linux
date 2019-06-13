@@ -506,8 +506,6 @@ int dpu_core_perf_debugfs_init(struct dpu_kms *dpu_kms, struct dentry *parent)
 	struct dentry *entry;
 
 	entry = debugfs_create_dir("core_perf", parent);
-	if (IS_ERR_OR_NULL(entry))
-		return -EINVAL;
 
 	debugfs_create_u64("max_core_clk_rate", 0600, entry,
 			&perf->max_core_clk_rate);
