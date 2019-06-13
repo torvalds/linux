@@ -90,6 +90,9 @@ while (<IN>) {
 	# Skip this script
 	next if ($f eq $scriptname);
 
+	# Ignore the dir where documentation will be built
+	next if ($ln =~ m,\b(\S*)Documentation/output,);
+
 	if ($ln =~ m,\b(\S*)(Documentation/[A-Za-z0-9\_\.\,\~/\*\[\]\?+-]*)(.*),) {
 		my $prefix = $1;
 		my $ref = $2;
