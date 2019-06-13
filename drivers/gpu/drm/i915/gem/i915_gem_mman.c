@@ -308,7 +308,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 		goto err_fence;
 
 	/* Mark as being mmapped into userspace for later revocation */
-	assert_rpm_wakelock_held(i915);
+	assert_rpm_wakelock_held(&i915->runtime_pm);
 	if (!i915_vma_set_userfault(vma) && !obj->userfault_count++)
 		list_add(&obj->userfault_link, &i915->ggtt.userfault_list);
 	if (CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND)

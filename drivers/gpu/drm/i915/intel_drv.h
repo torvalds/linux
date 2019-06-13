@@ -1640,7 +1640,7 @@ assert_rpm_device_not_suspended(struct i915_runtime_pm *rpm)
 }
 
 static inline void
-____assert_rpm_raw_wakeref_held(struct i915_runtime_pm *rpm, int wakeref_count)
+__assert_rpm_raw_wakeref_held(struct i915_runtime_pm *rpm, int wakeref_count)
 {
 	assert_rpm_device_not_suspended(rpm);
 	WARN_ONCE(!intel_rpm_raw_wakeref_count(wakeref_count),
@@ -1648,35 +1648,23 @@ ____assert_rpm_raw_wakeref_held(struct i915_runtime_pm *rpm, int wakeref_count)
 }
 
 static inline void
-____assert_rpm_wakelock_held(struct i915_runtime_pm *rpm, int wakeref_count)
+__assert_rpm_wakelock_held(struct i915_runtime_pm *rpm, int wakeref_count)
 {
-	____assert_rpm_raw_wakeref_held(rpm, wakeref_count);
+	__assert_rpm_raw_wakeref_held(rpm, wakeref_count);
 	WARN_ONCE(!intel_rpm_wakelock_count(wakeref_count),
 		  "RPM wakelock ref not held during HW access\n");
 }
 
 static inline void
-__assert_rpm_raw_wakeref_held(struct i915_runtime_pm *rpm)
+assert_rpm_raw_wakeref_held(struct i915_runtime_pm *rpm)
 {
-	____assert_rpm_raw_wakeref_held(rpm, atomic_read(&rpm->wakeref_count));
+	__assert_rpm_raw_wakeref_held(rpm, atomic_read(&rpm->wakeref_count));
 }
 
 static inline void
-assert_rpm_raw_wakeref_held(struct drm_i915_private *i915)
+assert_rpm_wakelock_held(struct i915_runtime_pm *rpm)
 {
-	__assert_rpm_raw_wakeref_held(&i915->runtime_pm);
-}
-
-static inline void
-__assert_rpm_wakelock_held(struct i915_runtime_pm *rpm)
-{
-	____assert_rpm_wakelock_held(rpm, atomic_read(&rpm->wakeref_count));
-}
-
-static inline void
-assert_rpm_wakelock_held(struct drm_i915_private *i915)
-{
-	__assert_rpm_wakelock_held(&i915->runtime_pm);
+	__assert_rpm_wakelock_held(rpm, atomic_read(&rpm->wakeref_count));
 }
 
 /**

@@ -360,7 +360,7 @@ int i915_vma_pin_fence(struct i915_vma *vma)
 	 * Note that we revoke fences on runtime suspend. Therefore the user
 	 * must keep the device awake whilst using the fence.
 	 */
-	assert_rpm_wakelock_held(vma->vm->i915);
+	assert_rpm_wakelock_held(&vma->vm->i915->runtime_pm);
 
 	/* Just update our place in the LRU if our fence is getting reused. */
 	if (vma->fence) {

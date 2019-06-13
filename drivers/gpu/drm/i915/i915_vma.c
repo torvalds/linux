@@ -364,7 +364,7 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 	int err;
 
 	/* Access through the GTT requires the device to be awake. */
-	assert_rpm_wakelock_held(vma->vm->i915);
+	assert_rpm_wakelock_held(&vma->vm->i915->runtime_pm);
 
 	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
 	if (WARN_ON(!i915_vma_is_map_and_fenceable(vma))) {

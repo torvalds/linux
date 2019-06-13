@@ -335,10 +335,10 @@ intel_runtime_pm_acquire(struct i915_runtime_pm *rpm, bool wakelock)
 {
 	if (wakelock) {
 		atomic_add(1 + INTEL_RPM_WAKELOCK_BIAS, &rpm->wakeref_count);
-		__assert_rpm_wakelock_held(rpm);
+		assert_rpm_wakelock_held(rpm);
 	} else {
 		atomic_inc(&rpm->wakeref_count);
-		__assert_rpm_raw_wakeref_held(rpm);
+		assert_rpm_raw_wakeref_held(rpm);
 	}
 }
 
@@ -346,10 +346,10 @@ static void
 intel_runtime_pm_release(struct i915_runtime_pm *rpm, int wakelock)
 {
 	if (wakelock) {
-		__assert_rpm_wakelock_held(rpm);
+		assert_rpm_wakelock_held(rpm);
 		atomic_sub(INTEL_RPM_WAKELOCK_BIAS, &rpm->wakeref_count);
 	} else {
-		__assert_rpm_raw_wakeref_held(rpm);
+		assert_rpm_raw_wakeref_held(rpm);
 	}
 
 	__intel_wakeref_dec_and_check_tracking(rpm);
@@ -465,7 +465,7 @@ intel_wakeref_t intel_runtime_pm_get_noresume(struct drm_i915_private *i915)
 {
 	struct i915_runtime_pm *rpm = &i915->runtime_pm;
 
-	__assert_rpm_wakelock_held(rpm);
+	assert_rpm_wakelock_held(rpm);
 	pm_runtime_get_noresume(rpm->kdev);
 
 	intel_runtime_pm_acquire(rpm, true);

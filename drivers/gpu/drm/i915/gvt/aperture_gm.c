@@ -132,7 +132,7 @@ void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 	struct i915_fence_reg *reg;
 	i915_reg_t fence_reg_lo, fence_reg_hi;
 
-	assert_rpm_wakelock_held(dev_priv);
+	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
 	if (WARN_ON(fence >= vgpu_fence_sz(vgpu)))
 		return;

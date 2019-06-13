@@ -696,7 +696,7 @@ static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
 
 	WARN_ONCE((I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5),
 		  "DC5 already programmed to be enabled.\n");
-	assert_rpm_wakelock_held(dev_priv);
+	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
 
 	assert_csr_loaded(dev_priv);
 }
@@ -1814,7 +1814,7 @@ release_async_put_domains(struct i915_power_domains *power_domains, u64 mask)
 	 * wakeref to make the state checker happy about the HW access during
 	 * power well disabling.
 	 */
-	assert_rpm_raw_wakeref_held(dev_priv);
+	assert_rpm_raw_wakeref_held(&dev_priv->runtime_pm);
 	wakeref = intel_runtime_pm_get(dev_priv);
 
 	for_each_power_domain(domain, mask) {
