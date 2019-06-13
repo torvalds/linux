@@ -1796,9 +1796,6 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 						"kvmgt_nr_cache_entries",
 						0444, vgpu->debugfs,
 						&vgpu->vdev.nr_cache_entries);
-	if (!info->debugfs_cache_entries)
-		gvt_vgpu_err("Cannot create kvmgt debugfs entry\n");
-
 	return 0;
 }
 

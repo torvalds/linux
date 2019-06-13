@@ -682,9 +682,9 @@ static inline void intel_gvt_mmio_set_in_ctx(
 	gvt->mmio.mmio_attribute[offset >> 2] |= F_IN_CTX;
 }
 
-int intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu);
+void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu);
-int intel_gvt_debugfs_init(struct intel_gvt *gvt);
+void intel_gvt_debugfs_init(struct intel_gvt *gvt);
 void intel_gvt_debugfs_clean(struct intel_gvt *gvt);
 
 

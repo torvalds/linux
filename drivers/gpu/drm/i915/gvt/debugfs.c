@@ -189,36 +189,19 @@ DEFINE_SIMPLE_ATTRIBUTE(vgpu_scan_nonprivbb_fops,
 /**
  * intel_gvt_debugfs_add_vgpu - register debugfs entries for a vGPU
  * @vgpu: a vGPU
- *
- * Returns:
- * Zero on success, negative error code if failed.
  */
-int intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
+void intel_gvt_debugfs_add_vgpu(struct intel_vgpu *vgpu)
 {
-	struct dentry *ent;
 	char name[16] = "";
 
 	snprintf(name, 16, "vgpu%d", vgpu->id);
 	vgpu->debugfs = debugfs_create_dir(name, vgpu->gvt->debugfs_root);
-	if (!vgpu->debugfs)
-		return -ENOMEM;
 
-	ent = debugfs_create_bool("active", 0444, vgpu->debugfs,
-				  &vgpu->active);
-	if (!ent)
-		return -ENOMEM;
-
-	ent = debugfs_create_file("mmio_diff", 0444, vgpu->debugfs,
-				  vgpu, &vgpu_mmio_diff_fops);
-	if (!ent)
-		return -ENOMEM;
-
-	ent = debugfs_create_file("scan_nonprivbb", 0644, vgpu->debugfs,
-				 vgpu, &vgpu_scan_nonprivbb_fops);
-	if (!ent)
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_bool("active", 0444, vgpu->debugfs, &vgpu->active);
+	debugfs_create_file("mmio_diff", 0444, vgpu->debugfs, vgpu,
+			    &vgpu_mmio_diff_fops);
+	debugfs_create_file("scan_nonprivbb", 0644, vgpu->debugfs, vgpu,
+			    &vgpu_scan_nonprivbb_fops);
 }
 
 /**
@@ -234,27 +217,15 @@ void intel_gvt_debugfs_remove_vgpu(struct intel_vgpu *vgpu)
 /**
  * intel_gvt_debugfs_init - register gvt debugfs root entry
  * @gvt: GVT device
- *
- * Returns:
- * zero on success, negative if failed.
  */
-int intel_gvt_debugfs_init(struct intel_gvt *gvt)
+void intel_gvt_debugfs_init(struct intel_gvt *gvt)
 {
 	struct drm_minor *minor = gvt->dev_priv->drm.primary;
-	struct dentry *ent;
 
 	gvt->debugfs_root = debugfs_create_dir("gvt", minor->debugfs_root);
-	if (!gvt->debugfs_root) {
-		gvt_err("Cannot create debugfs dir\n");
-		return -ENOMEM;
-	}
 
-	ent = debugfs_create_ulong("num_tracked_mmio", 0444, gvt->debugfs_root,
-				   &gvt->mmio.num_tracked_mmio);
-	if (!ent)
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_ulong("num_tracked_mmio", 0444, gvt->debugfs_root,
+			     &gvt->mmio.num_tracked_mmio);
 }
 
 /**
