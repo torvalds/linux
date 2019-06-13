@@ -389,7 +389,7 @@ static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 			return err;
 	}
 
-	return err;
+	return 0;
 }
 
 /*
