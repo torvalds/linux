@@ -1561,6 +1561,21 @@ int pci_cfg_space_size(struct pci_dev *dev)
 	u32 status;
 	u16 class;
 
+#ifdef CONFIG_PCI_IOV
+	/*
+	 * Per the SR-IOV specification (rev 1.1, sec 3.5), VFs are required to
+	 * implement a PCIe capability and therefore must implement extended
+	 * config space.  We can skip the NO_EXTCFG test below and the
+	 * reachability/aliasing test in pci_cfg_space_size_ext() by virtue of
+	 * the fact that the SR-IOV capability on the PF resides in extended
+	 * config space and must be accessible and non-aliased to have enabled
+	 * support for this VF.  This is a micro performance optimization for
+	 * systems supporting many VFs.
+	 */
+	if (dev->is_virtfn)
+		return PCI_CFG_SPACE_EXP_SIZE;
+#endif
+
 	if (dev->bus->bus_flags & PCI_BUS_FLAGS_NO_EXTCFG)
 		return PCI_CFG_SPACE_SIZE;
 
