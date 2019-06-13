@@ -1527,9 +1527,9 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 
 static int trace__validate_ev_qualifier(struct trace *trace)
 {
-	int err = 0, i;
+	int err = 0;
 	bool printed_invalid_prefix = false;
-	size_t nr_allocated;
+	size_t nr_allocated, i;
 	struct str_node *pos;
 
 	trace->ev_qualifier_ids.nr = strlist__nr_entries(trace->ev_qualifier);
@@ -1574,7 +1574,7 @@ matches:
 			id = syscalltbl__strglobmatch_next(trace->sctbl, sc, &match_next);
 			if (id < 0)
 				break;
-			if (nr_allocated == trace->ev_qualifier_ids.nr) {
+			if (nr_allocated == i) {
 				void *entries;
 
 				nr_allocated += 8;
@@ -1587,11 +1587,11 @@ matches:
 				}
 				trace->ev_qualifier_ids.entries = entries;
 			}
-			trace->ev_qualifier_ids.nr++;
 			trace->ev_qualifier_ids.entries[i++] = id;
 		}
 	}
 
+	trace->ev_qualifier_ids.nr = i;
 out:
 	if (printed_invalid_prefix)
 		pr_debug("\n");
