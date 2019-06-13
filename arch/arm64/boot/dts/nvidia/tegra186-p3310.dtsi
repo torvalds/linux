@@ -124,6 +124,17 @@
 
 	i2c@c250000 {
 		status = "okay";
+
+		/* module ID EEPROM */
+		eeprom@50 {
+			compatible = "atmel,24c02";
+			reg = <0x50>;
+
+			address-bits = <8>;
+			page-size = <8>;
+			size = <256>;
+			read-only;
+		};
 	};
 
 	rtc@c2a0000 {
