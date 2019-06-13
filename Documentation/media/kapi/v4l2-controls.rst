@@ -98,11 +98,6 @@ For V4L2 drivers:
 
 	foo->v4l2_dev.ctrl_handler = &foo->ctrl_handler;
 
-Finally, remove all control functions from your v4l2_ioctl_ops (if any):
-vidioc_queryctrl, vidioc_query_ext_ctrl, vidioc_querymenu, vidioc_g_ctrl,
-vidioc_s_ctrl, vidioc_g_ext_ctrls, vidioc_try_ext_ctrls and vidioc_s_ext_ctrls.
-Those are now no longer needed.
-
 For sub-device drivers:
 
 .. code-block:: c
