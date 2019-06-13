@@ -11,7 +11,7 @@
 #include <linux/if_bridge.h>
 #include <net/dsa.h>
 
-#include "realtek-smi.h"
+#include "realtek-smi-core.h"
 
 int rtl8366_mc_is_used(struct realtek_smi *smi, int mc_index, int *used)
 {
