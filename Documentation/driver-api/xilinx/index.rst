@@ -1,4 +1,3 @@
-:orphan:
 
 ===========
 Xilinx FPGA

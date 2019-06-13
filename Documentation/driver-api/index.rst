@@ -93,6 +93,7 @@ available subsections can be seen below.
    sync_file
    vfio-mediated-device
    vfio
+   xilinx/index
    xillybus
    zorro
 
