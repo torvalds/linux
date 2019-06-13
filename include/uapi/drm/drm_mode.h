@@ -629,6 +629,14 @@ struct drm_color_lut {
 	__u16 reserved;
 };
 
+enum supported_eotf_type {
+	TRADITIONAL_GAMMA_SDR = 0,
+	TRADITIONAL_GAMMA_HDR,
+	SMPTE_ST2084,
+	HLG,
+	FUTURE_EOTF
+};
+
 #define DRM_MODE_PAGE_FLIP_EVENT 0x01
 #define DRM_MODE_PAGE_FLIP_ASYNC 0x02
 #define DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE 0x4

@@ -23,6 +23,9 @@
 #include <drm/bridge/analogix_dp.h>
 #endif
 
+#include <linux/debugfs.h>
+#include <linux/fixp-arith.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -195,7 +198,6 @@ struct vop_win {
 	const uint32_t *data_formats;
 	uint32_t nformats;
 	u64 feature;
-	const struct vop_win_yuv2yuv_data *yuv2yuv_data;
 	struct vop *vop;
 	struct vop_plane_state state;
 };
@@ -236,6 +238,10 @@ struct vop {
 	/* physical map length of vop register */
 	uint32_t len;
 
+	void __iomem *lut_regs;
+	u32 *lut;
+	u32 lut_len;
+	bool lut_active;
 	/* one time only one process allowed to config the register */
 	spinlock_t reg_lock;
 	/* lock vop irq reg */
@@ -251,9 +257,13 @@ struct vop {
 	struct clk *dclk;
 	/* vop share memory frequency */
 	struct clk *aclk;
+	/* vop source handling, optional */
+	struct clk *dclk_source;
 
 	/* vop dclk reset */
 	struct reset_control *dclk_rst;
+
+	struct rockchip_dclk_pll *pll;
 
 	struct vop_win win[];
 };
@@ -333,6 +343,91 @@ static inline uint32_t vop_get_intr_type(struct vop *vop,
 	return ret;
 }
 
+static void vop_load_hdr2sdr_table(struct vop *vop)
+{
+	int i;
+	const struct vop_hdr_table *table = vop->data->hdr_table;
+	uint32_t hdr2sdr_eetf_oetf_yn[33];
+
+	for (i = 0; i < 33; i++)
+		hdr2sdr_eetf_oetf_yn[i] = table->hdr2sdr_eetf_yn[i] +
+				(table->hdr2sdr_bt1886oetf_yn[i] << 16);
+
+	vop_writel(vop, table->hdr2sdr_eetf_oetf_y0_offset,
+		   hdr2sdr_eetf_oetf_yn[0]);
+	for (i = 1; i < 33; i++)
+		vop_writel(vop,
+			   table->hdr2sdr_eetf_oetf_y1_offset + (i - 1) * 4,
+			   hdr2sdr_eetf_oetf_yn[i]);
+
+	vop_writel(vop, table->hdr2sdr_sat_y0_offset,
+		   table->hdr2sdr_sat_yn[0]);
+	for (i = 1; i < 9; i++)
+		vop_writel(vop, table->hdr2sdr_sat_y1_offset + (i - 1) * 4,
+			   table->hdr2sdr_sat_yn[i]);
+
+	VOP_CTRL_SET(vop, hdr2sdr_src_min, table->hdr2sdr_src_range_min);
+	VOP_CTRL_SET(vop, hdr2sdr_src_max, table->hdr2sdr_src_range_max);
+	VOP_CTRL_SET(vop, hdr2sdr_normfaceetf, table->hdr2sdr_normfaceetf);
+	VOP_CTRL_SET(vop, hdr2sdr_dst_min, table->hdr2sdr_dst_range_min);
+	VOP_CTRL_SET(vop, hdr2sdr_dst_max, table->hdr2sdr_dst_range_max);
+	VOP_CTRL_SET(vop, hdr2sdr_normfacgamma, table->hdr2sdr_normfacgamma);
+}
+
+static void vop_load_sdr2hdr_table(struct vop *vop, uint32_t cmd)
+{
+	int i;
+	const struct vop_hdr_table *table = vop->data->hdr_table;
+	uint32_t sdr2hdr_eotf_oetf_yn[65];
+	uint32_t sdr2hdr_oetf_dx_dxpow[64];
+
+	for (i = 0; i < 65; i++) {
+		if (cmd == SDR2HDR_FOR_BT2020)
+			sdr2hdr_eotf_oetf_yn[i] =
+				table->sdr2hdr_bt1886eotf_yn_for_bt2020[i] +
+				(table->sdr2hdr_st2084oetf_yn_for_bt2020[i] << 18);
+		else if (cmd == SDR2HDR_FOR_HDR)
+			sdr2hdr_eotf_oetf_yn[i] =
+				table->sdr2hdr_bt1886eotf_yn_for_hdr[i] +
+				(table->sdr2hdr_st2084oetf_yn_for_hdr[i] << 18);
+		else if (cmd == SDR2HDR_FOR_HLG_HDR)
+			sdr2hdr_eotf_oetf_yn[i] =
+				table->sdr2hdr_bt1886eotf_yn_for_hlg_hdr[i] +
+				(table->sdr2hdr_st2084oetf_yn_for_hlg_hdr[i] << 18);
+	}
+	vop_writel(vop, table->sdr2hdr_eotf_oetf_y0_offset,
+		   sdr2hdr_eotf_oetf_yn[0]);
+	for (i = 1; i < 65; i++)
+		vop_writel(vop, table->sdr2hdr_eotf_oetf_y1_offset +
+			   (i - 1) * 4, sdr2hdr_eotf_oetf_yn[i]);
+
+	for (i = 0; i < 64; i++) {
+		sdr2hdr_oetf_dx_dxpow[i] = table->sdr2hdr_st2084oetf_dxn[i] +
+				(table->sdr2hdr_st2084oetf_dxn_pow2[i] << 16);
+		vop_writel(vop, table->sdr2hdr_oetf_dx_dxpow1_offset + i * 4,
+			   sdr2hdr_oetf_dx_dxpow[i]);
+	}
+
+	for (i = 0; i < 63; i++)
+		vop_writel(vop, table->sdr2hdr_oetf_xn1_offset + i * 4,
+			   table->sdr2hdr_st2084oetf_xn[i]);
+}
+
+static __maybe_unused void vop_load_csc_table(struct vop *vop, u32 offset, const u32 *table)
+{
+	int i;
+
+	/*
+	 * so far the csc offset is not 0 and in the feature the csc offset
+	 * impossible be 0, so when the offset is 0, should return here.
+	 */
+	if (!table || offset == 0)
+		return;
+
+	for (i = 0; i < 8; i++)
+		vop_writel(vop, offset + i * 4, table[i]);
+}
+
 static inline void vop_cfg_done(struct vop *vop)
 {
 	VOP_CTRL_SET(vop, cfg_done, 1);
@@ -378,6 +473,16 @@ static __maybe_unused bool vop_fs_irq_is_active(struct vop *vop)
 static __maybe_unused bool vop_line_flag_is_active(struct vop *vop)
 {
 	return VOP_INTR_GET_TYPE(vop, status, LINE_FLAG_INTR);
+}
+
+static inline void vop_write_lut(struct vop *vop, uint32_t offset, uint32_t v)
+{
+	writel(v, vop->lut_regs + offset);
+}
+
+static inline uint32_t vop_read_lut(struct vop *vop, uint32_t offset)
+{
+	return readl(vop->lut_regs + offset);
 }
 
 static bool has_rb_swapped(uint32_t format)
@@ -446,6 +551,21 @@ static bool is_yuv_output(uint32_t bus_format)
 	case MEDIA_BUS_FMT_YUV10_1X30:
 	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
 	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_yuv_support(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_NV12:
+	//case DRM_FORMAT_NV12_10:
+	case DRM_FORMAT_NV16:
+	//case DRM_FORMAT_NV16_10:
+	case DRM_FORMAT_NV24:
+	//case DRM_FORMAT_NV24_10:
 		return true;
 	default:
 		return false;
@@ -609,6 +729,148 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win *win,
 	}
 }
 
+/*
+ * rk3328 HDR/CSC path
+ *
+ * HDR/SDR --> win0  --> HDR2SDR ----\
+ *		  \		      MUX --\
+ *                 \ --> SDR2HDR/CSC--/      \
+ *                                            \
+ * SDR --> win1 -->pre_overlay ->SDR2HDR/CSC --> post_ovrlay-->post CSC-->output
+ * SDR --> win2 -/
+ *
+ */
+
+static int vop_hdr_atomic_check(struct drm_crtc *crtc,
+				struct drm_crtc_state *crtc_state)
+{
+	struct drm_atomic_state *state = crtc_state->state;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct drm_plane_state *pstate;
+	struct drm_plane *plane;
+	struct vop *vop = to_vop(crtc);
+	int pre_sdr2hdr_state = 0, post_sdr2hdr_state = 0;
+	int pre_sdr2hdr_mode = 0, post_sdr2hdr_mode = 0, sdr2hdr_func = 0;
+	bool pre_overlay = false;
+	int hdr2sdr_en = 0, plane_id = 0;
+
+	if (!vop->data->hdr_table)
+		return 0;
+	/* hdr cover */
+	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
+		struct vop_plane_state *vop_plane_state;
+		struct vop_win *win = to_vop_win(plane);
+
+		pstate = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(pstate))
+			return PTR_ERR(pstate);
+		vop_plane_state = to_vop_plane_state(pstate);
+		if (!pstate->fb)
+			continue;
+
+		if (vop_plane_state->eotf > s->eotf)
+			if (win->feature & WIN_FEATURE_HDR2SDR)
+				hdr2sdr_en = 1;
+		if (vop_plane_state->eotf < s->eotf) {
+			if (win->feature & WIN_FEATURE_PRE_OVERLAY)
+				pre_sdr2hdr_state |= BIT(plane_id);
+			else
+				post_sdr2hdr_state |= BIT(plane_id);
+		}
+		plane_id++;
+	}
+
+	if (pre_sdr2hdr_state || post_sdr2hdr_state || hdr2sdr_en) {
+		pre_overlay = true;
+		pre_sdr2hdr_mode = BT709_TO_BT2020;
+		post_sdr2hdr_mode = BT709_TO_BT2020;
+		sdr2hdr_func = SDR2HDR_FOR_HDR;
+		goto exit_hdr_convert;
+	}
+
+	/* overlay mode */
+	plane_id = 0;
+	pre_overlay = false;
+	pre_sdr2hdr_mode = 0;
+	post_sdr2hdr_mode = 0;
+	pre_sdr2hdr_state = 0;
+	post_sdr2hdr_state = 0;
+	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
+		struct vop_plane_state *vop_plane_state;
+		struct vop_win *win = to_vop_win(plane);
+
+		pstate = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(pstate))
+			return PTR_ERR(pstate);
+		vop_plane_state = to_vop_plane_state(pstate);
+		if (!pstate->fb)
+			continue;
+
+		if (vop_plane_state->color_space == V4L2_COLORSPACE_BT2020 &&
+		    vop_plane_state->color_space > s->color_space) {
+			if (win->feature & WIN_FEATURE_PRE_OVERLAY) {
+				pre_sdr2hdr_mode = BT2020_TO_BT709;
+				pre_sdr2hdr_state |= BIT(plane_id);
+			} else {
+				post_sdr2hdr_mode = BT2020_TO_BT709;
+				post_sdr2hdr_state |= BIT(plane_id);
+			}
+		}
+		if (s->color_space == V4L2_COLORSPACE_BT2020 &&
+		    vop_plane_state->color_space < s->color_space) {
+			if (win->feature & WIN_FEATURE_PRE_OVERLAY) {
+				pre_sdr2hdr_mode = BT709_TO_BT2020;
+				pre_sdr2hdr_state |= BIT(plane_id);
+			} else {
+				post_sdr2hdr_mode = BT709_TO_BT2020;
+				post_sdr2hdr_state |= BIT(plane_id);
+			}
+		}
+		plane_id++;
+	}
+
+	if (pre_sdr2hdr_state || post_sdr2hdr_state) {
+		pre_overlay = true;
+		sdr2hdr_func = SDR2HDR_FOR_BT2020;
+	}
+
+exit_hdr_convert:
+	s->hdr.pre_overlay = pre_overlay;
+	s->hdr.hdr2sdr_en = hdr2sdr_en;
+	if (s->hdr.pre_overlay)
+		s->yuv_overlay = 0;
+
+	s->hdr.sdr2hdr_state.bt1886eotf_pre_conv_en = !!pre_sdr2hdr_state;
+	s->hdr.sdr2hdr_state.rgb2rgb_pre_conv_en = !!pre_sdr2hdr_state;
+	s->hdr.sdr2hdr_state.rgb2rgb_pre_conv_mode = pre_sdr2hdr_mode;
+	s->hdr.sdr2hdr_state.st2084oetf_pre_conv_en = !!pre_sdr2hdr_state;
+
+	s->hdr.sdr2hdr_state.bt1886eotf_post_conv_en = !!post_sdr2hdr_state;
+	s->hdr.sdr2hdr_state.rgb2rgb_post_conv_en = !!post_sdr2hdr_state;
+	s->hdr.sdr2hdr_state.rgb2rgb_post_conv_mode = post_sdr2hdr_mode;
+	s->hdr.sdr2hdr_state.st2084oetf_post_conv_en = !!post_sdr2hdr_state;
+	s->hdr.sdr2hdr_state.sdr2hdr_func = sdr2hdr_func;
+
+	return 0;
+}
+
+static int to_vop_csc_mode(int csc_mode)
+{
+	switch (csc_mode) {
+	case V4L2_COLORSPACE_SMPTE170M:
+		return CSC_BT601L;
+	case V4L2_COLORSPACE_REC709:
+	case V4L2_COLORSPACE_DEFAULT:
+		return CSC_BT709L;
+	case V4L2_COLORSPACE_JPEG:
+		return CSC_BT601F;
+	case V4L2_COLORSPACE_BT2020:
+		return CSC_BT2020;
+	default:
+		return CSC_BT709L;
+	}
+}
+
 static void vop_disable_all_planes(struct vop *vop)
 {
 	bool active;
@@ -621,6 +883,191 @@ static void vop_disable_all_planes(struct vop *vop)
 					0, 500 * 1000);
 	if (ret)
 		dev_err(vop->dev, "wait win close timeout\n");
+}
+
+/*
+ * rk3399 colorspace path:
+ *      Input        Win csc                     Output
+ * 1. YUV(2020)  --> Y2R->2020To709->R2Y   --> YUV_OUTPUT(601/709)
+ *    RGB        --> R2Y                  __/
+ *
+ * 2. YUV(2020)  --> bypasss               --> YUV_OUTPUT(2020)
+ *    RGB        --> 709To2020->R2Y       __/
+ *
+ * 3. YUV(2020)  --> Y2R->2020To709        --> RGB_OUTPUT(709)
+ *    RGB        --> R2Y                  __/
+ *
+ * 4. YUV(601/709)-> Y2R->709To2020->R2Y   --> YUV_OUTPUT(2020)
+ *    RGB        --> 709To2020->R2Y       __/
+ *
+ * 5. YUV(601/709)-> bypass                --> YUV_OUTPUT(709)
+ *    RGB        --> R2Y                  __/
+ *
+ * 6. YUV(601/709)-> bypass                --> YUV_OUTPUT(601)
+ *    RGB        --> R2Y(601)             __/
+ *
+ * 7. YUV        --> Y2R(709)              --> RGB_OUTPUT(709)
+ *    RGB        --> bypass               __/
+ *
+ * 8. RGB        --> 709To2020->R2Y        --> YUV_OUTPUT(2020)
+ *
+ * 9. RGB        --> R2Y(709)              --> YUV_OUTPUT(709)
+ *
+ * 10. RGB       --> R2Y(601)              --> YUV_OUTPUT(601)
+ *
+ * 11. RGB       --> bypass                --> RGB_OUTPUT(709)
+ */
+static int vop_setup_csc_table(const struct vop_csc_table *csc_table,
+			       bool is_input_yuv, bool is_output_yuv,
+			       int input_csc, int output_csc,
+			       const uint32_t **y2r_table,
+			       const uint32_t **r2r_table,
+			       const uint32_t **r2y_table)
+{
+	*y2r_table = NULL;
+	*r2r_table = NULL;
+	*r2y_table = NULL;
+
+	if (!csc_table)
+		return 0;
+
+	if (is_output_yuv) {
+		if (output_csc == V4L2_COLORSPACE_BT2020) {
+			if (is_input_yuv) {
+				if (input_csc == V4L2_COLORSPACE_BT2020)
+					return 0;
+				*y2r_table = csc_table->y2r_bt709;
+			}
+			if (input_csc != V4L2_COLORSPACE_BT2020)
+				*r2r_table = csc_table->r2r_bt709_to_bt2020;
+			*r2y_table = csc_table->r2y_bt2020;
+		} else {
+			if (is_input_yuv && input_csc == V4L2_COLORSPACE_BT2020)
+				*y2r_table = csc_table->y2r_bt2020;
+			if (input_csc == V4L2_COLORSPACE_BT2020)
+				*r2r_table = csc_table->r2r_bt2020_to_bt709;
+			if (!is_input_yuv || *y2r_table) {
+				if (output_csc == V4L2_COLORSPACE_REC709 ||
+				    output_csc == V4L2_COLORSPACE_DEFAULT)
+					*r2y_table = csc_table->r2y_bt709;
+				else
+					*r2y_table = csc_table->r2y_bt601;
+			}
+		}
+	} else {
+		if (!is_input_yuv)
+			return 0;
+
+		/*
+		 * is possible use bt2020 on rgb mode?
+		 */
+		if (WARN_ON(output_csc == V4L2_COLORSPACE_BT2020))
+			return -EINVAL;
+
+		if (input_csc == V4L2_COLORSPACE_BT2020)
+			*y2r_table = csc_table->y2r_bt2020;
+		else if ((input_csc == V4L2_COLORSPACE_REC709) ||
+			 (input_csc == V4L2_COLORSPACE_DEFAULT))
+			*y2r_table = csc_table->y2r_bt709;
+		else
+			*y2r_table = csc_table->y2r_bt601;
+
+		if (input_csc == V4L2_COLORSPACE_BT2020)
+			/*
+			 * We don't have bt601 to bt709 table, force use bt709.
+			 */
+			*r2r_table = csc_table->r2r_bt2020_to_bt709;
+	}
+
+	return 0;
+}
+
+static void vop_setup_csc_mode(bool is_input_yuv, bool is_output_yuv,
+			       int input_csc, int output_csc,
+			       bool *y2r_en, bool *r2y_en, int *csc_mode)
+{
+	if (is_input_yuv && !is_output_yuv) {
+		*y2r_en = true;
+		*csc_mode =  to_vop_csc_mode(input_csc);
+	} else if (!is_input_yuv && is_output_yuv) {
+		*r2y_en = true;
+		*csc_mode = to_vop_csc_mode(output_csc);
+	}
+}
+
+static int vop_csc_atomic_check(struct drm_crtc *crtc,
+				struct drm_crtc_state *crtc_state)
+{
+	struct vop *vop = to_vop(crtc);
+	struct drm_atomic_state *state = crtc_state->state;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	const struct vop_csc_table *csc_table = vop->data->csc_table;
+	struct drm_plane_state *pstate;
+	struct drm_plane *plane;
+	bool is_input_yuv, is_output_yuv;
+	int ret;
+
+	is_output_yuv = is_yuv_output(s->bus_format);
+
+	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
+		struct vop_plane_state *vop_plane_state;
+		struct vop_win *win = to_vop_win(plane);
+
+		pstate = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(pstate))
+			return PTR_ERR(pstate);
+		vop_plane_state = to_vop_plane_state(pstate);
+
+		if (!pstate->fb)
+			continue;
+		is_input_yuv = is_yuv_support(pstate->fb->format->format);
+		vop_plane_state->y2r_en = false;
+		vop_plane_state->r2r_en = false;
+		vop_plane_state->r2y_en = false;
+
+		ret = vop_setup_csc_table(csc_table, is_input_yuv,
+					  is_output_yuv,
+					  vop_plane_state->color_space,
+					  s->color_space,
+					  &vop_plane_state->y2r_table,
+					  &vop_plane_state->r2r_table,
+					  &vop_plane_state->r2y_table);
+		if (ret)
+			return ret;
+
+		if (csc_table) {
+			vop_plane_state->y2r_en = !!vop_plane_state->y2r_table;
+			vop_plane_state->r2r_en = !!vop_plane_state->r2r_table;
+			vop_plane_state->r2y_en = !!vop_plane_state->r2y_table;
+			continue;
+		}
+
+		vop_setup_csc_mode(is_input_yuv, s->yuv_overlay,
+				   vop_plane_state->color_space, s->color_space,
+				   &vop_plane_state->y2r_en,
+				   &vop_plane_state->r2y_en,
+				   &vop_plane_state->csc_mode);
+
+		/*
+		 * This is update for IC design not reasonable, when enable
+		 * hdr2sdr on rk3328, vop can't support per-pixel alpha * global
+		 * alpha,so we must back to gpu, but gpu can't support hdr2sdr,
+		 * gpu output hdr UI, vop will do:
+		 * UI(rgbx) -> yuv -> rgb ->hdr2sdr -> overlay -> output.
+		 */
+		if (s->hdr.hdr2sdr_en &&
+		    vop_plane_state->eotf == SMPTE_ST2084 &&
+		    !is_yuv_support(pstate->fb->format->format))
+			vop_plane_state->r2y_en = true;
+		if (win->feature & WIN_FEATURE_PRE_OVERLAY)
+			vop_plane_state->r2r_en =
+				s->hdr.sdr2hdr_state.rgb2rgb_pre_conv_en;
+		else if (win->feature & WIN_FEATURE_HDR2SDR)
+			vop_plane_state->r2r_en =
+				s->hdr.sdr2hdr_state.rgb2rgb_post_conv_en;
+	}
+
+	return 0;
 }
 
 static void vop_enable_debug_irq(struct drm_crtc *crtc)
@@ -913,8 +1360,9 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	dma_addr_t dma_addr;
 	void *kvaddr;
 
+	crtc = crtc ? crtc : plane->state->crtc;
 	if (!crtc || !fb)
-		return 0;
+		goto out_disable;
 
 	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
 	if (WARN_ON(!crtc_state))
@@ -936,7 +1384,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 		return ret;
 
 	if (!state->visible)
-		return 0;
+		goto out_disable;
 
 	vop_plane_state->format = vop_convert_format(fb->format->format);
 	if (vop_plane_state->format < 0)
@@ -994,6 +1442,10 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	return 0;
+
+out_disable:
+	vop_plane_state->enable = false;
+	return 0;
 }
 
 static void vop_plane_atomic_disable(struct drm_plane *plane,
@@ -1041,6 +1493,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_crtc *crtc = state->crtc;
+	struct drm_display_mode *mode = NULL;
 	struct vop_win *win = to_vop_win(plane);
 	struct vop_plane_state *vop_plane_state = to_vop_plane_state(state);
 	struct rockchip_crtc_state *s;
@@ -1069,6 +1522,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
+	mode = &crtc->state->adjusted_mode;
 	actual_w = drm_rect_width(src) >> 16;
 	actual_h = drm_rect_height(src) >> 16;
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
@@ -1076,8 +1530,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	dsp_info = (drm_rect_height(dest) - 1) << 16;
 	dsp_info |= (drm_rect_width(dest) - 1) & 0xffff;
 
-	dsp_stx = dest->x1 + crtc->mode.htotal - crtc->mode.hsync_start;
-	dsp_sty = dest->y1 + crtc->mode.vtotal - crtc->mode.vsync_start;
+	dsp_stx = dest->x1 + mode->crtc_htotal - mode->crtc_hsync_start;
+	dsp_sty = dest->y1 + mode->crtc_vtotal - mode->crtc_vsync_start;
 	dsp_st = dsp_sty << 16 | (dsp_stx & 0xffff);
 
 	s = to_rockchip_crtc_state(crtc->state);
@@ -1140,9 +1594,23 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	}
 	VOP_WIN_SET(vop, win, global_alpha_val, vop_plane_state->global_alpha);
 
+	VOP_WIN_SET(vop, win, csc_mode, vop_plane_state->csc_mode);
+	if (win->csc) {
+		//vop_load_csc_table(vop, win->csc->y2r_offset, y2r_table);
+		//vop_load_csc_table(vop, win->csc->r2r_offset, r2r_table);
+		//vop_load_csc_table(vop, win->csc->r2y_offset, r2y_table);
+		VOP_WIN_SET_EXT(vop, win, csc, y2r_en, vop_plane_state->y2r_en);
+		VOP_WIN_SET_EXT(vop, win, csc, r2r_en, vop_plane_state->r2r_en);
+		VOP_WIN_SET_EXT(vop, win, csc, r2y_en, vop_plane_state->r2y_en);
+	}
 	VOP_WIN_SET(vop, win, enable, 1);
 	VOP_WIN_SET(vop, win, gate, 1);
 	spin_unlock(&vop->reg_lock);
+	/*
+	 * spi interface(vop_plane_state->yrgb_kvaddr, fb->pixel_format,
+	 * actual_w, actual_h)
+	 */
+	vop->is_iommu_needed = true;
 }
 
 static const struct drm_plane_helper_funcs plane_helper_funcs = {
@@ -1156,7 +1624,7 @@ static void vop_plane_destroy(struct drm_plane *plane)
 	drm_plane_cleanup(plane);
 }
 
-static void vop_plane_reset(struct drm_plane *plane)
+static void vop_atomic_plane_reset(struct drm_plane *plane)
 {
 	struct vop_plane_state *vop_plane_state =
 					to_vop_plane_state(plane->state);
@@ -1243,7 +1711,7 @@ static const struct drm_plane_funcs vop_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
 	.destroy = vop_plane_destroy,
-	.reset = vop_plane_reset,
+	.reset = vop_atomic_plane_reset,
 	.atomic_duplicate_state = vop_atomic_plane_duplicate_state,
 	.atomic_destroy_state = vop_atomic_plane_destroy_state,
 	.atomic_set_property = vop_atomic_plane_set_property,
@@ -1360,8 +1828,8 @@ static void vop_update_csc(struct drm_crtc *crtc)
 	 */
 	if (!is_yuv_output(s->bus_format))
 		val = 0;
-	else if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) == 8/* &&
-		 s->hdr.pre_overlay*/)
+	else if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) == 8 &&
+		 s->hdr.pre_overlay)
 		val = 0;
 	else if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) >= 5)
 		val = 0x20010200;
@@ -1554,6 +2022,283 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	//vop_unlock(vop);
 }
 
+static int vop_zpos_cmp(const void *a, const void *b)
+{
+	struct vop_zpos *pa = (struct vop_zpos *)a;
+	struct vop_zpos *pb = (struct vop_zpos *)b;
+
+	return pa->zpos - pb->zpos;
+}
+
+static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
+				  struct drm_crtc_state *crtc_state)
+{
+	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_plane *plane;
+	struct drm_plane_state *pstate;
+	struct vop_plane_state *plane_state;
+	struct drm_framebuffer *fb;
+	struct drm_rect *src;
+	struct vop_win *win;
+	int afbdc_format;
+
+	s->afbdc_en = 0;
+
+	//todo
+	return 0;
+
+	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
+		pstate = drm_atomic_get_existing_plane_state(state, plane);
+		/*
+		 * plane might not have changed, in which case take
+		 * current state:
+		 */
+		if (!pstate)
+			pstate = plane->state;
+
+		fb = pstate->fb;
+		if (pstate->crtc != crtc || !fb)
+			continue;
+		//if (fb->modifier[0] != DRM_FORMAT_MOD_ARM_AFBC)
+		//	continue;
+
+		if (!(vop_data->feature & VOP_FEATURE_AFBDC)) {
+			DRM_ERROR("not support afbdc\n");
+			return -EINVAL;
+		}
+
+		plane_state = to_vop_plane_state(pstate);
+
+		switch (plane_state->format) {
+		case VOP_FMT_ARGB8888:
+			afbdc_format = AFBDC_FMT_U8U8U8U8;
+			break;
+		case VOP_FMT_RGB888:
+			afbdc_format = AFBDC_FMT_U8U8U8;
+			break;
+		case VOP_FMT_RGB565:
+			afbdc_format = AFBDC_FMT_RGB565;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (s->afbdc_en) {
+			DRM_ERROR("vop only support one afbc layer\n");
+			return -EINVAL;
+		}
+
+		win = to_vop_win(plane);
+		src = &plane_state->src;
+		if (!(win->feature & WIN_FEATURE_AFBDC)) {
+			DRM_ERROR("win[%d] feature:0x%llx, not support afbdc\n",
+				  win->win_id, win->feature);
+			return -EINVAL;
+		}
+		if (!IS_ALIGNED(fb->width, 16)) {
+			DRM_ERROR("win[%d] afbdc must 16 align, width: %d\n",
+				  win->win_id, fb->width);
+			return -EINVAL;
+		}
+
+		if (VOP_CTRL_SUPPORT(vop, afbdc_pic_vir_width)) {
+			u32 align_x1, align_x2, align_y1, align_y2, align_val;
+
+			s->afbdc_win_format = afbdc_format;
+			s->afbdc_win_id = win->win_id;
+			s->afbdc_win_ptr = rockchip_fb_get_dma_addr(fb, 0);
+			s->afbdc_win_vir_width = fb->width;
+			s->afbdc_win_xoffset = (src->x1 >> 16);
+			s->afbdc_win_yoffset = (src->y1 >> 16);
+
+			align_x1 = (src->x1 >> 16) - ((src->x1 >> 16) % 16);
+			align_y1 = (src->y1 >> 16) - ((src->y1 >> 16) % 16);
+
+			align_val = (src->x2 >> 16) % 16;
+			if (align_val)
+				align_x2 = (src->x2 >> 16) + (16 - align_val);
+			else
+				align_x2 = src->x2 >> 16;
+
+			align_val = (src->y2 >> 16) % 16;
+			if (align_val)
+				align_y2 = (src->y2 >> 16) + (16 - align_val);
+			else
+				align_y2 = src->y2 >> 16;
+
+			s->afbdc_win_width = align_x2 - align_x1 - 1;
+			s->afbdc_win_height = align_y2 - align_y1 - 1;
+
+			s->afbdc_en = 1;
+
+			break;
+		}
+		if (src->x1 || src->y1 || fb->offsets[0]) {
+			DRM_ERROR("win[%d] afbdc not support offset display\n",
+				  win->win_id);
+			DRM_ERROR("xpos=%d, ypos=%d, offset=%d\n",
+				  src->x1, src->y1, fb->offsets[0]);
+			return -EINVAL;
+		}
+		s->afbdc_win_format = afbdc_format;
+		s->afbdc_win_width = fb->width - 1;
+		s->afbdc_win_height = (drm_rect_height(src) >> 16) - 1;
+		s->afbdc_win_id = win->win_id;
+		s->afbdc_win_ptr = plane_state->yrgb_mst;
+		s->afbdc_en = 1;
+	}
+
+	return 0;
+}
+
+static void vop_dclk_source_generate(struct drm_crtc *crtc,
+				     struct drm_crtc_state *crtc_state)
+{
+	struct rockchip_drm_private *private = crtc->dev->dev_private;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct rockchip_crtc_state *old_s = to_rockchip_crtc_state(crtc->state);
+	struct vop *vop = to_vop(crtc);
+	struct rockchip_dclk_pll *old_pll = vop->pll;
+
+	if (!vop->dclk_source)
+		return;
+
+	if (crtc_state->active) {
+		WARN_ON(vop->pll && !vop->pll->use_count);
+		if (!vop->pll || vop->pll->use_count > 1 ||
+		    s->output_type != old_s->output_type) {
+			if (vop->pll)
+				vop->pll->use_count--;
+
+			if (s->output_type != DRM_MODE_CONNECTOR_HDMIA &&
+			    !private->default_pll.use_count)
+				vop->pll = &private->default_pll;
+			else
+				vop->pll = &private->hdmi_pll;
+
+			vop->pll->use_count++;
+		}
+	} else if (vop->pll) {
+		vop->pll->use_count--;
+		vop->pll = NULL;
+	}
+	if (vop->pll != old_pll)
+		crtc_state->mode_changed = true;
+}
+
+static int vop_crtc_atomic_check(struct drm_crtc *crtc,
+				 struct drm_crtc_state *crtc_state)
+{
+	struct drm_atomic_state *state = crtc_state->state;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
+	struct drm_plane *plane;
+	struct drm_plane_state *pstate;
+	struct vop_plane_state *plane_state;
+	struct vop_zpos *pzpos;
+	int dsp_layer_sel = 0;
+	int i, j, cnt = 0, ret = 0;
+
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
+	struct vop_dump_list *pos, *n;
+
+	if (!crtc->vop_dump_list_init_flag) {
+		INIT_LIST_HEAD(&crtc->vop_dump_list_head);
+		crtc->vop_dump_list_init_flag = true;
+	}
+	list_for_each_entry_safe(pos, n, &crtc->vop_dump_list_head, entry) {
+		list_del(&pos->entry);
+		kfree(pos);
+	}
+	if (crtc->vop_dump_status == DUMP_KEEP ||
+	    crtc->vop_dump_times > 0) {
+		crtc->frame_count++;
+	}
+#endif
+
+	ret = vop_afbdc_atomic_check(crtc, crtc_state);
+	if (ret)
+		return ret;
+
+	s->yuv_overlay = 0;
+	if (VOP_CTRL_SUPPORT(vop, overlay_mode))
+		s->yuv_overlay = is_yuv_output(s->bus_format);
+
+	ret = vop_hdr_atomic_check(crtc, crtc_state);
+	if (ret)
+		return ret;
+	ret = vop_csc_atomic_check(crtc, crtc_state);
+	if (ret)
+		return ret;
+
+	pzpos = kmalloc_array(vop_data->win_size, sizeof(*pzpos), GFP_KERNEL);
+	if (!pzpos)
+		return -ENOMEM;
+
+	for (i = 0; i < vop_data->win_size; i++) {
+		const struct vop_win_data *win_data = &vop_data->win[i];
+		struct vop_win *win;
+
+		if (!win_data->phy)
+			continue;
+
+		for (j = 0; j < vop->num_wins; j++) {
+			win = &vop->win[j];
+
+			if (win->win_id == i && !win->area_id)
+				break;
+		}
+		if (WARN_ON(j >= vop->num_wins)) {
+			ret = -EINVAL;
+			goto err_free_pzpos;
+		}
+
+		plane = &win->base;
+		pstate = state->planes[drm_plane_index(plane)].state;
+		//pstate = state->plane_states[drm_plane_index(plane)];
+		/*
+		 * plane might not have changed, in which case take
+		 * current state:
+		 */
+		if (!pstate)
+			pstate = plane->state;
+		plane_state = to_vop_plane_state(pstate);
+
+		if (!plane_state->enable)
+			pzpos[cnt].zpos = INT_MAX;
+		else
+			pzpos[cnt].zpos = plane_state->zpos;
+		pzpos[cnt++].win_id = win->win_id;
+	}
+
+	sort(pzpos, cnt, sizeof(pzpos[0]), vop_zpos_cmp, NULL);
+
+	for (i = 0, cnt = 0; i < vop_data->win_size; i++) {
+		const struct vop_win_data *win_data = &vop_data->win[i];
+		int shift = i * 2;
+
+		if (win_data->phy) {
+			struct vop_zpos *zpos = &pzpos[cnt++];
+
+			dsp_layer_sel |= zpos->win_id << shift;
+		} else {
+			dsp_layer_sel |= i << shift;
+		}
+	}
+
+	s->dsp_layer_sel = dsp_layer_sel;
+
+	vop_dclk_source_generate(crtc, crtc_state);
+
+err_free_pzpos:
+	kfree(pzpos);
+	return ret;
+}
+
 static void vop_post_config(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
@@ -1600,6 +2345,135 @@ static void vop_post_config(struct drm_crtc *crtc)
 	}
 }
 
+static void vop_update_hdr(struct drm_crtc *crtc,
+			   struct drm_crtc_state *old_crtc_state)
+{
+	struct rockchip_crtc_state *s =
+			to_rockchip_crtc_state(crtc->state);
+	struct vop *vop = to_vop(crtc);
+	struct rockchip_sdr2hdr_state *sdr2hdr_state = &s->hdr.sdr2hdr_state;
+
+	if (!vop->data->hdr_table)
+		return;
+
+	if (s->hdr.hdr2sdr_en) {
+		vop_load_hdr2sdr_table(vop);
+		/* This is ic design bug, when in hdr2sdr mode, the overlay mode
+		 * is rgb domain, so the win0 is do yuv2rgb, but in this case,
+		 * we must close win0 y2r.
+		 */
+		VOP_CTRL_SET(vop, hdr2sdr_en_win0_csc, 0);
+	}
+	VOP_CTRL_SET(vop, hdr2sdr_en, s->hdr.hdr2sdr_en);
+
+	VOP_CTRL_SET(vop, bt1886eotf_pre_conv_en,
+		     sdr2hdr_state->bt1886eotf_pre_conv_en);
+	VOP_CTRL_SET(vop, bt1886eotf_post_conv_en,
+		     sdr2hdr_state->bt1886eotf_post_conv_en);
+
+	VOP_CTRL_SET(vop, rgb2rgb_pre_conv_en,
+		     sdr2hdr_state->rgb2rgb_pre_conv_en);
+	VOP_CTRL_SET(vop, rgb2rgb_pre_conv_mode,
+		     sdr2hdr_state->rgb2rgb_pre_conv_mode);
+	VOP_CTRL_SET(vop, st2084oetf_pre_conv_en,
+		     sdr2hdr_state->st2084oetf_pre_conv_en);
+
+	VOP_CTRL_SET(vop, rgb2rgb_post_conv_en,
+		     sdr2hdr_state->rgb2rgb_post_conv_en);
+	VOP_CTRL_SET(vop, rgb2rgb_post_conv_mode,
+		     sdr2hdr_state->rgb2rgb_post_conv_mode);
+	VOP_CTRL_SET(vop, st2084oetf_post_conv_en,
+		     sdr2hdr_state->st2084oetf_post_conv_en);
+
+	if (sdr2hdr_state->bt1886eotf_pre_conv_en ||
+	    sdr2hdr_state->bt1886eotf_post_conv_en)
+		vop_load_sdr2hdr_table(vop, sdr2hdr_state->sdr2hdr_func);
+	VOP_CTRL_SET(vop, win_csc_mode_sel, 1);
+}
+
+static void vop_tv_config_update(struct drm_crtc *crtc,
+				 struct drm_crtc_state *old_crtc_state)
+{
+	struct rockchip_crtc_state *s =
+			to_rockchip_crtc_state(crtc->state);
+	struct rockchip_crtc_state *old_s =
+			to_rockchip_crtc_state(old_crtc_state);
+	int brightness, contrast, saturation, hue, sin_hue, cos_hue;
+	struct vop *vop = to_vop(crtc);
+	const struct vop_data *vop_data = vop->data;
+
+	if (!s->tv_state)
+		return;
+
+	if (!memcmp(s->tv_state,
+		    &vop->active_tv_state, sizeof(*s->tv_state)) &&
+	    s->yuv_overlay == old_s->yuv_overlay &&
+	    s->bcsh_en == old_s->bcsh_en && s->bus_format == old_s->bus_format)
+		return;
+
+	memcpy(&vop->active_tv_state, s->tv_state, sizeof(*s->tv_state));
+	/* post BCSH CSC */
+	s->post_r2y_en = 0;
+	s->post_y2r_en = 0;
+	s->bcsh_en = 0;
+	if (s->tv_state) {
+		if (s->tv_state->brightness != 50 ||
+		    s->tv_state->contrast != 50 ||
+		    s->tv_state->saturation != 50 || s->tv_state->hue != 50)
+			s->bcsh_en = 1;
+	}
+
+	if (s->bcsh_en) {
+		if (!s->yuv_overlay)
+			s->post_r2y_en = 1;
+		if (!is_yuv_output(s->bus_format))
+			s->post_y2r_en = 1;
+	} else {
+		if (!s->yuv_overlay && is_yuv_output(s->bus_format))
+			s->post_r2y_en = 1;
+		if (s->yuv_overlay && !is_yuv_output(s->bus_format))
+			s->post_y2r_en = 1;
+	}
+
+	s->post_csc_mode = to_vop_csc_mode(s->color_space);
+	VOP_CTRL_SET(vop, bcsh_r2y_en, s->post_r2y_en);
+	VOP_CTRL_SET(vop, bcsh_y2r_en, s->post_y2r_en);
+	VOP_CTRL_SET(vop, bcsh_r2y_csc_mode, s->post_csc_mode);
+	VOP_CTRL_SET(vop, bcsh_y2r_csc_mode, s->post_csc_mode);
+	if (!s->bcsh_en) {
+		VOP_CTRL_SET(vop, bcsh_en, s->bcsh_en);
+		return;
+	}
+
+	if (vop_data->feature & VOP_FEATURE_OUTPUT_10BIT)
+		brightness = interpolate(0, -128, 100, 127,
+					 s->tv_state->brightness);
+	else
+		brightness = interpolate(0, -32, 100, 31,
+					 s->tv_state->brightness);
+	contrast = interpolate(0, 0, 100, 511, s->tv_state->contrast);
+	saturation = interpolate(0, 0, 100, 511, s->tv_state->saturation);
+	hue = interpolate(0, -30, 100, 30, s->tv_state->hue);
+
+	/*
+	 *  a:[-30~0]:
+	 *    sin_hue = 0x100 - sin(a)*256;
+	 *    cos_hue = cos(a)*256;
+	 *  a:[0~30]
+	 *    sin_hue = sin(a)*256;
+	 *    cos_hue = cos(a)*256;
+	 */
+	sin_hue = fixp_sin32(hue) >> 23;
+	cos_hue = fixp_cos32(hue) >> 23;
+	VOP_CTRL_SET(vop, bcsh_brightness, brightness);
+	VOP_CTRL_SET(vop, bcsh_contrast, contrast);
+	VOP_CTRL_SET(vop, bcsh_sat_con, saturation * contrast / 0x100);
+	VOP_CTRL_SET(vop, bcsh_sin_hue, sin_hue);
+	VOP_CTRL_SET(vop, bcsh_cos_hue, cos_hue);
+	VOP_CTRL_SET(vop, bcsh_out_mode, BCSH_OUT_MODE_NORMAL_VIDEO);
+	VOP_CTRL_SET(vop, bcsh_en, s->bcsh_en);
+}
+
 static void vop_cfg_update(struct drm_crtc *crtc,
 			   struct drm_crtc_state *old_crtc_state)
 {
@@ -1610,7 +2484,7 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 	spin_lock(&vop->reg_lock);
 
 	vop_update_csc(crtc);
-#if 0
+
 	vop_tv_config_update(crtc, old_crtc_state);
 
 	if (s->afbdc_en) {
@@ -1631,7 +2505,7 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 	}
 
 	VOP_CTRL_SET(vop, afbdc_en, s->afbdc_en);
-#endif
+
 	VOP_CTRL_SET(vop, dsp_layer_sel, /*s->dsp_layer_sel*/0x24);
 
 	s->left_margin = 100;
@@ -1669,78 +2543,6 @@ static void vop_wait_for_irq_handler(struct vop *vop)
 	synchronize_irq(vop->irq);
 }
 
-static int vop_zpos_cmp(const void *a, const void *b)
-{
-	struct vop_zpos *pa = (struct vop_zpos *)a;
-	struct vop_zpos *pb = (struct vop_zpos *)b;
-
-	return pb->zpos - pa->zpos;
-}
-
-static int vop_crtc_atomic_check(struct drm_crtc *crtc,
-				 struct drm_crtc_state *state)
-{
-	struct rockchip_crtc_state *s = to_rockchip_crtc_state(state);
-	struct vop *vop = to_vop(crtc);
-	const struct vop_data *vop_data = vop->data;
-	struct vop_plane_state *plane_state;
-	struct vop_zpos *pzpos;
-	int dsp_layer_sel = 0;
-	int i, j, cnt = 0, ret = 0;
-
-	pzpos = kmalloc_array(vop_data->win_size, sizeof(*pzpos), GFP_KERNEL);
-	if (!pzpos)
-		return -ENOMEM;
-
-	for (i = 0; i < vop_data->win_size; i++) {
-		const struct vop_win_data *win_data = &vop_data->win[i];
-		struct vop_win *win;
-
-		if (!win_data->phy)
-			continue;
-
-		for (j = 0; j < vop->num_wins; j++) {
-			win = &vop->win[j];
-
-			if (win->win_id == i && !win->area_id)
-				break;
-		}
-		if (WARN_ON(j >= vop->num_wins)) {
-			ret = -EINVAL;
-			goto err_free_pzpos;
-		}
-
-		plane_state = &win->state;
-		/*
-		 * plane might not have changed, in which case take
-		 * current state:
-		 */
-		pzpos[cnt].zpos = plane_state->zpos;
-		pzpos[cnt++].win_id = win->win_id;
-	}
-
-	sort(pzpos, cnt, sizeof(pzpos[0]), vop_zpos_cmp, NULL);
-
-	for (i = 0, cnt = 0; i < vop_data->win_size; i++) {
-		const struct vop_win_data *win_data = &vop_data->win[i];
-		int shift = i * 2;
-
-		if (win_data->phy) {
-			struct vop_zpos *zpos = &pzpos[cnt++];
-
-			dsp_layer_sel |= zpos->win_id << shift;
-		} else {
-			dsp_layer_sel |= i << shift;
-		}
-	}
-
-	s->dsp_layer_sel = dsp_layer_sel;
-
-err_free_pzpos:
-	kfree(pzpos);
-	return ret;
-}
-
 static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 				  struct drm_crtc_state *old_crtc_state)
 {
@@ -1750,6 +2552,8 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_plane *plane;
 	int i;
 	unsigned long flags;
+	struct rockchip_crtc_state *s =
+		to_rockchip_crtc_state(crtc->state);
 
 	vop_cfg_update(crtc, old_crtc_state);
 
@@ -1807,10 +2611,10 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 
 	//vop_update_cabc(crtc, old_crtc_state);
-	//vop_update_hdr(crtc, old_crtc_state);
+	vop_update_hdr(crtc, old_crtc_state);
 
 	spin_lock_irqsave(&vop->irq_lock, flags);
-	//vop->pre_overlay = s->hdr.pre_overlay;
+	vop->pre_overlay = s->hdr.pre_overlay;
 	vop_cfg_done(vop);
 	vop->mode_update = false;
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
@@ -2440,6 +3244,15 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(vop->dclk)) {
 		dev_err(vop->dev, "failed to get dclk source\n");
 		return PTR_ERR(vop->dclk);
+	}
+	vop->dclk_source = devm_clk_get(vop->dev, "dclk_source");
+	if (PTR_ERR(vop->dclk_source) == -ENOENT) {
+		vop->dclk_source = NULL;
+	} else if (PTR_ERR(vop->dclk_source) == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (IS_ERR(vop->dclk_source)) {
+		dev_err(vop->dev, "failed to get dclk source parent\n");
+		return PTR_ERR(vop->dclk_source);
 	}
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {

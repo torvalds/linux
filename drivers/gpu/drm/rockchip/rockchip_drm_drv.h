@@ -33,12 +33,53 @@ struct drm_device;
 struct drm_connector;
 struct iommu_domain;
 
+struct rockchip_atomic_commit {
+	struct drm_atomic_state *state;
+	struct drm_device *dev;
+	size_t bandwidth;
+	unsigned int plane_num;
+};
+
+struct rockchip_dclk_pll {
+	struct clk *pll;
+	unsigned int use_count;
+};
+
+struct rockchip_sdr2hdr_state {
+	int sdr2hdr_func;
+
+	bool bt1886eotf_pre_conv_en;
+	bool rgb2rgb_pre_conv_en;
+	bool rgb2rgb_pre_conv_mode;
+	bool st2084oetf_pre_conv_en;
+
+	bool bt1886eotf_post_conv_en;
+	bool rgb2rgb_post_conv_en;
+	bool rgb2rgb_post_conv_mode;
+	bool st2084oetf_post_conv_en;
+};
+
+struct rockchip_hdr_state {
+	bool pre_overlay;
+	bool hdr2sdr_en;
+	struct rockchip_sdr2hdr_state sdr2hdr_state;
+};
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
+	struct drm_tv_connector_state *tv_state;
 	int left_margin;
 	int right_margin;
 	int top_margin;
 	int bottom_margin;
+	int afbdc_win_format;
+	int afbdc_win_width;
+	int afbdc_win_height;
+	int afbdc_win_ptr;
+	int afbdc_win_id;
+	int afbdc_en;
+	int afbdc_win_vir_width;
+	int afbdc_win_xoffset;
+	int afbdc_win_yoffset;
 	int dsp_layer_sel;
 	int output_type;
 	int output_mode;
@@ -51,6 +92,8 @@ struct rockchip_crtc_state {
 	int post_csc_mode;
 	int bcsh_en;
 	int color_space;
+	int eotf;
+	struct rockchip_hdr_state hdr;
 	struct drm_framebuffer *crtc_primary_fb;
 };
 #define to_rockchip_crtc_state(s) \
@@ -83,6 +126,8 @@ struct rockchip_drm_private {
 	struct gen_pool *secure_buffer_pool;
 	struct mutex mm_lock;
 	struct drm_mm mm;
+	struct rockchip_dclk_pll default_pll;
+	struct rockchip_dclk_pll hdmi_pll;
 	struct list_head psr_list;
 	struct mutex psr_list_lock;
 };
