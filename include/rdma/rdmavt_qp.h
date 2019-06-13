@@ -737,6 +737,78 @@ static inline void rvt_put_qp_swqe(struct rvt_qp *qp, struct rvt_swqe *wqe)
 		atomic_dec(&ibah_to_rvtah(wqe->ud_wr.ah)->refcount);
 }
 
+/**
+ * rvt_qp_sqwe_incr - increment ring index
+ * @qp: the qp
+ * @val: the starting value
+ *
+ * Return: the new value wrapping as appropriate
+ */
+static inline u32
+rvt_qp_swqe_incr(struct rvt_qp *qp, u32 val)
+{
+	if (++val >= qp->s_size)
+		val = 0;
+	return val;
+}
+
+/**
+ * rvt_qp_complete_swqe - insert send completion
+ * @qp - the qp
+ * @wqe - the send wqe
+ * @opcode - wc operation (driver dependent)
+ * @status - completion status
+ *
+ * Update the s_last information, and then insert a send
+ * completion into the completion
+ * queue if the qp indicates it should be done.
+ *
+ * See IBTA 10.7.3.1 for info on completion
+ * control.
+ *
+ * Return: new last
+ */
+static inline u32
+rvt_qp_complete_swqe(struct rvt_qp *qp,
+		     struct rvt_swqe *wqe,
+		     enum ib_wc_opcode opcode,
+		     enum ib_wc_status status)
+{
+	bool need_completion;
+	u64 wr_id;
+	u32 byte_len, last;
+	int flags = wqe->wr.send_flags;
+
+	rvt_put_qp_swqe(qp, wqe);
+
+	need_completion =
+		!(flags & RVT_SEND_RESERVE_USED) &&
+		(!(qp->s_flags & RVT_S_SIGNAL_REQ_WR) ||
+		(flags & IB_SEND_SIGNALED) ||
+		status != IB_WC_SUCCESS);
+	if (need_completion) {
+		wr_id = wqe->wr.wr_id;
+		byte_len = wqe->length;
+		/* above fields required before writing s_last */
+	}
+	last = rvt_qp_swqe_incr(qp, qp->s_last);
+	/* see rvt_qp_is_avail() */
+	smp_store_release(&qp->s_last, last);
+	if (need_completion) {
+		struct ib_wc w = {
+			.wr_id = wr_id,
+			.status = status,
+			.opcode = opcode,
+			.qp = &qp->ibqp,
+			.byte_len = byte_len,
+		};
+
+		rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &w,
+			     status != IB_WC_SUCCESS);
+	}
+	return last;
+}
+
 extern const int  ib_rvt_state_ops[];
 
 struct rvt_dev_info;
