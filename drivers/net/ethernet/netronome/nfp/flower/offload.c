@@ -132,6 +132,14 @@ static bool nfp_flower_check_higher_than_mac(struct tc_cls_flower_offload *f)
 	       flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ICMP);
 }
 
+static bool nfp_flower_check_higher_than_l3(struct tc_cls_flower_offload *f)
+{
+	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+
+	return flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS) ||
+	       flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ICMP);
+}
+
 static int
 nfp_flower_calc_opt_layer(struct flow_match_enc_opts *enc_opts,
 			  u32 *key_layer_two, int *key_size)
@@ -297,7 +305,6 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 	}
 
 	if (basic.mask && basic.mask->ip_proto) {
-		/* Ethernet type is present in the key. */
 		switch (basic.key->ip_proto) {
 		case IPPROTO_TCP:
 		case IPPROTO_UDP:
@@ -311,7 +318,9 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			/* Other ip proto - we need check the masks for the
 			 * remainder of the key to ensure we can offload.
 			 */
-			return -EOPNOTSUPP;
+			if (nfp_flower_check_higher_than_l3(flow))
+				return -EOPNOTSUPP;
+			break;
 		}
 	}
 
