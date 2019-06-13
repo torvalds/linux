@@ -194,9 +194,9 @@ with HID core:
 		goto err_<...>;
 	}
 
-	strlcpy(hid->name, <device-name-src>, 127);
-	strlcpy(hid->phys, <device-phys-src>, 63);
-	strlcpy(hid->uniq, <device-uniq-src>, 63);
+	strscpy(hid->name, <device-name-src>, sizeof(hid->name));
+	strscpy(hid->phys, <device-phys-src>, sizeof(hid->phys));
+	strscpy(hid->uniq, <device-uniq-src>, sizeof(hid->uniq));
 
 	hid->ll_driver = &custom_ll_driver;
 	hid->bus = <device-bus>;
