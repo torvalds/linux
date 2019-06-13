@@ -226,6 +226,7 @@ enum obj_operation_type {
 
 #define RBD_OBJ_FLAG_DELETION			(1U << 0)
 #define RBD_OBJ_FLAG_COPYUP_ENABLED		(1U << 1)
+#define RBD_OBJ_FLAG_COPYUP_ZEROS		(1U << 2)
 
 enum rbd_obj_read_state {
 	RBD_OBJ_READ_START = 1,
@@ -261,9 +262,15 @@ enum rbd_obj_read_state {
 enum rbd_obj_write_state {
 	RBD_OBJ_WRITE_START = 1,
 	RBD_OBJ_WRITE_OBJECT,
-	RBD_OBJ_WRITE_READ_FROM_PARENT,
-	RBD_OBJ_WRITE_COPYUP_EMPTY_SNAPC,
-	RBD_OBJ_WRITE_COPYUP_OPS,
+	__RBD_OBJ_WRITE_COPYUP,
+	RBD_OBJ_WRITE_COPYUP,
+};
+
+enum rbd_obj_copyup_state {
+	RBD_OBJ_COPYUP_START = 1,
+	RBD_OBJ_COPYUP_READ_PARENT,
+	__RBD_OBJ_COPYUP_WRITE_OBJECT,
+	RBD_OBJ_COPYUP_WRITE_OBJECT,
 };
 
 struct rbd_obj_request {
@@ -286,12 +293,15 @@ struct rbd_obj_request {
 			u32			bvec_idx;
 		};
 	};
+
+	enum rbd_obj_copyup_state copyup_state;
 	struct bio_vec		*copyup_bvecs;
 	u32			copyup_bvec_count;
 
 	struct list_head	osd_reqs;	/* w/ r_private_item */
 
 	struct mutex		state_mutex;
+	struct pending_result	pending;
 	struct kref		kref;
 };
 
@@ -2568,8 +2578,8 @@ static bool is_zero_bvecs(struct bio_vec *bvecs, u32 bytes)
 
 #define MODS_ONLY	U32_MAX
 
-static int rbd_obj_issue_copyup_empty_snapc(struct rbd_obj_request *obj_req,
-					    u32 bytes)
+static int rbd_obj_copyup_empty_snapc(struct rbd_obj_request *obj_req,
+				      u32 bytes)
 {
 	struct ceph_osd_request *osd_req;
 	int ret;
@@ -2595,7 +2605,8 @@ static int rbd_obj_issue_copyup_empty_snapc(struct rbd_obj_request *obj_req,
 	return 0;
 }
 
-static int rbd_obj_issue_copyup_ops(struct rbd_obj_request *obj_req, u32 bytes)
+static int rbd_obj_copyup_current_snapc(struct rbd_obj_request *obj_req,
+					u32 bytes)
 {
 	struct ceph_osd_request *osd_req;
 	int num_ops = count_write_ops(obj_req);
@@ -2626,33 +2637,6 @@ static int rbd_obj_issue_copyup_ops(struct rbd_obj_request *obj_req, u32 bytes)
 
 	rbd_osd_submit(osd_req);
 	return 0;
-}
-
-static int rbd_obj_issue_copyup(struct rbd_obj_request *obj_req, u32 bytes)
-{
-	/*
-	 * Only send non-zero copyup data to save some I/O and network
-	 * bandwidth -- zero copyup data is equivalent to the object not
-	 * existing.
-	 */
-	if (is_zero_bvecs(obj_req->copyup_bvecs, bytes)) {
-		dout("%s obj_req %p detected zeroes\n", __func__, obj_req);
-		bytes = 0;
-	}
-
-	if (obj_req->img_request->snapc->num_snaps && bytes > 0) {
-		/*
-		 * Send a copyup request with an empty snapshot context to
-		 * deep-copyup the object through all existing snapshots.
-		 * A second request with the current snapshot context will be
-		 * sent for the actual modification.
-		 */
-		obj_req->write_state = RBD_OBJ_WRITE_COPYUP_EMPTY_SNAPC;
-		return rbd_obj_issue_copyup_empty_snapc(obj_req, bytes);
-	}
-
-	obj_req->write_state = RBD_OBJ_WRITE_COPYUP_OPS;
-	return rbd_obj_issue_copyup_ops(obj_req, bytes);
 }
 
 static int setup_copyup_bvecs(struct rbd_obj_request *obj_req, u64 obj_overlap)
@@ -2688,7 +2672,7 @@ static int setup_copyup_bvecs(struct rbd_obj_request *obj_req, u64 obj_overlap)
  * target object up to the overlap point (if any) from the parent,
  * so we can use it for a copyup.
  */
-static int rbd_obj_handle_write_guard(struct rbd_obj_request *obj_req)
+static int rbd_obj_copyup_read_parent(struct rbd_obj_request *obj_req)
 {
 	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	int ret;
@@ -2703,22 +2687,111 @@ static int rbd_obj_handle_write_guard(struct rbd_obj_request *obj_req)
 		 * request -- pass MODS_ONLY since the copyup isn't needed
 		 * anymore.
 		 */
-		obj_req->write_state = RBD_OBJ_WRITE_COPYUP_OPS;
-		return rbd_obj_issue_copyup_ops(obj_req, MODS_ONLY);
+		return rbd_obj_copyup_current_snapc(obj_req, MODS_ONLY);
 	}
 
 	ret = setup_copyup_bvecs(obj_req, rbd_obj_img_extents_bytes(obj_req));
 	if (ret)
 		return ret;
 
-	obj_req->write_state = RBD_OBJ_WRITE_READ_FROM_PARENT;
 	return rbd_obj_read_from_parent(obj_req);
+}
+
+static void rbd_obj_copyup_write_object(struct rbd_obj_request *obj_req)
+{
+	u32 bytes = rbd_obj_img_extents_bytes(obj_req);
+	int ret;
+
+	rbd_assert(!obj_req->pending.result && !obj_req->pending.num_pending);
+
+	/*
+	 * Only send non-zero copyup data to save some I/O and network
+	 * bandwidth -- zero copyup data is equivalent to the object not
+	 * existing.
+	 */
+	if (obj_req->flags & RBD_OBJ_FLAG_COPYUP_ZEROS)
+		bytes = 0;
+
+	if (obj_req->img_request->snapc->num_snaps && bytes > 0) {
+		/*
+		 * Send a copyup request with an empty snapshot context to
+		 * deep-copyup the object through all existing snapshots.
+		 * A second request with the current snapshot context will be
+		 * sent for the actual modification.
+		 */
+		ret = rbd_obj_copyup_empty_snapc(obj_req, bytes);
+		if (ret) {
+			obj_req->pending.result = ret;
+			return;
+		}
+
+		obj_req->pending.num_pending++;
+		bytes = MODS_ONLY;
+	}
+
+	ret = rbd_obj_copyup_current_snapc(obj_req, bytes);
+	if (ret) {
+		obj_req->pending.result = ret;
+		return;
+	}
+
+	obj_req->pending.num_pending++;
+}
+
+static bool rbd_obj_advance_copyup(struct rbd_obj_request *obj_req, int *result)
+{
+	int ret;
+
+again:
+	switch (obj_req->copyup_state) {
+	case RBD_OBJ_COPYUP_START:
+		rbd_assert(!*result);
+
+		ret = rbd_obj_copyup_read_parent(obj_req);
+		if (ret) {
+			*result = ret;
+			return true;
+		}
+		if (obj_req->num_img_extents)
+			obj_req->copyup_state = RBD_OBJ_COPYUP_READ_PARENT;
+		else
+			obj_req->copyup_state = RBD_OBJ_COPYUP_WRITE_OBJECT;
+		return false;
+	case RBD_OBJ_COPYUP_READ_PARENT:
+		if (*result)
+			return true;
+
+		if (is_zero_bvecs(obj_req->copyup_bvecs,
+				  rbd_obj_img_extents_bytes(obj_req))) {
+			dout("%s %p detected zeros\n", __func__, obj_req);
+			obj_req->flags |= RBD_OBJ_FLAG_COPYUP_ZEROS;
+		}
+
+		rbd_obj_copyup_write_object(obj_req);
+		if (!obj_req->pending.num_pending) {
+			*result = obj_req->pending.result;
+			obj_req->copyup_state = RBD_OBJ_COPYUP_WRITE_OBJECT;
+			goto again;
+		}
+		obj_req->copyup_state = __RBD_OBJ_COPYUP_WRITE_OBJECT;
+		return false;
+	case __RBD_OBJ_COPYUP_WRITE_OBJECT:
+		if (!pending_result_dec(&obj_req->pending, result))
+			return false;
+		/* fall through */
+	case RBD_OBJ_COPYUP_WRITE_OBJECT:
+		return true;
+	default:
+		BUG();
+	}
 }
 
 static bool rbd_obj_advance_write(struct rbd_obj_request *obj_req, int *result)
 {
+	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	int ret;
 
+again:
 	switch (obj_req->write_state) {
 	case RBD_OBJ_WRITE_START:
 		rbd_assert(!*result);
@@ -2733,12 +2806,10 @@ static bool rbd_obj_advance_write(struct rbd_obj_request *obj_req, int *result)
 	case RBD_OBJ_WRITE_OBJECT:
 		if (*result == -ENOENT) {
 			if (obj_req->flags & RBD_OBJ_FLAG_COPYUP_ENABLED) {
-				ret = rbd_obj_handle_write_guard(obj_req);
-				if (ret) {
-					*result = ret;
-					return true;
-				}
-				return false;
+				*result = 0;
+				obj_req->copyup_state = RBD_OBJ_COPYUP_START;
+				obj_req->write_state = __RBD_OBJ_WRITE_COPYUP;
+				goto again;
 			}
 			/*
 			 * On a non-existent object:
@@ -2747,31 +2818,19 @@ static bool rbd_obj_advance_write(struct rbd_obj_request *obj_req, int *result)
 			if (obj_req->flags & RBD_OBJ_FLAG_DELETION)
 				*result = 0;
 		}
+		if (*result)
+			return true;
+
+		obj_req->write_state = RBD_OBJ_WRITE_COPYUP;
+		goto again;
+	case __RBD_OBJ_WRITE_COPYUP:
+		if (!rbd_obj_advance_copyup(obj_req, result))
+			return false;
 		/* fall through */
-	case RBD_OBJ_WRITE_COPYUP_OPS:
+	case RBD_OBJ_WRITE_COPYUP:
+		if (*result)
+			rbd_warn(rbd_dev, "copyup failed: %d", *result);
 		return true;
-	case RBD_OBJ_WRITE_READ_FROM_PARENT:
-		if (*result)
-			return true;
-
-		ret = rbd_obj_issue_copyup(obj_req,
-					   rbd_obj_img_extents_bytes(obj_req));
-		if (ret) {
-			*result = ret;
-			return true;
-		}
-		return false;
-	case RBD_OBJ_WRITE_COPYUP_EMPTY_SNAPC:
-		if (*result)
-			return true;
-
-		obj_req->write_state = RBD_OBJ_WRITE_COPYUP_OPS;
-		ret = rbd_obj_issue_copyup_ops(obj_req, MODS_ONLY);
-		if (ret) {
-			*result = ret;
-			return true;
-		}
-		return false;
 	default:
 		BUG();
 	}
