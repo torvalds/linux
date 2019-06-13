@@ -95,18 +95,27 @@ static struct v4l2_subdev *get_remote_sensor(struct v4l2_subdev *sd)
 static void get_remote_mipi_sensor(struct rkisp1_device *dev,
 				  struct v4l2_subdev **sensor_sd)
 {
-	struct media_entity_graph graph;
+	struct media_graph graph;
 	struct media_entity *entity = &dev->isp_sdev.sd.entity;
-	struct media_device *mdev = entity->parent;
+	struct media_device *mdev = entity->graph_obj.mdev;
+	int ret;
 
 	/* Walk the graph to locate sensor nodes. */
 	mutex_lock(&mdev->graph_mutex);
-	media_entity_graph_walk_start(&graph, entity);
-	while ((entity = media_entity_graph_walk_next(&graph))) {
-		if (entity->type == MEDIA_ENT_T_V4L2_SUBDEV_SENSOR)
+	ret = media_graph_walk_init(&graph, mdev);
+	if (ret) {
+		mutex_unlock(&mdev->graph_mutex);
+		*sensor_sd = NULL;
+		return;
+	}
+
+	media_graph_walk_start(&graph, entity);
+	while ((entity = media_graph_walk_next(&graph))) {
+		if (entity->function == MEDIA_ENT_F_CAM_SENSOR)
 			break;
 	}
 	mutex_unlock(&mdev->graph_mutex);
+	media_graph_walk_cleanup(&graph);
 
 	if (entity)
 		*sensor_sd = media_entity_to_v4l2_subdev(entity);
@@ -1328,6 +1337,7 @@ int rkisp1_register_isp_subdev(struct rkisp1_device *isp_dev,
 	v4l2_subdev_init(sd, &rkisp1_isp_sd_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	sd->entity.ops = &rkisp1_isp_sd_media_ops;
+	sd->entity.function = MEDIA_ENT_F_IO_V4L;
 	snprintf(sd->name, sizeof(sd->name), "rkisp1-isp-subdev");
 
 	isp_sdev->pads[RKISP1_ISP_PAD_SINK].flags =
@@ -1335,8 +1345,8 @@ int rkisp1_register_isp_subdev(struct rkisp1_device *isp_dev,
 	isp_sdev->pads[RKISP1_ISP_PAD_SINK_PARAMS].flags = MEDIA_PAD_FL_SINK;
 	isp_sdev->pads[RKISP1_ISP_PAD_SOURCE_PATH].flags = MEDIA_PAD_FL_SOURCE;
 	isp_sdev->pads[RKISP1_ISP_PAD_SOURCE_STATS].flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, RKISP1_ISP_PAD_MAX,
-				isp_sdev->pads, 0);
+	ret = media_entity_pads_init(&sd->entity, RKISP1_ISP_PAD_MAX,
+				isp_sdev->pads);
 	if (ret < 0)
 		return ret;
 

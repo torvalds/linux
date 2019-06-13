@@ -115,14 +115,12 @@ struct v4l2_file_operations rkisp1_stats_fops = {
 };
 
 static int rkisp1_stats_vb2_queue_setup(struct vb2_queue *vq,
-					const void *parg,
 					unsigned int *num_buffers,
 					unsigned int *num_planes,
 					unsigned int sizes[],
-					void *alloc_ctxs[])
+					struct device *alloc_ctxs[])
 {
 	struct rkisp1_isp_stats_vdev *stats_vdev = vq->drv_priv;
-	struct rkisp1_device *dev = stats_vdev->dev;
 
 	*num_planes = 1;
 
@@ -130,8 +128,6 @@ static int rkisp1_stats_vb2_queue_setup(struct vb2_queue *vq,
 			       RKISP1_ISP_STATS_REQ_BUFS_MAX);
 
 	sizes[0] = sizeof(struct rkisp1_stat_buffer);
-
-	alloc_ctxs[0] = dev->alloc_ctx;
 
 	INIT_LIST_HEAD(&stats_vdev->stat);
 
@@ -213,6 +209,7 @@ static int rkisp1_stats_init_vb2_queue(struct vb2_queue *q,
 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &node->vlock;
+	q->dev = stats_vdev->dev->dev;
 
 	return vb2_queue_init(q);
 }
@@ -506,7 +503,7 @@ rkisp1_stats_send_measurement(struct rkisp1_isp_stats_vdev *stats_vdev,
 	vb2_set_plane_payload(&cur_buf->vb.vb2_buf, 0,
 			      sizeof(struct rkisp1_stat_buffer));
 	cur_buf->vb.sequence = cur_frame_id;
-	cur_buf->vb.timestamp = ns_to_timeval(ktime_get_ns());
+	cur_buf->vb.vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 }
 
@@ -636,7 +633,7 @@ int rkisp1_register_stats_vdev(struct rkisp1_isp_stats_vdev *stats_vdev,
 	video_set_drvdata(vdev, stats_vdev);
 
 	node->pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&vdev->entity, 1, &node->pad, 0);
+	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
 	if (ret < 0)
 		goto err_release_queue;
 

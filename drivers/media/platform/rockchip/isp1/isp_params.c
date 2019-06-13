@@ -1908,11 +1908,10 @@ static const struct v4l2_ioctl_ops rkisp1_params_ioctl = {
 };
 
 static int rkisp1_params_vb2_queue_setup(struct vb2_queue *vq,
-					 const void *parg,
 					 unsigned int *num_buffers,
 					 unsigned int *num_planes,
 					 unsigned int sizes[],
-					 void *alloc_ctxs[])
+					 struct device *alloc_ctxs[])
 {
 	struct rkisp1_isp_params_vdev *params_vdev = vq->drv_priv;
 
@@ -2041,6 +2040,7 @@ rkisp1_params_init_vb2_queue(struct vb2_queue *q,
 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &node->vlock;
+	q->dev = params_vdev->dev->dev;
 
 	return vb2_queue_init(q);
 }
@@ -2094,7 +2094,7 @@ int rkisp1_register_params_vdev(struct rkisp1_isp_params_vdev *params_vdev,
 	video_set_drvdata(vdev, params_vdev);
 
 	node->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&vdev->entity, 1, &node->pad, 0);
+	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
 	if (ret < 0)
 		goto err_release_queue;
 	ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);

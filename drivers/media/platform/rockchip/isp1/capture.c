@@ -40,7 +40,6 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
-#include <linux/dma-iommu.h>
 #include "dev.h"
 #include "regs.h"
 
@@ -1114,7 +1113,7 @@ static int mi_frame_end(struct rkisp1_stream *stream)
 		}
 		stream->curr_buf->vb.sequence =
 				atomic_read(&isp_sd->frm_sync_seq) - 1;
-		stream->curr_buf->vb.timestamp = ns_to_timeval(ns);
+		stream->curr_buf->vb.vb2_buf.timestamp = ns;
 		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
 		stream->curr_buf = NULL;
@@ -1256,27 +1255,19 @@ static int rkisp1_start(struct rkisp1_stream *stream)
 }
 
 static int rkisp1_queue_setup(struct vb2_queue *queue,
-			      const void *parg,
 			      unsigned int *num_buffers,
 			      unsigned int *num_planes,
 			      unsigned int sizes[],
-			      void *alloc_ctxs[])
+			      struct device *alloc_ctxs[])
 {
 	struct rkisp1_stream *stream = queue->drv_priv;
 	struct rkisp1_device *dev = stream->ispdev;
-	const struct v4l2_format *pfmt = parg;
 	const struct v4l2_pix_format_mplane *pixm = NULL;
 	const struct capture_fmt *isp_fmt = NULL;
 	u32 i;
 
-	if (pfmt) {
-		pixm = &pfmt->fmt.pix_mp;
-		isp_fmt = find_fmt(stream, pixm->pixelformat);
-	} else {
-		pixm = &stream->out_fmt;
-		isp_fmt = &stream->out_isp_fmt;
-	}
-
+	pixm = &stream->out_fmt;
+	isp_fmt = &stream->out_isp_fmt;
 	*num_planes = isp_fmt->mplanes;
 
 	for (i = 0; i < isp_fmt->mplanes; i++) {
@@ -1284,7 +1275,6 @@ static int rkisp1_queue_setup(struct vb2_queue *queue,
 
 		plane_fmt = &pixm->plane_fmt[i];
 		sizes[i] = plane_fmt->sizeimage;
-		alloc_ctxs[i] = dev->alloc_ctx;
 	}
 
 	v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
@@ -1405,7 +1395,7 @@ static void rkisp1_stop_streaming(struct vb2_queue *queue)
 
 	rkisp1_stream_stop(stream);
 	/* call to the other devices */
-	media_entity_pipeline_stop(&node->vdev.entity);
+	media_pipeline_stop(&node->vdev.entity);
 	ret = dev->pipe.set_stream(&dev->pipe, false);
 	if (ret < 0)
 		v4l2_err(v4l2_dev, "pipeline stream-off failed error:%d\n",
@@ -1530,7 +1520,7 @@ rkisp1_start_streaming(struct vb2_queue *queue, unsigned int count)
 	if (ret < 0)
 		goto stop_stream;
 
-	ret = media_entity_pipeline_start(&node->vdev.entity, &dev->pipe.pipe);
+	ret = media_pipeline_start(&node->vdev.entity, &dev->pipe.pipe);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "start pipeline failed %d\n", ret);
 		goto pipe_stream_off;
@@ -1576,6 +1566,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	q->min_buffers_needed = CIF_ISP_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &node->vlock;
+	q->dev = stream->ispdev->dev;
 
 	return vb2_queue_init(q);
 }
@@ -1676,35 +1667,6 @@ static void rkisp1_set_fmt(struct rkisp1_stream *stream,
 	}
 }
 
-static int rkisp1_dma_attach_device(struct rkisp1_device *rkisp1_dev)
-{
-	struct iommu_domain *domain = rkisp1_dev->domain;
-	struct device *dev = rkisp1_dev->dev;
-	int ret;
-
-	ret = iommu_attach_device(domain, dev);
-	if (ret) {
-		dev_err(dev, "Failed to attach iommu device\n");
-		return ret;
-	}
-
-	if (!common_iommu_setup_dma_ops(dev, 0x10000000, SZ_2G, domain->ops)) {
-		dev_err(dev, "Failed to set dma_ops\n");
-		iommu_detach_device(domain, dev);
-		ret = -ENODEV;
-	}
-
-	return ret;
-}
-
-static void rkisp1_dma_detach_device(struct rkisp1_device *rkisp1_dev)
-{
-	struct iommu_domain *domain = rkisp1_dev->domain;
-	struct device *dev = rkisp1_dev->dev;
-
-	iommu_detach_device(domain, dev);
-}
-
 static int rkisp1_fh_open(struct file *filp)
 {
 	struct rkisp1_stream *stream = video_drvdata(filp);
@@ -1713,8 +1675,7 @@ static int rkisp1_fh_open(struct file *filp)
 
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
-		if (atomic_inc_return(&dev->open_cnt) == 1)
-			rkisp1_dma_attach_device(dev);
+		atomic_inc(&dev->open_cnt);
 	}
 
 	return ret;
@@ -1727,9 +1688,7 @@ static int rkisp1_fop_release(struct file *file)
 	int ret;
 
 	ret = vb2_fop_release(file);
-
-	if (atomic_dec_return(&dev->open_cnt) == 0)
-		rkisp1_dma_detach_device(dev);
+	atomic_dec(&dev->open_cnt);
 
 	return ret;
 }
@@ -2058,7 +2017,7 @@ static int rkisp1_register_stream_vdev(struct rkisp1_stream *stream)
 		return ret;
 	}
 
-	ret = media_entity_init(&vdev->entity, 1, &node->pad, 0);
+	ret = media_entity_pads_init(&vdev->entity, 1, &node->pad);
 	if (ret < 0)
 		goto unreg;
 

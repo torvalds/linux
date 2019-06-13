@@ -128,7 +128,6 @@ struct rkisp1_device {
 	struct rkisp1_isp_stats_vdev stats_vdev;
 	struct rkisp1_isp_params_vdev params_vdev;
 	struct rkisp1_pipeline pipe;
-	struct vb2_alloc_ctx *alloc_ctx;
 	struct iommu_domain *domain;
 	enum rkisp1_isp_ver isp_ver;
 	const unsigned int *clk_rate_tbl;
