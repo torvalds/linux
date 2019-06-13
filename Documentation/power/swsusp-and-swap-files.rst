@@ -1,4 +1,7 @@
+===============================================
 Using swap files with software suspend (swsusp)
+===============================================
+
 	(C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
 
 The Linux kernel handles swap files almost in the same way as it handles swap
@@ -21,20 +24,20 @@ units.
 
 In order to use a swap file with swsusp, you need to:
 
-1) Create the swap file and make it active, eg.
+1) Create the swap file and make it active, eg.::
 
-# dd if=/dev/zero of=<swap_file_path> bs=1024 count=<swap_file_size_in_k>
-# mkswap <swap_file_path>
-# swapon <swap_file_path>
+    # dd if=/dev/zero of=<swap_file_path> bs=1024 count=<swap_file_size_in_k>
+    # mkswap <swap_file_path>
+    # swapon <swap_file_path>
 
 2) Use an application that will bmap the swap file with the help of the
 FIBMAP ioctl and determine the location of the file's swap header, as the
 offset, in <PAGE_SIZE> units, from the beginning of the partition which
 holds the swap file.
 
-3) Add the following parameters to the kernel command line:
+3) Add the following parameters to the kernel command line::
 
-resume=<swap_file_partition> resume_offset=<swap_file_offset>
+    resume=<swap_file_partition> resume_offset=<swap_file_offset>
 
 where <swap_file_partition> is the partition on which the swap file is located
 and <swap_file_offset> is the offset of the swap header determined by the
@@ -46,7 +49,7 @@ OR
 
 Use a userland suspend application that will set the partition and offset
 with the help of the SNAPSHOT_SET_SWAP_AREA ioctl described in
-Documentation/power/userland-swsusp.txt (this is the only method to suspend
+Documentation/power/userland-swsusp.rst (this is the only method to suspend
 to a swap file allowing the resume to be initiated from an initrd or initramfs
 image).
 

@@ -22,7 +22,7 @@ the highest.
 
 The actual EM used by EAS is _not_ maintained by the scheduler, but by a
 dedicated framework. For details about this framework and what it provides,
-please refer to its documentation (see Documentation/power/energy-model.txt).
+please refer to its documentation (see Documentation/power/energy-model.rst).
 
 
 2. Background and Terminology
@@ -81,7 +81,7 @@ through the arch_scale_cpu_capacity() callback.
 
 The rest of platform knowledge used by EAS is directly read from the Energy
 Model (EM) framework. The EM of a platform is composed of a power cost table
-per 'performance domain' in the system (see Documentation/power/energy-model.txt
+per 'performance domain' in the system (see Documentation/power/energy-model.rst
 for futher details about performance domains).
 
 The scheduler manages references to the EM objects in the topology code when the
@@ -352,7 +352,7 @@ could be amended in the future if proven otherwise.
 EAS uses the EM of a platform to estimate the impact of scheduling decisions on
 energy. So, your platform must provide power cost tables to the EM framework in
 order to make EAS start. To do so, please refer to documentation of the
-independent EM framework in Documentation/power/energy-model.txt.
+independent EM framework in Documentation/power/energy-model.rst.
 
 Please also note that the scheduling domains need to be re-built after the
 EM has been registered in order to start EAS.

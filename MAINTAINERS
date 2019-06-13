@@ -6446,7 +6446,7 @@ M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-pm@vger.kernel.org
 S:	Supported
-F:	Documentation/power/freezing-of-tasks.txt
+F:	Documentation/power/freezing-of-tasks.rst
 F:	include/linux/freezer.h
 F:	kernel/freezer.c
 
@@ -11764,7 +11764,7 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vireshk/pm.git
 F:	drivers/opp/
 F:	include/linux/pm_opp.h
-F:	Documentation/power/opp.txt
+F:	Documentation/power/opp.rst
 F:	Documentation/devicetree/bindings/opp/
 
 OPL4 DRIVER

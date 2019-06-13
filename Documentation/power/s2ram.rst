@@ -1,7 +1,9 @@
-			How to get s2ram working
-			~~~~~~~~~~~~~~~~~~~~~~~~
-			2006 Linus Torvalds
-			2006 Pavel Machek
+========================
+How to get s2ram working
+========================
+
+2006 Linus Torvalds
+2006 Pavel Machek
 
 1) Check suspend.sf.net, program s2ram there has long whitelist of
    "known ok" machines, along with tricks to use on each one.
@@ -12,8 +14,8 @@
 
 3) You can use Linus' TRACE_RESUME infrastructure, described below.
 
-		      Using TRACE_RESUME
-		      ~~~~~~~~~~~~~~~~~~
+Using TRACE_RESUME
+~~~~~~~~~~~~~~~~~~
 
 I've been working at making the machines I have able to STR, and almost
 always it's a driver that is buggy. Thank God for the suspend/resume
@@ -27,7 +29,7 @@ machine that doesn't boot) is:
 
  - enable PM_DEBUG, and PM_TRACE
 
- - use a script like this:
+ - use a script like this::
 
 	#!/bin/sh
 	sync
@@ -38,7 +40,7 @@ machine that doesn't boot) is:
 
  - if it doesn't come back up (which is usually the problem), reboot by
    holding the power button down, and look at the dmesg output for things
-   like
+   like::
 
 	Magic number: 4:156:725
 	hash matches drivers/base/power/resume.c:28
@@ -52,7 +54,7 @@ machine that doesn't boot) is:
    If no device matches the hash (or any matches appear to be false positives),
    the culprit may be a device from a loadable kernel module that is not loaded
    until after the hash is checked. You can check the hash against the current
-   devices again after more modules are loaded using sysfs:
+   devices again after more modules are loaded using sysfs::
 
 	cat /sys/power/pm_trace_dev_match
 

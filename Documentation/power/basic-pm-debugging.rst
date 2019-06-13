@@ -1,12 +1,16 @@
+=================================
 Debugging hibernation and suspend
+=================================
+
 	(C) 2007 Rafael J. Wysocki <rjw@sisk.pl>, GPL
 
 1. Testing hibernation (aka suspend to disk or STD)
+===================================================
 
-To check if hibernation works, you can try to hibernate in the "reboot" mode:
+To check if hibernation works, you can try to hibernate in the "reboot" mode::
 
-# echo reboot > /sys/power/disk
-# echo disk > /sys/power/state
+	# echo reboot > /sys/power/disk
+	# echo disk > /sys/power/state
 
 and the system should create a hibernation image, reboot, resume and get back to
 the command prompt where you have started the transition.  If that happens,
@@ -15,20 +19,21 @@ test at least a couple of times in a row for confidence.  [This is necessary,
 because some problems only show up on a second attempt at suspending and
 resuming the system.]  Moreover, hibernating in the "reboot" and "shutdown"
 modes causes the PM core to skip some platform-related callbacks which on ACPI
-systems might be necessary to make hibernation work.  Thus, if your machine fails
-to hibernate or resume in the "reboot" mode, you should try the "platform" mode:
+systems might be necessary to make hibernation work.  Thus, if your machine
+fails to hibernate or resume in the "reboot" mode, you should try the
+"platform" mode::
 
-# echo platform > /sys/power/disk
-# echo disk > /sys/power/state
+	# echo platform > /sys/power/disk
+	# echo disk > /sys/power/state
 
 which is the default and recommended mode of hibernation.
 
 Unfortunately, the "platform" mode of hibernation does not work on some systems
 with broken BIOSes.  In such cases the "shutdown" mode of hibernation might
-work:
+work::
 
-# echo shutdown > /sys/power/disk
-# echo disk > /sys/power/state
+	# echo shutdown > /sys/power/disk
+	# echo disk > /sys/power/state
 
 (it is similar to the "reboot" mode, but it requires you to press the power
 button to make the system resume).
@@ -37,6 +42,7 @@ If neither "platform" nor "shutdown" hibernation mode works, you will need to
 identify what goes wrong.
 
 a) Test modes of hibernation
+----------------------------
 
 To find out why hibernation fails on your system, you can use a special testing
 facility available if the kernel is compiled with CONFIG_PM_DEBUG set.  Then,
@@ -44,36 +50,38 @@ there is the file /sys/power/pm_test that can be used to make the hibernation
 core run in a test mode.  There are 5 test modes available:
 
 freezer
-- test the freezing of processes
+	- test the freezing of processes
 
 devices
-- test the freezing of processes and suspending of devices
+	- test the freezing of processes and suspending of devices
 
 platform
-- test the freezing of processes, suspending of devices and platform
-  global control methods(*)
+	- test the freezing of processes, suspending of devices and platform
+	  global control methods [1]_
 
 processors
-- test the freezing of processes, suspending of devices, platform
-  global control methods(*) and the disabling of nonboot CPUs
+	- test the freezing of processes, suspending of devices, platform
+	  global control methods [1]_ and the disabling of nonboot CPUs
 
 core
-- test the freezing of processes, suspending of devices, platform global
-  control methods(*), the disabling of nonboot CPUs and suspending of
-  platform/system devices
+	- test the freezing of processes, suspending of devices, platform global
+	  control methods\ [1]_, the disabling of nonboot CPUs and suspending
+	  of platform/system devices
 
-(*) the platform global control methods are only available on ACPI systems
+.. [1]
+
+    the platform global control methods are only available on ACPI systems
     and are only tested if the hibernation mode is set to "platform"
 
 To use one of them it is necessary to write the corresponding string to
 /sys/power/pm_test (eg. "devices" to test the freezing of processes and
 suspending devices) and issue the standard hibernation commands.  For example,
 to use the "devices" test mode along with the "platform" mode of hibernation,
-you should do the following:
+you should do the following::
 
-# echo devices > /sys/power/pm_test
-# echo platform > /sys/power/disk
-# echo disk > /sys/power/state
+	# echo devices > /sys/power/pm_test
+	# echo platform > /sys/power/disk
+	# echo disk > /sys/power/state
 
 Then, the kernel will try to freeze processes, suspend devices, wait a few
 seconds (5 by default, but configurable by the suspend.pm_test_delay module
@@ -108,11 +116,12 @@ If the "devices" test fails, most likely there is a driver that cannot suspend
 or resume its device (in the latter case the system may hang or become unstable
 after the test, so please take that into consideration).  To find this driver,
 you can carry out a binary search according to the rules:
+
 - if the test fails, unload a half of the drivers currently loaded and repeat
-(that would probably involve rebooting the system, so always note what drivers
-have been loaded before the test),
+  (that would probably involve rebooting the system, so always note what drivers
+  have been loaded before the test),
 - if the test succeeds, load a half of the drivers you have unloaded most
-recently and repeat.
+  recently and repeat.
 
 Once you have found the failing driver (there can be more than just one of
 them), you have to unload it every time before hibernation.  In that case please
@@ -146,6 +155,7 @@ indicates a serious problem that very well may be related to the hardware, but
 please report it anyway.
 
 b) Testing minimal configuration
+--------------------------------
 
 If all of the hibernation test modes work, you can boot the system with the
 "init=/bin/bash" command line parameter and attempt to hibernate in the
@@ -165,14 +175,15 @@ Again, if you find the offending module(s), it(they) must be unloaded every time
 before hibernation, and please report the problem with it(them).
 
 c) Using the "test_resume" hibernation option
+---------------------------------------------
 
 /sys/power/disk generally tells the kernel what to do after creating a
 hibernation image.  One of the available options is "test_resume" which
 causes the just created image to be used for immediate restoration.  Namely,
-after doing:
+after doing::
 
-# echo test_resume > /sys/power/disk
-# echo disk > /sys/power/state
+	# echo test_resume > /sys/power/disk
+	# echo disk > /sys/power/state
 
 a hibernation image will be created and a resume from it will be triggered
 immediately without involving the platform firmware in any way.
@@ -190,6 +201,7 @@ to resume may be related to the differences between the restore and image
 kernels.
 
 d) Advanced debugging
+---------------------
 
 In case that hibernation does not work on your system even in the minimal
 configuration and compiling more drivers as modules is not practical or some
@@ -200,9 +212,10 @@ kernel messages using the serial console.  This may provide you with some
 information about the reasons of the suspend (resume) failure.  Alternatively,
 it may be possible to use a FireWire port for debugging with firescope
 (http://v3.sk/~lkundrak/firescope/).  On x86 it is also possible to
-use the PM_TRACE mechanism documented in Documentation/power/s2ram.txt .
+use the PM_TRACE mechanism documented in Documentation/power/s2ram.rst .
 
 2. Testing suspend to RAM (STR)
+===============================
 
 To verify that the STR works, it is generally more convenient to use the s2ram
 tool available from http://suspend.sf.net and documented at
@@ -230,7 +243,8 @@ you will have to unload them every time before an STR transition (ie. before
 you run s2ram), and please report the problems with them.
 
 There is a debugfs entry which shows the suspend to RAM statistics. Here is an
-example of its output.
+example of its output::
+
 	# mount -t debugfs none /sys/kernel/debug
 	# cat /sys/kernel/debug/suspend_stats
 	success: 20
@@ -248,6 +262,7 @@ example of its output.
 				-16
 	  last_failed_step:	suspend
 				suspend
+
 Field success means the success number of suspend to RAM, and field fail means
 the failure number. Others are the failure number of different steps of suspend
 to RAM. suspend_stats just lists the last 2 failed devices, error number and

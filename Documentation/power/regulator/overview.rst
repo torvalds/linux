@@ -1,3 +1,4 @@
+=============================================
 Linux voltage and current regulator framework
 =============================================
 
@@ -13,26 +14,30 @@ regulators (where voltage output is controllable) and current sinks (where
 current limit is controllable).
 
 (C) 2008  Wolfson Microelectronics PLC.
+
 Author: Liam Girdwood <lrg@slimlogic.co.uk>
 
 
 Nomenclature
 ============
 
-Some terms used in this document:-
+Some terms used in this document:
 
-  o Regulator    - Electronic device that supplies power to other devices.
+  - Regulator
+                 - Electronic device that supplies power to other devices.
                    Most regulators can enable and disable their output while
                    some can control their output voltage and or current.
 
                    Input Voltage -> Regulator -> Output Voltage
 
 
-  o PMIC         - Power Management IC. An IC that contains numerous regulators
-                   and often contains other subsystems.
+  - PMIC
+                 - Power Management IC. An IC that contains numerous
+                   regulators and often contains other subsystems.
 
 
-  o Consumer     - Electronic device that is supplied power by a regulator.
+  - Consumer
+                 - Electronic device that is supplied power by a regulator.
                    Consumers can be classified into two types:-
 
                    Static: consumer does not change its supply voltage or
@@ -44,46 +49,48 @@ Some terms used in this document:-
                    current limit to meet operation demands.
 
 
-  o Power Domain - Electronic circuit that is supplied its input power by the
+  - Power Domain
+                 - Electronic circuit that is supplied its input power by the
                    output power of a regulator, switch or by another power
                    domain.
 
-                   The supply regulator may be behind a switch(s). i.e.
+                   The supply regulator may be behind a switch(s). i.e.::
 
-                   Regulator -+-> Switch-1 -+-> Switch-2 --> [Consumer A]
-                              |             |
-                              |             +-> [Consumer B], [Consumer C]
-                              |
-                              +-> [Consumer D], [Consumer E]
+                     Regulator -+-> Switch-1 -+-> Switch-2 --> [Consumer A]
+                                |             |
+                                |             +-> [Consumer B], [Consumer C]
+                                |
+                                +-> [Consumer D], [Consumer E]
 
                    That is one regulator and three power domains:
 
-                   Domain 1: Switch-1, Consumers D & E.
-                   Domain 2: Switch-2, Consumers B & C.
-                   Domain 3: Consumer A.
+                   - Domain 1: Switch-1, Consumers D & E.
+                   - Domain 2: Switch-2, Consumers B & C.
+                   - Domain 3: Consumer A.
 
                    and this represents a "supplies" relationship:
 
                    Domain-1 --> Domain-2 --> Domain-3.
 
                    A power domain may have regulators that are supplied power
-                   by other regulators. i.e.
+                   by other regulators. i.e.::
 
-                   Regulator-1 -+-> Regulator-2 -+-> [Consumer A]
-                                |
-                                +-> [Consumer B]
+                     Regulator-1 -+-> Regulator-2 -+-> [Consumer A]
+                                  |
+                                  +-> [Consumer B]
 
                    This gives us two regulators and two power domains:
 
-                   Domain 1: Regulator-2, Consumer B.
-                   Domain 2: Consumer A.
+                   - Domain 1: Regulator-2, Consumer B.
+                   - Domain 2: Consumer A.
 
                    and a "supplies" relationship:
 
                    Domain-1 --> Domain-2
 
 
-  o Constraints  - Constraints are used to define power levels for performance
+  - Constraints
+                 - Constraints are used to define power levels for performance
                    and hardware protection. Constraints exist at three levels:
 
                    Regulator Level: This is defined by the regulator hardware
@@ -141,7 +148,7 @@ relevant to non SoC devices and is split into the following four interfaces:-
       limit. This also compiles out if not in use so drivers can be reused in
       systems with no regulator based power control.
 
-        See Documentation/power/regulator/consumer.txt
+        See Documentation/power/regulator/consumer.rst
 
    2. Regulator driver interface.
 
@@ -149,7 +156,7 @@ relevant to non SoC devices and is split into the following four interfaces:-
       operations to the core. It also has a notifier call chain for propagating
       regulator events to clients.
 
-        See Documentation/power/regulator/regulator.txt
+        See Documentation/power/regulator/regulator.rst
 
    3. Machine interface.
 
@@ -160,7 +167,7 @@ relevant to non SoC devices and is split into the following four interfaces:-
       allows the creation of a regulator tree whereby some regulators are
       supplied by others (similar to a clock tree).
 
-        See Documentation/power/regulator/machine.txt
+        See Documentation/power/regulator/machine.rst
 
    4. Userspace ABI.
 

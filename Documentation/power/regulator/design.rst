@@ -1,3 +1,4 @@
+==========================
 Regulator API design notes
 ==========================
 
@@ -14,7 +15,9 @@ Safety
    have different power requirements, and not all components with power
    requirements are visible to software.
 
-  => The API should make no changes to the hardware state unless it has
+.. note::
+
+     The API should make no changes to the hardware state unless it has
      specific knowledge that these changes are safe to perform on this
      particular system.
 
@@ -28,6 +31,8 @@ Consumer use cases
  - Many of the power supplies in the system will be shared between many
    different consumers.
 
-  => The consumer API should be structured so that these use cases are
+.. note::
+
+     The consumer API should be structured so that these use cases are
      very easy to handle and so that consumers will work with shared
      supplies without any additional effort.

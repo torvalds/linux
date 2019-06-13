@@ -1,4 +1,6 @@
+====================================
 System Suspend and Device Interrupts
+====================================
 
 Copyright (C) 2014 Intel Corp.
 Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>

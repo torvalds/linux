@@ -1,10 +1,15 @@
+====================================================================
 Interaction of Suspend code (S3) with the CPU hotplug infrastructure
+====================================================================
 
-     (C) 2011 - 2014 Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+(C) 2011 - 2014 Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 
 
-I. How does the regular CPU hotplug code differ from how the Suspend-to-RAM
-   infrastructure uses it internally? And where do they share common code?
+I. Differences between CPU hotplug and Suspend-to-RAM
+======================================================
+
+How does the regular CPU hotplug code differ from how the Suspend-to-RAM
+infrastructure uses it internally? And where do they share common code?
 
 Well, a picture is worth a thousand words... So ASCII art follows :-)
 
@@ -16,13 +21,13 @@ of describing where they take different paths and where they share code.
 What happens when regular CPU hotplug and Suspend-to-RAM race with each other
 is not depicted here.]
 
-On a high level, the suspend-resume cycle goes like this:
+On a high level, the suspend-resume cycle goes like this::
 
-|Freeze| -> |Disable nonboot| -> |Do suspend| -> |Enable nonboot| -> |Thaw |
-|tasks |    |     cpus      |    |          |    |     cpus     |    |tasks|
+  |Freeze| -> |Disable nonboot| -> |Do suspend| -> |Enable nonboot| -> |Thaw |
+  |tasks |    |     cpus      |    |          |    |     cpus     |    |tasks|
 
 
-More details follow:
+More details follow::
 
                                 Suspend call path
                                 -----------------
@@ -87,7 +92,9 @@ More details follow:
 
 Resuming back is likewise, with the counterparts being (in the order of
 execution during resume):
-* enable_nonboot_cpus() which involves:
+
+* enable_nonboot_cpus() which involves::
+
    |  Acquire cpu_add_remove_lock
    |  Decrease cpu_hotplug_disabled, thereby enabling regular cpu hotplug
    |  Call _cpu_up() [for all those cpus in the frozen_cpus mask, in a loop]
@@ -102,6 +109,8 @@ execution during resume):
 It is to be noted here that the system_transition_mutex lock is acquired at the very
 beginning, when we are just starting out to suspend, and then released only
 after the entire cycle is complete (i.e., suspend + resume).
+
+::
 
 
 
@@ -152,16 +161,16 @@ with the 'tasks_frozen' argument set to 1.
 
 
 Important files and functions/entry points:
-------------------------------------------
+-------------------------------------------
 
-kernel/power/process.c : freeze_processes(), thaw_processes()
-kernel/power/suspend.c : suspend_prepare(), suspend_enter(), suspend_finish()
-kernel/cpu.c: cpu_[up|down](), _cpu_[up|down](), [disable|enable]_nonboot_cpus()
+- kernel/power/process.c : freeze_processes(), thaw_processes()
+- kernel/power/suspend.c : suspend_prepare(), suspend_enter(), suspend_finish()
+- kernel/cpu.c: cpu_[up|down](), _cpu_[up|down](), [disable|enable]_nonboot_cpus()
 
 
 
 II. What are the issues involved in CPU hotplug?
-    -------------------------------------------
+------------------------------------------------
 
 There are some interesting situations involving CPU hotplug and microcode
 update on the CPUs, as discussed below:
@@ -243,8 +252,11 @@ d. Handling microcode update during suspend/hibernate:
    cycles).
 
 
-III. Are there any known problems when regular CPU hotplug and suspend race
-     with each other?
+III. Known problems
+===================
+
+Are there any known problems when regular CPU hotplug and suspend race
+with each other?
 
 Yes, they are listed below:
 

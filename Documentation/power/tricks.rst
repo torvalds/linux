@@ -1,5 +1,7 @@
-	swsusp/S3 tricks
-	~~~~~~~~~~~~~~~~
+================
+swsusp/S3 tricks
+================
+
 Pavel Machek <pavel@ucw.cz>
 
 If you want to trick swsusp/S3 into working, you might want to try:

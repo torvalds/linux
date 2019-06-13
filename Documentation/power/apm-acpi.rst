@@ -1,5 +1,7 @@
+============
 APM or ACPI?
-------------
+============
+
 If you have a relatively recent x86 mobile, desktop, or server system,
 odds are it supports either Advanced Power Management (APM) or
 Advanced Configuration and Power Interface (ACPI).  ACPI is the newer
@@ -28,5 +30,7 @@ and be sure that they are started sometime in the system boot process.
 Go ahead and start both.  If ACPI or APM is not available on your
 system the associated daemon will exit gracefully.
 
-  apmd:   http://ftp.debian.org/pool/main/a/apmd/
-  acpid:  http://acpid.sf.net/
+  =====  =======================================
+  apmd   http://ftp.debian.org/pool/main/a/apmd/
+  acpid  http://acpid.sf.net/
+  =====  =======================================

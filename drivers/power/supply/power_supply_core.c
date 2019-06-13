@@ -607,7 +607,7 @@ int power_supply_get_battery_info(struct power_supply *psy,
 
 	/* The property and field names below must correspond to elements
 	 * in enum power_supply_property. For reasoning, see
-	 * Documentation/power/power_supply_class.txt.
+	 * Documentation/power/power_supply_class.rst.
 	 */
 
 	of_property_read_u32(battery_np, "energy-full-design-microwatt-hours",

@@ -5,7 +5,7 @@ Contact:	linux-pm@vger.kernel.org
 Description:
 		The powercap/ class sub directory belongs to the power cap
 		subsystem. Refer to
-		Documentation/power/powercap/powercap.txt for details.
+		Documentation/power/powercap/powercap.rst for details.
 
 What:		/sys/class/powercap/<control type>
 Date:		September 2013

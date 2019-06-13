@@ -1,4 +1,6 @@
-PM Quality Of Service Interface.
+===============================
+PM Quality Of Service Interface
+===============================
 
 This interface provides a kernel and user mode interface for registering
 performance expectations by drivers, subsystems and user space applications on
@@ -11,6 +13,7 @@ memory_bandwidth.
 constraints and PM QoS flags.
 
 Each parameters have defined units:
+
  * latency: usec
  * timeout: usec
  * throughput: kbs (kilo bit / sec)
@@ -18,6 +21,7 @@ Each parameters have defined units:
 
 
 1. PM QoS framework
+===================
 
 The infrastructure exposes multiple misc device nodes one per implemented
 parameter.  The set of parameters implement is defined by pm_qos_power_init()
@@ -37,38 +41,39 @@ reading the aggregated value does not require any locking mechanism.
 From kernel mode the use of this interface is simple:
 
 void pm_qos_add_request(handle, param_class, target_value):
-Will insert an element into the list for that identified PM QoS class with the
-target value.  Upon change to this list the new target is recomputed and any
-registered notifiers are called only if the target value is now different.
-Clients of pm_qos need to save the returned handle for future use in other
-pm_qos API functions.
+  Will insert an element into the list for that identified PM QoS class with the
+  target value.  Upon change to this list the new target is recomputed and any
+  registered notifiers are called only if the target value is now different.
+  Clients of pm_qos need to save the returned handle for future use in other
+  pm_qos API functions.
 
 void pm_qos_update_request(handle, new_target_value):
-Will update the list element pointed to by the handle with the new target value
-and recompute the new aggregated target, calling the notification tree if the
-target is changed.
+  Will update the list element pointed to by the handle with the new target value
+  and recompute the new aggregated target, calling the notification tree if the
+  target is changed.
 
 void pm_qos_remove_request(handle):
-Will remove the element.  After removal it will update the aggregate target and
-call the notification tree if the target was changed as a result of removing
-the request.
+  Will remove the element.  After removal it will update the aggregate target and
+  call the notification tree if the target was changed as a result of removing
+  the request.
 
 int pm_qos_request(param_class):
-Returns the aggregated value for a given PM QoS class.
+  Returns the aggregated value for a given PM QoS class.
 
 int pm_qos_request_active(handle):
-Returns if the request is still active, i.e. it has not been removed from a
-PM QoS class constraints list.
+  Returns if the request is still active, i.e. it has not been removed from a
+  PM QoS class constraints list.
 
 int pm_qos_add_notifier(param_class, notifier):
-Adds a notification callback function to the PM QoS class. The callback is
-called when the aggregated value for the PM QoS class is changed.
+  Adds a notification callback function to the PM QoS class. The callback is
+  called when the aggregated value for the PM QoS class is changed.
 
 int pm_qos_remove_notifier(int param_class, notifier):
-Removes the notification callback function for the PM QoS class.
+  Removes the notification callback function for the PM QoS class.
 
 
 From user mode:
+
 Only processes can register a pm_qos request.  To provide for automatic
 cleanup of a process, the interface requires the process to register its
 parameter requests in the following way:
@@ -89,6 +94,7 @@ node.
 
 
 2. PM QoS per-device latency and flags framework
+================================================
 
 For each device, there are three lists of PM QoS requests. Two of them are
 maintained along with the aggregated targets of resume latency and active
@@ -107,73 +113,80 @@ the aggregated value does not require any locking mechanism.
 From kernel mode the use of this interface is the following:
 
 int dev_pm_qos_add_request(device, handle, type, value):
-Will insert an element into the list for that identified device with the
-target value.  Upon change to this list the new target is recomputed and any
-registered notifiers are called only if the target value is now different.
-Clients of dev_pm_qos need to save the handle for future use in other
-dev_pm_qos API functions.
+  Will insert an element into the list for that identified device with the
+  target value.  Upon change to this list the new target is recomputed and any
+  registered notifiers are called only if the target value is now different.
+  Clients of dev_pm_qos need to save the handle for future use in other
+  dev_pm_qos API functions.
 
 int dev_pm_qos_update_request(handle, new_value):
-Will update the list element pointed to by the handle with the new target value
-and recompute the new aggregated target, calling the notification trees if the
-target is changed.
+  Will update the list element pointed to by the handle with the new target
+  value and recompute the new aggregated target, calling the notification
+  trees if the target is changed.
 
 int dev_pm_qos_remove_request(handle):
-Will remove the element.  After removal it will update the aggregate target and
-call the notification trees if the target was changed as a result of removing
-the request.
+  Will remove the element.  After removal it will update the aggregate target
+  and call the notification trees if the target was changed as a result of
+  removing the request.
 
 s32 dev_pm_qos_read_value(device):
-Returns the aggregated value for a given device's constraints list.
+  Returns the aggregated value for a given device's constraints list.
 
 enum pm_qos_flags_status dev_pm_qos_flags(device, mask)
-Check PM QoS flags of the given device against the given mask of flags.
-The meaning of the return values is as follows:
-	PM_QOS_FLAGS_ALL: All flags from the mask are set
-	PM_QOS_FLAGS_SOME: Some flags from the mask are set
-	PM_QOS_FLAGS_NONE: No flags from the mask are set
-	PM_QOS_FLAGS_UNDEFINED: The device's PM QoS structure has not been
-			initialized or the list of requests is empty.
+  Check PM QoS flags of the given device against the given mask of flags.
+  The meaning of the return values is as follows:
+
+	PM_QOS_FLAGS_ALL:
+		All flags from the mask are set
+	PM_QOS_FLAGS_SOME:
+		Some flags from the mask are set
+	PM_QOS_FLAGS_NONE:
+		No flags from the mask are set
+	PM_QOS_FLAGS_UNDEFINED:
+		The device's PM QoS structure has not been initialized
+		or the list of requests is empty.
 
 int dev_pm_qos_add_ancestor_request(dev, handle, type, value)
-Add a PM QoS request for the first direct ancestor of the given device whose
-power.ignore_children flag is unset (for DEV_PM_QOS_RESUME_LATENCY requests)
-or whose power.set_latency_tolerance callback pointer is not NULL (for
-DEV_PM_QOS_LATENCY_TOLERANCE requests).
+  Add a PM QoS request for the first direct ancestor of the given device whose
+  power.ignore_children flag is unset (for DEV_PM_QOS_RESUME_LATENCY requests)
+  or whose power.set_latency_tolerance callback pointer is not NULL (for
+  DEV_PM_QOS_LATENCY_TOLERANCE requests).
 
 int dev_pm_qos_expose_latency_limit(device, value)
-Add a request to the device's PM QoS list of resume latency constraints and
-create a sysfs attribute pm_qos_resume_latency_us under the device's power
-directory allowing user space to manipulate that request.
+  Add a request to the device's PM QoS list of resume latency constraints and
+  create a sysfs attribute pm_qos_resume_latency_us under the device's power
+  directory allowing user space to manipulate that request.
 
 void dev_pm_qos_hide_latency_limit(device)
-Drop the request added by dev_pm_qos_expose_latency_limit() from the device's
-PM QoS list of resume latency constraints and remove sysfs attribute
-pm_qos_resume_latency_us from the device's power directory.
+  Drop the request added by dev_pm_qos_expose_latency_limit() from the device's
+  PM QoS list of resume latency constraints and remove sysfs attribute
+  pm_qos_resume_latency_us from the device's power directory.
 
 int dev_pm_qos_expose_flags(device, value)
-Add a request to the device's PM QoS list of flags and create sysfs attribute
-pm_qos_no_power_off under the device's power directory allowing user space to
-change the value of the PM_QOS_FLAG_NO_POWER_OFF flag.
+  Add a request to the device's PM QoS list of flags and create sysfs attribute
+  pm_qos_no_power_off under the device's power directory allowing user space to
+  change the value of the PM_QOS_FLAG_NO_POWER_OFF flag.
 
 void dev_pm_qos_hide_flags(device)
-Drop the request added by dev_pm_qos_expose_flags() from the device's PM QoS list
-of flags and remove sysfs attribute pm_qos_no_power_off from the device's power
-directory.
+  Drop the request added by dev_pm_qos_expose_flags() from the device's PM QoS list
+  of flags and remove sysfs attribute pm_qos_no_power_off from the device's power
+  directory.
 
 Notification mechanisms:
+
 The per-device PM QoS framework has a per-device notification tree.
 
 int dev_pm_qos_add_notifier(device, notifier):
-Adds a notification callback function for the device.
-The callback is called when the aggregated value of the device constraints list
-is changed (for resume latency device PM QoS only).
+  Adds a notification callback function for the device.
+  The callback is called when the aggregated value of the device constraints list
+  is changed (for resume latency device PM QoS only).
 
 int dev_pm_qos_remove_notifier(device, notifier):
-Removes the notification callback function for the device.
+  Removes the notification callback function for the device.
 
 
 Active state latency tolerance
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This device PM QoS type is used to support systems in which hardware may switch
 to energy-saving operation modes on the fly.  In those systems, if the operation

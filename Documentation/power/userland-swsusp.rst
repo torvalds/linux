@@ -1,4 +1,7 @@
+=====================================================
 Documentation for userland software suspend interface
+=====================================================
+
 	(C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
 
 First, the warnings at the beginning of swsusp.txt still apply.
@@ -30,13 +33,16 @@ called.
 
 The ioctl() commands recognized by the device are:
 
-SNAPSHOT_FREEZE - freeze user space processes (the current process is
+SNAPSHOT_FREEZE
+	freeze user space processes (the current process is
 	not frozen); this is required for SNAPSHOT_CREATE_IMAGE
 	and SNAPSHOT_ATOMIC_RESTORE to succeed
 
-SNAPSHOT_UNFREEZE - thaw user space processes frozen by SNAPSHOT_FREEZE
+SNAPSHOT_UNFREEZE
+	thaw user space processes frozen by SNAPSHOT_FREEZE
 
-SNAPSHOT_CREATE_IMAGE - create a snapshot of the system memory; the
+SNAPSHOT_CREATE_IMAGE
+	create a snapshot of the system memory; the
 	last argument of ioctl() should be a pointer to an int variable,
 	the value of which will indicate whether the call returned after
 	creating the snapshot (1) or after restoring the system memory state
@@ -45,48 +51,59 @@ SNAPSHOT_CREATE_IMAGE - create a snapshot of the system memory; the
 	has been created the read() operation can be used to transfer
 	it out of the kernel
 
-SNAPSHOT_ATOMIC_RESTORE - restore the system memory state from the
+SNAPSHOT_ATOMIC_RESTORE
+	restore the system memory state from the
 	uploaded snapshot image; before calling it you should transfer
 	the system memory snapshot back to the kernel using the write()
 	operation; this call will not succeed if the snapshot
 	image is not available to the kernel
 
-SNAPSHOT_FREE - free memory allocated for the snapshot image
+SNAPSHOT_FREE
+	free memory allocated for the snapshot image
 
-SNAPSHOT_PREF_IMAGE_SIZE - set the preferred maximum size of the image
+SNAPSHOT_PREF_IMAGE_SIZE
+	set the preferred maximum size of the image
 	(the kernel will do its best to ensure the image size will not exceed
 	this number, but if it turns out to be impossible, the kernel will
 	create the smallest image possible)
 
-SNAPSHOT_GET_IMAGE_SIZE - return the actual size of the hibernation image
+SNAPSHOT_GET_IMAGE_SIZE
+	return the actual size of the hibernation image
 
-SNAPSHOT_AVAIL_SWAP_SIZE - return the amount of available swap in bytes (the
+SNAPSHOT_AVAIL_SWAP_SIZE
+	return the amount of available swap in bytes (the
 	last argument should be a pointer to an unsigned int variable that will
 	contain the result if the call is successful).
 
-SNAPSHOT_ALLOC_SWAP_PAGE - allocate a swap page from the resume partition
+SNAPSHOT_ALLOC_SWAP_PAGE
+	allocate a swap page from the resume partition
 	(the last argument should be a pointer to a loff_t variable that
 	will contain the swap page offset if the call is successful)
 
-SNAPSHOT_FREE_SWAP_PAGES - free all swap pages allocated by
+SNAPSHOT_FREE_SWAP_PAGES
+	free all swap pages allocated by
 	SNAPSHOT_ALLOC_SWAP_PAGE
 
-SNAPSHOT_SET_SWAP_AREA - set the resume partition and the offset (in <PAGE_SIZE>
+SNAPSHOT_SET_SWAP_AREA
+	set the resume partition and the offset (in <PAGE_SIZE>
 	units) from the beginning of the partition at which the swap header is
 	located (the last ioctl() argument should point to a struct
 	resume_swap_area, as defined in kernel/power/suspend_ioctls.h,
 	containing the resume device specification and the offset); for swap
 	partitions the offset is always 0, but it is different from zero for
-	swap files (see Documentation/power/swsusp-and-swap-files.txt for
+	swap files (see Documentation/power/swsusp-and-swap-files.rst for
 	details).
 
-SNAPSHOT_PLATFORM_SUPPORT - enable/disable the hibernation platform support,
+SNAPSHOT_PLATFORM_SUPPORT
+	enable/disable the hibernation platform support,
 	depending on the argument value (enable, if the argument is nonzero)
 
-SNAPSHOT_POWER_OFF - make the kernel transition the system to the hibernation
+SNAPSHOT_POWER_OFF
+	make the kernel transition the system to the hibernation
 	state (eg. ACPI S4) using the platform (eg. ACPI) driver
 
-SNAPSHOT_S2RAM - suspend to RAM; using this call causes the kernel to
+SNAPSHOT_S2RAM
+	suspend to RAM; using this call causes the kernel to
 	immediately enter the suspend-to-RAM state, so this call must always
 	be preceded by the SNAPSHOT_FREEZE call and it is also necessary
 	to use the SNAPSHOT_UNFREEZE call after the system wakes up.  This call
@@ -98,10 +115,11 @@ SNAPSHOT_S2RAM - suspend to RAM; using this call causes the kernel to
 
 The device's read() operation can be used to transfer the snapshot image from
 the kernel.  It has the following limitations:
+
 - you cannot read() more than one virtual memory page at a time
 - read()s across page boundaries are impossible (ie. if you read() 1/2 of
-	a page in the previous call, you will only be able to read()
-	_at_ _most_ 1/2 of the page in the next call)
+  a page in the previous call, you will only be able to read()
+  **at most** 1/2 of the page in the next call)
 
 The device's write() operation is used for uploading the system memory snapshot
 into the kernel.  It has the same limitations as the read() operation.
@@ -143,8 +161,10 @@ preferably using mlockall(), before calling SNAPSHOT_FREEZE.
 The suspending utility MUST check the value stored by SNAPSHOT_CREATE_IMAGE
 in the memory location pointed to by the last argument of ioctl() and proceed
 in accordance with it:
+
 1. 	If the value is 1 (ie. the system memory snapshot has just been
 	created and the system is ready for saving it):
+
 	(a)	The suspending utility MUST NOT close the snapshot device
 		_unless_ the whole suspend procedure is to be cancelled, in
 		which case, if the snapshot image has already been saved, the
@@ -158,6 +178,7 @@ in accordance with it:
 		called.  However, it MAY mount a file system that was not
 		mounted at that time and perform some operations on it (eg.
 		use it for saving the image).
+
 2.	If the value is 0 (ie. the system state has just been restored from
 	the snapshot image), the suspending utility MUST close the snapshot
 	device.  Afterwards it will be treated as a regular userland process,

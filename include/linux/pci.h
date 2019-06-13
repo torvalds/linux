@@ -807,7 +807,7 @@ struct module;
  * @suspend_late: Put device into low power state.
  * @resume_early: Wake device from low power state.
  * @resume:	Wake device from low power state.
- *		(Please see Documentation/power/pci.txt for descriptions
+ *		(Please see Documentation/power/pci.rst for descriptions
  *		of PCI Power Management and the related functions.)
  * @shutdown:	Hook into reboot_notifier_list (kernel/sys.c).
  *		Intended to stop any idling DMA operations.

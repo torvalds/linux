@@ -1,4 +1,6 @@
+===========================================
 Power Management Interface for System Sleep
+===========================================
 
 Copyright (c) 2016 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
@@ -11,10 +13,10 @@ mounted at /sys).
 
 Reading from it returns a list of supported sleep states, encoded as:
 
-'freeze' (Suspend-to-Idle)
-'standby' (Power-On Suspend)
-'mem' (Suspend-to-RAM)
-'disk' (Suspend-to-Disk)
+- 'freeze' (Suspend-to-Idle)
+- 'standby' (Power-On Suspend)
+- 'mem' (Suspend-to-RAM)
+- 'disk' (Suspend-to-Disk)
 
 Suspend-to-Idle is always supported.  Suspend-to-Disk is always supported
 too as long the kernel has been configured to support hibernation at all
@@ -32,18 +34,18 @@ Specifically, it tells the kernel what to do after creating a hibernation image.
 
 Reading from it returns a list of supported options encoded as:
 
-'platform' (put the system into sleep using a platform-provided method)
-'shutdown' (shut the system down)
-'reboot' (reboot the system)
-'suspend' (trigger a Suspend-to-RAM transition)
-'test_resume' (resume-after-hibernation test mode)
+- 'platform' (put the system into sleep using a platform-provided method)
+- 'shutdown' (shut the system down)
+- 'reboot' (reboot the system)
+- 'suspend' (trigger a Suspend-to-RAM transition)
+- 'test_resume' (resume-after-hibernation test mode)
 
 The currently selected option is printed in square brackets.
 
 The 'platform' option is only available if the platform provides a special
 mechanism to put the system to sleep after creating a hibernation image (ACPI
 does that, for example).  The 'suspend' option is available if Suspend-to-RAM
-is supported.  Refer to Documentation/power/basic-pm-debugging.txt for the
+is supported.  Refer to Documentation/power/basic-pm-debugging.rst for the
 description of the 'test_resume' option.
 
 To select an option, write the string representing it to /sys/power/disk.
@@ -71,7 +73,7 @@ If /sys/power/pm_trace contains '1', the fingerprint of each suspend/resume
 event point in turn will be stored in the RTC memory (overwriting the actual
 RTC information), so it will survive a system crash if one occurs right after
 storing it and it can be used later to identify the driver that caused the crash
-to happen (see Documentation/power/s2ram.txt for more information).
+to happen (see Documentation/power/s2ram.rst for more information).
 
 Initially it contains '0' which may be changed to '1' by writing a string
 representing a nonzero integer into it.
