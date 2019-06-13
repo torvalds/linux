@@ -24,6 +24,12 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
+#ifndef __INTEL_SDVO_REGS_H__
+#define __INTEL_SDVO_REGS_H__
+
+#include <linux/compiler.h>
+#include <linux/types.h>
+
 /*
  * SDVO command definitions and structures.
  */
@@ -731,3 +737,5 @@ struct intel_sdvo_encode {
 	u8 dvi_rev;
 	u8 hdmi_rev;
 } __packed;
+
+#endif /* __INTEL_SDVO_REGS_H__ */

@@ -56,6 +56,7 @@ header_test := \
 	intel_quirks.h \
 	intel_runtime_pm.h \
 	intel_sdvo.h \
+	intel_sdvo_regs.h \
 	intel_sideband.h \
 	intel_sprite.h \
 	intel_tv.h \
