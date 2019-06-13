@@ -4994,11 +4994,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 
 	drm_connector_register(&aconnector->base);
 #if defined(CONFIG_DEBUG_FS)
-	res = connector_debugfs_init(aconnector);
-	if (res) {
-		DRM_ERROR("Failed to create debugfs for connector");
-		goto out_free;
-	}
+	connector_debugfs_init(aconnector);
 	aconnector->debugfs_dpcd_address = 0;
 	aconnector->debugfs_dpcd_size = 0;
 #endif

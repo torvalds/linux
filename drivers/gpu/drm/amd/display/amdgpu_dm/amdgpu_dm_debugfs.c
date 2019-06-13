@@ -940,25 +940,19 @@ static const struct {
 		{"aux_dpcd_data", &dp_dpcd_data_debugfs_fops}
 };
 
-int connector_debugfs_init(struct amdgpu_dm_connector *connector)
+void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 {
 	int i;
-	struct dentry *ent, *dir = connector->base.debugfs_entry;
+	struct dentry *dir = connector->base.debugfs_entry;
 
 	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
 		for (i = 0; i < ARRAY_SIZE(dp_debugfs_entries); i++) {
-			ent = debugfs_create_file(dp_debugfs_entries[i].name,
-						  0644,
-						  dir,
-						  connector,
-						  dp_debugfs_entries[i].fops);
-			if (IS_ERR(ent))
-				return PTR_ERR(ent);
+			debugfs_create_file(dp_debugfs_entries[i].name,
+					    0644, dir, connector,
+					    dp_debugfs_entries[i].fops);
 		}
 	}
-
-	return 0;
 }
 
 /*
@@ -1101,7 +1095,7 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 	};
 
 	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct dentry *root = minor->debugfs_root;
 	int ret;
 
 	ret = amdgpu_debugfs_add_files(adev, amdgpu_dm_debugfs_list,
@@ -1109,20 +1103,11 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 	if (ret)
 		return ret;
 
-	ent = debugfs_create_file(
-		"amdgpu_dm_dtn_log",
-		0644,
-		root,
-		adev,
-		&dtn_log_fops);
+	debugfs_create_file("amdgpu_dm_dtn_log", 0644, root, adev,
+			    &dtn_log_fops);
 
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-
-	ent = debugfs_create_file_unsafe("amdgpu_dm_visual_confirm", 0644, root,
-					 adev, &visual_confirm_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
+	debugfs_create_file_unsafe("amdgpu_dm_visual_confirm", 0644, root, adev,
+				   &visual_confirm_fops);
 
 	return 0;
 }
