@@ -3,11 +3,6 @@
 #ifndef BTRFS_SYSFS_H
 #define BTRFS_SYSFS_H
 
-/*
- * Data exported through sysfs
- */
-extern u64 btrfs_debugfs_test;
-
 enum btrfs_feature_set {
 	FEAT_COMPAT,
 	FEAT_COMPAT_RO,
