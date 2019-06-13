@@ -166,3 +166,7 @@
 &reg_vdd2p5 {
 	vin-supply = <&vgen6_reg>;
 };
+
+&snvs_pwrkey {
+	status = "okay";
+};
