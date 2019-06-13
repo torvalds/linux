@@ -24,7 +24,7 @@
 
 #include <linux/clk.h>
 #include <linux/stmmac.h>
-#include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/pci.h>
 #include "common.h"
 #include <linux/ptp_clock_kernel.h>
@@ -147,13 +147,14 @@ struct stmmac_priv {
 	/* Generic channel for NAPI */
 	struct stmmac_channel channel[STMMAC_CH_MAX];
 
-	bool oldlink;
 	int speed;
-	int oldduplex;
 	unsigned int flow_ctrl;
 	unsigned int pause;
 	struct mii_bus *mii;
 	int mii_irq[PHY_MAX_ADDR];
+
+	struct phylink_config phylink_config;
+	struct phylink *phylink;
 
 	struct stmmac_extra_stats xstats ____cacheline_aligned_in_smp;
 	struct stmmac_safety_stats sstats;
