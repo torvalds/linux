@@ -1566,9 +1566,7 @@ static int sdma_v4_0_late_init(void *handle)
 	if (r)
 		goto interrupt;
 
-	r = amdgpu_ras_debugfs_create(adev, &fs_info);
-	if (r)
-		goto debugfs;
+	amdgpu_ras_debugfs_create(adev, &fs_info);
 
 	r = amdgpu_ras_sysfs_create(adev, &fs_info);
 	if (r)
@@ -1589,7 +1587,6 @@ irq:
 	amdgpu_ras_sysfs_remove(adev, *ras_if);
 sysfs:
 	amdgpu_ras_debugfs_remove(adev, *ras_if);
-debugfs:
 	amdgpu_ras_interrupt_remove_handler(adev, &ih_info);
 interrupt:
 	amdgpu_ras_feature_enable(adev, *ras_if, 0);
