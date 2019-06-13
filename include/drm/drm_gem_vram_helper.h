@@ -77,15 +77,10 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 						unsigned long pg_align,
 						bool interruptible);
 void drm_gem_vram_put(struct drm_gem_vram_object *gbo);
-int drm_gem_vram_lock(struct drm_gem_vram_object *gbo, bool no_wait);
-void drm_gem_vram_unlock(struct drm_gem_vram_object *gbo);
 u64 drm_gem_vram_mmap_offset(struct drm_gem_vram_object *gbo);
 s64 drm_gem_vram_offset(struct drm_gem_vram_object *gbo);
 int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag);
-int drm_gem_vram_pin_locked(struct drm_gem_vram_object *gbo,
-			      unsigned long pl_flag);
 int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo);
-int drm_gem_vram_unpin_locked(struct drm_gem_vram_object *gbo);
 void *drm_gem_vram_kmap_at(struct drm_gem_vram_object *gbo, bool map,
 			   bool *is_iomem, struct ttm_bo_kmap_obj *kmap);
 void *drm_gem_vram_kmap(struct drm_gem_vram_object *gbo, bool map,

@@ -152,36 +152,6 @@ void drm_gem_vram_put(struct drm_gem_vram_object *gbo)
 EXPORT_SYMBOL(drm_gem_vram_put);
 
 /**
- * drm_gem_vram_lock() - Locks a VRAM-backed GEM object
- * @gbo:	the GEM VRAM object
- * @no_wait:	don't wait for buffer object to become available
- *
- * See ttm_bo_reserve() for more information.
- *
- * Returns:
- * 0 on success, or
- * a negative error code otherwise
- */
-int drm_gem_vram_lock(struct drm_gem_vram_object *gbo, bool no_wait)
-{
-	return ttm_bo_reserve(&gbo->bo, true, no_wait, NULL);
-}
-EXPORT_SYMBOL(drm_gem_vram_lock);
-
-/**
- * drm_gem_vram_unlock() - \
-	Release a reservation acquired by drm_gem_vram_lock()
- * @gbo:	the GEM VRAM object
- *
- * See ttm_bo_unreserve() for more information.
- */
-void drm_gem_vram_unlock(struct drm_gem_vram_object *gbo)
-{
-	ttm_bo_unreserve(&gbo->bo);
-}
-EXPORT_SYMBOL(drm_gem_vram_unlock);
-
-/**
  * drm_gem_vram_mmap_offset() - Returns a GEM VRAM object's mmap offset
  * @gbo:	the GEM VRAM object
  *
@@ -267,49 +237,6 @@ err_ttm_bo_unreserve:
 EXPORT_SYMBOL(drm_gem_vram_pin);
 
 /**
- * drm_gem_vram_pin_locked() - Pins a GEM VRAM object in a region.
- * @gbo:	the GEM VRAM object
- * @pl_flag:	a bitmask of possible memory regions
- *
- * Pinning a buffer object ensures that it is not evicted from
- * a memory region. A pinned buffer object has to be unpinned before
- * it can be pinned to another region.
- *
- * This function pins a GEM VRAM object that has already been
- * locked. Use drm_gem_vram_pin() if possible.
- *
- * Returns:
- * 0 on success, or
- * a negative error code otherwise.
- */
-int drm_gem_vram_pin_locked(struct drm_gem_vram_object *gbo,
-			    unsigned long pl_flag)
-{
-	int i, ret;
-	struct ttm_operation_ctx ctx = { false, false };
-
-	lockdep_assert_held(&gbo->bo.resv->lock.base);
-
-	if (gbo->pin_count) {
-		++gbo->pin_count;
-		return 0;
-	}
-
-	drm_gem_vram_placement(gbo, pl_flag);
-	for (i = 0; i < gbo->placement.num_placement; ++i)
-		gbo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
-
-	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
-	if (ret < 0)
-		return ret;
-
-	gbo->pin_count = 1;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_gem_vram_pin_locked);
-
-/**
  * drm_gem_vram_unpin() - Unpins a GEM VRAM object
  * @gbo:	the GEM VRAM object
  *
@@ -350,42 +277,6 @@ err_ttm_bo_unreserve:
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_vram_unpin);
-
-/**
- * drm_gem_vram_unpin_locked() - Unpins a GEM VRAM object
- * @gbo:	the GEM VRAM object
- *
- * This function unpins a GEM VRAM object that has already been
- * locked. Use drm_gem_vram_unpin() if possible.
- *
- * Returns:
- * 0 on success, or
- * a negative error code otherwise.
- */
-int drm_gem_vram_unpin_locked(struct drm_gem_vram_object *gbo)
-{
-	int i, ret;
-	struct ttm_operation_ctx ctx = { false, false };
-
-	lockdep_assert_held(&gbo->bo.resv->lock.base);
-
-	if (WARN_ON_ONCE(!gbo->pin_count))
-		return 0;
-
-	--gbo->pin_count;
-	if (gbo->pin_count)
-		return 0;
-
-	for (i = 0; i < gbo->placement.num_placement ; ++i)
-		gbo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-
-	ret = ttm_bo_validate(&gbo->bo, &gbo->placement, &ctx);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-EXPORT_SYMBOL(drm_gem_vram_unpin_locked);
 
 /**
  * drm_gem_vram_kmap_at() - Maps a GEM VRAM object into kernel address space
