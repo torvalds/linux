@@ -214,6 +214,7 @@ struct hnae3_ae_dev {
 	struct list_head node;
 	u32 flag;
 	u8 override_pci_need_reset; /* fix to stop multiple reset happening */
+	unsigned long hw_err_reset_req;
 	enum hnae3_reset_type reset_type;
 	void *priv;
 };
@@ -459,6 +460,8 @@ struct hnae3_ae_ops {
 				  u16 vlan, u8 qos, __be16 proto);
 	int (*enable_hw_strip_rxvtag)(struct hnae3_handle *handle, bool enable);
 	void (*reset_event)(struct pci_dev *pdev, struct hnae3_handle *handle);
+	enum hnae3_reset_type (*get_reset_level)(struct hnae3_ae_dev *ae_dev,
+						 unsigned long *addr);
 	void (*set_default_reset_request)(struct hnae3_ae_dev *ae_dev,
 					  enum hnae3_reset_type rst_type);
 	void (*get_channels)(struct hnae3_handle *handle,
