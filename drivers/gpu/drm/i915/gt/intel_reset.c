@@ -851,7 +851,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	intel_wakeref_t wakeref;
 
 	mutex_lock(&error->wedge_mutex);
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		__i915_gem_set_wedged(i915);
 	mutex_unlock(&error->wedge_mutex);
 }

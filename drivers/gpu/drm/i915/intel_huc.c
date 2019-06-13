@@ -174,7 +174,7 @@ int intel_huc_check_status(struct intel_huc *huc)
 	if (!HAS_HUC(dev_priv))
 		return -ENODEV;
 
-	with_intel_runtime_pm(dev_priv, wakeref)
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
 		status = (I915_READ(huc->status.reg) & huc->status.mask) ==
 			  huc->status.value;
 

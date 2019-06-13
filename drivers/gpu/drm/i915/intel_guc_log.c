@@ -436,7 +436,7 @@ static void guc_log_capture_logs(struct intel_guc_log *log)
 	 * Generally device is expected to be active only at this
 	 * time, so get/put should be really quick.
 	 */
-	with_intel_runtime_pm(dev_priv, wakeref)
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
 		guc_action_flush_log_complete(guc);
 }
 
@@ -515,7 +515,7 @@ int intel_guc_log_set_level(struct intel_guc_log *log, u32 level)
 	if (log->level == level)
 		goto out_unlock;
 
-	with_intel_runtime_pm(dev_priv, wakeref)
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
 		ret = guc_action_control_log(guc,
 					     GUC_LOG_LEVEL_IS_VERBOSE(level),
 					     GUC_LOG_LEVEL_IS_ENABLED(level),
@@ -600,7 +600,7 @@ void intel_guc_log_relay_flush(struct intel_guc_log *log)
 	 */
 	flush_work(&log->relay.flush_work);
 
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		guc_action_flush_log(guc);
 
 	/* GuC would have updated log buffer by now, so capture it */

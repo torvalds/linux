@@ -769,7 +769,7 @@ static int i915_gpu_info_open(struct inode *inode, struct file *file)
 	intel_wakeref_t wakeref;
 
 	gpu = NULL;
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		gpu = i915_capture_gpu_state(i915);
 	if (IS_ERR(gpu))
 		return PTR_ERR(gpu);
@@ -1097,7 +1097,7 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		return 0;
 	}
 
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		for_each_engine(engine, dev_priv, id)
 			acthd[id] = intel_engine_get_active_head(engine);
 
@@ -1357,7 +1357,7 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 	intel_wakeref_t wakeref;
 	int err = -ENODEV;
 
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 			err = vlv_drpc_info(m);
 		else if (INTEL_GEN(dev_priv) >= 6)
@@ -1524,7 +1524,7 @@ static int i915_emon_status(struct seq_file *m, void *unused)
 	if (!IS_GEN(i915, 5))
 		return -ENODEV;
 
-	with_intel_runtime_pm(i915, wakeref) {
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		unsigned long temp, chipset, gfx;
 
 		temp = i915_mch_val(i915);
@@ -1816,7 +1816,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	u32 act_freq = rps->cur_freq;
 	intel_wakeref_t wakeref;
 
-	with_intel_runtime_pm_if_in_use(dev_priv, wakeref) {
+	with_intel_runtime_pm_if_in_use(&dev_priv->runtime_pm, wakeref) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 			vlv_punit_get(dev_priv);
 			act_freq = vlv_punit_read(dev_priv,
@@ -1899,7 +1899,7 @@ static int i915_huc_load_status_info(struct seq_file *m, void *data)
 	p = drm_seq_file_printer(m);
 	intel_uc_fw_dump(&dev_priv->huc.fw, &p);
 
-	with_intel_runtime_pm(dev_priv, wakeref)
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
 		seq_printf(m, "\nHuC status 0x%08x:\n", I915_READ(HUC_STATUS2));
 
 	return 0;
@@ -1917,7 +1917,7 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 	p = drm_seq_file_printer(m);
 	intel_uc_fw_dump(&dev_priv->guc.fw, &p);
 
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		u32 tmp = I915_READ(GUC_STATUS);
 		u32 i;
 
@@ -2423,7 +2423,7 @@ static int i915_energy_uJ(struct seq_file *m, void *data)
 		return -ENODEV;
 
 	units = (power & 0x1f00) >> 8;
-	with_intel_runtime_pm(dev_priv, wakeref)
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
 		power = I915_READ(MCH_SECP_NRG_STTS);
 
 	power = (1000000 * power) >> units; /* convert to uJ */
@@ -3009,7 +3009,7 @@ static ssize_t i915_ipc_status_write(struct file *file, const char __user *ubuf,
 	if (ret < 0)
 		return ret;
 
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		if (!dev_priv->ipc_enabled && enable)
 			DRM_INFO("Enabling IPC: WM will be proper only after next commit\n");
 		dev_priv->wm.distrust_bios_wm = true;
@@ -3761,7 +3761,7 @@ i915_cache_sharing_get(void *data, u64 *val)
 	if (!(IS_GEN_RANGE(dev_priv, 6, 7)))
 		return -ENODEV;
 
-	with_intel_runtime_pm(dev_priv, wakeref)
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
 		snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
 
 	*val = (snpcr & GEN6_MBC_SNPCR_MASK) >> GEN6_MBC_SNPCR_SHIFT;
@@ -3782,7 +3782,7 @@ i915_cache_sharing_set(void *data, u64 val)
 		return -EINVAL;
 
 	DRM_DEBUG_DRIVER("Manually setting uncore sharing to %llu\n", val);
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		u32 snpcr;
 
 		/* Update the cache sharing policy here as well */
@@ -4028,7 +4028,7 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 	sseu.max_eus_per_subslice =
 		RUNTIME_INFO(dev_priv)->sseu.max_eus_per_subslice;
 
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		if (IS_CHERRYVIEW(dev_priv))
 			cherryview_sseu_device_status(dev_priv, &sseu);
 		else if (IS_BROADWELL(dev_priv))

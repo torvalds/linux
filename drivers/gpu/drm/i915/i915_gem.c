@@ -262,7 +262,7 @@ void i915_gem_flush_ggtt_writes(struct drm_i915_private *dev_priv)
 
 	i915_gem_chipset_flush(dev_priv);
 
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		struct intel_uncore *uncore = &dev_priv->uncore;
 
 		spin_lock_irq(&uncore->lock);

@@ -179,13 +179,13 @@ intel_wakeref_t intel_runtime_pm_get_if_in_use(struct intel_runtime_pm *rpm);
 intel_wakeref_t intel_runtime_pm_get_noresume(struct intel_runtime_pm *rpm);
 intel_wakeref_t intel_runtime_pm_get_raw(struct intel_runtime_pm *rpm);
 
-#define with_intel_runtime_pm(i915, wf) \
-	for ((wf) = intel_runtime_pm_get(&(i915)->runtime_pm); (wf); \
-	     intel_runtime_pm_put(&(i915)->runtime_pm, (wf)), (wf) = 0)
+#define with_intel_runtime_pm(rpm, wf) \
+	for ((wf) = intel_runtime_pm_get(rpm); (wf); \
+	     intel_runtime_pm_put((rpm), (wf)), (wf) = 0)
 
-#define with_intel_runtime_pm_if_in_use(i915, wf) \
-	for ((wf) = intel_runtime_pm_get_if_in_use(&(i915)->runtime_pm); (wf); \
-	     intel_runtime_pm_put(&(i915)->runtime_pm, (wf)), (wf) = 0)
+#define with_intel_runtime_pm_if_in_use(rpm, wf) \
+	for ((wf) = intel_runtime_pm_get_if_in_use(rpm); (wf); \
+	     intel_runtime_pm_put((rpm), (wf)), (wf) = 0)
 
 void intel_runtime_pm_put_unchecked(struct intel_runtime_pm *rpm);
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)

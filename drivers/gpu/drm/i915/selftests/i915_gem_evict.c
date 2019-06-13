@@ -539,7 +539,7 @@ int i915_gem_evict_mock_selftests(void)
 		return -ENOMEM;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		err = i915_subtests(tests, i915);
 
 	mutex_unlock(&i915->drm.struct_mutex);

@@ -256,7 +256,7 @@ switch_to_scratch_context(struct intel_engine_cs *engine,
 	GEM_BUG_ON(i915_gem_context_is_bannable(ctx));
 
 	rq = ERR_PTR(-ENODEV);
-	with_intel_runtime_pm(engine->i915, wakeref)
+	with_intel_runtime_pm(&engine->i915->runtime_pm, wakeref)
 		rq = igt_spinner_create_request(spin, ctx, engine, MI_NOOP);
 
 	kernel_context_close(ctx);
@@ -312,7 +312,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 	if (err)
 		goto out;
 
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		err = reset(engine);
 
 	igt_spinner_end(&spin);

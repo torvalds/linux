@@ -514,7 +514,7 @@ int i915_request_mock_selftests(void)
 	if (!i915)
 		return -ENOMEM;
 
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		err = i915_subtests(tests, i915);
 
 	drm_dev_put(&i915->drm);

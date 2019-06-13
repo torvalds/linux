@@ -88,7 +88,7 @@ static void pm_suspend(struct drm_i915_private *i915)
 {
 	intel_wakeref_t wakeref;
 
-	with_intel_runtime_pm(i915, wakeref) {
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		i915_gem_suspend_gtt_mappings(i915);
 		i915_gem_suspend_late(i915);
 	}
@@ -98,7 +98,7 @@ static void pm_hibernate(struct drm_i915_private *i915)
 {
 	intel_wakeref_t wakeref;
 
-	with_intel_runtime_pm(i915, wakeref) {
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		i915_gem_suspend_gtt_mappings(i915);
 
 		i915_gem_freeze(i915);
@@ -114,7 +114,7 @@ static void pm_resume(struct drm_i915_private *i915)
 	 * Both suspend and hibernate follow the same wakeup path and assume
 	 * that runtime-pm just works.
 	 */
-	with_intel_runtime_pm(i915, wakeref) {
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		intel_gt_sanitize(i915, false);
 		i915_gem_sanitize(i915);
 		i915_gem_resume(i915);

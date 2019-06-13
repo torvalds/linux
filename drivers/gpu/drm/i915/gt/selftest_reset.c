@@ -111,7 +111,7 @@ int intel_reset_live_selftests(struct drm_i915_private *i915)
 	if (i915_terminally_wedged(i915))
 		return -EIO; /* we're long past hope of a successful reset */
 
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		err = i915_subtests(tests, i915);
 
 	return err;

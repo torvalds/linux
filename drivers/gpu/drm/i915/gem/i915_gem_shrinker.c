@@ -297,7 +297,7 @@ unsigned long i915_gem_shrink_all(struct drm_i915_private *i915)
 	intel_wakeref_t wakeref;
 	unsigned long freed = 0;
 
-	with_intel_runtime_pm(i915, wakeref) {
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		freed = i915_gem_shrink(i915, -1UL, NULL,
 					I915_SHRINK_BOUND |
 					I915_SHRINK_UNBOUND |
@@ -358,7 +358,7 @@ i915_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 	if (sc->nr_scanned < sc->nr_to_scan && current_is_kswapd()) {
 		intel_wakeref_t wakeref;
 
-		with_intel_runtime_pm(i915, wakeref) {
+		with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 			freed += i915_gem_shrink(i915,
 						 sc->nr_to_scan - sc->nr_scanned,
 						 &sc->nr_scanned,
@@ -385,7 +385,7 @@ i915_gem_shrinker_oom(struct notifier_block *nb, unsigned long event, void *ptr)
 	unsigned long flags;
 
 	freed_pages = 0;
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		freed_pages += i915_gem_shrink(i915, -1UL, NULL,
 					       I915_SHRINK_BOUND |
 					       I915_SHRINK_UNBOUND |
@@ -433,7 +433,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 				   MAX_SCHEDULE_TIMEOUT))
 		goto out;
 
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		freed_pages += i915_gem_shrink(i915, -1UL, NULL,
 					       I915_SHRINK_BOUND |
 					       I915_SHRINK_UNBOUND |

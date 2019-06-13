@@ -227,7 +227,8 @@ frequency_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 		if (dev_priv->gt.awake) {
 			intel_wakeref_t wakeref;
 
-			with_intel_runtime_pm_if_in_use(dev_priv, wakeref) {
+			with_intel_runtime_pm_if_in_use(&dev_priv->runtime_pm,
+							wakeref) {
 				val = intel_uncore_read_notrace(&dev_priv->uncore,
 								GEN6_RPSTAT1);
 				val = intel_get_cagf(dev_priv, val);

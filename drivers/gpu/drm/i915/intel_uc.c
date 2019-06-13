@@ -537,7 +537,7 @@ void intel_uc_suspend(struct drm_i915_private *i915)
 	if (!intel_guc_is_loaded(guc))
 		return;
 
-	with_intel_runtime_pm(i915, wakeref)
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		intel_uc_runtime_suspend(i915);
 }
 

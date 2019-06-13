@@ -1702,7 +1702,7 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 
 	flags = reg->offset & (entry->size - 1);
 
-	with_intel_runtime_pm(i915, wakeref) {
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		if (entry->size == 8 && flags == I915_REG_READ_8B_WA)
 			reg->val = intel_uncore_read64_2x32(uncore,
 							    entry->offset_ldw,

@@ -48,7 +48,7 @@ static u32 calc_residency(struct drm_i915_private *dev_priv,
 	intel_wakeref_t wakeref;
 	u64 res = 0;
 
-	with_intel_runtime_pm(dev_priv, wakeref)
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
 		res = intel_rc6_residency_us(dev_priv, reg);
 
 	return DIV_ROUND_CLOSEST_ULL(res, 1000);

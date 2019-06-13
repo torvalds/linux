@@ -1288,7 +1288,7 @@ static int intel_backlight_device_get_brightness(struct backlight_device *bd)
 	intel_wakeref_t wakeref;
 	int ret = 0;
 
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		u32 hw_level;
 
 		drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);

@@ -8167,7 +8167,7 @@ unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 	if (!IS_GEN(dev_priv, 5))
 		return 0;
 
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		spin_lock_irq(&mchdev_lock);
 		val = __i915_chipset_val(dev_priv);
 		spin_unlock_irq(&mchdev_lock);
@@ -8253,7 +8253,7 @@ void i915_update_gfx_val(struct drm_i915_private *dev_priv)
 	if (!IS_GEN(dev_priv, 5))
 		return;
 
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		spin_lock_irq(&mchdev_lock);
 		__i915_update_gfx_val(dev_priv);
 		spin_unlock_irq(&mchdev_lock);
@@ -8305,7 +8305,7 @@ unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
 	if (!IS_GEN(dev_priv, 5))
 		return 0;
 
-	with_intel_runtime_pm(dev_priv, wakeref) {
+	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
 		spin_lock_irq(&mchdev_lock);
 		val = __i915_gfx_val(dev_priv);
 		spin_unlock_irq(&mchdev_lock);
@@ -8346,7 +8346,7 @@ unsigned long i915_read_mch_val(void)
 	if (!i915)
 		return 0;
 
-	with_intel_runtime_pm(i915, wakeref) {
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		spin_lock_irq(&mchdev_lock);
 		chipset_val = __i915_chipset_val(i915);
 		graphics_val = __i915_gfx_val(i915);
