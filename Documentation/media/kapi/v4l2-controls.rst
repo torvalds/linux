@@ -50,6 +50,10 @@ Basic usage for V4L2 and sub-device drivers
 
 1) Prepare the driver:
 
+.. code-block:: c
+
+	#include <media/v4l2-ctrls.h>
+
 1.1) Add the handler to your driver's top-level struct:
 
 For V4L2 drivers:
