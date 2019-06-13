@@ -188,7 +188,3 @@ int vimc_streamer_s_stream(struct vimc_stream *stream,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vimc_streamer_s_stream);
-
-MODULE_DESCRIPTION("Virtual Media Controller Driver (VIMC) Streamer");
-MODULE_AUTHOR("Lucas A. M. Magalhães <lucmaga@gmail.com>");
-MODULE_LICENSE("GPL");
