@@ -156,7 +156,8 @@ nfp_fl_lag_find_group_for_master_with_lag(struct nfp_fl_lag *lag,
 
 int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 				       struct net_device *master,
-				       struct nfp_fl_pre_lag *pre_act)
+				       struct nfp_fl_pre_lag *pre_act,
+				       struct netlink_ext_ack *extack)
 {
 	struct nfp_flower_priv *priv = app->priv;
 	struct nfp_fl_lag_group *group = NULL;
@@ -167,6 +168,7 @@ int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 							  master);
 	if (!group) {
 		mutex_unlock(&priv->nfp_lag.lock);
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: group does not exist for LAG action");
 		return -ENOENT;
 	}
 
