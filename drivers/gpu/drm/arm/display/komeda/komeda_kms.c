@@ -58,7 +58,6 @@ static struct drm_driver komeda_kms_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
 			   DRIVER_PRIME | DRIVER_HAVE_IRQ,
 	.lastclose			= drm_fb_helper_lastclose,
-	.irq_handler			= komeda_kms_irq_handler,
 	.gem_free_object_unlocked	= drm_gem_cma_free_object,
 	.gem_vm_ops			= &drm_gem_cma_vm_ops,
 	.dumb_create			= komeda_gem_cma_dumb_create,
@@ -304,23 +303,26 @@ struct komeda_kms_dev *komeda_kms_attach(struct komeda_dev *mdev)
 
 	drm_mode_config_reset(drm);
 
-	err = drm_irq_install(drm, mdev->irq);
+	err = devm_request_irq(drm->dev, mdev->irq,
+			       komeda_kms_irq_handler, IRQF_SHARED,
+			       drm->driver->name, drm);
 	if (err)
 		goto cleanup_mode_config;
 
 	err = mdev->funcs->enable_irq(mdev);
 	if (err)
-		goto uninstall_irq;
+		goto cleanup_mode_config;
+
+	drm->irq_enabled = true;
 
 	err = drm_dev_register(drm, 0);
 	if (err)
-		goto uninstall_irq;
+		goto cleanup_mode_config;
 
 	return kms;
 
-uninstall_irq:
-	drm_irq_uninstall(drm);
 cleanup_mode_config:
+	drm->irq_enabled = false;
 	drm_mode_config_cleanup(drm);
 	komeda_kms_cleanup_private_objs(kms);
 free_kms:
@@ -333,9 +335,9 @@ void komeda_kms_detach(struct komeda_kms_dev *kms)
 	struct drm_device *drm = &kms->base;
 	struct komeda_dev *mdev = drm->dev_private;
 
+	drm->irq_enabled = false;
 	mdev->funcs->disable_irq(mdev);
 	drm_dev_unregister(drm);
-	drm_irq_uninstall(drm);
 	component_unbind_all(mdev->dev, drm);
 	komeda_kms_cleanup_private_objs(kms);
 	drm_mode_config_cleanup(drm);
