@@ -14,7 +14,6 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
-#include <linux/aio.h>
 #include <linux/bitops.h>
 #include "../kpc.h"
 
@@ -87,7 +86,6 @@ struct aio_cb_data {
 	struct kpc_dma_device      *ldev;
 	struct completion  *cpl;
 	unsigned char       flags;
-	struct kiocb       *kcb;
 	size_t              len;
 
 	unsigned int        page_count;

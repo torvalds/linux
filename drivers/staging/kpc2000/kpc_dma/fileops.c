@@ -9,7 +9,6 @@
 #include <linux/types.h>    /* size_t */
 #include <linux/cdev.h>
 #include <linux/uaccess.h>  /* copy_*_user */
-#include <linux/aio.h>      /* aio stuff */
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include "kpc_dma_driver.h"
@@ -32,8 +31,8 @@ unsigned int  count_parts_for_sge(struct scatterlist *sg)
 }
 
 /**********  Transfer Helpers  **********/
-static
-int  kpc_dma_transfer(struct dev_private_data *priv, struct kiocb *kcb, unsigned long iov_base, size_t iov_len)
+static int kpc_dma_transfer(struct dev_private_data *priv,
+			    unsigned long iov_base, size_t iov_len)
 {
 	unsigned int i = 0;
 	long rv = 0;
@@ -65,7 +64,6 @@ int  kpc_dma_transfer(struct dev_private_data *priv, struct kiocb *kcb, unsigned
 	acd->ldev = priv->ldev;
 	acd->cpl = &done;
 	acd->flags = 0;
-	acd->kcb = kcb;
 	acd->len = iov_len;
 	acd->page_count = count_pages(iov_base, iov_len);
 
@@ -173,21 +171,18 @@ int  kpc_dma_transfer(struct dev_private_data *priv, struct kiocb *kcb, unsigned
 
 	unlock_engine(ldev);
 
-	// If this is a synchronous kiocb, we need to put the calling process to sleep until the transfer is complete
-	if (kcb == NULL || is_sync_kiocb(kcb)) {
-		rv = wait_for_completion_interruptible(&done);
-		// If the user aborted (rv == -ERESTARTSYS), we're no longer responsible for cleaning up the acd
-		if (rv == -ERESTARTSYS) {
-			acd->cpl = NULL;
-		}
-		if (rv == 0) {
-			rv = acd->len;
-			kfree(acd);
-		}
-		return rv;
+	rv = wait_for_completion_interruptible(&done);
+	/*
+	 * If the user aborted (rv == -ERESTARTSYS), we're no longer responsible
+	 * for cleaning up the acd
+	 */
+	if (rv == -ERESTARTSYS)
+		acd->cpl = NULL;
+	if (rv == 0) {
+		rv = acd->len;
+		kfree(acd);
 	}
-
-	return -EIOCBQUEUED;
+	return rv;
 
  err_descr_too_many:
 	unlock_engine(ldev);
@@ -234,17 +229,13 @@ void  transfer_complete_cb(struct aio_cb_data *acd, size_t xfr_count, u32 flags)
 
 	acd->flags = flags;
 
-	if (acd->kcb == NULL || is_sync_kiocb(acd->kcb)) {
-		if (acd->cpl) {
-			complete(acd->cpl);
-		} else {
-			// There's no completion, so we're responsible for cleaning up the acd
-			kfree(acd);
-		}
+	if (acd->cpl) {
+		complete(acd->cpl);
 	} else {
-#ifdef CONFIG_KPC_DMA_AIO
-		aio_complete(acd->kcb, acd->len, acd->flags);
-#endif
+		/*
+		 * There's no completion, so we're responsible for cleaning up
+		 * the acd
+		 */
 		kfree(acd);
 	}
 }
@@ -308,53 +299,6 @@ int  kpc_dma_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-#ifdef CONFIG_KPC_DMA_AIO
-static
-int  kpc_dma_aio_cancel(struct kiocb *kcb)
-{
-	struct dev_private_data *priv = (struct dev_private_data *)kcb->ki_filp->private_data;
-
-	dev_dbg(&priv->ldev->pldev->dev, "%s(kcb = [%p]) priv = [%p], ldev = [%p]\n", __func__, kcb, priv, priv->ldev);
-	return 0;
-}
-
-static
-ssize_t   kpc_dma_aio_read(struct kiocb *kcb, const struct iovec *iov, unsigned long iov_count, loff_t pos)
-{
-	struct dev_private_data *priv = (struct dev_private_data *)kcb->ki_filp->private_data;
-
-	if (priv->ldev->dir != DMA_FROM_DEVICE)
-		return -EMEDIUMTYPE;
-
-	if (iov_count != 1) {
-		dev_err(&priv->ldev->pldev->dev, "%s() called with iov_count > 1!\n", __func__);
-		return -EFAULT;
-	}
-
-	if (!is_sync_kiocb(kcb))
-		kiocb_set_cancel_fn(kcb, kpc_dma_aio_cancel);
-	return kpc_dma_transfer(priv, kcb, (unsigned long)iov->iov_base, iov->iov_len);
-}
-
-static
-ssize_t  kpc_dma_aio_write(struct kiocb *kcb, const struct iovec *iov, unsigned long iov_count, loff_t pos)
-{
-	struct dev_private_data *priv = (struct dev_private_data *)kcb->ki_filp->private_data;
-
-	if (priv->ldev->dir != DMA_TO_DEVICE)
-		return -EMEDIUMTYPE;
-
-	if (iov_count != 1) {
-		dev_err(&priv->ldev->pldev->dev, "%s() called with iov_count > 1!\n", __func__);
-		return -EFAULT;
-	}
-
-	if (!is_sync_kiocb(kcb))
-		kiocb_set_cancel_fn(kcb, kpc_dma_aio_cancel);
-	return kpc_dma_transfer(priv, kcb, (unsigned long)iov->iov_base, iov->iov_len);
-}
-#endif
-
 static
 ssize_t  kpc_dma_read(struct file *filp,       char __user *user_buf, size_t count, loff_t *ppos)
 {
@@ -363,7 +307,7 @@ ssize_t  kpc_dma_read(struct file *filp,       char __user *user_buf, size_t cou
 	if (priv->ldev->dir != DMA_FROM_DEVICE)
 		return -EMEDIUMTYPE;
 
-	return kpc_dma_transfer(priv, (struct kiocb *)NULL, (unsigned long)user_buf, count);
+	return kpc_dma_transfer(priv, (unsigned long)user_buf, count);
 }
 
 static
@@ -374,7 +318,7 @@ ssize_t  kpc_dma_write(struct file *filp, const char __user *user_buf, size_t co
 	if (priv->ldev->dir != DMA_TO_DEVICE)
 		return -EMEDIUMTYPE;
 
-	return kpc_dma_transfer(priv, (struct kiocb *)NULL, (unsigned long)user_buf, count);
+	return kpc_dma_transfer(priv, (unsigned long)user_buf, count);
 }
 
 static
@@ -402,10 +346,6 @@ const struct file_operations  kpc_dma_fops = {
 	.release        = kpc_dma_close,
 	.read           = kpc_dma_read,
 	.write          = kpc_dma_write,
-#ifdef CONFIG_KPC_DMA_AIO
-	.aio_read       = kpc_dma_aio_read,
-	.aio_write      = kpc_dma_aio_write,
-#endif
 	.unlocked_ioctl = kpc_dma_ioctl,
 };
 
