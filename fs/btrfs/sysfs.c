@@ -248,6 +248,25 @@ static const struct attribute_group btrfs_static_feature_attr_group = {
 	.attrs = btrfs_supported_static_feature_attrs,
 };
 
+#ifdef CONFIG_BTRFS_DEBUG
+
+/*
+ * Runtime debugging exported via sysfs
+ *
+ * /sys/fs/btrfs/debug - applies to module or all filesystems
+ * /sys/fs/btrfs/UUID  - applies only to the given filesystem
+ */
+static struct attribute *btrfs_debug_feature_attrs[] = {
+	NULL
+};
+
+static const struct attribute_group btrfs_debug_feature_attr_group = {
+	.name = "debug",
+	.attrs = btrfs_debug_feature_attrs,
+};
+
+#endif
+
 static ssize_t btrfs_show_u64(u64 *value_ptr, spinlock_t *lock, char *buf)
 {
 	u64 val;
@@ -860,6 +879,13 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 	if (error)
 		goto failure;
 
+#ifdef CONFIG_BTRFS_DEBUG
+	error = sysfs_create_group(fsid_kobj,
+				   &btrfs_debug_feature_attr_group);
+	if (error)
+		goto failure;
+#endif
+
 	error = addrm_unknown_feature_attrs(fs_info, true);
 	if (error)
 		goto failure;
@@ -951,6 +977,12 @@ int __init btrfs_init_sysfs(void)
 				&btrfs_static_feature_attr_group);
 	if (ret)
 		goto out_remove_group;
+
+#ifdef CONFIG_BTRFS_DEBUG
+	ret = sysfs_create_group(&btrfs_kset->kobj, &btrfs_debug_feature_attr_group);
+	if (ret)
+		goto out2;
+#endif
 
 	return 0;
 
