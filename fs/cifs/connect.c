@@ -2544,8 +2544,15 @@ static int match_server(struct TCP_Server_Info *server, struct smb_vol *vol)
 	if (vol->nosharesock)
 		return 0;
 
-	/* BB update this for smb3any and default case */
-	if ((server->vals != vol->vals) || (server->ops != vol->ops))
+	/* If multidialect negotiation see if existing sessions match one */
+	if (strcmp(vol->vals->version_string, SMB3ANY_VERSION_STRING) == 0) {
+		if (server->vals->protocol_id < SMB30_PROT_ID)
+			return 0;
+	} else if (strcmp(vol->vals->version_string,
+		   SMBDEFAULT_VERSION_STRING) == 0) {
+		if (server->vals->protocol_id < SMB21_PROT_ID)
+			return 0;
+	} else if ((server->vals != vol->vals) || (server->ops != vol->ops))
 		return 0;
 
 	if (!net_eq(cifs_net_ns(server), current->nsproxy->net_ns))

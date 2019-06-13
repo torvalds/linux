@@ -227,6 +227,7 @@ struct smb2_negotiate_req {
 } __packed;
 
 /* Dialects */
+#define SMB10_PROT_ID 0x0000 /* local only, not sent on wire w/CIFS negprot */
 #define SMB20_PROT_ID 0x0202
 #define SMB21_PROT_ID 0x0210
 #define SMB30_PROT_ID 0x0300
