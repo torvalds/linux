@@ -1848,7 +1848,7 @@ static int sfp_probe(struct platform_device *pdev)
 		int ret;
 
 		ret = acpi_node_get_property_reference(fw, "i2c-bus", 0, &args);
-		if (ACPI_FAILURE(ret) || !is_acpi_device_node(args.fwnode)) {
+		if (ret || !is_acpi_device_node(args.fwnode)) {
 			dev_err(&pdev->dev, "missing 'i2c-bus' property\n");
 			return -ENODEV;
 		}
