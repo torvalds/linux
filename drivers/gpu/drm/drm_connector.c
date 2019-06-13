@@ -978,6 +978,7 @@ static const struct drm_prop_enum_list hdmi_colorspaces[] = {
  *	Userspace will be responsible to do Tone mapping operation in case:
  *		- Some layers are HDR and others are SDR
  *		- HDR layers luminance is not same as sink
+ *
  *	It will even need to do colorspace conversion and get all layers
  *	to one common colorspace for blending. It can use either GL, Media
  *	or display engine to get this done based on the capabilties of the
