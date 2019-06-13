@@ -279,47 +279,6 @@ err_ttm_bo_unreserve:
 EXPORT_SYMBOL(drm_gem_vram_unpin);
 
 /**
- * drm_gem_vram_kmap_at() - Maps a GEM VRAM object into kernel address space
- * @gbo:	the GEM VRAM object
- * @map:	establish a mapping if necessary
- * @is_iomem:	returns true if the mapped memory is I/O memory, or false \
-	otherwise; can be NULL
- * @kmap:	the mapping's kmap object
- *
- * This function maps the buffer object into the kernel's address space
- * or returns the current mapping. If the parameter map is false, the
- * function only queries the current mapping, but does not establish a
- * new one.
- *
- * Returns:
- * The buffers virtual address if mapped, or
- * NULL if not mapped, or
- * an ERR_PTR()-encoded error code otherwise.
- */
-void *drm_gem_vram_kmap_at(struct drm_gem_vram_object *gbo, bool map,
-			   bool *is_iomem, struct ttm_bo_kmap_obj *kmap)
-{
-	int ret;
-
-	if (kmap->virtual || !map)
-		goto out;
-
-	ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, kmap);
-	if (ret)
-		return ERR_PTR(ret);
-
-out:
-	if (!is_iomem)
-		return kmap->virtual;
-	if (!kmap->virtual) {
-		*is_iomem = false;
-		return NULL;
-	}
-	return ttm_kmap_obj_virtual(kmap, is_iomem);
-}
-EXPORT_SYMBOL(drm_gem_vram_kmap_at);
-
-/**
  * drm_gem_vram_kmap() - Maps a GEM VRAM object into kernel address space
  * @gbo:	the GEM VRAM object
  * @map:	establish a mapping if necessary
@@ -339,25 +298,26 @@ EXPORT_SYMBOL(drm_gem_vram_kmap_at);
 void *drm_gem_vram_kmap(struct drm_gem_vram_object *gbo, bool map,
 			bool *is_iomem)
 {
-	return drm_gem_vram_kmap_at(gbo, map, is_iomem, &gbo->kmap);
+	int ret;
+	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
+
+	if (kmap->virtual || !map)
+		goto out;
+
+	ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, kmap);
+	if (ret)
+		return ERR_PTR(ret);
+
+out:
+	if (!is_iomem)
+		return kmap->virtual;
+	if (!kmap->virtual) {
+		*is_iomem = false;
+		return NULL;
+	}
+	return ttm_kmap_obj_virtual(kmap, is_iomem);
 }
 EXPORT_SYMBOL(drm_gem_vram_kmap);
-
-/**
- * drm_gem_vram_kunmap_at() - Unmaps a GEM VRAM object
- * @gbo:	the GEM VRAM object
- * @kmap:	the mapping's kmap object
- */
-void drm_gem_vram_kunmap_at(struct drm_gem_vram_object *gbo,
-			    struct ttm_bo_kmap_obj *kmap)
-{
-	if (!kmap->virtual)
-		return;
-
-	ttm_bo_kunmap(kmap);
-	kmap->virtual = NULL;
-}
-EXPORT_SYMBOL(drm_gem_vram_kunmap_at);
 
 /**
  * drm_gem_vram_kunmap() - Unmaps a GEM VRAM object
@@ -365,7 +325,13 @@ EXPORT_SYMBOL(drm_gem_vram_kunmap_at);
  */
 void drm_gem_vram_kunmap(struct drm_gem_vram_object *gbo)
 {
-	drm_gem_vram_kunmap_at(gbo, &gbo->kmap);
+	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
+
+	if (!kmap->virtual)
+		return;
+
+	ttm_bo_kunmap(kmap);
+	kmap->virtual = NULL;
 }
 EXPORT_SYMBOL(drm_gem_vram_kunmap);
 

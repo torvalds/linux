@@ -81,12 +81,8 @@ u64 drm_gem_vram_mmap_offset(struct drm_gem_vram_object *gbo);
 s64 drm_gem_vram_offset(struct drm_gem_vram_object *gbo);
 int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag);
 int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo);
-void *drm_gem_vram_kmap_at(struct drm_gem_vram_object *gbo, bool map,
-			   bool *is_iomem, struct ttm_bo_kmap_obj *kmap);
 void *drm_gem_vram_kmap(struct drm_gem_vram_object *gbo, bool map,
 			bool *is_iomem);
-void drm_gem_vram_kunmap_at(struct drm_gem_vram_object *gbo,
-			    struct ttm_bo_kmap_obj *kmap);
 void drm_gem_vram_kunmap(struct drm_gem_vram_object *gbo);
 
 int drm_gem_vram_fill_create_dumb(struct drm_file *file,
