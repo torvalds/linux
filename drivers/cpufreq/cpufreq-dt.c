@@ -230,6 +230,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	 * OPPs might be populated at runtime, don't check for error here
 	 */
 #ifdef CONFIG_ARCH_ROCKCHIP
+	rockchip_cpufreq_set_opp_info(cpu_dev);
 	ret = dev_pm_opp_of_add_table(cpu_dev);
 	if (ret) {
 		dev_err(cpu_dev, "couldn't find opp table for cpu:%d, %d\n",
@@ -248,6 +249,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 			priv->have_static_opps = true;
 		}
 	}
+	rockchip_cpufreq_adjust_power_scale(cpu_dev);
 #else
 	if (!dev_pm_opp_of_cpumask_add_table(policy->cpus))
 		priv->have_static_opps = true;
@@ -339,7 +341,9 @@ static int cpufreq_exit(struct cpufreq_policy *policy)
 		dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
 	if (priv->reg_name)
 		dev_pm_opp_put_regulators(priv->opp_table);
-
+#ifdef CONFIG_ARCH_ROCKCHIP
+	rockchip_cpufreq_put_opp_info(priv->cpu_dev);
+#endif
 	clk_put(policy->clk);
 	kfree(priv);
 
