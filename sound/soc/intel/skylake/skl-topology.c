@@ -1492,22 +1492,18 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 	struct skl *skl = get_skl_ctx(w->dapm->dev);
 
 	if (ac->params) {
+		/*
+		 * Widget data is expected to be stripped of T and L
+		 */
+		size -= 2 * sizeof(unsigned int);
+		data += 2;
+
 		if (size > ac->max)
 			return -EINVAL;
-
 		ac->size = size;
-		/*
-		 * if the param_is is of type Vendor, firmware expects actual
-		 * parameter id and size from the control.
-		 */
-		if (ac->param_id == SKL_PARAM_VENDOR_ID) {
-			if (copy_from_user(ac->params, data, size))
-				return -EFAULT;
-		} else {
-			if (copy_from_user(ac->params,
-					   data + 2, size))
-				return -EFAULT;
-		}
+
+		if (copy_from_user(ac->params, data, size))
+			return -EFAULT;
 
 		if (w->power)
 			return skl_set_module_params(skl->skl_sst,
