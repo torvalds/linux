@@ -96,7 +96,6 @@ static struct drm_info_list sti_drm_dbg_list[] = {
 
 static int sti_drm_dbg_init(struct drm_minor *minor)
 {
-	struct dentry *dentry;
 	int ret;
 
 	ret = drm_debugfs_create_files(sti_drm_dbg_list,
@@ -105,13 +104,8 @@ static int sti_drm_dbg_init(struct drm_minor *minor)
 	if (ret)
 		goto err;
 
-	dentry = debugfs_create_file("fps_show", S_IRUGO | S_IWUSR,
-				     minor->debugfs_root, minor->dev,
-				     &sti_drm_fps_fops);
-	if (!dentry) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	debugfs_create_file("fps_show", S_IRUGO | S_IWUSR, minor->debugfs_root,
+			    minor->dev, &sti_drm_fps_fops);
 
 	DRM_INFO("%s: debugfs installed\n", DRIVER_NAME);
 	return 0;
