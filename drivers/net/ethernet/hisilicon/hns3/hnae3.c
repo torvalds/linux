@@ -26,7 +26,8 @@ static bool hnae3_client_match(enum hnae3_client_type client_type)
 }
 
 void hnae3_set_client_init_flag(struct hnae3_client *client,
-				struct hnae3_ae_dev *ae_dev, int inited)
+				struct hnae3_ae_dev *ae_dev,
+				unsigned int inited)
 {
 	if (!client || !ae_dev)
 		return;

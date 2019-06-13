@@ -976,7 +976,7 @@ static int hclge_tm_ets_tc_dwrr_cfg(struct hclge_dev *hdev)
 
 	struct hclge_ets_tc_weight_cmd *ets_weight;
 	struct hclge_desc desc;
-	int i;
+	unsigned int i;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_ETS_TC_WEIGHT, false);
 	ets_weight = (struct hclge_ets_tc_weight_cmd *)desc.data;
