@@ -1197,6 +1197,27 @@ static u8 rs_get_tid(struct ieee80211_hdr *hdr)
 	return tid;
 }
 
+void iwl_mvm_rs_init_wk(struct work_struct *wk)
+{
+	struct iwl_mvm_sta *mvmsta = container_of(wk, struct iwl_mvm_sta,
+						  rs_init_wk);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(mvmsta->vif);
+	struct ieee80211_sta *sta;
+
+	rcu_read_lock();
+
+	sta = rcu_dereference(mvmvif->mvm->fw_id_to_mac_id[mvmsta->sta_id]);
+	if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta))) {
+		rcu_read_unlock();
+		return;
+	}
+
+	iwl_mvm_rs_rate_init(mvmvif->mvm, sta, mvmvif->phy_ctxt->channel->band,
+			     true);
+
+	rcu_read_unlock();
+}
+
 void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  int tid, struct ieee80211_tx_info *info, bool ndp)
 {
@@ -1269,7 +1290,7 @@ void iwl_mvm_rs_tx_status(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		       (unsigned long)(lq_sta->last_tx +
 				       (IWL_MVM_RS_IDLE_TIMEOUT * HZ)))) {
 		IWL_DEBUG_RATE(mvm, "Tx idle for too long. reinit rs\n");
-		iwl_mvm_rs_rate_init(mvm, sta, info->band, true);
+		schedule_work(&mvmsta->rs_init_wk);
 		return;
 	}
 	lq_sta->last_tx = jiffies;
@@ -1442,16 +1463,24 @@ static void rs_drv_mac80211_tx_status(void *mvm_r,
 	struct iwl_op_mode *op_mode = mvm_r;
 	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-	if (!iwl_mvm_sta_from_mac80211(sta)->vif)
+	if (!mvmsta->vif)
 		return;
 
 	if (!ieee80211_is_data(hdr->frame_control) ||
 	    info->flags & IEEE80211_TX_CTL_NO_ACK)
 		return;
 
+	/* If it's locked we are in middle of init flow
+	 * just wait for next tx status to update the lq_sta data
+	 */
+	if (!mutex_trylock(&mvmsta->lq_sta.rs_drv.mutex))
+		return;
+
 	iwl_mvm_rs_tx_status(mvm, sta, rs_get_tid(hdr), info,
 			     ieee80211_is_qos_nullfunc(hdr->frame_control));
+	mutex_unlock(&mvmsta->lq_sta.rs_drv.mutex);
 }
 
 /*
@@ -4132,10 +4161,15 @@ static const struct rate_control_ops rs_mvm_ops_drv = {
 void iwl_mvm_rs_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			  enum nl80211_band band, bool update)
 {
-	if (iwl_mvm_has_tlc_offload(mvm))
+	if (iwl_mvm_has_tlc_offload(mvm)) {
 		rs_fw_rate_init(mvm, sta, band, update);
-	else
+	} else {
+		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+		mutex_lock(&mvmsta->lq_sta.rs_drv.mutex);
 		rs_drv_rate_init(mvm, sta, band, update);
+		mutex_unlock(&mvmsta->lq_sta.rs_drv.mutex);
+	}
 }
 
 int iwl_mvm_rate_control_register(void)
