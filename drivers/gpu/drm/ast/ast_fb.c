@@ -48,30 +48,30 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 			     int x, int y, int width, int height)
 {
 	int i;
-	struct drm_gem_object *obj;
 	struct drm_gem_vram_object *gbo;
 	int src_offset, dst_offset;
 	int bpp = afbdev->afb.base.format->cpp[0];
-	int ret = -EBUSY;
+	int ret;
 	u8 *dst;
 	bool unmap = false;
 	bool store_for_later = false;
 	int x2, y2;
 	unsigned long flags;
 
-	obj = afbdev->afb.obj;
-	gbo = drm_gem_vram_of_gem(obj);
+	gbo = drm_gem_vram_of_gem(afbdev->afb.obj);
 
-	/* Try to lock the BO. If we fail with -EBUSY then
-	 * the BO is being moved and we should store up the
-	 * damage until later.
-	 */
-	if (drm_can_sleep())
-		ret = drm_gem_vram_lock(gbo, true);
-	if (ret) {
-		if (ret != -EBUSY)
-			return;
-
+	if (drm_can_sleep()) {
+		/* We pin the BO so it won't be moved during the
+		 * update. The actual location, video RAM or system
+		 * memory, is not important.
+		 */
+		ret = drm_gem_vram_pin(gbo, 0);
+		if (ret) {
+			if (ret != -EBUSY)
+				return;
+			store_for_later = true;
+		}
+	} else {
 		store_for_later = true;
 	}
 
@@ -126,7 +126,7 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 		drm_gem_vram_kunmap(gbo);
 
 out:
-	drm_gem_vram_unlock(gbo);
+	drm_gem_vram_unpin(gbo);
 }
 
 static void ast_fillrect(struct fb_info *info,
