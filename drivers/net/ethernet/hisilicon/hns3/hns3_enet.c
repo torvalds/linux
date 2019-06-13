@@ -143,6 +143,7 @@ static int hns3_nic_init_irq(struct hns3_nic_priv *priv)
 		if (ret) {
 			netdev_err(priv->netdev, "request irq(%d) fail\n",
 				   tqp_vectors->vector_irq);
+			hns3_nic_uninit_irq(priv);
 			return ret;
 		}
 
