@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 perf-y += builtin-test.o
 perf-y += parse-events.o
 perf-y += dso-data.o
