@@ -636,8 +636,7 @@ static int cxd2820r_probe(struct i2c_client *client,
 	if (IS_ERR(priv->client[1])) {
 		ret = PTR_ERR(priv->client[1]);
 		dev_err(&client->dev, "I2C registration failed\n");
-		if (ret)
-			goto err_regmap_0_regmap_exit;
+		goto err_regmap_0_regmap_exit;
 	}
 
 	priv->regmap[1] = regmap_init_i2c(priv->client[1], &regmap_config1);
