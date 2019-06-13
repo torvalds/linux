@@ -421,6 +421,7 @@ struct iwl_mvm_sta {
 		struct iwl_lq_sta_rs_fw rs_fw;
 		struct iwl_lq_sta rs_drv;
 	} lq_sta;
+	struct work_struct rs_init_wk;
 	struct ieee80211_vif *vif;
 	struct iwl_mvm_key_pn __rcu *ptk_pn[4];
 	struct iwl_mvm_rxq_dup_data *dup_data;
