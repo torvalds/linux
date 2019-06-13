@@ -100,7 +100,7 @@ static int efa_request_mgmnt_irq(struct efa_dev *dev)
 		nr_cpumask_bits, &irq->affinity_hint_mask, irq->vector);
 	irq_set_affinity_hint(irq->vector, &irq->affinity_hint_mask);
 
-	return err;
+	return 0;
 }
 
 static void efa_setup_mgmnt_irq(struct efa_dev *dev)

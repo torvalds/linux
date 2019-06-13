@@ -1594,13 +1594,15 @@ static int __efa_mmap(struct efa_dev *dev, struct efa_ucontext *ucontext,
 		err = -EINVAL;
 	}
 
-	if (err)
+	if (err) {
 		ibdev_dbg(
 			&dev->ibdev,
 			"Couldn't mmap address[%#llx] length[%#llx] mmap_flag[%d] err[%d]\n",
 			entry->address, length, entry->mmap_flag, err);
+		return err;
+	}
 
-	return err;
+	return 0;
 }
 
 int efa_mmap(struct ib_ucontext *ibucontext,

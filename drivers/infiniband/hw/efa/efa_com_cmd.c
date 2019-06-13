@@ -56,7 +56,7 @@ int efa_com_create_qp(struct efa_com_dev *edev,
 	res->send_sub_cq_idx = cmd_completion.send_sub_cq_idx;
 	res->recv_sub_cq_idx = cmd_completion.recv_sub_cq_idx;
 
-	return err;
+	return 0;
 }
 
 int efa_com_modify_qp(struct efa_com_dev *edev,
@@ -178,7 +178,7 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 	result->cq_idx = cmd_completion.cq_idx;
 	result->actual_depth = params->cq_depth;
 
-	return err;
+	return 0;
 }
 
 int efa_com_destroy_cq(struct efa_com_dev *edev,
