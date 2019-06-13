@@ -1485,23 +1485,13 @@ DEFINE_SHOW_ATTRIBUTE(regs);
 static void soctherm_debug_init(struct platform_device *pdev)
 {
 	struct tegra_soctherm *tegra = platform_get_drvdata(pdev);
-	struct dentry *root, *file;
+	struct dentry *root;
 
 	root = debugfs_create_dir("soctherm", NULL);
-	if (!root) {
-		dev_err(&pdev->dev, "failed to create debugfs directory\n");
-		return;
-	}
 
 	tegra->debugfs_dir = root;
 
-	file = debugfs_create_file("reg_contents", 0644, root,
-				   pdev, &regs_fops);
-	if (!file) {
-		dev_err(&pdev->dev, "failed to create debugfs file\n");
-		debugfs_remove_recursive(tegra->debugfs_dir);
-		tegra->debugfs_dir = NULL;
-	}
+	debugfs_create_file("reg_contents", 0644, root, pdev, &regs_fops);
 }
 #else
 static inline void soctherm_debug_init(struct platform_device *pdev) {}
