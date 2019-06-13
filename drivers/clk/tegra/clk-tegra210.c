@@ -1014,8 +1014,12 @@ static void tegra210_pllre_set_defaults(struct tegra_clk_pll *pllre)
 		_pll_misc_chk_default(clk_base, pllre->params, 0, val,
 				~mask & PLLRE_MISC0_WRITE_MASK);
 
-		/* Enable lock detect */
+		/* The PLL doesn't work if it's in IDDQ. */
 		val = readl_relaxed(clk_base + pllre->params->ext_misc_reg[0]);
+		if (val & PLLRE_MISC0_IDDQ)
+			pr_warn("unexpected IDDQ bit set for enabled clock\n");
+
+		/* Enable lock detect */
 		val &= ~mask;
 		val |= PLLRE_MISC0_DEFAULT_VALUE & mask;
 		writel_relaxed(val, clk_base + pllre->params->ext_misc_reg[0]);
