@@ -1183,9 +1183,8 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 	u64 gpu_addr;
 	u32 csum;
 	int ret;
-	struct ttm_bo_kmap_obj uobj_map;
 	u8 *src, *dst;
-	bool src_isiomem, dst_isiomem;
+
 	if (!handle) {
 		ast_hide_cursor(crtc);
 		return 0;
@@ -1201,40 +1200,31 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 	}
 	gbo = drm_gem_vram_of_gem(obj);
 
-	ret = drm_gem_vram_lock(gbo, false);
+	ret = drm_gem_vram_pin(gbo, 0);
 	if (ret)
-		goto fail;
-
-	memset(&uobj_map, 0, sizeof(uobj_map));
-	src = drm_gem_vram_kmap_at(gbo, true, &src_isiomem, &uobj_map);
+		goto err_drm_gem_object_put_unlocked;
+	src = drm_gem_vram_kmap(gbo, true, NULL);
 	if (IS_ERR(src)) {
 		ret = PTR_ERR(src);
-		goto fail_unlock;
+		goto err_drm_gem_vram_unpin;
 	}
-	if (src_isiomem == true)
-		DRM_ERROR("src cursor bo should be in main memory\n");
 
 	dst = drm_gem_vram_kmap(drm_gem_vram_of_gem(ast->cursor_cache),
-				false, &dst_isiomem);
+				false, NULL);
 	if (IS_ERR(dst)) {
 		ret = PTR_ERR(dst);
-		goto fail_unlock;
+		goto err_drm_gem_vram_kunmap;
 	}
-	if (dst_isiomem == false)
-		DRM_ERROR("dst bo should be in VRAM\n");
 	dst_gpu = drm_gem_vram_offset(drm_gem_vram_of_gem(ast->cursor_cache));
 	if (dst_gpu < 0) {
 		ret = (int)dst_gpu;
-		goto fail_unlock;
+		goto err_drm_gem_vram_kunmap;
 	}
 
 	dst += (AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE)*ast->next_cursor;
 
 	/* do data transfer to cursor cache */
 	csum = copy_cursor_image(src, dst, width, height);
-
-	drm_gem_vram_kunmap_at(gbo, &uobj_map);
-	drm_gem_vram_unlock(gbo);
 
 	/* write checksum + signature */
 	{
@@ -1263,12 +1253,17 @@ static int ast_cursor_set(struct drm_crtc *crtc,
 
 	ast_show_cursor(crtc);
 
+	drm_gem_vram_kunmap(gbo);
+	drm_gem_vram_unpin(gbo);
 	drm_gem_object_put_unlocked(obj);
+
 	return 0;
 
-fail_unlock:
-	drm_gem_vram_unlock(gbo);
-fail:
+err_drm_gem_vram_kunmap:
+	drm_gem_vram_kunmap(gbo);
+err_drm_gem_vram_unpin:
+	drm_gem_vram_unpin(gbo);
+err_drm_gem_object_put_unlocked:
 	drm_gem_object_put_unlocked(obj);
 	return ret;
 }
