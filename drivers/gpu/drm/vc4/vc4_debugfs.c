@@ -29,13 +29,9 @@ vc4_debugfs_init(struct drm_minor *minor)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(minor->dev);
 	struct vc4_debugfs_info_entry *entry;
-	struct dentry *dentry;
 
-	dentry = debugfs_create_bool("hvs_load_tracker", S_IRUGO | S_IWUSR,
-				     minor->debugfs_root,
-				     &vc4->load_tracker_enabled);
-	if (!dentry)
-		return -ENOMEM;
+	debugfs_create_bool("hvs_load_tracker", S_IRUGO | S_IWUSR,
+			    minor->debugfs_root, &vc4->load_tracker_enabled);
 
 	list_for_each_entry(entry, &vc4->debugfs_list, link) {
 		int ret = drm_debugfs_create_files(&entry->info, 1,
