@@ -1819,23 +1819,14 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah)
 	}
 
 	while (qp->s_last != qp->s_acked) {
-		u32 s_last;
-
 		wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 		if (cmp_psn(wqe->lpsn, qp->s_sending_psn) >= 0 &&
 		    cmp_psn(qp->s_sending_psn, qp->s_sending_hpsn) <= 0)
 			break;
 		trdma_clean_swqe(qp, wqe);
 		rvt_qp_wqe_unreserve(qp, wqe);
-		s_last = qp->s_last;
-		trace_hfi1_qp_send_completion(qp, wqe, s_last);
-		if (++s_last >= qp->s_size)
-			s_last = 0;
-		qp->s_last = s_last;
-		/* see post_send() */
-		barrier();
-		rvt_put_qp_swqe(qp, wqe);
-		rvt_qp_swqe_complete(qp,
+		trace_hfi1_qp_send_completion(qp, wqe, qp->s_last);
+		rvt_qp_complete_swqe(qp,
 				     wqe,
 				     ib_hfi1_wc_opcode[wqe->wr.opcode],
 				     IB_WC_SUCCESS);
@@ -1879,19 +1870,10 @@ struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 	trace_hfi1_rc_completion(qp, wqe->lpsn);
 	if (cmp_psn(wqe->lpsn, qp->s_sending_psn) < 0 ||
 	    cmp_psn(qp->s_sending_psn, qp->s_sending_hpsn) > 0) {
-		u32 s_last;
-
 		trdma_clean_swqe(qp, wqe);
-		rvt_put_qp_swqe(qp, wqe);
 		rvt_qp_wqe_unreserve(qp, wqe);
-		s_last = qp->s_last;
-		trace_hfi1_qp_send_completion(qp, wqe, s_last);
-		if (++s_last >= qp->s_size)
-			s_last = 0;
-		qp->s_last = s_last;
-		/* see post_send() */
-		barrier();
-		rvt_qp_swqe_complete(qp,
+		trace_hfi1_qp_send_completion(qp, wqe, qp->s_last);
+		rvt_qp_complete_swqe(qp,
 				     wqe,
 				     ib_hfi1_wc_opcode[wqe->wr.opcode],
 				     IB_WC_SUCCESS);

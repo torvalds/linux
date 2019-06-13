@@ -1853,10 +1853,9 @@ static inline int rvt_qp_is_avail(
 
 	/* see rvt_qp_wqe_unreserve() */
 	smp_mb__before_atomic();
-	reserved_used = atomic_read(&qp->s_reserved_used);
 	if (unlikely(reserved_op)) {
 		/* see rvt_qp_wqe_unreserve() */
-		smp_mb__before_atomic();
+		reserved_used = atomic_read(&qp->s_reserved_used);
 		if (reserved_used >= rdi->dparms.reserved_operations)
 			return -ENOMEM;
 		return 0;
@@ -1864,14 +1863,13 @@ static inline int rvt_qp_is_avail(
 	/* non-reserved operations */
 	if (likely(qp->s_avail))
 		return 0;
-	slast = READ_ONCE(qp->s_last);
+	/* See rvt_qp_complete_swqe() */
+	slast = smp_load_acquire(&qp->s_last);
 	if (qp->s_head >= slast)
 		avail = qp->s_size - (qp->s_head - slast);
 	else
 		avail = slast - qp->s_head;
 
-	/* see rvt_qp_wqe_unreserve() */
-	smp_mb__before_atomic();
 	reserved_used = atomic_read(&qp->s_reserved_used);
 	avail =  avail - 1 -
 		(rdi->dparms.reserved_operations - reserved_used);
@@ -2664,27 +2662,16 @@ void rvt_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 		       enum ib_wc_status status)
 {
 	u32 old_last, last;
-	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+	struct rvt_dev_info *rdi;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		return;
+	rdi = ib_to_rvt(qp->ibqp.device);
 
-	last = qp->s_last;
-	old_last = last;
-	trace_rvt_qp_send_completion(qp, wqe, last);
-	if (++last >= qp->s_size)
-		last = 0;
-	trace_rvt_qp_send_completion(qp, wqe, last);
-	qp->s_last = last;
-	/* See post_send() */
-	barrier();
-	rvt_put_qp_swqe(qp, wqe);
-
-	rvt_qp_swqe_complete(qp,
-			     wqe,
-			     rdi->wc_opcode[wqe->wr.opcode],
-			     status);
-
+	old_last = qp->s_last;
+	trace_rvt_qp_send_completion(qp, wqe, old_last);
+	last = rvt_qp_complete_swqe(qp, wqe, rdi->wc_opcode[wqe->wr.opcode],
+				    status);
 	if (qp->s_acked == old_last)
 		qp->s_acked = last;
 	if (qp->s_cur == old_last)
