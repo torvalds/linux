@@ -119,7 +119,7 @@ void clean_acked_data_enable(struct inet_connection_sock *icsk,
 			     void (*cad)(struct sock *sk, u32 ack_seq))
 {
 	icsk->icsk_clean_acked = cad;
-	static_branch_inc(&clean_acked_data_enabled.key);
+	static_branch_deferred_inc(&clean_acked_data_enabled);
 }
 EXPORT_SYMBOL_GPL(clean_acked_data_enable);
 
