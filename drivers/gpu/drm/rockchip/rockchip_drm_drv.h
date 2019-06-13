@@ -35,10 +35,23 @@ struct iommu_domain;
 
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
+	int left_margin;
+	int right_margin;
+	int top_margin;
+	int bottom_margin;
 	int dsp_layer_sel;
 	int output_type;
 	int output_mode;
 	int output_bpc;
+	int output_flags;
+	int bus_format;
+	int yuv_overlay;
+	int post_r2y_en;
+	int post_y2r_en;
+	int post_csc_mode;
+	int bcsh_en;
+	int color_space;
+	struct drm_framebuffer *crtc_primary_fb;
 };
 #define to_rockchip_crtc_state(s) \
 		container_of(s, struct rockchip_crtc_state, base)
