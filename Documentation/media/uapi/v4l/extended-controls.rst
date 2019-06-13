@@ -142,7 +142,7 @@ control class is found:
     while (0 == ioctl(fd, VIDIOC_QUERYCTRL, &qctrl)) {
 	if (V4L2_CTRL_ID2CLASS(qctrl.id) != V4L2_CTRL_CLASS_MPEG)
 	    break;
-	    /* ... */
+	/* ... */
 	qctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
     }
 
