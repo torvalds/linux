@@ -133,6 +133,33 @@ static void gfs2_glock_dealloc(struct rcu_head *rcu)
 	}
 }
 
+/**
+ * glock_blocked_by_withdraw - determine if we can still use a glock
+ * @gl: the glock
+ *
+ * We need to allow some glocks to be enqueued, dequeued, promoted, and demoted
+ * when we're withdrawn. For example, to maintain metadata integrity, we should
+ * disallow the use of inode and rgrp glocks when withdrawn. Other glocks, like
+ * iopen or the transaction glocks may be safely used because none of their
+ * metadata goes through the journal. So in general, we should disallow all
+ * glocks that are journaled, and allow all the others. One exception is:
+ * we need to allow our active journal to be promoted and demoted so others
+ * may recover it and we can reacquire it when they're done.
+ */
+static bool glock_blocked_by_withdraw(struct gfs2_glock *gl)
+{
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+
+	if (likely(!gfs2_withdrawn(sdp)))
+		return false;
+	if (gl->gl_ops->go_flags & GLOF_NONDISK)
+		return false;
+	if (!sdp->sd_jdesc ||
+	    gl->gl_name.ln_number == sdp->sd_jdesc->jd_no_addr)
+		return false;
+	return true;
+}
+
 void gfs2_glock_free(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
@@ -549,8 +576,7 @@ __acquires(&gl->gl_lockref.lock)
 	unsigned int lck_flags = (unsigned int)(gh ? gh->gh_flags : 0);
 	int ret;
 
-	if (unlikely(gfs2_withdrawn(sdp)) &&
-	    target != LM_ST_UNLOCKED)
+	if (target != LM_ST_UNLOCKED && glock_blocked_by_withdraw(gl))
 		return;
 	lck_flags &= (LM_FLAG_TRY | LM_FLAG_TRY_1CB | LM_FLAG_NOEXP |
 		      LM_FLAG_PRIORITY);
@@ -1194,10 +1220,9 @@ trap_recursive:
 int gfs2_glock_nq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	int error = 0;
 
-	if (unlikely(gfs2_withdrawn(sdp)))
+	if (glock_blocked_by_withdraw(gl))
 		return -EIO;
 
 	if (test_bit(GLF_LRU, &gl->gl_flags))
