@@ -223,15 +223,9 @@ static void wait_and_read_ssid(struct kp2000_device *pcard)
 
 	dev_notice(&pcard->pdev->dev, "SSID didn't show up!\n");
 
-#if 0
-	// Timed out waiting for the SSID to show up, just use the DDNA instead?
-	read_val = readq(pcard->sysinfo_regs_base + REG_FPGA_DDNA);
-	pcard->ssid = read_val;
-#else
 	// Timed out waiting for the SSID to show up, stick all zeros in the
 	// value
 	pcard->ssid = 0;
-#endif
 }
 
 static int  read_system_regs(struct kp2000_device *pcard)
