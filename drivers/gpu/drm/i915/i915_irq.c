@@ -2186,7 +2186,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		return IRQ_NONE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	do {
 		u32 iir, gt_iir, pm_iir;
@@ -2257,7 +2257,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		valleyview_pipestat_irq_handler(dev_priv, pipe_stats);
 	} while (0);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	return ret;
 }
@@ -2272,7 +2272,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		return IRQ_NONE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	do {
 		u32 master_ctl, iir;
@@ -2338,7 +2338,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		valleyview_pipestat_irq_handler(dev_priv, pipe_stats);
 	} while (0);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	return ret;
 }
@@ -2692,7 +2692,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		return IRQ_NONE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
@@ -2744,7 +2744,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		I915_WRITE(SDEIER, sde_ier);
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	return ret;
 }
@@ -3011,9 +3011,9 @@ static irqreturn_t gen8_irq_handler(int irq, void *arg)
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
 	if (master_ctl & ~GEN8_GT_IRQS) {
-		disable_rpm_wakeref_asserts(dev_priv);
+		disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 		gen8_de_irq_handler(dev_priv, master_ctl);
-		enable_rpm_wakeref_asserts(dev_priv);
+		enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 	}
 
 	gen8_master_intr_enable(regs);
@@ -3212,13 +3212,13 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 	if (master_ctl & GEN11_DISPLAY_IRQ) {
 		const u32 disp_ctl = raw_reg_read(regs, GEN11_DISPLAY_INT_CTL);
 
-		disable_rpm_wakeref_asserts(i915);
+		disable_rpm_wakeref_asserts(&i915->runtime_pm);
 		/*
 		 * GEN11_DISPLAY_INT_CTL has same format as GEN8_MASTER_IRQ
 		 * for the display related bits.
 		 */
 		gen8_de_irq_handler(i915, disp_ctl);
-		enable_rpm_wakeref_asserts(i915);
+		enable_rpm_wakeref_asserts(&i915->runtime_pm);
 	}
 
 	gu_misc_iir = gen11_gu_misc_irq_ack(i915, master_ctl);
@@ -4442,7 +4442,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		return IRQ_NONE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	do {
 		u32 pipe_stats[I915_MAX_PIPES] = {};
@@ -4473,7 +4473,7 @@ static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 		i8xx_pipestat_irq_handler(dev_priv, iir, pipe_stats);
 	} while (0);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	return ret;
 }
@@ -4547,7 +4547,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		return IRQ_NONE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	do {
 		u32 pipe_stats[I915_MAX_PIPES] = {};
@@ -4586,7 +4586,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		i915_pipestat_irq_handler(dev_priv, iir, pipe_stats);
 	} while (0);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	return ret;
 }
@@ -4695,7 +4695,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		return IRQ_NONE;
 
 	/* IRQs are synced during runtime_suspend, we don't require a wakeref */
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	do {
 		u32 pipe_stats[I915_MAX_PIPES] = {};
@@ -4736,7 +4736,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		i965_pipestat_irq_handler(dev_priv, iir, pipe_stats);
 	} while (0);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	return ret;
 }

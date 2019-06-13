@@ -1889,7 +1889,7 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto out_pci_disable;
 
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	ret = i915_driver_init_mmio(dev_priv);
 	if (ret < 0)
@@ -1905,7 +1905,7 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	i915_driver_register(dev_priv);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	i915_welcome_messages(dev_priv);
 
@@ -1917,7 +1917,7 @@ out_cleanup_hw:
 out_cleanup_mmio:
 	i915_driver_cleanup_mmio(dev_priv);
 out_runtime_pm_put:
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 	i915_driver_cleanup_early(dev_priv);
 out_pci_disable:
 	pci_disable_device(pdev);
@@ -1932,7 +1932,7 @@ void i915_driver_unload(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	i915_driver_unregister(dev_priv);
 
@@ -1971,21 +1971,21 @@ void i915_driver_unload(struct drm_device *dev)
 
 	i915_driver_cleanup_hw(dev_priv);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 }
 
 static void i915_driver_release(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	i915_gem_fini(dev_priv);
 
 	i915_ggtt_cleanup_hw(dev_priv);
 	i915_driver_cleanup_mmio(dev_priv);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 	intel_runtime_pm_cleanup(dev_priv);
 
 	i915_driver_cleanup_early(dev_priv);
@@ -2080,7 +2080,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	pci_power_t opregion_target_state;
 
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
@@ -2114,7 +2114,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_csr_ucode_suspend(dev_priv);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	return 0;
 }
@@ -2137,7 +2137,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	int ret;
 
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	i915_gem_suspend_late(dev_priv);
 
@@ -2178,7 +2178,7 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 		pci_set_power_state(pdev, PCI_D3hot);
 
 out:
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 	if (!dev_priv->uncore.user_forcewake.count)
 		intel_runtime_pm_cleanup(dev_priv);
 
@@ -2214,7 +2214,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 	intel_sanitize_gt_powersave(dev_priv);
 
 	i915_gem_sanitize(dev_priv);
@@ -2274,7 +2274,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_power_domains_enable(dev_priv);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	return 0;
 }
@@ -2329,7 +2329,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	pci_set_master(pdev);
 
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		ret = vlv_resume_prepare(dev_priv, false);
@@ -2354,7 +2354,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_gt_sanitize(dev_priv, true);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
 	return ret;
 }
@@ -2889,6 +2889,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	struct pci_dev *pdev = to_pci_dev(kdev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_runtime_pm *rpm = &dev_priv->runtime_pm;
 	int ret;
 
 	if (WARN_ON_ONCE(!(dev_priv->gt_pm.rc6.enabled && HAS_RC6(dev_priv))))
@@ -2899,7 +2900,7 @@ static int intel_runtime_suspend(struct device *kdev)
 
 	DRM_DEBUG_KMS("Suspending device\n");
 
-	disable_rpm_wakeref_asserts(dev_priv);
+	disable_rpm_wakeref_asserts(rpm);
 
 	/*
 	 * We are safe here against re-faults, since the fault handler takes
@@ -2937,18 +2938,18 @@ static int intel_runtime_suspend(struct device *kdev)
 		i915_gem_init_swizzling(dev_priv);
 		i915_gem_restore_fences(dev_priv);
 
-		enable_rpm_wakeref_asserts(dev_priv);
+		enable_rpm_wakeref_asserts(rpm);
 
 		return ret;
 	}
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(rpm);
 	intel_runtime_pm_cleanup(dev_priv);
 
 	if (intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore))
 		DRM_ERROR("Unclaimed access detected prior to suspending\n");
 
-	dev_priv->runtime_pm.suspended = true;
+	rpm->suspended = true;
 
 	/*
 	 * FIXME: We really should find a document that references the arguments
@@ -2987,6 +2988,7 @@ static int intel_runtime_resume(struct device *kdev)
 	struct pci_dev *pdev = to_pci_dev(kdev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_runtime_pm *rpm = &dev_priv->runtime_pm;
 	int ret = 0;
 
 	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev_priv)))
@@ -2994,11 +2996,11 @@ static int intel_runtime_resume(struct device *kdev)
 
 	DRM_DEBUG_KMS("Resuming device\n");
 
-	WARN_ON_ONCE(atomic_read(&dev_priv->runtime_pm.wakeref_count));
-	disable_rpm_wakeref_asserts(dev_priv);
+	WARN_ON_ONCE(atomic_read(&rpm->wakeref_count));
+	disable_rpm_wakeref_asserts(rpm);
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
-	dev_priv->runtime_pm.suspended = false;
+	rpm->suspended = false;
 	if (intel_uncore_unclaimed_mmio(&dev_priv->uncore))
 		DRM_DEBUG_DRIVER("Unclaimed access during suspend, bios?\n");
 
@@ -3048,7 +3050,7 @@ static int intel_runtime_resume(struct device *kdev)
 
 	intel_enable_ipc(dev_priv);
 
-	enable_rpm_wakeref_asserts(dev_priv);
+	enable_rpm_wakeref_asserts(rpm);
 
 	if (ret)
 		DRM_ERROR("Runtime resume failed, disabling it (%d)\n", ret);

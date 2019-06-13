@@ -1461,8 +1461,8 @@ static void intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 					 unsigned long action, void *data)
 {
-	struct drm_i915_private *dev_priv = container_of(nb,
-			struct drm_i915_private, uncore.pmic_bus_access_nb);
+	struct intel_uncore *uncore = container_of(nb,
+			struct intel_uncore, pmic_bus_access_nb);
 
 	switch (action) {
 	case MBI_PMIC_BUS_ACCESS_BEGIN:
@@ -1479,12 +1479,12 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 		 * wake reference -> disable wakeref asserts for the time of
 		 * the access.
 		 */
-		disable_rpm_wakeref_asserts(dev_priv);
-		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
-		enable_rpm_wakeref_asserts(dev_priv);
+		disable_rpm_wakeref_asserts(uncore->rpm);
+		intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
+		enable_rpm_wakeref_asserts(uncore->rpm);
 		break;
 	case MBI_PMIC_BUS_ACCESS_END:
-		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
+		intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 		break;
 	}
 
