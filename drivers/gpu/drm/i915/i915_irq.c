@@ -37,15 +37,16 @@
 #include <drm/drm_irq.h>
 #include <drm/i915_drm.h>
 
+#include "display/intel_fifo_underrun.h"
+#include "display/intel_hotplug.h"
+#include "display/intel_lpe_audio.h"
+#include "display/intel_psr.h"
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
-#include "intel_fifo_underrun.h"
-#include "intel_hotplug.h"
-#include "intel_lpe_audio.h"
 #include "intel_pm.h"
-#include "intel_psr.h"
 
 /**
  * DOC: interrupt handling

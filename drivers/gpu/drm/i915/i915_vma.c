@@ -22,15 +22,15 @@
  *
  */
 
-#include "gt/intel_engine.h"
+#include <drm/drm_gem.h>
 
-#include "i915_vma.h"
+#include "display/intel_frontbuffer.h"
+
+#include "gt/intel_engine.h"
 
 #include "i915_drv.h"
 #include "i915_globals.h"
-#include "intel_frontbuffer.h"
-
-#include <drm/drm_gem.h>
+#include "i915_vma.h"
 
 static struct i915_global_vma {
 	struct i915_global base;

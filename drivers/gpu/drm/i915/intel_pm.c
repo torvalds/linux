@@ -33,13 +33,14 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 
+#include "display/intel_atomic.h"
+#include "display/intel_fbc.h"
+#include "display/intel_sprite.h"
+
 #include "i915_drv.h"
 #include "i915_irq.h"
-#include "intel_atomic.h"
 #include "intel_drv.h"
-#include "intel_fbc.h"
 #include "intel_pm.h"
-#include "intel_sprite.h"
 #include "intel_sideband.h"
 #include "../../../platform/x86/intel_ips.h"
 

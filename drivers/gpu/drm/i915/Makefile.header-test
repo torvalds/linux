@@ -13,35 +13,11 @@ header_test := \
 	i915_scheduler_types.h \
 	i915_timeline_types.h \
 	i915_utils.h \
-	intel_acpi.h \
-	intel_atomic.h \
-	intel_atomic_plane.h \
-	intel_audio.h \
-	intel_bios.h \
-	intel_cdclk.h \
-	intel_color.h \
-	intel_combo_phy.h \
-	intel_connector.h \
 	intel_csr.h \
-	intel_display_power.h \
-	intel_dpio_phy.h \
-	intel_dpll_mgr.h \
 	intel_drv.h \
-	intel_fbc.h \
-	intel_fbdev.h \
-	intel_fifo_underrun.h \
-	intel_frontbuffer.h \
-	intel_hdcp.h \
-	intel_hotplug.h \
-	intel_lpe_audio.h \
-	intel_overlay.h \
-	intel_pipe_crc.h \
 	intel_pm.h \
-	intel_psr.h \
-	intel_quirks.h \
 	intel_runtime_pm.h \
 	intel_sideband.h \
-	intel_sprite.h \
 	intel_uncore.h \
 	intel_wakeref.h
 

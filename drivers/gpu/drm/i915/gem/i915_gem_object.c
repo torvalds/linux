@@ -22,12 +22,13 @@
  *
  */
 
+#include "display/intel_frontbuffer.h"
+
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"
 #include "i915_gem_context.h"
 #include "i915_gem_object.h"
 #include "i915_globals.h"
-#include "intel_frontbuffer.h"
 
 static struct i915_global_object {
 	struct i915_global base;

@@ -8,7 +8,8 @@
 
 #include <linux/types.h>
 
-#include "intel_display.h"
+#include "display/intel_display.h"
+
 #include "intel_wakeref.h"
 
 #include "i915_utils.h"

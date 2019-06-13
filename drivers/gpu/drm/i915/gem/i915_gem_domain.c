@@ -4,13 +4,14 @@
  * Copyright © 2014-2016 Intel Corporation
  */
 
+#include "display/intel_frontbuffer.h"
+
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"
 #include "i915_gem_gtt.h"
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
 #include "i915_vma.h"
-#include "intel_frontbuffer.h"
 
 static void __i915_gem_object_flush_for_display(struct drm_i915_gem_object *obj)
 {

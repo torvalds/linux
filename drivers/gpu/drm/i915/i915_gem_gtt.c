@@ -35,12 +35,13 @@
 
 #include <drm/i915_drm.h>
 
+#include "display/intel_frontbuffer.h"
+
 #include "i915_drv.h"
 #include "i915_scatterlist.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 #include "intel_drv.h"
-#include "intel_frontbuffer.h"
 
 #define I915_GFP_ALLOW_FAIL (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
 

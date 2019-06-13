@@ -2,7 +2,7 @@
 # Copyright © 2019 Intel Corporation
 
 # Test the headers are compilable as standalone units
-header_test := $(notdir $(wildcard $(src)/*.h))
+header_test := $(notdir $(filter-out %/intel_vbt_defs.h,$(wildcard $(src)/*.h)))
 
 quiet_cmd_header_test = HDRTEST $@
       cmd_header_test = echo "\#include \"$(<F)\"" > $@

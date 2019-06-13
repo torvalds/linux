@@ -47,8 +47,17 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/i915_drm.h>
 
+#include "display/intel_acpi.h"
+#include "display/intel_audio.h"
+#include "display/intel_bw.h"
+#include "display/intel_cdclk.h"
 #include "display/intel_dp.h"
+#include "display/intel_fbdev.h"
 #include "display/intel_gmbus.h"
+#include "display/intel_hotplug.h"
+#include "display/intel_overlay.h"
+#include "display/intel_pipe_crc.h"
+#include "display/intel_sprite.h"
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
@@ -63,18 +72,9 @@
 #include "i915_query.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
-#include "intel_acpi.h"
-#include "intel_audio.h"
-#include "intel_bw.h"
-#include "intel_cdclk.h"
 #include "intel_csr.h"
 #include "intel_drv.h"
-#include "intel_fbdev.h"
-#include "intel_hotplug.h"
-#include "intel_overlay.h"
-#include "intel_pipe_crc.h"
 #include "intel_pm.h"
-#include "intel_sprite.h"
 #include "intel_uc.h"
 
 static struct drm_driver driver;

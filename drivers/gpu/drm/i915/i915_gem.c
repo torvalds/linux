@@ -38,6 +38,9 @@
 #include <linux/dma-buf.h>
 #include <linux/mman.h>
 
+#include "display/intel_display.h"
+#include "display/intel_frontbuffer.h"
+
 #include "gem/i915_gem_clflush.h"
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
@@ -54,9 +57,7 @@
 #include "i915_trace.h"
 #include "i915_vgpu.h"
 
-#include "intel_display.h"
 #include "intel_drv.h"
-#include "intel_frontbuffer.h"
 #include "intel_pm.h"
 
 static int

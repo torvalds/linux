@@ -33,7 +33,10 @@
 #include <drm/drm_fourcc.h>
 
 #include "display/intel_dp.h"
+#include "display/intel_fbc.h"
+#include "display/intel_hdcp.h"
 #include "display/intel_hdmi.h"
+#include "display/intel_psr.h"
 
 #include "gem/i915_gem_context.h"
 #include "gt/intel_reset.h"
@@ -42,11 +45,8 @@
 #include "i915_irq.h"
 #include "intel_csr.h"
 #include "intel_drv.h"
-#include "intel_fbc.h"
 #include "intel_guc_submission.h"
-#include "intel_hdcp.h"
 #include "intel_pm.h"
-#include "intel_psr.h"
 #include "intel_sideband.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)

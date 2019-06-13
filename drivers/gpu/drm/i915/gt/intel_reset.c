@@ -7,6 +7,8 @@
 #include <linux/sched/mm.h>
 #include <linux/stop_machine.h>
 
+#include "display/intel_overlay.h"
+
 #include "gem/i915_gem_context.h"
 
 #include "i915_drv.h"
@@ -17,7 +19,6 @@
 #include "intel_reset.h"
 
 #include "intel_guc.h"
-#include "intel_overlay.h"
 
 #define RESET_MAX_RETRIES 3
 

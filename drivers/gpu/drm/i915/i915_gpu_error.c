@@ -36,14 +36,15 @@
 
 #include <drm/drm_print.h>
 
+#include "display/intel_atomic.h"
+#include "display/intel_overlay.h"
+
 #include "gem/i915_gem_context.h"
 
 #include "i915_drv.h"
 #include "i915_gpu_error.h"
 #include "i915_scatterlist.h"
-#include "intel_atomic.h"
 #include "intel_csr.h"
-#include "intel_overlay.h"
 
 static inline const struct intel_engine_cs *
 engine_lookup(const struct drm_i915_private *i915, unsigned int id)
