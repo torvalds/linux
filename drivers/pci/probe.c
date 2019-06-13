@@ -1555,28 +1555,11 @@ static int pci_cfg_space_size_ext(struct pci_dev *dev)
 	return PCI_CFG_SPACE_EXP_SIZE;
 }
 
-#ifdef CONFIG_PCI_IOV
-static bool is_vf0(struct pci_dev *dev)
-{
-	if (pci_iov_virtfn_devfn(dev->physfn, 0) == dev->devfn &&
-	    pci_iov_virtfn_bus(dev->physfn, 0) == dev->bus->number)
-		return true;
-
-	return false;
-}
-#endif
-
 int pci_cfg_space_size(struct pci_dev *dev)
 {
 	int pos;
 	u32 status;
 	u16 class;
-
-#ifdef CONFIG_PCI_IOV
-	/* Read cached value for all VFs except for VF0 */
-	if (dev->is_virtfn && !is_vf0(dev))
-		return dev->physfn->sriov->cfg_size;
-#endif
 
 	if (dev->bus->bus_flags & PCI_BUS_FLAGS_NO_EXTCFG)
 		return PCI_CFG_SPACE_SIZE;
