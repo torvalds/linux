@@ -387,6 +387,9 @@ static int __bch2_xattr_bcachefs_get(const struct xattr_handler *handler,
 		bch2_inode_opts_to_opts(bch2_inode_opts_get(&inode->ei_inode));
 	const struct bch_option *opt;
 	int id, inode_opt_id;
+	char buf[512];
+	struct printbuf out = PBUF(buf);
+	unsigned val_len;
 	u64 v;
 
 	id = bch2_opt_lookup(name);
@@ -407,23 +410,16 @@ static int __bch2_xattr_bcachefs_get(const struct xattr_handler *handler,
 		return -ENODATA;
 
 	v = bch2_opt_get_by_id(&opts, id);
+	bch2_opt_to_text(&out, c, opt, v, 0);
 
-	if (!buffer) {
-		char buf[512];
-		struct printbuf out = PBUF(buf);
+	val_len = out.pos - buf;
 
-		bch2_opt_to_text(&out, c, opt, v, 0);
+	if (buffer && val_len > size)
+		return -ERANGE;
 
-		return out.pos - buf;
-	} else {
-		struct printbuf out = _PBUF(buffer, size);
-
-		bch2_opt_to_text(&out, c, opt, v, 0);
-
-		return printbuf_remaining(&out)
-			? (void *) out.pos - buffer
-			: -ERANGE;
-	}
+	if (buffer)
+		memcpy(buffer, buf, val_len);
+	return val_len;
 }
 
 static int bch2_xattr_bcachefs_get(const struct xattr_handler *handler,
