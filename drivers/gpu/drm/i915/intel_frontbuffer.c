@@ -55,8 +55,9 @@
  * cancelled as soon as busyness is detected.
  */
 
+#include "display/intel_dp.h"
+
 #include "i915_drv.h"
-#include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"

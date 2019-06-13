@@ -176,33 +176,35 @@ i915-$(CONFIG_ACPI)		+= intel_acpi.o intel_opregion.o
 i915-$(CONFIG_DRM_FBDEV_EMULATION)	+= intel_fbdev.o
 
 # modesetting output/encoder code
-i915-y += dvo_ch7017.o \
-	  dvo_ch7xxx.o \
-	  dvo_ivch.o \
-	  dvo_ns2501.o \
-	  dvo_sil164.o \
-	  dvo_tfp410.o \
-	  icl_dsi.o \
-	  intel_crt.o \
-	  intel_ddi.o \
-	  intel_dp_aux_backlight.o \
-	  intel_dp_link_training.o \
-	  intel_dp_mst.o \
-	  intel_dp.o \
-	  intel_dsi.o \
-	  intel_dsi_dcs_backlight.o \
-	  intel_dsi_vbt.o \
-	  intel_dvo.o \
-	  intel_gmbus.o \
-	  intel_hdmi.o \
-	  intel_lspcon.o \
-	  intel_lvds.o \
-	  intel_panel.o \
-	  intel_sdvo.o \
-	  intel_tv.o \
-	  vlv_dsi.o \
-	  vlv_dsi_pll.o \
-	  intel_vdsc.o
+obj-y += display/
+i915-y += \
+	display/dvo_ch7017.o \
+	display/dvo_ch7xxx.o \
+	display/dvo_ivch.o \
+	display/dvo_ns2501.o \
+	display/dvo_sil164.o \
+	display/dvo_tfp410.o \
+	display/icl_dsi.o \
+	display/intel_crt.o \
+	display/intel_ddi.o \
+	display/intel_dp.o \
+	display/intel_dp_aux_backlight.o \
+	display/intel_dp_link_training.o \
+	display/intel_dp_mst.o \
+	display/intel_dsi.o \
+	display/intel_dsi_dcs_backlight.o \
+	display/intel_dsi_vbt.o \
+	display/intel_dvo.o \
+	display/intel_gmbus.o \
+	display/intel_hdmi.o \
+	display/intel_lspcon.o \
+	display/intel_lvds.o \
+	display/intel_panel.o \
+	display/intel_sdvo.o \
+	display/intel_tv.o \
+	display/intel_vdsc.o \
+	display/vlv_dsi.o \
+	display/vlv_dsi_pll.o
 
 # Post-mortem debug and GPU hang state capture
 i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o

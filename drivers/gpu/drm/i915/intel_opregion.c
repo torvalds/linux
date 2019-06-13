@@ -32,10 +32,11 @@
 
 #include <drm/i915_drm.h>
 
+#include "display/intel_panel.h"
+
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_opregion.h"
-#include "intel_panel.h"
 
 #define OPREGION_HEADER_OFFSET 0
 #define OPREGION_ACPI_OFFSET   0x100

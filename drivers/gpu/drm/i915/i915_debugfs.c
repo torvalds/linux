@@ -32,18 +32,19 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_fourcc.h>
 
+#include "display/intel_dp.h"
+#include "display/intel_hdmi.h"
+
 #include "gem/i915_gem_context.h"
 #include "gt/intel_reset.h"
 
 #include "i915_debugfs.h"
 #include "i915_irq.h"
 #include "intel_csr.h"
-#include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_fbc.h"
 #include "intel_guc_submission.h"
 #include "intel_hdcp.h"
-#include "intel_hdmi.h"
 #include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sideband.h"

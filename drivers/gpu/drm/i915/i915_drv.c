@@ -47,6 +47,9 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/i915_drm.h>
 
+#include "display/intel_dp.h"
+#include "display/intel_gmbus.h"
+
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gt/intel_gt_pm.h"
@@ -65,10 +68,8 @@
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_csr.h"
-#include "intel_dp.h"
 #include "intel_drv.h"
 #include "intel_fbdev.h"
-#include "intel_gmbus.h"
 #include "intel_hotplug.h"
 #include "intel_overlay.h"
 #include "intel_pipe_crc.h"

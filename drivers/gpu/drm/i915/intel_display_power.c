@@ -5,13 +5,14 @@
 
 #include <linux/vgaarb.h>
 
+#include "display/intel_crt.h"
+#include "display/intel_dp.h"
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "intel_cdclk.h"
 #include "intel_combo_phy.h"
-#include "intel_crt.h"
 #include "intel_csr.h"
-#include "intel_dp.h"
 #include "intel_dpio_phy.h"
 #include "intel_drv.h"
 #include "intel_hotplug.h"
