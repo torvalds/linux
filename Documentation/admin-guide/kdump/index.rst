@@ -1,4 +1,3 @@
-:orphan:
 
 ================================================================
 Documentation for Kdump - The kexec-based Crash Dumping Solution

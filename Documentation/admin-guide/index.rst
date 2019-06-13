@@ -39,6 +39,7 @@ problems and bugs in particular.
    ramoops
    dynamic-debug-howto
    init
+   kdump/index
    perf/index
 
 This is the beginning of a section with information of interest to
