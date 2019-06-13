@@ -64,7 +64,6 @@
 #include "iwl-trans.h"
 #include "img.h"
 #include "fw/api/debug.h"
-#include "fw/api/dbg-tlv.h"
 #include "fw/api/paging.h"
 #include "iwl-eeprom-parse.h"
 

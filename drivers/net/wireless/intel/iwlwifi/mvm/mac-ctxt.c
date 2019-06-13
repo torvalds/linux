@@ -1447,7 +1447,7 @@ void iwl_mvm_rx_missed_beacons_notif(struct iwl_mvm *mvm,
 	    rx_missed_bcon >= stop_trig_missed_bcon)
 		iwl_fw_dbg_collect_trig(&mvm->fwrt, trigger, NULL);
 
-	iwl_fw_dbg_apply_point(&mvm->fwrt, IWL_FW_INI_APPLY_MISSED_BEACONS);
+	iwl_dbg_tlv_apply_point(&mvm->fwrt, IWL_FW_INI_APPLY_MISSED_BEACONS);
 
 out:
 	rcu_read_unlock();
