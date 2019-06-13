@@ -1058,6 +1058,8 @@ struct skl_wm_params {
  */
 struct i915_runtime_pm {
 	atomic_t wakeref_count;
+	struct device *kdev; /* points to i915->drm.pdev->dev */
+	bool available;
 	bool suspended;
 	bool irqs_enabled;
 

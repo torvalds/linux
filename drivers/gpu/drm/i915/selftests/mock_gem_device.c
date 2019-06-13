@@ -152,8 +152,6 @@ struct drm_i915_private *mock_gem_device(void)
 	i915 = (struct drm_i915_private *)(pdev + 1);
 	pci_set_drvdata(pdev, i915);
 
-	intel_runtime_pm_init_early(i915);
-
 	dev_pm_domain_set(&pdev->dev, &pm_domain);
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
@@ -167,6 +165,8 @@ struct drm_i915_private *mock_gem_device(void)
 	}
 	i915->drm.pdev = pdev;
 	i915->drm.dev_private = i915;
+
+	intel_runtime_pm_init_early(i915);
 
 	/* Using the global GTT may ask questions about KMS users, so prepare */
 	drm_mode_config_init(&i915->drm);

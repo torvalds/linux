@@ -1656,11 +1656,15 @@ ____assert_rpm_wakelock_held(struct i915_runtime_pm *rpm, int wakeref_count)
 }
 
 static inline void
+__assert_rpm_raw_wakeref_held(struct i915_runtime_pm *rpm)
+{
+	____assert_rpm_raw_wakeref_held(rpm, atomic_read(&rpm->wakeref_count));
+}
+
+static inline void
 assert_rpm_raw_wakeref_held(struct drm_i915_private *i915)
 {
-	struct i915_runtime_pm *rpm = &i915->runtime_pm;
-
-	____assert_rpm_raw_wakeref_held(rpm, atomic_read(&rpm->wakeref_count));
+	__assert_rpm_raw_wakeref_held(&i915->runtime_pm);
 }
 
 static inline void

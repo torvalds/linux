@@ -75,21 +75,18 @@ static void __print_depot_stack(depot_stack_handle_t stack,
 	stack_trace_snprint(buf, sz, entries, nr_entries, indent);
 }
 
-static void init_intel_runtime_pm_wakeref(struct drm_i915_private *i915)
+static void init_intel_runtime_pm_wakeref(struct i915_runtime_pm *rpm)
 {
-	struct i915_runtime_pm *rpm = &i915->runtime_pm;
-
 	spin_lock_init(&rpm->debug.lock);
 }
 
 static noinline depot_stack_handle_t
-track_intel_runtime_pm_wakeref(struct drm_i915_private *i915)
+track_intel_runtime_pm_wakeref(struct i915_runtime_pm *rpm)
 {
-	struct i915_runtime_pm *rpm = &i915->runtime_pm;
 	depot_stack_handle_t stack, *stacks;
 	unsigned long flags;
 
-	if (!HAS_RUNTIME_PM(i915))
+	if (!rpm->available)
 		return -1;
 
 	stack = __save_depot_stack();
@@ -116,10 +113,9 @@ track_intel_runtime_pm_wakeref(struct drm_i915_private *i915)
 	return stack;
 }
 
-static void untrack_intel_runtime_pm_wakeref(struct drm_i915_private *i915,
+static void untrack_intel_runtime_pm_wakeref(struct i915_runtime_pm *rpm,
 					     depot_stack_handle_t stack)
 {
-	struct i915_runtime_pm *rpm = &i915->runtime_pm;
 	unsigned long flags, n;
 	bool found = false;
 
@@ -237,9 +233,8 @@ dump_and_free_wakeref_tracking(struct intel_runtime_pm_debug *debug)
 }
 
 static noinline void
-__intel_wakeref_dec_and_check_tracking(struct drm_i915_private *i915)
+__intel_wakeref_dec_and_check_tracking(struct i915_runtime_pm *rpm)
 {
-	struct i915_runtime_pm *rpm = &i915->runtime_pm;
 	struct intel_runtime_pm_debug dbg = {};
 	unsigned long flags;
 
@@ -255,9 +250,8 @@ __intel_wakeref_dec_and_check_tracking(struct drm_i915_private *i915)
 }
 
 static noinline void
-untrack_all_intel_runtime_pm_wakerefs(struct drm_i915_private *i915)
+untrack_all_intel_runtime_pm_wakerefs(struct i915_runtime_pm *rpm)
 {
-	struct i915_runtime_pm *rpm = &i915->runtime_pm;
 	struct intel_runtime_pm_debug dbg = {};
 	unsigned long flags;
 
@@ -308,76 +302,70 @@ out:
 
 #else
 
-static void init_intel_runtime_pm_wakeref(struct drm_i915_private *i915)
+static void init_intel_runtime_pm_wakeref(struct i915_runtime_pm *rpm)
 {
 }
 
 static depot_stack_handle_t
-track_intel_runtime_pm_wakeref(struct drm_i915_private *i915)
+track_intel_runtime_pm_wakeref(struct i915_runtime_pm *rpm)
 {
 	return -1;
 }
 
-static void untrack_intel_runtime_pm_wakeref(struct drm_i915_private *i915,
+static void untrack_intel_runtime_pm_wakeref(struct i915_runtime_pm *rpm,
 					     intel_wakeref_t wref)
 {
 }
 
 static void
-__intel_wakeref_dec_and_check_tracking(struct drm_i915_private *i915)
+__intel_wakeref_dec_and_check_tracking(struct i915_runtime_pm *rpm)
 {
-	atomic_dec(&i915->runtime_pm.wakeref_count);
+	atomic_dec(&rpm->wakeref_count);
 }
 
 static void
-untrack_all_intel_runtime_pm_wakerefs(struct drm_i915_private *i915)
+untrack_all_intel_runtime_pm_wakerefs(struct i915_runtime_pm *rpm)
 {
 }
 
 #endif
 
 static void
-intel_runtime_pm_acquire(struct drm_i915_private *i915, bool wakelock)
+intel_runtime_pm_acquire(struct i915_runtime_pm *rpm, bool wakelock)
 {
-	struct i915_runtime_pm *rpm = &i915->runtime_pm;
-
 	if (wakelock) {
 		atomic_add(1 + INTEL_RPM_WAKELOCK_BIAS, &rpm->wakeref_count);
-		assert_rpm_wakelock_held(i915);
+		__assert_rpm_wakelock_held(rpm);
 	} else {
 		atomic_inc(&rpm->wakeref_count);
-		assert_rpm_raw_wakeref_held(i915);
+		__assert_rpm_raw_wakeref_held(rpm);
 	}
 }
 
 static void
-intel_runtime_pm_release(struct drm_i915_private *i915, int wakelock)
+intel_runtime_pm_release(struct i915_runtime_pm *rpm, int wakelock)
 {
-	struct i915_runtime_pm *rpm = &i915->runtime_pm;
-
 	if (wakelock) {
-		assert_rpm_wakelock_held(i915);
+		__assert_rpm_wakelock_held(rpm);
 		atomic_sub(INTEL_RPM_WAKELOCK_BIAS, &rpm->wakeref_count);
 	} else {
-		assert_rpm_raw_wakeref_held(i915);
+		__assert_rpm_raw_wakeref_held(rpm);
 	}
 
-	__intel_wakeref_dec_and_check_tracking(i915);
+	__intel_wakeref_dec_and_check_tracking(rpm);
 }
 
-static intel_wakeref_t __intel_runtime_pm_get(struct drm_i915_private *i915,
+static intel_wakeref_t __intel_runtime_pm_get(struct i915_runtime_pm *rpm,
 					      bool wakelock)
 {
-	struct pci_dev *pdev = i915->drm.pdev;
-	struct device *kdev = &pdev->dev;
 	int ret;
 
-	ret = pm_runtime_get_sync(kdev);
+	ret = pm_runtime_get_sync(rpm->kdev);
 	WARN_ONCE(ret < 0, "pm_runtime_get_sync() failed: %d\n", ret);
 
-	intel_runtime_pm_acquire(i915, wakelock);
+	intel_runtime_pm_acquire(rpm, wakelock);
 
-	return track_intel_runtime_pm_wakeref(i915);
+	return track_intel_runtime_pm_wakeref(rpm);
 }
 
 /**
@@ -400,7 +388,7 @@ static intel_wakeref_t __intel_runtime_pm_get(struct drm_i915_private *i915,
 
 intel_wakeref_t intel_runtime_pm_get_raw(struct drm_i915_private *i915)
 {
-	return __intel_runtime_pm_get(i915, false);
+	return __intel_runtime_pm_get(&i915->runtime_pm, false);
 }
 
 /**
@@ -417,7 +405,7 @@ intel_wakeref_t intel_runtime_pm_get_raw(struct drm_i915_private *i915)
  */
 intel_wakeref_t intel_runtime_pm_get(struct drm_i915_private *i915)
 {
-	return __intel_runtime_pm_get(i915, true);
+	return __intel_runtime_pm_get(&i915->runtime_pm, true);
 }
 
 /**
@@ -436,23 +424,22 @@ intel_wakeref_t intel_runtime_pm_get(struct drm_i915_private *i915)
  */
 intel_wakeref_t intel_runtime_pm_get_if_in_use(struct drm_i915_private *i915)
 {
-	if (IS_ENABLED(CONFIG_PM)) {
-		struct pci_dev *pdev = i915->drm.pdev;
-		struct device *kdev = &pdev->dev;
+	struct i915_runtime_pm *rpm = &i915->runtime_pm;
 
+	if (IS_ENABLED(CONFIG_PM)) {
 		/*
 		 * In cases runtime PM is disabled by the RPM core and we get
 		 * an -EINVAL return value we are not supposed to call this
 		 * function, since the power state is undefined. This applies
 		 * atm to the late/early system suspend/resume handlers.
 		 */
-		if (pm_runtime_get_if_in_use(kdev) <= 0)
+		if (pm_runtime_get_if_in_use(rpm->kdev) <= 0)
 			return 0;
 	}
 
-	intel_runtime_pm_acquire(i915, true);
+	intel_runtime_pm_acquire(rpm, true);
 
-	return track_intel_runtime_pm_wakeref(i915);
+	return track_intel_runtime_pm_wakeref(rpm);
 }
 
 /**
@@ -476,27 +463,25 @@ intel_wakeref_t intel_runtime_pm_get_if_in_use(struct drm_i915_private *i915)
  */
 intel_wakeref_t intel_runtime_pm_get_noresume(struct drm_i915_private *i915)
 {
-	struct pci_dev *pdev = i915->drm.pdev;
-	struct device *kdev = &pdev->dev;
+	struct i915_runtime_pm *rpm = &i915->runtime_pm;
 
-	assert_rpm_wakelock_held(i915);
-	pm_runtime_get_noresume(kdev);
+	__assert_rpm_wakelock_held(rpm);
+	pm_runtime_get_noresume(rpm->kdev);
 
-	intel_runtime_pm_acquire(i915, true);
+	intel_runtime_pm_acquire(rpm, true);
 
-	return track_intel_runtime_pm_wakeref(i915);
+	return track_intel_runtime_pm_wakeref(rpm);
 }
 
-static void __intel_runtime_pm_put(struct drm_i915_private *i915,
+static void __intel_runtime_pm_put(struct i915_runtime_pm *rpm,
 				   intel_wakeref_t wref,
 				   bool wakelock)
 {
-	struct pci_dev *pdev = i915->drm.pdev;
-	struct device *kdev = &pdev->dev;
+	struct device *kdev = rpm->kdev;
 
-	untrack_intel_runtime_pm_wakeref(i915, wref);
+	untrack_intel_runtime_pm_wakeref(rpm, wref);
 
-	intel_runtime_pm_release(i915, wakelock);
+	intel_runtime_pm_release(rpm, wakelock);
 
 	pm_runtime_mark_last_busy(kdev);
 	pm_runtime_put_autosuspend(kdev);
@@ -514,7 +499,7 @@ static void __intel_runtime_pm_put(struct drm_i915_private *i915,
 void
 intel_runtime_pm_put_raw(struct drm_i915_private *i915, intel_wakeref_t wref)
 {
-	__intel_runtime_pm_put(i915, wref, false);
+	__intel_runtime_pm_put(&i915->runtime_pm, wref, false);
 }
 
 /**
@@ -531,7 +516,7 @@ intel_runtime_pm_put_raw(struct drm_i915_private *i915, intel_wakeref_t wref)
  */
 void intel_runtime_pm_put_unchecked(struct drm_i915_private *i915)
 {
-	__intel_runtime_pm_put(i915, -1, true);
+	__intel_runtime_pm_put(&i915->runtime_pm, -1, true);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
@@ -546,7 +531,7 @@ void intel_runtime_pm_put_unchecked(struct drm_i915_private *i915)
  */
 void intel_runtime_pm_put(struct drm_i915_private *i915, intel_wakeref_t wref)
 {
-	__intel_runtime_pm_put(i915, wref, true);
+	__intel_runtime_pm_put(&i915->runtime_pm, wref, true);
 }
 #endif
 
@@ -562,8 +547,8 @@ void intel_runtime_pm_put(struct drm_i915_private *i915, intel_wakeref_t wref)
  */
 void intel_runtime_pm_enable(struct drm_i915_private *i915)
 {
-	struct pci_dev *pdev = i915->drm.pdev;
-	struct device *kdev = &pdev->dev;
+	struct i915_runtime_pm *rpm = &i915->runtime_pm;
+	struct device *kdev = rpm->kdev;
 
 	/*
 	 * Disable the system suspend direct complete optimization, which can
@@ -584,7 +569,7 @@ void intel_runtime_pm_enable(struct drm_i915_private *i915)
 	 * so the driver's own RPM reference tracking asserts also work on
 	 * platforms without RPM support.
 	 */
-	if (!HAS_RUNTIME_PM(i915)) {
+	if (!rpm->available) {
 		int ret;
 
 		pm_runtime_dont_use_autosuspend(kdev);
@@ -604,8 +589,8 @@ void intel_runtime_pm_enable(struct drm_i915_private *i915)
 
 void intel_runtime_pm_disable(struct drm_i915_private *i915)
 {
-	struct pci_dev *pdev = i915->drm.pdev;
-	struct device *kdev = &pdev->dev;
+	struct i915_runtime_pm *rpm = &i915->runtime_pm;
+	struct device *kdev = rpm->kdev;
 
 	/* Transfer rpm ownership back to core */
 	WARN(pm_runtime_get_sync(kdev) < 0,
@@ -613,7 +598,7 @@ void intel_runtime_pm_disable(struct drm_i915_private *i915)
 
 	pm_runtime_dont_use_autosuspend(kdev);
 
-	if (!HAS_RUNTIME_PM(i915))
+	if (!rpm->available)
 		pm_runtime_put(kdev);
 }
 
@@ -627,10 +612,17 @@ void intel_runtime_pm_cleanup(struct drm_i915_private *i915)
 	     intel_rpm_raw_wakeref_count(count),
 	     intel_rpm_wakelock_count(count));
 
-	untrack_all_intel_runtime_pm_wakerefs(i915);
+	untrack_all_intel_runtime_pm_wakerefs(rpm);
 }
 
 void intel_runtime_pm_init_early(struct drm_i915_private *i915)
 {
-	init_intel_runtime_pm_wakeref(i915);
+	struct i915_runtime_pm *rpm = &i915->runtime_pm;
+	struct pci_dev *pdev = i915->drm.pdev;
+	struct device *kdev = &pdev->dev;
+
+	rpm->kdev = kdev;
+	rpm->available = HAS_RUNTIME_PM(i915);
+
+	init_intel_runtime_pm_wakeref(rpm);
 }
