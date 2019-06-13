@@ -224,7 +224,9 @@ EXPORT_SYMBOL(drm_gem_vram_offset);
  *
  * Pinning a buffer object ensures that it is not evicted from
  * a memory region. A pinned buffer object has to be unpinned before
- * it can be pinned to another region.
+ * it can be pinned to another region. If the pl_flag argument is 0,
+ * the buffer is pinned at its current location (video RAM or system
+ * memory).
  *
  * Returns:
  * 0 on success, or
@@ -242,7 +244,9 @@ int drm_gem_vram_pin(struct drm_gem_vram_object *gbo, unsigned long pl_flag)
 	if (gbo->pin_count)
 		goto out;
 
-	drm_gem_vram_placement(gbo, pl_flag);
+	if (pl_flag)
+		drm_gem_vram_placement(gbo, pl_flag);
+
 	for (i = 0; i < gbo->placement.num_placement; ++i)
 		gbo->placements[i].flags |= TTM_PL_FLAG_NO_EVICT;
 
@@ -691,7 +695,15 @@ int drm_gem_vram_driver_gem_prime_pin(struct drm_gem_object *gem)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
 
-	return drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
+	/* Fbdev console emulation is the use case of these PRIME
+	 * helpers. This may involve updating a hardware buffer from
+	 * a shadow FB. We pin the buffer to it's current location
+	 * (either video RAM or system memory) to prevent it from
+	 * being relocated during the update operation. If you require
+	 * the buffer to be pinned to VRAM, implement a callback that
+	 * sets the flags accordingly.
+	 */
+	return drm_gem_vram_pin(gbo, 0);
 }
 EXPORT_SYMBOL(drm_gem_vram_driver_gem_prime_pin);
 
@@ -723,7 +735,7 @@ void *drm_gem_vram_driver_gem_prime_vmap(struct drm_gem_object *gem)
 	int ret;
 	void *base;
 
-	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
+	ret = drm_gem_vram_pin(gbo, 0);
 	if (ret)
 		return NULL;
 	base = drm_gem_vram_kmap(gbo, true, NULL);
