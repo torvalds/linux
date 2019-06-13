@@ -26,8 +26,9 @@ The control framework was created in order to implement all the rules of the
 V4L2 specification with respect to controls in a central place. And to make
 life as easy as possible for the driver developer.
 
-Note that the control framework relies on the presence of a struct v4l2_device
-for V4L2 drivers and struct v4l2_subdev for sub-device drivers.
+Note that the control framework relies on the presence of a struct
+:c:type:`v4l2_device` for V4L2 drivers and struct :c:type:`v4l2_subdev` for
+sub-device drivers.
 
 
 Objects in the framework
@@ -35,12 +36,13 @@ Objects in the framework
 
 There are two main objects:
 
-The v4l2_ctrl object describes the control properties and keeps track of the
-control's value (both the current value and the proposed new value).
+The :c:type:`v4l2_ctrl` object describes the control properties and keeps
+track of the control's value (both the current value and the proposed new
+value).
 
-v4l2_ctrl_handler is the object that keeps track of controls. It maintains a
-list of v4l2_ctrl objects that it owns and another list of references to
-controls, possibly to controls owned by other handlers.
+:c:type:`v4l2_ctrl_handler` is the object that keeps track of controls. It
+maintains a list of v4l2_ctrl objects that it owns and another list of
+references to controls, possibly to controls owned by other handlers.
 
 
 Basic usage for V4L2 and sub-device drivers
@@ -242,7 +244,7 @@ initializes the hardware to the default control values. It is recommended
 that you do this as this ensures that both the internal data structures and
 the hardware are in sync.
 
-4) Finally: implement the v4l2_ctrl_ops
+4) Finally: implement the :c:type:`v4l2_ctrl_ops`
 
 .. code-block:: none
 
