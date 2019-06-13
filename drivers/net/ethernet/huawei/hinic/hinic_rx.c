@@ -502,7 +502,7 @@ int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 		   struct net_device *netdev)
 {
 	struct hinic_qp *qp = container_of(rq, struct hinic_qp, rq);
-	int err, pkts, irqname_len;
+	int err, pkts;
 
 	rxq->netdev = netdev;
 	rxq->rq = rq;
@@ -511,12 +511,10 @@ int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 
 	rxq_stats_init(rxq);
 
-	irqname_len = snprintf(NULL, 0, "hinic_rxq%d", qp->q_id) + 1;
-	rxq->irq_name = devm_kzalloc(&netdev->dev, irqname_len, GFP_KERNEL);
+	rxq->irq_name = devm_kasprintf(&netdev->dev, GFP_KERNEL,
+				       "hinic_rxq%d", qp->q_id);
 	if (!rxq->irq_name)
 		return -ENOMEM;
-
-	sprintf(rxq->irq_name, "hinic_rxq%d", qp->q_id);
 
 	pkts = rx_alloc_pkts(rxq);
 	if (!pkts) {
