@@ -14,7 +14,6 @@
 #include <asm/unaligned.h>
 
 #define	flat_argvp_envp_on_stack()	0
-#define	flat_old_ram_flag(flags)	(flags)
 
 /*
  * Microblaze works a little differently from other arches, because
