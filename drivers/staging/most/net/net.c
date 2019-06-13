@@ -524,6 +524,7 @@ static int __init most_net_init(void)
 
 static void __exit most_net_exit(void)
 {
+	most_deregister_configfs_subsys(&comp);
 	most_deregister_component(&comp);
 }
 
