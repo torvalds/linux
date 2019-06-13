@@ -157,6 +157,60 @@ void serial8250_rpm_put_tx(struct uart_8250_port *p);
 int serial8250_em485_init(struct uart_8250_port *p);
 void serial8250_em485_destroy(struct uart_8250_port *p);
 
+/* MCR <-> TIOCM conversion */
+static inline int serial8250_TIOCM_to_MCR(int tiocm)
+{
+	int mcr = 0;
+
+	if (tiocm & TIOCM_RTS)
+		mcr |= UART_MCR_RTS;
+	if (tiocm & TIOCM_DTR)
+		mcr |= UART_MCR_DTR;
+	if (tiocm & TIOCM_OUT1)
+		mcr |= UART_MCR_OUT1;
+	if (tiocm & TIOCM_OUT2)
+		mcr |= UART_MCR_OUT2;
+	if (tiocm & TIOCM_LOOP)
+		mcr |= UART_MCR_LOOP;
+
+	return mcr;
+}
+
+static inline int serial8250_MCR_to_TIOCM(int mcr)
+{
+	int tiocm = 0;
+
+	if (mcr & UART_MCR_RTS)
+		tiocm |= TIOCM_RTS;
+	if (mcr & UART_MCR_DTR)
+		tiocm |= TIOCM_DTR;
+	if (mcr & UART_MCR_OUT1)
+		tiocm |= TIOCM_OUT1;
+	if (mcr & UART_MCR_OUT2)
+		tiocm |= TIOCM_OUT2;
+	if (mcr & UART_MCR_LOOP)
+		tiocm |= TIOCM_LOOP;
+
+	return tiocm;
+}
+
+/* MSR <-> TIOCM conversion */
+static inline int serial8250_MSR_to_TIOCM(int msr)
+{
+	int tiocm = 0;
+
+	if (msr & UART_MSR_DCD)
+		tiocm |= TIOCM_CAR;
+	if (msr & UART_MSR_RI)
+		tiocm |= TIOCM_RNG;
+	if (msr & UART_MSR_DSR)
+		tiocm |= TIOCM_DSR;
+	if (msr & UART_MSR_CTS)
+		tiocm |= TIOCM_CTS;
+
+	return tiocm;
+}
+
 static inline void serial8250_out_MCR(struct uart_8250_port *up, int value)
 {
 	serial_out(up, UART_MCR, value);
