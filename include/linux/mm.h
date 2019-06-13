@@ -944,7 +944,6 @@ static inline bool put_devmap_managed_page(struct page *page)
 		return false;
 	switch (page->pgmap->type) {
 	case MEMORY_DEVICE_PRIVATE:
-	case MEMORY_DEVICE_PUBLIC:
 	case MEMORY_DEVICE_FS_DAX:
 		__put_devmap_managed_page(page);
 		return true;
@@ -958,12 +957,6 @@ static inline bool is_device_private_page(const struct page *page)
 {
 	return is_zone_device_page(page) &&
 		page->pgmap->type == MEMORY_DEVICE_PRIVATE;
-}
-
-static inline bool is_device_public_page(const struct page *page)
-{
-	return is_zone_device_page(page) &&
-		page->pgmap->type == MEMORY_DEVICE_PUBLIC;
 }
 
 #ifdef CONFIG_PCI_P2PDMA
@@ -994,11 +987,6 @@ static inline bool put_devmap_managed_page(struct page *page)
 }
 
 static inline bool is_device_private_page(const struct page *page)
-{
-	return false;
-}
-
-static inline bool is_device_public_page(const struct page *page)
 {
 	return false;
 }
@@ -1431,10 +1419,8 @@ struct zap_details {
 	pgoff_t last_index;			/* Highest page->index to unmap */
 };
 
-struct page *_vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
-			     pte_t pte, bool with_public_device);
-#define vm_normal_page(vma, addr, pte) _vm_normal_page(vma, addr, pte, false)
-
+struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+			     pte_t pte);
 struct page *vm_normal_page_pmd(struct vm_area_struct *vma, unsigned long addr,
 				pmd_t pmd);
 

@@ -718,17 +718,6 @@ config DEVICE_PRIVATE
 	  memory; i.e., memory that is only accessible from the device (or
 	  group of devices). You likely also want to select HMM_MIRROR.
 
-config DEVICE_PUBLIC
-	bool "Addressable device memory (like GPU memory)"
-	depends on ARCH_HAS_HMM
-	select HMM
-	select DEV_PAGEMAP_OPS
-
-	help
-	  Allows creation of struct pages to represent addressable device
-	  memory; i.e., memory that is accessible from both the device and
-	  the CPU
-
 config FRAME_VECTOR
 	bool
 

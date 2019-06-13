@@ -37,13 +37,6 @@ struct vmem_altmap {
  * A more complete discussion of unaddressable memory may be found in
  * include/linux/hmm.h and Documentation/vm/hmm.rst.
  *
- * MEMORY_DEVICE_PUBLIC:
- * Device memory that is cache coherent from device and CPU point of view. This
- * is use on platform that have an advance system bus (like CAPI or CCIX). A
- * driver can hotplug the device memory using ZONE_DEVICE and with that memory
- * type. Any page of a process can be migrated to such memory. However no one
- * should be allow to pin such memory so that it can always be evicted.
- *
  * MEMORY_DEVICE_FS_DAX:
  * Host memory that has similar access semantics as System RAM i.e. DMA
  * coherent and supports page pinning. In support of coordinating page
@@ -58,7 +51,6 @@ struct vmem_altmap {
  */
 enum memory_type {
 	MEMORY_DEVICE_PRIVATE = 1,
-	MEMORY_DEVICE_PUBLIC,
 	MEMORY_DEVICE_FS_DAX,
 	MEMORY_DEVICE_PCI_P2PDMA,
 };
