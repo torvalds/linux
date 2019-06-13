@@ -4835,13 +4835,11 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 
 	switch (type) {
 	case VMX_EPT_EXTENT_GLOBAL:
-	/*
-	 * TODO: track mappings and invalidate
-	 * single context requests appropriately
-	 */
 	case VMX_EPT_EXTENT_CONTEXT:
-		kvm_mmu_sync_roots(vcpu);
-		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
+	/*
+	 * TODO: Sync the necessary shadow EPT roots here, rather than
+	 * at the next emulated VM-entry.
+	 */
 		break;
 	default:
 		BUG_ON(1);
