@@ -4444,23 +4444,17 @@ static const struct i915_debugfs_files {
 int i915_debugfs_register(struct drm_i915_private *dev_priv)
 {
 	struct drm_minor *minor = dev_priv->drm.primary;
-	struct dentry *ent;
 	int i;
 
-	ent = debugfs_create_file("i915_forcewake_user", S_IRUSR,
-				  minor->debugfs_root, to_i915(minor->dev),
-				  &i915_forcewake_fops);
-	if (!ent)
-		return -ENOMEM;
+	debugfs_create_file("i915_forcewake_user", S_IRUSR, minor->debugfs_root,
+			    to_i915(minor->dev), &i915_forcewake_fops);
 
 	for (i = 0; i < ARRAY_SIZE(i915_debugfs_files); i++) {
-		ent = debugfs_create_file(i915_debugfs_files[i].name,
-					  S_IRUGO | S_IWUSR,
-					  minor->debugfs_root,
-					  to_i915(minor->dev),
-					  i915_debugfs_files[i].fops);
-		if (!ent)
-			return -ENOMEM;
+		debugfs_create_file(i915_debugfs_files[i].name,
+				    S_IRUGO | S_IWUSR,
+				    minor->debugfs_root,
+				    to_i915(minor->dev),
+				    i915_debugfs_files[i].fops);
 	}
 
 	return drm_debugfs_create_files(i915_debugfs_list,
