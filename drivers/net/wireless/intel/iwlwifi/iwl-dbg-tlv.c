@@ -63,8 +63,8 @@
 #include "iwl-trans.h"
 #include "iwl-dbg-tlv.h"
 
-void iwl_fw_dbg_copy_tlv(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
-			 bool ext)
+void iwl_dbg_tlv_copy(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
+		      bool ext)
 {
 	struct iwl_apply_point_data *data;
 	struct iwl_fw_ini_header *header = (void *)&tlv->data[0];
@@ -106,7 +106,7 @@ void iwl_fw_dbg_copy_tlv(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
 	data->offset += offset_size;
 }
 
-void iwl_alloc_dbg_tlv(struct iwl_trans *trans, size_t len, const u8 *data,
+void iwl_dbg_tlv_alloc(struct iwl_trans *trans, size_t len, const u8 *data,
 		       bool ext)
 {
 	struct iwl_ucode_tlv *tlv;
@@ -183,7 +183,7 @@ void iwl_alloc_dbg_tlv(struct iwl_trans *trans, size_t len, const u8 *data,
 	}
 }
 
-void iwl_fw_dbg_free(struct iwl_trans *trans)
+void iwl_dbg_tlv_free(struct iwl_trans *trans)
 {
 	int i;
 
@@ -198,8 +198,8 @@ void iwl_fw_dbg_free(struct iwl_trans *trans)
 	}
 }
 
-static int iwl_parse_fw_dbg_tlv(struct iwl_trans *trans, const u8 *data,
-				size_t len)
+static int iwl_dbg_tlv_parse_bin(struct iwl_trans *trans, const u8 *data,
+				 size_t len)
 {
 	struct iwl_ucode_tlv *tlv;
 	enum iwl_ucode_tlv_type tlv_type;
@@ -227,7 +227,7 @@ static int iwl_parse_fw_dbg_tlv(struct iwl_trans *trans, const u8 *data,
 		case IWL_UCODE_TLV_TYPE_REGIONS:
 		case IWL_UCODE_TLV_TYPE_TRIGGERS:
 		case IWL_UCODE_TLV_TYPE_DEBUG_FLOW:
-			iwl_fw_dbg_copy_tlv(trans, tlv, true);
+			iwl_dbg_tlv_copy(trans, tlv, true);
 			break;
 		default:
 			WARN_ONCE(1, "Invalid TLV %x\n", tlv_type);
@@ -238,7 +238,7 @@ static int iwl_parse_fw_dbg_tlv(struct iwl_trans *trans, const u8 *data,
 	return 0;
 }
 
-void iwl_load_fw_dbg_tlv(struct device *dev, struct iwl_trans *trans)
+void iwl_dbg_tlv_load_bin(struct device *dev, struct iwl_trans *trans)
 {
 	const struct firmware *fw;
 	int res;
@@ -250,8 +250,8 @@ void iwl_load_fw_dbg_tlv(struct device *dev, struct iwl_trans *trans)
 	if (res)
 		return;
 
-	iwl_alloc_dbg_tlv(trans, fw->size, fw->data, true);
-	iwl_parse_fw_dbg_tlv(trans, fw->data, fw->size);
+	iwl_dbg_tlv_alloc(trans, fw->size, fw->data, true);
+	iwl_dbg_tlv_parse_bin(trans, fw->data, fw->size);
 
 	trans->dbg.external_ini_loaded = true;
 	release_firmware(fw);

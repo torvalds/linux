@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,7 +28,7 @@
  *
  * BSD LICENSE
  *
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,11 +77,11 @@ struct iwl_apply_point_data {
 };
 
 struct iwl_trans;
-void iwl_load_fw_dbg_tlv(struct device *dev, struct iwl_trans *trans);
-void iwl_fw_dbg_free(struct iwl_trans *trans);
-void iwl_fw_dbg_copy_tlv(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
-			 bool ext);
-void iwl_alloc_dbg_tlv(struct iwl_trans *trans, size_t len, const u8 *data,
+void iwl_dbg_tlv_load_bin(struct device *dev, struct iwl_trans *trans);
+void iwl_dbg_tlv_free(struct iwl_trans *trans);
+void iwl_dbg_tlv_copy(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
+		      bool ext);
+void iwl_dbg_tlv_alloc(struct iwl_trans *trans, size_t len, const u8 *data,
 		       bool ext);
 
 #endif /* __iwl_dbg_tlv_h__*/
