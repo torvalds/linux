@@ -27,6 +27,9 @@
 #include <linux/thermal.h>
 
 #include "cpufreq-dt.h"
+#ifdef CONFIG_ARCH_ROCKCHIP
+#include "rockchip-cpufreq.h"
+#endif
 
 struct private_data {
 	struct opp_table *opp_table;
@@ -306,6 +309,9 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 
 	em_register_perf_domain(policy->cpus, nr_opp, &em_cb);
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+	rockchip_cpufreq_check_rate_volt(cpu_dev);
+#endif
 	return 0;
 
 out_free_cpufreq_table:
