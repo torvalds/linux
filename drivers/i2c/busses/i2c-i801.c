@@ -1188,7 +1188,7 @@ static bool is_dell_system_with_lis3lv02d(void)
 	const char *vendor;
 
 	vendor = dmi_get_system_info(DMI_SYS_VENDOR);
-	if (strcmp(vendor, "Dell Inc.") != 0)
+	if (!vendor || strcmp(vendor, "Dell Inc."))
 		return false;
 
 	/*
