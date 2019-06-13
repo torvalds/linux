@@ -35,6 +35,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_gem_fence_reg.h"
 #include "gvt.h"
 
 static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
@@ -128,7 +129,7 @@ void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
-	struct drm_i915_fence_reg *reg;
+	struct i915_fence_reg *reg;
 	i915_reg_t fence_reg_lo, fence_reg_hi;
 
 	assert_rpm_wakelock_held(dev_priv);
@@ -163,7 +164,7 @@ static void free_vgpu_fence(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
-	struct drm_i915_fence_reg *reg;
+	struct i915_fence_reg *reg;
 	u32 i;
 
 	if (WARN_ON(!vgpu_fence_sz(vgpu)))
@@ -187,7 +188,7 @@ static int alloc_vgpu_fence(struct intel_vgpu *vgpu)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
 	struct drm_i915_private *dev_priv = gvt->dev_priv;
-	struct drm_i915_fence_reg *reg;
+	struct i915_fence_reg *reg;
 	int i;
 
 	intel_runtime_pm_get(dev_priv);

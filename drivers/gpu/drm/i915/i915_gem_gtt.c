@@ -3567,6 +3567,8 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 
 	ggtt->mtrr = arch_phys_wc_add(ggtt->gmadr.start, ggtt->mappable_end);
 
+	i915_ggtt_init_fences(ggtt);
+
 	/*
 	 * Initialise stolen early so that we may reserve preallocated
 	 * objects for the BIOS to KMS transition.

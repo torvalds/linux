@@ -884,7 +884,7 @@ i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv)
+void i915_gem_runtime_suspend(struct drm_i915_private *i915)
 {
 	struct drm_i915_gem_object *obj, *on;
 	int i;
@@ -897,17 +897,19 @@ void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv)
 	 */
 
 	list_for_each_entry_safe(obj, on,
-				 &dev_priv->mm.userfault_list, userfault_link)
+				 &i915->ggtt.userfault_list, userfault_link)
 		__i915_gem_object_release_mmap(obj);
 
-	/* The fence will be lost when the device powers down. If any were
+	/*
+	 * The fence will be lost when the device powers down. If any were
 	 * in use by hardware (i.e. they are pinned), we should not be powering
 	 * down! All other fences will be reacquired by the user upon waking.
 	 */
-	for (i = 0; i < dev_priv->num_fence_regs; i++) {
-		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
+	for (i = 0; i < i915->ggtt.num_fences; i++) {
+		struct i915_fence_reg *reg = &i915->ggtt.fence_regs[i];
 
-		/* Ideally we want to assert that the fence register is not
+		/*
+		 * Ideally we want to assert that the fence register is not
 		 * live at this point (i.e. that no piece of code will be
 		 * trying to write through fence + GTT, as that both violates
 		 * our tracking of activity and associated locking/barriers,
@@ -1687,7 +1689,7 @@ void i915_gem_fini_hw(struct drm_i915_private *dev_priv)
 {
 	GEM_BUG_ON(dev_priv->gt.awake);
 
-	intel_wakeref_auto_fini(&dev_priv->mm.userfault_wakeref);
+	intel_wakeref_auto_fini(&dev_priv->ggtt.userfault_wakeref);
 
 	i915_gem_suspend_late(dev_priv);
 	intel_disable_gt_powersave(dev_priv);
@@ -1729,38 +1731,6 @@ void i915_gem_init_mmio(struct drm_i915_private *i915)
 	i915_gem_sanitize(i915);
 }
 
-void
-i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
-{
-	int i;
-
-	if (INTEL_GEN(dev_priv) >= 7 && !IS_VALLEYVIEW(dev_priv) &&
-	    !IS_CHERRYVIEW(dev_priv))
-		dev_priv->num_fence_regs = 32;
-	else if (INTEL_GEN(dev_priv) >= 4 ||
-		 IS_I945G(dev_priv) || IS_I945GM(dev_priv) ||
-		 IS_G33(dev_priv) || IS_PINEVIEW(dev_priv))
-		dev_priv->num_fence_regs = 16;
-	else
-		dev_priv->num_fence_regs = 8;
-
-	if (intel_vgpu_active(dev_priv))
-		dev_priv->num_fence_regs =
-				I915_READ(vgtif_reg(avail_rs.fence_num));
-
-	/* Initialize fence registers to zero */
-	for (i = 0; i < dev_priv->num_fence_regs; i++) {
-		struct drm_i915_fence_reg *fence = &dev_priv->fence_regs[i];
-
-		fence->i915 = dev_priv;
-		fence->id = i;
-		list_add_tail(&fence->link, &dev_priv->mm.fence_list);
-	}
-	i915_gem_restore_fences(dev_priv);
-
-	i915_gem_detect_bit_6_swizzle(dev_priv);
-}
-
 static void i915_gem_init__mm(struct drm_i915_private *i915)
 {
 	spin_lock_init(&i915->mm.obj_lock);
@@ -1770,10 +1740,6 @@ static void i915_gem_init__mm(struct drm_i915_private *i915)
 
 	INIT_LIST_HEAD(&i915->mm.purge_list);
 	INIT_LIST_HEAD(&i915->mm.shrink_list);
-	INIT_LIST_HEAD(&i915->mm.fence_list);
-
-	INIT_LIST_HEAD(&i915->mm.userfault_list);
-	intel_wakeref_auto_init(&i915->mm.userfault_wakeref, i915);
 
 	i915_gem_init__objects(i915);
 }

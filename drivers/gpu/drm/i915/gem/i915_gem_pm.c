@@ -126,7 +126,7 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 {
 	GEM_TRACE("\n");
 
-	intel_wakeref_auto(&i915->mm.userfault_wakeref, 0);
+	intel_wakeref_auto(&i915->ggtt.userfault_wakeref, 0);
 	flush_workqueue(i915->wq);
 
 	mutex_lock(&i915->drm.struct_mutex);

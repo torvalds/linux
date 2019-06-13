@@ -695,19 +695,19 @@ static void revoke_mmaps(struct drm_i915_private *i915)
 {
 	int i;
 
-	for (i = 0; i < i915->num_fence_regs; i++) {
+	for (i = 0; i < i915->ggtt.num_fences; i++) {
 		struct drm_vma_offset_node *node;
 		struct i915_vma *vma;
 		u64 vma_offset;
 
-		vma = READ_ONCE(i915->fence_regs[i].vma);
+		vma = READ_ONCE(i915->ggtt.fence_regs[i].vma);
 		if (!vma)
 			continue;
 
 		if (!i915_vma_has_userfault(vma))
 			continue;
 
-		GEM_BUG_ON(vma->fence != &i915->fence_regs[i]);
+		GEM_BUG_ON(vma->fence != &i915->ggtt.fence_regs[i]);
 		node = &vma->obj->base.vma_node;
 		vma_offset = vma->ggtt_view.partial.offset << PAGE_SHIFT;
 		unmap_mapping_range(i915->drm.anon_inode->i_mapping,

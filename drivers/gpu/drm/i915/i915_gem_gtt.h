@@ -39,6 +39,7 @@
 #include <linux/pagevec.h>
 
 #include "gt/intel_reset.h"
+#include "i915_gem_fence_reg.h"
 #include "i915_request.h"
 #include "i915_scatterlist.h"
 #include "i915_selftest.h"
@@ -61,7 +62,6 @@
 #define I915_MAX_NUM_FENCE_BITS 6
 
 struct drm_i915_file_private;
-struct drm_i915_fence_reg;
 struct drm_i915_gem_object;
 struct i915_vma;
 
@@ -407,6 +407,18 @@ struct i915_ggtt {
 	int mtrr;
 
 	u32 pin_bias;
+
+	unsigned int num_fences;
+	struct i915_fence_reg fence_regs[I915_MAX_NUM_FENCES];
+	struct list_head fence_list;
+
+	/** List of all objects in gtt_space, currently mmaped by userspace.
+	 * All objects within this list must also be on bound_list.
+	 */
+	struct list_head userfault_list;
+
+	/* Manual runtime pm autosuspend delay for user GGTT mmaps */
+	struct intel_wakeref_auto userfault_wakeref;
 
 	struct drm_mm_node error_capture;
 	struct drm_mm_node uc_fw;

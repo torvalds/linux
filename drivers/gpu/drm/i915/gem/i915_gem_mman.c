@@ -310,9 +310,9 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	/* Mark as being mmapped into userspace for later revocation */
 	assert_rpm_wakelock_held(i915);
 	if (!i915_vma_set_userfault(vma) && !obj->userfault_count++)
-		list_add(&obj->userfault_link, &i915->mm.userfault_list);
+		list_add(&obj->userfault_link, &i915->ggtt.userfault_list);
 	if (CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND)
-		intel_wakeref_auto(&i915->mm.userfault_wakeref,
+		intel_wakeref_auto(&i915->ggtt.userfault_wakeref,
 				   msecs_to_jiffies_timeout(CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND));
 	GEM_BUG_ON(!obj->userfault_count);
 

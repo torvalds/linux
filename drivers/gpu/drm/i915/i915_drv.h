@@ -757,14 +757,6 @@ struct i915_gem_mm {
 	 */
 	struct list_head shrink_list;
 
-	/** List of all objects in gtt_space, currently mmaped by userspace.
-	 * All objects within this list must also be on bound_list.
-	 */
-	struct list_head userfault_list;
-
-	/* Manual runtime pm autosuspend delay for user GGTT mmaps */
-	struct intel_wakeref_auto userfault_wakeref;
-
 	/**
 	 * List of objects which are pending destruction.
 	 */
@@ -793,9 +785,6 @@ struct i915_gem_mm {
 	struct notifier_block oom_notifier;
 	struct notifier_block vmap_notifier;
 	struct shrinker shrinker;
-
-	/** LRU list of objects with fence regs on them. */
-	struct list_head fence_list;
 
 	/**
 	 * Workqueue to fault in userptr pages, flushed by the execbuf
@@ -1484,9 +1473,6 @@ struct drm_i915_private {
 
 	/* protects panel power sequencer state */
 	struct mutex pps_mutex;
-
-	struct drm_i915_fence_reg fence_regs[I915_MAX_NUM_FENCES]; /* assume 965 */
-	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 	unsigned int skl_preferred_vco_freq;
@@ -2541,7 +2527,6 @@ void i915_gem_cleanup_userptr(struct drm_i915_private *dev_priv);
 void i915_gem_sanitize(struct drm_i915_private *i915);
 int i915_gem_init_early(struct drm_i915_private *dev_priv);
 void i915_gem_cleanup_early(struct drm_i915_private *dev_priv);
-void i915_gem_load_init_fences(struct drm_i915_private *dev_priv);
 int i915_gem_freeze(struct drm_i915_private *dev_priv);
 int i915_gem_freeze_late(struct drm_i915_private *dev_priv);
 
@@ -2660,19 +2645,6 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
-
-/* i915_gem_fence_reg.c */
-struct drm_i915_fence_reg *
-i915_reserve_fence(struct drm_i915_private *dev_priv);
-void i915_unreserve_fence(struct drm_i915_fence_reg *fence);
-
-void i915_gem_restore_fences(struct drm_i915_private *dev_priv);
-
-void i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv);
-void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj,
-				       struct sg_table *pages);
-void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
-					 struct sg_table *pages);
 
 static inline struct i915_gem_context *
 __i915_gem_context_lookup_rcu(struct drm_i915_file_private *file_priv, u32 id)

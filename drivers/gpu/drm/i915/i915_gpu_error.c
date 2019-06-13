@@ -1127,17 +1127,17 @@ static void gem_record_fences(struct i915_gpu_state *error)
 	int i;
 
 	if (INTEL_GEN(dev_priv) >= 6) {
-		for (i = 0; i < dev_priv->num_fence_regs; i++)
+		for (i = 0; i < dev_priv->ggtt.num_fences; i++)
 			error->fence[i] =
 				intel_uncore_read64(uncore,
 						    FENCE_REG_GEN6_LO(i));
 	} else if (INTEL_GEN(dev_priv) >= 4) {
-		for (i = 0; i < dev_priv->num_fence_regs; i++)
+		for (i = 0; i < dev_priv->ggtt.num_fences; i++)
 			error->fence[i] =
 				intel_uncore_read64(uncore,
 						    FENCE_REG_965_LO(i));
 	} else {
-		for (i = 0; i < dev_priv->num_fence_regs; i++)
+		for (i = 0; i < dev_priv->ggtt.num_fences; i++)
 			error->fence[i] =
 				intel_uncore_read(uncore, FENCE_REG(i));
 	}

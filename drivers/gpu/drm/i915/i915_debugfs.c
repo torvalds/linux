@@ -143,8 +143,6 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	unsigned int frontbuffer_bits;
 	int pin_count = 0;
 
-	lockdep_assert_held(&obj->base.dev->struct_mutex);
-
 	seq_printf(m, "%pK: %c%c%c%c%c %8zdKiB %02x %02x %s%s%s",
 		   &obj->base,
 		   get_active_flag(obj),
@@ -160,16 +158,16 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->mm.madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
 		seq_printf(m, " (name: %d)", obj->base.name);
-	list_for_each_entry(vma, &obj->vma.list, obj_link) {
-		if (i915_vma_is_pinned(vma))
-			pin_count++;
-	}
-	seq_printf(m, " (pinned x %d)", pin_count);
-	if (obj->pin_global)
-		seq_printf(m, " (global)");
+
+	spin_lock(&obj->vma.lock);
 	list_for_each_entry(vma, &obj->vma.list, obj_link) {
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
+
+		spin_unlock(&obj->vma.lock);
+
+		if (i915_vma_is_pinned(vma))
+			pin_count++;
 
 		seq_printf(m, " (%sgtt offset: %08llx, size: %08llx, pages: %s",
 			   i915_vma_is_ggtt(vma) ? "g" : "pp",
@@ -221,9 +219,16 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 				   vma->fence->id,
 				   i915_active_request_isset(&vma->last_fence) ? "*" : "");
 		seq_puts(m, ")");
+
+		spin_lock(&obj->vma.lock);
 	}
+	spin_unlock(&obj->vma.lock);
+
+	seq_printf(m, " (pinned x %d)", pin_count);
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08llx)", obj->stolen->start);
+	if (obj->pin_global)
+		seq_printf(m, " (global)");
 
 	engine = i915_gem_object_last_write_engine(obj);
 	if (engine)
@@ -698,28 +703,25 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 
 static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	int i, ret;
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+	unsigned int i;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
+	seq_printf(m, "Total fences = %d\n", i915->ggtt.num_fences);
 
-	seq_printf(m, "Total fences = %d\n", dev_priv->num_fence_regs);
-	for (i = 0; i < dev_priv->num_fence_regs; i++) {
-		struct i915_vma *vma = dev_priv->fence_regs[i].vma;
+	rcu_read_lock();
+	for (i = 0; i < i915->ggtt.num_fences; i++) {
+		struct i915_vma *vma = i915->ggtt.fence_regs[i].vma;
 
 		seq_printf(m, "Fence %d, pin count = %d, object = ",
-			   i, dev_priv->fence_regs[i].pin_count);
+			   i, i915->ggtt.fence_regs[i].pin_count);
 		if (!vma)
 			seq_puts(m, "unused");
 		else
 			describe_obj(m, vma->obj);
 		seq_putc(m, '\n');
 	}
+	rcu_read_unlock();
 
-	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 

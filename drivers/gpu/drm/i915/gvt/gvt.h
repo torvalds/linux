@@ -87,7 +87,7 @@ struct intel_vgpu_gm {
 
 /* Fences owned by a vGPU */
 struct intel_vgpu_fence {
-	struct drm_i915_fence_reg *regs[INTEL_GVT_MAX_NUM_FENCES];
+	struct i915_fence_reg *regs[INTEL_GVT_MAX_NUM_FENCES];
 	u32 base;
 	u32 size;
 };
@@ -390,7 +390,7 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 #define gvt_hidden_gmadr_end(gvt) (gvt_hidden_gmadr_base(gvt) \
 				   + gvt_hidden_sz(gvt) - 1)
 
-#define gvt_fence_sz(gvt) (gvt->dev_priv->num_fence_regs)
+#define gvt_fence_sz(gvt) ((gvt)->dev_priv->ggtt.num_fences)
 
 /* Aperture/GM space definitions for vGPU */
 #define vgpu_aperture_offset(vgpu)	((vgpu)->gm.low_gm_node.start)
