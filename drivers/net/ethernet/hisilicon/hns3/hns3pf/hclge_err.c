@@ -1727,44 +1727,31 @@ static void hclge_handle_over_8bd_err(struct hclge_dev *hdev,
 	}
 }
 
-static int hclge_handle_all_hw_msix_error(struct hclge_dev *hdev,
-					  unsigned long *reset_requests)
+/* hclge_handle_mpf_msix_error: handle all main PF MSI-X errors
+ * @hdev: pointer to struct hclge_dev
+ * @desc: descriptor for describing the command
+ * @mpf_bd_num: number of extended command structures
+ * @reset_requests: record of the reset level that we need
+ *
+ * This function handles all the main PF MSI-X errors in the hw register/s
+ * using command.
+ */
+static int hclge_handle_mpf_msix_error(struct hclge_dev *hdev,
+				       struct hclge_desc *desc,
+				       int mpf_bd_num,
+				       unsigned long *reset_requests)
 {
-	struct hclge_mac_tnl_stats mac_tnl_stats;
 	struct device *dev = &hdev->pdev->dev;
-	u32 mpf_bd_num, pf_bd_num, bd_num;
-	struct hclge_desc desc_bd;
-	struct hclge_desc *desc;
 	__le32 *desc_data;
 	u32 status;
 	int ret;
-
-	/* query the number of bds for the MSIx int status */
-	hclge_cmd_setup_basic_desc(&desc_bd, HCLGE_QUERY_MSIX_INT_STS_BD_NUM,
-				   true);
-	ret = hclge_cmd_send(&hdev->hw, &desc_bd, 1);
-	if (ret) {
-		dev_err(dev, "fail(%d) to query msix int status bd num\n",
-			ret);
-		return ret;
-	}
-
-	mpf_bd_num = le32_to_cpu(desc_bd.data[0]);
-	pf_bd_num = le32_to_cpu(desc_bd.data[1]);
-	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
-
-	desc = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
-	if (!desc)
-		goto out;
-
 	/* query all main PF MSIx errors */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_ALL_MPF_MSIX_INT,
 				   true);
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], mpf_bd_num);
 	if (ret) {
-		dev_err(dev, "query all mpf msix int cmd failed (%d)\n",
-			ret);
-		goto msi_error;
+		dev_err(dev, "query all mpf msix int cmd failed (%d)\n", ret);
+		return ret;
 	}
 
 	/* log MAC errors */
@@ -1785,21 +1772,38 @@ static int hclge_handle_all_hw_msix_error(struct hclge_dev *hdev,
 
 	/* clear all main PF MSIx errors */
 	ret = hclge_clear_hw_msix_error(hdev, desc, true, mpf_bd_num);
-	if (ret) {
-		dev_err(dev, "clear all mpf msix int cmd failed (%d)\n",
-			ret);
-		goto msi_error;
-	}
+	if (ret)
+		dev_err(dev, "clear all mpf msix int cmd failed (%d)\n", ret);
+
+	return ret;
+}
+
+/* hclge_handle_pf_msix_error: handle all PF MSI-X errors
+ * @hdev: pointer to struct hclge_dev
+ * @desc: descriptor for describing the command
+ * @mpf_bd_num: number of extended command structures
+ * @reset_requests: record of the reset level that we need
+ *
+ * This function handles all the PF MSI-X errors in the hw register/s using
+ * command.
+ */
+static int hclge_handle_pf_msix_error(struct hclge_dev *hdev,
+				      struct hclge_desc *desc,
+				      int pf_bd_num,
+				      unsigned long *reset_requests)
+{
+	struct device *dev = &hdev->pdev->dev;
+	__le32 *desc_data;
+	u32 status;
+	int ret;
 
 	/* query all PF MSIx errors */
-	memset(desc, 0, bd_num * sizeof(struct hclge_desc));
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT,
 				   true);
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], pf_bd_num);
 	if (ret) {
-		dev_err(dev, "query all pf msix int cmd failed (%d)\n",
-			ret);
-		goto msi_error;
+		dev_err(dev, "query all pf msix int cmd failed (%d)\n", ret);
+		return ret;
 	}
 
 	/* log SSU PF errors */
@@ -1831,10 +1835,50 @@ static int hclge_handle_all_hw_msix_error(struct hclge_dev *hdev,
 
 	/* clear all PF MSIx errors */
 	ret = hclge_clear_hw_msix_error(hdev, desc, false, pf_bd_num);
-	if (ret) {
+	if (ret)
 		dev_err(dev, "clear all pf msix int cmd failed (%d)\n", ret);
-		goto msi_error;
+
+	return ret;
+}
+
+static int hclge_handle_all_hw_msix_error(struct hclge_dev *hdev,
+					  unsigned long *reset_requests)
+{
+	struct hclge_mac_tnl_stats mac_tnl_stats;
+	struct device *dev = &hdev->pdev->dev;
+	u32 mpf_bd_num, pf_bd_num, bd_num;
+	struct hclge_desc desc_bd;
+	struct hclge_desc *desc;
+	u32 status;
+	int ret;
+
+	/* query the number of bds for the MSIx int status */
+	hclge_cmd_setup_basic_desc(&desc_bd, HCLGE_QUERY_MSIX_INT_STS_BD_NUM,
+				   true);
+	ret = hclge_cmd_send(&hdev->hw, &desc_bd, 1);
+	if (ret) {
+		dev_err(dev, "fail(%d) to query msix int status bd num\n",
+			ret);
+		return ret;
 	}
+
+	mpf_bd_num = le32_to_cpu(desc_bd.data[0]);
+	pf_bd_num = le32_to_cpu(desc_bd.data[1]);
+	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
+
+	desc = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	if (!desc)
+		goto out;
+
+	ret = hclge_handle_mpf_msix_error(hdev, desc, mpf_bd_num,
+					  reset_requests);
+	if (ret)
+		goto msi_error;
+
+	memset(desc, 0, bd_num * sizeof(struct hclge_desc));
+	ret = hclge_handle_pf_msix_error(hdev, desc, pf_bd_num, reset_requests);
+	if (ret)
+		goto msi_error;
 
 	/* query and clear mac tnl interruptions */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QUERY_MAC_TNL_INT,
