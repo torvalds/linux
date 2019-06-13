@@ -128,6 +128,8 @@ int vkms_gem_vmap(struct drm_gem_object *obj);
 void vkms_gem_vunmap(struct drm_gem_object *obj);
 
 /* CRC Support */
+const char *const *vkms_get_crc_sources(struct drm_crtc *crtc,
+					size_t *count);
 int vkms_set_crc_source(struct drm_crtc *crtc, const char *src_name);
 int vkms_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 			   size_t *values_cnt);
