@@ -52,15 +52,29 @@ Basic usage for V4L2 and sub-device drivers
 
 1.1) Add the handler to your driver's top-level struct:
 
+For V4L2 drivers:
+
 .. code-block:: none
 
 	struct foo_dev {
+		...
+		struct v4l2_device v4l2_dev;
 		...
 		struct v4l2_ctrl_handler ctrl_handler;
 		...
 	};
 
-	struct foo_dev *foo;
+For sub-device drivers:
+
+.. code-block:: none
+
+	struct foo_dev {
+		...
+		struct v4l2_subdev sd;
+		...
+		struct v4l2_ctrl_handler ctrl_handler;
+		...
+	};
 
 1.2) Initialize the handler:
 
@@ -74,42 +88,22 @@ information. It is a hint only.
 
 1.3) Hook the control handler into the driver:
 
-1.3.1) For V4L2 drivers do this:
+For V4L2 drivers:
 
 .. code-block:: none
 
-	struct foo_dev {
-		...
-		struct v4l2_device v4l2_dev;
-		...
-		struct v4l2_ctrl_handler ctrl_handler;
-		...
-	};
-
 	foo->v4l2_dev.ctrl_handler = &foo->ctrl_handler;
-
-Where foo->v4l2_dev is of type struct v4l2_device.
 
 Finally, remove all control functions from your v4l2_ioctl_ops (if any):
 vidioc_queryctrl, vidioc_query_ext_ctrl, vidioc_querymenu, vidioc_g_ctrl,
 vidioc_s_ctrl, vidioc_g_ext_ctrls, vidioc_try_ext_ctrls and vidioc_s_ext_ctrls.
 Those are now no longer needed.
 
-1.3.2) For sub-device drivers do this:
+For sub-device drivers:
 
 .. code-block:: none
 
-	struct foo_dev {
-		...
-		struct v4l2_subdev sd;
-		...
-		struct v4l2_ctrl_handler ctrl_handler;
-		...
-	};
-
 	foo->sd.ctrl_handler = &foo->ctrl_handler;
-
-Where foo->sd is of type struct v4l2_subdev.
 
 1.4) Clean up the handler at the end:
 
