@@ -1066,11 +1066,6 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 	return flags;
 }
 
-struct regdb_ptrs {
-	struct ieee80211_wmm_rule *rule;
-	u32 token;
-};
-
 struct ieee80211_regdomain *
 iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		       int num_of_ch, __le32 *channels, u16 fw_mcc,
@@ -1082,7 +1077,6 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	const u16 *nvm_chan;
 	struct ieee80211_regdomain *regd, *copy_rd;
 	struct ieee80211_reg_rule *rule;
-	struct regdb_ptrs *regdb_ptrs;
 	enum nl80211_band band;
 	int center_freq, prev_center_freq = 0;
 	int valid_rules = 0;
@@ -1113,12 +1107,6 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	regd = kzalloc(struct_size(regd, reg_rules, num_of_ch), GFP_KERNEL);
 	if (!regd)
 		return ERR_PTR(-ENOMEM);
-
-	regdb_ptrs = kcalloc(num_of_ch, sizeof(*regdb_ptrs), GFP_KERNEL);
-	if (!regdb_ptrs) {
-		copy_rd = ERR_PTR(-ENOMEM);
-		goto out;
-	}
 
 	/* set alpha2 from FW. */
 	regd->alpha2[0] = fw_mcc >> 8;
@@ -1191,8 +1179,6 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 	if (!copy_rd)
 		copy_rd = ERR_PTR(-ENOMEM);
 
-out:
-	kfree(regdb_ptrs);
 	kfree(regd);
 	return copy_rd;
 }
