@@ -53,9 +53,6 @@ static void komeda_debugfs_init(struct komeda_dev *mdev)
 		return;
 
 	mdev->debugfs_root = debugfs_create_dir("komeda", NULL);
-	if (IS_ERR_OR_NULL(mdev->debugfs_root))
-		return;
-
 	debugfs_create_file("register", 0444, mdev->debugfs_root,
 			    mdev, &komeda_register_fops);
 }
