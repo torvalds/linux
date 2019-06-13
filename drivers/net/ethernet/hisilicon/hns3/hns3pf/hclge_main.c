@@ -3236,6 +3236,7 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev, bool is_timeout)
 
 		dev_info(&hdev->pdev->dev, "Upgrade reset level\n");
 		hclge_clear_reset_cause(hdev);
+		set_bit(HNAE3_GLOBAL_RESET, &hdev->default_reset_request);
 		mod_timer(&hdev->reset_timer,
 			  jiffies + HCLGE_RESET_INTERVAL);
 
@@ -3430,8 +3431,7 @@ static void hclge_reset_timer(struct timer_list *t)
 	struct hclge_dev *hdev = from_timer(hdev, t, reset_timer);
 
 	dev_info(&hdev->pdev->dev,
-		 "triggering global reset in reset timer\n");
-	set_bit(HNAE3_GLOBAL_RESET, &hdev->default_reset_request);
+		 "triggering reset in reset timer\n");
 	hclge_reset_event(hdev->pdev, NULL);
 }
 
@@ -8613,6 +8613,18 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	/* Log and clear the hw errors those already occurred */
 	hclge_handle_all_hns_hw_errors(ae_dev);
+
+	/* request delayed reset for the error recovery because an immediate
+	 * global reset on a PF affecting pending initialization of other PFs
+	 */
+	if (ae_dev->hw_err_reset_req) {
+		enum hnae3_reset_type reset_level;
+
+		reset_level = hclge_get_reset_level(ae_dev,
+						    &ae_dev->hw_err_reset_req);
+		hclge_set_def_reset_request(ae_dev, reset_level);
+		mod_timer(&hdev->reset_timer, jiffies + HCLGE_RESET_INTERVAL);
+	}
 
 	/* Enable MISC vector(vector0) */
 	hclge_enable_vector(&hdev->misc_vector, true);
