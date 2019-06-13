@@ -262,13 +262,12 @@ untrack_all_intel_runtime_pm_wakerefs(struct intel_runtime_pm *rpm)
 	dump_and_free_wakeref_tracking(&dbg);
 }
 
-void print_intel_runtime_pm_wakeref(struct drm_i915_private *i915,
+void print_intel_runtime_pm_wakeref(struct intel_runtime_pm *rpm,
 				    struct drm_printer *p)
 {
 	struct intel_runtime_pm_debug dbg = {};
 
 	do {
-		struct intel_runtime_pm *rpm = &i915->runtime_pm;
 		unsigned long alloc = dbg.count;
 		depot_stack_handle_t *s;
 
@@ -537,7 +536,7 @@ void intel_runtime_pm_put(struct drm_i915_private *i915, intel_wakeref_t wref)
 
 /**
  * intel_runtime_pm_enable - enable runtime pm
- * @i915: i915 device instance
+ * @rpm: the intel_runtime_pm structure
  *
  * This function enables runtime pm at the end of the driver load sequence.
  *
@@ -545,9 +544,8 @@ void intel_runtime_pm_put(struct drm_i915_private *i915, intel_wakeref_t wref)
  * subordinate display power domains. That is done by
  * intel_power_domains_enable().
  */
-void intel_runtime_pm_enable(struct drm_i915_private *i915)
+void intel_runtime_pm_enable(struct intel_runtime_pm *rpm)
 {
-	struct intel_runtime_pm *rpm = &i915->runtime_pm;
 	struct device *kdev = rpm->kdev;
 
 	/*
@@ -587,9 +585,8 @@ void intel_runtime_pm_enable(struct drm_i915_private *i915)
 	pm_runtime_put_autosuspend(kdev);
 }
 
-void intel_runtime_pm_disable(struct drm_i915_private *i915)
+void intel_runtime_pm_disable(struct intel_runtime_pm *rpm)
 {
-	struct intel_runtime_pm *rpm = &i915->runtime_pm;
 	struct device *kdev = rpm->kdev;
 
 	/* Transfer rpm ownership back to core */
@@ -602,9 +599,8 @@ void intel_runtime_pm_disable(struct drm_i915_private *i915)
 		pm_runtime_put(kdev);
 }
 
-void intel_runtime_pm_cleanup(struct drm_i915_private *i915)
+void intel_runtime_pm_cleanup(struct intel_runtime_pm *rpm)
 {
-	struct intel_runtime_pm *rpm = &i915->runtime_pm;
 	int count = atomic_read(&rpm->wakeref_count);
 
 	WARN(count,
@@ -615,9 +611,10 @@ void intel_runtime_pm_cleanup(struct drm_i915_private *i915)
 	untrack_all_intel_runtime_pm_wakerefs(rpm);
 }
 
-void intel_runtime_pm_init_early(struct drm_i915_private *i915)
+void intel_runtime_pm_init_early(struct intel_runtime_pm *rpm)
 {
-	struct intel_runtime_pm *rpm = &i915->runtime_pm;
+	struct drm_i915_private *i915 =
+			container_of(rpm, struct drm_i915_private, runtime_pm);
 	struct pci_dev *pdev = i915->drm.pdev;
 	struct device *kdev = &pdev->dev;
 

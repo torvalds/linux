@@ -2459,7 +2459,7 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)) {
 		struct drm_printer p = drm_seq_file_printer(m);
 
-		print_intel_runtime_pm_wakeref(dev_priv, &p);
+		print_intel_runtime_pm_wakeref(&dev_priv->runtime_pm, &p);
 	}
 
 	return 0;
