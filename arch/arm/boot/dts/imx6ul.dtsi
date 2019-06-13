@@ -968,6 +968,14 @@
 				status = "disabled";
 			};
 
+			pxp: pxp@21cc000 {
+				compatible = "fsl,imx6ul-pxp";
+				reg = <0x021cc000 0x4000>;
+				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX6UL_CLK_PXP>;
+				clock-names = "axi";
+			};
+
 			qspi: spi@21e0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
