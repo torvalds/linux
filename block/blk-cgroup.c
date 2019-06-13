@@ -79,14 +79,13 @@ static void blkg_free(struct blkcg_gq *blkg)
 
 	blkg_rwstat_exit(&blkg->stat_ios);
 	blkg_rwstat_exit(&blkg->stat_bytes);
+	percpu_ref_exit(&blkg->refcnt);
 	kfree(blkg);
 }
 
 static void __blkg_release(struct rcu_head *rcu)
 {
 	struct blkcg_gq *blkg = container_of(rcu, struct blkcg_gq, rcu_head);
-
-	percpu_ref_exit(&blkg->refcnt);
 
 	/* release the blkcg and parent blkg refs this blkg has been holding */
 	css_put(&blkg->blkcg->css);
@@ -131,6 +130,9 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
 	blkg = kzalloc_node(sizeof(*blkg), gfp_mask, q->node);
 	if (!blkg)
 		return NULL;
+
+	if (percpu_ref_init(&blkg->refcnt, blkg_release, 0, gfp_mask))
+		goto err_free;
 
 	if (blkg_rwstat_init(&blkg->stat_bytes, gfp_mask) ||
 	    blkg_rwstat_init(&blkg->stat_ios, gfp_mask))
@@ -244,11 +246,6 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 		blkg_get(blkg->parent);
 	}
 
-	ret = percpu_ref_init(&blkg->refcnt, blkg_release, 0,
-			      GFP_NOWAIT | __GFP_NOWARN);
-	if (ret)
-		goto err_cancel_ref;
-
 	/* invoke per-policy init */
 	for (i = 0; i < BLKCG_MAX_POLS; i++) {
 		struct blkcg_policy *pol = blkcg_policy[i];
@@ -281,8 +278,6 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	blkg_put(blkg);
 	return ERR_PTR(ret);
 
-err_cancel_ref:
-	percpu_ref_exit(&blkg->refcnt);
 err_put_congested:
 	wb_congested_put(wb_congested);
 err_put_css:
