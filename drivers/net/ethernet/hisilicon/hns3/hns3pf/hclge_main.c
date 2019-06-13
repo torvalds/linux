@@ -8450,6 +8450,23 @@ static void hclge_flr_done(struct hnae3_ae_dev *ae_dev)
 	set_bit(HNAE3_FLR_DONE, &hdev->flr_state);
 }
 
+static void hclge_clear_resetting_state(struct hclge_dev *hdev)
+{
+	u16 i;
+
+	for (i = 0; i < hdev->num_alloc_vport; i++) {
+		struct hclge_vport *vport = &hdev->vport[i];
+		int ret;
+
+		 /* Send cmd to clear VF's FUNC_RST_ING */
+		ret = hclge_set_vf_rst(hdev, vport->vport_id, false);
+		if (ret)
+			dev_warn(&hdev->pdev->dev,
+				 "clear vf(%d) rst failed %d!\n",
+				 vport->vport_id, ret);
+	}
+}
+
 static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 {
 	struct pci_dev *pdev = ae_dev->pdev;
@@ -8610,6 +8627,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	INIT_WORK(&hdev->mbx_service_task, hclge_mailbox_service_task);
 
 	hclge_clear_all_event_cause(hdev);
+	hclge_clear_resetting_state(hdev);
 
 	/* Log and clear the hw errors those already occurred */
 	hclge_handle_all_hns_hw_errors(ae_dev);
