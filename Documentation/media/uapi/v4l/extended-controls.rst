@@ -96,9 +96,7 @@ if this control consists of more than one element.
    #. It is important to realize that due to the flexibility of controls it is
       necessary to check whether the control you want to set actually is
       supported in the driver and what the valid range of values is. So use
-      the :ref:`VIDIOC_QUERYCTRL` (or :ref:`VIDIOC_QUERY_EXT_CTRL
-      <VIDIOC_QUERYCTRL>`) and :ref:`VIDIOC_QUERYMENU <VIDIOC_QUERYCTRL>`
-      ioctls to check this.
+      :ref:`VIDIOC_QUERYCTRL` to check this.
 
    #. It is possible that some of the menu indices in a control of
       type ``V4L2_CTRL_TYPE_MENU`` may not be supported (``VIDIOC_QUERYMENU``
