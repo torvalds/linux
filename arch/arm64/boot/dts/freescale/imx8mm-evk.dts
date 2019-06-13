@@ -65,6 +65,10 @@
 	};
 };
 
+&snvs_pwrkey {
+	status = "okay";
+};
+
 &uart2 { /* console */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
