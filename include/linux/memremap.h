@@ -100,6 +100,7 @@ struct dev_pagemap {
 
 #ifdef CONFIG_ZONE_DEVICE
 void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap);
+void devm_memunmap_pages(struct device *dev, struct dev_pagemap *pgmap);
 struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
 		struct dev_pagemap *pgmap);
 
@@ -116,6 +117,11 @@ static inline void *devm_memremap_pages(struct device *dev,
 	 */
 	WARN_ON_ONCE(1);
 	return ERR_PTR(-ENXIO);
+}
+
+static inline void devm_memunmap_pages(struct device *dev,
+		struct dev_pagemap *pgmap)
+{
 }
 
 static inline struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
