@@ -145,9 +145,9 @@ ALT_FTR_SECTION_END_IFSET(CPU_FTR_EMB_HV)
 	tophys(r11,r11)
 	addi	r11,r11,global_dbcr0@l
 #ifdef CONFIG_SMP
-	lwz	r9,TASK_CPU(r2)
-	slwi	r9,r9,3
-	add	r11,r11,r9
+	lwz	r10, TASK_CPU(r2)
+	slwi	r10, r10, 3
+	add	r11, r11, r10
 #endif
 	lwz	r12,0(r11)
 	mtspr	SPRN_DBCR0,r12
