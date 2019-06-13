@@ -1033,56 +1033,6 @@ struct skl_wm_params {
 	u32 dbuf_block_size;
 };
 
-/*
- * This struct helps tracking the state needed for runtime PM, which puts the
- * device in PCI D3 state. Notice that when this happens, nothing on the
- * graphics device works, even register access, so we don't get interrupts nor
- * anything else.
- *
- * Every piece of our code that needs to actually touch the hardware needs to
- * either call intel_runtime_pm_get or call intel_display_power_get with the
- * appropriate power domain.
- *
- * Our driver uses the autosuspend delay feature, which means we'll only really
- * suspend if we stay with zero refcount for a certain amount of time. The
- * default value is currently very conservative (see intel_runtime_pm_enable), but
- * it can be changed with the standard runtime PM files from sysfs.
- *
- * The irqs_disabled variable becomes true exactly after we disable the IRQs and
- * goes back to false exactly before we reenable the IRQs. We use this variable
- * to check if someone is trying to enable/disable IRQs while they're supposed
- * to be disabled. This shouldn't happen and we'll print some error messages in
- * case it happens.
- *
- * For more, read the Documentation/power/runtime_pm.txt.
- */
-struct i915_runtime_pm {
-	atomic_t wakeref_count;
-	struct device *kdev; /* points to i915->drm.pdev->dev */
-	bool available;
-	bool suspended;
-	bool irqs_enabled;
-
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
-	/*
-	 * To aide detection of wakeref leaks and general misuse, we
-	 * track all wakeref holders. With manual markup (i.e. returning
-	 * a cookie to each rpm_get caller which they then supply to their
-	 * paired rpm_put) we can remove corresponding pairs of and keep
-	 * the array trimmed to active wakerefs.
-	 */
-	struct intel_runtime_pm_debug {
-		spinlock_t lock;
-
-		depot_stack_handle_t last_acquire;
-		depot_stack_handle_t last_release;
-
-		depot_stack_handle_t *owners;
-		unsigned long count;
-	} debug;
-#endif
-};
-
 enum intel_pipe_crc_source {
 	INTEL_PIPE_CRC_SOURCE_NONE,
 	INTEL_PIPE_CRC_SOURCE_PLANE1,
@@ -1728,7 +1678,7 @@ struct drm_i915_private {
 
 	struct drm_private_obj bw_obj;
 
-	struct i915_runtime_pm runtime_pm;
+	struct intel_runtime_pm runtime_pm;
 
 	struct {
 		bool initialized;

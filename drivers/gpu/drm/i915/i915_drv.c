@@ -2889,7 +2889,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	struct pci_dev *pdev = to_pci_dev(kdev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_runtime_pm *rpm = &dev_priv->runtime_pm;
+	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	int ret;
 
 	if (WARN_ON_ONCE(!(dev_priv->gt_pm.rc6.enabled && HAS_RC6(dev_priv))))
@@ -2988,7 +2988,7 @@ static int intel_runtime_resume(struct device *kdev)
 	struct pci_dev *pdev = to_pci_dev(kdev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_runtime_pm *rpm = &dev_priv->runtime_pm;
+	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
 	int ret = 0;
 
 	if (WARN_ON_ONCE(!HAS_RUNTIME_PM(dev_priv)))
