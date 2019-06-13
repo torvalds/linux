@@ -1780,9 +1780,8 @@ static int hclge_handle_all_hw_msix_error(struct hclge_dev *hdev,
 	status = le32_to_cpu(*(desc_data + 2)) &
 			HCLGE_PPU_MPF_INT_ST2_MSIX_MASK;
 	if (status)
-		hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST2",
-				&hclge_ppu_mpf_abnormal_int_st2[0],
-				status, reset_requests);
+		dev_warn(dev, "PPU_MPF_ABNORMAL_INT_ST2 rx_q_search_miss found [dfx status=0x%x\n]",
+			 status);
 
 	/* clear all main PF MSIx errors */
 	ret = hclge_clear_hw_msix_error(hdev, desc, true, mpf_bd_num);
