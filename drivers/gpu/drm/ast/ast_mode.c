@@ -959,6 +959,7 @@ static void ast_cursor_fini(struct drm_device *dev)
 	struct drm_gem_vram_object *gbo =
 		drm_gem_vram_of_gem(ast->cursor_cache);
 	drm_gem_vram_kunmap_at(gbo, &ast->cache_kmap);
+	drm_gem_vram_unpin(gbo);
 	drm_gem_object_put_unlocked(ast->cursor_cache);
 }
 
