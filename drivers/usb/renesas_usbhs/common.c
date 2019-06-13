@@ -651,9 +651,8 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 		return NULL;
 
 	dparam = &info->driver_param;
-	memcpy(dparam, &data->param, sizeof(data->param));
-	memcpy(&info->platform_callback, data->platform_callback,
-	       sizeof(*data->platform_callback));
+	*dparam = data->param;
+	info->platform_callback = *data->platform_callback;
 
 	if (!of_property_read_u32(dev->of_node, "renesas,buswait", &tmp))
 		dparam->buswait_bwait = tmp;
@@ -714,17 +713,13 @@ static int usbhs_probe(struct platform_device *pdev)
 	 * care platform info
 	 */
 
-	memcpy(&priv->dparam,
-	       &info->driver_param,
-	       sizeof(struct renesas_usbhs_driver_param));
+	priv->dparam = info->driver_param;
 
 	if (!info->platform_callback.get_id) {
 		dev_err(&pdev->dev, "no platform callbacks");
 		return -EINVAL;
 	}
-	memcpy(&priv->pfunc,
-	       &info->platform_callback,
-	       sizeof(struct renesas_usbhs_platform_callback));
+	priv->pfunc = info->platform_callback;
 
 	/* set driver callback functions for platform */
 	dfunc			= &info->driver_callback;
