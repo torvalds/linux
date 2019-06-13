@@ -300,7 +300,8 @@ int efa_com_create_ah(struct efa_com_dev *edev,
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
-		ibdev_err(edev->efa_dev, "Failed to create ah [%d]\n", err);
+		ibdev_err(edev->efa_dev, "Failed to create ah for %pI6 [%d]\n",
+			  ah_cmd.dest_addr, err);
 		return err;
 	}
 
