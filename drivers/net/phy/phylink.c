@@ -635,6 +635,7 @@ static void phylink_phy_change(struct phy_device *phydev, bool up,
 		pl->phy_state.pause |= MLO_PAUSE_ASYM;
 	pl->phy_state.interface = phydev->interface;
 	pl->phy_state.link = up;
+	pl->phy_state.an_enabled = phydev->autoneg;
 	mutex_unlock(&pl->state_mutex);
 
 	phylink_run_resolve(pl);
