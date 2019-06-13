@@ -241,6 +241,34 @@ static ssize_t cros_ec_pdinfo_read(struct file *file,
 				       read_buf, p - read_buf);
 }
 
+static ssize_t cros_ec_uptime_read(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct cros_ec_debugfs *debug_info = file->private_data;
+	struct cros_ec_device *ec_dev = debug_info->ec->ec_dev;
+	struct {
+		struct cros_ec_command cmd;
+		struct ec_response_uptime_info resp;
+	} __packed msg = {};
+	struct ec_response_uptime_info *resp;
+	char read_buf[32];
+	int ret;
+
+	resp = (struct ec_response_uptime_info *)&msg.resp;
+
+	msg.cmd.command = EC_CMD_GET_UPTIME_INFO;
+	msg.cmd.insize = sizeof(*resp);
+
+	ret = cros_ec_cmd_xfer_status(ec_dev, &msg.cmd);
+	if (ret < 0)
+		return ret;
+
+	ret = scnprintf(read_buf, sizeof(read_buf), "%u\n",
+			resp->time_since_ec_boot_ms);
+
+	return simple_read_from_buffer(user_buf, count, ppos, read_buf, ret);
+}
+
 static const struct file_operations cros_ec_console_log_fops = {
 	.owner = THIS_MODULE,
 	.open = cros_ec_console_log_open,
@@ -254,6 +282,13 @@ static const struct file_operations cros_ec_pdinfo_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
 	.read = cros_ec_pdinfo_read,
+	.llseek = default_llseek,
+};
+
+const struct file_operations cros_ec_uptime_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = cros_ec_uptime_read,
 	.llseek = default_llseek,
 };
 
@@ -407,6 +442,9 @@ static int cros_ec_debugfs_probe(struct platform_device *pd)
 
 	debugfs_create_file("pdinfo", 0444, debug_info->dir, debug_info,
 			    &cros_ec_pdinfo_fops);
+
+	debugfs_create_file("uptime", 0444, debug_info->dir, debug_info,
+			    &cros_ec_uptime_fops);
 
 	ec->debug_info = debug_info;
 

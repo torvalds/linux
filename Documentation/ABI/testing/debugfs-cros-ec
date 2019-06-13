@@ -1,0 +1,8 @@
+What:		/sys/kernel/debug/<cros-ec-device>/uptime
+Date:		June 2019
+KernelVersion:	5.3
+Description:
+		A u32 providing the time since EC booted in ms. This is
+		is used for synchronizing the AP host time with the EC
+		log. An error is returned if the command is not supported
+		by the EC or there is a communication problem.
