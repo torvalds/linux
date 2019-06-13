@@ -10219,7 +10219,7 @@ F:	drivers/watchdog/menz69_wdt.c
 
 MESON AO CEC DRIVER FOR AMLOGIC SOCS
 M:	Neil Armstrong <narmstrong@baylibre.com>
-L:	linux-media@lists.freedesktop.org
+L:	linux-media@vger.kernel.org
 L:	linux-amlogic@lists.infradead.org
 W:	http://linux-meson.com/
 S:	Supported
@@ -10237,7 +10237,7 @@ F:	Documentation/devicetree/bindings/mtd/amlogic,meson-nand.txt
 
 MESON VIDEO DECODER DRIVER FOR AMLOGIC SOCS
 M:	Maxime Jourdan <mjourdan@baylibre.com>
-L:	linux-media@lists.freedesktop.org
+L:	linux-media@vger.kernel.org
 L:	linux-amlogic@lists.infradead.org
 S:	Supported
 F:	drivers/staging/media/meson/vdec/
