@@ -82,6 +82,7 @@ configure specific aspects of kernel behavior to your liking.
    perf-security
    acpi/index
    device-mapper/index
+   laptops/index
 
 .. only::  subproject and html
 

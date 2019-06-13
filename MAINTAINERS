@@ -9029,7 +9029,7 @@ M:	Matan Ziv-Av <matan@svgalib.org>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-platform-lg-laptop
-F:	Documentation/laptops/lg-laptop.rst
+F:	Documentation/admin-guide/laptops/lg-laptop.rst
 F:	drivers/platform/x86/lg-laptop.c
 
 LG2160 MEDIA DRIVER
@@ -14888,7 +14888,7 @@ M:	Mattia Dongili <malattia@linux.it>
 L:	platform-driver-x86@vger.kernel.org
 W:	http://www.linux.it/~malattia/wiki/index.php/Sony_drivers
 S:	Maintained
-F:	Documentation/laptops/sony-laptop.rst
+F:	Documentation/admin-guide/laptops/sony-laptop.rst
 F:	drivers/char/sonypi.c
 F:	drivers/platform/x86/sony-laptop.c
 F:	include/linux/sony-laptop.h

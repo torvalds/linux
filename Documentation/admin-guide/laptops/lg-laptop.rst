@@ -1,6 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0+
 
-:orphan:
 
 LG Gram laptop extra features
 =============================
