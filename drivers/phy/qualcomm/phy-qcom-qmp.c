@@ -1255,7 +1255,6 @@ static const struct qmp_phy_cfg msm8998_pciephy_cfg = {
 	.start_ctrl             = SERDES_START | PCS_START,
 	.pwrdn_ctrl		= SW_PWRDN | REFCLK_DRV_DSBL,
 	.mask_pcs_ready		= PHYSTATUS,
-	.mask_com_pcs_ready	= PCS_READY,
 };
 
 static const struct qmp_phy_cfg msm8998_usb3phy_cfg = {
