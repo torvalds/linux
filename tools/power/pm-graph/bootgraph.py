@@ -325,9 +325,9 @@ def parseKernelLog():
 			if(not sysvals.stamp['kernel']):
 				sysvals.stamp['kernel'] = sysvals.kernelVersion(msg)
 			continue
-		m = re.match('.* setting system clock to (?P<t>.*) UTC.*', msg)
+		m = re.match('.* setting system clock to (?P<d>[0-9\-]*)[ A-Z](?P<t>[0-9:]*) UTC.*', msg)
 		if(m):
-			bt = datetime.strptime(m.group('t'), '%Y-%m-%d %H:%M:%S')
+			bt = datetime.strptime(m.group('d')+' '+m.group('t'), '%Y-%m-%d %H:%M:%S')
 			bt = bt - timedelta(seconds=int(ktime))
 			data.boottime = bt.strftime('%Y-%m-%d_%H:%M:%S')
 			sysvals.stamp['time'] = bt.strftime('%B %d %Y, %I:%M:%S %p')
@@ -348,7 +348,7 @@ def parseKernelLog():
 				data.newAction(phase, f, pid, start, ktime, int(r), int(t))
 				del devtemp[f]
 			continue
-		if(re.match('^Freeing unused kernel memory.*', msg)):
+		if(re.match('^Freeing unused kernel .*', msg)):
 			data.tUserMode = ktime
 			data.dmesg['kernel']['end'] = ktime
 			data.dmesg['user']['start'] = ktime
@@ -1008,7 +1008,7 @@ if __name__ == '__main__':
 			updateKernelParams()
 		elif cmd == 'flistall':
 			for f in sysvals.getBootFtraceFilterFunctions():
-				print f
+				print(f)
 		elif cmd == 'checkbl':
 			sysvals.getBootLoader()
 			pprint('Boot Loader: %s\n%s' % (sysvals.bootloader, sysvals.blexec))
