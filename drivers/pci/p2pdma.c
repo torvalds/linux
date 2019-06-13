@@ -95,7 +95,7 @@ static void pci_p2pdma_percpu_kill(struct percpu_ref *ref)
 	percpu_ref_kill(ref);
 }
 
-static void pci_p2pdma_percpu_cleanup(void *ref)
+static void pci_p2pdma_percpu_cleanup(struct percpu_ref *ref)
 {
 	struct p2pdma_pagemap *p2p_pgmap = to_p2p_pgmap(ref);
 
@@ -198,16 +198,6 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 	if (error)
 		goto pgmap_free;
 
-	/*
-	 * FIXME: the percpu_ref_exit needs to be coordinated internal
-	 * to devm_memremap_pages_release(). Duplicate the same ordering
-	 * as other devm_memremap_pages() users for now.
-	 */
-	error = devm_add_action(&pdev->dev, pci_p2pdma_percpu_cleanup,
-			&p2p_pgmap->ref);
-	if (error)
-		goto ref_cleanup;
-
 	pgmap = &p2p_pgmap->pgmap;
 
 	pgmap->res.start = pci_resource_start(pdev, bar) + offset;
@@ -218,11 +208,12 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 	pgmap->pci_p2pdma_bus_offset = pci_bus_address(pdev, bar) -
 		pci_resource_start(pdev, bar);
 	pgmap->kill = pci_p2pdma_percpu_kill;
+	pgmap->cleanup = pci_p2pdma_percpu_cleanup;
 
 	addr = devm_memremap_pages(&pdev->dev, pgmap);
 	if (IS_ERR(addr)) {
 		error = PTR_ERR(addr);
-		goto ref_exit;
+		goto pgmap_free;
 	}
 
 	error = gen_pool_add_owner(pdev->p2pdma->pool, (unsigned long)addr,
@@ -239,8 +230,6 @@ int pci_p2pdma_add_resource(struct pci_dev *pdev, int bar, size_t size,
 
 pages_free:
 	devm_memunmap_pages(&pdev->dev, pgmap);
-ref_cleanup:
-	percpu_ref_exit(&p2p_pgmap->ref);
 pgmap_free:
 	devm_kfree(&pdev->dev, p2p_pgmap);
 	return error;
