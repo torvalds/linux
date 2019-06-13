@@ -12,6 +12,7 @@ providing kernel parameters for builtin drivers versus loadable
 modules.
 
 -------------------------------------------------
+
 watchdog core:
     open_timeout:
 	Maximum time, in seconds, for which the watchdog framework will take
@@ -22,6 +23,7 @@ watchdog core:
 	fallback logic in the bootloader to try something else.
 
 -------------------------------------------------
+
 acquirewdt:
     wdt_stop:
 	Acquire WDT 'stop' io port (default 0x43)
