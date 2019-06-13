@@ -537,7 +537,7 @@ static int live_nop_request(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	for_each_engine(engine, i915, id) {
 		struct i915_request *request = NULL;
@@ -597,7 +597,7 @@ static int live_nop_request(void *arg)
 	}
 
 out_unlock:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -682,7 +682,7 @@ static int live_empty_request(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	batch = empty_batch(i915);
 	if (IS_ERR(batch)) {
@@ -746,7 +746,7 @@ out_batch:
 	i915_vma_unpin(batch);
 	i915_vma_put(batch);
 out_unlock:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -839,7 +839,7 @@ static int live_all_engines(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	err = igt_live_test_begin(&t, i915, __func__, "");
 	if (err)
@@ -919,7 +919,7 @@ out_request:
 	i915_vma_unpin(batch);
 	i915_vma_put(batch);
 out_unlock:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -942,7 +942,7 @@ static int live_sequential_engines(void *arg)
 	 */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	err = igt_live_test_begin(&t, i915, __func__, "");
 	if (err)
@@ -1048,7 +1048,7 @@ out_request:
 		i915_request_put(request[id]);
 	}
 out_unlock:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -1113,7 +1113,7 @@ static int live_breadcrumbs_smoketest(void *arg)
 	 * On real hardware this time.
 	 */
 
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	file = mock_file(i915);
 	if (IS_ERR(file)) {
@@ -1220,7 +1220,7 @@ out_threads:
 out_file:
 	mock_file_free(i915, file);
 out_rpm:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
 	return ret;
 }

@@ -2112,7 +2112,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	 * intel_runtime_pm_put(), so it is correct to wrap only the
 	 * pin/unpin/fence and not more.
 	 */
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 	i915_gem_object_lock(obj);
 
 	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
@@ -2169,7 +2169,7 @@ err:
 	atomic_dec(&dev_priv->gpu_error.pending_fb_pin);
 
 	i915_gem_object_unlock(obj);
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 	return vma;
 }
 
@@ -13927,7 +13927,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		intel_uncore_arm_unclaimed_mmio_detection(&dev_priv->uncore);
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET, wakeref);
 	}
-	intel_runtime_pm_put(dev_priv, intel_state->wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, intel_state->wakeref);
 
 	/*
 	 * Defer the cleanup of the old state to a separate worker to not
@@ -14006,7 +14006,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
 
-	intel_state->wakeref = intel_runtime_pm_get(dev_priv);
+	intel_state->wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	drm_atomic_state_get(state);
 	i915_sw_fence_init(&intel_state->commit_ready,
@@ -14044,7 +14044,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	if (ret) {
 		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
 		i915_sw_fence_commit(&intel_state->commit_ready);
-		intel_runtime_pm_put(dev_priv, intel_state->wakeref);
+		intel_runtime_pm_put(&dev_priv->runtime_pm, intel_state->wakeref);
 		return ret;
 	}
 
@@ -14056,7 +14056,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 		i915_sw_fence_commit(&intel_state->commit_ready);
 
 		drm_atomic_helper_cleanup_planes(dev, state);
-		intel_runtime_pm_put(dev_priv, intel_state->wakeref);
+		intel_runtime_pm_put(&dev_priv->runtime_pm, intel_state->wakeref);
 		return ret;
 	}
 	dev_priv->wm.distrust_bios_wm = false;

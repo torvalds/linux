@@ -53,7 +53,7 @@ static int live_nop_switch(void *arg)
 		return PTR_ERR(file);
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	ctx = kcalloc(nctx, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
@@ -156,7 +156,7 @@ static int live_nop_switch(void *arg)
 	}
 
 out_unlock:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	mock_file_free(i915, file);
 	return err;
@@ -1084,7 +1084,7 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 		goto out_unlock;
 	}
 
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	ce = i915_gem_context_get_engine(ctx, RCS0);
 	if (IS_ERR(ce)) {
@@ -1124,7 +1124,7 @@ out_fail:
 out_context:
 	intel_context_put(ce);
 out_rpm:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	i915_gem_object_put(obj);
 
 out_unlock:
@@ -1541,7 +1541,7 @@ static int igt_vm_isolation(void *arg)
 	GEM_BUG_ON(ctx_b->vm->total != vm_total);
 	vm_total -= I915_GTT_PAGE_SIZE;
 
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	count = 0;
 	for_each_engine(engine, i915, id) {
@@ -1586,7 +1586,7 @@ static int igt_vm_isolation(void *arg)
 		count, RUNTIME_INFO(i915)->num_engines);
 
 out_rpm:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 out_unlock:
 	if (igt_live_test_end(&t))
 		err = -EIO;

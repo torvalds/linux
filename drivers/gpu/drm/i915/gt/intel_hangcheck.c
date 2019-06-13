@@ -273,7 +273,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	if (i915_terminally_wedged(dev_priv))
 		return;
 
-	wakeref = intel_runtime_pm_get_if_in_use(dev_priv);
+	wakeref = intel_runtime_pm_get_if_in_use(&dev_priv->runtime_pm);
 	if (!wakeref)
 		return;
 
@@ -324,7 +324,7 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 	if (hung)
 		hangcheck_declare_hang(dev_priv, hung, stuck);
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	/* Reset timer in case GPU hangs without another request being added */
 	i915_queue_hangcheck(dev_priv);

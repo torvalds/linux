@@ -230,7 +230,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 	intel_wakeref_t wakeref;
 	enum hpd_pin pin;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	spin_lock_irq(&dev_priv->irq_lock);
 	for_each_hpd_pin(pin) {
@@ -263,7 +263,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 		dev_priv->display.hpd_irq_setup(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 }
 
 bool intel_encoder_hotplug(struct intel_encoder *encoder,

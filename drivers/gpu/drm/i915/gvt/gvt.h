@@ -584,12 +584,12 @@ enum {
 
 static inline void mmio_hw_access_pre(struct drm_i915_private *dev_priv)
 {
-	intel_runtime_pm_get(dev_priv);
+	intel_runtime_pm_get(&dev_priv->runtime_pm);
 }
 
 static inline void mmio_hw_access_post(struct drm_i915_private *dev_priv)
 {
-	intel_runtime_pm_put_unchecked(dev_priv);
+	intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
 }
 
 /**

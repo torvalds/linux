@@ -270,7 +270,7 @@ static int fence_update(struct i915_fence_reg *fence,
 	 * be cleared before we can use any other fences to ensure that
 	 * the new fences do not overlap the elided clears, confusing HW.
 	 */
-	wakeref = intel_runtime_pm_get_if_in_use(fence->i915);
+	wakeref = intel_runtime_pm_get_if_in_use(&fence->i915->runtime_pm);
 	if (!wakeref) {
 		GEM_BUG_ON(vma);
 		return 0;
@@ -284,7 +284,7 @@ static int fence_update(struct i915_fence_reg *fence,
 		list_move_tail(&fence->link, &fence->i915->ggtt.fence_list);
 	}
 
-	intel_runtime_pm_put(fence->i915, wakeref);
+	intel_runtime_pm_put(&fence->i915->runtime_pm, wakeref);
 	return 0;
 }
 

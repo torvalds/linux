@@ -171,7 +171,7 @@ engines_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 
 	wakeref = 0;
 	if (READ_ONCE(dev_priv->gt.awake))
-		wakeref = intel_runtime_pm_get_if_in_use(dev_priv);
+		wakeref = intel_runtime_pm_get_if_in_use(&dev_priv->runtime_pm);
 	if (!wakeref)
 		return;
 
@@ -207,7 +207,7 @@ engines_sample(struct drm_i915_private *dev_priv, unsigned int period_ns)
 	}
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, flags);
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 }
 
 static void
@@ -443,14 +443,15 @@ static u64 __get_rc6(struct drm_i915_private *i915)
 static u64 get_rc6(struct drm_i915_private *i915)
 {
 #if IS_ENABLED(CONFIG_PM)
+	struct intel_runtime_pm *rpm = &i915->runtime_pm;
 	intel_wakeref_t wakeref;
 	unsigned long flags;
 	u64 val;
 
-	wakeref = intel_runtime_pm_get_if_in_use(i915);
+	wakeref = intel_runtime_pm_get_if_in_use(rpm);
 	if (wakeref) {
 		val = __get_rc6(i915);
-		intel_runtime_pm_put(i915, wakeref);
+		intel_runtime_pm_put(rpm, wakeref);
 
 		/*
 		 * If we are coming back from being runtime suspended we must
@@ -469,8 +470,7 @@ static u64 get_rc6(struct drm_i915_private *i915)
 
 		spin_unlock_irqrestore(&i915->pmu.lock, flags);
 	} else {
-		struct pci_dev *pdev = i915->drm.pdev;
-		struct device *kdev = &pdev->dev;
+		struct device *kdev = rpm->kdev;
 
 		/*
 		 * We are runtime suspended.

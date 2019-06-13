@@ -636,7 +636,7 @@ static int live_dirty_whitelist(void *arg)
 	if (INTEL_GEN(i915) < 7) /* minimum requirement for LRI, SRM, LRM */
 		return 0;
 
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	mutex_unlock(&i915->drm.struct_mutex);
 	file = mock_file(i915);
@@ -666,7 +666,7 @@ out_file:
 	mock_file_free(i915, file);
 	mutex_lock(&i915->drm.struct_mutex);
 out_rpm:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	return err;
 }
 
@@ -1055,7 +1055,7 @@ live_gpu_reset_workarounds(void *arg)
 	pr_info("Verifying after GPU reset...\n");
 
 	igt_global_reset_lock(i915);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	reference_lists_init(i915, &lists);
 
@@ -1070,7 +1070,7 @@ live_gpu_reset_workarounds(void *arg)
 out:
 	kernel_context_close(ctx);
 	reference_lists_fini(i915, &lists);
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	igt_global_reset_unlock(i915);
 
 	return ok ? 0 : -ESRCH;
@@ -1097,7 +1097,7 @@ live_engine_reset_workarounds(void *arg)
 		return PTR_ERR(ctx);
 
 	igt_global_reset_lock(i915);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	reference_lists_init(i915, &lists);
 
@@ -1154,7 +1154,7 @@ live_engine_reset_workarounds(void *arg)
 
 err:
 	reference_lists_fini(i915, &lists);
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	igt_global_reset_unlock(i915);
 	kernel_context_close(ctx);
 

@@ -182,7 +182,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	 * we will force the wake during oom-notifier.
 	 */
 	if (shrink & I915_SHRINK_BOUND) {
-		wakeref = intel_runtime_pm_get_if_in_use(i915);
+		wakeref = intel_runtime_pm_get_if_in_use(&i915->runtime_pm);
 		if (!wakeref)
 			shrink &= ~I915_SHRINK_BOUND;
 	}
@@ -267,7 +267,7 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	}
 
 	if (shrink & I915_SHRINK_BOUND)
-		intel_runtime_pm_put(i915, wakeref);
+		intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
 	i915_retire_requests(i915);
 

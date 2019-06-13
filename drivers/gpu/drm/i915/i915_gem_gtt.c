@@ -1825,7 +1825,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 	unsigned int pde;
 	bool flush = false;
 
-	wakeref = intel_runtime_pm_get(vm->i915);
+	wakeref = intel_runtime_pm_get(&vm->i915->runtime_pm);
 
 	spin_lock(&ppgtt->base.pd.lock);
 	gen6_for_each_pde(pt, &ppgtt->base.pd, start, length, pde) {
@@ -1868,12 +1868,12 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 		gen6_ggtt_invalidate(vm->i915);
 	}
 
-	intel_runtime_pm_put(vm->i915, wakeref);
+	intel_runtime_pm_put(&vm->i915->runtime_pm, wakeref);
 
 	return 0;
 
 unwind_out:
-	intel_runtime_pm_put(vm->i915, wakeref);
+	intel_runtime_pm_put(&vm->i915->runtime_pm, wakeref);
 	gen6_ppgtt_clear_range(vm, from, start - from);
 	return -ENOMEM;
 }

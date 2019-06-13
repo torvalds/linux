@@ -1501,11 +1501,11 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 	 * as there is only one pre-allocated buf-obj for shadow.
 	 */
 	if (list_empty(workload_q_head(vgpu, ring_id))) {
-		intel_runtime_pm_get(dev_priv);
+		intel_runtime_pm_get(&dev_priv->runtime_pm);
 		mutex_lock(&dev_priv->drm.struct_mutex);
 		ret = intel_gvt_scan_and_shadow_workload(workload);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
-		intel_runtime_pm_put_unchecked(dev_priv);
+		intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
 	}
 
 	if (ret) {

@@ -873,7 +873,7 @@ static int igt_vma_remapped_gtt(void *arg)
 
 	mutex_lock(&i915->drm.struct_mutex);
 
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	for (t = types; *t; t++) {
 		for (p = planes; p->width; p++) {
@@ -965,7 +965,7 @@ static int igt_vma_remapped_gtt(void *arg)
 	}
 
 out:
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	i915_gem_object_put(obj);
 

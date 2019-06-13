@@ -174,30 +174,30 @@ void intel_runtime_pm_enable(struct intel_runtime_pm *rpm);
 void intel_runtime_pm_disable(struct intel_runtime_pm *rpm);
 void intel_runtime_pm_cleanup(struct intel_runtime_pm *rpm);
 
-intel_wakeref_t intel_runtime_pm_get(struct drm_i915_private *i915);
-intel_wakeref_t intel_runtime_pm_get_if_in_use(struct drm_i915_private *i915);
-intel_wakeref_t intel_runtime_pm_get_noresume(struct drm_i915_private *i915);
-intel_wakeref_t intel_runtime_pm_get_raw(struct drm_i915_private *i915);
+intel_wakeref_t intel_runtime_pm_get(struct intel_runtime_pm *rpm);
+intel_wakeref_t intel_runtime_pm_get_if_in_use(struct intel_runtime_pm *rpm);
+intel_wakeref_t intel_runtime_pm_get_noresume(struct intel_runtime_pm *rpm);
+intel_wakeref_t intel_runtime_pm_get_raw(struct intel_runtime_pm *rpm);
 
 #define with_intel_runtime_pm(i915, wf) \
-	for ((wf) = intel_runtime_pm_get(i915); (wf); \
-	     intel_runtime_pm_put((i915), (wf)), (wf) = 0)
+	for ((wf) = intel_runtime_pm_get(&(i915)->runtime_pm); (wf); \
+	     intel_runtime_pm_put(&(i915)->runtime_pm, (wf)), (wf) = 0)
 
 #define with_intel_runtime_pm_if_in_use(i915, wf) \
-	for ((wf) = intel_runtime_pm_get_if_in_use(i915); (wf); \
-	     intel_runtime_pm_put((i915), (wf)), (wf) = 0)
+	for ((wf) = intel_runtime_pm_get_if_in_use(&(i915)->runtime_pm); (wf); \
+	     intel_runtime_pm_put(&(i915)->runtime_pm, (wf)), (wf) = 0)
 
-void intel_runtime_pm_put_unchecked(struct drm_i915_private *i915);
+void intel_runtime_pm_put_unchecked(struct intel_runtime_pm *rpm);
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
-void intel_runtime_pm_put(struct drm_i915_private *i915, intel_wakeref_t wref);
+void intel_runtime_pm_put(struct intel_runtime_pm *rpm, intel_wakeref_t wref);
 #else
 static inline void
-intel_runtime_pm_put(struct drm_i915_private *i915, intel_wakeref_t wref)
+intel_runtime_pm_put(struct intel_runtime_pm *rpm, intel_wakeref_t wref)
 {
-	intel_runtime_pm_put_unchecked(i915);
+	intel_runtime_pm_put_unchecked(rpm);
 }
 #endif
-void intel_runtime_pm_put_raw(struct drm_i915_private *i915, intel_wakeref_t wref);
+void intel_runtime_pm_put_raw(struct intel_runtime_pm *rpm, intel_wakeref_t wref);
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 void print_intel_runtime_pm_wakeref(struct intel_runtime_pm *rpm,

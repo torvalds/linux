@@ -404,7 +404,7 @@ static int igt_evict_contexts(void *arg)
 		return 0;
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	/* Reserve a block so that we know we have enough to fit a few rq */
 	memset(&hole, 0, sizeof(hole));
@@ -515,7 +515,7 @@ out_locked:
 	}
 	if (drm_mm_node_allocated(&hole))
 		drm_mm_remove_node(&hole);
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	return err;

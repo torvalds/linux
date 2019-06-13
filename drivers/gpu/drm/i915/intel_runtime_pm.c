@@ -369,7 +369,7 @@ static intel_wakeref_t __intel_runtime_pm_get(struct intel_runtime_pm *rpm,
 
 /**
  * intel_runtime_pm_get_raw - grab a raw runtime pm reference
- * @i915: i915 device instance
+ * @rpm: the intel_runtime_pm structure
  *
  * This is the unlocked version of intel_display_power_is_enabled() and should
  * only be used from error capture and recovery code where deadlocks are
@@ -384,15 +384,14 @@ static intel_wakeref_t __intel_runtime_pm_get(struct intel_runtime_pm *rpm,
  * Returns: the wakeref cookie to pass to intel_runtime_pm_put_raw(), evaluates
  * as True if the wakeref was acquired, or False otherwise.
  */
-
-intel_wakeref_t intel_runtime_pm_get_raw(struct drm_i915_private *i915)
+intel_wakeref_t intel_runtime_pm_get_raw(struct intel_runtime_pm *rpm)
 {
-	return __intel_runtime_pm_get(&i915->runtime_pm, false);
+	return __intel_runtime_pm_get(rpm, false);
 }
 
 /**
  * intel_runtime_pm_get - grab a runtime pm reference
- * @i915: i915 device instance
+ * @rpm: the intel_runtime_pm structure
  *
  * This function grabs a device-level runtime pm reference (mostly used for GEM
  * code to ensure the GTT or GT is on) and ensures that it is powered up.
@@ -402,14 +401,14 @@ intel_wakeref_t intel_runtime_pm_get_raw(struct drm_i915_private *i915)
  *
  * Returns: the wakeref cookie to pass to intel_runtime_pm_put()
  */
-intel_wakeref_t intel_runtime_pm_get(struct drm_i915_private *i915)
+intel_wakeref_t intel_runtime_pm_get(struct intel_runtime_pm *rpm)
 {
-	return __intel_runtime_pm_get(&i915->runtime_pm, true);
+	return __intel_runtime_pm_get(rpm, true);
 }
 
 /**
  * intel_runtime_pm_get_if_in_use - grab a runtime pm reference if device in use
- * @i915: i915 device instance
+ * @rpm: the intel_runtime_pm structure
  *
  * This function grabs a device-level runtime pm reference if the device is
  * already in use and ensures that it is powered up. It is illegal to try
@@ -421,10 +420,8 @@ intel_wakeref_t intel_runtime_pm_get(struct drm_i915_private *i915)
  * Returns: the wakeref cookie to pass to intel_runtime_pm_put(), evaluates
  * as True if the wakeref was acquired, or False otherwise.
  */
-intel_wakeref_t intel_runtime_pm_get_if_in_use(struct drm_i915_private *i915)
+intel_wakeref_t intel_runtime_pm_get_if_in_use(struct intel_runtime_pm *rpm)
 {
-	struct intel_runtime_pm *rpm = &i915->runtime_pm;
-
 	if (IS_ENABLED(CONFIG_PM)) {
 		/*
 		 * In cases runtime PM is disabled by the RPM core and we get
@@ -443,7 +440,7 @@ intel_wakeref_t intel_runtime_pm_get_if_in_use(struct drm_i915_private *i915)
 
 /**
  * intel_runtime_pm_get_noresume - grab a runtime pm reference
- * @i915: i915 device instance
+ * @rpm: the intel_runtime_pm structure
  *
  * This function grabs a device-level runtime pm reference (mostly used for GEM
  * code to ensure the GTT or GT is on).
@@ -460,10 +457,8 @@ intel_wakeref_t intel_runtime_pm_get_if_in_use(struct drm_i915_private *i915)
  *
  * Returns: the wakeref cookie to pass to intel_runtime_pm_put()
  */
-intel_wakeref_t intel_runtime_pm_get_noresume(struct drm_i915_private *i915)
+intel_wakeref_t intel_runtime_pm_get_noresume(struct intel_runtime_pm *rpm)
 {
-	struct intel_runtime_pm *rpm = &i915->runtime_pm;
-
 	assert_rpm_wakelock_held(rpm);
 	pm_runtime_get_noresume(rpm->kdev);
 
@@ -488,7 +483,7 @@ static void __intel_runtime_pm_put(struct intel_runtime_pm *rpm,
 
 /**
  * intel_runtime_pm_put_raw - release a raw runtime pm reference
- * @i915: i915 device instance
+ * @rpm: the intel_runtime_pm structure
  * @wref: wakeref acquired for the reference that is being released
  *
  * This function drops the device-level runtime pm reference obtained by
@@ -496,14 +491,14 @@ static void __intel_runtime_pm_put(struct intel_runtime_pm *rpm,
  * hardware block right away if this is the last reference.
  */
 void
-intel_runtime_pm_put_raw(struct drm_i915_private *i915, intel_wakeref_t wref)
+intel_runtime_pm_put_raw(struct intel_runtime_pm *rpm, intel_wakeref_t wref)
 {
-	__intel_runtime_pm_put(&i915->runtime_pm, wref, false);
+	__intel_runtime_pm_put(rpm, wref, false);
 }
 
 /**
  * intel_runtime_pm_put_unchecked - release an unchecked runtime pm reference
- * @i915: i915 device instance
+ * @rpm: the intel_runtime_pm structure
  *
  * This function drops the device-level runtime pm reference obtained by
  * intel_runtime_pm_get() and might power down the corresponding
@@ -513,24 +508,24 @@ intel_runtime_pm_put_raw(struct drm_i915_private *i915, intel_wakeref_t wref)
  * new code, as the correctness of its use cannot be checked. Always use
  * intel_runtime_pm_put() instead.
  */
-void intel_runtime_pm_put_unchecked(struct drm_i915_private *i915)
+void intel_runtime_pm_put_unchecked(struct intel_runtime_pm *rpm)
 {
-	__intel_runtime_pm_put(&i915->runtime_pm, -1, true);
+	__intel_runtime_pm_put(rpm, -1, true);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 /**
  * intel_runtime_pm_put - release a runtime pm reference
- * @i915: i915 device instance
+ * @rpm: the intel_runtime_pm structure
  * @wref: wakeref acquired for the reference that is being released
  *
  * This function drops the device-level runtime pm reference obtained by
  * intel_runtime_pm_get() and might power down the corresponding
  * hardware block right away if this is the last reference.
  */
-void intel_runtime_pm_put(struct drm_i915_private *i915, intel_wakeref_t wref)
+void intel_runtime_pm_put(struct intel_runtime_pm *rpm, intel_wakeref_t wref)
 {
-	__intel_runtime_pm_put(&i915->runtime_pm, wref, true);
+	__intel_runtime_pm_put(rpm, wref, true);
 }
 #endif
 

@@ -97,7 +97,7 @@ static int live_active_wait(void *arg)
 	/* Check that we get a callback when requests retire upon waiting */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	err = __live_active_setup(i915, &active);
 
@@ -111,7 +111,7 @@ static int live_active_wait(void *arg)
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
 
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
@@ -126,7 +126,7 @@ static int live_active_retire(void *arg)
 	/* Check that we get a callback when requests are indirectly retired */
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	err = __live_active_setup(i915, &active);
 
@@ -140,7 +140,7 @@ static int live_active_retire(void *arg)
 	}
 
 	i915_active_fini(&active.base);
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }

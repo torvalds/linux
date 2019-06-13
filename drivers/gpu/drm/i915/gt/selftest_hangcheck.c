@@ -394,7 +394,7 @@ static int igt_reset_nop(void *arg)
 	}
 
 	i915_gem_context_clear_bannable(ctx);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	reset_count = i915_reset_count(&i915->gpu_error);
 	count = 0;
 	do {
@@ -441,7 +441,7 @@ static int igt_reset_nop(void *arg)
 	err = igt_flush_test(i915, I915_WAIT_LOCKED);
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
 out:
 	mock_file_free(i915, file);
@@ -478,7 +478,7 @@ static int igt_reset_nop_engine(void *arg)
 	}
 
 	i915_gem_context_clear_bannable(ctx);
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	for_each_engine(engine, i915, id) {
 		unsigned int reset_count, reset_engine_count;
 		unsigned int count;
@@ -549,7 +549,7 @@ static int igt_reset_nop_engine(void *arg)
 	err = igt_flush_test(i915, I915_WAIT_LOCKED);
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 out:
 	mock_file_free(i915, file);
 	if (i915_reset_failed(i915))
@@ -1749,7 +1749,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	if (i915_terminally_wedged(i915))
 		return -EIO; /* we're long past hope of a successful reset */
 
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);
 	drain_delayed_work(&i915->gpu_error.hangcheck_work); /* flush param */
 
@@ -1760,7 +1760,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	i915_modparams.enable_hangcheck = saved_hangcheck;
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
 	return err;
 }

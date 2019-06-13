@@ -1375,7 +1375,7 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	free_oa_buffer(dev_priv);
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
-	intel_runtime_pm_put(dev_priv, stream->wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, stream->wakeref);
 
 	if (stream->ctx)
 		oa_put_render_ctx_id(stream);
@@ -2112,7 +2112,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	 *   In our case we are expecting that taking pm + FORCEWAKE
 	 *   references will effectively disable RC6.
 	 */
-	stream->wakeref = intel_runtime_pm_get(dev_priv);
+	stream->wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
 	ret = alloc_oa_buffer(dev_priv);
@@ -2148,7 +2148,7 @@ err_oa_buf_alloc:
 	put_oa_config(dev_priv, stream->oa_config);
 
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
-	intel_runtime_pm_put(dev_priv, stream->wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, stream->wakeref);
 
 err_config:
 	if (stream->ctx)

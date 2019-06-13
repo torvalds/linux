@@ -213,7 +213,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	/* Pin the GGTT vma for our access via info->screen_base.
 	 * This also validates that any existing fb inherited from the
@@ -272,7 +272,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	ifbdev->vma = vma;
 	ifbdev->vma_flags = flags;
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 	mutex_unlock(&dev->struct_mutex);
 	vga_switcheroo_client_fb_set(pdev, info);
 	return 0;
@@ -280,7 +280,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 out_unpin:
 	intel_unpin_fb_vma(vma, flags);
 out_unlock:
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
 }

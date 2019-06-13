@@ -9,14 +9,14 @@
 
 static void rpm_get(struct drm_i915_private *i915, struct intel_wakeref *wf)
 {
-	wf->wakeref = intel_runtime_pm_get(i915);
+	wf->wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 }
 
 static void rpm_put(struct drm_i915_private *i915, struct intel_wakeref *wf)
 {
 	intel_wakeref_t wakeref = fetch_and_zero(&wf->wakeref);
 
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	GEM_BUG_ON(!wakeref);
 }
 
@@ -86,7 +86,7 @@ static void wakeref_auto_timeout(struct timer_list *t)
 	wakeref = fetch_and_zero(&wf->wakeref);
 	spin_unlock_irqrestore(&wf->lock, flags);
 
-	intel_runtime_pm_put(wf->i915, wakeref);
+	intel_runtime_pm_put(&wf->i915->runtime_pm, wakeref);
 }
 
 void intel_wakeref_auto_init(struct intel_wakeref_auto *wf,
@@ -116,7 +116,7 @@ void intel_wakeref_auto(struct intel_wakeref_auto *wf, unsigned long timeout)
 		spin_lock_irqsave(&wf->lock, flags);
 		if (!refcount_inc_not_zero(&wf->count)) {
 			GEM_BUG_ON(wf->wakeref);
-			wf->wakeref = intel_runtime_pm_get_if_in_use(wf->i915);
+			wf->wakeref = intel_runtime_pm_get_if_in_use(&wf->i915->runtime_pm);
 			refcount_set(&wf->count, 1);
 		}
 		spin_unlock_irqrestore(&wf->lock, flags);

@@ -63,7 +63,7 @@ static void simulate_hibernate(struct drm_i915_private *i915)
 {
 	intel_wakeref_t wakeref;
 
-	wakeref = intel_runtime_pm_get(i915);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	/*
 	 * As a final sting in the tail, invalidate stolen. Under a real S4,
@@ -74,7 +74,7 @@ static void simulate_hibernate(struct drm_i915_private *i915)
 	 */
 	trash_stolen(i915);
 
-	intel_runtime_pm_put(i915, wakeref);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
 static int pm_prepare(struct drm_i915_private *i915)

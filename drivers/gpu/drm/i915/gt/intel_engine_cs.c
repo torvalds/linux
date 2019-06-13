@@ -1103,7 +1103,7 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 		return true;
 
 	/* If the whole device is asleep, the engine must be idle */
-	wakeref = intel_runtime_pm_get_if_in_use(dev_priv);
+	wakeref = intel_runtime_pm_get_if_in_use(&dev_priv->runtime_pm);
 	if (!wakeref)
 		return true;
 
@@ -1117,7 +1117,7 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	    !(ENGINE_READ(engine, RING_MI_MODE) & MODE_IDLE))
 		idle = false;
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return idle;
 }
@@ -1531,10 +1531,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 
 	rcu_read_unlock();
 
-	wakeref = intel_runtime_pm_get_if_in_use(engine->i915);
+	wakeref = intel_runtime_pm_get_if_in_use(&engine->i915->runtime_pm);
 	if (wakeref) {
 		intel_engine_print_registers(engine, m);
-		intel_runtime_pm_put(engine->i915, wakeref);
+		intel_runtime_pm_put(&engine->i915->runtime_pm, wakeref);
 	} else {
 		drm_printf(m, "\tDevice is asleep; skipping register dump\n");
 	}

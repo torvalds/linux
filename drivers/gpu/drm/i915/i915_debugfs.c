@@ -490,7 +490,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	intel_wakeref_t wakeref;
 	int i, pipe;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	if (IS_CHERRYVIEW(dev_priv)) {
 		intel_wakeref_t pref;
@@ -696,7 +696,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		}
 	}
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return 0;
 }
@@ -833,7 +833,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	intel_wakeref_t wakeref;
 	int ret = 0;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	if (IS_GEN(dev_priv, 5)) {
 		u16 rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
@@ -1045,7 +1045,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	seq_printf(m, "Max CD clock frequency: %d kHz\n", dev_priv->max_cdclk_freq);
 	seq_printf(m, "Max pixel clock frequency: %d kHz\n", dev_priv->max_dotclk_freq);
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 	return ret;
 }
 
@@ -1391,7 +1391,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	if (!HAS_FBC(dev_priv))
 		return -ENODEV;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 	mutex_lock(&fbc->lock);
 
 	if (intel_fbc_is_active(dev_priv))
@@ -1418,7 +1418,7 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	}
 
 	mutex_unlock(&fbc->lock);
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return 0;
 }
@@ -1468,7 +1468,7 @@ static int i915_ips_status(struct seq_file *m, void *unused)
 	if (!HAS_IPS(dev_priv))
 		return -ENODEV;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	seq_printf(m, "Enabled by kernel parameter: %s\n",
 		   yesno(i915_modparams.enable_ips));
@@ -1482,7 +1482,7 @@ static int i915_ips_status(struct seq_file *m, void *unused)
 			seq_puts(m, "Currently: disabled\n");
 	}
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return 0;
 }
@@ -1561,7 +1561,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 
 	seq_puts(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 	for (gpu_freq = min_gpu_freq; gpu_freq <= max_gpu_freq; gpu_freq++) {
 		ia_freq = gpu_freq;
 		sandybridge_pcode_read(dev_priv,
@@ -1575,7 +1575,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 			   ((ia_freq >> 0) & 0xff) * 100,
 			   ((ia_freq >> 8) & 0xff) * 100);
 	}
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return 0;
 }
@@ -1752,7 +1752,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	intel_wakeref_t wakeref;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	seq_printf(m, "bit6 swizzle for X-tiling = %s\n",
 		   swizzle_string(dev_priv->mm.bit_6_swizzle_x));
@@ -1790,7 +1790,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
 		seq_puts(m, "L-shaped memory detected\n");
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return 0;
 }
@@ -2303,7 +2303,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	if (!psr->sink_support)
 		return 0;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 	mutex_lock(&psr->lock);
 
 	if (psr->enabled)
@@ -2367,7 +2367,7 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 unlock:
 	mutex_unlock(&psr->lock);
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return 0;
 }
@@ -2384,11 +2384,11 @@ i915_edp_psr_debug_set(void *data, u64 val)
 
 	DRM_DEBUG_KMS("Setting PSR debug to %llx\n", val);
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	ret = intel_psr_debug_set(dev_priv, val);
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return ret;
 }
@@ -2504,7 +2504,7 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 
 	csr = &dev_priv->csr;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	seq_printf(m, "fw loaded: %s\n", yesno(csr->dmc_payload != NULL));
 	seq_printf(m, "path: %s\n", csr->fw_path);
@@ -2530,7 +2530,7 @@ out:
 	seq_printf(m, "ssp base: 0x%08x\n", I915_READ(CSR_SSP_BASE));
 	seq_printf(m, "htp: 0x%08x\n", I915_READ(CSR_HTP_SKL));
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return 0;
 }
@@ -2814,7 +2814,7 @@ static int i915_display_info(struct seq_file *m, void *unused)
 	struct drm_connector_list_iter conn_iter;
 	intel_wakeref_t wakeref;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	seq_printf(m, "CRTC info\n");
 	seq_printf(m, "---------\n");
@@ -2863,7 +2863,7 @@ static int i915_display_info(struct seq_file *m, void *unused)
 	drm_connector_list_iter_end(&conn_iter);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return 0;
 }
@@ -2876,7 +2876,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	enum intel_engine_id id;
 	struct drm_printer p;
 
-	wakeref = intel_runtime_pm_get(dev_priv);
+	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	seq_printf(m, "GT awake? %s [%d]\n",
 		   yesno(dev_priv->gt.awake),
@@ -2888,7 +2888,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	for_each_engine(engine, dev_priv, id)
 		intel_engine_dump(engine, &p, "%s\n", engine->name);
 
-	intel_runtime_pm_put(dev_priv, wakeref);
+	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
 	return 0;
 }
@@ -4051,7 +4051,8 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 	if (INTEL_GEN(i915) < 6)
 		return 0;
 
-	file->private_data = (void *)(uintptr_t)intel_runtime_pm_get(i915);
+	file->private_data =
+		(void *)(uintptr_t)intel_runtime_pm_get(&i915->runtime_pm);
 	intel_uncore_forcewake_user_get(&i915->uncore);
 
 	return 0;
@@ -4065,7 +4066,7 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 		return 0;
 
 	intel_uncore_forcewake_user_put(&i915->uncore);
-	intel_runtime_pm_put(i915,
+	intel_runtime_pm_put(&i915->runtime_pm,
 			     (intel_wakeref_t)(uintptr_t)file->private_data);
 
 	return 0;
