@@ -63,7 +63,12 @@ struct mpa_v2_hdr {
 #define MPA_REV2(_mpa_rev) ((_mpa_rev) == MPA_NEGOTIATION_TYPE_ENHANCED)
 
 #define QED_IWARP_INVALID_TCP_CID	0xffffffff
-#define QED_IWARP_RCV_WND_SIZE_DEF	(256 * 1024)
+
+#define QED_IWARP_RCV_WND_SIZE_DEF_BB_2P (200 * 1024)
+#define QED_IWARP_RCV_WND_SIZE_DEF_BB_4P (100 * 1024)
+#define QED_IWARP_RCV_WND_SIZE_DEF_AH_2P (150 * 1024)
+#define QED_IWARP_RCV_WND_SIZE_DEF_AH_4P (90 * 1024)
+
 #define QED_IWARP_RCV_WND_SIZE_MIN	(0xffff)
 #define TIMESTAMP_HEADER_SIZE		(12)
 #define QED_IWARP_MAX_FIN_RT_DEFAULT	(2)
@@ -2612,7 +2617,8 @@ qed_iwarp_ll2_alloc_buffers(struct qed_hwfn *p_hwfn,
 
 static int
 qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
-		    struct qed_rdma_start_in_params *params)
+		    struct qed_rdma_start_in_params *params,
+		    u32 rcv_wnd_size)
 {
 	struct qed_iwarp_info *iwarp_info;
 	struct qed_ll2_acquire_data data;
@@ -2679,7 +2685,7 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 	data.input.conn_type = QED_LL2_TYPE_OOO;
 	data.input.mtu = params->max_mtu;
 
-	n_ooo_bufs = (QED_IWARP_MAX_OOO * QED_IWARP_RCV_WND_SIZE_DEF) /
+	n_ooo_bufs = (QED_IWARP_MAX_OOO * rcv_wnd_size) /
 		     iwarp_info->max_mtu;
 	n_ooo_bufs = min_t(u32, n_ooo_bufs, QED_IWARP_LL2_OOO_MAX_RX_SIZE);
 
@@ -2768,16 +2774,30 @@ err:
 	return rc;
 }
 
+static struct {
+	u32 two_ports;
+	u32 four_ports;
+} qed_iwarp_rcv_wnd_size[MAX_CHIP_IDS] = {
+	{QED_IWARP_RCV_WND_SIZE_DEF_BB_2P, QED_IWARP_RCV_WND_SIZE_DEF_BB_4P},
+	{QED_IWARP_RCV_WND_SIZE_DEF_AH_2P, QED_IWARP_RCV_WND_SIZE_DEF_AH_4P}
+};
+
 int qed_iwarp_setup(struct qed_hwfn *p_hwfn,
 		    struct qed_rdma_start_in_params *params)
 {
+	struct qed_dev *cdev = p_hwfn->cdev;
 	struct qed_iwarp_info *iwarp_info;
+	enum chip_ids chip_id;
 	u32 rcv_wnd_size;
 
 	iwarp_info = &p_hwfn->p_rdma_info->iwarp;
 
 	iwarp_info->tcp_flags = QED_IWARP_TS_EN;
-	rcv_wnd_size = QED_IWARP_RCV_WND_SIZE_DEF;
+
+	chip_id = QED_IS_BB(cdev) ? CHIP_BB : CHIP_K2;
+	rcv_wnd_size = (qed_device_num_ports(cdev) == 4) ?
+		qed_iwarp_rcv_wnd_size[chip_id].four_ports :
+		qed_iwarp_rcv_wnd_size[chip_id].two_ports;
 
 	/* value 0 is used for ilog2(QED_IWARP_RCV_WND_SIZE_MIN) */
 	iwarp_info->rcv_wnd_scale = ilog2(rcv_wnd_size) -
@@ -2800,7 +2820,7 @@ int qed_iwarp_setup(struct qed_hwfn *p_hwfn,
 				  qed_iwarp_async_event);
 	qed_ooo_setup(p_hwfn);
 
-	return qed_iwarp_ll2_start(p_hwfn, params);
+	return qed_iwarp_ll2_start(p_hwfn, params, rcv_wnd_size);
 }
 
 int qed_iwarp_stop(struct qed_hwfn *p_hwfn)
