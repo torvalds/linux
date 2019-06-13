@@ -290,10 +290,13 @@ static inline unsigned long __cmpxchg64(volatile void *ptr,
 	 * will cause a build error unless cpu_has_64bits is a		\
 	 * compile-time constant 1.					\
 	 */								\
-	if (cpu_has_64bits && kernel_uses_llsc)				\
+	if (cpu_has_64bits && kernel_uses_llsc) {			\
+		smp_mb__before_llsc();					\
 		__res = __cmpxchg64((ptr), __old, __new);		\
-	else								\
+		smp_llsc_mb();						\
+	} else {							\
 		__res = __cmpxchg64_unsupported();			\
+	}								\
 									\
 	__res;								\
 })
