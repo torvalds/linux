@@ -229,10 +229,6 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 	mutex_init(&minor->debugfs_lock);
 	sprintf(name, "%d", minor_id);
 	minor->debugfs_root = debugfs_create_dir(name, root);
-	if (!minor->debugfs_root) {
-		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%s\n", name);
-		return -1;
-	}
 
 	ret = drm_debugfs_create_files(drm_debugfs_list, DRM_DEBUGFS_ENTRIES,
 				       minor->debugfs_root, minor);
@@ -313,17 +309,15 @@ static void drm_debugfs_remove_all_files(struct drm_minor *minor)
 	mutex_unlock(&minor->debugfs_lock);
 }
 
-int drm_debugfs_cleanup(struct drm_minor *minor)
+void drm_debugfs_cleanup(struct drm_minor *minor)
 {
 	if (!minor->debugfs_root)
-		return 0;
+		return;
 
 	drm_debugfs_remove_all_files(minor);
 
 	debugfs_remove_recursive(minor->debugfs_root);
 	minor->debugfs_root = NULL;
-
-	return 0;
 }
 
 static int connector_show(struct seq_file *m, void *data)
@@ -441,38 +435,24 @@ static const struct file_operations drm_connector_fops = {
 	.write = connector_write
 };
 
-int drm_debugfs_connector_add(struct drm_connector *connector)
+void drm_debugfs_connector_add(struct drm_connector *connector)
 {
 	struct drm_minor *minor = connector->dev->primary;
-	struct dentry *root, *ent;
+	struct dentry *root;
 
 	if (!minor->debugfs_root)
-		return -1;
+		return;
 
 	root = debugfs_create_dir(connector->name, minor->debugfs_root);
-	if (!root)
-		return -ENOMEM;
-
 	connector->debugfs_entry = root;
 
 	/* force */
-	ent = debugfs_create_file("force", S_IRUGO | S_IWUSR, root, connector,
-				  &drm_connector_fops);
-	if (!ent)
-		goto error;
+	debugfs_create_file("force", S_IRUGO | S_IWUSR, root, connector,
+			    &drm_connector_fops);
 
 	/* edid */
-	ent = debugfs_create_file("edid_override", S_IRUGO | S_IWUSR, root,
-				  connector, &drm_edid_fops);
-	if (!ent)
-		goto error;
-
-	return 0;
-
-error:
-	debugfs_remove_recursive(connector->debugfs_entry);
-	connector->debugfs_entry = NULL;
-	return -ENOMEM;
+	debugfs_create_file("edid_override", S_IRUGO | S_IWUSR, root, connector,
+			    &drm_edid_fops);
 }
 
 void drm_debugfs_connector_remove(struct drm_connector *connector)
@@ -485,7 +465,7 @@ void drm_debugfs_connector_remove(struct drm_connector *connector)
 	connector->debugfs_entry = NULL;
 }
 
-int drm_debugfs_crtc_add(struct drm_crtc *crtc)
+void drm_debugfs_crtc_add(struct drm_crtc *crtc)
 {
 	struct drm_minor *minor = crtc->dev->primary;
 	struct dentry *root;
@@ -493,23 +473,14 @@ int drm_debugfs_crtc_add(struct drm_crtc *crtc)
 
 	name = kasprintf(GFP_KERNEL, "crtc-%d", crtc->index);
 	if (!name)
-		return -ENOMEM;
+		return;
 
 	root = debugfs_create_dir(name, minor->debugfs_root);
 	kfree(name);
-	if (!root)
-		return -ENOMEM;
 
 	crtc->debugfs_entry = root;
 
-	if (drm_debugfs_crtc_crc_add(crtc))
-		goto error;
-
-	return 0;
-
-error:
-	drm_debugfs_crtc_remove(crtc);
-	return -ENOMEM;
+	drm_debugfs_crtc_crc_add(crtc);
 }
 
 void drm_debugfs_crtc_remove(struct drm_crtc *crtc)
