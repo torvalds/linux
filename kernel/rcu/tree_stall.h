@@ -527,6 +527,8 @@ static void check_cpu_stall(struct rcu_data *rdp)
 
 		/* We haven't checked in, so go dump stack. */
 		print_cpu_stall();
+		if (rcu_cpu_stall_ftrace_dump)
+			rcu_ftrace_dump(DUMP_ALL);
 
 	} else if (rcu_gp_in_progress() &&
 		   ULONG_CMP_GE(j, js + RCU_STALL_RAT_DELAY) &&
@@ -534,6 +536,8 @@ static void check_cpu_stall(struct rcu_data *rdp)
 
 		/* They had a few time units to dump stack, so complain. */
 		print_other_cpu_stall(gs2);
+		if (rcu_cpu_stall_ftrace_dump)
+			rcu_ftrace_dump(DUMP_ALL);
 	}
 }
 
