@@ -666,7 +666,7 @@ gk104_fifo_intr_fault(struct gk104_fifo *fifo, int unit)
 	info.client = (type & 0x00001f00) >> 8;
 	info.access = (type & 0x00000080) >> 7;
 	info.hub    = (type & 0x00000040) >> 6;
-	info.reason = (type & 0x000000ff);
+	info.reason = (type & 0x0000001f);
 
 	nvkm_fifo_fault(&fifo->base, &info);
 }
