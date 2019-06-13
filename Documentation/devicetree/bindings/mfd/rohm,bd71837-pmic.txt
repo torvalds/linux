@@ -8,6 +8,8 @@ and 6 LDOs.
 
 Datasheet for BD71837 is available at:
 https://www.rohm.com/datasheet/BD71837MWV/bd71837mwv-e
+Datasheet for BD71847 is available at:
+https://www.rohm.com/datasheet/BD71847AMWV/bd71847amwv-e
 
 Required properties:
  - compatible		: Should be "rohm,bd71837" for bd71837
