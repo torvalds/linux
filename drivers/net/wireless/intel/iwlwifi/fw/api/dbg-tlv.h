@@ -439,6 +439,7 @@ enum iwl_fw_ini_apply_point {
  * @IWL_FW_INI_ALLOCATION_ID_SDFX: for SDFX module
  * @IWL_FW_INI_ALLOCATION_ID_FW_DUMP: used for crash and runtime dumps
  * @IWL_FW_INI_ALLOCATION_ID_USER_DEFINED: for future user scenarios
+ * @IWL_FW_INI_ALLOCATION_NUM: number of allocation ids
 */
 enum iwl_fw_ini_allocation_id {
 	IWL_FW_INI_ALLOCATION_INVALID,
@@ -448,6 +449,7 @@ enum iwl_fw_ini_allocation_id {
 	IWL_FW_INI_ALLOCATION_ID_SDFX,
 	IWL_FW_INI_ALLOCATION_ID_FW_DUMP,
 	IWL_FW_INI_ALLOCATION_ID_USER_DEFINED,
+	IWL_FW_INI_ALLOCATION_NUM,
 }; /* FW_DEBUG_TLV_ALLOCATION_ID_E_VER_1 */
 
 /**

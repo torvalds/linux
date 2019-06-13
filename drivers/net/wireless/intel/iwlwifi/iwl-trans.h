@@ -695,6 +695,7 @@ struct iwl_self_init_dram {
  * @ini_valid: indicates if debug ini mode is on
  * @num_blocks: number of blocks in fw_mon
  * @fw_mon: address of the buffers for firmware monitor
+ * @is_alloc: bit i is set if buffer i was allocated
  * @hw_error: equals true if hw error interrupt was received from the FW
  * @ini_dest: debug monitor destination uses &enum iwl_fw_ini_buffer_location
  */
@@ -717,7 +718,8 @@ struct iwl_trans_debug {
 	struct iwl_apply_point_data apply_points_ext[IWL_FW_INI_APPLY_NUM];
 
 	int num_blocks;
-	struct iwl_dram_data fw_mon[IWL_FW_INI_APPLY_NUM];
+	struct iwl_dram_data fw_mon[IWL_FW_INI_ALLOCATION_NUM];
+	u32 is_alloc;
 
 	bool hw_error;
 	enum iwl_fw_ini_buffer_location ini_dest;

@@ -85,14 +85,6 @@ void iwl_dbg_tlv_copy(struct iwl_trans *trans, struct iwl_ucode_tlv *tlv,
 	else
 		data = &trans->dbg.apply_points[apply_point];
 
-	/* add room for is_alloc field in &iwl_fw_ini_allocation_data struct */
-	if (le32_to_cpu(tlv->type) == IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION) {
-		struct iwl_fw_ini_allocation_data *buf_alloc =
-			(void *)tlv->data;
-
-		offset_size += sizeof(buf_alloc->is_alloc);
-	}
-
 	/*
 	 * Make sure we still have room to copy this TLV. Offset points to the
 	 * location the last copy ended.
@@ -144,16 +136,6 @@ void iwl_dbg_tlv_alloc(struct iwl_trans *trans, size_t len, const u8 *data,
 
 		if (WARN_ON(apply >= IWL_FW_INI_APPLY_NUM))
 			continue;
-
-		/* add room for is_alloc field in &iwl_fw_ini_allocation_data
-		 * struct
-		 */
-		if (tlv_type == IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION) {
-			struct iwl_fw_ini_allocation_data *buf_alloc =
-				(void *)tlv->data;
-
-			size[apply] += sizeof(buf_alloc->is_alloc);
-		}
 
 		size[apply] += sizeof(*tlv) + tlv_len;
 	}

@@ -2503,7 +2503,7 @@ iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt, u32 size)
 }
 
 static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
-				    struct iwl_fw_ini_allocation_data *alloc,
+				    struct iwl_fw_ini_allocation_tlv *alloc,
 				    enum iwl_fw_ini_apply_point pnt)
 {
 	struct iwl_trans *trans = fwrt->trans;
@@ -2518,7 +2518,14 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 		.len[0] = sizeof(ldbg_cmd),
 	};
 	int block_idx = trans->dbg.num_blocks;
-	u32 buf_location = le32_to_cpu(alloc->tlv.buffer_location);
+	u32 buf_location = le32_to_cpu(alloc->buffer_location);
+	u32 alloc_id = le32_to_cpu(alloc->allocation_id);
+
+	if (alloc_id <= IWL_FW_INI_ALLOCATION_INVALID ||
+	    alloc_id >= IWL_FW_INI_ALLOCATION_NUM) {
+		IWL_ERR(fwrt, "WRT: Invalid allocation id %d\n", alloc_id);
+		return;
+	}
 
 	if (fwrt->trans->dbg.ini_dest == IWL_FW_INI_LOCATION_INVALID)
 		fwrt->trans->dbg.ini_dest = buf_location;
@@ -2543,12 +2550,11 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 	if (buf_location != IWL_FW_INI_LOCATION_DRAM_PATH)
 		return;
 
-	if (!alloc->is_alloc) {
-		iwl_fw_dbg_buffer_allocation(fwrt,
-					     le32_to_cpu(alloc->tlv.size));
+	if (!(BIT(alloc_id) & fwrt->trans->dbg.is_alloc)) {
+		iwl_fw_dbg_buffer_allocation(fwrt, le32_to_cpu(alloc->size));
 		if (block_idx == trans->dbg.num_blocks)
 			return;
-		alloc->is_alloc = 1;
+		fwrt->trans->dbg.is_alloc |= BIT(alloc_id);
 	}
 
 	/* First block is assigned via registers / context info */
@@ -2561,9 +2567,9 @@ static void iwl_fw_dbg_buffer_apply(struct iwl_fw_runtime *fwrt,
 	cmd->num_frags = cpu_to_le32(1);
 	cmd->fragments[0].address =
 		cpu_to_le64(trans->dbg.fw_mon[block_idx].physical);
-	cmd->fragments[0].size = alloc->tlv.size;
-	cmd->allocation_id = alloc->tlv.allocation_id;
-	cmd->buffer_location = alloc->tlv.buffer_location;
+	cmd->fragments[0].size = alloc->size;
+	cmd->allocation_id = alloc->allocation_id;
+	cmd->buffer_location = alloc->buffer_location;
 
 	iwl_trans_send_cmd(trans, &hcmd);
 }
@@ -2788,20 +2794,15 @@ static void _iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 		case IWL_UCODE_TLV_TYPE_DEBUG_INFO:
 			iwl_fw_dbg_info_apply(fwrt, ini_tlv, ext, pnt);
 			break;
-		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION: {
-			struct iwl_fw_ini_allocation_data *buf_alloc = ini_tlv;
-
+		case IWL_UCODE_TLV_TYPE_BUFFER_ALLOCATION:
 			if (pnt != IWL_FW_INI_APPLY_EARLY) {
 				IWL_ERR(fwrt,
 					"WRT: ext=%d. Invalid apply point %d for buffer allocation\n",
 					ext, pnt);
 				goto next;
 			}
-
 			iwl_fw_dbg_buffer_apply(fwrt, ini_tlv, pnt);
-			iter += sizeof(buf_alloc->is_alloc);
 			break;
-		}
 		case IWL_UCODE_TLV_TYPE_HCMD:
 			if (pnt < IWL_FW_INI_APPLY_AFTER_ALIVE) {
 				IWL_ERR(fwrt,
