@@ -793,8 +793,6 @@ vc4_prime_import_sg_table(struct drm_device *dev,
 	if (IS_ERR(obj))
 		return obj;
 
-	obj->resv = attach->dmabuf->resv;
-
 	return obj;
 }
 
