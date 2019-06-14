@@ -947,7 +947,6 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 
 static int msm_gem_new_impl(struct drm_device *dev,
 		uint32_t size, uint32_t flags,
-		struct reservation_object *resv,
 		struct drm_gem_object **obj,
 		bool struct_mutex_locked)
 {
@@ -973,9 +972,6 @@ static int msm_gem_new_impl(struct drm_device *dev,
 
 	msm_obj->flags = flags;
 	msm_obj->madv = MSM_MADV_WILLNEED;
-
-	if (resv)
-		msm_obj->base.resv = resv;
 
 	INIT_LIST_HEAD(&msm_obj->submit_entry);
 	INIT_LIST_HEAD(&msm_obj->vmas);
@@ -1018,7 +1014,7 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 	if (size == 0)
 		return ERR_PTR(-EINVAL);
 
-	ret = msm_gem_new_impl(dev, size, flags, NULL, &obj, struct_mutex_locked);
+	ret = msm_gem_new_impl(dev, size, flags, &obj, struct_mutex_locked);
 	if (ret)
 		goto fail;
 
@@ -1095,7 +1091,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 
 	size = PAGE_ALIGN(dmabuf->size);
 
-	ret = msm_gem_new_impl(dev, size, MSM_BO_WC, dmabuf->resv, &obj, false);
+	ret = msm_gem_new_impl(dev, size, MSM_BO_WC, &obj, false);
 	if (ret)
 		goto fail;
 
