@@ -45,6 +45,7 @@
 
 #define REPORT_ID_HIDPP_SHORT			0x10
 #define REPORT_ID_HIDPP_LONG			0x11
+#define REPORT_ID_HIDPP_VERY_LONG		0x12
 
 #define HIDPP_REPORT_SHORT_LENGTH		7
 #define HIDPP_REPORT_LONG_LENGTH		20
@@ -1257,7 +1258,8 @@ static int logi_dj_ll_raw_request(struct hid_device *hid,
 	int ret;
 
 	if ((buf[0] == REPORT_ID_HIDPP_SHORT) ||
-	    (buf[0] == REPORT_ID_HIDPP_LONG)) {
+	    (buf[0] == REPORT_ID_HIDPP_LONG) ||
+	    (buf[0] == REPORT_ID_HIDPP_VERY_LONG)) {
 		if (count < 2)
 			return -EINVAL;
 
