@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * X-Gene SLIMpro I2C Driver
  *
@@ -5,22 +6,8 @@
  * Author: Feng Kan <fkan@apm.com>
  * Author: Hieu Le <hnle@apm.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  * This driver provides support for X-Gene SLIMpro I2C device access
  * using the APM X-Gene SLIMpro mailbox driver.
- *
  */
 #include <acpi/pcc.h>
 #include <linux/acpi.h>

@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
   STMMAC Ethtool support
 
   Copyright (C) 2007-2009  STMicroelectronics Ltd
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
 
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
@@ -460,7 +450,7 @@ stmmac_get_pauseparam(struct net_device *netdev,
 	} else {
 		if (!linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
 				       netdev->phydev->supported) ||
-		    linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+		    !linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
 				      netdev->phydev->supported))
 			return;
 	}
@@ -491,7 +481,7 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	} else {
 		if (!linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
 				       phy->supported) ||
-		    linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+		    !linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
 				      phy->supported))
 			return -EOPNOTSUPP;
 	}

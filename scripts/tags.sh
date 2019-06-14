@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
 # Generate tags or cscope files
 # Usage tags.sh <mode>
 #

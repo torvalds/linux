@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2002, 2003 Andi Kleen, SuSE Labs.
- * Subject to the GNU Public License v.2
  *
  * Wrappers of assembly checksum functions for x86-64.
  */

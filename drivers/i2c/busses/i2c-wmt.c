@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Wondermedia I2C Master Mode Driver
  *
@@ -5,11 +6,6 @@
  *
  *  Derived from GPLv2+ licensed source:
  *  - Copyright (C) 2008 WonderMedia Technologies, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2, or
- *  (at your option) any later version. as published by the Free Software
- *  Foundation
  */
 
 #include <linux/clk.h>

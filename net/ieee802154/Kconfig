@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig IEEE802154
 	tristate "IEEE Std 802.15.4 Low-Rate Wireless Personal Area Networks support"
 	---help---

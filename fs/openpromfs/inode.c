@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* inode.c: /proc/openprom handling routines
  *
  * Copyright (C) 1996-1999 Jakub Jelinek  (jakub@redhat.com)

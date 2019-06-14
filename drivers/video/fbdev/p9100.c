@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* p9100.c: P9100 frame buffer driver
  *
  * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)

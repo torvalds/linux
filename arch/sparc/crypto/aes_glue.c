@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Glue code for AES encryption optimized for sparc64 crypto opcodes.
  *
  * This is based largely upon arch/x86/crypto/aesni-intel_glue.c

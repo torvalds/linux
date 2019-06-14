@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Wacom protocol 4 serial tablet driver
  *
  * Copyright 2014      Hans de Goede <hdegoede@redhat.com>
  * Copyright 2011-2012 Julian Squires <julian@cipht.net>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version of 2 of the License, or (at your
- * option) any later version. See the file COPYING in the main directory of
- * this archive for more details.
  *
  * Many thanks to Bill Seremetis, without whom PenPartner support
  * would not have been possible. Thanks to Patrick Mahoney.

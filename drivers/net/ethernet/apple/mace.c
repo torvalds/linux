@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Network device driver for the MACE ethernet controller on
  * Apple Powermacs.  Assumes it's under a DBDMA controller.

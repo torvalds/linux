@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * U300 GPIO module.
  *
  * Copyright (C) 2007-2012 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * COH 901 571/3 - Used in DB3210 (U365 2.0) and DB3350 (U335 1.0)
  * Author: Linus Walleij <linus.walleij@linaro.org>
  * Author: Jonas Aaberg <jonas.aberg@stericsson.com>

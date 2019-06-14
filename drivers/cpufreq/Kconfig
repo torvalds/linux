@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "CPU Frequency scaling"
 
 config CPU_FREQ

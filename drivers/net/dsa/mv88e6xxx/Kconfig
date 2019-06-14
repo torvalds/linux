@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NET_DSA_MV88E6XXX
 	tristate "Marvell 88E6xxx Ethernet switch fabric support"
 	depends on NET_DSA

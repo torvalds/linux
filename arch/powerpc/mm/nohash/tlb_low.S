@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This file contains low-level functions for performing various
  * types of TLB invalidations on various processors with no hash
@@ -18,12 +19,6 @@
  *
  * Partially rewritten by Cort Dougan (cort@cs.nmt.edu)
  * Paul Mackerras, Kumar Gala and Benjamin Herrenschmidt.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  */
 
 #include <asm/reg.h>

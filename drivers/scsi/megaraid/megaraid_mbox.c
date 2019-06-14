@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *			Linux MegaRAID device driver
  *
  * Copyright (c) 2003-2004  LSI Logic Corporation.
- *
- *	   This program is free software; you can redistribute it and/or
- *	   modify it under the terms of the GNU General Public License
- *	   as published by the Free Software Foundation; either version
- *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_mbox.c
  * Version	: v2.20.5.1 (Nov 16 2006)
@@ -37,7 +33,6 @@
  * Dell PERC 4e/Di			1028	0013	1028	0170
  * Dell PERC 4e/DC			1000	0408	1028	0002
  * Dell PERC 4e/SC			1000	0408	1028	0001
- *
  *
  * LSI MegaRAID SCSI 320-0		1000	1960	1000	A520
  * LSI MegaRAID SCSI 320-1		1000	1960	1000	0520

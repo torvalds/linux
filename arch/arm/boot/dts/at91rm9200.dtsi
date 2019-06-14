@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91rm9200.dtsi - Device Tree Include file for AT91RM9200 family SoC
  *
@@ -6,8 +7,6 @@
  *                2012 Joachim Eastwood <manabian@gmail.com>
  *
  * Based on at91sam9260.dtsi
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <dt-bindings/pinctrl/at91.h>

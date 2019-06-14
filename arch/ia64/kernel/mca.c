@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * File:	mca.c
  * Purpose:	Generic MCA handling layer

@@ -3110,6 +3110,12 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	log->log_transid = root->log_transid;
 	root->log_start_pid = 0;
 	/*
+	 * Update or create log root item under the root's log_mutex to prevent
+	 * races with concurrent log syncs that can lead to failure to update
+	 * log root item because it was not created yet.
+	 */
+	ret = update_log_root(trans, log);
+	/*
 	 * IO has been started, blocks of the log tree have WRITTEN flag set
 	 * in their headers. new modifications of the log will be written to
 	 * new positions. so it's safe to allow log writers to go in.
@@ -3127,8 +3133,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	root_log_ctx.log_transid = log_root_tree->log_transid;
 
 	mutex_unlock(&log_root_tree->log_mutex);
-
-	ret = update_log_root(trans, log);
 
 	mutex_lock(&log_root_tree->log_mutex);
 	if (atomic_dec_and_test(&log_root_tree->log_writers)) {
@@ -4182,6 +4186,7 @@ fill_holes:
 							       *last_extent, 0,
 							       0, len, 0, len,
 							       0, 0, 0);
+				*last_extent += len;
 			}
 		}
 	}
@@ -5477,7 +5482,6 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 {
 	int ret = 0;
 	struct dentry *old_parent = NULL;
-	struct btrfs_inode *orig_inode = inode;
 
 	/*
 	 * for regular files, if its inode is already on disk, we don't
@@ -5497,16 +5501,6 @@ static noinline int check_parent_dirs_for_sync(struct btrfs_trans_handle *trans,
 	}
 
 	while (1) {
-		/*
-		 * If we are logging a directory then we start with our inode,
-		 * not our parent's inode, so we need to skip setting the
-		 * logged_trans so that further down in the log code we don't
-		 * think this inode has already been logged.
-		 */
-		if (inode != orig_inode)
-			inode->logged_trans = trans->transid;
-		smp_mb();
-
 		if (btrfs_must_commit_transaction(trans, inode)) {
 			ret = 1;
 			break;
@@ -6383,7 +6377,6 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 	 * if this directory was already logged any new
 	 * names for this file/dir will get recorded
 	 */
-	smp_mb();
 	if (dir->logged_trans == trans->transid)
 		return;
 

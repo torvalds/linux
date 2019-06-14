@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *   Fujitu mb86a20s ISDB-T/ISDB-Tsb Module driver
  *
  *   Copyright (C) 2010-2013 Mauro Carvalho Chehab
  *   Copyright (C) 2009-2010 Douglas Landgraf <dougsland@redhat.com>
- *
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License as
- *   published by the Free Software Foundation version 2.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *   General Public License for more details.
  */
 
 #include <linux/kernel.h>

@@ -1,23 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015 Mans Rullgard <mans@mansr.com>
  *
  * Mostly rewritten, based on driver from Sigma Designs.  Original
  * copyright notice below.
  *
- *
  * Driver for tangox SMP864x/SMP865x/SMP867x/SMP868x builtin Ethernet Mac.
  *
  * Copyright (C) 2005 Maxime Bizon <mbizon@freebox.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>

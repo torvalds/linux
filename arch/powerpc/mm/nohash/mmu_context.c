@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This file contains the routines for handling the MMU on those
  * PowerPC implementations where the MMU is not using the hash
@@ -8,11 +9,6 @@
  *
  *  Derived from previous arch/powerpc/mm/mmu_context.c
  *  and arch/powerpc/include/asm/mmu_context.h
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  * TODO:
  *

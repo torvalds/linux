@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PROC_FS
 	bool "/proc file system support" if EXPERT
 	default y

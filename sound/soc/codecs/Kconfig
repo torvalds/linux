@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Helper to resolve issues with configs that have SPI enabled but I2C
 # modular, meaning we can't build the codec driver in with I2C support.
 # We use an ordered list of conditional defaults to pick the appropriate
