@@ -68,4 +68,15 @@
 		clocks = <&k3_clks 149 0>;
 		clock-names = "fclk";
 	};
+
+	wkup_gpio_intr: interrupt-controller2 {
+		compatible = "ti,sci-intr";
+		ti,intr-trigger-type = <1>;
+		interrupt-controller;
+		interrupt-parent = <&gic500>;
+		#interrupt-cells = <2>;
+		ti,sci = <&dmsc>;
+		ti,sci-dst-id = <14>;
+		ti,sci-rm-range-girq = <0x5>;
+	};
 };
