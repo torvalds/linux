@@ -167,10 +167,6 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 
 	*handle = phys_to_dma(dev, page_to_phys(page));
 
-	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING) {
-		return page;
-	}
-
 #ifdef CONFIG_MMU
 	if (PageHighMem(page)) {
 		void *p;
@@ -196,9 +192,7 @@ void arch_dma_free(struct device *dev, size_t size, void *vaddr,
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	struct page *page;
 
-	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING) {
-		page = vaddr;
-	} else if (platform_vaddr_uncached(vaddr)) {
+	if (platform_vaddr_uncached(vaddr)) {
 		page = virt_to_page(platform_vaddr_to_cached(vaddr));
 	} else {
 #ifdef CONFIG_MMU

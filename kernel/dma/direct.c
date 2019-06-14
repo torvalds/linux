@@ -138,6 +138,14 @@ void *dma_direct_alloc_pages(struct device *dev, size_t size,
 	if (!page)
 		return NULL;
 
+	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING) {
+		/* remove any dirty cache lines on the kernel alias */
+		if (!PageHighMem(page))
+			arch_dma_prep_coherent(page, size);
+		/* return the page pointer as the opaque cookie */
+		return page;
+	}
+
 	if (PageHighMem(page)) {
 		/*
 		 * Depending on the cma= arguments and per-arch setup
@@ -177,6 +185,12 @@ void dma_direct_free_pages(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_addr, unsigned long attrs)
 {
 	unsigned int page_order = get_order(size);
+
+	if (attrs & DMA_ATTR_NO_KERNEL_MAPPING) {
+		/* cpu_addr is a struct page cookie, not a kernel address */
+		__dma_direct_free_pages(dev, size, cpu_addr);
+		return;
+	}
 
 	if (force_dma_unencrypted())
 		set_memory_encrypted((unsigned long)cpu_addr, 1 << page_order);
