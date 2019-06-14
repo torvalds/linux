@@ -308,6 +308,11 @@ void rtw_vif_port_config(struct rtw_dev *rtwdev,
 		mask = rtwvif->conf->aid.mask;
 		rtw_write32_mask(rtwdev, addr, mask, rtwvif->aid);
 	}
+	if (config & PORT_SET_BCN_CTRL) {
+		addr = rtwvif->conf->bcn_ctrl.addr;
+		mask = rtwvif->conf->bcn_ctrl.mask;
+		rtw_write8_mask(rtwdev, addr, mask, rtwvif->bcn_ctrl);
+	}
 }
 
 static u8 hw_bw_cap_to_bitamp(u8 bw_cap)

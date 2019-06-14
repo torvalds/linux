@@ -431,6 +431,7 @@ enum rtw_vif_port_set {
 	PORT_SET_BSSID		= BIT(1),
 	PORT_SET_NET_TYPE	= BIT(2),
 	PORT_SET_AID		= BIT(3),
+	PORT_SET_BCN_CTRL	= BIT(4),
 };
 
 struct rtw_vif_port {
@@ -438,6 +439,7 @@ struct rtw_vif_port {
 	struct rtw_hw_reg bssid;
 	struct rtw_hw_reg net_type;
 	struct rtw_hw_reg aid;
+	struct rtw_hw_reg bcn_ctrl;
 };
 
 struct rtw_tx_pkt_info {
@@ -591,6 +593,7 @@ struct rtw_vif {
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
 	u8 port;
+	u8 bcn_ctrl;
 	const struct rtw_vif_port *conf;
 
 	struct rtw_traffic_stats stats;
