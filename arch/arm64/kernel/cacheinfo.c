@@ -30,12 +30,10 @@
 
 int cache_line_size(void)
 {
-	u32 cwg = cache_type_cwg();
-
 	if (coherency_max_size != 0)
 		return coherency_max_size;
 
-	return cwg ? 4 << cwg : ARCH_DMA_MINALIGN;
+	return cache_line_size_of_cpu();
 }
 EXPORT_SYMBOL_GPL(cache_line_size);
 
