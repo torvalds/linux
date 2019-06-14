@@ -1130,6 +1130,47 @@ static int hns_roce_cmq_query_hw_info(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
+static void hns_roce_function_clear(struct hns_roce_dev *hr_dev)
+{
+	bool fclr_write_fail_flag = false;
+	struct hns_roce_func_clear *resp;
+	struct hns_roce_cmq_desc desc;
+	unsigned long end;
+	int ret;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_FUNC_CLEAR, false);
+	resp = (struct hns_roce_func_clear *)desc.data;
+
+	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret) {
+		fclr_write_fail_flag = true;
+		dev_err(hr_dev->dev, "Func clear write failed, ret = %d.\n",
+			 ret);
+		return;
+	}
+
+	msleep(HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_INTERVAL);
+	end = HNS_ROCE_V2_FUNC_CLEAR_TIMEOUT_MSECS;
+	while (end) {
+		msleep(HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_FAIL_WAIT);
+		end -= HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_FAIL_WAIT;
+
+		hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_FUNC_CLEAR,
+					      true);
+
+		ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+		if (ret)
+			continue;
+
+		if (roce_get_bit(resp->func_done, FUNC_CLEAR_RST_FUN_DONE_S)) {
+			hr_dev->is_reset = true;
+			return;
+		}
+	}
+
+	dev_err(hr_dev->dev, "Func clear fail.\n");
+}
+
 static int hns_roce_query_fw_ver(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_query_fw_info *resp;
@@ -1893,6 +1934,9 @@ err_tpq_init_failed:
 static void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
+
+	if (hr_dev->pci_dev->revision == 0x21)
+		hns_roce_function_clear(hr_dev);
 
 	hns_roce_free_link_table(hr_dev, &priv->tpq);
 	hns_roce_free_link_table(hr_dev, &priv->tsq);

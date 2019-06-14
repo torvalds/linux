@@ -241,6 +241,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_POST_MB				= 0x8504,
 	HNS_ROCE_OPC_QUERY_MB_ST			= 0x8505,
 	HNS_ROCE_OPC_CFG_BT_ATTR			= 0x8506,
+	HNS_ROCE_OPC_FUNC_CLEAR				= 0x8508,
 	HNS_ROCE_OPC_CLR_SCCC				= 0x8509,
 	HNS_ROCE_OPC_QUERY_SCCC				= 0x850a,
 	HNS_ROCE_OPC_RESET_SCCC				= 0x850b,
@@ -1229,6 +1230,22 @@ struct hns_roce_query_fw_info {
 	__le32 fw_ver;
 	__le32 rsv[5];
 };
+
+struct hns_roce_func_clear {
+	__le32 rst_funcid_en;
+	__le32 func_done;
+	__le32 rsv[4];
+};
+
+#define FUNC_CLEAR_RST_FUN_DONE_S 0
+/* Each physical function manages up to 248 virtual functions；
+ * it takes up to 100ms for each function to execute clear；
+ * if an abnormal reset occurs, it is executed twice at most;
+ * so it takes up to 249 * 2 * 100ms.
+ */
+#define HNS_ROCE_V2_FUNC_CLEAR_TIMEOUT_MSECS	(249 * 2 * 100)
+#define HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_INTERVAL	40
+#define HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_FAIL_WAIT	20
 
 struct hns_roce_cfg_llm_a {
 	__le32 base_addr_l;
