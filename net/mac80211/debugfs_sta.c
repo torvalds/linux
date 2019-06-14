@@ -960,8 +960,6 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	 * dir might still be around.
 	 */
 	sta->debugfs_dir = debugfs_create_dir(mac, stations_dir);
-	if (!sta->debugfs_dir)
-		return;
 
 	DEBUGFS_ADD(flags);
 	DEBUGFS_ADD(aid);
