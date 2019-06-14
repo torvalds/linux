@@ -177,6 +177,8 @@ struct rtw8822c_efuse {
 #define BIT_CCK_BLK_EN		BIT(1)
 #define BIT_CCK_OFDM_BLK_EN	(BIT(0) | BIT(1))
 #define REG_CCAMSK	0x1c80
+#define REG_RX_BREAK	0x1d2c
+#define BIT_COM_RX_GCK_EN	BIT(31)
 #define REG_RXFNCTL	0x1d30
 #define REG_RXIGI	0x1d70
 #define REG_ENFN	0x1e24
