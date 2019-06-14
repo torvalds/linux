@@ -1491,13 +1491,30 @@ static void rtw8822c_false_alarm_statistics(struct rtw_dev *rtwdev)
 	u32 cck_enable;
 	u32 cck_fa_cnt;
 	u32 ofdm_fa_cnt;
-	u32 ofdm_tx_counter;
+	u32 ofdm_fa_cnt1, ofdm_fa_cnt2, ofdm_fa_cnt3, ofdm_fa_cnt4, ofdm_fa_cnt5;
+	u16 parity_fail, rate_illegal, crc8_fail, mcs_fail, sb_search_fail,
+	    fast_fsync, crc8_fail_vhta, mcs_fail_vht;
 
 	cck_enable = rtw_read32(rtwdev, REG_ENCCK) & BIT_CCK_BLK_EN;
 	cck_fa_cnt = rtw_read16(rtwdev, REG_CCK_FACNT);
-	ofdm_fa_cnt = rtw_read16(rtwdev, REG_OFDM_FACNT);
-	ofdm_tx_counter = rtw_read16(rtwdev, REG_OFDM_TXCNT);
-	ofdm_fa_cnt -= ofdm_tx_counter;
+
+	ofdm_fa_cnt1 = rtw_read32(rtwdev, REG_OFDM_FACNT1);
+	ofdm_fa_cnt2 = rtw_read32(rtwdev, REG_OFDM_FACNT2);
+	ofdm_fa_cnt3 = rtw_read32(rtwdev, REG_OFDM_FACNT3);
+	ofdm_fa_cnt4 = rtw_read32(rtwdev, REG_OFDM_FACNT4);
+	ofdm_fa_cnt5 = rtw_read32(rtwdev, REG_OFDM_FACNT5);
+
+	parity_fail	= FIELD_GET(GENMASK(31, 16), ofdm_fa_cnt1);
+	rate_illegal	= FIELD_GET(GENMASK(15, 0), ofdm_fa_cnt2);
+	crc8_fail	= FIELD_GET(GENMASK(31, 16), ofdm_fa_cnt2);
+	crc8_fail_vhta	= FIELD_GET(GENMASK(15, 0), ofdm_fa_cnt3);
+	mcs_fail	= FIELD_GET(GENMASK(15, 0), ofdm_fa_cnt4);
+	mcs_fail_vht	= FIELD_GET(GENMASK(31, 16), ofdm_fa_cnt4);
+	fast_fsync	= FIELD_GET(GENMASK(15, 0), ofdm_fa_cnt5);
+	sb_search_fail	= FIELD_GET(GENMASK(31, 16), ofdm_fa_cnt5);
+
+	ofdm_fa_cnt = parity_fail + rate_illegal + crc8_fail + crc8_fail_vhta +
+		      mcs_fail + mcs_fail_vht + fast_fsync + sb_search_fail;
 
 	dm_info->cck_fa_cnt = cck_fa_cnt;
 	dm_info->ofdm_fa_cnt = ofdm_fa_cnt;

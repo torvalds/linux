@@ -188,6 +188,11 @@ struct rtw8822c_efuse {
 #define REG_CNT_CTRL	0x1eb4
 #define BIT_ALL_CNT_RST		BIT(25)
 #define REG_OFDM_FACNT	0x2d00
+#define REG_OFDM_FACNT1	0x2d04
+#define REG_OFDM_FACNT2	0x2d08
+#define REG_OFDM_FACNT3	0x2d0c
+#define REG_OFDM_FACNT4	0x2d10
+#define REG_OFDM_FACNT5	0x2d20
 #define REG_OFDM_TXCNT	0x2de0
 #define REG_ORITXCODE2	0x4100
 #define REG_3WIRE2	0x410c
