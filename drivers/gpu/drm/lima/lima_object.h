@@ -27,8 +27,7 @@ to_lima_bo(struct drm_gem_object *obj)
 }
 
 struct lima_bo *lima_bo_create(struct lima_device *dev, u32 size,
-			       u32 flags, struct sg_table *sgt,
-			       struct reservation_object *resv);
+			       u32 flags, struct sg_table *sgt);
 void lima_bo_destroy(struct lima_bo *bo);
 void *lima_bo_vmap(struct lima_bo *bo);
 void lima_bo_vunmap(struct lima_bo *bo);

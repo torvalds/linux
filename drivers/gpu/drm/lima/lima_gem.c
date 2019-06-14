@@ -24,7 +24,7 @@ int lima_gem_create_handle(struct drm_device *dev, struct drm_file *file,
 	struct lima_bo *bo;
 	struct lima_device *ldev = to_lima_dev(dev);
 
-	bo = lima_bo_create(ldev, size, flags, NULL, NULL);
+	bo = lima_bo_create(ldev, size, flags, NULL);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
