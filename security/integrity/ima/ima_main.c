@@ -43,6 +43,10 @@ int ima_appraise;
 int ima_hash_algo = HASH_ALGO_SHA1;
 static int hash_setup_done;
 
+static struct notifier_block ima_lsm_policy_notifier = {
+	.notifier_call = ima_lsm_policy_change,
+};
+
 static int __init hash_setup(char *str)
 {
 	struct ima_template_desc *template_desc = ima_template_desc_current();
@@ -620,6 +624,10 @@ static int __init init_ima(void)
 		hash_setup(CONFIG_IMA_DEFAULT_HASH);
 		error = ima_init();
 	}
+
+	error = register_blocking_lsm_notifier(&ima_lsm_policy_notifier);
+	if (error)
+		pr_warn("Couldn't register LSM notifier, error %d\n", error);
 
 	if (!error)
 		ima_update_policy_flag();
