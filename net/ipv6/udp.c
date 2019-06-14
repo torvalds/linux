@@ -111,7 +111,7 @@ void udp_v6_rehash(struct sock *sk)
 static int compute_score(struct sock *sk, struct net *net,
 			 const struct in6_addr *saddr, __be16 sport,
 			 const struct in6_addr *daddr, unsigned short hnum,
-			 int dif, int sdif, bool exact_dif)
+			 int dif, int sdif)
 {
 	int score;
 	struct inet_sock *inet;
@@ -155,8 +155,8 @@ static int compute_score(struct sock *sk, struct net *net,
 static struct sock *udp6_lib_lookup2(struct net *net,
 		const struct in6_addr *saddr, __be16 sport,
 		const struct in6_addr *daddr, unsigned int hnum,
-		int dif, int sdif, bool exact_dif,
-		struct udp_hslot *hslot2, struct sk_buff *skb)
+		int dif, int sdif, struct udp_hslot *hslot2,
+		struct sk_buff *skb)
 {
 	struct sock *sk, *result;
 	int score, badness;
@@ -166,7 +166,7 @@ static struct sock *udp6_lib_lookup2(struct net *net,
 	badness = -1;
 	udp_portaddr_for_each_entry_rcu(sk, &hslot2->head) {
 		score = compute_score(sk, net, saddr, sport,
-				      daddr, hnum, dif, sdif, exact_dif);
+				      daddr, hnum, dif, sdif);
 		if (score > badness) {
 			if (sk->sk_reuseport) {
 				hash = udp6_ehashfn(net, daddr, hnum,
@@ -202,7 +202,7 @@ struct sock *__udp6_lib_lookup(struct net *net,
 	hslot2 = &udptable->hash2[slot2];
 
 	result = udp6_lib_lookup2(net, saddr, sport,
-				  daddr, hnum, dif, sdif, exact_dif,
+				  daddr, hnum, dif, sdif,
 				  hslot2, skb);
 	if (!result) {
 		hash2 = ipv6_portaddr_hash(net, &in6addr_any, hnum);
@@ -212,8 +212,7 @@ struct sock *__udp6_lib_lookup(struct net *net,
 
 		result = udp6_lib_lookup2(net, saddr, sport,
 					  &in6addr_any, hnum, dif, sdif,
-					  exact_dif, hslot2,
-					  skb);
+					  hslot2, skb);
 	}
 	if (IS_ERR(result))
 		return NULL;
