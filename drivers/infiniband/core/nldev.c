@@ -120,6 +120,12 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_DEV_PROTOCOL]		= { .type = NLA_NUL_STRING,
 				    .len = RDMA_NLDEV_ATTR_ENTRY_STRLEN },
 	[RDMA_NLDEV_NET_NS_FD]			= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_CHARDEV]		= { .type = NLA_U64 },
+	[RDMA_NLDEV_ATTR_CHARDEV_ABI]		= { .type = NLA_U64 },
+	[RDMA_NLDEV_ATTR_CHARDEV_TYPE]		= { .type = NLA_NUL_STRING,
+				    .len = 128 },
+	[RDMA_NLDEV_ATTR_CHARDEV_NAME]		= { .type = NLA_NUL_STRING,
+				    .len = RDMA_NLDEV_ATTR_ENTRY_STRLEN },
 };
 
 static int put_driver_name_print_type(struct sk_buff *msg, const char *name,
@@ -1347,6 +1353,91 @@ static int nldev_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return 0;
 }
 
+static int nldev_get_chardev(struct sk_buff *skb, struct nlmsghdr *nlh,
+			     struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
+	char client_name[IB_DEVICE_NAME_MAX];
+	struct ib_client_nl_info data = {};
+	struct ib_device *ibdev = NULL;
+	struct sk_buff *msg;
+	u32 index;
+	int err;
+
+	err = nlmsg_parse(nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1, nldev_policy,
+			  extack);
+	if (err || !tb[RDMA_NLDEV_ATTR_CHARDEV_TYPE])
+		return -EINVAL;
+
+	if (nla_strlcpy(client_name, tb[RDMA_NLDEV_ATTR_CHARDEV_TYPE],
+			sizeof(client_name)) >= sizeof(client_name))
+		return -EINVAL;
+
+	if (tb[RDMA_NLDEV_ATTR_DEV_INDEX]) {
+		index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
+		ibdev = ib_device_get_by_index(sock_net(skb->sk), index);
+		if (!ibdev)
+			return -EINVAL;
+
+		if (tb[RDMA_NLDEV_ATTR_PORT_INDEX]) {
+			data.port = nla_get_u32(tb[RDMA_NLDEV_ATTR_PORT_INDEX]);
+			if (!rdma_is_port_valid(ibdev, data.port)) {
+				err = -EINVAL;
+				goto out_put;
+			}
+		} else {
+			data.port = -1;
+		}
+	} else if (tb[RDMA_NLDEV_ATTR_PORT_INDEX]) {
+		return -EINVAL;
+	}
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg) {
+		err = -ENOMEM;
+		goto out_put;
+	}
+	nlh = nlmsg_put(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
+			RDMA_NL_GET_TYPE(RDMA_NL_NLDEV,
+					 RDMA_NLDEV_CMD_GET_CHARDEV),
+			0, 0);
+
+	data.nl_msg = msg;
+	err = ib_get_client_nl_info(ibdev, client_name, &data);
+	if (err)
+		goto out_nlmsg;
+
+	err = nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_CHARDEV,
+				huge_encode_dev(data.cdev->devt),
+				RDMA_NLDEV_ATTR_PAD);
+	if (err)
+		goto out_data;
+	err = nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_CHARDEV_ABI, data.abi,
+				RDMA_NLDEV_ATTR_PAD);
+	if (err)
+		goto out_data;
+	if (nla_put_string(msg, RDMA_NLDEV_ATTR_CHARDEV_NAME,
+			   dev_name(data.cdev))) {
+		err = -EMSGSIZE;
+		goto out_data;
+	}
+
+	nlmsg_end(msg, nlh);
+	put_device(data.cdev);
+	if (ibdev)
+		ib_device_put(ibdev);
+	return rdma_nl_unicast(msg, NETLINK_CB(skb).portid);
+
+out_data:
+	put_device(data.cdev);
+out_nlmsg:
+	nlmsg_free(msg);
+out_put:
+	if (ibdev)
+		ib_device_put(ibdev);
+	return err;
+}
+
 static int nldev_sys_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 			      struct netlink_ext_ack *extack)
 {
@@ -1403,6 +1494,9 @@ static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	[RDMA_NLDEV_CMD_GET] = {
 		.doit = nldev_get_doit,
 		.dump = nldev_get_dumpit,
+	},
+	[RDMA_NLDEV_CMD_GET_CHARDEV] = {
+		.doit = nldev_get_chardev,
 	},
 	[RDMA_NLDEV_CMD_SET] = {
 		.doit = nldev_set_doit,

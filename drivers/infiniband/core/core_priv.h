@@ -88,6 +88,15 @@ typedef int (*nldev_callback)(struct ib_device *device,
 int ib_enum_all_devs(nldev_callback nldev_cb, struct sk_buff *skb,
 		     struct netlink_callback *cb);
 
+struct ib_client_nl_info {
+	struct sk_buff *nl_msg;
+	struct device *cdev;
+	unsigned int port;
+	u64 abi;
+};
+int ib_get_client_nl_info(struct ib_device *ibdev, const char *client_name,
+			  struct ib_client_nl_info *res);
+
 enum ib_cache_gid_default_mode {
 	IB_CACHE_GID_DEFAULT_MODE_SET,
 	IB_CACHE_GID_DEFAULT_MODE_DELETE

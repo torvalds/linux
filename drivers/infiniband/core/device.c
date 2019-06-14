@@ -1726,6 +1726,104 @@ void ib_unregister_client(struct ib_client *client)
 }
 EXPORT_SYMBOL(ib_unregister_client);
 
+static int __ib_get_global_client_nl_info(const char *client_name,
+					  struct ib_client_nl_info *res)
+{
+	struct ib_client *client;
+	unsigned long index;
+	int ret = -ENOENT;
+
+	down_read(&clients_rwsem);
+	xa_for_each_marked (&clients, index, client, CLIENT_REGISTERED) {
+		if (strcmp(client->name, client_name) != 0)
+			continue;
+		if (!client->get_global_nl_info) {
+			ret = -EOPNOTSUPP;
+			break;
+		}
+		ret = client->get_global_nl_info(res);
+		if (WARN_ON(ret == -ENOENT))
+			ret = -EINVAL;
+		if (!ret && res->cdev)
+			get_device(res->cdev);
+		break;
+	}
+	up_read(&clients_rwsem);
+	return ret;
+}
+
+static int __ib_get_client_nl_info(struct ib_device *ibdev,
+				   const char *client_name,
+				   struct ib_client_nl_info *res)
+{
+	unsigned long index;
+	void *client_data;
+	int ret = -ENOENT;
+
+	down_read(&ibdev->client_data_rwsem);
+	xan_for_each_marked (&ibdev->client_data, index, client_data,
+			     CLIENT_DATA_REGISTERED) {
+		struct ib_client *client = xa_load(&clients, index);
+
+		if (!client || strcmp(client->name, client_name) != 0)
+			continue;
+		if (!client->get_nl_info) {
+			ret = -EOPNOTSUPP;
+			break;
+		}
+		ret = client->get_nl_info(ibdev, client_data, res);
+		if (WARN_ON(ret == -ENOENT))
+			ret = -EINVAL;
+
+		/*
+		 * The cdev is guaranteed valid as long as we are inside the
+		 * client_data_rwsem as remove_one can't be called. Keep it
+		 * valid for the caller.
+		 */
+		if (!ret && res->cdev)
+			get_device(res->cdev);
+		break;
+	}
+	up_read(&ibdev->client_data_rwsem);
+
+	return ret;
+}
+
+/**
+ * ib_get_client_nl_info - Fetch the nl_info from a client
+ * @device - IB device
+ * @client_name - Name of the client
+ * @res - Result of the query
+ */
+int ib_get_client_nl_info(struct ib_device *ibdev, const char *client_name,
+			  struct ib_client_nl_info *res)
+{
+	int ret;
+
+	if (ibdev)
+		ret = __ib_get_client_nl_info(ibdev, client_name, res);
+	else
+		ret = __ib_get_global_client_nl_info(client_name, res);
+#ifdef CONFIG_MODULES
+	if (ret == -ENOENT) {
+		request_module("rdma-client-%s", client_name);
+		if (ibdev)
+			ret = __ib_get_client_nl_info(ibdev, client_name, res);
+		else
+			ret = __ib_get_global_client_nl_info(client_name, res);
+	}
+#endif
+	if (ret) {
+		if (ret == -ENOENT)
+			return -EOPNOTSUPP;
+		return ret;
+	}
+
+	if (WARN_ON(!res->cdev))
+		return -EINVAL;
+	return 0;
+}
+
 /**
  * ib_set_client_data - Set IB client context
  * @device:Device to set context for

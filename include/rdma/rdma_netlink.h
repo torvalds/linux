@@ -110,4 +110,6 @@ void rdma_link_register(struct rdma_link_ops *ops);
 void rdma_link_unregister(struct rdma_link_ops *ops);
 
 #define MODULE_ALIAS_RDMA_LINK(type) MODULE_ALIAS("rdma-link-" type)
+#define MODULE_ALIAS_RDMA_CLIENT(type) MODULE_ALIAS("rdma-client-" type)
+
 #endif /* _RDMA_NETLINK_H */
