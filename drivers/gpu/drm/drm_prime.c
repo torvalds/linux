@@ -47,8 +47,7 @@
  * between applications, they can't be guessed like the globally unique GEM
  * names.
  *
- * Drivers that support the PRIME API must set the DRIVER_PRIME bit in the
- * &drm_driver.driver_features field, and implement the
+ * Drivers that support the PRIME API implement the
  * &drm_driver.prime_handle_to_fd and &drm_driver.prime_fd_to_handle operations.
  * GEM based drivers must use drm_gem_prime_handle_to_fd() and
  * drm_gem_prime_fd_to_handle() to implement these. For GEM based drivers the
@@ -363,9 +362,6 @@ int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_prime_handle *args = data;
 
-	if (!drm_core_check_feature(dev, DRIVER_PRIME))
-		return -EOPNOTSUPP;
-
 	if (!dev->driver->prime_fd_to_handle)
 		return -ENOSYS;
 
@@ -513,9 +509,6 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv)
 {
 	struct drm_prime_handle *args = data;
-
-	if (!drm_core_check_feature(dev, DRIVER_PRIME))
-		return -EOPNOTSUPP;
 
 	if (!dev->driver->prime_handle_to_fd)
 		return -ENOSYS;
