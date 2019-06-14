@@ -21,11 +21,6 @@
 #include "vivid-kthread-cap.h"
 #include "vivid-vid-cap.h"
 
-/* timeperframe: min/max and default */
-static const struct v4l2_fract
-	tpf_min     = {.numerator = 1,		.denominator = FPS_MAX},
-	tpf_max     = {.numerator = FPS_MAX,	.denominator = 1};
-
 static const struct vivid_fmt formats_ovl[] = {
 	{
 		.fourcc   = V4L2_PIX_FMT_RGB565, /* gggbbbbb rrrrrggg */
@@ -1865,8 +1860,6 @@ int vivid_vid_cap_s_parm(struct file *file, void *priv,
 		i = ival_sz - 1;
 	dev->webcam_ival_idx = i;
 	tpf = webcam_intervals[dev->webcam_ival_idx];
-	tpf = V4L2_FRACT_COMPARE(tpf, <, tpf_min) ? tpf_min : tpf;
-	tpf = V4L2_FRACT_COMPARE(tpf, >, tpf_max) ? tpf_max : tpf;
 
 	/* resync the thread's timings */
 	dev->cap_seq_resync = true;

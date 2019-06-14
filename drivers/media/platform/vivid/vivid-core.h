@@ -22,18 +22,6 @@
 #define dprintk(dev, level, fmt, arg...) \
 	v4l2_dbg(level, vivid_debug, &dev->v4l2_dev, fmt, ## arg)
 
-/* Maximum allowed frame rate
- *
- * vivid will allow setting timeperframe in [1/FPS_MAX - FPS_MAX/1] range.
- *
- * Ideally FPS_MAX should be infinity, i.e. practically UINT_MAX, but that
- * might hit application errors when they manipulate these values.
- *
- * Besides, for tpf < 10ms image-generation logic should be changed, to avoid
- * producing frames with equal content.
- */
-#define FPS_MAX 100
-
 /* The maximum number of clip rectangles */
 #define MAX_CLIPS  16
 /* The maximum number of inputs */
