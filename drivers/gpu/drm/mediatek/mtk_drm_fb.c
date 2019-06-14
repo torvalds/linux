@@ -49,34 +49,6 @@ static struct drm_framebuffer *mtk_drm_framebuffer_init(struct drm_device *dev,
 	return fb;
 }
 
-/*
- * Wait for any exclusive fence in fb's gem object's reservation object.
- *
- * Returns -ERESTARTSYS if interrupted, else 0.
- */
-int mtk_fb_wait(struct drm_framebuffer *fb)
-{
-	struct drm_gem_object *gem;
-	struct reservation_object *resv;
-	long ret;
-
-	if (!fb)
-		return 0;
-
-	gem = fb->obj[0];
-	if (!gem || !gem->dma_buf || !gem->dma_buf->resv)
-		return 0;
-
-	resv = gem->dma_buf->resv;
-	ret = reservation_object_wait_timeout_rcu(resv, false, true,
-						  MAX_SCHEDULE_TIMEOUT);
-	/* MAX_SCHEDULE_TIMEOUT on success, -ERESTARTSYS if interrupted */
-	if (WARN_ON(ret < 0))
-		return ret;
-
-	return 0;
-}
-
 struct drm_framebuffer *mtk_drm_mode_fb_create(struct drm_device *dev,
 					       struct drm_file *file,
 					       const struct drm_mode_fb_cmd2 *cmd)

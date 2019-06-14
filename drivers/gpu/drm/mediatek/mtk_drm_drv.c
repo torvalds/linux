@@ -38,22 +38,12 @@ static void mtk_atomic_schedule(struct mtk_drm_private *private,
 	schedule_work(&private->commit.work);
 }
 
-static void mtk_atomic_wait_for_fences(struct drm_atomic_state *state)
-{
-	struct drm_plane *plane;
-	struct drm_plane_state *new_plane_state;
-	int i;
-
-	for_each_new_plane_in_state(state, plane, new_plane_state, i)
-		mtk_fb_wait(new_plane_state->fb);
-}
-
 static void mtk_atomic_complete(struct mtk_drm_private *private,
 				struct drm_atomic_state *state)
 {
 	struct drm_device *drm = private->drm;
 
-	mtk_atomic_wait_for_fences(state);
+	drm_atomic_helper_wait_for_fences(drm, state, false);
 
 	/*
 	 * Mediatek drm supports runtime PM, so plane registers cannot be
