@@ -26,6 +26,9 @@
 #define RKMODULE_AF_CFG	\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 2, struct rkmodule_af_cfg)
 
+#define RKMODULE_LSC_CFG	\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 3, struct rkmodule_lsc_cfg)
+
 /**
  * struct rkmodule_base_inf - module base information
  *
@@ -130,6 +133,14 @@ struct rkmodule_af_cfg {
 	__u32 vcm_start;
 	__u32 vcm_end;
 	__u32 vcm_dir;
+} __attribute__ ((packed));
+
+/**
+ * struct rkmodule_lsc_cfg
+ *
+ */
+struct rkmodule_lsc_cfg {
+	__u32 enable;
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
