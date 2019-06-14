@@ -224,6 +224,13 @@ struct sas_work {
 	struct work_struct work;
 };
 
+/* Lots of code duplicates this in the SCSI tree, which can be factored out */
+static inline bool sas_dev_type_is_expander(enum sas_device_type type)
+{
+	return type == SAS_EDGE_EXPANDER_DEVICE ||
+	       type == SAS_FANOUT_EXPANDER_DEVICE;
+}
+
 static inline void INIT_SAS_WORK(struct sas_work *sw, void (*fn)(struct work_struct *))
 {
 	INIT_WORK(&sw->work, fn);
