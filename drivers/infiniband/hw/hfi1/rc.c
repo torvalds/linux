@@ -1701,6 +1701,36 @@ static void reset_sending_psn(struct rvt_qp *qp, u32 psn)
 	}
 }
 
+/**
+ * hfi1_rc_verbs_aborted - handle abort status
+ * @qp: the QP
+ * @opah: the opa header
+ *
+ * This code modifies both ACK bit in BTH[2]
+ * and the s_flags to go into send one mode.
+ *
+ * This serves to throttle the send engine to only
+ * send a single packet in the likely case the
+ * a link has gone down.
+ */
+void hfi1_rc_verbs_aborted(struct rvt_qp *qp, struct hfi1_opa_header *opah)
+{
+	struct ib_other_headers *ohdr = hfi1_get_rc_ohdr(opah);
+	u8 opcode = ib_bth_get_opcode(ohdr);
+	u32 psn;
+
+	/* ignore responses */
+	if ((opcode >= OP(RDMA_READ_RESPONSE_FIRST) &&
+	     opcode <= OP(ATOMIC_ACKNOWLEDGE)) ||
+	    opcode == TID_OP(READ_RESP) ||
+	    opcode == TID_OP(WRITE_RESP))
+		return;
+
+	psn = ib_bth_get_psn(ohdr) | IB_BTH_REQ_ACK;
+	ohdr->bth[2] = cpu_to_be32(psn);
+	qp->s_flags |= RVT_S_SEND_ONE;
+}
+
 /*
  * This should be called with the QP s_lock held and interrupts disabled.
  */

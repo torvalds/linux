@@ -638,6 +638,8 @@ static void verbs_sdma_complete(
 		struct hfi1_opa_header *hdr;
 
 		hdr = &tx->phdr.hdr;
+		if (unlikely(status == SDMA_TXREQ_S_ABORTED))
+			hfi1_rc_verbs_aborted(qp, hdr);
 		hfi1_rc_send_complete(qp, hdr);
 	}
 	spin_unlock(&qp->s_lock);
@@ -1095,15 +1097,15 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			       &ps->s_txreq->phdr.hdr, ib_is_sc5(sc5));
 
 pio_bail:
+	spin_lock_irqsave(&qp->s_lock, flags);
 	if (qp->s_wqe) {
-		spin_lock_irqsave(&qp->s_lock, flags);
 		rvt_send_complete(qp, qp->s_wqe, wc_status);
-		spin_unlock_irqrestore(&qp->s_lock, flags);
 	} else if (qp->ibqp.qp_type == IB_QPT_RC) {
-		spin_lock_irqsave(&qp->s_lock, flags);
+		if (unlikely(wc_status == IB_WC_GENERAL_ERR))
+			hfi1_rc_verbs_aborted(qp, &ps->s_txreq->phdr.hdr);
 		hfi1_rc_send_complete(qp, &ps->s_txreq->phdr.hdr);
-		spin_unlock_irqrestore(&qp->s_lock, flags);
 	}
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 
 	ret = 0;
 
