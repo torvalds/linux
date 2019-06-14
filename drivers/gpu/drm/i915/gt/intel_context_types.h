@@ -56,10 +56,10 @@ struct intel_context {
 	intel_engine_mask_t saturated; /* submitting semaphores too late? */
 
 	/**
-	 * active_tracker: Active tracker for the external rq activity
-	 * on this intel_context object.
+	 * active: Active tracker for the rq activity (inc. external) on this
+	 * intel_context object.
 	 */
-	struct i915_active_request active_tracker;
+	struct i915_active active;
 
 	const struct intel_context_ops *ops;
 

@@ -134,7 +134,6 @@ static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
 
 /* i915_gem_context.c */
 int __must_check i915_gem_contexts_init(struct drm_i915_private *dev_priv);
-void i915_gem_contexts_lost(struct drm_i915_private *dev_priv);
 void i915_gem_contexts_fini(struct drm_i915_private *dev_priv);
 
 int i915_gem_context_open(struct drm_i915_private *i915,

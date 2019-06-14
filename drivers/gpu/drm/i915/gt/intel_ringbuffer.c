@@ -1349,45 +1349,9 @@ static void __context_unpin_ppgtt(struct i915_gem_context *ctx)
 		gen6_ppgtt_unpin(i915_vm_to_ppgtt(vm));
 }
 
-static int __context_pin(struct intel_context *ce)
-{
-	struct i915_vma *vma;
-	int err;
-
-	vma = ce->state;
-	if (!vma)
-		return 0;
-
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
-	if (err)
-		return err;
-
-	/*
-	 * And mark is as a globally pinned object to let the shrinker know
-	 * it cannot reclaim the object until we release it.
-	 */
-	vma->obj->pin_global++;
-	vma->obj->mm.dirty = true;
-
-	return 0;
-}
-
-static void __context_unpin(struct intel_context *ce)
-{
-	struct i915_vma *vma;
-
-	vma = ce->state;
-	if (!vma)
-		return;
-
-	vma->obj->pin_global--;
-	i915_vma_unpin(vma);
-}
-
 static void ring_context_unpin(struct intel_context *ce)
 {
 	__context_unpin_ppgtt(ce->gem_context);
-	__context_unpin(ce);
 }
 
 static struct i915_vma *
@@ -1477,18 +1441,18 @@ static int ring_context_pin(struct intel_context *ce)
 		ce->state = vma;
 	}
 
-	err = __context_pin(ce);
+	err = intel_context_active_acquire(ce, PIN_HIGH);
 	if (err)
 		return err;
 
 	err = __context_pin_ppgtt(ce->gem_context);
 	if (err)
-		goto err_unpin;
+		goto err_active;
 
 	return 0;
 
-err_unpin:
-	__context_unpin(ce);
+err_active:
+	intel_context_active_release(ce);
 	return err;
 }
 

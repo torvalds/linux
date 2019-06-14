@@ -692,17 +692,6 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-void i915_gem_contexts_lost(struct drm_i915_private *dev_priv)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
-	for_each_engine(engine, dev_priv, id)
-		intel_engine_lost_context(engine);
-}
-
 void i915_gem_contexts_fini(struct drm_i915_private *i915)
 {
 	lockdep_assert_held(&i915->drm.struct_mutex);
@@ -1203,10 +1192,6 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 	if (ret)
 		goto out_add;
 
-	ret = gen8_emit_rpcs_config(rq, ce, sseu);
-	if (ret)
-		goto out_add;
-
 	/*
 	 * Guarantee context image and the timeline remains pinned until the
 	 * modifying request is retired by setting the ce activity tracker.
@@ -1214,9 +1199,12 @@ gen8_modify_rpcs(struct intel_context *ce, struct intel_sseu sseu)
 	 * But we only need to take one pin on the account of it. Or in other
 	 * words transfer the pinned ce object to tracked active request.
 	 */
-	if (!i915_active_request_isset(&ce->active_tracker))
-		__intel_context_pin(ce);
-	__i915_active_request_set(&ce->active_tracker, rq);
+	GEM_BUG_ON(i915_active_is_idle(&ce->active));
+	ret = i915_active_ref(&ce->active, rq->fence.context, rq);
+	if (ret)
+		goto out_add;
+
+	ret = gen8_emit_rpcs_config(rq, ce, sseu);
 
 out_add:
 	i915_request_add(rq);

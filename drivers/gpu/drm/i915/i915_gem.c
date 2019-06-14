@@ -1199,10 +1199,6 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 
 	intel_uncore_forcewake_put(&i915->uncore, FORCEWAKE_ALL);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-
-	mutex_lock(&i915->drm.struct_mutex);
-	i915_gem_contexts_lost(i915);
-	mutex_unlock(&i915->drm.struct_mutex);
 }
 
 void i915_gem_init_swizzling(struct drm_i915_private *dev_priv)

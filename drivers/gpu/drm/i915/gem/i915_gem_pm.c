@@ -10,6 +10,22 @@
 #include "i915_drv.h"
 #include "i915_globals.h"
 
+static void call_idle_barriers(struct intel_engine_cs *engine)
+{
+	struct llist_node *node, *next;
+
+	llist_for_each_safe(node, next, llist_del_all(&engine->barrier_tasks)) {
+		struct i915_active_request *active =
+			container_of((struct list_head *)node,
+				     typeof(*active), link);
+
+		INIT_LIST_HEAD(&active->link);
+		RCU_INIT_POINTER(active->request, NULL);
+
+		active->retire(active, NULL);
+	}
+}
+
 static void i915_gem_park(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
@@ -17,8 +33,10 @@ static void i915_gem_park(struct drm_i915_private *i915)
 
 	lockdep_assert_held(&i915->drm.struct_mutex);
 
-	for_each_engine(engine, i915, id)
+	for_each_engine(engine, i915, id) {
+		call_idle_barriers(engine); /* cleanup after wedging */
 		i915_gem_batch_pool_fini(&engine->batch_pool);
+	}
 
 	i915_timelines_park(i915);
 	i915_vma_parked(i915);

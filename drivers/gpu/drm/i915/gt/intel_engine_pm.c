@@ -88,6 +88,8 @@ static bool switch_to_kernel_context(struct intel_engine_cs *engine)
 
 	/* Check again on the next retirement. */
 	engine->wakeref_serial = engine->serial + 1;
+
+	i915_request_add_barriers(rq);
 	__i915_request_commit(rq);
 
 	return false;

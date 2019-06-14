@@ -406,4 +406,9 @@ void i915_active_fini(struct i915_active *ref);
 static inline void i915_active_fini(struct i915_active *ref) { }
 #endif
 
+int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
+					    struct intel_engine_cs *engine);
+void i915_active_acquire_barrier(struct i915_active *ref);
+void i915_request_add_barriers(struct i915_request *rq);
+
 #endif /* _I915_ACTIVE_H_ */

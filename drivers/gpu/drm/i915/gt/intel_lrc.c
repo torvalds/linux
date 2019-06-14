@@ -1422,60 +1422,11 @@ static void execlists_context_destroy(struct kref *kref)
 	intel_context_free(ce);
 }
 
-static int __context_pin(struct i915_vma *vma)
-{
-	unsigned int flags;
-	int err;
-
-	flags = PIN_GLOBAL | PIN_HIGH;
-	flags |= PIN_OFFSET_BIAS | i915_ggtt_pin_bias(vma);
-
-	err = i915_vma_pin(vma, 0, 0, flags);
-	if (err)
-		return err;
-
-	vma->obj->pin_global++;
-	vma->obj->mm.dirty = true;
-
-	return 0;
-}
-
-static void __context_unpin(struct i915_vma *vma)
-{
-	vma->obj->pin_global--;
-	__i915_vma_unpin(vma);
-}
-
 static void execlists_context_unpin(struct intel_context *ce)
 {
-	struct intel_engine_cs *engine;
-
-	/*
-	 * The tasklet may still be using a pointer to our state, via an
-	 * old request. However, since we know we only unpin the context
-	 * on retirement of the following request, we know that the last
-	 * request referencing us will have had a completion CS interrupt.
-	 * If we see that it is still active, it means that the tasklet hasn't
-	 * had the chance to run yet; let it run before we teardown the
-	 * reference it may use.
-	 */
-	engine = READ_ONCE(ce->inflight);
-	if (unlikely(engine)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&engine->timeline.lock, flags);
-		process_csb(engine);
-		spin_unlock_irqrestore(&engine->timeline.lock, flags);
-
-		GEM_BUG_ON(READ_ONCE(ce->inflight));
-	}
-
 	i915_gem_context_unpin_hw_id(ce->gem_context);
-
-	intel_ring_unpin(ce->ring);
-
 	i915_gem_object_unpin_map(ce->state->obj);
-	__context_unpin(ce->state);
+	intel_ring_unpin(ce->ring);
 }
 
 static void
@@ -1512,7 +1463,10 @@ __execlists_context_pin(struct intel_context *ce,
 		goto err;
 	GEM_BUG_ON(!ce->state);
 
-	ret = __context_pin(ce->state);
+	ret = intel_context_active_acquire(ce,
+					   engine->i915->ggtt.pin_bias |
+					   PIN_OFFSET_BIAS |
+					   PIN_HIGH);
 	if (ret)
 		goto err;
 
@@ -1521,7 +1475,7 @@ __execlists_context_pin(struct intel_context *ce,
 					I915_MAP_OVERRIDE);
 	if (IS_ERR(vaddr)) {
 		ret = PTR_ERR(vaddr);
-		goto unpin_vma;
+		goto unpin_active;
 	}
 
 	ret = intel_ring_pin(ce->ring);
@@ -1542,8 +1496,8 @@ unpin_ring:
 	intel_ring_unpin(ce->ring);
 unpin_map:
 	i915_gem_object_unpin_map(ce->state->obj);
-unpin_vma:
-	__context_unpin(ce->state);
+unpin_active:
+	intel_context_active_release(ce);
 err:
 	return ret;
 }

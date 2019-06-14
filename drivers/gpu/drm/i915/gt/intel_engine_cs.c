@@ -611,6 +611,8 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 {
 	int err;
 
+	init_llist_head(&engine->barrier_tasks);
+
 	err = init_status_page(engine);
 	if (err)
 		return err;
@@ -870,6 +872,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->preempt_context)
 		intel_context_unpin(engine->preempt_context);
 	intel_context_unpin(engine->kernel_context);
+	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
 
 	i915_timeline_fini(&engine->timeline);
 
@@ -1199,26 +1202,6 @@ void intel_engines_reset_default_submission(struct drm_i915_private *i915)
 
 	for_each_engine(engine, i915, id)
 		engine->set_default_submission(engine);
-}
-
-/**
- * intel_engine_lost_context: called when the GPU is reset into unknown state
- * @engine: the engine
- *
- * We have either reset the GPU or otherwise about to lose state tracking of
- * the current GPU logical state (e.g. suspend). On next use, it is therefore
- * imperative that we make no presumptions about the current state and load
- * from scratch.
- */
-void intel_engine_lost_context(struct intel_engine_cs *engine)
-{
-	struct intel_context *ce;
-
-	lockdep_assert_held(&engine->i915->drm.struct_mutex);
-
-	ce = fetch_and_zero(&engine->last_retired_context);
-	if (ce)
-		intel_context_unpin(ce);
 }
 
 bool intel_engine_can_store_dword(struct intel_engine_cs *engine)

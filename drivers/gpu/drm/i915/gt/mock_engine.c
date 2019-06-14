@@ -146,11 +146,17 @@ static void mock_context_destroy(struct kref *ref)
 
 static int mock_context_pin(struct intel_context *ce)
 {
+	int ret;
+
 	if (!ce->ring) {
 		ce->ring = mock_ring(ce->engine);
 		if (!ce->ring)
 			return -ENOMEM;
 	}
+
+	ret = intel_context_active_acquire(ce, PIN_HIGH);
+	if (ret)
+		return ret;
 
 	mock_timeline_pin(ce->ring->timeline);
 	return 0;
@@ -328,13 +334,8 @@ void mock_engine_free(struct intel_engine_cs *engine)
 {
 	struct mock_engine *mock =
 		container_of(engine, typeof(*mock), base);
-	struct intel_context *ce;
 
 	GEM_BUG_ON(timer_pending(&mock->hw_delay));
-
-	ce = fetch_and_zero(&engine->last_retired_context);
-	if (ce)
-		intel_context_unpin(ce);
 
 	intel_context_unpin(engine->kernel_context);
 

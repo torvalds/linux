@@ -467,8 +467,6 @@ static inline void intel_engine_reset(struct intel_engine_cs *engine,
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
 
-void intel_engine_lost_context(struct intel_engine_cs *engine);
-
 void intel_engines_reset_default_submission(struct drm_i915_private *i915);
 unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915);
 

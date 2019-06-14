@@ -213,18 +213,6 @@ static void __retire_engine_request(struct intel_engine_cs *engine,
 	spin_unlock(&rq->lock);
 
 	local_irq_enable();
-
-	/*
-	 * The backing object for the context is done after switching to the
-	 * *next* context. Therefore we cannot retire the previous context until
-	 * the next context has already started running. However, since we
-	 * cannot take the required locks at i915_request_submit() we
-	 * defer the unpinning of the active context to now, retirement of
-	 * the subsequent request.
-	 */
-	if (engine->last_retired_context)
-		intel_context_unpin(engine->last_retired_context);
-	engine->last_retired_context = rq->hw_context;
 }
 
 static void __retire_engine_upto(struct intel_engine_cs *engine,
@@ -758,9 +746,6 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 		goto err_unwind;
 
 	rq->infix = rq->ring->emit; /* end of header; start of user payload */
-
-	/* Keep a second pin for the dual retirement along engine and ring */
-	__intel_context_pin(ce);
 
 	intel_context_mark_active(ce);
 	return rq;

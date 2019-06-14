@@ -160,18 +160,13 @@ i915_gem_shrink(struct drm_i915_private *i915,
 		return 0;
 
 	/*
-	 * When shrinking the active list, also consider active contexts.
-	 * Active contexts are pinned until they are retired, and so can
-	 * not be simply unbound to retire and unpin their pages. To shrink
-	 * the contexts, we must wait until the gpu is idle.
-	 *
-	 * We don't care about errors here; if we cannot wait upon the GPU,
-	 * we will free as much as we can and hope to get a second chance.
+	 * When shrinking the active list, we should also consider active
+	 * contexts. Active contexts are pinned until they are retired, and
+	 * so can not be simply unbound to retire and unpin their pages. To
+	 * shrink the contexts, we must wait until the gpu is idle and
+	 * completed its switch to the kernel context. In short, we do
+	 * not have a good mechanism for idling a specific context.
 	 */
-	if (shrink & I915_SHRINK_ACTIVE)
-		i915_gem_wait_for_idle(i915,
-				       I915_WAIT_LOCKED,
-				       MAX_SCHEDULE_TIMEOUT);
 
 	trace_i915_gem_shrink(i915, target, shrink);
 	i915_retire_requests(i915);

@@ -157,6 +157,7 @@ void i915_active_init(struct drm_i915_private *i915,
 	ref->retire = retire;
 	ref->tree = RB_ROOT;
 	i915_active_request_init(&ref->last, NULL, last_retire);
+	init_llist_head(&ref->barriers);
 	ref->count = 0;
 }
 
@@ -262,6 +263,83 @@ void i915_active_fini(struct i915_active *ref)
 	GEM_BUG_ON(ref->count);
 }
 #endif
+
+int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
+					    struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = engine->i915;
+	unsigned long tmp;
+	int err = 0;
+
+	GEM_BUG_ON(!engine->mask);
+	for_each_engine_masked(engine, i915, engine->mask, tmp) {
+		struct intel_context *kctx = engine->kernel_context;
+		struct active_node *node;
+
+		node = kmem_cache_alloc(global.slab_cache, GFP_KERNEL);
+		if (unlikely(!node)) {
+			err = -ENOMEM;
+			break;
+		}
+
+		i915_active_request_init(&node->base,
+					 (void *)engine, node_retire);
+		node->timeline = kctx->ring->timeline->fence_context;
+		node->ref = ref;
+		ref->count++;
+
+		llist_add((struct llist_node *)&node->base.link,
+			  &ref->barriers);
+	}
+
+	return err;
+}
+
+void i915_active_acquire_barrier(struct i915_active *ref)
+{
+	struct llist_node *pos, *next;
+
+	i915_active_acquire(ref);
+
+	llist_for_each_safe(pos, next, llist_del_all(&ref->barriers)) {
+		struct intel_engine_cs *engine;
+		struct active_node *node;
+		struct rb_node **p, *parent;
+
+		node = container_of((struct list_head *)pos,
+				    typeof(*node), base.link);
+
+		engine = (void *)rcu_access_pointer(node->base.request);
+		RCU_INIT_POINTER(node->base.request, ERR_PTR(-EAGAIN));
+
+		parent = NULL;
+		p = &ref->tree.rb_node;
+		while (*p) {
+			parent = *p;
+			if (rb_entry(parent,
+				     struct active_node,
+				     node)->timeline < node->timeline)
+				p = &parent->rb_right;
+			else
+				p = &parent->rb_left;
+		}
+		rb_link_node(&node->node, parent, p);
+		rb_insert_color(&node->node, &ref->tree);
+
+		llist_add((struct llist_node *)&node->base.link,
+			  &engine->barrier_tasks);
+	}
+	i915_active_release(ref);
+}
+
+void i915_request_add_barriers(struct i915_request *rq)
+{
+	struct intel_engine_cs *engine = rq->engine;
+	struct llist_node *node, *next;
+
+	llist_for_each_safe(node, next, llist_del_all(&engine->barrier_tasks))
+		list_add_tail((struct list_head *)node, &rq->active_list);
+}
 
 int i915_active_request_set(struct i915_active_request *active,
 			    struct i915_request *rq)
