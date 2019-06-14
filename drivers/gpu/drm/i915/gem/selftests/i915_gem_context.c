@@ -209,12 +209,6 @@ gpu_fill_dw(struct i915_vma *vma, u64 offset, unsigned long count, u32 value)
 	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 
-	i915_gem_object_lock(obj);
-	err = i915_gem_object_set_to_gtt_domain(obj, false);
-	i915_gem_object_unlock(obj);
-	if (err)
-		goto err;
-
 	vma = i915_vma_instance(obj, vma->vm, NULL);
 	if (IS_ERR(vma)) {
 		err = PTR_ERR(vma);

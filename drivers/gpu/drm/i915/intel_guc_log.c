@@ -344,18 +344,11 @@ static void capture_logs_work(struct work_struct *work)
 static int guc_log_map(struct intel_guc_log *log)
 {
 	void *vaddr;
-	int ret;
 
 	lockdep_assert_held(&log->relay.lock);
 
 	if (!log->vma)
 		return -ENODEV;
-
-	i915_gem_object_lock(log->vma->obj);
-	ret = i915_gem_object_set_to_wc_domain(log->vma->obj, true);
-	i915_gem_object_unlock(log->vma->obj);
-	if (ret)
-		return ret;
 
 	/*
 	 * Create a WC (Uncached for read) vmalloc mapping of log
@@ -363,10 +356,8 @@ static int guc_log_map(struct intel_guc_log *log)
 	 * (up-to-date) from memory.
 	 */
 	vaddr = i915_gem_object_pin_map(log->vma->obj, I915_MAP_WC);
-	if (IS_ERR(vaddr)) {
-		DRM_ERROR("Couldn't map log buffer pages %d\n", ret);
+	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
-	}
 
 	log->relay.buf_addr = vaddr;
 

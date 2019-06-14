@@ -368,12 +368,6 @@ static struct i915_vma *create_batch(struct i915_gem_context *ctx)
 	if (err)
 		goto err_obj;
 
-	i915_gem_object_lock(obj);
-	err = i915_gem_object_set_to_wc_domain(obj, true);
-	i915_gem_object_unlock(obj);
-	if (err)
-		goto err_obj;
-
 	return vma;
 
 err_obj:

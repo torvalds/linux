@@ -1377,12 +1377,6 @@ void intel_overlay_setup(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out_free;
 
-	i915_gem_object_lock(overlay->reg_bo);
-	ret = i915_gem_object_set_to_gtt_domain(overlay->reg_bo, true);
-	i915_gem_object_unlock(overlay->reg_bo);
-	if (ret)
-		goto out_reg_bo;
-
 	memset_io(overlay->regs, 0, sizeof(struct overlay_registers));
 	update_polyphase_filter(overlay->regs);
 	update_reg_attrs(overlay, overlay->regs);
@@ -1391,8 +1385,6 @@ void intel_overlay_setup(struct drm_i915_private *dev_priv)
 	DRM_INFO("Initialized overlay support.\n");
 	return;
 
-out_reg_bo:
-	i915_gem_object_put(overlay->reg_bo);
 out_free:
 	kfree(overlay);
 }
