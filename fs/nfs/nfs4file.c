@@ -146,6 +146,7 @@ static ssize_t __nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
 		return -EOPNOTSUPP;
 	if (file_inode(file_in) == file_inode(file_out))
 		return -EOPNOTSUPP;
+retry:
 	if (!nfs42_files_from_same_server(file_in, file_out)) {
 		cn_resp = kzalloc(sizeof(struct nfs42_copy_notify_res),
 				GFP_NOFS);
@@ -164,6 +165,8 @@ static ssize_t __nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
 				nss, cnrs);
 out:
 	kfree(cn_resp);
+	if (ret == -EAGAIN)
+		goto retry;
 	return ret;
 }
 
