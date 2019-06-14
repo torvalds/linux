@@ -143,10 +143,10 @@ static inline void gizmo_writel(struct tegra_ahb *ahb, u32 value, u32 offset)
 }
 
 #ifdef CONFIG_TEGRA_IOMMU_SMMU
-static int tegra_ahb_match_by_smmu(struct device *dev, void *data)
+static int tegra_ahb_match_by_smmu(struct device *dev, const void *data)
 {
 	struct tegra_ahb *ahb = dev_get_drvdata(dev);
-	struct device_node *dn = data;
+	const struct device_node *dn = data;
 
 	return (ahb->dev->of_node == dn) ? 1 : 0;
 }

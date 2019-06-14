@@ -581,7 +581,7 @@ int ccwgroup_driver_register(struct ccwgroup_driver *cdriver)
 }
 EXPORT_SYMBOL(ccwgroup_driver_register);
 
-static int __ccwgroup_match_all(struct device *dev, void *data)
+static int __ccwgroup_match_all(struct device *dev, const void *data)
 {
 	return 1;
 }
@@ -608,7 +608,7 @@ void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 }
 EXPORT_SYMBOL(ccwgroup_driver_unregister);
 
-static int __ccwgroupdev_check_busid(struct device *dev, void *id)
+static int __ccwgroupdev_check_busid(struct device *dev, const void *id)
 {
 	char *bus_id = id;
 

@@ -1653,7 +1653,7 @@ EXPORT_SYMBOL_GPL(ccw_device_force_console);
  * get ccw_device matching the busid, but only if owned by cdrv
  */
 static int
-__ccwdev_check_busid(struct device *dev, void *id)
+__ccwdev_check_busid(struct device *dev, const void *id)
 {
 	char *bus_id;
 
