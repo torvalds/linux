@@ -389,6 +389,14 @@ extern void ceph_osdc_handle_map(struct ceph_osd_client *osdc,
 void ceph_osdc_update_epoch_barrier(struct ceph_osd_client *osdc, u32 eb);
 void ceph_osdc_abort_requests(struct ceph_osd_client *osdc, int err);
 
+#define osd_req_op_data(oreq, whch, typ, fld)				\
+({									\
+	struct ceph_osd_request *__oreq = (oreq);			\
+	unsigned int __whch = (whch);					\
+	BUG_ON(__whch >= __oreq->r_num_ops);				\
+	&__oreq->r_ops[__whch].typ.fld;					\
+})
+
 extern void osd_req_op_init(struct ceph_osd_request *osd_req,
 			    unsigned int which, u16 opcode, u32 flags);
 

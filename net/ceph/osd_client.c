@@ -171,14 +171,6 @@ static void ceph_osd_data_bvecs_init(struct ceph_osd_data *osd_data,
 	osd_data->num_bvecs = num_bvecs;
 }
 
-#define osd_req_op_data(oreq, whch, typ, fld)				\
-({									\
-	struct ceph_osd_request *__oreq = (oreq);			\
-	unsigned int __whch = (whch);					\
-	BUG_ON(__whch >= __oreq->r_num_ops);				\
-	&__oreq->r_ops[__whch].typ.fld;					\
-})
-
 static struct ceph_osd_data *
 osd_req_op_raw_data_in(struct ceph_osd_request *osd_req, unsigned int which)
 {
