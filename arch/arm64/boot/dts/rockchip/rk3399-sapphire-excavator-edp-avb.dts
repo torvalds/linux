@@ -38,7 +38,7 @@
 };
 
 &mipi_dphy_tx1rx1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &rkisp1_0 {
@@ -46,6 +46,6 @@
 };
 
 &rkisp1_1 {
-	status = "okay";
+	status = "disabled";
 };
 

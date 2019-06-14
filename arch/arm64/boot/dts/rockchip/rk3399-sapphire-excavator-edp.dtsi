@@ -188,12 +188,12 @@
 		int-gpios = <&gpio2 12 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmiin_gpios>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	ov13850: ov13850@10 {
 		compatible = "ovti,ov13850";
-		status = "disabled";
+		status = "okay";
 		reg = <0x10>;
 		clocks = <&cru SCLK_CIF_OUT>;
 		clock-names = "xvclk";
