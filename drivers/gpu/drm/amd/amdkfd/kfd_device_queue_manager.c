@@ -998,8 +998,8 @@ static int set_sched_resources(struct device_queue_manager *dqm)
 
 		res.queue_mask |= (1ull << i);
 	}
-	res.gws_mask = res.oac_mask = res.gds_heap_base =
-						res.gds_heap_size = 0;
+	res.gws_mask = ~0ull;
+	res.oac_mask = res.gds_heap_base = res.gds_heap_size = 0;
 
 	pr_debug("Scheduling resources:\n"
 			"vmid mask: 0x%8X\n"
