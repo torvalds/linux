@@ -727,12 +727,12 @@ static void free_pd(struct i915_address_space *vm,
 	kfree(pd);
 }
 
-static void gen8_initialize_pd(struct i915_address_space *vm,
-			       struct i915_page_directory *pd)
+static void init_pd_with_page(struct i915_address_space *vm,
+			      struct i915_page_directory * const pd,
+			      struct i915_page_table *pt)
 {
-	fill_px(vm, pd,
-		gen8_pde_encode(px_dma(vm->scratch_pt), I915_CACHE_LLC));
-	memset_p(pd->entry, vm->scratch_pt, I915_PDES);
+	fill_px(vm, pd, gen8_pde_encode(px_dma(pt), I915_CACHE_LLC));
+	memset_p(pd->entry, pt, 512);
 }
 
 static struct i915_page_directory *alloc_pdp(struct i915_address_space *vm)
@@ -1265,7 +1265,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	}
 
 	gen8_initialize_pt(vm, vm->scratch_pt);
-	gen8_initialize_pd(vm, vm->scratch_pd);
+	init_pd_with_page(vm, vm->scratch_pd, vm->scratch_pt);
 	if (i915_vm_is_4lvl(vm))
 		gen8_initialize_4lvl_pdp(vm, vm->scratch_pdp);
 
@@ -1442,7 +1442,7 @@ static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
 			if (IS_ERR(pd))
 				goto unwind;
 
-			gen8_initialize_pd(vm, pd);
+			init_pd_with_page(vm, pd, vm->scratch_pt);
 
 			old = cmpxchg(&pdp->entry[pdpe], vm->scratch_pd, pd);
 			if (old == vm->scratch_pd) {
@@ -1564,7 +1564,7 @@ static int gen8_preallocate_top_level_pdp(struct i915_ppgtt *ppgtt)
 		if (IS_ERR(pd))
 			goto unwind;
 
-		gen8_initialize_pd(vm, pd);
+		init_pd_with_page(vm, pd, vm->scratch_pt);
 		gen8_ppgtt_set_pdpe(vm, pdp, pd, pdpe);
 
 		atomic_inc(&pdp->used);
