@@ -226,9 +226,6 @@ TBD
 .. kernel-doc:: include/net/mac80211.h
    :functions: ieee80211_tx_rate_control
 
-.. kernel-doc:: include/net/mac80211.h
-   :functions: rate_control_send_low
-
 TBD
 
 This part of the book describes mac80211 internals.

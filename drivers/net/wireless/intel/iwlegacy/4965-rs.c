@@ -2224,10 +2224,6 @@ il4965_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 		il_sta = NULL;
 	}
 
-	/* Send management frames and NO_ACK data using lowest rate. */
-	if (rate_control_send_low(sta, il_sta, txrc))
-		return;
-
 	if (!lq_sta)
 		return;
 

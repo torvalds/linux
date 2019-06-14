@@ -2960,10 +2960,6 @@ static void rs_drv_get_rate(void *mvm_r, struct ieee80211_sta *sta,
 		mvm_sta = NULL;
 	}
 
-	/* Send management frames and NO_ACK data using lowest rate. */
-	if (rate_control_send_low(sta, mvm_sta, txrc))
-		return;
-
 	if (!mvm_sta)
 		return;
 

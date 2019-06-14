@@ -342,9 +342,6 @@ void ieee80211_debugfs_key_add(struct ieee80211_key *key)
 	key->debugfs.dir = debugfs_create_dir(buf,
 					key->local->debugfs.keys);
 
-	if (!key->debugfs.dir)
-		return;
-
 	sta = key->sta;
 	if (sta) {
 		sprintf(buf, "../../netdev:%s/stations/%pM",

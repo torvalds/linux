@@ -1755,6 +1755,15 @@ static inline int __nla_validate_nested(const struct nlattr *start, int maxtype,
 }
 
 static inline int
+nl80211_validate_nested(const struct nlattr *start, int maxtype,
+			const struct nla_policy *policy,
+			struct netlink_ext_ack *extack)
+{
+	return __nla_validate_nested(start, maxtype, policy,
+				     NL_VALIDATE_STRICT, extack);
+}
+
+static inline int
 nla_validate_nested_deprecated(const struct nlattr *start, int maxtype,
 			       const struct nla_policy *policy,
 			       struct netlink_ext_ack *extack)
