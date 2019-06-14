@@ -342,7 +342,7 @@ static ssize_t event_read(struct file *filp, char __user *buf, size_t count,
 				 struct ec_event_entry, list);
 	n_bytes_written = entry->size;
 	if (copy_to_user(buf, &entry->event, n_bytes_written))
-		return -EFAULT;
+		n_bytes_written = -EFAULT;
 	list_del(&entry->list);
 	kfree(entry);
 	dev_data->num_events--;
