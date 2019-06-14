@@ -461,6 +461,12 @@
 		 <&clock CLK_MOUT_MIXER>, <&clock CLK_SCLK_MIXER>;
 };
 
+&pmu {
+	interrupts = <2 2>, <3 2>;
+	interrupt-affinity = <&cpu0>, <&cpu1>;
+	status = "okay";
+};
+
 &pmu_system_controller {
 	clock-names = "clkout0", "clkout1", "clkout2", "clkout3",
 			"clkout4", "clkout8", "clkout9";
