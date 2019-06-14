@@ -462,7 +462,12 @@ __BUILD_MEMORY_PFX(, bwlq, type, 0)
 BUILDIO_MEM(b, u8)
 BUILDIO_MEM(w, u16)
 BUILDIO_MEM(l, u32)
+#ifdef CONFIG_64BIT
 BUILDIO_MEM(q, u64)
+#else
+__BUILD_MEMORY_PFX(__raw_, q, u64, 0)
+__BUILD_MEMORY_PFX(__mem_, q, u64, 0)
+#endif
 
 #define __BUILD_IOPORT_PFX(bus, bwlq, type)				\
 	__BUILD_IOPORT_SINGLE(bus, bwlq, type, 1, 0,)			\
@@ -488,12 +493,16 @@ __BUILDIO(q, u64)
 #define readb_relaxed			__relaxed_readb
 #define readw_relaxed			__relaxed_readw
 #define readl_relaxed			__relaxed_readl
+#ifdef CONFIG_64BIT
 #define readq_relaxed			__relaxed_readq
+#endif
 
 #define writeb_relaxed			__relaxed_writeb
 #define writew_relaxed			__relaxed_writew
 #define writel_relaxed			__relaxed_writel
+#ifdef CONFIG_64BIT
 #define writeq_relaxed			__relaxed_writeq
+#endif
 
 #define readb_be(addr)							\
 	__raw_readb((__force unsigned *)(addr))
@@ -516,8 +525,10 @@ __BUILDIO(q, u64)
 /*
  * Some code tests for these symbols
  */
+#ifdef CONFIG_64BIT
 #define readq				readq
 #define writeq				writeq
+#endif
 
 #define __BUILD_MEMORY_STRING(bwlq, type)				\
 									\
