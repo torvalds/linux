@@ -494,7 +494,7 @@ enum hv_dm_state {
 
 
 static __u8 recv_buffer[PAGE_SIZE];
-static __u8 *send_buffer;
+static __u8 balloon_up_send_buffer[PAGE_SIZE];
 #define PAGES_IN_2M	512
 #define HA_CHUNK (32 * 1024)
 
@@ -1292,8 +1292,8 @@ static void balloon_up(struct work_struct *dummy)
 	}
 
 	while (!done) {
-		bl_resp = (struct dm_balloon_response *)send_buffer;
-		memset(send_buffer, 0, PAGE_SIZE);
+		memset(balloon_up_send_buffer, 0, PAGE_SIZE);
+		bl_resp = (struct dm_balloon_response *)balloon_up_send_buffer;
 		bl_resp->hdr.type = DM_BALLOON_RESPONSE;
 		bl_resp->hdr.size = sizeof(struct dm_balloon_response);
 		bl_resp->more_pages = 1;
@@ -1578,19 +1578,11 @@ static int balloon_probe(struct hv_device *dev,
 	do_hot_add = false;
 #endif
 
-	/*
-	 * First allocate a send buffer.
-	 */
-
-	send_buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!send_buffer)
-		return -ENOMEM;
-
 	ret = vmbus_open(dev->channel, dm_ring_size, dm_ring_size, NULL, 0,
 			balloon_onchannelcallback, dev);
 
 	if (ret)
-		goto probe_error0;
+		return ret;
 
 	dm_device.dev = dev;
 	dm_device.state = DM_INITIALIZING;
@@ -1716,8 +1708,6 @@ probe_error2:
 
 probe_error1:
 	vmbus_close(dev->channel);
-probe_error0:
-	kfree(send_buffer);
 	return ret;
 }
 
@@ -1736,7 +1726,6 @@ static int balloon_remove(struct hv_device *dev)
 
 	vmbus_close(dev->channel);
 	kthread_stop(dm->thread);
-	kfree(send_buffer);
 #ifdef CONFIG_MEMORY_HOTPLUG
 	restore_online_page_callback(&hv_online_page);
 	unregister_memory_notifier(&hv_memory_nb);
