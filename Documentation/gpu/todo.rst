@@ -228,6 +228,10 @@ struct drm_gem_object_funcs
 GEM objects can now have a function table instead of having the callbacks on the
 DRM driver struct. This is now the preferred way and drivers can be moved over.
 
+Unfortunately some of the recently added GEM helpers are going in the wrong
+direction by adding OPS macros that use the old, deprecated hooks. See
+DRM_GEM_CMA_VMAP_DRIVER_OPS, DRM_GEM_SHMEM_DRIVER_OPS, and DRM_GEM_VRAM_DRIVER_PRIME.
+
 Use DRM_MODESET_LOCK_ALL_* helpers instead of boilerplate
 ---------------------------------------------------------
 
