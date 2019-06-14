@@ -957,6 +957,10 @@ static int rkisp1_vs_irq_parse(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct media_device_ops rkisp1_media_ops = {
+	.link_notify = v4l2_pipeline_link_notify,
+};
+
 static int rkisp1_plat_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -1064,6 +1068,7 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 	strlcpy(isp_dev->media_dev.model, "rkisp1",
 		sizeof(isp_dev->media_dev.model));
 	isp_dev->media_dev.dev = &pdev->dev;
+	isp_dev->media_dev.ops = &rkisp1_media_ops;
 	v4l2_dev = &isp_dev->v4l2_dev;
 	v4l2_dev->mdev = &isp_dev->media_dev;
 	strlcpy(v4l2_dev->name, "rkisp1", sizeof(v4l2_dev->name));

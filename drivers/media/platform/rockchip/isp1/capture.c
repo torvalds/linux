@@ -1711,6 +1711,9 @@ int rkisp1_fh_open(struct file *filp)
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
 		atomic_inc(&dev->open_cnt);
+		ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 1);
+		if (ret < 0)
+			vb2_fop_release(filp);
 	}
 
 	return ret;
@@ -1722,6 +1725,7 @@ int rkisp1_fop_release(struct file *file)
 	struct rkisp1_device *dev = stream->ispdev;
 	int ret;
 
+	ret = v4l2_pipeline_pm_use(&stream->vnode.vdev.entity, 0);
 	ret = vb2_fop_release(file);
 	atomic_dec(&dev->open_cnt);
 
