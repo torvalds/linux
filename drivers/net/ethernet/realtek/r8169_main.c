@@ -4331,8 +4331,6 @@ static void rtl_hw_start_8168bef(struct rtl8169_private *tp)
 {
 	rtl_hw_start_8168bb(tp);
 
-	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
-
 	RTL_W8(tp, Config4, RTL_R8(tp, Config4) & ~(1 << 0));
 }
 
@@ -4383,8 +4381,6 @@ static void rtl_hw_start_8168cp_3(struct rtl8169_private *tp)
 
 	/* Magic. */
 	RTL_W8(tp, DBG_REG, 0x20);
-
-	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
 
 	if (tp->dev->mtu <= ETH_DATA_LEN)
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
@@ -4439,8 +4435,6 @@ static void rtl_hw_start_8168d(struct rtl8169_private *tp)
 
 	rtl_disable_clock_request(tp);
 
-	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
-
 	if (tp->dev->mtu <= ETH_DATA_LEN)
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
 }
@@ -4451,8 +4445,6 @@ static void rtl_hw_start_8168dp(struct rtl8169_private *tp)
 
 	if (tp->dev->mtu <= ETH_DATA_LEN)
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
-
-	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
 
 	rtl_disable_clock_request(tp);
 }
@@ -4468,8 +4460,6 @@ static void rtl_hw_start_8168d_4(struct rtl8169_private *tp)
 	rtl_set_def_aspm_entry_latency(tp);
 
 	rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
-
-	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
 
 	rtl_ephy_init(tp, e_info_8168d_4);
 
@@ -4500,8 +4490,6 @@ static void rtl_hw_start_8168e_1(struct rtl8169_private *tp)
 
 	if (tp->dev->mtu <= ETH_DATA_LEN)
 		rtl_tx_performance_tweak(tp, PCI_EXP_DEVCTL_READRQ_4096B);
-
-	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
 
 	rtl_disable_clock_request(tp);
 
@@ -4534,8 +4522,6 @@ static void rtl_hw_start_8168e_2(struct rtl8169_private *tp)
 	rtl_eri_set_bits(tp, 0x1b0, ERIAR_MASK_0001, BIT(4));
 	rtl_w0w1_eri(tp, 0x0d4, ERIAR_MASK_0011, 0x0c00, 0xff00);
 
-	RTL_W8(tp, MaxTxPacketSize, EarlySize);
-
 	rtl_disable_clock_request(tp);
 
 	RTL_W8(tp, MCU, RTL_R8(tp, MCU) & ~NOW_IS_OOB);
@@ -4563,8 +4549,6 @@ static void rtl_hw_start_8168f(struct rtl8169_private *tp)
 	rtl_eri_set_bits(tp, 0x1d0, ERIAR_MASK_0001, BIT(4));
 	rtl_eri_write(tp, 0xcc, ERIAR_MASK_1111, 0x00000050);
 	rtl_eri_write(tp, 0xd0, ERIAR_MASK_1111, 0x00000060);
-
-	RTL_W8(tp, MaxTxPacketSize, EarlySize);
 
 	rtl_disable_clock_request(tp);
 
@@ -4622,7 +4606,6 @@ static void rtl_hw_start_8168g(struct rtl8169_private *tp)
 	rtl_eri_write(tp, 0x2f8, ERIAR_MASK_0011, 0x1d8f);
 
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) & ~RXDV_GATED_EN);
-	RTL_W8(tp, MaxTxPacketSize, EarlySize);
 
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
@@ -4720,7 +4703,6 @@ static void rtl_hw_start_8168h_1(struct rtl8169_private *tp)
 	rtl_eri_write(tp, 0x5f0, ERIAR_MASK_0011, 0x4f87);
 
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) & ~RXDV_GATED_EN);
-	RTL_W8(tp, MaxTxPacketSize, EarlySize);
 
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
@@ -4796,7 +4778,6 @@ static void rtl_hw_start_8168ep(struct rtl8169_private *tp)
 	rtl_eri_write(tp, 0x5f0, ERIAR_MASK_0011, 0x4f87);
 
 	RTL_W32(tp, MISC, RTL_R32(tp, MISC) & ~RXDV_GATED_EN);
-	RTL_W8(tp, MaxTxPacketSize, EarlySize);
 
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
 	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
@@ -5068,7 +5049,10 @@ static void rtl_hw_start_8168(struct rtl8169_private *tp)
 		pcie_capability_set_word(tp->pci_dev, PCI_EXP_DEVCTL,
 					 PCI_EXP_DEVCTL_NOSNOOP_EN);
 
-	RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
+	if (rtl_is_8168evl_up(tp))
+		RTL_W8(tp, MaxTxPacketSize, EarlySize);
+	else
+		RTL_W8(tp, MaxTxPacketSize, TxPacketMax);
 
 	rtl_hw_config(tp);
 }
