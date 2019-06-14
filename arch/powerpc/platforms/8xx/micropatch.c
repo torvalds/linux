@@ -243,13 +243,7 @@ static void __init cpm_write_patch(cpm8xx_t *cp, int offset, uint *patch, int le
 
 void __init cpm_load_patch(cpm8xx_t *cp)
 {
-	volatile cpm8xx_t	*commproc;
-	volatile iic_t		*iip;
-	volatile struct spi_pram *spp;
-	volatile smc_uart_t	*smp;
-	commproc = cp;
-
-	commproc->cp_rccr = 0;
+	out_be16(&cp->cp_rccr, 0);
 
 	cpm_write_patch(cp, 0, patch_2000, sizeof(patch_2000));
 	cpm_write_patch(cp, 0xf00, patch_2f00, sizeof(patch_2f00));
@@ -258,26 +252,30 @@ void __init cpm_load_patch(cpm8xx_t *cp)
 	if (IS_ENABLED(CONFIG_I2C_SPI_UCODE_PATCH) ||
 	    IS_ENABLED(CONFIG_I2C_SPI_SMC1_UCODE_PATCH)) {
 		u16 rpbase = 0x500;
+		iic_t *iip;
+		struct spi_pram *spp;
 
-		iip = (iic_t *)&commproc->cp_dparam[PROFF_IIC];
-		iip->iic_rpbase = rpbase;
+		iip = (iic_t *)&cp->cp_dparam[PROFF_IIC];
+		out_be16(&iip->iic_rpbase, rpbase);
 
 		/* Put SPI above the IIC, also 32-byte aligned. */
-		spp = (struct spi_pram *)&commproc->cp_dparam[PROFF_SPI];
-		spp->rpbase = (rpbase + sizeof(iic_t) + 31) & ~31;
+		spp = (struct spi_pram *)&cp->cp_dparam[PROFF_SPI];
+		out_be16(&spp->rpbase, (rpbase + sizeof(iic_t) + 31) & ~31);
 
 		if (IS_ENABLED(CONFIG_I2C_SPI_SMC1_UCODE_PATCH)) {
-			smp = (smc_uart_t *)&commproc->cp_dparam[PROFF_SMC1];
-			smp->smc_rpbase = 0x1FC0;
+			smc_uart_t *smp;
+
+			smp = (smc_uart_t *)&cp->cp_dparam[PROFF_SMC1];
+			out_be16(&smp->smc_rpbase, 0x1FC0);
 		}
 	}
 
-	commproc->cp_cpmcr1 = patch_params.cpmcr1;
-	commproc->cp_cpmcr2 = patch_params.cpmcr2;
-	commproc->cp_cpmcr3 = patch_params.cpmcr3;
-	commproc->cp_cpmcr4 = patch_params.cpmcr4;
+	out_be16(&cp->cp_cpmcr1, patch_params.cpmcr1);
+	out_be16(&cp->cp_cpmcr2, patch_params.cpmcr2);
+	out_be16(&cp->cp_cpmcr3, patch_params.cpmcr3);
+	out_be16(&cp->cp_cpmcr4, patch_params.cpmcr4);
 
-	commproc->cp_rccr = patch_params.rccr;
+	out_be16(&cp->cp_rccr, patch_params.rccr);
 
 	pr_info("%s microcode patch installed\n", patch_name);
 }
