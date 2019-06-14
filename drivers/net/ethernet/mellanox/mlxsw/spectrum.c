@@ -41,6 +41,7 @@
 #include "spectrum_dpipe.h"
 #include "spectrum_acl_flex_actions.h"
 #include "spectrum_span.h"
+#include "spectrum_ptp.h"
 #include "../mlxfw/mlxfw.h"
 
 #define MLXSW_SP_FWREV_MINOR_TO_BRANCH(minor) ((minor) / 100)
@@ -4342,6 +4343,22 @@ static int mlxsw_sp_basic_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 }
 
+struct mlxsw_sp_ptp_ops {
+	struct mlxsw_sp_ptp_clock *
+		(*clock_init)(struct mlxsw_sp *mlxsw_sp, struct device *dev);
+	void (*clock_fini)(struct mlxsw_sp_ptp_clock *clock);
+};
+
+static const struct mlxsw_sp_ptp_ops mlxsw_sp1_ptp_ops = {
+	.clock_init	= mlxsw_sp1_ptp_clock_init,
+	.clock_fini	= mlxsw_sp1_ptp_clock_fini,
+};
+
+static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
+	.clock_init	= mlxsw_sp2_ptp_clock_init,
+	.clock_fini	= mlxsw_sp2_ptp_clock_fini,
+};
+
 static int mlxsw_sp_netdevice_event(struct notifier_block *unused,
 				    unsigned long event, void *ptr);
 
@@ -4439,6 +4456,18 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_router_init;
 	}
 
+	if (mlxsw_sp->bus_info->read_frc_capable) {
+		/* NULL is a valid return value from clock_init */
+		mlxsw_sp->clock =
+			mlxsw_sp->ptp_ops->clock_init(mlxsw_sp,
+						      mlxsw_sp->bus_info->dev);
+		if (IS_ERR(mlxsw_sp->clock)) {
+			err = PTR_ERR(mlxsw_sp->clock);
+			dev_err(mlxsw_sp->bus_info->dev, "Failed to init ptp clock\n");
+			goto err_ptp_clock_init;
+		}
+	}
+
 	/* Initialize netdevice notifier after router and SPAN is initialized,
 	 * so that the event handler can use router structures and call SPAN
 	 * respin.
@@ -4469,6 +4498,9 @@ err_ports_create:
 err_dpipe_init:
 	unregister_netdevice_notifier(&mlxsw_sp->netdevice_nb);
 err_netdev_notifier:
+	if (mlxsw_sp->clock)
+		mlxsw_sp->ptp_ops->clock_fini(mlxsw_sp->clock);
+err_ptp_clock_init:
 	mlxsw_sp_router_fini(mlxsw_sp);
 err_router_init:
 	mlxsw_sp_acl_fini(mlxsw_sp);
@@ -4512,6 +4544,7 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->rif_ops_arr = mlxsw_sp1_rif_ops_arr;
 	mlxsw_sp->sb_vals = &mlxsw_sp1_sb_vals;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp1_port_type_speed_ops;
+	mlxsw_sp->ptp_ops = &mlxsw_sp1_ptp_ops;
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
 }
@@ -4531,6 +4564,7 @@ static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->rif_ops_arr = mlxsw_sp2_rif_ops_arr;
 	mlxsw_sp->sb_vals = &mlxsw_sp2_sb_vals;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
+	mlxsw_sp->ptp_ops = &mlxsw_sp2_ptp_ops;
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
 }
@@ -4542,6 +4576,8 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_ports_remove(mlxsw_sp);
 	mlxsw_sp_dpipe_fini(mlxsw_sp);
 	unregister_netdevice_notifier(&mlxsw_sp->netdevice_nb);
+	if (mlxsw_sp->clock)
+		mlxsw_sp->ptp_ops->clock_fini(mlxsw_sp->clock);
 	mlxsw_sp_router_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
 	mlxsw_sp_nve_fini(mlxsw_sp);

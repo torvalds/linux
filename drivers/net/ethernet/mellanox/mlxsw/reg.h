@@ -8691,6 +8691,107 @@ static inline void mlxsw_reg_mlcr_pack(char *payload, u8 local_port,
 					   MLXSW_REG_MLCR_DURATION_MAX : 0);
 }
 
+/* MTPPS - Management Pulse Per Second Register
+ * --------------------------------------------
+ * This register provides the device PPS capabilities, configure the PPS in and
+ * out modules and holds the PPS in time stamp.
+ */
+#define MLXSW_REG_MTPPS_ID 0x9053
+#define MLXSW_REG_MTPPS_LEN 0x3C
+
+MLXSW_REG_DEFINE(mtpps, MLXSW_REG_MTPPS_ID, MLXSW_REG_MTPPS_LEN);
+
+/* reg_mtpps_enable
+ * Enables the PPS functionality the specific pin.
+ * A boolean variable.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mtpps, enable, 0x20, 31, 1);
+
+enum mlxsw_reg_mtpps_pin_mode {
+	MLXSW_REG_MTPPS_PIN_MODE_VIRTUAL_PIN = 0x2,
+};
+
+/* reg_mtpps_pin_mode
+ * Pin mode to be used. The mode must comply with the supported modes of the
+ * requested pin.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mtpps, pin_mode, 0x20, 8, 4);
+
+#define MLXSW_REG_MTPPS_PIN_SP_VIRTUAL_PIN	7
+
+/* reg_mtpps_pin
+ * Pin to be configured or queried out of the supported pins.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mtpps, pin, 0x20, 0, 8);
+
+/* reg_mtpps_time_stamp
+ * When pin_mode = pps_in, the latched device time when it was triggered from
+ * the external GPIO pin.
+ * When pin_mode = pps_out or virtual_pin or pps_out_and_virtual_pin, the target
+ * time to generate next output signal.
+ * Time is in units of device clock.
+ * Access: RW
+ */
+MLXSW_ITEM64(reg, mtpps, time_stamp, 0x28, 0, 64);
+
+static inline void
+mlxsw_reg_mtpps_vpin_pack(char *payload, u64 time_stamp)
+{
+	MLXSW_REG_ZERO(mtpps, payload);
+	mlxsw_reg_mtpps_pin_set(payload, MLXSW_REG_MTPPS_PIN_SP_VIRTUAL_PIN);
+	mlxsw_reg_mtpps_pin_mode_set(payload,
+				     MLXSW_REG_MTPPS_PIN_MODE_VIRTUAL_PIN);
+	mlxsw_reg_mtpps_enable_set(payload, true);
+	mlxsw_reg_mtpps_time_stamp_set(payload, time_stamp);
+}
+
+/* MTUTC - Management UTC Register
+ * -------------------------------
+ * Configures the HW UTC counter.
+ */
+#define MLXSW_REG_MTUTC_ID 0x9055
+#define MLXSW_REG_MTUTC_LEN 0x1C
+
+MLXSW_REG_DEFINE(mtutc, MLXSW_REG_MTUTC_ID, MLXSW_REG_MTUTC_LEN);
+
+enum mlxsw_reg_mtutc_operation {
+	MLXSW_REG_MTUTC_OPERATION_SET_TIME_AT_NEXT_SEC = 0,
+	MLXSW_REG_MTUTC_OPERATION_ADJUST_FREQ = 3,
+};
+
+/* reg_mtutc_operation
+ * Operation.
+ * Access: OP
+ */
+MLXSW_ITEM32(reg, mtutc, operation, 0x00, 0, 4);
+
+/* reg_mtutc_freq_adjustment
+ * Frequency adjustment: Every PPS the HW frequency will be
+ * adjusted by this value. Units of HW clock, where HW counts
+ * 10^9 HW clocks for 1 HW second.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mtutc, freq_adjustment, 0x04, 0, 32);
+
+/* reg_mtutc_utc_sec
+ * UTC seconds.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mtutc, utc_sec, 0x10, 0, 32);
+
+static inline void
+mlxsw_reg_mtutc_pack(char *payload, enum mlxsw_reg_mtutc_operation oper,
+		     u32 freq_adj, u32 utc_sec)
+{
+	MLXSW_REG_ZERO(mtutc, payload);
+	mlxsw_reg_mtutc_operation_set(payload, oper);
+	mlxsw_reg_mtutc_freq_adjustment_set(payload, freq_adj);
+	mlxsw_reg_mtutc_utc_sec_set(payload, utc_sec);
+}
+
 /* MCQI - Management Component Query Information
  * ---------------------------------------------
  * This register allows querying information about firmware components.
@@ -10105,6 +10206,8 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mgir),
 	MLXSW_REG(mrsr),
 	MLXSW_REG(mlcr),
+	MLXSW_REG(mtpps),
+	MLXSW_REG(mtutc),
 	MLXSW_REG(mpsc),
 	MLXSW_REG(mcqi),
 	MLXSW_REG(mcc),
