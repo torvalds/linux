@@ -14,7 +14,7 @@
 
 #define BATADV_ICMP_SOCKET "socket"
 
-int batadv_socket_setup(struct batadv_priv *bat_priv);
+void batadv_socket_setup(struct batadv_priv *bat_priv);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
 
