@@ -74,28 +74,28 @@ static MPT_CALLBACK	mpt_callbacks[MPT_MAX_CALLBACKS];
 #define MAX_HBA_QUEUE_DEPTH	30000
 #define MAX_CHAIN_DEPTH		100000
 static int max_queue_depth = -1;
-module_param(max_queue_depth, int, 0);
+module_param(max_queue_depth, int, 0444);
 MODULE_PARM_DESC(max_queue_depth, " max controller queue depth ");
 
 static int max_sgl_entries = -1;
-module_param(max_sgl_entries, int, 0);
+module_param(max_sgl_entries, int, 0444);
 MODULE_PARM_DESC(max_sgl_entries, " max sg entries ");
 
 static int msix_disable = -1;
-module_param(msix_disable, int, 0);
+module_param(msix_disable, int, 0444);
 MODULE_PARM_DESC(msix_disable, " disable msix routed interrupts (default=0)");
 
 static int smp_affinity_enable = 1;
-module_param(smp_affinity_enable, int, S_IRUGO);
+module_param(smp_affinity_enable, int, 0444);
 MODULE_PARM_DESC(smp_affinity_enable, "SMP affinity feature enable/disable Default: enable(1)");
 
 static int max_msix_vectors = -1;
-module_param(max_msix_vectors, int, 0);
+module_param(max_msix_vectors, int, 0444);
 MODULE_PARM_DESC(max_msix_vectors,
 	" max msix vectors");
 
 static int irqpoll_weight = -1;
-module_param(irqpoll_weight, int, 0);
+module_param(irqpoll_weight, int, 0444);
 MODULE_PARM_DESC(irqpoll_weight,
 	"irq poll weight (default= one fourth of HBA queue depth)");
 
@@ -104,7 +104,7 @@ MODULE_PARM_DESC(mpt3sas_fwfault_debug,
 	" enable detection of firmware fault and halt firmware - (default=0)");
 
 static int perf_mode = -1;
-module_param(perf_mode, int, 0);
+module_param(perf_mode, int, 0444);
 MODULE_PARM_DESC(perf_mode,
 	"Performance mode (only for Aero/Sea Generation), options:\n\t\t"
 	"0 - balanced: high iops mode is enabled &\n\t\t"
