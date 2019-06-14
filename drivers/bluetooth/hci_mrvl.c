@@ -339,6 +339,9 @@ static int mrvl_setup(struct hci_uart *hu)
 		return -EINVAL;
 	}
 
+	/* Let the final ack go out before switching the baudrate */
+	hci_uart_wait_until_sent(hu);
+
 	hci_uart_set_baudrate(hu, 3000000);
 	hci_uart_set_flow_control(hu, false);
 
