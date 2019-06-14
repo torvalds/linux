@@ -1048,11 +1048,12 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 		/*
 		 * esdhc->peripheral_clock would be assigned with a value
 		 * which is eSDHC base clock when use periperal clock.
-		 * For ls1046a, the clock value got by common clk API is
-		 * peripheral clock while the eSDHC base clock is 1/2
-		 * peripheral clock.
+		 * For some platforms, the clock value got by common clk
+		 * API is peripheral clock while the eSDHC base clock is
+		 * 1/2 peripheral clock.
 		 */
-		if (of_device_is_compatible(np, "fsl,ls1046a-esdhc"))
+		if (of_device_is_compatible(np, "fsl,ls1046a-esdhc") ||
+		    of_device_is_compatible(np, "fsl,ls1028a-esdhc"))
 			esdhc->peripheral_clock = clk_get_rate(clk) / 2;
 		else
 			esdhc->peripheral_clock = clk_get_rate(clk);
