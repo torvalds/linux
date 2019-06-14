@@ -215,13 +215,6 @@ efficient.
 
 Contact: Daniel Vetter
 
-Defaults for .gem_prime_import and export
------------------------------------------
-
-Most drivers don't need to set drm_driver->gem_prime_import and
-->gem_prime_export now that drm_gem_prime_import() and drm_gem_prime_export()
-are the default.
-
 struct drm_gem_object_funcs
 ---------------------------
 
