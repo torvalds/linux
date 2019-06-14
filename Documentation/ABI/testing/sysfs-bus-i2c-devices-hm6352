@@ -1,18 +1,18 @@
-Where:		/sys/bus/i2c/devices/.../heading0_input
+What:		/sys/bus/i2c/devices/.../heading0_input
 Date:		April 2010
 Kernel Version: 2.6.36?
 Contact:	alan.cox@intel.com
 Description:	Reports the current heading from the compass as a floating
 		point value in degrees.
 
-Where:		/sys/bus/i2c/devices/.../power_state
+What:		/sys/bus/i2c/devices/.../power_state
 Date:		April 2010
 Kernel Version: 2.6.36?
 Contact:	alan.cox@intel.com
 Description:	Sets the power state of the device. 0 sets the device into
 		sleep mode, 1 wakes it up.
 
-Where:		/sys/bus/i2c/devices/.../calibration
+What:		/sys/bus/i2c/devices/.../calibration
 Date:		April 2010
 Kernel Version: 2.6.36?
 Contact:	alan.cox@intel.com

@@ -1,12 +1,12 @@
-Where:		/sys/bus/usb/.../powered
+What:		/sys/bus/usb/.../powered
 Date:		August 2008
 Kernel Version:	2.6.26
 Contact:	Harrison Metzger <harrisonmetz@gmail.com>
 Description:	Controls whether the device's display will powered.
 		A value of 0 is off and a non-zero value is on.
 
-Where:		/sys/bus/usb/.../mode_msb
-Where:		/sys/bus/usb/.../mode_lsb
+What:		/sys/bus/usb/.../mode_msb
+What:		/sys/bus/usb/.../mode_lsb
 Date:		August 2008
 Kernel Version:	2.6.26
 Contact:	Harrison Metzger <harrisonmetz@gmail.com>
@@ -16,7 +16,7 @@ Description:	Controls the devices display mode.
 		for an 8 character display the values are
 			MSB 0x08; LSB 0xFF.
 
-Where:		/sys/bus/usb/.../textmode
+What:		/sys/bus/usb/.../textmode
 Date:		August 2008
 Kernel Version:	2.6.26
 Contact:	Harrison Metzger <harrisonmetz@gmail.com>
@@ -25,13 +25,13 @@ Description:	Controls the way the device interprets its text buffer.
 		hex:	each character is between 0-15
 		ascii:	each character is between '0'-'9' and 'A'-'F'.
 
-Where:		/sys/bus/usb/.../text
+What:		/sys/bus/usb/.../text
 Date:		August 2008
 Kernel Version:	2.6.26
 Contact:	Harrison Metzger <harrisonmetz@gmail.com>
 Description:	The text (or data) for the device to display
 
-Where:		/sys/bus/usb/.../decimals
+What:		/sys/bus/usb/.../decimals
 Date:		August 2008
 Kernel Version:	2.6.26
 Contact:	Harrison Metzger <harrisonmetz@gmail.com>

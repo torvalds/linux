@@ -47,7 +47,7 @@ Description:
 What:		/sys/class/devfreq/.../trans_stat
 Date:		October 2012
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
-Descrtiption:
+Description:
 		This ABI shows the statistics of devfreq behavior on a
 		specific device. It shows the time spent in each state and
 		the number of transitions between states.

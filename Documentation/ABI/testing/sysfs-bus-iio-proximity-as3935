@@ -1,4 +1,4 @@
-What		/sys/bus/iio/devices/iio:deviceX/in_proximity_input
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity_input
 Date:		March 2014
 KernelVersion:	3.15
 Contact:	Matt Ranostay <matt.ranostay@konsulko.com>
@@ -6,7 +6,7 @@ Description:
 		Get the current distance in meters of storm (1km steps)
 		1000-40000 = distance in meters
 
-What		/sys/bus/iio/devices/iio:deviceX/sensor_sensitivity
+What:		/sys/bus/iio/devices/iio:deviceX/sensor_sensitivity
 Date:		March 2014
 KernelVersion:	3.15
 Contact:	Matt Ranostay <matt.ranostay@konsulko.com>

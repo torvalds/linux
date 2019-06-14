@@ -1,4 +1,4 @@
-Where:		/sys/bus/event_source/devices/<dev>/format
+What:		/sys/bus/event_source/devices/<dev>/format
 Date:		January 2012
 Kernel Version: 3.3
 Contact:	Jiri Olsa <jolsa@redhat.com>
