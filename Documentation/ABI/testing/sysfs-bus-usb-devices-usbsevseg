@@ -1,6 +1,6 @@
 What:		/sys/bus/usb/.../powered
 Date:		August 2008
-Kernel Version:	2.6.26
+KernelVersion:	2.6.26
 Contact:	Harrison Metzger <harrisonmetz@gmail.com>
 Description:	Controls whether the device's display will powered.
 		A value of 0 is off and a non-zero value is on.
@@ -8,7 +8,7 @@ Description:	Controls whether the device's display will powered.
 What:		/sys/bus/usb/.../mode_msb
 What:		/sys/bus/usb/.../mode_lsb
 Date:		August 2008
-Kernel Version:	2.6.26
+KernelVersion:	2.6.26
 Contact:	Harrison Metzger <harrisonmetz@gmail.com>
 Description:	Controls the devices display mode.
 		For a 6 character display the values are
@@ -18,7 +18,7 @@ Description:	Controls the devices display mode.
 
 What:		/sys/bus/usb/.../textmode
 Date:		August 2008
-Kernel Version:	2.6.26
+KernelVersion:	2.6.26
 Contact:	Harrison Metzger <harrisonmetz@gmail.com>
 Description:	Controls the way the device interprets its text buffer.
 		raw:	each character controls its segment manually
@@ -27,13 +27,13 @@ Description:	Controls the way the device interprets its text buffer.
 
 What:		/sys/bus/usb/.../text
 Date:		August 2008
-Kernel Version:	2.6.26
+KernelVersion:	2.6.26
 Contact:	Harrison Metzger <harrisonmetz@gmail.com>
 Description:	The text (or data) for the device to display
 
 What:		/sys/bus/usb/.../decimals
 Date:		August 2008
-Kernel Version:	2.6.26
+KernelVersion:	2.6.26
 Contact:	Harrison Metzger <harrisonmetz@gmail.com>
 Description:	Controls the decimal places on the device.
 		To set the nth decimal place, give this field
