@@ -1027,7 +1027,7 @@ static int emit_ppgtt_update(struct i915_request *rq, void *data)
 
 	if (i915_vm_is_4lvl(vm)) {
 		struct i915_ppgtt *ppgtt = i915_vm_to_ppgtt(vm);
-		const dma_addr_t pd_daddr = px_dma(&ppgtt->pml4);
+		const dma_addr_t pd_daddr = px_dma(ppgtt->pd);
 
 		cs = intel_ring_begin(rq, 6);
 		if (IS_ERR(cs))

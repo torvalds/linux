@@ -375,11 +375,13 @@ static int set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
 		return -EINVAL;
 
 	if (mm->ppgtt_mm.root_entry_type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
-		px_dma(&ppgtt->pml4) = mm->ppgtt_mm.shadow_pdps[0];
+		px_dma(ppgtt->pd) = mm->ppgtt_mm.shadow_pdps[0];
 	} else {
 		for (i = 0; i < GVT_RING_CTX_NR_PDPS; i++) {
-			px_dma(ppgtt->pdp.page_directory[i]) =
-				mm->ppgtt_mm.shadow_pdps[i];
+			struct i915_page_directory * const pd =
+				i915_pd_entry(ppgtt->pd, i);
+
+			px_dma(pd) = mm->ppgtt_mm.shadow_pdps[i];
 		}
 	}
 
@@ -1107,11 +1109,14 @@ i915_context_ppgtt_root_restore(struct intel_vgpu_submission *s,
 	int i;
 
 	if (i915_vm_is_4lvl(&ppgtt->vm)) {
-		px_dma(&ppgtt->pml4) = s->i915_context_pml4;
+		px_dma(ppgtt->pd) = s->i915_context_pml4;
 	} else {
-		for (i = 0; i < GEN8_3LVL_PDPES; i++)
-			px_dma(ppgtt->pdp.page_directory[i]) =
-				s->i915_context_pdps[i];
+		for (i = 0; i < GEN8_3LVL_PDPES; i++) {
+			struct i915_page_directory * const pd =
+				i915_pd_entry(ppgtt->pd, i);
+
+			px_dma(pd) = s->i915_context_pdps[i];
+		}
 	}
 }
 
@@ -1165,11 +1170,14 @@ i915_context_ppgtt_root_save(struct intel_vgpu_submission *s,
 	int i;
 
 	if (i915_vm_is_4lvl(&ppgtt->vm)) {
-		s->i915_context_pml4 = px_dma(&ppgtt->pml4);
+		s->i915_context_pml4 = px_dma(ppgtt->pd);
 	} else {
-		for (i = 0; i < GEN8_3LVL_PDPES; i++)
-			s->i915_context_pdps[i] =
-				px_dma(ppgtt->pdp.page_directory[i]);
+		for (i = 0; i < GEN8_3LVL_PDPES; i++) {
+			struct i915_page_directory * const pd =
+				i915_pd_entry(ppgtt->pd, i);
+
+			s->i915_context_pdps[i] = px_dma(pd);
+		}
 	}
 }
 

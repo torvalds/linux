@@ -248,28 +248,14 @@ struct i915_page_dma {
 
 struct i915_page_table {
 	struct i915_page_dma base;
-	atomic_t used_ptes;
+	atomic_t used;
 };
 
 struct i915_page_directory {
 	struct i915_page_dma base;
-
-	struct i915_page_table *page_table[I915_PDES]; /* PDEs */
-	atomic_t used_pdes;
+	atomic_t used;
 	spinlock_t lock;
-};
-
-struct i915_page_directory_pointer {
-	struct i915_page_dma base;
-	struct i915_page_directory **page_directory;
-	atomic_t used_pdpes;
-	spinlock_t lock;
-};
-
-struct i915_pml4 {
-	struct i915_page_dma base;
-	struct i915_page_directory_pointer *pdps[GEN8_PML4ES_PER_PML4];
-	spinlock_t lock;
+	void *entry[512];
 };
 
 struct i915_vma_ops {
@@ -321,7 +307,7 @@ struct i915_address_space {
 	struct i915_page_dma scratch_page;
 	struct i915_page_table *scratch_pt;
 	struct i915_page_directory *scratch_pd;
-	struct i915_page_directory_pointer *scratch_pdp; /* GEN8+ & 48b PPGTT */
+	struct i915_page_directory *scratch_pdp; /* GEN8+ & 48b PPGTT */
 
 	/**
 	 * List of vma currently bound.
@@ -428,11 +414,7 @@ struct i915_ppgtt {
 	struct i915_address_space vm;
 
 	intel_engine_mask_t pd_dirty_engines;
-	union {
-		struct i915_pml4 pml4;		/* GEN8+ & 48b PPGTT */
-		struct i915_page_directory_pointer pdp;	/* GEN8+ */
-		struct i915_page_directory pd;		/* GEN6-7 */
-	};
+	struct i915_page_directory *pd;
 };
 
 struct gen6_ppgtt {
@@ -466,7 +448,7 @@ static inline struct gen6_ppgtt *to_gen6_ppgtt(struct i915_ppgtt *base)
 #define gen6_for_each_pde(pt, pd, start, length, iter)			\
 	for (iter = gen6_pde_index(start);				\
 	     length > 0 && iter < I915_PDES &&				\
-		(pt = (pd)->page_table[iter], true);			\
+		     (pt = i915_pt_entry(pd, iter), true);		\
 	     ({ u32 temp = ALIGN(start+1, 1 << GEN6_PDE_SHIFT);		\
 		    temp = min(temp - start, length);			\
 		    start += temp, length -= temp; }), ++iter)
@@ -474,7 +456,7 @@ static inline struct gen6_ppgtt *to_gen6_ppgtt(struct i915_ppgtt *base)
 #define gen6_for_all_pdes(pt, pd, iter)					\
 	for (iter = 0;							\
 	     iter < I915_PDES &&					\
-		(pt = (pd)->page_table[iter], true);			\
+		     (pt = i915_pt_entry(pd, iter), true);		\
 	     ++iter)
 
 static inline u32 i915_pte_index(u64 address, unsigned int pde_shift)
@@ -533,6 +515,27 @@ i915_pdpes_per_pdp(const struct i915_address_space *vm)
 	return GEN8_3LVL_PDPES;
 }
 
+static inline struct i915_page_table *
+i915_pt_entry(const struct i915_page_directory * const pd,
+	      const unsigned short n)
+{
+	return pd->entry[n];
+}
+
+static inline struct i915_page_directory *
+i915_pd_entry(const struct i915_page_directory * const pdp,
+	      const unsigned short n)
+{
+	return pdp->entry[n];
+}
+
+static inline struct i915_page_directory *
+i915_pdp_entry(const struct i915_page_directory * const pml4,
+	       const unsigned short n)
+{
+	return pml4->entry[n];
+}
+
 /* Equivalent to the gen6 version, For each pde iterates over every pde
  * between from start until start + length. On gen8+ it simply iterates
  * over every page directory entry in a page directory.
@@ -540,7 +543,7 @@ i915_pdpes_per_pdp(const struct i915_address_space *vm)
 #define gen8_for_each_pde(pt, pd, start, length, iter)			\
 	for (iter = gen8_pde_index(start);				\
 	     length > 0 && iter < I915_PDES &&				\
-		(pt = (pd)->page_table[iter], true);			\
+		     (pt = i915_pt_entry(pd, iter), true);		\
 	     ({ u64 temp = ALIGN(start+1, 1 << GEN8_PDE_SHIFT);		\
 		    temp = min(temp - start, length);			\
 		    start += temp, length -= temp; }), ++iter)
@@ -548,7 +551,7 @@ i915_pdpes_per_pdp(const struct i915_address_space *vm)
 #define gen8_for_each_pdpe(pd, pdp, start, length, iter)		\
 	for (iter = gen8_pdpe_index(start);				\
 	     length > 0 && iter < i915_pdpes_per_pdp(vm) &&		\
-		(pd = (pdp)->page_directory[iter], true);		\
+		     (pd = i915_pd_entry(pdp, iter), true);		\
 	     ({ u64 temp = ALIGN(start+1, 1 << GEN8_PDPE_SHIFT);	\
 		    temp = min(temp - start, length);			\
 		    start += temp, length -= temp; }), ++iter)
@@ -556,7 +559,7 @@ i915_pdpes_per_pdp(const struct i915_address_space *vm)
 #define gen8_for_each_pml4e(pdp, pml4, start, length, iter)		\
 	for (iter = gen8_pml4e_index(start);				\
 	     length > 0 && iter < GEN8_PML4ES_PER_PML4 &&		\
-		(pdp = (pml4)->pdps[iter], true);			\
+		     (pdp = i915_pdp_entry(pml4, iter), true);		\
 	     ({ u64 temp = ALIGN(start+1, 1ULL << GEN8_PML4E_SHIFT);	\
 		    temp = min(temp - start, length);			\
 		    start += temp, length -= temp; }), ++iter)
@@ -589,7 +592,10 @@ static inline u64 gen8_pte_count(u64 address, u64 length)
 static inline dma_addr_t
 i915_page_dir_dma_addr(const struct i915_ppgtt *ppgtt, const unsigned int n)
 {
-	return px_dma(ppgtt->pdp.page_directory[n]);
+	struct i915_page_directory *pd;
+
+	pd = i915_pdp_entry(ppgtt->pd, n);
+	return px_dma(pd);
 }
 
 static inline struct i915_ggtt *

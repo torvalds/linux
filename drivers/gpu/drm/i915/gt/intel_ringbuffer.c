@@ -1484,7 +1484,7 @@ static int load_pd_dir(struct i915_request *rq, const struct i915_ppgtt *ppgtt)
 
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
-	*cs++ = ppgtt->pd.base.ggtt_offset << 10;
+	*cs++ = ppgtt->pd->base.ggtt_offset << 10;
 
 	intel_ring_advance(rq, cs);
 
