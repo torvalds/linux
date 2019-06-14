@@ -978,7 +978,7 @@ void i915_reset(struct drm_i915_private *i915,
 
 	might_sleep();
 	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
-	lock_map_acquire(&i915->gt.reset_lockmap);
+	mutex_lock(&error->wedge_mutex);
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
 	if (!__i915_gem_unset_wedged(i915))
@@ -1031,7 +1031,7 @@ void i915_reset(struct drm_i915_private *i915,
 finish:
 	reset_finish(i915);
 unlock:
-	lock_map_release(&i915->gt.reset_lockmap);
+	mutex_unlock(&error->wedge_mutex);
 	return;
 
 taint:
@@ -1147,9 +1147,7 @@ static void i915_reset_device(struct drm_i915_private *i915,
 		/* Flush everyone using a resource about to be clobbered */
 		synchronize_srcu_expedited(&error->reset_backoff_srcu);
 
-		mutex_lock(&error->wedge_mutex);
 		i915_reset(i915, engine_mask, reason);
-		mutex_unlock(&error->wedge_mutex);
 
 		intel_finish_reset(i915);
 	}
