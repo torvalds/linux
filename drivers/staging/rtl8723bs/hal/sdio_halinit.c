@@ -1542,7 +1542,7 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 			DBG_871X_LEVEL(_drv_always_, "WOWLAN_DISABLE\n");
 
 			psta = rtw_get_stainfo(&padapter->stapriv, get_bssid(pmlmepriv));
-			if (psta != NULL)
+			if (psta)
 				rtl8723b_set_FwMediaStatusRpt_cmd(padapter, RT_MEDIA_DISCONNECT, psta->mac_id);
 			else
 				DBG_871X("psta is null\n");
@@ -1657,7 +1657,7 @@ static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 				(pwrctl->wowlan_wake_reason != Rx_DeAuth)
 			) {
 				rtl8723b_set_FwJoinBssRpt_cmd(padapter, RT_MEDIA_CONNECT);
-				if (psta != NULL)
+				if (psta)
 					rtl8723b_set_FwMediaStatusRpt_cmd(padapter, RT_MEDIA_CONNECT, psta->mac_id);
 			}
 #ifdef CONFIG_PNO_SUPPORT
