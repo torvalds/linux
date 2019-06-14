@@ -282,6 +282,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		 */
 		if (inst == KVMPPC_INST_SW_BREAKPOINT) {
 			run->exit_reason = KVM_EXIT_DEBUG;
+			run->debug.arch.status = 0;
 			run->debug.arch.address = kvmppc_get_pc(vcpu);
 			emulated = EMULATE_EXIT_USER;
 			advance = 0;
