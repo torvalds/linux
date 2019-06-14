@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
-/* Microcode patches for the CPM as supplied by Motorola.
+/*
+ * Microcode patches for the CPM as supplied by Motorola.
  * This is the one for IIC/SPI.  There is a newer one that
  * also relocates SMC2, but this would require additional changes
  * to uart.c, so I am holding off on that for a moment.
