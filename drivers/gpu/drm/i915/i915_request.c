@@ -183,72 +183,23 @@ static void free_capture_list(struct i915_request *request)
 	}
 }
 
-static void __retire_engine_request(struct intel_engine_cs *engine,
-				    struct i915_request *rq)
-{
-	GEM_TRACE("%s(%s) fence %llx:%lld, current %d\n",
-		  __func__, engine->name,
-		  rq->fence.context, rq->fence.seqno,
-		  hwsp_seqno(rq));
-
-	GEM_BUG_ON(!i915_request_completed(rq));
-
-	local_irq_disable();
-
-	spin_lock(&engine->timeline.lock);
-	GEM_BUG_ON(!list_is_first(&rq->link, &engine->timeline.requests));
-	list_del_init(&rq->link);
-	spin_unlock(&engine->timeline.lock);
-
-	spin_lock(&rq->lock);
-	i915_request_mark_complete(rq);
-	if (!i915_request_signaled(rq))
-		dma_fence_signal_locked(&rq->fence);
-	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags))
-		i915_request_cancel_breadcrumb(rq);
-	if (rq->waitboost) {
-		GEM_BUG_ON(!atomic_read(&rq->i915->gt_pm.rps.num_waiters));
-		atomic_dec(&rq->i915->gt_pm.rps.num_waiters);
-	}
-	spin_unlock(&rq->lock);
-
-	local_irq_enable();
-}
-
-static void __retire_engine_upto(struct intel_engine_cs *engine,
-				 struct i915_request *rq)
-{
-	struct i915_request *tmp;
-
-	if (list_empty(&rq->link))
-		return;
-
-	do {
-		tmp = list_first_entry(&engine->timeline.requests,
-				       typeof(*tmp), link);
-
-		GEM_BUG_ON(tmp->engine != engine);
-		__retire_engine_request(engine, tmp);
-	} while (tmp != rq);
-}
-
-static void i915_request_retire(struct i915_request *request)
+static bool i915_request_retire(struct i915_request *rq)
 {
 	struct i915_active_request *active, *next;
 
+	lockdep_assert_held(&rq->i915->drm.struct_mutex);
+	if (!i915_request_completed(rq))
+		return false;
+
 	GEM_TRACE("%s fence %llx:%lld, current %d\n",
-		  request->engine->name,
-		  request->fence.context, request->fence.seqno,
-		  hwsp_seqno(request));
+		  rq->engine->name,
+		  rq->fence.context, rq->fence.seqno,
+		  hwsp_seqno(rq));
 
-	lockdep_assert_held(&request->i915->drm.struct_mutex);
-	GEM_BUG_ON(!i915_sw_fence_signaled(&request->submit));
-	GEM_BUG_ON(!i915_request_completed(request));
+	GEM_BUG_ON(!i915_sw_fence_signaled(&rq->submit));
+	trace_i915_request_retire(rq);
 
-	trace_i915_request_retire(request);
-
-	advance_ring(request);
-	free_capture_list(request);
+	advance_ring(rq);
 
 	/*
 	 * Walk through the active list, calling retire on each. This allows
@@ -260,7 +211,7 @@ static void i915_request_retire(struct i915_request *request)
 	 * pass along the auxiliary information (to avoid dereferencing
 	 * the node after the callback).
 	 */
-	list_for_each_entry_safe(active, next, &request->active_list, link) {
+	list_for_each_entry_safe(active, next, &rq->active_list, link) {
 		/*
 		 * In microbenchmarks or focusing upon time inside the kernel,
 		 * we may spend an inordinate amount of time simply handling
@@ -276,18 +227,39 @@ static void i915_request_retire(struct i915_request *request)
 		INIT_LIST_HEAD(&active->link);
 		RCU_INIT_POINTER(active->request, NULL);
 
-		active->retire(active, request);
+		active->retire(active, rq);
 	}
 
-	i915_request_remove_from_client(request);
+	local_irq_disable();
 
-	__retire_engine_upto(request->engine, request);
+	spin_lock(&rq->engine->timeline.lock);
+	list_del(&rq->link);
+	spin_unlock(&rq->engine->timeline.lock);
 
-	intel_context_exit(request->hw_context);
-	intel_context_unpin(request->hw_context);
+	spin_lock(&rq->lock);
+	i915_request_mark_complete(rq);
+	if (!i915_request_signaled(rq))
+		dma_fence_signal_locked(&rq->fence);
+	if (test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT, &rq->fence.flags))
+		i915_request_cancel_breadcrumb(rq);
+	if (rq->waitboost) {
+		GEM_BUG_ON(!atomic_read(&rq->i915->gt_pm.rps.num_waiters));
+		atomic_dec(&rq->i915->gt_pm.rps.num_waiters);
+	}
+	spin_unlock(&rq->lock);
 
-	i915_sched_node_fini(&request->sched);
-	i915_request_put(request);
+	local_irq_enable();
+
+	intel_context_exit(rq->hw_context);
+	intel_context_unpin(rq->hw_context);
+
+	i915_request_remove_from_client(rq);
+
+	free_capture_list(rq);
+	i915_sched_node_fini(&rq->sched);
+	i915_request_put(rq);
+
+	return true;
 }
 
 void i915_request_retire_upto(struct i915_request *rq)
@@ -309,9 +281,7 @@ void i915_request_retire_upto(struct i915_request *rq)
 	do {
 		tmp = list_first_entry(&ring->request_list,
 				       typeof(*tmp), ring_link);
-
-		i915_request_retire(tmp);
-	} while (tmp != rq);
+	} while (i915_request_retire(tmp) && tmp != rq);
 }
 
 static void irq_execute_cb(struct irq_work *wrk)
@@ -600,12 +570,9 @@ static void ring_retire_requests(struct intel_ring *ring)
 {
 	struct i915_request *rq, *rn;
 
-	list_for_each_entry_safe(rq, rn, &ring->request_list, ring_link) {
-		if (!i915_request_completed(rq))
+	list_for_each_entry_safe(rq, rn, &ring->request_list, ring_link)
+		if (!i915_request_retire(rq))
 			break;
-
-		i915_request_retire(rq);
-	}
 }
 
 static noinline struct i915_request *
@@ -619,6 +586,15 @@ request_alloc_slow(struct intel_context *ce, gfp_t gfp)
 
 	if (!gfpflags_allow_blocking(gfp))
 		goto out;
+
+	/* Move our oldest request to the slab-cache (if not in use!) */
+	rq = list_first_entry(&ring->request_list, typeof(*rq), ring_link);
+	i915_request_retire(rq);
+
+	rq = kmem_cache_alloc(global.slab_requests,
+			      gfp | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+	if (rq)
+		return rq;
 
 	/* Ratelimit ourselves to prevent oom from malicious clients */
 	rq = list_last_entry(&ring->request_list, typeof(*rq), ring_link);
@@ -777,8 +753,7 @@ i915_request_create(struct intel_context *ce)
 
 	/* Move our oldest request to the slab-cache (if not in use!) */
 	rq = list_first_entry(&ce->ring->request_list, typeof(*rq), ring_link);
-	if (!list_is_last(&rq->ring_link, &ce->ring->request_list) &&
-	    i915_request_completed(rq))
+	if (!list_is_last(&rq->ring_link, &ce->ring->request_list))
 		i915_request_retire(rq);
 
 	intel_context_enter(ce);
