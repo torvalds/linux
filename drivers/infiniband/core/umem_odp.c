@@ -730,7 +730,8 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 virt,
 
 			WARN_ON(!dma_addr);
 
-			ib_dma_unmap_page(dev, dma_addr, PAGE_SIZE,
+			ib_dma_unmap_page(dev, dma_addr,
+					  BIT(umem_odp->page_shift),
 					  DMA_BIDIRECTIONAL);
 			if (dma & ODP_WRITE_ALLOWED_BIT) {
 				struct page *head_page = compound_head(page);
