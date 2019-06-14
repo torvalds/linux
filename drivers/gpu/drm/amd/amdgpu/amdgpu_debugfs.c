@@ -24,8 +24,11 @@
  */
 
 #include <linux/kthread.h>
-#include <drm/drmP.h>
-#include <linux/debugfs.h>
+#include <linux/pci.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_debugfs.h>
+
 #include "amdgpu.h"
 
 /**

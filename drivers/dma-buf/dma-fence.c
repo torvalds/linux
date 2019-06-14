@@ -256,8 +256,25 @@ void dma_fence_release(struct kref *kref)
 
 	trace_dma_fence_destroy(fence);
 
-	/* Failed to signal before release, could be a refcounting issue */
-	WARN_ON(!list_empty(&fence->cb_list));
+	if (WARN(!list_empty(&fence->cb_list),
+		 "Fence %s:%s:%llx:%llx released with pending signals!\n",
+		 fence->ops->get_driver_name(fence),
+		 fence->ops->get_timeline_name(fence),
+		 fence->context, fence->seqno)) {
+		unsigned long flags;
+
+		/*
+		 * Failed to signal before release, likely a refcounting issue.
+		 *
+		 * This should never happen, but if it does make sure that we
+		 * don't leave chains dangling. We set the error flag first
+		 * so that the callbacks know this signal is due to an error.
+		 */
+		spin_lock_irqsave(fence->lock, flags);
+		fence->error = -EDEADLK;
+		dma_fence_signal_locked(fence);
+		spin_unlock_irqrestore(fence->lock, flags);
+	}
 
 	if (fence->ops->release)
 		fence->ops->release(fence);

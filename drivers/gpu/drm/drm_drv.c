@@ -1164,11 +1164,6 @@ static int __init drm_core_init(void)
 	}
 
 	drm_debugfs_root = debugfs_create_dir("dri", NULL);
-	if (!drm_debugfs_root) {
-		ret = -ENOMEM;
-		DRM_ERROR("Cannot create debugfs-root: %d\n", ret);
-		goto error;
-	}
 
 	ret = register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops);
 	if (ret < 0)

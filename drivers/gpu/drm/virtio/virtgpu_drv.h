@@ -142,9 +142,6 @@ struct virtio_gpu_output {
 
 struct virtio_gpu_framebuffer {
 	struct drm_framebuffer base;
-	int x1, y1, x2, y2; /* dirty rect */
-	spinlock_t dirty_lock;
-	uint32_t hw_res_handle;
 	struct virtio_gpu_fence *fence;
 };
 #define to_virtio_gpu_framebuffer(x) \
@@ -254,10 +251,6 @@ int virtio_gpu_mode_dumb_mmap(struct drm_file *file_priv,
 			      struct drm_device *dev,
 			      uint32_t handle, uint64_t *offset_p);
 
-/* virtio_fb */
-int virtio_gpu_surface_dirty(struct virtio_gpu_framebuffer *qfb,
-			     struct drm_clip_rect *clips,
-			     unsigned int num_clips);
 /* virtio vg */
 int virtio_gpu_alloc_vbufs(struct virtio_gpu_device *vgdev);
 void virtio_gpu_free_vbufs(struct virtio_gpu_device *vgdev);

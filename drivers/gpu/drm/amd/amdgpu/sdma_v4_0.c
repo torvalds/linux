@@ -21,8 +21,11 @@
  *
  */
 
+#include <linux/delay.h>
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+
 #include "amdgpu.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_trace.h"
@@ -1209,7 +1212,7 @@ static int sdma_v4_0_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = le32_to_cpu(adev->wb.wb[index]);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)

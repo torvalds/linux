@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 
-#include <drm/drmP.h>
+#include <drm/drm_debugfs.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_file.h>
 #include <drm/drm_probe_helper.h>
 
-#include "radeon.h"
 #include "atom.h"
 #include "ni_reg.h"
+#include "radeon.h"
 
 static struct radeon_encoder *radeon_dp_create_fake_mst_encoder(struct radeon_connector *connector);
 

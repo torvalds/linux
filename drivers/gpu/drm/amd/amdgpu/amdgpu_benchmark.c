@@ -21,7 +21,7 @@
  *
  * Authors: Jerome Glisse
  */
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 

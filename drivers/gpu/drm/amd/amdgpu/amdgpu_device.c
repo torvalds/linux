@@ -27,9 +27,10 @@
  */
 #include <linux/power_supply.h>
 #include <linux/kthread.h>
+#include <linux/module.h>
 #include <linux/console.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>

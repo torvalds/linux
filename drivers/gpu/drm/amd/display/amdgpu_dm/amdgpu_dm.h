@@ -26,8 +26,11 @@
 #ifndef __AMDGPU_DM_H__
 #define __AMDGPU_DM_H__
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_dp_mst_helper.h>
+#include <drm/drm_plane.h>
 
 /*
  * This file contains the definition for amdgpu_display_manager

@@ -22,7 +22,7 @@
  * Authors: Alex Deucher
  */
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+
 #include "radeon.h"
 #include "radeon_ucode.h"
 #include "radeon_asic.h"
@@ -677,7 +677,7 @@ int cik_sdma_ring_test(struct radeon_device *rdev,
 		tmp = le32_to_cpu(rdev->wb.wb[index/4]);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i < rdev->usec_timeout) {
@@ -751,7 +751,7 @@ int cik_sdma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		tmp = le32_to_cpu(rdev->wb.wb[index/4]);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib.fence->ring, i);

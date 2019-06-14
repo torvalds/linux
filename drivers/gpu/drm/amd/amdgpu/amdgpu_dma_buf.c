@@ -31,8 +31,6 @@
  * objects between different devices via PRIME <prime_buffer_sharing>`.
  */
 
-#include <drm/drmP.h>
-
 #include "amdgpu.h"
 #include "amdgpu_display.h"
 #include "amdgpu_gem.h"

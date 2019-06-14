@@ -241,10 +241,8 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 		mdev->cursor.pixels_2 = NULL;
 		dev_warn(&dev->pdev->dev,
 			"Could not allocate space for cursors. Not doing hardware cursors.\n");
-	} else {
-		mdev->cursor.pixels_current = mdev->cursor.pixels_1;
-		mdev->cursor.pixels_prev = mdev->cursor.pixels_2;
 	}
+	mdev->cursor.pixels_current = NULL;
 
 	return 0;
 

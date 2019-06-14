@@ -464,10 +464,7 @@ int drm_connector_register(struct drm_connector *connector)
 	if (ret)
 		goto unlock;
 
-	ret = drm_debugfs_connector_add(connector);
-	if (ret) {
-		goto err_sysfs;
-	}
+	drm_debugfs_connector_add(connector);
 
 	if (connector->funcs->late_register) {
 		ret = connector->funcs->late_register(connector);
@@ -482,7 +479,6 @@ int drm_connector_register(struct drm_connector *connector)
 
 err_debugfs:
 	drm_debugfs_connector_remove(connector);
-err_sysfs:
 	drm_sysfs_connector_remove(connector);
 unlock:
 	mutex_unlock(&connector->mutex);
@@ -982,6 +978,7 @@ static const struct drm_prop_enum_list hdmi_colorspaces[] = {
  *	Userspace will be responsible to do Tone mapping operation in case:
  *		- Some layers are HDR and others are SDR
  *		- HDR layers luminance is not same as sink
+ *
  *	It will even need to do colorspace conversion and get all layers
  *	to one common colorspace for blending. It can use either GL, Media
  *	or display engine to get this done based on the capabilties of the

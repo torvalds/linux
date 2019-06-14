@@ -29,13 +29,21 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/firmware.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/uaccess.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_irq.h>
+#include <drm/drm_print.h>
 #include <drm/r128_drm.h>
+
 #include "r128_drv.h"
 
 #define R128_FIFO_DEBUG		0
@@ -85,7 +93,7 @@ static int r128_do_pixcache_flush(drm_r128_private_t *dev_priv)
 	for (i = 0; i < dev_priv->usec_timeout; i++) {
 		if (!(R128_READ(R128_PC_NGUI_CTLSTAT) & R128_PC_BUSY))
 			return 0;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 #if R128_FIFO_DEBUG
@@ -102,7 +110,7 @@ static int r128_do_wait_for_fifo(drm_r128_private_t *dev_priv, int entries)
 		int slots = R128_READ(R128_GUI_STAT) & R128_GUI_FIFOCNT_MASK;
 		if (slots >= entries)
 			return 0;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 #if R128_FIFO_DEBUG
@@ -124,7 +132,7 @@ static int r128_do_wait_for_idle(drm_r128_private_t *dev_priv)
 			r128_do_pixcache_flush(dev_priv);
 			return 0;
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 #if R128_FIFO_DEBUG
@@ -211,7 +219,7 @@ int r128_do_cce_idle(drm_r128_private_t *dev_priv)
 				return r128_do_pixcache_flush(dev_priv);
 			}
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 #if R128_FIFO_DEBUG
@@ -838,7 +846,7 @@ static struct drm_buf *r128_freelist_get(struct drm_device * dev)
 				return buf;
 			}
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	DRM_DEBUG("returning NULL!\n");
@@ -870,7 +878,7 @@ int r128_wait_ring(drm_r128_private_t *dev_priv, int n)
 		r128_update_ring_snapshot(dev_priv);
 		if (ring->space >= n)
 			return 0;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	/* FIXME: This is being ignored... */
@@ -916,7 +924,7 @@ int r128_cce_buffers(struct drm_device *dev, void *data, struct drm_file *file_p
 	 */
 	if (d->send_count != 0) {
 		DRM_ERROR("Process %d trying to send %d buffers via drmDMA\n",
-			  DRM_CURRENTPID, d->send_count);
+			  task_pid_nr(current), d->send_count);
 		return -EINVAL;
 	}
 
@@ -924,7 +932,7 @@ int r128_cce_buffers(struct drm_device *dev, void *data, struct drm_file *file_p
 	 */
 	if (d->request_count < 0 || d->request_count > dma->buf_count) {
 		DRM_ERROR("Process %d trying to get %d buffers (of %d max)\n",
-			  DRM_CURRENTPID, d->request_count, dma->buf_count);
+			  task_pid_nr(current), d->request_count, dma->buf_count);
 		return -EINVAL;
 	}
 

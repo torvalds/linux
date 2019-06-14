@@ -158,11 +158,8 @@ struct mga_cursor {
 	*/
 	struct drm_gem_vram_object *pixels_1;
 	struct drm_gem_vram_object *pixels_2;
-	u64 pixels_1_gpu_addr, pixels_2_gpu_addr;
 	/* The currently displayed icon, this points to one of pixels_1, or pixels_2 */
 	struct drm_gem_vram_object *pixels_current;
-	/* The previously displayed icon */
-	struct drm_gem_vram_object *pixels_prev;
 };
 
 struct mga_mc {

@@ -54,15 +54,17 @@
 #include <linux/version.h>
 #include <linux/types.h>
 #include <linux/pm_runtime.h>
+#include <linux/pci.h>
 #include <linux/firmware.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_vblank.h>
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "ivsrcid/irqsrcs_dcn_1_0.h"
@@ -3966,9 +3968,10 @@ is_hdr_metadata_different(const struct drm_connector_state *old_state,
 
 static int
 amdgpu_dm_connector_atomic_check(struct drm_connector *conn,
-				 struct drm_connector_state *new_con_state)
+				 struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = new_con_state->state;
+	struct drm_connector_state *new_con_state =
+		drm_atomic_get_new_connector_state(state, conn);
 	struct drm_connector_state *old_con_state =
 		drm_atomic_get_old_connector_state(state, conn);
 	struct drm_crtc *crtc = new_con_state->crtc;

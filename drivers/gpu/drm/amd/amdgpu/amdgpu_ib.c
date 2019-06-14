@@ -28,8 +28,10 @@
  */
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
+#include <drm/drm_debugfs.h>
+
 #include "amdgpu.h"
 #include "atom.h"
 #include "amdgpu_trace.h"

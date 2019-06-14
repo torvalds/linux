@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/delay.h>
+
 #include "dm_services.h"
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"

@@ -133,7 +133,6 @@ static DEFINE_MUTEX(vgasr_mutex);
  * @delayed_switch_active: whether a delayed switch is pending
  * @delayed_client_id: client to which a delayed switch is pending
  * @debugfs_root: directory for vga_switcheroo debugfs interface
- * @switch_file: file for vga_switcheroo debugfs interface
  * @registered_clients: number of registered GPUs
  *	(counting only vga clients, not audio clients)
  * @clients: list of registered clients
@@ -152,7 +151,6 @@ struct vgasr_priv {
 	enum vga_switcheroo_client_id delayed_client_id;
 
 	struct dentry *debugfs_root;
-	struct dentry *switch_file;
 
 	int registered_clients;
 	struct list_head clients;
@@ -168,7 +166,7 @@ struct vgasr_priv {
 #define client_is_vga(c)		(!client_is_audio(c))
 #define client_id(c)		((c)->id & ~ID_BIT_AUDIO)
 
-static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv);
+static void vga_switcheroo_debugfs_init(struct vgasr_priv *priv);
 static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv);
 
 /* only one switcheroo per system */
@@ -914,38 +912,20 @@ static const struct file_operations vga_switcheroo_debugfs_fops = {
 
 static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv)
 {
-	debugfs_remove(priv->switch_file);
-	priv->switch_file = NULL;
-
-	debugfs_remove(priv->debugfs_root);
+	debugfs_remove_recursive(priv->debugfs_root);
 	priv->debugfs_root = NULL;
 }
 
-static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv)
+static void vga_switcheroo_debugfs_init(struct vgasr_priv *priv)
 {
-	static const char mp[] = "/sys/kernel/debug";
-
 	/* already initialised */
 	if (priv->debugfs_root)
-		return 0;
+		return;
+
 	priv->debugfs_root = debugfs_create_dir("vgaswitcheroo", NULL);
 
-	if (!priv->debugfs_root) {
-		pr_err("Cannot create %s/vgaswitcheroo\n", mp);
-		goto fail;
-	}
-
-	priv->switch_file = debugfs_create_file("switch", 0644,
-						priv->debugfs_root, NULL,
-						&vga_switcheroo_debugfs_fops);
-	if (!priv->switch_file) {
-		pr_err("cannot create %s/vgaswitcheroo/switch\n", mp);
-		goto fail;
-	}
-	return 0;
-fail:
-	vga_switcheroo_debugfs_fini(priv);
-	return -1;
+	debugfs_create_file("switch", 0644, priv->debugfs_root, NULL,
+			    &vga_switcheroo_debugfs_fops);
 }
 
 /**

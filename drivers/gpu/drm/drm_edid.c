@@ -4569,8 +4569,8 @@ u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edi
 	 * tells us to assume 8 bpc color depth if the EDID doesn't have
 	 * extensions which tell otherwise.
 	 */
-	if ((info->bpc == 0) && (edid->revision < 4) &&
-	    (edid->input & DRM_EDID_DIGITAL_TYPE_DVI)) {
+	if (info->bpc == 0 && edid->revision == 3 &&
+	    edid->input & DRM_EDID_DIGITAL_DFP_1_X) {
 		info->bpc = 8;
 		DRM_DEBUG("%s: Assigning DFP sink color depth as %d bpc.\n",
 			  connector->name, info->bpc);

@@ -9,9 +9,14 @@
 #ifndef _STI_MIXER_H_
 #define _STI_MIXER_H_
 
-#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_file.h>
 
 #include "sti_plane.h"
+
+struct device;
 
 #define to_sti_mixer(x) container_of(x, struct sti_mixer, drm_crtc)
 
