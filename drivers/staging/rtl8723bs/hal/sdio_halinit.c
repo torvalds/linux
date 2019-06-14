@@ -26,7 +26,7 @@ static u8 CardEnable(struct adapter *padapter)
 
 
 	rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
-	if (bMacPwrCtrlOn == false) {
+	if (!bMacPwrCtrlOn) {
 		/*  RSV_CTRL 0x1C[7:0] = 0x00 */
 		/*  unlock ISO/CLK/Power control register */
 		rtw_write8(padapter, REG_RSV_CTRL, 0x0);
@@ -127,7 +127,7 @@ u8 _InitPowerOn_8723BS(struct adapter *padapter)
 
 	/*  only cmd52 can be used before power on(card enable) */
 	ret = CardEnable(padapter);
-	if (ret == false) {
+	if (!ret) {
 		RT_TRACE(
 			_module_hci_hal_init_c_,
 			_drv_emerg_,
@@ -822,7 +822,7 @@ static u32 rtl8723bs_hal_init(struct adapter *padapter)
 
 /* 	SIC_Init(padapter); */
 
-	if (pwrctrlpriv->reg_rfoff == true)
+	if (pwrctrlpriv->reg_rfoff)
 		pwrctrlpriv->rf_pwrstate = rf_off;
 
 	/*  2010/08/09 MH We need to check if we need to turnon or off RF after detecting */
@@ -1065,7 +1065,7 @@ static void CardDisableRTL8723BSdio(struct adapter *padapter)
 	ret = false;
 	rtw_hal_set_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	ret = HalPwrSeqCmdParsing(padapter, PWR_CUT_ALL_MSK, PWR_FAB_ALL_MSK, PWR_INTF_SDIO_MSK, rtl8723B_card_disable_flow);
-	if (ret == false) {
+	if (!ret) {
 		DBG_8192C(KERN_ERR "%s: run CARD DISABLE flow fail!\n", __func__);
 	}
 }
@@ -1075,9 +1075,9 @@ static u32 rtl8723bs_hal_deinit(struct adapter *padapter)
 	struct dvobj_priv *psdpriv = padapter->dvobj;
 	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 
-	if (padapter->hw_init_completed == true) {
-		if (adapter_to_pwrctl(padapter)->bips_processing == true) {
-			if (padapter->netif_up == true) {
+	if (padapter->hw_init_completed) {
+		if (adapter_to_pwrctl(padapter)->bips_processing) {
+			if (padapter->netif_up) {
 				int cnt = 0;
 				u8 val8 = 0;
 
@@ -1371,7 +1371,7 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 	RT_TRACE(_module_hci_hal_init_c_, _drv_info_, ("+_ReadAdapterInfo8723BS\n"));
 
 	/*  before access eFuse, make sure card enable has been called */
-	if (padapter->hw_init_completed == false)
+	if (!padapter->hw_init_completed)
 		_InitPowerOn_8723BS(padapter);
 
 
@@ -1388,7 +1388,7 @@ static s32 _ReadAdapterInfo8723BS(struct adapter *padapter)
 	_ReadPROMContent(padapter);
 	_InitOtherVariable(padapter);
 
-	if (padapter->hw_init_completed == false) {
+	if (!padapter->hw_init_completed) {
 		rtw_write8(padapter, 0x67, 0x00); /*  for BT, Switch Ant control to BT */
 		CardDisableRTL8723BSdio(padapter);/* for the power consumption issue,  wifi ko module is loaded during booting, but wifi GUI is off */
 	}
