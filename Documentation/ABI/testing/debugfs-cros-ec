@@ -1,3 +1,29 @@
+What:		/sys/kernel/debug/<cros-ec-device>/console_log
+Date:		September 2017
+KernelVersion:	4.13
+Description:
+		If the EC supports the CONSOLE_READ command type, this file
+		can be used to grab the EC logs. The kernel polls for the log
+		and keeps its own buffer but userspace should grab this and
+		write it out to some logs.
+
+What:		/sys/kernel/debug/<cros-ec-device>/panicinfo
+Date:		September 2017
+KernelVersion:	4.13
+Description:
+		This file dumps the EC panic information from the previous
+		reboot. This file will only exist if the PANIC_INFO command
+		type is supported by the EC.
+
+What:		/sys/kernel/debug/<cros-ec-device>/pdinfo
+Date:		June 2018
+KernelVersion:	4.17
+Description:
+		This file provides the port role, muxes and power debug
+		information for all the USB PD/type-C ports available. If
+		the are no ports available, this file will be just an empty
+		file.
+
 What:		/sys/kernel/debug/<cros-ec-device>/uptime
 Date:		June 2019
 KernelVersion:	5.3
