@@ -163,7 +163,8 @@ static int ad7150_read_event_config(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-/* lock should be held */
+/* state_lock should be held to ensure consistent state*/
+
 static int ad7150_write_event_params(struct iio_dev *indio_dev,
 				     unsigned int chan,
 				     enum iio_event_type type,
@@ -479,10 +480,6 @@ static const struct iio_chan_spec ad7150_channels[] = {
 	AD7150_CAPACITANCE_CHAN(1)
 };
 
-/*
- * threshold events
- */
-
 static irqreturn_t ad7150_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
@@ -570,10 +567,6 @@ static const struct iio_info ad7150_info = {
 	.read_event_value = &ad7150_read_event_value,
 	.write_event_value = &ad7150_write_event_value,
 };
-
-/*
- * device probe and remove
- */
 
 static int ad7150_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
