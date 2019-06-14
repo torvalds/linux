@@ -85,11 +85,10 @@ be able to see such compound controls. In other words, these controls
 with compound types should only be used programmatically.
 
 Since such compound controls need to expose more information about
-themselves than is possible with
-:ref:`VIDIOC_QUERYCTRL` the
-:ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>` ioctl was added. In
-particular, this ioctl gives the dimensions of the N-dimensional array
-if this control consists of more than one element.
+themselves than is possible with :ref:`VIDIOC_QUERYCTRL <VIDIOC_QUERYCTRL>`
+the :ref:`VIDIOC_QUERY_EXT_CTRL <VIDIOC_QUERYCTRL>` ioctl was added. In
+particular, this ioctl gives the dimensions of the N-dimensional array if
+this control consists of more than one element.
 
 .. note::
 
