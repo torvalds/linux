@@ -165,15 +165,20 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 	u8 dscpmaskshift;
 	int ret = 0, err;
 
-	if (!nla)
+	if (!nla) {
+		NL_SET_ERR_MSG_MOD(extack, "ctinfo requires attributes to be passed");
 		return -EINVAL;
+	}
 
-	err = nla_parse_nested(tb, TCA_CTINFO_MAX, nla, ctinfo_policy, NULL);
+	err = nla_parse_nested(tb, TCA_CTINFO_MAX, nla, ctinfo_policy, extack);
 	if (err < 0)
 		return err;
 
-	if (!tb[TCA_CTINFO_ACT])
+	if (!tb[TCA_CTINFO_ACT]) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Missing required TCA_CTINFO_ACT attribute");
 		return -EINVAL;
+	}
 	actparm = nla_data(tb[TCA_CTINFO_ACT]);
 
 	/* do some basic validation here before dynamically allocating things */
@@ -182,13 +187,21 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 		dscpmask = nla_get_u32(tb[TCA_CTINFO_PARMS_DSCP_MASK]);
 		/* need contiguous 6 bit mask */
 		dscpmaskshift = dscpmask ? __ffs(dscpmask) : 0;
-		if ((~0 & (dscpmask >> dscpmaskshift)) != 0x3f)
+		if ((~0 & (dscpmask >> dscpmaskshift)) != 0x3f) {
+			NL_SET_ERR_MSG_ATTR(extack,
+					    tb[TCA_CTINFO_PARMS_DSCP_MASK],
+					    "dscp mask must be 6 contiguous bits");
 			return -EINVAL;
+		}
 		dscpstatemask = tb[TCA_CTINFO_PARMS_DSCP_STATEMASK] ?
 			nla_get_u32(tb[TCA_CTINFO_PARMS_DSCP_STATEMASK]) : 0;
 		/* mask & statemask must not overlap */
-		if (dscpmask & dscpstatemask)
+		if (dscpmask & dscpstatemask) {
+			NL_SET_ERR_MSG_ATTR(extack,
+					    tb[TCA_CTINFO_PARMS_DSCP_STATEMASK],
+					    "dscp statemask must not overlap dscp mask");
 			return -EINVAL;
+		}
 	}
 
 	/* done the validation:now to the actual action allocation */
