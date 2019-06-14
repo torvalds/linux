@@ -2433,13 +2433,11 @@ static inline void skb_setup_tx_timestamp(struct sk_buff *skb, __u16 tsflags)
  * This routine must be called with interrupts disabled or with the socket
  * locked so that the sk_buff queue operation is ok.
 */
+DECLARE_STATIC_KEY_FALSE(tcp_rx_skb_cache_key);
 static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb)
 {
 	__skb_unlink(skb, &sk->sk_receive_queue);
-	if (
-#ifdef CONFIG_RPS
-	    !static_branch_unlikely(&rps_needed) &&
-#endif
+	if (static_branch_unlikely(&tcp_rx_skb_cache_key) &&
 	    !sk->sk_rx_skb_cache) {
 		sk->sk_rx_skb_cache = skb;
 		skb_orphan(skb);
