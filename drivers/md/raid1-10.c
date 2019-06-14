@@ -34,6 +34,11 @@ struct resync_pages {
 	struct page	*pages[RESYNC_PAGES];
 };
 
+static void rbio_pool_free(void *rbio, void *data)
+{
+	kfree(rbio);
+}
+
 static inline int resync_alloc_pages(struct resync_pages *rp,
 				     gfp_t gfp_flags)
 {

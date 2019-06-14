@@ -68,11 +68,6 @@ static void * r1bio_pool_alloc(gfp_t gfp_flags, void *data)
 	return kzalloc(size, gfp_flags);
 }
 
-static void r1bio_pool_free(void *r1_bio, void *data)
-{
-	kfree(r1_bio);
-}
-
 #define RESYNC_DEPTH 32
 #define RESYNC_SECTORS (RESYNC_BLOCK_SIZE >> 9)
 #define RESYNC_WINDOW (RESYNC_BLOCK_SIZE * RESYNC_DEPTH)
@@ -148,7 +143,7 @@ out_free_bio:
 	kfree(rps);
 
 out_free_r1bio:
-	r1bio_pool_free(r1_bio, data);
+	rbio_pool_free(r1_bio, data);
 	return NULL;
 }
 
@@ -168,7 +163,7 @@ static void r1buf_pool_free(void *__r1_bio, void *data)
 	/* resync pages array stored in the 1st bio's .bi_private */
 	kfree(rp);
 
-	r1bio_pool_free(r1bio, data);
+	rbio_pool_free(r1bio, data);
 }
 
 static void put_all_bios(struct r1conf *conf, struct r1bio *r1_bio)
@@ -2920,7 +2915,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 		goto abort;
 	conf->poolinfo->raid_disks = mddev->raid_disks * 2;
 	err = mempool_init(&conf->r1bio_pool, NR_RAID_BIOS, r1bio_pool_alloc,
-			   r1bio_pool_free, conf->poolinfo);
+			   rbio_pool_free, conf->poolinfo);
 	if (err)
 		goto abort;
 
@@ -3205,7 +3200,7 @@ static int raid1_reshape(struct mddev *mddev)
 	newpoolinfo->raid_disks = raid_disks * 2;
 
 	ret = mempool_init(&newpool, NR_RAID_BIOS, r1bio_pool_alloc,
-			   r1bio_pool_free, newpoolinfo);
+			   rbio_pool_free, newpoolinfo);
 	if (ret) {
 		kfree(newpoolinfo);
 		return ret;

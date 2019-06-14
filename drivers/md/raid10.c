@@ -98,11 +98,6 @@ static void * r10bio_pool_alloc(gfp_t gfp_flags, void *data)
 	return kzalloc(size, gfp_flags);
 }
 
-static void r10bio_pool_free(void *r10_bio, void *data)
-{
-	kfree(r10_bio);
-}
-
 #define RESYNC_SECTORS (RESYNC_BLOCK_SIZE >> 9)
 /* amount of memory to reserve for resync requests */
 #define RESYNC_WINDOW (1024*1024)
@@ -208,7 +203,7 @@ out_free_bio:
 	}
 	kfree(rps);
 out_free_r10bio:
-	r10bio_pool_free(r10_bio, conf);
+	rbio_pool_free(r10_bio, conf);
 	return NULL;
 }
 
@@ -236,7 +231,7 @@ static void r10buf_pool_free(void *__r10_bio, void *data)
 	/* resync pages array stored in the 1st bio's .bi_private */
 	kfree(rp);
 
-	r10bio_pool_free(r10bio, conf);
+	rbio_pool_free(r10bio, conf);
 }
 
 static void put_all_bios(struct r10conf *conf, struct r10bio *r10_bio)
@@ -3651,7 +3646,7 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 	conf->geo = geo;
 	conf->copies = copies;
 	err = mempool_init(&conf->r10bio_pool, NR_RAID_BIOS, r10bio_pool_alloc,
-			   r10bio_pool_free, conf);
+			   rbio_pool_free, conf);
 	if (err)
 		goto out;
 
