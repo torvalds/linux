@@ -229,17 +229,11 @@ void vector_exception(struct pt_regs *regs)
 
 void data_exception(struct pt_regs *regs)
 {
-	int signal = 0;
-
 	save_fpu_regs();
 	if (current->thread.fpu.fpc & FPC_DXC_MASK)
-		signal = SIGFPE;
-	else
-		signal = SIGILL;
-	if (signal == SIGFPE)
 		do_fp_trap(regs, current->thread.fpu.fpc);
-	else if (signal)
-		do_trap(regs, signal, ILL_ILLOPN, "data exception");
+	else
+		do_trap(regs, SIGILL, ILL_ILLOPN, "data exception");
 }
 
 void space_switch_exception(struct pt_regs *regs)
