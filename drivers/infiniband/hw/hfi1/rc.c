@@ -1709,8 +1709,6 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah)
 	struct ib_other_headers *ohdr;
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct rvt_swqe *wqe;
-	struct ib_header *hdr = NULL;
-	struct hfi1_16b_header *hdr_16b = NULL;
 	u32 opcode, head, tail;
 	u32 psn;
 	struct tid_rdma_request *req;
@@ -1719,24 +1717,7 @@ void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah)
 	if (!(ib_rvt_state_ops[qp->state] & RVT_SEND_OR_FLUSH_OR_RECV_OK))
 		return;
 
-	/* Find out where the BTH is */
-	if (priv->hdr_type == HFI1_PKT_TYPE_9B) {
-		hdr = &opah->ibh;
-		if (ib_get_lnh(hdr) == HFI1_LRH_BTH)
-			ohdr = &hdr->u.oth;
-		else
-			ohdr = &hdr->u.l.oth;
-	} else {
-		u8 l4;
-
-		hdr_16b = &opah->opah;
-		l4  = hfi1_16B_get_l4(hdr_16b);
-		if (l4 == OPA_16B_L4_IB_LOCAL)
-			ohdr = &hdr_16b->u.oth;
-		else
-			ohdr = &hdr_16b->u.l.oth;
-	}
-
+	ohdr = hfi1_get_rc_ohdr(opah);
 	opcode = ib_bth_get_opcode(ohdr);
 	if ((opcode >= OP(RDMA_READ_RESPONSE_FIRST) &&
 	     opcode <= OP(ATOMIC_ACKNOWLEDGE)) ||
