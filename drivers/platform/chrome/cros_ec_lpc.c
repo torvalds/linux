@@ -23,13 +23,108 @@
 #include <linux/printk.h>
 #include <linux/suspend.h>
 
-#include "cros_ec_lpc_reg.h"
+#include "cros_ec_lpc_mec.h"
 
 #define DRV_NAME "cros_ec_lpcs"
 #define ACPI_DRV_NAME "GOOG0004"
 
 /* True if ACPI device is present */
 static bool cros_ec_lpc_acpi_device_found;
+
+static u8 lpc_read_bytes(unsigned int offset, unsigned int length, u8 *dest)
+{
+	int sum = 0;
+	int i;
+
+	for (i = 0; i < length; ++i) {
+		dest[i] = inb(offset + i);
+		sum += dest[i];
+	}
+
+	/* Return checksum of all bytes read */
+	return sum;
+}
+
+static u8 lpc_write_bytes(unsigned int offset, unsigned int length, u8 *msg)
+{
+	int sum = 0;
+	int i;
+
+	for (i = 0; i < length; ++i) {
+		outb(msg[i], offset + i);
+		sum += msg[i];
+	}
+
+	/* Return checksum of all bytes written */
+	return sum;
+}
+
+#ifdef CONFIG_CROS_EC_LPC_MEC
+
+static u8 cros_ec_lpc_read_bytes(unsigned int offset, unsigned int length,
+				 u8 *dest)
+{
+	int in_range = cros_ec_lpc_mec_in_range(offset, length);
+
+	if (in_range < 0)
+		return 0;
+
+	return in_range ?
+		cros_ec_lpc_io_bytes_mec(MEC_IO_READ,
+					 offset - EC_HOST_CMD_REGION0,
+					 length, dest) :
+		lpc_read_bytes(offset, length, dest);
+}
+
+static u8 cros_ec_lpc_write_bytes(unsigned int offset, unsigned int length,
+				  u8 *msg)
+{
+	int in_range = cros_ec_lpc_mec_in_range(offset, length);
+
+	if (in_range < 0)
+		return 0;
+
+	return in_range ?
+		cros_ec_lpc_io_bytes_mec(MEC_IO_WRITE,
+					 offset - EC_HOST_CMD_REGION0,
+					 length, msg) :
+		lpc_write_bytes(offset, length, msg);
+}
+
+static void cros_ec_lpc_reg_init(void)
+{
+	cros_ec_lpc_mec_init(EC_HOST_CMD_REGION0,
+			     EC_LPC_ADDR_MEMMAP + EC_MEMMAP_SIZE);
+}
+
+static void cros_ec_lpc_reg_destroy(void)
+{
+	cros_ec_lpc_mec_destroy();
+}
+
+#else /* CONFIG_CROS_EC_LPC_MEC */
+
+static u8 cros_ec_lpc_read_bytes(unsigned int offset, unsigned int length,
+				 u8 *dest)
+{
+	return lpc_read_bytes(offset, length, dest);
+}
+
+static u8 cros_ec_lpc_write_bytes(unsigned int offset, unsigned int length,
+				  u8 *msg)
+{
+	return lpc_write_bytes(offset, length, msg);
+}
+
+static void cros_ec_lpc_reg_init(void)
+{
+}
+
+static void cros_ec_lpc_reg_destroy(void)
+{
+}
+
+#endif /* CONFIG_CROS_EC_LPC_MEC */
 
 static int ec_response_timed_out(void)
 {
