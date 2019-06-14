@@ -17,22 +17,9 @@
 #define DPRTC_CMDID_CLOSE			DPRTC_CMD(0x800)
 #define DPRTC_CMDID_OPEN			DPRTC_CMD(0x810)
 
-#define DPRTC_CMDID_SET_FREQ_COMPENSATION	DPRTC_CMD(0x1d1)
-#define DPRTC_CMDID_GET_FREQ_COMPENSATION	DPRTC_CMD(0x1d2)
-#define DPRTC_CMDID_GET_TIME			DPRTC_CMD(0x1d3)
-#define DPRTC_CMDID_SET_TIME			DPRTC_CMD(0x1d4)
-
 #pragma pack(push, 1)
 struct dprtc_cmd_open {
 	__le32 dprtc_id;
-};
-
-struct dprtc_get_freq_compensation {
-	__le32 freq_compensation;
-};
-
-struct dprtc_time {
-	__le64 time;
 };
 
 #pragma pack(pop)

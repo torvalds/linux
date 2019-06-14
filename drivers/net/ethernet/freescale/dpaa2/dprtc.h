@@ -22,24 +22,4 @@ int dprtc_close(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
 
-int dprtc_set_freq_compensation(struct fsl_mc_io *mc_io,
-				u32 cmd_flags,
-				u16 token,
-				u32 freq_compensation);
-
-int dprtc_get_freq_compensation(struct fsl_mc_io *mc_io,
-				u32 cmd_flags,
-				u16 token,
-				u32 *freq_compensation);
-
-int dprtc_get_time(struct fsl_mc_io *mc_io,
-		   u32 cmd_flags,
-		   u16 token,
-		   uint64_t *time);
-
-int dprtc_set_time(struct fsl_mc_io *mc_io,
-		   u32 cmd_flags,
-		   u16 token,
-		   uint64_t time);
-
 #endif /* __FSL_DPRTC_H */
