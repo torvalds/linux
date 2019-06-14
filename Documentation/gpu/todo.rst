@@ -433,6 +433,19 @@ fit the available time.
 
 Contact: Daniel Vetter
 
+Backlight Refactoring
+---------------------
+
+Backlight drivers have a triple enable/disable state, which is a bit overkill.
+Plan to fix this:
+
+1. Roll out backlight_enable() and backlight_disable() helpers everywhere. This
+   has started already.
+2. In all, only look at one of the three status bits set by the above helpers.
+3. Remove the other two status bits.
+
+Contact: Daniel Vetter
+
 Driver Specific
 ===============
 
@@ -441,20 +454,6 @@ tinydrm
 
 Tinydrm is the helper driver for really simple fb drivers. The goal is to make
 those drivers as simple as possible, so lots of room for refactoring:
-
-- backlight helpers, probably best to put them into a new drm_backlight.c.
-  This is because drivers/video is de-facto unmaintained. We could also
-  move drivers/video/backlight to drivers/gpu/backlight and take it all
-  over within drm-misc, but that's more work. Backlight helpers require a fair
-  bit of reworking and refactoring. A simple example is the enabling of a backlight.
-  Tinydrm has helpers for this. It would be good if other drivers can also use the
-  helper. However, there are various cases we need to consider i.e different
-  drivers seem to have different ways of enabling/disabling a backlight.
-  We also need to consider the backlight drivers (like gpio_backlight). The situation
-  is further complicated by the fact that the backlight is tied to fbdev
-  via fb_notifier_callback() which has complicated logic. For further details, refer
-  to the following discussion thread:
-  https://groups.google.com/forum/#!topic/outreachy-kernel/8rBe30lwtdA
 
 - spi helpers, probably best put into spi core/helper code. Thierry said
   the spi maintainer is fast&reactive, so shouldn't be a big issue.
