@@ -50,6 +50,17 @@
 		#iommu-cells = <1>;
 	};
 
+	main_gpio_intr: interrupt-controller0 {
+		compatible = "ti,sci-intr";
+		ti,intr-trigger-type = <1>;
+		interrupt-controller;
+		interrupt-parent = <&gic500>;
+		#interrupt-cells = <2>;
+		ti,sci = <&dmsc>;
+		ti,sci-dst-id = <14>;
+		ti,sci-rm-range-girq = <0x1>;
+	};
+
 	cbass_main_navss: interconnect0 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -65,6 +76,18 @@
 			ti,sci = <&dmsc>;
 			ti,sci-dst-id = <14>;
 			ti,sci-rm-range-girq = <0>, <2>;
+		};
+
+		main_udmass_inta: interrupt-controller@33d00000 {
+			compatible = "ti,sci-inta";
+			reg = <0x0 0x33d00000 0x0 0x100000>;
+			interrupt-controller;
+			interrupt-parent = <&main_navss_intr>;
+			msi-controller;
+			ti,sci = <&dmsc>;
+			ti,sci-dev-id = <209>;
+			ti,sci-rm-range-vint = <0xa>;
+			ti,sci-rm-range-global-event = <0xd>;
 		};
 	};
 
