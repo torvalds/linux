@@ -203,7 +203,7 @@ static void rtw8822c_dac_iq_offset(struct rtw_dev *rtwdev, u32 *vec, u32 *val)
 	*val = t;
 }
 
-static u32 rtw8822c_get_path_base_addr(u8 path)
+static u32 rtw8822c_get_path_write_addr(u8 path)
 {
 	u32 base_addr;
 
@@ -213,6 +213,25 @@ static u32 rtw8822c_get_path_base_addr(u8 path)
 		break;
 	case RF_PATH_B:
 		base_addr = 0x4100;
+		break;
+	default:
+		WARN_ON(1);
+		return -1;
+	}
+
+	return base_addr;
+}
+
+static u32 rtw8822c_get_path_read_addr(u8 path)
+{
+	u32 base_addr;
+
+	switch (path) {
+	case RF_PATH_A:
+		base_addr = 0x2800;
+		break;
+	case RF_PATH_B:
+		base_addr = 0x4500;
 		break;
 	default:
 		WARN_ON(1);
@@ -316,8 +335,6 @@ static void rtw8822c_dac_cal_rf_mode(struct rtw_dev *rtwdev,
 	u32 iv[DACK_SN_8822C], qv[DACK_SN_8822C];
 	u32 rf_a, rf_b;
 
-	mdelay(10);
-
 	rf_a = rtw_read_rf(rtwdev, RF_PATH_A, 0x0, RFREG_MASK);
 	rf_b = rtw_read_rf(rtwdev, RF_PATH_B, 0x0, RFREG_MASK);
 
@@ -347,6 +364,7 @@ static void rtw8822c_dac_bb_setting(struct rtw_dev *rtwdev)
 static void rtw8822c_dac_cal_adc(struct rtw_dev *rtwdev,
 				 u8 path, u32 *adc_ic, u32 *adc_qc)
 {
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	u32 ic = 0, qc = 0, temp = 0;
 	u32 base_addr;
 	u32 path_sel;
@@ -354,7 +372,7 @@ static void rtw8822c_dac_cal_adc(struct rtw_dev *rtwdev,
 
 	rtw_dbg(rtwdev, RTW_DBG_RFK, "[DACK] ADCK path(%d)\n", path);
 
-	base_addr = rtw8822c_get_path_base_addr(path);
+	base_addr = rtw8822c_get_path_write_addr(path);
 	switch (path) {
 	case RF_PATH_A:
 		path_sel = 0xa0000;
@@ -396,6 +414,7 @@ static void rtw8822c_dac_cal_adc(struct rtw_dev *rtwdev,
 		}
 		temp = (ic & 0x3ff) | ((qc & 0x3ff) << 10);
 		rtw_write32(rtwdev, base_addr + 0x68, temp);
+		dm_info->dack_adck[path] = temp;
 		rtw_dbg(rtwdev, RTW_DBG_RFK, "[DACK] ADCK 0x%08x=0x08%x\n",
 			base_addr + 0x68, temp);
 		/* check ADC DC offset */
@@ -422,10 +441,14 @@ static void rtw8822c_dac_cal_adc(struct rtw_dev *rtwdev,
 
 static void rtw8822c_dac_cal_step1(struct rtw_dev *rtwdev, u8 path)
 {
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	u32 base_addr;
+	u32 read_addr;
 
-	base_addr = rtw8822c_get_path_base_addr(path);
+	base_addr = rtw8822c_get_path_write_addr(path);
+	read_addr = rtw8822c_get_path_read_addr(path);
 
+	rtw_write32(rtwdev, base_addr + 0x68, dm_info->dack_adck[path]);
 	rtw_write32(rtwdev, base_addr + 0x0c, 0xdff00220);
 	if (path == RF_PATH_A) {
 		rtw_write32(rtwdev, base_addr + 0x60, 0xf0040ff0);
@@ -447,11 +470,13 @@ static void rtw8822c_dac_cal_step1(struct rtw_dev *rtwdev, u8 path)
 	rtw_write32(rtwdev, base_addr + 0xcc, 0x0a11fb89);
 	mdelay(1);
 	rtw_write32(rtwdev, base_addr + 0xb8, 0x62000000);
-	mdelay(20);
 	rtw_write32(rtwdev, base_addr + 0xd4, 0x62000000);
 	mdelay(20);
+	if (!check_hw_ready(rtwdev, read_addr + 0x08, 0x7fff80, 0xffff) ||
+	    !check_hw_ready(rtwdev, read_addr + 0x34, 0x7fff80, 0xffff))
+		rtw_err(rtwdev, "failed to wait for dack ready\n");
 	rtw_write32(rtwdev, base_addr + 0xb8, 0x02000000);
-	mdelay(20);
+	mdelay(1);
 	rtw_write32(rtwdev, base_addr + 0xbc, 0x0008ff87);
 	rtw_write32(rtwdev, 0x9b4, 0xdb6db600);
 	rtw_write32(rtwdev, base_addr + 0x10, 0x02d508c5);
@@ -465,7 +490,7 @@ static void rtw8822c_dac_cal_step2(struct rtw_dev *rtwdev,
 	u32 base_addr;
 	u32 ic, qc, ic_in, qc_in;
 
-	base_addr = rtw8822c_get_path_base_addr(path);
+	base_addr = rtw8822c_get_path_write_addr(path);
 	rtw_write32_mask(rtwdev, base_addr + 0xbc, 0xf0000000, 0x0);
 	rtw_write32_mask(rtwdev, base_addr + 0xc0, 0xf, 0x8);
 	rtw_write32_mask(rtwdev, base_addr + 0xd8, 0xf0000000, 0x0);
@@ -514,10 +539,12 @@ static void rtw8822c_dac_cal_step3(struct rtw_dev *rtwdev, u8 path,
 				   u32 *i_out, u32 *q_out)
 {
 	u32 base_addr;
+	u32 read_addr;
 	u32 ic, qc;
 	u32 temp;
 
-	base_addr = rtw8822c_get_path_base_addr(path);
+	base_addr = rtw8822c_get_path_write_addr(path);
+	read_addr = rtw8822c_get_path_read_addr(path);
 	ic = *ic_in;
 	qc = *qc_in;
 
@@ -542,11 +569,13 @@ static void rtw8822c_dac_cal_step3(struct rtw_dev *rtwdev, u8 path,
 	rtw_write32(rtwdev, base_addr + 0xcc, 0x0a11fb89);
 	mdelay(1);
 	rtw_write32(rtwdev, base_addr + 0xb8, 0x62000000);
-	mdelay(20);
 	rtw_write32(rtwdev, base_addr + 0xd4, 0x62000000);
 	mdelay(20);
+	if (!check_hw_ready(rtwdev, read_addr + 0x24, 0x07f80000, ic) ||
+	    !check_hw_ready(rtwdev, read_addr + 0x50, 0x07f80000, qc))
+		rtw_err(rtwdev, "failed to write IQ vector to hardware\n");
 	rtw_write32(rtwdev, base_addr + 0xb8, 0x02000000);
-	mdelay(20);
+	mdelay(1);
 	rtw_write32_mask(rtwdev, base_addr + 0xbc, 0xe, 0x3);
 	rtw_write32(rtwdev, 0x9b4, 0xdb6db600);
 
@@ -583,12 +612,302 @@ static void rtw8822c_dac_cal_step3(struct rtw_dev *rtwdev, u8 path,
 
 static void rtw8822c_dac_cal_step4(struct rtw_dev *rtwdev, u8 path)
 {
-	u32 base_addr = rtw8822c_get_path_base_addr(path);
+	u32 base_addr = rtw8822c_get_path_write_addr(path);
 
 	rtw_write32(rtwdev, base_addr + 0x68, 0x0);
 	rtw_write32(rtwdev, base_addr + 0x10, 0x02d508c4);
 	rtw_write32_mask(rtwdev, base_addr + 0xbc, 0x1, 0x0);
 	rtw_write32_mask(rtwdev, base_addr + 0x30, BIT(30), 0x1);
+}
+
+static void rtw8822c_dac_cal_backup_vec(struct rtw_dev *rtwdev,
+					u8 path, u8 vec, u32 w_addr, u32 r_addr)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u16 val;
+	u32 i;
+
+	if (WARN_ON(vec >= 2))
+		return;
+
+	for (i = 0; i < DACK_MSBK_BACKUP_NUM; i++) {
+		rtw_write32_mask(rtwdev, w_addr, 0xf0000000, i);
+		val = (u16)rtw_read32_mask(rtwdev, r_addr, 0x7fc0000);
+		dm_info->dack_msbk[path][vec][i] = val;
+	}
+}
+
+static void rtw8822c_dac_cal_backup_path(struct rtw_dev *rtwdev, u8 path)
+{
+	u32 w_off = 0x1c;
+	u32 r_off = 0x2c;
+	u32 w_addr, r_addr;
+
+	if (WARN_ON(path >= 2))
+		return;
+
+	/* backup I vector */
+	w_addr = rtw8822c_get_path_write_addr(path) + 0xb0;
+	r_addr = rtw8822c_get_path_read_addr(path) + 0x10;
+	rtw8822c_dac_cal_backup_vec(rtwdev, path, 0, w_addr, r_addr);
+
+	/* backup Q vector */
+	w_addr = rtw8822c_get_path_write_addr(path) + 0xb0 + w_off;
+	r_addr = rtw8822c_get_path_read_addr(path) + 0x10 + r_off;
+	rtw8822c_dac_cal_backup_vec(rtwdev, path, 1, w_addr, r_addr);
+}
+
+static void rtw8822c_dac_cal_backup_dck(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u8 val;
+
+	val = (u8)rtw_read32_mask(rtwdev, REG_DCKA_I_0, 0xf0000000);
+	dm_info->dack_dck[RF_PATH_A][0][0] = val;
+	val = (u8)rtw_read32_mask(rtwdev, REG_DCKA_I_1, 0xf);
+	dm_info->dack_dck[RF_PATH_A][0][1] = val;
+	val = (u8)rtw_read32_mask(rtwdev, REG_DCKA_Q_0, 0xf0000000);
+	dm_info->dack_dck[RF_PATH_A][1][0] = val;
+	val = (u8)rtw_read32_mask(rtwdev, REG_DCKA_Q_1, 0xf);
+	dm_info->dack_dck[RF_PATH_A][1][1] = val;
+
+	val = (u8)rtw_read32_mask(rtwdev, REG_DCKB_I_0, 0xf0000000);
+	dm_info->dack_dck[RF_PATH_B][0][0] = val;
+	val = (u8)rtw_read32_mask(rtwdev, REG_DCKB_I_1, 0xf);
+	dm_info->dack_dck[RF_PATH_B][1][0] = val;
+	val = (u8)rtw_read32_mask(rtwdev, REG_DCKB_Q_0, 0xf0000000);
+	dm_info->dack_dck[RF_PATH_B][0][1] = val;
+	val = (u8)rtw_read32_mask(rtwdev, REG_DCKB_Q_1, 0xf);
+	dm_info->dack_dck[RF_PATH_B][1][1] = val;
+}
+
+static void rtw8822c_dac_cal_backup(struct rtw_dev *rtwdev)
+{
+	u32 temp[3];
+
+	temp[0] = rtw_read32(rtwdev, 0x1860);
+	temp[1] = rtw_read32(rtwdev, 0x4160);
+	temp[2] = rtw_read32(rtwdev, 0x9b4);
+
+	/* set clock */
+	rtw_write32(rtwdev, 0x9b4, 0xdb66db00);
+
+	/* backup path-A I/Q */
+	rtw_write32_clr(rtwdev, 0x1830, BIT(30));
+	rtw_write32_mask(rtwdev, 0x1860, 0xfc000000, 0x3c);
+	rtw8822c_dac_cal_backup_path(rtwdev, RF_PATH_A);
+
+	/* backup path-B I/Q */
+	rtw_write32_clr(rtwdev, 0x4130, BIT(30));
+	rtw_write32_mask(rtwdev, 0x4160, 0xfc000000, 0x3c);
+	rtw8822c_dac_cal_backup_path(rtwdev, RF_PATH_B);
+
+	rtw8822c_dac_cal_backup_dck(rtwdev);
+	rtw_write32_set(rtwdev, 0x1830, BIT(30));
+	rtw_write32_set(rtwdev, 0x4130, BIT(30));
+
+	rtw_write32(rtwdev, 0x1860, temp[0]);
+	rtw_write32(rtwdev, 0x4160, temp[1]);
+	rtw_write32(rtwdev, 0x9b4, temp[2]);
+}
+
+static void rtw8822c_dac_cal_restore_dck(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u8 val;
+
+	rtw_write32_set(rtwdev, REG_DCKA_I_0, BIT(19));
+	val = dm_info->dack_dck[RF_PATH_A][0][0];
+	rtw_write32_mask(rtwdev, REG_DCKA_I_0, 0xf0000000, val);
+	val = dm_info->dack_dck[RF_PATH_A][0][1];
+	rtw_write32_mask(rtwdev, REG_DCKA_I_1, 0xf, val);
+
+	rtw_write32_set(rtwdev, REG_DCKA_Q_0, BIT(19));
+	val = dm_info->dack_dck[RF_PATH_A][1][0];
+	rtw_write32_mask(rtwdev, REG_DCKA_Q_0, 0xf0000000, val);
+	val = dm_info->dack_dck[RF_PATH_A][1][1];
+	rtw_write32_mask(rtwdev, REG_DCKA_Q_1, 0xf, val);
+
+	rtw_write32_set(rtwdev, REG_DCKB_I_0, BIT(19));
+	val = dm_info->dack_dck[RF_PATH_B][0][0];
+	rtw_write32_mask(rtwdev, REG_DCKB_I_0, 0xf0000000, val);
+	val = dm_info->dack_dck[RF_PATH_B][0][1];
+	rtw_write32_mask(rtwdev, REG_DCKB_I_1, 0xf, val);
+
+	rtw_write32_set(rtwdev, REG_DCKB_Q_0, BIT(19));
+	val = dm_info->dack_dck[RF_PATH_B][1][0];
+	rtw_write32_mask(rtwdev, REG_DCKB_Q_0, 0xf0000000, val);
+	val = dm_info->dack_dck[RF_PATH_B][1][1];
+	rtw_write32_mask(rtwdev, REG_DCKB_Q_1, 0xf, val);
+}
+
+static void rtw8822c_dac_cal_restore_prepare(struct rtw_dev *rtwdev)
+{
+	rtw_write32(rtwdev, 0x9b4, 0xdb66db00);
+
+	rtw_write32_mask(rtwdev, 0x18b0, BIT(27), 0x0);
+	rtw_write32_mask(rtwdev, 0x18cc, BIT(27), 0x0);
+	rtw_write32_mask(rtwdev, 0x41b0, BIT(27), 0x0);
+	rtw_write32_mask(rtwdev, 0x41cc, BIT(27), 0x0);
+
+	rtw_write32_mask(rtwdev, 0x1830, BIT(30), 0x0);
+	rtw_write32_mask(rtwdev, 0x1860, 0xfc000000, 0x3c);
+	rtw_write32_mask(rtwdev, 0x18b4, BIT(0), 0x1);
+	rtw_write32_mask(rtwdev, 0x18d0, BIT(0), 0x1);
+
+	rtw_write32_mask(rtwdev, 0x4130, BIT(30), 0x0);
+	rtw_write32_mask(rtwdev, 0x4160, 0xfc000000, 0x3c);
+	rtw_write32_mask(rtwdev, 0x41b4, BIT(0), 0x1);
+	rtw_write32_mask(rtwdev, 0x41d0, BIT(0), 0x1);
+
+	rtw_write32_mask(rtwdev, 0x18b0, 0xf00, 0x0);
+	rtw_write32_mask(rtwdev, 0x18c0, BIT(14), 0x0);
+	rtw_write32_mask(rtwdev, 0x18cc, 0xf00, 0x0);
+	rtw_write32_mask(rtwdev, 0x18dc, BIT(14), 0x0);
+
+	rtw_write32_mask(rtwdev, 0x18b0, BIT(0), 0x0);
+	rtw_write32_mask(rtwdev, 0x18cc, BIT(0), 0x0);
+	rtw_write32_mask(rtwdev, 0x18b0, BIT(0), 0x1);
+	rtw_write32_mask(rtwdev, 0x18cc, BIT(0), 0x1);
+
+	rtw8822c_dac_cal_restore_dck(rtwdev);
+
+	rtw_write32_mask(rtwdev, 0x18c0, 0x38000, 0x7);
+	rtw_write32_mask(rtwdev, 0x18dc, 0x38000, 0x7);
+	rtw_write32_mask(rtwdev, 0x41c0, 0x38000, 0x7);
+	rtw_write32_mask(rtwdev, 0x41dc, 0x38000, 0x7);
+
+	rtw_write32_mask(rtwdev, 0x18b8, BIT(26) | BIT(25), 0x1);
+	rtw_write32_mask(rtwdev, 0x18d4, BIT(26) | BIT(25), 0x1);
+
+	rtw_write32_mask(rtwdev, 0x41b0, 0xf00, 0x0);
+	rtw_write32_mask(rtwdev, 0x41c0, BIT(14), 0x0);
+	rtw_write32_mask(rtwdev, 0x41cc, 0xf00, 0x0);
+	rtw_write32_mask(rtwdev, 0x41dc, BIT(14), 0x0);
+
+	rtw_write32_mask(rtwdev, 0x41b0, BIT(0), 0x0);
+	rtw_write32_mask(rtwdev, 0x41cc, BIT(0), 0x0);
+	rtw_write32_mask(rtwdev, 0x41b0, BIT(0), 0x1);
+	rtw_write32_mask(rtwdev, 0x41cc, BIT(0), 0x1);
+
+	rtw_write32_mask(rtwdev, 0x41b8, BIT(26) | BIT(25), 0x1);
+	rtw_write32_mask(rtwdev, 0x41d4, BIT(26) | BIT(25), 0x1);
+}
+
+static bool rtw8822c_dac_cal_restore_wait(struct rtw_dev *rtwdev,
+					  u32 target_addr, u32 toggle_addr)
+{
+	u32 cnt = 0;
+
+	do {
+		rtw_write32_mask(rtwdev, toggle_addr, BIT(26) | BIT(25), 0x0);
+		rtw_write32_mask(rtwdev, toggle_addr, BIT(26) | BIT(25), 0x2);
+
+		if (rtw_read32_mask(rtwdev, target_addr, 0xf) == 0x6)
+			return true;
+
+	} while (cnt++ < 100);
+
+	return false;
+}
+
+static bool rtw8822c_dac_cal_restore_path(struct rtw_dev *rtwdev, u8 path)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u32 w_off = 0x1c;
+	u32 r_off = 0x2c;
+	u32 w_i, r_i, w_q, r_q;
+	u32 value;
+	u32 i;
+
+	w_i = rtw8822c_get_path_write_addr(path) + 0xb0;
+	r_i = rtw8822c_get_path_read_addr(path) + 0x08;
+	w_q = rtw8822c_get_path_write_addr(path) + 0xb0 + w_off;
+	r_q = rtw8822c_get_path_read_addr(path) + 0x08 + r_off;
+
+	if (!rtw8822c_dac_cal_restore_wait(rtwdev, r_i, w_i + 0x8))
+		return false;
+
+	for (i = 0; i < DACK_MSBK_BACKUP_NUM; i++) {
+		rtw_write32_mask(rtwdev, w_i + 0x4, BIT(2), 0x0);
+		value = dm_info->dack_msbk[path][0][i];
+		rtw_write32_mask(rtwdev, w_i + 0x4, 0xff8, value);
+		rtw_write32_mask(rtwdev, w_i, 0xf0000000, i);
+		rtw_write32_mask(rtwdev, w_i + 0x4, BIT(2), 0x1);
+	}
+
+	rtw_write32_mask(rtwdev, w_i + 0x4, BIT(2), 0x0);
+
+	if (!rtw8822c_dac_cal_restore_wait(rtwdev, r_q, w_q + 0x8))
+		return false;
+
+	for (i = 0; i < DACK_MSBK_BACKUP_NUM; i++) {
+		rtw_write32_mask(rtwdev, w_q + 0x4, BIT(2), 0x0);
+		value = dm_info->dack_msbk[path][1][i];
+		rtw_write32_mask(rtwdev, w_q + 0x4, 0xff8, value);
+		rtw_write32_mask(rtwdev, w_q, 0xf0000000, i);
+		rtw_write32_mask(rtwdev, w_q + 0x4, BIT(2), 0x1);
+	}
+	rtw_write32_mask(rtwdev, w_q + 0x4, BIT(2), 0x0);
+
+	rtw_write32_mask(rtwdev, w_i + 0x8, BIT(26) | BIT(25), 0x0);
+	rtw_write32_mask(rtwdev, w_q + 0x8, BIT(26) | BIT(25), 0x0);
+	rtw_write32_mask(rtwdev, w_i + 0x4, BIT(0), 0x0);
+	rtw_write32_mask(rtwdev, w_q + 0x4, BIT(0), 0x0);
+
+	return true;
+}
+
+static bool __rtw8822c_dac_cal_restore(struct rtw_dev *rtwdev)
+{
+	if (!rtw8822c_dac_cal_restore_path(rtwdev, RF_PATH_A))
+		return false;
+
+	if (!rtw8822c_dac_cal_restore_path(rtwdev, RF_PATH_B))
+		return false;
+
+	return true;
+}
+
+static bool rtw8822c_dac_cal_restore(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u32 temp[3];
+
+	/* sample the first element for both path's IQ vector */
+	if (dm_info->dack_msbk[RF_PATH_A][0][0] == 0 &&
+	    dm_info->dack_msbk[RF_PATH_A][1][0] == 0 &&
+	    dm_info->dack_msbk[RF_PATH_B][0][0] == 0 &&
+	    dm_info->dack_msbk[RF_PATH_B][1][0] == 0)
+		return false;
+
+	temp[0] = rtw_read32(rtwdev, 0x1860);
+	temp[1] = rtw_read32(rtwdev, 0x4160);
+	temp[2] = rtw_read32(rtwdev, 0x9b4);
+
+	rtw8822c_dac_cal_restore_prepare(rtwdev);
+	if (!check_hw_ready(rtwdev, 0x2808, 0x7fff80, 0xffff) ||
+	    !check_hw_ready(rtwdev, 0x2834, 0x7fff80, 0xffff) ||
+	    !check_hw_ready(rtwdev, 0x4508, 0x7fff80, 0xffff) ||
+	    !check_hw_ready(rtwdev, 0x4534, 0x7fff80, 0xffff))
+		return false;
+
+	if (!__rtw8822c_dac_cal_restore(rtwdev)) {
+		rtw_err(rtwdev, "failed to restore dack vectors\n");
+		return false;
+	}
+
+	rtw_write32_mask(rtwdev, 0x1830, BIT(30), 0x1);
+	rtw_write32_mask(rtwdev, 0x4130, BIT(30), 0x1);
+	rtw_write32(rtwdev, 0x1860, temp[0]);
+	rtw_write32(rtwdev, 0x4160, temp[1]);
+	rtw_write32_mask(rtwdev, 0x18b0, BIT(27), 0x1);
+	rtw_write32_mask(rtwdev, 0x18cc, BIT(27), 0x1);
+	rtw_write32_mask(rtwdev, 0x41b0, BIT(27), 0x1);
+	rtw_write32_mask(rtwdev, 0x41cc, BIT(27), 0x1);
+	rtw_write32(rtwdev, 0x9b4, temp[2]);
+
+	return true;
 }
 
 static void rtw8822c_rf_dac_cal(struct rtw_dev *rtwdev)
@@ -599,6 +918,11 @@ static void rtw8822c_rf_dac_cal(struct rtw_dev *rtwdev)
 	u32 i_a = 0x0, q_a = 0x0, i_b = 0x0, q_b = 0x0;
 	u32 ic_a = 0x0, qc_a = 0x0, ic_b = 0x0, qc_b = 0x0;
 	u32 adc_ic_a = 0x0, adc_qc_a = 0x0, adc_ic_b = 0x0, adc_qc_b = 0x0;
+
+	if (rtw8822c_dac_cal_restore(rtwdev))
+		return;
+
+	/* not able to restore, do it */
 
 	rtw8822c_dac_backup_reg(rtwdev, backup, backup_rf);
 
@@ -643,6 +967,9 @@ static void rtw8822c_rf_dac_cal(struct rtw_dev *rtwdev)
 	rtw_write8(rtwdev, 0x1bcc, 0x0);
 
 	rtw8822c_dac_restore_reg(rtwdev, backup, backup_rf);
+
+	/* backup results to restore, saving a lot of time */
+	rtw8822c_dac_cal_backup(rtwdev);
 
 	rtw_dbg(rtwdev, RTW_DBG_RFK, "[DACK] path A: ic=0x%x, qc=0x%x\n", ic_a, qc_a);
 	rtw_dbg(rtwdev, RTW_DBG_RFK, "[DACK] path B: ic=0x%x, qc=0x%x\n", ic_b, qc_b);

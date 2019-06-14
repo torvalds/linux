@@ -841,6 +841,9 @@ struct rtw_chip_info {
 	u32 rfe_defs_size;
 };
 
+#define DACK_MSBK_BACKUP_NUM	0xf
+#define DACK_DCK_BACKUP_NUM	0x2
+
 struct rtw_dm_info {
 	u32 cck_fa_cnt;
 	u32 ofdm_fa_cnt;
@@ -856,6 +859,11 @@ struct rtw_dm_info {
 
 	u8 cck_gi_u_bnd;
 	u8 cck_gi_l_bnd;
+
+	/* backup dack results for each path and I/Q */
+	u32 dack_adck[RTW_RF_PATH_MAX];
+	u16 dack_msbk[RTW_RF_PATH_MAX][2][DACK_MSBK_BACKUP_NUM];
+	u8 dack_dck[RTW_RF_PATH_MAX][2][DACK_DCK_BACKUP_NUM];
 };
 
 struct rtw_efuse {

@@ -152,6 +152,10 @@ struct rtw8822c_efuse {
 #define REG_RXAGCCTL0	0x18ac
 #define BITS_RXAGC_CCK		GENMASK(15, 12)
 #define BITS_RXAGC_OFDM		GENMASK(8, 4)
+#define REG_DCKA_I_0	0x18bc
+#define REG_DCKA_I_1	0x18c0
+#define REG_DCKA_Q_0	0x18d8
+#define REG_DCKA_Q_1	0x18dc
 #define REG_CCKSB	0x1a00
 #define REG_RXCCKSEL	0x1a04
 #define REG_BGCTRL	0x1a14
@@ -197,5 +201,9 @@ struct rtw8822c_efuse {
 #define REG_ORITXCODE2	0x4100
 #define REG_3WIRE2	0x410c
 #define REG_RXAGCCTL	0x41ac
+#define REG_DCKB_I_0	0x41bc
+#define REG_DCKB_I_1	0x41c0
+#define REG_DCKB_Q_0	0x41d8
+#define REG_DCKB_Q_1	0x41dc
 
 #endif
