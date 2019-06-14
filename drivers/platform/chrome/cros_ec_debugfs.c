@@ -25,7 +25,8 @@
 
 #define CIRC_ADD(idx, size, value)	(((idx) + (value)) & ((size) - 1))
 
-/* struct cros_ec_debugfs - ChromeOS EC debugging information
+/**
+ * struct cros_ec_debugfs - EC debugging information.
  *
  * @ec: EC device this debugfs information belongs to
  * @dir: dentry for debugfs files
