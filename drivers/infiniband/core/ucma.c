@@ -52,6 +52,8 @@
 #include <rdma/rdma_cm_ib.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib.h>
+#include <rdma/rdma_netlink.h>
+#include "core_priv.h"
 
 MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("RDMA Userspace Connection Manager Access");
@@ -1788,6 +1790,19 @@ static struct miscdevice ucma_misc = {
 	.fops		= &ucma_fops,
 };
 
+static int ucma_get_global_nl_info(struct ib_client_nl_info *res)
+{
+	res->abi = RDMA_USER_CM_ABI_VERSION;
+	res->cdev = ucma_misc.this_device;
+	return 0;
+}
+
+static struct ib_client rdma_cma_client = {
+	.name = "rdma_cm",
+	.get_global_nl_info = ucma_get_global_nl_info,
+};
+MODULE_ALIAS_RDMA_CLIENT("rdma_cm");
+
 static ssize_t show_abi_version(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -1816,7 +1831,14 @@ static int __init ucma_init(void)
 		ret = -ENOMEM;
 		goto err2;
 	}
+
+	ret = ib_register_client(&rdma_cma_client);
+	if (ret)
+		goto err3;
+
 	return 0;
+err3:
+	unregister_net_sysctl_table(ucma_ctl_table_hdr);
 err2:
 	device_remove_file(ucma_misc.this_device, &dev_attr_abi_version);
 err1:
@@ -1826,6 +1848,7 @@ err1:
 
 static void __exit ucma_cleanup(void)
 {
+	ib_unregister_client(&rdma_cma_client);
 	unregister_net_sysctl_table(ucma_ctl_table_hdr);
 	device_remove_file(ucma_misc.this_device, &dev_attr_abi_version);
 	misc_deregister(&ucma_misc);

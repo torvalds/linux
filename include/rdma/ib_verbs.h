@@ -2321,6 +2321,7 @@ struct ib_device_ops {
 	struct module *owner;
 	enum rdma_driver_id driver_id;
 	u32 uverbs_abi_ver;
+	unsigned int uverbs_no_driver_id_binding:1;
 
 	int (*post_send)(struct ib_qp *qp, const struct ib_send_wr *send_wr,
 			 const struct ib_send_wr **bad_send_wr);

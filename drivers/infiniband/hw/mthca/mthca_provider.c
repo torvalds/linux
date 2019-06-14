@@ -1147,6 +1147,7 @@ static const struct ib_device_ops mthca_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_MTHCA,
 	.uverbs_abi_ver = MTHCA_UVERBS_ABI_VERSION,
+	.uverbs_no_driver_id_binding = 1,
 
 	.alloc_pd = mthca_alloc_pd,
 	.alloc_ucontext = mthca_alloc_ucontext,

@@ -2428,6 +2428,9 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	if (ops->uverbs_abi_ver)
 		dev_ops->uverbs_abi_ver = ops->uverbs_abi_ver;
 
+	dev_ops->uverbs_no_driver_id_binding |=
+		ops->uverbs_no_driver_id_binding;
+
 	SET_DEVICE_OP(dev_ops, add_gid);
 	SET_DEVICE_OP(dev_ops, advise_mr);
 	SET_DEVICE_OP(dev_ops, alloc_dm);

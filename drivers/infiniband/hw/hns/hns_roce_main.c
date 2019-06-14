@@ -417,6 +417,7 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_HNS,
 	.uverbs_abi_ver = 1,
+	.uverbs_no_driver_id_binding = 1,
 
 	.add_gid = hns_roce_add_gid,
 	.alloc_pd = hns_roce_alloc_pd,

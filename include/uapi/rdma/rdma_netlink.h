@@ -504,6 +504,7 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_CHARDEV_NAME,		/* string */
 	RDMA_NLDEV_ATTR_CHARDEV_ABI,		/* u64 */
 	RDMA_NLDEV_ATTR_CHARDEV,		/* u64 */
+	RDMA_NLDEV_ATTR_UVERBS_DRIVER_ID,       /* u64 */
 
 	/*
 	 * Always the end

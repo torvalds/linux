@@ -1230,6 +1230,7 @@ static const struct ib_device_ops iwch_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_CXGB3,
 	.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION,
+	.uverbs_no_driver_id_binding = 1,
 
 	.alloc_hw_stats	= iwch_alloc_stats,
 	.alloc_mr = iwch_alloc_mr,
