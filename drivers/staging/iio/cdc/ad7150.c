@@ -5,6 +5,7 @@
  * Copyright 2010-2011 Analog Devices Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
@@ -44,6 +45,9 @@
 #define AD7150_SN1                 21
 #define AD7150_SN0                 22
 #define AD7150_ID                  23
+
+/* AD7150 masks */
+#define AD7150_THRESHTYPE_MSK			GENMASK(6, 5)
 
 /**
  * struct ad7150_chip_info - instance specific chip data
@@ -137,7 +141,7 @@ static int ad7150_read_event_config(struct iio_dev *indio_dev,
 	if (ret < 0)
 		return ret;
 
-	threshtype = (ret >> 5) & 0x03;
+	threshtype = FIELD_GET(AD7150_THRESHTYPE_MSK, ret);
 	adaptive = !!(ret & 0x80);
 
 	switch (type) {
