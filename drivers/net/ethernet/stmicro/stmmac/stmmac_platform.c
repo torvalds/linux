@@ -381,7 +381,13 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 
 	*mac = of_get_mac_address(np);
 	plat->interface = of_get_phy_mode(np);
-	plat->phy_node = np;
+
+	/* Some wrapper drivers still rely on phy_node. Let's save it while
+	 * they are not converted to phylink. */
+	plat->phy_node = of_parse_phandle(np, "phy-handle", 0);
+
+	/* PHYLINK automatically parses the phy-handle property */
+	plat->phylink_node = np;
 
 	/* Get max speed of operation from device tree */
 	if (of_property_read_u32(np, "max-speed", &plat->max_speed))
@@ -577,6 +583,7 @@ error_pclk_get:
 void stmmac_remove_config_dt(struct platform_device *pdev,
 			     struct plat_stmmacenet_data *plat)
 {
+	of_node_put(plat->phy_node);
 	of_node_put(plat->mdio_node);
 }
 #else

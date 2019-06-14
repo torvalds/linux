@@ -958,7 +958,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	struct device_node *node;
 	int ret;
 
-	node = priv->plat->phy_node;
+	node = priv->plat->phylink_node;
 
 	if (node) {
 		ret = phylink_of_phy_connect(priv->phylink, node, 0);
@@ -980,7 +980,7 @@ static int stmmac_init_phy(struct net_device *dev)
 
 static int stmmac_phy_setup(struct stmmac_priv *priv)
 {
-	struct device_node *node = priv->plat->phy_node;
+	struct device_node *node = priv->plat->phylink_node;
 	int mode = priv->plat->interface;
 	struct phylink *phylink;
 
