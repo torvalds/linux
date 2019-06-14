@@ -724,6 +724,12 @@ static void rtl_tx_performance_tweak(struct rtl8169_private *tp, u16 force)
 					   PCI_EXP_DEVCTL_READRQ, force);
 }
 
+static bool rtl_is_8168evl_up(struct rtl8169_private *tp)
+{
+	return tp->mac_version >= RTL_GIGA_MAC_VER_34 &&
+	       tp->mac_version != RTL_GIGA_MAC_VER_39;
+}
+
 struct rtl_cond {
 	bool (*check)(struct rtl8169_private *);
 	const char *msg;
@@ -1389,9 +1395,7 @@ static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
 
 	rtl_unlock_config_regs(tp);
 
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_34 ... RTL_GIGA_MAC_VER_38:
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
+	if (rtl_is_8168evl_up(tp)) {
 		tmp = ARRAY_SIZE(cfg) - 1;
 		if (wolopts & WAKE_MAGIC)
 			rtl_eri_set_bits(tp, 0x0dc, ERIAR_MASK_0100,
@@ -1399,10 +1403,8 @@ static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
 		else
 			rtl_eri_clear_bits(tp, 0x0dc, ERIAR_MASK_0100,
 					   MagicPacket_v2);
-		break;
-	default:
+	} else {
 		tmp = ARRAY_SIZE(cfg);
-		break;
 	}
 
 	for (i = 0; i < tmp; i++) {
@@ -4101,8 +4103,7 @@ static void rtl_set_tx_config_registers(struct rtl8169_private *tp)
 	u32 val = TX_DMA_BURST << TxDMAShift |
 		  InterFrameGap << TxInterFrameGapShift;
 
-	if (tp->mac_version >= RTL_GIGA_MAC_VER_34 &&
-	    tp->mac_version != RTL_GIGA_MAC_VER_39)
+	if (rtl_is_8168evl_up(tp))
 		val |= TXCFG_AUTO_FIFO;
 
 	RTL_W32(tp, TxConfig, val);
@@ -6483,13 +6484,10 @@ static int rtl_alloc_irq(struct rtl8169_private *tp)
 static void rtl_read_mac_address(struct rtl8169_private *tp,
 				 u8 mac_addr[ETH_ALEN])
 {
-	u32 value;
-
 	/* Get MAC address */
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_35 ... RTL_GIGA_MAC_VER_38:
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_51:
-		value = rtl_eri_read(tp, 0xe0);
+	if (rtl_is_8168evl_up(tp) && tp->mac_version != RTL_GIGA_MAC_VER_34) {
+		u32 value = rtl_eri_read(tp, 0xe0);
+
 		mac_addr[0] = (value >>  0) & 0xff;
 		mac_addr[1] = (value >>  8) & 0xff;
 		mac_addr[2] = (value >> 16) & 0xff;
@@ -6498,9 +6496,6 @@ static void rtl_read_mac_address(struct rtl8169_private *tp,
 		value = rtl_eri_read(tp, 0xe4);
 		mac_addr[4] = (value >>  0) & 0xff;
 		mac_addr[5] = (value >>  8) & 0xff;
-		break;
-	default:
-		break;
 	}
 }
 
