@@ -2279,6 +2279,7 @@ static int vegam_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 }
 
 const struct pp_smumgr_func vegam_smu_funcs = {
+	.name = "vegam_smu",
 	.smu_init = vegam_smu_init,
 	.smu_fini = smu7_smu_fini,
 	.start_smu = vegam_start_smu,

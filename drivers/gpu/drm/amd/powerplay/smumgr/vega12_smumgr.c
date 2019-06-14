@@ -386,6 +386,7 @@ static int vega12_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table,
 }
 
 const struct pp_smumgr_func vega12_smu_funcs = {
+	.name = "vega12_smu",
 	.smu_init = &vega12_smu_init,
 	.smu_fini = &vega12_smu_fini,
 	.start_smu = &vega12_start_smu,

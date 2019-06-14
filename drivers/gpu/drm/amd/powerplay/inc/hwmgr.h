@@ -190,6 +190,7 @@ struct phm_vce_clock_voltage_dependency_table {
 };
 
 struct pp_smumgr_func {
+	char *name;
 	int (*smu_init)(struct pp_hwmgr  *hwmgr);
 	int (*smu_fini)(struct pp_hwmgr  *hwmgr);
 	int (*start_smu)(struct pp_hwmgr  *hwmgr);

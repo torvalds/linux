@@ -2550,6 +2550,7 @@ static int polaris10_update_dpm_settings(struct pp_hwmgr *hwmgr,
 }
 
 const struct pp_smumgr_func polaris10_smu_funcs = {
+	.name = "polaris10_smu",
 	.smu_init = polaris10_smu_init,
 	.smu_fini = smu7_smu_fini,
 	.start_smu = polaris10_start_smu,

@@ -3240,6 +3240,7 @@ static int tonga_update_dpm_settings(struct pp_hwmgr *hwmgr,
 }
 
 const struct pp_smumgr_func tonga_smu_funcs = {
+	.name = "tonga_smu",
 	.smu_init = &tonga_smu_init,
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &tonga_start_smu,
