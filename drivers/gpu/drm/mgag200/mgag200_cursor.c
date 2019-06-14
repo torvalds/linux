@@ -99,10 +99,11 @@ int mga_crtc_cursor_set(struct drm_crtc *crtc,
 
 	/* Pin and map up-coming buffer to write colour indices */
 	ret = drm_gem_vram_pin(pixels_next, 0);
-	if (ret)
+	if (ret) {
 		dev_err(&dev->pdev->dev,
 			"failed to pin cursor buffer: %d\n", ret);
 		goto err_drm_gem_vram_kunmap_src;
+	}
 	dst = drm_gem_vram_kmap(pixels_next, true, NULL);
 	if (IS_ERR(dst)) {
 		ret = PTR_ERR(dst);
