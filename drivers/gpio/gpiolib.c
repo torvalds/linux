@@ -1644,39 +1644,47 @@ EXPORT_SYMBOL_GPL(gpiochip_irqchip_irq_valid);
 
 /**
  * gpiochip_set_cascaded_irqchip() - connects a cascaded irqchip to a gpiochip
- * @gpiochip: the gpiochip to set the irqchip chain to
+ * @gc: the gpiochip to set the irqchip chain to
  * @parent_irq: the irq number corresponding to the parent IRQ for this
  * chained irqchip
  * @parent_handler: the parent interrupt handler for the accumulated IRQ
  * coming out of the gpiochip. If the interrupt is nested rather than
  * cascaded, pass NULL in this handler argument
  */
-static void gpiochip_set_cascaded_irqchip(struct gpio_chip *gpiochip,
+static void gpiochip_set_cascaded_irqchip(struct gpio_chip *gc,
 					  unsigned int parent_irq,
 					  irq_flow_handler_t parent_handler)
 {
-	if (!gpiochip->irq.domain) {
-		chip_err(gpiochip, "called %s before setting up irqchip\n",
+	struct gpio_irq_chip *girq = &gc->irq;
+	struct device *dev = &gc->gpiodev->dev;
+
+	if (!girq->domain) {
+		chip_err(gc, "called %s before setting up irqchip\n",
 			 __func__);
 		return;
 	}
 
 	if (parent_handler) {
-		if (gpiochip->can_sleep) {
-			chip_err(gpiochip,
+		if (gc->can_sleep) {
+			chip_err(gc,
 				 "you cannot have chained interrupts on a chip that may sleep\n");
 			return;
 		}
+		girq->parents = devm_kcalloc(dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents) {
+			chip_err(gc, "out of memory allocating parent IRQ\n");
+			return;
+		}
+		girq->parents[0] = parent_irq;
+		girq->num_parents = 1;
 		/*
 		 * The parent irqchip is already using the chip_data for this
 		 * irqchip, so our callbacks simply use the handler_data.
 		 */
 		irq_set_chained_handler_and_data(parent_irq, parent_handler,
-						 gpiochip);
-
-		gpiochip->irq.parent_irq = parent_irq;
-		gpiochip->irq.parents = &gpiochip->irq.parent_irq;
-		gpiochip->irq.num_parents = 1;
+						 gc);
 	}
 }
 
