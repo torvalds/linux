@@ -176,9 +176,8 @@ int drm_debugfs_create_files(const struct drm_info_list *files, int count,
 			     struct dentry *root, struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
-	struct dentry *ent;
 	struct drm_info_node *tmp;
-	int i, ret;
+	int i;
 
 	for (i = 0; i < count; i++) {
 		u32 features = files[i].driver_features;
@@ -188,22 +187,13 @@ int drm_debugfs_create_files(const struct drm_info_list *files, int count,
 			continue;
 
 		tmp = kmalloc(sizeof(struct drm_info_node), GFP_KERNEL);
-		if (tmp == NULL) {
-			ret = -1;
-			goto fail;
-		}
-		ent = debugfs_create_file(files[i].name, S_IFREG | S_IRUGO,
-					  root, tmp, &drm_debugfs_fops);
-		if (!ent) {
-			DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/%s\n",
-				  root, files[i].name);
-			kfree(tmp);
-			ret = -1;
-			goto fail;
-		}
+		if (tmp == NULL)
+			continue;
 
 		tmp->minor = minor;
-		tmp->dent = ent;
+		tmp->dent = debugfs_create_file(files[i].name,
+						S_IFREG | S_IRUGO, root, tmp,
+						&drm_debugfs_fops);
 		tmp->info_ent = &files[i];
 
 		mutex_lock(&minor->debugfs_lock);
@@ -211,10 +201,6 @@ int drm_debugfs_create_files(const struct drm_info_list *files, int count,
 		mutex_unlock(&minor->debugfs_lock);
 	}
 	return 0;
-
-fail:
-	drm_debugfs_remove_files(files, count, minor);
-	return ret;
 }
 EXPORT_SYMBOL(drm_debugfs_create_files);
 
