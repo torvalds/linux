@@ -39,7 +39,7 @@ int vdec_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 
 	mtk_vdec_lock(ctx);
 	mtk_vcodec_dec_clock_on(&ctx->dev->pm);
-	ret = ctx->dec_if->init(ctx, &ctx->drv_handle);
+	ret = ctx->dec_if->init(ctx);
 	mtk_vcodec_dec_clock_off(&ctx->dev->pm);
 	mtk_vdec_unlock(ctx);
 
@@ -66,7 +66,7 @@ int vdec_if_decode(struct mtk_vcodec_ctx *ctx, struct mtk_vcodec_mem *bs,
 		}
 	}
 
-	if (ctx->drv_handle == 0)
+	if (!ctx->drv_handle)
 		return -EIO;
 
 	mtk_vdec_lock(ctx);
@@ -89,7 +89,7 @@ int vdec_if_get_param(struct mtk_vcodec_ctx *ctx, enum vdec_get_param_type type,
 {
 	int ret = 0;
 
-	if (ctx->drv_handle == 0)
+	if (!ctx->drv_handle)
 		return -EIO;
 
 	mtk_vdec_lock(ctx);
@@ -101,7 +101,7 @@ int vdec_if_get_param(struct mtk_vcodec_ctx *ctx, enum vdec_get_param_type type,
 
 void vdec_if_deinit(struct mtk_vcodec_ctx *ctx)
 {
-	if (ctx->drv_handle == 0)
+	if (!ctx->drv_handle)
 		return;
 
 	mtk_vdec_lock(ctx);
@@ -110,5 +110,5 @@ void vdec_if_deinit(struct mtk_vcodec_ctx *ctx)
 	mtk_vcodec_dec_clock_off(&ctx->dev->pm);
 	mtk_vdec_unlock(ctx);
 
-	ctx->drv_handle = 0;
+	ctx->drv_handle = NULL;
 }

@@ -37,7 +37,7 @@ int venc_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 
 	mtk_venc_lock(ctx);
 	mtk_vcodec_enc_clock_on(&ctx->dev->pm);
-	ret = ctx->enc_if->init(ctx, (unsigned long *)&ctx->drv_handle);
+	ret = ctx->enc_if->init(ctx);
 	mtk_vcodec_enc_clock_off(&ctx->dev->pm);
 	mtk_venc_unlock(ctx);
 
@@ -89,7 +89,7 @@ int venc_if_deinit(struct mtk_vcodec_ctx *ctx)
 {
 	int ret = 0;
 
-	if (ctx->drv_handle == 0)
+	if (!ctx->drv_handle)
 		return 0;
 
 	mtk_venc_lock(ctx);
@@ -98,7 +98,7 @@ int venc_if_deinit(struct mtk_vcodec_ctx *ctx)
 	mtk_vcodec_enc_clock_off(&ctx->dev->pm);
 	mtk_venc_unlock(ctx);
 
-	ctx->drv_handle = 0;
+	ctx->drv_handle = NULL;
 
 	return ret;
 }
