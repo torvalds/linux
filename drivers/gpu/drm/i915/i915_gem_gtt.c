@@ -688,7 +688,7 @@ static struct i915_page_directory *alloc_pd(struct i915_address_space *vm)
 {
 	struct i915_page_directory *pd;
 
-	pd = kzalloc(sizeof(*pd), I915_GFP_ALLOW_FAIL);
+	pd = kmalloc(sizeof(*pd), I915_GFP_ALLOW_FAIL);
 	if (unlikely(!pd))
 		return ERR_PTR(-ENOMEM);
 
@@ -748,7 +748,7 @@ alloc_pdp(struct i915_address_space *vm)
 
 	GEM_BUG_ON(!i915_vm_is_4lvl(vm));
 
-	pdp = kzalloc(sizeof(*pdp), GFP_KERNEL);
+	pdp = kmalloc(sizeof(*pdp), I915_GFP_ALLOW_FAIL);
 	if (!pdp)
 		return ERR_PTR(-ENOMEM);
 
