@@ -49,12 +49,12 @@ static void engine_skip_context(struct i915_request *rq)
 	struct intel_engine_cs *engine = rq->engine;
 	struct i915_gem_context *hung_ctx = rq->gem_context;
 
-	lockdep_assert_held(&engine->timeline.lock);
+	lockdep_assert_held(&engine->active.lock);
 
 	if (!i915_request_is_active(rq))
 		return;
 
-	list_for_each_entry_continue(rq, &engine->timeline.requests, link)
+	list_for_each_entry_continue(rq, &engine->active.requests, sched.link)
 		if (rq->gem_context == hung_ctx)
 			i915_request_skip(rq, -EIO);
 }
@@ -130,7 +130,7 @@ void i915_reset_request(struct i915_request *rq, bool guilty)
 		  rq->fence.seqno,
 		  yesno(guilty));
 
-	lockdep_assert_held(&rq->engine->timeline.lock);
+	lockdep_assert_held(&rq->engine->active.lock);
 	GEM_BUG_ON(i915_request_completed(rq));
 
 	if (guilty) {
@@ -785,10 +785,10 @@ static void nop_submit_request(struct i915_request *request)
 		  engine->name, request->fence.context, request->fence.seqno);
 	dma_fence_set_error(&request->fence, -EIO);
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 	__i915_request_submit(request);
 	i915_request_mark_complete(request);
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	intel_engine_queue_breadcrumbs(engine);
 }

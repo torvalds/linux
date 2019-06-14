@@ -298,8 +298,8 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 	 * Check against the first request in ELSP[1], it will, thanks to the
 	 * power of PI, be the highest priority of that context.
 	 */
-	if (!list_is_last(&rq->link, &engine->timeline.requests) &&
-	    rq_prio(list_next_entry(rq, link)) > last_prio)
+	if (!list_is_last(&rq->sched.link, &engine->active.requests) &&
+	    rq_prio(list_next_entry(rq, sched.link)) > last_prio)
 		return true;
 
 	if (rb) {
@@ -434,11 +434,11 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 	struct list_head *uninitialized_var(pl);
 	int prio = I915_PRIORITY_INVALID;
 
-	lockdep_assert_held(&engine->timeline.lock);
+	lockdep_assert_held(&engine->active.lock);
 
 	list_for_each_entry_safe_reverse(rq, rn,
-					 &engine->timeline.requests,
-					 link) {
+					 &engine->active.requests,
+					 sched.link) {
 		struct intel_engine_cs *owner;
 
 		if (i915_request_completed(rq))
@@ -465,7 +465,7 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 			}
 			GEM_BUG_ON(RB_EMPTY_ROOT(&engine->execlists.queue.rb_root));
 
-			list_add(&rq->sched.link, pl);
+			list_move(&rq->sched.link, pl);
 			active = rq;
 		} else {
 			rq->engine = owner;
@@ -933,11 +933,11 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			rb_entry(rb, typeof(*ve), nodes[engine->id].rb);
 		struct i915_request *rq;
 
-		spin_lock(&ve->base.timeline.lock);
+		spin_lock(&ve->base.active.lock);
 
 		rq = ve->request;
 		if (unlikely(!rq)) { /* lost the race to a sibling */
-			spin_unlock(&ve->base.timeline.lock);
+			spin_unlock(&ve->base.active.lock);
 			rb_erase_cached(rb, &execlists->virtual);
 			RB_CLEAR_NODE(rb);
 			rb = rb_first_cached(&execlists->virtual);
@@ -950,13 +950,13 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 
 		if (rq_prio(rq) >= queue_prio(execlists)) {
 			if (!virtual_matches(ve, rq, engine)) {
-				spin_unlock(&ve->base.timeline.lock);
+				spin_unlock(&ve->base.active.lock);
 				rb = rb_next(rb);
 				continue;
 			}
 
 			if (last && !can_merge_rq(last, rq)) {
-				spin_unlock(&ve->base.timeline.lock);
+				spin_unlock(&ve->base.active.lock);
 				return; /* leave this rq for another engine */
 			}
 
@@ -1011,7 +1011,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			last = rq;
 		}
 
-		spin_unlock(&ve->base.timeline.lock);
+		spin_unlock(&ve->base.active.lock);
 		break;
 	}
 
@@ -1067,8 +1067,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 
 				GEM_BUG_ON(port_isset(port));
 			}
-
-			list_del_init(&rq->sched.link);
 
 			__i915_request_submit(rq);
 			trace_i915_request_in(rq, port_index(port, execlists));
@@ -1170,7 +1168,7 @@ static void process_csb(struct intel_engine_cs *engine)
 	const u8 num_entries = execlists->csb_size;
 	u8 head, tail;
 
-	lockdep_assert_held(&engine->timeline.lock);
+	lockdep_assert_held(&engine->active.lock);
 
 	/*
 	 * Note that csb_write, csb_status may be either in HWSP or mmio.
@@ -1330,7 +1328,7 @@ static void process_csb(struct intel_engine_cs *engine)
 
 static void __execlists_submission_tasklet(struct intel_engine_cs *const engine)
 {
-	lockdep_assert_held(&engine->timeline.lock);
+	lockdep_assert_held(&engine->active.lock);
 
 	process_csb(engine);
 	if (!execlists_is_active(&engine->execlists, EXECLISTS_ACTIVE_PREEMPT))
@@ -1351,15 +1349,16 @@ static void execlists_submission_tasklet(unsigned long data)
 		  !!intel_wakeref_active(&engine->wakeref),
 		  engine->execlists.active);
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 	__execlists_submission_tasklet(engine);
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 static void queue_request(struct intel_engine_cs *engine,
 			  struct i915_sched_node *node,
 			  int prio)
 {
+	GEM_BUG_ON(!list_empty(&node->link));
 	list_add_tail(&node->link, i915_sched_lookup_priolist(engine, prio));
 }
 
@@ -1390,7 +1389,7 @@ static void execlists_submit_request(struct i915_request *request)
 	unsigned long flags;
 
 	/* Will be called from irq-context when using foreign fences. */
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 
 	queue_request(engine, &request->sched, rq_prio(request));
 
@@ -1399,7 +1398,7 @@ static void execlists_submit_request(struct i915_request *request)
 
 	submit_queue(engine, rq_prio(request));
 
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 static void __execlists_context_fini(struct intel_context *ce)
@@ -2050,8 +2049,8 @@ static void execlists_reset_prepare(struct intel_engine_cs *engine)
 	intel_engine_stop_cs(engine);
 
 	/* And flush any current direct submission. */
-	spin_lock_irqsave(&engine->timeline.lock, flags);
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 static bool lrc_regs_ok(const struct i915_request *rq)
@@ -2094,11 +2093,11 @@ static void reset_csb_pointers(struct intel_engine_execlists *execlists)
 
 static struct i915_request *active_request(struct i915_request *rq)
 {
-	const struct list_head * const list = &rq->engine->timeline.requests;
+	const struct list_head * const list = &rq->engine->active.requests;
 	const struct intel_context * const context = rq->hw_context;
 	struct i915_request *active = NULL;
 
-	list_for_each_entry_from_reverse(rq, list, link) {
+	list_for_each_entry_from_reverse(rq, list, sched.link) {
 		if (i915_request_completed(rq))
 			break;
 
@@ -2215,11 +2214,11 @@ static void execlists_reset(struct intel_engine_cs *engine, bool stalled)
 
 	GEM_TRACE("%s\n", engine->name);
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 
 	__execlists_reset(engine, stalled);
 
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 static void nop_submission_tasklet(unsigned long data)
@@ -2250,12 +2249,12 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	 * submission's irq state, we also wish to remind ourselves that
 	 * it is irq state.)
 	 */
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 
 	__execlists_reset(engine, true);
 
 	/* Mark all executing requests as skipped. */
-	list_for_each_entry(rq, &engine->timeline.requests, link) {
+	list_for_each_entry(rq, &engine->active.requests, sched.link) {
 		if (!i915_request_signaled(rq))
 			dma_fence_set_error(&rq->fence, -EIO);
 
@@ -2286,7 +2285,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 		rb_erase_cached(rb, &execlists->virtual);
 		RB_CLEAR_NODE(rb);
 
-		spin_lock(&ve->base.timeline.lock);
+		spin_lock(&ve->base.active.lock);
 		if (ve->request) {
 			ve->request->engine = engine;
 			__i915_request_submit(ve->request);
@@ -2295,7 +2294,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 			ve->base.execlists.queue_priority_hint = INT_MIN;
 			ve->request = NULL;
 		}
-		spin_unlock(&ve->base.timeline.lock);
+		spin_unlock(&ve->base.active.lock);
 	}
 
 	/* Remaining _unready_ requests will be nop'ed when submitted */
@@ -2307,7 +2306,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	GEM_BUG_ON(__tasklet_is_enabled(&execlists->tasklet));
 	execlists->tasklet.func = nop_submission_tasklet;
 
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 static void execlists_reset_finish(struct intel_engine_cs *engine)
@@ -3010,12 +3009,18 @@ error_deref_obj:
 	return ret;
 }
 
+static struct list_head *virtual_queue(struct virtual_engine *ve)
+{
+	return &ve->base.execlists.default_priolist.requests[0];
+}
+
 static void virtual_context_destroy(struct kref *kref)
 {
 	struct virtual_engine *ve =
 		container_of(kref, typeof(*ve), context.ref);
 	unsigned int n;
 
+	GEM_BUG_ON(!list_empty(virtual_queue(ve)));
 	GEM_BUG_ON(ve->request);
 	GEM_BUG_ON(ve->context.inflight);
 
@@ -3026,13 +3031,13 @@ static void virtual_context_destroy(struct kref *kref)
 		if (RB_EMPTY_NODE(node))
 			continue;
 
-		spin_lock_irq(&sibling->timeline.lock);
+		spin_lock_irq(&sibling->active.lock);
 
 		/* Detachment is lazily performed in the execlists tasklet */
 		if (!RB_EMPTY_NODE(node))
 			rb_erase_cached(node, &sibling->execlists.virtual);
 
-		spin_unlock_irq(&sibling->timeline.lock);
+		spin_unlock_irq(&sibling->active.lock);
 	}
 	GEM_BUG_ON(__tasklet_is_scheduled(&ve->base.execlists.tasklet));
 
@@ -3040,8 +3045,6 @@ static void virtual_context_destroy(struct kref *kref)
 		__execlists_context_fini(&ve->context);
 
 	kfree(ve->bonds);
-
-	i915_timeline_fini(&ve->base.timeline);
 	kfree(ve);
 }
 
@@ -3161,16 +3164,16 @@ static void virtual_submission_tasklet(unsigned long data)
 
 		if (unlikely(!(mask & sibling->mask))) {
 			if (!RB_EMPTY_NODE(&node->rb)) {
-				spin_lock(&sibling->timeline.lock);
+				spin_lock(&sibling->active.lock);
 				rb_erase_cached(&node->rb,
 						&sibling->execlists.virtual);
 				RB_CLEAR_NODE(&node->rb);
-				spin_unlock(&sibling->timeline.lock);
+				spin_unlock(&sibling->active.lock);
 			}
 			continue;
 		}
 
-		spin_lock(&sibling->timeline.lock);
+		spin_lock(&sibling->active.lock);
 
 		if (!RB_EMPTY_NODE(&node->rb)) {
 			/*
@@ -3214,7 +3217,7 @@ submit_engine:
 			tasklet_hi_schedule(&sibling->execlists.tasklet);
 		}
 
-		spin_unlock(&sibling->timeline.lock);
+		spin_unlock(&sibling->active.lock);
 	}
 	local_irq_enable();
 }
@@ -3231,8 +3234,12 @@ static void virtual_submit_request(struct i915_request *rq)
 	GEM_BUG_ON(ve->base.submit_request != virtual_submit_request);
 
 	GEM_BUG_ON(ve->request);
+	GEM_BUG_ON(!list_empty(virtual_queue(ve)));
+
 	ve->base.execlists.queue_priority_hint = rq_prio(rq);
 	WRITE_ONCE(ve->request, rq);
+
+	list_move_tail(&rq->sched.link, virtual_queue(ve));
 
 	tasklet_schedule(&ve->base.execlists.tasklet);
 }
@@ -3297,10 +3304,7 @@ intel_execlists_create_virtual(struct i915_gem_context *ctx,
 
 	snprintf(ve->base.name, sizeof(ve->base.name), "virtual");
 
-	err = i915_timeline_init(ctx->i915, &ve->base.timeline, NULL);
-	if (err)
-		goto err_put;
-	i915_timeline_set_subclass(&ve->base.timeline, TIMELINE_VIRTUAL);
+	intel_engine_init_active(&ve->base, ENGINE_VIRTUAL);
 
 	intel_engine_init_execlists(&ve->base);
 
@@ -3311,6 +3315,7 @@ intel_execlists_create_virtual(struct i915_gem_context *ctx,
 	ve->base.submit_request = virtual_submit_request;
 	ve->base.bond_execute = virtual_bond_execute;
 
+	INIT_LIST_HEAD(virtual_queue(ve));
 	ve->base.execlists.queue_priority_hint = INT_MIN;
 	tasklet_init(&ve->base.execlists.tasklet,
 		     virtual_submission_tasklet,
@@ -3465,11 +3470,11 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 	unsigned int count;
 	struct rb_node *rb;
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 
 	last = NULL;
 	count = 0;
-	list_for_each_entry(rq, &engine->timeline.requests, link) {
+	list_for_each_entry(rq, &engine->active.requests, sched.link) {
 		if (count++ < max - 1)
 			show_request(m, rq, "\t\tE ");
 		else
@@ -3532,7 +3537,7 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 		show_request(m, last, "\t\tV ");
 	}
 
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 void intel_lr_context_reset(struct intel_engine_cs *engine,

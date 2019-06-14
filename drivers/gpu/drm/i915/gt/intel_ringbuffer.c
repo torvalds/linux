@@ -730,14 +730,13 @@ static void reset_prepare(struct intel_engine_cs *engine)
 
 static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 {
-	struct i915_timeline *tl = &engine->timeline;
 	struct i915_request *pos, *rq;
 	unsigned long flags;
 	u32 head;
 
 	rq = NULL;
-	spin_lock_irqsave(&tl->lock, flags);
-	list_for_each_entry(pos, &tl->requests, link) {
+	spin_lock_irqsave(&engine->active.lock, flags);
+	list_for_each_entry(pos, &engine->active.requests, sched.link) {
 		if (!i915_request_completed(pos)) {
 			rq = pos;
 			break;
@@ -791,7 +790,7 @@ static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 	}
 	engine->buffer->head = intel_ring_wrap(engine->buffer, head);
 
-	spin_unlock_irqrestore(&tl->lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 static void reset_finish(struct intel_engine_cs *engine)
@@ -877,10 +876,10 @@ static void cancel_requests(struct intel_engine_cs *engine)
 	struct i915_request *request;
 	unsigned long flags;
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 
 	/* Mark all submitted requests as skipped. */
-	list_for_each_entry(request, &engine->timeline.requests, link) {
+	list_for_each_entry(request, &engine->active.requests, sched.link) {
 		if (!i915_request_signaled(request))
 			dma_fence_set_error(&request->fence, -EIO);
 
@@ -889,7 +888,7 @@ static void cancel_requests(struct intel_engine_cs *engine)
 
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 static void i9xx_submit_request(struct i915_request *request)
@@ -1267,8 +1266,6 @@ intel_engine_create_ring(struct intel_engine_cs *engine,
 
 	GEM_BUG_ON(!is_power_of_2(size));
 	GEM_BUG_ON(RING_CTL_SIZE(size) & ~RING_NR_PAGES);
-	GEM_BUG_ON(timeline == &engine->timeline);
-	lockdep_assert_held(&engine->i915->drm.struct_mutex);
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)

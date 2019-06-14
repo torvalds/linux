@@ -232,9 +232,9 @@ static bool i915_request_retire(struct i915_request *rq)
 
 	local_irq_disable();
 
-	spin_lock(&rq->engine->timeline.lock);
-	list_del(&rq->link);
-	spin_unlock(&rq->engine->timeline.lock);
+	spin_lock(&rq->engine->active.lock);
+	list_del(&rq->sched.link);
+	spin_unlock(&rq->engine->active.lock);
 
 	spin_lock(&rq->lock);
 	i915_request_mark_complete(rq);
@@ -254,6 +254,7 @@ static bool i915_request_retire(struct i915_request *rq)
 	intel_context_unpin(rq->hw_context);
 
 	i915_request_remove_from_client(rq);
+	list_del(&rq->link);
 
 	free_capture_list(rq);
 	i915_sched_node_fini(&rq->sched);
@@ -373,28 +374,17 @@ __i915_request_await_execution(struct i915_request *rq,
 	return 0;
 }
 
-static void move_to_timeline(struct i915_request *request,
-			     struct i915_timeline *timeline)
-{
-	GEM_BUG_ON(request->timeline == &request->engine->timeline);
-	lockdep_assert_held(&request->engine->timeline.lock);
-
-	spin_lock(&request->timeline->lock);
-	list_move_tail(&request->link, &timeline->requests);
-	spin_unlock(&request->timeline->lock);
-}
-
 void __i915_request_submit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 
-	GEM_TRACE("%s fence %llx:%lld -> current %d\n",
+	GEM_TRACE("%s fence %llx:%lld, current %d\n",
 		  engine->name,
 		  request->fence.context, request->fence.seqno,
 		  hwsp_seqno(request));
 
 	GEM_BUG_ON(!irqs_disabled());
-	lockdep_assert_held(&engine->timeline.lock);
+	lockdep_assert_held(&engine->active.lock);
 
 	if (i915_gem_context_is_banned(request->gem_context))
 		i915_request_skip(request, -EIO);
@@ -422,6 +412,8 @@ void __i915_request_submit(struct i915_request *request)
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
 
+	list_move_tail(&request->sched.link, &engine->active.requests);
+
 	GEM_BUG_ON(test_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags));
 	set_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags);
 
@@ -437,9 +429,6 @@ void __i915_request_submit(struct i915_request *request)
 	engine->emit_fini_breadcrumb(request,
 				     request->ring->vaddr + request->postfix);
 
-	/* Transfer from per-context onto the global per-engine timeline */
-	move_to_timeline(request, &engine->timeline);
-
 	engine->serial++;
 
 	trace_i915_request_execute(request);
@@ -451,11 +440,11 @@ void i915_request_submit(struct i915_request *request)
 	unsigned long flags;
 
 	/* Will be called from irq-context when using foreign fences. */
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 
 	__i915_request_submit(request);
 
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 void __i915_request_unsubmit(struct i915_request *request)
@@ -468,7 +457,7 @@ void __i915_request_unsubmit(struct i915_request *request)
 		  hwsp_seqno(request));
 
 	GEM_BUG_ON(!irqs_disabled());
-	lockdep_assert_held(&engine->timeline.lock);
+	lockdep_assert_held(&engine->active.lock);
 
 	/*
 	 * Only unwind in reverse order, required so that the per-context list
@@ -485,9 +474,6 @@ void __i915_request_unsubmit(struct i915_request *request)
 	clear_bit(I915_FENCE_FLAG_ACTIVE, &request->fence.flags);
 
 	spin_unlock(&request->lock);
-
-	/* Transfer back from the global per-engine timeline to per-context */
-	move_to_timeline(request, request->timeline);
 
 	/* We've already spun, don't charge on resubmitting. */
 	if (request->sched.semaphores && i915_request_started(request)) {
@@ -510,11 +496,11 @@ void i915_request_unsubmit(struct i915_request *request)
 	unsigned long flags;
 
 	/* Will be called from irq-context when using foreign fences. */
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 
 	__i915_request_unsubmit(request);
 
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
 
 static int __i915_sw_fence_call
@@ -669,7 +655,6 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->engine = ce->engine;
 	rq->ring = ce->ring;
 	rq->timeline = tl;
-	GEM_BUG_ON(rq->timeline == &ce->engine->timeline);
 	rq->hwsp_seqno = tl->hwsp_seqno;
 	rq->hwsp_cacheline = tl->hwsp_cacheline;
 	rq->rcustate = get_state_synchronize_rcu(); /* acts as smp_mb() */
@@ -1136,9 +1121,7 @@ __i915_request_add_to_timeline(struct i915_request *rq)
 							 0);
 	}
 
-	spin_lock_irq(&timeline->lock);
 	list_add_tail(&rq->link, &timeline->requests);
-	spin_unlock_irq(&timeline->lock);
 
 	/*
 	 * Make sure that no request gazumped us - if it was allocated after

@@ -288,7 +288,11 @@ struct intel_engine_cs {
 
 	struct intel_ring *buffer;
 
-	struct i915_timeline timeline;
+	struct {
+		spinlock_t lock;
+		struct list_head requests;
+	} active;
+
 	struct llist_head barrier_tasks;
 
 	struct intel_context *kernel_context; /* pinned */

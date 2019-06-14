@@ -617,14 +617,7 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 	if (err)
 		return err;
 
-	err = i915_timeline_init(engine->i915,
-				 &engine->timeline,
-				 engine->status_page.vma);
-	if (err)
-		goto err_hwsp;
-
-	i915_timeline_set_subclass(&engine->timeline, TIMELINE_ENGINE);
-
+	intel_engine_init_active(engine, ENGINE_PHYSICAL);
 	intel_engine_init_breadcrumbs(engine);
 	intel_engine_init_execlists(engine);
 	intel_engine_init_hangcheck(engine);
@@ -637,10 +630,6 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 		intel_sseu_from_device_info(&RUNTIME_INFO(engine->i915)->sseu);
 
 	return 0;
-
-err_hwsp:
-	cleanup_status_page(engine);
-	return err;
 }
 
 /**
@@ -797,6 +786,27 @@ static int pin_context(struct i915_gem_context *ctx,
 	return 0;
 }
 
+void
+intel_engine_init_active(struct intel_engine_cs *engine, unsigned int subclass)
+{
+	INIT_LIST_HEAD(&engine->active.requests);
+
+	spin_lock_init(&engine->active.lock);
+	lockdep_set_subclass(&engine->active.lock, subclass);
+
+	/*
+	 * Due to an interesting quirk in lockdep's internal debug tracking,
+	 * after setting a subclass we must ensure the lock is used. Otherwise,
+	 * nr_unused_locks is incremented once too often.
+	 */
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	local_irq_disable();
+	lock_map_acquire(&engine->active.lock.dep_map);
+	lock_map_release(&engine->active.lock.dep_map);
+	local_irq_enable();
+#endif
+}
+
 /**
  * intel_engines_init_common - initialize cengine state which might require hw access
  * @engine: Engine to initialize.
@@ -860,6 +870,8 @@ err_unpin:
  */
 void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 {
+	GEM_BUG_ON(!list_empty(&engine->active.requests));
+
 	cleanup_status_page(engine);
 
 	intel_engine_fini_breadcrumbs(engine);
@@ -873,8 +885,6 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 		intel_context_unpin(engine->preempt_context);
 	intel_context_unpin(engine->kernel_context);
 	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
-
-	i915_timeline_fini(&engine->timeline);
 
 	intel_wa_list_free(&engine->ctx_wa_list);
 	intel_wa_list_free(&engine->wa_list);
@@ -1482,16 +1492,6 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 
 	drm_printf(m, "\tRequests:\n");
 
-	rq = list_first_entry(&engine->timeline.requests,
-			      struct i915_request, link);
-	if (&rq->link != &engine->timeline.requests)
-		print_request(m, rq, "\t\tfirst  ");
-
-	rq = list_last_entry(&engine->timeline.requests,
-			     struct i915_request, link);
-	if (&rq->link != &engine->timeline.requests)
-		print_request(m, rq, "\t\tlast   ");
-
 	rq = intel_engine_find_active_request(engine);
 	if (rq) {
 		print_request(m, rq, "\t\tactive ");
@@ -1572,7 +1572,7 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 	if (!intel_engine_supports_stats(engine))
 		return -ENODEV;
 
-	spin_lock_irqsave(&engine->timeline.lock, flags);
+	spin_lock_irqsave(&engine->active.lock, flags);
 	write_seqlock(&engine->stats.lock);
 
 	if (unlikely(engine->stats.enabled == ~0)) {
@@ -1598,7 +1598,7 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 
 unlock:
 	write_sequnlock(&engine->stats.lock);
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	return err;
 }
@@ -1683,22 +1683,22 @@ intel_engine_find_active_request(struct intel_engine_cs *engine)
 	 * At all other times, we must assume the GPU is still running, but
 	 * we only care about the snapshot of this moment.
 	 */
-	spin_lock_irqsave(&engine->timeline.lock, flags);
-	list_for_each_entry(request, &engine->timeline.requests, link) {
+	spin_lock_irqsave(&engine->active.lock, flags);
+	list_for_each_entry(request, &engine->active.requests, sched.link) {
 		if (i915_request_completed(request))
 			continue;
 
 		if (!i915_request_started(request))
-			break;
+			continue;
 
 		/* More than one preemptible request may match! */
 		if (!match_ring(request))
-			break;
+			continue;
 
 		active = request;
 		break;
 	}
-	spin_unlock_irqrestore(&engine->timeline.lock, flags);
+	spin_unlock_irqrestore(&engine->active.lock, flags);
 
 	return active;
 }

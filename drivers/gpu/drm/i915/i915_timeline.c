@@ -251,7 +251,6 @@ int i915_timeline_init(struct drm_i915_private *i915,
 
 	timeline->fence_context = dma_fence_context_alloc(1);
 
-	spin_lock_init(&timeline->lock);
 	mutex_init(&timeline->mutex);
 
 	INIT_ACTIVE_REQUEST(&timeline->last_request);

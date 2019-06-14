@@ -565,4 +565,10 @@ static inline bool inject_preempt_hang(struct intel_engine_execlists *execlists)
 
 #endif
 
+void intel_engine_init_active(struct intel_engine_cs *engine,
+			      unsigned int subclass);
+#define ENGINE_PHYSICAL	0
+#define ENGINE_MOCK	1
+#define ENGINE_VIRTUAL	2
+
 #endif /* _INTEL_RINGBUFFER_H_ */
