@@ -2240,15 +2240,18 @@ static inline void tcp_add_tx_delay(struct sk_buff *skb,
 		skb->skb_mstamp_ns += (u64)tp->tcp_tx_delay * NSEC_PER_USEC;
 }
 
-static inline void tcp_set_tx_time(struct sk_buff *skb,
-				   const struct sock *sk)
+/* Compute Earliest Departure Time for some control packets
+ * like ACK or RST for TIME_WAIT or non ESTABLISHED sockets.
+ */
+static inline u64 tcp_transmit_time(const struct sock *sk)
 {
 	if (static_branch_unlikely(&tcp_tx_delay_enabled)) {
 		u32 delay = (sk->sk_state == TCP_TIME_WAIT) ?
 			tcp_twsk(sk)->tw_tx_delay : tcp_sk(sk)->tcp_tx_delay;
 
-		skb->skb_mstamp_ns = tcp_clock_ns() + (u64)delay * NSEC_PER_USEC;
+		return tcp_clock_ns() + (u64)delay * NSEC_PER_USEC;
 	}
+	return 0;
 }
 
 #endif	/* _TCP_H */
