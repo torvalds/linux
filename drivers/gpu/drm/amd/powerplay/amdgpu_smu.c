@@ -143,6 +143,7 @@ int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
 		}
 		break;
 	case SMU_GFXCLK:
+	case SMU_SCLK:
 		if (!smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 			pr_warn("gfxclk dpm is not enabled\n");
 			return 0;
