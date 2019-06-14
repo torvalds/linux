@@ -48,23 +48,22 @@ static void idle_work_handler(struct work_struct *work)
 {
 	struct drm_i915_private *i915 =
 		container_of(work, typeof(*i915), gem.idle_work);
-	bool restart = true;
+	bool park;
 
-	cancel_delayed_work(&i915->gem.retire_work);
+	cancel_delayed_work_sync(&i915->gem.retire_work);
 	mutex_lock(&i915->drm.struct_mutex);
 
 	intel_wakeref_lock(&i915->gt.wakeref);
-	if (!intel_wakeref_active(&i915->gt.wakeref) && !work_pending(work)) {
-		i915_gem_park(i915);
-		restart = false;
-	}
+	park = !intel_wakeref_active(&i915->gt.wakeref) && !work_pending(work);
 	intel_wakeref_unlock(&i915->gt.wakeref);
-
-	mutex_unlock(&i915->drm.struct_mutex);
-	if (restart)
+	if (park)
+		i915_gem_park(i915);
+	else
 		queue_delayed_work(i915->wq,
 				   &i915->gem.retire_work,
 				   round_jiffies_up_relative(HZ));
+
+	mutex_unlock(&i915->drm.struct_mutex);
 }
 
 static void retire_work_handler(struct work_struct *work)
