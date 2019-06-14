@@ -762,26 +762,12 @@ static void free_pdp(struct i915_address_space *vm,
 	kfree(pdp);
 }
 
-static void gen8_initialize_4lvl_pdp(struct i915_address_space *vm,
-				     struct i915_page_directory *pdp)
+static void init_pd(struct i915_address_space *vm,
+		    struct i915_page_directory * const pd,
+		    struct i915_page_directory * const to)
 {
-	fill_px(vm, pdp,
-		gen8_pdpe_encode(px_dma(vm->scratch_pd), I915_CACHE_LLC));
-	memset_p(pdp->entry, vm->scratch_pd, 512);
-}
-
-static void gen8_initialize_3lvl_pdp(struct i915_address_space *vm,
-				     struct i915_page_directory *pdp)
-{
-	memset_p(pdp->entry, vm->scratch_pd, GEN8_3LVL_PDPES);
-}
-
-static void gen8_initialize_pml4(struct i915_address_space *vm,
-				 struct i915_page_directory *pml4)
-{
-	fill_px(vm, pml4,
-		gen8_pml4e_encode(px_dma(vm->scratch_pdp), I915_CACHE_LLC));
-	memset_p(pml4->entry, vm->scratch_pdp, GEN8_PML4ES_PER_PML4);
+	fill_px(vm, pd, gen8_pdpe_encode(px_dma(to), I915_CACHE_LLC));
+	memset_p(pd->entry, to, 512);
 }
 
 /*
@@ -1267,7 +1253,7 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	gen8_initialize_pt(vm, vm->scratch_pt);
 	init_pd_with_page(vm, vm->scratch_pd, vm->scratch_pt);
 	if (i915_vm_is_4lvl(vm))
-		gen8_initialize_4lvl_pdp(vm, vm->scratch_pdp);
+		init_pd(vm, vm->scratch_pdp, vm->scratch_pd);
 
 	return 0;
 
@@ -1512,7 +1498,7 @@ static int gen8_ppgtt_alloc_4lvl(struct i915_address_space *vm,
 			if (IS_ERR(pdp))
 				goto unwind;
 
-			gen8_initialize_4lvl_pdp(vm, pdp);
+			init_pd(vm, pdp, vm->scratch_pd);
 
 			old = cmpxchg(&pml4->entry[pml4e], vm->scratch_pdp, pdp);
 			if (old == vm->scratch_pdp) {
@@ -1642,13 +1628,18 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	}
 
 	if (i915_vm_is_4lvl(&ppgtt->vm)) {
-		gen8_initialize_pml4(&ppgtt->vm, ppgtt->pd);
+		init_pd(&ppgtt->vm, ppgtt->pd, ppgtt->vm.scratch_pdp);
 
 		ppgtt->vm.allocate_va_range = gen8_ppgtt_alloc_4lvl;
 		ppgtt->vm.insert_entries = gen8_ppgtt_insert_4lvl;
 		ppgtt->vm.clear_range = gen8_ppgtt_clear_4lvl;
 	} else {
-		gen8_initialize_3lvl_pdp(&ppgtt->vm, ppgtt->pd);
+		/*
+		 * We don't need to setup dma for top level pdp, only
+		 * for entries. So point entries to scratch.
+		 */
+		memset_p(ppgtt->pd->entry, ppgtt->vm.scratch_pd,
+			 GEN8_3LVL_PDPES);
 
 		if (intel_vgpu_active(i915)) {
 			err = gen8_preallocate_top_level_pdp(ppgtt);
