@@ -4497,7 +4497,7 @@ static const struct acpi_device_id hns_roce_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, hns_roce_acpi_match);
 
-static int hns_roce_node_match(struct device *dev, void *fwnode)
+static int hns_roce_node_match(struct device *dev, const void *fwnode)
 {
 	return dev->fwnode == fwnode;
 }

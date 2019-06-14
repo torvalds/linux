@@ -107,7 +107,7 @@ static struct bus_type *generic_match_buses[] = {
 	NULL,
 };
 
-static int device_fwnode_match(struct device *dev, void *fwnode)
+static int device_fwnode_match(struct device *dev, const void *fwnode)
 {
 	return dev_fwnode(dev) == fwnode;
 }

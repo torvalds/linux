@@ -3538,7 +3538,7 @@ EXPORT_SYMBOL_GPL(spi_write_then_read);
 /*-------------------------------------------------------------------------*/
 
 #if IS_ENABLED(CONFIG_OF)
-static int __spi_of_device_match(struct device *dev, void *data)
+static int __spi_of_device_match(struct device *dev, const void *data)
 {
 	return dev->of_node == data;
 }
@@ -3639,7 +3639,7 @@ static int spi_acpi_controller_match(struct device *dev, const void *data)
 	return ACPI_COMPANION(dev->parent) == data;
 }
 
-static int spi_acpi_device_match(struct device *dev, void *data)
+static int spi_acpi_device_match(struct device *dev, const void *data)
 {
 	return ACPI_COMPANION(dev) == data;
 }

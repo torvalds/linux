@@ -642,10 +642,10 @@ static int ccw_device_add(struct ccw_device *cdev)
 	return device_add(dev);
 }
 
-static int match_dev_id(struct device *dev, void *data)
+static int match_dev_id(struct device *dev, const void *data)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
-	struct ccw_dev_id *dev_id = data;
+	struct ccw_dev_id *dev_id = (void *)data;
 
 	return ccw_dev_id_is_equal(&cdev->private->dev_id, dev_id);
 }

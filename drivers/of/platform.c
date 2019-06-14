@@ -37,7 +37,7 @@ static const struct of_device_id of_skipped_node_table[] = {
 	{} /* Empty terminated list */
 };
 
-static int of_dev_node_match(struct device *dev, void *data)
+static int of_dev_node_match(struct device *dev, const void *data)
 {
 	return dev->of_node == data;
 }

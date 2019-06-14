@@ -405,7 +405,7 @@ static const struct dailink_match_data dailink_match[] = {
 	},
 };
 
-static int of_dev_node_match(struct device *dev, void *data)
+static int of_dev_node_match(struct device *dev, const void *data)
 {
 	return dev->of_node == data;
 }

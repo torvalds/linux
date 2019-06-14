@@ -754,7 +754,7 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 	return (void *)misc_op;
 }
 
-static int hns_dsaf_dev_match(struct device *dev, void *fwnode)
+static int hns_dsaf_dev_match(struct device *dev, const void *fwnode)
 {
 	return dev->fwnode == fwnode;
 }

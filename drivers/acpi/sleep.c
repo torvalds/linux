@@ -454,7 +454,7 @@ static int acpi_pm_prepare(void)
 	return error;
 }
 
-static int find_powerf_dev(struct device *dev, void *data)
+static int find_powerf_dev(struct device *dev, const void *data)
 {
 	struct acpi_device *device = to_acpi_device(dev);
 	const char *hid = acpi_device_hid(device);

@@ -434,10 +434,10 @@ static int css_probe_device(struct subchannel_id schid, struct schib *schib)
 }
 
 static int
-check_subchannel(struct device * dev, void * data)
+check_subchannel(struct device *dev, const void *data)
 {
 	struct subchannel *sch;
-	struct subchannel_id *schid = data;
+	struct subchannel_id *schid = (void *)data;
 
 	sch = to_subchannel(dev);
 	return schid_equal(&sch->schid, schid);
