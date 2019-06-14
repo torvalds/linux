@@ -325,7 +325,6 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 				| FEATURE_MASK(FEATURE_FAN_CONTROL_BIT)
 				| FEATURE_MASK(FEATURE_THERMAL_BIT)
 				| FEATURE_MASK(FEATURE_LED_DISPLAY_BIT)
-				| FEATURE_MASK(FEATURE_MMHUB_PG_BIT)
 				| FEATURE_MASK(FEATURE_ATHUB_PG_BIT)
 				| FEATURE_MASK(FEATURE_DPM_DCEFCLK_BIT)
 				| FEATURE_MASK(FEATURE_DS_GFXCLK_BIT)
@@ -345,6 +344,9 @@ navi10_get_allowed_feature_mask(struct smu_context *smu,
 		/* TODO: remove it once fw fix the bug */
 		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_FW_DSTATE_BIT);
 	}
+
+	if (smu->adev->pg_flags & AMD_PG_SUPPORT_MMHUB)
+		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_MMHUB_PG_BIT);
 
 	if (smu->adev->pg_flags & AMD_PG_SUPPORT_VCN)
 		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_VCN_PG_BIT);
