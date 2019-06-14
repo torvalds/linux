@@ -69,6 +69,8 @@ static uint patch_2f00[] __initdata = {
 	0x31497353, 0x76956D69, 0x7B9D9693, 0x13131979,
 	0x79376935
 };
+
+static uint patch_2e00[] __initdata = {};
 #endif
 
 /*
@@ -202,6 +204,8 @@ static uint patch_2000[] __initdata = {
 static uint patch_2f00[] __initdata = {
 	0x3030304c, 0xcab9e441, 0xa1aaf220
 };
+
+static uint patch_2e00[] __initdata = {};
 #endif
 
 static void __init cpm_write_patch(cpm8xx_t *cp, int offset, uint *patch, int len)
@@ -224,12 +228,13 @@ void __init cpm_load_patch(cpm8xx_t *cp)
 #endif
 	commproc = cp;
 
-#ifdef CONFIG_USB_SOF_UCODE_PATCH
 	commproc->cp_rccr = 0;
 
 	cpm_write_patch(cp, 0, patch_2000, sizeof(patch_2000));
 	cpm_write_patch(cp, 0xf00, patch_2f00, sizeof(patch_2f00));
+	cpm_write_patch(cp, 0xe00, patch_2e00, sizeof(patch_2e00));
 
+#ifdef CONFIG_USB_SOF_UCODE_PATCH
 	commproc->cp_rccr = 0x0009;
 
 	printk("USB SOF microcode patch installed\n");
@@ -237,11 +242,6 @@ void __init cpm_load_patch(cpm8xx_t *cp)
 
 #if defined(CONFIG_I2C_SPI_UCODE_PATCH) || \
     defined(CONFIG_I2C_SPI_SMC1_UCODE_PATCH)
-
-	commproc->cp_rccr = 0;
-
-	cpm_write_patch(cp, 0, patch_2000, sizeof(patch_2000));
-	cpm_write_patch(cp, 0xf00, patch_2f00, sizeof(patch_2f00));
 
 	iip = (iic_t *)&commproc->cp_dparam[PROFF_IIC];
 # define RPBASE 0x0500
@@ -263,9 +263,6 @@ void __init cpm_load_patch(cpm8xx_t *cp)
 # endif /* CONFIG_I2C_SPI_UCODE_PATCH */
 
 # if defined(CONFIG_I2C_SPI_SMC1_UCODE_PATCH)
-
-	cpm_write_patch(cp, 0xe00, patch_2e00, sizeof(patch_2e00));
-
 	commproc->cp_cpmcr1 = 0x8080;
 	commproc->cp_cpmcr2 = 0x808a;
 	commproc->cp_cpmcr3 = 0x8028;
