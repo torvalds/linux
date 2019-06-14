@@ -112,8 +112,7 @@ void etnaviv_submit_put(struct etnaviv_gem_submit * submit);
 int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
 	struct timespec *timeout);
 int etnaviv_gem_new_private(struct drm_device *dev, size_t size, u32 flags,
-	struct reservation_object *robj, const struct etnaviv_gem_ops *ops,
-	struct etnaviv_gem_object **res);
+	const struct etnaviv_gem_ops *ops, struct etnaviv_gem_object **res);
 void etnaviv_gem_obj_add(struct drm_device *dev, struct drm_gem_object *obj);
 struct page **etnaviv_gem_get_pages(struct etnaviv_gem_object *obj);
 void etnaviv_gem_put_pages(struct etnaviv_gem_object *obj);
