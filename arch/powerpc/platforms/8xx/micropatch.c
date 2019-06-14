@@ -27,6 +27,8 @@
 
 #ifdef CONFIG_I2C_SPI_UCODE_PATCH
 
+static char patch_name[] __initdata = "I2C/SPI";
+
 static uint patch_2000[] __initdata = {
 	0x7FFFEFD9, 0x3FFD0000, 0x7FFB49F7, 0x7FF90000,
 	0x5FEFADF7, 0x5F89ADF7, 0x5FEFAFF7, 0x5F89AFF7,
@@ -78,6 +80,8 @@ static uint patch_2e00[] __initdata = {};
  */
 
 #ifdef CONFIG_I2C_SPI_SMC1_UCODE_PATCH
+
+static char patch_name[] __initdata = "I2C/SPI/SMC1";
 
 static uint patch_2000[] __initdata = {
 	0x3fff0000, 0x3ffd0000, 0x3ffb0000, 0x3ff90000,
@@ -195,6 +199,8 @@ static uint patch_2e00[] __initdata = {
 
 #ifdef CONFIG_USB_SOF_UCODE_PATCH
 
+static char patch_name[] __initdata = "USB SOF";
+
 static uint patch_2000[] __initdata = {
 	0x7fff0000, 0x7ffd0000, 0x7ffb0000, 0x49f7ba5b,
 	0xba383ffb, 0xf9b8b46d, 0xe5ab4e07, 0xaf77bffe,
@@ -236,8 +242,6 @@ void __init cpm_load_patch(cpm8xx_t *cp)
 
 #ifdef CONFIG_USB_SOF_UCODE_PATCH
 	commproc->cp_rccr = 0x0009;
-
-	printk("USB SOF microcode patch installed\n");
 #endif /* CONFIG_USB_SOF_UCODE_PATCH */
 
 #if defined(CONFIG_I2C_SPI_UCODE_PATCH) || \
@@ -258,8 +262,6 @@ void __init cpm_load_patch(cpm8xx_t *cp)
 	commproc->cp_cpmcr3 = 0x802e;
 	commproc->cp_cpmcr4 = 0x802c;
 	commproc->cp_rccr = 1;
-
-	printk("I2C/SPI microcode patch installed.\n");
 # endif /* CONFIG_I2C_SPI_UCODE_PATCH */
 
 # if defined(CONFIG_I2C_SPI_SMC1_UCODE_PATCH)
@@ -271,9 +273,9 @@ void __init cpm_load_patch(cpm8xx_t *cp)
 
 	smp = (smc_uart_t *)&commproc->cp_dparam[PROFF_SMC1];
 	smp->smc_rpbase = 0x1FC0;
-
-	printk("I2C/SPI/SMC1 microcode patch installed.\n");
 # endif /* CONFIG_I2C_SPI_SMC1_UCODE_PATCH) */
 
 #endif /* some variation of the I2C/SPI patch was selected */
+
+	pr_info("%s microcode patch installed\n", patch_name);
 }
