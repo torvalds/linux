@@ -1437,7 +1437,7 @@ long i915_request_wait(struct i915_request *rq,
 	might_sleep();
 	GEM_BUG_ON(timeout < 0);
 
-	if (i915_request_completed(rq))
+	if (dma_fence_is_signaled(&rq->fence))
 		return timeout;
 
 	if (!timeout)
@@ -1470,8 +1470,10 @@ long i915_request_wait(struct i915_request *rq,
 	 * duration, which we currently lack.
 	 */
 	if (CONFIG_DRM_I915_SPIN_REQUEST &&
-	    __i915_spin_request(rq, state, CONFIG_DRM_I915_SPIN_REQUEST))
+	    __i915_spin_request(rq, state, CONFIG_DRM_I915_SPIN_REQUEST)) {
+		dma_fence_signal(&rq->fence);
 		goto out;
+	}
 
 	/*
 	 * This client is about to stall waiting for the GPU. In many cases
