@@ -775,24 +775,10 @@
 		>;
 	};
 
-	pinctrl_i2c1_gpio: i2c1gpiogrp {
-		fsl,pins = <
-			MX7D_PAD_I2C1_SDA__GPIO4_IO9		0x4000007f
-			MX7D_PAD_I2C1_SCL__GPIO4_IO8		0x4000007f
-		>;
-	};
-
 	pinctrl_i2c2: i2c2grp {
 		fsl,pins = <
 			MX7D_PAD_I2C2_SDA__I2C2_SDA		0x4000007f
 			MX7D_PAD_I2C2_SCL__I2C2_SCL		0x4000007f
-		>;
-	};
-
-	pinctrl_i2c2_gpio: i2c2gpiogrp {
-		fsl,pins = <
-			MX7D_PAD_I2C2_SDA__GPIO4_IO11		0x4000007f
-			MX7D_PAD_I2C2_SCL__GPIO4_IO10		0x4000007f
 		>;
 	};
 
