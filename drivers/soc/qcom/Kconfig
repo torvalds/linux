@@ -7,7 +7,7 @@ config QCOM_AOSS_QMP
 	tristate "Qualcomm AOSS Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on MAILBOX
-	depends on COMMON_CLK
+	depends on COMMON_CLK && PM
 	select PM_GENERIC_DOMAINS
 	help
 	  This driver provides the means of communicating with and controlling
