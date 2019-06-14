@@ -662,7 +662,8 @@ static void sii902x_audio_shutdown(struct device *dev, void *data)
 	clk_disable_unprepare(sii902x->audio.mclk);
 }
 
-int sii902x_audio_digital_mute(struct device *dev, void *data, bool enable)
+static int sii902x_audio_digital_mute(struct device *dev,
+				      void *data, bool enable)
 {
 	struct sii902x *sii902x = dev_get_drvdata(dev);
 
