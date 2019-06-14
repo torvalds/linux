@@ -446,20 +446,39 @@ static void rtw_ops_sw_scan_start(struct ieee80211_hw *hw,
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
+	u32 config = 0;
 
 	rtw_leave_lps(rtwdev, rtwvif);
 
+	mutex_lock(&rtwdev->mutex);
+
+	ether_addr_copy(rtwvif->mac_addr, mac_addr);
+	config |= PORT_SET_MAC_ADDR;
+	rtw_vif_port_config(rtwdev, rtwvif, config);
+
 	rtw_flag_set(rtwdev, RTW_FLAG_DIG_DISABLE);
 	rtw_flag_set(rtwdev, RTW_FLAG_SCANNING);
+
+	mutex_unlock(&rtwdev->mutex);
 }
 
 static void rtw_ops_sw_scan_complete(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
 	struct rtw_dev *rtwdev = hw->priv;
+	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
+	u32 config = 0;
+
+	mutex_lock(&rtwdev->mutex);
 
 	rtw_flag_clear(rtwdev, RTW_FLAG_SCANNING);
 	rtw_flag_clear(rtwdev, RTW_FLAG_DIG_DISABLE);
+
+	ether_addr_copy(rtwvif->mac_addr, vif->addr);
+	config |= PORT_SET_MAC_ADDR;
+	rtw_vif_port_config(rtwdev, rtwvif, config);
+
+	mutex_unlock(&rtwdev->mutex);
 }
 
 const struct ieee80211_ops rtw_ops = {
