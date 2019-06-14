@@ -1015,8 +1015,28 @@ static void rtw8822c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		rtw_write32_clr(rtwdev, REG_CCKTXONLY, BIT_BB_CCK_CHECK_EN);
 		rtw_write32_mask(rtwdev, REG_CCAMSK, 0x3F000000, 0xF);
 
-		rtw_write32_mask(rtwdev, REG_RXAGCCTL0, 0x1f0, 0x0);
-		rtw_write32_mask(rtwdev, REG_RXAGCCTL, 0x1f0, 0x0);
+		switch (bw) {
+		case RTW_CHANNEL_WIDTH_20:
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL0, BITS_RXAGC_CCK,
+					 0x5);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL, BITS_RXAGC_CCK,
+					 0x5);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL0, BITS_RXAGC_OFDM,
+					 0x6);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL, BITS_RXAGC_OFDM,
+					 0x6);
+			break;
+		case RTW_CHANNEL_WIDTH_40:
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL0, BITS_RXAGC_CCK,
+					 0x4);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL, BITS_RXAGC_CCK,
+					 0x4);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL0, BITS_RXAGC_OFDM,
+					 0x0);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL, BITS_RXAGC_OFDM,
+					 0x0);
+			break;
+		}
 		if (channel == 13 || channel == 14)
 			rtw_write32_mask(rtwdev, REG_SCOTRK, 0xfff, 0x969);
 		else if (channel == 11 || channel == 12)
@@ -1061,14 +1081,20 @@ static void rtw8822c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		rtw_write32_mask(rtwdev, REG_CCAMSK, 0x3F000000, 0x22);
 		rtw_write32_mask(rtwdev, REG_TXDFIR0, 0x70, 0x3);
 		if (channel >= 36 && channel <= 64) {
-			rtw_write32_mask(rtwdev, REG_RXAGCCTL0, 0x1f0, 0x1);
-			rtw_write32_mask(rtwdev, REG_RXAGCCTL, 0x1f0, 0x1);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL0, BITS_RXAGC_OFDM,
+					 0x1);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL, BITS_RXAGC_OFDM,
+					 0x1);
 		} else if (channel >= 100 && channel <= 144) {
-			rtw_write32_mask(rtwdev, REG_RXAGCCTL0, 0x1f0, 0x2);
-			rtw_write32_mask(rtwdev, REG_RXAGCCTL, 0x1f0, 0x2);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL0, BITS_RXAGC_OFDM,
+					 0x2);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL, BITS_RXAGC_OFDM,
+					 0x2);
 		} else if (channel >= 149) {
-			rtw_write32_mask(rtwdev, REG_RXAGCCTL0, 0x1f0, 0x3);
-			rtw_write32_mask(rtwdev, REG_RXAGCCTL, 0x1f0, 0x3);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL0, BITS_RXAGC_OFDM,
+					 0x3);
+			rtw_write32_mask(rtwdev, REG_RXAGCCTL, BITS_RXAGC_OFDM,
+					 0x3);
 		}
 
 		if (channel >= 36 && channel <= 51)
@@ -1092,6 +1118,9 @@ static void rtw8822c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xffc0, 0x0);
 		rtw_write32_mask(rtwdev, REG_TXCLK, 0x700, 0x7);
 		rtw_write32_mask(rtwdev, REG_TXCLK, 0x700000, 0x6);
+		rtw_write32_mask(rtwdev, REG_CCK_SOURCE, BIT_NBI_EN, 0x0);
+		rtw_write32_mask(rtwdev, REG_SBD, BITS_SUBTUNE, 0x1);
+		rtw_write32_mask(rtwdev, REG_PT_CHSMO, BIT_PT_OPT, 0x0);
 		break;
 	case RTW_CHANNEL_WIDTH_40:
 		rtw_write32_mask(rtwdev, REG_CCKSB, BIT(4),
@@ -1100,12 +1129,17 @@ static void rtw8822c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xc0, 0x0);
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xff00,
 				 (primary_ch_idx | (primary_ch_idx << 4)));
+		rtw_write32_mask(rtwdev, REG_CCK_SOURCE, BIT_NBI_EN, 0x1);
+		rtw_write32_mask(rtwdev, REG_SBD, BITS_SUBTUNE, 0x1);
+		rtw_write32_mask(rtwdev, REG_PT_CHSMO, BIT_PT_OPT, 0x1);
 		break;
 	case RTW_CHANNEL_WIDTH_80:
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xf, 0xa);
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xc0, 0x0);
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xff00,
 				 (primary_ch_idx | (primary_ch_idx << 4)));
+		rtw_write32_mask(rtwdev, REG_SBD, BITS_SUBTUNE, 0x6);
+		rtw_write32_mask(rtwdev, REG_PT_CHSMO, BIT_PT_OPT, 0x1);
 		break;
 	case RTW_CHANNEL_WIDTH_5:
 		rtw_write32_mask(rtwdev, REG_DFIRBW, 0x3FF0, 0x2AB);
@@ -1113,6 +1147,9 @@ static void rtw8822c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xffc0, 0x1);
 		rtw_write32_mask(rtwdev, REG_TXCLK, 0x700, 0x4);
 		rtw_write32_mask(rtwdev, REG_TXCLK, 0x700000, 0x4);
+		rtw_write32_mask(rtwdev, REG_CCK_SOURCE, BIT_NBI_EN, 0x0);
+		rtw_write32_mask(rtwdev, REG_SBD, BITS_SUBTUNE, 0x1);
+		rtw_write32_mask(rtwdev, REG_PT_CHSMO, BIT_PT_OPT, 0x0);
 		break;
 	case RTW_CHANNEL_WIDTH_10:
 		rtw_write32_mask(rtwdev, REG_DFIRBW, 0x3FF0, 0x2AB);
@@ -1120,6 +1157,9 @@ static void rtw8822c_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		rtw_write32_mask(rtwdev, REG_TXBWCTL, 0xffc0, 0x2);
 		rtw_write32_mask(rtwdev, REG_TXCLK, 0x700, 0x6);
 		rtw_write32_mask(rtwdev, REG_TXCLK, 0x700000, 0x5);
+		rtw_write32_mask(rtwdev, REG_CCK_SOURCE, BIT_NBI_EN, 0x0);
+		rtw_write32_mask(rtwdev, REG_SBD, BITS_SUBTUNE, 0x1);
+		rtw_write32_mask(rtwdev, REG_PT_CHSMO, BIT_PT_OPT, 0x0);
 		break;
 	}
 }
