@@ -761,7 +761,7 @@ static const struct intel_device_info intel_elkhartlake_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ELKHARTLAKE),
 	.require_force_probe = 1,
-	.engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0),
+	.engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0) | BIT(VECS0),
 	.ppgtt_size = 36,
 };
 
