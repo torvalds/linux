@@ -13,6 +13,7 @@ config CIFS
 	select CRYPTO_ARC4
 	select CRYPTO_AEAD2
 	select CRYPTO_CCM
+	select CRYPTO_GCM
 	select CRYPTO_ECB
 	select CRYPTO_AES
 	select CRYPTO_DES
