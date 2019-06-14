@@ -108,7 +108,7 @@ static int attach_dmabuf(struct drm_device *dev,
 	if (obj->dma_buf)
 		return 0;
 
-	dmabuf = dev->driver->gem_prime_export(dev, obj, 0);
+	dmabuf = dev->driver->gem_prime_export(obj, 0);
 	if (IS_ERR(dmabuf))
 		return PTR_ERR(dmabuf);
 

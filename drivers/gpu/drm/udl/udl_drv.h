@@ -126,8 +126,7 @@ int udl_gem_mmap(struct drm_file *file_priv, struct drm_device *dev,
 void udl_gem_free_object(struct drm_gem_object *gem_obj);
 struct udl_gem_object *udl_gem_alloc_object(struct drm_device *dev,
 					    size_t size);
-struct dma_buf *udl_gem_prime_export(struct drm_device *dev,
-				     struct drm_gem_object *obj, int flags);
+struct dma_buf *udl_gem_prime_export(struct drm_gem_object *obj, int flags);
 struct drm_gem_object *udl_gem_prime_import(struct drm_device *dev,
 				struct dma_buf *dma_buf);
 

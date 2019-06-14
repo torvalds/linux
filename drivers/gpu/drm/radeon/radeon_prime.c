@@ -124,12 +124,11 @@ struct reservation_object *radeon_gem_prime_res_obj(struct drm_gem_object *obj)
 	return bo->tbo.resv;
 }
 
-struct dma_buf *radeon_gem_prime_export(struct drm_device *dev,
-					struct drm_gem_object *gobj,
+struct dma_buf *radeon_gem_prime_export(struct drm_gem_object *gobj,
 					int flags)
 {
 	struct radeon_bo *bo = gem_to_radeon_bo(gobj);
 	if (radeon_ttm_tt_has_userptr(bo->tbo.ttm))
 		return ERR_PTR(-EPERM);
-	return drm_gem_prime_export(dev, gobj, flags);
+	return drm_gem_prime_export(gobj, flags);
 }

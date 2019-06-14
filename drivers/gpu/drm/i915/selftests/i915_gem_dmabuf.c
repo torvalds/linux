@@ -37,7 +37,7 @@ static int igt_dmabuf_export(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	dmabuf = i915_gem_prime_export(&i915->drm, &obj->base, 0);
+	dmabuf = i915_gem_prime_export(&obj->base, 0);
 	i915_gem_object_put(obj);
 	if (IS_ERR(dmabuf)) {
 		pr_err("i915_gem_prime_export failed with err=%d\n",
@@ -61,7 +61,7 @@ static int igt_dmabuf_import_self(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	dmabuf = i915_gem_prime_export(&i915->drm, &obj->base, 0);
+	dmabuf = i915_gem_prime_export(&obj->base, 0);
 	if (IS_ERR(dmabuf)) {
 		pr_err("i915_gem_prime_export failed with err=%d\n",
 		       (int)PTR_ERR(dmabuf));
@@ -236,7 +236,7 @@ static int igt_dmabuf_export_vmap(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	dmabuf = i915_gem_prime_export(&i915->drm, &obj->base, 0);
+	dmabuf = i915_gem_prime_export(&obj->base, 0);
 	if (IS_ERR(dmabuf)) {
 		pr_err("i915_gem_prime_export failed with err=%d\n",
 		       (int)PTR_ERR(dmabuf));
@@ -283,7 +283,7 @@ static int igt_dmabuf_export_kmap(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	dmabuf = i915_gem_prime_export(&i915->drm, &obj->base, 0);
+	dmabuf = i915_gem_prime_export(&obj->base, 0);
 	i915_gem_object_put(obj);
 	if (IS_ERR(dmabuf)) {
 		err = PTR_ERR(dmabuf);

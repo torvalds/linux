@@ -384,9 +384,9 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
 	if (obj->funcs && obj->funcs->export)
 		dmabuf = obj->funcs->export(obj, flags);
 	else if (dev->driver->gem_prime_export)
-		dmabuf = dev->driver->gem_prime_export(dev, obj, flags);
+		dmabuf = dev->driver->gem_prime_export(obj, flags);
 	else
-		dmabuf = drm_gem_prime_export(dev, obj, flags);
+		dmabuf = drm_gem_prime_export(obj, flags);
 	if (IS_ERR(dmabuf)) {
 		/* normally the created dma-buf takes ownership of the ref,
 		 * but if that fails then drop the ref
@@ -814,7 +814,6 @@ EXPORT_SYMBOL(drm_prime_pages_to_sg);
 
 /**
  * drm_gem_prime_export - helper library implementation of the export callback
- * @dev: drm_device to export from
  * @obj: GEM object to export
  * @flags: flags like DRM_CLOEXEC and DRM_RDWR
  *
@@ -822,10 +821,10 @@ EXPORT_SYMBOL(drm_prime_pages_to_sg);
  * using the PRIME helpers. It is used as the default in
  * drm_gem_prime_handle_to_fd().
  */
-struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
-				     struct drm_gem_object *obj,
+struct dma_buf *drm_gem_prime_export(struct drm_gem_object *obj,
 				     int flags)
 {
+	struct drm_device *dev = obj->dev;
 	struct dma_buf_export_info exp_info = {
 		.exp_name = KBUILD_MODNAME, /* white lie for debug */
 		.owner = dev->driver->fops->owner,

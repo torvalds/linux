@@ -130,8 +130,7 @@ int radeon_gem_object_open(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
 void radeon_gem_object_close(struct drm_gem_object *obj,
 				struct drm_file *file_priv);
-struct dma_buf *radeon_gem_prime_export(struct drm_device *dev,
-					struct drm_gem_object *gobj,
+struct dma_buf *radeon_gem_prime_export(struct drm_gem_object *gobj,
 					int flags);
 extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, unsigned int crtc,
 				      unsigned int flags, int *vpos, int *hpos,

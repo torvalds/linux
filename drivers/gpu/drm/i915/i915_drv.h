@@ -3085,8 +3085,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 				struct dma_buf *dma_buf);
 
-struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
-				struct drm_gem_object *gem_obj, int flags);
+struct dma_buf *i915_gem_prime_export(struct drm_gem_object *gem_obj, int flags);
 
 static inline struct i915_hw_ppgtt *
 i915_vm_to_ppgtt(struct i915_address_space *vm)

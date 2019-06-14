@@ -91,8 +91,7 @@ int drm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 int drm_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma);
 
 struct sg_table *drm_prime_pages_to_sg(struct page **pages, unsigned int nr_pages);
-struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
-				     struct drm_gem_object *obj,
+struct dma_buf *drm_gem_prime_export(struct drm_gem_object *obj,
 				     int flags);
 
 /* helper functions for importing */
