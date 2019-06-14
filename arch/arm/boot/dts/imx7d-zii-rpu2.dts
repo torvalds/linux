@@ -16,7 +16,7 @@
 	compatible = "zii,imx7d-rpu2", "fsl,imx7d";
 
 	chosen {
-		stdout-path = &uart1;
+		stdout-path = &uart2;
 	};
 
 	cs2000_ref: oscillator {
