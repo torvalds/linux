@@ -727,6 +727,7 @@ void ceph_mdsc_release_request(struct kref *kref)
 		ceph_pagelist_release(req->r_pagelist);
 	put_request_session(req);
 	ceph_unreserve_caps(req->r_mdsc, &req->r_caps_reservation);
+	WARN_ON_ONCE(!list_empty(&req->r_wait));
 	kfree(req);
 }
 
@@ -4162,6 +4163,7 @@ static void wait_requests(struct ceph_mds_client *mdsc)
 		while ((req = __get_oldest_req(mdsc))) {
 			dout("wait_requests timed out on tid %llu\n",
 			     req->r_tid);
+			list_del_init(&req->r_wait);
 			__unregister_request(mdsc, req);
 		}
 	}
