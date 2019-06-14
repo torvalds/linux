@@ -112,7 +112,6 @@ implementation.
 .. toctree::
    :maxdepth: 2
 
-   x86/index
    sh/index
    x86/index
 
