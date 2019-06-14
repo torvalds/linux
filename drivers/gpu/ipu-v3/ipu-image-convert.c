@@ -1280,6 +1280,15 @@ static void init_idmac_channel(struct ipu_image_convert_ctx *ctx,
 	if (rot_mode)
 		ipu_cpmem_set_rotation(channel, rot_mode);
 
+	/*
+	 * Skip writing U and V components to odd rows in the output
+	 * channels for planar 4:2:0.
+	 */
+	if ((channel == chan->out_chan ||
+	     channel == chan->rotation_out_chan) &&
+	    image->fmt->planar && image->fmt->uv_height_dec == 2)
+		ipu_cpmem_skip_odd_chroma_rows(channel);
+
 	if (channel == chan->rotation_in_chan ||
 	    channel == chan->rotation_out_chan) {
 		burst_size = 8;
