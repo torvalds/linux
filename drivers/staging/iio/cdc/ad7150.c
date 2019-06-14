@@ -350,8 +350,8 @@ static ssize_t ad7150_show_timeout(struct device *dev,
 
 	/* use the event code for consistency reasons */
 	int chan = IIO_EVENT_CODE_EXTRACT_CHAN(this_attr->address);
-	int rising = !!(IIO_EVENT_CODE_EXTRACT_DIR(this_attr->address)
-			== IIO_EV_DIR_RISING);
+	int rising = (IIO_EVENT_CODE_EXTRACT_DIR(this_attr->address)
+		      == IIO_EV_DIR_RISING) ? 1 : 0;
 
 	switch (IIO_EVENT_CODE_EXTRACT_TYPE(this_attr->address)) {
 	case IIO_EV_TYPE_MAG_ADAPTIVE:
