@@ -21,6 +21,14 @@
 #include <asm/cpm.h>
 #include <asm/cpm1.h>
 
+struct patch_params {
+	ushort rccr;
+	ushort cpmcr1;
+	ushort cpmcr2;
+	ushort cpmcr3;
+	ushort cpmcr4;
+};
+
 /*
  * I2C/SPI relocation patch arrays.
  */
@@ -28,6 +36,10 @@
 #ifdef CONFIG_I2C_SPI_UCODE_PATCH
 
 static char patch_name[] __initdata = "I2C/SPI";
+
+static struct patch_params patch_params __initdata = {
+	1, 0x802a, 0x8028, 0x802e, 0x802c,
+};
 
 static uint patch_2000[] __initdata = {
 	0x7FFFEFD9, 0x3FFD0000, 0x7FFB49F7, 0x7FF90000,
@@ -82,6 +94,10 @@ static uint patch_2e00[] __initdata = {};
 #ifdef CONFIG_I2C_SPI_SMC1_UCODE_PATCH
 
 static char patch_name[] __initdata = "I2C/SPI/SMC1";
+
+static struct patch_params patch_params __initdata = {
+	3, 0x8080, 0x808a, 0x8028, 0x802a,
+};
 
 static uint patch_2000[] __initdata = {
 	0x3fff0000, 0x3ffd0000, 0x3ffb0000, 0x3ff90000,
@@ -201,6 +217,10 @@ static uint patch_2e00[] __initdata = {
 
 static char patch_name[] __initdata = "USB SOF";
 
+static struct patch_params patch_params __initdata = {
+	9,
+};
+
 static uint patch_2000[] __initdata = {
 	0x7fff0000, 0x7ffd0000, 0x7ffb0000, 0x49f7ba5b,
 	0xba383ffb, 0xf9b8b46d, 0xe5ab4e07, 0xaf77bffe,
@@ -240,10 +260,6 @@ void __init cpm_load_patch(cpm8xx_t *cp)
 	cpm_write_patch(cp, 0xf00, patch_2f00, sizeof(patch_2f00));
 	cpm_write_patch(cp, 0xe00, patch_2e00, sizeof(patch_2e00));
 
-#ifdef CONFIG_USB_SOF_UCODE_PATCH
-	commproc->cp_rccr = 0x0009;
-#endif /* CONFIG_USB_SOF_UCODE_PATCH */
-
 #if defined(CONFIG_I2C_SPI_UCODE_PATCH) || \
     defined(CONFIG_I2C_SPI_SMC1_UCODE_PATCH)
 
@@ -256,26 +272,19 @@ void __init cpm_load_patch(cpm8xx_t *cp)
 	spp = (struct spi_pram *)&commproc->cp_dparam[PROFF_SPI];
 	spp->rpbase = (RPBASE + sizeof(iic_t) + 31) & ~31;
 
-# if defined(CONFIG_I2C_SPI_UCODE_PATCH)
-	commproc->cp_cpmcr1 = 0x802a;
-	commproc->cp_cpmcr2 = 0x8028;
-	commproc->cp_cpmcr3 = 0x802e;
-	commproc->cp_cpmcr4 = 0x802c;
-	commproc->cp_rccr = 1;
-# endif /* CONFIG_I2C_SPI_UCODE_PATCH */
-
 # if defined(CONFIG_I2C_SPI_SMC1_UCODE_PATCH)
-	commproc->cp_cpmcr1 = 0x8080;
-	commproc->cp_cpmcr2 = 0x808a;
-	commproc->cp_cpmcr3 = 0x8028;
-	commproc->cp_cpmcr4 = 0x802a;
-	commproc->cp_rccr = 3;
-
 	smp = (smc_uart_t *)&commproc->cp_dparam[PROFF_SMC1];
 	smp->smc_rpbase = 0x1FC0;
 # endif /* CONFIG_I2C_SPI_SMC1_UCODE_PATCH) */
 
 #endif /* some variation of the I2C/SPI patch was selected */
+
+	commproc->cp_cpmcr1 = patch_params.cpmcr1;
+	commproc->cp_cpmcr2 = patch_params.cpmcr2;
+	commproc->cp_cpmcr3 = patch_params.cpmcr3;
+	commproc->cp_cpmcr4 = patch_params.cpmcr4;
+
+	commproc->cp_rccr = patch_params.rccr;
 
 	pr_info("%s microcode patch installed\n", patch_name);
 }
