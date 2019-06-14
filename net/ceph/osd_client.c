@@ -5050,12 +5050,12 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 		   const char *class, const char *method,
 		   unsigned int flags,
 		   struct page *req_page, size_t req_len,
-		   struct page *resp_page, size_t *resp_len)
+		   struct page **resp_pages, size_t *resp_len)
 {
 	struct ceph_osd_request *req;
 	int ret;
 
-	if (req_len > PAGE_SIZE || (resp_page && *resp_len > PAGE_SIZE))
+	if (req_len > PAGE_SIZE)
 		return -E2BIG;
 
 	req = ceph_osdc_alloc_request(osdc, NULL, 1, false, GFP_NOIO);
@@ -5073,8 +5073,8 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 	if (req_page)
 		osd_req_op_cls_request_data_pages(req, 0, &req_page, req_len,
 						  0, false, false);
-	if (resp_page)
-		osd_req_op_cls_response_data_pages(req, 0, &resp_page,
+	if (resp_pages)
+		osd_req_op_cls_response_data_pages(req, 0, resp_pages,
 						   *resp_len, 0, false, false);
 
 	ret = ceph_osdc_alloc_messages(req, GFP_NOIO);
@@ -5085,7 +5085,7 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 	ret = ceph_osdc_wait_request(osdc, req);
 	if (ret >= 0) {
 		ret = req->r_ops[0].rval;
-		if (resp_page)
+		if (resp_pages)
 			*resp_len = req->r_ops[0].outdata_len;
 	}
 

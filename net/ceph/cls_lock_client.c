@@ -363,7 +363,7 @@ int ceph_cls_lock_info(struct ceph_osd_client *osdc,
 	dout("%s lock_name %s\n", __func__, lock_name);
 	ret = ceph_osdc_call(osdc, oid, oloc, "lock", "get_info",
 			     CEPH_OSD_FLAG_READ, get_info_op_page,
-			     get_info_op_buf_size, reply_page, &reply_len);
+			     get_info_op_buf_size, &reply_page, &reply_len);
 
 	dout("%s: status %d\n", __func__, ret);
 	if (ret >= 0) {
