@@ -561,13 +561,6 @@ static int split_string(char *buf, char **a, char **b, char **c, char **d)
 	return 0;
 }
 
-static int match_bus_dev(struct device *dev, void *data)
-{
-	char *mdev_name = data;
-
-	return !strcmp(dev_name(dev), mdev_name);
-}
-
 /**
  * get_channel - get pointer to channel
  * @mdev: name of the device interface
@@ -579,7 +572,7 @@ static struct most_channel *get_channel(char *mdev, char *mdev_ch)
 	struct most_interface *iface;
 	struct most_channel *c, *tmp;
 
-	dev = bus_find_device(&mc.bus, NULL, mdev, match_bus_dev);
+	dev = bus_find_device_by_name(&mc.bus, NULL, mdev);
 	if (!dev)
 		return NULL;
 	iface = to_most_interface(dev);
