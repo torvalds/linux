@@ -1239,7 +1239,7 @@ static size_t syscall_arg__scnprintf_augmented_string(struct syscall_arg *arg, c
 	 */
 	int consumed = sizeof(*augmented_arg) + augmented_arg->size;
 
-	arg->augmented.args += consumed;
+	arg->augmented.args = ((void *)arg->augmented.args) + consumed;
 	arg->augmented.size -= consumed;
 
 	return printed;
