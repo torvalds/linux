@@ -141,7 +141,8 @@ static int __init imx8_soc_init(void)
 	return 0;
 
 free_rev:
-	kfree(soc_dev_attr->revision);
+	if (strcmp(soc_dev_attr->revision, "unknown"))
+		kfree(soc_dev_attr->revision);
 free_soc:
 	kfree(soc_dev_attr);
 	of_node_put(root);
