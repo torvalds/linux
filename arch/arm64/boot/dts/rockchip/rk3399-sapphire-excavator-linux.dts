@@ -296,6 +296,10 @@
 	};
 };
 
+&edp_in_vopb {
+	status = "disabled";
+};
+
 &hdmi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_i2c_xfer>, <&hdmi_cec>;
@@ -303,6 +307,10 @@
 	#size-cells = <0>;
 	#sound-dai-cells = <0>;
 	status = "okay";
+};
+
+&hdmi_in_vopl {
+	status = "disabled";
 };
 
 &i2c1 {

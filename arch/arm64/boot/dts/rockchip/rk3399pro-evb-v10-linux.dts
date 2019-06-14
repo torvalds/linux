@@ -286,7 +286,7 @@
 	};
 };
 
-&edp_in_vopl {
+&edp_in_vopb {
 	status = "disabled";
 };
 
@@ -329,7 +329,7 @@
 		<000000000 0x0000 0x0000 0x0000>;
 };
 
-&hdmi_in_vopb {
+&hdmi_in_vopl {
 	status = "disabled";
 };
 
