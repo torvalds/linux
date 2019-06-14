@@ -333,12 +333,13 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 	case 2:
 		ret = amdgpu_ras_reserve_vram(adev,
 				data.inject.address, PAGE_SIZE, &bo);
-		/* This address might be used already on failure. In fact we can
-		 * perform an injection in such case.
-		 */
-		if (ret)
-			break;
-		data.inject.address = amdgpu_bo_gpu_offset(bo);
+		if (ret) {
+			/* address was offset, now it is absolute.*/
+			data.inject.address += adev->gmc.vram_start;
+			if (data.inject.address > adev->gmc.vram_end)
+				break;
+		} else
+			data.inject.address = amdgpu_bo_gpu_offset(bo);
 		ret = amdgpu_ras_error_inject(adev, &data.inject);
 		amdgpu_ras_release_vram(adev, &bo);
 		break;
