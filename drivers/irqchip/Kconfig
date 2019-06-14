@@ -19,6 +19,7 @@ config ARM_GIC_PM
 
 config ARM_GIC_MAX_NR
 	int
+	depends on ARM_GIC
 	default 2 if ARCH_REALVIEW
 	default 1
 
