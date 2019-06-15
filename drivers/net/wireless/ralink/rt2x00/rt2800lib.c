@@ -30,6 +30,10 @@
 #include "rt2800lib.h"
 #include "rt2800.h"
 
+static bool modparam_watchdog;
+module_param_named(watchdog, modparam_watchdog, bool, S_IRUGO);
+MODULE_PARM_DESC(watchdog, "Enable watchdog to detect tx/rx hangs and reset hardware if detected");
+
 /*
  * Register access.
  * All access to the CSR registers will go through the methods
@@ -10286,8 +10290,12 @@ int rt2800_probe_hw(struct rt2x00_dev *rt2x00dev)
 		__set_bit(REQUIRE_TASKLET_CONTEXT, &rt2x00dev->cap_flags);
 	}
 
-	__set_bit(CAPABILITY_RESTART_HW, &rt2x00dev->cap_flags);
-	rt2x00dev->link.watchdog_interval = msecs_to_jiffies(100);
+	if (modparam_watchdog) {
+		__set_bit(CAPABILITY_RESTART_HW, &rt2x00dev->cap_flags);
+		rt2x00dev->link.watchdog_interval = msecs_to_jiffies(100);
+	} else {
+		rt2x00dev->link.watchdog_disabled = true;
+	}
 
 	/*
 	 * Set the rssi offset.
