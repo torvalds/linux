@@ -213,13 +213,14 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
 
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
-		mutex_lock(&bebob->mutex);
+	mutex_lock(&bebob->mutex);
+
+	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
 		bebob->substreams_counter--;
-		mutex_unlock(&bebob->mutex);
-	}
 
 	snd_bebob_stream_stop_duplex(bebob);
+
+	mutex_unlock(&bebob->mutex);
 
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }
