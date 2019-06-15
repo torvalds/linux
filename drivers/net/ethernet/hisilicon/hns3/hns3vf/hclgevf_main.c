@@ -382,7 +382,7 @@ static int hclgevf_knic_setup(struct hclgevf_dev *hdev)
 	struct hnae3_handle *nic = &hdev->nic;
 	struct hnae3_knic_private_info *kinfo;
 	u16 new_tqps = hdev->num_tqps;
-	int i;
+	unsigned int i;
 
 	kinfo = &nic->kinfo;
 	kinfo->num_tc = 0;
@@ -540,8 +540,8 @@ static int hclgevf_set_rss_algo_key(struct hclgevf_dev *hdev,
 				    const u8 hfunc, const u8 *key)
 {
 	struct hclgevf_rss_config_cmd *req;
+	unsigned int key_offset = 0;
 	struct hclgevf_desc desc;
-	int key_offset = 0;
 	int key_counts;
 	int key_size;
 	int ret;
@@ -626,7 +626,7 @@ static int hclgevf_set_rss_tc_mode(struct hclgevf_dev *hdev,  u16 rss_size)
 	struct hclgevf_desc desc;
 	u16 roundup_size;
 	int status;
-	int i;
+	unsigned int i;
 
 	req = (struct hclgevf_rss_tc_mode_cmd *)desc.data;
 
@@ -1129,7 +1129,7 @@ static int hclgevf_set_promisc_mode(struct hclgevf_dev *hdev, bool en_bc_pmc)
 	return hclgevf_cmd_set_promisc_mode(hdev, en_bc_pmc);
 }
 
-static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, int tqp_id,
+static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, unsigned int tqp_id,
 			      int stream_id, bool enable)
 {
 	struct hclgevf_cfg_com_tqp_queue_cmd *req;
@@ -1142,7 +1142,8 @@ static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, int tqp_id,
 				     false);
 	req->tqp_id = cpu_to_le16(tqp_id & HCLGEVF_RING_ID_MASK);
 	req->stream_id = cpu_to_le16(stream_id);
-	req->enable |= enable << HCLGEVF_TQP_ENABLE_B;
+	if (enable)
+		req->enable |= 1U << HCLGEVF_TQP_ENABLE_B;
 
 	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 	if (status)

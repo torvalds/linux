@@ -29,7 +29,7 @@
 #define hns3_tx_bd_count(S)	DIV_ROUND_UP(S, HNS3_MAX_BD_SIZE)
 
 static void hns3_clear_all_ring(struct hnae3_handle *h);
-static void hns3_force_clear_all_rx_ring(struct hnae3_handle *h);
+static void hns3_force_clear_all_ring(struct hnae3_handle *h);
 static void hns3_remove_hw_addr(struct net_device *netdev);
 
 static const char hns3_driver_name[] = "hns3";
@@ -143,6 +143,7 @@ static int hns3_nic_init_irq(struct hns3_nic_priv *priv)
 		if (ret) {
 			netdev_err(priv->netdev, "request irq(%d) fail\n",
 				   tqp_vectors->vector_irq);
+			hns3_nic_uninit_irq(priv);
 			return ret;
 		}
 
@@ -487,7 +488,12 @@ static void hns3_nic_net_down(struct net_device *netdev)
 	/* free irq resources */
 	hns3_nic_uninit_irq(priv);
 
-	hns3_clear_all_ring(priv->ae_handle);
+	/* delay ring buffer clearing to hns3_reset_notify_uninit_enet
+	 * during reset process, because driver may not be able
+	 * to disable the ring through firmware when downing the netdev.
+	 */
+	if (!hns3_nic_resetting(netdev))
+		hns3_clear_all_ring(priv->ae_handle);
 }
 
 static int hns3_nic_net_stop(struct net_device *netdev)
@@ -1005,7 +1011,8 @@ static int hns3_fill_desc_vtags(struct sk_buff *skb,
 }
 
 static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
-			  int size, int frag_end, enum hns_desc_type type)
+			  unsigned int size, int frag_end,
+			  enum hns_desc_type type)
 {
 	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
 	struct hns3_desc *desc = &ring->desc[ring->next_to_use];
@@ -1509,12 +1516,12 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 {
 	struct tc_mqprio_qopt_offload *mqprio_qopt = type_data;
-	struct hnae3_handle *h = hns3_get_handle(netdev);
-	struct hnae3_knic_private_info *kinfo = &h->kinfo;
 	u8 *prio_tc = mqprio_qopt->qopt.prio_tc_map;
+	struct hnae3_knic_private_info *kinfo;
 	u8 tc = mqprio_qopt->qopt.num_tc;
 	u16 mode = mqprio_qopt->mode;
 	u8 hw = mqprio_qopt->qopt.hw;
+	struct hnae3_handle *h;
 
 	if (!((hw == TC_MQPRIO_HW_OFFLOAD_TCS &&
 	       mode == TC_MQPRIO_MODE_CHANNEL) || (!hw && tc == 0)))
@@ -1525,6 +1532,9 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 
 	if (!netdev)
 		return -EINVAL;
+
+	h = hns3_get_handle(netdev);
+	kinfo = &h->kinfo;
 
 	return (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
 		kinfo->dcb_ops->setup_tc(h, tc, prio_tc) : -EOPNOTSUPP;
@@ -1930,17 +1940,22 @@ static pci_ers_result_t hns3_error_detected(struct pci_dev *pdev,
 static pci_ers_result_t hns3_slot_reset(struct pci_dev *pdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
+	const struct hnae3_ae_ops *ops = ae_dev->ops;
+	enum hnae3_reset_type reset_type;
 	struct device *dev = &pdev->dev;
-
-	dev_info(dev, "requesting reset due to PCI error\n");
 
 	if (!ae_dev || !ae_dev->ops)
 		return PCI_ERS_RESULT_NONE;
 
 	/* request the reset */
-	if (ae_dev->ops->reset_event) {
-		if (!ae_dev->override_pci_need_reset)
-			ae_dev->ops->reset_event(pdev, NULL);
+	if (ops->reset_event) {
+		if (!ae_dev->override_pci_need_reset) {
+			reset_type = ops->get_reset_level(ae_dev,
+						&ae_dev->hw_err_reset_req);
+			ops->set_default_reset_request(ae_dev, reset_type);
+			dev_info(dev, "requesting reset due to PCI error\n");
+			ops->reset_event(pdev, NULL);
+		}
 
 		return PCI_ERS_RESULT_RECOVERED;
 	}
@@ -3410,7 +3425,7 @@ static int hns3_nic_dealloc_vector_data(struct hns3_nic_priv *priv)
 }
 
 static int hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
-			     int ring_type)
+			     unsigned int ring_type)
 {
 	struct hns3_nic_ring_data *ring_data = priv->ring_data;
 	int queue_num = priv->ae_handle->kinfo.num_tqps;
@@ -3905,7 +3920,7 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 
 	hns3_del_all_fd_rules(netdev, true);
 
-	hns3_force_clear_all_rx_ring(handle);
+	hns3_force_clear_all_ring(handle);
 
 	hns3_nic_uninit_vector_data(priv);
 
@@ -4074,7 +4089,7 @@ static void hns3_force_clear_rx_ring(struct hns3_enet_ring *ring)
 	}
 }
 
-static void hns3_force_clear_all_rx_ring(struct hnae3_handle *h)
+static void hns3_force_clear_all_ring(struct hnae3_handle *h)
 {
 	struct net_device *ndev = h->kinfo.netdev;
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
@@ -4082,6 +4097,9 @@ static void hns3_force_clear_all_rx_ring(struct hnae3_handle *h)
 	u32 i;
 
 	for (i = 0; i < h->kinfo.num_tqps; i++) {
+		ring = priv->ring_data[i].ring;
+		hns3_clear_tx_ring(ring);
+
 		ring = priv->ring_data[i + h->kinfo.num_tqps].ring;
 		hns3_force_clear_rx_ring(ring);
 	}
@@ -4312,7 +4330,8 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 		return 0;
 	}
 
-	hns3_force_clear_all_rx_ring(handle);
+	hns3_clear_all_ring(handle);
+	hns3_force_clear_all_ring(handle);
 
 	hns3_nic_uninit_vector_data(priv);
 
