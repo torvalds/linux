@@ -258,6 +258,10 @@ static int ksz9477_reset_switch(struct ksz_device *dev)
 	data16 |= (BROADCAST_STORM_VALUE * BROADCAST_STORM_PROT_RATE) / 100;
 	ksz_write16(dev, REG_SW_MAC_CTRL_2, data16);
 
+	if (dev->synclko_125)
+		ksz_write8(dev, REG_SW_GLOBAL_OUTPUT_CTRL__1,
+			   SW_ENABLE_REFCLKO | SW_REFCLKO_IS_125MHZ);
+
 	return 0;
 }
 
@@ -1165,6 +1169,62 @@ static phy_interface_t ksz9477_get_interface(struct ksz_device *dev, int port)
 	return interface;
 }
 
+static void ksz9477_port_mmd_write(struct ksz_device *dev, int port,
+				   u8 dev_addr, u16 reg_addr, u16 val)
+{
+	ksz_pwrite16(dev, port, REG_PORT_PHY_MMD_SETUP,
+		     MMD_SETUP(PORT_MMD_OP_INDEX, dev_addr));
+	ksz_pwrite16(dev, port, REG_PORT_PHY_MMD_INDEX_DATA, reg_addr);
+	ksz_pwrite16(dev, port, REG_PORT_PHY_MMD_SETUP,
+		     MMD_SETUP(PORT_MMD_OP_DATA_NO_INCR, dev_addr));
+	ksz_pwrite16(dev, port, REG_PORT_PHY_MMD_INDEX_DATA, val);
+}
+
+static void ksz9477_phy_errata_setup(struct ksz_device *dev, int port)
+{
+	/* Apply PHY settings to address errata listed in
+	 * KSZ9477, KSZ9897, KSZ9896, KSZ9567, KSZ8565
+	 * Silicon Errata and Data Sheet Clarification documents:
+	 *
+	 * Register settings are needed to improve PHY receive performance
+	 */
+	ksz9477_port_mmd_write(dev, port, 0x01, 0x6f, 0xdd0b);
+	ksz9477_port_mmd_write(dev, port, 0x01, 0x8f, 0x6032);
+	ksz9477_port_mmd_write(dev, port, 0x01, 0x9d, 0x248c);
+	ksz9477_port_mmd_write(dev, port, 0x01, 0x75, 0x0060);
+	ksz9477_port_mmd_write(dev, port, 0x01, 0xd3, 0x7777);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x06, 0x3008);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x08, 0x2001);
+
+	/* Transmit waveform amplitude can be improved
+	 * (1000BASE-T, 100BASE-TX, 10BASE-Te)
+	 */
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x04, 0x00d0);
+
+	/* Energy Efficient Ethernet (EEE) feature select must
+	 * be manually disabled (except on KSZ8565 which is 100Mbit)
+	 */
+	if (dev->features & GBIT_SUPPORT)
+		ksz9477_port_mmd_write(dev, port, 0x07, 0x3c, 0x0000);
+
+	/* Register settings are required to meet data sheet
+	 * supply current specifications
+	 */
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x13, 0x6eff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x14, 0xe6ff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x15, 0x6eff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x16, 0xe6ff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x17, 0x00ff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x18, 0x43ff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x19, 0xc3ff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x1a, 0x6fff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x1b, 0x07ff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x1c, 0x0fff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x1d, 0xe7ff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x1e, 0xefff);
+	ksz9477_port_mmd_write(dev, port, 0x1c, 0x20, 0xeeee);
+}
+
 static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
 	u8 data8;
@@ -1203,6 +1263,8 @@ static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 			     PORT_FORCE_TX_FLOW_CTRL | PORT_FORCE_RX_FLOW_CTRL,
 			     false);
 
+		if (dev->phy_errata_9477)
+			ksz9477_phy_errata_setup(dev, port);
 	} else {
 		/* force flow control */
 		ksz_port_cfg(dev, port, REG_PORT_CTRL_0,
@@ -1474,6 +1536,7 @@ struct ksz_chip_data {
 	int num_statics;
 	int cpu_ports;
 	int port_cnt;
+	bool phy_errata_9477;
 };
 
 static const struct ksz_chip_data ksz9477_switch_chips[] = {
@@ -1485,6 +1548,7 @@ static const struct ksz_chip_data ksz9477_switch_chips[] = {
 		.num_statics = 16,
 		.cpu_ports = 0x7F,	/* can be configured as cpu port */
 		.port_cnt = 7,		/* total physical port count */
+		.phy_errata_9477 = true,
 	},
 	{
 		.chip_id = 0x00989700,
@@ -1494,6 +1558,7 @@ static const struct ksz_chip_data ksz9477_switch_chips[] = {
 		.num_statics = 16,
 		.cpu_ports = 0x7F,	/* can be configured as cpu port */
 		.port_cnt = 7,		/* total physical port count */
+		.phy_errata_9477 = true,
 	},
 	{
 		.chip_id = 0x00989300,
@@ -1522,6 +1587,7 @@ static int ksz9477_switch_init(struct ksz_device *dev)
 			dev->num_statics = chip->num_statics;
 			dev->port_cnt = chip->port_cnt;
 			dev->cpu_ports = chip->cpu_ports;
+			dev->phy_errata_9477 = chip->phy_errata_9477;
 
 			break;
 		}

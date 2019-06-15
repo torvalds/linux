@@ -460,6 +460,8 @@ int ksz_switch_register(struct ksz_device *dev,
 		ret = of_get_phy_mode(dev->dev->of_node);
 		if (ret >= 0)
 			dev->interface = ret;
+		dev->synclko_125 = of_property_read_bool(dev->dev->of_node,
+							 "microchip,synclko-125");
 	}
 
 	ret = dsa_register_switch(dev->ds);

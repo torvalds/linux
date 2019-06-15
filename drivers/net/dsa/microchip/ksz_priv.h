@@ -77,6 +77,8 @@ struct ksz_device {
 	int last_port;			/* ports after that not used */
 	phy_interface_t interface;
 	u32 regs_size;
+	bool phy_errata_9477;
+	bool synclko_125;
 
 	struct vlan_table *vlan_cache;
 
