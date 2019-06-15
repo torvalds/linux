@@ -274,12 +274,6 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 
 	print_queue(q);
 
-	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
-			q->properties.type)];
-	q->mqd_mem_obj = mqd_mgr->allocate_mqd(mqd_mgr->dev, &q->properties);
-	if (!q->mqd_mem_obj)
-		return -ENOMEM;
-
 	dqm_lock(dqm);
 
 	if (dqm->total_queue_count >= max_num_of_queues_per_device) {
@@ -305,6 +299,8 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	q->properties.tba_addr = qpd->tba_addr;
 	q->properties.tma_addr = qpd->tma_addr;
 
+	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
+			q->properties.type)];
 	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE) {
 		retval = allocate_hqd(dqm, q);
 		if (retval)
@@ -323,6 +319,11 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	if (retval)
 		goto out_deallocate_hqd;
 
+	q->mqd_mem_obj = mqd_mgr->allocate_mqd(mqd_mgr->dev, &q->properties);
+	if (!q->mqd_mem_obj) {
+		retval = -ENOMEM;
+		goto out_deallocate_doorbell;
+	}
 	mqd_mgr->init_mqd(mqd_mgr, &q->mqd, q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
 	if (q->properties.is_active) {
@@ -334,7 +335,7 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 			retval = mqd_mgr->load_mqd(mqd_mgr, q->mqd, q->pipe,
 					q->queue, &q->properties, current->mm);
 		if (retval)
-			goto out_deallocate_doorbell;
+			goto out_free_mqd;
 	}
 
 	list_add(&q->list, &qpd->queues_list);
@@ -354,9 +355,10 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	dqm->total_queue_count++;
 	pr_debug("Total of %d queues are accountable so far\n",
 			dqm->total_queue_count);
-	dqm_unlock(dqm);
-	return retval;
+	goto out_unlock;
 
+out_free_mqd:
+	mqd_mgr->free_mqd(mqd_mgr, q->mqd, q->mqd_mem_obj);
 out_deallocate_doorbell:
 	deallocate_doorbell(qpd, q);
 out_deallocate_hqd:
@@ -370,7 +372,6 @@ deallocate_vmid:
 		deallocate_vmid(dqm, qpd, q);
 out_unlock:
 	dqm_unlock(dqm);
-	mqd_mgr->free_mqd(mqd_mgr, q->mqd, q->mqd_mem_obj);
 	return retval;
 }
 
