@@ -1348,12 +1348,21 @@ static const u8 icp_ddc_pin_map[] = {
 	[ICL_DDC_BUS_PORT_4] = GMBUS_PIN_12_TC4_ICP,
 };
 
+static const u8 mcc_ddc_pin_map[] = {
+	[MCC_DDC_BUS_DDI_A] = GMBUS_PIN_1_BXT,
+	[MCC_DDC_BUS_DDI_B] = GMBUS_PIN_2_BXT,
+	[MCC_DDC_BUS_DDI_C] = GMBUS_PIN_9_TC1_ICP,
+};
+
 static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 {
 	const u8 *ddc_pin_map;
 	int n_entries;
 
-	if (HAS_PCH_ICP(dev_priv)) {
+	if (HAS_PCH_MCC(dev_priv)) {
+		ddc_pin_map = mcc_ddc_pin_map;
+		n_entries = ARRAY_SIZE(mcc_ddc_pin_map);
+	} else if (HAS_PCH_ICP(dev_priv)) {
 		ddc_pin_map = icp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(icp_ddc_pin_map);
 	} else if (HAS_PCH_CNP(dev_priv)) {

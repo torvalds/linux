@@ -142,6 +142,12 @@ static const u32 hpd_icp[HPD_NUM_PINS] = {
 	[HPD_PORT_F] = SDE_TC4_HOTPLUG_ICP
 };
 
+static const u32 hpd_mcc[HPD_NUM_PINS] = {
+	[HPD_PORT_A] = SDE_DDIA_HOTPLUG_ICP,
+	[HPD_PORT_B] = SDE_DDIB_HOTPLUG_ICP,
+	[HPD_PORT_C] = SDE_TC1_HOTPLUG_ICP
+};
+
 static void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
 			   i915_reg_t iir, i915_reg_t ier)
 {
@@ -2498,7 +2504,8 @@ static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		cpt_serr_int_handler(dev_priv);
 }
 
-static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
+static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir,
+			    const u32 *pins)
 {
 	u32 ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
 	u32 tc_hotplug_trigger = pch_iir & SDE_TC_MASK_ICP;
@@ -2512,7 +2519,7 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 				   ddi_hotplug_trigger,
-				   dig_hotplug_reg, hpd_icp,
+				   dig_hotplug_reg, pins,
 				   icp_ddi_port_hotplug_long_detect);
 	}
 
@@ -2524,7 +2531,7 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 
 		intel_get_hpd_pins(dev_priv, &pin_mask, &long_mask,
 				   tc_hotplug_trigger,
-				   dig_hotplug_reg, hpd_icp,
+				   dig_hotplug_reg, pins,
 				   icp_tc_port_hotplug_long_detect);
 	}
 
@@ -2955,8 +2962,10 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			I915_WRITE(SDEIIR, iir);
 			ret = IRQ_HANDLED;
 
-			if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-				icp_irq_handler(dev_priv, iir);
+			if (INTEL_PCH_TYPE(dev_priv) >= PCH_MCC)
+				icp_irq_handler(dev_priv, iir, hpd_mcc);
+			else if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
+				icp_irq_handler(dev_priv, iir, hpd_icp);
 			else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
 				spt_irq_handler(dev_priv, iir);
 			else

@@ -218,6 +218,10 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		DRM_DEBUG_KMS("Found Ice Lake PCH\n");
 		WARN_ON(!IS_ICELAKE(dev_priv));
 		return PCH_ICP;
+	case INTEL_PCH_MCC_DEVICE_ID_TYPE:
+		DRM_DEBUG_KMS("Found Mule Creek Canyon PCH\n");
+		WARN_ON(!IS_ELKHARTLAKE(dev_priv));
+		return PCH_MCC;
 	default:
 		return PCH_NONE;
 	}
@@ -245,7 +249,9 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 	 * make an educated guess as to which PCH is really there.
 	 */
 
-	if (IS_ICELAKE(dev_priv))
+	if (IS_ELKHARTLAKE(dev_priv))
+		id = INTEL_PCH_MCC_DEVICE_ID_TYPE;
+	else if (IS_ICELAKE(dev_priv))
 		id = INTEL_PCH_ICP_DEVICE_ID_TYPE;
 	else if (IS_CANNONLAKE(dev_priv) || IS_COFFEELAKE(dev_priv))
 		id = INTEL_PCH_CNP_DEVICE_ID_TYPE;
