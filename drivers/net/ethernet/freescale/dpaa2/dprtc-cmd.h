@@ -17,22 +17,54 @@
 #define DPRTC_CMDID_CLOSE			DPRTC_CMD(0x800)
 #define DPRTC_CMDID_OPEN			DPRTC_CMD(0x810)
 
-#define DPRTC_CMDID_SET_FREQ_COMPENSATION	DPRTC_CMD(0x1d1)
-#define DPRTC_CMDID_GET_FREQ_COMPENSATION	DPRTC_CMD(0x1d2)
-#define DPRTC_CMDID_GET_TIME			DPRTC_CMD(0x1d3)
-#define DPRTC_CMDID_SET_TIME			DPRTC_CMD(0x1d4)
+#define DPRTC_CMDID_SET_IRQ_ENABLE		DPRTC_CMD(0x012)
+#define DPRTC_CMDID_GET_IRQ_ENABLE		DPRTC_CMD(0x013)
+#define DPRTC_CMDID_SET_IRQ_MASK		DPRTC_CMD(0x014)
+#define DPRTC_CMDID_GET_IRQ_MASK		DPRTC_CMD(0x015)
+#define DPRTC_CMDID_GET_IRQ_STATUS		DPRTC_CMD(0x016)
+#define DPRTC_CMDID_CLEAR_IRQ_STATUS		DPRTC_CMD(0x017)
 
 #pragma pack(push, 1)
 struct dprtc_cmd_open {
 	__le32 dprtc_id;
 };
 
-struct dprtc_get_freq_compensation {
-	__le32 freq_compensation;
+struct dprtc_cmd_get_irq {
+	__le32 pad;
+	u8 irq_index;
 };
 
-struct dprtc_time {
-	__le64 time;
+struct dprtc_cmd_set_irq_enable {
+	u8 en;
+	u8 pad[3];
+	u8 irq_index;
+};
+
+struct dprtc_rsp_get_irq_enable {
+	u8 en;
+};
+
+struct dprtc_cmd_set_irq_mask {
+	__le32 mask;
+	u8 irq_index;
+};
+
+struct dprtc_rsp_get_irq_mask {
+	__le32 mask;
+};
+
+struct dprtc_cmd_get_irq_status {
+	__le32 status;
+	u8 irq_index;
+};
+
+struct dprtc_rsp_get_irq_status {
+	__le32 status;
+};
+
+struct dprtc_cmd_clear_irq_status {
+	__le32 status;
+	u8 irq_index;
 };
 
 #pragma pack(pop)
