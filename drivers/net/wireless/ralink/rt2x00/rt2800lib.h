@@ -65,6 +65,7 @@ struct rt2800_ops {
 				  const u8 *data, const size_t len);
 	int (*drv_init_registers)(struct rt2x00_dev *rt2x00dev);
 	__le32 *(*drv_get_txwi)(struct queue_entry *entry);
+	unsigned int (*drv_get_dma_done)(struct data_queue *queue);
 };
 
 static inline u32 rt2800_register_read(struct rt2x00_dev *rt2x00dev,
@@ -164,6 +165,13 @@ static inline __le32 *rt2800_drv_get_txwi(struct queue_entry *entry)
 	const struct rt2800_ops *rt2800ops = entry->queue->rt2x00dev->ops->drv;
 
 	return rt2800ops->drv_get_txwi(entry);
+}
+
+static inline unsigned int rt2800_drv_get_dma_done(struct data_queue *queue)
+{
+	const struct rt2800_ops *rt2800ops = queue->rt2x00dev->ops->drv;
+
+	return rt2800ops->drv_get_dma_done(queue);
 }
 
 void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
