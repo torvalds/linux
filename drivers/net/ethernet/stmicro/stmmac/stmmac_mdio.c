@@ -253,21 +253,15 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 	if (priv->device->of_node) {
 		struct gpio_desc *reset_gpio;
 
-		if (data->reset_gpio < 0) {
-			reset_gpio = devm_gpiod_get_optional(priv->device,
-							     "snps,reset",
-							     GPIOD_OUT_LOW);
-			if (IS_ERR(reset_gpio))
-				return PTR_ERR(reset_gpio);
+		reset_gpio = devm_gpiod_get_optional(priv->device,
+						     "snps,reset",
+						     GPIOD_OUT_LOW);
+		if (IS_ERR(reset_gpio))
+			return PTR_ERR(reset_gpio);
 
-			device_property_read_u32_array(priv->device,
-						       "snps,reset-delays-us",
-						       data->delays, 3);
-		} else {
-			reset_gpio = gpio_to_desc(data->reset_gpio);
-
-			gpiod_direction_output(reset_gpio, 0);
-		}
+		device_property_read_u32_array(priv->device,
+					       "snps,reset-delays-us",
+					       data->delays, 3);
 
 		if (data->delays[0])
 			msleep(DIV_ROUND_UP(data->delays[0], 1000));
@@ -322,11 +316,6 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 	if (mdio_bus_data->irqs)
 		memcpy(new_bus->irq, mdio_bus_data->irqs, sizeof(new_bus->irq));
-
-#ifdef CONFIG_OF
-	if (priv->device->of_node)
-		mdio_bus_data->reset_gpio = -1;
-#endif
 
 	new_bus->name = "stmmac";
 
