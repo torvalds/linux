@@ -650,8 +650,6 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 
 		if (!amdtp_stream_wait_callback(&bebob->rx_stream,
 						CALLBACK_TIMEOUT)) {
-			amdtp_stream_stop(&bebob->rx_stream);
-			break_both_connections(bebob);
 			err = -ETIMEDOUT;
 			goto error;
 		}
