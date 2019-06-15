@@ -111,6 +111,11 @@ enum {
 	MLX5_DRIVER_SYND = 0xbadd00de,
 };
 
+enum mlx5_semaphore_space_address {
+	MLX5_SEMAPHORE_SPACE_DOMAIN     = 0xA,
+	MLX5_SEMAPHORE_SW_RESET         = 0x20,
+};
+
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id);
@@ -118,6 +123,7 @@ int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_fast_teardown_hca(struct mlx5_core_dev *dev);
 void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force);
+void mlx5_error_sw_reset(struct mlx5_core_dev *dev);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
 void mlx5_recover_device(struct mlx5_core_dev *dev);
 int mlx5_sriov_init(struct mlx5_core_dev *dev);
@@ -214,7 +220,7 @@ enum {
 	MLX5_NIC_IFC_FULL		= 0,
 	MLX5_NIC_IFC_DISABLED		= 1,
 	MLX5_NIC_IFC_NO_DRAM_NIC	= 2,
-	MLX5_NIC_IFC_INVALID		= 3
+	MLX5_NIC_IFC_SW_RESET		= 7
 };
 
 u8 mlx5_get_nic_state(struct mlx5_core_dev *dev);

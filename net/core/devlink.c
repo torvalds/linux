@@ -4518,6 +4518,35 @@ nla_put_failure:
 	return err;
 }
 
+static int devlink_fmsg_dumpit(struct devlink_fmsg *fmsg, struct sk_buff *skb,
+			       struct netlink_callback *cb,
+			       enum devlink_command cmd)
+{
+	int index = cb->args[0];
+	int tmp_index = index;
+	void *hdr;
+	int err;
+
+	hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
+			  &devlink_nl_family, NLM_F_ACK | NLM_F_MULTI, cmd);
+	if (!hdr) {
+		err = -EMSGSIZE;
+		goto nla_put_failure;
+	}
+
+	err = devlink_fmsg_prepare_skb(fmsg, skb, &index);
+	if ((err && err != -EMSGSIZE) || tmp_index == index)
+		goto nla_put_failure;
+
+	cb->args[0] = index;
+	genlmsg_end(skb, hdr);
+	return skb->len;
+
+nla_put_failure:
+	genlmsg_cancel(skb, hdr);
+	return err;
+}
+
 struct devlink_health_reporter {
 	struct list_head list;
 	void *priv;
@@ -4750,23 +4779,64 @@ int devlink_health_report(struct devlink_health_reporter *reporter,
 EXPORT_SYMBOL_GPL(devlink_health_report);
 
 static struct devlink_health_reporter *
-devlink_health_reporter_get_from_info(struct devlink *devlink,
-				      struct genl_info *info)
+devlink_health_reporter_get_from_attrs(struct devlink *devlink,
+				       struct nlattr **attrs)
 {
 	struct devlink_health_reporter *reporter;
 	char *reporter_name;
 
-	if (!info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_NAME])
+	if (!attrs[DEVLINK_ATTR_HEALTH_REPORTER_NAME])
 		return NULL;
 
-	reporter_name =
-		nla_data(info->attrs[DEVLINK_ATTR_HEALTH_REPORTER_NAME]);
+	reporter_name = nla_data(attrs[DEVLINK_ATTR_HEALTH_REPORTER_NAME]);
 	mutex_lock(&devlink->reporters_lock);
 	reporter = devlink_health_reporter_find_by_name(devlink, reporter_name);
 	if (reporter)
 		refcount_inc(&reporter->refcount);
 	mutex_unlock(&devlink->reporters_lock);
 	return reporter;
+}
+
+static struct devlink_health_reporter *
+devlink_health_reporter_get_from_info(struct devlink *devlink,
+				      struct genl_info *info)
+{
+	return devlink_health_reporter_get_from_attrs(devlink, info->attrs);
+}
+
+static struct devlink_health_reporter *
+devlink_health_reporter_get_from_cb(struct netlink_callback *cb)
+{
+	struct devlink_health_reporter *reporter;
+	struct devlink *devlink;
+	struct nlattr **attrs;
+	int err;
+
+	attrs = kmalloc_array(DEVLINK_ATTR_MAX + 1, sizeof(*attrs), GFP_KERNEL);
+	if (!attrs)
+		return NULL;
+
+	err = nlmsg_parse_deprecated(cb->nlh,
+				     GENL_HDRLEN + devlink_nl_family.hdrsize,
+				     attrs, DEVLINK_ATTR_MAX,
+				     devlink_nl_family.policy, cb->extack);
+	if (err)
+		goto free;
+
+	mutex_lock(&devlink_mutex);
+	devlink = devlink_get_from_attrs(sock_net(cb->skb->sk), attrs);
+	if (IS_ERR(devlink))
+		goto unlock;
+
+	reporter = devlink_health_reporter_get_from_attrs(devlink, attrs);
+	mutex_unlock(&devlink_mutex);
+	kfree(attrs);
+	return reporter;
+unlock:
+	mutex_unlock(&devlink_mutex);
+free:
+	kfree(attrs);
+	return NULL;
 }
 
 static void
@@ -5004,32 +5074,40 @@ out:
 	return err;
 }
 
-static int devlink_nl_cmd_health_reporter_dump_get_doit(struct sk_buff *skb,
-							struct genl_info *info)
+static int
+devlink_nl_cmd_health_reporter_dump_get_dumpit(struct sk_buff *skb,
+					       struct netlink_callback *cb)
 {
-	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_health_reporter *reporter;
+	u64 start = cb->args[0];
 	int err;
 
-	reporter = devlink_health_reporter_get_from_info(devlink, info);
+	reporter = devlink_health_reporter_get_from_cb(cb);
 	if (!reporter)
 		return -EINVAL;
 
 	if (!reporter->ops->dump) {
-		devlink_health_reporter_put(reporter);
-		return -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+	mutex_lock(&reporter->dump_lock);
+	if (!start) {
+		err = devlink_health_do_dump(reporter, NULL);
+		if (err)
+			goto unlock;
+		cb->args[1] = reporter->dump_ts;
+	}
+	if (!reporter->dump_fmsg || cb->args[1] != reporter->dump_ts) {
+		NL_SET_ERR_MSG_MOD(cb->extack, "Dump trampled, please retry");
+		err = -EAGAIN;
+		goto unlock;
 	}
 
-	mutex_lock(&reporter->dump_lock);
-	err = devlink_health_do_dump(reporter, NULL);
-	if (err)
-		goto out;
-
-	err = devlink_fmsg_snd(reporter->dump_fmsg, info,
-			       DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET, 0);
-
-out:
+	err = devlink_fmsg_dumpit(reporter->dump_fmsg, skb, cb,
+				  DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET);
+unlock:
 	mutex_unlock(&reporter->dump_lock);
+out:
 	devlink_health_reporter_put(reporter);
 	return err;
 }
@@ -5366,7 +5444,7 @@ static const struct genl_ops devlink_nl_ops[] = {
 	{
 		.cmd = DEVLINK_CMD_HEALTH_REPORTER_DUMP_GET,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit = devlink_nl_cmd_health_reporter_dump_get_doit,
+		.dumpit = devlink_nl_cmd_health_reporter_dump_get_dumpit,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = DEVLINK_NL_FLAG_NEED_DEVLINK |
 				  DEVLINK_NL_FLAG_NO_LOCK,
