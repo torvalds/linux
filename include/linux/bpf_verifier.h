@@ -139,6 +139,8 @@ struct bpf_reg_state {
 	 */
 	s32 subreg_def;
 	enum bpf_reg_liveness live;
+	/* if (!precise && SCALAR_VALUE) min/max/tnum don't affect safety */
+	bool precise;
 };
 
 enum bpf_stack_slot_type {
@@ -188,6 +190,11 @@ struct bpf_func_state {
 	struct bpf_reference_state *refs;
 	int allocated_stack;
 	struct bpf_stack_state *stack;
+};
+
+struct bpf_idx_pair {
+	u32 prev_idx;
+	u32 idx;
 };
 
 #define MAX_CALL_FRAMES 8
@@ -245,6 +252,17 @@ struct bpf_verifier_state {
 	u32 curframe;
 	u32 active_spin_lock;
 	bool speculative;
+
+	/* first and last insn idx of this verifier state */
+	u32 first_insn_idx;
+	u32 last_insn_idx;
+	/* jmp history recorded from first to last.
+	 * backtracking is using it to go from last to first.
+	 * For most states jmp_history_cnt is [0-3].
+	 * For loops can go up to ~40.
+	 */
+	struct bpf_idx_pair *jmp_history;
+	u32 jmp_history_cnt;
 };
 
 #define bpf_get_spilled_reg(slot, frame)				\
