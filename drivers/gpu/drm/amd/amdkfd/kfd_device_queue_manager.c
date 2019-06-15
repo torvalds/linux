@@ -1133,27 +1133,23 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	if (dqm->total_queue_count >= max_num_of_queues_per_device) {
 		pr_warn("Can't create new usermode queue because %d queues were already created\n",
 				dqm->total_queue_count);
-		return -EPERM;
+		retval = -EPERM;
+		goto out;
 	}
 
-	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
-			q->properties.type)];
-	q->mqd_mem_obj = mqd_mgr->allocate_mqd(mqd_mgr->dev, &q->properties);
-	if (!q->mqd_mem_obj)
-		return -ENOMEM;
-
-	dqm_lock(dqm);
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA ||
 		q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI) {
 		retval = allocate_sdma_queue(dqm, q);
 		if (retval)
-			goto out_unlock;
+			goto out;
 	}
 
 	retval = allocate_doorbell(qpd, q);
 	if (retval)
 		goto out_deallocate_sdma_queue;
 
+	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
+			q->properties.type)];
 	/*
 	 * Eviction state logic: mark all queues as evicted, even ones
 	 * not currently active. Restoring inactive queues later only
@@ -1165,8 +1161,14 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 		dqm->asic_ops.init_sdma_vm(dqm, q, qpd);
 	q->properties.tba_addr = qpd->tba_addr;
 	q->properties.tma_addr = qpd->tma_addr;
+	q->mqd_mem_obj = mqd_mgr->allocate_mqd(mqd_mgr->dev, &q->properties);
+	if (!q->mqd_mem_obj) {
+		retval = -ENOMEM;
+		goto out_deallocate_doorbell;
+	}
 	mqd_mgr->init_mqd(mqd_mgr, &q->mqd, q->mqd_mem_obj,
 				&q->gart_mqd_addr, &q->properties);
+	dqm_lock(dqm);
 
 	list_add(&q->list, &qpd->queues_list);
 	qpd->queue_count++;
@@ -1192,13 +1194,13 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	dqm_unlock(dqm);
 	return retval;
 
+out_deallocate_doorbell:
+	deallocate_doorbell(qpd, q);
 out_deallocate_sdma_queue:
 	if (q->properties.type == KFD_QUEUE_TYPE_SDMA ||
 		q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI)
 		deallocate_sdma_queue(dqm, q);
-out_unlock:
-	dqm_unlock(dqm);
-	mqd_mgr->free_mqd(mqd_mgr, q->mqd, q->mqd_mem_obj);
+out:
 	return retval;
 }
 
