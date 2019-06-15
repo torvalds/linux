@@ -464,7 +464,6 @@ static void cpsw_suspend_data_pass(struct net_device *ndev)
 	cpsw_intr_disable(cpsw);
 
 	/* Stop all transmit queues for every network device.
-	 * Disable re-using rx descriptors with dormant_on.
 	 */
 	for (i = 0; i < cpsw->data.slaves; i++) {
 		ndev = cpsw->slaves[i].ndev;
@@ -472,7 +471,9 @@ static void cpsw_suspend_data_pass(struct net_device *ndev)
 			continue;
 
 		netif_tx_stop_all_queues(ndev);
-		netif_dormant_on(ndev);
+
+		/* Barrier, so that stop_queue visible to other cpus */
+		smp_mb__after_atomic();
 	}
 
 	/* Handle rest of tx packets and stop cpdma channels */
@@ -484,13 +485,6 @@ static int cpsw_resume_data_pass(struct net_device *ndev)
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
 	int i, ret;
-
-	/* Allow rx packets handling */
-	for (i = 0; i < cpsw->data.slaves; i++) {
-		ndev = cpsw->slaves[i].ndev;
-		if (ndev && netif_running(ndev))
-			netif_dormant_off(ndev);
-	}
 
 	/* After this receive is started */
 	if (cpsw->usage_count) {

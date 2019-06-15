@@ -457,16 +457,13 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	}
 
 requeue:
-	if (netif_dormant(ndev)) {
-		dev_kfree_skb_any(new_skb);
-		return;
-	}
-
 	ch = cpsw->rxv[skb_get_queue_mapping(new_skb)].ch;
 	ret = cpdma_chan_submit(ch, new_skb, new_skb->data,
 				skb_tailroom(new_skb), 0);
-	if (WARN_ON(ret < 0))
+	if (ret < 0) {
+		WARN_ON(ret == -ENOMEM);
 		dev_kfree_skb_any(new_skb);
+	}
 }
 
 void cpsw_split_res(struct cpsw_common *cpsw)
@@ -1051,9 +1048,9 @@ int cpsw_fill_rx_channels(struct cpsw_priv *priv)
 			}
 
 			skb_set_queue_mapping(skb, ch);
-			ret = cpdma_chan_submit(cpsw->rxv[ch].ch, skb,
-						skb->data, skb_tailroom(skb),
-						0);
+			ret = cpdma_chan_idle_submit(cpsw->rxv[ch].ch, skb,
+						     skb->data,
+						     skb_tailroom(skb), 0);
 			if (ret < 0) {
 				cpsw_err(priv, ifup,
 					 "cannot submit skb to channel %d rx, error %d\n",
