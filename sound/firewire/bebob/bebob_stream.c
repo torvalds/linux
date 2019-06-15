@@ -404,13 +404,11 @@ static int make_both_connections(struct snd_bebob *bebob)
 {
 	int err = 0;
 
-	err = cmp_connection_establish(&bebob->out_conn,
-			amdtp_stream_get_max_payload(&bebob->tx_stream));
+	err = cmp_connection_establish(&bebob->out_conn);
 	if (err < 0)
 		return err;
 
-	err = cmp_connection_establish(&bebob->in_conn,
-			amdtp_stream_get_max_payload(&bebob->rx_stream));
+	err = cmp_connection_establish(&bebob->in_conn);
 	if (err < 0) {
 		cmp_connection_break(&bebob->out_conn);
 		return err;
@@ -533,14 +531,23 @@ static int keep_resources(struct snd_bebob *bebob, struct amdtp_stream *stream,
 			  unsigned int rate, unsigned int index)
 {
 	struct snd_bebob_stream_formation *formation;
+	struct cmp_connection *conn;
+	int err;
 
-	if (stream == &bebob->tx_stream)
+	if (stream == &bebob->tx_stream) {
 		formation = bebob->tx_stream_formations + index;
-	else
+		conn = &bebob->out_conn;
+	} else {
 		formation = bebob->rx_stream_formations + index;
+		conn = &bebob->in_conn;
+	}
 
-	return amdtp_am824_set_parameters(stream, rate, formation->pcm,
-					  formation->midi, false);
+	err = amdtp_am824_set_parameters(stream, rate, formation->pcm,
+					 formation->midi, false);
+	if (err < 0)
+		return err;
+
+	return cmp_connection_reserve(conn, amdtp_stream_get_max_payload(stream));
 }
 
 int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate)
@@ -591,8 +598,10 @@ int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate)
 			return err;
 
 		err = keep_resources(bebob, &bebob->rx_stream, rate, index);
-		if (err < 0)
+		if (err < 0) {
+			cmp_connection_release(&bebob->out_conn);
 			return err;
+		}
 	}
 
 	return 0;
@@ -685,6 +694,9 @@ void snd_bebob_stream_stop_duplex(struct snd_bebob *bebob)
 		amdtp_stream_stop(&bebob->tx_stream);
 
 		break_both_connections(bebob);
+
+		cmp_connection_release(&bebob->out_conn);
+		cmp_connection_release(&bebob->in_conn);
 	}
 }
 

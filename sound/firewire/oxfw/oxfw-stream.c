@@ -111,8 +111,7 @@ static int start_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	else
 		conn = &oxfw->out_conn;
 
-	err = cmp_connection_establish(conn,
-				       amdtp_stream_get_max_payload(stream));
+	err = cmp_connection_establish(conn);
 	if (err < 0)
 		return err;
 
@@ -203,15 +202,18 @@ static int keep_resources(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	enum avc_general_plug_dir dir;
 	u8 **formats;
 	struct snd_oxfw_stream_formation formation;
+	struct cmp_connection *conn;
 	int i;
 	int err;
 
 	if (stream == &oxfw->rx_stream) {
 		dir = AVC_GENERAL_PLUG_DIR_IN;
 		formats = oxfw->rx_stream_formats;
+		conn = &oxfw->in_conn;
 	} else {
 		dir = AVC_GENERAL_PLUG_DIR_OUT;
 		formats = oxfw->tx_stream_formats;
+		conn = &oxfw->out_conn;
 	}
 
 	err = snd_oxfw_stream_get_current_formation(oxfw, dir, &formation);
@@ -239,8 +241,12 @@ static int keep_resources(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 	if (formation.pcm == 0)
 		return -EINVAL;
 
-	return amdtp_am824_set_parameters(stream, formation.rate, formation.pcm,
+	err = amdtp_am824_set_parameters(stream, formation.rate, formation.pcm,
 					 formation.midi * 8, false);
+	if (err < 0)
+		return err;
+
+	return cmp_connection_reserve(conn, amdtp_stream_get_max_payload(stream));
 }
 
 int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
@@ -299,8 +305,10 @@ int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
 
 		if (oxfw->has_output) {
 			err = keep_resources(oxfw, &oxfw->tx_stream);
-			if (err < 0)
+			if (err < 0) {
+				cmp_connection_release(&oxfw->in_conn);
 				return err;
+			}
 		}
 	}
 
@@ -361,10 +369,12 @@ void snd_oxfw_stream_stop_duplex(struct snd_oxfw *oxfw)
 	if (oxfw->substreams_count == 0) {
 		amdtp_stream_stop(&oxfw->rx_stream);
 		cmp_connection_break(&oxfw->in_conn);
+		cmp_connection_release(&oxfw->in_conn);
 
 		if (oxfw->has_output) {
 			amdtp_stream_stop(&oxfw->tx_stream);
 			cmp_connection_break(&oxfw->out_conn);
+			cmp_connection_release(&oxfw->out_conn);
 		}
 	}
 }

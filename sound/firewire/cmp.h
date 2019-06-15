@@ -42,8 +42,11 @@ int cmp_connection_init(struct cmp_connection *connection,
 int cmp_connection_check_used(struct cmp_connection *connection, bool *used);
 void cmp_connection_destroy(struct cmp_connection *connection);
 
-int cmp_connection_establish(struct cmp_connection *connection,
-			     unsigned int max_payload);
+int cmp_connection_reserve(struct cmp_connection *connection,
+			   unsigned int max_payload);
+void cmp_connection_release(struct cmp_connection *connection);
+
+int cmp_connection_establish(struct cmp_connection *connection);
 int cmp_connection_update(struct cmp_connection *connection);
 void cmp_connection_break(struct cmp_connection *connection);
 
