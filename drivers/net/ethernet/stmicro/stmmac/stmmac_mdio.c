@@ -247,7 +247,6 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 	struct net_device *ndev = bus->priv;
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	unsigned int mii_address = priv->hw->mii.addr;
-	struct stmmac_mdio_bus_data *data = priv->plat->mdio_bus_data;
 
 #ifdef CONFIG_OF
 	if (priv->device->of_node) {
@@ -276,11 +275,6 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 			msleep(DIV_ROUND_UP(delays[2], 1000));
 	}
 #endif
-
-	if (data->phy_reset) {
-		netdev_dbg(ndev, "stmmac_mdio_reset: calling phy_reset\n");
-		data->phy_reset(priv->plat->bsp_priv);
-	}
 
 	/* This is a workaround for problems with the STE101P PHY.
 	 * It doesn't complete its reset until at least one clock cycle
