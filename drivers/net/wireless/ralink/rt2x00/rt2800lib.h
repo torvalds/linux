@@ -257,5 +257,6 @@ void rt2800_disable_wpdma(struct rt2x00_dev *rt2x00dev);
 void rt2800_get_txwi_rxwi_size(struct rt2x00_dev *rt2x00dev,
 			       unsigned short *txwi_size,
 			       unsigned short *rxwi_size);
+void rt2800_pre_reset_hw(struct rt2x00_dev *rt2x00dev);
 
 #endif /* RT2800LIB_H */
