@@ -1263,6 +1263,9 @@ void rt2800_watchdog(struct rt2x00_dev *rt2x00dev)
 
 	if (hung_rx)
 		rt2x00_warn(rt2x00dev, "Watchdog RX hung detected\n");
+
+	if (hung_tx || hung_rx)
+		ieee80211_restart_hw(rt2x00dev->hw);
 }
 EXPORT_SYMBOL_GPL(rt2800_watchdog);
 
@@ -10283,6 +10286,7 @@ int rt2800_probe_hw(struct rt2x00_dev *rt2x00dev)
 		__set_bit(REQUIRE_TASKLET_CONTEXT, &rt2x00dev->cap_flags);
 	}
 
+	__set_bit(CAPABILITY_RESTART_HW, &rt2x00dev->cap_flags);
 	rt2x00dev->link.watchdog_interval = msecs_to_jiffies(100);
 
 	/*
