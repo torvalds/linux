@@ -344,8 +344,8 @@ static void hvs_open_connection(struct vmbus_channel *chan)
 
 	struct sockaddr_vm addr;
 	struct sock *sk, *new = NULL;
-	struct vsock_sock *vnew;
-	struct hvsock *hvs, *hvs_new;
+	struct vsock_sock *vnew = NULL;
+	struct hvsock *hvs, *hvs_new = NULL;
 	int ret;
 
 	if_type = &chan->offermsg.offer.if_type;
