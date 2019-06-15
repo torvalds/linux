@@ -319,7 +319,11 @@ static int create_queue_nocpsch(struct device_queue_manager *dqm,
 	if (retval)
 		goto out_deallocate_hqd;
 
+	/* Temporarily release dqm lock to avoid a circular lock dependency */
+	dqm_unlock(dqm);
 	q->mqd_mem_obj = mqd_mgr->allocate_mqd(mqd_mgr->dev, &q->properties);
+	dqm_lock(dqm);
+
 	if (!q->mqd_mem_obj) {
 		retval = -ENOMEM;
 		goto out_deallocate_doorbell;
