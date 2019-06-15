@@ -2058,13 +2058,15 @@ static int mv88e6xxx_setup_message_port(struct mv88e6xxx_chip *chip, int port)
 static int mv88e6xxx_setup_egress_floods(struct mv88e6xxx_chip *chip, int port)
 {
 	struct dsa_switch *ds = chip->ds;
-	bool uc = dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port);
-	bool mc = dsa_is_dsa_port(ds, port);
+	bool flood;
 
-	if (!chip->info->ops->port_set_egress_floods)
-		return 0;
+	/* Upstream ports flood frames with unknown unicast or multicast DA */
+	flood = dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port);
+	if (chip->info->ops->port_set_egress_floods)
+		return chip->info->ops->port_set_egress_floods(chip, port,
+							       flood, flood);
 
-	return chip->info->ops->port_set_egress_floods(chip, port, uc, mc);
+	return 0;
 }
 
 static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
