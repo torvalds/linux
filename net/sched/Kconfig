@@ -941,14 +941,6 @@ config NET_IFE_SKBTCINDEX
         tristate "Support to encoding decoding skb tcindex on IFE action"
         depends on NET_ACT_IFE
 
-config NET_CLS_IND
-	bool "Incoming device classification"
-	depends on NET_CLS_U32 || NET_CLS_FW
-	---help---
-	  Say Y here to extend the u32 and fw classifier to support
-	  classification based on the incoming device. This option is
-	  likely to disappear in favour of the metadata ematch.
-
 endif # NET_SCHED
 
 config NET_SCH_FIFO

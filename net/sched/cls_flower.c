@@ -1010,7 +1010,7 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 {
 	__be16 ethertype;
 	int ret = 0;
-#ifdef CONFIG_NET_CLS_IND
+
 	if (tb[TCA_FLOWER_INDEV]) {
 		int err = tcf_change_indev(net, tb[TCA_FLOWER_INDEV], extack);
 		if (err < 0)
@@ -1018,7 +1018,6 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 		key->indev_ifindex = err;
 		mask->indev_ifindex = 0xffffffff;
 	}
-#endif
 
 	fl_set_key_val(tb, key->eth.dst, TCA_FLOWER_KEY_ETH_DST,
 		       mask->eth.dst, TCA_FLOWER_KEY_ETH_DST_MASK,
