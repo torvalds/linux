@@ -1378,6 +1378,23 @@ static bool register_is_null(struct bpf_reg_state *reg)
 	return reg->type == SCALAR_VALUE && tnum_equals_const(reg->var_off, 0);
 }
 
+static bool register_is_const(struct bpf_reg_state *reg)
+{
+	return reg->type == SCALAR_VALUE && tnum_is_const(reg->var_off);
+}
+
+static void save_register_state(struct bpf_func_state *state,
+				int spi, struct bpf_reg_state *reg)
+{
+	int i;
+
+	state->stack[spi].spilled_ptr = *reg;
+	state->stack[spi].spilled_ptr.live |= REG_LIVE_WRITTEN;
+
+	for (i = 0; i < BPF_REG_SIZE; i++)
+		state->stack[spi].slot_type[i] = STACK_SPILL;
+}
+
 /* check_stack_read/write functions track spill/fill of registers,
  * stack boundary and alignment are checked in check_mem_access()
  */
@@ -1387,7 +1404,7 @@ static int check_stack_write(struct bpf_verifier_env *env,
 {
 	struct bpf_func_state *cur; /* state of the current function */
 	int i, slot = -off - 1, spi = slot / BPF_REG_SIZE, err;
-	enum bpf_reg_type type;
+	struct bpf_reg_state *reg = NULL;
 
 	err = realloc_func_state(state, round_up(slot + 1, BPF_REG_SIZE),
 				 state->acquired_refs, true);
@@ -1404,27 +1421,37 @@ static int check_stack_write(struct bpf_verifier_env *env,
 	}
 
 	cur = env->cur_state->frame[env->cur_state->curframe];
-	if (value_regno >= 0 &&
-	    is_spillable_regtype((type = cur->regs[value_regno].type))) {
+	if (value_regno >= 0)
+		reg = &cur->regs[value_regno];
 
+	if (reg && size == BPF_REG_SIZE && register_is_const(reg) &&
+	    !register_is_null(reg) && env->allow_ptr_leaks) {
+		save_register_state(state, spi, reg);
+	} else if (reg && is_spillable_regtype(reg->type)) {
 		/* register containing pointer is being spilled into stack */
 		if (size != BPF_REG_SIZE) {
+			verbose_linfo(env, insn_idx, "; ");
 			verbose(env, "invalid size of register spill\n");
 			return -EACCES;
 		}
 
-		if (state != cur && type == PTR_TO_STACK) {
+		if (state != cur && reg->type == PTR_TO_STACK) {
 			verbose(env, "cannot spill pointers to stack into stack frame of the caller\n");
 			return -EINVAL;
 		}
 
-		/* save register state */
-		state->stack[spi].spilled_ptr = cur->regs[value_regno];
-		state->stack[spi].spilled_ptr.live |= REG_LIVE_WRITTEN;
+		if (!env->allow_ptr_leaks) {
+			bool sanitize = false;
 
-		for (i = 0; i < BPF_REG_SIZE; i++) {
-			if (state->stack[spi].slot_type[i] == STACK_MISC &&
-			    !env->allow_ptr_leaks) {
+			if (state->stack[spi].slot_type[0] == STACK_SPILL &&
+			    register_is_const(&state->stack[spi].spilled_ptr))
+				sanitize = true;
+			for (i = 0; i < BPF_REG_SIZE; i++)
+				if (state->stack[spi].slot_type[i] == STACK_MISC) {
+					sanitize = true;
+					break;
+				}
+			if (sanitize) {
 				int *poff = &env->insn_aux_data[insn_idx].sanitize_stack_off;
 				int soff = (-spi - 1) * BPF_REG_SIZE;
 
@@ -1447,8 +1474,8 @@ static int check_stack_write(struct bpf_verifier_env *env,
 				}
 				*poff = soff;
 			}
-			state->stack[spi].slot_type[i] = STACK_SPILL;
 		}
+		save_register_state(state, spi, reg);
 	} else {
 		u8 type = STACK_MISC;
 
@@ -1471,8 +1498,7 @@ static int check_stack_write(struct bpf_verifier_env *env,
 			state->stack[spi].spilled_ptr.live |= REG_LIVE_WRITTEN;
 
 		/* when we zero initialize stack slots mark them as such */
-		if (value_regno >= 0 &&
-		    register_is_null(&cur->regs[value_regno]))
+		if (reg && register_is_null(reg))
 			type = STACK_ZERO;
 
 		/* Mark slots affected by this stack write. */
@@ -1490,6 +1516,7 @@ static int check_stack_read(struct bpf_verifier_env *env,
 	struct bpf_verifier_state *vstate = env->cur_state;
 	struct bpf_func_state *state = vstate->frame[vstate->curframe];
 	int i, slot = -off - 1, spi = slot / BPF_REG_SIZE;
+	struct bpf_reg_state *reg;
 	u8 *stype;
 
 	if (reg_state->allocated_stack <= slot) {
@@ -1498,11 +1525,21 @@ static int check_stack_read(struct bpf_verifier_env *env,
 		return -EACCES;
 	}
 	stype = reg_state->stack[spi].slot_type;
+	reg = &reg_state->stack[spi].spilled_ptr;
 
 	if (stype[0] == STACK_SPILL) {
 		if (size != BPF_REG_SIZE) {
-			verbose(env, "invalid size of register spill\n");
-			return -EACCES;
+			if (reg->type != SCALAR_VALUE) {
+				verbose_linfo(env, env->insn_idx, "; ");
+				verbose(env, "invalid size of register fill\n");
+				return -EACCES;
+			}
+			if (value_regno >= 0) {
+				mark_reg_unknown(env, state->regs, value_regno);
+				state->regs[value_regno].live |= REG_LIVE_WRITTEN;
+			}
+			mark_reg_read(env, reg, reg->parent, REG_LIVE_READ64);
+			return 0;
 		}
 		for (i = 1; i < BPF_REG_SIZE; i++) {
 			if (stype[(slot - i) % BPF_REG_SIZE] != STACK_SPILL) {
@@ -1513,17 +1550,14 @@ static int check_stack_read(struct bpf_verifier_env *env,
 
 		if (value_regno >= 0) {
 			/* restore register state from stack */
-			state->regs[value_regno] = reg_state->stack[spi].spilled_ptr;
+			state->regs[value_regno] = *reg;
 			/* mark reg as written since spilled pointer state likely
 			 * has its liveness marks cleared by is_state_visited()
 			 * which resets stack/reg liveness for state transitions
 			 */
 			state->regs[value_regno].live |= REG_LIVE_WRITTEN;
 		}
-		mark_reg_read(env, &reg_state->stack[spi].spilled_ptr,
-			      reg_state->stack[spi].spilled_ptr.parent,
-			      REG_LIVE_READ64);
-		return 0;
+		mark_reg_read(env, reg, reg->parent, REG_LIVE_READ64);
 	} else {
 		int zeros = 0;
 
@@ -1538,9 +1572,7 @@ static int check_stack_read(struct bpf_verifier_env *env,
 				off, i, size);
 			return -EACCES;
 		}
-		mark_reg_read(env, &reg_state->stack[spi].spilled_ptr,
-			      reg_state->stack[spi].spilled_ptr.parent,
-			      REG_LIVE_READ64);
+		mark_reg_read(env, reg, reg->parent, REG_LIVE_READ64);
 		if (value_regno >= 0) {
 			if (zeros == size) {
 				/* any size read into register is zero extended,
@@ -1553,8 +1585,8 @@ static int check_stack_read(struct bpf_verifier_env *env,
 			}
 			state->regs[value_regno].live |= REG_LIVE_WRITTEN;
 		}
-		return 0;
 	}
+	return 0;
 }
 
 static int check_stack_access(struct bpf_verifier_env *env,
@@ -2415,7 +2447,7 @@ static int check_stack_boundary(struct bpf_verifier_env *env, int regno,
 {
 	struct bpf_reg_state *reg = reg_state(env, regno);
 	struct bpf_func_state *state = func(env, reg);
-	int err, min_off, max_off, i, slot, spi;
+	int err, min_off, max_off, i, j, slot, spi;
 
 	if (reg->type != PTR_TO_STACK) {
 		/* Allow zero-byte read from NULL, regardless of pointer type */
@@ -2503,6 +2535,14 @@ static int check_stack_boundary(struct bpf_verifier_env *env, int regno,
 			*stype = STACK_MISC;
 			goto mark;
 		}
+		if (state->stack[spi].slot_type[0] == STACK_SPILL &&
+		    state->stack[spi].spilled_ptr.type == SCALAR_VALUE) {
+			__mark_reg_unknown(&state->stack[spi].spilled_ptr);
+			for (j = 0; j < BPF_REG_SIZE; j++)
+				state->stack[spi].slot_type[j] = STACK_MISC;
+			goto mark;
+		}
+
 err:
 		if (tnum_is_const(reg->var_off)) {
 			verbose(env, "invalid indirect read from stack off %d+%d size %d\n",
