@@ -1285,6 +1285,7 @@ static int __maybe_unused tbnet_suspend(struct device *dev)
 		tbnet_tear_down(net, true);
 	}
 
+	tb_unregister_protocol_handler(&net->handler);
 	return 0;
 }
 
@@ -1292,6 +1293,8 @@ static int __maybe_unused tbnet_resume(struct device *dev)
 {
 	struct tb_service *svc = tb_to_service(dev);
 	struct tbnet *net = tb_service_get_drvdata(svc);
+
+	tb_register_protocol_handler(&net->handler);
 
 	netif_carrier_off(net->dev);
 	if (netif_running(net->dev)) {

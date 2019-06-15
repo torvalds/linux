@@ -434,8 +434,27 @@ early_wakeup:
 
 static void exynos5420_prepare_pm_resume(void)
 {
+	unsigned int mpidr, cluster;
+
+	mpidr = read_cpuid_mpidr();
+	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
+
 	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM))
 		WARN_ON(mcpm_cpu_powered_up());
+
+	if (IS_ENABLED(CONFIG_HW_PERF_EVENTS) && cluster != 0) {
+		/*
+		 * When system is resumed on the LITTLE/KFC core (cluster 1),
+		 * the DSCR is not properly updated until the power is turned
+		 * on also for the cluster 0. Enable it for a while to
+		 * propagate the SPNIDEN and SPIDEN signals from Secure JTAG
+		 * block and avoid undefined instruction issue on CP14 reset.
+		 */
+		pmu_raw_writel(S5P_CORE_LOCAL_PWR_EN,
+				EXYNOS_COMMON_CONFIGURATION(0));
+		pmu_raw_writel(0,
+				EXYNOS_COMMON_CONFIGURATION(0));
+	}
 }
 
 static void exynos5420_pm_resume(void)

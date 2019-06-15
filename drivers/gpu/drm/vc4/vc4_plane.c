@@ -818,6 +818,7 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 		drm_atomic_set_fb_for_plane(plane->state, state->fb);
 	}
 
+	swap(plane->state->fb, state->fb);
 	/* Set the cursor's position on the screen.  This is the
 	 * expected change from the drm_mode_cursor_universal()
 	 * helper.
