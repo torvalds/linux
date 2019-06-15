@@ -17,8 +17,8 @@ static u8 rtw_sdio_wait_enough_TxOQT_space(struct adapter *padapter, u8 agg_num)
 
 	while (pHalData->SdioTxOQTFreeSpace < agg_num) {
 		if (
-			(padapter->bSurpriseRemoved == true) ||
-			(padapter->bDriverStopped == true)
+			(padapter->bSurpriseRemoved) ||
+			(padapter->bDriverStopped)
 		) {
 			DBG_871X("%s: bSurpriseRemoved or bDriverStopped (wait TxOQT)\n", __func__);
 			return false;
@@ -58,7 +58,7 @@ static s32 rtl8723_dequeue_writeport(struct adapter *padapter)
 
 	ret = ret || check_fwstate(pmlmepriv, _FW_UNDER_SURVEY);
 
-	if (ret == true)
+	if (ret)
 		pxmitbuf = dequeue_pending_xmitbuf_under_survey(pxmitpriv);
 	else
 		pxmitbuf = dequeue_pending_xmitbuf(pxmitpriv);
@@ -85,7 +85,7 @@ static s32 rtl8723_dequeue_writeport(struct adapter *padapter)
 
 query_free_page:
 	/*  check if hardware tx fifo page is enough */
-	if (false == rtw_hal_sdio_query_tx_freepage(pri_padapter, PageIdx, pxmitbuf->pg_num)) {
+	if (!rtw_hal_sdio_query_tx_freepage(pri_padapter, PageIdx, pxmitbuf->pg_num)) {
 		if (!bUpdatePageNum) {
 			/*  Total number of page is NOT available, so update current FIFO status */
 			HalQueryTxBufferStatus8723BSdio(padapter);
@@ -99,8 +99,8 @@ query_free_page:
 	}
 
 	if (
-		(padapter->bSurpriseRemoved == true) ||
-		(padapter->bDriverStopped == true)
+		(padapter->bSurpriseRemoved) ||
+		(padapter->bDriverStopped)
 	) {
 		RT_TRACE(
 			_module_hal_xmit_c_,
@@ -153,7 +153,7 @@ s32 rtl8723bs_xmit_buf_handler(struct adapter *padapter)
 		return _FAIL;
 	}
 
-	ret = (padapter->bDriverStopped == true) || (padapter->bSurpriseRemoved == true);
+	ret = (padapter->bDriverStopped) || (padapter->bSurpriseRemoved);
 	if (ret) {
 		RT_TRACE(
 			_module_hal_xmit_c_,
@@ -170,7 +170,7 @@ s32 rtl8723bs_xmit_buf_handler(struct adapter *padapter)
 
 	queue_pending = check_pending_xmitbuf(pxmitpriv);
 
-	if (queue_pending == false)
+	if (!queue_pending)
 		return _SUCCESS;
 
 	ret = rtw_register_tx_alive(padapter);
@@ -235,8 +235,8 @@ static s32 xmit_xmitframes(struct adapter *padapter, struct xmit_priv *pxmitpriv
 		phwxmit = hwxmits + inx[idx];
 
 		if (
-			(check_pending_xmitbuf(pxmitpriv) == true) &&
-			(padapter->mlmepriv.LinkDetectInfo.bHigherBusyTxTraffic == true)
+			(check_pending_xmitbuf(pxmitpriv)) &&
+			(padapter->mlmepriv.LinkDetectInfo.bHigherBusyTxTraffic)
 		) {
 			if ((phwxmit->accnt > 0) && (phwxmit->accnt < 5)) {
 				err = -2;
@@ -425,8 +425,8 @@ static s32 rtl8723bs_xmit_handler(struct adapter *padapter)
 
 next:
 	if (
-		(padapter->bDriverStopped == true) ||
-		(padapter->bSurpriseRemoved == true)
+		(padapter->bDriverStopped) ||
+		(padapter->bSurpriseRemoved)
 	) {
 		RT_TRACE(
 			_module_hal_xmit_c_,
@@ -569,7 +569,7 @@ s32 rtl8723bs_hal_xmit(
 		(pxmitframe->attrib.ether_type != 0x888e) &&
 		(pxmitframe->attrib.dhcp_pkt != 1)
 	) {
-		if (padapter->mlmepriv.LinkDetectInfo.bBusyTraffic == true)
+		if (padapter->mlmepriv.LinkDetectInfo.bBusyTraffic)
 			rtw_issue_addbareq_cmd(padapter, pxmitframe);
 	}
 
