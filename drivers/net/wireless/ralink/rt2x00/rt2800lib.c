@@ -1212,6 +1212,60 @@ void rt2800_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2800_txdone_nostatus);
 
+static int rt2800_check_hung(struct data_queue *queue)
+{
+	unsigned int cur_idx = rt2800_drv_get_dma_done(queue);
+
+	if (queue->wd_idx != cur_idx)
+		queue->wd_count = 0;
+	else
+		queue->wd_count++;
+
+	return queue->wd_count > 16;
+}
+
+void rt2800_watchdog(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+	bool hung_tx = false;
+	bool hung_rx = false;
+
+	if (test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
+		return;
+
+	queue_for_each(rt2x00dev, queue) {
+		switch (queue->qid) {
+		case QID_AC_VO:
+		case QID_AC_VI:
+		case QID_AC_BE:
+		case QID_AC_BK:
+		case QID_MGMT:
+			if (rt2x00queue_empty(queue))
+				continue;
+			hung_tx = rt2800_check_hung(queue);
+			break;
+		case QID_RX:
+			/* For station mode we should reactive at least
+			 * beacons. TODO: need to find good way detect
+			 * RX hung for AP mode.
+			 */
+			if (rt2x00dev->intf_sta_count == 0)
+				continue;
+			hung_rx = rt2800_check_hung(queue);
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (hung_tx)
+		rt2x00_warn(rt2x00dev, "Watchdog TX hung detected\n");
+
+	if (hung_rx)
+		rt2x00_warn(rt2x00dev, "Watchdog RX hung detected\n");
+}
+EXPORT_SYMBOL_GPL(rt2800_watchdog);
+
 static unsigned int rt2800_hw_beacon_base(struct rt2x00_dev *rt2x00dev,
 					  unsigned int index)
 {
@@ -10210,6 +10264,8 @@ int rt2800_probe_hw(struct rt2x00_dev *rt2x00dev)
 		__set_bit(REQUIRE_DMA, &rt2x00dev->cap_flags);
 		__set_bit(REQUIRE_TASKLET_CONTEXT, &rt2x00dev->cap_flags);
 	}
+
+	rt2x00dev->link.watchdog_interval = msecs_to_jiffies(100);
 
 	/*
 	 * Set the rssi offset.

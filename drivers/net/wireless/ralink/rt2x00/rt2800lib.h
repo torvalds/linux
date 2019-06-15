@@ -197,6 +197,8 @@ void rt2800_txdone_nostatus(struct rt2x00_dev *rt2x00dev);
 bool rt2800_txstatus_timeout(struct rt2x00_dev *rt2x00dev);
 bool rt2800_txstatus_pending(struct rt2x00_dev *rt2x00dev);
 
+void rt2800_watchdog(struct rt2x00_dev *rt2x00dev);
+
 void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc);
 void rt2800_clear_beacon(struct queue_entry *entry);
 
