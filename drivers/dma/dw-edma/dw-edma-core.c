@@ -615,7 +615,7 @@ static void dw_edma_free_chan_resources(struct dma_chan *dchan)
 			return;
 
 		cpu_relax();
-	};
+	}
 
 	pm_runtime_put(chan->chip->dev);
 }
