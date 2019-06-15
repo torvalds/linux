@@ -27,8 +27,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "bpf/libbpf.h"
-#include "bpf/xsk.h"
+#include "libbpf.h"
+#include "xsk.h"
 #include <bpf/bpf.h>
 
 #ifndef SOL_XDP

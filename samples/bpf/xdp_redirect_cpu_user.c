@@ -25,7 +25,7 @@ static const char *__doc__ =
 #define MAX_PROG 6
 
 #include <bpf/bpf.h>
-#include "bpf/libbpf.h"
+#include "libbpf.h"
 
 #include "bpf_util.h"
 

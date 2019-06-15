@@ -18,8 +18,8 @@
 #include <net/if.h>
 
 #include "bpf_util.h"
-#include "bpf/bpf.h"
-#include "bpf/libbpf.h"
+#include "bpf.h"
+#include "libbpf.h"
 
 static int ifindex;
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
