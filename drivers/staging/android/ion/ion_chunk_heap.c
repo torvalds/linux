@@ -107,7 +107,8 @@ static struct ion_heap_ops chunk_heap_ops = {
 	.unmap_kernel = ion_heap_unmap_kernel,
 };
 
-struct ion_heap *ion_chunk_heap_create(phys_addr_t base, size_t size, size_t chunk_size)
+struct ion_heap *ion_chunk_heap_create(phys_addr_t base, size_t size,
+				       size_t chunk_size)
 {
 	struct ion_chunk_heap *chunk_heap;
 	int ret;
