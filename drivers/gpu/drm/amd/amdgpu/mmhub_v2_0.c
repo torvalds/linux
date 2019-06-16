@@ -31,6 +31,11 @@
 
 #include "soc15_common.h"
 
+#define mmMM_ATC_L2_MISC_CG_Sienna_Cichlid                      0x064d
+#define mmMM_ATC_L2_MISC_CG_Sienna_Cichlid_BASE_IDX             0
+#define mmDAGB0_CNTL_MISC2_Sienna_Cichlid                       0x0070
+#define mmDAGB0_CNTL_MISC2_Sienna_Cichlid_BASE_IDX              0
+
 void mmhub_v2_0_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
 				uint64_t page_table_base)
 {
@@ -367,9 +372,16 @@ static void mmhub_v2_0_update_medium_grain_clock_gating(struct amdgpu_device *ad
 {
 	uint32_t def, data, def1, data1;
 
-	def  = data  = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG);
-
-	def1 = data1 = RREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		def  = data  = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG_Sienna_Cichlid);
+		def1 = data1 = RREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2_Sienna_Cichlid);
+		break;
+	default:
+		def  = data  = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG);
+		def1 = data1 = RREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2);
+		break;
+	}
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_MGCG)) {
 		data |= MM_ATC_L2_MISC_CG__ENABLE_MASK;
@@ -392,11 +404,20 @@ static void mmhub_v2_0_update_medium_grain_clock_gating(struct amdgpu_device *ad
 			  DAGB0_CNTL_MISC2__DISABLE_TLBRD_CG_MASK);
 	}
 
-	if (def != data)
-		WREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG, data);
-
-	if (def1 != data1)
-		WREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2, data1);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		if (def != data)
+			WREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG_Sienna_Cichlid, data);
+		if (def1 != data1)
+			WREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2_Sienna_Cichlid, data1);
+		break;
+	default:
+		if (def != data)
+			WREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG, data);
+		if (def1 != data1)
+			WREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2, data1);
+		break;
+	}
 }
 
 static void mmhub_v2_0_update_medium_grain_light_sleep(struct amdgpu_device *adev,
@@ -404,15 +425,30 @@ static void mmhub_v2_0_update_medium_grain_light_sleep(struct amdgpu_device *ade
 {
 	uint32_t def, data;
 
-	def = data = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		def  = data  = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG_Sienna_Cichlid);
+		break;
+	default:
+		def  = data  = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG);
+		break;
+	}
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_MC_LS))
 		data |= MM_ATC_L2_MISC_CG__MEM_LS_ENABLE_MASK;
 	else
 		data &= ~MM_ATC_L2_MISC_CG__MEM_LS_ENABLE_MASK;
 
-	if (def != data)
-		WREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG, data);
+	if (def != data) {
+		switch (adev->asic_type) {
+		case CHIP_SIENNA_CICHLID:
+			WREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG_Sienna_Cichlid, data);
+			break;
+		default:
+			WREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG, data);
+			break;
+		}
+	}
 }
 
 int mmhub_v2_0_set_clockgating(struct amdgpu_device *adev,
@@ -444,9 +480,16 @@ void mmhub_v2_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
 	if (amdgpu_sriov_vf(adev))
 		*flags = 0;
 
-	data = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG);
-
-	data1 = RREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		data  = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG_Sienna_Cichlid);
+		data1 = RREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2_Sienna_Cichlid);
+		break;
+	default:
+		data  = RREG32_SOC15(MMHUB, 0, mmMM_ATC_L2_MISC_CG);
+		data1 = RREG32_SOC15(MMHUB, 0, mmDAGB0_CNTL_MISC2);
+		break;
+	}
 
 	/* AMD_CG_SUPPORT_MC_MGCG */
 	if ((data & MM_ATC_L2_MISC_CG__ENABLE_MASK) &&
