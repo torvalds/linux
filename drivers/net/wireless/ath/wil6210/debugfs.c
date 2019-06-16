@@ -1298,7 +1298,7 @@ static int bf_show(struct seq_file *s, void *data)
 		rc = wmi_call(wil, WMI_NOTIFY_REQ_CMDID, vif->mid,
 			      &cmd, sizeof(cmd),
 			      WMI_NOTIFY_REQ_DONE_EVENTID, &reply,
-			      sizeof(reply), 20);
+			      sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
 		/* if reply is all-0, ignore this CID */
 		if (rc || is_all_zeros(&reply.evt, sizeof(reply.evt)))
 			continue;

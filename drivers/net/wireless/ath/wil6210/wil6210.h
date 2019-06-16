@@ -99,6 +99,7 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL_MAX_AMPDU_SIZE_128	(128 * 1024) /* FW/HW limit */
 #define WIL_MAX_AGG_WSIZE_64	(64) /* FW/HW limit */
 #define WIL6210_MAX_STATUS_RINGS	(8)
+#define WIL_WMI_CALL_GENERAL_TO_MS 100
 
 /* Hardware offload block adds the following:
  * 26 bytes - 3-address QoS data header
