@@ -92,14 +92,9 @@
 /* Platfrom data for platform device structure's platform_data field */
 
 struct stmmac_mdio_bus_data {
-	int (*phy_reset)(void *priv);
 	unsigned int phy_mask;
 	int *irqs;
 	int probed_phy_irq;
-#ifdef CONFIG_OF
-	int reset_gpio;
-	u32 delays[3];
-#endif
 };
 
 struct stmmac_dma_cfg {
