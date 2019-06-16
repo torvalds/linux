@@ -1350,6 +1350,8 @@ void __init init_bsp_APIC(void)
 	apic_write(APIC_LVT1, value);
 }
 
+static void __init apic_bsp_setup(bool upmode);
+
 /* Init the interrupt delivery mode for the BSP */
 void __init apic_intr_mode_init(void)
 {
@@ -2414,11 +2416,8 @@ static void __init apic_bsp_up_setup(void)
 /**
  * apic_bsp_setup - Setup function for local apic and io-apic
  * @upmode:		Force UP mode (for APIC_init_uniprocessor)
- *
- * Returns:
- * apic_id of BSP APIC
  */
-void __init apic_bsp_setup(bool upmode)
+static void __init apic_bsp_setup(bool upmode)
 {
 	connect_bsp_APIC();
 	if (upmode)
