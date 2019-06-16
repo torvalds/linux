@@ -1406,6 +1406,7 @@ int wmi_stop_sched_scan(struct wil6210_priv *wil);
 int wmi_mgmt_tx(struct wil6210_vif *vif, const u8 *buf, size_t len);
 int wmi_mgmt_tx_ext(struct wil6210_vif *vif, const u8 *buf, size_t len,
 		    u8 channel, u16 duration_ms);
+int wmi_rbufcap_cfg(struct wil6210_priv *wil, bool enable, u16 threshold);
 
 int reverse_memcmp(const void *cs, const void *ct, size_t count);
 

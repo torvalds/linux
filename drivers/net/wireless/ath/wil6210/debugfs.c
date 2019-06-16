@@ -741,6 +741,44 @@ static const struct file_operations fops_rxon = {
 	.open  = simple_open,
 };
 
+static ssize_t wil_write_file_rbufcap(struct file *file,
+				      const char __user *buf,
+				      size_t count, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+	int val;
+	int rc;
+
+	rc = kstrtoint_from_user(buf, count, 0, &val);
+	if (rc) {
+		wil_err(wil, "Invalid argument\n");
+		return rc;
+	}
+	/* input value: negative to disable, 0 to use system default,
+	 * 1..ring size to set descriptor threshold
+	 */
+	wil_info(wil, "%s RBUFCAP, descriptors threshold - %d\n",
+		 val < 0 ? "Disabling" : "Enabling", val);
+
+	if (!wil->ring_rx.va || val > wil->ring_rx.size) {
+		wil_err(wil, "Invalid descriptors threshold, %d\n", val);
+		return -EINVAL;
+	}
+
+	rc = wmi_rbufcap_cfg(wil, val < 0 ? 0 : 1, val < 0 ? 0 : val);
+	if (rc) {
+		wil_err(wil, "RBUFCAP config failed: %d\n", rc);
+		return rc;
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_rbufcap = {
+	.write = wil_write_file_rbufcap,
+	.open  = simple_open,
+};
+
 /* block ack control, write:
  * - "add <ringid> <agg_size> <timeout>" to trigger ADDBA
  * - "del_tx <ringid> <reason>" to trigger DELBA for Tx side
@@ -2328,6 +2366,7 @@ static const struct {
 	{"tx_latency",	0644,		&fops_tx_latency},
 	{"link_stats",	0644,		&fops_link_stats},
 	{"link_stats_global",	0644,	&fops_link_stats_global},
+	{"rbufcap",	0244,		&fops_rbufcap},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,
