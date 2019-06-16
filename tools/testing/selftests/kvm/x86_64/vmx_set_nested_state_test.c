@@ -75,7 +75,7 @@ void set_revision_id_for_vmcs12(struct kvm_nested_state *state,
 				u32 vmcs12_revision)
 {
 	/* Set revision_id in vmcs12 to vmcs12_revision. */
-	memcpy(state->data, &vmcs12_revision, sizeof(u32));
+	memcpy(&state->data, &vmcs12_revision, sizeof(u32));
 }
 
 void set_default_state(struct kvm_nested_state *state)
@@ -95,9 +95,9 @@ void set_default_vmx_state(struct kvm_nested_state *state, int size)
 			KVM_STATE_NESTED_EVMCS;
 	state->format = 0;
 	state->size = size;
-	state->vmx.vmxon_pa = 0x1000;
-	state->vmx.vmcs_pa = 0x2000;
-	state->vmx.smm.flags = 0;
+	state->hdr.vmx.vmxon_pa = 0x1000;
+	state->hdr.vmx.vmcs12_pa = 0x2000;
+	state->hdr.vmx.smm.flags = 0;
 	set_revision_id_for_vmcs12(state, VMCS12_REVISION);
 }
 
@@ -126,7 +126,7 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	 * is set to -1ull.
 	 */
 	set_default_vmx_state(state, state_sz);
-	state->vmx.vmxon_pa = -1ull;
+	state->hdr.vmx.vmxon_pa = -1ull;
 	test_nested_state(vm, state);
 
 	/* Enable VMX in the guest CPUID. */
@@ -134,14 +134,14 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 
 	/* It is invalid to have vmxon_pa == -1ull and SMM flags non-zero. */
 	set_default_vmx_state(state, state_sz);
-	state->vmx.vmxon_pa = -1ull;
-	state->vmx.smm.flags = 1;
+	state->hdr.vmx.vmxon_pa = -1ull;
+	state->hdr.vmx.smm.flags = 1;
 	test_nested_state_expect_einval(vm, state);
 
 	/* It is invalid to have vmxon_pa == -1ull and vmcs_pa != -1ull. */
 	set_default_vmx_state(state, state_sz);
-	state->vmx.vmxon_pa = -1ull;
-	state->vmx.vmcs_pa = 0;
+	state->hdr.vmx.vmxon_pa = -1ull;
+	state->hdr.vmx.vmcs12_pa = 0;
 	test_nested_state_expect_einval(vm, state);
 
 	/*
@@ -149,13 +149,13 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	 * setting the nested state.
 	 */
 	set_default_vmx_state(state, state_sz);
-	state->vmx.vmxon_pa = -1ull;
-	state->vmx.vmcs_pa = -1ull;
+	state->hdr.vmx.vmxon_pa = -1ull;
+	state->hdr.vmx.vmcs12_pa = -1ull;
 	test_nested_state(vm, state);
 
 	/* It is invalid to have vmxon_pa set to a non-page aligned address. */
 	set_default_vmx_state(state, state_sz);
-	state->vmx.vmxon_pa = 1;
+	state->hdr.vmx.vmxon_pa = 1;
 	test_nested_state_expect_einval(vm, state);
 
 	/*
@@ -165,7 +165,7 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	set_default_vmx_state(state, state_sz);
 	state->flags = KVM_STATE_NESTED_GUEST_MODE  |
 		      KVM_STATE_NESTED_RUN_PENDING;
-	state->vmx.smm.flags = KVM_STATE_NESTED_SMM_GUEST_MODE;
+	state->hdr.vmx.smm.flags = KVM_STATE_NESTED_SMM_GUEST_MODE;
 	test_nested_state_expect_einval(vm, state);
 
 	/*
@@ -174,14 +174,14 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	 *	KVM_STATE_NESTED_SMM_VMXON
 	 */
 	set_default_vmx_state(state, state_sz);
-	state->vmx.smm.flags = ~(KVM_STATE_NESTED_SMM_GUEST_MODE |
+	state->hdr.vmx.smm.flags = ~(KVM_STATE_NESTED_SMM_GUEST_MODE |
 				KVM_STATE_NESTED_SMM_VMXON);
 	test_nested_state_expect_einval(vm, state);
 
 	/* Outside SMM, SMM flags must be zero. */
 	set_default_vmx_state(state, state_sz);
 	state->flags = 0;
-	state->vmx.smm.flags = KVM_STATE_NESTED_SMM_GUEST_MODE;
+	state->hdr.vmx.smm.flags = KVM_STATE_NESTED_SMM_GUEST_MODE;
 	test_nested_state_expect_einval(vm, state);
 
 	/* Size must be large enough to fit kvm_nested_state and vmcs12. */
@@ -191,8 +191,8 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 
 	/* vmxon_pa cannot be the same address as vmcs_pa. */
 	set_default_vmx_state(state, state_sz);
-	state->vmx.vmxon_pa = 0;
-	state->vmx.vmcs_pa = 0;
+	state->hdr.vmx.vmxon_pa = 0;
+	state->hdr.vmx.vmcs12_pa = 0;
 	test_nested_state_expect_einval(vm, state);
 
 	/* The revision id for vmcs12 must be VMCS12_REVISION. */
@@ -205,16 +205,16 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	 * it again.
 	 */
 	set_default_vmx_state(state, state_sz);
-	state->vmx.vmxon_pa = -1ull;
-	state->vmx.vmcs_pa = -1ull;
+	state->hdr.vmx.vmxon_pa = -1ull;
+	state->hdr.vmx.vmcs12_pa = -1ull;
 	state->flags = 0;
 	test_nested_state(vm, state);
 	vcpu_nested_state_get(vm, VCPU_ID, state);
 	TEST_ASSERT(state->size >= sizeof(*state) && state->size <= state_sz,
 		    "Size must be between %d and %d.  The size returned was %d.",
 		    sizeof(*state), state_sz, state->size);
-	TEST_ASSERT(state->vmx.vmxon_pa == -1ull, "vmxon_pa must be -1ull.");
-	TEST_ASSERT(state->vmx.vmcs_pa == -1ull, "vmcs_pa must be -1ull.");
+	TEST_ASSERT(state->hdr.vmx.vmxon_pa == -1ull, "vmxon_pa must be -1ull.");
+	TEST_ASSERT(state->hdr.vmx.vmcs12_pa == -1ull, "vmcs_pa must be -1ull.");
 
 	free(state);
 }
