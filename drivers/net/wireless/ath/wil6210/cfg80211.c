@@ -380,8 +380,8 @@ static int wil_cfg80211_get_station(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "get_station: %pM CID %d MID %d\n", mac, cid,
 		     vif->mid);
-	if (cid < 0)
-		return cid;
+	if (!wil_cid_valid(wil, cid))
+		return -ENOENT;
 
 	rc = wil_cid_fill_sinfo(vif, cid, sinfo);
 
@@ -417,7 +417,7 @@ static int wil_cfg80211_dump_station(struct wiphy *wiphy,
 	int rc;
 	int cid = wil_find_cid_by_idx(wil, vif->mid, idx);
 
-	if (cid < 0)
+	if (!wil_cid_valid(wil, cid))
 		return -ENOENT;
 
 	ether_addr_copy(mac, wil->sta[cid].addr);
