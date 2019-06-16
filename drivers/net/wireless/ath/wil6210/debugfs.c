@@ -1336,7 +1336,7 @@ static void print_temp(struct seq_file *s, const char *prefix, s32 t)
 {
 	switch (t) {
 	case 0:
-	case ~(u32)0:
+	case WMI_INVALID_TEMPERATURE:
 		seq_printf(s, "%s N/A\n", prefix);
 	break;
 	default:
@@ -1349,17 +1349,41 @@ static void print_temp(struct seq_file *s, const char *prefix, s32 t)
 static int temp_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
-	s32 t_m, t_r;
-	int rc = wmi_get_temperature(wil, &t_m, &t_r);
+	int rc, i;
 
-	if (rc) {
-		seq_puts(s, "Failed\n");
-		return 0;
+	if (test_bit(WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF,
+		     wil->fw_capabilities)) {
+		struct wmi_temp_sense_all_done_event sense_all_evt;
+
+		wil_dbg_misc(wil,
+			     "WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF is supported");
+		rc = wmi_get_all_temperatures(wil, &sense_all_evt);
+		if (rc) {
+			seq_puts(s, "Failed\n");
+			return 0;
+		}
+		print_temp(s, "T_mac   =",
+			   le32_to_cpu(sense_all_evt.baseband_t1000));
+		seq_printf(s, "Connected RFs [0x%08x]\n",
+			   sense_all_evt.rf_bitmap);
+		for (i = 0; i < WMI_MAX_XIF_PORTS_NUM; i++) {
+			seq_printf(s, "RF[%d]   = ", i);
+			print_temp(s, "",
+				   le32_to_cpu(sense_all_evt.rf_t1000[i]));
+		}
+	} else {
+		s32 t_m, t_r;
+
+		wil_dbg_misc(wil,
+			     "WMI_FW_CAPABILITY_TEMPERATURE_ALL_RF is not supported");
+		rc = wmi_get_temperature(wil, &t_m, &t_r);
+		if (rc) {
+			seq_puts(s, "Failed\n");
+			return 0;
+		}
+		print_temp(s, "T_mac   =", t_m);
+		print_temp(s, "T_radio =", t_r);
 	}
-
-	print_temp(s, "T_mac   =", t_m);
-	print_temp(s, "T_radio =", t_r);
-
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(temp);

@@ -486,6 +486,8 @@ static const char *cmdid2name(u16 cmdid)
 		return "WMI_UPDATE_FT_IES_CMD";
 	case WMI_RBUFCAP_CFG_CMDID:
 		return "WMI_RBUFCAP_CFG_CMD";
+	case WMI_TEMP_SENSE_ALL_CMDID:
+		return "WMI_TEMP_SENSE_ALL_CMDID";
 	default:
 		return "Untracked CMD";
 	}
@@ -632,6 +634,8 @@ static const char *eventid2name(u16 eventid)
 		return "WMI_FT_REASSOC_STATUS_EVENT";
 	case WMI_RBUFCAP_CFG_EVENTID:
 		return "WMI_RBUFCAP_CFG_EVENT";
+	case WMI_TEMP_SENSE_ALL_DONE_EVENTID:
+		return "WMI_TEMP_SENSE_ALL_DONE_EVENTID";
 	default:
 		return "Untracked EVENT";
 	}
@@ -2645,6 +2649,44 @@ int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_bb, u32 *t_rf)
 	if (t_rf)
 		*t_rf = le32_to_cpu(reply.evt.rf_t1000);
 
+	return 0;
+}
+
+int wmi_get_all_temperatures(struct wil6210_priv *wil,
+			     struct wmi_temp_sense_all_done_event
+			     *sense_all_evt)
+{
+	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
+	int rc;
+	struct wmi_temp_sense_all_cmd cmd = {
+		.measure_baseband_en = true,
+		.measure_rf_en = true,
+		.measure_mode = TEMPERATURE_MEASURE_NOW,
+	};
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_temp_sense_all_done_event evt;
+	} __packed reply;
+
+	if (!sense_all_evt) {
+		wil_err(wil, "Invalid sense_all_evt value\n");
+		return -EINVAL;
+	}
+
+	memset(&reply, 0, sizeof(reply));
+	reply.evt.status = WMI_FW_STATUS_FAILURE;
+	rc = wmi_call(wil, WMI_TEMP_SENSE_ALL_CMDID, vif->mid, &cmd,
+		      sizeof(cmd), WMI_TEMP_SENSE_ALL_DONE_EVENTID,
+		      &reply, sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
+	if (rc)
+		return rc;
+
+	if (reply.evt.status == WMI_FW_STATUS_FAILURE) {
+		wil_err(wil, "Failed geting TEMP_SENSE_ALL\n");
+		return -EINVAL;
+	}
+
+	memcpy(sense_all_evt, &reply.evt, sizeof(reply.evt));
 	return 0;
 }
 

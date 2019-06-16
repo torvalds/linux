@@ -1252,6 +1252,9 @@ int wmi_rx_chain_add(struct wil6210_priv *wil, struct wil_ring *vring);
 int wmi_update_ft_ies(struct wil6210_vif *vif, u16 ie_len, const void *ie);
 int wmi_rxon(struct wil6210_priv *wil, bool on);
 int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
+int wmi_get_all_temperatures(struct wil6210_priv *wil,
+			     struct wmi_temp_sense_all_done_event
+			     *sense_all_evt);
 int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac, u16 reason,
 		       bool del_sta);
 int wmi_addba(struct wil6210_priv *wil, u8 mid,
