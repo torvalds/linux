@@ -12,8 +12,6 @@
 
 static struct nvme_fc_port_template qla_nvme_fc_transport;
 
-static void qla_nvme_unregister_remote_port(struct work_struct *);
-
 int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 {
 	struct qla_nvme_rport *rport;
@@ -38,7 +36,6 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 		(fcport->nvme_flag & NVME_FLAG_REGISTERED))
 		return 0;
 
-	INIT_WORK(&fcport->nvme_del_work, qla_nvme_unregister_remote_port);
 	fcport->nvme_flag &= ~NVME_FLAG_RESETTING;
 
 	memset(&req, 0, sizeof(struct nvme_fc_port_info));
@@ -619,16 +616,11 @@ static void qla_nvme_remoteport_delete(struct nvme_fc_remote_port *rport)
 	fcport = qla_rport->fcport;
 	fcport->nvme_remote_port = NULL;
 	fcport->nvme_flag &= ~NVME_FLAG_REGISTERED;
-
-	complete(&fcport->nvme_del_done);
-
-	INIT_WORK(&fcport->free_work, qlt_free_session_done);
-	schedule_work(&fcport->free_work);
-
 	fcport->nvme_flag &= ~NVME_FLAG_DELETING;
 	ql_log(ql_log_info, fcport->vha, 0x2110,
 	    "remoteport_delete of %p %8phN completed.\n",
 	    fcport, fcport->port_name);
+	complete(&fcport->nvme_del_done);
 }
 
 static struct nvme_fc_port_template qla_nvme_fc_transport = {
@@ -650,10 +642,8 @@ static struct nvme_fc_port_template qla_nvme_fc_transport = {
 	.fcprqst_priv_sz = sizeof(struct nvme_private),
 };
 
-static void qla_nvme_unregister_remote_port(struct work_struct *work)
+void qla_nvme_unregister_remote_port(struct fc_port *fcport)
 {
-	struct fc_port *fcport = container_of(work, struct fc_port,
-	    nvme_del_work);
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_NVME_FC))
