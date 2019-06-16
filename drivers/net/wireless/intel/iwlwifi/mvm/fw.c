@@ -1002,6 +1002,113 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	return iwl_mvm_send_cmd_pdu(mvm, cmd_wide_id, 0, sizeof(cmd), &cmd);
 }
 
+static int iwl_mvm_get_ppag_table(struct iwl_mvm *mvm)
+{
+	union acpi_object *wifi_pkg, *data, *enabled;
+	int i, j, ret, tbl_rev;
+	int idx = 2;
+
+	mvm->ppag_table.enabled = cpu_to_le32(0);
+	data = iwl_acpi_get_object(mvm->dev, ACPI_PPAG_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	wifi_pkg = iwl_acpi_get_wifi_pkg(mvm->dev, data,
+					 ACPI_PPAG_WIFI_DATA_SIZE, &tbl_rev);
+
+	if (IS_ERR(wifi_pkg) || tbl_rev != 0) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	enabled = &wifi_pkg->package.elements[1];
+	if (enabled->type != ACPI_TYPE_INTEGER ||
+	    (enabled->integer.value != 0 && enabled->integer.value != 1)) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	mvm->ppag_table.enabled = cpu_to_le32(enabled->integer.value);
+	if (!mvm->ppag_table.enabled) {
+		ret = 0;
+		goto out_free;
+	}
+
+	/*
+	 * read, verify gain values and save them into the PPAG table.
+	 * first sub-band (j=0) corresponds to Low-Band (2.4GHz), and the
+	 * following sub-bands to High-Band (5GHz).
+	 */
+	for (i = 0; i < ACPI_PPAG_NUM_CHAINS; i++) {
+		for (j = 0; j < ACPI_PPAG_NUM_SUB_BANDS; j++) {
+			union acpi_object *ent;
+
+			ent = &wifi_pkg->package.elements[idx++];
+			if (ent->type != ACPI_TYPE_INTEGER ||
+			    (j == 0 && ent->integer.value > ACPI_PPAG_MAX_LB) ||
+			    (j == 0 && ent->integer.value < ACPI_PPAG_MIN_LB) ||
+			    (j != 0 && ent->integer.value > ACPI_PPAG_MAX_HB) ||
+			    (j != 0 && ent->integer.value < ACPI_PPAG_MIN_HB)) {
+				mvm->ppag_table.enabled = cpu_to_le32(0);
+				ret = -EINVAL;
+				goto out_free;
+			}
+			mvm->ppag_table.gain[i][j] = ent->integer.value;
+		}
+	}
+	ret = 0;
+out_free:
+	kfree(data);
+	return ret;
+}
+
+int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
+{
+	int i, j, ret;
+
+	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_PPAG)) {
+		IWL_DEBUG_RADIO(mvm,
+				"PPAG capability not supported by FW, command not sent.\n");
+		return 0;
+	}
+
+	IWL_DEBUG_RADIO(mvm, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
+	IWL_DEBUG_RADIO(mvm, "PPAG is %s\n",
+			mvm->ppag_table.enabled ? "enabled" : "disabled");
+
+	for (i = 0; i < ACPI_PPAG_NUM_CHAINS; i++) {
+		for (j = 0; j < ACPI_PPAG_NUM_SUB_BANDS; j++) {
+			IWL_DEBUG_RADIO(mvm,
+					"PPAG table: chain[%d] band[%d]: gain = %d\n",
+					i, j, mvm->ppag_table.gain[i][j]);
+		}
+	}
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(PHY_OPS_GROUP,
+						PER_PLATFORM_ANT_GAIN_CMD),
+				   0, sizeof(mvm->ppag_table),
+				   &mvm->ppag_table);
+	if (ret < 0)
+		IWL_ERR(mvm, "failed to send PER_PLATFORM_ANT_GAIN_CMD (%d)\n",
+			ret);
+
+	return ret;
+}
+
+static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
+{
+	int ret;
+
+	ret = iwl_mvm_get_ppag_table(mvm);
+	if (ret < 0) {
+		IWL_DEBUG_RADIO(mvm,
+				"PPAG BIOS table invalid or unavailable. (%d)\n",
+				ret);
+		return 0;
+	}
+	return iwl_mvm_ppag_send_cmd(mvm);
+}
+
 #else /* CONFIG_ACPI */
 static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
 {
@@ -1030,6 +1137,16 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a,
 }
 
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
+{
+	return -ENOENT;
+}
+
+int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
+{
+	return -ENOENT;
+}
+
+static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 {
 	return -ENOENT;
 }
@@ -1324,6 +1441,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	if (iwl_acpi_get_eckv(mvm->dev, &mvm->ext_clock_valid))
 		IWL_DEBUG_INFO(mvm, "ECKV table doesn't exist in BIOS\n");
+
+	ret = iwl_mvm_ppag_init(mvm);
+	if (ret)
+		goto error;
 
 	ret = iwl_mvm_sar_init(mvm);
 	if (ret == 0) {

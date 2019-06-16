@@ -1965,6 +1965,9 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	 */
 	iwl_mvm_update_changed_regdom(mvm);
 
+	/* Re-configure PPAG settings */
+	iwl_mvm_ppag_send_cmd(mvm);
+
 	if (!unified_image)
 		/*  Re-configure default SAR profile */
 		iwl_mvm_sar_select_profile(mvm, 1, 1);
