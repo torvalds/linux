@@ -37,7 +37,6 @@
  */
 
 static struct pci_controller *pci_ctrl_head;
-static struct pci_controller **pci_ctrl_tail = &pci_ctrl_head;
 
 static int pci_bus_count;
 
