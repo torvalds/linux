@@ -3121,7 +3121,7 @@ F:	arch/arm/mach-bcm/
 
 BROADCOM BCM2835 ARM ARCHITECTURE
 M:	Eric Anholt <eric@anholt.net>
-M:	Stefan Wahren <stefan.wahren@i2se.com>
+M:	Stefan Wahren <wahrenst@gmx.net>
 L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/anholt/linux
