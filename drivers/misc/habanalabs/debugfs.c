@@ -500,6 +500,25 @@ err:
 	return -EINVAL;
 }
 
+static bool hl_is_device_va(struct hl_device *hdev, u64 addr)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+
+	if (!hdev->mmu_enable)
+		goto out;
+
+	if (hdev->dram_supports_virtual_memory &&
+			addr >= prop->va_space_dram_start_address &&
+			addr < prop->va_space_dram_end_address)
+		return true;
+
+	if (addr >= prop->va_space_host_start_address &&
+			addr < prop->va_space_host_end_address)
+		return true;
+out:
+	return false;
+}
+
 static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr,
 				u64 *phys_addr)
 {
@@ -573,7 +592,6 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	char tmp_buf[32];
 	u64 addr = entry->addr;
 	u32 val;
@@ -582,11 +600,8 @@ static ssize_t hl_data_read32(struct file *f, char __user *buf,
 	if (*ppos)
 		return 0;
 
-	if (addr >= prop->va_space_dram_start_address &&
-			addr < prop->va_space_dram_end_address &&
-			hdev->mmu_enable &&
-			hdev->dram_supports_virtual_memory) {
-		rc = device_va_to_pa(hdev, entry->addr, &addr);
+	if (hl_is_device_va(hdev, addr)) {
+		rc = device_va_to_pa(hdev, addr, &addr);
 		if (rc)
 			return rc;
 	}
@@ -607,7 +622,6 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 addr = entry->addr;
 	u32 value;
 	ssize_t rc;
@@ -616,11 +630,8 @@ static ssize_t hl_data_write32(struct file *f, const char __user *buf,
 	if (rc)
 		return rc;
 
-	if (addr >= prop->va_space_dram_start_address &&
-			addr < prop->va_space_dram_end_address &&
-			hdev->mmu_enable &&
-			hdev->dram_supports_virtual_memory) {
-		rc = device_va_to_pa(hdev, entry->addr, &addr);
+	if (hl_is_device_va(hdev, addr)) {
+		rc = device_va_to_pa(hdev, addr, &addr);
 		if (rc)
 			return rc;
 	}

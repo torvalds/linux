@@ -3,7 +3,10 @@ Date:           Jan 2019
 KernelVersion:  5.1
 Contact:        oded.gabbay@gmail.com
 Description:    Sets the device address to be used for read or write through
-                PCI bar. The acceptable value is a string that starts with "0x"
+                PCI bar, or the device VA of a host mapped memory to be read or
+                written directly from the host. The latter option is allowed
+                only when the IOMMU is disabled.
+                The acceptable value is a string that starts with "0x"
 
 What:           /sys/kernel/debug/habanalabs/hl<n>/command_buffers
 Date:           Jan 2019
@@ -33,10 +36,12 @@ Contact:        oded.gabbay@gmail.com
 Description:    Allows the root user to read or write directly through the
                 device's PCI bar. Writing to this file generates a write
                 transaction while reading from the file generates a read
-                transcation. This custom interface is needed (instead of using
+                transaction. This custom interface is needed (instead of using
                 the generic Linux user-space PCI mapping) because the DDR bar
                 is very small compared to the DDR memory and only the driver can
-                move the bar before and after the transaction
+                move the bar before and after the transaction.
+                If the IOMMU is disabled, it also allows the root user to read
+                or write from the host a device VA of a host mapped memory
 
 What:           /sys/kernel/debug/habanalabs/hl<n>/device
 Date:           Jan 2019

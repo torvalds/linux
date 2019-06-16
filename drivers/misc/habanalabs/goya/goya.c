@@ -14,6 +14,7 @@
 #include <linux/genalloc.h>
 #include <linux/hwmon.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/iommu.h>
 
 /*
  * GOYA security scheme:
@@ -3941,10 +3942,11 @@ static void goya_clear_sm_regs(struct hl_device *hdev)
 }
 
 /*
- * goya_debugfs_read32 - read a 32bit value from a given device address
+ * goya_debugfs_read32 - read a 32bit value from a given device or a host mapped
+ *                       address.
  *
  * @hdev:	pointer to hl_device structure
- * @addr:	address in device
+ * @addr:	device or host mapped address
  * @val:	returned value
  *
  * In case of DDR address that is not mapped into the default aperture that
@@ -3985,6 +3987,10 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 		}
 		if (ddr_bar_addr == U64_MAX)
 			rc = -EIO;
+
+	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
+		*val = *(u32 *) phys_to_virt(addr - HOST_PHYS_BASE);
+
 	} else {
 		rc = -EFAULT;
 	}
@@ -3993,10 +3999,11 @@ static int goya_debugfs_read32(struct hl_device *hdev, u64 addr, u32 *val)
 }
 
 /*
- * goya_debugfs_write32 - write a 32bit value to a given device address
+ * goya_debugfs_write32 - write a 32bit value to a given device or a host mapped
+ *                        address.
  *
  * @hdev:	pointer to hl_device structure
- * @addr:	address in device
+ * @addr:	device or host mapped address
  * @val:	returned value
  *
  * In case of DDR address that is not mapped into the default aperture that
@@ -4037,6 +4044,10 @@ static int goya_debugfs_write32(struct hl_device *hdev, u64 addr, u32 val)
 		}
 		if (ddr_bar_addr == U64_MAX)
 			rc = -EIO;
+
+	} else if (addr >= HOST_PHYS_BASE && !iommu_present(&pci_bus_type)) {
+		*(u32 *) phys_to_virt(addr - HOST_PHYS_BASE) = val;
+
 	} else {
 		rc = -EFAULT;
 	}
