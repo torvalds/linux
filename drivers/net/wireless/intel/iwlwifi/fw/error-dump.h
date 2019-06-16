@@ -288,6 +288,28 @@ struct iwl_fw_error_dump_mem {
 #define IWL_INI_DUMP_INFO_TYPE BIT(31)
 
 /**
+ * struct iwl_fw_ini_dump_entry
+ * @list: list of dump entries
+ * @size: size of the data
+ * @data: entry data
+ */
+struct iwl_fw_ini_dump_entry {
+	struct list_head list;
+	u32 size;
+	u8 data[];
+} __packed;
+
+/**
+ * struct iwl_fw_error_dump_file - header of dump file
+ * @barker: must be %IWL_FW_INI_ERROR_DUMP_BARKER
+ * @file_len: the length of all the file including the header
+ */
+struct iwl_fw_ini_dump_file_hdr {
+	__le32 barker;
+	__le32 file_len;
+} __packed;
+
+/**
  * struct iwl_fw_ini_fifo_hdr - fifo range header
  * @fifo_num: the fifo number. In case of umac rx fifo, set BIT(31) to
  *	distinguish between lmac and umac rx fifos
