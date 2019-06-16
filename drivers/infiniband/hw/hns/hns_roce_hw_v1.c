@@ -2505,7 +2505,7 @@ static int hns_roce_v1_clear_hem(struct hns_roce_dev *hr_dev,
 	end = HW_SYNC_TIMEOUT_MSECS;
 	while (1) {
 		if (readl(bt_cmd) >> BT_CMD_SYNC_SHIFT) {
-			if (end < 0) {
+			if (!end) {
 				dev_err(dev, "Write bt_cmd err,hw_sync is not zero.\n");
 				spin_unlock_irqrestore(&hr_dev->bt_cmd_lock,
 					flags);
