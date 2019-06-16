@@ -1298,9 +1298,7 @@ int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	} else {
 		hns_roce_mr_free(hr_dev, mr);
 
-		if (mr->umem)
-			ib_umem_release(mr->umem);
-
+		ib_umem_release(mr->umem);
 		kfree(mr);
 	}
 

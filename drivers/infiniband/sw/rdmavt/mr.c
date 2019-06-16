@@ -560,8 +560,7 @@ int rvt_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	if (ret)
 		goto out;
 	rvt_deinit_mregion(&mr->mr);
-	if (mr->umem)
-		ib_umem_release(mr->umem);
+	ib_umem_release(mr->umem);
 	kfree(mr);
 out:
 	return ret;

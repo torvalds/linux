@@ -204,10 +204,9 @@ err_mtt:
 	mlx4_mtt_cleanup(dev->dev, &srq->mtt);
 
 err_buf:
-	if (srq->umem)
-		ib_umem_release(srq->umem);
-	else
+	if (!srq->umem)
 		mlx4_buf_free(dev->dev, buf_size, &srq->buf);
+	ib_umem_release(srq->umem);
 
 err_db:
 	if (!udata)
@@ -275,13 +274,13 @@ void mlx4_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata)
 				struct mlx4_ib_ucontext,
 				ibucontext),
 			&msrq->db);
-		ib_umem_release(msrq->umem);
 	} else {
 		kvfree(msrq->wrid);
 		mlx4_buf_free(dev->dev, msrq->msrq.max << msrq->msrq.wqe_shift,
 			      &msrq->buf);
 		mlx4_db_free(dev->dev, &msrq->db);
 	}
+	ib_umem_release(msrq->umem);
 }
 
 void mlx4_ib_free_srq_wqe(struct mlx4_ib_srq *srq, int wqe_index)

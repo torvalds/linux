@@ -790,8 +790,7 @@ static void destroy_user_rq(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		atomic_dec(&dev->delay_drop.rqs_cnt);
 
 	mlx5_ib_db_unmap_user(context, &rwq->db);
-	if (rwq->umem)
-		ib_umem_release(rwq->umem);
+	ib_umem_release(rwq->umem);
 }
 
 static int create_user_rq(struct mlx5_ib_dev *dev, struct ib_pd *pd,
@@ -977,8 +976,7 @@ err_free:
 	kvfree(*in);
 
 err_umem:
-	if (ubuffer->umem)
-		ib_umem_release(ubuffer->umem);
+	ib_umem_release(ubuffer->umem);
 
 err_bfreg:
 	if (bfregn != MLX5_IB_INVALID_BFREG)
@@ -997,8 +995,7 @@ static void destroy_qp_user(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			ibucontext);
 
 	mlx5_ib_db_unmap_user(context, &qp->db);
-	if (base->ubuffer.umem)
-		ib_umem_release(base->ubuffer.umem);
+	ib_umem_release(base->ubuffer.umem);
 
 	/*
 	 * Free only the BFREGs which are handled by the kernel.

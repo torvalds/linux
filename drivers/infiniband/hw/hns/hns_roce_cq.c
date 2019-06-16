@@ -423,9 +423,8 @@ err_dbmap:
 
 err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
-	if (udata)
-		ib_umem_release(hr_cq->umem);
-	else
+	ib_umem_release(hr_cq->umem);
+	if (!udata)
 		hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf,
 					hr_cq->ib_cq.cqe);
 
@@ -451,9 +450,8 @@ void hns_roce_ib_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	hns_roce_free_cq(hr_dev, hr_cq);
 	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
 
+	ib_umem_release(hr_cq->umem);
 	if (udata) {
-		ib_umem_release(hr_cq->umem);
-
 		if (hr_cq->db_en == 1)
 			hns_roce_db_unmap_user(rdma_udata_to_drv_context(
 						       udata,

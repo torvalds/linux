@@ -1125,11 +1125,6 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	return 0;
 }
 
-static void un_resize_user(struct mlx5_ib_cq *cq)
-{
-	ib_umem_release(cq->resize_umem);
-}
-
 static int resize_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 			 int entries, int cqe_size)
 {
@@ -1150,12 +1145,6 @@ static int resize_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 ex:
 	kfree(cq->resize_buf);
 	return err;
-}
-
-static void un_resize_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq)
-{
-	free_cq_buf(dev, cq->resize_buf);
-	cq->resize_buf = NULL;
 }
 
 static int copy_resize_cqes(struct mlx5_ib_cq *cq)
@@ -1338,10 +1327,11 @@ ex_alloc:
 	kvfree(in);
 
 ex_resize:
-	if (udata)
-		un_resize_user(cq);
-	else
-		un_resize_kernel(dev, cq);
+	ib_umem_release(cq->resize_umem);
+	if (!udata) {
+		free_cq_buf(dev, cq->resize_buf);
+		cq->resize_buf = NULL;
+	}
 ex:
 	mutex_unlock(&cq->resize_mutex);
 	return err;

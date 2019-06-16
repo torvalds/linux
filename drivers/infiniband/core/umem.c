@@ -361,6 +361,9 @@ static void __ib_umem_release_tail(struct ib_umem *umem)
  */
 void ib_umem_release(struct ib_umem *umem)
 {
+	if (!umem)
+		return;
+
 	if (umem->is_odp) {
 		ib_umem_odp_release(to_ib_umem_odp(umem));
 		__ib_umem_release_tail(umem);

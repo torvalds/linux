@@ -808,8 +808,7 @@ int c4iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 				  mhp->attr.pbl_size << 3);
 	if (mhp->kva)
 		kfree((void *) (unsigned long) mhp->kva);
-	if (mhp->umem)
-		ib_umem_release(mhp->umem);
+	ib_umem_release(mhp->umem);
 	pr_debug("mmid 0x%x ptr %p\n", mmid, mhp);
 	c4iw_put_wr_wait(mhp->wr_waitp);
 	kfree(mhp);

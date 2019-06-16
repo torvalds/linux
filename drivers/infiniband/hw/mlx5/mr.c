@@ -1507,10 +1507,9 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 	return 0;
 
 err:
-	if (mr->umem) {
-		ib_umem_release(mr->umem);
-		mr->umem = NULL;
-	}
+	ib_umem_release(mr->umem);
+	mr->umem = NULL;
+
 	clean_mr(dev, mr);
 	return err;
 }
@@ -1630,10 +1629,10 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 	 * remove the DMA mapping.
 	 */
 	mlx5_mr_cache_free(dev, mr);
-	if (umem) {
-		ib_umem_release(umem);
+	ib_umem_release(umem);
+	if (umem)
 		atomic_sub(npages, &dev->mdev->priv.reg_pages);
-	}
+
 	if (!mr->allocated_from_cache)
 		kfree(mr);
 }

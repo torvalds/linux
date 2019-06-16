@@ -925,8 +925,7 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 	ocrdma_free_mr_pbl_tbl(dev, &mr->hwmr);
 
 	/* it could be user registered memory. */
-	if (mr->umem)
-		ib_umem_release(mr->umem);
+	ib_umem_release(mr->umem);
 	kfree(mr);
 
 	/* Don't stop cleanup, in case FW is unresponsive */

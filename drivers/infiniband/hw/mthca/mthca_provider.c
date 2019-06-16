@@ -953,8 +953,7 @@ static int mthca_dereg_mr(struct ib_mr *mr, struct ib_udata *udata)
 	struct mthca_mr *mmr = to_mmr(mr);
 
 	mthca_free_mr(to_mdev(mr->device), mmr);
-	if (mmr->umem)
-		ib_umem_release(mmr->umem);
+	ib_umem_release(mmr->umem);
 	kfree(mmr);
 
 	return 0;

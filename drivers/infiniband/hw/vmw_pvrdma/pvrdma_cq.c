@@ -213,8 +213,7 @@ int pvrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 err_page_dir:
 	pvrdma_page_dir_cleanup(dev, &cq->pdir);
 err_umem:
-	if (!cq->is_kernel)
-		ib_umem_release(cq->umem);
+	ib_umem_release(cq->umem);
 err_cq:
 	atomic_dec(&dev->num_cqs);
 	return ret;
@@ -226,8 +225,7 @@ static void pvrdma_free_cq(struct pvrdma_dev *dev, struct pvrdma_cq *cq)
 		complete(&cq->free);
 	wait_for_completion(&cq->free);
 
-	if (!cq->is_kernel)
-		ib_umem_release(cq->umem);
+	ib_umem_release(cq->umem);
 
 	pvrdma_page_dir_cleanup(dev, &cq->pdir);
 }

@@ -346,8 +346,7 @@ static int iwch_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 	xa_erase_irq(&rhp->mrs, mmid);
 	if (mhp->kva)
 		kfree((void *) (unsigned long) mhp->kva);
-	if (mhp->umem)
-		ib_umem_release(mhp->umem);
+	ib_umem_release(mhp->umem);
 	pr_debug("%s mmid 0x%x ptr %p\n", __func__, mmid, mhp);
 	kfree(mhp);
 	return 0;

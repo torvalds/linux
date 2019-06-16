@@ -380,8 +380,7 @@ err_idx_buf:
 	hns_roce_mtt_cleanup(hr_dev, &srq->idx_que.mtt);
 
 err_idx_mtt:
-	if (udata)
-		ib_umem_release(srq->idx_que.umem);
+	ib_umem_release(srq->idx_que.umem);
 
 err_create_idx:
 	hns_roce_buf_free(hr_dev, srq->idx_que.buf_size,
@@ -392,9 +391,8 @@ err_srq_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &srq->mtt);
 
 err_buf:
-	if (udata)
-		ib_umem_release(srq->umem);
-	else
+	ib_umem_release(srq->umem);
+	if (!udata)
 		hns_roce_buf_free(hr_dev, srq_buf_size, &srq->buf);
 
 	return ret;
@@ -408,15 +406,15 @@ void hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 	hns_roce_srq_free(hr_dev, srq);
 	hns_roce_mtt_cleanup(hr_dev, &srq->mtt);
 
-	if (ibsrq->uobject) {
+	if (udata) {
 		hns_roce_mtt_cleanup(hr_dev, &srq->idx_que.mtt);
-		ib_umem_release(srq->idx_que.umem);
-		ib_umem_release(srq->umem);
 	} else {
 		kvfree(srq->wrid);
 		hns_roce_buf_free(hr_dev, srq->max << srq->wqe_shift,
 				  &srq->buf);
 	}
+	ib_umem_release(srq->idx_que.umem);
+	ib_umem_release(srq->umem);
 }
 
 int hns_roce_init_srq_table(struct hns_roce_dev *hr_dev)

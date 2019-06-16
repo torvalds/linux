@@ -1163,8 +1163,7 @@ free_mr:
 	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap,
 			     key_to_hw_index(mr->key), 0);
 
-	if (mr->umem)
-		ib_umem_release(mr->umem);
+	ib_umem_release(mr->umem);
 
 	kfree(mr);
 
@@ -3641,9 +3640,8 @@ int hns_roce_v1_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 
 	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
 
-	if (udata)
-		ib_umem_release(hr_qp->umem);
-	else {
+	ib_umem_release(hr_qp->umem);
+	if (!udata) {
 		kfree(hr_qp->sq.wrid);
 		kfree(hr_qp->rq.wrid);
 
@@ -3694,9 +3692,8 @@ static void hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 
 	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
 
-	if (ibcq->uobject)
-		ib_umem_release(hr_cq->umem);
-	else {
+	ib_umem_release(hr_cq->umem);
+	if (!udata) {
 		/* Free the buff of stored cq */
 		cq_buf_size = (ibcq->cqe + 1) * hr_dev->caps.cq_entry_sz;
 		hns_roce_buf_free(hr_dev, cq_buf_size, &hr_cq->hr_buf.hr_buf);

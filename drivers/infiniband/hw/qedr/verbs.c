@@ -1572,12 +1572,10 @@ qedr_iwarp_populate_user_qp(struct qedr_dev *dev,
 
 static void qedr_cleanup_user(struct qedr_dev *dev, struct qedr_qp *qp)
 {
-	if (qp->usq.umem)
-		ib_umem_release(qp->usq.umem);
+	ib_umem_release(qp->usq.umem);
 	qp->usq.umem = NULL;
 
-	if (qp->urq.umem)
-		ib_umem_release(qp->urq.umem);
+	ib_umem_release(qp->urq.umem);
 	qp->urq.umem = NULL;
 }
 
@@ -2680,8 +2678,7 @@ int qedr_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 		qedr_free_pbl(dev, &mr->info.pbl_info, mr->info.pbl_table);
 
 	/* it could be user registered memory. */
-	if (mr->umem)
-		ib_umem_release(mr->umem);
+	ib_umem_release(mr->umem);
 
 	kfree(mr);
 

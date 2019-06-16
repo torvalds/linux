@@ -805,10 +805,8 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 		rdev->sqp_ah = NULL;
 	}
 
-	if (!IS_ERR_OR_NULL(qp->rumem))
-		ib_umem_release(qp->rumem);
-	if (!IS_ERR_OR_NULL(qp->sumem))
-		ib_umem_release(qp->sumem);
+	ib_umem_release(qp->rumem);
+	ib_umem_release(qp->sumem);
 
 	mutex_lock(&rdev->qp_lock);
 	list_del(&qp->list);
@@ -1201,12 +1199,8 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 qp_destroy:
 	bnxt_qplib_destroy_qp(&rdev->qplib_res, &qp->qplib_qp);
 free_umem:
-	if (udata) {
-		if (qp->rumem)
-			ib_umem_release(qp->rumem);
-		if (qp->sumem)
-			ib_umem_release(qp->sumem);
-	}
+	ib_umem_release(qp->rumem);
+	ib_umem_release(qp->sumem);
 fail:
 	kfree(qp);
 	return ERR_PTR(rc);
@@ -1302,8 +1296,7 @@ void bnxt_re_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata)
 	if (qplib_srq->cq)
 		nq = qplib_srq->cq->nq;
 	bnxt_qplib_destroy_srq(&rdev->qplib_res, qplib_srq);
-	if (srq->umem)
-		ib_umem_release(srq->umem);
+	ib_umem_release(srq->umem);
 	atomic_dec(&rdev->srq_count);
 	if (nq)
 		nq->budget--;
@@ -1412,8 +1405,7 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 	return 0;
 
 fail:
-	if (srq->umem)
-		ib_umem_release(srq->umem);
+	ib_umem_release(srq->umem);
 exit:
 	return rc;
 }
@@ -2528,8 +2520,7 @@ void bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	nq = cq->qplib_cq.nq;
 
 	bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
-	if (!cq->umem)
-		ib_umem_release(cq->umem);
+	ib_umem_release(cq->umem);
 
 	atomic_dec(&rdev->cq_count);
 	nq->budget--;
@@ -2632,8 +2623,7 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	return 0;
 
 c2fail:
-	if (udata)
-		ib_umem_release(cq->umem);
+	ib_umem_release(cq->umem);
 fail:
 	kfree(cq->cql);
 	return rc;
@@ -3340,8 +3330,7 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 		mr->npages = 0;
 		mr->pages = NULL;
 	}
-	if (!IS_ERR_OR_NULL(mr->ib_umem))
-		ib_umem_release(mr->ib_umem);
+	ib_umem_release(mr->ib_umem);
 
 	kfree(mr);
 	atomic_dec(&rdev->mr_count);

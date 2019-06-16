@@ -1513,8 +1513,8 @@ int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 		err = efa_com_dereg_mr(&dev->edev, &params);
 		if (err)
 			return err;
-		ib_umem_release(mr->umem);
 	}
+	ib_umem_release(mr->umem);
 
 	kfree(mr);
 

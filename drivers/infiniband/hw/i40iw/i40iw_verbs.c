@@ -2004,8 +2004,7 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 	struct cqp_commands_info *cqp_info;
 	u32 stag_idx;
 
-	if (iwmr->region)
-		ib_umem_release(iwmr->region);
+	ib_umem_release(iwmr->region);
 
 	if (iwmr->type != IW_MEMREG_TYPE_MEM) {
 		/* region is released. only test for userness. */
