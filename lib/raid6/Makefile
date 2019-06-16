@@ -26,7 +26,6 @@ CFLAGS_REMOVE_altivec1.o  += -msoft-float
 CFLAGS_REMOVE_altivec2.o  += -msoft-float
 CFLAGS_REMOVE_altivec4.o  += -msoft-float
 CFLAGS_REMOVE_altivec8.o  += -msoft-float
-CFLAGS_REMOVE_altivec8.o  += -msoft-float
 CFLAGS_REMOVE_vpermxor1.o += -msoft-float
 CFLAGS_REMOVE_vpermxor2.o += -msoft-float
 CFLAGS_REMOVE_vpermxor4.o += -msoft-float
