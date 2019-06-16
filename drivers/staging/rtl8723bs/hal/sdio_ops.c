@@ -816,6 +816,9 @@ void clearinterrupt8723bsdio(struct adapter *adapter)
 	haldata = GET_HAL_DATA(adapter);
 	clear = rtw_zmalloc(4);
 
+	if (!clear)
+		return;
+
 	/*  Clear corresponding HISR Content if needed */
 	*(__le32 *)clear = cpu_to_le32(haldata->sdio_hisr & MASK_SDIO_HISR_CLEAR);
 	if (*(__le32 *)clear) {
