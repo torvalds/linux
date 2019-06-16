@@ -940,9 +940,8 @@ static ssize_t wil_read_pmccfg(struct file *file, char __user *user_buf,
 	" - \"alloc <num descriptors> <descriptor_size>\" to allocate pmc\n"
 	" - \"free\" to free memory allocated for pmc\n";
 
-	sprintf(text, "Last command status: %d\n\n%s",
-		wil_pmc_last_cmd_status(wil),
-		help);
+	snprintf(text, sizeof(text), "Last command status: %d\n\n%s",
+		 wil_pmc_last_cmd_status(wil), help);
 
 	return simple_read_from_buffer(user_buf, count, ppos, text,
 				       strlen(text) + 1);
