@@ -1473,6 +1473,7 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 	else
 		ei->i_dir_acl = le32_to_cpu(raw_inode->i_dir_acl);
 	if (i_size_read(inode) < 0) {
+		brelse(bh);
 		ret = -EFSCORRUPTED;
 		goto bad_inode;
 	}
