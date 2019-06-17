@@ -221,7 +221,7 @@ static inline void ceph_encode_timespec64(struct ceph_timespec *tv,
 #define CEPH_ENTITY_ADDR_TYPE_NONE	0
 #define CEPH_ENTITY_ADDR_TYPE_LEGACY	__cpu_to_le32(1)
 
-static inline void ceph_encode_addr(struct ceph_entity_addr *a)
+static inline void ceph_encode_banner_addr(struct ceph_entity_addr *a)
 {
 	__be16 ss_family = htons(a->in_addr.ss_family);
 	a->in_addr.ss_family = *(__u16 *)&ss_family;
@@ -229,7 +229,7 @@ static inline void ceph_encode_addr(struct ceph_entity_addr *a)
 	/* Banner addresses require TYPE_NONE */
 	a->type = CEPH_ENTITY_ADDR_TYPE_NONE;
 }
-static inline void ceph_decode_addr(struct ceph_entity_addr *a)
+static inline void ceph_decode_banner_addr(struct ceph_entity_addr *a)
 {
 	__be16 ss_family = *(__be16 *)&a->in_addr.ss_family;
 	a->in_addr.ss_family = ntohs(ss_family);

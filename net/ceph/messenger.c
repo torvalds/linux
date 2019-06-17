@@ -222,7 +222,7 @@ EXPORT_SYMBOL(ceph_pr_addr);
 static void encode_my_addr(struct ceph_messenger *msgr)
 {
 	memcpy(&msgr->my_enc_addr, &msgr->inst.addr, sizeof(msgr->my_enc_addr));
-	ceph_encode_addr(&msgr->my_enc_addr);
+	ceph_encode_banner_addr(&msgr->my_enc_addr);
 }
 
 /*
@@ -1734,14 +1734,14 @@ static int read_partial_banner(struct ceph_connection *con)
 	ret = read_partial(con, end, size, &con->actual_peer_addr);
 	if (ret <= 0)
 		goto out;
-	ceph_decode_addr(&con->actual_peer_addr);
+	ceph_decode_banner_addr(&con->actual_peer_addr);
 
 	size = sizeof (con->peer_addr_for_me);
 	end += size;
 	ret = read_partial(con, end, size, &con->peer_addr_for_me);
 	if (ret <= 0)
 		goto out;
-	ceph_decode_addr(&con->peer_addr_for_me);
+	ceph_decode_banner_addr(&con->peer_addr_for_me);
 
 out:
 	return ret;
