@@ -2442,17 +2442,14 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 	return 0;
 }
 
-struct drm_panel *msm_dsi_host_get_panel(struct mipi_dsi_host *host,
-				unsigned long *panel_flags)
+struct drm_panel *msm_dsi_host_get_panel(struct mipi_dsi_host *host)
 {
-	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
-	struct drm_panel *panel;
+	return of_drm_find_panel(to_msm_dsi_host(host)->device_node);
+}
 
-	panel = of_drm_find_panel(msm_host->device_node);
-	if (panel_flags)
-			*panel_flags = msm_host->mode_flags;
-
-	return panel;
+unsigned long msm_dsi_host_get_mode_flags(struct mipi_dsi_host *host)
+{
+	return to_msm_dsi_host(host)->mode_flags;
 }
 
 struct drm_bridge *msm_dsi_host_get_bridge(struct mipi_dsi_host *host)

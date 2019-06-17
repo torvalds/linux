@@ -244,8 +244,9 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 
 	DBG("id=%d", id);
 	if (!msm_dsi->panel) {
-		msm_dsi->panel = msm_dsi_host_get_panel(msm_dsi->host,
-						&msm_dsi->device_flags);
+		msm_dsi->panel = msm_dsi_host_get_panel(msm_dsi->host);
+		msm_dsi->device_flags = msm_dsi_host_get_mode_flags(
+						msm_dsi->host);
 
 		/* There is only 1 panel in the global panel list
 		 * for dual DSI mode. Therefore slave dsi should get
@@ -255,7 +256,7 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 		if (!msm_dsi->panel && IS_DUAL_DSI() &&
 			!IS_MASTER_DSI_LINK(id) && other_dsi)
 			msm_dsi->panel = msm_dsi_host_get_panel(
-					other_dsi->host, NULL);
+						other_dsi->host);
 
 
 		if (msm_dsi->panel && kms->funcs->set_encoder_mode) {
