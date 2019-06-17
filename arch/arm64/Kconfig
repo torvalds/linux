@@ -1418,8 +1418,23 @@ config ARM64_SVE
 	  KVM in the same kernel image.
 
 config ARM64_MODULE_PLTS
-	bool
+	bool "Use PLTs to allow module memory to spill over into vmalloc area"
 	select HAVE_MOD_ARCH_SPECIFIC
+	help
+	  Allocate PLTs when loading modules so that jumps and calls whose
+	  targets are too far away for their relative offsets to be encoded
+	  in the instructions themselves can be bounced via veneers in the
+	  module's PLT. This allows modules to be allocated in the generic
+	  vmalloc area after the dedicated module memory area has been
+	  exhausted.
+
+	  When running with address space randomization (KASLR), the module
+	  region itself may be too far away for ordinary relative jumps and
+	  calls, and so in that case, module PLTs are required and cannot be
+	  disabled.
+
+	  Specific errata workaround(s) might also force module PLTs to be
+	  enabled (ARM64_ERRATUM_843419).
 
 config ARM64_PSEUDO_NMI
 	bool "Support for NMI-like interrupts"
