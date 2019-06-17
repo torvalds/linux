@@ -15,6 +15,13 @@ properties:
     const: '/'
   compatible:
     oneOf:
+      - description: i.MX1 based Boards
+        items:
+          - enum:
+              - armadeus,imx1-apf9328
+              - fsl,imx1ads
+          - const: fsl,imx1
+
       - description: i.MX23 based Boards
         items:
           - enum:
@@ -50,6 +57,25 @@ properties:
               - i2se,duckbill-2-spi
           - const: i2se,duckbill-2
           - const: fsl,imx28
+
+      - description: i.MX31 based Boards
+        items:
+          - enum:
+              - buglabs,imx31-bug
+              - logicpd,imx31-lite
+          - const: fsl,imx31
+
+      - description: i.MX35 based Boards
+        items:
+          - enum:
+              - fsl,imx35-pdk
+          - const: fsl,imx35
+
+      - description: i.MX35 Eukrea CPUIMX35 Board
+        items:
+          - const: eukrea,mbimxsd35-baseboard
+          - const: eukrea,cpuimx35
+          - const: fsl,imx35
 
       - description: i.MX50 based Boards
         items:
