@@ -1534,17 +1534,6 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 
-	/* Read BIOS */
-	if (!amdgpu_get_bios(adev))
-		return -EINVAL;
-
-	r = amdgpu_atombios_init(adev);
-	if (r) {
-		dev_err(adev->dev, "amdgpu_atombios_init failed\n");
-		amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL, 0, 0);
-		return r;
-	}
-
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if ((amdgpu_ip_block_mask & (1 << i)) == 0) {
 			DRM_ERROR("disabled ip block: %d <%s>\n",
@@ -1564,6 +1553,19 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 				}
 			} else {
 				adev->ip_blocks[i].status.valid = true;
+			}
+		}
+		/* get the vbios after the asic_funcs are set up */
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_COMMON) {
+			/* Read BIOS */
+			if (!amdgpu_get_bios(adev))
+				return -EINVAL;
+
+			r = amdgpu_atombios_init(adev);
+			if (r) {
+				dev_err(adev->dev, "amdgpu_atombios_init failed\n");
+				amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL, 0, 0);
+				return r;
 			}
 		}
 	}
