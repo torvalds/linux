@@ -236,7 +236,7 @@ AArch64 内核当前没有提供自解压代码，因此如果使用了压缩内
   *译者注: ARM DEN 0022A 已更新到 ARM DEN 0022C。
 
   设备树必须包含一个 ‘psci’ 节点，请参考以下文档：
-  Documentation/devicetree/bindings/arm/psci.txt
+  Documentation/devicetree/bindings/arm/psci.yaml
 
 
 - 辅助 CPU 通用寄存器设置
