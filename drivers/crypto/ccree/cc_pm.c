@@ -106,6 +106,12 @@ int cc_pm_put_suspend(struct device *dev)
 	return rc;
 }
 
+bool cc_pm_is_dev_suspended(struct device *dev)
+{
+	/* check device state using runtime api */
+	return pm_runtime_suspended(dev);
+}
+
 int cc_pm_init(struct cc_drvdata *drvdata)
 {
 	struct device *dev = drvdata_to_dev(drvdata);
