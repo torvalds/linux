@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2011 bct electronic GmbH
  * Copyright 2013 Qtechnology/AS
@@ -6,10 +7,6 @@
  * Author: Ricardo Ribalda <ricardo.ribalda@gmail.com>
  *
  * Based on leds-pca955x.c
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * LED driver for the PCA9633 I2C LED driver (7-bit slave address 0x62)
  * LED driver for the PCA9634/5 I2C LED driver (7-bit slave address set by hw.)

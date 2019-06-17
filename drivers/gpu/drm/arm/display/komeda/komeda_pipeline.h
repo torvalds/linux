@@ -124,7 +124,7 @@ struct komeda_component {
 	/**
 	 * @funcs: chip functions to access HW
 	 */
-	struct komeda_component_funcs *funcs;
+	const struct komeda_component_funcs *funcs;
 };
 
 /**
@@ -346,8 +346,8 @@ struct komeda_pipeline {
 	struct komeda_improc *improc;
 	/** @ctrlr: timing controller */
 	struct komeda_timing_ctrlr *ctrlr;
-	/** @funcs: chip pipeline functions */
-	struct komeda_pipeline_funcs *funcs; /* private pipeline functions */
+	/** @funcs: chip private pipeline functions */
+	const struct komeda_pipeline_funcs *funcs;
 
 	/** @of_node: pipeline dt node */
 	struct device_node *of_node;
@@ -397,7 +397,7 @@ struct komeda_pipeline_state {
 /* pipeline APIs */
 struct komeda_pipeline *
 komeda_pipeline_add(struct komeda_dev *mdev, size_t size,
-		    struct komeda_pipeline_funcs *funcs);
+		    const struct komeda_pipeline_funcs *funcs);
 void komeda_pipeline_destroy(struct komeda_dev *mdev,
 			     struct komeda_pipeline *pipe);
 int komeda_assemble_pipelines(struct komeda_dev *mdev);
@@ -411,7 +411,7 @@ void komeda_pipeline_dump_register(struct komeda_pipeline *pipe,
 struct komeda_component *
 komeda_component_add(struct komeda_pipeline *pipe,
 		     size_t comp_sz, u32 id, u32 hw_id,
-		     struct komeda_component_funcs *funcs,
+		     const struct komeda_component_funcs *funcs,
 		     u8 max_active_inputs, u32 supported_inputs,
 		     u8 max_active_outputs, u32 __iomem *reg,
 		     const char *name_fmt, ...);

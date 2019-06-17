@@ -26,6 +26,12 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		dma_fence_put(ctx->cs_pending[i]);
 
 	if (ctx->asid != HL_KERNEL_ASID_ID) {
+		/*
+		 * The engines are stopped as there is no executing CS, but the
+		 * Coresight might be still working by accessing addresses
+		 * related to the stopped engines. Hence stop it explicitly.
+		 */
+		hdev->asic_funcs->halt_coresight(hdev);
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);
 	}

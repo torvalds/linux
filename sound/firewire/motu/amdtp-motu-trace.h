@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * amdtp-motu-trace.h - tracepoint definitions to dump a part of packet data
  *
  * Copyright (c) 2017 Takashi Sakamoto
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #undef TRACE_SYSTEM
