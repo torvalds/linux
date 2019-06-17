@@ -178,7 +178,7 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 			.board_size = QCA6174_BOARD_DATA_SZ,
 			.board_ext_size = QCA6174_BOARD_EXT_DATA_SZ,
 		},
-		.hw_ops = &qca6174_ops,
+		.hw_ops = &qca6174_sdio_ops,
 		.hw_clk = qca6174_clk,
 		.target_cpu_freq = 176000000,
 		.decap_align_bytes = 4,

@@ -1153,6 +1153,10 @@ const struct ath10k_hw_ops qca6174_ops = {
 	.is_rssi_enable = ath10k_htt_tx_rssi_enable,
 };
 
+const struct ath10k_hw_ops qca6174_sdio_ops = {
+	.enable_pll_clk = ath10k_hw_qca6174_enable_pll_clock,
+};
+
 const struct ath10k_hw_ops wcn3990_ops = {
 	.tx_data_rssi_pad_bytes = ath10k_get_htt_tx_data_rssi_pad,
 	.is_rssi_enable = ath10k_htt_tx_rssi_enable_wcn3990,
