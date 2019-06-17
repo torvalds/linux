@@ -850,9 +850,7 @@ static void ipi_cpu_stop(unsigned int cpu)
 
 	local_daif_mask();
 	sdei_mask_local_cpu();
-
-	while (1)
-		cpu_relax();
+	cpu_park_loop();
 }
 
 #ifdef CONFIG_KEXEC_CORE
