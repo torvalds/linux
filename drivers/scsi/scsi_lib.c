@@ -2616,10 +2616,6 @@ EXPORT_SYMBOL_GPL(scsi_internal_device_block_nowait);
  * a legal transition). When the device is in this state, command processing
  * is paused until the device leaves the SDEV_BLOCK state. See also
  * scsi_internal_device_unblock().
- *
- * To do: avoid that scsi_send_eh_cmnd() calls queuecommand() after
- * scsi_internal_device_block() has blocked a SCSI device and also
- * remove the rport mutex lock and unlock calls from srp_queuecommand().
  */
 static int scsi_internal_device_block(struct scsi_device *sdev)
 {
