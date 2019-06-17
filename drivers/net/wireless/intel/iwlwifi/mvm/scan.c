@@ -961,15 +961,15 @@ static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
 
 static void
 iwl_mvm_scan_set_legacy_probe_req(struct iwl_scan_probe_req_v1 *p_req,
-				  struct iwl_scan_probe_req src_p_req)
+				  struct iwl_scan_probe_req *src_p_req)
 {
 	int i;
 
-	p_req->mac_header = src_p_req.mac_header;
+	p_req->mac_header = src_p_req->mac_header;
 	for (i = 0; i < SCAN_NUM_BAND_PROBE_DATA_V_1; i++)
-		p_req->band_data[i] = src_p_req.band_data[i];
-	p_req->common_data = src_p_req.common_data;
-	memcpy(p_req->buf, src_p_req.buf, SCAN_OFFLOAD_PROBE_REQ_SIZE);
+		p_req->band_data[i] = src_p_req->band_data[i];
+	p_req->common_data = src_p_req->common_data;
+	memcpy(p_req->buf, src_p_req->buf, sizeof(p_req->buf));
 }
 
 static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -1046,7 +1046,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	iwl_mvm_lmac_scan_cfg_channels(mvm, params->channels,
 				       params->n_channels, ssid_bitmap, cmd);
 
-	iwl_mvm_scan_set_legacy_probe_req(preq, params->preq);
+	iwl_mvm_scan_set_legacy_probe_req(preq, &params->preq);
 
 	return 0;
 }
@@ -1592,7 +1592,8 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		direct_scan = tail_v2->direct_scan;
 	} else {
 		tail_v1 = (struct iwl_scan_req_umac_tail_v1 *)sec_part;
-		iwl_mvm_scan_set_legacy_probe_req(&tail_v1->preq, params->preq);
+		iwl_mvm_scan_set_legacy_probe_req(&tail_v1->preq,
+						  &params->preq);
 		direct_scan = tail_v1->direct_scan;
 	}
 	iwl_scan_build_ssids(params, direct_scan, &ssid_bitmap);
