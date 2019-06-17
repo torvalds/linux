@@ -75,8 +75,10 @@ static inline int nf_ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
 		return 1;
 
 	return v6_ops->chk_addr(net, addr, dev, strict);
-#else
+#elif IS_BUILTIN(CONFIG_IPV6)
 	return ipv6_chk_addr(net, addr, dev, strict);
+#else
+	return 1;
 #endif
 }
 
@@ -113,8 +115,10 @@ static inline int nf_ipv6_br_defrag(struct net *net, struct sk_buff *skb,
 		return 1;
 
 	return v6_ops->br_defrag(net, skb, user);
-#else
+#elif IS_BUILTIN(CONFIG_IPV6)
 	return nf_ct_frag6_gather(net, skb, user);
+#else
+	return 1;
 #endif
 }
 
@@ -138,8 +142,10 @@ static inline int nf_br_ip6_fragment(struct net *net, struct sock *sk,
 		return 1;
 
 	return v6_ops->br_fragment(net, sk, skb, data, output);
-#else
+#elif IS_BUILTIN(CONFIG_IPV6)
 	return br_ip6_fragment(net, sk, skb, data, output);
+#else
+	return 1;
 #endif
 }
 
@@ -154,8 +160,10 @@ static inline int nf_ip6_route_me_harder(struct net *net, struct sk_buff *skb)
 		return -EHOSTUNREACH;
 
 	return v6_ops->route_me_harder(net, skb);
-#else
+#elif IS_BUILTIN(CONFIG_IPV6)
 	return ip6_route_me_harder(net, skb);
+#else
+	return -EHOSTUNREACH;
 #endif
 }
 
