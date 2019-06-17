@@ -3757,3 +3757,18 @@ int skl_tplg_init(struct snd_soc_component *component, struct hdac_bus *bus)
 
 	return 0;
 }
+
+void skl_tplg_exit(struct snd_soc_component *component, struct hdac_bus *bus)
+{
+	struct skl *skl = bus_to_skl(bus);
+	struct skl_pipeline *ppl, *tmp;
+
+	if (!list_empty(&skl->ppl_list))
+		list_for_each_entry_safe(ppl, tmp, &skl->ppl_list, node)
+			list_del(&ppl->node);
+
+	/* clean up topology */
+	snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
+
+	release_firmware(skl->tplg);
+}
