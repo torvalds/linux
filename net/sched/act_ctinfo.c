@@ -213,6 +213,7 @@ static int tcf_ctinfo_init(struct net *net, struct nlattr *nla,
 			tcf_idr_cleanup(tn, actparm->index);
 			return ret;
 		}
+		ret = ACT_P_CREATED;
 	} else if (err > 0) {
 		if (bind) /* don't override defaults */
 			return 0;
