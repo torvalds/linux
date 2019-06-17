@@ -115,8 +115,8 @@ static int rcar_lvds_connector_atomic_check(struct drm_connector *connector,
 
 	/* We're not allowed to modify the resolution. */
 	crtc_state = drm_atomic_get_crtc_state(state, conn_state->crtc);
-	if (!crtc_state)
-		return -EINVAL;
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
 
 	if (crtc_state->mode.hdisplay != panel_mode->hdisplay ||
 	    crtc_state->mode.vdisplay != panel_mode->vdisplay)
