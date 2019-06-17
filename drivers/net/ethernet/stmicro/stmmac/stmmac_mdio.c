@@ -242,6 +242,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 	if (priv->device->of_node) {
 		struct gpio_desc *reset_gpio;
 		u32 delays[3];
+		int ret;
 
 		reset_gpio = devm_gpiod_get_optional(priv->device,
 						     "snps,reset",
@@ -249,9 +250,15 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 		if (IS_ERR(reset_gpio))
 			return PTR_ERR(reset_gpio);
 
-		device_property_read_u32_array(priv->device,
-					       "snps,reset-delays-us",
-					       delays, ARRAY_SIZE(delays));
+		ret = device_property_read_u32_array(priv->device,
+						     "snps,reset-delays-us",
+						     delays,
+						     ARRAY_SIZE(delays));
+		if (ret) {
+			dev_err(ndev->dev.parent,
+				"invalid property snps,reset-delays-us\n");
+			return -EINVAL;
+		}
 
 		if (delays[0])
 			msleep(DIV_ROUND_UP(delays[0], 1000));
