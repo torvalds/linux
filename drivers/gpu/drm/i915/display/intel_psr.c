@@ -863,16 +863,23 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 
 static void psr_force_hw_tracking_exit(struct drm_i915_private *dev_priv)
 {
-	/*
-	 * Display WA #0884: all
-	 * This documented WA for bxt can be safely applied
-	 * broadly so we can force HW tracking to exit PSR
-	 * instead of disabling and re-enabling.
-	 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
-	 * but it makes more sense write to the current active
-	 * pipe.
-	 */
-	I915_WRITE(CURSURFLIVE(dev_priv->psr.pipe), 0);
+	if (INTEL_GEN(dev_priv) >= 9)
+		/*
+		 * Display WA #0884: skl+
+		 * This documented WA for bxt can be safely applied
+		 * broadly so we can force HW tracking to exit PSR
+		 * instead of disabling and re-enabling.
+		 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
+		 * but it makes more sense write to the current active
+		 * pipe.
+		 */
+		I915_WRITE(CURSURFLIVE(dev_priv->psr.pipe), 0);
+	else
+		/*
+		 * A write to CURSURFLIVE do not cause HW tracking to exit PSR
+		 * on older gens so doing the manual exit instead.
+		 */
+		intel_psr_exit(dev_priv);
 }
 
 /**
@@ -903,6 +910,15 @@ void intel_psr_update(struct intel_dp *intel_dp,
 		/* Force a PSR exit when enabling CRC to avoid CRC timeouts */
 		if (crtc_state->crc_enabled && psr->enabled)
 			psr_force_hw_tracking_exit(dev_priv);
+		else if (INTEL_GEN(dev_priv) < 9 && psr->enabled) {
+			/*
+			 * Activate PSR again after a force exit when enabling
+			 * CRC in older gens
+			 */
+			if (!dev_priv->psr.active &&
+			    !dev_priv->psr.busy_frontbuffer_bits)
+				schedule_work(&dev_priv->psr.work);
+		}
 
 		goto unlock;
 	}
