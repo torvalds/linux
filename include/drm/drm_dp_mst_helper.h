@@ -45,21 +45,31 @@ struct drm_dp_vcpi {
 /**
  * struct drm_dp_mst_port - MST port
  * @port_num: port number
- * @input: if this port is an input port.
- * @mcs: message capability status - DP 1.2 spec.
- * @ddps: DisplayPort Device Plug Status - DP 1.2
- * @pdt: Peer Device Type
- * @ldps: Legacy Device Plug Status
- * @dpcd_rev: DPCD revision of device on this port
- * @num_sdp_streams: Number of simultaneous streams
- * @num_sdp_stream_sinks: Number of stream sinks
- * @available_pbn: Available bandwidth for this port.
+ * @input: if this port is an input port. Protected by
+ * &drm_dp_mst_topology_mgr.base.lock.
+ * @mcs: message capability status - DP 1.2 spec. Protected by
+ * &drm_dp_mst_topology_mgr.base.lock.
+ * @ddps: DisplayPort Device Plug Status - DP 1.2. Protected by
+ * &drm_dp_mst_topology_mgr.base.lock.
+ * @pdt: Peer Device Type. Protected by
+ * &drm_dp_mst_topology_mgr.base.lock.
+ * @ldps: Legacy Device Plug Status. Protected by
+ * &drm_dp_mst_topology_mgr.base.lock.
+ * @dpcd_rev: DPCD revision of device on this port. Protected by
+ * &drm_dp_mst_topology_mgr.base.lock.
+ * @num_sdp_streams: Number of simultaneous streams. Protected by
+ * &drm_dp_mst_topology_mgr.base.lock.
+ * @num_sdp_stream_sinks: Number of stream sinks. Protected by
+ * &drm_dp_mst_topology_mgr.base.lock.
+ * @available_pbn: Available bandwidth for this port. Protected by
+ * &drm_dp_mst_topology_mgr.base.lock.
  * @next: link to next port on this branch device
  * @aux: i2c aux transport to talk to device connected to this port, protected
- * by &drm_dp_mst_topology_mgr.lock
+ * by &drm_dp_mst_topology_mgr.base.lock.
  * @parent: branch device parent of this port
  * @vcpi: Virtual Channel Payload info for this port.
- * @connector: DRM connector this port is connected to.
+ * @connector: DRM connector this port is connected to. Protected by
+ * &drm_dp_mst_topology_mgr.base.lock.
  * @mgr: topology manager this port lives under.
  *
  * This structure represents an MST port endpoint on a device somewhere
@@ -653,7 +663,11 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 int drm_dp_mst_hpd_irq(struct drm_dp_mst_topology_mgr *mgr, u8 *esi, bool *handled);
 
 
-enum drm_connector_status drm_dp_mst_detect_port(struct drm_connector *connector, struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
+int
+drm_dp_mst_detect_port(struct drm_connector *connector,
+		       struct drm_modeset_acquire_ctx *ctx,
+		       struct drm_dp_mst_topology_mgr *mgr,
+		       struct drm_dp_mst_port *port);
 
 bool drm_dp_mst_port_has_audio(struct drm_dp_mst_topology_mgr *mgr,
 					struct drm_dp_mst_port *port);

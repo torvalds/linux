@@ -1906,41 +1906,118 @@ void drm_dp_mst_connector_early_unregister(struct drm_connector *connector,
 EXPORT_SYMBOL(drm_dp_mst_connector_early_unregister);
 
 static void
+drm_dp_mst_port_add_connector(struct drm_dp_mst_branch *mstb,
+			      struct drm_dp_mst_port *port)
+{
+	struct drm_dp_mst_topology_mgr *mgr = port->mgr;
+	char proppath[255];
+	int ret;
+
+	build_mst_prop_path(mstb, port->port_num, proppath, sizeof(proppath));
+	port->connector = mgr->cbs->add_connector(mgr, port, proppath);
+	if (!port->connector) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	if ((port->pdt == DP_PEER_DEVICE_DP_LEGACY_CONV ||
+	     port->pdt == DP_PEER_DEVICE_SST_SINK) &&
+	    port->port_num >= DP_MST_LOGICAL_PORT_0) {
+		port->cached_edid = drm_get_edid(port->connector,
+						 &port->aux.ddc);
+		drm_connector_set_tile_property(port->connector);
+	}
+
+	mgr->cbs->register_connector(port->connector);
+	return;
+
+error:
+	DRM_ERROR("Failed to create connector for port %p: %d\n", port, ret);
+}
+
+/*
+ * Drop a topology reference, and unlink the port from the in-memory topology
+ * layout
+ */
+static void
+drm_dp_mst_topology_unlink_port(struct drm_dp_mst_topology_mgr *mgr,
+				struct drm_dp_mst_port *port)
+{
+	mutex_lock(&mgr->lock);
+	list_del(&port->next);
+	mutex_unlock(&mgr->lock);
+	drm_dp_mst_topology_put_port(port);
+}
+
+static struct drm_dp_mst_port *
+drm_dp_mst_add_port(struct drm_device *dev,
+		    struct drm_dp_mst_topology_mgr *mgr,
+		    struct drm_dp_mst_branch *mstb, u8 port_number)
+{
+	struct drm_dp_mst_port *port = kzalloc(sizeof(*port), GFP_KERNEL);
+
+	if (!port)
+		return NULL;
+
+	kref_init(&port->topology_kref);
+	kref_init(&port->malloc_kref);
+	port->parent = mstb;
+	port->port_num = port_number;
+	port->mgr = mgr;
+	port->aux.name = "DPMST";
+	port->aux.dev = dev->dev;
+	port->aux.is_remote = true;
+
+	/*
+	 * Make sure the memory allocation for our parent branch stays
+	 * around until our own memory allocation is released
+	 */
+	drm_dp_mst_get_mstb_malloc(mstb);
+
+	return port;
+}
+
+static void
 drm_dp_mst_handle_link_address_port(struct drm_dp_mst_branch *mstb,
 				    struct drm_device *dev,
 				    struct drm_dp_link_addr_reply_port *port_msg)
 {
 	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
 	struct drm_dp_mst_port *port;
-	bool created = false;
-	int old_ddps = 0;
+	int old_ddps = 0, ret;
+	u8 new_pdt = DP_PEER_DEVICE_NONE;
+	bool created = false, send_link_addr = false;
 
 	port = drm_dp_get_port(mstb, port_msg->port_number);
 	if (!port) {
-		port = kzalloc(sizeof(*port), GFP_KERNEL);
+		port = drm_dp_mst_add_port(dev, mgr, mstb,
+					   port_msg->port_number);
 		if (!port)
 			return;
-		kref_init(&port->topology_kref);
-		kref_init(&port->malloc_kref);
-		port->parent = mstb;
-		port->port_num = port_msg->port_number;
-		port->mgr = mgr;
-		port->aux.name = "DPMST";
-		port->aux.dev = dev->dev;
-		port->aux.is_remote = true;
-
-		/*
-		 * Make sure the memory allocation for our parent branch stays
-		 * around until our own memory allocation is released
+		created = true;
+	} else if (port_msg->input_port && !port->input && port->connector) {
+		/* Destroying the connector is impossible in this context, so
+		 * replace the port with a new one
 		 */
-		drm_dp_mst_get_mstb_malloc(mstb);
+		drm_dp_mst_topology_unlink_port(mgr, port);
+		drm_dp_mst_topology_put_port(port);
 
+		port = drm_dp_mst_add_port(dev, mgr, mstb,
+					   port_msg->port_number);
+		if (!port)
+			return;
 		created = true;
 	} else {
+		/* Locking is only needed when the port has a connector
+		 * exposed to userspace
+		 */
+		drm_modeset_lock(&mgr->base.lock, NULL);
 		old_ddps = port->ddps;
 	}
 
 	port->input = port_msg->input_port;
+	if (!port->input)
+		new_pdt = port_msg->peer_device_type;
 	port->mcs = port_msg->mcs;
 	port->ddps = port_msg->ddps;
 	port->ldps = port_msg->legacy_device_plug_status;
@@ -1968,59 +2045,39 @@ drm_dp_mst_handle_link_address_port(struct drm_dp_mst_branch *mstb,
 		}
 	}
 
-	if (!port->input) {
-		int ret = drm_dp_port_set_pdt(port,
-					      port_msg->peer_device_type);
-		if (ret == 1) {
-			drm_dp_send_link_address(mgr, port->mstb);
-		} else if (ret < 0) {
-			DRM_ERROR("Failed to change PDT on port %p: %d\n",
-				  port, ret);
-			goto fail;
-		}
+	ret = drm_dp_port_set_pdt(port, new_pdt);
+	if (ret == 1) {
+		send_link_addr = true;
+	} else if (ret < 0) {
+		DRM_ERROR("Failed to change PDT on port %p: %d\n",
+			  port, ret);
+		goto fail;
 	}
 
-	if (created && !port->input) {
-		char proppath[255];
+	if (!created)
+		drm_modeset_unlock(&mgr->base.lock);
+	else if (!port->connector && !port->input)
+		drm_dp_mst_port_add_connector(mstb, port);
 
-		build_mst_prop_path(mstb, port->port_num, proppath,
-				    sizeof(proppath));
-		port->connector = (*mgr->cbs->add_connector)(mgr, port,
-							     proppath);
-		if (!port->connector)
-			goto fail;
-
-		if ((port->pdt == DP_PEER_DEVICE_DP_LEGACY_CONV ||
-		     port->pdt == DP_PEER_DEVICE_SST_SINK) &&
-		    port->port_num >= DP_MST_LOGICAL_PORT_0) {
-			port->cached_edid = drm_get_edid(port->connector,
-							 &port->aux.ddc);
-			drm_connector_set_tile_property(port->connector);
-		}
-
-		(*mgr->cbs->register_connector)(port->connector);
-	}
+	if (send_link_addr && port->mstb)
+		drm_dp_send_link_address(mgr, port->mstb);
 
 	/* put reference to this port */
 	drm_dp_mst_topology_put_port(port);
 	return;
 
 fail:
-	/* Remove it from the port list */
-	mutex_lock(&mgr->lock);
-	list_del(&port->next);
-	mutex_unlock(&mgr->lock);
-
-	/* Drop the port list reference */
+	drm_dp_mst_topology_unlink_port(mgr, port);
 	drm_dp_mst_topology_put_port(port);
-	/* And now drop our reference */
-	drm_dp_mst_topology_put_port(port);
+	if (!created)
+		drm_modeset_unlock(&mgr->base.lock);
 }
 
 static void
 drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 			    struct drm_dp_connection_status_notify *conn_stat)
 {
+	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
 	struct drm_dp_mst_port *port;
 	int old_ddps;
 	bool dowork = false;
@@ -2028,6 +2085,10 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 	port = drm_dp_get_port(mstb, conn_stat->port_number);
 	if (!port)
 		return;
+
+	/* Locking is only needed if the port's exposed to userspace */
+	if (port->connector)
+		drm_modeset_lock(&mgr->base.lock, NULL);
 
 	old_ddps = port->ddps;
 	port->mcs = conn_stat->message_capability_status;
@@ -2054,10 +2115,12 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 		}
 	}
 
+	if (port->connector)
+		drm_modeset_unlock(&mgr->base.lock);
+
 	drm_dp_mst_topology_put_port(port);
 	if (dowork)
 		queue_work(system_long_wq, &mstb->mgr->work);
-
 }
 
 static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_topology_mgr *mgr,
@@ -2157,8 +2220,11 @@ static void drm_dp_check_and_send_link_address(struct drm_dp_mst_topology_mgr *m
 		if (port->input || !port->ddps)
 			continue;
 
-		if (!port->available_pbn)
+		if (!port->available_pbn) {
+			drm_modeset_lock(&mgr->base.lock, NULL);
 			drm_dp_send_enum_path_resources(mgr, mstb, port);
+			drm_modeset_unlock(&mgr->base.lock);
+		}
 
 		if (port->mstb)
 			mstb_child = drm_dp_mst_topology_get_mstb_validated(
@@ -2189,11 +2255,16 @@ static void drm_dp_mst_link_probe_work(struct work_struct *work)
 			mstb = NULL;
 	}
 	mutex_unlock(&mgr->lock);
-	if (mstb) {
-		drm_dp_check_and_send_link_address(mgr, mstb);
-		drm_dp_mst_topology_put_mstb(mstb);
+	if (!mstb) {
+		mutex_unlock(&mgr->probe_lock);
+		return;
 	}
+
+	drm_dp_check_and_send_link_address(mgr, mstb);
+	drm_dp_mst_topology_put_mstb(mstb);
+
 	mutex_unlock(&mgr->probe_lock);
+	drm_kms_helper_hotplug_event(dev);
 }
 
 static bool drm_dp_validate_guid(struct drm_dp_mst_topology_mgr *mgr,
@@ -2477,8 +2548,6 @@ static void drm_dp_send_link_address(struct drm_dp_mst_topology_mgr *mgr,
 	for (i = 0; i < reply->nports; i++)
 		drm_dp_mst_handle_link_address_port(mstb, mgr->dev,
 						    &reply->ports[i]);
-
-	drm_kms_helper_hotplug_event(mgr->dev);
 
 out:
 	if (ret <= 0)
@@ -3274,13 +3343,14 @@ clear_down_rep_recv:
 	return 0;
 }
 
-static inline void
+static inline bool
 drm_dp_mst_process_up_req(struct drm_dp_mst_topology_mgr *mgr,
 			  struct drm_dp_pending_up_req *up_req)
 {
 	struct drm_dp_mst_branch *mstb = NULL;
 	struct drm_dp_sideband_msg_req_body *msg = &up_req->msg;
 	struct drm_dp_sideband_msg_hdr *hdr = &up_req->hdr;
+	bool hotplug = false;
 
 	if (hdr->broadcast) {
 		const u8 *guid = NULL;
@@ -3298,16 +3368,17 @@ drm_dp_mst_process_up_req(struct drm_dp_mst_topology_mgr *mgr,
 	if (!mstb) {
 		DRM_DEBUG_KMS("Got MST reply from unknown device %d\n",
 			      hdr->lct);
-		return;
+		return false;
 	}
 
 	/* TODO: Add missing handler for DP_RESOURCE_STATUS_NOTIFY events */
 	if (msg->req_type == DP_CONNECTION_STATUS_NOTIFY) {
 		drm_dp_mst_handle_conn_stat(mstb, &msg->u.conn_stat);
-		drm_kms_helper_hotplug_event(mgr->dev);
+		hotplug = true;
 	}
 
 	drm_dp_mst_topology_put_mstb(mstb);
+	return hotplug;
 }
 
 static void drm_dp_mst_up_req_work(struct work_struct *work)
@@ -3316,6 +3387,7 @@ static void drm_dp_mst_up_req_work(struct work_struct *work)
 		container_of(work, struct drm_dp_mst_topology_mgr,
 			     up_req_work);
 	struct drm_dp_pending_up_req *up_req;
+	bool send_hotplug = false;
 
 	mutex_lock(&mgr->probe_lock);
 	while (true) {
@@ -3330,10 +3402,13 @@ static void drm_dp_mst_up_req_work(struct work_struct *work)
 		if (!up_req)
 			break;
 
-		drm_dp_mst_process_up_req(mgr, up_req);
+		send_hotplug |= drm_dp_mst_process_up_req(mgr, up_req);
 		kfree(up_req);
 	}
 	mutex_unlock(&mgr->probe_lock);
+
+	if (send_hotplug)
+		drm_kms_helper_hotplug_event(mgr->dev);
 }
 
 static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
@@ -3441,21 +3516,30 @@ EXPORT_SYMBOL(drm_dp_mst_hpd_irq);
 /**
  * drm_dp_mst_detect_port() - get connection status for an MST port
  * @connector: DRM connector for this port
+ * @ctx: The acquisition context to use for grabbing locks
  * @mgr: manager for this port
- * @port: unverified pointer to a port
+ * @port: pointer to a port
  *
- * This returns the current connection state for a port. It validates the
- * port pointer still exists so the caller doesn't require a reference
+ * This returns the current connection state for a port.
  */
-enum drm_connector_status drm_dp_mst_detect_port(struct drm_connector *connector,
-						 struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port)
+int
+drm_dp_mst_detect_port(struct drm_connector *connector,
+		       struct drm_modeset_acquire_ctx *ctx,
+		       struct drm_dp_mst_topology_mgr *mgr,
+		       struct drm_dp_mst_port *port)
 {
-	enum drm_connector_status status = connector_status_disconnected;
+	int ret;
 
 	/* we need to search for the port in the mgr in case it's gone */
 	port = drm_dp_mst_topology_get_port_validated(mgr, port);
 	if (!port)
 		return connector_status_disconnected;
+
+	ret = drm_modeset_lock(&mgr->base.lock, ctx);
+	if (ret)
+		goto out;
+
+	ret = connector_status_disconnected;
 
 	if (!port->ddps)
 		goto out;
@@ -3466,7 +3550,7 @@ enum drm_connector_status drm_dp_mst_detect_port(struct drm_connector *connector
 		break;
 
 	case DP_PEER_DEVICE_SST_SINK:
-		status = connector_status_connected;
+		ret = connector_status_connected;
 		/* for logical ports - cache the EDID */
 		if (port->port_num >= 8 && !port->cached_edid) {
 			port->cached_edid = drm_get_edid(connector, &port->aux.ddc);
@@ -3474,12 +3558,12 @@ enum drm_connector_status drm_dp_mst_detect_port(struct drm_connector *connector
 		break;
 	case DP_PEER_DEVICE_DP_LEGACY_CONV:
 		if (port->ldps)
-			status = connector_status_connected;
+			ret = connector_status_connected;
 		break;
 	}
 out:
 	drm_dp_mst_topology_put_port(port);
-	return status;
+	return ret;
 }
 EXPORT_SYMBOL(drm_dp_mst_detect_port);
 
