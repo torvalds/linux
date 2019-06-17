@@ -7,7 +7,7 @@
  */
 #include "motu.h"
 
-static int midi_capture_open(struct snd_rawmidi_substream *substream)
+static int midi_open(struct snd_rawmidi_substream *substream)
 {
 	struct snd_motu *motu = substream->rmidi->private_data;
 	int err;
@@ -29,44 +29,7 @@ static int midi_capture_open(struct snd_rawmidi_substream *substream)
 	return err;
 }
 
-static int midi_playback_open(struct snd_rawmidi_substream *substream)
-{
-	struct snd_motu *motu = substream->rmidi->private_data;
-	int err;
-
-	err = snd_motu_stream_lock_try(motu);
-	if (err < 0)
-		return err;
-
-	mutex_lock(&motu->mutex);
-
-	motu->substreams_counter++;
-	err = snd_motu_stream_start_duplex(motu, 0);
-
-	mutex_unlock(&motu->mutex);
-
-	if (err < 0)
-		snd_motu_stream_lock_release(motu);
-
-	return err;
-}
-
-static int midi_capture_close(struct snd_rawmidi_substream *substream)
-{
-	struct snd_motu *motu = substream->rmidi->private_data;
-
-	mutex_lock(&motu->mutex);
-
-	motu->substreams_counter--;
-	snd_motu_stream_stop_duplex(motu);
-
-	mutex_unlock(&motu->mutex);
-
-	snd_motu_stream_lock_release(motu);
-	return 0;
-}
-
-static int midi_playback_close(struct snd_rawmidi_substream *substream)
+static int midi_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_motu *motu = substream->rmidi->private_data;
 
@@ -129,13 +92,13 @@ static void set_midi_substream_names(struct snd_motu *motu,
 int snd_motu_create_midi_devices(struct snd_motu *motu)
 {
 	static const struct snd_rawmidi_ops capture_ops = {
-		.open		= midi_capture_open,
-		.close		= midi_capture_close,
+		.open		= midi_open,
+		.close		= midi_close,
 		.trigger	= midi_capture_trigger,
 	};
 	static const struct snd_rawmidi_ops playback_ops = {
-		.open		= midi_playback_open,
-		.close		= midi_playback_close,
+		.open		= midi_open,
+		.close		= midi_close,
 		.trigger	= midi_playback_trigger,
 	};
 	struct snd_rawmidi *rmidi;
