@@ -1940,13 +1940,14 @@ static pci_ers_result_t hns3_error_detected(struct pci_dev *pdev,
 static pci_ers_result_t hns3_slot_reset(struct pci_dev *pdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
-	const struct hnae3_ae_ops *ops = ae_dev->ops;
+	const struct hnae3_ae_ops *ops;
 	enum hnae3_reset_type reset_type;
 	struct device *dev = &pdev->dev;
 
 	if (!ae_dev || !ae_dev->ops)
 		return PCI_ERS_RESULT_NONE;
 
+	ops = ae_dev->ops;
 	/* request the reset */
 	if (ops->reset_event) {
 		if (!ae_dev->override_pci_need_reset) {
