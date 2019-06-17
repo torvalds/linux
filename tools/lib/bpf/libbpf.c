@@ -1663,7 +1663,8 @@ bpf_object__find_prog_by_idx(struct bpf_object *obj, int idx)
 }
 
 struct bpf_program *
-bpf_object__find_program_by_title(struct bpf_object *obj, const char *title)
+bpf_object__find_program_by_title(const struct bpf_object *obj,
+				  const char *title)
 {
 	struct bpf_program *pos;
 
@@ -2589,8 +2590,8 @@ out:
 	return err;
 }
 
-static bool bpf_program__is_function_storage(struct bpf_program *prog,
-					     struct bpf_object *obj)
+static bool bpf_program__is_function_storage(const struct bpf_program *prog,
+					     const struct bpf_object *obj)
 {
 	return prog->idx == obj->efile.text_shndx && obj->has_pseudo_calls;
 }
@@ -3296,17 +3297,17 @@ bpf_object__next(struct bpf_object *prev)
 	return next;
 }
 
-const char *bpf_object__name(struct bpf_object *obj)
+const char *bpf_object__name(const struct bpf_object *obj)
 {
 	return obj ? obj->path : ERR_PTR(-EINVAL);
 }
 
-unsigned int bpf_object__kversion(struct bpf_object *obj)
+unsigned int bpf_object__kversion(const struct bpf_object *obj)
 {
 	return obj ? obj->kern_version : 0;
 }
 
-struct btf *bpf_object__btf(struct bpf_object *obj)
+struct btf *bpf_object__btf(const struct bpf_object *obj)
 {
 	return obj ? obj->btf : NULL;
 }
@@ -3327,13 +3328,14 @@ int bpf_object__set_priv(struct bpf_object *obj, void *priv,
 	return 0;
 }
 
-void *bpf_object__priv(struct bpf_object *obj)
+void *bpf_object__priv(const struct bpf_object *obj)
 {
 	return obj ? obj->priv : ERR_PTR(-EINVAL);
 }
 
 static struct bpf_program *
-__bpf_program__iter(struct bpf_program *p, struct bpf_object *obj, bool forward)
+__bpf_program__iter(const struct bpf_program *p, const struct bpf_object *obj,
+		    bool forward)
 {
 	size_t nr_programs = obj->nr_programs;
 	ssize_t idx;
@@ -3358,7 +3360,7 @@ __bpf_program__iter(struct bpf_program *p, struct bpf_object *obj, bool forward)
 }
 
 struct bpf_program *
-bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
+bpf_program__next(struct bpf_program *prev, const struct bpf_object *obj)
 {
 	struct bpf_program *prog = prev;
 
@@ -3370,7 +3372,7 @@ bpf_program__next(struct bpf_program *prev, struct bpf_object *obj)
 }
 
 struct bpf_program *
-bpf_program__prev(struct bpf_program *next, struct bpf_object *obj)
+bpf_program__prev(struct bpf_program *next, const struct bpf_object *obj)
 {
 	struct bpf_program *prog = next;
 
@@ -3392,7 +3394,7 @@ int bpf_program__set_priv(struct bpf_program *prog, void *priv,
 	return 0;
 }
 
-void *bpf_program__priv(struct bpf_program *prog)
+void *bpf_program__priv(const struct bpf_program *prog)
 {
 	return prog ? prog->priv : ERR_PTR(-EINVAL);
 }
@@ -3402,7 +3404,7 @@ void bpf_program__set_ifindex(struct bpf_program *prog, __u32 ifindex)
 	prog->prog_ifindex = ifindex;
 }
 
-const char *bpf_program__title(struct bpf_program *prog, bool needs_copy)
+const char *bpf_program__title(const struct bpf_program *prog, bool needs_copy)
 {
 	const char *title;
 
@@ -3418,7 +3420,7 @@ const char *bpf_program__title(struct bpf_program *prog, bool needs_copy)
 	return title;
 }
 
-int bpf_program__fd(struct bpf_program *prog)
+int bpf_program__fd(const struct bpf_program *prog)
 {
 	return bpf_program__nth_fd(prog, 0);
 }
@@ -3451,7 +3453,7 @@ int bpf_program__set_prep(struct bpf_program *prog, int nr_instances,
 	return 0;
 }
 
-int bpf_program__nth_fd(struct bpf_program *prog, int n)
+int bpf_program__nth_fd(const struct bpf_program *prog, int n)
 {
 	int fd;
 
@@ -3479,25 +3481,25 @@ void bpf_program__set_type(struct bpf_program *prog, enum bpf_prog_type type)
 	prog->type = type;
 }
 
-static bool bpf_program__is_type(struct bpf_program *prog,
+static bool bpf_program__is_type(const struct bpf_program *prog,
 				 enum bpf_prog_type type)
 {
 	return prog ? (prog->type == type) : false;
 }
 
-#define BPF_PROG_TYPE_FNS(NAME, TYPE)			\
-int bpf_program__set_##NAME(struct bpf_program *prog)	\
-{							\
-	if (!prog)					\
-		return -EINVAL;				\
-	bpf_program__set_type(prog, TYPE);		\
-	return 0;					\
-}							\
-							\
-bool bpf_program__is_##NAME(struct bpf_program *prog)	\
-{							\
-	return bpf_program__is_type(prog, TYPE);	\
-}							\
+#define BPF_PROG_TYPE_FNS(NAME, TYPE)				\
+int bpf_program__set_##NAME(struct bpf_program *prog)		\
+{								\
+	if (!prog)						\
+		return -EINVAL;					\
+	bpf_program__set_type(prog, TYPE);			\
+	return 0;						\
+}								\
+								\
+bool bpf_program__is_##NAME(const struct bpf_program *prog)	\
+{								\
+	return bpf_program__is_type(prog, TYPE);		\
+}								\
 
 BPF_PROG_TYPE_FNS(socket_filter, BPF_PROG_TYPE_SOCKET_FILTER);
 BPF_PROG_TYPE_FNS(kprobe, BPF_PROG_TYPE_KPROBE);
@@ -3692,17 +3694,17 @@ bpf_program__identify_section(struct bpf_program *prog,
 					expected_attach_type);
 }
 
-int bpf_map__fd(struct bpf_map *map)
+int bpf_map__fd(const struct bpf_map *map)
 {
 	return map ? map->fd : -EINVAL;
 }
 
-const struct bpf_map_def *bpf_map__def(struct bpf_map *map)
+const struct bpf_map_def *bpf_map__def(const struct bpf_map *map)
 {
 	return map ? &map->def : ERR_PTR(-EINVAL);
 }
 
-const char *bpf_map__name(struct bpf_map *map)
+const char *bpf_map__name(const struct bpf_map *map)
 {
 	return map ? map->name : NULL;
 }
@@ -3733,17 +3735,17 @@ int bpf_map__set_priv(struct bpf_map *map, void *priv,
 	return 0;
 }
 
-void *bpf_map__priv(struct bpf_map *map)
+void *bpf_map__priv(const struct bpf_map *map)
 {
 	return map ? map->priv : ERR_PTR(-EINVAL);
 }
 
-bool bpf_map__is_offload_neutral(struct bpf_map *map)
+bool bpf_map__is_offload_neutral(const struct bpf_map *map)
 {
 	return map->def.type == BPF_MAP_TYPE_PERF_EVENT_ARRAY;
 }
 
-bool bpf_map__is_internal(struct bpf_map *map)
+bool bpf_map__is_internal(const struct bpf_map *map)
 {
 	return map->libbpf_type != LIBBPF_MAP_UNSPEC;
 }
@@ -3768,7 +3770,7 @@ int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd)
 }
 
 static struct bpf_map *
-__bpf_map__iter(struct bpf_map *m, struct bpf_object *obj, int i)
+__bpf_map__iter(const struct bpf_map *m, const struct bpf_object *obj, int i)
 {
 	ssize_t idx;
 	struct bpf_map *s, *e;
@@ -3792,7 +3794,7 @@ __bpf_map__iter(struct bpf_map *m, struct bpf_object *obj, int i)
 }
 
 struct bpf_map *
-bpf_map__next(struct bpf_map *prev, struct bpf_object *obj)
+bpf_map__next(const struct bpf_map *prev, const struct bpf_object *obj)
 {
 	if (prev == NULL)
 		return obj->maps;
@@ -3801,7 +3803,7 @@ bpf_map__next(struct bpf_map *prev, struct bpf_object *obj)
 }
 
 struct bpf_map *
-bpf_map__prev(struct bpf_map *next, struct bpf_object *obj)
+bpf_map__prev(const struct bpf_map *next, const struct bpf_object *obj)
 {
 	if (next == NULL) {
 		if (!obj->nr_maps)
@@ -3813,7 +3815,7 @@ bpf_map__prev(struct bpf_map *next, struct bpf_object *obj)
 }
 
 struct bpf_map *
-bpf_object__find_map_by_name(struct bpf_object *obj, const char *name)
+bpf_object__find_map_by_name(const struct bpf_object *obj, const char *name)
 {
 	struct bpf_map *pos;
 
@@ -3825,7 +3827,7 @@ bpf_object__find_map_by_name(struct bpf_object *obj, const char *name)
 }
 
 int
-bpf_object__find_map_fd_by_name(struct bpf_object *obj, const char *name)
+bpf_object__find_map_fd_by_name(const struct bpf_object *obj, const char *name)
 {
 	return bpf_map__fd(bpf_object__find_map_by_name(obj, name));
 }
