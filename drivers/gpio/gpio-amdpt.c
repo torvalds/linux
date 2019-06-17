@@ -91,7 +91,7 @@ static int pt_gpio_probe(struct platform_device *pdev)
 
 	pt_gpio->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pt_gpio->reg_base)) {
-		dev_err(&pdev->dev, "Failed to map MMIO resource for PT GPIO.\n");
+		dev_err(dev, "Failed to map MMIO resource for PT GPIO.\n");
 		return PTR_ERR(pt_gpio->reg_base);
 	}
 
@@ -101,7 +101,7 @@ static int pt_gpio_probe(struct platform_device *pdev)
 			 pt_gpio->reg_base + PT_DIRECTION_REG, NULL,
 			 BGPIOF_READ_OUTPUT_REG_SET);
 	if (ret) {
-		dev_err(&pdev->dev, "bgpio_init failed\n");
+		dev_err(dev, "bgpio_init failed\n");
 		return ret;
 	}
 
@@ -110,11 +110,11 @@ static int pt_gpio_probe(struct platform_device *pdev)
 	pt_gpio->gc.free             = pt_gpio_free;
 	pt_gpio->gc.ngpio            = PT_TOTAL_GPIO;
 #if defined(CONFIG_OF_GPIO)
-	pt_gpio->gc.of_node          = pdev->dev.of_node;
+	pt_gpio->gc.of_node          = dev->of_node;
 #endif
 	ret = gpiochip_add_data(&pt_gpio->gc, pt_gpio);
 	if (ret) {
-		dev_err(&pdev->dev, "Failed to register GPIO lib\n");
+		dev_err(dev, "Failed to register GPIO lib\n");
 		return ret;
 	}
 
@@ -124,7 +124,7 @@ static int pt_gpio_probe(struct platform_device *pdev)
 	writel(0, pt_gpio->reg_base + PT_SYNC_REG);
 	writel(0, pt_gpio->reg_base + PT_CLOCKRATE_REG);
 
-	dev_dbg(&pdev->dev, "PT GPIO driver loaded\n");
+	dev_dbg(dev, "PT GPIO driver loaded\n");
 	return ret;
 }
 
