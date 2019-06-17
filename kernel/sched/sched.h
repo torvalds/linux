@@ -2248,7 +2248,7 @@ unsigned long schedutil_freq_util(int cpu, unsigned long util_cfs,
 
 static inline unsigned long schedutil_energy_util(int cpu, unsigned long cfs)
 {
-	unsigned long max = arch_scale_cpu_capacity(NULL, cpu);
+	unsigned long max = arch_scale_cpu_capacity(cpu);
 
 	return schedutil_freq_util(cpu, cfs, max, ENERGY_UTIL);
 }

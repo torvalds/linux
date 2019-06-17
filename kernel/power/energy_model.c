@@ -223,7 +223,7 @@ int em_register_perf_domain(cpumask_t *span, unsigned int nr_states,
 		 * All CPUs of a domain must have the same micro-architecture
 		 * since they all share the same table.
 		 */
-		cap = arch_scale_cpu_capacity(NULL, cpu);
+		cap = arch_scale_cpu_capacity(cpu);
 		if (prev_cap && prev_cap != cap) {
 			pr_err("CPUs of %*pbl must have the same capacity\n",
 							cpumask_pr_args(span));
