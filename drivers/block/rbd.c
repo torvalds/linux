@@ -6018,6 +6018,7 @@ static void rbd_dev_unprobe(struct rbd_device *rbd_dev)
 	struct rbd_image_header	*header;
 
 	rbd_dev_parent_put(rbd_dev);
+	rbd_dev_mapping_clear(rbd_dev);
 
 	/* Free dynamic fields from the header, then zero it out */
 
@@ -6118,7 +6119,6 @@ out_err:
 static void rbd_dev_device_release(struct rbd_device *rbd_dev)
 {
 	clear_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
-	rbd_dev_mapping_clear(rbd_dev);
 	rbd_free_disk(rbd_dev);
 	if (!single_major)
 		unregister_blkdev(rbd_dev->major, rbd_dev->name);
@@ -6152,23 +6152,17 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_blkdev;
 
-	ret = rbd_dev_mapping_set(rbd_dev);
-	if (ret)
-		goto err_out_disk;
-
 	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
 	set_disk_ro(rbd_dev->disk, rbd_dev->opts->read_only);
 
 	ret = dev_set_name(&rbd_dev->dev, "%d", rbd_dev->dev_id);
 	if (ret)
-		goto err_out_mapping;
+		goto err_out_disk;
 
 	set_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
 	up_write(&rbd_dev->header_rwsem);
 	return 0;
 
-err_out_mapping:
-	rbd_dev_mapping_clear(rbd_dev);
 err_out_disk:
 	rbd_free_disk(rbd_dev);
 err_out_blkdev:
@@ -6268,6 +6262,10 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, int depth)
 				rbd_dev->spec->snap_name);
 		goto err_out_probe;
 	}
+
+	ret = rbd_dev_mapping_set(rbd_dev);
+	if (ret)
+		goto err_out_probe;
 
 	if (rbd_dev->header.features & RBD_FEATURE_LAYERING) {
 		ret = rbd_dev_v2_parent_info(rbd_dev);
