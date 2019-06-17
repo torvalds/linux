@@ -1,4 +1,4 @@
-/* Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+/* Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@netfilter.org>
  * Copyright (C) 2013 Smoothwall Ltd. <vytas.dauksa@smoothwall.net>
  *
  * This program is free software; you can redistribute it and/or modify
