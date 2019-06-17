@@ -1295,7 +1295,6 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 	if (!table_context->od8_settings)
 		return -ENOMEM;
 
-	memset(table_context->od8_settings, 0, sizeof(struct vega20_od8_settings));
 	od8_settings = (struct vega20_od8_settings *)table_context->od8_settings;
 
 	if (smu_feature_is_enabled(smu, FEATURE_DPM_SOCCLK_BIT)) {
