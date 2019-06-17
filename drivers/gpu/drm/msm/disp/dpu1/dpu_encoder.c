@@ -622,9 +622,6 @@ static int dpu_encoder_virt_atomic_check(
 		}
 	}
 
-	if (!ret)
-		drm_mode_set_crtcinfo(adj_mode, 0);
-
 	trace_dpu_enc_atomic_check_flags(DRMID(drm_enc), adj_mode->flags,
 			adj_mode->private_flags);
 
