@@ -239,7 +239,7 @@ static bool dsi_mgr_is_cmd_mode(struct msm_dsi *msm_dsi)
 	return !(host_flags & MIPI_DSI_MODE_VIDEO);
 }
 
-static void msm_dsi_manager_setup_encoder(int id)
+void msm_dsi_manager_setup_encoder(int id)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_drm_private *priv = msm_dsi->dev->dev_private;
@@ -280,12 +280,7 @@ static int msm_dsi_manager_panel_init(struct drm_connector *conn, u8 id)
 		return PTR_ERR(panel);
 	}
 
-	if (!panel)
-		return 0;
-
-	msm_dsi_manager_setup_encoder(id);
-
-	if (!IS_DUAL_DSI())
+	if (!panel || !IS_DUAL_DSI())
 		goto out;
 
 	drm_object_attach_property(&conn->base,
@@ -788,34 +783,6 @@ bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len)
 	msm_dsi_host_cmd_xfer_commit(host, dma_base, len);
 
 	return true;
-}
-
-void msm_dsi_manager_attach_dsi_device(int id)
-{
-	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct drm_device *dev;
-
-	/*
-	 * drm_device pointer is assigned to msm_dsi only in the modeset_init
-	 * path. If mipi_dsi_attach() happens in DSI driver's probe path
-	 * (generally the case when we're connected to a drm_panel of the type
-	 * mipi_dsi_device), this would be NULL. In such cases, try to set the
-	 * encoder mode in the DSI connector's detect() op.
-	 *
-	 * msm_dsi pointer is assigned to a valid dsi device only when
-	 * msm_dsi_manager_register() succeeds. When panel hasnt probed yet
-	 * dsi_mgr_setup_components() could potentially return -EDEFER and
-	 * assign the msm_dsi->dev to NULL. When the panel now probes and calls
-	 * mipi_dsi_attach(), this will call msm_dsi_manager_attach_dsi_device()
-	 * which will result in a NULL pointer dereference
-	 */
-
-	dev = msm_dsi ? msm_dsi->dev : NULL;
-
-	if (!dev)
-		return;
-
-	msm_dsi_manager_setup_encoder(id);
 }
 
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
