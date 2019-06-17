@@ -818,9 +818,6 @@ struct msm_dsi_pll *msm_dsi_pll_10nm_init(struct platform_device *pdev, int id)
 	struct msm_dsi_pll *pll;
 	int ret;
 
-	if (!pdev)
-		return ERR_PTR(-ENODEV);
-
 	pll_10nm = devm_kzalloc(&pdev->dev, sizeof(*pll_10nm), GFP_KERNEL);
 	if (!pll_10nm)
 		return ERR_PTR(-ENOMEM);
