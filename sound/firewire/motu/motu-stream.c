@@ -60,19 +60,11 @@ static int keep_resources(struct snd_motu *motu, unsigned int rate,
 				fw_parent_device(motu->unit)->max_speed);
 }
 
-static int begin_session(struct snd_motu *motu, unsigned int rate)
+static int begin_session(struct snd_motu *motu)
 {
 	__be32 reg;
 	u32 data;
 	int err;
-
-	err = keep_resources(motu, rate, &motu->tx_stream);
-	if (err < 0)
-		return err;
-
-	err = keep_resources(motu, rate, &motu->rx_stream);
-	if (err < 0)
-		return err;
 
 	// Configure the unit to start isochronous communication.
 	err = snd_motu_transaction_read(motu, ISOC_COMM_CONTROL_OFFSET, &reg,
@@ -116,9 +108,6 @@ static void finish_session(struct snd_motu *motu)
 	reg = cpu_to_be32(data);
 	snd_motu_transaction_write(motu, ISOC_COMM_CONTROL_OFFSET, &reg,
 				   sizeof(reg));
-
-	fw_iso_resources_free(&motu->tx_resources);
-	fw_iso_resources_free(&motu->rx_resources);
 }
 
 static int start_isoc_ctx(struct snd_motu *motu, struct amdtp_stream *stream)
@@ -136,11 +125,8 @@ static int start_isoc_ctx(struct snd_motu *motu, struct amdtp_stream *stream)
 	if (err < 0)
 		return err;
 
-	if (!amdtp_stream_wait_callback(stream, CALLBACK_TIMEOUT)) {
-		amdtp_stream_stop(stream);
-		fw_iso_resources_free(resources);
+	if (!amdtp_stream_wait_callback(stream, CALLBACK_TIMEOUT))
 		return -ETIMEDOUT;
-	}
 
 	return 0;
 }
@@ -172,6 +158,56 @@ int snd_motu_stream_cache_packet_formats(struct snd_motu *motu)
 	return 0;
 }
 
+int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate)
+{
+	unsigned int curr_rate;
+	int err;
+
+	err = motu->spec->protocol->get_clock_rate(motu, &curr_rate);
+	if (err < 0)
+		return err;
+	if (rate == 0)
+		rate = curr_rate;
+
+	if (motu->substreams_counter == 0 || curr_rate != rate) {
+		finish_session(motu);
+
+		fw_iso_resources_free(&motu->tx_resources);
+		fw_iso_resources_free(&motu->rx_resources);
+
+		err = motu->spec->protocol->set_clock_rate(motu, rate);
+		if (err < 0) {
+			dev_err(&motu->unit->device,
+				"fail to set sampling rate: %d\n", err);
+			return err;
+		}
+
+		err = snd_motu_stream_cache_packet_formats(motu);
+		if (err < 0)
+			return err;
+
+		err = keep_resources(motu, rate, &motu->tx_stream);
+		if (err < 0)
+			return err;
+
+		err = keep_resources(motu, rate, &motu->rx_stream);
+		if (err < 0) {
+			fw_iso_resources_free(&motu->tx_resources);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+void snd_motu_stream_release_duplex(struct snd_motu *motu)
+{
+	if (motu->substreams_counter == 0) {
+		fw_iso_resources_free(&motu->tx_resources);
+		fw_iso_resources_free(&motu->rx_resources);
+	}
+}
+
 static int ensure_packet_formats(struct snd_motu *motu)
 {
 	__be32 reg;
@@ -198,46 +234,23 @@ static int ensure_packet_formats(struct snd_motu *motu)
 					  sizeof(reg));
 }
 
-int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
+int snd_motu_stream_start_duplex(struct snd_motu *motu)
 {
-	const struct snd_motu_protocol *protocol = motu->spec->protocol;
-	unsigned int curr_rate;
 	int err = 0;
 
 	if (motu->substreams_counter == 0)
 		return 0;
 
-	err = snd_motu_stream_cache_packet_formats(motu);
-	if (err < 0)
-		return err;
-
-	// Stop stream if rate is different.
-	err = protocol->get_clock_rate(motu, &curr_rate);
-	if (err < 0) {
-		dev_err(&motu->unit->device,
-			"fail to get sampling rate: %d\n", err);
-		return err;
-	}
-	if (rate == 0)
-		rate = curr_rate;
-	if (rate != curr_rate ||
-	    amdtp_streaming_error(&motu->rx_stream) ||
+	if (amdtp_streaming_error(&motu->rx_stream) ||
 	    amdtp_streaming_error(&motu->tx_stream))
 		finish_session(motu);
 
 	if (!amdtp_stream_running(&motu->rx_stream)) {
-		err = protocol->set_clock_rate(motu, rate);
-		if (err < 0) {
-			dev_err(&motu->unit->device,
-				"fail to set sampling rate: %d\n", err);
-			return err;
-		}
-
 		err = ensure_packet_formats(motu);
 		if (err < 0)
 			return err;
 
-		err = begin_session(motu, rate);
+		err = begin_session(motu);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
 				"fail to start isochronous comm: %d\n", err);
@@ -251,7 +264,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 			goto stop_streams;
 		}
 
-		err = protocol->switch_fetching_mode(motu, true);
+		err = motu->spec->protocol->switch_fetching_mode(motu, true);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
 				"fail to enable frame fetching: %d\n", err);
@@ -264,7 +277,6 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 		if (err < 0) {
 			dev_err(&motu->unit->device,
 				"fail to start IR context: %d", err);
-			amdtp_stream_stop(&motu->rx_stream);
 			goto stop_streams;
 		}
 	}
