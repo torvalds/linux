@@ -766,9 +766,9 @@ static void tipc_node_link_up(struct tipc_node *n, int bearer_id,
  *	   disturbance, wrong session, etc.)
  *	3. Link <1B-2B> up
  *	4. Link endpoint 2A down (e.g. due to link tolerance timeout)
- *	5. Node B starts failover onto link <1B-2B>
+ *	5. Node 2 starts failover onto link <1B-2B>
  *
- *	==> Node A does never start link/node failover!
+ *	==> Node 1 does never start link/node failover!
  *
  * @n: tipc node structure
  * @l: link peer endpoint failingover (- can be NULL)
@@ -781,6 +781,10 @@ static void tipc_node_link_failover(struct tipc_node *n, struct tipc_link *l,
 {
 	/* Avoid to be "self-failover" that can never end */
 	if (!tipc_link_is_up(tnl))
+		return;
+
+	/* Don't rush, failure link may be in the process of resetting */
+	if (l && !tipc_link_is_reset(l))
 		return;
 
 	tipc_link_fsm_evt(tnl, LINK_SYNCH_END_EVT);
@@ -1706,7 +1710,7 @@ static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 	/* Initiate or update failover mode if applicable */
 	if ((usr == TUNNEL_PROTOCOL) && (mtyp == FAILOVER_MSG)) {
 		syncpt = oseqno + exp_pkts - 1;
-		if (pl && tipc_link_is_up(pl)) {
+		if (pl && !tipc_link_is_reset(pl)) {
 			__tipc_node_link_down(n, &pb_id, xmitq, &maddr);
 			trace_tipc_node_link_down(n, true,
 						  "node link down <- failover!");
