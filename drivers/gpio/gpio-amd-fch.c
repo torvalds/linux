@@ -32,7 +32,6 @@ static struct resource amd_fch_gpio_iores =
 		"amd-fch-gpio-iomem");
 
 struct amd_fch_gpio_priv {
-	struct platform_device		*pdev;
 	struct gpio_chip		gc;
 	void __iomem			*base;
 	struct amd_fch_gpio_pdata	*pdata;
@@ -153,7 +152,6 @@ static int amd_fch_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv->pdata	= pdata;
-	priv->pdev	= pdev;
 
 	priv->gc.owner			= THIS_MODULE;
 	priv->gc.parent			= &pdev->dev;
