@@ -337,7 +337,7 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 	for (i = 0; i < ARRAY_SIZE(prop_handlers); i++) {
 		const struct prop_handler *h = &prop_handlers[i];
 		const char *value;
-		u64 num_bytes;
+		u64 num_bytes = 0;
 
 		if (!h->inheritable)
 			continue;
