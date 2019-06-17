@@ -1489,50 +1489,20 @@ int saa7134_querycap(struct file *file, void *priv,
 					struct v4l2_capability *cap)
 {
 	struct saa7134_dev *dev = video_drvdata(file);
-	struct video_device *vdev = video_devdata(file);
-	u32 radio_caps, video_caps, vbi_caps;
-
-	unsigned int tuner_type = dev->tuner_type;
 
 	strscpy(cap->driver, "saa7134", sizeof(cap->driver));
 	strscpy(cap->card, saa7134_boards[dev->board].name,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-
-	cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	if ((tuner_type != TUNER_ABSENT) && (tuner_type != UNSET))
-		cap->device_caps |= V4L2_CAP_TUNER;
-
-	radio_caps = V4L2_CAP_RADIO;
+	cap->capabilities = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+			    V4L2_CAP_RADIO | V4L2_CAP_VIDEO_CAPTURE |
+			    V4L2_CAP_VBI_CAPTURE | V4L2_CAP_DEVICE_CAPS;
+	if (dev->tuner_type != TUNER_ABSENT && dev->tuner_type != UNSET)
+		cap->capabilities |= V4L2_CAP_TUNER;
 	if (dev->has_rds)
-		radio_caps |= V4L2_CAP_RDS_CAPTURE;
-
-	video_caps = V4L2_CAP_VIDEO_CAPTURE;
-	if (saa7134_no_overlay <= 0 && !is_empress(file))
-		video_caps |= V4L2_CAP_VIDEO_OVERLAY;
-
-	vbi_caps = V4L2_CAP_VBI_CAPTURE;
-
-	switch (vdev->vfl_type) {
-	case VFL_TYPE_RADIO:
-		cap->device_caps |= radio_caps;
-		break;
-	case VFL_TYPE_GRABBER:
-		cap->device_caps |= video_caps;
-		break;
-	case VFL_TYPE_VBI:
-		cap->device_caps |= vbi_caps;
-		break;
-	default:
-		return -EINVAL;
-	}
-	cap->capabilities = radio_caps | video_caps | vbi_caps |
-		cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-	if (vdev->vfl_type == VFL_TYPE_RADIO) {
-		cap->device_caps &= ~V4L2_CAP_STREAMING;
-		if (!dev->has_rds)
-			cap->device_caps &= ~V4L2_CAP_READWRITE;
-	}
+		cap->capabilities |= V4L2_CAP_RDS_CAPTURE;
+	if (saa7134_no_overlay <= 0)
+		cap->capabilities |= V4L2_CAP_VIDEO_OVERLAY;
 
 	return 0;
 }

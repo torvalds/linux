@@ -426,18 +426,13 @@ static int cx25821_vidioc_querycap(struct file *file, void *priv,
 {
 	struct cx25821_channel *chan = video_drvdata(file);
 	struct cx25821_dev *dev = chan->dev;
-	const u32 cap_input = V4L2_CAP_VIDEO_CAPTURE |
-			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	const u32 cap_output = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE;
 
 	strscpy(cap->driver, "cx25821", sizeof(cap->driver));
 	strscpy(cap->card, cx25821_boards[dev->board].name, sizeof(cap->card));
 	sprintf(cap->bus_info, "PCIe:%s", pci_name(dev->pci));
-	if (chan->id >= VID_CHANNEL_NUM)
-		cap->device_caps = cap_output;
-	else
-		cap->device_caps = cap_input;
-	cap->capabilities = cap_input | cap_output | V4L2_CAP_DEVICE_CAPS;
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT |
+			    V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+			    V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -624,6 +619,8 @@ static const struct video_device cx25821_video_device = {
 	.minor = -1,
 	.ioctl_ops = &video_ioctl_ops,
 	.tvnorms = CX25821_NORMS,
+	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+		       V4L2_CAP_STREAMING,
 };
 
 static const struct v4l2_file_operations video_out_fops = {
@@ -657,6 +654,7 @@ static const struct video_device cx25821_video_out_device = {
 	.minor = -1,
 	.ioctl_ops = &video_out_ioctl_ops,
 	.tvnorms = CX25821_NORMS,
+	.device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE,
 };
 
 void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)

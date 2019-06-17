@@ -608,6 +608,15 @@ int saa7146_register_device(struct video_device *vfd, struct saa7146_dev *dev,
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
 		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;
 	strscpy(vfd->name, name, sizeof(vfd->name));
+	vfd->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY |
+			   V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	vfd->device_caps |= dev->ext_vv_data->capabilities;
+	if (type == VFL_TYPE_GRABBER)
+		vfd->device_caps &=
+			~(V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_OUTPUT);
+	else
+		vfd->device_caps &=
+			~(V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY | V4L2_CAP_AUDIO);
 	video_set_drvdata(vfd, dev);
 
 	err = video_register_device(vfd, type, -1);
