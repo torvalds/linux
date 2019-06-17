@@ -554,6 +554,11 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	seq_printf(s, ",bsize=%u", cifs_sb->bsize);
 	seq_printf(s, ",echo_interval=%lu",
 			tcon->ses->server->echo_interval / HZ);
+
+	/* Only display max_credits if it was overridden on mount */
+	if (tcon->ses->server->max_credits != SMB2_MAX_CREDITS_AVAILABLE)
+		seq_printf(s, ",max_credits=%u", tcon->ses->server->max_credits);
+
 	if (tcon->snapshot_time)
 		seq_printf(s, ",snapshot=%llu", tcon->snapshot_time);
 	if (tcon->handle_timeout)
