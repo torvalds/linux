@@ -923,15 +923,13 @@ static void omap_8250_dma_tx_complete(void *param)
 		ret = omap_8250_tx_dma(p);
 		if (ret)
 			en_thri = true;
-
 	} else if (p->capabilities & UART_CAP_RPM) {
 		en_thri = true;
 	}
 
 	if (en_thri) {
 		dma->tx_err = 1;
-		p->ier |= UART_IER_THRI;
-		serial_port_out(&p->port, UART_IER, p->ier);
+		serial8250_set_THRI(p);
 	}
 
 	spin_unlock_irqrestore(&p->port.lock, flags);
@@ -959,10 +957,7 @@ static int omap_8250_tx_dma(struct uart_8250_port *p)
 			ret = -EBUSY;
 			goto err;
 		}
-		if (p->ier & UART_IER_THRI) {
-			p->ier &= ~UART_IER_THRI;
-			serial_out(p, UART_IER, p->ier);
-		}
+		serial8250_clear_THRI(p);
 		return 0;
 	}
 
@@ -1020,10 +1015,7 @@ static int omap_8250_tx_dma(struct uart_8250_port *p)
 	if (dma->tx_err)
 		dma->tx_err = 0;
 
-	if (p->ier & UART_IER_THRI) {
-		p->ier &= ~UART_IER_THRI;
-		serial_out(p, UART_IER, p->ier);
-	}
+	serial8250_clear_THRI(p);
 	if (skip_byte)
 		serial_out(p, UART_TX, xmit->buf[xmit->tail]);
 	return 0;

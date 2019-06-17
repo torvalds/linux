@@ -128,6 +128,24 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
 	up->dl_write(up, value);
 }
 
+static inline bool serial8250_set_THRI(struct uart_8250_port *up)
+{
+	if (up->ier & UART_IER_THRI)
+		return false;
+	up->ier |= UART_IER_THRI;
+	serial_out(up, UART_IER, up->ier);
+	return true;
+}
+
+static inline bool serial8250_clear_THRI(struct uart_8250_port *up)
+{
+	if (!(up->ier & UART_IER_THRI))
+		return false;
+	up->ier &= ~UART_IER_THRI;
+	serial_out(up, UART_IER, up->ier);
+	return true;
+}
+
 struct uart_8250_port *serial8250_get_port(int line);
 
 void serial8250_rpm_get(struct uart_8250_port *p);
