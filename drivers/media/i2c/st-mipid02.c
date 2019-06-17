@@ -331,6 +331,25 @@ static int mipid02_detect(struct mipid02_dev *bridge)
 	return mipid02_read_reg(bridge, MIPID02_CLK_LANE_WR_REG1, &reg);
 }
 
+static u32 mipid02_get_link_freq_from_cid_link_freq(struct mipid02_dev *bridge,
+						    struct v4l2_subdev *subdev)
+{
+	struct v4l2_querymenu qm = {.id = V4L2_CID_LINK_FREQ, };
+	struct v4l2_ctrl *ctrl;
+	int ret;
+
+	ctrl = v4l2_ctrl_find(subdev->ctrl_handler, V4L2_CID_LINK_FREQ);
+	if (!ctrl)
+		return 0;
+	qm.index = v4l2_ctrl_g_ctrl(ctrl);
+
+	ret = v4l2_querymenu(subdev->ctrl_handler, &qm);
+	if (ret)
+		return 0;
+
+	return qm.value;
+}
+
 static u32 mipid02_get_link_freq_from_cid_pixel_rate(struct mipid02_dev *bridge,
 						     struct v4l2_subdev *subdev)
 {
@@ -358,10 +377,14 @@ static int mipid02_configure_from_rx_speed(struct mipid02_dev *bridge)
 	struct v4l2_subdev *subdev = bridge->s_subdev;
 	u32 link_freq;
 
-	link_freq = mipid02_get_link_freq_from_cid_pixel_rate(bridge, subdev);
+	link_freq = mipid02_get_link_freq_from_cid_link_freq(bridge, subdev);
 	if (!link_freq) {
-		dev_err(&client->dev, "Failed to detect link frequency");
-		return -EINVAL;
+		link_freq = mipid02_get_link_freq_from_cid_pixel_rate(bridge,
+								      subdev);
+		if (!link_freq) {
+			dev_err(&client->dev, "Failed to get link frequency");
+			return -EINVAL;
+		}
 	}
 
 	dev_dbg(&client->dev, "detect link_freq = %d Hz", link_freq);
