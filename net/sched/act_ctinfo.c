@@ -141,7 +141,8 @@ out:
 }
 
 static const struct nla_policy ctinfo_policy[TCA_CTINFO_MAX + 1] = {
-	[TCA_CTINFO_ACT]		  = { .len = sizeof(struct
+	[TCA_CTINFO_ACT]		  = { .type = NLA_EXACT_LEN,
+					      .len = sizeof(struct
 							    tc_ctinfo) },
 	[TCA_CTINFO_ZONE]		  = { .type = NLA_U16 },
 	[TCA_CTINFO_PARMS_DSCP_MASK]	  = { .type = NLA_U32 },
