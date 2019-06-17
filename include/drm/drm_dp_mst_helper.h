@@ -597,6 +597,22 @@ struct drm_dp_mst_topology_mgr {
 	 * devices, needed to avoid locking inversion.
 	 */
 	struct work_struct delayed_destroy_work;
+
+	/**
+	 * @up_req_list: List of pending up requests from the topology that
+	 * need to be processed, in chronological order.
+	 */
+	struct list_head up_req_list;
+	/**
+	 * @up_req_lock: Protects @up_req_list
+	 */
+	struct mutex up_req_lock;
+	/**
+	 * @up_req_work: Work item to process up requests received from the
+	 * topology. Needed to avoid blocking hotplug handling and sideband
+	 * transmissions.
+	 */
+	struct work_struct up_req_work;
 };
 
 int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
