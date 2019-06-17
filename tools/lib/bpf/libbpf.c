@@ -1113,7 +1113,7 @@ static void bpf_object__sanitize_btf_ext(struct bpf_object *obj)
 	}
 }
 
-static int bpf_object__load_btf(struct bpf_object *obj,
+static int bpf_object__init_btf(struct bpf_object *obj,
 				Elf_Data *btf_data,
 				Elf_Data *btf_ext_data)
 {
@@ -1132,13 +1132,6 @@ static int bpf_object__load_btf(struct bpf_object *obj,
 				   BTF_ELF_SEC, err);
 			goto out;
 		}
-		bpf_object__sanitize_btf(obj);
-		err = btf__load(obj->btf);
-		if (err) {
-			pr_warning("Error loading %s into kernel: %d.\n",
-				   BTF_ELF_SEC, err);
-			goto out;
-		}
 	}
 	if (btf_ext_data) {
 		if (!obj->btf) {
@@ -1154,12 +1147,31 @@ static int bpf_object__load_btf(struct bpf_object *obj,
 			obj->btf_ext = NULL;
 			goto out;
 		}
-		bpf_object__sanitize_btf_ext(obj);
 	}
 out:
 	if (err || IS_ERR(obj->btf)) {
 		if (!IS_ERR_OR_NULL(obj->btf))
 			btf__free(obj->btf);
+		obj->btf = NULL;
+	}
+	return 0;
+}
+
+static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
+{
+	int err = 0;
+
+	if (!obj->btf)
+		return 0;
+
+	bpf_object__sanitize_btf(obj);
+	bpf_object__sanitize_btf_ext(obj);
+
+	err = btf__load(obj->btf);
+	if (err) {
+		pr_warning("Error loading %s into kernel: %d.\n",
+			   BTF_ELF_SEC, err);
+		btf__free(obj->btf);
 		obj->btf = NULL;
 	}
 	return 0;
@@ -1296,9 +1308,11 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 		pr_warning("Corrupted ELF file: index of strtab invalid\n");
 		return -LIBBPF_ERRNO__FORMAT;
 	}
-	err = bpf_object__load_btf(obj, btf_data, btf_ext_data);
+	err = bpf_object__init_btf(obj, btf_data, btf_ext_data);
 	if (!err)
 		err = bpf_object__init_maps(obj, flags);
+	if (!err)
+		err = bpf_object__sanitize_and_load_btf(obj);
 	if (!err)
 		err = bpf_object__init_prog_names(obj);
 	return err;
