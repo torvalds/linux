@@ -28,10 +28,9 @@ static void komeda_crtc_update_clock_ratio(struct komeda_crtc_state *kcrtc_st)
 	}
 
 	pxlclk = kcrtc_st->base.adjusted_mode.clock * 1000;
-	aclk = komeda_calc_aclk(kcrtc_st) << 32;
+	aclk = komeda_calc_aclk(kcrtc_st);
 
-	do_div(aclk, pxlclk);
-	kcrtc_st->clock_ratio = aclk;
+	kcrtc_st->clock_ratio = div64_u64(aclk << 32, pxlclk);
 }
 
 /**
