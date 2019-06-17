@@ -51,6 +51,8 @@ static void amdgpu_job_timedout(struct drm_sched_job *s_job)
 
 	if (amdgpu_device_should_recover_gpu(ring->adev))
 		amdgpu_device_gpu_recover(ring->adev, job);
+	else
+		drm_sched_suspend_timeout(&ring->sched);
 }
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,

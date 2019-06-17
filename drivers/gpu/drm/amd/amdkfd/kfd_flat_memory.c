@@ -398,6 +398,7 @@ int kfd_init_apertures(struct kfd_process *process)
 			case CHIP_POLARIS10:
 			case CHIP_POLARIS11:
 			case CHIP_POLARIS12:
+			case CHIP_VEGAM:
 				kfd_init_apertures_vi(pdd, id);
 				break;
 			case CHIP_VEGA10:
@@ -435,5 +436,3 @@ int kfd_init_apertures(struct kfd_process *process)
 
 	return 0;
 }
-
-

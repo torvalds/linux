@@ -1805,6 +1805,18 @@ static bool cik_need_reset_on_init(struct amdgpu_device *adev)
 	return false;
 }
 
+static uint64_t cik_get_pcie_replay_count(struct amdgpu_device *adev)
+{
+	uint64_t nak_r, nak_g;
+
+	/* Get the number of NAKs received and generated */
+	nak_r = RREG32_PCIE(ixPCIE_RX_NUM_NAK);
+	nak_g = RREG32_PCIE(ixPCIE_RX_NUM_NAK_GENERATED);
+
+	/* Add the total number of NAKs, i.e the number of replays */
+	return (nak_r + nak_g);
+}
+
 static const struct amdgpu_asic_funcs cik_asic_funcs =
 {
 	.read_disabled_bios = &cik_read_disabled_bios,
@@ -1822,6 +1834,7 @@ static const struct amdgpu_asic_funcs cik_asic_funcs =
 	.init_doorbell_index = &legacy_doorbell_index_init,
 	.get_pcie_usage = &cik_get_pcie_usage,
 	.need_reset_on_init = &cik_need_reset_on_init,
+	.get_pcie_replay_count = &cik_get_pcie_replay_count,
 };
 
 static int cik_common_early_init(void *handle)

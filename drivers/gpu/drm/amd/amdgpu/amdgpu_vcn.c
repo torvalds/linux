@@ -213,132 +213,6 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int amdgpu_vcn_pause_dpg_mode(struct amdgpu_device *adev,
-				     struct dpg_pause_state *new_state)
-{
-	int ret_code;
-	uint32_t reg_data = 0;
-	uint32_t reg_data2 = 0;
-	struct amdgpu_ring *ring;
-
-	/* pause/unpause if state is changed */
-	if (adev->vcn.pause_state.fw_based != new_state->fw_based) {
-		DRM_DEBUG("dpg pause state changed %d:%d -> %d:%d",
-			adev->vcn.pause_state.fw_based, adev->vcn.pause_state.jpeg,
-			new_state->fw_based, new_state->jpeg);
-
-		reg_data = RREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE) &
-			(~UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK);
-
-		if (new_state->fw_based == VCN_DPG_STATE__PAUSE) {
-			ret_code = 0;
-
-			if (!(reg_data & UVD_DPG_PAUSE__JPEG_PAUSE_DPG_ACK_MASK))
-				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
-						   UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF,
-						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
-
-			if (!ret_code) {
-				/* pause DPG non-jpeg */
-				reg_data |= UVD_DPG_PAUSE__NJ_PAUSE_DPG_REQ_MASK;
-				WREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE, reg_data);
-				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_DPG_PAUSE,
-						   UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK,
-						   UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK, ret_code);
-
-				/* Restore */
-				ring = &adev->vcn.ring_enc[0];
-				WREG32_SOC15(UVD, 0, mmUVD_RB_BASE_LO, ring->gpu_addr);
-				WREG32_SOC15(UVD, 0, mmUVD_RB_BASE_HI, upper_32_bits(ring->gpu_addr));
-				WREG32_SOC15(UVD, 0, mmUVD_RB_SIZE, ring->ring_size / 4);
-				WREG32_SOC15(UVD, 0, mmUVD_RB_RPTR, lower_32_bits(ring->wptr));
-				WREG32_SOC15(UVD, 0, mmUVD_RB_WPTR, lower_32_bits(ring->wptr));
-
-				ring = &adev->vcn.ring_enc[1];
-				WREG32_SOC15(UVD, 0, mmUVD_RB_BASE_LO2, ring->gpu_addr);
-				WREG32_SOC15(UVD, 0, mmUVD_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
-				WREG32_SOC15(UVD, 0, mmUVD_RB_SIZE2, ring->ring_size / 4);
-				WREG32_SOC15(UVD, 0, mmUVD_RB_RPTR2, lower_32_bits(ring->wptr));
-				WREG32_SOC15(UVD, 0, mmUVD_RB_WPTR2, lower_32_bits(ring->wptr));
-
-				ring = &adev->vcn.ring_dec;
-				WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR,
-						   RREG32_SOC15(UVD, 0, mmUVD_SCRATCH2) & 0x7FFFFFFF);
-				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
-						   UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON,
-						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
-			}
-		} else {
-			/* unpause dpg non-jpeg, no need to wait */
-			reg_data &= ~UVD_DPG_PAUSE__NJ_PAUSE_DPG_REQ_MASK;
-			WREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE, reg_data);
-		}
-		adev->vcn.pause_state.fw_based = new_state->fw_based;
-	}
-
-	/* pause/unpause if state is changed */
-	if (adev->vcn.pause_state.jpeg != new_state->jpeg) {
-		DRM_DEBUG("dpg pause state changed %d:%d -> %d:%d",
-			adev->vcn.pause_state.fw_based, adev->vcn.pause_state.jpeg,
-			new_state->fw_based, new_state->jpeg);
-
-		reg_data = RREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE) &
-			(~UVD_DPG_PAUSE__JPEG_PAUSE_DPG_ACK_MASK);
-
-		if (new_state->jpeg == VCN_DPG_STATE__PAUSE) {
-			ret_code = 0;
-
-			if (!(reg_data & UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK))
-				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
-						   UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF,
-						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
-
-			if (!ret_code) {
-				/* Make sure JPRG Snoop is disabled before sending the pause */
-				reg_data2 = RREG32_SOC15(UVD, 0, mmUVD_POWER_STATUS);
-				reg_data2 |= UVD_POWER_STATUS__JRBC_SNOOP_DIS_MASK;
-				WREG32_SOC15(UVD, 0, mmUVD_POWER_STATUS, reg_data2);
-
-				/* pause DPG jpeg */
-				reg_data |= UVD_DPG_PAUSE__JPEG_PAUSE_DPG_REQ_MASK;
-				WREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE, reg_data);
-				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_DPG_PAUSE,
-							UVD_DPG_PAUSE__JPEG_PAUSE_DPG_ACK_MASK,
-							UVD_DPG_PAUSE__JPEG_PAUSE_DPG_ACK_MASK, ret_code);
-
-				/* Restore */
-				ring = &adev->vcn.ring_jpeg;
-				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_VMID, 0);
-				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL,
-							UVD_JRBC_RB_CNTL__RB_NO_FETCH_MASK |
-							UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
-				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_LOW,
-							lower_32_bits(ring->gpu_addr));
-				WREG32_SOC15(UVD, 0, mmUVD_LMI_JRBC_RB_64BIT_BAR_HIGH,
-							upper_32_bits(ring->gpu_addr));
-				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_RPTR, ring->wptr);
-				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR, ring->wptr);
-				WREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_CNTL,
-							UVD_JRBC_RB_CNTL__RB_RPTR_WR_EN_MASK);
-
-				ring = &adev->vcn.ring_dec;
-				WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR,
-						   RREG32_SOC15(UVD, 0, mmUVD_SCRATCH2) & 0x7FFFFFFF);
-				SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS,
-						   UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON,
-						   UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
-			}
-		} else {
-			/* unpause dpg jpeg, no need to wait */
-			reg_data &= ~UVD_DPG_PAUSE__JPEG_PAUSE_DPG_REQ_MASK;
-			WREG32_SOC15(UVD, 0, mmUVD_DPG_PAUSE, reg_data);
-		}
-		adev->vcn.pause_state.jpeg = new_state->jpeg;
-	}
-
-	return 0;
-}
-
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 {
 	struct amdgpu_device *adev =
@@ -363,7 +237,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 		else
 			new_state.jpeg = VCN_DPG_STATE__UNPAUSE;
 
-		amdgpu_vcn_pause_dpg_mode(adev, &new_state);
+		adev->vcn.pause_dpg_mode(adev, &new_state);
 	}
 
 	fences += amdgpu_fence_count_emitted(&adev->vcn.ring_jpeg);
@@ -418,7 +292,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 		else if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
 			new_state.jpeg = VCN_DPG_STATE__PAUSE;
 
-		amdgpu_vcn_pause_dpg_mode(adev, &new_state);
+		adev->vcn.pause_dpg_mode(adev, &new_state);
 	}
 }
 

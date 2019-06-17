@@ -2361,6 +2361,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	/*Only need to read 1 byte starting from DP_DPRX_FEATURE_ENUMERATION_LIST.
 	 */
 	uint8_t dpcd_dprx_data = '\0';
+	uint8_t dpcd_power_state = '\0';
 
 	struct dp_device_vendor_id sink_id;
 	union down_stream_port_count down_strm_port_count;
@@ -2376,6 +2377,17 @@ static bool retrieve_link_cap(struct dc_link *link)
 		'\0', sizeof(union down_stream_port_count));
 	memset(&edp_config_cap, '\0',
 		sizeof(union edp_configuration_cap));
+
+	status = core_link_read_dpcd(link, DP_SET_POWER,
+				&dpcd_power_state, sizeof(dpcd_power_state));
+
+	/* Delay 1 ms if AUX CH is in power down state. Based on spec
+	 * section 2.3.1.2, if AUX CH may be powered down due to
+	 * write to DPCD 600h = 2. Sink AUX CH is monitoring differential
+	 * signal and may need up to 1 ms before being able to reply.
+	 */
+	if (status != DC_OK || dpcd_power_state == DP_SET_POWER_D3)
+		udelay(1000);
 
 	for (i = 0; i < read_dpcd_retry_cnt; i++) {
 		status = core_link_read_dpcd(

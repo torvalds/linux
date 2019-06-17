@@ -92,6 +92,12 @@ struct ras_manager {
 	struct ras_err_data err_data;
 };
 
+struct ras_badpage {
+	unsigned int bp;
+	unsigned int size;
+	unsigned int flags;
+};
+
 const char *ras_error_string[] = {
 	"none",
 	"parity",
@@ -120,8 +126,15 @@ const char *ras_block_string[] = {
 #define ras_err_str(i) (ras_error_string[ffs(i)])
 #define ras_block_str(i) (ras_block_string[i])
 
-#define AMDGPU_RAS_FLAG_INIT_BY_VBIOS 1
+#define AMDGPU_RAS_FLAG_INIT_BY_VBIOS		1
+#define AMDGPU_RAS_FLAG_INIT_NEED_RESET		2
 #define RAS_DEFAULT_FLAGS (AMDGPU_RAS_FLAG_INIT_BY_VBIOS)
+
+static int amdgpu_ras_reserve_vram(struct amdgpu_device *adev,
+		uint64_t offset, uint64_t size,
+		struct amdgpu_bo **bo_ptr);
+static int amdgpu_ras_release_vram(struct amdgpu_device *adev,
+		struct amdgpu_bo **bo_ptr);
 
 static void amdgpu_ras_self_test(struct amdgpu_device *adev)
 {
@@ -239,8 +252,8 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 
 	return 0;
 }
-/*
- * DOC: ras debugfs control interface
+/**
+ * DOC: AMDGPU RAS debugfs control interface
  *
  * It accepts struct ras_debug_if who has two members.
  *
@@ -302,6 +315,7 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
 	struct ras_debug_if data;
+	struct amdgpu_bo *bo;
 	int ret = 0;
 
 	ret = amdgpu_ras_debugfs_ctrl_parse_data(f, buf, size, pos, &data);
@@ -319,7 +333,16 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 		ret = amdgpu_ras_feature_enable(adev, &data.head, 1);
 		break;
 	case 2:
+		ret = amdgpu_ras_reserve_vram(adev,
+				data.inject.address, PAGE_SIZE, &bo);
+		/* This address might be used already on failure. In fact we can
+		 * perform an injection in such case.
+		 */
+		if (ret)
+			break;
+		data.inject.address = amdgpu_bo_gpu_offset(bo);
 		ret = amdgpu_ras_error_inject(adev, &data.inject);
+		amdgpu_ras_release_vram(adev, &bo);
 		break;
 	default:
 		ret = -EINVAL;
@@ -523,6 +546,8 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 				enable ? "enable":"disable",
 				ras_block_str(head->block),
 				ret);
+		if (ret == TA_RAS_STATUS__RESET_NEEDED)
+			return -EAGAIN;
 		return -EINVAL;
 	}
 
@@ -543,16 +568,32 @@ int amdgpu_ras_feature_enable_on_boot(struct amdgpu_device *adev,
 		return -EINVAL;
 
 	if (con->flags & AMDGPU_RAS_FLAG_INIT_BY_VBIOS) {
-		/* If ras is enabled by vbios, we set up ras object first in
-		 * both case. For enable, that is all what we need do. For
-		 * disable, we need perform a ras TA disable cmd after that.
-		 */
-		ret = __amdgpu_ras_feature_enable(adev, head, 1);
-		if (ret)
-			return ret;
+		if (enable) {
+			/* There is no harm to issue a ras TA cmd regardless of
+			 * the currecnt ras state.
+			 * If current state == target state, it will do nothing
+			 * But sometimes it requests driver to reset and repost
+			 * with error code -EAGAIN.
+			 */
+			ret = amdgpu_ras_feature_enable(adev, head, 1);
+			/* With old ras TA, we might fail to enable ras.
+			 * Log it and just setup the object.
+			 * TODO need remove this WA in the future.
+			 */
+			if (ret == -EINVAL) {
+				ret = __amdgpu_ras_feature_enable(adev, head, 1);
+				if (!ret)
+					DRM_INFO("RAS INFO: %s setup object\n",
+						ras_block_str(head->block));
+			}
+		} else {
+			/* setup the object then issue a ras TA disable cmd.*/
+			ret = __amdgpu_ras_feature_enable(adev, head, 1);
+			if (ret)
+				return ret;
 
-		if (!enable)
 			ret = amdgpu_ras_feature_enable(adev, head, 0);
+		}
 	} else
 		ret = amdgpu_ras_feature_enable(adev, head, enable);
 
@@ -693,6 +734,77 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 
 /* sysfs begin */
 
+static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
+		struct ras_badpage **bps, unsigned int *count);
+
+static char *amdgpu_ras_badpage_flags_str(unsigned int flags)
+{
+	switch (flags) {
+	case 0:
+		return "R";
+	case 1:
+		return "P";
+	case 2:
+	default:
+		return "F";
+	};
+}
+
+/*
+ * DOC: ras sysfs gpu_vram_bad_pages interface
+ *
+ * It allows user to read the bad pages of vram on the gpu through
+ * /sys/class/drm/card[0/1/2...]/device/ras/gpu_vram_bad_pages
+ *
+ * It outputs multiple lines, and each line stands for one gpu page.
+ *
+ * The format of one line is below,
+ * gpu pfn : gpu page size : flags
+ *
+ * gpu pfn and gpu page size are printed in hex format.
+ * flags can be one of below character,
+ * R: reserved, this gpu page is reserved and not able to use.
+ * P: pending for reserve, this gpu page is marked as bad, will be reserved
+ *    in next window of page_reserve.
+ * F: unable to reserve. this gpu page can't be reserved due to some reasons.
+ *
+ * examples:
+ * 0x00000001 : 0x00001000 : R
+ * 0x00000002 : 0x00001000 : P
+ */
+
+static ssize_t amdgpu_ras_sysfs_badpages_read(struct file *f,
+		struct kobject *kobj, struct bin_attribute *attr,
+		char *buf, loff_t ppos, size_t count)
+{
+	struct amdgpu_ras *con =
+		container_of(attr, struct amdgpu_ras, badpages_attr);
+	struct amdgpu_device *adev = con->adev;
+	const unsigned int element_size =
+		sizeof("0xabcdabcd : 0x12345678 : R\n") - 1;
+	unsigned int start = div64_ul(ppos + element_size - 1, element_size);
+	unsigned int end = div64_ul(ppos + count - 1, element_size);
+	ssize_t s = 0;
+	struct ras_badpage *bps = NULL;
+	unsigned int bps_count = 0;
+
+	memset(buf, 0, count);
+
+	if (amdgpu_ras_badpages_read(adev, &bps, &bps_count))
+		return 0;
+
+	for (; start < end && start < bps_count; start++)
+		s += scnprintf(&buf[s], element_size + 1,
+				"0x%08x : 0x%08x : %1s\n",
+				bps[start].bp,
+				bps[start].size,
+				amdgpu_ras_badpage_flags_str(bps[start].flags));
+
+	kfree(bps);
+
+	return s;
+}
+
 static ssize_t amdgpu_ras_sysfs_features_read(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -733,9 +845,14 @@ static int amdgpu_ras_sysfs_create_feature_node(struct amdgpu_device *adev)
 		&con->features_attr.attr,
 		NULL
 	};
+	struct bin_attribute *bin_attrs[] = {
+		&con->badpages_attr,
+		NULL
+	};
 	struct attribute_group group = {
 		.name = "ras",
 		.attrs = attrs,
+		.bin_attrs = bin_attrs,
 	};
 
 	con->features_attr = (struct device_attribute) {
@@ -745,7 +862,19 @@ static int amdgpu_ras_sysfs_create_feature_node(struct amdgpu_device *adev)
 		},
 			.show = amdgpu_ras_sysfs_features_read,
 	};
+
+	con->badpages_attr = (struct bin_attribute) {
+		.attr = {
+			.name = "gpu_vram_bad_pages",
+			.mode = S_IRUGO,
+		},
+		.size = 0,
+		.private = NULL,
+		.read = amdgpu_ras_sysfs_badpages_read,
+	};
+
 	sysfs_attr_init(attrs[0]);
+	sysfs_bin_attr_init(bin_attrs[0]);
 
 	return sysfs_create_group(&adev->dev->kobj, &group);
 }
@@ -757,9 +886,14 @@ static int amdgpu_ras_sysfs_remove_feature_node(struct amdgpu_device *adev)
 		&con->features_attr.attr,
 		NULL
 	};
+	struct bin_attribute *bin_attrs[] = {
+		&con->badpages_attr,
+		NULL
+	};
 	struct attribute_group group = {
 		.name = "ras",
 		.attrs = attrs,
+		.bin_attrs = bin_attrs,
 	};
 
 	sysfs_remove_group(&adev->dev->kobj, &group);
@@ -1091,6 +1225,53 @@ static int amdgpu_ras_interrupt_remove_all(struct amdgpu_device *adev)
 /* ih end */
 
 /* recovery begin */
+
+/* return 0 on success.
+ * caller need free bps.
+ */
+static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
+		struct ras_badpage **bps, unsigned int *count)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct ras_err_handler_data *data;
+	int i = 0;
+	int ret = 0;
+
+	if (!con || !con->eh_data || !bps || !count)
+		return -EINVAL;
+
+	mutex_lock(&con->recovery_lock);
+	data = con->eh_data;
+	if (!data || data->count == 0) {
+		*bps = NULL;
+		goto out;
+	}
+
+	*bps = kmalloc(sizeof(struct ras_badpage) * data->count, GFP_KERNEL);
+	if (!*bps) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	for (; i < data->count; i++) {
+		(*bps)[i] = (struct ras_badpage){
+			.bp = data->bps[i].bp,
+			.size = AMDGPU_GPU_PAGE_SIZE,
+			.flags = 0,
+		};
+
+		if (data->last_reserved <= i)
+			(*bps)[i].flags = 1;
+		else if (data->bps[i].bo == NULL)
+			(*bps)[i].flags = 2;
+	}
+
+	*count = data->count;
+out:
+	mutex_unlock(&con->recovery_lock);
+	return ret;
+}
+
 static void amdgpu_ras_do_recovery(struct work_struct *work)
 {
 	struct amdgpu_ras *ras =
@@ -1342,6 +1523,19 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 }
 /* recovery end */
 
+/* return 0 if ras will reset gpu and repost.*/
+int amdgpu_ras_request_reset_on_boot(struct amdgpu_device *adev,
+		unsigned int block)
+{
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	if (!ras)
+		return -EINVAL;
+
+	ras->flags |= AMDGPU_RAS_FLAG_INIT_NEED_RESET;
+	return 0;
+}
+
 /*
  * check hardware's ras ability which will be saved in hw_supported.
  * if hardware does not support ras, we can skip some ras initializtion and
@@ -1417,8 +1611,10 @@ recovery_out:
 	return -EINVAL;
 }
 
-/* do some init work after IP late init as dependence */
-void amdgpu_ras_post_init(struct amdgpu_device *adev)
+/* do some init work after IP late init as dependence.
+ * and it runs in resume/gpu reset/booting up cases.
+ */
+void amdgpu_ras_resume(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj, *tmp;
@@ -1446,6 +1642,32 @@ void amdgpu_ras_post_init(struct amdgpu_device *adev)
 			}
 		}
 	}
+
+	if (con->flags & AMDGPU_RAS_FLAG_INIT_NEED_RESET) {
+		con->flags &= ~AMDGPU_RAS_FLAG_INIT_NEED_RESET;
+		/* setup ras obj state as disabled.
+		 * for init_by_vbios case.
+		 * if we want to enable ras, just enable it in a normal way.
+		 * If we want do disable it, need setup ras obj as enabled,
+		 * then issue another TA disable cmd.
+		 * See feature_enable_on_boot
+		 */
+		amdgpu_ras_disable_all_features(adev, 1);
+		amdgpu_ras_reset_gpu(adev, 0);
+	}
+}
+
+void amdgpu_ras_suspend(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	if (!con)
+		return;
+
+	amdgpu_ras_disable_all_features(adev, 0);
+	/* Make sure all ras objects are disabled. */
+	if (con->features)
+		amdgpu_ras_disable_all_features(adev, 1);
 }
 
 /* do some fini work before IP fini as dependence */

@@ -63,7 +63,7 @@ int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
 	struct virtio_gpu_object *qobj;
 	int ret;
 
-	ret = ttm_eu_reserve_buffers(ticket, head, true, NULL);
+	ret = ttm_eu_reserve_buffers(ticket, head, true, NULL, true);
 	if (ret != 0)
 		return ret;
 

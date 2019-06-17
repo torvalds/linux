@@ -2220,6 +2220,8 @@ static uint32_t iceland_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU71_SoftRegisters, VoltageChangeTimeout);
 		case AverageGraphicsActivity:
 			return offsetof(SMU71_SoftRegisters, AverageGraphicsActivity);
+		case AverageMemoryActivity:
+			return offsetof(SMU71_SoftRegisters, AverageMemoryActivity);
 		case PreVBlankGap:
 			return offsetof(SMU71_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:

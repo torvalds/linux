@@ -1315,6 +1315,8 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 			ATOM_ENCODER_CAP_RECORD_HBR3_EN) ? 1 : 0;
 	info->HDMI_6GB_EN = (record->encodercaps &
 			ATOM_ENCODER_CAP_RECORD_HDMI6Gbps_EN) ? 1 : 0;
+	info->DP_IS_USB_C = (record->encodercaps &
+			ATOM_ENCODER_CAP_RECORD_USB_C_TYPE) ? 1 : 0;
 
 	return BP_RESULT_OK;
 }

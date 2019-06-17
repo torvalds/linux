@@ -45,6 +45,7 @@
 #include "smuio/smuio_9_0_offset.h"
 #include "smuio/smuio_9_0_sh_mask.h"
 #include "nbio/nbio_7_0_default.h"
+#include "nbio/nbio_7_0_offset.h"
 #include "nbio/nbio_7_0_sh_mask.h"
 #include "nbio/nbio_7_0_smn.h"
 #include "mp/mp_9_0_offset.h"
@@ -65,6 +66,9 @@
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
 #include "amdgpu_smu.h"
+#include "amdgpu_ras.h"
+#include "amdgpu_xgmi.h"
+#include <uapi/linux/kfd_ioctl.h>
 
 #define mmMP0_MISC_CGTT_CTRL0                                                                   0x01b9
 #define mmMP0_MISC_CGTT_CTRL0_BASE_IDX                                                          0
@@ -231,7 +235,7 @@ void soc15_grbm_select(struct amdgpu_device *adev,
 	grbm_gfx_cntl = REG_SET_FIELD(grbm_gfx_cntl, GRBM_GFX_CNTL, VMID, vmid);
 	grbm_gfx_cntl = REG_SET_FIELD(grbm_gfx_cntl, GRBM_GFX_CNTL, QUEUEID, queue);
 
-	WREG32(SOC15_REG_OFFSET(GC, 0, mmGRBM_GFX_CNTL), grbm_gfx_cntl);
+	WREG32_SOC15_RLC_SHADOW(GC, 0, mmGRBM_GFX_CNTL, grbm_gfx_cntl);
 }
 
 static void soc15_vga_set_state(struct amdgpu_device *adev, bool state)
@@ -386,7 +390,15 @@ void soc15_program_register_sequence(struct amdgpu_device *adev,
 			tmp &= ~(entry->and_mask);
 			tmp |= entry->or_mask;
 		}
-		WREG32(reg, tmp);
+
+		if (reg == SOC15_REG_OFFSET(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3) ||
+			reg == SOC15_REG_OFFSET(GC, 0, mmPA_SC_ENHANCE) ||
+			reg == SOC15_REG_OFFSET(GC, 0, mmPA_SC_ENHANCE_1) ||
+			reg == SOC15_REG_OFFSET(GC, 0, mmSH_MEM_CONFIG))
+			WREG32_RLC(reg, tmp);
+		else
+			WREG32(reg, tmp);
+
 	}
 
 }
@@ -476,6 +488,13 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 			soc15_asic_get_baco_capability(adev, &baco_reset);
 		else
 			baco_reset = false;
+		if (baco_reset) {
+			struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev, 0);
+			struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+			if (hive || (ras && ras->supported))
+				baco_reset = false;
+		}
 		break;
 	default:
 		baco_reset = false;
@@ -607,12 +626,24 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
-		if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
-			if (adev->asic_type == CHIP_VEGA20)
-				amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
-			else
-				amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+
+		/* For Vega10 SR-IOV, PSP need to be initialized before IH */
+		if (amdgpu_sriov_vf(adev)) {
+			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
+				if (adev->asic_type == CHIP_VEGA20)
+					amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+				else
+					amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+			}
+			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+		} else {
+			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
+				if (adev->asic_type == CHIP_VEGA20)
+					amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
+				else
+					amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+			}
 		}
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
@@ -734,7 +765,8 @@ static bool soc15_need_reset_on_init(struct amdgpu_device *adev)
 	/* Just return false for soc15 GPUs.  Reset does not seem to
 	 * be necessary.
 	 */
-	return false;
+	if (!amdgpu_passthrough(adev))
+		return false;
 
 	if (adev->flags & AMD_IS_APU)
 		return false;
@@ -747,6 +779,18 @@ static bool soc15_need_reset_on_init(struct amdgpu_device *adev)
 		return true;
 
 	return false;
+}
+
+static uint64_t soc15_get_pcie_replay_count(struct amdgpu_device *adev)
+{
+	uint64_t nak_r, nak_g;
+
+	/* Get the number of NAKs received and generated */
+	nak_r = RREG32_PCIE(smnPCIE_RX_NUM_NAK);
+	nak_g = RREG32_PCIE(smnPCIE_RX_NUM_NAK_GENERATED);
+
+	/* Add the total number of NAKs, i.e the number of replays */
+	return (nak_r + nak_g);
 }
 
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
@@ -766,6 +810,7 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.init_doorbell_index = &vega10_doorbell_index_init,
 	.get_pcie_usage = &soc15_get_pcie_usage,
 	.need_reset_on_init = &soc15_need_reset_on_init,
+	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
 };
 
 static const struct amdgpu_asic_funcs vega20_asic_funcs =
@@ -785,12 +830,16 @@ static const struct amdgpu_asic_funcs vega20_asic_funcs =
 	.init_doorbell_index = &vega20_doorbell_index_init,
 	.get_pcie_usage = &soc15_get_pcie_usage,
 	.need_reset_on_init = &soc15_need_reset_on_init,
+	.get_pcie_replay_count = &soc15_get_pcie_replay_count,
 };
 
 static int soc15_common_early_init(void *handle)
 {
+#define MMIO_REG_HOLE_OFFSET (0x80000 - PAGE_SIZE)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	adev->rmmio_remap.reg_offset = MMIO_REG_HOLE_OFFSET;
+	adev->rmmio_remap.bus_addr = adev->rmmio_base + MMIO_REG_HOLE_OFFSET;
 	adev->smc_rreg = NULL;
 	adev->smc_wreg = NULL;
 	adev->pcie_rreg = &soc15_pcie_rreg;
@@ -999,11 +1048,17 @@ static void soc15_doorbell_range_init(struct amdgpu_device *adev)
 	int i;
 	struct amdgpu_ring *ring;
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		ring = &adev->sdma.instance[i].ring;
-		adev->nbio_funcs->sdma_doorbell_range(adev, i,
-			ring->use_doorbell, ring->doorbell_index,
-			adev->doorbell_index.sdma_doorbell_range);
+	/*  Two reasons to skip
+	*		1, Host driver already programmed them
+	*		2, To avoid registers program violations in SR-IOV
+	*/
+	if (!amdgpu_virt_support_skip_setting(adev)) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			ring = &adev->sdma.instance[i].ring;
+			adev->nbio_funcs->sdma_doorbell_range(adev, i,
+				ring->use_doorbell, ring->doorbell_index,
+				adev->doorbell_index.sdma_doorbell_range);
+		}
 	}
 
 	adev->nbio_funcs->ih_doorbell_range(adev, adev->irq.ih.use_doorbell,
@@ -1020,6 +1075,12 @@ static int soc15_common_hw_init(void *handle)
 	soc15_program_aspm(adev);
 	/* setup nbio registers */
 	adev->nbio_funcs->init_registers(adev);
+	/* remap HDP registers to a hole in mmio space,
+	 * for the purpose of expose those registers
+	 * to process space
+	 */
+	if (adev->nbio_funcs->remap_hdp_registers)
+		adev->nbio_funcs->remap_hdp_registers(adev);
 	/* enable the doorbell aperture */
 	soc15_enable_doorbell_aperture(adev, true);
 	/* HW doorbell routing policy: doorbell writing not

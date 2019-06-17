@@ -26,6 +26,7 @@
 #include "nbio/nbio_6_1_sh_mask.h"
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
+#include "mp/mp_9_0_offset.h"
 #include "soc15.h"
 #include "vega10_ih.h"
 #include "soc15_common.h"
@@ -343,7 +344,7 @@ flr_done:
 
 	/* Trigger recovery for world switch failure if no TDR */
 	if (amdgpu_device_should_recover_gpu(adev)
-		&& amdgpu_lockup_timeout == MAX_SCHEDULE_TIMEOUT)
+		&& adev->sdma_timeout == MAX_SCHEDULE_TIMEOUT)
 		amdgpu_device_gpu_recover(adev, NULL);
 }
 
@@ -448,6 +449,23 @@ void xgpu_ai_mailbox_put_irq(struct amdgpu_device *adev)
 	amdgpu_irq_put(adev, &adev->virt.rcv_irq, 0);
 }
 
+static void xgpu_ai_init_reg_access_mode(struct amdgpu_device *adev)
+{
+	uint32_t rlc_fw_ver = RREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_6);
+	uint32_t sos_fw_ver = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_58);
+
+	adev->virt.reg_access_mode = AMDGPU_VIRT_REG_ACCESS_LEGACY;
+
+	if (rlc_fw_ver >= 0x5d)
+		adev->virt.reg_access_mode |= AMDGPU_VIRT_REG_ACCESS_RLC;
+
+	if (sos_fw_ver >= 0x80455)
+		adev->virt.reg_access_mode |= AMDGPU_VIRT_REG_ACCESS_PSP_PRG_IH;
+
+	if (sos_fw_ver >= 0x8045b)
+		adev->virt.reg_access_mode |= AMDGPU_VIRT_REG_SKIP_SEETING;
+}
+
 const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.req_full_gpu	= xgpu_ai_request_full_gpu_access,
 	.rel_full_gpu	= xgpu_ai_release_full_gpu_access,
@@ -456,4 +474,5 @@ const struct amdgpu_virt_ops xgpu_ai_virt_ops = {
 	.trans_msg = xgpu_ai_mailbox_trans_msg,
 	.get_pp_clk = xgpu_ai_get_pp_clk,
 	.force_dpm_level = xgpu_ai_force_dpm_level,
+	.init_reg_access_mode = xgpu_ai_init_reg_access_mode,
 };

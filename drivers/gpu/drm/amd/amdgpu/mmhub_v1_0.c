@@ -111,6 +111,9 @@ static void mmhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 		WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
 			     max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
+	if (amdgpu_virt_support_skip_setting(adev))
+		return;
+
 	/* Set default page address. */
 	value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start +
 		adev->vm_manager.vram_base_offset;
@@ -155,6 +158,9 @@ static void mmhub_v1_0_init_tlb_regs(struct amdgpu_device *adev)
 static void mmhub_v1_0_init_cache_regs(struct amdgpu_device *adev)
 {
 	uint32_t tmp;
+
+	if (amdgpu_virt_support_skip_setting(adev))
+		return;
 
 	/* Setup L2 cache */
 	tmp = RREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL);
@@ -202,6 +208,9 @@ static void mmhub_v1_0_enable_system_domain(struct amdgpu_device *adev)
 
 static void mmhub_v1_0_disable_identity_aperture(struct amdgpu_device *adev)
 {
+	if (amdgpu_virt_support_skip_setting(adev))
+		return;
+
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_LO32,
 		     0XFFFFFFFF);
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_CONTEXT1_IDENTITY_APERTURE_LOW_ADDR_HI32,
@@ -338,11 +347,13 @@ void mmhub_v1_0_gart_disable(struct amdgpu_device *adev)
 				0);
 	WREG32_SOC15(MMHUB, 0, mmMC_VM_MX_L1_TLB_CNTL, tmp);
 
-	/* Setup L2 cache */
-	tmp = RREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL);
-	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_CACHE, 0);
-	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL, tmp);
-	WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL3, 0);
+	if (!amdgpu_virt_support_skip_setting(adev)) {
+		/* Setup L2 cache */
+		tmp = RREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL);
+		tmp = REG_SET_FIELD(tmp, VM_L2_CNTL, ENABLE_L2_CACHE, 0);
+		WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL, tmp);
+		WREG32_SOC15(MMHUB, 0, mmVM_L2_CNTL3, 0);
+	}
 }
 
 /**
@@ -354,6 +365,10 @@ void mmhub_v1_0_gart_disable(struct amdgpu_device *adev)
 void mmhub_v1_0_set_fault_enable_default(struct amdgpu_device *adev, bool value)
 {
 	u32 tmp;
+
+	if (amdgpu_virt_support_skip_setting(adev))
+		return;
+
 	tmp = RREG32_SOC15(MMHUB, 0, mmVM_L2_PROTECTION_FAULT_CNTL);
 	tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL,
 			RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, value);

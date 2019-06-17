@@ -25,22 +25,24 @@
 #define __AMDGPU_MN_H__
 
 /*
- * MMU Notifier
+ * HMM mirror
  */
 struct amdgpu_mn;
+struct hmm_range;
 
 enum amdgpu_mn_type {
 	AMDGPU_MN_TYPE_GFX,
 	AMDGPU_MN_TYPE_HSA,
 };
 
-#if defined(CONFIG_MMU_NOTIFIER)
+#if defined(CONFIG_HMM_MIRROR)
 void amdgpu_mn_lock(struct amdgpu_mn *mn);
 void amdgpu_mn_unlock(struct amdgpu_mn *mn);
 struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev,
 				enum amdgpu_mn_type type);
 int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr);
 void amdgpu_mn_unregister(struct amdgpu_bo *bo);
+void amdgpu_hmm_init_range(struct hmm_range *range);
 #else
 static inline void amdgpu_mn_lock(struct amdgpu_mn *mn) {}
 static inline void amdgpu_mn_unlock(struct amdgpu_mn *mn) {}
@@ -51,6 +53,8 @@ static inline struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev,
 }
 static inline int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 {
+	DRM_WARN_ONCE("HMM_MIRROR kernel config option is not enabled, "
+		      "add CONFIG_ZONE_DEVICE=y in config file to fix this\n");
 	return -ENODEV;
 }
 static inline void amdgpu_mn_unregister(struct amdgpu_bo *bo) {}

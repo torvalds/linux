@@ -593,13 +593,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct drm_amdgpu_info_gds gds_info;
 
 		memset(&gds_info, 0, sizeof(gds_info));
-		gds_info.gds_gfx_partition_size = adev->gds.mem.gfx_partition_size;
-		gds_info.compute_partition_size = adev->gds.mem.cs_partition_size;
-		gds_info.gds_total_size = adev->gds.mem.total_size;
-		gds_info.gws_per_gfx_partition = adev->gds.gws.gfx_partition_size;
-		gds_info.gws_per_compute_partition = adev->gds.gws.cs_partition_size;
-		gds_info.oa_per_gfx_partition = adev->gds.oa.gfx_partition_size;
-		gds_info.oa_per_compute_partition = adev->gds.oa.cs_partition_size;
+		gds_info.compute_partition_size = adev->gds.gds_size;
+		gds_info.gds_total_size = adev->gds.gds_size;
+		gds_info.gws_per_compute_partition = adev->gds.gws_size;
+		gds_info.oa_per_compute_partition = adev->gds.oa_size;
 		return copy_to_user(out, &gds_info,
 				    min((size_t)size, sizeof(gds_info))) ? -EFAULT : 0;
 	}
@@ -980,7 +977,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	int r, pasid;
 
 	/* Ensure IB tests are run on ring */
-	flush_delayed_work(&adev->late_init_work);
+	flush_delayed_work(&adev->delayed_init_work);
 
 	file_priv->driver_priv = NULL;
 

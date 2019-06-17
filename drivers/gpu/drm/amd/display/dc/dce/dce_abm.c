@@ -60,6 +60,9 @@ static bool dce_abm_set_pipe(struct abm *abm, uint32_t controller_id)
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 	uint32_t rampingBoundary = 0xFFFF;
 
+	if (abm->dmcu_is_running == false)
+		return true;
+
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
 			1, 80000);
 
@@ -304,6 +307,9 @@ static bool dce_abm_set_level(struct abm *abm, uint32_t level)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 
+	if (abm->dmcu_is_running == false)
+		return true;
+
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
 			1, 80000);
 
@@ -321,6 +327,9 @@ static bool dce_abm_set_level(struct abm *abm, uint32_t level)
 static bool dce_abm_immediate_disable(struct abm *abm)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
+
+	if (abm->dmcu_is_running == false)
+		return true;
 
 	dce_abm_set_pipe(abm, MCP_DISABLE_ABM_IMMEDIATELY);
 
@@ -445,6 +454,7 @@ static void dce_abm_construct(
 	base->stored_backlight_registers.BL_PWM_CNTL2 = 0;
 	base->stored_backlight_registers.BL_PWM_PERIOD_CNTL = 0;
 	base->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV = 0;
+	base->dmcu_is_running = false;
 
 	abm_dce->regs = regs;
 	abm_dce->abm_shift = abm_shift;
@@ -474,6 +484,9 @@ struct abm *dce_abm_create(
 void dce_abm_destroy(struct abm **abm)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(*abm);
+
+	if (abm_dce->base.dmcu_is_running == true)
+		abm_dce->base.funcs->set_abm_immediate_disable(*abm);
 
 	kfree(abm_dce);
 	*abm = NULL;

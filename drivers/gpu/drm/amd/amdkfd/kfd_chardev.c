@@ -213,6 +213,8 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		q_properties->type = KFD_QUEUE_TYPE_COMPUTE;
 	else if (args->queue_type == KFD_IOC_QUEUE_TYPE_SDMA)
 		q_properties->type = KFD_QUEUE_TYPE_SDMA;
+	else if (args->queue_type == KFD_IOC_QUEUE_TYPE_SDMA_XGMI)
+		q_properties->type = KFD_QUEUE_TYPE_SDMA_XGMI;
 	else
 		return -ENOTSUPP;
 
@@ -522,7 +524,7 @@ static int kfd_ioctl_set_trap_handler(struct file *filep,
 	struct kfd_process_device *pdd;
 
 	dev = kfd_device_by_id(args->gpu_id);
-	if (dev == NULL)
+	if (!dev)
 		return -EINVAL;
 
 	mutex_lock(&p->mutex);
@@ -1272,6 +1274,12 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 		if (args->size != kfd_doorbell_process_slice(dev))
 			return -EINVAL;
 		offset = kfd_get_process_doorbells(dev, p);
+	} else if (flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP) {
+		if (args->size != PAGE_SIZE)
+			return -EINVAL;
+		offset = amdgpu_amdkfd_get_mmio_remap_phys_addr(dev->kgd);
+		if (!offset)
+			return -ENOMEM;
 	}
 
 	mutex_lock(&p->mutex);
@@ -1300,6 +1308,14 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 
 	args->handle = MAKE_HANDLE(args->gpu_id, idr_handle);
 	args->mmap_offset = offset;
+
+	/* MMIO is mapped through kfd device
+	 * Generate a kfd mmap offset
+	 */
+	if (flags & KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP) {
+		args->mmap_offset = KFD_MMAP_TYPE_MMIO | KFD_MMAP_GPU_ID(args->gpu_id);
+		args->mmap_offset <<= PAGE_SHIFT;
+	}
 
 	return 0;
 
@@ -1551,6 +1567,32 @@ copy_from_user_failed:
 	return err;
 }
 
+static int kfd_ioctl_alloc_queue_gws(struct file *filep,
+		struct kfd_process *p, void *data)
+{
+	int retval;
+	struct kfd_ioctl_alloc_queue_gws_args *args = data;
+	struct kfd_dev *dev;
+
+	if (!hws_gws_support)
+		return -ENODEV;
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (!dev) {
+		pr_debug("Could not find gpu id 0x%x\n", args->gpu_id);
+		return -ENODEV;
+	}
+	if (dev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS)
+		return -ENODEV;
+
+	mutex_lock(&p->mutex);
+	retval = pqm_set_gws(&p->pqm, args->queue_id, args->num_gws ? dev->gws : NULL);
+	mutex_unlock(&p->mutex);
+
+	args->first_gws = 0;
+	return retval;
+}
+
 static int kfd_ioctl_get_dmabuf_info(struct file *filep,
 		struct kfd_process *p, void *data)
 {
@@ -1753,6 +1795,8 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_IMPORT_DMABUF,
 				kfd_ioctl_import_dmabuf, 0),
 
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_ALLOC_QUEUE_GWS,
+			kfd_ioctl_alloc_queue_gws, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
@@ -1845,6 +1889,39 @@ err_i1:
 	return retcode;
 }
 
+static int kfd_mmio_mmap(struct kfd_dev *dev, struct kfd_process *process,
+		      struct vm_area_struct *vma)
+{
+	phys_addr_t address;
+	int ret;
+
+	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
+
+	address = amdgpu_amdkfd_get_mmio_remap_phys_addr(dev->kgd);
+
+	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE |
+				VM_DONTDUMP | VM_PFNMAP;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	pr_debug("Process %d mapping mmio page\n"
+		 "     target user address == 0x%08llX\n"
+		 "     physical address    == 0x%08llX\n"
+		 "     vm_flags            == 0x%04lX\n"
+		 "     size                == 0x%04lX\n",
+		 process->pasid, (unsigned long long) vma->vm_start,
+		 address, vma->vm_flags, PAGE_SIZE);
+
+	ret = io_remap_pfn_range(vma,
+				vma->vm_start,
+				address >> PAGE_SHIFT,
+				PAGE_SIZE,
+				vma->vm_page_prot);
+	return ret;
+}
+
+
 static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct kfd_process *process;
@@ -1875,6 +1952,10 @@ static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 		if (!dev)
 			return -ENODEV;
 		return kfd_reserved_mem_mmap(dev, process, vma);
+	case KFD_MMAP_TYPE_MMIO:
+		if (!dev)
+			return -ENODEV;
+		return kfd_mmio_mmap(dev, process, vma);
 	}
 
 	return -EFAULT;

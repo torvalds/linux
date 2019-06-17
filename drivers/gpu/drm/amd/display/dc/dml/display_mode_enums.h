@@ -147,4 +147,10 @@ enum dm_validation_status {
 	DML_FAIL_V_RATIO_PREFETCH,
 };
 
+enum writeback_config {
+	dm_normal,
+	dm_whole_buffer_for_single_stream_no_interleave,
+	dm_whole_buffer_for_single_stream_interleave,
+};
+
 #endif

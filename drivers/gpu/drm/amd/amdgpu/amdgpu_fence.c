@@ -429,8 +429,12 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 				  unsigned num_hw_submission)
 {
+	struct amdgpu_device *adev = ring->adev;
 	long timeout;
 	int r;
+
+	if (!adev)
+		return -EINVAL;
 
 	/* Check that num_hw_submission is a power of two */
 	if ((num_hw_submission & (num_hw_submission - 1)) != 0)
@@ -453,12 +457,31 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 
 	/* No need to setup the GPU scheduler for KIQ ring */
 	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ) {
-		/* for non-sriov case, no timeout enforce on compute ring */
-		if ((ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)
-				&& !amdgpu_sriov_vf(ring->adev))
-			timeout = MAX_SCHEDULE_TIMEOUT;
-		else
-			timeout = msecs_to_jiffies(amdgpu_lockup_timeout);
+		switch (ring->funcs->type) {
+		case AMDGPU_RING_TYPE_GFX:
+			timeout = adev->gfx_timeout;
+			break;
+		case AMDGPU_RING_TYPE_COMPUTE:
+			/*
+			 * For non-sriov case, no timeout enforce
+			 * on compute ring by default. Unless user
+			 * specifies a timeout for compute ring.
+			 *
+			 * For sriov case, always use the timeout
+			 * as gfx ring
+			 */
+			if (!amdgpu_sriov_vf(ring->adev))
+				timeout = adev->compute_timeout;
+			else
+				timeout = adev->gfx_timeout;
+			break;
+		case AMDGPU_RING_TYPE_SDMA:
+			timeout = adev->sdma_timeout;
+			break;
+		default:
+			timeout = adev->video_timeout;
+			break;
+		}
 
 		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
 				   num_hw_submission, amdgpu_job_hang_limit,

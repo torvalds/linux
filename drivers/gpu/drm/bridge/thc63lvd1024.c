@@ -33,6 +33,8 @@ struct thc63_dev {
 
 	struct drm_bridge bridge;
 	struct drm_bridge *next;
+
+	struct drm_bridge_timings timings;
 };
 
 static inline struct thc63_dev *to_thc63(struct drm_bridge *bridge)
@@ -50,15 +52,28 @@ static int thc63_attach(struct drm_bridge *bridge)
 static enum drm_mode_status thc63_mode_valid(struct drm_bridge *bridge,
 					const struct drm_display_mode *mode)
 {
+	struct thc63_dev *thc63 = to_thc63(bridge);
+	unsigned int min_freq;
+	unsigned int max_freq;
+
 	/*
-	 * The THC63LVD1024 clock frequency range is 8 to 135 MHz in single-in
-	 * mode. Note that the limits are different in dual-in, single-out mode,
-	 * and will need to be adjusted accordingly.
+	 * The THC63LVD1024 pixel rate range is 8 to 135 MHz in all modes but
+	 * dual-in, single-out where it is 40 to 150 MHz. As dual-in, dual-out
+	 * isn't supported by the driver yet, simply derive the limits from the
+	 * input mode.
 	 */
-	if (mode->clock < 8000)
+	if (thc63->timings.dual_link) {
+		min_freq = 40000;
+		max_freq = 150000;
+	} else {
+		min_freq = 8000;
+		max_freq = 135000;
+	}
+
+	if (mode->clock < min_freq)
 		return MODE_CLOCK_LOW;
 
-	if (mode->clock > 135000)
+	if (mode->clock > max_freq)
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
@@ -103,19 +118,19 @@ static const struct drm_bridge_funcs thc63_bridge_func = {
 
 static int thc63_parse_dt(struct thc63_dev *thc63)
 {
-	struct device_node *thc63_out;
+	struct device_node *endpoint;
 	struct device_node *remote;
 
-	thc63_out = of_graph_get_endpoint_by_regs(thc63->dev->of_node,
-						  THC63_RGB_OUT0, -1);
-	if (!thc63_out) {
+	endpoint = of_graph_get_endpoint_by_regs(thc63->dev->of_node,
+						 THC63_RGB_OUT0, -1);
+	if (!endpoint) {
 		dev_err(thc63->dev, "Missing endpoint in port@%u\n",
 			THC63_RGB_OUT0);
 		return -ENODEV;
 	}
 
-	remote = of_graph_get_remote_port_parent(thc63_out);
-	of_node_put(thc63_out);
+	remote = of_graph_get_remote_port_parent(endpoint);
+	of_node_put(endpoint);
 	if (!remote) {
 		dev_err(thc63->dev, "Endpoint in port@%u unconnected\n",
 			THC63_RGB_OUT0);
@@ -133,6 +148,22 @@ static int thc63_parse_dt(struct thc63_dev *thc63)
 	of_node_put(remote);
 	if (!thc63->next)
 		return -EPROBE_DEFER;
+
+	endpoint = of_graph_get_endpoint_by_regs(thc63->dev->of_node,
+						 THC63_LVDS_IN1, -1);
+	if (endpoint) {
+		remote = of_graph_get_remote_port_parent(endpoint);
+		of_node_put(endpoint);
+
+		if (remote) {
+			if (of_device_is_available(remote))
+				thc63->timings.dual_link = true;
+			of_node_put(remote);
+		}
+	}
+
+	dev_dbg(thc63->dev, "operating in %s-link mode\n",
+		thc63->timings.dual_link ? "dual" : "single");
 
 	return 0;
 }
@@ -190,6 +221,7 @@ static int thc63_probe(struct platform_device *pdev)
 	thc63->bridge.driver_private = thc63;
 	thc63->bridge.of_node = pdev->dev.of_node;
 	thc63->bridge.funcs = &thc63_bridge_func;
+	thc63->bridge.timings = &thc63->timings;
 
 	drm_bridge_add(&thc63->bridge);
 

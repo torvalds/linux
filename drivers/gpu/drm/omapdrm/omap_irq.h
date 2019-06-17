@@ -27,6 +27,7 @@ struct drm_device;
 struct omap_irq_wait;
 
 int omap_irq_enable_vblank(struct drm_crtc *crtc);
+int omap_irq_enable_framedone(struct drm_crtc *crtc, bool enable);
 void omap_irq_disable_vblank(struct drm_crtc *crtc);
 void omap_drm_irq_uninstall(struct drm_device *dev);
 int omap_drm_irq_install(struct drm_device *dev);

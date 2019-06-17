@@ -50,8 +50,8 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink)
 
 	if (dc_is_dvi_signal(stream->signal)) {
 		if (stream->ctx->dc->caps.dual_link_dvi &&
-		    (stream->timing.pix_clk_100hz / 10) > TMDS_MAX_PIXEL_CLOCK &&
-		    sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
+			(stream->timing.pix_clk_100hz / 10) > TMDS_MAX_PIXEL_CLOCK &&
+			sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
 			stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		else
 			stream->signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
@@ -182,6 +182,9 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 	if (new_stream->out_transfer_func)
 		dc_transfer_func_retain(new_stream->out_transfer_func);
 
+	new_stream->stream_id = new_stream->ctx->dc_stream_id_count;
+	new_stream->ctx->dc_stream_id_count++;
+
 	kref_init(&new_stream->refcount);
 
 	return new_stream;
@@ -232,7 +235,7 @@ static void delay_cursor_until_vupdate(struct pipe_ctx *pipe_ctx, struct dc *dc)
 	unsigned int us_per_line;
 
 	if (stream->ctx->asic_id.chip_family == FAMILY_RV &&
-			ASIC_REV_IS_RAVEN(stream->ctx->asic_id.hw_internal_rev)) {
+			ASICREV_IS_RAVEN(stream->ctx->asic_id.hw_internal_rev)) {
 
 		vupdate_line = get_vupdate_offset_from_vsync(pipe_ctx);
 		if (!dc_stream_get_crtc_position(dc, &stream, 1, &vpos, &nvpos))
@@ -374,42 +377,12 @@ uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream)
 	return 0;
 }
 
-static void build_dp_sdp_info_frame(struct pipe_ctx *pipe_ctx,
-		const uint8_t  *custom_sdp_message,
-		unsigned int sdp_message_size)
-{
-	uint8_t i;
-	struct encoder_info_frame *info = &pipe_ctx->stream_res.encoder_info_frame;
-
-	/* set valid info */
-	info->dpsdp.valid = true;
-
-	/* set sdp message header */
-	info->dpsdp.hb0 = custom_sdp_message[0]; /* package id */
-	info->dpsdp.hb1 = custom_sdp_message[1]; /* package type */
-	info->dpsdp.hb2 = custom_sdp_message[2]; /* package specific byte 0 any data */
-	info->dpsdp.hb3 = custom_sdp_message[3]; /* package specific byte 0 any data */
-
-	/* set sdp message data */
-	for (i = 0; i < 32; i++)
-		info->dpsdp.sb[i] = (custom_sdp_message[i+4]);
-
-}
-
-static void invalid_dp_sdp_info_frame(struct pipe_ctx *pipe_ctx)
-{
-	struct encoder_info_frame *info = &pipe_ctx->stream_res.encoder_info_frame;
-
-	/* in-valid info */
-	info->dpsdp.valid = false;
-}
-
 bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 		const uint8_t *custom_sdp_message,
 		unsigned int sdp_message_size)
 {
 	int i;
-	struct dc  *core_dc;
+	struct dc  *dc;
 	struct resource_context *res_ctx;
 
 	if (stream == NULL) {
@@ -417,8 +390,8 @@ bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 		return false;
 	}
 
-	core_dc = stream->ctx->dc;
-	res_ctx = &core_dc->current_state->res_ctx;
+	dc = stream->ctx->dc;
+	res_ctx = &dc->current_state->res_ctx;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
@@ -426,11 +399,14 @@ bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 		if (pipe_ctx->stream != stream)
 			continue;
 
-		build_dp_sdp_info_frame(pipe_ctx, custom_sdp_message, sdp_message_size);
+		if (dc->hwss.send_immediate_sdp_message != NULL)
+			dc->hwss.send_immediate_sdp_message(pipe_ctx,
+								custom_sdp_message,
+								sdp_message_size);
+		else
+			DC_LOG_WARNING("%s:send_immediate_sdp_message not implemented on this ASIC\n",
+			__func__);
 
-		core_dc->hwss.update_info_frame(pipe_ctx);
-
-		invalid_dp_sdp_info_frame(pipe_ctx);
 	}
 
 	return true;

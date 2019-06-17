@@ -35,6 +35,7 @@
 #include "include/logger_interface.h"
 
 #include "dce_clock_source.h"
+#include "clk_mgr.h"
 
 #include "reg_helper.h"
 
@@ -185,8 +186,8 @@ static bool calculate_fb_and_fractional_fb_divider(
 *RETURNS:
 * It fills the PLLSettings structure with PLL Dividers values
 * if calculated values are within required tolerance
-* It returns	- true if eror is within tolerance
-*		- false if eror is not within tolerance
+* It returns	- true if error is within tolerance
+*		- false if error is not within tolerance
 */
 static bool calc_fb_divider_checking_tolerance(
 		struct calc_pll_clock_source *calc_pll_cs,

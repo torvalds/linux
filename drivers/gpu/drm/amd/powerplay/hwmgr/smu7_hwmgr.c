@@ -3533,9 +3533,12 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*size = 4;
 		return 0;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
 		offset = data->soft_regs_start + smum_get_offsetof(hwmgr,
 								SMU_SoftRegisters,
-								AverageGraphicsActivity);
+								(idx == AMDGPU_PP_SENSOR_GPU_LOAD) ?
+								AverageGraphicsActivity:
+								AverageMemoryActivity);
 
 		activity_percent = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset);
 		activity_percent += 0x80;

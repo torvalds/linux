@@ -23,17 +23,9 @@
  *
  */
 
-#ifndef __DCN10_CLK_MGR_H__
-#define __DCN10_CLK_MGR_H__
+#ifndef __RV1_CLK_MGR_H__
+#define __RV1_CLK_MGR_H__
 
-#include "../dce/dce_clk_mgr.h"
-
-struct clk_bypass {
-	uint32_t dcfclk_bypass;
-	uint32_t dispclk_pypass;
-	uint32_t dprefclk_bypass;
-};
-
-struct clk_mgr *dcn1_clk_mgr_create(struct dc_context *ctx);
+void rv1_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *clk_mgr, struct pp_smu_funcs *pp_smu);
 
 #endif //__DCN10_CLK_MGR_H__

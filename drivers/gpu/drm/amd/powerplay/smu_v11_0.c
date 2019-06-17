@@ -225,20 +225,27 @@ static int smu_v11_0_check_fw_status(struct smu_context *smu)
 
 static int smu_v11_0_check_fw_version(struct smu_context *smu)
 {
-	uint32_t smu_version = 0xff;
+	uint32_t if_version = 0xff, smu_version = 0xff;
+	uint16_t smu_major;
+	uint8_t smu_minor, smu_debug;
 	int ret = 0;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion);
+	ret = smu_get_smc_version(smu, &if_version, &smu_version);
 	if (ret)
-		goto err;
+		return ret;
 
-	ret = smu_read_smc_arg(smu, &smu_version);
-	if (ret)
-		goto err;
+	smu_major = (smu_version >> 16) & 0xffff;
+	smu_minor = (smu_version >> 8) & 0xff;
+	smu_debug = (smu_version >> 0) & 0xff;
 
-	if (smu_version != smu->smc_if_version)
+	pr_info("SMU Driver IF Version = 0x%08x, SMU FW Version = 0x%08x (%d.%d.%d)\n",
+		if_version, smu_version, smu_major, smu_minor, smu_debug);
+
+	if (if_version != smu->smc_if_version) {
+		pr_err("SMU driver if version not matched\n");
 		ret = -EINVAL;
-err:
+	}
+
 	return ret;
 }
 
@@ -355,6 +362,8 @@ static int smu_v11_0_init_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 
+	if (!smu->pm_enabled)
+		return 0;
 	if (smu_power->power_context || smu_power->power_context_size != 0)
 		return -EINVAL;
 
@@ -364,6 +373,13 @@ static int smu_v11_0_init_power(struct smu_context *smu)
 		return -ENOMEM;
 	smu_power->power_context_size = sizeof(struct smu_11_0_dpm_context);
 
+	smu->metrics_time = 0;
+	smu->metrics_table = kzalloc(sizeof(SmuMetrics_t), GFP_KERNEL);
+	if (!smu->metrics_table) {
+		kfree(smu_power->power_context);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -371,10 +387,14 @@ static int smu_v11_0_fini_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 
+	if (!smu->pm_enabled)
+		return 0;
 	if (!smu_power->power_context || smu_power->power_context_size == 0)
 		return -EINVAL;
 
+	kfree(smu->metrics_table);
 	kfree(smu_power->power_context);
+	smu->metrics_table = NULL;
 	smu_power->power_context = NULL;
 	smu_power->power_context_size = 0;
 
@@ -636,6 +656,8 @@ static int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
 
+	if (!smu->pm_enabled)
+		return 0;
 	if (!table_context)
 		return -EINVAL;
 
@@ -664,6 +686,9 @@ static int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 static int smu_v11_0_init_display(struct smu_context *smu)
 {
 	int ret = 0;
+
+	if (!smu->pm_enabled)
+		return ret;
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, 0);
 	return ret;
 }
@@ -673,6 +698,8 @@ static int smu_v11_0_update_feature_enable_state(struct smu_context *smu, uint32
 	uint32_t feature_low = 0, feature_high = 0;
 	int ret = 0;
 
+	if (!smu->pm_enabled)
+		return ret;
 	if (feature_id >= 0 && feature_id < 31)
 		feature_low = (1 << feature_id);
 	else if (feature_id > 31 && feature_id < 63)
@@ -779,10 +806,13 @@ static int smu_v11_0_system_features_control(struct smu_context *smu,
 	uint32_t feature_mask[2];
 	int ret = 0;
 
-	ret = smu_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
-				     SMU_MSG_DisableAllSmuFeatures));
-	if (ret)
-		return ret;
+	if (smu->pm_enabled) {
+		ret = smu_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
+					     SMU_MSG_DisableAllSmuFeatures));
+		if (ret)
+			return ret;
+	}
+
 	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
 	if (ret)
 		return ret;
@@ -799,6 +829,8 @@ static int smu_v11_0_notify_display_change(struct smu_context *smu)
 {
 	int ret = 0;
 
+	if (!smu->pm_enabled)
+		return ret;
 	if (smu_feature_is_enabled(smu, FEATURE_DPM_UCLK_BIT))
 	    ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1);
 
@@ -811,6 +843,8 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 {
 	int ret = 0;
 
+	if (!smu->pm_enabled)
+		return ret;
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDcModeMaxDpmFreq,
 					  clock_select << 16);
 	if (ret) {
@@ -997,9 +1031,20 @@ static int smu_v11_0_get_current_clk_freq(struct smu_context *smu, uint32_t clk_
 static int smu_v11_0_get_thermal_range(struct smu_context *smu,
 				struct PP_TemperatureRange *range)
 {
+	PPTable_t *pptable = smu->smu_table.driver_pptable;
 	memcpy(range, &SMU7ThermalWithDelayPolicy[0], sizeof(struct PP_TemperatureRange));
 
-	range->max = smu->smu_table.software_shutdown_temp *
+	range->max = pptable->TedgeLimit *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->edge_emergency_max = (pptable->TedgeLimit + CTF_OFFSET_EDGE) *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_crit_max = pptable->ThotspotLimit *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->hotspot_emergency_max = (pptable->ThotspotLimit + CTF_OFFSET_HOTSPOT) *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_crit_max = pptable->ThbmLimit *
+		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	range->mem_emergency_max = (pptable->ThbmLimit + CTF_OFFSET_HBM)*
 		PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	return 0;
@@ -1064,9 +1109,20 @@ static int smu_v11_0_set_thermal_fan_table(struct smu_context *smu)
 static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 {
 	int ret = 0;
-	struct PP_TemperatureRange range;
+	struct PP_TemperatureRange range = {
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX};
 	struct amdgpu_device *adev = smu->adev;
 
+	if (!smu->pm_enabled)
+		return ret;
 	smu_v11_0_get_thermal_range(smu, &range);
 
 	if (smu->smu_table.thermal_controller_type) {
@@ -1084,11 +1140,39 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 
 	adev->pm.dpm.thermal.min_temp = range.min;
 	adev->pm.dpm.thermal.max_temp = range.max;
+	adev->pm.dpm.thermal.max_edge_emergency_temp = range.edge_emergency_max;
+	adev->pm.dpm.thermal.min_hotspot_temp = range.hotspot_min;
+	adev->pm.dpm.thermal.max_hotspot_crit_temp = range.hotspot_crit_max;
+	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range.hotspot_emergency_max;
+	adev->pm.dpm.thermal.min_mem_temp = range.mem_min;
+	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max;
+	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max;
+
+	return ret;
+}
+
+static int smu_v11_0_get_metrics_table(struct smu_context *smu,
+		SmuMetrics_t *metrics_table)
+{
+	int ret = 0;
+
+	if (!smu->metrics_time || time_after(jiffies, smu->metrics_time + HZ / 1000)) {
+		ret = smu_update_table(smu, TABLE_SMU_METRICS,
+				(void *)metrics_table, false);
+		if (ret) {
+			pr_info("Failed to export SMU metrics table!\n");
+			return ret;
+		}
+		memcpy(smu->metrics_table, metrics_table, sizeof(SmuMetrics_t));
+		smu->metrics_time = jiffies;
+	} else
+		memcpy(metrics_table, smu->metrics_table, sizeof(SmuMetrics_t));
 
 	return ret;
 }
 
 static int smu_v11_0_get_current_activity_percent(struct smu_context *smu,
+						  enum amd_pp_sensors sensor,
 						  uint32_t *value)
 {
 	int ret = 0;
@@ -1097,31 +1181,64 @@ static int smu_v11_0_get_current_activity_percent(struct smu_context *smu,
 	if (!value)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, TABLE_SMU_METRICS, (void *)&metrics, false);
+	ret = smu_v11_0_get_metrics_table(smu, &metrics);
 	if (ret)
 		return ret;
 
-	*value = metrics.AverageGfxActivity;
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		*value = metrics.AverageGfxActivity;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		*value = metrics.AverageUclkActivity;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving clock activity\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
 
-static int smu_v11_0_thermal_get_temperature(struct smu_context *smu, uint32_t *value)
+static int smu_v11_0_thermal_get_temperature(struct smu_context *smu,
+					     enum amd_pp_sensors sensor,
+					     uint32_t *value)
 {
 	struct amdgpu_device *adev = smu->adev;
+	SmuMetrics_t metrics;
 	uint32_t temp = 0;
+	int ret = 0;
 
 	if (!value)
 		return -EINVAL;
 
-	temp = RREG32_SOC15(THM, 0, mmCG_MULT_THERMAL_STATUS);
-	temp = (temp & CG_MULT_THERMAL_STATUS__CTF_TEMP_MASK) >>
-			CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT;
+	ret = smu_v11_0_get_metrics_table(smu, &metrics);
+	if (ret)
+		return ret;
 
-	temp = temp & 0x1ff;
-	temp *= SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		temp = RREG32_SOC15(THM, 0, mmCG_MULT_THERMAL_STATUS);
+		temp = (temp & CG_MULT_THERMAL_STATUS__CTF_TEMP_MASK) >>
+				CG_MULT_THERMAL_STATUS__CTF_TEMP__SHIFT;
 
-	*value = temp;
+		temp = temp & 0x1ff;
+		temp *= SMU11_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+		*value = temp;
+		break;
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+		*value = metrics.TemperatureEdge *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		*value = metrics.TemperatureHBM *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	default:
+		pr_err("Invalid sensor for retrieving temp\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1134,7 +1251,7 @@ static int smu_v11_0_get_gpu_power(struct smu_context *smu, uint32_t *value)
 	if (!value)
 		return -EINVAL;
 
-	ret = smu_update_table(smu, TABLE_SMU_METRICS, (void *)&metrics, false);
+	ret = smu_v11_0_get_metrics_table(smu, &metrics);
 	if (ret)
 		return ret;
 
@@ -1176,7 +1293,9 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 	int ret = 0;
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
 		ret = smu_v11_0_get_current_activity_percent(smu,
+							     sensor,
 							     (uint32_t *)data);
 		*size = 4;
 		break;
@@ -1188,8 +1307,10 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		ret = smu_get_current_clk_freq(smu, PPCLK_GFXCLK, (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_TEMP:
-		ret = smu_v11_0_thermal_get_temperature(smu, (uint32_t *)data);
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+	case AMDGPU_PP_SENSOR_EDGE_TEMP:
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		ret = smu_v11_0_thermal_get_temperature(smu, sensor, (uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_POWER:
@@ -1237,6 +1358,8 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 	PPCLK_e clk_select = 0;
 	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
 
+	if (!smu->pm_enabled)
+		return -EINVAL;
 	if (smu_feature_is_enabled(smu, FEATURE_DPM_DCEFCLK_BIT)) {
 		switch (clk_type) {
 		case amd_pp_dcef_clock:
@@ -1520,7 +1643,7 @@ static int smu_v11_0_get_power_profile_mode(struct smu_context *smu, char *buf)
 			"PD_Data_error_rate_coeff"};
 	int result = 0;
 
-	if (!buf)
+	if (!smu->pm_enabled || !buf)
 		return -EINVAL;
 
 	size += sprintf(buf + size, "%16s %s %s %s %s %s %s %s %s %s %s\n",
@@ -1607,6 +1730,8 @@ static int smu_v11_0_set_power_profile_mode(struct smu_context *smu, long *input
 
 	smu->power_profile_mode = input[size];
 
+	if (!smu->pm_enabled)
+		return ret;
 	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
 		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
 		return -EINVAL;
@@ -1712,17 +1837,6 @@ static int smu_v11_0_update_od8_settings(struct smu_context *smu,
 
 static int smu_v11_0_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 {
-	if (!smu_feature_is_supported(smu, FEATURE_DPM_VCE_BIT))
-		return 0;
-
-	if (enable == smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT))
-		return 0;
-
-	return smu_feature_set_enabled(smu, FEATURE_DPM_VCE_BIT, enable);
-}
-
-static int smu_v11_0_dpm_set_vce_enable(struct smu_context *smu, bool enable)
-{
 	if (!smu_feature_is_supported(smu, FEATURE_DPM_UVD_BIT))
 		return 0;
 
@@ -1730,6 +1844,17 @@ static int smu_v11_0_dpm_set_vce_enable(struct smu_context *smu, bool enable)
 		return 0;
 
 	return smu_feature_set_enabled(smu, FEATURE_DPM_UVD_BIT, enable);
+}
+
+static int smu_v11_0_dpm_set_vce_enable(struct smu_context *smu, bool enable)
+{
+	if (!smu_feature_is_supported(smu, FEATURE_DPM_VCE_BIT))
+		return 0;
+
+	if (enable == smu_feature_is_enabled(smu, FEATURE_DPM_VCE_BIT))
+		return 0;
+
+	return smu_feature_set_enabled(smu, FEATURE_DPM_VCE_BIT, enable);
 }
 
 static int smu_v11_0_get_current_rpm(struct smu_context *smu,

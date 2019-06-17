@@ -81,6 +81,7 @@
 	SRI(DP_MSE_RATE_UPDATE, DP, id), \
 	SRI(DP_PIXEL_FORMAT, DP, id), \
 	SRI(DP_SEC_CNTL, DP, id), \
+	SRI(DP_SEC_CNTL2, DP, id), \
 	SRI(DP_STEER_FIFO, DP, id), \
 	SRI(DP_VID_M, DP, id), \
 	SRI(DP_VID_N, DP, id), \
@@ -118,10 +119,12 @@ struct dcn10_stream_enc_registers {
 	uint32_t AFMT_60958_1;
 	uint32_t AFMT_60958_2;
 	uint32_t DIG_FE_CNTL;
+	uint32_t DIG_FE_CNTL2;
 	uint32_t DP_MSE_RATE_CNTL;
 	uint32_t DP_MSE_RATE_UPDATE;
 	uint32_t DP_PIXEL_FORMAT;
 	uint32_t DP_SEC_CNTL;
+	uint32_t DP_SEC_CNTL2;
 	uint32_t DP_STEER_FIFO;
 	uint32_t DP_VID_M;
 	uint32_t DP_VID_N;
@@ -191,6 +194,10 @@ struct dcn10_stream_enc_registers {
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP2_ENABLE, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP3_ENABLE, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_MPG_ENABLE, mask_sh),\
+	SE_SF(DP0_DP_SEC_CNTL2, DP_SEC_GSP4_SEND, mask_sh),\
+	SE_SF(DP0_DP_SEC_CNTL2, DP_SEC_GSP4_SEND_PENDING, mask_sh),\
+	SE_SF(DP0_DP_SEC_CNTL4, DP_SEC_GSP4_LINE_NUM, mask_sh),\
+	SE_SF(DP0_DP_SEC_CNTL2, DP_SEC_GSP4_SEND_ANY_LINE, mask_sh),\
 	SE_SF(DP0_DP_VID_STREAM_CNTL, DP_VID_STREAM_DIS_DEFER, mask_sh),\
 	SE_SF(DP0_DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, mask_sh),\
 	SE_SF(DP0_DP_VID_STREAM_CNTL, DP_VID_STREAM_STATUS, mask_sh),\
@@ -245,6 +252,7 @@ struct dcn10_stream_enc_registers {
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC2_FRAME_UPDATE_PENDING, mask_sh),\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC3_FRAME_UPDATE_PENDING, mask_sh),\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC4_FRAME_UPDATE_PENDING, mask_sh),\
+	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC4_IMMEDIATE_UPDATE_PENDING, mask_sh),\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC5_FRAME_UPDATE_PENDING, mask_sh),\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC6_FRAME_UPDATE_PENDING, mask_sh),\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC7_FRAME_UPDATE_PENDING, mask_sh),\
@@ -253,6 +261,7 @@ struct dcn10_stream_enc_registers {
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC2_FRAME_UPDATE, mask_sh),\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC3_FRAME_UPDATE, mask_sh),\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC4_FRAME_UPDATE, mask_sh),\
+	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC4_IMMEDIATE_UPDATE, mask_sh),\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC5_FRAME_UPDATE, mask_sh),\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC6_FRAME_UPDATE, mask_sh),\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL1, AFMT_GENERIC7_FRAME_UPDATE, mask_sh),\
@@ -260,6 +269,7 @@ struct dcn10_stream_enc_registers {
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP5_ENABLE, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP6_ENABLE, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_GSP7_ENABLE, mask_sh),\
+	SE_SF(DP0_DP_SEC_CNTL2, DP_SEC_GSP7_PPS, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL2, DP_SEC_GSP7_SEND, mask_sh),\
 	SE_SF(DP0_DP_DB_CNTL, DP_DB_DISABLE, mask_sh),\
 	SE_SF(DP0_DP_MSA_COLORIMETRY, DP_MSA_MISC0, mask_sh),\
@@ -304,6 +314,7 @@ struct dcn10_stream_enc_registers {
 	type AFMT_GENERIC2_FRAME_UPDATE_PENDING;\
 	type AFMT_GENERIC3_FRAME_UPDATE_PENDING;\
 	type AFMT_GENERIC4_FRAME_UPDATE_PENDING;\
+	type AFMT_GENERIC4_IMMEDIATE_UPDATE_PENDING;\
 	type AFMT_GENERIC5_FRAME_UPDATE_PENDING;\
 	type AFMT_GENERIC6_FRAME_UPDATE_PENDING;\
 	type AFMT_GENERIC7_FRAME_UPDATE_PENDING;\
@@ -312,6 +323,7 @@ struct dcn10_stream_enc_registers {
 	type AFMT_GENERIC2_FRAME_UPDATE;\
 	type AFMT_GENERIC3_FRAME_UPDATE;\
 	type AFMT_GENERIC4_FRAME_UPDATE;\
+	type AFMT_GENERIC4_IMMEDIATE_UPDATE;\
 	type AFMT_GENERIC5_FRAME_UPDATE;\
 	type AFMT_GENERIC6_FRAME_UPDATE;\
 	type AFMT_GENERIC7_FRAME_UPDATE;\
@@ -366,7 +378,12 @@ struct dcn10_stream_enc_registers {
 	type DP_SEC_GSP5_ENABLE;\
 	type DP_SEC_GSP6_ENABLE;\
 	type DP_SEC_GSP7_ENABLE;\
+	type DP_SEC_GSP7_PPS;\
 	type DP_SEC_GSP7_SEND;\
+	type DP_SEC_GSP4_SEND;\
+	type DP_SEC_GSP4_SEND_PENDING;\
+	type DP_SEC_GSP4_LINE_NUM;\
+	type DP_SEC_GSP4_SEND_ANY_LINE;\
 	type DP_SEC_MPG_ENABLE;\
 	type DP_VID_STREAM_DIS_DEFER;\
 	type DP_VID_STREAM_ENABLE;\
@@ -484,6 +501,11 @@ void enc1_stream_encoder_update_dp_info_packets(
 	struct stream_encoder *enc,
 	const struct encoder_info_frame *info_frame);
 
+void enc1_stream_encoder_send_immediate_sdp_message(
+	struct stream_encoder *enc,
+	const uint8_t *custom_sdp_message,
+				unsigned int sdp_message_size);
+
 void enc1_stream_encoder_stop_dp_info_packets(
 	struct stream_encoder *enc);
 
@@ -529,5 +551,22 @@ void enc1_se_hdmi_audio_disable(
 void enc1_dig_connect_to_otg(
 	struct stream_encoder *enc,
 	int tg_inst);
+
+void enc1_stream_encoder_set_stream_attribute_helper(
+	struct dcn10_stream_encoder *enc1,
+	struct dc_crtc_timing *crtc_timing);
+
+void enc1_se_enable_audio_clock(
+	struct stream_encoder *enc,
+	bool enable);
+
+void enc1_se_enable_dp_audio(
+	struct stream_encoder *enc);
+
+void get_audio_clock_info(
+	enum dc_color_depth color_depth,
+	uint32_t crtc_pixel_clock_in_khz,
+	uint32_t actual_pixel_clock_in_khz,
+	struct audio_clock_info *audio_clock_info);
 
 #endif /* __DC_STREAM_ENCODER_DCN10_H__ */
