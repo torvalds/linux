@@ -212,8 +212,7 @@ static const struct file_operations rockchip_drm_driver_fops = {
 };
 
 static struct drm_driver rockchip_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM |
-				  DRIVER_PRIME | DRIVER_ATOMIC,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.lastclose		= drm_fb_helper_lastclose,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.gem_free_object_unlocked = rockchip_gem_free_object,

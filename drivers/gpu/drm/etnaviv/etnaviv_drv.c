@@ -462,9 +462,7 @@ static const struct file_operations fops = {
 };
 
 static struct drm_driver etnaviv_drm_driver = {
-	.driver_features    = DRIVER_GEM |
-				DRIVER_PRIME |
-				DRIVER_RENDER,
+	.driver_features    = DRIVER_GEM | DRIVER_RENDER,
 	.open               = etnaviv_open,
 	.postclose           = etnaviv_postclose,
 	.gem_free_object_unlocked = etnaviv_gem_free_object,

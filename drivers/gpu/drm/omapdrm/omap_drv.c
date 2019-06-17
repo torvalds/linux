@@ -524,7 +524,7 @@ static const struct file_operations omapdriver_fops = {
 };
 
 static struct drm_driver omap_drm_driver = {
-	.driver_features = DRIVER_MODESET | DRIVER_GEM  | DRIVER_PRIME |
+	.driver_features = DRIVER_MODESET | DRIVER_GEM  |
 		DRIVER_ATOMIC | DRIVER_RENDER,
 	.open = dev_open,
 	.lastclose = drm_fb_helper_lastclose,

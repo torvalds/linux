@@ -196,7 +196,7 @@ static const struct file_operations vbox_fops = {
 
 static struct drm_driver driver = {
 	.driver_features =
-	    DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
+	    DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 
 	.lastclose = drm_fb_helper_lastclose,
 

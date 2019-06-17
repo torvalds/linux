@@ -38,8 +38,7 @@ static const struct drm_mode_config_funcs zx_drm_mode_config_funcs = {
 DEFINE_DRM_GEM_CMA_FOPS(zx_drm_fops);
 
 static struct drm_driver zx_drm_driver = {
-	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
-			   DRIVER_ATOMIC,
+	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,

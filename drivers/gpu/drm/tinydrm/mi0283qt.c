@@ -153,8 +153,7 @@ static const struct drm_display_mode mi0283qt_mode = {
 DEFINE_DRM_GEM_CMA_FOPS(mi0283qt_fops);
 
 static struct drm_driver mi0283qt_driver = {
-	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME |
-				  DRIVER_ATOMIC,
+	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &mi0283qt_fops,
 	.release		= mipi_dbi_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,

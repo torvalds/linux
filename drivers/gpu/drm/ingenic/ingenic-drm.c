@@ -484,8 +484,7 @@ static void ingenic_drm_disable_vblank(struct drm_crtc *crtc)
 DEFINE_DRM_GEM_CMA_FOPS(ingenic_drm_fops);
 
 static struct drm_driver ingenic_drm_driver_data = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME
-				| DRIVER_ATOMIC,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name			= "ingenic-drm",
 	.desc			= "DRM module for Ingenic SoCs",
 	.date			= "20190422",

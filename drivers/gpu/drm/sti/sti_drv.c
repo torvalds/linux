@@ -140,8 +140,7 @@ static void sti_mode_config_init(struct drm_device *dev)
 DEFINE_DRM_GEM_CMA_FOPS(sti_driver_fops);
 
 static struct drm_driver sti_driver = {
-	.driver_features = DRIVER_MODESET |
-	    DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,

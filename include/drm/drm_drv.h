@@ -62,12 +62,6 @@ enum drm_driver_feature {
 	 */
 	DRIVER_MODESET			= BIT(1),
 	/**
-	 * @DRIVER_PRIME:
-	 *
-	 * Driver implements DRM PRIME buffer sharing.
-	 */
-	DRIVER_PRIME			= BIT(2),
-	/**
 	 * @DRIVER_RENDER:
 	 *
 	 * Driver supports dedicated render nodes. See also the :ref:`section on

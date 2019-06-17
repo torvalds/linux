@@ -568,8 +568,7 @@ static int malidp_debugfs_init(struct drm_minor *minor)
 #endif //CONFIG_DEBUG_FS
 
 static struct drm_driver malidp_driver = {
-	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
-			   DRIVER_PRIME,
+	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = malidp_dumb_create,

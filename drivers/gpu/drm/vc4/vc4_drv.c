@@ -180,7 +180,6 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_ATOMIC |
 			    DRIVER_GEM |
 			    DRIVER_RENDER |
-			    DRIVER_PRIME |
 			    DRIVER_SYNCOBJ),
 	.open = vc4_open,
 	.postclose = vc4_close,
