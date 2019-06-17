@@ -312,13 +312,6 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 	int id = dsi_mgr_connector_get_id(connector);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 
-	DBG("id=%d", id);
-	if (!msm_dsi->panel) {
-		int ret = msm_dsi_manager_panel_init(connector, id);
-		if (ret)
-			return connector_status_disconnected;
-	}
-
 	return msm_dsi->panel ? connector_status_connected :
 		connector_status_disconnected;
 }
@@ -631,7 +624,17 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 
 	drm_connector_attach_encoder(connector, msm_dsi->encoder);
 
+	ret = msm_dsi_manager_panel_init(connector, id);
+	if (ret) {
+		DRM_DEV_ERROR(msm_dsi->dev->dev, "init panel failed %d\n", ret);
+		goto fail;
+	}
+
 	return connector;
+
+fail:
+	connector->funcs->destroy(msm_dsi->connector);
+	return ERR_PTR(ret);
 }
 
 bool msm_dsi_manager_validate_current_config(u8 id)
