@@ -745,8 +745,7 @@ static void check_lifetime(struct work_struct *work)
 				ifap = &ifa->ifa_dev->ifa_list;
 				tmp = rtnl_dereference(*ifap);
 				while (tmp) {
-					tmp = rtnl_dereference(tmp->ifa_next);
-					if (rtnl_dereference(*ifap) == ifa) {
+					if (tmp == ifa) {
 						inet_del_ifa(ifa->ifa_dev,
 							     ifap, 1);
 						break;
