@@ -99,8 +99,6 @@ struct dc_plane_address {
 	};
 
 	union large_integer page_table_base;
-
-	uint8_t vmid;
 };
 
 struct dc_size {
