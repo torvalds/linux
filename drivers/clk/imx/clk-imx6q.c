@@ -424,8 +424,9 @@ static void disable_anatop_clocks(void __iomem *anatop_base)
 	writel_relaxed(reg, anatop_base + CCM_ANALOG_PLL_VIDEO);
 }
 
-static struct clk_hw *imx6q_obtain_fixed_clk_hw(struct device_node *np,
-						const char *name, unsigned long rate)
+static struct clk_hw * __init imx6q_obtain_fixed_clk_hw(struct device_node *np,
+							const char *name,
+							unsigned long rate)
 {
 	struct clk *clk = of_clk_get_by_name(np, name);
 	struct clk_hw *hw;
