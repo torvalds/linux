@@ -408,6 +408,24 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		}
 		sig_cidr = val;
 
+		/* Check HW engine configuration */
+		val = cc_ioread(new_drvdata, CC_REG(HOST_REMOVE_INPUT_PINS));
+		switch (val) {
+		case CC_PINS_FULL:
+			/* This is fine */
+			break;
+		case CC_PINS_SLIM:
+			if (new_drvdata->std_bodies & CC_STD_NIST) {
+				dev_warn(dev, "703 mode forced due to HW configuration.\n");
+				new_drvdata->std_bodies = CC_STD_OSCCA;
+			}
+			break;
+		default:
+			dev_err(dev, "Unsupported engines configration.\n");
+			rc = -EINVAL;
+			goto post_clk_err;
+		}
+
 		/* Check security disable state */
 		val = cc_ioread(new_drvdata, CC_REG(SECURITY_DISABLED));
 		val &= CC_SECURITY_DISABLED_MASK;
