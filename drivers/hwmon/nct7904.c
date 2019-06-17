@@ -542,13 +542,13 @@ static int nct7904_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 	if (ret & 0x80) {
-		data->enable_dts = 1; //Enable DTS & PECI
+		data->enable_dts = 1; /* Enable DTS & PECI */
 	} else {
 		ret = nct7904_read_reg(data, BANK_2, TSI_CTRL_REG);
 		if (ret < 0)
 			return ret;
 		if (ret & 0x80)
-			data->enable_dts = 0x3; //Enable DTS & TSI
+			data->enable_dts = 0x3; /* Enable DTS & TSI */
 	}
 
 	/* Check DTS enable status */
