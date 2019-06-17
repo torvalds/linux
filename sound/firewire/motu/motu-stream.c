@@ -207,7 +207,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 	unsigned int curr_rate;
 	int err = 0;
 
-	if (motu->capture_substreams == 0 && motu->playback_substreams == 0)
+	if (motu->substreams_counter == 0)
 		return 0;
 
 	/* Some packet queueing errors. */
@@ -271,8 +271,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 		}
 	}
 
-	if (!amdtp_stream_running(&motu->tx_stream) &&
-	    motu->capture_substreams > 0) {
+	if (!amdtp_stream_running(&motu->tx_stream)) {
 		err = start_isoc_ctx(motu, &motu->tx_stream);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
@@ -291,15 +290,12 @@ stop_streams:
 
 void snd_motu_stream_stop_duplex(struct snd_motu *motu)
 {
-	if (motu->capture_substreams == 0) {
+	if (motu->substreams_counter == 0) {
 		if (amdtp_stream_running(&motu->tx_stream))
 			stop_isoc_ctx(motu, &motu->tx_stream);
 
-		if (motu->playback_substreams == 0) {
-			if (amdtp_stream_running(&motu->rx_stream))
-				stop_isoc_ctx(motu, &motu->rx_stream);
-			stop_both_streams(motu);
-		}
+		if (amdtp_stream_running(&motu->rx_stream))
+			stop_isoc_ctx(motu, &motu->rx_stream);
 	}
 }
 
@@ -372,8 +368,7 @@ void snd_motu_stream_destroy_duplex(struct snd_motu *motu)
 	destroy_stream(motu, AMDTP_IN_STREAM);
 	destroy_stream(motu, AMDTP_OUT_STREAM);
 
-	motu->playback_substreams = 0;
-	motu->capture_substreams = 0;
+	motu->substreams_counter = 0;
 }
 
 static void motu_lock_changed(struct snd_motu *motu)

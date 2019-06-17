@@ -203,7 +203,7 @@ static int capture_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		mutex_lock(&motu->mutex);
-		motu->capture_substreams++;
+		motu->substreams_counter++;
 		mutex_unlock(&motu->mutex);
 	}
 
@@ -222,7 +222,7 @@ static int playback_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		mutex_lock(&motu->mutex);
-		motu->playback_substreams++;
+		motu->substreams_counter++;
 		mutex_unlock(&motu->mutex);
 	}
 
@@ -236,7 +236,7 @@ static int capture_hw_free(struct snd_pcm_substream *substream)
 	mutex_lock(&motu->mutex);
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		motu->capture_substreams--;
+		motu->substreams_counter--;
 
 	snd_motu_stream_stop_duplex(motu);
 
@@ -252,7 +252,7 @@ static int playback_hw_free(struct snd_pcm_substream *substream)
 	mutex_lock(&motu->mutex);
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		motu->playback_substreams--;
+		motu->substreams_counter--;
 
 	snd_motu_stream_stop_duplex(motu);
 

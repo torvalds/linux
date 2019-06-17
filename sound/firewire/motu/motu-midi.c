@@ -18,7 +18,7 @@ static int midi_capture_open(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&motu->mutex);
 
-	motu->capture_substreams++;
+	motu->substreams_counter++;
 	err = snd_motu_stream_start_duplex(motu, 0);
 
 	mutex_unlock(&motu->mutex);
@@ -40,7 +40,7 @@ static int midi_playback_open(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&motu->mutex);
 
-	motu->playback_substreams++;
+	motu->substreams_counter++;
 	err = snd_motu_stream_start_duplex(motu, 0);
 
 	mutex_unlock(&motu->mutex);
@@ -57,7 +57,7 @@ static int midi_capture_close(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&motu->mutex);
 
-	motu->capture_substreams--;
+	motu->substreams_counter--;
 	snd_motu_stream_stop_duplex(motu);
 
 	mutex_unlock(&motu->mutex);
@@ -72,7 +72,7 @@ static int midi_playback_close(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&motu->mutex);
 
-	motu->playback_substreams--;
+	motu->substreams_counter--;
 	snd_motu_stream_stop_duplex(motu);
 
 	mutex_unlock(&motu->mutex);
