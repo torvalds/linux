@@ -199,12 +199,14 @@ const char *ceph_pr_addr(const struct ceph_entity_addr *addr)
 
 	switch (ss.ss_family) {
 	case AF_INET:
-		snprintf(s, MAX_ADDR_STR_LEN, "%pI4:%hu", &in4->sin_addr,
+		snprintf(s, MAX_ADDR_STR_LEN, "(%d)%pI4:%hu",
+			 le32_to_cpu(addr->type), &in4->sin_addr,
 			 ntohs(in4->sin_port));
 		break;
 
 	case AF_INET6:
-		snprintf(s, MAX_ADDR_STR_LEN, "[%pI6c]:%hu", &in6->sin6_addr,
+		snprintf(s, MAX_ADDR_STR_LEN, "(%d)[%pI6c]:%hu",
+			 le32_to_cpu(addr->type), &in6->sin6_addr,
 			 ntohs(in6->sin6_port));
 		break;
 
@@ -1982,6 +1984,7 @@ int ceph_parse_ips(const char *c, const char *end,
 		}
 
 		addr_set_port(&addr[i], port);
+		addr[i].type = CEPH_ENTITY_ADDR_TYPE_LEGACY;
 
 		dout("parse_ips got %s\n", ceph_pr_addr(&addr[i]));
 

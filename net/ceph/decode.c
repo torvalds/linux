@@ -21,17 +21,6 @@ ceph_decode_entity_addr_versioned(void **p, void *end,
 
 	ceph_decode_copy_safe(p, end, &addr->type, sizeof(addr->type), bad);
 
-	/*
-	 * TYPE_NONE == 0
-	 * TYPE_LEGACY == 1
-	 *
-	 * Clients that don't support ADDR2 always send TYPE_NONE.
-	 * For now, since all we support is msgr1, just set this to 0
-	 * when we get a TYPE_LEGACY type.
-	 */
-	if (addr->type == cpu_to_le32(1))
-		addr->type = 0;
-
 	ceph_decode_copy_safe(p, end, &addr->nonce, sizeof(addr->nonce), bad);
 
 	ceph_decode_32_safe(p, end, addr_len, bad);
@@ -61,7 +50,12 @@ ceph_decode_entity_addr_legacy(void **p, void *end,
 
 	/* Skip rest of type field */
 	ceph_decode_skip_n(p, end, 3, bad);
-	addr->type = 0;
+
+	/*
+	 * Clients that don't support ADDR2 always send TYPE_NONE, change it
+	 * to TYPE_LEGACY for forward compatibility.
+	 */
+	addr->type = CEPH_ENTITY_ADDR_TYPE_LEGACY;
 	ceph_decode_copy_safe(p, end, &addr->nonce, sizeof(addr->nonce), bad);
 	memset(&addr->in_addr, 0, sizeof(addr->in_addr));
 	ceph_decode_copy_safe(p, end, &addr->in_addr,
