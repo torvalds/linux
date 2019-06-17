@@ -21,6 +21,8 @@
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
 
+#include "irqs.h"
+
 /* PCI controller GPIO to IRQ pin mappings */
 #define INTA	2
 #define INTB	3
