@@ -4,6 +4,7 @@ Qualcomm SPMI Regulators
 	Usage: required
 	Value type: <string>
 	Definition: must be one of:
+			"qcom,pm8005-regulators"
 			"qcom,pm8841-regulators"
 			"qcom,pm8916-regulators"
 			"qcom,pm8941-regulators"
@@ -119,6 +120,9 @@ Qualcomm SPMI Regulators
 The regulator node houses sub-nodes for each regulator within the device. Each
 sub-node is identified using the node's name, with valid values listed for each
 of the PMICs below.
+
+pm8005:
+	s1, s2, s3, s4
 
 pm8841:
 	s1, s2, s3, s4, s5, s6, s7, s8
