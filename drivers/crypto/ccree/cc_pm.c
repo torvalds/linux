@@ -49,6 +49,11 @@ int cc_pm_resume(struct device *dev)
 		dev_err(dev, "failed getting clock back on. We're toast.\n");
 		return rc;
 	}
+	/* wait for Crytpcell reset completion */
+	if (!cc_wait_for_reset_completion(drvdata)) {
+		dev_err(dev, "Cryptocell reset not completed");
+		return -EBUSY;
+	}
 
 	cc_iowrite(drvdata, CC_REG(HOST_POWER_DOWN_EN), POWER_DOWN_DISABLE);
 	rc = init_cc_regs(drvdata, false);
