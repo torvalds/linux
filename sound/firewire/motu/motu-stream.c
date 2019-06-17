@@ -26,48 +26,55 @@
 #define  RX_PACKET_EXCLUDE_DIFFERED_DATA_CHUNKS	0x00000040
 #define  TX_PACKET_TRANSMISSION_SPEED_MASK	0x0000000f
 
+static int keep_resources(struct snd_motu *motu, unsigned int rate,
+			  struct amdtp_stream *stream)
+{
+	struct fw_iso_resources *resources;
+	struct snd_motu_packet_format *packet_format;
+	unsigned int midi_ports = 0;
+	int err;
+
+	if (stream == &motu->rx_stream) {
+		resources = &motu->rx_resources;
+		packet_format = &motu->rx_packet_formats;
+
+		if ((motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_2ND_Q) ||
+		    (motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_3RD_Q))
+			midi_ports = 1;
+	} else {
+		resources = &motu->tx_resources;
+		packet_format = &motu->tx_packet_formats;
+
+		if ((motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_2ND_Q) ||
+		    (motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_3RD_Q))
+			midi_ports = 1;
+	}
+
+	err = amdtp_motu_set_parameters(stream, rate, midi_ports,
+					packet_format);
+	if (err < 0)
+		return err;
+
+	return fw_iso_resources_allocate(resources,
+				amdtp_stream_get_max_payload(stream),
+				fw_parent_device(motu->unit)->max_speed);
+}
+
 static int start_both_streams(struct snd_motu *motu, unsigned int rate)
 {
-	unsigned int midi_ports = 0;
 	__be32 reg;
 	u32 data;
 	int err;
 
-	if ((motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_2ND_Q) ||
-	    (motu->spec->flags & SND_MOTU_SPEC_RX_MIDI_3RD_Q))
-		midi_ports = 1;
-
-	/* Set packet formation to our packet streaming engine. */
-	err = amdtp_motu_set_parameters(&motu->rx_stream, rate, midi_ports,
-					&motu->rx_packet_formats);
+	err = keep_resources(motu, rate, &motu->tx_stream);
 	if (err < 0)
 		return err;
 
-	if ((motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_2ND_Q) ||
-	    (motu->spec->flags & SND_MOTU_SPEC_TX_MIDI_3RD_Q))
-		midi_ports = 1;
-	else
-		midi_ports = 0;
-
-	err = amdtp_motu_set_parameters(&motu->tx_stream, rate, midi_ports,
-					&motu->tx_packet_formats);
+	err = keep_resources(motu, rate, &motu->rx_stream);
 	if (err < 0)
 		return err;
 
-	/* Get isochronous resources on the bus. */
-	err = fw_iso_resources_allocate(&motu->rx_resources,
-				amdtp_stream_get_max_payload(&motu->rx_stream),
-				fw_parent_device(motu->unit)->max_speed);
-	if (err < 0)
-		return err;
-
-	err = fw_iso_resources_allocate(&motu->tx_resources,
-				amdtp_stream_get_max_payload(&motu->tx_stream),
-				fw_parent_device(motu->unit)->max_speed);
-	if (err < 0)
-		return err;
-
-	/* Configure the unit to start isochronous communication. */
+	// Configure the unit to start isochronous communication.
 	err = snd_motu_transaction_read(motu, ISOC_COMM_CONTROL_OFFSET, &reg,
 					sizeof(reg));
 	if (err < 0)
