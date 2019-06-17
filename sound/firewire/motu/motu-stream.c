@@ -142,19 +142,6 @@ static int start_isoc_ctx(struct snd_motu *motu, struct amdtp_stream *stream)
 	return 0;
 }
 
-static void stop_isoc_ctx(struct snd_motu *motu, struct amdtp_stream *stream)
-{
-	struct fw_iso_resources *resources;
-
-	if (stream == &motu->rx_stream)
-		resources = &motu->rx_resources;
-	else
-		resources = &motu->tx_resources;
-
-	amdtp_stream_stop(stream);
-	fw_iso_resources_free(resources);
-}
-
 int snd_motu_stream_cache_packet_formats(struct snd_motu *motu)
 {
 	int err;
@@ -292,11 +279,11 @@ stop_streams:
 void snd_motu_stream_stop_duplex(struct snd_motu *motu)
 {
 	if (motu->substreams_counter == 0) {
-		if (amdtp_stream_running(&motu->tx_stream))
-			stop_isoc_ctx(motu, &motu->tx_stream);
+		amdtp_stream_stop(&motu->tx_stream);
+		amdtp_stream_stop(&motu->rx_stream);
 
-		if (amdtp_stream_running(&motu->rx_stream))
-			stop_isoc_ctx(motu, &motu->rx_stream);
+		fw_iso_resources_free(&motu->tx_resources);
+		fw_iso_resources_free(&motu->rx_resources);
 	}
 }
 
