@@ -9944,6 +9944,13 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/mediatek/mt7601u/
 
+MEDIATEK MT7621/28/88 I2C DRIVER
+M:	Stefan Roese <sr@denx.de>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	drivers/i2c/busses/i2c-mt7621.c
+F:	Documentation/devicetree/bindings/i2c/i2c-mt7621.txt
+
 MEDIATEK NAND CONTROLLER DRIVER
 M:	Xiaolei Li <xiaolei.li@mediatek.com>
 L:	linux-mtd@lists.infradead.org

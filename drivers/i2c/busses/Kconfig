@@ -747,6 +747,13 @@ config I2C_MT65XX
 	  If you want to use MediaTek(R) I2C interface, say Y or M here.
 	  If unsure, say N.
 
+config I2C_MT7621
+	tristate "MT7621/MT7628 I2C Controller"
+	depends on (RALINK && (SOC_MT7620 || SOC_MT7621)) || COMPILE_TEST
+	help
+	  Say Y here to include support for I2C controller in the
+	  MediaTek MT7621/MT7628 SoCs.
+
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
 	depends on MV64X60 || PLAT_ORION || ARCH_SUNXI || ARCH_MVEBU
