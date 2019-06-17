@@ -450,7 +450,7 @@ fail:
 struct cpg_mssr_clk_domain {
 	struct generic_pm_domain genpd;
 	unsigned int num_core_pm_clks;
-	unsigned int core_pm_clks[0];
+	unsigned int core_pm_clks[];
 };
 
 static struct cpg_mssr_clk_domain *cpg_mssr_clk_domain;
