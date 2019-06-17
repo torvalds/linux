@@ -236,6 +236,7 @@ static int ensure_packet_formats(struct snd_motu *motu)
 
 int snd_motu_stream_start_duplex(struct snd_motu *motu)
 {
+	unsigned int generation = motu->rx_resources.generation;
 	int err = 0;
 
 	if (motu->substreams_counter == 0)
@@ -244,6 +245,16 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu)
 	if (amdtp_streaming_error(&motu->rx_stream) ||
 	    amdtp_streaming_error(&motu->tx_stream))
 		finish_session(motu);
+
+	if (generation != fw_parent_device(motu->unit)->card->generation) {
+		err = fw_iso_resources_update(&motu->rx_resources);
+		if (err < 0)
+			return err;
+
+		err = fw_iso_resources_update(&motu->tx_resources);
+		if (err < 0)
+			return err;
+	}
 
 	if (!amdtp_stream_running(&motu->rx_stream)) {
 		err = ensure_packet_formats(motu);
