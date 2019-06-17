@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mcp4725.c - Support for Microchip MCP4725/6
  *
  * Copyright (C) 2012 Peter Meerwald <pmeerw@pmeerw.net>
  *
  * Based on max517 by Roland Stigge <stigge@antcom.de>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * driver for the Microchip I2C 12-bit digital-to-analog converter (DAC)
  * (7-bit I2C slave address 0x60, the three LSBs can be configured in

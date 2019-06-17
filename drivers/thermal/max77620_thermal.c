@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Junction temperature thermal driver for Maxim Max77620.
  *
@@ -5,10 +6,6 @@
  *
  * Author: Laxman Dewangan <ldewangan@nvidia.com>
  *	   Mallikarjun Kasoju <mkasoju@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/irq.h>
