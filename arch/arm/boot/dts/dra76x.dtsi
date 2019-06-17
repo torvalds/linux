@@ -81,3 +81,11 @@
 		reg = <0x3fc>;
 	};
 };
+
+&rtctarget {
+	status = "disabled";
+};
+
+&usb4_tm {
+	status = "disabled";
+};
