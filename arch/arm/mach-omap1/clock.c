@@ -1005,7 +1005,6 @@ static void clk_debugfs_register_one(struct clk *c)
 
 static void clk_debugfs_register(struct clk *c)
 {
-	int err;
 	struct clk *pa = c->parent;
 
 	if (pa && !pa->dent)
