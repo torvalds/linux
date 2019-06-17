@@ -1028,13 +1028,7 @@ out:
 
 static int mmc_sdio_power_restore(struct mmc_host *host)
 {
-	int ret;
-
-	ret = mmc_sdio_reinit_card(host, mmc_card_keep_power(host));
-	if (!ret && host->sdio_irqs)
-		mmc_signal_sdio_irq(host);
-
-	return ret;
+	return mmc_sdio_reinit_card(host, 0);
 }
 
 static int mmc_sdio_runtime_suspend(struct mmc_host *host)
