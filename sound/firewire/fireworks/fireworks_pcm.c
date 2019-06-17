@@ -247,13 +247,14 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
 
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN) {
-		mutex_lock(&efw->mutex);
+	mutex_lock(&efw->mutex);
+
+	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
 		--efw->substreams_counter;
-		mutex_unlock(&efw->mutex);
-	}
 
 	snd_efw_stream_stop_duplex(efw);
+
+	mutex_unlock(&efw->mutex);
 
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }

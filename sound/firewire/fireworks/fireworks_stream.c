@@ -63,8 +63,7 @@ static int start_stream(struct snd_efw *efw, struct amdtp_stream *stream,
 		conn = &efw->in_conn;
 
 	// Establish connection via CMP.
-	err = cmp_connection_establish(conn,
-				       amdtp_stream_get_max_payload(stream));
+	err = cmp_connection_establish(conn);
 	if (err < 0)
 		return err;
 
@@ -177,17 +176,25 @@ static int keep_resources(struct snd_efw *efw, struct amdtp_stream *stream,
 {
 	unsigned int pcm_channels;
 	unsigned int midi_ports;
+	struct cmp_connection *conn;
+	int err;
 
 	if (stream == &efw->tx_stream) {
 		pcm_channels = efw->pcm_capture_channels[mode];
 		midi_ports = efw->midi_out_ports;
+		conn = &efw->out_conn;
 	} else {
 		pcm_channels = efw->pcm_playback_channels[mode];
 		midi_ports = efw->midi_in_ports;
+		conn = &efw->in_conn;
 	}
 
-	return amdtp_am824_set_parameters(stream, rate, pcm_channels,
-					  midi_ports, false);
+	err = amdtp_am824_set_parameters(stream, rate, pcm_channels,
+					 midi_ports, false);
+	if (err < 0)
+		return err;
+
+	return cmp_connection_reserve(conn, amdtp_stream_get_max_payload(stream));
 }
 
 int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate)
@@ -228,8 +235,10 @@ int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate)
 			return err;
 
 		err = keep_resources(efw, &efw->rx_stream, rate, mode);
-		if (err < 0)
+		if (err < 0) {
+			cmp_connection_release(&efw->in_conn);
 			return err;
+		}
 	}
 
 	return 0;
@@ -285,6 +294,9 @@ void snd_efw_stream_stop_duplex(struct snd_efw *efw)
 	if (efw->substreams_counter == 0) {
 		stop_stream(efw, &efw->tx_stream);
 		stop_stream(efw, &efw->rx_stream);
+
+		cmp_connection_release(&efw->out_conn);
+		cmp_connection_release(&efw->in_conn);
 	}
 }
 
