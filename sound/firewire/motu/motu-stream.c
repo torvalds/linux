@@ -101,6 +101,9 @@ static void finish_session(struct snd_motu *motu)
 	if (err < 0)
 		return;
 
+	amdtp_stream_stop(&motu->tx_stream);
+	amdtp_stream_stop(&motu->rx_stream);
+
 	err = snd_motu_transaction_read(motu, ISOC_COMM_CONTROL_OFFSET, &reg,
 					sizeof(reg));
 	if (err < 0)
@@ -219,11 +222,8 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 		rate = curr_rate;
 	if (rate != curr_rate ||
 	    amdtp_streaming_error(&motu->rx_stream) ||
-	    amdtp_streaming_error(&motu->tx_stream)) {
-		amdtp_stream_stop(&motu->rx_stream);
-		amdtp_stream_stop(&motu->tx_stream);
+	    amdtp_streaming_error(&motu->tx_stream))
 		finish_session(motu);
-	}
 
 	if (!amdtp_stream_running(&motu->rx_stream)) {
 		err = protocol->set_clock_rate(motu, rate);
@@ -278,13 +278,8 @@ stop_streams:
 
 void snd_motu_stream_stop_duplex(struct snd_motu *motu)
 {
-	if (motu->substreams_counter == 0) {
-		amdtp_stream_stop(&motu->tx_stream);
-		amdtp_stream_stop(&motu->rx_stream);
-
-		fw_iso_resources_free(&motu->tx_resources);
-		fw_iso_resources_free(&motu->rx_resources);
-	}
+	if (motu->substreams_counter == 0)
+		finish_session(motu);
 }
 
 static int init_stream(struct snd_motu *motu, enum amdtp_stream_direction dir)
