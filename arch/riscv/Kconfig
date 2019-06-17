@@ -95,6 +95,8 @@ config PGTABLE_LEVELS
 	default 3 if 64BIT
 	default 2
 
+source "arch/riscv/Kconfig.socs"
+
 menu "Platform type"
 
 choice

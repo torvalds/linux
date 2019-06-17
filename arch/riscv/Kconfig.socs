@@ -1,0 +1,8 @@
+menu "SoC selection"
+
+config SOC_SIFIVE
+       bool "SiFive SoCs"
+       help
+         This enables support for SiFive SoC platform hardware.
+
+endmenu
