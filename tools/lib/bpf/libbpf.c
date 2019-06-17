@@ -207,7 +207,8 @@ static const char * const libbpf_type_to_btf_name[] = {
 struct bpf_map {
 	int fd;
 	char *name;
-	size_t offset;
+	int sec_idx;
+	size_t sec_offset;
 	int map_ifindex;
 	int inner_map_fd;
 	struct bpf_map_def def;
@@ -647,7 +648,9 @@ static int compare_bpf_map(const void *_a, const void *_b)
 	const struct bpf_map *a = _a;
 	const struct bpf_map *b = _b;
 
-	return a->offset - b->offset;
+	if (a->sec_idx != b->sec_idx)
+		return a->sec_idx - b->sec_idx;
+	return a->sec_offset - b->sec_offset;
 }
 
 static bool bpf_map_type__is_map_in_map(enum bpf_map_type type)
@@ -800,7 +803,7 @@ static struct bpf_map *bpf_object__add_map(struct bpf_object *obj)
 
 static int
 bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
-			      Elf_Data *data, void **data_buff)
+			      int sec_idx, Elf_Data *data, void **data_buff)
 {
 	char map_name[BPF_OBJ_NAME_LEN];
 	struct bpf_map_def *def;
@@ -811,7 +814,8 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 		return PTR_ERR(map);
 
 	map->libbpf_type = type;
-	map->offset = ~(typeof(map->offset))0;
+	map->sec_idx = sec_idx;
+	map->sec_offset = 0;
 	snprintf(map_name, sizeof(map_name), "%.8s%.7s", obj->name,
 		 libbpf_type_to_btf_name[type]);
 	map->name = strdup(map_name);
@@ -819,6 +823,8 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 		pr_warning("failed to alloc map name\n");
 		return -ENOMEM;
 	}
+	pr_debug("map '%s' (global data): at sec_idx %d, offset %zu.\n",
+		 map_name, map->sec_idx, map->sec_offset);
 
 	def = &map->def;
 	def->type = BPF_MAP_TYPE_ARRAY;
@@ -851,6 +857,7 @@ static int bpf_object__init_global_data_maps(struct bpf_object *obj)
 	 */
 	if (obj->efile.data_shndx >= 0) {
 		err = bpf_object__init_internal_map(obj, LIBBPF_MAP_DATA,
+						    obj->efile.data_shndx,
 						    obj->efile.data,
 						    &obj->sections.data);
 		if (err)
@@ -858,6 +865,7 @@ static int bpf_object__init_global_data_maps(struct bpf_object *obj)
 	}
 	if (obj->efile.rodata_shndx >= 0) {
 		err = bpf_object__init_internal_map(obj, LIBBPF_MAP_RODATA,
+						    obj->efile.rodata_shndx,
 						    obj->efile.rodata,
 						    &obj->sections.rodata);
 		if (err)
@@ -865,6 +873,7 @@ static int bpf_object__init_global_data_maps(struct bpf_object *obj)
 	}
 	if (obj->efile.bss_shndx >= 0) {
 		err = bpf_object__init_internal_map(obj, LIBBPF_MAP_BSS,
+						    obj->efile.bss_shndx,
 						    obj->efile.bss, NULL);
 		if (err)
 			return err;
@@ -948,7 +957,10 @@ static int bpf_object__init_user_maps(struct bpf_object *obj, bool strict)
 		}
 
 		map->libbpf_type = LIBBPF_MAP_UNSPEC;
-		map->offset = sym.st_value;
+		map->sec_idx = sym.st_shndx;
+		map->sec_offset = sym.st_value;
+		pr_debug("map '%s' (legacy): at sec_idx %d, offset %zu.\n",
+			 map_name, map->sec_idx, map->sec_offset);
 		if (sym.st_value + map_def_sz > data->d_size) {
 			pr_warning("corrupted maps section in %s: last map \"%s\" too small\n",
 				   obj->path, map_name);
@@ -1448,9 +1460,13 @@ bpf_program__collect_reloc(struct bpf_program *prog, GElf_Shdr *shdr,
 				if (maps[map_idx].libbpf_type != type)
 					continue;
 				if (type != LIBBPF_MAP_UNSPEC ||
-				    maps[map_idx].offset == sym.st_value) {
-					pr_debug("relocation: find map %zd (%s) for insn %u\n",
-						 map_idx, maps[map_idx].name, insn_idx);
+				    (maps[map_idx].sec_idx == sym.st_shndx &&
+				     maps[map_idx].sec_offset == sym.st_value)) {
+					pr_debug("relocation: found map %zd (%s, sec_idx %d, offset %zu) for insn %u\n",
+						 map_idx, maps[map_idx].name,
+						 maps[map_idx].sec_idx,
+						 maps[map_idx].sec_offset,
+						 insn_idx);
 					break;
 				}
 			}
@@ -3468,13 +3484,7 @@ bpf_object__find_map_fd_by_name(struct bpf_object *obj, const char *name)
 struct bpf_map *
 bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset)
 {
-	int i;
-
-	for (i = 0; i < obj->nr_maps; i++) {
-		if (obj->maps[i].offset == offset)
-			return &obj->maps[i];
-	}
-	return ERR_PTR(-ENOENT);
+	return ERR_PTR(-ENOTSUP);
 }
 
 long libbpf_get_error(const void *ptr)
