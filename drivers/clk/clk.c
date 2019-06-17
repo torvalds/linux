@@ -2194,7 +2194,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 EXPORT_SYMBOL_GPL(clk_set_rate);
 
 /**
- * clk_set_rate_exclusive - specify a new rate get exclusive control
+ * clk_set_rate_exclusive - specify a new rate and get exclusive control
  * @clk: the clk whose rate is being changed
  * @rate: the new rate for clk
  *
@@ -2202,7 +2202,7 @@ EXPORT_SYMBOL_GPL(clk_set_rate);
  * within a critical section
  *
  * This can be used initially to ensure that at least 1 consumer is
- * statisfied when several consumers are competing for exclusivity over the
+ * satisfied when several consumers are competing for exclusivity over the
  * same clock provider.
  *
  * The exclusivity is not applied if setting the rate failed.
