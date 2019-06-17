@@ -176,6 +176,12 @@ properties:
           - const: compulab,cl-som-imx7
           - const: fsl,imx7d
 
+      - description: i.MX7ULP based Boards
+        items:
+          - enum:
+              - fsl,imx7ulp-evk           # i.MX7ULP Evaluation Kit
+          - const: fsl,imx7ulp
+
       - description: i.MX8MM based Boards
         items:
           - enum:
