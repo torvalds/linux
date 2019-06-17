@@ -506,6 +506,8 @@ static int nct7904_probe(struct i2c_client *client,
 
 	/* CPU_TEMP attributes */
 	ret = nct7904_read_reg(data, BANK_0, VT_ADC_CTRL0_REG);
+	if (ret < 0)
+		return ret;
 
 	if ((ret & 0x6) == 0x6)
 		data->tcpu_mask |= 1; /* TR1 */
@@ -518,11 +520,15 @@ static int nct7904_probe(struct i2c_client *client,
 
 	/* LTD */
 	ret = nct7904_read_reg(data, BANK_0, VT_ADC_CTRL2_REG);
+	if (ret < 0)
+		return ret;
 	if ((ret & 0x02) == 0x02)
 		data->tcpu_mask |= 0x10;
 
 	/* Multi-Function detecting for Volt and TR/TD */
 	ret = nct7904_read_reg(data, BANK_0, VT_ADC_MD_REG);
+	if (ret < 0)
+		return ret;
 
 	for (i = 0; i < 4; i++) {
 		val = (ret & (0x03 << i)) >> (i * 2);
@@ -533,22 +539,29 @@ static int nct7904_probe(struct i2c_client *client,
 
 	/* PECI */
 	ret = nct7904_read_reg(data, BANK_2, PFE_REG);
+	if (ret < 0)
+		return ret;
 	if (ret & 0x80) {
 		data->enable_dts = 1; //Enable DTS & PECI
 	} else {
 		ret = nct7904_read_reg(data, BANK_2, TSI_CTRL_REG);
+		if (ret < 0)
+			return ret;
 		if (ret & 0x80)
 			data->enable_dts = 0x3; //Enable DTS & TSI
 	}
 
 	/* Check DTS enable status */
 	if (data->enable_dts) {
-		data->has_dts =
-			nct7904_read_reg(data, BANK_0, DTS_T_CTRL0_REG) & 0xF;
+		ret = nct7904_read_reg(data, BANK_0, DTS_T_CTRL0_REG);
+		if (ret < 0)
+			return ret;
+		data->has_dts = ret & 0xF;
 		if (data->enable_dts & 0x2) {
-			data->has_dts |=
-			(nct7904_read_reg(data, BANK_0, DTS_T_CTRL1_REG) & 0xF)
-								<< 4;
+			ret = nct7904_read_reg(data, BANK_0, DTS_T_CTRL1_REG);
+			if (ret < 0)
+				return ret;
+			data->has_dts |= (ret & 0xF) << 4;
 		}
 	}
 
