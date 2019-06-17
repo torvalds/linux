@@ -787,14 +787,10 @@ bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len)
 	return true;
 }
 
-void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags)
+void msm_dsi_manager_attach_dsi_device(int id)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_device *dev;
-	struct msm_drm_private *priv;
-	struct msm_kms *kms;
-	struct drm_encoder *encoder;
-	bool cmd_mode;
 
 	/*
 	 * drm_device pointer is assigned to msm_dsi only in the modeset_init
@@ -816,14 +812,7 @@ void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags)
 	if (!dev)
 		return;
 
-	priv = dev->dev_private;
-	kms = priv->kms;
-	encoder = msm_dsi_get_encoder(msm_dsi);
-	cmd_mode = !(device_flags &
-				 MIPI_DSI_MODE_VIDEO);
-
-	if (encoder && kms->funcs->set_encoder_mode)
-		kms->funcs->set_encoder_mode(kms, encoder, cmd_mode);
+	msm_dsi_manager_setup_encoder(id);
 }
 
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
