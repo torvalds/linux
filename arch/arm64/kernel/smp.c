@@ -841,16 +841,23 @@ void arch_irq_work_raise(void)
 }
 #endif
 
-/*
- * ipi_cpu_stop - handle IPI from smp_send_stop()
- */
-static void ipi_cpu_stop(unsigned int cpu)
+static void local_cpu_stop(void)
 {
-	set_cpu_online(cpu, false);
+	set_cpu_online(smp_processor_id(), false);
 
 	local_daif_mask();
 	sdei_mask_local_cpu();
 	cpu_park_loop();
+}
+
+/*
+ * We need to implement panic_smp_self_stop() for parallel panic() calls, so
+ * that cpu_online_mask gets correctly updated and smp_send_stop() can skip
+ * CPUs that have already stopped themselves.
+ */
+void panic_smp_self_stop(void)
+{
+	local_cpu_stop();
 }
 
 #ifdef CONFIG_KEXEC_CORE
@@ -903,7 +910,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 	case IPI_CPU_STOP:
 		irq_enter();
-		ipi_cpu_stop(cpu);
+		local_cpu_stop();
 		irq_exit();
 		break;
 
