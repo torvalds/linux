@@ -12,14 +12,15 @@ struct socket_cookie {
 	__u32 cookie_value;
 };
 
-struct bpf_map_def SEC("maps") socket_cookies = {
+struct {
+	__u32 type;
+	__u32 map_flags;
+	int *key;
+	struct socket_cookie *value;
+} socket_cookies SEC(".maps") = {
 	.type = BPF_MAP_TYPE_SK_STORAGE,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct socket_cookie),
 	.map_flags = BPF_F_NO_PREALLOC,
 };
-
-BPF_ANNOTATE_KV_PAIR(socket_cookies, int, struct socket_cookie);
 
 SEC("cgroup/connect6")
 int set_cookie(struct bpf_sock_addr *ctx)
