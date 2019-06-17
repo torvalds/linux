@@ -3546,6 +3546,8 @@ struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 	ieee80211_tx_result r;
 	struct ieee80211_vif *vif = txq->vif;
 
+	WARN_ON_ONCE(softirq_count() == 0);
+
 begin:
 	spin_lock_bh(&fq->lock);
 
