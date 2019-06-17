@@ -217,19 +217,11 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 	if (motu->substreams_counter == 0)
 		return 0;
 
-	/* Some packet queueing errors. */
-	if (amdtp_streaming_error(&motu->rx_stream) ||
-	    amdtp_streaming_error(&motu->tx_stream)) {
-		amdtp_stream_stop(&motu->rx_stream);
-		amdtp_stream_stop(&motu->tx_stream);
-		stop_both_streams(motu);
-	}
-
 	err = snd_motu_stream_cache_packet_formats(motu);
 	if (err < 0)
 		return err;
 
-	/* Stop stream if rate is different. */
+	// Stop stream if rate is different.
 	err = protocol->get_clock_rate(motu, &curr_rate);
 	if (err < 0) {
 		dev_err(&motu->unit->device,
@@ -238,7 +230,9 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 	}
 	if (rate == 0)
 		rate = curr_rate;
-	if (rate != curr_rate) {
+	if (rate != curr_rate ||
+	    amdtp_streaming_error(&motu->rx_stream) ||
+	    amdtp_streaming_error(&motu->tx_stream)) {
 		amdtp_stream_stop(&motu->rx_stream);
 		amdtp_stream_stop(&motu->tx_stream);
 		stop_both_streams(motu);
