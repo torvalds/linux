@@ -240,8 +240,8 @@ resv_iova:
 		start = window->res->end - window->offset + 1;
 		/* If window is last entry */
 		if (window->node.next == &bridge->dma_ranges &&
-		    end != ~(dma_addr_t)0) {
-			end = ~(dma_addr_t)0;
+		    end != ~(phys_addr_t)0) {
+			end = ~(phys_addr_t)0;
 			goto resv_iova;
 		}
 	}
