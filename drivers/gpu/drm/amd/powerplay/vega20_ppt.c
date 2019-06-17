@@ -365,6 +365,7 @@ static int vega20_setup_od8_information(struct smu_context *smu)
 {
 	ATOM_Vega20_POWERPLAYTABLE *powerplay_table = NULL;
 	struct smu_table_context *table_context = &smu->smu_table;
+	struct vega20_od8_settings *od8_settings = (struct vega20_od8_settings *)smu->od_settings;
 
 	uint32_t od_feature_count, od_feature_array_size,
 		 od_setting_count, od_setting_array_size;
@@ -385,13 +386,13 @@ static int vega20_setup_od8_information(struct smu_context *smu)
 
 		od_feature_array_size = sizeof(uint8_t) * od_feature_count;
 
-		if (table_context->od_feature_capabilities)
+		if (od8_settings->od_feature_capabilities)
 			return -EINVAL;
 
-		table_context->od_feature_capabilities = kmemdup(&powerplay_table->OverDrive8Table.ODFeatureCapabilities,
+		od8_settings->od_feature_capabilities = kmemdup(&powerplay_table->OverDrive8Table.ODFeatureCapabilities,
 								 od_feature_array_size,
 								 GFP_KERNEL);
-		if (!table_context->od_feature_capabilities)
+		if (!od8_settings->od_feature_capabilities)
 			return -ENOMEM;
 
 		/* Setup correct ODSettingCount, and store ODSettingArray from
@@ -404,31 +405,31 @@ static int vega20_setup_od8_information(struct smu_context *smu)
 
 		od_setting_array_size = sizeof(uint32_t) * od_setting_count;
 
-		if (table_context->od_settings_max)
+		if (od8_settings->od_settings_max)
 			return -EINVAL;
 
-		table_context->od_settings_max = kmemdup(&powerplay_table->OverDrive8Table.ODSettingsMax,
+		od8_settings->od_settings_max = kmemdup(&powerplay_table->OverDrive8Table.ODSettingsMax,
 							 od_setting_array_size,
 							 GFP_KERNEL);
 
-		if (!table_context->od_settings_max) {
-			kfree(table_context->od_feature_capabilities);
-			table_context->od_feature_capabilities = NULL;
+		if (!od8_settings->od_settings_max) {
+			kfree(od8_settings->od_feature_capabilities);
+			od8_settings->od_feature_capabilities = NULL;
 			return -ENOMEM;
 		}
 
-		if (table_context->od_settings_min)
+		if (od8_settings->od_settings_min)
 			return -EINVAL;
 
-		table_context->od_settings_min = kmemdup(&powerplay_table->OverDrive8Table.ODSettingsMin,
+		od8_settings->od_settings_min = kmemdup(&powerplay_table->OverDrive8Table.ODSettingsMin,
 							 od_setting_array_size,
 							 GFP_KERNEL);
 
-		if (!table_context->od_settings_min) {
-			kfree(table_context->od_feature_capabilities);
-			table_context->od_feature_capabilities = NULL;
-			kfree(table_context->od_settings_max);
-			table_context->od_settings_max = NULL;
+		if (!od8_settings->od_settings_min) {
+			kfree(od8_settings->od_feature_capabilities);
+			od8_settings->od_feature_capabilities = NULL;
+			kfree(od8_settings->od_settings_max);
+			od8_settings->od_settings_max = NULL;
 			return -ENOMEM;
 		}
 	}
@@ -940,7 +941,7 @@ static int vega20_print_clk_levels(struct smu_context *smu,
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct vega20_dpm_table *dpm_table = NULL;
 	struct vega20_od8_settings *od8_settings =
-		(struct vega20_od8_settings *)table_context->od8_settings;
+		(struct vega20_od8_settings *)smu->od_settings;
 	OverDriveTable_t *od_table =
 		(OverDriveTable_t *)(table_context->overdrive_table);
 	PPTable_t *pptable = (PPTable_t *)table_context->driver_pptable;
@@ -1496,22 +1497,22 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 	PPTable_t *smc_pptable = table_context->driver_pptable;
 	int i, ret;
 
-	if (table_context->od8_settings)
+	if (smu->od_settings)
 		return -EINVAL;
 
-	table_context->od8_settings = kzalloc(sizeof(struct vega20_od8_settings), GFP_KERNEL);
+	od8_settings = kzalloc(sizeof(struct vega20_od8_settings), GFP_KERNEL);
 
-	if (!table_context->od8_settings)
+	if (od8_settings)
 		return -ENOMEM;
 
-	od8_settings = (struct vega20_od8_settings *)table_context->od8_settings;
+	smu->od_settings = (void *)od8_settings;
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_LIMITS] &&
-		    table_context->od_settings_max[OD8_SETTING_GFXCLK_FMAX] > 0 &&
-		    table_context->od_settings_min[OD8_SETTING_GFXCLK_FMIN] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_GFXCLK_FMAX] >=
-		     table_context->od_settings_min[OD8_SETTING_GFXCLK_FMIN])) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_LIMITS] &&
+		    od8_settings->od_settings_max[OD8_SETTING_GFXCLK_FMAX] > 0 &&
+		    od8_settings->od_settings_min[OD8_SETTING_GFXCLK_FMIN] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_GFXCLK_FMAX] >=
+		     od8_settings->od_settings_min[OD8_SETTING_GFXCLK_FMIN])) {
 			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMIN].feature_id =
 				OD8_GFXCLK_LIMITS;
 			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FMAX].feature_id =
@@ -1522,13 +1523,13 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 				od_table->GfxclkFmax;
 		}
 
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_CURVE] &&
-		    (table_context->od_settings_min[OD8_SETTING_GFXCLK_VOLTAGE1] >=
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_GFXCLK_CURVE] &&
+		    (od8_settings->od_settings_min[OD8_SETTING_GFXCLK_VOLTAGE1] >=
 		     smc_pptable->MinVoltageGfx / VOLTAGE_SCALE) &&
-		    (table_context->od_settings_max[OD8_SETTING_GFXCLK_VOLTAGE3] <=
+		    (od8_settings->od_settings_max[OD8_SETTING_GFXCLK_VOLTAGE3] <=
 		     smc_pptable->MaxVoltageGfx / VOLTAGE_SCALE) &&
-		    (table_context->od_settings_min[OD8_SETTING_GFXCLK_VOLTAGE1] <=
-		     table_context->od_settings_max[OD8_SETTING_GFXCLK_VOLTAGE3])) {
+		    (od8_settings->od_settings_min[OD8_SETTING_GFXCLK_VOLTAGE1] <=
+		     od8_settings->od_settings_max[OD8_SETTING_GFXCLK_VOLTAGE3])) {
 			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_FREQ1].feature_id =
 				OD8_GFXCLK_CURVE;
 			od8_settings->od8_settings_array[OD8_SETTING_GFXCLK_VOLTAGE1].feature_id =
@@ -1580,11 +1581,11 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 	}
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_UCLK_MAX] &&
-		    table_context->od_settings_min[OD8_SETTING_UCLK_FMAX] > 0 &&
-		    table_context->od_settings_max[OD8_SETTING_UCLK_FMAX] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_UCLK_FMAX] >=
-		     table_context->od_settings_min[OD8_SETTING_UCLK_FMAX])) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_UCLK_MAX] &&
+		    od8_settings->od_settings_min[OD8_SETTING_UCLK_FMAX] > 0 &&
+		    od8_settings->od_settings_max[OD8_SETTING_UCLK_FMAX] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_UCLK_FMAX] >=
+		     od8_settings->od_settings_min[OD8_SETTING_UCLK_FMAX])) {
 			od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].feature_id =
 				OD8_UCLK_MAX;
 			od8_settings->od8_settings_array[OD8_SETTING_UCLK_FMAX].default_value =
@@ -1592,11 +1593,11 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 		}
 	}
 
-	if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_POWER_LIMIT] &&
-	    table_context->od_settings_min[OD8_SETTING_POWER_PERCENTAGE] > 0 &&
-	    table_context->od_settings_min[OD8_SETTING_POWER_PERCENTAGE] <= 100 &&
-	    table_context->od_settings_max[OD8_SETTING_POWER_PERCENTAGE] > 0 &&
-	    table_context->od_settings_max[OD8_SETTING_POWER_PERCENTAGE] <= 100) {
+	if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_POWER_LIMIT] &&
+	    od8_settings->od_settings_min[OD8_SETTING_POWER_PERCENTAGE] > 0 &&
+	    od8_settings->od_settings_min[OD8_SETTING_POWER_PERCENTAGE] <= 100 &&
+	    od8_settings->od_settings_max[OD8_SETTING_POWER_PERCENTAGE] > 0 &&
+	    od8_settings->od_settings_max[OD8_SETTING_POWER_PERCENTAGE] <= 100) {
 		od8_settings->od8_settings_array[OD8_SETTING_POWER_PERCENTAGE].feature_id =
 			OD8_POWER_LIMIT;
 		od8_settings->od8_settings_array[OD8_SETTING_POWER_PERCENTAGE].default_value =
@@ -1604,22 +1605,22 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 	}
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_FAN_CONTROL_BIT)) {
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_ACOUSTIC_LIMIT] &&
-		    table_context->od_settings_min[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
-		    table_context->od_settings_max[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_FAN_ACOUSTIC_LIMIT] >=
-		     table_context->od_settings_min[OD8_SETTING_FAN_ACOUSTIC_LIMIT])) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_ACOUSTIC_LIMIT] &&
+		    od8_settings->od_settings_min[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
+		    od8_settings->od_settings_max[OD8_SETTING_FAN_ACOUSTIC_LIMIT] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_FAN_ACOUSTIC_LIMIT] >=
+		     od8_settings->od_settings_min[OD8_SETTING_FAN_ACOUSTIC_LIMIT])) {
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_ACOUSTIC_LIMIT].feature_id =
 				OD8_ACOUSTIC_LIMIT_SCLK;
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_ACOUSTIC_LIMIT].default_value =
 				od_table->FanMaximumRpm;
 		}
 
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_SPEED_MIN] &&
-		    table_context->od_settings_min[OD8_SETTING_FAN_MIN_SPEED] > 0 &&
-		    table_context->od_settings_max[OD8_SETTING_FAN_MIN_SPEED] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_FAN_MIN_SPEED] >=
-		     table_context->od_settings_min[OD8_SETTING_FAN_MIN_SPEED])) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_FAN_SPEED_MIN] &&
+		    od8_settings->od_settings_min[OD8_SETTING_FAN_MIN_SPEED] > 0 &&
+		    od8_settings->od_settings_max[OD8_SETTING_FAN_MIN_SPEED] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_FAN_MIN_SPEED] >=
+		     od8_settings->od_settings_min[OD8_SETTING_FAN_MIN_SPEED])) {
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_MIN_SPEED].feature_id =
 				OD8_FAN_SPEED_MIN;
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_MIN_SPEED].default_value =
@@ -1628,22 +1629,22 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 	}
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_THERMAL_BIT)) {
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_TEMPERATURE_FAN] &&
-		    table_context->od_settings_min[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
-		    table_context->od_settings_max[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_FAN_TARGET_TEMP] >=
-		     table_context->od_settings_min[OD8_SETTING_FAN_TARGET_TEMP])) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_TEMPERATURE_FAN] &&
+		    od8_settings->od_settings_min[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
+		    od8_settings->od_settings_max[OD8_SETTING_FAN_TARGET_TEMP] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_FAN_TARGET_TEMP] >=
+		     od8_settings->od_settings_min[OD8_SETTING_FAN_TARGET_TEMP])) {
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_TARGET_TEMP].feature_id =
 				OD8_TEMPERATURE_FAN;
 			od8_settings->od8_settings_array[OD8_SETTING_FAN_TARGET_TEMP].default_value =
 				od_table->FanTargetTemperature;
 		}
 
-		if (table_context->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_TEMPERATURE_SYSTEM] &&
-		    table_context->od_settings_min[OD8_SETTING_OPERATING_TEMP_MAX] > 0 &&
-		    table_context->od_settings_max[OD8_SETTING_OPERATING_TEMP_MAX] > 0 &&
-		    (table_context->od_settings_max[OD8_SETTING_OPERATING_TEMP_MAX] >=
-		     table_context->od_settings_min[OD8_SETTING_OPERATING_TEMP_MAX])) {
+		if (od8_settings->od_feature_capabilities[ATOM_VEGA20_ODFEATURE_TEMPERATURE_SYSTEM] &&
+		    od8_settings->od_settings_min[OD8_SETTING_OPERATING_TEMP_MAX] > 0 &&
+		    od8_settings->od_settings_max[OD8_SETTING_OPERATING_TEMP_MAX] > 0 &&
+		    (od8_settings->od_settings_max[OD8_SETTING_OPERATING_TEMP_MAX] >=
+		     od8_settings->od_settings_min[OD8_SETTING_OPERATING_TEMP_MAX])) {
 			od8_settings->od8_settings_array[OD8_SETTING_OPERATING_TEMP_MAX].feature_id =
 				OD8_TEMPERATURE_SYSTEM;
 			od8_settings->od8_settings_array[OD8_SETTING_OPERATING_TEMP_MAX].default_value =
@@ -1654,9 +1655,9 @@ static int vega20_set_default_od8_setttings(struct smu_context *smu)
 	for (i = 0; i < OD8_SETTING_COUNT; i++) {
 		if (od8_settings->od8_settings_array[i].feature_id) {
 			od8_settings->od8_settings_array[i].min_value =
-				table_context->od_settings_min[i];
+				od8_settings->od_settings_min[i];
 			od8_settings->od8_settings_array[i].max_value =
-				table_context->od_settings_max[i];
+				od8_settings->od_settings_max[i];
 			od8_settings->od8_settings_array[i].current_value =
 				od8_settings->od8_settings_array[i].default_value;
 		} else {
@@ -2415,7 +2416,7 @@ static int vega20_update_specified_od8_value(struct smu_context *smu,
 	OverDriveTable_t *od_table =
 		(OverDriveTable_t *)(table_context->overdrive_table);
 	struct vega20_od8_settings *od8_settings =
-		(struct vega20_od8_settings *)table_context->od8_settings;
+		(struct vega20_od8_settings *)smu->od_settings;
 
 	switch (index) {
 	case OD8_SETTING_GFXCLK_FMIN:
@@ -2596,7 +2597,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 	struct vega20_dpm_table *dpm_table = NULL;
 	struct vega20_single_dpm_table *single_dpm_table;
 	struct vega20_od8_settings *od8_settings =
-		(struct vega20_od8_settings *)table_context->od8_settings;
+		(struct vega20_od8_settings *)smu->od_settings;
 	struct pp_clock_levels_with_latency clocks;
 	int32_t input_index, input_clk, input_vol, i;
 	int od8_id;
@@ -2643,10 +2644,10 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 
 			if (input_index == 0 && od_table->GfxclkFmin != input_clk) {
 				od_table->GfxclkFmin = input_clk;
-				table_context->od_gfxclk_update = true;
+				od8_settings->od_gfxclk_update = true;
 			} else if (input_index == 1 && od_table->GfxclkFmax != input_clk) {
 				od_table->GfxclkFmax = input_clk;
-				table_context->od_gfxclk_update = true;
+				od8_settings->od_gfxclk_update = true;
 			}
 		}
 
@@ -2691,7 +2692,7 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 			}
 
 			if (input_index == 1 && od_table->UclkFmax != input_clk) {
-				table_context->od_gfxclk_update = true;
+				od8_settings->od_gfxclk_update = true;
 				od_table->UclkFmax = input_clk;
 			}
 		}
@@ -2782,8 +2783,8 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 		}
 
 		/* retrieve updated gfxclk table */
-		if (table_context->od_gfxclk_update) {
-			table_context->od_gfxclk_update = false;
+		if (od8_settings->od_gfxclk_update) {
+			od8_settings->od_gfxclk_update = false;
 			single_dpm_table = &(dpm_table->gfx_table);
 
 			if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {

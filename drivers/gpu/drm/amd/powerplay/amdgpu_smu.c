@@ -1058,20 +1058,8 @@ static int smu_hw_fini(void *handle)
 	kfree(table_context->max_sustainable_clocks);
 	table_context->max_sustainable_clocks = NULL;
 
-	kfree(table_context->od_feature_capabilities);
-	table_context->od_feature_capabilities = NULL;
-
-	kfree(table_context->od_settings_max);
-	table_context->od_settings_max = NULL;
-
-	kfree(table_context->od_settings_min);
-	table_context->od_settings_min = NULL;
-
 	kfree(table_context->overdrive_table);
 	table_context->overdrive_table = NULL;
-
-	kfree(table_context->od8_settings);
-	table_context->od8_settings = NULL;
 
 	kfree(smu->irq_source);
 	smu->irq_source = NULL;

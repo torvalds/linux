@@ -431,13 +431,7 @@ struct smu_table_context
 	uint8_t                         thermal_controller_type;
 	uint16_t			TDPODLimit;
 
-	uint8_t				*od_feature_capabilities;
-	uint32_t			*od_settings_max;
-	uint32_t			*od_settings_min;
 	void				*overdrive_table;
-	void				*od8_settings;
-	bool				od_gfxclk_update;
-	bool				od_memclk_update;
 };
 
 struct smu_dpm_context {
@@ -510,6 +504,7 @@ struct smu_context
 	struct smu_power_context	smu_power;
 	struct smu_feature		smu_feature;
 	struct amd_pp_display_configuration  *display_config;
+	void *od_settings;
 
 	uint32_t pstate_sclk;
 	uint32_t pstate_mclk;

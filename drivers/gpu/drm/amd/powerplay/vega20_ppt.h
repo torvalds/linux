@@ -166,6 +166,12 @@ struct vega20_od8_single_setting {
 
 struct vega20_od8_settings {
 	struct vega20_od8_single_setting	od8_settings_array[OD8_SETTING_COUNT];
+	uint8_t				*od_feature_capabilities;
+	uint32_t			*od_settings_max;
+	uint32_t			*od_settings_min;
+	void				*od8_settings;
+	bool				od_gfxclk_update;
+	bool				od_memclk_update;
 };
 
 extern void vega20_set_ppt_funcs(struct smu_context *smu);
