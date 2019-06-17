@@ -1154,24 +1154,21 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 		if (gelf_getshdr(scn, &sh) != &sh) {
 			pr_warning("failed to get section(%d) header from %s\n",
 				   idx, obj->path);
-			err = -LIBBPF_ERRNO__FORMAT;
-			goto out;
+			return -LIBBPF_ERRNO__FORMAT;
 		}
 
 		name = elf_strptr(elf, ep->e_shstrndx, sh.sh_name);
 		if (!name) {
 			pr_warning("failed to get section(%d) name from %s\n",
 				   idx, obj->path);
-			err = -LIBBPF_ERRNO__FORMAT;
-			goto out;
+			return -LIBBPF_ERRNO__FORMAT;
 		}
 
 		data = elf_getdata(scn, 0);
 		if (!data) {
 			pr_warning("failed to get section(%d) data from %s(%s)\n",
 				   idx, name, obj->path);
-			err = -LIBBPF_ERRNO__FORMAT;
-			goto out;
+			return -LIBBPF_ERRNO__FORMAT;
 		}
 		pr_debug("section(%d) %s, size %ld, link %d, flags %lx, type=%d\n",
 			 idx, name, (unsigned long)data->d_size,
@@ -1182,10 +1179,14 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 			err = bpf_object__init_license(obj,
 						       data->d_buf,
 						       data->d_size);
+			if (err)
+				return err;
 		} else if (strcmp(name, "version") == 0) {
 			err = bpf_object__init_kversion(obj,
 							data->d_buf,
 							data->d_size);
+			if (err)
+				return err;
 		} else if (strcmp(name, "maps") == 0) {
 			obj->efile.maps_shndx = idx;
 		} else if (strcmp(name, BTF_ELF_SEC) == 0) {
@@ -1196,11 +1197,10 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 			if (obj->efile.symbols) {
 				pr_warning("bpf: multiple SYMTAB in %s\n",
 					   obj->path);
-				err = -LIBBPF_ERRNO__FORMAT;
-			} else {
-				obj->efile.symbols = data;
-				obj->efile.strtabidx = sh.sh_link;
+				return -LIBBPF_ERRNO__FORMAT;
 			}
+			obj->efile.symbols = data;
+			obj->efile.strtabidx = sh.sh_link;
 		} else if (sh.sh_type == SHT_PROGBITS && data->d_size > 0) {
 			if (sh.sh_flags & SHF_EXECINSTR) {
 				if (strcmp(name, ".text") == 0)
@@ -1214,6 +1214,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 
 					pr_warning("failed to alloc program %s (%s): %s",
 						   name, obj->path, cp);
+					return err;
 				}
 			} else if (strcmp(name, ".data") == 0) {
 				obj->efile.data = data;
@@ -1225,8 +1226,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 				pr_debug("skip section(%d) %s\n", idx, name);
 			}
 		} else if (sh.sh_type == SHT_REL) {
+			int nr_reloc = obj->efile.nr_reloc;
 			void *reloc = obj->efile.reloc;
-			int nr_reloc = obj->efile.nr_reloc + 1;
 			int sec = sh.sh_info; /* points to other section */
 
 			/* Only do relo for section with exec instructions */
@@ -1236,28 +1237,24 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 				continue;
 			}
 
-			reloc = reallocarray(reloc, nr_reloc,
+			reloc = reallocarray(reloc, nr_reloc + 1,
 					     sizeof(*obj->efile.reloc));
 			if (!reloc) {
 				pr_warning("realloc failed\n");
-				err = -ENOMEM;
-			} else {
-				int n = nr_reloc - 1;
-
-				obj->efile.reloc = reloc;
-				obj->efile.nr_reloc = nr_reloc;
-
-				obj->efile.reloc[n].shdr = sh;
-				obj->efile.reloc[n].data = data;
+				return -ENOMEM;
 			}
+
+			obj->efile.reloc = reloc;
+			obj->efile.nr_reloc++;
+
+			obj->efile.reloc[nr_reloc].shdr = sh;
+			obj->efile.reloc[nr_reloc].data = data;
 		} else if (sh.sh_type == SHT_NOBITS && strcmp(name, ".bss") == 0) {
 			obj->efile.bss = data;
 			obj->efile.bss_shndx = idx;
 		} else {
 			pr_debug("skip section(%d) %s\n", idx, name);
 		}
-		if (err)
-			goto out;
 	}
 
 	if (!obj->efile.strtabidx || obj->efile.strtabidx >= idx) {
@@ -1270,10 +1267,9 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 	if (bpf_object__has_maps(obj)) {
 		err = bpf_object__init_maps(obj, flags);
 		if (err)
-			goto out;
+			return err;
 	}
 	err = bpf_object__init_prog_names(obj);
-out:
 	return err;
 }
 
