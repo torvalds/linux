@@ -3356,6 +3356,7 @@ static struct scsi_host_template megasas_template = {
 	.shost_attrs = megaraid_host_attrs,
 	.bios_param = megasas_bios_param,
 	.change_queue_depth = scsi_change_queue_depth,
+	.max_segment_size = 0xffffffff,
 	.no_write_same = 1,
 };
 
