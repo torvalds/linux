@@ -86,6 +86,8 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 struct snd_soc_dapm_widget *
 snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 			 const struct snd_soc_dapm_widget *widget);
+static void soc_tplg_denum_remove_texts(struct soc_enum *se);
+static void soc_tplg_denum_remove_values(struct soc_enum *se);
 
 /* check we dont overflow the data for this control chunk */
 static int soc_tplg_check_elem_count(struct soc_tplg *tplg, size_t elem_size,
@@ -398,7 +400,6 @@ static void remove_enum(struct snd_soc_component *comp,
 {
 	struct snd_card *card = comp->card->snd_card;
 	struct soc_enum *se = container_of(dobj, struct soc_enum, dobj);
-	int i;
 
 	if (pass != SOC_TPLG_PASS_MIXER)
 		return;
@@ -409,10 +410,8 @@ static void remove_enum(struct snd_soc_component *comp,
 	snd_ctl_remove(card, dobj->control.kcontrol);
 	list_del(&dobj->list);
 
-	kfree(dobj->control.dvalues);
-	for (i = 0; i < se->items; i++)
-		kfree(dobj->control.dtexts[i]);
-	kfree(dobj->control.dtexts);
+	soc_tplg_denum_remove_values(se);
+	soc_tplg_denum_remove_texts(se);
 	kfree(se);
 }
 
@@ -480,15 +479,12 @@ static void remove_widget(struct snd_soc_component *comp,
 			struct snd_kcontrol *kcontrol = w->kcontrols[i];
 			struct soc_enum *se =
 				(struct soc_enum *)kcontrol->private_value;
-			int j;
 
 			snd_ctl_remove(card, kcontrol);
 
 			/* free enum kcontrol's dvalues and dtexts */
-			kfree(se->dobj.control.dvalues);
-			for (j = 0; j < se->items; j++)
-				kfree(se->dobj.control.dtexts[j]);
-			kfree(se->dobj.control.dtexts);
+			soc_tplg_denum_remove_values(se);
+			soc_tplg_denum_remove_texts(se);
 
 			kfree(se);
 			kfree(w->kcontrol_news[i].name);
@@ -956,14 +952,23 @@ static int soc_tplg_denum_create_texts(struct soc_enum *se,
 		}
 	}
 
+	se->items = le32_to_cpu(ec->items);
 	se->texts = (const char * const *)se->dobj.control.dtexts;
 	return 0;
 
 err:
+	se->items = i;
+	soc_tplg_denum_remove_texts(se);
+	return ret;
+}
+
+static inline void soc_tplg_denum_remove_texts(struct soc_enum *se)
+{
+	int i = se->items;
+
 	for (--i; i >= 0; i--)
 		kfree(se->dobj.control.dtexts[i]);
 	kfree(se->dobj.control.dtexts);
-	return ret;
 }
 
 static int soc_tplg_denum_create_values(struct soc_enum *se,
@@ -986,6 +991,11 @@ static int soc_tplg_denum_create_values(struct soc_enum *se,
 	}
 
 	return 0;
+}
+
+static inline void soc_tplg_denum_remove_values(struct soc_enum *se)
+{
+	kfree(se->dobj.control.dvalues);
 }
 
 static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
@@ -1035,7 +1045,6 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 		se->shift_r = tplc_chan_get_shift(tplg, ec->channel,
 			SNDRV_CHMAP_FL);
 
-		se->items = le32_to_cpu(ec->items);
 		se->mask = le32_to_cpu(ec->mask);
 		se->dobj.index = tplg->index;
 		se->dobj.type = SND_SOC_DOBJ_ENUM;
@@ -1381,7 +1390,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 	struct snd_kcontrol_new *kc;
 	struct snd_soc_tplg_enum_control *ec;
 	struct soc_enum *se;
-	int i, j, err;
+	int i, err;
 
 	kc = kcalloc(num_kcontrols, sizeof(*kc), GFP_KERNEL);
 	if (kc == NULL)
@@ -1476,10 +1485,8 @@ err_se:
 		if (!se)
 			continue;
 
-		kfree(se->dobj.control.dvalues);
-		for (j = 0; j < ec->items; j++)
-			kfree(se->dobj.control.dtexts[j]);
-		kfree(se->dobj.control.dtexts);
+		soc_tplg_denum_remove_values(se);
+		soc_tplg_denum_remove_texts(se);
 
 		kfree(se);
 		kfree(kc[i].name);
