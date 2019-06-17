@@ -1078,6 +1078,58 @@ static void bpf_object__sanitize_btf_ext(struct bpf_object *obj)
 	}
 }
 
+static int bpf_object__load_btf(struct bpf_object *obj,
+				Elf_Data *btf_data,
+				Elf_Data *btf_ext_data)
+{
+	int err = 0;
+
+	if (btf_data) {
+		obj->btf = btf__new(btf_data->d_buf, btf_data->d_size);
+		if (IS_ERR(obj->btf)) {
+			pr_warning("Error loading ELF section %s: %d.\n",
+				   BTF_ELF_SEC, err);
+			goto out;
+		}
+		err = btf__finalize_data(obj, obj->btf);
+		if (err) {
+			pr_warning("Error finalizing %s: %d.\n",
+				   BTF_ELF_SEC, err);
+			goto out;
+		}
+		bpf_object__sanitize_btf(obj);
+		err = btf__load(obj->btf);
+		if (err) {
+			pr_warning("Error loading %s into kernel: %d.\n",
+				   BTF_ELF_SEC, err);
+			goto out;
+		}
+	}
+	if (btf_ext_data) {
+		if (!obj->btf) {
+			pr_debug("Ignore ELF section %s because its depending ELF section %s is not found.\n",
+				 BTF_EXT_ELF_SEC, BTF_ELF_SEC);
+			goto out;
+		}
+		obj->btf_ext = btf_ext__new(btf_ext_data->d_buf,
+					    btf_ext_data->d_size);
+		if (IS_ERR(obj->btf_ext)) {
+			pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
+				   BTF_EXT_ELF_SEC, PTR_ERR(obj->btf_ext));
+			obj->btf_ext = NULL;
+			goto out;
+		}
+		bpf_object__sanitize_btf_ext(obj);
+	}
+out:
+	if (err || IS_ERR(obj->btf)) {
+		if (!IS_ERR_OR_NULL(obj->btf))
+			btf__free(obj->btf);
+		obj->btf = NULL;
+	}
+	return 0;
+}
+
 static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 {
 	Elf *elf = obj->efile.elf;
@@ -1212,44 +1264,9 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 		pr_warning("Corrupted ELF file: index of strtab invalid\n");
 		return -LIBBPF_ERRNO__FORMAT;
 	}
-	if (btf_data) {
-		obj->btf = btf__new(btf_data->d_buf, btf_data->d_size);
-		if (IS_ERR(obj->btf)) {
-			pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
-				   BTF_ELF_SEC, PTR_ERR(obj->btf));
-			obj->btf = NULL;
-		} else {
-			err = btf__finalize_data(obj, obj->btf);
-			if (!err) {
-				bpf_object__sanitize_btf(obj);
-				err = btf__load(obj->btf);
-			}
-			if (err) {
-				pr_warning("Error finalizing and loading %s into kernel: %d. Ignored and continue.\n",
-					   BTF_ELF_SEC, err);
-				btf__free(obj->btf);
-				obj->btf = NULL;
-				err = 0;
-			}
-		}
-	}
-	if (btf_ext_data) {
-		if (!obj->btf) {
-			pr_debug("Ignore ELF section %s because its depending ELF section %s is not found.\n",
-				 BTF_EXT_ELF_SEC, BTF_ELF_SEC);
-		} else {
-			obj->btf_ext = btf_ext__new(btf_ext_data->d_buf,
-						    btf_ext_data->d_size);
-			if (IS_ERR(obj->btf_ext)) {
-				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
-					   BTF_EXT_ELF_SEC,
-					   PTR_ERR(obj->btf_ext));
-				obj->btf_ext = NULL;
-			} else {
-				bpf_object__sanitize_btf_ext(obj);
-			}
-		}
-	}
+	err = bpf_object__load_btf(obj, btf_data, btf_ext_data);
+	if (err)
+		return err;
 	if (bpf_object__has_maps(obj)) {
 		err = bpf_object__init_maps(obj, flags);
 		if (err)
