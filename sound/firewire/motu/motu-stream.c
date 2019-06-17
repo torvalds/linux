@@ -60,7 +60,7 @@ static int keep_resources(struct snd_motu *motu, unsigned int rate,
 				fw_parent_device(motu->unit)->max_speed);
 }
 
-static int start_both_streams(struct snd_motu *motu, unsigned int rate)
+static int begin_session(struct snd_motu *motu, unsigned int rate)
 {
 	__be32 reg;
 	u32 data;
@@ -91,7 +91,7 @@ static int start_both_streams(struct snd_motu *motu, unsigned int rate)
 					  sizeof(reg));
 }
 
-static void stop_both_streams(struct snd_motu *motu)
+static void finish_session(struct snd_motu *motu)
 {
 	__be32 reg;
 	u32 data;
@@ -235,7 +235,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 	    amdtp_streaming_error(&motu->tx_stream)) {
 		amdtp_stream_stop(&motu->rx_stream);
 		amdtp_stream_stop(&motu->tx_stream);
-		stop_both_streams(motu);
+		finish_session(motu);
 	}
 
 	if (!amdtp_stream_running(&motu->rx_stream)) {
@@ -250,7 +250,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 		if (err < 0)
 			return err;
 
-		err = start_both_streams(motu, rate);
+		err = begin_session(motu, rate);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
 				"fail to start isochronous comm: %d\n", err);
@@ -285,7 +285,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate)
 	return 0;
 
 stop_streams:
-	stop_both_streams(motu);
+	finish_session(motu);
 	return err;
 }
 
