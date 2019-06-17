@@ -1498,9 +1498,6 @@ int skl_platform_register(struct device *dev)
 	struct hdac_bus *bus = dev_get_drvdata(dev);
 	struct skl *skl = bus_to_skl(bus);
 
-	INIT_LIST_HEAD(&skl->ppl_list);
-	INIT_LIST_HEAD(&skl->bind_list);
-
 	skl->dais = kmemdup(skl_platform_dai, sizeof(skl_platform_dai),
 			    GFP_KERNEL);
 	if (!skl->dais) {
