@@ -91,6 +91,20 @@ struct iwl_fwrt_shared_mem_cfg {
 #define IWL_FW_RUNTIME_DUMP_WK_NUM 5
 
 /**
+ * struct iwl_txf_iter_data - Tx fifo iterator data struct
+ * @fifo: fifo number
+ * @lmac: lmac number
+ * @fifo_size: fifo size
+ * @internal_txf: non zero if fifo is  internal Tx fifo
+ */
+struct iwl_txf_iter_data {
+	int fifo;
+	int lmac;
+	u32 fifo_size;
+	u8 internal_txf;
+};
+
+/**
  * struct iwl_fw_runtime - runtime data for firmware
  * @fw: firmware image
  * @cfg: NIC configuration
@@ -143,7 +157,8 @@ struct iwl_fw_runtime {
 		struct iwl_fw_ini_active_triggers active_trigs[IWL_FW_TRIGGER_ID_NUM];
 		u32 lmac_err_id[MAX_NUM_LMAC];
 		u32 umac_err_id;
-		void *fifo_iter;
+
+		struct iwl_txf_iter_data txf_iter_data;
 		struct timer_list periodic_trig;
 
 		u8 img_name[IWL_FW_INI_MAX_IMG_NAME_LEN];
