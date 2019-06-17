@@ -239,17 +239,14 @@ static bool dsi_mgr_is_cmd_mode(struct msm_dsi *msm_dsi)
 	return !(host_flags & MIPI_DSI_MODE_VIDEO);
 }
 
-static enum drm_connector_status dsi_mgr_connector_detect(
-		struct drm_connector *connector, bool force)
+static void msm_dsi_manager_panel_init(struct drm_connector *connector, u8 id)
 {
-	int id = dsi_mgr_connector_get_id(connector);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
 	struct msm_drm_private *priv = connector->dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	bool cmd_mode;
 
-	DBG("id=%d", id);
 	if (!msm_dsi->panel) {
 		msm_dsi->panel = msm_dsi_host_get_panel(msm_dsi->host);
 
@@ -292,6 +289,17 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 				pr_err("mdp does not support dual DSI\n");
 		}
 	}
+}
+
+static enum drm_connector_status dsi_mgr_connector_detect(
+		struct drm_connector *connector, bool force)
+{
+	int id = dsi_mgr_connector_get_id(connector);
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+
+	DBG("id=%d", id);
+	if (!msm_dsi->panel)
+		msm_dsi_manager_panel_init(connector, id);
 
 	return msm_dsi->panel ? connector_status_connected :
 		connector_status_disconnected;
