@@ -1310,14 +1310,15 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 
 	for (i = 0; i < num_kcontrols; i++) {
 		mc = (struct snd_soc_tplg_mixer_control *)tplg->pos;
-		sm = kzalloc(sizeof(*sm), GFP_KERNEL);
-		if (sm == NULL)
-			goto err;
 
 		/* validate kcontrol */
 		if (strnlen(mc->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
 			SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-			goto err_str;
+			goto err_sm;
+
+		sm = kzalloc(sizeof(*sm), GFP_KERNEL);
+		if (sm == NULL)
+			goto err_sm;
 
 		tplg->pos += (sizeof(struct snd_soc_tplg_mixer_control) +
 			      le32_to_cpu(mc->priv.size));
@@ -1327,7 +1328,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 
 		kc[i].name = kstrdup(mc->hdr.name, GFP_KERNEL);
 		if (kc[i].name == NULL)
-			goto err_str;
+			goto err_sm;
 		kc[i].private_value = (long)sm;
 		kc[i].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 		kc[i].access = mc->hdr.access;
@@ -1353,8 +1354,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 		err = soc_tplg_kcontrol_bind_io(&mc->hdr, &kc[i], tplg);
 		if (err) {
 			soc_control_err(tplg, &mc->hdr, mc->hdr.name);
-			kfree(sm);
-			continue;
+			goto err_sm;
 		}
 
 		/* create any TLV data */
@@ -1367,20 +1367,19 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 			dev_err(tplg->dev, "ASoC: failed to init %s\n",
 				mc->hdr.name);
 			soc_tplg_free_tlv(tplg, &kc[i]);
-			kfree(sm);
-			continue;
+			goto err_sm;
 		}
 	}
 	return kc;
 
-err_str:
-	kfree(sm);
-err:
-	for (--i; i >= 0; i--) {
-		kfree((void *)kc[i].private_value);
+err_sm:
+	for (; i >= 0; i--) {
+		sm = (struct soc_mixer_control *)kc[i].private_value;
+		kfree(sm);
 		kfree(kc[i].name);
 	}
 	kfree(kc);
+
 	return NULL;
 }
 
@@ -1401,11 +1400,11 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 		/* validate kcontrol */
 		if (strnlen(ec->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
 			    SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-			goto err;
+			goto err_se;
 
 		se = kzalloc(sizeof(*se), GFP_KERNEL);
 		if (se == NULL)
-			goto err;
+			goto err_se;
 
 		tplg->pos += (sizeof(struct snd_soc_tplg_enum_control) +
 				ec->priv.size);
@@ -1414,10 +1413,8 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 			ec->hdr.name);
 
 		kc[i].name = kstrdup(ec->hdr.name, GFP_KERNEL);
-		if (kc[i].name == NULL) {
-			kfree(se);
+		if (kc[i].name == NULL)
 			goto err_se;
-		}
 		kc[i].private_value = (long)se;
 		kc[i].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 		kc[i].access = ec->hdr.access;
@@ -1482,44 +1479,43 @@ err_se:
 	for (; i >= 0; i--) {
 		/* free values and texts */
 		se = (struct soc_enum *)kc[i].private_value;
-		if (!se)
-			continue;
 
-		soc_tplg_denum_remove_values(se);
-		soc_tplg_denum_remove_texts(se);
+		if (se) {
+			soc_tplg_denum_remove_values(se);
+			soc_tplg_denum_remove_texts(se);
+		}
 
 		kfree(se);
 		kfree(kc[i].name);
 	}
-err:
 	kfree(kc);
 
 	return NULL;
 }
 
 static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
-	struct soc_tplg *tplg, int count)
+	struct soc_tplg *tplg, int num_kcontrols)
 {
 	struct snd_soc_tplg_bytes_control *be;
-	struct soc_bytes_ext  *sbe;
+	struct soc_bytes_ext *sbe;
 	struct snd_kcontrol_new *kc;
 	int i, err;
 
-	kc = kcalloc(count, sizeof(*kc), GFP_KERNEL);
+	kc = kcalloc(num_kcontrols, sizeof(*kc), GFP_KERNEL);
 	if (!kc)
 		return NULL;
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < num_kcontrols; i++) {
 		be = (struct snd_soc_tplg_bytes_control *)tplg->pos;
 
 		/* validate kcontrol */
 		if (strnlen(be->hdr.name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) ==
 			SNDRV_CTL_ELEM_ID_NAME_MAXLEN)
-			goto err;
+			goto err_sbe;
 
 		sbe = kzalloc(sizeof(*sbe), GFP_KERNEL);
 		if (sbe == NULL)
-			goto err;
+			goto err_sbe;
 
 		tplg->pos += (sizeof(struct snd_soc_tplg_bytes_control) +
 			      le32_to_cpu(be->priv.size));
@@ -1529,10 +1525,8 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
 			be->hdr.name, be->hdr.access);
 
 		kc[i].name = kstrdup(be->hdr.name, GFP_KERNEL);
-		if (kc[i].name == NULL) {
-			kfree(sbe);
-			goto err;
-		}
+		if (kc[i].name == NULL)
+			goto err_sbe;
 		kc[i].private_value = (long)sbe;
 		kc[i].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 		kc[i].access = be->hdr.access;
@@ -1544,8 +1538,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
 		err = soc_tplg_kcontrol_bind_io(&be->hdr, &kc[i], tplg);
 		if (err) {
 			soc_control_err(tplg, &be->hdr, be->hdr.name);
-			kfree(sbe);
-			continue;
+			goto err_sbe;
 		}
 
 		/* pass control to driver for optional further init */
@@ -1554,20 +1547,20 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dbytes_create(
 		if (err < 0) {
 			dev_err(tplg->dev, "ASoC: failed to init %s\n",
 				be->hdr.name);
-			kfree(sbe);
-			continue;
+			goto err_sbe;
 		}
 	}
 
 	return kc;
 
-err:
-	for (--i; i >= 0; i--) {
-		kfree((void *)kc[i].private_value);
+err_sbe:
+	for (; i >= 0; i--) {
+		sbe = (struct soc_bytes_ext *)kc[i].private_value;
+		kfree(sbe);
 		kfree(kc[i].name);
 	}
-
 	kfree(kc);
+
 	return NULL;
 }
 
