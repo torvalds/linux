@@ -28,6 +28,7 @@ ALL_TESTS="
 	vlan_interface_uppers_test
 	bridge_extern_learn_test
 	neigh_offload_test
+	nexthop_offload_test
 	devlink_reload_test
 "
 NUM_NETIFS=2
@@ -605,6 +606,52 @@ neigh_offload_test()
 	ip -4 neigh del 192.0.2.2 dev $swp1
 	ip -6 address del 2001:db8:1::1/64 dev $swp1
 	ip -4 address del 192.0.2.1/24 dev $swp1
+}
+
+nexthop_offload_test()
+{
+	# Test that IPv4 and IPv6 nexthops are marked as offloaded
+	RET=0
+
+	sysctl_set net.ipv6.conf.$swp2.keep_addr_on_down 1
+	simple_if_init $swp1 192.0.2.1/24 2001:db8:1::1/64
+	simple_if_init $swp2 192.0.2.2/24 2001:db8:1::2/64
+	setup_wait
+
+	ip -4 route add 198.51.100.0/24 vrf v$swp1 \
+		nexthop via 192.0.2.2 dev $swp1
+	ip -6 route add 2001:db8:2::/64 vrf v$swp1 \
+		nexthop via 2001:db8:1::2 dev $swp1
+
+	ip -4 route show 198.51.100.0/24 vrf v$swp1 | grep -q offload
+	check_err $? "ipv4 nexthop not marked as offloaded when should"
+	ip -6 route show 2001:db8:2::/64 vrf v$swp1 | grep -q offload
+	check_err $? "ipv6 nexthop not marked as offloaded when should"
+
+	ip link set dev $swp2 down
+	sleep 1
+
+	ip -4 route show 198.51.100.0/24 vrf v$swp1 | grep -q offload
+	check_fail $? "ipv4 nexthop marked as offloaded when should not"
+	ip -6 route show 2001:db8:2::/64 vrf v$swp1 | grep -q offload
+	check_fail $? "ipv6 nexthop marked as offloaded when should not"
+
+	ip link set dev $swp2 up
+	setup_wait
+
+	ip -4 route show 198.51.100.0/24 vrf v$swp1 | grep -q offload
+	check_err $? "ipv4 nexthop not marked as offloaded after neigh add"
+	ip -6 route show 2001:db8:2::/64 vrf v$swp1 | grep -q offload
+	check_err $? "ipv6 nexthop not marked as offloaded after neigh add"
+
+	log_test "nexthop offload indication"
+
+	ip -6 route del 2001:db8:2::/64 vrf v$swp1
+	ip -4 route del 198.51.100.0/24 vrf v$swp1
+
+	simple_if_fini $swp2 192.0.2.2/24 2001:db8:1::2/64
+	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
+	sysctl_restore net.ipv6.conf.$swp2.keep_addr_on_down
 }
 
 devlink_reload_test()

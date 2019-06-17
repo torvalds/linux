@@ -40,7 +40,7 @@
 #include <linux/bitops.h>
 #include <linux/if_bridge.h>
 
-#include "realtek-smi.h"
+#include "realtek-smi-core.h"
 
 #define REALTEK_SMI_ACK_RETRY_COUNT		5
 #define REALTEK_SMI_HW_STOP_DELAY		25	/* msecs */

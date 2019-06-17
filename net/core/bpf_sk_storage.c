@@ -633,7 +633,8 @@ static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 		return ERR_PTR(-ENOMEM);
 	bpf_map_init_from_attr(&smap->map, attr);
 
-	smap->bucket_log = ilog2(roundup_pow_of_two(num_possible_cpus()));
+	/* Use at least 2 buckets, select_bucket() is undefined behavior with 1 bucket */
+	smap->bucket_log = max_t(u32, 1, ilog2(roundup_pow_of_two(num_possible_cpus())));
 	nbuckets = 1U << smap->bucket_log;
 	smap->buckets = kvcalloc(sizeof(*smap->buckets), nbuckets,
 				 GFP_USER | __GFP_NOWARN);
