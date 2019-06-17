@@ -467,8 +467,6 @@ static int max6650_init_client(struct max6650_data *data,
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_THERMAL)
-
 static int max6650_get_max_state(struct thermal_cooling_device *cdev,
 				 unsigned long *state)
 {
@@ -517,7 +515,6 @@ static const struct thermal_cooling_device_ops max6650_cooling_ops = {
 	.get_cur_state = max6650_get_cur_state,
 	.set_cur_state = max6650_set_cur_state,
 };
-#endif
 
 static int max6650_read(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long *val)
@@ -795,14 +792,16 @@ static int max6650_probe(struct i2c_client *client,
 	if (err)
 		return err;
 
-#if IS_ENABLED(CONFIG_THERMAL)
-	cooling_dev = devm_thermal_of_cooling_device_register(dev, dev->of_node,
-				client->name, data, &max6650_cooling_ops);
-	if (IS_ERR(cooling_dev)) {
-		dev_warn(dev, "thermal cooling device register failed: %ld\n",
-			 PTR_ERR(cooling_dev));
+	if (IS_ENABLED(CONFIG_THERMAL)) {
+		cooling_dev = devm_thermal_of_cooling_device_register(dev,
+						dev->of_node, client->name,
+						data, &max6650_cooling_ops);
+		if (IS_ERR(cooling_dev)) {
+			dev_warn(dev, "thermal cooling device register failed: %ld\n",
+				 PTR_ERR(cooling_dev));
+		}
 	}
-#endif
+
 	return 0;
 }
 
