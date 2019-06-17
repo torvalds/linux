@@ -82,13 +82,13 @@ change.
 Frontbuffer Tracking
 --------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_frontbuffer.c
    :doc: frontbuffer tracking
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.h
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_frontbuffer.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_frontbuffer.c
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_gem.c
@@ -97,10 +97,10 @@ Frontbuffer Tracking
 Display FIFO Underrun Reporting
 -------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_fifo_underrun.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_fifo_underrun.c
    :doc: fifo underrun handling
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_fifo_underrun.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_fifo_underrun.c
    :internal:
 
 Plane Configuration
@@ -115,10 +115,10 @@ panel self refresh.
 Atomic Plane Helpers
 --------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_atomic_plane.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_atomic_plane.c
    :doc: atomic plane helpers
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_atomic_plane.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_atomic_plane.c
    :internal:
 
 Output Probing
@@ -132,19 +132,19 @@ probing, so those sections fully apply.
 Hotplug
 -------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_hotplug.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_hotplug.c
    :doc: Hotplug
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_hotplug.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_hotplug.c
    :internal:
 
 High Definition Audio
 ---------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_audio.c
    :doc: High Definition Audio over HDMI and Display Port
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_audio.c
    :internal:
 
 .. kernel-doc:: include/drm/i915_component.h
@@ -153,58 +153,58 @@ High Definition Audio
 Intel HDMI LPE Audio Support
 ----------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_lpe_audio.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_lpe_audio.c
    :doc: LPE Audio integration for HDMI or DP playback
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_lpe_audio.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_lpe_audio.c
    :internal:
 
 Panel Self Refresh PSR (PSR/SRD)
 --------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_psr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_psr.c
    :doc: Panel Self Refresh (PSR/SRD)
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_psr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_psr.c
    :internal:
 
 Frame Buffer Compression (FBC)
 ------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_fbc.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_fbc.c
    :doc: Frame Buffer Compression (FBC)
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_fbc.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_fbc.c
    :internal:
 
 Display Refresh Rate Switching (DRRS)
 -------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :doc: Display Refresh Rate Switching (DRRS)
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_dp_set_drrs_state
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_edp_drrs_enable
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_edp_drrs_disable
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_edp_drrs_invalidate
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_edp_drrs_flush
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_dp_drrs_init
 
 DPIO
 ----
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dpio_phy.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpio_phy.c
    :doc: DPIO
 
 CSR firmware support for DMC
@@ -219,34 +219,34 @@ CSR firmware support for DMC
 Video BIOS Table (VBT)
 ----------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_bios.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_bios.c
    :doc: Video BIOS Table (VBT)
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_bios.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_bios.c
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_vbt_defs.h
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_vbt_defs.h
    :internal:
 
 Display clocks
 --------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_cdclk.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_cdclk.c
    :doc: CDCLK / RAWCLK
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_cdclk.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_cdclk.c
    :internal:
 
 Display PLLs
 ------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpll_mgr.c
    :doc: Display PLLs
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpll_mgr.c
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.h
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpll_mgr.h
    :internal:
 
 Memory Management and Command Submission
