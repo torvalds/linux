@@ -25,7 +25,7 @@
 #define AMD_FCH_GPIO_FLAG_WRITE		BIT(22)
 #define AMD_FCH_GPIO_FLAG_READ		BIT(16)
 
-static struct resource amd_fch_gpio_iores =
+static const struct resource amd_fch_gpio_iores =
 	DEFINE_RES_MEM_NAMED(
 		AMD_FCH_MMIO_BASE + AMD_FCH_GPIO_BANK0_BASE,
 		AMD_FCH_GPIO_SIZE,
