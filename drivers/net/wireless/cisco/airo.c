@@ -49,6 +49,9 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
+#include <crypto/aes.h>
+#include <crypto/skcipher.h>
+
 #include <net/cfg80211.h>
 #include <net/iw_handler.h>
 
@@ -951,7 +954,7 @@ typedef struct {
 } mic_statistics;
 
 typedef struct {
-	u32 coeff[((EMMH32_MSGLEN_MAX)+3)>>2];
+	__be32 coeff[((EMMH32_MSGLEN_MAX)+3)>>2];
 	u64 accum;	// accumulated mic, reduced to u32 in final()
 	int position;	// current position (byte offset) in message
 	union {
@@ -1216,7 +1219,7 @@ struct airo_info {
 	struct iw_spy_data	spy_data;
 	struct iw_public_data	wireless_data;
 	/* MIC stuff */
-	struct crypto_cipher	*tfm;
+	struct crypto_sync_skcipher	*tfm;
 	mic_module		mod[2];
 	mic_statistics		micstats;
 	HostRxDesc rxfids[MPI_MAX_FIDS]; // rx/tx/config MPI350 descriptors
@@ -1291,14 +1294,14 @@ static int flashrestart(struct airo_info *ai,struct net_device *dev);
 static int RxSeqValid (struct airo_info *ai,miccntx *context,int mcast,u32 micSeq);
 static void MoveWindow(miccntx *context, u32 micSeq);
 static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen,
-			   struct crypto_cipher *tfm);
+			   struct crypto_sync_skcipher *tfm);
 static void emmh32_init(emmh32_context *context);
 static void emmh32_update(emmh32_context *context, u8 *pOctets, int len);
 static void emmh32_final(emmh32_context *context, u8 digest[4]);
 static int flashpchar(struct airo_info *ai,int byte,int dwelltime);
 
 static void age_mic_context(miccntx *cur, miccntx *old, u8 *key, int key_len,
-			    struct crypto_cipher *tfm)
+			    struct crypto_sync_skcipher *tfm)
 {
 	/* If the current MIC context is valid and its key is the same as
 	 * the MIC register, there's nothing to do.
@@ -1359,7 +1362,7 @@ static int micsetup(struct airo_info *ai) {
 	int i;
 
 	if (ai->tfm == NULL)
-		ai->tfm = crypto_alloc_cipher("aes", 0, 0);
+		ai->tfm = crypto_alloc_sync_skcipher("ctr(aes)", 0, 0);
 
         if (IS_ERR(ai->tfm)) {
                 airo_print_err(ai->dev->name, "failed to load transform for AES");
@@ -1624,37 +1627,31 @@ static void MoveWindow(miccntx *context, u32 micSeq)
 
 /* mic accumulate */
 #define MIC_ACCUM(val)	\
-	context->accum += (u64)(val) * context->coeff[coeff_position++];
-
-static unsigned char aes_counter[16];
+	context->accum += (u64)(val) * be32_to_cpu(context->coeff[coeff_position++]);
 
 /* expand the key to fill the MMH coefficient array */
 static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen,
-			   struct crypto_cipher *tfm)
+			   struct crypto_sync_skcipher *tfm)
 {
   /* take the keying material, expand if necessary, truncate at 16-bytes */
   /* run through AES counter mode to generate context->coeff[] */
   
-	int i,j;
-	u32 counter;
-	u8 *cipher, plain[16];
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
+	struct scatterlist sg;
+	u8 iv[AES_BLOCK_SIZE] = {};
+	int ret;
 
-	crypto_cipher_setkey(tfm, pkey, 16);
-	counter = 0;
-	for (i = 0; i < ARRAY_SIZE(context->coeff); ) {
-		aes_counter[15] = (u8)(counter >> 0);
-		aes_counter[14] = (u8)(counter >> 8);
-		aes_counter[13] = (u8)(counter >> 16);
-		aes_counter[12] = (u8)(counter >> 24);
-		counter++;
-		memcpy (plain, aes_counter, 16);
-		crypto_cipher_encrypt_one(tfm, plain, plain);
-		cipher = plain;
-		for (j = 0; (j < 16) && (i < ARRAY_SIZE(context->coeff)); ) {
-			context->coeff[i++] = ntohl(*(__be32 *)&cipher[j]);
-			j += 4;
-		}
-	}
+	crypto_sync_skcipher_setkey(tfm, pkey, 16);
+
+	memset(context->coeff, 0, sizeof(context->coeff));
+	sg_init_one(&sg, context->coeff, sizeof(context->coeff));
+
+	skcipher_request_set_sync_tfm(req, tfm);
+	skcipher_request_set_callback(req, 0, NULL, NULL);
+	skcipher_request_set_crypt(req, &sg, &sg, sizeof(context->coeff), iv);
+
+	ret = crypto_skcipher_encrypt(req);
+	WARN_ON_ONCE(ret);
 }
 
 /* prepare for calculation of a new mic */
@@ -2415,7 +2412,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 				ai->shared, ai->shared_dma);
 		}
         }
-	crypto_free_cipher(ai->tfm);
+	crypto_free_sync_skcipher(ai->tfm);
 	del_airo_dev(ai);
 	free_netdev( dev );
 }
