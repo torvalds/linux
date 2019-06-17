@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -7,18 +8,12 @@
  *
  *		IPv4 specific functions
  *
- *
  *		code split from:
  *		linux/ipv4/tcp.c
  *		linux/ipv4/tcp_input.c
  *		linux/ipv4/tcp_output.c
  *
  *		See tcp.c for author information
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 /*

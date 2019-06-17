@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	G8BPQ compatible "AX.25 via ethernet" driver release 004
  *
  *	This code REQUIRES 2.0.0 or higher/ NET3.029
- *
- *	This module:
- *		This module is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  *	This is a "pseudo" network driver to allow AX.25 over Ethernet
  *	using G8BPQ encapsulation. It has been extracted from the protocol

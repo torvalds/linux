@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_powerclamp.c - package c-state idle injection
  *
@@ -6,20 +7,6 @@
  * Authors:
  *     Arjan van de Ven <arjan@linux.intel.com>
  *     Jacob Pan <jacob.jun.pan@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  *	TODO:
  *           1. better handle wakeup from external interrupts, currently a fixed
@@ -33,8 +20,6 @@
  *              get_cpu_iowait_time_us()
  *
  *	     2. synchronization with other hw blocks
- *
- *
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt

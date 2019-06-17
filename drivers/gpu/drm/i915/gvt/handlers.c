@@ -464,6 +464,8 @@ static i915_reg_t force_nonpriv_white_list[] = {
 	_MMIO(0x2690),
 	_MMIO(0x2694),
 	_MMIO(0x2698),
+	_MMIO(0x2754),
+	_MMIO(0x28a0),
 	_MMIO(0x4de0),
 	_MMIO(0x4de4),
 	_MMIO(0x4dfc),
@@ -1364,7 +1366,6 @@ static int dma_ctrl_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int gen9_trtte_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	u32 trtte = *(u32 *)p_data;
 
 	if ((trtte & 1) && (trtte & (1 << 1)) == 0) {
@@ -1373,11 +1374,6 @@ static int gen9_trtte_write(struct intel_vgpu *vgpu, unsigned int offset,
 		return -EINVAL;
 	}
 	write_vreg(vgpu, offset, p_data, bytes);
-	/* TRTTE is not per-context */
-
-	mmio_hw_access_pre(dev_priv);
-	I915_WRITE(_MMIO(offset), vgpu_vreg(vgpu, offset));
-	mmio_hw_access_post(dev_priv);
 
 	return 0;
 }
@@ -1385,15 +1381,6 @@ static int gen9_trtte_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int gen9_trtt_chicken_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
-	u32 val = *(u32 *)p_data;
-
-	if (val & 1) {
-		/* unblock hw logic */
-		mmio_hw_access_pre(dev_priv);
-		I915_WRITE(_MMIO(offset), val);
-		mmio_hw_access_post(dev_priv);
-	}
 	write_vreg(vgpu, offset, p_data, bytes);
 	return 0;
 }
@@ -1705,7 +1692,21 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	bool enable_execlist;
 	int ret;
 
+	(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(1);
+	if (IS_COFFEELAKE(vgpu->gvt->dev_priv))
+		(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(2);
 	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (data & _MASKED_BIT_ENABLE(1)) {
+		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
+		return 0;
+	}
+
+	if (IS_COFFEELAKE(vgpu->gvt->dev_priv) &&
+	    data & _MASKED_BIT_ENABLE(2)) {
+		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
+		return 0;
+	}
 
 	/* when PPGTT mode enabled, we will check if guest has called
 	 * pvinfo, if not, we will treat this guest as non-gvtg-aware
@@ -1785,6 +1786,21 @@ static int ring_reset_ctl_write(struct intel_vgpu *vgpu,
 		data &= ~RESET_CTL_READY_TO_RESET;
 
 	vgpu_vreg(vgpu, offset) = data;
+	return 0;
+}
+
+static int csfe_chicken1_mmio_write(struct intel_vgpu *vgpu,
+				    unsigned int offset, void *p_data,
+				    unsigned int bytes)
+{
+	u32 data = *(u32 *)p_data;
+
+	(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(0x18);
+	write_vreg(vgpu, offset, p_data, bytes);
+
+	if (data & _MASKED_BIT_ENABLE(0x10) || data & _MASKED_BIT_ENABLE(0x8))
+		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
+
 	return 0;
 }
 
@@ -1908,7 +1924,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(_MMIO(0x20dc), D_ALL, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_3D_CHICKEN3, D_ALL, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0x2088), D_ALL, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
-	MMIO_DFH(_MMIO(0x20e4), D_ALL, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
+	MMIO_DFH(FF_SLICE_CS_CHICKEN2, D_ALL,
+		 F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(_MMIO(0x2470), D_ALL, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(GAM_ECOCHK, D_ALL, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(GEN7_COMMON_SLICE_CHICKEN1, D_ALL, F_MODE_MASK | F_CMD_ACCESS,
@@ -3012,7 +3029,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(CSR_HTP_SKL, D_SKL_PLUS);
 	MMIO_D(CSR_LAST_WRITE, D_SKL_PLUS);
 
-	MMIO_D(BDW_SCRATCH1, D_SKL_PLUS);
+	MMIO_DFH(BDW_SCRATCH1, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 
 	MMIO_D(SKL_DFSM, D_SKL_PLUS);
 	MMIO_D(DISPIO_CR_TX_BMU_CR0, D_SKL_PLUS);
@@ -3025,8 +3042,8 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(RPM_CONFIG0, D_SKL_PLUS);
 	MMIO_D(_MMIO(0xd08), D_SKL_PLUS);
 	MMIO_D(RC6_LOCATION, D_SKL_PLUS);
-	MMIO_DFH(GEN7_FF_SLICE_CS_CHICKEN1, D_SKL_PLUS, F_MODE_MASK,
-		NULL, NULL);
+	MMIO_DFH(GEN7_FF_SLICE_CS_CHICKEN1, D_SKL_PLUS,
+		 F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 	MMIO_DFH(GEN9_CS_DEBUG_MODE1, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
 		NULL, NULL);
 
@@ -3045,7 +3062,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_MMIO(0x46520), D_SKL_PLUS);
 
 	MMIO_D(_MMIO(0xc403c), D_SKL_PLUS);
-	MMIO_D(_MMIO(0xb004), D_SKL_PLUS);
+	MMIO_DFH(GEN8_GARBCNTL, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 	MMIO_DH(DMA_CTRL, D_SKL_PLUS, NULL, dma_ctrl_write);
 
 	MMIO_D(_MMIO(0x65900), D_SKL_PLUS);
@@ -3074,7 +3091,10 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_MMIO(_PLANE_KEYMSK_1(PIPE_C)), D_SKL_PLUS);
 
 	MMIO_D(_MMIO(0x44500), D_SKL_PLUS);
-	MMIO_DFH(GEN9_CSFE_CHICKEN1_RCS, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
+#define CSFE_CHICKEN1_REG(base) _MMIO((base) + 0xD4)
+	MMIO_RING_DFH(CSFE_CHICKEN1_REG, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
+		      NULL, csfe_chicken1_mmio_write);
+#undef CSFE_CHICKEN1_REG
 	MMIO_DFH(GEN8_HDC_CHICKEN1, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
 		 NULL, NULL);
 	MMIO_DFH(GEN9_WM_CHICKEN3, D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS,
@@ -3254,7 +3274,7 @@ static int init_bxt_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(GEN8_PUSHBUS_ENABLE, D_BXT);
 	MMIO_D(GEN8_PUSHBUS_SHIFT, D_BXT);
 	MMIO_D(GEN6_GFXPAUSE, D_BXT);
-	MMIO_D(GEN8_L3SQCREG1, D_BXT);
+	MMIO_DFH(GEN8_L3SQCREG1, D_BXT, F_CMD_ACCESS, NULL, NULL);
 
 	MMIO_DFH(GEN9_CTX_PREEMPT_REG, D_BXT, F_CMD_ACCESS, NULL, NULL);
 

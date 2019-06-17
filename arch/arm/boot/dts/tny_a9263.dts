@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * usb_a9263.dts - Device Tree file for Caloa USB A9293 board
  *
  *  Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
- *
- * Licensed under GPLv2 only
  */
 /dts-v1/;
 #include "at91sam9263.dtsi"
