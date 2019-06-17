@@ -815,14 +815,21 @@ static int navi10_unforce_dpm_levels(struct smu_context *smu) {
 	uint32_t min_freq, max_freq;
 	enum smu_clk_type clk_type;
 
-	enum smu_clk_type clks[] = {
-		SMU_GFXCLK,
-		SMU_MCLK,
-		SMU_SOCCLK,
+	struct clk_feature_map {
+		enum smu_clk_type clk_type;
+		uint32_t	feature;
+	} clk_feature_map[] = {
+		{SMU_GFXCLK, SMU_FEATURE_DPM_GFXCLK_BIT},
+		{SMU_MCLK,   SMU_FEATURE_DPM_UCLK_BIT},
+		{SMU_SOCCLK, SMU_FEATURE_DPM_SOCCLK_BIT},
 	};
 
-	for (i = 0; i < ARRAY_SIZE(clks); i++) {
-		clk_type = clks[i];
+	for (i = 0; i < ARRAY_SIZE(clk_feature_map); i++) {
+		if (!smu_feature_is_enabled(smu, clk_feature_map[i].feature))
+			continue;
+
+		clk_type = clk_feature_map[i].clk_type;
+
 		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq);
 		if (ret)
 			return ret;
