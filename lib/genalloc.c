@@ -168,20 +168,21 @@ struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
 EXPORT_SYMBOL(gen_pool_create);
 
 /**
- * gen_pool_add_virt - add a new chunk of special memory to the pool
+ * gen_pool_add_owner- add a new chunk of special memory to the pool
  * @pool: pool to add new memory chunk to
  * @virt: virtual starting address of memory chunk to add to pool
  * @phys: physical starting address of memory chunk to add to pool
  * @size: size in bytes of the memory chunk to add to pool
  * @nid: node id of the node the chunk structure and bitmap should be
  *       allocated on, or -1
+ * @owner: private data the publisher would like to recall at alloc time
  *
  * Add a new chunk of special memory to the specified pool.
  *
  * Returns 0 on success or a -ve errno on failure.
  */
-int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
-		 size_t size, int nid)
+int gen_pool_add_owner(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
+		 size_t size, int nid, void *owner)
 {
 	struct gen_pool_chunk *chunk;
 	int nbits = size >> pool->min_alloc_order;
@@ -195,6 +196,7 @@ int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phy
 	chunk->phys_addr = phys;
 	chunk->start_addr = virt;
 	chunk->end_addr = virt + size - 1;
+	chunk->owner = owner;
 	atomic_long_set(&chunk->avail, size);
 
 	spin_lock(&pool->lock);
@@ -203,7 +205,7 @@ int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phy
 
 	return 0;
 }
-EXPORT_SYMBOL(gen_pool_add_virt);
+EXPORT_SYMBOL(gen_pool_add_owner);
 
 /**
  * gen_pool_virt_to_phys - return the physical address of memory
@@ -260,35 +262,20 @@ void gen_pool_destroy(struct gen_pool *pool)
 EXPORT_SYMBOL(gen_pool_destroy);
 
 /**
- * gen_pool_alloc - allocate special memory from the pool
- * @pool: pool to allocate from
- * @size: number of bytes to allocate from the pool
- *
- * Allocate the requested number of bytes from the specified pool.
- * Uses the pool allocation function (with first-fit algorithm by default).
- * Can not be used in NMI handler on architectures without
- * NMI-safe cmpxchg implementation.
- */
-unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
-{
-	return gen_pool_alloc_algo(pool, size, pool->algo, pool->data);
-}
-EXPORT_SYMBOL(gen_pool_alloc);
-
-/**
- * gen_pool_alloc_algo - allocate special memory from the pool
+ * gen_pool_alloc_algo_owner - allocate special memory from the pool
  * @pool: pool to allocate from
  * @size: number of bytes to allocate from the pool
  * @algo: algorithm passed from caller
  * @data: data passed to algorithm
+ * @owner: optionally retrieve the chunk owner
  *
  * Allocate the requested number of bytes from the specified pool.
  * Uses the pool allocation function (with first-fit algorithm by default).
  * Can not be used in NMI handler on architectures without
  * NMI-safe cmpxchg implementation.
  */
-unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
-		genpool_algo_t algo, void *data)
+unsigned long gen_pool_alloc_algo_owner(struct gen_pool *pool, size_t size,
+		genpool_algo_t algo, void *data, void **owner)
 {
 	struct gen_pool_chunk *chunk;
 	unsigned long addr = 0;
@@ -298,6 +285,9 @@ unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
 #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
 	BUG_ON(in_nmi());
 #endif
+
+	if (owner)
+		*owner = NULL;
 
 	if (size == 0)
 		return 0;
@@ -326,12 +316,14 @@ retry:
 		addr = chunk->start_addr + ((unsigned long)start_bit << order);
 		size = nbits << order;
 		atomic_long_sub(size, &chunk->avail);
+		if (owner)
+			*owner = chunk->owner;
 		break;
 	}
 	rcu_read_unlock();
 	return addr;
 }
-EXPORT_SYMBOL(gen_pool_alloc_algo);
+EXPORT_SYMBOL(gen_pool_alloc_algo_owner);
 
 /**
  * gen_pool_dma_alloc - allocate special memory from the pool for DMA usage
@@ -367,12 +359,14 @@ EXPORT_SYMBOL(gen_pool_dma_alloc);
  * @pool: pool to free to
  * @addr: starting address of memory to free back to pool
  * @size: size in bytes of memory to free
+ * @owner: private data stashed at gen_pool_add() time
  *
  * Free previously allocated special memory back to the specified
  * pool.  Can not be used in NMI handler on architectures without
  * NMI-safe cmpxchg implementation.
  */
-void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
+void gen_pool_free_owner(struct gen_pool *pool, unsigned long addr, size_t size,
+		void **owner)
 {
 	struct gen_pool_chunk *chunk;
 	int order = pool->min_alloc_order;
@@ -381,6 +375,9 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
 	BUG_ON(in_nmi());
 #endif
+
+	if (owner)
+		*owner = NULL;
 
 	nbits = (size + (1UL << order) - 1) >> order;
 	rcu_read_lock();
@@ -392,6 +389,8 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 			BUG_ON(remain);
 			size = nbits << order;
 			atomic_long_add(size, &chunk->avail);
+			if (owner)
+				*owner = chunk->owner;
 			rcu_read_unlock();
 			return;
 		}
@@ -399,7 +398,7 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 	rcu_read_unlock();
 	BUG();
 }
-EXPORT_SYMBOL(gen_pool_free);
+EXPORT_SYMBOL(gen_pool_free_owner);
 
 /**
  * gen_pool_for_each_chunk - call func for every chunk of generic memory pool

@@ -172,6 +172,8 @@ static inline int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 {
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
+	if (block >= AMDGPU_RAS_BLOCK_COUNT)
+		return 0;
 	return ras && (ras->supported & (1 << block));
 }
 
