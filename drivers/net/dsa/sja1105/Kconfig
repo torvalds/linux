@@ -18,7 +18,7 @@ tristate "NXP SJA1105 Ethernet switch family support"
 	    - SJA1105S (Gen. 2, SGMII, TT-Ethernet)
 
 config NET_DSA_SJA1105_PTP
-tristate "Support for the PTP clock on the NXP SJA1105 Ethernet switch"
+	bool "Support for the PTP clock on the NXP SJA1105 Ethernet switch"
 	depends on NET_DSA_SJA1105
 	help
 	  This enables support for timestamping and PTP clock manipulations in
