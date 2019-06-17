@@ -652,6 +652,7 @@ static int qed_llh_abs_ppfid(struct qed_dev *cdev, u8 ppfid, u8 *p_abs_ppfid)
 		DP_NOTICE(cdev,
 			  "ppfid %d is not valid, available indices are 0..%hhd\n",
 			  ppfid, p_llh_info->num_ppfid - 1);
+		*p_abs_ppfid = 0;
 		return -EINVAL;
 	}
 
