@@ -239,56 +239,71 @@ static bool dsi_mgr_is_cmd_mode(struct msm_dsi *msm_dsi)
 	return !(host_flags & MIPI_DSI_MODE_VIDEO);
 }
 
-static void msm_dsi_manager_panel_init(struct drm_connector *connector, u8 id)
+static void msm_dsi_manager_setup_encoder(int id)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
-	struct msm_drm_private *priv = connector->dev->dev_private;
+	struct msm_drm_private *priv = msm_dsi->dev->dev_private;
 	struct msm_kms *kms = priv->kms;
-	bool cmd_mode;
+	struct drm_encoder *encoder = msm_dsi_get_encoder(msm_dsi);
 
-	if (!msm_dsi->panel) {
-		msm_dsi->panel = msm_dsi_host_get_panel(msm_dsi->host);
+	if (encoder && kms->funcs->set_encoder_mode)
+		kms->funcs->set_encoder_mode(kms, encoder,
+					     dsi_mgr_is_cmd_mode(msm_dsi));
+}
 
-		/* There is only 1 panel in the global panel list
-		 * for dual DSI mode. Therefore slave dsi should get
-		 * the drm_panel instance from master dsi.
-		 */
-		if (!msm_dsi->panel && IS_DUAL_DSI() &&
-			!IS_MASTER_DSI_LINK(id) && other_dsi)
-			msm_dsi->panel = msm_dsi_host_get_panel(
-						other_dsi->host);
+static int msm_dsi_manager_panel_init(struct drm_connector *conn, u8 id)
+{
+	struct msm_drm_private *priv = conn->dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
+	struct msm_dsi *master_dsi, *slave_dsi;
+	struct drm_panel *panel;
 
-
-		cmd_mode = dsi_mgr_is_cmd_mode(msm_dsi);
-		if (msm_dsi->panel && kms->funcs->set_encoder_mode) {
-			struct drm_encoder *encoder =
-					msm_dsi_get_encoder(msm_dsi);
-
-			kms->funcs->set_encoder_mode(kms, encoder, cmd_mode);
-		}
-
-		if (msm_dsi->panel && IS_DUAL_DSI())
-			drm_object_attach_property(&connector->base,
-				connector->dev->mode_config.tile_property, 0);
-
-		/* Set split display info to kms once dual DSI panel is
-		 * connected to both hosts.
-		 */
-		if (msm_dsi->panel && IS_DUAL_DSI() &&
-			other_dsi && other_dsi->panel) {
-			struct drm_encoder *encoder = msm_dsi_get_encoder(
-					dsi_mgr_get_dsi(DSI_ENCODER_MASTER));
-			struct drm_encoder *slave_enc = msm_dsi_get_encoder(
-					dsi_mgr_get_dsi(DSI_ENCODER_SLAVE));
-
-			if (kms->funcs->set_split_display)
-				kms->funcs->set_split_display(kms, encoder,
-							slave_enc, cmd_mode);
-			else
-				pr_err("mdp does not support dual DSI\n");
-		}
+	if (IS_DUAL_DSI() && !IS_MASTER_DSI_LINK(id)) {
+		master_dsi = other_dsi;
+		slave_dsi = msm_dsi;
+	} else {
+		master_dsi = msm_dsi;
+		slave_dsi = other_dsi;
 	}
+
+	/*
+	 * There is only 1 panel in the global panel list for dual DSI mode.
+	 * Therefore slave dsi should get the drm_panel instance from master
+	 * dsi.
+	 */
+	panel = msm_dsi_host_get_panel(master_dsi->host);
+	if (IS_ERR(panel)) {
+		DRM_ERROR("Could not find panel for %u (%ld)\n", msm_dsi->id,
+			  PTR_ERR(panel));
+		return PTR_ERR(panel);
+	}
+
+	if (!panel)
+		return 0;
+
+	msm_dsi_manager_setup_encoder(id);
+
+	if (!IS_DUAL_DSI())
+		goto out;
+
+	drm_object_attach_property(&conn->base,
+				   conn->dev->mode_config.tile_property, 0);
+
+	/*
+	 * Set split display info to kms once dual DSI panel is connected to
+	 * both hosts.
+	 */
+	if (other_dsi && other_dsi->panel && kms->funcs->set_split_display) {
+		kms->funcs->set_split_display(kms, master_dsi->encoder,
+					      slave_dsi->encoder,
+					      dsi_mgr_is_cmd_mode(msm_dsi));
+	}
+
+out:
+	msm_dsi->panel = panel;
+	return 0;
 }
 
 static enum drm_connector_status dsi_mgr_connector_detect(
@@ -298,8 +313,11 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 
 	DBG("id=%d", id);
-	if (!msm_dsi->panel)
-		msm_dsi_manager_panel_init(connector, id);
+	if (!msm_dsi->panel) {
+		int ret = msm_dsi_manager_panel_init(connector, id);
+		if (ret)
+			return connector_status_disconnected;
+	}
 
 	return msm_dsi->panel ? connector_status_connected :
 		connector_status_disconnected;
