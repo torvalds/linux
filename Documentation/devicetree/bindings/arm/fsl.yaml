@@ -80,6 +80,8 @@ properties:
       - description: i.MX6Q based Boards
         items:
           - enum:
+              - emtrion,emcon-mx6         # emCON-MX6D or emCON-MX6Q SoM
+              - emtrion,emcon-mx6-avari   # emCON-MX6D or emCON-MX6Q SoM on Avari Base
               - fsl,imx6q-arm2
               - fsl,imx6q-sabreauto
               - fsl,imx6q-sabrelite
@@ -99,6 +101,8 @@ properties:
         items:
           - enum:
               - eckelmann,imx6dl-ci4x10
+              - emtrion,emcon-mx6         # emCON-MX6S or emCON-MX6DL SoM
+              - emtrion,emcon-mx6-avari   # emCON-MX6S or emCON-MX6DL SoM on Avari Base
               - fsl,imx6dl-sabreauto      # i.MX6 DualLite/Solo SABRE Automotive Board
               - fsl,imx6dl-sabresd        # i.MX6 DualLite SABRE Smart Device Board
               - technologic,imx6dl-ts4900
