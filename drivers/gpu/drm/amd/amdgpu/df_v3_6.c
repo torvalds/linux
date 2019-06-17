@@ -177,7 +177,7 @@ static void df_v3_6_pmc_get_read_settings(struct amdgpu_device *adev,
 }
 
 /* get control counter settings i.e. address and values to set */
-static void df_v3_6_pmc_get_ctrl_settings(struct amdgpu_device *adev,
+static int df_v3_6_pmc_get_ctrl_settings(struct amdgpu_device *adev,
 					  uint64_t config,
 					  uint32_t *lo_base_addr,
 					  uint32_t *hi_base_addr,
@@ -191,12 +191,12 @@ static void df_v3_6_pmc_get_ctrl_settings(struct amdgpu_device *adev,
 	df_v3_6_pmc_get_addr(adev, config, 1, lo_base_addr, hi_base_addr);
 
 	if (lo_val == NULL || hi_val == NULL)
-		return;
+		return -EINVAL;
 
 	if ((*lo_base_addr == 0) || (*hi_base_addr == 0)) {
 		DRM_ERROR("DF PMC addressing not retrieved! Lo: %x, Hi: %x",
 				*lo_base_addr, *hi_base_addr);
-		return;
+		return -ENXIO;
 	}
 
 	eventsel = GET_EVENT(config);
@@ -211,6 +211,8 @@ static void df_v3_6_pmc_get_ctrl_settings(struct amdgpu_device *adev,
 	es_7_0 = es_13_0 & 0x0FFUL;
 	*lo_val = (es_7_0 & 0xFFUL) | ((unitmask & 0x0FUL) << 8);
 	*hi_val = (es_11_8 | ((es_13_12)<<(29)));
+
+	return 0;
 }
 
 /* assign df performance counters for read */
@@ -345,12 +347,15 @@ static int df_v3_6_add_xgmi_link_cntr(struct amdgpu_device *adev,
 	if (ret || is_assigned)
 		return ret;
 
-	df_v3_6_pmc_get_ctrl_settings(adev,
+	ret = df_v3_6_pmc_get_ctrl_settings(adev,
 			config,
 			&lo_base_addr,
 			&hi_base_addr,
 			&lo_val,
 			&hi_val);
+
+	if (ret)
+		return ret;
 
 	WREG32_PCIE(lo_base_addr, lo_val);
 	WREG32_PCIE(hi_base_addr, hi_val);
