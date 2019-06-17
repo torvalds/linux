@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * kernel/power/hibernate.c - Hibernation (a.k.a suspend-to-disk) support.
  *
@@ -6,8 +7,6 @@
  * Copyright (c) 2004 Pavel Machek <pavel@ucw.cz>
  * Copyright (c) 2009 Rafael J. Wysocki, Novell Inc.
  * Copyright (C) 2012 Bojan Smojver <bojan@rexursive.com>
- *
- * This file is released under the GPLv2.
  */
 
 #define pr_fmt(fmt) "PM: " fmt
@@ -257,6 +256,11 @@ void swsusp_show_speed(ktime_t start, ktime_t stop,
 		(kps % 1000) / 10);
 }
 
+__weak int arch_resume_nosmt(void)
+{
+	return 0;
+}
+
 /**
  * create_image - Create a hibernation image.
  * @platform_mode: Whether or not to use the platform driver.
@@ -323,6 +327,10 @@ static int create_image(int platform_mode)
 
  Enable_cpus:
 	suspend_enable_secondary_cpus();
+
+	/* Allow architectures to do nosmt-specific post-resume dances */
+	if (!in_suspend)
+		error = arch_resume_nosmt();
 
  Platform_finish:
 	platform_finish(platform_mode);

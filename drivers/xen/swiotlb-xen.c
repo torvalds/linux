@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright 2010
  *  by Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
  *
  * This code provides a IOMMU for Xen PV guests with PCI passthrough.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * PV guests under Xen are running in an non-contiguous memory architecture.
  *
@@ -30,7 +22,6 @@
  * and PFN+1==MFN+1. Lastly with Xen 4.0, pages (in debug mode) are
  * allocated in descending order (high to low), meaning the guest might
  * never get any MFN's under the 4GB mark.
- *
  */
 
 #define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt

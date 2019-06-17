@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Infineon Technologies AG
  * Copyright (C) 2016 STMicroelectronics SAS
@@ -17,11 +18,6 @@
  *
  * It is based on the original tpm_tis device driver from Leendert van
  * Dorn and Kyleen Hall and Jarko Sakkinnen.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #include <linux/init.h>
