@@ -574,15 +574,19 @@ static int navi10_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 	struct smu_power_gate *power_gate = &smu_power->power_gate;
 
 	if (enable && power_gate->uvd_gated) {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 1);
-		if (ret)
-			return ret;
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT)) {
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn, 1);
+			if (ret)
+				return ret;
+		}
 		power_gate->uvd_gated = false;
 	} else {
 		if (!enable && !power_gate->uvd_gated) {
-			ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
-			if (ret)
-				return ret;
+			if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT)) {
+				ret = smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
+				if (ret)
+					return ret;
+			}
 			power_gate->uvd_gated = true;
 		}
 	}
