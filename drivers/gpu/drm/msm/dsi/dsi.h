@@ -79,7 +79,6 @@ struct msm_dsi {
 	 */
 	struct drm_panel *panel;
 	struct drm_bridge *external_bridge;
-	unsigned long device_flags;
 
 	struct device *phy_dev;
 	bool phy_enabled;

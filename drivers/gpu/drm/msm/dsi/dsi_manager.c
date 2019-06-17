@@ -233,6 +233,12 @@ static int dsi_mgr_bridge_get_id(struct drm_bridge *bridge)
 	return dsi_bridge->id;
 }
 
+static bool dsi_mgr_is_cmd_mode(struct msm_dsi *msm_dsi)
+{
+	unsigned long host_flags = msm_dsi_host_get_mode_flags(msm_dsi->host);
+	return !(host_flags & MIPI_DSI_MODE_VIDEO);
+}
+
 static enum drm_connector_status dsi_mgr_connector_detect(
 		struct drm_connector *connector, bool force)
 {
@@ -241,17 +247,15 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
 	struct msm_drm_private *priv = connector->dev->dev_private;
 	struct msm_kms *kms = priv->kms;
+	bool cmd_mode;
 
 	DBG("id=%d", id);
 	if (!msm_dsi->panel) {
 		msm_dsi->panel = msm_dsi_host_get_panel(msm_dsi->host);
-		msm_dsi->device_flags = msm_dsi_host_get_mode_flags(
-						msm_dsi->host);
 
 		/* There is only 1 panel in the global panel list
 		 * for dual DSI mode. Therefore slave dsi should get
-		 * the drm_panel instance from master dsi, and
-		 * keep using the panel flags got from the current DSI link.
+		 * the drm_panel instance from master dsi.
 		 */
 		if (!msm_dsi->panel && IS_DUAL_DSI() &&
 			!IS_MASTER_DSI_LINK(id) && other_dsi)
@@ -259,9 +263,8 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 						other_dsi->host);
 
 
+		cmd_mode = dsi_mgr_is_cmd_mode(msm_dsi);
 		if (msm_dsi->panel && kms->funcs->set_encoder_mode) {
-			bool cmd_mode = !(msm_dsi->device_flags &
-					  MIPI_DSI_MODE_VIDEO);
 			struct drm_encoder *encoder =
 					msm_dsi_get_encoder(msm_dsi);
 
@@ -277,8 +280,6 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 		 */
 		if (msm_dsi->panel && IS_DUAL_DSI() &&
 			other_dsi && other_dsi->panel) {
-			bool cmd_mode = !(msm_dsi->device_flags &
-						MIPI_DSI_MODE_VIDEO);
 			struct drm_encoder *encoder = msm_dsi_get_encoder(
 					dsi_mgr_get_dsi(DSI_ENCODER_MASTER));
 			struct drm_encoder *slave_enc = msm_dsi_get_encoder(
