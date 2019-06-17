@@ -315,15 +315,6 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		return new_drvdata->irq;
 	}
 
-	rc = devm_request_irq(dev, new_drvdata->irq, cc_isr,
-			      IRQF_SHARED, "ccree", new_drvdata);
-	if (rc) {
-		dev_err(dev, "Could not register to interrupt %d\n",
-			new_drvdata->irq);
-		return rc;
-	}
-	dev_dbg(dev, "Registered to IRQ: %d\n", new_drvdata->irq);
-
 	init_completion(&new_drvdata->hw_queue_avail);
 
 	if (!plat_dev->dev.dma_mask)
@@ -401,6 +392,15 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	/* Display HW versions */
 	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X/0x%8X, Driver version %s\n",
 		 hw_rev->name, hw_rev_pidr, sig_cidr, DRV_MODULE_VERSION);
+	/* register the driver isr function */
+	rc = devm_request_irq(dev, new_drvdata->irq, cc_isr,
+			      IRQF_SHARED, "ccree", new_drvdata);
+	if (rc) {
+		dev_err(dev, "Could not register to interrupt %d\n",
+			new_drvdata->irq);
+		return rc;
+	}
+	dev_dbg(dev, "Registered to IRQ: %d\n", new_drvdata->irq);
 
 	rc = init_cc_regs(new_drvdata, true);
 	if (rc) {
