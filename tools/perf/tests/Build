@@ -51,6 +51,7 @@ perf-y += clang.o
 perf-y += unit_number__scnprintf.o
 perf-y += mem2node.o
 perf-y += map_groups.o
+perf-y += time-utils-test.o
 
 $(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c tests/Build
 	$(call rule_mkdir)
