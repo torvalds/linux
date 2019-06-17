@@ -28,8 +28,6 @@
 
 #include "mem_input.h"
 
-#define OPP_ID_INVALID 0xf
-
 
 enum cursor_pitch {
 	CURSOR_PITCH_64_PIXELS = 0,
