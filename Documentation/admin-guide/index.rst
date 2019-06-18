@@ -61,6 +61,7 @@ configure specific aspects of kernel behavior to your liking.
    parport
    md
    module-signing
+   rapidio
    sysrq
    unicode
    vga-softcursor

@@ -45,7 +45,7 @@ available subsections can be seen below.
    miscellaneous
    mei/index
    w1
-   rapidio
+   rapidio/index
    s390-drivers
    vme
    80211/index
