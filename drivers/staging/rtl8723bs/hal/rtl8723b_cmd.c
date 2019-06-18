@@ -436,7 +436,7 @@ static void ConstructARPResponse(
 		DBG_871X("%s(): Add MIC\n", __func__);
 
 		psta = rtw_get_stainfo(&padapter->stapriv, get_my_bssid(&(pmlmeinfo->network)));
-		if (psta != NULL) {
+		if (psta) {
 			if (!memcmp(&psta->dot11tkiptxmickey.skey[0], null_key, 16)) {
 				DBG_871X("%s(): STA dot11tkiptxmickey == 0\n", __func__);
 			}
@@ -753,7 +753,7 @@ static void ConstructProbeRsp(struct adapter *padapter, u8 *pframe, u32 *pLength
 			cur_network->IELength-_FIXED_IE_LENGTH_, NULL, &wps_ielen);
 
 	/* inerset & update wps_probe_resp_ie */
-	if ((pmlmepriv->wps_probe_resp_ie != NULL) && pwps_ie && (wps_ielen > 0)) {
+	if (pmlmepriv->wps_probe_resp_ie && pwps_ie && (wps_ielen > 0)) {
 		uint wps_offset, remainder_ielen;
 		u8 *premainder_ie;
 
@@ -1316,7 +1316,7 @@ static void rtl8723b_set_FwWoWlanRelated_cmd(struct adapter *padapter, u8 enable
 
 		if (!(ppwrpriv->wowlan_pno_enable)) {
 			psta = rtw_get_stainfo(&padapter->stapriv, get_bssid(pmlmepriv));
-			if (psta != NULL)
+			if (psta)
 				rtl8723b_set_FwMediaStatusRpt_cmd(padapter, RT_MEDIA_CONNECT, psta->mac_id);
 		} else
 			DBG_871X("%s(): Disconnected, no FwMediaStatusRpt CONNECT\n", __func__);
