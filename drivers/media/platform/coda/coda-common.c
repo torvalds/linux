@@ -1255,9 +1255,16 @@ static int coda_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 static int coda_subscribe_event(struct v4l2_fh *fh,
 				const struct v4l2_event_subscription *sub)
 {
+	struct coda_ctx *ctx = fh_to_ctx(fh);
+
 	switch (sub->type) {
 	case V4L2_EVENT_EOS:
 		return v4l2_event_subscribe(fh, sub, 0, NULL);
+	case V4L2_EVENT_SOURCE_CHANGE:
+		if (ctx->inst_type == CODA_INST_DECODER)
+			return v4l2_event_subscribe(fh, sub, 0, NULL);
+		else
+			return -EINVAL;
 	default:
 		return v4l2_ctrl_subscribe_event(fh, sub);
 	}
@@ -1642,6 +1649,16 @@ void coda_update_profile_level_ctrls(struct coda_ctx *ctx, u8 profile_idc,
 	}
 }
 
+static void coda_queue_source_change_event(struct coda_ctx *ctx)
+{
+	static const struct v4l2_event source_change_event = {
+		.type = V4L2_EVENT_SOURCE_CHANGE,
+		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
+	};
+
+	v4l2_event_queue_fh(&ctx->fh, &source_change_event);
+}
+
 static void coda_buf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
@@ -1696,6 +1713,9 @@ static void coda_buf_queue(struct vb2_buffer *vb)
 					   &ctx->seq_init_work);
 				flush_work(&ctx->seq_init_work);
 			}
+
+			if (ctx->initialized)
+				coda_queue_source_change_event(ctx);
 		}
 	} else {
 		if (ctx->inst_type == CODA_INST_ENCODER &&
