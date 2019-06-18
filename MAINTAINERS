@@ -5006,7 +5006,7 @@ T:	git git://git.linbit.com/drbd-8.4.git
 S:	Supported
 F:	drivers/block/drbd/
 F:	lib/lru_cache.c
-F:	Documentation/blockdev/drbd/
+F:	Documentation/admin-guide/blockdev/
 
 DRIVER CORE, KOBJECTS, DEBUGFS AND SYSFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
@@ -11076,7 +11076,7 @@ M:	Josef Bacik <josef@toxicpanda.com>
 S:	Maintained
 L:	linux-block@vger.kernel.org
 L:	nbd@other.debian.org
-F:	Documentation/blockdev/nbd.rst
+F:	Documentation/admin-guide/blockdev/nbd.rst
 F:	drivers/block/nbd.c
 F:	include/trace/events/nbd.h
 F:	include/uapi/linux/nbd.h
@@ -12086,7 +12086,7 @@ PARIDE DRIVERS FOR PARALLEL PORT IDE DEVICES
 M:	Tim Waugh <tim@cyberelk.net>
 L:	linux-parport@lists.infradead.org (subscribers-only)
 S:	Maintained
-F:	Documentation/blockdev/paride.rst
+F:	Documentation/admin-guide/blockdev/paride.rst
 F:	drivers/block/paride/
 
 PARISC ARCHITECTURE
@@ -13367,7 +13367,7 @@ F:	drivers/net/wireless/ralink/rt2x00/
 RAMDISK RAM BLOCK DEVICE DRIVER
 M:	Jens Axboe <axboe@kernel.dk>
 S:	Maintained
-F:	Documentation/blockdev/ramdisk.rst
+F:	Documentation/admin-guide/blockdev/ramdisk.rst
 F:	drivers/block/brd.c
 
 RANCHU VIRTUAL BOARD FOR MIPS
@@ -17723,7 +17723,7 @@ R:	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/block/zram/
-F:	Documentation/blockdev/zram.rst
+F:	Documentation/admin-guide/blockdev/zram.rst
 
 ZS DECSTATION Z85C30 SERIAL DRIVER
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>

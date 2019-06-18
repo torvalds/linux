@@ -11,4 +11,3 @@ digraph peer_states {
 	Unknown   -> Primary           [ label = "connected" ]
 	Unknown   -> Secondary         [ label = "connected" ]
 }
-

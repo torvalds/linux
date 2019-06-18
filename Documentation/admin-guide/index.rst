@@ -73,6 +73,7 @@ configure specific aspects of kernel behavior to your liking.
    java
    ras
    bcache
+   blockdev/index
    ext4
    binderfs
    pm/index
