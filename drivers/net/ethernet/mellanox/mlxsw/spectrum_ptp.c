@@ -81,13 +81,12 @@ static int
 mlxsw_sp1_ptp_phc_settime(struct mlxsw_sp_ptp_clock *clock, u64 nsec)
 {
 	struct mlxsw_core *mlxsw_core = clock->core;
+	u64 next_sec, next_sec_in_nsec, cycles;
 	char mtutc_pl[MLXSW_REG_MTUTC_LEN];
 	char mtpps_pl[MLXSW_REG_MTPPS_LEN];
-	u64 next_sec_in_nsec, cycles;
-	u32 next_sec;
 	int err;
 
-	next_sec = nsec / NSEC_PER_SEC + 1;
+	next_sec = div_u64(nsec, NSEC_PER_SEC) + 1;
 	next_sec_in_nsec = next_sec * NSEC_PER_SEC;
 
 	spin_lock(&clock->lock);
