@@ -571,6 +571,9 @@ int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate)
 		amdtp_stream_stop(&bebob->rx_stream);
 
 		break_both_connections(bebob);
+
+		cmp_connection_release(&bebob->out_conn);
+		cmp_connection_release(&bebob->in_conn);
 	}
 
 	if (bebob->substreams_counter == 0 || curr_rate != rate) {
