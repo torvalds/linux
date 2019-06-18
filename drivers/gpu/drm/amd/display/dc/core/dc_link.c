@@ -532,6 +532,7 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 	uint32_t read_dpcd_retry_cnt = 10;
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	int i;
+	union max_down_spread max_down_spread = { {0} };
 
 	// Read DPCD 00101h to find out the number of lanes currently set
 	for (i = 0; i < read_dpcd_retry_cnt; i++) {
@@ -576,6 +577,12 @@ static void read_edp_current_link_settings_on_detect(struct dc_link *link)
 		link->cur_link_settings.link_rate = link_bw_set;
 		link->cur_link_settings.use_link_rate_set = false;
 	}
+	// Read DPCD 00003h to find the max down spread.
+	core_link_read_dpcd(link, DP_MAX_DOWNSPREAD,
+			&max_down_spread.raw, sizeof(max_down_spread));
+	link->cur_link_settings.link_spread =
+		max_down_spread.bits.MAX_DOWN_SPREAD ?
+		LINK_SPREAD_05_DOWNSPREAD_30KHZ : LINK_SPREAD_DISABLED;
 }
 
 static bool detect_dp(
