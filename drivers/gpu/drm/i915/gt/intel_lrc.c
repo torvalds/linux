@@ -1169,6 +1169,7 @@ static void process_csb(struct intel_engine_cs *engine)
 	u8 head, tail;
 
 	lockdep_assert_held(&engine->active.lock);
+	GEM_BUG_ON(USES_GUC_SUBMISSION(engine->i915));
 
 	/*
 	 * Note that csb_write, csb_status may be either in HWSP or mmio.
