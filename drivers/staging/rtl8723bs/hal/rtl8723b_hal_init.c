@@ -4345,11 +4345,8 @@ void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val)
  */
 u8 SetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, void *pval)
 {
-	struct hal_com_data *pHalData;
 	u8 bResult;
 
-
-	pHalData = GET_HAL_DATA(padapter);
 	bResult = _SUCCESS;
 
 	switch (variable) {
@@ -4367,11 +4364,8 @@ u8 SetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, v
  */
 u8 GetHalDefVar8723B(struct adapter *padapter, enum HAL_DEF_VARIABLE variable, void *pval)
 {
-	struct hal_com_data *pHalData;
 	u8 bResult;
 
-
-	pHalData = GET_HAL_DATA(padapter);
 	bResult = _SUCCESS;
 
 	switch (variable) {
