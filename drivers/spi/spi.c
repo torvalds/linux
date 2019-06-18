@@ -2721,12 +2721,9 @@ EXPORT_SYMBOL_GPL(spi_res_add);
  */
 void spi_res_release(struct spi_controller *ctlr, struct spi_message *message)
 {
-	struct spi_res *res;
+	struct spi_res *res, *tmp;
 
-	while (!list_empty(&message->resources)) {
-		res = list_last_entry(&message->resources,
-				      struct spi_res, entry);
-
+	list_for_each_entry_safe_reverse(res, tmp, &message->resources, entry) {
 		if (res->release)
 			res->release(ctlr, message, res->data);
 
