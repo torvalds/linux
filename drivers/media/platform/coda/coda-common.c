@@ -1004,11 +1004,21 @@ static int coda_try_encoder_cmd(struct file *file, void *fh,
 	return v4l2_m2m_ioctl_try_encoder_cmd(file, fh, ec);
 }
 
+static void coda_wake_up_capture_queue(struct coda_ctx *ctx)
+{
+	struct vb2_queue *dst_vq;
+
+	coda_dbg(1, ctx, "waking up capture queue\n");
+
+	dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	dst_vq->last_buffer_dequeued = true;
+	wake_up(&dst_vq->done_wq);
+}
+
 static int coda_encoder_cmd(struct file *file, void *fh,
 			    struct v4l2_encoder_cmd *ec)
 {
 	struct coda_ctx *ctx = fh_to_ctx(fh);
-	struct vb2_queue *dst_vq;
 	int ret;
 
 	ret = coda_try_encoder_cmd(file, fh, ec);
@@ -1021,12 +1031,8 @@ static int coda_encoder_cmd(struct file *file, void *fh,
 	flush_work(&ctx->pic_run_work);
 
 	/* If there is no buffer in flight, wake up */
-	if (!ctx->streamon_out || ctx->qsequence == ctx->osequence) {
-		dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
-					 V4L2_BUF_TYPE_VIDEO_CAPTURE);
-		dst_vq->last_buffer_dequeued = true;
-		wake_up(&dst_vq->done_wq);
-	}
+	if (!ctx->streamon_out || ctx->qsequence == ctx->osequence)
+		coda_wake_up_capture_queue(ctx);
 
 	return 0;
 }
