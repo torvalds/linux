@@ -119,6 +119,50 @@ const struct dma_fence_ops i915_fence_ops = {
 	.release = i915_fence_release,
 };
 
+static void irq_execute_cb(struct irq_work *wrk)
+{
+	struct execute_cb *cb = container_of(wrk, typeof(*cb), work);
+
+	i915_sw_fence_complete(cb->fence);
+	kmem_cache_free(global.slab_execute_cbs, cb);
+}
+
+static void irq_execute_cb_hook(struct irq_work *wrk)
+{
+	struct execute_cb *cb = container_of(wrk, typeof(*cb), work);
+
+	cb->hook(container_of(cb->fence, struct i915_request, submit),
+		 &cb->signal->fence);
+	i915_request_put(cb->signal);
+
+	irq_execute_cb(wrk);
+}
+
+static void __notify_execute_cb(struct i915_request *rq)
+{
+	struct execute_cb *cb;
+
+	lockdep_assert_held(&rq->lock);
+
+	if (list_empty(&rq->execute_cb))
+		return;
+
+	list_for_each_entry(cb, &rq->execute_cb, link)
+		irq_work_queue(&cb->work);
+
+	/*
+	 * XXX Rollback on __i915_request_unsubmit()
+	 *
+	 * In the future, perhaps when we have an active time-slicing scheduler,
+	 * it will be interesting to unsubmit parallel execution and remove
+	 * busywaits from the GPU until their master is restarted. This is
+	 * quite hairy, we have to carefully rollback the fence and do a
+	 * preempt-to-idle cycle on the target engine, all the while the
+	 * master execute_cb may refire.
+	 */
+	INIT_LIST_HEAD(&rq->execute_cb);
+}
+
 static inline void
 i915_request_remove_from_client(struct i915_request *request)
 {
@@ -246,6 +290,11 @@ static bool i915_request_retire(struct i915_request *rq)
 		GEM_BUG_ON(!atomic_read(&rq->i915->gt_pm.rps.num_waiters));
 		atomic_dec(&rq->i915->gt_pm.rps.num_waiters);
 	}
+	if (!test_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags)) {
+		set_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
+		__notify_execute_cb(rq);
+	}
+	GEM_BUG_ON(!list_empty(&rq->execute_cb));
 	spin_unlock(&rq->lock);
 
 	local_irq_enable();
@@ -283,50 +332,6 @@ void i915_request_retire_upto(struct i915_request *rq)
 		tmp = list_first_entry(&ring->request_list,
 				       typeof(*tmp), ring_link);
 	} while (i915_request_retire(tmp) && tmp != rq);
-}
-
-static void irq_execute_cb(struct irq_work *wrk)
-{
-	struct execute_cb *cb = container_of(wrk, typeof(*cb), work);
-
-	i915_sw_fence_complete(cb->fence);
-	kmem_cache_free(global.slab_execute_cbs, cb);
-}
-
-static void irq_execute_cb_hook(struct irq_work *wrk)
-{
-	struct execute_cb *cb = container_of(wrk, typeof(*cb), work);
-
-	cb->hook(container_of(cb->fence, struct i915_request, submit),
-		 &cb->signal->fence);
-	i915_request_put(cb->signal);
-
-	irq_execute_cb(wrk);
-}
-
-static void __notify_execute_cb(struct i915_request *rq)
-{
-	struct execute_cb *cb;
-
-	lockdep_assert_held(&rq->lock);
-
-	if (list_empty(&rq->execute_cb))
-		return;
-
-	list_for_each_entry(cb, &rq->execute_cb, link)
-		irq_work_queue(&cb->work);
-
-	/*
-	 * XXX Rollback on __i915_request_unsubmit()
-	 *
-	 * In the future, perhaps when we have an active time-slicing scheduler,
-	 * it will be interesting to unsubmit parallel execution and remove
-	 * busywaits from the GPU until their master is restarted. This is
-	 * quite hairy, we have to carefully rollback the fence and do a
-	 * preempt-to-idle cycle on the target engine, all the while the
-	 * master execute_cb may refire.
-	 */
-	INIT_LIST_HEAD(&rq->execute_cb);
 }
 
 static int
