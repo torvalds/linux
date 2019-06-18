@@ -377,6 +377,8 @@ typedef struct rt6_info *(*pol_lookup_t)(struct net *,
 struct fib6_entry_notifier_info {
 	struct fib_notifier_info info; /* must be first */
 	struct fib6_info *rt;
+	unsigned int nsiblings;
+	bool multipath_rt;
 };
 
 /*
@@ -450,6 +452,11 @@ int call_fib6_entry_notifiers(struct net *net,
 			      enum fib_event_type event_type,
 			      struct fib6_info *rt,
 			      struct netlink_ext_ack *extack);
+int call_fib6_multipath_entry_notifiers(struct net *net,
+					enum fib_event_type event_type,
+					struct fib6_info *rt,
+					unsigned int nsiblings,
+					struct netlink_ext_ack *extack);
 void fib6_rt_update(struct net *net, struct fib6_info *rt,
 		    struct nl_info *info);
 void inet6_rt_notify(int event, struct fib6_info *rt, struct nl_info *info,
