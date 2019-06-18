@@ -18,7 +18,11 @@
 #define _MALI_DMA_FENCE_H_
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+#include <linux/dma-fence.h>
+#else
 #include <linux/fence.h>
+#endif
 #include <linux/reservation.h>
 #endif
 
@@ -28,9 +32,14 @@ struct mali_dma_fence_context;
 typedef void (*mali_dma_fence_context_callback_func_t)(void *pp_job_ptr);
 
 struct mali_dma_fence_waiter {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+	struct dma_fence *fence;
+	struct dma_fence_cb base;
+#else
 	struct fence_cb base;
-	struct mali_dma_fence_context *parent;
 	struct fence *fence;
+#endif
+	struct mali_dma_fence_context *parent;
 };
 
 struct mali_dma_fence_context {
@@ -47,13 +56,19 @@ struct mali_dma_fence_context {
  * @param seqno A linearly increasing sequence number for this context
  * @return the new dma fence if success, or NULL on failure.
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+struct dma_fence *mali_dma_fence_new(u32  context, u32 seqno);
+#else
 struct fence *mali_dma_fence_new(u32  context, u32 seqno);
-
+#endif
 /* Signal and put dma fence
  * @param fence The dma fence to signal and put
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+void mali_dma_fence_signal_and_put(struct dma_fence **fence);
+#else
 void mali_dma_fence_signal_and_put(struct fence **fence);
-
+#endif
 /**
  * Initialize a mali dma fence context for pp job.
  * @param dma_fence_context The mali dma fence context to initialize.

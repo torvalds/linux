@@ -76,11 +76,11 @@ int timeline_create_sync_fence_wrapper(struct mali_session_data *session, _mali_
 	if (0 != copy_from_user(&uk_fence, &uargs->fence, sizeof(_mali_uk_fence_t))) return -EFAULT;
 	mali_timeline_fence_copy_uk_fence(&fence, &uk_fence);
 
-#if defined(CONFIG_SYNC)
+#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
 	sync_fd = mali_timeline_sync_fence_create(session->timeline_system, &fence);
 #else
 	sync_fd = -1;
-#endif /* defined(CONFIG_SYNC) */
+#endif /* defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE) */
 
 	if (0 != put_user(sync_fd, &uargs->sync_fd)) return -EFAULT;
 

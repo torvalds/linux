@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013, 2016-2017 ARM Limited. All rights reserved.
+ * Copyright (C) 2013, 2017 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -7,15 +7,14 @@
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
+#include <linux/file.h>
 #include "mali_timeline_sync_fence.h"
 
 #include "mali_osk.h"
 #include "mali_kernel_common.h"
 #include "mali_sync.h"
 
-#if defined(CONFIG_SYNC)
-
+#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
 /**
  * Creates a sync fence tracker and a sync fence.  Adds sync fence tracker to Timeline system and
  * returns sync fence.  The sync fence will be signaled when the sync fence tracker is activated.
@@ -24,10 +23,18 @@
  * @param point Point on timeline.
  * @return Sync fence that will be signaled when tracker is activated.
  */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 static struct sync_fence *mali_timeline_sync_fence_create_and_add_tracker(struct mali_timeline *timeline, mali_timeline_point point)
+#else
+static struct mali_internal_sync_fence *mali_timeline_sync_fence_create_and_add_tracker(struct mali_timeline *timeline, mali_timeline_point point)
+#endif
 {
 	struct mali_timeline_sync_fence_tracker *sync_fence_tracker;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 	struct sync_fence                       *sync_fence;
+#else
+	struct mali_internal_sync_fence                       *sync_fence;
+#endif
 	struct mali_timeline_fence               fence;
 
 	MALI_DEBUG_ASSERT_POINTER(timeline);
@@ -74,15 +81,21 @@ static struct sync_fence *mali_timeline_sync_fence_create_and_add_tracker(struct
 s32 mali_timeline_sync_fence_create(struct mali_timeline_system *system, struct mali_timeline_fence *fence)
 {
 	u32 i;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 	struct sync_fence *sync_fence_acc = NULL;
-
+#else
+	struct mali_internal_sync_fence *sync_fence_acc = NULL;
+#endif
 	MALI_DEBUG_ASSERT_POINTER(system);
 	MALI_DEBUG_ASSERT_POINTER(fence);
 
 	for (i = 0; i < MALI_TIMELINE_MAX; ++i) {
 		struct mali_timeline *timeline;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 		struct sync_fence *sync_fence;
-
+#else
+		struct mali_internal_sync_fence *sync_fence;
+#endif
 		if (MALI_TIMELINE_NO_POINT == fence->points[i]) continue;
 
 		timeline = system->timelines[i];
@@ -102,9 +115,14 @@ s32 mali_timeline_sync_fence_create(struct mali_timeline_system *system, struct 
 	}
 
 	if (-1 != fence->sync_fd) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 		struct sync_fence *sync_fence;
-
 		sync_fence = sync_fence_fdget(fence->sync_fd);
+#else
+		struct mali_internal_sync_fence *sync_fence;
+		sync_fence = mali_internal_sync_fence_fdget(fence->sync_fd);
+#endif
+
 		if (NULL == sync_fence) goto error;
 
 		if (NULL != sync_fence_acc) {
@@ -129,7 +147,11 @@ s32 mali_timeline_sync_fence_create(struct mali_timeline_system *system, struct 
 
 error:
 	if (NULL != sync_fence_acc) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
 		sync_fence_put(sync_fence_acc);
+#else
+		fput(sync_fence_acc->file);
+#endif
 	}
 
 	return -1;
@@ -154,5 +176,4 @@ void mali_timeline_sync_fence_activate(struct mali_timeline_sync_fence_tracker *
 
 	_mali_osk_free(sync_fence_tracker);
 }
-
-#endif /* defined(CONFIG_SYNC) */
+#endif /* defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE) */

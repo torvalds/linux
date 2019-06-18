@@ -19,6 +19,34 @@
 
 static DEFINE_SPINLOCK(mali_dma_fence_lock);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+static bool mali_dma_fence_enable_signaling(struct dma_fence *fence)
+{
+	MALI_IGNORE(fence);
+	return true;
+}
+
+static const char *mali_dma_fence_get_driver_name(struct dma_fence *fence)
+{
+	MALI_IGNORE(fence);
+	return "mali";
+}
+
+static const char *mali_dma_fence_get_timeline_name(struct dma_fence *fence)
+{
+	MALI_IGNORE(fence);
+	return "mali_dma_fence";
+}
+
+static const struct dma_fence_ops mali_dma_fence_ops = {
+	.get_driver_name = mali_dma_fence_get_driver_name,
+	.get_timeline_name = mali_dma_fence_get_timeline_name,
+	.enable_signaling = mali_dma_fence_enable_signaling,
+	.signaled = NULL,
+	.wait = dma_fence_default_wait,
+	.release = NULL
+};
+#else
 static bool mali_dma_fence_enable_signaling(struct fence *fence)
 {
 	MALI_IGNORE(fence);
@@ -45,6 +73,7 @@ static const struct fence_ops mali_dma_fence_ops = {
 	.wait = fence_default_wait,
 	.release = NULL
 };
+#endif
 
 static void mali_dma_fence_context_cleanup(struct mali_dma_fence_context *dma_fence_context)
 {
@@ -54,9 +83,16 @@ static void mali_dma_fence_context_cleanup(struct mali_dma_fence_context *dma_fe
 
 	for (i = 0; i < dma_fence_context->num_dma_fence_waiter; i++) {
 		if (dma_fence_context->mali_dma_fence_waiters[i]) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+			dma_fence_remove_callback(dma_fence_context->mali_dma_fence_waiters[i]->fence,
+						  &dma_fence_context->mali_dma_fence_waiters[i]->base);
+			dma_fence_put(dma_fence_context->mali_dma_fence_waiters[i]->fence);
+
+#else
 			fence_remove_callback(dma_fence_context->mali_dma_fence_waiters[i]->fence,
 					      &dma_fence_context->mali_dma_fence_waiters[i]->base);
 			fence_put(dma_fence_context->mali_dma_fence_waiters[i]->fence);
+#endif
 			kfree(dma_fence_context->mali_dma_fence_waiters[i]);
 			dma_fence_context->mali_dma_fence_waiters[i] = NULL;
 		}
@@ -80,7 +116,11 @@ static void mali_dma_fence_context_work_func(struct work_struct *work_handle)
 	dma_fence_context->cb_func(dma_fence_context->pp_job_ptr);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+static void mali_dma_fence_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
+#else
 static void mali_dma_fence_callback(struct fence *fence, struct fence_cb *cb)
+#endif
 {
 	struct mali_dma_fence_waiter *dma_fence_waiter = NULL;
 	struct mali_dma_fence_context *dma_fence_context = NULL;
@@ -99,7 +139,11 @@ static void mali_dma_fence_callback(struct fence *fence, struct fence_cb *cb)
 		schedule_work(&dma_fence_context->work_handle);
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+static _mali_osk_errcode_t mali_dma_fence_add_callback(struct mali_dma_fence_context *dma_fence_context, struct dma_fence *fence)
+#else
 static _mali_osk_errcode_t mali_dma_fence_add_callback(struct mali_dma_fence_context *dma_fence_context, struct fence *fence)
+#endif
 {
 	int ret = 0;
 	struct mali_dma_fence_waiter *dma_fence_waiter;
@@ -127,16 +171,27 @@ static _mali_osk_errcode_t mali_dma_fence_add_callback(struct mali_dma_fence_con
 		return _MALI_OSK_ERR_NOMEM;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+	dma_fence_get(fence);
+#else
 	fence_get(fence);
-
+#endif
 	dma_fence_waiter->fence = fence;
 	dma_fence_waiter->parent = dma_fence_context;
 	atomic_inc(&dma_fence_context->count);
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+	ret = dma_fence_add_callback(fence, &dma_fence_waiter->base,
+				     mali_dma_fence_callback);
+#else
 	ret = fence_add_callback(fence, &dma_fence_waiter->base,
 				 mali_dma_fence_callback);
+#endif
 	if (0 > ret) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+		dma_fence_put(fence);
+#else
 		fence_put(fence);
+#endif
 		kfree(dma_fence_waiter);
 		atomic_dec(&dma_fence_context->count);
 		if (-ENOENT == ret) {
@@ -155,32 +210,52 @@ static _mali_osk_errcode_t mali_dma_fence_add_callback(struct mali_dma_fence_con
 }
 
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+struct dma_fence *mali_dma_fence_new(u32  context, u32 seqno)
+#else
 struct fence *mali_dma_fence_new(u32  context, u32 seqno)
+#endif
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+	struct dma_fence *fence = NULL;
+	fence = kzalloc(sizeof(struct dma_fence), GFP_KERNEL);
+#else
 	struct fence *fence = NULL;
-
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
-
+	fence = kzalloc(sizeof(struct fence), GFP_KERNEL);
+#endif
 	if (NULL == fence) {
 		MALI_DEBUG_PRINT(1, ("Mali dma fence: failed to create dma fence.\n"));
 		return fence;
 	}
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+	dma_fence_init(fence,
+		       &mali_dma_fence_ops,
+		       &mali_dma_fence_lock,
+		       context, seqno);
+#else
 	fence_init(fence,
 		   &mali_dma_fence_ops,
 		   &mali_dma_fence_lock,
 		   context, seqno);
-
+#endif
 	return fence;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+void mali_dma_fence_signal_and_put(struct dma_fence **fence)
+#else
 void mali_dma_fence_signal_and_put(struct fence **fence)
+#endif
 {
 	MALI_DEBUG_ASSERT_POINTER(fence);
 	MALI_DEBUG_ASSERT_POINTER(*fence);
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+	dma_fence_signal(*fence);
+	dma_fence_put(*fence);
+#else
 	fence_signal(*fence);
 	fence_put(*fence);
+#endif
 	*fence = NULL;
 }
 
@@ -202,10 +277,14 @@ _mali_osk_errcode_t mali_dma_fence_context_add_waiters(struct mali_dma_fence_con
 		struct reservation_object *dma_reservation_object)
 {
 	_mali_osk_errcode_t ret = _MALI_OSK_ERR_OK;
-	struct fence *exclusive_fence = NULL;
 	u32 shared_count = 0, i;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+	struct dma_fence *exclusive_fence = NULL;
+	struct dma_fence **shared_fences = NULL;
+#else
+	struct fence *exclusive_fence = NULL;
 	struct fence **shared_fences = NULL;
-
+#endif
 	MALI_DEBUG_ASSERT_POINTER(dma_fence_context);
 	MALI_DEBUG_ASSERT_POINTER(dma_reservation_object);
 
@@ -239,11 +318,19 @@ _mali_osk_errcode_t mali_dma_fence_context_add_waiters(struct mali_dma_fence_con
 ended:
 
 	if (exclusive_fence)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+		dma_fence_put(exclusive_fence);
+#else
 		fence_put(exclusive_fence);
+#endif
 
 	if (shared_fences) {
 		for (i = 0; i < shared_count; i++) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
+			dma_fence_put(shared_fences[i]);
+#else
 			fence_put(shared_fences[i]);
+#endif
 		}
 		kfree(shared_fences);
 	}

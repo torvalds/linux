@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013, 2016-2017 ARM Limited. All rights reserved.
+ * Copyright (C) 2013, 2017 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -19,7 +19,7 @@
 
 #include "mali_timeline.h"
 
-#if defined(CONFIG_SYNC)
+#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
 
 /**
  * Sync fence tracker.
@@ -46,6 +46,6 @@ s32 mali_timeline_sync_fence_create(struct mali_timeline_system *system, struct 
  */
 void mali_timeline_sync_fence_activate(struct mali_timeline_sync_fence_tracker *sync_fence_tracker);
 
-#endif /* defined(CONFIG_SYNC) */
+#endif /* defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE) */
 
 #endif /* __MALI_TIMELINE_SYNC_FENCE_H__ */
