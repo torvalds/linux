@@ -74,12 +74,12 @@ static int igt_wait_request(void *arg)
 		goto out_unlock;
 	}
 
-	if (i915_request_wait(request, I915_WAIT_LOCKED, 0) != -ETIME) {
+	if (i915_request_wait(request, 0, 0) != -ETIME) {
 		pr_err("request wait (busy query) succeeded (expected timeout before submit!)\n");
 		goto out_unlock;
 	}
 
-	if (i915_request_wait(request, I915_WAIT_LOCKED, T) != -ETIME) {
+	if (i915_request_wait(request, 0, T) != -ETIME) {
 		pr_err("request wait succeeded (expected timeout before submit!)\n");
 		goto out_unlock;
 	}
@@ -91,7 +91,7 @@ static int igt_wait_request(void *arg)
 
 	i915_request_add(request);
 
-	if (i915_request_wait(request, I915_WAIT_LOCKED, 0) != -ETIME) {
+	if (i915_request_wait(request, 0, 0) != -ETIME) {
 		pr_err("request wait (busy query) succeeded (expected timeout after submit!)\n");
 		goto out_unlock;
 	}
@@ -101,12 +101,12 @@ static int igt_wait_request(void *arg)
 		goto out_unlock;
 	}
 
-	if (i915_request_wait(request, I915_WAIT_LOCKED, T / 2) != -ETIME) {
+	if (i915_request_wait(request, 0, T / 2) != -ETIME) {
 		pr_err("request wait succeeded (expected timeout!)\n");
 		goto out_unlock;
 	}
 
-	if (i915_request_wait(request, I915_WAIT_LOCKED, T) == -ETIME) {
+	if (i915_request_wait(request, 0, T) == -ETIME) {
 		pr_err("request wait timed out!\n");
 		goto out_unlock;
 	}
@@ -116,7 +116,7 @@ static int igt_wait_request(void *arg)
 		goto out_unlock;
 	}
 
-	if (i915_request_wait(request, I915_WAIT_LOCKED, T) == -ETIME) {
+	if (i915_request_wait(request, 0, T) == -ETIME) {
 		pr_err("request wait timed out when already complete!\n");
 		goto out_unlock;
 	}
@@ -574,9 +574,7 @@ static int live_nop_request(void *arg)
 
 				i915_request_add(request);
 			}
-			i915_request_wait(request,
-					  I915_WAIT_LOCKED,
-					  MAX_SCHEDULE_TIMEOUT);
+			i915_request_wait(request, 0, MAX_SCHEDULE_TIMEOUT);
 
 			times[1] = ktime_sub(ktime_get_raw(), times[1]);
 			if (prime == 1)
@@ -706,9 +704,7 @@ static int live_empty_request(void *arg)
 			err = PTR_ERR(request);
 			goto out_batch;
 		}
-		i915_request_wait(request,
-				  I915_WAIT_LOCKED,
-				  MAX_SCHEDULE_TIMEOUT);
+		i915_request_wait(request, 0, MAX_SCHEDULE_TIMEOUT);
 
 		for_each_prime_number_from(prime, 1, 8192) {
 			times[1] = ktime_get_raw();
@@ -720,9 +716,7 @@ static int live_empty_request(void *arg)
 					goto out_batch;
 				}
 			}
-			i915_request_wait(request,
-					  I915_WAIT_LOCKED,
-					  MAX_SCHEDULE_TIMEOUT);
+			i915_request_wait(request, 0, MAX_SCHEDULE_TIMEOUT);
 
 			times[1] = ktime_sub(ktime_get_raw(), times[1]);
 			if (prime == 1)
@@ -895,8 +889,7 @@ static int live_all_engines(void *arg)
 	for_each_engine(engine, i915, id) {
 		long timeout;
 
-		timeout = i915_request_wait(request[id],
-					    I915_WAIT_LOCKED,
+		timeout = i915_request_wait(request[id], 0,
 					    MAX_SCHEDULE_TIMEOUT);
 		if (timeout < 0) {
 			err = timeout;
@@ -1013,8 +1006,7 @@ static int live_sequential_engines(void *arg)
 			goto out_request;
 		}
 
-		timeout = i915_request_wait(request[id],
-					    I915_WAIT_LOCKED,
+		timeout = i915_request_wait(request[id], 0,
 					    MAX_SCHEDULE_TIMEOUT);
 		if (timeout < 0) {
 			err = timeout;

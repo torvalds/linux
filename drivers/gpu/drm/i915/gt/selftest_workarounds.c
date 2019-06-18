@@ -567,7 +567,7 @@ err_request:
 		if (err)
 			goto out_batch;
 
-		if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0) {
+		if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 			pr_err("%s: Futzing %x timedout; cancelling test\n",
 			       engine->name, reg);
 			i915_gem_set_wedged(ctx->i915);
@@ -769,7 +769,7 @@ static int read_whitelisted_registers(struct i915_gem_context *ctx,
 err_req:
 	i915_request_add(rq);
 
-	if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0)
+	if (i915_request_wait(rq, 0, HZ / 5) < 0)
 		err = -EIO;
 
 	return err;
@@ -825,7 +825,7 @@ static int scrub_whitelisted_registers(struct i915_gem_context *ctx,
 
 err_request:
 	i915_request_add(rq);
-	if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0)
+	if (i915_request_wait(rq, 0, HZ / 5) < 0)
 		err = -EIO;
 
 err_unpin:

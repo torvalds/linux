@@ -1435,7 +1435,7 @@ static int engine_wa_list_verify(struct intel_context *ce,
 		goto err_vma;
 
 	i915_request_add(rq);
-	if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0) {
+	if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 		err = -ETIME;
 		goto err_vma;
 	}

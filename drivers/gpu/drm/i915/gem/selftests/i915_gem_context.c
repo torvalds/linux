@@ -83,9 +83,7 @@ static int live_nop_switch(void *arg)
 			}
 			i915_request_add(rq);
 		}
-		if (i915_request_wait(rq,
-				      I915_WAIT_LOCKED,
-				      HZ / 5) < 0) {
+		if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 			pr_err("Failed to populated %d contexts\n", nctx);
 			i915_gem_set_wedged(i915);
 			err = -EIO;
@@ -128,9 +126,7 @@ static int live_nop_switch(void *arg)
 
 				i915_request_add(rq);
 			}
-			if (i915_request_wait(rq,
-					      I915_WAIT_LOCKED,
-					      HZ / 5) < 0) {
+			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 				pr_err("Switching between %ld contexts timed out\n",
 				       prime);
 				i915_gem_set_wedged(i915);
@@ -893,7 +889,7 @@ __read_slice_count(struct drm_i915_private *i915,
 	if (spin)
 		igt_spinner_end(spin);
 
-	ret = i915_request_wait(rq, I915_WAIT_LOCKED, MAX_SCHEDULE_TIMEOUT);
+	ret = i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
 	i915_request_put(rq);
 	if (ret < 0)
 		return ret;
@@ -980,9 +976,7 @@ out:
 		igt_spinner_end(spin);
 
 	if ((flags & TEST_IDLE) && ret == 0) {
-		ret = i915_gem_wait_for_idle(i915,
-					     I915_WAIT_LOCKED,
-					     MAX_SCHEDULE_TIMEOUT);
+		ret = i915_gem_wait_for_idle(i915, 0, MAX_SCHEDULE_TIMEOUT);
 		if (ret)
 			return ret;
 

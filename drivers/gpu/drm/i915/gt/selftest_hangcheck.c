@@ -339,8 +339,7 @@ static int igt_hang_sanitycheck(void *arg)
 
 		timeout = 0;
 		igt_wedge_on_timeout(&w, i915, HZ / 10 /* 100ms timeout*/)
-			timeout = i915_request_wait(rq,
-						    I915_WAIT_LOCKED,
+			timeout = i915_request_wait(rq, 0,
 						    MAX_SCHEDULE_TIMEOUT);
 		if (i915_reset_failed(i915))
 			timeout = -EIO;
@@ -1098,7 +1097,7 @@ static int igt_reset_wait(void *arg)
 
 	reset_count = fake_hangcheck(i915, ALL_ENGINES);
 
-	timeout = i915_request_wait(rq, I915_WAIT_LOCKED, 10);
+	timeout = i915_request_wait(rq, 0, 10);
 	if (timeout < 0) {
 		pr_err("i915_request_wait failed on a stuck request: err=%ld\n",
 		       timeout);
@@ -1666,9 +1665,7 @@ static int igt_atomic_reset_engine(struct intel_engine_cs *engine,
 		struct igt_wedge_me w;
 
 		igt_wedge_on_timeout(&w, i915, HZ / 20 /* 50ms timeout*/)
-			i915_request_wait(rq,
-					  I915_WAIT_LOCKED,
-					  MAX_SCHEDULE_TIMEOUT);
+			i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT);
 		if (i915_reset_failed(i915))
 			err = -EIO;
 	}

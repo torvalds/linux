@@ -330,7 +330,7 @@ i915_active_request_retire(struct i915_active_request *active,
 		return 0;
 
 	ret = i915_request_wait(request,
-				I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
+				I915_WAIT_INTERRUPTIBLE,
 				MAX_SCHEDULE_TIMEOUT);
 	if (ret < 0)
 		return ret;

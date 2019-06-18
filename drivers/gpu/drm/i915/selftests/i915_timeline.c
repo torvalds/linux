@@ -724,7 +724,7 @@ static int live_hwsp_wrap(void *arg)
 
 		i915_request_add(rq);
 
-		if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0) {
+		if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 			pr_err("Wait for timeline writes timed out!\n");
 			err = -EIO;
 			goto out;
@@ -797,9 +797,7 @@ static int live_hwsp_recycle(void *arg)
 				goto out;
 			}
 
-			if (i915_request_wait(rq,
-					      I915_WAIT_LOCKED,
-					      HZ / 5) < 0) {
+			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 				pr_err("Wait for timeline writes timed out!\n");
 				i915_timeline_put(tl);
 				err = -EIO;

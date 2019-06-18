@@ -1360,10 +1360,6 @@ static void request_wait_wake(struct dma_fence *fence, struct dma_fence_cb *cb)
  * maximum of @timeout jiffies (with MAX_SCHEDULE_TIMEOUT implying an
  * unbounded wait).
  *
- * If the caller holds the struct_mutex, the caller must pass I915_WAIT_LOCKED
- * in via the flags, and vice versa if the struct_mutex is not held, the caller
- * must not specify that the wait is locked.
- *
  * Returns the remaining time (in jiffies) if the request completed, which may
  * be zero or -ETIME if the request is unfinished after the timeout expires.
  * May return -EINTR is called with I915_WAIT_INTERRUPTIBLE and a signal is

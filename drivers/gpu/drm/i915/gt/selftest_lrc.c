@@ -192,7 +192,7 @@ static int live_busywait_preempt(void *arg)
 		}
 
 		/* Low priority request should be busywaiting now */
-		if (i915_request_wait(lo, I915_WAIT_LOCKED, 1) != -ETIME) {
+		if (i915_request_wait(lo, 0, 1) != -ETIME) {
 			pr_err("%s: Busywaiting request did not!\n",
 			       engine->name);
 			err = -EIO;
@@ -220,7 +220,7 @@ static int live_busywait_preempt(void *arg)
 		intel_ring_advance(hi, cs);
 		i915_request_add(hi);
 
-		if (i915_request_wait(lo, I915_WAIT_LOCKED, HZ / 5) < 0) {
+		if (i915_request_wait(lo, 0, HZ / 5) < 0) {
 			struct drm_printer p = drm_info_printer(i915->drm.dev);
 
 			pr_err("%s: Failed to preempt semaphore busywait!\n",
@@ -739,7 +739,6 @@ static int live_suppress_wait_preempt(void *arg)
 			GEM_BUG_ON(!i915_request_started(rq[0]));
 
 			if (i915_request_wait(rq[depth],
-					      I915_WAIT_LOCKED |
 					      I915_WAIT_PRIORITY,
 					      1) != -ETIME) {
 				pr_err("%s: Waiter depth:%d completed!\n",
@@ -841,7 +840,7 @@ static int live_chain_preempt(void *arg)
 			 __func__, engine->name, ring_size);
 
 		igt_spinner_end(&lo.spin);
-		if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 2) < 0) {
+		if (i915_request_wait(rq, 0, HZ / 2) < 0) {
 			pr_err("Timed out waiting to flush %s\n", engine->name);
 			goto err_wedged;
 		}
@@ -882,7 +881,7 @@ static int live_chain_preempt(void *arg)
 			engine->schedule(rq, &attr);
 
 			igt_spinner_end(&hi.spin);
-			if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0) {
+			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 				struct drm_printer p =
 					drm_info_printer(i915->drm.dev);
 
@@ -898,7 +897,7 @@ static int live_chain_preempt(void *arg)
 			if (IS_ERR(rq))
 				goto err_wedged;
 			i915_request_add(rq);
-			if (i915_request_wait(rq, I915_WAIT_LOCKED, HZ / 5) < 0) {
+			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 				struct drm_printer p =
 					drm_info_printer(i915->drm.dev);
 
@@ -1396,9 +1395,7 @@ static int nop_virtual_engine(struct drm_i915_private *i915,
 		}
 
 		for (nc = 0; nc < nctx; nc++) {
-			if (i915_request_wait(request[nc],
-					      I915_WAIT_LOCKED,
-					      HZ / 10) < 0) {
+			if (i915_request_wait(request[nc], 0, HZ / 10) < 0) {
 				pr_err("%s(%s): wait for %llx:%lld timed out\n",
 				       __func__, ve[0]->engine->name,
 				       request[nc]->fence.context,
@@ -1545,7 +1542,7 @@ static int mask_virtual_engine(struct drm_i915_private *i915,
 	}
 
 	for (n = 0; n < nsibling; n++) {
-		if (i915_request_wait(request[n], I915_WAIT_LOCKED, HZ / 10) < 0) {
+		if (i915_request_wait(request[n], 0, HZ / 10) < 0) {
 			pr_err("%s(%s): wait for %llx:%lld timed out\n",
 			       __func__, ve->engine->name,
 			       request[n]->fence.context,
@@ -1720,9 +1717,7 @@ static int bond_virtual_engine(struct drm_i915_private *i915,
 		}
 		onstack_fence_fini(&fence);
 
-		if (i915_request_wait(rq[0],
-				      I915_WAIT_LOCKED,
-				      HZ / 10) < 0) {
+		if (i915_request_wait(rq[0], 0, HZ / 10) < 0) {
 			pr_err("Master request did not execute (on %s)!\n",
 			       rq[0]->engine->name);
 			err = -EIO;
@@ -1730,8 +1725,7 @@ static int bond_virtual_engine(struct drm_i915_private *i915,
 		}
 
 		for (n = 0; n < nsibling; n++) {
-			if (i915_request_wait(rq[n + 1],
-					      I915_WAIT_LOCKED,
+			if (i915_request_wait(rq[n + 1], 0,
 					      MAX_SCHEDULE_TIMEOUT) < 0) {
 				err = -EIO;
 				goto out;

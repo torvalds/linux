@@ -1815,7 +1815,7 @@ static noinline int wait_for_space(struct intel_ring *ring, unsigned int bytes)
 		return -ENOSPC;
 
 	timeout = i915_request_wait(target,
-				    I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
+				    I915_WAIT_INTERRUPTIBLE,
 				    MAX_SCHEDULE_TIMEOUT);
 	if (timeout < 0)
 		return timeout;
