@@ -6064,8 +6064,8 @@ static void mlxsw_sp_router_fib4_event(struct mlxsw_sp_fib_event_work *fib_work,
 	}
 }
 
-static void mlxsw_sp_router_fib6_event(struct mlxsw_sp_fib_event_work *fib_work,
-				       struct fib_notifier_info *info)
+static int mlxsw_sp_router_fib6_event(struct mlxsw_sp_fib_event_work *fib_work,
+				      struct fib_notifier_info *info)
 {
 	struct fib6_entry_notifier_info *fen6_info;
 
@@ -6079,6 +6079,8 @@ static void mlxsw_sp_router_fib6_event(struct mlxsw_sp_fib_event_work *fib_work,
 		fib6_info_hold(fib_work->fen6_info.rt);
 		break;
 	}
+
+	return 0;
 }
 
 static void
@@ -6221,7 +6223,9 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 		break;
 	case AF_INET6:
 		INIT_WORK(&fib_work->work, mlxsw_sp_router_fib6_event_work);
-		mlxsw_sp_router_fib6_event(fib_work, info);
+		err = mlxsw_sp_router_fib6_event(fib_work, info);
+		if (err)
+			goto err_fib_event;
 		break;
 	case RTNL_FAMILY_IP6MR:
 	case RTNL_FAMILY_IPMR:
@@ -6233,6 +6237,10 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 	mlxsw_core_schedule_work(&fib_work->work);
 
 	return NOTIFY_DONE;
+
+err_fib_event:
+	kfree(fib_work);
+	return NOTIFY_BAD;
 }
 
 struct mlxsw_sp_rif *
