@@ -66,6 +66,7 @@ available subsections can be seen below.
    soundwire/index
    fpga/index
    acpi/index
+   backlight/lp855x-driver.rst
    generic-counter
 
 .. only::  subproject and html
