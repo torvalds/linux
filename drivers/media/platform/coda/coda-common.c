@@ -1413,7 +1413,7 @@ static void coda_pic_run_work(struct work_struct *work)
 
 	if (!wait_for_completion_timeout(&ctx->completion,
 					 msecs_to_jiffies(1000))) {
-		dev_err(&dev->plat_dev->dev, "CODA PIC_RUN timeout\n");
+		dev_err(dev->dev, "CODA PIC_RUN timeout\n");
 
 		ctx->hold = true;
 
@@ -1797,7 +1797,7 @@ static void coda_buf_queue(struct vb2_buffer *vb)
 int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 		       size_t size, const char *name, struct dentry *parent)
 {
-	buf->vaddr = dma_alloc_coherent(&dev->plat_dev->dev, size, &buf->paddr,
+	buf->vaddr = dma_alloc_coherent(dev->dev, size, &buf->paddr,
 					GFP_KERNEL);
 	if (!buf->vaddr) {
 		v4l2_err(&dev->v4l2_dev,
@@ -1814,7 +1814,7 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 		buf->dentry = debugfs_create_blob(name, 0644, parent,
 						  &buf->blob);
 		if (!buf->dentry)
-			dev_warn(&dev->plat_dev->dev,
+			dev_warn(dev->dev,
 				 "failed to create debugfs entry %s\n", name);
 	}
 
@@ -1825,8 +1825,7 @@ void coda_free_aux_buf(struct coda_dev *dev,
 		       struct coda_aux_buf *buf)
 {
 	if (buf->vaddr) {
-		dma_free_coherent(&dev->plat_dev->dev, buf->size,
-				  buf->vaddr, buf->paddr);
+		dma_free_coherent(dev->dev, buf->size, buf->vaddr, buf->paddr);
 		buf->vaddr = NULL;
 		buf->size = 0;
 		debugfs_remove(buf->dentry);
@@ -2344,7 +2343,7 @@ static int coda_queue_init(struct coda_ctx *ctx, struct vb2_queue *vq)
 	 * queues to have at least one buffer queued.
 	 */
 	vq->min_buffers_needed = 1;
-	vq->dev = &ctx->dev->plat_dev->dev;
+	vq->dev = ctx->dev->dev;
 
 	return vb2_queue_init(vq);
 }
@@ -2469,7 +2468,7 @@ static int coda_open(struct file *file)
 	ctx->use_vdoa = false;
 
 	/* Power up and upload firmware if necessary */
-	ret = pm_runtime_get_sync(&dev->plat_dev->dev);
+	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "failed to power up: %d\n", ret);
 		goto err_pm_get;
@@ -2517,7 +2516,7 @@ err_ctx_init:
 err_clk_ahb:
 	clk_disable_unprepare(dev->clk_per);
 err_clk_per:
-	pm_runtime_put_sync(&dev->plat_dev->dev);
+	pm_runtime_put_sync(dev->dev);
 err_pm_get:
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
@@ -2556,7 +2555,7 @@ static int coda_release(struct file *file)
 	v4l2_ctrl_handler_free(&ctx->ctrls);
 	clk_disable_unprepare(dev->clk_ahb);
 	clk_disable_unprepare(dev->clk_per);
-	pm_runtime_put_sync(&dev->plat_dev->dev);
+	pm_runtime_put_sync(dev->dev);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 	ida_free(&dev->ida, ctx->idx);
@@ -2751,18 +2750,16 @@ static int coda_firmware_request(struct coda_dev *dev)
 
 	fw = dev->devtype->firmware[dev->firmware];
 
-	dev_dbg(&dev->plat_dev->dev, "requesting firmware '%s' for %s\n", fw,
+	dev_dbg(dev->dev, "requesting firmware '%s' for %s\n", fw,
 		coda_product_name(dev->devtype->product));
 
-	return request_firmware_nowait(THIS_MODULE, true, fw,
-				       &dev->plat_dev->dev, GFP_KERNEL, dev,
-				       coda_fw_callback);
+	return request_firmware_nowait(THIS_MODULE, true, fw, dev->dev,
+				       GFP_KERNEL, dev, coda_fw_callback);
 }
 
 static void coda_fw_callback(const struct firmware *fw, void *context)
 {
 	struct coda_dev *dev = context;
-	struct platform_device *pdev = dev->plat_dev;
 	int i, ret;
 
 	if (!fw) {
@@ -2780,7 +2777,7 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 		 * firmware requests, report that the fallback firmware was
 		 * found.
 		 */
-		dev_info(&pdev->dev, "Using fallback firmware %s\n",
+		dev_info(dev->dev, "Using fallback firmware %s\n",
 			 dev->devtype->firmware[dev->firmware]);
 	}
 
@@ -2819,7 +2816,7 @@ static void coda_fw_callback(const struct firmware *fw, void *context)
 		}
 	}
 
-	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_put_sync(dev->dev);
 	return;
 
 rel_vfd:
@@ -2827,7 +2824,7 @@ rel_vfd:
 		video_unregister_device(&dev->vfd[i]);
 	v4l2_m2m_release(dev->m2m_dev);
 put_pm:
-	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_put_sync(dev->dev);
 }
 
 enum coda_platform {
@@ -2959,7 +2956,7 @@ static int coda_probe(struct platform_device *pdev)
 
 	spin_lock_init(&dev->irqlock);
 
-	dev->plat_dev = pdev;
+	dev->dev = &pdev->dev;
 	dev->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(dev->clk_per)) {
 		dev_err(&pdev->dev, "Could not get per clock\n");

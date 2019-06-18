@@ -70,7 +70,7 @@ struct coda_aux_buf {
 struct coda_dev {
 	struct v4l2_device	v4l2_dev;
 	struct video_device	vfd[5];
-	struct platform_device	*plat_dev;
+	struct device		*dev;
 	const struct coda_devtype *devtype;
 	int			firmware;
 	struct vdoa_data	*vdoa;
