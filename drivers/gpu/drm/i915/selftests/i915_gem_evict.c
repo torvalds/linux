@@ -28,6 +28,7 @@
 
 #include "i915_selftest.h"
 
+#include "igt_flush_test.h"
 #include "lib_sw_fence.h"
 #include "mock_drm.h"
 #include "mock_gem_device.h"
@@ -505,6 +506,8 @@ static int igt_evict_contexts(void *arg)
 
 	mutex_lock(&i915->drm.struct_mutex);
 out_locked:
+	if (igt_flush_test(i915, I915_WAIT_LOCKED))
+		err = -EIO;
 	while (reserved) {
 		struct reserved *next = reserved->next;
 
