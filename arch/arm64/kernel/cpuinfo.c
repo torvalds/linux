@@ -92,6 +92,7 @@ static const char *const hwcap_str[] = {
 	"svebitperm",
 	"svesha3",
 	"svesm4",
+	"flagm2",
 	NULL
 };
 
