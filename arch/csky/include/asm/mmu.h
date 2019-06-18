@@ -5,6 +5,7 @@
 #define __ASM_CSKY_MMU_H
 
 typedef struct {
+	atomic64_t	asid;
 	void *vdso;
 } mm_context_t;
 

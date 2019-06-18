@@ -20,20 +20,28 @@
 #define TLBMISS_HANDLER_SETUP_PGD_KERNEL(pgd) \
 	setup_pgd(__pa(pgd), true)
 
-#define init_new_context(tsk,mm)	0
+#define ASID_MASK		((1 << CONFIG_CPU_ASID_BITS) - 1)
+#define cpu_asid(mm)		(atomic64_read(&mm->context.asid) & ASID_MASK)
+
+#define init_new_context(tsk,mm)	({ atomic64_set(&(mm)->context.asid, 0); 0; })
 #define activate_mm(prev,next)		switch_mm(prev, next, current)
 
 #define destroy_context(mm)		do {} while (0)
 #define enter_lazy_tlb(mm, tsk)		do {} while (0)
 #define deactivate_mm(tsk, mm)		do {} while (0)
 
+void check_and_switch_context(struct mm_struct *mm, unsigned int cpu);
+
 static inline void
 switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	  struct task_struct *tsk)
 {
+	unsigned int cpu = smp_processor_id();
+
 	if (prev != next)
-		tlb_invalid_all();
+		check_and_switch_context(next, cpu);
 
 	TLBMISS_HANDLER_SETUP_PGD(next->pgd);
+	write_mmu_entryhi(next->context.asid.counter);
 }
 #endif /* __ASM_CSKY_MMU_CONTEXT_H */
