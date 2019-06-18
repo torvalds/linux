@@ -2796,9 +2796,9 @@ static int btrfs_fallocate_update_isize(struct inode *inode,
 }
 
 enum {
-	RANGE_BOUNDARY_WRITTEN_EXTENT = 0,
-	RANGE_BOUNDARY_PREALLOC_EXTENT = 1,
-	RANGE_BOUNDARY_HOLE = 2,
+	RANGE_BOUNDARY_WRITTEN_EXTENT,
+	RANGE_BOUNDARY_PREALLOC_EXTENT,
+	RANGE_BOUNDARY_HOLE,
 };
 
 static int btrfs_zero_range_check_range_boundary(struct inode *inode,

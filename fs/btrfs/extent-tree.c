@@ -46,9 +46,9 @@
  *
  */
 enum {
-	CHUNK_ALLOC_NO_FORCE = 0,
-	CHUNK_ALLOC_LIMITED = 1,
-	CHUNK_ALLOC_FORCE = 2,
+	CHUNK_ALLOC_NO_FORCE,
+	CHUNK_ALLOC_LIMITED,
+	CHUNK_ALLOC_FORCE,
 };
 
 /*
@@ -7302,10 +7302,10 @@ wait_block_group_cache_done(struct btrfs_block_group_cache *cache)
 }
 
 enum btrfs_loop_type {
-	LOOP_CACHING_NOWAIT = 0,
-	LOOP_CACHING_WAIT = 1,
-	LOOP_ALLOC_CHUNK = 2,
-	LOOP_NO_EMPTY_SIZE = 3,
+	LOOP_CACHING_NOWAIT,
+	LOOP_CACHING_WAIT,
+	LOOP_ALLOC_CHUNK,
+	LOOP_NO_EMPTY_SIZE,
 };
 
 static inline void
