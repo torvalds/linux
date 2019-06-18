@@ -56,6 +56,7 @@ available subsections can be seen below.
    pinctl
    gpio/index
    misc_devices
+   nfc/index
    dmaengine/index
    slimbus
    soundwire/index
