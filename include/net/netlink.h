@@ -378,7 +378,9 @@ struct nla_policy {
 /**
  * struct nl_info - netlink source information
  * @nlh: Netlink message header of original request
+ * @nl_net: Network namespace
  * @portid: Netlink PORTID of requesting application
+ * @skip_notify: Skip netlink notifications to user space
  */
 struct nl_info {
 	struct nlmsghdr		*nlh;
