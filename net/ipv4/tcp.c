@@ -317,6 +317,11 @@ struct tcp_splice_state {
 unsigned long tcp_memory_pressure __read_mostly;
 EXPORT_SYMBOL_GPL(tcp_memory_pressure);
 
+DEFINE_STATIC_KEY_FALSE(tcp_rx_skb_cache_key);
+EXPORT_SYMBOL(tcp_rx_skb_cache_key);
+
+DEFINE_STATIC_KEY_FALSE(tcp_tx_skb_cache_key);
+
 void tcp_enter_memory_pressure(struct sock *sk)
 {
 	unsigned long val;
@@ -3903,6 +3908,7 @@ void __init tcp_init(void)
 	unsigned long limit;
 	unsigned int i;
 
+	BUILD_BUG_ON(TCP_MIN_SND_MSS <= MAX_TCP_OPTION_SPACE);
 	BUILD_BUG_ON(sizeof(struct tcp_skb_cb) >
 		     FIELD_SIZEOF(struct sk_buff, cb));
 

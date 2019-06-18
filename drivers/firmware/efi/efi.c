@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * efi.c - EFI subsystem
  *
@@ -9,8 +10,6 @@
  * allowing the efivarfs to be mounted or the efivars module to be loaded.
  * The existance of /sys/firmware/efi may also be used by userspace to
  * determine that the system supports EFI.
- *
- * This file is released under the GPLv2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

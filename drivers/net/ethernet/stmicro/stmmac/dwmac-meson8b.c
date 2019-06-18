@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Amlogic Meson8b, Meson8m2 and GXBB DWMAC glue layer
  *

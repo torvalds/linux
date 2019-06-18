@@ -2095,7 +2095,6 @@ int __weak skb_copy_bits(const struct sk_buff *skb, int offset, void *to,
 
 DEFINE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
 EXPORT_SYMBOL(bpf_stats_enabled_key);
-int sysctl_bpf_stats_enabled __read_mostly;
 
 /* All definitions of tracepoints related to BPF. */
 #define CREATE_TRACE_POINTS

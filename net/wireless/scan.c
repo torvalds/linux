@@ -1602,12 +1602,12 @@ static void cfg80211_parse_mbssid_data(struct wiphy *wiphy,
 				continue;
 			}
 
-			if (seen_indices & BIT(mbssid_index_ie[2]))
+			if (seen_indices & BIT_ULL(mbssid_index_ie[2]))
 				/* We don't support legacy split of a profile */
 				net_dbg_ratelimited("Partial info for BSSID index %d\n",
 						    mbssid_index_ie[2]);
 
-			seen_indices |= BIT(mbssid_index_ie[2]);
+			seen_indices |= BIT_ULL(mbssid_index_ie[2]);
 
 			non_tx_data->bssid_index = mbssid_index_ie[2];
 			non_tx_data->max_bssid_indicator = elem->data[0];

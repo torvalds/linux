@@ -320,10 +320,13 @@ static int fl_init(struct tcf_proto *tp)
 	return rhashtable_init(&head->ht, &mask_ht_params);
 }
 
-static void fl_mask_free(struct fl_flow_mask *mask)
+static void fl_mask_free(struct fl_flow_mask *mask, bool mask_init_done)
 {
-	WARN_ON(!list_empty(&mask->filters));
-	rhashtable_destroy(&mask->ht);
+	/* temporary masks don't have their filters list and ht initialized */
+	if (mask_init_done) {
+		WARN_ON(!list_empty(&mask->filters));
+		rhashtable_destroy(&mask->ht);
+	}
 	kfree(mask);
 }
 
@@ -332,7 +335,15 @@ static void fl_mask_free_work(struct work_struct *work)
 	struct fl_flow_mask *mask = container_of(to_rcu_work(work),
 						 struct fl_flow_mask, rwork);
 
-	fl_mask_free(mask);
+	fl_mask_free(mask, true);
+}
+
+static void fl_uninit_mask_free_work(struct work_struct *work)
+{
+	struct fl_flow_mask *mask = container_of(to_rcu_work(work),
+						 struct fl_flow_mask, rwork);
+
+	fl_mask_free(mask, false);
 }
 
 static bool fl_mask_put(struct cls_fl_head *head, struct fl_flow_mask *mask)
@@ -1345,9 +1356,6 @@ static struct fl_flow_mask *fl_create_new_mask(struct cls_fl_head *head,
 	if (err)
 		goto errout_destroy;
 
-	/* Wait until any potential concurrent users of mask are finished */
-	synchronize_rcu();
-
 	spin_lock(&head->masks_lock);
 	list_add_tail_rcu(&newmask->list, &head->masks);
 	spin_unlock(&head->masks_lock);
@@ -1374,11 +1382,7 @@ static int fl_check_assign_mask(struct cls_fl_head *head,
 
 	/* Insert mask as temporary node to prevent concurrent creation of mask
 	 * with same key. Any concurrent lookups with same key will return
-	 * -EAGAIN because mask's refcnt is zero. It is safe to insert
-	 * stack-allocated 'mask' to masks hash table because we call
-	 * synchronize_rcu() before returning from this function (either in case
-	 * of error or after replacing it with heap-allocated mask in
-	 * fl_create_new_mask()).
+	 * -EAGAIN because mask's refcnt is zero.
 	 */
 	fnew->mask = rhashtable_lookup_get_insert_fast(&head->ht,
 						       &mask->ht_node,
@@ -1413,8 +1417,6 @@ static int fl_check_assign_mask(struct cls_fl_head *head,
 errout_cleanup:
 	rhashtable_remove_fast(&head->ht, &mask->ht_node,
 			       mask_ht_params);
-	/* Wait until any potential concurrent users of mask are finished */
-	synchronize_rcu();
 	return ret;
 }
 
@@ -1643,7 +1645,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	*arg = fnew;
 
 	kfree(tb);
-	kfree(mask);
+	tcf_queue_work(&mask->rwork, fl_uninit_mask_free_work);
 	return 0;
 
 errout_ht:
@@ -1663,7 +1665,7 @@ errout:
 errout_tb:
 	kfree(tb);
 errout_mask_alloc:
-	kfree(mask);
+	tcf_queue_work(&mask->rwork, fl_uninit_mask_free_work);
 errout_fold:
 	if (fold)
 		__fl_put(fold);

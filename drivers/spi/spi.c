@@ -1181,9 +1181,9 @@ out:
 	if (msg->status && ctlr->handle_err)
 		ctlr->handle_err(ctlr, msg);
 
-	spi_finalize_current_message(ctlr);
-
 	spi_res_release(ctlr, msg);
+
+	spi_finalize_current_message(ctlr);
 
 	return ret;
 }
@@ -1307,10 +1307,15 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 		ret = ctlr->prepare_transfer_hardware(ctlr);
 		if (ret) {
 			dev_err(&ctlr->dev,
-				"failed to prepare transfer hardware\n");
+				"failed to prepare transfer hardware: %d\n",
+				ret);
 
 			if (ctlr->auto_runtime_pm)
 				pm_runtime_put(ctlr->dev.parent);
+
+			ctlr->cur_msg->status = ret;
+			spi_finalize_current_message(ctlr);
+
 			mutex_unlock(&ctlr->io_mutex);
 			return;
 		}

@@ -5301,7 +5301,13 @@ __bpf_skc_lookup(struct sk_buff *skb, struct bpf_sock_tuple *tuple, u32 len,
 	struct net *net;
 	int sdif;
 
-	family = len == sizeof(tuple->ipv4) ? AF_INET : AF_INET6;
+	if (len == sizeof(tuple->ipv4))
+		family = AF_INET;
+	else if (len == sizeof(tuple->ipv6))
+		family = AF_INET6;
+	else
+		return NULL;
+
 	if (unlikely(family == AF_UNSPEC || flags ||
 		     !((s32)netns_id < 0 || netns_id <= S32_MAX)))
 		goto out;
@@ -5334,8 +5340,14 @@ __bpf_sk_lookup(struct sk_buff *skb, struct bpf_sock_tuple *tuple, u32 len,
 	struct sock *sk = __bpf_skc_lookup(skb, tuple, len, caller_net,
 					   ifindex, proto, netns_id, flags);
 
-	if (sk)
+	if (sk) {
 		sk = sk_to_full_sk(sk);
+		if (!sk_fullsock(sk)) {
+			if (!sock_flag(sk, SOCK_RCU_FREE))
+				sock_gen_put(sk);
+			return NULL;
+		}
+	}
 
 	return sk;
 }
@@ -5366,8 +5378,14 @@ bpf_sk_lookup(struct sk_buff *skb, struct bpf_sock_tuple *tuple, u32 len,
 	struct sock *sk = bpf_skc_lookup(skb, tuple, len, proto, netns_id,
 					 flags);
 
-	if (sk)
+	if (sk) {
 		sk = sk_to_full_sk(sk);
+		if (!sk_fullsock(sk)) {
+			if (!sock_flag(sk, SOCK_RCU_FREE))
+				sock_gen_put(sk);
+			return NULL;
+		}
+	}
 
 	return sk;
 }
@@ -6727,6 +6745,7 @@ static bool sock_addr_is_valid_access(int off, int size,
 		case BPF_CGROUP_INET4_BIND:
 		case BPF_CGROUP_INET4_CONNECT:
 		case BPF_CGROUP_UDP4_SENDMSG:
+		case BPF_CGROUP_UDP4_RECVMSG:
 			break;
 		default:
 			return false;
@@ -6737,6 +6756,7 @@ static bool sock_addr_is_valid_access(int off, int size,
 		case BPF_CGROUP_INET6_BIND:
 		case BPF_CGROUP_INET6_CONNECT:
 		case BPF_CGROUP_UDP6_SENDMSG:
+		case BPF_CGROUP_UDP6_RECVMSG:
 			break;
 		default:
 			return false;

@@ -1992,6 +1992,7 @@ static int nfp_net_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 			napi_gro_receive(&rx_ring->r_vec->napi, skb);
 		} else {
 			skb->dev = netdev;
+			skb_reset_network_header(skb);
 			__skb_push(skb, ETH_HLEN);
 			dev_queue_xmit(skb);
 		}

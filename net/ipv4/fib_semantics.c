@@ -1056,7 +1056,7 @@ static int fib_check_nh_v4_gw(struct net *net, struct fib_nh *nh, u32 table,
 {
 	struct net_device *dev;
 	struct fib_result res;
-	int err;
+	int err = 0;
 
 	if (nh->fib_nh_flags & RTNH_F_ONLINK) {
 		unsigned int addr_type;
