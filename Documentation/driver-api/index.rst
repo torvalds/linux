@@ -16,6 +16,7 @@ available subsections can be seen below.
 
    basics
    infrastructure
+   early-userspace/index
    pm/index
    clk
    device-io
