@@ -1113,17 +1113,33 @@ static void icl_whitelist_build(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *w = &engine->whitelist;
 
-	if (engine->class != RENDER_CLASS)
-		return;
+	switch (engine->class) {
+	case RENDER_CLASS:
+		/* WaAllowUMDToModifyHalfSliceChicken7:icl */
+		whitelist_reg(w, GEN9_HALF_SLICE_CHICKEN7);
 
-	/* WaAllowUMDToModifyHalfSliceChicken7:icl */
-	whitelist_reg(w, GEN9_HALF_SLICE_CHICKEN7);
+		/* WaAllowUMDToModifySamplerMode:icl */
+		whitelist_reg(w, GEN10_SAMPLER_MODE);
 
-	/* WaAllowUMDToModifySamplerMode:icl */
-	whitelist_reg(w, GEN10_SAMPLER_MODE);
+		/* WaEnableStateCacheRedirectToCS:icl */
+		whitelist_reg(w, GEN9_SLICE_COMMON_ECO_CHICKEN1);
+		break;
 
-	/* WaEnableStateCacheRedirectToCS:icl */
-	whitelist_reg(w, GEN9_SLICE_COMMON_ECO_CHICKEN1);
+	case VIDEO_DECODE_CLASS:
+		/* hucStatusRegOffset */
+		whitelist_reg_ext(w, _MMIO(0x2000 + engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_RD);
+		/* hucUKernelHdrInfoRegOffset */
+		whitelist_reg_ext(w, _MMIO(0x2014 + engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_RD);
+		/* hucStatus2RegOffset */
+		whitelist_reg_ext(w, _MMIO(0x23B0 + engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_RD);
+		break;
+
+	default:
+		break;
+	}
 }
 
 void intel_engine_init_whitelist(struct intel_engine_cs *engine)
