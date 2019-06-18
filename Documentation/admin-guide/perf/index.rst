@@ -1,5 +1,3 @@
-:orphan:
-
 ===========================
 Performance monitor support
 ===========================
