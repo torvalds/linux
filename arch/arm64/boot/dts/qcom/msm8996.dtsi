@@ -1185,7 +1185,6 @@
 			clock-names = "iface",
 				      "bus";
 			#iommu-cells = <1>;
-			status = "disabled";
 		};
 
 		camss: camss@a00000 {
@@ -1338,8 +1337,6 @@
 			clock-names = "iface", "bus";
 
 			power-domains = <&mmcc GPU_GDSC>;
-
-			status = "disabled";
 		};
 
 		mdp_smmu: arm,smmu@d00000 {
@@ -1356,8 +1353,6 @@
 			clock-names = "iface", "bus";
 
 			power-domains = <&mmcc MDSS_GDSC>;
-
-			status = "disabled";
 		};
 
 		lpass_q6_smmu: arm,smmu-lpass_q6@1600000 {
@@ -1384,7 +1379,6 @@
 			clocks = <&gcc GCC_HLOS1_VOTE_LPASS_CORE_SMMU_CLK>,
 				 <&gcc GCC_HLOS1_VOTE_LPASS_ADSP_SMMU_CLK>;
 			clock-names = "iface", "bus";
-			status = "disabled";
 		};
 
 		agnoc@0 {
