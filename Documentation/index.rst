@@ -91,6 +91,7 @@ needed).
 
    driver-api/index
    core-api/index
+   leds/index
    media/index
    networking/index
    input/index
