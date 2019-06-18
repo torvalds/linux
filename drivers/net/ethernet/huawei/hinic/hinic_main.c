@@ -382,11 +382,118 @@ static int hinic_configure_max_qnum(struct hinic_dev *nic_dev)
 	return 0;
 }
 
+static int hinic_rss_init(struct hinic_dev *nic_dev)
+{
+	u32 indir_tbl[HINIC_RSS_INDIR_SIZE] = { 0 };
+	u8 default_rss_key[HINIC_RSS_KEY_SIZE];
+	u8 tmpl_idx = nic_dev->rss_tmpl_idx;
+	int err, i;
+
+	netdev_rss_key_fill(default_rss_key, sizeof(default_rss_key));
+	for (i = 0; i < HINIC_RSS_INDIR_SIZE; i++)
+		indir_tbl[i] = ethtool_rxfh_indir_default(i, nic_dev->num_rss);
+
+	err = hinic_rss_set_template_tbl(nic_dev, tmpl_idx, default_rss_key);
+	if (err)
+		return err;
+
+	err = hinic_rss_set_indir_tbl(nic_dev, tmpl_idx, indir_tbl);
+	if (err)
+		return err;
+
+	err = hinic_set_rss_type(nic_dev, tmpl_idx, nic_dev->rss_type);
+	if (err)
+		return err;
+
+	err = hinic_rss_set_hash_engine(nic_dev, tmpl_idx,
+					nic_dev->rss_hash_engine);
+	if (err)
+		return err;
+
+	err = hinic_rss_cfg(nic_dev, 1, tmpl_idx);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static void hinic_rss_deinit(struct hinic_dev *nic_dev)
+{
+	hinic_rss_cfg(nic_dev, 0, nic_dev->rss_tmpl_idx);
+}
+
+static void hinic_init_rss_parameters(struct hinic_dev *nic_dev)
+{
+	nic_dev->rss_hash_engine = HINIC_RSS_HASH_ENGINE_TYPE_XOR;
+	nic_dev->rss_type.tcp_ipv6_ext = 1;
+	nic_dev->rss_type.ipv6_ext = 1;
+	nic_dev->rss_type.tcp_ipv6 = 1;
+	nic_dev->rss_type.ipv6 = 1;
+	nic_dev->rss_type.tcp_ipv4 = 1;
+	nic_dev->rss_type.ipv4 = 1;
+	nic_dev->rss_type.udp_ipv6 = 1;
+	nic_dev->rss_type.udp_ipv4 = 1;
+}
+
+static void hinic_enable_rss(struct hinic_dev *nic_dev)
+{
+	struct net_device *netdev = nic_dev->netdev;
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	int i, node, err = 0;
+	u16 num_cpus = 0;
+
+	nic_dev->max_qps = hinic_hwdev_max_num_qps(hwdev);
+	if (nic_dev->max_qps <= 1) {
+		nic_dev->flags &= ~HINIC_RSS_ENABLE;
+		nic_dev->rss_limit = nic_dev->max_qps;
+		nic_dev->num_qps = nic_dev->max_qps;
+		nic_dev->num_rss = nic_dev->max_qps;
+
+		return;
+	}
+
+	err = hinic_rss_template_alloc(nic_dev, &nic_dev->rss_tmpl_idx);
+	if (err) {
+		netif_err(nic_dev, drv, netdev,
+			  "Failed to alloc tmpl_idx for rss, can't enable rss for this function\n");
+		nic_dev->flags &= ~HINIC_RSS_ENABLE;
+		nic_dev->max_qps = 1;
+		nic_dev->rss_limit = nic_dev->max_qps;
+		nic_dev->num_qps = nic_dev->max_qps;
+		nic_dev->num_rss = nic_dev->max_qps;
+
+		return;
+	}
+
+	nic_dev->flags |= HINIC_RSS_ENABLE;
+
+	for (i = 0; i < num_online_cpus(); i++) {
+		node = cpu_to_node(i);
+		if (node == dev_to_node(&pdev->dev))
+			num_cpus++;
+	}
+
+	if (!num_cpus)
+		num_cpus = num_online_cpus();
+
+	nic_dev->num_qps = min_t(u16, nic_dev->max_qps, num_cpus);
+
+	nic_dev->rss_limit = nic_dev->num_qps;
+	nic_dev->num_rss = nic_dev->num_qps;
+
+	hinic_init_rss_parameters(nic_dev);
+	err = hinic_rss_init(nic_dev);
+	if (err)
+		netif_err(nic_dev, drv, netdev, "Failed to init rss\n");
+}
+
 static int hinic_open(struct net_device *netdev)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	enum hinic_port_link_state link_state;
-	int err, ret, num_qps;
+	int err, ret;
 
 	if (!(nic_dev->flags & HINIC_INTF_UP)) {
 		err = hinic_hwdev_ifup(nic_dev->hwdev);
@@ -411,6 +518,8 @@ static int hinic_open(struct net_device *netdev)
 		goto err_create_rxqs;
 	}
 
+	hinic_enable_rss(nic_dev);
+
 	err = hinic_configure_max_qnum(nic_dev);
 	if (err) {
 		netif_err(nic_dev, drv, nic_dev->netdev,
@@ -418,9 +527,8 @@ static int hinic_open(struct net_device *netdev)
 		goto err_port_state;
 	}
 
-	num_qps = hinic_hwdev_num_qps(nic_dev->hwdev);
-	netif_set_real_num_tx_queues(netdev, num_qps);
-	netif_set_real_num_rx_queues(netdev, num_qps);
+	netif_set_real_num_tx_queues(netdev, nic_dev->num_qps);
+	netif_set_real_num_rx_queues(netdev, nic_dev->num_qps);
 
 	err = hinic_port_set_state(nic_dev, HINIC_PORT_ENABLE);
 	if (err) {
@@ -476,9 +584,12 @@ err_func_port_state:
 	if (ret)
 		netif_warn(nic_dev, drv, netdev,
 			   "Failed to revert port state\n");
-
 err_port_state:
 	free_rxqs(nic_dev);
+	if (nic_dev->flags & HINIC_RSS_ENABLE) {
+		hinic_rss_deinit(nic_dev);
+		hinic_rss_template_free(nic_dev, nic_dev->rss_tmpl_idx);
+	}
 
 err_create_rxqs:
 	free_txqs(nic_dev);
@@ -520,6 +631,11 @@ static int hinic_close(struct net_device *netdev)
 		netif_err(nic_dev, drv, netdev, "Failed to set port state\n");
 		nic_dev->flags |= (flags & HINIC_INTF_UP);
 		return err;
+	}
+
+	if (nic_dev->flags & HINIC_RSS_ENABLE) {
+		hinic_rss_deinit(nic_dev);
+		hinic_rss_template_free(nic_dev, nic_dev->rss_tmpl_idx);
 	}
 
 	free_rxqs(nic_dev);
