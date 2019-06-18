@@ -312,7 +312,7 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 
 		dev_dbg(&par->client->dev, "Using PWM%d with a %dns period.\n",
 			par->pwm->pwm, par->pwm_period);
-	};
+	}
 
 	/* Set initial contrast */
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_CONTRAST);
@@ -328,7 +328,7 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 		ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SEG_REMAP_ON);
 		if (ret < 0)
 			return ret;
-	};
+	}
 
 	/* Set COM direction */
 	com_invdir = 0xc0 | (par->com_invdir & 0x1) << 3;
@@ -713,7 +713,7 @@ panel_init_error:
 	if (par->device_info->need_pwm) {
 		pwm_disable(par->pwm);
 		pwm_put(par->pwm);
-	};
+	}
 regulator_enable_error:
 	if (par->vbat_reg)
 		regulator_disable(par->vbat_reg);
@@ -737,7 +737,7 @@ static int ssd1307fb_remove(struct i2c_client *client)
 	if (par->device_info->need_pwm) {
 		pwm_disable(par->pwm);
 		pwm_put(par->pwm);
-	};
+	}
 	fb_deferred_io_cleanup(info);
 	__free_pages(__va(info->fix.smem_start), get_order(info->fix.smem_len));
 	framebuffer_release(info);
