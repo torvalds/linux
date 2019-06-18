@@ -2381,6 +2381,23 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 					     V4L2_BUF_FLAG_BFRAME);
 		dst_buf->flags |= ready_frame->type;
 		meta = &ready_frame->meta;
+		if (meta->last && !coda_reorder_enable(ctx)) {
+			/*
+			 * If this was the last decoded frame, and reordering
+			 * is disabled, this will be the last display frame.
+			 */
+			coda_dbg(1, ctx, "last meta, marking as last frame\n");
+			dst_buf->flags |= V4L2_BUF_FLAG_LAST;
+		} else if (ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG &&
+			   display_idx == -1) {
+			/*
+			 * If there is no designated presentation frame anymore,
+			 * this frame has to be the last one.
+			 */
+			coda_dbg(1, ctx,
+				 "no more frames to return, marking as last frame\n");
+			dst_buf->flags |= V4L2_BUF_FLAG_LAST;
+		}
 		dst_buf->timecode = meta->timecode;
 		dst_buf->vb2_buf.timestamp = meta->timestamp;
 
