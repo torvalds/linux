@@ -40,6 +40,33 @@ static struct hw_x_point coordinates_x[MAX_HW_POINTS + 2];
 static struct fixed31_32 pq_table[MAX_HW_POINTS + 2];
 static struct fixed31_32 de_pq_table[MAX_HW_POINTS + 2];
 
+// these are helpers for calculations to reduce stack usage
+// do not depend on these being preserved across calls
+static struct fixed31_32 scratch_1;
+static struct fixed31_32 scratch_2;
+static struct translate_from_linear_space_args scratch_gamma_args;
+
+/* Helper to optimize gamma calculation, only use in translate_from_linear, in
+ * particular the dc_fixpt_pow function which is very expensive
+ * The idea is that our regions for X points are exponential and currently they all use
+ * the same number of points (NUM_PTS_IN_REGION) and in each region every point
+ * is exactly 2x the one at the same index in the previous region. In other words
+ * X[i] = 2 * X[i-NUM_PTS_IN_REGION] for i>=16
+ * The other fact is that (2x)^gamma = 2^gamma * x^gamma
+ * So we compute and save x^gamma for the first 16 regions, and for every next region
+ * just multiply with 2^gamma which can be computed once, and save the result so we
+ * recursively compute all the values.
+ */
+static struct fixed31_32 pow_buffer[NUM_PTS_IN_REGION];
+static struct fixed31_32 gamma_of_2; // 2^gamma
+int pow_buffer_ptr = -1;
+
+static const int32_t gamma_numerator01[] = { 31308,	180000,	0};
+static const int32_t gamma_numerator02[] = { 12920,	4500,	0};
+static const int32_t gamma_numerator03[] = { 55,	99,	0};
+static const int32_t gamma_numerator04[] = { 55,	99,	0};
+static const int32_t gamma_numerator05[] = { 2400,	2200, 2200};
+
 static bool pq_initialized; /* = false; */
 static bool de_pq_initialized; /* = false; */
 
@@ -251,11 +278,7 @@ enum gamma_type_index {
 
 static void build_coefficients(struct gamma_coefficients *coefficients, enum gamma_type_index type)
 {
-	static const int32_t numerator01[] = { 31308,	180000,	0};
-	static const int32_t numerator02[] = { 12920,	4500,	0};
-	static const int32_t numerator03[] = { 55,		99,		0};
-	static const int32_t numerator04[] = { 55,		99,		0};
-	static const int32_t numerator05[] = { 2400,	2200, 2200};
+
 
 	uint32_t i = 0;
 	uint32_t index = 0;
@@ -267,69 +290,74 @@ static void build_coefficients(struct gamma_coefficients *coefficients, enum gam
 
 	do {
 		coefficients->a0[i] = dc_fixpt_from_fraction(
-			numerator01[index], 10000000);
+			gamma_numerator01[index], 10000000);
 		coefficients->a1[i] = dc_fixpt_from_fraction(
-			numerator02[index], 1000);
+			gamma_numerator02[index], 1000);
 		coefficients->a2[i] = dc_fixpt_from_fraction(
-			numerator03[index], 1000);
+			gamma_numerator03[index], 1000);
 		coefficients->a3[i] = dc_fixpt_from_fraction(
-			numerator04[index], 1000);
+			gamma_numerator04[index], 1000);
 		coefficients->user_gamma[i] = dc_fixpt_from_fraction(
-			numerator05[index], 1000);
+			gamma_numerator05[index], 1000);
 
 		++i;
 	} while (i != ARRAY_SIZE(coefficients->a0));
 }
 
 static struct fixed31_32 translate_from_linear_space(
-	struct fixed31_32 arg,
-	struct fixed31_32 a0,
-	struct fixed31_32 a1,
-	struct fixed31_32 a2,
-	struct fixed31_32 a3,
-	struct fixed31_32 gamma)
+		struct translate_from_linear_space_args *args)
 {
 	const struct fixed31_32 one = dc_fixpt_from_int(1);
 
-	if (dc_fixpt_lt(one, arg))
+	if (dc_fixpt_le(one, args->arg))
 		return one;
 
-	if (dc_fixpt_le(arg, dc_fixpt_neg(a0)))
-		return dc_fixpt_sub(
-			a2,
-			dc_fixpt_mul(
-				dc_fixpt_add(
-					one,
-					a3),
-				dc_fixpt_pow(
-					dc_fixpt_neg(arg),
-					dc_fixpt_recip(gamma))));
-	else if (dc_fixpt_le(a0, arg))
-		return dc_fixpt_sub(
-			dc_fixpt_mul(
-				dc_fixpt_add(
-					one,
-					a3),
-				dc_fixpt_pow(
-					arg,
-					dc_fixpt_recip(gamma))),
-			a2);
+	if (dc_fixpt_le(args->arg, dc_fixpt_neg(args->a0))) {
+		scratch_1 = dc_fixpt_add(one, args->a3);
+		scratch_2 = dc_fixpt_pow(
+				dc_fixpt_neg(args->arg),
+				dc_fixpt_recip(args->gamma));
+		scratch_1 = dc_fixpt_mul(scratch_1, scratch_2);
+		scratch_1 = dc_fixpt_sub(args->a2, scratch_1);
+
+		return scratch_1;
+	} else if (dc_fixpt_le(args->a0, args->arg)) {
+		if (pow_buffer_ptr == 0) {
+			gamma_of_2 = dc_fixpt_pow(dc_fixpt_from_int(2),
+					dc_fixpt_recip(args->gamma));
+		}
+		scratch_1 = dc_fixpt_add(one, args->a3);
+		if (pow_buffer_ptr < 16)
+			scratch_2 = dc_fixpt_pow(args->arg,
+					dc_fixpt_recip(args->gamma));
+		else
+			scratch_2 = dc_fixpt_mul(gamma_of_2,
+					pow_buffer[pow_buffer_ptr%16]);
+
+		pow_buffer[pow_buffer_ptr%16] = scratch_2;
+		pow_buffer_ptr++;
+
+		scratch_1 = dc_fixpt_mul(scratch_1, scratch_2);
+		scratch_1 = dc_fixpt_sub(scratch_1, args->a2);
+
+		return scratch_1;
+	}
 	else
-		return dc_fixpt_mul(
-			arg,
-			a1);
+		return dc_fixpt_mul(args->arg, args->a1);
 }
 
 static struct fixed31_32 calculate_gamma22(struct fixed31_32 arg)
 {
 	struct fixed31_32 gamma = dc_fixpt_from_fraction(22, 10);
 
-	return translate_from_linear_space(arg,
-			dc_fixpt_zero,
-			dc_fixpt_zero,
-			dc_fixpt_zero,
-			dc_fixpt_zero,
-			gamma);
+	scratch_gamma_args.arg = arg;
+	scratch_gamma_args.a0 = dc_fixpt_zero;
+	scratch_gamma_args.a1 = dc_fixpt_zero;
+	scratch_gamma_args.a2 = dc_fixpt_zero;
+	scratch_gamma_args.a3 = dc_fixpt_zero;
+	scratch_gamma_args.gamma = gamma;
+
+	return translate_from_linear_space(&scratch_gamma_args);
 }
 
 static struct fixed31_32 translate_to_linear_space(
@@ -365,18 +393,19 @@ static struct fixed31_32 translate_to_linear_space(
 	return linear;
 }
 
-static inline struct fixed31_32 translate_from_linear_space_ex(
+static struct fixed31_32 translate_from_linear_space_ex(
 	struct fixed31_32 arg,
 	struct gamma_coefficients *coeff,
 	uint32_t color_index)
 {
-	return translate_from_linear_space(
-		arg,
-		coeff->a0[color_index],
-		coeff->a1[color_index],
-		coeff->a2[color_index],
-		coeff->a3[color_index],
-		coeff->user_gamma[color_index]);
+	scratch_gamma_args.arg = arg;
+	scratch_gamma_args.a0 = coeff->a0[color_index];
+	scratch_gamma_args.a1 = coeff->a1[color_index];
+	scratch_gamma_args.a2 = coeff->a2[color_index];
+	scratch_gamma_args.a3 = coeff->a3[color_index];
+	scratch_gamma_args.gamma = coeff->user_gamma[color_index];
+
+	return translate_from_linear_space(&scratch_gamma_args);
 }
 
 
@@ -715,24 +744,32 @@ static void build_regamma(struct pwl_float_data_ex *rgb_regamma,
 {
 	uint32_t i;
 
-	struct gamma_coefficients coeff;
+	struct gamma_coefficients *coeff;
 	struct pwl_float_data_ex *rgb = rgb_regamma;
 	const struct hw_x_point *coord_x = coordinate_x;
 
-	build_coefficients(&coeff, type);
+	coeff = kvzalloc(sizeof(*coeff), GFP_KERNEL);
+	if (!coeff)
+		return;
 
+	build_coefficients(coeff, type);
+
+	memset(pow_buffer, 0, NUM_PTS_IN_REGION * sizeof(struct fixed31_32));
+	pow_buffer_ptr = 0; // see variable definition for more info
 	i = 0;
-
-	while (i != hw_points_num + 1) {
+	while (i <= hw_points_num) {
 		/*TODO use y vs r,g,b*/
 		rgb->r = translate_from_linear_space_ex(
-			coord_x->x, &coeff, 0);
+			coord_x->x, coeff, 0);
 		rgb->g = rgb->r;
 		rgb->b = rgb->r;
 		++coord_x;
 		++rgb;
 		++i;
 	}
+	pow_buffer_ptr = -1; // reset back to no optimize
+
+	kfree(coeff);
 }
 
 static void hermite_spline_eetf(struct fixed31_32 input_x,
@@ -862,6 +899,8 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	else
 		max_content = max_display;
 
+	if (!use_eetf)
+		pow_buffer_ptr = 0; // see var definition for more info
 	rgb += 32; // first 32 points have problems with fixed point, too small
 	coord_x += 32;
 	for (i = 32; i <= hw_points_num; i++) {
@@ -900,6 +939,7 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 		++coord_x;
 		++rgb;
 	}
+	pow_buffer_ptr = -1;
 
 	return true;
 }
@@ -1572,14 +1612,15 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 			output_tf->tf == TRANSFER_FUNCTION_SRGB) {
 		if (ramp == NULL)
 			return true;
-		if ((ramp->is_logical_identity) ||
+		if ((ramp->is_identity && ramp->type != GAMMA_CS_TFM_1D) ||
 				(!mapUserRamp && ramp->type == GAMMA_RGB_256))
 			return true;
 	}
 
 	output_tf->type = TF_TYPE_DISTRIBUTED_POINTS;
 
-	if (ramp && (mapUserRamp || ramp->type != GAMMA_RGB_256)) {
+	if (ramp && ramp->type != GAMMA_CS_TFM_1D &&
+			(mapUserRamp || ramp->type != GAMMA_RGB_256)) {
 		rgb_user = kvcalloc(ramp->num_entries + _EXTRA_POINTS,
 			    sizeof(*rgb_user),
 			    GFP_KERNEL);
