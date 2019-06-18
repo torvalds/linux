@@ -1,4 +1,6 @@
+=============================
 The Linux Kernel Device Model
+=============================
 
 Patrick Mochel	<mochel@digitalimplant.org>
 
@@ -41,14 +43,14 @@ data structure. These fields must still be accessed by the bus layers,
 and sometimes by the device-specific drivers.
 
 Other bus layers are encouraged to do what has been done for the PCI layer.
-struct pci_dev now looks like this:
+struct pci_dev now looks like this::
 
-struct pci_dev {
+  struct pci_dev {
 	...
 
 	struct device dev;     /* Generic device interface */
 	...
-};
+  };
 
 Note first that the struct device dev within the struct pci_dev is
 statically allocated. This means only one allocation on device discovery.
@@ -80,26 +82,26 @@ easy. This has been accomplished by implementing a special purpose virtual
 file system named sysfs.
 
 Almost all mainstream Linux distros mount this filesystem automatically; you
-can see some variation of the following in the output of the "mount" command:
+can see some variation of the following in the output of the "mount" command::
 
-$ mount
-...
-none on /sys type sysfs (rw,noexec,nosuid,nodev)
-...
-$
+  $ mount
+  ...
+  none on /sys type sysfs (rw,noexec,nosuid,nodev)
+  ...
+  $
 
 The auto-mounting of sysfs is typically accomplished by an entry similar to
-the following in the /etc/fstab file:
+the following in the /etc/fstab file::
 
-none     	/sys	sysfs    defaults	  	0 0
+  none     	/sys	sysfs    defaults	  	0 0
 
-or something similar in the /lib/init/fstab file on Debian-based systems:
+or something similar in the /lib/init/fstab file on Debian-based systems::
 
-none            /sys    sysfs    nodev,noexec,nosuid    0 0
+  none            /sys    sysfs    nodev,noexec,nosuid    0 0
 
-If sysfs is not automatically mounted, you can always do it manually with:
+If sysfs is not automatically mounted, you can always do it manually with::
 
-# mount -t sysfs sysfs /sys
+	# mount -t sysfs sysfs /sys
 
 Whenever a device is inserted into the tree, a directory is created for it.
 This directory may be populated at each layer of discovery - the global layer,
@@ -108,7 +110,7 @@ the bus layer, or the device layer.
 The global layer currently creates two files - 'name' and 'power'. The
 former only reports the name of the device. The latter reports the
 current power state of the device. It will also be used to set the current
-power state. 
+power state.
 
 The bus layer may also create files for the devices it finds while probing the
 bus. For example, the PCI layer currently creates 'irq' and 'resource' files
@@ -118,6 +120,5 @@ A device-specific driver may also export files in its directory to expose
 device-specific data or tunable interfaces.
 
 More information about the sysfs directory layout can be found in
-the other documents in this directory and in the file 
+the other documents in this directory and in the file
 Documentation/filesystems/sysfs.txt.
-

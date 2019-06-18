@@ -1,5 +1,6 @@
-
+==============
 Device Drivers
+==============
 
 See the kerneldoc for the struct device_driver.
 
@@ -26,50 +27,50 @@ Declaration
 As stated above, struct device_driver objects are statically
 allocated. Below is an example declaration of the eepro100
 driver. This declaration is hypothetical only; it relies on the driver
-being converted completely to the new model. 
+being converted completely to the new model::
 
-static struct device_driver eepro100_driver = {
-       .name		= "eepro100",
-       .bus		= &pci_bus_type,
-       
-       .probe		= eepro100_probe,
-       .remove		= eepro100_remove,
-       .suspend		= eepro100_suspend,
-       .resume		= eepro100_resume,
-};
+  static struct device_driver eepro100_driver = {
+         .name		= "eepro100",
+         .bus		= &pci_bus_type,
+
+         .probe		= eepro100_probe,
+         .remove		= eepro100_remove,
+         .suspend		= eepro100_suspend,
+         .resume		= eepro100_resume,
+  };
 
 Most drivers will not be able to be converted completely to the new
 model because the bus they belong to has a bus-specific structure with
-bus-specific fields that cannot be generalized. 
+bus-specific fields that cannot be generalized.
 
 The most common example of this are device ID structures. A driver
 typically defines an array of device IDs that it supports. The format
 of these structures and the semantics for comparing device IDs are
 completely bus-specific. Defining them as bus-specific entities would
-sacrifice type-safety, so we keep bus-specific structures around. 
+sacrifice type-safety, so we keep bus-specific structures around.
 
 Bus-specific drivers should include a generic struct device_driver in
-the definition of the bus-specific driver. Like this:
+the definition of the bus-specific driver. Like this::
 
-struct pci_driver {
-       const struct pci_device_id *id_table;
-       struct device_driver	  driver;
-};
+  struct pci_driver {
+         const struct pci_device_id *id_table;
+         struct device_driver	  driver;
+  };
 
 A definition that included bus-specific fields would look like
-(using the eepro100 driver again):
+(using the eepro100 driver again)::
 
-static struct pci_driver eepro100_driver = {
-       .id_table       = eepro100_pci_tbl,
-       .driver	       = {
+  static struct pci_driver eepro100_driver = {
+         .id_table       = eepro100_pci_tbl,
+         .driver	       = {
 		.name		= "eepro100",
 		.bus		= &pci_bus_type,
 		.probe		= eepro100_probe,
 		.remove		= eepro100_remove,
 		.suspend	= eepro100_suspend,
 		.resume		= eepro100_resume,
-       },
-};
+         },
+  };
 
 Some may find the syntax of embedded struct initialization awkward or
 even a bit ugly. So far, it's the best way we've found to do what we want...
@@ -77,12 +78,14 @@ even a bit ugly. So far, it's the best way we've found to do what we want...
 Registration
 ~~~~~~~~~~~~
 
-int driver_register(struct device_driver * drv);
+::
+
+  int driver_register(struct device_driver *drv);
 
 The driver registers the structure on startup. For drivers that have
 no bus-specific fields (i.e. don't have a bus-specific driver
 structure), they would use driver_register and pass a pointer to their
-struct device_driver object. 
+struct device_driver object.
 
 Most drivers, however, will have a bus-specific structure and will
 need to register with the bus using something like pci_driver_register.
@@ -101,7 +104,7 @@ By defining wrapper functions, the transition to the new model can be
 made easier. Drivers can ignore the generic structure altogether and
 let the bus wrapper fill in the fields. For the callbacks, the bus can
 define generic callbacks that forward the call to the bus-specific
-callbacks of the drivers. 
+callbacks of the drivers.
 
 This solution is intended to be only temporary. In order to get class
 information in the driver, the drivers must be modified anyway. Since
@@ -113,16 +116,16 @@ Access
 ~~~~~~
 
 Once the object has been registered, it may access the common fields of
-the object, like the lock and the list of devices. 
+the object, like the lock and the list of devices::
 
-int driver_for_each_dev(struct device_driver * drv, void * data, 
-		        int (*callback)(struct device * dev, void * data));
+  int driver_for_each_dev(struct device_driver *drv, void *data,
+			  int (*callback)(struct device *dev, void *data));
 
 The devices field is a list of all the devices that have been bound to
 the driver. The LDM core provides a helper function to operate on all
 the devices a driver controls. This helper locks the driver on each
 node access, and does proper reference counting on each device as it
-accesses it. 
+accesses it.
 
 
 sysfs
@@ -142,7 +145,9 @@ supports.
 Callbacks
 ~~~~~~~~~
 
-	int	(*probe)	(struct device * dev);
+::
+
+	int	(*probe)	(struct device *dev);
 
 The probe() entry is called in task context, with the bus's rwsem locked
 and the driver partially bound to the device.  Drivers commonly use
@@ -162,9 +167,9 @@ the driver to that device.
 
 A driver's probe() may return a negative errno value to indicate that
 the driver did not bind to this device, in which case it should have
-released all resources it allocated.
+released all resources it allocated::
 
-	int 	(*remove)	(struct device * dev);
+	int 	(*remove)	(struct device *dev);
 
 remove is called to unbind a driver from a device. This may be
 called if a device is physically removed from the system, if the
@@ -173,43 +178,46 @@ in other cases.
 
 It is up to the driver to determine if the device is present or
 not. It should free any resources allocated specifically for the
-device; i.e. anything in the device's driver_data field. 
+device; i.e. anything in the device's driver_data field.
 
 If the device is still present, it should quiesce the device and place
-it into a supported low-power state.
+it into a supported low-power state::
 
-	int	(*suspend)	(struct device * dev, pm_message_t state);
+	int	(*suspend)	(struct device *dev, pm_message_t state);
 
-suspend is called to put the device in a low power state.
+suspend is called to put the device in a low power state::
 
-	int	(*resume)	(struct device * dev);
+	int	(*resume)	(struct device *dev);
 
 Resume is used to bring a device back from a low power state.
 
 
 Attributes
 ~~~~~~~~~~
-struct driver_attribute {
-        struct attribute        attr;
-        ssize_t (*show)(struct device_driver *driver, char *buf);
-        ssize_t (*store)(struct device_driver *, const char * buf, size_t count);
-};
 
-Device drivers can export attributes via their sysfs directories. 
+::
+
+  struct driver_attribute {
+          struct attribute        attr;
+          ssize_t (*show)(struct device_driver *driver, char *buf);
+          ssize_t (*store)(struct device_driver *, const char *buf, size_t count);
+  };
+
+Device drivers can export attributes via their sysfs directories.
 Drivers can declare attributes using a DRIVER_ATTR_RW and DRIVER_ATTR_RO
 macro that works identically to the DEVICE_ATTR_RW and DEVICE_ATTR_RO
 macros.
 
-Example:
+Example::
 
-DRIVER_ATTR_RW(debug);
+	DRIVER_ATTR_RW(debug);
 
-This is equivalent to declaring:
+This is equivalent to declaring::
 
-struct driver_attribute driver_attr_debug;
+	struct driver_attribute driver_attr_debug;
 
 This can then be used to add and remove the attribute from the
-driver's directory using:
+driver's directory using::
 
-int driver_create_file(struct device_driver *, const struct driver_attribute *);
-void driver_remove_file(struct device_driver *, const struct driver_attribute *);
+  int driver_create_file(struct device_driver *, const struct driver_attribute *);
+  void driver_remove_file(struct device_driver *, const struct driver_attribute *);

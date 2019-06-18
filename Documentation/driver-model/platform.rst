@@ -1,5 +1,7 @@
+============================
 Platform Devices and Drivers
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+============================
+
 See <linux/platform_device.h> for the driver model interface to the
 platform bus:  platform_device, and platform_driver.  This pseudo-bus
 is used to connect devices on busses with minimal infrastructure,
@@ -19,15 +21,15 @@ be connected through a segment of some other kind of bus; but its
 registers will still be directly addressable.
 
 Platform devices are given a name, used in driver binding, and a
-list of resources such as addresses and IRQs.
+list of resources such as addresses and IRQs::
 
-struct platform_device {
+  struct platform_device {
 	const char	*name;
 	u32		id;
 	struct device	dev;
 	u32		num_resources;
 	struct resource	*resource;
-};
+  };
 
 
 Platform drivers
@@ -35,9 +37,9 @@ Platform drivers
 Platform drivers follow the standard driver model convention, where
 discovery/enumeration is handled outside the drivers, and drivers
 provide probe() and remove() methods.  They support power management
-and shutdown notifications using the standard conventions.
+and shutdown notifications using the standard conventions::
 
-struct platform_driver {
+  struct platform_driver {
 	int (*probe)(struct platform_device *);
 	int (*remove)(struct platform_device *);
 	void (*shutdown)(struct platform_device *);
@@ -46,25 +48,25 @@ struct platform_driver {
 	int (*resume_early)(struct platform_device *);
 	int (*resume)(struct platform_device *);
 	struct device_driver driver;
-};
+  };
 
 Note that probe() should in general verify that the specified device hardware
 actually exists; sometimes platform setup code can't be sure.  The probing
 can use device resources, including clocks, and device platform_data.
 
-Platform drivers register themselves the normal way:
+Platform drivers register themselves the normal way::
 
 	int platform_driver_register(struct platform_driver *drv);
 
 Or, in common situations where the device is known not to be hot-pluggable,
 the probe() routine can live in an init section to reduce the driver's
-runtime memory footprint:
+runtime memory footprint::
 
 	int platform_driver_probe(struct platform_driver *drv,
 			  int (*probe)(struct platform_device *))
 
 Kernel modules can be composed of several platform drivers. The platform core
-provides helpers to register and unregister an array of drivers:
+provides helpers to register and unregister an array of drivers::
 
 	int __platform_register_drivers(struct platform_driver * const *drivers,
 				      unsigned int count, struct module *owner);
@@ -73,7 +75,7 @@ provides helpers to register and unregister an array of drivers:
 
 If one of the drivers fails to register, all drivers registered up to that
 point will be unregistered in reverse order. Note that there is a convenience
-macro that passes THIS_MODULE as owner parameter:
+macro that passes THIS_MODULE as owner parameter::
 
 	#define platform_register_drivers(drivers, count)
 
@@ -81,7 +83,7 @@ macro that passes THIS_MODULE as owner parameter:
 Device Enumeration
 ~~~~~~~~~~~~~~~~~~
 As a rule, platform specific (and often board-specific) setup code will
-register platform devices:
+register platform devices::
 
 	int platform_device_register(struct platform_device *pdev);
 
@@ -133,14 +135,14 @@ tend to already have "normal" modes, such as ones using device nodes that
 were created by PNP or by platform device setup.
 
 None the less, there are some APIs to support such legacy drivers.  Avoid
-using these calls except with such hotplug-deficient drivers.
+using these calls except with such hotplug-deficient drivers::
 
 	struct platform_device *platform_device_alloc(
 			const char *name, int id);
 
 You can use platform_device_alloc() to dynamically allocate a device, which
 you will then initialize with resources and platform_device_register().
-A better solution is usually:
+A better solution is usually::
 
 	struct platform_device *platform_device_register_simple(
 			const char *name, int id,
