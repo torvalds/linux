@@ -30,6 +30,12 @@
 	{ARM_EXCEPTION_TRAP, 		"TRAP"		},	\
 	{ARM_EXCEPTION_HYP_GONE,	"HYP_GONE"	}
 
+/*
+ * Size of the HYP vectors preamble. kvm_patch_vector_branch() generates code
+ * that jumps over this.
+ */
+#define KVM_VECTOR_PREAMBLE	(1 * AARCH64_INSN_SIZE)
+
 #ifndef __ASSEMBLY__
 
 #include <linux/mm.h>
