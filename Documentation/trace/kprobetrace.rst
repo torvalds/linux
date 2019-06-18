@@ -191,6 +191,7 @@ events, you need to enable it.
 
 Use the following command to start tracing in an interval.
 ::
+
     # echo 1 > tracing_on
     Open something...
     # echo 0 > tracing_on
