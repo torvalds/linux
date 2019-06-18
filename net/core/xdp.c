@@ -14,6 +14,8 @@
 #include <net/page_pool.h>
 
 #include <net/xdp.h>
+#include <net/xdp_priv.h> /* struct xdp_mem_allocator */
+#include <trace/events/xdp.h>
 
 #define REG_STATE_NEW		0x0
 #define REG_STATE_REGISTERED	0x1
@@ -28,21 +30,6 @@ static int mem_id_next = MEM_ID_MIN;
 
 static bool mem_id_init; /* false */
 static struct rhashtable *mem_id_ht;
-
-struct xdp_mem_allocator {
-	struct xdp_mem_info mem;
-	union {
-		void *allocator;
-		struct page_pool *page_pool;
-		struct zero_copy_allocator *zc_alloc;
-	};
-	struct rhash_head node;
-	struct rcu_head rcu;
-	struct delayed_work defer_wq;
-	unsigned long defer_start;
-	unsigned long defer_warn;
-	int disconnect_cnt;
-};
 
 static u32 xdp_mem_id_hashfn(const void *data, u32 len, u32 seed)
 {
@@ -117,7 +104,7 @@ bool __mem_id_disconnect(int id, bool force)
 	if (xa->mem.type == MEM_TYPE_PAGE_POOL)
 		safe_to_remove = page_pool_request_shutdown(xa->page_pool);
 
-	/* TODO: Tracepoint will be added here in next-patch */
+	trace_mem_disconnect(xa, safe_to_remove, force);
 
 	if ((safe_to_remove || force) &&
 	    !rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
@@ -385,6 +372,7 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 
 	mutex_unlock(&mem_id_lock);
 
+	trace_mem_connect(xdp_alloc, xdp_rxq);
 	return 0;
 err:
 	mutex_unlock(&mem_id_lock);
@@ -417,6 +405,7 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
 		} else {
 			/* Hopefully stack show who to blame for late return */
 			WARN_ONCE(1, "page_pool gone mem.id=%d", mem->id);
+			trace_mem_return_failed(mem, page);
 			put_page(page);
 		}
 		rcu_read_unlock();
