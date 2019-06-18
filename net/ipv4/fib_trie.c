@@ -338,12 +338,18 @@ static struct tnode *tnode_alloc(int bits)
 
 static inline void empty_child_inc(struct key_vector *n)
 {
-	++tn_info(n)->empty_children ? : ++tn_info(n)->full_children;
+	tn_info(n)->empty_children++;
+
+	if (!tn_info(n)->empty_children)
+		tn_info(n)->full_children++;
 }
 
 static inline void empty_child_dec(struct key_vector *n)
 {
-	tn_info(n)->empty_children-- ? : tn_info(n)->full_children--;
+	if (!tn_info(n)->empty_children)
+		tn_info(n)->full_children--;
+
+	tn_info(n)->empty_children--;
 }
 
 static struct key_vector *leaf_new(t_key key, struct fib_alias *fa)
