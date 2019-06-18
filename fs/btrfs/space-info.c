@@ -4,6 +4,7 @@
 #include "space-info.h"
 #include "sysfs.h"
 #include "volumes.h"
+#include "free-space-cache.h"
 
 u64 btrfs_space_info_used(struct btrfs_space_info *s_info,
 			  bool may_use_included)
@@ -345,4 +346,58 @@ again:
 		head = &space_info->tickets;
 		goto again;
 	}
+}
+
+#define DUMP_BLOCK_RSV(fs_info, rsv_name)				\
+do {									\
+	struct btrfs_block_rsv *__rsv = &(fs_info)->rsv_name;		\
+	spin_lock(&__rsv->lock);					\
+	btrfs_info(fs_info, #rsv_name ": size %llu reserved %llu",	\
+		   __rsv->size, __rsv->reserved);			\
+	spin_unlock(&__rsv->lock);					\
+} while (0)
+
+void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
+			   struct btrfs_space_info *info, u64 bytes,
+			   int dump_block_groups)
+{
+	struct btrfs_block_group_cache *cache;
+	int index = 0;
+
+	spin_lock(&info->lock);
+	btrfs_info(fs_info, "space_info %llu has %llu free, is %sfull",
+		   info->flags,
+		   info->total_bytes - btrfs_space_info_used(info, true),
+		   info->full ? "" : "not ");
+	btrfs_info(fs_info,
+		"space_info total=%llu, used=%llu, pinned=%llu, reserved=%llu, may_use=%llu, readonly=%llu",
+		info->total_bytes, info->bytes_used, info->bytes_pinned,
+		info->bytes_reserved, info->bytes_may_use,
+		info->bytes_readonly);
+	spin_unlock(&info->lock);
+
+	DUMP_BLOCK_RSV(fs_info, global_block_rsv);
+	DUMP_BLOCK_RSV(fs_info, trans_block_rsv);
+	DUMP_BLOCK_RSV(fs_info, chunk_block_rsv);
+	DUMP_BLOCK_RSV(fs_info, delayed_block_rsv);
+	DUMP_BLOCK_RSV(fs_info, delayed_refs_rsv);
+
+	if (!dump_block_groups)
+		return;
+
+	down_read(&info->groups_sem);
+again:
+	list_for_each_entry(cache, &info->block_groups[index], list) {
+		spin_lock(&cache->lock);
+		btrfs_info(fs_info,
+			"block group %llu has %llu bytes, %llu used %llu pinned %llu reserved %s",
+			cache->key.objectid, cache->key.offset,
+			btrfs_block_group_used(&cache->item), cache->pinned,
+			cache->reserved, cache->ro ? "[readonly]" : "");
+		btrfs_dump_free_space(cache, bytes);
+		spin_unlock(&cache->lock);
+	}
+	if (++index < BTRFS_NR_RAID_TYPES)
+		goto again;
+	up_read(&info->groups_sem);
 }
