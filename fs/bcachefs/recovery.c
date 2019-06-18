@@ -721,10 +721,12 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	ret = bch2_blacklist_table_initialize(c);
 
-	ret = verify_journal_entries_not_blacklisted_or_missing(c,
-						&journal_entries);
-	if (ret)
-		goto err;
+	if (!list_empty(&journal_entries)) {
+		ret = verify_journal_entries_not_blacklisted_or_missing(c,
+							&journal_entries);
+		if (ret)
+			goto err;
+	}
 
 	ret = bch2_fs_journal_start(&c->journal, journal_seq,
 				    &journal_entries);
