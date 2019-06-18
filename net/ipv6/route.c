@@ -4965,6 +4965,7 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 {
 	struct fib6_info *rt_notif = NULL, *rt_last = NULL;
 	struct nl_info *info = &cfg->fc_nlinfo;
+	enum fib_event_type event_type;
 	struct fib6_config r_cfg;
 	struct rtnexthop *rtnh;
 	struct fib6_info *rt;
@@ -5042,6 +5043,11 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 	 */
 	info->skip_notify = 1;
 
+	/* For add and replace, send one notification with all nexthops. For
+	 * append, send one notification with all appended nexthops.
+	 */
+	info->skip_notify_kernel = 1;
+
 	err_nh = NULL;
 	list_for_each_entry(nh, &rt6_nh_list, next) {
 		err = __ip6_ins_rt(nh->fib6_info, info, extack);
@@ -5076,6 +5082,15 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 		cfg->fc_nlinfo.nlh->nlmsg_flags &= ~(NLM_F_EXCL |
 						     NLM_F_REPLACE);
 		nhn++;
+	}
+
+	event_type = replace ? FIB_EVENT_ENTRY_REPLACE : FIB_EVENT_ENTRY_ADD;
+	err = call_fib6_multipath_entry_notifiers(info->nl_net, event_type,
+						  rt_notif, nhn - 1, extack);
+	if (err) {
+		/* Delete all the siblings that were just added */
+		err_nh = NULL;
+		goto add_errout;
 	}
 
 	/* success ... tell user about new route */
