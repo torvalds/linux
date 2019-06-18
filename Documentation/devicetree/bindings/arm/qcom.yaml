@@ -119,6 +119,11 @@ properties:
           - const: qcom,msm8996-mtp
 
       - items:
+          - enum:
+              - qcom,ipq4019-ap-dk04.1-c3
+              - qcom,ipq4019-ap-dk07.1-c1
+              - qcom,ipq4019-ap-dk07.1-c2
+              - qcom,ipq4019-dk04.1-c1
           - const: qcom,ipq4019
 
       - items:
