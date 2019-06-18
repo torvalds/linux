@@ -14,6 +14,7 @@ available subsections can be seen below.
 .. toctree::
    :maxdepth: 2
 
+   driver-model/index
    basics
    infrastructure
    early-userspace/index

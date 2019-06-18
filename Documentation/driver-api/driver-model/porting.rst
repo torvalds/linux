@@ -9,7 +9,7 @@ Patrick Mochel
 
 Overview
 
-Please refer to `Documentation/driver-model/*.rst` for definitions of
+Please refer to `Documentation/driver-api/driver-model/*.rst` for definitions of
 various driver types and concepts.
 
 Most of the work of porting devices drivers to the new model happens
