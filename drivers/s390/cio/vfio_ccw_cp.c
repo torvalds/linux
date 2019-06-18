@@ -381,18 +381,8 @@ static void ccwchain_cda_free(struct ccwchain *chain, int idx)
 static int ccwchain_calc_length(u64 iova, struct channel_program *cp)
 {
 	struct ccw1 *ccw = cp->guest_cp;
-	int cnt;
+	int cnt = 0;
 
-	/*
-	 * Copy current chain from guest to host kernel.
-	 * Currently the chain length is limited to CCWCHAIN_LEN_MAX (256).
-	 * So copying 2K is enough (safe).
-	 */
-	cnt = copy_ccw_from_iova(cp, ccw, iova, CCWCHAIN_LEN_MAX);
-	if (cnt)
-		return cnt;
-
-	cnt = 0;
 	do {
 		cnt++;
 
@@ -446,7 +436,12 @@ static int ccwchain_handle_ccw(u32 cda, struct channel_program *cp)
 	struct ccwchain *chain;
 	int len;
 
-	/* Copy the chain from cda to cp, and count the CCWs in it */
+	/* Copy 2K (the most we support today) of possible CCWs */
+	len = copy_ccw_from_iova(cp, cp->guest_cp, cda, CCWCHAIN_LEN_MAX);
+	if (len)
+		return len;
+
+	/* Count the CCWs in the current chain */
 	len = ccwchain_calc_length(cda, cp);
 	if (len < 0)
 		return len;
