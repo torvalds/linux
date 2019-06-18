@@ -189,7 +189,6 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 		--dg00x->substreams_counter;
 
 	snd_dg00x_stream_stop_duplex(dg00x);
-	snd_dg00x_stream_release_duplex(dg00x);
 
 	mutex_unlock(&dg00x->mutex);
 
