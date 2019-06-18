@@ -1200,6 +1200,7 @@ void intel_engines_park(struct drm_i915_private *i915)
 
 		i915_gem_batch_pool_fini(&engine->batch_pool);
 		engine->execlists.no_priolist = false;
+		engine->saturated = 0;
 	}
 
 	i915->gt.active_engines = 0;

@@ -285,6 +285,8 @@ struct intel_engine_cs {
 	struct intel_context *kernel_context; /* pinned */
 	struct intel_context *preempt_context; /* pinned; optional */
 
+	intel_engine_mask_t saturated; /* submitting semaphores too late? */
+
 	struct drm_i915_gem_object *default_state;
 	void *pinned_default_state;
 

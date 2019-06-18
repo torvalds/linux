@@ -443,7 +443,7 @@ void __i915_request_submit(struct i915_request *request)
 	 */
 	if (request->sched.semaphores &&
 	    i915_sw_fence_signaled(&request->semaphore))
-		request->hw_context->saturated |= request->sched.semaphores;
+		engine->saturated |= request->sched.semaphores;
 
 	/* We may be recursing from the signal callback of another i915 fence */
 	spin_lock_nested(&request->lock, SINGLE_DEPTH_NESTING);
@@ -829,7 +829,7 @@ already_busywaiting(struct i915_request *rq)
 	 *
 	 * See the are-we-too-late? check in __i915_request_submit().
 	 */
-	return rq->sched.semaphores | rq->hw_context->saturated;
+	return rq->sched.semaphores | rq->engine->saturated;
 }
 
 static int
