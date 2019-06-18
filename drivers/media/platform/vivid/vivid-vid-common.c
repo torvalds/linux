@@ -823,7 +823,7 @@ int vidioc_g_dv_timings(struct file *file, void *_fh,
 	if (vdev->vfl_dir == VFL_DIR_RX) {
 		if (!vivid_is_hdmi_cap(dev))
 			return -ENODATA;
-		*timings = dev->dv_timings_cap;
+		*timings = dev->dv_timings_cap[dev->input];
 	} else {
 		if (!vivid_is_hdmi_out(dev))
 			return -ENODATA;

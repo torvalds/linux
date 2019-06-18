@@ -421,7 +421,7 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 		((vivid_is_svid_cap(dev) &&
 		!VIVID_INVALID_SIGNAL(dev->std_signal_mode)) ||
 		(vivid_is_hdmi_cap(dev) &&
-		!VIVID_INVALID_SIGNAL(dev->dv_timings_signal_mode))))
+		!VIVID_INVALID_SIGNAL(dev->dv_timings_signal_mode[dev->input]))))
 		is_loop = true;
 
 	buf->vb.sequence = dev->vid_cap_seq_count;

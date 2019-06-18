@@ -292,18 +292,19 @@ struct vivid_dev {
 	v4l2_std_id			query_std;
 	enum tpg_video_aspect		std_aspect_ratio;
 
-	enum vivid_signal_mode		dv_timings_signal_mode;
+	enum vivid_signal_mode		dv_timings_signal_mode[MAX_INPUTS];
 	char				**query_dv_timings_qmenu;
 	char				*query_dv_timings_qmenu_strings;
 	unsigned			query_dv_timings_size;
-	unsigned			query_dv_timings_last;
-	unsigned			query_dv_timings;
-	enum tpg_video_aspect		dv_timings_aspect_ratio;
+	unsigned int			query_dv_timings_last[MAX_INPUTS];
+	unsigned int			query_dv_timings[MAX_INPUTS];
+	enum tpg_video_aspect		dv_timings_aspect_ratio[MAX_INPUTS];
 
 	/* Input */
 	unsigned			input;
 	v4l2_std_id			std_cap;
-	struct v4l2_dv_timings		dv_timings_cap;
+	struct v4l2_dv_timings		dv_timings_cap[MAX_INPUTS];
+	int				dv_timings_cap_sel[MAX_INPUTS];
 	u32				service_set_cap;
 	struct vivid_vbi_gen_data	vbi_gen;
 	u8				*edid;

@@ -1005,7 +1005,8 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		tvnorms_cap = V4L2_STD_ALL;
 	if (dev->output_type[0] == SVID)
 		tvnorms_out = V4L2_STD_ALL;
-	dev->dv_timings_cap = def_dv_timings;
+	for (i = 0; i < MAX_INPUTS; i++)
+		dev->dv_timings_cap[i] = def_dv_timings;
 	dev->dv_timings_out = def_dv_timings;
 	dev->tv_freq = 2804 /* 175.25 * 16 */;
 	dev->tv_audmode = V4L2_TUNER_MODE_STEREO;
@@ -1034,6 +1035,15 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 			in_type_counter[HDMI] || out_type_counter[HDMI]);
 	if (ret)
 		goto unreg_dev;
+
+	/* enable/disable interface specific controls */
+	if (dev->num_inputs && dev->input_type[0] != HDMI) {
+		v4l2_ctrl_activate(dev->ctrl_dv_timings_signal_mode, false);
+		v4l2_ctrl_activate(dev->ctrl_dv_timings, false);
+	} else if (dev->num_inputs && dev->input_type[0] == HDMI) {
+		v4l2_ctrl_activate(dev->ctrl_std_signal_mode, false);
+		v4l2_ctrl_activate(dev->ctrl_standard, false);
+	}
 
 	/*
 	 * update the capture and output formats to do a proper initial

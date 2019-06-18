@@ -294,7 +294,8 @@ void vivid_update_quality(struct vivid_dev *dev)
 		tpg_s_quality(&dev->tpg, TPG_QUAL_NOISE, 0);
 		return;
 	}
-	if (vivid_is_hdmi_cap(dev) && VIVID_INVALID_SIGNAL(dev->dv_timings_signal_mode)) {
+	if (vivid_is_hdmi_cap(dev) &&
+	    VIVID_INVALID_SIGNAL(dev->dv_timings_signal_mode[dev->input])) {
 		tpg_s_quality(&dev->tpg, TPG_QUAL_NOISE, 0);
 		return;
 	}
@@ -356,7 +357,7 @@ enum tpg_video_aspect vivid_get_video_aspect(const struct vivid_dev *dev)
 		return dev->std_aspect_ratio;
 
 	if (vivid_is_hdmi_cap(dev))
-		return dev->dv_timings_aspect_ratio;
+		return dev->dv_timings_aspect_ratio[dev->input];
 
 	return TPG_VIDEO_ASPECT_IMAGE;
 }
@@ -381,7 +382,7 @@ static enum tpg_pixel_aspect vivid_get_pixel_aspect(const struct vivid_dev *dev)
  */
 void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 {
-	struct v4l2_bt_timings *bt = &dev->dv_timings_cap.bt;
+	struct v4l2_bt_timings *bt = &dev->dv_timings_cap[dev->input].bt;
 	unsigned size;
 	u64 pixelclock;
 
@@ -481,8 +482,8 @@ static enum v4l2_field vivid_field_cap(struct vivid_dev *dev, enum v4l2_field fi
 		}
 	}
 	if (vivid_is_hdmi_cap(dev))
-		return dev->dv_timings_cap.bt.interlaced ? V4L2_FIELD_ALTERNATE :
-						       V4L2_FIELD_NONE;
+		return dev->dv_timings_cap[dev->input].bt.interlaced ?
+			V4L2_FIELD_ALTERNATE : V4L2_FIELD_NONE;
 	return V4L2_FIELD_NONE;
 }
 
@@ -1305,10 +1306,10 @@ int vidioc_enum_input(struct file *file, void *priv,
 				dev->input_name_counter[inp->index]);
 		inp->capabilities = V4L2_IN_CAP_DV_TIMINGS;
 		if (dev->edid_blocks == 0 ||
-		    dev->dv_timings_signal_mode == NO_SIGNAL)
+		    dev->dv_timings_signal_mode[dev->input] == NO_SIGNAL)
 			inp->status |= V4L2_IN_ST_NO_SIGNAL;
-		else if (dev->dv_timings_signal_mode == NO_LOCK ||
-			 dev->dv_timings_signal_mode == OUT_OF_RANGE)
+		else if (dev->dv_timings_signal_mode[dev->input] == NO_LOCK ||
+			 dev->dv_timings_signal_mode[dev->input] == OUT_OF_RANGE)
 			inp->status |= V4L2_IN_ST_NO_H_LOCK;
 		break;
 	}
@@ -1348,7 +1349,7 @@ int vidioc_g_input(struct file *file, void *priv, unsigned *i)
 int vidioc_s_input(struct file *file, void *priv, unsigned i)
 {
 	struct vivid_dev *dev = video_drvdata(file);
-	struct v4l2_bt_timings *bt = &dev->dv_timings_cap.bt;
+	struct v4l2_bt_timings *bt = &dev->dv_timings_cap[dev->input].bt;
 	unsigned brightness;
 
 	if (i >= dev->num_inputs)
@@ -1402,6 +1403,20 @@ int vidioc_s_input(struct file *file, void *priv, unsigned i)
 	v4l2_ctrl_modify_range(dev->brightness,
 			128 * i, 255 + 128 * i, 1, 128 + 128 * i);
 	v4l2_ctrl_s_ctrl(dev->brightness, brightness);
+
+	/* Restore per-input states. */
+	v4l2_ctrl_activate(dev->ctrl_dv_timings_signal_mode,
+			   vivid_is_hdmi_cap(dev));
+	v4l2_ctrl_activate(dev->ctrl_dv_timings, vivid_is_hdmi_cap(dev) &&
+			   dev->dv_timings_signal_mode[dev->input] ==
+			   SELECTED_DV_TIMINGS);
+	if (vivid_is_hdmi_cap(dev)) {
+		v4l2_ctrl_s_ctrl(dev->ctrl_dv_timings_signal_mode,
+				 dev->dv_timings_signal_mode[dev->input]);
+		v4l2_ctrl_s_ctrl(dev->ctrl_dv_timings,
+				 dev->query_dv_timings[dev->input]);
+	}
+
 	return 0;
 }
 
@@ -1671,12 +1686,13 @@ int vivid_vid_cap_s_dv_timings(struct file *file, void *_fh,
 	    !valid_cvt_gtf_timings(timings))
 		return -EINVAL;
 
-	if (v4l2_match_dv_timings(timings, &dev->dv_timings_cap, 0, false))
+	if (v4l2_match_dv_timings(timings, &dev->dv_timings_cap[dev->input],
+				  0, false))
 		return 0;
 	if (vb2_is_busy(&dev->vb_vid_cap_q))
 		return -EBUSY;
 
-	dev->dv_timings_cap = *timings;
+	dev->dv_timings_cap[dev->input] = *timings;
 	vivid_update_format_cap(dev, false);
 	return 0;
 }
@@ -1685,26 +1701,31 @@ int vidioc_query_dv_timings(struct file *file, void *_fh,
 				    struct v4l2_dv_timings *timings)
 {
 	struct vivid_dev *dev = video_drvdata(file);
+	unsigned int input = dev->input;
+	unsigned int last = dev->query_dv_timings_last[input];
 
 	if (!vivid_is_hdmi_cap(dev))
 		return -ENODATA;
-	if (dev->dv_timings_signal_mode == NO_SIGNAL ||
+	if (dev->dv_timings_signal_mode[input] == NO_SIGNAL ||
 	    dev->edid_blocks == 0)
 		return -ENOLINK;
-	if (dev->dv_timings_signal_mode == NO_LOCK)
+	if (dev->dv_timings_signal_mode[input] == NO_LOCK)
 		return -ENOLCK;
-	if (dev->dv_timings_signal_mode == OUT_OF_RANGE) {
+	if (dev->dv_timings_signal_mode[input] == OUT_OF_RANGE) {
 		timings->bt.pixelclock = vivid_dv_timings_cap.bt.max_pixelclock * 2;
 		return -ERANGE;
 	}
-	if (dev->dv_timings_signal_mode == CURRENT_DV_TIMINGS) {
-		*timings = dev->dv_timings_cap;
-	} else if (dev->dv_timings_signal_mode == SELECTED_DV_TIMINGS) {
-		*timings = v4l2_dv_timings_presets[dev->query_dv_timings];
+	if (dev->dv_timings_signal_mode[input] == CURRENT_DV_TIMINGS) {
+		*timings = dev->dv_timings_cap[input];
+	} else if (dev->dv_timings_signal_mode[input] ==
+		   SELECTED_DV_TIMINGS) {
+		*timings =
+			v4l2_dv_timings_presets[dev->query_dv_timings[input]];
 	} else {
-		*timings = v4l2_dv_timings_presets[dev->query_dv_timings_last];
-		dev->query_dv_timings_last = (dev->query_dv_timings_last + 1) %
-						dev->query_dv_timings_size;
+		*timings =
+			v4l2_dv_timings_presets[last];
+		dev->query_dv_timings_last[input] =
+			(last + 1) % dev->query_dv_timings_size;
 	}
 	return 0;
 }

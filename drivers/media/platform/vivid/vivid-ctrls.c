@@ -467,16 +467,19 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		tpg_s_video_aspect(&dev->tpg, vivid_get_video_aspect(dev));
 		break;
 	case VIVID_CID_DV_TIMINGS_SIGNAL_MODE:
-		dev->dv_timings_signal_mode = dev->ctrl_dv_timings_signal_mode->val;
-		if (dev->dv_timings_signal_mode == SELECTED_DV_TIMINGS)
-			dev->query_dv_timings = dev->ctrl_dv_timings->val;
+		dev->dv_timings_signal_mode[dev->input] =
+			dev->ctrl_dv_timings_signal_mode->val;
+		dev->query_dv_timings[dev->input] = dev->ctrl_dv_timings->val;
+
 		v4l2_ctrl_activate(dev->ctrl_dv_timings,
-				dev->dv_timings_signal_mode == SELECTED_DV_TIMINGS);
+			dev->dv_timings_signal_mode[dev->input] ==
+				SELECTED_DV_TIMINGS);
+
 		vivid_update_quality(dev);
 		vivid_send_source_change(dev, HDMI);
 		break;
 	case VIVID_CID_DV_TIMINGS_ASPECT_RATIO:
-		dev->dv_timings_aspect_ratio = ctrl->val;
+		dev->dv_timings_aspect_ratio[dev->input] = ctrl->val;
 		tpg_s_video_aspect(&dev->tpg, vivid_get_video_aspect(dev));
 		break;
 	case VIVID_CID_TSTAMP_SRC:
