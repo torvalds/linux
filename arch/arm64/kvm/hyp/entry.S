@@ -175,6 +175,8 @@ abort_guest_exit_start:
 	.global	abort_guest_exit_end
 abort_guest_exit_end:
 
+	msr	daifset, #4	// Mask aborts
+
 	// If the exception took place, restore the EL1 exception
 	// context so that we can report some information.
 	// Merge the exception code with the SError pending bit.
