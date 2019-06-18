@@ -56,6 +56,7 @@ available subsections can be seen below.
    firmware/index
    pinctl
    gpio/index
+   md/index
    misc_devices
    nfc/index
    dmaengine/index
