@@ -1081,13 +1081,13 @@ static int mvpp2_port_c2_tcam_rule_add(struct mvpp2_port *port,
 
 	rule->c2_index = c2.index;
 
-	c2.tcam[0] = (rule->c2_tcam & 0xffff) |
+	c2.tcam[3] = (rule->c2_tcam & 0xffff) |
 		     ((rule->c2_tcam_mask & 0xffff) << 16);
-	c2.tcam[1] = ((rule->c2_tcam >> 16) & 0xffff) |
+	c2.tcam[2] = ((rule->c2_tcam >> 16) & 0xffff) |
 		     (((rule->c2_tcam_mask >> 16) & 0xffff) << 16);
-	c2.tcam[2] = ((rule->c2_tcam >> 32) & 0xffff) |
+	c2.tcam[1] = ((rule->c2_tcam >> 32) & 0xffff) |
 		     (((rule->c2_tcam_mask >> 32) & 0xffff) << 16);
-	c2.tcam[3] = ((rule->c2_tcam >> 48) & 0xffff) |
+	c2.tcam[0] = ((rule->c2_tcam >> 48) & 0xffff) |
 		     (((rule->c2_tcam_mask >> 48) & 0xffff) << 16);
 
 	pmap = BIT(port->id);
@@ -1222,7 +1222,7 @@ static int mvpp2_port_flt_rfs_rule_insert(struct mvpp2_port *port,
 static int mvpp2_cls_c2_build_match(struct mvpp2_rfs_rule *rule)
 {
 	struct flow_rule *flow = rule->flow;
-	int offs = 64;
+	int offs = 0;
 
 	if (flow_rule_match_key(flow, FLOW_DISSECTOR_KEY_PORTS)) {
 		struct flow_match_ports match;
@@ -1230,18 +1230,18 @@ static int mvpp2_cls_c2_build_match(struct mvpp2_rfs_rule *rule)
 		flow_rule_match_ports(flow, &match);
 		if (match.mask->src) {
 			rule->hek_fields |= MVPP22_CLS_HEK_OPT_L4SIP;
-			offs -= mvpp2_cls_hek_field_size(MVPP22_CLS_HEK_OPT_L4SIP);
 
 			rule->c2_tcam |= ((u64)ntohs(match.key->src)) << offs;
 			rule->c2_tcam_mask |= ((u64)ntohs(match.mask->src)) << offs;
+			offs += mvpp2_cls_hek_field_size(MVPP22_CLS_HEK_OPT_L4SIP);
 		}
 
 		if (match.mask->dst) {
 			rule->hek_fields |= MVPP22_CLS_HEK_OPT_L4DIP;
-			offs -= mvpp2_cls_hek_field_size(MVPP22_CLS_HEK_OPT_L4DIP);
 
 			rule->c2_tcam |= ((u64)ntohs(match.key->dst)) << offs;
 			rule->c2_tcam_mask |= ((u64)ntohs(match.mask->dst)) << offs;
+			offs += mvpp2_cls_hek_field_size(MVPP22_CLS_HEK_OPT_L4DIP);
 		}
 	}
 
