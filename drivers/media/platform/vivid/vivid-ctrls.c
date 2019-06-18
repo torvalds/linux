@@ -68,6 +68,7 @@
 #define VIVID_CID_PERCENTAGE_FILL	(VIVID_CID_VIVID_BASE + 41)
 #define VIVID_CID_REDUCED_FPS		(VIVID_CID_VIVID_BASE + 42)
 #define VIVID_CID_HSV_ENC		(VIVID_CID_VIVID_BASE + 43)
+#define VIVID_CID_DISPLAY_PRESENT	(VIVID_CID_VIVID_BASE + 44)
 
 #define VIVID_CID_STD_SIGNAL_MODE	(VIVID_CID_VIVID_BASE + 60)
 #define VIVID_CID_STANDARD		(VIVID_CID_VIVID_BASE + 61)
@@ -944,6 +945,12 @@ static int vivid_vid_out_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (dev->loop_video)
 			vivid_send_source_change(dev, HDMI);
 		break;
+	case VIVID_CID_DISPLAY_PRESENT:
+		if (dev->output_type[dev->output] != HDMI)
+			break;
+
+		dev->display_present[dev->output] = ctrl->val;
+		break;
 	}
 	return 0;
 }
@@ -982,6 +989,15 @@ static const struct v4l2_ctrl_config vivid_ctrl_has_scaler_out = {
 	.step = 1,
 };
 
+static const struct v4l2_ctrl_config vivid_ctrl_display_present = {
+	.ops = &vivid_vid_out_ctrl_ops,
+	.id = VIVID_CID_DISPLAY_PRESENT,
+	.name = "Display Present",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.max = 1,
+	.def = 1,
+	.step = 1,
+};
 
 /* Streaming Controls */
 
@@ -1588,6 +1604,8 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 		dev->ctrl_tx_mode = v4l2_ctrl_new_std_menu(hdl_vid_out, NULL,
 			V4L2_CID_DV_TX_MODE, V4L2_DV_TX_MODE_HDMI,
 			0, V4L2_DV_TX_MODE_HDMI);
+		dev->ctrl_display_present = v4l2_ctrl_new_custom(hdl_vid_out,
+			&vivid_ctrl_display_present, NULL);
 	}
 	if ((dev->has_vid_cap && dev->has_vid_out) ||
 	    (dev->has_vbi_cap && dev->has_vbi_out))
