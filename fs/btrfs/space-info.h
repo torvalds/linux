@@ -91,5 +91,9 @@ struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
 u64 btrfs_space_info_used(struct btrfs_space_info *s_info,
 			  bool may_use_included);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
+int btrfs_can_overcommit(struct btrfs_fs_info *fs_info,
+			 struct btrfs_space_info *space_info, u64 bytes,
+			 enum btrfs_reserve_flush_enum flush,
+			 bool system_chunk);
 
 #endif /* BTRFS_SPACE_INFO_H */
