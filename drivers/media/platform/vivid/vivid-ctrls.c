@@ -358,7 +358,7 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		V4L2_COLORSPACE_470_SYSTEM_BG,
 	};
 	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_vid_cap);
-	unsigned i;
+	unsigned int i, j;
 
 	switch (ctrl->id) {
 	case VIVID_CID_TEST_PATTERN:
@@ -471,6 +471,18 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		dev->dv_timings_signal_mode[dev->input] =
 			dev->ctrl_dv_timings_signal_mode->val;
 		dev->query_dv_timings[dev->input] = dev->ctrl_dv_timings->val;
+
+		dev->power_present = 0;
+		for (i = 0, j = 0;
+		     i < ARRAY_SIZE(dev->dv_timings_signal_mode);
+		     i++)
+			if (dev->input_type[i] == HDMI) {
+				if (dev->dv_timings_signal_mode[i] != NO_SIGNAL)
+					dev->power_present |= (1 << j);
+				j++;
+			}
+		__v4l2_ctrl_s_ctrl(dev->ctrl_rx_power_present,
+				   dev->power_present);
 
 		v4l2_ctrl_activate(dev->ctrl_dv_timings,
 			dev->dv_timings_signal_mode[dev->input] ==
@@ -1583,7 +1595,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 			v4l2_ctrl_new_custom(hdl_vbi_cap, &vivid_ctrl_vbi_cap_interlaced, NULL);
 	}
 
-	if (has_hdmi && dev->has_vid_cap) {
+	if (dev->num_hdmi_inputs) {
 		dev->ctrl_dv_timings_signal_mode = v4l2_ctrl_new_custom(hdl_vid_cap,
 					&vivid_ctrl_dv_timings_signal_mode, NULL);
 
@@ -1603,6 +1615,11 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 			&vivid_vid_cap_ctrl_ops,
 			V4L2_CID_DV_RX_RGB_RANGE, V4L2_DV_RGB_RANGE_FULL,
 			0, V4L2_DV_RGB_RANGE_AUTO);
+		dev->ctrl_rx_power_present = v4l2_ctrl_new_std(hdl_vid_cap,
+			NULL, V4L2_CID_DV_RX_POWER_PRESENT, 0,
+			(2 << (dev->num_hdmi_inputs - 1)) - 1, 0,
+			(2 << (dev->num_hdmi_inputs - 1)) - 1);
+
 	}
 	if (dev->num_hdmi_outputs) {
 		/*

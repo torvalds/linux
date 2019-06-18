@@ -240,6 +240,8 @@ struct vivid_dev {
 	struct v4l2_ctrl		*ctrl_tx_hotplug;
 	struct v4l2_ctrl		*ctrl_tx_rxsense;
 
+	struct v4l2_ctrl		*ctrl_rx_power_present;
+
 	struct v4l2_ctrl		*radio_tx_rds_pi;
 	struct v4l2_ctrl		*radio_tx_rds_pty;
 	struct v4l2_ctrl		*radio_tx_rds_mono_stereo;
@@ -322,6 +324,8 @@ struct vivid_dev {
 	unsigned			tv_audmode;
 	unsigned			tv_field_cap;
 	unsigned			tv_audio_input;
+
+	u32				power_present;
 
 	/* Capture Overlay */
 	struct v4l2_framebuffer		fb_cap;
