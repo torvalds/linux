@@ -1790,7 +1790,9 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 			coda_fill_bitstream(ctx, &list);
 			mutex_unlock(&ctx->bitstream_mutex);
 
-			if (coda_get_bitstream_payload(ctx) < 512) {
+			if (ctx->dev->devtype->product != CODA_960 &&
+			    coda_get_bitstream_payload(ctx) < 512) {
+				v4l2_err(v4l2_dev, "start payload < 512\n");
 				ret = -EINVAL;
 				goto err;
 			}
