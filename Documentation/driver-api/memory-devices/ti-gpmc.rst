@@ -1,4 +1,4 @@
-:orphan:
+.. SPDX-License-Identifier: GPL-2.0
 
 ========================================
 GPMC (General Purpose Memory Controller)

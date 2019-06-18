@@ -1,4 +1,4 @@
-:orphan:
+.. SPDX-License-Identifier: GPL-2.0
 
 ===============================
 TI EMIF SDRAM Controller Driver

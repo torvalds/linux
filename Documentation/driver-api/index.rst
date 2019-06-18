@@ -79,6 +79,7 @@ available subsections can be seen below.
    isapnp
    generic-counter
    lightnvm-pblk
+   memory-devices/index
    men-chameleon-bus
    ntb
    nvmem
