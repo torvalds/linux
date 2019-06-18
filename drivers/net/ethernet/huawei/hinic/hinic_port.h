@@ -337,4 +337,6 @@ int hinic_rss_cfg(struct hinic_dev *nic_dev, u8 rss_en, u8 template_id);
 int hinic_rss_template_alloc(struct hinic_dev *nic_dev, u8 *tmpl_idx);
 
 int hinic_rss_template_free(struct hinic_dev *nic_dev, u8 tmpl_idx);
+
+void hinic_set_ethtool_ops(struct net_device *netdev);
 #endif
