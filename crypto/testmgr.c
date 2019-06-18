@@ -1570,7 +1570,7 @@ static int test_hash_vs_generic_impl(const char *driver,
 	unsigned int i;
 	struct hash_testvec vec = { 0 };
 	char vec_name[64];
-	struct testvec_config cfg;
+	struct testvec_config *cfg;
 	char cfgname[TESTVEC_CONFIG_NAMELEN];
 	int err;
 
@@ -1598,6 +1598,12 @@ static int test_hash_vs_generic_impl(const char *driver,
 		pr_err("alg: hash: error allocating %s (generic impl of %s): %d\n",
 		       generic_driver, algname, err);
 		return err;
+	}
+
+	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	if (!cfg) {
+		err = -ENOMEM;
+		goto out;
 	}
 
 	/* Check the algorithm properties for consistency. */
@@ -1634,9 +1640,9 @@ static int test_hash_vs_generic_impl(const char *driver,
 		generate_random_hash_testvec(generic_tfm, &vec,
 					     maxkeysize, maxdatasize,
 					     vec_name, sizeof(vec_name));
-		generate_random_testvec_config(&cfg, cfgname, sizeof(cfgname));
+		generate_random_testvec_config(cfg, cfgname, sizeof(cfgname));
 
-		err = test_hash_vec_cfg(driver, &vec, vec_name, &cfg,
+		err = test_hash_vec_cfg(driver, &vec, vec_name, cfg,
 					req, desc, tsgl, hashstate);
 		if (err)
 			goto out;
@@ -1644,6 +1650,7 @@ static int test_hash_vs_generic_impl(const char *driver,
 	}
 	err = 0;
 out:
+	kfree(cfg);
 	kfree(vec.key);
 	kfree(vec.plaintext);
 	kfree(vec.digest);
@@ -2140,7 +2147,7 @@ static int test_aead_vs_generic_impl(const char *driver,
 	unsigned int i;
 	struct aead_testvec vec = { 0 };
 	char vec_name[64];
-	struct testvec_config cfg;
+	struct testvec_config *cfg;
 	char cfgname[TESTVEC_CONFIG_NAMELEN];
 	int err;
 
@@ -2168,6 +2175,12 @@ static int test_aead_vs_generic_impl(const char *driver,
 		pr_err("alg: aead: error allocating %s (generic impl of %s): %d\n",
 		       generic_driver, algname, err);
 		return err;
+	}
+
+	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	if (!cfg) {
+		err = -ENOMEM;
+		goto out;
 	}
 
 	generic_req = aead_request_alloc(generic_tfm, GFP_KERNEL);
@@ -2224,13 +2237,13 @@ static int test_aead_vs_generic_impl(const char *driver,
 		generate_random_aead_testvec(generic_req, &vec,
 					     maxkeysize, maxdatasize,
 					     vec_name, sizeof(vec_name));
-		generate_random_testvec_config(&cfg, cfgname, sizeof(cfgname));
+		generate_random_testvec_config(cfg, cfgname, sizeof(cfgname));
 
-		err = test_aead_vec_cfg(driver, ENCRYPT, &vec, vec_name, &cfg,
+		err = test_aead_vec_cfg(driver, ENCRYPT, &vec, vec_name, cfg,
 					req, tsgls);
 		if (err)
 			goto out;
-		err = test_aead_vec_cfg(driver, DECRYPT, &vec, vec_name, &cfg,
+		err = test_aead_vec_cfg(driver, DECRYPT, &vec, vec_name, cfg,
 					req, tsgls);
 		if (err)
 			goto out;
@@ -2238,6 +2251,7 @@ static int test_aead_vs_generic_impl(const char *driver,
 	}
 	err = 0;
 out:
+	kfree(cfg);
 	kfree(vec.key);
 	kfree(vec.iv);
 	kfree(vec.assoc);
@@ -2687,7 +2701,7 @@ static int test_skcipher_vs_generic_impl(const char *driver,
 	unsigned int i;
 	struct cipher_testvec vec = { 0 };
 	char vec_name[64];
-	struct testvec_config cfg;
+	struct testvec_config *cfg;
 	char cfgname[TESTVEC_CONFIG_NAMELEN];
 	int err;
 
@@ -2719,6 +2733,12 @@ static int test_skcipher_vs_generic_impl(const char *driver,
 		pr_err("alg: skcipher: error allocating %s (generic impl of %s): %d\n",
 		       generic_driver, algname, err);
 		return err;
+	}
+
+	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	if (!cfg) {
+		err = -ENOMEM;
+		goto out;
 	}
 
 	generic_req = skcipher_request_alloc(generic_tfm, GFP_KERNEL);
@@ -2768,20 +2788,21 @@ static int test_skcipher_vs_generic_impl(const char *driver,
 	for (i = 0; i < fuzz_iterations * 8; i++) {
 		generate_random_cipher_testvec(generic_req, &vec, maxdatasize,
 					       vec_name, sizeof(vec_name));
-		generate_random_testvec_config(&cfg, cfgname, sizeof(cfgname));
+		generate_random_testvec_config(cfg, cfgname, sizeof(cfgname));
 
 		err = test_skcipher_vec_cfg(driver, ENCRYPT, &vec, vec_name,
-					    &cfg, req, tsgls);
+					    cfg, req, tsgls);
 		if (err)
 			goto out;
 		err = test_skcipher_vec_cfg(driver, DECRYPT, &vec, vec_name,
-					    &cfg, req, tsgls);
+					    cfg, req, tsgls);
 		if (err)
 			goto out;
 		cond_resched();
 	}
 	err = 0;
 out:
+	kfree(cfg);
 	kfree(vec.key);
 	kfree(vec.iv);
 	kfree(vec.ptext);
