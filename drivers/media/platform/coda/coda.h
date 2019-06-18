@@ -137,6 +137,12 @@ struct coda_params {
 	u32			slice_max_bits;
 	u32			slice_max_mb;
 	bool			force_ipicture;
+	bool			gop_size_changed;
+	bool			bitrate_changed;
+	bool			framerate_changed;
+	bool			h264_intra_qp_changed;
+	bool			intra_refresh_changed;
+	bool			slice_mode_changed;
 };
 
 struct coda_buffer_meta {
@@ -254,6 +260,7 @@ struct coda_ctx {
 	u32				bit_stream_param;
 	u32				frm_dis_flg;
 	u32				frame_mem_ctrl;
+	u32				para_change;
 	int				display_idx;
 	struct dentry			*debugfs_entry;
 	bool				use_bit;

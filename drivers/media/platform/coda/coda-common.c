@@ -1317,6 +1317,7 @@ static int coda_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 	tpf = &a->parm.output.timeperframe;
 	coda_approximate_timeperframe(tpf);
 	ctx->params.framerate = coda_timeperframe_to_frate(tpf);
+	ctx->params.framerate_changed = true;
 
 	return 0;
 }
@@ -2033,12 +2034,14 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_BITRATE:
 		ctx->params.bitrate = ctrl->val / 1000;
+		ctx->params.bitrate_changed = true;
 		break;
 	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
 		ctx->params.gop_size = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP:
 		ctx->params.h264_intra_qp = ctrl->val;
+		ctx->params.h264_intra_qp_changed = true;
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP:
 		ctx->params.h264_inter_qp = ctrl->val;
@@ -2086,17 +2089,21 @@ static int coda_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE:
 		ctx->params.slice_mode = ctrl->val;
+		ctx->params.slice_mode_changed = true;
 		break;
 	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_MB:
 		ctx->params.slice_max_mb = ctrl->val;
+		ctx->params.slice_mode_changed = true;
 		break;
 	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_BYTES:
 		ctx->params.slice_max_bits = ctrl->val * 8;
+		ctx->params.slice_mode_changed = true;
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEADER_MODE:
 		break;
 	case V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB:
 		ctx->params.intra_refresh = ctrl->val;
+		ctx->params.intra_refresh_changed = true;
 		break;
 	case V4L2_CID_MPEG_VIDEO_FORCE_KEY_FRAME:
 		ctx->params.force_ipicture = true;

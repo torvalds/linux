@@ -698,6 +698,79 @@ static u32 coda_slice_mode(struct coda_ctx *ctx)
 	       ((1 & CODA_SLICING_MODE_MASK) << CODA_SLICING_MODE_OFFSET);
 }
 
+static int coda_enc_param_change(struct coda_ctx *ctx)
+{
+	struct coda_dev *dev = ctx->dev;
+	u32 change_enable = 0;
+	u32 success;
+	int ret;
+
+	if (ctx->params.gop_size_changed) {
+		change_enable |= CODA_PARAM_CHANGE_RC_GOP;
+		coda_write(dev, ctx->params.gop_size,
+			   CODA_CMD_ENC_PARAM_RC_GOP);
+		ctx->gopcounter = ctx->params.gop_size - 1;
+		ctx->params.gop_size_changed = false;
+	}
+	if (ctx->params.h264_intra_qp_changed) {
+		coda_dbg(1, ctx, "parameter change: intra Qp %u\n",
+			 ctx->params.h264_intra_qp);
+
+		if (ctx->params.bitrate) {
+			change_enable |= CODA_PARAM_CHANGE_RC_INTRA_QP;
+			coda_write(dev, ctx->params.h264_intra_qp,
+				   CODA_CMD_ENC_PARAM_RC_INTRA_QP);
+		}
+		ctx->params.h264_intra_qp_changed = false;
+	}
+	if (ctx->params.bitrate_changed) {
+		coda_dbg(1, ctx, "parameter change: bitrate %u kbit/s\n",
+			 ctx->params.bitrate);
+		change_enable |= CODA_PARAM_CHANGE_RC_BITRATE;
+		coda_write(dev, ctx->params.bitrate,
+			   CODA_CMD_ENC_PARAM_RC_BITRATE);
+		ctx->params.bitrate_changed = false;
+	}
+	if (ctx->params.framerate_changed) {
+		coda_dbg(1, ctx, "parameter change: frame rate %u/%u Hz\n",
+			 ctx->params.framerate & 0xffff,
+			 (ctx->params.framerate >> 16) + 1);
+		change_enable |= CODA_PARAM_CHANGE_RC_FRAME_RATE;
+		coda_write(dev, ctx->params.framerate,
+			   CODA_CMD_ENC_PARAM_RC_FRAME_RATE);
+		ctx->params.framerate_changed = false;
+	}
+	if (ctx->params.intra_refresh_changed) {
+		coda_dbg(1, ctx, "parameter change: intra refresh MBs %u\n",
+			 ctx->params.intra_refresh);
+		change_enable |= CODA_PARAM_CHANGE_INTRA_MB_NUM;
+		coda_write(dev, ctx->params.intra_refresh,
+			   CODA_CMD_ENC_PARAM_INTRA_MB_NUM);
+		ctx->params.intra_refresh_changed = false;
+	}
+	if (ctx->params.slice_mode_changed) {
+		change_enable |= CODA_PARAM_CHANGE_SLICE_MODE;
+		coda_write(dev, coda_slice_mode(ctx),
+			   CODA_CMD_ENC_PARAM_SLICE_MODE);
+		ctx->params.slice_mode_changed = false;
+	}
+
+	if (!change_enable)
+		return 0;
+
+	coda_write(dev, change_enable, CODA_CMD_ENC_PARAM_CHANGE_ENABLE);
+
+	ret = coda_command_sync(ctx, CODA_COMMAND_RC_CHANGE_PARAMETER);
+	if (ret < 0)
+		return ret;
+
+	success = coda_read(dev, CODA_RET_ENC_PARAM_CHANGE_SUCCESS);
+	if (success != 1)
+		coda_dbg(1, ctx, "parameter change failed: %u\n", success);
+
+	return 0;
+}
+
 static phys_addr_t coda_iram_alloc(struct coda_iram_info *iram, size_t size)
 {
 	phys_addr_t ret;
@@ -1143,6 +1216,9 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	}
 
 	if (ctx->params.bitrate) {
+		ctx->params.bitrate_changed = false;
+		ctx->params.h264_intra_qp_changed = false;
+
 		/* Rate control enabled */
 		value = (ctx->params.bitrate & CODA_RATECONTROL_BITRATE_MASK)
 			<< CODA_RATECONTROL_BITRATE_OFFSET;
@@ -1397,6 +1473,13 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 	u32 rot_mode = 0;
 	u32 dst_fourcc;
 	u32 reg;
+	int ret;
+
+	ret = coda_enc_param_change(ctx);
+	if (ret < 0) {
+		v4l2_warn(&ctx->dev->v4l2_dev, "parameter change failed: %d\n",
+			  ret);
+	}
 
 	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
