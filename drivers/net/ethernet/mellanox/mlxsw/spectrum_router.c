@@ -5278,17 +5278,21 @@ err_nexthop6_group_get:
 static int
 mlxsw_sp_fib6_entry_nexthop_add(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_fib6_entry *fib6_entry,
-				struct fib6_info *rt)
+				struct fib6_info **rt_arr, unsigned int nrt6)
 {
 	struct mlxsw_sp_rt6 *mlxsw_sp_rt6;
-	int err;
+	int err, i;
 
-	mlxsw_sp_rt6 = mlxsw_sp_rt6_create(rt);
-	if (IS_ERR(mlxsw_sp_rt6))
-		return PTR_ERR(mlxsw_sp_rt6);
+	for (i = 0; i < nrt6; i++) {
+		mlxsw_sp_rt6 = mlxsw_sp_rt6_create(rt_arr[i]);
+		if (IS_ERR(mlxsw_sp_rt6)) {
+			err = PTR_ERR(mlxsw_sp_rt6);
+			goto err_rt6_create;
+		}
 
-	list_add_tail(&mlxsw_sp_rt6->list, &fib6_entry->rt6_list);
-	fib6_entry->nrt6++;
+		list_add_tail(&mlxsw_sp_rt6->list, &fib6_entry->rt6_list);
+		fib6_entry->nrt6++;
+	}
 
 	err = mlxsw_sp_nexthop6_group_update(mlxsw_sp, fib6_entry);
 	if (err)
@@ -5297,27 +5301,38 @@ mlxsw_sp_fib6_entry_nexthop_add(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_nexthop6_group_update:
-	fib6_entry->nrt6--;
-	list_del(&mlxsw_sp_rt6->list);
-	mlxsw_sp_rt6_destroy(mlxsw_sp_rt6);
+	i = nrt6;
+err_rt6_create:
+	for (i--; i >= 0; i--) {
+		fib6_entry->nrt6--;
+		mlxsw_sp_rt6 = list_last_entry(&fib6_entry->rt6_list,
+					       struct mlxsw_sp_rt6, list);
+		list_del(&mlxsw_sp_rt6->list);
+		mlxsw_sp_rt6_destroy(mlxsw_sp_rt6);
+	}
 	return err;
 }
 
 static void
 mlxsw_sp_fib6_entry_nexthop_del(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_fib6_entry *fib6_entry,
-				struct fib6_info *rt)
+				struct fib6_info **rt_arr, unsigned int nrt6)
 {
 	struct mlxsw_sp_rt6 *mlxsw_sp_rt6;
+	int i;
 
-	mlxsw_sp_rt6 = mlxsw_sp_fib6_entry_rt_find(fib6_entry, rt);
-	if (WARN_ON(!mlxsw_sp_rt6))
-		return;
+	for (i = 0; i < nrt6; i++) {
+		mlxsw_sp_rt6 = mlxsw_sp_fib6_entry_rt_find(fib6_entry,
+							   rt_arr[i]);
+		if (WARN_ON_ONCE(!mlxsw_sp_rt6))
+			continue;
 
-	fib6_entry->nrt6--;
-	list_del(&mlxsw_sp_rt6->list);
+		fib6_entry->nrt6--;
+		list_del(&mlxsw_sp_rt6->list);
+		mlxsw_sp_rt6_destroy(mlxsw_sp_rt6);
+	}
+
 	mlxsw_sp_nexthop6_group_update(mlxsw_sp, fib6_entry);
-	mlxsw_sp_rt6_destroy(mlxsw_sp_rt6);
 }
 
 static void mlxsw_sp_fib6_entry_type_set(struct mlxsw_sp *mlxsw_sp,
@@ -5586,7 +5601,8 @@ static int mlxsw_sp_router_fib6_add(struct mlxsw_sp *mlxsw_sp,
 	 */
 	fib6_entry = mlxsw_sp_fib6_node_mp_entry_find(fib_node, rt, replace);
 	if (fib6_entry) {
-		err = mlxsw_sp_fib6_entry_nexthop_add(mlxsw_sp, fib6_entry, rt);
+		err = mlxsw_sp_fib6_entry_nexthop_add(mlxsw_sp, fib6_entry,
+						      rt_arr, nrt6);
 		if (err)
 			goto err_fib6_entry_nexthop_add;
 		return 0;
@@ -5632,11 +5648,12 @@ static void mlxsw_sp_router_fib6_del(struct mlxsw_sp *mlxsw_sp,
 	if (WARN_ON(!fib6_entry))
 		return;
 
-	/* If route is part of a multipath entry, but not the last one
-	 * removed, then only reduce its nexthop group.
+	/* If not all the nexthops are deleted, then only reduce the nexthop
+	 * group.
 	 */
-	if (!list_is_singular(&fib6_entry->rt6_list)) {
-		mlxsw_sp_fib6_entry_nexthop_del(mlxsw_sp, fib6_entry, rt);
+	if (nrt6 != fib6_entry->nrt6) {
+		mlxsw_sp_fib6_entry_nexthop_del(mlxsw_sp, fib6_entry, rt_arr,
+						nrt6);
 		return;
 	}
 
