@@ -30,6 +30,7 @@
 #include "dce110/dce110_clk_mgr.h"
 #include "dce120_clk_mgr.h"
 #include "dce100/dce_clk_mgr.h"
+#include "dce120/dce120_hw_sequencer.h"
 
 static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
 /*ClocksStateInvalid - should not be used*/
@@ -45,16 +46,15 @@ static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
 
 /**
  * dce121_clock_patch_xgmi_ss_info() - Save XGMI spread spectrum info
- * @clk_mgr: clock manager base structure
+ * @clk_mgr_dce: clock manager internal structure
  *
  * Reads from VBIOS the XGMI spread spectrum info and saves it within
  * the dce clock manager. This operation will overwrite the existing dprefclk
  * SS values if the vBIOS query succeeds. Otherwise, it does nothing. It also
  * sets the ->xgmi_enabled flag.
  */
-void dce121_clock_patch_xgmi_ss_info(struct clk_mgr *clk_mgr_base)
+static void dce121_clock_patch_xgmi_ss_info(struct clk_mgr_internal *clk_mgr_dce)
 {
-	struct clk_mgr_internal *clk_mgr_dce = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	enum bp_result result;
 	struct spread_spectrum_info info = { { 0 } };
 	struct dc_bios *bp = clk_mgr_dce->base.ctx->dc_bios;
@@ -141,5 +141,13 @@ void dce121_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *c
 {
 	dce120_clk_mgr_construct(ctx, clk_mgr);
 	clk_mgr->base.dprefclk_khz = 625000;
+
+	/*
+	 * The xGMI enabled info is used to determine if audio and display
+	 * clocks need to be adjusted with the WAFL link's SS info.
+	 */
+	if (dce121_xgmi_enabled(ctx->dc->hwseq))
+		dce121_clock_patch_xgmi_ss_info(clk_mgr);
+
 }
 
