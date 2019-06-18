@@ -1902,7 +1902,7 @@ static inline int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 	u64 type;
 	u64 avail_space;
 	u64 min_stripe_size;
-	int min_stripes = 1, num_stripes = 1;
+	int min_stripes, num_stripes = 1;
 	int i = 0, nr_devices;
 	const struct btrfs_raid_attr *rattr;
 
@@ -1929,17 +1929,14 @@ static inline int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 	/* calc min stripe number for data space allocation */
 	type = btrfs_data_alloc_profile(fs_info);
 	rattr = &btrfs_raid_array[btrfs_bg_flags_to_raid_index(type)];
+	min_stripes = rattr->devs_min;
 
-	if (type & BTRFS_BLOCK_GROUP_RAID0) {
-		min_stripes = 2;
+	if (type & BTRFS_BLOCK_GROUP_RAID0)
 		num_stripes = nr_devices;
-	} else if (type & BTRFS_BLOCK_GROUP_RAID1) {
-		min_stripes = 2;
+	else if (type & BTRFS_BLOCK_GROUP_RAID1)
 		num_stripes = 2;
-	} else if (type & BTRFS_BLOCK_GROUP_RAID10) {
-		min_stripes = 4;
+	else if (type & BTRFS_BLOCK_GROUP_RAID10)
 		num_stripes = 4;
-	}
 
 	/* Adjust for more than 1 stripe per device */
 	min_stripe_size = rattr->dev_stripes * BTRFS_STRIPE_LEN;
