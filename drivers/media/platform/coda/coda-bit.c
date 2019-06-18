@@ -1565,13 +1565,14 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	coda_read(dev, CODA_RET_ENC_PIC_SLICE_NUM);
 	coda_read(dev, CODA_RET_ENC_PIC_FLAG);
 
-	if (coda_read(dev, CODA_RET_ENC_PIC_TYPE) == 0) {
+	dst_buf->flags &= ~(V4L2_BUF_FLAG_KEYFRAME |
+			    V4L2_BUF_FLAG_PFRAME |
+			    V4L2_BUF_FLAG_LAST);
+	if (coda_read(dev, CODA_RET_ENC_PIC_TYPE) == 0)
 		dst_buf->flags |= V4L2_BUF_FLAG_KEYFRAME;
-		dst_buf->flags &= ~V4L2_BUF_FLAG_PFRAME;
-	} else {
+	else
 		dst_buf->flags |= V4L2_BUF_FLAG_PFRAME;
-		dst_buf->flags &= ~V4L2_BUF_FLAG_KEYFRAME;
-	}
+	dst_buf->flags |= src_buf->flags & V4L2_BUF_FLAG_LAST;
 
 	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, false);
 
@@ -1584,8 +1585,9 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	if (ctx->gopcounter < 0)
 		ctx->gopcounter = ctx->params.gop_size - 1;
 
-	coda_dbg(1, ctx, "job finished: encoded %c frame (%d)\n",
-		 coda_frame_type_char(dst_buf->flags), dst_buf->sequence);
+	coda_dbg(1, ctx, "job finished: encoded %c frame (%d)%s\n",
+		 coda_frame_type_char(dst_buf->flags), dst_buf->sequence,
+		 (dst_buf->flags & V4L2_BUF_FLAG_LAST) ? " (last)" : "");
 }
 
 static void coda_seq_end_work(struct work_struct *work)
