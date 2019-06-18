@@ -28,6 +28,7 @@
 #include "sysfs.h"
 #include "qgroup.h"
 #include "ref-verify.h"
+#include "space-info.h"
 
 #undef SCRAMBLE_DELAYED_REFS
 

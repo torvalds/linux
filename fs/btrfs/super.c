@@ -42,6 +42,7 @@
 #include "dev-replace.h"
 #include "free-space-cache.h"
 #include "backref.h"
+#include "space-info.h"
 #include "tests/btrfs-tests.h"
 
 #include "qgroup.h"

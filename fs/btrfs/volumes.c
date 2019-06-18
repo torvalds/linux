@@ -28,6 +28,7 @@
 #include "dev-replace.h"
 #include "sysfs.h"
 #include "tree-checker.h"
+#include "space-info.h"
 
 const struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
 	[BTRFS_RAID_RAID10] = {
