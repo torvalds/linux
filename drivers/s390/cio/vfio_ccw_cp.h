@@ -16,6 +16,12 @@
 
 #include "orb.h"
 
+/*
+ * Max length for ccw chain.
+ * XXX: Limit to 256, need to check more?
+ */
+#define CCWCHAIN_LEN_MAX	256
+
 /**
  * struct channel_program - manage information for channel program
  * @ccwchain_list: list head of ccwchains
@@ -32,6 +38,7 @@ struct channel_program {
 	union orb orb;
 	struct device *mdev;
 	bool initialized;
+	struct ccw1 *guest_cp;
 };
 
 extern int cp_init(struct channel_program *cp, struct device *mdev,
