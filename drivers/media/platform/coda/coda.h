@@ -190,6 +190,13 @@ struct coda_context_ops {
 	void (*release)(struct coda_ctx *ctx);
 };
 
+struct coda_internal_frame {
+	struct coda_aux_buf		buf;
+	struct coda_buffer_meta		meta;
+	u32				type;
+	u32				error;
+};
+
 struct coda_ctx {
 	struct coda_dev			*dev;
 	struct mutex			buffer_mutex;
@@ -233,10 +240,7 @@ struct coda_ctx {
 	struct coda_aux_buf		parabuf;
 	struct coda_aux_buf		psbuf;
 	struct coda_aux_buf		slicebuf;
-	struct coda_aux_buf		internal_frames[CODA_MAX_FRAMEBUFFERS];
-	u32				frame_types[CODA_MAX_FRAMEBUFFERS];
-	struct coda_buffer_meta		frame_metas[CODA_MAX_FRAMEBUFFERS];
-	u32				frame_errors[CODA_MAX_FRAMEBUFFERS];
+	struct coda_internal_frame	internal_frames[CODA_MAX_FRAMEBUFFERS];
 	struct list_head		buffer_meta_list;
 	spinlock_t			buffer_meta_lock;
 	int				num_metas;
