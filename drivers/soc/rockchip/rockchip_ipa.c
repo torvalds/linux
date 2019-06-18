@@ -4,6 +4,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/slab.h>
 #include <linux/thermal.h>
 #include <soc/rockchip/rockchip_ipa.h>
 #include <soc/rockchip/rockchip_opp_select.h>
@@ -11,17 +12,26 @@
 
 #define FALLBACK_STATIC_TEMPERATURE 55000
 
-int rockchip_ipa_power_model_init(struct device *dev, char *lkg_name,
-				  struct ipa_power_model_data **data)
+/**
+ * rockchip_ipa_power_model_init() - initialise ipa power model parameter
+ * @dev:	device for which we do this operation
+ * @lkg_name:	nvmem cell name from nvmem-cell-names property
+ *
+ * Return: a valid struct ipa_power_model_data pointer on success, and the onwer
+ * should use kfree to release the memory by itself. on failure, it returns a
+ * corresponding ERR_PTR().
+ */
+struct ipa_power_model_data *rockchip_ipa_power_model_init(struct device *dev,
+							   char *lkg_name)
 {
 	struct device_node *model_node;
 	struct ipa_power_model_data *model_data;
 	const char *tz_name;
 	int ret;
 
-	model_data = devm_kzalloc(dev, sizeof(*model_data), GFP_KERNEL);
+	model_data = kzalloc(sizeof(*model_data), GFP_KERNEL);
 	if (!model_data)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	model_node = of_find_compatible_node(dev->of_node,
 					     NULL, "simple-power-model");
@@ -61,13 +71,12 @@ int rockchip_ipa_power_model_init(struct device *dev, char *lkg_name,
 	rockchip_of_get_leakage(dev, lkg_name, &model_data->leakage);
 	of_property_read_u32(model_node, "ref-leakage",
 			     &model_data->ref_leakage);
-	*data = model_data;
 
-	return 0;
+	return model_data;
 err:
-	devm_kfree(dev, model_data);
+	kfree(model_data);
 
-	return ret;
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(rockchip_ipa_power_model_init);
 

@@ -15,17 +15,16 @@ struct ipa_power_model_data {
 };
 
 #ifdef CONFIG_ROCKCHIP_IPA
-int rockchip_ipa_power_model_init(struct device *dev, char *lkg_name,
-				  struct ipa_power_model_data **data);
+struct ipa_power_model_data *rockchip_ipa_power_model_init(struct device *dev,
+							   char *lkg_name);
 unsigned long
 rockchip_ipa_get_static_power(struct ipa_power_model_data *model_data,
 			      unsigned long voltage_mv);
 #else
-static inline int
-rockchip_ipa_power_model_init(struct device *dev, char *lkg_name,
-			      struct ipa_power_model_data **data)
+static inline struct ipa_power_model_data *
+rockchip_ipa_power_model_init(struct device *dev, char *lkg_name)
 {
-	return -ENOTSUPP;
+	return ERR_PTR(-ENOTSUPP);
 };
 
 static inline unsigned long
