@@ -75,4 +75,11 @@ static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
 		(space_info->flags & BTRFS_BLOCK_GROUP_DATA));
 }
 
+void btrfs_space_info_add_new_bytes(struct btrfs_fs_info *fs_info,
+				    struct btrfs_space_info *space_info,
+				    u64 num_bytes);
+void btrfs_space_info_add_old_bytes(struct btrfs_fs_info *fs_info,
+				    struct btrfs_space_info *space_info,
+				    u64 num_bytes);
+
 #endif /* BTRFS_SPACE_INFO_H */
