@@ -1668,6 +1668,9 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		if (!child->device_type)
 			continue;
 
+		DRM_DEBUG_KMS("Found VBT child device with type 0x%x\n",
+			      child->device_type);
+
 		/*
 		 * Copy as much as we know (sizeof) and is available
 		 * (child_dev_size) of the child device. Accessing the data must
