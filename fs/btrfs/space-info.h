@@ -75,6 +75,29 @@ static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
 		(space_info->flags & BTRFS_BLOCK_GROUP_DATA));
 }
 
+/*
+ *
+ * Declare a helper function to detect underflow of various space info members
+ */
+#define DECLARE_SPACE_INFO_UPDATE(name)					\
+static inline void							\
+btrfs_space_info_update_##name(struct btrfs_fs_info *fs_info,		\
+			       struct btrfs_space_info *sinfo,		\
+			       s64 bytes)				\
+{									\
+	lockdep_assert_held(&sinfo->lock);				\
+	trace_update_##name(fs_info, sinfo, sinfo->name, bytes);	\
+	if (bytes < 0 && sinfo->name < -bytes) {			\
+		WARN_ON(1);						\
+		sinfo->name = 0;					\
+		return;							\
+	}								\
+	sinfo->name += bytes;						\
+}
+
+DECLARE_SPACE_INFO_UPDATE(bytes_may_use);
+DECLARE_SPACE_INFO_UPDATE(bytes_pinned);
+
 void btrfs_space_info_add_new_bytes(struct btrfs_fs_info *fs_info,
 				    struct btrfs_space_info *space_info,
 				    u64 num_bytes);
