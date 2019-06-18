@@ -92,6 +92,10 @@ needed).
 
    driver-api/index
    core-api/index
+   accounting/index
+   block/index
+   hid/index
+   iio/index
    leds/index
    media/index
    networking/index
