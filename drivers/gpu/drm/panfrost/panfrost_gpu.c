@@ -17,9 +17,6 @@
 #include "panfrost_gpu.h"
 #include "panfrost_regs.h"
 
-#define gpu_write(dev, reg, data) writel(data, dev->iomem + reg)
-#define gpu_read(dev, reg) readl(dev->iomem + reg)
-
 static irqreturn_t panfrost_gpu_irq_handler(int irq, void *data)
 {
 	struct panfrost_device *pfdev = data;

@@ -295,4 +295,7 @@
 #define AS_FAULTSTATUS_ACCESS_TYPE_READ		(0x2 << 8)
 #define AS_FAULTSTATUS_ACCESS_TYPE_WRITE	(0x3 << 8)
 
+#define gpu_write(dev, reg, data) writel(data, dev->iomem + reg)
+#define gpu_read(dev, reg) readl(dev->iomem + reg)
+
 #endif
