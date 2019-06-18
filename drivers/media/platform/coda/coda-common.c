@@ -1071,6 +1071,7 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 {
 	struct coda_ctx *ctx = fh_to_ctx(fh);
 	struct coda_dev *dev = ctx->dev;
+	struct vb2_v4l2_buffer *buf;
 	struct vb2_queue *dst_vq;
 	int ret;
 
@@ -1092,6 +1093,11 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 		mutex_unlock(&ctx->bitstream_mutex);
 		break;
 	case V4L2_DEC_CMD_STOP:
+		buf = v4l2_m2m_last_src_buf(ctx->fh.m2m_ctx);
+		if (buf)
+			/* Mark last buffer */
+			buf->flags |= V4L2_BUF_FLAG_LAST;
+
 		/* Set the stream-end flag on this context */
 		coda_bit_stream_end_flag(ctx);
 		ctx->hold = false;

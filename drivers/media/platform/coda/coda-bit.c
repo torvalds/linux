@@ -312,6 +312,9 @@ static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 	if (ctx == v4l2_m2m_get_curr_priv(ctx->dev->m2m_dev))
 		coda_kfifo_sync_to_device_write(ctx);
 
+	/* Set the stream-end flag after the last buffer is queued */
+	if (src_buf->flags & V4L2_BUF_FLAG_LAST)
+		coda_bit_stream_end_flag(ctx);
 	ctx->hold = false;
 
 	return true;
