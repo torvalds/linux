@@ -463,7 +463,7 @@ static int vivid_vid_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 		tpg_s_show_square(&dev->tpg, ctrl->val);
 		break;
 	case VIVID_CID_STD_ASPECT_RATIO:
-		dev->std_aspect_ratio = ctrl->val;
+		dev->std_aspect_ratio[dev->input] = ctrl->val;
 		tpg_s_video_aspect(&dev->tpg, vivid_get_video_aspect(dev));
 		break;
 	case VIVID_CID_DV_TIMINGS_SIGNAL_MODE:
@@ -1130,10 +1130,14 @@ static int vivid_sdtv_cap_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case VIVID_CID_STD_SIGNAL_MODE:
-		dev->std_signal_mode = dev->ctrl_std_signal_mode->val;
-		if (dev->std_signal_mode == SELECTED_STD)
-			dev->query_std = vivid_standard[dev->ctrl_standard->val];
-		v4l2_ctrl_activate(dev->ctrl_standard, dev->std_signal_mode == SELECTED_STD);
+		dev->std_signal_mode[dev->input] =
+			dev->ctrl_std_signal_mode->val;
+		if (dev->std_signal_mode[dev->input] == SELECTED_STD)
+			dev->query_std[dev->input] =
+				vivid_standard[dev->ctrl_standard->val];
+		v4l2_ctrl_activate(dev->ctrl_standard,
+				   dev->std_signal_mode[dev->input] ==
+					SELECTED_STD);
 		vivid_update_quality(dev);
 		vivid_send_source_change(dev, TV);
 		vivid_send_source_change(dev, SVID);

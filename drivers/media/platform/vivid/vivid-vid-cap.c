@@ -191,7 +191,7 @@ static void vid_cap_buf_finish(struct vb2_buffer *vb)
 	 * test this.
 	 */
 	vbuf->flags |= V4L2_BUF_FLAG_TIMECODE;
-	if (dev->std_cap & V4L2_STD_525_60)
+	if (dev->std_cap[dev->input] & V4L2_STD_525_60)
 		fps = 30;
 	tc->type = (fps == 30) ? V4L2_TC_TYPE_30FPS : V4L2_TC_TYPE_25FPS;
 	tc->flags = 0;
@@ -299,7 +299,8 @@ void vivid_update_quality(struct vivid_dev *dev)
 		tpg_s_quality(&dev->tpg, TPG_QUAL_NOISE, 0);
 		return;
 	}
-	if (vivid_is_sdtv_cap(dev) && VIVID_INVALID_SIGNAL(dev->std_signal_mode)) {
+	if (vivid_is_sdtv_cap(dev) &&
+	    VIVID_INVALID_SIGNAL(dev->std_signal_mode[dev->input])) {
 		tpg_s_quality(&dev->tpg, TPG_QUAL_NOISE, 0);
 		return;
 	}
@@ -354,7 +355,7 @@ static enum tpg_quality vivid_get_quality(struct vivid_dev *dev, s32 *afc)
 enum tpg_video_aspect vivid_get_video_aspect(const struct vivid_dev *dev)
 {
 	if (vivid_is_sdtv_cap(dev))
-		return dev->std_aspect_ratio;
+		return dev->std_aspect_ratio[dev->input];
 
 	if (vivid_is_hdmi_cap(dev))
 		return dev->dv_timings_aspect_ratio[dev->input];
@@ -365,7 +366,7 @@ enum tpg_video_aspect vivid_get_video_aspect(const struct vivid_dev *dev)
 static enum tpg_pixel_aspect vivid_get_pixel_aspect(const struct vivid_dev *dev)
 {
 	if (vivid_is_sdtv_cap(dev))
-		return (dev->std_cap & V4L2_STD_525_60) ?
+		return (dev->std_cap[dev->input] & V4L2_STD_525_60) ?
 			TPG_PIXEL_ASPECT_NTSC : TPG_PIXEL_ASPECT_PAL;
 
 	if (vivid_is_hdmi_cap(dev) &&
@@ -399,7 +400,7 @@ void vivid_update_format_cap(struct vivid_dev *dev, bool keep_controls)
 	case SVID:
 		dev->field_cap = dev->tv_field_cap;
 		dev->src_rect.width = 720;
-		if (dev->std_cap & V4L2_STD_525_60) {
+		if (dev->std_cap[dev->input] & V4L2_STD_525_60) {
 			dev->src_rect.height = 480;
 			dev->timeperframe_vid_cap = (struct v4l2_fract) { 1001, 30000 };
 			dev->service_set_cap = V4L2_SLICED_CAPTION_525;
@@ -582,7 +583,7 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 		h = sz->height;
 	} else if (vivid_is_sdtv_cap(dev)) {
 		w = 720;
-		h = (dev->std_cap & V4L2_STD_525_60) ? 480 : 576;
+		h = (dev->std_cap[dev->input] & V4L2_STD_525_60) ? 480 : 576;
 	} else {
 		w = dev->src_rect.width;
 		h = dev->src_rect.height;
@@ -1318,9 +1319,9 @@ int vidioc_enum_input(struct file *file, void *priv,
 	if (dev->sensor_vflip)
 		inp->status |= V4L2_IN_ST_VFLIP;
 	if (dev->input == inp->index && vivid_is_sdtv_cap(dev)) {
-		if (dev->std_signal_mode == NO_SIGNAL) {
+		if (dev->std_signal_mode[dev->input] == NO_SIGNAL) {
 			inp->status |= V4L2_IN_ST_NO_SIGNAL;
-		} else if (dev->std_signal_mode == NO_LOCK) {
+		} else if (dev->std_signal_mode[dev->input] == NO_LOCK) {
 			inp->status |= V4L2_IN_ST_NO_H_LOCK;
 		} else if (vivid_is_tv_cap(dev)) {
 			switch (tpg_g_quality(&dev->tpg)) {
@@ -1410,11 +1411,20 @@ int vidioc_s_input(struct file *file, void *priv, unsigned i)
 	v4l2_ctrl_activate(dev->ctrl_dv_timings, vivid_is_hdmi_cap(dev) &&
 			   dev->dv_timings_signal_mode[dev->input] ==
 			   SELECTED_DV_TIMINGS);
+	v4l2_ctrl_activate(dev->ctrl_std_signal_mode, vivid_is_sdtv_cap(dev));
+	v4l2_ctrl_activate(dev->ctrl_standard, vivid_is_sdtv_cap(dev) &&
+			   dev->std_signal_mode[dev->input]);
+
 	if (vivid_is_hdmi_cap(dev)) {
 		v4l2_ctrl_s_ctrl(dev->ctrl_dv_timings_signal_mode,
 				 dev->dv_timings_signal_mode[dev->input]);
 		v4l2_ctrl_s_ctrl(dev->ctrl_dv_timings,
 				 dev->query_dv_timings[dev->input]);
+	} else if (vivid_is_sdtv_cap(dev)) {
+		v4l2_ctrl_s_ctrl(dev->ctrl_std_signal_mode,
+				 dev->std_signal_mode[dev->input]);
+		v4l2_ctrl_s_ctrl(dev->ctrl_standard,
+				 dev->std_signal_mode[dev->input]);
 	}
 
 	return 0;
@@ -1509,8 +1519,9 @@ int vivid_video_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	} else if (qual == TPG_QUAL_GRAY) {
 		vt->rxsubchans = V4L2_TUNER_SUB_MONO;
 	} else {
-		unsigned channel_nr = dev->tv_freq / (6 * 16);
-		unsigned options = (dev->std_cap & V4L2_STD_NTSC_M) ? 4 : 3;
+		unsigned int channel_nr = dev->tv_freq / (6 * 16);
+		unsigned int options =
+			(dev->std_cap[dev->input] & V4L2_STD_NTSC_M) ? 4 : 3;
 
 		switch (channel_nr % options) {
 		case 0:
@@ -1520,7 +1531,7 @@ int vivid_video_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 			vt->rxsubchans = V4L2_TUNER_SUB_STEREO;
 			break;
 		case 2:
-			if (dev->std_cap & V4L2_STD_NTSC_M)
+			if (dev->std_cap[dev->input] & V4L2_STD_NTSC_M)
 				vt->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_SAP;
 			else
 				vt->rxsubchans = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
@@ -1577,23 +1588,25 @@ const char * const vivid_ctrl_standard_strings[] = {
 int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct vivid_dev *dev = video_drvdata(file);
+	unsigned int last = dev->query_std_last[dev->input];
 
 	if (!vivid_is_sdtv_cap(dev))
 		return -ENODATA;
-	if (dev->std_signal_mode == NO_SIGNAL ||
-	    dev->std_signal_mode == NO_LOCK) {
+	if (dev->std_signal_mode[dev->input] == NO_SIGNAL ||
+	    dev->std_signal_mode[dev->input] == NO_LOCK) {
 		*id = V4L2_STD_UNKNOWN;
 		return 0;
 	}
 	if (vivid_is_tv_cap(dev) && tpg_g_quality(&dev->tpg) == TPG_QUAL_NOISE) {
 		*id = V4L2_STD_UNKNOWN;
-	} else if (dev->std_signal_mode == CURRENT_STD) {
-		*id = dev->std_cap;
-	} else if (dev->std_signal_mode == SELECTED_STD) {
-		*id = dev->query_std;
+	} else if (dev->std_signal_mode[dev->input] == CURRENT_STD) {
+		*id = dev->std_cap[dev->input];
+	} else if (dev->std_signal_mode[dev->input] == SELECTED_STD) {
+		*id = dev->query_std[dev->input];
 	} else {
-		*id = vivid_standard[dev->query_std_last];
-		dev->query_std_last = (dev->query_std_last + 1) % ARRAY_SIZE(vivid_standard);
+		*id = vivid_standard[last];
+		dev->query_std_last[dev->input] =
+			(last + 1) % ARRAY_SIZE(vivid_standard);
 	}
 
 	return 0;
@@ -1605,11 +1618,11 @@ int vivid_vid_cap_s_std(struct file *file, void *priv, v4l2_std_id id)
 
 	if (!vivid_is_sdtv_cap(dev))
 		return -ENODATA;
-	if (dev->std_cap == id)
+	if (dev->std_cap[dev->input] == id)
 		return 0;
 	if (vb2_is_busy(&dev->vb_vid_cap_q) || vb2_is_busy(&dev->vb_vbi_cap_q))
 		return -EBUSY;
-	dev->std_cap = id;
+	dev->std_cap[dev->input] = id;
 	vivid_update_format_cap(dev, false);
 	return 0;
 }

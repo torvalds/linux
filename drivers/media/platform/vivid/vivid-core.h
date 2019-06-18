@@ -287,10 +287,10 @@ struct vivid_dev {
 	bool				time_wrap;
 	u64				time_wrap_offset;
 	unsigned			perc_dropped_buffers;
-	enum vivid_signal_mode		std_signal_mode;
-	unsigned			query_std_last;
-	v4l2_std_id			query_std;
-	enum tpg_video_aspect		std_aspect_ratio;
+	enum vivid_signal_mode		std_signal_mode[MAX_INPUTS];
+	unsigned int			query_std_last[MAX_INPUTS];
+	v4l2_std_id			query_std[MAX_INPUTS];
+	enum tpg_video_aspect		std_aspect_ratio[MAX_INPUTS];
 
 	enum vivid_signal_mode		dv_timings_signal_mode[MAX_INPUTS];
 	char				**query_dv_timings_qmenu;
@@ -302,7 +302,7 @@ struct vivid_dev {
 
 	/* Input */
 	unsigned			input;
-	v4l2_std_id			std_cap;
+	v4l2_std_id			std_cap[MAX_INPUTS];
 	struct v4l2_dv_timings		dv_timings_cap[MAX_INPUTS];
 	int				dv_timings_cap_sel[MAX_INPUTS];
 	u32				service_set_cap;

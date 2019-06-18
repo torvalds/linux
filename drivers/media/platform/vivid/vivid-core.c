@@ -999,14 +999,15 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	dev->webcam_size_idx = 1;
 	dev->webcam_ival_idx = 3;
 	tpg_s_fourcc(&dev->tpg, dev->fmt_cap->fourcc);
-	dev->std_cap = V4L2_STD_PAL;
 	dev->std_out = V4L2_STD_PAL;
 	if (dev->input_type[0] == TV || dev->input_type[0] == SVID)
 		tvnorms_cap = V4L2_STD_ALL;
 	if (dev->output_type[0] == SVID)
 		tvnorms_out = V4L2_STD_ALL;
-	for (i = 0; i < MAX_INPUTS; i++)
+	for (i = 0; i < MAX_INPUTS; i++) {
 		dev->dv_timings_cap[i] = def_dv_timings;
+		dev->std_cap[i] = V4L2_STD_PAL;
+	}
 	dev->dv_timings_out = def_dv_timings;
 	dev->tv_freq = 2804 /* 175.25 * 16 */;
 	dev->tv_audmode = V4L2_TUNER_MODE_STEREO;
