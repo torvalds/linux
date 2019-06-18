@@ -900,13 +900,6 @@ static int coda_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	return ret;
 }
 
-static bool coda_buf_is_end_of_stream(struct coda_ctx *ctx,
-				      struct vb2_v4l2_buffer *buf)
-{
-	return ((ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG) &&
-		(buf->sequence == (ctx->qsequence - 1)));
-}
-
 void coda_m2m_buf_done(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
 		       enum vb2_buffer_state state)
 {
@@ -914,11 +907,8 @@ void coda_m2m_buf_done(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
 		.type = V4L2_EVENT_EOS
 	};
 
-	if (coda_buf_is_end_of_stream(ctx, buf)) {
-		buf->flags |= V4L2_BUF_FLAG_LAST;
-
+	if (buf->flags & V4L2_BUF_FLAG_LAST)
 		v4l2_event_queue_fh(&ctx->fh, &eos_event);
-	}
 
 	v4l2_m2m_buf_done(buf, state);
 }
