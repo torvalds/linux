@@ -185,6 +185,7 @@ struct coda_context_ops {
 	int (*prepare_run)(struct coda_ctx *ctx);
 	void (*finish_run)(struct coda_ctx *ctx);
 	void (*run_timeout)(struct coda_ctx *ctx);
+	void (*seq_init_work)(struct work_struct *work);
 	void (*seq_end_work)(struct work_struct *work);
 	void (*release)(struct coda_ctx *ctx);
 };
@@ -193,6 +194,7 @@ struct coda_ctx {
 	struct coda_dev			*dev;
 	struct mutex			buffer_mutex;
 	struct work_struct		pic_run_work;
+	struct work_struct		seq_init_work;
 	struct work_struct		seq_end_work;
 	struct completion		completion;
 	const struct coda_video_device	*cvd;

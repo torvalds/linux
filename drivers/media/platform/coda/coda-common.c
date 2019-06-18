@@ -1684,6 +1684,19 @@ static void coda_buf_queue(struct vb2_buffer *vb)
 			/* This set buf->sequence = ctx->qsequence++ */
 			coda_fill_bitstream(ctx, NULL);
 		mutex_unlock(&ctx->bitstream_mutex);
+
+		if (!ctx->initialized) {
+			/*
+			 * Run sequence initialization in case the queued
+			 * buffer contained headers.
+			 */
+			if (vb2_is_streaming(vb->vb2_queue) &&
+			    ctx->ops->seq_init_work) {
+				queue_work(ctx->dev->workqueue,
+					   &ctx->seq_init_work);
+				flush_work(&ctx->seq_init_work);
+			}
+		}
 	} else {
 		if (ctx->inst_type == CODA_INST_ENCODER &&
 		    vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
@@ -1760,6 +1773,15 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 			if (coda_get_bitstream_payload(ctx) < 512) {
 				ret = -EINVAL;
 				goto err;
+			}
+
+			if (!ctx->initialized) {
+				/* Run sequence initialization */
+				if (ctx->ops->seq_init_work) {
+					queue_work(ctx->dev->workqueue,
+						   &ctx->seq_init_work);
+					flush_work(&ctx->seq_init_work);
+				}
 			}
 		}
 
@@ -2317,6 +2339,8 @@ static int coda_open(struct file *file)
 	ctx->use_bit = !ctx->cvd->direct;
 	init_completion(&ctx->completion);
 	INIT_WORK(&ctx->pic_run_work, coda_pic_run_work);
+	if (ctx->ops->seq_init_work)
+		INIT_WORK(&ctx->seq_init_work, ctx->ops->seq_init_work);
 	if (ctx->ops->seq_end_work)
 		INIT_WORK(&ctx->seq_end_work, ctx->ops->seq_end_work);
 	v4l2_fh_init(&ctx->fh, video_devdata(file));

@@ -1824,6 +1824,30 @@ static int __coda_decoder_seq_init(struct coda_ctx *ctx)
 	return 0;
 }
 
+static void coda_dec_seq_init_work(struct work_struct *work)
+{
+	struct coda_ctx *ctx = container_of(work,
+					    struct coda_ctx, seq_init_work);
+	struct coda_dev *dev = ctx->dev;
+	int ret;
+
+	mutex_lock(&ctx->buffer_mutex);
+	mutex_lock(&dev->coda_mutex);
+
+	if (ctx->initialized == 1)
+		goto out;
+
+	ret = __coda_decoder_seq_init(ctx);
+	if (ret < 0)
+		goto out;
+
+	ctx->initialized = 1;
+
+out:
+	mutex_unlock(&dev->coda_mutex);
+	mutex_unlock(&ctx->buffer_mutex);
+}
+
 static int __coda_start_decoding(struct coda_ctx *ctx)
 {
 	struct coda_q_data *q_data_src, *q_data_dst;
@@ -2352,6 +2376,7 @@ const struct coda_context_ops coda_bit_decode_ops = {
 	.prepare_run = coda_prepare_decode,
 	.finish_run = coda_finish_decode,
 	.run_timeout = coda_decode_timeout,
+	.seq_init_work = coda_dec_seq_init_work,
 	.seq_end_work = coda_seq_end_work,
 	.release = coda_bit_release,
 };
