@@ -1508,14 +1508,12 @@ static int test_hash_vec(const char *driver, const struct hash_testvec *vec,
  * Generate a hash test vector from the given implementation.
  * Assumes the buffers in 'vec' were already allocated.
  */
-static void generate_random_hash_testvec(struct crypto_shash *tfm,
+static void generate_random_hash_testvec(struct shash_desc *desc,
 					 struct hash_testvec *vec,
 					 unsigned int maxkeysize,
 					 unsigned int maxdatasize,
 					 char *name, size_t max_namelen)
 {
-	SHASH_DESC_ON_STACK(desc, tfm);
-
 	/* Data */
 	vec->psize = generate_random_length(maxdatasize);
 	generate_random_bytes((u8 *)vec->plaintext, vec->psize);
@@ -1532,7 +1530,7 @@ static void generate_random_hash_testvec(struct crypto_shash *tfm,
 			vec->ksize = 1 + (prandom_u32() % maxkeysize);
 		generate_random_bytes((u8 *)vec->key, vec->ksize);
 
-		vec->setkey_error = crypto_shash_setkey(tfm, vec->key,
+		vec->setkey_error = crypto_shash_setkey(desc->tfm, vec->key,
 							vec->ksize);
 		/* If the key couldn't be set, no need to continue to digest. */
 		if (vec->setkey_error)
@@ -1540,7 +1538,6 @@ static void generate_random_hash_testvec(struct crypto_shash *tfm,
 	}
 
 	/* Digest */
-	desc->tfm = tfm;
 	vec->digest_error = crypto_shash_digest(desc, vec->plaintext,
 						vec->psize, (u8 *)vec->digest);
 done:
@@ -1567,6 +1564,7 @@ static int test_hash_vs_generic_impl(const char *driver,
 	const char *algname = crypto_hash_alg_common(tfm)->base.cra_name;
 	char _generic_driver[CRYPTO_MAX_ALG_NAME];
 	struct crypto_shash *generic_tfm = NULL;
+	struct shash_desc *generic_desc = NULL;
 	unsigned int i;
 	struct hash_testvec vec = { 0 };
 	char vec_name[64];
@@ -1606,6 +1604,14 @@ static int test_hash_vs_generic_impl(const char *driver,
 		goto out;
 	}
 
+	generic_desc = kzalloc(sizeof(*desc) +
+			       crypto_shash_descsize(generic_tfm), GFP_KERNEL);
+	if (!generic_desc) {
+		err = -ENOMEM;
+		goto out;
+	}
+	generic_desc->tfm = generic_tfm;
+
 	/* Check the algorithm properties for consistency. */
 
 	if (digestsize != crypto_shash_digestsize(generic_tfm)) {
@@ -1637,7 +1643,7 @@ static int test_hash_vs_generic_impl(const char *driver,
 	}
 
 	for (i = 0; i < fuzz_iterations * 8; i++) {
-		generate_random_hash_testvec(generic_tfm, &vec,
+		generate_random_hash_testvec(generic_desc, &vec,
 					     maxkeysize, maxdatasize,
 					     vec_name, sizeof(vec_name));
 		generate_random_testvec_config(cfg, cfgname, sizeof(cfgname));
@@ -1655,6 +1661,7 @@ out:
 	kfree(vec.plaintext);
 	kfree(vec.digest);
 	crypto_free_shash(generic_tfm);
+	kzfree(generic_desc);
 	return err;
 }
 #else /* !CONFIG_CRYPTO_MANAGER_EXTRA_TESTS */
