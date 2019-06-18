@@ -292,17 +292,24 @@ static void __page_pool_empty_ring(struct page_pool *pool)
 	}
 }
 
+void __page_pool_free(struct page_pool *pool)
+{
+	WARN(pool->alloc.count, "API usage violation");
+	WARN(!ptr_ring_empty(&pool->ring), "ptr_ring is not empty");
+
+	ptr_ring_cleanup(&pool->ring, NULL);
+	kfree(pool);
+}
+EXPORT_SYMBOL(__page_pool_free);
+
 static void __page_pool_destroy_rcu(struct rcu_head *rcu)
 {
 	struct page_pool *pool;
 
 	pool = container_of(rcu, struct page_pool, rcu);
 
-	WARN(pool->alloc.count, "API usage violation");
-
 	__page_pool_empty_ring(pool);
-	ptr_ring_cleanup(&pool->ring, NULL);
-	kfree(pool);
+	__page_pool_free(pool);
 }
 
 /* Cleanup and release resources */
