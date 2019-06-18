@@ -1,3 +1,4 @@
+=================================
 Power allocator governor tunables
 =================================
 
@@ -25,36 +26,36 @@ temperature as the control input and power as the controlled output:
     P_max = k_p * e + k_i * err_integral + k_d * diff_err + sustainable_power
 
 where
-    e = desired_temperature - current_temperature
-    err_integral is the sum of previous errors
-    diff_err = e - previous_error
+   -  e = desired_temperature - current_temperature
+   -  err_integral is the sum of previous errors
+   -  diff_err = e - previous_error
 
-It is similar to the one depicted below:
+It is similar to the one depicted below::
 
-                                      k_d
-                                       |
-current_temp                           |
-     |                                 v
-     |                +----------+   +---+
-     |         +----->| diff_err |-->| X |------+
-     |         |      +----------+   +---+      |
-     |         |                                |      tdp        actor
-     |         |                      k_i       |       |  get_requested_power()
-     |         |                       |        |       |        |     |
-     |         |                       |        |       |        |     | ...
-     v         |                       v        v       v        v     v
-   +---+       |      +-------+      +---+    +---+   +---+   +----------+
-   | S |-------+----->| sum e |----->| X |--->| S |-->| S |-->|power     |
-   +---+       |      +-------+      +---+    +---+   +---+   |allocation|
-     ^         |                                ^             +----------+
-     |         |                                |                |     |
-     |         |        +---+                   |                |     |
-     |         +------->| X |-------------------+                v     v
-     |                  +---+                               granted performance
-desired_temperature       ^
-                          |
-                          |
-                      k_po/k_pu
+				      k_d
+				       |
+  current_temp                         |
+       |                               v
+       |              +----------+   +---+
+       |       +----->| diff_err |-->| X |------+
+       |       |      +----------+   +---+      |
+       |       |                                |      tdp        actor
+       |       |                      k_i       |       |  get_requested_power()
+       |       |                       |        |       |        |     |
+       |       |                       |        |       |        |     | ...
+       v       |                       v        v       v        v     v
+     +---+     |      +-------+      +---+    +---+   +---+   +----------+
+     | S |-----+----->| sum e |----->| X |--->| S |-->| S |-->|power     |
+     +---+     |      +-------+      +---+    +---+   +---+   |allocation|
+       ^       |                                ^             +----------+
+       |       |                                |                |     |
+       |       |        +---+                   |                |     |
+       |       +------->| X |-------------------+                v     v
+       |                +---+                               granted performance
+  desired_temperature     ^
+			  |
+			  |
+		      k_po/k_pu
 
 Sustainable power
 -----------------
@@ -73,7 +74,7 @@ is typically 2000mW, while on a 10" tablet is around 4500mW (may vary
 depending on screen size).
 
 If you are using device tree, do add it as a property of the
-thermal-zone.  For example:
+thermal-zone.  For example::
 
 	thermal-zones {
 		soc_thermal {
@@ -85,7 +86,7 @@ thermal-zone.  For example:
 Instead, if the thermal zone is registered from the platform code, pass a
 `thermal_zone_params` that has a `sustainable_power`.  If no
 `thermal_zone_params` were being passed, then something like below
-will suffice:
+will suffice::
 
 	static const struct thermal_zone_params tz_params = {
 		.sustainable_power = 3500,
@@ -112,18 +113,18 @@ available capacity at a low temperature.  On the other hand, a high
 value of `k_pu` will result in the governor granting very high power
 while temperature is low, and may lead to temperature overshooting.
 
-The default value for `k_pu` is:
+The default value for `k_pu` is::
 
     2 * sustainable_power / (desired_temperature - switch_on_temp)
 
 This means that at `switch_on_temp` the output of the controller's
 proportional term will be 2 * `sustainable_power`.  The default value
-for `k_po` is:
+for `k_po` is::
 
     sustainable_power / (desired_temperature - switch_on_temp)
 
 Focusing on the proportional and feed forward values of the PID
-controller equation we have:
+controller equation we have::
 
     P_max = k_p * e + sustainable_power
 
@@ -134,21 +135,23 @@ is the desired one, then the proportional component is zero and
 thermal equilibrium under constant load.  `sustainable_power` is only
 an estimate, which is the reason for closed-loop control such as this.
 
-Expanding `k_pu` we get:
-    P_max = 2 * sustainable_power * (T_set - T) / (T_set - T_on) +
-        sustainable_power
+Expanding `k_pu` we get::
 
-where
-    T_set is the desired temperature
-    T is the current temperature
-    T_on is the switch on temperature
+    P_max = 2 * sustainable_power * (T_set - T) / (T_set - T_on) +
+	sustainable_power
+
+where:
+
+    - T_set is the desired temperature
+    - T is the current temperature
+    - T_on is the switch on temperature
 
 When the current temperature is the switch_on temperature, the above
-formula becomes:
+formula becomes::
 
     P_max = 2 * sustainable_power * (T_set - T_on) / (T_set - T_on) +
-        sustainable_power = 2 * sustainable_power + sustainable_power =
-        3 * sustainable_power
+	sustainable_power = 2 * sustainable_power + sustainable_power =
+	3 * sustainable_power
 
 Therefore, the proportional term alone linearly decreases power from
 3 * `sustainable_power` to `sustainable_power` as the temperature
@@ -178,11 +181,18 @@ Cooling device power API
 Cooling devices controlled by this governor must supply the additional
 "power" API in their `cooling_device_ops`.  It consists on three ops:
 
-1. int get_requested_power(struct thermal_cooling_device *cdev,
-	struct thermal_zone_device *tz, u32 *power);
-@cdev: The `struct thermal_cooling_device` pointer
-@tz: thermal zone in which we are currently operating
-@power: pointer in which to store the calculated power
+1. ::
+
+    int get_requested_power(struct thermal_cooling_device *cdev,
+			    struct thermal_zone_device *tz, u32 *power);
+
+
+@cdev:
+	The `struct thermal_cooling_device` pointer
+@tz:
+	thermal zone in which we are currently operating
+@power:
+	pointer in which to store the calculated power
 
 `get_requested_power()` calculates the power requested by the device
 in milliwatts and stores it in @power .  It should return 0 on
@@ -190,23 +200,37 @@ success, -E* on failure.  This is currently used by the power
 allocator governor to calculate how much power to give to each cooling
 device.
 
-2. int state2power(struct thermal_cooling_device *cdev, struct
-        thermal_zone_device *tz, unsigned long state, u32 *power);
-@cdev: The `struct thermal_cooling_device` pointer
-@tz: thermal zone in which we are currently operating
-@state: A cooling device state
-@power: pointer in which to store the equivalent power
+2. ::
+
+	int state2power(struct thermal_cooling_device *cdev, struct
+			thermal_zone_device *tz, unsigned long state,
+			u32 *power);
+
+@cdev:
+	The `struct thermal_cooling_device` pointer
+@tz:
+	thermal zone in which we are currently operating
+@state:
+	A cooling device state
+@power:
+	pointer in which to store the equivalent power
 
 Convert cooling device state @state into power consumption in
 milliwatts and store it in @power.  It should return 0 on success, -E*
 on failure.  This is currently used by thermal core to calculate the
 maximum power that an actor can consume.
 
-3. int power2state(struct thermal_cooling_device *cdev, u32 power,
-	unsigned long *state);
-@cdev: The `struct thermal_cooling_device` pointer
-@power: power in milliwatts
-@state: pointer in which to store the resulting state
+3. ::
+
+	int power2state(struct thermal_cooling_device *cdev, u32 power,
+			unsigned long *state);
+
+@cdev:
+	The `struct thermal_cooling_device` pointer
+@power:
+	power in milliwatts
+@state:
+	pointer in which to store the resulting state
 
 Calculate a cooling device state that would make the device consume at
 most @power mW and store it in @state.  It should return 0 on success,

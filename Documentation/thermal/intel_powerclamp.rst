@@ -1,10 +1,13 @@
-			 =======================
-			 INTEL POWERCLAMP DRIVER
-			 =======================
-By: Arjan van de Ven <arjan@linux.intel.com>
-    Jacob Pan <jacob.jun.pan@linux.intel.com>
+=======================
+Intel Powerclamp Driver
+=======================
 
-Contents:
+By:
+  - Arjan van de Ven <arjan@linux.intel.com>
+  - Jacob Pan <jacob.jun.pan@linux.intel.com>
+
+.. Contents:
+
 	(*) Introduction
 	    - Goals and Objectives
 
@@ -23,7 +26,6 @@ Contents:
 	    - Generic Thermal Layer (sysfs)
 	    - Kernel APIs (TBD)
 
-============
 INTRODUCTION
 ============
 
@@ -47,7 +49,6 @@ scalability, and user experience. In many cases, clear advantage is
 shown over taking the CPU offline or modulating the CPU clock.
 
 
-===================
 THEORY OF OPERATION
 ===================
 
@@ -57,11 +58,12 @@ Idle Injection
 On modern Intel processors (Nehalem or later), package level C-state
 residency is available in MSRs, thus also available to the kernel.
 
-These MSRs are:
-      #define MSR_PKG_C2_RESIDENCY	0x60D
-      #define MSR_PKG_C3_RESIDENCY	0x3F8
-      #define MSR_PKG_C6_RESIDENCY	0x3F9
-      #define MSR_PKG_C7_RESIDENCY	0x3FA
+These MSRs are::
+
+      #define MSR_PKG_C2_RESIDENCY      0x60D
+      #define MSR_PKG_C3_RESIDENCY      0x3F8
+      #define MSR_PKG_C6_RESIDENCY      0x3F9
+      #define MSR_PKG_C7_RESIDENCY      0x3FA
 
 If the kernel can also inject idle time to the system, then a
 closed-loop control system can be established that manages package
@@ -96,19 +98,21 @@ are not masked. Tests show that the extra wakeups from scheduler tick
 have a dramatic impact on the effectiveness of the powerclamp driver
 on large scale systems (Westmere system with 80 processors).
 
-CPU0
-		  ____________          ____________
-kidle_inject/0   |   sleep    |  mwait |  sleep     |
-	_________|            |________|            |_______
-			       duration
-CPU1
-		  ____________          ____________
-kidle_inject/1   |   sleep    |  mwait |  sleep     |
-	_________|            |________|            |_______
-			      ^
-			      |
-			      |
-			      roundup(jiffies, interval)
+::
+
+  CPU0
+		    ____________          ____________
+  kidle_inject/0   |   sleep    |  mwait |  sleep     |
+	  _________|            |________|            |_______
+				 duration
+  CPU1
+		    ____________          ____________
+  kidle_inject/1   |   sleep    |  mwait |  sleep     |
+	  _________|            |________|            |_______
+				^
+				|
+				|
+				roundup(jiffies, interval)
 
 Only one CPU is allowed to collect statistics and update global
 control parameters. This CPU is referred to as the controlling CPU in
@@ -148,7 +152,7 @@ b) determine the amount of compensation needed at each target ratio
 
 Compensation to each target ratio consists of two parts:
 
-        a) steady state error compensation
+	a) steady state error compensation
 	This is to offset the error occurring when the system can
 	enter idle without extra wakeups (such as external interrupts).
 
@@ -158,41 +162,42 @@ Compensation to each target ratio consists of two parts:
 	slowing down CPU activities.
 
 A debugfs file is provided for the user to examine compensation
-progress and results, such as on a Westmere system.
-[jacob@nex01 ~]$ cat
-/sys/kernel/debug/intel_powerclamp/powerclamp_calib
-controlling cpu: 0
-pct confidence steady dynamic (compensation)
-0	0	0	0
-1	1	0	0
-2	1	1	0
-3	3	1	0
-4	3	1	0
-5	3	1	0
-6	3	1	0
-7	3	1	0
-8	3	1	0
-...
-30	3	2	0
-31	3	2	0
-32	3	1	0
-33	3	2	0
-34	3	1	0
-35	3	2	0
-36	3	1	0
-37	3	2	0
-38	3	1	0
-39	3	2	0
-40	3	3	0
-41	3	1	0
-42	3	2	0
-43	3	1	0
-44	3	1	0
-45	3	2	0
-46	3	3	0
-47	3	0	0
-48	3	2	0
-49	3	3	0
+progress and results, such as on a Westmere system::
+
+  [jacob@nex01 ~]$ cat
+  /sys/kernel/debug/intel_powerclamp/powerclamp_calib
+  controlling cpu: 0
+  pct confidence steady dynamic (compensation)
+  0       0       0       0
+  1       1       0       0
+  2       1       1       0
+  3       3       1       0
+  4       3       1       0
+  5       3       1       0
+  6       3       1       0
+  7       3       1       0
+  8       3       1       0
+  ...
+  30      3       2       0
+  31      3       2       0
+  32      3       1       0
+  33      3       2       0
+  34      3       1       0
+  35      3       2       0
+  36      3       1       0
+  37      3       2       0
+  38      3       1       0
+  39      3       2       0
+  40      3       3       0
+  41      3       1       0
+  42      3       2       0
+  43      3       1       0
+  44      3       1       0
+  45      3       2       0
+  46      3       3       0
+  47      3       0       0
+  48      3       2       0
+  49      3       3       0
 
 Calibration occurs during runtime. No offline method is available.
 Steady state compensation is used only when confidence levels of all
@@ -217,9 +222,8 @@ keeps track of clamping kernel threads, even after they are migrated
 to other CPUs, after a CPU offline event.
 
 
-=====================
 Performance Analysis
-=====================
+====================
 This section describes the general performance data collected on
 multiple systems, including Westmere (80P) and Ivy Bridge (4P, 8P).
 
@@ -257,16 +261,15 @@ achieve up to 40% better performance per watt. (measured by a spin
 counter summed over per CPU counting threads spawned for all running
 CPUs).
 
-====================
 Usage and Interfaces
 ====================
 The powerclamp driver is registered to the generic thermal layer as a
-cooling device. Currently, it’s not bound to any thermal zones.
+cooling device. Currently, it’s not bound to any thermal zones::
 
-jacob@chromoly:/sys/class/thermal/cooling_device14$ grep . *
-cur_state:0
-max_state:50
-type:intel_powerclamp
+  jacob@chromoly:/sys/class/thermal/cooling_device14$ grep . *
+  cur_state:0
+  max_state:50
+  type:intel_powerclamp
 
 cur_state allows user to set the desired idle percentage. Writing 0 to
 cur_state will stop idle injection. Writing a value between 1 and
@@ -278,9 +281,9 @@ cur_state returns value -1 instead of 0 which is to avoid confusing
 100% busy state with the disabled state.
 
 Example usage:
-- To inject 25% idle time
-$ sudo sh -c "echo 25 > /sys/class/thermal/cooling_device80/cur_state
-"
+- To inject 25% idle time::
+
+	$ sudo sh -c "echo 25 > /sys/class/thermal/cooling_device80/cur_state
 
 If the system is not busy and has more than 25% idle time already,
 then the powerclamp driver will not start idle injection. Using Top
@@ -292,23 +295,23 @@ idle time is accounted as normal idle in that common code path is
 taken as the idle task.
 
 In this example, 24.1% idle is shown. This helps the system admin or
-user determine the cause of slowdown, when a powerclamp driver is in action.
+user determine the cause of slowdown, when a powerclamp driver is in action::
 
 
-Tasks: 197 total,   1 running, 196 sleeping,   0 stopped,   0 zombie
-Cpu(s): 71.2%us,  4.7%sy,  0.0%ni, 24.1%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
-Mem:   3943228k total,  1689632k used,  2253596k free,    74960k buffers
-Swap:  4087804k total,        0k used,  4087804k free,   945336k cached
+  Tasks: 197 total,   1 running, 196 sleeping,   0 stopped,   0 zombie
+  Cpu(s): 71.2%us,  4.7%sy,  0.0%ni, 24.1%id,  0.0%wa,  0.0%hi,  0.0%si,  0.0%st
+  Mem:   3943228k total,  1689632k used,  2253596k free,    74960k buffers
+  Swap:  4087804k total,        0k used,  4087804k free,   945336k cached
 
-  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
- 3352 jacob     20   0  262m  644  428 S  286  0.0   0:17.16 spin
- 3341 root     -51   0     0    0    0 D   25  0.0   0:01.62 kidle_inject/0
- 3344 root     -51   0     0    0    0 D   25  0.0   0:01.60 kidle_inject/3
- 3342 root     -51   0     0    0    0 D   25  0.0   0:01.61 kidle_inject/1
- 3343 root     -51   0     0    0    0 D   25  0.0   0:01.60 kidle_inject/2
- 2935 jacob     20   0  696m 125m  35m S    5  3.3   0:31.11 firefox
- 1546 root      20   0  158m  20m 6640 S    3  0.5   0:26.97 Xorg
- 2100 jacob     20   0 1223m  88m  30m S    3  2.3   0:23.68 compiz
+    PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
+   3352 jacob     20   0  262m  644  428 S  286  0.0   0:17.16 spin
+   3341 root     -51   0     0    0    0 D   25  0.0   0:01.62 kidle_inject/0
+   3344 root     -51   0     0    0    0 D   25  0.0   0:01.60 kidle_inject/3
+   3342 root     -51   0     0    0    0 D   25  0.0   0:01.61 kidle_inject/1
+   3343 root     -51   0     0    0    0 D   25  0.0   0:01.60 kidle_inject/2
+   2935 jacob     20   0  696m 125m  35m S    5  3.3   0:31.11 firefox
+   1546 root      20   0  158m  20m 6640 S    3  0.5   0:26.97 Xorg
+   2100 jacob     20   0 1223m  88m  30m S    3  2.3   0:23.68 compiz
 
 Tests have shown that by using the powerclamp driver as a cooling
 device, a PID based userspace thermal controller can manage to
