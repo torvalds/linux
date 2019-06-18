@@ -5556,10 +5556,12 @@ static void mlxsw_sp_fib6_entry_replace(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_router_fib6_add(struct mlxsw_sp *mlxsw_sp,
-				    struct fib6_info *rt, bool replace)
+				    struct fib6_info **rt_arr,
+				    unsigned int nrt6, bool replace)
 {
 	struct mlxsw_sp_fib6_entry *fib6_entry;
 	struct mlxsw_sp_fib_node *fib_node;
+	struct fib6_info *rt = rt_arr[0];
 	int err;
 
 	if (mlxsw_sp->router->aborted)
@@ -5613,10 +5615,12 @@ err_fib6_entry_nexthop_add:
 }
 
 static void mlxsw_sp_router_fib6_del(struct mlxsw_sp *mlxsw_sp,
-				     struct fib6_info *rt)
+				     struct fib6_info **rt_arr,
+				     unsigned int nrt6)
 {
 	struct mlxsw_sp_fib6_entry *fib6_entry;
 	struct mlxsw_sp_fib_node *fib_node;
+	struct fib6_info *rt = rt_arr[0];
 
 	if (mlxsw_sp->router->aborted)
 		return;
@@ -6021,7 +6025,8 @@ static void mlxsw_sp_router_fib6_event_work(struct work_struct *work)
 	case FIB_EVENT_ENTRY_ADD:
 		replace = fib_work->event == FIB_EVENT_ENTRY_REPLACE;
 		err = mlxsw_sp_router_fib6_add(mlxsw_sp,
-					       fib_work->fib6_work.rt_arr[0],
+					       fib_work->fib6_work.rt_arr,
+					       fib_work->fib6_work.nrt6,
 					       replace);
 		if (err)
 			mlxsw_sp_router_fib_abort(mlxsw_sp);
@@ -6029,7 +6034,8 @@ static void mlxsw_sp_router_fib6_event_work(struct work_struct *work)
 		break;
 	case FIB_EVENT_ENTRY_DEL:
 		mlxsw_sp_router_fib6_del(mlxsw_sp,
-					 fib_work->fib6_work.rt_arr[0]);
+					 fib_work->fib6_work.rt_arr,
+					 fib_work->fib6_work.nrt6);
 		mlxsw_sp_router_fib6_work_fini(&fib_work->fib6_work);
 		break;
 	case FIB_EVENT_RULE_ADD:
