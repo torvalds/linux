@@ -547,6 +547,9 @@ static void stm32_throttle(struct uart_port *port)
 
 	spin_lock_irqsave(&port->lock, flags);
 	stm32_clr_bits(port, ofs->cr1, stm32_port->cr1_irq);
+	if (stm32_port->cr3_irq)
+		stm32_clr_bits(port, ofs->cr3, stm32_port->cr3_irq);
+
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -559,6 +562,9 @@ static void stm32_unthrottle(struct uart_port *port)
 
 	spin_lock_irqsave(&port->lock, flags);
 	stm32_set_bits(port, ofs->cr1, stm32_port->cr1_irq);
+	if (stm32_port->cr3_irq)
+		stm32_set_bits(port, ofs->cr3, stm32_port->cr3_irq);
+
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -569,6 +575,9 @@ static void stm32_stop_rx(struct uart_port *port)
 	struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
 
 	stm32_clr_bits(port, ofs->cr1, stm32_port->cr1_irq);
+	if (stm32_port->cr3_irq)
+		stm32_clr_bits(port, ofs->cr3, stm32_port->cr3_irq);
+
 }
 
 /* Handle breaks - ignored by us */
@@ -597,8 +606,9 @@ static int stm32_startup(struct uart_port *port)
 
 	if (stm32_port->fifoen) {
 		val = readl_relaxed(port->membase + ofs->cr3);
-		val &= ~USART_CR3_TXFTCFG_MASK;
+		val &= ~(USART_CR3_TXFTCFG_MASK | USART_CR3_RXFTCFG_MASK);
 		val |= USART_CR3_TXFTCFG_HALF << USART_CR3_TXFTCFG_SHIFT;
+		val |= USART_CR3_RXFTCFG_HALF << USART_CR3_RXFTCFG_SHIFT;
 		writel_relaxed(val, port->membase + ofs->cr3);
 	}
 
@@ -690,7 +700,7 @@ static void stm32_set_termios(struct uart_port *port, struct ktermios *termios,
 		cr1 |= USART_CR1_FIFOEN;
 	cr2 = 0;
 	cr3 = readl_relaxed(port->membase + ofs->cr3);
-	cr3 &= USART_CR3_TXFTIE | USART_CR3_RXFTCFG | USART_CR3_RXFTIE
+	cr3 &= USART_CR3_TXFTIE | USART_CR3_RXFTCFG_MASK | USART_CR3_RXFTIE
 		| USART_CR3_TXFTCFG_MASK;
 
 	if (cflag & CSTOPB)
@@ -730,7 +740,13 @@ static void stm32_set_termios(struct uart_port *port, struct ktermios *termios,
 		stm32_port->cr1_irq = USART_CR1_RTOIE;
 		writel_relaxed(bits, port->membase + ofs->rtor);
 		cr2 |= USART_CR2_RTOEN;
+		/* Not using dma, enable fifo threshold irq */
+		if (!stm32_port->rx_ch)
+			stm32_port->cr3_irq =  USART_CR3_RXFTIE;
 	}
+
+	cr1 |= stm32_port->cr1_irq;
+	cr3 |= stm32_port->cr3_irq;
 
 	if (cflag & PARODD)
 		cr1 |= USART_CR1_PS;
@@ -973,6 +989,7 @@ static struct stm32_port *stm32_of_get_stm32_port(struct platform_device *pdev)
 							"st,hw-flow-ctrl");
 	stm32_ports[id].port.line = id;
 	stm32_ports[id].cr1_irq = USART_CR1_RXNEIE;
+	stm32_ports[id].cr3_irq = 0;
 	stm32_ports[id].last_res = RX_BUF_L;
 	return &stm32_ports[id];
 }
