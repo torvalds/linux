@@ -1201,6 +1201,9 @@ static int mvpp2_port_flt_rfs_rule_insert(struct mvpp2_port *port,
 		if (!flow)
 			return 0;
 
+		if ((rule->hek_fields & flow->supported_hash_opts) != rule->hek_fields)
+			continue;
+
 		index = MVPP2_CLS_FLT_C2_RFS(port->id, flow->flow_id, rule->loc);
 
 		mvpp2_cls_flow_read(priv, index, &fe);
