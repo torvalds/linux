@@ -5435,16 +5435,16 @@ mlxsw_sp_fib6_node_entry_find(const struct mlxsw_sp_fib_node *fib_node,
 
 static int
 mlxsw_sp_fib6_node_list_insert(struct mlxsw_sp_fib6_entry *new6_entry,
-			       bool replace)
+			       bool *p_replace)
 {
 	struct mlxsw_sp_fib_node *fib_node = new6_entry->common.fib_node;
 	struct fib6_info *nrt = mlxsw_sp_fib6_entry_rt(new6_entry);
 	struct mlxsw_sp_fib6_entry *fib6_entry;
 
-	fib6_entry = mlxsw_sp_fib6_node_entry_find(fib_node, nrt, replace);
+	fib6_entry = mlxsw_sp_fib6_node_entry_find(fib_node, nrt, *p_replace);
 
-	if (replace && WARN_ON(!fib6_entry))
-		return -EINVAL;
+	if (*p_replace && !fib6_entry)
+		*p_replace = false;
 
 	if (fib6_entry) {
 		list_add_tail(&new6_entry->common.list,
@@ -5479,11 +5479,11 @@ mlxsw_sp_fib6_node_list_remove(struct mlxsw_sp_fib6_entry *fib6_entry)
 
 static int mlxsw_sp_fib6_node_entry_link(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_fib6_entry *fib6_entry,
-					 bool replace)
+					 bool *p_replace)
 {
 	int err;
 
-	err = mlxsw_sp_fib6_node_list_insert(fib6_entry, replace);
+	err = mlxsw_sp_fib6_node_list_insert(fib6_entry, p_replace);
 	if (err)
 		return err;
 
@@ -5596,7 +5596,7 @@ static int mlxsw_sp_router_fib6_add(struct mlxsw_sp *mlxsw_sp,
 		goto err_fib6_entry_create;
 	}
 
-	err = mlxsw_sp_fib6_node_entry_link(mlxsw_sp, fib6_entry, replace);
+	err = mlxsw_sp_fib6_node_entry_link(mlxsw_sp, fib6_entry, &replace);
 	if (err)
 		goto err_fib6_node_entry_link;
 
