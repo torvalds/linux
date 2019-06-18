@@ -115,6 +115,7 @@ needed).
    target/index
    timers/index
    watchdog/index
+   virtual/index
    input/index
    hwmon/index
    gpu/index
