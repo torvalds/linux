@@ -14,6 +14,7 @@ struct panfrost_device;
 struct panfrost_mmu;
 struct panfrost_job_slot;
 struct panfrost_job;
+struct panfrost_perfcnt;
 
 #define NUM_JOB_SLOTS 3
 
@@ -77,6 +78,8 @@ struct panfrost_device {
 
 	struct panfrost_job *jobs[NUM_JOB_SLOTS];
 	struct list_head scheduled_jobs;
+
+	struct panfrost_perfcnt *perfcnt;
 
 	struct mutex sched_lock;
 	struct mutex reset_lock;
