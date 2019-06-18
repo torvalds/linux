@@ -149,7 +149,7 @@ static inline int ssd1307fb_write_cmd(struct i2c_client *client, u8 cmd)
 static void ssd1307fb_update_display(struct ssd1307fb_par *par)
 {
 	struct ssd1307fb_array *array;
-	u8 *vmem = par->info->screen_base;
+	u8 *vmem = par->info->screen_buffer;
 	int i, j, k;
 
 	array = ssd1307fb_alloc_array(par->width * par->height / 8,
@@ -212,7 +212,7 @@ static ssize_t ssd1307fb_write(struct fb_info *info, const char __user *buf,
 	struct ssd1307fb_par *par = info->par;
 	unsigned long total_size;
 	unsigned long p = *ppos;
-	u8 __iomem *dst;
+	void *dst;
 
 	total_size = info->fix.smem_len;
 
@@ -225,7 +225,7 @@ static ssize_t ssd1307fb_write(struct fb_info *info, const char __user *buf,
 	if (!count)
 		return -EINVAL;
 
-	dst = (void __force *) (info->screen_base + p);
+	dst = info->screen_buffer + p;
 
 	if (copy_from_user(dst, buf, count))
 		return -EFAULT;
@@ -546,7 +546,7 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	struct fb_deferred_io *ssd1307fb_defio;
 	u32 vmem_size;
 	struct ssd1307fb_par *par;
-	u8 *vmem;
+	void *vmem;
 	int ret;
 
 	if (!node) {
@@ -654,7 +654,7 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	info->var.blue.length = 1;
 	info->var.blue.offset = 0;
 
-	info->screen_base = (u8 __force __iomem *)vmem;
+	info->screen_buffer = vmem;
 	info->fix.smem_start = __pa(vmem);
 	info->fix.smem_len = vmem_size;
 
