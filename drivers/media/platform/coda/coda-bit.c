@@ -675,6 +675,29 @@ static int coda_encode_header(struct coda_ctx *ctx, struct vb2_v4l2_buffer *buf,
 	return 0;
 }
 
+static u32 coda_slice_mode(struct coda_ctx *ctx)
+{
+	int size, unit;
+
+	switch (ctx->params.slice_mode) {
+	case V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_SINGLE:
+	default:
+		return 0;
+	case V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB:
+		size = ctx->params.slice_max_mb;
+		unit = 1;
+		break;
+	case V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES:
+		size = ctx->params.slice_max_bits;
+		unit = 0;
+		break;
+	}
+
+	return ((size & CODA_SLICING_SIZE_MASK) << CODA_SLICING_SIZE_OFFSET) |
+	       ((unit & CODA_SLICING_UNIT_MASK) << CODA_SLICING_UNIT_OFFSET) |
+	       ((1 & CODA_SLICING_MODE_MASK) << CODA_SLICING_MODE_OFFSET);
+}
+
 static phys_addr_t coda_iram_alloc(struct coda_iram_info *iram, size_t size)
 {
 	phys_addr_t ret;
@@ -1113,27 +1136,7 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	 * in JPEG mode
 	 */
 	if (dst_fourcc != V4L2_PIX_FMT_JPEG) {
-		switch (ctx->params.slice_mode) {
-		case V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_SINGLE:
-			value = 0;
-			break;
-		case V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB:
-			value  = (ctx->params.slice_max_mb &
-				  CODA_SLICING_SIZE_MASK)
-				 << CODA_SLICING_SIZE_OFFSET;
-			value |= (1 & CODA_SLICING_UNIT_MASK)
-				 << CODA_SLICING_UNIT_OFFSET;
-			value |=  1 & CODA_SLICING_MODE_MASK;
-			break;
-		case V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES:
-			value  = (ctx->params.slice_max_bits &
-				  CODA_SLICING_SIZE_MASK)
-				 << CODA_SLICING_SIZE_OFFSET;
-			value |= (0 & CODA_SLICING_UNIT_MASK)
-				 << CODA_SLICING_UNIT_OFFSET;
-			value |=  1 & CODA_SLICING_MODE_MASK;
-			break;
-		}
+		value = coda_slice_mode(ctx);
 		coda_write(dev, value, CODA_CMD_ENC_SEQ_SLICE_MODE);
 		value = ctx->params.gop_size;
 		coda_write(dev, value, CODA_CMD_ENC_SEQ_GOP_SIZE);
