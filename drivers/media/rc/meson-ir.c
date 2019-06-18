@@ -113,10 +113,8 @@ static int meson_ir_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ir->reg = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ir->reg)) {
-		dev_err(dev, "failed to map registers\n");
+	if (IS_ERR(ir->reg))
 		return PTR_ERR(ir->reg);
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
