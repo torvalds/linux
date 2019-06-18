@@ -1098,16 +1098,20 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 			/* Mark last buffer */
 			buf->flags |= V4L2_BUF_FLAG_LAST;
 
-		/* Set the stream-end flag on this context */
-		coda_bit_stream_end_flag(ctx);
-		ctx->hold = false;
-		v4l2_m2m_try_schedule(ctx->fh.m2m_ctx);
+		if (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) == 0) {
+			/* Set the stream-end flag on this context */
+			coda_bit_stream_end_flag(ctx);
+			ctx->hold = false;
+			v4l2_m2m_try_schedule(ctx->fh.m2m_ctx);
 
-		flush_work(&ctx->pic_run_work);
+			flush_work(&ctx->pic_run_work);
 
-		/* If there is no buffer in flight, wake up */
-		if (!ctx->streamon_out || ctx->qsequence == ctx->osequence)
-			coda_wake_up_capture_queue(ctx);
+			/* If there is no buffer in flight, wake up */
+			if (!ctx->streamon_out ||
+			    ctx->qsequence == ctx->osequence)
+				coda_wake_up_capture_queue(ctx);
+		}
+
 		break;
 	default:
 		return -EINVAL;
