@@ -27,7 +27,7 @@ static void komeda_crtc_update_clock_ratio(struct komeda_crtc_state *kcrtc_st)
 		return;
 	}
 
-	pxlclk = kcrtc_st->base.adjusted_mode.clock * 1000;
+	pxlclk = kcrtc_st->base.adjusted_mode.crtc_clock * 1000;
 	aclk = komeda_calc_aclk(kcrtc_st);
 
 	kcrtc_st->clock_ratio = div64_u64(aclk << 32, pxlclk);
@@ -77,9 +77,9 @@ komeda_crtc_atomic_check(struct drm_crtc *crtc,
 unsigned long komeda_calc_aclk(struct komeda_crtc_state *kcrtc_st)
 {
 	struct komeda_dev *mdev = kcrtc_st->base.crtc->dev->dev_private;
-	unsigned long pxlclk = kcrtc_st->base.adjusted_mode.clock;
+	unsigned long aclk = kcrtc_st->base.adjusted_mode.crtc_clock;
 
-	return clk_round_rate(mdev->aclk, pxlclk * 1000);
+	return clk_round_rate(mdev->aclk, aclk * 1000);
 }
 
 /* For active a crtc, mainly need two parts of preparation
@@ -92,7 +92,7 @@ komeda_crtc_prepare(struct komeda_crtc *kcrtc)
 	struct komeda_dev *mdev = kcrtc->base.dev->dev_private;
 	struct komeda_pipeline *master = kcrtc->master;
 	struct komeda_crtc_state *kcrtc_st = to_kcrtc_st(kcrtc->base.state);
-	unsigned long pxlclk_rate = kcrtc_st->base.adjusted_mode.clock * 1000;
+	struct drm_display_mode *mode = &kcrtc_st->base.adjusted_mode;
 	u32 new_mode;
 	int err;
 
@@ -126,7 +126,7 @@ komeda_crtc_prepare(struct komeda_crtc *kcrtc)
 			DRM_ERROR("failed to enable aclk.\n");
 	}
 
-	err = clk_set_rate(master->pxlclk, pxlclk_rate);
+	err = clk_set_rate(master->pxlclk, mode->crtc_clock * 1000);
 	if (err)
 		DRM_ERROR("failed to set pxlclk for pipe%d\n", master->id);
 	err = clk_prepare_enable(master->pxlclk);
@@ -377,10 +377,14 @@ static bool komeda_crtc_mode_fixup(struct drm_crtc *crtc,
 				   struct drm_display_mode *adjusted_mode)
 {
 	struct komeda_crtc *kcrtc = to_kcrtc(crtc);
-	struct komeda_pipeline *master = kcrtc->master;
-	long mode_clk = m->clock * 1000;
+	unsigned long clk_rate;
 
-	adjusted_mode->clock = clk_round_rate(master->pxlclk, mode_clk) / 1000;
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
+
+	clk_rate = adjusted_mode->crtc_clock * 1000;
+	/* crtc_clock will be used as the komeda output pixel clock */
+	adjusted_mode->crtc_clock = clk_round_rate(kcrtc->master->pxlclk,
+						   clk_rate) / 1000;
 
 	return true;
 }

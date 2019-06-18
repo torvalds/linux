@@ -14,8 +14,6 @@
 #include <drm/drm_device.h>
 #include <drm/drm_writeback.h>
 #include <drm/drm_print.h>
-#include <video/videomode.h>
-#include <video/display_timing.h>
 
 /**
  * struct komeda_plane - komeda instance of drm_plane
