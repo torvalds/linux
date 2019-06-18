@@ -150,10 +150,11 @@ static void ssd1307fb_update_display(struct ssd1307fb_par *par)
 {
 	struct ssd1307fb_array *array;
 	u8 *vmem = par->info->screen_buffer;
+	unsigned int line_length = par->info->fix.line_length;
+	unsigned int pages = DIV_ROUND_UP(par->height, 8);
 	int i, j, k;
 
-	array = ssd1307fb_alloc_array(par->width * par->height / 8,
-				      SSD1307FB_DATA);
+	array = ssd1307fb_alloc_array(par->width * pages, SSD1307FB_DATA);
 	if (!array)
 		return;
 
@@ -186,22 +187,24 @@ static void ssd1307fb_update_display(struct ssd1307fb_par *par)
 	 *  (5) A4 B4 C4 D4 E4 F4 G4 H4
 	 */
 
-	for (i = 0; i < (par->height / 8); i++) {
+	for (i = 0; i < pages; i++) {
 		for (j = 0; j < par->width; j++) {
+			int m = 8;
 			u32 array_idx = i * par->width + j;
 			array->data[array_idx] = 0;
-			for (k = 0; k < 8; k++) {
-				u32 page_length = par->width * i;
-				u32 index = page_length + (par->width * k + j) / 8;
-				u8 byte = *(vmem + index);
-				u8 bit = byte & (1 << (j % 8));
-				bit = bit >> (j % 8);
+			/* Last page may be partial */
+			if (i + 1 == pages && par->height % 8)
+				m = par->height % 8;
+			for (k = 0; k < m; k++) {
+				u8 byte = vmem[(8 * i + k) * line_length +
+					       j / 8];
+				u8 bit = (byte >> (j % 8)) & 1;
 				array->data[array_idx] |= bit << k;
 			}
 		}
 	}
 
-	ssd1307fb_write_array(par->client, array, par->width * par->height / 8);
+	ssd1307fb_write_array(par->client, array, par->width * pages);
 	kfree(array);
 }
 
@@ -437,7 +440,8 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 		return ret;
 
 	ret = ssd1307fb_write_cmd(par->client,
-				  par->page_offset + (par->height / 8) - 1);
+				  par->page_offset +
+				  DIV_ROUND_UP(par->height, 8) - 1);
 	if (ret < 0)
 		return ret;
 
@@ -615,7 +619,7 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	par->dclk_div = par->device_info->default_dclk_div;
 	par->dclk_frq = par->device_info->default_dclk_frq;
 
-	vmem_size = par->width * par->height / 8;
+	vmem_size = DIV_ROUND_UP(par->width, 8) * par->height;
 
 	vmem = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 					get_order(vmem_size));
@@ -638,7 +642,7 @@ static int ssd1307fb_probe(struct i2c_client *client,
 
 	info->fbops = &ssd1307fb_ops;
 	info->fix = ssd1307fb_fix;
-	info->fix.line_length = par->width / 8;
+	info->fix.line_length = DIV_ROUND_UP(par->width, 8);
 	info->fbdefio = ssd1307fb_defio;
 
 	info->var = ssd1307fb_var;
