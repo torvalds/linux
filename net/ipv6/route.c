@@ -3718,6 +3718,12 @@ static int __ip6_del_rt_siblings(struct fib6_info *rt, struct fib6_config *cfg)
 				info->skip_notify = 1;
 		}
 
+		info->skip_notify_kernel = 1;
+		call_fib6_multipath_entry_notifiers(net,
+						    FIB_EVENT_ENTRY_DEL,
+						    rt,
+						    rt->fib6_nsiblings,
+						    NULL);
 		list_for_each_entry_safe(sibling, next_sibling,
 					 &rt->fib6_siblings,
 					 fib6_siblings) {
