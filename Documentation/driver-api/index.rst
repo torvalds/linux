@@ -36,6 +36,7 @@ available subsections can be seen below.
    i2c
    ipmb
    i3c/index
+   interconnect
    hsi
    edac
    scsi
