@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Makefile for the Linux Kernel SOC fsl specific device drivers
 #

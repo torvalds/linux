@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *    Lance ethernet driver for the MIPS processor based
  *      DECstation family

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Copied from arch/tile/kernel/vdso/Makefile
 
 # Symbols present in the vdso

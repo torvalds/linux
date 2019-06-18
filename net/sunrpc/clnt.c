@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/net/sunrpc/clnt.c
  *
@@ -2287,13 +2288,13 @@ call_status(struct rpc_task *task)
 	case -ECONNREFUSED:
 	case -ECONNRESET:
 	case -ECONNABORTED:
+	case -ENOTCONN:
 		rpc_force_rebind(clnt);
 		/* fall through */
 	case -EADDRINUSE:
 		rpc_delay(task, 3*HZ);
 		/* fall through */
 	case -EPIPE:
-	case -ENOTCONN:
 	case -EAGAIN:
 		break;
 	case -EIO:
@@ -2425,17 +2426,21 @@ call_decode(struct rpc_task *task)
 		return;
 	case -EAGAIN:
 		task->tk_status = 0;
-		/* Note: rpc_decode_header() may have freed the RPC slot */
-		if (task->tk_rqstp == req) {
-			xdr_free_bvec(&req->rq_rcv_buf);
-			req->rq_reply_bytes_recvd = 0;
-			req->rq_rcv_buf.len = 0;
-			if (task->tk_client->cl_discrtry)
-				xprt_conditional_disconnect(req->rq_xprt,
-							    req->rq_connect_cookie);
-		}
+		xdr_free_bvec(&req->rq_rcv_buf);
+		req->rq_reply_bytes_recvd = 0;
+		req->rq_rcv_buf.len = 0;
+		if (task->tk_client->cl_discrtry)
+			xprt_conditional_disconnect(req->rq_xprt,
+						    req->rq_connect_cookie);
 		task->tk_action = call_encode;
 		rpc_check_timeout(task);
+		break;
+	case -EKEYREJECTED:
+		task->tk_action = call_reserve;
+		rpc_check_timeout(task);
+		rpcauth_invalcred(task);
+		/* Ensure we obtain a new XID if we retry! */
+		xprt_release(task);
 	}
 }
 
@@ -2571,11 +2576,7 @@ out_msg_denied:
 			break;
 		task->tk_cred_retry--;
 		trace_rpc__stale_creds(task);
-		rpcauth_invalcred(task);
-		/* Ensure we obtain a new XID! */
-		xprt_release(task);
-		task->tk_action = call_reserve;
-		return -EAGAIN;
+		return -EKEYREJECTED;
 	case rpc_autherr_badcred:
 	case rpc_autherr_badverf:
 		/* possibly garbled cred/verf? */

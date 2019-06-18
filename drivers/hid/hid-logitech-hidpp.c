@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  HIDPP protocol for Logitech Unifying receivers
  *
@@ -6,11 +7,6 @@
  *  Copyright (c) 2013-2014 Red Hat Inc.
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; version 2 of the License.
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 

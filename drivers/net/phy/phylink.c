@@ -51,6 +51,10 @@ struct phylink {
 
 	/* The link configuration settings */
 	struct phylink_link_state link_config;
+
+	/* The current settings */
+	phy_interface_t cur_interface;
+
 	struct gpio_desc *link_gpio;
 	struct timer_list link_poll;
 	void (*get_fixed_state)(struct net_device *dev,
@@ -422,28 +426,21 @@ static void phylink_resolve(struct work_struct *w)
 
 		case MLO_AN_INBAND:
 			phylink_get_mac_state(pl, &link_state);
-			if (pl->phydev) {
-				bool changed = false;
 
-				link_state.link = link_state.link &&
-						  pl->phy_state.link;
+			/* If we have a phy, the "up" state is the union of
+			 * both the PHY and the MAC */
+			if (pl->phydev)
+				link_state.link &= pl->phy_state.link;
 
-				if (pl->phy_state.interface !=
-				    link_state.interface) {
-					link_state.interface = pl->phy_state.interface;
-					changed = true;
-				}
+			/* Only update if the PHY link is up */
+			if (pl->phydev && pl->phy_state.link) {
+				link_state.interface = pl->phy_state.interface;
 
-				/* Propagate the flow control from the PHY
-				 * to the MAC. Also propagate the interface
-				 * if changed.
-				 */
-				if (pl->phy_state.link || changed) {
-					link_state.pause |= pl->phy_state.pause;
-					phylink_resolve_flow(pl, &link_state);
-
-					phylink_mac_config(pl, &link_state);
-				}
+				/* If we have a PHY, we need to update with
+				 * the pause mode bits. */
+				link_state.pause |= pl->phy_state.pause;
+				phylink_resolve_flow(pl, &link_state);
+				phylink_mac_config(pl, &link_state);
 			}
 			break;
 		}
@@ -453,12 +450,12 @@ static void phylink_resolve(struct work_struct *w)
 		if (!link_state.link) {
 			netif_carrier_off(ndev);
 			pl->ops->mac_link_down(ndev, pl->link_an_mode,
-					       pl->phy_state.interface);
+					       pl->cur_interface);
 			netdev_info(ndev, "Link is Down\n");
 		} else {
+			pl->cur_interface = link_state.interface;
 			pl->ops->mac_link_up(ndev, pl->link_an_mode,
-					     pl->phy_state.interface,
-					     pl->phydev);
+					     pl->cur_interface, pl->phydev);
 
 			netif_carrier_on(ndev);
 
@@ -1076,6 +1073,7 @@ EXPORT_SYMBOL_GPL(phylink_ethtool_ksettings_get);
 int phylink_ethtool_ksettings_set(struct phylink *pl,
 				  const struct ethtool_link_ksettings *kset)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(support);
 	struct ethtool_link_ksettings our_kset;
 	struct phylink_link_state config;
 	int ret;
@@ -1086,11 +1084,12 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	    kset->base.autoneg != AUTONEG_ENABLE)
 		return -EINVAL;
 
+	linkmode_copy(support, pl->supported);
 	config = pl->link_config;
 
 	/* Mask out unsupported advertisements */
 	linkmode_and(config.advertising, kset->link_modes.advertising,
-		     pl->supported);
+		     support);
 
 	/* FIXME: should we reject autoneg if phy/mac does not support it? */
 	if (kset->base.autoneg == AUTONEG_DISABLE) {
@@ -1100,7 +1099,7 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 		 * duplex.
 		 */
 		s = phy_lookup_setting(kset->base.speed, kset->base.duplex,
-				       pl->supported, false);
+				       support, false);
 		if (!s)
 			return -EINVAL;
 
@@ -1129,7 +1128,7 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 		__set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, config.advertising);
 	}
 
-	if (phylink_validate(pl, pl->supported, &config))
+	if (phylink_validate(pl, support, &config))
 		return -EINVAL;
 
 	/* If autonegotiation is enabled, we must have an advertisement */
@@ -1579,6 +1578,7 @@ static int phylink_sfp_module_insert(void *upstream,
 {
 	struct phylink *pl = upstream;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(support) = { 0, };
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(support1);
 	struct phylink_link_state config;
 	phy_interface_t iface;
 	int ret = 0;
@@ -1606,6 +1606,8 @@ static int phylink_sfp_module_insert(void *upstream,
 		return ret;
 	}
 
+	linkmode_copy(support1, support);
+
 	iface = sfp_select_interface(pl->sfp_bus, id, config.advertising);
 	if (iface == PHY_INTERFACE_MODE_NA) {
 		netdev_err(pl->netdev,
@@ -1615,7 +1617,7 @@ static int phylink_sfp_module_insert(void *upstream,
 	}
 
 	config.interface = iface;
-	ret = phylink_validate(pl, support, &config);
+	ret = phylink_validate(pl, support1, &config);
 	if (ret) {
 		netdev_err(pl->netdev, "validation of %s/%s with support %*pb failed: %d\n",
 			   phylink_an_mode_str(MLO_AN_INBAND),

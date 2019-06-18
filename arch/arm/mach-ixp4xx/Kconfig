@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_IXP4XX
 
 menu "Intel IXP4xx Implementation Options"

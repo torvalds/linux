@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Hash: Hash algorithms under the crypto API
  * 
  * Copyright (c) 2008 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
- * any later version.
- *
  */
 
 #ifndef _CRYPTO_HASH_H
@@ -150,7 +145,13 @@ struct shash_desc {
 };
 
 #define HASH_MAX_DIGESTSIZE	 64
-#define HASH_MAX_DESCSIZE	360
+
+/*
+ * Worst case is hmac(sha3-224-generic).  Its context is a nested 'shash_desc'
+ * containing a 'struct sha3_state'.
+ */
+#define HASH_MAX_DESCSIZE	(sizeof(struct shash_desc) + 360)
+
 #define HASH_MAX_STATESIZE	512
 
 #define SHASH_DESC_ON_STACK(shash, ctx)				  \

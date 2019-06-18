@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * runtime-wrappers.c - Runtime Services function call wrappers
  *
@@ -19,8 +20,6 @@
  * Copyright (C) 1999-2002 Hewlett-Packard Co.
  * Copyright (C) 2005-2008 Intel Co.
  * Copyright (C) 2013 SuSE Labs
- *
- * This file is released under the GPLv2.
  */
 
 #define pr_fmt(fmt)	"efi: " fmt

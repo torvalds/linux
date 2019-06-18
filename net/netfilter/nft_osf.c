@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <net/ip.h>
 #include <net/tcp.h>
 

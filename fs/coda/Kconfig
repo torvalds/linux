@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config CODA_FS
 	tristate "Coda file system support (advanced network fs)"
 	depends on INET

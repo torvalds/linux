@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MTD_NAND_CORE
 	tristate
 

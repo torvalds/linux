@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/ipc/msgutil.c
  * Copyright (C) 1999, 2004 Manfred Spraul
- *
- * This file is released under GNU General Public Licence version 2 or
- * (at your option) any later version.
- *
- * See the file COPYING for more details.
  */
 
 #include <linux/spinlock.h>

@@ -3,7 +3,7 @@
 # description: Kprobe dynamic event with function tracer
 
 [ -f kprobe_events ] || exit_unsupported # this is configurable
-grep function available_tracers || exit_unsupported # this is configurable
+grep "function" available_tracers || exit_unsupported # this is configurable
 
 # prepare
 echo nop > current_tracer

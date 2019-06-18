@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* -*- linux-c -*-
  *
  * (C) 2003 zecke@handhelds.org
- *
- * GPL version 2
  *
  * based on arch/arm/kernel/apm.c
  * factor out the information needed by architectures to provide

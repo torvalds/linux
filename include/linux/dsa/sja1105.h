@@ -20,18 +20,6 @@
 #define SJA1105_LINKLOCAL_FILTER_B		0x011B19000000ull
 #define SJA1105_LINKLOCAL_FILTER_B_MASK		0xFFFFFF000000ull
 
-enum sja1105_frame_type {
-	SJA1105_FRAME_TYPE_NORMAL = 0,
-	SJA1105_FRAME_TYPE_LINK_LOCAL,
-};
-
-struct sja1105_skb_cb {
-	enum sja1105_frame_type type;
-};
-
-#define SJA1105_SKB_CB(skb) \
-	((struct sja1105_skb_cb *)DSA_SKB_CB_PRIV(skb))
-
 struct sja1105_port {
 	struct dsa_port *dp;
 	int mgmt_slot;

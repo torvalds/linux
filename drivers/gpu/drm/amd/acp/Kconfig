@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "ACP (Audio CoProcessor) Configuration"
 
 config DRM_AMD_ACP

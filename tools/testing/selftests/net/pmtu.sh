@@ -208,8 +208,8 @@ tunnel6_a_addr="fd00:2::a"
 tunnel6_b_addr="fd00:2::b"
 tunnel6_mask="64"
 
-dummy6_0_addr="fc00:1000::0"
-dummy6_1_addr="fc00:1001::0"
+dummy6_0_prefix="fc00:1000::"
+dummy6_1_prefix="fc00:1001::"
 dummy6_mask="64"
 
 cleanup_done=1
@@ -430,15 +430,15 @@ setup_xfrm() {
 	veth_a_addr="${2}"
 	veth_b_addr="${3}"
 
-	run_cmd "${ns_a} ip -${proto} xfrm state add src ${veth_a_addr} dst ${veth_b_addr} spi 0x1000 proto esp aead 'rfc4106(gcm(aes))' 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel" || return 1
-	run_cmd "${ns_a} ip -${proto} xfrm state add src ${veth_b_addr} dst ${veth_a_addr} spi 0x1001 proto esp aead 'rfc4106(gcm(aes))' 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel"
-	run_cmd "${ns_a} ip -${proto} xfrm policy add dir out mark 10 tmpl src ${veth_a_addr} dst ${veth_b_addr} proto esp mode tunnel"
-	run_cmd "${ns_a} ip -${proto} xfrm policy add dir in mark 10 tmpl src ${veth_b_addr} dst ${veth_a_addr} proto esp mode tunnel"
+	run_cmd ${ns_a} ip -${proto} xfrm state add src ${veth_a_addr} dst ${veth_b_addr} spi 0x1000 proto esp aead 'rfc4106(gcm(aes))' 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel || return 1
+	run_cmd ${ns_a} ip -${proto} xfrm state add src ${veth_b_addr} dst ${veth_a_addr} spi 0x1001 proto esp aead 'rfc4106(gcm(aes))' 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel
+	run_cmd ${ns_a} ip -${proto} xfrm policy add dir out mark 10 tmpl src ${veth_a_addr} dst ${veth_b_addr} proto esp mode tunnel
+	run_cmd ${ns_a} ip -${proto} xfrm policy add dir in mark 10 tmpl src ${veth_b_addr} dst ${veth_a_addr} proto esp mode tunnel
 
-	run_cmd "${ns_b} ip -${proto} xfrm state add src ${veth_a_addr} dst ${veth_b_addr} spi 0x1000 proto esp aead 'rfc4106(gcm(aes))' 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel"
-	run_cmd "${ns_b} ip -${proto} xfrm state add src ${veth_b_addr} dst ${veth_a_addr} spi 0x1001 proto esp aead 'rfc4106(gcm(aes))' 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel"
-	run_cmd "${ns_b} ip -${proto} xfrm policy add dir out mark 10 tmpl src ${veth_b_addr} dst ${veth_a_addr} proto esp mode tunnel"
-	run_cmd "${ns_b} ip -${proto} xfrm policy add dir in mark 10 tmpl src ${veth_a_addr} dst ${veth_b_addr} proto esp mode tunnel"
+	run_cmd ${ns_b} ip -${proto} xfrm state add src ${veth_a_addr} dst ${veth_b_addr} spi 0x1000 proto esp aead 'rfc4106(gcm(aes))' 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel
+	run_cmd ${ns_b} ip -${proto} xfrm state add src ${veth_b_addr} dst ${veth_a_addr} spi 0x1001 proto esp aead 'rfc4106(gcm(aes))' 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel
+	run_cmd ${ns_b} ip -${proto} xfrm policy add dir out mark 10 tmpl src ${veth_b_addr} dst ${veth_a_addr} proto esp mode tunnel
+	run_cmd ${ns_b} ip -${proto} xfrm policy add dir in mark 10 tmpl src ${veth_a_addr} dst ${veth_b_addr} proto esp mode tunnel
 }
 
 setup_xfrm4() {
@@ -1005,13 +1005,13 @@ test_pmtu_vti6_link_change_mtu() {
 	run_cmd ${ns_a} ip link set dummy0 up
 	run_cmd ${ns_a} ip link set dummy1 up
 
-	run_cmd ${ns_a} ip addr add ${dummy6_0_addr}/${dummy6_mask} dev dummy0
-	run_cmd ${ns_a} ip addr add ${dummy6_1_addr}/${dummy6_mask} dev dummy1
+	run_cmd ${ns_a} ip addr add ${dummy6_0_prefix}1/${dummy6_mask} dev dummy0
+	run_cmd ${ns_a} ip addr add ${dummy6_1_prefix}1/${dummy6_mask} dev dummy1
 
 	fail=0
 
 	# Create vti6 interface bound to device, passing MTU, check it
-	run_cmd ${ns_a} ip link add vti6_a mtu 1300 type vti6 remote ${dummy6_0_addr} local ${dummy6_0_addr}
+	run_cmd ${ns_a} ip link add vti6_a mtu 1300 type vti6 remote ${dummy6_0_prefix}2 local ${dummy6_0_prefix}1
 	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 	if [ ${mtu} -ne 1300 ]; then
 		err "  vti6 MTU ${mtu} doesn't match configured value 1300"
@@ -1020,7 +1020,7 @@ test_pmtu_vti6_link_change_mtu() {
 
 	# Move to another device with different MTU, without passing MTU, check
 	# MTU is adjusted
-	run_cmd ${ns_a} ip link set vti6_a type vti6 remote ${dummy6_1_addr} local ${dummy6_1_addr}
+	run_cmd ${ns_a} ip link set vti6_a type vti6 remote ${dummy6_1_prefix}2 local ${dummy6_1_prefix}1
 	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 	if [ ${mtu} -ne $((3000 - 40)) ]; then
 		err "  vti MTU ${mtu} is not dummy MTU 3000 minus IPv6 header length"
@@ -1028,7 +1028,7 @@ test_pmtu_vti6_link_change_mtu() {
 	fi
 
 	# Move it back, passing MTU, check MTU is not overridden
-	run_cmd ${ns_a} ip link set vti6_a mtu 1280 type vti6 remote ${dummy6_0_addr} local ${dummy6_0_addr}
+	run_cmd ${ns_a} ip link set vti6_a mtu 1280 type vti6 remote ${dummy6_0_prefix}2 local ${dummy6_0_prefix}1
 	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 	if [ ${mtu} -ne 1280 ]; then
 		err "  vti6 MTU ${mtu} doesn't match configured value 1280"

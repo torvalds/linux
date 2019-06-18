@@ -320,7 +320,6 @@ static int aqc111_get_link_ksettings(struct net_device *net,
 static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
 {
 	struct aqc111_data *aqc111_data = dev->driver_priv;
-	u32 phy_on_the_wire;
 
 	aqc111_data->phy_cfg &= ~AQ_ADV_MASK;
 	aqc111_data->phy_cfg |= AQ_PAUSE;
@@ -362,8 +361,7 @@ static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
 		}
 	}
 
-	phy_on_the_wire = aqc111_data->phy_cfg;
-	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0, &phy_on_the_wire);
+	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0, &aqc111_data->phy_cfg);
 }
 
 static int aqc111_set_link_ksettings(struct net_device *net,
@@ -439,7 +437,7 @@ static int aqc111_change_mtu(struct net_device *net, int new_mtu)
 	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 			   2, &reg16);
 
-	if (dev->net->mtu > 12500 && dev->net->mtu <= 16334) {
+	if (dev->net->mtu > 12500) {
 		memcpy(buf, &AQC111_BULKIN_SIZE[2], 5);
 		/* RX bulk configuration */
 		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QCTRL,
@@ -453,10 +451,8 @@ static int aqc111_change_mtu(struct net_device *net, int new_mtu)
 		reg16 = 0x1020;
 	else if (dev->net->mtu <= 12500)
 		reg16 = 0x1420;
-	else if (dev->net->mtu <= 16334)
-		reg16 = 0x1A20;
 	else
-		return 0;
+		reg16 = 0x1A20;
 
 	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_PAUSE_WATERLVL_LOW,
 			   2, &reg16);
@@ -757,7 +753,6 @@ static void aqc111_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct aqc111_data *aqc111_data = dev->driver_priv;
 	u16 reg16;
-	u32 phy_on_the_wire;
 
 	/* Force bz */
 	reg16 = SFR_PHYPWR_RSTCTL_BZ;
@@ -771,9 +766,8 @@ static void aqc111_unbind(struct usbnet *dev, struct usb_interface *intf)
 	aqc111_data->phy_cfg &= ~AQ_ADV_MASK;
 	aqc111_data->phy_cfg |= AQ_LOW_POWER;
 	aqc111_data->phy_cfg &= ~AQ_PHY_POWER_EN;
-	phy_on_the_wire = aqc111_data->phy_cfg;
 	aqc111_write32_cmd_nopm(dev, AQ_PHY_OPS, 0, 0,
-				&phy_on_the_wire);
+				&aqc111_data->phy_cfg);
 
 	kfree(aqc111_data);
 }
@@ -996,7 +990,6 @@ static int aqc111_reset(struct usbnet *dev)
 {
 	struct aqc111_data *aqc111_data = dev->driver_priv;
 	u8 reg8 = 0;
-	u32 phy_on_the_wire;
 
 	dev->rx_urb_size = URB_SIZE;
 
@@ -1009,9 +1002,8 @@ static int aqc111_reset(struct usbnet *dev)
 
 	/* Power up ethernet PHY */
 	aqc111_data->phy_cfg = AQ_PHY_POWER_EN;
-	phy_on_the_wire = aqc111_data->phy_cfg;
 	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0,
-			   &phy_on_the_wire);
+			   &aqc111_data->phy_cfg);
 
 	/* Set the MAC address */
 	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_NODE_ID, ETH_ALEN,
@@ -1042,7 +1034,6 @@ static int aqc111_stop(struct usbnet *dev)
 {
 	struct aqc111_data *aqc111_data = dev->driver_priv;
 	u16 reg16 = 0;
-	u32 phy_on_the_wire;
 
 	aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 			  2, &reg16);
@@ -1054,9 +1045,8 @@ static int aqc111_stop(struct usbnet *dev)
 
 	/* Put PHY to low power*/
 	aqc111_data->phy_cfg |= AQ_LOW_POWER;
-	phy_on_the_wire = aqc111_data->phy_cfg;
 	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0,
-			   &phy_on_the_wire);
+			   &aqc111_data->phy_cfg);
 
 	netif_carrier_off(dev->net);
 
@@ -1332,7 +1322,6 @@ static int aqc111_suspend(struct usb_interface *intf, pm_message_t message)
 	u16 temp_rx_ctrl = 0x00;
 	u16 reg16;
 	u8 reg8;
-	u32 phy_on_the_wire;
 
 	usbnet_suspend(intf, message);
 
@@ -1404,14 +1393,12 @@ static int aqc111_suspend(struct usb_interface *intf, pm_message_t message)
 
 		aqc111_write_cmd(dev, AQ_WOL_CFG, 0, 0,
 				 WOL_CFG_SIZE, &wol_cfg);
-		phy_on_the_wire = aqc111_data->phy_cfg;
 		aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0,
-				   &phy_on_the_wire);
+				   &aqc111_data->phy_cfg);
 	} else {
 		aqc111_data->phy_cfg |= AQ_LOW_POWER;
-		phy_on_the_wire = aqc111_data->phy_cfg;
 		aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0,
-				   &phy_on_the_wire);
+				   &aqc111_data->phy_cfg);
 
 		/* Disable RX path */
 		aqc111_read16_cmd_nopm(dev, AQ_ACCESS_MAC,
@@ -1428,7 +1415,7 @@ static int aqc111_resume(struct usb_interface *intf)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
 	struct aqc111_data *aqc111_data = dev->driver_priv;
-	u16 reg16, oldreg16;
+	u16 reg16;
 	u8 reg8;
 
 	netif_carrier_off(dev->net);
@@ -1444,11 +1431,9 @@ static int aqc111_resume(struct usb_interface *intf)
 	/* Configure RX control register => start operation */
 	reg16 = aqc111_data->rxctl;
 	reg16 &= ~SFR_RX_CTL_START;
-	/* needs to be saved in case endianness is swapped */
-	oldreg16 = reg16;
 	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
 
-	reg16 = oldreg16 | SFR_RX_CTL_START;
+	reg16 |= SFR_RX_CTL_START;
 	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
 
 	aqc111_set_phy_speed(dev, aqc111_data->autoneg,

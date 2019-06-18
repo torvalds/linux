@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_ANALOGIX_DP
 	tristate
 	depends on DRM

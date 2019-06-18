@@ -171,10 +171,13 @@ struct vhost_dev {
 	struct list_head pending_list;
 	wait_queue_head_t wait;
 	int iov_limit;
+	int weight;
+	int byte_weight;
 };
 
+bool vhost_exceeds_weight(struct vhost_virtqueue *vq, int pkts, int total_len);
 void vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue **vqs,
-		    int nvqs, int iov_limit);
+		    int nvqs, int iov_limit, int weight, int byte_weight);
 long vhost_dev_set_owner(struct vhost_dev *dev);
 bool vhost_dev_has_owner(struct vhost_dev *dev);
 long vhost_dev_check_owner(struct vhost_dev *);

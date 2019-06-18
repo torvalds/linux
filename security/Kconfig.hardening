@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Kernel hardening options"
 
 config GCC_PLUGIN_STRUCTLEAK
