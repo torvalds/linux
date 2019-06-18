@@ -199,33 +199,25 @@ static int coda_bitstream_pad(struct coda_ctx *ctx, u32 size)
 	return (n < size) ? -ENOSPC : 0;
 }
 
-static int coda_bitstream_queue(struct coda_ctx *ctx,
-				struct vb2_v4l2_buffer *src_buf)
+static int coda_bitstream_queue(struct coda_ctx *ctx, const u8 *buf, u32 size)
 {
-	u32 src_size = vb2_get_plane_payload(&src_buf->vb2_buf, 0);
-	u32 n;
+	u32 n = kfifo_in(&ctx->bitstream_fifo, buf, size);
 
-	n = kfifo_in(&ctx->bitstream_fifo,
-			vb2_plane_vaddr(&src_buf->vb2_buf, 0), src_size);
-	if (n < src_size)
-		return -ENOSPC;
-
-	src_buf->sequence = ctx->qsequence++;
-
-	return 0;
+	return (n < size) ? -ENOSPC : 0;
 }
 
 static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 				     struct vb2_v4l2_buffer *src_buf)
 {
 	unsigned long payload = vb2_get_plane_payload(&src_buf->vb2_buf, 0);
+	u8 *vaddr = vb2_plane_vaddr(&src_buf->vb2_buf, 0);
 	int ret;
 
 	if (coda_get_bitstream_payload(ctx) + payload + 512 >=
 	    ctx->bitstream.size)
 		return false;
 
-	if (vb2_plane_vaddr(&src_buf->vb2_buf, 0) == NULL) {
+	if (!vaddr) {
 		v4l2_err(&ctx->dev->v4l2_dev, "trying to queue empty buffer\n");
 		return true;
 	}
@@ -235,11 +227,14 @@ static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 	    ctx->codec->src_fourcc == V4L2_PIX_FMT_H264)
 		coda_bitstream_pad(ctx, 512 - payload);
 
-	ret = coda_bitstream_queue(ctx, src_buf);
+	ret = coda_bitstream_queue(ctx, vaddr, payload);
 	if (ret < 0) {
 		v4l2_err(&ctx->dev->v4l2_dev, "bitstream buffer overflow\n");
 		return false;
 	}
+
+	src_buf->sequence = ctx->qsequence++;
+
 	/* Sync read pointer to device */
 	if (ctx == v4l2_m2m_get_curr_priv(ctx->dev->m2m_dev))
 		coda_kfifo_sync_to_device_write(ctx);
