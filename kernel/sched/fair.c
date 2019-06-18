@@ -1485,7 +1485,7 @@ bool should_numa_migrate_memory(struct task_struct *p, struct page * page,
 	       group_faults_cpu(ng, src_nid) * group_faults(p, dst_nid) * 4;
 }
 
-static unsigned long weighted_cpuload(struct rq *rq);
+static unsigned long cpu_runnable_load(struct rq *rq);
 
 /* Cached statistics for all CPUs within a node */
 struct numa_stats {
@@ -1506,7 +1506,7 @@ static void update_numa_stats(struct numa_stats *ns, int nid)
 	for_each_cpu(cpu, cpumask_of_node(nid)) {
 		struct rq *rq = cpu_rq(cpu);
 
-		ns->load += weighted_cpuload(rq);
+		ns->load += cpu_runnable_load(rq);
 		ns->compute_capacity += capacity_of(cpu);
 	}
 
@@ -5366,7 +5366,7 @@ static struct {
 
 #endif /* CONFIG_NO_HZ_COMMON */
 
-static unsigned long weighted_cpuload(struct rq *rq)
+static unsigned long cpu_runnable_load(struct rq *rq)
 {
 	return cfs_rq_runnable_load_avg(&rq->cfs);
 }
@@ -5380,7 +5380,7 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long nr_running = READ_ONCE(rq->cfs.h_nr_running);
-	unsigned long load_avg = weighted_cpuload(rq);
+	unsigned long load_avg = cpu_runnable_load(rq);
 
 	if (nr_running)
 		return load_avg / nr_running;
@@ -5478,7 +5478,7 @@ wake_affine_weight(struct sched_domain *sd, struct task_struct *p,
 	s64 this_eff_load, prev_eff_load;
 	unsigned long task_load;
 
-	this_eff_load = weighted_cpuload(cpu_rq(this_cpu));
+	this_eff_load = cpu_runnable_load(cpu_rq(this_cpu));
 
 	if (sync) {
 		unsigned long current_load = task_h_load(current);
@@ -5496,7 +5496,7 @@ wake_affine_weight(struct sched_domain *sd, struct task_struct *p,
 		this_eff_load *= 100;
 	this_eff_load *= capacity_of(prev_cpu);
 
-	prev_eff_load = weighted_cpuload(cpu_rq(prev_cpu));
+	prev_eff_load = cpu_runnable_load(cpu_rq(prev_cpu));
 	prev_eff_load -= task_load;
 	if (sched_feat(WA_BIAS))
 		prev_eff_load *= 100 + (sd->imbalance_pct - 100) / 2;
@@ -5584,7 +5584,7 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p,
 		max_spare_cap = 0;
 
 		for_each_cpu(i, sched_group_span(group)) {
-			load = weighted_cpuload(cpu_rq(i));
+			load = cpu_runnable_load(cpu_rq(i));
 			runnable_load += load;
 
 			avg_load += cfs_rq_load_avg(&cpu_rq(i)->cfs);
@@ -5720,7 +5720,7 @@ find_idlest_group_cpu(struct sched_group *group, struct task_struct *p, int this
 				shallowest_idle_cpu = i;
 			}
 		} else if (shallowest_idle_cpu == -1) {
-			load = weighted_cpuload(cpu_rq(i));
+			load = cpu_runnable_load(cpu_rq(i));
 			if (load < min_load) {
 				min_load = load;
 				least_loaded_cpu = i;
@@ -7291,7 +7291,7 @@ static struct task_struct *detach_one_task(struct lb_env *env)
 static const unsigned int sched_nr_migrate_break = 32;
 
 /*
- * detach_tasks() -- tries to detach up to imbalance weighted load from
+ * detach_tasks() -- tries to detach up to imbalance runnable load from
  * busiest_rq, as part of a balancing operation within domain "sd".
  *
  * Returns number of detached tasks if successful and 0 otherwise.
@@ -7359,7 +7359,7 @@ static int detach_tasks(struct lb_env *env)
 
 		/*
 		 * We only want to steal up to the prescribed amount of
-		 * weighted load.
+		 * runnable load.
 		 */
 		if (env->imbalance <= 0)
 			break;
@@ -7969,7 +7969,7 @@ static inline void update_sg_lb_stats(struct lb_env *env,
 		if ((env->flags & LBF_NOHZ_STATS) && update_nohz_stats(rq, false))
 			env->flags |= LBF_NOHZ_AGAIN;
 
-		sgs->group_load += weighted_cpuload(rq);
+		sgs->group_load += cpu_runnable_load(rq);
 		sgs->group_util += cpu_util(i);
 		sgs->sum_nr_running += rq->cfs.h_nr_running;
 
@@ -8427,7 +8427,7 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
  * find_busiest_group - Returns the busiest group within the sched_domain
  * if there is an imbalance.
  *
- * Also calculates the amount of weighted load which should be moved
+ * Also calculates the amount of runnable load which should be moved
  * to restore balance.
  *
  * @env: The load balancing environment.
@@ -8546,7 +8546,7 @@ static struct rq *find_busiest_queue(struct lb_env *env,
 	int i;
 
 	for_each_cpu_and(i, sched_group_span(group), env->cpus) {
-		unsigned long capacity, wl;
+		unsigned long capacity, load;
 		enum fbq_type rt;
 
 		rq = cpu_rq(i);
@@ -8600,30 +8600,30 @@ static struct rq *find_busiest_queue(struct lb_env *env,
 		    rq->nr_running == 1)
 			continue;
 
-		wl = weighted_cpuload(rq);
+		load = cpu_runnable_load(rq);
 
 		/*
-		 * When comparing with imbalance, use weighted_cpuload()
+		 * When comparing with imbalance, use cpu_runnable_load()
 		 * which is not scaled with the CPU capacity.
 		 */
 
-		if (rq->nr_running == 1 && wl > env->imbalance &&
+		if (rq->nr_running == 1 && load > env->imbalance &&
 		    !check_cpu_capacity(rq, env->sd))
 			continue;
 
 		/*
 		 * For the load comparisons with the other CPU's, consider
-		 * the weighted_cpuload() scaled with the CPU capacity, so
+		 * the cpu_runnable_load() scaled with the CPU capacity, so
 		 * that the load can be moved away from the CPU that is
 		 * potentially running at a lower capacity.
 		 *
-		 * Thus we're looking for max(wl_i / capacity_i), crosswise
+		 * Thus we're looking for max(load_i / capacity_i), crosswise
 		 * multiplication to rid ourselves of the division works out
-		 * to: wl_i * capacity_j > wl_j * capacity_i;  where j is
+		 * to: load_i * capacity_j > load_j * capacity_i;  where j is
 		 * our previous maximum.
 		 */
-		if (wl * busiest_capacity > busiest_load * capacity) {
-			busiest_load = wl;
+		if (load * busiest_capacity > busiest_load * capacity) {
+			busiest_load = load;
 			busiest_capacity = capacity;
 			busiest = rq;
 		}
