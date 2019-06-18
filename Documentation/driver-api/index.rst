@@ -44,6 +44,7 @@ available subsections can be seen below.
    mtdnand
    miscellaneous
    mei/index
+   mtd/index
    nvdimm/index
    w1
    rapidio/index
