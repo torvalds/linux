@@ -77,6 +77,7 @@ configure specific aspects of kernel behavior to your liking.
    thunderbolt
    LSM/index
    mm/index
+   namespaces/index
    perf-security
    acpi/index
 
