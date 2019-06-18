@@ -241,6 +241,9 @@ i915_gem_shrink(struct drm_i915_private *i915,
 			if (!can_release_pages(obj))
 				continue;
 
+			if (!kref_get_unless_zero(&obj->base.refcount))
+				continue;
+
 			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
 
 			if (unsafe_drop_pages(obj)) {
@@ -253,7 +256,9 @@ i915_gem_shrink(struct drm_i915_private *i915,
 				}
 				mutex_unlock(&obj->mm.lock);
 			}
+
 			scanned += obj->base.size >> PAGE_SHIFT;
+			i915_gem_object_put(obj);
 
 			spin_lock_irqsave(&i915->mm.obj_lock, flags);
 		}

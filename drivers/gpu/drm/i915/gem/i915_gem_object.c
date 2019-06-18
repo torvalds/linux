@@ -146,33 +146,6 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 	}
 }
 
-static bool discard_backing_storage(struct drm_i915_gem_object *obj)
-{
-	/*
-	 * If we are the last user of the backing storage (be it shmemfs
-	 * pages or stolen etc), we know that the pages are going to be
-	 * immediately released. In this case, we can then skip copying
-	 * back the contents from the GPU.
-	 */
-	if (!i915_gem_object_is_shrinkable(obj))
-		return false;
-
-	if (obj->mm.madv != I915_MADV_WILLNEED)
-		return false;
-
-	if (!obj->base.filp)
-		return true;
-
-	/* At first glance, this looks racy, but then again so would be
-	 * userspace racing mmap against close. However, the first external
-	 * reference to the filp can only be obtained through the
-	 * i915_gem_mmap_ioctl() which safeguards us against the user
-	 * acquiring such a reference whilst we are in the middle of
-	 * freeing the object.
-	 */
-	return file_count(obj->base.filp) == 1;
-}
-
 static void __i915_gem_free_objects(struct drm_i915_private *i915,
 				    struct llist_node *freed)
 {
@@ -222,8 +195,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		if (obj->ops->release)
 			obj->ops->release(obj);
 
-		if (WARN_ON(i915_gem_object_has_pinned_pages(obj)))
-			atomic_set(&obj->mm.pages_pin_count, 0);
+		atomic_set(&obj->mm.pages_pin_count, 0);
 		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
 		GEM_BUG_ON(i915_gem_object_has_pages(obj));
 
@@ -319,23 +291,6 @@ static void __i915_gem_free_object_rcu(struct rcu_head *head)
 void i915_gem_free_object(struct drm_gem_object *gem_obj)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
-
-	if (obj->mm.quirked)
-		__i915_gem_object_unpin_pages(obj);
-
-	if (discard_backing_storage(obj)) {
-		struct drm_i915_private *i915 = to_i915(obj->base.dev);
-
-		obj->mm.madv = I915_MADV_DONTNEED;
-
-		if (i915_gem_object_has_pages(obj)) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&i915->mm.obj_lock, flags);
-			list_move_tail(&obj->mm.link, &i915->mm.purge_list);
-			spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
-		}
-	}
 
 	/*
 	 * Before we free the object, make sure any pure RCU-only
