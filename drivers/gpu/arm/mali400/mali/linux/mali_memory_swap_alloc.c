@@ -52,7 +52,8 @@ extern struct mali_mem_os_allocator mali_mem_os_allocator;
 #define MALI_SWAP_LOW_MEM_DEFAULT_VALUE (60*1024*1024)
 #define MALI_SWAP_INVALIDATE_MALI_ADDRESS (0)               /* Used to mark the given memory cookie is invalidate. */
 #define MALI_SWAP_GLOBAL_SWAP_FILE_SIZE (0xFFFFFFFF)
-#define MALI_SWAP_GLOBAL_SWAP_FILE_INDEX ((MALI_SWAP_GLOBAL_SWAP_FILE_SIZE) >> PAGE_CACHE_SHIFT)
+#define MALI_SWAP_GLOBAL_SWAP_FILE_INDEX \
+	((MALI_SWAP_GLOBAL_SWAP_FILE_SIZE) >> PAGE_SHIFT)
 #define MALI_SWAP_GLOBAL_SWAP_FILE_INDEX_RESERVE (1 << 15) /* Reserved for CoW nonlinear swap backend memory, the space size is 128MB. */
 
 unsigned int mali_mem_swap_out_threshold_value = MALI_SWAP_LOW_MEM_DEFAULT_VALUE;
@@ -183,7 +184,7 @@ static void mali_mem_swap_out_page_node(mali_page_node *page_node)
 	dma_unmap_page(&mali_platform_device->dev, page_node->swap_it->dma_addr,
 		       _MALI_OSK_MALI_PAGE_SIZE, DMA_TO_DEVICE);
 	set_page_dirty(page_node->swap_it->page);
-	page_cache_release(page_node->swap_it->page);
+	put_page(page_node->swap_it->page);
 }
 
 void mali_mem_swap_unlock_single_mem_backend(mali_mem_backend *mem_bkend)
@@ -248,7 +249,7 @@ static void mali_mem_swap_swapped_bkend_pool_shrink(_mali_mem_swap_pool_shrink_t
 	}
 
 	/* Get system free pages number. */
-	system_free_size = global_page_state(NR_FREE_PAGES) * PAGE_SIZE;
+	system_free_size = global_zone_page_state(NR_FREE_PAGES) * PAGE_SIZE;
 	last_gpu_utilization = _mali_ukk_utilization_gp_pp();
 
 	if ((last_gpu_utilization < gpu_utilization_threshold_value)
@@ -576,7 +577,7 @@ int mali_mem_swap_alloc_pages(mali_mem_swap *swap_mem, u32 size, u32 *bkend_idx)
 		list_add_tail(&m_page->list, &swap_mem->pages);
 	}
 
-	system_free_size = global_page_state(NR_FREE_PAGES) * PAGE_SIZE;
+	system_free_size = global_zone_page_state(NR_FREE_PAGES) * PAGE_SIZE;
 
 	if ((system_free_size < mali_mem_swap_out_threshold_value)
 	    && (mem_backend_swapped_pool_size > (mali_mem_swap_out_threshold_value >> 2))

@@ -955,7 +955,7 @@ _mali_osk_errcode_t _mali_osk_notification_queue_dequeue(_mali_osk_notification_
  *
  * @return a pointer to the allocated timer object, or NULL on failure.
  */
-_mali_osk_timer_t *_mali_osk_timer_init(void);
+_mali_osk_timer_t *_mali_osk_timer_init(_mali_osk_timer_callback_t callback);
 
 /** @brief Start a timer
  *

@@ -18,7 +18,6 @@
 
 #undef  TRACE_SYSTEM
 #define TRACE_SYSTEM mali
-#define TRACE_SYSTEM_STRING __stringfy(TRACE_SYSTEM)
 
 #define TRACE_INCLUDE_PATH .
 #define TRACE_INCLUDE_FILE mali_linux_trace

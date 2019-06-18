@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/gfp.h>
 #include <linux/hardirq.h>
+#include <linux/uaccess.h>
 
 
 #include "mali_osk_types.h"

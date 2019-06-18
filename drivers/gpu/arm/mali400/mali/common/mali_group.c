@@ -65,7 +65,7 @@ struct mali_group *mali_group_create(struct mali_l2_cache_core *core,
 
 	group = _mali_osk_calloc(1, sizeof(struct mali_group));
 	if (NULL != group) {
-		group->timeout_timer = _mali_osk_timer_init();
+		group->timeout_timer = _mali_osk_timer_init(mali_group_timeout);
 		if (NULL != group->timeout_timer) {
 			_mali_osk_timer_setcallback(group->timeout_timer, mali_group_timeout, (void *)group);
 

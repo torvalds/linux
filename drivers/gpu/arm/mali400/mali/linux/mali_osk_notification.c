@@ -57,7 +57,7 @@ _mali_osk_notification_t *_mali_osk_notification_create(u32 type, u32 size)
 	_mali_osk_notification_wrapper_t *notification;
 
 	notification = (_mali_osk_notification_wrapper_t *)kmalloc(sizeof(_mali_osk_notification_wrapper_t) + size,
-			GFP_KERNEL | __GFP_HIGH | __GFP_REPEAT);
+			GFP_KERNEL | __GFP_HIGH | __GFP_RETRY_MAYFAIL);
 	if (NULL == notification) {
 		MALI_DEBUG_PRINT(1, ("Failed to create a notification object\n"));
 		return NULL;
