@@ -1240,6 +1240,10 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 				   WLAN_EID_EXT_MULTIPLE_BSSID_CONFIGURATION &&
 				   elen == 3) {
 				elems->mbssid_config_ie = (void *)&pos[1];
+			} else if (pos[0] == WLAN_EID_EXT_HE_SPR &&
+				   elen >= sizeof(*elems->he_spr) &&
+				   elen >= ieee80211_he_spr_size(&pos[1])) {
+				elems->he_spr = (void *)&pos[1];
 			}
 			break;
 		default:
