@@ -129,5 +129,9 @@ int btrfs_can_overcommit(struct btrfs_fs_info *fs_info,
 void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
 			   struct btrfs_space_info *info, u64 bytes,
 			   int dump_block_groups);
+int btrfs_reserve_metadata_bytes(struct btrfs_root *root,
+				 struct btrfs_block_rsv *block_rsv,
+				 u64 orig_bytes,
+				 enum btrfs_reserve_flush_enum flush);
 
 #endif /* BTRFS_SPACE_INFO_H */
