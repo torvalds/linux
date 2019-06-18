@@ -381,12 +381,14 @@ struct nla_policy {
  * @nl_net: Network namespace
  * @portid: Netlink PORTID of requesting application
  * @skip_notify: Skip netlink notifications to user space
+ * @skip_notify_kernel: Skip selected in-kernel notifications
  */
 struct nl_info {
 	struct nlmsghdr		*nlh;
 	struct net		*nl_net;
 	u32			portid;
-	bool			skip_notify;
+	u8			skip_notify:1,
+				skip_notify_kernel:1;
 };
 
 /**
