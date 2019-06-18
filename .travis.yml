@@ -1,7 +1,8 @@
 language: c
+dist: xenial
 
 git:
-  depth: false
+  depth: 20
 
 before_install:
   - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
@@ -18,20 +19,26 @@ jobs:
         - SHA_PR=`git log --oneline -1 | sed -rn "s/.*Merge (.*) into.*/\1/p"`
         - SHA_MAIN=`git log --oneline -1 | sed -rn "s/.*Merge .* into (.*)/\1/p"`
         - scripts/checkpatch.pl --strict --codespell -g $SHA_MAIN..$SHA_PR
-    - name: "sparse check"
+    - name: "Code Scan"
       script:
+        - sudo apt-get install automake ocaml-native-compilers ocaml-findlib
+        - wget https://github.com/coccinelle/coccinelle/archive/1.0.7.tar.gz
+        - tar -xf 1.0.7.tar.gz
+        - cd coccinelle-1.0.7 && ./autogen && ./configure && make && sudo make install
+        - cd -
         - export ARCH=x86_64
         - make defconfig
         - scripts/kconfig/merge_config.sh .config kconfig/base-defconfig kconfig/sof-defconfig kconfig/hdaudio-codecs-defconfig
         - make modules_prepare
-        - make SUBDIRS=sound/soc/sof C=2
+        - make M=sound/soc/sof C=2
+        - make coccicheck MODE=report M=sound/soc/sof
     - name: "BUILD SOF Kernel x86_64"
       script:
         - export ARCH=x86_64
         - make defconfig
         - scripts/kconfig/merge_config.sh .config kconfig/base-defconfig kconfig/sof-defconfig
         - make modules_prepare
-        - KCFLAGS="-Wall -Werror" make -j`getconf _NPROCESSORS_ONLN` SUBDIRS=sound/soc/sof W=1
+        - KCFLAGS="-Wall -Werror" make -j`getconf _NPROCESSORS_ONLN` M=sound/soc/sof W=1
         - KCFLAGS="-Wall -Werror" make -j`getconf _NPROCESSORS_ONLN`
         - make bindeb-pkg -j`getconf _NPROCESSORS_ONLN`
     - name: "BUILD SST Kernel x86_64"
