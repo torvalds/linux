@@ -25,6 +25,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "../kselftest.h"
+
 #ifndef ETH_MAX_MTU
 #define ETH_MAX_MTU 0xFFFFU
 #endif
@@ -43,6 +45,10 @@
 
 #ifndef MSG_ZEROCOPY
 #define MSG_ZEROCOPY	0x4000000
+#endif
+
+#ifndef ENOTSUPP
+#define ENOTSUPP	524
 #endif
 
 #define NUM_PKT		100
@@ -603,7 +609,7 @@ int main(int argc, char **argv)
 {
 	unsigned long num_msgs, num_sends;
 	unsigned long tnow, treport, tstop;
-	int fd, i, val;
+	int fd, i, val, ret;
 
 	parse_opts(argc, argv);
 
@@ -623,8 +629,16 @@ int main(int argc, char **argv)
 
 	if (cfg_zerocopy) {
 		val = 1;
-		if (setsockopt(fd, SOL_SOCKET, SO_ZEROCOPY, &val, sizeof(val)))
+
+		ret = setsockopt(fd, SOL_SOCKET, SO_ZEROCOPY,
+				 &val, sizeof(val));
+		if (ret) {
+			if (errno == ENOPROTOOPT || errno == ENOTSUPP) {
+				fprintf(stderr, "SO_ZEROCOPY not supported");
+				exit(KSFT_SKIP);
+			}
 			error(1, errno, "setsockopt zerocopy");
+		}
 	}
 
 	if (cfg_connected &&
