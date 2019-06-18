@@ -4,6 +4,7 @@
  *	Author:	Jesper Dangaard Brouer <netoptimizer@brouer.com>
  *	Copyright (C) 2016 Red Hat, Inc.
  */
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -13,6 +14,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/page-flags.h>
 #include <linux/mm.h> /* for __put_page() */
+
+#include <trace/events/page_pool.h>
 
 static int page_pool_init(struct page_pool *pool,
 			  const struct page_pool_params *params)
@@ -156,6 +159,8 @@ skip_dma_map:
 	/* Track how many pages are held 'in-flight' */
 	pool->pages_state_hold_cnt++;
 
+	trace_page_pool_state_hold(pool, page, pool->pages_state_hold_cnt);
+
 	/* When page just alloc'ed is should/must have refcnt 1. */
 	return page;
 }
@@ -191,7 +196,7 @@ static s32 page_pool_inflight(struct page_pool *pool)
 
 	distance = _distance(hold_cnt, release_cnt);
 
-	/* TODO: Add tracepoint here */
+	trace_page_pool_inflight(pool, distance, hold_cnt, release_cnt);
 	return distance;
 }
 
@@ -222,6 +227,8 @@ static void __page_pool_clean_page(struct page_pool *pool,
 	page->dma_addr = 0;
 skip_dma_unmap:
 	atomic_inc(&pool->pages_state_release_cnt);
+	trace_page_pool_state_release(pool, page,
+			      atomic_read(&pool->pages_state_release_cnt));
 }
 
 /* unmap the page and clean our state */
