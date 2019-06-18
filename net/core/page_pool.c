@@ -330,11 +330,27 @@ static void __page_pool_empty_ring(struct page_pool *pool)
 	}
 }
 
+static void __warn_in_flight(struct page_pool *pool)
+{
+	u32 release_cnt = atomic_read(&pool->pages_state_release_cnt);
+	u32 hold_cnt = READ_ONCE(pool->pages_state_hold_cnt);
+	s32 distance;
+
+	distance = _distance(hold_cnt, release_cnt);
+
+	/* Drivers should fix this, but only problematic when DMA is used */
+	WARN(1, "Still in-flight pages:%d hold:%u released:%u",
+	     distance, hold_cnt, release_cnt);
+}
+
 void __page_pool_free(struct page_pool *pool)
 {
 	WARN(pool->alloc.count, "API usage violation");
 	WARN(!ptr_ring_empty(&pool->ring), "ptr_ring is not empty");
-	WARN(!__page_pool_safe_to_destroy(pool), "still in-flight pages");
+
+	/* Can happen due to forced shutdown */
+	if (!__page_pool_safe_to_destroy(pool))
+		__warn_in_flight(pool);
 
 	ptr_ring_cleanup(&pool->ring, NULL);
 	kfree(pool);

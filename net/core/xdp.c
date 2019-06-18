@@ -39,6 +39,9 @@ struct xdp_mem_allocator {
 	struct rhash_head node;
 	struct rcu_head rcu;
 	struct delayed_work defer_wq;
+	unsigned long defer_start;
+	unsigned long defer_warn;
+	int disconnect_cnt;
 };
 
 static u32 xdp_mem_id_hashfn(const void *data, u32 len, u32 seed)
@@ -95,7 +98,7 @@ static void __xdp_mem_allocator_rcu_free(struct rcu_head *rcu)
 	kfree(xa);
 }
 
-bool __mem_id_disconnect(int id)
+bool __mem_id_disconnect(int id, bool force)
 {
 	struct xdp_mem_allocator *xa;
 	bool safe_to_remove = true;
@@ -108,28 +111,46 @@ bool __mem_id_disconnect(int id)
 		WARN(1, "Request remove non-existing id(%d), driver bug?", id);
 		return true;
 	}
+	xa->disconnect_cnt++;
 
 	/* Detects in-flight packet-pages for page_pool */
 	if (xa->mem.type == MEM_TYPE_PAGE_POOL)
 		safe_to_remove = page_pool_request_shutdown(xa->page_pool);
 
-	if (safe_to_remove &&
+	/* TODO: Tracepoint will be added here in next-patch */
+
+	if ((safe_to_remove || force) &&
 	    !rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
 		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
 
 	mutex_unlock(&mem_id_lock);
-	return safe_to_remove;
+	return (safe_to_remove|force);
 }
 
 #define DEFER_TIME (msecs_to_jiffies(1000))
+#define DEFER_WARN_INTERVAL (30 * HZ)
+#define DEFER_MAX_RETRIES 120
 
 static void mem_id_disconnect_defer_retry(struct work_struct *wq)
 {
 	struct delayed_work *dwq = to_delayed_work(wq);
 	struct xdp_mem_allocator *xa = container_of(dwq, typeof(*xa), defer_wq);
+	bool force = false;
 
-	if (__mem_id_disconnect(xa->mem.id))
+	if (xa->disconnect_cnt > DEFER_MAX_RETRIES)
+		force = true;
+
+	if (__mem_id_disconnect(xa->mem.id, force))
 		return;
+
+	/* Periodic warning */
+	if (time_after_eq(jiffies, xa->defer_warn)) {
+		int sec = (s32)((u32)jiffies - (u32)xa->defer_start) / HZ;
+
+		pr_warn("%s() stalled mem.id=%u shutdown %d attempts %d sec\n",
+			__func__, xa->mem.id, xa->disconnect_cnt, sec);
+		xa->defer_warn = jiffies + DEFER_WARN_INTERVAL;
+	}
 
 	/* Still not ready to be disconnected, retry later */
 	schedule_delayed_work(&xa->defer_wq, DEFER_TIME);
@@ -153,7 +174,7 @@ void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 	if (id == 0)
 		return;
 
-	if (__mem_id_disconnect(id))
+	if (__mem_id_disconnect(id, false))
 		return;
 
 	/* Could not disconnect, defer new disconnect attempt to later */
@@ -164,6 +185,8 @@ void xdp_rxq_info_unreg_mem_model(struct xdp_rxq_info *xdp_rxq)
 		mutex_unlock(&mem_id_lock);
 		return;
 	}
+	xa->defer_start = jiffies;
+	xa->defer_warn  = jiffies + DEFER_WARN_INTERVAL;
 
 	INIT_DELAYED_WORK(&xa->defer_wq, mem_id_disconnect_defer_retry);
 	mutex_unlock(&mem_id_lock);
@@ -388,10 +411,12 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
 		/* mem->id is valid, checked in xdp_rxq_info_reg_mem_model() */
 		xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
 		page = virt_to_head_page(data);
-		if (xa) {
+		if (likely(xa)) {
 			napi_direct &= !xdp_return_frame_no_direct();
 			page_pool_put_page(xa->page_pool, page, napi_direct);
 		} else {
+			/* Hopefully stack show who to blame for late return */
+			WARN_ONCE(1, "page_pool gone mem.id=%d", mem->id);
 			put_page(page);
 		}
 		rcu_read_unlock();
