@@ -199,6 +199,26 @@ static int coda_h264_bitstream_pad(struct coda_ctx *ctx, u32 size)
 	return (n < size) ? -ENOSPC : 0;
 }
 
+int coda_bitstream_flush(struct coda_ctx *ctx)
+{
+	int ret;
+
+	if (ctx->inst_type != CODA_INST_DECODER || !ctx->use_bit)
+		return 0;
+
+	ret = coda_command_sync(ctx, CODA_COMMAND_DEC_BUF_FLUSH);
+	if (ret < 0) {
+		v4l2_err(&ctx->dev->v4l2_dev, "failed to flush bitstream\n");
+		return ret;
+	}
+
+	kfifo_init(&ctx->bitstream_fifo, ctx->bitstream.vaddr,
+		   ctx->bitstream.size);
+	coda_kfifo_sync_to_device_full(ctx);
+
+	return 0;
+}
+
 static int coda_bitstream_queue(struct coda_ctx *ctx, const u8 *buf, u32 size)
 {
 	u32 n = kfifo_in(&ctx->bitstream_fifo, buf, size);

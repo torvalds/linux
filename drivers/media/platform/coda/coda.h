@@ -322,6 +322,7 @@ static inline bool coda_bitstream_can_fetch_past(struct coda_ctx *ctx,
 }
 
 bool coda_bitstream_can_fetch_past(struct coda_ctx *ctx, unsigned int pos);
+int coda_bitstream_flush(struct coda_ctx *ctx);
 
 void coda_bit_stream_end_flag(struct coda_ctx *ctx);
 
