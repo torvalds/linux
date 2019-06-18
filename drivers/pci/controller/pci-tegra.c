@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/export.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/irq.h>
@@ -399,6 +400,8 @@ struct tegra_pcie_port {
 	unsigned int lanes;
 
 	struct phy **phys;
+
+	struct gpio_desc *reset_gpio;
 };
 
 struct tegra_pcie_bus {
@@ -544,15 +547,23 @@ static void tegra_pcie_port_reset(struct tegra_pcie_port *port)
 	unsigned long value;
 
 	/* pulse reset signal */
-	value = afi_readl(port->pcie, ctrl);
-	value &= ~AFI_PEX_CTRL_RST;
-	afi_writel(port->pcie, value, ctrl);
+	if (port->reset_gpio) {
+		gpiod_set_value(port->reset_gpio, 1);
+	} else {
+		value = afi_readl(port->pcie, ctrl);
+		value &= ~AFI_PEX_CTRL_RST;
+		afi_writel(port->pcie, value, ctrl);
+	}
 
 	usleep_range(1000, 2000);
 
-	value = afi_readl(port->pcie, ctrl);
-	value |= AFI_PEX_CTRL_RST;
-	afi_writel(port->pcie, value, ctrl);
+	if (port->reset_gpio) {
+		gpiod_set_value(port->reset_gpio, 0);
+	} else {
+		value = afi_readl(port->pcie, ctrl);
+		value |= AFI_PEX_CTRL_RST;
+		afi_writel(port->pcie, value, ctrl);
+	}
 }
 
 static void tegra_pcie_enable_rp_features(struct tegra_pcie_port *port)
@@ -2218,6 +2229,7 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 		struct tegra_pcie_port *rp;
 		unsigned int index;
 		u32 value;
+		char *label;
 
 		err = of_pci_get_devfn(port);
 		if (err < 0) {
@@ -2275,6 +2287,31 @@ static int tegra_pcie_parse_dt(struct tegra_pcie *pcie)
 		rp->base = devm_pci_remap_cfg_resource(dev, &rp->regs);
 		if (IS_ERR(rp->base))
 			return PTR_ERR(rp->base);
+
+		label = devm_kasprintf(dev, GFP_KERNEL, "pex-reset-%u", index);
+		if (!label) {
+			dev_err(dev, "failed to create reset GPIO label\n");
+			return -ENOMEM;
+		}
+
+		/*
+		 * Returns -ENOENT if reset-gpios property is not populated
+		 * and in this case fall back to using AFI per port register
+		 * to toggle PERST# SFIO line.
+		 */
+		rp->reset_gpio = devm_gpiod_get_from_of_node(dev, port,
+							     "reset-gpios", 0,
+							     GPIOD_OUT_LOW,
+							     label);
+		if (IS_ERR(rp->reset_gpio)) {
+			if (PTR_ERR(rp->reset_gpio) == -ENOENT) {
+				rp->reset_gpio = NULL;
+			} else {
+				dev_err(dev, "failed to get reset GPIO: %d\n",
+					err);
+				return PTR_ERR(rp->reset_gpio);
+			}
+		}
 
 		list_add_tail(&rp->list, &pcie->ports);
 	}
