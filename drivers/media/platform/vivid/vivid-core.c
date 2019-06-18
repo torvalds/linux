@@ -667,6 +667,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	v4l2_std_id tvnorms_cap = 0, tvnorms_out = 0;
 	int ret;
 	int i;
+#ifdef CONFIG_VIDEO_VIVID_CEC
+	unsigned int cec_tx_bus_cnt = 0;
+#endif
 
 	/* allocate main vivid state structure */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -1058,14 +1061,6 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	vivid_update_format_cap(dev, false);
 	vivid_update_format_out(dev);
 
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vid_cap);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vid_out);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vbi_cap);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vbi_out);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_rx);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_tx);
-	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_sdr_cap);
-
 	/* initialize overlay */
 	dev->fb_cap.fmt.width = dev->src_rect.width;
 	dev->fb_cap.fmt.height = dev->src_rect.height;
@@ -1226,6 +1221,47 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 				dev->fb_info.node);
 	}
 
+#ifdef CONFIG_VIDEO_VIVID_CEC
+	if (dev->has_vid_cap && in_type_counter[HDMI]) {
+		struct cec_adapter *adap;
+
+		adap = vivid_cec_alloc_adap(dev, 0, false);
+		ret = PTR_ERR_OR_ZERO(adap);
+		if (ret < 0)
+			goto unreg_dev;
+		dev->cec_rx_adap = adap;
+	}
+
+	if (dev->has_vid_out) {
+		for (i = 0; i < dev->num_outputs; i++) {
+			struct cec_adapter *adap;
+
+			if (dev->output_type[i] != HDMI)
+				continue;
+
+			dev->cec_output2bus_map[i] = cec_tx_bus_cnt;
+			adap = vivid_cec_alloc_adap(dev, cec_tx_bus_cnt, true);
+			ret = PTR_ERR_OR_ZERO(adap);
+			if (ret < 0) {
+				for (i = 0; i < dev->num_outputs; i++)
+					cec_delete_adapter(dev->cec_tx_adap[i]);
+				goto unreg_dev;
+			}
+
+			dev->cec_tx_adap[cec_tx_bus_cnt] = adap;
+			cec_tx_bus_cnt++;
+		}
+	}
+#endif
+
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vid_cap);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vid_out);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vbi_cap);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_vbi_out);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_rx);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_tx);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_sdr_cap);
+
 	/* finally start creating the device nodes */
 	if (dev->has_vid_cap) {
 		vfd = &dev->vid_cap_dev;
@@ -1255,22 +1291,15 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 
 #ifdef CONFIG_VIDEO_VIVID_CEC
 		if (in_type_counter[HDMI]) {
-			struct cec_adapter *adap;
-
-			adap = vivid_cec_alloc_adap(dev, 0, false);
-			ret = PTR_ERR_OR_ZERO(adap);
-			if (ret < 0)
-				goto unreg_dev;
-			dev->cec_rx_adap = adap;
-			ret = cec_register_adapter(adap, &pdev->dev);
+			ret = cec_register_adapter(dev->cec_rx_adap, &pdev->dev);
 			if (ret < 0) {
-				cec_delete_adapter(adap);
+				cec_delete_adapter(dev->cec_rx_adap);
 				dev->cec_rx_adap = NULL;
 				goto unreg_dev;
 			}
-			cec_s_phys_addr(adap, 0, false);
+			cec_s_phys_addr(dev->cec_rx_adap, 0, false);
 			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI input 0\n",
-				  dev_name(&adap->devnode.dev));
+				  dev_name(&dev->cec_rx_adap->devnode.dev));
 		}
 #endif
 
@@ -1282,10 +1311,6 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	}
 
 	if (dev->has_vid_out) {
-#ifdef CONFIG_VIDEO_VIVID_CEC
-		unsigned int bus_cnt = 0;
-#endif
-
 		vfd = &dev->vid_out_dev;
 		snprintf(vfd->name, sizeof(vfd->name),
 			 "vivid-%03d-vid-out", inst);
@@ -1313,30 +1338,21 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 #endif
 
 #ifdef CONFIG_VIDEO_VIVID_CEC
-		for (i = 0; i < dev->num_outputs; i++) {
-			struct cec_adapter *adap;
-
-			if (dev->output_type[i] != HDMI)
-				continue;
-			dev->cec_output2bus_map[i] = bus_cnt;
-			adap = vivid_cec_alloc_adap(dev, bus_cnt, true);
-			ret = PTR_ERR_OR_ZERO(adap);
-			if (ret < 0)
-				goto unreg_dev;
-			dev->cec_tx_adap[bus_cnt] = adap;
-			ret = cec_register_adapter(adap, &pdev->dev);
+		for (i = 0; i < cec_tx_bus_cnt; i++) {
+			ret = cec_register_adapter(dev->cec_tx_adap[i], &pdev->dev);
 			if (ret < 0) {
-				cec_delete_adapter(adap);
-				dev->cec_tx_adap[bus_cnt] = NULL;
+				for (; i < cec_tx_bus_cnt; i++) {
+					cec_delete_adapter(dev->cec_tx_adap[i]);
+					dev->cec_tx_adap[i] = NULL;
+				}
 				goto unreg_dev;
 			}
 			v4l2_info(&dev->v4l2_dev, "CEC adapter %s registered for HDMI output %d\n",
-				  dev_name(&adap->devnode.dev), bus_cnt);
-			bus_cnt++;
-			if (bus_cnt <= out_type_counter[HDMI])
-				cec_s_phys_addr(adap, bus_cnt << 12, false);
+				  dev_name(&dev->cec_tx_adap[i]->devnode.dev), i);
+			if (i <= out_type_counter[HDMI])
+				cec_s_phys_addr(dev->cec_tx_adap[i], i << 12, false);
 			else
-				cec_s_phys_addr(adap, 0x1000, false);
+				cec_s_phys_addr(dev->cec_tx_adap[i], 0x1000, false);
 		}
 #endif
 
