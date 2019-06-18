@@ -40,7 +40,7 @@
  *
  * Would result in the log looking like this:
  *
- * c,a,flush,fuad,b,<other writes>,<next flush>
+ * c,a,b,flush,fuad,<other writes>,<next flush>
  *
  * This is meant to help expose problems where file systems do not properly wait
  * on data being written before invoking a FLUSH.  FUA bypasses cache so once it
