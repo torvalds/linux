@@ -44,6 +44,7 @@ available subsections can be seen below.
    mtdnand
    miscellaneous
    mei/index
+   nvdimm/index
    w1
    rapidio/index
    s390-drivers
