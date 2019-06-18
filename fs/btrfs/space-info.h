@@ -81,5 +81,15 @@ void btrfs_space_info_add_new_bytes(struct btrfs_fs_info *fs_info,
 void btrfs_space_info_add_old_bytes(struct btrfs_fs_info *fs_info,
 				    struct btrfs_space_info *space_info,
 				    u64 num_bytes);
+int btrfs_init_space_info(struct btrfs_fs_info *fs_info);
+void btrfs_update_space_info(struct btrfs_fs_info *info, u64 flags,
+			     u64 total_bytes, u64 bytes_used,
+			     u64 bytes_readonly,
+			     struct btrfs_space_info **space_info);
+struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
+					       u64 flags);
+u64 btrfs_space_info_used(struct btrfs_space_info *s_info,
+			  bool may_use_included);
+void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 
 #endif /* BTRFS_SPACE_INFO_H */
