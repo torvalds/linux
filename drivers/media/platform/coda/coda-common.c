@@ -1059,16 +1059,29 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 			    struct v4l2_decoder_cmd *dc)
 {
 	struct coda_ctx *ctx = fh_to_ctx(fh);
+	struct vb2_queue *dst_vq;
 	int ret;
 
 	ret = coda_try_decoder_cmd(file, fh, dc);
 	if (ret < 0)
 		return ret;
 
-	/* Set the stream-end flag on this context */
-	coda_bit_stream_end_flag(ctx);
-	ctx->hold = false;
-	v4l2_m2m_try_schedule(ctx->fh.m2m_ctx);
+	switch (dc->cmd) {
+	case V4L2_DEC_CMD_START:
+		dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
+					 V4L2_BUF_TYPE_VIDEO_CAPTURE);
+		vb2_clear_last_buffer_dequeued(dst_vq);
+		ctx->bit_stream_param &= ~CODA_BIT_STREAM_END_FLAG;
+		break;
+	case V4L2_DEC_CMD_STOP:
+		/* Set the stream-end flag on this context */
+		coda_bit_stream_end_flag(ctx);
+		ctx->hold = false;
+		v4l2_m2m_try_schedule(ctx->fh.m2m_ctx);
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
 }
