@@ -4,8 +4,6 @@
  * Author: James.Qian.Wang <james.qian.wang@arm.com>
  *
  */
-
-#include <drm/drm_print.h>
 #include "d71_dev.h"
 #include "komeda_kms.h"
 #include "malidp_io.h"
@@ -1064,6 +1062,10 @@ static void d71_timing_ctrlr_update(struct komeda_component *c,
 
 	/* configure bs control register */
 	value = BS_CTRL_EN | BS_CTRL_VM;
+	if (c->pipeline->dual_link) {
+		malidp_write32(reg, BS_DRIFT_TO, hfront_porch + 16);
+		value |= BS_CTRL_DL;
+	}
 
 	malidp_write32(reg, BLK_CONTROL, value);
 }
