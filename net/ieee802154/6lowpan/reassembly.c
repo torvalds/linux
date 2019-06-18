@@ -459,6 +459,14 @@ static int __net_init lowpan_frags_init_net(struct net *net)
 	return res;
 }
 
+static void __net_exit lowpan_frags_pre_exit_net(struct net *net)
+{
+	struct netns_ieee802154_lowpan *ieee802154_lowpan =
+		net_ieee802154_lowpan(net);
+
+	fqdir_pre_exit(ieee802154_lowpan->fqdir);
+}
+
 static void __net_exit lowpan_frags_exit_net(struct net *net)
 {
 	struct netns_ieee802154_lowpan *ieee802154_lowpan =
@@ -469,8 +477,9 @@ static void __net_exit lowpan_frags_exit_net(struct net *net)
 }
 
 static struct pernet_operations lowpan_frags_ops = {
-	.init = lowpan_frags_init_net,
-	.exit = lowpan_frags_exit_net,
+	.init		= lowpan_frags_init_net,
+	.pre_exit	= lowpan_frags_pre_exit_net,
+	.exit		= lowpan_frags_exit_net,
 };
 
 static u32 lowpan_key_hashfn(const void *data, u32 len, u32 seed)
