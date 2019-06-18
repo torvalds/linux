@@ -161,6 +161,27 @@ static inline void pfn_array_idal_create_words(
 	idaws[0] += pa->pa_iova & (PAGE_SIZE - 1);
 }
 
+void convert_ccw0_to_ccw1(struct ccw1 *source, unsigned long len)
+{
+	struct ccw0 ccw0;
+	struct ccw1 *pccw1 = source;
+	int i;
+
+	for (i = 0; i < len; i++) {
+		ccw0 = *(struct ccw0 *)pccw1;
+		if ((pccw1->cmd_code & 0x0f) == CCW_CMD_TIC) {
+			pccw1->cmd_code = CCW_CMD_TIC;
+			pccw1->flags = 0;
+			pccw1->count = 0;
+		} else {
+			pccw1->cmd_code = ccw0.cmd_code;
+			pccw1->flags = ccw0.flags;
+			pccw1->count = ccw0.count;
+		}
+		pccw1->cda = ccw0.cda;
+		pccw1++;
+	}
+}
 
 /*
  * Within the domain (@mdev), copy @n bytes from a guest physical
@@ -211,32 +232,9 @@ static long copy_ccw_from_iova(struct channel_program *cp,
 			       struct ccw1 *to, u64 iova,
 			       unsigned long len)
 {
-	struct ccw0 ccw0;
-	struct ccw1 *pccw1;
 	int ret;
-	int i;
 
 	ret = copy_from_iova(cp->mdev, to, iova, len * sizeof(struct ccw1));
-	if (ret)
-		return ret;
-
-	if (!cp->orb.cmd.fmt) {
-		pccw1 = to;
-		for (i = 0; i < len; i++) {
-			ccw0 = *(struct ccw0 *)pccw1;
-			if ((pccw1->cmd_code & 0x0f) == CCW_CMD_TIC) {
-				pccw1->cmd_code = CCW_CMD_TIC;
-				pccw1->flags = 0;
-				pccw1->count = 0;
-			} else {
-				pccw1->cmd_code = ccw0.cmd_code;
-				pccw1->flags = ccw0.flags;
-				pccw1->count = ccw0.count;
-			}
-			pccw1->cda = ccw0.cda;
-			pccw1++;
-		}
-	}
 
 	return ret;
 }
@@ -440,6 +438,10 @@ static int ccwchain_handle_ccw(u32 cda, struct channel_program *cp)
 	len = copy_ccw_from_iova(cp, cp->guest_cp, cda, CCWCHAIN_LEN_MAX);
 	if (len)
 		return len;
+
+	/* Convert any Format-0 CCWs to Format-1 */
+	if (!cp->orb.cmd.fmt)
+		convert_ccw0_to_ccw1(cp->guest_cp, len);
 
 	/* Count the CCWs in the current chain */
 	len = ccwchain_calc_length(cda, cp);
