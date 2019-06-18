@@ -879,7 +879,25 @@ static int coda_qbuf(struct file *file, void *priv,
 {
 	struct coda_ctx *ctx = fh_to_ctx(priv);
 
+	if (ctx->inst_type == CODA_INST_DECODER &&
+	    buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		buf->flags &= ~V4L2_BUF_FLAG_LAST;
+
 	return v4l2_m2m_qbuf(file, ctx->fh.m2m_ctx, buf);
+}
+
+static int coda_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
+{
+	struct coda_ctx *ctx = fh_to_ctx(priv);
+	int ret;
+
+	ret = v4l2_m2m_dqbuf(file, ctx->fh.m2m_ctx, buf);
+
+	if (ctx->inst_type == CODA_INST_DECODER &&
+	    buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		buf->flags &= ~V4L2_BUF_FLAG_LAST;
+
+	return ret;
 }
 
 static bool coda_buf_is_end_of_stream(struct coda_ctx *ctx,
@@ -1295,7 +1313,7 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 
 	.vidioc_qbuf		= coda_qbuf,
 	.vidioc_expbuf		= v4l2_m2m_ioctl_expbuf,
-	.vidioc_dqbuf		= v4l2_m2m_ioctl_dqbuf,
+	.vidioc_dqbuf		= coda_dqbuf,
 	.vidioc_create_bufs	= v4l2_m2m_ioctl_create_bufs,
 	.vidioc_prepare_buf	= v4l2_m2m_ioctl_prepare_buf,
 
