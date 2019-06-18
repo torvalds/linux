@@ -402,6 +402,29 @@ static bool wo_register(struct intel_engine_cs *engine, u32 reg)
 	return false;
 }
 
+static bool ro_register(u32 reg)
+{
+	if (reg & RING_FORCE_TO_NONPRIV_RD)
+		return true;
+
+	return false;
+}
+
+static int whitelist_writable_count(struct intel_engine_cs *engine)
+{
+	int count = engine->whitelist.count;
+	int i;
+
+	for (i = 0; i < engine->whitelist.count; i++) {
+		u32 reg = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
+
+		if (ro_register(reg))
+			count--;
+	}
+
+	return count;
+}
+
 static int check_dirty_whitelist(struct i915_gem_context *ctx,
 				 struct intel_engine_cs *engine)
 {
@@ -455,6 +478,9 @@ static int check_dirty_whitelist(struct i915_gem_context *ctx,
 		int idx;
 
 		if (wo_register(engine, reg))
+			continue;
+
+		if (ro_register(reg))
 			continue;
 
 		srm = MI_STORE_REGISTER_MEM;
@@ -728,9 +754,13 @@ static int read_whitelisted_registers(struct i915_gem_context *ctx,
 
 	for (i = 0; i < engine->whitelist.count; i++) {
 		u64 offset = results->node.start + sizeof(u32) * i;
+		u32 reg = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
+
+		/* Clear RD only and WR only flags */
+		reg &= ~(RING_FORCE_TO_NONPRIV_RD | RING_FORCE_TO_NONPRIV_WR);
 
 		*cs++ = srm;
-		*cs++ = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
+		*cs++ = reg;
 		*cs++ = lower_32_bits(offset);
 		*cs++ = upper_32_bits(offset);
 	}
@@ -763,9 +793,14 @@ static int scrub_whitelisted_registers(struct i915_gem_context *ctx,
 		goto err_batch;
 	}
 
-	*cs++ = MI_LOAD_REGISTER_IMM(engine->whitelist.count);
+	*cs++ = MI_LOAD_REGISTER_IMM(whitelist_writable_count(engine));
 	for (i = 0; i < engine->whitelist.count; i++) {
-		*cs++ = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
+		u32 reg = i915_mmio_reg_offset(engine->whitelist.list[i].reg);
+
+		if (ro_register(reg))
+			continue;
+
+		*cs++ = reg;
 		*cs++ = 0xffffffff;
 	}
 	*cs++ = MI_BATCH_BUFFER_END;
@@ -950,7 +985,7 @@ static int live_isolated_whitelist(void *arg)
 	}
 
 	for_each_engine(engine, i915, id) {
-		if (!engine->whitelist.count)
+		if (!whitelist_writable_count(engine))
 			continue;
 
 		/* Read default values */
