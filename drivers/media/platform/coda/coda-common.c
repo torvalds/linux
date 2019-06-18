@@ -1077,6 +1077,8 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 	struct coda_dev *dev = ctx->dev;
 	struct vb2_v4l2_buffer *buf;
 	struct vb2_queue *dst_vq;
+	bool stream_end;
+	bool wakeup;
 	int ret;
 
 	ret = coda_try_decoder_cmd(file, fh, dc);
@@ -1097,23 +1099,51 @@ static int coda_decoder_cmd(struct file *file, void *fh,
 		mutex_unlock(&ctx->bitstream_mutex);
 		break;
 	case V4L2_DEC_CMD_STOP:
+		stream_end = false;
+		wakeup = false;
+
 		buf = v4l2_m2m_last_src_buf(ctx->fh.m2m_ctx);
-		if (buf)
+		if (buf) {
+			coda_dbg(1, ctx, "marking last pending buffer\n");
+
 			/* Mark last buffer */
 			buf->flags |= V4L2_BUF_FLAG_LAST;
 
-		if (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) == 0) {
+			if (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) == 0) {
+				coda_dbg(1, ctx, "all remaining buffers queued\n");
+				stream_end = true;
+			}
+		} else {
+			coda_dbg(1, ctx, "marking last meta\n");
+
+			/* Mark last meta */
+			spin_lock(&ctx->buffer_meta_lock);
+			if (!list_empty(&ctx->buffer_meta_list)) {
+				struct coda_buffer_meta *meta;
+
+				meta = list_last_entry(&ctx->buffer_meta_list,
+						       struct coda_buffer_meta,
+						       list);
+				meta->last = true;
+				stream_end = true;
+			} else {
+				wakeup = true;
+			}
+			spin_unlock(&ctx->buffer_meta_lock);
+		}
+
+		if (stream_end) {
+			coda_dbg(1, ctx, "all remaining buffers queued\n");
+
 			/* Set the stream-end flag on this context */
 			coda_bit_stream_end_flag(ctx);
 			ctx->hold = false;
 			v4l2_m2m_try_schedule(ctx->fh.m2m_ctx);
+		}
 
-			flush_work(&ctx->pic_run_work);
-
+		if (wakeup) {
 			/* If there is no buffer in flight, wake up */
-			if (!ctx->streamon_out ||
-			    ctx->qsequence == ctx->osequence)
-				coda_wake_up_capture_queue(ctx);
+			coda_wake_up_capture_queue(ctx);
 		}
 
 		break;

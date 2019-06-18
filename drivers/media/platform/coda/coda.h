@@ -146,6 +146,7 @@ struct coda_buffer_meta {
 	u64			timestamp;
 	unsigned int		start;
 	unsigned int		end;
+	bool			last;
 };
 
 /* Per-queue, driver-specific private data */

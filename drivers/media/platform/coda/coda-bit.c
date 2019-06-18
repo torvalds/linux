@@ -402,6 +402,9 @@ void coda_fill_bitstream(struct coda_ctx *ctx, struct list_head *buffer_list)
 				meta->timestamp = src_buf->vb2_buf.timestamp;
 				meta->start = start;
 				meta->end = ctx->bitstream_fifo.kfifo.in;
+				meta->last = src_buf->flags & V4L2_BUF_FLAG_LAST;
+				if (meta->last)
+					coda_dbg(1, ctx, "marking last meta");
 				spin_lock(&ctx->buffer_meta_lock);
 				list_add_tail(&meta->list,
 					      &ctx->buffer_meta_list);
@@ -2334,6 +2337,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 			memset(&decoded_frame->meta, 0,
 			       sizeof(struct coda_buffer_meta));
 			decoded_frame->meta.sequence = val;
+			decoded_frame->meta.last = false;
 			ctx->sequence_offset++;
 		}
 
