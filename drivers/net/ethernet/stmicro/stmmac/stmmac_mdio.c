@@ -241,7 +241,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 #ifdef CONFIG_OF
 	if (priv->device->of_node) {
 		struct gpio_desc *reset_gpio;
-		u32 delays[3];
+		u32 delays[3] = { 0, 0, 0 };
 		int ret;
 
 		reset_gpio = devm_gpiod_get_optional(priv->device,
