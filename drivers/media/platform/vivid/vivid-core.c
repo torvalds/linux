@@ -720,6 +720,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		in_type_counter[HDMI]--;
 		dev->num_inputs--;
 	}
+	dev->num_hdmi_inputs = in_type_counter[HDMI];
 
 	/* how many outputs do we have and of what type? */
 	dev->num_outputs = num_outputs[inst];
@@ -742,6 +743,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		out_type_counter[HDMI]--;
 		dev->num_outputs--;
 	}
+	dev->num_hdmi_outputs = out_type_counter[HDMI];
 
 	/* do we create a video capture device? */
 	dev->has_vid_cap = node_type & 0x0001;

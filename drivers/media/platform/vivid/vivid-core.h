@@ -168,9 +168,11 @@ struct vivid_dev {
 	/* supported features */
 	bool				multiplanar;
 	unsigned			num_inputs;
+	unsigned int			num_hdmi_inputs;
 	u8				input_type[MAX_INPUTS];
 	u8				input_name_counter[MAX_INPUTS];
 	unsigned			num_outputs;
+	unsigned int			num_hdmi_outputs;
 	u8				output_type[MAX_OUTPUTS];
 	u8				output_name_counter[MAX_OUTPUTS];
 	bool				has_audio_inputs;
