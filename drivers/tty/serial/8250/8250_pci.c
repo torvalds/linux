@@ -1326,7 +1326,7 @@ static int pci_default_setup(struct serial_private *priv,
 
 	return setup_port(priv, port, bar, offset, board->reg_shift);
 }
-void
+static void
 pericom_do_set_divisor(struct uart_port *port, unsigned int baud,
 			       unsigned int quot, unsigned int quot_frac)
 {
