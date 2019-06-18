@@ -110,6 +110,11 @@ static inline int panfrost_model_cmp(struct panfrost_device *pfdev, s32 id)
 	return match_id - id;
 }
 
+static inline bool panfrost_model_is_bifrost(struct panfrost_device *pfdev)
+{
+	return panfrost_model_cmp(pfdev, 0x1000) >= 0;
+}
+
 static inline bool panfrost_model_eq(struct panfrost_device *pfdev, s32 id)
 {
 	return !panfrost_model_cmp(pfdev, id);
