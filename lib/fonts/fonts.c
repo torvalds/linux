@@ -106,7 +106,7 @@ EXPORT_SYMBOL(find_font);
 const struct font_desc *get_default_font(int xres, int yres, u32 font_w,
 					 u32 font_h)
 {
-	int i, c, cc;
+	int i, c, cc, res;
 	const struct font_desc *f, *g;
 
 	g = NULL;
@@ -126,6 +126,11 @@ const struct font_desc *get_default_font(int xres, int yres, u32 font_w,
 #endif
 		if ((yres < 400) == (f->height <= 8))
 			c += 1000;
+
+		/* prefer a bigger font for high resolution */
+		res = (xres / f->width) * (yres / f->height) / 1000;
+		if (res > 20)
+			c += 20 - res;
 
 		if ((font_w & (1 << (f->width - 1))) &&
 		    (font_h & (1 << (f->height - 1))))
