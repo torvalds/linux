@@ -1035,17 +1035,18 @@ static int coda_encoder_cmd(struct file *file, void *fh,
 		return ret;
 
 	buf = v4l2_m2m_last_src_buf(ctx->fh.m2m_ctx);
-	if (buf)
+	if (buf) {
 		buf->flags |= V4L2_BUF_FLAG_LAST;
+	} else {
+		/* Set the stream-end flag on this context */
+		ctx->bit_stream_param |= CODA_BIT_STREAM_END_FLAG;
 
-	/* Set the stream-end flag on this context */
-	ctx->bit_stream_param |= CODA_BIT_STREAM_END_FLAG;
+		flush_work(&ctx->pic_run_work);
 
-	flush_work(&ctx->pic_run_work);
-
-	/* If there is no buffer in flight, wake up */
-	if (!ctx->streamon_out || ctx->qsequence == ctx->osequence)
-		coda_wake_up_capture_queue(ctx);
+		/* If there is no buffer in flight, wake up */
+		if (!ctx->streamon_out || ctx->qsequence == ctx->osequence)
+			coda_wake_up_capture_queue(ctx);
+	}
 
 	return 0;
 }
