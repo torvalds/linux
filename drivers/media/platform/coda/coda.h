@@ -338,8 +338,10 @@ int coda_h264_sps_fixup(struct coda_ctx *ctx, int width, int height, char *buf,
 
 int coda_mpeg2_profile(int profile_idc);
 int coda_mpeg2_level(int level_idc);
+u32 coda_mpeg2_parse_headers(struct coda_ctx *ctx, u8 *buf, u32 size);
 int coda_mpeg4_profile(int profile_idc);
 int coda_mpeg4_level(int level_idc);
+u32 coda_mpeg4_parse_headers(struct coda_ctx *ctx, u8 *buf, u32 size);
 
 void coda_update_profile_level_ctrls(struct coda_ctx *ctx, u8 profile_idc,
 				     u8 level_idc);

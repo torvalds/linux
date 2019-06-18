@@ -180,7 +180,7 @@ static void coda_kfifo_sync_to_device_write(struct coda_ctx *ctx)
 	coda_write(dev, wr_ptr, CODA_REG_BIT_WR_PTR(ctx->reg_idx));
 }
 
-static int coda_bitstream_pad(struct coda_ctx *ctx, u32 size)
+static int coda_h264_bitstream_pad(struct coda_ctx *ctx, u32 size)
 {
 	unsigned char *buf;
 	u32 n;
@@ -206,12 +206,34 @@ static int coda_bitstream_queue(struct coda_ctx *ctx, const u8 *buf, u32 size)
 	return (n < size) ? -ENOSPC : 0;
 }
 
+static u32 coda_buffer_parse_headers(struct coda_ctx *ctx,
+				     struct vb2_v4l2_buffer *src_buf,
+				     u32 payload)
+{
+	u8 *vaddr = vb2_plane_vaddr(&src_buf->vb2_buf, 0);
+	u32 size = 0;
+
+	switch (ctx->codec->src_fourcc) {
+	case V4L2_PIX_FMT_MPEG2:
+		size = coda_mpeg2_parse_headers(ctx, vaddr, payload);
+		break;
+	case V4L2_PIX_FMT_MPEG4:
+		size = coda_mpeg4_parse_headers(ctx, vaddr, payload);
+		break;
+	default:
+		break;
+	}
+
+	return size;
+}
+
 static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 				     struct vb2_v4l2_buffer *src_buf)
 {
 	unsigned long payload = vb2_get_plane_payload(&src_buf->vb2_buf, 0);
 	u8 *vaddr = vb2_plane_vaddr(&src_buf->vb2_buf, 0);
 	int ret;
+	int i;
 
 	if (coda_get_bitstream_payload(ctx) + payload + 512 >=
 	    ctx->bitstream.size)
@@ -222,10 +244,41 @@ static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 		return true;
 	}
 
-	/* Add zero padding before the first H.264 buffer, if it is too small */
+	if (ctx->qsequence == 0 && payload < 512) {
+		/*
+		 * Add padding after the first buffer, if it is too small to be
+		 * fetched by the CODA, by repeating the headers. Without
+		 * repeated headers, or the first frame already queued, decoder
+		 * sequence initialization fails with error code 0x2000 on i.MX6
+		 * or error code 0x1 on i.MX51.
+		 */
+		u32 header_size = coda_buffer_parse_headers(ctx, src_buf,
+							    payload);
+
+		if (header_size) {
+			coda_dbg(1, ctx, "pad with %u-byte header\n",
+				 header_size);
+			for (i = payload; i < 512; i += header_size) {
+				ret = coda_bitstream_queue(ctx, vaddr,
+							   header_size);
+				if (ret < 0) {
+					v4l2_err(&ctx->dev->v4l2_dev,
+						 "bitstream buffer overflow\n");
+					return false;
+				}
+				if (ctx->dev->devtype->product == CODA_960)
+					break;
+			}
+		} else {
+			coda_dbg(1, ctx,
+				 "could not parse header, sequence initialization might fail\n");
+		}
+	}
+
+	/* Add padding before the first buffer, if it is too small */
 	if (ctx->qsequence == 0 && payload < 512 &&
 	    ctx->codec->src_fourcc == V4L2_PIX_FMT_H264)
-		coda_bitstream_pad(ctx, 512 - payload);
+		coda_h264_bitstream_pad(ctx, 512 - payload);
 
 	ret = coda_bitstream_queue(ctx, vaddr, payload);
 	if (ret < 0) {
