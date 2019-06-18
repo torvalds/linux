@@ -3102,7 +3102,6 @@ static void virtual_context_exit(struct intel_context *ce)
 	struct virtual_engine *ve = container_of(ce, typeof(*ve), context);
 	unsigned int n;
 
-	ce->saturated = 0;
 	for (n = 0; n < ve->num_siblings; n++)
 		intel_engine_pm_put(ve->siblings[n]);
 }
@@ -3301,6 +3300,21 @@ intel_execlists_create_virtual(struct i915_gem_context *ctx,
 	ve->base.uabi_class = I915_ENGINE_CLASS_INVALID;
 	ve->base.instance = I915_ENGINE_CLASS_INVALID_VIRTUAL;
 	ve->base.flags = I915_ENGINE_IS_VIRTUAL;
+
+	/*
+	 * The decision on whether to submit a request using semaphores
+	 * depends on the saturated state of the engine. We only compute
+	 * this during HW submission of the request, and we need for this
+	 * state to be globally applied to all requests being submitted
+	 * to this engine. Virtual engines encompass more than one physical
+	 * engine and so we cannot accurately tell in advance if one of those
+	 * engines is already saturated and so cannot afford to use a semaphore
+	 * and be pessimized in priority for doing so -- if we are the only
+	 * context using semaphores after all other clients have stopped, we
+	 * will be starved on the saturated system. Such a global switch for
+	 * semaphores is less than ideal, but alas is the current compromise.
+	 */
+	ve->base.saturated = ALL_ENGINES;
 
 	snprintf(ve->base.name, sizeof(ve->base.name), "virtual");
 

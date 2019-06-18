@@ -100,6 +100,8 @@ static int __engine_park(struct intel_wakeref *wf)
 	struct intel_engine_cs *engine =
 		container_of(wf, typeof(*engine), wakeref);
 
+	engine->saturated = 0;
+
 	/*
 	 * If one and only one request is completed between pm events,
 	 * we know that we are inside the kernel context and it is

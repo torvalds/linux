@@ -53,8 +53,6 @@ struct intel_context {
 	atomic_t pin_count;
 	struct mutex pin_mutex; /* guards pinning and associated on-gpuing */
 
-	intel_engine_mask_t saturated; /* submitting semaphores too late? */
-
 	/**
 	 * active: Active tracker for the rq activity (inc. external) on this
 	 * intel_context object.
