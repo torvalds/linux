@@ -1043,48 +1043,79 @@ static void gen9_whitelist_build(struct i915_wa_list *w)
 	whitelist_reg(w, GEN8_HDC_CHICKEN1);
 }
 
-static void skl_whitelist_build(struct i915_wa_list *w)
+static void skl_whitelist_build(struct intel_engine_cs *engine)
 {
+	struct i915_wa_list *w = &engine->whitelist;
+
+	if (engine->class != RENDER_CLASS)
+		return;
+
 	gen9_whitelist_build(w);
 
 	/* WaDisableLSQCROPERFforOCL:skl */
 	whitelist_reg(w, GEN8_L3SQCREG4);
 }
 
-static void bxt_whitelist_build(struct i915_wa_list *w)
+static void bxt_whitelist_build(struct intel_engine_cs *engine)
 {
-	gen9_whitelist_build(w);
+	if (engine->class != RENDER_CLASS)
+		return;
+
+	gen9_whitelist_build(&engine->whitelist);
 }
 
-static void kbl_whitelist_build(struct i915_wa_list *w)
+static void kbl_whitelist_build(struct intel_engine_cs *engine)
 {
+	struct i915_wa_list *w = &engine->whitelist;
+
+	if (engine->class != RENDER_CLASS)
+		return;
+
 	gen9_whitelist_build(w);
 
 	/* WaDisableLSQCROPERFforOCL:kbl */
 	whitelist_reg(w, GEN8_L3SQCREG4);
 }
 
-static void glk_whitelist_build(struct i915_wa_list *w)
+static void glk_whitelist_build(struct intel_engine_cs *engine)
 {
+	struct i915_wa_list *w = &engine->whitelist;
+
+	if (engine->class != RENDER_CLASS)
+		return;
+
 	gen9_whitelist_build(w);
 
 	/* WA #0862: Userspace has to set "Barrier Mode" to avoid hangs. */
 	whitelist_reg(w, GEN9_SLICE_COMMON_ECO_CHICKEN1);
 }
 
-static void cfl_whitelist_build(struct i915_wa_list *w)
+static void cfl_whitelist_build(struct intel_engine_cs *engine)
 {
-	gen9_whitelist_build(w);
+	if (engine->class != RENDER_CLASS)
+		return;
+
+	gen9_whitelist_build(&engine->whitelist);
 }
 
-static void cnl_whitelist_build(struct i915_wa_list *w)
+static void cnl_whitelist_build(struct intel_engine_cs *engine)
 {
+	struct i915_wa_list *w = &engine->whitelist;
+
+	if (engine->class != RENDER_CLASS)
+		return;
+
 	/* WaEnablePreemptionGranularityControlByUMD:cnl */
 	whitelist_reg(w, GEN8_CS_CHICKEN1);
 }
 
-static void icl_whitelist_build(struct i915_wa_list *w)
+static void icl_whitelist_build(struct intel_engine_cs *engine)
 {
+	struct i915_wa_list *w = &engine->whitelist;
+
+	if (engine->class != RENDER_CLASS)
+		return;
+
 	/* WaAllowUMDToModifyHalfSliceChicken7:icl */
 	whitelist_reg(w, GEN9_HALF_SLICE_CHICKEN7);
 
@@ -1100,25 +1131,22 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_wa_list *w = &engine->whitelist;
 
-	if (engine->class != RENDER_CLASS)
-		return;
-
 	wa_init_start(w, "whitelist");
 
 	if (IS_GEN(i915, 11))
-		icl_whitelist_build(w);
+		icl_whitelist_build(engine);
 	else if (IS_CANNONLAKE(i915))
-		cnl_whitelist_build(w);
+		cnl_whitelist_build(engine);
 	else if (IS_COFFEELAKE(i915))
-		cfl_whitelist_build(w);
+		cfl_whitelist_build(engine);
 	else if (IS_GEMINILAKE(i915))
-		glk_whitelist_build(w);
+		glk_whitelist_build(engine);
 	else if (IS_KABYLAKE(i915))
-		kbl_whitelist_build(w);
+		kbl_whitelist_build(engine);
 	else if (IS_BROXTON(i915))
-		bxt_whitelist_build(w);
+		bxt_whitelist_build(engine);
 	else if (IS_SKYLAKE(i915))
-		skl_whitelist_build(w);
+		skl_whitelist_build(engine);
 	else if (INTEL_GEN(i915) <= 8)
 		return;
 	else
