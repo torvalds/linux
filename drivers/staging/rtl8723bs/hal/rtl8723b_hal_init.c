@@ -1023,7 +1023,7 @@ static void hal_ReadEFuse_BT(
 	}
 
 	efuseTbl = rtw_malloc(EFUSE_BT_MAP_LEN);
-	if (efuseTbl == NULL) {
+	if (!efuseTbl) {
 		DBG_8192C("%s: efuseTbl malloc fail!\n", __func__);
 		return;
 	}
@@ -2139,7 +2139,7 @@ static void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_l
 		return;
 
 	psta = pmlmeinfo->FW_sta_info[mac_id].psta;
-	if (psta == NULL)
+	if (!psta)
 		return;
 
 	shortGIrate = query_ra_short_GI(psta);
