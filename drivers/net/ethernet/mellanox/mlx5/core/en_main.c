@@ -625,10 +625,6 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 	if (rq->xdp_prog)
 		bpf_prog_put(rq->xdp_prog);
 
-	xdp_rxq_info_unreg(&rq->xdp_rxq);
-	if (rq->page_pool)
-		page_pool_destroy(rq->page_pool);
-
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		kvfree(rq->mpwqe.info);
@@ -645,6 +641,11 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 
 		mlx5e_page_release(rq, dma_info, false);
 	}
+
+	xdp_rxq_info_unreg(&rq->xdp_rxq);
+	if (rq->page_pool)
+		page_pool_destroy(rq->page_pool);
+
 	mlx5_wq_destroy(&rq->wq_ctrl);
 }
 
