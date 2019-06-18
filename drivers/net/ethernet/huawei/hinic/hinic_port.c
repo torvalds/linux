@@ -616,6 +616,36 @@ free_buf:
 	return err;
 }
 
+int hinic_rss_get_indir_tbl(struct hinic_dev *nic_dev, u32 tmpl_idx,
+			    u32 *indir_table)
+{
+	struct hinic_rss_indir_table rss_cfg = { 0 };
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	u16 out_size = sizeof(rss_cfg);
+	int err = 0, i;
+
+	rss_cfg.func_id = HINIC_HWIF_FUNC_IDX(hwif);
+	rss_cfg.template_id = tmpl_idx;
+
+	err = hinic_port_msg_cmd(hwdev,
+				 HINIC_PORT_CMD_GET_RSS_TEMPLATE_INDIR_TBL,
+				 &rss_cfg, sizeof(rss_cfg), &rss_cfg,
+				 &out_size);
+	if (err || !out_size || rss_cfg.status) {
+		dev_err(&pdev->dev, "Failed to get indir table, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, rss_cfg.status, out_size);
+		return -EINVAL;
+	}
+
+	hinic_be32_to_cpu(rss_cfg.indir, HINIC_RSS_INDIR_SIZE);
+	for (i = 0; i < HINIC_RSS_INDIR_SIZE; i++)
+		indir_table[i] = rss_cfg.indir[i];
+
+	return 0;
+}
+
 int hinic_set_rss_type(struct hinic_dev *nic_dev, u32 tmpl_idx,
 		       struct hinic_rss_type rss_type)
 {
@@ -676,6 +706,44 @@ int hinic_set_rss_type(struct hinic_dev *nic_dev, u32 tmpl_idx,
 	return 0;
 }
 
+int hinic_get_rss_type(struct hinic_dev *nic_dev, u32 tmpl_idx,
+		       struct hinic_rss_type *rss_type)
+{
+	struct hinic_rss_context_table ctx_tbl = { 0 };
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	u16 out_size = sizeof(ctx_tbl);
+	int err;
+
+	if (!hwdev || !rss_type)
+		return -EINVAL;
+
+	ctx_tbl.func_id = HINIC_HWIF_FUNC_IDX(hwif);
+	ctx_tbl.template_id = tmpl_idx;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_RSS_CTX_TBL,
+				 &ctx_tbl, sizeof(ctx_tbl),
+				 &ctx_tbl, &out_size);
+	if (err || !out_size || ctx_tbl.status) {
+		dev_err(&pdev->dev, "Failed to get hash type, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, ctx_tbl.status, out_size);
+		return -EINVAL;
+	}
+
+	rss_type->ipv4          = HINIC_RSS_TYPE_GET(ctx_tbl.context, IPV4);
+	rss_type->ipv6          = HINIC_RSS_TYPE_GET(ctx_tbl.context, IPV6);
+	rss_type->ipv6_ext      = HINIC_RSS_TYPE_GET(ctx_tbl.context, IPV6_EXT);
+	rss_type->tcp_ipv4      = HINIC_RSS_TYPE_GET(ctx_tbl.context, TCP_IPV4);
+	rss_type->tcp_ipv6      = HINIC_RSS_TYPE_GET(ctx_tbl.context, TCP_IPV6);
+	rss_type->tcp_ipv6_ext  = HINIC_RSS_TYPE_GET(ctx_tbl.context,
+						     TCP_IPV6_EXT);
+	rss_type->udp_ipv4      = HINIC_RSS_TYPE_GET(ctx_tbl.context, UDP_IPV4);
+	rss_type->udp_ipv6      = HINIC_RSS_TYPE_GET(ctx_tbl.context, UDP_IPV6);
+
+	return 0;
+}
+
 int hinic_rss_set_template_tbl(struct hinic_dev *nic_dev, u32 template_id,
 			       const u8 *temp)
 {
@@ -699,6 +767,36 @@ int hinic_rss_set_template_tbl(struct hinic_dev *nic_dev, u32 template_id,
 			err, rss_key.status, out_size);
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+int hinic_rss_get_template_tbl(struct hinic_dev *nic_dev, u32 tmpl_idx,
+			       u8 *temp)
+{
+	struct hinic_rss_template_key temp_key = { 0 };
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	u16 out_size = sizeof(temp_key);
+	int err;
+
+	if (!hwdev || !temp)
+		return -EINVAL;
+
+	temp_key.func_id = HINIC_HWIF_FUNC_IDX(hwif);
+	temp_key.template_id = tmpl_idx;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_RSS_TEMPLATE_TBL,
+				 &temp_key, sizeof(temp_key),
+				 &temp_key, &out_size);
+	if (err || !out_size || temp_key.status) {
+		dev_err(&pdev->dev, "Failed to set hash key, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, temp_key.status, out_size);
+		return -EINVAL;
+	}
+
+	memcpy(temp, temp_key.key, HINIC_RSS_KEY_SIZE);
 
 	return 0;
 }
@@ -727,6 +825,34 @@ int hinic_rss_set_hash_engine(struct hinic_dev *nic_dev, u8 template_id,
 		return -EINVAL;
 	}
 
+	return 0;
+}
+
+int hinic_rss_get_hash_engine(struct hinic_dev *nic_dev, u8 tmpl_idx, u8 *type)
+{
+	struct hinic_rss_engine_type hash_type = { 0 };
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	u16 out_size = sizeof(hash_type);
+	int err;
+
+	if (!hwdev || !type)
+		return -EINVAL;
+
+	hash_type.func_id = HINIC_HWIF_FUNC_IDX(hwif);
+	hash_type.template_id = tmpl_idx;
+
+	err = hinic_port_msg_cmd(hwdev, HINIC_PORT_CMD_GET_RSS_HASH_ENGINE,
+				 &hash_type, sizeof(hash_type),
+				 &hash_type, &out_size);
+	if (err || !out_size || hash_type.status) {
+		dev_err(&pdev->dev, "Failed to get hash engine, err: %d, status: 0x%x, out size: 0x%x\n",
+			err, hash_type.status, out_size);
+		return -EINVAL;
+	}
+
+	*type = hash_type.hash_engine;
 	return 0;
 }
 
