@@ -444,7 +444,7 @@ static int ccwchain_loop_tic(struct ccwchain *chain,
 static int ccwchain_handle_ccw(u32 cda, struct channel_program *cp)
 {
 	struct ccwchain *chain;
-	int len, ret;
+	int len;
 
 	/* Copy the chain from cda to cp, and count the CCWs in it */
 	len = ccwchain_calc_length(cda, cp);
@@ -457,12 +457,8 @@ static int ccwchain_handle_ccw(u32 cda, struct channel_program *cp)
 		return -ENOMEM;
 	chain->ch_iova = cda;
 
-	/* Copy the new chain from user. */
-	ret = copy_ccw_from_iova(cp, chain->ch_ccw, cda, len);
-	if (ret) {
-		ccwchain_free(chain);
-		return ret;
-	}
+	/* Copy the actual CCWs into the new chain */
+	memcpy(chain->ch_ccw, cp->guest_cp, len * sizeof(struct ccw1));
 
 	/* Loop for tics on this new chain. */
 	return ccwchain_loop_tic(chain, cp);
