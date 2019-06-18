@@ -88,10 +88,11 @@ int cca_query_crypto_facility(u16 cardnr, u16 domain,
  * Returns < 0 on failure, 0 if CURRENT MKVP matches and
  * 1 if OLD MKVP matches.
  */
-int cca_findcard(const u8 *seckey, u16 *pcardnr, u16 *pdomain, int verify);
+int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify);
 
 /* struct to hold info for each CCA queue */
 struct cca_info {
+	int  hwtype;	    /* one of the defined AP_DEVICE_TYPE_* */
 	char new_mk_state;  /* '1' empty, '2' partially full, '3' full */
 	char cur_mk_state;  /* '1' invalid, '2' valid */
 	char old_mk_state;  /* '1' invalid, '2' valid */

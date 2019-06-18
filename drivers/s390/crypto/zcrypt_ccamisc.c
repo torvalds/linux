@@ -779,7 +779,17 @@ static int fetch_cca_info(u16 cardnr, u16 domain, struct cca_info *ci)
 	int rc, found = 0;
 	size_t rlen, vlen;
 	u8 *rarray, *varray, *pg;
+	struct zcrypt_device_status_ext devstat;
 
+	memset(ci, 0, sizeof(*ci));
+
+	/* get first info from zcrypt device driver about this apqn */
+	rc = zcrypt_device_status_ext(cardnr, domain, &devstat);
+	if (rc)
+		return rc;
+	ci->hwtype = devstat.hwtype;
+
+	/* prep page for rule array and var array use */
 	pg = (u8 *) __get_free_page(GFP_KERNEL);
 	if (!pg)
 		return -ENOMEM;
@@ -787,10 +797,10 @@ static int fetch_cca_info(u16 cardnr, u16 domain, struct cca_info *ci)
 	varray = pg + PAGE_SIZE/2;
 	rlen = vlen = PAGE_SIZE/2;
 
+	/* QF for this card/domain */
 	rc = cca_query_crypto_facility(cardnr, domain, "STATICSA",
 				       rarray, &rlen, varray, &vlen);
 	if (rc == 0 && rlen >= 10*8 && vlen >= 204) {
-		memset(ci, 0, sizeof(*ci));
 		memcpy(ci->serial, rarray, 8);
 		ci->new_mk_state = (char) rarray[7*8];
 		ci->cur_mk_state = (char) rarray[8*8];
@@ -828,23 +838,19 @@ int cca_get_info(u16 card, u16 dom, struct cca_info *ci, int verify)
 EXPORT_SYMBOL(cca_get_info);
 
 /*
- * Search for a matching crypto card based on the Master Key
- * Verification Pattern provided inside a secure key.
- * Returns < 0 on failure, 0 if CURRENT MKVP matches and
- * 1 if OLD MKVP matches.
+ * Search for a matching crypto card based on the
+ * Master Key Verification Pattern given.
  */
-int cca_findcard(const u8 *seckey, u16 *pcardnr, u16 *pdomain, int verify)
+static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
+		    int verify, int minhwtype)
 {
-	const struct secaeskeytoken *t = (const struct secaeskeytoken *) seckey;
 	struct zcrypt_device_status_ext *device_status;
 	u16 card, dom;
 	struct cca_info ci;
 	int i, rc, oi = -1;
 
-	/* some simple checks of the given secure key token */
-	if (t->type != TOKTYPE_CCA_INTERNAL ||
-	    t->version != TOKVER_CCA_AES ||
-	    t->mkvp == 0)
+	/* mkvp must not be zero, minhwtype needs to be >= 0 */
+	if (mkvp == 0 || minhwtype < 0)
 		return -EINVAL;
 
 	/* fetch status of all crypto cards */
@@ -863,15 +869,17 @@ int cca_findcard(const u8 *seckey, u16 *pcardnr, u16 *pdomain, int verify)
 		    device_status[i].functions & 0x04) {
 			/* enabled CCA card, check current mkvp from cache */
 			if (cca_info_cache_fetch(card, dom, &ci) == 0 &&
+			    ci.hwtype >= minhwtype &&
 			    ci.cur_mk_state == '2' &&
-			    ci.cur_mkvp == t->mkvp) {
+			    ci.cur_mkvp == mkvp) {
 				if (!verify)
 					break;
 				/* verify: refresh card info */
 				if (fetch_cca_info(card, dom, &ci) == 0) {
 					cca_info_cache_update(card, dom, &ci);
-					if (ci.cur_mk_state == '2' &&
-					    ci.cur_mkvp == t->mkvp)
+					if (ci.hwtype >= minhwtype &&
+					    ci.cur_mk_state == '2' &&
+					    ci.cur_mkvp == mkvp)
 						break;
 				}
 			}
@@ -892,11 +900,13 @@ int cca_findcard(const u8 *seckey, u16 *pcardnr, u16 *pdomain, int verify)
 			/* fresh fetch mkvp from adapter */
 			if (fetch_cca_info(card, dom, &ci) == 0) {
 				cca_info_cache_update(card, dom, &ci);
-				if (ci.cur_mk_state == '2' &&
-				    ci.cur_mkvp == t->mkvp)
+				if (ci.hwtype >= minhwtype &&
+				    ci.cur_mk_state == '2' &&
+				    ci.cur_mkvp == mkvp)
 					break;
-				if (ci.old_mk_state == '2' &&
-				    ci.old_mkvp == t->mkvp &&
+				if (ci.hwtype >= minhwtype &&
+				    ci.old_mk_state == '2' &&
+				    ci.old_mkvp == mkvp &&
 				    oi < 0)
 					oi = i;
 			}
@@ -918,6 +928,29 @@ int cca_findcard(const u8 *seckey, u16 *pcardnr, u16 *pdomain, int verify)
 
 	kfree(device_status);
 	return rc;
+}
+
+/*
+ * Search for a matching crypto card based on the Master Key
+ * Verification Pattern provided inside a secure key token.
+ */
+int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify)
+{
+	u64 mkvp;
+	const struct keytoken_header *hdr = (struct keytoken_header *) key;
+
+	if (hdr->type != TOKTYPE_CCA_INTERNAL)
+		return -EINVAL;
+
+	switch (hdr->version) {
+	case TOKVER_CCA_AES:
+		mkvp = ((struct secaeskeytoken *)key)->mkvp;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return findcard(mkvp, pcardnr, pdomain, verify, 0);
 }
 EXPORT_SYMBOL(cca_findcard);
 
