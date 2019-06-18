@@ -287,7 +287,7 @@ config USB_G_SERIAL
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_serial".
 
-	  For more information, see Documentation/usb/gadget_serial.txt
+	  For more information, see Documentation/usb/gadget_serial.rst
 	  which includes instructions and a "driver info file" needed to
 	  make MS-Windows work with CDC ACM.
 
@@ -321,7 +321,7 @@ config USB_G_PRINTER
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_printer".
 
-	  For more information, see Documentation/usb/gadget_printer.txt
+	  For more information, see Documentation/usb/gadget_printer.rst
 	  which includes sample code for accessing the device file.
 
 if TTY
@@ -436,7 +436,7 @@ config USB_G_HID
 	  The HID gadget driver provides generic emulation of USB
 	  Human Interface Devices (HID).
 
-	  For more information, see Documentation/usb/gadget_hid.txt which
+	  For more information, see Documentation/usb/gadget_hid.rst which
 	  includes sample code for accessing the device files.
 
 	  Say "y" to link the driver statically, or "m" to build a

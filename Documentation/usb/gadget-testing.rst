@@ -254,7 +254,7 @@ Device:
 - connect the gadget to a host, preferably not the one used
   to control the gadget
 - run a program which writes to /dev/hidg<N>, e.g.
-  a userspace program found in Documentation/usb/gadget_hid.txt::
+  a userspace program found in Documentation/usb/gadget_hid.rst::
 
 	$ ./hid_gadget_test /dev/hidg0 keyboard
 
@@ -886,7 +886,7 @@ host::
 	# cat /dev/usb/lp0
 
 More advanced testing can be done with the prn_example
-described in Documentation/usb/gadget_printer.txt.
+described in Documentation/usb/gadget_printer.rst.
 
 
 20. UAC1 function (virtual ALSA card, using u_audio API)

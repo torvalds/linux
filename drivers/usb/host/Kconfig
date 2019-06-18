@@ -114,7 +114,7 @@ config USB_EHCI_HCD
 	  Controller Driver or UHCI (for Via motherboards) Host Controller
 	  Driver too.
 
-	  You may want to read <file:Documentation/usb/ehci.txt>.
+	  You may want to read <file:Documentation/usb/ehci.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ehci-hcd.
