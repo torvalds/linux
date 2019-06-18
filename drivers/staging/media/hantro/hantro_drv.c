@@ -45,12 +45,14 @@ void *hantro_get_ctrl(struct hantro_ctx *ctx, u32 id)
 
 dma_addr_t hantro_get_ref(struct vb2_queue *q, u64 ts)
 {
+	struct vb2_buffer *buf;
 	int index;
 
 	index = vb2_find_timestamp(q, ts, 0);
-	if (index >= 0)
-		return vb2_dma_contig_plane_dma_addr(q->bufs[index], 0);
-	return 0;
+	if (index < 0)
+		return 0;
+	buf = vb2_get_buffer(q, index);
+	return vb2_dma_contig_plane_dma_addr(buf, 0);
 }
 
 static int
