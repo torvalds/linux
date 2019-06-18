@@ -1471,23 +1471,20 @@ out_err:
  * Check if this layer root is a descendant of:
  * - another layer of this overlayfs instance
  * - upper/work dir of any overlayfs instance
- * - a disconnected dentry (detached root)
  */
 static int ovl_check_layer(struct super_block *sb, struct dentry *dentry,
 			   const char *name)
 {
-	struct dentry *next, *parent;
-	bool is_root = false;
+	struct dentry *next = dentry, *parent;
 	int err = 0;
 
-	if (!dentry || dentry == dentry->d_sb->s_root)
+	if (!dentry)
 		return 0;
 
-	next = dget(dentry);
-	/* Walk back ancestors to fs root (inclusive) looking for traps */
-	do {
-		parent = dget_parent(next);
-		is_root = (parent == next);
+	parent = dget_parent(next);
+
+	/* Walk back ancestors to root (inclusive) looking for traps */
+	while (!err && parent != next) {
 		if (ovl_is_inuse(parent)) {
 			err = -EBUSY;
 			pr_err("overlayfs: %s path overlapping in-use upperdir/workdir\n",
@@ -1496,17 +1493,12 @@ static int ovl_check_layer(struct super_block *sb, struct dentry *dentry,
 			err = -ELOOP;
 			pr_err("overlayfs: overlapping %s path\n", name);
 		}
-		dput(next);
 		next = parent;
-	} while (!err && !is_root);
-
-	/* Did we really walk to fs root or found a detached root? */
-	if (!err && next != dentry->d_sb->s_root) {
-		err = -ESTALE;
-		pr_err("overlayfs: disconnected %s path\n", name);
+		parent = dget_parent(next);
+		dput(next);
 	}
 
-	dput(next);
+	dput(parent);
 
 	return err;
 }
