@@ -1748,7 +1748,8 @@ int vidioc_s_edid(struct file *file, void *_fh,
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	u16 phys_addr;
-	unsigned int i;
+	u32 display_present = 0;
+	unsigned int i, j;
 	int ret;
 
 	memset(edid->reserved, 0, sizeof(edid->reserved));
@@ -1758,6 +1759,8 @@ int vidioc_s_edid(struct file *file, void *_fh,
 		return -EINVAL;
 	if (edid->blocks == 0) {
 		dev->edid_blocks = 0;
+		v4l2_ctrl_s_ctrl(dev->ctrl_tx_edid_present, 0);
+		v4l2_ctrl_s_ctrl(dev->ctrl_tx_hotplug, 0);
 		phys_addr = CEC_PHYS_ADDR_INVALID;
 		goto set_phys_addr;
 	}
@@ -1776,13 +1779,23 @@ int vidioc_s_edid(struct file *file, void *_fh,
 	dev->edid_blocks = edid->blocks;
 	memcpy(dev->edid, edid->edid, edid->blocks * 128);
 
+	for (i = 0, j = 0; i < dev->num_outputs; i++)
+		if (dev->output_type[i] == HDMI)
+			display_present |=
+				dev->display_present[i] << j++;
+
+	v4l2_ctrl_s_ctrl(dev->ctrl_tx_edid_present, display_present);
+	v4l2_ctrl_s_ctrl(dev->ctrl_tx_hotplug, display_present);
+
 set_phys_addr:
 	/* TODO: a proper hotplug detect cycle should be emulated here */
 	cec_s_phys_addr(dev->cec_rx_adap, phys_addr, false);
 
 	for (i = 0; i < MAX_OUTPUTS && dev->cec_tx_adap[i]; i++)
 		cec_s_phys_addr(dev->cec_tx_adap[i],
-				v4l2_phys_addr_for_input(phys_addr, i + 1),
+				dev->display_present[i] ?
+				v4l2_phys_addr_for_input(phys_addr, i + 1) :
+				CEC_PHYS_ADDR_INVALID,
 				false);
 	return 0;
 }

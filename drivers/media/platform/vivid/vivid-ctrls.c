@@ -18,6 +18,7 @@
 #include "vivid-radio-common.h"
 #include "vivid-osd.h"
 #include "vivid-ctrls.h"
+#include "vivid-cec.h"
 
 #define VIVID_CID_CUSTOM_BASE		(V4L2_CID_USER_BASE | 0xf000)
 #define VIVID_CID_BUTTON		(VIVID_CID_CUSTOM_BASE + 0)
@@ -925,7 +926,7 @@ static int vivid_vid_out_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_vid_out);
 	struct v4l2_bt_timings *bt = &dev->dv_timings_out.bt;
 	u32 display_present = 0;
-	unsigned int i, j;
+	unsigned int i, j, bus_idx;
 
 	switch (ctrl->id) {
 	case VIVID_CID_HAS_CROP_OUT:
@@ -964,15 +965,31 @@ static int vivid_vid_out_s_ctrl(struct v4l2_ctrl *ctrl)
 			break;
 
 		dev->display_present[dev->output] = ctrl->val;
-
 		for (i = 0, j = 0; i < dev->num_outputs; i++)
 			if (dev->output_type[i] == HDMI)
 				display_present |=
 					dev->display_present[i] << j++;
 
-		__v4l2_ctrl_s_ctrl(dev->ctrl_tx_hotplug, display_present);
 		__v4l2_ctrl_s_ctrl(dev->ctrl_tx_rxsense, display_present);
-		__v4l2_ctrl_s_ctrl(dev->ctrl_tx_edid_present, display_present);
+
+		if (dev->edid_blocks) {
+			__v4l2_ctrl_s_ctrl(dev->ctrl_tx_edid_present,
+					   display_present);
+			__v4l2_ctrl_s_ctrl(dev->ctrl_tx_hotplug,
+					   display_present);
+		}
+
+		bus_idx = dev->cec_output2bus_map[dev->output];
+		if (!dev->cec_tx_adap[bus_idx])
+			break;
+
+		if (ctrl->val && dev->edid_blocks)
+			cec_s_phys_addr(dev->cec_tx_adap[bus_idx],
+					dev->cec_tx_adap[bus_idx]->phys_addr,
+					false);
+		else
+			cec_phys_addr_invalidate(dev->cec_tx_adap[bus_idx]);
+
 		break;
 	}
 	return 0;
