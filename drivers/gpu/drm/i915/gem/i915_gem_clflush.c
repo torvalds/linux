@@ -143,11 +143,12 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 		dma_fence_get(&clflush->dma);
 
 		i915_sw_fence_await_reservation(&clflush->wait,
-						obj->resv, NULL,
+						obj->base.resv, NULL,
 						true, I915_FENCE_TIMEOUT,
 						I915_FENCE_GFP);
 
-		reservation_object_add_excl_fence(obj->resv, &clflush->dma);
+		reservation_object_add_excl_fence(obj->base.resv,
+						  &clflush->dma);
 
 		i915_sw_fence_commit(&clflush->wait);
 	} else if (obj->mm.pages) {

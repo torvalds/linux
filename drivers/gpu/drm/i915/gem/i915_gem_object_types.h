@@ -7,8 +7,6 @@
 #ifndef __I915_GEM_OBJECT_TYPES_H__
 #define __I915_GEM_OBJECT_TYPES_H__
 
-#include <linux/reservation.h>
-
 #include <drm/drm_gem.h>
 
 #include "i915_active.h"
@@ -228,18 +226,6 @@ struct drm_i915_gem_object {
 		bool quirked:1;
 	} mm;
 
-	/** Breadcrumb of last rendering to the buffer.
-	 * There can only be one writer, but we allow for multiple readers.
-	 * If there is a writer that necessarily implies that all other
-	 * read requests are complete - but we may only be lazily clearing
-	 * the read requests. A read request is naturally the most recent
-	 * request on a ring, so we may have two different write and read
-	 * requests on one ring where the write request is older than the
-	 * read request. This allows for the CPU to read from an active
-	 * buffer by only waiting for the write to complete.
-	 */
-	struct reservation_object *resv;
-
 	/** References from framebuffers, locks out tiling changes. */
 	unsigned int framebuffer_references;
 
@@ -262,8 +248,6 @@ struct drm_i915_gem_object {
 
 	/** for phys allocated objects */
 	struct drm_dma_handle *phys_handle;
-
-	struct reservation_object __builtin_resv;
 };
 
 static inline struct drm_i915_gem_object *

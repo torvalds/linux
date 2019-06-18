@@ -99,10 +99,10 @@ static void __i915_vma_retire(struct i915_active *ref)
 		return;
 
 	/* Prune the shared fence arrays iff completely idle (inc. external) */
-	if (reservation_object_trylock(obj->resv)) {
-		if (reservation_object_test_signaled_rcu(obj->resv, true))
-			reservation_object_add_excl_fence(obj->resv, NULL);
-		reservation_object_unlock(obj->resv);
+	if (reservation_object_trylock(obj->base.resv)) {
+		if (reservation_object_test_signaled_rcu(obj->base.resv, true))
+			reservation_object_add_excl_fence(obj->base.resv, NULL);
+		reservation_object_unlock(obj->base.resv);
 	}
 
 	/*
@@ -134,7 +134,7 @@ vma_create(struct drm_i915_gem_object *obj,
 	vma->vm = vm;
 	vma->ops = &vm->vma_ops;
 	vma->obj = obj;
-	vma->resv = obj->resv;
+	vma->resv = obj->base.resv;
 	vma->size = obj->base.size;
 	vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 

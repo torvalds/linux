@@ -1027,7 +1027,7 @@ i915_request_await_object(struct i915_request *to,
 		struct dma_fence **shared;
 		unsigned int count, i;
 
-		ret = reservation_object_get_fences_rcu(obj->resv,
+		ret = reservation_object_get_fences_rcu(obj->base.resv,
 							&excl, &count, &shared);
 		if (ret)
 			return ret;
@@ -1044,7 +1044,7 @@ i915_request_await_object(struct i915_request *to,
 			dma_fence_put(shared[i]);
 		kfree(shared);
 	} else {
-		excl = reservation_object_get_excl_rcu(obj->resv);
+		excl = reservation_object_get_excl_rcu(obj->base.resv);
 	}
 
 	if (excl) {

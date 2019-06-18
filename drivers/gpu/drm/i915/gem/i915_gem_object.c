@@ -70,9 +70,6 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 
 	obj->ops = ops;
 
-	reservation_object_init(&obj->__builtin_resv);
-	obj->resv = &obj->__builtin_resv;
-
 	obj->frontbuffer_ggtt_origin = ORIGIN_GTT;
 	i915_active_request_init(&obj->frontbuffer_write,
 				 NULL, frontbuffer_retire);
@@ -233,7 +230,6 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 		if (obj->base.import_attach)
 			drm_prime_gem_destroy(&obj->base, NULL);
 
-		reservation_object_fini(&obj->__builtin_resv);
 		drm_gem_object_release(&obj->base);
 
 		bitmap_free(obj->bit_17);

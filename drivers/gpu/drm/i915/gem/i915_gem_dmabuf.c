@@ -214,7 +214,7 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 	exp_info.size = gem_obj->size;
 	exp_info.flags = flags;
 	exp_info.priv = gem_obj;
-	exp_info.resv = obj->resv;
+	exp_info.resv = obj->base.resv;
 
 	if (obj->ops->dmabuf_export) {
 		int ret = obj->ops->dmabuf_export(obj);
@@ -290,7 +290,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 	drm_gem_private_object_init(dev, &obj->base, dma_buf->size);
 	i915_gem_object_init(obj, &i915_gem_object_dmabuf_ops);
 	obj->base.import_attach = attach;
-	obj->resv = dma_buf->resv;
+	obj->base.resv = dma_buf->resv;
 
 	/* We use GTT as shorthand for a coherent domain, one that is
 	 * neither in the GPU cache nor in the CPU cache, where all

@@ -14256,7 +14256,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		 */
 		if (needs_modeset(crtc_state)) {
 			ret = i915_sw_fence_await_reservation(&intel_state->commit_ready,
-							      old_obj->resv, NULL,
+							      old_obj->base.resv, NULL,
 							      false, 0,
 							      GFP_KERNEL);
 			if (ret < 0)
@@ -14300,13 +14300,13 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		struct dma_fence *fence;
 
 		ret = i915_sw_fence_await_reservation(&intel_state->commit_ready,
-						      obj->resv, NULL,
+						      obj->base.resv, NULL,
 						      false, I915_FENCE_TIMEOUT,
 						      GFP_KERNEL);
 		if (ret < 0)
 			return ret;
 
-		fence = reservation_object_get_excl_rcu(obj->resv);
+		fence = reservation_object_get_excl_rcu(obj->base.resv);
 		if (fence) {
 			add_rps_boost_after_vblank(new_state->crtc, fence);
 			dma_fence_put(fence);

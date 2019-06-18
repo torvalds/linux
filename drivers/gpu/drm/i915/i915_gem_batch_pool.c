@@ -96,7 +96,7 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 	list_for_each_entry(obj, list, batch_pool_link) {
 		/* The batches are strictly LRU ordered */
 		if (i915_gem_object_is_active(obj)) {
-			struct reservation_object *resv = obj->resv;
+			struct reservation_object *resv = obj->base.resv;
 
 			if (!reservation_object_test_signaled_rcu(resv, true))
 				break;
@@ -119,7 +119,7 @@ i915_gem_batch_pool_get(struct i915_gem_batch_pool *pool,
 			}
 		}
 
-		GEM_BUG_ON(!reservation_object_test_signaled_rcu(obj->resv,
+		GEM_BUG_ON(!reservation_object_test_signaled_rcu(obj->base.resv,
 								 true));
 
 		if (obj->base.size >= size)

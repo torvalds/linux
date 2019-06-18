@@ -99,22 +99,22 @@ i915_gem_object_put(struct drm_i915_gem_object *obj)
 	__drm_gem_object_put(&obj->base);
 }
 
-#define assert_object_held(obj) reservation_object_assert_held((obj)->resv)
+#define assert_object_held(obj) reservation_object_assert_held((obj)->base.resv)
 
 static inline void i915_gem_object_lock(struct drm_i915_gem_object *obj)
 {
-	reservation_object_lock(obj->resv, NULL);
+	reservation_object_lock(obj->base.resv, NULL);
 }
 
 static inline int
 i915_gem_object_lock_interruptible(struct drm_i915_gem_object *obj)
 {
-	return reservation_object_lock_interruptible(obj->resv, NULL);
+	return reservation_object_lock_interruptible(obj->base.resv, NULL);
 }
 
 static inline void i915_gem_object_unlock(struct drm_i915_gem_object *obj)
 {
-	reservation_object_unlock(obj->resv);
+	reservation_object_unlock(obj->base.resv);
 }
 
 struct dma_fence *
@@ -373,7 +373,7 @@ i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 	struct dma_fence *fence;
 
 	rcu_read_lock();
-	fence = reservation_object_get_excl_rcu(obj->resv);
+	fence = reservation_object_get_excl_rcu(obj->base.resv);
 	rcu_read_unlock();
 
 	if (fence && dma_fence_is_i915(fence) && !dma_fence_is_signaled(fence))
