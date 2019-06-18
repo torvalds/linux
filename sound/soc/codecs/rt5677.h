@@ -1749,6 +1749,7 @@ enum {
 	RT5677_IRQ_JD1,
 	RT5677_IRQ_JD2,
 	RT5677_IRQ_JD3,
+	RT5677_IRQ_NUM,
 };
 
 enum rt5677_type {
@@ -1827,6 +1828,7 @@ struct rt5677_platform_data {
 
 struct rt5677_priv {
 	struct snd_soc_component *component;
+	struct device *dev;
 	struct rt5677_platform_data pdata;
 	struct regmap *regmap, *regmap_physical;
 	const struct firmware *fw1, *fw2;
@@ -1847,9 +1849,13 @@ struct rt5677_priv {
 	struct gpio_chip gpio_chip;
 #endif
 	bool dsp_vad_en;
-	struct regmap_irq_chip_data *irq_data;
 	bool is_dsp_mode;
 	bool is_vref_slow;
+
+	/* Interrupt handling */
+	struct irq_domain *domain;
+	struct mutex irq_lock;
+	unsigned int irq_en;
 };
 
 int rt5677_sel_asrc_clk_src(struct snd_soc_component *component,
