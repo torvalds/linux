@@ -1641,6 +1641,15 @@ static int tegra_pcie_disable_msi(struct tegra_pcie *pcie)
 	return 0;
 }
 
+static void tegra_pcie_disable_interrupts(struct tegra_pcie *pcie)
+{
+	u32 value;
+
+	value = afi_readl(pcie, AFI_INTR_MASK);
+	value &= ~AFI_INTR_MASK_INT_MASK;
+	afi_writel(pcie, value, AFI_INTR_MASK);
+}
+
 static int tegra_pcie_get_xbar_config(struct tegra_pcie *pcie, u32 lanes,
 				      u32 *xbar)
 {
@@ -2485,6 +2494,12 @@ static int __maybe_unused tegra_pcie_pm_suspend(struct device *dev)
 		tegra_pcie_pme_turnoff(port);
 
 	tegra_pcie_disable_ports(pcie);
+
+	/*
+	 * AFI_INTR is unmasked in tegra_pcie_enable_controller(), mask it to
+	 * avoid unwanted interrupts raised by AFI after pex_rst is asserted.
+	 */
+	tegra_pcie_disable_interrupts(pcie);
 
 	if (pcie->soc->program_uphy) {
 		err = tegra_pcie_phy_power_off(pcie);
