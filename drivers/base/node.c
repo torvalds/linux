@@ -66,6 +66,7 @@ static DEVICE_ATTR(cpulist, S_IRUGO, node_read_cpulist, NULL);
  * @dev:	Device for this memory access class
  * @list_node:	List element in the node's access list
  * @access:	The access class rank
+ * @hmem_attrs: Heterogeneous memory performance attributes
  */
 struct node_access_nodes {
 	struct device		dev;
@@ -673,8 +674,8 @@ int register_cpu_under_node(unsigned int cpu, unsigned int nid)
 /**
  * register_memory_node_under_compute_node - link memory node to its compute
  *					     node for a given access class.
- * @mem_node:	Memory node number
- * @cpu_node:	Cpu  node number
+ * @mem_nid:	Memory node number
+ * @cpu_nid:	Cpu  node number
  * @access:	Access class to register
  *
  * Description:
