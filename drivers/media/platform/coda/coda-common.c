@@ -1001,13 +1001,7 @@ static int coda_try_encoder_cmd(struct file *file, void *fh,
 	if (ctx->inst_type != CODA_INST_ENCODER)
 		return -ENOTTY;
 
-	if (ec->cmd != V4L2_ENC_CMD_STOP)
-		return -EINVAL;
-
-	if (ec->flags & V4L2_ENC_CMD_STOP_AT_GOP_END)
-		return -EINVAL;
-
-	return 0;
+	return v4l2_m2m_ioctl_try_encoder_cmd(file, fh, ec);
 }
 
 static int coda_encoder_cmd(struct file *file, void *fh,
@@ -1043,16 +1037,7 @@ static int coda_try_decoder_cmd(struct file *file, void *fh,
 	if (ctx->inst_type != CODA_INST_DECODER)
 		return -ENOTTY;
 
-	if (dc->cmd != V4L2_DEC_CMD_STOP)
-		return -EINVAL;
-
-	if (dc->flags & V4L2_DEC_CMD_STOP_TO_BLACK)
-		return -EINVAL;
-
-	if (!(dc->flags & V4L2_DEC_CMD_STOP_IMMEDIATELY) && (dc->stop.pts != 0))
-		return -EINVAL;
-
-	return 0;
+	return v4l2_m2m_ioctl_try_decoder_cmd(file, fh, dc);
 }
 
 static int coda_decoder_cmd(struct file *file, void *fh,
