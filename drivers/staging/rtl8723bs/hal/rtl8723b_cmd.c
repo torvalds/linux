@@ -73,7 +73,7 @@ s32 FillH2CCmd8723B(struct adapter *padapter, u8 ElementID, u32 CmdLen, u8 *pCmd
 		goto exit;
 	}
 
-	if (padapter->bSurpriseRemoved == true)
+	if (padapter->bSurpriseRemoved)
 		goto exit;
 
 	/* pay attention to if  race condition happened in  H2C cmd setting. */
@@ -297,7 +297,7 @@ static void ConstructNullFunctionData(
 
 	SetSeqNum(pwlanhdr, 0);
 
-	if (bQoS == true) {
+	if (bQoS) {
 		struct ieee80211_qos_hdr *pwlanqoshdr;
 
 		SetFrameSubType(pframe, WIFI_QOS_DATA_NULL);
@@ -1071,7 +1071,7 @@ void rtl8723b_set_FwPwrMode_cmd(struct adapter *padapter, u8 psmode)
 	SET_8723B_H2CCMD_PWRMODE_PARM_PWR_STATE(u1H2CPwrModeParm, PowerState);
 	SET_8723B_H2CCMD_PWRMODE_PARM_BYTE5(u1H2CPwrModeParm, byte5);
 	if (psmode != PS_MODE_ACTIVE) {
-		if (pmlmeext->adaptive_tsf_done == false && pmlmeext->bcn_cnt > 0) {
+		if (!pmlmeext->adaptive_tsf_done && pmlmeext->bcn_cnt > 0) {
 			u8 ratio_20_delay, ratio_80_delay;
 
 			/* byte 6 for adaptive_early_32k */
@@ -1252,7 +1252,7 @@ static void rtl8723b_set_FwRemoteWakeCtrl_Cmd(struct adapter *padapter, u8 benab
 	FillH2CCmd8723B(padapter, H2C_8723B_REMOTE_WAKE_CTRL,
 		H2C_REMOTE_WAKE_CTRL_LEN, u1H2CRemoteWakeCtrlParm);
 #ifdef CONFIG_PNO_SUPPORT
-	if (ppwrpriv->wowlan_pno_enable && ppwrpriv->pno_in_resume == false) {
+	if (ppwrpriv->wowlan_pno_enable && !ppwrpriv->pno_in_resume) {
 		res = rtw_read8(padapter, REG_PNO_STATUS);
 		DBG_871X("cmd: 0x81 REG_PNO_STATUS: 0x%02x\n", res);
 		while (!(res&BIT(7)) && count < 25) {
@@ -1671,7 +1671,7 @@ static void rtl8723b_set_FwRsvdPagePkt(
 #endif /* CONFIG_WOWLAN */
 	{
 #ifdef CONFIG_PNO_SUPPORT
-		if (pwrctl->pno_in_resume == false && pwrctl->pno_inited == true) {
+		if (!pwrctl->pno_in_resume && pwrctl->pno_inited) {
 			/* Probe Request */
 			RsvdPageLoc.LocProbePacket = TotalPageNum;
 			ConstructProbeReq(
@@ -2119,7 +2119,7 @@ static void ConstructBtNullFunctionData(
 	SetDuration(pwlanhdr, 0);
 	SetSeqNum(pwlanhdr, 0);
 
-	if (bQoS == true) {
+	if (bQoS) {
 		struct ieee80211_qos_hdr *pwlanqoshdr;
 
 		SetFrameSubType(pframe, WIFI_QOS_DATA_NULL);
@@ -2307,7 +2307,7 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter)
 		} while (!bcn_valid && (poll%10) != 0 && !padapter->bSurpriseRemoved && !padapter->bDriverStopped);
 	} while (!bcn_valid && (DLBcnCount <= 100) && !padapter->bSurpriseRemoved && !padapter->bDriverStopped);
 
-	if (true == bcn_valid) {
+	if (bcn_valid) {
 		struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
 		pwrctl->fw_psmode_iface_id = padapter->iface_id;
 		DBG_8192C(ADPT_FMT": DL RSVD page success! DLBcnCount:%d, poll:%d\n",
