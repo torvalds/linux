@@ -9,6 +9,7 @@
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
 #include <linux/dmi.h>
 #include <sound/core.h>
 #include <sound/jack.h>
@@ -32,6 +33,7 @@
 #define SOF_RT5682_SSP_AMP_MASK                 (GENMASK(8, 6))
 #define SOF_RT5682_SSP_AMP(quirk)	\
 	(((quirk) << SOF_RT5682_SSP_AMP_SHIFT) & SOF_RT5682_SSP_AMP_MASK)
+#define SOF_RT5682_MCLK_BYTCHT_EN		BIT(9)
 
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
@@ -48,6 +50,7 @@ struct sof_hdmi_pcm {
 };
 
 struct sof_card_private {
+	struct clk *mclk;
 	struct snd_soc_jack sof_headset;
 	struct list_head hdmi_pcm_list;
 };
@@ -59,6 +62,22 @@ static int sof_rt5682_quirk_cb(const struct dmi_system_id *id)
 }
 
 static const struct dmi_system_id sof_rt5682_quirk_table[] = {
+	{
+		.callback = sof_rt5682_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Circuitco"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Max"),
+		},
+		.driver_data = (void *)(SOF_RT5682_SSP_CODEC(2)),
+	},
+	{
+		.callback = sof_rt5682_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "AAEON"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "UP-CHT01"),
+		},
+		.driver_data = (void *)(SOF_RT5682_SSP_CODEC(2)),
+	},
 	{
 		.callback = sof_rt5682_quirk_cb,
 		.matches = {
@@ -127,6 +146,27 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 					RT5682_CLK_SEL_I2S1_ASRC);
 	}
 
+	if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
+		/*
+		 * The firmware might enable the clock at
+		 * boot (this information may or may not
+		 * be reflected in the enable clock register).
+		 * To change the rate we must disable the clock
+		 * first to cover these cases. Due to common
+		 * clock framework restrictions that do not allow
+		 * to disable a clock that has not been enabled,
+		 * we need to enable the clock first.
+		 */
+		ret = clk_prepare_enable(ctx->mclk);
+		if (!ret)
+			clk_disable_unprepare(ctx->mclk);
+
+		ret = clk_set_rate(ctx->mclk, 19200000);
+
+		if (ret)
+			dev_err(rtd->dev, "unable to set MCLK rate\n");
+	}
+
 	/*
 	 * Headset buttons map to the google Reference headset.
 	 * These can be configured by userspace.
@@ -161,10 +201,20 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int clk_id, clk_freq, pll_out, ret;
 
 	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN) {
+		if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
+			ret = clk_prepare_enable(ctx->mclk);
+			if (ret < 0) {
+				dev_err(rtd->dev,
+					"could not configure MCLK state");
+				return ret;
+			}
+		}
+
 		clk_id = RT5682_PLL1_S_MCLK;
 		if (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ)
 			clk_freq = 24000000;
@@ -507,13 +557,26 @@ static int sof_audio_probe(struct platform_device *pdev)
 		dmic_num = 0;
 		hdmi_num = 0;
 		/* default quirk for legacy cpu */
-		sof_rt5682_quirk = SOF_RT5682_SSP_CODEC(2);
+		sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
+						SOF_RT5682_MCLK_BYTCHT_EN |
+						SOF_RT5682_SSP_CODEC(2);
 	} else {
 		dmic_num = 1;
 		hdmi_num = 3;
 	}
 
 	dmi_check_system(sof_rt5682_quirk_table);
+
+	/* need to get main clock from pmc */
+	if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
+		ctx->mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
+		ret = clk_prepare_enable(ctx->mclk);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"could not configure MCLK state");
+			return ret;
+		}
+	}
 
 	dev_dbg(&pdev->dev, "sof_rt5682_quirk = %lx\n", sof_rt5682_quirk);
 
