@@ -69,6 +69,14 @@ struct btrfs_space_info {
 	struct kobject *block_group_kobjs[BTRFS_NR_RAID_TYPES];
 };
 
+struct reserve_ticket {
+	u64 orig_bytes;
+	u64 bytes;
+	int error;
+	struct list_head list;
+	wait_queue_head_t wait;
+};
+
 static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
 {
 	return ((space_info->flags & BTRFS_BLOCK_GROUP_METADATA) &&
