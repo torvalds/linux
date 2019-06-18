@@ -102,6 +102,15 @@ properties:
           - const: qcom,msm8960
 
       - items:
+          - enum:
+              - fairphone,fp2
+              - lge,hammerhead
+              - sony,xperia-amami
+              - sony,xperia-castor
+              - sony,xperia-honami
+          - const: qcom,msm8974
+
+      - items:
           - const: qcom,msm8916-mtp/1
           - const: qcom,msm8916-mtp
           - const: qcom,msm8916
