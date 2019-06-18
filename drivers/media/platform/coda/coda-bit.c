@@ -1540,6 +1540,12 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 	struct coda_dev *dev = ctx->dev;
 	u32 wr_ptr, start_ptr;
 
+	/*
+	 * Lock to make sure that an encoder stop command running in parallel
+	 * will either already have marked src_buf as last, or it will wake up
+	 * the capture queue after the buffers are returned.
+	 */
+	mutex_lock(&ctx->wakeup_mutex);
 	src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 
@@ -1580,6 +1586,7 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 
 	dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 	coda_m2m_buf_done(ctx, dst_buf, VB2_BUF_STATE_DONE);
+	mutex_unlock(&ctx->wakeup_mutex);
 
 	ctx->gopcounter--;
 	if (ctx->gopcounter < 0)

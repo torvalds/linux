@@ -1034,19 +1034,27 @@ static int coda_encoder_cmd(struct file *file, void *fh,
 	if (ret < 0)
 		return ret;
 
+	mutex_lock(&ctx->wakeup_mutex);
 	buf = v4l2_m2m_last_src_buf(ctx->fh.m2m_ctx);
 	if (buf) {
+		/*
+		 * If the last output buffer is still on the queue, make sure
+		 * that decoder finish_run will see the last flag and report it
+		 * to userspace.
+		 */
 		buf->flags |= V4L2_BUF_FLAG_LAST;
 	} else {
 		/* Set the stream-end flag on this context */
 		ctx->bit_stream_param |= CODA_BIT_STREAM_END_FLAG;
 
-		flush_work(&ctx->pic_run_work);
-
-		/* If there is no buffer in flight, wake up */
-		if (!ctx->streamon_out || ctx->qsequence == ctx->osequence)
-			coda_wake_up_capture_queue(ctx);
+		/*
+		 * If the last output buffer has already been taken from the
+		 * queue, wake up the capture queue and signal end of stream
+		 * via the -EPIPE mechanism.
+		 */
+		coda_wake_up_capture_queue(ctx);
 	}
+	mutex_unlock(&ctx->wakeup_mutex);
 
 	return 0;
 }
@@ -2466,6 +2474,7 @@ static int coda_open(struct file *file)
 
 	mutex_init(&ctx->bitstream_mutex);
 	mutex_init(&ctx->buffer_mutex);
+	mutex_init(&ctx->wakeup_mutex);
 	INIT_LIST_HEAD(&ctx->buffer_meta_list);
 	spin_lock_init(&ctx->buffer_meta_lock);
 

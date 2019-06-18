@@ -258,6 +258,12 @@ struct coda_ctx {
 	bool				use_bit;
 	bool				use_vdoa;
 	struct vdoa_ctx			*vdoa;
+	/*
+	 * wakeup mutex used to serialize encoder stop command and finish_run,
+	 * ensures that finish_run always either flags the last returned buffer
+	 * or wakes up the capture queue to signal EOS afterwards.
+	 */
+	struct mutex			wakeup_mutex;
 };
 
 extern int coda_debug;
