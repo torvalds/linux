@@ -381,6 +381,21 @@ void xdp_return_buff(struct xdp_buff *xdp)
 }
 EXPORT_SYMBOL_GPL(xdp_return_buff);
 
+/* Only called for MEM_TYPE_PAGE_POOL see xdp.h */
+void __xdp_release_frame(void *data, struct xdp_mem_info *mem)
+{
+	struct xdp_mem_allocator *xa;
+	struct page *page;
+
+	rcu_read_lock();
+	xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
+	page = virt_to_head_page(data);
+	if (xa)
+		page_pool_release_page(xa->page_pool, page);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(__xdp_release_frame);
+
 int xdp_attachment_query(struct xdp_attachment_info *info,
 			 struct netdev_bpf *bpf)
 {
