@@ -44,17 +44,17 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 
 	/* TCP over IPv4 flows, Not fragmented, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP4, MVPP2_FL_IP4_TCP_NF_TAG,
-		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4 | MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP4, MVPP2_FL_IP4_TCP_NF_TAG,
-		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4_OPT | MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP4, MVPP2_FL_IP4_TCP_NF_TAG,
-		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4_OTHER | MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
@@ -79,17 +79,17 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 
 	/* TCP over IPv4 flows, fragmented, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP4, MVPP2_FL_IP4_TCP_FRAG_TAG,
-		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4 | MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP4, MVPP2_FL_IP4_TCP_FRAG_TAG,
-		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4_OPT | MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP4, MVPP2_FL_IP4_TCP_FRAG_TAG,
-		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4_OTHER | MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
@@ -114,17 +114,17 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 
 	/* UDP over IPv4 flows, Not fragmented, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP4, MVPP2_FL_IP4_UDP_NF_TAG,
-		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4 | MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP4, MVPP2_FL_IP4_UDP_NF_TAG,
-		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4_OPT | MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP4, MVPP2_FL_IP4_UDP_NF_TAG,
-		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4_OTHER | MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
@@ -149,17 +149,17 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 
 	/* UDP over IPv4 flows, fragmented, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP4, MVPP2_FL_IP4_UDP_FRAG_TAG,
-		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4 | MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP4, MVPP2_FL_IP4_UDP_FRAG_TAG,
-		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4_OPT | MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP4, MVPP2_FL_IP4_UDP_FRAG_TAG,
-		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4_OTHER | MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
@@ -178,12 +178,12 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 
 	/* TCP over IPv6 flows, not fragmented, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP6, MVPP2_FL_IP6_TCP_NF_TAG,
-		       MVPP22_CLS_HEK_IP6_5T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP6_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6 | MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP6, MVPP2_FL_IP6_TCP_NF_TAG,
-		       MVPP22_CLS_HEK_IP6_5T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP6_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6_EXT | MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
@@ -202,13 +202,13 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 
 	/* TCP over IPv6 flows, fragmented, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP6, MVPP2_FL_IP6_TCP_FRAG_TAG,
-		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6 | MVPP2_PRS_RI_IP_FRAG_TRUE |
 		       MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP6, MVPP2_FL_IP6_TCP_FRAG_TAG,
-		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6_EXT | MVPP2_PRS_RI_IP_FRAG_TRUE |
 		       MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
@@ -228,12 +228,12 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 
 	/* UDP over IPv6 flows, not fragmented, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP6, MVPP2_FL_IP6_UDP_NF_TAG,
-		       MVPP22_CLS_HEK_IP6_5T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP6_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6 | MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP6, MVPP2_FL_IP6_UDP_NF_TAG,
-		       MVPP22_CLS_HEK_IP6_5T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP6_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6_EXT | MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
@@ -252,13 +252,13 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 
 	/* UDP over IPv6 flows, fragmented, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP6, MVPP2_FL_IP6_UDP_FRAG_TAG,
-		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6 | MVPP2_PRS_RI_IP_FRAG_TRUE |
 		       MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP6, MVPP2_FL_IP6_UDP_FRAG_TAG,
-		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6_EXT | MVPP2_PRS_RI_IP_FRAG_TRUE |
 		       MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
@@ -279,15 +279,15 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 
 	/* IPv4 flows, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_IP4, MVPP2_FL_IP4_TAG,
-		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4,
 		       MVPP2_PRS_RI_L3_PROTO_MASK),
 	MVPP2_DEF_FLOW(MVPP22_FLOW_IP4, MVPP2_FL_IP4_TAG,
-		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4_OPT,
 		       MVPP2_PRS_RI_L3_PROTO_MASK),
 	MVPP2_DEF_FLOW(MVPP22_FLOW_IP4, MVPP2_FL_IP4_TAG,
-		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP4_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP4_OTHER,
 		       MVPP2_PRS_RI_L3_PROTO_MASK),
 
@@ -303,11 +303,11 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 
 	/* IPv6 flows, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_IP6, MVPP2_FL_IP6_TAG,
-		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6,
 		       MVPP2_PRS_RI_L3_PROTO_MASK),
 	MVPP2_DEF_FLOW(MVPP22_FLOW_IP6, MVPP2_FL_IP6_TAG,
-		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_OPT_VLAN,
+		       MVPP22_CLS_HEK_IP6_2T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6,
 		       MVPP2_PRS_RI_L3_PROTO_MASK),
 
@@ -655,6 +655,9 @@ static int mvpp2_flow_set_hek_fields(struct mvpp2_cls_flow_entry *fe,
 		case MVPP22_CLS_HEK_OPT_VLAN:
 			field_id = MVPP22_CLS_FIELD_VLAN;
 			break;
+		case MVPP22_CLS_HEK_OPT_VLAN_PRI:
+			field_id = MVPP22_CLS_FIELD_VLAN_PRI;
+			break;
 		case MVPP22_CLS_HEK_OPT_IP4SA:
 			field_id = MVPP22_CLS_FIELD_IP4SA;
 			break;
@@ -689,6 +692,10 @@ static int mvpp2_cls_hek_field_size(u32 field)
 	switch (field) {
 	case MVPP22_CLS_HEK_OPT_MAC_DA:
 		return 48;
+	case MVPP22_CLS_HEK_OPT_VLAN:
+		return 12;
+	case MVPP22_CLS_HEK_OPT_VLAN_PRI:
+		return 3;
 	case MVPP22_CLS_HEK_OPT_IP4SA:
 	case MVPP22_CLS_HEK_OPT_IP4DA:
 		return 32;
@@ -776,6 +783,9 @@ u16 mvpp2_flow_get_hek_fields(struct mvpp2_cls_flow_entry *fe)
 			break;
 		case MVPP22_CLS_FIELD_VLAN:
 			hash_opts |= MVPP22_CLS_HEK_OPT_VLAN;
+			break;
+		case MVPP22_CLS_FIELD_VLAN_PRI:
+			hash_opts |= MVPP22_CLS_HEK_OPT_VLAN_PRI;
 			break;
 		case MVPP22_CLS_FIELD_L3_PROTO:
 			hash_opts |= MVPP22_CLS_HEK_OPT_L3_PROTO;
@@ -1223,6 +1233,43 @@ static int mvpp2_cls_c2_build_match(struct mvpp2_rfs_rule *rule)
 {
 	struct flow_rule *flow = rule->flow;
 	int offs = 0;
+
+	/* The order of insertion in C2 tcam must match the order in which
+	 * the fields are found in the header
+	 */
+	if (flow_rule_match_key(flow, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
+
+		flow_rule_match_vlan(flow, &match);
+		if (match.mask->vlan_id) {
+			rule->hek_fields |= MVPP22_CLS_HEK_OPT_VLAN;
+
+			rule->c2_tcam |= ((u64)match.key->vlan_id) << offs;
+			rule->c2_tcam_mask |= ((u64)match.mask->vlan_id) << offs;
+
+			/* Don't update the offset yet */
+		}
+
+		if (match.mask->vlan_priority) {
+			rule->hek_fields |= MVPP22_CLS_HEK_OPT_VLAN_PRI;
+
+			/* VLAN pri is always at offset 13 relative to the
+			 * current offset
+			 */
+			rule->c2_tcam |= ((u64)match.key->vlan_priority) <<
+				(offs + 13);
+			rule->c2_tcam_mask |= ((u64)match.mask->vlan_priority) <<
+				(offs + 13);
+		}
+
+		if (match.mask->vlan_dei)
+			return -EOPNOTSUPP;
+
+		/* vlan id and prio always seem to take a full 16-bit slot in
+		 * the Header Extracted Key.
+		 */
+		offs += 16;
+	}
 
 	if (flow_rule_match_key(flow, FLOW_DISSECTOR_KEY_PORTS)) {
 		struct flow_match_ports match;
