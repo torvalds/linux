@@ -912,6 +912,8 @@ static int vivid_vid_out_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct vivid_dev *dev = container_of(ctrl->handler, struct vivid_dev, ctrl_hdl_vid_out);
 	struct v4l2_bt_timings *bt = &dev->dv_timings_out.bt;
+	u32 display_present = 0;
+	unsigned int i, j;
 
 	switch (ctrl->id) {
 	case VIVID_CID_HAS_CROP_OUT:
@@ -950,6 +952,15 @@ static int vivid_vid_out_s_ctrl(struct v4l2_ctrl *ctrl)
 			break;
 
 		dev->display_present[dev->output] = ctrl->val;
+
+		for (i = 0, j = 0; i < dev->num_outputs; i++)
+			if (dev->output_type[i] == HDMI)
+				display_present |=
+					dev->display_present[i] << j++;
+
+		__v4l2_ctrl_s_ctrl(dev->ctrl_tx_hotplug, display_present);
+		__v4l2_ctrl_s_ctrl(dev->ctrl_tx_rxsense, display_present);
+		__v4l2_ctrl_s_ctrl(dev->ctrl_tx_edid_present, display_present);
 		break;
 	}
 	return 0;
@@ -1593,7 +1604,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 			V4L2_CID_DV_RX_RGB_RANGE, V4L2_DV_RGB_RANGE_FULL,
 			0, V4L2_DV_RGB_RANGE_AUTO);
 	}
-	if (has_hdmi && dev->has_vid_out) {
+	if (dev->num_hdmi_outputs) {
 		/*
 		 * We aren't doing anything with this at the moment, but
 		 * HDMI outputs typically have this controls.
@@ -1606,6 +1617,18 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 			0, V4L2_DV_TX_MODE_HDMI);
 		dev->ctrl_display_present = v4l2_ctrl_new_custom(hdl_vid_out,
 			&vivid_ctrl_display_present, NULL);
+		dev->ctrl_tx_hotplug = v4l2_ctrl_new_std(hdl_vid_out,
+			NULL, V4L2_CID_DV_TX_HOTPLUG, 0,
+			(2 << (dev->num_hdmi_outputs - 1)) - 1, 0,
+			(2 << (dev->num_hdmi_outputs - 1)) - 1);
+		dev->ctrl_tx_rxsense = v4l2_ctrl_new_std(hdl_vid_out,
+			NULL, V4L2_CID_DV_TX_RXSENSE, 0,
+			(2 << (dev->num_hdmi_outputs - 1)) - 1, 0,
+			(2 << (dev->num_hdmi_outputs - 1)) - 1);
+		dev->ctrl_tx_edid_present = v4l2_ctrl_new_std(hdl_vid_out,
+			NULL, V4L2_CID_DV_TX_EDID_PRESENT, 0,
+			(2 << (dev->num_hdmi_outputs - 1)) - 1, 0,
+			(2 << (dev->num_hdmi_outputs - 1)) - 1);
 	}
 	if ((dev->has_vid_cap && dev->has_vid_out) ||
 	    (dev->has_vbi_cap && dev->has_vbi_out))

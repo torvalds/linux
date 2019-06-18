@@ -236,6 +236,9 @@ struct vivid_dev {
 	struct v4l2_ctrl		*ctrl_has_scaler_out;
 	struct v4l2_ctrl		*ctrl_tx_mode;
 	struct v4l2_ctrl		*ctrl_tx_rgb_range;
+	struct v4l2_ctrl		*ctrl_tx_edid_present;
+	struct v4l2_ctrl		*ctrl_tx_hotplug;
+	struct v4l2_ctrl		*ctrl_tx_rxsense;
 
 	struct v4l2_ctrl		*radio_tx_rds_pi;
 	struct v4l2_ctrl		*radio_tx_rds_pty;
