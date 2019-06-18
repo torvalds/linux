@@ -1661,7 +1661,7 @@ static bool coda_reorder_enable(struct coda_ctx *ctx)
 	return profile > V4L2_MPEG_VIDEO_H264_PROFILE_BASELINE;
 }
 
-static int __coda_start_decoding(struct coda_ctx *ctx)
+static int __coda_decoder_seq_init(struct coda_ctx *ctx)
 {
 	struct coda_q_data *q_data_src, *q_data_dst;
 	u32 bitstream_buf, bitstream_size;
@@ -1683,8 +1683,6 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	bitstream_size = ctx->bitstream.size;
 	src_fourcc = q_data_src->fourcc;
 	dst_fourcc = q_data_dst->fourcc;
-
-	coda_write(dev, ctx->parabuf.paddr, CODA_REG_BIT_PARA_BUF_ADDR);
 
 	/* Update coda bitstream read and write pointers from kfifo */
 	coda_kfifo_sync_to_device_full(ctx);
@@ -1823,6 +1821,29 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 			coda_update_profile_level_ctrls(ctx, profile, level);
 	}
 
+	return 0;
+}
+
+static int __coda_start_decoding(struct coda_ctx *ctx)
+{
+	struct coda_q_data *q_data_src, *q_data_dst;
+	struct coda_dev *dev = ctx->dev;
+	u32 src_fourcc, dst_fourcc;
+	int ret;
+
+	if (!ctx->initialized) {
+		ret = __coda_decoder_seq_init(ctx);
+		if (ret < 0)
+			return ret;
+	}
+
+	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	src_fourcc = q_data_src->fourcc;
+	dst_fourcc = q_data_dst->fourcc;
+
+	coda_write(dev, ctx->parabuf.paddr, CODA_REG_BIT_PARA_BUF_ADDR);
+
 	ret = coda_alloc_framebuffers(ctx, q_data_dst, src_fourcc);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "failed to allocate framebuffers\n");
@@ -1831,7 +1852,8 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 
 	/* Tell the decoder how many frame buffers we allocated. */
 	coda_write(dev, ctx->num_internal_frames, CODA_CMD_SET_FRAME_BUF_NUM);
-	coda_write(dev, width, CODA_CMD_SET_FRAME_BUF_STRIDE);
+	coda_write(dev, round_up(q_data_dst->rect.width, 16),
+		   CODA_CMD_SET_FRAME_BUF_STRIDE);
 
 	if (dev->devtype->product != CODA_DX6) {
 		/* Set secondary AXI IRAM */
