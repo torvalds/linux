@@ -20,6 +20,9 @@
 #include "panfrost_job.h"
 #include "panfrost_gpu.h"
 
+static bool unstable_ioctls;
+module_param_unsafe(unstable_ioctls, bool, 0600);
+
 static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct drm_file *file)
 {
 	struct drm_panfrost_get_param *param = data;
@@ -294,6 +297,14 @@ static int panfrost_ioctl_get_bo_offset(struct drm_device *dev, void *data,
 	args->offset = bo->node.start << PAGE_SHIFT;
 
 	drm_gem_object_put_unlocked(gem_obj);
+	return 0;
+}
+
+int panfrost_unstable_ioctl_check(void)
+{
+	if (!unstable_ioctls)
+		return -ENOSYS;
+
 	return 0;
 }
 

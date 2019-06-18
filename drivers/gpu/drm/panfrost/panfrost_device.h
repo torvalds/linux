@@ -115,6 +115,8 @@ static inline bool panfrost_model_eq(struct panfrost_device *pfdev, s32 id)
 	return !panfrost_model_cmp(pfdev, id);
 }
 
+int panfrost_unstable_ioctl_check(void);
+
 int panfrost_device_init(struct panfrost_device *pfdev);
 void panfrost_device_fini(struct panfrost_device *pfdev);
 
