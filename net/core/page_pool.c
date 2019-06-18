@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/device.h>
 
 #include <net/page_pool.h>
 #include <linux/dma-direction.h>
@@ -47,6 +48,9 @@ static int page_pool_init(struct page_pool *pool,
 		return -ENOMEM;
 
 	atomic_set(&pool->pages_state_release_cnt, 0);
+
+	if (pool->p.flags & PP_FLAG_DMA_MAP)
+		get_device(pool->p.dev);
 
 	return 0;
 }
@@ -360,6 +364,10 @@ void __page_pool_free(struct page_pool *pool)
 		__warn_in_flight(pool);
 
 	ptr_ring_cleanup(&pool->ring, NULL);
+
+	if (pool->p.flags & PP_FLAG_DMA_MAP)
+		put_device(pool->p.dev);
+
 	kfree(pool);
 }
 EXPORT_SYMBOL(__page_pool_free);
