@@ -171,6 +171,7 @@ enum iavf_state_t {
 	__IAVF_INIT_GET_RESOURCES,	/* aq msg sent, awaiting reply */
 	__IAVF_INIT_SW,		/* got resources, setting up structs */
 	__IAVF_RESETTING,		/* in reset */
+	__IAVF_COMM_FAILED,		/* communication with PF failed */
 	/* Below here, watchdog is running */
 	__IAVF_DOWN,			/* ready, can be opened */
 	__IAVF_DOWN_PENDING,		/* descending, waiting for watchdog */
@@ -216,7 +217,6 @@ struct iavf_cloud_filter {
 
 /* board specific private data structure */
 struct iavf_adapter {
-	struct timer_list watchdog_timer;
 	struct work_struct reset_task;
 	struct work_struct adminq_task;
 	struct delayed_work client_task;
@@ -303,7 +303,7 @@ struct iavf_adapter {
 	enum iavf_state_t state;
 	unsigned long crit_section;
 
-	struct work_struct watchdog_task;
+	struct delayed_work watchdog_task;
 	bool netdev_registered;
 	bool link_up;
 	enum virtchnl_link_speed link_speed;
@@ -359,6 +359,7 @@ struct iavf_device {
 /* needed by iavf_ethtool.c */
 extern char iavf_driver_name[];
 extern const char iavf_driver_version[];
+extern struct workqueue_struct *iavf_wq;
 
 int iavf_up(struct iavf_adapter *adapter);
 void iavf_down(struct iavf_adapter *adapter);
