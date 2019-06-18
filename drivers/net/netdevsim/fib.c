@@ -190,13 +190,6 @@ static int nsim_fib_event_nb(struct notifier_block *nb, unsigned long event,
 
 	case FIB_EVENT_ENTRY_ADD:  /* fall through */
 	case FIB_EVENT_ENTRY_DEL:
-		if (info->family == AF_INET6) {
-			struct fib6_entry_notifier_info *fen6_info = ptr;
-
-			if (fen6_info->multipath_rt)
-				return NOTIFY_DONE;
-		}
-
 		err = nsim_fib_event(data, info,
 				     event == FIB_EVENT_ENTRY_ADD);
 		break;

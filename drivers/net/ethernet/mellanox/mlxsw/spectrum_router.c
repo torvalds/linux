@@ -6294,8 +6294,6 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 				NL_SET_ERR_MSG_MOD(info->extack, "IPv6 route with nexthop objects is not supported");
 				return notifier_from_errno(-EINVAL);
 			}
-			if (fen6_info->multipath_rt)
-				return NOTIFY_DONE;
 		}
 		break;
 	}

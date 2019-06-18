@@ -378,7 +378,6 @@ struct fib6_entry_notifier_info {
 	struct fib_notifier_info info; /* must be first */
 	struct fib6_info *rt;
 	unsigned int nsiblings;
-	bool multipath_rt;
 };
 
 /*
