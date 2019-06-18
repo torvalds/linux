@@ -643,9 +643,6 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 	}
 
 	xdp_rxq_info_unreg(&rq->xdp_rxq);
-	if (rq->page_pool)
-		page_pool_destroy(rq->page_pool);
-
 	mlx5_wq_destroy(&rq->wq_ctrl);
 }
 
