@@ -20,55 +20,41 @@
 #endif
 #include <linux/font.h>
 
-#define NO_FONTS
-
 static const struct font_desc *fonts[] = {
 #ifdef CONFIG_FONT_8x8
-#undef NO_FONTS
 	&font_vga_8x8,
 #endif
 #ifdef CONFIG_FONT_8x16
-#undef NO_FONTS
 	&font_vga_8x16,
 #endif
 #ifdef CONFIG_FONT_6x11
-#undef NO_FONTS
 	&font_vga_6x11,
 #endif
 #ifdef CONFIG_FONT_7x14
-#undef NO_FONTS
 	&font_7x14,
 #endif
 #ifdef CONFIG_FONT_SUN8x16
-#undef NO_FONTS
 	&font_sun_8x16,
 #endif
 #ifdef CONFIG_FONT_SUN12x22
-#undef NO_FONTS
 	&font_sun_12x22,
 #endif
 #ifdef CONFIG_FONT_10x18
-#undef NO_FONTS
 	&font_10x18,
 #endif
 #ifdef CONFIG_FONT_ACORN_8x8
-#undef NO_FONTS
 	&font_acorn_8x8,
 #endif
 #ifdef CONFIG_FONT_PEARL_8x8
-#undef NO_FONTS
 	&font_pearl_8x8,
 #endif
 #ifdef CONFIG_FONT_MINI_4x6
-#undef NO_FONTS
 	&font_mini_4x6,
 #endif
 #ifdef CONFIG_FONT_6x10
-#undef NO_FONTS
 	&font_6x10,
 #endif
 #ifdef CONFIG_FONT_TER16x32
-#undef NO_FONTS
 	&font_ter_16x32,
 #endif
 };
@@ -94,6 +80,7 @@ const struct font_desc *find_font(const char *name)
 {
 	unsigned int i;
 
+	BUILD_BUG_ON(!num_fonts);
 	for (i = 0; i < num_fonts; i++)
 		if (!strcmp(fonts[i]->name, name))
 			return fonts[i];
