@@ -5893,10 +5893,15 @@ static void mlxsw_sp_router_fib_abort(struct mlxsw_sp *mlxsw_sp)
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to set abort trap.\n");
 }
 
+struct mlxsw_sp_fib6_event_work {
+	struct fib6_info **rt_arr;
+	unsigned int nrt6;
+};
+
 struct mlxsw_sp_fib_event_work {
 	struct work_struct work;
 	union {
-		struct fib6_entry_notifier_info fen6_info;
+		struct mlxsw_sp_fib6_event_work fib6_work;
 		struct fib_entry_notifier_info fen_info;
 		struct fib_rule_notifier_info fr_info;
 		struct fib_nh_notifier_info fnh_info;
@@ -5906,6 +5911,54 @@ struct mlxsw_sp_fib_event_work {
 	struct mlxsw_sp *mlxsw_sp;
 	unsigned long event;
 };
+
+static int
+mlxsw_sp_router_fib6_work_init(struct mlxsw_sp_fib6_event_work *fib6_work,
+			       struct fib6_entry_notifier_info *fen6_info)
+{
+	struct fib6_info *rt = fen6_info->rt;
+	struct fib6_info **rt_arr;
+	struct fib6_info *iter;
+	unsigned int nrt6;
+	int i = 0;
+
+	nrt6 = fen6_info->nsiblings + 1;
+
+	rt_arr = kcalloc(nrt6, sizeof(struct fib6_info *), GFP_ATOMIC);
+	if (!rt_arr)
+		return -ENOMEM;
+
+	fib6_work->rt_arr = rt_arr;
+	fib6_work->nrt6 = nrt6;
+
+	rt_arr[0] = rt;
+	fib6_info_hold(rt);
+
+	if (!fen6_info->nsiblings)
+		return 0;
+
+	list_for_each_entry(iter, &rt->fib6_siblings, fib6_siblings) {
+		if (i == fen6_info->nsiblings)
+			break;
+
+		rt_arr[i + 1] = iter;
+		fib6_info_hold(iter);
+		i++;
+	}
+	WARN_ON_ONCE(i != fen6_info->nsiblings);
+
+	return 0;
+}
+
+static void
+mlxsw_sp_router_fib6_work_fini(struct mlxsw_sp_fib6_event_work *fib6_work)
+{
+	int i;
+
+	for (i = 0; i < fib6_work->nrt6; i++)
+		mlxsw_sp_rt6_release(fib6_work->rt_arr[i]);
+	kfree(fib6_work->rt_arr);
+}
 
 static void mlxsw_sp_router_fib4_event_work(struct work_struct *work)
 {
@@ -5968,14 +6021,16 @@ static void mlxsw_sp_router_fib6_event_work(struct work_struct *work)
 	case FIB_EVENT_ENTRY_ADD:
 		replace = fib_work->event == FIB_EVENT_ENTRY_REPLACE;
 		err = mlxsw_sp_router_fib6_add(mlxsw_sp,
-					       fib_work->fen6_info.rt, replace);
+					       fib_work->fib6_work.rt_arr[0],
+					       replace);
 		if (err)
 			mlxsw_sp_router_fib_abort(mlxsw_sp);
-		mlxsw_sp_rt6_release(fib_work->fen6_info.rt);
+		mlxsw_sp_router_fib6_work_fini(&fib_work->fib6_work);
 		break;
 	case FIB_EVENT_ENTRY_DEL:
-		mlxsw_sp_router_fib6_del(mlxsw_sp, fib_work->fen6_info.rt);
-		mlxsw_sp_rt6_release(fib_work->fen6_info.rt);
+		mlxsw_sp_router_fib6_del(mlxsw_sp,
+					 fib_work->fib6_work.rt_arr[0]);
+		mlxsw_sp_router_fib6_work_fini(&fib_work->fib6_work);
 		break;
 	case FIB_EVENT_RULE_ADD:
 		/* if we get here, a rule was added that we do not support.
@@ -6068,6 +6123,7 @@ static int mlxsw_sp_router_fib6_event(struct mlxsw_sp_fib_event_work *fib_work,
 				      struct fib_notifier_info *info)
 {
 	struct fib6_entry_notifier_info *fen6_info;
+	int err;
 
 	switch (fib_work->event) {
 	case FIB_EVENT_ENTRY_REPLACE: /* fall through */
@@ -6075,8 +6131,10 @@ static int mlxsw_sp_router_fib6_event(struct mlxsw_sp_fib_event_work *fib_work,
 	case FIB_EVENT_ENTRY_DEL:
 		fen6_info = container_of(info, struct fib6_entry_notifier_info,
 					 info);
-		fib_work->fen6_info = *fen6_info;
-		fib6_info_hold(fib_work->fen6_info.rt);
+		err = mlxsw_sp_router_fib6_work_init(&fib_work->fib6_work,
+						     fen6_info);
+		if (err)
+			return err;
 		break;
 	}
 
