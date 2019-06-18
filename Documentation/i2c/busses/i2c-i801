@@ -88,7 +88,7 @@ SMBus controller.
 Process Call Support
 --------------------
 
-Not supported.
+Block process call is supported on the 82801EB (ICH5) and later chips.
 
 
 I2C Block Read Support
