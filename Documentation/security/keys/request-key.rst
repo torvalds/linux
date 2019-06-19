@@ -23,21 +23,6 @@ or::
 
 or::
 
-	struct key *request_key_async(const struct key_type *type,
-				      const char *description,
-				      const char *callout_info,
-				      size_t callout_len);
-
-or::
-
-	struct key *request_key_async_with_auxdata(const struct key_type *type,
-						   const char *description,
-						   const char *callout_info,
-					     	   size_t callout_len,
-						   void *aux);
-
-or::
-
 	struct key *request_key_rcu(const struct key_type *type,
 				    const char *description);
 
@@ -53,14 +38,10 @@ does not need to link the key to a keyring to prevent it from being immediately
 destroyed.  The kernel interface returns a pointer directly to the key, and
 it's up to the caller to destroy the key.
 
-The request_key*_with_auxdata() calls are like the in-kernel request_key*()
-calls, except that they permit auxiliary data to be passed to the upcaller (the
+The request_key_with_auxdata() calls is like the in-kernel request_key() call,
+except that they permit auxiliary data to be passed to the upcaller (the
 default is NULL).  This is only useful for those key types that define their
 own upcall mechanism rather than using /sbin/request-key.
-
-The two async in-kernel calls may return keys that are still in the process of
-being constructed.  The two non-async ones will wait for construction to
-complete first.
 
 The request_key_rcu() call is like the in-kernel request_key() call, except
 that it doesn't check for keys that are under construction and doesn't attempt

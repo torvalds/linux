@@ -1115,38 +1115,6 @@ payload contents" for more information.
     is a blob of length callout_len, if given (the length may be 0).
 
 
- *  A key can be requested asynchronously by calling one of::
-
-	struct key *request_key_async(const struct key_type *type,
-				      const char *description,
-				      const void *callout_info,
-				      size_t callout_len);
-
-    or::
-
-	struct key *request_key_async_with_auxdata(const struct key_type *type,
-						   const char *description,
-						   const char *callout_info,
-					     	   size_t callout_len,
-					     	   void *aux);
-
-    which are asynchronous equivalents of request_key() and
-    request_key_with_auxdata() respectively.
-
-    These two functions return with the key potentially still under
-    construction.  To wait for construction completion, the following should be
-    called::
-
-	int wait_for_key_construction(struct key *key, bool intr);
-
-    The function will wait for the key to finish being constructed and then
-    invokes key_validate() to return an appropriate value to indicate the state
-    of the key (0 indicates the key is usable).
-
-    If intr is true, then the wait can be interrupted by a signal, in which
-    case error ERESTARTSYS will be returned.
-
-
  *  To search for a key under RCU conditions, call::
 
 	struct key *request_key_rcu(const struct key_type *type,
