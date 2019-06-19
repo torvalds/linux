@@ -181,18 +181,6 @@ DECLARE_EVENT_CLASS(xprtrdma_wrch_event,
 				),					\
 				TP_ARGS(task, mr, nsegs))
 
-TRACE_DEFINE_ENUM(FRWR_IS_INVALID);
-TRACE_DEFINE_ENUM(FRWR_IS_VALID);
-TRACE_DEFINE_ENUM(FRWR_FLUSHED_FR);
-TRACE_DEFINE_ENUM(FRWR_FLUSHED_LI);
-
-#define xprtrdma_show_frwr_state(x)					\
-		__print_symbolic(x,					\
-				{ FRWR_IS_INVALID, "INVALID" },		\
-				{ FRWR_IS_VALID, "VALID" },		\
-				{ FRWR_FLUSHED_FR, "FLUSHED_FR" },	\
-				{ FRWR_FLUSHED_LI, "FLUSHED_LI" })
-
 DECLARE_EVENT_CLASS(xprtrdma_frwr_done,
 	TP_PROTO(
 		const struct ib_wc *wc,
@@ -203,22 +191,19 @@ DECLARE_EVENT_CLASS(xprtrdma_frwr_done,
 
 	TP_STRUCT__entry(
 		__field(const void *, mr)
-		__field(unsigned int, state)
 		__field(unsigned int, status)
 		__field(unsigned int, vendor_err)
 	),
 
 	TP_fast_assign(
 		__entry->mr = container_of(frwr, struct rpcrdma_mr, frwr);
-		__entry->state = frwr->fr_state;
 		__entry->status = wc->status;
 		__entry->vendor_err = __entry->status ? wc->vendor_err : 0;
 	),
 
 	TP_printk(
-		"mr=%p state=%s: %s (%u/0x%x)",
-		__entry->mr, xprtrdma_show_frwr_state(__entry->state),
-		rdma_show_wc_status(__entry->status),
+		"mr=%p: %s (%u/0x%x)",
+		__entry->mr, rdma_show_wc_status(__entry->status),
 		__entry->status, __entry->vendor_err
 	)
 );
