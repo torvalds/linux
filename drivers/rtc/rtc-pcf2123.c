@@ -161,7 +161,7 @@ static int pcf2123_set_offset(struct device *dev, long offset)
 	else if (offset < OFFSET_STEP * -128)
 		reg = -128;
 	else
-		reg = (s8)((offset + (OFFSET_STEP >> 1)) / OFFSET_STEP);
+		reg = DIV_ROUND_CLOSEST(offset, OFFSET_STEP);
 
 	/* choose fine offset only for odd values in the normal range */
 	if (reg & 1 && reg <= 63 && reg >= -64) {
