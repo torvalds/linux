@@ -230,23 +230,16 @@ static int of_coresight_parse_endpoint(struct device *dev,
 	return ret;
 }
 
-struct coresight_platform_data *
-of_get_coresight_platform_data(struct device *dev,
-			       const struct device_node *node)
+static int of_get_coresight_platform_data(struct device *dev,
+					  struct coresight_platform_data *pdata)
 {
 	int ret = 0;
-	struct coresight_platform_data *pdata;
 	struct coresight_connection *conn;
 	struct device_node *ep = NULL;
 	const struct device_node *parent = NULL;
 	bool legacy_binding = false;
+	struct device_node *node = dev->of_node;
 
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	/* Use device name as sysfs handle */
-	pdata->name = dev_name(dev);
 	pdata->cpu = of_coresight_get_cpu(node);
 
 	/* Get the number of input and output port for this component */
@@ -254,11 +247,11 @@ of_get_coresight_platform_data(struct device *dev,
 
 	/* If there are no output connections, we are done */
 	if (!pdata->nr_outport)
-		return pdata;
+		return 0;
 
 	ret = coresight_alloc_conns(dev, pdata);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
 	parent = of_coresight_get_output_ports_node(node);
 	/*
@@ -292,11 +285,46 @@ of_get_coresight_platform_data(struct device *dev,
 		case 0:
 			break;
 		default:
-			return ERR_PTR(ret);
+			return ret;
 		}
 	}
 
-	return pdata;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(of_get_coresight_platform_data);
+#else
+static inline int
+of_get_coresight_platform_data(struct device *dev,
+			       struct coresight_platform_data *pdata)
+{
+	return -ENOENT;
+}
 #endif
+
+struct coresight_platform_data *
+coresight_get_platform_data(struct device *dev)
+{
+	int ret = -ENOENT;
+	struct coresight_platform_data *pdata;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
+
+	if (IS_ERR_OR_NULL(fwnode))
+		goto error;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	/* Use device name as sysfs handle */
+	pdata->name = dev_name(dev);
+
+	if (is_of_node(fwnode))
+		ret = of_get_coresight_platform_data(dev, pdata);
+
+	if (!ret)
+		return pdata;
+error:
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL_GPL(coresight_get_platform_data);
