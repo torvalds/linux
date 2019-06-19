@@ -149,7 +149,7 @@ static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_4[] = {
 
 static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_5[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(VID, 0x04, 16, 12),
-	MLXSW_AFK_ELEMENT_INST_EXT_U32(SRC_SYS_PORT, 0x04, 0, 8, -1), /* RX_ACL_SYSTEM_PORT */
+	MLXSW_AFK_ELEMENT_INST_EXT_U32(SRC_SYS_PORT, 0x04, 0, 8, -1, true), /* RX_ACL_SYSTEM_PORT */
 };
 
 static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_0[] = {

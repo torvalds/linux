@@ -30,8 +30,9 @@ static bool mlxsw_afk_blocks_check(struct mlxsw_afk *mlxsw_afk)
 
 			elinst = &block->instances[j];
 			if (elinst->type != elinst->info->type ||
-			    elinst->item.size.bits !=
-			    elinst->info->item.size.bits)
+			    (!elinst->avoid_size_check &&
+			     elinst->item.size.bits !=
+			     elinst->info->item.size.bits))
 				return false;
 		}
 	}
