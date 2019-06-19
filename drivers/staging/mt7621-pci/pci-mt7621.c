@@ -394,7 +394,7 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	mt7621_reset_port(port);
 
 	val = read_config(pcie, slot, PCIE_FTS_NUM);
-	dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
+	dev_info(dev, "Port %d N_FTS = %x\n", slot, (unsigned int)val);
 
 	err = phy_init(port->phy);
 	if (err) {
@@ -511,7 +511,7 @@ static void mt7621_pcie_enable_ports(struct mt7621_pcie *pcie)
 					port->slot);
 				continue;
 			}
-			dev_info(dev, "PCIE%d enabled\n", slot);
+			dev_info(dev, "PCIE%d enabled\n", num_slots_enabled);
 			num_slots_enabled++;
 		}
 	}
