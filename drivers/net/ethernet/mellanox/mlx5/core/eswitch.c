@@ -1686,13 +1686,23 @@ static int eswitch_vport_event(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+int mlx5_esw_query_functions(struct mlx5_core_dev *dev, u32 *out, int outlen)
+{
+	u32 in[MLX5_ST_SZ_DW(query_esw_functions_in)] = {};
+
+	MLX5_SET(query_esw_functions_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_ESW_FUNCTIONS);
+
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
+}
+
 /* Public E-Switch API */
 #define ESW_ALLOWED(esw) ((esw) && MLX5_ESWITCH_MANAGER((esw)->dev))
 
 int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 {
-	int vf_nvports = 0, total_nvports = 0;
 	struct mlx5_vport *vport;
+	int total_nvports = 0;
 	int err;
 	int i, enabled_events;
 
@@ -1711,15 +1721,10 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	esw_info(esw->dev, "E-Switch enable SRIOV: nvfs(%d) mode (%d)\n", nvfs, mode);
 
 	if (mode == SRIOV_OFFLOADS) {
-		if (mlx5_core_is_ecpf_esw_manager(esw->dev)) {
-			err = mlx5_query_host_params_num_vfs(esw->dev, &vf_nvports);
-			if (err)
-				return err;
+		if (mlx5_core_is_ecpf_esw_manager(esw->dev))
 			total_nvports = esw->total_vports;
-		} else {
-			vf_nvports = nvfs;
+		else
 			total_nvports = nvfs + MLX5_SPECIAL_VPORTS(esw->dev);
-		}
 	}
 
 	esw->mode = mode;
@@ -1733,7 +1738,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	} else {
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_ETH);
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
-		err = esw_offloads_init(esw, vf_nvports, total_nvports);
+		err = esw_offloads_init(esw, nvfs, total_nvports);
 	}
 
 	if (err)
@@ -2451,6 +2456,17 @@ u8 mlx5_eswitch_mode(struct mlx5_eswitch *esw)
 	return ESW_ALLOWED(esw) ? esw->mode : SRIOV_NONE;
 }
 EXPORT_SYMBOL_GPL(mlx5_eswitch_mode);
+
+enum devlink_eswitch_encap_mode
+mlx5_eswitch_get_encap_mode(const struct mlx5_core_dev *dev)
+{
+	struct mlx5_eswitch *esw;
+
+	esw = dev->priv.eswitch;
+	return ESW_ALLOWED(esw) ? esw->offloads.encap :
+		DEVLINK_ESWITCH_ENCAP_MODE_NONE;
+}
+EXPORT_SYMBOL(mlx5_eswitch_get_encap_mode);
 
 bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0, struct mlx5_core_dev *dev1)
 {

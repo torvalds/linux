@@ -1552,7 +1552,8 @@ static int devlink_nl_eswitch_fill(struct sk_buff *msg, struct devlink *devlink,
 				   u32 seq, int flags)
 {
 	const struct devlink_ops *ops = devlink->ops;
-	u8 inline_mode, encap_mode;
+	enum devlink_eswitch_encap_mode encap_mode;
+	u8 inline_mode;
 	void *hdr;
 	int err = 0;
 	u16 mode;
@@ -1628,7 +1629,8 @@ static int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb,
 {
 	struct devlink *devlink = info->user_ptr[0];
 	const struct devlink_ops *ops = devlink->ops;
-	u8 inline_mode, encap_mode;
+	enum devlink_eswitch_encap_mode encap_mode;
+	u8 inline_mode;
 	int err = 0;
 	u16 mode;
 
