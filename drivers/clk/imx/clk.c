@@ -123,8 +123,8 @@ void imx_cscmr1_fixup(u32 *val)
 	return;
 }
 
-static int imx_keep_uart_clocks __initdata;
-static struct clk ** const *imx_uart_clocks __initdata;
+static int imx_keep_uart_clocks;
+static struct clk ** const *imx_uart_clocks;
 
 static int __init imx_keep_uart_clocks_param(char *str)
 {
@@ -137,7 +137,7 @@ __setup_param("earlycon", imx_keep_uart_earlycon,
 __setup_param("earlyprintk", imx_keep_uart_earlyprintk,
 	      imx_keep_uart_clocks_param, 0);
 
-void __init imx_register_uart_clocks(struct clk ** const clks[])
+void imx_register_uart_clocks(struct clk ** const clks[])
 {
 	if (imx_keep_uart_clocks) {
 		int i;
