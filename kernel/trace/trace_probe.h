@@ -302,6 +302,13 @@ static inline struct list_head *trace_probe_probe_list(struct trace_probe *tp)
 	return &tp->event->probes;
 }
 
+static inline bool trace_probe_has_sibling(struct trace_probe *tp)
+{
+	struct list_head *list = trace_probe_probe_list(tp);
+
+	return !list_empty(list) && !list_is_singular(list);
+}
+
 static inline int trace_probe_unregister_event_call(struct trace_probe *tp)
 {
 	/* tp->event is unregistered in trace_remove_event_call() */
@@ -316,12 +323,15 @@ static inline bool trace_probe_has_single_file(struct trace_probe *tp)
 int trace_probe_init(struct trace_probe *tp, const char *event,
 		     const char *group);
 void trace_probe_cleanup(struct trace_probe *tp);
+int trace_probe_append(struct trace_probe *tp, struct trace_probe *to);
+void trace_probe_unlink(struct trace_probe *tp);
 int trace_probe_register_event_call(struct trace_probe *tp);
 int trace_probe_add_file(struct trace_probe *tp, struct trace_event_file *file);
 int trace_probe_remove_file(struct trace_probe *tp,
 			    struct trace_event_file *file);
 struct event_file_link *trace_probe_get_file_link(struct trace_probe *tp,
 						struct trace_event_file *file);
+int trace_probe_compare_arg_type(struct trace_probe *a, struct trace_probe *b);
 
 #define trace_probe_for_each_link(pos, tp)	\
 	list_for_each_entry(pos, &(tp)->event->files, list)
@@ -419,7 +429,9 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(ARG_TOO_LONG,		"Argument expression is too long"),	\
 	C(NO_ARG_BODY,		"No argument expression"),		\
 	C(BAD_INSN_BNDRY,	"Probe point is not an instruction boundary"),\
-	C(FAIL_REG_PROBE,	"Failed to register probe event"),
+	C(FAIL_REG_PROBE,	"Failed to register probe event"),\
+	C(DIFF_PROBE_TYPE,	"Probe type is different from existing probe"),\
+	C(DIFF_ARG_TYPE,	"Argument type or name is different from existing probe"),
 
 #undef C
 #define C(a, b)		TP_ERR_##a

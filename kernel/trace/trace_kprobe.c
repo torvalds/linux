@@ -492,6 +492,10 @@ static void __unregister_trace_kprobe(struct trace_kprobe *tk)
 /* Unregister a trace_probe and probe_event */
 static int unregister_trace_kprobe(struct trace_kprobe *tk)
 {
+	/* If other probes are on the event, just unregister kprobe */
+	if (trace_probe_has_sibling(&tk->tp))
+		goto unreg;
+
 	/* Enabled event can not be unregistered */
 	if (trace_probe_is_enabled(&tk->tp))
 		return -EBUSY;
@@ -500,10 +504,36 @@ static int unregister_trace_kprobe(struct trace_kprobe *tk)
 	if (unregister_kprobe_event(tk))
 		return -EBUSY;
 
+unreg:
 	__unregister_trace_kprobe(tk);
 	dyn_event_remove(&tk->devent);
+	trace_probe_unlink(&tk->tp);
 
 	return 0;
+}
+
+static int append_trace_kprobe(struct trace_kprobe *tk, struct trace_kprobe *to)
+{
+	int ret;
+
+	/* Append to existing event */
+	ret = trace_probe_append(&tk->tp, &to->tp);
+	if (ret)
+		return ret;
+
+	/* Register k*probe */
+	ret = __register_trace_kprobe(tk);
+	if (ret == -ENOENT && !trace_kprobe_module_exist(tk)) {
+		pr_warn("This probe might be able to register after target module is loaded. Continue.\n");
+		ret = 0;
+	}
+
+	if (ret)
+		trace_probe_unlink(&tk->tp);
+	else
+		dyn_event_add(&tk->devent);
+
+	return ret;
 }
 
 /* Register a trace_probe and probe_event */
@@ -514,14 +544,24 @@ static int register_trace_kprobe(struct trace_kprobe *tk)
 
 	mutex_lock(&event_mutex);
 
-	/* Delete old (same name) event if exist */
 	old_tk = find_trace_kprobe(trace_probe_name(&tk->tp),
 				   trace_probe_group_name(&tk->tp));
 	if (old_tk) {
-		ret = unregister_trace_kprobe(old_tk);
-		if (ret < 0)
-			goto end;
-		free_trace_kprobe(old_tk);
+		if (trace_kprobe_is_return(tk) != trace_kprobe_is_return(old_tk)) {
+			trace_probe_log_set_index(0);
+			trace_probe_log_err(0, DIFF_PROBE_TYPE);
+			ret = -EEXIST;
+		} else {
+			ret = trace_probe_compare_arg_type(&tk->tp, &old_tk->tp);
+			if (ret) {
+				/* Note that argument starts index = 2 */
+				trace_probe_log_set_index(ret + 1);
+				trace_probe_log_err(0, DIFF_ARG_TYPE);
+				ret = -EEXIST;
+			} else
+				ret = append_trace_kprobe(tk, old_tk);
+		}
+		goto end;
 	}
 
 	/* Register new event */
@@ -755,7 +795,7 @@ static int trace_kprobe_create(int argc, const char *argv[])
 			trace_probe_log_err(0, BAD_INSN_BNDRY);
 		else if (ret == -ENOENT)
 			trace_probe_log_err(0, BAD_PROBE_ADDR);
-		else if (ret != -ENOMEM)
+		else if (ret != -ENOMEM && ret != -EEXIST)
 			trace_probe_log_err(0, FAIL_REG_PROBE);
 		goto error;
 	}
