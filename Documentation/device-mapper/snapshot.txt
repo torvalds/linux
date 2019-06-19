@@ -31,6 +31,7 @@ its visible content unchanged, at least until the <COW device> fills up.
 
 
 *) snapshot <origin> <COW device> <persistent?> <chunksize>
+   [<# feature args> [<arg>]*]
 
 A snapshot of the <origin> block device is created. Changed chunks of
 <chunksize> sectors will be stored on the <COW device>.  Writes will
@@ -53,8 +54,23 @@ When loading or unloading the snapshot target, the corresponding
 snapshot-origin or snapshot-merge target must be suspended. A failure to
 suspend the origin target could result in data corruption.
 
+Optional features:
+
+   discard_zeroes_cow - a discard issued to the snapshot device that
+   maps to entire chunks to will zero the corresponding exception(s) in
+   the snapshot's exception store.
+
+   discard_passdown_origin - a discard to the snapshot device is passed
+   down to the snapshot-origin's underlying device.  This doesn't cause
+   copy-out to the snapshot exception store because the snapshot-origin
+   target is bypassed.
+
+   The discard_passdown_origin feature depends on the discard_zeroes_cow
+   feature being enabled.
+
 
 * snapshot-merge <origin> <COW device> <persistent> <chunksize>
+  [<# feature args> [<arg>]*]
 
 takes the same table arguments as the snapshot target except it only
 works with persistent snapshots.  This target assumes the role of the
