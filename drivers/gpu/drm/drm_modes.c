@@ -1609,6 +1609,50 @@ static int drm_mode_parse_cmdline_options(char *str, size_t len,
 		} else if (!strncmp(option, "reflect_y", delim - option)) {
 			rotation |= DRM_MODE_REFLECT_Y;
 			sep = delim;
+		} else if (!strncmp(option, "margin_right", delim - option)) {
+			const char *value = delim + 1;
+			unsigned int margin;
+
+			margin = simple_strtol(value, &sep, 10);
+
+			/* Make sure we have parsed something */
+			if (sep == value)
+				return -EINVAL;
+
+			mode->tv_margins.right = margin;
+		} else if (!strncmp(option, "margin_left", delim - option)) {
+			const char *value = delim + 1;
+			unsigned int margin;
+
+			margin = simple_strtol(value, &sep, 10);
+
+			/* Make sure we have parsed something */
+			if (sep == value)
+				return -EINVAL;
+
+			mode->tv_margins.left = margin;
+		} else if (!strncmp(option, "margin_top", delim - option)) {
+			const char *value = delim + 1;
+			unsigned int margin;
+
+			margin = simple_strtol(value, &sep, 10);
+
+			/* Make sure we have parsed something */
+			if (sep == value)
+				return -EINVAL;
+
+			mode->tv_margins.top = margin;
+		} else if (!strncmp(option, "margin_bottom", delim - option)) {
+			const char *value = delim + 1;
+			unsigned int margin;
+
+			margin = simple_strtol(value, &sep, 10);
+
+			/* Make sure we have parsed something */
+			if (sep == value)
+				return -EINVAL;
+
+			mode->tv_margins.bottom = margin;
 		} else {
 			return -EINVAL;
 		}

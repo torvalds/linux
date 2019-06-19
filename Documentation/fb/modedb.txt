@@ -57,6 +57,8 @@ Options can also be passed after the mode, using commas as separator.
 
 Valid options are:
 
+  - margin_top, margin_bottom, margin_left, margin_right (integer):
+    Number of pixels in the margins, typically to deal with overscan on TVs
   - reflect_x (boolean): Perform an axial symmetry on the X axis
   - reflect_y (boolean): Perform an axial symmetry on the Y axis
   - rotate (integer): Rotate the initial framebuffer by x

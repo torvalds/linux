@@ -1054,6 +1054,11 @@ struct drm_cmdline_mode {
 	 * DRM_MODE_ROTATE_0 and DRM_MODE_ROTATE_180.
 	 */
 	unsigned int rotation_reflection;
+
+	/**
+	 * @tv_margins: TV margins to apply to the mode.
+	 */
+	struct drm_connector_tv_margins tv_margins;
 };
 
 /**
