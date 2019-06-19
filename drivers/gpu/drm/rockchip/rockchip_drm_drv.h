@@ -156,16 +156,28 @@ struct rockchip_drm_private {
 	struct drm_gem_object *fbdev_bo;
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
 	struct drm_atomic_state *state;
+
+	struct rockchip_atomic_commit *commit;
+	/* protect async commit */
+	struct mutex commit_lock;
+	struct work_struct commit_work;
 	struct iommu_domain *domain;
 	struct gen_pool *secure_buffer_pool;
+	/* protect drm_mm on multi-threads */
 	struct mutex mm_lock;
 	struct drm_mm mm;
 	struct rockchip_dclk_pll default_pll;
 	struct rockchip_dclk_pll hdmi_pll;
+	struct devfreq *devfreq;
+	u8 dmc_support;
 	struct list_head psr_list;
 	struct mutex psr_list_lock;
 };
 
+#ifndef MODULE
+void rockchip_free_loader_memory(struct drm_device *drm);
+#endif
+void rockchip_drm_atomic_work(struct work_struct *work);
 int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 				   struct device *dev);
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,

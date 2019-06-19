@@ -20,6 +20,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_of.h>
+#include <linux/devfreq.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-iommu.h>
 #include <linux/genalloc.h>
@@ -192,7 +193,7 @@ err_put_encoder:
 	return connector;
 }
 
-static void rockchip_free_loader_memory(struct drm_device *drm)
+void rockchip_free_loader_memory(struct drm_device *drm)
 {
 	struct rockchip_drm_private *private = drm->dev_private;
 	struct rockchip_logo *logo;
@@ -721,8 +722,7 @@ static void show_loader_logo(struct drm_device *drm_dev)
 				continue;
 			}
 		}
-#if 0
-//todo
+
 		if (!find_used_crtc) {
 			struct drm_crtc *crtc = unset->crtc;
 			int pipe = drm_crtc_index(crtc);
@@ -732,7 +732,7 @@ static void show_loader_logo(struct drm_device *drm_dev)
 			if (unset->hdisplay && unset->vdisplay)
 				priv->crtc_funcs[pipe]->crtc_close(crtc);
 		}
-#endif
+
 		list_del(&unset->head);
 		kfree(unset);
 	}
@@ -1148,6 +1148,8 @@ static int rockchip_drm_bind(struct device *dev)
 	struct drm_device *drm_dev;
 	struct rockchip_drm_private *private;
 	int ret;
+	struct device_node *np = dev->of_node;
+	struct device_node *parent_np;
 
 	drm_dev = drm_dev_alloc(&rockchip_drm_driver, dev);
 	if (IS_ERR(drm_dev))
@@ -1161,8 +1163,30 @@ static int rockchip_drm_bind(struct device *dev)
 		goto err_free;
 	}
 
+	mutex_init(&private->commit_lock);
+	INIT_WORK(&private->commit_work, rockchip_drm_atomic_work);
 	drm_dev->dev_private = private;
 
+	private->dmc_support = false;
+	private->devfreq = devfreq_get_devfreq_by_phandle(dev, 0);
+	if (IS_ERR(private->devfreq)) {
+		if (PTR_ERR(private->devfreq) == -EPROBE_DEFER) {
+			parent_np = of_parse_phandle(np, "devfreq", 0);
+			if (parent_np &&
+			    of_device_is_available(parent_np)) {
+				private->dmc_support = true;
+				dev_warn(dev, "defer getting devfreq\n");
+			} else {
+				dev_info(dev, "dmc is disabled\n");
+			}
+		} else {
+			dev_info(dev, "devfreq is not set\n");
+		}
+		private->devfreq = NULL;
+	} else {
+		private->dmc_support = true;
+		dev_info(dev, "devfreq is ready\n");
+	}
 	INIT_LIST_HEAD(&private->psr_list);
 	mutex_init(&private->psr_list_lock);
 

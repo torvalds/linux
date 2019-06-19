@@ -31,4 +31,13 @@ rockchip_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2 *mode_cm
 dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
 				    unsigned int plane);
 void *rockchip_fb_get_kvaddr(struct drm_framebuffer *fb, unsigned int plane);
+#define to_rockchip_fb(x) container_of(x, struct rockchip_drm_fb, fb)
+
+struct rockchip_drm_fb {
+	struct drm_framebuffer fb;
+	dma_addr_t dma_addr[ROCKCHIP_MAX_FB_BUFFER];
+	void *kvaddr[ROCKCHIP_MAX_FB_BUFFER];
+	struct drm_gem_object *obj[ROCKCHIP_MAX_FB_BUFFER];
+	struct rockchip_logo *logo;
+};
 #endif /* _ROCKCHIP_DRM_FB_H */
