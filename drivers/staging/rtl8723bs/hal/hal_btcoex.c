@@ -112,9 +112,9 @@ void DBG_BT_INFO(u8 *dbgmsg)
 /*  */
 static u8 halbtcoutsrc_IsBtCoexistAvailable(PBTC_COEXIST pBtCoexist)
 {
-	if (!pBtCoexist->bBinded || !pBtCoexist->Adapter){
+	if (!pBtCoexist->bBinded || !pBtCoexist->Adapter)
 		return false;
-	}
+
 	return true;
 }
 
@@ -256,13 +256,11 @@ static void halbtcoutsrc_AggregationCheck(PBTC_COEXIST pBtCoexist)
 	padapter = pBtCoexist->Adapter;
 	bNeedToAct = false;
 
-	if (pBtCoexist->btInfo.bRejectAggPkt)
+	if (pBtCoexist->btInfo.bRejectAggPkt) {
 		rtw_btcoex_RejectApAggregatedPacket(padapter, true);
-	else {
-
+	} else {
 		if (pBtCoexist->btInfo.bPreBtCtrlAggBufSize !=
-			pBtCoexist->btInfo.bBtCtrlAggBufSize){
-
+			pBtCoexist->btInfo.bBtCtrlAggBufSize) {
 			bNeedToAct = true;
 			pBtCoexist->btInfo.bPreBtCtrlAggBufSize = pBtCoexist->btInfo.bBtCtrlAggBufSize;
 		}
@@ -816,11 +814,10 @@ static void halbtcoutsrc_WriteLocalReg1Byte(void *pBtcContext, u32 RegAddr, u8 D
 	PBTC_COEXIST		pBtCoexist = (PBTC_COEXIST)pBtcContext;
 	struct adapter *Adapter = pBtCoexist->Adapter;
 
-	if (BTC_INTF_SDIO == pBtCoexist->chipInterface) {
+	if (BTC_INTF_SDIO == pBtCoexist->chipInterface)
 		rtw_write8(Adapter, SDIO_LOCAL_BASE | RegAddr, Data);
-	} else {
+	else
 		rtw_write8(Adapter, RegAddr, Data);
-	}
 }
 
 static void halbtcoutsrc_SetBbReg(void *pBtcContext, u32 RegAddr, u32 BitMask, u32 Data)
@@ -1196,13 +1193,13 @@ void EXhalbtcoutsrc_SpecialPacketNotify(PBTC_COEXIST pBtCoexist, u8 pktType)
 	if (pBtCoexist->bManualControl)
 		return;
 
-	if (PACKET_DHCP == pktType)
+	if (PACKET_DHCP == pktType) {
 		packetType = BTC_PACKET_DHCP;
-	else if (PACKET_EAPOL == pktType)
+	} else if (PACKET_EAPOL == pktType) {
 		packetType = BTC_PACKET_EAPOL;
-	else if (PACKET_ARP == pktType)
+	} else if (PACKET_ARP == pktType) {
 		packetType = BTC_PACKET_ARP;
-	else {
+	} else {
 		packetType = BTC_PACKET_UNKNOWN;
 		return;
 	}
