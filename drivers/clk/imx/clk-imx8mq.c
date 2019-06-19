@@ -272,6 +272,14 @@ static const char * const imx8mq_clko2_sels[] = {"osc_25m", "sys2_pll_200m", "sy
 
 static struct clk_onecell_data clk_data;
 
+static struct clk ** const uart_clks[] = {
+	&clks[IMX8MQ_CLK_UART1_ROOT],
+	&clks[IMX8MQ_CLK_UART2_ROOT],
+	&clks[IMX8MQ_CLK_UART3_ROOT],
+	&clks[IMX8MQ_CLK_UART4_ROOT],
+	NULL
+};
+
 static int imx8mq_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -554,6 +562,8 @@ static int imx8mq_clocks_probe(struct platform_device *pdev)
 
 	err = of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 	WARN_ON(err);
+
+	imx_register_uart_clocks(uart_clks);
 
 	return err;
 }
