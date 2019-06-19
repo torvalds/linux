@@ -13,6 +13,10 @@
 #include "am335x-pcm-953.dtsi"
 
 /* SoM */
+&gpmc {
+	status = "okay";
+};
+
 &i2c_eeprom {
 	status = "okay";
 };

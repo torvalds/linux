@@ -1,87 +1,58 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Phytec Messtechnik GmbH
+ * Copyright (C) 2019 Phytec Messtechnik GmbH
  * Author: Teresa Remmet <t.remmet@phytec.de>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 / {
-	model = "Phytec AM335x phyBOARD-WEGA";
-	compatible = "phytec,am335x-wega", "phytec,am335x-phycore-som", "ti,am33xx";
+	model = "Phytec AM335x phyBOARD-REGOR";
+	compatible = "phytec,am335x-regor", "phytec,am335x-phycore-som", "ti,am33xx";
 
-	sound: sound_iface {
-		compatible = "ti,da830-evm-audio";
-	};
-
-	vcc3v3: fixedregulator1 {
+	vcc3v3: fixedregulator@1 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 	};
+
+	/* User IO */
+	user_leds: user_leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&user_leds_pins>;
+
+		run_stop-led {
+			gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "gpio";
+			default-state = "off";
+		};
+
+		error-led {
+			gpios = <&gpio3 15 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "gpio";
+			default-state = "off";
+		};
+	};
 };
 
-/* Audio */
+/* User Leds */
 &am33xx_pinmux {
-	mcasp0_pins: pinmux_mcasp0 {
+	user_leds_pins: pinmux_user_leds {
 		pinctrl-single,pins = <
-			AM33XX_PADCONF(AM335X_PIN_MCASP0_AHCLKX, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_MCASP0_ACLKX, PIN_INPUT_PULLDOWN, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_MCASP0_FSX, PIN_INPUT_PULLDOWN, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_MCASP0_AXR0, PIN_INPUT_PULLDOWN, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_MCASP0_AXR1, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_VSYNC, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* lcd_hsync.gpio2_22 */
+			AM33XX_PADCONF(AM335X_PIN_MCASP0_FSX, PIN_OUTPUT_PULLDOWN, MUX_MODE7)	/* mcasp0_fsx.gpio3_15 */
 		>;
 	};
-};
-
-&i2c0 {
-	tlv320aic3007: tlv320aic3007@18 {
-		compatible = "ti,tlv320aic3007";
-		reg = <0x18>;
-		AVDD-supply = <&vcc3v3>;
-		IOVDD-supply = <&vcc3v3>;
-		DRVDD-supply = <&vcc3v3>;
-		DVDD-supply = <&vdig1_reg>;
-		status = "okay";
-	};
-};
-
-&mcasp0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mcasp0_pins>;
-	op-mode = <0>; /* DAVINCI_MCASP_IIS_MODE */
-	tdm-slots = <2>;
-	serial-dir = <
-		2 1 0 0 /* # 0: INACTIVE, 1: TX, 2: RX */
-	>;
-	tx-num-evt = <16>;
-	rt-num-evt = <16>;
-	status = "okay";
-};
-
-&sound {
-	ti,model = "AM335x-Wega";
-	ti,audio-codec = <&tlv320aic3007>;
-	ti,mcasp-controller = <&mcasp0>;
-	ti,audio-routing =
-		"Line Out",		"LLOUT",
-		"Line Out",		"RLOUT",
-		"LINE1L",		"Line In",
-		"LINE1R",		"Line In";
-	clocks = <&mcasp0_fck>;
-	clock-names = "mclk";
-	status = "okay";
 };
 
 /* CAN Busses */
 &am33xx_pinmux {
 	dcan1_pins: pinmux_dcan1 {
 		pinctrl-single,pins = <
-			AM33XX_PADCONF(AM335X_PIN_UART0_CTSN, PIN_OUTPUT_PULLUP, MUX_MODE2) /* uart0_ctsn.d_can1_tx */
-			AM33XX_PADCONF(AM335X_PIN_UART0_RTSN, PIN_INPUT_PULLUP, MUX_MODE2) /* uart0_rtsn.d_can1_rx */
+			AM33XX_PADCONF(AM335X_PIN_UART0_CTSN, PIN_OUTPUT_PULLUP, MUX_MODE2)	/* uart0_ctsn.d_can1_tx */
+			AM33XX_PADCONF(AM335X_PIN_UART0_RTSN, PIN_INPUT_PULLUP, MUX_MODE2)	/* uart0_rtsn.d_can1_rx */
 		>;
 	};
 };
@@ -105,7 +76,7 @@
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A6, PIN_INPUT_PULLDOWN, MUX_MODE1)	/* gpmc_a6.mii2_txclk */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A7, PIN_INPUT_PULLDOWN, MUX_MODE1)	/* gpmc_a7.mii2_rxclk */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A8, PIN_INPUT_PULLDOWN, MUX_MODE1)	/* gpmc_a8.mii2_rxd3 */
-			AM33XX_PADCONF(AM335X_PIN_GPMC_A9, PIN_INPUT_PULLDOWN, MUX_MODE1)	/* gpmc_a9.mii2_rxd2 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_A9, PIN_INPUT_PULLDOWN, MUX_MODE1)	 /* gpmc_a9.mii2_rxd2 */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A10, PIN_INPUT_PULLDOWN, MUX_MODE1)	/* gpmc_a10.mii2_rxd1 */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_A11, PIN_INPUT_PULLDOWN, MUX_MODE1)	/* gpmc_a11.mii2_rxd0 */
 			AM33XX_PADCONF(AM335X_PIN_GPMC_WPN, PIN_INPUT_PULLDOWN, MUX_MODE1)	/* gpmc_wpn.mii2_rxerr */
@@ -133,6 +104,27 @@
 	dual_emac = <1>;
 };
 
+/* GPIOs */
+&am33xx_pinmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&user_gpios_pins>;
+
+	user_gpios_pins: pinmux_user_gpios {
+		pinctrl-single,pins = <
+			/* DIGIN 1-4 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD11, PIN_INPUT, MUX_MODE7)		/* gpmc_ad11.gpio0_27 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD10, PIN_INPUT, MUX_MODE7)		/* gpmc_ad10.gpio0_26 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD9, PIN_INPUT, MUX_MODE7)		/* gpmc_ad9.gpio0_23 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD8, PIN_INPUT, MUX_MODE7)		/* gpmc_ad8.gpio0_22 */
+			/* DIGOUT 1-4 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD15, PIN_OUTPUT, MUX_MODE7)		/* gpmc_ad15.gpio1_15 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD14, PIN_OUTPUT, MUX_MODE7)		/* gpmc_ad14.gpio1_14 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD13, PIN_OUTPUT, MUX_MODE7)		/* gpmc_ad13.gpio1_13 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD12, PIN_OUTPUT, MUX_MODE7)		/* gpmc_ad12.gpio1_12 */
+		>;
+	};
+};
+
 /* MMC */
 &am33xx_pinmux {
 	mmc1_pins: pinmux_mmc1 {
@@ -153,14 +145,13 @@
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
-	cd-gpios = <&gpio0 6 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
-/* Power */
-&vdig1_reg {
-	regulator-boot-on;
-	regulator-always-on;
+/* RTC */
+&i2c_rtc {
+	status = "okay";
 };
 
 /* UARTs */
@@ -172,12 +163,10 @@
 		>;
 	};
 
-	uart1_pins: pinmux_uart1_pins {
+	uart2_pins: pinmux_uart2 {
 		pinctrl-single,pins = <
-			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_UART1_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_UART1_CTSN, PIN_INPUT, MUX_MODE0)
-			AM33XX_PADCONF(AM335X_PIN_UART1_RTSN, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_MII1_TX_CLK, PIN_INPUT_PULLUP, MUX_MODE1)	/* mii1_tx_clk.uart2_rxd */
+			AM33XX_PADCONF(AM335X_PIN_MII1_RX_CLK, PIN_OUTPUT_PULLDOWN, MUX_MODE1)	/* mii1_rx_clk.uart2_txd */
 		>;
 	};
 };
@@ -188,10 +177,28 @@
 	status = "okay";
 };
 
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+	status = "okay";
+};
+
+/* RS485 - UART1 */
+&am33xx_pinmux {
+	uart1_rs485_pins: pinmux_uart1_rs485_pins {
+		pinctrl-single,pins = <
+			AM33XX_PADCONF(AM335X_PIN_UART1_RXD, PIN_INPUT_PULLUP, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_UART1_TXD, PIN_OUTPUT_PULLDOWN, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_UART1_RTSN, PIN_OUTPUT_PULLUP, MUX_MODE0)
+		>;
+	};
+};
+
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins>;
+	pinctrl-0 = <&uart1_rs485_pins>;
 	status = "okay";
+	linux,rs485-enabled-at-boot-time;
 };
 
 /* USB */
@@ -212,14 +219,5 @@
 };
 
 &usb0_phy {
-	status = "okay";
-};
-
-&usb1 {
-	dr_mode = "host";
-	status = "okay";
-};
-
-&usb1_phy {
 	status = "okay";
 };
