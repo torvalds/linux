@@ -8566,7 +8566,7 @@ S:	Odd Fixes
 
 KERNEL NFSD, SUNRPC, AND LOCKD SERVERS
 M:	"J. Bruce Fields" <bfields@fieldses.org>
-M:	Jeff Layton <jlayton@kernel.org>
+M:	Chuck Lever <chuck.lever@oracle.com>
 L:	linux-nfs@vger.kernel.org
 W:	http://nfs.sourceforge.net/
 T:	git git://linux-nfs.org/~bfields/linux.git
