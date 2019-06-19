@@ -1179,7 +1179,7 @@ static int rtw_wx_set_wap(struct net_device *dev,
 				spin_unlock_bh(&queue->lock);
 				goto exit;
 			}
-				break;
+			break;
 		}
 
 	}
