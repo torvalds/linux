@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 
 /* multiplexer per channel data */
 struct i2c_mux_priv {
