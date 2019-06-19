@@ -156,12 +156,12 @@ static inline void page_pool_recycle_direct(struct page_pool *pool,
 bool __page_pool_request_shutdown(struct page_pool *pool);
 static inline bool page_pool_request_shutdown(struct page_pool *pool)
 {
-	/* When page_pool isn't compiled-in, net/core/xdp.c doesn't
-	 * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
-	 */
+	bool safe_to_remove = false;
+
 #ifdef CONFIG_PAGE_POOL
-	return __page_pool_request_shutdown(pool);
+	safe_to_remove = __page_pool_request_shutdown(pool);
 #endif
+	return safe_to_remove;
 }
 
 /* Disconnects a page (from a page_pool).  API users can have a need
