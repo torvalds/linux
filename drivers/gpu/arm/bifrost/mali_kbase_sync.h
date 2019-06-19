@@ -161,7 +161,7 @@ void kbase_sync_fence_out_remove(struct kbase_jd_atom *katom);
  */
 static inline void kbase_sync_fence_close_fd(int fd)
 {
-	sys_close(fd);
+	ksys_close(fd);
 }
 
 /**
