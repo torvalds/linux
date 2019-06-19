@@ -351,12 +351,11 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 
 	err = pci_request_region(pcard->pdev, REG_BAR, KP_DRIVER_NAME_KP2000);
 	if (err) {
-		iounmap(pcard->regs_bar_base);
 		dev_err(&pcard->pdev->dev,
 			"probe: failed to acquire PCI region (%d)\n",
 			err);
 		err = -ENODEV;
-		goto err_disable_device;
+		goto err_unmap_regs;
 	}
 
 	pcard->regs_base_resource.start = reg_bar_phys_addr;
@@ -374,7 +373,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 		dev_err(&pcard->pdev->dev,
 			"probe: DMA_BAR could not remap memory to virtual space\n");
 		err = -ENODEV;
-		goto err_unmap_regs;
+		goto err_release_regs;
 	}
 	dev_dbg(&pcard->pdev->dev,
 		"probe: DMA_BAR virt hardware address start [%p]\n",
@@ -384,11 +383,10 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 
 	err = pci_request_region(pcard->pdev, DMA_BAR, "kp2000_pcie");
 	if (err) {
-		iounmap(pcard->dma_bar_base);
 		dev_err(&pcard->pdev->dev,
 			"probe: failed to acquire PCI region (%d)\n", err);
 		err = -ENODEV;
-		goto err_unmap_regs;
+		goto err_unmap_dma;
 	}
 
 	pcard->dma_base_resource.start = dma_bar_phys_addr;
@@ -400,7 +398,7 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	pcard->sysinfo_regs_base = pcard->regs_bar_base;
 	err = read_system_regs(pcard);
 	if (err)
-		goto err_unmap_dma;
+		goto err_release_dma;
 
 	// Disable all "user" interrupts because they're not used yet.
 	writeq(0xFFFFFFFFFFFFFFFF,
@@ -438,14 +436,14 @@ static int kp2000_pcie_probe(struct pci_dev *pdev,
 	if (err) {
 		dev_err(&pcard->pdev->dev,
 			"CANNOT use DMA mask %0llx\n", DMA_BIT_MASK(64));
-		goto err_unmap_dma;
+		goto err_release_dma;
 	}
 	dev_dbg(&pcard->pdev->dev,
 		"Using DMA mask %0llx\n", dma_get_mask(PCARD_TO_DEV(pcard)));
 
 	err = pci_enable_msi(pcard->pdev);
 	if (err < 0)
-		goto err_unmap_dma;
+		goto err_release_dma;
 
 	rv = request_irq(pcard->pdev->irq, kp2000_irq_handler, IRQF_SHARED,
 			 pcard->name, pcard);
@@ -478,14 +476,14 @@ err_free_irq:
 	free_irq(pcard->pdev->irq, pcard);
 err_disable_msi:
 	pci_disable_msi(pcard->pdev);
+err_release_dma:
+	pci_release_region(pdev, DMA_BAR);
 err_unmap_dma:
 	iounmap(pcard->dma_bar_base);
-	pci_release_region(pdev, DMA_BAR);
-	pcard->dma_bar_base = NULL;
+err_release_regs:
+	pci_release_region(pdev, REG_BAR);
 err_unmap_regs:
 	iounmap(pcard->regs_bar_base);
-	pci_release_region(pdev, REG_BAR);
-	pcard->regs_bar_base = NULL;
 err_disable_device:
 	pci_disable_device(pcard->pdev);
 err_remove_ida:
