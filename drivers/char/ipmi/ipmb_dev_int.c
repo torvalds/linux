@@ -117,7 +117,7 @@ static ssize_t ipmb_write(struct file *file, const char __user *buf,
 {
 	struct ipmb_dev *ipmb_dev = to_ipmb_dev(file);
 	u8 rq_sa, netf_rq_lun, msg_len;
-	struct i2c_client rq_client;
+	union i2c_smbus_data data;
 	u8 msg[MAX_MSG_LEN];
 	ssize_t ret;
 
@@ -138,17 +138,18 @@ static ssize_t ipmb_write(struct file *file, const char __user *buf,
 
 	/*
 	 * subtract rq_sa and netf_rq_lun from the length of the msg passed to
-	 * i2c_smbus_write_block_data_local
+	 * i2c_smbus_xfer
 	 */
 	msg_len = msg[IPMB_MSG_LEN_IDX] - SMBUS_MSG_HEADER_LENGTH;
+	if (msg_len > I2C_SMBUS_BLOCK_MAX)
+		msg_len = I2C_SMBUS_BLOCK_MAX;
 
-	strcpy(rq_client.name, "ipmb_requester");
-	rq_client.adapter = ipmb_dev->client->adapter;
-	rq_client.flags = ipmb_dev->client->flags;
-	rq_client.addr = rq_sa;
-
-	ret = i2c_smbus_write_block_data(&rq_client, netf_rq_lun, msg_len,
-					msg + SMBUS_MSG_IDX_OFFSET);
+	data.block[0] = msg_len;
+	memcpy(&data.block[1], msg + SMBUS_MSG_IDX_OFFSET, msg_len);
+	ret = i2c_smbus_xfer(ipmb_dev->client->adapter, rq_sa,
+			     ipmb_dev->client->flags,
+			     I2C_SMBUS_WRITE, netf_rq_lun,
+			     I2C_SMBUS_BLOCK_DATA, &data);
 
 	return ret ? : count;
 }
