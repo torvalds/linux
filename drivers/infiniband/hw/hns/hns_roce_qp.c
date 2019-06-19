@@ -64,7 +64,6 @@ void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type)
 	if (atomic_dec_and_test(&qp->refcount))
 		complete(&qp->free);
 }
-EXPORT_SYMBOL_GPL(hns_roce_qp_event);
 
 static void hns_roce_ib_qp_event(struct hns_roce_qp *hr_qp,
 				 enum hns_roce_event type)
@@ -139,7 +138,6 @@ enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state)
 		return HNS_ROCE_QP_NUM_STATE;
 	}
 }
-EXPORT_SYMBOL_GPL(to_hns_roce_state);
 
 static int hns_roce_gsi_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
 				 struct hns_roce_qp *hr_qp)
@@ -242,7 +240,6 @@ void hns_roce_qp_remove(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	__xa_erase(xa, hr_qp->qpn & (hr_dev->caps.num_qps - 1));
 	xa_unlock_irqrestore(xa, flags);
 }
-EXPORT_SYMBOL_GPL(hns_roce_qp_remove);
 
 void hns_roce_qp_free(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 {
@@ -260,7 +257,6 @@ void hns_roce_qp_free(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 		hns_roce_table_put(hr_dev, &qp_table->qp_table, hr_qp->qpn);
 	}
 }
-EXPORT_SYMBOL_GPL(hns_roce_qp_free);
 
 void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 			       int cnt)
@@ -272,7 +268,6 @@ void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 
 	hns_roce_bitmap_free_range(&qp_table->bitmap, base_qpn, cnt, BITMAP_RR);
 }
-EXPORT_SYMBOL_GPL(hns_roce_release_range_qp);
 
 static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,
 				struct ib_qp_cap *cap, bool is_user, int has_rq,
@@ -1027,7 +1022,6 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 
 	return &hr_qp->ibqp;
 }
-EXPORT_SYMBOL_GPL(hns_roce_create_qp);
 
 int to_hr_qp_type(int qp_type)
 {
@@ -1046,7 +1040,6 @@ int to_hr_qp_type(int qp_type)
 
 	return transport_type;
 }
-EXPORT_SYMBOL_GPL(to_hr_qp_type);
 
 int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		       int attr_mask, struct ib_udata *udata)
@@ -1166,7 +1159,6 @@ void hns_roce_lock_cqs(struct hns_roce_cq *send_cq, struct hns_roce_cq *recv_cq)
 		spin_lock_nested(&send_cq->lock, SINGLE_DEPTH_NESTING);
 	}
 }
-EXPORT_SYMBOL_GPL(hns_roce_lock_cqs);
 
 void hns_roce_unlock_cqs(struct hns_roce_cq *send_cq,
 			 struct hns_roce_cq *recv_cq) __releases(&send_cq->lock)
@@ -1183,7 +1175,6 @@ void hns_roce_unlock_cqs(struct hns_roce_cq *send_cq,
 		spin_unlock_irq(&recv_cq->lock);
 	}
 }
-EXPORT_SYMBOL_GPL(hns_roce_unlock_cqs);
 
 static void *get_wqe(struct hns_roce_qp *hr_qp, int offset)
 {
@@ -1195,20 +1186,17 @@ void *get_recv_wqe(struct hns_roce_qp *hr_qp, int n)
 {
 	return get_wqe(hr_qp, hr_qp->rq.offset + (n << hr_qp->rq.wqe_shift));
 }
-EXPORT_SYMBOL_GPL(get_recv_wqe);
 
 void *get_send_wqe(struct hns_roce_qp *hr_qp, int n)
 {
 	return get_wqe(hr_qp, hr_qp->sq.offset + (n << hr_qp->sq.wqe_shift));
 }
-EXPORT_SYMBOL_GPL(get_send_wqe);
 
 void *get_send_extend_sge(struct hns_roce_qp *hr_qp, int n)
 {
 	return hns_roce_buf_offset(&hr_qp->hr_buf, hr_qp->sge.offset +
 					(n << hr_qp->sge.sge_shift));
 }
-EXPORT_SYMBOL_GPL(get_send_extend_sge);
 
 bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, int nreq,
 			  struct ib_cq *ib_cq)
@@ -1227,7 +1215,6 @@ bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, int nreq,
 
 	return cur + nreq >= hr_wq->max_post;
 }
-EXPORT_SYMBOL_GPL(hns_roce_wq_overflow);
 
 int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 {

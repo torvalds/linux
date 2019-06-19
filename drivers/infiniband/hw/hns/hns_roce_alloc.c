@@ -68,7 +68,6 @@ void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj,
 {
 	hns_roce_bitmap_free_range(bitmap, obj, 1, rr);
 }
-EXPORT_SYMBOL_GPL(hns_roce_bitmap_free);
 
 int hns_roce_bitmap_alloc_range(struct hns_roce_bitmap *bitmap, int cnt,
 				int align, unsigned long *obj)
@@ -175,7 +174,6 @@ void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
 		kfree(buf->page_list);
 	}
 }
-EXPORT_SYMBOL_GPL(hns_roce_buf_free);
 
 int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 		       struct hns_roce_buf *buf, u32 page_shift)

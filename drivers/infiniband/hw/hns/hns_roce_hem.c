@@ -56,7 +56,6 @@ bool hns_roce_check_whether_mhop(struct hns_roce_dev *hr_dev, u32 type)
 
 	return false;
 }
-EXPORT_SYMBOL_GPL(hns_roce_check_whether_mhop);
 
 static bool hns_roce_check_hem_null(struct hns_roce_hem **hem, u64 start_idx,
 			    u32 bt_chunk_num)
@@ -234,7 +233,6 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(hns_roce_calc_hem_mhop);
 
 static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
 					       int npages,
@@ -621,7 +619,6 @@ out:
 	mutex_unlock(&table->mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(hns_roce_table_get);
 
 static void hns_roce_table_mhop_put(struct hns_roce_dev *hr_dev,
 				    struct hns_roce_hem_table *table,
@@ -764,7 +761,6 @@ void hns_roce_table_put(struct hns_roce_dev *hr_dev,
 
 	mutex_unlock(&table->mutex);
 }
-EXPORT_SYMBOL_GPL(hns_roce_table_put);
 
 void *hns_roce_table_find(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_hem_table *table,
@@ -837,7 +833,6 @@ out:
 	mutex_unlock(&table->mutex);
 	return addr;
 }
-EXPORT_SYMBOL_GPL(hns_roce_table_find);
 
 int hns_roce_table_get_range(struct hns_roce_dev *hr_dev,
 			     struct hns_roce_hem_table *table,

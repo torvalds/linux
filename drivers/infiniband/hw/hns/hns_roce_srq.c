@@ -30,7 +30,6 @@ void hns_roce_srq_event(struct hns_roce_dev *hr_dev, u32 srqn, int event_type)
 	if (atomic_dec_and_test(&srq->refcount))
 		complete(&srq->free);
 }
-EXPORT_SYMBOL_GPL(hns_roce_srq_event);
 
 static void hns_roce_ib_srq_event(struct hns_roce_srq *srq,
 				  enum hns_roce_event event_type)

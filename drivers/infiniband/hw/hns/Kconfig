@@ -7,25 +7,24 @@ config INFINIBAND_HNS
 	  is used in Hisilicon Hip06 and more further ICT SoC based on
 	  platform device.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called hns-roce.
+	  To compile HIP06 or HIP08 driver as module, choose M here.
 
 config INFINIBAND_HNS_HIP06
-	tristate "Hisilicon Hip06 Family RoCE support"
+	bool "Hisilicon Hip06 Family RoCE support"
 	depends on INFINIBAND_HNS && HNS && HNS_DSAF && HNS_ENET
 	---help---
 	  RoCE driver support for Hisilicon RoCE engine in Hisilicon Hip06 and
 	  Hip07 SoC. These RoCE engines are platform devices.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called hns-roce-hw-v1.
+	  To compile this driver, choose Y here: if INFINIBAND_HNS is m, this
+	  module will be called hns-roce-hw-v1
 
 config INFINIBAND_HNS_HIP08
-	tristate "Hisilicon Hip08 Family RoCE support"
+	bool "Hisilicon Hip08 Family RoCE support"
 	depends on INFINIBAND_HNS && PCI && HNS3
 	---help---
 	  RoCE driver support for Hisilicon RoCE engine in Hisilicon Hip08 SoC.
 	  The RoCE engine is a PCI device.
 
-	  To compile this driver as a module, choose M here: the module
-	  will be called hns-roce-hw-v2.
+	  To compile this driver, choose Y here: if INFINIBAND_HNS is m, this
+	  module will be called hns-roce-hw-v2.

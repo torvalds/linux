@@ -51,7 +51,6 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL(hns_roce_db_map_user);
 
 void hns_roce_db_unmap_user(struct hns_roce_ucontext *context,
 			    struct hns_roce_db *db)
@@ -67,7 +66,6 @@ void hns_roce_db_unmap_user(struct hns_roce_ucontext *context,
 
 	mutex_unlock(&context->page_mutex);
 }
-EXPORT_SYMBOL(hns_roce_db_unmap_user);
 
 static struct hns_roce_db_pgdir *hns_roce_alloc_db_pgdir(
 					struct device *dma_device)
@@ -151,7 +149,6 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(hns_roce_alloc_db);
 
 void hns_roce_free_db(struct hns_roce_dev *hr_dev, struct hns_roce_db *db)
 {
@@ -181,4 +178,3 @@ void hns_roce_free_db(struct hns_roce_dev *hr_dev, struct hns_roce_db *db)
 
 	mutex_unlock(&hr_dev->pgdir_mutex);
 }
-EXPORT_SYMBOL_GPL(hns_roce_free_db);

@@ -57,7 +57,6 @@ int hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index)
 {
 	return gid_index * hr_dev->caps.num_ports + port;
 }
-EXPORT_SYMBOL_GPL(hns_get_gid_index);
 
 static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u8 port, u8 *addr)
 {
@@ -974,7 +973,6 @@ error_failed_cmq_init:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(hns_roce_init);
 
 void hns_roce_exit(struct hns_roce_dev *hr_dev)
 {
@@ -995,7 +993,6 @@ void hns_roce_exit(struct hns_roce_dev *hr_dev)
 	if (hr_dev->hw->reset)
 		hr_dev->hw->reset(hr_dev, false);
 }
-EXPORT_SYMBOL_GPL(hns_roce_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Wei Hu <xavier.huwei@huawei.com>");
