@@ -60,18 +60,15 @@ static const struct snd_soc_dapm_route a370db_route[] = {
 
 SND_SOC_DAILINK_DEFS(analog,
 	DAILINK_COMP_ARRAY(COMP_CPU("i2s")),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "cs42l51-hifi")),
-	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "cs42l51-hifi")));
 
 SND_SOC_DAILINK_DEFS(spdif_out,
 	DAILINK_COMP_ARRAY(COMP_CPU("spdif")),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "dit-hifi")),
-	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "dit-hifi")));
 
 SND_SOC_DAILINK_DEFS(spdif_in,
 	DAILINK_COMP_ARRAY(COMP_CPU("spdif")),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "dir-hifi")),
-	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "dir-hifi")));
 
 static struct snd_soc_dai_link a370db_dai[] = {
 {
@@ -115,21 +112,18 @@ static int a370db_probe(struct platform_device *pdev)
 	a370db_dai[0].cpus->of_node =
 		of_parse_phandle(pdev->dev.of_node,
 				 "marvell,audio-controller", 0);
-	a370db_dai[0].platforms->of_node = a370db_dai[0].cpus->of_node;
 
 	a370db_dai[0].codecs->of_node =
 		of_parse_phandle(pdev->dev.of_node,
 				 "marvell,audio-codec", 0);
 
 	a370db_dai[1].cpus->of_node = a370db_dai[0].cpus->of_node;
-	a370db_dai[1].platforms->of_node = a370db_dai[0].cpus->of_node;
 
 	a370db_dai[1].codecs->of_node =
 		of_parse_phandle(pdev->dev.of_node,
 				 "marvell,audio-codec", 1);
 
 	a370db_dai[2].cpus->of_node = a370db_dai[0].cpus->of_node;
-	a370db_dai[2].platforms->of_node = a370db_dai[0].cpus->of_node;
 
 	a370db_dai[2].codecs->of_node =
 		of_parse_phandle(pdev->dev.of_node,
