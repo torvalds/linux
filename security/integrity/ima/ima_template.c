@@ -47,10 +47,6 @@ static const struct ima_template_field supported_fields[] = {
 #define MAX_TEMPLATE_NAME_LEN 15
 
 static struct ima_template_desc *ima_template;
-static struct ima_template_desc *lookup_template_desc(const char *name);
-static int template_desc_init_fields(const char *template_fmt,
-				     const struct ima_template_field ***fields,
-				     int *num_fields);
 
 static int __init ima_template_setup(char *str)
 {
@@ -108,7 +104,7 @@ static int __init ima_template_fmt_setup(char *str)
 }
 __setup("ima_template_fmt=", ima_template_fmt_setup);
 
-static struct ima_template_desc *lookup_template_desc(const char *name)
+struct ima_template_desc *lookup_template_desc(const char *name)
 {
 	struct ima_template_desc *template_desc;
 	int found = 0;
@@ -153,9 +149,9 @@ static int template_fmt_size(const char *template_fmt)
 	return j + 1;
 }
 
-static int template_desc_init_fields(const char *template_fmt,
-				     const struct ima_template_field ***fields,
-				     int *num_fields)
+int template_desc_init_fields(const char *template_fmt,
+			      const struct ima_template_field ***fields,
+			      int *num_fields)
 {
 	const char *template_fmt_ptr;
 	const struct ima_template_field *found_fields[IMA_TEMPLATE_NUM_FIELDS_MAX];
