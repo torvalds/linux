@@ -65,7 +65,7 @@
 };
 
 &pms405_spmi_regulators {
-	vdd_s3-supply = <&pms405_s3>;
+	vdd_s3-supply = <&vph_pwr>;
 
 	pms405_s3: s3 {
 		regulator-always-on;
