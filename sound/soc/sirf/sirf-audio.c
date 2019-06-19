@@ -63,8 +63,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 /* Digital audio interface glue - connects codec <--> CPU */
 SND_SOC_DAILINK_DEFS(sirf,
 	DAILINK_COMP_ARRAY(COMP_EMPTY()),
-	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "sirf-audio-codec")),
-	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "sirf-audio-codec")));
 
 static struct snd_soc_dai_link sirf_audio_dai_link[] = {
 	{
@@ -98,8 +97,6 @@ static int sirf_audio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	sirf_audio_dai_link[0].cpus->of_node =
-		of_parse_phandle(pdev->dev.of_node, "sirf,audio-platform", 0);
-	sirf_audio_dai_link[0].platforms->of_node =
 		of_parse_phandle(pdev->dev.of_node, "sirf,audio-platform", 0);
 	sirf_audio_dai_link[0].codecs->of_node =
 		of_parse_phandle(pdev->dev.of_node, "sirf,audio-codec", 0);
