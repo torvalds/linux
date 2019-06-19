@@ -73,5 +73,7 @@ int btrfs_cond_migrate_bytes(struct btrfs_fs_info *fs_info,
 void btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
 			     struct btrfs_block_rsv *block_rsv,
 			     u64 num_bytes);
+void btrfs_block_rsv_add_bytes(struct btrfs_block_rsv *block_rsv,
+			       u64 num_bytes, bool update_size);
 
 #endif /* BTRFS_BLOCK_RSV_H */
