@@ -148,7 +148,7 @@ The Search Algorithm
 
 A search of any particular keyring proceeds in the following fashion:
 
-  1) When the key management code searches for a key (keyring_search_aux) it
+  1) When the key management code searches for a key (keyring_search_rcu) it
      firstly calls key_permission(SEARCH) on the keyring it's starting with,
      if this denies permission, it doesn't search further.
 

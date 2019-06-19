@@ -318,7 +318,8 @@ void key_fsgid_changed(struct cred *new_cred)
 
 /*
  * Search the process keyrings attached to the supplied cred for the first
- * matching key.
+ * matching key under RCU conditions (the caller must be holding the RCU read
+ * lock).
  *
  * The search criteria are the type and the match function.  The description is
  * given to the match function as a parameter, but doesn't otherwise influence
@@ -337,7 +338,7 @@ void key_fsgid_changed(struct cred *new_cred)
  * In the case of a successful return, the possession attribute is set on the
  * returned key reference.
  */
-key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
+key_ref_t search_cred_keyrings_rcu(struct keyring_search_context *ctx)
 {
 	key_ref_t key_ref, ret, err;
 	const struct cred *cred = ctx->cred;
@@ -355,7 +356,7 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 
 	/* search the thread keyring first */
 	if (cred->thread_keyring) {
-		key_ref = keyring_search_aux(
+		key_ref = keyring_search_rcu(
 			make_key_ref(cred->thread_keyring, 1), ctx);
 		if (!IS_ERR(key_ref))
 			goto found;
@@ -373,7 +374,7 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 
 	/* search the process keyring second */
 	if (cred->process_keyring) {
-		key_ref = keyring_search_aux(
+		key_ref = keyring_search_rcu(
 			make_key_ref(cred->process_keyring, 1), ctx);
 		if (!IS_ERR(key_ref))
 			goto found;
@@ -394,7 +395,7 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 
 	/* search the session keyring */
 	if (cred->session_keyring) {
-		key_ref = keyring_search_aux(
+		key_ref = keyring_search_rcu(
 			make_key_ref(cred->session_keyring, 1), ctx);
 
 		if (!IS_ERR(key_ref))
@@ -415,7 +416,7 @@ key_ref_t search_my_process_keyrings(struct keyring_search_context *ctx)
 	}
 	/* or search the user-session keyring */
 	else if (READ_ONCE(cred->user->session_keyring)) {
-		key_ref = keyring_search_aux(
+		key_ref = keyring_search_rcu(
 			make_key_ref(READ_ONCE(cred->user->session_keyring), 1),
 			ctx);
 		if (!IS_ERR(key_ref))
@@ -448,16 +449,16 @@ found:
  * the keys attached to the assumed authorisation key using its credentials if
  * one is available.
  *
- * Return same as search_my_process_keyrings().
+ * The caller must be holding the RCU read lock.
+ *
+ * Return same as search_cred_keyrings_rcu().
  */
-key_ref_t search_process_keyrings(struct keyring_search_context *ctx)
+key_ref_t search_process_keyrings_rcu(struct keyring_search_context *ctx)
 {
 	struct request_key_auth *rka;
 	key_ref_t key_ref, ret = ERR_PTR(-EACCES), err;
 
-	might_sleep();
-
-	key_ref = search_my_process_keyrings(ctx);
+	key_ref = search_cred_keyrings_rcu(ctx);
 	if (!IS_ERR(key_ref))
 		goto found;
 	err = key_ref;
@@ -472,24 +473,17 @@ key_ref_t search_process_keyrings(struct keyring_search_context *ctx)
 	    ) {
 		const struct cred *cred = ctx->cred;
 
-		/* defend against the auth key being revoked */
-		down_read(&cred->request_key_auth->sem);
-
-		if (key_validate(ctx->cred->request_key_auth) == 0) {
+		if (key_validate(cred->request_key_auth) == 0) {
 			rka = ctx->cred->request_key_auth->payload.data[0];
 
+			//// was search_process_keyrings() [ie. recursive]
 			ctx->cred = rka->cred;
-			key_ref = search_process_keyrings(ctx);
+			key_ref = search_cred_keyrings_rcu(ctx);
 			ctx->cred = cred;
-
-			up_read(&cred->request_key_auth->sem);
 
 			if (!IS_ERR(key_ref))
 				goto found;
-
 			ret = key_ref;
-		} else {
-			up_read(&cred->request_key_auth->sem);
 		}
 	}
 
@@ -504,7 +498,6 @@ key_ref_t search_process_keyrings(struct keyring_search_context *ctx)
 found:
 	return key_ref;
 }
-
 /*
  * See if the key we're looking at is the target key.
  */
@@ -691,7 +684,9 @@ try_again:
 		ctx.index_key			= key->index_key;
 		ctx.match_data.raw_data		= key;
 		kdebug("check possessed");
-		skey_ref = search_process_keyrings(&ctx);
+		rcu_read_lock();
+		skey_ref = search_process_keyrings_rcu(&ctx);
+		rcu_read_unlock();
 		kdebug("possessed=%p", skey_ref);
 
 		if (!IS_ERR(skey_ref)) {
