@@ -43,8 +43,8 @@ komeda_fb_afbc_size_check(struct komeda_fb *kfb, struct drm_file *file,
 	struct drm_framebuffer *fb = &kfb->base;
 	const struct drm_format_info *info = fb->format;
 	struct drm_gem_object *obj;
-	u32 alignment_w = 0, alignment_h = 0, alignment_header;
-	u32 n_blocks = 0, min_size = 0;
+	u32 alignment_w = 0, alignment_h = 0, alignment_header, n_blocks;
+	u64 min_size;
 
 	obj = drm_gem_object_lookup(file, mode_cmd->handles[0]);
 	if (!obj) {
@@ -93,7 +93,7 @@ komeda_fb_afbc_size_check(struct komeda_fb *kfb, struct drm_file *file,
 			       AFBC_SUPERBLK_ALIGNMENT);
 	min_size = kfb->afbc_size + fb->offsets[0];
 	if (min_size > obj->size) {
-		DRM_DEBUG_KMS("afbc size check failed, obj_size: 0x%lx. min_size 0x%x.\n",
+		DRM_DEBUG_KMS("afbc size check failed, obj_size: 0x%zx. min_size 0x%llx.\n",
 			      obj->size, min_size);
 		goto check_failed;
 	}
@@ -114,7 +114,8 @@ komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 	struct drm_framebuffer *fb = &kfb->base;
 	const struct drm_format_info *info = fb->format;
 	struct drm_gem_object *obj;
-	u32 i, min_size, block_h;
+	u32 i, block_h;
+	u64 min_size;
 
 	if (komeda_fb_check_src_coords(kfb, 0, 0, fb->width, fb->height))
 		return -EINVAL;
@@ -137,7 +138,7 @@ komeda_fb_none_afbc_size_check(struct komeda_dev *mdev, struct komeda_fb *kfb,
 		min_size = komeda_fb_get_pixel_addr(kfb, 0, fb->height, i)
 			 - to_drm_gem_cma_obj(obj)->paddr;
 		if (obj->size < min_size) {
-			DRM_DEBUG_KMS("The fb->obj[%d] size: %ld lower than the minimum requirement: %d.\n",
+			DRM_DEBUG_KMS("The fb->obj[%d] size: 0x%zx lower than the minimum requirement: 0x%llx.\n",
 				      i, obj->size, min_size);
 			return -EINVAL;
 		}
