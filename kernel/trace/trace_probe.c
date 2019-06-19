@@ -316,6 +316,17 @@ inval_var:
 	return -EINVAL;
 }
 
+static int str_to_immediate(char *str, unsigned long *imm)
+{
+	if (isdigit(str[0]))
+		return kstrtoul(str, 0, imm);
+	else if (str[0] == '-')
+		return kstrtol(str, 0, (long *)imm);
+	else if (str[0] == '+')
+		return kstrtol(str + 1, 0, (long *)imm);
+	return -EINVAL;
+}
+
 /* Recursive argument parser */
 static int
 parse_probe_arg(char *arg, const struct fetch_type *type,
@@ -443,6 +454,13 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 			code->op = deref;
 			code->offset = offset;
 		}
+		break;
+	case '\\':	/* Immediate value */
+		ret = str_to_immediate(arg + 1, &code->immediate);
+		if (ret)
+			trace_probe_log_err(offs + 1, BAD_IMM);
+		else
+			code->op = FETCH_OP_IMM;
 		break;
 	}
 	if (!ret && code->op == FETCH_OP_NOP) {
