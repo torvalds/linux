@@ -1447,8 +1447,10 @@ long i915_request_wait(struct i915_request *rq,
 	for (;;) {
 		set_current_state(state);
 
-		if (i915_request_completed(rq))
+		if (i915_request_completed(rq)) {
+			dma_fence_signal(&rq->fence);
 			break;
+		}
 
 		if (signal_pending_state(state, current)) {
 			timeout = -ERESTARTSYS;
