@@ -942,6 +942,149 @@ static int psp_hdcp_terminate(struct psp_context *psp)
 }
 // HDCP end
 
+// DTM start
+static void psp_prep_dtm_ta_load_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+					 uint64_t dtm_ta_mc,
+					 uint64_t dtm_mc_shared,
+					 uint32_t dtm_ta_size,
+					 uint32_t shared_size)
+{
+	cmd->cmd_id = GFX_CMD_ID_LOAD_TA;
+	cmd->cmd.cmd_load_ta.app_phy_addr_lo = lower_32_bits(dtm_ta_mc);
+	cmd->cmd.cmd_load_ta.app_phy_addr_hi = upper_32_bits(dtm_ta_mc);
+	cmd->cmd.cmd_load_ta.app_len = dtm_ta_size;
+
+	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_lo = lower_32_bits(dtm_mc_shared);
+	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_hi = upper_32_bits(dtm_mc_shared);
+	cmd->cmd.cmd_load_ta.cmd_buf_len = shared_size;
+}
+
+static int psp_dtm_init_shared_buf(struct psp_context *psp)
+{
+	int ret;
+
+	/*
+	 * Allocate 16k memory aligned to 4k from Frame Buffer (local
+	 * physical) for dtm ta <-> Driver
+	 */
+	ret = amdgpu_bo_create_kernel(psp->adev, PSP_DTM_SHARED_MEM_SIZE,
+				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+				      &psp->dtm_context.dtm_shared_bo,
+				      &psp->dtm_context.dtm_shared_mc_addr,
+				      &psp->dtm_context.dtm_shared_buf);
+
+	return ret;
+}
+
+static int psp_dtm_load(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	/*
+	 * TODO: bypass the loading in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+	memcpy(psp->fw_pri_buf, psp->ta_dtm_start_addr, psp->ta_dtm_ucode_size);
+
+	psp_prep_dtm_ta_load_cmd_buf(cmd, psp->fw_pri_mc_addr,
+				     psp->dtm_context.dtm_shared_mc_addr,
+				     psp->ta_dtm_ucode_size,
+				     PSP_DTM_SHARED_MEM_SIZE);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	if (!ret) {
+		psp->dtm_context.dtm_initialized = 1;
+		psp->dtm_context.session_id = cmd->resp.session_id;
+	}
+
+	kfree(cmd);
+
+	return ret;
+}
+
+static int psp_dtm_initialize(struct psp_context *psp)
+{
+	int ret;
+
+	if (!psp->dtm_context.dtm_initialized) {
+		ret = psp_dtm_init_shared_buf(psp);
+		if (ret)
+			return ret;
+	}
+
+	ret = psp_dtm_load(psp);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void psp_prep_dtm_ta_invoke_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+					   uint32_t ta_cmd_id,
+					   uint32_t dtm_session_id)
+{
+	cmd->cmd_id = GFX_CMD_ID_INVOKE_CMD;
+	cmd->cmd.cmd_invoke_cmd.session_id = dtm_session_id;
+	cmd->cmd.cmd_invoke_cmd.ta_cmd_id = ta_cmd_id;
+	/* Note: cmd_invoke_cmd.buf is not used for now */
+}
+
+int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	/*
+	 * TODO: bypass the loading in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	psp_prep_dtm_ta_invoke_cmd_buf(cmd, ta_cmd_id,
+				       psp->dtm_context.session_id);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	kfree(cmd);
+
+	return ret;
+}
+
+static int psp_dtm_terminate(struct psp_context *psp)
+{
+	int ret;
+
+	if (!psp->dtm_context.dtm_initialized)
+		return 0;
+
+	ret = psp_hdcp_unload(psp);
+	if (ret)
+		return ret;
+
+	psp->dtm_context.dtm_initialized = 0;
+
+	/* free hdcp shared memory */
+	amdgpu_bo_free_kernel(&psp->dtm_context.dtm_shared_bo,
+			      &psp->dtm_context.dtm_shared_mc_addr,
+			      &psp->dtm_context.dtm_shared_buf);
+
+	return 0;
+}
+// DTM end
+
 static int psp_hw_start(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -1020,6 +1163,11 @@ static int psp_hw_start(struct psp_context *psp)
 		if (ret)
 			dev_err(psp->adev->dev,
 				"HDCP: Failed to initialize HDCP\n");
+
+		ret = psp_dtm_initialize(psp);
+		if (ret)
+			dev_err(psp->adev->dev,
+				"DTM: Failed to initialize DTM\n");
 	}
 
 	return 0;
@@ -1387,6 +1535,7 @@ static int psp_hw_fini(void *handle)
 
 	if (psp->adev->psp.ta_fw) {
 		psp_ras_terminate(psp);
+		psp_dtm_terminate(psp);
 		psp_hdcp_terminate(psp);
 	}
 
@@ -1433,6 +1582,11 @@ static int psp_suspend(void *handle)
 		ret = psp_hdcp_terminate(psp);
 		if (ret) {
 			DRM_ERROR("Failed to terminate hdcp ta\n");
+			return ret;
+		}
+		ret = psp_dtm_terminate(psp);
+		if (ret) {
+			DRM_ERROR("Failed to terminate dtm ta\n");
 			return ret;
 		}
 	}
