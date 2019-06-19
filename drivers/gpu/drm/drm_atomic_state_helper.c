@@ -380,6 +380,24 @@ void drm_atomic_helper_connector_reset(struct drm_connector *connector)
 EXPORT_SYMBOL(drm_atomic_helper_connector_reset);
 
 /**
+ * drm_atomic_helper_connector_tv_reset - Resets TV connector properties
+ * @connector: DRM connector
+ *
+ * Resets the TV-related properties attached to a connector.
+ */
+void drm_atomic_helper_connector_tv_reset(struct drm_connector *connector)
+{
+	struct drm_cmdline_mode *cmdline = &connector->cmdline_mode;
+	struct drm_connector_state *state = connector->state;
+
+	state->tv.margins.left = cmdline->tv_margins.left;
+	state->tv.margins.right = cmdline->tv_margins.right;
+	state->tv.margins.top = cmdline->tv_margins.top;
+	state->tv.margins.bottom = cmdline->tv_margins.bottom;
+}
+EXPORT_SYMBOL(drm_atomic_helper_connector_tv_reset);
+
+/**
  * __drm_atomic_helper_connector_duplicate_state - copy atomic connector state
  * @connector: connector object
  * @state: atomic connector state
