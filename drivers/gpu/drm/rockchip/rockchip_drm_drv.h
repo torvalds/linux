@@ -17,6 +17,7 @@
 #ifndef _ROCKCHIP_DRM_DRV_H
 #define _ROCKCHIP_DRM_DRV_H
 
+#include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem.h>
@@ -32,6 +33,32 @@
 struct drm_device;
 struct drm_connector;
 struct iommu_domain;
+
+/*
+ * Rockchip drm private crtc funcs.
+ * @loader_protect: protect loader logo crtc's power
+ * @enable_vblank: enable crtc vblank irq.
+ * @disable_vblank: disable crtc vblank irq.
+ * @bandwidth: report present crtc bandwidth consume.
+ */
+struct rockchip_crtc_funcs {
+	int (*loader_protect)(struct drm_crtc *crtc, bool on);
+	int (*enable_vblank)(struct drm_crtc *crtc);
+	void (*disable_vblank)(struct drm_crtc *crtc);
+	size_t (*bandwidth)(struct drm_crtc *crtc,
+			    struct drm_crtc_state *crtc_state,
+			    unsigned int *plane_num_total);
+	void (*cancel_pending_vblank)(struct drm_crtc *crtc,
+				      struct drm_file *file_priv);
+	int (*debugfs_init)(struct drm_minor *minor, struct drm_crtc *crtc);
+	int (*debugfs_dump)(struct drm_crtc *crtc, struct seq_file *s);
+	void (*regs_dump)(struct drm_crtc *crtc, struct seq_file *s);
+	enum drm_mode_status (*mode_valid)(struct drm_crtc *crtc,
+					   const struct drm_display_mode *mode,
+					   int output_type);
+	void (*crtc_close)(struct drm_crtc *crtc);
+	void (*crtc_send_mcu_cmd)(struct drm_crtc *crtc, u32 type, u32 value);
+};
 
 struct rockchip_atomic_commit {
 	struct drm_atomic_state *state;
@@ -127,6 +154,7 @@ struct rockchip_drm_private {
 	struct drm_property *alpha_scale_prop;
 	struct drm_fb_helper *fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
+	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
 	struct drm_atomic_state *state;
 	struct iommu_domain *domain;
 	struct gen_pool *secure_buffer_pool;
@@ -142,6 +170,9 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 				   struct device *dev);
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev);
+int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
+				 const struct rockchip_crtc_funcs *crtc_funcs);
+void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc);
 int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout);
 
 extern struct platform_driver cdn_dp_driver;
