@@ -477,9 +477,11 @@ static unsigned long tmc_update_etf_buffer(struct coresight_device *csdev,
 	/*
 	 * The TMC RAM buffer may be bigger than the space available in the
 	 * perf ring buffer (handle->size).  If so advance the RRP so that we
-	 * get the latest trace data.
+	 * get the latest trace data.  In snapshot mode none of that matters
+	 * since we are expected to clobber stale data in favour of the latest
+	 * traces.
 	 */
-	if (to_read > handle->size) {
+	if (!buf->snapshot && to_read > handle->size) {
 		u32 mask = 0;
 
 		/*
