@@ -37,6 +37,7 @@
 #include "dc.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_irq.h"
+#include "amdgpu_dm_mst_types.h"
 
 #include "dm_helpers.h"
 
@@ -516,8 +517,24 @@ bool dm_helpers_dp_write_dsc_enable(
 )
 {
 	uint8_t enable_dsc = enable ? 1 : 0;
+	struct amdgpu_dm_connector *aconnector;
 
-	return dm_helpers_dp_write_dpcd(ctx, stream->sink->link, DP_DSC_ENABLE, &enable_dsc, 1);
+	if (!stream)
+		return false;
+
+	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+
+		if (!aconnector->dsc_aux)
+			return false;
+
+		return (drm_dp_dpcd_write(aconnector->dsc_aux, DP_DSC_ENABLE, &enable_dsc, 1) >= 0);
+	}
+
+	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT)
+		return dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
+
+	return false;
 }
 
 bool dm_helpers_is_dp_sink_present(struct dc_link *link)
