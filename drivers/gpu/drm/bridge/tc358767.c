@@ -739,22 +739,19 @@ err:
 
 static int tc_wait_link_training(struct tc_data *tc)
 {
-	u32 timeout = 1000;
 	u32 value;
 	int ret;
 
-	do {
-		udelay(1);
-		tc_read(DP0_LTSTAT, &value);
-	} while ((!(value & LT_LOOPDONE)) && (--timeout));
-
-	if (timeout == 0) {
+	ret = tc_poll_timeout(tc, DP0_LTSTAT, LT_LOOPDONE,
+			      LT_LOOPDONE, 1, 1000);
+	if (ret) {
 		dev_err(tc->dev, "Link training timeout waiting for LT_LOOPDONE!\n");
-		return -ETIMEDOUT;
+		return ret;
 	}
 
-	return (value >> 8) & 0x7;
+	tc_read(DP0_LTSTAT, &value);
 
+	return (value >> 8) & 0x7;
 err:
 	return ret;
 }
