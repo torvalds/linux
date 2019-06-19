@@ -323,9 +323,6 @@ coresight_get_platform_data(struct device *dev)
 		goto error;
 	}
 
-	/* Use device name as sysfs handle */
-	pdata->name = dev_name(dev);
-
 	if (is_of_node(fwnode))
 		ret = of_get_coresight_platform_data(dev, pdata);
 
