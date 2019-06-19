@@ -124,12 +124,12 @@ int cca_check_secaescipherkey(debug_info_t *dbg, int dbflvl,
 /*
  * Generate (random) CCA AES DATA secure key.
  */
-int cca_genseckey(u16 cardnr, u16 domain, u32 keytype, u8 *seckey);
+int cca_genseckey(u16 cardnr, u16 domain, u32 keybitsize, u8 *seckey);
 
 /*
  * Generate CCA AES DATA secure key with given clear key value.
  */
-int cca_clr2seckey(u16 cardnr, u16 domain, u32 keytype,
+int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
 		   const u8 *clrkey, u8 *seckey);
 
 /*
@@ -137,8 +137,7 @@ int cca_clr2seckey(u16 cardnr, u16 domain, u32 keytype,
  */
 int cca_sec2protkey(u16 cardnr, u16 domain,
 		    const u8 seckey[SECKEYBLOBSIZE],
-		    u8 *protkey, u32 *protkeylen,
-		    u32 *protkeytype);
+		    u8 *protkey, u32 *protkeylen, u32 *protkeytype);
 
 /*
  * Generate (random) CCA AES CIPHER secure key.
@@ -169,6 +168,7 @@ int cca_query_crypto_facility(u16 cardnr, u16 domain,
 /*
  * Search for a matching crypto card based on the Master Key
  * Verification Pattern provided inside a secure key.
+ * Works with CCA AES data and cipher keys.
  * Returns < 0 on failure, 0 if CURRENT MKVP matches and
  * 1 if OLD MKVP matches.
  */

@@ -270,7 +270,7 @@ static inline int _zcrypt_send_cprb(struct ica_xcRB *xcrb)
  * Generate (random) CCA AES DATA secure key.
  */
 int cca_genseckey(u16 cardnr, u16 domain,
-		  u32 keytype, u8 seckey[SECKEYBLOBSIZE])
+		  u32 keybitsize, u8 seckey[SECKEYBLOBSIZE])
 {
 	int i, rc, keysize;
 	int seckeysize;
@@ -325,22 +325,25 @@ int cca_genseckey(u16 cardnr, u16 domain,
 	preqparm->rule_array_len = sizeof(preqparm->rule_array_len);
 	preqparm->lv1.len = sizeof(struct lv1);
 	memcpy(preqparm->lv1.key_form,	 "OP      ", 8);
-	switch (keytype) {
-	case PKEY_KEYTYPE_AES_128:
+	switch (keybitsize) {
+	case PKEY_SIZE_AES_128:
+	case PKEY_KEYTYPE_AES_128: /* older ioctls used this */
 		keysize = 16;
 		memcpy(preqparm->lv1.key_length, "KEYLN16 ", 8);
 		break;
-	case PKEY_KEYTYPE_AES_192:
+	case PKEY_SIZE_AES_192:
+	case PKEY_KEYTYPE_AES_192: /* older ioctls used this */
 		keysize = 24;
 		memcpy(preqparm->lv1.key_length, "KEYLN24 ", 8);
 		break;
-	case PKEY_KEYTYPE_AES_256:
+	case PKEY_SIZE_AES_256:
+	case PKEY_KEYTYPE_AES_256: /* older ioctls used this */
 		keysize = 32;
 		memcpy(preqparm->lv1.key_length, "KEYLN32 ", 8);
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keytype %d\n",
-			  __func__, keytype);
+		DEBUG_ERR("%s unknown/unsupported keybitsize %d\n",
+			  __func__, keybitsize);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -408,7 +411,7 @@ EXPORT_SYMBOL(cca_genseckey);
 /*
  * Generate an CCA AES DATA secure key with given key value.
  */
-int cca_clr2seckey(u16 cardnr, u16 domain, u32 keytype,
+int cca_clr2seckey(u16 cardnr, u16 domain, u32 keybitsize,
 		   const u8 *clrkey, u8 seckey[SECKEYBLOBSIZE])
 {
 	int rc, keysize, seckeysize;
@@ -462,19 +465,22 @@ int cca_clr2seckey(u16 cardnr, u16 domain, u32 keytype,
 	memcpy(preqparm->rule_array, "AES     ", 8);
 	preqparm->rule_array_len =
 		sizeof(preqparm->rule_array_len) + sizeof(preqparm->rule_array);
-	switch (keytype) {
-	case PKEY_KEYTYPE_AES_128:
+	switch (keybitsize) {
+	case PKEY_SIZE_AES_128:
+	case PKEY_KEYTYPE_AES_128: /* older ioctls used this */
 		keysize = 16;
 		break;
-	case PKEY_KEYTYPE_AES_192:
+	case PKEY_SIZE_AES_192:
+	case PKEY_KEYTYPE_AES_192: /* older ioctls used this */
 		keysize = 24;
 		break;
-	case PKEY_KEYTYPE_AES_256:
+	case PKEY_SIZE_AES_256:
+	case PKEY_KEYTYPE_AES_256: /* older ioctls used this */
 		keysize = 32;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keytype %d\n",
-			  __func__, keytype);
+		DEBUG_ERR("%s unknown/unsupported keybitsize %d\n",
+			  __func__, keybitsize);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -545,8 +551,7 @@ EXPORT_SYMBOL(cca_clr2seckey);
  */
 int cca_sec2protkey(u16 cardnr, u16 domain,
 		    const u8 seckey[SECKEYBLOBSIZE],
-		    u8 *protkey, u32 *protkeylen,
-		    u32 *keytype)
+		    u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	int rc;
 	u8 *mem;
@@ -656,21 +661,21 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 	switch (prepparm->lv3.keyblock.len) {
 	case 16+32:
 		/* AES 128 protected key */
-		if (keytype)
-			*keytype = PKEY_KEYTYPE_AES_128;
+		if (protkeytype)
+			*protkeytype = PKEY_KEYTYPE_AES_128;
 		break;
 	case 24+32:
 		/* AES 192 protected key */
-		if (keytype)
-			*keytype = PKEY_KEYTYPE_AES_192;
+		if (protkeytype)
+			*protkeytype = PKEY_KEYTYPE_AES_192;
 		break;
 	case 32+32:
 		/* AES 256 protected key */
-		if (keytype)
-			*keytype = PKEY_KEYTYPE_AES_256;
+		if (protkeytype)
+			*protkeytype = PKEY_KEYTYPE_AES_256;
 		break;
 	default:
-		DEBUG_ERR("%s unknown/unsupported keytype %d\n",
+		DEBUG_ERR("%s unknown/unsupported keylen %d\n",
 			  __func__, prepparm->lv3.keyblock.len);
 		rc = -EIO;
 		goto out;
@@ -1645,6 +1650,7 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify)
 {
 	u64 mkvp;
+	int minhwtype = 0;
 	const struct keytoken_header *hdr = (struct keytoken_header *) key;
 
 	if (hdr->type != TOKTYPE_CCA_INTERNAL)
@@ -1654,11 +1660,15 @@ int cca_findcard(const u8 *key, u16 *pcardnr, u16 *pdomain, int verify)
 	case TOKVER_CCA_AES:
 		mkvp = ((struct secaeskeytoken *)key)->mkvp;
 		break;
+	case TOKVER_CCA_VLSC:
+		mkvp = ((struct cipherkeytoken *)key)->mkvp0;
+		minhwtype = AP_DEVICE_TYPE_CEX6;
+		break;
 	default:
 		return -EINVAL;
 	}
 
-	return findcard(mkvp, pcardnr, pdomain, verify, 0);
+	return findcard(mkvp, pcardnr, pdomain, verify, minhwtype);
 }
 EXPORT_SYMBOL(cca_findcard);
 
