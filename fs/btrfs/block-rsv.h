@@ -70,10 +70,17 @@ int btrfs_block_rsv_use_bytes(struct btrfs_block_rsv *block_rsv, u64 num_bytes);
 int btrfs_cond_migrate_bytes(struct btrfs_fs_info *fs_info,
 			     struct btrfs_block_rsv *dest, u64 num_bytes,
 			     int min_factor);
-void btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
-			     struct btrfs_block_rsv *block_rsv,
-			     u64 num_bytes);
 void btrfs_block_rsv_add_bytes(struct btrfs_block_rsv *block_rsv,
 			       u64 num_bytes, bool update_size);
+u64 __btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
+			      struct btrfs_block_rsv *block_rsv,
+			      u64 num_bytes, u64 *qgroup_to_release);
+
+static inline void btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
+					   struct btrfs_block_rsv *block_rsv,
+					   u64 num_bytes)
+{
+	__btrfs_block_rsv_release(fs_info, block_rsv, num_bytes, NULL);
+}
 
 #endif /* BTRFS_BLOCK_RSV_H */

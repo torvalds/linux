@@ -4674,9 +4674,9 @@ int btrfs_block_rsv_refill(struct btrfs_root *root,
 	return ret;
 }
 
-static u64 __btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
-				     struct btrfs_block_rsv *block_rsv,
-				     u64 num_bytes, u64 *qgroup_to_release)
+u64 __btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
+			      struct btrfs_block_rsv *block_rsv,
+			      u64 num_bytes, u64 *qgroup_to_release)
 {
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
 	struct btrfs_block_rsv *delayed_rsv = &fs_info->delayed_refs_rsv;
@@ -4690,13 +4690,6 @@ static u64 __btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
 
 	return block_rsv_release_bytes(fs_info, block_rsv, target, num_bytes,
 				       qgroup_to_release);
-}
-
-void btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
-			     struct btrfs_block_rsv *block_rsv,
-			     u64 num_bytes)
-{
-	__btrfs_block_rsv_release(fs_info, block_rsv, num_bytes, NULL);
 }
 
 /**
