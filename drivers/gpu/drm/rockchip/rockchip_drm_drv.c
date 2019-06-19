@@ -29,6 +29,8 @@
 #include "rockchip_drm_fbdev.h"
 #include "rockchip_drm_gem.h"
 
+#include "../drm_crtc_internal.h"
+
 #define DRIVER_NAME	"rockchip"
 #define DRIVER_DESC	"RockChip Soc DRM"
 #define DRIVER_DATE	"20140818"
@@ -290,6 +292,140 @@ static void rockchip_drm_debugfs_init(struct drm_minor *minor)
 }
 #endif
 
+static int rockchip_drm_create_properties(struct drm_device *dev)
+{
+	struct drm_property *prop;
+	struct rockchip_drm_private *private = dev->dev_private;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "EOTF", 0, 5);
+	if (!prop)
+		return -ENOMEM;
+	private->eotf_prop = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "COLOR_SPACE", 0, 12);
+	if (!prop)
+		return -ENOMEM;
+	private->color_space_prop = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "GLOBAL_ALPHA", 0, 255);
+	if (!prop)
+		return -ENOMEM;
+	private->global_alpha_prop = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "BLEND_MODE", 0, 1);
+	if (!prop)
+		return -ENOMEM;
+	private->blend_mode_prop = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "ALPHA_SCALE", 0, 1);
+	if (!prop)
+		return -ENOMEM;
+	private->alpha_scale_prop = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "ASYNC_COMMIT", 0, 1);
+	if (!prop)
+		return -ENOMEM;
+	private->async_commit_prop = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "SHARE_ID", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	private->share_id_prop = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
+					 "CONNECTOR_ID", 0, 0xf);
+	if (!prop)
+		return -ENOMEM;
+	private->connector_id_prop = prop;
+
+	return drm_mode_create_tv_properties(dev, 0, NULL);
+}
+
+static void rockchip_attach_connector_property(struct drm_device *drm)
+{
+	struct drm_connector *connector;
+	struct drm_mode_config *conf = &drm->mode_config;
+	struct drm_connector_list_iter conn_iter;
+
+	mutex_lock(&drm->mode_config.mutex);
+
+#define ROCKCHIP_PROP_ATTACH(prop, v) \
+		drm_object_attach_property(&connector->base, prop, v)
+
+	drm_connector_list_iter_begin(drm, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		ROCKCHIP_PROP_ATTACH(conf->tv_brightness_property, 100);
+		ROCKCHIP_PROP_ATTACH(conf->tv_contrast_property, 100);
+		ROCKCHIP_PROP_ATTACH(conf->tv_saturation_property, 100);
+		ROCKCHIP_PROP_ATTACH(conf->tv_hue_property, 100);
+	}
+	drm_connector_list_iter_end(&conn_iter);
+#undef ROCKCHIP_PROP_ATTACH
+
+	mutex_unlock(&drm->mode_config.mutex);
+}
+
+static void rockchip_drm_set_property_default(struct drm_device *drm)
+{
+	struct drm_connector *connector;
+	struct drm_mode_config *conf = &drm->mode_config;
+	struct drm_atomic_state *state;
+	int ret;
+	struct drm_connector_list_iter conn_iter;
+
+	drm_modeset_lock_all(drm);
+
+	state = drm_atomic_helper_duplicate_state(drm, conf->acquire_ctx);
+	if (!state) {
+		DRM_ERROR("failed to alloc atomic state\n");
+		goto err_unlock;
+	}
+	state->acquire_ctx = conf->acquire_ctx;
+
+#define CONNECTOR_SET_PROP(prop, val) \
+	do { \
+		ret = drm_atomic_set_property(state, NULL, &connector->base, \
+					      prop, \
+					      val); \
+		if (ret) \
+			DRM_ERROR("Connector[%d]: Failed to initial %s\n", \
+				  connector->base.id, #prop); \
+	} while (0)
+
+	drm_connector_list_iter_begin(drm, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		struct drm_connector_state *connector_state;
+
+		connector_state = drm_atomic_get_connector_state(state,
+								 connector);
+		if (IS_ERR(connector_state))
+			DRM_ERROR("Connector[%d]: Failed to get state\n",
+				  connector->base.id);
+
+		CONNECTOR_SET_PROP(conf->tv_brightness_property, 50);
+		CONNECTOR_SET_PROP(conf->tv_contrast_property, 50);
+		CONNECTOR_SET_PROP(conf->tv_saturation_property, 50);
+		CONNECTOR_SET_PROP(conf->tv_hue_property, 50);
+	}
+	drm_connector_list_iter_end(&conn_iter);
+#undef CONNECTOR_SET_PROP
+
+	ret = drm_atomic_commit(state);
+	WARN_ON(ret == -EDEADLK);
+	if (ret)
+		DRM_ERROR("Failed to update properties\n");
+
+err_unlock:
+	drm_modeset_unlock_all(drm);
+}
+
 static int rockchip_drm_bind(struct device *dev)
 {
 	struct drm_device *drm_dev;
@@ -322,17 +458,19 @@ static int rockchip_drm_bind(struct device *dev)
 		goto err_iommu_cleanup;
 
 	rockchip_drm_mode_config_init(drm_dev);
-
+	rockchip_drm_create_properties(drm_dev);
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(dev, drm_dev);
 	if (ret)
 		goto err_iommu_cleanup;
 
+	rockchip_attach_connector_property(drm_dev);
 	ret = drm_vblank_init(drm_dev, drm_dev->mode_config.num_crtc);
 	if (ret)
 		goto err_unbind_all;
 
 	drm_mode_config_reset(drm_dev);
+	rockchip_drm_set_property_default(drm_dev);
 
 	/*
 	 * enable drm irq mode.
