@@ -263,6 +263,13 @@ enum {
 #define I2S_CHN_6	(2 << I2S_CSR_SHIFT)
 #define I2S_CHN_8	(3 << I2S_CSR_SHIFT)
 
+/* io direction cfg register */
+#define I2S_IO_DIRECTION_MASK	(7)
+#define I2S_IO_8CH_OUT_2CH_IN	(7)
+#define I2S_IO_6CH_OUT_4CH_IN	(3)
+#define I2S_IO_4CH_OUT_6CH_IN	(1)
+#define I2S_IO_2CH_OUT_8CH_IN	(0)
+
 /* I2S REGS */
 #define I2S_TXCR	(0x0000)
 #define I2S_RXCR	(0x0004)

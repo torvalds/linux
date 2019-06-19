@@ -31,6 +31,7 @@
 
 #define DEFAULT_MCLK_FS				256
 #define CH_GRP_MAX				4  /* The max channel 8 / 2 */
+#define MULTIPLEX_CH_MAX			10
 
 struct txrx_config {
 	u32 addr;
@@ -41,6 +42,8 @@ struct txrx_config {
 
 struct rk_i2s_soc_data {
 	u32 softrst_offset;
+	u32 grf_reg_offset;
+	u32 grf_shift;
 	int tx_reset_id;
 	int rx_reset_id;
 	int config_count;
@@ -76,6 +79,7 @@ struct rk_i2s_tdm_dev {
 	struct rk_i2s_soc_data *soc_data;
 	void __iomem *cru_base;
 	bool is_master_mode;
+	bool io_multiplex;
 	bool mclk_calibrate;
 	bool tdm_mode;
 	unsigned int mclk_rx_freq;
@@ -87,6 +91,28 @@ struct rk_i2s_tdm_dev {
 	atomic_t refcount;
 	spinlock_t lock; /* xfer lock */
 };
+
+static int to_ch_num(unsigned int val)
+{
+	int chs;
+
+	switch (val) {
+	case I2S_CHN_4:
+		chs = 4;
+		break;
+	case I2S_CHN_6:
+		chs = 6;
+		break;
+	case I2S_CHN_8:
+		chs = 8;
+		break;
+	default:
+		chs = 2;
+		break;
+	}
+
+	return chs;
+}
 
 static int i2s_tdm_runtime_suspend(struct device *dev)
 {
@@ -849,6 +875,86 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 				   I2S_TXCR_VDW_MASK | I2S_TXCR_CSR_MASK,
 				   val);
 
+	if (i2s_tdm->io_multiplex) {
+		int usable_chs = MULTIPLEX_CH_MAX;
+
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+			struct snd_pcm_str *playback_str =
+				&substream->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK];
+
+			if (playback_str->substream_opened) {
+				regmap_read(i2s_tdm->regmap, I2S_TXCR, &val);
+				val &= I2S_TXCR_CSR_MASK;
+				usable_chs = MULTIPLEX_CH_MAX - to_ch_num(val);
+			}
+
+			regmap_read(i2s_tdm->regmap, I2S_RXCR, &val);
+			val &= I2S_RXCR_CSR_MASK;
+
+			if (to_ch_num(val) > usable_chs) {
+				dev_err(i2s_tdm->dev,
+					"Capture chs(%d) > usable chs(%d)\n",
+					to_ch_num(val), usable_chs);
+				ret = -EINVAL;
+				goto err;
+			}
+
+			switch (val) {
+			case I2S_CHN_4:
+				val = I2S_IO_6CH_OUT_4CH_IN;
+				break;
+			case I2S_CHN_6:
+				val = I2S_IO_4CH_OUT_6CH_IN;
+				break;
+			case I2S_CHN_8:
+				val = I2S_IO_2CH_OUT_8CH_IN;
+				break;
+			default:
+				val = I2S_IO_8CH_OUT_2CH_IN;
+				break;
+			}
+		} else {
+			struct snd_pcm_str *capture_str =
+				&substream->pcm->streams[SNDRV_PCM_STREAM_CAPTURE];
+
+			if (capture_str->substream_opened) {
+				regmap_read(i2s_tdm->regmap, I2S_RXCR, &val);
+				val &= I2S_RXCR_CSR_MASK;
+				usable_chs = MULTIPLEX_CH_MAX - to_ch_num(val);
+			}
+
+			regmap_read(i2s_tdm->regmap, I2S_TXCR, &val);
+			val &= I2S_TXCR_CSR_MASK;
+
+			if (to_ch_num(val) > usable_chs) {
+				dev_err(i2s_tdm->dev,
+					"Playback chs(%d) > usable chs(%d)\n",
+					to_ch_num(val), usable_chs);
+				ret = -EINVAL;
+				goto err;
+			}
+
+			switch (val) {
+			case I2S_CHN_4:
+				val = I2S_IO_4CH_OUT_6CH_IN;
+				break;
+			case I2S_CHN_6:
+				val = I2S_IO_6CH_OUT_4CH_IN;
+				break;
+			case I2S_CHN_8:
+				val = I2S_IO_8CH_OUT_2CH_IN;
+				break;
+			default:
+				val = I2S_IO_2CH_OUT_8CH_IN;
+				break;
+			}
+		}
+
+		val <<= i2s_tdm->soc_data->grf_shift;
+		val |= (I2S_IO_DIRECTION_MASK << i2s_tdm->soc_data->grf_shift) << 16;
+		regmap_write(i2s_tdm->grf, i2s_tdm->soc_data->grf_reg_offset, val);
+	}
+
 	regmap_update_bits(i2s_tdm->regmap, I2S_DMACR, I2S_DMACR_TDL_MASK,
 			   I2S_DMACR_TDL(16));
 	regmap_update_bits(i2s_tdm->regmap, I2S_DMACR, I2S_DMACR_RDL_MASK,
@@ -1130,6 +1236,8 @@ static struct rk_i2s_soc_data rk1808_i2s_soc_data = {
 
 static struct rk_i2s_soc_data rk3308_i2s_soc_data = {
 	.softrst_offset = 0x0400,
+	.grf_reg_offset = 0x0308,
+	.grf_shift = 5,
 	.configs = rk3308_txrx_config,
 	.config_count = ARRAY_SIZE(rk3308_txrx_config),
 	.init = common_soc_init,
@@ -1381,7 +1489,13 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	i2s_tdm->dev = &pdev->dev;
 
+	of_id = of_match_device(rockchip_i2s_tdm_match, &pdev->dev);
+	if (!of_id || !of_id->data)
+		return -EINVAL;
+
 	spin_lock_init(&i2s_tdm->lock);
+	i2s_tdm->soc_data = (struct rk_i2s_soc_data *)of_id->data;
+
 	i2s_tdm->bclk_fs = 64;
 	if (!of_property_read_u32(node, "rockchip,bclk-fs", &val)) {
 		if ((val >= 32) && (val % 2 == 0))
@@ -1411,11 +1525,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		i2s_tdm->cru_base = of_iomap(cru_node, 0);
 		if (!i2s_tdm->cru_base)
 			return -ENOENT;
-		of_id = of_match_device(rockchip_i2s_tdm_match, &pdev->dev);
-		if (!of_id || !of_id->data)
-			return -EINVAL;
 
-		i2s_tdm->soc_data = (struct rk_i2s_soc_data *)of_id->data;
 		i2s_tdm->soc_data->tx_reset_id = of_i2s_resetid_get(node, "tx-m");
 		i2s_tdm->soc_data->rx_reset_id = of_i2s_resetid_get(node, "rx-m");
 	}
@@ -1449,6 +1559,9 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	i2s_tdm->mclk_rx = devm_clk_get(&pdev->dev, "mclk_rx");
 	if (IS_ERR(i2s_tdm->mclk_rx))
 		return PTR_ERR(i2s_tdm->mclk_rx);
+
+	i2s_tdm->io_multiplex =
+		of_property_read_bool(node, "rockchip,io-multiplex");
 
 	i2s_tdm->mclk_calibrate =
 		of_property_read_bool(node, "rockchip,mclk-calibrate");
