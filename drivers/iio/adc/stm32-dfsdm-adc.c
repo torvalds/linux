@@ -918,6 +918,11 @@ static void stm32_dfsdm_dma_buffer_done(void *data)
 static int stm32_dfsdm_adc_dma_start(struct iio_dev *indio_dev)
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
+	/*
+	 * The DFSDM supports half-word transfers. However, for 16 bits record,
+	 * 4 bytes buswidth is kept, to avoid losing samples LSBs when left
+	 * shift is required.
+	 */
 	struct dma_slave_config config = {
 		.src_addr = (dma_addr_t)adc->dfsdm->phys_base,
 		.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
