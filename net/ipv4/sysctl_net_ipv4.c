@@ -365,8 +365,7 @@ static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
 			}
 		}
 		tcp_fastopen_reset_cipher(net, NULL, key,
-					  backup_data ? key + 4 : NULL,
-					  TCP_FASTOPEN_KEY_LENGTH);
+					  backup_data ? key + 4 : NULL);
 	}
 
 bad_key:
