@@ -312,6 +312,20 @@ static int tc_aux_get_status(struct tc_data *tc, u8 *reply)
 	return 0;
 }
 
+static int tc_aux_read_data(struct tc_data *tc, void *data, size_t size)
+{
+	u32 auxrdata[DP_AUX_MAX_PAYLOAD_BYTES / sizeof(u32)];
+	int ret, count = ALIGN(size, sizeof(u32));
+
+	ret = regmap_raw_read(tc->regmap, DP0_AUXRDATA(0), auxrdata, count);
+	if (ret)
+		return ret;
+
+	memcpy(data, auxrdata, size);
+
+	return size;
+}
+
 static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 			       struct drm_dp_aux_msg *msg)
 {
@@ -370,19 +384,10 @@ static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 	if (ret)
 		return ret;
 
-	if (request == DP_AUX_I2C_READ || request == DP_AUX_NATIVE_READ) {
-		/* Read data */
-		while (i < size) {
-			if ((i % 4) == 0) {
-				ret = regmap_read(tc->regmap,
-						  DP0_AUXRDATA(i >> 2), &tmp);
-				if (ret)
-					return ret;
-			}
-			buf[i] = tmp & 0xff;
-			tmp = tmp >> 8;
-			i++;
-		}
+	switch (request) {
+	case DP_AUX_NATIVE_READ:
+	case DP_AUX_I2C_READ:
+		return tc_aux_read_data(tc, msg->buffer, size);
 	}
 
 	return size;
