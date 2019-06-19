@@ -347,7 +347,7 @@ int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 	if (op < ARRAY_SIZE(op_name) && op_name[op])
 		seq_printf(m, "%s", op_name[op]);
 	else
-		seq_printf(m, "%d", op);
+		seq_printf(m, "%u", op);
 	seq_puts(m, ", .cmd_flags=");
 	blk_flags_show(m, rq->cmd_flags & ~REQ_OP_MASK, cmd_flag_name,
 		       ARRAY_SIZE(cmd_flag_name));
