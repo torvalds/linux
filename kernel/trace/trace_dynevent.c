@@ -61,10 +61,12 @@ int dyn_event_release(int argc, char **argv, struct dyn_event_operations *type)
 	for_each_dyn_event_safe(pos, n) {
 		if (type && type != pos->ops)
 			continue;
-		if (pos->ops->match(system, event, pos)) {
-			ret = pos->ops->free(pos);
+		if (!pos->ops->match(system, event, pos))
+			continue;
+
+		ret = pos->ops->free(pos);
+		if (ret)
 			break;
-		}
 	}
 	mutex_unlock(&event_mutex);
 
