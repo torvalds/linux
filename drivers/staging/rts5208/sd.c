@@ -3580,11 +3580,6 @@ RW_FAIL:
 }
 
 #ifdef SUPPORT_CPRM
-int soft_reset_sd_card(struct rtsx_chip *chip)
-{
-	return reset_sd(chip);
-}
-
 int ext_sd_send_cmd_get_rsp(struct rtsx_chip *chip, u8 cmd_idx, u32 arg,
 			    u8 rsp_type, u8 *rsp, int rsp_len,
 			    bool special_check)
@@ -4639,7 +4634,7 @@ int sd_hw_rst(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		break;
 
 	case 1:
-		retval = soft_reset_sd_card(chip);
+		retval = reset_sd(chip);
 		if (retval != STATUS_SUCCESS) {
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
 			sd_card->pre_cmd_err = 1;
