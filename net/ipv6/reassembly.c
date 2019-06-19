@@ -520,6 +520,11 @@ static int __net_init ipv6_frags_init_net(struct net *net)
 	return res;
 }
 
+static void __net_exit ipv6_frags_pre_exit_net(struct net *net)
+{
+	fqdir_pre_exit(net->ipv6.fqdir);
+}
+
 static void __net_exit ipv6_frags_exit_net(struct net *net)
 {
 	ip6_frags_ns_sysctl_unregister(net);
@@ -527,8 +532,9 @@ static void __net_exit ipv6_frags_exit_net(struct net *net)
 }
 
 static struct pernet_operations ip6_frags_ops = {
-	.init = ipv6_frags_init_net,
-	.exit = ipv6_frags_exit_net,
+	.init		= ipv6_frags_init_net,
+	.pre_exit	= ipv6_frags_pre_exit_net,
+	.exit		= ipv6_frags_exit_net,
 };
 
 static const struct rhashtable_params ip6_rhash_params = {
