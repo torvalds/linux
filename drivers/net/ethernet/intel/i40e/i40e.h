@@ -27,6 +27,7 @@
 #include <net/ip6_checksum.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <linux/if_macvlan.h>
 #include <linux/if_bridge.h>
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
@@ -412,6 +413,11 @@ struct i40e_flex_pit {
 	u8 pit_index;
 };
 
+struct i40e_fwd_adapter {
+	struct net_device *netdev;
+	int bit_no;
+};
+
 struct i40e_channel {
 	struct list_head list;
 	bool initialized;
@@ -426,10 +432,24 @@ struct i40e_channel {
 	struct i40e_aqc_vsi_properties_data info;
 
 	u64 max_tx_rate;
+	struct i40e_fwd_adapter *fwd;
 
 	/* track this channel belongs to which VSI */
 	struct i40e_vsi *parent_vsi;
 };
+
+static inline bool i40e_is_channel_macvlan(struct i40e_channel *ch)
+{
+	return !!ch->fwd;
+}
+
+static inline u8 *i40e_channel_mac(struct i40e_channel *ch)
+{
+	if (i40e_is_channel_macvlan(ch))
+		return ch->fwd->netdev->dev_addr;
+	else
+		return NULL;
+}
 
 /* struct that defines the Ethernet device */
 struct i40e_pf {
@@ -812,6 +832,13 @@ struct i40e_vsi {
 
 	struct list_head ch_list;
 	u16 tc_seid_map[I40E_MAX_TRAFFIC_CLASS];
+
+	/* macvlan fields */
+#define I40E_MAX_MACVLANS		128 /* Max HW vectors - 1 on FVL */
+#define I40E_MIN_MACVLAN_VECTORS	2   /* Min vectors to enable macvlans */
+	DECLARE_BITMAP(fwd_bitmask, I40E_MAX_MACVLANS);
+	struct list_head macvlan_list;
+	int macvlan_cnt;
 
 	void *priv;	/* client driver data reference. */
 
