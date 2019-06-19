@@ -861,7 +861,6 @@ EXPORT_SYMBOL(drm_client_panel_rotation);
 static int drm_client_modeset_commit_atomic(struct drm_client_dev *client, bool active)
 {
 	struct drm_device *dev = client->dev;
-	struct drm_plane_state *plane_state;
 	struct drm_plane *plane;
 	struct drm_atomic_state *state;
 	struct drm_modeset_acquire_ctx ctx;
@@ -879,6 +878,8 @@ static int drm_client_modeset_commit_atomic(struct drm_client_dev *client, bool 
 	state->acquire_ctx = &ctx;
 retry:
 	drm_for_each_plane(plane, dev) {
+		struct drm_plane_state *plane_state;
+
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
 			ret = PTR_ERR(plane_state);
@@ -901,6 +902,8 @@ retry:
 		unsigned int rotation;
 
 		if (drm_client_panel_rotation(mode_set, &rotation)) {
+			struct drm_plane_state *plane_state;
+
 			/* Cannot fail as we've already gotten the plane state above */
 			plane_state = drm_atomic_get_new_plane_state(state, primary);
 			plane_state->rotation = rotation;
