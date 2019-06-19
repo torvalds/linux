@@ -544,6 +544,14 @@ static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
 			I915_WRITE(DSI_TA_TIMING_PARAM(port), tmp);
 		}
 	}
+
+	if (IS_ELKHARTLAKE(dev_priv)) {
+		for_each_dsi_port(port, intel_dsi->ports) {
+			tmp = I915_READ(ICL_DPHY_CHKN(port));
+			tmp |= ICL_DPHY_CHKN_AFE_OVER_PPI_STRAP;
+			I915_WRITE(ICL_DPHY_CHKN(port), tmp);
+		}
+	}
 }
 
 static void gen11_dsi_gate_clocks(struct intel_encoder *encoder)
