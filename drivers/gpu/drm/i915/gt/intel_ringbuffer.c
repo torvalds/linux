@@ -1219,6 +1219,7 @@ void intel_ring_unpin(struct intel_ring *ring)
 	intel_ring_reset(ring, ring->tail);
 
 	GEM_BUG_ON(!ring->vma);
+	i915_vma_unset_ggtt_write(ring->vma);
 	if (i915_vma_is_map_and_fenceable(ring->vma))
 		i915_vma_unpin_iomap(ring->vma);
 	else
