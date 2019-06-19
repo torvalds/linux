@@ -11,6 +11,18 @@
 	compatible = "nvidia,p2972-0000", "nvidia,tegra194";
 
 	cbb {
+		aconnect {
+			status = "okay";
+
+			dma-controller@2930000 {
+				status = "okay";
+			};
+
+			interrupt-controller@2a40000 {
+				status = "okay";
+			};
+		};
+
 		ddc: i2c@31c0000 {
 			status = "okay";
 		};
