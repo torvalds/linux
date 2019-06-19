@@ -332,6 +332,8 @@ int trace_probe_remove_file(struct trace_probe *tp,
 struct event_file_link *trace_probe_get_file_link(struct trace_probe *tp,
 						struct trace_event_file *file);
 int trace_probe_compare_arg_type(struct trace_probe *a, struct trace_probe *b);
+bool trace_probe_match_command_args(struct trace_probe *tp,
+				    int argc, const char **argv);
 
 #define trace_probe_for_each_link(pos, tp)	\
 	list_for_each_entry(pos, &(tp)->event->files, list)
