@@ -464,13 +464,37 @@ int drm_display_info_set_bus_formats(struct drm_display_info *info,
 				     unsigned int num_formats);
 
 /**
+ * struct drm_connector_tv_margins - TV connector related margins
+ *
+ * Describes the margins in pixels to put around the image on TV
+ * connectors to deal with overscan.
+ */
+struct drm_connector_tv_margins {
+	/**
+	 * @bottom: Bottom margin in pixels.
+	 */
+	unsigned int bottom;
+
+	/**
+	 * @left: Left margin in pixels.
+	 */
+	unsigned int left;
+
+	/**
+	 * @right: Right margin in pixels.
+	 */
+	unsigned int right;
+
+	/**
+	 * @top: Top margin in pixels.
+	 */
+	unsigned int top;
+};
+
+/**
  * struct drm_tv_connector_state - TV connector related states
  * @subconnector: selected subconnector
- * @margins: margins (all margins are expressed in pixels)
- * @margins.left: left margin
- * @margins.right: right margin
- * @margins.top: top margin
- * @margins.bottom: bottom margin
+ * @margins: TV margins
  * @mode: TV mode
  * @brightness: brightness in percent
  * @contrast: contrast in percent
@@ -481,12 +505,7 @@ int drm_display_info_set_bus_formats(struct drm_display_info *info,
  */
 struct drm_tv_connector_state {
 	enum drm_mode_subconnector subconnector;
-	struct {
-		unsigned int left;
-		unsigned int right;
-		unsigned int top;
-		unsigned int bottom;
-	} margins;
+	struct drm_connector_tv_margins margins;
 	unsigned int mode;
 	unsigned int brightness;
 	unsigned int contrast;
