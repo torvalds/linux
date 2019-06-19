@@ -2216,6 +2216,15 @@ find_stateid_by_type(struct nfs4_client *cl, stateid_t *t, char typemask)
 	return s;
 }
 
+static struct nfs4_client *get_nfsdfs_clp(struct inode *inode)
+{
+	struct nfsdfs_client *nc;
+	nc = get_nfsdfs_client(inode);
+	if (!nc)
+		return NULL;
+	return container_of(nc, struct nfs4_client, cl_nfsdfs);
+}
+
 static void seq_quote_mem(struct seq_file *m, char *data, int len)
 {
 	seq_printf(m, "\"");
@@ -2226,14 +2235,12 @@ static void seq_quote_mem(struct seq_file *m, char *data, int len)
 static int client_info_show(struct seq_file *m, void *v)
 {
 	struct inode *inode = m->private;
-	struct nfsdfs_client *nc;
 	struct nfs4_client *clp;
 	u64 clid;
 
-	nc = get_nfsdfs_client(inode);
-	if (!nc)
+	clp = get_nfsdfs_clp(inode);
+	if (!clp)
 		return -ENXIO;
-	clp = container_of(nc, struct nfs4_client, cl_nfsdfs);
 	memcpy(&clid, &clp->cl_clientid, sizeof(clid));
 	seq_printf(m, "clientid: 0x%llx\n", clid);
 	seq_printf(m, "address: \"%pISpc\"\n", (struct sockaddr *)&clp->cl_addr);
@@ -2444,15 +2451,13 @@ static struct seq_operations states_seq_ops = {
 
 static int client_states_open(struct inode *inode, struct file *file)
 {
-	struct nfsdfs_client *nc;
 	struct seq_file *s;
 	struct nfs4_client *clp;
 	int ret;
 
-	nc = get_nfsdfs_client(inode);
-	if (!nc)
+	clp = get_nfsdfs_clp(inode);
+	if (!clp)
 		return -ENXIO;
-	clp = container_of(nc, struct nfs4_client, cl_nfsdfs);
 
 	ret = seq_open(file, &states_seq_ops);
 	if (ret)
