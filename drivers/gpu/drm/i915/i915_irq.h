@@ -114,4 +114,18 @@ void gen11_reset_guc_interrupts(struct drm_i915_private *i915);
 void gen11_enable_guc_interrupts(struct drm_i915_private *i915);
 void gen11_disable_guc_interrupts(struct drm_i915_private *i915);
 
+u32 i915_get_vblank_counter(struct drm_crtc *crtc);
+u32 g4x_get_vblank_counter(struct drm_crtc *crtc);
+
+int i8xx_enable_vblank(struct drm_crtc *crtc);
+int i945gm_enable_vblank(struct drm_crtc *crtc);
+int i965_enable_vblank(struct drm_crtc *crtc);
+int ilk_enable_vblank(struct drm_crtc *crtc);
+int bdw_enable_vblank(struct drm_crtc *crtc);
+void i8xx_disable_vblank(struct drm_crtc *crtc);
+void i945gm_disable_vblank(struct drm_crtc *crtc);
+void i965_disable_vblank(struct drm_crtc *crtc);
+void ilk_disable_vblank(struct drm_crtc *crtc);
+void bdw_disable_vblank(struct drm_crtc *crtc);
+
 #endif /* __I915_IRQ_H__ */

@@ -924,11 +924,12 @@ static void i915_enable_asle_pipestat(struct drm_i915_private *dev_priv)
 /* Called from drm generic code, passed a 'crtc', which
  * we use as a pipe index
  */
-static u32 i915_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
+u32 i915_get_vblank_counter(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct drm_vblank_crtc *vblank = &dev_priv->drm.vblank[drm_crtc_index(crtc)];
 	const struct drm_display_mode *mode = &vblank->hwmode;
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 	i915_reg_t high_frame, low_frame;
 	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
 	unsigned long irqflags;
@@ -989,9 +990,10 @@ static u32 i915_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 	return (((high1 << 8) | low) + (pixel >= vbl_start)) & 0xffffff;
 }
 
-static u32 g4x_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
+u32 g4x_get_vblank_counter(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 
 	return I915_READ(PIPE_FRMCOUNT_G4X(pipe));
 }
@@ -3243,9 +3245,10 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
-static int i8xx_enable_vblank(struct drm_device *dev, unsigned int pipe)
+int i8xx_enable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -3255,19 +3258,20 @@ static int i8xx_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	return 0;
 }
 
-static int i945gm_enable_vblank(struct drm_device *dev, unsigned int pipe)
+int i945gm_enable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 
 	if (dev_priv->i945gm_vblank.enabled++ == 0)
 		schedule_work(&dev_priv->i945gm_vblank.work);
 
-	return i8xx_enable_vblank(dev, pipe);
+	return i8xx_enable_vblank(crtc);
 }
 
-static int i965_enable_vblank(struct drm_device *dev, unsigned int pipe)
+int i965_enable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -3278,9 +3282,10 @@ static int i965_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	return 0;
 }
 
-static int ironlake_enable_vblank(struct drm_device *dev, unsigned int pipe)
+int ilk_enable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 	unsigned long irqflags;
 	u32 bit = INTEL_GEN(dev_priv) >= 7 ?
 		DE_PIPE_VBLANK_IVB(pipe) : DE_PIPE_VBLANK(pipe);
@@ -3293,14 +3298,15 @@ static int ironlake_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	 * PSR is active as no frames are generated.
 	 */
 	if (HAS_PSR(dev_priv))
-		drm_vblank_restore(dev, pipe);
+		drm_crtc_vblank_restore(crtc);
 
 	return 0;
 }
 
-static int gen8_enable_vblank(struct drm_device *dev, unsigned int pipe)
+int bdw_enable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -3311,7 +3317,7 @@ static int gen8_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	 * PSR is active as no frames are generated, so check only for PSR.
 	 */
 	if (HAS_PSR(dev_priv))
-		drm_vblank_restore(dev, pipe);
+		drm_crtc_vblank_restore(crtc);
 
 	return 0;
 }
@@ -3319,9 +3325,10 @@ static int gen8_enable_vblank(struct drm_device *dev, unsigned int pipe)
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
-static void i8xx_disable_vblank(struct drm_device *dev, unsigned int pipe)
+void i8xx_disable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -3329,19 +3336,20 @@ static void i8xx_disable_vblank(struct drm_device *dev, unsigned int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static void i945gm_disable_vblank(struct drm_device *dev, unsigned int pipe)
+void i945gm_disable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 
-	i8xx_disable_vblank(dev, pipe);
+	i8xx_disable_vblank(crtc);
 
 	if (--dev_priv->i945gm_vblank.enabled == 0)
 		schedule_work(&dev_priv->i945gm_vblank.work);
 }
 
-static void i965_disable_vblank(struct drm_device *dev, unsigned int pipe)
+void i965_disable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -3350,9 +3358,10 @@ static void i965_disable_vblank(struct drm_device *dev, unsigned int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static void ironlake_disable_vblank(struct drm_device *dev, unsigned int pipe)
+void ilk_disable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 	unsigned long irqflags;
 	u32 bit = INTEL_GEN(dev_priv) >= 7 ?
 		DE_PIPE_VBLANK_IVB(pipe) : DE_PIPE_VBLANK(pipe);
@@ -3362,9 +3371,10 @@ static void ironlake_disable_vblank(struct drm_device *dev, unsigned int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static void gen8_disable_vblank(struct drm_device *dev, unsigned int pipe)
+void bdw_disable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	enum pipe pipe = to_intel_crtc(crtc)->pipe;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
@@ -3372,7 +3382,7 @@ static void gen8_disable_vblank(struct drm_device *dev, unsigned int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-static void i945gm_vblank_work_func(struct work_struct *work)
+void i945gm_vblank_work_func(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, struct drm_i915_private, i945gm_vblank.work);
@@ -4805,11 +4815,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 8)
 		rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 
-	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
-		dev->driver->get_vblank_counter = g4x_get_vblank_counter;
-	else if (INTEL_GEN(dev_priv) >= 3)
-		dev->driver->get_vblank_counter = i915_get_vblank_counter;
-
 	dev->vblank_disable_immediate = true;
 
 	/* Most platforms treat the display irq block as an always-on
@@ -4839,32 +4844,24 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->irq_preinstall = cherryview_irq_reset;
 		dev->driver->irq_postinstall = cherryview_irq_postinstall;
 		dev->driver->irq_uninstall = cherryview_irq_reset;
-		dev->driver->enable_vblank = i965_enable_vblank;
-		dev->driver->disable_vblank = i965_disable_vblank;
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		dev->driver->irq_handler = valleyview_irq_handler;
 		dev->driver->irq_preinstall = valleyview_irq_reset;
 		dev->driver->irq_postinstall = valleyview_irq_postinstall;
 		dev->driver->irq_uninstall = valleyview_irq_reset;
-		dev->driver->enable_vblank = i965_enable_vblank;
-		dev->driver->disable_vblank = i965_disable_vblank;
 		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else if (INTEL_GEN(dev_priv) >= 11) {
 		dev->driver->irq_handler = gen11_irq_handler;
 		dev->driver->irq_preinstall = gen11_irq_reset;
 		dev->driver->irq_postinstall = gen11_irq_postinstall;
 		dev->driver->irq_uninstall = gen11_irq_reset;
-		dev->driver->enable_vblank = gen8_enable_vblank;
-		dev->driver->disable_vblank = gen8_disable_vblank;
 		dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
 	} else if (INTEL_GEN(dev_priv) >= 8) {
 		dev->driver->irq_handler = gen8_irq_handler;
 		dev->driver->irq_preinstall = gen8_irq_reset;
 		dev->driver->irq_postinstall = gen8_irq_postinstall;
 		dev->driver->irq_uninstall = gen8_irq_reset;
-		dev->driver->enable_vblank = gen8_enable_vblank;
-		dev->driver->disable_vblank = gen8_disable_vblank;
 		if (IS_GEN9_LP(dev_priv))
 			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
 		else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
@@ -4876,8 +4873,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		dev->driver->irq_preinstall = ironlake_irq_reset;
 		dev->driver->irq_postinstall = ironlake_irq_postinstall;
 		dev->driver->irq_uninstall = ironlake_irq_reset;
-		dev->driver->enable_vblank = ironlake_enable_vblank;
-		dev->driver->disable_vblank = ironlake_disable_vblank;
 		dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
 	} else {
 		if (IS_GEN(dev_priv, 2)) {
@@ -4885,29 +4880,21 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 			dev->driver->irq_postinstall = i8xx_irq_postinstall;
 			dev->driver->irq_handler = i8xx_irq_handler;
 			dev->driver->irq_uninstall = i8xx_irq_reset;
-			dev->driver->enable_vblank = i8xx_enable_vblank;
-			dev->driver->disable_vblank = i8xx_disable_vblank;
 		} else if (IS_I945GM(dev_priv)) {
 			dev->driver->irq_preinstall = i915_irq_reset;
 			dev->driver->irq_postinstall = i915_irq_postinstall;
 			dev->driver->irq_uninstall = i915_irq_reset;
 			dev->driver->irq_handler = i915_irq_handler;
-			dev->driver->enable_vblank = i945gm_enable_vblank;
-			dev->driver->disable_vblank = i945gm_disable_vblank;
 		} else if (IS_GEN(dev_priv, 3)) {
 			dev->driver->irq_preinstall = i915_irq_reset;
 			dev->driver->irq_postinstall = i915_irq_postinstall;
 			dev->driver->irq_uninstall = i915_irq_reset;
 			dev->driver->irq_handler = i915_irq_handler;
-			dev->driver->enable_vblank = i8xx_enable_vblank;
-			dev->driver->disable_vblank = i8xx_disable_vblank;
 		} else {
 			dev->driver->irq_preinstall = i965_irq_reset;
 			dev->driver->irq_postinstall = i965_irq_postinstall;
 			dev->driver->irq_uninstall = i965_irq_reset;
 			dev->driver->irq_handler = i965_irq_handler;
-			dev->driver->enable_vblank = i965_enable_vblank;
-			dev->driver->disable_vblank = i965_disable_vblank;
 		}
 		if (I915_HAS_HOTPLUG(dev_priv))
 			dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;

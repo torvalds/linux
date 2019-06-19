@@ -13567,7 +13567,7 @@ u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
 	if (!vblank->max_vblank_count)
 		return (u32)drm_crtc_accurate_vblank_count(&crtc->base);
 
-	return dev->driver->get_vblank_counter(dev, crtc->pipe);
+	return crtc->base.funcs->get_vblank_counter(&crtc->base);
 }
 
 static void intel_update_crtc(struct drm_crtc *crtc,
@@ -14104,18 +14104,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 	return 0;
 }
-
-static const struct drm_crtc_funcs intel_crtc_funcs = {
-	.gamma_set = drm_atomic_helper_legacy_gamma_set,
-	.set_config = drm_atomic_helper_set_config,
-	.destroy = intel_crtc_destroy,
-	.page_flip = drm_atomic_helper_page_flip,
-	.atomic_duplicate_state = intel_crtc_duplicate_state,
-	.atomic_destroy_state = intel_crtc_destroy_state,
-	.set_crc_source = intel_crtc_set_crc_source,
-	.verify_crc_source = intel_crtc_verify_crc_source,
-	.get_crc_sources = intel_crtc_get_crc_sources,
-};
 
 struct wait_rps_boost {
 	struct wait_queue_entry wait;
@@ -14910,8 +14898,76 @@ static void intel_crtc_init_scalers(struct intel_crtc *crtc,
 	scaler_state->scaler_id = -1;
 }
 
+#define INTEL_CRTC_FUNCS \
+	.gamma_set = drm_atomic_helper_legacy_gamma_set, \
+	.set_config = drm_atomic_helper_set_config, \
+	.destroy = intel_crtc_destroy, \
+	.page_flip = drm_atomic_helper_page_flip, \
+	.atomic_duplicate_state = intel_crtc_duplicate_state, \
+	.atomic_destroy_state = intel_crtc_destroy_state, \
+	.set_crc_source = intel_crtc_set_crc_source, \
+	.verify_crc_source = intel_crtc_verify_crc_source, \
+	.get_crc_sources = intel_crtc_get_crc_sources
+
+static const struct drm_crtc_funcs bdw_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = g4x_get_vblank_counter,
+	.enable_vblank = bdw_enable_vblank,
+	.disable_vblank = bdw_disable_vblank,
+};
+
+static const struct drm_crtc_funcs ilk_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = g4x_get_vblank_counter,
+	.enable_vblank = ilk_enable_vblank,
+	.disable_vblank = ilk_disable_vblank,
+};
+
+static const struct drm_crtc_funcs g4x_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = g4x_get_vblank_counter,
+	.enable_vblank = i965_enable_vblank,
+	.disable_vblank = i965_disable_vblank,
+};
+
+static const struct drm_crtc_funcs i965_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = i915_get_vblank_counter,
+	.enable_vblank = i965_enable_vblank,
+	.disable_vblank = i965_disable_vblank,
+};
+
+static const struct drm_crtc_funcs i945gm_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = i915_get_vblank_counter,
+	.enable_vblank = i945gm_enable_vblank,
+	.disable_vblank = i945gm_disable_vblank,
+};
+
+static const struct drm_crtc_funcs i915_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	.get_vblank_counter = i915_get_vblank_counter,
+	.enable_vblank = i8xx_enable_vblank,
+	.disable_vblank = i8xx_disable_vblank,
+};
+
+static const struct drm_crtc_funcs i8xx_crtc_funcs = {
+	INTEL_CRTC_FUNCS,
+
+	/* no hw vblank counter */
+	.enable_vblank = i8xx_enable_vblank,
+	.disable_vblank = i8xx_disable_vblank,
+};
+
 static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
+	const struct drm_crtc_funcs *funcs;
 	struct intel_crtc *intel_crtc;
 	struct intel_crtc_state *crtc_state = NULL;
 	struct intel_plane *primary = NULL;
@@ -14955,10 +15011,28 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	}
 	intel_crtc->plane_ids_mask |= BIT(cursor->id);
 
+	if (HAS_GMCH(dev_priv)) {
+		if (IS_CHERRYVIEW(dev_priv) ||
+		    IS_VALLEYVIEW(dev_priv) || IS_G4X(dev_priv))
+			funcs = &g4x_crtc_funcs;
+		else if (IS_GEN(dev_priv, 4))
+			funcs = &i965_crtc_funcs;
+		else if (IS_I945GM(dev_priv))
+			funcs = &i945gm_crtc_funcs;
+		else if (IS_GEN(dev_priv, 3))
+			funcs = &i915_crtc_funcs;
+		else
+			funcs = &i8xx_crtc_funcs;
+	} else {
+		if (INTEL_GEN(dev_priv) >= 8)
+			funcs = &bdw_crtc_funcs;
+		else
+			funcs = &ilk_crtc_funcs;
+	}
+
 	ret = drm_crtc_init_with_planes(&dev_priv->drm, &intel_crtc->base,
 					&primary->base, &cursor->base,
-					&intel_crtc_funcs,
-					"pipe %c", pipe_name(pipe));
+					funcs, "pipe %c", pipe_name(pipe));
 	if (ret)
 		goto fail;
 
