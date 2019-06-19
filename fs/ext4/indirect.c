@@ -294,14 +294,12 @@ static int ext4_blks_to_allocate(Indirect *branch, int k, unsigned int blks,
 }
 
 /**
- *	ext4_alloc_branch - allocate and set up a chain of blocks.
- *	@handle: handle for this transaction
- *	@inode: owner
- *	@indirect_blks: number of allocated indirect blocks
- *	@blks: number of allocated direct blocks
- *	@goal: preferred place for allocation
- *	@offsets: offsets (in the blocks) to store the pointers to next.
- *	@branch: place to store the chain in.
+ * ext4_alloc_branch() - allocate and set up a chain of blocks
+ * @handle: handle for this transaction
+ * @ar: structure describing the allocation request
+ * @indirect_blks: number of allocated indirect blocks
+ * @offsets: offsets (in the blocks) to store the pointers to next.
+ * @branch: place to store the chain in.
  *
  *	This function allocates blocks, zeroes out all but the last one,
  *	links them into chain and (if we are synchronous) writes them to disk.
@@ -396,15 +394,11 @@ failed:
 }
 
 /**
- * ext4_splice_branch - splice the allocated branch onto inode.
+ * ext4_splice_branch() - splice the allocated branch onto inode.
  * @handle: handle for this transaction
- * @inode: owner
- * @block: (logical) number of block we are adding
- * @chain: chain of indirect blocks (with a missing link - see
- *	ext4_alloc_branch)
+ * @ar: structure describing the allocation request
  * @where: location of missing link
  * @num:   number of indirect blocks we are adding
- * @blks:  number of direct blocks we are adding
  *
  * This function fills the missing link and does all housekeeping needed in
  * inode (->i_blocks, etc.). In case of success we end up with the full

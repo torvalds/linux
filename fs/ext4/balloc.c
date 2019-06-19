@@ -603,9 +603,9 @@ int ext4_claim_free_clusters(struct ext4_sb_info *sbi,
 }
 
 /**
- * ext4_should_retry_alloc()
+ * ext4_should_retry_alloc() - check if a block allocation should be retried
  * @sb:			super block
- * @retries		number of attemps has been made
+ * @retries:		number of attemps has been made
  *
  * ext4_should_retry_alloc() is called when ENOSPC is returned, and if
  * it is profitable to retry the operation, this function will wait
