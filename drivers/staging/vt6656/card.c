@@ -166,7 +166,7 @@ static void vnt_calculate_ofdm_rate(u16 rate, u8 bb_type,
 			*tx_rate = 0x8b;
 			*rsv_time = 30;
 		}
-			break;
+		break;
 	case RATE_9M:
 		if (bb_type == BB_TYPE_11A) {
 			*tx_rate = 0x9f;
