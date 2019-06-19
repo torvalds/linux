@@ -4680,12 +4680,18 @@ u64 __btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
 	struct btrfs_block_rsv *delayed_rsv = &fs_info->delayed_refs_rsv;
-	struct btrfs_block_rsv *target = delayed_rsv;
+	struct btrfs_block_rsv *target = NULL;
 
-	if (target->full || target == block_rsv)
+	/*
+	 * If we are the delayed_rsv then push to the global rsv, otherwise dump
+	 * into the delayed rsv if it is not full.
+	 */
+	if (block_rsv == delayed_rsv)
 		target = global_rsv;
+	else if (block_rsv != global_rsv && !delayed_rsv->full)
+		target = delayed_rsv;
 
-	if (block_rsv->space_info != target->space_info)
+	if (target && block_rsv->space_info != target->space_info)
 		target = NULL;
 
 	return block_rsv_release_bytes(fs_info, block_rsv, target, num_bytes,
