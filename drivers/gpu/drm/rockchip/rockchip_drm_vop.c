@@ -1678,6 +1678,7 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 					 struct drm_property *property,
 					 uint64_t val)
 {
+	struct rockchip_drm_private *private = plane->dev->dev_private;
 	struct vop_win *win = to_vop_win(plane);
 	struct vop_plane_state *plane_state = &win->state;
 
@@ -1685,8 +1686,35 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 		plane_state->zpos = val;
 		return 0;
 	}
+	if (property == private->logo_ymirror_prop) {
+		WARN_ON(!rockchip_fb_is_logo(state->fb));
+		plane_state->logo_ymirror = val;
+		return 0;
+	}
 
-	DRM_ERROR("failed to set vop plane property\n");
+	if (property == private->eotf_prop) {
+		plane_state->eotf = val;
+		return 0;
+	}
+
+	if (property == private->color_space_prop) {
+		plane_state->color_space = val;
+		return 0;
+	}
+
+	if (property == private->global_alpha_prop) {
+		plane_state->global_alpha = val;
+		return 0;
+	}
+
+	if (property == private->blend_mode_prop) {
+		plane_state->blend_mode = val;
+		return 0;
+	}
+
+	DRM_ERROR("failed to set vop plane property id:%d, name:%s\n",
+		   property->base.id, property->name);
+
 	return -EINVAL;
 }
 
@@ -1697,13 +1725,41 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 {
 	struct vop_win *win = to_vop_win(plane);
 	struct vop_plane_state *plane_state = &win->state;
+	struct rockchip_drm_private *private = plane->dev->dev_private;
 
 	if (property == win->vop->plane_zpos_prop) {
 		*val = plane_state->zpos;
 		return 0;
 	}
 
-	DRM_ERROR("failed to get vop plane property\n");
+	if (property == private->logo_ymirror_prop) {
+		*val = plane_state->logo_ymirror;
+		return 0;
+	}
+
+	if (property == private->eotf_prop) {
+		*val = plane_state->eotf;
+		return 0;
+	}
+
+	if (property == private->color_space_prop) {
+		*val = plane_state->color_space;
+		return 0;
+	}
+
+	if (property == private->global_alpha_prop) {
+		*val = plane_state->global_alpha;
+		return 0;
+	}
+
+	if (property == private->blend_mode_prop) {
+		*val = plane_state->blend_mode;
+		return 0;
+	}
+
+	DRM_ERROR("failed to get vop plane property id:%d, name:%s\n",
+		   property->base.id, property->name);
+
 	return -EINVAL;
 }
 
@@ -2785,11 +2841,87 @@ vop_crtc_verify_crc_source(struct drm_crtc *crtc, const char *source_name,
 }
 #endif
 
+static int vop_crtc_atomic_get_property(struct drm_crtc *crtc,
+					const struct drm_crtc_state *state,
+					struct drm_property *property,
+					uint64_t *val)
+{
+	struct drm_device *drm_dev = crtc->dev;
+	struct rockchip_drm_private *private = drm_dev->dev_private;
+	struct drm_mode_config *mode_config = &drm_dev->mode_config;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(state);
+	struct vop *vop = to_vop(crtc);
+
+	if (property == mode_config->tv_left_margin_property) {
+		*val = s->left_margin;
+		return 0;
+	}
+
+	if (property == mode_config->tv_right_margin_property) {
+		*val = s->right_margin;
+		return 0;
+	}
+
+	if (property == mode_config->tv_top_margin_property) {
+		*val = s->top_margin;
+		return 0;
+	}
+
+	if (property == mode_config->tv_bottom_margin_property) {
+		*val = s->bottom_margin;
+		return 0;
+	}
+
+	if (property == private->alpha_scale_prop) {
+		*val = (vop->data->feature & VOP_FEATURE_ALPHA_SCALE) ? 1 : 0;
+		return 0;
+	}
+
+	DRM_ERROR("failed to get vop crtc property\n");
+	return -EINVAL;
+}
+
+static int vop_crtc_atomic_set_property(struct drm_crtc *crtc,
+					struct drm_crtc_state *state,
+					struct drm_property *property,
+					uint64_t val)
+{
+	struct drm_device *drm_dev = crtc->dev;
+	struct drm_mode_config *mode_config = &drm_dev->mode_config;
+	struct rockchip_crtc_state *s = to_rockchip_crtc_state(state);
+	//struct vop *vop = to_vop(crtc);
+
+	if (property == mode_config->tv_left_margin_property) {
+		s->left_margin = val;
+		return 0;
+	}
+
+	if (property == mode_config->tv_right_margin_property) {
+		s->right_margin = val;
+		return 0;
+	}
+
+	if (property == mode_config->tv_top_margin_property) {
+		s->top_margin = val;
+		return 0;
+	}
+
+	if (property == mode_config->tv_bottom_margin_property) {
+		s->bottom_margin = val;
+		return 0;
+	}
+
+	DRM_ERROR("failed to set vop crtc property\n");
+	return -EINVAL;
+}
+
 static const struct drm_crtc_funcs vop_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.destroy = vop_crtc_destroy,
 	.reset = vop_crtc_reset,
+	.atomic_get_property = vop_crtc_atomic_get_property,
+	.atomic_set_property = vop_crtc_atomic_set_property,
 	.atomic_duplicate_state = vop_crtc_duplicate_state,
 	.atomic_destroy_state = vop_crtc_destroy_state,
 	.enable_vblank = vop_crtc_enable_vblank,
@@ -2933,7 +3065,9 @@ static void vop_plane_add_properties(struct vop *vop,
 static int vop_plane_init(struct vop *vop, struct vop_win *win,
 			  unsigned long possible_crtcs)
 {
+	struct rockchip_drm_private *private = vop->drm_dev->dev_private;
 	struct drm_plane *share = NULL;
+	uint64_t feature = 0;
 	int ret;
 
 	if (win->parent)
@@ -2950,16 +3084,44 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	drm_object_attach_property(&win->base.base,
 				   vop->plane_zpos_prop, win->win_id);
 
+	if (VOP_WIN_SUPPORT(vop, win, ymirror))
+		drm_object_attach_property(&win->base.base, private->logo_ymirror_prop, 0);
+	if (win->phy->scl)
+		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_SCALE);
+	if (VOP_WIN_SUPPORT(vop, win, src_alpha_ctl) ||
+	    VOP_WIN_SUPPORT(vop, win, alpha_en))
+		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_ALPHA);
+	if (win->feature & WIN_FEATURE_HDR2SDR)
+		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_HDR2SDR);
+	if (win->feature & WIN_FEATURE_SDR2HDR)
+		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_SDR2HDR);
+	if (win->feature & WIN_FEATURE_AFBDC)
+		feature |= BIT(ROCKCHIP_DRM_PLANE_FEATURE_AFBDC);
+
+	drm_object_attach_property(&win->base.base, vop->plane_feature_prop,
+				   feature);
+	drm_object_attach_property(&win->base.base, private->eotf_prop, 0);
+	drm_object_attach_property(&win->base.base,
+				   private->color_space_prop, 0);
+	if (VOP_WIN_SUPPORT(vop, win, global_alpha_val))
+		drm_object_attach_property(&win->base.base,
+					   private->global_alpha_prop, 0xff);
+	drm_object_attach_property(&win->base.base,
+				   private->blend_mode_prop, 0);
+
 	return 0;
 }
 
 static int vop_create_crtc(struct vop *vop)
 {
 	struct device *dev = vop->dev;
+	const struct vop_data *vop_data = vop->data;
 	struct drm_device *drm_dev = vop->drm_dev;
+	struct rockchip_drm_private *private = drm_dev->dev_private;
 	struct drm_plane *primary = NULL, *cursor = NULL, *plane, *tmp;
 	struct drm_crtc *crtc = &vop->crtc;
 	struct device_node *port;
+	uint64_t feature = 0;
 	int ret = 0;
 	int i;
 
@@ -3027,6 +3189,20 @@ static int vop_create_crtc(struct vop *vop)
 	init_completion(&vop->line_flag_completion);
 	crtc->port = port;
 
+#define VOP_ATTACH_MODE_CONFIG_PROP(prop, v) \
+	drm_object_attach_property(&crtc->base, drm_dev->mode_config.prop, v)
+
+	VOP_ATTACH_MODE_CONFIG_PROP(tv_left_margin_property, 100);
+	VOP_ATTACH_MODE_CONFIG_PROP(tv_right_margin_property, 100);
+	VOP_ATTACH_MODE_CONFIG_PROP(tv_top_margin_property, 100);
+	VOP_ATTACH_MODE_CONFIG_PROP(tv_bottom_margin_property, 100);
+
+#undef VOP_ATTACH_MODE_CONFIG_PROP
+	drm_object_attach_property(&crtc->base, private->alpha_scale_prop, 0);
+	if (vop_data->feature & VOP_FEATURE_AFBDC)
+		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_AFBDC);
+	drm_object_attach_property(&crtc->base, vop->feature_prop,
+				   feature);
 	return 0;
 
 err_cleanup_crtc:
@@ -3075,6 +3251,16 @@ static int vop_win_init(struct vop *vop)
 	unsigned int i, j;
 	unsigned int num_wins = 0;
 	struct drm_property *prop;
+	static const struct drm_prop_enum_list props[] = {
+		{ ROCKCHIP_DRM_PLANE_FEATURE_SCALE, "scale" },
+		{ ROCKCHIP_DRM_PLANE_FEATURE_ALPHA, "alpha" },
+		{ ROCKCHIP_DRM_PLANE_FEATURE_HDR2SDR, "hdr2sdr" },
+		{ ROCKCHIP_DRM_PLANE_FEATURE_SDR2HDR, "sdr2hdr" },
+		{ ROCKCHIP_DRM_PLANE_FEATURE_AFBDC, "afbdc" },
+	};
+	static const struct drm_prop_enum_list crtc_props[] = {
+		{ ROCKCHIP_DRM_CRTC_FEATURE_AFBDC, "afbdc" },
+	};
 
 	for (i = 0; i < vop_data->win_size; i++) {
 		struct vop_win *vop_win = &vop->win[num_wins];
@@ -3121,6 +3307,28 @@ static int vop_win_init(struct vop *vop)
 		return -EINVAL;
 	}
 	vop->plane_zpos_prop = prop;
+
+	vop->plane_feature_prop = drm_property_create_bitmask(vop->drm_dev,
+				DRM_MODE_PROP_IMMUTABLE, "FEATURE",
+				props, ARRAY_SIZE(props),
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_SCALE) |
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_ALPHA) |
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_HDR2SDR) |
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_SDR2HDR) |
+				BIT(ROCKCHIP_DRM_PLANE_FEATURE_AFBDC));
+	if (!vop->plane_feature_prop) {
+		DRM_ERROR("failed to create feature property\n");
+		return -EINVAL;
+	}
+
+	vop->feature_prop = drm_property_create_bitmask(vop->drm_dev,
+				DRM_MODE_PROP_IMMUTABLE, "FEATURE",
+				crtc_props, ARRAY_SIZE(crtc_props),
+				BIT(ROCKCHIP_DRM_CRTC_FEATURE_AFBDC));
+	if (!vop->feature_prop) {
+		DRM_ERROR("failed to create vop feature property\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }

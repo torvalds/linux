@@ -23,7 +23,6 @@ rockchip_drm_framebuffer_init(struct drm_device *dev,
 void rockchip_drm_framebuffer_fini(struct drm_framebuffer *fb);
 
 void rockchip_drm_mode_config_init(struct drm_device *dev);
-
 struct drm_framebuffer *
 rockchip_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2 *mode_cmd,
 		  struct drm_gem_object **obj, struct rockchip_logo *logo,

@@ -913,4 +913,9 @@ drm_atomic_crtc_needs_modeset(const struct drm_crtc_state *state)
 	       state->connectors_changed;
 }
 
+int drm_atomic_set_property(struct drm_atomic_state *state,
+			    struct drm_mode_object *obj,
+			    struct drm_property *prop,
+			    uint64_t prop_value);
+
 #endif /* DRM_ATOMIC_H_ */
