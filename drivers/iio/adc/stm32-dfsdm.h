@@ -263,13 +263,13 @@ struct stm32_dfsdm_filter_osr {
 /**
  * struct stm32_dfsdm_filter - structure relative to stm32 FDSDM filter
  * @ford: filter order
- * @flo: filter oversampling structure
+ * @flo: filter oversampling data table indexed by fast mode flag
  * @sync_mode: filter synchronized with filter 0
  * @fast: filter fast mode
  */
 struct stm32_dfsdm_filter {
 	enum stm32_dfsdm_sinc_order ford;
-	struct stm32_dfsdm_filter_osr flo;
+	struct stm32_dfsdm_filter_osr flo[2];
 	unsigned int sync_mode;
 	unsigned int fast;
 };
