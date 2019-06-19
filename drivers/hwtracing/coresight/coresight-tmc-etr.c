@@ -1501,14 +1501,13 @@ tmc_update_etr_buffer(struct coresight_device *csdev,
 	tmc_etr_sync_perf_buffer(etr_perf);
 
 	/*
-	 * Update handle->head in snapshot mode. Also update the size to the
-	 * hardware buffer size if there was an overflow.
+	 * In snapshot mode we simply increment the head by the number of byte
+	 * that were written.  User space function  cs_etm_find_snapshot() will
+	 * figure out how many bytes to get from the AUX buffer based on the
+	 * position of the head.
 	 */
-	if (etr_perf->snapshot) {
+	if (etr_perf->snapshot)
 		handle->head += size;
-		if (etr_buf->full)
-			size = etr_buf->size;
-	}
 
 	lost |= etr_buf->full;
 out:
