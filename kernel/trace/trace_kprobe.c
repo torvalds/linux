@@ -180,20 +180,33 @@ unsigned long trace_kprobe_address(struct trace_kprobe *tk)
 	return addr;
 }
 
+static nokprobe_inline struct trace_kprobe *
+trace_kprobe_primary_from_call(struct trace_event_call *call)
+{
+	struct trace_probe *tp;
+
+	tp = trace_probe_primary_from_call(call);
+	if (WARN_ON_ONCE(!tp))
+		return NULL;
+
+	return container_of(tp, struct trace_kprobe, tp);
+}
+
 bool trace_kprobe_on_func_entry(struct trace_event_call *call)
 {
-	struct trace_kprobe *tk = (struct trace_kprobe *)call->data;
+	struct trace_kprobe *tk = trace_kprobe_primary_from_call(call);
 
-	return kprobe_on_func_entry(tk->rp.kp.addr,
+	return tk ? kprobe_on_func_entry(tk->rp.kp.addr,
 			tk->rp.kp.addr ? NULL : tk->rp.kp.symbol_name,
-			tk->rp.kp.addr ? 0 : tk->rp.kp.offset);
+			tk->rp.kp.addr ? 0 : tk->rp.kp.offset) : false;
 }
 
 bool trace_kprobe_error_injectable(struct trace_event_call *call)
 {
-	struct trace_kprobe *tk = (struct trace_kprobe *)call->data;
+	struct trace_kprobe *tk = trace_kprobe_primary_from_call(call);
 
-	return within_error_injection_list(trace_kprobe_address(tk));
+	return tk ? within_error_injection_list(trace_kprobe_address(tk)) :
+	       false;
 }
 
 static int register_kprobe_event(struct trace_kprobe *tk);
@@ -291,32 +304,75 @@ static inline int __enable_trace_kprobe(struct trace_kprobe *tk)
 	return ret;
 }
 
+static void __disable_trace_kprobe(struct trace_probe *tp)
+{
+	struct trace_probe *pos;
+	struct trace_kprobe *tk;
+
+	list_for_each_entry(pos, trace_probe_probe_list(tp), list) {
+		tk = container_of(pos, struct trace_kprobe, tp);
+		if (!trace_kprobe_is_registered(tk))
+			continue;
+		if (trace_kprobe_is_return(tk))
+			disable_kretprobe(&tk->rp);
+		else
+			disable_kprobe(&tk->rp.kp);
+	}
+}
+
 /*
  * Enable trace_probe
  * if the file is NULL, enable "perf" handler, or enable "trace" handler.
  */
-static int
-enable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
+static int enable_trace_kprobe(struct trace_event_call *call,
+				struct trace_event_file *file)
 {
-	bool enabled = trace_probe_is_enabled(&tk->tp);
+	struct trace_probe *pos, *tp;
+	struct trace_kprobe *tk;
+	bool enabled;
 	int ret = 0;
 
+	tp = trace_probe_primary_from_call(call);
+	if (WARN_ON_ONCE(!tp))
+		return -ENODEV;
+	enabled = trace_probe_is_enabled(tp);
+
+	/* This also changes "enabled" state */
 	if (file) {
-		ret = trace_probe_add_file(&tk->tp, file);
+		ret = trace_probe_add_file(tp, file);
 		if (ret)
 			return ret;
 	} else
-		trace_probe_set_flag(&tk->tp, TP_FLAG_PROFILE);
+		trace_probe_set_flag(tp, TP_FLAG_PROFILE);
 
 	if (enabled)
 		return 0;
 
-	ret = __enable_trace_kprobe(tk);
-	if (ret) {
+	enabled = false;
+	list_for_each_entry(pos, trace_probe_probe_list(tp), list) {
+		tk = container_of(pos, struct trace_kprobe, tp);
+		if (trace_kprobe_has_gone(tk))
+			continue;
+		ret = __enable_trace_kprobe(tk);
+		if (ret) {
+			if (enabled) {
+				__disable_trace_kprobe(tp);
+				enabled = false;
+			}
+			break;
+		}
+		enabled = true;
+	}
+
+	if (!enabled) {
+		/* No probe is enabled. Roll back */
 		if (file)
-			trace_probe_remove_file(&tk->tp, file);
+			trace_probe_remove_file(tp, file);
 		else
-			trace_probe_clear_flag(&tk->tp, TP_FLAG_PROFILE);
+			trace_probe_clear_flag(tp, TP_FLAG_PROFILE);
+		if (!ret)
+			/* Since all probes are gone, this is not available */
+			ret = -EADDRNOTAVAIL;
 	}
 
 	return ret;
@@ -326,11 +382,14 @@ enable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
  * Disable trace_probe
  * if the file is NULL, disable "perf" handler, or disable "trace" handler.
  */
-static int
-disable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
+static int disable_trace_kprobe(struct trace_event_call *call,
+				struct trace_event_file *file)
 {
-	struct trace_probe *tp = &tk->tp;
-	int ret = 0;
+	struct trace_probe *tp;
+
+	tp = trace_probe_primary_from_call(call);
+	if (WARN_ON_ONCE(!tp))
+		return -ENODEV;
 
 	if (file) {
 		if (!trace_probe_get_file_link(tp, file))
@@ -341,12 +400,8 @@ disable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
 	} else
 		trace_probe_clear_flag(tp, TP_FLAG_PROFILE);
 
-	if (!trace_probe_is_enabled(tp) && trace_kprobe_is_registered(tk)) {
-		if (trace_kprobe_is_return(tk))
-			disable_kretprobe(&tk->rp);
-		else
-			disable_kprobe(&tk->rp.kp);
-	}
+	if (!trace_probe_is_enabled(tp))
+		__disable_trace_kprobe(tp);
 
  out:
 	if (file)
@@ -358,7 +413,7 @@ disable_trace_kprobe(struct trace_kprobe *tk, struct trace_event_file *file)
 		 */
 		trace_probe_remove_file(tp, file);
 
-	return ret;
+	return 0;
 }
 
 #if defined(CONFIG_KPROBES_ON_FTRACE) && \
@@ -1089,7 +1144,10 @@ print_kprobe_event(struct trace_iterator *iter, int flags,
 	struct trace_probe *tp;
 
 	field = (struct kprobe_trace_entry_head *)iter->ent;
-	tp = container_of(event, struct trace_probe, call.event);
+	tp = trace_probe_primary_from_call(
+		container_of(event, struct trace_event_call, event));
+	if (WARN_ON_ONCE(!tp))
+		goto out;
 
 	trace_seq_printf(s, "%s: (", trace_probe_name(tp));
 
@@ -1116,7 +1174,10 @@ print_kretprobe_event(struct trace_iterator *iter, int flags,
 	struct trace_probe *tp;
 
 	field = (struct kretprobe_trace_entry_head *)iter->ent;
-	tp = container_of(event, struct trace_probe, call.event);
+	tp = trace_probe_primary_from_call(
+		container_of(event, struct trace_event_call, event));
+	if (WARN_ON_ONCE(!tp))
+		goto out;
 
 	trace_seq_printf(s, "%s: (", trace_probe_name(tp));
 
@@ -1145,23 +1206,31 @@ static int kprobe_event_define_fields(struct trace_event_call *event_call)
 {
 	int ret;
 	struct kprobe_trace_entry_head field;
-	struct trace_kprobe *tk = (struct trace_kprobe *)event_call->data;
+	struct trace_probe *tp;
+
+	tp = trace_probe_primary_from_call(event_call);
+	if (WARN_ON_ONCE(!tp))
+		return -ENOENT;
 
 	DEFINE_FIELD(unsigned long, ip, FIELD_STRING_IP, 0);
 
-	return traceprobe_define_arg_fields(event_call, sizeof(field), &tk->tp);
+	return traceprobe_define_arg_fields(event_call, sizeof(field), tp);
 }
 
 static int kretprobe_event_define_fields(struct trace_event_call *event_call)
 {
 	int ret;
 	struct kretprobe_trace_entry_head field;
-	struct trace_kprobe *tk = (struct trace_kprobe *)event_call->data;
+	struct trace_probe *tp;
+
+	tp = trace_probe_primary_from_call(event_call);
+	if (WARN_ON_ONCE(!tp))
+		return -ENOENT;
 
 	DEFINE_FIELD(unsigned long, func, FIELD_STRING_FUNC, 0);
 	DEFINE_FIELD(unsigned long, ret_ip, FIELD_STRING_RETIP, 0);
 
-	return traceprobe_define_arg_fields(event_call, sizeof(field), &tk->tp);
+	return traceprobe_define_arg_fields(event_call, sizeof(field), tp);
 }
 
 #ifdef CONFIG_PERF_EVENTS
@@ -1289,20 +1358,19 @@ int bpf_get_kprobe_info(const struct perf_event *event, u32 *fd_type,
 static int kprobe_register(struct trace_event_call *event,
 			   enum trace_reg type, void *data)
 {
-	struct trace_kprobe *tk = (struct trace_kprobe *)event->data;
 	struct trace_event_file *file = data;
 
 	switch (type) {
 	case TRACE_REG_REGISTER:
-		return enable_trace_kprobe(tk, file);
+		return enable_trace_kprobe(event, file);
 	case TRACE_REG_UNREGISTER:
-		return disable_trace_kprobe(tk, file);
+		return disable_trace_kprobe(event, file);
 
 #ifdef CONFIG_PERF_EVENTS
 	case TRACE_REG_PERF_REGISTER:
-		return enable_trace_kprobe(tk, NULL);
+		return enable_trace_kprobe(event, NULL);
 	case TRACE_REG_PERF_UNREGISTER:
-		return disable_trace_kprobe(tk, NULL);
+		return disable_trace_kprobe(event, NULL);
 	case TRACE_REG_PERF_OPEN:
 	case TRACE_REG_PERF_CLOSE:
 	case TRACE_REG_PERF_ADD:
@@ -1369,7 +1437,6 @@ static inline void init_trace_event_call(struct trace_kprobe *tk)
 
 	call->flags = TRACE_EVENT_FL_KPROBE;
 	call->class->reg = kprobe_register;
-	call->data = tk;
 }
 
 static int register_kprobe_event(struct trace_kprobe *tk)
@@ -1432,7 +1499,9 @@ void destroy_local_trace_kprobe(struct trace_event_call *event_call)
 {
 	struct trace_kprobe *tk;
 
-	tk = container_of(event_call, struct trace_kprobe, tp.call);
+	tk = trace_kprobe_primary_from_call(event_call);
+	if (unlikely(!tk))
+		return;
 
 	if (trace_probe_is_enabled(&tk->tp)) {
 		WARN_ON(1);
@@ -1577,7 +1646,8 @@ static __init int kprobe_trace_self_tests_init(void)
 				pr_warn("error on getting probe file.\n");
 				warn++;
 			} else
-				enable_trace_kprobe(tk, file);
+				enable_trace_kprobe(
+					trace_probe_event_call(&tk->tp), file);
 		}
 	}
 
@@ -1598,7 +1668,8 @@ static __init int kprobe_trace_self_tests_init(void)
 				pr_warn("error on getting probe file.\n");
 				warn++;
 			} else
-				enable_trace_kprobe(tk, file);
+				enable_trace_kprobe(
+					trace_probe_event_call(&tk->tp), file);
 		}
 	}
 
@@ -1631,7 +1702,8 @@ static __init int kprobe_trace_self_tests_init(void)
 			pr_warn("error on getting probe file.\n");
 			warn++;
 		} else
-			disable_trace_kprobe(tk, file);
+			disable_trace_kprobe(
+				trace_probe_event_call(&tk->tp), file);
 	}
 
 	tk = find_trace_kprobe("testprobe2", KPROBE_EVENT_SYSTEM);
@@ -1649,7 +1721,8 @@ static __init int kprobe_trace_self_tests_init(void)
 			pr_warn("error on getting probe file.\n");
 			warn++;
 		} else
-			disable_trace_kprobe(tk, file);
+			disable_trace_kprobe(
+				trace_probe_event_call(&tk->tp), file);
 	}
 
 	ret = trace_run_command("-:testprobe", create_or_delete_trace_kprobe);

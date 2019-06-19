@@ -889,41 +889,59 @@ int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 
 void trace_probe_cleanup(struct trace_probe *tp)
 {
-	struct trace_event_call *call = trace_probe_event_call(tp);
 	int i;
 
 	for (i = 0; i < tp->nr_args; i++)
 		traceprobe_free_probe_arg(&tp->args[i]);
 
-	if (call->class)
-		kfree(call->class->system);
-	kfree(call->name);
-	kfree(call->print_fmt);
+	if (tp->event) {
+		struct trace_event_call *call = trace_probe_event_call(tp);
+
+		kfree(tp->event->class.system);
+		kfree(call->name);
+		kfree(call->print_fmt);
+		kfree(tp->event);
+		tp->event = NULL;
+	}
 }
 
 int trace_probe_init(struct trace_probe *tp, const char *event,
 		     const char *group)
 {
-	struct trace_event_call *call = trace_probe_event_call(tp);
+	struct trace_event_call *call;
+	int ret = 0;
 
 	if (!event || !group)
 		return -EINVAL;
 
-	call->class = &tp->class;
-	call->name = kstrdup(event, GFP_KERNEL);
-	if (!call->name)
+	tp->event = kzalloc(sizeof(struct trace_probe_event), GFP_KERNEL);
+	if (!tp->event)
 		return -ENOMEM;
 
-	tp->class.system = kstrdup(group, GFP_KERNEL);
-	if (!tp->class.system) {
-		kfree(call->name);
-		call->name = NULL;
-		return -ENOMEM;
+	call = trace_probe_event_call(tp);
+	call->class = &tp->event->class;
+	call->name = kstrdup(event, GFP_KERNEL);
+	if (!call->name) {
+		ret = -ENOMEM;
+		goto error;
 	}
-	INIT_LIST_HEAD(&tp->files);
-	INIT_LIST_HEAD(&tp->class.fields);
+
+	tp->event->class.system = kstrdup(group, GFP_KERNEL);
+	if (!tp->event->class.system) {
+		ret = -ENOMEM;
+		goto error;
+	}
+	INIT_LIST_HEAD(&tp->event->files);
+	INIT_LIST_HEAD(&tp->event->class.fields);
+	INIT_LIST_HEAD(&tp->event->probes);
+	INIT_LIST_HEAD(&tp->list);
+	list_add(&tp->event->probes, &tp->list);
 
 	return 0;
+
+error:
+	trace_probe_cleanup(tp);
+	return ret;
 }
 
 int trace_probe_register_event_call(struct trace_probe *tp)
@@ -952,7 +970,7 @@ int trace_probe_add_file(struct trace_probe *tp, struct trace_event_file *file)
 
 	link->file = file;
 	INIT_LIST_HEAD(&link->list);
-	list_add_tail_rcu(&link->list, &tp->files);
+	list_add_tail_rcu(&link->list, &tp->event->files);
 	trace_probe_set_flag(tp, TP_FLAG_TRACE);
 	return 0;
 }
@@ -983,7 +1001,7 @@ int trace_probe_remove_file(struct trace_probe *tp,
 	synchronize_rcu();
 	kfree(link);
 
-	if (list_empty(&tp->files))
+	if (list_empty(&tp->event->files))
 		trace_probe_clear_flag(tp, TP_FLAG_TRACE);
 
 	return 0;
