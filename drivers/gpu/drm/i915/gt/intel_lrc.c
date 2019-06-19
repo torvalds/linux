@@ -1414,6 +1414,7 @@ static void execlists_context_destroy(struct kref *kref)
 {
 	struct intel_context *ce = container_of(kref, typeof(*ce), ref);
 
+	GEM_BUG_ON(!i915_active_is_idle(&ce->active));
 	GEM_BUG_ON(intel_context_is_pinned(ce));
 
 	if (ce->state)
@@ -1426,7 +1427,6 @@ static void execlists_context_unpin(struct intel_context *ce)
 {
 	i915_gem_context_unpin_hw_id(ce->gem_context);
 	i915_gem_object_unpin_map(ce->state->obj);
-	intel_ring_unpin(ce->ring);
 }
 
 static void
@@ -1478,13 +1478,9 @@ __execlists_context_pin(struct intel_context *ce,
 		goto unpin_active;
 	}
 
-	ret = intel_ring_pin(ce->ring);
-	if (ret)
-		goto unpin_map;
-
 	ret = i915_gem_context_pin_hw_id(ce->gem_context);
 	if (ret)
-		goto unpin_ring;
+		goto unpin_map;
 
 	ce->lrc_desc = lrc_descriptor(ce, engine);
 	ce->lrc_reg_state = vaddr + LRC_STATE_PN * PAGE_SIZE;
@@ -1492,8 +1488,6 @@ __execlists_context_pin(struct intel_context *ce,
 
 	return 0;
 
-unpin_ring:
-	intel_ring_unpin(ce->ring);
 unpin_map:
 	i915_gem_object_unpin_map(ce->state->obj);
 unpin_active:
