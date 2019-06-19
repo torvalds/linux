@@ -1109,10 +1109,10 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 	return (position + crtc->scanline_offset) % vtotal;
 }
 
-static bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
-				     bool in_vblank_irq, int *vpos, int *hpos,
-				     ktime_t *stime, ktime_t *etime,
-				     const struct drm_display_mode *mode)
+bool i915_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
+			      bool in_vblank_irq, int *vpos, int *hpos,
+			      ktime_t *stime, ktime_t *etime,
+			      const struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc = intel_get_crtc_for_pipe(dev_priv,
@@ -4788,9 +4788,6 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	 * short pulses, as seen on some G4x systems.
 	 */
 	dev_priv->hotplug.hpd_short_storm_enabled = !HAS_DP_MST(dev_priv);
-
-	dev->driver->get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos;
-	dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
 
 	if (HAS_GMCH(dev_priv)) {
 		if (I915_HAS_HOTPLUG(dev_priv))
