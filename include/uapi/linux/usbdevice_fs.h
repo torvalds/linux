@@ -85,11 +85,11 @@ struct usbdevfs_conninfo_ex {
 				/* kernel, the device is connected to.     */
 	__u32 devnum;           /* Device address on the bus.              */
 	__u32 speed;		/* USB_SPEED_* constants from ch9.h        */
-	u8 num_ports;		/* Number of ports the device is connected */
+	__u8 num_ports;		/* Number of ports the device is connected */
 				/* to on the way to the root hub. It may   */
 				/* be bigger than size of 'ports' array so */
 				/* userspace can detect overflows.         */
-	u8 ports[7];		/* List of ports on the way from the root  */
+	__u8 ports[7];		/* List of ports on the way from the root  */
 				/* hub to the device. Current limit in     */
 				/* USB specification is 7 tiers (root hub, */
 				/* 5 intermediate hubs, device), which     */
