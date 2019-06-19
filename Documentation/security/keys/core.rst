@@ -433,6 +433,10 @@ The main syscalls are:
      /sbin/request-key will be invoked in an attempt to obtain a key. The
      callout_info string will be passed as an argument to the program.
 
+     To link a key into the destination keyring the key must grant link
+     permission on the key to the caller and the keyring must grant write
+     permission.
+
      See also Documentation/security/keys/request-key.rst.
 
 
