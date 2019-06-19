@@ -820,19 +820,12 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 static int netsec_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct netsec_priv *priv;
-	int rx, done, todo;
+	int done;
 
 	priv = container_of(napi, struct netsec_priv, napi);
 
 	netsec_process_tx(priv);
-
-	todo = budget;
-	do {
-		rx = netsec_process_rx(priv, todo);
-		todo -= rx;
-	} while (rx);
-
-	done = budget - todo;
+	done = netsec_process_rx(priv, budget);
 
 	if (done < budget && napi_complete_done(napi, done)) {
 		unsigned long flags;
