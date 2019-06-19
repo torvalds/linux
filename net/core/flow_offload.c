@@ -25,6 +25,13 @@ EXPORT_SYMBOL(flow_rule_alloc);
 	(__out)->key = skb_flow_dissector_target(__d, __type, (__m)->key);	\
 	(__out)->mask = skb_flow_dissector_target(__d, __type, (__m)->mask);	\
 
+void flow_rule_match_meta(const struct flow_rule *rule,
+			  struct flow_match_meta *out)
+{
+	FLOW_DISSECTOR_MATCH(rule, FLOW_DISSECTOR_KEY_META, out);
+}
+EXPORT_SYMBOL(flow_rule_match_meta);
+
 void flow_rule_match_basic(const struct flow_rule *rule,
 			   struct flow_match_basic *out)
 {

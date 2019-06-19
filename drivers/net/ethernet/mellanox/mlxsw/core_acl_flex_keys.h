@@ -74,7 +74,7 @@ struct mlxsw_afk_element_info {
  * define an internal storage geometry.
  */
 static const struct mlxsw_afk_element_info mlxsw_afk_element_infos[] = {
-	MLXSW_AFK_ELEMENT_INFO_U32(SRC_SYS_PORT, 0x00, 16, 8),
+	MLXSW_AFK_ELEMENT_INFO_U32(SRC_SYS_PORT, 0x00, 16, 16),
 	MLXSW_AFK_ELEMENT_INFO_BUF(DMAC_32_47, 0x04, 2),
 	MLXSW_AFK_ELEMENT_INFO_BUF(DMAC_0_31, 0x06, 4),
 	MLXSW_AFK_ELEMENT_INFO_BUF(SMAC_32_47, 0x0A, 2),
@@ -107,9 +107,14 @@ struct mlxsw_afk_element_inst { /* element instance in actual block */
 	const struct mlxsw_afk_element_info *info;
 	enum mlxsw_afk_element_type type;
 	struct mlxsw_item item; /* element geometry in block */
+	int u32_key_diff; /* in case value needs to be adjusted before write
+			   * this diff is here to handle that
+			   */
+	bool avoid_size_check;
 };
 
-#define MLXSW_AFK_ELEMENT_INST(_type, _element, _offset, _shift, _size)		\
+#define MLXSW_AFK_ELEMENT_INST(_type, _element, _offset,			\
+			       _shift, _size, _u32_key_diff, _avoid_size_check)	\
 	{									\
 		.info = &mlxsw_afk_element_infos[MLXSW_AFK_ELEMENT_##_element],	\
 		.type = _type,							\
@@ -119,15 +124,24 @@ struct mlxsw_afk_element_inst { /* element instance in actual block */
 			.size = {.bits = _size},				\
 			.name = #_element,					\
 		},								\
+		.u32_key_diff = _u32_key_diff,					\
+		.avoid_size_check = _avoid_size_check,				\
 	}
 
 #define MLXSW_AFK_ELEMENT_INST_U32(_element, _offset, _shift, _size)		\
 	MLXSW_AFK_ELEMENT_INST(MLXSW_AFK_ELEMENT_TYPE_U32,			\
-			       _element, _offset, _shift, _size)
+			       _element, _offset, _shift, _size, 0, false)
+
+#define MLXSW_AFK_ELEMENT_INST_EXT_U32(_element, _offset,			\
+				       _shift, _size, _key_diff,		\
+				       _avoid_size_check)			\
+	MLXSW_AFK_ELEMENT_INST(MLXSW_AFK_ELEMENT_TYPE_U32,			\
+			       _element, _offset, _shift, _size,		\
+			       _key_diff, _avoid_size_check)
 
 #define MLXSW_AFK_ELEMENT_INST_BUF(_element, _offset, _size)			\
 	MLXSW_AFK_ELEMENT_INST(MLXSW_AFK_ELEMENT_TYPE_BUF,			\
-			       _element, _offset, 0, _size)
+			       _element, _offset, 0, _size, 0, false)
 
 struct mlxsw_afk_block {
 	u16 encoding; /* block ID */

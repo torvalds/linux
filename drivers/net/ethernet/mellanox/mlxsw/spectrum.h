@@ -623,6 +623,15 @@ enum mlxsw_sp_acl_profile {
 	MLXSW_SP_ACL_PROFILE_MR,
 };
 
+struct mlxsw_sp_acl_block {
+	struct list_head binding_list;
+	struct mlxsw_sp_acl_ruleset *ruleset_zero;
+	struct mlxsw_sp *mlxsw_sp;
+	unsigned int rule_count;
+	unsigned int disable_count;
+	struct net *net;
+};
+
 struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl);
 struct mlxsw_sp *mlxsw_sp_acl_block_mlxsw_sp(struct mlxsw_sp_acl_block *block);
 unsigned int mlxsw_sp_acl_block_rule_count(struct mlxsw_sp_acl_block *block);
