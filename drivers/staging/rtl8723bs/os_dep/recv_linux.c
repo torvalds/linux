@@ -202,9 +202,9 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 
 	memset(&ev, 0x00, sizeof(ev));
 	if (bgroup) {
-	    ev.flags |= IW_MICFAILURE_GROUP;
+		ev.flags |= IW_MICFAILURE_GROUP;
 	} else {
-	    ev.flags |= IW_MICFAILURE_PAIRWISE;
+		ev.flags |= IW_MICFAILURE_PAIRWISE;
 	}
 
 	ev.src_addr.sa_family = ARPHRD_ETHER;
@@ -297,7 +297,7 @@ int rtw_recv_indicatepkt(struct adapter *padapter, union recv_frame *precv_frame
 
 	RT_TRACE(_module_recv_osdep_c_, _drv_info_, ("\n rtw_recv_indicatepkt :after rtw_os_recv_indicate_pkt!!!!\n"));
 
-        return _SUCCESS;
+	return _SUCCESS;
 
 _recv_indicatepkt_drop:
 
