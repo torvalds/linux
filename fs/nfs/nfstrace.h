@@ -1139,21 +1139,32 @@ TRACE_DEFINE_ENUM(NFSERR_JUKEBOX);
 
 TRACE_EVENT(nfs_xdr_status,
 		TP_PROTO(
+			const struct xdr_stream *xdr,
 			int error
 		),
 
-		TP_ARGS(error),
+		TP_ARGS(xdr, error),
 
 		TP_STRUCT__entry(
+			__field(unsigned int, task_id)
+			__field(unsigned int, client_id)
+			__field(u32, xid)
 			__field(unsigned long, error)
 		),
 
 		TP_fast_assign(
+			const struct rpc_rqst *rqstp = xdr->rqst;
+			const struct rpc_task *task = rqstp->rq_task;
+
+			__entry->task_id = task->tk_pid;
+			__entry->client_id = task->tk_client->cl_clid;
+			__entry->xid = be32_to_cpu(rqstp->rq_xid);
 			__entry->error = error;
 		),
 
 		TP_printk(
-			"error=%ld (%s)",
+			"task:%u@%d xid=0x%08x error=%ld (%s)",
+			__entry->task_id, __entry->client_id, __entry->xid,
 			-__entry->error, nfs_show_status(__entry->error)
 		)
 );
