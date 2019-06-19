@@ -767,6 +767,181 @@ static int psp_ras_initialize(struct psp_context *psp)
 }
 // ras end
 
+// HDCP start
+static void psp_prep_hdcp_ta_load_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+					  uint64_t hdcp_ta_mc,
+					  uint64_t hdcp_mc_shared,
+					  uint32_t hdcp_ta_size,
+					  uint32_t shared_size)
+{
+	cmd->cmd_id = GFX_CMD_ID_LOAD_TA;
+	cmd->cmd.cmd_load_ta.app_phy_addr_lo = lower_32_bits(hdcp_ta_mc);
+	cmd->cmd.cmd_load_ta.app_phy_addr_hi = upper_32_bits(hdcp_ta_mc);
+	cmd->cmd.cmd_load_ta.app_len = hdcp_ta_size;
+
+	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_lo =
+		lower_32_bits(hdcp_mc_shared);
+	cmd->cmd.cmd_load_ta.cmd_buf_phy_addr_hi =
+		upper_32_bits(hdcp_mc_shared);
+	cmd->cmd.cmd_load_ta.cmd_buf_len = shared_size;
+}
+
+static int psp_hdcp_init_shared_buf(struct psp_context *psp)
+{
+	int ret;
+
+	/*
+	 * Allocate 16k memory aligned to 4k from Frame Buffer (local
+	 * physical) for hdcp ta <-> Driver
+	 */
+	ret = amdgpu_bo_create_kernel(psp->adev, PSP_HDCP_SHARED_MEM_SIZE,
+				      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+				      &psp->hdcp_context.hdcp_shared_bo,
+				      &psp->hdcp_context.hdcp_shared_mc_addr,
+				      &psp->hdcp_context.hdcp_shared_buf);
+
+	return ret;
+}
+
+static int psp_hdcp_load(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	/*
+	 * TODO: bypass the loading in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+	memcpy(psp->fw_pri_buf, psp->ta_hdcp_start_addr,
+	       psp->ta_hdcp_ucode_size);
+
+	psp_prep_hdcp_ta_load_cmd_buf(cmd, psp->fw_pri_mc_addr,
+				      psp->hdcp_context.hdcp_shared_mc_addr,
+				      psp->ta_hdcp_ucode_size,
+				      PSP_HDCP_SHARED_MEM_SIZE);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	if (!ret) {
+		psp->hdcp_context.hdcp_initialized = 1;
+		psp->hdcp_context.session_id = cmd->resp.session_id;
+	}
+
+	kfree(cmd);
+
+	return ret;
+}
+static int psp_hdcp_initialize(struct psp_context *psp)
+{
+	int ret;
+
+	if (!psp->hdcp_context.hdcp_initialized) {
+		ret = psp_hdcp_init_shared_buf(psp);
+		if (ret)
+			return ret;
+	}
+
+	ret = psp_hdcp_load(psp);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+static void psp_prep_hdcp_ta_unload_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+					    uint32_t hdcp_session_id)
+{
+	cmd->cmd_id = GFX_CMD_ID_UNLOAD_TA;
+	cmd->cmd.cmd_unload_ta.session_id = hdcp_session_id;
+}
+
+static int psp_hdcp_unload(struct psp_context *psp)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	/*
+	 * TODO: bypass the unloading in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	psp_prep_hdcp_ta_unload_cmd_buf(cmd, psp->hdcp_context.session_id);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	kfree(cmd);
+
+	return ret;
+}
+
+static void psp_prep_hdcp_ta_invoke_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+					    uint32_t ta_cmd_id,
+					    uint32_t hdcp_session_id)
+{
+	cmd->cmd_id = GFX_CMD_ID_INVOKE_CMD;
+	cmd->cmd.cmd_invoke_cmd.session_id = hdcp_session_id;
+	cmd->cmd.cmd_invoke_cmd.ta_cmd_id = ta_cmd_id;
+	/* Note: cmd_invoke_cmd.buf is not used for now */
+}
+
+int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
+{
+	int ret;
+	struct psp_gfx_cmd_resp *cmd;
+
+	/*
+	 * TODO: bypass the loading in sriov for now
+	 */
+	if (amdgpu_sriov_vf(psp->adev))
+		return 0;
+
+	cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	psp_prep_hdcp_ta_invoke_cmd_buf(cmd, ta_cmd_id,
+					psp->hdcp_context.session_id);
+
+	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+
+	kfree(cmd);
+
+	return ret;
+}
+
+static int psp_hdcp_terminate(struct psp_context *psp)
+{
+	int ret;
+
+	if (!psp->hdcp_context.hdcp_initialized)
+		return 0;
+
+	ret = psp_hdcp_unload(psp);
+	if (ret)
+		return ret;
+
+	psp->hdcp_context.hdcp_initialized = 0;
+
+	/* free hdcp shared memory */
+	amdgpu_bo_free_kernel(&psp->hdcp_context.hdcp_shared_bo,
+			      &psp->hdcp_context.hdcp_shared_mc_addr,
+			      &psp->hdcp_context.hdcp_shared_buf);
+
+	return 0;
+}
+// HDCP end
+
 static int psp_hw_start(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
@@ -840,6 +1015,11 @@ static int psp_hw_start(struct psp_context *psp)
 		if (ret)
 			dev_err(psp->adev->dev,
 					"RAS: Failed to initialize RAS\n");
+
+		ret = psp_hdcp_initialize(psp);
+		if (ret)
+			dev_err(psp->adev->dev,
+				"HDCP: Failed to initialize HDCP\n");
 	}
 
 	return 0;
@@ -1205,8 +1385,10 @@ static int psp_hw_fini(void *handle)
 	    psp->xgmi_context.initialized == 1)
                 psp_xgmi_terminate(psp);
 
-	if (psp->adev->psp.ta_fw)
+	if (psp->adev->psp.ta_fw) {
 		psp_ras_terminate(psp);
+		psp_hdcp_terminate(psp);
+	}
 
 	psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 
@@ -1246,6 +1428,11 @@ static int psp_suspend(void *handle)
 		ret = psp_ras_terminate(psp);
 		if (ret) {
 			DRM_ERROR("Failed to terminate ras ta\n");
+			return ret;
+		}
+		ret = psp_hdcp_terminate(psp);
+		if (ret) {
+			DRM_ERROR("Failed to terminate hdcp ta\n");
 			return ret;
 		}
 	}

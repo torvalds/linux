@@ -37,6 +37,8 @@
 #define PSP_RAS_SHARED_MEM_SIZE 0x4000
 #define PSP_1_MEG		0x100000
 #define PSP_TMR_SIZE	0x400000
+#define PSP_HDCP_SHARED_MEM_SIZE	0x4000
+#define PSP_SHARED_MEM_SIZE		0x4000
 
 struct psp_context;
 struct psp_xgmi_node_info;
@@ -142,6 +144,14 @@ struct psp_ras_context {
 	struct amdgpu_ras	*ras;
 };
 
+struct psp_hdcp_context {
+	bool			hdcp_initialized;
+	uint32_t		session_id;
+	struct amdgpu_bo	*hdcp_shared_bo;
+	uint64_t		hdcp_shared_mc_addr;
+	void			*hdcp_shared_buf;
+};
+
 struct psp_context
 {
 	struct amdgpu_device            *adev;
@@ -206,8 +216,14 @@ struct psp_context
 	uint32_t			ta_ras_ucode_version;
 	uint32_t			ta_ras_ucode_size;
 	uint8_t				*ta_ras_start_addr;
+
+	uint32_t			ta_hdcp_ucode_version;
+	uint32_t			ta_hdcp_ucode_size;
+	uint8_t				*ta_hdcp_start_addr;
+
 	struct psp_xgmi_context		xgmi_context;
 	struct psp_ras_context		ras;
+	struct psp_hdcp_context 	hdcp_context;
 	struct mutex			mutex;
 };
 
@@ -279,6 +295,7 @@ int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_ras_enable_features(struct psp_context *psp,
 		union ta_ras_cmd_input *info, bool enable);
+int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 
 int psp_rlc_autoload_start(struct psp_context *psp);
 
