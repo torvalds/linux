@@ -50,6 +50,57 @@ static void lower_barrier(struct r1conf *conf, sector_t sector_nr);
 
 #include "raid1-10.c"
 
+static int check_and_add_wb(struct md_rdev *rdev, sector_t lo, sector_t hi)
+{
+	struct wb_info *wi, *temp_wi;
+	unsigned long flags;
+	int ret = 0;
+	struct mddev *mddev = rdev->mddev;
+
+	wi = mempool_alloc(mddev->wb_info_pool, GFP_NOIO);
+
+	spin_lock_irqsave(&rdev->wb_list_lock, flags);
+	list_for_each_entry(temp_wi, &rdev->wb_list, list) {
+		/* collision happened */
+		if (hi > temp_wi->lo && lo < temp_wi->hi) {
+			ret = -EBUSY;
+			break;
+		}
+	}
+
+	if (!ret) {
+		wi->lo = lo;
+		wi->hi = hi;
+		list_add(&wi->list, &rdev->wb_list);
+	} else
+		mempool_free(wi, mddev->wb_info_pool);
+	spin_unlock_irqrestore(&rdev->wb_list_lock, flags);
+
+	return ret;
+}
+
+static void remove_wb(struct md_rdev *rdev, sector_t lo, sector_t hi)
+{
+	struct wb_info *wi;
+	unsigned long flags;
+	int found = 0;
+	struct mddev *mddev = rdev->mddev;
+
+	spin_lock_irqsave(&rdev->wb_list_lock, flags);
+	list_for_each_entry(wi, &rdev->wb_list, list)
+		if (hi == wi->hi && lo == wi->lo) {
+			list_del(&wi->list);
+			mempool_free(wi, mddev->wb_info_pool);
+			found = 1;
+			break;
+		}
+
+	if (!found)
+		WARN_ON("The write behind IO is not recorded\n");
+	spin_unlock_irqrestore(&rdev->wb_list_lock, flags);
+	wake_up(&rdev->wb_io_wait);
+}
+
 /*
  * for resync bio, r1bio pointer can be retrieved from the per-bio
  * 'struct resync_pages'.
@@ -446,6 +497,12 @@ static void raid1_end_write_request(struct bio *bio)
 	}
 
 	if (behind) {
+		if (test_bit(WBCollisionCheck, &rdev->flags)) {
+			sector_t lo = r1_bio->sector;
+			sector_t hi = r1_bio->sector + r1_bio->sectors;
+
+			remove_wb(rdev, lo, hi);
+		}
 		if (test_bit(WriteMostly, &rdev->flags))
 			atomic_dec(&r1_bio->behind_remaining);
 
@@ -1443,7 +1500,16 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			mbio = bio_clone_fast(bio, GFP_NOIO, &mddev->bio_set);
 
 		if (r1_bio->behind_master_bio) {
-			if (test_bit(WriteMostly, &conf->mirrors[i].rdev->flags))
+			struct md_rdev *rdev = conf->mirrors[i].rdev;
+
+			if (test_bit(WBCollisionCheck, &rdev->flags)) {
+				sector_t lo = r1_bio->sector;
+				sector_t hi = r1_bio->sector + r1_bio->sectors;
+
+				wait_event(rdev->wb_io_wait,
+					   check_and_add_wb(rdev, lo, hi) == 0);
+			}
+			if (test_bit(WriteMostly, &rdev->flags))
 				atomic_inc(&r1_bio->behind_remaining);
 		}
 

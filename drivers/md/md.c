@@ -124,6 +124,19 @@ static inline int speed_max(struct mddev *mddev)
 		mddev->sync_speed_max : sysctl_speed_limit_max;
 }
 
+static int rdev_init_wb(struct md_rdev *rdev)
+{
+	if (rdev->bdev->bd_queue->nr_hw_queues == 1)
+		return 0;
+
+	spin_lock_init(&rdev->wb_list_lock);
+	INIT_LIST_HEAD(&rdev->wb_list);
+	init_waitqueue_head(&rdev->wb_io_wait);
+	set_bit(WBCollisionCheck, &rdev->flags);
+
+	return 1;
+}
+
 static struct ctl_table_header *raid_table_header;
 
 static struct ctl_table raid_table[] = {
@@ -5597,6 +5610,32 @@ int md_run(struct mddev *mddev)
 		md_bitmap_destroy(mddev);
 		goto abort;
 	}
+
+	if (mddev->bitmap_info.max_write_behind > 0) {
+		bool creat_pool = false;
+
+		rdev_for_each(rdev, mddev) {
+			if (test_bit(WriteMostly, &rdev->flags) &&
+			    rdev_init_wb(rdev))
+				creat_pool = true;
+		}
+		if (creat_pool && mddev->wb_info_pool == NULL) {
+			mddev->wb_info_pool =
+				mempool_create_kmalloc_pool(NR_WB_INFOS,
+						    sizeof(struct wb_info));
+			if (!mddev->wb_info_pool) {
+				err = -ENOMEM;
+				mddev_detach(mddev);
+				if (mddev->private)
+					pers->free(mddev, mddev->private);
+				mddev->private = NULL;
+				module_put(pers->owner);
+				md_bitmap_destroy(mddev);
+				goto abort;
+			}
+		}
+	}
+
 	if (mddev->queue) {
 		bool nonrot = true;
 
@@ -5825,6 +5864,8 @@ static void __md_stop_writes(struct mddev *mddev)
 			mddev->in_sync = 1;
 		md_update_sb(mddev, 1);
 	}
+	mempool_destroy(mddev->wb_info_pool);
+	mddev->wb_info_pool = NULL;
 }
 
 void md_stop_writes(struct mddev *mddev)
