@@ -23,11 +23,11 @@
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
-	gpio_keys: gpio-keys {
+	power_button: power-button {
 		compatible = "gpio-keys";
-
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwr_key_l>;
+
 		power {
 			label = "Power";
 			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
@@ -123,6 +123,10 @@
 	cpu0-supply = <&vdd_cpu>;
 };
 
+&cpu_crit {
+	temperature = <100000>;
+};
+
 /* rk3288-c used in Veyron Chrome-devices has slightly changed OPPs */
 &cpu_opp_table {
 	/delete-node/ opp-312000000;
@@ -162,8 +166,18 @@
 	status = "okay";
 };
 
+&gpu_alert0 {
+	temperature = <72500>;
+};
+
+&gpu_crit {
+	temperature = <100000>;
+};
+
 &hdmi {
-	ddc-i2c-bus = <&i2c5>;
+	pinctrl-names = "default", "unwedge";
+	pinctrl-0 = <&hdmi_ddc>;
+	pinctrl-1 = <&hdmi_ddc_unwedge>;
 	status = "okay";
 };
 
@@ -334,14 +348,6 @@
 	i2c-scl-rising-time-ns = <300>;		/* 225ns measured */
 };
 
-&i2c5 {
-	status = "okay";
-
-	clock-frequency = <100000>;
-	i2c-scl-falling-time-ns = <300>;
-	i2c-scl-rising-time-ns = <1000>;
-};
-
 &io_domains {
 	status = "okay";
 
@@ -394,6 +400,7 @@
 
 	rockchip,hw-tshut-mode = <1>; /* tshut mode 0:CRU 1:GPIO */
 	rockchip,hw-tshut-polarity = <1>; /* tshut polarity 0:LOW 1:HIGH */
+	rockchip,hw-tshut-temp = <125000>;
 };
 
 &uart0 {
