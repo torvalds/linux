@@ -8,6 +8,8 @@ Required parameters:
 - pinctrl-names: 	Set to "default".
 - pinctrl-0: 		List of phandles pointing to pin configuration nodes for PWM module.
 			For Pinctrl properties see ../pinctrl/pinctrl-bindings.txt
+- #pwm-cells:		Should be set to 3. This PWM chip uses the default 3 cells
+			bindings defined in pwm.txt.
 
 Optional parameters:
 - st,breakinput:	One or two <index level filter> to describe break input configurations.
@@ -28,6 +30,7 @@ Example:
 
 		pwm {
 			compatible = "st,stm32-pwm";
+			#pwm-cells = <3>;
 			pinctrl-0	= <&pwm1_pins>;
 			pinctrl-names	= "default";
 			st,breakinput = <0 1 5>;
