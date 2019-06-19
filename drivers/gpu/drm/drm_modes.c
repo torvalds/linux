@@ -1554,6 +1554,71 @@ static int drm_mode_parse_cmdline_res_mode(const char *str, unsigned int length,
 	return 0;
 }
 
+static int drm_mode_parse_cmdline_options(char *str, size_t len,
+					  struct drm_connector *connector,
+					  struct drm_cmdline_mode *mode)
+{
+	unsigned int rotation = 0;
+	char *sep = str;
+
+	while ((sep = strchr(sep, ','))) {
+		char *delim, *option;
+
+		option = sep + 1;
+		delim = strchr(option, '=');
+		if (!delim) {
+			delim = strchr(option, ',');
+
+			if (!delim)
+				delim = str + len;
+		}
+
+		if (!strncmp(option, "rotate", delim - option)) {
+			const char *value = delim + 1;
+			unsigned int deg;
+
+			deg = simple_strtol(value, &sep, 10);
+
+			/* Make sure we have parsed something */
+			if (sep == value)
+				return -EINVAL;
+
+			switch (deg) {
+			case 0:
+				rotation |= DRM_MODE_ROTATE_0;
+				break;
+
+			case 90:
+				rotation |= DRM_MODE_ROTATE_90;
+				break;
+
+			case 180:
+				rotation |= DRM_MODE_ROTATE_180;
+				break;
+
+			case 270:
+				rotation |= DRM_MODE_ROTATE_270;
+				break;
+
+			default:
+				return -EINVAL;
+			}
+		} else if (!strncmp(option, "reflect_x", delim - option)) {
+			rotation |= DRM_MODE_REFLECT_X;
+			sep = delim;
+		} else if (!strncmp(option, "reflect_y", delim - option)) {
+			rotation |= DRM_MODE_REFLECT_Y;
+			sep = delim;
+		} else {
+			return -EINVAL;
+		}
+	}
+
+	mode->rotation_reflection = rotation;
+
+	return 0;
+}
+
 /**
  * drm_mode_parse_command_line_for_connector - parse command line modeline for connector
  * @mode_option: optional per connector mode option
@@ -1569,6 +1634,10 @@ static int drm_mode_parse_cmdline_res_mode(const char *str, unsigned int length,
  *
  *	<xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
  *
+ * Additionals options can be provided following the mode, using a comma to
+ * separate each option. Valid options can be found in
+ * Documentation/fb/modedb.txt.
+ *
  * The intermediate drm_cmdline_mode structure is required to store additional
  * options from the command line modline like the force-enable/disable flag.
  *
@@ -1581,9 +1650,10 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 {
 	const char *name;
 	bool named_mode = false, parse_extras = false;
-	unsigned int bpp_off = 0, refresh_off = 0;
+	unsigned int bpp_off = 0, refresh_off = 0, options_off = 0;
 	unsigned int mode_end = 0;
 	char *bpp_ptr = NULL, *refresh_ptr = NULL, *extra_ptr = NULL;
+	char *options_ptr = NULL;
 	char *bpp_end_ptr = NULL, *refresh_end_ptr = NULL;
 	int ret;
 
@@ -1632,13 +1702,18 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 		mode->refresh_specified = true;
 	}
 
+	/* Locate the start of named options */
+	options_ptr = strchr(name, ',');
+	if (options_ptr)
+		options_off = options_ptr - name;
+
 	/* Locate the end of the name / resolution, and parse it */
-	if (bpp_ptr && refresh_ptr) {
-		mode_end = min(bpp_off, refresh_off);
-	} else if (bpp_ptr) {
+	if (bpp_ptr) {
 		mode_end = bpp_off;
 	} else if (refresh_ptr) {
 		mode_end = refresh_off;
+	} else if (options_ptr) {
+		mode_end = options_off;
 	} else {
 		mode_end = strlen(name);
 		parse_extras = true;
@@ -1680,24 +1755,23 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	else if (refresh_ptr)
 		extra_ptr = refresh_end_ptr;
 
-	if (extra_ptr) {
-		if (!named_mode) {
-			int len = strlen(name) - (extra_ptr - name);
+	if (extra_ptr &&
+	    extra_ptr != options_ptr) {
+		int len = strlen(name) - (extra_ptr - name);
 
-			ret = drm_mode_parse_cmdline_extra(extra_ptr, len,
-							   connector, mode);
-			if (ret)
-				return false;
-		} else {
-			int remaining = strlen(name) - (extra_ptr - name);
+		ret = drm_mode_parse_cmdline_extra(extra_ptr, len,
+						   connector, mode);
+		if (ret)
+			return false;
+	}
 
-			/*
-			 * We still have characters to process, while
-			 * we shouldn't have any
-			 */
-			if (remaining > 0)
-				return false;
-		}
+	if (options_ptr) {
+		int len = strlen(name) - (options_ptr - name);
+
+		ret = drm_mode_parse_cmdline_options(options_ptr, len,
+						     connector, mode);
+		if (ret)
+			return false;
 	}
 
 	return true;

@@ -1025,6 +1025,16 @@ struct drm_cmdline_mode {
 	 * state to one of the DRM_FORCE_* values.
 	 */
 	enum drm_connector_force force;
+
+	/**
+	 * @rotation_reflection:
+	 *
+	 * Initial rotation and reflection of the mode setup from the
+	 * command line. See DRM_MODE_ROTATE_* and
+	 * DRM_MODE_REFLECT_*. The only rotations supported are
+	 * DRM_MODE_ROTATE_0 and DRM_MODE_ROTATE_180.
+	 */
+	unsigned int rotation_reflection;
 };
 
 /**

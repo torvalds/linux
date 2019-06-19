@@ -824,6 +824,7 @@ bool drm_client_rotation(struct drm_mode_set *modeset, unsigned int *rotation)
 {
 	struct drm_connector *connector = modeset->connectors[0];
 	struct drm_plane *plane = modeset->crtc->primary;
+	struct drm_cmdline_mode *cmdline;
 	u64 valid_mask = 0;
 	unsigned int i;
 
@@ -842,6 +843,35 @@ bool drm_client_rotation(struct drm_mode_set *modeset, unsigned int *rotation)
 		break;
 	default:
 		*rotation = DRM_MODE_ROTATE_0;
+	}
+
+	/**
+	 * The panel already defined the default rotation
+	 * through its orientation. Whatever has been provided
+	 * on the command line needs to be added to that.
+	 *
+	 * Unfortunately, the rotations are at different bit
+	 * indices, so the math to add them up are not as
+	 * trivial as they could.
+	 *
+	 * Reflections on the other hand are pretty trivial to deal with, a
+	 * simple XOR between the two handle the addition nicely.
+	 */
+	cmdline = &connector->cmdline_mode;
+	if (cmdline->specified) {
+		unsigned int cmdline_rest, panel_rest;
+		unsigned int cmdline_rot, panel_rot;
+		unsigned int sum_rot, sum_rest;
+
+		panel_rot = ilog2(*rotation & DRM_MODE_ROTATE_MASK);
+		cmdline_rot = ilog2(cmdline->rotation_reflection & DRM_MODE_ROTATE_MASK);
+		sum_rot = (panel_rot + cmdline_rot) % 4;
+
+		panel_rest = *rotation & ~DRM_MODE_ROTATE_MASK;
+		cmdline_rest = cmdline->rotation_reflection & ~DRM_MODE_ROTATE_MASK;
+		sum_rest = panel_rest ^ cmdline_rest;
+
+		*rotation = (1 << sum_rot) | sum_rest;
 	}
 
 	/*
