@@ -36,6 +36,11 @@ or::
 					     	   size_t callout_len,
 						   void *aux);
 
+or::
+
+	struct key *request_key_rcu(const struct key_type *type,
+				    const char *description);
+
 Or by userspace invoking the request_key system call::
 
 	key_serial_t request_key(const char *type,
@@ -56,6 +61,10 @@ own upcall mechanism rather than using /sbin/request-key.
 The two async in-kernel calls may return keys that are still in the process of
 being constructed.  The two non-async ones will wait for construction to
 complete first.
+
+The request_key_rcu() call is like the in-kernel request_key() call, except
+that it doesn't check for keys that are under construction and doesn't attempt
+to construct missing keys.
 
 The userspace interface links the key to a keyring associated with the process
 to prevent the key from going away, and returns the serial number of the key to

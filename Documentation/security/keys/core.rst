@@ -1147,6 +1147,16 @@ payload contents" for more information.
     case error ERESTARTSYS will be returned.
 
 
+ *  To search for a key under RCU conditions, call::
+
+	struct key *request_key_rcu(const struct key_type *type,
+				    const char *description);
+
+    which is similar to request_key() except that it does not check for keys
+    that are under construction and it will not call out to userspace to
+    construct a key if it can't find a match.
+
+
  *  When it is no longer required, the key should be released using::
 
 	void key_put(struct key *key);

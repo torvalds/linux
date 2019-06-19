@@ -274,6 +274,9 @@ extern struct key *request_key(struct key_type *type,
 			       const char *description,
 			       const char *callout_info);
 
+extern struct key *request_key_rcu(struct key_type *type,
+				   const char *description);
+
 extern struct key *request_key_with_auxdata(struct key_type *type,
 					    const char *description,
 					    const void *callout_info,
