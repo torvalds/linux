@@ -640,7 +640,9 @@
 
 	gpu: gpu@ff300000 {
 		compatible = "rockchip,rk3328-mali", "arm,mali-450";
-		reg = <0x0 0xff300000 0x0 0x40000>;
+		/* first item of 'reg' is dummy, to fit src code. */
+		reg = <0x0 0xff300000 0x0 0x40000>,
+		      <0x0 0xff300000 0x0 0x40000>;
 		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
@@ -648,18 +650,18 @@
 			     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "gp",
-				  "gpmmu",
-				  "pp",
-				  "pp0",
-				  "ppmmu0",
-				  "pp1",
-				  "ppmmu1";
-		clocks = <&cru ACLK_GPU>, <&cru ACLK_GPU>;
-		clock-names = "bus", "core";
+		interrupt-names = "Mali_GP_IRQ",
+				  "Mali_GP_MMU_IRQ",
+				  "IRQPP",
+				  "Mali_PP0_IRQ",
+				  "Mali_PP0_MMU_IRQ",
+				  "Mali_PP1_IRQ",
+				  "Mali_PP1_MMU_IRQ";
+		clocks = <&cru ACLK_GPU>;
+		clock-names = "clk_mali";
 		#cooling-cells = <2>; /* min followed by max */
 		operating-points-v2 = <&gpu_opp_table>;
-		resets = <&cru SRST_GPU_A>;
+		status = "disabled";
 
 		gpu_power_model: power_model {
 			compatible = "arm,mali-simple-power-model";
