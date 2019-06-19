@@ -364,13 +364,30 @@ static int unregister_trace_uprobe(struct trace_uprobe *tu)
 {
 	int ret;
 
+	if (trace_probe_has_sibling(&tu->tp))
+		goto unreg;
+
 	ret = unregister_uprobe_event(tu);
 	if (ret)
 		return ret;
 
+unreg:
 	dyn_event_remove(&tu->devent);
+	trace_probe_unlink(&tu->tp);
 	free_trace_uprobe(tu);
 	return 0;
+}
+
+static int append_trace_uprobe(struct trace_uprobe *tu, struct trace_uprobe *to)
+{
+	int ret;
+
+	/* Append to existing event */
+	ret = trace_probe_append(&tu->tp, &to->tp);
+	if (!ret)
+		dyn_event_add(&tu->devent);
+
+	return ret;
 }
 
 /*
@@ -382,25 +399,21 @@ static int unregister_trace_uprobe(struct trace_uprobe *tu)
  * as the new one does not conflict with any other existing
  * ones.
  */
-static struct trace_uprobe *find_old_trace_uprobe(struct trace_uprobe *new)
+static int validate_ref_ctr_offset(struct trace_uprobe *new)
 {
 	struct dyn_event *pos;
-	struct trace_uprobe *tmp, *old = NULL;
+	struct trace_uprobe *tmp;
 	struct inode *new_inode = d_real_inode(new->path.dentry);
 
-	old = find_probe_event(trace_probe_name(&new->tp),
-				trace_probe_group_name(&new->tp));
-
 	for_each_trace_uprobe(tmp, pos) {
-		if ((old ? old != tmp : true) &&
-		    new_inode == d_real_inode(tmp->path.dentry) &&
+		if (new_inode == d_real_inode(tmp->path.dentry) &&
 		    new->offset == tmp->offset &&
 		    new->ref_ctr_offset != tmp->ref_ctr_offset) {
 			pr_warn("Reference counter offset mismatch.");
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 		}
 	}
-	return old;
+	return 0;
 }
 
 /* Register a trace_uprobe and probe_event */
@@ -411,18 +424,29 @@ static int register_trace_uprobe(struct trace_uprobe *tu)
 
 	mutex_lock(&event_mutex);
 
-	/* register as an event */
-	old_tu = find_old_trace_uprobe(tu);
-	if (IS_ERR(old_tu)) {
-		ret = PTR_ERR(old_tu);
+	ret = validate_ref_ctr_offset(tu);
+	if (ret)
 		goto end;
-	}
 
+	/* register as an event */
+	old_tu = find_probe_event(trace_probe_name(&tu->tp),
+				  trace_probe_group_name(&tu->tp));
 	if (old_tu) {
-		/* delete old event */
-		ret = unregister_trace_uprobe(old_tu);
-		if (ret)
-			goto end;
+		if (is_ret_probe(tu) != is_ret_probe(old_tu)) {
+			trace_probe_log_set_index(0);
+			trace_probe_log_err(0, DIFF_PROBE_TYPE);
+			ret = -EEXIST;
+		} else {
+			ret = trace_probe_compare_arg_type(&tu->tp, &old_tu->tp);
+			if (ret) {
+				/* Note that argument starts index = 2 */
+				trace_probe_log_set_index(ret + 1);
+				trace_probe_log_err(0, DIFF_ARG_TYPE);
+				ret = -EEXIST;
+			} else
+				ret = append_trace_uprobe(tu, old_tu);
+		}
+		goto end;
 	}
 
 	ret = register_uprobe_event(tu);
