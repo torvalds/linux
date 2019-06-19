@@ -4744,12 +4744,11 @@ static void btrfs_inode_rsv_release(struct btrfs_inode *inode, bool qgroup_free)
 void btrfs_delayed_refs_rsv_release(struct btrfs_fs_info *fs_info, int nr)
 {
 	struct btrfs_block_rsv *block_rsv = &fs_info->delayed_refs_rsv;
-	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
 	u64 num_bytes = btrfs_calc_trans_metadata_size(fs_info, nr);
 	u64 released = 0;
 
-	released = block_rsv_release_bytes(fs_info, block_rsv, global_rsv,
-					   num_bytes, NULL);
+	released = __btrfs_block_rsv_release(fs_info, block_rsv, num_bytes,
+					     NULL);
 	if (released)
 		trace_btrfs_space_reservation(fs_info, "delayed_refs_rsv",
 					      0, released, 0);
@@ -4834,8 +4833,7 @@ static void init_global_block_rsv(struct btrfs_fs_info *fs_info)
 
 static void release_global_block_rsv(struct btrfs_fs_info *fs_info)
 {
-	block_rsv_release_bytes(fs_info, &fs_info->global_block_rsv, NULL,
-				(u64)-1, NULL);
+	btrfs_block_rsv_release(fs_info, &fs_info->global_block_rsv, (u64)-1);
 	WARN_ON(fs_info->trans_block_rsv.size > 0);
 	WARN_ON(fs_info->trans_block_rsv.reserved > 0);
 	WARN_ON(fs_info->chunk_block_rsv.size > 0);
@@ -4884,8 +4882,8 @@ void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans)
 
 	WARN_ON_ONCE(!list_empty(&trans->new_bgs));
 
-	block_rsv_release_bytes(fs_info, &fs_info->chunk_block_rsv, NULL,
-				trans->chunk_bytes_reserved, NULL);
+	btrfs_block_rsv_release(fs_info, &fs_info->chunk_block_rsv,
+				trans->chunk_bytes_reserved);
 	trans->chunk_bytes_reserved = 0;
 }
 
@@ -7429,7 +7427,7 @@ static void unuse_block_rsv(struct btrfs_fs_info *fs_info,
 			    struct btrfs_block_rsv *block_rsv, u32 blocksize)
 {
 	btrfs_block_rsv_add_bytes(block_rsv, blocksize, false);
-	block_rsv_release_bytes(fs_info, block_rsv, NULL, 0, NULL);
+	btrfs_block_rsv_release(fs_info, block_rsv, 0);
 }
 
 /*
