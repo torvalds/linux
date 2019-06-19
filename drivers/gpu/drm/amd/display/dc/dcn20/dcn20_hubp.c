@@ -402,11 +402,14 @@ void hubp2_program_size(
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 	uint32_t pitch, meta_pitch, pitch_c, meta_pitch_c;
+	bool use_pitch_c = false;
 
 	/* Program data and meta surface pitch (calculation from addrlib)
 	 * 444 or 420 luma
 	 */
-	if (format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN && format < SURFACE_PIXEL_FORMAT_SUBSAMPLE_END) {
+	use_pitch_c = format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN
+		&& format < SURFACE_PIXEL_FORMAT_SUBSAMPLE_END;
+	if (use_pitch_c) {
 		ASSERT(plane_size->video.chroma_pitch != 0);
 		/* Chroma pitch zero can cause system hang! */
 
@@ -429,7 +432,8 @@ void hubp2_program_size(
 	REG_UPDATE_2(DCSURF_SURFACE_PITCH,
 			PITCH, pitch, META_PITCH, meta_pitch);
 
-	if (format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
+	use_pitch_c = format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN;
+	if (use_pitch_c)
 		REG_UPDATE_2(DCSURF_SURFACE_PITCH_C,
 			PITCH_C, pitch_c, META_PITCH_C, meta_pitch_c);
 }
