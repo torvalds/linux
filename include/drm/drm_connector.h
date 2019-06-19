@@ -923,18 +923,100 @@ struct drm_connector_funcs {
 				   const struct drm_connector_state *state);
 };
 
-/* mode specified on the command line */
+/**
+ * struct drm_cmdline_mode - DRM Mode passed through the kernel command-line
+ *
+ * Each connector can have an initial mode with additional options
+ * passed through the kernel command line. This structure allows to
+ * express those parameters and will be filled by the command-line
+ * parser.
+ */
 struct drm_cmdline_mode {
+	/**
+	 * @specified:
+	 *
+	 * Has a mode been read from the command-line?
+	 */
 	bool specified;
+
+	/**
+	 * @refresh_specified:
+	 *
+	 * Did the mode have a preferred refresh rate?
+	 */
 	bool refresh_specified;
+
+	/**
+	 * @bpp_specified:
+	 *
+	 * Did the mode have a preferred BPP?
+	 */
 	bool bpp_specified;
-	int xres, yres;
+
+	/**
+	 * @xres:
+	 *
+	 * Active resolution on the X axis, in pixels.
+	 */
+	int xres;
+
+	/**
+	 * @yres:
+	 *
+	 * Active resolution on the Y axis, in pixels.
+	 */
+	int yres;
+
+	/**
+	 * @bpp:
+	 *
+	 * Bits per pixels for the mode.
+	 */
 	int bpp;
+
+	/**
+	 * @refresh:
+	 *
+	 * Refresh rate, in Hertz.
+	 */
 	int refresh;
+
+	/**
+	 * @rb:
+	 *
+	 * Do we need to use reduced blanking?
+	 */
 	bool rb;
+
+	/**
+	 * @interlace:
+	 *
+	 * The mode is interlaced.
+	 */
 	bool interlace;
+
+	/**
+	 * @cvt:
+	 *
+	 * The timings will be calculated using the VESA Coordinated
+	 * Video Timings instead of looking up the mode from a table.
+	 */
 	bool cvt;
+
+	/**
+	 * @margins:
+	 *
+	 * Add margins to the mode calculation (1.8% of xres rounded
+	 * down to 8 pixels and 1.8% of yres).
+	 */
 	bool margins;
+
+	/**
+	 * @force:
+	 *
+	 * Ignore the hotplug state of the connector, and force its
+	 * state to one of the DRM_FORCE_* values.
+	 */
 	enum drm_connector_force force;
 };
 
