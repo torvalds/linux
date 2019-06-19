@@ -230,6 +230,22 @@
 #define HINIC_GET_RX_PKT_TYPE(offload_type)	\
 			RQ_CQE_OFFOLAD_TYPE_GET(offload_type, PKT_TYPE)
 
+#define HINIC_RSS_TYPE_VALID_SHIFT			23
+#define HINIC_RSS_TYPE_TCP_IPV6_EXT_SHIFT		24
+#define HINIC_RSS_TYPE_IPV6_EXT_SHIFT			25
+#define HINIC_RSS_TYPE_TCP_IPV6_SHIFT			26
+#define HINIC_RSS_TYPE_IPV6_SHIFT			27
+#define HINIC_RSS_TYPE_TCP_IPV4_SHIFT			28
+#define HINIC_RSS_TYPE_IPV4_SHIFT			29
+#define HINIC_RSS_TYPE_UDP_IPV6_SHIFT			30
+#define HINIC_RSS_TYPE_UDP_IPV4_SHIFT			31
+
+#define HINIC_RSS_TYPE_SET(val, member)                        \
+		(((u32)(val) & 0x1) << HINIC_RSS_TYPE_##member##_SHIFT)
+
+#define HINIC_RSS_TYPE_GET(val, member)                        \
+		(((u32)(val) >> HINIC_RSS_TYPE_##member##_SHIFT) & 0x1)
+
 enum hinic_l4offload_type {
 	HINIC_L4_OFF_DISABLE            = 0,
 	HINIC_TCP_OFFLOAD_ENABLE        = 1,

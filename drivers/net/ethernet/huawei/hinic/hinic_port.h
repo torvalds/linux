@@ -13,6 +13,9 @@
 
 #include "hinic_dev.h"
 
+#define HINIC_RSS_KEY_SIZE	40
+#define HINIC_RSS_INDIR_SIZE	256
+
 enum hinic_rx_mode {
 	HINIC_RX_MODE_UC        = BIT(0),
 	HINIC_RX_MODE_MC        = BIT(1),
@@ -219,6 +222,100 @@ struct hinic_lro_timer {
 	u32	timer;
 };
 
+struct hinic_rss_template_mgmt {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u8	cmd;
+	u8	template_id;
+	u8	rsvd1[4];
+};
+
+struct hinic_rss_template_key {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u8	template_id;
+	u8	rsvd1;
+	u8	key[HINIC_RSS_KEY_SIZE];
+};
+
+struct hinic_rss_context_tbl {
+	u32 group_index;
+	u32 offset;
+	u32 size;
+	u32 rsvd;
+	u32 ctx;
+};
+
+struct hinic_rss_context_table {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_id;
+	u8      template_id;
+	u8      rsvd1;
+	u32     context;
+};
+
+struct hinic_rss_indirect_tbl {
+	u32 group_index;
+	u32 offset;
+	u32 size;
+	u32 rsvd;
+	u8 entry[HINIC_RSS_INDIR_SIZE];
+};
+
+struct hinic_rss_indir_table {
+	u8      status;
+	u8      version;
+	u8      rsvd0[6];
+
+	u16     func_id;
+	u8      template_id;
+	u8      rsvd1;
+	u8      indir[HINIC_RSS_INDIR_SIZE];
+};
+
+struct hinic_rss_key {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u8	template_id;
+	u8	rsvd1;
+	u8	key[HINIC_RSS_KEY_SIZE];
+};
+
+struct hinic_rss_engine_type {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u8	template_id;
+	u8	hash_engine;
+	u8	rsvd1[4];
+};
+
+struct hinic_rss_config {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u8	rss_en;
+	u8	template_id;
+	u8	rq_priority_number;
+	u8	rsvd1[11];
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 
@@ -255,4 +352,36 @@ int hinic_set_rx_csum_offload(struct hinic_dev *nic_dev, u32 en);
 
 int hinic_set_rx_lro_state(struct hinic_dev *nic_dev, u8 lro_en,
 			   u32 lro_timer, u32 wqe_num);
+
+int hinic_set_rss_type(struct hinic_dev *nic_dev, u32 tmpl_idx,
+		       struct hinic_rss_type rss_type);
+
+int hinic_rss_set_indir_tbl(struct hinic_dev *nic_dev, u32 tmpl_idx,
+			    const u32 *indir_table);
+
+int hinic_rss_set_template_tbl(struct hinic_dev *nic_dev, u32 template_id,
+			       const u8 *temp);
+
+int hinic_rss_set_hash_engine(struct hinic_dev *nic_dev, u8 template_id,
+			      u8 type);
+
+int hinic_rss_cfg(struct hinic_dev *nic_dev, u8 rss_en, u8 template_id);
+
+int hinic_rss_template_alloc(struct hinic_dev *nic_dev, u8 *tmpl_idx);
+
+int hinic_rss_template_free(struct hinic_dev *nic_dev, u8 tmpl_idx);
+
+void hinic_set_ethtool_ops(struct net_device *netdev);
+
+int hinic_get_rss_type(struct hinic_dev *nic_dev, u32 tmpl_idx,
+		       struct hinic_rss_type *rss_type);
+
+int hinic_rss_get_indir_tbl(struct hinic_dev *nic_dev, u32 tmpl_idx,
+			    u32 *indir_table);
+
+int hinic_rss_get_template_tbl(struct hinic_dev *nic_dev, u32 tmpl_idx,
+			       u8 *temp);
+
+int hinic_rss_get_hash_engine(struct hinic_dev *nic_dev, u8 tmpl_idx,
+			      u8 *type);
 #endif

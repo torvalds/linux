@@ -45,7 +45,25 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_SET_RX_CSUM	= 26,
 
+	HINIC_PORT_CMD_GET_RSS_TEMPLATE_INDIR_TBL = 37,
+
 	HINIC_PORT_CMD_SET_PORT_STATE   = 41,
+
+	HINIC_PORT_CMD_SET_RSS_TEMPLATE_TBL = 43,
+
+	HINIC_PORT_CMD_GET_RSS_TEMPLATE_TBL = 44,
+
+	HINIC_PORT_CMD_SET_RSS_HASH_ENGINE = 45,
+
+	HINIC_PORT_CMD_GET_RSS_HASH_ENGINE = 46,
+
+	HINIC_PORT_CMD_GET_RSS_CTX_TBL  = 47,
+
+	HINIC_PORT_CMD_SET_RSS_CTX_TBL  = 48,
+
+	HINIC_PORT_CMD_RSS_TEMP_MGR	= 49,
+
+	HINIC_PORT_CMD_RSS_CFG		= 66,
 
 	HINIC_PORT_CMD_FWCTXT_INIT      = 69,
 
@@ -61,6 +79,22 @@ enum hinic_port_cmd {
 
 	HINIC_PORT_CMD_SET_LRO_TIMER	= 244,
 };
+
+enum hinic_ucode_cmd {
+	HINIC_UCODE_CMD_MODIFY_QUEUE_CONTEXT    = 0,
+	HINIC_UCODE_CMD_CLEAN_QUEUE_CONTEXT,
+	HINIC_UCODE_CMD_ARM_SQ,
+	HINIC_UCODE_CMD_ARM_RQ,
+	HINIC_UCODE_CMD_SET_RSS_INDIR_TABLE,
+	HINIC_UCODE_CMD_SET_RSS_CONTEXT_TABLE,
+	HINIC_UCODE_CMD_GET_RSS_INDIR_TABLE,
+	HINIC_UCODE_CMD_GET_RSS_CONTEXT_TABLE,
+	HINIC_UCODE_CMD_SET_IQ_ENABLE,
+	HINIC_UCODE_CMD_SET_RQ_FLUSH            = 10
+};
+
+#define NIC_RSS_CMD_TEMP_ALLOC  0x01
+#define NIC_RSS_CMD_TEMP_FREE   0x02
 
 enum hinic_mgmt_msg_cmd {
 	HINIC_MGMT_MSG_CMD_BASE         = 160,
@@ -220,6 +254,8 @@ void hinic_hwdev_ifdown(struct hinic_hwdev *hwdev);
 struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev);
 
 void hinic_free_hwdev(struct hinic_hwdev *hwdev);
+
+int hinic_hwdev_max_num_qps(struct hinic_hwdev *hwdev);
 
 int hinic_hwdev_num_qps(struct hinic_hwdev *hwdev);
 
