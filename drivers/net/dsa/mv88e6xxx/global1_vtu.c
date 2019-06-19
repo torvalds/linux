@@ -444,7 +444,7 @@ int mv88e6250_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
 		 * VTU DBNum[5:4] are located in VTU Operation 9:8
 		 */
 		op |= entry->fid & 0x000f;
-		op |= (entry->fid & 0x0030) << 8;
+		op |= (entry->fid & 0x0030) << 4;
 	}
 
 	return mv88e6xxx_g1_vtu_op(chip, op);
