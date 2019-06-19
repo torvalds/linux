@@ -163,31 +163,33 @@ static inline u32 nf_ipv6_cookie_init_sequence(const struct ipv6hdr *iph,
 					       const struct tcphdr *th,
 					       u16 *mssp)
 {
+#if IS_ENABLED(CONFIG_SYN_COOKIES)
 #if IS_MODULE(CONFIG_IPV6)
 	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
 
 	if (v6_ops)
 		return v6_ops->cookie_init_sequence(iph, th, mssp);
-
-	return 0;
-#else
+#elif IS_BUILTIN(CONFIG_IPV6)
 	return __cookie_v6_init_sequence(iph, th, mssp);
 #endif
+#endif
+	return 0;
 }
 
 static inline int nf_cookie_v6_check(const struct ipv6hdr *iph,
 				     const struct tcphdr *th, __u32 cookie)
 {
+#if IS_ENABLED(CONFIG_SYN_COOKIES)
 #if IS_MODULE(CONFIG_IPV6)
 	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
 
 	if (v6_ops)
 		return v6_ops->cookie_v6_check(iph, th, cookie);
-
-	return 0;
-#else
+#elif IS_BUILTIN(CONFIG_IPV6)
 	return __cookie_v6_check(iph, th, cookie);
 #endif
+#endif
+	return 0;
 }
 
 __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
