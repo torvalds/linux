@@ -3037,6 +3037,7 @@ void fbcon_update_vcs(struct fb_info *info, bool all)
 	else
 		fbcon_modechanged(info);
 }
+EXPORT_SYMBOL(fbcon_update_vcs);
 
 int fbcon_mode_deleted(struct fb_info *info,
 		       struct fb_videomode *mode)
