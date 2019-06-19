@@ -29,6 +29,7 @@
 #include "qgroup.h"
 #include "ref-verify.h"
 #include "space-info.h"
+#include "block-rsv.h"
 
 #undef SCRAMBLE_DELAYED_REFS
 
