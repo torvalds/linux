@@ -143,10 +143,10 @@
 #define DP0_AUXWDATA(i)		(0x066c + (i) * 4)
 #define DP0_AUXRDATA(i)		(0x067c + (i) * 4)
 #define DP0_AUXSTATUS		0x068c
-#define AUX_STATUS_MASK			0xf0
-#define AUX_STATUS_SHIFT		4
-#define AUX_TIMEOUT			BIT(1)
-#define AUX_BUSY			BIT(0)
+#define AUX_BYTES		GENMASK(15, 8)
+#define AUX_STATUS		GENMASK(7, 4)
+#define AUX_TIMEOUT		BIT(1)
+#define AUX_BUSY		BIT(0)
 #define DP0_AUXI2CADR		0x0698
 
 /* Link Training */
@@ -289,29 +289,6 @@ static int tc_aux_wait_busy(struct tc_data *tc, unsigned int timeout_ms)
 			       1000, 1000 * timeout_ms);
 }
 
-static int tc_aux_get_status(struct tc_data *tc, u8 *reply)
-{
-	int ret;
-	u32 value;
-
-	ret = regmap_read(tc->regmap, DP0_AUXSTATUS, &value);
-	if (ret < 0)
-		return ret;
-
-	if (value & AUX_BUSY) {
-		dev_err(tc->dev, "aux busy!\n");
-		return -EBUSY;
-	}
-
-	if (value & AUX_TIMEOUT) {
-		dev_err(tc->dev, "aux access timeout!\n");
-		return -ETIMEDOUT;
-	}
-
-	*reply = (value & AUX_STATUS_MASK) >> AUX_STATUS_SHIFT;
-	return 0;
-}
-
 static int tc_aux_write_data(struct tc_data *tc, const void *data,
 			     size_t size)
 {
@@ -347,6 +324,7 @@ static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 	struct tc_data *tc = aux_to_tc(aux);
 	size_t size = min_t(size_t, DP_AUX_MAX_PAYLOAD_BYTES - 1, msg->size);
 	u8 request = msg->request & ~DP_AUX_I2C_MOT;
+	u32 auxstatus;
 	int ret;
 
 	if (size == 0)
@@ -384,9 +362,15 @@ static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 	if (ret)
 		return ret;
 
-	ret = tc_aux_get_status(tc, &msg->reply);
+	ret = regmap_read(tc->regmap, DP0_AUXSTATUS, &auxstatus);
 	if (ret)
 		return ret;
+
+	if (auxstatus & AUX_TIMEOUT)
+		return -ETIMEDOUT;
+
+	size = FIELD_GET(AUX_BYTES, auxstatus);
+	msg->reply = FIELD_GET(AUX_STATUS, auxstatus);
 
 	switch (request) {
 	case DP_AUX_NATIVE_READ:
