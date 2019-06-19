@@ -4105,60 +4105,6 @@ out:
 	return ret;
 }
 
-/*
- * btrfs_subvolume_reserve_metadata() - reserve space for subvolume operation
- * root: the root of the parent directory
- * rsv: block reservation
- * items: the number of items that we need do reservation
- * use_global_rsv: allow fallback to the global block reservation
- *
- * This function is used to reserve the space for snapshot/subvolume
- * creation and deletion. Those operations are different with the
- * common file/directory operations, they change two fs/file trees
- * and root tree, the number of items that the qgroup reserves is
- * different with the free space reservation. So we can not use
- * the space reservation mechanism in start_transaction().
- */
-int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
-				     struct btrfs_block_rsv *rsv, int items,
-				     bool use_global_rsv)
-{
-	u64 qgroup_num_bytes = 0;
-	u64 num_bytes;
-	int ret;
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
-
-	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)) {
-		/* One for parent inode, two for dir entries */
-		qgroup_num_bytes = 3 * fs_info->nodesize;
-		ret = btrfs_qgroup_reserve_meta_prealloc(root,
-				qgroup_num_bytes, true);
-		if (ret)
-			return ret;
-	}
-
-	num_bytes = btrfs_calc_trans_metadata_size(fs_info, items);
-	rsv->space_info = btrfs_find_space_info(fs_info,
-					    BTRFS_BLOCK_GROUP_METADATA);
-	ret = btrfs_block_rsv_add(root, rsv, num_bytes,
-				  BTRFS_RESERVE_FLUSH_ALL);
-
-	if (ret == -ENOSPC && use_global_rsv)
-		ret = btrfs_block_rsv_migrate(global_rsv, rsv, num_bytes, true);
-
-	if (ret && qgroup_num_bytes)
-		btrfs_qgroup_free_meta_prealloc(root, qgroup_num_bytes);
-
-	return ret;
-}
-
-void btrfs_subvolume_release_metadata(struct btrfs_fs_info *fs_info,
-				      struct btrfs_block_rsv *rsv)
-{
-	btrfs_block_rsv_release(fs_info, rsv, (u64)-1);
-}
-
 static int update_block_group(struct btrfs_trans_handle *trans,
 			      u64 bytenr, u64 num_bytes, int alloc)
 {
