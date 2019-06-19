@@ -1,10 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * lib_sw_fence.h - library routines for testing N:M synchronisation points
  *
  * Copyright (C) 2017 Intel Corporation
- *
- * This file is released under the GPLv2.
- *
  */
 
 #ifndef _LIB_SW_FENCE_H_

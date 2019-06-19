@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/gpu/drm/exynos5433_drm_decon.c
  *
  * Copyright (C) 2015 Samsung Electronics Co.Ltd
  * Authors:
  *	Joonyoung Shim <jy0922.shim@samsung.com>
  *	Hyungwon Hwang <human.hwang@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundationr
  */
 
 #include <linux/platform_device.h>

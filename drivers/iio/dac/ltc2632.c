@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LTC2632 Digital to analog convertors spi driver
  *
  * Copyright 2017 Maxime Roussin-Bélanger
  * expanded by Silvan Murer <silvan.murer@gmail.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/device.h>

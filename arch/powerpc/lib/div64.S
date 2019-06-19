@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Divide a 64-bit unsigned number by a 32-bit unsigned number.
  * This routine assumes that the top 32 bits of the dividend are
@@ -7,11 +8,6 @@
  * On exit, r3 contains the remainder.
  *
  * Copyright (C) 2002 Paul Mackerras, IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <asm/ppc_asm.h>
 #include <asm/processor.h>

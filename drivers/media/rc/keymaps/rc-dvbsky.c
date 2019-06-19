@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* rc-dvbsky.c - Keytable for DVBSky Remote Controllers
  *
  * keymap imported from ir-keymaps.c
  *
- *
  * Copyright (c) 2010-2012 by Nibble Max <nibble.max@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <media/rc-map.h>
