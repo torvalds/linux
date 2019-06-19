@@ -71,6 +71,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4349 if I2C
 	select SND_SOC_CS47L24 if MFD_CS47L24
 	select SND_SOC_CS47L35 if MFD_CS47L35
+	select SND_SOC_CS47L85 if MFD_CS47L85
 	select SND_SOC_CS53L30 if I2C
 	select SND_SOC_CX20442 if TTY
 	select SND_SOC_CX2072X if I2C
@@ -583,6 +584,9 @@ config SND_SOC_CS47L24
 config SND_SOC_CS47L35
 	tristate
 
+config SND_SOC_CS47L85
+	tristate
+
 # Cirrus Logic Quad-Channel ADC
 config SND_SOC_CS53L30
 	tristate "Cirrus Logic CS53L30 CODEC"
@@ -713,7 +717,9 @@ config SND_SOC_LOCHNAGAR_SC
 config SND_SOC_MADERA
 	tristate
 	default y if SND_SOC_CS47L35=y
+	default y if SND_SOC_CS47L85=y
 	default m if SND_SOC_CS47L35=m
+	default m if SND_SOC_CS47L85=m
 
 config SND_SOC_MAX98088
 	tristate "Maxim MAX98088/9 Low-Power, Stereo Audio Codec"
