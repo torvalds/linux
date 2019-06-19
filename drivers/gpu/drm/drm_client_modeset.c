@@ -804,19 +804,19 @@ free_connectors:
 EXPORT_SYMBOL(drm_client_modeset_probe);
 
 /**
- * drm_client_panel_rotation() - Check panel orientation
+ * drm_client_rotation() - Check the initial rotation value
  * @modeset: DRM modeset
  * @rotation: Returned rotation value
  *
- * This function checks if the primary plane in @modeset can hw rotate to match
- * the panel orientation on its connector.
+ * This function checks if the primary plane in @modeset can hw rotate
+ * to match the rotation needed on its connector.
  *
  * Note: Currently only 0 and 180 degrees are supported.
  *
  * Return:
  * True if the plane can do the rotation, false otherwise.
  */
-bool drm_client_panel_rotation(struct drm_mode_set *modeset, unsigned int *rotation)
+bool drm_client_rotation(struct drm_mode_set *modeset, unsigned int *rotation)
 {
 	struct drm_connector *connector = modeset->connectors[0];
 	struct drm_plane *plane = modeset->crtc->primary;
@@ -857,7 +857,7 @@ bool drm_client_panel_rotation(struct drm_mode_set *modeset, unsigned int *rotat
 
 	return true;
 }
-EXPORT_SYMBOL(drm_client_panel_rotation);
+EXPORT_SYMBOL(drm_client_rotation);
 
 static int drm_client_modeset_commit_atomic(struct drm_client_dev *client, bool active)
 {
@@ -902,7 +902,7 @@ retry:
 		struct drm_plane *primary = mode_set->crtc->primary;
 		unsigned int rotation;
 
-		if (drm_client_panel_rotation(mode_set, &rotation)) {
+		if (drm_client_rotation(mode_set, &rotation)) {
 			struct drm_plane_state *plane_state;
 
 			/* Cannot fail as we've already gotten the plane state above */
