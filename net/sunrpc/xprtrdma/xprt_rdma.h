@@ -391,7 +391,6 @@ struct rpcrdma_buffer {
 	struct list_head	rb_recv_bufs;
 	struct list_head	rb_allreqs;
 
-	unsigned long		rb_flags;
 	u32			rb_max_requests;
 	u32			rb_credits;	/* most recent credit grant */
 
@@ -400,11 +399,6 @@ struct rpcrdma_buffer {
 
 	struct workqueue_struct *rb_completion_wq;
 	struct delayed_work	rb_refresh_worker;
-};
-
-/* rb_flags */
-enum {
-	RPCRDMA_BUF_F_EMPTY_SCQ = 0,
 };
 
 /*
