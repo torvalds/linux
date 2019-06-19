@@ -1907,7 +1907,7 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 						 sb->resource_source.string_ptr,
 						 &parent_handle);
 
-			if (!status ||
+			if (ACPI_FAILURE(status) ||
 			    ACPI_HANDLE(ctlr->dev.parent) != parent_handle)
 				return -ENODEV;
 
