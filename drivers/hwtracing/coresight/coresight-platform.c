@@ -307,6 +307,11 @@ of_get_coresight_platform_data(struct device *dev,
 {
 	return -ENOENT;
 }
+
+static inline int of_coresight_get_cpu(struct device *dev)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_ACPI
