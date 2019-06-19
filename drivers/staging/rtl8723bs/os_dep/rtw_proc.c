@@ -63,8 +63,7 @@ static ssize_t proc_set_log_level(struct file *file, const char __user *buffer, 
 
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
 		sscanf(tmp, "%d ", &log_level);
-		if (log_level >= _drv_always_ && log_level <= _drv_debug_)
-		{
+		if (log_level >= _drv_always_ && log_level <= _drv_debug_) {
 			GlobalDebugLevel = log_level;
 			printk("%d\n", GlobalDebugLevel);
 		}
@@ -224,8 +223,7 @@ static ssize_t proc_set_linked_info_dump(struct file *file, const char __user *b
 		return -EFAULT;
 
 	if (buffer && !copy_from_user(tmp, buffer, sizeof(tmp))) {
-		if (padapter)
-		{
+		if (padapter) {
 			/* padapter->bLinkInfoDump = mode; */
 			/* DBG_871X("linked_info_dump =%s\n", (padapter->bLinkInfoDump)?"enable":"disable"); */
 			 linked_info_dump(padapter, mode);
