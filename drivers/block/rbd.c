@@ -2365,9 +2365,12 @@ static void __rbd_osd_setup_write_ops(struct ceph_osd_request *osd_req,
 	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	u16 opcode;
 
-	osd_req_op_alloc_hint_init(osd_req, which++,
-				   rbd_dev->layout.object_size,
-				   rbd_dev->layout.object_size);
+	if (!use_object_map(rbd_dev) ||
+	    !(obj_req->flags & RBD_OBJ_FLAG_MAY_EXIST)) {
+		osd_req_op_alloc_hint_init(osd_req, which++,
+					   rbd_dev->layout.object_size,
+					   rbd_dev->layout.object_size);
+	}
 
 	if (rbd_obj_is_entire(obj_req))
 		opcode = CEPH_OSD_OP_WRITEFULL;
@@ -2510,9 +2513,15 @@ static int rbd_obj_init_zeroout(struct rbd_obj_request *obj_req)
 
 static int count_write_ops(struct rbd_obj_request *obj_req)
 {
-	switch (obj_req->img_request->op_type) {
+	struct rbd_img_request *img_req = obj_req->img_request;
+
+	switch (img_req->op_type) {
 	case OBJ_OP_WRITE:
-		return 2; /* setallochint + write/writefull */
+		if (!use_object_map(img_req->rbd_dev) ||
+		    !(obj_req->flags & RBD_OBJ_FLAG_MAY_EXIST))
+			return 2; /* setallochint + write/writefull */
+
+		return 1; /* write/writefull */
 	case OBJ_OP_DISCARD:
 		return 1; /* delete/truncate/zero */
 	case OBJ_OP_ZEROOUT:
