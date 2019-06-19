@@ -926,7 +926,7 @@ struct snd_soc_dai_link {
 	/*
 	 * You MAY specify the link's platform/PCM/DMA driver, either by
 	 * device name, or by DT/OF node, but not both. Some forms of link
-	 * do not need a platform.
+	 * do not need a platform. In such case, platforms are not mandatory.
 	 */
 	struct snd_soc_dai_link_component *platforms;
 	unsigned int num_platforms;
