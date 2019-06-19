@@ -44,6 +44,7 @@
 #include "tree-log.h"
 #include "compression.h"
 #include "space-info.h"
+#include "delalloc-space.h"
 
 #ifdef CONFIG_64BIT
 /* If we have a 32-bit userspace and 64-bit kernel, then the UAPI

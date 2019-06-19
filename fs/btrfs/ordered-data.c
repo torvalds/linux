@@ -13,6 +13,7 @@
 #include "extent_io.h"
 #include "disk-io.h"
 #include "compression.h"
+#include "delalloc-space.h"
 
 static struct kmem_cache *btrfs_ordered_extent_cache;
 
