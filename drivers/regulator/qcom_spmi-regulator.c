@@ -813,14 +813,10 @@ static int spmi_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 		unsigned int old_selector, unsigned int new_selector)
 {
 	struct spmi_regulator *vreg = rdev_get_drvdata(rdev);
-	const struct spmi_voltage_range *range;
 	int diff_uV;
 
-	range = spmi_regulator_find_range(vreg);
-	if (!range)
-		return -EINVAL;
-
-	diff_uV = abs(new_selector - old_selector) * range->step_uV;
+	diff_uV = abs(spmi_regulator_common_list_voltage(rdev, new_selector) -
+		      spmi_regulator_common_list_voltage(rdev, old_selector));
 
 	return DIV_ROUND_UP(diff_uV, vreg->slew_rate);
 }
