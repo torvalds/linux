@@ -3517,6 +3517,10 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	bool scale = dm_state ? (dm_state->scaling != RMX_OFF) : false;
 	int mode_refresh;
 	int preferred_refresh = 0;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	struct dsc_dec_dpcd_caps dsc_caps;
+	uint32_t link_bandwidth_kbps;
+#endif
 
 	struct dc_sink *sink = NULL;
 	if (aconnector == NULL) {
@@ -3589,17 +3593,23 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			&mode, &aconnector->base, con_state, old_stream);
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
-	/* stream->timing.flags.DSC = 0; */
-        /*  */
-	/* if (aconnector->dc_link && */
-	/* 		aconnector->dc_link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT #<{(|&& */
-	/* 		aconnector->dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.is_dsc_supported|)}>#) */
-	/* 	if (dc_dsc_compute_config(aconnector->dc_link->ctx->dc, */
-	/* 			&aconnector->dc_link->dpcd_caps.dsc_caps, */
-	/* 			dc_link_bandwidth_kbps(aconnector->dc_link, dc_link_get_link_cap(aconnector->dc_link)), */
-	/* 			&stream->timing, */
-	/* 			&stream->timing.dsc_cfg)) */
-	/* 		stream->timing.flags.DSC = 1; */
+	stream->timing.flags.DSC = 0;
+
+	if (aconnector->dc_link && sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT) {
+		dc_dsc_parse_dsc_dpcd(aconnector->dc_link->dpcd_caps.dsc_caps.dsc_basic_caps.raw,
+				      aconnector->dc_link->dpcd_caps.dsc_caps.dsc_ext_caps.raw,
+				      &dsc_caps);
+		link_bandwidth_kbps = dc_link_bandwidth_kbps(aconnector->dc_link,
+							     dc_link_get_link_cap(aconnector->dc_link));
+
+		if (dsc_caps.is_dsc_supported)
+			if (dc_dsc_compute_config(aconnector->dc_link->ctx->dc,
+						  &dsc_caps,
+						  link_bandwidth_kbps,
+						  &stream->timing,
+						  &stream->timing.dsc_cfg))
+				stream->timing.flags.DSC = 1;
+	}
 #endif
 
 	update_stream_scaling_settings(&mode, dm_state, stream);
