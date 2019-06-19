@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat, Inc., Frederic Weisbecker <fweisbec@redhat.com>
- *
- * Licensed under the terms of the GNU GPL License version 2
  *
  * Selftests for a few posix timers interface.
  *

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PM_OPP
 	bool
 	select SRCU

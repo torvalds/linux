@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCMCIA socket code for the Alchemy Db1xxx/Pb1xxx boards.
  *

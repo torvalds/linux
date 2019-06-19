@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Access to user system call parameters and results
  *
  * Copyright (C) 2008-2009 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License v.2.
  *
  * This file is a stub providing documentation for what functions
  * asm-ARCH/syscall.h files need to define.  Most arch definitions

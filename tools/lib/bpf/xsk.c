@@ -29,7 +29,7 @@
 
 #include "bpf.h"
 #include "libbpf.h"
-#include "libbpf_util.h"
+#include "libbpf_internal.h"
 #include "xsk.h"
 
 #ifndef SOL_XDP

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig POWER_SUPPLY
 	bool "Power supply class support"
 	help

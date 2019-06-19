@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MISC_ALCOR_PCI
 	tristate "Alcor Micro/Alcor Link PCI-E card reader"
 	depends on PCI

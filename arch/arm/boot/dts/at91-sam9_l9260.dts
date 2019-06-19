@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91-sam9_l9260.dts - Device Tree file for Olimex SAM9-L9260 board
  *
  *  Copyright (C) 2016 Raashid Muhammed <raashidmuhammed@zilogic.com>
- *
- * Licensed under GPLv2 or later.
  */
 /dts-v1/;
 #include "at91sam9260.dtsi"

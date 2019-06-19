@@ -1,10 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
  * This header provides constants for the phy framework
  *
  * Copyright (C) 2014 STMicroelectronics
  * Author: Gabriel Fernandez <gabriel.fernandez@st.com>
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef _DT_BINDINGS_PHY

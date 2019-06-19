@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Common lookup tables for CAST-128 (cast5) and CAST-256 (cast6)
  *
  * Copyright © 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
  * Copyright © 2003 Kartikey Mahendra Bhatt <kartik_me@hotmail.com>
  * Copyright © 2012 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <linux/module.h>

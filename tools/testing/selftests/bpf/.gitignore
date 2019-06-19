@@ -31,6 +31,7 @@ test_section_names
 test_tcpnotify_user
 test_libbpf
 test_tcp_check_syncookie_user
+test_sysctl
 alu32
 libbpf.pc
 libbpf.so.*

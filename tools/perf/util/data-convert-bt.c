@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CTF writing support via babeltrace.
  *
  * Copyright (C) 2014, Jiri Olsa <jolsa@redhat.com>
  * Copyright (C) 2014, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 
 #include <errno.h>
@@ -271,7 +270,7 @@ static int string_set_value(struct bt_ctf_field *field, const char *string)
 				if (i > 0)
 					strncpy(buffer, string, i);
 			}
-			strncat(buffer + p, numstr, 4);
+			memcpy(buffer + p, numstr, 4);
 			p += 3;
 		}
 	}

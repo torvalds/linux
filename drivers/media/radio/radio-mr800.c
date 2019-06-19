@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * A driver for the AverMedia MR 800 USB FM radio. This device plugs
  * into both the USB and an analog audio input, so this thing
@@ -5,16 +6,6 @@
  * audio data has to be handled by a sound driver.
  *
  * Copyright (c) 2008 Alexey Klimov <klimov.linux@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*

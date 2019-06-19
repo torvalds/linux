@@ -25,14 +25,14 @@ only handle one NAND chip.
 
 Required properties:
 - compatible: Should be set to "fsl,vf610-nfc-cs".
-- nand-bus-width: see nand.txt
-- nand-ecc-mode: see nand.txt
+- nand-bus-width: see nand-controller.yaml
+- nand-ecc-mode: see nand-controller.yaml
 
 Required properties for hardware ECC:
-- nand-ecc-strength: supported strengths are 24 and 32 bit (see nand.txt)
+- nand-ecc-strength: supported strengths are 24 and 32 bit (see nand-controller.yaml)
 - nand-ecc-step-size: step size equals page size, currently only 2k pages are
     supported
-- nand-on-flash-bbt: see nand.txt
+- nand-on-flash-bbt: see nand-controller.yaml
 
 Example:
 

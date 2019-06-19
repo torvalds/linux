@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-y += entry/
 
 obj-$(CONFIG_PERF_EVENTS) += events/

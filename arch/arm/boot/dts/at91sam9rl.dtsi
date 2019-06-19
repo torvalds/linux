@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91sam9rl.dtsi - Device Tree Include file for AT91SAM9RL family SoC
  *
  *  Copyright (C) 2014 Microchip
  *  Alexandre Belloni <alexandre.belloni@free-electrons.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <dt-bindings/pinctrl/at91.h>

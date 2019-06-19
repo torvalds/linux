@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_STI
 	tristate "DRM Support for STMicroelectronics SoC stiH4xx Series"
 	depends on OF && DRM && (ARCH_STI || ARCH_MULTIPLATFORM)

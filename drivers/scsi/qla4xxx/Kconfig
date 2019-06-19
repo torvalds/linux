@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SCSI_QLA_ISCSI
 	tristate "QLogic ISP4XXX and ISP82XX host adapter family support"
 	depends on PCI && SCSI && NET

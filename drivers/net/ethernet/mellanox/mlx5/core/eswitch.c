@@ -1526,7 +1526,7 @@ static void node_guid_gen_from_mac(u64 *node_guid, u8 mac[ETH_ALEN])
 static void esw_apply_vport_conf(struct mlx5_eswitch *esw,
 				 struct mlx5_vport *vport)
 {
-	int vport_num = vport->vport;
+	u16 vport_num = vport->vport;
 
 	if (esw->manager_vport == vport_num)
 		return;
@@ -1915,7 +1915,7 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 
 /* Vport Administration */
 int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
-			       int vport, u8 mac[ETH_ALEN])
+			       u16 vport, u8 mac[ETH_ALEN])
 {
 	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
 	u64 node_guid;
@@ -1959,7 +1959,7 @@ unlock:
 }
 
 int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
-				 int vport, int link_state)
+				 u16 vport, int link_state)
 {
 	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
 	int err = 0;
@@ -1989,7 +1989,7 @@ unlock:
 }
 
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
-				  int vport, struct ifla_vf_info *ivi)
+				  u16 vport, struct ifla_vf_info *ivi)
 {
 	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
 
@@ -2014,7 +2014,7 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 }
 
 int __mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
-				  int vport, u16 vlan, u8 qos, u8 set_flags)
+				  u16 vport, u16 vlan, u8 qos, u8 set_flags)
 {
 	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
 	int err = 0;
@@ -2047,7 +2047,7 @@ unlock:
 }
 
 int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
-				int vport, u16 vlan, u8 qos)
+				u16 vport, u16 vlan, u8 qos)
 {
 	u8 set_flags = 0;
 
@@ -2058,7 +2058,7 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 }
 
 int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
-				    int vport, bool spoofchk)
+				    u16 vport, bool spoofchk)
 {
 	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
 	bool pschk;
@@ -2208,7 +2208,7 @@ out:
 }
 
 int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
-				 int vport, bool setting)
+				 u16 vport, bool setting)
 {
 	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
 
@@ -2278,7 +2278,7 @@ static int normalize_vports_min_rate(struct mlx5_eswitch *esw, u32 divider)
 	return 0;
 }
 
-int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, int vport,
+int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, u16 vport,
 				u32 max_rate, u32 min_rate)
 {
 	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
@@ -2368,7 +2368,7 @@ static int mlx5_eswitch_query_vport_drop_stats(struct mlx5_core_dev *dev,
 }
 
 int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,
-				 int vport_num,
+				 u16 vport_num,
 				 struct ifla_vf_stats *vf_stats)
 {
 	struct mlx5_vport *vport = mlx5_eswitch_get_vport(esw, vport_num);
