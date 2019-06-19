@@ -384,6 +384,8 @@ struct dma_buf {
  * @sgt: cached mapping.
  * @dir: direction of cached mapping.
  * @priv: exporter specific attachment data.
+ * @dma_map_attrs: DMA attributes to be used when the exporter maps the buffer
+ * through dma_buf_map_attachment.
  *
  * This structure holds the attachment information between the dma_buf buffer
  * and its user device(s). The list contains one attachment struct per device
@@ -401,6 +403,7 @@ struct dma_buf_attachment {
 	struct sg_table *sgt;
 	enum dma_data_direction dir;
 	void *priv;
+	unsigned long dma_map_attrs;
 };
 
 /**
