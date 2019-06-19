@@ -207,11 +207,13 @@ static void afs_apply_status(struct afs_fs_cursor *fc,
 
 	if (expected_version &&
 	    *expected_version != status->data_version) {
-		kdebug("vnode modified %llx on {%llx:%llu} [exp %llx] %s",
-		       (unsigned long long) status->data_version,
-		       vnode->fid.vid, vnode->fid.vnode,
-		       (unsigned long long) *expected_version,
-		       fc->type ? fc->type->name : "???");
+		if (test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags))
+			pr_warn("kAFS: vnode modified {%llx:%llu} %llx->%llx %s\n",
+				vnode->fid.vid, vnode->fid.vnode,
+				(unsigned long long)*expected_version,
+				(unsigned long long)status->data_version,
+				fc->type ? fc->type->name : "???");
+
 		vnode->invalid_before = status->data_version;
 		if (vnode->status.type == AFS_FTYPE_DIR) {
 			if (test_and_clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
