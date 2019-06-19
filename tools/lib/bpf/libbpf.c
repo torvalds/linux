@@ -1169,7 +1169,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			pr_debug("map '%s': found key_size = %u.\n",
 				 map_name, sz);
 			if (map->def.key_size && map->def.key_size != sz) {
-				pr_warning("map '%s': conflictling key size %u != %u.\n",
+				pr_warning("map '%s': conflicting key size %u != %u.\n",
 					   map_name, map->def.key_size, sz);
 				return -EINVAL;
 			}
@@ -1197,7 +1197,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			pr_debug("map '%s': found key [%u], sz = %lld.\n",
 				 map_name, t->type, sz);
 			if (map->def.key_size && map->def.key_size != sz) {
-				pr_warning("map '%s': conflictling key size %u != %lld.\n",
+				pr_warning("map '%s': conflicting key size %u != %lld.\n",
 					   map_name, map->def.key_size, sz);
 				return -EINVAL;
 			}
@@ -1212,7 +1212,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			pr_debug("map '%s': found value_size = %u.\n",
 				 map_name, sz);
 			if (map->def.value_size && map->def.value_size != sz) {
-				pr_warning("map '%s': conflictling value size %u != %u.\n",
+				pr_warning("map '%s': conflicting value size %u != %u.\n",
 					   map_name, map->def.value_size, sz);
 				return -EINVAL;
 			}
@@ -1240,7 +1240,7 @@ static int bpf_object__init_user_btf_map(struct bpf_object *obj,
 			pr_debug("map '%s': found value [%u], sz = %lld.\n",
 				 map_name, t->type, sz);
 			if (map->def.value_size && map->def.value_size != sz) {
-				pr_warning("map '%s': conflictling value size %u != %lld.\n",
+				pr_warning("map '%s': conflicting value size %u != %lld.\n",
 					   map_name, map->def.value_size, sz);
 				return -EINVAL;
 			}
