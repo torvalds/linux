@@ -951,6 +951,20 @@ static bool intel_sdvo_set_audio_state(struct intel_sdvo *intel_sdvo,
 				    &audio_state, 1);
 }
 
+static bool intel_sdvo_get_hbuf_size(struct intel_sdvo *intel_sdvo,
+				     u8 *hbuf_size)
+{
+	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HBUF_INFO,
+				  hbuf_size, 1))
+		return false;
+
+	/* Buffer size is 0 based, hooray! However zero means zero. */
+	if (*hbuf_size)
+		(*hbuf_size)++;
+
+	return true;
+}
+
 #if 0
 static void intel_sdvo_dump_hdmi_buf(struct intel_sdvo *intel_sdvo)
 {
@@ -994,14 +1008,10 @@ static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 				  set_buf_index, 2))
 		return false;
 
-	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HBUF_INFO,
-				  &hbuf_size, 1))
+	if (!intel_sdvo_get_hbuf_size(intel_sdvo, &hbuf_size))
 		return false;
 
-	/* Buffer size is 0 based, hooray! */
-	hbuf_size++;
-
-	DRM_DEBUG_KMS("writing sdvo hbuf: %i, hbuf_size %i, hbuf_size: %i\n",
+	DRM_DEBUG_KMS("writing sdvo hbuf: %i, length %u, hbuf_size: %i\n",
 		      if_index, length, hbuf_size);
 
 	if (hbuf_size < length)
@@ -1052,14 +1062,10 @@ static ssize_t intel_sdvo_read_infoframe(struct intel_sdvo *intel_sdvo,
 	if (tx_rate == SDVO_HBUF_TX_DISABLED)
 		return 0;
 
-	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HBUF_INFO,
-				  &hbuf_size, 1))
-		return -ENXIO;
+	if (!intel_sdvo_get_hbuf_size(intel_sdvo, &hbuf_size))
+		return false;
 
-	/* Buffer size is 0 based, hooray! */
-	hbuf_size++;
-
-	DRM_DEBUG_KMS("reading sdvo hbuf: %i, hbuf_size %i, hbuf_size: %i\n",
+	DRM_DEBUG_KMS("reading sdvo hbuf: %i, length %u, hbuf_size: %i\n",
 		      if_index, length, hbuf_size);
 
 	hbuf_size = min_t(unsigned int, length, hbuf_size);
