@@ -81,6 +81,12 @@
 		dma-ranges = <0xc0000000 0x0 0x10000000>;
 	};
 
+	vdda: regulator-vdda {
+		compatible = "regulator-fixed";
+		regulator-name = "vdda";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 
 	vref: regulator-vref {
 		compatible = "regulator-fixed";
@@ -151,6 +157,7 @@
 &adc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&adc3_in8_pin>;
+	vdda-supply = <&vdda>;
 	vref-supply = <&vref>;
 	status = "okay";
 	adc3: adc@200 {
