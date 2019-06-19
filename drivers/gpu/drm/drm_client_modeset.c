@@ -845,7 +845,8 @@ bool drm_client_panel_rotation(struct drm_mode_set *modeset, unsigned int *rotat
 	 * depending on the hardware this may require the framebuffer
 	 * to be in a specific tiling format.
 	 */
-	if (*rotation != DRM_MODE_ROTATE_180 || !plane->rotation_property)
+	if ((*rotation & DRM_MODE_ROTATE_MASK) != DRM_MODE_ROTATE_180 ||
+	    !plane->rotation_property)
 		return false;
 
 	for (i = 0; i < plane->rotation_property->num_values; i++)
