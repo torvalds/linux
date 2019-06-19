@@ -615,48 +615,48 @@
 			buck1_reg: BUCK1 {
 				regulator-name = "PVDD_MIF_1V1";
 				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1100000>;
+				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 			};
 
 			buck2_reg: BUCK2 {
 				regulator-name = "vdd_arm";
 				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1000000>;
+				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 			};
 
 			buck3_reg: BUCK3 {
 				regulator-name = "PVDD_INT_1V0";
 				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1000000>;
+				regulator-max-microvolt = <1400000>;
 				regulator-always-on;
 			};
 
 			buck4_reg: BUCK4 {
 				regulator-name = "PVDD_G3D_1V0";
 				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1000000>;
+				regulator-max-microvolt = <1400000>;
 			};
 
 			buck5_reg: BUCK5 {
 				regulator-name = "PVDD_LPDDR3_1V2";
 				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1200000>;
+				regulator-max-microvolt = <1400000>;
 				regulator-always-on;
 			};
 
 			buck6_reg: BUCK6 {
 				regulator-name = "PVDD_KFC_1V0";
 				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1000000>;
+				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 			};
 
 			buck7_reg: BUCK7 {
 				regulator-name = "VIN_LLDO_1V4";
 				regulator-min-microvolt = <800000>;
-				regulator-max-microvolt = <1400000>;
+				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 			};
 
