@@ -230,10 +230,6 @@ struct isc_device {
 
 #define ATMEL_ISC_NAME "atmel-isc"
 
-/* module parameters */
-extern unsigned int debug;
-extern unsigned int sensor_preferred;
-
 extern struct isc_format formats_list[];
 extern const struct isc_format controller_formats[];
 extern const u32 isc_gamma_table[GAMMA_MAX + 1][GAMMA_ENTRIES];

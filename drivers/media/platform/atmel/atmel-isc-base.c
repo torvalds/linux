@@ -35,11 +35,11 @@
 #include "atmel-isc-regs.h"
 #include "atmel-isc.h"
 
-unsigned int debug;
+static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-2)");
 
-unsigned int sensor_preferred = 1;
+static unsigned int sensor_preferred = 1;
 module_param(sensor_preferred, uint, 0644);
 MODULE_PARM_DESC(sensor_preferred,
 		 "Sensor is preferred to output the specified format (1-on 0-off), default 1");
