@@ -17,7 +17,7 @@
 #include <linux/cpumask.h>
 #include <asm/smp_plat.h>
 
-
+#ifdef CONFIG_OF
 static int of_dev_node_match(struct device *dev, void *data)
 {
 	return dev->of_node == data;
@@ -295,3 +295,4 @@ of_get_coresight_platform_data(struct device *dev,
 	return pdata;
 }
 EXPORT_SYMBOL_GPL(of_get_coresight_platform_data);
+#endif
