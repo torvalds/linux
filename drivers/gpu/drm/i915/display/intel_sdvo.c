@@ -429,13 +429,13 @@ static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 }
 
 static const char * const cmd_status_names[] = {
-	"Power on",
-	"Success",
-	"Not supported",
-	"Invalid arg",
-	"Pending",
-	"Target not specified",
-	"Scaling not supported"
+	[SDVO_CMD_STATUS_POWER_ON] = "Power on",
+	[SDVO_CMD_STATUS_SUCCESS] = "Success",
+	[SDVO_CMD_STATUS_NOTSUPP] = "Not supported",
+	[SDVO_CMD_STATUS_INVALID_ARG] = "Invalid arg",
+	[SDVO_CMD_STATUS_PENDING] = "Pending",
+	[SDVO_CMD_STATUS_TARGET_NOT_SPECIFIED] = "Target not specified",
+	[SDVO_CMD_STATUS_SCALING_NOT_SUPP] = "Scaling not supported",
 };
 
 static bool __intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
@@ -562,7 +562,7 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 #define BUF_PRINT(args...) \
 	pos += snprintf(buffer + pos, max_t(int, BUF_LEN - pos, 0), args)
 
-	if (status <= SDVO_CMD_STATUS_SCALING_NOT_SUPP)
+	if (status < ARRAY_SIZE(cmd_status_names))
 		BUF_PRINT("(%s)", cmd_status_names[status]);
 	else
 		BUF_PRINT("(??? %d)", status);
