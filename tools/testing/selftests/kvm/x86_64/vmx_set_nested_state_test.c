@@ -123,35 +123,43 @@ void test_vmx_nested_state(struct kvm_vm *vm)
 	/*
 	 * We cannot virtualize anything if the guest does not have VMX
 	 * enabled.  We expect KVM_SET_NESTED_STATE to return 0 if vmxon_pa
-	 * is set to -1ull.
+	 * is set to -1ull, but the flags must be zero.
 	 */
 	set_default_vmx_state(state, state_sz);
 	state->hdr.vmx.vmxon_pa = -1ull;
+	test_nested_state_expect_einval(vm, state);
+
+	state->hdr.vmx.vmcs12_pa = -1ull;
+	state->flags = KVM_STATE_NESTED_EVMCS;
+	test_nested_state_expect_einval(vm, state);
+
+	state->flags = 0;
 	test_nested_state(vm, state);
 
 	/* Enable VMX in the guest CPUID. */
 	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
 
-	/* It is invalid to have vmxon_pa == -1ull and SMM flags non-zero. */
+	/*
+	 * Setting vmxon_pa == -1ull and vmcs_pa == -1ull exits early without
+	 * setting the nested state but flags other than eVMCS must be clear.
+	 */
 	set_default_vmx_state(state, state_sz);
 	state->hdr.vmx.vmxon_pa = -1ull;
+	state->hdr.vmx.vmcs12_pa = -1ull;
+	test_nested_state_expect_einval(vm, state);
+
+	state->flags = KVM_STATE_NESTED_EVMCS;
+	test_nested_state(vm, state);
+
+	/* It is invalid to have vmxon_pa == -1ull and SMM flags non-zero. */
 	state->hdr.vmx.smm.flags = 1;
 	test_nested_state_expect_einval(vm, state);
 
 	/* It is invalid to have vmxon_pa == -1ull and vmcs_pa != -1ull. */
 	set_default_vmx_state(state, state_sz);
 	state->hdr.vmx.vmxon_pa = -1ull;
-	state->hdr.vmx.vmcs12_pa = 0;
+	state->flags = 0;
 	test_nested_state_expect_einval(vm, state);
-
-	/*
-	 * Setting vmxon_pa == -1ull and vmcs_pa == -1ull exits early without
-	 * setting the nested state.
-	 */
-	set_default_vmx_state(state, state_sz);
-	state->hdr.vmx.vmxon_pa = -1ull;
-	state->hdr.vmx.vmcs12_pa = -1ull;
-	test_nested_state(vm, state);
 
 	/* It is invalid to have vmxon_pa set to a non-page aligned address. */
 	set_default_vmx_state(state, state_sz);

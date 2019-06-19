@@ -5343,9 +5343,6 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 	if (kvm_state->format != KVM_STATE_NESTED_FORMAT_VMX)
 		return -EINVAL;
 
-	if (!nested_vmx_allowed(vcpu))
-		return kvm_state->hdr.vmx.vmxon_pa == -1ull ? 0 : -EINVAL;
-
 	if (kvm_state->hdr.vmx.vmxon_pa == -1ull) {
 		if (kvm_state->hdr.vmx.smm.flags)
 			return -EINVAL;
@@ -5353,12 +5350,15 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		if (kvm_state->hdr.vmx.vmcs12_pa != -1ull)
 			return -EINVAL;
 
-		vmx_leave_nested(vcpu);
-		return 0;
-	}
+		if (kvm_state->flags & ~KVM_STATE_NESTED_EVMCS)
+			return -EINVAL;
+	} else {
+		if (!nested_vmx_allowed(vcpu))
+			return -EINVAL;
 
-	if (!page_address_valid(vcpu, kvm_state->hdr.vmx.vmxon_pa))
-		return -EINVAL;
+		if (!page_address_valid(vcpu, kvm_state->hdr.vmx.vmxon_pa))
+			return -EINVAL;
+    	}
 
 	if ((kvm_state->hdr.vmx.smm.flags & KVM_STATE_NESTED_SMM_GUEST_MODE) &&
 	    (kvm_state->flags & KVM_STATE_NESTED_GUEST_MODE))
@@ -5381,11 +5381,15 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 	vmx_leave_nested(vcpu);
+	if (kvm_state->flags & KVM_STATE_NESTED_EVMCS) {
+		if (!nested_vmx_allowed(vcpu))
+			return -EINVAL;
+
+		nested_enable_evmcs(vcpu, NULL);
+	}
+
 	if (kvm_state->hdr.vmx.vmxon_pa == -1ull)
 		return 0;
-
-	if (kvm_state->flags & KVM_STATE_NESTED_EVMCS)
-		nested_enable_evmcs(vcpu, NULL);
 
 	vmx->nested.vmxon_ptr = kvm_state->hdr.vmx.vmxon_pa;
 	ret = enter_vmx_operation(vcpu);
