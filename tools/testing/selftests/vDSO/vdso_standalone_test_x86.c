@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vdso_test.c: Sample code to test parse_vdso.c on x86
  * Copyright (c) 2011-2014 Andy Lutomirski
- * Subject to the GNU General Public License, version 2
  *
  * You can amuse yourself by compiling with:
  * gcc -std=gnu99 -nostdlib

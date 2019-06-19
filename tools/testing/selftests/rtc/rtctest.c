@@ -49,7 +49,7 @@ TEST_F(rtc, date_read) {
 	       rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
 }
 
-TEST_F(rtc, uie_read) {
+TEST_F_TIMEOUT(rtc, uie_read, NUM_UIE + 2) {
 	int i, rc, irq = 0;
 	unsigned long data;
 
@@ -211,7 +211,7 @@ TEST_F(rtc, alarm_wkalm_set) {
 	ASSERT_EQ(new, secs);
 }
 
-TEST_F(rtc, alarm_alm_set_minute) {
+TEST_F_TIMEOUT(rtc, alarm_alm_set_minute, 65) {
 	struct timeval tv = { .tv_sec = 62 };
 	unsigned long data;
 	struct rtc_time tm;
@@ -264,7 +264,7 @@ TEST_F(rtc, alarm_alm_set_minute) {
 	ASSERT_EQ(new, secs);
 }
 
-TEST_F(rtc, alarm_wkalm_set_minute) {
+TEST_F_TIMEOUT(rtc, alarm_wkalm_set_minute, 65) {
 	struct timeval tv = { .tv_sec = 62 };
 	struct rtc_wkalrm alarm = { 0 };
 	struct rtc_time tm;

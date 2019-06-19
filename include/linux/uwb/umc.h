@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * UWB Multi-interface Controller support.
  *
  * Copyright (C) 2007 Cambridge Silicon Radio Ltd.
- *
- * This file is released under the GPLv2
  *
  * UMC (UWB Multi-interface Controller) capabilities (e.g., radio
  * controller, host controller) are presented as devices on the "umc"

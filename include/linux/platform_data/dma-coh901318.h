@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Platform data for the COH901318 DMA controller
  * Copyright (C) 2007-2013 ST-Ericsson
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #ifndef PLAT_COH901318_H

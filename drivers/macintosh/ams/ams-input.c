@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Apple Motion Sensor driver (joystick emulation)
  *
  * Copyright (C) 2005 Stelian Pop (stelian@popies.net)
  * Copyright (C) 2006 Michael Hanselmann (linux-kernel@hansmi.ch)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>

@@ -1,3 +1,9 @@
+.. _kernel_tls:
+
+==========
+Kernel TLS
+==========
+
 Overview
 ========
 
@@ -12,6 +18,8 @@ Creating a TLS connection
 
 First create a new TCP socket and set the TLS ULP.
 
+.. code-block:: c
+
   sock = socket(AF_INET, SOCK_STREAM, 0);
   setsockopt(sock, SOL_TCP, TCP_ULP, "tls", sizeof("tls"));
 
@@ -20,6 +28,8 @@ only the symmetric encryption is handled in the kernel.  After the TLS
 handshake is complete, we have all the parameters required to move the
 data-path to the kernel. There is a separate socket option for moving
 the transmit and the receive into the kernel.
+
+.. code-block:: c
 
   /* From linux/tls.h */
   struct tls_crypto_info {
@@ -58,6 +68,8 @@ After setting the TLS_TX socket option all application data sent over this
 socket is encrypted using TLS and the parameters provided in the socket option.
 For example, we can send an encrypted hello world record as follows:
 
+.. code-block:: c
+
   const char *msg = "hello world\n";
   send(sock, msg, strlen(msg));
 
@@ -66,6 +78,8 @@ to the encrypted kernel send buffer if possible.
 
 The sendfile system call will send the file's data over TLS records of maximum
 length (2^14).
+
+.. code-block:: c
 
   file = open(filename, O_RDONLY);
   fstat(file, &stat);
@@ -89,6 +103,8 @@ After setting the TLS_RX socket option, all recv family socket calls
 are decrypted using TLS parameters provided.  A full TLS record must
 be received before decryption can happen.
 
+.. code-block:: c
+
   char buffer[16384];
   recv(sock, buffer, 16384);
 
@@ -97,12 +113,12 @@ large enough, and no additional allocations occur.  If the userspace
 buffer is too small, data is decrypted in the kernel and copied to
 userspace.
 
-EINVAL is returned if the TLS version in the received message does not
+``EINVAL`` is returned if the TLS version in the received message does not
 match the version passed in setsockopt.
 
-EMSGSIZE is returned if the received message is too big.
+``EMSGSIZE`` is returned if the received message is too big.
 
-EBADMSG is returned if decryption failed for any other reason.
+``EBADMSG`` is returned if decryption failed for any other reason.
 
 Send TLS control messages
 -------------------------
@@ -113,9 +129,11 @@ These messages can be sent over the socket by providing the TLS record type
 via a CMSG. For example the following function sends @data of @length bytes
 using a record of type @record_type.
 
-/* send TLS control message using record_type */
+.. code-block:: c
+
+  /* send TLS control message using record_type */
   static int klts_send_ctrl_message(int sock, unsigned char record_type,
-                                  void *data, size_t length)
+                                    void *data, size_t length)
   {
         struct msghdr msg = {0};
         int cmsg_len = sizeof(record_type);
@@ -150,6 +168,8 @@ TLS control messages are passed in the userspace buffer, with message
 type passed via cmsg.  If no cmsg buffer is provided, an error is
 returned if a control message is received.  Data messages may be
 received without a cmsg buffer set.
+
+.. code-block:: c
 
   char buffer[16384];
   char cmsg[CMSG_SPACE(sizeof(unsigned char))];
@@ -186,12 +206,10 @@ Integrating in to userspace TLS library
 At a high level, the kernel TLS ULP is a replacement for the record
 layer of a userspace TLS library.
 
-A patchset to OpenSSL to use ktls as the record layer is here:
+A patchset to OpenSSL to use ktls as the record layer is
+`here <https://github.com/Mellanox/openssl/commits/tls_rx2>`_.
 
-https://github.com/Mellanox/openssl/commits/tls_rx2
-
-An example of calling send directly after a handshake using
-gnutls.  Since it doesn't implement a full record layer, control
-messages are not supported:
-
-https://github.com/ktls/af_ktls-tool/commits/RX
+`An example <https://github.com/ktls/af_ktls-tool/commits/RX>`_
+of calling send directly after a handshake using gnutls.
+Since it doesn't implement a full record layer, control
+messages are not supported.

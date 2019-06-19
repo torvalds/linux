@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 ethtool hooks for cfg80211
  *
@@ -5,8 +6,6 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2014	Intel Corporation (Author: Johannes Berg)
  * Copyright (C) 2018 Intel Corporation
- *
- * This file is GPLv2 as found in COPYING.
  */
 #include <linux/types.h>
 #include <net/cfg80211.h>

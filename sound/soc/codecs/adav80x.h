@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * header file for ADAV80X parts
  *
  * Copyright 2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #ifndef _ADAV80X_H

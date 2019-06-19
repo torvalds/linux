@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/powerpc/platforms/83xx/mpc832x_rdb.c
  *
@@ -7,11 +8,6 @@
  * MPC832x RDB board specific routines.
  * This file is based on mpc832x_mds.c and mpc8313_rdb.c
  * Author: Michael Barkowski <michael.barkowski@freescale.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/pci.h>

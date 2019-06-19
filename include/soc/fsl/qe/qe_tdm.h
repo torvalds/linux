@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Internal header file for QE TDM mode routines.
  *
  * Copyright (C) 2016 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Authors:	Zhao Qiang <qiang.zhao@nxp.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version
  */
 
 #ifndef _QE_TDM_H_
