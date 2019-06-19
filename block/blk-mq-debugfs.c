@@ -779,8 +779,8 @@ static int blk_mq_debugfs_release(struct inode *inode, struct file *file)
 
 	if (attr->show)
 		return single_release(inode, file);
-	else
-		return seq_release(inode, file);
+
+	return seq_release(inode, file);
 }
 
 static const struct file_operations blk_mq_debugfs_fops = {
