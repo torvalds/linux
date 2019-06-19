@@ -62,15 +62,13 @@ _pkt *rtw_os_alloc_msdu_pkt(union recv_frame *prframe, u16 nSubframe_Length, u8 
 	if (sub_skb) {
 		skb_reserve(sub_skb, 12);
 		skb_put_data(sub_skb, (pdata + ETH_HLEN), nSubframe_Length);
-	}
-	else {
+	} else {
 		sub_skb = rtw_skb_clone(prframe->u.hdr.pkt);
 		if (sub_skb) {
 			sub_skb->data = pdata + ETH_HLEN;
 			sub_skb->len = nSubframe_Length;
 			skb_set_tail_pointer(sub_skb, nSubframe_Length);
-		}
-		else {
+		} else {
 			DBG_871X("%s(): rtw_skb_clone() Fail!!!\n", __func__);
 			return NULL;
 		}
@@ -142,8 +140,7 @@ void rtw_os_recv_indicate_pkt(struct adapter *padapter, _pkt *pkt, struct rx_pkt
 						return;
 					}
 				}
-			}
-			else {
+			} else {
 				/*  to APself */
 				/* DBG_871X("to APSelf\n"); */
 				DBG_COUNTER(padapter->rx_logs.os_indicate_ap_self);
@@ -182,24 +179,21 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 
 	if (psecuritypriv->last_mic_err_time == 0) {
 		psecuritypriv->last_mic_err_time = jiffies;
-	}
-	else {
+	} else {
 		cur_time = jiffies;
 
 		if (cur_time - psecuritypriv->last_mic_err_time < 60*HZ) {
 			psecuritypriv->btkip_countermeasure = true;
 			psecuritypriv->last_mic_err_time = 0;
 			psecuritypriv->btkip_countermeasure_time = cur_time;
-		}
-		else {
+		} else {
 			psecuritypriv->last_mic_err_time = jiffies;
 		}
 	}
 
 	if (bgroup) {
 		key_type |= NL80211_KEYTYPE_GROUP;
-	}
-	else {
+	} else {
 		key_type |= NL80211_KEYTYPE_PAIRWISE;
 	}
 
@@ -209,8 +203,7 @@ void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup)
 	memset(&ev, 0x00, sizeof(ev));
 	if (bgroup) {
 	    ev.flags |= IW_MICFAILURE_GROUP;
-	}
-	else {
+	} else {
 	    ev.flags |= IW_MICFAILURE_PAIRWISE;
 	}
 
