@@ -4197,6 +4197,15 @@ static void gfx_v10_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	u32 header, control = 0;
 
+	/* Prevent a hw deadlock due to a wave ID mismatch between ME and GDS.
+	 * This resets the wave ID counters. (needed by transform feedback)
+	 * TODO: This might only be needed on a VMID switch when we change
+	 *       the GDS OA mapping, not sure.
+	 */
+	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+	amdgpu_ring_write(ring, mmVGT_GS_MAX_WAVE_ID);
+	amdgpu_ring_write(ring, ring->adev->gds.vgt_gs_max_wave_id);
+
 	if (ib->flags & AMDGPU_IB_FLAG_CE)
 		header = PACKET3(PACKET3_INDIRECT_BUFFER_CNST, 2);
 	else
@@ -4930,7 +4939,7 @@ static const struct amdgpu_ring_funcs gfx_v10_0_ring_funcs_gfx = {
 		5 + /* HDP_INVL */
 		8 + 8 + /* FENCE x2 */
 		2, /* SWITCH_BUFFER */
-	.emit_ib_size =	4, /* gfx_v10_0_ring_emit_ib_gfx */
+	.emit_ib_size =	7, /* gfx_v10_0_ring_emit_ib_gfx */
 	.emit_ib = gfx_v10_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v10_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v10_0_ring_emit_pipeline_sync,
@@ -5078,10 +5087,9 @@ static void gfx_v10_0_set_gds_init(struct amdgpu_device *adev)
 	/* init asic gds info */
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
-		adev->gds.gds_size = 0x10000;
-		break;
 	default:
 		adev->gds.gds_size = 0x10000;
+		adev->gds.vgt_gs_max_wave_id = 0x3ff;
 		break;
 	}
 
