@@ -3,6 +3,8 @@
  * ION Memory Allocator
  *
  * Copyright (C) 2011 Google, Inc.
+ * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ *
  */
 
 #include <linux/debugfs.h>
@@ -387,13 +389,13 @@ static const struct dma_buf_ops dma_buf_ops = {
 	.unmap = ion_dma_buf_kunmap,
 };
 
-static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
+static struct dma_buf *ion_alloc_dmabuf(size_t len, unsigned int heap_id_mask,
+					unsigned int flags)
 {
 	struct ion_device *dev = internal_dev;
 	struct ion_buffer *buffer = NULL;
 	struct ion_heap *heap;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
-	int fd;
 	struct dma_buf *dmabuf;
 
 	pr_debug("%s: len %zu heap_id_mask %u flags %x\n", __func__,
@@ -407,7 +409,7 @@ static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 	len = PAGE_ALIGN(len);
 
 	if (!len)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	down_read(&dev->lock);
 	plist_for_each_entry(heap, &dev->heaps, node) {
@@ -421,10 +423,10 @@ static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 	up_read(&dev->lock);
 
 	if (!buffer)
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
 	if (IS_ERR(buffer))
-		return PTR_ERR(buffer);
+		return ERR_CAST(buffer);
 
 	exp_info.ops = &dma_buf_ops;
 	exp_info.size = buffer->size;
@@ -432,10 +434,28 @@ static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 	exp_info.priv = buffer;
 
 	dmabuf = dma_buf_export(&exp_info);
-	if (IS_ERR(dmabuf)) {
+	if (IS_ERR(dmabuf))
 		_ion_buffer_destroy(buffer);
+
+	return dmabuf;
+}
+
+struct dma_buf *ion_alloc(size_t len, unsigned int heap_id_mask,
+			  unsigned int flags)
+{
+	return ion_alloc_dmabuf(len, heap_id_mask, flags);
+}
+EXPORT_SYMBOL_GPL(ion_alloc);
+
+static int ion_alloc_fd(size_t len, unsigned int heap_id_mask,
+			unsigned int flags)
+{
+	int fd;
+	struct dma_buf *dmabuf;
+
+	dmabuf = ion_alloc_dmabuf(len, heap_id_mask, flags);
+	if (IS_ERR(dmabuf))
 		return PTR_ERR(dmabuf);
-	}
 
 	fd = dma_buf_fd(dmabuf, O_CLOEXEC);
 	if (fd < 0)
@@ -540,9 +560,9 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	{
 		int fd;
 
-		fd = ion_alloc(data.allocation.len,
-			       data.allocation.heap_id_mask,
-			       data.allocation.flags);
+		fd = ion_alloc_fd(data.allocation.len,
+				  data.allocation.heap_id_mask,
+				  data.allocation.flags);
 		if (fd < 0)
 			return fd;
 
