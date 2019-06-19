@@ -205,7 +205,7 @@ void drm_self_refresh_helper_cleanup(struct drm_crtc *crtc)
 	struct drm_self_refresh_data *sr_data = crtc->self_refresh_data;
 
 	/* Helper is already uninitialized */
-	if (sr_data)
+	if (!sr_data)
 		return;
 
 	crtc->self_refresh_data = NULL;
