@@ -176,6 +176,9 @@ The process stops immediately a valid key is found with permission granted to
 use it.  Any error from a previous match attempt is discarded and the key is
 returned.
 
+When request_key() is invoked, if CONFIG_KEYS_REQUEST_CACHE=y, a per-task
+one-key cache is first checked for a match.
+
 When search_process_keyrings() is invoked, it performs the following searches
 until one succeeds:
 
@@ -195,7 +198,9 @@ until one succeeds:
       c) The calling process's session keyring is searched.
 
 The moment one succeeds, all pending errors are discarded and the found key is
-returned.
+returned.  If CONFIG_KEYS_REQUEST_CACHE=y, then that key is placed in the
+per-task cache, displacing the previous key.  The cache is cleared on exit or
+just prior to resumption of userspace.
 
 Only if all these fail does the whole thing fail with the highest priority
 error.  Note that several errors may have come from LSM.
