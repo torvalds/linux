@@ -580,7 +580,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 	int ret = 0;
 
 	list_for_each_entry(w_module, &pipe->w_list, node) {
-		uuid_le *uuid_mod;
+		guid_t *uuid_mod;
 		w = w_module->w;
 		mconfig = w->priv;
 
@@ -588,7 +588,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		if (mconfig->id.module_id < 0) {
 			dev_err(skl->skl_sst->dev,
 					"module %pUL id not populated\n",
-					(uuid_le *)mconfig->guid);
+					(guid_t *)mconfig->guid);
 			return -EIO;
 		}
 
@@ -622,7 +622,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		 * FE/BE params
 		 */
 		skl_tplg_update_module_params(w, ctx);
-		uuid_mod = (uuid_le *)mconfig->guid;
+		uuid_mod = (guid_t *)mconfig->guid;
 		mconfig->id.pvt_id = skl_get_pvt_id(ctx, uuid_mod,
 						mconfig->id.instance_id);
 		if (mconfig->id.pvt_id < 0)
@@ -661,9 +661,9 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 	struct skl_module_cfg *mconfig = NULL;
 
 	list_for_each_entry(w_module, &pipe->w_list, node) {
-		uuid_le *uuid_mod;
+		guid_t *uuid_mod;
 		mconfig  = w_module->w->priv;
-		uuid_mod = (uuid_le *)mconfig->guid;
+		uuid_mod = (guid_t *)mconfig->guid;
 
 		if (mconfig->module->loadable && ctx->dsp->fw_ops.unload_mod &&
 			mconfig->m_state > SKL_MODULE_UNINIT) {
@@ -918,12 +918,12 @@ static int skl_tplg_set_module_bind_params(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int skl_get_module_id(struct skl_sst *ctx, uuid_le *uuid)
+static int skl_get_module_id(struct skl_sst *ctx, guid_t *uuid)
 {
 	struct uuid_module *module;
 
 	list_for_each_entry(module, &ctx->uuid_list, list) {
-		if (uuid_le_cmp(*uuid, module->uuid) == 0)
+		if (guid_equal(uuid, &module->uuid))
 			return module->id;
 	}
 
@@ -2121,11 +2121,11 @@ static int skl_tplg_add_pipe(struct device *dev,
 	return 0;
 }
 
-static int skl_tplg_get_uuid(struct device *dev, u8 *guid,
+static int skl_tplg_get_uuid(struct device *dev, guid_t *guid,
 	      struct snd_soc_tplg_vendor_uuid_elem *uuid_tkn)
 {
 	if (uuid_tkn->token == SKL_TKN_UUID) {
-		memcpy(guid, &uuid_tkn->uuid, 16);
+		guid_copy(guid, (guid_t *)&uuid_tkn->uuid);
 		return 0;
 	}
 
@@ -2151,7 +2151,7 @@ static int skl_tplg_fill_pin(struct device *dev,
 		break;
 
 	case SKL_TKN_UUID:
-		ret = skl_tplg_get_uuid(dev, m_pin[pin_index].id.mod_uuid.b,
+		ret = skl_tplg_get_uuid(dev, &m_pin[pin_index].id.mod_uuid,
 			(struct snd_soc_tplg_vendor_uuid_elem *)tkn_elem);
 		if (ret < 0)
 			return ret;
@@ -2667,7 +2667,7 @@ static int skl_tplg_get_tokens(struct device *dev,
 
 		case SND_SOC_TPLG_TUPLE_TYPE_UUID:
 			if (is_module_guid) {
-				ret = skl_tplg_get_uuid(dev, mconfig->guid,
+				ret = skl_tplg_get_uuid(dev, (guid_t *)mconfig->guid,
 							array->uuid);
 				is_module_guid = false;
 			} else {
@@ -3486,7 +3486,7 @@ static int skl_tplg_get_manifest_uuid(struct device *dev,
 
 	if (uuid_tkn->token == SKL_TKN_UUID) {
 		mod = skl->modules[ref_count];
-		memcpy(&mod->uuid, &uuid_tkn->uuid, sizeof(uuid_tkn->uuid));
+		guid_copy(&mod->uuid, (guid_t *)&uuid_tkn->uuid);
 		ref_count++;
 	} else {
 		dev_err(dev, "Not an UUID token tkn %d\n", uuid_tkn->token);

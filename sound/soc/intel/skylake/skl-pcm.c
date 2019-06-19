@@ -1319,12 +1319,12 @@ static int skl_get_module_info(struct skl *skl, struct skl_module_cfg *mconfig)
 {
 	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_module_inst_id *pin_id;
-	uuid_le *uuid_mod, *uuid_tplg;
+	guid_t *uuid_mod, *uuid_tplg;
 	struct skl_module *skl_module;
 	struct uuid_module *module;
 	int i, ret = -EIO;
 
-	uuid_mod = (uuid_le *)mconfig->guid;
+	uuid_mod = (guid_t *)mconfig->guid;
 
 	if (list_empty(&ctx->uuid_list)) {
 		dev_err(ctx->dev, "Module list is empty\n");
@@ -1332,7 +1332,7 @@ static int skl_get_module_info(struct skl *skl, struct skl_module_cfg *mconfig)
 	}
 
 	list_for_each_entry(module, &ctx->uuid_list, list) {
-		if (uuid_le_cmp(*uuid_mod, module->uuid) == 0) {
+		if (guid_equal(uuid_mod, &module->uuid)) {
 			mconfig->id.module_id = module->id;
 			if (mconfig->module)
 				mconfig->module->loadable = module->is_loadable;
@@ -1349,7 +1349,7 @@ static int skl_get_module_info(struct skl *skl, struct skl_module_cfg *mconfig)
 	for (i = 0; i < skl->nr_modules; i++) {
 		skl_module = skl->modules[i];
 		uuid_tplg = &skl_module->uuid;
-		if (!uuid_le_cmp(*uuid_mod, *uuid_tplg)) {
+		if (guid_equal(uuid_mod, uuid_tplg)) {
 			mconfig->module = skl_module;
 			ret = 0;
 			break;
@@ -1361,13 +1361,13 @@ static int skl_get_module_info(struct skl *skl, struct skl_module_cfg *mconfig)
 	list_for_each_entry(module, &ctx->uuid_list, list) {
 		for (i = 0; i < MAX_IN_QUEUE; i++) {
 			pin_id = &mconfig->m_in_pin[i].id;
-			if (!uuid_le_cmp(pin_id->mod_uuid, module->uuid))
+			if (guid_equal(&pin_id->mod_uuid, &module->uuid))
 				pin_id->module_id = module->id;
 		}
 
 		for (i = 0; i < MAX_OUT_QUEUE; i++) {
 			pin_id = &mconfig->m_out_pin[i].id;
-			if (!uuid_le_cmp(pin_id->mod_uuid, module->uuid))
+			if (guid_equal(&pin_id->mod_uuid, &module->uuid))
 				pin_id->module_id = module->id;
 		}
 	}
