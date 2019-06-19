@@ -312,6 +312,21 @@ static int tc_aux_get_status(struct tc_data *tc, u8 *reply)
 	return 0;
 }
 
+static int tc_aux_write_data(struct tc_data *tc, const void *data,
+			     size_t size)
+{
+	u32 auxwdata[DP_AUX_MAX_PAYLOAD_BYTES / sizeof(u32)] = { 0 };
+	int ret, count = ALIGN(size, sizeof(u32));
+
+	memcpy(auxwdata, data, size);
+
+	ret = regmap_raw_write(tc->regmap, DP0_AUXWDATA(0), auxwdata, count);
+	if (ret)
+		return ret;
+
+	return size;
+}
+
 static int tc_aux_read_data(struct tc_data *tc, void *data, size_t size)
 {
 	u32 auxrdata[DP_AUX_MAX_PAYLOAD_BYTES / sizeof(u32)];
@@ -332,9 +347,6 @@ static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 	struct tc_data *tc = aux_to_tc(aux);
 	size_t size = min_t(size_t, 8, msg->size);
 	u8 request = msg->request & ~DP_AUX_I2C_MOT;
-	u8 *buf = msg->buffer;
-	u32 tmp = 0;
-	int i = 0;
 	int ret;
 
 	if (size == 0)
@@ -344,25 +356,17 @@ static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 	if (ret)
 		return ret;
 
-	if (request == DP_AUX_I2C_WRITE || request == DP_AUX_NATIVE_WRITE) {
-		/* Store data */
-		while (i < size) {
-			if (request == DP_AUX_NATIVE_WRITE)
-				tmp = tmp | (buf[i] << (8 * (i & 0x3)));
-			else
-				tmp = (tmp << 8) | buf[i];
-			i++;
-			if (((i % 4) == 0) || (i == size)) {
-				ret = regmap_write(tc->regmap,
-						   DP0_AUXWDATA((i - 1) >> 2),
-						   tmp);
-				if (ret)
-					return ret;
-				tmp = 0;
-			}
-		}
-	} else if (request != DP_AUX_I2C_READ &&
-		   request != DP_AUX_NATIVE_READ) {
+	switch (request) {
+	case DP_AUX_NATIVE_READ:
+	case DP_AUX_I2C_READ:
+		break;
+	case DP_AUX_NATIVE_WRITE:
+	case DP_AUX_I2C_WRITE:
+		ret = tc_aux_write_data(tc, msg->buffer, size);
+		if (ret < 0)
+			return ret;
+		break;
+	default:
 		return -EINVAL;
 	}
 
