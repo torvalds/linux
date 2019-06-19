@@ -165,7 +165,7 @@ static void etm_set_prog(struct etm_drvdata *drvdata)
 	 */
 	isb();
 	if (coresight_timeout_etm(drvdata, ETMSR, ETMSR_PROG_BIT, 1)) {
-		dev_err(drvdata->dev,
+		dev_err(&drvdata->csdev->dev,
 			"%s: timeout observed when probing at offset %#x\n",
 			__func__, ETMSR);
 	}
@@ -184,7 +184,7 @@ static void etm_clr_prog(struct etm_drvdata *drvdata)
 	 */
 	isb();
 	if (coresight_timeout_etm(drvdata, ETMSR, ETMSR_PROG_BIT, 0)) {
-		dev_err(drvdata->dev,
+		dev_err(&drvdata->csdev->dev,
 			"%s: timeout observed when probing at offset %#x\n",
 			__func__, ETMSR);
 	}
@@ -425,7 +425,7 @@ static int etm_enable_hw(struct etm_drvdata *drvdata)
 done:
 	CS_LOCK(drvdata->base);
 
-	dev_dbg(drvdata->dev, "cpu: %d enable smp call done: %d\n",
+	dev_dbg(&drvdata->csdev->dev, "cpu: %d enable smp call done: %d\n",
 		drvdata->cpu, rc);
 	return rc;
 }
@@ -455,6 +455,7 @@ int etm_get_trace_id(struct etm_drvdata *drvdata)
 {
 	unsigned long flags;
 	int trace_id = -1;
+	struct device *etm_dev = drvdata->csdev->dev.parent;
 
 	if (!drvdata)
 		goto out;
@@ -462,7 +463,7 @@ int etm_get_trace_id(struct etm_drvdata *drvdata)
 	if (!local_read(&drvdata->mode))
 		return drvdata->traceid;
 
-	pm_runtime_get_sync(drvdata->dev);
+	pm_runtime_get_sync(etm_dev);
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
@@ -471,7 +472,7 @@ int etm_get_trace_id(struct etm_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	pm_runtime_put(drvdata->dev);
+	pm_runtime_put(etm_dev);
 
 out:
 	return trace_id;
@@ -526,7 +527,7 @@ static int etm_enable_sysfs(struct coresight_device *csdev)
 	spin_unlock(&drvdata->spinlock);
 
 	if (!ret)
-		dev_dbg(drvdata->dev, "ETM tracing enabled\n");
+		dev_dbg(&csdev->dev, "ETM tracing enabled\n");
 	return ret;
 }
 
@@ -581,7 +582,8 @@ static void etm_disable_hw(void *info)
 
 	CS_LOCK(drvdata->base);
 
-	dev_dbg(drvdata->dev, "cpu: %d disable smp call done\n", drvdata->cpu);
+	dev_dbg(&drvdata->csdev->dev,
+		"cpu: %d disable smp call done\n", drvdata->cpu);
 }
 
 static void etm_disable_perf(struct coresight_device *csdev)
@@ -628,7 +630,7 @@ static void etm_disable_sysfs(struct coresight_device *csdev)
 	spin_unlock(&drvdata->spinlock);
 	cpus_read_unlock();
 
-	dev_dbg(drvdata->dev, "ETM tracing disabled\n");
+	dev_dbg(&csdev->dev, "ETM tracing disabled\n");
 }
 
 static void etm_disable(struct coresight_device *csdev,
@@ -803,7 +805,6 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 		drvdata->use_cp14 = of_property_read_bool(np, "arm,cp14");
 	}
 
-	drvdata->dev = &adev->dev;
 	dev_set_drvdata(dev, drvdata);
 
 	/* Validity for the resource is already checked by the AMBA core */
@@ -871,7 +872,8 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	pm_runtime_put(&adev->dev);
-	dev_info(dev, "%s initialized\n", (char *)coresight_get_uci_data(id));
+	dev_info(&drvdata->csdev->dev,
+		 "%s initialized\n", (char *)coresight_get_uci_data(id));
 	if (boot_enable) {
 		coresight_enable(drvdata->csdev);
 		drvdata->boot_enable = true;
