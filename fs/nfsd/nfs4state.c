@@ -1857,7 +1857,7 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name)
 	clp = kmem_cache_zalloc(client_slab, GFP_KERNEL);
 	if (clp == NULL)
 		return NULL;
-	clp->cl_name.data = kmemdup(name.data, name.len, GFP_KERNEL);
+	xdr_netobj_dup(&clp->cl_name, &name, GFP_KERNEL);
 	if (clp->cl_name.data == NULL)
 		goto err_no_name;
 	clp->cl_ownerstr_hashtbl = kmalloc_array(OWNER_HASH_SIZE,
@@ -1867,7 +1867,6 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name)
 		goto err_no_hashtbl;
 	for (i = 0; i < OWNER_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&clp->cl_ownerstr_hashtbl[i]);
-	clp->cl_name.len = name.len;
 	INIT_LIST_HEAD(&clp->cl_sessions);
 	idr_init(&clp->cl_stateids);
 	atomic_set(&clp->cl_rpc_users, 0);
@@ -4000,12 +3999,11 @@ static inline void *alloc_stateowner(struct kmem_cache *slab, struct xdr_netobj 
 	if (!sop)
 		return NULL;
 
-	sop->so_owner.data = kmemdup(owner->data, owner->len, GFP_KERNEL);
+	xdr_netobj_dup(&sop->so_owner, owner, GFP_KERNEL);
 	if (!sop->so_owner.data) {
 		kmem_cache_free(slab, sop);
 		return NULL;
 	}
-	sop->so_owner.len = owner->len;
 
 	INIT_LIST_HEAD(&sop->so_stateids);
 	sop->so_client = clp;
@@ -6093,12 +6091,11 @@ nfs4_set_lock_denied(struct file_lock *fl, struct nfsd4_lock_denied *deny)
 
 	if (fl->fl_lmops == &nfsd_posix_mng_ops) {
 		lo = (struct nfs4_lockowner *) fl->fl_owner;
-		deny->ld_owner.data = kmemdup(lo->lo_owner.so_owner.data,
-					lo->lo_owner.so_owner.len, GFP_KERNEL);
+		xdr_netobj_dup(&deny->ld_owner, &lo->lo_owner.so_owner,
+						GFP_KERNEL);
 		if (!deny->ld_owner.data)
 			/* We just don't care that much */
 			goto nevermind;
-		deny->ld_owner.len = lo->lo_owner.so_owner.len;
 		deny->ld_clientid = lo->lo_owner.so_client->cl_clientid;
 	} else {
 nevermind:
