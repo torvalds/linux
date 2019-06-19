@@ -485,12 +485,18 @@
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
+
+		/* Wake only */
+		&bt_dev_wake_awake
 	>;
 	pinctrl-1 = <
 		/* Common for sleep and wake, but no owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
+
+		/* Sleep only */
+		&bt_dev_wake_sleep
 	>;
 
 	pcfg_pull_none_drv_8ma: pcfg-pull-none-drv-8ma {
@@ -595,6 +601,20 @@
 
 		sdio0_clk: sdio0-clk {
 			rockchip,pins = <4 RK_PD1 1 &pcfg_pull_none_drv_8ma>;
+		};
+
+		/*
+		 * These pins are only present on very new veyron boards; on
+		 * older boards bt_dev_wake is simply always high.  Note that
+		 * gpio4_D2 is a NC on old veyron boards, so it doesn't hurt
+		 * to map this pin everywhere
+		 */
+		bt_dev_wake_sleep: bt-dev-wake-sleep {
+			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_output_low>;
+		};
+
+		bt_dev_wake_awake: bt-dev-wake-awake {
+			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_output_high>;
 		};
 	};
 
