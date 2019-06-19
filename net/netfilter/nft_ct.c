@@ -1232,6 +1232,10 @@ static void nft_ct_expect_obj_eval(struct nft_object *obj,
 	help = nfct_help(ct);
 	if (!help)
 		help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
+	if (!help) {
+		regs->verdict.code = NF_DROP;
+		return;
+	}
 
 	if (help->expecting[NF_CT_EXPECT_CLASS_DEFAULT] >= priv->size) {
 		regs->verdict.code = NFT_BREAK;
