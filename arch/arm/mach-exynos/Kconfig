@@ -106,7 +106,7 @@ config SOC_EXYNOS5420
 	bool "SAMSUNG EXYNOS5420"
 	default y
 	depends on ARCH_EXYNOS5
-	select MCPM if SMP
+	select EXYNOS_MCPM if SMP
 	select ARM_CCI400_PORT_CTRL
 	select ARM_CPU_SUSPEND
 
@@ -114,6 +114,10 @@ config SOC_EXYNOS5800
 	bool "SAMSUNG EXYNOS5800"
 	default y
 	depends on SOC_EXYNOS5420
+
+config EXYNOS_MCPM
+	bool
+	select MCPM
 
 config EXYNOS_CPU_SUSPEND
 	bool
