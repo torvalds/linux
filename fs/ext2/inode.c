@@ -1400,7 +1400,7 @@ void ext2_set_file_ops(struct inode *inode)
 struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 {
 	struct ext2_inode_info *ei;
-	struct buffer_head * bh;
+	struct buffer_head * bh = NULL;
 	struct ext2_inode *raw_inode;
 	struct inode *inode;
 	long ret = -EIO;
@@ -1446,7 +1446,6 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 	 */
 	if (inode->i_nlink == 0 && (inode->i_mode == 0 || ei->i_dtime)) {
 		/* this inode is deleted */
-		brelse (bh);
 		ret = -ESTALE;
 		goto bad_inode;
 	}
@@ -1463,7 +1462,6 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 	    !ext2_data_block_valid(EXT2_SB(sb), ei->i_file_acl, 1)) {
 		ext2_error(sb, "ext2_iget", "bad extended attribute block %u",
 			   ei->i_file_acl);
-		brelse(bh);
 		ret = -EFSCORRUPTED;
 		goto bad_inode;
 	}
@@ -1473,7 +1471,6 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 	else
 		ei->i_dir_acl = le32_to_cpu(raw_inode->i_dir_acl);
 	if (i_size_read(inode) < 0) {
-		brelse(bh);
 		ret = -EFSCORRUPTED;
 		goto bad_inode;
 	}
@@ -1527,6 +1524,7 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 	return inode;
 	
 bad_inode:
+	brelse(bh);
 	iget_failed(inode);
 	return ERR_PTR(ret);
 }
