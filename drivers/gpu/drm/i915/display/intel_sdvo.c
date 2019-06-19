@@ -395,11 +395,24 @@ static const struct {
 
 #undef SDVO_CMD_NAME_ENTRY
 
+static const char *sdvo_cmd_name(u8 cmd)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sdvo_cmd_names); i++) {
+		if (cmd == sdvo_cmd_names[i].cmd)
+			return sdvo_cmd_names[i].name;
+	}
+
+	return NULL;
+}
+
 #define SDVO_NAME(svdo) ((svdo)->port == PORT_B ? "SDVOB" : "SDVOC")
 
 static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 				   const void *args, int args_len)
 {
+	const char *cmd_name;
 	int i, pos = 0;
 #define BUF_LEN 256
 	char buffer[BUF_LEN];
@@ -414,15 +427,12 @@ static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 	for (; i < 8; i++) {
 		BUF_PRINT("   ");
 	}
-	for (i = 0; i < ARRAY_SIZE(sdvo_cmd_names); i++) {
-		if (cmd == sdvo_cmd_names[i].cmd) {
-			BUF_PRINT("(%s)", sdvo_cmd_names[i].name);
-			break;
-		}
-	}
-	if (i == ARRAY_SIZE(sdvo_cmd_names)) {
+
+	cmd_name = sdvo_cmd_name(cmd);
+	if (cmd_name)
+		BUF_PRINT("(%s)", cmd_name);
+	else
 		BUF_PRINT("(%02X)", cmd);
-	}
 	BUG_ON(pos >= BUF_LEN - 1);
 #undef BUF_PRINT
 #undef BUF_LEN
@@ -439,6 +449,14 @@ static const char * const cmd_status_names[] = {
 	[SDVO_CMD_STATUS_TARGET_NOT_SPECIFIED] = "Target not specified",
 	[SDVO_CMD_STATUS_SCALING_NOT_SUPP] = "Scaling not supported",
 };
+
+static const char *sdvo_cmd_status(u8 status)
+{
+	if (status < ARRAY_SIZE(cmd_status_names))
+		return cmd_status_names[status];
+	else
+		return NULL;
+}
 
 static bool __intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 				   const void *args, int args_len,
@@ -518,6 +536,7 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 				     void *response, int response_len)
 {
+	const char *cmd_status;
 	u8 retry = 15; /* 5 quick checks, followed by 10 long checks */
 	u8 status;
 	int i, pos = 0;
@@ -564,8 +583,9 @@ static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
 #define BUF_PRINT(args...) \
 	pos += snprintf(buffer + pos, max_t(int, BUF_LEN - pos, 0), args)
 
-	if (status < ARRAY_SIZE(cmd_status_names))
-		BUF_PRINT("(%s)", cmd_status_names[status]);
+	cmd_status = sdvo_cmd_status(status);
+	if (cmd_status)
+		BUF_PRINT("(%s)", cmd_status);
 	else
 		BUF_PRINT("(??? %d)", status);
 
