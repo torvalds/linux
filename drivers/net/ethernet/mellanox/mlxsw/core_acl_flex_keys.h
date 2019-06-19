@@ -74,7 +74,7 @@ struct mlxsw_afk_element_info {
  * define an internal storage geometry.
  */
 static const struct mlxsw_afk_element_info mlxsw_afk_element_infos[] = {
-	MLXSW_AFK_ELEMENT_INFO_U32(SRC_SYS_PORT, 0x00, 16, 8),
+	MLXSW_AFK_ELEMENT_INFO_U32(SRC_SYS_PORT, 0x00, 16, 16),
 	MLXSW_AFK_ELEMENT_INFO_BUF(DMAC_32_47, 0x04, 2),
 	MLXSW_AFK_ELEMENT_INFO_BUF(DMAC_0_31, 0x06, 4),
 	MLXSW_AFK_ELEMENT_INFO_BUF(SMAC_32_47, 0x0A, 2),
