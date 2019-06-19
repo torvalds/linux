@@ -83,7 +83,7 @@ DECLARE_EVENT_CLASS(nfs_inode_event_done,
 		TP_ARGS(inode, error),
 
 		TP_STRUCT__entry(
-			__field(int, error)
+			__field(unsigned long, error)
 			__field(dev_t, dev)
 			__field(u32, fhandle)
 			__field(unsigned char, type)
@@ -96,7 +96,7 @@ DECLARE_EVENT_CLASS(nfs_inode_event_done,
 
 		TP_fast_assign(
 			const struct nfs_inode *nfsi = NFS_I(inode);
-			__entry->error = error;
+			__entry->error = error < 0 ? -error : 0;
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = nfsi->fileid;
 			__entry->fhandle = nfs_fhandle_hash(&nfsi->fh);
@@ -108,10 +108,10 @@ DECLARE_EVENT_CLASS(nfs_inode_event_done,
 		),
 
 		TP_printk(
-			"error=%d fileid=%02x:%02x:%llu fhandle=0x%08x "
+			"error=%ld (%s) fileid=%02x:%02x:%llu fhandle=0x%08x "
 			"type=%u (%s) version=%llu size=%lld "
 			"cache_validity=%lu (%s) nfs_flags=%ld (%s)",
-			__entry->error,
+			-__entry->error, nfs_show_status(__entry->error),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle,
@@ -219,7 +219,7 @@ DECLARE_EVENT_CLASS(nfs_lookup_event_done,
 		TP_ARGS(dir, dentry, flags, error),
 
 		TP_STRUCT__entry(
-			__field(int, error)
+			__field(unsigned long, error)
 			__field(unsigned int, flags)
 			__field(dev_t, dev)
 			__field(u64, dir)
@@ -229,14 +229,14 @@ DECLARE_EVENT_CLASS(nfs_lookup_event_done,
 		TP_fast_assign(
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
-			__entry->error = error;
+			__entry->error = error < 0 ? -error : 0;
 			__entry->flags = flags;
 			__assign_str(name, dentry->d_name.name);
 		),
 
 		TP_printk(
-			"error=%d flags=%u (%s) name=%02x:%02x:%llu/%s",
-			__entry->error,
+			"error=%ld (%s) flags=%u (%s) name=%02x:%02x:%llu/%s",
+			-__entry->error, nfs_show_status(__entry->error),
 			__entry->flags,
 			show_lookup_flags(__entry->flags),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -323,7 +323,7 @@ TRACE_EVENT(nfs_atomic_open_exit,
 		TP_ARGS(dir, ctx, flags, error),
 
 		TP_STRUCT__entry(
-			__field(int, error)
+			__field(unsigned long, error)
 			__field(unsigned int, flags)
 			__field(unsigned int, fmode)
 			__field(dev_t, dev)
@@ -332,7 +332,7 @@ TRACE_EVENT(nfs_atomic_open_exit,
 		),
 
 		TP_fast_assign(
-			__entry->error = error;
+			__entry->error = -error;
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
 			__entry->flags = flags;
@@ -341,9 +341,9 @@ TRACE_EVENT(nfs_atomic_open_exit,
 		),
 
 		TP_printk(
-			"error=%d flags=%u (%s) fmode=%s "
+			"error=%ld (%s) flags=%u (%s) fmode=%s "
 			"name=%02x:%02x:%llu/%s",
-			__entry->error,
+			-__entry->error, nfs_show_status(__entry->error),
 			__entry->flags,
 			show_open_flags(__entry->flags),
 			show_fmode_flags(__entry->fmode),
@@ -397,7 +397,7 @@ TRACE_EVENT(nfs_create_exit,
 		TP_ARGS(dir, dentry, flags, error),
 
 		TP_STRUCT__entry(
-			__field(int, error)
+			__field(unsigned long, error)
 			__field(unsigned int, flags)
 			__field(dev_t, dev)
 			__field(u64, dir)
@@ -405,7 +405,7 @@ TRACE_EVENT(nfs_create_exit,
 		),
 
 		TP_fast_assign(
-			__entry->error = error;
+			__entry->error = -error;
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
 			__entry->flags = flags;
@@ -413,8 +413,8 @@ TRACE_EVENT(nfs_create_exit,
 		),
 
 		TP_printk(
-			"error=%d flags=%u (%s) name=%02x:%02x:%llu/%s",
-			__entry->error,
+			"error=%ld (%s) flags=%u (%s) name=%02x:%02x:%llu/%s",
+			-__entry->error, nfs_show_status(__entry->error),
 			__entry->flags,
 			show_open_flags(__entry->flags),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -469,7 +469,7 @@ DECLARE_EVENT_CLASS(nfs_directory_event_done,
 		TP_ARGS(dir, dentry, error),
 
 		TP_STRUCT__entry(
-			__field(int, error)
+			__field(unsigned long, error)
 			__field(dev_t, dev)
 			__field(u64, dir)
 			__string(name, dentry->d_name.name)
@@ -478,13 +478,13 @@ DECLARE_EVENT_CLASS(nfs_directory_event_done,
 		TP_fast_assign(
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
-			__entry->error = error;
+			__entry->error = error < 0 ? -error : 0;
 			__assign_str(name, dentry->d_name.name);
 		),
 
 		TP_printk(
-			"error=%d name=%02x:%02x:%llu/%s",
-			__entry->error,
+			"error=%ld (%s) name=%02x:%02x:%llu/%s",
+			-__entry->error, nfs_show_status(__entry->error),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name)
@@ -557,7 +557,7 @@ TRACE_EVENT(nfs_link_exit,
 		TP_ARGS(inode, dir, dentry, error),
 
 		TP_STRUCT__entry(
-			__field(int, error)
+			__field(unsigned long, error)
 			__field(dev_t, dev)
 			__field(u64, fileid)
 			__field(u64, dir)
@@ -568,13 +568,13 @@ TRACE_EVENT(nfs_link_exit,
 			__entry->dev = inode->i_sb->s_dev;
 			__entry->fileid = NFS_FILEID(inode);
 			__entry->dir = NFS_FILEID(dir);
-			__entry->error = error;
+			__entry->error = error < 0 ? -error : 0;
 			__assign_str(name, dentry->d_name.name);
 		),
 
 		TP_printk(
-			"error=%d fileid=%02x:%02x:%llu name=%02x:%02x:%llu/%s",
-			__entry->error,
+			"error=%ld (%s) fileid=%02x:%02x:%llu name=%02x:%02x:%llu/%s",
+			-__entry->error, nfs_show_status(__entry->error),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			__entry->fileid,
 			MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -642,7 +642,7 @@ DECLARE_EVENT_CLASS(nfs_rename_event_done,
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
-			__field(int, error)
+			__field(unsigned long, error)
 			__field(u64, old_dir)
 			__string(old_name, old_dentry->d_name.name)
 			__field(u64, new_dir)
@@ -651,17 +651,17 @@ DECLARE_EVENT_CLASS(nfs_rename_event_done,
 
 		TP_fast_assign(
 			__entry->dev = old_dir->i_sb->s_dev;
+			__entry->error = -error;
 			__entry->old_dir = NFS_FILEID(old_dir);
 			__entry->new_dir = NFS_FILEID(new_dir);
-			__entry->error = error;
 			__assign_str(old_name, old_dentry->d_name.name);
 			__assign_str(new_name, new_dentry->d_name.name);
 		),
 
 		TP_printk(
-			"error=%d old_name=%02x:%02x:%llu/%s "
+			"error=%ld (%s) old_name=%02x:%02x:%llu/%s "
 			"new_name=%02x:%02x:%llu/%s",
-			__entry->error,
+			-__entry->error, nfs_show_status(__entry->error),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->old_dir,
 			__get_str(old_name),
@@ -697,7 +697,7 @@ TRACE_EVENT(nfs_sillyrename_unlink,
 
 		TP_STRUCT__entry(
 			__field(dev_t, dev)
-			__field(int, error)
+			__field(unsigned long, error)
 			__field(u64, dir)
 			__dynamic_array(char, name, data->args.name.len + 1)
 		),
@@ -707,15 +707,15 @@ TRACE_EVENT(nfs_sillyrename_unlink,
 			size_t len = data->args.name.len;
 			__entry->dev = dir->i_sb->s_dev;
 			__entry->dir = NFS_FILEID(dir);
-			__entry->error = error;
+			__entry->error = -error;
 			memcpy(__get_str(name),
 				data->args.name.name, len);
 			__get_str(name)[len] = 0;
 		),
 
 		TP_printk(
-			"error=%d name=%02x:%02x:%llu/%s",
-			__entry->error,
+			"error=%ld (%s) name=%02x:%02x:%llu/%s",
+			-__entry->error, nfs_show_status(__entry->error),
 			MAJOR(__entry->dev), MINOR(__entry->dev),
 			(unsigned long long)__entry->dir,
 			__get_str(name)
@@ -974,6 +974,8 @@ TRACE_DEFINE_ENUM(NFSERR_PERM);
 TRACE_DEFINE_ENUM(NFSERR_NOENT);
 TRACE_DEFINE_ENUM(NFSERR_IO);
 TRACE_DEFINE_ENUM(NFSERR_NXIO);
+TRACE_DEFINE_ENUM(ECHILD);
+TRACE_DEFINE_ENUM(NFSERR_EAGAIN);
 TRACE_DEFINE_ENUM(NFSERR_ACCES);
 TRACE_DEFINE_ENUM(NFSERR_EXIST);
 TRACE_DEFINE_ENUM(NFSERR_XDEV);
@@ -985,6 +987,7 @@ TRACE_DEFINE_ENUM(NFSERR_FBIG);
 TRACE_DEFINE_ENUM(NFSERR_NOSPC);
 TRACE_DEFINE_ENUM(NFSERR_ROFS);
 TRACE_DEFINE_ENUM(NFSERR_MLINK);
+TRACE_DEFINE_ENUM(NFSERR_OPNOTSUPP);
 TRACE_DEFINE_ENUM(NFSERR_NAMETOOLONG);
 TRACE_DEFINE_ENUM(NFSERR_NOTEMPTY);
 TRACE_DEFINE_ENUM(NFSERR_DQUOT);
@@ -1007,6 +1010,8 @@ TRACE_DEFINE_ENUM(NFSERR_JUKEBOX);
 			{ NFSERR_NOENT, "NOENT" }, \
 			{ NFSERR_IO, "IO" }, \
 			{ NFSERR_NXIO, "NXIO" }, \
+			{ ECHILD, "CHILD" }, \
+			{ NFSERR_EAGAIN, "AGAIN" }, \
 			{ NFSERR_ACCES, "ACCES" }, \
 			{ NFSERR_EXIST, "EXIST" }, \
 			{ NFSERR_XDEV, "XDEV" }, \
@@ -1018,6 +1023,7 @@ TRACE_DEFINE_ENUM(NFSERR_JUKEBOX);
 			{ NFSERR_NOSPC, "NOSPC" }, \
 			{ NFSERR_ROFS, "ROFS" }, \
 			{ NFSERR_MLINK, "MLINK" }, \
+			{ NFSERR_OPNOTSUPP, "OPNOTSUPP" }, \
 			{ NFSERR_NAMETOOLONG, "NAMETOOLONG" }, \
 			{ NFSERR_NOTEMPTY, "NOTEMPTY" }, \
 			{ NFSERR_DQUOT, "DQUOT" }, \
@@ -1041,7 +1047,7 @@ TRACE_EVENT(nfs_xdr_status,
 		TP_ARGS(error),
 
 		TP_STRUCT__entry(
-			__field(int, error)
+			__field(unsigned long, error)
 		),
 
 		TP_fast_assign(
@@ -1049,8 +1055,8 @@ TRACE_EVENT(nfs_xdr_status,
 		),
 
 		TP_printk(
-			"error=%d (%s)",
-			__entry->error, nfs_show_status(__entry->error)
+			"error=%ld (%s)",
+			-__entry->error, nfs_show_status(__entry->error)
 		)
 );
 
