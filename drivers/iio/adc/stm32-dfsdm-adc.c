@@ -779,6 +779,30 @@ static unsigned int stm32_dfsdm_adc_dma_residue(struct stm32_dfsdm_adc *adc)
 	return 0;
 }
 
+static inline void stm32_dfsdm_process_data(struct stm32_dfsdm_adc *adc,
+					    s32 *buffer)
+{
+	struct stm32_dfsdm_filter *fl = &adc->dfsdm->fl_list[adc->fl_id];
+	struct stm32_dfsdm_filter_osr *flo = &fl->flo;
+	unsigned int i = adc->nconv;
+	s32 *ptr = buffer;
+
+	while (i--) {
+		/* Mask 8 LSB that contains the channel ID */
+		*ptr &= 0xFFFFFF00;
+		/* Convert 2^(n-1) sample to 2^(n-1)-1 to avoid wrap-around */
+		if (*ptr > flo->max)
+			*ptr -= 1;
+		/*
+		 * Samples from filter are retrieved with 23 bits resolution
+		 * or less. Shift left to align MSB on 24 bits.
+		 */
+		*ptr <<= flo->lshift;
+
+		ptr++;
+	}
+}
+
 static irqreturn_t stm32_dfsdm_adc_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -787,7 +811,9 @@ static irqreturn_t stm32_dfsdm_adc_trigger_handler(int irq, void *p)
 	int available = stm32_dfsdm_adc_dma_residue(adc);
 
 	while (available >= indio_dev->scan_bytes) {
-		u32 *buffer = (u32 *)&adc->rx_buf[adc->bufi];
+		s32 *buffer = (s32 *)&adc->rx_buf[adc->bufi];
+
+		stm32_dfsdm_process_data(adc, buffer);
 
 		iio_push_to_buffers_with_timestamp(indio_dev, buffer,
 						   pf->timestamp);
@@ -806,8 +832,6 @@ static void stm32_dfsdm_dma_buffer_done(void *data)
 {
 	struct iio_dev *indio_dev = data;
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
-	struct stm32_dfsdm_filter *fl = &adc->dfsdm->fl_list[adc->fl_id];
-	struct stm32_dfsdm_filter_osr *flo = &fl->flo;
 	int available = stm32_dfsdm_adc_dma_residue(adc);
 	size_t old_pos;
 
@@ -832,16 +856,7 @@ static void stm32_dfsdm_dma_buffer_done(void *data)
 	while (available >= indio_dev->scan_bytes) {
 		s32 *buffer = (s32 *)&adc->rx_buf[adc->bufi];
 
-		/* Mask 8 LSB that contains the channel ID */
-		*buffer &= 0xFFFFFF00;
-		/* Convert 2^(n-1) sample to 2^(n-1)-1 to avoid wrap-around */
-		if (*buffer > flo->max)
-			*buffer -= 1;
-		/*
-		 * Samples from filter are retrieved with 23 bits resolution
-		 * or less. Shift left to align MSB on 24 bits.
-		 */
-		*buffer <<= flo->lshift;
+		stm32_dfsdm_process_data(adc, buffer);
 
 		available -= indio_dev->scan_bytes;
 		adc->bufi += indio_dev->scan_bytes;
