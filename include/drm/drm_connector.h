@@ -933,6 +933,13 @@ struct drm_connector_funcs {
  */
 struct drm_cmdline_mode {
 	/**
+	 * @name:
+	 *
+	 * Name of the mode.
+	 */
+	char name[DRM_DISPLAY_MODE_LEN];
+
+	/**
 	 * @specified:
 	 *
 	 * Has a mode been read from the command-line?
