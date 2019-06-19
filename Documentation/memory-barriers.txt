@@ -3,7 +3,7 @@
 			 ============================
 
 By: David Howells <dhowells@redhat.com>
-    Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+    Paul E. McKenney <paulmck@linux.ibm.com>
     Will Deacon <will.deacon@arm.com>
     Peter Zijlstra <peterz@infradead.org>
 

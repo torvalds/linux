@@ -777,7 +777,7 @@ dump_blkd_tasks(struct rcu_node *rnp, int ncheck)
 	i = 0;
 	list_for_each(lhp, &rnp->blkd_tasks) {
 		pr_cont(" %p", lhp);
-		if (++i >= 10)
+		if (++i >= ncheck)
 			break;
 	}
 	pr_cont("\n");

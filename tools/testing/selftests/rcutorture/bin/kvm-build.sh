@@ -3,7 +3,7 @@
 #
 # Build a kvm-ready Linux kernel from the tree in the current directory.
 #
-# Usage: kvm-build.sh config-template build-dir resdir
+# Usage: kvm-build.sh config-template resdir
 #
 # Copyright (C) IBM Corporation, 2011
 #
@@ -15,8 +15,7 @@ then
 	echo "kvm-build.sh :$config_template: Not a readable file"
 	exit 1
 fi
-builddir=${2}
-resdir=${3}
+resdir=${2}
 
 T=${TMPDIR-/tmp}/test-linux.sh.$$
 trap 'rm -rf $T' 0
@@ -29,14 +28,14 @@ CONFIG_VIRTIO_PCI=y
 CONFIG_VIRTIO_CONSOLE=y
 ___EOF___
 
-configinit.sh $T/config O=$builddir $resdir
+configinit.sh $T/config $resdir
 retval=$?
 if test $retval -gt 1
 then
 	exit 2
 fi
 ncpus=`cpus2use.sh`
-make O=$builddir -j$ncpus $TORTURE_KMAKE_ARG > $resdir/Make.out 2>&1
+make -j$ncpus $TORTURE_KMAKE_ARG > $resdir/Make.out 2>&1
 retval=$?
 if test $retval -ne 0 || grep "rcu[^/]*": < $resdir/Make.out | egrep -q "Stop|Error|error:|warning:" || egrep -q "Stop|Error|error:" < $resdir/Make.out
 then
