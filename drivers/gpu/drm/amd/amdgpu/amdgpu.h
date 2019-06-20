@@ -84,6 +84,7 @@
 #include "amdgpu_doorbell.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_smu.h"
+#include "amdgpu_discovery.h"
 
 #define MAX_GPU_INSTANCE		16
 
@@ -912,6 +913,9 @@ struct amdgpu_device {
 
 	/* display related functionality */
 	struct amdgpu_display_manager dm;
+
+	/* discovery */
+	uint8_t				*discovery;
 
 	struct amdgpu_ip_block          ip_blocks[AMDGPU_MAX_IP_NUM];
 	int				num_ip_blocks;
