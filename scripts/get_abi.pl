@@ -55,7 +55,10 @@ sub parse_abi {
 	my $what;
 	my $new_what;
 	my $tag;
+	my $label;
 	my $ln;
+	my $has_file;
+	my $xrefs;
 
 	print STDERR "Opening $file\n" if ($debug > 1);
 	open IN, $file;
@@ -67,7 +70,7 @@ sub parse_abi {
 
 			if (!($new_tag =~ m/(what|date|kernelversion|contact|description|users)/)) {
 				if ($tag eq "description") {
-					$data{$what}->{$tag} .= "\n$content";;
+					$data{$what}->{$tag} .= "\n$content";
 					$data{$what}->{$tag} =~ s/\n+$//;
 					next;
 				} else {
@@ -83,6 +86,25 @@ sub parse_abi {
 					$new_what = 1;
 				}
 				$tag = $new_tag;
+
+				if ($has_file) {
+					$label = "abi_" . $content . " ";
+					$label =~ tr/A-Z/a-z/;
+
+					# Convert special chars to "_"
+					$label =~s/[\x00-\x2f]+/_/g;
+					$label =~s/[\x3a-\x40]+/_/g;
+					$label =~s/[\x7b-\xff]+/_/g;
+					$label =~ s,_+,_,g;
+					$label =~ s,_$,,;
+
+					$data{$what}->{label} .= $label;
+
+					# Escape special chars from content
+					$content =~s/([\x00-\x1f\x21-\x2f\x3a-\x40\x7b-\xff])/\\$1/g;
+
+					$xrefs .= "- :ref:`$content <$label>`\n\n";
+				}
 				next;
 			}
 
@@ -104,8 +126,18 @@ sub parse_abi {
 			next;
 		}
 
-		# Silently ignore any headers before the database
-		next if (!$tag);
+		# Store any contents before the database
+		if (!$tag) {
+			next if (/^\n/);
+
+			my $my_what = "File $name";
+			$data{$my_what}->{what} = "File $name";
+			$data{$my_what}->{type} = "File";
+			$data{$my_what}->{file} = $name;
+			$data{$my_what}->{description} .= $_;
+			$has_file = 1;
+			next;
+		}
 
 		if (m/^\s*(.*)/) {
 			$data{$what}->{$tag} .= "\n$1";
@@ -117,6 +149,11 @@ sub parse_abi {
 		parse_error($file, $ln, "Unexpected line:", $_);
 	}
 	close IN;
+
+	if ($has_file) {
+		my $my_what = "File $name";
+		$data{$my_what}->{xrefs} = $xrefs;
+	}
 }
 
 # Outputs the output on ReST format
@@ -128,8 +165,17 @@ sub output_rest {
 		my $w = $what;
 		$w =~ s/([\(\)\_\-\*\=\^\~\\])/\\$1/g;
 
+		if ($data{$what}->{label}) {
+			my @labels = split(/\s/, $data{$what}->{label});
+			foreach my $label (@labels) {
+				printf ".. _%s:\n\n", $label;
+			}
+		}
+
 		print "$w\n\n";
-		print "- defined on file $file (type: $type)\n\n::\n\n";
+
+		print "- defined on file $file (type: $type)\n\n" if ($type ne "File");
+		print "::\n\n";
 
 		my $desc = $data{$what}->{description};
 		$desc =~ s/^\s+//;
@@ -144,8 +190,11 @@ sub output_rest {
 		if (!($desc =~ /^\s*$/)) {
 			print " $desc\n\n";
 		} else {
-			print " DESCRIPTION MISSING\n\n";
+			print " DESCRIPTION MISSING for $what\n\n";
 		}
+
+		printf "Has the following ABI:\n\n%s", $data{$what}->{xrefs} if ($data{$what}->{xrefs});
+
 	}
 }
 
