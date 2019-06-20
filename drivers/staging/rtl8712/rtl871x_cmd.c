@@ -604,7 +604,7 @@ void r8712_setopmode_cmd(struct _adapter *padapter,
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 }
 
-u8 r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
+void r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
 {
 	struct cmd_obj *ph2c;
 	struct set_stakey_parm *psetstakey_para;
@@ -616,17 +616,17 @@ u8 r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
 	if (!ph2c)
-		return _FAIL;
+		return;
 	psetstakey_para = kmalloc(sizeof(*psetstakey_para), GFP_ATOMIC);
 	if (!psetstakey_para) {
 		kfree(ph2c);
-		return _FAIL;
+		return;
 	}
 	psetstakey_rsp = kmalloc(sizeof(*psetstakey_rsp), GFP_ATOMIC);
 	if (!psetstakey_rsp) {
 		kfree(ph2c);
 		kfree(psetstakey_para);
-		return _FAIL;
+		return;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetstakey_para, _SetStaKey_CMD_);
 	ph2c->rsp = (u8 *) psetstakey_rsp;
@@ -645,7 +645,6 @@ u8 r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
 			&psecuritypriv->XGrpKey[
 			psecuritypriv->XGrpKeyid - 1]. skey, 16);
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
 }
 
 u8 r8712_setrfintfs_cmd(struct _adapter *padapter, u8 mode)
