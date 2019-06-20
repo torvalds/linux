@@ -7,6 +7,7 @@
 #include "space-info.h"
 #include "transaction.h"
 #include "qgroup.h"
+#include "block-group.h"
 
 int btrfs_alloc_data_chunk_ondemand(struct btrfs_inode *inode, u64 bytes)
 {
