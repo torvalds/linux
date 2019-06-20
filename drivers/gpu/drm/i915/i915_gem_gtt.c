@@ -482,9 +482,69 @@ static void vm_free_page(struct i915_address_space *vm, struct page *page)
 	spin_unlock(&vm->free_pages.lock);
 }
 
+static void i915_address_space_fini(struct i915_address_space *vm)
+{
+	spin_lock(&vm->free_pages.lock);
+	if (pagevec_count(&vm->free_pages.pvec))
+		vm_free_pages_release(vm, true);
+	GEM_BUG_ON(pagevec_count(&vm->free_pages.pvec));
+	spin_unlock(&vm->free_pages.lock);
+
+	drm_mm_takedown(&vm->mm);
+
+	mutex_destroy(&vm->mutex);
+}
+
+static void ppgtt_destroy_vma(struct i915_address_space *vm)
+{
+	struct list_head *phases[] = {
+		&vm->bound_list,
+		&vm->unbound_list,
+		NULL,
+	}, **phase;
+
+	mutex_lock(&vm->i915->drm.struct_mutex);
+	for (phase = phases; *phase; phase++) {
+		struct i915_vma *vma, *vn;
+
+		list_for_each_entry_safe(vma, vn, *phase, vm_link)
+			i915_vma_destroy(vma);
+	}
+	mutex_unlock(&vm->i915->drm.struct_mutex);
+}
+
+static void __i915_vm_release(struct work_struct *work)
+{
+	struct i915_address_space *vm =
+		container_of(work, struct i915_address_space, rcu.work);
+
+	ppgtt_destroy_vma(vm);
+
+	GEM_BUG_ON(!list_empty(&vm->bound_list));
+	GEM_BUG_ON(!list_empty(&vm->unbound_list));
+
+	vm->cleanup(vm);
+	i915_address_space_fini(vm);
+
+	kfree(vm);
+}
+
+void i915_vm_release(struct kref *kref)
+{
+	struct i915_address_space *vm =
+		container_of(kref, struct i915_address_space, ref);
+
+	GEM_BUG_ON(i915_is_ggtt(vm));
+	trace_i915_ppgtt_release(vm);
+
+	vm->closed = true;
+	queue_rcu_work(vm->i915->wq, &vm->rcu);
+}
+
 static void i915_address_space_init(struct i915_address_space *vm, int subclass)
 {
 	kref_init(&vm->ref);
+	INIT_RCU_WORK(&vm->rcu, __i915_vm_release);
 
 	/*
 	 * The vm->mutex must be reclaim safe (for use in the shrinker).
@@ -503,19 +563,6 @@ static void i915_address_space_init(struct i915_address_space *vm, int subclass)
 
 	INIT_LIST_HEAD(&vm->unbound_list);
 	INIT_LIST_HEAD(&vm->bound_list);
-}
-
-static void i915_address_space_fini(struct i915_address_space *vm)
-{
-	spin_lock(&vm->free_pages.lock);
-	if (pagevec_count(&vm->free_pages.pvec))
-		vm_free_pages_release(vm, true);
-	GEM_BUG_ON(pagevec_count(&vm->free_pages.pvec));
-	spin_unlock(&vm->free_pages.lock);
-
-	drm_mm_takedown(&vm->mm);
-
-	mutex_destroy(&vm->mutex);
 }
 
 static int __setup_page_dma(struct i915_address_space *vm,
@@ -1909,62 +1956,15 @@ static void gen6_ppgtt_free_pd(struct gen6_ppgtt *ppgtt)
 			free_pt(&ppgtt->base.vm, pt);
 }
 
-struct gen6_ppgtt_cleanup_work {
-	struct work_struct base;
-	struct i915_vma *vma;
-};
-
-static void gen6_ppgtt_cleanup_work(struct work_struct *wrk)
-{
-	struct gen6_ppgtt_cleanup_work *work =
-		container_of(wrk, typeof(*work), base);
-	/* Side note, vma->vm is the GGTT not the ppgtt we just destroyed! */
-	struct drm_i915_private *i915 = work->vma->vm->i915;
-
-	mutex_lock(&i915->drm.struct_mutex);
-	i915_vma_destroy(work->vma);
-	mutex_unlock(&i915->drm.struct_mutex);
-
-	kfree(work);
-}
-
-static int nop_set_pages(struct i915_vma *vma)
-{
-	return -ENODEV;
-}
-
-static void nop_clear_pages(struct i915_vma *vma)
-{
-}
-
-static int nop_bind(struct i915_vma *vma,
-		    enum i915_cache_level cache_level,
-		    u32 unused)
-{
-	return -ENODEV;
-}
-
-static void nop_unbind(struct i915_vma *vma)
-{
-}
-
-static const struct i915_vma_ops nop_vma_ops = {
-	.set_pages = nop_set_pages,
-	.clear_pages = nop_clear_pages,
-	.bind_vma = nop_bind,
-	.unbind_vma = nop_unbind,
-};
-
 static void gen6_ppgtt_cleanup(struct i915_address_space *vm)
 {
 	struct gen6_ppgtt *ppgtt = to_gen6_ppgtt(i915_vm_to_ppgtt(vm));
-	struct gen6_ppgtt_cleanup_work *work = ppgtt->work;
+	struct drm_i915_private *i915 = vm->i915;
 
 	/* FIXME remove the struct_mutex to bring the locking under control */
-	INIT_WORK(&work->base, gen6_ppgtt_cleanup_work);
-	work->vma = ppgtt->vma;
-	work->vma->ops = &nop_vma_ops;
-	schedule_work(&work->base);
+	mutex_lock(&i915->drm.struct_mutex);
+	i915_vma_destroy(ppgtt->vma);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	gen6_ppgtt_free_pd(ppgtt);
 	gen6_ppgtt_free_scratch(vm);
@@ -2146,16 +2146,10 @@ static struct i915_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 
 	ppgtt->base.vm.pte_encode = ggtt->vm.pte_encode;
 
-	ppgtt->work = kmalloc(sizeof(*ppgtt->work), GFP_KERNEL);
-	if (!ppgtt->work) {
-		err = -ENOMEM;
-		goto err_free;
-	}
-
 	ppgtt->base.pd = __alloc_pd();
 	if (!ppgtt->base.pd) {
 		err = -ENOMEM;
-		goto err_work;
+		goto err_free;
 	}
 
 	err = gen6_ppgtt_init_scratch(ppgtt);
@@ -2174,8 +2168,6 @@ err_scratch:
 	gen6_ppgtt_free_scratch(&ppgtt->base.vm);
 err_pd:
 	kfree(ppgtt->base.pd);
-err_work:
-	kfree(ppgtt->work);
 err_free:
 	kfree(ppgtt);
 	return ERR_PTR(err);
@@ -2248,42 +2240,6 @@ i915_ppgtt_create(struct drm_i915_private *i915)
 	trace_i915_ppgtt_create(&ppgtt->vm);
 
 	return ppgtt;
-}
-
-static void ppgtt_destroy_vma(struct i915_address_space *vm)
-{
-	struct list_head *phases[] = {
-		&vm->bound_list,
-		&vm->unbound_list,
-		NULL,
-	}, **phase;
-
-	vm->closed = true;
-	for (phase = phases; *phase; phase++) {
-		struct i915_vma *vma, *vn;
-
-		list_for_each_entry_safe(vma, vn, *phase, vm_link)
-			i915_vma_destroy(vma);
-	}
-}
-
-void i915_vm_release(struct kref *kref)
-{
-	struct i915_address_space *vm =
-		container_of(kref, struct i915_address_space, ref);
-
-	GEM_BUG_ON(i915_is_ggtt(vm));
-	trace_i915_ppgtt_release(vm);
-
-	ppgtt_destroy_vma(vm);
-
-	GEM_BUG_ON(!list_empty(&vm->bound_list));
-	GEM_BUG_ON(!list_empty(&vm->unbound_list));
-
-	vm->cleanup(vm);
-	i915_address_space_fini(vm);
-
-	kfree(vm);
 }
 
 /* Certain Gen5 chipsets require require idling the GPU before

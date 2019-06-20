@@ -35,8 +35,12 @@
 #define __I915_GEM_GTT_H__
 
 #include <linux/io-mapping.h>
+#include <linux/kref.h>
 #include <linux/mm.h>
 #include <linux/pagevec.h>
+#include <linux/workqueue.h>
+
+#include <drm/drm_mm.h>
 
 #include "gt/intel_reset.h"
 #include "i915_gem_fence_reg.h"
@@ -280,6 +284,7 @@ struct pagestash {
 
 struct i915_address_space {
 	struct kref ref;
+	struct rcu_work rcu;
 
 	struct drm_mm mm;
 	struct drm_i915_private *i915;
@@ -425,8 +430,6 @@ struct gen6_ppgtt {
 
 	unsigned int pin_count;
 	bool scan_for_unused_pt;
-
-	struct gen6_ppgtt_cleanup_work *work;
 };
 
 #define __to_gen6_ppgtt(base) container_of(base, struct gen6_ppgtt, base)
