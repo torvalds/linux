@@ -38,47 +38,53 @@
 
 #include "drm_internal.h"
 
-/*
- * DMA-BUF/GEM Object references and lifetime overview:
+/**
+ * DOC: overview and lifetime rules
  *
- * On the export the dma_buf holds a reference to the exporting GEM
- * object. It takes this reference in handle_to_fd_ioctl, when it
- * first calls .prime_export and stores the exporting GEM object in
- * the dma_buf priv. This reference needs to be released when the
- * final reference to the &dma_buf itself is dropped and its
- * &dma_buf_ops.release function is called. For GEM-based drivers,
- * the dma_buf should be exported using drm_gem_dmabuf_export() and
- * then released by drm_gem_dmabuf_release().
+ * Similar to GEM global names, PRIME file descriptors are also used to share
+ * buffer objects across processes. They offer additional security: as file
+ * descriptors must be explicitly sent over UNIX domain sockets to be shared
+ * between applications, they can't be guessed like the globally unique GEM
+ * names.
  *
- * On the import the importing GEM object holds a reference to the
- * dma_buf (which in turn holds a ref to the exporting GEM object).
- * It takes that reference in the fd_to_handle ioctl.
- * It calls dma_buf_get, creates an attachment to it and stores the
- * attachment in the GEM object. When this attachment is destroyed
- * when the imported object is destroyed, we remove the attachment
- * and drop the reference to the dma_buf.
+ * Drivers that support the PRIME API must set the DRIVER_PRIME bit in the
+ * &drm_driver.driver_features field, and implement the
+ * &drm_driver.prime_handle_to_fd and &drm_driver.prime_fd_to_handle operations.
+ * GEM based drivers must use drm_gem_prime_handle_to_fd() and
+ * drm_gem_prime_fd_to_handle() to implement these. For GEM based drivers the
+ * actual driver interfaces is provided through the &drm_gem_object_funcs.export
+ * and &drm_driver.gem_prime_import hooks.
  *
- * When all the references to the &dma_buf are dropped, i.e. when
- * userspace has closed both handles to the imported GEM object (through the
- * FD_TO_HANDLE IOCTL) and closed the file descriptor of the exported
- * (through the HANDLE_TO_FD IOCTL) dma_buf, and all kernel-internal references
- * are also gone, then the dma_buf gets destroyed.  This can also happen as a
- * part of the clean up procedure in the drm_release() function if userspace
- * fails to properly clean up.  Note that both the kernel and userspace (by
- * keeeping the PRIME file descriptors open) can hold references onto a
- * &dma_buf.
+ * &dma_buf_ops implementations for GEM drivers are all individually exported
+ * for drivers which need to overwrite or reimplement some of them.
  *
- * Thus the chain of references always flows in one direction
- * (avoiding loops): importing_gem -> dmabuf -> exporting_gem
+ * Reference Counting for GEM Drivers
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
- * Self-importing: if userspace is using PRIME as a replacement for flink
- * then it will get a fd->handle request for a GEM object that it created.
- * Drivers should detect this situation and return back the gem object
- * from the dma-buf private.  Prime will do this automatically for drivers that
- * use the drm_gem_prime_{import,export} helpers.
+ * On the export the &dma_buf holds a reference to the exported buffer object,
+ * usually a &drm_gem_object. It takes this reference in the PRIME_HANDLE_TO_FD
+ * IOCTL, when it first calls &drm_gem_object_funcs.export
+ * and stores the exporting GEM object in the &dma_buf.priv field. This
+ * reference needs to be released when the final reference to the &dma_buf
+ * itself is dropped and its &dma_buf_ops.release function is called.  For
+ * GEM-based drivers, the &dma_buf should be exported using
+ * drm_gem_dmabuf_export() and then released by drm_gem_dmabuf_release().
  *
- * GEM struct &dma_buf_ops symbols are now exported. They can be resued by
- * drivers which implement GEM interface.
+ * Thus the chain of references always flows in one direction, avoiding loops:
+ * importing GEM object -> dma-buf -> exported GEM bo. A further complication
+ * are the lookup caches for import and export. These are required to guarantee
+ * that any given object will always have only one uniqe userspace handle. This
+ * is required to allow userspace to detect duplicated imports, since some GEM
+ * drivers do fail command submissions if a given buffer object is listed more
+ * than once. These import and export caches in &drm_prime_file_private only
+ * retain a weak reference, which is cleaned up when the corresponding object is
+ * released.
+ *
+ * Self-importing: If userspace is using PRIME as a replacement for flink then
+ * it will get a fd->handle request for a GEM object that it created.  Drivers
+ * should detect this situation and return back the underlying object from the
+ * dma-buf private. For GEM based drivers this is handled in
+ * drm_gem_prime_import() already.
  */
 
 struct drm_prime_member {
@@ -220,7 +226,7 @@ void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 }
 
 /**
- * drm_gem_dmabuf_export - dma_buf export implementation for GEM
+ * drm_gem_dmabuf_export - &dma_buf export implementation for GEM
  * @dev: parent device for the exported dmabuf
  * @exp_info: the export information used by dma_buf_export()
  *
@@ -248,11 +254,11 @@ struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
 EXPORT_SYMBOL(drm_gem_dmabuf_export);
 
 /**
- * drm_gem_dmabuf_release - dma_buf release implementation for GEM
+ * drm_gem_dmabuf_release - &dma_buf release implementation for GEM
  * @dma_buf: buffer to be released
  *
  * Generic release function for dma_bufs exported as PRIME buffers. GEM drivers
- * must use this in their dma_buf ops structure as the release callback.
+ * must use this in their &dma_buf_ops structure as the release callback.
  * drm_gem_dmabuf_release() should be used in conjunction with
  * drm_gem_dmabuf_export().
  */
@@ -278,7 +284,9 @@ EXPORT_SYMBOL(drm_gem_dmabuf_release);
  * This is the PRIME import function which must be used mandatorily by GEM
  * drivers to ensure correct lifetime management of the underlying GEM object.
  * The actual importing of GEM object from the dma-buf is done through the
- * gem_import_export driver callback.
+ * &drm_driver.gem_prime_import driver callback.
+ *
+ * Returns 0 on success or a negative error code on failure.
  */
 int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 			       struct drm_file *file_priv, int prime_fd,
@@ -412,7 +420,7 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
  * This is the PRIME export function which must be used mandatorily by GEM
  * drivers to ensure correct lifetime management of the underlying GEM object.
  * The actual exporting from GEM object to a dma-buf is done through the
- * gem_prime_export driver callback.
+ * &drm_driver.gem_prime_export driver callback.
  */
 int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 			       struct drm_file *file_priv, uint32_t handle,
@@ -523,23 +531,39 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 /**
  * DOC: PRIME Helpers
  *
- * Drivers can implement @gem_prime_export and @gem_prime_import in terms of
- * simpler APIs by using the helper functions @drm_gem_prime_export and
- * @drm_gem_prime_import.  These functions implement dma-buf support in terms of
- * six lower-level driver callbacks:
+ * Drivers can implement &drm_gem_object_funcs.export and
+ * &drm_driver.gem_prime_import in terms of simpler APIs by using the helper
+ * functions drm_gem_prime_export() and drm_gem_prime_import(). These functions
+ * implement dma-buf support in terms of some lower-level helpers, which are
+ * again exported for drivers to use individually:
  *
- * Export callbacks:
+ * Exporting buffers
+ * ~~~~~~~~~~~~~~~~~
  *
- *  * @gem_prime_pin (optional): prepare a GEM object for exporting
- *  * @gem_prime_get_sg_table: provide a scatter/gather table of pinned pages
- *  * @gem_prime_vmap: vmap a buffer exported by your driver
- *  * @gem_prime_vunmap: vunmap a buffer exported by your driver
- *  * @gem_prime_mmap (optional): mmap a buffer exported by your driver
+ * Optional pinning of buffers is handled at dma-buf attach and detach time in
+ * drm_gem_map_attach() and drm_gem_map_detach(). Backing storage itself is
+ * handled by drm_gem_map_dma_buf() and drm_gem_unmap_dma_buf(), which relies on
+ * &drm_gem_object_funcs.get_sg_table.
  *
- * Import callback:
+ * For kernel-internal access there's drm_gem_dmabuf_vmap() and
+ * drm_gem_dmabuf_vunmap(). Userspace mmap support is provided by
+ * drm_gem_dmabuf_mmap().
  *
- *  * @gem_prime_import_sg_table (import): produce a GEM object from another
- *    driver's scatter/gather table
+ * Note that these export helpers can only be used if the underlying backing
+ * storage is fully coherent and either permanently pinned, or it is safe to pin
+ * it indefinitely.
+ *
+ * FIXME: The underlying helper functions are named rather inconsistently.
+ *
+ * Exporting buffers
+ * ~~~~~~~~~~~~~~~~~
+ *
+ * Importing dma-bufs using drm_gem_prime_import() relies on
+ * &drm_driver.gem_prime_import_sg_table.
+ *
+ * Note that similarly to the export helpers this permanently pins the
+ * underlying backing storage. Which is ok for scanout, but is not the best
+ * option for sharing lots of buffers for rendering.
  */
 
 /**
@@ -547,8 +571,9 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
  * @dma_buf: buffer to attach device to
  * @attach: buffer attachment data
  *
- * Calls &drm_driver.gem_prime_pin for device specific handling. This can be
- * used as the &dma_buf_ops.attach callback.
+ * Calls &drm_gem_object_funcs.pin for device specific handling. This can be
+ * used as the &dma_buf_ops.attach callback. Must be used together with
+ * drm_gem_map_detach().
  *
  * Returns 0 on success, negative error code on failure.
  */
@@ -566,8 +591,9 @@ EXPORT_SYMBOL(drm_gem_map_attach);
  * @dma_buf: buffer to detach from
  * @attach: attachment to be detached
  *
- * Cleans up &dma_buf_attachment. This can be used as the &dma_buf_ops.detach
- * callback.
+ * Calls &drm_gem_object_funcs.pin for device specific handling.  Cleans up
+ * &dma_buf_attachment from drm_gem_map_attach(). This can be used as the
+ * &dma_buf_ops.detach callback.
  */
 void drm_gem_map_detach(struct dma_buf *dma_buf,
 			struct dma_buf_attachment *attach)
@@ -583,13 +609,13 @@ EXPORT_SYMBOL(drm_gem_map_detach);
  * @attach: attachment whose scatterlist is to be returned
  * @dir: direction of DMA transfer
  *
- * Calls &drm_driver.gem_prime_get_sg_table and then maps the scatterlist. This
- * can be used as the &dma_buf_ops.map_dma_buf callback.
+ * Calls &drm_gem_object_funcs.get_sg_table and then maps the scatterlist. This
+ * can be used as the &dma_buf_ops.map_dma_buf callback. Should be used together
+ * with drm_gem_unmap_dma_buf().
  *
- * Returns sg_table containing the scatterlist to be returned; returns ERR_PTR
+ * Returns:sg_table containing the scatterlist to be returned; returns ERR_PTR
  * on error. May return -EINTR if it is interrupted by a signal.
  */
-
 struct sg_table *drm_gem_map_dma_buf(struct dma_buf_attachment *attach,
 				     enum dma_data_direction dir)
 {
@@ -642,9 +668,9 @@ EXPORT_SYMBOL(drm_gem_unmap_dma_buf);
  * @dma_buf: buffer to be mapped
  *
  * Sets up a kernel virtual mapping. This can be used as the &dma_buf_ops.vmap
- * callback.
+ * callback. Calls into &drm_gem_object_funcs.vmap for device specific handling.
  *
- * Returns the kernel virtual address.
+ * Returns the kernel virtual address or NULL on failure.
  */
 void *drm_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 {
@@ -665,7 +691,7 @@ EXPORT_SYMBOL(drm_gem_dmabuf_vmap);
  * @vaddr: the virtual address of the buffer
  *
  * Releases a kernel virtual mapping. This can be used as the
- * &dma_buf_ops.vunmap callback.
+ * &dma_buf_ops.vunmap callback. Calls into &drm_gem_object_funcs.vunmap for device specific handling.
  */
 void drm_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 {
@@ -727,7 +753,11 @@ EXPORT_SYMBOL(drm_gem_prime_mmap);
  * @vma: virtual address range
  *
  * Provides memory mapping for the buffer. This can be used as the
- * &dma_buf_ops.mmap callback.
+ * &dma_buf_ops.mmap callback. It just forwards to &drm_driver.gem_prime_mmap,
+ * which should be set to drm_gem_prime_mmap().
+ *
+ * FIXME: There's really no point to this wrapper, drivers which need anything
+ * else but drm_gem_prime_mmap can roll their own &dma_buf_ops.mmap callback.
  *
  * Returns 0 on success or a negative error code on failure.
  */
@@ -763,6 +793,8 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
  * This helper creates an sg table object from a set of pages
  * the driver is responsible for mapping the pages into the
  * importers address space for use with dma_buf itself.
+ *
+ * This is useful for implementing &drm_gem_object_funcs.get_sg_table.
  */
 struct sg_table *drm_prime_pages_to_sg(struct page **pages, unsigned int nr_pages)
 {
@@ -793,8 +825,9 @@ EXPORT_SYMBOL(drm_prime_pages_to_sg);
  * @obj: GEM object to export
  * @flags: flags like DRM_CLOEXEC and DRM_RDWR
  *
- * This is the implementation of the gem_prime_export functions for GEM drivers
- * using the PRIME helpers.
+ * This is the implementation of the &drm_gem_object_funcs.export functions for GEM drivers
+ * using the PRIME helpers. It is used as the default in
+ * drm_gem_prime_handle_to_fd().
  */
 struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 				     struct drm_gem_object *obj,
@@ -823,9 +856,13 @@ EXPORT_SYMBOL(drm_gem_prime_export);
  * @dma_buf: dma-buf object to import
  * @attach_dev: struct device to dma_buf attach
  *
- * This is the core of drm_gem_prime_import. It's designed to be called by
- * drivers who want to use a different device structure than dev->dev for
- * attaching via dma_buf.
+ * This is the core of drm_gem_prime_import(). It's designed to be called by
+ * drivers who want to use a different device structure than &drm_device.dev for
+ * attaching via dma_buf. This function calls
+ * &drm_driver.gem_prime_import_sg_table internally.
+ *
+ * Drivers must arrange to call drm_prime_gem_destroy() from their
+ * &drm_gem_object_funcs.free hook when using this function.
  */
 struct drm_gem_object *drm_gem_prime_import_dev(struct drm_device *dev,
 					    struct dma_buf *dma_buf,
@@ -889,7 +926,12 @@ EXPORT_SYMBOL(drm_gem_prime_import_dev);
  * @dma_buf: dma-buf object to import
  *
  * This is the implementation of the gem_prime_import functions for GEM drivers
- * using the PRIME helpers.
+ * using the PRIME helpers. Drivers can use this as their
+ * &drm_driver.gem_prime_import implementation. It is used as the default
+ * implementation in drm_gem_prime_fd_to_handle().
+ *
+ * Drivers must arrange to call drm_prime_gem_destroy() from their
+ * &drm_gem_object_funcs.free hook when using this function.
  */
 struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 					    struct dma_buf *dma_buf)
@@ -907,6 +949,9 @@ EXPORT_SYMBOL(drm_gem_prime_import);
  *
  * Exports an sg table into an array of pages and addresses. This is currently
  * required by the TTM driver in order to do correct fault handling.
+ *
+ * Drivers can use this in their &drm_driver.gem_prime_import_sg_table
+ * implementation.
  */
 int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
 				     dma_addr_t *addrs, int max_entries)
@@ -947,7 +992,7 @@ EXPORT_SYMBOL(drm_prime_sg_to_page_addr_arrays);
  * @sg: the sg-table which was pinned at import time
  *
  * This is the cleanup functions which GEM drivers need to call when they use
- * @drm_gem_prime_import to import dma-bufs.
+ * drm_gem_prime_import() or drm_gem_prime_import_dev() to import dma-bufs.
  */
 void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg)
 {
