@@ -639,7 +639,7 @@
 	};
 
 	gpu: gpu@ff300000 {
-		compatible = "rockchip,rk3328-mali", "arm,mali-450";
+		compatible = "arm,mali-450";
 		/* first item of 'reg' is dummy, to fit src code. */
 		reg = <0x0 0xff300000 0x0 0x40000>,
 		      <0x0 0xff300000 0x0 0x40000>;
