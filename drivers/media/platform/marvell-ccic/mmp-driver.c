@@ -105,9 +105,6 @@ static void mmpcam_calc_dphy(struct mcam_camera *mcam)
 	struct device *dev = &cam->pdev->dev;
 	unsigned long tx_clk_esc;
 
-	if (!pdata)
-		return;
-
 	/*
 	 * If CSI2_DPHY3 is calculated dynamically,
 	 * pdata->lane_clk should be already set
