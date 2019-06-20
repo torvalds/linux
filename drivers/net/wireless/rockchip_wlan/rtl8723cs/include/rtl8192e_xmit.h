@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2013 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8192E_XMIT_H__
 #define __RTL8192E_XMIT_H__
 
@@ -322,9 +317,11 @@ typedef struct txdescriptor_8192e {
 #define SET_TX_DESC_ANTSEL_D_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 25, 3, __Value)
 
 /* Dword 7 */
-#if (DEV_BUS_TYPE == RT_PCI_INTERFACE)
+#ifdef CONFIG_PCI_HCI
 	#define SET_TX_DESC_TX_BUFFER_SIZE_92E(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
-#else
+#endif
+
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_USB_HCI)
 	#define SET_TX_DESC_TX_DESC_CHECKSUM_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
 #endif
 #define SET_TX_DESC_USB_TXAGG_NUM_92E(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 24, 8, __Value)
@@ -445,6 +442,8 @@ void fill_txdesc_vcs(struct pkt_attrib *pattrib, u8 *ptxdesc);
 #if defined(CONFIG_CONCURRENT_MODE)
 	void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
 #endif
+void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
+
 void fill_txdesc_sectype(struct pkt_attrib *pattrib, u8 *ptxdesc);
 void rtl8192e_fixed_rate(_adapter *padapter, u8 *ptxdesc);
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2014 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 /*
  * Public General Config
  */
@@ -53,7 +48,6 @@
 	#endif /* !CONFIG_PLATFORM_INTEL_BYT */
 	/* #define CONFIG_DEBUG_CFG80211 */
 	#define CONFIG_SET_SCAN_DENY_TIMER
-	/*#define SUPPLICANT_RTK_VERSION_LOWER_THAN_JB42*/ /* wpa_supplicant realtek version <= jb42 will be defined this */
 #endif
 
 #define CONFIG_AP_MODE
@@ -78,7 +72,7 @@
 	#define CONFIG_P2P_PS
 	#define CONFIG_P2P_OP_CHK_SOCIAL_CH
 	#define CONFIG_CFG80211_ONECHANNEL_UNDER_CONCURRENT  /* replace CONFIG_P2P_CHK_INVITE_CH_LIST flag */
-	#define CONFIG_P2P_INVITE_IOT
+	/*#define CONFIG_P2P_INVITE_IOT*/
 #endif
 
 /* Added by Kurt 20110511 */
@@ -89,7 +83,7 @@
 	#endif */
 	/* #define CONFIG_TDLS_AUTOSETUP */
 	#define CONFIG_TDLS_AUTOCHECKALIVE
-	#define CONFIG_TDLS_CH_SW	/* Enable this flag only when we confirm that TDLS CH SW is supported in FW */
+	/* #define CONFIG_TDLS_CH_SW */	/* Enable this flag only when we confirm that TDLS CH SW is supported in FW */
 #endif
 
 /* #define CONFIG_CONCURRENT_MODE */	/* Set from Makefile */
@@ -102,23 +96,22 @@
 		#define CONFIG_TSF_RESET_OFFLOAD			/* For 2 PORT TSF SYNC. */
 	#endif
 	/* #define DBG_RUNTIME_PORT_SWITCH */
-	#define CONFIG_SCAN_BACKOP
 #endif /* CONFIG_CONCURRENT_MODE */
 
 #define CONFIG_LAYER2_ROAMING
 #define CONFIG_LAYER2_ROAMING_RESUME
 
-/* #define CONFIG_80211D */
-
-
 /*
  * Hareware/Firmware Related Config
  */
 /* #define CONFIG_BT_COEXIST */	/* Set from Makefile */
-/* #define CONFIG_ANTENNA_DIVERSITY */	/* Set from Makefile */
+/* #define CONFIG_ANTENNA_DIVERSITY */
 /* #define SUPPORT_HW_RFOFF_DETECTED */
 
-/* #define CONFIG_SW_LED */
+/*#define CONFIG_RTW_LED*/
+#ifdef CONFIG_RTW_LED
+	/*#define CONFIG_RTW_SW_LED*/
+#endif /* CONFIG_RTW_LED */
 
 #define CONFIG_XMIT_ACK
 #ifdef CONFIG_XMIT_ACK
@@ -159,7 +152,6 @@
 
 #define CONFIG_LONG_DELAY_ISSUE
 /* #define CONFIG_PATCH_JOIN_WRONG_CHANNEL */
-#define CONFIG_ATTEMPT_TO_FIX_AP_BEACON_ERROR
 
 
 /*
@@ -228,7 +220,7 @@
 
 #ifdef CONFIG_WOWLAN
 	/* #define CONFIG_GTK_OL */
-	#define CONFIG_ARP_KEEP_ALIVE
+	/* #define CONFIG_ARP_KEEP_ALIVE */
 #endif /* CONFIG_WOWLAN */
 
 #ifdef CONFIG_GPIO_WAKEUP
@@ -242,6 +234,12 @@
 #ifdef CONFIG_ANTENNA_DIVERSITY
 #define CONFIG_HW_ANTENNA_DIVERSITY
 #endif
+
+#ifdef CONFIG_RTW_NAPI
+/*#define CONFIG_RTW_NAPI_DYNAMIC*/
+#define CONFIG_RTW_NAPI_V2
+#endif
+
 
 
 /*

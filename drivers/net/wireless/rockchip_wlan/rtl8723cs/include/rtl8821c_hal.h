@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2016 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2016 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef _RTL8821C_HAL_H_
 #define _RTL8821C_HAL_H_
 
@@ -48,12 +43,11 @@
 
 	#ifndef MAX_RECVBUF_SZ
 		#ifndef CONFIG_MINIMAL_MEMORY_USAGE
-			#ifdef CONFIG_PLATFORM_MSTAR
-				#define MAX_RECVBUF_SZ (8192 + RX_FIFO_EXPANDING) /* 8K */
-			#else
-				/* 8821C - RX FIFO :16K ,for RX agg DMA mode = 16K, Rx agg USB mode could large than 16k*/
-				#define MAX_RECVBUF_SZ		(HALMAC_RX_FIFO_SIZE_8821C + RX_FIFO_EXPANDING)
-			#endif
+			/* 8821C - RX FIFO :16K ,for RX agg DMA mode = 16K, Rx agg USB mode could large than 16k*/
+			/* #define MAX_RECVBUF_SZ		(16384 + RX_FIFO_EXPANDING)*/
+			/* For Max throughput issue , need to use USB AGG mode to replace DMA AGG mode*/
+			#define MAX_RECVBUF_SZ (32768)
+
 			/*#define MAX_RECVBUF_SZ_8821C (24576)*/ /* 24k*/
 			/*#define MAX_RECVBUF_SZ_8821C (20480)*/ /*20K*/
 			/*#define MAX_RECVBUF_SZ_8821C (10240) */ /*10K*/
@@ -72,15 +66,19 @@
 	/*#endif*/
 
 #elif defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
-	#define MAX_RECVBUF_SZ	(HALMAC_RX_FIFO_SIZE_8821C + RX_FIFO_EXPANDING)
+	#define MAX_RECVBUF_SZ	(16384 + RX_FIFO_EXPANDING)
 #endif
 
 void init_hal_spec_rtl8821c(PADAPTER);
 /* MP Functions */
 #ifdef CONFIG_MP_INCLUDED
-void rtl8821c_phy_init_haldm(PADAPTER);				/* rtw_mp.c */
 void rtl8821c_prepare_mp_txdesc(PADAPTER, struct mp_priv *);	/* rtw_mp.c */
 void rtl8821c_mp_config_rfpath(PADAPTER);			/* hal_mp.c */
+#endif
+void rtl8821c_dl_rsvd_page(PADAPTER adapter, u8 mstatus);
+
+#ifdef CONFIG_PCI_HCI
+u16 get_txbd_rw_reg(u16 q_idx);
 #endif
 
 #endif /* _RTL8821C_HAL_H_ */

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8723D_XMIT_H__
 #define __RTL8723D_XMIT_H__
 
@@ -217,9 +212,8 @@
 	SET_BITS_TO_LE_4BYTE(__pTxDesc+8, 30, 1, __Value)
 
 /* Dword 3 */
-#define SET_TX_DESC_NAV_USE_HDR_8723D(__pTxDesc, __Value) \
-	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 5, 1, __Value)
-#define SET_TX_DESC_HWSEQ_SEL_8723D(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 6, 2, __Value)
+#define SET_TX_DESC_HWSEQ_SEL_8723D(__pTxDesc, __Value) \
+	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 6, 2, __Value)
 #define SET_TX_DESC_USE_RATE_8723D(__pTxDesc, __Value) \
 	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 8, 1, __Value)
 #define SET_TX_DESC_DISABLE_RTS_FB_8723D(__pTxDesc, __Value) \
@@ -234,6 +228,8 @@
 	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 13, 1, __Value)
 #define SET_TX_DESC_PORT_ID_8723D(__pTxDesc, __Value) \
 	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 14, 2, __Value)
+#define SET_TX_DESC_NAV_USE_HDR_8723D(__pTxDesc, __Value) \
+	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 15, 1, __Value)
 #define SET_TX_DESC_USE_MAX_LEN_8723D(__pTxDesc, __Value) \
 	SET_BITS_TO_LE_4BYTE(__pTxDesc+12, 16, 1, __Value)
 #define SET_TX_DESC_MAX_AGG_NUM_8723D(__pTxDesc, __Value) \
@@ -290,13 +286,17 @@
 	SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 16, 3, __Value)
 
 /* Dword 7 */
-#if (DEV_BUS_TYPE == RT_PCI_INTERFACE)
+#ifdef CONFIG_PCI_HCI
 #define SET_TX_DESC_TX_BUFFER_SIZE_8723D(__pTxDesc, __Value) \
 	SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
-#elif(DEV_BUS_TYPE == RT_USB_INTERFACE)
+#endif
+
+#ifdef CONFIG_USB_HCI
 #define SET_TX_DESC_TX_DESC_CHECKSUM_8723D(__pTxDesc, __Value) \
 	SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
-#else
+#endif
+
+#ifdef CONFIG_SDIO_HCI
 #define SET_TX_DESC_TX_TIMESTAMP_8723D(__pTxDesc, __Value) \
 	SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 6, 18, __Value)
 #endif
@@ -480,6 +480,7 @@ void rtl8723d_fill_fake_txdesc(PADAPTER padapter, u8 *pDesc, u32 BufferLen, u8 I
 #if defined(CONFIG_CONCURRENT_MODE)
 	void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, u8 *ptxdesc);
 #endif
+void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 
 #if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
 	s32 rtl8723ds_init_xmit_priv(PADAPTER padapter);

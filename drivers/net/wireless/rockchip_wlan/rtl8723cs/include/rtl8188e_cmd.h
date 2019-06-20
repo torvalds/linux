@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8188E_CMD_H__
 #define __RTL8188E_CMD_H__
 
@@ -140,8 +135,6 @@ typedef struct _RSVDPAGE_LOC_88E {
 /* host message to firmware cmd */
 void rtl8188e_set_FwPwrMode_cmd(PADAPTER padapter, u8 Mode);
 void rtl8188e_set_FwJoinBssReport_cmd(PADAPTER padapter, u8 mstatus);
-u8 rtl8188e_set_rssi_cmd(PADAPTER padapter, u8 *param);
-u8 rtl8188e_set_raid_cmd(_adapter *padapter, u32 bitmap, u8 *arg, u8 bw);
 s32 FillH2CCmd_88E(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
 /* u8 rtl8192c_set_FwSelectSuspend_cmd(PADAPTER padapter, u8 bfwpoll, u16 period); */
 u8 GetTxBufferRsvdPageNum8188E(_adapter *padapter, bool wowlan);
@@ -150,13 +143,6 @@ u8 GetTxBufferRsvdPageNum8188E(_adapter *padapter, bool wowlan);
 #ifdef CONFIG_P2P
 	void rtl8188e_set_p2p_ps_offload_cmd(PADAPTER padapter, u8 p2p_ps_state);
 #endif /* CONFIG_P2P */
-
-void CheckFwRsvdPageContent(PADAPTER padapter);
-
-#ifdef CONFIG_TSF_RESET_OFFLOAD
-	/* u8 rtl8188e_reset_tsf(_adapter *padapter, u8 reset_port); */
-	int reset_tsf(PADAPTER Adapter, u8 reset_port);
-#endif /* CONFIG_TSF_RESET_OFFLOAD */
 
 /* #define H2C_8188E_RSVDPAGE_LOC_LEN      5 */
 /* #define H2C_8188E_AOAC_RSVDPAGE_LOC_LEN 7 */

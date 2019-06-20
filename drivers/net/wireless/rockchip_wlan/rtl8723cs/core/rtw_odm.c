@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2013 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,42 +11,57 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 
 #include <rtw_odm.h>
 #include <hal_data.h>
 
+u32 rtw_phydm_ability_ops(_adapter *adapter, HAL_PHYDM_OPS ops, u32 ability)
+{
+	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(adapter);
+	struct dm_struct *podmpriv = &pHalData->odmpriv;
+	u32 result = 0;
 
+	switch (ops) {
+	case HAL_PHYDM_DIS_ALL_FUNC:
+		podmpriv->support_ability = DYNAMIC_FUNC_DISABLE;
+		halrf_cmn_info_set(podmpriv, HALRF_CMNINFO_ABILITY, DYNAMIC_FUNC_DISABLE);
+		break;
+	case HAL_PHYDM_FUNC_SET:
+		podmpriv->support_ability |= ability;
+		break;
+	case HAL_PHYDM_FUNC_CLR:
+		podmpriv->support_ability &= ~(ability);
+		break;
+	case HAL_PHYDM_ABILITY_BK:
+		/* dm flag backup*/
+		podmpriv->bk_support_ability = podmpriv->support_ability;
+		pHalData->bk_rf_ability = halrf_cmn_info_get(podmpriv, HALRF_CMNINFO_ABILITY);
+		break;
+	case HAL_PHYDM_ABILITY_RESTORE:
+		/* restore dm flag */
+		podmpriv->support_ability = podmpriv->bk_support_ability;
+		halrf_cmn_info_set(podmpriv, HALRF_CMNINFO_ABILITY, pHalData->bk_rf_ability);
+		break;
+	case HAL_PHYDM_ABILITY_SET:
+		podmpriv->support_ability = ability;
+		break;
+	case HAL_PHYDM_ABILITY_GET:
+		result = podmpriv->support_ability;
+		break;
+	}
+	return result;
+}
 
 /* set ODM_CMNINFO_IC_TYPE based on chip_type */
 void rtw_odm_init_ic_type(_adapter *adapter)
 {
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-	struct PHY_DM_STRUCT *odm = &hal_data->odmpriv;
-	u4Byte ic_type = chip_type_to_odm_ic_type(rtw_get_chip_type(adapter));
+	struct dm_struct *odm = adapter_to_phydm(adapter);
+	u32 ic_type = chip_type_to_odm_ic_type(rtw_get_chip_type(adapter));
 
 	rtw_warn_on(!ic_type);
 
 	odm_cmn_info_init(odm, ODM_CMNINFO_IC_TYPE, ic_type);
-}
-
-inline void rtw_odm_set_force_igi_lb(_adapter *adapter, u8 lb)
-{
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-
-	hal_data->u1ForcedIgiLb = lb;
-}
-
-inline u8 rtw_odm_get_force_igi_lb(_adapter *adapter)
-{
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-
-	return hal_data->u1ForcedIgiLb;
 }
 
 void rtw_odm_adaptivity_ver_msg(void *sel, _adapter *adapter)
@@ -60,9 +75,6 @@ void rtw_odm_adaptivity_ver_msg(void *sel, _adapter *adapter)
 void rtw_odm_adaptivity_en_msg(void *sel, _adapter *adapter)
 {
 	struct registry_priv *regsty = &adapter->registrypriv;
-	struct mlme_priv *mlme = &adapter->mlmepriv;
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-	struct PHY_DM_STRUCT *odm = &hal_data->odmpriv;
 
 	RTW_PRINT_SEL(sel, "RTW_ADAPTIVITY_EN_");
 
@@ -91,43 +103,16 @@ void rtw_odm_adaptivity_mode_msg(void *sel, _adapter *adapter)
 		_RTW_PRINT_SEL(sel, "INVALID\n");
 }
 
-#define RTW_ADAPTIVITY_DML_DISABLE 0
-#define RTW_ADAPTIVITY_DML_ENABLE 1
-
-void rtw_odm_adaptivity_dml_msg(void *sel, _adapter *adapter)
-{
-	struct registry_priv *regsty = &adapter->registrypriv;
-
-	RTW_PRINT_SEL(sel, "RTW_ADAPTIVITY_DML_");
-
-	if (regsty->adaptivity_dml == RTW_ADAPTIVITY_DML_DISABLE)
-		_RTW_PRINT_SEL(sel, "DISABLE\n");
-	else if (regsty->adaptivity_dml == RTW_ADAPTIVITY_DML_ENABLE)
-		_RTW_PRINT_SEL(sel, "ENABLE\n");
-	else
-		_RTW_PRINT_SEL(sel, "INVALID\n");
-}
-
-void rtw_odm_adaptivity_dc_backoff_msg(void *sel, _adapter *adapter)
-{
-	struct registry_priv *regsty = &adapter->registrypriv;
-
-	RTW_PRINT_SEL(sel, "RTW_ADAPTIVITY_DC_BACKOFF:%u\n", regsty->adaptivity_dc_backoff);
-}
-
 void rtw_odm_adaptivity_config_msg(void *sel, _adapter *adapter)
 {
 	rtw_odm_adaptivity_ver_msg(sel, adapter);
 	rtw_odm_adaptivity_en_msg(sel, adapter);
 	rtw_odm_adaptivity_mode_msg(sel, adapter);
-	rtw_odm_adaptivity_dml_msg(sel, adapter);
-	rtw_odm_adaptivity_dc_backoff_msg(sel, adapter);
 }
 
 bool rtw_odm_adaptivity_needed(_adapter *adapter)
 {
 	struct registry_priv *regsty = &adapter->registrypriv;
-	struct mlme_priv *mlme = &adapter->mlmepriv;
 	bool ret = _FALSE;
 
 	if (regsty->adaptivity_en == RTW_ADAPTIVITY_EN_ENABLE)
@@ -138,47 +123,32 @@ bool rtw_odm_adaptivity_needed(_adapter *adapter)
 
 void rtw_odm_adaptivity_parm_msg(void *sel, _adapter *adapter)
 {
-	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(adapter);
-	struct PHY_DM_STRUCT *odm = &pHalData->odmpriv;
+	struct dm_struct *odm = adapter_to_phydm(adapter);
 
 	rtw_odm_adaptivity_config_msg(sel, adapter);
 
-	RTW_PRINT_SEL(sel, "%10s %16s %16s %22s %12s\n"
-		, "th_l2h_ini", "th_edcca_hl_diff", "th_l2h_ini_mode2", "th_edcca_hl_diff_mode2", "edcca_enable");
-	RTW_PRINT_SEL(sel, "0x%-8x %-16d 0x%-14x %-22d %-12d\n"
+	RTW_PRINT_SEL(sel, "%10s %16s\n"
+		, "th_l2h_ini", "th_edcca_hl_diff");
+	RTW_PRINT_SEL(sel, "0x%-8x %-16d\n"
 		, (u8)odm->th_l2h_ini
 		, odm->th_edcca_hl_diff
-		, (u8)odm->th_l2h_ini_mode2
-		, odm->th_edcca_hl_diff_mode2
-		, odm->edcca_enable
-	);
-
-	RTW_PRINT_SEL(sel, "%15s %9s\n", "AdapEnableState", "Adap_Flag");
-	RTW_PRINT_SEL(sel, "%-15x %-9x\n"
-		, odm->adaptivity_enable
-		, odm->adaptivity_flag
 	);
 }
 
-void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 th_l2h_ini, s8 th_edcca_hl_diff, s8 th_l2h_ini_mode2, s8 th_edcca_hl_diff_mode2, u8 edcca_enable)
+void rtw_odm_adaptivity_parm_set(_adapter *adapter, s8 th_l2h_ini, s8 th_edcca_hl_diff)
 {
-	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(adapter);
-	struct PHY_DM_STRUCT *odm = &pHalData->odmpriv;
+	struct dm_struct *odm = adapter_to_phydm(adapter);
 
 	odm->th_l2h_ini = th_l2h_ini;
 	odm->th_edcca_hl_diff = th_edcca_hl_diff;
-	odm->th_l2h_ini_mode2 = th_l2h_ini_mode2;
-	odm->th_edcca_hl_diff_mode2 = th_edcca_hl_diff_mode2;
-	odm->edcca_enable = edcca_enable;
 }
 
 void rtw_odm_get_perpkt_rssi(void *sel, _adapter *adapter)
 {
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-	struct PHY_DM_STRUCT *odm = &(hal_data->odmpriv);
+	struct dm_struct *odm = adapter_to_phydm(adapter);
 
-	RTW_PRINT_SEL(sel, "rx_rate = %s, RSSI_A = %d(%%), RSSI_B = %d(%%)\n",
-		      HDATA_RATE(odm->rx_rate), odm->RSSI_A, odm->RSSI_B);
+	RTW_PRINT_SEL(sel, "rx_rate = %s, rssi_a = %d(%%), rssi_b = %d(%%)\n",
+		      HDATA_RATE(odm->rx_rate), odm->rssi_a, odm->rssi_b);
 }
 
 
@@ -208,11 +178,10 @@ void rtw_odm_releasespinlock(_adapter *adapter,	enum rt_spinlock_type type)
 	}
 }
 
-inline u8 rtw_odm_get_dfs_domain(_adapter *adapter)
+inline u8 rtw_odm_get_dfs_domain(struct dvobj_priv *dvobj)
 {
 #ifdef CONFIG_DFS_MASTER
-	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
-	struct PHY_DM_STRUCT *pDM_Odm = &(hal_data->odmpriv);
+	struct dm_struct *pDM_Odm = dvobj_to_phydm(dvobj);
 
 	return pDM_Odm->dfs_region_domain;
 #else
@@ -220,35 +189,40 @@ inline u8 rtw_odm_get_dfs_domain(_adapter *adapter)
 #endif
 }
 
-inline u8 rtw_odm_dfs_domain_unknown(_adapter *adapter)
+inline u8 rtw_odm_dfs_domain_unknown(struct dvobj_priv *dvobj)
 {
 #ifdef CONFIG_DFS_MASTER
-	return rtw_odm_get_dfs_domain(adapter) == PHYDM_DFS_DOMAIN_UNKNOWN;
+	return rtw_odm_get_dfs_domain(dvobj) == PHYDM_DFS_DOMAIN_UNKNOWN;
 #else
 	return 1;
 #endif
 }
 
 #ifdef CONFIG_DFS_MASTER
-inline VOID rtw_odm_radar_detect_reset(_adapter *adapter)
+inline void rtw_odm_radar_detect_reset(_adapter *adapter)
 {
-	phydm_radar_detect_reset(GET_ODM(adapter));
+	phydm_radar_detect_reset(adapter_to_phydm(adapter));
 }
 
-inline VOID rtw_odm_radar_detect_disable(_adapter *adapter)
+inline void rtw_odm_radar_detect_disable(_adapter *adapter)
 {
-	phydm_radar_detect_disable(GET_ODM(adapter));
+	phydm_radar_detect_disable(adapter_to_phydm(adapter));
 }
 
 /* called after ch, bw is set */
-inline VOID rtw_odm_radar_detect_enable(_adapter *adapter)
+inline void rtw_odm_radar_detect_enable(_adapter *adapter)
 {
-	phydm_radar_detect_enable(GET_ODM(adapter));
+	phydm_radar_detect_enable(adapter_to_phydm(adapter));
 }
 
 inline BOOLEAN rtw_odm_radar_detect(_adapter *adapter)
 {
-	return phydm_radar_detect(GET_ODM(adapter));
+	return phydm_radar_detect(adapter_to_phydm(adapter));
+}
+
+inline u8 rtw_odm_radar_detect_polling_int_ms(struct dvobj_priv *dvobj)
+{
+	return phydm_dfs_polling_time(dvobj_to_phydm(dvobj));
 }
 #endif /* CONFIG_DFS_MASTER */
 
@@ -260,11 +234,11 @@ void rtw_odm_parse_rx_phy_status_chinfo(union recv_frame *rframe, u8 *phys)
 
 #if (ODM_PHY_STATUS_NEW_TYPE_SUPPORT == 1)
 	_adapter *adapter = rframe->u.hdr.adapter;
-	struct PHY_DM_STRUCT *phydm = GET_ODM(adapter);
+	struct dm_struct *phydm = adapter_to_phydm(adapter);
 	struct rx_pkt_attrib *attrib = &rframe->u.hdr.attrib;
 	u8 *wlanhdr = get_recvframe_data(rframe);
 
-	if (phydm->support_ic_type & ODM_IC_PHY_STATUE_NEW_TYPE) {
+	if (phydm->support_ic_type & PHYSTS_2ND_TYPE_IC) {
 		/*
 		* 8723D:
 		* type_0(CCK)
@@ -293,7 +267,7 @@ void rtw_odm_parse_rx_phy_status_chinfo(union recv_frame *rframe, u8 *phys)
 		*/
 
 		if ((*phys & 0xf) == 0) {
-			struct _phy_status_rpt_jaguar2_type0 *phys_t0 = (struct _phy_status_rpt_jaguar2_type0 *)phys;
+			struct phy_sts_rpt_jgr2_type0 *phys_t0 = (struct phy_sts_rpt_jgr2_type0 *)phys;
 
 			if (DBG_RX_PHYSTATUS_CHINFO) {
 				RTW_PRINT("phys_t%u ta="MAC_FMT" %s, %s(band:%u, ch:%u, l_rxsc:%u)\n"
@@ -306,7 +280,7 @@ void rtw_odm_parse_rx_phy_status_chinfo(union recv_frame *rframe, u8 *phys)
 			}
 
 		} else if ((*phys & 0xf) == 1) {
-			struct _phy_status_rpt_jaguar2_type1 *phys_t1 = (struct _phy_status_rpt_jaguar2_type1 *)phys;
+			struct phy_sts_rpt_jgr2_type1 *phys_t1 = (struct phy_sts_rpt_jgr2_type1 *)phys;
 			u8 rxsc = (attrib->data_rate > DESC_RATE11M && attrib->data_rate < DESC_RATEMCS0) ? phys_t1->l_rxsc : phys_t1->ht_rxsc;
 			u8 pkt_cch = 0;
 			u8 pkt_bw = CHANNEL_WIDTH_20;
@@ -427,7 +401,7 @@ type1_end:
 				attrib->ch = pkt_cch;
 
 		} else {
-			struct _phy_status_rpt_jaguar2_type2 *phys_t2 = (struct _phy_status_rpt_jaguar2_type2 *)phys;
+			struct phy_sts_rpt_jgr2_type2 *phys_t2 = (struct phy_sts_rpt_jgr2_type2 *)phys;
 
 			if (DBG_RX_PHYSTATUS_CHINFO) {
 				RTW_PRINT("phys_t%u ta="MAC_FMT" %s, %s(band:%u, ch:%u, l_rxsc:%u, ht_rxsc:%u)\n"

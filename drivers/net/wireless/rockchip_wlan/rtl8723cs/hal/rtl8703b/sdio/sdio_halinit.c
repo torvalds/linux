@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define _SDIO_HALINIT_C_
 
 #include <rtl8703b_hal.h>
@@ -145,33 +140,9 @@ _init_power_on:
 		goto _init_power_on;
 	}
 
-#ifdef CONFIG_BT_COEXIST
-	rtw_btcoex_PowerOnSetting(padapter);
-
-	/* external switch to S1 */
-	/* 0x38[11] = 0x1 */
-	/* 0x4c[23] = 0x1 */
-	/* 0x64[0] = 0 */
-	value16 = rtw_read16(padapter, REG_PWR_DATA);
-	/* Switch the control of EESK, EECS to RFC for DPDT or Antenna switch */
-	value16 |= BIT(11); /* BIT_EEPRPAD_RFE_CTRL_EN */
-	rtw_write16(padapter, REG_PWR_DATA, value16);
-	/*	RTW_INFO("%s: REG_PWR_DATA(0x%x)=0x%04X\n", __FUNCTION__, REG_PWR_DATA, rtw_read16(padapter, REG_PWR_DATA)); */
-
-	value32 = rtw_read32(padapter, REG_LEDCFG0);
-	value32 |= BIT(23); /* DPDT_SEL_EN, 1 for SW control */
-	rtw_write32(padapter, REG_LEDCFG0, value32);
-	/*	RTW_INFO("%s: REG_LEDCFG0(0x%x)=0x%08X\n", __FUNCTION__, REG_LEDCFG0, rtw_read32(padapter, REG_LEDCFG0)); */
-
-	value8 = rtw_read8(padapter, REG_PAD_CTRL1_8703B);
-	value8 &= ~BIT(0); /* BIT_SW_DPDT_SEL_DATA, DPDT_SEL default configuration */
-	rtw_write8(padapter, REG_PAD_CTRL1_8703B, value8);
-	/*	RTW_INFO("%s: REG_PAD_CTRL1(0x%x)=0x%02X\n", __FUNCTION__, REG_PAD_CTRL1_8703B, rtw_read8(padapter, REG_PAD_CTRL1_8703B)); */
-#endif /* CONFIG_BT_COEXIST */
-
 	return _SUCCESS;
 }
-
+#ifdef CONFIG_SDIO_TX_ENABLE_AVAL_INT
 /* Tx Page FIFO threshold */
 static void _init_available_page_threshold(PADAPTER padapter, u8 numHQ, u8 numNQ, u8 numLQ, u8 numPubQ)
 {
@@ -191,7 +162,7 @@ static void _init_available_page_threshold(PADAPTER padapter, u8 numHQ, u8 numNQ
 	rtw_write16(padapter, 0x21C, LQ_threshold);
 	RTW_INFO("%s(): Enable Tx FIFO Page Threshold H:0x%x,N:0x%x,L:0x%x\n", __FUNCTION__, HQ_threshold, NQ_threshold, LQ_threshold);
 }
-
+#endif
 static void _InitQueueReservedPage(PADAPTER padapter)
 {
 	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(padapter);
@@ -224,7 +195,7 @@ static void _InitQueueReservedPage(PADAPTER padapter)
 	value32 = _HPQ(numHQ) | _LPQ(numLQ) | _PUBQ(numPubQ) | LD_RQPN;
 	rtw_write32(padapter, REG_RQPN, value32);
 
-	rtw_hal_set_sdio_tx_max_length(padapter, numHQ, numNQ, numLQ, numPubQ);
+	rtw_hal_set_sdio_tx_max_length(padapter, numHQ, numNQ, numLQ, numPubQ, SDIO_TX_DIV_NUM);
 
 #ifdef CONFIG_SDIO_TX_ENABLE_AVAL_INT
 	_init_available_page_threshold(padapter, numHQ, numNQ, numLQ, numPubQ);
@@ -265,15 +236,15 @@ static void _InitTxBufferBoundary(PADAPTER padapter)
 #endif /* CONFIG_CONCURRENT_MODE */
 }
 
-static VOID
+static void
 _InitNormalChipRegPriority(
-	IN	PADAPTER	Adapter,
-	IN	u16		beQ,
-	IN	u16		bkQ,
-	IN	u16		viQ,
-	IN	u16		voQ,
-	IN	u16		mgtQ,
-	IN	u16		hiQ
+		PADAPTER	Adapter,
+		u16		beQ,
+		u16		bkQ,
+		u16		viQ,
+		u16		voQ,
+		u16		mgtQ,
+		u16		hiQ
 )
 {
 	u16 value16		= (rtw_read16(Adapter, REG_TRXDMA_CTRL) & 0x7);
@@ -285,9 +256,9 @@ _InitNormalChipRegPriority(
 	rtw_write16(Adapter, REG_TRXDMA_CTRL, value16);
 }
 
-static VOID
+static void
 _InitNormalChipOneOutEpPriority(
-	IN	PADAPTER Adapter
+		PADAPTER Adapter
 )
 {
 	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(Adapter);
@@ -319,9 +290,9 @@ _InitNormalChipOneOutEpPriority(
 
 }
 
-static VOID
+static void
 _InitNormalChipTwoOutEpPriority(
-	IN	PADAPTER Adapter
+		PADAPTER Adapter
 )
 {
 	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(Adapter);
@@ -370,9 +341,9 @@ _InitNormalChipTwoOutEpPriority(
 
 }
 
-static VOID
+static void
 _InitNormalChipThreeOutEpPriority(
-	IN	PADAPTER padapter
+		PADAPTER padapter
 )
 {
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
@@ -396,9 +367,9 @@ _InitNormalChipThreeOutEpPriority(
 	_InitNormalChipRegPriority(padapter, beQ, bkQ, viQ, voQ, mgtQ, hiQ);
 }
 
-static VOID
+static void
 _InitNormalChipQueuePriority(
-	IN	PADAPTER Adapter
+		PADAPTER Adapter
 )
 {
 	HAL_DATA_TYPE	*pHalData	= GET_HAL_DATA(Adapter);
@@ -465,20 +436,21 @@ void _InitWMACSetting(PADAPTER padapter)
 {
 	PHAL_DATA_TYPE pHalData;
 	u16 value16;
-
+	u32 rcr;
 
 	pHalData = GET_HAL_DATA(padapter);
 
-	pHalData->ReceiveConfig = 0;
-	pHalData->ReceiveConfig |= RCR_APM | RCR_AM | RCR_AB;
-	pHalData->ReceiveConfig |= RCR_CBSSID_DATA | RCR_CBSSID_BCN | RCR_AMF;
-	pHalData->ReceiveConfig |= RCR_HTC_LOC_CTRL;
-	pHalData->ReceiveConfig |= RCR_APP_PHYST_RXFF | RCR_APP_ICV | RCR_APP_MIC;
-#ifdef CONFIG_MAC_LOOPBACK_DRIVER
-	pHalData->ReceiveConfig |= RCR_AAP;
-	pHalData->ReceiveConfig |= RCR_ADD3 | RCR_APWRMGT | RCR_ACRC32 | RCR_ADF;
-#endif
-	rtw_write32(padapter, REG_RCR, pHalData->ReceiveConfig);
+	rcr = 0
+		| RCR_APM | RCR_AM | RCR_AB
+		| RCR_CBSSID_DATA | RCR_CBSSID_BCN | RCR_AMF
+		| RCR_HTC_LOC_CTRL
+		| RCR_APP_PHYST_RXFF | RCR_APP_ICV | RCR_APP_MIC
+		#ifdef CONFIG_MAC_LOOPBACK_DRIVER
+		| RCR_AAP
+		| RCR_ADD3 | RCR_APWRMGT | RCR_ACRC32 | RCR_ADF
+		#endif
+		;
+	rtw_hal_set_hwreg(padapter, HW_VAR_RCR, (u8 *)&rcr);
 
 	/* Accept all multicast address */
 	rtw_write32(padapter, REG_MAR, 0xFFFFFFFF);
@@ -518,8 +490,8 @@ void _InitAdaptiveCtrl(PADAPTER padapter)
 	rtw_write16(padapter, REG_SPEC_SIFS, value16);
 
 	/* Retry Limit */
-	value16 = _LRL(0x30) | _SRL(0x30);
-	rtw_write16(padapter, REG_RL, value16);
+	value16 = BIT_LRL(RL_VAL_STA) | BIT_SRL(RL_VAL_STA);
+	rtw_write16(padapter, REG_RETRY_LIMIT, value16);
 }
 
 void _InitEDCA(PADAPTER padapter)
@@ -539,16 +511,6 @@ void _InitEDCA(PADAPTER padapter)
 	rtw_write32(padapter, REG_EDCA_BK_PARAM, 0x0000A44F);
 	rtw_write32(padapter, REG_EDCA_VI_PARAM, 0x005EA324);
 	rtw_write32(padapter, REG_EDCA_VO_PARAM, 0x002FA226);
-}
-
-void _InitRateFallback(PADAPTER padapter)
-{
-	/* Set Data Auto Rate Fallback Retry Count register. */
-	rtw_write32(padapter, REG_DARFRC, 0x00000000);
-	rtw_write32(padapter, REG_DARFRC + 4, 0x10080404);
-	rtw_write32(padapter, REG_RARFRC, 0x04030201);
-	rtw_write32(padapter, REG_RARFRC + 4, 0x08070605);
-
 }
 
 void _InitRetryFunction(PADAPTER padapter)
@@ -637,7 +599,7 @@ void _initSdioAggregationSetting(PADAPTER padapter)
 
 	sdio_AggSettingRxUpdate(padapter);
 }
-
+#if 0
 static void _RXAggrSwitch(PADAPTER padapter, u8 enable)
 {
 	PHAL_DATA_TYPE pHalData;
@@ -661,80 +623,7 @@ static void _RXAggrSwitch(PADAPTER padapter, u8 enable)
 	rtw_write8(padapter, REG_TRXDMA_CTRL, valueDMA);
 	rtw_write8(padapter, REG_RXDMA_MODE_CTRL_8703B, valueRxAggCtrl);
 }
-
-void _InitOperationMode(PADAPTER padapter)
-{
-	PHAL_DATA_TYPE pHalData;
-	struct mlme_ext_priv *pmlmeext;
-	u8				regBwOpMode = 0;
-	u32				regRATR = 0, regRRSR = 0;
-	u8				MinSpaceCfg = 0;
-
-
-	pHalData = GET_HAL_DATA(padapter);
-	pmlmeext = &padapter->mlmeextpriv;
-
-	/* 1 This part need to modified according to the rate set we filtered!! */
-	/*  */
-	/* Set RRSR, RATR, and REG_BWOPMODE registers */
-	/*  */
-	switch (pmlmeext->cur_wireless_mode) {
-	case WIRELESS_MODE_B:
-		regBwOpMode = BW_OPMODE_20MHZ;
-		regRATR = RATE_ALL_CCK;
-		regRRSR = RATE_ALL_CCK;
-		break;
-	case WIRELESS_MODE_A:
-		/*			RT_ASSERT(FALSE,("Error wireless a mode\n")); */
-#if 0
-		regBwOpMode = BW_OPMODE_5G | BW_OPMODE_20MHZ;
-		regRATR = RATE_ALL_OFDM_AG;
-		regRRSR = RATE_ALL_OFDM_AG;
 #endif
-		break;
-	case WIRELESS_MODE_G:
-		regBwOpMode = BW_OPMODE_20MHZ;
-		regRATR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-		regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-		break;
-	case WIRELESS_MODE_AUTO:
-#if 0
-		if (padapter->bInHctTest) {
-			regBwOpMode = BW_OPMODE_20MHZ;
-			regRATR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-			regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-		} else
-#endif
-		{
-			regBwOpMode = BW_OPMODE_20MHZ;
-			regRATR = RATE_ALL_CCK | RATE_ALL_OFDM_AG | RATE_ALL_OFDM_1SS | RATE_ALL_OFDM_2SS;
-			regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-		}
-		break;
-	case WIRELESS_MODE_N_24G:
-		/* It support CCK rate by default. */
-		/* CCK rate will be filtered out only when associated AP does not support it. */
-		regBwOpMode = BW_OPMODE_20MHZ;
-		regRATR = RATE_ALL_CCK | RATE_ALL_OFDM_AG | RATE_ALL_OFDM_1SS | RATE_ALL_OFDM_2SS;
-		regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-		break;
-	case WIRELESS_MODE_N_5G:
-		/*			RT_ASSERT(FALSE,("Error wireless mode")); */
-#if 0
-		regBwOpMode = BW_OPMODE_5G;
-		regRATR = RATE_ALL_OFDM_AG | RATE_ALL_OFDM_1SS | RATE_ALL_OFDM_2SS;
-		regRRSR = RATE_ALL_OFDM_AG;
-#endif
-		break;
-
-	default: /* for MacOSX compiler warning. */
-		break;
-	}
-
-	rtw_write8(padapter, REG_BWOPMODE, regBwOpMode);
-
-}
-
 void _InitInterrupt(PADAPTER padapter)
 {
 	/* HISR - turn all off */
@@ -776,6 +665,7 @@ static void _InitRFType(PADAPTER padapter)
 }
 
 /* Set CCK and OFDM Block "ON" */
+#if 0
 static void _BBTurnOnBlock(PADAPTER padapter)
 {
 #if (DISABLE_BB_RF)
@@ -785,43 +675,9 @@ static void _BBTurnOnBlock(PADAPTER padapter)
 	phy_set_bb_reg(padapter, rFPGA0_RFMOD, bCCKEn, 0x1);
 	phy_set_bb_reg(padapter, rFPGA0_RFMOD, bOFDMEn, 0x1);
 }
+#endif
 
-static void _RfPowerSave(PADAPTER padapter)
-{
-	/* YJ,TODO */
-}
-
-static void _InitAntenna_Selection(PADAPTER padapter)
-{
-	rtw_write8(padapter, REG_LEDCFG2, 0x82);
-}
-
-static void _InitPABias(PADAPTER padapter)
-{
-	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(padapter);
-	u8			pa_setting;
-
-	/* FIXED PA current issue */
-	/* efuse_one_byte_read(padapter, 0x1FA, &pa_setting); */
-	efuse_OneByteRead(padapter, 0x1FA, &pa_setting, _FALSE);
-
-
-	if (!(pa_setting & BIT0)) {
-		phy_set_rf_reg(padapter, RF_PATH_A, 0x15, 0x0FFFFF, 0x0F406);
-		phy_set_rf_reg(padapter, RF_PATH_A, 0x15, 0x0FFFFF, 0x4F406);
-		phy_set_rf_reg(padapter, RF_PATH_A, 0x15, 0x0FFFFF, 0x8F406);
-		phy_set_rf_reg(padapter, RF_PATH_A, 0x15, 0x0FFFFF, 0xCF406);
-	}
-
-	if (!(pa_setting & BIT4)) {
-		pa_setting = rtw_read8(padapter, 0x16);
-		pa_setting &= 0x0F;
-		rtw_write8(padapter, 0x16, pa_setting | 0x80);
-		rtw_write8(padapter, 0x16, pa_setting | 0x90);
-	}
-}
-
-VOID _InitBBRegBackup_8703BS(PADAPTER	Adapter)
+void _InitBBRegBackup_8703BS(PADAPTER	Adapter)
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 
@@ -840,7 +696,7 @@ VOID _InitBBRegBackup_8703BS(PADAPTER	Adapter)
 	pHalData->RegForRecover[3].value = phy_query_bb_reg(Adapter, pHalData->RegForRecover[3].offset, bMaskDWord);
 
 	pHalData->RegForRecover[4].offset = 0x1E;
-	pHalData->RegForRecover[4].value = phy_query_rf_reg(Adapter, ODM_RF_PATH_A, pHalData->RegForRecover[4].offset, bRFRegOffsetMask);
+	pHalData->RegForRecover[4].value = phy_query_rf_reg(Adapter, RF_PATH_A, pHalData->RegForRecover[4].offset, bRFRegOffsetMask);
 }
 
 /*
@@ -925,7 +781,7 @@ static u32 rtl8703bs_hal_init(PADAPTER padapter)
 #elif defined(CONFIG_FWLPS_IN_IPS)
 	if (adapter_to_pwrctl(padapter)->bips_processing == _TRUE && psrtpriv->silent_reset_inprogress == _FALSE
 	    && adapter_to_pwrctl(padapter)->pre_ips_type == 0) {
-		u32 start_time;
+		systime start_time;
 		u8 cpwm_orig, cpwm_now;
 		u8 val8, bMacPwrCtrlOn = _TRUE;
 
@@ -992,34 +848,34 @@ static u32 rtl8703bs_hal_init(PADAPTER padapter)
 		RTW_INFO("FW exist before power on!!\n");
 	else
 		RTW_INFO("FW does not exist before power on!!\n");
-
+#ifdef DBG_CHECK_FW_PS_STATE
 	if (rtw_fw_ps_state(padapter) == _FAIL) {
 		RTW_INFO("check fw_ps_state fail before PowerOn!\n");
 		pdbgpriv->dbg_ips_drvopen_fail_cnt++;
 	}
-
+#endif
 	ret = rtw_hal_power_on(padapter);
 	if (_FAIL == ret) {
 		return _FAIL;
 	}
 	RTW_INFO("Power on ok!\n");
-
+#ifdef DBG_CHECK_FW_PS_STATE
 	if (rtw_fw_ps_state(padapter) == _FAIL) {
 		RTW_INFO("check fw_ps_state fail after PowerOn!\n");
 		pdbgpriv->dbg_ips_drvopen_fail_cnt++;
 	}
-
+#endif
 
 	rtw_write8(padapter, REG_EARLY_MODE_CONTROL, 0);
 
 	if (padapter->registrypriv.mp_mode == 0) {
 		ret = rtl8703b_FirmwareDownload(padapter, _FALSE);
 		if (ret != _SUCCESS) {
-			padapter->bFWReady = _FALSE;
+			pHalData->bFWReady = _FALSE;
 			pHalData->fw_ractrl = _FALSE;
 			return ret;
 		} else {
-			padapter->bFWReady = _TRUE;
+			pHalData->bFWReady = _TRUE;
 			pHalData->fw_ractrl = _TRUE;
 		}
 	}
@@ -1076,8 +932,8 @@ static u32 rtl8703bs_hal_init(PADAPTER padapter)
 	/*  */
 	/* Joseph Note: Keep RfRegChnlVal for later use. */
 	/*  */
-	pHalData->RfRegChnlVal[0] = phy_query_rf_reg(padapter, (RF_PATH)0, RF_CHNLBW, bRFRegOffsetMask);
-	pHalData->RfRegChnlVal[1] = phy_query_rf_reg(padapter, (RF_PATH)1, RF_CHNLBW, bRFRegOffsetMask);
+	pHalData->RfRegChnlVal[0] = phy_query_rf_reg(padapter, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask);
+	pHalData->RfRegChnlVal[1] = phy_query_rf_reg(padapter, RF_PATH_B, RF_CHNLBW, bRFRegOffsetMask);
 
 #if 0
 	/* Specially add for FWDL by Tx pkt write. Reset Tx/Rx DMA since the Tx boundary setting
@@ -1107,10 +963,9 @@ static u32 rtl8703bs_hal_init(PADAPTER padapter)
 	_InitWMACSetting(padapter);
 	_InitAdaptiveCtrl(padapter);
 	_InitEDCA(padapter);
-	/* _InitRateFallback(padapter); */
 	_InitRetryFunction(padapter);
 	_initSdioAggregationSetting(padapter);
-	_InitOperationMode(padapter);
+
 	rtl8703b_InitBeaconParameters(padapter);
 	rtl8703b_InitBeaconMaxError(padapter, _TRUE);
 	_InitInterrupt(padapter);
@@ -1177,8 +1032,6 @@ static u32 rtl8703bs_hal_init(PADAPTER padapter)
 	/*  */
 	rtw_write32(padapter, SDIO_LOCAL_BASE | SDIO_REG_TX_CTRL, 0);
 
-	_RfPowerSave(padapter);
-
 
 	rtl8703b_InitHalDm(padapter);
 
@@ -1219,12 +1072,13 @@ static u32 rtl8703bs_hal_init(PADAPTER padapter)
 
 		if (pwrctrlpriv->rf_pwrstate == rf_on) {
 			struct pwrctrl_priv *pwrpriv;
-			u32 start_time;
+			systime start_time;
 			u8 h2cCmdBuf;
 
 			pwrpriv = adapter_to_pwrctl(padapter);
 
-			phy_lc_calibrate_8703b(&pHalData->odmpriv);
+			/*phy_lc_calibrate_8703b(&pHalData->odmpriv);*/
+			halrf_lck_trigger(&pHalData->odmpriv);
 
 			/* Inform WiFi FW that it is the beginning of IQK */
 			h2cCmdBuf = 1;
@@ -1241,8 +1095,7 @@ static u32 rtl8703bs_hal_init(PADAPTER padapter)
 #ifdef CONFIG_BT_COEXIST
 			rtw_btcoex_IQKNotify(padapter, _TRUE);
 #endif
-			phy_iq_calibrate_8703b(padapter, _FALSE);
-			pHalData->bIQKInitialized = _TRUE;
+			pHalData->neediqk_24g= _TRUE;
 #ifdef CONFIG_BT_COEXIST
 			rtw_btcoex_IQKNotify(padapter, _FALSE);
 #endif
@@ -1283,7 +1136,7 @@ static void CardDisableRTL8703BSdio(PADAPTER padapter)
 	/*	==== Reset digital sequence   ====== */
 
 	u1bTmp = rtw_read8(padapter, REG_MCUFWDL);
-	if ((u1bTmp & RAM_DL_SEL) && padapter->bFWReady) /* 8051 RAM code */
+	if ((u1bTmp & RAM_DL_SEL) && GET_HAL_DATA(padapter)->bFWReady) /* 8051 RAM code */
 		rtl8703b_FirmwareSelfReset(padapter);
 
 	/* Reset MCU 0x2[10]=0. Suggested by Filen. 2011.01.26. by tynli. */
@@ -1312,7 +1165,7 @@ static void CardDisableRTL8703BSdio(PADAPTER padapter)
 	if (ret == _FALSE)
 		RTW_ERR("%s: run CARD DISABLE flow fail!\n", __func__);
 
-	padapter->bFWReady = _FALSE;
+	GET_HAL_DATA(padapter)->bFWReady = _FALSE;
 }
 
 static u32 rtl8703bs_hal_deinit(PADAPTER padapter)
@@ -1484,7 +1337,7 @@ static void rtl8703bs_interface_configure(PADAPTER padapter)
  *   */
 static void
 _EfuseCellSel(
-	IN	PADAPTER	padapter
+		PADAPTER	padapter
 )
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
@@ -1499,9 +1352,9 @@ _EfuseCellSel(
 	}
 }
 
-static VOID
+static void
 _ReadRFType(
-	IN	PADAPTER	Adapter
+		PADAPTER	Adapter
 )
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
@@ -1513,14 +1366,14 @@ _ReadRFType(
 #endif
 }
 
-static VOID
+static u8
 _ReadEfuseInfo8703BS(
-	IN PADAPTER			padapter
+		PADAPTER			padapter
 )
 {
 	PHAL_DATA_TYPE pHalData = GET_HAL_DATA(padapter);
 	u8			*hwinfo = NULL;
-
+	u8 ret = _FAIL;
 
 	/*  */
 	/* This part read and parse the eeprom/efuse content */
@@ -1557,17 +1410,25 @@ _ReadEfuseInfo8703BS(
 
 	Hal_ReadRFGainOffset(padapter, hwinfo, pHalData->bautoload_fail_flag);
 
-#ifdef CONFIG_RTW_MAC_HIDDEN_RPT
-	hal_read_mac_hidden_rpt(padapter);
-#endif
+	/* set coex. ant info once efuse parsing is done */
+	rtw_btcoex_set_ant_info(padapter);
+
+	if (hal_read_mac_hidden_rpt(padapter) != _SUCCESS)
+		goto exit;
+
+	ret = _SUCCESS;
+
+exit:
+	return ret;
 }
 
-static void _ReadPROMContent(
-	IN PADAPTER		padapter
+static u8 _ReadPROMContent(
+		PADAPTER		padapter
 )
 {
 	PHAL_DATA_TYPE pHalData = GET_HAL_DATA(padapter);
 	u8			eeValue;
+	u8 ret = _FAIL;
 
 	eeValue = rtw_read8(padapter, REG_9346CR);
 	/* To check system boot selection. */
@@ -1577,12 +1438,18 @@ static void _ReadPROMContent(
 
 	/*	pHalData->EEType = IS_BOOT_FROM_EEPROM(Adapter) ? EEPROM_93C46 : EEPROM_BOOT_EFUSE; */
 
-	_ReadEfuseInfo8703BS(padapter);
+	if (_ReadEfuseInfo8703BS(padapter) != _SUCCESS)
+		goto exit;
+
+	ret = _SUCCESS;
+
+exit:
+	return ret;
 }
 
-static VOID
+static void
 _InitOtherVariable(
-	IN PADAPTER		Adapter
+		PADAPTER		Adapter
 )
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
@@ -1609,6 +1476,7 @@ _InitOtherVariable(
  *   */
 static u8 ReadAdapterInfo8703BS(PADAPTER padapter)
 {
+	u8 ret = _FAIL;
 	u8 val8;
 
 	val8 = rtw_read8(padapter, 0x4e);
@@ -1621,7 +1489,9 @@ static u8 ReadAdapterInfo8703BS(PADAPTER padapter)
 
 	_EfuseCellSel(padapter);
 	_ReadRFType(padapter);
-	_ReadPROMContent(padapter);
+	if (_ReadPROMContent(padapter) != _SUCCESS)
+		goto exit;
+
 	_InitOtherVariable(padapter);
 
 #ifdef CONFIG_PLATFORM_INTEL_BYT
@@ -1636,16 +1506,20 @@ static u8 ReadAdapterInfo8703BS(PADAPTER padapter)
 	}
 #endif /* CONFIG_PLATFORM_INTEL_BYT */
 
-	return _SUCCESS;
+	ret = _SUCCESS;
+
+exit:
+	return ret;
 }
 
 /*
  * If variable not handled here,
  * some variables will be processed in SetHwReg8703B()
  */
-void SetHwReg8703BS(PADAPTER padapter, u8 variable, u8 *val)
+u8 SetHwReg8703BS(PADAPTER padapter, u8 variable, u8 *val)
 {
 	PHAL_DATA_TYPE pHalData;
+	u8 ret = _SUCCESS;
 	u8 val8;
 
 
@@ -1672,6 +1546,7 @@ void SetHwReg8703BS(PADAPTER padapter, u8 variable, u8 *val)
 	}
 	break;
 	case HW_VAR_RXDMA_AGG_PG_TH:
+		#if 0
 		val8 = *val;
 
 		/* TH=1 => invalidate RX DMA aggregation */
@@ -1683,15 +1558,14 @@ void SetHwReg8703BS(PADAPTER padapter, u8 variable, u8 *val)
 			/* disable RXDMA aggregation */
 			/* _RXAggrSwitch(padapter, _FALSE); */
 		}
-		break;
-	case HW_VAR_DM_IN_LPS:
-		rtl8703b_hal_dm_in_lps(padapter);
+		#endif
 		break;
 	default:
-		SetHwReg8703B(padapter, variable, val);
+		ret = SetHwReg8703B(padapter, variable, val);
 		break;
 	}
 
+	return ret;
 }
 
 /*
@@ -1726,9 +1600,9 @@ void GetHwReg8703BS(PADAPTER padapter, u8 variable, u8 *val)
  *   */
 u8
 GetHalDefVar8703BSDIO(
-	IN	PADAPTER				Adapter,
-	IN	HAL_DEF_VARIABLE		eVariable,
-	IN	PVOID					pValue
+		PADAPTER				Adapter,
+		HAL_DEF_VARIABLE		eVariable,
+		void						*pValue
 )
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
@@ -1760,9 +1634,9 @@ GetHalDefVar8703BSDIO(
  *   */
 u8
 SetHalDefVar8703BSDIO(
-	IN	PADAPTER				Adapter,
-	IN	HAL_DEF_VARIABLE		eVariable,
-	IN	PVOID					pValue
+		PADAPTER				Adapter,
+		HAL_DEF_VARIABLE		eVariable,
+		void						*pValue
 )
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
@@ -1796,10 +1670,13 @@ void rtl8703bs_set_hal_ops(PADAPTER padapter)
 
 	pHalFunc->init_recv_priv = &rtl8703bs_init_recv_priv;
 	pHalFunc->free_recv_priv = &rtl8703bs_free_recv_priv;
-
+#ifdef CONFIG_RECV_THREAD_MODE 
+	pHalFunc->recv_hdl = rtl8703bs_recv_hdl;
+#endif /* CONFIG_RECV_THREAD_MODE */
+#ifdef CONFIG_RTW_SW_LED
 	pHalFunc->InitSwLeds = &rtl8703bs_InitSwLeds;
 	pHalFunc->DeInitSwLeds = &rtl8703bs_DeInitSwLeds;
-
+#endif
 	pHalFunc->init_default_value = &rtl8703bs_init_default_value;
 	pHalFunc->intf_chip_configure = &rtl8703bs_interface_configure;
 	pHalFunc->read_adapter_info = &ReadAdapterInfo8703BS;

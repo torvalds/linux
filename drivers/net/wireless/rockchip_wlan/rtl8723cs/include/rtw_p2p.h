@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTW_P2P_H_
 #define __RTW_P2P_H_
 
@@ -75,6 +70,7 @@ u8	p2p_ps_wk_cmd(_adapter *padapter, u8 p2p_ps_state, u8 enqueue);
 #endif /* CONFIG_P2P_PS */
 
 #ifdef CONFIG_IOCTL_CFG80211
+u8 roch_stay_in_cur_chan(_adapter *padapter);
 void rtw_init_cfg80211_wifidirect_info(_adapter	*padapter);
 int rtw_p2p_check_frames(_adapter *padapter, const u8 *buf, u32 len, u8 tx);
 #endif /* CONFIG_IOCTL_CFG80211 */
@@ -106,11 +102,8 @@ static inline void _rtw_p2p_restore_state(struct wifidirect_info *wdinfo)
 	}
 }
 #endif
-static inline void _rtw_p2p_set_role(struct wifidirect_info *wdinfo, enum P2P_ROLE role)
-{
-	if (wdinfo->role != role)
-		wdinfo->role = role;
-}
+void _rtw_p2p_set_role(struct wifidirect_info *wdinfo, enum P2P_ROLE role);
+
 static inline int _rtw_p2p_state(struct wifidirect_info *wdinfo)
 {
 	return wdinfo->p2p_state;

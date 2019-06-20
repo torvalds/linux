@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8188E_HAL_H__
 #define __RTL8188E_HAL_H__
 
@@ -115,7 +110,11 @@ typedef struct _RT_8188E_FIRMWARE_HDR {
 
 
 /* #define MAX_RX_DMA_BUFFER_SIZE_88E	      0x2400 */ /* 9k for 88E nornal chip , */ /* MaxRxBuff=10k-max(TxReportSize(64*8), WOLPattern(16*24)) */
-#define RX_DMA_SIZE_88E(__Adapter) ((!IS_VENDOR_8188E_I_CUT_SERIES(__Adapter))?0x2800:0x4000)
+#ifdef CONFIG_USB_HCI
+	#define RX_DMA_SIZE_88E(__Adapter) 0x2800
+#else
+	#define RX_DMA_SIZE_88E(__Adapter) ((!IS_VENDOR_8188E_I_CUT_SERIES(__Adapter))?0x2800:0x4000)
+#endif
 
 #ifdef CONFIG_WOWLAN
 	#define RESV_FMWF	(WKFMCAM_SIZE * MAX_WKFM_CAM_NUM) /* 16 entries, for each is 24 bytes*/
@@ -129,16 +128,18 @@ typedef struct _RT_8188E_FIRMWARE_HDR {
 
 #define MAX_TX_REPORT_BUFFER_SIZE			0x0400 /* 1k */
 
+#define PAGE_SIZE_TX_88E PAGE_SIZE_128
 /* Note: We will divide number of page equally for each queue other than public queue!
  * 22k = 22528 bytes = 176 pages (@page =  128 bytes)
- * must reserved about 7 pages for LPS =>  176-7 = 169 (0xA9)
- * 2*BCN / 1*ps-poll / 1*null-data /1*prob_rsp /1*QOS null-data /1*BT QOS null-data  */
+ * BCN rsvd_page_num = MAX_BEACON_LEN / PAGE_SIZE_TX_88E
+ * 1 ps-poll / 1 null-data /1 prob_rsp /1 QOS null-data = 4 pages */
 
-#define BCNQ_PAGE_NUM_88E		0x09
+#define BCNQ_PAGE_NUM_88E		(MAX_BEACON_LEN / PAGE_SIZE_TX_88E + 4) /*0x09*/
 
 /* For WoWLan , more reserved page */
 #ifdef CONFIG_WOWLAN
-	#define WOWLAN_PAGE_NUM_88E	0x00
+	/* 1 ArpRsp + 2 NbrAdv + 2 NDPInfo + 1 RCI + 1 AOAC = 7 pages */
+	#define WOWLAN_PAGE_NUM_88E	0x07
 #else
 	#define WOWLAN_PAGE_NUM_88E	0x00
 #endif
@@ -148,7 +149,11 @@ Tx FIFO Size : previous CUT:22K /I_CUT after:32KB
 Tx page Size : 128B
 Total page numbers : 176(0xB0) / 256(0x100)
 */
-#define TOTAL_PAGE_NUMBER_88E(_Adapter)	((IS_VENDOR_8188E_I_CUT_SERIES(_Adapter)?0x100:0xB0) - 1)/* must reserved 1 page for dma issue */
+#ifdef CONFIG_USB_HCI
+	#define TOTAL_PAGE_NUMBER_88E(_Adapter) (0xB0 - 1)
+#else
+	#define TOTAL_PAGE_NUMBER_88E(_Adapter)	((IS_VENDOR_8188E_I_CUT_SERIES(_Adapter)?0x100:0xB0) - 1)/* must reserved 1 page for dma issue */
+#endif
 #define TX_TOTAL_PAGE_NUMBER_88E(_Adapter)	(TOTAL_PAGE_NUMBER_88E(_Adapter) - BCNQ_PAGE_NUM_88E - WOWLAN_PAGE_NUM_88E)
 #define TX_PAGE_BOUNDARY_88E(_Adapter)		(TX_TOTAL_PAGE_NUMBER_88E(_Adapter) + 1) /* beacon header start address */
 
@@ -280,13 +285,12 @@ BOOLEAN HalDetectPwrDownMode88E(PADAPTER Adapter);
 	void Hal_ReadRFGainOffset(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
 #endif /*CONFIG_RF_POWER_TRIM*/
 
-void rtl8188e_init_default_value(_adapter *adapter);
+
+void InitBeaconParameters_8188e(_adapter *adapter);
+void SetBeaconRelatedRegisters8188E(PADAPTER padapter);
 
 void rtl8188e_set_hal_ops(struct hal_ops *pHalFunc);
 void init_hal_spec_8188e(_adapter *adapter);
-
-/* register */
-void SetBcnCtrlReg(PADAPTER padapter, u8 SetBits, u8 ClearBits);
 
 void rtl8188e_start_thread(_adapter *padapter);
 void rtl8188e_stop_thread(_adapter *padapter);
@@ -297,14 +301,14 @@ void rtw_IOL_cmd_tx_pkt_buf_dump(ADAPTER *Adapter, int data_len);
 #endif/* CONFIG_IOL_EFUSE_PATCH */
 void _InitTransferPageSize(PADAPTER padapter);
 
-void SetHwReg8188E(PADAPTER padapter, u8 variable, u8 *val);
+u8 SetHwReg8188E(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg8188E(PADAPTER padapter, u8 variable, u8 *val);
 
 u8
 GetHalDefVar8188E(
-	IN	PADAPTER				Adapter,
-	IN	HAL_DEF_VARIABLE		eVariable,
-	IN	PVOID					pValue
+		PADAPTER				Adapter,
+		HAL_DEF_VARIABLE		eVariable,
+		void						*pValue
 );
 #ifdef CONFIG_GPIO_API
 int rtl8188e_GpioFuncCheck(PADAPTER adapter, u8 gpio_num);

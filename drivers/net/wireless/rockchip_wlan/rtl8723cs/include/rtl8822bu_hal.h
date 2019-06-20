@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2015 - 2016 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2015 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef _RTL8822BU_HAL_H_
 #define _RTL8822BU_HAL_H_
 
@@ -39,15 +34,18 @@
 
 	/* recv_buffer must be large than usb agg size */
 	#ifndef MAX_RECVBUF_SZ
-		#ifdef PLATFORM_OS_CE
-			#define MAX_RECVBUF_SZ (8192+1024)
-		#else /* !PLATFORM_OS_CE */
-			#ifndef CONFIG_MINIMAL_MEMORY_USAGE
-				#define MAX_RECVBUF_SZ (32768)
+		#ifndef CONFIG_MINIMAL_MEMORY_USAGE
+			#ifdef CONFIG_PLATFORM_NOVATEK_NT72668
+				#define MAX_RECVBUF_SZ (15360) /* 15k */
+				#elif defined(CONFIG_PLATFORM_HISILICON)
+				/* use 16k to workaround for HISILICON platform */
+				#define MAX_RECVBUF_SZ (16384)
 			#else
-				#define MAX_RECVBUF_SZ (4000)
+				#define MAX_RECVBUF_SZ (32768)
 			#endif
-		#endif /* PLATFORM_OS_CE */
+		#else
+			#define MAX_RECVBUF_SZ (4000)
+		#endif
 	#endif /* !MAX_RECVBUF_SZ */
 
 	/* rtl8822bu_ops.c */

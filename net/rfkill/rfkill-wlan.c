@@ -45,6 +45,8 @@
 #endif
 #include <linux/soc/rockchip/rk_vendor_storage.h>
 
+#include "../../drivers/mmc/core/pwrseq.h"
+
 #if 0
 #define DBG(x...)   printk(KERN_INFO "[WLAN_RFKILL]: "x)
 #else
@@ -52,9 +54,6 @@
 #endif
 
 #define LOG(x...)   printk(KERN_INFO "[WLAN_RFKILL]: "x)
-
-extern struct mmc_host *primary_sdio_host;
-extern void mmc_pwrseq_power_off(struct mmc_host *host);
 
 struct rfkill_wlan_data {
 	struct rksdmmc_gpio_wifi_moudle *pdata;
@@ -64,109 +63,9 @@ struct rfkill_wlan_data {
 static struct rfkill_wlan_data *g_rfkill = NULL;
 static int power_set_time = 0;
 
-static const char wlan_name[] = 
-#if defined (CONFIG_BCM4330)
-    #if defined (CONFIG_BT_MODULE_NH660)
-        "nh660"
-    #else
-        "bcm4330"
-    #endif
-#elif defined (CONFIG_RK903)
-    #if defined(CONFIG_RKWIFI_26M)
-        "rk903_26M"
-    #else
-        "rk903"
-    #endif
-#elif defined(CONFIG_BCM4329)
-        "bcm4329"
-#elif defined(CONFIG_MV8787)
-        "mv8787"
-#elif defined(CONFIG_AP6210)
-    #if defined(CONFIG_RKWIFI_26M)
-        "ap6210"
-    #else
-        "ap6210_24M"
-    #endif
-#elif defined(CONFIG_AP6330)
-		"ap6330"
-#elif defined(CONFIG_AP6476)
-		"ap6476"
-#elif defined(CONFIG_AP6493)
-		"ap6493"
-#elif defined(CONFIG_MVL88W8977)
-        "mvl88w8977"
-#else
-        "wlan_default"
-#endif
-;
+static const char wlan_name[] = "rkwifi";
 
 static char wifi_chip_type_string[64];
-int get_wifi_chip_type(void)
-{
-    int type;
-    if (strcmp(wifi_chip_type_string, "ap6210") == 0) {
-        type = WIFI_AP6210;
-    } else if (strcmp(wifi_chip_type_string, "ap6212") == 0) {
-        type = WIFI_AP6212;
-    } else if (strcmp(wifi_chip_type_string, "rk901") == 0) {
-        type = WIFI_RK901;    
-    } else if (strcmp(wifi_chip_type_string, "rk903") == 0) {
-        type = WIFI_RK903;  
-    } else if (strcmp(wifi_chip_type_string, "ap6181") == 0) {
-        type = WIFI_AP6181;
-    } else if (strcmp(wifi_chip_type_string, "ap6234") == 0) {
-	type = WIFI_AP6234;
-    } else if (strcmp(wifi_chip_type_string, "ap6255") == 0) {
-	type = WIFI_AP6255;
-    } else if (strcmp(wifi_chip_type_string, "ap6330") == 0) {
-        type = WIFI_AP6330;
-    } else if (strcmp(wifi_chip_type_string, "ap6335") == 0) {
-        type = WIFI_AP6335;
-    } else if (strcmp(wifi_chip_type_string, "ap6354") == 0) {
-        type = WIFI_AP6354;
-    } else if (strcmp(wifi_chip_type_string, "ap6441") == 0) {
-        type = WIFI_AP6441;
-    } else if (strcmp(wifi_chip_type_string, "ap6476") == 0) {
-        type = WIFI_AP6476;    
-    } else if (strcmp(wifi_chip_type_string, "ap6493") == 0) {
-        type = WIFI_AP6493;                    
-    } else if (strcmp(wifi_chip_type_string, "rtl8188eu") == 0) {
-        type = WIFI_RTL8188EU;
-    } else if (strcmp(wifi_chip_type_string, "rtl8192du") == 0) {
-        type = WIFI_RTL8192DU;
-    } else if (strcmp(wifi_chip_type_string, "rtl8723as") == 0) {
-        type = WIFI_RTL8723AS;        
-    } else if (strcmp(wifi_chip_type_string, "rtl8723bs_vq0") == 0) {
-        type = WIFI_RTL8723BS_VQ0;        
-    } else if (strcmp(wifi_chip_type_string, "rtl8723bs") == 0) {
-        type = WIFI_RTL8723BS;
-    } else if (strcmp(wifi_chip_type_string, "rtl8723cs") == 0) {
-	type = WIFI_RTL8723CS;
-    } else if (strcmp(wifi_chip_type_string, "rtl8723ds") == 0) {
-	type = WIFI_RTL8723DS;
-    } else if (strcmp(wifi_chip_type_string, "rtl8723au") == 0) {
-        type = WIFI_RTL8723AU;        
-    } else if (strcmp(wifi_chip_type_string, "rtl8723bu") == 0) {
-        type = WIFI_RTL8723BU;
-    } else if (strcmp(wifi_chip_type_string, "rtl8189es") == 0) {
-        type = WIFI_RTL8189ES;
-    } else if (strcmp(wifi_chip_type_string, "rtl8189fs") == 0) {
-        type = WIFI_RTL8189FS;
-    } else if (strcmp(wifi_chip_type_string, "rtl8812au") == 0) {
-        type = WIFI_RTL8812AU;                        
-    } else if (strcmp(wifi_chip_type_string, "esp8089") == 0) {
-        type = WIFI_ESP8089;
-    } else if (strcmp(wifi_chip_type_string, "mvl88w8977") == 0) {
-        type = WIFI_MVL88W8977;
-    } else if (strcmp(wifi_chip_type_string, "ssv6051") == 0) {
-        type = WIFI_SSV6051;
-    } else {
-        type = WIFI_AP6210;
-    }
-    return type;
-}
-EXPORT_SYMBOL(get_wifi_chip_type);
-
 /***********************************************************
  * 
  * Broadcom Wifi Static Memory
@@ -871,24 +770,6 @@ static int rfkill_wlan_remove(struct platform_device *pdev)
     
     if (gpio_is_valid(rfkill->pdata->reset_n.io))
         gpio_free(rfkill->pdata->reset_n.io);
-    
-//    if (gpio_is_valid(rfkill->pdata->vddio.io))
-//        gpio_free(rfkill->pdata->vddio.io);
-//
-//    if (gpio_is_valid(rfkill->pdata->bgf_int_b.io))
-//        gpio_free(rfkill->pdata->bgf_int_b.io);
-//    
-//    if (gpio_is_valid(rfkill->pdata->gps_sync.io))
-//        gpio_free(rfkill->pdata->gps_sync.io);
-//    
-//    if (gpio_is_valid(rfkill->pdata->ANTSEL2.io))
-//        gpio_free(rfkill->pdata->ANTSEL2.io);
-//
-//    if (gpio_is_valid(rfkill->pdata->ANTSEL3.io))
-//        gpio_free(rfkill->pdata->ANTSEL3.io);
-//    
-//    if (gpio_is_valid(rfkill->pdata->GPS_LAN.io))
-//        gpio_free(rfkill->pdata->GPS_LAN.io);
 
     kfree(rfkill);
     g_rfkill = NULL;

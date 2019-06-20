@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __INC_HAL8814PHYREG_H__
 #define __INC_HAL8814PHYREG_H__
 /*--------------------------Define Parameters-------------------------------*/
@@ -202,6 +197,8 @@
 #define rB_RFE_Inv_Jaguar		0xeb4 /* Path_B RFE control */
 #define rA_RFE_Jaguar			0xcb8  /* Path_A RFE cotrol   */
 #define rB_RFE_Jaguar			0xeb8 /* Path_B RFE control */
+#define	rA_RFE_Inverse_Jaguar	0xCBC	/* Path_A RFE control inverse */
+#define	rB_RFE_Inverse_Jaguar	0xEBC	/* Path_B RFE control inverse */
 #define r_ANTSEL_SW_Jaguar		0x900 /* ANTSEL SW Control */
 #define bMask_RFEInv_Jaguar		0x3ff00000
 #define bMask_AntselPathFollow_Jaguar 0x00030000

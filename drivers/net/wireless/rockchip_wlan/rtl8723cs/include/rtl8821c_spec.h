@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2016 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2016 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,11 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8821C_SPEC_H__
 #define __RTL8821C_SPEC_H__
 
@@ -33,9 +29,9 @@
 #define REG_C2HEVT_MSG_NORMAL		0x1A0			/* hal_com.c */
 #define REG_C2HEVT_CLEAR			0x1AF			/* hal_com.c */
 #define REG_BCN_CTRL_1				REG_BCN_CTRL_CLINT0_8821C/* hal_com.c */
-#define REG_TSFTR1					REG_FREERUN_CNT_8821C	/* hal_com.c */
-#define REG_RXFLTMAP2				REG_RXFLTMAP_8821C	/* rtw_mp.c */
+
 #define REG_WOWLAN_WAKE_REASON	0x01C7
+#define REG_GPIO_PIN_CTRL_2			REG_GPIO_EXT_CTRL_8821C
 
 /* RXERR_RPT, for rtw_mp.c */
 #define RXERR_TYPE_OFDM_PPDU		0
@@ -116,7 +112,18 @@
 #define rOFDM0_XBAGCCore1			0xC58	/* phydm only */
 #define rOFDM0_XATxIQImbalance		0xC80	/* phydm only */
 #define rA_LSSIWrite_Jaguar			0xC90	/* RF write addr, LSSI Parameter (rtl8821c_phy.c) */
-#define rA_RFE_Pinmux_Jaguar			0xCB0	/* hal_mp.c */
+/* RFE */
+#define rA_RFE_Pinmux_Jaguar	0xCB0	/* hal_mp.c */
+#define	rB_RFE_Pinmux_Jaguar	0xEB0	/* Path_B RFE control pinmux */
+#define	rA_RFE_Inv_Jaguar		0xCB4	/* Path_A RFE cotrol */  
+#define	rB_RFE_Inv_Jaguar		0xEB4	/* Path_B RFE control */
+#define	rA_RFE_Jaguar			0xCB8 	/* Path_A RFE cotrol */  
+#define	rB_RFE_Jaguar			0xEB8	/* Path_B RFE control */
+#define	rA_RFE_Inverse_Jaguar	0xCBC	/* Path_A RFE control inverse */
+#define	rB_RFE_Inverse_Jaguar	0xEBC	/* Path_B RFE control inverse */
+#define	r_ANTSEL_SW_Jaguar		0x900	/* ANTSEL SW Control */
+#define	bMask_RFEInv_Jaguar	0x3FF00000
+#define	bMask_AntselPathFollow_Jaguar 0x00030000   
 
 #define rOFDM1_LSTF					0xD00
 #define rOFDM1_TRxPathEnable			0xD04	/* hal_mp.c */
@@ -135,7 +142,6 @@
 #define rB_TxScale_Jaguar				0xE1C	/* Path_B TX scaling factor (hal_mp.c) */
 #define rB_IGI_Jaguar					0xE50	/* Initial Gain for path-B (hal_mp.c) */
 #define rB_LSSIWrite_Jaguar			0xE90	/* RF write addr, LSSI Parameter (rtl8821c_phy.c) */
-#define rB_RFE_Pinmux_Jaguar			0xEB0	/* hal_mp.c */
 
 /* Page1(0x100) */
 #define bBBResetB					0x100
@@ -181,8 +187,8 @@
 struct hw_port_reg {
 	u32 net_type;	/*reg_offset*/
 	u8 net_type_shift;
-	u32 macaddr;	/*reg_offset*/
-	u32 bssid;	/*reg_offset*/
+	u32 macaddr;		/*reg_offset*/
+	u32 bssid;		/*reg_offset*/
 	u32 bcn_ctl;			/*reg_offset*/
 	u32 tsf_rst;			/*reg_offset*/
 	u8 tsf_rst_bit;
@@ -190,6 +196,7 @@ struct hw_port_reg {
 	u8 bcn_space_shift;
 	u16 bcn_space_mask;
 	u32	ps_aid;			/*reg_offset*/
+	u32	ta;				/*reg_offset*/
 };
 
 #endif /* __RTL8192E_SPEC_H__ */

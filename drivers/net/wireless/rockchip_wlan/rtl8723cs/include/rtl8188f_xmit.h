@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8188F_XMIT_H__
 #define __RTL8188F_XMIT_H__
 
@@ -189,13 +184,15 @@
 #define SET_TX_DESC_ANTSEL_D_8188F(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+24, 25, 3, __Value)
 
 /* Dword 7 */
-#if (DEV_BUS_TYPE == RT_PCI_INTERFACE)
+#ifdef CONFIG_PCI_HCI
 #define SET_TX_DESC_TX_BUFFER_SIZE_8188F(__pTxDesc, __Value)		SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
-#else
+#endif
+
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_USB_HCI)
 #define SET_TX_DESC_TX_DESC_CHECKSUM_8188F(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 0, 16, __Value)
 #endif
 #define SET_TX_DESC_USB_TXAGG_NUM_8188F(__pTxDesc, __Value) SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 24, 8, __Value)
-#if (DEV_BUS_TYPE == RT_SDIO_INTERFACE)
+#ifdef CONFIG_SDIO_HCI
 #define SET_TX_DESC_SDIO_TXSEQ_8188F(__pTxDesc, __Value)			SET_BITS_TO_LE_4BYTE(__pTxDesc+28, 16, 8, __Value)
 #endif
 
@@ -306,9 +303,10 @@ thread_return rtl8188fs_xmit_thread(thread_context context);
 #endif
 
 #ifdef CONFIG_USB_HCI
+#ifdef CONFIG_XMIT_THREAD_MODE
 s32 rtl8188fu_xmit_buf_handler(PADAPTER padapter);
 #define hal_xmit_handler rtl8188fu_xmit_buf_handler
-
+#endif
 
 s32 rtl8188fu_init_xmit_priv(PADAPTER padapter);
 void rtl8188fu_free_xmit_priv(PADAPTER padapter);

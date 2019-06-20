@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __COMMON_C2H_H__
 #define __COMMON_C2H_H__
 
@@ -76,6 +71,9 @@ typedef enum _C2H_EVT {
 	C2H_CUSTOMER_STR_RPT = 0x24,
 	C2H_CUSTOMER_STR_RPT_2 = 0x25,
 	C2H_WLAN_INFO = 0x27,
+#ifdef RTW_PER_CMD_SUPPORT_FW
+	C2H_PER_RATE_RPT = 0x2c,
+#endif
 	C2H_DEFEATURE_RSVD = 0xFD,
 	C2H_EXTEND = 0xff,
 } C2H_EVT;
@@ -101,6 +99,8 @@ int c2h_mac_hidden_rpt_hdl(_adapter *adapter, u8 *data, u8 len);
 #define MAC_HIDDEN_RPT_2_LEN 5
 int c2h_mac_hidden_rpt_2_hdl(_adapter *adapter, u8 *data, u8 len);
 int hal_read_mac_hidden_rpt(_adapter *adapter);
+#else
+#define hal_read_mac_hidden_rpt(adapter) _SUCCESS
 #endif /* CONFIG_RTW_MAC_HIDDEN_RPT */
 
 /* C2H_DEFEATURE_DBG, 0x22 */
@@ -116,5 +116,10 @@ int c2h_customer_str_rpt_hdl(_adapter *adapter, u8 *data, u8 len);
 #define CUSTOMER_STR_RPT_2_LEN 8
 int c2h_customer_str_rpt_2_hdl(_adapter *adapter, u8 *data, u8 len);
 #endif /* CONFIG_RTW_CUSTOMER_STR */
+
+#ifdef RTW_PER_CMD_SUPPORT_FW
+/* C2H_PER_RATE_RPT, 0x2c */
+int c2h_per_rate_rpt_hdl(_adapter *adapter, u8 *data, u8 len);
+#endif
 
 #endif /* __COMMON_C2H_H__ */

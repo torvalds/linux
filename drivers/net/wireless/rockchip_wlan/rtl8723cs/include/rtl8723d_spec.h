@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,11 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8723D_SPEC_H__
 #define __RTL8723D_SPEC_H__
 
@@ -83,6 +79,7 @@
 #define REG_PMC_DBG_CTRL2_8723D			0x00CC
 #define	REG_EFUSE_BURN_GNT_8723D		0x00CF
 #define REG_HPON_FSM_8723D				0x00EC
+#define REG_SYS_CFG1_8723D				0x00F0
 #define REG_SYS_CFG_8723D				0x00FC
 #define REG_ROM_VERSION					0x00FD
 
@@ -379,6 +376,11 @@
 #define REG_BSSID1_8723D				0x0708
 #define REG_BFMEE_SEL_8723D				0x0714
 #define REG_SND_PTCL_CTRL_8723D		0x0718
+
+/* LTR */
+#define REG_LTR_CTRL_BASIC_8723D		0x07A4
+#define REG_LTR_IDLE_LATENCY_V1_8723D		0x0798
+#define REG_LTR_ACTIVE_LATENCY_V1_8723D		0x079C
 
 /* LTE_COEX */
 #define REG_LTECOEX_CTRL			0x07C0

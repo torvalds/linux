@@ -46,40 +46,6 @@ struct rksdmmc_gpio_wifi_moudle {
 	struct clk *ext_clk;
 };
 
-enum {
-    WIFI_RK901,
-    WIFI_RK903,
-    WIFI_AP6181,
-    WIFI_AP6210,
-    WIFI_AP6212,
-    WIFI_AP6234,
-    WIFI_AP6255,
-    WIFI_AP6330,
-    WIFI_AP6335,
-    WIFI_AP6354,
-    WIFI_AP6441,
-    WIFI_AP6476,
-    WIFI_AP6493,
-    WIFI_AP6XXX_SERIES,
-    WIFI_RTL8188EU,
-    WIFI_RTL8192DU,
-    WIFI_RTL8723AS,
-    WIFI_RTL8723BS,
-    WIFI_RTL8723BS_VQ0,
-    WIFI_RTL8723CS,
-    WIFI_RTL8723DS,
-    WIFI_RTL8723BU,
-    WIFI_RTL8723AU,
-    WIFI_RTL8189ES,
-    WIFI_RTL8189FS,
-    WIFI_RTL8812AU,
-    WIFI_RTL_SERIES,
-    WIFI_ESP8089,
-    WIFI_MVL88W8977,
-    WIFI_SSV6051,
-    TYPE_MAX,
-};
-
 int rfkill_get_wifi_power_state(int *power, int *vref_ctrl_enable);
 void *rockchip_mem_prealloc(int section, unsigned long size);
 int rockchip_wifi_ref_voltage(int on);
