@@ -22,13 +22,11 @@
 #include <irq.h>
 
 /* register definitions - internal irqs */
-#define LTQ_ICU_IM0_ISR		0x0000
-#define LTQ_ICU_IM0_IER		0x0008
-#define LTQ_ICU_IM0_IOSR	0x0010
-#define LTQ_ICU_IM0_IRSR	0x0018
-#define LTQ_ICU_IM0_IMR		0x0020
-#define LTQ_ICU_IM1_ISR		0x0028
-#define LTQ_ICU_OFFSET		(LTQ_ICU_IM1_ISR - LTQ_ICU_IM0_ISR)
+#define LTQ_ICU_ISR		0x0000
+#define LTQ_ICU_IER		0x0008
+#define LTQ_ICU_IOSR		0x0010
+#define LTQ_ICU_IRSR		0x0018
+#define LTQ_ICU_IMR		0x0020
 
 /* register definitions - external irqs */
 #define LTQ_EIU_EXIN_C		0x0000
@@ -77,8 +75,8 @@ void ltq_disable_irq(struct irq_data *d)
 	unsigned long im = offset / INT_NUM_IM_OFFSET;
 
 	offset %= INT_NUM_IM_OFFSET;
-	ltq_icu_w32(im, ltq_icu_r32(im, LTQ_ICU_IM0_IER) & ~BIT(offset),
-		    LTQ_ICU_IM0_IER);
+	ltq_icu_w32(im, ltq_icu_r32(im, LTQ_ICU_IER) & ~BIT(offset),
+		    LTQ_ICU_IER);
 }
 
 void ltq_mask_and_ack_irq(struct irq_data *d)
@@ -87,9 +85,9 @@ void ltq_mask_and_ack_irq(struct irq_data *d)
 	unsigned long im = offset / INT_NUM_IM_OFFSET;
 
 	offset %= INT_NUM_IM_OFFSET;
-	ltq_icu_w32(im, ltq_icu_r32(im, LTQ_ICU_IM0_IER) & ~BIT(offset),
-		    LTQ_ICU_IM0_IER);
-	ltq_icu_w32(im, BIT(offset), LTQ_ICU_IM0_ISR);
+	ltq_icu_w32(im, ltq_icu_r32(im, LTQ_ICU_IER) & ~BIT(offset),
+		    LTQ_ICU_IER);
+	ltq_icu_w32(im, BIT(offset), LTQ_ICU_ISR);
 }
 
 static void ltq_ack_irq(struct irq_data *d)
@@ -98,7 +96,7 @@ static void ltq_ack_irq(struct irq_data *d)
 	unsigned long im = offset / INT_NUM_IM_OFFSET;
 
 	offset %= INT_NUM_IM_OFFSET;
-	ltq_icu_w32(im, BIT(offset), LTQ_ICU_IM0_ISR);
+	ltq_icu_w32(im, BIT(offset), LTQ_ICU_ISR);
 }
 
 void ltq_enable_irq(struct irq_data *d)
@@ -107,8 +105,8 @@ void ltq_enable_irq(struct irq_data *d)
 	unsigned long im = offset / INT_NUM_IM_OFFSET;
 
 	offset %= INT_NUM_IM_OFFSET;
-	ltq_icu_w32(im, ltq_icu_r32(im, LTQ_ICU_IM0_IER) | BIT(offset),
-		    LTQ_ICU_IM0_IER);
+	ltq_icu_w32(im, ltq_icu_r32(im, LTQ_ICU_IER) | BIT(offset),
+		    LTQ_ICU_IER);
 }
 
 static int ltq_eiu_settype(struct irq_data *d, unsigned int type)
@@ -225,7 +223,7 @@ static void ltq_hw_irq_handler(struct irq_desc *desc)
 	u32 irq;
 	irq_hw_number_t hwirq;
 
-	irq = ltq_icu_r32(module, LTQ_ICU_IM0_IOSR);
+	irq = ltq_icu_r32(module, LTQ_ICU_IOSR);
 	if (irq == 0)
 		return;
 
@@ -288,9 +286,9 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	/* turn off all irqs by default */
 	for (i = 0; i < MAX_IM; i++) {
 		/* make sure all irqs are turned off by default */
-		ltq_icu_w32(i, 0, LTQ_ICU_IM0_IER);
+		ltq_icu_w32(i, 0, LTQ_ICU_IER);
 		/* clear all possibly pending interrupts */
-		ltq_icu_w32(i, ~0, LTQ_ICU_IM0_ISR);
+		ltq_icu_w32(i, ~0, LTQ_ICU_ISR);
 	}
 
 	mips_cpu_irq_init();
