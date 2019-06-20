@@ -1548,9 +1548,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		num_pages = rk_obj->num_pages;
 		pages = rk_obj->pages;
 	}
-	//if (fb->modifier[0] == DRM_FORMAT_MOD_ARM_AFBC)
-	//	AFBC_flag = true;
-	//else
+	if (fb->modifie == DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16))
+		AFBC_flag = true;
+	else
 		AFBC_flag = false;
 #endif
 
@@ -2021,9 +2021,11 @@ static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_format_name_buf format_name;
 	int i;
+	u64 afbdc_format =
+		DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16);
 
 	DEBUG_PRINT("    win%d-%d: %s\n", win->win_id, win->area_id,
-		    pstate->enable ? "ACTIVE" : "DISABLED");
+		    state->visible ? "ACTIVE" : "DISABLED");
 	if (!fb)
 		return 0;
 
@@ -2033,7 +2035,7 @@ static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	drm_get_format_name(fb->format->format, &format_name);
 	DEBUG_PRINT("\tformat: %s%s%s[%d] color_space[%d]\n",
 		    format_name.str,
-		    /*fb->modifier[0] == DRM_FORMAT_MOD_ARM_AFBC*/0 ? "[AFBC]" : "",
+		    fb->modifier == afbdc_format ? "[AFBC]" : "",
 		    pstate->eotf ? " HDR" : " SDR", pstate->eotf,
 		    pstate->color_space);
 	DEBUG_PRINT("\tcsc: y2r[%d] r2r[%d] r2y[%d] csc mode[%d]\n",
@@ -2707,9 +2709,6 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 
 	s->afbdc_en = 0;
 
-	//todo
-	return 0;
-
 	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
 		pstate = drm_atomic_get_existing_plane_state(state, plane);
 		/*
@@ -2720,10 +2719,12 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 			pstate = plane->state;
 
 		fb = pstate->fb;
+
 		if (pstate->crtc != crtc || !fb)
 			continue;
-		//if (fb->modifier[0] != DRM_FORMAT_MOD_ARM_AFBC)
-		//	continue;
+		if (fb->modifier !=
+			DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16))
+			continue;
 
 		if (!(vop_data->feature & VOP_FEATURE_AFBDC)) {
 			DRM_ERROR("not support afbdc\n");
