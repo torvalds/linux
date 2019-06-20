@@ -660,7 +660,7 @@ static int ra_data_block(struct inode *inode, pgoff_t index)
 		dn.data_blkaddr = ei.blk + index - ei.fofs;
 		if (unlikely(!f2fs_is_valid_blkaddr(sbi, dn.data_blkaddr,
 						DATA_GENERIC_ENHANCE_READ))) {
-			err = -EFAULT;
+			err = -EFSCORRUPTED;
 			goto put_page;
 		}
 		goto got_it;
@@ -678,7 +678,7 @@ static int ra_data_block(struct inode *inode, pgoff_t index)
 	}
 	if (unlikely(!f2fs_is_valid_blkaddr(sbi, dn.data_blkaddr,
 						DATA_GENERIC_ENHANCE))) {
-		err = -EFAULT;
+		err = -EFSCORRUPTED;
 		goto put_page;
 	}
 got_it:
@@ -1454,7 +1454,7 @@ int f2fs_resize_fs(struct f2fs_sb_info *sbi, __u64 block_count)
 
 	if (is_sbi_flag_set(sbi, SBI_NEED_FSCK)) {
 		f2fs_err(sbi, "Should run fsck to repair first.");
-		return -EINVAL;
+		return -EFSCORRUPTED;
 	}
 
 	if (test_opt(sbi, DISABLE_CHECKPOINT)) {
