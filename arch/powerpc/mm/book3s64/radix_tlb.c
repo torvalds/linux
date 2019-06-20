@@ -666,6 +666,11 @@ EXPORT_SYMBOL(radix__flush_tlb_page);
 #define radix__flush_all_mm radix__local_flush_all_mm
 #endif /* CONFIG_SMP */
 
+/*
+ * If kernel TLBIs ever become local rather than global, then
+ * drivers/misc/ocxl/link.c:ocxl_link_add_pe will need some work, as it
+ * assumes kernel TLBIs are global.
+ */
 void radix__flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	_tlbie_pid(0, RIC_FLUSH_ALL);
