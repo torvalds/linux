@@ -2451,8 +2451,9 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
-	/* Set user selected PAR to incoming mode's member */
-	adjusted_mode->picture_aspect_ratio = conn_state->picture_aspect_ratio;
+	if (conn_state->picture_aspect_ratio)
+		adjusted_mode->picture_aspect_ratio =
+			conn_state->picture_aspect_ratio;
 
 	pipe_config->lane_count = 4;
 

@@ -1349,9 +1349,9 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 	if (IS_TV(intel_sdvo_connector))
 		i9xx_adjust_sdvo_tv_clock(pipe_config);
 
-	/* Set user selected PAR to incoming mode's member */
-	if (intel_sdvo_connector->is_hdmi)
-		adjusted_mode->picture_aspect_ratio = conn_state->picture_aspect_ratio;
+	if (conn_state->picture_aspect_ratio)
+		adjusted_mode->picture_aspect_ratio =
+			conn_state->picture_aspect_ratio;
 
 	if (!intel_sdvo_compute_avi_infoframe(intel_sdvo,
 					      pipe_config, conn_state)) {
