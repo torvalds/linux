@@ -813,9 +813,8 @@ struct snd_soc_dai *snd_soc_find_dai(
 	lockdep_assert_held(&client_mutex);
 
 	/* Find CPU DAI from registered DAIs */
-	for_each_component(component) {
-		if (!snd_soc_is_matching_component(dlc, component))
-			continue;
+	component = soc_find_component(dlc);
+	if (component) {
 		for_each_component_dais(component, dai) {
 			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name)
 			    && (!dai->driver->name
