@@ -6,7 +6,7 @@
 
 #include "wilc_wfi_netdevice.h"
 
-#define WILC_HIF_SCAN_TIMEOUT_MS                4000
+#define WILC_HIF_SCAN_TIMEOUT_MS                5000
 #define WILC_HIF_CONNECT_TIMEOUT_MS             9500
 
 #define WILC_FALSE_FRMWR_CHANNEL		100
@@ -237,7 +237,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	int result = 0;
 	struct wid wid_list[5];
 	u32 index = 0;
-	u32 i;
+	u32 i, scan_timeout;
 	u8 *buffer;
 	u8 valuesize = 0;
 	u8 *search_ssid_vals = NULL;
@@ -293,6 +293,18 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 	wid_list[index].val = (s8 *)&scan_type;
 	index++;
 
+	if (scan_type == WILC_FW_PASSIVE_SCAN && request->duration) {
+		wid_list[index].id = WID_PASSIVE_SCAN_TIME;
+		wid_list[index].type = WID_SHORT;
+		wid_list[index].size = sizeof(u16);
+		wid_list[index].val = (s8 *)&request->duration;
+		index++;
+
+		scan_timeout = (request->duration * ch_list_len) + 500;
+	} else {
+		scan_timeout = WILC_HIF_SCAN_TIMEOUT_MS;
+	}
+
 	wid_list[index].id = WID_SCAN_CHANNEL_LIST;
 	wid_list[index].type = WID_BIN_DATA;
 
@@ -326,7 +338,7 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 
 	hif_drv->scan_timer_vif = vif;
 	mod_timer(&hif_drv->scan_timer,
-		  jiffies + msecs_to_jiffies(WILC_HIF_SCAN_TIMEOUT_MS));
+		  jiffies + msecs_to_jiffies(scan_timeout));
 
 error:
 

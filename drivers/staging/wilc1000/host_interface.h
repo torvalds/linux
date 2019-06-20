@@ -115,7 +115,6 @@ struct wilc_rcvd_net_info {
 	struct ieee80211_mgmt *mgmt;
 };
 
-
 struct wilc_user_scan_req {
 	void (*scan_result)(enum scan_event evt,
 			    struct wilc_rcvd_net_info *info, void *priv);

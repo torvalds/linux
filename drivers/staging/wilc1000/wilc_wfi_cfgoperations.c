@@ -221,6 +221,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 	u32 i;
 	int ret = 0;
 	u8 scan_ch_list[WILC_MAX_NUM_SCANNED_CH];
+	u8 scan_type;
 
 	if (request->n_channels > WILC_MAX_NUM_SCANNED_CH) {
 		netdev_err(priv->dev, "Requested scanned channels over\n");
@@ -235,9 +236,14 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 		scan_ch_list[i] = ieee80211_frequency_to_channel(freq);
 	}
 
-	ret = wilc_scan(vif, WILC_FW_USER_SCAN, WILC_FW_ACTIVE_SCAN,
-			scan_ch_list, request->n_channels, cfg_scan_result,
-			(void *)priv, request);
+	if (request->n_ssids)
+		scan_type = WILC_FW_ACTIVE_SCAN;
+	else
+		scan_type = WILC_FW_PASSIVE_SCAN;
+
+	ret = wilc_scan(vif, WILC_FW_USER_SCAN, scan_type, scan_ch_list,
+			request->n_channels, cfg_scan_result, (void *)priv,
+			request);
 
 	if (ret) {
 		priv->scan_req = NULL;
