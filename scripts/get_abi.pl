@@ -194,6 +194,8 @@ sub parse_abi {
 # Outputs the book on ReST format
 #
 
+my %labels;
+
 sub output_rest {
 	foreach my $what (sort {
 				($data{$a}->{type} eq "File") cmp ($data{$b}->{type} eq "File") ||
@@ -216,6 +218,13 @@ sub output_rest {
 			$label =~s/([\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\xff])/_/g;
 			$label =~ s,_+,_,g;
 			$label =~ s,_$,,;
+
+			# Avoid duplicated labels
+			while (defined($labels{$label})) {
+			    my @chars = ("A".."Z", "a".."z");
+			    $label .= $chars[rand @chars];
+			}
+			$labels{$label} = 1;
 
 			$data{$what}->{label} .= $label;
 
