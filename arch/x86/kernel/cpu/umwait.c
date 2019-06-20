@@ -7,8 +7,8 @@
 
 #define UMWAIT_C02_ENABLE	0
 
-#define UMWAIT_CTRL_VAL(maxtime, c02_disable)				\
-	(((maxtime) & MSR_IA32_UMWAIT_CONTROL_TIME_MASK) |		\
+#define UMWAIT_CTRL_VAL(max_time, c02_disable)				\
+	(((max_time) & MSR_IA32_UMWAIT_CONTROL_TIME_MASK) |		\
 	((c02_disable) & MSR_IA32_UMWAIT_CONTROL_C02_DISABLE))
 
 /*
@@ -17,10 +17,38 @@
  */
 static u32 umwait_control_cached = UMWAIT_CTRL_VAL(100000, UMWAIT_C02_ENABLE);
 
-/* Set IA32_UMWAIT_CONTROL MSR on this CPU to the current global setting. */
+/*
+ * Serialize access to umwait_control_cached and IA32_UMWAIT_CONTROL MSR in
+ * the sysfs write functions.
+ */
+static DEFINE_MUTEX(umwait_lock);
+
+static void umwait_update_control_msr(void * unused)
+{
+	lockdep_assert_irqs_disabled();
+	wrmsr(MSR_IA32_UMWAIT_CONTROL, READ_ONCE(umwait_control_cached), 0);
+}
+
+/*
+ * The CPU hotplug callback sets the control MSR to the global control
+ * value.
+ *
+ * Disable interrupts so the read of umwait_control_cached and the WRMSR
+ * are protected against a concurrent sysfs write. Otherwise the sysfs
+ * write could update the cached value after it had been read on this CPU
+ * and issue the IPI before the old value had been written. The IPI would
+ * interrupt, write the new value and after return from IPI the previous
+ * value would be written by this CPU.
+ *
+ * With interrupts disabled the upcoming CPU either sees the new control
+ * value or the IPI is updating this CPU to the new control value after
+ * interrupts have been reenabled.
+ */
 static int umwait_cpu_online(unsigned int cpu)
 {
-	wrmsr(MSR_IA32_UMWAIT_CONTROL, umwait_control_cached, 0);
+	local_irq_disable();
+	umwait_update_control_msr(NULL);
+	local_irq_enable();
 	return 0;
 }
 
@@ -36,15 +64,86 @@ static int umwait_cpu_online(unsigned int cpu)
  */
 static void umwait_syscore_resume(void)
 {
-	wrmsr(MSR_IA32_UMWAIT_CONTROL, umwait_control_cached, 0);
+	umwait_update_control_msr(NULL);
 }
 
 static struct syscore_ops umwait_syscore_ops = {
 	.resume	= umwait_syscore_resume,
 };
 
+/* sysfs interface */
+
+/*
+ * When bit 0 in IA32_UMWAIT_CONTROL MSR is 1, C0.2 is disabled.
+ * Otherwise, C0.2 is enabled.
+ */
+static inline bool umwait_ctrl_c02_enabled(u32 ctrl)
+{
+	return !(ctrl & MSR_IA32_UMWAIT_CONTROL_C02_DISABLE);
+}
+
+static inline u32 umwait_ctrl_max_time(u32 ctrl)
+{
+	return ctrl & MSR_IA32_UMWAIT_CONTROL_TIME_MASK;
+}
+
+static inline void umwait_update_control(u32 maxtime, bool c02_enable)
+{
+	u32 ctrl = maxtime & MSR_IA32_UMWAIT_CONTROL_TIME_MASK;
+
+	if (!c02_enable)
+		ctrl |= MSR_IA32_UMWAIT_CONTROL_C02_DISABLE;
+
+	WRITE_ONCE(umwait_control_cached, ctrl);
+	/* Propagate to all CPUs */
+	on_each_cpu(umwait_update_control_msr, NULL, 1);
+}
+
+static ssize_t
+enable_c02_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	u32 ctrl = READ_ONCE(umwait_control_cached);
+
+	return sprintf(buf, "%d\n", umwait_ctrl_c02_enabled(ctrl));
+}
+
+static ssize_t enable_c02_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	bool c02_enable;
+	u32 ctrl;
+	int ret;
+
+	ret = kstrtobool(buf, &c02_enable);
+	if (ret)
+		return ret;
+
+	mutex_lock(&umwait_lock);
+
+	ctrl = READ_ONCE(umwait_control_cached);
+	if (c02_enable != umwait_ctrl_c02_enabled(ctrl))
+		umwait_update_control(ctrl, c02_enable);
+
+	mutex_unlock(&umwait_lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(enable_c02);
+
+static struct attribute *umwait_attrs[] = {
+	&dev_attr_enable_c02.attr,
+	NULL
+};
+
+static struct attribute_group umwait_attr_group = {
+	.attrs = umwait_attrs,
+	.name = "umwait_control",
+};
+
 static int __init umwait_init(void)
 {
+	struct device *dev;
 	int ret;
 
 	if (!boot_cpu_has(X86_FEATURE_WAITPKG))
@@ -52,11 +151,14 @@ static int __init umwait_init(void)
 
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "umwait:online",
 				umwait_cpu_online, NULL);
-	if (ret < 0)
-		return ret;
 
 	register_syscore_ops(&umwait_syscore_ops);
 
-	return 0;
+	/*
+	 * Add umwait control interface. Ignore failure, so at least the
+	 * default values are set up in case the machine manages to boot.
+	 */
+	dev = cpu_subsys.dev_root;
+	return sysfs_create_group(&dev->kobj, &umwait_attr_group);
 }
 device_initcall(umwait_init);
