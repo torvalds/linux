@@ -1953,7 +1953,7 @@ static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
 {
 	acpi_handle parent_handle = NULL;
 	struct list_head resource_list;
-	struct acpi_spi_lookup lookup;
+	struct acpi_spi_lookup lookup = {};
 	struct spi_device *spi;
 	int ret;
 
@@ -1962,8 +1962,6 @@ static acpi_status acpi_register_spi_device(struct spi_controller *ctlr,
 		return AE_OK;
 
 	lookup.ctlr		= ctlr;
-	lookup.mode		= 0;
-	lookup.bits_per_word	= 0;
 	lookup.irq		= -1;
 
 	INIT_LIST_HEAD(&resource_list);
