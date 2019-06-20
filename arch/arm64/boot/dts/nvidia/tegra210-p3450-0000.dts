@@ -633,17 +633,16 @@
 		};
 
 		vdd_gpu: regulator@6 {
-			compatible = "regulator-fixed";
+			compatible = "pwm-regulator";
 			reg = <6>;
-
+			pwms = <&pwm 1 4880>;
 			regulator-name = "VDD_GPU";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-enable-ramp-delay = <250>;
-
-			gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-
+			regulator-min-microvolt = <710000>;
+			regulator-max-microvolt = <1320000>;
+			regulator-ramp-delay = <80>;
+			regulator-enable-ramp-delay = <2000>;
+			regulator-settling-time-us = <160>;
+			enable-gpios = <&pmic 6 GPIO_ACTIVE_HIGH>;
 			vin-supply = <&vdd_5v0_sys>;
 		};
 	};
