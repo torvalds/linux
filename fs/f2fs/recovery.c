@@ -491,7 +491,7 @@ retry_dn:
 			"Inconsistent ofs_of_node, ino:%lu, ofs:%u, %u",
 			inode->i_ino, ofs_of_node(dn.node_page),
 			ofs_of_node(page));
-		err = -EFAULT;
+		err = -EFSCORRUPTED;
 		goto err;
 	}
 
