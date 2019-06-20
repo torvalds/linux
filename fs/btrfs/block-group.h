@@ -170,6 +170,9 @@ void btrfs_wait_block_group_cache_progress(struct btrfs_block_group_cache *cache
 int btrfs_wait_block_group_cache_done(struct btrfs_block_group_cache *cache);
 int btrfs_cache_block_group(struct btrfs_block_group_cache *cache,
 			    int load_cache_only);
+void btrfs_put_caching_control(struct btrfs_caching_control *ctl);
+struct btrfs_caching_control *btrfs_get_caching_control(
+		struct btrfs_block_group_cache *cache);
 
 static inline int btrfs_block_group_cache_done(
 		struct btrfs_block_group_cache *cache)
