@@ -1605,10 +1605,8 @@ retry:
 	}
 
 	// make sure flushsnap messages are sent in proper order.
-	if (ci->i_ceph_flags & CEPH_I_KICK_FLUSH) {
+	if (ci->i_ceph_flags & CEPH_I_KICK_FLUSH)
 		__kick_flushing_caps(mdsc, session, ci, 0);
-		ci->i_ceph_flags &= ~CEPH_I_KICK_FLUSH;
-	}
 
 	__ceph_flush_snaps(ci, session);
 out:
@@ -2050,10 +2048,8 @@ ack:
 		if (cap == ci->i_auth_cap &&
 		    (ci->i_ceph_flags &
 		     (CEPH_I_KICK_FLUSH | CEPH_I_FLUSH_SNAPS))) {
-			if (ci->i_ceph_flags & CEPH_I_KICK_FLUSH) {
+			if (ci->i_ceph_flags & CEPH_I_KICK_FLUSH)
 				__kick_flushing_caps(mdsc, session, ci, 0);
-				ci->i_ceph_flags &= ~CEPH_I_KICK_FLUSH;
-			}
 			if (ci->i_ceph_flags & CEPH_I_FLUSH_SNAPS)
 				__ceph_flush_snaps(ci, session);
 
@@ -2323,6 +2319,8 @@ static void __kick_flushing_caps(struct ceph_mds_client *mdsc,
 	int ret;
 	u64 first_tid = 0;
 
+	ci->i_ceph_flags &= ~CEPH_I_KICK_FLUSH;
+
 	list_for_each_entry(cf, &ci->i_cap_flush_list, i_list) {
 		if (cf->tid < first_tid)
 			continue;
@@ -2412,7 +2410,6 @@ void ceph_early_kick_flushing_caps(struct ceph_mds_client *mdsc,
 		 */
 		if ((cap->issued & ci->i_flushing_caps) !=
 		    ci->i_flushing_caps) {
-			ci->i_ceph_flags &= ~CEPH_I_KICK_FLUSH;
 			/* encode_caps_cb() also will reset these sequence
 			 * numbers. make sure sequence numbers in cap flush
 			 * message match later reconnect message */
@@ -2452,7 +2449,6 @@ void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 			continue;
 		}
 		if (ci->i_ceph_flags & CEPH_I_KICK_FLUSH) {
-			ci->i_ceph_flags &= ~CEPH_I_KICK_FLUSH;
 			__kick_flushing_caps(mdsc, session, ci,
 					     oldest_flush_tid);
 		}
@@ -2480,7 +2476,6 @@ static void kick_flushing_inode_caps(struct ceph_mds_client *mdsc,
 		oldest_flush_tid = __get_oldest_flush_tid(mdsc);
 		spin_unlock(&mdsc->cap_dirty_lock);
 
-		ci->i_ceph_flags &= ~CEPH_I_KICK_FLUSH;
 		__kick_flushing_caps(mdsc, session, ci, oldest_flush_tid);
 		spin_unlock(&ci->i_ceph_lock);
 	} else {
