@@ -46,6 +46,7 @@ TEST_PROGS := test_kmod.sh \
 	test_libbpf.sh \
 	test_xdp_redirect.sh \
 	test_xdp_meta.sh \
+	test_xdp_veth.sh \
 	test_offload.py \
 	test_sock_addr.sh \
 	test_tunnel.sh \
