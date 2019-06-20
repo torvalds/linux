@@ -150,14 +150,16 @@ static int read_fifo(struct synquacer_spi *sspi)
 	case 8: {
 		u8 *buf = sspi->rx_buf;
 
-		readsb(sspi->regs + SYNQUACER_HSSPI_REG_RX_FIFO, buf, len);
+		ioread8_rep(sspi->regs + SYNQUACER_HSSPI_REG_RX_FIFO,
+			    buf, len);
 		sspi->rx_buf = buf + len;
 		break;
 	}
 	case 16: {
 		u16 *buf = sspi->rx_buf;
 
-		readsw(sspi->regs + SYNQUACER_HSSPI_REG_RX_FIFO, buf, len);
+		ioread16_rep(sspi->regs + SYNQUACER_HSSPI_REG_RX_FIFO,
+			     buf, len);
 		sspi->rx_buf = buf + len;
 		break;
 	}
@@ -166,7 +168,8 @@ static int read_fifo(struct synquacer_spi *sspi)
 	case 32: {
 		u32 *buf = sspi->rx_buf;
 
-		readsl(sspi->regs + SYNQUACER_HSSPI_REG_RX_FIFO, buf, len);
+		ioread32_rep(sspi->regs + SYNQUACER_HSSPI_REG_RX_FIFO,
+			     buf, len);
 		sspi->rx_buf = buf + len;
 		break;
 	}
@@ -191,14 +194,16 @@ static int write_fifo(struct synquacer_spi *sspi)
 	case 8: {
 		const u8 *buf = sspi->tx_buf;
 
-		writesb(sspi->regs + SYNQUACER_HSSPI_REG_TX_FIFO, buf, len);
+		iowrite8_rep(sspi->regs + SYNQUACER_HSSPI_REG_TX_FIFO,
+			     buf, len);
 		sspi->tx_buf = buf + len;
 		break;
 	}
 	case 16: {
 		const u16 *buf = sspi->tx_buf;
 
-		writesw(sspi->regs + SYNQUACER_HSSPI_REG_TX_FIFO, buf, len);
+		iowrite16_rep(sspi->regs + SYNQUACER_HSSPI_REG_TX_FIFO,
+			      buf, len);
 		sspi->tx_buf = buf + len;
 		break;
 	}
@@ -207,7 +212,8 @@ static int write_fifo(struct synquacer_spi *sspi)
 	case 32: {
 		const u32 *buf = sspi->tx_buf;
 
-		writesl(sspi->regs + SYNQUACER_HSSPI_REG_TX_FIFO, buf, len);
+		iowrite32_rep(sspi->regs + SYNQUACER_HSSPI_REG_TX_FIFO,
+			      buf, len);
 		sspi->tx_buf = buf + len;
 		break;
 	}
