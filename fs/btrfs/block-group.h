@@ -187,6 +187,8 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info);
 int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 			   u64 type, u64 chunk_offset, u64 size);
 void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans);
+int btrfs_inc_block_group_ro(struct btrfs_block_group_cache *cache);
+void btrfs_dec_block_group_ro(struct btrfs_block_group_cache *cache);
 
 static inline int btrfs_block_group_cache_done(
 		struct btrfs_block_group_cache *cache)
