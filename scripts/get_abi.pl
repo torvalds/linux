@@ -49,17 +49,23 @@ sub parse_abi {
 	my $name = $file;
 	$name =~ s,.*/,,;
 
+	my $nametag = "File $name";
+	$data{$nametag}->{what} = "File $name";
+	$data{$nametag}->{type} = "File";
+	$data{$nametag}->{file} = $name;
+	$data{$nametag}->{is_file} = 1;
+
 	my $type = $file;
 	$type =~ s,.*/(.*)/.*,$1,;
 
 	my $what;
 	my $new_what;
 	my $tag;
-	my $label;
 	my $ln;
-	my $has_file;
 	my $xrefs;
 	my $space;
+	my @labels;
+	my $label;
 
 	print STDERR "Opening $file\n" if ($debug > 1);
 	open IN, $file;
@@ -88,28 +94,13 @@ sub parse_abi {
 					parse_error($file, $ln, "What '$what' doesn't have a description", "") if ($what && !$data{$what}->{description});
 
 					$what = $content;
+					$label = $content;
 					$new_what = 1;
 				}
+				push @labels, [($content, $label)];
 				$tag = $new_tag;
 
-				if ($has_file) {
-					$label = "abi_" . $content . " ";
-					$label =~ tr/A-Z/a-z/;
-
-					# Convert special chars to "_"
-					$label =~s/[\x00-\x2f]+/_/g;
-					$label =~s/[\x3a-\x40]+/_/g;
-					$label =~s/[\x7b-\xff]+/_/g;
-					$label =~ s,_+,_,g;
-					$label =~ s,_$,,;
-
-					$data{$what}->{label} .= $label;
-
-					# Escape special chars from content
-					$content =~s/([\x00-\x1f\x21-\x2f\x3a-\x40\x7b-\xff])/\\$1/g;
-
-					$xrefs .= "- :ref:`$content <$label>`\n\n";
-				}
+				push @{$data{$nametag}->{xrefs}}, [($content, $label)] if ($data{$nametag}->{what});
 				next;
 			}
 
@@ -117,6 +108,9 @@ sub parse_abi {
 				$tag = $new_tag;
 
 				if ($new_what) {
+					@{$data{$what}->{label}} = @labels if ($data{$nametag}->{what});
+					@labels = ();
+					$label = "";
 					$new_what = 0;
 
 					$data{$what}->{type} = $type;
@@ -145,15 +139,8 @@ sub parse_abi {
 		}
 
 		# Store any contents before tags at the database
-		if (!$tag) {
-			next if (/^\n/);
-
-			my $my_what = "File $name";
-			$data{$my_what}->{what} = "File $name";
-			$data{$my_what}->{type} = "File";
-			$data{$my_what}->{file} = $name;
-			$data{$my_what}->{description} .= $_;
-			$has_file = 1;
+		if (!$tag && $data{$nametag}->{what}) {
+			$data{$nametag}->{description} .= $_;
 			next;
 		}
 
@@ -192,12 +179,8 @@ sub parse_abi {
 		# Everything else is error
 		parse_error($file, $ln, "Unexpected line:", $_);
 	}
+	$data{$nametag}->{description} =~ s/^\n+//;
 	close IN;
-
-	if ($has_file) {
-		my $my_what = "File $name";
-		$data{$my_what}->{xrefs} = $xrefs;
-	}
 }
 
 # Outputs the output on ReST format
@@ -212,11 +195,22 @@ sub output_rest {
 		my $bar = $w;
 		$bar =~ s/./-/g;
 
-		if ($data{$what}->{label}) {
-			my @labels = split(/\s/, $data{$what}->{label});
-			foreach my $label (@labels) {
-				printf ".. _%s:\n\n", $label;
-			}
+		foreach my $p (@{$data{$what}->{label}}) {
+			my ($content, $label) = @{$p};
+			$label = "abi_" . $label . " ";
+			$label =~ tr/A-Z/a-z/;
+
+			# Convert special chars to "_"
+			$label =~s/([\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\xff])/_/g;
+			$label =~ s,_+,_,g;
+			$label =~ s,_$,,;
+
+			$data{$what}->{label} .= $label;
+
+			printf ".. _%s:\n\n", $label;
+
+			# only one label is enough
+			last;
 		}
 
 		print "$w\n$bar\n\n";
@@ -243,10 +237,28 @@ sub output_rest {
 				print "$desc\n\n";
 			}
 		} else {
-			print "DESCRIPTION MISSING for $what\n\n";
+			print "DESCRIPTION MISSING for $what\n\n" if (!$data{$what}->{is_file});
 		}
 
-		printf "Has the following ABI:\n\n%s", $data{$what}->{xrefs} if ($data{$what}->{xrefs});
+		if ($data{$what}->{xrefs}) {
+			printf "Has the following ABI:\n\n";
+
+			foreach my $p(@{$data{$what}->{xrefs}}) {
+				my ($content, $label) = @{$p};
+				$label = "abi_" . $label . " ";
+				$label =~ tr/A-Z/a-z/;
+
+				# Convert special chars to "_"
+				$label =~s/([\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\xff])/_/g;
+				$label =~ s,_+,_,g;
+				$label =~ s,_$,,;
+
+				# Escape special chars from content
+				$content =~s/([\x00-\x1f\x21-\x2f\x3a-\x40\x7b-\xff])/\\$1/g;
+
+				print "- :ref:`$content <$label>`\n\n";
+			}
+		}
 	}
 }
 
