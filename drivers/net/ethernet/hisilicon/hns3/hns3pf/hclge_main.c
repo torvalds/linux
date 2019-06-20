@@ -2315,6 +2315,17 @@ static int hclge_restart_autoneg(struct hnae3_handle *handle)
 	return hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 }
 
+static int hclge_halt_autoneg(struct hnae3_handle *handle, bool halt)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+
+	if (hdev->hw.mac.support_autoneg && hdev->hw.mac.autoneg)
+		return hclge_set_autoneg_en(hdev, !halt);
+
+	return 0;
+}
+
 static int hclge_set_fec_hw(struct hclge_dev *hdev, u32 fec_mode)
 {
 	struct hclge_config_fec_cmd *req;
@@ -9265,6 +9276,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.set_autoneg = hclge_set_autoneg,
 	.get_autoneg = hclge_get_autoneg,
 	.restart_autoneg = hclge_restart_autoneg,
+	.halt_autoneg = hclge_halt_autoneg,
 	.get_pauseparam = hclge_get_pauseparam,
 	.set_pauseparam = hclge_set_pauseparam,
 	.set_mtu = hclge_set_mtu,
