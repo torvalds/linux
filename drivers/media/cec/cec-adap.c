@@ -16,7 +16,10 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
+#include <drm/drm_connector.h>
+#include <drm/drm_device.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_file.h>
 
 #include "cec-priv.h"
 
@@ -74,6 +77,16 @@ u16 cec_get_edid_phys_addr(const u8 *edid, unsigned int size,
 	return (edid[loc] << 8) | edid[loc + 1];
 }
 EXPORT_SYMBOL_GPL(cec_get_edid_phys_addr);
+
+void cec_fill_conn_info_from_drm(struct cec_connector_info *conn_info,
+				 const struct drm_connector *connector)
+{
+	memset(conn_info, 0, sizeof(*conn_info));
+	conn_info->type = CEC_CONNECTOR_TYPE_DRM;
+	conn_info->drm.card_no = connector->dev->primary->index;
+	conn_info->drm.connector_id = connector->base.id;
+}
+EXPORT_SYMBOL_GPL(cec_fill_conn_info_from_drm);
 
 /*
  * Queue a new event for this filehandle. If ts == 0, then set it
@@ -1597,6 +1610,22 @@ void cec_s_phys_addr_from_edid(struct cec_adapter *adap,
 	cec_s_phys_addr(adap, pa, false);
 }
 EXPORT_SYMBOL_GPL(cec_s_phys_addr_from_edid);
+
+void cec_s_conn_info(struct cec_adapter *adap,
+		     const struct cec_connector_info *conn_info)
+{
+	if (!(adap->capabilities & CEC_CAP_CONNECTOR_INFO))
+		return;
+
+	mutex_lock(&adap->lock);
+	if (conn_info)
+		adap->conn_info = *conn_info;
+	else
+		memset(&adap->conn_info, 0, sizeof(adap->conn_info));
+	cec_post_state_event(adap);
+	mutex_unlock(&adap->lock);
+}
+EXPORT_SYMBOL_GPL(cec_s_conn_info);
 
 /*
  * Called from either the ioctl or a driver to set the logical addresses.

@@ -257,6 +257,11 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	struct cec_adapter *adap;
 	int res;
 
+	/*
+	 * Disable this capability until the connector info public API
+	 * is ready.
+	 */
+	caps &= ~CEC_CAP_CONNECTOR_INFO;
 #ifndef CONFIG_MEDIA_CEC_RC
 	caps &= ~CEC_CAP_RC;
 #endif
