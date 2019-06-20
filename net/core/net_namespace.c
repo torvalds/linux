@@ -345,7 +345,7 @@ out_undo:
 
 	synchronize_rcu();
 
-	saved_ops = ops;
+	ops = saved_ops;
 	list_for_each_entry_continue_reverse(ops, &pernet_list, list)
 		ops_exit_list(ops, &net_exit_list);
 
