@@ -48,7 +48,7 @@ static struct afs_cb_interest *afs_create_interest(struct afs_server *server,
 	refcount_set(&new->usage, 1);
 	new->sb = vnode->vfs_inode.i_sb;
 	new->vid = vnode->volume->vid;
-	new->server = afs_get_server(server);
+	new->server = afs_get_server(server, afs_server_trace_get_new_cbi);
 	INIT_HLIST_NODE(&new->cb_vlink);
 
 	write_lock(&server->cb_break_lock);
@@ -195,7 +195,7 @@ void afs_put_cb_interest(struct afs_net *net, struct afs_cb_interest *cbi)
 			write_unlock(&cbi->server->cb_break_lock);
 			if (vi)
 				kfree_rcu(vi, rcu);
-			afs_put_server(net, cbi->server);
+			afs_put_server(net, cbi->server, afs_server_trace_put_cbi);
 		}
 		kfree_rcu(cbi, rcu);
 	}

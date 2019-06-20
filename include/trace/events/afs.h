@@ -31,6 +31,26 @@ enum afs_call_trace {
 	afs_call_trace_work,
 };
 
+enum afs_server_trace {
+	afs_server_trace_alloc,
+	afs_server_trace_callback,
+	afs_server_trace_destroy,
+	afs_server_trace_free,
+	afs_server_trace_gc,
+	afs_server_trace_get_by_uuid,
+	afs_server_trace_get_caps,
+	afs_server_trace_get_install,
+	afs_server_trace_get_new_cbi,
+	afs_server_trace_give_up_cb,
+	afs_server_trace_put_call,
+	afs_server_trace_put_cbi,
+	afs_server_trace_put_find_rsq,
+	afs_server_trace_put_slist,
+	afs_server_trace_put_slist_isort,
+	afs_server_trace_put_uuid_rsq,
+	afs_server_trace_update,
+};
+
 enum afs_fs_operation {
 	afs_FS_FetchData		= 130,	/* AFS Fetch file data */
 	afs_FS_FetchACL			= 131,	/* AFS Fetch file ACL */
@@ -219,6 +239,25 @@ enum afs_cb_break_reason {
 	EM(afs_call_trace_wake,			"WAKE ") \
 	E_(afs_call_trace_work,			"WORK ")
 
+#define afs_server_traces \
+	EM(afs_server_trace_alloc,		"ALLOC    ") \
+	EM(afs_server_trace_callback,		"CALLBACK ") \
+	EM(afs_server_trace_destroy,		"DESTROY  ") \
+	EM(afs_server_trace_free,		"FREE     ") \
+	EM(afs_server_trace_gc,			"GC       ") \
+	EM(afs_server_trace_get_by_uuid,	"GET uuid ") \
+	EM(afs_server_trace_get_caps,		"GET caps ") \
+	EM(afs_server_trace_get_install,	"GET inst ") \
+	EM(afs_server_trace_get_new_cbi,	"GET cbi  ") \
+	EM(afs_server_trace_give_up_cb,		"giveup-cb") \
+	EM(afs_server_trace_put_call,		"PUT call ") \
+	EM(afs_server_trace_put_cbi,		"PUT cbi  ") \
+	EM(afs_server_trace_put_find_rsq,	"PUT f-rsq") \
+	EM(afs_server_trace_put_slist,		"PUT slist") \
+	EM(afs_server_trace_put_slist_isort,	"PUT isort") \
+	EM(afs_server_trace_put_uuid_rsq,	"PUT u-req") \
+	E_(afs_server_trace_update,		"UPDATE")
+
 #define afs_fs_operations \
 	EM(afs_FS_FetchData,			"FS.FetchData") \
 	EM(afs_FS_FetchStatus,			"FS.FetchStatus") \
@@ -404,6 +443,7 @@ enum afs_cb_break_reason {
 #define E_(a, b) TRACE_DEFINE_ENUM(a);
 
 afs_call_traces;
+afs_server_traces;
 afs_fs_operations;
 afs_vl_operations;
 afs_edit_dir_ops;
@@ -1238,6 +1278,29 @@ TRACE_EVENT(afs_cb_miss,
 	    TP_printk(" %llx:%llx:%x %s",
 		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
 		      __print_symbolic(__entry->reason, afs_cb_break_reasons))
+	    );
+
+TRACE_EVENT(afs_server,
+	    TP_PROTO(struct afs_server *server, int usage, enum afs_server_trace reason),
+
+	    TP_ARGS(server, usage, reason),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		server		)
+		    __field(int,			usage		)
+		    __field(int,			reason		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->server = server->debug_id;
+		    __entry->usage = usage;
+		    __entry->reason = reason;
+			   ),
+
+	    TP_printk("s=%08x %s u=%d",
+		      __entry->server,
+		      __print_symbolic(__entry->reason, afs_server_traces),
+		      __entry->usage)
 	    );
 
 #endif /* _TRACE_AFS_H */
