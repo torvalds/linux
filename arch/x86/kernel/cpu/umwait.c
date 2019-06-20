@@ -131,8 +131,44 @@ static ssize_t enable_c02_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(enable_c02);
 
+static ssize_t
+max_time_show(struct device *kobj, struct device_attribute *attr, char *buf)
+{
+	u32 ctrl = READ_ONCE(umwait_control_cached);
+
+	return sprintf(buf, "%u\n", umwait_ctrl_max_time(ctrl));
+}
+
+static ssize_t max_time_store(struct device *kobj,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	u32 max_time, ctrl;
+	int ret;
+
+	ret = kstrtou32(buf, 0, &max_time);
+	if (ret)
+		return ret;
+
+	/* bits[1:0] must be zero */
+	if (max_time & ~MSR_IA32_UMWAIT_CONTROL_TIME_MASK)
+		return -EINVAL;
+
+	mutex_lock(&umwait_lock);
+
+	ctrl = READ_ONCE(umwait_control_cached);
+	if (max_time != umwait_ctrl_max_time(ctrl))
+		umwait_update_control(max_time, umwait_ctrl_c02_enabled(ctrl));
+
+	mutex_unlock(&umwait_lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(max_time);
+
 static struct attribute *umwait_attrs[] = {
 	&dev_attr_enable_c02.attr,
+	&dev_attr_max_time.attr,
 	NULL
 };
 
