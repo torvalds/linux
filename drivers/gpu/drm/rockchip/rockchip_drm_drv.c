@@ -29,6 +29,8 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_graph.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/component.h>
 #include <linux/console.h>
 #include <linux/iommu.h>
@@ -1187,6 +1189,29 @@ static int rockchip_drm_bind(struct device *dev)
 		private->dmc_support = true;
 		dev_info(dev, "devfreq is ready\n");
 	}
+	private->hdmi_pll.pll = devm_clk_get(dev, "hdmi-tmds-pll");
+	if (PTR_ERR(private->hdmi_pll.pll) == -ENOENT) {
+		private->hdmi_pll.pll = NULL;
+	} else if (PTR_ERR(private->hdmi_pll.pll) == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto err_free;
+	} else if (IS_ERR(private->hdmi_pll.pll)) {
+		dev_err(dev, "failed to get hdmi-tmds-pll\n");
+		ret = PTR_ERR(private->hdmi_pll.pll);
+		goto err_free;
+	}
+	private->default_pll.pll = devm_clk_get(dev, "default-vop-pll");
+	if (PTR_ERR(private->default_pll.pll) == -ENOENT) {
+		private->default_pll.pll = NULL;
+	} else if (PTR_ERR(private->default_pll.pll) == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto err_free;
+	} else if (IS_ERR(private->default_pll.pll)) {
+		dev_err(dev, "failed to get default vop pll\n");
+		ret = PTR_ERR(private->default_pll.pll);
+		goto err_free;
+	}
+
 	INIT_LIST_HEAD(&private->psr_list);
 	mutex_init(&private->psr_list_lock);
 
