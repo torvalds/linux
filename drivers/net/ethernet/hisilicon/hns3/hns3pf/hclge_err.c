@@ -1627,13 +1627,10 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state))
 		goto out;
 
-	if (ae_dev->hw_err_reset_req) {
-		ae_dev->override_pci_need_reset = 0;
+	if (ae_dev->hw_err_reset_req)
 		return PCI_ERS_RESULT_NEED_RESET;
-	}
 
 out:
-	ae_dev->override_pci_need_reset = 1;
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
