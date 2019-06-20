@@ -2532,12 +2532,6 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info);
 int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 			   u64 bytes_used, u64 type, u64 chunk_offset,
 			   u64 size);
-struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
-				struct btrfs_fs_info *fs_info,
-				const u64 chunk_offset);
-int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
-			     u64 group_start, struct extent_map *em);
-void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info);
 void btrfs_get_block_group_trimming(struct btrfs_block_group_cache *cache);
 void btrfs_put_block_group_trimming(struct btrfs_block_group_cache *cache);
 void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans);
@@ -2618,7 +2612,6 @@ int btrfs_start_write_no_snapshotting(struct btrfs_root *root);
 void btrfs_end_write_no_snapshotting(struct btrfs_root *root);
 void btrfs_wait_for_snapshot_creation(struct btrfs_root *root);
 void check_system_chunk(struct btrfs_trans_handle *trans, const u64 type);
-void btrfs_mark_bg_unused(struct btrfs_block_group_cache *bg);
 
 /* ctree.c */
 int btrfs_bin_search(struct extent_buffer *eb, const struct btrfs_key *key,

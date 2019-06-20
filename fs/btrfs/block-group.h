@@ -176,6 +176,13 @@ struct btrfs_caching_control *btrfs_get_caching_control(
 		struct btrfs_block_group_cache *cache);
 u64 add_new_free_space(struct btrfs_block_group_cache *block_group,
 		       u64 start, u64 end);
+struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
+				struct btrfs_fs_info *fs_info,
+				const u64 chunk_offset);
+int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
+			     u64 group_start, struct extent_map *em);
+void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info);
+void btrfs_mark_bg_unused(struct btrfs_block_group_cache *bg);
 
 static inline int btrfs_block_group_cache_done(
 		struct btrfs_block_group_cache *cache)
