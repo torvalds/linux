@@ -2837,6 +2837,7 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 	device_remove_file(adev->dev, &dev_attr_pcie_replay_count);
 	amdgpu_ucode_sysfs_fini(adev);
 	amdgpu_pmu_fini(adev);
+	amdgpu_debugfs_preempt_cleanup(adev);
 }
 
 

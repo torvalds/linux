@@ -762,6 +762,7 @@ struct amdgpu_device {
 	struct amdgpu_debugfs		debugfs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
 	unsigned			debugfs_count;
 #if defined(CONFIG_DEBUG_FS)
+	struct dentry                   *debugfs_preempt;
 	struct dentry			*debugfs_regs[AMDGPU_DEBUGFS_MAX_COMPONENTS];
 #endif
 	struct amdgpu_atif		*atif;
