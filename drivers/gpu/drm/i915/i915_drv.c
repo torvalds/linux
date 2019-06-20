@@ -756,7 +756,7 @@ cleanup_gem:
 cleanup_modeset:
 	intel_modeset_cleanup(dev);
 cleanup_irq:
-	drm_irq_uninstall(dev);
+	intel_irq_uninstall(dev_priv);
 	intel_gmbus_teardown(dev_priv);
 cleanup_csr:
 	intel_csr_ucode_fini(dev_priv);
