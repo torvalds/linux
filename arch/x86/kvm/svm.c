@@ -367,6 +367,10 @@ static int avic;
 module_param(avic, int, S_IRUGO);
 #endif
 
+/* enable/disable Next RIP Save */
+static int nrips = true;
+module_param(nrips, int, 0444);
+
 /* enable/disable Virtual VMLOAD VMSAVE */
 static int vls = true;
 module_param(vls, int, 0444);
@@ -773,7 +777,7 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (svm->vmcb->control.next_rip != 0) {
+	if (nrips && svm->vmcb->control.next_rip != 0) {
 		WARN_ON_ONCE(!static_cpu_has(X86_FEATURE_NRIPS));
 		svm->next_rip = svm->vmcb->control.next_rip;
 	}
@@ -810,7 +814,7 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu)
 
 	kvm_deliver_exception_payload(&svm->vcpu);
 
-	if (nr == BP_VECTOR && !static_cpu_has(X86_FEATURE_NRIPS)) {
+	if (nr == BP_VECTOR && !nrips) {
 		unsigned long rip, old_rip = kvm_rip_read(&svm->vcpu);
 
 		/*
@@ -1366,6 +1370,11 @@ static __init int svm_hardware_setup(void)
 		kvm_enable_tdp();
 	} else
 		kvm_disable_tdp();
+
+	if (nrips) {
+		if (!boot_cpu_has(X86_FEATURE_NRIPS))
+			nrips = false;
+	}
 
 	if (avic) {
 		if (!npt_enabled ||
@@ -3938,7 +3947,7 @@ static int rdpmc_interception(struct vcpu_svm *svm)
 {
 	int err;
 
-	if (!static_cpu_has(X86_FEATURE_NRIPS))
+	if (!nrips)
 		return emulate_on_interception(svm);
 
 	err = kvm_rdpmc(&svm->vcpu);
