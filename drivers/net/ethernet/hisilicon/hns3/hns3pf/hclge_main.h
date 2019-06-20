@@ -700,6 +700,7 @@ struct hclge_mac_tnl_stats {
 };
 
 #define HCLGE_RESET_INTERVAL	(10 * HZ)
+#define HCLGE_WAIT_RESET_DONE	100
 
 #pragma pack(1)
 struct hclge_vf_vlan_cfg {
