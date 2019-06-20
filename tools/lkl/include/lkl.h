@@ -35,15 +35,13 @@ extern "C" {
 int inet_pton(int af, const char *src, void *dst);
 #endif
 
-#if __LKL__BITS_PER_LONG == 32 && (defined(__ANDROID__) || defined(__i386__))
-#define __lkl__NR_fcntl __lkl__NR_fcntl64
-#endif
-
 #if __LKL__BITS_PER_LONG == 64
 #define lkl_sys_fstatat lkl_sys_newfstatat
 #define lkl_sys_fstat lkl_sys_newfstat
 
 #else
+#define __lkl__NR_fcntl __lkl__NR_fcntl64
+
 #define lkl_stat lkl_stat64
 #define lkl_sys_stat lkl_sys_stat64
 #define lkl_sys_lstat lkl_sys_lstat64
