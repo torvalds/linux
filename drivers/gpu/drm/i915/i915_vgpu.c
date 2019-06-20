@@ -52,34 +52,53 @@
  */
 
 /**
- * i915_check_vgpu - detect virtual GPU
+ * i915_detect_vgpu - detect virtual GPU
  * @dev_priv: i915 device private
  *
  * This function is called at the initialization stage, to detect whether
  * running on a vGPU.
  */
-void i915_check_vgpu(struct drm_i915_private *dev_priv)
+void i915_detect_vgpu(struct drm_i915_private *dev_priv)
 {
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	struct pci_dev *pdev = dev_priv->drm.pdev;
 	u64 magic;
 	u16 version_major;
+	void __iomem *shared_area;
 
 	BUILD_BUG_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 
-	magic = __raw_uncore_read64(uncore, vgtif_reg(magic));
-	if (magic != VGT_MAGIC)
+	/*
+	 * This is called before we setup the main MMIO BAR mappings used via
+	 * the uncore structure, so we need to access the BAR directly. Since
+	 * we do not support VGT on older gens, return early so we don't have
+	 * to consider differently numbered or sized MMIO bars
+	 */
+	if (INTEL_GEN(dev_priv) < 6)
 		return;
 
-	version_major = __raw_uncore_read16(uncore, vgtif_reg(version_major));
-	if (version_major < VGT_VERSION_MAJOR) {
-		DRM_INFO("VGT interface version mismatch!\n");
+	shared_area = pci_iomap_range(pdev, 0, VGT_PVINFO_PAGE, VGT_PVINFO_SIZE);
+	if (!shared_area) {
+		DRM_ERROR("failed to map MMIO bar to check for VGT\n");
 		return;
 	}
 
-	dev_priv->vgpu.caps = __raw_uncore_read32(uncore, vgtif_reg(vgt_caps));
+	magic = readq(shared_area + vgtif_offset(magic));
+	if (magic != VGT_MAGIC)
+		goto out;
+
+	version_major = readw(shared_area + vgtif_offset(version_major));
+	if (version_major < VGT_VERSION_MAJOR) {
+		DRM_INFO("VGT interface version mismatch!\n");
+		goto out;
+	}
+
+	dev_priv->vgpu.caps = readl(shared_area + vgtif_offset(vgt_caps));
 
 	dev_priv->vgpu.active = true;
 	DRM_INFO("Virtual GPU for Intel GVT-g detected.\n");
+
+out:
+	pci_iounmap(pdev, shared_area);
 }
 
 bool intel_vgpu_has_full_ppgtt(struct drm_i915_private *dev_priv)

@@ -1899,6 +1899,8 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
+	i915_detect_vgpu(dev_priv);
+
 	ret = i915_driver_init_mmio(dev_priv);
 	if (ret < 0)
 		goto out_runtime_pm_put;
