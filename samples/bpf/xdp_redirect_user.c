@@ -197,7 +197,7 @@ int main(int argc, char **argv)
 	}
 
 	memset(&info, 0, sizeof(info));
-	ret = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	ret = bpf_obj_get_info_by_fd(dummy_prog_fd, &info, &info_len);
 	if (ret) {
 		printf("can't get prog info - %s\n", strerror(errno));
 		return ret;
