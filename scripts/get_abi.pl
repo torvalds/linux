@@ -9,9 +9,11 @@ use Fcntl ':mode';
 my $help;
 my $man;
 my $debug;
+my $prefix="Documentation/ABI";
 
 GetOptions(
 	"debug|d+" => \$debug,
+	"dir=s" => \$prefix,
 	'help|?' => \$help,
 	man => \$man
 ) or pod2usage(2);
@@ -19,9 +21,12 @@ GetOptions(
 pod2usage(1) if $help;
 pod2usage(-exitstatus => 0, -verbose => 2) if $man;
 
-pod2usage(2) if (scalar @ARGV != 1);
+pod2usage(2) if (scalar @ARGV < 1 || @ARGV > 2);
 
-my ($prefix) = @ARGV;
+my ($cmd, $arg) = @ARGV;
+
+pod2usage(2) if ($cmd ne "search" && $cmd ne "rest");
+pod2usage(2) if ($cmd eq "search" && !$arg);
 
 require Data::Dumper if ($debug);
 
@@ -53,6 +58,7 @@ sub parse_abi {
 	$data{$nametag}->{what} = "File $name";
 	$data{$nametag}->{type} = "File";
 	$data{$nametag}->{file} = $name;
+	$data{$nametag}->{filepath} = $file;
 	$data{$nametag}->{is_file} = 1;
 
 	my $type = $file;
@@ -115,6 +121,7 @@ sub parse_abi {
 
 					$data{$what}->{type} = $type;
 					$data{$what}->{file} = $name;
+					$data{$what}->{filepath} = $file;
 					print STDERR "\twhat: $what\n" if ($debug > 1);
 				}
 
@@ -183,7 +190,9 @@ sub parse_abi {
 	close IN;
 }
 
-# Outputs the output on ReST format
+#
+# Outputs the book on ReST format
+#
 sub output_rest {
 	foreach my $what (sort keys %data) {
 		my $type = $data{$what}->{type};
@@ -263,6 +272,45 @@ sub output_rest {
 }
 
 #
+# Searches for ABI symbols
+#
+sub search_symbols {
+	foreach my $what (sort keys %data) {
+		next if (!($what =~ m/($arg)/));
+
+		my $type = $data{$what}->{type};
+		next if ($type eq "File");
+
+		my $file = $data{$what}->{filepath};
+
+		my $bar = $what;
+		$bar =~ s/./-/g;
+
+		print "\n$what\n$bar\n\n";
+
+		my $kernelversion = $data{$what}->{kernelversion};
+		my $contact = $data{$what}->{contact};
+		my $users = $data{$what}->{users};
+		my $date = $data{$what}->{date};
+		my $desc = $data{$what}->{description};
+		$kernelversion =~ s/^\s+//;
+		$contact =~ s/^\s+//;
+		$users =~ s/^\s+//;
+		$users =~ s/\n//g;
+		$date =~ s/^\s+//;
+		$desc =~ s/^\s+//;
+
+		printf "Kernel version:\t\t%s\n", $kernelversion if ($kernelversion);
+		printf "Date:\t\t\t%s\n", $date if ($date);
+		printf "Contact:\t\t%s\n", $contact if ($contact);
+		printf "Users:\t\t\t%s\n", $users if ($users);
+		print "Defined on file:\t$file\n\n";
+		print "Description:\n\n$desc";
+	}
+}
+
+
+#
 # Parses all ABI files located at $prefix dir
 #
 find({wanted =>\&parse_abi, no_chdir => 1}, $prefix);
@@ -270,9 +318,13 @@ find({wanted =>\&parse_abi, no_chdir => 1}, $prefix);
 print STDERR Data::Dumper->Dump([\%data], [qw(*data)]) if ($debug);
 
 #
-# Outputs an ReST file with the ABI contents
+# Handles the command
 #
-output_rest
+if ($cmd eq "rest") {
+	output_rest;
+} else {
+	search_symbols;
+}
 
 
 __END__
@@ -283,11 +335,26 @@ abi_book.pl - parse the Linux ABI files and produce a ReST book.
 
 =head1 SYNOPSIS
 
-B<abi_book.pl> [--debug] <ABI_DIR>]
+B<abi_book.pl> [--debug] <COMAND> [<ARGUMENT>]
+
+Where <COMMAND> can be:
+
+=over 8
+
+B<search> [SEARCH_REGEX] - search for [SEARCH_REGEX] inside ABI
+
+B<rest>   - output the ABI in ReST markup language
+
+=back
 
 =head1 OPTIONS
 
 =over 8
+
+=item B<--dir>
+
+Changes the location of the ABI search. By default, it uses
+the Documentation/ABI directory.
 
 =item B<--debug>
 
@@ -306,8 +373,35 @@ Prints the manual page and exits.
 
 =head1 DESCRIPTION
 
-Parse the Linux ABI files from ABI DIR (usually located at Documentation/ABI)
-and produce a ReST book containing the Linux ABI.
+Parse the Linux ABI files from ABI DIR (usually located at Documentation/ABI),
+allowing to search for ABI symbols or to produce a ReST book containing
+the Linux ABI documentation.
+
+=head1 EXAMPLES
+
+Search for all stable symbols with the word "usb":
+
+=over 8
+
+$ scripts/get_abi.pl search usb --dir Documentation/ABI/stable
+
+=back
+
+Search for all symbols that match the regex expression "usb.*cap":
+
+=over 8
+
+$ scripts/get_abi.pl search usb.*cap
+
+=back
+
+Output all obsoleted symbols in ReST format
+
+=over 8
+
+$ scripts/get_abi.pl rest --dir Documentation/ABI/obsolete
+
+=back
 
 =head1 BUGS
 
@@ -315,7 +409,7 @@ Report bugs to Mauro Carvalho Chehab <mchehab@s-opensource.com>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab@s-opensource.com>.
+Copyright (c) 2016-2017 by Mauro Carvalho Chehab <mchehab@s-opensource.com>.
 
 License GPLv2: GNU GPL version 2 <http://gnu.org/licenses/gpl.html>.
 
