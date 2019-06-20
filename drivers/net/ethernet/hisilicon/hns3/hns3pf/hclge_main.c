@@ -7112,12 +7112,13 @@ static int hclge_set_vf_vlan_common(struct hclge_dev *hdev, u16 vfid,
 		if (!req0->resp_code)
 			return 0;
 
-		if (req0->resp_code == HCLGE_VF_VLAN_DEL_NO_FOUND) {
-			dev_warn(&hdev->pdev->dev,
-				 "vlan %d filter is not in vf vlan table\n",
-				 vlan);
+		/* vf vlan filter is disabled when vf vlan table is full,
+		 * then new vlan id will not be added into vf vlan table.
+		 * Just return 0 without warning, avoid massive verbose
+		 * print logs when unload.
+		 */
+		if (req0->resp_code == HCLGE_VF_VLAN_DEL_NO_FOUND)
 			return 0;
-		}
 
 		dev_err(&hdev->pdev->dev,
 			"Kill vf vlan filter fail, ret =%d.\n",
