@@ -2336,7 +2336,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream) {
 				if (core_dc->current_state->res_ctx.
 						pipe_ctx[i].stream->link
-						== link)
+						== link) {
 					/* DMCU -1 for all controller id values,
 					 * therefore +1 here
 					 */
@@ -2344,6 +2344,13 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 						core_dc->current_state->
 						res_ctx.pipe_ctx[i].stream_res.tg->inst +
 						1;
+
+					/* Disable brightness ramping when the display is blanked
+					 * as it can hang the DMCU
+					 */
+					if (core_dc->current_state->res_ctx.pipe_ctx[i].plane_state == NULL)
+						frame_ramp = 0;
+				}
 			}
 		}
 		abm->funcs->set_backlight_level_pwm(
