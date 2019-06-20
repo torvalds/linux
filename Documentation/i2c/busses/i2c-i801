@@ -37,6 +37,7 @@ Supported adapters:
   * Intel Cedar Fork (PCH)
   * Intel Ice Lake (PCH)
   * Intel Comet Lake (PCH)
+  * Intel Elkhart Lake (PCH)
    Datasheets: Publicly available at the Intel website
 
 On Intel Patsburg and later chipsets, both the normal host SMBus controller
