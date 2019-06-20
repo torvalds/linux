@@ -285,6 +285,8 @@ static void mcam_ctlr_stop(struct mcam_camera *cam)
 static void mcam_enable_mipi(struct mcam_camera *mcam)
 {
 	/* Using MIPI mode and enable MIPI */
+	if (mcam->calc_dphy)
+		mcam->calc_dphy(mcam);
 	cam_dbg(mcam, "camera: DPHY3=0x%x, DPHY5=0x%x, DPHY6=0x%x\n",
 			mcam->dphy[0], mcam->dphy[1], mcam->dphy[2]);
 	mcam_reg_write(mcam, REG_CSI2_DPHY3, mcam->dphy[0]);
@@ -1078,13 +1080,6 @@ static int mcam_read_setup(struct mcam_camera *cam)
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	clear_bit(CF_DMA_ACTIVE, &cam->flags);
 	mcam_reset_buffers(cam);
-	/*
-	 * Update CSI2_DPHY value
-	 */
-	if (cam->calc_dphy)
-		cam->calc_dphy(cam);
-	cam_dbg(cam, "camera: DPHY sets: dphy3=0x%x, dphy5=0x%x, dphy6=0x%x\n",
-			cam->dphy[0], cam->dphy[1], cam->dphy[2]);
 	if (cam->bus_type == V4L2_MBUS_CSI2_DPHY)
 		mcam_enable_mipi(cam);
 	else
