@@ -189,6 +189,9 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans);
 int btrfs_inc_block_group_ro(struct btrfs_block_group_cache *cache);
 void btrfs_dec_block_group_ro(struct btrfs_block_group_cache *cache);
+int btrfs_start_dirty_block_groups(struct btrfs_trans_handle *trans);
+int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans);
+int btrfs_setup_space_cache(struct btrfs_trans_handle *trans);
 
 static inline int btrfs_block_group_cache_done(
 		struct btrfs_block_group_cache *cache)
