@@ -447,9 +447,7 @@ static void gfx_v10_0_check_gfxoff_flag(struct amdgpu_device *adev)
 {
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
-		if ((adev->gfx.rlc_fw_version < 85) ||
-		    (adev->pm.fw_version < 0x002A0C00))
-			adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
+		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		break;
 	default:
 		break;
