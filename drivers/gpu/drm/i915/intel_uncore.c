@@ -537,12 +537,6 @@ void intel_uncore_runtime_resume(struct intel_uncore *uncore)
 	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
 }
 
-void intel_uncore_sanitize(struct drm_i915_private *dev_priv)
-{
-	/* BIOS often leaves RC6 enabled, but disable it for hw init */
-	intel_sanitize_gt_powersave(dev_priv);
-}
-
 static void __intel_uncore_forcewake_get(struct intel_uncore *uncore,
 					 enum forcewake_domains fw_domains)
 {
@@ -1664,9 +1658,6 @@ void intel_uncore_prune_mmio_domains(struct intel_uncore *uncore)
 
 void intel_uncore_fini_mmio(struct intel_uncore *uncore)
 {
-	/* Paranoia: make sure we have disabled everything before we exit. */
-	intel_uncore_sanitize(uncore_to_i915(uncore));
-
 	iosf_mbi_punit_acquire();
 	iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
 		&uncore->pmic_bus_access_nb);
