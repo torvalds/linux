@@ -2045,7 +2045,7 @@ static int qcom_spmi_regulator_probe(struct platform_device *pdev)
 			}
 		}
 
-		if (vreg->set_points->count == 1) {
+		if (vreg->set_points && vreg->set_points->count == 1) {
 			/* since there is only one range */
 			range = vreg->set_points->range;
 			vreg->desc.uV_step = range->step_uV;
