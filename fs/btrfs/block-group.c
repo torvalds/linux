@@ -3045,3 +3045,130 @@ void check_system_chunk(struct btrfs_trans_handle *trans, u64 type)
 	}
 }
 
+void btrfs_put_block_group_cache(struct btrfs_fs_info *info)
+{
+	struct btrfs_block_group_cache *block_group;
+	u64 last = 0;
+
+	while (1) {
+		struct inode *inode;
+
+		block_group = btrfs_lookup_first_block_group(info, last);
+		while (block_group) {
+			btrfs_wait_block_group_cache_done(block_group);
+			spin_lock(&block_group->lock);
+			if (block_group->iref)
+				break;
+			spin_unlock(&block_group->lock);
+			block_group = btrfs_next_block_group(block_group);
+		}
+		if (!block_group) {
+			if (last == 0)
+				break;
+			last = 0;
+			continue;
+		}
+
+		inode = block_group->inode;
+		block_group->iref = 0;
+		block_group->inode = NULL;
+		spin_unlock(&block_group->lock);
+		ASSERT(block_group->io_ctl.inode == NULL);
+		iput(inode);
+		last = block_group->key.objectid + block_group->key.offset;
+		btrfs_put_block_group(block_group);
+	}
+}
+
+/*
+ * Must be called only after stopping all workers, since we could have block
+ * group caching kthreads running, and therefore they could race with us if we
+ * freed the block groups before stopping them.
+ */
+int btrfs_free_block_groups(struct btrfs_fs_info *info)
+{
+	struct btrfs_block_group_cache *block_group;
+	struct btrfs_space_info *space_info;
+	struct btrfs_caching_control *caching_ctl;
+	struct rb_node *n;
+
+	down_write(&info->commit_root_sem);
+	while (!list_empty(&info->caching_block_groups)) {
+		caching_ctl = list_entry(info->caching_block_groups.next,
+					 struct btrfs_caching_control, list);
+		list_del(&caching_ctl->list);
+		btrfs_put_caching_control(caching_ctl);
+	}
+	up_write(&info->commit_root_sem);
+
+	spin_lock(&info->unused_bgs_lock);
+	while (!list_empty(&info->unused_bgs)) {
+		block_group = list_first_entry(&info->unused_bgs,
+					       struct btrfs_block_group_cache,
+					       bg_list);
+		list_del_init(&block_group->bg_list);
+		btrfs_put_block_group(block_group);
+	}
+	spin_unlock(&info->unused_bgs_lock);
+
+	spin_lock(&info->block_group_cache_lock);
+	while ((n = rb_last(&info->block_group_cache_tree)) != NULL) {
+		block_group = rb_entry(n, struct btrfs_block_group_cache,
+				       cache_node);
+		rb_erase(&block_group->cache_node,
+			 &info->block_group_cache_tree);
+		RB_CLEAR_NODE(&block_group->cache_node);
+		spin_unlock(&info->block_group_cache_lock);
+
+		down_write(&block_group->space_info->groups_sem);
+		list_del(&block_group->list);
+		up_write(&block_group->space_info->groups_sem);
+
+		/*
+		 * We haven't cached this block group, which means we could
+		 * possibly have excluded extents on this block group.
+		 */
+		if (block_group->cached == BTRFS_CACHE_NO ||
+		    block_group->cached == BTRFS_CACHE_ERROR)
+			btrfs_free_excluded_extents(block_group);
+
+		btrfs_remove_free_space_cache(block_group);
+		ASSERT(block_group->cached != BTRFS_CACHE_STARTED);
+		ASSERT(list_empty(&block_group->dirty_list));
+		ASSERT(list_empty(&block_group->io_list));
+		ASSERT(list_empty(&block_group->bg_list));
+		ASSERT(atomic_read(&block_group->count) == 1);
+		btrfs_put_block_group(block_group);
+
+		spin_lock(&info->block_group_cache_lock);
+	}
+	spin_unlock(&info->block_group_cache_lock);
+
+	/*
+	 * Now that all the block groups are freed, go through and free all the
+	 * space_info structs.  This is only called during the final stages of
+	 * unmount, and so we know nobody is using them.  We call
+	 * synchronize_rcu() once before we start, just to be on the safe side.
+	 */
+	synchronize_rcu();
+
+	btrfs_release_global_block_rsv(info);
+
+	while (!list_empty(&info->space_info)) {
+		space_info = list_entry(info->space_info.next,
+					struct btrfs_space_info,
+					list);
+
+		/*
+		 * Do not hide this behind enospc_debug, this is actually
+		 * important and indicates a real bug if this happens.
+		 */
+		if (WARN_ON(space_info->bytes_pinned > 0 ||
+			    space_info->bytes_reserved > 0 ||
+			    space_info->bytes_may_use > 0))
+			btrfs_dump_space_info(info, space_info, 0, 0);
+		list_del(&space_info->list);
+		btrfs_sysfs_remove_space_info(space_info);
+	}
+	return 0;
+}
