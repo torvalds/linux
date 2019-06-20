@@ -634,7 +634,6 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	new->cl_discrtry = clnt->cl_discrtry;
 	new->cl_chatty = clnt->cl_chatty;
 	new->cl_principal = clnt->cl_principal;
-	new->cl_cred = get_cred(clnt->cl_cred);
 	return new;
 
 out_err:
