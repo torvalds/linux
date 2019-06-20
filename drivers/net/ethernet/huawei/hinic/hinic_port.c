@@ -711,13 +711,16 @@ int hinic_get_rss_type(struct hinic_dev *nic_dev, u32 tmpl_idx,
 {
 	struct hinic_rss_context_table ctx_tbl = { 0 };
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
-	struct hinic_hwif *hwif = hwdev->hwif;
-	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_hwif *hwif;
+	struct pci_dev *pdev;
 	u16 out_size = sizeof(ctx_tbl);
 	int err;
 
 	if (!hwdev || !rss_type)
 		return -EINVAL;
+
+	hwif = hwdev->hwif;
+	pdev = hwif->pdev;
 
 	ctx_tbl.func_id = HINIC_HWIF_FUNC_IDX(hwif);
 	ctx_tbl.template_id = tmpl_idx;
@@ -776,13 +779,16 @@ int hinic_rss_get_template_tbl(struct hinic_dev *nic_dev, u32 tmpl_idx,
 {
 	struct hinic_rss_template_key temp_key = { 0 };
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
-	struct hinic_hwif *hwif = hwdev->hwif;
-	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_hwif *hwif;
+	struct pci_dev *pdev;
 	u16 out_size = sizeof(temp_key);
 	int err;
 
 	if (!hwdev || !temp)
 		return -EINVAL;
+
+	hwif = hwdev->hwif;
+	pdev = hwif->pdev;
 
 	temp_key.func_id = HINIC_HWIF_FUNC_IDX(hwif);
 	temp_key.template_id = tmpl_idx;
@@ -832,13 +838,16 @@ int hinic_rss_get_hash_engine(struct hinic_dev *nic_dev, u8 tmpl_idx, u8 *type)
 {
 	struct hinic_rss_engine_type hash_type = { 0 };
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
-	struct hinic_hwif *hwif = hwdev->hwif;
-	struct pci_dev *pdev = hwif->pdev;
+	struct hinic_hwif *hwif;
+	struct pci_dev *pdev;
 	u16 out_size = sizeof(hash_type);
 	int err;
 
 	if (!hwdev || !type)
 		return -EINVAL;
+
+	hwif = hwdev->hwif;
+	pdev = hwif->pdev;
 
 	hash_type.func_id = HINIC_HWIF_FUNC_IDX(hwif);
 	hash_type.template_id = tmpl_idx;
