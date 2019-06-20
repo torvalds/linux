@@ -126,6 +126,7 @@ struct intel_uncore {
 	enum forcewake_domains fw_domains_saved; /* user domains saved for S3 */
 
 	struct intel_uncore_forcewake_domain {
+		struct intel_uncore *uncore;
 		enum forcewake_domain_id id;
 		enum forcewake_domains mask;
 		unsigned int wake_count;
@@ -133,7 +134,7 @@ struct intel_uncore {
 		struct hrtimer timer;
 		u32 __iomem *reg_set;
 		u32 __iomem *reg_ack;
-	} fw_domain[FW_DOMAIN_ID_COUNT];
+	} *fw_domain[FW_DOMAIN_ID_COUNT];
 
 	struct {
 		unsigned int count;
@@ -147,17 +148,11 @@ struct intel_uncore {
 
 /* Iterate over initialised fw domains */
 #define for_each_fw_domain_masked(domain__, mask__, uncore__, tmp__) \
-	for (tmp__ = (mask__); \
-	     tmp__ ? (domain__ = &(uncore__)->fw_domain[__mask_next_bit(tmp__)]), 1 : 0;)
+	for (tmp__ = (mask__); tmp__ ;) \
+		for_each_if(domain__ = (uncore__)->fw_domain[__mask_next_bit(tmp__)])
 
 #define for_each_fw_domain(domain__, uncore__, tmp__) \
 	for_each_fw_domain_masked(domain__, (uncore__)->fw_domains, uncore__, tmp__)
-
-static inline struct intel_uncore *
-forcewake_domain_to_uncore(const struct intel_uncore_forcewake_domain *d)
-{
-	return container_of(d, struct intel_uncore, fw_domain[d->id]);
-}
 
 static inline bool
 intel_uncore_has_forcewake(const struct intel_uncore *uncore)
