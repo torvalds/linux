@@ -151,4 +151,11 @@ static inline int btrfs_should_fragment_free_space(
 }
 #endif
 
+struct btrfs_block_group_cache *btrfs_lookup_first_block_group(
+		struct btrfs_fs_info *info, u64 bytenr);
+struct btrfs_block_group_cache *btrfs_lookup_block_group(
+		struct btrfs_fs_info *info, u64 bytenr);
+struct btrfs_block_group_cache *btrfs_next_block_group(
+		struct btrfs_block_group_cache *cache);
+
 #endif /* BTRFS_BLOCK_GROUP_H */
