@@ -780,22 +780,18 @@ static int snd_soc_is_matching_component(
 }
 
 static struct snd_soc_component *soc_find_component(
-	const struct device_node *of_node, const char *name)
+	struct device_node *of_node, const char *name)
 {
 	struct snd_soc_component *component;
-	struct device_node *component_of_node;
+	struct snd_soc_dai_link_component dlc;
 
 	lockdep_assert_held(&client_mutex);
 
 	for_each_component(component) {
-		if (of_node) {
-			component_of_node = soc_component_to_node(component);
-
-			if (component_of_node == of_node)
-				return component;
-		} else if (name && strcmp(component->name, name) == 0) {
+		dlc.name = name;
+		dlc.of_node = of_node;
+		if (snd_soc_is_matching_component(&dlc, component))
 			return component;
-		}
 	}
 
 	return NULL;
