@@ -59,29 +59,34 @@ sub parse_abi {
 	my $ln;
 	my $has_file;
 	my $xrefs;
+	my $space;
 
 	print STDERR "Opening $file\n" if ($debug > 1);
 	open IN, $file;
 	while(<IN>) {
 		$ln++;
-		if (m/^(\S+):\s*(.*)/i) {
+		if (m/^(\S+)(:\s*)(.*)/i) {
 			my $new_tag = lc($1);
-			my $content = $2;
+			my $sep = $2;
+			my $content = $3;
 
 			if (!($new_tag =~ m/(what|date|kernelversion|contact|description|users)/)) {
 				if ($tag eq "description") {
-					$data{$what}->{$tag} .= "\n$content";
-					$data{$what}->{$tag} =~ s/\n+$//;
-					next;
+					# New "tag" is actually part of
+					# description. Don't consider it a tag
+					$new_tag = "";
 				} else {
 					parse_error($file, $ln, "tag '$tag' is invalid", $_);
 				}
 			}
 
 			if ($new_tag =~ m/what/) {
+				$space = "";
 				if ($tag =~ m/what/) {
 					$what .= ", " . $content;
 				} else {
+					parse_error($file, $ln, "What '$what' doesn't have a description", "") if ($what && !$data{$what}->{description});
+
 					$what = $content;
 					$new_what = 1;
 				}
@@ -108,25 +113,38 @@ sub parse_abi {
 				next;
 			}
 
-			$tag = $new_tag;
+			if ($new_tag) {
+				$tag = $new_tag;
 
-			if ($new_what) {
-				$new_what = 0;
+				if ($new_what) {
+					$new_what = 0;
 
-				$data{$what}->{type} = $type;
-				$data{$what}->{file} = $name;
-				print STDERR "\twhat: $what\n" if ($debug > 1);
-			}
+					$data{$what}->{type} = $type;
+					$data{$what}->{file} = $name;
+					print STDERR "\twhat: $what\n" if ($debug > 1);
+				}
 
-			if (!$what) {
-				parse_error($file, $ln, "'What:' should come first:", $_);
+				if (!$what) {
+					parse_error($file, $ln, "'What:' should come first:", $_);
+					next;
+				}
+				if ($tag eq "description") {
+					next if ($content =~ m/^\s*$/);
+					if ($content =~ m/^(\s*)(.*)/) {
+						my $new_content = $2;
+						$space = $new_tag . $sep . $1;
+						while ($space =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
+						$space =~ s/./ /g;
+						$data{$what}->{$tag} .= "$new_content\n";
+					}
+				} else {
+					$data{$what}->{$tag} = $content;
+				}
 				next;
 			}
-			$data{$what}->{$tag} = $content;
-			next;
 		}
 
-		# Store any contents before the database
+		# Store any contents before tags at the database
 		if (!$tag) {
 			next if (/^\n/);
 
@@ -139,6 +157,32 @@ sub parse_abi {
 			next;
 		}
 
+		if ($tag eq "description") {
+			if (!$data{$what}->{description}) {
+				next if (m/^\s*\n/);
+				if (m/^(\s*)(.*)/) {
+					$space = $1;
+					while ($space =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
+					$data{$what}->{$tag} .= "$2\n";
+				}
+			} else {
+				my $content = $_;
+				if (m/^\s*\n/) {
+					$data{$what}->{$tag} .= $content;
+					next;
+				}
+
+				while ($content =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {}
+				$space = "" if (!($content =~ s/^($space)//));
+
+				# Compress spaces with tabs
+				$content =~ s<^ {8}> <\t>;
+				$content =~ s<^ {1,7}\t> <\t>;
+				$content =~ s< {1,7}\t> <\t>;
+				$data{$what}->{$tag} .= $content;
+			}
+			next;
+		}
 		if (m/^\s*(.*)/) {
 			$data{$what}->{$tag} .= "\n$1";
 			$data{$what}->{$tag} =~ s/\n+$//;
@@ -165,6 +209,9 @@ sub output_rest {
 		my $w = $what;
 		$w =~ s/([\(\)\_\-\*\=\^\~\\])/\\$1/g;
 
+		my $bar = $w;
+		$bar =~ s/./-/g;
+
 		if ($data{$what}->{label}) {
 			my @labels = split(/\s/, $data{$what}->{label});
 			foreach my $label (@labels) {
@@ -172,10 +219,9 @@ sub output_rest {
 			}
 		}
 
-		print "$w\n\n";
+		print "$w\n$bar\n\n";
 
 		print "- defined on file $file (type: $type)\n\n" if ($type ne "File");
-		print "::\n\n";
 
 		my $desc = $data{$what}->{description};
 		$desc =~ s/^\s+//;
@@ -183,18 +229,24 @@ sub output_rest {
 		# Remove title markups from the description, as they won't work
 		$desc =~ s/\n[\-\*\=\^\~]+\n/\n/g;
 
-		# put everything inside a code block
-		$desc =~ s/\n/\n /g;
-
-
 		if (!($desc =~ /^\s*$/)) {
-			print " $desc\n\n";
+			if ($desc =~ m/\:\n/ || $desc =~ m/\n[\t ]+/  || $desc =~ m/[\x00-\x08\x0b-\x1f\x7b-\xff]/) {
+				# put everything inside a code block
+				$desc =~ s/\n/\n /g;
+
+				print "::\n\n";
+				print " $desc\n\n";
+			} else {
+				# Escape any special chars from description
+				$desc =~s/([\x00-\x08\x0b-\x1f\x21-\x2a\x2d\x2f\x3c-\x40\x5c\x5e-\x60\x7b-\xff])/\\$1/g;
+
+				print "$desc\n\n";
+			}
 		} else {
-			print " DESCRIPTION MISSING for $what\n\n";
+			print "DESCRIPTION MISSING for $what\n\n";
 		}
 
 		printf "Has the following ABI:\n\n%s", $data{$what}->{xrefs} if ($data{$what}->{xrefs});
-
 	}
 }
 
