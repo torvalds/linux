@@ -114,7 +114,7 @@ void inet_frags_fini(struct inet_frags *);
 
 int fqdir_init(struct fqdir **fqdirp, struct inet_frags *f, struct net *net);
 
-static void inline fqdir_pre_exit(struct fqdir *fqdir)
+static inline void fqdir_pre_exit(struct fqdir *fqdir)
 {
 	fqdir->high_thresh = 0; /* prevent creation of new frags */
 	fqdir->dead = true;
