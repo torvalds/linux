@@ -83,6 +83,7 @@ struct rockchip_drm_mode_set {
 	int ratio;
 };
 
+#ifndef MODULE
 static struct drm_crtc *find_crtc_by_node(struct drm_device *drm_dev,
 					  struct device_node *node)
 {
@@ -658,6 +659,23 @@ static int update_state(struct drm_device *drm_dev,
 	return ret;
 }
 
+static bool is_support_hotplug(uint32_t output_type)
+{
+	switch (output_type) {
+	case DRM_MODE_CONNECTOR_Unknown:
+	case DRM_MODE_CONNECTOR_DVII:
+	case DRM_MODE_CONNECTOR_DVID:
+	case DRM_MODE_CONNECTOR_DVIA:
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_HDMIA:
+	case DRM_MODE_CONNECTOR_HDMIB:
+	case DRM_MODE_CONNECTOR_TV:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void show_loader_logo(struct drm_device *drm_dev)
 {
 	struct drm_atomic_state *state, *old_state;
@@ -813,6 +831,7 @@ err_unlock:
 	if (ret)
 		dev_err(drm_dev->dev, "failed to show loader logo\n");
 }
+#endif
 
 /*
  * Attach a (component) device to the shared drm dma mapping from master drm
@@ -1153,11 +1172,15 @@ static int rockchip_drm_bind(struct device *dev)
 	int ret;
 	struct device_node *np = dev->of_node;
 	struct device_node *parent_np;
+	struct drm_crtc *crtc;
 
 	drm_dev = drm_dev_alloc(&rockchip_drm_driver, dev);
 	if (IS_ERR(drm_dev))
 		return PTR_ERR(drm_dev);
 
+	ret = drm_dev_set_unique(drm_dev, dev_name(dev));
+	if (ret)
+		goto err_free;
 	dev_set_drvdata(dev, drm_dev);
 
 	private = devm_kzalloc(drm_dev->dev, sizeof(*private), GFP_KERNEL);
@@ -1243,10 +1266,6 @@ static int rockchip_drm_bind(struct device *dev)
 	 */
 	drm_dev->irq_enabled = true;
 
-	ret = rockchip_drm_fbdev_init(drm_dev);
-	if (ret)
-		goto err_unbind_all;
-
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm_dev);
 
@@ -1258,15 +1277,35 @@ static int rockchip_drm_bind(struct device *dev)
 	if (ret)
 		DRM_DEBUG_KMS("No reserved memory region assign to drm\n");
 
-	ret = drm_dev_register(drm_dev, 0);
+	ret = rockchip_drm_fbdev_init(drm_dev);
 	if (ret)
 		goto err_kms_helper_poll_fini;
 
+	drm_for_each_crtc(crtc, drm_dev) {
+		struct drm_fb_helper *helper = private->fbdev_helper;
+		struct rockchip_crtc_state *s = NULL;
+
+		s = to_rockchip_crtc_state(crtc->state);
+		if (is_support_hotplug(s->output_type)) {
+			s->crtc_primary_fb = crtc->primary->fb;
+			crtc->primary->fb = helper->fb;
+			drm_framebuffer_get(helper->fb);
+		}
+	}
+
+	drm_dev->mode_config.allow_fb_modifiers = true;
+
+	ret = drm_dev_register(drm_dev, 0);
+	if (ret)
+		goto err_fbdev_fini;
+
 	return 0;
+err_fbdev_fini:
+	rockchip_drm_fbdev_fini(drm_dev);
 err_kms_helper_poll_fini:
 	rockchip_gem_pool_destroy(drm_dev);
 	drm_kms_helper_poll_fini(drm_dev);
-	rockchip_drm_fbdev_fini(drm_dev);
+	drm_vblank_cleanup(drm_dev);
 err_unbind_all:
 	component_unbind_all(dev, drm_dev);
 err_mode_config_cleanup:
@@ -1289,6 +1328,7 @@ static void rockchip_drm_unbind(struct device *dev)
 	rockchip_gem_pool_destroy(drm_dev);
 	drm_kms_helper_poll_fini(drm_dev);
 
+	drm_vblank_cleanup(drm_dev);
 	drm_atomic_helper_shutdown(drm_dev);
 	component_unbind_all(dev, drm_dev);
 	drm_mode_config_cleanup(drm_dev);
