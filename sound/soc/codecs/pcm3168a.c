@@ -435,7 +435,7 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	u32 val, mask, shift, reg;
 	unsigned int rate, fmt, ratio, max_ratio;
 	unsigned int chan;
-	int i, min_frame_size;
+	int i, slot_width;
 
 	rate = params_rate(params);
 	chan = params_channels(params);
@@ -470,11 +470,11 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (pcm3168a->slot_width)
-		min_frame_size = pcm3168a->slot_width;
+		slot_width = pcm3168a->slot_width;
 	else
-		min_frame_size = params_width(params);
+		slot_width = params_width(params);
 
-	switch (min_frame_size) {
+	switch (slot_width) {
 	case 16:
 		if (master_mode || (fmt != PCM3168A_FMT_RIGHT_J)) {
 			dev_err(component->dev, "16-bit slots are supported only for slave mode using right justified\n");
@@ -491,7 +491,7 @@ static int pcm3168a_hw_params(struct snd_pcm_substream *substream,
 	case 32:
 		break;
 	default:
-		dev_err(component->dev, "unsupported frame size: %d\n", min_frame_size);
+		dev_err(component->dev, "unsupported frame size: %d\n", slot_width);
 		return -EINVAL;
 	}
 
