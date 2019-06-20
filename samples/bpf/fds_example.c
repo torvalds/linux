@@ -14,7 +14,7 @@
 
 #include <bpf/bpf.h>
 
-#include "bpf/libbpf.h"
+#include "libbpf.h"
 #include "bpf_insn.h"
 #include "sock_example.h"
 

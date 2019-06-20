@@ -22,17 +22,23 @@
 
 int _version SEC("version") = 1;
 
-struct bpf_map_def SEC("maps") rxcnt = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	__u64 *value;
+} rxcnt SEC(".maps") = {
 	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u64),
 	.max_entries = 256,
 };
 
-struct bpf_map_def SEC("maps") vip2tnl = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	struct vip *key;
+	struct iptnl_info *value;
+} vip2tnl SEC(".maps") = {
 	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct vip),
-	.value_size = sizeof(struct iptnl_info),
 	.max_entries = MAX_IPTNL_ENTRIES,
 };
 

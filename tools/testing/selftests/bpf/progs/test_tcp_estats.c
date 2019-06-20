@@ -148,10 +148,13 @@ struct tcp_estats_basic_event {
 	struct tcp_estats_conn_id conn_id;
 };
 
-struct bpf_map_def SEC("maps") ev_record_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct tcp_estats_basic_event *value;
+} ev_record_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct tcp_estats_basic_event),
 	.max_entries = 1024,
 };
 

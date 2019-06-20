@@ -234,10 +234,10 @@ static void bpf_fill_scale1(struct bpf_test *self)
 		insn[i++] = BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6,
 					-8 * (k % 64 + 1));
 	}
-	/* every jump adds 1 step to insn_processed, so to stay exactly
-	 * within 1m limit add MAX_TEST_INSNS - MAX_JMP_SEQ - 1 MOVs and 1 EXIT
+	/* is_state_visited() doesn't allocate state for pruning for every jump.
+	 * Hence multiply jmps by 4 to accommodate that heuristic
 	 */
-	while (i < MAX_TEST_INSNS - MAX_JMP_SEQ - 1)
+	while (i < MAX_TEST_INSNS - MAX_JMP_SEQ * 4)
 		insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_0, 42);
 	insn[i] = BPF_EXIT_INSN();
 	self->prog_len = i + 1;
@@ -266,10 +266,7 @@ static void bpf_fill_scale2(struct bpf_test *self)
 		insn[i++] = BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6,
 					-8 * (k % (64 - 4 * FUNC_NEST) + 1));
 	}
-	/* every jump adds 1 step to insn_processed, so to stay exactly
-	 * within 1m limit add MAX_TEST_INSNS - MAX_JMP_SEQ - 1 MOVs and 1 EXIT
-	 */
-	while (i < MAX_TEST_INSNS - MAX_JMP_SEQ - 1)
+	while (i < MAX_TEST_INSNS - MAX_JMP_SEQ * 4)
 		insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_0, 42);
 	insn[i] = BPF_EXIT_INSN();
 	self->prog_len = i + 1;

@@ -14,17 +14,23 @@
 #include "bpf_endian.h"
 #include "test_tcpbpf.h"
 
-struct bpf_map_def SEC("maps") global_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct tcpbpf_globals *value;
+} global_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct tcpbpf_globals),
 	.max_entries = 4,
 };
 
-struct bpf_map_def SEC("maps") sockopt_results = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	int *value;
+} sockopt_results SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(int),
 	.max_entries = 2,
 };
 

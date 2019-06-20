@@ -172,4 +172,5 @@ LIBBPF_0.0.4 {
 		btf_dump__new;
 		btf__parse_elf;
 		bpf_object__load_xattr;
+		libbpf_num_possible_cpus;
 } LIBBPF_0.0.3;

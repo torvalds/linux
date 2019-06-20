@@ -170,21 +170,12 @@ always += ibumad_kern.o
 always += hbm_out_kern.o
 
 KBUILD_HOSTCFLAGS += -I$(objtree)/usr/include
-KBUILD_HOSTCFLAGS += -I$(srctree)/tools/lib/
+KBUILD_HOSTCFLAGS += -I$(srctree)/tools/lib/bpf/
 KBUILD_HOSTCFLAGS += -I$(srctree)/tools/testing/selftests/bpf/
 KBUILD_HOSTCFLAGS += -I$(srctree)/tools/lib/ -I$(srctree)/tools/include
 KBUILD_HOSTCFLAGS += -I$(srctree)/tools/perf
 
 HOSTCFLAGS_bpf_load.o += -I$(objtree)/usr/include -Wno-unused-variable
-HOSTCFLAGS_trace_helpers.o += -I$(srctree)/tools/lib/bpf/
-
-HOSTCFLAGS_trace_output_user.o += -I$(srctree)/tools/lib/bpf/
-HOSTCFLAGS_offwaketime_user.o += -I$(srctree)/tools/lib/bpf/
-HOSTCFLAGS_spintest_user.o += -I$(srctree)/tools/lib/bpf/
-HOSTCFLAGS_trace_event_user.o += -I$(srctree)/tools/lib/bpf/
-HOSTCFLAGS_sampleip_user.o += -I$(srctree)/tools/lib/bpf/
-HOSTCFLAGS_task_fd_query_user.o += -I$(srctree)/tools/lib/bpf/
-HOSTCFLAGS_xdp_sample_pkts_user.o += -I$(srctree)/tools/lib/bpf/
 
 KBUILD_HOSTLDLIBS		+= $(LIBBPF) -lelf
 HOSTLDLIBS_tracex4		+= -lrt
@@ -206,6 +197,17 @@ HOSTCC = $(CROSS_COMPILE)gcc
 CLANG_ARCH_ARGS = -target $(ARCH)
 endif
 
+# Don't evaluate probes and warnings if we need to run make recursively
+ifneq ($(src),)
+HDR_PROBE := $(shell echo "\#include <linux/types.h>\n struct list_head { int a; }; int main() { return 0; }" | \
+	$(HOSTCC) $(KBUILD_HOSTCFLAGS) -x c - -o /dev/null 2>/dev/null && \
+	echo okay)
+
+ifeq ($(HDR_PROBE),)
+$(warning WARNING: Detected possible issues with include path.)
+$(warning WARNING: Please install kernel headers locally (make headers_install).)
+endif
+
 BTF_LLC_PROBE := $(shell $(LLC) -march=bpf -mattr=help 2>&1 | grep dwarfris)
 BTF_PAHOLE_PROBE := $(shell $(BTF_PAHOLE) --help 2>&1 | grep BTF)
 BTF_OBJCOPY_PROBE := $(shell $(LLVM_OBJCOPY) --help 2>&1 | grep -i 'usage.*llvm')
@@ -221,6 +223,7 @@ ifneq ($(and $(BTF_LLC_PROBE),$(BTF_PAHOLE_PROBE),$(BTF_OBJCOPY_PROBE)),)
 	EXTRA_CFLAGS += -g
 	LLC_FLAGS += -mattr=dwarfris
 	DWARF2BTF = y
+endif
 endif
 endif
 
