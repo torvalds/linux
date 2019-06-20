@@ -564,7 +564,7 @@ int r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 	return 0;
 }
 
-u8 r8712_disassoc_cmd(struct _adapter *padapter) /* for sta_mode */
+void r8712_disassoc_cmd(struct _adapter *padapter) /* for sta_mode */
 {
 	struct cmd_obj *pdisconnect_cmd;
 	struct disconnect_parm *pdisconnect;
@@ -572,16 +572,15 @@ u8 r8712_disassoc_cmd(struct _adapter *padapter) /* for sta_mode */
 
 	pdisconnect_cmd = kmalloc(sizeof(*pdisconnect_cmd), GFP_ATOMIC);
 	if (!pdisconnect_cmd)
-		return _FAIL;
+		return;
 	pdisconnect = kmalloc(sizeof(*pdisconnect), GFP_ATOMIC);
 	if (!pdisconnect) {
 		kfree(pdisconnect_cmd);
-		return _FAIL;
+		return;
 	}
 	init_h2fwcmd_w_parm_no_rsp(pdisconnect_cmd, pdisconnect,
 				   _DisConnect_CMD_);
 	r8712_enqueue_cmd(pcmdpriv, pdisconnect_cmd);
-	return _SUCCESS;
 }
 
 u8 r8712_setopmode_cmd(struct _adapter *padapter,
