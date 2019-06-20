@@ -1127,6 +1127,30 @@
 		};
 	};
 
+	bpmp: bpmp {
+		compatible = "nvidia,tegra186-bpmp";
+		iommus = <&smmu TEGRA186_SID_BPMP>;
+		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
+				    TEGRA_HSP_DB_MASTER_BPMP>;
+		shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+		#power-domain-cells = <1>;
+
+		bpmp_i2c: i2c {
+			compatible = "nvidia,tegra186-bpmp-i2c";
+			nvidia,bpmp-bus-id = <5>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		bpmp_thermal: thermal {
+			compatible = "nvidia,tegra186-bpmp-thermal";
+			#thermal-sensor-cells = <1>;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1225,30 +1249,6 @@
 			cache-size = <0x200000>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
-		};
-	};
-
-	bpmp: bpmp {
-		compatible = "nvidia,tegra186-bpmp";
-		iommus = <&smmu TEGRA186_SID_BPMP>;
-		mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_DB
-				    TEGRA_HSP_DB_MASTER_BPMP>;
-		shmem = <&cpu_bpmp_tx &cpu_bpmp_rx>;
-		#clock-cells = <1>;
-		#reset-cells = <1>;
-		#power-domain-cells = <1>;
-
-		bpmp_i2c: i2c {
-			compatible = "nvidia,tegra186-bpmp-i2c";
-			nvidia,bpmp-bus-id = <5>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			status = "disabled";
-		};
-
-		bpmp_thermal: thermal {
-			compatible = "nvidia,tegra186-bpmp-thermal";
-			#thermal-sensor-cells = <1>;
 		};
 	};
 
