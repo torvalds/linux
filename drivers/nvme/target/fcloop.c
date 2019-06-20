@@ -535,7 +535,7 @@ fcloop_fcp_req(struct nvme_fc_local_port *localport,
 	if (!rport->targetport)
 		return -ECONNREFUSED;
 
-	tfcp_req = kzalloc(sizeof(*tfcp_req), GFP_KERNEL);
+	tfcp_req = kzalloc(sizeof(*tfcp_req), GFP_ATOMIC);
 	if (!tfcp_req)
 		return -ENOMEM;
 
