@@ -110,16 +110,15 @@ static void _free_cmd_priv(struct cmd_priv *pcmdpriv)
  *
  */
 
-static sint _enqueue_cmd(struct  __queue *queue, struct cmd_obj *obj)
+static void _enqueue_cmd(struct  __queue *queue, struct cmd_obj *obj)
 {
 	unsigned long irqL;
 
 	if (!obj)
-		return _SUCCESS;
+		return;
 	spin_lock_irqsave(&queue->lock, irqL);
 	list_add_tail(&obj->list, &queue->queue);
 	spin_unlock_irqrestore(&queue->lock, irqL);
-	return _SUCCESS;
 }
 
 static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
@@ -156,15 +155,12 @@ void r8712_free_cmd_priv(struct cmd_priv *pcmdpriv)
 	_free_cmd_priv(pcmdpriv);
 }
 
-u32 r8712_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
+void r8712_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
 {
-	int res;
-
 	if (pcmdpriv->padapter->eeprompriv.bautoload_fail_flag)
-		return _FAIL;
-	res = _enqueue_cmd(&pcmdpriv->cmd_queue, obj);
+		return;
+	_enqueue_cmd(&pcmdpriv->cmd_queue, obj);
 	complete(&pcmdpriv->cmd_queue_comp);
-	return res;
 }
 
 u32 r8712_enqueue_cmd_ex(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
