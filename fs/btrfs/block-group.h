@@ -149,6 +149,7 @@ static inline int btrfs_should_fragment_free_space(
 	       (btrfs_test_opt(fs_info, FRAGMENT_DATA) &&
 		block_group->flags &  BTRFS_BLOCK_GROUP_DATA);
 }
+void btrfs_fragment_free_space(struct btrfs_block_group_cache *block_group);
 #endif
 
 struct btrfs_block_group_cache *btrfs_lookup_first_block_group(

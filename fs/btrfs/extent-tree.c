@@ -206,7 +206,7 @@ void btrfs_put_caching_control(struct btrfs_caching_control *ctl)
 }
 
 #ifdef CONFIG_BTRFS_DEBUG
-static void fragment_free_space(struct btrfs_block_group_cache *block_group)
+void btrfs_fragment_free_space(struct btrfs_block_group_cache *block_group)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	u64 start = block_group->key.objectid;
@@ -443,7 +443,7 @@ static noinline void caching_thread(struct btrfs_work *work)
 		block_group->space_info->bytes_used += bytes_used >> 1;
 		spin_unlock(&block_group->lock);
 		spin_unlock(&block_group->space_info->lock);
-		fragment_free_space(block_group);
+		btrfs_fragment_free_space(block_group);
 	}
 #endif
 
@@ -550,7 +550,7 @@ int btrfs_cache_block_group(struct btrfs_block_group_cache *cache,
 			cache->space_info->bytes_used += bytes_used >> 1;
 			spin_unlock(&cache->lock);
 			spin_unlock(&cache->space_info->lock);
-			fragment_free_space(cache);
+			btrfs_fragment_free_space(cache);
 		}
 #endif
 		mutex_unlock(&caching_ctl->mutex);
@@ -7968,7 +7968,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 		u64 new_bytes_used = size - bytes_used;
 
 		bytes_used += new_bytes_used >> 1;
-		fragment_free_space(cache);
+		btrfs_fragment_free_space(cache);
 	}
 #endif
 	/*
