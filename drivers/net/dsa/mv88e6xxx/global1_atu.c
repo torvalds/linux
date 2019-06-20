@@ -317,7 +317,7 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 	int err;
 	u16 val;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 
 	err = mv88e6xxx_g1_atu_op(chip, 0,
 				  MV88E6XXX_G1_ATU_OP_GET_CLR_VIOLATION);
@@ -364,12 +364,12 @@ static irqreturn_t mv88e6xxx_g1_atu_prob_irq_thread_fn(int irq, void *dev_id)
 				    entry.mac, entry.portvec, spid);
 		chip->ports[spid].atu_full_violation++;
 	}
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return IRQ_HANDLED;
 
 out:
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	dev_err(chip->dev, "ATU problem: error %d while handling interrupt\n",
 		err);

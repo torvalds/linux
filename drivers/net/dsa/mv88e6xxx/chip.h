@@ -580,4 +580,14 @@ int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 			     phy_interface_t mode);
 struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip);
 
+static inline void mv88e6xxx_reg_lock(struct mv88e6xxx_chip *chip)
+{
+	mutex_lock(&chip->reg_lock);
+}
+
+static inline void mv88e6xxx_reg_unlock(struct mv88e6xxx_chip *chip)
+{
+	mutex_unlock(&chip->reg_lock);
+}
+
 #endif /* _MV88E6XXX_CHIP_H */

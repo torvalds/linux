@@ -893,20 +893,20 @@ static irqreturn_t mv88e6xxx_g2_watchdog_thread_fn(int irq, void *dev_id)
 	struct mv88e6xxx_chip *chip = dev_id;
 	irqreturn_t ret = IRQ_NONE;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	if (chip->info->ops->watchdog_ops->irq_action)
 		ret = chip->info->ops->watchdog_ops->irq_action(chip, irq);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return ret;
 }
 
 static void mv88e6xxx_g2_watchdog_free(struct mv88e6xxx_chip *chip)
 {
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	if (chip->info->ops->watchdog_ops->irq_free)
 		chip->info->ops->watchdog_ops->irq_free(chip);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	free_irq(chip->watchdog_irq, chip);
 	irq_dispose_mapping(chip->watchdog_irq);
@@ -928,10 +928,10 @@ static int mv88e6xxx_g2_watchdog_setup(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	if (chip->info->ops->watchdog_ops->irq_setup)
 		err = chip->info->ops->watchdog_ops->irq_setup(chip);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 
 	return err;
 }
@@ -986,9 +986,9 @@ static irqreturn_t mv88e6xxx_g2_irq_thread_fn(int irq, void *dev_id)
 	int err;
 	u16 reg;
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_g2_int_source(chip, &reg);
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 	if (err)
 		goto out;
 
@@ -1007,7 +1007,7 @@ static void mv88e6xxx_g2_irq_bus_lock(struct irq_data *d)
 {
 	struct mv88e6xxx_chip *chip = irq_data_get_irq_chip_data(d);
 
-	mutex_lock(&chip->reg_lock);
+	mv88e6xxx_reg_lock(chip);
 }
 
 static void mv88e6xxx_g2_irq_bus_sync_unlock(struct irq_data *d)
@@ -1019,7 +1019,7 @@ static void mv88e6xxx_g2_irq_bus_sync_unlock(struct irq_data *d)
 	if (err)
 		dev_err(chip->dev, "failed to mask interrupts\n");
 
-	mutex_unlock(&chip->reg_lock);
+	mv88e6xxx_reg_unlock(chip);
 }
 
 static const struct irq_chip mv88e6xxx_g2_irq_chip = {
