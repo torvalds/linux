@@ -77,8 +77,8 @@ int ltq_eiu_get_irq(int exin)
 
 void ltq_disable_irq(struct irq_data *d)
 {
-	int offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
-	int im = offset / INT_NUM_IM_OFFSET;
+	unsigned long offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
+	unsigned long im = offset / INT_NUM_IM_OFFSET;
 
 	offset %= INT_NUM_IM_OFFSET;
 	ltq_icu_w32(im, ltq_icu_r32(im, LTQ_ICU_IM0_IER) & ~BIT(offset),
@@ -87,8 +87,8 @@ void ltq_disable_irq(struct irq_data *d)
 
 void ltq_mask_and_ack_irq(struct irq_data *d)
 {
-	int offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
-	int im = offset / INT_NUM_IM_OFFSET;
+	unsigned long offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
+	unsigned long im = offset / INT_NUM_IM_OFFSET;
 
 	offset %= INT_NUM_IM_OFFSET;
 	ltq_icu_w32(im, ltq_icu_r32(im, LTQ_ICU_IM0_IER) & ~BIT(offset),
@@ -98,8 +98,8 @@ void ltq_mask_and_ack_irq(struct irq_data *d)
 
 static void ltq_ack_irq(struct irq_data *d)
 {
-	int offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
-	int im = offset / INT_NUM_IM_OFFSET;
+	unsigned long offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
+	unsigned long im = offset / INT_NUM_IM_OFFSET;
 
 	offset %= INT_NUM_IM_OFFSET;
 	ltq_icu_w32(im, BIT(offset), LTQ_ICU_IM0_ISR);
@@ -107,8 +107,8 @@ static void ltq_ack_irq(struct irq_data *d)
 
 void ltq_enable_irq(struct irq_data *d)
 {
-	int offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
-	int im = offset / INT_NUM_IM_OFFSET;
+	unsigned long offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
+	unsigned long im = offset / INT_NUM_IM_OFFSET;
 
 	offset %= INT_NUM_IM_OFFSET;
 	ltq_icu_w32(im, ltq_icu_r32(im, LTQ_ICU_IM0_IER) | BIT(offset),
@@ -224,9 +224,9 @@ static struct irq_chip ltq_eiu_type = {
 
 static void ltq_hw_irq_handler(struct irq_desc *desc)
 {
-	int module = irq_desc_get_irq(desc) - 2;
+	unsigned int module = irq_desc_get_irq(desc) - 2;
 	u32 irq;
-	int hwirq;
+	irq_hw_number_t hwirq;
 
 	irq = ltq_icu_r32(module, LTQ_ICU_IM0_IOSR);
 	if (irq == 0)
