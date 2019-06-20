@@ -990,6 +990,7 @@ static int workload_thread(void *priv)
 	int ret;
 	bool need_force_wake = (INTEL_GEN(gvt->dev_priv) >= 9);
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
+	struct intel_runtime_pm *rpm = &gvt->dev_priv->runtime_pm;
 
 	kfree(p);
 
@@ -1012,6 +1013,8 @@ static int workload_thread(void *priv)
 		gvt_dbg_sched("ring id %d next workload %p vgpu %d\n",
 				workload->ring_id, workload,
 				workload->vgpu->id);
+
+		intel_runtime_pm_get(rpm);
 
 		gvt_dbg_sched("ring id %d will dispatch workload %p\n",
 				workload->ring_id, workload);
@@ -1042,6 +1045,7 @@ complete:
 			intel_uncore_forcewake_put(&gvt->dev_priv->uncore,
 					FORCEWAKE_ALL);
 
+		intel_runtime_pm_put_unchecked(rpm);
 		if (ret && (vgpu_is_vm_unhealthy(ret)))
 			enter_failsafe_mode(vgpu, GVT_FAILSAFE_GUEST_ERR);
 	}
