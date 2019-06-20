@@ -558,18 +558,14 @@ static u8 halbtcoutsrc_Set(void *pBtcContext, u8 setType, void *pInBuf)
 {
 	PBTC_COEXIST pBtCoexist;
 	struct adapter *padapter;
-	struct hal_com_data *pHalData;
 	u8 *pu8;
-	u8 *pU1Tmp;
 	u32 *pU4Tmp;
 	u8 ret;
 
 
 	pBtCoexist = (PBTC_COEXIST)pBtcContext;
 	padapter = pBtCoexist->Adapter;
-	pHalData = GET_HAL_DATA(padapter);
 	pu8 = pInBuf;
-	pU1Tmp = pInBuf;
 	pU4Tmp = pInBuf;
 	ret = true;
 
@@ -612,11 +608,11 @@ static u8 halbtcoutsrc_Set(void *pBtcContext, u8 setType, void *pInBuf)
 
 	/*  set some u8 type variables. */
 	case BTC_SET_U1_RSSI_ADJ_VAL_FOR_AGC_TABLE_ON:
-		pBtCoexist->btInfo.rssiAdjustForAgcTableOn = *pU1Tmp;
+		pBtCoexist->btInfo.rssiAdjustForAgcTableOn = *pu8;
 		break;
 
 	case BTC_SET_U1_AGG_BUF_SIZE:
-		pBtCoexist->btInfo.aggBufSize = *pU1Tmp;
+		pBtCoexist->btInfo.aggBufSize = *pu8;
 		break;
 
 	/*  the following are some action which will be triggered */
@@ -631,15 +627,15 @@ static u8 halbtcoutsrc_Set(void *pBtcContext, u8 setType, void *pInBuf)
 	/* 1Ant =========== */
 	/*  set some u8 type variables. */
 	case BTC_SET_U1_RSSI_ADJ_VAL_FOR_1ANT_COEX_TYPE:
-		pBtCoexist->btInfo.rssiAdjustFor1AntCoexType = *pU1Tmp;
+		pBtCoexist->btInfo.rssiAdjustFor1AntCoexType = *pu8;
 		break;
 
 	case BTC_SET_U1_LPS_VAL:
-		pBtCoexist->btInfo.lpsVal = *pU1Tmp;
+		pBtCoexist->btInfo.lpsVal = *pu8;
 		break;
 
 	case BTC_SET_U1_RPWM_VAL:
-		pBtCoexist->btInfo.rpwmVal = *pU1Tmp;
+		pBtCoexist->btInfo.rpwmVal = *pu8;
 		break;
 
 	/*  the following are some action which will be triggered */
