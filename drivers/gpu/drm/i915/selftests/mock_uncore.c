@@ -41,6 +41,6 @@ __nop_read(64)
 
 void mock_uncore_init(struct intel_uncore *uncore)
 {
-	ASSIGN_WRITE_MMIO_VFUNCS(uncore, nop);
-	ASSIGN_READ_MMIO_VFUNCS(uncore, nop);
+	ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, nop);
+	ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, nop);
 }

@@ -901,6 +901,12 @@ static bool is_gen##x##_shadowed(u32 offset) \
 __is_genX_shadowed(8)
 __is_genX_shadowed(11)
 
+static enum forcewake_domains
+gen6_reg_write_fw_domains(struct intel_uncore *uncore, i915_reg_t reg)
+{
+	return FORCEWAKE_RENDER;
+}
+
 #define __gen8_reg_write_fw_domains(uncore, offset) \
 ({ \
 	enum forcewake_domains __fwd; \
@@ -1145,26 +1151,23 @@ func##_read##x(struct intel_uncore *uncore, i915_reg_t reg, bool trace) { \
 	val = __raw_uncore_read##x(uncore, reg); \
 	GEN6_READ_FOOTER; \
 }
-#define __gen6_read(x) __gen_read(gen6, x)
-#define __fwtable_read(x) __gen_read(fwtable, x)
-#define __gen11_fwtable_read(x) __gen_read(gen11_fwtable, x)
 
-__gen11_fwtable_read(8)
-__gen11_fwtable_read(16)
-__gen11_fwtable_read(32)
-__gen11_fwtable_read(64)
-__fwtable_read(8)
-__fwtable_read(16)
-__fwtable_read(32)
-__fwtable_read(64)
-__gen6_read(8)
-__gen6_read(16)
-__gen6_read(32)
-__gen6_read(64)
+#define __gen_reg_read_funcs(func) \
+static enum forcewake_domains \
+func##_reg_read_fw_domains(struct intel_uncore *uncore, i915_reg_t reg) { \
+	return __##func##_reg_read_fw_domains(uncore, i915_mmio_reg_offset(reg)); \
+} \
+\
+__gen_read(func, 8) \
+__gen_read(func, 16) \
+__gen_read(func, 32) \
+__gen_read(func, 64)
 
-#undef __gen11_fwtable_read
-#undef __fwtable_read
-#undef __gen6_read
+__gen_reg_read_funcs(gen11_fwtable);
+__gen_reg_read_funcs(fwtable);
+__gen_reg_read_funcs(gen6);
+
+#undef __gen_reg_read_funcs
 #undef GEN6_READ_FOOTER
 #undef GEN6_READ_HEADER
 
@@ -1225,6 +1228,9 @@ gen6_write##x(struct intel_uncore *uncore, i915_reg_t reg, u##x val, bool trace)
 	__raw_uncore_write##x(uncore, reg, val); \
 	GEN6_WRITE_FOOTER; \
 }
+__gen6_write(8)
+__gen6_write(16)
+__gen6_write(32)
 
 #define __gen_write(func, x) \
 static void \
@@ -1237,38 +1243,33 @@ func##_write##x(struct intel_uncore *uncore, i915_reg_t reg, u##x val, bool trac
 	__raw_uncore_write##x(uncore, reg, val); \
 	GEN6_WRITE_FOOTER; \
 }
-#define __gen8_write(x) __gen_write(gen8, x)
-#define __fwtable_write(x) __gen_write(fwtable, x)
-#define __gen11_fwtable_write(x) __gen_write(gen11_fwtable, x)
 
-__gen11_fwtable_write(8)
-__gen11_fwtable_write(16)
-__gen11_fwtable_write(32)
-__fwtable_write(8)
-__fwtable_write(16)
-__fwtable_write(32)
-__gen8_write(8)
-__gen8_write(16)
-__gen8_write(32)
-__gen6_write(8)
-__gen6_write(16)
-__gen6_write(32)
+#define __gen_reg_write_funcs(func) \
+static enum forcewake_domains \
+func##_reg_write_fw_domains(struct intel_uncore *uncore, i915_reg_t reg) { \
+	return __##func##_reg_write_fw_domains(uncore, i915_mmio_reg_offset(reg)); \
+} \
+\
+__gen_write(func, 8) \
+__gen_write(func, 16) \
+__gen_write(func, 32)
 
-#undef __gen11_fwtable_write
-#undef __fwtable_write
-#undef __gen8_write
-#undef __gen6_write
+__gen_reg_write_funcs(gen11_fwtable);
+__gen_reg_write_funcs(fwtable);
+__gen_reg_write_funcs(gen8);
+
+#undef __gen_reg_write_funcs
 #undef GEN6_WRITE_FOOTER
 #undef GEN6_WRITE_HEADER
 
-#define ASSIGN_WRITE_MMIO_VFUNCS(uncore, x) \
+#define ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, x) \
 do { \
 	(uncore)->funcs.mmio_writeb = x##_write8; \
 	(uncore)->funcs.mmio_writew = x##_write16; \
 	(uncore)->funcs.mmio_writel = x##_write32; \
 } while (0)
 
-#define ASSIGN_READ_MMIO_VFUNCS(uncore, x) \
+#define ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, x) \
 do { \
 	(uncore)->funcs.mmio_readb = x##_read8; \
 	(uncore)->funcs.mmio_readw = x##_read16; \
@@ -1276,6 +1277,17 @@ do { \
 	(uncore)->funcs.mmio_readq = x##_read64; \
 } while (0)
 
+#define ASSIGN_WRITE_MMIO_VFUNCS(uncore, x) \
+do { \
+	ASSIGN_RAW_WRITE_MMIO_VFUNCS((uncore), x); \
+	(uncore)->funcs.write_fw_domains = x##_reg_write_fw_domains; \
+} while (0)
+
+#define ASSIGN_READ_MMIO_VFUNCS(uncore, x) \
+do { \
+	ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, x); \
+	(uncore)->funcs.read_fw_domains = x##_reg_read_fw_domains; \
+} while (0)
 
 static void fw_domain_init(struct intel_uncore *uncore,
 			   enum forcewake_domain_id domain_id,
@@ -1559,11 +1571,11 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 
 	if (!intel_uncore_has_forcewake(uncore)) {
 		if (IS_GEN(i915, 5)) {
-			ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen5);
-			ASSIGN_READ_MMIO_VFUNCS(uncore, gen5);
+			ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, gen5);
+			ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, gen5);
 		} else {
-			ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen2);
-			ASSIGN_READ_MMIO_VFUNCS(uncore, gen2);
+			ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, gen2);
+			ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, gen2);
 		}
 	} else if (IS_GEN_RANGE(i915, 6, 7)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen6);
@@ -1593,6 +1605,12 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen11_fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
 	}
+
+	/* make sure fw funcs are set if and only if we have fw*/
+	GEM_BUG_ON(intel_uncore_has_forcewake(uncore) != !!uncore->funcs.force_wake_get);
+	GEM_BUG_ON(intel_uncore_has_forcewake(uncore) != !!uncore->funcs.force_wake_put);
+	GEM_BUG_ON(intel_uncore_has_forcewake(uncore) != !!uncore->funcs.read_fw_domains);
+	GEM_BUG_ON(intel_uncore_has_forcewake(uncore) != !!uncore->funcs.write_fw_domains);
 
 	if (HAS_FPGA_DBG_UNCLAIMED(i915))
 		uncore->flags |= UNCORE_HAS_FPGA_DBG_UNCLAIMED;
@@ -1871,62 +1889,6 @@ out:
 	return ret;
 }
 
-static enum forcewake_domains
-intel_uncore_forcewake_for_read(struct intel_uncore *uncore,
-				i915_reg_t reg)
-{
-	struct drm_i915_private *i915 = uncore_to_i915(uncore);
-	u32 offset = i915_mmio_reg_offset(reg);
-	enum forcewake_domains fw_domains;
-
-	if (INTEL_GEN(i915) >= 11) {
-		fw_domains = __gen11_fwtable_reg_read_fw_domains(uncore, offset);
-	} else if (HAS_FWTABLE(i915)) {
-		fw_domains = __fwtable_reg_read_fw_domains(uncore, offset);
-	} else if (INTEL_GEN(i915) >= 6) {
-		fw_domains = __gen6_reg_read_fw_domains(uncore, offset);
-	} else {
-		/* on devices with FW we expect to hit one of the above cases */
-		if (intel_uncore_has_forcewake(uncore))
-			MISSING_CASE(INTEL_GEN(i915));
-
-		fw_domains = 0;
-	}
-
-	WARN_ON(fw_domains & ~uncore->fw_domains);
-
-	return fw_domains;
-}
-
-static enum forcewake_domains
-intel_uncore_forcewake_for_write(struct intel_uncore *uncore,
-				 i915_reg_t reg)
-{
-	struct drm_i915_private *i915 = uncore_to_i915(uncore);
-	u32 offset = i915_mmio_reg_offset(reg);
-	enum forcewake_domains fw_domains;
-
-	if (INTEL_GEN(i915) >= 11) {
-		fw_domains = __gen11_fwtable_reg_write_fw_domains(uncore, offset);
-	} else if (HAS_FWTABLE(i915) && !IS_VALLEYVIEW(i915)) {
-		fw_domains = __fwtable_reg_write_fw_domains(uncore, offset);
-	} else if (IS_GEN(i915, 8)) {
-		fw_domains = __gen8_reg_write_fw_domains(uncore, offset);
-	} else if (IS_GEN_RANGE(i915, 6, 7)) {
-		fw_domains = FORCEWAKE_RENDER;
-	} else {
-		/* on devices with FW we expect to hit one of the above cases */
-		if (intel_uncore_has_forcewake(uncore))
-			MISSING_CASE(INTEL_GEN(i915));
-
-		fw_domains = 0;
-	}
-
-	WARN_ON(fw_domains & ~uncore->fw_domains);
-
-	return fw_domains;
-}
-
 /**
  * intel_uncore_forcewake_for_reg - which forcewake domains are needed to access
  * 				    a register
@@ -1953,10 +1915,12 @@ intel_uncore_forcewake_for_reg(struct intel_uncore *uncore,
 		return 0;
 
 	if (op & FW_REG_READ)
-		fw_domains = intel_uncore_forcewake_for_read(uncore, reg);
+		fw_domains = uncore->funcs.read_fw_domains(uncore, reg);
 
 	if (op & FW_REG_WRITE)
-		fw_domains |= intel_uncore_forcewake_for_write(uncore, reg);
+		fw_domains |= uncore->funcs.write_fw_domains(uncore, reg);
+
+	WARN_ON(fw_domains & ~uncore->fw_domains);
 
 	return fw_domains;
 }

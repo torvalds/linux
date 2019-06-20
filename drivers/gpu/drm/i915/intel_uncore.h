@@ -70,6 +70,11 @@ struct intel_uncore_funcs {
 	void (*force_wake_put)(struct intel_uncore *uncore,
 			       enum forcewake_domains domains);
 
+	enum forcewake_domains (*read_fw_domains)(struct intel_uncore *uncore,
+						  i915_reg_t r);
+	enum forcewake_domains (*write_fw_domains)(struct intel_uncore *uncore,
+						   i915_reg_t r);
+
 	u8 (*mmio_readb)(struct intel_uncore *uncore,
 			 i915_reg_t r, bool trace);
 	u16 (*mmio_readw)(struct intel_uncore *uncore,
