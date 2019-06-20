@@ -3602,6 +3602,7 @@ int perf_event__synthesize_features(struct perf_tool *tool,
 		return -ENOMEM;
 
 	ff.size = sz - sz_hdr;
+	ff.ph = &session->header;
 
 	for_each_set_bit(feat, header->adds_features, HEADER_FEAT_BITS) {
 		if (!feat_ops[feat].synthesize) {
