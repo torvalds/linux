@@ -583,7 +583,7 @@ void r8712_disassoc_cmd(struct _adapter *padapter) /* for sta_mode */
 	r8712_enqueue_cmd(pcmdpriv, pdisconnect_cmd);
 }
 
-u8 r8712_setopmode_cmd(struct _adapter *padapter,
+void r8712_setopmode_cmd(struct _adapter *padapter,
 		 enum NDIS_802_11_NETWORK_INFRASTRUCTURE networktype)
 {
 	struct cmd_obj *ph2c;
@@ -593,16 +593,15 @@ u8 r8712_setopmode_cmd(struct _adapter *padapter,
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
 	if (!ph2c)
-		return _FAIL;
+		return;
 	psetop = kmalloc(sizeof(*psetop), GFP_ATOMIC);
 	if (!psetop) {
 		kfree(ph2c);
-		return _FAIL;
+		return;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetop, _SetOpMode_CMD_);
 	psetop->mode = (u8)networktype;
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
 }
 
 u8 r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)

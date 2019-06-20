@@ -717,7 +717,7 @@ u8 r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key);
 int r8712_joinbss_cmd(struct _adapter *padapter,
 		      struct wlan_network *pnetwork);
 void r8712_disassoc_cmd(struct _adapter *padapter);
-u8 r8712_setopmode_cmd(struct _adapter *padapter,
+void r8712_setopmode_cmd(struct _adapter *padapter,
 		 enum NDIS_802_11_NETWORK_INFRASTRUCTURE networktype);
 int r8712_setdatarate_cmd(struct _adapter *padapter, u8 *rateset);
 void r8712_set_chplan_cmd(struct _adapter  *padapter, int chplan);
