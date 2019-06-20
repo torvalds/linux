@@ -333,6 +333,7 @@ void dcn20_clk_mgr_construct(
 		struct dccg *dccg)
 {
 	clk_mgr->base.ctx = ctx;
+	clk_mgr->pp_smu = pp_smu;
 	clk_mgr->base.funcs = &dcn2_funcs;
 	clk_mgr->regs = &clk_mgr_regs;
 	clk_mgr->clk_mgr_shift = &clk_mgr_shift;
