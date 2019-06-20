@@ -113,10 +113,8 @@ struct afs_call {
 	struct rxrpc_call	*rxcall;	/* RxRPC call handle */
 	struct key		*key;		/* security for this call */
 	struct afs_net		*net;		/* The network namespace */
-	union {
-		struct afs_server	*server;
-		struct afs_vlserver	*vlserver;
-	};
+	struct afs_server	*server;	/* The fileserver record if fs op (pins ref) */
+	struct afs_vlserver	*vlserver;	/* The vlserver record if vl op */
 	struct afs_cb_interest	*cbi;		/* Callback interest for server used */
 	struct afs_vnode	*lvnode;	/* vnode being locked */
 	void			*request;	/* request data (first part) */
