@@ -690,7 +690,7 @@ u8 r8712_setrttbl_cmd(struct _adapter *padapter,
 	return _SUCCESS;
 }
 
-u8 r8712_setMacAddr_cmd(struct _adapter *padapter, u8 *mac_addr)
+void r8712_setMacAddr_cmd(struct _adapter *padapter, u8 *mac_addr)
 {
 	struct cmd_priv	*pcmdpriv = &padapter->cmdpriv;
 	struct cmd_obj *ph2c;
@@ -698,17 +698,16 @@ u8 r8712_setMacAddr_cmd(struct _adapter *padapter, u8 *mac_addr)
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
 	if (!ph2c)
-		return _FAIL;
+		return;
 	psetMacAddr_para = kmalloc(sizeof(*psetMacAddr_para), GFP_ATOMIC);
 	if (!psetMacAddr_para) {
 		kfree(ph2c);
-		return _FAIL;
+		return;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetMacAddr_para,
 				   _SetMacAddress_CMD_);
 	ether_addr_copy(psetMacAddr_para->MacAddr, mac_addr);
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
 }
 
 u8 r8712_setassocsta_cmd(struct _adapter *padapter, u8 *mac_addr)
