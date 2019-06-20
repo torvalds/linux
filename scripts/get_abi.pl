@@ -25,7 +25,7 @@ pod2usage(2) if (scalar @ARGV < 1 || @ARGV > 2);
 
 my ($cmd, $arg) = @ARGV;
 
-pod2usage(2) if ($cmd ne "search" && $cmd ne "rest");
+pod2usage(2) if ($cmd ne "search" && $cmd ne "rest" && $cmd ne "validate");
 pod2usage(2) if ($cmd eq "search" && !$arg);
 
 require Data::Dumper if ($debug);
@@ -82,7 +82,7 @@ sub parse_abi {
 			my $sep = $2;
 			my $content = $3;
 
-			if (!($new_tag =~ m/(what|date|kernelversion|contact|description|users)/)) {
+			if (!($new_tag =~ m/(what|where|date|kernelversion|contact|description|users)/)) {
 				if ($tag eq "description") {
 					# New "tag" is actually part of
 					# description. Don't consider it a tag
@@ -368,7 +368,7 @@ print STDERR Data::Dumper->Dump([\%data], [qw(*data)]) if ($debug);
 #
 if ($cmd eq "rest") {
 	output_rest;
-} else {
+} elsif ($cmd eq "search") {
 	search_symbols;
 }
 
@@ -381,7 +381,7 @@ abi_book.pl - parse the Linux ABI files and produce a ReST book.
 
 =head1 SYNOPSIS
 
-B<abi_book.pl> [--debug] <COMAND> [<ARGUMENT>]
+B<abi_book.pl> [--debug] [--man] [--help] [--dir=<dir>] <COMAND> [<ARGUMENT>]
 
 Where <COMMAND> can be:
 
@@ -389,7 +389,9 @@ Where <COMMAND> can be:
 
 B<search> [SEARCH_REGEX] - search for [SEARCH_REGEX] inside ABI
 
-B<rest>   - output the ABI in ReST markup language
+B<rest>                  - output the ABI in ReST markup language
+
+B<validate>              - validate the ABI contents
 
 =back
 
@@ -451,11 +453,11 @@ $ scripts/get_abi.pl rest --dir Documentation/ABI/obsolete
 
 =head1 BUGS
 
-Report bugs to Mauro Carvalho Chehab <mchehab@s-opensource.com>
+Report bugs to Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2016-2017 by Mauro Carvalho Chehab <mchehab@s-opensource.com>.
+Copyright (c) 2016-2019 by Mauro Carvalho Chehab <mchehab+samsung@kernel.org>.
 
 License GPLv2: GNU GPL version 2 <http://gnu.org/licenses/gpl.html>.
 
