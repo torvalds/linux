@@ -848,9 +848,9 @@ extern struct fscache_cookie_def afs_vnode_cache_index_def;
  * callback.c
  */
 extern void afs_init_callback_state(struct afs_server *);
-extern void __afs_break_callback(struct afs_vnode *);
-extern void afs_break_callback(struct afs_vnode *);
-extern void afs_break_callbacks(struct afs_server *, size_t, struct afs_callback_break*);
+extern void __afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
+extern void afs_break_callback(struct afs_vnode *, enum afs_cb_break_reason);
+extern void afs_break_callbacks(struct afs_server *, size_t, struct afs_callback_break *);
 
 extern int afs_register_server_cb_interest(struct afs_vnode *,
 					   struct afs_server_list *, unsigned int);
@@ -1438,7 +1438,7 @@ static inline void afs_check_for_remote_deletion(struct afs_fs_cursor *fc,
 {
 	if (fc->ac.error == -ENOENT) {
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
-		afs_break_callback(vnode);
+		afs_break_callback(vnode, afs_cb_break_for_deleted);
 	}
 }
 

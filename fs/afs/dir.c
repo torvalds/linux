@@ -1367,12 +1367,12 @@ static int afs_dir_remove_link(struct afs_vnode *dvnode, struct dentry *dentry,
 			drop_nlink(&vnode->vfs_inode);
 			if (vnode->vfs_inode.i_nlink == 0) {
 				set_bit(AFS_VNODE_DELETED, &vnode->flags);
-				__afs_break_callback(vnode);
+				__afs_break_callback(vnode, afs_cb_break_for_unlink);
 			}
 			write_sequnlock(&vnode->cb_lock);
 			ret = 0;
 		} else {
-			afs_break_callback(vnode);
+			afs_break_callback(vnode, afs_cb_break_for_unlink);
 
 			if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
 				kdebug("AFS_VNODE_DELETED");

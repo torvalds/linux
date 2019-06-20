@@ -195,6 +195,17 @@ enum afs_flock_operation {
 	afs_flock_op_wake,
 };
 
+enum afs_cb_break_reason {
+	afs_cb_break_no_break,
+	afs_cb_break_for_callback,
+	afs_cb_break_for_deleted,
+	afs_cb_break_for_lapsed,
+	afs_cb_break_for_unlink,
+	afs_cb_break_for_vsbreak,
+	afs_cb_break_for_volume_callback,
+	afs_cb_break_for_zap,
+};
+
 #endif /* end __AFS_DECLARE_TRACE_ENUMS_ONCE_ONLY */
 
 /*
@@ -374,6 +385,16 @@ enum afs_flock_operation {
 	EM(afs_flock_op_unlock,			"UNLOCK  ")		\
 	E_(afs_flock_op_wake,			"WAKE    ")
 
+#define afs_cb_break_reasons						\
+	EM(afs_cb_break_no_break,		"no-break")		\
+	EM(afs_cb_break_for_callback,		"break-cb")		\
+	EM(afs_cb_break_for_deleted,		"break-del")		\
+	EM(afs_cb_break_for_lapsed,		"break-lapsed")		\
+	EM(afs_cb_break_for_unlink,		"break-unlink")		\
+	EM(afs_cb_break_for_vsbreak,		"break-vs")		\
+	EM(afs_cb_break_for_volume_callback,	"break-v-cb")		\
+	E_(afs_cb_break_for_zap,		"break-zap")
+
 /*
  * Export enum symbols via userspace.
  */
@@ -392,6 +413,7 @@ afs_io_errors;
 afs_file_errors;
 afs_flock_types;
 afs_flock_operations;
+afs_cb_break_reasons;
 
 /*
  * Now redefine the EM() and E_() macros to map the enums to the strings that
@@ -1169,6 +1191,53 @@ TRACE_EVENT(afs_get_tree,
 
 	    TP_printk("--- MOUNT %s:%s %llx",
 		      __entry->cell, __entry->volume, __entry->vid)
+	    );
+
+TRACE_EVENT(afs_cb_break,
+	    TP_PROTO(struct afs_fid *fid, unsigned int cb_break,
+		     enum afs_cb_break_reason reason, bool skipped),
+
+	    TP_ARGS(fid, cb_break, reason, skipped),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct afs_fid,	fid		)
+		    __field(unsigned int,		cb_break	)
+		    __field(enum afs_cb_break_reason,	reason		)
+		    __field(bool,			skipped		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->fid	= *fid;
+		    __entry->cb_break	= cb_break;
+		    __entry->reason	= reason;
+		    __entry->skipped	= skipped;
+			   ),
+
+	    TP_printk("%llx:%llx:%x b=%x s=%u %s",
+		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->cb_break,
+		      __entry->skipped,
+		      __print_symbolic(__entry->reason, afs_cb_break_reasons))
+	    );
+
+TRACE_EVENT(afs_cb_miss,
+	    TP_PROTO(struct afs_fid *fid, enum afs_cb_break_reason reason),
+
+	    TP_ARGS(fid, reason),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct afs_fid,	fid		)
+		    __field(enum afs_cb_break_reason,	reason		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->fid	= *fid;
+		    __entry->reason	= reason;
+			   ),
+
+	    TP_printk(" %llx:%llx:%x %s",
+		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __print_symbolic(__entry->reason, afs_cb_break_reasons))
 	    );
 
 #endif /* _TRACE_AFS_H */

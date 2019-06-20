@@ -212,7 +212,7 @@ void afs_init_callback_state(struct afs_server *server)
 /*
  * actually break a callback
  */
-void __afs_break_callback(struct afs_vnode *vnode)
+void __afs_break_callback(struct afs_vnode *vnode, enum afs_cb_break_reason reason)
 {
 	_enter("");
 
@@ -223,13 +223,17 @@ void __afs_break_callback(struct afs_vnode *vnode)
 
 		if (vnode->lock_state == AFS_VNODE_LOCK_WAITING_FOR_CB)
 			afs_lock_may_be_available(vnode);
+
+		trace_afs_cb_break(&vnode->fid, vnode->cb_break, reason, true);
+	} else {
+		trace_afs_cb_break(&vnode->fid, vnode->cb_break, reason, false);
 	}
 }
 
-void afs_break_callback(struct afs_vnode *vnode)
+void afs_break_callback(struct afs_vnode *vnode, enum afs_cb_break_reason reason)
 {
 	write_seqlock(&vnode->cb_lock);
-	__afs_break_callback(vnode);
+	__afs_break_callback(vnode, reason);
 	write_sequnlock(&vnode->cb_lock);
 }
 
@@ -277,6 +281,8 @@ static void afs_break_one_callback(struct afs_server *server,
 
 			write_lock(&volume->cb_v_break_lock);
 			volume->cb_v_break++;
+			trace_afs_cb_break(fid, volume->cb_v_break,
+					   afs_cb_break_for_volume_callback, false);
 			write_unlock(&volume->cb_v_break_lock);
 		} else {
 			data.volume = NULL;
@@ -285,8 +291,10 @@ static void afs_break_one_callback(struct afs_server *server,
 						afs_iget5_test, &data);
 			if (inode) {
 				vnode = AFS_FS_I(inode);
-				afs_break_callback(vnode);
+				afs_break_callback(vnode, afs_cb_break_for_callback);
 				iput(inode);
+			} else {
+				trace_afs_cb_miss(fid, afs_cb_break_for_callback);
 			}
 		}
 	}
