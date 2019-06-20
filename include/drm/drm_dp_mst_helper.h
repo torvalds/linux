@@ -26,6 +26,26 @@
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_atomic.h>
 
+#if IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS)
+#include <linux/stackdepot.h>
+#include <linux/timekeeping.h>
+
+enum drm_dp_mst_topology_ref_type {
+	DRM_DP_MST_TOPOLOGY_REF_GET,
+	DRM_DP_MST_TOPOLOGY_REF_PUT,
+};
+
+struct drm_dp_mst_topology_ref_history {
+	struct drm_dp_mst_topology_ref_entry {
+		enum drm_dp_mst_topology_ref_type type;
+		int count;
+		ktime_t ts_nsec;
+		depot_stack_handle_t backtrace;
+	} *entries;
+	int len;
+};
+#endif /* IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS) */
+
 struct drm_dp_mst_branch;
 
 /**
@@ -88,6 +108,14 @@ struct drm_dp_mst_port {
 	 * drm_dp_mst_put_port_malloc().
 	 */
 	struct kref malloc_kref;
+
+#if IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS)
+	/**
+	 * @topology_ref_history: A history of each topology
+	 * reference/dereference. See CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS.
+	 */
+	struct drm_dp_mst_topology_ref_history topology_ref_history;
+#endif
 
 	u8 port_num;
 	bool input;
@@ -161,6 +189,14 @@ struct drm_dp_mst_branch {
 	 * drm_dp_mst_put_mstb_malloc().
 	 */
 	struct kref malloc_kref;
+
+#if IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS)
+	/**
+	 * @topology_ref_history: A history of each topology
+	 * reference/dereference. See CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS.
+	 */
+	struct drm_dp_mst_topology_ref_history topology_ref_history;
+#endif
 
 	/**
 	 * @destroy_next: linked-list entry used by
@@ -647,6 +683,15 @@ struct drm_dp_mst_topology_mgr {
 	 * transmissions.
 	 */
 	struct work_struct up_req_work;
+
+#if IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS)
+	/**
+	 * @topology_ref_history_lock: protects
+	 * &drm_dp_mst_port.topology_ref_history and
+	 * &drm_dp_mst_branch.topology_ref_history.
+	 */
+	struct mutex topology_ref_history_lock;
+#endif
 };
 
 int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,

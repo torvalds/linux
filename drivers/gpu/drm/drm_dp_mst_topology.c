@@ -28,6 +28,13 @@
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 
+#if IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS)
+#include <linux/stackdepot.h>
+#include <linux/sort.h>
+#include <linux/timekeeping.h>
+#include <linux/math64.h>
+#endif
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_mst_helper.h>
@@ -1399,11 +1406,183 @@ drm_dp_mst_put_port_malloc(struct drm_dp_mst_port *port)
 }
 EXPORT_SYMBOL(drm_dp_mst_put_port_malloc);
 
+#if IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS)
+
+#define STACK_DEPTH 8
+
+static noinline void
+__topology_ref_save(struct drm_dp_mst_topology_mgr *mgr,
+		    struct drm_dp_mst_topology_ref_history *history,
+		    enum drm_dp_mst_topology_ref_type type)
+{
+	struct drm_dp_mst_topology_ref_entry *entry = NULL;
+	depot_stack_handle_t backtrace;
+	ulong stack_entries[STACK_DEPTH];
+	uint n;
+	int i;
+
+	n = stack_trace_save(stack_entries, ARRAY_SIZE(stack_entries), 1);
+	backtrace = stack_depot_save(stack_entries, n, GFP_KERNEL);
+	if (!backtrace)
+		return;
+
+	/* Try to find an existing entry for this backtrace */
+	for (i = 0; i < history->len; i++) {
+		if (history->entries[i].backtrace == backtrace) {
+			entry = &history->entries[i];
+			break;
+		}
+	}
+
+	/* Otherwise add one */
+	if (!entry) {
+		struct drm_dp_mst_topology_ref_entry *new;
+		int new_len = history->len + 1;
+
+		new = krealloc(history->entries, sizeof(*new) * new_len,
+			       GFP_KERNEL);
+		if (!new)
+			return;
+
+		entry = &new[history->len];
+		history->len = new_len;
+		history->entries = new;
+
+		entry->backtrace = backtrace;
+		entry->type = type;
+		entry->count = 0;
+	}
+	entry->count++;
+	entry->ts_nsec = ktime_get_ns();
+}
+
+static int
+topology_ref_history_cmp(const void *a, const void *b)
+{
+	const struct drm_dp_mst_topology_ref_entry *entry_a = a, *entry_b = b;
+
+	if (entry_a->ts_nsec > entry_b->ts_nsec)
+		return 1;
+	else if (entry_a->ts_nsec < entry_b->ts_nsec)
+		return -1;
+	else
+		return 0;
+}
+
+static inline const char *
+topology_ref_type_to_str(enum drm_dp_mst_topology_ref_type type)
+{
+	if (type == DRM_DP_MST_TOPOLOGY_REF_GET)
+		return "get";
+	else
+		return "put";
+}
+
+static void
+__dump_topology_ref_history(struct drm_dp_mst_topology_ref_history *history,
+			    void *ptr, const char *type_str)
+{
+	struct drm_printer p = drm_debug_printer(DBG_PREFIX);
+	char *buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	int i;
+
+	if (!buf)
+		return;
+
+	if (!history->len)
+		goto out;
+
+	/* First, sort the list so that it goes from oldest to newest
+	 * reference entry
+	 */
+	sort(history->entries, history->len, sizeof(*history->entries),
+	     topology_ref_history_cmp, NULL);
+
+	drm_printf(&p, "%s (%p) topology count reached 0, dumping history:\n",
+		   type_str, ptr);
+
+	for (i = 0; i < history->len; i++) {
+		const struct drm_dp_mst_topology_ref_entry *entry =
+			&history->entries[i];
+		ulong *entries;
+		uint nr_entries;
+		u64 ts_nsec = entry->ts_nsec;
+		u64 rem_nsec = do_div(ts_nsec, 1000000000);
+
+		nr_entries = stack_depot_fetch(entry->backtrace, &entries);
+		stack_trace_snprint(buf, PAGE_SIZE, entries, nr_entries, 4);
+
+		drm_printf(&p, "  %d %ss (last at %5llu.%06llu):\n%s",
+			   entry->count,
+			   topology_ref_type_to_str(entry->type),
+			   ts_nsec, rem_nsec / 1000, buf);
+	}
+
+	/* Now free the history, since this is the only time we expose it */
+	kfree(history->entries);
+out:
+	kfree(buf);
+}
+
+static __always_inline void
+drm_dp_mst_dump_mstb_topology_history(struct drm_dp_mst_branch *mstb)
+{
+	__dump_topology_ref_history(&mstb->topology_ref_history, mstb,
+				    "MSTB");
+}
+
+static __always_inline void
+drm_dp_mst_dump_port_topology_history(struct drm_dp_mst_port *port)
+{
+	__dump_topology_ref_history(&port->topology_ref_history, port,
+				    "Port");
+}
+
+static __always_inline void
+save_mstb_topology_ref(struct drm_dp_mst_branch *mstb,
+		       enum drm_dp_mst_topology_ref_type type)
+{
+	__topology_ref_save(mstb->mgr, &mstb->topology_ref_history, type);
+}
+
+static __always_inline void
+save_port_topology_ref(struct drm_dp_mst_port *port,
+		       enum drm_dp_mst_topology_ref_type type)
+{
+	__topology_ref_save(port->mgr, &port->topology_ref_history, type);
+}
+
+static inline void
+topology_ref_history_lock(struct drm_dp_mst_topology_mgr *mgr)
+{
+	mutex_lock(&mgr->topology_ref_history_lock);
+}
+
+static inline void
+topology_ref_history_unlock(struct drm_dp_mst_topology_mgr *mgr)
+{
+	mutex_unlock(&mgr->topology_ref_history_lock);
+}
+#else
+static inline void
+topology_ref_history_lock(struct drm_dp_mst_topology_mgr *mgr) {}
+static inline void
+topology_ref_history_unlock(struct drm_dp_mst_topology_mgr *mgr) {}
+static inline void
+drm_dp_mst_dump_mstb_topology_history(struct drm_dp_mst_branch *mstb) {}
+static inline void
+drm_dp_mst_dump_port_topology_history(struct drm_dp_mst_port *port) {}
+#define save_mstb_topology_ref(mstb, type)
+#define save_port_topology_ref(port, type)
+#endif
+
 static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 {
 	struct drm_dp_mst_branch *mstb =
 		container_of(kref, struct drm_dp_mst_branch, topology_kref);
 	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
+
+	drm_dp_mst_dump_mstb_topology_history(mstb);
 
 	INIT_LIST_HEAD(&mstb->destroy_next);
 
@@ -1442,11 +1621,17 @@ static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 static int __must_check
 drm_dp_mst_topology_try_get_mstb(struct drm_dp_mst_branch *mstb)
 {
-	int ret = kref_get_unless_zero(&mstb->topology_kref);
+	int ret;
 
-	if (ret)
-		DRM_DEBUG("mstb %p (%d)\n", mstb,
-			  kref_read(&mstb->topology_kref));
+	topology_ref_history_lock(mstb->mgr);
+	ret = kref_get_unless_zero(&mstb->topology_kref);
+	if (ret) {
+		DRM_DEBUG("mstb %p (%d)\n",
+			  mstb, kref_read(&mstb->topology_kref));
+		save_mstb_topology_ref(mstb, DRM_DP_MST_TOPOLOGY_REF_GET);
+	}
+
+	topology_ref_history_unlock(mstb->mgr);
 
 	return ret;
 }
@@ -1467,9 +1652,14 @@ drm_dp_mst_topology_try_get_mstb(struct drm_dp_mst_branch *mstb)
  */
 static void drm_dp_mst_topology_get_mstb(struct drm_dp_mst_branch *mstb)
 {
+	topology_ref_history_lock(mstb->mgr);
+
+	save_mstb_topology_ref(mstb, DRM_DP_MST_TOPOLOGY_REF_GET);
 	WARN_ON(kref_read(&mstb->topology_kref) == 0);
 	kref_get(&mstb->topology_kref);
 	DRM_DEBUG("mstb %p (%d)\n", mstb, kref_read(&mstb->topology_kref));
+
+	topology_ref_history_unlock(mstb->mgr);
 }
 
 /**
@@ -1487,8 +1677,13 @@ static void drm_dp_mst_topology_get_mstb(struct drm_dp_mst_branch *mstb)
 static void
 drm_dp_mst_topology_put_mstb(struct drm_dp_mst_branch *mstb)
 {
+	topology_ref_history_lock(mstb->mgr);
+
 	DRM_DEBUG("mstb %p (%d)\n",
 		  mstb, kref_read(&mstb->topology_kref) - 1);
+	save_mstb_topology_ref(mstb, DRM_DP_MST_TOPOLOGY_REF_PUT);
+
+	topology_ref_history_unlock(mstb->mgr);
 	kref_put(&mstb->topology_kref, drm_dp_destroy_mst_branch_device);
 }
 
@@ -1497,6 +1692,8 @@ static void drm_dp_destroy_port(struct kref *kref)
 	struct drm_dp_mst_port *port =
 		container_of(kref, struct drm_dp_mst_port, topology_kref);
 	struct drm_dp_mst_topology_mgr *mgr = port->mgr;
+
+	drm_dp_mst_dump_port_topology_history(port);
 
 	/* There's nothing that needs locking to destroy an input port yet */
 	if (port->input) {
@@ -1541,12 +1738,17 @@ static void drm_dp_destroy_port(struct kref *kref)
 static int __must_check
 drm_dp_mst_topology_try_get_port(struct drm_dp_mst_port *port)
 {
-	int ret = kref_get_unless_zero(&port->topology_kref);
+	int ret;
 
-	if (ret)
-		DRM_DEBUG("port %p (%d)\n", port,
-			  kref_read(&port->topology_kref));
+	topology_ref_history_lock(port->mgr);
+	ret = kref_get_unless_zero(&port->topology_kref);
+	if (ret) {
+		DRM_DEBUG("port %p (%d)\n",
+			  port, kref_read(&port->topology_kref));
+		save_port_topology_ref(port, DRM_DP_MST_TOPOLOGY_REF_GET);
+	}
 
+	topology_ref_history_unlock(port->mgr);
 	return ret;
 }
 
@@ -1565,9 +1767,14 @@ drm_dp_mst_topology_try_get_port(struct drm_dp_mst_port *port)
  */
 static void drm_dp_mst_topology_get_port(struct drm_dp_mst_port *port)
 {
+	topology_ref_history_lock(port->mgr);
+
 	WARN_ON(kref_read(&port->topology_kref) == 0);
 	kref_get(&port->topology_kref);
 	DRM_DEBUG("port %p (%d)\n", port, kref_read(&port->topology_kref));
+	save_port_topology_ref(port, DRM_DP_MST_TOPOLOGY_REF_GET);
+
+	topology_ref_history_unlock(port->mgr);
 }
 
 /**
@@ -1583,8 +1790,13 @@ static void drm_dp_mst_topology_get_port(struct drm_dp_mst_port *port)
  */
 static void drm_dp_mst_topology_put_port(struct drm_dp_mst_port *port)
 {
+	topology_ref_history_lock(port->mgr);
+
 	DRM_DEBUG("port %p (%d)\n",
 		  port, kref_read(&port->topology_kref) - 1);
+	save_port_topology_ref(port, DRM_DP_MST_TOPOLOGY_REF_PUT);
+
+	topology_ref_history_unlock(port->mgr);
 	kref_put(&port->topology_kref, drm_dp_destroy_port);
 }
 
@@ -4578,6 +4790,9 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	mutex_init(&mgr->delayed_destroy_lock);
 	mutex_init(&mgr->up_req_lock);
 	mutex_init(&mgr->probe_lock);
+#if IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS)
+	mutex_init(&mgr->topology_ref_history_lock);
+#endif
 	INIT_LIST_HEAD(&mgr->tx_msg_downq);
 	INIT_LIST_HEAD(&mgr->destroy_port_list);
 	INIT_LIST_HEAD(&mgr->destroy_branch_device_list);
@@ -4644,6 +4859,9 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 	mutex_destroy(&mgr->lock);
 	mutex_destroy(&mgr->up_req_lock);
 	mutex_destroy(&mgr->probe_lock);
+#if IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS)
+	mutex_destroy(&mgr->topology_ref_history_lock);
+#endif
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_destroy);
 
