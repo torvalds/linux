@@ -82,7 +82,6 @@ static int synproxy_tg4_check(const struct xt_tgchk_param *par)
 		return err;
 	}
 
-	snet->hook_ref4++;
 	return err;
 }
 
