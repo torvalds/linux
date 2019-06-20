@@ -17,6 +17,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/bug.h>
+#include <linux/cpumask.h>
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
 
@@ -374,6 +375,8 @@ cpucap_multi_entry_cap_matches(const struct arm64_cpu_capabilities *entry,
 
 	return false;
 }
+
+extern cpumask_t aarch32_el0_mask;
 
 extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 extern struct static_key_false cpu_hwcap_keys[ARM64_NCAPS];
