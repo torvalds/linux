@@ -223,10 +223,11 @@ static int aspeed_lpc_ctrl_probe(struct platform_device *pdev)
 			dev_err(dev, "Couldn't address to resource for flash\n");
 			return rc;
 		}
+
+		lpc_ctrl->pnor_size = resource_size(&resm);
+		lpc_ctrl->pnor_base = resm.start;
 	}
 
-	lpc_ctrl->pnor_size = resource_size(&resm);
-	lpc_ctrl->pnor_base = resm.start;
 
 	dev_set_drvdata(&pdev->dev, lpc_ctrl);
 
