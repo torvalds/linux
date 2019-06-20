@@ -260,7 +260,7 @@ int r8712_setdatarate_cmd(struct _adapter *padapter, u8 *rateset)
 	return 0;
 }
 
-u8 r8712_set_chplan_cmd(struct _adapter *padapter, int chplan)
+void r8712_set_chplan_cmd(struct _adapter *padapter, int chplan)
 {
 	struct cmd_obj *ph2c;
 	struct SetChannelPlan_param *psetchplanpara;
@@ -268,17 +268,16 @@ u8 r8712_set_chplan_cmd(struct _adapter *padapter, int chplan)
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
 	if (!ph2c)
-		return _FAIL;
+		return;
 	psetchplanpara = kmalloc(sizeof(*psetchplanpara), GFP_ATOMIC);
 	if (!psetchplanpara) {
 		kfree(ph2c);
-		return _FAIL;
+		return;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetchplanpara,
 				GEN_CMD_CODE(_SetChannelPlan));
 	psetchplanpara->ChannelPlan = chplan;
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
 }
 
 u8 r8712_setbasicrate_cmd(struct _adapter *padapter, u8 *rateset)
