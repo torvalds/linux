@@ -219,6 +219,22 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 		      enum btrfs_chunk_alloc_enum force);
 int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans, u64 type);
 void check_system_chunk(struct btrfs_trans_handle *trans, const u64 type);
+u64 btrfs_get_alloc_profile(struct btrfs_fs_info *fs_info, u64 orig_flags);
+
+static inline u64 btrfs_data_alloc_profile(struct btrfs_fs_info *fs_info)
+{
+	return btrfs_get_alloc_profile(fs_info, BTRFS_BLOCK_GROUP_DATA);
+}
+
+static inline u64 btrfs_metadata_alloc_profile(struct btrfs_fs_info *fs_info)
+{
+	return btrfs_get_alloc_profile(fs_info, BTRFS_BLOCK_GROUP_METADATA);
+}
+
+static inline u64 btrfs_system_alloc_profile(struct btrfs_fs_info *fs_info)
+{
+	return btrfs_get_alloc_profile(fs_info, BTRFS_BLOCK_GROUP_SYSTEM);
+}
 
 static inline int btrfs_block_group_cache_done(
 		struct btrfs_block_group_cache *cache)

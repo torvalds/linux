@@ -15,6 +15,111 @@
 #include "delalloc-space.h"
 #include "math.h"
 
+/*
+ * Return target flags in extended format or 0 if restripe for this chunk_type
+ * is not in progress
+ *
+ * Should be called with balance_lock held
+ */
+u64 btrfs_get_restripe_target(struct btrfs_fs_info *fs_info, u64 flags)
+{
+	struct btrfs_balance_control *bctl = fs_info->balance_ctl;
+	u64 target = 0;
+
+	if (!bctl)
+		return 0;
+
+	if (flags & BTRFS_BLOCK_GROUP_DATA &&
+	    bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) {
+		target = BTRFS_BLOCK_GROUP_DATA | bctl->data.target;
+	} else if (flags & BTRFS_BLOCK_GROUP_SYSTEM &&
+		   bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) {
+		target = BTRFS_BLOCK_GROUP_SYSTEM | bctl->sys.target;
+	} else if (flags & BTRFS_BLOCK_GROUP_METADATA &&
+		   bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) {
+		target = BTRFS_BLOCK_GROUP_METADATA | bctl->meta.target;
+	}
+
+	return target;
+}
+
+/*
+ * @flags: available profiles in extended format (see ctree.h)
+ *
+ * Return reduced profile in chunk format.  If profile changing is in progress
+ * (either running or paused) picks the target profile (if it's already
+ * available), otherwise falls back to plain reducing.
+ */
+static u64 btrfs_reduce_alloc_profile(struct btrfs_fs_info *fs_info, u64 flags)
+{
+	u64 num_devices = fs_info->fs_devices->rw_devices;
+	u64 target;
+	u64 raid_type;
+	u64 allowed = 0;
+
+	/*
+	 * See if restripe for this chunk_type is in progress, if so try to
+	 * reduce to the target profile
+	 */
+	spin_lock(&fs_info->balance_lock);
+	target = btrfs_get_restripe_target(fs_info, flags);
+	if (target) {
+		/* Pick target profile only if it's already available */
+		if ((flags & target) & BTRFS_EXTENDED_PROFILE_MASK) {
+			spin_unlock(&fs_info->balance_lock);
+			return extended_to_chunk(target);
+		}
+	}
+	spin_unlock(&fs_info->balance_lock);
+
+	/* First, mask out the RAID levels which aren't possible */
+	for (raid_type = 0; raid_type < BTRFS_NR_RAID_TYPES; raid_type++) {
+		if (num_devices >= btrfs_raid_array[raid_type].devs_min)
+			allowed |= btrfs_raid_array[raid_type].bg_flag;
+	}
+	allowed &= flags;
+
+	if (allowed & BTRFS_BLOCK_GROUP_RAID6)
+		allowed = BTRFS_BLOCK_GROUP_RAID6;
+	else if (allowed & BTRFS_BLOCK_GROUP_RAID5)
+		allowed = BTRFS_BLOCK_GROUP_RAID5;
+	else if (allowed & BTRFS_BLOCK_GROUP_RAID10)
+		allowed = BTRFS_BLOCK_GROUP_RAID10;
+	else if (allowed & BTRFS_BLOCK_GROUP_RAID1)
+		allowed = BTRFS_BLOCK_GROUP_RAID1;
+	else if (allowed & BTRFS_BLOCK_GROUP_RAID0)
+		allowed = BTRFS_BLOCK_GROUP_RAID0;
+
+	flags &= ~BTRFS_BLOCK_GROUP_PROFILE_MASK;
+
+	return extended_to_chunk(flags | allowed);
+}
+
+static u64 get_alloc_profile(struct btrfs_fs_info *fs_info, u64 orig_flags)
+{
+	unsigned seq;
+	u64 flags;
+
+	do {
+		flags = orig_flags;
+		seq = read_seqbegin(&fs_info->profiles_lock);
+
+		if (flags & BTRFS_BLOCK_GROUP_DATA)
+			flags |= fs_info->avail_data_alloc_bits;
+		else if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
+			flags |= fs_info->avail_system_alloc_bits;
+		else if (flags & BTRFS_BLOCK_GROUP_METADATA)
+			flags |= fs_info->avail_metadata_alloc_bits;
+	} while (read_seqretry(&fs_info->profiles_lock, seq));
+
+	return btrfs_reduce_alloc_profile(fs_info, flags);
+}
+
+u64 btrfs_get_alloc_profile(struct btrfs_fs_info *fs_info, u64 orig_flags)
+{
+	return get_alloc_profile(fs_info, orig_flags);
+}
+
 void btrfs_get_block_group(struct btrfs_block_group_cache *cache)
 {
 	atomic_inc(&cache->count);
