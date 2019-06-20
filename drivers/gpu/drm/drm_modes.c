@@ -1977,9 +1977,11 @@ int drm_mode_convert_umode(struct drm_device *dev,
 	case DRM_MODE_FLAG_PIC_AR_256_135:
 		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_256_135;
 		break;
-	default:
+	case DRM_MODE_FLAG_PIC_AR_NONE:
 		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	out->status = drm_mode_validate_driver(dev, out);
