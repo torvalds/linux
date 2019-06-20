@@ -185,4 +185,6 @@ static inline int btrfs_block_group_cache_done(
 		cache->cached == BTRFS_CACHE_ERROR;
 }
 
+int __btrfs_inc_block_group_ro(struct btrfs_block_group_cache *cache, int force);
+
 #endif /* BTRFS_BLOCK_GROUP_H */
