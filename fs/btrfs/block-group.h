@@ -165,5 +165,18 @@ void btrfs_wait_block_group_reservations(struct btrfs_block_group_cache *bg);
 bool btrfs_inc_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
 void btrfs_dec_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
 void btrfs_wait_nocow_writers(struct btrfs_block_group_cache *bg);
+void btrfs_wait_block_group_cache_progress(struct btrfs_block_group_cache *cache,
+				           u64 num_bytes);
+int btrfs_wait_block_group_cache_done(struct btrfs_block_group_cache *cache);
+int btrfs_cache_block_group(struct btrfs_block_group_cache *cache,
+			    int load_cache_only);
+
+static inline int btrfs_block_group_cache_done(
+		struct btrfs_block_group_cache *cache)
+{
+	smp_mb();
+	return cache->cached == BTRFS_CACHE_FINISHED ||
+		cache->cached == BTRFS_CACHE_ERROR;
+}
 
 #endif /* BTRFS_BLOCK_GROUP_H */
