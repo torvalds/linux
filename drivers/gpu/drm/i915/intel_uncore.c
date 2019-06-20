@@ -485,12 +485,10 @@ check_for_unclaimed_mmio(struct intel_uncore *uncore)
 	return ret;
 }
 
-static void __intel_uncore_early_sanitize(struct intel_uncore *uncore,
-					  unsigned int restore_forcewake)
+static void forcewake_early_sanitize(struct intel_uncore *uncore,
+				     unsigned int restore_forcewake)
 {
-	/* clear out unclaimed reg detection bit */
-	if (check_for_unclaimed_mmio(uncore))
-		DRM_DEBUG("unclaimed mmio detected on uncore init, clearing\n");
+	GEM_BUG_ON(!intel_uncore_has_forcewake(uncore));
 
 	/* WaDisableShadowRegForCpd:chv */
 	if (IS_CHERRYVIEW(uncore->i915)) {
@@ -515,6 +513,9 @@ static void __intel_uncore_early_sanitize(struct intel_uncore *uncore,
 
 void intel_uncore_suspend(struct intel_uncore *uncore)
 {
+	if (!intel_uncore_has_forcewake(uncore))
+		return;
+
 	iosf_mbi_punit_acquire();
 	iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
 		&uncore->pmic_bus_access_nb);
@@ -526,14 +527,23 @@ void intel_uncore_resume_early(struct intel_uncore *uncore)
 {
 	unsigned int restore_forcewake;
 
+	if (intel_uncore_unclaimed_mmio(uncore))
+		DRM_DEBUG("unclaimed mmio detected on resume, clearing\n");
+
+	if (!intel_uncore_has_forcewake(uncore))
+		return;
+
 	restore_forcewake = fetch_and_zero(&uncore->fw_domains_saved);
-	__intel_uncore_early_sanitize(uncore, restore_forcewake);
+	forcewake_early_sanitize(uncore, restore_forcewake);
 
 	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
 }
 
 void intel_uncore_runtime_resume(struct intel_uncore *uncore)
 {
+	if (!intel_uncore_has_forcewake(uncore))
+		return;
+
 	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
 }
 
@@ -1348,8 +1358,7 @@ static void intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore->i915;
 
-	if (!intel_uncore_has_forcewake(uncore))
-		return;
+	GEM_BUG_ON(!intel_uncore_has_forcewake(uncore));
 
 	if (INTEL_GEN(i915) >= 11) {
 		int i;
@@ -1542,6 +1551,60 @@ void intel_uncore_init_early(struct intel_uncore *uncore,
 	uncore->rpm = &i915->runtime_pm;
 }
 
+static void uncore_raw_init(struct intel_uncore *uncore)
+{
+	GEM_BUG_ON(intel_uncore_has_forcewake(uncore));
+
+	if (IS_GEN(uncore->i915, 5)) {
+		ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, gen5);
+		ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, gen5);
+	} else {
+		ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, gen2);
+		ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, gen2);
+	}
+}
+
+static void uncore_forcewake_init(struct intel_uncore *uncore)
+{
+	struct drm_i915_private *i915 = uncore->i915;
+
+	GEM_BUG_ON(!intel_uncore_has_forcewake(uncore));
+
+	intel_uncore_fw_domains_init(uncore);
+	forcewake_early_sanitize(uncore, 0);
+
+	if (IS_GEN_RANGE(i915, 6, 7)) {
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen6);
+
+		if (IS_VALLEYVIEW(i915)) {
+			ASSIGN_FW_DOMAINS_TABLE(uncore, __vlv_fw_ranges);
+			ASSIGN_READ_MMIO_VFUNCS(uncore, fwtable);
+		} else {
+			ASSIGN_READ_MMIO_VFUNCS(uncore, gen6);
+		}
+	} else if (IS_GEN(i915, 8)) {
+		if (IS_CHERRYVIEW(i915)) {
+			ASSIGN_FW_DOMAINS_TABLE(uncore, __chv_fw_ranges);
+			ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
+			ASSIGN_READ_MMIO_VFUNCS(uncore, fwtable);
+		} else {
+			ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen8);
+			ASSIGN_READ_MMIO_VFUNCS(uncore, gen6);
+		}
+	} else if (IS_GEN_RANGE(i915, 9, 10)) {
+		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen9_fw_ranges);
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
+		ASSIGN_READ_MMIO_VFUNCS(uncore, fwtable);
+	} else {
+		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen11_fw_ranges);
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen11_fwtable);
+		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
+	}
+
+	uncore->pmic_bus_access_nb.notifier_call = i915_pmic_bus_access_notifier;
+	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
+}
+
 int intel_uncore_init_mmio(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore->i915;
@@ -1556,49 +1619,12 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 	if (INTEL_GEN(i915) > 5 && !intel_vgpu_active(i915))
 		uncore->flags |= UNCORE_HAS_FORCEWAKE;
 
-	intel_uncore_fw_domains_init(uncore);
-	__intel_uncore_early_sanitize(uncore, 0);
-
 	uncore->unclaimed_mmio_check = 1;
-	uncore->pmic_bus_access_nb.notifier_call =
-		i915_pmic_bus_access_notifier;
 
-	if (!intel_uncore_has_forcewake(uncore)) {
-		if (IS_GEN(i915, 5)) {
-			ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, gen5);
-			ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, gen5);
-		} else {
-			ASSIGN_RAW_WRITE_MMIO_VFUNCS(uncore, gen2);
-			ASSIGN_RAW_READ_MMIO_VFUNCS(uncore, gen2);
-		}
-	} else if (IS_GEN_RANGE(i915, 6, 7)) {
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen6);
-
-		if (IS_VALLEYVIEW(i915)) {
-			ASSIGN_FW_DOMAINS_TABLE(uncore, __vlv_fw_ranges);
-			ASSIGN_READ_MMIO_VFUNCS(uncore, fwtable);
-		} else {
-			ASSIGN_READ_MMIO_VFUNCS(uncore, gen6);
-		}
-	} else if (IS_GEN(i915, 8)) {
-		if (IS_CHERRYVIEW(i915)) {
-			ASSIGN_FW_DOMAINS_TABLE(uncore, __chv_fw_ranges);
-			ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
-			ASSIGN_READ_MMIO_VFUNCS(uncore, fwtable);
-
-		} else {
-			ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen8);
-			ASSIGN_READ_MMIO_VFUNCS(uncore, gen6);
-		}
-	} else if (IS_GEN_RANGE(i915, 9, 10)) {
-		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen9_fw_ranges);
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
-		ASSIGN_READ_MMIO_VFUNCS(uncore, fwtable);
-	} else {
-		ASSIGN_FW_DOMAINS_TABLE(uncore, __gen11_fw_ranges);
-		ASSIGN_WRITE_MMIO_VFUNCS(uncore, gen11_fwtable);
-		ASSIGN_READ_MMIO_VFUNCS(uncore, gen11_fwtable);
-	}
+	if (!intel_uncore_has_forcewake(uncore))
+		uncore_raw_init(uncore);
+	else
+		uncore_forcewake_init(uncore);
 
 	/* make sure fw funcs are set if and only if we have fw*/
 	GEM_BUG_ON(intel_uncore_has_forcewake(uncore) != !!uncore->funcs.force_wake_get);
@@ -1615,7 +1641,9 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 	if (IS_GEN_RANGE(i915, 6, 7))
 		uncore->flags |= UNCORE_HAS_FIFO;
 
-	iosf_mbi_register_pmic_bus_access_notifier(&uncore->pmic_bus_access_nb);
+	/* clear out unclaimed reg detection bit */
+	if (check_for_unclaimed_mmio(uncore))
+		DRM_DEBUG("unclaimed mmio detected on uncore init, clearing\n");
 
 	return 0;
 }
@@ -1628,41 +1656,44 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 void intel_uncore_prune_mmio_domains(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore->i915;
+	enum forcewake_domains fw_domains = uncore->fw_domains;
+	enum forcewake_domain_id domain_id;
+	int i;
 
-	if (INTEL_GEN(i915) >= 11) {
-		enum forcewake_domains fw_domains = uncore->fw_domains;
-		enum forcewake_domain_id domain_id;
-		int i;
+	if (!intel_uncore_has_forcewake(uncore) || INTEL_GEN(i915) < 11)
+		return;
 
-		for (i = 0; i < I915_MAX_VCS; i++) {
-			domain_id = FW_DOMAIN_ID_MEDIA_VDBOX0 + i;
+	for (i = 0; i < I915_MAX_VCS; i++) {
+		domain_id = FW_DOMAIN_ID_MEDIA_VDBOX0 + i;
 
-			if (HAS_ENGINE(i915, _VCS(i)))
-				continue;
+		if (HAS_ENGINE(i915, _VCS(i)))
+			continue;
 
-			if (fw_domains & BIT(domain_id))
-				fw_domain_fini(uncore, domain_id);
-		}
+		if (fw_domains & BIT(domain_id))
+			fw_domain_fini(uncore, domain_id);
+	}
 
-		for (i = 0; i < I915_MAX_VECS; i++) {
-			domain_id = FW_DOMAIN_ID_MEDIA_VEBOX0 + i;
+	for (i = 0; i < I915_MAX_VECS; i++) {
+		domain_id = FW_DOMAIN_ID_MEDIA_VEBOX0 + i;
 
-			if (HAS_ENGINE(i915, _VECS(i)))
-				continue;
+		if (HAS_ENGINE(i915, _VECS(i)))
+			continue;
 
-			if (fw_domains & BIT(domain_id))
-				fw_domain_fini(uncore, domain_id);
-		}
+		if (fw_domains & BIT(domain_id))
+			fw_domain_fini(uncore, domain_id);
 	}
 }
 
 void intel_uncore_fini_mmio(struct intel_uncore *uncore)
 {
-	iosf_mbi_punit_acquire();
-	iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
-		&uncore->pmic_bus_access_nb);
-	intel_uncore_forcewake_reset(uncore);
-	iosf_mbi_punit_release();
+	if (intel_uncore_has_forcewake(uncore)) {
+		iosf_mbi_punit_acquire();
+		iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
+			&uncore->pmic_bus_access_nb);
+		intel_uncore_forcewake_reset(uncore);
+		iosf_mbi_punit_release();
+	}
+
 	uncore_mmio_cleanup(uncore);
 }
 
