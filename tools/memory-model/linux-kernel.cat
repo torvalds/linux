@@ -179,9 +179,11 @@ let r-post-bounded = (nonrw-fence | ([~Noreturn] ; fencerel(Rmb) ; [R4rmb]))? ;
 	[Marked]
 
 (* Visibility and executes-before for plain accesses *)
-let ww-vis = w-post-bounded ; vis ; w-pre-bounded
-let wr-vis = w-post-bounded ; vis ; r-pre-bounded
-let rw-xbstar = r-post-bounded ; xbstar ; w-pre-bounded
+let ww-vis = fence | (strong-fence ; xbstar ; w-pre-bounded) |
+	(w-post-bounded ; vis ; w-pre-bounded)
+let wr-vis = fence | (strong-fence ; xbstar ; r-pre-bounded) |
+	(w-post-bounded ; vis ; r-pre-bounded)
+let rw-xbstar = fence | (r-post-bounded ; xbstar ; w-pre-bounded)
 
 (* Potential races *)
 let pre-race = ext & ((Plain * M) | ((M \ IW) * Plain))
