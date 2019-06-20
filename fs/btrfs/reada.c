@@ -14,6 +14,7 @@
 #include "disk-io.h"
 #include "transaction.h"
 #include "dev-replace.h"
+#include "block-group.h"
 
 #undef DEBUG
 

@@ -21,6 +21,7 @@
 #include "qgroup.h"
 #include "print-tree.h"
 #include "delalloc-space.h"
+#include "block-group.h"
 
 /*
  * backref_node, mapping_node and tree_block start with this

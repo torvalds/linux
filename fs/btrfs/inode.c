@@ -47,6 +47,7 @@
 #include "props.h"
 #include "qgroup.h"
 #include "delalloc-space.h"
+#include "block-group.h"
 
 struct btrfs_iget_args {
 	struct btrfs_key *location;

@@ -19,6 +19,7 @@
 #include "volumes.h"
 #include "dev-replace.h"
 #include "qgroup.h"
+#include "block-group.h"
 
 #define BTRFS_ROOT_TRANS_TAG 0
 

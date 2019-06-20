@@ -21,7 +21,7 @@
 #include "backref.h"
 #include "extent_io.h"
 #include "qgroup.h"
-
+#include "block-group.h"
 
 /* TODO XXX FIXME
  *  - subvol delete -> delete when ref goes to 0? delete limits also?

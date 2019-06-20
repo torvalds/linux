@@ -44,6 +44,7 @@
 #include "backref.h"
 #include "space-info.h"
 #include "tests/btrfs-tests.h"
+#include "block-group.h"
 
 #include "qgroup.h"
 #define CREATE_TRACE_POINTS
