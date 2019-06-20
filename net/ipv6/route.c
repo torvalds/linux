@@ -5043,6 +5043,12 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 		rtnh = rtnh_next(rtnh, &remaining);
 	}
 
+	if (list_empty(&rt6_nh_list)) {
+		NL_SET_ERR_MSG(extack,
+			       "Invalid nexthop configuration - no valid nexthops");
+		return -EINVAL;
+	}
+
 	/* for add and replace send one notification with all nexthops.
 	 * Skip the notification in fib6_add_rt2node and send one with
 	 * the full route when done
