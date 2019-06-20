@@ -191,7 +191,9 @@ Currently, the following pairs of encryption modes are supported:
 If unsure, you should use the (AES-256-XTS, AES-256-CTS-CBC) pair.
 
 AES-128-CBC was added only for low-powered embedded devices with
-crypto accelerators such as CAAM or CESA that do not support XTS.
+crypto accelerators such as CAAM or CESA that do not support XTS.  To
+use AES-128-CBC, CONFIG_CRYPTO_SHA256 (or another SHA-256
+implementation) must be enabled so that ESSIV can be used.
 
 Adiantum is a (primarily) stream cipher-based mode that is fast even
 on CPUs without dedicated crypto instructions.  It's also a true
