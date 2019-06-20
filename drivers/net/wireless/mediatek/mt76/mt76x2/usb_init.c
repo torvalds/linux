@@ -225,7 +225,7 @@ int mt76x2u_register_device(struct mt76x02_dev *dev)
 
 	/* check hw sg support in order to enable AMSDU */
 	if (dev->mt76.usb.sg_en)
-		hw->max_tx_fragments = MT_SG_MAX_SIZE;
+		hw->max_tx_fragments = MT_TX_SG_MAX_SIZE;
 	else
 		hw->max_tx_fragments = 1;
 
