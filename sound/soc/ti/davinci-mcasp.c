@@ -848,14 +848,15 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 					rx_ser < max_active_serializers) {
 			clear_bit(PIN_BIT_AXR(i), &mcasp->pdir);
 			rx_ser++;
-		} else if (mcasp->serial_dir[i] == INACTIVE_MODE) {
+		} else {
+			/* Inactive or unused pin, set it to inactive */
 			mcasp_mod_bits(mcasp, DAVINCI_MCASP_XRSRCTL_REG(i),
 				       SRMOD_INACTIVE, SRMOD_MASK);
-			clear_bit(PIN_BIT_AXR(i), &mcasp->pdir);
-		} else if (mcasp->serial_dir[i] == TX_MODE) {
-			/* Unused TX pins, clear PDIR  */
-			mcasp_mod_bits(mcasp, DAVINCI_MCASP_XRSRCTL_REG(i),
-				       mcasp->dismod, DISMOD_MASK);
+			/* If unused, set DISMOD for the pin */
+			if (mcasp->serial_dir[i] != INACTIVE_MODE)
+				mcasp_mod_bits(mcasp,
+					       DAVINCI_MCASP_XRSRCTL_REG(i),
+					       mcasp->dismod, DISMOD_MASK);
 			clear_bit(PIN_BIT_AXR(i), &mcasp->pdir);
 		}
 	}
@@ -965,6 +966,7 @@ static int mcasp_i2s_hw_param(struct davinci_mcasp *mcasp, int stream,
 		for (i = 0; i < active_slots; i++)
 			mask |= (1 << i);
 	}
+
 	mcasp_clr_bits(mcasp, DAVINCI_MCASP_ACLKXCTL_REG, TX_ASYNC);
 
 	if (!mcasp->dat_port)
