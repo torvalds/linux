@@ -197,7 +197,6 @@ static struct platform_driver kpc_dma_plat_driver_i = {
 	.remove       = kpc_dma_remove,
 	.driver = {
 		.name   = KP_DRIVER_NAME_DMA_CONTROLLER,
-		.owner  = THIS_MODULE,
 	},
 };
 
