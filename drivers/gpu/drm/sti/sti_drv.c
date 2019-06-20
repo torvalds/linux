@@ -23,7 +23,6 @@
 
 #include "sti_crtc.h"
 #include "sti_drv.h"
-#include "sti_drv.h"
 #include "sti_plane.h"
 
 #define DRIVER_NAME	"sti"
