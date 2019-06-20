@@ -14558,6 +14558,13 @@ M:	Chris Boot <bootc@bootc.net>
 S:	Maintained
 F:	drivers/leds/leds-net48xx.c
 
+SOFT-IWARP DRIVER (siw)
+M:	Bernard Metzler <bmt@zurich.ibm.com>
+L:	linux-rdma@vger.kernel.org
+S:	Supported
+F:	drivers/infiniband/sw/siw/
+F:	include/uapi/rdma/siw-abi.h
+
 SOFT-ROCE DRIVER (rxe)
 M:	Moni Shoua <monis@mellanox.com>
 L:	linux-rdma@vger.kernel.org
