@@ -3048,7 +3048,7 @@ int btrfs_extent_readonly(struct btrfs_fs_info *fs_info, u64 bytenr)
  *
  * should be called with balance_lock held
  */
-static u64 get_restripe_target(struct btrfs_fs_info *fs_info, u64 flags)
+u64 btrfs_get_restripe_target(struct btrfs_fs_info *fs_info, u64 flags)
 {
 	struct btrfs_balance_control *bctl = fs_info->balance_ctl;
 	u64 target = 0;
@@ -3089,7 +3089,7 @@ static u64 btrfs_reduce_alloc_profile(struct btrfs_fs_info *fs_info, u64 flags)
 	 * try to reduce to the target profile
 	 */
 	spin_lock(&fs_info->balance_lock);
-	target = get_restripe_target(fs_info, flags);
+	target = btrfs_get_restripe_target(fs_info, flags);
 	if (target) {
 		/* pick target profile only if it's already available */
 		if ((flags & target) & BTRFS_EXTENDED_PROFILE_MASK) {
@@ -6538,7 +6538,7 @@ static u64 update_block_group_flags(struct btrfs_fs_info *fs_info, u64 flags)
 	 * if restripe for this chunk_type is on pick target profile and
 	 * return, otherwise do the usual balance
 	 */
-	stripped = get_restripe_target(fs_info, flags);
+	stripped = btrfs_get_restripe_target(fs_info, flags);
 	if (stripped)
 		return extended_to_chunk(stripped);
 

@@ -197,5 +197,6 @@ static inline int btrfs_block_group_cache_done(
 }
 
 int __btrfs_inc_block_group_ro(struct btrfs_block_group_cache *cache, int force);
+u64 btrfs_get_restripe_target(struct btrfs_fs_info *fs_info, u64 flags);
 
 #endif /* BTRFS_BLOCK_GROUP_H */
