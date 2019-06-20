@@ -1259,19 +1259,24 @@ static void dx_insert_block(struct dx_frame *frame, u32 hash, ext4_lblk_t block)
 #ifdef CONFIG_UNICODE
 /*
  * Test whether a case-insensitive directory entry matches the filename
- * being searched for.
+ * being searched for.  If quick is set, assume the name being looked up
+ * is already in the casefolded form.
  *
  * Returns: 0 if the directory entry matches, more than 0 if it
  * doesn't match or less than zero on error.
  */
 int ext4_ci_compare(const struct inode *parent, const struct qstr *name,
-		    const struct qstr *entry)
+		    const struct qstr *entry, bool quick)
 {
 	const struct ext4_sb_info *sbi = EXT4_SB(parent->i_sb);
 	const struct unicode_map *um = sbi->s_encoding;
 	int ret;
 
-	ret = utf8_strncasecmp(um, name, entry);
+	if (quick)
+		ret = utf8_strncasecmp_folded(um, name, entry);
+	else
+		ret = utf8_strncasecmp(um, name, entry);
+
 	if (ret < 0) {
 		/* Handle invalid character sequence as either an error
 		 * or as an opaque byte sequence.
@@ -1286,6 +1291,27 @@ int ext4_ci_compare(const struct inode *parent, const struct qstr *name,
 	}
 
 	return ret;
+}
+
+void ext4_fname_setup_ci_filename(struct inode *dir, const struct qstr *iname,
+				  struct fscrypt_str *cf_name)
+{
+	if (!IS_CASEFOLDED(dir)) {
+		cf_name->name = NULL;
+		return;
+	}
+
+	cf_name->name = kmalloc(EXT4_NAME_LEN, GFP_NOFS);
+	if (!cf_name->name)
+		return;
+
+	cf_name->len = utf8_casefold(EXT4_SB(dir->i_sb)->s_encoding,
+				     iname, cf_name->name,
+				     EXT4_NAME_LEN);
+	if (cf_name->len <= 0) {
+		kfree(cf_name->name);
+		cf_name->name = NULL;
+	}
 }
 #endif
 
@@ -1313,8 +1339,15 @@ static inline bool ext4_match(const struct inode *parent,
 #endif
 
 #ifdef CONFIG_UNICODE
-	if (EXT4_SB(parent->i_sb)->s_encoding && IS_CASEFOLDED(parent))
-		return (ext4_ci_compare(parent, fname->usr_fname, &entry) == 0);
+	if (EXT4_SB(parent->i_sb)->s_encoding && IS_CASEFOLDED(parent)) {
+		if (fname->cf_name.name) {
+			struct qstr cf = {.name = fname->cf_name.name,
+					  .len = fname->cf_name.len};
+			return !ext4_ci_compare(parent, &cf, &entry, true);
+		}
+		return !ext4_ci_compare(parent, fname->usr_fname, &entry,
+					false);
+	}
 #endif
 
 	return fscrypt_match_name(&f, de->name, de->name_len);
