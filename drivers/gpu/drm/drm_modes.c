@@ -1966,16 +1966,16 @@ int drm_mode_convert_umode(struct drm_device *dev,
 
 	switch (in->flags & DRM_MODE_FLAG_PIC_AR_MASK) {
 	case DRM_MODE_FLAG_PIC_AR_4_3:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_4_3;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3;
 		break;
 	case DRM_MODE_FLAG_PIC_AR_16_9:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_16_9;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9;
 		break;
 	case DRM_MODE_FLAG_PIC_AR_64_27:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_64_27;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_64_27;
 		break;
 	case DRM_MODE_FLAG_PIC_AR_256_135:
-		out->picture_aspect_ratio |= HDMI_PICTURE_ASPECT_256_135;
+		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_256_135;
 		break;
 	default:
 		out->picture_aspect_ratio = HDMI_PICTURE_ASPECT_NONE;
