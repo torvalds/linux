@@ -715,6 +715,9 @@
 	status = "okay";
 };
 
+&snvs_pwrkey {
+	status = "okay";
+};
 
 &uart1 { /* console */
 	pinctrl-names = "default";
