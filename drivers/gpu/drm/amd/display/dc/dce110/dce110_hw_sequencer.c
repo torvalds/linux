@@ -965,10 +965,16 @@ void hwss_edp_backlight_control(
 void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
 	/* notify audio driver for audio modes of monitor */
-	struct dc *core_dc = pipe_ctx->stream->ctx->dc;
+	struct dc *core_dc;
 	struct pp_smu_funcs *pp_smu = NULL;
-	struct clk_mgr *clk_mgr = core_dc->clk_mgr;
+	struct clk_mgr *clk_mgr;
 	unsigned int i, num_audio = 1;
+
+	if (!pipe_ctx->stream)
+		return;
+
+	core_dc = pipe_ctx->stream->ctx->dc;
+	clk_mgr = core_dc->clk_mgr;
 
 	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == true)
 		return;
@@ -999,9 +1005,15 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 
 void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx, int option)
 {
-	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct dc *dc;
 	struct pp_smu_funcs *pp_smu = NULL;
-	struct clk_mgr *clk_mgr = dc->clk_mgr;
+	struct clk_mgr *clk_mgr;
+
+	if (!pipe_ctx || !pipe_ctx->stream)
+		return;
+
+	dc = pipe_ctx->stream->ctx->dc;
+	clk_mgr = dc->clk_mgr;
 
 	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == false)
 		return;
