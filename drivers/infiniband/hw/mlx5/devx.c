@@ -1043,13 +1043,10 @@ static int devx_handle_mkey_indirect(struct devx_obj *obj,
 				     struct mlx5_ib_dev *dev,
 				     void *in, void *out)
 {
-	struct mlx5_mkey_table *table = &dev->mdev->priv.mkey_table;
 	struct mlx5_ib_devx_mr *devx_mr = &obj->devx_mr;
-	unsigned long flags;
 	struct mlx5_core_mkey *mkey;
 	void *mkc;
 	u8 key;
-	int err;
 
 	mkey = &devx_mr->mmkey;
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
@@ -1062,11 +1059,8 @@ static int devx_handle_mkey_indirect(struct devx_obj *obj,
 	mkey->pd = MLX5_GET(mkc, mkc, pd);
 	devx_mr->ndescs = MLX5_GET(mkc, mkc, translations_octword_size);
 
-	write_lock_irqsave(&table->lock, flags);
-	err = radix_tree_insert(&table->tree, mlx5_base_mkey(mkey->key),
-				mkey);
-	write_unlock_irqrestore(&table->lock, flags);
-	return err;
+	return xa_err(xa_store(&dev->mdev->priv.mkey_table,
+			       mlx5_base_mkey(mkey->key), mkey, GFP_KERNEL));
 }
 
 static int devx_handle_mkey_create(struct mlx5_ib_dev *dev,
@@ -1117,12 +1111,8 @@ static void devx_free_indirect_mkey(struct rcu_head *rcu)
  */
 static void devx_cleanup_mkey(struct devx_obj *obj)
 {
-	struct mlx5_mkey_table *table = &obj->mdev->priv.mkey_table;
-	unsigned long flags;
-
-	write_lock_irqsave(&table->lock, flags);
-	radix_tree_delete(&table->tree, mlx5_base_mkey(obj->devx_mr.mmkey.key));
-	write_unlock_irqrestore(&table->lock, flags);
+	xa_erase(&obj->mdev->priv.mkey_table,
+		 mlx5_base_mkey(obj->devx_mr.mmkey.key));
 }
 
 static int devx_obj_cleanup(struct ib_uobject *uobject,

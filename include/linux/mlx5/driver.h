@@ -41,7 +41,7 @@
 #include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/radix-tree.h>
+#include <linux/xarray.h>
 #include <linux/workqueue.h>
 #include <linux/mempool.h>
 #include <linux/interrupt.h>
@@ -452,13 +452,6 @@ struct mlx5_qp_table {
 	struct radix_tree_root	tree;
 };
 
-struct mlx5_mkey_table {
-	/* protect radix tree
-	 */
-	rwlock_t		lock;
-	struct radix_tree_root	tree;
-};
-
 struct mlx5_vf_context {
 	int	enabled;
 	u64	port_guid;
@@ -546,9 +539,7 @@ struct mlx5_priv {
 	struct dentry	       *cmdif_debugfs;
 	/* end: qp staff */
 
-	/* start: mkey staff */
-	struct mlx5_mkey_table	mkey_table;
-	/* end: mkey staff */
+	struct xarray           mkey_table;
 
 	/* start: alloc staff */
 	/* protect buffer alocation according to numa node */

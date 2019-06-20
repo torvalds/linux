@@ -768,7 +768,7 @@ static int pagefault_single_data_segment(struct mlx5_ib_dev *dev,
 	bcnt -= *bytes_committed;
 
 next_mr:
-	mmkey = __mlx5_mr_lookup(dev->mdev, mlx5_base_mkey(key));
+	mmkey = xa_load(&dev->mdev->priv.mkey_table, mlx5_base_mkey(key));
 	if (!mkey_is_eq(mmkey, key)) {
 		mlx5_ib_dbg(dev, "failed to find mkey %x\n", key);
 		ret = -EFAULT;
@@ -1686,8 +1686,8 @@ static void num_pending_prefetch_dec(struct mlx5_ib_dev *dev,
 		struct mlx5_core_mkey *mmkey;
 		struct mlx5_ib_mr *mr;
 
-		mmkey = __mlx5_mr_lookup(dev->mdev,
-					 mlx5_base_mkey(sg_list[i].lkey));
+		mmkey = xa_load(&dev->mdev->priv.mkey_table,
+				mlx5_base_mkey(sg_list[i].lkey));
 		mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
 		atomic_dec(&mr->num_pending_prefetch);
 	}
@@ -1706,8 +1706,8 @@ static bool num_pending_prefetch_inc(struct ib_pd *pd,
 		struct mlx5_core_mkey *mmkey;
 		struct mlx5_ib_mr *mr;
 
-		mmkey = __mlx5_mr_lookup(dev->mdev,
-					 mlx5_base_mkey(sg_list[i].lkey));
+		mmkey = xa_load(&dev->mdev->priv.mkey_table,
+				mlx5_base_mkey(sg_list[i].lkey));
 		if (!mmkey || mmkey->key != sg_list[i].lkey) {
 			ret = false;
 			break;
