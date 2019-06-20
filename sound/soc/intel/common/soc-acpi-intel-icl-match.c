@@ -33,5 +33,22 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_icl_machines[] = {
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_icl_machines);
 
+struct snd_soc_acpi_mach snd_soc_acpi_intel_icl_sdw_machines[] = {
+	{
+		.link_mask = 0xF, /* 4 active links required */
+		.drv_name = "sdw_rt711_rt1308_rt715",
+		.sof_fw_filename = "sof-icl.ri",
+		.sof_tplg_filename = "sof-icl-rt711-rt1308-rt715.tplg",
+	},
+	{
+		.link_mask = 0x1, /* rt700 connected on link0 */
+		.drv_name = "sdw_rt700",
+		.sof_fw_filename = "sof-icl.ri",
+		.sof_tplg_filename = "sof-icl-rt700.tplg",
+	},
+	{},
+};
+EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_icl_sdw_machines);
+
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel Common ACPI Match module");
