@@ -54,10 +54,6 @@
 #define ltq_eiu_w32(x, y)	ltq_w32((x), ltq_eiu_membase + (y))
 #define ltq_eiu_r32(x)		ltq_r32(ltq_eiu_membase + (x))
 
-/* our 2 ipi interrupts for VSMP */
-#define MIPS_CPU_IPI_RESCHED_IRQ	0
-#define MIPS_CPU_IPI_CALL_IRQ		1
-
 /* we have a cascade of 8 irqs */
 #define MIPS_CPU_IRQ_CASCADE		8
 
