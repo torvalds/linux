@@ -1950,11 +1950,6 @@ static inline struct drm_i915_private *huc_to_i915(struct intel_huc *huc)
 	return container_of(huc, struct drm_i915_private, huc);
 }
 
-static inline struct drm_i915_private *uncore_to_i915(struct intel_uncore *uncore)
-{
-	return container_of(uncore, struct drm_i915_private, uncore);
-}
-
 /* Simple iterator over all initialised engines */
 #define for_each_engine(engine__, dev_priv__, id__) \
 	for ((id__) = 0; \

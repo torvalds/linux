@@ -322,7 +322,7 @@ static void __gen6_gt_wait_for_fifo(struct intel_uncore *uncore)
 
 	/* On VLV, FIFO will be shared by both SW and HW.
 	 * So, we need to read the FREE_ENTRIES everytime */
-	if (IS_VALLEYVIEW(uncore_to_i915(uncore)))
+	if (IS_VALLEYVIEW(uncore->i915))
 		n = fifo_free_entries(uncore);
 	else
 		n = uncore->fifo_count;
@@ -493,7 +493,7 @@ static void __intel_uncore_early_sanitize(struct intel_uncore *uncore,
 		DRM_DEBUG("unclaimed mmio detected on uncore init, clearing\n");
 
 	/* WaDisableShadowRegForCpd:chv */
-	if (IS_CHERRYVIEW(uncore_to_i915(uncore))) {
+	if (IS_CHERRYVIEW(uncore->i915)) {
 		__raw_uncore_write32(uncore, GTFIFOCTL,
 				     __raw_uncore_read32(uncore, GTFIFOCTL) |
 				     GT_FIFO_CTL_BLOCK_ALL_POLICY_STALL |
@@ -622,7 +622,7 @@ void intel_uncore_forcewake_user_put(struct intel_uncore *uncore)
 	spin_lock_irq(&uncore->lock);
 	if (!--uncore->user_forcewake.count) {
 		if (intel_uncore_unclaimed_mmio(uncore))
-			dev_info(uncore_to_i915(uncore)->drm.dev,
+			dev_info(uncore->i915->drm.dev,
 				 "Invalid mmio detected during user access\n");
 
 		uncore->unclaimed_mmio_check =
@@ -1346,7 +1346,7 @@ static void fw_domain_fini(struct intel_uncore *uncore,
 
 static void intel_uncore_fw_domains_init(struct intel_uncore *uncore)
 {
-	struct drm_i915_private *i915 = uncore_to_i915(uncore);
+	struct drm_i915_private *i915 = uncore->i915;
 
 	if (!intel_uncore_has_forcewake(uncore))
 		return;
@@ -1499,7 +1499,7 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 
 static int uncore_mmio_setup(struct intel_uncore *uncore)
 {
-	struct drm_i915_private *i915 = uncore_to_i915(uncore);
+	struct drm_i915_private *i915 = uncore->i915;
 	struct pci_dev *pdev = i915->drm.pdev;
 	int mmio_bar;
 	int mmio_size;
@@ -1529,20 +1529,22 @@ static int uncore_mmio_setup(struct intel_uncore *uncore)
 
 static void uncore_mmio_cleanup(struct intel_uncore *uncore)
 {
-	struct drm_i915_private *i915 = uncore_to_i915(uncore);
-	struct pci_dev *pdev = i915->drm.pdev;
+	struct pci_dev *pdev = uncore->i915->drm.pdev;
 
 	pci_iounmap(pdev, uncore->regs);
 }
 
-void intel_uncore_init_early(struct intel_uncore *uncore)
+void intel_uncore_init_early(struct intel_uncore *uncore,
+			     struct drm_i915_private *i915)
 {
 	spin_lock_init(&uncore->lock);
+	uncore->i915 = i915;
+	uncore->rpm = &i915->runtime_pm;
 }
 
 int intel_uncore_init_mmio(struct intel_uncore *uncore)
 {
-	struct drm_i915_private *i915 = uncore_to_i915(uncore);
+	struct drm_i915_private *i915 = uncore->i915;
 	int ret;
 
 	ret = uncore_mmio_setup(uncore);
@@ -1560,8 +1562,6 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
 	uncore->unclaimed_mmio_check = 1;
 	uncore->pmic_bus_access_nb.notifier_call =
 		i915_pmic_bus_access_notifier;
-
-	uncore->rpm = &i915->runtime_pm;
 
 	if (!intel_uncore_has_forcewake(uncore)) {
 		if (IS_GEN(i915, 5)) {
@@ -1627,7 +1627,7 @@ int intel_uncore_init_mmio(struct intel_uncore *uncore)
  */
 void intel_uncore_prune_mmio_domains(struct intel_uncore *uncore)
 {
-	struct drm_i915_private *i915 = uncore_to_i915(uncore);
+	struct drm_i915_private *i915 = uncore->i915;
 
 	if (INTEL_GEN(i915) >= 11) {
 		enum forcewake_domains fw_domains = uncore->fw_domains;

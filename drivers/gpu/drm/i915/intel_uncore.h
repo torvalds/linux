@@ -102,6 +102,7 @@ struct intel_forcewake_range {
 struct intel_uncore {
 	void __iomem *regs;
 
+	struct drm_i915_private *i915;
 	struct intel_runtime_pm *rpm;
 
 	spinlock_t lock; /** lock is also taken in irq contexts. */
@@ -182,7 +183,8 @@ intel_uncore_has_fifo(const struct intel_uncore *uncore)
 	return uncore->flags & UNCORE_HAS_FIFO;
 }
 
-void intel_uncore_init_early(struct intel_uncore *uncore);
+void intel_uncore_init_early(struct intel_uncore *uncore,
+			     struct drm_i915_private *i915);
 int intel_uncore_init_mmio(struct intel_uncore *uncore);
 void intel_uncore_prune_mmio_domains(struct intel_uncore *uncore);
 bool intel_uncore_unclaimed_mmio(struct intel_uncore *uncore);
