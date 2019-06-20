@@ -468,10 +468,6 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		}
 	}
 	psecnetwork = &psecuritypriv->sec_bss;
-	if (!psecnetwork) {
-		kfree(pcmd);
-		return _FAIL;
-	}
 	memcpy(psecnetwork, &pnetwork->network, sizeof(*psecnetwork));
 	psecuritypriv->authenticator_ie[0] = (unsigned char)
 					     psecnetwork->IELength;
