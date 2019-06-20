@@ -346,6 +346,9 @@ static int lookup_all_xattrs(struct inode *inode, struct page *ipage,
 
 	*xe = __find_xattr(cur_addr, last_txattr_addr, index, len, name);
 	if (!*xe) {
+		f2fs_err(F2FS_I_SB(inode), "inode (%lu) has corrupted xattr",
+								inode->i_ino);
+		set_sbi_flag(F2FS_I_SB(inode), SBI_NEED_FSCK);
 		err = -EFSCORRUPTED;
 		goto out;
 	}
@@ -622,6 +625,9 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 	/* find entry with wanted name. */
 	here = __find_xattr(base_addr, last_base_addr, index, len, name);
 	if (!here) {
+		f2fs_err(F2FS_I_SB(inode), "inode (%lu) has corrupted xattr",
+								inode->i_ino);
+		set_sbi_flag(F2FS_I_SB(inode), SBI_NEED_FSCK);
 		error = -EFSCORRUPTED;
 		goto exit;
 	}
