@@ -166,7 +166,6 @@ static inline int btrfs_should_fragment_free_space(
 	       (btrfs_test_opt(fs_info, FRAGMENT_DATA) &&
 		block_group->flags &  BTRFS_BLOCK_GROUP_DATA);
 }
-void btrfs_fragment_free_space(struct btrfs_block_group_cache *block_group);
 #endif
 
 struct btrfs_block_group_cache *btrfs_lookup_first_block_group(
@@ -245,8 +244,5 @@ static inline int btrfs_block_group_cache_done(
 	return cache->cached == BTRFS_CACHE_FINISHED ||
 		cache->cached == BTRFS_CACHE_ERROR;
 }
-
-int __btrfs_inc_block_group_ro(struct btrfs_block_group_cache *cache, int force);
-u64 btrfs_get_restripe_target(struct btrfs_fs_info *fs_info, u64 flags);
 
 #endif /* BTRFS_BLOCK_GROUP_H */
