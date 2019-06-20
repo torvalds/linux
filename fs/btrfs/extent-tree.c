@@ -331,7 +331,7 @@ next:
 		if (path->slots[0] < nritems) {
 			btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 		} else {
-			ret = find_next_key(path, 0, &key);
+			ret = btrfs_find_next_key(extent_root, path, &key, 0, 0);
 			if (ret)
 				break;
 

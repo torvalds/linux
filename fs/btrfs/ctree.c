@@ -5623,7 +5623,7 @@ int btrfs_find_next_key(struct btrfs_root *root, struct btrfs_path *path,
 	int slot;
 	struct extent_buffer *c;
 
-	WARN_ON(!path->keep_locks);
+	WARN_ON(!path->keep_locks && !path->skip_locking);
 	while (level < BTRFS_MAX_LEVEL) {
 		if (!path->nodes[level])
 			return 1;
@@ -5639,7 +5639,7 @@ next:
 			    !path->nodes[level + 1])
 				return 1;
 
-			if (path->locks[level + 1]) {
+			if (path->locks[level + 1] || path->skip_locking) {
 				level++;
 				continue;
 			}
