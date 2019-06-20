@@ -39,7 +39,7 @@
 
 	/* Check length parameter for validity */
 	pad = nn - nroots - len;
-	BUG_ON(pad < 0 || pad >= nn);
+	BUG_ON(pad < 0 || pad >= nn - nroots);
 
 	/* Does the caller provide the syndrome ? */
 	if (s != NULL)
