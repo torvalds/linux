@@ -157,5 +157,7 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(
 		struct btrfs_fs_info *info, u64 bytenr);
 struct btrfs_block_group_cache *btrfs_next_block_group(
 		struct btrfs_block_group_cache *cache);
+void btrfs_get_block_group(struct btrfs_block_group_cache *cache);
+void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 
 #endif /* BTRFS_BLOCK_GROUP_H */

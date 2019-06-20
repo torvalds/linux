@@ -3,6 +3,31 @@
 #include "ctree.h"
 #include "block-group.h"
 
+void btrfs_get_block_group(struct btrfs_block_group_cache *cache)
+{
+	atomic_inc(&cache->count);
+}
+
+void btrfs_put_block_group(struct btrfs_block_group_cache *cache)
+{
+	if (atomic_dec_and_test(&cache->count)) {
+		WARN_ON(cache->pinned > 0);
+		WARN_ON(cache->reserved > 0);
+
+		/*
+		 * If not empty, someone is still holding mutex of
+		 * full_stripe_lock, which can only be released by caller.
+		 * And it will definitely cause use-after-free when caller
+		 * tries to release full stripe lock.
+		 *
+		 * No better way to resolve, but only to warn.
+		 */
+		WARN_ON(!RB_EMPTY_ROOT(&cache->full_stripe_locks_root.root));
+		kfree(cache->free_space_ctl);
+		kfree(cache);
+	}
+}
+
 /*
  * This will return the block group at or after bytenr if contains is 0, else
  * it will return the block group that contains the bytenr
