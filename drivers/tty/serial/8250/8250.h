@@ -11,6 +11,8 @@
 #include <linux/serial_reg.h>
 #include <linux/dmaengine.h>
 
+#include "../serial_mctrl_gpio.h"
+
 struct uart_8250_dma {
 	int (*tx_dma)(struct uart_8250_port *p);
 	int (*rx_dma)(struct uart_8250_port *p);
@@ -214,11 +216,25 @@ static inline int serial8250_MSR_to_TIOCM(int msr)
 static inline void serial8250_out_MCR(struct uart_8250_port *up, int value)
 {
 	serial_out(up, UART_MCR, value);
+
+	if (up->gpios)
+		mctrl_gpio_set(up->gpios, serial8250_MCR_to_TIOCM(value));
 }
 
 static inline int serial8250_in_MCR(struct uart_8250_port *up)
 {
-	return serial_in(up, UART_MCR);
+	int mctrl;
+
+	mctrl = serial_in(up, UART_MCR);
+
+	if (up->gpios) {
+		unsigned int mctrl_gpio = 0;
+
+		mctrl_gpio = mctrl_gpio_get_outputs(up->gpios, &mctrl_gpio);
+		mctrl |= serial8250_TIOCM_to_MCR(mctrl_gpio);
+	}
+
+	return mctrl;
 }
 
 #if defined(__alpha__) && !defined(CONFIG_PCI)
