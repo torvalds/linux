@@ -8297,13 +8297,15 @@ static int hclge_init_nic_client_instance(struct hnae3_ae_dev *ae_dev,
 		goto init_nic_err;
 	}
 
-	hnae3_set_client_init_flag(client, ae_dev, 1);
-
 	/* Enable nic hw error interrupts */
 	ret = hclge_config_nic_hw_error(hdev, true);
-	if (ret)
+	if (ret) {
 		dev_err(&ae_dev->pdev->dev,
 			"fail(%d) to enable hw error interrupts\n", ret);
+		goto init_nic_err;
+	}
+
+	hnae3_set_client_init_flag(client, ae_dev, 1);
 
 	if (netif_msg_drv(&hdev->vport->nic))
 		hclge_info_show(hdev);
