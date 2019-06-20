@@ -512,11 +512,12 @@ void enc1_stream_encoder_hdmi_set_stream_attribute(
 	enc1_stream_encoder_set_stream_attribute_helper(enc1, crtc_timing);
 
 	/* setup HDMI engine */
-	REG_UPDATE_5(HDMI_CONTROL,
+	REG_UPDATE_6(HDMI_CONTROL,
 		HDMI_PACKET_GEN_VERSION, 1,
 		HDMI_KEEPOUT_MODE, 1,
 		HDMI_DEEP_COLOR_ENABLE, 0,
 		HDMI_DATA_SCRAMBLE_EN, 0,
+		HDMI_NO_EXTRA_NULL_PACKET_FILLED, 1,
 		HDMI_CLOCK_CHANNEL_RATE, 0);
 
 
