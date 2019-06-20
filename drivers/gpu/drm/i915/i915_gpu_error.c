@@ -1248,10 +1248,10 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	}
 }
 
-static void record_request(struct i915_request *request,
+static void record_request(const struct i915_request *request,
 			   struct drm_i915_error_request *erq)
 {
-	struct i915_gem_context *ctx = request->gem_context;
+	const struct i915_gem_context *ctx = request->gem_context;
 
 	erq->flags = request->fence.flags;
 	erq->context = request->fence.context;
@@ -1315,20 +1315,15 @@ static void engine_record_requests(struct intel_engine_cs *engine,
 	ee->num_requests = count;
 }
 
-static void error_record_engine_execlists(struct intel_engine_cs *engine,
+static void error_record_engine_execlists(const struct intel_engine_cs *engine,
 					  struct drm_i915_error_engine *ee)
 {
 	const struct intel_engine_execlists * const execlists = &engine->execlists;
-	unsigned int n;
+	struct i915_request * const *port = execlists->active;
+	unsigned int n = 0;
 
-	for (n = 0; n < execlists_num_ports(execlists); n++) {
-		struct i915_request *rq = port_request(&execlists->port[n]);
-
-		if (!rq)
-			break;
-
-		record_request(rq, &ee->execlist[n]);
-	}
+	while (*port)
+		record_request(*port++, &ee->execlist[n++]);
 
 	ee->num_ports = n;
 }

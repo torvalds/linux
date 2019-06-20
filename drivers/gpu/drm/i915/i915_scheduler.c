@@ -179,8 +179,7 @@ static inline int rq_prio(const struct i915_request *rq)
 
 static void kick_submission(struct intel_engine_cs *engine, int prio)
 {
-	const struct i915_request *inflight =
-		port_request(engine->execlists.port);
+	const struct i915_request *inflight = *engine->execlists.active;
 
 	/*
 	 * If we are already the currently executing context, don't

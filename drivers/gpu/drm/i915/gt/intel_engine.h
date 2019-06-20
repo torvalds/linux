@@ -125,70 +125,25 @@ hangcheck_action_to_str(const enum intel_engine_hangcheck_action a)
 
 void intel_engines_set_scheduler_caps(struct drm_i915_private *i915);
 
-static inline void
-execlists_set_active(struct intel_engine_execlists *execlists,
-		     unsigned int bit)
-{
-	__set_bit(bit, (unsigned long *)&execlists->active);
-}
-
-static inline bool
-execlists_set_active_once(struct intel_engine_execlists *execlists,
-			  unsigned int bit)
-{
-	return !__test_and_set_bit(bit, (unsigned long *)&execlists->active);
-}
-
-static inline void
-execlists_clear_active(struct intel_engine_execlists *execlists,
-		       unsigned int bit)
-{
-	__clear_bit(bit, (unsigned long *)&execlists->active);
-}
-
-static inline void
-execlists_clear_all_active(struct intel_engine_execlists *execlists)
-{
-	execlists->active = 0;
-}
-
-static inline bool
-execlists_is_active(const struct intel_engine_execlists *execlists,
-		    unsigned int bit)
-{
-	return test_bit(bit, (unsigned long *)&execlists->active);
-}
-
-void execlists_user_begin(struct intel_engine_execlists *execlists,
-			  const struct execlist_port *port);
-void execlists_user_end(struct intel_engine_execlists *execlists);
-
-void
-execlists_cancel_port_requests(struct intel_engine_execlists * const execlists);
-
-struct i915_request *
-execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists);
-
 static inline unsigned int
 execlists_num_ports(const struct intel_engine_execlists * const execlists)
 {
 	return execlists->port_mask + 1;
 }
 
-static inline struct execlist_port *
-execlists_port_complete(struct intel_engine_execlists * const execlists,
-			struct execlist_port * const port)
+static inline struct i915_request *
+execlists_active(const struct intel_engine_execlists *execlists)
 {
-	const unsigned int m = execlists->port_mask;
-
-	GEM_BUG_ON(port_index(port, execlists) != 0);
-	GEM_BUG_ON(!execlists_is_active(execlists, EXECLISTS_ACTIVE_USER));
-
-	memmove(port, port + 1, m * sizeof(struct execlist_port));
-	memset(port + m, 0, sizeof(struct execlist_port));
-
-	return port;
+	GEM_BUG_ON(execlists->active - execlists->inflight >
+		   execlists_num_ports(execlists));
+	return READ_ONCE(*execlists->active);
 }
+
+void
+execlists_cancel_port_requests(struct intel_engine_execlists * const execlists);
+
+struct i915_request *
+execlists_unwind_incomplete_requests(struct intel_engine_execlists *execlists);
 
 static inline u32
 intel_read_status_page(const struct intel_engine_cs *engine, int reg)

@@ -508,6 +508,10 @@ void intel_engine_init_execlists(struct intel_engine_cs *engine)
 	GEM_BUG_ON(!is_power_of_2(execlists_num_ports(execlists)));
 	GEM_BUG_ON(execlists_num_ports(execlists) > EXECLIST_MAX_PORTS);
 
+	memset(execlists->pending, 0, sizeof(execlists->pending));
+	execlists->active =
+		memset(execlists->inflight, 0, sizeof(execlists->inflight));
+
 	execlists->queue_priority_hint = INT_MIN;
 	execlists->queue = RB_ROOT_CACHED;
 }
@@ -1152,7 +1156,7 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		return true;
 
 	/* Waiting to drain ELSP? */
-	if (READ_ONCE(engine->execlists.active)) {
+	if (execlists_active(&engine->execlists)) {
 		struct tasklet_struct *t = &engine->execlists.tasklet;
 
 		synchronize_hardirq(engine->i915->drm.irq);
@@ -1169,7 +1173,7 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 		/* Otherwise flush the tasklet if it was on another cpu */
 		tasklet_unlock_wait(t);
 
-		if (READ_ONCE(engine->execlists.active))
+		if (execlists_active(&engine->execlists))
 			return false;
 	}
 
@@ -1367,6 +1371,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 	}
 
 	if (HAS_EXECLISTS(dev_priv)) {
+		struct i915_request * const *port, *rq;
 		const u32 *hws =
 			&engine->status_page.addr[I915_HWS_CSB_BUF0_INDEX];
 		const u8 num_entries = execlists->csb_size;
@@ -1399,27 +1404,33 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		}
 
 		spin_lock_irqsave(&engine->active.lock, flags);
-		for (idx = 0; idx < execlists_num_ports(execlists); idx++) {
-			struct i915_request *rq;
-			unsigned int count;
+		for (port = execlists->active; (rq = *port); port++) {
+			char hdr[80];
+			int len;
+
+			len = snprintf(hdr, sizeof(hdr),
+				       "\t\tActive[%d: ",
+				       (int)(port - execlists->active));
+			if (!i915_request_signaled(rq))
+				len += snprintf(hdr + len, sizeof(hdr) - len,
+						"ring:{start:%08x, hwsp:%08x, seqno:%08x}, ",
+						i915_ggtt_offset(rq->ring->vma),
+						rq->timeline->hwsp_offset,
+						hwsp_seqno(rq));
+			snprintf(hdr + len, sizeof(hdr) - len, "rq: ");
+			print_request(m, rq, hdr);
+		}
+		for (port = execlists->pending; (rq = *port); port++) {
 			char hdr[80];
 
-			rq = port_unpack(&execlists->port[idx], &count);
-			if (!rq) {
-				drm_printf(m, "\t\tELSP[%d] idle\n", idx);
-			} else if (!i915_request_signaled(rq)) {
-				snprintf(hdr, sizeof(hdr),
-					 "\t\tELSP[%d] count=%d, ring:{start:%08x, hwsp:%08x, seqno:%08x}, rq: ",
-					 idx, count,
-					 i915_ggtt_offset(rq->ring->vma),
-					 rq->timeline->hwsp_offset,
-					 hwsp_seqno(rq));
-				print_request(m, rq, hdr);
-			} else {
-				print_request(m, rq, "\t\tELSP[%d] rq: ");
-			}
+			snprintf(hdr, sizeof(hdr),
+				 "\t\tPending[%d] ring:{start:%08x, hwsp:%08x, seqno:%08x}, rq: ",
+				 (int)(port - execlists->pending),
+				 i915_ggtt_offset(rq->ring->vma),
+				 rq->timeline->hwsp_offset,
+				 hwsp_seqno(rq));
+			print_request(m, rq, hdr);
 		}
-		drm_printf(m, "\t\tHW active? 0x%x\n", execlists->active);
 		spin_unlock_irqrestore(&engine->active.lock, flags);
 	} else if (INTEL_GEN(dev_priv) > 6) {
 		drm_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
@@ -1583,15 +1594,19 @@ int intel_enable_engine_stats(struct intel_engine_cs *engine)
 	}
 
 	if (engine->stats.enabled++ == 0) {
-		const struct execlist_port *port = execlists->port;
-		unsigned int num_ports = execlists_num_ports(execlists);
+		struct i915_request * const *port;
+		struct i915_request *rq;
 
 		engine->stats.enabled_at = ktime_get();
 
 		/* XXX submission method oblivious? */
-		while (num_ports-- && port_isset(port)) {
+		for (port = execlists->active; (rq = *port); port++)
 			engine->stats.active++;
-			port++;
+
+		for (port = execlists->pending; (rq = *port); port++) {
+			/* Exclude any contexts already counted in active */
+			if (intel_context_inflight_count(rq->hw_context) == 1)
+				engine->stats.active++;
 		}
 
 		if (engine->stats.active)

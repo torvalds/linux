@@ -366,13 +366,15 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 
 		if (!wait_event_timeout(wait->wait,
 					i915_sw_fence_done(wait),
-					HZ / 2)) {
+					5 * HZ)) {
 			struct i915_request *rq = requests[count - 1];
 
-			pr_err("waiting for %d fences (last %llx:%lld) on %s timed out!\n",
-			       count,
+			pr_err("waiting for %d/%d fences (last %llx:%lld) on %s timed out!\n",
+			       atomic_read(&wait->pending), count,
 			       rq->fence.context, rq->fence.seqno,
 			       t->engine->name);
+			GEM_TRACE_DUMP();
+
 			i915_gem_set_wedged(t->engine->i915);
 			GEM_BUG_ON(!i915_request_completed(rq));
 			i915_sw_fence_wait(wait);

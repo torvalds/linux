@@ -13,6 +13,7 @@
 #include <linux/types.h>
 
 #include "i915_active_types.h"
+#include "i915_utils.h"
 #include "intel_engine_types.h"
 #include "intel_sseu.h"
 
@@ -38,6 +39,10 @@ struct intel_context {
 	struct i915_gem_context *gem_context;
 	struct intel_engine_cs *engine;
 	struct intel_engine_cs *inflight;
+#define intel_context_inflight(ce) ptr_mask_bits((ce)->inflight, 2)
+#define intel_context_inflight_count(ce)  ptr_unmask_bits((ce)->inflight, 2)
+#define intel_context_inflight_inc(ce) ptr_count_inc(&(ce)->inflight)
+#define intel_context_inflight_dec(ce) ptr_count_dec(&(ce)->inflight)
 
 	struct list_head signal_link;
 	struct list_head signals;

@@ -276,6 +276,12 @@ static bool i915_request_retire(struct i915_request *rq)
 
 	local_irq_disable();
 
+	/*
+	 * We only loosely track inflight requests across preemption,
+	 * and so we may find ourselves attempting to retire a _completed_
+	 * request that we have removed from the HW and put back on a run
+	 * queue.
+	 */
 	spin_lock(&rq->engine->active.lock);
 	list_del(&rq->sched.link);
 	spin_unlock(&rq->engine->active.lock);
