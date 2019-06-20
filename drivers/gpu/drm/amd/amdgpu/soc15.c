@@ -1034,6 +1034,8 @@ static int soc15_common_sw_init(void *handle)
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_add_irq_id(adev);
 
+	adev->df_funcs->sw_init(adev);
+
 	return 0;
 }
 
@@ -1080,6 +1082,7 @@ static int soc15_common_hw_init(void *handle)
 	 */
 	if (adev->nbio_funcs->remap_hdp_registers)
 		adev->nbio_funcs->remap_hdp_registers(adev);
+
 	/* enable the doorbell aperture */
 	soc15_enable_doorbell_aperture(adev, true);
 	/* HW doorbell routing policy: doorbell writing not
