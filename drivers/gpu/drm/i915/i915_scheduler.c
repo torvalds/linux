@@ -394,6 +394,7 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 		list_add(&dep->wait_link, &signal->waiters_list);
 		list_add(&dep->signal_link, &node->signalers_list);
 		dep->signaler = signal;
+		dep->waiter = node;
 		dep->flags = flags;
 
 		/* Keep track of whether anyone on this chain has a semaphore */
