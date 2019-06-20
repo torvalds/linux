@@ -31,7 +31,6 @@ static int live_nop_switch(void *arg)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context **ctx;
 	enum intel_engine_id id;
-	intel_wakeref_t wakeref;
 	struct igt_live_test t;
 	struct drm_file *file;
 	unsigned long n;
@@ -53,7 +52,6 @@ static int live_nop_switch(void *arg)
 		return PTR_ERR(file);
 
 	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	ctx = kcalloc(nctx, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
@@ -152,7 +150,6 @@ static int live_nop_switch(void *arg)
 	}
 
 out_unlock:
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
 	mock_file_free(i915, file);
 	return err;
@@ -507,7 +504,6 @@ static int igt_ctx_exec(void *arg)
 		dw = 0;
 		while (!time_after(jiffies, end_time)) {
 			struct i915_gem_context *ctx;
-			intel_wakeref_t wakeref;
 
 			ctx = live_context(i915, file);
 			if (IS_ERR(ctx)) {
@@ -523,8 +519,7 @@ static int igt_ctx_exec(void *arg)
 				}
 			}
 
-			with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-				err = gpu_fill(obj, ctx, engine, dw);
+			err = gpu_fill(obj, ctx, engine, dw);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
@@ -623,7 +618,6 @@ static int igt_shared_ctx_exec(void *arg)
 		ncontexts = 0;
 		while (!time_after(jiffies, end_time)) {
 			struct i915_gem_context *ctx;
-			intel_wakeref_t wakeref;
 
 			ctx = kernel_context(i915);
 			if (IS_ERR(ctx)) {
@@ -642,9 +636,7 @@ static int igt_shared_ctx_exec(void *arg)
 				}
 			}
 
-			err = 0;
-			with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-				err = gpu_fill(obj, ctx, engine, dw);
+			err = gpu_fill(obj, ctx, engine, dw);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
@@ -1030,7 +1022,6 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 	struct i915_gem_context *ctx;
 	struct intel_context *ce;
 	struct intel_sseu pg_sseu;
-	intel_wakeref_t wakeref;
 	struct drm_file *file;
 	int ret;
 
@@ -1078,12 +1069,10 @@ __igt_ctx_sseu(struct drm_i915_private *i915,
 		goto out_unlock;
 	}
 
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
 	ce = i915_gem_context_get_engine(ctx, RCS0);
 	if (IS_ERR(ce)) {
 		ret = PTR_ERR(ce);
-		goto out_rpm;
+		goto out_put;
 	}
 
 	ret = intel_context_pin(ce);
@@ -1117,8 +1106,7 @@ out_fail:
 	intel_context_unpin(ce);
 out_context:
 	intel_context_put(ce);
-out_rpm:
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+out_put:
 	i915_gem_object_put(obj);
 
 out_unlock:
@@ -1207,8 +1195,6 @@ static int igt_ctx_readonly(void *arg)
 		unsigned int id;
 
 		for_each_engine(engine, i915, id) {
-			intel_wakeref_t wakeref;
-
 			if (!intel_engine_can_store_dword(engine))
 				continue;
 
@@ -1223,9 +1209,7 @@ static int igt_ctx_readonly(void *arg)
 					i915_gem_object_set_readonly(obj);
 			}
 
-			err = 0;
-			with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-				err = gpu_fill(obj, ctx, engine, dw);
+			err = gpu_fill(obj, ctx, engine, dw);
 			if (err) {
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) in ctx %u [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
@@ -1488,7 +1472,6 @@ static int igt_vm_isolation(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct i915_gem_context *ctx_a, *ctx_b;
 	struct intel_engine_cs *engine;
-	intel_wakeref_t wakeref;
 	struct igt_live_test t;
 	struct drm_file *file;
 	I915_RND_STATE(prng);
@@ -1535,8 +1518,6 @@ static int igt_vm_isolation(void *arg)
 	GEM_BUG_ON(ctx_b->vm->total != vm_total);
 	vm_total -= I915_GTT_PAGE_SIZE;
 
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
 	count = 0;
 	for_each_engine(engine, i915, id) {
 		IGT_TIMEOUT(end_time);
@@ -1560,7 +1541,7 @@ static int igt_vm_isolation(void *arg)
 				err = read_from_scratch(ctx_b, engine,
 							offset, &value);
 			if (err)
-				goto out_rpm;
+				goto out_unlock;
 
 			if (value) {
 				pr_err("%s: Read %08x from scratch (offset 0x%08x_%08x), after %lu reads!\n",
@@ -1569,7 +1550,7 @@ static int igt_vm_isolation(void *arg)
 				       lower_32_bits(offset),
 				       this);
 				err = -EINVAL;
-				goto out_rpm;
+				goto out_unlock;
 			}
 
 			this++;
@@ -1579,8 +1560,6 @@ static int igt_vm_isolation(void *arg)
 	pr_info("Checked %lu scratch offsets across %d engines\n",
 		count, RUNTIME_INFO(i915)->num_engines);
 
-out_rpm:
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 out_unlock:
 	if (igt_live_test_end(&t))
 		err = -EIO;
