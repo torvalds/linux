@@ -714,8 +714,8 @@ u8 r8712_sitesurvey_cmd(struct _adapter *padapter,
 			struct ndis_802_11_ssid *pssid);
 int r8712_createbss_cmd(struct _adapter *padapter);
 u8 r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key);
-u8 r8712_joinbss_cmd(struct _adapter *padapter,
-		     struct wlan_network *pnetwork);
+int r8712_joinbss_cmd(struct _adapter *padapter,
+		      struct wlan_network *pnetwork);
 u8 r8712_disassoc_cmd(struct _adapter *padapter);
 u8 r8712_setopmode_cmd(struct _adapter *padapter,
 		 enum NDIS_802_11_NETWORK_INFRASTRUCTURE networktype);

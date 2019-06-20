@@ -172,7 +172,7 @@ void r8712_wpspbc_event_callback(struct _adapter *adapter, u8 *pbuf);
 void r8712_free_network_queue(struct _adapter *adapter);
 int r8712_init_mlme_priv(struct _adapter *adapter);
 void r8712_free_mlme_priv(struct mlme_priv *pmlmepriv);
-sint r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv);
+int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv);
 sint r8712_set_key(struct _adapter *adapter,
 		   struct security_priv *psecuritypriv, sint keyid);
 sint r8712_set_auth(struct _adapter *adapter,

@@ -434,7 +434,7 @@ int r8712_createbss_cmd(struct _adapter *padapter)
 	return 0;
 }
 
-u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
+int r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 {
 	struct wlan_bssid_ex *psecnetwork;
 	struct cmd_obj		*pcmd;
@@ -449,7 +449,7 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_START_TO_LINK);
 	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
 	if (!pcmd)
-		return _FAIL;
+		return -ENOMEM;
 
 	/* for hidden ap to set fw_state here */
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE | WIFI_ADHOC_STATE) !=
@@ -566,7 +566,7 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 	pcmd->rsp = NULL;
 	pcmd->rspsz = 0;
 	r8712_enqueue_cmd(pcmdpriv, pcmd);
-	return _SUCCESS;
+	return 0;
 }
 
 u8 r8712_disassoc_cmd(struct _adapter *padapter) /* for sta_mode */

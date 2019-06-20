@@ -66,7 +66,7 @@ static u8 do_join(struct _adapter *padapter)
 	}
 
 	ret = r8712_select_and_join_from_scan(pmlmepriv);
-	if (ret == _SUCCESS) {
+	if (!ret) {
 		mod_timer(&pmlmepriv->assoc_timer,
 			  jiffies + msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 	} else {

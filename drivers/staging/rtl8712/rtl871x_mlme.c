@@ -548,8 +548,7 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 			if (!check_fwstate(pmlmepriv, _FW_LINKED)) {
 				set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
 
-				if (r8712_select_and_join_from_scan(pmlmepriv)
-				    == _SUCCESS) {
+				if (!r8712_select_and_join_from_scan(pmlmepriv)) {
 					mod_timer(&pmlmepriv->assoc_timer, jiffies +
 						  msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 				} else {
@@ -574,8 +573,7 @@ void r8712_surveydone_event_callback(struct _adapter *adapter, u8 *pbuf)
 		} else {
 			pmlmepriv->to_join = false;
 			set_fwstate(pmlmepriv, _FW_UNDER_LINKING);
-			if (r8712_select_and_join_from_scan(pmlmepriv) ==
-			    _SUCCESS)
+			if (!r8712_select_and_join_from_scan(pmlmepriv))
 				mod_timer(&pmlmepriv->assoc_timer, jiffies +
 					  msecs_to_jiffies(MAX_JOIN_TIMEOUT));
 			else
@@ -1106,7 +1104,7 @@ int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 				pnetwork = pnetwork_max_rssi;
 				goto ask_for_joinbss;
 			}
-			return _FAIL;
+			return -EINVAL;
 		}
 		pnetwork = container_of(pmlmepriv->pscanned,
 					struct wlan_network, list);
