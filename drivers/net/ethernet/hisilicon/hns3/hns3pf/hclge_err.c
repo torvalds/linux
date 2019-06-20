@@ -1859,7 +1859,7 @@ static int hclge_handle_all_hw_msix_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "fail(%d) to query msix int status bd num\n",
 			ret);
-		return ret;
+		goto out;
 	}
 
 	mpf_bd_num = le32_to_cpu(desc_bd.data[0]);
@@ -1867,8 +1867,10 @@ static int hclge_handle_all_hw_msix_error(struct hclge_dev *hdev,
 	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
 
 	desc = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
-	if (!desc)
+	if (!desc) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	ret = hclge_handle_mpf_msix_error(hdev, desc, mpf_bd_num,
 					  reset_requests);
