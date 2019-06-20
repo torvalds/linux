@@ -193,16 +193,19 @@ sub parse_abi {
 #
 # Outputs the book on ReST format
 #
+
 sub output_rest {
-	foreach my $what (sort keys %data) {
+	foreach my $what (sort {
+				($data{$a}->{type} eq "File") cmp ($data{$b}->{type} eq "File") ||
+				$a cmp $b
+			       } keys %data) {
 		my $type = $data{$what}->{type};
 		my $file = $data{$what}->{file};
+		my $filepath = $data{$what}->{filepath};
 
 		my $w = $what;
 		$w =~ s/([\(\)\_\-\*\=\^\~\\])/\\$1/g;
 
-		my $bar = $w;
-		$bar =~ s/./-/g;
 
 		foreach my $p (@{$data{$what}->{label}}) {
 			my ($content, $label) = @{$p};
@@ -222,9 +225,37 @@ sub output_rest {
 			last;
 		}
 
-		print "$w\n$bar\n\n";
 
-		print "- defined on file $file (type: $type)\n\n" if ($type ne "File");
+		$filepath =~ s,.*/(.*/.*),\1,;;
+		$filepath =~ s,[/\-],_,g;;
+		my $fileref = "abi_file_".$filepath;
+
+		if ($type eq "File") {
+			my $bar = $w;
+			$bar =~ s/./-/g;
+
+			print ".. _$fileref:\n\n";
+			print "$w\n$bar\n\n";
+		} else {
+			my @names = split /\s*,\s*/,$w;
+
+			my $len = 0;
+
+			foreach my $name (@names) {
+				$len = length($name) if (length($name) > $len);
+			}
+
+			print "What:\n\n";
+
+			print "+-" . "-" x $len . "-+\n";
+			foreach my $name (@names) {
+				printf "| %s", $name . " " x ($len - length($name)) . " |\n";
+				print "+-" . "-" x $len . "-+\n";
+			}
+			print "\n";
+		}
+
+		print "Defined on file :ref:`$file <$fileref>`\n\n" if ($type ne "File");
 
 		my $desc = $data{$what}->{description};
 		$desc =~ s/^\s+//;
