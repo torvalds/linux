@@ -83,14 +83,16 @@ static int lima_clk_init(struct lima_device *dev)
 
 	dev->clk_bus = devm_clk_get(dev->dev, "bus");
 	if (IS_ERR(dev->clk_bus)) {
-		dev_err(dev->dev, "get bus clk failed %ld\n", PTR_ERR(dev->clk_bus));
-		return PTR_ERR(dev->clk_bus);
+		err = PTR_ERR(dev->clk_bus);
+		dev_err(dev->dev, "get bus clk failed %d\n", err);
+		return err;
 	}
 
 	dev->clk_gpu = devm_clk_get(dev->dev, "core");
 	if (IS_ERR(dev->clk_gpu)) {
-		dev_err(dev->dev, "get core clk failed %ld\n", PTR_ERR(dev->clk_gpu));
-		return PTR_ERR(dev->clk_gpu);
+		err = PTR_ERR(dev->clk_gpu);
+		dev_err(dev->dev, "get core clk failed %d\n", err);
+		return err;
 	}
 
 	err = clk_prepare_enable(dev->clk_bus);
