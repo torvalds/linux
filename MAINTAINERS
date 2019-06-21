@@ -6234,7 +6234,6 @@ F:	include/linux/ipmi-fru.h
 K:	fmc_d.*register
 
 FPGA MANAGER FRAMEWORK
-M:	Alan Tull <atull@kernel.org>
 M:	Moritz Fischer <mdf@kernel.org>
 L:	linux-fpga@vger.kernel.org
 S:	Maintained
@@ -14404,7 +14403,7 @@ F:	lib/test_siphash.c
 F:	include/linux/siphash.h
 
 SIOX
-M:	Gavin Schenk <g.schenk@eckelmann.de>
+M:	Thorsten Scherer <t.scherer@eckelmann.de>
 M:	Uwe Kleine-König <u.kleine-koenig@pengutronix.de>
 R:	Pengutronix Kernel Team <kernel@pengutronix.de>
 S:	Supported
