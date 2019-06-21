@@ -47,7 +47,7 @@
 #include "i915_request.h"
 #include "i915_scatterlist.h"
 #include "i915_selftest.h"
-#include "i915_timeline.h"
+#include "gt/intel_timeline.h"
 
 #define I915_GTT_PAGE_SIZE_4K	BIT_ULL(12)
 #define I915_GTT_PAGE_SIZE_64K	BIT_ULL(16)

@@ -10,12 +10,12 @@
 
 #include "i915_active.h"
 #include "i915_syncmap.h"
-#include "i915_timeline.h"
+#include "gt/intel_timeline.h"
 
 #define ptr_set_bit(ptr, bit) ((typeof(ptr))((unsigned long)(ptr) | BIT(bit)))
 #define ptr_test_bit(ptr, bit) ((unsigned long)(ptr) & BIT(bit))
 
-struct i915_timeline_hwsp {
+struct intel_timeline_hwsp {
 	struct intel_gt *gt;
 	struct i915_gt_timelines *gt_timelines;
 	struct list_head free_link;
@@ -23,9 +23,9 @@ struct i915_timeline_hwsp {
 	u64 free_bitmap;
 };
 
-struct i915_timeline_cacheline {
+struct intel_timeline_cacheline {
 	struct i915_active active;
-	struct i915_timeline_hwsp *hwsp;
+	struct intel_timeline_hwsp *hwsp;
 	void *vaddr;
 #define CACHELINE_BITS 6
 #define CACHELINE_FREE CACHELINE_BITS
@@ -51,10 +51,10 @@ static struct i915_vma *__hwsp_alloc(struct intel_gt *gt)
 }
 
 static struct i915_vma *
-hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
+hwsp_alloc(struct intel_timeline *timeline, unsigned int *cacheline)
 {
 	struct i915_gt_timelines *gt = &timeline->gt->timelines;
-	struct i915_timeline_hwsp *hwsp;
+	struct intel_timeline_hwsp *hwsp;
 
 	BUILD_BUG_ON(BITS_PER_TYPE(u64) * CACHELINE_BYTES > PAGE_SIZE);
 
@@ -100,7 +100,7 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 	return hwsp->vma;
 }
 
-static void __idle_hwsp_free(struct i915_timeline_hwsp *hwsp, int cacheline)
+static void __idle_hwsp_free(struct intel_timeline_hwsp *hwsp, int cacheline)
 {
 	struct i915_gt_timelines *gt = hwsp->gt_timelines;
 	unsigned long flags;
@@ -124,7 +124,7 @@ static void __idle_hwsp_free(struct i915_timeline_hwsp *hwsp, int cacheline)
 	spin_unlock_irqrestore(&gt->hwsp_lock, flags);
 }
 
-static void __idle_cacheline_free(struct i915_timeline_cacheline *cl)
+static void __idle_cacheline_free(struct intel_timeline_cacheline *cl)
 {
 	GEM_BUG_ON(!i915_active_is_idle(&cl->active));
 
@@ -138,7 +138,7 @@ static void __idle_cacheline_free(struct i915_timeline_cacheline *cl)
 
 static void __cacheline_retire(struct i915_active *active)
 {
-	struct i915_timeline_cacheline *cl =
+	struct intel_timeline_cacheline *cl =
 		container_of(active, typeof(*cl), active);
 
 	i915_vma_unpin(cl->hwsp->vma);
@@ -146,10 +146,10 @@ static void __cacheline_retire(struct i915_active *active)
 		__idle_cacheline_free(cl);
 }
 
-static struct i915_timeline_cacheline *
-cacheline_alloc(struct i915_timeline_hwsp *hwsp, unsigned int cacheline)
+static struct intel_timeline_cacheline *
+cacheline_alloc(struct intel_timeline_hwsp *hwsp, unsigned int cacheline)
 {
-	struct i915_timeline_cacheline *cl;
+	struct intel_timeline_cacheline *cl;
 	void *vaddr;
 
 	GEM_BUG_ON(cacheline >= BIT(CACHELINE_BITS));
@@ -173,19 +173,19 @@ cacheline_alloc(struct i915_timeline_hwsp *hwsp, unsigned int cacheline)
 	return cl;
 }
 
-static void cacheline_acquire(struct i915_timeline_cacheline *cl)
+static void cacheline_acquire(struct intel_timeline_cacheline *cl)
 {
 	if (cl && i915_active_acquire(&cl->active))
 		__i915_vma_pin(cl->hwsp->vma);
 }
 
-static void cacheline_release(struct i915_timeline_cacheline *cl)
+static void cacheline_release(struct intel_timeline_cacheline *cl)
 {
 	if (cl)
 		i915_active_release(&cl->active);
 }
 
-static void cacheline_free(struct i915_timeline_cacheline *cl)
+static void cacheline_free(struct intel_timeline_cacheline *cl)
 {
 	GEM_BUG_ON(ptr_test_bit(cl->vaddr, CACHELINE_FREE));
 	cl->vaddr = ptr_set_bit(cl->vaddr, CACHELINE_FREE);
@@ -194,9 +194,9 @@ static void cacheline_free(struct i915_timeline_cacheline *cl)
 		__idle_cacheline_free(cl);
 }
 
-int i915_timeline_init(struct i915_timeline *timeline,
-		       struct intel_gt *gt,
-		       struct i915_vma *hwsp)
+int intel_timeline_init(struct intel_timeline *timeline,
+			struct intel_gt *gt,
+			struct i915_vma *hwsp)
 {
 	void *vaddr;
 
@@ -216,7 +216,7 @@ int i915_timeline_init(struct i915_timeline *timeline,
 	timeline->hwsp_cacheline = NULL;
 
 	if (!hwsp) {
-		struct i915_timeline_cacheline *cl;
+		struct intel_timeline_cacheline *cl;
 		unsigned int cacheline;
 
 		hwsp = hwsp_alloc(timeline, &cacheline);
@@ -273,12 +273,12 @@ static void timelines_init(struct intel_gt *gt)
 	i915_gem_shrinker_taints_mutex(gt->i915, &timelines->mutex);
 }
 
-void i915_timelines_init(struct drm_i915_private *i915)
+void intel_timelines_init(struct drm_i915_private *i915)
 {
 	timelines_init(&i915->gt);
 }
 
-static void timeline_add_to_active(struct i915_timeline *tl)
+static void timeline_add_to_active(struct intel_timeline *tl)
 {
 	struct i915_gt_timelines *gt = &tl->gt->timelines;
 
@@ -287,7 +287,7 @@ static void timeline_add_to_active(struct i915_timeline *tl)
 	mutex_unlock(&gt->mutex);
 }
 
-static void timeline_remove_from_active(struct i915_timeline *tl)
+static void timeline_remove_from_active(struct intel_timeline *tl)
 {
 	struct i915_gt_timelines *gt = &tl->gt->timelines;
 
@@ -299,7 +299,7 @@ static void timeline_remove_from_active(struct i915_timeline *tl)
 static void timelines_park(struct intel_gt *gt)
 {
 	struct i915_gt_timelines *timelines = &gt->timelines;
-	struct i915_timeline *timeline;
+	struct intel_timeline *timeline;
 
 	mutex_lock(&timelines->mutex);
 	list_for_each_entry(timeline, &timelines->active_list, link) {
@@ -315,7 +315,7 @@ static void timelines_park(struct intel_gt *gt)
 }
 
 /**
- * i915_timelines_park - called when the driver idles
+ * intel_timelines_park - called when the driver idles
  * @i915: the drm_i915_private device
  *
  * When the driver is completely idle, we know that all of our sync points
@@ -324,12 +324,12 @@ static void timelines_park(struct intel_gt *gt)
  * the fence is signaled and therefore we will not even look them up in the
  * sync point map.
  */
-void i915_timelines_park(struct drm_i915_private *i915)
+void intel_timelines_park(struct drm_i915_private *i915)
 {
 	timelines_park(&i915->gt);
 }
 
-void i915_timeline_fini(struct i915_timeline *timeline)
+void intel_timeline_fini(struct intel_timeline *timeline)
 {
 	GEM_BUG_ON(timeline->pin_count);
 	GEM_BUG_ON(!list_empty(&timeline->requests));
@@ -344,17 +344,17 @@ void i915_timeline_fini(struct i915_timeline *timeline)
 	i915_vma_put(timeline->hwsp_ggtt);
 }
 
-struct i915_timeline *
-i915_timeline_create(struct intel_gt *gt, struct i915_vma *global_hwsp)
+struct intel_timeline *
+intel_timeline_create(struct intel_gt *gt, struct i915_vma *global_hwsp)
 {
-	struct i915_timeline *timeline;
+	struct intel_timeline *timeline;
 	int err;
 
 	timeline = kzalloc(sizeof(*timeline), GFP_KERNEL);
 	if (!timeline)
 		return ERR_PTR(-ENOMEM);
 
-	err = i915_timeline_init(timeline, gt, global_hwsp);
+	err = intel_timeline_init(timeline, gt, global_hwsp);
 	if (err) {
 		kfree(timeline);
 		return ERR_PTR(err);
@@ -365,7 +365,7 @@ i915_timeline_create(struct intel_gt *gt, struct i915_vma *global_hwsp)
 	return timeline;
 }
 
-int i915_timeline_pin(struct i915_timeline *tl)
+int intel_timeline_pin(struct intel_timeline *tl)
 {
 	int err;
 
@@ -391,7 +391,7 @@ unpin:
 	return err;
 }
 
-static u32 timeline_advance(struct i915_timeline *tl)
+static u32 timeline_advance(struct intel_timeline *tl)
 {
 	GEM_BUG_ON(!tl->pin_count);
 	GEM_BUG_ON(tl->seqno & tl->has_initial_breadcrumb);
@@ -399,17 +399,17 @@ static u32 timeline_advance(struct i915_timeline *tl)
 	return tl->seqno += 1 + tl->has_initial_breadcrumb;
 }
 
-static void timeline_rollback(struct i915_timeline *tl)
+static void timeline_rollback(struct intel_timeline *tl)
 {
 	tl->seqno -= 1 + tl->has_initial_breadcrumb;
 }
 
 static noinline int
-__i915_timeline_get_seqno(struct i915_timeline *tl,
-			  struct i915_request *rq,
-			  u32 *seqno)
+__intel_timeline_get_seqno(struct intel_timeline *tl,
+			   struct i915_request *rq,
+			   u32 *seqno)
 {
-	struct i915_timeline_cacheline *cl;
+	struct intel_timeline_cacheline *cl;
 	unsigned int cacheline;
 	struct i915_vma *vma;
 	void *vaddr;
@@ -495,31 +495,31 @@ err_rollback:
 	return err;
 }
 
-int i915_timeline_get_seqno(struct i915_timeline *tl,
-			    struct i915_request *rq,
-			    u32 *seqno)
+int intel_timeline_get_seqno(struct intel_timeline *tl,
+			     struct i915_request *rq,
+			     u32 *seqno)
 {
 	*seqno = timeline_advance(tl);
 
 	/* Replace the HWSP on wraparound for HW semaphores */
 	if (unlikely(!*seqno && tl->hwsp_cacheline))
-		return __i915_timeline_get_seqno(tl, rq, seqno);
+		return __intel_timeline_get_seqno(tl, rq, seqno);
 
 	return 0;
 }
 
-static int cacheline_ref(struct i915_timeline_cacheline *cl,
+static int cacheline_ref(struct intel_timeline_cacheline *cl,
 			 struct i915_request *rq)
 {
 	return i915_active_ref(&cl->active, rq->fence.context, rq);
 }
 
-int i915_timeline_read_hwsp(struct i915_request *from,
-			    struct i915_request *to,
-			    u32 *hwsp)
+int intel_timeline_read_hwsp(struct i915_request *from,
+			     struct i915_request *to,
+			     u32 *hwsp)
 {
-	struct i915_timeline_cacheline *cl = from->hwsp_cacheline;
-	struct i915_timeline *tl = from->timeline;
+	struct intel_timeline_cacheline *cl = from->hwsp_cacheline;
+	struct intel_timeline *tl = from->timeline;
 	int err;
 
 	GEM_BUG_ON(to->timeline == tl);
@@ -542,7 +542,7 @@ int i915_timeline_read_hwsp(struct i915_request *from,
 	return err;
 }
 
-void i915_timeline_unpin(struct i915_timeline *tl)
+void intel_timeline_unpin(struct intel_timeline *tl)
 {
 	GEM_BUG_ON(!tl->pin_count);
 	if (--tl->pin_count)
@@ -561,12 +561,12 @@ void i915_timeline_unpin(struct i915_timeline *tl)
 	__i915_vma_unpin(tl->hwsp_ggtt);
 }
 
-void __i915_timeline_free(struct kref *kref)
+void __intel_timeline_free(struct kref *kref)
 {
-	struct i915_timeline *timeline =
+	struct intel_timeline *timeline =
 		container_of(kref, typeof(*timeline), kref);
 
-	i915_timeline_fini(timeline);
+	intel_timeline_fini(timeline);
 	kfree(timeline);
 }
 
@@ -580,12 +580,12 @@ static void timelines_fini(struct intel_gt *gt)
 	mutex_destroy(&timelines->mutex);
 }
 
-void i915_timelines_fini(struct drm_i915_private *i915)
+void intel_timelines_fini(struct drm_i915_private *i915)
 {
 	timelines_fini(&i915->gt);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
-#include "selftests/mock_timeline.c"
-#include "selftests/i915_timeline.c"
+#include "gt/selftests/mock_timeline.c"
+#include "gt/selftest_timeline.c"
 #endif

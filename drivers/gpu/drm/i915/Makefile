@@ -82,6 +82,7 @@ gt-y += \
 	gt/intel_ringbuffer.o \
 	gt/intel_mocs.o \
 	gt/intel_sseu.o \
+	gt/intel_timeline.o \
 	gt/intel_workarounds.o
 gt-$(CONFIG_DRM_I915_SELFTEST) += \
 	gt/mock_engine.o
@@ -127,7 +128,6 @@ i915-y += \
 	  i915_query.o \
 	  i915_request.o \
 	  i915_scheduler.o \
-	  i915_timeline.o \
 	  i915_trace_points.o \
 	  i915_vma.o \
 	  intel_wopcm.o

@@ -8,14 +8,14 @@
 
 #include "gem/i915_gem_pm.h"
 
-#include "i915_random.h"
-#include "i915_selftest.h"
+#include "../selftests/i915_random.h"
+#include "../i915_selftest.h"
 
-#include "igt_flush_test.h"
-#include "mock_gem_device.h"
-#include "mock_timeline.h"
+#include "../selftests/igt_flush_test.h"
+#include "../selftests/mock_gem_device.h"
+#include "selftests/mock_timeline.h"
 
-static struct page *hwsp_page(struct i915_timeline *tl)
+static struct page *hwsp_page(struct intel_timeline *tl)
 {
 	struct drm_i915_gem_object *obj = tl->hwsp_ggtt->obj;
 
@@ -23,7 +23,7 @@ static struct page *hwsp_page(struct i915_timeline *tl)
 	return sg_page(obj->mm.pages->sgl);
 }
 
-static unsigned long hwsp_cacheline(struct i915_timeline *tl)
+static unsigned long hwsp_cacheline(struct intel_timeline *tl)
 {
 	unsigned long address = (unsigned long)page_address(hwsp_page(tl));
 
@@ -35,7 +35,7 @@ static unsigned long hwsp_cacheline(struct i915_timeline *tl)
 struct mock_hwsp_freelist {
 	struct drm_i915_private *i915;
 	struct radix_tree_root cachelines;
-	struct i915_timeline **history;
+	struct intel_timeline **history;
 	unsigned long count, max;
 	struct rnd_state prng;
 };
@@ -46,12 +46,12 @@ enum {
 
 static void __mock_hwsp_record(struct mock_hwsp_freelist *state,
 			       unsigned int idx,
-			       struct i915_timeline *tl)
+			       struct intel_timeline *tl)
 {
 	tl = xchg(&state->history[idx], tl);
 	if (tl) {
 		radix_tree_delete(&state->cachelines, hwsp_cacheline(tl));
-		i915_timeline_put(tl);
+		intel_timeline_put(tl);
 	}
 }
 
@@ -59,14 +59,14 @@ static int __mock_hwsp_timeline(struct mock_hwsp_freelist *state,
 				unsigned int count,
 				unsigned int flags)
 {
-	struct i915_timeline *tl;
+	struct intel_timeline *tl;
 	unsigned int idx;
 
 	while (count--) {
 		unsigned long cacheline;
 		int err;
 
-		tl = i915_timeline_create(&state->i915->gt, NULL);
+		tl = intel_timeline_create(&state->i915->gt, NULL);
 		if (IS_ERR(tl))
 			return PTR_ERR(tl);
 
@@ -77,7 +77,7 @@ static int __mock_hwsp_timeline(struct mock_hwsp_freelist *state,
 				pr_err("HWSP cacheline %lu already used; duplicate allocation!\n",
 				       cacheline);
 			}
-			i915_timeline_put(tl);
+			intel_timeline_put(tl);
 			return err;
 		}
 
@@ -162,21 +162,21 @@ struct __igt_sync {
 	bool set;
 };
 
-static int __igt_sync(struct i915_timeline *tl,
+static int __igt_sync(struct intel_timeline *tl,
 		      u64 ctx,
 		      const struct __igt_sync *p,
 		      const char *name)
 {
 	int ret;
 
-	if (__i915_timeline_sync_is_later(tl, ctx, p->seqno) != p->expected) {
+	if (__intel_timeline_sync_is_later(tl, ctx, p->seqno) != p->expected) {
 		pr_err("%s: %s(ctx=%llu, seqno=%u) expected passed %s but failed\n",
 		       name, p->name, ctx, p->seqno, yesno(p->expected));
 		return -EINVAL;
 	}
 
 	if (p->set) {
-		ret = __i915_timeline_sync_set(tl, ctx, p->seqno);
+		ret = __intel_timeline_sync_set(tl, ctx, p->seqno);
 		if (ret)
 			return ret;
 	}
@@ -204,7 +204,7 @@ static int igt_sync(void *arg)
 		{ "unwrap", UINT_MAX, true, false },
 		{},
 	}, *p;
-	struct i915_timeline tl;
+	struct intel_timeline tl;
 	int order, offset;
 	int ret = -ENODEV;
 
@@ -248,7 +248,7 @@ static unsigned int random_engine(struct rnd_state *rnd)
 static int bench_sync(void *arg)
 {
 	struct rnd_state prng;
-	struct i915_timeline tl;
+	struct intel_timeline tl;
 	unsigned long end_time, count;
 	u64 prng32_1M;
 	ktime_t kt;
@@ -286,7 +286,7 @@ static int bench_sync(void *arg)
 	do {
 		u64 id = i915_prandom_u64_state(&prng);
 
-		__i915_timeline_sync_set(&tl, id, 0);
+		__intel_timeline_sync_set(&tl, id, 0);
 		count++;
 	} while (!time_after(jiffies, end_time));
 	kt = ktime_sub(ktime_get(), kt);
@@ -301,7 +301,7 @@ static int bench_sync(void *arg)
 	while (end_time--) {
 		u64 id = i915_prandom_u64_state(&prng);
 
-		if (!__i915_timeline_sync_is_later(&tl, id, 0)) {
+		if (!__intel_timeline_sync_is_later(&tl, id, 0)) {
 			mock_timeline_fini(&tl);
 			pr_err("Lookup of %llu failed\n", id);
 			return -EINVAL;
@@ -322,7 +322,7 @@ static int bench_sync(void *arg)
 	kt = ktime_get();
 	end_time = jiffies + HZ/10;
 	do {
-		__i915_timeline_sync_set(&tl, count++, 0);
+		__intel_timeline_sync_set(&tl, count++, 0);
 	} while (!time_after(jiffies, end_time));
 	kt = ktime_sub(ktime_get(), kt);
 	pr_info("%s: %lu in-order insertions, %lluns/insert\n",
@@ -332,7 +332,7 @@ static int bench_sync(void *arg)
 	end_time = count;
 	kt = ktime_get();
 	while (end_time--) {
-		if (!__i915_timeline_sync_is_later(&tl, end_time, 0)) {
+		if (!__intel_timeline_sync_is_later(&tl, end_time, 0)) {
 			pr_err("Lookup of %lu failed\n", end_time);
 			mock_timeline_fini(&tl);
 			return -EINVAL;
@@ -356,8 +356,8 @@ static int bench_sync(void *arg)
 		u32 id = random_engine(&prng);
 		u32 seqno = prandom_u32_state(&prng);
 
-		if (!__i915_timeline_sync_is_later(&tl, id, seqno))
-			__i915_timeline_sync_set(&tl, id, seqno);
+		if (!__intel_timeline_sync_is_later(&tl, id, seqno))
+			__intel_timeline_sync_set(&tl, id, seqno);
 
 		count++;
 	} while (!time_after(jiffies, end_time));
@@ -385,8 +385,8 @@ static int bench_sync(void *arg)
 			 */
 			u64 id = (u64)(count & mask) << order;
 
-			__i915_timeline_sync_is_later(&tl, id, 0);
-			__i915_timeline_sync_set(&tl, id, 0);
+			__intel_timeline_sync_is_later(&tl, id, 0);
+			__intel_timeline_sync_set(&tl, id, 0);
 
 			count++;
 		} while (!time_after(jiffies, end_time));
@@ -401,7 +401,7 @@ static int bench_sync(void *arg)
 	return 0;
 }
 
-int i915_timeline_mock_selftests(void)
+int intel_timeline_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(mock_hwsp_freelist),
@@ -443,14 +443,14 @@ static int emit_ggtt_store_dw(struct i915_request *rq, u32 addr, u32 value)
 }
 
 static struct i915_request *
-tl_write(struct i915_timeline *tl, struct intel_engine_cs *engine, u32 value)
+tl_write(struct intel_timeline *tl, struct intel_engine_cs *engine, u32 value)
 {
 	struct i915_request *rq;
 	int err;
 
 	lockdep_assert_held(&tl->gt->i915->drm.struct_mutex); /* lazy rq refs */
 
-	err = i915_timeline_pin(tl);
+	err = intel_timeline_pin(tl);
 	if (err) {
 		rq = ERR_PTR(err);
 		goto out;
@@ -466,26 +466,26 @@ tl_write(struct i915_timeline *tl, struct intel_engine_cs *engine, u32 value)
 		rq = ERR_PTR(err);
 
 out_unpin:
-	i915_timeline_unpin(tl);
+	intel_timeline_unpin(tl);
 out:
 	if (IS_ERR(rq))
 		pr_err("Failed to write to timeline!\n");
 	return rq;
 }
 
-static struct i915_timeline *
-checked_i915_timeline_create(struct drm_i915_private *i915)
+static struct intel_timeline *
+checked_intel_timeline_create(struct drm_i915_private *i915)
 {
-	struct i915_timeline *tl;
+	struct intel_timeline *tl;
 
-	tl = i915_timeline_create(&i915->gt, NULL);
+	tl = intel_timeline_create(&i915->gt, NULL);
 	if (IS_ERR(tl))
 		return tl;
 
 	if (*tl->hwsp_seqno != tl->seqno) {
 		pr_err("Timeline created with incorrect breadcrumb, found %x, expected %x\n",
 		       *tl->hwsp_seqno, tl->seqno);
-		i915_timeline_put(tl);
+		intel_timeline_put(tl);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -496,7 +496,7 @@ static int live_hwsp_engine(void *arg)
 {
 #define NUM_TIMELINES 4096
 	struct drm_i915_private *i915 = arg;
-	struct i915_timeline **timelines;
+	struct intel_timeline **timelines;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	intel_wakeref_t wakeref;
@@ -523,10 +523,10 @@ static int live_hwsp_engine(void *arg)
 			continue;
 
 		for (n = 0; n < NUM_TIMELINES; n++) {
-			struct i915_timeline *tl;
+			struct intel_timeline *tl;
 			struct i915_request *rq;
 
-			tl = checked_i915_timeline_create(i915);
+			tl = checked_intel_timeline_create(i915);
 			if (IS_ERR(tl)) {
 				err = PTR_ERR(tl);
 				goto out;
@@ -534,7 +534,7 @@ static int live_hwsp_engine(void *arg)
 
 			rq = tl_write(tl, engine, count);
 			if (IS_ERR(rq)) {
-				i915_timeline_put(tl);
+				intel_timeline_put(tl);
 				err = PTR_ERR(rq);
 				goto out;
 			}
@@ -548,14 +548,14 @@ out:
 		err = -EIO;
 
 	for (n = 0; n < count; n++) {
-		struct i915_timeline *tl = timelines[n];
+		struct intel_timeline *tl = timelines[n];
 
 		if (!err && *tl->hwsp_seqno != n) {
 			pr_err("Invalid seqno stored in timeline %lu, found 0x%x\n",
 			       n, *tl->hwsp_seqno);
 			err = -EINVAL;
 		}
-		i915_timeline_put(tl);
+		intel_timeline_put(tl);
 	}
 
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
@@ -571,7 +571,7 @@ static int live_hwsp_alternate(void *arg)
 {
 #define NUM_TIMELINES 4096
 	struct drm_i915_private *i915 = arg;
-	struct i915_timeline **timelines;
+	struct intel_timeline **timelines;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	intel_wakeref_t wakeref;
@@ -596,13 +596,13 @@ static int live_hwsp_alternate(void *arg)
 	count = 0;
 	for (n = 0; n < NUM_TIMELINES; n++) {
 		for_each_engine(engine, i915, id) {
-			struct i915_timeline *tl;
+			struct intel_timeline *tl;
 			struct i915_request *rq;
 
 			if (!intel_engine_can_store_dword(engine))
 				continue;
 
-			tl = checked_i915_timeline_create(i915);
+			tl = checked_intel_timeline_create(i915);
 			if (IS_ERR(tl)) {
 				err = PTR_ERR(tl);
 				goto out;
@@ -610,7 +610,7 @@ static int live_hwsp_alternate(void *arg)
 
 			rq = tl_write(tl, engine, count);
 			if (IS_ERR(rq)) {
-				i915_timeline_put(tl);
+				intel_timeline_put(tl);
 				err = PTR_ERR(rq);
 				goto out;
 			}
@@ -624,14 +624,14 @@ out:
 		err = -EIO;
 
 	for (n = 0; n < count; n++) {
-		struct i915_timeline *tl = timelines[n];
+		struct intel_timeline *tl = timelines[n];
 
 		if (!err && *tl->hwsp_seqno != n) {
 			pr_err("Invalid seqno stored in timeline %lu, found 0x%x\n",
 			       n, *tl->hwsp_seqno);
 			err = -EINVAL;
 		}
-		i915_timeline_put(tl);
+		intel_timeline_put(tl);
 	}
 
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
@@ -647,7 +647,7 @@ static int live_hwsp_wrap(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
-	struct i915_timeline *tl;
+	struct intel_timeline *tl;
 	enum intel_engine_id id;
 	intel_wakeref_t wakeref;
 	int err = 0;
@@ -660,7 +660,7 @@ static int live_hwsp_wrap(void *arg)
 	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	tl = i915_timeline_create(&i915->gt, NULL);
+	tl = intel_timeline_create(&i915->gt, NULL);
 	if (IS_ERR(tl)) {
 		err = PTR_ERR(tl);
 		goto out_rpm;
@@ -668,7 +668,7 @@ static int live_hwsp_wrap(void *arg)
 	if (!tl->has_initial_breadcrumb || !tl->hwsp_cacheline)
 		goto out_free;
 
-	err = i915_timeline_pin(tl);
+	err = intel_timeline_pin(tl);
 	if (err)
 		goto out_free;
 
@@ -688,7 +688,7 @@ static int live_hwsp_wrap(void *arg)
 
 		tl->seqno = -4u;
 
-		err = i915_timeline_get_seqno(tl, rq, &seqno[0]);
+		err = intel_timeline_get_seqno(tl, rq, &seqno[0]);
 		if (err) {
 			i915_request_add(rq);
 			goto out;
@@ -703,7 +703,7 @@ static int live_hwsp_wrap(void *arg)
 		}
 		hwsp_seqno[0] = tl->hwsp_seqno;
 
-		err = i915_timeline_get_seqno(tl, rq, &seqno[1]);
+		err = intel_timeline_get_seqno(tl, rq, &seqno[1]);
 		if (err) {
 			i915_request_add(rq);
 			goto out;
@@ -745,9 +745,9 @@ out:
 	if (igt_flush_test(i915, I915_WAIT_LOCKED))
 		err = -EIO;
 
-	i915_timeline_unpin(tl);
+	intel_timeline_unpin(tl);
 out_free:
-	i915_timeline_put(tl);
+	intel_timeline_put(tl);
 out_rpm:
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 	mutex_unlock(&i915->drm.struct_mutex);
@@ -781,10 +781,10 @@ static int live_hwsp_recycle(void *arg)
 			continue;
 
 		do {
-			struct i915_timeline *tl;
+			struct intel_timeline *tl;
 			struct i915_request *rq;
 
-			tl = checked_i915_timeline_create(i915);
+			tl = checked_intel_timeline_create(i915);
 			if (IS_ERR(tl)) {
 				err = PTR_ERR(tl);
 				goto out;
@@ -792,14 +792,14 @@ static int live_hwsp_recycle(void *arg)
 
 			rq = tl_write(tl, engine, count);
 			if (IS_ERR(rq)) {
-				i915_timeline_put(tl);
+				intel_timeline_put(tl);
 				err = PTR_ERR(rq);
 				goto out;
 			}
 
 			if (i915_request_wait(rq, 0, HZ / 5) < 0) {
 				pr_err("Wait for timeline writes timed out!\n");
-				i915_timeline_put(tl);
+				intel_timeline_put(tl);
 				err = -EIO;
 				goto out;
 			}
@@ -810,13 +810,13 @@ static int live_hwsp_recycle(void *arg)
 				err = -EINVAL;
 			}
 
-			i915_timeline_put(tl);
+			intel_timeline_put(tl);
 			count++;
 
 			if (err)
 				goto out;
 
-			i915_timelines_park(i915); /* Encourage recycling! */
+			intel_timelines_park(i915); /* Encourage recycling! */
 		} while (!__igt_timeout(end_time, NULL));
 	}
 
@@ -829,7 +829,7 @@ out:
 	return err;
 }
 
-int i915_timeline_live_selftests(struct drm_i915_private *i915)
+int intel_timeline_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_hwsp_recycle),

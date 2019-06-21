@@ -316,7 +316,7 @@ static void i915_gem_context_free(struct i915_gem_context *ctx)
 	mutex_destroy(&ctx->engines_mutex);
 
 	if (ctx->timeline)
-		i915_timeline_put(ctx->timeline);
+		intel_timeline_put(ctx->timeline);
 
 	kfree(ctx->name);
 	put_pid(ctx->pid);
@@ -528,9 +528,9 @@ i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 	}
 
 	if (flags & I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE) {
-		struct i915_timeline *timeline;
+		struct intel_timeline *timeline;
 
-		timeline = i915_timeline_create(&dev_priv->gt, NULL);
+		timeline = intel_timeline_create(&dev_priv->gt, NULL);
 		if (IS_ERR(timeline)) {
 			context_close(ctx);
 			return ERR_CAST(timeline);
@@ -2015,8 +2015,8 @@ static int clone_timeline(struct i915_gem_context *dst,
 		GEM_BUG_ON(src->timeline == dst->timeline);
 
 		if (dst->timeline)
-			i915_timeline_put(dst->timeline);
-		dst->timeline = i915_timeline_get(src->timeline);
+			intel_timeline_put(dst->timeline);
+		dst->timeline = intel_timeline_get(src->timeline);
 	}
 
 	return 0;

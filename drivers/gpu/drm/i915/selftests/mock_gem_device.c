@@ -68,7 +68,7 @@ static void mock_device_release(struct drm_device *dev)
 	i915_gem_contexts_fini(i915);
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	i915_timelines_fini(i915);
+	intel_timelines_fini(i915);
 
 	drain_workqueue(i915->wq);
 	i915_gem_drain_freed_objects(i915);
@@ -199,7 +199,7 @@ struct drm_i915_private *mock_gem_device(void)
 
 	i915->gt.awake = true;
 
-	i915_timelines_init(i915);
+	intel_timelines_init(i915);
 
 	mutex_lock(&i915->drm.struct_mutex);
 
@@ -230,7 +230,7 @@ err_engine:
 	mock_engine_free(i915->engine[RCS0]);
 err_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
-	i915_timelines_fini(i915);
+	intel_timelines_fini(i915);
 	destroy_workqueue(i915->wq);
 err_drv:
 	drm_mode_config_cleanup(&i915->drm);

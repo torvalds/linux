@@ -16,10 +16,10 @@
 
 struct drm_i915_private;
 struct i915_vma;
-struct i915_timeline_cacheline;
+struct intel_timeline_cacheline;
 struct i915_syncmap;
 
-struct i915_timeline {
+struct intel_timeline {
 	u64 fence_context;
 	u32 seqno;
 
@@ -30,7 +30,7 @@ struct i915_timeline {
 	struct i915_vma *hwsp_ggtt;
 	u32 hwsp_offset;
 
-	struct i915_timeline_cacheline *hwsp_cacheline;
+	struct intel_timeline_cacheline *hwsp_cacheline;
 
 	bool has_initial_breadcrumb;
 

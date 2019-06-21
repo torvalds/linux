@@ -909,7 +909,7 @@ wait_for_timelines(struct drm_i915_private *i915,
 		   unsigned int flags, long timeout)
 {
 	struct i915_gt_timelines *gt = &i915->gt.timelines;
-	struct i915_timeline *tl;
+	struct intel_timeline *tl;
 
 	mutex_lock(&gt->mutex);
 	list_for_each_entry(tl, &gt->active_list, link) {
@@ -1487,7 +1487,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	dev_priv->mm.unordered_timeline = dma_fence_context_alloc(1);
 
-	i915_timelines_init(dev_priv);
+	intel_timelines_init(dev_priv);
 
 	ret = i915_gem_init_userptr(dev_priv);
 	if (ret)
@@ -1624,7 +1624,7 @@ err_uc_misc:
 
 	if (ret != -EIO) {
 		i915_gem_cleanup_userptr(dev_priv);
-		i915_timelines_fini(dev_priv);
+		intel_timelines_fini(dev_priv);
 	}
 
 	if (ret == -EIO) {
@@ -1688,7 +1688,7 @@ void i915_gem_fini(struct drm_i915_private *dev_priv)
 
 	intel_uc_fini_misc(dev_priv);
 	i915_gem_cleanup_userptr(dev_priv);
-	i915_timelines_fini(dev_priv);
+	intel_timelines_fini(dev_priv);
 
 	i915_gem_drain_freed_objects(dev_priv);
 

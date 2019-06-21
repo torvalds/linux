@@ -26,7 +26,7 @@ struct pid;
 struct drm_i915_private;
 struct drm_i915_file_private;
 struct i915_address_space;
-struct i915_timeline;
+struct intel_timeline;
 struct intel_ring;
 
 struct i915_gem_engines {
@@ -77,7 +77,7 @@ struct i915_gem_context {
 	struct i915_gem_engines __rcu *engines;
 	struct mutex engines_mutex; /* guards writes to engines */
 
-	struct i915_timeline *timeline;
+	struct intel_timeline *timeline;
 
 	/**
 	 * @vm: unique address space (GTT)

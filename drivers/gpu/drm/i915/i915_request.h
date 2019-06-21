@@ -41,8 +41,8 @@
 struct drm_file;
 struct drm_i915_gem_object;
 struct i915_request;
-struct i915_timeline;
-struct i915_timeline_cacheline;
+struct intel_timeline;
+struct intel_timeline_cacheline;
 
 struct i915_capture_list {
 	struct i915_capture_list *next;
@@ -113,7 +113,7 @@ struct i915_request {
 	struct intel_engine_cs *engine;
 	struct intel_context *hw_context;
 	struct intel_ring *ring;
-	struct i915_timeline *timeline;
+	struct intel_timeline *timeline;
 	struct list_head signal_link;
 
 	/*
@@ -176,7 +176,7 @@ struct i915_request {
 	 * inside the timeline's HWSP vma, but it is only valid while this
 	 * request has not completed and guarded by the timeline mutex.
 	 */
-	struct i915_timeline_cacheline *hwsp_cacheline;
+	struct intel_timeline_cacheline *hwsp_cacheline;
 
 	/** Position in the ring of the start of the request */
 	u32 head;

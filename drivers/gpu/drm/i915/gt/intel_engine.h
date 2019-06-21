@@ -14,7 +14,7 @@
 #include "i915_reg.h"
 #include "i915_request.h"
 #include "i915_selftest.h"
-#include "i915_timeline.h"
+#include "gt/intel_timeline.h"
 #include "intel_engine_types.h"
 #include "intel_gpu_commands.h"
 #include "intel_workarounds.h"
@@ -200,7 +200,7 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 
 struct intel_ring *
 intel_engine_create_ring(struct intel_engine_cs *engine,
-			 struct i915_timeline *timeline,
+			 struct intel_timeline *timeline,
 			 int size);
 int intel_ring_pin(struct intel_ring *ring);
 void intel_ring_reset(struct intel_ring *ring, u32 tail);

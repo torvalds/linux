@@ -607,7 +607,7 @@ out:
 struct i915_request *
 __i915_request_create(struct intel_context *ce, gfp_t gfp)
 {
-	struct i915_timeline *tl = ce->ring->timeline;
+	struct intel_timeline *tl = ce->ring->timeline;
 	struct i915_request *rq;
 	u32 seqno;
 	int ret;
@@ -656,7 +656,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 		}
 	}
 
-	ret = i915_timeline_get_seqno(tl, rq, &seqno);
+	ret = intel_timeline_get_seqno(tl, rq, &seqno);
 	if (ret)
 		goto err_free;
 
@@ -775,7 +775,7 @@ i915_request_await_start(struct i915_request *rq, struct i915_request *signal)
 		return 0;
 
 	signal = list_prev_entry(signal, ring_link);
-	if (i915_timeline_sync_is_later(rq->timeline, &signal->fence))
+	if (intel_timeline_sync_is_later(rq->timeline, &signal->fence))
 		return 0;
 
 	return i915_sw_fence_await_dma_fence(&rq->submit,
@@ -829,7 +829,7 @@ emit_semaphore_wait(struct i915_request *to,
 		return err;
 
 	/* We need to pin the signaler's HWSP until we are finished reading. */
-	err = i915_timeline_read_hwsp(from, to, &hwsp_offset);
+	err = intel_timeline_read_hwsp(from, to, &hwsp_offset);
 	if (err)
 		return err;
 
@@ -940,7 +940,7 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 
 		/* Squash repeated waits to the same timelines */
 		if (fence->context != rq->i915->mm.unordered_timeline &&
-		    i915_timeline_sync_is_later(rq->timeline, fence))
+		    intel_timeline_sync_is_later(rq->timeline, fence))
 			continue;
 
 		if (dma_fence_is_i915(fence))
@@ -954,7 +954,7 @@ i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
 
 		/* Record the latest fence used against each timeline */
 		if (fence->context != rq->i915->mm.unordered_timeline)
-			i915_timeline_sync_set(rq->timeline, fence);
+			intel_timeline_sync_set(rq->timeline, fence);
 	} while (--nchild);
 
 	return 0;
@@ -1092,7 +1092,7 @@ void i915_request_skip(struct i915_request *rq, int error)
 static struct i915_request *
 __i915_request_add_to_timeline(struct i915_request *rq)
 {
-	struct i915_timeline *timeline = rq->timeline;
+	struct intel_timeline *timeline = rq->timeline;
 	struct i915_request *prev;
 
 	/*

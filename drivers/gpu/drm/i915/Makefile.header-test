@@ -12,7 +12,6 @@ header_test := \
 	i915_priolist_types.h \
 	i915_reg.h \
 	i915_scheduler_types.h \
-	i915_timeline_types.h \
 	i915_utils.h \
 	intel_csr.h \
 	intel_drv.h \

@@ -851,7 +851,7 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 static bool __i915_gem_unset_wedged(struct drm_i915_private *i915)
 {
 	struct i915_gpu_error *error = &i915->gpu_error;
-	struct i915_timeline *tl;
+	struct intel_timeline *tl;
 
 	if (!test_bit(I915_WEDGED, &error->flags))
 		return true;

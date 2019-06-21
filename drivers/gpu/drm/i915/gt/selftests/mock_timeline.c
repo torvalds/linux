@@ -4,11 +4,11 @@
  * Copyright © 2017-2018 Intel Corporation
  */
 
-#include "../i915_timeline.h"
+#include "../intel_timeline.h"
 
 #include "mock_timeline.h"
 
-void mock_timeline_init(struct i915_timeline *timeline, u64 context)
+void mock_timeline_init(struct intel_timeline *timeline, u64 context)
 {
 	timeline->gt = NULL;
 	timeline->fence_context = context;
@@ -23,7 +23,7 @@ void mock_timeline_init(struct i915_timeline *timeline, u64 context)
 	INIT_LIST_HEAD(&timeline->link);
 }
 
-void mock_timeline_fini(struct i915_timeline *timeline)
+void mock_timeline_fini(struct intel_timeline *timeline)
 {
 	i915_syncmap_free(&timeline->sync);
 }
