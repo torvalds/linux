@@ -19,10 +19,13 @@
 #include <asm/msr.h>
 #include <asm/pvclock.h>
 #include <asm/mshyperv.h>
+#include <linux/compat_time.h>
 
 #define __vdso_data (VVAR(_vdso_data))
 
 #define VDSO_HAS_TIME 1
+
+#define VDSO_HAS_CLOCK_GETRES 1
 
 #ifdef CONFIG_PARAVIRT_CLOCK
 extern u8 pvclock_page[PAGE_SIZE]
@@ -60,6 +63,18 @@ long gettimeofday_fallback(struct __kernel_old_timeval *_tv,
 	return ret;
 }
 
+static __always_inline
+long clock_getres_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
+{
+	long ret;
+
+	asm ("syscall" : "=a" (ret), "=m" (*_ts) :
+	     "0" (__NR_clock_getres), "D" (_clkid), "S" (_ts) :
+	     "rcx", "r11");
+
+	return ret;
+}
+
 #else
 
 static __always_inline
@@ -93,6 +108,23 @@ long gettimeofday_fallback(struct __kernel_old_timeval *_tv,
 		: "=a" (ret)
 		: "0" (__NR_gettimeofday), "g" (_tv), "c" (_tz)
 		: "memory", "edx");
+
+	return ret;
+}
+
+static __always_inline long
+clock_getres_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
+{
+	long ret;
+
+	asm (
+		"mov %%ebx, %%edx \n"
+		"mov %[clock], %%ebx \n"
+		"call __kernel_vsyscall \n"
+		"mov %%edx, %%ebx \n"
+		: "=a" (ret), "=m" (*_ts)
+		: "0" (__NR_clock_getres), [clock] "g" (_clkid), "c" (_ts)
+		: "edx");
 
 	return ret;
 }
