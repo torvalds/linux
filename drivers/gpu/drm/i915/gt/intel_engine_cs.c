@@ -316,6 +316,7 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->id = id;
 	engine->mask = BIT(id);
 	engine->i915 = dev_priv;
+	engine->gt = &dev_priv->gt;
 	engine->uncore = &dev_priv->uncore;
 	__sprint_engine_name(engine->name, info);
 	engine->hw_id = engine->guc_id = info->hw_id;

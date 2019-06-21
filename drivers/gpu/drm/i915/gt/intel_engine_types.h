@@ -36,6 +36,7 @@ struct drm_i915_reg_table;
 struct i915_gem_context;
 struct i915_request;
 struct i915_sched_attr;
+struct intel_gt;
 struct intel_uncore;
 
 typedef u8 intel_engine_mask_t;
@@ -257,6 +258,7 @@ struct intel_engine_execlists {
 
 struct intel_engine_cs {
 	struct drm_i915_private *i915;
+	struct intel_gt *gt;
 	struct intel_uncore *uncore;
 	char name[INTEL_ENGINE_CS_MAX_NAME];
 
