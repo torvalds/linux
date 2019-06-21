@@ -1603,9 +1603,11 @@ unwind:
 	return -ENOMEM;
 }
 
-static void ppgtt_init(struct drm_i915_private *i915,
-		       struct i915_ppgtt *ppgtt)
+static void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt)
 {
+	struct drm_i915_private *i915 = gt->i915;
+
+	ppgtt->vm.gt = gt;
 	ppgtt->vm.i915 = i915;
 	ppgtt->vm.dma = &i915->drm.pdev->dev;
 	ppgtt->vm.total = BIT_ULL(INTEL_INFO(i915)->ppgtt_size);
@@ -1634,7 +1636,7 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	if (!ppgtt)
 		return ERR_PTR(-ENOMEM);
 
-	ppgtt_init(i915, ppgtt);
+	ppgtt_init(ppgtt, &i915->gt);
 
 	/*
 	 * From bdw, there is hw support for read-only pages in the PPGTT.
@@ -2141,7 +2143,7 @@ static struct i915_ppgtt *gen6_ppgtt_create(struct drm_i915_private *i915)
 	if (!ppgtt)
 		return ERR_PTR(-ENOMEM);
 
-	ppgtt_init(i915, &ppgtt->base);
+	ppgtt_init(&ppgtt->base, &i915->gt);
 
 	ppgtt->base.vm.allocate_va_range = gen6_alloc_va_range;
 	ppgtt->base.vm.clear_range = gen6_ppgtt_clear_range;
@@ -3452,10 +3454,12 @@ static int i915_gmch_probe(struct i915_ggtt *ggtt)
 	return 0;
 }
 
-static int ggtt_probe_hw(struct i915_ggtt *ggtt, struct drm_i915_private *i915)
+static int ggtt_probe_hw(struct i915_ggtt *ggtt, struct intel_gt *gt)
 {
+	struct drm_i915_private *i915 = gt->i915;
 	int ret;
 
+	ggtt->vm.gt = gt;
 	ggtt->vm.i915 = i915;
 	ggtt->vm.dma = &i915->drm.pdev->dev;
 
@@ -3501,7 +3505,7 @@ int i915_ggtt_probe_hw(struct drm_i915_private *i915)
 {
 	int ret;
 
-	ret = ggtt_probe_hw(&i915->ggtt, i915);
+	ret = ggtt_probe_hw(&i915->ggtt, &i915->gt);
 	if (ret)
 		return ret;
 

@@ -288,6 +288,7 @@ struct i915_address_space {
 	struct rcu_work rcu;
 
 	struct drm_mm mm;
+	struct intel_gt *gt;
 	struct drm_i915_private *i915;
 	struct device *dma;
 	/* Every address space belongs to a struct file - except for the global

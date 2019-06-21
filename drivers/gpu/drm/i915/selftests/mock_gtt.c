@@ -98,6 +98,7 @@ void mock_init_ggtt(struct drm_i915_private *i915, struct i915_ggtt *ggtt)
 {
 	memset(ggtt, 0, sizeof(*ggtt));
 
+	ggtt->vm.gt = &i915->gt;
 	ggtt->vm.i915 = i915;
 	ggtt->vm.is_ggtt = true;
 
