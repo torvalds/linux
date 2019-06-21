@@ -131,35 +131,29 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = h->i915;
 	struct i915_address_space *vm = h->ctx->vm ?: &engine->gt->ggtt->vm;
+	struct drm_i915_gem_object *obj;
 	struct i915_request *rq = NULL;
 	struct i915_vma *hws, *vma;
 	unsigned int flags;
+	void *vaddr;
 	u32 *batch;
 	int err;
 
-	h->gt = engine->gt;
+	obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
 
-	if (i915_gem_object_is_active(h->obj)) {
-		struct drm_i915_gem_object *obj;
-		void *vaddr;
-
-		obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
-		if (IS_ERR(obj))
-			return ERR_CAST(obj);
-
-		vaddr = i915_gem_object_pin_map(obj,
-						i915_coherent_map_type(i915));
-		if (IS_ERR(vaddr)) {
-			i915_gem_object_put(obj);
-			return ERR_CAST(vaddr);
-		}
-
-		i915_gem_object_unpin_map(h->obj);
-		i915_gem_object_put(h->obj);
-
-		h->obj = obj;
-		h->batch = vaddr;
+	vaddr = i915_gem_object_pin_map(obj, i915_coherent_map_type(i915));
+	if (IS_ERR(vaddr)) {
+		i915_gem_object_put(obj);
+		return ERR_CAST(vaddr);
 	}
+
+	i915_gem_object_unpin_map(h->obj);
+	i915_gem_object_put(h->obj);
+
+	h->obj = obj;
+	h->batch = vaddr;
 
 	vma = i915_vma_instance(h->obj, vm, NULL);
 	if (IS_ERR(vma))

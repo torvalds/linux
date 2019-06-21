@@ -159,12 +159,6 @@ i915_gem_object_needs_async_cancel(const struct drm_i915_gem_object *obj)
 }
 
 static inline bool
-i915_gem_object_is_active(const struct drm_i915_gem_object *obj)
-{
-	return READ_ONCE(obj->active_count);
-}
-
-static inline bool
 i915_gem_object_is_framebuffer(const struct drm_i915_gem_object *obj)
 {
 	return READ_ONCE(obj->framebuffer_references);

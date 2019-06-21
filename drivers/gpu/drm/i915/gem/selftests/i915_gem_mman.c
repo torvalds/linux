@@ -475,15 +475,6 @@ static int igt_mmap_offset_exhaustion(void *arg)
 			pr_err("[loop %d] Failed to busy the object\n", loop);
 			goto err_obj;
 		}
-
-		/* NB we rely on the _active_ reference to access obj now */
-		GEM_BUG_ON(!i915_gem_object_is_active(obj));
-		err = create_mmap_offset(obj);
-		if (err) {
-			pr_err("[loop %d] create_mmap_offset failed with err=%d\n",
-			       loop, err);
-			goto out;
-		}
 	}
 
 out:

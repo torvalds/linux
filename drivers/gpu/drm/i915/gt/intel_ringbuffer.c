@@ -1327,7 +1327,6 @@ void intel_ring_free(struct kref *ref)
 
 static void __ring_context_fini(struct intel_context *ce)
 {
-	GEM_BUG_ON(i915_gem_object_is_active(ce->state->obj));
 	i915_gem_object_put(ce->state->obj);
 }
 

@@ -78,43 +78,11 @@ static void vma_print_allocator(struct i915_vma *vma, const char *reason)
 
 #endif
 
-static void obj_bump_mru(struct drm_i915_gem_object *obj)
-{
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&i915->mm.obj_lock, flags);
-	list_move_tail(&obj->mm.link, &i915->mm.shrink_list);
-	spin_unlock_irqrestore(&i915->mm.obj_lock, flags);
-
-	obj->mm.dirty = true; /* be paranoid  */
-}
-
 static void __i915_vma_retire(struct i915_active *ref)
 {
 	struct i915_vma *vma = container_of(ref, typeof(*vma), active);
-	struct drm_i915_gem_object *obj = vma->obj;
 
-	GEM_BUG_ON(!i915_gem_object_is_active(obj));
-	if (--obj->active_count)
-		return;
-
-	/* Prune the shared fence arrays iff completely idle (inc. external) */
-	if (reservation_object_trylock(obj->base.resv)) {
-		if (reservation_object_test_signaled_rcu(obj->base.resv, true))
-			reservation_object_add_excl_fence(obj->base.resv, NULL);
-		reservation_object_unlock(obj->base.resv);
-	}
-
-	/*
-	 * Bump our place on the bound list to keep it roughly in LRU order
-	 * so that we don't steal from recently used but inactive objects
-	 * (unless we are forced to ofc!)
-	 */
-	if (i915_gem_object_is_shrinkable(obj))
-		obj_bump_mru(obj);
-
-	i915_gem_object_put(obj); /* and drop the active reference */
+	i915_vma_put(vma);
 }
 
 static struct i915_vma *
@@ -922,6 +890,7 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 			    unsigned int flags)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
+	int err;
 
 	assert_vma_held(vma);
 	assert_object_held(obj);
@@ -935,17 +904,13 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 	 * add the active reference first and queue for it to be dropped
 	 * *last*.
 	 */
-	if (!vma->active.count && !obj->active_count++)
-		i915_gem_object_get(obj); /* once more for the active ref */
+	if (i915_active_acquire(&vma->active))
+		i915_vma_get(vma);
 
-	if (unlikely(i915_active_ref(&vma->active, rq->fence.context, rq))) {
-		if (!vma->active.count && !--obj->active_count)
-			i915_gem_object_put(obj);
-		return -ENOMEM;
-	}
-
-	GEM_BUG_ON(!i915_vma_is_active(vma));
-	GEM_BUG_ON(!obj->active_count);
+	err = i915_active_ref(&vma->active, rq->fence.context, rq);
+	i915_active_release(&vma->active);
+	if (unlikely(err))
+		return err;
 
 	obj->write_domain = 0;
 	if (flags & EXEC_OBJECT_WRITE) {
@@ -957,11 +922,14 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 		obj->read_domains = 0;
 	}
 	obj->read_domains |= I915_GEM_GPU_DOMAINS;
+	obj->mm.dirty = true;
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
 		__i915_active_request_set(&vma->last_fence, rq);
 
 	export_fence(vma, rq, flags);
+
+	GEM_BUG_ON(!i915_vma_is_active(vma));
 	return 0;
 }
 

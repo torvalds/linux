@@ -1486,9 +1486,7 @@ static void execlists_submit_request(struct i915_request *request)
 static void __execlists_context_fini(struct intel_context *ce)
 {
 	intel_ring_put(ce->ring);
-
-	GEM_BUG_ON(i915_gem_object_is_active(ce->state->obj));
-	i915_gem_object_put(ce->state->obj);
+	i915_vma_put(ce->state);
 }
 
 static void execlists_context_destroy(struct kref *kref)

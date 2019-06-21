@@ -229,8 +229,9 @@ i915_gem_shrink(struct drm_i915_private *i915,
 				continue;
 
 			if (!(shrink & I915_SHRINK_ACTIVE) &&
-			    (i915_gem_object_is_active(obj) ||
-			     i915_gem_object_is_framebuffer(obj)))
+			    (i915_gem_object_is_framebuffer(obj) ||
+			     !reservation_object_test_signaled_rcu(obj->base.resv,
+								   true)))
 				continue;
 
 			if (!(shrink & I915_SHRINK_BOUND) &&
