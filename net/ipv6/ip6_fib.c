@@ -553,9 +553,10 @@ static int fib6_dump_table(struct fib6_table *table, struct sk_buff *skb,
 
 static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct rt6_rtnl_dump_arg arg = { .filter.dump_exceptions = true,
+					 .filter.dump_routes = true };
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
-	struct rt6_rtnl_dump_arg arg = {};
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct fib6_walker *w;
