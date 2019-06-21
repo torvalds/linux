@@ -785,6 +785,11 @@ static inline unsigned int uclamp_bucket_id(unsigned int clamp_value)
 	return clamp_value / UCLAMP_BUCKET_DELTA;
 }
 
+static inline unsigned int uclamp_bucket_base_value(unsigned int clamp_value)
+{
+	return UCLAMP_BUCKET_DELTA * uclamp_bucket_id(clamp_value);
+}
+
 static inline unsigned int uclamp_none(int clamp_id)
 {
 	if (clamp_id == UCLAMP_MIN)
@@ -822,6 +827,11 @@ unsigned int uclamp_rq_max_value(struct rq *rq, unsigned int clamp_id)
  * When a task is enqueued on a rq, the clamp bucket currently defined by the
  * task's uclamp::bucket_id is refcounted on that rq. This also immediately
  * updates the rq's clamp value if required.
+ *
+ * Tasks can have a task-specific value requested from user-space, track
+ * within each bucket the maximum value for tasks refcounted in it.
+ * This "local max aggregation" allows to track the exact "requested" value
+ * for each bucket when all its RUNNABLE tasks require the same clamp.
  */
 static inline void uclamp_rq_inc_id(struct rq *rq, struct task_struct *p,
 				    unsigned int clamp_id)
@@ -835,8 +845,15 @@ static inline void uclamp_rq_inc_id(struct rq *rq, struct task_struct *p,
 	bucket = &uc_rq->bucket[uc_se->bucket_id];
 	bucket->tasks++;
 
+	/*
+	 * Local max aggregation: rq buckets always track the max
+	 * "requested" clamp value of its RUNNABLE tasks.
+	 */
+	if (bucket->tasks == 1 || uc_se->value > bucket->value)
+		bucket->value = uc_se->value;
+
 	if (uc_se->value > READ_ONCE(uc_rq->value))
-		WRITE_ONCE(uc_rq->value, bucket->value);
+		WRITE_ONCE(uc_rq->value, uc_se->value);
 }
 
 /*
@@ -863,6 +880,12 @@ static inline void uclamp_rq_dec_id(struct rq *rq, struct task_struct *p,
 	if (likely(bucket->tasks))
 		bucket->tasks--;
 
+	/*
+	 * Keep "local max aggregation" simple and accept to (possibly)
+	 * overboost some RUNNABLE tasks in the same bucket.
+	 * The rq clamp bucket value is reset to its base value whenever
+	 * there are no more RUNNABLE tasks refcounting it.
+	 */
 	if (likely(bucket->tasks))
 		return;
 
@@ -903,24 +926,8 @@ static void __init init_uclamp(void)
 	unsigned int clamp_id;
 	int cpu;
 
-	for_each_possible_cpu(cpu) {
-		struct uclamp_bucket *bucket;
-		struct uclamp_rq *uc_rq;
-		unsigned int bucket_id;
-
+	for_each_possible_cpu(cpu)
 		memset(&cpu_rq(cpu)->uclamp, 0, sizeof(struct uclamp_rq));
-
-		for_each_clamp_id(clamp_id) {
-			uc_rq = &cpu_rq(cpu)->uclamp[clamp_id];
-
-			bucket_id = 1;
-			while (bucket_id < UCLAMP_BUCKETS) {
-				bucket = &uc_rq->bucket[bucket_id];
-				bucket->value = bucket_id * UCLAMP_BUCKET_DELTA;
-				++bucket_id;
-			}
-		}
-	}
 
 	for_each_clamp_id(clamp_id) {
 		uclamp_se_set(&init_task.uclamp[clamp_id],
