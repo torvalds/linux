@@ -63,6 +63,27 @@ static bool rk808_is_volatile_reg(struct device *dev, unsigned int reg)
 	return false;
 }
 
+static bool rk817_is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	/*
+	 * Notes:
+	 * - Technically the ROUND_30s bit makes RTC_CTRL_REG volatile, but
+	 *   we don't use that feature.  It's better to cache.
+	 */
+
+	switch (reg) {
+	case RK817_SECONDS_REG ... RK817_WEEKS_REG:
+	case RK817_RTC_STATUS_REG:
+	case RK817_INT_STS_REG0:
+	case RK817_INT_STS_REG1:
+	case RK817_INT_STS_REG2:
+	case RK817_SYS_STS:
+		return true;
+	}
+
+	return true;
+}
+
 static bool rk818_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	/*
@@ -178,6 +199,14 @@ static const struct regmap_config rk816_regmap_config = {
 	.volatile_reg = rk818_is_volatile_reg,
 };
 
+static const struct regmap_config rk817_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = RK817_GPIO_INT_CFG,
+	.cache_type = REGCACHE_NONE,
+	.volatile_reg = rk817_is_volatile_reg,
+};
+
 static struct resource rtc_resources[] = {
 	{
 		.start  = RK808_IRQ_RTC_ALARM,
@@ -192,6 +221,10 @@ static struct resource rk816_rtc_resources[] = {
 		.end    = RK816_IRQ_RTC_ALARM,
 		.flags  = IORESOURCE_IRQ,
 	}
+};
+
+static struct resource rk817_rtc_resources[] = {
+	DEFINE_RES_IRQ(RK817_IRQ_RTC_ALARM),
 };
 
 static struct resource rk805_key_resources[] = {
@@ -218,6 +251,11 @@ static struct resource rk816_pwrkey_resources[] = {
 		.end    = RK816_IRQ_PWRON_FALL,
 		.flags  = IORESOURCE_IRQ,
 	},
+};
+
+static struct resource rk817_pwrkey_resources[] = {
+	DEFINE_RES_IRQ(RK817_IRQ_PWRON_RISE),
+	DEFINE_RES_IRQ(RK817_IRQ_PWRON_FALL),
 };
 
 static const struct mfd_cell rk805s[] = {
@@ -259,6 +297,21 @@ static const struct mfd_cell rk816s[] = {
 		.name = "rk808-rtc",
 		.num_resources = ARRAY_SIZE(rk816_rtc_resources),
 		.resources = &rk816_rtc_resources[0],
+	},
+};
+
+static const struct mfd_cell rk817s[] = {
+	{ .name = "rk808-clkout",},
+	{ .name = "rk808-regulator",},
+	{
+		.name = "rk8xx-pwrkey",
+		.num_resources = ARRAY_SIZE(rk817_pwrkey_resources),
+		.resources = &rk817_pwrkey_resources[0],
+	},
+	{
+		.name = "rk808-rtc",
+		.num_resources = ARRAY_SIZE(rk817_rtc_resources),
+		.resources = &rk817_rtc_resources[0],
 	},
 };
 
@@ -332,6 +385,21 @@ static const struct rk808_reg_data rk816_pre_init_reg[] = {
 	/* set write mask bit 1, otherwise 'is_enabled()' get wrong status */
 	{ RK816_LDO_EN_REG1, REGS_WMSK, REGS_WMSK },
 	{ RK816_LDO_EN_REG2, REGS_WMSK, REGS_WMSK },
+};
+
+static const struct rk808_reg_data rk817_pre_init_reg[] = {
+	{RK817_RTC_CTRL_REG, RTC_STOP, RTC_STOP},
+	{RK817_GPIO_INT_CFG, RK817_INT_POL_MSK, RK817_INT_POL_H},
+	{RK817_SYS_CFG(1), RK817_HOTDIE_TEMP_MSK | RK817_TSD_TEMP_MSK,
+					   RK817_HOTDIE_105 | RK817_TSD_140},
+};
+
+static struct rk808_reg_data rk817_suspend_reg[] = {
+	{RK817_SYS_CFG(3), RK817_SLPPIN_FUNC_MSK, SLPPIN_SLP_FUN},
+};
+
+static struct rk808_reg_data rk817_resume_reg[] = {
+	{RK817_SYS_CFG(3), RK817_SLPPIN_FUNC_MSK, SLPPIN_NULL_FUN},
 };
 
 static const struct rk808_reg_data rk818_pre_init_reg[] = {
@@ -565,6 +633,33 @@ static const struct regmap_irq rk818_irqs[] = {
 	},
 };
 
+static const struct regmap_irq rk817_irqs[RK817_IRQ_END] = {
+	REGMAP_IRQ_REG_LINE(0, 8),
+	REGMAP_IRQ_REG_LINE(1, 8),
+	REGMAP_IRQ_REG_LINE(2, 8),
+	REGMAP_IRQ_REG_LINE(3, 8),
+	REGMAP_IRQ_REG_LINE(4, 8),
+	REGMAP_IRQ_REG_LINE(5, 8),
+	REGMAP_IRQ_REG_LINE(6, 8),
+	REGMAP_IRQ_REG_LINE(7, 8),
+	REGMAP_IRQ_REG_LINE(8, 8),
+	REGMAP_IRQ_REG_LINE(9, 8),
+	REGMAP_IRQ_REG_LINE(10, 8),
+	REGMAP_IRQ_REG_LINE(11, 8),
+	REGMAP_IRQ_REG_LINE(12, 8),
+	REGMAP_IRQ_REG_LINE(13, 8),
+	REGMAP_IRQ_REG_LINE(14, 8),
+	REGMAP_IRQ_REG_LINE(15, 8),
+	REGMAP_IRQ_REG_LINE(16, 8),
+	REGMAP_IRQ_REG_LINE(17, 8),
+	REGMAP_IRQ_REG_LINE(18, 8),
+	REGMAP_IRQ_REG_LINE(19, 8),
+	REGMAP_IRQ_REG_LINE(20, 8),
+	REGMAP_IRQ_REG_LINE(21, 8),
+	REGMAP_IRQ_REG_LINE(22, 8),
+	REGMAP_IRQ_REG_LINE(23, 8)
+};
+
 static struct regmap_irq_chip rk805_irq_chip = {
 	.name = "rk805",
 	.irqs = rk805_irqs,
@@ -640,6 +735,18 @@ static struct regmap_irq_chip rk816_battery_irq_chip = {
 	.status_base = RK816_INT_STS_REG3,
 	.mask_base = RK816_INT_STS_MSK_REG3,
 	.ack_base = RK816_INT_STS_REG3,
+	.init_ack_masked = true,
+};
+
+static struct regmap_irq_chip rk817_irq_chip = {
+	.name = "rk817",
+	.irqs = rk817_irqs,
+	.num_irqs = ARRAY_SIZE(rk817_irqs),
+	.num_regs = 3,
+	.irq_reg_stride = 2,
+	.status_base = RK817_INT_STS_REG0,
+	.mask_base = RK817_INT_STS_MSK_REG0,
+	.ack_base = RK817_INT_STS_REG0,
 	.init_ack_masked = true,
 };
 
@@ -794,7 +901,9 @@ static struct device_attribute rk8xx_attrs =
 static const struct of_device_id rk808_of_match[] = {
 	{ .compatible = "rockchip,rk805" },
 	{ .compatible = "rockchip,rk808" },
+	{ .compatible = "rockchip,rk809" },
 	{ .compatible = "rockchip,rk816" },
+	{ .compatible = "rockchip,rk817" },
 	{ .compatible = "rockchip,rk818" },
 	{ },
 };
@@ -813,6 +922,7 @@ static int rk808_probe(struct i2c_client *client,
 	int nr_pre_init_regs;
 	int nr_cells;
 	int pm_off = 0, msb, lsb;
+	unsigned char pmic_id_msb, pmic_id_lsb;
 	int ret;
 	int i;
 
@@ -820,15 +930,24 @@ static int rk808_probe(struct i2c_client *client,
 	if (!rk808)
 		return -ENOMEM;
 
+	if (of_device_is_compatible(np, "rockchip,rk817") ||
+	    of_device_is_compatible(np, "rockchip,rk809")) {
+		pmic_id_msb = RK817_ID_MSB;
+		pmic_id_lsb = RK817_ID_LSB;
+	} else {
+		pmic_id_msb = RK808_ID_MSB;
+		pmic_id_lsb = RK808_ID_LSB;
+	}
+
 	/* Read chip variant */
-	msb = i2c_smbus_read_byte_data(client, RK808_ID_MSB);
+	msb = i2c_smbus_read_byte_data(client, pmic_id_msb);
 	if (msb < 0) {
 		dev_err(&client->dev, "failed to read the chip id at 0x%x\n",
 			RK808_ID_MSB);
 		return msb;
 	}
 
-	lsb = i2c_smbus_read_byte_data(client, RK808_ID_LSB);
+	lsb = i2c_smbus_read_byte_data(client, pmic_id_lsb);
 	if (lsb < 0) {
 		dev_err(&client->dev, "failed to read the chip id at 0x%x\n",
 			RK808_ID_LSB);
@@ -887,6 +1006,20 @@ static int rk808_probe(struct i2c_client *client,
 		suspend_reg_num = ARRAY_SIZE(rk818_suspend_reg);
 		resume_reg = rk818_resume_reg;
 		resume_reg_num = ARRAY_SIZE(rk818_resume_reg);
+		break;
+	case RK809_ID:
+	case RK817_ID:
+		rk808->regmap_cfg = &rk817_regmap_config;
+		irq_chip = &rk817_irq_chip;
+		pre_init_reg = rk817_pre_init_reg;
+		nr_pre_init_regs = ARRAY_SIZE(rk817_pre_init_reg);
+		cells = rk817s;
+		nr_cells = ARRAY_SIZE(rk817s);
+		register_syscore_ops(&rk808_syscore_ops);
+		suspend_reg = rk817_suspend_reg;
+		suspend_reg_num = ARRAY_SIZE(rk817_suspend_reg);
+		resume_reg = rk817_resume_reg;
+		resume_reg_num = ARRAY_SIZE(rk817_resume_reg);
 		break;
 	default:
 		dev_err(&client->dev, "Unsupported RK8XX ID %lu\n",
@@ -987,46 +1120,6 @@ err_irq:
 	return ret;
 }
 
-static int rk808_suspend(struct device *dev)
-{
-	int i, ret;
-	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
-
-	for (i = 0; i < suspend_reg_num; i++) {
-		ret = regmap_update_bits(rk808->regmap,
-					 suspend_reg[i].addr,
-					 suspend_reg[i].mask,
-					 suspend_reg[i].value);
-		if (ret) {
-			dev_err(dev, "0x%x write err\n",
-				suspend_reg[i].addr);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-static int rk808_resume(struct device *dev)
-{
-	int i, ret;
-	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
-
-	for (i = 0; i < resume_reg_num; i++) {
-		ret = regmap_update_bits(rk808->regmap,
-					 resume_reg[i].addr,
-					 resume_reg[i].mask,
-					 resume_reg[i].value);
-		if (ret) {
-			dev_err(dev, "0x%x write err\n",
-				resume_reg[i].addr);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 static int rk808_remove(struct i2c_client *client)
 {
 	struct rk808 *rk808 = i2c_get_clientdata(client);
@@ -1044,16 +1137,51 @@ static int rk808_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct dev_pm_ops rk808_pm_ops = {
-	.suspend = rk808_suspend,
-	.resume =  rk808_resume,
-};
+static int rk8xx_suspend(struct device *dev)
+{
+	int i, ret = 0;
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+
+	for (i = 0; i < suspend_reg_num; i++) {
+		ret = regmap_update_bits(rk808->regmap,
+					 suspend_reg[i].addr,
+					 suspend_reg[i].mask,
+					 suspend_reg[i].value);
+		if (ret) {
+			dev_err(dev, "0x%x write err\n",
+				suspend_reg[i].addr);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+static int rk8xx_resume(struct device *dev)
+{
+	int i, ret = 0;
+	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
+
+	for (i = 0; i < resume_reg_num; i++) {
+		ret = regmap_update_bits(rk808->regmap,
+					 resume_reg[i].addr,
+					 resume_reg[i].mask,
+					 resume_reg[i].value);
+		if (ret) {
+			dev_err(dev, "0x%x write err\n",
+				resume_reg[i].addr);
+			return ret;
+		}
+	}
+	return ret;
+}
+SIMPLE_DEV_PM_OPS(rk8xx_pm_ops, rk8xx_suspend, rk8xx_resume);
 
 static struct i2c_driver rk808_i2c_driver = {
 	.driver = {
 		.name = "rk808",
 		.of_match_table = rk808_of_match,
-		.pm = &rk808_pm_ops,
+		.pm = &rk8xx_pm_ops,
 	},
 	.probe    = rk808_probe,
 	.remove   = rk808_remove,
