@@ -346,6 +346,8 @@ void dcn20_clk_mgr_construct(
 
 	clk_mgr->base.dprefclk_khz = 700000; // 700 MHz planned if VCO is 3.85 GHz, will be retrieved
 
+	clk_mgr->pp_smu = pp_smu;
+
 	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
 		dcn2_funcs.update_clocks = dcn2_update_clocks_fpga;
 		clk_mgr->dentist_vco_freq_khz = 3850000;
