@@ -100,6 +100,7 @@
 #include <linux/io.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/wait.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -1172,14 +1173,12 @@ static acpi_status check_acpi_smo88xx_device(acpi_handle obj_handle,
 	if (!hid)
 		return AE_OK;
 
-	for (i = 0; i < ARRAY_SIZE(acpi_smo8800_ids); ++i) {
-		if (strcmp(hid, acpi_smo8800_ids[i]) == 0) {
-			*((bool *)return_value) = true;
-			return AE_CTRL_TERMINATE;
-		}
-	}
+	i = match_string(acpi_smo8800_ids, ARRAY_SIZE(acpi_smo8800_ids), hid);
+	if (i < 0)
+		return AE_OK;
 
-	return AE_OK;
+	*((bool *)return_value) = true;
+	return AE_CTRL_TERMINATE;
 }
 
 static bool is_dell_system_with_lis3lv02d(void)
