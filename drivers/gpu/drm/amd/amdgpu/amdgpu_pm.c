@@ -2886,7 +2886,8 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		return ret;
 	}
 	/* APU does not have its own dedicated memory */
-	if (!(adev->flags & AMD_IS_APU)) {
+	if (!(adev->flags & AMD_IS_APU) &&
+	     (adev->asic_type != CHIP_VEGA10)) {
 		ret = device_create_file(adev->dev,
 				&dev_attr_mem_busy_percent);
 		if (ret) {
@@ -2966,7 +2967,8 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 		device_remove_file(adev->dev,
 				&dev_attr_pp_od_clk_voltage);
 	device_remove_file(adev->dev, &dev_attr_gpu_busy_percent);
-	if (!(adev->flags & AMD_IS_APU))
+	if (!(adev->flags & AMD_IS_APU) &&
+	     (adev->asic_type != CHIP_VEGA10))
 		device_remove_file(adev->dev, &dev_attr_mem_busy_percent);
 	if (!(adev->flags & AMD_IS_APU))
 		device_remove_file(adev->dev, &dev_attr_pcie_bw);
