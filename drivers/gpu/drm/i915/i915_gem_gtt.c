@@ -110,9 +110,9 @@
 static int
 i915_get_ggtt_vma_pages(struct i915_vma *vma);
 
-static void gen6_ggtt_invalidate(struct drm_i915_private *i915)
+static void gen6_ggtt_invalidate(struct i915_ggtt *ggtt)
 {
-	struct intel_uncore *uncore = &i915->uncore;
+	struct intel_uncore *uncore = &ggtt->vm.i915->uncore;
 
 	/*
 	 * Note that as an uncached mmio write, this will flush the
@@ -121,22 +121,17 @@ static void gen6_ggtt_invalidate(struct drm_i915_private *i915)
 	intel_uncore_write_fw(uncore, GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 }
 
-static void guc_ggtt_invalidate(struct drm_i915_private *i915)
+static void guc_ggtt_invalidate(struct i915_ggtt *ggtt)
 {
-	struct intel_uncore *uncore = &i915->uncore;
+	struct intel_uncore *uncore = &ggtt->vm.i915->uncore;
 
-	gen6_ggtt_invalidate(i915);
+	gen6_ggtt_invalidate(ggtt);
 	intel_uncore_write_fw(uncore, GEN8_GTCR, GEN8_GTCR_INVALIDATE);
 }
 
-static void gmch_ggtt_invalidate(struct drm_i915_private *i915)
+static void gmch_ggtt_invalidate(struct i915_ggtt *ggtt)
 {
 	intel_gtt_chipset_flush();
-}
-
-static inline void i915_ggtt_invalidate(struct drm_i915_private *i915)
-{
-	i915->ggtt.invalidate(i915);
 }
 
 static int ppgtt_bind_vma(struct i915_vma *vma,
@@ -1904,7 +1899,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 
 	if (flush) {
 		mark_tlbs_dirty(&ppgtt->base);
-		gen6_ggtt_invalidate(vm->i915);
+		gen6_ggtt_invalidate(&vm->i915->ggtt);
 	}
 
 	goto out;
@@ -2010,7 +2005,7 @@ static int pd_vma_bind(struct i915_vma *vma,
 		gen6_write_pde(ppgtt, pde, pt);
 
 	mark_tlbs_dirty(&ppgtt->base);
-	gen6_ggtt_invalidate(ppgtt->base.vm.i915);
+	gen6_ggtt_invalidate(ggtt);
 
 	return 0;
 }
@@ -2290,7 +2285,7 @@ void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
 
 	ggtt->vm.clear_range(&ggtt->vm, 0, ggtt->vm.total);
 
-	i915_ggtt_invalidate(dev_priv);
+	ggtt->invalidate(ggtt);
 }
 
 int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
@@ -2336,7 +2331,7 @@ static void gen8_ggtt_insert_page(struct i915_address_space *vm,
 
 	gen8_set_pte(pte, gen8_pte_encode(addr, level, 0));
 
-	ggtt->invalidate(vm->i915);
+	ggtt->invalidate(ggtt);
 }
 
 static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
@@ -2364,7 +2359,7 @@ static void gen8_ggtt_insert_entries(struct i915_address_space *vm,
 	 * We want to flush the TLBs only after we're certain all the PTE
 	 * updates have finished.
 	 */
-	ggtt->invalidate(vm->i915);
+	ggtt->invalidate(ggtt);
 }
 
 static void gen6_ggtt_insert_page(struct i915_address_space *vm,
@@ -2379,7 +2374,7 @@ static void gen6_ggtt_insert_page(struct i915_address_space *vm,
 
 	iowrite32(vm->pte_encode(addr, level, flags), pte);
 
-	ggtt->invalidate(vm->i915);
+	ggtt->invalidate(ggtt);
 }
 
 /*
@@ -2405,7 +2400,7 @@ static void gen6_ggtt_insert_entries(struct i915_address_space *vm,
 	 * We want to flush the TLBs only after we're certain all the PTE
 	 * updates have finished.
 	 */
-	ggtt->invalidate(vm->i915);
+	ggtt->invalidate(ggtt);
 }
 
 static void nop_clear_range(struct i915_address_space *vm,
@@ -3600,25 +3595,29 @@ int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv)
 
 void i915_ggtt_enable_guc(struct drm_i915_private *i915)
 {
-	GEM_BUG_ON(i915->ggtt.invalidate != gen6_ggtt_invalidate);
+	struct i915_ggtt *ggtt = &i915->ggtt;
 
-	i915->ggtt.invalidate = guc_ggtt_invalidate;
+	GEM_BUG_ON(ggtt->invalidate != gen6_ggtt_invalidate);
 
-	i915_ggtt_invalidate(i915);
+	ggtt->invalidate = guc_ggtt_invalidate;
+
+	ggtt->invalidate(ggtt);
 }
 
 void i915_ggtt_disable_guc(struct drm_i915_private *i915)
 {
+	struct i915_ggtt *ggtt = &i915->ggtt;
+
 	/* XXX Temporary pardon for error unload */
-	if (i915->ggtt.invalidate == gen6_ggtt_invalidate)
+	if (ggtt->invalidate == gen6_ggtt_invalidate)
 		return;
 
 	/* We should only be called after i915_ggtt_enable_guc() */
-	GEM_BUG_ON(i915->ggtt.invalidate != guc_ggtt_invalidate);
+	GEM_BUG_ON(ggtt->invalidate != guc_ggtt_invalidate);
 
-	i915->ggtt.invalidate = gen6_ggtt_invalidate;
+	ggtt->invalidate = gen6_ggtt_invalidate;
 
-	i915_ggtt_invalidate(i915);
+	ggtt->invalidate(ggtt);
 }
 
 void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
@@ -3660,7 +3659,7 @@ lock:
 	}
 
 	ggtt->vm.closed = false;
-	i915_ggtt_invalidate(dev_priv);
+	ggtt->invalidate(ggtt);
 
 	mutex_unlock(&ggtt->vm.mutex);
 

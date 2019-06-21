@@ -392,7 +392,7 @@ struct i915_ggtt {
 
 	/** "Graphics Stolen Memory" holds the global PTEs */
 	void __iomem *gsm;
-	void (*invalidate)(struct drm_i915_private *dev_priv);
+	void (*invalidate)(struct i915_ggtt *ggtt);
 
 	bool do_idle_maps;
 
