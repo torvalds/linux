@@ -2415,8 +2415,9 @@ static struct rt6_info *ip6_pol_route_output(struct net *net,
 	return ip6_pol_route(net, table, fl6->flowi6_oif, fl6, skb, flags);
 }
 
-struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
-					 struct flowi6 *fl6, int flags)
+struct dst_entry *ip6_route_output_flags_noref(struct net *net,
+					       const struct sock *sk,
+					       struct flowi6 *fl6, int flags)
 {
 	bool any_src;
 
@@ -2424,6 +2425,7 @@ struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
 	    (IPV6_ADDR_MULTICAST | IPV6_ADDR_LINKLOCAL)) {
 		struct dst_entry *dst;
 
+		/* This function does not take refcnt on the dst */
 		dst = l3mdev_link_scope_lookup(net, fl6);
 		if (dst)
 			return dst;
@@ -2431,6 +2433,7 @@ struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
 
 	fl6->flowi6_iif = LOOPBACK_IFINDEX;
 
+	flags |= RT6_LOOKUP_F_DST_NOREF;
 	any_src = ipv6_addr_any(&fl6->saddr);
 	if ((sk && sk->sk_bound_dev_if) || rt6_need_strict(&fl6->daddr) ||
 	    (fl6->flowi6_oif && any_src))
@@ -2442,6 +2445,28 @@ struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
 		flags |= rt6_srcprefs2flags(inet6_sk(sk)->srcprefs);
 
 	return fib6_rule_lookup(net, fl6, NULL, flags, ip6_pol_route_output);
+}
+EXPORT_SYMBOL_GPL(ip6_route_output_flags_noref);
+
+struct dst_entry *ip6_route_output_flags(struct net *net,
+					 const struct sock *sk,
+					 struct flowi6 *fl6,
+					 int flags)
+{
+        struct dst_entry *dst;
+        struct rt6_info *rt6;
+
+        rcu_read_lock();
+        dst = ip6_route_output_flags_noref(net, sk, fl6, flags);
+        rt6 = (struct rt6_info *)dst;
+        /* For dst cached in uncached_list, refcnt is already taken. */
+        if (list_empty(&rt6->rt6i_uncached) && !dst_hold_safe(dst)) {
+                dst = &net->ipv6.ip6_null_entry->dst;
+                dst_hold(dst);
+        }
+        rcu_read_unlock();
+
+        return dst;
 }
 EXPORT_SYMBOL_GPL(ip6_route_output_flags);
 
