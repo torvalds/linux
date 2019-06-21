@@ -1410,7 +1410,6 @@ static void gem_record_rings(struct i915_gpu_state *error)
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = i915->engine[i];
 		struct drm_i915_error_engine *ee = &error->engine[i];
-		struct i915_ggtt *ggtt = engine->gt->ggtt;
 		struct i915_request *request;
 
 		ee->engine_id = -1;
@@ -1428,7 +1427,7 @@ static void gem_record_rings(struct i915_gpu_state *error)
 			struct i915_gem_context *ctx = request->gem_context;
 			struct intel_ring *ring;
 
-			ee->vm = ctx->vm ?: &ggtt->vm;
+			ee->vm = ctx->vm ?: &engine->gt->ggtt->vm;
 
 			record_context(&ee->context, ctx);
 
