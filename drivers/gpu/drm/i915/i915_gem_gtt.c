@@ -2811,7 +2811,7 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	ggtt->pin_bias = max_t(u32, I915_GTT_PAGE_SIZE,
 			       intel_wopcm_guc_size(&dev_priv->wopcm));
 
-	ret = intel_vgt_balloon(dev_priv);
+	ret = intel_vgt_balloon(ggtt);
 	if (ret)
 		return ret;
 
@@ -2882,7 +2882,7 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	ggtt_release_guc_top(ggtt);
 
 	if (drm_mm_initialized(&ggtt->vm.mm)) {
-		intel_vgt_deballoon(dev_priv);
+		intel_vgt_deballoon(ggtt);
 		i915_address_space_fini(&ggtt->vm);
 	}
 

@@ -136,17 +136,17 @@ static void vgt_deballoon_space(struct i915_ggtt *ggtt,
  * This function is called to deallocate the ballooned-out graphic memory, when
  * driver is unloaded or when ballooning fails.
  */
-void intel_vgt_deballoon(struct drm_i915_private *dev_priv)
+void intel_vgt_deballoon(struct i915_ggtt *ggtt)
 {
 	int i;
 
-	if (!intel_vgpu_active(dev_priv))
+	if (!intel_vgpu_active(ggtt->vm.i915))
 		return;
 
 	DRM_DEBUG("VGT deballoon.\n");
 
 	for (i = 0; i < 4; i++)
-		vgt_deballoon_space(&dev_priv->ggtt, &bl_info.space[i]);
+		vgt_deballoon_space(ggtt, &bl_info.space[i]);
 }
 
 static int vgt_balloon_space(struct i915_ggtt *ggtt,
@@ -214,22 +214,26 @@ static int vgt_balloon_space(struct i915_ggtt *ggtt,
  * Returns:
  * zero on success, non-zero if configuration invalid or ballooning failed
  */
-int intel_vgt_balloon(struct drm_i915_private *dev_priv)
+int intel_vgt_balloon(struct i915_ggtt *ggtt)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct intel_uncore *uncore = &ggtt->vm.i915->uncore;
 	unsigned long ggtt_end = ggtt->vm.total;
 
 	unsigned long mappable_base, mappable_size, mappable_end;
 	unsigned long unmappable_base, unmappable_size, unmappable_end;
 	int ret;
 
-	if (!intel_vgpu_active(dev_priv))
+	if (!intel_vgpu_active(ggtt->vm.i915))
 		return 0;
 
-	mappable_base = I915_READ(vgtif_reg(avail_rs.mappable_gmadr.base));
-	mappable_size = I915_READ(vgtif_reg(avail_rs.mappable_gmadr.size));
-	unmappable_base = I915_READ(vgtif_reg(avail_rs.nonmappable_gmadr.base));
-	unmappable_size = I915_READ(vgtif_reg(avail_rs.nonmappable_gmadr.size));
+	mappable_base =
+	  intel_uncore_read(uncore, vgtif_reg(avail_rs.mappable_gmadr.base));
+	mappable_size =
+	  intel_uncore_read(uncore, vgtif_reg(avail_rs.mappable_gmadr.size));
+	unmappable_base =
+	  intel_uncore_read(uncore, vgtif_reg(avail_rs.nonmappable_gmadr.base));
+	unmappable_size =
+	  intel_uncore_read(uncore, vgtif_reg(avail_rs.nonmappable_gmadr.size));
 
 	mappable_end = mappable_base + mappable_size;
 	unmappable_end = unmappable_base + unmappable_size;
