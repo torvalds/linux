@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 #include "intel_context.h"
+#include "intel_gt.h"
 #include "intel_workarounds.h"
 
 /**
@@ -984,9 +985,9 @@ wa_list_apply(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 	spin_unlock_irqrestore(&uncore->lock, flags);
 }
 
-void intel_gt_apply_workarounds(struct drm_i915_private *i915)
+void intel_gt_apply_workarounds(struct intel_gt *gt)
 {
-	wa_list_apply(&i915->uncore, &i915->gt_wa_list);
+	wa_list_apply(gt->uncore, &gt->i915->gt_wa_list);
 }
 
 static bool wa_list_verify(struct intel_uncore *uncore,
@@ -1005,10 +1006,9 @@ static bool wa_list_verify(struct intel_uncore *uncore,
 	return ok;
 }
 
-bool intel_gt_verify_workarounds(struct drm_i915_private *i915,
-				 const char *from)
+bool intel_gt_verify_workarounds(struct intel_gt *gt, const char *from)
 {
-	return wa_list_verify(&i915->uncore, &i915->gt_wa_list, from);
+	return wa_list_verify(gt->uncore, &gt->i915->gt_wa_list, from);
 }
 
 static void

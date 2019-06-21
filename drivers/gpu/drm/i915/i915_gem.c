@@ -1248,9 +1248,9 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 			   LOWER_SLICE_ENABLED : LOWER_SLICE_DISABLED);
 
 	/* Apply the GT workarounds... */
-	intel_gt_apply_workarounds(dev_priv);
+	intel_gt_apply_workarounds(&dev_priv->gt);
 	/* ...and determine whether they are sticking. */
-	intel_gt_verify_workarounds(dev_priv, "init");
+	intel_gt_verify_workarounds(&dev_priv->gt, "init");
 
 	intel_gt_init_swizzling(&dev_priv->gt);
 
