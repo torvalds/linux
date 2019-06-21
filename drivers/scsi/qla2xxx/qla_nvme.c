@@ -239,8 +239,16 @@ static int qla_nvme_ls_req(struct nvme_fc_local_port *lport,
 	struct qla_hw_data *ha;
 	srb_t           *sp;
 
+
+	if (!fcport || (fcport && fcport->deleted))
+		return rval;
+
 	vha = fcport->vha;
 	ha = vha->hw;
+
+	if (!ha->flags.fw_started)
+		return rval;
+
 	/* Alloc SRB structure */
 	sp = qla2x00_get_sp(vha, fcport, GFP_ATOMIC);
 	if (!sp)
@@ -272,6 +280,7 @@ static int qla_nvme_ls_req(struct nvme_fc_local_port *lport,
 		    "qla2x00_start_sp failed = %d\n", rval);
 		atomic_dec(&sp->ref_count);
 		wake_up(&sp->nvme_ls_waitq);
+		sp->free(sp);
 		return rval;
 	}
 
@@ -486,11 +495,11 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 
 	fcport = qla_rport->fcport;
 
-	vha = fcport->vha;
-
-	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags))
+	if (!qpair || !fcport || (qpair && !qpair->fw_started) ||
+	    (fcport && fcport->deleted))
 		return rval;
 
+	vha = fcport->vha;
 	/*
 	 * If we know the dev is going away while the transport is still sending
 	 * IO's return busy back to stall the IO Q.  This happens when the
@@ -523,6 +532,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 		    "qla2x00_start_nvme_mq failed = %d\n", rval);
 		atomic_dec(&sp->ref_count);
 		wake_up(&sp->nvme_ls_waitq);
+		sp->free(sp);
 	}
 
 	return rval;
@@ -549,14 +559,13 @@ static void qla_nvme_remoteport_delete(struct nvme_fc_remote_port *rport)
 
 	complete(&fcport->nvme_del_done);
 
-	if (!test_bit(UNLOADING, &fcport->vha->dpc_flags)) {
-		INIT_WORK(&fcport->free_work, qlt_free_session_done);
-		schedule_work(&fcport->free_work);
-	}
+	INIT_WORK(&fcport->free_work, qlt_free_session_done);
+	schedule_work(&fcport->free_work);
 
 	fcport->nvme_flag &= ~NVME_FLAG_DELETING;
 	ql_log(ql_log_info, fcport->vha, 0x2110,
-	    "remoteport_delete of %p completed.\n", fcport);
+	    "remoteport_delete of %p %8phN completed.\n",
+	    fcport, fcport->port_name);
 }
 
 static struct nvme_fc_port_template qla_nvme_fc_transport = {
@@ -588,7 +597,8 @@ static void qla_nvme_unregister_remote_port(struct work_struct *work)
 		return;
 
 	ql_log(ql_log_warn, NULL, 0x2112,
-	    "%s: unregister remoteport on %p\n",__func__, fcport);
+	    "%s: unregister remoteport on %p %8phN\n",
+	    __func__, fcport, fcport->port_name);
 
 	nvme_fc_set_remoteport_devloss(fcport->nvme_remote_port, 0);
 	init_completion(&fcport->nvme_del_done);
