@@ -549,7 +549,7 @@ int free_io_failure(struct extent_io_tree *failure_tree,
 		    struct extent_io_tree *io_tree,
 		    struct io_failure_record *rec);
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-bool find_lock_delalloc_range(struct inode *inode, struct extent_io_tree *tree,
+bool find_lock_delalloc_range(struct inode *inode,
 			     struct page *locked_page, u64 *start,
 			     u64 *end);
 #endif

@@ -10,6 +10,7 @@
 #include "btrfs-tests.h"
 #include "../ctree.h"
 #include "../extent_io.h"
+#include "../btrfs_inode.h"
 
 #define PROCESS_UNLOCK		(1 << 0)
 #define PROCESS_RELEASE		(1 << 1)
@@ -58,7 +59,7 @@ static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
 static int test_find_delalloc(u32 sectorsize)
 {
 	struct inode *inode;
-	struct extent_io_tree tmp;
+	struct extent_io_tree *tmp;
 	struct page *page;
 	struct page *locked_page = NULL;
 	unsigned long index = 0;
@@ -76,12 +77,13 @@ static int test_find_delalloc(u32 sectorsize)
 		test_std_err(TEST_ALLOC_INODE);
 		return -ENOMEM;
 	}
+	tmp = &BTRFS_I(inode)->io_tree;
 
 	/*
 	 * Passing NULL as we don't have fs_info but tracepoints are not used
 	 * at this point
 	 */
-	extent_io_tree_init(NULL, &tmp, IO_TREE_SELFTEST, NULL);
+	extent_io_tree_init(NULL, tmp, IO_TREE_SELFTEST, NULL);
 
 	/*
 	 * First go through and create and mark all of our pages dirty, we pin
@@ -108,10 +110,10 @@ static int test_find_delalloc(u32 sectorsize)
 	 * |--- delalloc ---|
 	 * |---  search  ---|
 	 */
-	set_extent_delalloc(&tmp, 0, sectorsize - 1, 0, NULL);
+	set_extent_delalloc(tmp, 0, sectorsize - 1, 0, NULL);
 	start = 0;
 	end = 0;
-	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
+	found = find_lock_delalloc_range(inode, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("should have found at least one delalloc");
@@ -122,7 +124,7 @@ static int test_find_delalloc(u32 sectorsize)
 			sectorsize - 1, start, end);
 		goto out_bits;
 	}
-	unlock_extent(&tmp, start, end);
+	unlock_extent(tmp, start, end);
 	unlock_page(locked_page);
 	put_page(locked_page);
 
@@ -139,10 +141,10 @@ static int test_find_delalloc(u32 sectorsize)
 		test_err("couldn't find the locked page");
 		goto out_bits;
 	}
-	set_extent_delalloc(&tmp, sectorsize, max_bytes - 1, 0, NULL);
+	set_extent_delalloc(tmp, sectorsize, max_bytes - 1, 0, NULL);
 	start = test_start;
 	end = 0;
-	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
+	found = find_lock_delalloc_range(inode, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("couldn't find delalloc in our range");
@@ -158,7 +160,7 @@ static int test_find_delalloc(u32 sectorsize)
 		test_err("there were unlocked pages in the range");
 		goto out_bits;
 	}
-	unlock_extent(&tmp, start, end);
+	unlock_extent(tmp, start, end);
 	/* locked_page was unlocked above */
 	put_page(locked_page);
 
@@ -176,7 +178,7 @@ static int test_find_delalloc(u32 sectorsize)
 	}
 	start = test_start;
 	end = 0;
-	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
+	found = find_lock_delalloc_range(inode, locked_page, &start,
 					 &end);
 	if (found) {
 		test_err("found range when we shouldn't have");
@@ -194,10 +196,10 @@ static int test_find_delalloc(u32 sectorsize)
 	 *
 	 * We are re-using our test_start from above since it works out well.
 	 */
-	set_extent_delalloc(&tmp, max_bytes, total_dirty - 1, 0, NULL);
+	set_extent_delalloc(tmp, max_bytes, total_dirty - 1, 0, NULL);
 	start = test_start;
 	end = 0;
-	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
+	found = find_lock_delalloc_range(inode, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("didn't find our range");
@@ -213,7 +215,7 @@ static int test_find_delalloc(u32 sectorsize)
 		test_err("pages in range were not all locked");
 		goto out_bits;
 	}
-	unlock_extent(&tmp, start, end);
+	unlock_extent(tmp, start, end);
 
 	/*
 	 * Now to test where we run into a page that is no longer dirty in the
@@ -238,7 +240,7 @@ static int test_find_delalloc(u32 sectorsize)
 	 * this changes at any point in the future we will need to fix this
 	 * tests expected behavior.
 	 */
-	found = find_lock_delalloc_range(inode, &tmp, locked_page, &start,
+	found = find_lock_delalloc_range(inode, locked_page, &start,
 					 &end);
 	if (!found) {
 		test_err("didn't find our range");
@@ -256,7 +258,7 @@ static int test_find_delalloc(u32 sectorsize)
 	}
 	ret = 0;
 out_bits:
-	clear_extent_bits(&tmp, 0, total_dirty - 1, (unsigned)-1);
+	clear_extent_bits(tmp, 0, total_dirty - 1, (unsigned)-1);
 out:
 	if (locked_page)
 		put_page(locked_page);
