@@ -1725,13 +1725,10 @@ static void gen7_ppgtt_enable(struct intel_gt *gt)
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_uncore *uncore = gt->uncore;
 	struct intel_engine_cs *engine;
-	u32 ecochk, ecobits;
 	enum intel_engine_id id;
+	u32 ecochk;
 
-	ecobits = intel_uncore_read(uncore, GAC_ECO_BITS);
-	intel_uncore_write(uncore,
-			   GAC_ECO_BITS,
-			   ecobits | ECOBITS_PPGTT_CACHE64B);
+	intel_uncore_rmw(uncore, GAC_ECO_BITS, 0, ECOBITS_PPGTT_CACHE64B);
 
 	ecochk = intel_uncore_read(uncore, GAM_ECOCHK);
 	if (IS_HASWELL(i915)) {
@@ -1753,22 +1750,21 @@ static void gen7_ppgtt_enable(struct intel_gt *gt)
 static void gen6_ppgtt_enable(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
-	u32 ecochk, gab_ctl, ecobits;
 
-	ecobits = intel_uncore_read(uncore, GAC_ECO_BITS);
-	intel_uncore_write(uncore,
-			   GAC_ECO_BITS,
-			   ecobits | ECOBITS_SNB_BIT | ECOBITS_PPGTT_CACHE64B);
+	intel_uncore_rmw(uncore,
+			 GAC_ECO_BITS,
+			 0,
+			 ECOBITS_SNB_BIT | ECOBITS_PPGTT_CACHE64B);
 
-	gab_ctl = intel_uncore_read(uncore, GAB_CTL);
-	intel_uncore_write(uncore,
-			   GAB_CTL,
-			   gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
+	intel_uncore_rmw(uncore,
+			 GAB_CTL,
+			 0,
+			 GAB_CTL_CONT_AFTER_PAGEFAULT);
 
-	ecochk = intel_uncore_read(uncore, GAM_ECOCHK);
-	intel_uncore_write(uncore,
-			   GAM_ECOCHK,
-			   ecochk | ECOCHK_SNB_BIT | ECOCHK_PPGTT_CACHE64B);
+	intel_uncore_rmw(uncore,
+			 GAM_ECOCHK,
+			 0,
+			 ECOCHK_SNB_BIT | ECOCHK_PPGTT_CACHE64B);
 
 	if (HAS_PPGTT(uncore->i915)) /* may be disabled for VT-d */
 		intel_uncore_write(uncore,
@@ -2226,11 +2222,10 @@ static void gtt_write_workarounds(struct intel_gt *gt)
 	 */
 	if (HAS_PAGE_SIZES(i915, I915_GTT_PAGE_SIZE_64K) &&
 	    INTEL_GEN(i915) <= 10)
-		intel_uncore_write(uncore,
-				   GEN8_GAMW_ECO_DEV_RW_IA,
-				   intel_uncore_read(uncore,
-						     GEN8_GAMW_ECO_DEV_RW_IA) |
-				   GAMW_ECO_ENABLE_64K_IPS_FIELD);
+		intel_uncore_rmw(uncore,
+				 GEN8_GAMW_ECO_DEV_RW_IA,
+				 0,
+				 GAMW_ECO_ENABLE_64K_IPS_FIELD);
 }
 
 int i915_ppgtt_init_hw(struct intel_gt *gt)
