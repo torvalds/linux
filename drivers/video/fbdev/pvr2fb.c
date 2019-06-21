@@ -723,6 +723,7 @@ static struct fb_ops pvr2fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
+#ifndef MODULE
 static int pvr2_get_param_val(const struct pvr2_params *p, const char *s,
 			      int size)
 {
@@ -734,6 +735,7 @@ static int pvr2_get_param_val(const struct pvr2_params *p, const char *s,
 	}
 	return -1;
 }
+#endif
 
 static char *pvr2_get_param_name(const struct pvr2_params *p, int val,
 			  int size)
