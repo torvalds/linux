@@ -9,6 +9,7 @@
 
 #include <linux/lockdep.h>
 
+#include "i915_active.h"
 #include "intel_context_types.h"
 #include "intel_engine_types.h"
 
@@ -102,8 +103,17 @@ static inline void intel_context_exit(struct intel_context *ce)
 		ce->ops->exit(ce);
 }
 
-int intel_context_active_acquire(struct intel_context *ce, unsigned long flags);
-void intel_context_active_release(struct intel_context *ce);
+static inline int intel_context_active_acquire(struct intel_context *ce)
+{
+	return i915_active_acquire(&ce->active);
+}
+
+static inline void intel_context_active_release(struct intel_context *ce)
+{
+	/* Nodes preallocated in intel_context_active() */
+	i915_active_acquire_barrier(&ce->active);
+	i915_active_release(&ce->active);
+}
 
 static inline struct intel_context *intel_context_get(struct intel_context *ce)
 {

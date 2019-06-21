@@ -146,6 +146,15 @@ static void __cacheline_retire(struct i915_active *active)
 		__idle_cacheline_free(cl);
 }
 
+static int __cacheline_active(struct i915_active *active)
+{
+	struct intel_timeline_cacheline *cl =
+		container_of(active, typeof(*cl), active);
+
+	__i915_vma_pin(cl->hwsp->vma);
+	return 0;
+}
+
 static struct intel_timeline_cacheline *
 cacheline_alloc(struct intel_timeline_hwsp *hwsp, unsigned int cacheline)
 {
@@ -168,15 +177,16 @@ cacheline_alloc(struct intel_timeline_hwsp *hwsp, unsigned int cacheline)
 	cl->hwsp = hwsp;
 	cl->vaddr = page_pack_bits(vaddr, cacheline);
 
-	i915_active_init(hwsp->gt->i915, &cl->active, __cacheline_retire);
+	i915_active_init(hwsp->gt->i915, &cl->active,
+			 __cacheline_active, __cacheline_retire);
 
 	return cl;
 }
 
 static void cacheline_acquire(struct intel_timeline_cacheline *cl)
 {
-	if (cl && i915_active_acquire(&cl->active))
-		__i915_vma_pin(cl->hwsp->vma);
+	if (cl)
+		i915_active_acquire(&cl->active);
 }
 
 static void cacheline_release(struct intel_timeline_cacheline *cl)

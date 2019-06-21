@@ -78,11 +78,20 @@ static void vma_print_allocator(struct i915_vma *vma, const char *reason)
 
 #endif
 
+static inline struct i915_vma *active_to_vma(struct i915_active *ref)
+{
+	return container_of(ref, typeof(struct i915_vma), active);
+}
+
+static int __i915_vma_active(struct i915_active *ref)
+{
+	i915_vma_get(active_to_vma(ref));
+	return 0;
+}
+
 static void __i915_vma_retire(struct i915_active *ref)
 {
-	struct i915_vma *vma = container_of(ref, typeof(*vma), active);
-
-	i915_vma_put(vma);
+	i915_vma_put(active_to_vma(ref));
 }
 
 static struct i915_vma *
@@ -107,7 +116,8 @@ vma_create(struct drm_i915_gem_object *obj,
 	vma->size = obj->base.size;
 	vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 
-	i915_active_init(vm->i915, &vma->active, __i915_vma_retire);
+	i915_active_init(vm->i915, &vma->active,
+			 __i915_vma_active, __i915_vma_retire);
 	INIT_ACTIVE_REQUEST(&vma->last_fence);
 
 	INIT_LIST_HEAD(&vma->closed_link);
@@ -904,11 +914,7 @@ int i915_vma_move_to_active(struct i915_vma *vma,
 	 * add the active reference first and queue for it to be dropped
 	 * *last*.
 	 */
-	if (i915_active_acquire(&vma->active))
-		i915_vma_get(vma);
-
 	err = i915_active_ref(&vma->active, rq->fence.context, rq);
-	i915_active_release(&vma->active);
 	if (unlikely(err))
 		return err;
 

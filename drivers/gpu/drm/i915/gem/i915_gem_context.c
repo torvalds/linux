@@ -923,8 +923,12 @@ static int context_barrier_task(struct i915_gem_context *ctx,
 	if (!cb)
 		return -ENOMEM;
 
-	i915_active_init(i915, &cb->base, cb_retire);
-	i915_active_acquire(&cb->base);
+	i915_active_init(i915, &cb->base, NULL, cb_retire);
+	err = i915_active_acquire(&cb->base);
+	if (err) {
+		kfree(cb);
+		return err;
+	}
 
 	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
 		struct i915_request *rq;

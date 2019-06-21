@@ -1455,7 +1455,7 @@ static int ring_context_pin(struct intel_context *ce)
 		ce->state = vma;
 	}
 
-	err = intel_context_active_acquire(ce, PIN_HIGH);
+	err = intel_context_active_acquire(ce);
 	if (err)
 		return err;
 

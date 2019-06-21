@@ -1542,12 +1542,10 @@ __execlists_context_pin(struct intel_context *ce,
 		goto err;
 	GEM_BUG_ON(!ce->state);
 
-	ret = intel_context_active_acquire(ce,
-					   engine->i915->ggtt.pin_bias |
-					   PIN_OFFSET_BIAS |
-					   PIN_HIGH);
+	ret = intel_context_active_acquire(ce);
 	if (ret)
 		goto err;
+	GEM_BUG_ON(!i915_vma_is_pinned(ce->state));
 
 	vaddr = i915_gem_object_pin_map(ce->state->obj,
 					i915_coherent_map_type(engine->i915) |

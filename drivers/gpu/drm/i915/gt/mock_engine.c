@@ -155,7 +155,7 @@ static int mock_context_pin(struct intel_context *ce)
 			return -ENOMEM;
 	}
 
-	ret = intel_context_active_acquire(ce, PIN_HIGH);
+	ret = intel_context_active_acquire(ce);
 	if (ret)
 		return ret;
 
