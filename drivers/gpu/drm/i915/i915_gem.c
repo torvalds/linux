@@ -1272,7 +1272,7 @@ static int init_hw(struct intel_gt *gt)
 		goto out;
 	}
 
-	ret = intel_wopcm_init_hw(&i915->wopcm);
+	ret = intel_wopcm_init_hw(&i915->wopcm, gt);
 	if (ret) {
 		DRM_ERROR("Enabling WOPCM failed (%d)\n", ret);
 		goto out;
