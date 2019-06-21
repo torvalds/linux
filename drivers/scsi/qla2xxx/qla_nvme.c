@@ -123,53 +123,91 @@ static int qla_nvme_alloc_queue(struct nvme_fc_local_port *lport,
 	return 0;
 }
 
-static void qla_nvme_sp_ls_done(void *ptr, int res)
+static void qla_nvme_release_fcp_cmd_kref(struct kref *kref)
 {
-	srb_t *sp = ptr;
-	struct srb_iocb *nvme;
-	struct nvmefc_ls_req   *fd;
-	struct nvme_private *priv;
-
-	if (WARN_ON_ONCE(atomic_read(&sp->ref_count) == 0))
-		return;
-
-	atomic_dec(&sp->ref_count);
-
-	if (res)
-		res = -EINVAL;
-
-	nvme = &sp->u.iocb_cmd;
-	fd = nvme->u.nvme.desc;
-	priv = fd->private;
-	priv->comp_status = res;
-	schedule_work(&priv->ls_work);
-	/* work schedule doesn't need the sp */
-	qla2x00_rel_sp(sp);
-}
-
-static void qla_nvme_sp_done(void *ptr, int res)
-{
-	srb_t *sp = ptr;
-	struct srb_iocb *nvme;
+	struct srb *sp = container_of(kref, struct srb, cmd_kref);
+	struct nvme_private *priv = (struct nvme_private *)sp->priv;
 	struct nvmefc_fcp_req *fd;
+	struct srb_iocb *nvme;
+	unsigned long flags;
+
+	if (!priv)
+		goto out;
 
 	nvme = &sp->u.iocb_cmd;
 	fd = nvme->u.nvme.desc;
 
-	if (WARN_ON_ONCE(atomic_read(&sp->ref_count) == 0))
-		return;
-
-	atomic_dec(&sp->ref_count);
-
-	if (res == QLA_SUCCESS) {
+	spin_lock_irqsave(&priv->cmd_lock, flags);
+	priv->sp = NULL;
+	sp->priv = NULL;
+	if (priv->comp_status == QLA_SUCCESS) {
 		fd->rcv_rsplen = nvme->u.nvme.rsp_pyld_len;
 	} else {
 		fd->rcv_rsplen = 0;
 		fd->transferred_length = 0;
 	}
 	fd->status = 0;
+	spin_unlock_irqrestore(&priv->cmd_lock, flags);
+
 	fd->done(fd);
+out:
 	qla2xxx_rel_qpair_sp(sp->qpair, sp);
+}
+
+static void qla_nvme_release_ls_cmd_kref(struct kref *kref)
+{
+	struct srb *sp = container_of(kref, struct srb, cmd_kref);
+	struct nvme_private *priv = (struct nvme_private *)sp->priv;
+	struct nvmefc_ls_req *fd;
+	unsigned long flags;
+
+	if (!priv)
+		goto out;
+
+	spin_lock_irqsave(&priv->cmd_lock, flags);
+	priv->sp = NULL;
+	sp->priv = NULL;
+	spin_unlock_irqrestore(&priv->cmd_lock, flags);
+
+	fd = priv->fd;
+	fd->done(fd, priv->comp_status);
+out:
+	qla2x00_rel_sp(sp);
+}
+
+static void qla_nvme_ls_complete(struct work_struct *work)
+{
+	struct nvme_private *priv =
+		container_of(work, struct nvme_private, ls_work);
+
+	kref_put(&priv->sp->cmd_kref, qla_nvme_release_ls_cmd_kref);
+}
+
+static void qla_nvme_sp_ls_done(void *ptr, int res)
+{
+	srb_t *sp = ptr;
+	struct nvme_private *priv;
+
+	if (WARN_ON_ONCE(kref_read(&sp->cmd_kref) == 0))
+		return;
+
+	if (res)
+		res = -EINVAL;
+
+	priv = (struct nvme_private *)sp->priv;
+	priv->comp_status = res;
+	INIT_WORK(&priv->ls_work, qla_nvme_ls_complete);
+	schedule_work(&priv->ls_work);
+}
+
+/* it assumed that QPair lock is held. */
+static void qla_nvme_sp_done(void *ptr, int res)
+{
+	srb_t *sp = ptr;
+	struct nvme_private *priv = (struct nvme_private *)sp->priv;
+
+	priv->comp_status = res;
+	kref_put(&sp->cmd_kref, qla_nvme_release_fcp_cmd_kref);
 
 	return;
 }
@@ -188,18 +226,15 @@ static void qla_nvme_abort_work(struct work_struct *work)
 	       __func__, sp, sp->handle, fcport, fcport->deleted);
 
 	if (!ha->flags.fw_started && (fcport && fcport->deleted))
-		return;
+		goto out;
 
 	if (ha->flags.host_shutting_down) {
 		ql_log(ql_log_info, sp->fcport->vha, 0xffff,
 		    "%s Calling done on sp: %p, type: 0x%x, sp->ref_count: 0x%x\n",
 		    __func__, sp, sp->type, atomic_read(&sp->ref_count));
 		sp->done(sp, 0);
-		return;
+		goto out;
 	}
-
-	if (WARN_ON_ONCE(atomic_read(&sp->ref_count) == 0))
-		return;
 
 	rval = ha->isp_ops->abort_command(sp);
 
@@ -207,25 +242,34 @@ static void qla_nvme_abort_work(struct work_struct *work)
 	    "%s: %s command for sp=%p, handle=%x on fcport=%p rval=%x\n",
 	    __func__, (rval != QLA_SUCCESS) ? "Failed to abort" : "Aborted",
 	    sp, sp->handle, fcport, rval);
+
+out:
+	/* kref_get was done before work was schedule. */
+	kref_put(&sp->cmd_kref, sp->put_fn);
 }
 
 static void qla_nvme_ls_abort(struct nvme_fc_local_port *lport,
     struct nvme_fc_remote_port *rport, struct nvmefc_ls_req *fd)
 {
 	struct nvme_private *priv = fd->private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->cmd_lock, flags);
+	if (!priv->sp) {
+		spin_unlock_irqrestore(&priv->cmd_lock, flags);
+		return;
+	}
+
+	if (!kref_get_unless_zero(&priv->sp->cmd_kref)) {
+		spin_unlock_irqrestore(&priv->cmd_lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(&priv->cmd_lock, flags);
 
 	INIT_WORK(&priv->abort_work, qla_nvme_abort_work);
 	schedule_work(&priv->abort_work);
 }
 
-static void qla_nvme_ls_complete(struct work_struct *work)
-{
-	struct nvme_private *priv =
-	    container_of(work, struct nvme_private, ls_work);
-	struct nvmefc_ls_req *fd = priv->fd;
-
-	fd->done(fd, priv->comp_status);
-}
 
 static int qla_nvme_ls_req(struct nvme_fc_local_port *lport,
     struct nvme_fc_remote_port *rport, struct nvmefc_ls_req *fd)
@@ -257,11 +301,13 @@ static int qla_nvme_ls_req(struct nvme_fc_local_port *lport,
 	sp->type = SRB_NVME_LS;
 	sp->name = "nvme_ls";
 	sp->done = qla_nvme_sp_ls_done;
-	atomic_set(&sp->ref_count, 1);
-	nvme = &sp->u.iocb_cmd;
+	sp->put_fn = qla_nvme_release_ls_cmd_kref;
+	sp->priv = (void *)priv;
 	priv->sp = sp;
+	kref_init(&sp->cmd_kref);
+	spin_lock_init(&priv->cmd_lock);
+	nvme = &sp->u.iocb_cmd;
 	priv->fd = fd;
-	INIT_WORK(&priv->ls_work, qla_nvme_ls_complete);
 	nvme->u.nvme.desc = fd;
 	nvme->u.nvme.dir = 0;
 	nvme->u.nvme.dl = 0;
@@ -278,9 +324,10 @@ static int qla_nvme_ls_req(struct nvme_fc_local_port *lport,
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x700e,
 		    "qla2x00_start_sp failed = %d\n", rval);
-		atomic_dec(&sp->ref_count);
 		wake_up(&sp->nvme_ls_waitq);
-		sp->free(sp);
+		sp->priv = NULL;
+		priv->sp = NULL;
+		qla2x00_rel_sp(sp);
 		return rval;
 	}
 
@@ -292,6 +339,18 @@ static void qla_nvme_fcp_abort(struct nvme_fc_local_port *lport,
     struct nvmefc_fcp_req *fd)
 {
 	struct nvme_private *priv = fd->private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->cmd_lock, flags);
+	if (!priv->sp) {
+		spin_unlock_irqrestore(&priv->cmd_lock, flags);
+		return;
+	}
+	if (!kref_get_unless_zero(&priv->sp->cmd_kref)) {
+		spin_unlock_irqrestore(&priv->cmd_lock, flags);
+		return;
+	}
+	spin_unlock_irqrestore(&priv->cmd_lock, flags);
 
 	INIT_WORK(&priv->abort_work, qla_nvme_abort_work);
 	schedule_work(&priv->abort_work);
@@ -515,12 +574,15 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	if (!sp)
 		return -EBUSY;
 
-	atomic_set(&sp->ref_count, 1);
 	init_waitqueue_head(&sp->nvme_ls_waitq);
+	kref_init(&sp->cmd_kref);
+	spin_lock_init(&priv->cmd_lock);
+	sp->priv = (void *)priv;
 	priv->sp = sp;
 	sp->type = SRB_NVME_CMD;
 	sp->name = "nvme_cmd";
 	sp->done = qla_nvme_sp_done;
+	sp->put_fn = qla_nvme_release_fcp_cmd_kref;
 	sp->qpair = qpair;
 	sp->vha = vha;
 	nvme = &sp->u.iocb_cmd;
@@ -530,9 +592,10 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x212d,
 		    "qla2x00_start_nvme_mq failed = %d\n", rval);
-		atomic_dec(&sp->ref_count);
 		wake_up(&sp->nvme_ls_waitq);
-		sp->free(sp);
+		sp->priv = NULL;
+		priv->sp = NULL;
+		qla2xxx_rel_qpair_sp(sp->qpair, sp);
 	}
 
 	return rval;
