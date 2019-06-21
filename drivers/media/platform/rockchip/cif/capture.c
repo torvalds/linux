@@ -1092,6 +1092,77 @@ static inline u32 rkcif_scl_ctl(struct rkcif_stream *stream)
 		ENABLE_YUV_16BIT_BYPASS : ENABLE_RAW_16BIT_BYPASS;
 }
 
+/**
+ * rkcif_align_bits_per_pixel() - return the bit width of per pixel for stored
+ * In raw or jpeg mode, data is stored by 16-bits,so need to align it.
+ */
+static u32 rkcif_align_bits_per_pixel(const struct cif_output_fmt *fmt,
+				      int plane_index)
+{
+	u32 bpp = 0, i;
+
+	if (fmt) {
+		switch (fmt->fourcc) {
+		case V4L2_PIX_FMT_NV16:
+		case V4L2_PIX_FMT_NV61:
+		case V4L2_PIX_FMT_NV12:
+		case V4L2_PIX_FMT_NV21:
+		case V4L2_PIX_FMT_YUYV:
+		case V4L2_PIX_FMT_YVYU:
+		case V4L2_PIX_FMT_UYVY:
+		case V4L2_PIX_FMT_VYUY:
+		case V4L2_PIX_FMT_Y16:
+			bpp = fmt->bpp[plane_index];
+			break;
+		case V4L2_PIX_FMT_RGB24:
+		case V4L2_PIX_FMT_RGB565:
+		case V4L2_PIX_FMT_BGR666:
+		case V4L2_PIX_FMT_SRGGB8:
+		case V4L2_PIX_FMT_SGRBG8:
+		case V4L2_PIX_FMT_SGBRG8:
+		case V4L2_PIX_FMT_SRGGB10:
+		case V4L2_PIX_FMT_SGRBG10:
+		case V4L2_PIX_FMT_SGBRG10:
+		case V4L2_PIX_FMT_SBGGR10:
+		case V4L2_PIX_FMT_SRGGB12:
+		case V4L2_PIX_FMT_SGRBG12:
+		case V4L2_PIX_FMT_SGBRG12:
+		case V4L2_PIX_FMT_SBGGR12:
+		case V4L2_PIX_FMT_SBGGR16:
+			bpp = max(fmt->bpp[plane_index], (u8)CIF_RAW_STORED_BIT_WIDTH);
+			for (i = 1; i < 5; i++) {
+				if (i * CIF_RAW_STORED_BIT_WIDTH >= bpp) {
+					bpp = i * CIF_RAW_STORED_BIT_WIDTH;
+					break;
+				}
+			}
+			break;
+		default:
+			pr_err("fourcc: %d is not supported!\n", fmt->fourcc);
+			break;
+		}
+	}
+
+	return bpp;
+}
+
+/**
+ * rkcif_cal_raw_vir_line_ratio() - return ratio for virtual line width setting
+ * In raw or jpeg mode, data is stored by 16-bits,
+ * so need to align virtual line width.
+ */
+static u32 rkcif_cal_raw_vir_line_ratio(const struct cif_output_fmt *fmt)
+{
+	u32 ratio = 0, bpp = 0;
+
+	if (fmt) {
+		bpp = rkcif_align_bits_per_pixel(fmt, 0);
+		ratio = bpp / CIF_YUV_STORED_BIT_WIDTH;
+	}
+
+	return ratio;
+}
+
 static int rkcif_stream_start(struct rkcif_stream *stream)
 {
 	u32 val, mbus_flags, href_pol, vsync_pol,
@@ -1099,6 +1170,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	    inputmode = 0, mipimode = 0, workmode = 0;
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_sensor_info *sensor_info;
+	const struct cif_output_fmt *fmt;
 	void __iomem *base = dev->base_addr;
 
 	sensor_info = dev->active_sensor;
@@ -1146,8 +1218,10 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	write_cif_reg(base, CIF_FOR, val);
 
 	val = stream->pixm.width;
-	if (stream->cif_fmt_in->fmt_type == CIF_FMT_TYPE_RAW)
-		val = stream->pixm.width * 2;
+	if (stream->cif_fmt_in->fmt_type == CIF_FMT_TYPE_RAW) {
+		fmt = find_output_fmt(stream, stream->pixm.pixelformat);
+		val = stream->pixm.width * rkcif_cal_raw_vir_line_ratio(fmt);
+	}
 	write_cif_reg(base, CIF_VIR_LINE_WIDTH, val);
 	write_cif_reg(base, CIF_SET_SIZE,
 		      stream->pixm.width | (stream->pixm.height << 16));
@@ -1404,7 +1478,7 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 
 	for (i = 0; i < planes; i++) {
 		struct v4l2_plane_pix_format *plane_fmt;
-		int width, height, bpl, size;
+		int width, height, bpl, size, bpp;
 
 		if (i == 0) {
 			width = pixm->width;
@@ -1414,7 +1488,8 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 			height = pixm->height / ysubs;
 		}
 
-		bpl = width * fmt->bpp[i] / 8;
+		bpp = rkcif_align_bits_per_pixel(fmt, i);
+		bpl = width * bpp / CIF_YUV_STORED_BIT_WIDTH;
 		size = bpl * height;
 		imagesize += size;
 
