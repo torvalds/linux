@@ -191,13 +191,24 @@ notrace static inline u64 vgetsns(int *mode)
 
 	if (gtod->vclock_mode == VCLOCK_TSC)
 		cycles = vread_tsc();
+
+	/*
+	 * For any memory-mapped vclock type, we need to make sure that gcc
+	 * doesn't cleverly hoist a load before the mode check.  Otherwise we
+	 * might end up touching the memory-mapped page even if the vclock in
+	 * question isn't enabled, which will segfault.  Hence the barriers.
+	 */
 #ifdef CONFIG_PARAVIRT_CLOCK
-	else if (gtod->vclock_mode == VCLOCK_PVCLOCK)
+	else if (gtod->vclock_mode == VCLOCK_PVCLOCK) {
+		barrier();
 		cycles = vread_pvclock(mode);
+	}
 #endif
 #ifdef CONFIG_HYPERV_TSCPAGE
-	else if (gtod->vclock_mode == VCLOCK_HVCLOCK)
+	else if (gtod->vclock_mode == VCLOCK_HVCLOCK) {
+		barrier();
 		cycles = vread_hvclock(mode);
+	}
 #endif
 	else
 		return 0;
