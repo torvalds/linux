@@ -244,6 +244,7 @@ write_and_verify(struct intel_gt *gt,
 /**
  * intel_wopcm_init_hw() - Setup GuC WOPCM registers.
  * @wopcm: pointer to intel_wopcm.
+ * @gt: pointer to the containing GT
  *
  * Setup the GuC WOPCM size and offset registers with the calculated values. It
  * will verify the register values to make sure the registers are locked with

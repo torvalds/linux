@@ -2934,7 +2934,7 @@ static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 
 /**
  * i915_ggtt_cleanup_hw - Clean up GGTT hardware initialization
- * @dev_priv: i915 device
+ * @i915: i915 device
  */
 void i915_ggtt_cleanup_hw(struct drm_i915_private *i915)
 {
@@ -3530,7 +3530,7 @@ static int ggtt_probe_hw(struct i915_ggtt *ggtt, struct intel_gt *gt)
 
 /**
  * i915_ggtt_probe_hw - Probe GGTT hardware location
- * @dev_priv: i915 device
+ * @i915: i915 device
  */
 int i915_ggtt_probe_hw(struct drm_i915_private *i915)
 {

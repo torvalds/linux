@@ -497,7 +497,7 @@ static int emit_mocs_l3cc_table(struct i915_request *rq,
 
 /**
  * intel_mocs_init_l3cc_table() - program the mocs control table
- * @dev_priv:      i915 device private
+ * @gt: the intel_gt container
  *
  * This function simply programs the mocs registers for the given table
  * starting at the given address. This register set is  programmed in pairs.

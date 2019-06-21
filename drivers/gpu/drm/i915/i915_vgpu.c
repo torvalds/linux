@@ -131,7 +131,7 @@ static void vgt_deballoon_space(struct i915_ggtt *ggtt,
 
 /**
  * intel_vgt_deballoon - deballoon reserved graphics address trunks
- * @dev_priv: i915 device private data
+ * @ggtt: the global GGTT from which we reserved earlier
  *
  * This function is called to deallocate the ballooned-out graphic memory, when
  * driver is unloaded or when ballooning fails.
@@ -172,7 +172,7 @@ static int vgt_balloon_space(struct i915_ggtt *ggtt,
 
 /**
  * intel_vgt_balloon - balloon out reserved graphics address trunks
- * @dev_priv: i915 device private data
+ * @ggtt: the global GGTT from which to reserve
  *
  * This function is called at the initialization stage, to balloon out the
  * graphic address space allocated to other vGPUs, by marking these spaces as
