@@ -61,6 +61,7 @@
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
+#include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_reset.h"
 #include "gt/intel_workarounds.h"
@@ -921,6 +922,8 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 	ret = i915_workqueues_init(dev_priv);
 	if (ret < 0)
 		goto err_engines;
+
+	intel_gt_init_early(&dev_priv->gt);
 
 	ret = i915_gem_init_early(dev_priv);
 	if (ret < 0)
