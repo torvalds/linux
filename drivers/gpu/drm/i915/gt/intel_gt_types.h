@@ -16,7 +16,13 @@
 #include "i915_vma.h"
 #include "intel_wakeref.h"
 
+struct drm_i915_private;
+struct intel_uncore;
+
 struct intel_gt {
+	struct drm_i915_private *i915;
+	struct intel_uncore *uncore;
+
 	struct i915_gt_timelines {
 		struct mutex mutex; /* protects list, tainted by GPU */
 		struct list_head active_list;

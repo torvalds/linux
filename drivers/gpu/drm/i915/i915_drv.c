@@ -923,7 +923,7 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv)
 	if (ret < 0)
 		goto err_engines;
 
-	intel_gt_init_early(&dev_priv->gt);
+	intel_gt_init_early(&dev_priv->gt, dev_priv);
 
 	ret = i915_gem_init_early(dev_priv);
 	if (ret < 0)

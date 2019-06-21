@@ -8,6 +8,8 @@
 
 #include "intel_gt_types.h"
 
-void intel_gt_init_early(struct intel_gt *gt);
+struct drm_i915_private;
+
+void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915);
 
 #endif /* __INTEL_GT_H__ */
