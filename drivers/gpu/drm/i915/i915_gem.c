@@ -1287,17 +1287,10 @@ static int init_hw(struct intel_gt *gt)
 
 	intel_mocs_init_l3cc_table(gt);
 
-	/* Only when the HW is re-initialised, can we replay the requests */
-	ret = intel_engines_resume(i915);
-	if (ret)
-		goto cleanup_uc;
-
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 
 	return 0;
 
-cleanup_uc:
-	intel_uc_fini_hw(i915);
 out:
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 
@@ -1306,6 +1299,7 @@ out:
 
 int i915_gem_init_hw(struct drm_i915_private *i915)
 {
+	struct intel_uncore *uncore = &i915->uncore;
 	int ret;
 
 	BUG_ON(!i915->kernel_context);
@@ -1313,7 +1307,28 @@ int i915_gem_init_hw(struct drm_i915_private *i915)
 	if (ret)
 		return ret;
 
+	/* Double layer security blanket, see i915_gem_init() */
+	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
+
 	ret = init_hw(&i915->gt);
+	if (ret)
+		goto err_init;
+
+	/* Only when the HW is re-initialised, can we replay the requests */
+	ret = intel_engines_resume(i915);
+	if (ret)
+		goto err_engines;
+
+	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
+
+	intel_engines_set_scheduler_caps(i915);
+
+	return 0;
+
+err_engines:
+	intel_uc_fini_hw(i915);
+err_init:
+	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 
 	intel_engines_set_scheduler_caps(i915);
 
