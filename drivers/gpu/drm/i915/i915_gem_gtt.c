@@ -3516,13 +3516,52 @@ int i915_ggtt_probe_hw(struct drm_i915_private *i915)
 	return 0;
 }
 
+static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
+{
+	ggtt->vm.cleanup(&ggtt->vm);
+}
+
+static int ggtt_init_hw(struct i915_ggtt *ggtt)
+{
+	struct drm_i915_private *i915 = ggtt->vm.i915;
+	int ret = 0;
+
+	mutex_lock(&i915->drm.struct_mutex);
+
+	i915_address_space_init(&ggtt->vm, VM_CLASS_GGTT);
+
+	ggtt->vm.is_ggtt = true;
+
+	/* Only VLV supports read-only GGTT mappings */
+	ggtt->vm.has_read_only = IS_VALLEYVIEW(i915);
+
+	if (!HAS_LLC(i915) && !HAS_PPGTT(i915))
+		ggtt->vm.mm.color_adjust = i915_gtt_color_adjust;
+
+	if (!io_mapping_init_wc(&ggtt->iomap,
+				ggtt->gmadr.start,
+				ggtt->mappable_end)) {
+		ggtt_cleanup_hw(ggtt);
+		ret = -EIO;
+		goto out;
+	}
+
+	ggtt->mtrr = arch_phys_wc_add(ggtt->gmadr.start, ggtt->mappable_end);
+
+	i915_ggtt_init_fences(ggtt);
+
+out:
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	return ret;
+}
+
 /**
  * i915_ggtt_init_hw - Initialize GGTT hardware
  * @dev_priv: i915 device
  */
 int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	int ret;
 
 	stash_init(&dev_priv->mm.wc_stash);
@@ -3532,28 +3571,9 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	 * beyond the end of the batch buffer, across the page boundary,
 	 * and beyond the end of the GTT if we do not provide a guard.
 	 */
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	i915_address_space_init(&ggtt->vm, VM_CLASS_GGTT);
-
-	ggtt->vm.is_ggtt = true;
-
-	/* Only VLV supports read-only GGTT mappings */
-	ggtt->vm.has_read_only = IS_VALLEYVIEW(dev_priv);
-
-	if (!HAS_LLC(dev_priv) && !HAS_PPGTT(dev_priv))
-		ggtt->vm.mm.color_adjust = i915_gtt_color_adjust;
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	if (!io_mapping_init_wc(&dev_priv->ggtt.iomap,
-				dev_priv->ggtt.gmadr.start,
-				dev_priv->ggtt.mappable_end)) {
-		ret = -EIO;
-		goto out_gtt_cleanup;
-	}
-
-	ggtt->mtrr = arch_phys_wc_add(ggtt->gmadr.start, ggtt->mappable_end);
-
-	i915_ggtt_init_fences(ggtt);
+	ret = ggtt_init_hw(&dev_priv->ggtt);
+	if (ret)
+		return ret;
 
 	/*
 	 * Initialise stolen early so that we may reserve preallocated
@@ -3566,7 +3586,7 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	return 0;
 
 out_gtt_cleanup:
-	ggtt->vm.cleanup(&ggtt->vm);
+	ggtt_cleanup_hw(&dev_priv->ggtt);
 	return ret;
 }
 
