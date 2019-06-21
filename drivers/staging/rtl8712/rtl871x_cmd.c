@@ -43,7 +43,7 @@
  * No irqsave is necessary.
  */
 
-static sint _init_cmd_priv(struct cmd_priv *pcmdpriv)
+int r8712_init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	init_completion(&pcmdpriv->cmd_queue_comp);
 	init_completion(&pcmdpriv->terminate_cmdthread_comp);
@@ -133,11 +133,6 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 		list_del_init(&obj->list);
 	spin_unlock_irqrestore(&queue->lock, irqL);
 	return obj;
-}
-
-u32 r8712_init_cmd_priv(struct cmd_priv *pcmdpriv)
-{
-	return _init_cmd_priv(pcmdpriv);
 }
 
 u32 r8712_init_evt_priv(struct evt_priv *pevtpriv)

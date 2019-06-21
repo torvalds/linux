@@ -84,7 +84,7 @@ void r8712_enqueue_cmd_ex(struct cmd_priv *pcmdpriv, struct cmd_obj *obj);
 struct cmd_obj *r8712_dequeue_cmd(struct  __queue *queue);
 void r8712_free_cmd_obj(struct cmd_obj *pcmd);
 int r8712_cmd_thread(void *context);
-u32 r8712_init_cmd_priv(struct cmd_priv *pcmdpriv);
+int r8712_init_cmd_priv(struct cmd_priv *pcmdpriv);
 void r8712_free_cmd_priv(struct cmd_priv *pcmdpriv);
 u32 r8712_init_evt_priv(struct evt_priv *pevtpriv);
 void r8712_free_evt_priv(struct evt_priv *pevtpriv);
