@@ -2273,21 +2273,26 @@ static bool needs_idle_maps(struct drm_i915_private *dev_priv)
 	return IS_GEN(dev_priv, 5) && IS_MOBILE(dev_priv) && intel_vtd_active();
 }
 
-void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
+static void ggtt_suspend_mappings(struct i915_ggtt *ggtt)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct drm_i915_private *i915 = ggtt->vm.i915;
 
 	/* Don't bother messing with faults pre GEN6 as we have little
 	 * documentation supporting that it's a good idea.
 	 */
-	if (INTEL_GEN(dev_priv) < 6)
+	if (INTEL_GEN(i915) < 6)
 		return;
 
-	intel_gt_check_and_clear_faults(&dev_priv->gt);
+	intel_gt_check_and_clear_faults(ggtt->vm.gt);
 
 	ggtt->vm.clear_range(&ggtt->vm, 0, ggtt->vm.total);
 
 	ggtt->invalidate(ggtt);
+}
+
+void i915_gem_suspend_gtt_mappings(struct drm_i915_private *i915)
+{
+	ggtt_suspend_mappings(&i915->ggtt);
 }
 
 int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
@@ -3624,12 +3629,11 @@ void i915_ggtt_disable_guc(struct drm_i915_private *i915)
 	ggtt->invalidate(ggtt);
 }
 
-void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
+static void ggtt_restore_mappings(struct i915_ggtt *ggtt)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_vma *vma, *vn;
 
-	intel_gt_check_and_clear_faults(&dev_priv->gt);
+	intel_gt_check_and_clear_faults(ggtt->vm.gt);
 
 	mutex_lock(&ggtt->vm.mutex);
 
@@ -3666,12 +3670,17 @@ lock:
 	ggtt->invalidate(ggtt);
 
 	mutex_unlock(&ggtt->vm.mutex);
+}
 
-	if (INTEL_GEN(dev_priv) >= 8) {
-		struct intel_ppat *ppat = &dev_priv->ppat;
+void i915_gem_restore_gtt_mappings(struct drm_i915_private *i915)
+{
+	ggtt_restore_mappings(&i915->ggtt);
+
+	if (INTEL_GEN(i915) >= 8) {
+		struct intel_ppat *ppat = &i915->ppat;
 
 		bitmap_set(ppat->dirty, 0, ppat->max_entries);
-		dev_priv->ppat.update_hw(dev_priv);
+		i915->ppat.update_hw(i915);
 		return;
 	}
 }
