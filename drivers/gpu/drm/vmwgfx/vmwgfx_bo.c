@@ -463,6 +463,8 @@ void vmw_bo_bo_free(struct ttm_buffer_object *bo)
 {
 	struct vmw_buffer_object *vmw_bo = vmw_buffer_object(bo);
 
+	WARN_ON(vmw_bo->dirty);
+	WARN_ON(!RB_EMPTY_ROOT(&vmw_bo->res_tree));
 	vmw_bo_unmap(vmw_bo);
 	kfree(vmw_bo);
 }
@@ -476,8 +478,11 @@ void vmw_bo_bo_free(struct ttm_buffer_object *bo)
 static void vmw_user_bo_destroy(struct ttm_buffer_object *bo)
 {
 	struct vmw_user_buffer_object *vmw_user_bo = vmw_user_buffer_object(bo);
+	struct vmw_buffer_object *vbo = &vmw_user_bo->vbo;
 
-	vmw_bo_unmap(&vmw_user_bo->vbo);
+	WARN_ON(vbo->dirty);
+	WARN_ON(!RB_EMPTY_ROOT(&vbo->res_tree));
+	vmw_bo_unmap(vbo);
 	ttm_prime_object_kfree(vmw_user_bo, prime);
 }
 
@@ -510,8 +515,9 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 
 	acc_size = vmw_bo_acc_size(dev_priv, size, user);
 	memset(vmw_bo, 0, sizeof(*vmw_bo));
-
-	INIT_LIST_HEAD(&vmw_bo->res_list);
+	BUILD_BUG_ON(TTM_MAX_BO_PRIORITY <= 3);
+	vmw_bo->base.priority = 3;
+	vmw_bo->res_tree = RB_ROOT;
 
 	ret = ttm_bo_init(bdev, &vmw_bo->base, size,
 			  ttm_bo_type_device, placement,
