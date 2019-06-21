@@ -22,6 +22,8 @@
 #include <asm/unistd.h>
 #include <asm/vdso.h>
 
+#define VDSO_HAS_CLOCK_GETRES		1
+
 #ifdef CONFIG_MIPS_CLOCK_VSYSCALL
 
 static __always_inline long gettimeofday_fallback(
@@ -66,6 +68,30 @@ static __always_inline long clock_gettime_fallback(
 	register long nr asm("v0") = __NR_clock_gettime;
 #else
 	register long nr asm("v0") = __NR_clock_gettime64;
+#endif
+	register long error asm("a3");
+
+	asm volatile(
+	"       syscall\n"
+	: "=r" (ret), "=r" (error)
+	: "r" (clkid), "r" (ts), "r" (nr)
+	: "$1", "$3", "$8", "$9", "$10", "$11", "$12", "$13",
+	  "$14", "$15", "$24", "$25", "hi", "lo", "memory");
+
+	return error ? -ret : ret;
+}
+
+static __always_inline int clock_getres_fallback(
+					clockid_t _clkid,
+					struct __kernel_timespec *_ts)
+{
+	register struct __kernel_timespec *ts asm("a1") = _ts;
+	register clockid_t clkid asm("a0") = _clkid;
+	register long ret asm("v0");
+#if _MIPS_SIM == _MIPS_SIM_ABI64
+	register long nr asm("v0") = __NR_clock_getres;
+#else
+	register long nr asm("v0") = __NR_clock_getres_time64;
 #endif
 	register long error asm("a3");
 
