@@ -1202,28 +1202,32 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
-static void init_unused_ring(struct drm_i915_private *dev_priv, u32 base)
+static void init_unused_ring(struct intel_gt *gt, u32 base)
 {
-	I915_WRITE(RING_CTL(base), 0);
-	I915_WRITE(RING_HEAD(base), 0);
-	I915_WRITE(RING_TAIL(base), 0);
-	I915_WRITE(RING_START(base), 0);
+	struct intel_uncore *uncore = gt->uncore;
+
+	intel_uncore_write(uncore, RING_CTL(base), 0);
+	intel_uncore_write(uncore, RING_HEAD(base), 0);
+	intel_uncore_write(uncore, RING_TAIL(base), 0);
+	intel_uncore_write(uncore, RING_START(base), 0);
 }
 
-static void init_unused_rings(struct drm_i915_private *dev_priv)
+static void init_unused_rings(struct intel_gt *gt)
 {
-	if (IS_I830(dev_priv)) {
-		init_unused_ring(dev_priv, PRB1_BASE);
-		init_unused_ring(dev_priv, SRB0_BASE);
-		init_unused_ring(dev_priv, SRB1_BASE);
-		init_unused_ring(dev_priv, SRB2_BASE);
-		init_unused_ring(dev_priv, SRB3_BASE);
-	} else if (IS_GEN(dev_priv, 2)) {
-		init_unused_ring(dev_priv, SRB0_BASE);
-		init_unused_ring(dev_priv, SRB1_BASE);
-	} else if (IS_GEN(dev_priv, 3)) {
-		init_unused_ring(dev_priv, PRB1_BASE);
-		init_unused_ring(dev_priv, PRB2_BASE);
+	struct drm_i915_private *i915 = gt->i915;
+
+	if (IS_I830(i915)) {
+		init_unused_ring(gt, PRB1_BASE);
+		init_unused_ring(gt, SRB0_BASE);
+		init_unused_ring(gt, SRB1_BASE);
+		init_unused_ring(gt, SRB2_BASE);
+		init_unused_ring(gt, SRB3_BASE);
+	} else if (IS_GEN(i915, 2)) {
+		init_unused_ring(gt, SRB0_BASE);
+		init_unused_ring(gt, SRB1_BASE);
+	} else if (IS_GEN(i915, 3)) {
+		init_unused_ring(gt, PRB1_BASE);
+		init_unused_ring(gt, PRB2_BASE);
 	}
 }
 
@@ -1256,7 +1260,7 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	 * will prevent c3 entry. Makes sure all unused rings
 	 * are totally idle.
 	 */
-	init_unused_rings(dev_priv);
+	init_unused_rings(&dev_priv->gt);
 
 	BUG_ON(!dev_priv->kernel_context);
 	ret = i915_terminally_wedged(dev_priv);
