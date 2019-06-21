@@ -908,7 +908,7 @@ static long
 wait_for_timelines(struct drm_i915_private *i915,
 		   unsigned int flags, long timeout)
 {
-	struct i915_gt_timelines *gt = &i915->gt.timelines;
+	struct intel_gt_timelines *gt = &i915->gt.timelines;
 	struct intel_timeline *tl;
 
 	mutex_lock(&gt->mutex);

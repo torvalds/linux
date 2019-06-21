@@ -17,7 +17,7 @@
 
 struct intel_timeline_hwsp {
 	struct intel_gt *gt;
-	struct i915_gt_timelines *gt_timelines;
+	struct intel_gt_timelines *gt_timelines;
 	struct list_head free_link;
 	struct i915_vma *vma;
 	u64 free_bitmap;
@@ -53,7 +53,7 @@ static struct i915_vma *__hwsp_alloc(struct intel_gt *gt)
 static struct i915_vma *
 hwsp_alloc(struct intel_timeline *timeline, unsigned int *cacheline)
 {
-	struct i915_gt_timelines *gt = &timeline->gt->timelines;
+	struct intel_gt_timelines *gt = &timeline->gt->timelines;
 	struct intel_timeline_hwsp *hwsp;
 
 	BUILD_BUG_ON(BITS_PER_TYPE(u64) * CACHELINE_BYTES > PAGE_SIZE);
@@ -102,7 +102,7 @@ hwsp_alloc(struct intel_timeline *timeline, unsigned int *cacheline)
 
 static void __idle_hwsp_free(struct intel_timeline_hwsp *hwsp, int cacheline)
 {
-	struct i915_gt_timelines *gt = hwsp->gt_timelines;
+	struct intel_gt_timelines *gt = hwsp->gt_timelines;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gt->hwsp_lock, flags);
@@ -261,7 +261,7 @@ int intel_timeline_init(struct intel_timeline *timeline,
 
 static void timelines_init(struct intel_gt *gt)
 {
-	struct i915_gt_timelines *timelines = &gt->timelines;
+	struct intel_gt_timelines *timelines = &gt->timelines;
 
 	mutex_init(&timelines->mutex);
 	INIT_LIST_HEAD(&timelines->active_list);
@@ -280,7 +280,7 @@ void intel_timelines_init(struct drm_i915_private *i915)
 
 static void timeline_add_to_active(struct intel_timeline *tl)
 {
-	struct i915_gt_timelines *gt = &tl->gt->timelines;
+	struct intel_gt_timelines *gt = &tl->gt->timelines;
 
 	mutex_lock(&gt->mutex);
 	list_add(&tl->link, &gt->active_list);
@@ -289,7 +289,7 @@ static void timeline_add_to_active(struct intel_timeline *tl)
 
 static void timeline_remove_from_active(struct intel_timeline *tl)
 {
-	struct i915_gt_timelines *gt = &tl->gt->timelines;
+	struct intel_gt_timelines *gt = &tl->gt->timelines;
 
 	mutex_lock(&gt->mutex);
 	list_del(&tl->link);
@@ -298,7 +298,7 @@ static void timeline_remove_from_active(struct intel_timeline *tl)
 
 static void timelines_park(struct intel_gt *gt)
 {
-	struct i915_gt_timelines *timelines = &gt->timelines;
+	struct intel_gt_timelines *timelines = &gt->timelines;
 	struct intel_timeline *timeline;
 
 	mutex_lock(&timelines->mutex);
@@ -572,7 +572,7 @@ void __intel_timeline_free(struct kref *kref)
 
 static void timelines_fini(struct intel_gt *gt)
 {
-	struct i915_gt_timelines *timelines = &gt->timelines;
+	struct intel_gt_timelines *timelines = &gt->timelines;
 
 	GEM_BUG_ON(!list_empty(&timelines->active_list));
 	GEM_BUG_ON(!list_empty(&timelines->hwsp_free_list));

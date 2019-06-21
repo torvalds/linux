@@ -25,7 +25,7 @@ struct intel_gt {
 	struct intel_uncore *uncore;
 	struct i915_ggtt *ggtt;
 
-	struct i915_gt_timelines {
+	struct intel_gt_timelines {
 		struct mutex mutex; /* protects list, tainted by GPU */
 		struct list_head active_list;
 
