@@ -29,6 +29,7 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/version.h>
 #include <linux/soc/rockchip/rk_vendor_storage.h>
 
