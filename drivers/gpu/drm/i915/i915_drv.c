@@ -2361,7 +2361,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_uncore_resume_early(&dev_priv->uncore);
 
-	i915_check_and_clear_faults(dev_priv);
+	intel_gt_check_and_clear_faults(&dev_priv->gt);
 
 	if (INTEL_GEN(dev_priv) >= 11 || IS_GEN9_LP(dev_priv)) {
 		gen9_sanitize_dc_state(dev_priv);

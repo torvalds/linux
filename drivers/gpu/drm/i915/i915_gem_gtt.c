@@ -36,6 +36,7 @@
 #include <drm/i915_drm.h>
 
 #include "display/intel_frontbuffer.h"
+#include "gt/intel_gt.h"
 
 #include "i915_drv.h"
 #include "i915_scatterlist.h"
@@ -2263,7 +2264,7 @@ void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) < 6)
 		return;
 
-	i915_check_and_clear_faults(dev_priv);
+	intel_gt_check_and_clear_faults(&dev_priv->gt);
 
 	ggtt->vm.clear_range(&ggtt->vm, 0, ggtt->vm.total);
 
@@ -3572,7 +3573,7 @@ void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct i915_vma *vma, *vn;
 
-	i915_check_and_clear_faults(dev_priv);
+	intel_gt_check_and_clear_faults(&dev_priv->gt);
 
 	mutex_lock(&ggtt->vm.mutex);
 

@@ -28,6 +28,8 @@
 
 #include "i915_drv.h"
 
+#include "gt/intel_gt.h"
+
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
 #include "intel_context.h"
@@ -453,7 +455,7 @@ int intel_engines_init_mmio(struct drm_i915_private *i915)
 
 	RUNTIME_INFO(i915)->num_engines = hweight32(mask);
 
-	i915_check_and_clear_faults(i915);
+	intel_gt_check_and_clear_faults(&i915->gt);
 
 	intel_setup_engine_capabilities(i915);
 
