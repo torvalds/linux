@@ -1580,8 +1580,8 @@ static struct tegra_function tegra114_functions[] = {
 		.lock_bit = 7,						\
 		.ioreset_bit = PINGROUP_BIT_##ior(8),			\
 		.rcv_sel_bit = PINGROUP_BIT_##rcv_sel(9),		\
-		.parked_bit = -1,					\
 		.drv_reg = -1,						\
+		.parked_bitmask = 0,					\
 	}
 
 #define DRV_PINGROUP(pg_name, r, hsm_b, schmitt_b, lpmd_b, drvdn_b,	\
@@ -1601,7 +1601,6 @@ static struct tegra_function tegra114_functions[] = {
 		.rcv_sel_bit = -1,					\
 		.drv_reg = DRV_PINGROUP_REG(r),				\
 		.drv_bank = 0,						\
-		.parked_bit = -1,					\
 		.hsm_bit = hsm_b,					\
 		.schmitt_bit = schmitt_b,				\
 		.lpmd_bit = lpmd_b,					\
@@ -1614,6 +1613,7 @@ static struct tegra_function tegra114_functions[] = {
 		.slwf_bit = slwf_b,					\
 		.slwf_width = slwf_w,					\
 		.drvtype_bit = PINGROUP_BIT_##drvtype(6),		\
+		.parked_bitmask = 0,					\
 	}
 
 static const struct tegra_pingroup tegra114_groups[] = {

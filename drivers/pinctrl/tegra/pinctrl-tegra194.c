@@ -87,7 +87,6 @@ static struct tegra_function tegra194_functions[] = {
 		.lpmd_bit = -1,					\
 		.lock_bit = -1,					\
 		.hsm_bit = -1,					\
-		.parked_bit = -1,				\
 		.mux_bank = bank,				\
 		.mux_bit = 0,					\
 		.pupd_reg = ((r)),		\
@@ -100,7 +99,8 @@ static struct tegra_function tegra194_functions[] = {
 		.odrain_bit = e_od,				\
 		.schmitt_bit = schmitt_b,			\
 		.drvtype_bit = 13,				\
-		.drv_reg = -1
+		.drv_reg = -1,					\
+		.parked_bitmask = 0
 
 #define drive_pex_l5_clkreq_n_pgg0				\
 	DRV_PINGROUP_ENTRY_Y(0x14004, 12, 5, 20, 5, -1, -1, -1, -1, 0)
