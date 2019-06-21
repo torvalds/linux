@@ -1202,29 +1202,6 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
-void i915_gem_init_swizzling(struct drm_i915_private *dev_priv)
-{
-	if (INTEL_GEN(dev_priv) < 5 ||
-	    dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
-		return;
-
-	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
-				 DISP_TILE_SURFACE_SWIZZLING);
-
-	if (IS_GEN(dev_priv, 5))
-		return;
-
-	I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_SWZCTL);
-	if (IS_GEN(dev_priv, 6))
-		I915_WRITE(ARB_MODE, _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_SNB));
-	else if (IS_GEN(dev_priv, 7))
-		I915_WRITE(ARB_MODE, _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_IVB));
-	else if (IS_GEN(dev_priv, 8))
-		I915_WRITE(GAMTARBMODE, _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_BDW));
-	else
-		BUG();
-}
-
 static void init_unused_ring(struct drm_i915_private *dev_priv, u32 base)
 {
 	I915_WRITE(RING_CTL(base), 0);
@@ -1271,7 +1248,7 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	/* ...and determine whether they are sticking. */
 	intel_gt_verify_workarounds(dev_priv, "init");
 
-	i915_gem_init_swizzling(dev_priv);
+	intel_gt_init_swizzling(&dev_priv->gt);
 
 	/*
 	 * At least 830 can leave some of the unused rings
