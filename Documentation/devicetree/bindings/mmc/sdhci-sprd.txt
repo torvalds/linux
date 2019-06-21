@@ -19,6 +19,9 @@ Required properties:
 Optional properties:
 - assigned-clocks: the same with "sdio" clock
 - assigned-clock-parents: the default parent of "sdio" clock
+- pinctrl-names: should be "default", "state_uhs"
+- pinctrl-0: should contain default/high speed pin control
+- pinctrl-1: should contain uhs mode pin control
 
 PHY DLL delays are used to delay the data valid window, and align the window
 to sampling clock. PHY DLL delays can be configured by following properties,
@@ -49,6 +52,10 @@ sdio0: sdio@20600000 {
 		 <&apahb_gate CLK_EMMC_EB>;
 	assigned-clocks = <&ap_clk CLK_EMMC_2X>;
 	assigned-clock-parents = <&rpll CLK_RPLL_390M>;
+
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&sd0_pins_default>;
+	pinctrl-1 = <&sd0_pins_uhs>;
 
 	sprd,phy-delay-sd-uhs-sdr104 = <0x3f 0x7f 0x2e 0x2e>;
 	bus-width = <8>;
