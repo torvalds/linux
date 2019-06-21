@@ -37,7 +37,6 @@ struct nvme_private {
 };
 
 struct qla_nvme_rport {
-	struct list_head list;
 	struct fc_port *fcport;
 };
 

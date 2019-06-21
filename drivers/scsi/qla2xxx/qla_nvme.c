@@ -74,7 +74,6 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 
 	rport = fcport->nvme_remote_port->private;
 	rport->fcport = fcport;
-	list_add_tail(&rport->list, &vha->nvme_rport_list);
 
 	fcport->nvme_flag |= NVME_FLAG_REGISTERED;
 	return 0;
@@ -542,19 +541,12 @@ static void qla_nvme_localport_delete(struct nvme_fc_local_port *lport)
 static void qla_nvme_remoteport_delete(struct nvme_fc_remote_port *rport)
 {
 	fc_port_t *fcport;
-	struct qla_nvme_rport *qla_rport = rport->private, *trport;
+	struct qla_nvme_rport *qla_rport = rport->private;
 
 	fcport = qla_rport->fcport;
 	fcport->nvme_remote_port = NULL;
 	fcport->nvme_flag &= ~NVME_FLAG_REGISTERED;
 
-	list_for_each_entry_safe(qla_rport, trport,
-	    &fcport->vha->nvme_rport_list, list) {
-		if (qla_rport->fcport == fcport) {
-			list_del(&qla_rport->list);
-			break;
-		}
-	}
 	complete(&fcport->nvme_del_done);
 
 	if (!test_bit(UNLOADING, &fcport->vha->dpc_flags)) {
@@ -590,7 +582,7 @@ static void qla_nvme_unregister_remote_port(struct work_struct *work)
 {
 	struct fc_port *fcport = container_of(work, struct fc_port,
 	    nvme_del_work);
-	struct qla_nvme_rport *qla_rport, *trport;
+	int ret;
 
 	if (!IS_ENABLED(CONFIG_NVME_FC))
 		return;
@@ -598,23 +590,14 @@ static void qla_nvme_unregister_remote_port(struct work_struct *work)
 	ql_log(ql_log_warn, NULL, 0x2112,
 	    "%s: unregister remoteport on %p\n",__func__, fcport);
 
-	list_for_each_entry_safe(qla_rport, trport,
-	    &fcport->vha->nvme_rport_list, list) {
-		if (qla_rport->fcport == fcport) {
-			ql_log(ql_log_info, fcport->vha, 0x2113,
-			    "%s: fcport=%p\n", __func__, fcport);
-			nvme_fc_set_remoteport_devloss
-				(fcport->nvme_remote_port, 0);
-			init_completion(&fcport->nvme_del_done);
-			if (nvme_fc_unregister_remoteport
-			    (fcport->nvme_remote_port))
-				ql_log(ql_log_info, fcport->vha, 0x2114,
-				    "%s: Failed to unregister nvme_remote_port\n",
-				    __func__);
-			wait_for_completion(&fcport->nvme_del_done);
-			break;
-		}
-	}
+	nvme_fc_set_remoteport_devloss(fcport->nvme_remote_port, 0);
+	init_completion(&fcport->nvme_del_done);
+	ret = nvme_fc_unregister_remoteport(fcport->nvme_remote_port);
+	if (ret)
+		ql_log(ql_log_info, fcport->vha, 0x2114,
+			"%s: Failed to unregister nvme_remote_port (%d)\n",
+			    __func__, ret);
+	wait_for_completion(&fcport->nvme_del_done);
 }
 
 void qla_nvme_delete(struct scsi_qla_host *vha)
