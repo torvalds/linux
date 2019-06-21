@@ -465,7 +465,7 @@ static int fib6_dump_node(struct fib6_walker *w)
 
 	for_each_fib6_walker_rt(w) {
 		res = rt6_dump_route(rt, w->args);
-		if (res < 0) {
+		if (res >= 0) {
 			/* Frame is full, suspend walking */
 			w->leaf = rt;
 			return 1;

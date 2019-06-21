@@ -5522,6 +5522,7 @@ static bool fib6_info_uses_dev(const struct fib6_info *f6i,
 	return false;
 }
 
+/* Return -1 if done with node, number of handled routes on partial dump */
 int rt6_dump_route(struct fib6_info *rt, void *p_arg)
 {
 	struct rt6_rtnl_dump_arg *arg = (struct rt6_rtnl_dump_arg *) p_arg;
@@ -5530,25 +5531,28 @@ int rt6_dump_route(struct fib6_info *rt, void *p_arg)
 	struct net *net = arg->net;
 
 	if (rt == net->ipv6.fib6_null_entry)
-		return 0;
+		return -1;
 
 	if ((filter->flags & RTM_F_PREFIX) &&
 	    !(rt->fib6_flags & RTF_PREFIX_RT)) {
 		/* success since this is not a prefix route */
-		return 1;
+		return -1;
 	}
 	if (filter->filter_set) {
 		if ((filter->rt_type && rt->fib6_type != filter->rt_type) ||
 		    (filter->dev && !fib6_info_uses_dev(rt, filter->dev)) ||
 		    (filter->protocol && rt->fib6_protocol != filter->protocol)) {
-			return 1;
+			return -1;
 		}
 		flags |= NLM_F_DUMP_FILTERED;
 	}
 
-	return rt6_fill_node(net, arg->skb, rt, NULL, NULL, NULL, 0,
-			     RTM_NEWROUTE, NETLINK_CB(arg->cb->skb).portid,
-			     arg->cb->nlh->nlmsg_seq, flags);
+	if (rt6_fill_node(net, arg->skb, rt, NULL, NULL, NULL, 0, RTM_NEWROUTE,
+			  NETLINK_CB(arg->cb->skb).portid,
+			  arg->cb->nlh->nlmsg_seq, flags))
+		return 0;
+
+	return -1;
 }
 
 static int inet6_rtm_valid_getroute_req(struct sk_buff *skb,
