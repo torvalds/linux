@@ -1234,16 +1234,16 @@ void intel_ring_unpin(struct intel_ring *ring)
 	i915_timeline_unpin(ring->timeline);
 }
 
-static struct i915_vma *
-intel_ring_create_vma(struct drm_i915_private *dev_priv, int size)
+static struct i915_vma *create_ring_vma(struct i915_ggtt *ggtt, int size)
 {
-	struct i915_address_space *vm = &dev_priv->ggtt.vm;
+	struct i915_address_space *vm = &ggtt->vm;
+	struct drm_i915_private *i915 = vm->i915;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 
-	obj = i915_gem_object_create_stolen(dev_priv, size);
+	obj = i915_gem_object_create_stolen(i915, size);
 	if (!obj)
-		obj = i915_gem_object_create_internal(dev_priv, size);
+		obj = i915_gem_object_create_internal(i915, size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
@@ -1270,6 +1270,7 @@ intel_engine_create_ring(struct intel_engine_cs *engine,
 			 struct i915_timeline *timeline,
 			 int size)
 {
+	struct drm_i915_private *i915 = engine->i915;
 	struct intel_ring *ring;
 	struct i915_vma *vma;
 
@@ -1290,12 +1291,12 @@ intel_engine_create_ring(struct intel_engine_cs *engine,
 	 * of the buffer.
 	 */
 	ring->effective_size = size;
-	if (IS_I830(engine->i915) || IS_I845G(engine->i915))
+	if (IS_I830(i915) || IS_I845G(i915))
 		ring->effective_size -= 2 * CACHELINE_BYTES;
 
 	intel_ring_update_space(ring);
 
-	vma = intel_ring_create_vma(engine->i915, size);
+	vma = create_ring_vma(engine->gt->ggtt, size);
 	if (IS_ERR(vma)) {
 		kfree(ring);
 		return ERR_CAST(vma);
