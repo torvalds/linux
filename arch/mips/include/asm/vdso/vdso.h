@@ -68,14 +68,14 @@ static inline unsigned long get_vdso_base(void)
 	return addr;
 }
 
-static inline const union mips_vdso_data *get_vdso_data(void)
+static inline const struct vdso_data *get_vdso_data(void)
 {
-	return (const union mips_vdso_data *)(get_vdso_base() - PAGE_SIZE);
+	return (const struct vdso_data *)(get_vdso_base() - PAGE_SIZE);
 }
 
 #ifdef CONFIG_CLKSRC_MIPS_GIC
 
-static inline void __iomem *get_gic(const union mips_vdso_data *data)
+static inline void __iomem *get_gic(const struct vdso_data *data)
 {
 	return (void __iomem *)data - PAGE_SIZE;
 }
