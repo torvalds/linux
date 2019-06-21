@@ -261,18 +261,23 @@ int i915_timeline_init(struct drm_i915_private *i915,
 	return 0;
 }
 
-void i915_timelines_init(struct drm_i915_private *i915)
+static void timelines_init(struct intel_gt *gt)
 {
-	struct i915_gt_timelines *gt = &i915->gt.timelines;
+	struct i915_gt_timelines *timelines = &gt->timelines;
 
-	mutex_init(&gt->mutex);
-	INIT_LIST_HEAD(&gt->active_list);
+	mutex_init(&timelines->mutex);
+	INIT_LIST_HEAD(&timelines->active_list);
 
-	spin_lock_init(&gt->hwsp_lock);
-	INIT_LIST_HEAD(&gt->hwsp_free_list);
+	spin_lock_init(&timelines->hwsp_lock);
+	INIT_LIST_HEAD(&timelines->hwsp_free_list);
 
 	/* via i915_gem_wait_for_idle() */
-	i915_gem_shrinker_taints_mutex(i915, &gt->mutex);
+	i915_gem_shrinker_taints_mutex(gt->i915, &timelines->mutex);
+}
+
+void i915_timelines_init(struct drm_i915_private *i915)
+{
+	timelines_init(&i915->gt);
 }
 
 static void timeline_add_to_active(struct i915_timeline *tl)
@@ -293,6 +298,24 @@ static void timeline_remove_from_active(struct i915_timeline *tl)
 	mutex_unlock(&gt->mutex);
 }
 
+static void timelines_park(struct intel_gt *gt)
+{
+	struct i915_gt_timelines *timelines = &gt->timelines;
+	struct i915_timeline *timeline;
+
+	mutex_lock(&timelines->mutex);
+	list_for_each_entry(timeline, &timelines->active_list, link) {
+		/*
+		 * All known fences are completed so we can scrap
+		 * the current sync point tracking and start afresh,
+		 * any attempt to wait upon a previous sync point
+		 * will be skipped as the fence was signaled.
+		 */
+		i915_syncmap_free(&timeline->sync);
+	}
+	mutex_unlock(&timelines->mutex);
+}
+
 /**
  * i915_timelines_park - called when the driver idles
  * @i915: the drm_i915_private device
@@ -305,20 +328,7 @@ static void timeline_remove_from_active(struct i915_timeline *tl)
  */
 void i915_timelines_park(struct drm_i915_private *i915)
 {
-	struct i915_gt_timelines *gt = &i915->gt.timelines;
-	struct i915_timeline *timeline;
-
-	mutex_lock(&gt->mutex);
-	list_for_each_entry(timeline, &gt->active_list, link) {
-		/*
-		 * All known fences are completed so we can scrap
-		 * the current sync point tracking and start afresh,
-		 * any attempt to wait upon a previous sync point
-		 * will be skipped as the fence was signaled.
-		 */
-		i915_syncmap_free(&timeline->sync);
-	}
-	mutex_unlock(&gt->mutex);
+	timelines_park(&i915->gt);
 }
 
 void i915_timeline_fini(struct i915_timeline *timeline)
@@ -563,14 +573,19 @@ void __i915_timeline_free(struct kref *kref)
 	kfree(timeline);
 }
 
+static void timelines_fini(struct intel_gt *gt)
+{
+	struct i915_gt_timelines *timelines = &gt->timelines;
+
+	GEM_BUG_ON(!list_empty(&timelines->active_list));
+	GEM_BUG_ON(!list_empty(&timelines->hwsp_free_list));
+
+	mutex_destroy(&timelines->mutex);
+}
+
 void i915_timelines_fini(struct drm_i915_private *i915)
 {
-	struct i915_gt_timelines *gt = &i915->gt.timelines;
-
-	GEM_BUG_ON(!list_empty(&gt->active_list));
-	GEM_BUG_ON(!list_empty(&gt->hwsp_free_list));
-
-	mutex_destroy(&gt->mutex);
+	timelines_fini(&i915->gt);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
