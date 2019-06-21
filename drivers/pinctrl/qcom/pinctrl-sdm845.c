@@ -1317,7 +1317,7 @@ static int sdm845_pinctrl_probe(struct platform_device *pdev)
 	return ret;
 }
 
-#if CONFIG_ACPI
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id sdm845_pinctrl_acpi_match[] = {
 	{ "QCOM0217"},
 	{ },
