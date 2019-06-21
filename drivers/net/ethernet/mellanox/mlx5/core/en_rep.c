@@ -959,16 +959,18 @@ static int mlx5e_init_uplink_rep_tx(struct mlx5e_rep_priv *rpriv)
 
 	mlx5_init_port_tun_entropy(&uplink_priv->tun_entropy, priv->mdev);
 
+	mlx5e_rep_bond_init(rpriv);
 	err = mlx5e_rep_tc_netdevice_event_register(rpriv);
 	if (err) {
 		mlx5_core_err(priv->mdev, "Failed to register netdev notifier, err: %d\n",
 			      err);
-		goto tc_rep_cleanup;
+		goto err_event_reg;
 	}
 
 	return 0;
 
-tc_rep_cleanup:
+err_event_reg:
+	mlx5e_rep_bond_cleanup(rpriv);
 	mlx5e_rep_tc_cleanup(rpriv);
 	return err;
 }
@@ -1001,7 +1003,7 @@ static void mlx5e_cleanup_uplink_rep_tx(struct mlx5e_rep_priv *rpriv)
 {
 	mlx5e_rep_tc_netdevice_event_unregister(rpriv);
 	mlx5e_rep_indr_clean_block_privs(rpriv);
-
+	mlx5e_rep_bond_cleanup(rpriv);
 	mlx5e_rep_tc_cleanup(rpriv);
 }
 

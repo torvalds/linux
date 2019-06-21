@@ -56,6 +56,7 @@ struct mlx5e_neigh_update_table {
 };
 
 struct mlx5_tc_ct_priv;
+struct mlx5e_rep_bond;
 struct mlx5_rep_uplink_priv {
 	/* Filters DB - instantiated by the uplink representor and shared by
 	 * the uplink's VFs
@@ -89,6 +90,9 @@ struct mlx5_rep_uplink_priv {
 	struct mapping_ctx *tunnel_enc_opts_mapping;
 
 	struct mlx5_tc_ct_priv *ct_priv;
+
+	/* support eswitch vports bonding */
+	struct mlx5e_rep_bond *bond;
 };
 
 struct mlx5e_rep_priv {
@@ -211,6 +215,9 @@ struct mlx5e_rep_sq {
 
 void mlx5e_rep_register_vport_reps(struct mlx5_core_dev *mdev);
 void mlx5e_rep_unregister_vport_reps(struct mlx5_core_dev *mdev);
+int mlx5e_rep_bond_init(struct mlx5e_rep_priv *rpriv);
+void mlx5e_rep_bond_cleanup(struct mlx5e_rep_priv *rpriv);
+
 bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv);
 int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv);
 void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
