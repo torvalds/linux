@@ -27,6 +27,7 @@
 #include "display/intel_frontbuffer.h"
 
 #include "gt/intel_engine.h"
+#include "gt/intel_gt.h"
 
 #include "i915_drv.h"
 #include "i915_globals.h"
@@ -408,7 +409,7 @@ void i915_vma_flush_writes(struct i915_vma *vma)
 	if (!i915_vma_has_ggtt_write(vma))
 		return;
 
-	i915_gem_flush_ggtt_writes(vma->vm->i915);
+	intel_gt_flush_ggtt_writes(vma->vm->gt);
 
 	i915_vma_unset_ggtt_write(vma);
 }

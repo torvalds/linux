@@ -2599,8 +2599,6 @@ int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,
 					 unsigned int flags);
 int i915_gem_evict_vm(struct i915_address_space *vm);
 
-void i915_gem_flush_ggtt_writes(struct drm_i915_private *dev_priv);
-
 /* belongs in i915_gem_gtt.h */
 static inline void i915_gem_chipset_flush(struct drm_i915_private *dev_priv)
 {

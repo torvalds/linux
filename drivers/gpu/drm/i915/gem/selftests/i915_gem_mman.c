@@ -6,6 +6,7 @@
 
 #include <linux/prime_numbers.h>
 
+#include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "huge_gem_object.h"
 #include "i915_selftest.h"
@@ -143,7 +144,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		if (offset >= obj->base.size)
 			continue;
 
-		i915_gem_flush_ggtt_writes(to_i915(obj->base.dev));
+		intel_gt_flush_ggtt_writes(&to_i915(obj->base.dev)->gt);
 
 		p = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
 		cpu = kmap(p) + offset_in_page(offset);

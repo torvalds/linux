@@ -150,3 +150,44 @@ void intel_gt_check_and_clear_faults(struct intel_gt *gt)
 
 	intel_gt_clear_error_registers(gt, ALL_ENGINES);
 }
+
+void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	intel_wakeref_t wakeref;
+
+	/*
+	 * No actual flushing is required for the GTT write domain for reads
+	 * from the GTT domain. Writes to it "immediately" go to main memory
+	 * as far as we know, so there's no chipset flush. It also doesn't
+	 * land in the GPU render cache.
+	 *
+	 * However, we do have to enforce the order so that all writes through
+	 * the GTT land before any writes to the device, such as updates to
+	 * the GATT itself.
+	 *
+	 * We also have to wait a bit for the writes to land from the GTT.
+	 * An uncached read (i.e. mmio) seems to be ideal for the round-trip
+	 * timing. This issue has only been observed when switching quickly
+	 * between GTT writes and CPU reads from inside the kernel on recent hw,
+	 * and it appears to only affect discrete GTT blocks (i.e. on LLC
+	 * system agents we cannot reproduce this behaviour, until Cannonlake
+	 * that was!).
+	 */
+
+	wmb();
+
+	if (INTEL_INFO(i915)->has_coherent_ggtt)
+		return;
+
+	i915_gem_chipset_flush(i915);
+
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
+		struct intel_uncore *uncore = gt->uncore;
+
+		spin_lock_irq(&uncore->lock);
+		intel_uncore_posting_read_fw(uncore,
+					     RING_HEAD(RENDER_RING_BASE));
+		spin_unlock_irq(&uncore->lock);
+	}
+}
