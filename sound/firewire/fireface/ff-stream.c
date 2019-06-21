@@ -149,14 +149,6 @@ int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate)
 	return 0;
 }
 
-void snd_ff_stream_release_duplex(struct snd_ff *ff)
-{
-	if (ff->substreams_counter == 0) {
-		fw_iso_resources_free(&ff->tx_resources);
-		fw_iso_resources_free(&ff->rx_resources);
-	}
-}
-
 int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 {
 	int err;
@@ -217,8 +209,12 @@ error:
 
 void snd_ff_stream_stop_duplex(struct snd_ff *ff)
 {
-	if (ff->substreams_counter == 0)
+	if (ff->substreams_counter == 0) {
 		finish_session(ff);
+
+		fw_iso_resources_free(&ff->tx_resources);
+		fw_iso_resources_free(&ff->rx_resources);
+	}
 }
 
 void snd_ff_stream_update_duplex(struct snd_ff *ff)

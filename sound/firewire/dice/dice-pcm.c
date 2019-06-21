@@ -265,7 +265,6 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 		--dice->substreams_counter;
 
 	snd_dice_stream_stop_duplex(dice);
-	snd_dice_stream_release_duplex(dice);
 
 	mutex_unlock(&dice->mutex);
 

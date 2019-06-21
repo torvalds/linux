@@ -224,7 +224,6 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 		--motu->substreams_counter;
 
 	snd_motu_stream_stop_duplex(motu);
-	snd_motu_stream_release_duplex(motu);
 
 	mutex_unlock(&motu->mutex);
 

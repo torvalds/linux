@@ -200,14 +200,6 @@ int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate)
 	return 0;
 }
 
-void snd_motu_stream_release_duplex(struct snd_motu *motu)
-{
-	if (motu->substreams_counter == 0) {
-		fw_iso_resources_free(&motu->tx_resources);
-		fw_iso_resources_free(&motu->rx_resources);
-	}
-}
-
 static int ensure_packet_formats(struct snd_motu *motu)
 {
 	__be32 reg;
@@ -301,8 +293,12 @@ stop_streams:
 
 void snd_motu_stream_stop_duplex(struct snd_motu *motu)
 {
-	if (motu->substreams_counter == 0)
+	if (motu->substreams_counter == 0) {
 		finish_session(motu);
+
+		fw_iso_resources_free(&motu->tx_resources);
+		fw_iso_resources_free(&motu->rx_resources);
+	}
 }
 
 static int init_stream(struct snd_motu *motu, enum amdtp_stream_direction dir)

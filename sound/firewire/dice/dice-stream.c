@@ -336,12 +336,6 @@ error:
 	return err;
 }
 
-void snd_dice_stream_release_duplex(struct snd_dice *dice)
-{
-	if (dice->substreams_counter == 0)
-		release_resources(dice);
-}
-
 static int start_streams(struct snd_dice *dice, enum amdtp_stream_direction dir,
 			 unsigned int rate, struct reg_params *params)
 {
@@ -494,6 +488,8 @@ void snd_dice_stream_stop_duplex(struct snd_dice *dice)
 	if (dice->substreams_counter == 0) {
 		if (get_register_params(dice, &tx_params, &rx_params) >= 0)
 			finish_session(dice, &tx_params, &rx_params);
+
+		release_resources(dice);
 	}
 }
 

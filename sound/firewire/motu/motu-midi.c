@@ -40,7 +40,6 @@ static int midi_close(struct snd_rawmidi_substream *substream)
 
 	--motu->substreams_counter;
 	snd_motu_stream_stop_duplex(motu);
-	snd_motu_stream_release_duplex(motu);
 
 	mutex_unlock(&motu->mutex);
 

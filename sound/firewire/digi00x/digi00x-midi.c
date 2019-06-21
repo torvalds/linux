@@ -37,7 +37,6 @@ static int midi_close(struct snd_rawmidi_substream *substream)
 	mutex_lock(&dg00x->mutex);
 	--dg00x->substreams_counter;
 	snd_dg00x_stream_stop_duplex(dg00x);
-	snd_dg00x_stream_release_duplex(dg00x);
 	mutex_unlock(&dg00x->mutex);
 
 	snd_dg00x_stream_lock_release(dg00x);

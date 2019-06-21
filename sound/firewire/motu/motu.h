@@ -154,7 +154,6 @@ int snd_motu_stream_init_duplex(struct snd_motu *motu);
 void snd_motu_stream_destroy_duplex(struct snd_motu *motu);
 int snd_motu_stream_cache_packet_formats(struct snd_motu *motu);
 int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate);
-void snd_motu_stream_release_duplex(struct snd_motu *motu);
 int snd_motu_stream_start_duplex(struct snd_motu *motu);
 void snd_motu_stream_stop_duplex(struct snd_motu *motu);
 int snd_motu_stream_lock_try(struct snd_motu *motu);

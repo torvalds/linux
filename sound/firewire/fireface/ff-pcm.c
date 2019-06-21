@@ -233,7 +233,6 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 		--ff->substreams_counter;
 
 	snd_ff_stream_stop_duplex(ff);
-	snd_ff_stream_release_duplex(ff);
 
 	mutex_unlock(&ff->mutex);
 

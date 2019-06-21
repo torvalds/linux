@@ -380,14 +380,6 @@ int snd_tscm_stream_reserve_duplex(struct snd_tscm *tscm, unsigned int rate)
 	return 0;
 }
 
-void snd_tscm_stream_release_duplex(struct snd_tscm *tscm)
-{
-	if (tscm->substreams_counter == 0) {
-		fw_iso_resources_free(&tscm->tx_resources);
-		fw_iso_resources_free(&tscm->rx_resources);
-	}
-}
-
 int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 {
 	unsigned int generation = tscm->rx_resources.generation;
@@ -455,8 +447,12 @@ error:
 
 void snd_tscm_stream_stop_duplex(struct snd_tscm *tscm)
 {
-	if (tscm->substreams_counter == 0)
+	if (tscm->substreams_counter == 0) {
 		finish_session(tscm);
+
+		fw_iso_resources_free(&tscm->tx_resources);
+		fw_iso_resources_free(&tscm->rx_resources);
+	}
 }
 
 void snd_tscm_stream_lock_changed(struct snd_tscm *tscm)

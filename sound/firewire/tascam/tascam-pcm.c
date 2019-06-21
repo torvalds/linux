@@ -118,7 +118,6 @@ static int pcm_hw_free(struct snd_pcm_substream *substream)
 		--tscm->substreams_counter;
 
 	snd_tscm_stream_stop_duplex(tscm);
-	snd_tscm_stream_release_duplex(tscm);
 
 	mutex_unlock(&tscm->mutex);
 

@@ -217,6 +217,9 @@ int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate)
 	if (rate != curr_rate) {
 		stop_stream(efw, &efw->tx_stream);
 		stop_stream(efw, &efw->rx_stream);
+
+		cmp_connection_release(&efw->out_conn);
+		cmp_connection_release(&efw->in_conn);
 	}
 
 	if (efw->substreams_counter == 0 || rate != curr_rate) {
