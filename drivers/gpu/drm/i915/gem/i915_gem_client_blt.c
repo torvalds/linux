@@ -72,7 +72,6 @@ static struct i915_sleeve *create_sleeve(struct i915_address_space *vm,
 	vma->ops = &proxy_vma_ops;
 
 	sleeve->vma = vma;
-	sleeve->obj = i915_gem_object_get(obj);
 	sleeve->pages = pages;
 	sleeve->page_sizes = *page_sizes;
 
@@ -85,7 +84,6 @@ err_free:
 
 static void destroy_sleeve(struct i915_sleeve *sleeve)
 {
-	i915_gem_object_put(sleeve->obj);
 	kfree(sleeve);
 }
 
@@ -155,7 +153,7 @@ static void clear_pages_worker(struct work_struct *work)
 {
 	struct clear_pages_work *w = container_of(work, typeof(*w), work);
 	struct drm_i915_private *i915 = w->ce->gem_context->i915;
-	struct drm_i915_gem_object *obj = w->sleeve->obj;
+	struct drm_i915_gem_object *obj = w->sleeve->vma->obj;
 	struct i915_vma *vma = w->sleeve->vma;
 	struct i915_request *rq;
 	int err = w->dma.error;
@@ -193,10 +191,12 @@ static void clear_pages_worker(struct work_struct *work)
 			goto out_request;
 	}
 
-	/* XXX: more feverish nightmares await */
-	i915_vma_lock(vma);
-	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
-	i915_vma_unlock(vma);
+	/*
+	 * w->dma is already exported via (vma|obj)->resv we need only
+	 * keep track of the GPU activity within this vma/request, and
+	 * propagate the signal from the request to w->dma.
+	 */
+	err = i915_active_ref(&vma->active, rq->fence.context, rq);
 	if (err)
 		goto out_request;
 

@@ -63,17 +63,6 @@ static int igt_client_fill(void *arg)
 		if (err)
 			goto err_unpin;
 
-		/*
-		 * XXX: For now do the wait without the object resv lock to
-		 * ensure we don't deadlock.
-		 */
-		err = i915_gem_object_wait(obj,
-					   I915_WAIT_INTERRUPTIBLE |
-					   I915_WAIT_ALL,
-					   MAX_SCHEDULE_TIMEOUT);
-		if (err)
-			goto err_unpin;
-
 		i915_gem_object_lock(obj);
 		err = i915_gem_object_set_to_cpu_domain(obj, false);
 		i915_gem_object_unlock(obj);
