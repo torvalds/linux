@@ -94,6 +94,16 @@ static inline struct dst_entry *ip6_route_output(struct net *net,
 	return ip6_route_output_flags(net, sk, fl6, 0);
 }
 
+/* Only conditionally release dst if flags indicates
+ * !RT6_LOOKUP_F_DST_NOREF or dst is in uncached_list.
+ */
+static inline void ip6_rt_put_flags(struct rt6_info *rt, int flags)
+{
+	if (!(flags & RT6_LOOKUP_F_DST_NOREF) ||
+	    !list_empty(&rt->rt6i_uncached))
+		ip6_rt_put(rt);
+}
+
 struct dst_entry *ip6_route_lookup(struct net *net, struct flowi6 *fl6,
 				   const struct sk_buff *skb, int flags);
 struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
