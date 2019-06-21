@@ -908,7 +908,7 @@ static int __init pvr2fb_dc_init(void)
 	return pvr2fb_common_init();
 }
 
-static void __exit pvr2fb_dc_exit(void)
+static void pvr2fb_dc_exit(void)
 {
 	if (fb_info->screen_base) {
 		iounmap(fb_info->screen_base);
@@ -992,7 +992,7 @@ static int __init pvr2fb_pci_init(void)
 	return pci_register_driver(&pvr2fb_pci_driver);
 }
 
-static void __exit pvr2fb_pci_exit(void)
+static void pvr2fb_pci_exit(void)
 {
 	pci_unregister_driver(&pvr2fb_pci_driver);
 }
