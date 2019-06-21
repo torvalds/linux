@@ -180,7 +180,7 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 	if (INTEL_INFO(i915)->has_coherent_ggtt)
 		return;
 
-	i915_gem_chipset_flush(i915);
+	intel_gt_chipset_flush(gt);
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
 		struct intel_uncore *uncore = gt->uncore;
@@ -190,4 +190,11 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 					     RING_HEAD(RENDER_RING_BASE));
 		spin_unlock_irq(&uncore->lock);
 	}
+}
+
+void intel_gt_chipset_flush(struct intel_gt *gt)
+{
+	wmb();
+	if (INTEL_GEN(gt->i915) < 6)
+		intel_gtt_chipset_flush();
 }

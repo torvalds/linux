@@ -2599,14 +2599,6 @@ int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,
 					 unsigned int flags);
 int i915_gem_evict_vm(struct i915_address_space *vm);
 
-/* belongs in i915_gem_gtt.h */
-static inline void i915_gem_chipset_flush(struct drm_i915_private *dev_priv)
-{
-	wmb();
-	if (INTEL_GEN(dev_priv) < 6)
-		intel_gtt_chipset_flush();
-}
-
 /* i915_gem_stolen.c */
 int i915_gem_stolen_insert_node(struct drm_i915_private *dev_priv,
 				struct drm_mm_node *node, u64 size,

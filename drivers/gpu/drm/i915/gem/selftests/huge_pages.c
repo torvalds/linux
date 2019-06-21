@@ -10,6 +10,8 @@
 
 #include "gem/i915_gem_pm.h"
 
+#include "gt/intel_gt.h"
+
 #include "igt_gem_utils.h"
 #include "mock_context.h"
 
@@ -926,7 +928,7 @@ gpu_write_dw(struct i915_vma *vma, u64 offset, u32 val)
 	}
 
 	*cmd = MI_BATCH_BUFFER_END;
-	i915_gem_chipset_flush(i915);
+	intel_gt_chipset_flush(vma->vm->gt);
 
 	i915_gem_object_unpin_map(obj);
 

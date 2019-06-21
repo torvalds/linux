@@ -16,6 +16,7 @@
 
 #include "gem/i915_gem_ioctls.h"
 #include "gt/intel_context.h"
+#include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 
 #include "i915_gem_ioctls.h"
@@ -994,7 +995,7 @@ static void reloc_gpu_flush(struct reloc_cache *cache)
 	__i915_gem_object_flush_map(cache->rq->batch->obj, 0, cache->rq_size);
 	i915_gem_object_unpin_map(cache->rq->batch->obj);
 
-	i915_gem_chipset_flush(cache->rq->i915);
+	intel_gt_chipset_flush(cache->rq->engine->gt);
 
 	i915_request_add(cache->rq);
 	cache->rq = NULL;
@@ -1954,7 +1955,7 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 	eb->exec = NULL;
 
 	/* Unconditionally flush any chipset caches (for streaming writes). */
-	i915_gem_chipset_flush(eb->i915);
+	intel_gt_chipset_flush(eb->engine->gt);
 	return 0;
 
 err_skip:

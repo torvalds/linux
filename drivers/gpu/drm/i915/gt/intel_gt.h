@@ -18,5 +18,6 @@ void intel_gt_clear_error_registers(struct intel_gt *gt,
 				    intel_engine_mask_t engine_mask);
 
 void intel_gt_flush_ggtt_writes(struct intel_gt *gt);
+void intel_gt_chipset_flush(struct intel_gt *gt);
 
 #endif /* __INTEL_GT_H__ */

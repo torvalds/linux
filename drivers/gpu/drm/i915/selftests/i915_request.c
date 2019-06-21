@@ -27,6 +27,8 @@
 #include "gem/i915_gem_pm.h"
 #include "gem/selftests/mock_context.h"
 
+#include "gt/intel_gt.h"
+
 #include "i915_random.h"
 #include "i915_selftest.h"
 #include "igt_live_test.h"
@@ -624,7 +626,7 @@ static struct i915_vma *empty_batch(struct drm_i915_private *i915)
 	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
-	i915_gem_chipset_flush(i915);
+	intel_gt_chipset_flush(&i915->gt);
 
 	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
 	if (IS_ERR(vma)) {
@@ -793,7 +795,7 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 	__i915_gem_object_flush_map(obj, 0, 64);
 	i915_gem_object_unpin_map(obj);
 
-	i915_gem_chipset_flush(i915);
+	intel_gt_chipset_flush(&i915->gt);
 
 	return vma;
 
@@ -811,7 +813,7 @@ static int recursive_batch_resolve(struct i915_vma *batch)
 		return PTR_ERR(cmd);
 
 	*cmd = MI_BATCH_BUFFER_END;
-	i915_gem_chipset_flush(batch->vm->i915);
+	intel_gt_chipset_flush(batch->vm->gt);
 
 	i915_gem_object_unpin_map(batch->obj);
 
@@ -1033,7 +1035,7 @@ out_request:
 					      I915_MAP_WC);
 		if (!IS_ERR(cmd)) {
 			*cmd = MI_BATCH_BUFFER_END;
-			i915_gem_chipset_flush(i915);
+			intel_gt_chipset_flush(engine->gt);
 
 			i915_gem_object_unpin_map(request[id]->batch->obj);
 		}
