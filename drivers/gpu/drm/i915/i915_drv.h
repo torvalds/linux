@@ -72,6 +72,7 @@
 
 #include "gt/intel_lrc.h"
 #include "gt/intel_engine.h"
+#include "gt/intel_gt_types.h"
 #include "gt/intel_workarounds.h"
 
 #include "intel_device_info.h"
@@ -1824,38 +1825,7 @@ struct drm_i915_private {
 	} perf;
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
-	struct {
-		struct i915_gt_timelines {
-			struct mutex mutex; /* protects list, tainted by GPU */
-			struct list_head active_list;
-
-			/* Pack multiple timelines' seqnos into the same page */
-			spinlock_t hwsp_lock;
-			struct list_head hwsp_free_list;
-		} timelines;
-
-		struct list_head active_rings;
-
-		struct intel_wakeref wakeref;
-
-		struct list_head closed_vma;
-		spinlock_t closed_lock; /* guards the list of closed_vma */
-
-		/**
-		 * Is the GPU currently considered idle, or busy executing
-		 * userspace requests? Whilst idle, we allow runtime power
-		 * management to power down the hardware and display clocks.
-		 * In order to reduce the effect on performance, there
-		 * is a slight delay before we do so.
-		 */
-		intel_wakeref_t awake;
-
-		struct blocking_notifier_head pm_notifications;
-
-		ktime_t last_init_time;
-
-		struct i915_vma *scratch;
-	} gt;
+	struct intel_gt gt;
 
 	struct {
 		struct notifier_block pm_notifier;
