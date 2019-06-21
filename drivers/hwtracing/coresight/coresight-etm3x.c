@@ -455,11 +455,12 @@ int etm_get_trace_id(struct etm_drvdata *drvdata)
 {
 	unsigned long flags;
 	int trace_id = -1;
-	struct device *etm_dev = drvdata->csdev->dev.parent;
+	struct device *etm_dev;
 
 	if (!drvdata)
 		goto out;
 
+	etm_dev = drvdata->csdev->dev.parent;
 	if (!local_read(&drvdata->mode))
 		return drvdata->traceid;
 
