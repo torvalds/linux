@@ -88,6 +88,9 @@ struct intel_guc {
 		enum forcewake_domains fw_domains;
 	} send_regs;
 
+	/* Store msg (e.g. log flush) that we see while CTBs are disabled */
+	u32 mmio_msg;
+
 	/* To serialize the intel_guc_send actions */
 	struct mutex send_mutex;
 
@@ -181,6 +184,8 @@ static inline bool intel_guc_is_loaded(struct intel_guc *guc)
 static inline int intel_guc_sanitize(struct intel_guc *guc)
 {
 	intel_uc_fw_sanitize(&guc->fw);
+	guc->mmio_msg = 0;
+
 	return 0;
 }
 
