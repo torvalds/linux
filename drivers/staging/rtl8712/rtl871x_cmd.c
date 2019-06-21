@@ -585,27 +585,6 @@ void r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 }
 
-u8 r8712_setrfintfs_cmd(struct _adapter *padapter, u8 mode)
-{
-	struct cmd_obj *ph2c;
-	struct setrfintfs_parm *psetrfintfsparm;
-	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
-
-	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (!ph2c)
-		return _FAIL;
-	psetrfintfsparm = kmalloc(sizeof(*psetrfintfsparm), GFP_ATOMIC);
-	if (!psetrfintfsparm) {
-		kfree(ph2c);
-		return _FAIL;
-	}
-	init_h2fwcmd_w_parm_no_rsp(ph2c, psetrfintfsparm,
-				   GEN_CMD_CODE(_SetRFIntFs));
-	psetrfintfsparm->rfintfs = mode;
-	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
-}
-
 u8 r8712_setrttbl_cmd(struct _adapter *padapter,
 		      struct setratable_parm *prate_table)
 {
