@@ -54,6 +54,9 @@
 #define PWR_MAP(tab) \
 	[SMU_POWER_SOURCE_##tab] = POWER_SOURCE_##tab
 
+#define WORKLOAD_MAP(profile, workload) \
+	[profile] = workload
+
 struct smu_11_0_max_sustainable_clocks {
 	uint32_t display_clock;
 	uint32_t phy_clock;

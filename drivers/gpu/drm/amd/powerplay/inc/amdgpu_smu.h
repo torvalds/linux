@@ -532,6 +532,7 @@ struct pptable_funcs {
 	int (*get_smu_feature_index)(struct smu_context *smu, uint32_t index);
 	int (*get_smu_table_index)(struct smu_context *smu, uint32_t index);
 	int (*get_smu_power_index)(struct smu_context *smu, uint32_t index);
+	int (*get_workload_type)(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile);
 	int (*run_afll_btc)(struct smu_context *smu);
 	int (*get_allowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
 	enum amd_pm_state_type (*get_current_power_state)(struct smu_context *smu);
@@ -563,7 +564,6 @@ struct pptable_funcs {
 					      *clocks);
 	int (*get_power_profile_mode)(struct smu_context *smu, char *buf);
 	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
-	int (*conv_profile_to_workload)(struct smu_context *smu, int power_profile);
 	enum amd_dpm_forced_level (*get_performance_level)(struct smu_context *smu);
 	int (*force_performance_level)(struct smu_context *smu, enum amd_dpm_forced_level level);
 	int (*dpm_set_uvd_enable)(struct smu_context *smu, bool enable);
@@ -839,6 +839,8 @@ struct smu_funcs
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_table_index? (smu)->ppt_funcs->get_smu_table_index((smu), (tab)) : -EINVAL) : -EINVAL)
 #define smu_power_get_index(smu, src) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_power_index? (smu)->ppt_funcs->get_smu_power_index((smu), (src)) : -EINVAL) : -EINVAL)
+#define smu_workload_get_type(smu, profile) \
+	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_workload_type? (smu)->ppt_funcs->get_workload_type((smu), (profile)) : -EINVAL) : -EINVAL)
 #define smu_run_afll_btc(smu) \
 	((smu)->ppt_funcs? ((smu)->ppt_funcs->run_afll_btc? (smu)->ppt_funcs->run_afll_btc((smu)) : 0) : 0)
 #define smu_get_allowed_feature_mask(smu, feature_mask, num) \
@@ -869,8 +871,6 @@ struct smu_funcs
 	((smu)->funcs->notify_smu_enable_pwe ? (smu)->funcs->notify_smu_enable_pwe((smu)) : 0)
 #define smu_set_watermarks_for_clock_ranges(smu, clock_ranges) \
 	((smu)->funcs->set_watermarks_for_clock_ranges ? (smu)->funcs->set_watermarks_for_clock_ranges((smu), (clock_ranges)) : 0)
-#define smu_conv_profile_to_workload(smu, type) \
-	((smu)->ppt_funcs->conv_profile_to_workload ? (smu)->ppt_funcs->conv_profile_to_workload((smu), (type)) : 0)
 #define smu_dpm_set_uvd_enable(smu, enable) \
 	((smu)->ppt_funcs->dpm_set_uvd_enable ? (smu)->ppt_funcs->dpm_set_uvd_enable((smu), (enable)) : 0)
 #define smu_dpm_set_vce_enable(smu, enable) \

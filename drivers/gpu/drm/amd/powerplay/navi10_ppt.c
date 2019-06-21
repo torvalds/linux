@@ -194,6 +194,16 @@ static int navi10_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
 	PWR_MAP(DC),
 };
 
+static int navi10_workload_map[] = {
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT,	WORKLOAD_PPLIB_DEFAULT_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_FULLSCREEN3D,		WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_POWERSAVING,		WORKLOAD_PPLIB_POWER_SAVING_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_CUSTOM_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
+};
+
 static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
@@ -255,6 +265,18 @@ static int navi10_get_pwr_src_index(struct smu_context *smc, uint32_t index)
 	val = navi10_pwr_src_map[index];
 	if (val >= POWER_SOURCE_COUNT)
 		return -EINVAL;
+
+	return val;
+}
+
+
+static int navi10_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile)
+{
+	int val;
+	if (profile > PP_SMC_POWER_PROFILE_CUSTOM)
+		return -EINVAL;
+
+	val = navi10_workload_map[profile];
 
 	return val;
 }
@@ -848,6 +870,7 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_smu_feature_index = navi10_get_smu_feature_index,
 	.get_smu_table_index = navi10_get_smu_table_index,
 	.get_smu_power_index = navi10_get_pwr_src_index,
+	.get_workload_type = navi10_get_workload_type,
 	.get_allowed_feature_mask = navi10_get_allowed_feature_mask,
 	.set_default_dpm_table = navi10_set_default_dpm_table,
 	.dpm_set_uvd_enable = navi10_dpm_set_uvd_enable,

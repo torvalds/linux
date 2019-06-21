@@ -207,6 +207,16 @@ static int vega20_pwr_src_map[SMU_POWER_SOURCE_COUNT] = {
 	PWR_MAP(DC),
 };
 
+static int vega20_workload_map[] = {
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT,	WORKLOAD_DEFAULT_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_FULLSCREEN3D,		WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_POWERSAVING,		WORKLOAD_PPLIB_POWER_SAVING_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VIDEO,		WORKLOAD_PPLIB_VIDEO_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_VR,			WORKLOAD_PPLIB_VR_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_COMPUTE,		WORKLOAD_PPLIB_CUSTOM_BIT),
+	WORKLOAD_MAP(PP_SMC_POWER_PROFILE_CUSTOM,		WORKLOAD_PPLIB_CUSTOM_BIT),
+};
+
 static int vega20_get_smu_table_index(struct smu_context *smc, uint32_t index)
 {
 	int val;
@@ -269,6 +279,17 @@ static int vega20_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 	val = vega20_message_map[index];
 	if (val > PPSMC_Message_Count)
 		return -EINVAL;
+
+	return val;
+}
+
+static int vega20_get_workload_type(struct smu_context *smu, enum PP_SMC_POWER_PROFILE profile)
+{
+	int val;
+	if (profile > PP_SMC_POWER_PROFILE_CUSTOM)
+		return -EINVAL;
+
+	val = vega20_workload_map[profile];
 
 	return val;
 }
@@ -1669,37 +1690,6 @@ static int vega20_get_od_percentage(struct smu_context *smu,
 	return value;
 }
 
-static int vega20_conv_profile_to_workload(struct smu_context *smu, int power_profile)
-{
-	int pplib_workload = 0;
-
-	switch (power_profile) {
-	case PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT:
-		pplib_workload = WORKLOAD_DEFAULT_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
-		pplib_workload = WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_POWERSAVING:
-		pplib_workload = WORKLOAD_PPLIB_POWER_SAVING_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_VIDEO:
-		pplib_workload = WORKLOAD_PPLIB_VIDEO_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_VR:
-		pplib_workload = WORKLOAD_PPLIB_VR_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_COMPUTE:
-		pplib_workload = WORKLOAD_PPLIB_COMPUTE_BIT;
-		break;
-	case PP_SMC_POWER_PROFILE_CUSTOM:
-		pplib_workload = WORKLOAD_PPLIB_CUSTOM_BIT;
-		break;
-	}
-
-	return pplib_workload;
-}
-
 static int vega20_get_power_profile_mode(struct smu_context *smu, char *buf)
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
@@ -1736,7 +1726,7 @@ static int vega20_get_power_profile_mode(struct smu_context *smu, char *buf)
 
 	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
 		/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
-		workload_type = smu_conv_profile_to_workload(smu, i);
+		workload_type = smu_workload_get_type(smu, i);
 		result = smu_update_table(smu,
 					  TABLE_ACTIVITY_MONITOR_COEFF | workload_type << 16,
 					  (void *)(&activity_monitor), false);
@@ -1888,7 +1878,7 @@ static int vega20_set_power_profile_mode(struct smu_context *smu, long *input, u
 	}
 
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
-	workload_type = smu_conv_profile_to_workload(smu, smu->power_profile_mode);
+	workload_type = smu_workload_get_type(smu, smu->power_profile_mode);
 	smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
 				    1 << workload_type);
 
@@ -3114,6 +3104,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_smu_feature_index = vega20_get_smu_feature_index,
 	.get_smu_table_index = vega20_get_smu_table_index,
 	.get_smu_power_index = vega20_get_pwr_src_index,
+	.get_workload_type = vega20_get_workload_type,
 	.run_afll_btc = vega20_run_btc_afll,
 	.get_allowed_feature_mask = vega20_get_allowed_feature_mask,
 	.get_current_power_state = vega20_get_current_power_state,
@@ -3125,7 +3116,6 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_clock_by_type_with_latency = vega20_get_clock_by_type_with_latency,
 	.set_default_od8_settings = vega20_set_default_od8_setttings,
 	.get_od_percentage = vega20_get_od_percentage,
-	.conv_profile_to_workload = vega20_conv_profile_to_workload,
 	.get_power_profile_mode = vega20_get_power_profile_mode,
 	.set_power_profile_mode = vega20_set_power_profile_mode,
 	.get_performance_level = vega20_get_performance_level,
