@@ -25,8 +25,7 @@
 #include <crypto/internal/scompress.h>
 
 struct crypto842_ctx {
-	void *wmem;	/* working memory for compress */
-};
+	void *wmem;	/* working memory for compress */};
 
 static void *crypto842_alloc_ctx(struct crypto_scomp *tfm)
 {
