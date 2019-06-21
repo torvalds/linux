@@ -17,11 +17,13 @@
 #include "intel_wakeref.h"
 
 struct drm_i915_private;
+struct i915_ggtt;
 struct intel_uncore;
 
 struct intel_gt {
 	struct drm_i915_private *i915;
 	struct intel_uncore *uncore;
+	struct i915_ggtt *ggtt;
 
 	struct i915_gt_timelines {
 		struct mutex mutex; /* protects list, tainted by GPU */

@@ -1593,6 +1593,8 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_ggtt;
 
+	intel_gt_init_hw(dev_priv);
+
 	ret = i915_ggtt_enable_hw(dev_priv);
 	if (ret) {
 		DRM_ERROR("failed to enable GGTT\n");

@@ -22,6 +22,11 @@ void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 	intel_gt_pm_init_early(gt);
 }
 
+void intel_gt_init_hw(struct drm_i915_private *i915)
+{
+	i915->gt.ggtt = &i915->ggtt;
+}
+
 static void rmw_set(struct intel_uncore *uncore, i915_reg_t reg, u32 set)
 {
 	intel_uncore_rmw(uncore, reg, 0, set);

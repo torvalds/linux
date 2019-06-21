@@ -12,6 +12,7 @@
 struct drm_i915_private;
 
 void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915);
+void intel_gt_init_hw(struct drm_i915_private *i915);
 
 void intel_gt_check_and_clear_faults(struct intel_gt *gt);
 void intel_gt_clear_error_registers(struct intel_gt *gt,
