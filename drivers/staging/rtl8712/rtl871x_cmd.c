@@ -935,7 +935,7 @@ void r8712_setassocsta_cmdrsp_callback(struct _adapter *padapter,
 	r8712_free_cmd_obj(pcmd);
 }
 
-u8 r8712_disconnectCtrlEx_cmd(struct _adapter *adapter, u32 enableDrvCtrl,
+void r8712_disconnectCtrlEx_cmd(struct _adapter *adapter, u32 enableDrvCtrl,
 			u32 tryPktCnt, u32 tryPktInterval, u32 firstStageTO)
 {
 	struct cmd_obj *ph2c;
@@ -944,11 +944,11 @@ u8 r8712_disconnectCtrlEx_cmd(struct _adapter *adapter, u32 enableDrvCtrl,
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
 	if (!ph2c)
-		return _FAIL;
+		return;
 	param = kzalloc(sizeof(*param), GFP_ATOMIC);
 	if (!param) {
 		kfree(ph2c);
-		return _FAIL;
+		return;
 	}
 
 	param->EnableDrvCtrl = (unsigned char)enableDrvCtrl;
@@ -959,5 +959,4 @@ u8 r8712_disconnectCtrlEx_cmd(struct _adapter *adapter, u32 enableDrvCtrl,
 	init_h2fwcmd_w_parm_no_rsp(ph2c, param,
 				GEN_CMD_CODE(_DisconnectCtrlEx));
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
 }
