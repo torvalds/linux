@@ -279,26 +279,6 @@ void r8712_set_chplan_cmd(struct _adapter *padapter, int chplan)
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 }
 
-u8 r8712_setfwdig_cmd(struct _adapter *padapter, u8 type)
-{
-	struct cmd_obj *ph2c;
-	struct writePTM_parm *pwriteptmparm;
-	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
-
-	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (!ph2c)
-		return _FAIL;
-	pwriteptmparm = kmalloc(sizeof(*pwriteptmparm), GFP_ATOMIC);
-	if (!pwriteptmparm) {
-		kfree(ph2c);
-		return _FAIL;
-	}
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pwriteptmparm, GEN_CMD_CODE(_SetDIG));
-	pwriteptmparm->type = type;
-	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
-}
-
 u8 r8712_setfwra_cmd(struct _adapter *padapter, u8 type)
 {
 	struct cmd_obj *ph2c;
