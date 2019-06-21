@@ -1191,6 +1191,10 @@ static int navi10_read_sensor(struct smu_context *smu,
 		*(uint32_t *)data = pptable->FanMaximumRpm;
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		ret = navi10_get_current_activity_percent(smu, (uint32_t *)data);
+		*size = 4;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1224,7 +1228,6 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.force_dpm_limit_value = navi10_force_dpm_limit_value,
 	.unforce_dpm_levels = navi10_unforce_dpm_levels,
 	.get_gpu_power = navi10_get_gpu_power,
-	.get_current_activity_percent = navi10_get_current_activity_percent,
 	.is_dpm_running = navi10_is_dpm_running,
 	.set_thermal_fan_table = navi10_set_thermal_fan_table,
 	.get_fan_speed_percent = navi10_get_fan_speed_percent,

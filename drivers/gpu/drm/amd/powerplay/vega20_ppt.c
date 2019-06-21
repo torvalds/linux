@@ -2927,26 +2927,6 @@ static int vega20_set_ppfeature_status(struct smu_context *smu, uint64_t new_ppf
 	return 0;
 }
 
-static int vega20_read_sensor(struct smu_context *smu,
-			      enum amd_pp_sensors sensor,
-			      void *data, uint32_t *size)
-{
-	int ret = 0;
-	struct smu_table_context *table_context = &smu->smu_table;
-	PPTable_t *pptable = table_context->driver_pptable;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
-		*(uint32_t *)data = pptable->FanMaximumRpm;
-		*size = 4;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
 static bool vega20_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
@@ -3031,6 +3011,33 @@ static int vega20_get_current_activity_percent(struct smu_context *smu,
 	}
 
 	return 0;
+}
+
+static int vega20_read_sensor(struct smu_context *smu,
+				 enum amd_pp_sensors sensor,
+				 void *data, uint32_t *size)
+{
+	int ret = 0;
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *pptable = table_context->driver_pptable;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_MAX_FAN_RPM:
+		*(uint32_t *)data = pptable->FanMaximumRpm;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		ret = vega20_get_current_activity_percent(smu,
+						sensor,
+						(uint32_t *)data);
+		*size = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
 }
 
 static int vega20_set_watermarks_table(struct smu_context *smu,
@@ -3139,7 +3146,6 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.set_thermal_fan_table = vega20_set_thermal_fan_table,
 	.get_fan_speed_percent = vega20_get_fan_speed_percent,
 	.get_gpu_power = vega20_get_gpu_power,
-	.get_current_activity_percent = vega20_get_current_activity_percent,
 	.set_watermarks_table = vega20_set_watermarks_table,
 };
 

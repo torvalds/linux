@@ -1320,13 +1320,6 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 {
 	int ret = 0;
 	switch (sensor) {
-	case AMDGPU_PP_SENSOR_GPU_LOAD:
-	case AMDGPU_PP_SENSOR_MEM_LOAD:
-		ret = smu_get_current_activity_percent(smu,
-						       sensor,
-						       (uint32_t *)data);
-		*size = 4;
-		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		ret = smu_get_current_clk_freq(smu, SMU_UCLK, (uint32_t *)data);
 		*size = 4;
