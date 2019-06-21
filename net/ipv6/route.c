@@ -3840,7 +3840,8 @@ static int ip6_route_del(struct fib6_config *cfg,
 		for_each_fib6_node_rt_rcu(fn) {
 			struct fib6_nh *nh;
 
-			if (rt->nh && rt->nh->id != cfg->fc_nh_id)
+			if (rt->nh && cfg->fc_nh_id &&
+			    rt->nh->id != cfg->fc_nh_id)
 				continue;
 
 			if (cfg->fc_flags & RTF_CACHE) {
