@@ -11,7 +11,7 @@
 #include <linux/proc_fs.h>
 
 #include <linux/netfilter_ipv6.h>
-#include <linux/netfilter/nf_SYNPROXY.h>
+#include <linux/netfilter/nf_synproxy.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
