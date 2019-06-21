@@ -101,4 +101,8 @@ static inline void intel_guc_ct_stop(struct intel_guc_ct *ct)
 	ct->host_channel.enabled = false;
 }
 
+int intel_guc_send_ct(struct intel_guc *guc, const u32 *action, u32 len,
+		      u32 *response_buf, u32 response_buf_size);
+void intel_guc_to_host_event_handler_ct(struct intel_guc *guc);
+
 #endif /* _INTEL_GUC_CT_H_ */

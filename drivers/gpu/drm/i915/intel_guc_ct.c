@@ -529,8 +529,8 @@ unlink:
 /*
  * Command Transport (CT) buffer based GuC send function.
  */
-static int intel_guc_send_ct(struct intel_guc *guc, const u32 *action, u32 len,
-			     u32 *response_buf, u32 response_buf_size)
+int intel_guc_send_ct(struct intel_guc *guc, const u32 *action, u32 len,
+		      u32 *response_buf, u32 response_buf_size)
 {
 	struct intel_guc_ct *ct = &guc->ct;
 	struct intel_guc_ct_channel *ctch = &ct->host_channel;
@@ -834,7 +834,7 @@ static void ct_process_host_channel(struct intel_guc_ct *ct)
  * When we're communicating with the GuC over CT, GuC uses events
  * to notify us about new messages being posted on the RECV buffer.
  */
-static void intel_guc_to_host_event_handler_ct(struct intel_guc *guc)
+void intel_guc_to_host_event_handler_ct(struct intel_guc *guc)
 {
 	struct intel_guc_ct *ct = &guc->ct;
 
@@ -892,20 +892,11 @@ int intel_guc_ct_enable(struct intel_guc_ct *ct)
 {
 	struct intel_guc *guc = ct_to_guc(ct);
 	struct intel_guc_ct_channel *ctch = &ct->host_channel;
-	int err;
 
 	if (ctch->enabled)
 		return 0;
 
-	err = ctch_enable(guc, ctch);
-	if (unlikely(err))
-		return err;
-
-	/* Switch into cmd transport buffer based send() */
-	guc->send = intel_guc_send_ct;
-	guc->handler = intel_guc_to_host_event_handler_ct;
-	DRM_INFO("CT: %s\n", enableddisabled(true));
-	return 0;
+	return ctch_enable(guc, ctch);
 }
 
 /**
@@ -921,9 +912,4 @@ void intel_guc_ct_disable(struct intel_guc_ct *ct)
 		return;
 
 	ctch_disable(guc, ctch);
-
-	/* Disable send */
-	guc->send = intel_guc_send_nop;
-	guc->handler = intel_guc_to_host_event_handler_nop;
-	DRM_INFO("CT: %s\n", enableddisabled(false));
 }

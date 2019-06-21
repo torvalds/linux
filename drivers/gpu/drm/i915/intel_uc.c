@@ -235,9 +235,20 @@ static void guc_disable_interrupts(struct intel_guc *guc)
 
 static int guc_enable_communication(struct intel_guc *guc)
 {
+	int ret;
+
+	ret = intel_guc_ct_enable(&guc->ct);
+	if (ret)
+		return ret;
+
+	guc->send = intel_guc_send_ct;
+	guc->handler = intel_guc_to_host_event_handler_ct;
+
 	guc_enable_interrupts(guc);
 
-	return intel_guc_ct_enable(&guc->ct);
+	DRM_INFO("GuC communication enabled\n");
+
+	return 0;
 }
 
 static void guc_stop_communication(struct intel_guc *guc)
@@ -250,12 +261,14 @@ static void guc_stop_communication(struct intel_guc *guc)
 
 static void guc_disable_communication(struct intel_guc *guc)
 {
-	intel_guc_ct_disable(&guc->ct);
-
 	guc_disable_interrupts(guc);
 
 	guc->send = intel_guc_send_nop;
 	guc->handler = intel_guc_to_host_event_handler_nop;
+
+	intel_guc_ct_disable(&guc->ct);
+
+	DRM_INFO("GuC communication disabled\n");
 }
 
 int intel_uc_init_misc(struct drm_i915_private *i915)
