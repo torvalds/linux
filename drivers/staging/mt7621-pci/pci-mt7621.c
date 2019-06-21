@@ -727,4 +727,4 @@ static int __init mt7621_pci_init(void)
 	return platform_driver_register(&mt7621_pci_driver);
 }
 
-arch_initcall(mt7621_pci_init);
+module_init(mt7621_pci_init);
