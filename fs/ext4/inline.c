@@ -1164,7 +1164,7 @@ static int ext4_finish_convert_inline_dir(handle_t *handle,
 		initialize_dirent_tail(t, inode->i_sb->s_blocksize);
 	}
 	set_buffer_uptodate(dir_block);
-	err = ext4_handle_dirty_dirent_node(handle, inode, dir_block);
+	err = ext4_handle_dirty_dirblock(handle, inode, dir_block);
 	if (err)
 		return err;
 	set_buffer_verified(dir_block);
