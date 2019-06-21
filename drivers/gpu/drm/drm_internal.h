@@ -133,6 +133,11 @@ void drm_gem_release(struct drm_device *dev, struct drm_file *file_private);
 void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 			const struct drm_gem_object *obj);
 
+int drm_gem_pin(struct drm_gem_object *obj);
+void drm_gem_unpin(struct drm_gem_object *obj);
+void *drm_gem_vmap(struct drm_gem_object *obj);
+void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr);
+
 /* drm_debugfs.c drm_debugfs_crc.c */
 #if defined(CONFIG_DEBUG_FS)
 int drm_debugfs_init(struct drm_minor *minor, int minor_id,

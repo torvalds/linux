@@ -69,14 +69,14 @@ static void drm_self_refresh_helper_entry_work(struct work_struct *work)
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
-	int i, ret;
+	int i, ret = 0;
 
 	drm_modeset_acquire_init(&ctx, 0);
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_drop_locks;
 	}
 
 retry:
@@ -116,6 +116,8 @@ out:
 	}
 
 	drm_atomic_state_put(state);
+
+out_drop_locks:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 }
@@ -205,7 +207,7 @@ void drm_self_refresh_helper_cleanup(struct drm_crtc *crtc)
 	struct drm_self_refresh_data *sr_data = crtc->self_refresh_data;
 
 	/* Helper is already uninitialized */
-	if (sr_data)
+	if (!sr_data)
 		return;
 
 	crtc->self_refresh_data = NULL;

@@ -14,6 +14,7 @@ struct panfrost_device;
 struct panfrost_mmu;
 struct panfrost_job_slot;
 struct panfrost_job;
+struct panfrost_perfcnt;
 
 #define NUM_JOB_SLOTS 3
 
@@ -78,6 +79,8 @@ struct panfrost_device {
 	struct panfrost_job *jobs[NUM_JOB_SLOTS];
 	struct list_head scheduled_jobs;
 
+	struct panfrost_perfcnt *perfcnt;
+
 	struct mutex sched_lock;
 	struct mutex reset_lock;
 
@@ -110,10 +113,17 @@ static inline int panfrost_model_cmp(struct panfrost_device *pfdev, s32 id)
 	return match_id - id;
 }
 
+static inline bool panfrost_model_is_bifrost(struct panfrost_device *pfdev)
+{
+	return panfrost_model_cmp(pfdev, 0x1000) >= 0;
+}
+
 static inline bool panfrost_model_eq(struct panfrost_device *pfdev, s32 id)
 {
 	return !panfrost_model_cmp(pfdev, id);
 }
+
+int panfrost_unstable_ioctl_check(void);
 
 int panfrost_device_init(struct panfrost_device *pfdev);
 void panfrost_device_fini(struct panfrost_device *pfdev);

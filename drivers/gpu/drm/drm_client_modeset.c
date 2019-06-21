@@ -149,6 +149,10 @@ drm_connector_pick_cmdline_mode(struct drm_connector *connector)
 	prefer_non_interlace = !cmdline_mode->interlace;
 again:
 	list_for_each_entry(mode, &connector->modes, head) {
+		/* Check (optional) mode name first */
+		if (!strcmp(mode->name, cmdline_mode->name))
+			return mode;
+
 		/* check width/height */
 		if (mode->hdisplay != cmdline_mode->xres ||
 		    mode->vdisplay != cmdline_mode->yres)
@@ -804,22 +808,23 @@ free_connectors:
 EXPORT_SYMBOL(drm_client_modeset_probe);
 
 /**
- * drm_client_panel_rotation() - Check panel orientation
+ * drm_client_rotation() - Check the initial rotation value
  * @modeset: DRM modeset
  * @rotation: Returned rotation value
  *
- * This function checks if the primary plane in @modeset can hw rotate to match
- * the panel orientation on its connector.
+ * This function checks if the primary plane in @modeset can hw rotate
+ * to match the rotation needed on its connector.
  *
  * Note: Currently only 0 and 180 degrees are supported.
  *
  * Return:
  * True if the plane can do the rotation, false otherwise.
  */
-bool drm_client_panel_rotation(struct drm_mode_set *modeset, unsigned int *rotation)
+bool drm_client_rotation(struct drm_mode_set *modeset, unsigned int *rotation)
 {
 	struct drm_connector *connector = modeset->connectors[0];
 	struct drm_plane *plane = modeset->crtc->primary;
+	struct drm_cmdline_mode *cmdline;
 	u64 valid_mask = 0;
 	unsigned int i;
 
@@ -840,12 +845,42 @@ bool drm_client_panel_rotation(struct drm_mode_set *modeset, unsigned int *rotat
 		*rotation = DRM_MODE_ROTATE_0;
 	}
 
+	/**
+	 * The panel already defined the default rotation
+	 * through its orientation. Whatever has been provided
+	 * on the command line needs to be added to that.
+	 *
+	 * Unfortunately, the rotations are at different bit
+	 * indices, so the math to add them up are not as
+	 * trivial as they could.
+	 *
+	 * Reflections on the other hand are pretty trivial to deal with, a
+	 * simple XOR between the two handle the addition nicely.
+	 */
+	cmdline = &connector->cmdline_mode;
+	if (cmdline->specified) {
+		unsigned int cmdline_rest, panel_rest;
+		unsigned int cmdline_rot, panel_rot;
+		unsigned int sum_rot, sum_rest;
+
+		panel_rot = ilog2(*rotation & DRM_MODE_ROTATE_MASK);
+		cmdline_rot = ilog2(cmdline->rotation_reflection & DRM_MODE_ROTATE_MASK);
+		sum_rot = (panel_rot + cmdline_rot) % 4;
+
+		panel_rest = *rotation & ~DRM_MODE_ROTATE_MASK;
+		cmdline_rest = cmdline->rotation_reflection & ~DRM_MODE_ROTATE_MASK;
+		sum_rest = panel_rest ^ cmdline_rest;
+
+		*rotation = (1 << sum_rot) | sum_rest;
+	}
+
 	/*
 	 * TODO: support 90 / 270 degree hardware rotation,
 	 * depending on the hardware this may require the framebuffer
 	 * to be in a specific tiling format.
 	 */
-	if (*rotation != DRM_MODE_ROTATE_180 || !plane->rotation_property)
+	if ((*rotation & DRM_MODE_ROTATE_MASK) != DRM_MODE_ROTATE_180 ||
+	    !plane->rotation_property)
 		return false;
 
 	for (i = 0; i < plane->rotation_property->num_values; i++)
@@ -856,12 +891,11 @@ bool drm_client_panel_rotation(struct drm_mode_set *modeset, unsigned int *rotat
 
 	return true;
 }
-EXPORT_SYMBOL(drm_client_panel_rotation);
+EXPORT_SYMBOL(drm_client_rotation);
 
 static int drm_client_modeset_commit_atomic(struct drm_client_dev *client, bool active)
 {
 	struct drm_device *dev = client->dev;
-	struct drm_plane_state *plane_state;
 	struct drm_plane *plane;
 	struct drm_atomic_state *state;
 	struct drm_modeset_acquire_ctx ctx;
@@ -879,6 +913,8 @@ static int drm_client_modeset_commit_atomic(struct drm_client_dev *client, bool 
 	state->acquire_ctx = &ctx;
 retry:
 	drm_for_each_plane(plane, dev) {
+		struct drm_plane_state *plane_state;
+
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(plane_state)) {
 			ret = PTR_ERR(plane_state);
@@ -900,7 +936,9 @@ retry:
 		struct drm_plane *primary = mode_set->crtc->primary;
 		unsigned int rotation;
 
-		if (drm_client_panel_rotation(mode_set, &rotation)) {
+		if (drm_client_rotation(mode_set, &rotation)) {
+			struct drm_plane_state *plane_state;
+
 			/* Cannot fail as we've already gotten the plane state above */
 			plane_state = drm_atomic_get_new_plane_state(state, primary);
 			plane_state->rotation = rotation;
