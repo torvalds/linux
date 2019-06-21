@@ -3054,7 +3054,7 @@ static int ov5640_probe(struct i2c_client *client)
 	if (ret)
 		goto entity_cleanup;
 
-	ret = v4l2_async_register_subdev(&sensor->sd);
+	ret = v4l2_async_register_subdev_sensor_common(&sensor->sd);
 	if (ret)
 		goto free_ctrls;
 
