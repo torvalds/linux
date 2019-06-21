@@ -436,6 +436,7 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	err = phy_power_on(port->phy);
 	if (err) {
 		dev_err(dev, "failed to power on port%d phy\n", slot);
+		phy_exit(port->phy);
 		return err;
 	}
 
