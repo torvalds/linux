@@ -520,6 +520,9 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	set_bit(HCI_CONN_POWER_SAVE, &conn->flags);
 	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
 
+	/* Set Default Authenticated payload timeout to 30s */
+	conn->auth_payload_timeout = DEFAULT_AUTH_PAYLOAD_TIMEOUT;
+
 	if (conn->role == HCI_ROLE_MASTER)
 		conn->out = true;
 
