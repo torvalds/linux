@@ -3033,6 +3033,10 @@ static int vega20_read_sensor(struct smu_context *smu,
 						(uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GPU_POWER:
+		ret = vega20_get_gpu_power(smu, (uint32_t *)data);
+		*size = 4;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -3145,7 +3149,6 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.is_dpm_running = vega20_is_dpm_running,
 	.set_thermal_fan_table = vega20_set_thermal_fan_table,
 	.get_fan_speed_percent = vega20_get_fan_speed_percent,
-	.get_gpu_power = vega20_get_gpu_power,
 	.set_watermarks_table = vega20_set_watermarks_table,
 };
 

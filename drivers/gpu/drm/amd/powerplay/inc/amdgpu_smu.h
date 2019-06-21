@@ -594,7 +594,6 @@ struct pptable_funcs {
 	void (*tables_init)(struct smu_context *smu, struct smu_table *tables);
 	int (*set_thermal_fan_table)(struct smu_context *smu);
 	int (*get_fan_speed_percent)(struct smu_context *smu, uint32_t *speed);
-	int (*get_gpu_power)(struct smu_context *smu, uint32_t *value);
 	int (*set_watermarks_table)(struct smu_context *smu, void *watermarks,
 				    struct dm_pp_wm_sets_with_clock_ranges_soc15 *clock_ranges);
 	int (*get_current_clk_freq_by_table)(struct smu_context *smu,
@@ -825,8 +824,6 @@ struct smu_funcs
 	((smu)->funcs->set_fan_control_mode ? (smu)->funcs->set_fan_control_mode((smu), (value)) : 0)
 #define smu_get_fan_speed_percent(smu, speed) \
 	((smu)->ppt_funcs->get_fan_speed_percent ? (smu)->ppt_funcs->get_fan_speed_percent((smu), (speed)) : 0)
-#define smu_get_gpu_power(smu, val) \
-	((smu)->ppt_funcs->get_gpu_power ? (smu)->ppt_funcs->get_gpu_power((smu), (val)) : 0)
 #define smu_set_fan_speed_percent(smu, speed) \
 	((smu)->funcs->set_fan_speed_percent ? (smu)->funcs->set_fan_speed_percent((smu), (speed)) : 0)
 

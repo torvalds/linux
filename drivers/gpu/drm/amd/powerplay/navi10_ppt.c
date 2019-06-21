@@ -1195,6 +1195,10 @@ static int navi10_read_sensor(struct smu_context *smu,
 		ret = navi10_get_current_activity_percent(smu, (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GPU_POWER:
+		ret = navi10_get_gpu_power(smu, (uint32_t *)data);
+		*size = 4;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1227,7 +1231,6 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.notify_smc_dispaly_config = navi10_notify_smc_dispaly_config,
 	.force_dpm_limit_value = navi10_force_dpm_limit_value,
 	.unforce_dpm_levels = navi10_unforce_dpm_levels,
-	.get_gpu_power = navi10_get_gpu_power,
 	.is_dpm_running = navi10_is_dpm_running,
 	.set_thermal_fan_table = navi10_set_thermal_fan_table,
 	.get_fan_speed_percent = navi10_get_fan_speed_percent,

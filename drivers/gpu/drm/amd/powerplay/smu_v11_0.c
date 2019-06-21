@@ -1334,10 +1334,6 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		ret = smu_v11_0_thermal_get_temperature(smu, sensor, (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
-		ret = smu_get_gpu_power(smu, (uint32_t *)data);
-		*size = 4;
-		break;
 	case AMDGPU_PP_SENSOR_VDDGFX:
 		ret = smu_v11_0_get_gfx_vdd(smu, (uint32_t *)data);
 		*size = 4;
