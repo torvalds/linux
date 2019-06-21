@@ -486,7 +486,7 @@ struct smu_funcs
 	int (*fini_power)(struct smu_context *smu);
 	int (*load_microcode)(struct smu_context *smu);
 	int (*check_fw_status)(struct smu_context *smu);
-	int (*read_pptable_from_vbios)(struct smu_context *smu);
+	int (*setup_pptable)(struct smu_context *smu);
 	int (*get_vbios_bootup_values)(struct smu_context *smu);
 	int (*get_clk_info_from_vbios)(struct smu_context *smu);
 	int (*check_pptable)(struct smu_context *smu);
@@ -570,8 +570,8 @@ struct smu_funcs
 	((smu)->funcs->load_microcode ? (smu)->funcs->load_microcode((smu)) : 0)
 #define smu_check_fw_status(smu) \
 	((smu)->funcs->check_fw_status ? (smu)->funcs->check_fw_status((smu)) : 0)
-#define smu_read_pptable_from_vbios(smu) \
-	((smu)->funcs->read_pptable_from_vbios ? (smu)->funcs->read_pptable_from_vbios((smu)) : 0)
+#define smu_setup_pptable(smu) \
+	((smu)->funcs->setup_pptable ? (smu)->funcs->setup_pptable((smu)) : 0)
 #define smu_get_vbios_bootup_values(smu) \
 	((smu)->funcs->get_vbios_bootup_values ? (smu)->funcs->get_vbios_bootup_values((smu)) : 0)
 #define smu_get_clk_info_from_vbios(smu) \

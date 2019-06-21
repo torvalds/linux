@@ -56,6 +56,19 @@ struct smc_firmware_header_v2_0 {
 	uint32_t ppt_size_bytes; /* soft pptable size */
 };
 
+struct smc_soft_pptable_entry {
+        uint32_t id;
+        uint32_t ppt_offset_bytes;
+        uint32_t ppt_size_bytes;
+};
+
+/* version_major=2, version_minor=1 */
+struct smc_firmware_header_v2_1 {
+        struct smc_firmware_header_v1_0 v1_0;
+        uint32_t pptable_count;
+        uint32_t pptable_entry_offset;
+};
+
 /* version_major=1, version_minor=0 */
 struct psp_firmware_header_v1_0 {
 	struct common_firmware_header header;

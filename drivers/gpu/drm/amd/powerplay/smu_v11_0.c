@@ -143,18 +143,6 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu, uint16_t msg,
 	return ret;
 }
 
-static void smu_v11_0_init_smu_ext_microcode(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-	const struct smc_firmware_header_v2_0 *v2;
-
-	v2 = (const struct smc_firmware_header_v2_0 *) adev->pm.fw->data;
-
-	smu->ppt_offset_bytes = le32_to_cpu(v2->ppt_offset_bytes);
-	smu->ppt_size_bytes = le32_to_cpu(v2->ppt_size_bytes);
-	smu->ppt_start_addr = (uint8_t *)v2 + smu->ppt_offset_bytes;
-}
-
 static int smu_v11_0_init_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -164,7 +152,6 @@ static int smu_v11_0_init_microcode(struct smu_context *smu)
 	const struct smc_firmware_header_v1_0 *hdr;
 	const struct common_firmware_header *header;
 	struct amdgpu_firmware_info *ucode = NULL;
-	uint32_t version_major, version_minor;
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
@@ -189,11 +176,6 @@ static int smu_v11_0_init_microcode(struct smu_context *smu)
 	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
 	amdgpu_ucode_print_smc_hdr(&hdr->header);
 	adev->pm.fw_version = le32_to_cpu(hdr->header.ucode_version);
-
-	version_major = le16_to_cpu(hdr->header.header_version_major);
-	version_minor = le16_to_cpu(hdr->header.header_version_minor);
-	if (version_major == 2 && version_minor == 0)
-		smu_v11_0_init_smu_ext_microcode(smu); /* with soft pptable */
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		ucode = &adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
@@ -293,22 +275,82 @@ static int smu_v11_0_check_fw_version(struct smu_context *smu)
 	return ret;
 }
 
-static int smu_v11_0_read_pptable_from_vbios(struct smu_context *smu)
+static int smu_v11_0_set_pptable_v2_0(struct smu_context *smu, void **table, uint32_t *size)
 {
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t ppt_offset_bytes;
+	const struct smc_firmware_header_v2_0 *v2;
+
+	v2 = (const struct smc_firmware_header_v2_0 *) adev->pm.fw->data;
+
+	ppt_offset_bytes = le32_to_cpu(v2->ppt_offset_bytes);
+	*size = le32_to_cpu(v2->ppt_size_bytes);
+	*table = (uint8_t *)v2 + ppt_offset_bytes;
+
+	return 0;
+}
+
+static int smu_v11_0_set_pptable_v2_1(struct smu_context *smu, void **table, uint32_t *size, uint32_t pptable_id)
+{
+	struct amdgpu_device *adev = smu->adev;
+	const struct smc_firmware_header_v2_1 *v2_1;
+	struct smc_soft_pptable_entry *entries;
+	uint32_t pptable_count = 0;
+	int i = 0;
+
+	v2_1 = (const struct smc_firmware_header_v2_1 *) adev->pm.fw->data;
+	entries = (struct smc_soft_pptable_entry *)
+		((uint8_t *)v2_1 + le32_to_cpu(v2_1->pptable_entry_offset));
+	pptable_count = le32_to_cpu(v2_1->pptable_count);
+	for (i = 0; i < pptable_count; i++) {
+		if (le32_to_cpu(entries[i].id) == pptable_id) {
+			*table = ((uint8_t *)v2_1 + le32_to_cpu(entries[i].ppt_offset_bytes));
+			*size = le32_to_cpu(entries[i].ppt_size_bytes);
+			break;
+		}
+	}
+
+	if (i == pptable_count)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int smu_v11_0_setup_pptable(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	const struct smc_firmware_header_v1_0 *hdr;
 	int ret, index;
-	uint16_t size;
+	uint32_t size;
 	uint8_t frev, crev;
 	void *table;
+	uint16_t version_major, version_minor;
 
-	if (smu->smu_table.boot_values.pp_table_id > 0 && smu->ppt_start_addr) {
-		/* load soft pptable */
-		table = (void *)smu->ppt_start_addr;
-		size= smu->ppt_size_bytes;
+	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
+	version_major = le16_to_cpu(hdr->header.header_version_major);
+	version_minor = le16_to_cpu(hdr->header.header_version_minor);
+
+	if (version_major == 2 && smu->smu_table.boot_values.pp_table_id > 0) {
+		switch (version_minor) {
+		case 0:
+			ret = smu_v11_0_set_pptable_v2_0(smu, &table, &size);
+			break;
+		case 1:
+			ret = smu_v11_0_set_pptable_v2_1(smu, &table, &size,
+							 smu->smu_table.boot_values.pp_table_id);
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
+		if (ret)
+			return ret;
+
 	} else {
 		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
 						    powerplayinfo);
 
-		ret = smu_get_atom_data_table(smu, index, &size, &frev, &crev,
+		ret = smu_get_atom_data_table(smu, index, (uint16_t *)&size, &frev, &crev,
 					      (uint8_t **)&table);
 		if (ret)
 			return ret;
@@ -1836,7 +1878,6 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.send_smc_msg = smu_v11_0_send_msg,
 	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
 	.read_smc_arg = smu_v11_0_read_arg,
-	.read_pptable_from_vbios = smu_v11_0_read_pptable_from_vbios,
 	.setup_pptable = smu_v11_0_setup_pptable,
 	.init_smc_tables = smu_v11_0_init_smc_tables,
 	.fini_smc_tables = smu_v11_0_fini_smc_tables,
