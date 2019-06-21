@@ -234,8 +234,7 @@ static int gpu_fill(struct drm_i915_gem_object *obj,
 		    struct intel_engine_cs *engine,
 		    unsigned int dw)
 {
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
+	struct i915_address_space *vm = ctx->vm ?: &engine->gt->ggtt->vm;
 	struct i915_request *rq;
 	struct i915_vma *vma;
 	struct i915_vma *batch;

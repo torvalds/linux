@@ -1901,7 +1901,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 
 	if (flush) {
 		mark_tlbs_dirty(&ppgtt->base);
-		gen6_ggtt_invalidate(&vm->i915->ggtt);
+		gen6_ggtt_invalidate(vm->gt->ggtt);
 	}
 
 	goto out;
@@ -2045,7 +2045,7 @@ static const struct i915_vma_ops pd_vma_ops = {
 static struct i915_vma *pd_vma_create(struct gen6_ppgtt *ppgtt, int size)
 {
 	struct drm_i915_private *i915 = ppgtt->base.vm.i915;
-	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct i915_ggtt *ggtt = ppgtt->base.vm.gt->ggtt;
 	struct i915_vma *vma;
 
 	GEM_BUG_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE));

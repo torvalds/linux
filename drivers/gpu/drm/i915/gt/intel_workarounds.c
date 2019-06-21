@@ -1420,7 +1420,7 @@ static int engine_wa_list_verify(struct intel_context *ce,
 	if (!wal->count)
 		return 0;
 
-	vma = create_scratch(&ce->engine->i915->ggtt.vm, wal->count);
+	vma = create_scratch(&ce->engine->gt->ggtt->vm, wal->count);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 

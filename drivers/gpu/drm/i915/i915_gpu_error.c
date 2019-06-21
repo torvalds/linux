@@ -1405,12 +1405,12 @@ capture_object(struct drm_i915_private *dev_priv,
 static void gem_record_rings(struct i915_gpu_state *error)
 {
 	struct drm_i915_private *i915 = error->i915;
-	struct i915_ggtt *ggtt = &i915->ggtt;
 	int i;
 
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = i915->engine[i];
 		struct drm_i915_error_engine *ee = &error->engine[i];
+		struct i915_ggtt *ggtt = engine->gt->ggtt;
 		struct i915_request *request;
 
 		ee->engine_id = -1;

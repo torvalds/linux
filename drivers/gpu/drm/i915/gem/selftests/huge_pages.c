@@ -1039,8 +1039,7 @@ static int __igt_write_huge(struct i915_gem_context *ctx,
 			    u64 size, u64 offset,
 			    u32 dword, u32 val)
 {
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct i915_address_space *vm = ctx->vm ?: &i915->ggtt.vm;
+	struct i915_address_space *vm = ctx->vm ?: &engine->gt->ggtt->vm;
 	unsigned int flags = PIN_USER | PIN_OFFSET_FIXED;
 	struct i915_vma *vma;
 	int err;
