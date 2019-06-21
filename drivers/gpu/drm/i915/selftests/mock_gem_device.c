@@ -181,7 +181,6 @@ struct drm_i915_private *mock_gem_device(void)
 	mock_uncore_init(&i915->uncore);
 	i915_gem_init__mm(i915);
 	intel_gt_init_early(&i915->gt, i915);
-	intel_gt_pm_init(i915);
 	atomic_inc(&i915->gt.wakeref.count); /* disable; no hw support */
 
 	init_waitqueue_head(&i915->gpu_error.wait_queue);

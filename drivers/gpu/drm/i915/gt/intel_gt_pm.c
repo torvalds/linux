@@ -80,10 +80,10 @@ void intel_gt_pm_put(struct drm_i915_private *i915)
 	intel_wakeref_put(&i915->runtime_pm, &i915->gt.wakeref, intel_gt_park);
 }
 
-void intel_gt_pm_init(struct drm_i915_private *i915)
+void intel_gt_pm_init_early(struct intel_gt *gt)
 {
-	intel_wakeref_init(&i915->gt.wakeref);
-	BLOCKING_INIT_NOTIFIER_HEAD(&i915->gt.pm_notifications);
+	intel_wakeref_init(&gt->wakeref);
+	BLOCKING_INIT_NOTIFIER_HEAD(&gt->pm_notifications);
 }
 
 static bool reset_engines(struct drm_i915_private *i915)

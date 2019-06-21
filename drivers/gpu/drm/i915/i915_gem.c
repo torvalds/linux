@@ -1746,8 +1746,6 @@ int i915_gem_init_early(struct drm_i915_private *dev_priv)
 {
 	int err;
 
-	intel_gt_pm_init(dev_priv);
-
 	i915_gem_init__mm(dev_priv);
 	i915_gem_init__pm(dev_priv);
 
