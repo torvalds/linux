@@ -950,7 +950,7 @@ static int atmel_lcdfb_of_init(struct atmel_lcdfb_info *sinfo)
 	struct fb_videomode fb_vm;
 	struct gpio_desc *gpiod;
 	struct videomode vm;
-	int ret = -ENOENT;
+	int ret;
 	int i;
 
 	sinfo->config = (struct atmel_lcdfb_config*)
