@@ -1720,25 +1720,29 @@ static inline void gen6_write_pde(const struct gen6_ppgtt *ppgtt,
 		  ppgtt->pd_addr + pde);
 }
 
-static void gen7_ppgtt_enable(struct drm_i915_private *dev_priv)
+static void gen7_ppgtt_enable(struct intel_gt *gt)
 {
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_uncore *uncore = gt->uncore;
 	struct intel_engine_cs *engine;
 	u32 ecochk, ecobits;
 	enum intel_engine_id id;
 
-	ecobits = I915_READ(GAC_ECO_BITS);
-	I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
+	ecobits = intel_uncore_read(uncore, GAC_ECO_BITS);
+	intel_uncore_write(uncore,
+			   GAC_ECO_BITS,
+			   ecobits | ECOBITS_PPGTT_CACHE64B);
 
-	ecochk = I915_READ(GAM_ECOCHK);
-	if (IS_HASWELL(dev_priv)) {
+	ecochk = intel_uncore_read(uncore, GAM_ECOCHK);
+	if (IS_HASWELL(i915)) {
 		ecochk |= ECOCHK_PPGTT_WB_HSW;
 	} else {
 		ecochk |= ECOCHK_PPGTT_LLC_IVB;
 		ecochk &= ~ECOCHK_PPGTT_GFDT_IVB;
 	}
-	I915_WRITE(GAM_ECOCHK, ecochk);
+	intel_uncore_write(uncore, GAM_ECOCHK, ecochk);
 
-	for_each_engine(engine, dev_priv, id) {
+	for_each_engine(engine, i915, id) {
 		/* GFX_MODE is per-ring on gen7+ */
 		ENGINE_WRITE(engine,
 			     RING_MODE_GEN7,
@@ -1746,22 +1750,30 @@ static void gen7_ppgtt_enable(struct drm_i915_private *dev_priv)
 	}
 }
 
-static void gen6_ppgtt_enable(struct drm_i915_private *dev_priv)
+static void gen6_ppgtt_enable(struct intel_gt *gt)
 {
+	struct intel_uncore *uncore = gt->uncore;
 	u32 ecochk, gab_ctl, ecobits;
 
-	ecobits = I915_READ(GAC_ECO_BITS);
-	I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_SNB_BIT |
-		   ECOBITS_PPGTT_CACHE64B);
+	ecobits = intel_uncore_read(uncore, GAC_ECO_BITS);
+	intel_uncore_write(uncore,
+			   GAC_ECO_BITS,
+			   ecobits | ECOBITS_SNB_BIT | ECOBITS_PPGTT_CACHE64B);
 
-	gab_ctl = I915_READ(GAB_CTL);
-	I915_WRITE(GAB_CTL, gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
+	gab_ctl = intel_uncore_read(uncore, GAB_CTL);
+	intel_uncore_write(uncore,
+			   GAB_CTL,
+			   gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
 
-	ecochk = I915_READ(GAM_ECOCHK);
-	I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT | ECOCHK_PPGTT_CACHE64B);
+	ecochk = intel_uncore_read(uncore, GAM_ECOCHK);
+	intel_uncore_write(uncore,
+			   GAM_ECOCHK,
+			   ecochk | ECOCHK_SNB_BIT | ECOCHK_PPGTT_CACHE64B);
 
-	if (HAS_PPGTT(dev_priv)) /* may be disabled for VT-d */
-		I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+	if (HAS_PPGTT(uncore->i915)) /* may be disabled for VT-d */
+		intel_uncore_write(uncore,
+				   GFX_MODE,
+				   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
 }
 
 /* PPGTT support for Sandybdrige/Gen6 and later */
@@ -2174,21 +2186,32 @@ err_free:
 	return ERR_PTR(err);
 }
 
-static void gtt_write_workarounds(struct drm_i915_private *dev_priv)
+static void gtt_write_workarounds(struct intel_gt *gt)
 {
+	struct drm_i915_private *i915 = gt->i915;
+	struct intel_uncore *uncore = gt->uncore;
+
 	/* This function is for gtt related workarounds. This function is
 	 * called on driver load and after a GPU reset, so you can place
 	 * workarounds here even if they get overwritten by GPU reset.
 	 */
 	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt,kbl,glk,cfl,cnl,icl */
-	if (IS_BROADWELL(dev_priv))
-		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_BDW);
-	else if (IS_CHERRYVIEW(dev_priv))
-		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_CHV);
-	else if (IS_GEN9_LP(dev_priv))
-		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
-	else if (INTEL_GEN(dev_priv) >= 9)
-		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
+	if (IS_BROADWELL(i915))
+		intel_uncore_write(uncore,
+				   GEN8_L3_LRA_1_GPGPU,
+				   GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_BDW);
+	else if (IS_CHERRYVIEW(i915))
+		intel_uncore_write(uncore,
+				   GEN8_L3_LRA_1_GPGPU,
+				   GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_CHV);
+	else if (IS_GEN9_LP(i915))
+		intel_uncore_write(uncore,
+				   GEN8_L3_LRA_1_GPGPU,
+				   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT);
+	else if (INTEL_GEN(i915) >= 9)
+		intel_uncore_write(uncore,
+				   GEN8_L3_LRA_1_GPGPU,
+				   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL);
 
 	/*
 	 * To support 64K PTEs we need to first enable the use of the
@@ -2201,21 +2224,25 @@ static void gtt_write_workarounds(struct drm_i915_private *dev_priv)
 	 * 32K pages, but we don't currently have any support for it in our
 	 * driver.
 	 */
-	if (HAS_PAGE_SIZES(dev_priv, I915_GTT_PAGE_SIZE_64K) &&
-	    INTEL_GEN(dev_priv) <= 10)
-		I915_WRITE(GEN8_GAMW_ECO_DEV_RW_IA,
-			   I915_READ(GEN8_GAMW_ECO_DEV_RW_IA) |
-			   GAMW_ECO_ENABLE_64K_IPS_FIELD);
+	if (HAS_PAGE_SIZES(i915, I915_GTT_PAGE_SIZE_64K) &&
+	    INTEL_GEN(i915) <= 10)
+		intel_uncore_write(uncore,
+				   GEN8_GAMW_ECO_DEV_RW_IA,
+				   intel_uncore_read(uncore,
+						     GEN8_GAMW_ECO_DEV_RW_IA) |
+				   GAMW_ECO_ENABLE_64K_IPS_FIELD);
 }
 
-int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv)
+int i915_ppgtt_init_hw(struct intel_gt *gt)
 {
-	gtt_write_workarounds(dev_priv);
+	struct drm_i915_private *i915 = gt->i915;
 
-	if (IS_GEN(dev_priv, 6))
-		gen6_ppgtt_enable(dev_priv);
-	else if (IS_GEN(dev_priv, 7))
-		gen7_ppgtt_enable(dev_priv);
+	gtt_write_workarounds(gt);
+
+	if (IS_GEN(i915, 6))
+		gen6_ppgtt_enable(gt);
+	else if (IS_GEN(i915, 7))
+		gen7_ppgtt_enable(gt);
 
 	return 0;
 }

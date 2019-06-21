@@ -68,6 +68,7 @@
 struct drm_i915_file_private;
 struct drm_i915_gem_object;
 struct i915_vma;
+struct intel_gt;
 
 typedef u32 gen6_pte_t;
 typedef u64 gen8_pte_t;
@@ -656,7 +657,7 @@ void i915_ggtt_disable_guc(struct drm_i915_private *i915);
 int i915_gem_init_ggtt(struct drm_i915_private *dev_priv);
 void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv);
 
-int i915_ppgtt_init_hw(struct drm_i915_private *dev_priv);
+int i915_ppgtt_init_hw(struct intel_gt *gt);
 
 struct i915_ppgtt *i915_ppgtt_create(struct drm_i915_private *dev_priv);
 

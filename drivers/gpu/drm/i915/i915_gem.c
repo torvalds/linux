@@ -1267,7 +1267,7 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto out;
 
-	ret = i915_ppgtt_init_hw(dev_priv);
+	ret = i915_ppgtt_init_hw(&dev_priv->gt);
 	if (ret) {
 		DRM_ERROR("Enabling PPGTT failed (%d)\n", ret);
 		goto out;
