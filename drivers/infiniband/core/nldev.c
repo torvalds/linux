@@ -49,29 +49,29 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_CHARDEV]		= { .type = NLA_U64 },
 	[RDMA_NLDEV_ATTR_CHARDEV_ABI]		= { .type = NLA_U64 },
 	[RDMA_NLDEV_ATTR_CHARDEV_NAME]		= { .type = NLA_NUL_STRING,
-					.len = RDMA_NLDEV_ATTR_ENTRY_STRLEN },
+					.len = RDMA_NLDEV_ATTR_EMPTY_STRING },
 	[RDMA_NLDEV_ATTR_CHARDEV_TYPE]		= { .type = NLA_NUL_STRING,
-					.len = 128 },
+					.len = RDMA_NLDEV_ATTR_CHARDEV_TYPE_SIZE },
 	[RDMA_NLDEV_ATTR_DEV_INDEX]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_DEV_NAME]		= { .type = NLA_NUL_STRING,
-					.len = IB_DEVICE_NAME_MAX - 1},
+					.len = IB_DEVICE_NAME_MAX },
 	[RDMA_NLDEV_ATTR_DEV_NODE_TYPE]		= { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_DEV_PROTOCOL]		= { .type = NLA_NUL_STRING,
-					.len = RDMA_NLDEV_ATTR_ENTRY_STRLEN },
+					.len = RDMA_NLDEV_ATTR_EMPTY_STRING },
 	[RDMA_NLDEV_ATTR_DRIVER]		= { .type = NLA_NESTED },
 	[RDMA_NLDEV_ATTR_DRIVER_ENTRY]		= { .type = NLA_NESTED },
 	[RDMA_NLDEV_ATTR_DRIVER_PRINT_TYPE]	= { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_DRIVER_STRING]		= { .type = NLA_NUL_STRING,
-					.len = RDMA_NLDEV_ATTR_ENTRY_STRLEN },
+					.len = RDMA_NLDEV_ATTR_EMPTY_STRING },
 	[RDMA_NLDEV_ATTR_DRIVER_S32]		= { .type = NLA_S32 },
 	[RDMA_NLDEV_ATTR_DRIVER_S64]		= { .type = NLA_S64 },
 	[RDMA_NLDEV_ATTR_DRIVER_U32]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_DRIVER_U64]		= { .type = NLA_U64 },
 	[RDMA_NLDEV_ATTR_FW_VERSION]		= { .type = NLA_NUL_STRING,
-					.len = IB_FW_VERSION_NAME_MAX - 1},
+					.len = RDMA_NLDEV_ATTR_EMPTY_STRING },
 	[RDMA_NLDEV_ATTR_LID]			= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_LINK_TYPE]		= { .type = NLA_NUL_STRING,
-					.len = RDMA_NLDEV_ATTR_ENTRY_STRLEN },
+					.len = IFNAMSIZ },
 	[RDMA_NLDEV_ATTR_LMC]			= { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_NDEV_INDEX]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_NDEV_NAME]		= { .type = NLA_NUL_STRING,
@@ -92,7 +92,7 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 			.len = sizeof(struct __kernel_sockaddr_storage) },
 	[RDMA_NLDEV_ATTR_RES_IOVA]		= { .type = NLA_U64 },
 	[RDMA_NLDEV_ATTR_RES_KERN_NAME]		= { .type = NLA_NUL_STRING,
-					.len = TASK_COMM_LEN },
+					.len = RDMA_NLDEV_ATTR_EMPTY_STRING },
 	[RDMA_NLDEV_ATTR_RES_LKEY]		= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY]	= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_RES_LQPN]		= { .type = NLA_U32 },
@@ -120,7 +120,7 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 	[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY]	= { .type = NLA_NESTED },
 	[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_CURR]= { .type = NLA_U64 },
 	[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_NAME]= { .type = NLA_NUL_STRING,
-					.len = 16 },
+					.len = RDMA_NLDEV_ATTR_EMPTY_STRING },
 	[RDMA_NLDEV_ATTR_RES_TYPE]		= { .type = NLA_U8 },
 	[RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY]= { .type = NLA_U32 },
 	[RDMA_NLDEV_ATTR_RES_USECNT]		= { .type = NLA_U64 },
@@ -1361,7 +1361,7 @@ static int nldev_get_chardev(struct sk_buff *skb, struct nlmsghdr *nlh,
 			     struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
-	char client_name[IB_DEVICE_NAME_MAX];
+	char client_name[RDMA_NLDEV_ATTR_CHARDEV_TYPE_SIZE];
 	struct ib_client_nl_info data = {};
 	struct ib_device *ibdev = NULL;
 	struct sk_buff *msg;
@@ -1373,9 +1373,8 @@ static int nldev_get_chardev(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err || !tb[RDMA_NLDEV_ATTR_CHARDEV_TYPE])
 		return -EINVAL;
 
-	if (nla_strlcpy(client_name, tb[RDMA_NLDEV_ATTR_CHARDEV_TYPE],
-			sizeof(client_name)) >= sizeof(client_name))
-		return -EINVAL;
+	nla_strlcpy(client_name, tb[RDMA_NLDEV_ATTR_CHARDEV_TYPE],
+		    sizeof(client_name));
 
 	if (tb[RDMA_NLDEV_ATTR_DEV_INDEX]) {
 		index = nla_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);

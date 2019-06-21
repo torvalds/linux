@@ -284,10 +284,6 @@ enum rdma_nldev_command {
 	RDMA_NLDEV_NUM_OPS
 };
 
-enum {
-	RDMA_NLDEV_ATTR_ENTRY_STRLEN = 16,
-};
-
 enum rdma_nldev_print_type {
 	RDMA_NLDEV_PRINT_TYPE_UNSPEC,
 	RDMA_NLDEV_PRINT_TYPE_HEX,

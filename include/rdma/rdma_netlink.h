@@ -6,6 +6,12 @@
 #include <linux/netlink.h>
 #include <uapi/rdma/rdma_netlink.h>
 
+enum {
+	RDMA_NLDEV_ATTR_EMPTY_STRING = 1,
+	RDMA_NLDEV_ATTR_ENTRY_STRLEN = 16,
+	RDMA_NLDEV_ATTR_CHARDEV_TYPE_SIZE = 32,
+};
+
 struct rdma_nl_cbs {
 	int (*doit)(struct sk_buff *skb, struct nlmsghdr *nlh,
 		    struct netlink_ext_ack *extack);
