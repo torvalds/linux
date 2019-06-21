@@ -1424,39 +1424,12 @@ err_active:
 static int
 i915_gem_init_scratch(struct drm_i915_private *i915, unsigned int size)
 {
-	struct drm_i915_gem_object *obj;
-	struct i915_vma *vma;
-	int ret;
-
-	obj = i915_gem_object_create_stolen(i915, size);
-	if (!obj)
-		obj = i915_gem_object_create_internal(i915, size);
-	if (IS_ERR(obj)) {
-		DRM_ERROR("Failed to allocate scratch page\n");
-		return PTR_ERR(obj);
-	}
-
-	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
-	if (IS_ERR(vma)) {
-		ret = PTR_ERR(vma);
-		goto err_unref;
-	}
-
-	ret = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
-	if (ret)
-		goto err_unref;
-
-	i915->gt.scratch = vma;
-	return 0;
-
-err_unref:
-	i915_gem_object_put(obj);
-	return ret;
+	return intel_gt_init_scratch(&i915->gt, size);
 }
 
 static void i915_gem_fini_scratch(struct drm_i915_private *i915)
 {
-	i915_vma_unpin_and_release(&i915->gt.scratch, 0);
+	intel_gt_fini_scratch(&i915->gt);
 }
 
 static int intel_engines_verify_workarounds(struct drm_i915_private *i915)

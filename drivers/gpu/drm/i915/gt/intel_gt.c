@@ -203,3 +203,41 @@ void intel_gt_chipset_flush(struct intel_gt *gt)
 	if (INTEL_GEN(gt->i915) < 6)
 		intel_gtt_chipset_flush();
 }
+
+int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
+{
+	struct drm_i915_private *i915 = gt->i915;
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int ret;
+
+	obj = i915_gem_object_create_stolen(i915, size);
+	if (!obj)
+		obj = i915_gem_object_create_internal(i915, size);
+	if (IS_ERR(obj)) {
+		DRM_ERROR("Failed to allocate scratch page\n");
+		return PTR_ERR(obj);
+	}
+
+	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
+		goto err_unref;
+	}
+
+	ret = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	if (ret)
+		goto err_unref;
+
+	gt->scratch = vma;
+	return 0;
+
+err_unref:
+	i915_gem_object_put(obj);
+	return ret;
+}
+
+void intel_gt_fini_scratch(struct intel_gt *gt)
+{
+	i915_vma_unpin_and_release(&gt->scratch, 0);
+}

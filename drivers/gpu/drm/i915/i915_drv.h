@@ -2783,11 +2783,6 @@ static inline int intel_hws_csb_write_index(struct drm_i915_private *i915)
 		return I915_HWS_CSB_WRITE_INDEX;
 }
 
-static inline u32 i915_scratch_offset(const struct drm_i915_private *i915)
-{
-	return i915_ggtt_offset(i915->gt.scratch);
-}
-
 static inline enum i915_map_type
 i915_coherent_map_type(struct drm_i915_private *i915)
 {

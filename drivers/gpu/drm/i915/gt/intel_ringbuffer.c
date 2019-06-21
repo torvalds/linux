@@ -33,6 +33,8 @@
 
 #include "gem/i915_gem_context.h"
 
+#include "gt/intel_gt.h"
+
 #include "i915_drv.h"
 #include "i915_gem_render_state.h"
 #include "i915_trace.h"
@@ -75,7 +77,7 @@ gen2_render_ring_flush(struct i915_request *rq, u32 mode)
 	*cs++ = cmd;
 	while (num_store_dw--) {
 		*cs++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
-		*cs++ = i915_scratch_offset(rq->i915);
+		*cs++ = intel_gt_scratch_offset(rq->engine->gt);
 		*cs++ = 0;
 	}
 	*cs++ = MI_FLUSH | MI_NO_WRITE_FLUSH;
@@ -148,7 +150,8 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 	 */
 	if (mode & EMIT_INVALIDATE) {
 		*cs++ = GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE;
-		*cs++ = i915_scratch_offset(rq->i915) | PIPE_CONTROL_GLOBAL_GTT;
+		*cs++ = intel_gt_scratch_offset(rq->engine->gt) |
+			PIPE_CONTROL_GLOBAL_GTT;
 		*cs++ = 0;
 		*cs++ = 0;
 
@@ -156,7 +159,8 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 			*cs++ = MI_FLUSH;
 
 		*cs++ = GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE;
-		*cs++ = i915_scratch_offset(rq->i915) | PIPE_CONTROL_GLOBAL_GTT;
+		*cs++ = intel_gt_scratch_offset(rq->engine->gt) |
+			PIPE_CONTROL_GLOBAL_GTT;
 		*cs++ = 0;
 		*cs++ = 0;
 	}
@@ -208,7 +212,8 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 static int
 gen6_emit_post_sync_nonzero_flush(struct i915_request *rq)
 {
-	u32 scratch_addr = i915_scratch_offset(rq->i915) + 2 * CACHELINE_BYTES;
+	u32 scratch_addr =
+		intel_gt_scratch_offset(rq->engine->gt) + 2 * CACHELINE_BYTES;
 	u32 *cs;
 
 	cs = intel_ring_begin(rq, 6);
@@ -241,7 +246,8 @@ gen6_emit_post_sync_nonzero_flush(struct i915_request *rq)
 static int
 gen6_render_ring_flush(struct i915_request *rq, u32 mode)
 {
-	u32 scratch_addr = i915_scratch_offset(rq->i915) + 2 * CACHELINE_BYTES;
+	u32 scratch_addr =
+		intel_gt_scratch_offset(rq->engine->gt) + 2 * CACHELINE_BYTES;
 	u32 *cs, flags = 0;
 	int ret;
 
@@ -299,7 +305,8 @@ static u32 *gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	*cs++ = GFX_OP_PIPE_CONTROL(4);
 	*cs++ = PIPE_CONTROL_QW_WRITE;
-	*cs++ = i915_scratch_offset(rq->i915) | PIPE_CONTROL_GLOBAL_GTT;
+	*cs++ = intel_gt_scratch_offset(rq->engine->gt) |
+		PIPE_CONTROL_GLOBAL_GTT;
 	*cs++ = 0;
 
 	/* Finally we can flush and with it emit the breadcrumb */
@@ -342,7 +349,8 @@ gen7_render_ring_cs_stall_wa(struct i915_request *rq)
 static int
 gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 {
-	u32 scratch_addr = i915_scratch_offset(rq->i915) + 2 * CACHELINE_BYTES;
+	u32 scratch_addr =
+		intel_gt_scratch_offset(rq->engine->gt) + 2 * CACHELINE_BYTES;
 	u32 *cs, flags = 0;
 
 	/*
@@ -1071,9 +1079,9 @@ i830_emit_bb_start(struct i915_request *rq,
 		   u64 offset, u32 len,
 		   unsigned int dispatch_flags)
 {
-	u32 *cs, cs_offset = i915_scratch_offset(rq->i915);
+	u32 *cs, cs_offset = intel_gt_scratch_offset(rq->engine->gt);
 
-	GEM_BUG_ON(rq->i915->gt.scratch->size < I830_WA_SIZE);
+	GEM_BUG_ON(rq->engine->gt->scratch->size < I830_WA_SIZE);
 
 	cs = intel_ring_begin(rq, 6);
 	if (IS_ERR(cs))
@@ -1513,7 +1521,7 @@ static int flush_pd_dir(struct i915_request *rq)
 	/* Stall until the page table load is complete */
 	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine->mmio_base));
-	*cs++ = i915_scratch_offset(rq->i915);
+	*cs++ = intel_gt_scratch_offset(rq->engine->gt);
 	*cs++ = MI_NOOP;
 
 	intel_ring_advance(rq, cs);
@@ -1629,7 +1637,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 			/* Insert a delay before the next switch! */
 			*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 			*cs++ = i915_mmio_reg_offset(last_reg);
-			*cs++ = i915_scratch_offset(rq->i915);
+			*cs++ = intel_gt_scratch_offset(rq->engine->gt);
 			*cs++ = MI_NOOP;
 		}
 		*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;

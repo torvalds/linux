@@ -734,7 +734,7 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 	struct measure_breadcrumb *frame;
 	int dw = -ENOMEM;
 
-	GEM_BUG_ON(!engine->i915->gt.scratch);
+	GEM_BUG_ON(!engine->gt->scratch);
 
 	frame = kzalloc(sizeof(*frame), GFP_KERNEL);
 	if (!frame)
