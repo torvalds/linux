@@ -24,9 +24,12 @@
 #include <asm/mips-cps.h>
 #include <asm/page.h>
 #include <asm/vdso.h>
+#include <vdso/helpers.h>
+#include <vdso/vsyscall.h>
 
 /* Kernel-provided data used by the VDSO. */
-static union mips_vdso_data vdso_data __page_aligned_data;
+static union mips_vdso_data mips_vdso_data __page_aligned_data;
+struct vdso_data *vdso_data = mips_vdso_data.data;
 
 /*
  * Mapping for the VDSO data/GIC pages. The real pages are mapped manually, as
@@ -69,34 +72,6 @@ static int __init init_vdso(void)
 	return 0;
 }
 subsys_initcall(init_vdso);
-
-void update_vsyscall(struct timekeeper *tk)
-{
-	vdso_data_write_begin(&vdso_data);
-
-	vdso_data.xtime_sec = tk->xtime_sec;
-	vdso_data.xtime_nsec = tk->tkr_mono.xtime_nsec;
-	vdso_data.wall_to_mono_sec = tk->wall_to_monotonic.tv_sec;
-	vdso_data.wall_to_mono_nsec = tk->wall_to_monotonic.tv_nsec;
-	vdso_data.cs_shift = tk->tkr_mono.shift;
-
-	vdso_data.clock_mode = tk->tkr_mono.clock->archdata.vdso_clock_mode;
-	if (vdso_data.clock_mode != VDSO_CLOCK_NONE) {
-		vdso_data.cs_mult = tk->tkr_mono.mult;
-		vdso_data.cs_cycle_last = tk->tkr_mono.cycle_last;
-		vdso_data.cs_mask = tk->tkr_mono.mask;
-	}
-
-	vdso_data_write_end(&vdso_data);
-}
-
-void update_vsyscall_tz(void)
-{
-	if (vdso_data.clock_mode != VDSO_CLOCK_NONE) {
-		vdso_data.tz_minuteswest = sys_tz.tz_minuteswest;
-		vdso_data.tz_dsttime = sys_tz.tz_dsttime;
-	}
-}
 
 static unsigned long vdso_base(void)
 {
@@ -167,7 +142,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 */
 	if (cpu_has_dc_aliases) {
 		base = __ALIGN_MASK(base, shm_align_mask);
-		base += ((unsigned long)&vdso_data - gic_size) & shm_align_mask;
+		base += ((unsigned long)vdso_data - gic_size) & shm_align_mask;
 	}
 
 	data_addr = base + gic_size;
@@ -193,7 +168,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	/* Map data page. */
 	ret = remap_pfn_range(vma, data_addr,
-			      virt_to_phys(&vdso_data) >> PAGE_SHIFT,
+			      virt_to_phys(vdso_data) >> PAGE_SHIFT,
 			      PAGE_SIZE, PAGE_READONLY);
 	if (ret)
 		goto out;
