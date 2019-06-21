@@ -2775,14 +2775,19 @@ static void fini_aliasing_ppgtt(struct drm_i915_private *i915)
 	struct i915_ggtt *ggtt = &i915->ggtt;
 	struct i915_ppgtt *ppgtt;
 
+	mutex_lock(&i915->drm.struct_mutex);
+
 	ppgtt = fetch_and_zero(&i915->mm.aliasing_ppgtt);
 	if (!ppgtt)
-		return;
+		goto out;
 
 	i915_vm_put(&ppgtt->vm);
 
 	ggtt->vm.vma_ops.bind_vma   = ggtt_bind_vma;
 	ggtt->vm.vma_ops.unbind_vma = ggtt_unbind_vma;
+
+out:
+	mutex_unlock(&i915->drm.struct_mutex);
 }
 
 static int ggtt_reserve_guc_top(struct i915_ggtt *ggtt)
@@ -2883,20 +2888,14 @@ err_reserve:
 	return ret;
 }
 
-/**
- * i915_ggtt_cleanup_hw - Clean up GGTT hardware initialization
- * @dev_priv: i915 device
- */
-void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
+static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
 {
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct drm_i915_private *i915 = ggtt->vm.i915;
 	struct i915_vma *vma, *vn;
-	struct pagevec *pvec;
 
 	ggtt->vm.closed = true;
 
-	mutex_lock(&dev_priv->drm.struct_mutex);
-	fini_aliasing_ppgtt(dev_priv);
+	mutex_lock(&i915->drm.struct_mutex);
 
 	list_for_each_entry_safe(vma, vn, &ggtt->vm.bound_list, vm_link)
 		WARN_ON(i915_vma_unbind(vma));
@@ -2913,18 +2912,31 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 
 	ggtt->vm.cleanup(&ggtt->vm);
 
-	pvec = &dev_priv->mm.wc_stash.pvec;
+	mutex_unlock(&i915->drm.struct_mutex);
+
+	arch_phys_wc_del(ggtt->mtrr);
+	io_mapping_fini(&ggtt->iomap);
+}
+
+/**
+ * i915_ggtt_cleanup_hw - Clean up GGTT hardware initialization
+ * @dev_priv: i915 device
+ */
+void i915_ggtt_cleanup_hw(struct drm_i915_private *i915)
+{
+	struct pagevec *pvec;
+
+	fini_aliasing_ppgtt(i915);
+
+	ggtt_cleanup_hw(&i915->ggtt);
+
+	pvec = &i915->mm.wc_stash.pvec;
 	if (pvec->nr) {
 		set_pages_array_wb(pvec->pages, pvec->nr);
 		__pagevec_release(pvec);
 	}
 
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	arch_phys_wc_del(ggtt->mtrr);
-	io_mapping_fini(&ggtt->iomap);
-
-	i915_gem_cleanup_stolen(dev_priv);
+	i915_gem_cleanup_stolen(i915);
 }
 
 static unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
@@ -3520,11 +3532,6 @@ int i915_ggtt_probe_hw(struct drm_i915_private *i915)
 	return 0;
 }
 
-static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
-{
-	ggtt->vm.cleanup(&ggtt->vm);
-}
-
 static int ggtt_init_hw(struct i915_ggtt *ggtt)
 {
 	struct drm_i915_private *i915 = ggtt->vm.i915;
@@ -3545,7 +3552,7 @@ static int ggtt_init_hw(struct i915_ggtt *ggtt)
 	if (!io_mapping_init_wc(&ggtt->iomap,
 				ggtt->gmadr.start,
 				ggtt->mappable_end)) {
-		ggtt_cleanup_hw(ggtt);
+		ggtt->vm.cleanup(&ggtt->vm);
 		ret = -EIO;
 		goto out;
 	}
@@ -3590,7 +3597,7 @@ int i915_ggtt_init_hw(struct drm_i915_private *dev_priv)
 	return 0;
 
 out_gtt_cleanup:
-	ggtt_cleanup_hw(&dev_priv->ggtt);
+	dev_priv->ggtt.vm.cleanup(&dev_priv->ggtt.vm);
 	return ret;
 }
 
