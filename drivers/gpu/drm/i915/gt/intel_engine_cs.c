@@ -740,8 +740,8 @@ static int measure_breadcrumb_dw(struct intel_engine_cs *engine)
 	if (!frame)
 		return -ENOMEM;
 
-	if (i915_timeline_init(engine->i915,
-			       &frame->timeline,
+	if (i915_timeline_init(&frame->timeline,
+			       engine->gt,
 			       engine->status_page.vma))
 		goto out_frame;
 

@@ -530,7 +530,7 @@ i915_gem_create_context(struct drm_i915_private *dev_priv, unsigned int flags)
 	if (flags & I915_CONTEXT_CREATE_FLAGS_SINGLE_TIMELINE) {
 		struct i915_timeline *timeline;
 
-		timeline = i915_timeline_create(dev_priv, NULL);
+		timeline = i915_timeline_create(&dev_priv->gt, NULL);
 		if (IS_ERR(timeline)) {
 			context_close(ctx);
 			return ERR_CAST(timeline);

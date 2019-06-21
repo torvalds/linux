@@ -31,14 +31,13 @@
 #include "i915_syncmap.h"
 #include "i915_timeline_types.h"
 
-int i915_timeline_init(struct drm_i915_private *i915,
-		       struct i915_timeline *tl,
+int i915_timeline_init(struct i915_timeline *tl,
+		       struct intel_gt *gt,
 		       struct i915_vma *hwsp);
 void i915_timeline_fini(struct i915_timeline *tl);
 
 struct i915_timeline *
-i915_timeline_create(struct drm_i915_private *i915,
-		     struct i915_vma *global_hwsp);
+i915_timeline_create(struct intel_gt *gt, struct i915_vma *global_hwsp);
 
 static inline struct i915_timeline *
 i915_timeline_get(struct i915_timeline *timeline)

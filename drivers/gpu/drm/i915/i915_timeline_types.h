@@ -59,7 +59,7 @@ struct i915_timeline {
 	struct i915_syncmap *sync;
 
 	struct list_head link;
-	struct drm_i915_private *i915;
+	struct intel_gt *gt;
 
 	struct kref kref;
 };

@@ -56,7 +56,7 @@ static struct intel_ring *mock_ring(struct intel_engine_cs *engine)
 	if (!ring)
 		return NULL;
 
-	if (i915_timeline_init(engine->i915, &ring->timeline, NULL)) {
+	if (i915_timeline_init(&ring->timeline, engine->gt, NULL)) {
 		kfree(ring);
 		return NULL;
 	}

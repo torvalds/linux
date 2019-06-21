@@ -66,7 +66,7 @@ static int __mock_hwsp_timeline(struct mock_hwsp_freelist *state,
 		unsigned long cacheline;
 		int err;
 
-		tl = i915_timeline_create(state->i915, NULL);
+		tl = i915_timeline_create(&state->i915->gt, NULL);
 		if (IS_ERR(tl))
 			return PTR_ERR(tl);
 
@@ -448,7 +448,7 @@ tl_write(struct i915_timeline *tl, struct intel_engine_cs *engine, u32 value)
 	struct i915_request *rq;
 	int err;
 
-	lockdep_assert_held(&tl->i915->drm.struct_mutex); /* lazy rq refs */
+	lockdep_assert_held(&tl->gt->i915->drm.struct_mutex); /* lazy rq refs */
 
 	err = i915_timeline_pin(tl);
 	if (err) {
@@ -478,7 +478,7 @@ checked_i915_timeline_create(struct drm_i915_private *i915)
 {
 	struct i915_timeline *tl;
 
-	tl = i915_timeline_create(i915, NULL);
+	tl = i915_timeline_create(&i915->gt, NULL);
 	if (IS_ERR(tl))
 		return tl;
 
@@ -660,7 +660,7 @@ static int live_hwsp_wrap(void *arg)
 	mutex_lock(&i915->drm.struct_mutex);
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
-	tl = i915_timeline_create(i915, NULL);
+	tl = i915_timeline_create(&i915->gt, NULL);
 	if (IS_ERR(tl)) {
 		err = PTR_ERR(tl);
 		goto out_rpm;

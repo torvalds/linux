@@ -3005,12 +3005,13 @@ err_unpin_ctx:
 	return ret;
 }
 
-static struct i915_timeline *get_timeline(struct i915_gem_context *ctx)
+static struct i915_timeline *
+get_timeline(struct i915_gem_context *ctx, struct intel_gt *gt)
 {
 	if (ctx->timeline)
 		return i915_timeline_get(ctx->timeline);
 	else
-		return i915_timeline_create(ctx->i915, NULL);
+		return i915_timeline_create(gt, NULL);
 }
 
 static int execlists_context_deferred_alloc(struct intel_context *ce,
@@ -3044,7 +3045,7 @@ static int execlists_context_deferred_alloc(struct intel_context *ce,
 		goto error_deref_obj;
 	}
 
-	timeline = get_timeline(ce->gem_context);
+	timeline = get_timeline(ce->gem_context, engine->gt);
 	if (IS_ERR(timeline)) {
 		ret = PTR_ERR(timeline);
 		goto error_deref_obj;

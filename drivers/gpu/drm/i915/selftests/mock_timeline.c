@@ -10,7 +10,7 @@
 
 void mock_timeline_init(struct i915_timeline *timeline, u64 context)
 {
-	timeline->i915 = NULL;
+	timeline->gt = NULL;
 	timeline->fence_context = context;
 
 	mutex_init(&timeline->mutex);

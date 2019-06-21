@@ -4,6 +4,8 @@
  * Copyright © 2016-2018 Intel Corporation
  */
 
+#include "gt/intel_gt_types.h"
+
 #include "i915_drv.h"
 
 #include "i915_active.h"
@@ -14,7 +16,8 @@
 #define ptr_test_bit(ptr, bit) ((unsigned long)(ptr) & BIT(bit))
 
 struct i915_timeline_hwsp {
-	struct i915_gt_timelines *gt;
+	struct intel_gt *gt;
+	struct i915_gt_timelines *gt_timelines;
 	struct list_head free_link;
 	struct i915_vma *vma;
 	u64 free_bitmap;
@@ -28,14 +31,9 @@ struct i915_timeline_cacheline {
 #define CACHELINE_FREE CACHELINE_BITS
 };
 
-static inline struct drm_i915_private *
-hwsp_to_i915(struct i915_timeline_hwsp *hwsp)
+static struct i915_vma *__hwsp_alloc(struct intel_gt *gt)
 {
-	return container_of(hwsp->gt, struct drm_i915_private, gt.timelines);
-}
-
-static struct i915_vma *__hwsp_alloc(struct drm_i915_private *i915)
-{
+	struct drm_i915_private *i915 = gt->i915;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 
@@ -45,7 +43,7 @@ static struct i915_vma *__hwsp_alloc(struct drm_i915_private *i915)
 
 	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
 
-	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
+	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
 	if (IS_ERR(vma))
 		i915_gem_object_put(obj);
 
@@ -55,8 +53,7 @@ static struct i915_vma *__hwsp_alloc(struct drm_i915_private *i915)
 static struct i915_vma *
 hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 {
-	struct drm_i915_private *i915 = timeline->i915;
-	struct i915_gt_timelines *gt = &i915->gt.timelines;
+	struct i915_gt_timelines *gt = &timeline->gt->timelines;
 	struct i915_timeline_hwsp *hwsp;
 
 	BUILD_BUG_ON(BITS_PER_TYPE(u64) * CACHELINE_BYTES > PAGE_SIZE);
@@ -75,16 +72,17 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 		if (!hwsp)
 			return ERR_PTR(-ENOMEM);
 
-		vma = __hwsp_alloc(i915);
+		vma = __hwsp_alloc(timeline->gt);
 		if (IS_ERR(vma)) {
 			kfree(hwsp);
 			return vma;
 		}
 
 		vma->private = hwsp;
+		hwsp->gt = timeline->gt;
 		hwsp->vma = vma;
 		hwsp->free_bitmap = ~0ull;
-		hwsp->gt = gt;
+		hwsp->gt_timelines = gt;
 
 		spin_lock_irq(&gt->hwsp_lock);
 		list_add(&hwsp->free_link, &gt->hwsp_free_list);
@@ -104,7 +102,7 @@ hwsp_alloc(struct i915_timeline *timeline, unsigned int *cacheline)
 
 static void __idle_hwsp_free(struct i915_timeline_hwsp *hwsp, int cacheline)
 {
-	struct i915_gt_timelines *gt = hwsp->gt;
+	struct i915_gt_timelines *gt = hwsp->gt_timelines;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gt->hwsp_lock, flags);
@@ -170,7 +168,7 @@ cacheline_alloc(struct i915_timeline_hwsp *hwsp, unsigned int cacheline)
 	cl->hwsp = hwsp;
 	cl->vaddr = page_pack_bits(vaddr, cacheline);
 
-	i915_active_init(hwsp_to_i915(hwsp), &cl->active, __cacheline_retire);
+	i915_active_init(hwsp->gt->i915, &cl->active, __cacheline_retire);
 
 	return cl;
 }
@@ -196,8 +194,8 @@ static void cacheline_free(struct i915_timeline_cacheline *cl)
 		__idle_cacheline_free(cl);
 }
 
-int i915_timeline_init(struct drm_i915_private *i915,
-		       struct i915_timeline *timeline,
+int i915_timeline_init(struct i915_timeline *timeline,
+		       struct intel_gt *gt,
 		       struct i915_vma *hwsp)
 {
 	void *vaddr;
@@ -212,7 +210,7 @@ int i915_timeline_init(struct drm_i915_private *i915,
 	 */
 	BUILD_BUG_ON(KSYNCMAP < I915_NUM_ENGINES);
 
-	timeline->i915 = i915;
+	timeline->gt = gt;
 	timeline->pin_count = 0;
 	timeline->has_initial_breadcrumb = !hwsp;
 	timeline->hwsp_cacheline = NULL;
@@ -282,7 +280,7 @@ void i915_timelines_init(struct drm_i915_private *i915)
 
 static void timeline_add_to_active(struct i915_timeline *tl)
 {
-	struct i915_gt_timelines *gt = &tl->i915->gt.timelines;
+	struct i915_gt_timelines *gt = &tl->gt->timelines;
 
 	mutex_lock(&gt->mutex);
 	list_add(&tl->link, &gt->active_list);
@@ -291,7 +289,7 @@ static void timeline_add_to_active(struct i915_timeline *tl)
 
 static void timeline_remove_from_active(struct i915_timeline *tl)
 {
-	struct i915_gt_timelines *gt = &tl->i915->gt.timelines;
+	struct i915_gt_timelines *gt = &tl->gt->timelines;
 
 	mutex_lock(&gt->mutex);
 	list_del(&tl->link);
@@ -347,8 +345,7 @@ void i915_timeline_fini(struct i915_timeline *timeline)
 }
 
 struct i915_timeline *
-i915_timeline_create(struct drm_i915_private *i915,
-		     struct i915_vma *global_hwsp)
+i915_timeline_create(struct intel_gt *gt, struct i915_vma *global_hwsp)
 {
 	struct i915_timeline *timeline;
 	int err;
@@ -357,7 +354,7 @@ i915_timeline_create(struct drm_i915_private *i915,
 	if (!timeline)
 		return ERR_PTR(-ENOMEM);
 
-	err = i915_timeline_init(i915, timeline, global_hwsp);
+	err = i915_timeline_init(timeline, gt, global_hwsp);
 	if (err) {
 		kfree(timeline);
 		return ERR_PTR(err);

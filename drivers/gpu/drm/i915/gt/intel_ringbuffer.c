@@ -2273,7 +2273,7 @@ int intel_ring_submission_init(struct intel_engine_cs *engine)
 	struct intel_ring *ring;
 	int err;
 
-	timeline = i915_timeline_create(engine->i915, engine->status_page.vma);
+	timeline = i915_timeline_create(engine->gt, engine->status_page.vma);
 	if (IS_ERR(timeline)) {
 		err = PTR_ERR(timeline);
 		goto err;
