@@ -1286,7 +1286,7 @@ int i915_gem_init_hw(struct drm_i915_private *dev_priv)
 		goto out;
 	}
 
-	intel_mocs_init_l3cc_table(dev_priv);
+	intel_mocs_init_l3cc_table(&dev_priv->gt);
 
 	/* Only when the HW is re-initialised, can we replay the requests */
 	ret = intel_engines_resume(dev_priv);
