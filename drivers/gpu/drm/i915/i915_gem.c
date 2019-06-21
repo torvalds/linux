@@ -1510,7 +1510,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
 
-	ret = i915_gem_init_ggtt(dev_priv);
+	ret = i915_init_ggtt(dev_priv);
 	if (ret) {
 		GEM_BUG_ON(ret == -EIO);
 		goto err_unlock;

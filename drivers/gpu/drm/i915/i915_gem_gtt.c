@@ -2816,7 +2816,13 @@ static void ggtt_release_guc_top(struct i915_ggtt *ggtt)
 		drm_mm_remove_node(&ggtt->uc_fw);
 }
 
-int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
+static void cleanup_init_ggtt(struct i915_ggtt *ggtt)
+{
+	ggtt_release_guc_top(ggtt);
+	drm_mm_remove_node(&ggtt->error_capture);
+}
+
+static int init_ggtt(struct i915_ggtt *ggtt)
 {
 	/* Let GEM Manage all of the aperture.
 	 *
@@ -2827,7 +2833,6 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	 * aperture.  One page should be enough to keep any prefetching inside
 	 * of the aperture.
 	 */
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	unsigned long hole_start, hole_end;
 	struct drm_mm_node *entry;
 	int ret;
@@ -2839,7 +2844,7 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	 * why.
 	 */
 	ggtt->pin_bias = max_t(u32, I915_GTT_PAGE_SIZE,
-			       intel_wopcm_guc_size(&dev_priv->wopcm));
+			       intel_wopcm_guc_size(&ggtt->vm.i915->wopcm));
 
 	ret = intel_vgt_balloon(ggtt);
 	if (ret)
@@ -2860,7 +2865,7 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	 */
 	ret = ggtt_reserve_guc_top(ggtt);
 	if (ret)
-		goto err_reserve;
+		goto err;
 
 	/* Clear any non-preallocated blocks */
 	drm_mm_for_each_hole(entry, &ggtt->vm.mm, hole_start, hole_end) {
@@ -2873,19 +2878,28 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	/* And finally clear the reserved guard page */
 	ggtt->vm.clear_range(&ggtt->vm, ggtt->vm.total - PAGE_SIZE, PAGE_SIZE);
 
-	if (INTEL_PPGTT(dev_priv) == INTEL_PPGTT_ALIASING) {
-		ret = init_aliasing_ppgtt(dev_priv);
+	return 0;
+
+err:
+	cleanup_init_ggtt(ggtt);
+	return ret;
+}
+
+int i915_init_ggtt(struct drm_i915_private *i915)
+{
+	int ret;
+
+	ret = init_ggtt(&i915->ggtt);
+	if (ret)
+		return ret;
+
+	if (INTEL_PPGTT(i915) == INTEL_PPGTT_ALIASING) {
+		ret = init_aliasing_ppgtt(i915);
 		if (ret)
-			goto err_appgtt;
+			cleanup_init_ggtt(&i915->ggtt);
 	}
 
 	return 0;
-
-err_appgtt:
-	ggtt_release_guc_top(ggtt);
-err_reserve:
-	drm_mm_remove_node(&ggtt->error_capture);
-	return ret;
 }
 
 static void ggtt_cleanup_hw(struct i915_ggtt *ggtt)
