@@ -991,9 +991,12 @@ static void gfs2_write_unlock(struct inode *inode)
 static int gfs2_iomap_page_prepare(struct inode *inode, loff_t pos,
 				   unsigned len, struct iomap *iomap)
 {
+	unsigned int blockmask = i_blocksize(inode) - 1;
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	unsigned int blocks;
 
-	return gfs2_trans_begin(sdp, RES_DINODE + (len >> inode->i_blkbits), 0);
+	blocks = ((pos & blockmask) + len + blockmask) >> inode->i_blkbits;
+	return gfs2_trans_begin(sdp, RES_DINODE + blocks, 0);
 }
 
 static void gfs2_iomap_page_done(struct inode *inode, loff_t pos,
