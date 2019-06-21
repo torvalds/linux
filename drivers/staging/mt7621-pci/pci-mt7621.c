@@ -45,6 +45,7 @@
 #define PCIE_FTS_NUM_L0(x)		((x) & 0xff << 8)
 
 /* rt_sysc_membase relative registers */
+#define RALINK_CLKCFG1			0x30
 #define RALINK_PCIE_CLK_GEN		0x7c
 #define RALINK_PCIE_CLK_GEN1		0x80
 
@@ -219,6 +220,11 @@ static inline void mt7621_perst_gpio_pcie_deassert(struct mt7621_pcie *pcie)
 static inline bool mt7621_pcie_port_is_linkup(struct mt7621_pcie_port *port)
 {
 	return (pcie_port_read(port, RALINK_PCI_STATUS) & PCIE_PORT_LINKUP) != 0;
+}
+
+static inline void mt7621_pcie_port_clk_disable(struct mt7621_pcie_port *port)
+{
+	rt_sysc_m32(PCIE_PORT_CLK_EN(port->slot), 0, RALINK_CLKCFG1);
 }
 
 static inline void mt7621_control_assert(struct mt7621_pcie_port *port)
@@ -475,6 +481,7 @@ static void mt7621_pcie_init_ports(struct mt7621_pcie *pcie)
 				slot);
 			phy_power_off(port->phy);
 			mt7621_control_assert(port);
+			mt7621_pcie_port_clk_disable(port);
 			port->enabled = false;
 		}
 	}
