@@ -952,14 +952,14 @@ static bool dcn20_set_shaper_3dlut(
 
 	result = dpp_base->funcs->dpp_program_shaper_lut(dpp_base, shaper_lut);
 	if (plane_state->lut3d_func &&
-		plane_state->lut3d_func->initialized == true)
+		plane_state->lut3d_func->state.bits.initialized == 1)
 		result = dpp_base->funcs->dpp_program_3dlut(dpp_base,
 								&plane_state->lut3d_func->lut_3d);
 	else
 		result = dpp_base->funcs->dpp_program_3dlut(dpp_base, NULL);
 
 	if (plane_state->lut3d_func &&
-		plane_state->lut3d_func->initialized == true &&
+		plane_state->lut3d_func->state.bits.initialized == 1 &&
 		plane_state->lut3d_func->hdr_multiplier != 0)
 		dpp_base->funcs->dpp_set_hdr_multiplier(dpp_base,
 				plane_state->lut3d_func->hdr_multiplier);

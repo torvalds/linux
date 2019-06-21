@@ -616,12 +616,26 @@ struct dc_transfer_func {
 
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 
+union dc_3dlut_state {
+	struct {
+		uint32_t initialized:1;		/*if 3dlut is went through color module for initialization */
+		uint32_t rmu_idx_valid:1;	/*if mux settings are valid*/
+		uint32_t rmu_mux_num:3;		/*index of mux to use*/
+		uint32_t mpc_rmu0_mux:4;	/*select mpcc on mux, one of the following : mpcc0, mpcc1, mpcc2, mpcc3*/
+		uint32_t mpc_rmu1_mux:4;
+		uint32_t mpc_rmu2_mux:4;
+		uint32_t reserved:15;
+	} bits;
+	uint32_t raw;
+};
+
 
 struct dc_3dlut {
 	struct kref refcount;
 	struct tetrahedral_params lut_3d;
 	uint32_t hdr_multiplier;
-	bool initialized;
+	bool initialized; /*remove after diag fix*/
+	union dc_3dlut_state state;
 	struct dc_context *ctx;
 };
 #endif
