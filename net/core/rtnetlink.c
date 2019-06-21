@@ -751,6 +751,10 @@ int rtnetlink_put_metrics(struct sk_buff *skb, u32 *metrics)
 	struct nlattr *mx;
 	int i, valid = 0;
 
+	/* nothing is dumped for dst_default_metrics, so just skip the loop */
+	if (metrics == dst_default_metrics.metrics)
+		return 0;
+
 	mx = nla_nest_start_noflag(skb, RTA_METRICS);
 	if (mx == NULL)
 		return -ENOBUFS;
