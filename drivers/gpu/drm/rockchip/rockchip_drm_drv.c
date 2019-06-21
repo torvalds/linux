@@ -46,9 +46,9 @@
 #define DRIVER_NAME	"rockchip"
 #define DRIVER_DESC	"RockChip Soc DRM"
 #define DRIVER_DATE	"20140818"
-#define DRIVER_MAJOR	1
+#define DRIVER_MAJOR	2
 #define DRIVER_MINOR	0
-#define DRIVER_VERSION	"v2.0.0"
+#define DRIVER_PATCH	0
 
 /***********************************************************************
  *  Rockchip DRM driver version
@@ -1339,6 +1339,52 @@ static void rockchip_drm_unbind(struct device *dev)
 	drm_dev_put(drm_dev);
 }
 
+static void rockchip_drm_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
+						    struct drm_file *file_priv)
+{
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+
+	if (pipe < ROCKCHIP_MAX_CRTC &&
+	    priv->crtc_funcs[pipe] &&
+	    priv->crtc_funcs[pipe]->cancel_pending_vblank)
+		priv->crtc_funcs[pipe]->cancel_pending_vblank(crtc, file_priv);
+}
+
+static int rockchip_drm_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, dev) {
+		struct rockchip_crtc_state *s = NULL;
+
+		s = to_rockchip_crtc_state(crtc->state);
+		if (s->crtc_primary_fb) {
+			crtc->primary->fb = s->crtc_primary_fb;
+			s->crtc_primary_fb = NULL;
+		}
+	}
+
+	return 0;
+}
+
+static void rockchip_drm_postclose(struct drm_device *dev,
+				   struct drm_file *file_priv)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		rockchip_drm_crtc_cancel_pending_vblank(crtc, file_priv);
+}
+
+static void rockchip_drm_lastclose(struct drm_device *dev)
+{
+	struct rockchip_drm_private *priv = dev->dev_private;
+
+	if (!priv->logo)
+		drm_fb_helper_restore_fbdev_mode_unlocked(priv->fbdev_helper);
+}
+
 static const struct drm_ioctl_desc rockchip_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_CREATE, rockchip_gem_create_ioctl,
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
@@ -1364,7 +1410,9 @@ static struct drm_driver rockchip_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM |
 				  DRIVER_PRIME | DRIVER_ATOMIC |
 				  DRIVER_RENDER,
-	.lastclose		= drm_fb_helper_lastclose,
+	.postclose		= rockchip_drm_postclose,
+	.lastclose		= rockchip_drm_lastclose,
+	.open			= rockchip_drm_open,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.gem_free_object_unlocked = rockchip_gem_free_object,
 	.dumb_create		= rockchip_gem_dumb_create,
@@ -1390,6 +1438,7 @@ static struct drm_driver rockchip_drm_driver = {
 	.date	= DRIVER_DATE,
 	.major	= DRIVER_MAJOR,
 	.minor	= DRIVER_MINOR,
+	.patchlevel	= DRIVER_PATCH,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -1566,7 +1615,6 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 	struct component_match *match = NULL;
 	int ret;
 
-	DRM_INFO("Rockchip DRM driver version: %s\n", DRIVER_VERSION);
 	ret = rockchip_drm_platform_of_probe(dev);
 	if (ret)
 		return ret;
