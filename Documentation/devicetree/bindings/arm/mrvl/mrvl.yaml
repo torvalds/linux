@@ -29,4 +29,7 @@ properties:
           - enum:
               - mrvl,mmp2-brownstone
           - const: mrvl,mmp2
+      - description: MMP3 based boards
+        items:
+          - const: mrvl,mmp3
 ...
