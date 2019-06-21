@@ -844,17 +844,12 @@ void intel_gt_init_swizzling(struct intel_gt *gt)
 	    i915->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
 		return;
 
-	intel_uncore_write(uncore,
-			   DISP_ARB_CTL,
-			   intel_uncore_read(uncore, DISP_ARB_CTL) |
-			   DISP_TILE_SURFACE_SWIZZLING);
+	intel_uncore_rmw(uncore, DISP_ARB_CTL, 0, DISP_TILE_SURFACE_SWIZZLING);
 
 	if (IS_GEN(i915, 5))
 		return;
 
-	intel_uncore_write(uncore,
-			   TILECTL,
-			   intel_uncore_read(uncore, TILECTL) | TILECTL_SWZCTL);
+	intel_uncore_rmw(uncore, TILECTL, 0, TILECTL_SWZCTL);
 
 	if (IS_GEN(i915, 6))
 		intel_uncore_write(uncore,
