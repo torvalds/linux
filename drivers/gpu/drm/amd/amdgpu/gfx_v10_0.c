@@ -1448,7 +1448,6 @@ static void gfx_v10_0_tcp_harvest(struct amdgpu_device *adev)
 					}
 				}
 
-				gfx_v10_0_select_se_sh(adev, i, j, 0xffffffff);
 				tmp = RREG32_SOC15(GC, 0, mmUTCL1_UTCL0_INVREQ_DISABLE);
 				/* only override TCP & SQC bits */
 				tmp &= 0xffffffff << (4 * max_wgp_per_sh);
