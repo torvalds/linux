@@ -130,8 +130,7 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&dev->mt76.mutex);
 }
 
-static int mt7615_set_channel(struct mt7615_dev *dev,
-			      struct cfg80211_chan_def *def)
+static int mt7615_set_channel(struct mt7615_dev *dev)
 {
 	int ret;
 
@@ -196,7 +195,7 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		ieee80211_stop_queues(hw);
-		ret = mt7615_set_channel(dev, &hw->conf.chandef);
+		ret = mt7615_set_channel(dev);
 		ieee80211_wake_queues(hw);
 	}
 
