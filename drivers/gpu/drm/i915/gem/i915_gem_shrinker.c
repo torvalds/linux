@@ -169,7 +169,6 @@ i915_gem_shrink(struct drm_i915_private *i915,
 	 */
 
 	trace_i915_gem_shrink(i915, target, shrink);
-	i915_retire_requests(i915);
 
 	/*
 	 * Unbinding of objects will require HW access; Let us not wake the
@@ -268,8 +267,6 @@ i915_gem_shrink(struct drm_i915_private *i915,
 
 	if (shrink & I915_SHRINK_BOUND)
 		intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-
-	i915_retire_requests(i915);
 
 	shrinker_unlock(i915, unlock);
 
@@ -427,12 +424,6 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 	if (!shrinker_lock(i915, 0, &unlock))
 		return NOTIFY_DONE;
 
-	/* Force everything onto the inactive lists */
-	if (i915_gem_wait_for_idle(i915,
-				   I915_WAIT_LOCKED,
-				   MAX_SCHEDULE_TIMEOUT))
-		goto out;
-
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
 		freed_pages += i915_gem_shrink(i915, -1UL, NULL,
 					       I915_SHRINK_BOUND |
@@ -455,7 +446,6 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 	}
 	mutex_unlock(&i915->ggtt.vm.mutex);
 
-out:
 	shrinker_unlock(i915, unlock);
 
 	*(unsigned long *)ptr += freed_pages;

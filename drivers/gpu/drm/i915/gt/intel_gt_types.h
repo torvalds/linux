@@ -26,7 +26,7 @@ struct intel_gt {
 	struct i915_ggtt *ggtt;
 
 	struct intel_gt_timelines {
-		struct mutex mutex; /* protects list, tainted by GPU */
+		struct mutex mutex; /* protects list */
 		struct list_head active_list;
 
 		/* Pack multiple timelines' seqnos into the same page */

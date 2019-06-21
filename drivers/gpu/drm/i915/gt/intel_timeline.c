@@ -268,9 +268,6 @@ static void timelines_init(struct intel_gt *gt)
 
 	spin_lock_init(&timelines->hwsp_lock);
 	INIT_LIST_HEAD(&timelines->hwsp_free_list);
-
-	/* via i915_gem_wait_for_idle() */
-	i915_gem_shrinker_taints_mutex(gt->i915, &timelines->mutex);
 }
 
 void intel_timelines_init(struct drm_i915_private *i915)

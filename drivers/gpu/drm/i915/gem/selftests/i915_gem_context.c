@@ -427,6 +427,9 @@ create_test_object(struct i915_gem_context *ctx,
 	u64 size;
 	int err;
 
+	/* Keep in GEM's good graces */
+	i915_retire_requests(ctx->i915);
+
 	size = min(vm->total / 2, 1024ull * DW_PER_PAGE * PAGE_SIZE);
 	size = round_down(size, DW_PER_PAGE * PAGE_SIZE);
 
