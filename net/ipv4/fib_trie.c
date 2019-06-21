@@ -2090,21 +2090,25 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 {
 	unsigned int flags = NLM_F_MULTI;
 	__be32 xkey = htonl(l->key);
+	int i, s_i, i_fa, s_fa, err;
 	struct fib_alias *fa;
-	int i, s_i;
 
-	if (filter->filter_set)
+	if (filter->filter_set ||
+	    !filter->dump_exceptions || !filter->dump_routes)
 		flags |= NLM_F_DUMP_FILTERED;
 
 	s_i = cb->args[4];
+	s_fa = cb->args[5];
 	i = 0;
 
 	/* rcu_read_lock is hold by caller */
 	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
-		int err;
+		struct fib_info *fi = fa->fa_info;
 
 		if (i < s_i)
 			goto next;
+
+		i_fa = 0;
 
 		if (tb->tb_id != fa->tb_id)
 			goto next;
@@ -2114,29 +2118,43 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 				goto next;
 
 			if ((filter->protocol &&
-			     fa->fa_info->fib_protocol != filter->protocol))
+			     fi->fib_protocol != filter->protocol))
 				goto next;
 
 			if (filter->dev &&
-			    !fib_info_nh_uses_dev(fa->fa_info, filter->dev))
+			    !fib_info_nh_uses_dev(fi, filter->dev))
 				goto next;
 		}
 
-		err = fib_dump_info(skb, NETLINK_CB(cb->skb).portid,
-				    cb->nlh->nlmsg_seq, RTM_NEWROUTE,
-				    tb->tb_id, fa->fa_type,
-				    xkey, KEYLENGTH - fa->fa_slen,
-				    fa->fa_tos, fa->fa_info, flags);
-		if (err < 0) {
-			cb->args[4] = i;
-			return err;
+		if (filter->dump_routes && !s_fa) {
+			err = fib_dump_info(skb, NETLINK_CB(cb->skb).portid,
+					    cb->nlh->nlmsg_seq, RTM_NEWROUTE,
+					    tb->tb_id, fa->fa_type,
+					    xkey, KEYLENGTH - fa->fa_slen,
+					    fa->fa_tos, fi, flags);
+			if (err < 0)
+				goto stop;
+			i_fa++;
 		}
+
+		if (filter->dump_exceptions) {
+			err = fib_dump_info_fnhe(skb, cb, tb->tb_id, fi,
+						 &i_fa, s_fa);
+			if (err < 0)
+				goto stop;
+		}
+
 next:
 		i++;
 	}
 
 	cb->args[4] = i;
 	return skb->len;
+
+stop:
+	cb->args[4] = i;
+	cb->args[5] = i_fa;
+	return err;
 }
 
 /* rcu_read_lock needs to be hold by caller from readside */

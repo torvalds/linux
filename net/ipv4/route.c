@@ -2812,6 +2812,79 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int fnhe_dump_bucket(struct net *net, struct sk_buff *skb,
+			    struct netlink_callback *cb, u32 table_id,
+			    struct fnhe_hash_bucket *bucket, int genid,
+			    int *fa_index, int fa_start)
+{
+	int i;
+
+	for (i = 0; i < FNHE_HASH_SIZE; i++) {
+		struct fib_nh_exception *fnhe;
+
+		for (fnhe = rcu_dereference(bucket[i].chain); fnhe;
+		     fnhe = rcu_dereference(fnhe->fnhe_next)) {
+			struct rtable *rt;
+			int err;
+
+			if (*fa_index < fa_start)
+				goto next;
+
+			if (fnhe->fnhe_genid != genid)
+				goto next;
+
+			if (fnhe->fnhe_expires &&
+			    time_after(jiffies, fnhe->fnhe_expires))
+				goto next;
+
+			rt = rcu_dereference(fnhe->fnhe_rth_input);
+			if (!rt)
+				rt = rcu_dereference(fnhe->fnhe_rth_output);
+			if (!rt)
+				goto next;
+
+			err = rt_fill_info(net, fnhe->fnhe_daddr, 0, rt,
+					   table_id, NULL, skb,
+					   NETLINK_CB(cb->skb).portid,
+					   cb->nlh->nlmsg_seq);
+			if (err)
+				return err;
+next:
+			(*fa_index)++;
+		}
+	}
+
+	return 0;
+}
+
+int fib_dump_info_fnhe(struct sk_buff *skb, struct netlink_callback *cb,
+		       u32 table_id, struct fib_info *fi,
+		       int *fa_index, int fa_start)
+{
+	struct net *net = sock_net(cb->skb->sk);
+	int nhsel, genid = fnhe_genid(net);
+
+	for (nhsel = 0; nhsel < fib_info_num_path(fi); nhsel++) {
+		struct fib_nh_common *nhc = fib_info_nhc(fi, nhsel);
+		struct fnhe_hash_bucket *bucket;
+		int err;
+
+		if (nhc->nhc_flags & RTNH_F_DEAD)
+			continue;
+
+		bucket = rcu_dereference(nhc->nhc_exceptions);
+		if (!bucket)
+			continue;
+
+		err = fnhe_dump_bucket(net, skb, cb, table_id, bucket, genid,
+				       fa_index, fa_start);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static struct sk_buff *inet_rtm_getroute_build_skb(__be32 src, __be32 dst,
 						   u8 ip_proto, __be16 sport,
 						   __be16 dport)
