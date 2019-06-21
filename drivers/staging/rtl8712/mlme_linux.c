@@ -60,7 +60,7 @@ static void wdg_timeout_handler (struct timer_list *t)
 	struct _adapter *adapter =
 		from_timer(adapter, t, mlmepriv.wdg_timer);
 
-	_r8712_wdg_timeout_handler(adapter);
+	r8712_wdg_wk_cmd(adapter);
 
 	mod_timer(&adapter->mlmepriv.wdg_timer,
 		  jiffies + msecs_to_jiffies(2000));

@@ -1079,11 +1079,6 @@ void _r8712_dhcp_timeout_handler (struct _adapter *adapter)
 			    adapter->registrypriv.smart_ps);
 }
 
-void _r8712_wdg_timeout_handler(struct _adapter *adapter)
-{
-	r8712_wdg_wk_cmd(adapter);
-}
-
 int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv)
 {
 	struct list_head *phead;
