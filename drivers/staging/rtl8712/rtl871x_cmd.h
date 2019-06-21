@@ -729,7 +729,7 @@ u8 r8712_setrttbl_cmd(struct _adapter  *padapter,
 		      struct setratable_parm *prate_table);
 u8 r8712_setfwdig_cmd(struct _adapter *padapter, u8 type);
 u8 r8712_setfwra_cmd(struct _adapter *padapter, u8 type);
-u8 r8712_addbareq_cmd(struct _adapter *padapter, u8 tid);
+void r8712_addbareq_cmd(struct _adapter *padapter, u8 tid);
 u8 r8712_wdg_wk_cmd(struct _adapter *padapter);
 void r8712_survey_cmd_callback(struct _adapter  *padapter,
 			       struct cmd_obj *pcmd);
