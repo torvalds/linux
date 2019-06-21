@@ -4,9 +4,11 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include "../i915_drv.h"
+#include "gem/i915_gem_context.h"
 
-#include "../i915_selftest.h"
+#include "i915_drv.h"
+#include "i915_selftest.h"
+
 #include "igt_flush_test.h"
 
 int igt_flush_test(struct drm_i915_private *i915, unsigned int flags)

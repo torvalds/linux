@@ -374,7 +374,7 @@ static inline int gen7_check_mailbox_status(u32 mbox)
 }
 
 static int __sandybridge_pcode_rw(struct drm_i915_private *i915,
-				  u32 mbox, u32 *val,
+				  u32 mbox, u32 *val, u32 *val1,
 				  int fast_timeout_us,
 				  int slow_timeout_ms,
 				  bool is_read)
@@ -393,7 +393,7 @@ static int __sandybridge_pcode_rw(struct drm_i915_private *i915,
 		return -EAGAIN;
 
 	intel_uncore_write_fw(uncore, GEN6_PCODE_DATA, *val);
-	intel_uncore_write_fw(uncore, GEN6_PCODE_DATA1, 0);
+	intel_uncore_write_fw(uncore, GEN6_PCODE_DATA1, val1 ? *val1 : 0);
 	intel_uncore_write_fw(uncore,
 			      GEN6_PCODE_MAILBOX, GEN6_PCODE_READY | mbox);
 
@@ -407,6 +407,8 @@ static int __sandybridge_pcode_rw(struct drm_i915_private *i915,
 
 	if (is_read)
 		*val = intel_uncore_read_fw(uncore, GEN6_PCODE_DATA);
+	if (is_read && val1)
+		*val1 = intel_uncore_read_fw(uncore, GEN6_PCODE_DATA1);
 
 	if (INTEL_GEN(i915) > 6)
 		return gen7_check_mailbox_status(mbox);
@@ -414,12 +416,13 @@ static int __sandybridge_pcode_rw(struct drm_i915_private *i915,
 		return gen6_check_mailbox_status(mbox);
 }
 
-int sandybridge_pcode_read(struct drm_i915_private *i915, u32 mbox, u32 *val)
+int sandybridge_pcode_read(struct drm_i915_private *i915, u32 mbox,
+			   u32 *val, u32 *val1)
 {
 	int err;
 
 	mutex_lock(&i915->sb_lock);
-	err = __sandybridge_pcode_rw(i915, mbox, val,
+	err = __sandybridge_pcode_rw(i915, mbox, val, val1,
 				     500, 0,
 				     true);
 	mutex_unlock(&i915->sb_lock);
@@ -440,7 +443,7 @@ int sandybridge_pcode_write_timeout(struct drm_i915_private *i915,
 	int err;
 
 	mutex_lock(&i915->sb_lock);
-	err = __sandybridge_pcode_rw(i915, mbox, &val,
+	err = __sandybridge_pcode_rw(i915, mbox, &val, NULL,
 				     fast_timeout_us, slow_timeout_ms,
 				     false);
 	mutex_unlock(&i915->sb_lock);
@@ -457,7 +460,7 @@ static bool skl_pcode_try_request(struct drm_i915_private *i915, u32 mbox,
 				  u32 request, u32 reply_mask, u32 reply,
 				  u32 *status)
 {
-	*status = __sandybridge_pcode_rw(i915, mbox, &request,
+	*status = __sandybridge_pcode_rw(i915, mbox, &request, NULL,
 					 500, 0,
 					 true);
 

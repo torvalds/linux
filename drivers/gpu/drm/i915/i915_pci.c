@@ -28,10 +28,11 @@
 
 #include <drm/drm_drv.h>
 
+#include "display/intel_fbdev.h"
+
 #include "i915_drv.h"
 #include "i915_globals.h"
 #include "i915_selftest.h"
-#include "intel_fbdev.h"
 
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) .gen = (x), .gen_mask = BIT((x) - 1)
@@ -747,7 +748,7 @@ static const struct intel_device_info intel_cannonlake_info = {
 	GEN(11), \
 	.ddb_size = 2048, \
 	.has_logical_ring_elsq = 1, \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 1024 }
+	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 }
 
 static const struct intel_device_info intel_icelake_11_info = {
 	GEN11_FEATURES,
@@ -759,7 +760,7 @@ static const struct intel_device_info intel_icelake_11_info = {
 static const struct intel_device_info intel_elkhartlake_info = {
 	GEN11_FEATURES,
 	PLATFORM(INTEL_ELKHARTLAKE),
-	.is_alpha_support = 1,
+	.require_force_probe = 1,
 	.engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(VCS0),
 	.ppgtt_size = 36,
 };
@@ -853,16 +854,57 @@ static void i915_pci_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
+/* is device_id present in comma separated list of ids */
+static bool force_probe(u16 device_id, const char *devices)
+{
+	char *s, *p, *tok;
+	bool ret;
+
+	/* FIXME: transitional */
+	if (i915_modparams.alpha_support) {
+		DRM_INFO("i915.alpha_support is deprecated, use i915.force_probe=%04x instead\n",
+			 device_id);
+		return true;
+	}
+
+	if (!devices || !*devices)
+		return false;
+
+	/* match everything */
+	if (strcmp(devices, "*") == 0)
+		return true;
+
+	s = kstrdup(devices, GFP_KERNEL);
+	if (!s)
+		return false;
+
+	for (p = s, ret = false; (tok = strsep(&p, ",")) != NULL; ) {
+		u16 val;
+
+		if (kstrtou16(tok, 16, &val) == 0 && val == device_id) {
+			ret = true;
+			break;
+		}
+	}
+
+	kfree(s);
+
+	return ret;
+}
+
 static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
 	int err;
 
-	if (IS_ALPHA_SUPPORT(intel_info) && !i915_modparams.alpha_support) {
-		DRM_INFO("The driver support for your hardware in this kernel version is alpha quality\n"
-			 "See CONFIG_DRM_I915_ALPHA_SUPPORT or i915.alpha_support module parameter\n"
-			 "to enable support in this kernel version, or check for kernel updates.\n");
+	if (intel_info->require_force_probe &&
+	    !force_probe(pdev->device, i915_modparams.force_probe)) {
+		DRM_INFO("Your graphics device %04x is not properly supported by the driver in this\n"
+			 "kernel version. To force driver probe anyway, use i915.force_probe=%04x\n"
+			 "module parameter or CONFIG_DRM_I915_FORCE_PROBE=%04x configuration option,\n"
+			 "or (recommended) check for kernel updates.\n",
+			 pdev->device, pdev->device, pdev->device);
 		return -ENODEV;
 	}
 

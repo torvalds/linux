@@ -330,7 +330,7 @@ i915_active_request_retire(struct i915_active_request *active,
 		return 0;
 
 	ret = i915_request_wait(request,
-				I915_WAIT_INTERRUPTIBLE | I915_WAIT_LOCKED,
+				I915_WAIT_INTERRUPTIBLE,
 				MAX_SCHEDULE_TIMEOUT);
 	if (ret < 0)
 		return ret;
@@ -405,5 +405,10 @@ void i915_active_fini(struct i915_active *ref);
 #else
 static inline void i915_active_fini(struct i915_active *ref) { }
 #endif
+
+int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
+					    struct intel_engine_cs *engine);
+void i915_active_acquire_barrier(struct i915_active *ref);
+void i915_request_add_barriers(struct i915_request *rq);
 
 #endif /* _I915_ACTIVE_H_ */
