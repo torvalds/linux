@@ -1391,9 +1391,6 @@ static struct rt6_info *rt6_get_pcpu_route(const struct fib6_result *res)
 
 	pcpu_rt = this_cpu_read(*res->nh->rt6i_pcpu);
 
-	if (pcpu_rt)
-		ip6_hold_safe(NULL, &pcpu_rt);
-
 	return pcpu_rt;
 }
 
@@ -1403,12 +1400,9 @@ static struct rt6_info *rt6_make_pcpu_route(struct net *net,
 	struct rt6_info *pcpu_rt, *prev, **p;
 
 	pcpu_rt = ip6_rt_pcpu_alloc(res);
-	if (!pcpu_rt) {
-		dst_hold(&net->ipv6.ip6_null_entry->dst);
-		return net->ipv6.ip6_null_entry;
-	}
+	if (!pcpu_rt)
+		return NULL;
 
-	dst_hold(&pcpu_rt->dst);
 	p = this_cpu_ptr(res->nh->rt6i_pcpu);
 	prev = cmpxchg(p, NULL, pcpu_rt);
 	BUG_ON(prev);
@@ -2189,8 +2183,11 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 			       const struct sk_buff *skb, int flags)
 {
 	struct fib6_result res = {};
-	struct rt6_info *rt;
+	struct rt6_info *rt = NULL;
 	int strict = 0;
+
+	WARN_ON_ONCE((flags & RT6_LOOKUP_F_DST_NOREF) &&
+		     !rcu_read_lock_held());
 
 	strict |= flags & RT6_LOOKUP_F_IFACE;
 	strict |= flags & RT6_LOOKUP_F_IGNORE_LINKSTATE;
@@ -2200,23 +2197,15 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 	rcu_read_lock();
 
 	fib6_table_lookup(net, table, oif, fl6, &res, strict);
-	if (res.f6i == net->ipv6.fib6_null_entry) {
-		rt = net->ipv6.ip6_null_entry;
-		rcu_read_unlock();
-		dst_hold(&rt->dst);
-		return rt;
-	}
+	if (res.f6i == net->ipv6.fib6_null_entry)
+		goto out;
 
 	fib6_select_path(net, &res, fl6, oif, false, skb, strict);
 
 	/*Search through exception table */
 	rt = rt6_find_cached_rt(&res, &fl6->daddr, &fl6->saddr);
 	if (rt) {
-		if (ip6_hold_safe(net, &rt))
-			dst_use_noref(&rt->dst, jiffies);
-
-		rcu_read_unlock();
-		return rt;
+		goto out;
 	} else if (unlikely((fl6->flowi6_flags & FLOWI_FLAG_KNOWN_NH) &&
 			    !res.nh->fib_nh_gw_family)) {
 		/* Create a RTF_CACHE clone which will not be
@@ -2224,40 +2213,38 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 		 * the daddr in the skb during the neighbor look-up is different
 		 * from the fl6->daddr used to look-up route here.
 		 */
-		struct rt6_info *uncached_rt;
+		rt = ip6_rt_cache_alloc(&res, &fl6->daddr, NULL);
 
-		uncached_rt = ip6_rt_cache_alloc(&res, &fl6->daddr, NULL);
-
-		rcu_read_unlock();
-
-		if (uncached_rt) {
-			/* Uncached_rt's refcnt is taken during ip6_rt_cache_alloc()
-			 * No need for another dst_hold()
+		if (rt) {
+			/* 1 refcnt is taken during ip6_rt_cache_alloc().
+			 * As rt6_uncached_list_add() does not consume refcnt,
+			 * this refcnt is always returned to the caller even
+			 * if caller sets RT6_LOOKUP_F_DST_NOREF flag.
 			 */
-			rt6_uncached_list_add(uncached_rt);
+			rt6_uncached_list_add(rt);
 			atomic_inc(&net->ipv6.rt6_stats->fib_rt_uncache);
-		} else {
-			uncached_rt = net->ipv6.ip6_null_entry;
-			dst_hold(&uncached_rt->dst);
-		}
+			rcu_read_unlock();
 
-		return uncached_rt;
+			return rt;
+		}
 	} else {
 		/* Get a percpu copy */
-
-		struct rt6_info *pcpu_rt;
-
 		local_bh_disable();
-		pcpu_rt = rt6_get_pcpu_route(&res);
+		rt = rt6_get_pcpu_route(&res);
 
-		if (!pcpu_rt)
-			pcpu_rt = rt6_make_pcpu_route(net, &res);
+		if (!rt)
+			rt = rt6_make_pcpu_route(net, &res);
 
 		local_bh_enable();
-		rcu_read_unlock();
-
-		return pcpu_rt;
 	}
+out:
+	if (!rt)
+		rt = net->ipv6.ip6_null_entry;
+	if (!(flags & RT6_LOOKUP_F_DST_NOREF))
+		ip6_hold_safe(net, &rt);
+	rcu_read_unlock();
+
+	return rt;
 }
 EXPORT_SYMBOL_GPL(ip6_pol_route);
 
