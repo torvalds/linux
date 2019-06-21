@@ -486,6 +486,8 @@ struct mt76_dev {
 	int txpower_conf;
 	int txpower_cur;
 
+	enum nl80211_dfs_regions region;
+
 	u32 debugfs_reg;
 
 	struct led_classdev led_cdev;

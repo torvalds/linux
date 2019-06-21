@@ -49,7 +49,7 @@ mt7603_edcca_set(void *data, u64 val)
 
 	dev->ed_monitor_enabled = !!val;
 	dev->ed_monitor = dev->ed_monitor_enabled &&
-			  dev->region == NL80211_DFS_ETSI;
+			  dev->mt76.region == NL80211_DFS_ETSI;
 	mt7603_init_edcca(dev);
 
 	mutex_unlock(&dev->mt76.mutex);

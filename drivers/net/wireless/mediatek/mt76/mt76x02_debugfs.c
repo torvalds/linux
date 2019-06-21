@@ -120,7 +120,7 @@ static int
 mt76_edcca_set(void *data, u64 val)
 {
 	struct mt76x02_dev *dev = data;
-	enum nl80211_dfs_regions region = dev->dfs_pd.region;
+	enum nl80211_dfs_regions region = dev->mt76.region;
 
 	mutex_lock(&dev->mt76.mutex);
 

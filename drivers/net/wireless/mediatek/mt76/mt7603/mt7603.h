@@ -127,8 +127,6 @@ struct mt7603_dev {
 
 	u8 mcu_running;
 
-	enum nl80211_dfs_regions region;
-
 	u8 ed_monitor_enabled;
 	u8 ed_monitor;
 	s8 ed_trigger;

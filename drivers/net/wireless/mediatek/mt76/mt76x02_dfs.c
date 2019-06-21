@@ -283,7 +283,7 @@ static bool mt76x02_dfs_check_hw_pulse(struct mt76x02_dev *dev,
 	if (!pulse->period || !pulse->w1)
 		return false;
 
-	switch (dev->dfs_pd.region) {
+	switch (dev->mt76.region) {
 	case NL80211_DFS_FCC:
 		if (pulse->engine > 3)
 			break;
@@ -457,7 +457,7 @@ static int mt76x02_dfs_create_sequence(struct mt76x02_dev *dev,
 		with_sum = event->width + cur_event->width;
 
 		sw_params = &dfs_pd->sw_dpd_params;
-		switch (dev->dfs_pd.region) {
+		switch (dev->mt76.region) {
 		case NL80211_DFS_FCC:
 		case NL80211_DFS_JP:
 			if (with_sum < 600)
@@ -685,7 +685,7 @@ static void mt76x02_dfs_init_sw_detector(struct mt76x02_dev *dev)
 {
 	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
-	switch (dev->dfs_pd.region) {
+	switch (dev->mt76.region) {
 	case NL80211_DFS_FCC:
 		dfs_pd->sw_dpd_params.max_pri = MT_DFS_FCC_MAX_PRI;
 		dfs_pd->sw_dpd_params.min_pri = MT_DFS_FCC_MIN_PRI;
@@ -725,7 +725,7 @@ static void mt76x02_dfs_set_bbp_params(struct mt76x02_dev *dev)
 		break;
 	}
 
-	switch (dev->dfs_pd.region) {
+	switch (dev->mt76.region) {
 	case NL80211_DFS_FCC:
 		radar_specs = &fcc_radar_specs[shift];
 		break;
@@ -836,7 +836,7 @@ void mt76x02_dfs_init_params(struct mt76x02_dev *dev)
 	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
 
 	if ((chandef->chan->flags & IEEE80211_CHAN_RADAR) &&
-	    dev->dfs_pd.region != NL80211_DFS_UNSET) {
+	    dev->mt76.region != NL80211_DFS_UNSET) {
 		mt76x02_dfs_init_sw_detector(dev);
 		mt76x02_dfs_set_bbp_params(dev);
 		/* enable debug mode */
@@ -869,7 +869,7 @@ void mt76x02_dfs_init_detector(struct mt76x02_dev *dev)
 
 	INIT_LIST_HEAD(&dfs_pd->sequences);
 	INIT_LIST_HEAD(&dfs_pd->seq_pool);
-	dfs_pd->region = NL80211_DFS_UNSET;
+	dev->mt76.region = NL80211_DFS_UNSET;
 	dfs_pd->last_sw_check = jiffies;
 	tasklet_init(&dfs_pd->dfs_tasklet, mt76x02_dfs_tasklet,
 		     (unsigned long)dev);
@@ -882,14 +882,14 @@ mt76x02_dfs_set_domain(struct mt76x02_dev *dev,
 	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
 	mutex_lock(&dev->mt76.mutex);
-	if (dfs_pd->region != region) {
+	if (dev->mt76.region != region) {
 		tasklet_disable(&dfs_pd->dfs_tasklet);
 
 		dev->ed_monitor = dev->ed_monitor_enabled &&
 				  region == NL80211_DFS_ETSI;
 		mt76x02_edcca_init(dev);
 
-		dfs_pd->region = region;
+		dev->mt76.region = region;
 		mt76x02_dfs_init_params(dev);
 		tasklet_enable(&dfs_pd->dfs_tasklet);
 	}
