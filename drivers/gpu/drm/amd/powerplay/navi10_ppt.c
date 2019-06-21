@@ -494,6 +494,8 @@ static int navi10_tables_init(struct smu_context *smu, struct smu_table *tables)
 	SMU_TABLE_INIT(tables, SMU_TABLE_ACTIVITY_MONITOR_COEFF,
 		       sizeof(DpmActivityMonitorCoeffInt_t), PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM);
+
+	return 0;
 }
 
 static int navi10_allocate_dpm_context(struct smu_context *smu)
