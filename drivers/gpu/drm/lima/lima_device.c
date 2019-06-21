@@ -84,14 +84,16 @@ static int lima_clk_init(struct lima_device *dev)
 	dev->clk_bus = devm_clk_get(dev->dev, "bus");
 	if (IS_ERR(dev->clk_bus)) {
 		err = PTR_ERR(dev->clk_bus);
-		dev_err(dev->dev, "get bus clk failed %d\n", err);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get bus clk failed %d\n", err);
 		return err;
 	}
 
 	dev->clk_gpu = devm_clk_get(dev->dev, "core");
 	if (IS_ERR(dev->clk_gpu)) {
 		err = PTR_ERR(dev->clk_gpu);
-		dev_err(dev->dev, "get core clk failed %d\n", err);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get core clk failed %d\n", err);
 		return err;
 	}
 
@@ -106,11 +108,17 @@ static int lima_clk_init(struct lima_device *dev)
 	dev->reset = devm_reset_control_get_optional(dev->dev, NULL);
 	if (IS_ERR(dev->reset)) {
 		err = PTR_ERR(dev->reset);
+		if (err != -EPROBE_DEFER)
+			dev_err(dev->dev, "get reset controller failed %d\n",
+				err);
 		goto error_out1;
 	} else if (dev->reset != NULL) {
 		err = reset_control_deassert(dev->reset);
-		if (err)
+		if (err) {
+			dev_err(dev->dev,
+				"reset controller deassert failed %d\n", err);
 			goto error_out1;
+		}
 	}
 
 	return 0;
@@ -287,10 +295,8 @@ int lima_device_init(struct lima_device *ldev)
 	dma_set_coherent_mask(ldev->dev, DMA_BIT_MASK(32));
 
 	err = lima_clk_init(ldev);
-	if (err) {
-		dev_err(ldev->dev, "clk init fail %d\n", err);
+	if (err)
 		return err;
-	}
 
 	err = lima_regulator_init(ldev);
 	if (err)
