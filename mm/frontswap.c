@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Frontswap frontend
  *
@@ -7,8 +8,6 @@
  *
  * Copyright (C) 2009-2012 Oracle Corp.  All rights reserved.
  * Author: Dan Magenheimer
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  */
 
 #include <linux/mman.h>

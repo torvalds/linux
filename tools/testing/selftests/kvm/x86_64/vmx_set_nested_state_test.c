@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vmx_set_nested_state_test
  *
  * Copyright (C) 2019, Google LLC.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * This test verifies the integrity of calling the ioctl KVM_SET_NESTED_STATE.
  */

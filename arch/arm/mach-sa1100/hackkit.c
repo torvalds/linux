@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-sa1100/hackkit.c
  *
@@ -5,11 +6,6 @@
  *
  * This file contains all HackKit tweaks. Based on original work from
  * Nicolas Pitre's assabet fixes
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/init.h>
 #include <linux/kernel.h>

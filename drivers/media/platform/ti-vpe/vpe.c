@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI VPE mem2mem driver, based on the virtual v4l2-mem2mem example driver
  *
@@ -11,10 +12,6 @@
  * Marek Szyprowski, <m.szyprowski@samsung.com>
  *
  * Based on the virtual v4l2-mem2mem example device
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation
  */
 
 #include <linux/delay.h>

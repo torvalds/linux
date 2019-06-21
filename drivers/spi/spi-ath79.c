@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SPI controller driver for the Atheros AR71XX/AR724X/AR913X SoCs
  *
@@ -5,11 +6,6 @@
  *
  * This driver has been based on the spi-gpio.c:
  *	Copyright (C) 2006,2008 David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
