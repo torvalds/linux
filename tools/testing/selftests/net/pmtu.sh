@@ -1274,7 +1274,7 @@ test_list_flush_ipv6_exception() {
 	      "${ns_a}"  veth_A-R2    "${ns_r2}" veth_R2-A \
 	      "${ns_r2}" veth_R2-B    "${ns_b}"  veth_B-R2
 
-	dst1="${prefix6}:${b_r1}::1"
+	dst_prefix1="${prefix6}:${b_r1}::"
 	dst2="${prefix6}:${b_r2}::1"
 
 	# Set up initial MTU values
@@ -1290,20 +1290,26 @@ test_list_flush_ipv6_exception() {
 
 	fail=0
 
-	# Create route exceptions
-	run_cmd ${ns_a} ${ping6} -q -M want -i 0.1 -w 1 -s 1800 ${dst1}
-	run_cmd ${ns_a} ${ping6} -q -M want -i 0.1 -w 1 -s 1800 ${dst2}
+	# Add 100 addresses for veth endpoint on B reached by default A route
+	for i in $(seq 100 199); do
+		run_cmd ${ns_b} ip addr add "${dst_prefix1}${i}" dev veth_B-R1
+	done
 
-	if [ "$(${ns_a} ip -6 route list cache | wc -l)" -ne 2 ]; then
+	# Create 100 cached route exceptions for path via R1, one via R2
+	for i in $(seq 100 199); do
+		run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s 1800 "${dst_prefix1}${i}"
+	done
+	run_cmd ${ns_a} ping -q -M want -i 0.1 -w 1 -s 1800 "${dst2}"
+	if [ "$(${ns_a} ip -6 route list cache | wc -l)" -ne 101 ]; then
 		err "  can't list cached exceptions"
 		fail=1
 	fi
 
 	run_cmd ${ns_a} ip -6 route flush cache
-	sleep 1
-	pmtu1="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst1})"
+	pmtu1="$(route_get_dst_pmtu_from_exception "${ns_a}" "${dst_prefix1}100")"
 	pmtu2="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst2})"
-	if [ -n "${pmtu1}" ] || [ -n "${pmtu2}" ]; then
+	if [ -n "${pmtu1}" ] || [ -n "${pmtu2}" ] || \
+	   [ -n "$(${ns_a} ip -6 route list cache)" ]; then
 		err "  can't flush cached exceptions"
 		fail=1
 	fi
