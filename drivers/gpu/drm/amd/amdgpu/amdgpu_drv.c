@@ -142,6 +142,7 @@ int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp = 0;
 int amdgpu_discovery = -1;
 int amdgpu_mes = 0;
+int amdgpu_noretry;
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
@@ -608,6 +609,10 @@ MODULE_PARM_DESC(mes,
 	"Enable Micro Engine Scheduler (0 = disabled (default), 1 = enabled)");
 module_param_named(mes, amdgpu_mes, int, 0444);
 
+MODULE_PARM_DESC(noretry,
+	"Disable retry faults (0 = retry enabled (default), 1 = retry disabled)");
+module_param_named(noretry, amdgpu_noretry, int, 0644);
+
 #ifdef CONFIG_HSA_AMD
 /**
  * DOC: sched_policy (int)
@@ -682,17 +687,6 @@ int ignore_crat;
 module_param(ignore_crat, int, 0444);
 MODULE_PARM_DESC(ignore_crat,
 	"Ignore CRAT table during KFD initialization (0 = use CRAT (default), 1 = ignore CRAT)");
-
-/**
- * DOC: noretry (int)
- * This parameter sets sh_mem_config.retry_disable. Default value, 0, enables retry.
- * Setting 1 disables retry.
- * Retry is needed for recoverable page faults.
- */
-int noretry;
-module_param(noretry, int, 0644);
-MODULE_PARM_DESC(noretry,
-	"Set sh_mem_config.retry_disable on Vega10 (0 = retry enabled (default), 1 = retry disabled)");
 
 /**
  * DOC: halt_if_hws_hang (int)
