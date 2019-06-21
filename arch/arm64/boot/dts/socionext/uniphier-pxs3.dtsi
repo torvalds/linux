@@ -8,8 +8,6 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/uniphier-gpio.h>
 
-/memreserve/ 0x80000000 0x02000000;
-
 / {
 	compatible = "socionext,uniphier-pxs3";
 	#address-cells = <2>;
@@ -136,6 +134,17 @@
 			     <1 14 4>,
 			     <1 11 4>,
 			     <1 10 4>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		secure-memory@81000000 {
+			reg = <0x0 0x81000000 0x0 0x01000000>;
+			no-map;
+		};
 	};
 
 	soc@0 {
