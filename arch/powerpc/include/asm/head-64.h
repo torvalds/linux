@@ -393,16 +393,13 @@ name:
 	TRAMP_KVM_BEGIN(do_kvm_##n);					\
 	KVM_HANDLER area, EXC_STD, n, 1
 
-/*
- * HV variant exceptions get the 0x2 bit added to their trap number.
- */
 #define TRAMP_KVM_HV(area, n)						\
 	TRAMP_KVM_BEGIN(do_kvm_H##n);					\
-	KVM_HANDLER area, EXC_HV, n + 0x2, 0
+	KVM_HANDLER area, EXC_HV, n, 0
 
 #define TRAMP_KVM_HV_SKIP(area, n)					\
 	TRAMP_KVM_BEGIN(do_kvm_H##n);					\
-	KVM_HANDLER area, EXC_HV, n + 0x2, 1
+	KVM_HANDLER area, EXC_HV, n, 1
 
 #define EXC_COMMON(name, realvec, hdlr)					\
 	EXC_COMMON_BEGIN(name);						\
