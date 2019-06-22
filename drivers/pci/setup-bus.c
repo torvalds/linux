@@ -1866,16 +1866,6 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 			     available_mmio_pref);
 
 	/*
-	 * Calculate the total amount of extra resource space we can
-	 * pass to bridges below this one.  This is basically the
-	 * extra space reduced by the minimal required space for the
-	 * non-hotplug bridges.
-	 */
-	remaining_io = available_io;
-	remaining_mmio = available_mmio;
-	remaining_mmio_pref = available_mmio_pref;
-
-	/*
 	 * Calculate how many hotplug bridges and normal bridges there
 	 * are on this bus.  We will distribute the additional available
 	 * resources between hotplug bridges.
@@ -1886,6 +1876,31 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		else
 			normal_bridges++;
 	}
+
+	/*
+	 * There is only one bridge on the bus so it gets all available
+	 * resources which it can then distribute to the possible hotplug
+	 * bridges below.
+	 */
+	if (hotplug_bridges + normal_bridges == 1) {
+		dev = list_first_entry(&bus->devices, struct pci_dev, bus_list);
+		if (dev->subordinate) {
+			pci_bus_distribute_available_resources(dev->subordinate,
+				add_list, available_io, available_mmio,
+				available_mmio_pref);
+		}
+		return;
+	}
+
+	/*
+	 * Calculate the total amount of extra resource space we can
+	 * pass to bridges below this one.  This is basically the
+	 * extra space reduced by the minimal required space for the
+	 * non-hotplug bridges.
+	 */
+	remaining_io = available_io;
+	remaining_mmio = available_mmio;
+	remaining_mmio_pref = available_mmio_pref;
 
 	for_each_pci_bridge(dev, bus) {
 		const struct resource *res;
@@ -1908,21 +1923,6 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		res = &dev->resource[PCI_BRIDGE_RESOURCES + 2];
 		if (!res->parent && available_mmio_pref > resource_size(res))
 			remaining_mmio_pref -= resource_size(res);
-	}
-
-	/*
-	 * There is only one bridge on the bus so it gets all available
-	 * resources which it can then distribute to the possible hotplug
-	 * bridges below.
-	 */
-	if (hotplug_bridges + normal_bridges == 1) {
-		dev = list_first_entry(&bus->devices, struct pci_dev, bus_list);
-		if (dev->subordinate) {
-			pci_bus_distribute_available_resources(dev->subordinate,
-				add_list, available_io, available_mmio,
-				available_mmio_pref);
-		}
-		return;
 	}
 
 	/*
