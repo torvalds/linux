@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/sysctl.h>
+#include <linux/swab.h>
 
 #include <asm/esr.h>
 #include <asm/fpsimd.h>
@@ -352,6 +353,23 @@ static int __init sve_sysctl_init(void) { return 0; }
 #define ZREG(sve_state, vq, n) ((char *)(sve_state) +		\
 	(SVE_SIG_ZREG_OFFSET(vq, n) - SVE_SIG_REGS_OFFSET))
 
+#ifdef CONFIG_CPU_BIG_ENDIAN
+static __uint128_t arm64_cpu_to_le128(__uint128_t x)
+{
+	u64 a = swab64(x);
+	u64 b = swab64(x >> 64);
+
+	return ((__uint128_t)a << 64) | b;
+}
+#else
+static __uint128_t arm64_cpu_to_le128(__uint128_t x)
+{
+	return x;
+}
+#endif
+
+#define arm64_le128_to_cpu(x) arm64_cpu_to_le128(x)
+
 /*
  * Transfer the FPSIMD state in task->thread.uw.fpsimd_state to
  * task->thread.sve_state.
@@ -369,14 +387,16 @@ static void fpsimd_to_sve(struct task_struct *task)
 	void *sst = task->thread.sve_state;
 	struct user_fpsimd_state const *fst = &task->thread.uw.fpsimd_state;
 	unsigned int i;
+	__uint128_t *p;
 
 	if (!system_supports_sve())
 		return;
 
 	vq = sve_vq_from_vl(task->thread.sve_vl);
-	for (i = 0; i < 32; ++i)
-		memcpy(ZREG(sst, vq, i), &fst->vregs[i],
-		       sizeof(fst->vregs[i]));
+	for (i = 0; i < 32; ++i) {
+		p = (__uint128_t *)ZREG(sst, vq, i);
+		*p = arm64_cpu_to_le128(fst->vregs[i]);
+	}
 }
 
 /*
@@ -395,14 +415,16 @@ static void sve_to_fpsimd(struct task_struct *task)
 	void const *sst = task->thread.sve_state;
 	struct user_fpsimd_state *fst = &task->thread.uw.fpsimd_state;
 	unsigned int i;
+	__uint128_t const *p;
 
 	if (!system_supports_sve())
 		return;
 
 	vq = sve_vq_from_vl(task->thread.sve_vl);
-	for (i = 0; i < 32; ++i)
-		memcpy(&fst->vregs[i], ZREG(sst, vq, i),
-		       sizeof(fst->vregs[i]));
+	for (i = 0; i < 32; ++i) {
+		p = (__uint128_t const *)ZREG(sst, vq, i);
+		fst->vregs[i] = arm64_le128_to_cpu(*p);
+	}
 }
 
 #ifdef CONFIG_ARM64_SVE
@@ -491,6 +513,7 @@ void sve_sync_from_fpsimd_zeropad(struct task_struct *task)
 	void *sst = task->thread.sve_state;
 	struct user_fpsimd_state const *fst = &task->thread.uw.fpsimd_state;
 	unsigned int i;
+	__uint128_t *p;
 
 	if (!test_tsk_thread_flag(task, TIF_SVE))
 		return;
@@ -499,9 +522,10 @@ void sve_sync_from_fpsimd_zeropad(struct task_struct *task)
 
 	memset(sst, 0, SVE_SIG_REGS_SIZE(vq));
 
-	for (i = 0; i < 32; ++i)
-		memcpy(ZREG(sst, vq, i), &fst->vregs[i],
-		       sizeof(fst->vregs[i]));
+	for (i = 0; i < 32; ++i) {
+		p = (__uint128_t *)ZREG(sst, vq, i);
+		*p = arm64_cpu_to_le128(fst->vregs[i]);
+	}
 }
 
 int sve_set_vector_length(struct task_struct *task,
