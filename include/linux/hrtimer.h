@@ -12,8 +12,8 @@
 #ifndef _LINUX_HRTIMER_H
 #define _LINUX_HRTIMER_H
 
+#include <linux/hrtimer_defs.h>
 #include <linux/rbtree.h>
-#include <linux/ktime.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/percpu.h>
@@ -298,25 +298,11 @@ struct clock_event_device;
 
 extern void hrtimer_interrupt(struct clock_event_device *dev);
 
-/*
- * The resolution of the clocks. The resolution value is returned in
- * the clock_getres() system call to give application programmers an
- * idea of the (in)accuracy of timers. Timer values are rounded up to
- * this resolution values.
- */
-# define HIGH_RES_NSEC		1
-# define KTIME_HIGH_RES		(HIGH_RES_NSEC)
-# define MONOTONIC_RES_NSEC	HIGH_RES_NSEC
-# define KTIME_MONOTONIC_RES	KTIME_HIGH_RES
-
 extern void clock_was_set_delayed(void);
 
 extern unsigned int hrtimer_resolution;
 
 #else
-
-# define MONOTONIC_RES_NSEC	LOW_RES_NSEC
-# define KTIME_MONOTONIC_RES	KTIME_LOW_RES
 
 #define hrtimer_resolution	(unsigned int)LOW_RES_NSEC
 
