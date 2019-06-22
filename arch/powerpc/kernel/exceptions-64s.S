@@ -356,7 +356,7 @@ machine_check_pSeries_0:
 	 * nested machine check corrupts it. machine_check_common enables
 	 * MSR_RI.
 	 */
-	EXCEPTION_PROLOG_2_NORI(machine_check_common, EXC_STD)
+	EXCEPTION_PROLOG_2_NORI machine_check_common, EXC_STD
 
 TRAMP_KVM_SKIP(PACA_EXMC, 0x200)
 
@@ -598,7 +598,7 @@ EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, 0x300)
 	mfspr	r11,SPRN_DSISR
 	std	r10,PACA_EXGEN+EX_DAR(r13)
 	stw	r11,PACA_EXGEN+EX_DSISR(r13)
-EXCEPTION_PROLOG_2(data_access_common, EXC_STD)
+EXCEPTION_PROLOG_2 data_access_common, EXC_STD
 
 EXC_VIRT_BEGIN(data_access, 0x4300, 0x80)
 SET_SCRATCH0(r13)		/* save r13 */
@@ -608,7 +608,7 @@ EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, 0x300)
 	mfspr	r11,SPRN_DSISR
 	std	r10,PACA_EXGEN+EX_DAR(r13)
 	stw	r11,PACA_EXGEN+EX_DSISR(r13)
-EXCEPTION_PROLOG_2_RELON(data_access_common, EXC_STD)
+EXCEPTION_PROLOG_2_RELON data_access_common, EXC_STD
 EXC_VIRT_END(data_access, 0x4300, 0x80)
 
 TRAMP_KVM_SKIP(PACA_EXGEN, 0x300)
@@ -645,7 +645,7 @@ TRAMP_REAL_BEGIN(tramp_real_data_access_slb)
 EXCEPTION_PROLOG_1(PACA_EXSLB, KVMTEST_PR, 0x380)
 	mfspr	r10,SPRN_DAR
 	std	r10,PACA_EXSLB+EX_DAR(r13)
-EXCEPTION_PROLOG_2(data_access_slb_common, EXC_STD)
+EXCEPTION_PROLOG_2 data_access_slb_common, EXC_STD
 
 EXC_VIRT_BEGIN(data_access_slb, 0x4380, 0x80)
 SET_SCRATCH0(r13)		/* save r13 */
@@ -653,7 +653,7 @@ EXCEPTION_PROLOG_0(PACA_EXSLB)
 EXCEPTION_PROLOG_1(PACA_EXSLB, NOTEST, 0x380)
 	mfspr	r10,SPRN_DAR
 	std	r10,PACA_EXSLB+EX_DAR(r13)
-EXCEPTION_PROLOG_2_RELON(data_access_slb_common, EXC_STD)
+EXCEPTION_PROLOG_2_RELON data_access_slb_common, EXC_STD
 EXC_VIRT_END(data_access_slb, 0x4380, 0x80)
 
 TRAMP_KVM_SKIP(PACA_EXSLB, 0x380)
@@ -774,7 +774,7 @@ EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, 0x600)
 	mfspr	r11,SPRN_DSISR
 	std	r10,PACA_EXGEN+EX_DAR(r13)
 	stw	r11,PACA_EXGEN+EX_DSISR(r13)
-EXCEPTION_PROLOG_2(alignment_common, EXC_STD)
+EXCEPTION_PROLOG_2 alignment_common, EXC_STD
 EXC_REAL_END(alignment, 0x600, 0x100)
 
 EXC_VIRT_BEGIN(alignment, 0x4600, 0x100)
@@ -785,7 +785,7 @@ EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, 0x600)
 	mfspr	r11,SPRN_DSISR
 	std	r10,PACA_EXGEN+EX_DAR(r13)
 	stw	r11,PACA_EXGEN+EX_DSISR(r13)
-EXCEPTION_PROLOG_2_RELON(alignment_common, EXC_STD)
+EXCEPTION_PROLOG_2_RELON alignment_common, EXC_STD
 EXC_VIRT_END(alignment, 0x4600, 0x100)
 
 TRAMP_KVM(PACA_EXGEN, 0x600)
@@ -1053,7 +1053,7 @@ TRAMP_KVM_BEGIN(do_kvm_0xc00)
 	SET_SCRATCH0(r10)
 	std	r9,PACA_EXGEN+EX_R9(r13)
 	mfcr	r9
-	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xc00)
+	KVM_HANDLER PACA_EXGEN, EXC_STD, 0xc00
 #endif
 
 
@@ -1320,7 +1320,7 @@ EXC_REAL_BEGIN(denorm_exception_hv, 0x1500, 0x100)
 #endif
 
 	KVMTEST_HV(0x1500)
-	EXCEPTION_PROLOG_2(denorm_common, EXC_HV)
+	EXCEPTION_PROLOG_2 denorm_common, EXC_HV
 EXC_REAL_END(denorm_exception_hv, 0x1500, 0x100)
 
 #ifdef CONFIG_PPC_DENORMALISATION
@@ -1442,7 +1442,7 @@ EXC_VIRT_NONE(0x5800, 0x100)
 	std	r12,PACA_EXGEN+EX_R12(r13);		\
 	GET_SCRATCH0(r10);				\
 	std	r10,PACA_EXGEN+EX_R13(r13);		\
-	EXCEPTION_PROLOG_2(soft_nmi_common, _H)
+	EXCEPTION_PROLOG_2 soft_nmi_common, _H
 
 /*
  * Branch to soft_nmi_interrupt using the emergency stack. The emergency
@@ -1477,35 +1477,50 @@ EXC_COMMON_BEGIN(soft_nmi_common)
  * - Else it is one of PACA_IRQ_MUST_HARD_MASK, so hard disable and return.
  * This is called with r10 containing the value to OR to the paca field.
  */
-#define MASKED_INTERRUPT(_H)				\
-masked_##_H##interrupt:					\
-	std	r11,PACA_EXGEN+EX_R11(r13);		\
-	lbz	r11,PACAIRQHAPPENED(r13);		\
-	or	r11,r11,r10;				\
-	stb	r11,PACAIRQHAPPENED(r13);		\
-	cmpwi	r10,PACA_IRQ_DEC;			\
-	bne	1f;					\
-	lis	r10,0x7fff;				\
-	ori	r10,r10,0xffff;				\
-	mtspr	SPRN_DEC,r10;				\
-	b	MASKED_DEC_HANDLER_LABEL;		\
-1:	andi.	r10,r10,PACA_IRQ_MUST_HARD_MASK;	\
-	beq	2f;					\
-	mfspr	r10,SPRN_##_H##SRR1;			\
-	xori	r10,r10,MSR_EE; /* clear MSR_EE */	\
-	mtspr	SPRN_##_H##SRR1,r10;			\
-	ori	r11,r11,PACA_IRQ_HARD_DIS;		\
-	stb	r11,PACAIRQHAPPENED(r13);		\
-2:	/* done */					\
-	mtcrf	0x80,r9;				\
-	std	r1,PACAR1(r13);				\
-	ld	r9,PACA_EXGEN+EX_R9(r13);		\
-	ld	r10,PACA_EXGEN+EX_R10(r13);		\
-	ld	r11,PACA_EXGEN+EX_R11(r13);		\
-	/* returns to kernel where r13 must be set up, so don't restore it */ \
-	##_H##RFI_TO_KERNEL;				\
-	b	.;					\
-	MASKED_DEC_HANDLER(_H)
+.macro MASKED_INTERRUPT hsrr
+	.if \hsrr
+masked_Hinterrupt:
+	.else
+masked_interrupt:
+	.endif
+	std	r11,PACA_EXGEN+EX_R11(r13)
+	lbz	r11,PACAIRQHAPPENED(r13)
+	or	r11,r11,r10
+	stb	r11,PACAIRQHAPPENED(r13)
+	cmpwi	r10,PACA_IRQ_DEC
+	bne	1f
+	lis	r10,0x7fff
+	ori	r10,r10,0xffff
+	mtspr	SPRN_DEC,r10
+	b	MASKED_DEC_HANDLER_LABEL
+1:	andi.	r10,r10,PACA_IRQ_MUST_HARD_MASK
+	beq	2f
+	.if \hsrr
+	mfspr	r10,SPRN_HSRR1
+	xori	r10,r10,MSR_EE	/* clear MSR_EE */
+	mtspr	SPRN_HSRR1,r10
+	.else
+	mfspr	r10,SPRN_SRR1
+	xori	r10,r10,MSR_EE	/* clear MSR_EE */
+	mtspr	SPRN_SRR1,r10
+	.endif
+	ori	r11,r11,PACA_IRQ_HARD_DIS
+	stb	r11,PACAIRQHAPPENED(r13)
+2:	/* done */
+	mtcrf	0x80,r9
+	std	r1,PACAR1(r13)
+	ld	r9,PACA_EXGEN+EX_R9(r13)
+	ld	r10,PACA_EXGEN+EX_R10(r13)
+	ld	r11,PACA_EXGEN+EX_R11(r13)
+	/* returns to kernel where r13 must be set up, so don't restore it */
+	.if \hsrr
+	HRFI_TO_KERNEL
+	.else
+	RFI_TO_KERNEL
+	.endif
+	b	.
+	MASKED_DEC_HANDLER(\hsrr\())
+.endm
 
 TRAMP_REAL_BEGIN(stf_barrier_fallback)
 	std	r9,PACA_EXRFI+EX_R9(r13)
@@ -1612,8 +1627,8 @@ TRAMP_REAL_BEGIN(hrfi_flush_fallback)
  * cannot reach these if they are put there.
  */
 USE_FIXED_SECTION(virt_trampolines)
-	MASKED_INTERRUPT()
-	MASKED_INTERRUPT(H)
+	MASKED_INTERRUPT EXC_STD
+	MASKED_INTERRUPT EXC_HV
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 TRAMP_REAL_BEGIN(kvmppc_skip_interrupt)
