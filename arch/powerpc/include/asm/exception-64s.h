@@ -235,10 +235,10 @@
  * rfid. Save CTR in case we're CONFIG_RELOCATABLE, in which case
  * EXCEPTION_PROLOG_2_VIRT will be using CTR.
  */
-#define EXCEPTION_RELON_PROLOG(area, label, hsrr, extra, vec)		\
+#define EXCEPTION_RELON_PROLOG(area, label, hsrr, kvm, vec)		\
 	SET_SCRATCH0(r13);		/* save r13 */			\
 	EXCEPTION_PROLOG_0(area);					\
-	EXCEPTION_PROLOG_1(area, extra, vec);				\
+	EXCEPTION_PROLOG_1 hsrr, area, kvm, vec ;			\
 	EXCEPTION_PROLOG_2_VIRT label, hsrr
 
 /* Exception register prefixes */
@@ -325,31 +325,58 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 /*
  * This version of the EXCEPTION_PROLOG_1 will carry
  * addition parameter called "bitmask" to support
- * checking of the interrupt maskable level in the SOFTEN_TEST.
+ * checking of the interrupt maskable level.
  * Intended to be used in MASKABLE_EXCPETION_* macros.
  */
-#define MASKABLE_EXCEPTION_PROLOG_1(area, extra, vec, bitmask)			\
-	__EXCEPTION_PROLOG_1_PRE(area);					\
-	extra(vec, bitmask);						\
-	__EXCEPTION_PROLOG_1_POST(area)
+.macro MASKABLE_EXCEPTION_PROLOG_1 hsrr, area, kvm, vec, bitmask
+	__EXCEPTION_PROLOG_1_PRE(\area\())
+	.if \kvm
+		KVMTEST \hsrr \vec
+	.endif
+
+	lbz	r10,PACAIRQSOFTMASK(r13)
+	andi.	r10,r10,\bitmask
+	/* This associates vector numbers with bits in paca->irq_happened */
+	.if \vec == 0x500 || \vec == 0xea0
+	li	r10,PACA_IRQ_EE
+	.elseif \vec == 0x900
+	li	r10,PACA_IRQ_DEC
+	.elseif \vec == 0xa00 || \vec == 0xe80
+	li	r10,PACA_IRQ_DBELL
+	.elseif \vec == 0xe60
+	li	r10,PACA_IRQ_HMI
+	.elseif \vec == 0xf00
+	li	r10,PACA_IRQ_PMI
+	.else
+	.abort "Bad maskable vector"
+	.endif
+
+	.if \hsrr
+	bne	masked_Hinterrupt
+	.else
+	bne	masked_interrupt
+	.endif
+
+	__EXCEPTION_PROLOG_1_POST(\area\())
+.endm
 
 /*
  * This version of the EXCEPTION_PROLOG_1 is intended
  * to be used in STD_EXCEPTION* macros
  */
-#define _EXCEPTION_PROLOG_1(area, extra, vec)				\
-	__EXCEPTION_PROLOG_1_PRE(area);					\
-	extra(vec);							\
-	__EXCEPTION_PROLOG_1_POST(area)
+.macro EXCEPTION_PROLOG_1 hsrr, area, kvm, vec
+	__EXCEPTION_PROLOG_1_PRE(\area\())
+	.if \kvm
+		KVMTEST \hsrr \vec
+	.endif
+	__EXCEPTION_PROLOG_1_POST(\area\())
+.endm
 
-#define EXCEPTION_PROLOG_1(area, extra, vec)				\
-	_EXCEPTION_PROLOG_1(area, extra, vec)
-
-#define EXCEPTION_PROLOG(area, label, h, extra, vec)			\
+#define EXCEPTION_PROLOG(area, label, hsrr, kvm, vec)			\
 	SET_SCRATCH0(r13);		/* save r13 */			\
 	EXCEPTION_PROLOG_0(area);					\
-	EXCEPTION_PROLOG_1(area, extra, vec);				\
-	EXCEPTION_PROLOG_2_REAL label, h, 1
+	EXCEPTION_PROLOG_1 hsrr, area, kvm, vec ;			\
+	EXCEPTION_PROLOG_2_REAL label, hsrr, 1
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 /*
@@ -415,10 +442,10 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 #endif
 
 /* Do not enable RI */
-#define EXCEPTION_PROLOG_NORI(area, label, h, extra, vec)		\
+#define EXCEPTION_PROLOG_NORI(area, label, hsrr, kvm, vec)		\
 	EXCEPTION_PROLOG_0(area);					\
-	EXCEPTION_PROLOG_1(area, extra, vec);				\
-	EXCEPTION_PROLOG_2_REAL label, h, 0
+	EXCEPTION_PROLOG_1 hsrr, area, kvm, vec ;			\
+	EXCEPTION_PROLOG_2_REAL label, hsrr, 0
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 .macro KVMTEST hsrr, n
@@ -479,8 +506,6 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 .macro KVM_HANDLER_SKIP area, hsrr, n
 .endm
 #endif
-
-#define NOTEST(n)
 
 #define EXCEPTION_PROLOG_COMMON_1()					   \
 	std	r9,_CCR(r1);		/* save CR in stackframe	*/ \
@@ -565,7 +590,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
  * Exception vectors.
  */
 #define STD_EXCEPTION(vec, label)				\
-	EXCEPTION_PROLOG(PACA_EXGEN, label, EXC_STD, KVMTEST_PR, vec);
+	EXCEPTION_PROLOG(PACA_EXGEN, label, EXC_STD, 1, vec);
 
 /* Version of above for when we have to branch out-of-line */
 #define __OOL_EXCEPTION(vec, label, hdlr)			\
@@ -574,112 +599,69 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	b hdlr
 
 #define STD_EXCEPTION_OOL(vec, label)				\
-	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_PR, vec);	\
+	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 1, vec ;	\
 	EXCEPTION_PROLOG_2_REAL label, EXC_STD, 1
 
 #define STD_EXCEPTION_HV(loc, vec, label)			\
-	EXCEPTION_PROLOG(PACA_EXGEN, label, EXC_HV, KVMTEST_HV, vec)
+	EXCEPTION_PROLOG(PACA_EXGEN, label, EXC_HV, 1, vec)
 
 #define STD_EXCEPTION_HV_OOL(vec, label)			\
-	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_HV, vec);	\
+	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, vec ;		\
 	EXCEPTION_PROLOG_2_REAL label, EXC_HV, 1
 
 #define STD_RELON_EXCEPTION(loc, vec, label)		\
 	/* No guest interrupts come through here */	\
-	EXCEPTION_RELON_PROLOG(PACA_EXGEN, label, EXC_STD, NOTEST, vec)
+	EXCEPTION_RELON_PROLOG(PACA_EXGEN, label, EXC_STD, 0, vec)
 
 #define STD_RELON_EXCEPTION_OOL(vec, label)			\
-	EXCEPTION_PROLOG_1(PACA_EXGEN, NOTEST, vec);		\
+	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 0, vec ;	\
 	EXCEPTION_PROLOG_2_VIRT label, EXC_STD
 
-#define STD_RELON_EXCEPTION_HV(loc, vec, label)		\
-	EXCEPTION_RELON_PROLOG(PACA_EXGEN, label, EXC_HV, KVMTEST_HV, vec)
+#define STD_RELON_EXCEPTION_HV(loc, vec, label)			\
+	EXCEPTION_RELON_PROLOG(PACA_EXGEN, label, EXC_HV, 1, vec)
 
 #define STD_RELON_EXCEPTION_HV_OOL(vec, label)			\
-	EXCEPTION_PROLOG_1(PACA_EXGEN, KVMTEST_HV, vec);	\
+	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, vec;		\
 	EXCEPTION_PROLOG_2_VIRT label, EXC_HV
 
-.macro SOFTEN_TEST hsrr, vec, bitmask
-	lbz	r10, PACAIRQSOFTMASK(r13)
-	andi.	r10, r10, \bitmask
-	/* This associates vector numbers with bits in paca->irq_happened */
-	.if \vec == 0x500 || \vec == 0xea0
-	li	r10, PACA_IRQ_EE
-	.elseif \vec == 0x900
-	li	r10, PACA_IRQ_DEC
-	.elseif \vec == 0xa00 || \vec == 0xe80
-	li	r10, PACA_IRQ_DBELL
-	.elseif \vec == 0xe60
-	li	r10, PACA_IRQ_HMI
-	.elseif \vec == 0xf00
-	li	r10, PACA_IRQ_PMI
-	.else
-	.abort "Bad maskable vector"
-	.endif
-
-
-	.if \hsrr
-	bne	masked_Hinterrupt
-	.else
-	bne	masked_interrupt
-	.endif
-.endm
-
-#define SOFTEN_TEST_PR(vec, bitmask)					\
-	KVMTEST EXC_STD, vec ;						\
-	SOFTEN_TEST EXC_STD, vec, bitmask
-
-#define SOFTEN_TEST_HV(vec, bitmask)					\
-	KVMTEST EXC_HV, vec ;						\
-	SOFTEN_TEST EXC_HV, vec, bitmask
-
-#define KVMTEST_PR(vec)							\
-	KVMTEST EXC_STD, vec
-
-#define KVMTEST_HV(vec)							\
-	KVMTEST EXC_HV, vec
-
-#define SOFTEN_NOTEST_PR(vec, bitmask)	SOFTEN_TEST EXC_STD, vec, bitmask
-#define SOFTEN_NOTEST_HV(vec, bitmask)	SOFTEN_TEST EXC_HV, vec, bitmask
-
-#define __MASKABLE_EXCEPTION(vec, label, h, extra, bitmask)		\
+#define __MASKABLE_EXCEPTION(vec, label, hsrr, kvm, bitmask)		\
 	SET_SCRATCH0(r13);    /* save r13 */				\
 	EXCEPTION_PROLOG_0(PACA_EXGEN);					\
-	MASKABLE_EXCEPTION_PROLOG_1(PACA_EXGEN, extra, vec, bitmask);	\
-	EXCEPTION_PROLOG_2_REAL label, h, 1
+	MASKABLE_EXCEPTION_PROLOG_1 hsrr, PACA_EXGEN, kvm, vec, bitmask ; \
+	EXCEPTION_PROLOG_2_REAL label, hsrr, 1
 
 #define MASKABLE_EXCEPTION(vec, label, bitmask)				\
-	__MASKABLE_EXCEPTION(vec, label, EXC_STD, SOFTEN_TEST_PR, bitmask)
+	__MASKABLE_EXCEPTION(vec, label, EXC_STD, 1, bitmask)
 
 #define MASKABLE_EXCEPTION_OOL(vec, label, bitmask)			\
-	MASKABLE_EXCEPTION_PROLOG_1(PACA_EXGEN, SOFTEN_TEST_PR, vec, bitmask);\
+	MASKABLE_EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 1, vec, bitmask ; \
 	EXCEPTION_PROLOG_2_REAL label, EXC_STD, 1
 
 #define MASKABLE_EXCEPTION_HV(vec, label, bitmask)			\
-	__MASKABLE_EXCEPTION(vec, label, EXC_HV, SOFTEN_TEST_HV, bitmask)
+	__MASKABLE_EXCEPTION(vec, label, EXC_HV, 1, bitmask)
 
 #define MASKABLE_EXCEPTION_HV_OOL(vec, label, bitmask)			\
-	MASKABLE_EXCEPTION_PROLOG_1(PACA_EXGEN, SOFTEN_TEST_HV, vec, bitmask);\
+	MASKABLE_EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, vec, bitmask ; \
 	EXCEPTION_PROLOG_2_REAL label, EXC_HV, 1
 
-#define __MASKABLE_RELON_EXCEPTION(vec, label, h, extra, bitmask)	\
+#define __MASKABLE_RELON_EXCEPTION(vec, label, hsrr, kvm, bitmask)	\
 	SET_SCRATCH0(r13);    /* save r13 */				\
 	EXCEPTION_PROLOG_0(PACA_EXGEN);					\
-	MASKABLE_EXCEPTION_PROLOG_1(PACA_EXGEN, extra, vec, bitmask);	\
-	EXCEPTION_PROLOG_2_VIRT label, h
+	MASKABLE_EXCEPTION_PROLOG_1 hsrr, PACA_EXGEN, kvm, vec, bitmask ; \
+	EXCEPTION_PROLOG_2_VIRT label, hsrr
 
 #define MASKABLE_RELON_EXCEPTION(vec, label, bitmask)			\
-	__MASKABLE_RELON_EXCEPTION(vec, label, EXC_STD, SOFTEN_NOTEST_PR, bitmask)
+	__MASKABLE_RELON_EXCEPTION(vec, label, EXC_STD, 0, bitmask)
 
 #define MASKABLE_RELON_EXCEPTION_OOL(vec, label, bitmask)		\
-	MASKABLE_EXCEPTION_PROLOG_1(PACA_EXGEN, SOFTEN_NOTEST_PR, vec, bitmask);\
+	MASKABLE_EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 0, vec, bitmask ; \
 	EXCEPTION_PROLOG_2_REAL label, EXC_STD, 1
 
 #define MASKABLE_RELON_EXCEPTION_HV(vec, label, bitmask)		\
-	__MASKABLE_RELON_EXCEPTION(vec, label, EXC_HV, SOFTEN_TEST_HV, bitmask)
+	__MASKABLE_RELON_EXCEPTION(vec, label, EXC_HV, 1, bitmask)
 
 #define MASKABLE_RELON_EXCEPTION_HV_OOL(vec, label, bitmask)		\
-	MASKABLE_EXCEPTION_PROLOG_1(PACA_EXGEN, SOFTEN_TEST_HV, vec, bitmask);\
+	MASKABLE_EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, vec, bitmask ; \
 	EXCEPTION_PROLOG_2_VIRT label, EXC_HV
 
 /*
