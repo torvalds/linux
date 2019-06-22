@@ -36,6 +36,7 @@
 
 #include "gc/gc_9_0_offset.h"
 #include "gc/gc_9_0_sh_mask.h"
+
 #include "vega10_enum.h"
 #include "hdp/hdp_4_0_offset.h"
 
@@ -59,6 +60,9 @@
 #define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT		0x1
 #define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN_MASK		0x00000001L
 #define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK		0x00000006L
+
+#define mmGCEA_PROBE_MAP                        0x070c
+#define mmGCEA_PROBE_MAP_BASE_IDX               0
 
 MODULE_FIRMWARE("amdgpu/vega10_ce.bin");
 MODULE_FIRMWARE("amdgpu/vega10_pfp.bin");
@@ -618,6 +622,23 @@ static const struct soc15_reg_golden golden_settings_gc_9_1_rv2[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmWD_UTCL1_CNTL, 0x3f8fffff, 0x08000080),
 };
 
+static const struct soc15_reg_golden golden_settings_gc_9_1_rn[] =
+{
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmWD_UTCL1_CNTL, 0x3f8fffff, 0x08000080),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL, 0xfffdf3cf, 0x00014104),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCB_HW_CONTROL_2, 0xff7fffff, 0x0a000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmDB_DEBUG2, 0xf00fffff, 0x00000400),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG, 0xf3e777ff, 0x22010042),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGB_ADDR_CONFIG_READ, 0xf3e777ff, 0x22010042),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE, 0x3fffffff, 0x00000001),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_ENHANCE_1, 0xffffffff, 0x04040000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTA_CNTL_AUX, 0xfffffeef, 0x010b0000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_HI, 0xffffffff, 0x00000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmTCP_CHAN_STEER_LO, 0xffffffff, 0x00003120),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, mmGCEA_PROBE_MAP, 0xffffffff, 0x0000cccc),
+};
+
 static const struct soc15_reg_golden golden_settings_gc_9_x_common[] =
 {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmCP_SD_CNTL, 0xffffffff, 0x000001ff),
@@ -761,6 +782,11 @@ static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 			soc15_program_register_sequence(adev,
 							golden_settings_gc_9_1_rv1,
 							ARRAY_SIZE(golden_settings_gc_9_1_rv1));
+		break;
+	 case CHIP_RENOIR:
+		soc15_program_register_sequence(adev,
+						golden_settings_gc_9_1_rn,
+						ARRAY_SIZE(golden_settings_gc_9_1_rn));
 		break;
 	default:
 		break;
