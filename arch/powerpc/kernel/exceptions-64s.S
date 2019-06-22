@@ -243,29 +243,6 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 #endif
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-
-#ifdef CONFIG_RELOCATABLE
-/*
- * KVM requires __LOAD_FAR_HANDLER.
- *
- * __BRANCH_TO_KVM_EXIT branches are also a special case because they
- * explicitly use r9 then reload it from PACA before branching. Hence
- * the double-underscore.
- */
-#define __BRANCH_TO_KVM_EXIT(area, label)				\
-	mfctr	r9;							\
-	std	r9,HSTATE_SCRATCH1(r13);				\
-	__LOAD_FAR_HANDLER(r9, label);					\
-	mtctr	r9;							\
-	ld	r9,area+EX_R9(r13);					\
-	bctr
-
-#else
-#define __BRANCH_TO_KVM_EXIT(area, label)				\
-	ld	r9,area+EX_R9(r13);					\
-	b	label
-#endif
-
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 /*
  * If hv is possible, interrupts come into to the hv version
@@ -311,8 +288,24 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	.else
 	ori	r12,r12,(\n)
 	.endif
-	/* This reloads r9 before branching to kvmppc_interrupt */
-	__BRANCH_TO_KVM_EXIT(\area, kvmppc_interrupt)
+
+#ifdef CONFIG_RELOCATABLE
+	/*
+	 * KVM requires __LOAD_FAR_HANDLER beause kvmppc_interrupt lives
+	 * outside the head section. CONFIG_RELOCATABLE KVM expects CTR
+	 * to be saved in HSTATE_SCRATCH1.
+	 */
+	mfctr	r9
+	std	r9,HSTATE_SCRATCH1(r13)
+	__LOAD_FAR_HANDLER(r9, kvmppc_interrupt)
+	mtctr	r9
+	ld	r9,\area+EX_R9(r13)
+	bctr
+#else
+	ld	r9,\area+EX_R9(r13)
+	b	kvmppc_interrupt
+#endif
+
 
 	.if \skip
 89:	mtocrf	0x80,r9
