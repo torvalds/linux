@@ -631,17 +631,12 @@ static void rcu_read_unlock_special(struct task_struct *t)
 			// Using softirq, safe to awaken, and we get
 			// no help from enabling irqs, unlike bh/preempt.
 			raise_softirq_irqoff(RCU_SOFTIRQ);
-		} else if (exp && irqs_were_disabled && !use_softirq &&
-			   !t->rcu_read_unlock_special.b.deferred_qs) {
-			// Safe to awaken and we get no help from enabling
-			// irqs, unlike bh/preempt.
-			invoke_rcu_core();
 		} else {
 			// Enabling BH or preempt does reschedule, so...
 			// Also if no expediting or NO_HZ_FULL, slow is OK.
 			set_tsk_need_resched(current);
 			set_preempt_need_resched();
-			if (IS_ENABLED(CONFIG_IRQ_WORK) &&
+			if (IS_ENABLED(CONFIG_IRQ_WORK) && irqs_were_disabled &&
 			    !rdp->defer_qs_iw_pending && exp) {
 				// Get scheduler to re-evaluate and call hooks.
 				// If !IRQ_WORK, FQS scan will eventually IPI.
