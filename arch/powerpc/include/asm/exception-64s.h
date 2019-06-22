@@ -230,17 +230,6 @@
 #endif
 .endm
 
-/*
- * As EXCEPTION_PROLOG(), except we've already got relocation on so no need to
- * rfid. Save CTR in case we're CONFIG_RELOCATABLE, in which case
- * EXCEPTION_PROLOG_2_VIRT will be using CTR.
- */
-#define EXCEPTION_RELON_PROLOG(area, label, hsrr, kvm, vec)		\
-	SET_SCRATCH0(r13);		/* save r13 */			\
-	EXCEPTION_PROLOG_0 area ;					\
-	EXCEPTION_PROLOG_1 hsrr, area, kvm, vec, 0 ;			\
-	EXCEPTION_PROLOG_2_VIRT label, hsrr
-
 /* Exception register prefixes */
 #define EXC_HV		1
 #define EXC_STD		0
@@ -351,12 +340,6 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	std	r10,\area\()+EX_R13(r13)
 .endm
 
-#define EXCEPTION_PROLOG(area, label, hsrr, kvm, vec)			\
-	SET_SCRATCH0(r13);		/* save r13 */			\
-	EXCEPTION_PROLOG_0 area	;					\
-	EXCEPTION_PROLOG_1 hsrr, area, kvm, vec, 0 ;			\
-	EXCEPTION_PROLOG_2_REAL label, hsrr, 1
-
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 /*
  * If hv is possible, interrupts come into to the hv version
@@ -419,12 +402,6 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	b	label
 
 #endif
-
-/* Do not enable RI */
-#define EXCEPTION_PROLOG_NORI(area, label, hsrr, kvm, vec)		\
-	EXCEPTION_PROLOG_0 area ;					\
-	EXCEPTION_PROLOG_1 hsrr, area, kvm, vec, 0 ;			\
-	EXCEPTION_PROLOG_2_REAL label, hsrr, 0
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 .macro KVMTEST hsrr, n
@@ -561,84 +538,6 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	ld	r11,exception_marker@toc(r2);				   \
 	std	r10,RESULT(r1);		/* clear regs->result		*/ \
 	std	r11,STACK_FRAME_OVERHEAD-16(r1); /* mark the frame	*/
-
-/*
- * Exception vectors.
- */
-#define STD_EXCEPTION(vec, label)				\
-	EXCEPTION_PROLOG(PACA_EXGEN, label, EXC_STD, 1, vec);
-
-/* Version of above for when we have to branch out-of-line */
-#define __OOL_EXCEPTION(vec, label, hdlr)			\
-	SET_SCRATCH0(r13);					\
-	EXCEPTION_PROLOG_0 PACA_EXGEN ;				\
-	b hdlr
-
-#define STD_EXCEPTION_OOL(vec, label)				\
-	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 1, vec, 0 ;	\
-	EXCEPTION_PROLOG_2_REAL label, EXC_STD, 1
-
-#define STD_EXCEPTION_HV(loc, vec, label)			\
-	EXCEPTION_PROLOG(PACA_EXGEN, label, EXC_HV, 1, vec)
-
-#define STD_EXCEPTION_HV_OOL(vec, label)			\
-	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, vec, 0 ;	\
-	EXCEPTION_PROLOG_2_REAL label, EXC_HV, 1
-
-#define STD_RELON_EXCEPTION(loc, vec, label)		\
-	/* No guest interrupts come through here */	\
-	EXCEPTION_RELON_PROLOG(PACA_EXGEN, label, EXC_STD, 0, vec)
-
-#define STD_RELON_EXCEPTION_OOL(vec, label)			\
-	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 0, vec, 0 ;	\
-	EXCEPTION_PROLOG_2_VIRT label, EXC_STD
-
-#define STD_RELON_EXCEPTION_HV(loc, vec, label)			\
-	EXCEPTION_RELON_PROLOG(PACA_EXGEN, label, EXC_HV, 1, vec)
-
-#define STD_RELON_EXCEPTION_HV_OOL(vec, label)			\
-	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, vec, 0 ;	\
-	EXCEPTION_PROLOG_2_VIRT label, EXC_HV
-
-#define __MASKABLE_EXCEPTION(vec, label, hsrr, kvm, bitmask)		\
-	SET_SCRATCH0(r13);    /* save r13 */				\
-	EXCEPTION_PROLOG_0 PACA_EXGEN ;					\
-	EXCEPTION_PROLOG_1 hsrr, PACA_EXGEN, kvm, vec, bitmask ;	\
-	EXCEPTION_PROLOG_2_REAL label, hsrr, 1
-
-#define MASKABLE_EXCEPTION(vec, label, bitmask)				\
-	__MASKABLE_EXCEPTION(vec, label, EXC_STD, 1, bitmask)
-
-#define MASKABLE_EXCEPTION_OOL(vec, label, bitmask)			\
-	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 1, vec, bitmask ;	\
-	EXCEPTION_PROLOG_2_REAL label, EXC_STD, 1
-
-#define MASKABLE_EXCEPTION_HV(vec, label, bitmask)			\
-	__MASKABLE_EXCEPTION(vec, label, EXC_HV, 1, bitmask)
-
-#define MASKABLE_EXCEPTION_HV_OOL(vec, label, bitmask)			\
-	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, vec, bitmask ;	\
-	EXCEPTION_PROLOG_2_REAL label, EXC_HV, 1
-
-#define __MASKABLE_RELON_EXCEPTION(vec, label, hsrr, kvm, bitmask)	\
-	SET_SCRATCH0(r13);    /* save r13 */				\
-	EXCEPTION_PROLOG_0 PACA_EXGEN ;					\
-	EXCEPTION_PROLOG_1 hsrr, PACA_EXGEN, kvm, vec, bitmask ;	\
-	EXCEPTION_PROLOG_2_VIRT label, hsrr
-
-#define MASKABLE_RELON_EXCEPTION(vec, label, bitmask)			\
-	__MASKABLE_RELON_EXCEPTION(vec, label, EXC_STD, 0, bitmask)
-
-#define MASKABLE_RELON_EXCEPTION_OOL(vec, label, bitmask)		\
-	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 0, vec, bitmask ;	\
-	EXCEPTION_PROLOG_2_REAL label, EXC_STD, 1
-
-#define MASKABLE_RELON_EXCEPTION_HV(vec, label, bitmask)		\
-	__MASKABLE_RELON_EXCEPTION(vec, label, EXC_HV, 1, bitmask)
-
-#define MASKABLE_RELON_EXCEPTION_HV_OOL(vec, label, bitmask)		\
-	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, vec, bitmask ;	\
-	EXCEPTION_PROLOG_2_VIRT label, EXC_HV
 
 #define RUNLATCH_ON				\
 BEGIN_FTR_SECTION				\

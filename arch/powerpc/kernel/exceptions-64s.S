@@ -254,9 +254,11 @@ EXC_COMMON_BEGIN(system_reset_common)
  */
 TRAMP_REAL_BEGIN(system_reset_fwnmi)
 	SET_SCRATCH0(r13)		/* save r13 */
-	/* See comment at system_reset exception */
-	EXCEPTION_PROLOG_NORI(PACA_EXNMI, system_reset_common, EXC_STD,
-			      0, 0x100)
+	/* See comment at system_reset exception, don't turn on RI */
+	EXCEPTION_PROLOG_0 PACA_EXNMI
+	EXCEPTION_PROLOG_1 EXC_STD, PACA_EXNMI, 0, 0x100, 0
+	EXCEPTION_PROLOG_2_REAL system_reset_common, EXC_STD, 0
+
 #endif /* CONFIG_PPC_PSERIES */
 
 
@@ -714,14 +716,8 @@ MMU_FTR_SECTION_ELSE
 ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 
-EXC_REAL_BEGIN(instruction_access_slb, 0x480, 0x80)
-EXCEPTION_PROLOG(PACA_EXSLB, instruction_access_slb_common, EXC_STD, 1, 0x480);
-EXC_REAL_END(instruction_access_slb, 0x480, 0x80)
-
-EXC_VIRT_BEGIN(instruction_access_slb, 0x4480, 0x80)
-EXCEPTION_RELON_PROLOG(PACA_EXSLB, instruction_access_slb_common, EXC_STD, 0, 0x480);
-EXC_VIRT_END(instruction_access_slb, 0x4480, 0x80)
-
+__EXC_REAL(instruction_access_slb, 0x480, 0x80, PACA_EXSLB)
+__EXC_VIRT(instruction_access_slb, 0x4480, 0x80, 0x480, PACA_EXSLB)
 TRAMP_KVM(PACA_EXSLB, 0x480)
 
 EXC_COMMON_BEGIN(instruction_access_slb_common)
@@ -750,24 +746,34 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
 
 
 EXC_REAL_BEGIN(hardware_interrupt, 0x500, 0x100)
-	.globl hardware_interrupt_hv;
+	.globl hardware_interrupt_hv
 hardware_interrupt_hv:
 	BEGIN_FTR_SECTION
-		MASKABLE_EXCEPTION_HV(0x500, hardware_interrupt_common, IRQS_DISABLED)
+		SET_SCRATCH0(r13)	/* save r13 */
+		EXCEPTION_PROLOG_0 PACA_EXGEN
+		EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, 0x500, IRQS_DISABLED
+		EXCEPTION_PROLOG_2_REAL hardware_interrupt_common, EXC_HV, 1
 	FTR_SECTION_ELSE
-		MASKABLE_EXCEPTION(0x500, hardware_interrupt_common, IRQS_DISABLED)
+		SET_SCRATCH0(r13)	/* save r13 */
+		EXCEPTION_PROLOG_0 PACA_EXGEN
+		EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 1, 0x500, IRQS_DISABLED
+		EXCEPTION_PROLOG_2_REAL hardware_interrupt_common, EXC_STD, 1
 	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
 EXC_REAL_END(hardware_interrupt, 0x500, 0x100)
 
 EXC_VIRT_BEGIN(hardware_interrupt, 0x4500, 0x100)
-	.globl hardware_interrupt_relon_hv;
+	.globl hardware_interrupt_relon_hv
 hardware_interrupt_relon_hv:
 	BEGIN_FTR_SECTION
-		MASKABLE_RELON_EXCEPTION_HV(0x500, hardware_interrupt_common,
-					    IRQS_DISABLED)
+		SET_SCRATCH0(r13)	/* save r13 */
+		EXCEPTION_PROLOG_0 PACA_EXGEN
+		EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, 0x500, IRQS_DISABLED
+		EXCEPTION_PROLOG_2_VIRT hardware_interrupt_common, EXC_HV
 	FTR_SECTION_ELSE
-		__MASKABLE_RELON_EXCEPTION(0x500, hardware_interrupt_common,
-					   EXC_STD, 1, IRQS_DISABLED)
+		SET_SCRATCH0(r13)	/* save r13 */
+		EXCEPTION_PROLOG_0 PACA_EXGEN
+		EXCEPTION_PROLOG_1 EXC_STD, PACA_EXGEN, 1, 0x500, IRQS_DISABLED
+		EXCEPTION_PROLOG_2_VIRT hardware_interrupt_common, EXC_STD
 	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
 EXC_VIRT_END(hardware_interrupt, 0x4500, 0x100)
 
