@@ -1033,12 +1033,12 @@ static int dw_i3c_master_attach_i2c_dev(struct i2c_dev_desc *dev)
 		return -ENOMEM;
 
 	data->index = pos;
-	master->addrs[pos] = dev->boardinfo->base.addr;
+	master->addrs[pos] = dev->addr;
 	master->free_pos &= ~BIT(pos);
 	i2c_dev_set_master_data(dev, data);
 
 	writel(DEV_ADDR_TABLE_LEGACY_I2C_DEV |
-	       DEV_ADDR_TABLE_STATIC_ADDR(dev->boardinfo->base.addr),
+	       DEV_ADDR_TABLE_STATIC_ADDR(dev->addr),
 	       master->regs +
 	       DEV_ADDR_TABLE_LOC(master->datstartaddr, data->index));
 
