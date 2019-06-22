@@ -469,10 +469,7 @@ static void usb_AggSettingTxUpdate(struct adapter *Adapter)
  *
  *---------------------------------------------------------------------------
  */
-static void
-usb_AggSettingRxUpdate(
-		struct adapter *Adapter
-	)
+static void usb_AggSettingRxUpdate(struct adapter *Adapter)
 {
 	struct hal_data_8188e *haldata = Adapter->HalData;
 	u8 valueDMA;
@@ -1044,10 +1041,7 @@ static void Hal_EfuseParseMACAddr_8188EU(struct adapter *adapt, u8 *hwinfo, bool
 		 eeprom->mac_addr));
 }
 
-static void
-readAdapterInfo_8188EU(
-		struct adapter *adapt
-	)
+static void readAdapterInfo_8188EU(struct adapter *adapt)
 {
 	struct eeprom_priv *eeprom = GET_EEPROM_EFUSE_PRIV(adapt);
 
@@ -1067,9 +1061,7 @@ readAdapterInfo_8188EU(
 	Hal_ReadThermalMeter_88E(adapt, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
 }
 
-static void _ReadPROMContent(
-	struct adapter *Adapter
-	)
+static void _ReadPROMContent(struct adapter *Adapter)
 {
 	struct eeprom_priv *eeprom = GET_EEPROM_EFUSE_PRIV(Adapter);
 	u8 eeValue;
@@ -1782,11 +1774,8 @@ void rtw_hal_get_hwreg(struct adapter *Adapter, u8 variable, u8 *val)
 /*	Description: */
 /*		Query setting of specified variable. */
 /*  */
-u8 rtw_hal_get_def_var(
-		struct adapter *Adapter,
-		enum hal_def_variable eVariable,
-		void *pValue
-	)
+u8 rtw_hal_get_def_var(struct adapter *Adapter, enum hal_def_variable eVariable,
+		       void *pValue)
 {
 	struct hal_data_8188e *haldata = Adapter->HalData;
 	u8 bResult = _SUCCESS;
