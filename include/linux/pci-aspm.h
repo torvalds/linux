@@ -24,11 +24,12 @@
 #define PCIE_LINK_STATE_CLKPM	4
 
 #ifdef CONFIG_PCIEASPM
-void pci_disable_link_state(struct pci_dev *pdev, int state);
-void pci_disable_link_state_locked(struct pci_dev *pdev, int state);
+int pci_disable_link_state(struct pci_dev *pdev, int state);
+int pci_disable_link_state_locked(struct pci_dev *pdev, int state);
 void pcie_no_aspm(void);
 #else
-static inline void pci_disable_link_state(struct pci_dev *pdev, int state) { }
+static inline int pci_disable_link_state(struct pci_dev *pdev, int state)
+{ return 0; }
 static inline void pcie_no_aspm(void) { }
 #endif
 
