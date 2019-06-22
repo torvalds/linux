@@ -2010,12 +2010,11 @@ BEGIN_FTR_SECTION
 	mtmsrd	r10
 	sync
 
-#define FMR2(n)  fmr (n), (n) ; fmr n+1, n+1
-#define FMR4(n)  FMR2(n) ; FMR2(n+2)
-#define FMR8(n)  FMR4(n) ; FMR4(n+4)
-#define FMR16(n) FMR8(n) ; FMR8(n+8)
-#define FMR32(n) FMR16(n) ; FMR16(n+16)
-	FMR32(0)
+	.Lreg=0
+	.rept 32
+	fmr	.Lreg,.Lreg
+	.Lreg=.Lreg+1
+	.endr
 
 FTR_SECTION_ELSE
 /*
@@ -2027,12 +2026,11 @@ FTR_SECTION_ELSE
 	mtmsrd	r10
 	sync
 
-#define XVCPSGNDP2(n) XVCPSGNDP(n,n,n) ; XVCPSGNDP(n+1,n+1,n+1)
-#define XVCPSGNDP4(n) XVCPSGNDP2(n) ; XVCPSGNDP2(n+2)
-#define XVCPSGNDP8(n) XVCPSGNDP4(n) ; XVCPSGNDP4(n+4)
-#define XVCPSGNDP16(n) XVCPSGNDP8(n) ; XVCPSGNDP8(n+8)
-#define XVCPSGNDP32(n) XVCPSGNDP16(n) ; XVCPSGNDP16(n+16)
-	XVCPSGNDP32(0)
+	.Lreg=0
+	.rept 32
+	XVCPSGNDP(.Lreg,.Lreg,.Lreg)
+	.Lreg=.Lreg+1
+	.endr
 
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_206)
 
@@ -2043,7 +2041,12 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
  * To denormalise we need to move a copy of the register to itself.
  * For POWER8 we need to do that for all 64 VSX registers
  */
-	XVCPSGNDP32(32)
+	.Lreg=32
+	.rept 32
+	XVCPSGNDP(.Lreg,.Lreg,.Lreg)
+	.Lreg=.Lreg+1
+	.endr
+
 denorm_done:
 	mfspr	r11,SPRN_HSRR0
 	subi	r11,r11,4
