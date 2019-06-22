@@ -30,6 +30,7 @@ enum intel_pt_sample_type {
 	INTEL_PT_CBR_CHG	= 1 << 8,
 	INTEL_PT_TRACE_BEGIN	= 1 << 9,
 	INTEL_PT_TRACE_END	= 1 << 10,
+	INTEL_PT_BLK_ITEMS	= 1 << 11,
 };
 
 enum intel_pt_period_type {
@@ -61,6 +62,141 @@ enum intel_pt_param_flags {
 	INTEL_PT_FUP_WITH_NLIP	= 1 << 0,
 };
 
+enum intel_pt_blk_type {
+	INTEL_PT_GP_REGS	= 1,
+	INTEL_PT_PEBS_BASIC	= 4,
+	INTEL_PT_PEBS_MEM	= 5,
+	INTEL_PT_LBR_0		= 8,
+	INTEL_PT_LBR_1		= 9,
+	INTEL_PT_LBR_2		= 10,
+	INTEL_PT_XMM		= 16,
+	INTEL_PT_BLK_TYPE_MAX
+};
+
+/*
+ * The block type numbers are not sequential but here they are given sequential
+ * positions to avoid wasting space for array placement.
+ */
+enum intel_pt_blk_type_pos {
+	INTEL_PT_GP_REGS_POS,
+	INTEL_PT_PEBS_BASIC_POS,
+	INTEL_PT_PEBS_MEM_POS,
+	INTEL_PT_LBR_0_POS,
+	INTEL_PT_LBR_1_POS,
+	INTEL_PT_LBR_2_POS,
+	INTEL_PT_XMM_POS,
+	INTEL_PT_BLK_TYPE_CNT
+};
+
+/* Get the array position for a block type */
+static inline int intel_pt_blk_type_pos(enum intel_pt_blk_type blk_type)
+{
+#define BLK_TYPE(bt) [INTEL_PT_##bt] = INTEL_PT_##bt##_POS + 1
+	const int map[INTEL_PT_BLK_TYPE_MAX] = {
+		BLK_TYPE(GP_REGS),
+		BLK_TYPE(PEBS_BASIC),
+		BLK_TYPE(PEBS_MEM),
+		BLK_TYPE(LBR_0),
+		BLK_TYPE(LBR_1),
+		BLK_TYPE(LBR_2),
+		BLK_TYPE(XMM),
+	};
+#undef BLK_TYPE
+
+	return blk_type < INTEL_PT_BLK_TYPE_MAX ? map[blk_type] - 1 : -1;
+}
+
+#define INTEL_PT_BLK_ITEM_ID_CNT	32
+
+/*
+ * Use unions so that the block items can be accessed by name or by array index.
+ * There is an array of 32-bit masks for each block type, which indicate which
+ * values are present. Then arrays of 32 64-bit values for each block type.
+ */
+struct intel_pt_blk_items {
+	union {
+		uint32_t mask[INTEL_PT_BLK_TYPE_CNT];
+		struct {
+			uint32_t has_rflags:1;
+			uint32_t has_rip:1;
+			uint32_t has_rax:1;
+			uint32_t has_rcx:1;
+			uint32_t has_rdx:1;
+			uint32_t has_rbx:1;
+			uint32_t has_rsp:1;
+			uint32_t has_rbp:1;
+			uint32_t has_rsi:1;
+			uint32_t has_rdi:1;
+			uint32_t has_r8:1;
+			uint32_t has_r9:1;
+			uint32_t has_r10:1;
+			uint32_t has_r11:1;
+			uint32_t has_r12:1;
+			uint32_t has_r13:1;
+			uint32_t has_r14:1;
+			uint32_t has_r15:1;
+			uint32_t has_unused_0:14;
+			uint32_t has_ip:1;
+			uint32_t has_applicable_counters:1;
+			uint32_t has_timestamp:1;
+			uint32_t has_unused_1:29;
+			uint32_t has_mem_access_address:1;
+			uint32_t has_mem_aux_info:1;
+			uint32_t has_mem_access_latency:1;
+			uint32_t has_tsx_aux_info:1;
+			uint32_t has_unused_2:28;
+			uint32_t has_lbr_0;
+			uint32_t has_lbr_1;
+			uint32_t has_lbr_2;
+			uint32_t has_xmm;
+		};
+	};
+	union {
+		uint64_t val[INTEL_PT_BLK_TYPE_CNT][INTEL_PT_BLK_ITEM_ID_CNT];
+		struct {
+			struct {
+				uint64_t rflags;
+				uint64_t rip;
+				uint64_t rax;
+				uint64_t rcx;
+				uint64_t rdx;
+				uint64_t rbx;
+				uint64_t rsp;
+				uint64_t rbp;
+				uint64_t rsi;
+				uint64_t rdi;
+				uint64_t r8;
+				uint64_t r9;
+				uint64_t r10;
+				uint64_t r11;
+				uint64_t r12;
+				uint64_t r13;
+				uint64_t r14;
+				uint64_t r15;
+				uint64_t unused_0[INTEL_PT_BLK_ITEM_ID_CNT - 18];
+			};
+			struct {
+				uint64_t ip;
+				uint64_t applicable_counters;
+				uint64_t timestamp;
+				uint64_t unused_1[INTEL_PT_BLK_ITEM_ID_CNT - 3];
+			};
+			struct {
+				uint64_t mem_access_address;
+				uint64_t mem_aux_info;
+				uint64_t mem_access_latency;
+				uint64_t tsx_aux_info;
+				uint64_t unused_2[INTEL_PT_BLK_ITEM_ID_CNT - 4];
+			};
+			uint64_t lbr_0[INTEL_PT_BLK_ITEM_ID_CNT];
+			uint64_t lbr_1[INTEL_PT_BLK_ITEM_ID_CNT];
+			uint64_t lbr_2[INTEL_PT_BLK_ITEM_ID_CNT];
+			uint64_t xmm[INTEL_PT_BLK_ITEM_ID_CNT];
+		};
+	};
+	bool is_32_bit;
+};
+
 struct intel_pt_state {
 	enum intel_pt_sample_type type;
 	int err;
@@ -81,6 +217,7 @@ struct intel_pt_state {
 	enum intel_pt_insn_op insn_op;
 	int insn_len;
 	char insn[INTEL_PT_INSN_BUF_SZ];
+	struct intel_pt_blk_items items;
 };
 
 struct intel_pt_insn;

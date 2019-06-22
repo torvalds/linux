@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <stdio.h>
+#include <slang/slang.h>
 
 int main(void)
 {
-	return puts("hi");
+	return SLsmg_init_smg();
 }

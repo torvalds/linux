@@ -133,6 +133,10 @@ struct intel_pt_decoder {
 	int mtc_shift;
 	struct intel_pt_stack stack;
 	enum intel_pt_pkt_state pkt_state;
+	enum intel_pt_pkt_ctx pkt_ctx;
+	enum intel_pt_pkt_ctx prev_pkt_ctx;
+	enum intel_pt_blk_type blk_type;
+	int blk_type_pos;
 	struct intel_pt_pkt packet;
 	struct intel_pt_pkt tnt;
 	int pkt_step;
@@ -166,6 +170,7 @@ struct intel_pt_decoder {
 	bool set_fup_mwait;
 	bool set_fup_pwre;
 	bool set_fup_exstop;
+	bool set_fup_bep;
 	bool sample_cyc;
 	unsigned int fup_tx_flags;
 	unsigned int tx_flags;
@@ -559,7 +564,8 @@ static int intel_pt_get_split_packet(struct intel_pt_decoder *decoder)
 	memcpy(buf + len, decoder->buf, n);
 	len += n;
 
-	ret = intel_pt_get_packet(buf, len, &decoder->packet);
+	decoder->prev_pkt_ctx = decoder->pkt_ctx;
+	ret = intel_pt_get_packet(buf, len, &decoder->packet, &decoder->pkt_ctx);
 	if (ret < (int)old_len) {
 		decoder->next_buf = decoder->buf;
 		decoder->next_len = decoder->len;
@@ -594,6 +600,7 @@ static int intel_pt_pkt_lookahead(struct intel_pt_decoder *decoder,
 {
 	struct intel_pt_pkt_info pkt_info;
 	const unsigned char *buf = decoder->buf;
+	enum intel_pt_pkt_ctx pkt_ctx = decoder->pkt_ctx;
 	size_t len = decoder->len;
 	int ret;
 
@@ -612,7 +619,8 @@ static int intel_pt_pkt_lookahead(struct intel_pt_decoder *decoder,
 			if (!len)
 				return INTEL_PT_NEED_MORE_BYTES;
 
-			ret = intel_pt_get_packet(buf, len, &pkt_info.packet);
+			ret = intel_pt_get_packet(buf, len, &pkt_info.packet,
+						  &pkt_ctx);
 			if (!ret)
 				return INTEL_PT_NEED_MORE_BYTES;
 			if (ret < 0)
@@ -687,6 +695,10 @@ static int intel_pt_calc_cyc_cb(struct intel_pt_pkt_info *pkt_info)
 	case INTEL_PT_MNT:
 	case INTEL_PT_PTWRITE:
 	case INTEL_PT_PTWRITE_IP:
+	case INTEL_PT_BBP:
+	case INTEL_PT_BIP:
+	case INTEL_PT_BEP:
+	case INTEL_PT_BEP_IP:
 		return 0;
 
 	case INTEL_PT_MTC:
@@ -878,8 +890,9 @@ static int intel_pt_get_next_packet(struct intel_pt_decoder *decoder)
 				return ret;
 		}
 
+		decoder->prev_pkt_ctx = decoder->pkt_ctx;
 		ret = intel_pt_get_packet(decoder->buf, decoder->len,
-					  &decoder->packet);
+					  &decoder->packet, &decoder->pkt_ctx);
 		if (ret == INTEL_PT_NEED_MORE_BYTES && BITS_PER_LONG == 32 &&
 		    decoder->len < INTEL_PT_PKT_MAX_SZ && !decoder->next_buf) {
 			ret = intel_pt_get_split_packet(decoder);
@@ -1113,6 +1126,14 @@ static bool intel_pt_fup_event(struct intel_pt_decoder *decoder)
 		decoder->state.type |= INTEL_PT_EX_STOP;
 		decoder->state.type &= ~INTEL_PT_BRANCH;
 		decoder->state.flags |= INTEL_PT_FUP_IP;
+		decoder->state.from_ip = decoder->ip;
+		decoder->state.to_ip = 0;
+		ret = true;
+	}
+	if (decoder->set_fup_bep) {
+		decoder->set_fup_bep = false;
+		decoder->state.type |= INTEL_PT_BLK_ITEMS;
+		decoder->state.type &= ~INTEL_PT_BRANCH;
 		decoder->state.from_ip = decoder->ip;
 		decoder->state.to_ip = 0;
 		ret = true;
@@ -1602,6 +1623,46 @@ static void intel_pt_calc_cyc_timestamp(struct intel_pt_decoder *decoder)
 	intel_pt_log_to("Setting timestamp", decoder->timestamp);
 }
 
+static void intel_pt_bbp(struct intel_pt_decoder *decoder)
+{
+	if (decoder->prev_pkt_ctx == INTEL_PT_NO_CTX) {
+		memset(decoder->state.items.mask, 0, sizeof(decoder->state.items.mask));
+		decoder->state.items.is_32_bit = false;
+	}
+	decoder->blk_type = decoder->packet.payload;
+	decoder->blk_type_pos = intel_pt_blk_type_pos(decoder->blk_type);
+	if (decoder->blk_type == INTEL_PT_GP_REGS)
+		decoder->state.items.is_32_bit = decoder->packet.count;
+	if (decoder->blk_type_pos < 0) {
+		intel_pt_log("WARNING: Unknown block type %u\n",
+			     decoder->blk_type);
+	} else if (decoder->state.items.mask[decoder->blk_type_pos]) {
+		intel_pt_log("WARNING: Duplicate block type %u\n",
+			     decoder->blk_type);
+	}
+}
+
+static void intel_pt_bip(struct intel_pt_decoder *decoder)
+{
+	uint32_t id = decoder->packet.count;
+	uint32_t bit = 1 << id;
+	int pos = decoder->blk_type_pos;
+
+	if (pos < 0 || id >= INTEL_PT_BLK_ITEM_ID_CNT) {
+		intel_pt_log("WARNING: Unknown block item %u type %d\n",
+			     id, decoder->blk_type);
+		return;
+	}
+
+	if (decoder->state.items.mask[pos] & bit) {
+		intel_pt_log("WARNING: Duplicate block item %u type %d\n",
+			     id, decoder->blk_type);
+	}
+
+	decoder->state.items.mask[pos] |= bit;
+	decoder->state.items.val[pos][id] = decoder->packet.payload;
+}
+
 /* Walk PSB+ packets when already in sync. */
 static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 {
@@ -1633,6 +1694,10 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 		case INTEL_PT_MWAIT:
 		case INTEL_PT_PWRE:
 		case INTEL_PT_PWRX:
+		case INTEL_PT_BBP:
+		case INTEL_PT_BIP:
+		case INTEL_PT_BEP:
+		case INTEL_PT_BEP_IP:
 			decoder->have_tma = false;
 			intel_pt_log("ERROR: Unexpected packet\n");
 			err = -EAGAIN;
@@ -1726,6 +1791,10 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 		case INTEL_PT_MWAIT:
 		case INTEL_PT_PWRE:
 		case INTEL_PT_PWRX:
+		case INTEL_PT_BBP:
+		case INTEL_PT_BIP:
+		case INTEL_PT_BEP:
+		case INTEL_PT_BEP_IP:
 			intel_pt_log("ERROR: Missing TIP after FUP\n");
 			decoder->pkt_state = INTEL_PT_STATE_ERR3;
 			decoder->pkt_step = 0;
@@ -2047,6 +2116,33 @@ next:
 			decoder->state.pwrx_payload = decoder->packet.payload;
 			return 0;
 
+		case INTEL_PT_BBP:
+			intel_pt_bbp(decoder);
+			break;
+
+		case INTEL_PT_BIP:
+			intel_pt_bip(decoder);
+			break;
+
+		case INTEL_PT_BEP:
+			decoder->state.type = INTEL_PT_BLK_ITEMS;
+			decoder->state.from_ip = decoder->ip;
+			decoder->state.to_ip = 0;
+			return 0;
+
+		case INTEL_PT_BEP_IP:
+			err = intel_pt_get_next_packet(decoder);
+			if (err)
+				return err;
+			if (decoder->packet.type == INTEL_PT_FUP) {
+				decoder->set_fup_bep = true;
+				no_tip = true;
+			} else {
+				intel_pt_log_at("ERROR: Missing FUP after BEP",
+						decoder->pos);
+			}
+			goto next;
+
 		default:
 			return intel_pt_bug(decoder);
 		}
@@ -2085,6 +2181,10 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 		case INTEL_PT_MWAIT:
 		case INTEL_PT_PWRE:
 		case INTEL_PT_PWRX:
+		case INTEL_PT_BBP:
+		case INTEL_PT_BIP:
+		case INTEL_PT_BEP:
+		case INTEL_PT_BEP_IP:
 			intel_pt_log("ERROR: Unexpected packet\n");
 			err = -ENOENT;
 			goto out;
@@ -2291,6 +2391,10 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 		case INTEL_PT_MWAIT:
 		case INTEL_PT_PWRE:
 		case INTEL_PT_PWRX:
+		case INTEL_PT_BBP:
+		case INTEL_PT_BIP:
+		case INTEL_PT_BEP:
+		case INTEL_PT_BEP_IP:
 		default:
 			break;
 		}
@@ -2306,6 +2410,7 @@ static int intel_pt_sync_ip(struct intel_pt_decoder *decoder)
 	decoder->set_fup_mwait = false;
 	decoder->set_fup_pwre = false;
 	decoder->set_fup_exstop = false;
+	decoder->set_fup_bep = false;
 
 	if (!decoder->branch_enable) {
 		decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
@@ -2641,11 +2746,12 @@ static unsigned char *intel_pt_last_psb(unsigned char *buf, size_t len)
 static bool intel_pt_next_tsc(unsigned char *buf, size_t len, uint64_t *tsc,
 			      size_t *rem)
 {
+	enum intel_pt_pkt_ctx ctx = INTEL_PT_NO_CTX;
 	struct intel_pt_pkt packet;
 	int ret;
 
 	while (len) {
-		ret = intel_pt_get_packet(buf, len, &packet);
+		ret = intel_pt_get_packet(buf, len, &packet, &ctx);
 		if (ret <= 0)
 			return false;
 		if (packet.type == INTEL_PT_TSC) {
