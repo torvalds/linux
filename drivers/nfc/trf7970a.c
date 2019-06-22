@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI TRF7970a RFID/NFC Transceiver Driver
  *
@@ -6,10 +7,6 @@
  * Author: Erick Macias <emacias@ti.com>
  * Author: Felipe Balbi <balbi@ti.com>
  * Author: Mark A. Greer <mgreer@animalcreek.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

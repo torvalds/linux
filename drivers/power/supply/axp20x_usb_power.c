@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AXP20x PMIC USB power supply status driver
  *
  * Copyright (C) 2015 Hans de Goede <hdegoede@redhat.com>
  * Copyright (C) 2014 Bruno Prémont <bonbons@linux-vserver.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under  the terms of the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/bitops.h>

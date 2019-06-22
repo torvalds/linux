@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CAN bus driver for Microchip 251x CAN Controller with SPI Interface
  *
@@ -18,20 +19,6 @@
  * - Simon Kallweit, intefo AG
  * Copyright 2007
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
- *
- *
  * Your platform definition file should specify something like:
  *
  * static struct mcp251x_platform_data mcp251x_info = {
@@ -51,7 +38,6 @@
  *
  * Please see mcp251x.h for a description of the fields in
  * struct mcp251x_platform_data.
- *
  */
 
 #include <linux/can/core.h>

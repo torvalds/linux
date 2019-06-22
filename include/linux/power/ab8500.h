@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) ST-Ericsson 2013
  * Author: Hongbo Zhang <hongbo.zhang@linaro.com>
- * License terms: GNU General Public License v2
  */
 
 #ifndef PWR_AB8500_H

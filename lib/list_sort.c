@@ -120,7 +120,8 @@ static void merge_final(void *priv, cmp_func cmp, struct list_head *head,
  * The latter offers a chance to save a few cycles in the comparison
  * (which is used by e.g. plug_ctx_cmp() in block/blk-mq.c).
  *
- * A good way to write a multi-word comparison is
+ * A good way to write a multi-word comparison is::
+ *
  *	if (a->high != b->high)
  *		return a->high > b->high;
  *	if (a->middle != b->middle)

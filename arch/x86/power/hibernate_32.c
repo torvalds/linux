@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hibernation support specific for i386 - temporary page tables
- *
- * Distribute under GPLv2
  *
  * Copyright (c) 2006 Rafael J. Wysocki <rjw@sisk.pl>
  */

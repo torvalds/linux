@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Machine check injection support.
  * Copyright 2008 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * Authors:
  * Andi Kleen
@@ -15,9 +11,6 @@
  * for testing different aspects of the RAS code. This driver should be
  * built as module so that it can be loaded on production kernels for
  * testing purposes.
- *
- * This file may be distributed under the terms of the GNU General Public
- * License version 2.
  *
  * Copyright (c) 2010-17:  Borislav Petkov <bp@alien8.de>
  *			   Advanced Micro Devices Inc.

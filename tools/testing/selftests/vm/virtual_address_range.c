@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017, Anshuman Khandual, IBM Corp.
- * Licensed under GPLv2.
  *
  * Works on architectures which support 128TB virtual
  * address range and beyond.

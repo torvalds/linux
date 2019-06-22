@@ -35,7 +35,7 @@
  * macros. Do **not** mass change existing definitions just to update the style.
  *
  * Layout
- * ''''''
+ * ~~~~~~
  *
  * Keep helper macros near the top. For example, _PIPE() and friends.
  *
@@ -79,7 +79,7 @@
  * style. Use lower case in hexadecimal values.
  *
  * Naming
- * ''''''
+ * ~~~~~~
  *
  * Try to name registers according to the specs. If the register name changes in
  * the specs from platform to another, stick to the original name.
@@ -97,7 +97,7 @@
  * suffix to the name. For example, ``_SKL`` or ``_GEN8``.
  *
  * Examples
- * ''''''''
+ * ~~~~~~~~
  *
  * (Note that the values in the example are indented using spaces instead of
  * TABs to avoid misalignment in generated documentation. Use TABs in the
@@ -7619,6 +7619,9 @@ enum {
   #define GEN9_DISABLE_GATHER_AT_SET_SHADER_COMMON_SLICE	(1 << 12)
   #define GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION		(1 << 8)
   #define GEN8_CSC2_SBE_VUE_CACHE_CONSERVATIVE			(1 << 0)
+
+#define GEN8_L3CNTLREG	_MMIO(0x7034)
+  #define GEN8_ERRDETBCTRL (1 << 9)
 
 #define GEN11_COMMON_SLICE_CHICKEN3		_MMIO(0x7304)
   #define GEN11_BLEND_EMB_FIX_DISABLE_IN_RCC	(1 << 11)

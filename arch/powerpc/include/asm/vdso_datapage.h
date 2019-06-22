@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _VDSO_DATAPAGE_H
 #define _VDSO_DATAPAGE_H
 #ifdef __KERNEL__
@@ -6,11 +7,6 @@
  * Copyright (C) 2002 Peter Bergner <bergner@vnet.ibm.com>, IBM
  * Copyright (C) 2005 Benjamin Herrenschmidy <benh@kernel.crashing.org>,
  * 		      IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 

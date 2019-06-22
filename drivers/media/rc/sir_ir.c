@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IR SIR driver, (C) 2000 Milan Pikula <www@fornax.sk>
  *
  * sir_ir - Device driver for use with SIR (serial infra red)
  * mode of IrDA on many notebooks.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
