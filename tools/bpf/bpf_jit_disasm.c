@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Minimal BPF JIT image disassembler
  *
@@ -11,7 +12,6 @@
  *  3) Run e.g. `bpf_jit_disasm -o` to read out the last JIT code
  *
  * Copyright 2013 Daniel Borkmann <borkmann@redhat.com>
- * Licensed under the GNU General Public License, version 2.0 (GPLv2)
  */
 
 #include <stdint.h>

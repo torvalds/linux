@@ -292,7 +292,9 @@ typedef struct fsnotify_mark_connector __rcu *fsnotify_connp_t;
  */
 struct fsnotify_mark_connector {
 	spinlock_t lock;
-	unsigned int type;	/* Type of object [lock] */
+	unsigned short type;	/* Type of object [lock] */
+#define FSNOTIFY_CONN_FLAG_HAS_FSID	0x01
+	unsigned short flags;	/* flags [lock] */
 	__kernel_fsid_t fsid;	/* fsid of filesystem containing object */
 	union {
 		/* Object pointer [lock] */

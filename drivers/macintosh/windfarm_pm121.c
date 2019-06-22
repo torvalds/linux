@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Windfarm PowerMac thermal control. iMac G5 iSight
  *
@@ -6,13 +7,8 @@
  * Bits & pieces from windfarm_pm81.c by (c) Copyright 2005 Benjamin
  * Herrenschmidt, IBM Corp. <benh@kernel.crashing.org>
  *
- * Released under the term of the GNU GPL v2.
- *
- *
- *
  * PowerMac12,1
  * ============
- *
  *
  * The algorithm used is the PID control algorithm, used the same way
  * the published Darwin code does, using the same values that are
@@ -24,7 +20,6 @@
  * 17" while Model 3 is iMac G5 20". They do have both the same
  * controls with a tiny difference. The control-ids of hard-drive-fan
  * and cpu-fan is swapped.
- *
  *
  * Target Correction :
  *
@@ -63,7 +58,6 @@
  *   offset		: -15650652
  *   slope		:  1565065
  *
- *
  * Target rubber-banding :
  *
  * Some controls have a target correction which depends on another
@@ -75,7 +69,6 @@
  * greater than 0, then we correct the target value using :
  *
  * new_target = max (new_target, new_min >> 16)
- *
  *
  * # model_id : 2
  *   control	: cpu-fan
@@ -89,11 +82,9 @@
  *   offset	: -32768000
  *   slope	: 65536
  *
- *
  * In order to have the moste efficient correction with those
  * dependencies, we must trigger HD loop before OD loop before CPU
  * loop.
- *
  *
  * The various control loops found in Darwin config file are:
  *
@@ -191,12 +182,10 @@
  *   sensors        : cpu-temp, cpu-power
  *   PID params     : from SDB partition
  *
- *
  * CPU Slew control loop.
  *
  *   control        : cpufreq-clamp
  *   sensor         : cpu-temp
- *
  */
 
 #undef	DEBUG
