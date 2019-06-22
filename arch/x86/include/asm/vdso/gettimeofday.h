@@ -27,13 +27,33 @@
 
 #define VDSO_HAS_CLOCK_GETRES 1
 
+/*
+ * Declare the memory-mapped vclock data pages.  These come from hypervisors.
+ * If we ever reintroduce something like direct access to an MMIO clock like
+ * the HPET again, it will go here as well.
+ *
+ * A load from any of these pages will segfault if the clock in question is
+ * disabled, so appropriate compiler barriers and checks need to be used
+ * to prevent stray loads.
+ *
+ * These declarations MUST NOT be const.  The compiler will assume that
+ * an extern const variable has genuinely constant contents, and the
+ * resulting code won't work, since the whole point is that these pages
+ * change over time, possibly while we're accessing them.
+ */
+
 #ifdef CONFIG_PARAVIRT_CLOCK
-extern u8 pvclock_page[PAGE_SIZE]
+/*
+ * This is the vCPU 0 pvclock page.  We only use pvclock from the vDSO
+ * if the hypervisor tells us that all vCPUs can get valid data from the
+ * vCPU 0 page.
+ */
+extern struct pvclock_vsyscall_time_info pvclock_page
 	__attribute__((visibility("hidden")));
 #endif
 
 #ifdef CONFIG_HYPERV_TSCPAGE
-extern u8 hvclock_page[PAGE_SIZE]
+extern struct ms_hyperv_tsc_page hvclock_page
 	__attribute__((visibility("hidden")));
 #endif
 
@@ -132,14 +152,9 @@ clock_getres_fallback(clockid_t _clkid, struct __kernel_timespec *_ts)
 #endif
 
 #ifdef CONFIG_PARAVIRT_CLOCK
-static const struct pvclock_vsyscall_time_info *get_pvti0(void)
-{
-	return (const struct pvclock_vsyscall_time_info *)&pvclock_page;
-}
-
 static u64 vread_pvclock(void)
 {
-	const struct pvclock_vcpu_time_info *pvti = &get_pvti0()->pvti;
+	const struct pvclock_vcpu_time_info *pvti = &pvclock_page.pvti;
 	u32 version;
 	u64 ret;
 
@@ -181,10 +196,7 @@ static u64 vread_pvclock(void)
 #ifdef CONFIG_HYPERV_TSCPAGE
 static u64 vread_hvclock(void)
 {
-	const struct ms_hyperv_tsc_page *tsc_pg =
-		(const struct ms_hyperv_tsc_page *)&hvclock_page;
-
-	return hv_read_tsc_page(tsc_pg);
+	return hv_read_tsc_page(&hvclock_page);
 }
 #endif
 
