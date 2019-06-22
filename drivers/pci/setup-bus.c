@@ -1892,6 +1892,9 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		return;
 	}
 
+	if (hotplug_bridges == 0)
+		return;
+
 	/*
 	 * Calculate the total amount of extra resource space we can
 	 * pass to bridges below this one.  This is basically the
@@ -1941,8 +1944,6 @@ static void pci_bus_distribute_available_resources(struct pci_bus *bus,
 		 * Distribute available extra resources equally between
 		 * hotplug-capable downstream ports taking alignment into
 		 * account.
-		 *
-		 * Here hotplug_bridges is always != 0.
 		 */
 		align = pci_resource_alignment(bridge, io_res);
 		io = div64_ul(available_io, hotplug_bridges);
