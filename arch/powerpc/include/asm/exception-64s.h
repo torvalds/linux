@@ -640,21 +640,6 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	EXCEPTION_PROLOG_1 EXC_HV, PACA_EXGEN, 1, vec, bitmask ;	\
 	EXCEPTION_PROLOG_2_VIRT label, EXC_HV
 
-/*
- * Our exception common code can be passed various "additions"
- * to specify the behaviour of interrupts, whether to kick the
- * runlatch, etc...
- */
-
-/*
- * This addition reconciles our actual IRQ state with the various software
- * flags that track it. This may call C code.
- */
-#define ADD_RECONCILE	RECONCILE_IRQ_STATE(r10,r11)
-
-#define ADD_NVGPRS				\
-	bl	save_nvgprs
-
 #define RUNLATCH_ON				\
 BEGIN_FTR_SECTION				\
 	ld	r3, PACA_THREAD_INFO(r13);	\
@@ -663,25 +648,22 @@ BEGIN_FTR_SECTION				\
 	beql	ppc64_runlatch_on_trampoline;	\
 END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
 
-#define EXCEPTION_COMMON(area, trap, label, additions)		\
+#define EXCEPTION_COMMON(area, trap)				\
 	EXCEPTION_PROLOG_COMMON(trap, area);			\
-	/* Volatile regs are potentially clobbered here */	\
-	additions
 
 /*
- * Exception where stack is already set in r1, r1 is saved in r10, and it
- * continues rather than returns.
+ * Exception where stack is already set in r1, r1 is saved in r10
  */
-#define EXCEPTION_COMMON_NORET_STACK(area, trap, label, additions) \
+#define EXCEPTION_COMMON_STACK(area, trap)			\
 	EXCEPTION_PROLOG_COMMON_1();				\
 	kuap_save_amr_and_lock r9, r10, cr1;			\
 	EXCEPTION_PROLOG_COMMON_2(area);			\
-	EXCEPTION_PROLOG_COMMON_3(trap);			\
-	/* Volatile regs are potentially clobbered here */	\
-	additions
+	EXCEPTION_PROLOG_COMMON_3(trap)
 
-#define STD_EXCEPTION_COMMON(trap, label, hdlr)			\
-	EXCEPTION_COMMON(PACA_EXGEN, trap, label, ADD_NVGPRS;ADD_RECONCILE); \
+#define STD_EXCEPTION_COMMON(trap, hdlr)			\
+	EXCEPTION_COMMON(PACA_EXGEN, trap);			\
+	bl	save_nvgprs;					\
+	RECONCILE_IRQ_STATE(r10, r11);				\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
 	bl	hdlr;						\
 	b	ret_from_except
@@ -691,9 +673,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
  * in the idle task and therefore need the special idle handling
  * (finish nap and runlatch)
  */
-#define STD_EXCEPTION_COMMON_ASYNC(trap, label, hdlr)		\
-	EXCEPTION_COMMON(PACA_EXGEN, trap, label,		\
-		FINISH_NAP;ADD_RECONCILE;RUNLATCH_ON);		\
+#define STD_EXCEPTION_COMMON_ASYNC(trap, hdlr)			\
+	EXCEPTION_COMMON(PACA_EXGEN, trap);			\
+	FINISH_NAP;						\
+	RECONCILE_IRQ_STATE(r10, r11);				\
+	RUNLATCH_ON;						\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
 	bl	hdlr;						\
 	b	ret_from_except_lite

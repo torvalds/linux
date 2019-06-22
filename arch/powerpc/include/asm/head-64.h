@@ -403,11 +403,11 @@ name:
 
 #define EXC_COMMON(name, realvec, hdlr)					\
 	EXC_COMMON_BEGIN(name);						\
-	STD_EXCEPTION_COMMON(realvec, name, hdlr)
+	STD_EXCEPTION_COMMON(realvec, hdlr)
 
 #define EXC_COMMON_ASYNC(name, realvec, hdlr)				\
 	EXC_COMMON_BEGIN(name);						\
-	STD_EXCEPTION_COMMON_ASYNC(realvec, name, hdlr)
+	STD_EXCEPTION_COMMON_ASYNC(realvec, hdlr)
 
 #endif /* __ASSEMBLY__ */
 
