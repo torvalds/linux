@@ -126,10 +126,10 @@ EXC_VIRT_NONE(0x4000, 0x100)
 	bltlr	cr1 ;	/* no state loss, return to idle caller */	\
 	BRANCH_TO_C000(r10, system_reset_idle_common) ;			\
 1:									\
-	KVMTEST_PR(n) ;							\
-	END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206)
+	END_FTR_SECTION_IFSET(CPU_FTR_HVMODE | CPU_FTR_ARCH_206) ;	\
+	KVMTEST_PR(n)
 #else
-#define IDLETEST NOTEST
+#define IDLETEST KVMTEST_PR
 #endif
 
 EXC_REAL_BEGIN(system_reset, 0x100, 0x100)
