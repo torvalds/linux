@@ -1263,6 +1263,20 @@ static int vbg_ioctl_hgcm_disconnect(struct vbg_dev *gdev,
 	return ret;
 }
 
+static bool vbg_param_valid(enum vmmdev_hgcm_function_parameter_type type)
+{
+	switch (type) {
+	case VMMDEV_HGCM_PARM_TYPE_32BIT:
+	case VMMDEV_HGCM_PARM_TYPE_64BIT:
+	case VMMDEV_HGCM_PARM_TYPE_LINADDR:
+	case VMMDEV_HGCM_PARM_TYPE_LINADDR_IN:
+	case VMMDEV_HGCM_PARM_TYPE_LINADDR_OUT:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int vbg_ioctl_hgcm_call(struct vbg_dev *gdev,
 			       struct vbg_session *session, bool f32bit,
 			       struct vbg_ioctl_hgcm_call *call)
@@ -1298,6 +1312,23 @@ static int vbg_ioctl_hgcm_call(struct vbg_dev *gdev,
 	}
 	call->hdr.size_out = actual_size;
 
+	/* Validate parameter types */
+	if (f32bit) {
+		struct vmmdev_hgcm_function_parameter32 *parm =
+			VBG_IOCTL_HGCM_CALL_PARMS32(call);
+
+		for (i = 0; i < call->parm_count; i++)
+			if (!vbg_param_valid(parm[i].type))
+				return -EINVAL;
+	} else {
+		struct vmmdev_hgcm_function_parameter *parm =
+			VBG_IOCTL_HGCM_CALL_PARMS(call);
+
+		for (i = 0; i < call->parm_count; i++)
+			if (!vbg_param_valid(parm[i].type))
+				return -EINVAL;
+	}
+
 	/*
 	 * Validate the client id.
 	 */
@@ -1312,7 +1343,7 @@ static int vbg_ioctl_hgcm_call(struct vbg_dev *gdev,
 		return -EINVAL;
 	}
 
-	if (f32bit)
+	if (IS_ENABLED(CONFIG_COMPAT) && f32bit)
 		ret = vbg_hgcm_call32(gdev, client_id,
 				      call->function, call->timeout_ms,
 				      VBG_IOCTL_HGCM_CALL_PARMS32(call),

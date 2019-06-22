@@ -274,20 +274,16 @@
 				read-only;
 			};
 			/*
-			 * Between the boot loader and the rootfs is the kernel
-			 * in a custom Storlink format flashed from the boot
-			 * menu. The rootfs is in squashfs format.
+			 * This firmware image contains the kernel catenated
+			 * with the squashfs root filesystem. For some reason
+			 * this is called "upgrade" on the vendor system.
 			 */
-			partition@1800c0 {
-				label = "rootfs";
-				reg = <0x001800c0 0x01dbff40>;
-				read-only;
-			};
-			partition@1f40000 {
+			partition@40000 {
 				label = "upgrade";
-				reg = <0x01f40000 0x00040000>;
+				reg = <0x00040000 0x01f40000>;
 				read-only;
 			};
+			/* RGDB, Residental Gateway Database? */
 			partition@1f80000 {
 				label = "rgdb";
 				reg = <0x01f80000 0x00040000>;

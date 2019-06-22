@@ -57,7 +57,7 @@ int z_erofs_vle_plain_copy(struct page **compressed_pages,
 			if (compressed_pages[j] != page)
 				continue;
 
-			BUG_ON(mirrored[j]);
+			DBG_BUGON(mirrored[j]);
 			memcpy(percpu_data + j * PAGE_SIZE, dst, PAGE_SIZE);
 			mirrored[j] = true;
 			break;
@@ -105,8 +105,7 @@ int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
 				  unsigned clusterpages,
 				  struct page **pages,
 				  unsigned outlen,
-				  unsigned short pageofs,
-				  void (*endio)(struct page *))
+				  unsigned short pageofs)
 {
 	void *vin, *vout;
 	unsigned nr_pages, i, j;
@@ -117,10 +116,13 @@ int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
 
 	nr_pages = DIV_ROUND_UP(outlen + pageofs, PAGE_SIZE);
 
-	if (clusterpages == 1)
+	if (clusterpages == 1) {
 		vin = kmap_atomic(compressed_pages[0]);
-	else
+	} else {
 		vin = erofs_vmap(compressed_pages, clusterpages);
+		if (!vin)
+			return -ENOMEM;
+	}
 
 	preempt_disable();
 	vout = erofs_pcpubuf[smp_processor_id()].data;
@@ -128,31 +130,30 @@ int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
 	ret = z_erofs_unzip_lz4(vin, vout + pageofs,
 		clusterpages * PAGE_SIZE, outlen);
 
-	if (ret >= 0) {
-		outlen = ret;
-		ret = 0;
-	}
+	if (ret < 0)
+		goto out;
+	ret = 0;
 
 	for (i = 0; i < nr_pages; ++i) {
 		j = min((unsigned)PAGE_SIZE - pageofs, outlen);
 
 		if (pages[i] != NULL) {
-			if (ret < 0)
-				SetPageError(pages[i]);
-			else if (clusterpages == 1 && pages[i] == compressed_pages[0])
+			if (clusterpages == 1 &&
+			    pages[i] == compressed_pages[0]) {
 				memcpy(vin + pageofs, vout + pageofs, j);
-			else {
+			} else {
 				void *dst = kmap_atomic(pages[i]);
 
 				memcpy(dst + pageofs, vout + pageofs, j);
 				kunmap_atomic(dst);
 			}
-			endio(pages[i]);
 		}
 		vout += PAGE_SIZE;
 		outlen -= j;
 		pageofs = 0;
 	}
+
+out:
 	preempt_enable();
 
 	if (clusterpages == 1)

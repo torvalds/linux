@@ -39,6 +39,7 @@
 #include <asm/cpuidle.h>
 #include <asm/kexec.h>
 #include <asm/reg.h>
+#include <asm/powernv.h>
 
 #include "powernv.h"
 
@@ -153,6 +154,7 @@ static void pnv_smp_cpu_kill_self(void)
 {
 	unsigned int cpu;
 	unsigned long srr1, wmask;
+	u64 lpcr_val;
 
 	/* Standard hot unplug procedure */
 	/*
@@ -173,6 +175,19 @@ static void pnv_smp_cpu_kill_self(void)
 	wmask = SRR1_WAKEMASK;
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		wmask = SRR1_WAKEMASK_P8;
+
+	/*
+	 * We don't want to take decrementer interrupts while we are
+	 * offline, so clear LPCR:PECE1. We keep PECE2 (and
+	 * LPCR_PECE_HVEE on P9) enabled so as to let IPIs in.
+	 *
+	 * If the CPU gets woken up by a special wakeup, ensure that
+	 * the SLW engine sets LPCR with decrementer bit cleared, else
+	 * the CPU will come back to the kernel due to a spurious
+	 * wakeup.
+	 */
+	lpcr_val = mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1;
+	pnv_program_cpu_hotplug_lpcr(cpu, lpcr_val);
 
 	while (!generic_check_cpu_restart(cpu)) {
 		/*
@@ -245,6 +260,16 @@ static void pnv_smp_cpu_kill_self(void)
 					cpu, srr1);
 
 	}
+
+	/*
+	 * Re-enable decrementer interrupts in LPCR.
+	 *
+	 * Further, we want stop states to be woken up by decrementer
+	 * for non-hotplug cases. So program the LPCR via stop api as
+	 * well.
+	 */
+	lpcr_val = mfspr(SPRN_LPCR) | (u64)LPCR_PECE1;
+	pnv_program_cpu_hotplug_lpcr(cpu, lpcr_val);
 
 	DBG("CPU%d coming online...\n", cpu);
 }

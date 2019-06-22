@@ -250,6 +250,7 @@ void proc_coredump_connector(struct task_struct *task)
 {
 	struct cn_msg *msg;
 	struct proc_event *ev;
+	struct task_struct *parent;
 	__u8 buffer[CN_PROC_MSG_SIZE] __aligned(8);
 
 	if (atomic_read(&proc_event_num_listeners) < 1)
@@ -262,8 +263,14 @@ void proc_coredump_connector(struct task_struct *task)
 	ev->what = PROC_EVENT_COREDUMP;
 	ev->event_data.coredump.process_pid = task->pid;
 	ev->event_data.coredump.process_tgid = task->tgid;
-	ev->event_data.coredump.parent_pid = task->real_parent->pid;
-	ev->event_data.coredump.parent_tgid = task->real_parent->tgid;
+
+	rcu_read_lock();
+	if (pid_alive(task)) {
+		parent = rcu_dereference(task->real_parent);
+		ev->event_data.coredump.parent_pid = parent->pid;
+		ev->event_data.coredump.parent_tgid = parent->tgid;
+	}
+	rcu_read_unlock();
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
 	msg->ack = 0; /* not used */
@@ -276,6 +283,7 @@ void proc_exit_connector(struct task_struct *task)
 {
 	struct cn_msg *msg;
 	struct proc_event *ev;
+	struct task_struct *parent;
 	__u8 buffer[CN_PROC_MSG_SIZE] __aligned(8);
 
 	if (atomic_read(&proc_event_num_listeners) < 1)
@@ -290,8 +298,14 @@ void proc_exit_connector(struct task_struct *task)
 	ev->event_data.exit.process_tgid = task->tgid;
 	ev->event_data.exit.exit_code = task->exit_code;
 	ev->event_data.exit.exit_signal = task->exit_signal;
-	ev->event_data.exit.parent_pid = task->real_parent->pid;
-	ev->event_data.exit.parent_tgid = task->real_parent->tgid;
+
+	rcu_read_lock();
+	if (pid_alive(task)) {
+		parent = rcu_dereference(task->real_parent);
+		ev->event_data.exit.parent_pid = parent->pid;
+		ev->event_data.exit.parent_tgid = parent->tgid;
+	}
+	rcu_read_unlock();
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
 	msg->ack = 0; /* not used */

@@ -892,6 +892,7 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 	if (attached_handler_name || m->hw_handler_name) {
 		INIT_DELAYED_WORK(&p->activate_path, activate_path_work);
 		r = setup_scsi_dh(p->path.dev->bdev, m, &attached_handler_name, &ti->error);
+		kfree(attached_handler_name);
 		if (r) {
 			dm_put_device(ti, p->path.dev);
 			goto bad;
@@ -906,7 +907,6 @@ static struct pgpath *parse_path(struct dm_arg_set *as, struct path_selector *ps
 
 	return p;
  bad:
-	kfree(attached_handler_name);
 	free_pgpath(p);
 	return ERR_PTR(r);
 }

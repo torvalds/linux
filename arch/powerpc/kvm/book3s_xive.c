@@ -1723,7 +1723,6 @@ static void kvmppc_xive_cleanup_irq(u32 hw_num, struct xive_irq_data *xd)
 {
 	xive_vm_esb_load(xd, XIVE_ESB_SET_PQ_01);
 	xive_native_configure_irq(hw_num, 0, MASKED, 0);
-	xive_cleanup_irq_data(xd);
 }
 
 static void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb)
@@ -1737,9 +1736,10 @@ static void kvmppc_xive_free_sources(struct kvmppc_xive_src_block *sb)
 			continue;
 
 		kvmppc_xive_cleanup_irq(state->ipi_number, &state->ipi_data);
+		xive_cleanup_irq_data(&state->ipi_data);
 		xive_native_free_irq(state->ipi_number);
 
-		/* Pass-through, cleanup too */
+		/* Pass-through, cleanup too but keep IRQ hw data */
 		if (state->pt_number)
 			kvmppc_xive_cleanup_irq(state->pt_number, state->pt_data);
 

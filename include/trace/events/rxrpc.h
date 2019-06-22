@@ -76,6 +76,7 @@ enum rxrpc_client_trace {
 	rxrpc_client_chan_disconnect,
 	rxrpc_client_chan_pass,
 	rxrpc_client_chan_unstarted,
+	rxrpc_client_chan_wait_failed,
 	rxrpc_client_cleanup,
 	rxrpc_client_count,
 	rxrpc_client_discard,
@@ -275,6 +276,7 @@ enum rxrpc_tx_point {
 	EM(rxrpc_client_chan_disconnect,	"ChDisc") \
 	EM(rxrpc_client_chan_pass,		"ChPass") \
 	EM(rxrpc_client_chan_unstarted,		"ChUnst") \
+	EM(rxrpc_client_chan_wait_failed,	"ChWtFl") \
 	EM(rxrpc_client_cleanup,		"Clean ") \
 	EM(rxrpc_client_count,			"Count ") \
 	EM(rxrpc_client_discard,		"Discar") \

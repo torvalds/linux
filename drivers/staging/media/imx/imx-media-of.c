@@ -233,15 +233,18 @@ int imx_media_create_csi_of_links(struct imx_media_dev *imxmd,
 				  struct v4l2_subdev *csi)
 {
 	struct device_node *csi_np = csi->dev->of_node;
-	struct fwnode_handle *fwnode, *csi_ep;
-	struct v4l2_fwnode_link link;
 	struct device_node *ep;
-	int ret;
-
-	link.local_node = of_fwnode_handle(csi_np);
-	link.local_port = CSI_SINK_PAD;
 
 	for_each_child_of_node(csi_np, ep) {
+		struct fwnode_handle *fwnode, *csi_ep;
+		struct v4l2_fwnode_link link;
+		int ret;
+
+		memset(&link, 0, sizeof(link));
+
+		link.local_node = of_fwnode_handle(csi_np);
+		link.local_port = CSI_SINK_PAD;
+
 		csi_ep = of_fwnode_handle(ep);
 
 		fwnode = fwnode_graph_get_remote_endpoint(csi_ep);

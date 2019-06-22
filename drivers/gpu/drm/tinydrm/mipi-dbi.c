@@ -144,15 +144,41 @@ EXPORT_SYMBOL(mipi_dbi_command_read);
  */
 int mipi_dbi_command_buf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len)
 {
+	u8 *cmdbuf;
 	int ret;
 
+	/* SPI requires dma-safe buffers */
+	cmdbuf = kmemdup(&cmd, 1, GFP_KERNEL);
+	if (!cmdbuf)
+		return -ENOMEM;
+
 	mutex_lock(&mipi->cmdlock);
-	ret = mipi->command(mipi, cmd, data, len);
+	ret = mipi->command(mipi, cmdbuf, data, len);
 	mutex_unlock(&mipi->cmdlock);
+
+	kfree(cmdbuf);
 
 	return ret;
 }
 EXPORT_SYMBOL(mipi_dbi_command_buf);
+
+/* This should only be used by mipi_dbi_command() */
+int mipi_dbi_command_stackbuf(struct mipi_dbi *mipi, u8 cmd, u8 *data, size_t len)
+{
+	u8 *buf;
+	int ret;
+
+	buf = kmemdup(data, len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = mipi_dbi_command_buf(mipi, cmd, buf, len);
+
+	kfree(buf);
+
+	return ret;
+}
+EXPORT_SYMBOL(mipi_dbi_command_stackbuf);
 
 /**
  * mipi_dbi_buf_copy - Copy a framebuffer, transforming it if necessary
@@ -741,18 +767,18 @@ static int mipi_dbi_spi1_transfer(struct mipi_dbi *mipi, int dc,
 	return 0;
 }
 
-static int mipi_dbi_typec1_command(struct mipi_dbi *mipi, u8 cmd,
+static int mipi_dbi_typec1_command(struct mipi_dbi *mipi, u8 *cmd,
 				   u8 *parameters, size_t num)
 {
-	unsigned int bpw = (cmd == MIPI_DCS_WRITE_MEMORY_START) ? 16 : 8;
+	unsigned int bpw = (*cmd == MIPI_DCS_WRITE_MEMORY_START) ? 16 : 8;
 	int ret;
 
-	if (mipi_dbi_command_is_read(mipi, cmd))
+	if (mipi_dbi_command_is_read(mipi, *cmd))
 		return -ENOTSUPP;
 
-	MIPI_DBI_DEBUG_COMMAND(cmd, parameters, num);
+	MIPI_DBI_DEBUG_COMMAND(*cmd, parameters, num);
 
-	ret = mipi_dbi_spi1_transfer(mipi, 0, &cmd, 1, 8);
+	ret = mipi_dbi_spi1_transfer(mipi, 0, cmd, 1, 8);
 	if (ret || !num)
 		return ret;
 
@@ -761,7 +787,7 @@ static int mipi_dbi_typec1_command(struct mipi_dbi *mipi, u8 cmd,
 
 /* MIPI DBI Type C Option 3 */
 
-static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 cmd,
+static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 *cmd,
 					u8 *data, size_t len)
 {
 	struct spi_device *spi = mipi->spi;
@@ -770,7 +796,7 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 cmd,
 	struct spi_transfer tr[2] = {
 		{
 			.speed_hz = speed_hz,
-			.tx_buf = &cmd,
+			.tx_buf = cmd,
 			.len = 1,
 		}, {
 			.speed_hz = speed_hz,
@@ -788,8 +814,8 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 cmd,
 	 * Support non-standard 24-bit and 32-bit Nokia read commands which
 	 * start with a dummy clock, so we need to read an extra byte.
 	 */
-	if (cmd == MIPI_DCS_GET_DISPLAY_ID ||
-	    cmd == MIPI_DCS_GET_DISPLAY_STATUS) {
+	if (*cmd == MIPI_DCS_GET_DISPLAY_ID ||
+	    *cmd == MIPI_DCS_GET_DISPLAY_STATUS) {
 		if (!(len == 3 || len == 4))
 			return -EINVAL;
 
@@ -819,7 +845,7 @@ static int mipi_dbi_typec3_command_read(struct mipi_dbi *mipi, u8 cmd,
 			data[i] = (buf[i] << 1) | !!(buf[i + 1] & BIT(7));
 	}
 
-	MIPI_DBI_DEBUG_COMMAND(cmd, data, len);
+	MIPI_DBI_DEBUG_COMMAND(*cmd, data, len);
 
 err_free:
 	kfree(buf);
@@ -827,7 +853,7 @@ err_free:
 	return ret;
 }
 
-static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 cmd,
+static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 *cmd,
 				   u8 *par, size_t num)
 {
 	struct spi_device *spi = mipi->spi;
@@ -835,18 +861,18 @@ static int mipi_dbi_typec3_command(struct mipi_dbi *mipi, u8 cmd,
 	u32 speed_hz;
 	int ret;
 
-	if (mipi_dbi_command_is_read(mipi, cmd))
+	if (mipi_dbi_command_is_read(mipi, *cmd))
 		return mipi_dbi_typec3_command_read(mipi, cmd, par, num);
 
-	MIPI_DBI_DEBUG_COMMAND(cmd, par, num);
+	MIPI_DBI_DEBUG_COMMAND(*cmd, par, num);
 
 	gpiod_set_value_cansleep(mipi->dc, 0);
 	speed_hz = mipi_dbi_spi_cmd_max_speed(spi, 1);
-	ret = tinydrm_spi_transfer(spi, speed_hz, NULL, 8, &cmd, 1);
+	ret = tinydrm_spi_transfer(spi, speed_hz, NULL, 8, cmd, 1);
 	if (ret || !num)
 		return ret;
 
-	if (cmd == MIPI_DCS_WRITE_MEMORY_START && !mipi->swap_bytes)
+	if (*cmd == MIPI_DCS_WRITE_MEMORY_START && !mipi->swap_bytes)
 		bpw = 16;
 
 	gpiod_set_value_cansleep(mipi->dc, 1);

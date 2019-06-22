@@ -71,6 +71,7 @@ config KPROBES
 config JUMP_LABEL
        bool "Optimize very unlikely/likely branches"
        depends on HAVE_ARCH_JUMP_LABEL
+       depends on CC_HAS_ASM_GOTO
        help
          This option enables a transparent branch optimization that
 	 makes certain almost-always-true or almost-always-false branch
@@ -473,6 +474,73 @@ config STACKPROTECTOR_STRONG
 	  On an x86 "defconfig" build, this feature adds canary checks to
 	  about 20% of all kernel functions, which increases the kernel code
 	  size by about 2%.
+
+config LTO
+	def_bool n
+
+config ARCH_SUPPORTS_LTO_CLANG
+	bool
+	help
+	  An architecture should select this option if it supports:
+	  - compiling with clang,
+	  - compiling inline assembly with clang's integrated assembler,
+	  - and linking with LLD.
+
+choice
+	prompt "Link-Time Optimization (LTO) (EXPERIMENTAL)"
+	default LTO_NONE
+	help
+	  This option turns on Link-Time Optimization (LTO).
+
+config LTO_NONE
+	bool "None"
+
+config LTO_CLANG
+	bool "Use clang Link Time Optimization (LTO) (EXPERIMENTAL)"
+	depends on ARCH_SUPPORTS_LTO_CLANG
+	depends on !FTRACE_MCOUNT_RECORD || HAVE_C_RECORDMCOUNT
+	depends on !KASAN
+	depends on CC_IS_CLANG && LD_IS_LLD
+	select LTO
+	help
+          This option enables clang's Link Time Optimization (LTO), which allows
+          the compiler to optimize the kernel globally at link time. If you
+          enable this option, the compiler generates LLVM IR instead of object
+          files, and the actual compilation from IR occurs at the LTO link step,
+          which may take several minutes.
+
+          If you select this option, you must compile the kernel with clang and
+	  LLD.
+
+endchoice
+
+config CFI
+	bool
+
+config CFI_PERMISSIVE
+	bool "Use CFI in permissive mode"
+	depends on CFI
+	help
+	  When selected, Control Flow Integrity (CFI) violations result in a
+	  warning instead of a kernel panic. This option is useful for finding
+	  CFI violations in drivers during development.
+
+config CFI_CLANG
+	bool "Use clang Control Flow Integrity (CFI) (EXPERIMENTAL)"
+	depends on LTO_CLANG
+	depends on KALLSYMS
+	select CFI
+	help
+	  This option enables clang Control Flow Integrity (CFI), which adds
+	  runtime checking for indirect function calls.
+
+config CFI_CLANG_SHADOW
+	bool "Use CFI shadow to speed up cross-module checks"
+	default y
+	depends on CFI_CLANG
+	help
+	  If you select this option, the kernel builds a fast look-up table of
+	  CFI check functions in loaded modules to reduce overhead.
 
 config HAVE_ARCH_WITHIN_STACK_FRAMES
 	bool

@@ -125,7 +125,7 @@ static void ccm_update_mac(struct crypto_aes_ctx *key, u8 mac[], u8 const in[],
 			abytes -= added;
 		}
 
-		while (abytes > AES_BLOCK_SIZE) {
+		while (abytes >= AES_BLOCK_SIZE) {
 			__aes_arm64_encrypt(key->key_enc, mac, mac,
 					    num_rounds(key));
 			crypto_xor(mac, in, AES_BLOCK_SIZE);
@@ -139,8 +139,6 @@ static void ccm_update_mac(struct crypto_aes_ctx *key, u8 mac[], u8 const in[],
 					    num_rounds(key));
 			crypto_xor(mac, in, abytes);
 			*macp = abytes;
-		} else {
-			*macp = 0;
 		}
 	}
 }

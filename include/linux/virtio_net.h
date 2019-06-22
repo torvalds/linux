@@ -57,6 +57,25 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 
 		if (!skb_partial_csum_set(skb, start, off))
 			return -EINVAL;
+	} else {
+		/* gso packets without NEEDS_CSUM do not set transport_offset.
+		 * probe and drop if does not match one of the above types.
+		 */
+		if (gso_type && skb->network_header) {
+			if (!skb->protocol)
+				virtio_net_hdr_set_proto(skb, hdr);
+retry:
+			skb_probe_transport_header(skb, -1);
+			if (!skb_transport_header_was_set(skb)) {
+				/* UFO does not specify ipv4 or 6: try both */
+				if (gso_type & SKB_GSO_UDP &&
+				    skb->protocol == htons(ETH_P_IP)) {
+					skb->protocol = htons(ETH_P_IPV6);
+					goto retry;
+				}
+				return -EINVAL;
+			}
+		}
 	}
 
 	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {

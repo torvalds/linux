@@ -60,6 +60,38 @@ archive_builtin()
 	${AR} rcsTP${KBUILD_ARFLAGS} built-in.a			\
 				${KBUILD_VMLINUX_INIT}		\
 				${KBUILD_VMLINUX_MAIN}
+
+	# rebuild with llvm-ar to update the symbol table
+	if [ -n "${CONFIG_LTO_CLANG}" ]; then
+		mv -f built-in.a built-in.a.tmp
+		${LLVM_AR} rcsT${KBUILD_ARFLAGS} built-in.a $(${AR} t built-in.a.tmp)
+		rm -f built-in.a.tmp
+	fi
+}
+
+# If CONFIG_LTO_CLANG is selected, collect generated symbol versions into
+# .tmp_symversions
+modversions()
+{
+	if [ -z "${CONFIG_LTO_CLANG}" ]; then
+		return
+	fi
+
+	if [ -z "${CONFIG_MODVERSIONS}" ]; then
+		return
+	fi
+
+	rm -f .tmp_symversions
+
+	for a in built-in.a ${KBUILD_VMLINUX_LIBS}; do
+		for o in $(${AR} t $a); do
+			if [ -f ${o}.symversions ]; then
+				cat ${o}.symversions >> .tmp_symversions
+			fi
+		done
+	done
+
+	echo "-T .tmp_symversions"
 }
 
 # Link of vmlinux.o used for section mismatch analysis
@@ -75,7 +107,26 @@ modpost_link()
 		${KBUILD_VMLINUX_LIBS}				\
 		--end-group"
 
-	${LD} ${KBUILD_LDFLAGS} -r -o ${1} ${objects}
+	if [ -n "${CONFIG_LTO_CLANG}" ]; then
+		# This might take a while, so indicate that we're doing
+		# an LTO link
+		info LTO vmlinux.o
+	fi
+
+	${LD} ${KBUILD_LDFLAGS} -r -o ${1} $(modversions) ${objects}
+}
+
+# If CONFIG_LTO_CLANG is selected, we postpone running recordmcount until
+# we have compiled LLVM IR to an object file.
+recordmcount()
+{
+	if [ -z "${CONFIG_LTO_CLANG}" ]; then
+		return
+	fi
+
+	if [ -n "${CONFIG_FTRACE_MCOUNT_RECORD}" ]; then
+		scripts/recordmcount ${RECORDMCOUNT_FLAGS} $*
+	fi
 }
 
 # Link of vmlinux
@@ -87,13 +138,20 @@ vmlinux_link()
 	local objects
 
 	if [ "${SRCARCH}" != "um" ]; then
-		objects="--whole-archive			\
-			built-in.a				\
-			--no-whole-archive			\
-			--start-group				\
-			${KBUILD_VMLINUX_LIBS}			\
-			--end-group				\
-			${1}"
+		if [ -z "${CONFIG_LTO_CLANG}" ]; then
+			objects="--whole-archive		\
+				built-in.a			\
+				--no-whole-archive		\
+				--start-group			\
+				${KBUILD_VMLINUX_LIBS}		\
+				--end-group			\
+				${1}"
+		else
+			objects="--start-group			\
+				vmlinux.o			\
+				--end-group			\
+				${1}"
+		fi
 
 		${LD} ${KBUILD_LDFLAGS} ${LDFLAGS_vmlinux} -o ${2}	\
 			-T ${lds} ${objects}
@@ -113,7 +171,6 @@ vmlinux_link()
 		rm -f linux
 	fi
 }
-
 
 # Create ${2} .o file with all symbols from the ${1} object file
 kallsyms()
@@ -159,6 +216,7 @@ cleanup()
 {
 	rm -f .tmp_System.map
 	rm -f .tmp_kallsyms*
+	rm -f .tmp_symversions
 	rm -f .tmp_vmlinux*
 	rm -f built-in.a
 	rm -f System.map
@@ -220,11 +278,15 @@ ${MAKE} -f "${srctree}/scripts/Makefile.build" obj=init
 archive_builtin
 
 #link vmlinux.o
-info LD vmlinux.o
 modpost_link vmlinux.o
 
 # modpost vmlinux.o to check for section mismatches
 ${MAKE} -f "${srctree}/scripts/Makefile.modpost" vmlinux.o
+
+if [ -n "${CONFIG_LTO_CLANG}" ]; then
+	# Call recordmcount if needed
+	recordmcount vmlinux.o
+fi
 
 kallsymso=""
 kallsyms_vmlinux=""

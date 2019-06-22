@@ -17,7 +17,7 @@
  *                              |                |
  *                              |                |
  *                 +---------+  |  +----------+  |  +----+
- *  dsi0vco_clk ---| out_div |--o--| divl_3_0 |--o--| /8 |-- dsi0pllbyte
+ *  dsi0vco_clk ---| out_div |--o--| divl_3_0 |--o--| /8 |-- dsi0_phy_pll_out_byteclk
  *                 +---------+  |  +----------+  |  +----+
  *                              |                |
  *                              |                |         dsi0_pll_by_2_bit_clk
@@ -25,7 +25,7 @@
  *                              |                |  +----+  |  |\  dsi0_pclk_mux
  *                              |                |--| /2 |--o--| \   |
  *                              |                |  +----+     |  \  |  +---------+
- *                              |                --------------|  |--o--| div_7_4 |-- dsi0pll
+ *                              |                --------------|  |--o--| div_7_4 |-- dsi0_phy_pll_out_dsiclk
  *                              |------------------------------|  /     +---------+
  *                              |          +-----+             | /
  *                              -----------| /4? |--o----------|/
@@ -690,7 +690,7 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm)
 
 	hws[num++] = hw;
 
-	snprintf(clk_name, 32, "dsi%dpllbyte", pll_10nm->id);
+	snprintf(clk_name, 32, "dsi%d_phy_pll_out_byteclk", pll_10nm->id);
 	snprintf(parent, 32, "dsi%d_pll_bit_clk", pll_10nm->id);
 
 	/* DSI Byte clock = VCO_CLK / OUT_DIV / BIT_DIV / 8 */
@@ -739,7 +739,7 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm)
 
 	hws[num++] = hw;
 
-	snprintf(clk_name, 32, "dsi%dpll", pll_10nm->id);
+	snprintf(clk_name, 32, "dsi%d_phy_pll_out_dsiclk", pll_10nm->id);
 	snprintf(parent, 32, "dsi%d_pclk_mux", pll_10nm->id);
 
 	/* PIX CLK DIV : DIV_CTRL_7_4*/

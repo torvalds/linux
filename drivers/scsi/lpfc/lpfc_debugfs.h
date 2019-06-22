@@ -342,7 +342,7 @@ lpfc_debug_dump_qe(struct lpfc_queue *q, uint32_t idx)
 	pword = q->qe[idx].address;
 
 	len = 0;
-	len += snprintf(line_buf+len, LPFC_LBUF_SZ-len, "QE[%04d]: ", idx);
+	len += scnprintf(line_buf+len, LPFC_LBUF_SZ-len, "QE[%04d]: ", idx);
 	if (qe_word_cnt > 8)
 		printk(KERN_ERR "%s\n", line_buf);
 
@@ -353,11 +353,11 @@ lpfc_debug_dump_qe(struct lpfc_queue *q, uint32_t idx)
 			if (qe_word_cnt > 8) {
 				len = 0;
 				memset(line_buf, 0, LPFC_LBUF_SZ);
-				len += snprintf(line_buf+len, LPFC_LBUF_SZ-len,
+				len += scnprintf(line_buf+len, LPFC_LBUF_SZ-len,
 						"%03d: ", i);
 			}
 		}
-		len += snprintf(line_buf+len, LPFC_LBUF_SZ-len, "%08x ",
+		len += scnprintf(line_buf+len, LPFC_LBUF_SZ-len, "%08x ",
 				((uint32_t)*pword) & 0xffffffff);
 		pword++;
 	}

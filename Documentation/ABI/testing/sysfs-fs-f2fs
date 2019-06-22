@@ -86,6 +86,13 @@ Description:
 		The unit size is one block, now only support configuring in range
 		of [1, 512].
 
+What:          /sys/fs/f2fs/<disk>/umount_discard_timeout
+Date:          January 2019
+Contact:       "Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		Set timeout to issue discard commands during umount.
+		Default: 5 secs
+
 What:		/sys/fs/f2fs/<disk>/max_victim_search
 Date:		January 2014
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>

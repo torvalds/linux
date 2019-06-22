@@ -44,6 +44,7 @@ struct proc_dir_entry {
 	struct completion *pde_unload_completion;
 	const struct inode_operations *proc_iops;
 	const struct file_operations *proc_fops;
+	const struct dentry_operations *proc_dops;
 	union {
 		const struct seq_operations *seq_ops;
 		int (*single_show)(struct seq_file *, void *);
@@ -254,6 +255,15 @@ extern void proc_sys_evict_inode(struct inode *inode,
 static inline void proc_sys_init(void) { }
 static inline void proc_sys_evict_inode(struct  inode *inode,
 					struct ctl_table_header *head) { }
+#endif
+
+/*
+ * uid.c
+ */
+#ifdef CONFIG_PROC_UID
+extern int proc_uid_init(void);
+#else
+static inline void proc_uid_init(void) { }
 #endif
 
 /*

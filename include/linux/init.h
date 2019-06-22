@@ -47,7 +47,7 @@
 
 /* These are for everybody (although not all archs will actually
    discard it in modules) */
-#define __init		__section(.init.text) __cold  __latent_entropy __noinitretpoline
+#define __init		__section(.init.text) __cold  __latent_entropy __noinitretpoline __nocfi
 #define __initdata	__section(.init.data)
 #define __initconst	__section(.init.rodata)
 #define __exitdata	__section(.exit.data)
@@ -167,6 +167,20 @@ extern bool initcall_debug;
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_LTO_CLANG
+  /*
+   * Use __COUNTER__ prefix in the variable to help ensure ordering
+   * inside a compilation unit that defines multiple initcalls, and
+   * __LINE__ to help prevent naming collisions.
+   */
+  #define ___initcall_name2(c, l, fn, id) __initcall_##c##_##l##_##fn##id
+  #define ___initcall_name1(c, l, fn, id) ___initcall_name2(c, l, fn, id)
+  #define __initcall_name(fn, id) \
+		___initcall_name1(__COUNTER__, __LINE__, fn, id)
+#else
+  #define __initcall_name(fn, id) 	__initcall_##fn##id
+#endif
+
 /*
  * initcalls are now grouped by functionality into separate
  * subsections. Ordering inside the subsections is determined
@@ -187,12 +201,12 @@ extern bool initcall_debug;
 #define ___define_initcall(fn, id, __sec)			\
 	__ADDRESSABLE(fn)					\
 	asm(".section	\"" #__sec ".init\", \"a\"	\n"	\
-	"__initcall_" #fn #id ":			\n"	\
+	__stringify(__initcall_name(fn, id)) ":		\n"	\
 	    ".long	" #fn " - .			\n"	\
 	    ".previous					\n");
 #else
 #define ___define_initcall(fn, id, __sec) \
-	static initcall_t __initcall_##fn##id __used \
+	static initcall_t __initcall_name(fn, id) __used \
 		__attribute__((__section__(#__sec ".init"))) = fn;
 #endif
 

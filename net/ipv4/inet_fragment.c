@@ -25,6 +25,62 @@
 #include <net/sock.h>
 #include <net/inet_frag.h>
 #include <net/inet_ecn.h>
+#include <net/ip.h>
+#include <net/ipv6.h>
+
+/* Use skb->cb to track consecutive/adjacent fragments coming at
+ * the end of the queue. Nodes in the rb-tree queue will
+ * contain "runs" of one or more adjacent fragments.
+ *
+ * Invariants:
+ * - next_frag is NULL at the tail of a "run";
+ * - the head of a "run" has the sum of all fragment lengths in frag_run_len.
+ */
+struct ipfrag_skb_cb {
+	union {
+		struct inet_skb_parm	h4;
+		struct inet6_skb_parm	h6;
+	};
+	struct sk_buff		*next_frag;
+	int			frag_run_len;
+};
+
+#define FRAG_CB(skb)		((struct ipfrag_skb_cb *)((skb)->cb))
+
+static void fragcb_clear(struct sk_buff *skb)
+{
+	RB_CLEAR_NODE(&skb->rbnode);
+	FRAG_CB(skb)->next_frag = NULL;
+	FRAG_CB(skb)->frag_run_len = skb->len;
+}
+
+/* Append skb to the last "run". */
+static void fragrun_append_to_last(struct inet_frag_queue *q,
+				   struct sk_buff *skb)
+{
+	fragcb_clear(skb);
+
+	FRAG_CB(q->last_run_head)->frag_run_len += skb->len;
+	FRAG_CB(q->fragments_tail)->next_frag = skb;
+	q->fragments_tail = skb;
+}
+
+/* Create a new "run" with the skb. */
+static void fragrun_create(struct inet_frag_queue *q, struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(struct ipfrag_skb_cb) > sizeof(skb->cb));
+	fragcb_clear(skb);
+
+	if (q->last_run_head)
+		rb_link_node(&skb->rbnode, &q->last_run_head->rbnode,
+			     &q->last_run_head->rbnode.rb_right);
+	else
+		rb_link_node(&skb->rbnode, NULL, &q->rb_fragments.rb_node);
+	rb_insert_color(&skb->rbnode, &q->rb_fragments);
+
+	q->fragments_tail = skb;
+	q->last_run_head = skb;
+}
 
 /* Given the OR values of all fragments, apply RFC 3168 5.3 requirements
  * Value : 0xff if frame should be dropped.
@@ -122,6 +178,28 @@ static void inet_frag_destroy_rcu(struct rcu_head *head)
 		f->destructor(q);
 	kmem_cache_free(f->frags_cachep, q);
 }
+
+unsigned int inet_frag_rbtree_purge(struct rb_root *root)
+{
+	struct rb_node *p = rb_first(root);
+	unsigned int sum = 0;
+
+	while (p) {
+		struct sk_buff *skb = rb_entry(p, struct sk_buff, rbnode);
+
+		p = rb_next(p);
+		rb_erase(&skb->rbnode, root);
+		while (skb) {
+			struct sk_buff *next = FRAG_CB(skb)->next_frag;
+
+			sum += skb->truesize;
+			kfree_skb(skb);
+			skb = next;
+		}
+	}
+	return sum;
+}
+EXPORT_SYMBOL(inet_frag_rbtree_purge);
 
 void inet_frag_destroy(struct inet_frag_queue *q)
 {
@@ -224,3 +302,218 @@ struct inet_frag_queue *inet_frag_find(struct netns_frags *nf, void *key)
 	return fq;
 }
 EXPORT_SYMBOL(inet_frag_find);
+
+int inet_frag_queue_insert(struct inet_frag_queue *q, struct sk_buff *skb,
+			   int offset, int end)
+{
+	struct sk_buff *last = q->fragments_tail;
+
+	/* RFC5722, Section 4, amended by Errata ID : 3089
+	 *                          When reassembling an IPv6 datagram, if
+	 *   one or more its constituent fragments is determined to be an
+	 *   overlapping fragment, the entire datagram (and any constituent
+	 *   fragments) MUST be silently discarded.
+	 *
+	 * Duplicates, however, should be ignored (i.e. skb dropped, but the
+	 * queue/fragments kept for later reassembly).
+	 */
+	if (!last)
+		fragrun_create(q, skb);  /* First fragment. */
+	else if (last->ip_defrag_offset + last->len < end) {
+		/* This is the common case: skb goes to the end. */
+		/* Detect and discard overlaps. */
+		if (offset < last->ip_defrag_offset + last->len)
+			return IPFRAG_OVERLAP;
+		if (offset == last->ip_defrag_offset + last->len)
+			fragrun_append_to_last(q, skb);
+		else
+			fragrun_create(q, skb);
+	} else {
+		/* Binary search. Note that skb can become the first fragment,
+		 * but not the last (covered above).
+		 */
+		struct rb_node **rbn, *parent;
+
+		rbn = &q->rb_fragments.rb_node;
+		do {
+			struct sk_buff *curr;
+			int curr_run_end;
+
+			parent = *rbn;
+			curr = rb_to_skb(parent);
+			curr_run_end = curr->ip_defrag_offset +
+					FRAG_CB(curr)->frag_run_len;
+			if (end <= curr->ip_defrag_offset)
+				rbn = &parent->rb_left;
+			else if (offset >= curr_run_end)
+				rbn = &parent->rb_right;
+			else if (offset >= curr->ip_defrag_offset &&
+				 end <= curr_run_end)
+				return IPFRAG_DUP;
+			else
+				return IPFRAG_OVERLAP;
+		} while (*rbn);
+		/* Here we have parent properly set, and rbn pointing to
+		 * one of its NULL left/right children. Insert skb.
+		 */
+		fragcb_clear(skb);
+		rb_link_node(&skb->rbnode, parent, rbn);
+		rb_insert_color(&skb->rbnode, &q->rb_fragments);
+	}
+
+	skb->ip_defrag_offset = offset;
+
+	return IPFRAG_OK;
+}
+EXPORT_SYMBOL(inet_frag_queue_insert);
+
+void *inet_frag_reasm_prepare(struct inet_frag_queue *q, struct sk_buff *skb,
+			      struct sk_buff *parent)
+{
+	struct sk_buff *fp, *head = skb_rb_first(&q->rb_fragments);
+	struct sk_buff **nextp;
+	int delta;
+
+	if (head != skb) {
+		fp = skb_clone(skb, GFP_ATOMIC);
+		if (!fp)
+			return NULL;
+		FRAG_CB(fp)->next_frag = FRAG_CB(skb)->next_frag;
+		if (RB_EMPTY_NODE(&skb->rbnode))
+			FRAG_CB(parent)->next_frag = fp;
+		else
+			rb_replace_node(&skb->rbnode, &fp->rbnode,
+					&q->rb_fragments);
+		if (q->fragments_tail == skb)
+			q->fragments_tail = fp;
+		skb_morph(skb, head);
+		FRAG_CB(skb)->next_frag = FRAG_CB(head)->next_frag;
+		rb_replace_node(&head->rbnode, &skb->rbnode,
+				&q->rb_fragments);
+		consume_skb(head);
+		head = skb;
+	}
+	WARN_ON(head->ip_defrag_offset != 0);
+
+	delta = -head->truesize;
+
+	/* Head of list must not be cloned. */
+	if (skb_unclone(head, GFP_ATOMIC))
+		return NULL;
+
+	delta += head->truesize;
+	if (delta)
+		add_frag_mem_limit(q->net, delta);
+
+	/* If the first fragment is fragmented itself, we split
+	 * it to two chunks: the first with data and paged part
+	 * and the second, holding only fragments.
+	 */
+	if (skb_has_frag_list(head)) {
+		struct sk_buff *clone;
+		int i, plen = 0;
+
+		clone = alloc_skb(0, GFP_ATOMIC);
+		if (!clone)
+			return NULL;
+		skb_shinfo(clone)->frag_list = skb_shinfo(head)->frag_list;
+		skb_frag_list_init(head);
+		for (i = 0; i < skb_shinfo(head)->nr_frags; i++)
+			plen += skb_frag_size(&skb_shinfo(head)->frags[i]);
+		clone->data_len = head->data_len - plen;
+		clone->len = clone->data_len;
+		head->truesize += clone->truesize;
+		clone->csum = 0;
+		clone->ip_summed = head->ip_summed;
+		add_frag_mem_limit(q->net, clone->truesize);
+		skb_shinfo(head)->frag_list = clone;
+		nextp = &clone->next;
+	} else {
+		nextp = &skb_shinfo(head)->frag_list;
+	}
+
+	return nextp;
+}
+EXPORT_SYMBOL(inet_frag_reasm_prepare);
+
+void inet_frag_reasm_finish(struct inet_frag_queue *q, struct sk_buff *head,
+			    void *reasm_data)
+{
+	struct sk_buff **nextp = (struct sk_buff **)reasm_data;
+	struct rb_node *rbn;
+	struct sk_buff *fp;
+
+	skb_push(head, head->data - skb_network_header(head));
+
+	/* Traverse the tree in order, to build frag_list. */
+	fp = FRAG_CB(head)->next_frag;
+	rbn = rb_next(&head->rbnode);
+	rb_erase(&head->rbnode, &q->rb_fragments);
+	while (rbn || fp) {
+		/* fp points to the next sk_buff in the current run;
+		 * rbn points to the next run.
+		 */
+		/* Go through the current run. */
+		while (fp) {
+			*nextp = fp;
+			nextp = &fp->next;
+			fp->prev = NULL;
+			memset(&fp->rbnode, 0, sizeof(fp->rbnode));
+			fp->sk = NULL;
+			head->data_len += fp->len;
+			head->len += fp->len;
+			if (head->ip_summed != fp->ip_summed)
+				head->ip_summed = CHECKSUM_NONE;
+			else if (head->ip_summed == CHECKSUM_COMPLETE)
+				head->csum = csum_add(head->csum, fp->csum);
+			head->truesize += fp->truesize;
+			fp = FRAG_CB(fp)->next_frag;
+		}
+		/* Move to the next run. */
+		if (rbn) {
+			struct rb_node *rbnext = rb_next(rbn);
+
+			fp = rb_to_skb(rbn);
+			rb_erase(rbn, &q->rb_fragments);
+			rbn = rbnext;
+		}
+	}
+	sub_frag_mem_limit(q->net, head->truesize);
+
+	*nextp = NULL;
+	skb_mark_not_on_list(head);
+	head->prev = NULL;
+	head->tstamp = q->stamp;
+}
+EXPORT_SYMBOL(inet_frag_reasm_finish);
+
+struct sk_buff *inet_frag_pull_head(struct inet_frag_queue *q)
+{
+	struct sk_buff *head;
+
+	if (q->fragments) {
+		head = q->fragments;
+		q->fragments = head->next;
+	} else {
+		struct sk_buff *skb;
+
+		head = skb_rb_first(&q->rb_fragments);
+		if (!head)
+			return NULL;
+		skb = FRAG_CB(head)->next_frag;
+		if (skb)
+			rb_replace_node(&head->rbnode, &skb->rbnode,
+					&q->rb_fragments);
+		else
+			rb_erase(&head->rbnode, &q->rb_fragments);
+		memset(&head->rbnode, 0, sizeof(head->rbnode));
+		barrier();
+	}
+	if (head == q->fragments_tail)
+		q->fragments_tail = NULL;
+
+	sub_frag_mem_limit(q->net, head->truesize);
+
+	return head;
+}
+EXPORT_SYMBOL(inet_frag_pull_head);

@@ -14,6 +14,7 @@
  */
 
 #include <linux/atomic.h>
+#include <linux/cpufreq_times.h>
 #include <linux/err.h>
 #include <linux/hashtable.h>
 #include <linux/init.h>
@@ -369,7 +370,7 @@ static int uid_cputime_show(struct seq_file *m, void *v)
 		u64 total_stime = uid_entry->stime +
 							uid_entry->active_stime;
 		seq_printf(m, "%d: %llu %llu\n", uid_entry->uid,
-			ktime_to_ms(total_utime), ktime_to_ms(total_stime));
+			ktime_to_us(total_utime), ktime_to_us(total_stime));
 	}
 
 	rt_mutex_unlock(&uid_lock);
@@ -419,6 +420,9 @@ static ssize_t uid_remove_write(struct file *file,
 		kstrtol(end_uid, 10, &uid_end) != 0) {
 		return -EINVAL;
 	}
+
+	/* Also remove uids from /proc/uid_time_in_state */
+	cpufreq_task_times_remove_uids(uid_start, uid_end);
 
 	rt_mutex_lock(&uid_lock);
 

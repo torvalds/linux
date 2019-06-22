@@ -33,6 +33,26 @@
 #include <linux/bpf_trace.h>
 #include "en/xdp.h"
 
+int mlx5e_xdp_max_mtu(struct mlx5e_params *params)
+{
+	int hr = NET_IP_ALIGN + XDP_PACKET_HEADROOM;
+
+	/* Let S := SKB_DATA_ALIGN(sizeof(struct skb_shared_info)).
+	 * The condition checked in mlx5e_rx_is_linear_skb is:
+	 *   SKB_DATA_ALIGN(sw_mtu + hard_mtu + hr) + S <= PAGE_SIZE         (1)
+	 *   (Note that hw_mtu == sw_mtu + hard_mtu.)
+	 * What is returned from this function is:
+	 *   max_mtu = PAGE_SIZE - S - hr - hard_mtu                         (2)
+	 * After assigning sw_mtu := max_mtu, the left side of (1) turns to
+	 * SKB_DATA_ALIGN(PAGE_SIZE - S) + S, which is equal to PAGE_SIZE,
+	 * because both PAGE_SIZE and S are already aligned. Any number greater
+	 * than max_mtu would make the left side of (1) greater than PAGE_SIZE,
+	 * so max_mtu is the maximum MTU allowed.
+	 */
+
+	return MLX5E_HW2SW_MTU(params, SKB_MAX_HEAD(hr));
+}
+
 static inline bool
 mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_dma_info *di,
 		    struct xdp_buff *xdp)
@@ -207,9 +227,9 @@ bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq)
 			sqcc++;
 
 			if (is_redirect) {
-				xdp_return_frame(xdpi->xdpf);
 				dma_unmap_single(sq->pdev, xdpi->dma_addr,
 						 xdpi->xdpf->len, DMA_TO_DEVICE);
+				xdp_return_frame(xdpi->xdpf);
 			} else {
 				/* Recycle RX page */
 				mlx5e_page_release(rq, &xdpi->di, true);
@@ -243,9 +263,9 @@ void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq)
 		sq->cc++;
 
 		if (is_redirect) {
-			xdp_return_frame(xdpi->xdpf);
 			dma_unmap_single(sq->pdev, xdpi->dma_addr,
 					 xdpi->xdpf->len, DMA_TO_DEVICE);
+			xdp_return_frame(xdpi->xdpf);
 		} else {
 			/* Recycle RX page */
 			mlx5e_page_release(rq, &xdpi->di, false);
@@ -262,7 +282,8 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	int sq_num;
 	int i;
 
-	if (unlikely(!test_bit(MLX5E_STATE_OPENED, &priv->state)))
+	/* this flag is sufficient, no need to test internal sq state */
+	if (unlikely(!mlx5e_xdp_tx_is_enabled(priv)))
 		return -ENETDOWN;
 
 	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
@@ -274,9 +295,6 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		return -ENXIO;
 
 	sq = &priv->channels.c[sq_num]->xdpsq;
-
-	if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state)))
-		return -ENETDOWN;
 
 	for (i = 0; i < n; i++) {
 		struct xdp_frame *xdpf = frames[i];

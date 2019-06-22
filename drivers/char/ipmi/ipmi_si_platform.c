@@ -126,8 +126,6 @@ ipmi_get_info_from_resources(struct platform_device *pdev,
 		if (res_second->start > io->addr_data)
 			io->regspacing = res_second->start - io->addr_data;
 	}
-	io->regsize = DEFAULT_REGSIZE;
-	io->regshift = 0;
 
 	return res;
 }
@@ -135,7 +133,7 @@ ipmi_get_info_from_resources(struct platform_device *pdev,
 static int platform_ipmi_probe(struct platform_device *pdev)
 {
 	struct si_sm_io io;
-	u8 type, slave_addr, addr_source;
+	u8 type, slave_addr, addr_source, regsize, regshift;
 	int rv;
 
 	rv = device_property_read_u8(&pdev->dev, "addr-source", &addr_source);
@@ -147,7 +145,7 @@ static int platform_ipmi_probe(struct platform_device *pdev)
 	if (addr_source == SI_SMBIOS) {
 		if (!si_trydmi)
 			return -ENODEV;
-	} else {
+	} else if (addr_source != SI_HARDCODED) {
 		if (!si_tryplatform)
 			return -ENODEV;
 	}
@@ -167,10 +165,22 @@ static int platform_ipmi_probe(struct platform_device *pdev)
 	case SI_BT:
 		io.si_type = type;
 		break;
+	case SI_TYPE_INVALID: /* User disabled this in hardcode. */
+		return -ENODEV;
 	default:
 		dev_err(&pdev->dev, "ipmi-type property is invalid\n");
 		return -EINVAL;
 	}
+
+	io.regsize = DEFAULT_REGSIZE;
+	rv = device_property_read_u8(&pdev->dev, "reg-size", &regsize);
+	if (!rv)
+		io.regsize = regsize;
+
+	io.regshift = 0;
+	rv = device_property_read_u8(&pdev->dev, "reg-shift", &regshift);
+	if (!rv)
+		io.regshift = regshift;
 
 	if (!ipmi_get_info_from_resources(pdev, &io))
 		return -EINVAL;
@@ -191,7 +201,8 @@ static int platform_ipmi_probe(struct platform_device *pdev)
 
 	io.dev = &pdev->dev;
 
-	pr_info("ipmi_si: SMBIOS: %s %#lx regsize %d spacing %d irq %d\n",
+	pr_info("ipmi_si: %s: %s %#lx regsize %d spacing %d irq %d\n",
+		ipmi_addr_src_to_str(addr_source),
 		(io.addr_type == IPMI_IO_ADDR_SPACE) ? "io" : "mem",
 		io.addr_data, io.regsize, io.regspacing, io.irq);
 
@@ -356,6 +367,9 @@ static int acpi_ipmi_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
+	io.regsize = DEFAULT_REGSIZE;
+	io.regshift = 0;
+
 	res = ipmi_get_info_from_resources(pdev, &io);
 	if (!res) {
 		rv = -EINVAL;
@@ -417,6 +431,11 @@ static int ipmi_remove(struct platform_device *pdev)
 	return ipmi_si_remove_by_dev(&pdev->dev);
 }
 
+static const struct platform_device_id si_plat_ids[] = {
+    { "hardcode-ipmi-si", 0 },
+    { }
+};
+
 struct platform_driver ipmi_platform_driver = {
 	.driver = {
 		.name = DEVICE_NAME,
@@ -425,6 +444,7 @@ struct platform_driver ipmi_platform_driver = {
 	},
 	.probe		= ipmi_probe,
 	.remove		= ipmi_remove,
+	.id_table       = si_plat_ids
 };
 
 void ipmi_si_platform_init(void)

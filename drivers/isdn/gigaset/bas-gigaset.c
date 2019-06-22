@@ -958,6 +958,7 @@ static void write_iso_callback(struct urb *urb)
  */
 static int starturbs(struct bc_state *bcs)
 {
+	struct usb_device *udev = bcs->cs->hw.bas->udev;
 	struct bas_bc_state *ubc = bcs->hw.bas;
 	struct urb *urb;
 	int j, k;
@@ -975,8 +976,8 @@ static int starturbs(struct bc_state *bcs)
 			rc = -EFAULT;
 			goto error;
 		}
-		usb_fill_int_urb(urb, bcs->cs->hw.bas->udev,
-				 usb_rcvisocpipe(urb->dev, 3 + 2 * bcs->channel),
+		usb_fill_int_urb(urb, udev,
+				 usb_rcvisocpipe(udev, 3 + 2 * bcs->channel),
 				 ubc->isoinbuf + k * BAS_INBUFSIZE,
 				 BAS_INBUFSIZE, read_iso_callback, bcs,
 				 BAS_FRAMETIME);
@@ -1006,8 +1007,8 @@ static int starturbs(struct bc_state *bcs)
 			rc = -EFAULT;
 			goto error;
 		}
-		usb_fill_int_urb(urb, bcs->cs->hw.bas->udev,
-				 usb_sndisocpipe(urb->dev, 4 + 2 * bcs->channel),
+		usb_fill_int_urb(urb, udev,
+				 usb_sndisocpipe(udev, 4 + 2 * bcs->channel),
 				 ubc->isooutbuf->data,
 				 sizeof(ubc->isooutbuf->data),
 				 write_iso_callback, &ubc->isoouturbs[k],

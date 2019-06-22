@@ -653,6 +653,7 @@ struct bmic_host_wellness_driver_version {
 	u8	driver_version_tag[2];
 	__le16	driver_version_length;
 	char	driver_version[32];
+	u8	dont_write_tag[2];
 	u8	end_tag[2];
 };
 
@@ -682,6 +683,8 @@ static int pqi_write_driver_version_to_host_wellness(
 	strncpy(buffer->driver_version, "Linux " DRIVER_VERSION,
 		sizeof(buffer->driver_version) - 1);
 	buffer->driver_version[sizeof(buffer->driver_version) - 1] = '\0';
+	buffer->dont_write_tag[0] = 'D';
+	buffer->dont_write_tag[1] = 'W';
 	buffer->end_tag[0] = 'Z';
 	buffer->end_tag[1] = 'Z';
 
@@ -1179,6 +1182,9 @@ static void pqi_get_volume_status(struct pqi_ctrl_info *ctrl_info,
 	rc = pqi_scsi_inquiry(ctrl_info, device->scsi3addr,
 		VPD_PAGE | CISS_VPD_LV_STATUS, vpd, sizeof(*vpd));
 	if (rc)
+		goto out;
+
+	if (vpd->page_code != CISS_VPD_LV_STATUS)
 		goto out;
 
 	page_length = offsetof(struct ciss_vpd_logical_volume_status,

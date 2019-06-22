@@ -151,6 +151,10 @@ struct ftrace_likely_data {
 #define __assume_aligned(a, ...)
 #endif
 
+#ifndef asm_volatile_goto
+#define asm_volatile_goto(x...) asm goto(x)
+#endif
+
 /* Are two types/vars the same type (ignoring qualifiers)? */
 #define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
 
@@ -174,6 +178,10 @@ struct ftrace_likely_data {
 
 #ifndef __diag_GCC
 #define __diag_GCC(version, severity, string)
+#endif
+
+#ifndef __copy
+# define __copy(symbol)
 #endif
 
 #define __diag_push()	__diag(push)
@@ -246,6 +254,14 @@ struct ftrace_likely_data {
 # define __gnu_inline	__attribute__((gnu_inline))
 #else
 # define __gnu_inline
+#endif
+
+#ifndef __norecordmcount
+#define __norecordmcount
+#endif
+
+#ifndef __nocfi
+#define __nocfi
 #endif
 
 /*

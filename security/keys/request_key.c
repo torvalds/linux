@@ -18,31 +18,30 @@
 #include <linux/keyctl.h>
 #include <linux/slab.h>
 #include "internal.h"
+#include <keys/request_key_auth-type.h>
 
 #define key_negative_timeout	60	/* default timeout on a negative key's existence */
 
 /**
  * complete_request_key - Complete the construction of a key.
- * @cons: The key construction record.
+ * @auth_key: The authorisation key.
  * @error: The success or failute of the construction.
  *
  * Complete the attempt to construct a key.  The key will be negated
  * if an error is indicated.  The authorisation key will be revoked
  * unconditionally.
  */
-void complete_request_key(struct key_construction *cons, int error)
+void complete_request_key(struct key *authkey, int error)
 {
-	kenter("{%d,%d},%d", cons->key->serial, cons->authkey->serial, error);
+	struct request_key_auth *rka = get_request_key_auth(authkey);
+	struct key *key = rka->target_key;
+
+	kenter("%d{%d},%d", authkey->serial, key->serial, error);
 
 	if (error < 0)
-		key_negate_and_link(cons->key, key_negative_timeout, NULL,
-				    cons->authkey);
+		key_negate_and_link(key, key_negative_timeout, NULL, authkey);
 	else
-		key_revoke(cons->authkey);
-
-	key_put(cons->key);
-	key_put(cons->authkey);
-	kfree(cons);
+		key_revoke(authkey);
 }
 EXPORT_SYMBOL(complete_request_key);
 
@@ -91,21 +90,19 @@ static int call_usermodehelper_keys(const char *path, char **argv, char **envp,
  * Request userspace finish the construction of a key
  * - execute "/sbin/request-key <op> <key> <uid> <gid> <keyring> <keyring> <keyring>"
  */
-static int call_sbin_request_key(struct key_construction *cons,
-				 const char *op,
-				 void *aux)
+static int call_sbin_request_key(struct key *authkey, void *aux)
 {
 	static char const request_key[] = "/sbin/request-key";
+	struct request_key_auth *rka = get_request_key_auth(authkey);
 	const struct cred *cred = current_cred();
 	key_serial_t prkey, sskey;
-	struct key *key = cons->key, *authkey = cons->authkey, *keyring,
-		*session;
+	struct key *key = rka->target_key, *keyring, *session;
 	char *argv[9], *envp[3], uid_str[12], gid_str[12];
 	char key_str[12], keyring_str[3][12];
 	char desc[20];
 	int ret, i;
 
-	kenter("{%d},{%d},%s", key->serial, authkey->serial, op);
+	kenter("{%d},{%d},%s", key->serial, authkey->serial, rka->op);
 
 	ret = install_user_keyrings();
 	if (ret < 0)
@@ -163,7 +160,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 	/* set up the argument list */
 	i = 0;
 	argv[i++] = (char *)request_key;
-	argv[i++] = (char *) op;
+	argv[i++] = (char *)rka->op;
 	argv[i++] = key_str;
 	argv[i++] = uid_str;
 	argv[i++] = gid_str;
@@ -191,7 +188,7 @@ error_link:
 	key_put(keyring);
 
 error_alloc:
-	complete_request_key(cons, ret);
+	complete_request_key(authkey, ret);
 	kleave(" = %d", ret);
 	return ret;
 }
@@ -205,42 +202,31 @@ static int construct_key(struct key *key, const void *callout_info,
 			 size_t callout_len, void *aux,
 			 struct key *dest_keyring)
 {
-	struct key_construction *cons;
 	request_key_actor_t actor;
 	struct key *authkey;
 	int ret;
 
 	kenter("%d,%p,%zu,%p", key->serial, callout_info, callout_len, aux);
 
-	cons = kmalloc(sizeof(*cons), GFP_KERNEL);
-	if (!cons)
-		return -ENOMEM;
-
 	/* allocate an authorisation key */
-	authkey = request_key_auth_new(key, callout_info, callout_len,
+	authkey = request_key_auth_new(key, "create", callout_info, callout_len,
 				       dest_keyring);
-	if (IS_ERR(authkey)) {
-		kfree(cons);
-		ret = PTR_ERR(authkey);
-		authkey = NULL;
-	} else {
-		cons->authkey = key_get(authkey);
-		cons->key = key_get(key);
+	if (IS_ERR(authkey))
+		return PTR_ERR(authkey);
 
-		/* make the call */
-		actor = call_sbin_request_key;
-		if (key->type->request_key)
-			actor = key->type->request_key;
+	/* Make the call */
+	actor = call_sbin_request_key;
+	if (key->type->request_key)
+		actor = key->type->request_key;
 
-		ret = actor(cons, "create", aux);
+	ret = actor(authkey, aux);
 
-		/* check that the actor called complete_request_key() prior to
-		 * returning an error */
-		WARN_ON(ret < 0 &&
-			!test_bit(KEY_FLAG_REVOKED, &authkey->flags));
-		key_put(authkey);
-	}
+	/* check that the actor called complete_request_key() prior to
+	 * returning an error */
+	WARN_ON(ret < 0 &&
+		!test_bit(KEY_FLAG_REVOKED, &authkey->flags));
 
+	key_put(authkey);
 	kleave(" = %d", ret);
 	return ret;
 }
@@ -275,7 +261,7 @@ static int construct_get_dest_keyring(struct key **_dest_keyring)
 			if (cred->request_key_auth) {
 				authkey = cred->request_key_auth;
 				down_read(&authkey->sem);
-				rka = authkey->payload.data[0];
+				rka = get_request_key_auth(authkey);
 				if (!test_bit(KEY_FLAG_REVOKED,
 					      &authkey->flags))
 					dest_keyring =
@@ -545,6 +531,7 @@ struct key *request_key_and_link(struct key_type *type,
 	struct keyring_search_context ctx = {
 		.index_key.type		= type,
 		.index_key.description	= description,
+		.index_key.desc_len	= strlen(description),
 		.cred			= current_cred(),
 		.match_data.cmp		= key_default_cmp,
 		.match_data.raw_data	= description,

@@ -95,7 +95,7 @@ struct efi_runtime_work {
 	efi_rts_work.status = EFI_ABORTED;				\
 									\
 	init_completion(&efi_rts_work.efi_rts_comp);			\
-	INIT_WORK_ONSTACK(&efi_rts_work.work, efi_call_rts);		\
+	INIT_WORK(&efi_rts_work.work, efi_call_rts);			\
 	efi_rts_work.arg1 = _arg1;					\
 	efi_rts_work.arg2 = _arg2;					\
 	efi_rts_work.arg3 = _arg3;					\
@@ -171,6 +171,13 @@ void efi_call_virt_check_flags(unsigned long flags, const char *call)
  * So let's just use a single lock to serialize all Runtime Services calls.
  */
 static DEFINE_SEMAPHORE(efi_runtime_lock);
+
+/*
+ * Expose the EFI runtime lock to the UV platform
+ */
+#ifdef CONFIG_X86_UV
+extern struct semaphore __efi_uv_runtime_lock __alias(efi_runtime_lock);
+#endif
 
 /*
  * Calls the appropriate efi_runtime_service() with the appropriate

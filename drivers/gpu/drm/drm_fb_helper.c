@@ -2877,7 +2877,7 @@ int drm_fb_helper_fbdev_setup(struct drm_device *dev,
 	return 0;
 
 err_drm_fb_helper_fini:
-	drm_fb_helper_fini(fb_helper);
+	drm_fb_helper_fbdev_teardown(dev);
 
 	return ret;
 }
@@ -3156,9 +3156,7 @@ static void drm_fbdev_client_unregister(struct drm_client_dev *client)
 
 static int drm_fbdev_client_restore(struct drm_client_dev *client)
 {
-	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
-
-	drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
+	drm_fb_helper_lastclose(client->dev);
 
 	return 0;
 }

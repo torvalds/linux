@@ -72,20 +72,28 @@ static inline void tee_fips_error(struct device *dev)
 		dev_err(dev, "TEE reported error!\n");
 }
 
+/*
+ * This function check if cryptocell tee fips error occurred
+ * and in such case triggers system error
+ */
+void cc_tee_handle_fips_error(struct cc_drvdata *p_drvdata)
+{
+	struct device *dev = drvdata_to_dev(p_drvdata);
+
+	if (!cc_get_tee_fips_status(p_drvdata))
+		tee_fips_error(dev);
+}
+
 /* Deferred service handler, run as interrupt-fired tasklet */
 static void fips_dsr(unsigned long devarg)
 {
 	struct cc_drvdata *drvdata = (struct cc_drvdata *)devarg;
-	struct device *dev = drvdata_to_dev(drvdata);
-	u32 irq, state, val;
+	u32 irq, val;
 
 	irq = (drvdata->irq & (CC_GPR0_IRQ_MASK));
 
 	if (irq) {
-		state = cc_ioread(drvdata, CC_REG(GPR_HOST));
-
-		if (state != (CC_FIPS_SYNC_TEE_STATUS | CC_FIPS_SYNC_MODULE_OK))
-			tee_fips_error(dev);
+		cc_tee_handle_fips_error(drvdata);
 	}
 
 	/* after verifing that there is nothing to do,
@@ -113,8 +121,7 @@ int cc_fips_init(struct cc_drvdata *p_drvdata)
 	dev_dbg(dev, "Initializing fips tasklet\n");
 	tasklet_init(&fips_h->tasklet, fips_dsr, (unsigned long)p_drvdata);
 
-	if (!cc_get_tee_fips_status(p_drvdata))
-		tee_fips_error(dev);
+	cc_tee_handle_fips_error(p_drvdata);
 
 	return 0;
 }

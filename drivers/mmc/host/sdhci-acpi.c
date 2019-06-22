@@ -247,7 +247,7 @@ static const struct sdhci_acpi_chip sdhci_acpi_chip_int = {
 static bool sdhci_acpi_byt(void)
 {
 	static const struct x86_cpu_id byt[] = {
-		{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT1 },
+		{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_SILVERMONT },
 		{}
 	};
 

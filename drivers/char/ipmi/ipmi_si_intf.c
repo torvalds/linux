@@ -1862,6 +1862,18 @@ int ipmi_si_add_smi(struct si_sm_io *io)
 	int rv = 0;
 	struct smi_info *new_smi, *dup;
 
+	/*
+	 * If the user gave us a hard-coded device at the same
+	 * address, they presumably want us to use it and not what is
+	 * in the firmware.
+	 */
+	if (io->addr_source != SI_HARDCODED &&
+	    ipmi_si_hardcode_match(io->addr_type, io->addr_data)) {
+		dev_info(io->dev,
+			 "Hard-coded device at this address already exists");
+		return -ENODEV;
+	}
+
 	if (!io->io_setup) {
 		if (io->addr_type == IPMI_IO_ADDR_SPACE) {
 			io->io_setup = ipmi_si_port_setup;
@@ -2085,11 +2097,16 @@ static int try_smi_init(struct smi_info *new_smi)
 	WARN_ON(new_smi->io.dev->init_name != NULL);
 
  out_err:
+	if (rv && new_smi->io.io_cleanup) {
+		new_smi->io.io_cleanup(&new_smi->io);
+		new_smi->io.io_cleanup = NULL;
+	}
+
 	kfree(init_name);
 	return rv;
 }
 
-static int init_ipmi_si(void)
+static int __init init_ipmi_si(void)
 {
 	struct smi_info *e;
 	enum ipmi_addr_src type = SI_INVALID;
@@ -2097,11 +2114,8 @@ static int init_ipmi_si(void)
 	if (initialized)
 		return 0;
 
+	ipmi_hardcode_init();
 	pr_info("IPMI System Interface driver.\n");
-
-	/* If the user gave us a device, they presumably want us to use it */
-	if (!ipmi_si_hardcode_find_bmc())
-		goto do_scan;
 
 	ipmi_si_platform_init();
 
@@ -2113,7 +2127,6 @@ static int init_ipmi_si(void)
 	   with multiple BMCs we assume that there will be several instances
 	   of a given type so if we succeed in registering a type then also
 	   try to register everything else of the same type */
-do_scan:
 	mutex_lock(&smi_infos_lock);
 	list_for_each_entry(e, &smi_infos, link) {
 		/* Try to register a device if it has an IRQ and we either
@@ -2299,6 +2312,8 @@ static void cleanup_ipmi_si(void)
 	list_for_each_entry_safe(e, tmp_e, &smi_infos, link)
 		cleanup_one_si(e);
 	mutex_unlock(&smi_infos_lock);
+
+	ipmi_si_hardcode_exit();
 }
 module_exit(cleanup_ipmi_si);
 

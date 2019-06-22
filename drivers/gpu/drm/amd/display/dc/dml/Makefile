@@ -32,6 +32,12 @@ endif
 
 dml_ccflags := -mhard-float -msse $(cc_stack_align)
 
+# Use -msse2 only with clang:
+#   https://bugs.freedesktop.org/show_bug.cgi?id=109487
+ifdef CONFIG_CC_IS_CLANG
+dml_ccflags += -msse2
+endif
+
 CFLAGS_display_mode_lib.o := $(dml_ccflags)
 CFLAGS_display_pipe_clocks.o := $(dml_ccflags)
 CFLAGS_dml1_display_rq_dlg_calc.o := $(dml_ccflags)

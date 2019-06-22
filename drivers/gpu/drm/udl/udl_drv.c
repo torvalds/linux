@@ -51,6 +51,7 @@ static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 	.load = udl_driver_load,
 	.unload = udl_driver_unload,
+	.release = udl_driver_release,
 
 	/* gem hooks */
 	.gem_free_object_unlocked = udl_gem_free_object,

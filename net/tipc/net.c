@@ -163,12 +163,9 @@ void tipc_sched_net_finalize(struct net *net, u32 addr)
 
 void tipc_net_stop(struct net *net)
 {
-	u32 self = tipc_own_addr(net);
-
-	if (!self)
+	if (!tipc_own_id(net))
 		return;
 
-	tipc_nametbl_withdraw(net, TIPC_CFG_SRV, self, self, self);
 	rtnl_lock();
 	tipc_bearer_stop(net);
 	tipc_node_stop(net);

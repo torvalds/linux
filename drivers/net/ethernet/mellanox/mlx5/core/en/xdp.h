@@ -34,12 +34,11 @@
 
 #include "en.h"
 
-#define MLX5E_XDP_MAX_MTU ((int)(PAGE_SIZE - \
-				 MLX5_SKB_FRAG_SZ(XDP_PACKET_HEADROOM)))
 #define MLX5E_XDP_MIN_INLINE (ETH_HLEN + VLAN_HLEN)
 #define MLX5E_XDP_TX_DS_COUNT \
 	((sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS) + 1 /* SG DS */)
 
+int mlx5e_xdp_max_mtu(struct mlx5e_params *params);
 bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
 		      void *va, u16 *rx_headroom, u32 *len);
 bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq);
@@ -48,6 +47,23 @@ void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq);
 bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xdp_info *xdpi);
 int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		   u32 flags);
+
+static inline void mlx5e_xdp_tx_enable(struct mlx5e_priv *priv)
+{
+	set_bit(MLX5E_STATE_XDP_TX_ENABLED, &priv->state);
+}
+
+static inline void mlx5e_xdp_tx_disable(struct mlx5e_priv *priv)
+{
+	clear_bit(MLX5E_STATE_XDP_TX_ENABLED, &priv->state);
+	/* let other device's napi(s) see our new state */
+	synchronize_rcu();
+}
+
+static inline bool mlx5e_xdp_tx_is_enabled(struct mlx5e_priv *priv)
+{
+	return test_bit(MLX5E_STATE_XDP_TX_ENABLED, &priv->state);
+}
 
 static inline void mlx5e_xmit_xdp_doorbell(struct mlx5e_xdpsq *sq)
 {

@@ -660,7 +660,7 @@ void __native_set_fixmap(enum fixed_addresses idx, pte_t pte)
 	fixmaps_set++;
 }
 
-void native_set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
+void native_set_fixmap(unsigned /* enum fixed_addresses */ idx, phys_addr_t phys,
 		       pgprot_t flags)
 {
 	/* Sanitize 'prot' against any unsupported bits: */

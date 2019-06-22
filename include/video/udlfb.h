@@ -36,12 +36,9 @@ struct dlfb_data {
 	struct usb_device *udev;
 	struct fb_info *info;
 	struct urb_list urbs;
-	struct kref kref;
 	char *backing_buffer;
 	int fb_count;
 	bool virtualized; /* true when physical usb device not present */
-	struct delayed_work init_framebuffer_work;
-	struct delayed_work free_framebuffer_work;
 	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
 	char *edid; /* null until we read edid from hw or get from sysfs */
@@ -51,6 +48,13 @@ struct dlfb_data {
 	int base8;
 	u32 pseudo_palette[256];
 	int blank_mode; /*one of FB_BLANK_ */
+	struct mutex render_mutex;
+	int damage_x;
+	int damage_y;
+	int damage_x2;
+	int damage_y2;
+	spinlock_t damage_lock;
+	struct work_struct damage_work;
 	struct fb_ops ops;
 	/* blit-only rendering path metrics, exposed through sysfs */
 	atomic_t bytes_rendered; /* raw pixel-bytes driver asked to render */

@@ -348,6 +348,10 @@ static int phylink_get_mac_state(struct phylink *pl, struct phylink_link_state *
 	linkmode_zero(state->lp_advertising);
 	state->interface = pl->link_config.interface;
 	state->an_enabled = pl->link_config.an_enabled;
+	state->speed = SPEED_UNKNOWN;
+	state->duplex = DUPLEX_UNKNOWN;
+	state->pause = MLO_PAUSE_NONE;
+	state->an_complete = 0;
 	state->link = 1;
 
 	return pl->ops->mac_link_state(ndev, state);
@@ -500,6 +504,17 @@ static void phylink_run_resolve(struct phylink *pl)
 {
 	if (!pl->phylink_disable_state)
 		queue_work(system_power_efficient_wq, &pl->resolve);
+}
+
+static void phylink_run_resolve_and_disable(struct phylink *pl, int bit)
+{
+	unsigned long state = pl->phylink_disable_state;
+
+	set_bit(bit, &pl->phylink_disable_state);
+	if (state == 0) {
+		queue_work(system_power_efficient_wq, &pl->resolve);
+		flush_work(&pl->resolve);
+	}
 }
 
 static void phylink_fixed_poll(struct timer_list *t)
@@ -955,9 +970,7 @@ void phylink_stop(struct phylink *pl)
 	if (pl->link_an_mode == MLO_AN_FIXED && !IS_ERR(pl->link_gpio))
 		del_timer_sync(&pl->link_poll);
 
-	set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
-	queue_work(system_power_efficient_wq, &pl->resolve);
-	flush_work(&pl->resolve);
+	phylink_run_resolve_and_disable(pl, PHYLINK_DISABLE_STOPPED);
 }
 EXPORT_SYMBOL_GPL(phylink_stop);
 
@@ -1664,9 +1677,7 @@ static void phylink_sfp_link_down(void *upstream)
 
 	ASSERT_RTNL();
 
-	set_bit(PHYLINK_DISABLE_LINK, &pl->phylink_disable_state);
-	queue_work(system_power_efficient_wq, &pl->resolve);
-	flush_work(&pl->resolve);
+	phylink_run_resolve_and_disable(pl, PHYLINK_DISABLE_LINK);
 }
 
 static void phylink_sfp_link_up(void *upstream)
