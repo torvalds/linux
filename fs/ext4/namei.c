@@ -1104,10 +1104,10 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 		hinfo.seed = EXT4_SB(dir->i_sb)->s_hash_seed;
 		if (ext4_has_inline_data(dir)) {
 			int has_inline_data = 1;
-			count = htree_inlinedir_to_tree(dir_file, dir, 0,
-							&hinfo, start_hash,
-							start_minor_hash,
-							&has_inline_data);
+			count = ext4_inlinedir_to_tree(dir_file, dir, 0,
+						       &hinfo, start_hash,
+						       start_minor_hash,
+						       &has_inline_data);
 			if (has_inline_data) {
 				*next_hash = ~0;
 				return count;
