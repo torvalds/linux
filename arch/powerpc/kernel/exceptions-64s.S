@@ -1607,6 +1607,7 @@ EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
  * without saving, though xer is not a good idea to use, as hardware may
  * interpret some bits so it may be costly to change them.
  */
+.macro SYSTEM_CALL virt
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 	/*
 	 * There is a little bit of juggling to get syscall and hcall
@@ -1616,95 +1617,77 @@ EXC_COMMON(trap_0b_common, 0xb00, unknown_exception)
 	 * Userspace syscalls have already saved the PPR, hcalls must save
 	 * it before setting HMT_MEDIUM.
 	 */
-#define SYSCALL_KVMTEST							\
-	mtctr	r13;							\
-	GET_PACA(r13);							\
-	std	r10,PACA_EXGEN+EX_R10(r13);				\
-	INTERRUPT_TO_KERNEL;						\
-	KVMTEST EXC_STD 0xc00 ; /* uses r10, branch to do_kvm_0xc00_system_call */ \
-	HMT_MEDIUM;							\
-	mfctr	r9;
-
+	mtctr	r13
+	GET_PACA(r13)
+	std	r10,PACA_EXGEN+EX_R10(r13)
+	INTERRUPT_TO_KERNEL
+	KVMTEST EXC_STD 0xc00 /* uses r10, branch to do_kvm_0xc00_system_call */
+	HMT_MEDIUM
+	mfctr	r9
 #else
-#define SYSCALL_KVMTEST							\
-	HMT_MEDIUM;							\
-	mr	r9,r13;							\
-	GET_PACA(r13);							\
-	INTERRUPT_TO_KERNEL;
+	HMT_MEDIUM
+	mr	r9,r13
+	GET_PACA(r13)
+	INTERRUPT_TO_KERNEL
 #endif
-	
-#define LOAD_SYSCALL_HANDLER(reg)					\
-	__LOAD_HANDLER(reg, system_call_common)
-
-/*
- * After SYSCALL_KVMTEST, we reach here with PACA in r13, r13 in r9,
- * and HMT_MEDIUM.
- */
-#define SYSCALL_REAL	 					\
-	mfspr	r11,SPRN_SRR0 ;					\
-	mfspr	r12,SPRN_SRR1 ;					\
-	LOAD_SYSCALL_HANDLER(r10) ; 				\
-	mtspr	SPRN_SRR0,r10 ; 				\
-	ld	r10,PACAKMSR(r13) ;				\
-	mtspr	SPRN_SRR1,r10 ; 				\
-	RFI_TO_KERNEL ;						\
-	b	. ;	/* prevent speculative execution */
 
 #ifdef CONFIG_PPC_FAST_ENDIAN_SWITCH
-#define SYSCALL_FASTENDIAN_TEST					\
-BEGIN_FTR_SECTION						\
-	cmpdi	r0,0x1ebe ; 					\
-	beq-	1f ;						\
-END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
+BEGIN_FTR_SECTION
+	cmpdi	r0,0x1ebe
+	beq-	1f
+END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
+#endif
+	/* We reach here with PACA in r13, r13 in r9, and HMT_MEDIUM. */
 
-#define SYSCALL_FASTENDIAN					\
-	/* Fast LE/BE switch system call */			\
-1:	mfspr	r12,SPRN_SRR1 ;					\
-	xori	r12,r12,MSR_LE ;				\
-	mtspr	SPRN_SRR1,r12 ;					\
-	mr	r13,r9 ;					\
-	RFI_TO_USER ;	/* return to userspace */		\
-	b	. ;	/* prevent speculative execution */
-#else
-#define SYSCALL_FASTENDIAN_TEST
-#define SYSCALL_FASTENDIAN
-#endif /* CONFIG_PPC_FAST_ENDIAN_SWITCH */
-
-#if defined(CONFIG_RELOCATABLE)
+	.if ! \virt
+	mfspr	r11,SPRN_SRR0
+	mfspr	r12,SPRN_SRR1
+	__LOAD_HANDLER(r10, system_call_common)
+	mtspr	SPRN_SRR0,r10
+	ld	r10,PACAKMSR(r13)
+	mtspr	SPRN_SRR1,r10
+	RFI_TO_KERNEL
+	b	.	/* prevent speculative execution */
+	.else
+#ifdef CONFIG_RELOCATABLE
 	/*
 	 * We can't branch directly so we do it via the CTR which
 	 * is volatile across system calls.
 	 */
-#define SYSCALL_VIRT						\
-	LOAD_SYSCALL_HANDLER(r10) ;				\
-	mtctr	r10 ;						\
-	mfspr	r11,SPRN_SRR0 ;					\
-	mfspr	r12,SPRN_SRR1 ;					\
-	li	r10,MSR_RI ;					\
-	mtmsrd 	r10,1 ;						\
-	bctr ;
+	__LOAD_HANDLER(r10, system_call_common)
+	mtctr	r10
+	mfspr	r11,SPRN_SRR0
+	mfspr	r12,SPRN_SRR1
+	li	r10,MSR_RI
+	mtmsrd 	r10,1
+	bctr
 #else
 	/* We can branch directly */
-#define SYSCALL_VIRT						\
-	mfspr	r11,SPRN_SRR0 ;					\
-	mfspr	r12,SPRN_SRR1 ;					\
-	li	r10,MSR_RI ;					\
-	mtmsrd 	r10,1 ;			/* Set RI (EE=0) */	\
-	b	system_call_common ;
+	mfspr	r11,SPRN_SRR0
+	mfspr	r12,SPRN_SRR1
+	li	r10,MSR_RI
+	mtmsrd 	r10,1			/* Set RI (EE=0) */
+	b	system_call_common
 #endif
+	.endif
+
+#ifdef CONFIG_PPC_FAST_ENDIAN_SWITCH
+	/* Fast LE/BE switch system call */
+1:	mfspr	r12,SPRN_SRR1
+	xori	r12,r12,MSR_LE
+	mtspr	SPRN_SRR1,r12
+	mr	r13,r9
+	RFI_TO_USER	/* return to userspace */
+	b	.	/* prevent speculative execution */
+#endif
+.endm
 
 EXC_REAL_BEGIN(system_call, 0xc00, 0x100)
-	SYSCALL_KVMTEST /* loads PACA into r13, and saves r13 to r9 */
-	SYSCALL_FASTENDIAN_TEST
-	SYSCALL_REAL
-	SYSCALL_FASTENDIAN
+	SYSTEM_CALL 0
 EXC_REAL_END(system_call, 0xc00, 0x100)
 
 EXC_VIRT_BEGIN(system_call, 0x4c00, 0x100)
-	SYSCALL_KVMTEST /* loads PACA into r13, and saves r13 to r9 */
-	SYSCALL_FASTENDIAN_TEST
-	SYSCALL_VIRT
-	SYSCALL_FASTENDIAN
+	SYSTEM_CALL 1
 EXC_VIRT_END(system_call, 0x4c00, 0x100)
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
