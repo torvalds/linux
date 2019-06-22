@@ -148,5 +148,4 @@ void hal_set_brate_cfg(u8 *brates, u16 *rate_cfg);
 
 bool hal_mapping_out_pipe(struct adapter *adapter, u8 numoutpipe);
 
-void hal_init_macaddr(struct adapter *adapter);
 #endif /* __HAL_COMMON_H__ */
