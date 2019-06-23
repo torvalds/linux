@@ -127,3 +127,23 @@ Description:	These files show the system reset cause, as following: ComEx
 		the last reset cause.
 
 		The files are read only.
+
+Date:		June 2019
+KernelVersion:	5.3
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	These files show the system reset cause, as following:
+		COMEX thermal shutdown; wathchdog power off or reset was derived
+		by one of the next components: COMEX, switch board or by Small Form
+		Factor mezzanine, reset requested from ASIC, reset cuased by BIOS
+		reload. Value 1 in file means this is reset cause, 0 - otherwise.
+		Only one of the above causes could be 1 at the same time, representing
+		only last reset cause.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_comex_thermal
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_comex_wd
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_from_asic
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_reload_bios
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_sff_wd
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_swb_wd
