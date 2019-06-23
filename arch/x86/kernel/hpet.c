@@ -347,15 +347,14 @@ static int hpet_resume(struct clock_event_device *evt)
 	return 0;
 }
 
-static int hpet_next_event(unsigned long delta,
-			   struct clock_event_device *evt, int timer)
+static int hpet_next_event(unsigned long delta, int channel)
 {
 	u32 cnt;
 	s32 res;
 
 	cnt = hpet_readl(HPET_COUNTER);
 	cnt += (u32) delta;
-	hpet_writel(cnt, HPET_Tn_CMP(timer));
+	hpet_writel(cnt, HPET_Tn_CMP(channel));
 
 	/*
 	 * HPETs are a complete disaster. The compare register is
@@ -407,7 +406,7 @@ static int hpet_legacy_resume(struct clock_event_device *evt)
 static int hpet_legacy_next_event(unsigned long delta,
 			struct clock_event_device *evt)
 {
-	return hpet_next_event(delta, evt, 0);
+	return hpet_next_event(delta, 0);
 }
 
 /*
@@ -508,7 +507,8 @@ static int hpet_msi_next_event(unsigned long delta,
 				struct clock_event_device *evt)
 {
 	struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
-	return hpet_next_event(delta, evt, hdev->num);
+
+	return hpet_next_event(delta, hdev->num);
 }
 
 static irqreturn_t hpet_interrupt_handler(int irq, void *data)
