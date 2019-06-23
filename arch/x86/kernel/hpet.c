@@ -176,7 +176,7 @@ do {								\
 
 static void hpet_reserve_msi_timers(struct hpet_data *hd);
 
-static void hpet_reserve_platform_timers(unsigned int id)
+static void __init hpet_reserve_platform_timers(unsigned int id)
 {
 	struct hpet __iomem *hpet = hpet_virt_address;
 	struct hpet_timer __iomem *timer = &hpet->hpet_timers[2];
@@ -572,7 +572,7 @@ static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 #define RESERVE_TIMERS 0
 #endif
 
-static void hpet_msi_capability_lookup(unsigned int start_timer)
+static void __init hpet_msi_capability_lookup(unsigned int start_timer)
 {
 	unsigned int id;
 	unsigned int num_timers;
@@ -631,7 +631,7 @@ static void hpet_msi_capability_lookup(unsigned int start_timer)
 }
 
 #ifdef CONFIG_HPET
-static void hpet_reserve_msi_timers(struct hpet_data *hd)
+static void __init hpet_reserve_msi_timers(struct hpet_data *hd)
 {
 	int i;
 
