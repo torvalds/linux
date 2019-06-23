@@ -266,8 +266,8 @@ static void hpet_legacy_clockevent_register(void)
 	hpet_enable_legacy_int();
 
 	/*
-	 * Start HPET with the boot cpu mask and make it
-	 * global after the IO_APIC has been initialized.
+	 * Start HPET with the boot CPU's cpumask and make it global after
+	 * the IO_APIC has been initialized.
 	 */
 	hpet_clockevent.cpumask = cpumask_of(boot_cpu_data.cpu_index);
 	clockevents_config_and_register(&hpet_clockevent, hpet_freq,
@@ -688,10 +688,10 @@ static inline void hpet_reserve_msi_timers(struct hpet_data *hd) { }
 /*
  * Reading the HPET counter is a very slow operation. If a large number of
  * CPUs are trying to access the HPET counter simultaneously, it can cause
- * massive delay and slow down system performance dramatically. This may
+ * massive delays and slow down system performance dramatically. This may
  * happen when HPET is the default clock source instead of TSC. For a
  * really large system with hundreds of CPUs, the slowdown may be so
- * severe that it may actually crash the system because of a NMI watchdog
+ * severe, that it can actually crash the system because of a NMI watchdog
  * soft lockup, for example.
  *
  * If multiple CPUs are trying to access the HPET counter at the same time,
@@ -700,8 +700,7 @@ static inline void hpet_reserve_msi_timers(struct hpet_data *hd) { }
  *
  * This special feature is only enabled on x86-64 systems. It is unlikely
  * that 32-bit x86 systems will have enough CPUs to require this feature
- * with its associated locking overhead. And we also need 64-bit atomic
- * read.
+ * with its associated locking overhead. We also need 64-bit atomic read.
  *
  * The lock and the HPET value are stored together and can be read in a
  * single atomic 64-bit read. It is explicitly assumed that arch_spinlock_t
@@ -1020,19 +1019,25 @@ void hpet_disable(void)
 
 #ifdef CONFIG_HPET_EMULATE_RTC
 
-/* HPET in LegacyReplacement Mode eats up RTC interrupt line. When, HPET
+/*
+ * HPET in LegacyReplacement mode eats up the RTC interrupt line. When HPET
  * is enabled, we support RTC interrupt functionality in software.
+ *
  * RTC has 3 kinds of interrupts:
- * 1) Update Interrupt - generate an interrupt, every sec, when RTC clock
- *    is updated
- * 2) Alarm Interrupt - generate an interrupt at a specific time of day
- * 3) Periodic Interrupt - generate periodic interrupt, with frequencies
- *    2Hz-8192Hz (2Hz-64Hz for non-root user) (all freqs in powers of 2)
- * (1) and (2) above are implemented using polling at a frequency of
- * 64 Hz. The exact frequency is a tradeoff between accuracy and interrupt
- * overhead. (DEFAULT_RTC_INT_FREQ)
- * For (3), we use interrupts at 64Hz or user specified periodic
- * frequency, whichever is higher.
+ *
+ *  1) Update Interrupt - generate an interrupt, every second, when the
+ *     RTC clock is updated
+ *  2) Alarm Interrupt - generate an interrupt at a specific time of day
+ *  3) Periodic Interrupt - generate periodic interrupt, with frequencies
+ *     2Hz-8192Hz (2Hz-64Hz for non-root user) (all frequencies in powers of 2)
+ *
+ * (1) and (2) above are implemented using polling at a frequency of 64 Hz:
+ * DEFAULT_RTC_INT_FREQ.
+ *
+ * The exact frequency is a tradeoff between accuracy and interrupt overhead.
+ *
+ * For (3), we use interrupts at 64 Hz, or the user specified periodic frequency,
+ * if it's higher.
  */
 #include <linux/mc146818rtc.h>
 #include <linux/rtc.h>
@@ -1053,7 +1058,7 @@ static unsigned long hpet_pie_limit;
 static rtc_irq_handler irq_handler;
 
 /*
- * Check that the HPET counter c1 is ahead of the c2
+ * Check that the HPET counter c1 is ahead of c2
  */
 static inline int hpet_cnt_ahead(u32 c1, u32 c2)
 {
