@@ -24,6 +24,7 @@ struct hpet_dev {
 
 struct hpet_channel {
 	unsigned int			num;
+	unsigned int			irq;
 	unsigned int			boot_cfg;
 };
 
@@ -52,7 +53,6 @@ u8					hpet_blockid; /* OS timer block num */
 bool					hpet_msi_disable;
 
 #ifdef CONFIG_PCI_MSI
-static unsigned int			hpet_num_timers;
 static struct hpet_dev			*hpet_devs;
 static DEFINE_PER_CPU(struct hpet_dev *, cpu_hpet_dev);
 static struct irq_domain		*hpet_domain;
@@ -189,19 +189,15 @@ do {								\
 
 static void hpet_reserve_msi_timers(struct hpet_data *hd);
 
-static void __init hpet_reserve_platform_timers(unsigned int id)
+static void __init hpet_reserve_platform_timers(void)
 {
-	struct hpet __iomem *hpet = hpet_virt_address;
-	struct hpet_timer __iomem *timer = &hpet->hpet_timers[2];
-	unsigned int nrtimers, i;
 	struct hpet_data hd;
-
-	nrtimers = ((id & HPET_ID_NUMBER) >> HPET_ID_NUMBER_SHIFT) + 1;
+	unsigned int i;
 
 	memset(&hd, 0, sizeof(hd));
 	hd.hd_phys_address	= hpet_address;
-	hd.hd_address		= hpet;
-	hd.hd_nirqs		= nrtimers;
+	hd.hd_address		= hpet_virt_address;
+	hd.hd_nirqs		= hpet_base.nr_channels;
 	hpet_reserve_timer(&hd, 0);
 
 #ifdef CONFIG_HPET_EMULATE_RTC
@@ -216,10 +212,8 @@ static void __init hpet_reserve_platform_timers(unsigned int id)
 	hd.hd_irq[0] = HPET_LEGACY_8254;
 	hd.hd_irq[1] = HPET_LEGACY_RTC;
 
-	for (i = 2; i < nrtimers; timer++, i++) {
-		hd.hd_irq[i] = (readl(&timer->hpet_config) &
-			Tn_INT_ROUTE_CNF_MASK) >> Tn_INT_ROUTE_CNF_SHIFT;
-	}
+	for (i = 2; i < hpet_base.nr_channels; i++)
+		hd.hd_irq[i] = hpet_base.channels[i].irq;
 
 	hpet_reserve_msi_timers(&hd);
 
@@ -227,7 +221,7 @@ static void __init hpet_reserve_platform_timers(unsigned int id)
 
 }
 #else
-static void hpet_reserve_platform_timers(unsigned int id) { }
+static inline void hpet_reserve_platform_timers(void) { }
 #endif
 
 /* Common HPET functions */
@@ -569,7 +563,7 @@ static struct hpet_dev *hpet_get_unused_timer(void)
 	if (!hpet_devs)
 		return NULL;
 
-	for (i = 0; i < hpet_num_timers; i++) {
+	for (i = 0; i < hpet_base.nr_channels; i++) {
 		struct hpet_dev *hdev = &hpet_devs[i];
 
 		if (!(hdev->flags & HPET_DEV_VALID))
@@ -612,7 +606,6 @@ static int hpet_cpuhp_dead(unsigned int cpu)
 
 static void __init hpet_msi_capability_lookup(unsigned int start_timer)
 {
-	unsigned int id;
 	unsigned int num_timers;
 	unsigned int num_timers_used = 0;
 	int i, irq;
@@ -622,10 +615,8 @@ static void __init hpet_msi_capability_lookup(unsigned int start_timer)
 
 	if (boot_cpu_has(X86_FEATURE_ARAT))
 		return;
-	id = hpet_readl(HPET_ID);
 
-	num_timers = ((id & HPET_ID_NUMBER) >> HPET_ID_NUMBER_SHIFT);
-	num_timers++; /* Value read out starts from 0 */
+	num_timers = hpet_base.nr_channels;
 	hpet_print_config();
 
 	hpet_domain = hpet_create_irq_domain(hpet_blockid);
@@ -636,11 +627,9 @@ static void __init hpet_msi_capability_lookup(unsigned int start_timer)
 	if (!hpet_devs)
 		return;
 
-	hpet_num_timers = num_timers;
-
 	for (i = start_timer; i < num_timers - RESERVE_TIMERS; i++) {
 		struct hpet_dev *hdev = &hpet_devs[num_timers_used];
-		unsigned int cfg = hpet_readl(HPET_Tn_CFG(i));
+		unsigned int cfg = hpet_base.channels[i].boot_cfg;
 
 		/* Only consider HPET timer with MSI support */
 		if (!(cfg & HPET_TN_FSB_CAP))
@@ -676,7 +665,7 @@ static void __init hpet_reserve_msi_timers(struct hpet_data *hd)
 	if (!hpet_devs)
 		return;
 
-	for (i = 0; i < hpet_num_timers; i++) {
+	for (i = 0; i < hpet_base.nr_channels; i++) {
 		struct hpet_dev *hdev = &hpet_devs[i];
 
 		if (!(hdev->flags & HPET_DEV_VALID))
@@ -869,7 +858,7 @@ static bool __init hpet_counting(void)
  */
 int __init hpet_enable(void)
 {
-	u32 hpet_period, cfg, id;
+	u32 hpet_period, cfg, id, irq;
 	unsigned int i, channels;
 	struct hpet_channel *hc;
 	u64 freq;
@@ -940,6 +929,8 @@ int __init hpet_enable(void)
 
 		cfg = hpet_readl(HPET_Tn_CFG(i));
 		hc->boot_cfg = cfg;
+		irq = (cfg & Tn_INT_ROUTE_CNF_MASK) >> Tn_INT_ROUTE_CNF_SHIFT;
+		hc->irq = irq;
 
 		cfg &= ~(HPET_TN_ENABLE | HPET_TN_LEVEL | HPET_TN_FSB);
 		hpet_writel(cfg, HPET_Tn_CFG(i));
@@ -993,7 +984,7 @@ static __init int hpet_late_init(void)
 	else
 		hpet_msi_capability_lookup(0);
 
-	hpet_reserve_platform_timers(hpet_readl(HPET_ID));
+	hpet_reserve_platform_timers();
 	hpet_print_config();
 
 	if (hpet_msi_disable)
