@@ -350,7 +350,6 @@ MODULE_DEVICE_TABLE(acpi, acpi_ipmb_id);
 
 static struct i2c_driver ipmb_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "ipmb-dev",
 		.acpi_match_table = ACPI_PTR(acpi_ipmb_id),
 	},
