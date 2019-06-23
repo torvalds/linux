@@ -28,7 +28,6 @@
 
 #include <drm/ttm/ttm_placement.h>
 
-#include <drm/drmP.h>
 #include "vmwgfx_drv.h"
 #include "ttm_object.h"
 

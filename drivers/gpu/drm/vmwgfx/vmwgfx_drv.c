@@ -24,17 +24,22 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  **************************************************************************/
-#include <linux/module.h>
+
 #include <linux/console.h>
 #include <linux/dma-mapping.h>
+#include <linux/module.h>
 
-#include <drm/drmP.h>
-#include "vmwgfx_drv.h"
-#include "vmwgfx_binding.h"
-#include "ttm_object.h"
-#include <drm/ttm/ttm_placement.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_sysfs.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_placement.h>
+
+#include "ttm_object.h"
+#include "vmwgfx_binding.h"
+#include "vmwgfx_drv.h"
 
 #define VMWGFX_DRIVER_DESC "Linux drm driver for VMware graphics devices"
 #define VMWGFX_CHIP_SVGAII 0

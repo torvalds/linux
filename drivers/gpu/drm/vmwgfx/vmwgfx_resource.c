@@ -25,12 +25,11 @@
  *
  **************************************************************************/
 
-#include "vmwgfx_drv.h"
-#include <drm/vmwgfx_drm.h>
 #include <drm/ttm/ttm_placement.h>
-#include <drm/drmP.h>
+
 #include "vmwgfx_resource_priv.h"
 #include "vmwgfx_binding.h"
+#include "vmwgfx_drv.h"
 
 #define VMW_RES_EVICT_ERR_COUNT 10
 
