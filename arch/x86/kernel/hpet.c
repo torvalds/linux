@@ -411,6 +411,25 @@ hpet_clkevt_set_next_event(unsigned long delta, struct clock_event_device *evt)
 	return res < HPET_MIN_CYCLES ? -ETIME : 0;
 }
 
+static void hpet_init_clockevent(struct hpet_channel *hc, unsigned int rating)
+{
+	struct clock_event_device *evt = &hc->evt;
+
+	evt->rating		= rating;
+	evt->irq		= hc->irq;
+	evt->name		= hc->name;
+	evt->cpumask		= cpumask_of(hc->cpu);
+	evt->set_state_oneshot	= hpet_clkevt_set_state_oneshot;
+	evt->set_next_event	= hpet_clkevt_set_next_event;
+	evt->set_state_shutdown	= hpet_clkevt_set_state_shutdown;
+
+	evt->features = CLOCK_EVT_FEAT_ONESHOT;
+	if (hc->boot_cfg & HPET_TN_PERIODIC) {
+		evt->features		|= CLOCK_EVT_FEAT_PERIODIC;
+		evt->set_state_periodic	= hpet_clkevt_set_state_periodic;
+	}
+}
+
 /*
  * The HPET clock event device wrapped in a channel for conversion
  */
@@ -510,22 +529,10 @@ static void init_one_hpet_msi_clockevent(struct hpet_channel *hc, int cpu)
 
 	hc->cpu = cpu;
 	per_cpu(cpu_hpet_channel, cpu) = hc;
-	evt->name = hc->name;
 	hpet_setup_msi_irq(hc);
-	evt->irq = hc->irq;
 
-	evt->rating = 110;
-	evt->features = CLOCK_EVT_FEAT_ONESHOT;
-	if (hc->boot_cfg & HPET_TN_PERIODIC) {
-		evt->features |= CLOCK_EVT_FEAT_PERIODIC;
-		evt->set_state_periodic = hpet_clkevt_set_state_periodic;
-	}
-
-	evt->set_state_shutdown	= hpet_clkevt_set_state_shutdown;
-	evt->set_state_oneshot = hpet_clkevt_set_state_oneshot;
-	evt->set_next_event = hpet_clkevt_set_next_event;
+	hpet_init_clockevent(hc, 110);
 	evt->tick_resume = hpet_clkevt_msi_resume;
-	evt->cpumask = cpumask_of(hc->cpu);
 
 	clockevents_config_and_register(evt, hpet_freq, HPET_MIN_PROG_DELTA,
 					0x7FFFFFFF);
