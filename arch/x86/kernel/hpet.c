@@ -310,8 +310,9 @@ static void hpet_legacy_clockevent_register(struct hpet_channel *hc)
 	pr_debug("Clockevent registered\n");
 }
 
-static int hpet_set_periodic(struct clock_event_device *evt, int channel)
+static int hpet_clkevt_set_state_periodic(struct clock_event_device *evt)
 {
+	unsigned int channel = clockevent_to_channel(evt)->num;
 	unsigned int cfg, cmp, now;
 	uint64_t delta;
 
@@ -340,8 +341,9 @@ static int hpet_set_periodic(struct clock_event_device *evt, int channel)
 	return 0;
 }
 
-static int hpet_set_oneshot(struct clock_event_device *evt, int channel)
+static int hpet_clkevt_set_state_oneshot(struct clock_event_device *evt)
 {
+	unsigned int channel = clockevent_to_channel(evt)->num;
 	unsigned int cfg;
 
 	cfg = hpet_readl(HPET_Tn_CFG(channel));
@@ -352,8 +354,9 @@ static int hpet_set_oneshot(struct clock_event_device *evt, int channel)
 	return 0;
 }
 
-static int hpet_shutdown(struct clock_event_device *evt, int channel)
+static int hpet_clkevt_set_state_shutdown(struct clock_event_device *evt)
 {
+	unsigned int channel = clockevent_to_channel(evt)->num;
 	unsigned int cfg;
 
 	cfg = hpet_readl(HPET_Tn_CFG(channel));
@@ -363,15 +366,17 @@ static int hpet_shutdown(struct clock_event_device *evt, int channel)
 	return 0;
 }
 
-static int hpet_resume(struct clock_event_device *evt)
+static int hpet_clkevt_legacy_resume(struct clock_event_device *evt)
 {
 	hpet_enable_legacy_int();
 	hpet_print_config();
 	return 0;
 }
 
-static int hpet_next_event(unsigned long delta, int channel)
+static int
+hpet_clkevt_set_next_event(unsigned long delta, struct clock_event_device *evt)
 {
+	unsigned int channel = clockevent_to_channel(evt)->num;
 	u32 cnt;
 	s32 res;
 
@@ -406,32 +411,6 @@ static int hpet_next_event(unsigned long delta, int channel)
 	return res < HPET_MIN_CYCLES ? -ETIME : 0;
 }
 
-static int hpet_legacy_shutdown(struct clock_event_device *evt)
-{
-	return hpet_shutdown(evt, 0);
-}
-
-static int hpet_legacy_set_oneshot(struct clock_event_device *evt)
-{
-	return hpet_set_oneshot(evt, 0);
-}
-
-static int hpet_legacy_set_periodic(struct clock_event_device *evt)
-{
-	return hpet_set_periodic(evt, 0);
-}
-
-static int hpet_legacy_resume(struct clock_event_device *evt)
-{
-	return hpet_resume(evt);
-}
-
-static int hpet_legacy_next_event(unsigned long delta,
-				  struct clock_event_device *evt)
-{
-	return hpet_next_event(delta, 0);
-}
-
 /*
  * The HPET clock event device wrapped in a channel for conversion
  */
@@ -440,11 +419,11 @@ static struct hpet_channel hpet_channel0 = {
 		.name			= "hpet",
 		.features		= CLOCK_EVT_FEAT_PERIODIC |
 					  CLOCK_EVT_FEAT_ONESHOT,
-		.set_state_periodic	= hpet_legacy_set_periodic,
-		.set_state_oneshot	= hpet_legacy_set_oneshot,
-		.set_state_shutdown	= hpet_legacy_shutdown,
-		.tick_resume		= hpet_legacy_resume,
-		.set_next_event		= hpet_legacy_next_event,
+		.set_state_periodic	= hpet_clkevt_set_state_periodic,
+		.set_state_oneshot	= hpet_clkevt_set_state_oneshot,
+		.set_state_shutdown	= hpet_clkevt_set_state_shutdown,
+		.tick_resume		= hpet_clkevt_legacy_resume,
+		.set_next_event		= hpet_clkevt_set_next_event,
 		.irq			= 0,
 		.rating			= 50,
 	}
@@ -481,22 +460,7 @@ void hpet_msi_write(struct hpet_channel *hc, struct msi_msg *msg)
 	hpet_writel(msg->address_lo, HPET_Tn_ROUTE(hc->num) + 4);
 }
 
-static int hpet_msi_shutdown(struct clock_event_device *evt)
-{
-	return hpet_shutdown(evt, clockevent_to_channel(evt)->num);
-}
-
-static int hpet_msi_set_oneshot(struct clock_event_device *evt)
-{
-	return hpet_set_oneshot(evt, clockevent_to_channel(evt)->num);
-}
-
-static int hpet_msi_set_periodic(struct clock_event_device *evt)
-{
-	return hpet_set_periodic(evt, clockevent_to_channel(evt)->num);
-}
-
-static int hpet_msi_resume(struct clock_event_device *evt)
+static int hpet_clkevt_msi_resume(struct clock_event_device *evt)
 {
 	struct hpet_channel *hc = clockevent_to_channel(evt);
 	struct irq_data *data = irq_get_irq_data(hc->irq);
@@ -509,13 +473,7 @@ static int hpet_msi_resume(struct clock_event_device *evt)
 	return 0;
 }
 
-static int hpet_msi_next_event(unsigned long delta,
-			       struct clock_event_device *evt)
-{
-	return hpet_next_event(delta, clockevent_to_channel(evt)->num);
-}
-
-static irqreturn_t hpet_interrupt_handler(int irq, void *data)
+static irqreturn_t hpet_msi_interrupt_handler(int irq, void *data)
 {
 	struct hpet_channel *hc = data;
 	struct clock_event_device *evt = &hc->evt;
@@ -529,9 +487,9 @@ static irqreturn_t hpet_interrupt_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int hpet_setup_irq(struct hpet_channel *hc)
+static int hpet_setup_msi_irq(struct hpet_channel *hc)
 {
-	if (request_irq(hc->irq, hpet_interrupt_handler,
+	if (request_irq(hc->irq, hpet_msi_interrupt_handler,
 			IRQF_TIMER | IRQF_NOBALANCING,
 			hc->name, hc))
 		return -1;
@@ -553,20 +511,20 @@ static void init_one_hpet_msi_clockevent(struct hpet_channel *hc, int cpu)
 	hc->cpu = cpu;
 	per_cpu(cpu_hpet_channel, cpu) = hc;
 	evt->name = hc->name;
-	hpet_setup_irq(hc);
+	hpet_setup_msi_irq(hc);
 	evt->irq = hc->irq;
 
 	evt->rating = 110;
 	evt->features = CLOCK_EVT_FEAT_ONESHOT;
 	if (hc->boot_cfg & HPET_TN_PERIODIC) {
 		evt->features |= CLOCK_EVT_FEAT_PERIODIC;
-		evt->set_state_periodic = hpet_msi_set_periodic;
+		evt->set_state_periodic = hpet_clkevt_set_state_periodic;
 	}
 
-	evt->set_state_shutdown = hpet_msi_shutdown;
-	evt->set_state_oneshot = hpet_msi_set_oneshot;
-	evt->tick_resume = hpet_msi_resume;
-	evt->set_next_event = hpet_msi_next_event;
+	evt->set_state_shutdown	= hpet_clkevt_set_state_shutdown;
+	evt->set_state_oneshot = hpet_clkevt_set_state_oneshot;
+	evt->set_next_event = hpet_clkevt_set_next_event;
+	evt->tick_resume = hpet_clkevt_msi_resume;
 	evt->cpumask = cpumask_of(hc->cpu);
 
 	clockevents_config_and_register(evt, hpet_freq, HPET_MIN_PROG_DELTA,
