@@ -66,7 +66,7 @@ bool					boot_hpet_disable;
 bool					hpet_force_user;
 static bool				hpet_verbose;
 
-static struct clock_event_device	hpet_clockevent;
+static struct hpet_channel		hpet_channel0;
 
 static inline
 struct hpet_channel *clockevent_to_channel(struct clock_event_device *evt)
@@ -294,7 +294,7 @@ static void hpet_enable_legacy_int(void)
 	hpet_legacy_int_enabled = true;
 }
 
-static void hpet_legacy_clockevent_register(void)
+static void hpet_legacy_clockevent_register(struct hpet_channel *hc)
 {
 	/* Start HPET legacy interrupts */
 	hpet_enable_legacy_int();
@@ -303,10 +303,10 @@ static void hpet_legacy_clockevent_register(void)
 	 * Start HPET with the boot CPU's cpumask and make it global after
 	 * the IO_APIC has been initialized.
 	 */
-	hpet_clockevent.cpumask = cpumask_of(boot_cpu_data.cpu_index);
-	clockevents_config_and_register(&hpet_clockevent, hpet_freq,
+	hc->evt.cpumask = cpumask_of(boot_cpu_data.cpu_index);
+	clockevents_config_and_register(&hc->evt, hpet_freq,
 					HPET_MIN_PROG_DELTA, 0x7FFFFFFF);
-	global_clock_event = &hpet_clockevent;
+	global_clock_event = &hc->evt;
 	pr_debug("Clockevent registered\n");
 }
 
@@ -433,19 +433,21 @@ static int hpet_legacy_next_event(unsigned long delta,
 }
 
 /*
- * The HPET clock event device
+ * The HPET clock event device wrapped in a channel for conversion
  */
-static struct clock_event_device hpet_clockevent = {
-	.name			= "hpet",
-	.features		= CLOCK_EVT_FEAT_PERIODIC |
-				  CLOCK_EVT_FEAT_ONESHOT,
-	.set_state_periodic	= hpet_legacy_set_periodic,
-	.set_state_oneshot	= hpet_legacy_set_oneshot,
-	.set_state_shutdown	= hpet_legacy_shutdown,
-	.tick_resume		= hpet_legacy_resume,
-	.set_next_event		= hpet_legacy_next_event,
-	.irq			= 0,
-	.rating			= 50,
+static struct hpet_channel hpet_channel0 = {
+	.evt = {
+		.name			= "hpet",
+		.features		= CLOCK_EVT_FEAT_PERIODIC |
+					  CLOCK_EVT_FEAT_ONESHOT,
+		.set_state_periodic	= hpet_legacy_set_periodic,
+		.set_state_oneshot	= hpet_legacy_set_oneshot,
+		.set_state_shutdown	= hpet_legacy_shutdown,
+		.tick_resume		= hpet_legacy_resume,
+		.set_next_event		= hpet_legacy_next_event,
+		.irq			= 0,
+		.rating			= 50,
+	}
 };
 
 /*
@@ -916,7 +918,7 @@ int __init hpet_enable(void)
 	clocksource_register_hz(&clocksource_hpet, (u32)hpet_freq);
 
 	if (id & HPET_ID_LEGSUP) {
-		hpet_legacy_clockevent_register();
+		hpet_legacy_clockevent_register(&hpet_channel0);
 		hpet_base.channels[0].mode = HPET_MODE_LEGACY;
 		if (IS_ENABLED(CONFIG_HPET_EMULATE_RTC))
 			hpet_base.channels[1].mode = HPET_MODE_LEGACY;
@@ -1101,10 +1103,11 @@ int hpet_rtc_timer_init(void)
 		return 0;
 
 	if (!hpet_default_delta) {
+		struct clock_event_device *evt = &hpet_channel0.evt;
 		uint64_t clc;
 
-		clc = (uint64_t) hpet_clockevent.mult * NSEC_PER_SEC;
-		clc >>= hpet_clockevent.shift + DEFAULT_RTC_SHIFT;
+		clc = (uint64_t) evt->mult * NSEC_PER_SEC;
+		clc >>= evt->shift + DEFAULT_RTC_SHIFT;
 		hpet_default_delta = clc;
 	}
 
@@ -1198,9 +1201,11 @@ int hpet_set_periodic_freq(unsigned long freq)
 	if (freq <= DEFAULT_RTC_INT_FREQ) {
 		hpet_pie_limit = DEFAULT_RTC_INT_FREQ / freq;
 	} else {
-		clc = (uint64_t) hpet_clockevent.mult * NSEC_PER_SEC;
+		struct clock_event_device *evt = &hpet_channel0.evt;
+
+		clc = (uint64_t) evt->mult * NSEC_PER_SEC;
 		do_div(clc, freq);
-		clc >>= hpet_clockevent.shift;
+		clc >>= evt->shift;
 		hpet_pie_delta = clc;
 		hpet_pie_limit = 0;
 	}
