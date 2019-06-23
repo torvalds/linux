@@ -823,6 +823,8 @@ static void flush_guest_tlb(struct kvm *kvm)
 				     : : "r" (rb), "i" (1), "i" (1), "i" (0),
 				       "r" (0) : "memory");
 		}
+		asm volatile("ptesync": : :"memory");
+		asm volatile(PPC_RADIX_INVALIDATE_ERAT_GUEST : : :"memory");
 	} else {
 		for (set = 0; set < kvm->arch.tlb_sets; ++set) {
 			/* R=0 PRS=0 RIC=0 */
@@ -831,9 +833,9 @@ static void flush_guest_tlb(struct kvm *kvm)
 				       "r" (0) : "memory");
 			rb += PPC_BIT(51);	/* increment set number */
 		}
+		asm volatile("ptesync": : :"memory");
+		asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT : : :"memory");
 	}
-	asm volatile("ptesync": : :"memory");
-	asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT : : :"memory");
 }
 
 void kvmppc_check_need_tlb_flush(struct kvm *kvm, int pcpu,
