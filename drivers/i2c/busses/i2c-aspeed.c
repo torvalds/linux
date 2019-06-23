@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Aspeed 24XX/25XX I2C Controller.
  *
  *  Copyright (C) 2012-2017 ASPEED Technology Inc.
  *  Copyright 2017 IBM Corporation
  *  Copyright 2017 Google, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>

@@ -18,6 +18,7 @@
 #include <linux/percpu-refcount.h>
 #include <linux/random.h>
 #include <linux/seq_buf.h>
+#include <linux/iommu.h>
 
 struct pci_p2pdma {
 	struct gen_pool *pool;
@@ -298,6 +299,9 @@ static bool root_complex_whitelist(struct pci_dev *dev)
 	struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);
 	struct pci_dev *root = pci_get_slot(host->bus, PCI_DEVFN(0, 0));
 	unsigned short vendor, device;
+
+	if (iommu_present(dev->dev.bus))
+		return false;
 
 	if (!root)
 		return false;

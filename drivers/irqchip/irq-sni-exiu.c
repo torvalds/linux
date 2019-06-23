@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Socionext External Interrupt Unit (EXIU)
  *
@@ -6,10 +7,6 @@
  * Based on irq-tegra.c:
  *   Copyright (C) 2011 Google, Inc.
  *   Copyright (C) 2010,2013, NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/interrupt.h>

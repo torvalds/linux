@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/mach-iop32x/include/mach/iop32x.h
  *
@@ -6,10 +7,6 @@
  * Author: Rory Bolt <rorybolt@pacbell.net>
  * Copyright (C) 2002 Rory Bolt
  * Copyright (C) 2004 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __IOP32X_H
