@@ -540,7 +540,9 @@ static int cpm_i2c_setup(struct cpm_i2c *cpm)
 		}
 		out_be32(&rbdf[i].cbd_bufaddr, ((cpm->rxdma[i] + 1) & ~1));
 
-		cpm->txbuf[i] = (unsigned char *)dma_alloc_coherent(&cpm->ofdev->dev, CPM_MAX_READ + 1, &cpm->txdma[i], GFP_KERNEL);
+		cpm->txbuf[i] = dma_alloc_coherent(&cpm->ofdev->dev,
+						   CPM_MAX_READ + 1,
+						   &cpm->txdma[i], GFP_KERNEL);
 		if (!cpm->txbuf[i]) {
 			ret = -ENOMEM;
 			goto out_muram;
