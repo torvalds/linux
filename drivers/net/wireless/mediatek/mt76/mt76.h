@@ -395,9 +395,7 @@ struct mt76_usb {
 	struct delayed_work stat_work;
 
 	u8 out_ep[__MT_EP_OUT_MAX];
-	u16 out_max_packet;
 	u8 in_ep[__MT_EP_IN_MAX];
-	u16 in_max_packet;
 	bool sg_en;
 
 	struct mt76u_mcu {

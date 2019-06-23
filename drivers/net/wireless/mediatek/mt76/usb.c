@@ -267,12 +267,10 @@ mt76u_set_endpoints(struct usb_interface *intf,
 		if (usb_endpoint_is_bulk_in(ep_desc) &&
 		    in_ep < __MT_EP_IN_MAX) {
 			usb->in_ep[in_ep] = usb_endpoint_num(ep_desc);
-			usb->in_max_packet = usb_endpoint_maxp(ep_desc);
 			in_ep++;
 		} else if (usb_endpoint_is_bulk_out(ep_desc) &&
 			   out_ep < __MT_EP_OUT_MAX) {
 			usb->out_ep[out_ep] = usb_endpoint_num(ep_desc);
-			usb->out_max_packet = usb_endpoint_maxp(ep_desc);
 			out_ep++;
 		}
 	}
