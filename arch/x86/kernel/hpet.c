@@ -809,38 +809,6 @@ static struct clocksource clocksource_hpet = {
 	.resume		= hpet_resume_counter,
 };
 
-static int __init hpet_clocksource_register(void)
-{
-	u64 start, now;
-	u64 t1;
-
-	/* Start the counter */
-	hpet_restart_counter();
-
-	/* Verify whether hpet counter works */
-	t1 = hpet_readl(HPET_COUNTER);
-	start = rdtsc();
-
-	/*
-	 * We don't know the TSC frequency yet, but waiting for
-	 * 200000 TSC cycles is safe:
-	 * 4 GHz == 50us
-	 * 1 GHz == 200us
-	 */
-	do {
-		rep_nop();
-		now = rdtsc();
-	} while ((now - start) < 200000UL);
-
-	if (t1 == hpet_readl(HPET_COUNTER)) {
-		pr_warn("Counter not counting. HPET disabled\n");
-		return -ENODEV;
-	}
-
-	clocksource_register_hz(&clocksource_hpet, (u32)hpet_freq);
-	return 0;
-}
-
 /*
  * AMD SB700 based systems with spread spectrum enabled use a SMM based
  * HPET emulation to provide proper frequency setting.
@@ -869,6 +837,32 @@ static bool __init hpet_cfg_working(void)
 	return false;
 }
 
+static bool __init hpet_counting(void)
+{
+	u64 start, now, t1;
+
+	hpet_restart_counter();
+
+	t1 = hpet_readl(HPET_COUNTER);
+	start = rdtsc();
+
+	/*
+	 * We don't know the TSC frequency yet, but waiting for
+	 * 200000 TSC cycles is safe:
+	 * 4 GHz == 50us
+	 * 1 GHz == 200us
+	 */
+	do {
+		rep_nop();
+		now = rdtsc();
+	} while ((now - start) < 200000UL);
+
+	if (t1 == hpet_readl(HPET_COUNTER)) {
+		pr_warn("Counter not counting. HPET disabled\n");
+		return false;
+	}
+	return true;
+}
 
 /**
  * hpet_enable - Try to setup the HPET timer. Returns 1 on success.
@@ -888,6 +882,10 @@ int __init hpet_enable(void)
 
 	/* Validate that the config register is working */
 	if (!hpet_cfg_working())
+		goto out_nohpet;
+
+	/* Validate that the counter is counting */
+	if (!hpet_counting())
 		goto out_nohpet;
 
 	/*
@@ -948,8 +946,7 @@ int __init hpet_enable(void)
 	}
 	hpet_print_config();
 
-	if (hpet_clocksource_register())
-		goto out_nohpet;
+	clocksource_register_hz(&clocksource_hpet, (u32)hpet_freq);
 
 	if (id & HPET_ID_LEGSUP) {
 		hpet_legacy_clockevent_register();
