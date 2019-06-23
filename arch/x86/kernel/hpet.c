@@ -66,6 +66,9 @@ bool					boot_hpet_disable;
 bool					hpet_force_user;
 static bool				hpet_verbose;
 
+/*
+ * The HPET clock event device wrapped in a channel for conversion
+ */
 static struct hpet_channel		hpet_channel0;
 
 static inline
@@ -294,22 +297,6 @@ static void hpet_enable_legacy_int(void)
 	hpet_legacy_int_enabled = true;
 }
 
-static void hpet_legacy_clockevent_register(struct hpet_channel *hc)
-{
-	/* Start HPET legacy interrupts */
-	hpet_enable_legacy_int();
-
-	/*
-	 * Start HPET with the boot CPU's cpumask and make it global after
-	 * the IO_APIC has been initialized.
-	 */
-	hc->evt.cpumask = cpumask_of(boot_cpu_data.cpu_index);
-	clockevents_config_and_register(&hc->evt, hpet_freq,
-					HPET_MIN_PROG_DELTA, 0x7FFFFFFF);
-	global_clock_event = &hc->evt;
-	pr_debug("Clockevent registered\n");
-}
-
 static int hpet_clkevt_set_state_periodic(struct clock_event_device *evt)
 {
 	unsigned int channel = clockevent_to_channel(evt)->num;
@@ -430,23 +417,57 @@ static void hpet_init_clockevent(struct hpet_channel *hc, unsigned int rating)
 	}
 }
 
-/*
- * The HPET clock event device wrapped in a channel for conversion
- */
-static struct hpet_channel hpet_channel0 = {
-	.evt = {
-		.name			= "hpet",
-		.features		= CLOCK_EVT_FEAT_PERIODIC |
-					  CLOCK_EVT_FEAT_ONESHOT,
-		.set_state_periodic	= hpet_clkevt_set_state_periodic,
-		.set_state_oneshot	= hpet_clkevt_set_state_oneshot,
-		.set_state_shutdown	= hpet_clkevt_set_state_shutdown,
-		.tick_resume		= hpet_clkevt_legacy_resume,
-		.set_next_event		= hpet_clkevt_set_next_event,
-		.irq			= 0,
-		.rating			= 50,
-	}
-};
+static void __init hpet_legacy_clockevent_register(struct hpet_channel *hc)
+{
+	/*
+	 * Start HPET with the boot CPU's cpumask and make it global after
+	 * the IO_APIC has been initialized.
+	 */
+	hc->cpu = boot_cpu_data.cpu_index;
+	strncpy(hc->name, "hpet", sizeof(hc->name));
+	hpet_init_clockevent(hc, 50);
+
+	hc->evt.tick_resume	= hpet_clkevt_legacy_resume;
+
+	/*
+	 * Legacy horrors and sins from the past. HPET used periodic mode
+	 * unconditionally forever on the legacy channel 0. Removing the
+	 * below hack and using the conditional in hpet_init_clockevent()
+	 * makes at least Qemu and one hardware machine fail to boot.
+	 * There are two issues which cause the boot failure:
+	 *
+	 * #1 After the timer delivery test in IOAPIC and the IOAPIC setup
+	 *    the next interrupt is not delivered despite the HPET channel
+	 *    being programmed correctly. Reprogramming the HPET after
+	 *    switching to IOAPIC makes it work again. After fixing this,
+	 *    the next issue surfaces:
+	 *
+	 * #2 Due to the unconditional periodic mode availability the Local
+	 *    APIC timer calibration can hijack the global clockevents
+	 *    event handler without causing damage. Using oneshot at this
+	 *    stage makes if hang because the HPET does not get
+	 *    reprogrammed due to the handler hijacking. Duh, stupid me!
+	 *
+	 * Both issues require major surgery and especially the kick HPET
+	 * again after enabling IOAPIC results in really nasty hackery.
+	 * This 'assume periodic works' magic has survived since HPET
+	 * support got added, so it's questionable whether this should be
+	 * fixed. Both Qemu and the failing hardware machine support
+	 * periodic mode despite the fact that both don't advertise it in
+	 * the configuration register and both need that extra kick after
+	 * switching to IOAPIC. Seems to be a feature...
+	 */
+	hc->evt.features		|= CLOCK_EVT_FEAT_PERIODIC;
+	hc->evt.set_state_periodic	= hpet_clkevt_set_state_periodic;
+
+	/* Start HPET legacy interrupts */
+	hpet_enable_legacy_int();
+
+	clockevents_config_and_register(&hc->evt, hpet_freq,
+					HPET_MIN_PROG_DELTA, 0x7FFFFFFF);
+	global_clock_event = &hc->evt;
+	pr_debug("Clockevent registered\n");
+}
 
 /*
  * HPET MSI Support
