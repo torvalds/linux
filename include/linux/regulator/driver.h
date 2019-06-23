@@ -15,8 +15,6 @@
 #ifndef __LINUX_REGULATOR_DRIVER_H_
 #define __LINUX_REGULATOR_DRIVER_H_
 
-#define MAX_COUPLED		2
-
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/regulator/consumer.h>
@@ -426,7 +424,8 @@ struct regulator_config {
  * incremented.
  */
 struct coupling_desc {
-	struct regulator_dev *coupled_rdevs[MAX_COUPLED];
+	struct regulator_dev **coupled_rdevs;
+	struct regulator_coupler *coupler;
 	int n_resolved;
 	int n_coupled;
 };
@@ -552,4 +551,5 @@ void regulator_unlock(struct regulator_dev *rdev);
  */
 int regulator_desc_list_voltage_linear_range(const struct regulator_desc *desc,
 					     unsigned int selector);
+
 #endif

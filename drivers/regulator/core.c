@@ -28,6 +28,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/consumer.h>
+#include <linux/regulator/coupler.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/module.h>
@@ -55,6 +56,7 @@ static DEFINE_MUTEX(regulator_list_mutex);
 static LIST_HEAD(regulator_map_list);
 static LIST_HEAD(regulator_ena_gpio_list);
 static LIST_HEAD(regulator_supply_alias_list);
+static LIST_HEAD(regulator_coupler_list);
 static bool has_full_constraints;
 
 static struct dentry *debugfs_root;
@@ -3439,11 +3441,10 @@ static int regulator_get_optimal_voltage(struct regulator_dev *rdev,
 	struct coupling_desc *c_desc = &rdev->coupling_desc;
 	struct regulator_dev **c_rdevs = c_desc->coupled_rdevs;
 	struct regulation_constraints *constraints = rdev->constraints;
-	int max_spread = constraints->max_spread;
 	int desired_min_uV = 0, desired_max_uV = INT_MAX;
 	int max_current_uV = 0, min_current_uV = INT_MAX;
 	int highest_min_uV = 0, target_uV, possible_uV;
-	int i, ret;
+	int i, ret, max_spread;
 	bool done;
 
 	*current_uV = -1;
@@ -3496,6 +3497,8 @@ static int regulator_get_optimal_voltage(struct regulator_dev *rdev,
 			desired_max_uV = tmp_max;
 		}
 	}
+
+	max_spread = constraints->max_spread[0];
 
 	/*
 	 * Let target_uV be equal to the desired one if possible.
@@ -3578,9 +3581,11 @@ static int regulator_balance_voltage(struct regulator_dev *rdev,
 	struct regulator_dev **c_rdevs;
 	struct regulator_dev *best_rdev;
 	struct coupling_desc *c_desc = &rdev->coupling_desc;
+	struct regulator_coupler *coupler = c_desc->coupler;
 	int i, ret, n_coupled, best_min_uV, best_max_uV, best_c_rdev;
-	bool best_c_rdev_done, c_rdev_done[MAX_COUPLED];
 	unsigned int delta, best_delta;
+	unsigned long c_rdev_done = 0;
+	bool best_c_rdev_done;
 
 	c_rdevs = c_desc->coupled_rdevs;
 	n_coupled = c_desc->n_coupled;
@@ -3597,8 +3602,9 @@ static int regulator_balance_voltage(struct regulator_dev *rdev,
 		return -EPERM;
 	}
 
-	for (i = 0; i < n_coupled; i++)
-		c_rdev_done[i] = false;
+	/* Invoke custom balancer for customized couplers */
+	if (coupler && coupler->balance_voltage)
+		return coupler->balance_voltage(coupler, rdev, state);
 
 	/*
 	 * Find the best possible voltage change on each loop. Leave the loop
@@ -3625,7 +3631,7 @@ static int regulator_balance_voltage(struct regulator_dev *rdev,
 			 */
 			int optimal_uV = 0, optimal_max_uV = 0, current_uV = 0;
 
-			if (c_rdev_done[i])
+			if (test_bit(i, &c_rdev_done))
 				continue;
 
 			ret = regulator_get_optimal_voltage(c_rdevs[i],
@@ -3660,7 +3666,8 @@ static int regulator_balance_voltage(struct regulator_dev *rdev,
 		if (ret < 0)
 			goto out;
 
-		c_rdev_done[best_c_rdev] = best_c_rdev_done;
+		if (best_c_rdev_done)
+			set_bit(best_c_rdev, &c_rdev_done);
 
 	} while (n_coupled > 1);
 
@@ -4712,8 +4719,60 @@ static int regulator_register_resolve_supply(struct device *dev, void *data)
 	return 0;
 }
 
+int regulator_coupler_register(struct regulator_coupler *coupler)
+{
+	mutex_lock(&regulator_list_mutex);
+	list_add_tail(&coupler->list, &regulator_coupler_list);
+	mutex_unlock(&regulator_list_mutex);
+
+	return 0;
+}
+
+static struct regulator_coupler *
+regulator_find_coupler(struct regulator_dev *rdev)
+{
+	struct regulator_coupler *coupler;
+	int err;
+
+	/*
+	 * Note that regulators are appended to the list and the generic
+	 * coupler is registered first, hence it will be attached at last
+	 * if nobody cared.
+	 */
+	list_for_each_entry_reverse(coupler, &regulator_coupler_list, list) {
+		err = coupler->attach_regulator(coupler, rdev);
+		if (!err) {
+			if (!coupler->balance_voltage &&
+			    rdev->coupling_desc.n_coupled > 2)
+				goto err_unsupported;
+
+			return coupler;
+		}
+
+		if (err < 0)
+			return ERR_PTR(err);
+
+		if (err == 1)
+			continue;
+
+		break;
+	}
+
+	return ERR_PTR(-EINVAL);
+
+err_unsupported:
+	if (coupler->detach_regulator)
+		coupler->detach_regulator(coupler, rdev);
+
+	rdev_err(rdev,
+		"Voltage balancing for multiple regulator couples is unimplemented\n");
+
+	return ERR_PTR(-EPERM);
+}
+
 static void regulator_resolve_coupling(struct regulator_dev *rdev)
 {
+	struct regulator_coupler *coupler = rdev->coupling_desc.coupler;
 	struct coupling_desc *c_desc = &rdev->coupling_desc;
 	int n_coupled = c_desc->n_coupled;
 	struct regulator_dev *c_rdev;
@@ -4729,6 +4788,12 @@ static void regulator_resolve_coupling(struct regulator_dev *rdev)
 		if (!c_rdev)
 			continue;
 
+		if (c_rdev->coupling_desc.coupler != coupler) {
+			rdev_err(rdev, "coupler mismatch with %s\n",
+				 rdev_get_name(c_rdev));
+			return;
+		}
+
 		regulator_lock(c_rdev);
 
 		c_desc->coupled_rdevs[i] = c_rdev;
@@ -4742,10 +4807,12 @@ static void regulator_resolve_coupling(struct regulator_dev *rdev)
 
 static void regulator_remove_coupling(struct regulator_dev *rdev)
 {
+	struct regulator_coupler *coupler = rdev->coupling_desc.coupler;
 	struct coupling_desc *__c_desc, *c_desc = &rdev->coupling_desc;
 	struct regulator_dev *__c_rdev, *c_rdev;
 	unsigned int __n_coupled, n_coupled;
 	int i, k;
+	int err;
 
 	n_coupled = c_desc->n_coupled;
 
@@ -4775,21 +4842,33 @@ static void regulator_remove_coupling(struct regulator_dev *rdev)
 		c_desc->coupled_rdevs[i] = NULL;
 		c_desc->n_resolved--;
 	}
+
+	if (coupler && coupler->detach_regulator) {
+		err = coupler->detach_regulator(coupler, rdev);
+		if (err)
+			rdev_err(rdev, "failed to detach from coupler: %d\n",
+				 err);
+	}
+
+	kfree(rdev->coupling_desc.coupled_rdevs);
+	rdev->coupling_desc.coupled_rdevs = NULL;
 }
 
 static int regulator_init_coupling(struct regulator_dev *rdev)
 {
-	int n_phandles;
+	int err, n_phandles;
+	size_t alloc_size;
 
 	if (!IS_ENABLED(CONFIG_OF))
 		n_phandles = 0;
 	else
 		n_phandles = of_get_n_coupled(rdev);
 
-	if (n_phandles + 1 > MAX_COUPLED) {
-		rdev_err(rdev, "too many regulators coupled\n");
-		return -EPERM;
-	}
+	alloc_size = sizeof(*rdev) * (n_phandles + 1);
+
+	rdev->coupling_desc.coupled_rdevs = kzalloc(alloc_size, GFP_KERNEL);
+	if (!rdev->coupling_desc.coupled_rdevs)
+		return -ENOMEM;
 
 	/*
 	 * Every regulator should always have coupling descriptor filled with
@@ -4803,22 +4882,34 @@ static int regulator_init_coupling(struct regulator_dev *rdev)
 	if (n_phandles == 0)
 		return 0;
 
-	/* regulator, which can't change its voltage, can't be coupled */
-	if (!regulator_ops_is_valid(rdev, REGULATOR_CHANGE_VOLTAGE)) {
-		rdev_err(rdev, "voltage operation not allowed\n");
-		return -EPERM;
-	}
-
-	if (rdev->constraints->max_spread <= 0) {
-		rdev_err(rdev, "wrong max_spread value\n");
-		return -EPERM;
-	}
-
 	if (!of_check_coupling_data(rdev))
 		return -EPERM;
 
+	rdev->coupling_desc.coupler = regulator_find_coupler(rdev);
+	if (IS_ERR(rdev->coupling_desc.coupler)) {
+		err = PTR_ERR(rdev->coupling_desc.coupler);
+		rdev_err(rdev, "failed to get coupler: %d\n", err);
+		return err;
+	}
+
 	return 0;
 }
+
+static int generic_coupler_attach(struct regulator_coupler *coupler,
+				  struct regulator_dev *rdev)
+{
+	if (rdev->coupling_desc.n_coupled > 2) {
+		rdev_err(rdev,
+			 "Voltage balancing for multiple regulator couples is unimplemented\n");
+		return -EPERM;
+	}
+
+	return 0;
+}
+
+static struct regulator_coupler generic_regulator_coupler = {
+	.attach_regulator = generic_coupler_attach,
+};
 
 /**
  * regulator_register - register regulator
@@ -4981,7 +5072,9 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	if (ret < 0)
 		goto wash;
 
+	mutex_lock(&regulator_list_mutex);
 	ret = regulator_init_coupling(rdev);
+	mutex_unlock(&regulator_list_mutex);
 	if (ret < 0)
 		goto wash;
 
@@ -5030,6 +5123,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 unset_supplies:
 	mutex_lock(&regulator_list_mutex);
 	unset_regulator_supplies(rdev);
+	regulator_remove_coupling(rdev);
 	mutex_unlock(&regulator_list_mutex);
 wash:
 	kfree(rdev->constraints);
@@ -5484,6 +5578,8 @@ static int __init regulator_init(void)
 			    NULL, &regulator_summary_fops);
 #endif
 	regulator_dummy_init();
+
+	regulator_coupler_register(&generic_regulator_coupler);
 
 	return ret;
 }
