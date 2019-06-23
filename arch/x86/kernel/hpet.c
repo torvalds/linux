@@ -547,12 +547,10 @@ static int hpet_setup_irq(struct hpet_dev *dev)
 	return 0;
 }
 
-/* This should be called in specific @cpu */
 static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 {
 	struct clock_event_device *evt = &hdev->evt;
 
-	WARN_ON(cpu != smp_processor_id());
 	if (!(hdev->flags & HPET_DEV_VALID))
 		return;
 
@@ -684,36 +682,12 @@ static struct hpet_dev *hpet_get_unused_timer(void)
 	return NULL;
 }
 
-struct hpet_work_struct {
-	struct delayed_work work;
-	struct completion complete;
-};
-
-static void hpet_work(struct work_struct *w)
-{
-	struct hpet_dev *hdev;
-	int cpu = smp_processor_id();
-	struct hpet_work_struct *hpet_work;
-
-	hpet_work = container_of(w, struct hpet_work_struct, work.work);
-
-	hdev = hpet_get_unused_timer();
-	if (hdev)
-		init_one_hpet_msi_clockevent(hdev, cpu);
-
-	complete(&hpet_work->complete);
-}
-
 static int hpet_cpuhp_online(unsigned int cpu)
 {
-	struct hpet_work_struct work;
+	struct hpet_dev *hdev = hpet_get_unused_timer();
 
-	INIT_DELAYED_WORK_ONSTACK(&work.work, hpet_work);
-	init_completion(&work.complete);
-	/* FIXME: add schedule_work_on() */
-	schedule_delayed_work_on(cpu, &work.work, 0);
-	wait_for_completion(&work.complete);
-	destroy_delayed_work_on_stack(&work.work);
+	if (hdev)
+		init_one_hpet_msi_clockevent(hdev, cpu);
 	return 0;
 }
 
@@ -1045,7 +1019,6 @@ static __init int hpet_late_init(void)
 	if (boot_cpu_has(X86_FEATURE_ARAT))
 		return 0;
 
-	/* This notifier should be called after workqueue is ready */
 	ret = cpuhp_setup_state(CPUHP_AP_X86_HPET_ONLINE, "x86/hpet:online",
 				hpet_cpuhp_online, NULL);
 	if (ret)
