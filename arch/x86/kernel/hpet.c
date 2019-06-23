@@ -66,11 +66,6 @@ bool					boot_hpet_disable;
 bool					hpet_force_user;
 static bool				hpet_verbose;
 
-/*
- * The HPET clock event device wrapped in a channel for conversion
- */
-static struct hpet_channel		hpet_channel0;
-
 static inline
 struct hpet_channel *clockevent_to_channel(struct clock_event_device *evt)
 {
@@ -904,7 +899,7 @@ int __init hpet_enable(void)
 	clocksource_register_hz(&clocksource_hpet, (u32)hpet_freq);
 
 	if (id & HPET_ID_LEGSUP) {
-		hpet_legacy_clockevent_register(&hpet_channel0);
+		hpet_legacy_clockevent_register(&hpet_base.channels[0]);
 		hpet_base.channels[0].mode = HPET_MODE_LEGACY;
 		if (IS_ENABLED(CONFIG_HPET_EMULATE_RTC))
 			hpet_base.channels[1].mode = HPET_MODE_LEGACY;
@@ -1089,7 +1084,7 @@ int hpet_rtc_timer_init(void)
 		return 0;
 
 	if (!hpet_default_delta) {
-		struct clock_event_device *evt = &hpet_channel0.evt;
+		struct clock_event_device *evt = &hpet_base.channels[0].evt;
 		uint64_t clc;
 
 		clc = (uint64_t) evt->mult * NSEC_PER_SEC;
@@ -1187,7 +1182,7 @@ int hpet_set_periodic_freq(unsigned long freq)
 	if (freq <= DEFAULT_RTC_INT_FREQ) {
 		hpet_pie_limit = DEFAULT_RTC_INT_FREQ / freq;
 	} else {
-		struct clock_event_device *evt = &hpet_channel0.evt;
+		struct clock_event_device *evt = &hpet_base.channels[0].evt;
 
 		clc = (uint64_t) evt->mult * NSEC_PER_SEC;
 		do_div(clc, freq);
