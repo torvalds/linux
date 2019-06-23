@@ -462,13 +462,6 @@ void hpet_msi_write(struct hpet_dev *hdev, struct msi_msg *msg)
 	hpet_writel(msg->address_lo, HPET_Tn_ROUTE(hdev->num) + 4);
 }
 
-void hpet_msi_read(struct hpet_dev *hdev, struct msi_msg *msg)
-{
-	msg->data = hpet_readl(HPET_Tn_ROUTE(hdev->num));
-	msg->address_lo = hpet_readl(HPET_Tn_ROUTE(hdev->num) + 4);
-	msg->address_hi = 0;
-}
-
 static int hpet_msi_shutdown(struct clock_event_device *evt)
 {
 	struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
