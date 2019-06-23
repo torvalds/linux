@@ -37,8 +37,6 @@
 
 #include <linux/delay.h>
 
-#include <drm/drmP.h>
-#include <drm/mga_drm.h>
 #include "mga_drv.h"
 
 #define MGA_DEFAULT_USEC_TIMEOUT	10000
