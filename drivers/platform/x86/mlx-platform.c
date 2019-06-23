@@ -1710,6 +1710,11 @@ static const struct reg_default mlxplat_mlxcpld_regmap_default[] = {
 	{ MLXPLAT_CPLD_LPC_REG_WD_CLEAR_WP_OFFSET, 0x00 },
 };
 
+static const struct reg_default mlxplat_mlxcpld_regmap_ng[] = {
+	{ MLXPLAT_CPLD_LPC_REG_PWM_CONTROL_OFFSET, 0x00 },
+	{ MLXPLAT_CPLD_LPC_REG_WD_CLEAR_WP_OFFSET, 0x00 },
+};
+
 struct mlxplat_mlxcpld_regmap_context {
 	void __iomem *base;
 };
@@ -1744,6 +1749,20 @@ static const struct regmap_config mlxplat_mlxcpld_regmap_config = {
 	.volatile_reg = mlxplat_mlxcpld_volatile_reg,
 	.reg_defaults = mlxplat_mlxcpld_regmap_default,
 	.num_reg_defaults = ARRAY_SIZE(mlxplat_mlxcpld_regmap_default),
+	.reg_read = mlxplat_mlxcpld_reg_read,
+	.reg_write = mlxplat_mlxcpld_reg_write,
+};
+
+static const struct regmap_config mlxplat_mlxcpld_regmap_config_ng = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 255,
+	.cache_type = REGCACHE_FLAT,
+	.writeable_reg = mlxplat_mlxcpld_writeable_reg,
+	.readable_reg = mlxplat_mlxcpld_readable_reg,
+	.volatile_reg = mlxplat_mlxcpld_volatile_reg,
+	.reg_defaults = mlxplat_mlxcpld_regmap_ng,
+	.num_reg_defaults = ARRAY_SIZE(mlxplat_mlxcpld_regmap_ng),
 	.reg_read = mlxplat_mlxcpld_reg_read,
 	.reg_write = mlxplat_mlxcpld_reg_write,
 };
@@ -1856,6 +1875,7 @@ static int __init mlxplat_dmi_qmb7xx_matched(const struct dmi_system_id *dmi)
 	for (i = 0; i < ARRAY_SIZE(mlxplat_mlxcpld_wd_set_type2); i++)
 		mlxplat_wd_data[i] = &mlxplat_mlxcpld_wd_set_type2[i];
 	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
+	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_ng;
 
 	return 1;
 };
