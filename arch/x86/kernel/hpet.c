@@ -69,9 +69,10 @@ static bool				hpet_verbose;
 
 static struct clock_event_device	hpet_clockevent;
 
-static inline struct hpet_dev *EVT_TO_HPET_DEV(struct clock_event_device *evtdev)
+static inline
+struct hpet_dev *clockevent_to_channel(struct clock_event_device *evt)
 {
-	return container_of(evtdev, struct hpet_dev, evt);
+	return container_of(evt, struct hpet_dev, evt);
 }
 
 inline unsigned int hpet_readl(unsigned int a)
@@ -458,28 +459,22 @@ void hpet_msi_write(struct hpet_dev *hdev, struct msi_msg *msg)
 
 static int hpet_msi_shutdown(struct clock_event_device *evt)
 {
-	struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
-
-	return hpet_shutdown(evt, hdev->num);
+	return hpet_shutdown(evt, clockevent_to_channel(evt)->num);
 }
 
 static int hpet_msi_set_oneshot(struct clock_event_device *evt)
 {
-	struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
-
-	return hpet_set_oneshot(evt, hdev->num);
+	return hpet_set_oneshot(evt, clockevent_to_channel(evt)->num);
 }
 
 static int hpet_msi_set_periodic(struct clock_event_device *evt)
 {
-	struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
-
-	return hpet_set_periodic(evt, hdev->num);
+	return hpet_set_periodic(evt, clockevent_to_channel(evt)->num);
 }
 
 static int hpet_msi_resume(struct clock_event_device *evt)
 {
-	struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
+	struct hpet_dev *hdev = clockevent_to_channel(evt);
 	struct irq_data *data = irq_get_irq_data(hdev->irq);
 	struct msi_msg msg;
 
@@ -491,16 +486,14 @@ static int hpet_msi_resume(struct clock_event_device *evt)
 }
 
 static int hpet_msi_next_event(unsigned long delta,
-				struct clock_event_device *evt)
+			       struct clock_event_device *evt)
 {
-	struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
-
-	return hpet_next_event(delta, hdev->num);
+	return hpet_next_event(delta, clockevent_to_channel(evt)->num);
 }
 
 static irqreturn_t hpet_interrupt_handler(int irq, void *data)
 {
-	struct hpet_dev *dev = (struct hpet_dev *)data;
+	struct hpet_dev *dev = data;
 	struct clock_event_device *hevt = &dev->evt;
 
 	if (!hevt->event_handler) {
