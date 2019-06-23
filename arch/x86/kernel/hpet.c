@@ -559,6 +559,47 @@ static void init_one_hpet_msi_clockevent(struct hpet_dev *hdev, int cpu)
 					0x7FFFFFFF);
 }
 
+static struct hpet_dev *hpet_get_unused_timer(void)
+{
+	int i;
+
+	if (!hpet_devs)
+		return NULL;
+
+	for (i = 0; i < hpet_num_timers; i++) {
+		struct hpet_dev *hdev = &hpet_devs[i];
+
+		if (!(hdev->flags & HPET_DEV_VALID))
+			continue;
+		if (test_and_set_bit(HPET_DEV_USED_BIT,
+			(unsigned long *)&hdev->flags))
+			continue;
+		return hdev;
+	}
+	return NULL;
+}
+
+static int hpet_cpuhp_online(unsigned int cpu)
+{
+	struct hpet_dev *hdev = hpet_get_unused_timer();
+
+	if (hdev)
+		init_one_hpet_msi_clockevent(hdev, cpu);
+	return 0;
+}
+
+static int hpet_cpuhp_dead(unsigned int cpu)
+{
+	struct hpet_dev *hdev = per_cpu(cpu_hpet_dev, cpu);
+
+	if (!hdev)
+		return 0;
+	free_irq(hdev->irq, hdev);
+	hdev->flags &= ~HPET_DEV_USED;
+	per_cpu(cpu_hpet_dev, cpu) = NULL;
+	return 0;
+}
+
 #ifdef CONFIG_HPET
 /* Reserve at least one timer for userspace (/dev/hpet) */
 #define RESERVE_TIMERS 1
@@ -644,46 +685,6 @@ static void __init hpet_reserve_msi_timers(struct hpet_data *hd)
 }
 #endif
 
-static struct hpet_dev *hpet_get_unused_timer(void)
-{
-	int i;
-
-	if (!hpet_devs)
-		return NULL;
-
-	for (i = 0; i < hpet_num_timers; i++) {
-		struct hpet_dev *hdev = &hpet_devs[i];
-
-		if (!(hdev->flags & HPET_DEV_VALID))
-			continue;
-		if (test_and_set_bit(HPET_DEV_USED_BIT,
-			(unsigned long *)&hdev->flags))
-			continue;
-		return hdev;
-	}
-	return NULL;
-}
-
-static int hpet_cpuhp_online(unsigned int cpu)
-{
-	struct hpet_dev *hdev = hpet_get_unused_timer();
-
-	if (hdev)
-		init_one_hpet_msi_clockevent(hdev, cpu);
-	return 0;
-}
-
-static int hpet_cpuhp_dead(unsigned int cpu)
-{
-	struct hpet_dev *hdev = per_cpu(cpu_hpet_dev, cpu);
-
-	if (!hdev)
-		return 0;
-	free_irq(hdev->irq, hdev);
-	hdev->flags &= ~HPET_DEV_USED;
-	per_cpu(cpu_hpet_dev, cpu) = NULL;
-	return 0;
-}
 #else
 
 static inline void hpet_msi_capability_lookup(unsigned int start_timer) { }
