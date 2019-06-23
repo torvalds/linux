@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	LED Flash class driver for the AAT1290
  *	1.5A Step-Up Current Regulator for Flash LEDs
  *
  *	Copyright (C) 2015, Samsung Electronics Co., Ltd.
  *	Author: Jacek Anaszewski <j.anaszewski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>

@@ -100,6 +100,9 @@ int imx_scu_irq_group_enable(u8 group, u32 mask, u8 enable)
 	struct imx_sc_rpc_msg *hdr = &msg.hdr;
 	int ret;
 
+	if (!imx_sc_irq_ipc_handle)
+		return -EPROBE_DEFER;
+
 	hdr->ver = IMX_SC_RPC_VERSION;
 	hdr->svc = IMX_SC_RPC_SVC_IRQ;
 	hdr->func = IMX_SC_IRQ_FUNC_ENABLE;

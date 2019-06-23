@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Common power driver for PDAs and phones with one or two external
  * power supplies (AC/USB) connected to main and backup batteries,
  * and optional builtin charger.
  *
  * Copyright © 2007 Anton Vorontsov <cbou@mail.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __PDA_POWER_H__

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hardware modules present on the OMAP44xx chips
  *
@@ -14,10 +15,6 @@
  * up-to-date with the file contents.
  * Note that this file is currently not in sync with autogeneration scripts.
  * The above note to be removed, once it is synced up.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/io.h>

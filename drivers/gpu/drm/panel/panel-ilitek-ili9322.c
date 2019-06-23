@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ilitek ILI9322 TFT LCD drm_panel driver.
  *
@@ -16,10 +17,6 @@
  *
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  * Derived from drivers/drm/gpu/panel/panel-samsung-ld9040.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <drm/drmP.h>

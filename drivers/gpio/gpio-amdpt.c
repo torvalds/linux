@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Promontory GPIO driver
  *
  * Copyright (C) 2015 ASMedia Technology Inc.
  * Author: YD Tseng <yd_tseng@asmedia.com.tw>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
