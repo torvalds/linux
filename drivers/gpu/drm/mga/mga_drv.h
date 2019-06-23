@@ -31,7 +31,20 @@
 #ifndef __MGA_DRV_H__
 #define __MGA_DRV_H__
 
+#include <linux/irqreturn.h>
+#include <linux/slab.h>
+
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#include <drm/drm_irq.h>
 #include <drm/drm_legacy.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_print.h>
+#include <drm/drm_sarea.h>
+#include <drm/drm_vblank.h>
+#include <drm/mga_drm.h>
 
 /* General customization:
  */
