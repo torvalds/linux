@@ -22,9 +22,17 @@ struct hpet_dev {
 	char				name[10];
 };
 
+enum hpet_mode {
+	HPET_MODE_UNUSED,
+	HPET_MODE_LEGACY,
+	HPET_MODE_CLOCKEVT,
+	HPET_MODE_DEVICE,
+};
+
 struct hpet_channel {
 	unsigned int			num;
 	unsigned int			irq;
+	enum hpet_mode			mode;
 	unsigned int			boot_cfg;
 };
 
@@ -947,6 +955,9 @@ int __init hpet_enable(void)
 
 	if (id & HPET_ID_LEGSUP) {
 		hpet_legacy_clockevent_register();
+		hpet_base.channels[0].mode = HPET_MODE_LEGACY;
+		if (IS_ENABLED(CONFIG_HPET_EMULATE_RTC))
+			hpet_base.channels[1].mode = HPET_MODE_LEGACY;
 		return 1;
 	}
 	return 0;
