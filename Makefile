@@ -1292,12 +1292,16 @@ modules: $(vmlinux-dirs) $(if $(KBUILD_BUILTIN),vmlinux) modules.builtin
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/modules-check.sh
 
-modules.builtin: $(vmlinux-dirs:%=%/modules.builtin)
-	$(Q)$(AWK) '!x[$$0]++' $^ > $(objtree)/modules.builtin
+modbuiltin-dirs := $(addprefix _modbuiltin_, $(vmlinux-dirs))
 
-%/modules.builtin: include/config/auto.conf include/config/tristate.conf
-	$(Q)$(MAKE) $(modbuiltin)=$*
+modules.builtin: $(modbuiltin-dirs)
+	$(Q)$(AWK) '!x[$$0]++' $(addsuffix /$@, $(vmlinux-dirs)) > $@
 
+PHONY += $(modbuiltin-dirs)
+# tristate.conf is not included from this Makefile. Add it as a prerequisite
+# here to make it self-healing in case somebody accidentally removes it.
+$(modbuiltin-dirs): include/config/tristate.conf
+	$(Q)$(MAKE) $(modbuiltin)=$(patsubst _modbuiltin_%,%,$@)
 
 # Target to prepare building external modules
 PHONY += modules_prepare
