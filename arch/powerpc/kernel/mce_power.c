@@ -95,8 +95,7 @@ static void flush_erat(void)
 		return;
 	}
 #endif
-	/* PPC_INVALIDATE_ERAT can only be used on ISA v3 and newer */
-	asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
+	asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT : : :"memory");
 }
 
 #define MCE_FLUSH_SLB 1
