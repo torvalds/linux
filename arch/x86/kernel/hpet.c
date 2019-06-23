@@ -121,7 +121,7 @@ static inline int is_hpet_capable(void)
 }
 
 /**
- * is_hpet_enabled - check whether the hpet timer interrupt is enabled
+ * is_hpet_enabled - Check whether the legacy HPET timer interrupt is enabled
  */
 int is_hpet_enabled(void)
 {
@@ -164,7 +164,7 @@ do {								\
 } while (0)
 
 /*
- * When the hpet driver (/dev/hpet) is enabled, we need to reserve
+ * When the HPET driver (/dev/hpet) is enabled, we need to reserve
  * timer 0 and timer 1 in case of RTC emulation.
  */
 #ifdef CONFIG_HPET
@@ -212,7 +212,7 @@ static void __init hpet_reserve_platform_timers(unsigned int id)
 static void hpet_reserve_platform_timers(unsigned int id) { }
 #endif
 
-/* Common hpet functions */
+/* Common HPET functions */
 static void hpet_stop_counter(void)
 {
 	u32 cfg = hpet_readl(HPET_CFG);
@@ -266,7 +266,7 @@ static void hpet_legacy_clockevent_register(void)
 	hpet_enable_legacy_int();
 
 	/*
-	 * Start hpet with the boot cpu mask and make it
+	 * Start HPET with the boot cpu mask and make it
 	 * global after the IO_APIC has been initialized.
 	 */
 	hpet_clockevent.cpumask = cpumask_of(boot_cpu_data.cpu_index);
@@ -399,7 +399,7 @@ static int hpet_legacy_next_event(unsigned long delta,
 }
 
 /*
- * The hpet clock event device
+ * The HPET clock event device
  */
 static struct clock_event_device hpet_clockevent = {
 	.name			= "hpet",
@@ -484,14 +484,14 @@ static int hpet_msi_next_event(unsigned long delta,
 static irqreturn_t hpet_interrupt_handler(int irq, void *data)
 {
 	struct hpet_dev *dev = data;
-	struct clock_event_device *hevt = &dev->evt;
+	struct clock_event_device *evt = &dev->evt;
 
-	if (!hevt->event_handler) {
+	if (!evt->event_handler) {
 		pr_info("Spurious interrupt HPET timer %d\n", dev->num);
 		return IRQ_HANDLED;
 	}
 
-	hevt->event_handler(hevt);
+	evt->event_handler(evt);
 	return IRQ_HANDLED;
 }
 
@@ -703,7 +703,7 @@ static inline void hpet_reserve_msi_timers(struct hpet_data *hd) { }
  * with its associated locking overhead. And we also need 64-bit atomic
  * read.
  *
- * The lock and the hpet value are stored together and can be read in a
+ * The lock and the HPET value are stored together and can be read in a
  * single atomic 64-bit read. It is explicitly assumed that arch_spinlock_t
  * is 32 bits in size.
  */
@@ -1053,7 +1053,7 @@ static unsigned long hpet_pie_limit;
 static rtc_irq_handler irq_handler;
 
 /*
- * Check that the hpet counter c1 is ahead of the c2
+ * Check that the HPET counter c1 is ahead of the c2
  */
 static inline int hpet_cnt_ahead(u32 c1, u32 c2)
 {
