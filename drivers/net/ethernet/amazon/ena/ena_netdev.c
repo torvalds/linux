@@ -1839,8 +1839,8 @@ err_setup_tx:
 		if (cur_rx_ring_size >= cur_tx_ring_size)
 			new_rx_ring_size = cur_rx_ring_size / 2;
 
-		if (cur_tx_ring_size < ENA_MIN_RING_SIZE ||
-		    cur_rx_ring_size < ENA_MIN_RING_SIZE) {
+		if (new_tx_ring_size < ENA_MIN_RING_SIZE ||
+		    new_rx_ring_size < ENA_MIN_RING_SIZE) {
 			netif_err(adapter, ifup, adapter->netdev,
 				  "Queue creation failed with the smallest possible queue size of %d for both queues. Not retrying with smaller queues\n",
 				  ENA_MIN_RING_SIZE);
