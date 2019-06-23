@@ -853,15 +853,13 @@ static bool __init hpet_counting(void)
 	 * 1 GHz == 200us
 	 */
 	do {
-		rep_nop();
+		if (t1 != hpet_readl(HPET_COUNTER))
+			return true;
 		now = rdtsc();
 	} while ((now - start) < 200000UL);
 
-	if (t1 == hpet_readl(HPET_COUNTER)) {
-		pr_warn("Counter not counting. HPET disabled\n");
-		return false;
-	}
-	return true;
+	pr_warn("Counter not counting. HPET disabled\n");
+	return false;
 }
 
 /**
