@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the ICST307 VCO clock found in the ARM Reference designs.
  * We wrap the custom interface from <asm/hardware/icst.h> into the generic
  * clock framework.
  *
  * Copyright (C) 2012-2015 Linus Walleij
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * TODO: when all ARM reference designs are migrated to generic clocks, the
  * ICST clock code from the ARM tree should probably be merged into this

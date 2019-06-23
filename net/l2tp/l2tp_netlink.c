@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * L2TP netlink layer, for management
  *
@@ -8,10 +9,6 @@
  * Copyright (c) 2007 Samuel Ortiz <samuel@sortiz.org>
  * which is in turn partly based on the wireless netlink code:
  * Copyright 2006 Johannes Berg <johannes@sipsolutions.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

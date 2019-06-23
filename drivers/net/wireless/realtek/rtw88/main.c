@@ -162,7 +162,8 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	rtwdev->stats.tx_cnt = 0;
 	rtwdev->stats.rx_cnt = 0;
 
-	rtw_iterate_vifs(rtwdev, rtw_vif_watch_dog_iter, &data);
+	/* use atomic version to avoid taking local->iflist_mtx mutex */
+	rtw_iterate_vifs_atomic(rtwdev, rtw_vif_watch_dog_iter, &data);
 
 	/* fw supports only one station associated to enter lps, if there are
 	 * more than two stations associated to the AP, then we can not enter

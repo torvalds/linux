@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/pinctrl/pinmux-falcon.c
  *  based on linux/drivers/pinctrl/pinmux-pxa910.c
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  *
  *  Copyright (C) 2012 Thomas Langer <thomas.langer@lantiq.com>
  *  Copyright (C) 2012 John Crispin <john@phrozen.org>

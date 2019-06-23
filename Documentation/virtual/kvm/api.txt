@@ -1079,7 +1079,7 @@ yet and must be cleared on entry.
 
 4.35 KVM_SET_USER_MEMORY_REGION
 
-Capability: KVM_CAP_USER_MEM
+Capability: KVM_CAP_USER_MEMORY
 Architectures: all
 Type: vm ioctl
 Parameters: struct kvm_userspace_memory_region (in)
@@ -3857,43 +3857,59 @@ Type: vcpu ioctl
 Parameters: struct kvm_nested_state (in/out)
 Returns: 0 on success, -1 on error
 Errors:
-  E2BIG:     the total state size (including the fixed-size part of struct
-             kvm_nested_state) exceeds the value of 'size' specified by
+  E2BIG:     the total state size exceeds the value of 'size' specified by
              the user; the size required will be written into size.
 
 struct kvm_nested_state {
 	__u16 flags;
 	__u16 format;
 	__u32 size;
+
 	union {
-		struct kvm_vmx_nested_state vmx;
-		struct kvm_svm_nested_state svm;
+		struct kvm_vmx_nested_state_hdr vmx;
+		struct kvm_svm_nested_state_hdr svm;
+
+		/* Pad the header to 128 bytes.  */
 		__u8 pad[120];
-	};
-	__u8 data[0];
+	} hdr;
+
+	union {
+		struct kvm_vmx_nested_state_data vmx[0];
+		struct kvm_svm_nested_state_data svm[0];
+	} data;
 };
 
 #define KVM_STATE_NESTED_GUEST_MODE	0x00000001
 #define KVM_STATE_NESTED_RUN_PENDING	0x00000002
+#define KVM_STATE_NESTED_EVMCS		0x00000004
 
-#define KVM_STATE_NESTED_SMM_GUEST_MODE	0x00000001
-#define KVM_STATE_NESTED_SMM_VMXON	0x00000002
+#define KVM_STATE_NESTED_FORMAT_VMX		0
+#define KVM_STATE_NESTED_FORMAT_SVM		1
 
-struct kvm_vmx_nested_state {
+#define KVM_STATE_NESTED_VMX_VMCS_SIZE		0x1000
+
+#define KVM_STATE_NESTED_VMX_SMM_GUEST_MODE	0x00000001
+#define KVM_STATE_NESTED_VMX_SMM_VMXON		0x00000002
+
+struct kvm_vmx_nested_state_hdr {
 	__u64 vmxon_pa;
-	__u64 vmcs_pa;
+	__u64 vmcs12_pa;
 
 	struct {
 		__u16 flags;
 	} smm;
 };
 
+struct kvm_vmx_nested_state_data {
+	__u8 vmcs12[KVM_STATE_NESTED_VMX_VMCS_SIZE];
+	__u8 shadow_vmcs12[KVM_STATE_NESTED_VMX_VMCS_SIZE];
+};
+
 This ioctl copies the vcpu's nested virtualization state from the kernel to
 userspace.
 
-The maximum size of the state, including the fixed-size part of struct
-kvm_nested_state, can be retrieved by passing KVM_CAP_NESTED_STATE to
-the KVM_CHECK_EXTENSION ioctl().
+The maximum size of the state can be retrieved by passing KVM_CAP_NESTED_STATE
+to the KVM_CHECK_EXTENSION ioctl().
 
 4.115 KVM_SET_NESTED_STATE
 
@@ -3903,8 +3919,8 @@ Type: vcpu ioctl
 Parameters: struct kvm_nested_state (in)
 Returns: 0 on success, -1 on error
 
-This copies the vcpu's kvm_nested_state struct from userspace to the kernel.  For
-the definition of struct kvm_nested_state, see KVM_GET_NESTED_STATE.
+This copies the vcpu's kvm_nested_state struct from userspace to the kernel.
+For the definition of struct kvm_nested_state, see KVM_GET_NESTED_STATE.
 
 4.116 KVM_(UN)REGISTER_COALESCED_MMIO
 

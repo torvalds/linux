@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * 10G controller driver for Samsung EXYNOS SoCs
  *
@@ -5,10 +6,6 @@
  *		http://www.samsung.com
  *
  * Author: Siva Reddy Kallam <siva.kallam@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __SXGBE_PLATFORM_H__
 #define __SXGBE_PLATFORM_H__

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Copyright (C) 2006 Juergen Beisert, Pengutronix
  * Copyright (C) 2008 Guennadi Liakhovetski, Pengutronix
  * Copyright (C) 2009 Wolfram Sang, Pengutronix
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The Maxim MAX7300/1 device is an I2C/SPI driven GPIO expander. There are
  * 28 GPIOs. 8 of them can trigger an interrupt. See datasheet for more

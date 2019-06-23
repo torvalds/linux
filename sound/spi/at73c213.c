@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for AT73C213 16-bit stereo DAC connected to Atmel SSC
  *
  * Copyright (C) 2006-2007 Atmel Norway
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 /*#define DEBUG*/

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Synaptics TouchPad PS/2 mouse driver
  *
@@ -15,10 +16,6 @@
  *   Copyright (c) 1997 C. Scott Ananian <cananian@alumni.priceton.edu>
  *   Copyright (c) 1998-2000 Bruce Kalk <kall@compass.com>
  *     code for the special synaptics commands (from the tpconfig-source)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Trademarks are the property of their respective owners.
  */
@@ -179,6 +176,8 @@ static const char * const smbus_pnp_ids[] = {
 	"LEN0096", /* X280 */
 	"LEN0097", /* X280 -> ALPS trackpoint */
 	"LEN200f", /* T450s */
+	"LEN2054", /* E480 */
+	"LEN2055", /* E580 */
 	"SYN3052", /* HP EliteBook 840 G4 */
 	"SYN3221", /* HP 15-ay000 */
 	NULL

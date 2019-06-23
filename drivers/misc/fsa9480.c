@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fsa9480.c - FSA9480 micro USB switch device driver
  *
  * Copyright (C) 2010 Samsung Electronics
  * Minkyu Kang <mk7.kang@samsung.com>
  * Wonguk Jeong <wonguk.jeong@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>

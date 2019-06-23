@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Disk protection for HP/DELL machines.
  *
  * Copyright 2008 Eric Piel
  * Copyright 2009 Pavel Machek <pavel@ucw.cz>
  * Copyright 2012 Sonal Santan
  * Copyright 2014 Pali Rohár <pali.rohar@gmail.com>
- *
- * GPLv2.
  */
 
 #include <stdio.h>

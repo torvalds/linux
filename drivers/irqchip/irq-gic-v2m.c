@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ARM GIC v2m MSI(-X) support
  * Support for Message Signaled Interrupts for systems that
@@ -7,10 +8,6 @@
  * Authors: Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
  *	    Harish Kasiviswanathan <harish.kasiviswanathan@amd.com>
  *	    Brandon Anderson <brandon.anderson@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) "GICv2m: " fmt
