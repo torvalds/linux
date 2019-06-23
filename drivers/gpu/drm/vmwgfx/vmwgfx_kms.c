@@ -25,12 +25,16 @@
  *
  **************************************************************************/
 
-#include "vmwgfx_kms.h"
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_rect.h>
 #include <drm/drm_damage_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_rect.h>
+#include <drm/drm_sysfs.h>
+#include <drm/drm_vblank.h>
+
+#include "vmwgfx_kms.h"
 
 /* Might need a hrtimer here? */
 #define VMWGFX_PRESENT_RATE ((HZ / 60 > 0) ? HZ / 60 : 1)
