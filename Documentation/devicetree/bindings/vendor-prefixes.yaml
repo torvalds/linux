@@ -839,6 +839,8 @@ patternProperties:
     description: Sinlinx Electronics Technology Co., LTD
   "^sinovoip,.*":
     description: SinoVoip Co., Ltd
+  "^sipeed,.*":
+    description: Shenzhen Sipeed Technology Co., Ltd.
   "^sirf,.*":
     description: SiRF Technology, Inc.
   "^sis,.*":
