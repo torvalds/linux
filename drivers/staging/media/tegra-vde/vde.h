@@ -9,16 +9,20 @@
 #define TEGRA_VDE_H
 
 #include <linux/completion.h>
+#include <linux/dma-direction.h>
+#include <linux/list.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/iova.h>
 
 struct clk;
+struct dma_buf;
 struct gen_pool;
 struct iommu_group;
 struct iommu_domain;
 struct reset_control;
+struct dma_buf_attachment;
 
 struct tegra_vde {
 	void __iomem *sxe;
@@ -31,6 +35,8 @@ struct tegra_vde {
 	void __iomem *vdma;
 	void __iomem *frameid;
 	struct mutex lock;
+	struct mutex map_lock;
+	struct list_head map_list;
 	struct miscdevice miscdev;
 	struct reset_control *rst;
 	struct reset_control *rst_mc;
@@ -51,9 +57,19 @@ void tegra_vde_iommu_deinit(struct tegra_vde *vde);
 int tegra_vde_iommu_map(struct tegra_vde *vde,
 			struct sg_table *sgt,
 			struct iova **iovap,
-			dma_addr_t *addrp,
 			size_t size);
 void tegra_vde_iommu_unmap(struct tegra_vde *vde, struct iova *iova);
+
+int tegra_vde_dmabuf_cache_map(struct tegra_vde *vde,
+			       struct dma_buf *dmabuf,
+			       enum dma_data_direction dma_dir,
+			       struct dma_buf_attachment **ap,
+			       dma_addr_t *addrp);
+void tegra_vde_dmabuf_cache_unmap(struct tegra_vde *vde,
+				  struct dma_buf_attachment *a,
+				  bool release);
+void tegra_vde_dmabuf_cache_unmap_sync(struct tegra_vde *vde);
+void tegra_vde_dmabuf_cache_unmap_all(struct tegra_vde *vde);
 
 static __maybe_unused char const *
 tegra_vde_reg_base_name(struct tegra_vde *vde, void __iomem *base)

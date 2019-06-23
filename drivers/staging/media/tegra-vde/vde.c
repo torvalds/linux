@@ -11,6 +11,7 @@
 #include <linux/genalloc.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
+#include <linux/list.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -37,18 +38,10 @@
 #define BSE_DMA_BUSY		BIT(23)
 
 struct video_frame {
-	struct iova *y_iova;
-	struct iova *cb_iova;
-	struct iova *cr_iova;
-	struct iova *aux_iova;
 	struct dma_buf_attachment *y_dmabuf_attachment;
 	struct dma_buf_attachment *cb_dmabuf_attachment;
 	struct dma_buf_attachment *cr_dmabuf_attachment;
 	struct dma_buf_attachment *aux_dmabuf_attachment;
-	struct sg_table *y_sgt;
-	struct sg_table *cb_sgt;
-	struct sg_table *cr_sgt;
-	struct sg_table *aux_sgt;
 	dma_addr_t y_addr;
 	dma_addr_t cb_addr;
 	dma_addr_t cr_addr;
@@ -494,22 +487,6 @@ static void tegra_vde_decode_frame(struct tegra_vde *vde,
 			 vde->sxe, 0x00);
 }
 
-static void tegra_vde_detach_and_put_dmabuf(struct tegra_vde *vde,
-					    enum dma_data_direction dma_dir,
-					    struct dma_buf_attachment *a,
-					    struct sg_table *sgt,
-					    struct iova *iova)
-{
-	struct dma_buf *dmabuf = a->dmabuf;
-
-	if (vde->domain)
-		tegra_vde_iommu_unmap(vde, iova);
-
-	dma_buf_unmap_attachment(a, sgt, dma_dir);
-	dma_buf_detach(dmabuf, a);
-	dma_buf_put(dmabuf);
-}
-
 static int tegra_vde_attach_dmabuf(struct tegra_vde *vde,
 				   int fd,
 				   unsigned long offset,
@@ -517,15 +494,11 @@ static int tegra_vde_attach_dmabuf(struct tegra_vde *vde,
 				   size_t align_size,
 				   struct dma_buf_attachment **a,
 				   dma_addr_t *addrp,
-				   struct sg_table **s,
-				   struct iova **iovap,
 				   size_t *size,
 				   enum dma_data_direction dma_dir)
 {
 	struct device *dev = vde->miscdev.parent;
-	struct dma_buf_attachment *attachment;
 	struct dma_buf *dmabuf;
-	struct sg_table *sgt;
 	int err;
 
 	dmabuf = dma_buf_get(fd);
@@ -546,49 +519,17 @@ static int tegra_vde_attach_dmabuf(struct tegra_vde *vde,
 		return -EINVAL;
 	}
 
-	attachment = dma_buf_attach(dmabuf, dev);
-	if (IS_ERR(attachment)) {
-		dev_err(dev, "Failed to attach dmabuf\n");
-		err = PTR_ERR(attachment);
+	err = tegra_vde_dmabuf_cache_map(vde, dmabuf, dma_dir, a, addrp);
+	if (err)
 		goto err_put;
-	}
-
-	sgt = dma_buf_map_attachment(attachment, dma_dir);
-	if (IS_ERR(sgt)) {
-		dev_err(dev, "Failed to get dmabufs sg_table\n");
-		err = PTR_ERR(sgt);
-		goto err_detach;
-	}
-
-	if (!vde->domain && sgt->nents > 1) {
-		dev_err(dev, "Sparse DMA region is unsupported, please enable IOMMU\n");
-		err = -EINVAL;
-		goto err_unmap;
-	}
-
-	if (vde->domain) {
-		err = tegra_vde_iommu_map(vde, sgt, iovap, addrp, dmabuf->size);
-		if (err) {
-			dev_err(dev, "IOMMU mapping failed: %d\n", err);
-			goto err_unmap;
-		}
-	} else {
-		*addrp = sg_dma_address(sgt->sgl);
-	}
 
 	*addrp = *addrp + offset;
-	*a = attachment;
-	*s = sgt;
 
 	if (size)
 		*size = dmabuf->size - offset;
 
 	return 0;
 
-err_unmap:
-	dma_buf_unmap_attachment(attachment, sgt, dma_dir);
-err_detach:
-	dma_buf_detach(dmabuf, attachment);
 err_put:
 	dma_buf_put(dmabuf);
 
@@ -608,8 +549,6 @@ static int tegra_vde_attach_dmabufs_to_frame(struct tegra_vde *vde,
 				      src->y_offset, lsize, SZ_256,
 				      &frame->y_dmabuf_attachment,
 				      &frame->y_addr,
-				      &frame->y_sgt,
-				      &frame->y_iova,
 				      NULL, dma_dir);
 	if (err)
 		return err;
@@ -618,8 +557,6 @@ static int tegra_vde_attach_dmabufs_to_frame(struct tegra_vde *vde,
 				      src->cb_offset, csize, SZ_256,
 				      &frame->cb_dmabuf_attachment,
 				      &frame->cb_addr,
-				      &frame->cb_sgt,
-				      &frame->cb_iova,
 				      NULL, dma_dir);
 	if (err)
 		goto err_release_y;
@@ -628,8 +565,6 @@ static int tegra_vde_attach_dmabufs_to_frame(struct tegra_vde *vde,
 				      src->cr_offset, csize, SZ_256,
 				      &frame->cr_dmabuf_attachment,
 				      &frame->cr_addr,
-				      &frame->cr_sgt,
-				      &frame->cr_iova,
 				      NULL, dma_dir);
 	if (err)
 		goto err_release_cb;
@@ -643,8 +578,6 @@ static int tegra_vde_attach_dmabufs_to_frame(struct tegra_vde *vde,
 				      src->aux_offset, csize, SZ_256,
 				      &frame->aux_dmabuf_attachment,
 				      &frame->aux_addr,
-				      &frame->aux_sgt,
-				      &frame->aux_iova,
 				      NULL, dma_dir);
 	if (err)
 		goto err_release_cr;
@@ -652,20 +585,11 @@ static int tegra_vde_attach_dmabufs_to_frame(struct tegra_vde *vde,
 	return 0;
 
 err_release_cr:
-	tegra_vde_detach_and_put_dmabuf(vde, dma_dir,
-					frame->cr_dmabuf_attachment,
-					frame->cr_sgt,
-					frame->cr_iova);
+	tegra_vde_dmabuf_cache_unmap(vde, frame->cr_dmabuf_attachment, true);
 err_release_cb:
-	tegra_vde_detach_and_put_dmabuf(vde, dma_dir,
-					frame->cb_dmabuf_attachment,
-					frame->cb_sgt,
-					frame->cb_iova);
+	tegra_vde_dmabuf_cache_unmap(vde, frame->cb_dmabuf_attachment, true);
 err_release_y:
-	tegra_vde_detach_and_put_dmabuf(vde, dma_dir,
-					frame->y_dmabuf_attachment,
-					frame->y_sgt,
-					frame->y_iova);
+	tegra_vde_dmabuf_cache_unmap(vde, frame->y_dmabuf_attachment, true);
 
 	return err;
 }
@@ -673,28 +597,16 @@ err_release_y:
 static void tegra_vde_release_frame_dmabufs(struct tegra_vde *vde,
 					    struct video_frame *frame,
 					    enum dma_data_direction dma_dir,
-					    bool baseline_profile)
+					    bool baseline_profile,
+					    bool release)
 {
 	if (!baseline_profile)
-		tegra_vde_detach_and_put_dmabuf(vde, dma_dir,
-						frame->aux_dmabuf_attachment,
-						frame->aux_sgt,
-						frame->aux_iova);
+		tegra_vde_dmabuf_cache_unmap(vde, frame->aux_dmabuf_attachment,
+					     release);
 
-	tegra_vde_detach_and_put_dmabuf(vde, dma_dir,
-					frame->cr_dmabuf_attachment,
-					frame->cr_sgt,
-					frame->cr_iova);
-
-	tegra_vde_detach_and_put_dmabuf(vde, dma_dir,
-					frame->cb_dmabuf_attachment,
-					frame->cb_sgt,
-					frame->cb_iova);
-
-	tegra_vde_detach_and_put_dmabuf(vde, dma_dir,
-					frame->y_dmabuf_attachment,
-					frame->y_sgt,
-					frame->y_iova);
+	tegra_vde_dmabuf_cache_unmap(vde, frame->cr_dmabuf_attachment, release);
+	tegra_vde_dmabuf_cache_unmap(vde, frame->cb_dmabuf_attachment, release);
+	tegra_vde_dmabuf_cache_unmap(vde, frame->y_dmabuf_attachment, release);
 }
 
 static int tegra_vde_validate_frame(struct device *dev,
@@ -786,8 +698,6 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 	struct tegra_vde_h264_frame __user *frames_user;
 	struct video_frame *dpb_frames;
 	struct dma_buf_attachment *bitstream_data_dmabuf_attachment;
-	struct sg_table *bitstream_sgt;
-	struct iova *bitstream_iova;
 	enum dma_data_direction dma_dir;
 	dma_addr_t bitstream_data_addr;
 	dma_addr_t bsev_ptr;
@@ -812,8 +722,6 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 				      SZ_16K, SZ_16K,
 				      &bitstream_data_dmabuf_attachment,
 				      &bitstream_data_addr,
-				      &bitstream_sgt,
-				      &bitstream_iova,
 				      &bitstream_data_size,
 				      DMA_TO_DEVICE);
 	if (ret)
@@ -944,7 +852,7 @@ release_dpb_frames:
 		dma_dir = (i == 0) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
 		tegra_vde_release_frame_dmabufs(vde, &dpb_frames[i], dma_dir,
-						ctx.baseline_profile);
+						ctx.baseline_profile, ret != 0);
 	}
 
 free_dpb_frames:
@@ -954,10 +862,8 @@ free_frames:
 	kfree(frames);
 
 release_bitstream_dmabuf:
-	tegra_vde_detach_and_put_dmabuf(vde, DMA_TO_DEVICE,
-					bitstream_data_dmabuf_attachment,
-					bitstream_sgt,
-					bitstream_iova);
+	tegra_vde_dmabuf_cache_unmap(vde, bitstream_data_dmabuf_attachment,
+				     ret != 0);
 
 	return ret;
 }
@@ -979,9 +885,21 @@ static long tegra_vde_unlocked_ioctl(struct file *filp,
 	return -ENOTTY;
 }
 
+static int tegra_vde_release_file(struct inode *inode, struct file *filp)
+{
+	struct miscdevice *miscdev = filp->private_data;
+	struct tegra_vde *vde = container_of(miscdev, struct tegra_vde,
+					     miscdev);
+
+	tegra_vde_dmabuf_cache_unmap_sync(vde);
+
+	return 0;
+}
+
 static const struct file_operations tegra_vde_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= tegra_vde_unlocked_ioctl,
+	.release	= tegra_vde_release_file,
 };
 
 static irqreturn_t tegra_vde_isr(int irq, void *data)
@@ -1159,6 +1077,8 @@ static int tegra_vde_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	INIT_LIST_HEAD(&vde->map_list);
+	mutex_init(&vde->map_lock);
 	mutex_init(&vde->lock);
 	init_completion(&vde->decode_completion);
 
@@ -1221,6 +1141,7 @@ static int tegra_vde_remove(struct platform_device *pdev)
 
 	misc_deregister(&vde->miscdev);
 
+	tegra_vde_dmabuf_cache_unmap_all(vde);
 	tegra_vde_iommu_deinit(vde);
 
 	gen_pool_free(vde->iram_pool, (unsigned long)vde->iram,

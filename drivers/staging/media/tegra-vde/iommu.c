@@ -19,7 +19,6 @@
 int tegra_vde_iommu_map(struct tegra_vde *vde,
 			struct sg_table *sgt,
 			struct iova **iovap,
-			dma_addr_t *addrp,
 			size_t size)
 {
 	struct iova *iova;
@@ -45,7 +44,6 @@ int tegra_vde_iommu_map(struct tegra_vde *vde,
 	}
 
 	*iovap = iova;
-	*addrp = addr;
 
 	return 0;
 }
