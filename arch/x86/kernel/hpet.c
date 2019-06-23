@@ -25,8 +25,8 @@ struct hpet_channel {
 	unsigned int			num;
 	unsigned int			cpu;
 	unsigned int			irq;
+	unsigned int			in_use;
 	enum hpet_mode			mode;
-	unsigned int			flags;
 	unsigned int			boot_cfg;
 	char				name[10];
 };
@@ -39,12 +39,6 @@ struct hpet_base {
 };
 
 #define HPET_MASK			CLOCKSOURCE_MASK(32)
-
-#define HPET_DEV_USED_BIT		2
-#define HPET_DEV_USED			(1 << HPET_DEV_USED_BIT)
-#define HPET_DEV_VALID			0x8
-#define HPET_DEV_FSB_CAP		0x1000
-#define HPET_DEV_PERI_CAP		0x2000
 
 #define HPET_MIN_CYCLES			128
 #define HPET_MIN_PROG_DELTA		(HPET_MIN_CYCLES + (HPET_MIN_CYCLES >> 1))
@@ -62,6 +56,7 @@ static struct irq_domain		*hpet_domain;
 #endif
 
 static void __iomem			*hpet_virt_address;
+
 static struct hpet_base			hpet_base;
 
 static bool				hpet_legacy_int_enabled;
@@ -190,8 +185,6 @@ do {								\
  */
 #ifdef CONFIG_HPET
 
-static void hpet_reserve_msi_timers(struct hpet_data *hd);
-
 static void __init hpet_reserve_platform_timers(void)
 {
 	struct hpet_data hd;
@@ -201,11 +194,6 @@ static void __init hpet_reserve_platform_timers(void)
 	hd.hd_phys_address	= hpet_address;
 	hd.hd_address		= hpet_virt_address;
 	hd.hd_nirqs		= hpet_base.nr_channels;
-	hpet_reserve_timer(&hd, 0);
-
-#ifdef CONFIG_HPET_EMULATE_RTC
-	hpet_reserve_timer(&hd, 1);
-#endif
 
 	/*
 	 * NOTE that hd_irq[] reflects IOAPIC input pins (LEGACY_8254
@@ -215,13 +203,25 @@ static void __init hpet_reserve_platform_timers(void)
 	hd.hd_irq[0] = HPET_LEGACY_8254;
 	hd.hd_irq[1] = HPET_LEGACY_RTC;
 
-	for (i = 2; i < hpet_base.nr_channels; i++)
-		hd.hd_irq[i] = hpet_base.channels[i].irq;
+	for (i = 0; i < hpet_base.nr_channels; i++) {
+		struct hpet_channel *hc = hpet_base.channels + i;
 
-	hpet_reserve_msi_timers(&hd);
+		if (i >= 2)
+			hd.hd_irq[i] = hc->irq;
+
+		switch (hc->mode) {
+		case HPET_MODE_UNUSED:
+		case HPET_MODE_DEVICE:
+			hc->mode = HPET_MODE_DEVICE;
+			break;
+		case HPET_MODE_CLOCKEVT:
+		case HPET_MODE_LEGACY:
+			hpet_reserve_timer(&hd, hc->num);
+			break;
+		}
+	}
 
 	hpet_alloc(&hd);
-
 }
 
 static void __init hpet_select_device_channel(void)
@@ -543,12 +543,10 @@ static int hpet_setup_irq(struct hpet_channel *hc)
 	return 0;
 }
 
+/* Invoked from the hotplug callback on @cpu */
 static void init_one_hpet_msi_clockevent(struct hpet_channel *hc, int cpu)
 {
 	struct clock_event_device *evt = &hc->evt;
-
-	if (!(hc->flags & HPET_DEV_VALID))
-		return;
 
 	hc->cpu = cpu;
 	per_cpu(cpu_hpet_channel, cpu) = hc;
@@ -558,7 +556,7 @@ static void init_one_hpet_msi_clockevent(struct hpet_channel *hc, int cpu)
 
 	evt->rating = 110;
 	evt->features = CLOCK_EVT_FEAT_ONESHOT;
-	if (hc->flags & HPET_DEV_PERI_CAP) {
+	if (hc->boot_cfg & HPET_TN_PERIODIC) {
 		evt->features |= CLOCK_EVT_FEAT_PERIODIC;
 		evt->set_state_periodic = hpet_msi_set_periodic;
 	}
@@ -580,11 +578,9 @@ static struct hpet_channel *hpet_get_unused_clockevent(void)
 	for (i = 0; i < hpet_base.nr_channels; i++) {
 		struct hpet_channel *hc = hpet_base.channels + i;
 
-		if (!(hc->flags & HPET_DEV_VALID))
+		if (hc->mode != HPET_MODE_CLOCKEVT || hc->in_use)
 			continue;
-		if (test_and_set_bit(HPET_DEV_USED_BIT,
-			(unsigned long *)&hc->flags))
-			continue;
+		hc->in_use = 1;
 		return hc;
 	}
 	return NULL;
@@ -606,7 +602,7 @@ static int hpet_cpuhp_dead(unsigned int cpu)
 	if (!hc)
 		return 0;
 	free_irq(hc->irq, hc);
-	hc->flags &= ~HPET_DEV_USED;
+	hc->in_use = 0;
 	per_cpu(cpu_hpet_channel, cpu) = NULL;
 	return 0;
 }
@@ -638,9 +634,6 @@ static void __init hpet_select_clockevents(void)
 		if (!(hc->boot_cfg & HPET_TN_FSB_CAP))
 			continue;
 
-		hc->flags = 0;
-		if (hc->boot_cfg & HPET_TN_PERIODIC_CAP)
-			hc->flags |= HPET_DEV_PERI_CAP;
 		sprintf(hc->name, "hpet%d", i);
 
 		irq = hpet_assign_irq(hpet_domain, hc, hc->num);
@@ -648,8 +641,6 @@ static void __init hpet_select_clockevents(void)
 			continue;
 
 		hc->irq = irq;
-		hc->flags |= HPET_DEV_FSB_CAP;
-		hc->flags |= HPET_DEV_VALID;
 		hc->mode = HPET_MODE_CLOCKEVT;
 
 		if (++hpet_base.nr_clockevents == num_possible_cpus())
@@ -660,30 +651,9 @@ static void __init hpet_select_clockevents(void)
 		hpet_base.nr_channels, hpet_base.nr_clockevents);
 }
 
-#ifdef CONFIG_HPET
-static void __init hpet_reserve_msi_timers(struct hpet_data *hd)
-{
-	int i;
-
-	for (i = 0; i < hpet_base.nr_channels; i++) {
-		struct hpet_channel *hc = hpet_base.channels + i;
-
-		if (!(hc->flags & HPET_DEV_VALID))
-			continue;
-
-		hd->hd_irq[hc->num] = hc->irq;
-		hpet_reserve_timer(hd, hc->num);
-	}
-}
-#endif
-
 #else
 
 static inline void hpet_select_clockevents(void) { }
-
-#ifdef CONFIG_HPET
-static inline void hpet_reserve_msi_timers(struct hpet_data *hd) { }
-#endif
 
 #define hpet_cpuhp_online	NULL
 #define hpet_cpuhp_dead		NULL
