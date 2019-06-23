@@ -7,9 +7,11 @@
  *          Matt Turner
  *          Dave Airlie
  */
-#include <drm/drmP.h>
+
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_pci.h>
+
 #include "mgag200_drv.h"
 
 static const struct drm_mode_config_funcs mga_mode_funcs = {

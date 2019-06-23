@@ -10,18 +10,16 @@
 #ifndef __MGAG200_DRV_H__
 #define __MGAG200_DRV_H__
 
+#include <linux/i2c-algo-bit.h>
+#include <linux/i2c.h>
+
 #include <video/vga.h>
 
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
-
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_vram_helper.h>
-
 #include <drm/drm_vram_mm_helper.h>
-
-#include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
 
 #include "mgag200_reg.h"
 

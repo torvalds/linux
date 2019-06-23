@@ -5,7 +5,8 @@
  * Author: Christopher Harvey <charvey@matrox.com>
  */
 
-#include <drm/drmP.h>
+#include <drm/drm_pci.h>
+
 #include "mgag200_drv.h"
 
 static bool warn_transparent = true;
