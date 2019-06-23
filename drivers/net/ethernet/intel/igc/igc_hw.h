@@ -151,16 +151,10 @@ struct igc_phy_info {
 
 	u16 autoneg_advertised;
 	u16 autoneg_mask;
-	u16 cable_length;
-	u16 max_cable_length;
-	u16 min_cable_length;
-	u16 pair_length[4];
 
 	u8 mdix;
 
-	bool disable_polarity_correction;
 	bool is_mdix;
-	bool polarity_correction;
 	bool reset_disable;
 	bool speed_downgraded;
 	bool autoneg_wait_to_complete;
