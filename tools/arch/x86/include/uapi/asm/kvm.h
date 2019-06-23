@@ -392,7 +392,7 @@ struct kvm_sync_regs {
 
 struct kvm_vmx_nested_state {
 	__u64 vmxon_pa;
-	__u64 vmcs_pa;
+	__u64 vmcs12_pa;
 
 	struct {
 		__u16 flags;

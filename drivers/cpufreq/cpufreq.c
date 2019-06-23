@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/cpufreq/cpufreq.c
  *
@@ -9,10 +10,6 @@
  *	Added handling for CPU hotplug
  *  Feb 2006 - Jacob Shin <jacob.shin@amd.com>
  *	Fix handling for CPU hotplug -- affected CPUs
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

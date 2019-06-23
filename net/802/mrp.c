@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	IEEE 802.1Q Multiple Registration Protocol (MRP)
  *
@@ -5,10 +6,6 @@
  *
  *	Adapted from code in net/802/garp.c
  *	Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	version 2 as published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/timer.h>

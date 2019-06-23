@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/swp_emulate.c
  *
  *  Copyright (C) 2009 ARM Limited
  *  __user_* functions adapted from include/asm/uaccess.h
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Implements emulation of the SWP/SWPB instructions using load-exclusive and
  *  store-exclusive for processors that have them disabled (or future ones that

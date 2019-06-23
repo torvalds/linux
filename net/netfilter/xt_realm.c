@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* IP tables module for matching the routing realm
  *
  * (C) 2003 by Sampsa Ranta <sampsa@netsonic.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

@@ -64,6 +64,8 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 					CNL_DSP_REG_HIPCCTL,
 					CNL_DSP_REG_HIPCCTL_DONE, 0);
 
+		spin_lock_irq(&sdev->ipc_lock);
+
 		/* handle immediate reply from DSP core */
 		hda_dsp_ipc_get_reply(sdev);
 		snd_sof_ipc_reply(sdev, msg);
@@ -74,6 +76,8 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 		}
 
 		cnl_ipc_dsp_done(sdev);
+
+		spin_unlock_irq(&sdev->ipc_lock);
 
 		ret = IRQ_HANDLED;
 	}

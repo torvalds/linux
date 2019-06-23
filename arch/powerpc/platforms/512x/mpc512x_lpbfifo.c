@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * The driver for Freescale MPC512x LocalPlus Bus FIFO
  * (called SCLPC in the Reference Manual).
  *
  * Copyright (C) 2013-2015 Alexander Popov <alex.popov@linux.com>.
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/interrupt.h>

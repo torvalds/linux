@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/traps.c
  *
  *  Copyright (C) 1995-2009 Russell King
  *  Fragments that appear the same as linux/arch/i386/kernel/traps.c (C) Linus Torvalds
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  'traps.c' handles hardware exceptions after we have saved some state in
  *  'linux/arch/arm/lib/traps.S'.  Mostly a debugging aid, but will probably

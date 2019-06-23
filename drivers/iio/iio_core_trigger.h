@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /* The industrial I/O core, trigger consumer handling functions
  *
  * Copyright (c) 2008 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #ifdef CONFIG_IIO_TRIGGER

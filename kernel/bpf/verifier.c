@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
  * Copyright (c) 2016 Facebook
  * Copyright (c) 2018 Covalent IO, Inc. http://covalent.io
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
  */
 #include <uapi/linux/btf.h>
 #include <linux/kernel.h>
@@ -5361,9 +5353,12 @@ static int check_return_code(struct bpf_verifier_env *env)
 	struct tnum range = tnum_range(0, 1);
 
 	switch (env->prog->type) {
+	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
+		if (env->prog->expected_attach_type == BPF_CGROUP_UDP4_RECVMSG ||
+		    env->prog->expected_attach_type == BPF_CGROUP_UDP6_RECVMSG)
+			range = tnum_range(1, 1);
 	case BPF_PROG_TYPE_CGROUP_SKB:
 	case BPF_PROG_TYPE_CGROUP_SOCK:
-	case BPF_PROG_TYPE_CGROUP_SOCK_ADDR:
 	case BPF_PROG_TYPE_SOCK_OPS:
 	case BPF_PROG_TYPE_CGROUP_DEVICE:
 	case BPF_PROG_TYPE_CGROUP_SYSCTL:
@@ -5380,16 +5375,17 @@ static int check_return_code(struct bpf_verifier_env *env)
 	}
 
 	if (!tnum_in(range, reg->var_off)) {
+		char tn_buf[48];
+
 		verbose(env, "At program exit the register R0 ");
 		if (!tnum_is_unknown(reg->var_off)) {
-			char tn_buf[48];
-
 			tnum_strn(tn_buf, sizeof(tn_buf), reg->var_off);
 			verbose(env, "has value %s", tn_buf);
 		} else {
 			verbose(env, "has unknown scalar value");
 		}
-		verbose(env, " should have been 0 or 1\n");
+		tnum_strn(tn_buf, sizeof(tn_buf), range);
+		verbose(env, " should have been in %s\n", tn_buf);
 		return -EINVAL;
 	}
 	return 0;

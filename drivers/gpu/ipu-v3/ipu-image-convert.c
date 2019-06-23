@@ -400,12 +400,14 @@ static int calc_image_resize_coefficients(struct ipu_image_convert_ctx *ctx,
 	if (WARN_ON(resized_width == 0 || resized_height == 0))
 		return -EINVAL;
 
-	while (downsized_width >= resized_width * 2) {
+	while (downsized_width > 1024 ||
+	       downsized_width >= resized_width * 2) {
 		downsized_width >>= 1;
 		downsize_coeff_h++;
 	}
 
-	while (downsized_height >= resized_height * 2) {
+	while (downsized_height > 1024 ||
+	       downsized_height >= resized_height * 2) {
 		downsized_height >>= 1;
 		downsize_coeff_v++;
 	}
@@ -1876,7 +1878,8 @@ void ipu_image_convert_adjust(struct ipu_image *in, struct ipu_image *out,
 			      enum ipu_rotate_mode rot_mode)
 {
 	const struct ipu_image_pixfmt *infmt, *outfmt;
-	u32 w_align, h_align;
+	u32 w_align_out, h_align_out;
+	u32 w_align_in, h_align_in;
 
 	infmt = get_format(in->pix.pixelformat);
 	outfmt = get_format(out->pix.pixelformat);
@@ -1908,22 +1911,33 @@ void ipu_image_convert_adjust(struct ipu_image *in, struct ipu_image *out,
 	}
 
 	/* align input width/height */
-	w_align = ilog2(tile_width_align(IMAGE_CONVERT_IN, infmt, rot_mode));
-	h_align = ilog2(tile_height_align(IMAGE_CONVERT_IN, infmt, rot_mode));
-	in->pix.width = clamp_align(in->pix.width, MIN_W, MAX_W, w_align);
-	in->pix.height = clamp_align(in->pix.height, MIN_H, MAX_H, h_align);
+	w_align_in = ilog2(tile_width_align(IMAGE_CONVERT_IN, infmt,
+					    rot_mode));
+	h_align_in = ilog2(tile_height_align(IMAGE_CONVERT_IN, infmt,
+					     rot_mode));
+	in->pix.width = clamp_align(in->pix.width, MIN_W, MAX_W,
+				    w_align_in);
+	in->pix.height = clamp_align(in->pix.height, MIN_H, MAX_H,
+				     h_align_in);
 
 	/* align output width/height */
-	w_align = ilog2(tile_width_align(IMAGE_CONVERT_OUT, outfmt, rot_mode));
-	h_align = ilog2(tile_height_align(IMAGE_CONVERT_OUT, outfmt, rot_mode));
-	out->pix.width = clamp_align(out->pix.width, MIN_W, MAX_W, w_align);
-	out->pix.height = clamp_align(out->pix.height, MIN_H, MAX_H, h_align);
+	w_align_out = ilog2(tile_width_align(IMAGE_CONVERT_OUT, outfmt,
+					     rot_mode));
+	h_align_out = ilog2(tile_height_align(IMAGE_CONVERT_OUT, outfmt,
+					      rot_mode));
+	out->pix.width = clamp_align(out->pix.width, MIN_W, MAX_W,
+				     w_align_out);
+	out->pix.height = clamp_align(out->pix.height, MIN_H, MAX_H,
+				      h_align_out);
 
 	/* set input/output strides and image sizes */
 	in->pix.bytesperline = infmt->planar ?
-		clamp_align(in->pix.width, 2 << w_align, MAX_W, w_align) :
+		clamp_align(in->pix.width, 2 << w_align_in, MAX_W,
+			    w_align_in) :
 		clamp_align((in->pix.width * infmt->bpp) >> 3,
-			    2 << w_align, MAX_W, w_align);
+			    ((2 << w_align_in) * infmt->bpp) >> 3,
+			    (MAX_W * infmt->bpp) >> 3,
+			    w_align_in);
 	in->pix.sizeimage = infmt->planar ?
 		(in->pix.height * in->pix.bytesperline * infmt->bpp) >> 3 :
 		in->pix.height * in->pix.bytesperline;

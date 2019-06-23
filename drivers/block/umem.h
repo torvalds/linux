@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * This file contains defines for the
@@ -5,8 +6,6 @@
  * family PCI Memory Module with Battery Backup.
  *
  * Copyright Micro Memory INC 2001.  All rights reserved.
- * Release under the terms of the GNU GENERAL PUBLIC LICENSE version 2.
- * See the file COPYING.
  */
 
 #ifndef _DRIVERS_BLOCK_MM_H

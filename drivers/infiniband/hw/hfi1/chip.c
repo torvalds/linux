@@ -9850,6 +9850,7 @@ void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
 
 	/* disable the port */
 	clear_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
+	cancel_work_sync(&ppd->freeze_work);
 }
 
 static inline int init_cpu_counters(struct hfi1_devdata *dd)
@@ -14028,6 +14029,19 @@ static void init_kdeth_qp(struct hfi1_devdata *dd)
 	write_csr(dd, RCV_BTH_QP,
 		  (kdeth_qp & RCV_BTH_QP_KDETH_QP_MASK) <<
 		  RCV_BTH_QP_KDETH_QP_SHIFT);
+}
+
+/**
+ * hfi1_get_qp_map
+ * @dd: device data
+ * @idx: index to read
+ */
+u8 hfi1_get_qp_map(struct hfi1_devdata *dd, u8 idx)
+{
+	u64 reg = read_csr(dd, RCV_QP_MAP_TABLE + (idx / 8) * 8);
+
+	reg >>= (idx % 8) * 8;
+	return reg;
 }
 
 /**

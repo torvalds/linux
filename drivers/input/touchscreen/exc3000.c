@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for I2C connected EETI EXC3000 multiple touch controller
  *
  * Copyright (C) 2017 Ahmet Inan <inan@distec.de>
  *
  * minimal implementation based on egalax_ts.c and egalax_i2c.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/bitops.h>

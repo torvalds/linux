@@ -10,9 +10,10 @@ obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 ccflags-y := -fPIC -fno-common -fno-builtin -fno-stack-protector
 ccflags-y += -DDISABLE_BRANCH_PROFILING
 
-ldflags-y = -Bsymbolic --no-undefined -soname=linux-vdso.so.1 \
+ldflags-$(CONFIG_CPU_ENDIAN_BE8) := --be8
+ldflags-y := -Bsymbolic --no-undefined -soname=linux-vdso.so.1 \
 	    -z max-page-size=4096 -z common-page-size=4096 \
-	    -nostdlib -shared \
+	    -nostdlib -shared $(ldflags-y) \
 	    $(call ld-option, --hash-style=sysv) \
 	    $(call ld-option, --build-id) \
 	    -T

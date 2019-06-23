@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rt5670.c  --  RT5670 ALSA SoC audio codec driver
  *
  * Copyright 2014 Realtek Semiconductor Corp.
  * Author: Bard Liao <bardliao@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -2876,6 +2873,18 @@ static const struct dmi_system_id dmi_platform_intel_quirks[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Venue 8 Pro 5855"),
+		},
+		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
+						 RT5670_DMIC2_INR |
+						 RT5670_DEV_GPIO |
+						 RT5670_JD_MODE3),
+	},
+	{
+		.callback = rt5670_quirk_cb,
+		.ident = "Aegex 10 tablet (RU2)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "AEGEX"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "RU2"),
 		},
 		.driver_data = (unsigned long *)(RT5670_DMIC_EN |
 						 RT5670_DMIC2_INR |

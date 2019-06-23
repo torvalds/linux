@@ -1876,9 +1876,7 @@ found:
 		xprt->idle_timeout = 0;
 	INIT_WORK(&xprt->task_cleanup, xprt_autoclose);
 	if (xprt_has_timer(xprt))
-		timer_setup(&xprt->timer,
-				xprt_init_autodisconnect,
-				TIMER_DEFERRABLE);
+		timer_setup(&xprt->timer, xprt_init_autodisconnect, 0);
 	else
 		timer_setup(&xprt->timer, NULL, 0);
 

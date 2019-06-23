@@ -39,6 +39,7 @@ $(obj)/extra-certs.c: $(CONFIG_CFG80211_EXTRA_REGDB_KEYDIR:"%"=%) \
 	@(set -e; \
 	  allf=""; \
 	  for f in $^ ; do \
+	      test -f $$f || continue;\
 	      # similar to hexdump -v -e '1/1 "0x%.2x," "\n"' \
 	      thisf=$$(od -An -v -tx1 < $$f | \
 	                   sed -e 's/ /\n/g' | \

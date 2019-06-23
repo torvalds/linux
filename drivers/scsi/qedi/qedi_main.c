@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic iSCSI Offload Driver
  * Copyright (c) 2016 Cavium Inc.
- *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
  */
 
 #include <linux/module.h>
@@ -988,6 +985,9 @@ static int qedi_find_boot_info(struct qedi_ctx *qedi,
 		sess = cls_sess->dd_data;
 
 		if (!iscsi_is_session_online(cls_sess))
+			continue;
+
+		if (!sess->targetname)
 			continue;
 
 		if (pri_ctrl_flags) {
