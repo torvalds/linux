@@ -692,16 +692,10 @@ static int hpet_cpuhp_dead(unsigned int cpu)
 }
 #else
 
-static void hpet_msi_capability_lookup(unsigned int start_timer)
-{
-	return;
-}
+static inline void hpet_msi_capability_lookup(unsigned int start_timer) { }
 
 #ifdef CONFIG_HPET
-static void hpet_reserve_msi_timers(struct hpet_data *hd)
-{
-	return;
-}
+static inline void hpet_reserve_msi_timers(struct hpet_data *hd) { }
 #endif
 
 #define hpet_cpuhp_online	NULL
@@ -820,7 +814,7 @@ static struct clocksource clocksource_hpet = {
 	.resume		= hpet_resume_counter,
 };
 
-static int hpet_clocksource_register(void)
+static int __init hpet_clocksource_register(void)
 {
 	u64 start, now;
 	u64 t1;
