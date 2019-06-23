@@ -23,6 +23,15 @@
 #undef  pr_fmt
 #define pr_fmt(fmt) "hpet: " fmt
 
+struct hpet_dev {
+	struct clock_event_device	evt;
+	unsigned int			num;
+	int				cpu;
+	unsigned int			irq;
+	unsigned int			flags;
+	char				name[10];
+};
+
 #define HPET_MASK			CLOCKSOURCE_MASK(32)
 
 #define HPET_DEV_USED_BIT		2
@@ -43,18 +52,22 @@ bool					hpet_msi_disable;
 
 #ifdef CONFIG_PCI_MSI
 static unsigned int			hpet_num_timers;
+static struct hpet_dev			*hpet_devs;
+static DEFINE_PER_CPU(struct hpet_dev *, cpu_hpet_dev);
+static struct irq_domain		*hpet_domain;
 #endif
+
 static void __iomem			*hpet_virt_address;
 static u32				*hpet_boot_cfg;
 
-struct hpet_dev {
-	struct clock_event_device	evt;
-	unsigned int			num;
-	int				cpu;
-	unsigned int			irq;
-	unsigned int			flags;
-	char				name[10];
-};
+static bool				hpet_legacy_int_enabled;
+static unsigned long			hpet_freq;
+
+bool					boot_hpet_disable;
+bool					hpet_force_user;
+static bool				hpet_verbose;
+
+static struct clock_event_device	hpet_clockevent;
 
 static inline struct hpet_dev *EVT_TO_HPET_DEV(struct clock_event_device *evtdev)
 {
@@ -85,10 +98,6 @@ static inline void hpet_clear_mapping(void)
 /*
  * HPET command line enable / disable
  */
-bool boot_hpet_disable;
-bool hpet_force_user;
-static bool hpet_verbose;
-
 static int __init hpet_setup(char *str)
 {
 	while (str) {
@@ -119,11 +128,6 @@ static inline int is_hpet_capable(void)
 {
 	return !boot_hpet_disable && hpet_address;
 }
-
-/*
- * HPET timer interrupt enable / disable
- */
-static bool hpet_legacy_int_enabled;
 
 /**
  * is_hpet_enabled - check whether the hpet timer interrupt is enabled
@@ -217,13 +221,7 @@ static void __init hpet_reserve_platform_timers(unsigned int id)
 static void hpet_reserve_platform_timers(unsigned int id) { }
 #endif
 
-/*
- * Common hpet info
- */
-static unsigned long hpet_freq;
-
-static struct clock_event_device hpet_clockevent;
-
+/* Common hpet functions */
 static void hpet_stop_counter(void)
 {
 	u32 cfg = hpet_readl(HPET_CFG);
@@ -429,10 +427,6 @@ static struct clock_event_device hpet_clockevent = {
  * HPET MSI Support
  */
 #ifdef CONFIG_PCI_MSI
-
-static DEFINE_PER_CPU(struct hpet_dev *, cpu_hpet_dev);
-static struct hpet_dev	*hpet_devs;
-static struct irq_domain *hpet_domain;
 
 void hpet_msi_unmask(struct irq_data *data)
 {
