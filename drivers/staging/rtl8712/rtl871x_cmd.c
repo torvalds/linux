@@ -92,7 +92,7 @@ static void _free_evt_priv(struct evt_priv *pevtpriv)
 	kfree(pevtpriv->evt_allocated_buf);
 }
 
-static void _free_cmd_priv(struct cmd_priv *pcmdpriv)
+void r8712_free_cmd_priv(struct cmd_priv *pcmdpriv)
 {
 	if (pcmdpriv) {
 		kfree(pcmdpriv->cmd_allocated_buf);
@@ -138,11 +138,6 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 void r8712_free_evt_priv(struct evt_priv *pevtpriv)
 {
 	_free_evt_priv(pevtpriv);
-}
-
-void r8712_free_cmd_priv(struct cmd_priv *pcmdpriv)
-{
-	_free_cmd_priv(pcmdpriv);
 }
 
 void r8712_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
