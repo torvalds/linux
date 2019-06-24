@@ -62,6 +62,9 @@ bool is_dp_active_dongle(const struct dc_link *link);
 
 void dp_enable_mst_on_sink(struct dc_link *link, bool enable);
 
+enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
+void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
+
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 void dp_set_fec_ready(struct dc_link *link, bool ready);
 void dp_set_fec_enable(struct dc_link *link, bool enable);

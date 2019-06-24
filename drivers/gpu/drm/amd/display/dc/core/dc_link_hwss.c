@@ -55,6 +55,9 @@ void dp_receiver_power_ctrl(struct dc_link *link, bool on)
 
 	state = on ? DP_POWER_STATE_D0 : DP_POWER_STATE_D3;
 
+	if (link->sync_lt_in_progress)
+		return;
+
 	core_link_write_dpcd(link, DP_SET_POWER, &state,
 			sizeof(state));
 }
@@ -243,46 +246,6 @@ void dp_set_hw_lane_settings(
 
 	/* call Encoder to set lane settings */
 	encoder->funcs->dp_set_lane_settings(encoder, link_settings);
-}
-
-enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
-{
-	/* We need to explicitly check that connector
-	 * is not DP. Some Travis_VGA get reported
-	 * by video bios as DP.
-	 */
-	if (link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT) {
-
-		switch (link->dpcd_caps.branch_dev_id) {
-		case DP_BRANCH_DEVICE_ID_2:
-			if (strncmp(
-				link->dpcd_caps.branch_dev_name,
-				DP_VGA_LVDS_CONVERTER_ID_2,
-				sizeof(
-				link->dpcd_caps.
-				branch_dev_name)) == 0) {
-				return DP_PANEL_MODE_SPECIAL;
-			}
-			break;
-		case DP_BRANCH_DEVICE_ID_3:
-			if (strncmp(link->dpcd_caps.branch_dev_name,
-				DP_VGA_LVDS_CONVERTER_ID_3,
-				sizeof(
-				link->dpcd_caps.
-				branch_dev_name)) == 0) {
-				return DP_PANEL_MODE_SPECIAL;
-			}
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (link->dpcd_caps.panel_mode_edp) {
-		return DP_PANEL_MODE_EDP;
-	}
-
-	return DP_PANEL_MODE_DEFAULT;
 }
 
 void dp_set_hw_test_pattern(

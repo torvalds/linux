@@ -1387,57 +1387,6 @@ void link_destroy(struct dc_link **link)
 	*link = NULL;
 }
 
-static void dpcd_configure_panel_mode(
-	struct dc_link *link,
-	enum dp_panel_mode panel_mode)
-{
-	union dpcd_edp_config edp_config_set;
-	bool panel_mode_edp = false;
-	DC_LOGGER_INIT(link->ctx->logger);
-
-	memset(&edp_config_set, '\0', sizeof(union dpcd_edp_config));
-
-	if (DP_PANEL_MODE_DEFAULT != panel_mode) {
-
-		switch (panel_mode) {
-		case DP_PANEL_MODE_EDP:
-		case DP_PANEL_MODE_SPECIAL:
-			panel_mode_edp = true;
-			break;
-
-		default:
-			break;
-		}
-
-		/*set edp panel mode in receiver*/
-		core_link_read_dpcd(
-			link,
-			DP_EDP_CONFIGURATION_SET,
-			&edp_config_set.raw,
-			sizeof(edp_config_set.raw));
-
-		if (edp_config_set.bits.PANEL_MODE_EDP
-			!= panel_mode_edp) {
-			enum ddc_result result = DDC_RESULT_UNKNOWN;
-
-			edp_config_set.bits.PANEL_MODE_EDP =
-			panel_mode_edp;
-			result = core_link_write_dpcd(
-				link,
-				DP_EDP_CONFIGURATION_SET,
-				&edp_config_set.raw,
-				sizeof(edp_config_set.raw));
-
-			ASSERT(result == DDC_RESULT_SUCESSFULL);
-		}
-	}
-	DC_LOG_DETECTION_DP_CAPS("Link: %d eDP panel mode supported: %d "
-			"eDP panel mode enabled: %d \n",
-			link->link_index,
-			link->dpcd_caps.panel_mode_edp,
-			panel_mode_edp);
-}
-
 static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -1508,7 +1457,7 @@ static enum dc_status enable_link_dp(
 	}
 
 	panel_mode = dp_get_panel_mode(link);
-	dpcd_configure_panel_mode(link, panel_mode);
+	dp_set_panel_mode(link, panel_mode);
 
 	skip_video_pattern = true;
 

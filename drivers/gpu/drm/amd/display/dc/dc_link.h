@@ -84,6 +84,7 @@ struct dc_link {
 	bool dp_ss_off;
 	bool link_state_valid;
 	bool aux_access_disabled;
+	bool sync_lt_in_progress;
 
 	/* caps is the same as reported_link_cap. link_traing use
 	 * reported_link_cap. Will clean up.  TODO
@@ -227,6 +228,15 @@ enum link_training_result dc_link_dp_perform_link_training(
 	struct dc_link *link,
 	const struct dc_link_settings *link_setting,
 	bool skip_video_pattern);
+
+bool dc_link_dp_sync_lt_begin(struct dc_link *link);
+
+enum link_training_result dc_link_dp_sync_lt_attempt(
+	struct dc_link *link,
+	struct dc_link_settings *link_setting,
+	struct dc_link_training_overrides *lt_settings);
+
+bool dc_link_dp_sync_lt_end(struct dc_link *link, bool link_down);
 
 void dc_link_dp_enable_hpd(const struct dc_link *link);
 

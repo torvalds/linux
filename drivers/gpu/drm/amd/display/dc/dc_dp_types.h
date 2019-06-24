@@ -128,7 +128,10 @@ struct dc_link_training_overrides {
 	enum dc_link_spread *downspread;
 	bool *alternate_scrambler_reset;
 	bool *enhanced_framing;
+	bool *mst_enable;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	bool *fec_enable;
+#endif
 };
 
 union dpcd_rev {
