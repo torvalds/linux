@@ -1486,6 +1486,7 @@
 #define VPU_RDARB_MODE_L1C2 0x2799
 #define VPU_RDARB_MODE_L2C1 0x279d
 #define VPU_WRARB_MODE_L2C1 0x27a2
+#define		VPU_RDARB_SLAVE_TO_MASTER_PORT(dc, port) (port << (16 + dc))
 
 /* osd super scale */
 #define OSDSR_HV_SIZEIN 0x3130
