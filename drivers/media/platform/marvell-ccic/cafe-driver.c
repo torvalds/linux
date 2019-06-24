@@ -472,7 +472,7 @@ static struct ov7670_config sensor_cfg = {
 	.use_smbus = 1,
 };
 
-struct i2c_board_info ov7670_info = {
+static struct i2c_board_info ov7670_info = {
 	.type = "ov7670",
 	.addr = 0x42 >> 1,
 	.platform_data = &sensor_cfg,
