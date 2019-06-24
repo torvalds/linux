@@ -522,8 +522,9 @@ static inline struct tegra_clk_sor_pad *to_pad(struct clk_hw *hw)
 	return container_of(hw, struct tegra_clk_sor_pad, hw);
 }
 
-static const char * const tegra_clk_sor_pad_parents[] = {
-	"pll_d2_out0", "pll_dp"
+static const char * const tegra_clk_sor_pad_parents[2][2] = {
+	{ "pll_d_out0", "pll_dp" },
+	{ "pll_d2_out0", "pll_dp" },
 };
 
 static int tegra_clk_sor_pad_set_parent(struct clk_hw *hw, u8 index)
@@ -594,8 +595,8 @@ static struct clk *tegra_clk_sor_pad_register(struct tegra_sor *sor,
 
 	init.name = name;
 	init.flags = 0;
-	init.parent_names = tegra_clk_sor_pad_parents;
-	init.num_parents = ARRAY_SIZE(tegra_clk_sor_pad_parents);
+	init.parent_names = tegra_clk_sor_pad_parents[sor->index];
+	init.num_parents = ARRAY_SIZE(tegra_clk_sor_pad_parents[sor->index]);
 	init.ops = &tegra_clk_sor_pad_ops;
 
 	pad->hw.init = &init;
@@ -4016,6 +4017,8 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	 * pad output clock.
 	 */
 	if (!sor->clk_pad) {
+		char *name;
+
 		err = pm_runtime_get_sync(&pdev->dev);
 		if (err < 0) {
 			dev_err(&pdev->dev, "failed to get runtime PM: %d\n",
@@ -4023,8 +4026,13 @@ static int tegra_sor_probe(struct platform_device *pdev)
 			goto remove;
 		}
 
-		sor->clk_pad = tegra_clk_sor_pad_register(sor,
-							  "sor1_pad_clkout");
+		name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "sor%u_pad_clkout", sor->index);
+		if (!name) {
+			err = -ENOMEM;
+			goto remove;
+		}
+
+		sor->clk_pad = tegra_clk_sor_pad_register(sor, name);
 		pm_runtime_put(&pdev->dev);
 	}
 
