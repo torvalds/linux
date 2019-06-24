@@ -635,17 +635,19 @@ static int meson_ao_cec_g12a_probe(struct platform_device *pdev)
 	spin_lock_init(&ao_cec->cec_reg_lock);
 	ao_cec->pdev = pdev;
 
-	ao_cec->notify = cec_notifier_get(hdmi_dev);
-	if (!ao_cec->notify)
-		return -ENOMEM;
-
 	ao_cec->adap = cec_allocate_adapter(&meson_ao_cec_g12a_ops, ao_cec,
 					    "meson_g12a_ao_cec",
-					    CEC_CAP_DEFAULTS,
+					    CEC_CAP_DEFAULTS |
+					    CEC_CAP_CONNECTOR_INFO,
 					    CEC_MAX_LOG_ADDRS);
-	if (IS_ERR(ao_cec->adap)) {
-		ret = PTR_ERR(ao_cec->adap);
-		goto out_probe_notify;
+	if (IS_ERR(ao_cec->adap))
+		return PTR_ERR(ao_cec->adap);
+
+	ao_cec->notify = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+							ao_cec->adap);
+	if (!ao_cec->notify) {
+		ret = -ENOMEM;
+		goto out_probe_adapter;
 	}
 
 	ao_cec->adap->owner = THIS_MODULE;
@@ -654,21 +656,21 @@ static int meson_ao_cec_g12a_probe(struct platform_device *pdev)
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base)) {
 		ret = PTR_ERR(base);
-		goto out_probe_adapter;
+		goto out_probe_notify;
 	}
 
 	ao_cec->regmap = devm_regmap_init_mmio(&pdev->dev, base,
 					       &meson_ao_cec_g12a_regmap_conf);
 	if (IS_ERR(ao_cec->regmap)) {
 		ret = PTR_ERR(ao_cec->regmap);
-		goto out_probe_adapter;
+		goto out_probe_notify;
 	}
 
 	ao_cec->regmap_cec = devm_regmap_init(&pdev->dev, NULL, ao_cec,
 					   &meson_ao_cec_g12a_cec_regmap_conf);
 	if (IS_ERR(ao_cec->regmap_cec)) {
 		ret = PTR_ERR(ao_cec->regmap_cec);
-		goto out_probe_adapter;
+		goto out_probe_notify;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -678,24 +680,24 @@ static int meson_ao_cec_g12a_probe(struct platform_device *pdev)
 					0, NULL, ao_cec);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request failed\n");
-		goto out_probe_adapter;
+		goto out_probe_notify;
 	}
 
 	ao_cec->oscin = devm_clk_get(&pdev->dev, "oscin");
 	if (IS_ERR(ao_cec->oscin)) {
 		dev_err(&pdev->dev, "oscin clock request failed\n");
 		ret = PTR_ERR(ao_cec->oscin);
-		goto out_probe_adapter;
+		goto out_probe_notify;
 	}
 
 	ret = meson_ao_cec_g12a_setup_clk(ao_cec);
 	if (ret)
-		goto out_probe_adapter;
+		goto out_probe_notify;
 
 	ret = clk_prepare_enable(ao_cec->core);
 	if (ret) {
 		dev_err(&pdev->dev, "core clock enable failed\n");
-		goto out_probe_adapter;
+		goto out_probe_notify;
 	}
 
 	device_reset_optional(&pdev->dev);
@@ -703,26 +705,22 @@ static int meson_ao_cec_g12a_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ao_cec);
 
 	ret = cec_register_adapter(ao_cec->adap, &pdev->dev);
-	if (ret < 0) {
-		cec_notifier_put(ao_cec->notify);
+	if (ret < 0)
 		goto out_probe_core_clk;
-	}
 
 	/* Setup Hardware */
 	regmap_write(ao_cec->regmap, CECB_GEN_CNTL_REG, CECB_GEN_CNTL_RESET);
-
-	cec_register_cec_notifier(ao_cec->adap, ao_cec->notify);
 
 	return 0;
 
 out_probe_core_clk:
 	clk_disable_unprepare(ao_cec->core);
 
+out_probe_notify:
+	cec_notifier_cec_adap_unregister(ao_cec->notify);
+
 out_probe_adapter:
 	cec_delete_adapter(ao_cec->adap);
-
-out_probe_notify:
-	cec_notifier_put(ao_cec->notify);
 
 	dev_err(&pdev->dev, "CEC controller registration failed\n");
 
@@ -735,9 +733,9 @@ static int meson_ao_cec_g12a_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ao_cec->core);
 
-	cec_unregister_adapter(ao_cec->adap);
+	cec_notifier_cec_adap_unregister(ao_cec->notify);
 
-	cec_notifier_put(ao_cec->notify);
+	cec_unregister_adapter(ao_cec->adap);
 
 	return 0;
 }
