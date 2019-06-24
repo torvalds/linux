@@ -146,15 +146,22 @@ static int mlx5e_tx_reporter_recover(struct devlink_health_reporter *reporter,
 
 static int
 mlx5e_tx_reporter_build_diagnose_output(struct devlink_fmsg *fmsg,
-					u32 sqn, u8 state, bool stopped)
+					struct mlx5e_txqsq *sq)
 {
+	struct mlx5e_priv *priv = sq->channel->priv;
+	bool stopped = netif_xmit_stopped(sq->txq);
+	u8 state;
 	int err;
+
+	err = mlx5_core_query_sq_state(priv->mdev, sq->sqn, &state);
+	if (err)
+		return err;
 
 	err = devlink_fmsg_obj_nest_start(fmsg);
 	if (err)
 		return err;
 
-	err = devlink_fmsg_u32_pair_put(fmsg, "sqn", sqn);
+	err = devlink_fmsg_u32_pair_put(fmsg, "sqn", sq->sqn);
 	if (err)
 		return err;
 
@@ -191,15 +198,8 @@ static int mlx5e_tx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	for (i = 0; i < priv->channels.num * priv->channels.params.num_tc;
 	     i++) {
 		struct mlx5e_txqsq *sq = priv->txq2sq[i];
-		u8 state;
 
-		err = mlx5_core_query_sq_state(priv->mdev, sq->sqn, &state);
-		if (err)
-			goto unlock;
-
-		err = mlx5e_tx_reporter_build_diagnose_output(fmsg, sq->sqn,
-							      state,
-							      netif_xmit_stopped(sq->txq));
+		err = mlx5e_tx_reporter_build_diagnose_output(fmsg, sq);
 		if (err)
 			goto unlock;
 	}
