@@ -8,6 +8,7 @@ EXTRA_CMDS=''
 KERNEL_DIR=common
 POST_DEFCONFIG_CMDS="check_defconfig"
 CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r353983c/bin
+BUILDTOOLS_PREBUILT_BIN=prebuilts/build-tools/path/linux-x86
 LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/bin
 FILES="
 arch/x86/boot/bzImage
