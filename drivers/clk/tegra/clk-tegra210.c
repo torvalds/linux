@@ -33,6 +33,7 @@
 #define CLK_SOURCE_CSITE 0x1d4
 #define CLK_SOURCE_EMC 0x19c
 #define CLK_SOURCE_SOR1 0x410
+#define CLK_SOURCE_SOR0 0x414
 #define CLK_SOURCE_LA 0x1f8
 #define CLK_SOURCE_SDMMC2 0x154
 #define CLK_SOURCE_SDMMC4 0x164
@@ -298,6 +299,7 @@ static DEFINE_SPINLOCK(pll_d_lock);
 static DEFINE_SPINLOCK(pll_e_lock);
 static DEFINE_SPINLOCK(pll_re_lock);
 static DEFINE_SPINLOCK(pll_u_lock);
+static DEFINE_SPINLOCK(sor0_lock);
 static DEFINE_SPINLOCK(sor1_lock);
 static DEFINE_SPINLOCK(emc_lock);
 static DEFINE_MUTEX(lvl2_ovr_lock);
@@ -2551,7 +2553,6 @@ static struct tegra_devclk devclks[] __initdata = {
 	{ .con_id = "pll_c4_out2", .dt_id = TEGRA210_CLK_PLL_C4_OUT2 },
 	{ .con_id = "pll_c4_out3", .dt_id = TEGRA210_CLK_PLL_C4_OUT3 },
 	{ .con_id = "dpaux", .dt_id = TEGRA210_CLK_DPAUX },
-	{ .con_id = "sor0", .dt_id = TEGRA210_CLK_SOR0 },
 };
 
 static struct tegra_audio_clk_info tegra210_audio_plls[] = {
@@ -2915,15 +2916,31 @@ static int tegra210_init_pllu(void)
 	return 0;
 }
 
-static const char * const sor1_out_parents[] = {
-	/*
-	 * Bit 0 of the mux selects sor1_pad_clkout, irrespective of bit 1, so
-	 * the sor1_pad_clkout parent appears twice in the list below. This is
-	 * merely to support clk_get_parent() if firmware happened to set
-	 * these bits to 0b11. While not an invalid setting, code should
-	 * always set the bits to 0b01 to select sor1_pad_clkout.
-	 */
-	"sor_safe", "sor1_pad_clkout", "sor1", "sor1_pad_clkout",
+/*
+ * The SOR hardware blocks are driven by two clocks: a module clock that is
+ * used to access registers and a pixel clock that is sourced from the same
+ * pixel clock that also drives the head attached to the SOR. The module
+ * clock is typically called sorX (with X being the SOR instance) and the
+ * pixel clock is called sorX_out. The source for the SOR pixel clock is
+ * referred to as the "parent" clock.
+ *
+ * On Tegra186 and newer, clocks are provided by the BPMP. Unfortunately the
+ * BPMP implementation for the SOR clocks doesn't exactly match the above in
+ * some aspects. For example, the SOR module is really clocked by the pad or
+ * sor_safe clocks, but BPMP models the sorX clock as being sourced by the
+ * pixel clocks. Conversely the sorX_out clock is sourced by the sor_safe or
+ * pad clocks on BPMP.
+ *
+ * In order to allow the display driver to deal with all SoC generations in
+ * a unified way, implement the BPMP semantics in this driver.
+ */
+
+static const char * const sor0_parents[] = {
+	"pll_d_out0",
+};
+
+static const char * const sor0_out_parents[] = {
+	"sor_safe", "sor0_pad_clkout",
 };
 
 static const char * const sor1_parents[] = {
@@ -2932,11 +2949,39 @@ static const char * const sor1_parents[] = {
 
 static u32 sor1_parents_idx[] = { 0, 2, 5, 6 };
 
+static const char * const sor1_out_parents[] = {
+	/*
+	 * Bit 0 of the mux selects sor1_pad_clkout, irrespective of bit 1, so
+	 * the sor1_pad_clkout parent appears twice in the list below. This is
+	 * merely to support clk_get_parent() if firmware happened to set
+	 * these bits to 0b11. While not an invalid setting, code should
+	 * always set the bits to 0b01 to select sor1_pad_clkout.
+	 */
+	"sor_safe", "sor1_pad_clkout", "sor1_out", "sor1_pad_clkout",
+};
+
 static struct tegra_periph_init_data tegra210_periph[] = {
+	/*
+	 * On Tegra210, the sor0 clock doesn't have a mux it bitfield 31:29,
+	 * but it is hardwired to the pll_d_out0 clock.
+	 */
+	TEGRA_INIT_DATA_TABLE("sor0", NULL, NULL, sor0_parents,
+			      CLK_SOURCE_SOR0, 29, 0x0, 0, 0, 0, 0,
+			      0, 182, 0, tegra_clk_sor0, NULL, 0,
+			      &sor0_lock),
+	TEGRA_INIT_DATA_TABLE("sor0_out", NULL, NULL, sor0_out_parents,
+			      CLK_SOURCE_SOR0, 14, 0x1, 0, 0, 0, 0,
+			      0, 0, TEGRA_PERIPH_NO_GATE, tegra_clk_sor0_out,
+			      NULL, 0, &sor0_lock),
 	TEGRA_INIT_DATA_TABLE("sor1", NULL, NULL, sor1_parents,
 			      CLK_SOURCE_SOR1, 29, 0x7, 0, 0, 8, 1,
-			      TEGRA_DIVIDER_ROUND_UP, 183, 0, tegra_clk_sor1,
-			      sor1_parents_idx, 0, &sor1_lock),
+			      TEGRA_DIVIDER_ROUND_UP, 183, 0,
+			      tegra_clk_sor1, sor1_parents_idx, 0,
+			      &sor1_lock),
+	TEGRA_INIT_DATA_TABLE("sor1_out", NULL, NULL, sor1_out_parents,
+			      CLK_SOURCE_SOR1, 14, 0x3, 0, 0, 0, 0,
+			      0, 0, TEGRA_PERIPH_NO_GATE,
+			      tegra_clk_sor1_out, NULL, 0, &sor1_lock),
 };
 
 static const char * const la_parents[] = {
@@ -2968,12 +3013,6 @@ static __init void tegra210_periph_clk_init(void __iomem *clk_base,
 	clk = tegra_clk_register_periph_fixed("dpaux1", "sor_safe", 0, clk_base,
 					      1, 17, 207);
 	clks[TEGRA210_CLK_DPAUX1] = clk;
-
-	clk = clk_register_mux_table(NULL, "sor1_out", sor1_out_parents,
-				     ARRAY_SIZE(sor1_out_parents), 0,
-				     clk_base + CLK_SOURCE_SOR1, 14, 0x3,
-				     0, NULL, &sor1_lock);
-	clks[TEGRA210_CLK_SOR1_OUT] = clk;
 
 	/* pll_d_dsi_out */
 	clk = clk_register_gate(NULL, "pll_d_dsi_out", "pll_d_out0", 0,
