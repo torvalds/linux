@@ -39,6 +39,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/poll.h>
+#include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
 
@@ -70,11 +71,109 @@ static DEFINE_IDA(event_ida);
 #define MAX_NUM_EVENTS 64
 
 /**
+ * struct ec_event - Extended event returned by the EC.
+ * @size: Number of 16bit words in structure after the size word.
+ * @type: Extended event type, meaningless for us.
+ * @event: Event data words.  Max count is %EC_ACPI_MAX_EVENT_WORDS.
+ */
+struct ec_event {
+	u16 size;
+	u16 type;
+	u16 event[0];
+} __packed;
+
+#define ec_event_num_words(ev) (ev->size - 1)
+#define ec_event_size(ev) (sizeof(*ev) + (ec_event_num_words(ev) * sizeof(u16)))
+
+/**
+ * struct ec_event_queue - Circular queue for events.
+ * @capacity: Number of elements the queue can hold.
+ * @head: Next index to write to.
+ * @tail: Next index to read from.
+ * @entries: Array of events.
+ */
+struct ec_event_queue {
+	int capacity;
+	int head;
+	int tail;
+	struct ec_event *entries[0];
+};
+
+/* Maximum number of events to store in ec_event_queue */
+static int queue_size = 64;
+module_param(queue_size, int, 0644);
+
+static struct ec_event_queue *event_queue_new(int capacity)
+{
+	struct ec_event_queue *q;
+
+	q = kzalloc(struct_size(q, entries, capacity), GFP_KERNEL);
+	if (!q)
+		return NULL;
+
+	q->capacity = capacity;
+
+	return q;
+}
+
+static inline bool event_queue_empty(struct ec_event_queue *q)
+{
+	/* head==tail when both full and empty, but head==NULL when empty */
+	return q->head == q->tail && !q->entries[q->head];
+}
+
+static inline bool event_queue_full(struct ec_event_queue *q)
+{
+	/* head==tail when both full and empty, but head!=NULL when full */
+	return q->head == q->tail && q->entries[q->head];
+}
+
+static struct ec_event *event_queue_pop(struct ec_event_queue *q)
+{
+	struct ec_event *ev;
+
+	if (event_queue_empty(q))
+		return NULL;
+
+	ev = q->entries[q->tail];
+	q->entries[q->tail] = NULL;
+	q->tail = (q->tail + 1) % q->capacity;
+
+	return ev;
+}
+
+/*
+ * If full, overwrite the oldest event and return it so the caller
+ * can kfree it. If not full, return NULL.
+ */
+static struct ec_event *event_queue_push(struct ec_event_queue *q,
+					 struct ec_event *ev)
+{
+	struct ec_event *popped = NULL;
+
+	if (event_queue_full(q))
+		popped = event_queue_pop(q);
+	q->entries[q->head] = ev;
+	q->head = (q->head + 1) % q->capacity;
+
+	return popped;
+}
+
+static void event_queue_free(struct ec_event_queue *q)
+{
+	struct ec_event *event;
+
+	while ((event = event_queue_pop(q)) != NULL)
+		kfree(event);
+
+	kfree(q);
+}
+
+/**
  * struct event_device_data - Data for a Wilco EC device that responds to ACPI.
  * @events: Circular queue of EC events to be provided to userspace.
- * @num_events: Number of events in the queue.
- * @lock: Mutex to guard the queue.
- * @wq: Wait queue to notify processes when events or available or the
+ * @queue_lock: Protect the queue from simultaneous read/writes.
+ * @wq: Wait queue to notify processes when events are available or the
  *	device has been removed.
  * @cdev: Char dev that userspace reads() and polls() from.
  * @dev: Device associated with the %cdev.
@@ -84,44 +183,18 @@ static DEFINE_IDA(event_ida);
  *
  * There will be one of these structs for each ACPI device registered. This data
  * is the queue of events received from ACPI that still need to be read from
- * userspace (plus a supporting lock and wait queue), as well as the device and
- * char device that userspace is using, plus a flag on whether the ACPI device
- * has been removed.
+ * userspace, the device and char device that userspace is using, a wait queue
+ * used to notify different threads when something has changed, plus a flag
+ * on whether the ACPI device has been removed.
  */
 struct event_device_data {
-	struct list_head events;
-	size_t num_events;
-	struct mutex lock;
+	struct ec_event_queue *events;
+	spinlock_t queue_lock;
 	wait_queue_head_t wq;
 	struct device dev;
 	struct cdev cdev;
 	bool exist;
 	atomic_t available;
-};
-
-/**
- * struct ec_event - Extended event returned by the EC.
- * @size: Number of words in structure after the size word.
- * @type: Extended event type from &enum ec_event_type.
- * @event: Event data words.  Max count is %EC_ACPI_MAX_EVENT_WORDS.
- */
-struct ec_event {
-	u16 size;
-	u16 type;
-	u16 event[0];
-} __packed;
-
-/**
- * struct ec_event_entry - Event queue entry.
- * @list: List node.
- * @size: Number of bytes in event structure.
- * @event: Extended event returned by the EC.  This should be the last
- *         element because &struct ec_event includes a zero length array.
- */
-struct ec_event_entry {
-	struct list_head list;
-	size_t size;
-	struct ec_event event;
 };
 
 /**
@@ -132,7 +205,7 @@ struct ec_event_entry {
  *
  * %buf contains a number of ec_event's, packed one after the other.
  * Each ec_event is of variable length. Start with the first event, copy it
- * into a containing ev_event_entry, store that entry in a list, move on
+ * into a persistent ec_event, store that entry in the queue, move on
  * to the next ec_event in buf, and repeat.
  *
  * Return: 0 on success or negative error code on failure.
@@ -140,25 +213,20 @@ struct ec_event_entry {
 static int enqueue_events(struct acpi_device *adev, const u8 *buf, u32 length)
 {
 	struct event_device_data *dev_data = adev->driver_data;
-	struct ec_event *event;
-	struct ec_event_entry *entry, *oldest_entry;
-	size_t event_size, num_words, word_size;
+	struct ec_event *event, *queue_event, *old_event;
+	size_t num_words, event_size;
 	u32 offset = 0;
 
 	while (offset < length) {
 		event = (struct ec_event *)(buf + offset);
-		if (!event)
-			return -EINVAL;
 
-		/* Number of 16bit event data words is size - 1 */
-		num_words = event->size - 1;
-		word_size = num_words * sizeof(u16);
-		event_size = sizeof(*event) + word_size;
+		num_words = ec_event_num_words(event);
+		event_size = ec_event_size(event);
 		if (num_words > EC_ACPI_MAX_EVENT_WORDS) {
 			dev_err(&adev->dev, "Too many event words: %zu > %d\n",
 				num_words, EC_ACPI_MAX_EVENT_WORDS);
 			return -EOVERFLOW;
-		};
+		}
 
 		/* Ensure event does not overflow the available buffer */
 		if ((offset + event_size) > length) {
@@ -170,31 +238,15 @@ static int enqueue_events(struct acpi_device *adev, const u8 *buf, u32 length)
 		/* Point to the next event in the buffer */
 		offset += event_size;
 
-		/* Create event entry for the queue */
-		entry = kzalloc(sizeof(struct ec_event_entry) + word_size,
-				GFP_KERNEL);
-		if (!entry)
+		/* Copy event into the queue */
+		queue_event = kmemdup(event, event_size, GFP_KERNEL);
+		if (!queue_event)
 			return -ENOMEM;
-		entry->size = event_size;
-		memcpy(&entry->event, event, entry->size);
-
-		mutex_lock(&dev_data->lock);
-
-		/* If the queue is full, delete the oldest event */
-		if (dev_data->num_events >= MAX_NUM_EVENTS) {
-			oldest_entry = list_first_entry(&dev_data->events,
-						      struct ec_event_entry,
-						      list);
-			list_del(&oldest_entry->list);
-			kfree(oldest_entry);
-			dev_data->num_events--;
-		}
-
-		/* Add this event to the queue */
-		list_add_tail(&entry->list, &dev_data->events);
-		dev_data->num_events++;
-
-		mutex_unlock(&dev_data->lock);
+		spin_lock(&dev_data->queue_lock);
+		old_event = event_queue_push(dev_data->events, queue_event);
+		spin_unlock(&dev_data->queue_lock);
+		kfree(old_event);
+		wake_up_interruptible(&dev_data->wq);
 	}
 
 	return 0;
@@ -210,7 +262,6 @@ static int enqueue_events(struct acpi_device *adev, const u8 *buf, u32 length)
 static void event_device_notify(struct acpi_device *adev, u32 value)
 {
 	struct acpi_buffer event_buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	struct event_device_data *dev_data = adev->driver_data;
 	union acpi_object *obj;
 	acpi_status status;
 
@@ -249,9 +300,6 @@ static void event_device_notify(struct acpi_device *adev, u32 value)
 
 	enqueue_events(adev, obj->buffer.pointer, obj->buffer.length);
 	kfree(obj);
-
-	if (dev_data->num_events)
-		wake_up_interruptible(&dev_data->wq);
 }
 
 static int event_open(struct inode *inode, struct file *filp)
@@ -267,7 +315,7 @@ static int event_open(struct inode *inode, struct file *filp)
 
 	/* Increase refcount on device so dev_data is not freed */
 	get_device(&dev_data->dev);
-	nonseekable_open(inode, filp);
+	stream_open(inode, filp);
 	filp->private_data = dev_data;
 
 	return 0;
@@ -281,7 +329,7 @@ static __poll_t event_poll(struct file *filp, poll_table *wait)
 	poll_wait(filp, &dev_data->wq, wait);
 	if (!dev_data->exist)
 		return EPOLLHUP;
-	if (dev_data->num_events)
+	if (!event_queue_empty(dev_data->events))
 		mask |= EPOLLIN | EPOLLRDNORM | EPOLLPRI;
 	return mask;
 }
@@ -293,8 +341,7 @@ static __poll_t event_poll(struct file *filp, poll_table *wait)
  * @count: Number of bytes requested. Must be at least EC_ACPI_MAX_EVENT_SIZE.
  * @pos: File position pointer, irrelevant since we don't support seeking.
  *
- * Fills the passed buffer with the data from the first event in the queue,
- * removes that event from the queue. On error, the event remains in the queue.
+ * Removes the first event from the queue, places it in the passed buffer.
  *
  * If there are no events in the the queue, then one of two things happens,
  * depending on if the file was opened in nonblocking mode: If in nonblocking
@@ -307,7 +354,7 @@ static ssize_t event_read(struct file *filp, char __user *buf, size_t count,
 			  loff_t *pos)
 {
 	struct event_device_data *dev_data = filp->private_data;
-	struct ec_event_entry *entry;
+	struct ec_event *event;
 	ssize_t n_bytes_written = 0;
 	int err;
 
@@ -315,39 +362,29 @@ static ssize_t event_read(struct file *filp, char __user *buf, size_t count,
 	if (count != 0 && count < EC_ACPI_MAX_EVENT_SIZE)
 		return -EINVAL;
 
-	mutex_lock(&dev_data->lock);
-
-	while (dev_data->num_events == 0) {
-		if (filp->f_flags & O_NONBLOCK) {
-			mutex_unlock(&dev_data->lock);
+	spin_lock(&dev_data->queue_lock);
+	while (event_queue_empty(dev_data->events)) {
+		spin_unlock(&dev_data->queue_lock);
+		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
-		}
-		/* Need to unlock so that data can actually get added to the
-		 * queue, and since we recheck before use and it's just
-		 * comparing pointers, this is safe unlocked.
-		 */
-		mutex_unlock(&dev_data->lock);
+
 		err = wait_event_interruptible(dev_data->wq,
-					       dev_data->num_events);
+					!event_queue_empty(dev_data->events) ||
+					!dev_data->exist);
 		if (err)
 			return err;
 
 		/* Device was removed as we waited? */
 		if (!dev_data->exist)
 			return -ENODEV;
-		mutex_lock(&dev_data->lock);
+		spin_lock(&dev_data->queue_lock);
 	}
-
-	entry = list_first_entry(&dev_data->events,
-				 struct ec_event_entry, list);
-	n_bytes_written = entry->size;
-	if (copy_to_user(buf, &entry->event, n_bytes_written))
+	event = event_queue_pop(dev_data->events);
+	spin_unlock(&dev_data->queue_lock);
+	n_bytes_written = ec_event_size(event);
+	if (copy_to_user(buf, event, n_bytes_written))
 		n_bytes_written = -EFAULT;
-	list_del(&entry->list);
-	kfree(entry);
-	dev_data->num_events--;
-
-	mutex_unlock(&dev_data->lock);
+	kfree(event);
 
 	return n_bytes_written;
 }
@@ -384,15 +421,13 @@ static void free_device_data(struct device *d)
 	struct event_device_data *dev_data;
 
 	dev_data = container_of(d, struct event_device_data, dev);
+	event_queue_free(dev_data->events);
 	kfree(dev_data);
 }
 
 static void hangup_device(struct event_device_data *dev_data)
 {
-	mutex_lock(&dev_data->lock);
 	dev_data->exist = false;
-	mutex_unlock(&dev_data->lock);
-
 	/* Wake up the waiting processes so they can close. */
 	wake_up_interruptible(&dev_data->wq);
 	put_device(&dev_data->dev);
@@ -420,7 +455,7 @@ static int event_device_add(struct acpi_device *adev)
 	minor = ida_alloc_max(&event_ida, EVENT_MAX_DEV-1, GFP_KERNEL);
 	if (minor < 0) {
 		error = minor;
-		dev_err(&adev->dev, "Failed to find minor number: %d", error);
+		dev_err(&adev->dev, "Failed to find minor number: %d\n", error);
 		return error;
 	}
 
@@ -432,8 +467,13 @@ static int event_device_add(struct acpi_device *adev)
 
 	/* Initialize the device data. */
 	adev->driver_data = dev_data;
-	INIT_LIST_HEAD(&dev_data->events);
-	mutex_init(&dev_data->lock);
+	dev_data->events = event_queue_new(queue_size);
+	if (!dev_data->events) {
+		kfree(dev_data);
+		error = -ENOMEM;
+		goto free_minor;
+	}
+	spin_lock_init(&dev_data->queue_lock);
 	init_waitqueue_head(&dev_data->wq);
 	dev_data->exist = true;
 	atomic_set(&dev_data->available, 1);
@@ -496,14 +536,14 @@ static int __init event_module_init(void)
 
 	ret = class_register(&event_class);
 	if (ret) {
-		pr_err(DRV_NAME ": Failed registering class: %d", ret);
+		pr_err(DRV_NAME ": Failed registering class: %d\n", ret);
 		return ret;
 	}
 
 	/* Request device numbers, starting with minor=0. Save the major num. */
 	ret = alloc_chrdev_region(&dev_num, 0, EVENT_MAX_DEV, EVENT_DEV_NAME);
 	if (ret) {
-		pr_err(DRV_NAME ": Failed allocating dev numbers: %d", ret);
+		pr_err(DRV_NAME ": Failed allocating dev numbers: %d\n", ret);
 		goto destroy_class;
 	}
 	event_major = MAJOR(dev_num);
