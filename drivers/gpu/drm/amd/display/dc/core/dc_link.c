@@ -2860,7 +2860,7 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
-	if (pipe_ctx->stream->signal != SIGNAL_TYPE_HDMI_TYPE_A)
+	if (!dc_is_hdmi_signal(pipe_ctx->stream->signal))
 		return;
 
 	core_dc->hwss.set_avmute(pipe_ctx, enable);
