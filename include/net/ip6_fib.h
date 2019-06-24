@@ -316,6 +316,7 @@ struct fib6_walker {
 	enum fib6_walk_state state;
 	unsigned int skip;
 	unsigned int count;
+	unsigned int skip_in_node;
 	int (*func)(struct fib6_walker *);
 	void *args;
 };

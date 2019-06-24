@@ -197,7 +197,7 @@ struct rt6_rtnl_dump_arg {
 	struct fib_dump_filter filter;
 };
 
-int rt6_dump_route(struct fib6_info *f6i, void *p_arg);
+int rt6_dump_route(struct fib6_info *f6i, void *p_arg, unsigned int skip);
 void rt6_mtu_change(struct net_device *dev, unsigned int mtu);
 void rt6_remove_prefsrc(struct inet6_ifaddr *ifp);
 void rt6_clean_tohost(struct net *net, struct in6_addr *gateway);

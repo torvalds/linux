@@ -245,6 +245,8 @@ struct fib_dump_filter {
 	/* filter_set is an optimization that an entry is set */
 	bool			filter_set;
 	bool			dump_all_families;
+	bool			dump_routes;
+	bool			dump_exceptions;
 	unsigned char		protocol;
 	unsigned char		rt_type;
 	unsigned int		flags;

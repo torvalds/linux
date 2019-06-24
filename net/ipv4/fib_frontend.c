@@ -912,10 +912,15 @@ int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 		NL_SET_ERR_MSG(extack, "Invalid values in header for FIB dump request");
 		return -EINVAL;
 	}
+
 	if (rtm->rtm_flags & ~(RTM_F_CLONED | RTM_F_PREFIX)) {
 		NL_SET_ERR_MSG(extack, "Invalid flags for FIB dump request");
 		return -EINVAL;
 	}
+	if (rtm->rtm_flags & RTM_F_CLONED)
+		filter->dump_routes = false;
+	else
+		filter->dump_exceptions = false;
 
 	filter->dump_all_families = (rtm->rtm_family == AF_UNSPEC);
 	filter->flags    = rtm->rtm_flags;
@@ -962,9 +967,10 @@ EXPORT_SYMBOL_GPL(ip_valid_fib_dump_req);
 
 static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct fib_dump_filter filter = { .dump_routes = true,
+					  .dump_exceptions = true };
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
-	struct fib_dump_filter filter = {};
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct fib_table *tb;
@@ -981,8 +987,8 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 		filter.flags = rtm->rtm_flags & (RTM_F_PREFIX | RTM_F_CLONED);
 	}
 
-	/* fib entries are never clones and ipv4 does not use prefix flag */
-	if (filter.flags & (RTM_F_PREFIX | RTM_F_CLONED))
+	/* ipv4 does not use prefix flag */
+	if (filter.flags & RTM_F_PREFIX)
 		return skb->len;
 
 	if (filter.table_id) {

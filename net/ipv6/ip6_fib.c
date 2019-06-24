@@ -464,12 +464,19 @@ static int fib6_dump_node(struct fib6_walker *w)
 	struct fib6_info *rt;
 
 	for_each_fib6_walker_rt(w) {
-		res = rt6_dump_route(rt, w->args);
-		if (res < 0) {
+		res = rt6_dump_route(rt, w->args, w->skip_in_node);
+		if (res >= 0) {
 			/* Frame is full, suspend walking */
 			w->leaf = rt;
+
+			/* We'll restart from this node, so if some routes were
+			 * already dumped, skip them next time.
+			 */
+			w->skip_in_node += res;
+
 			return 1;
 		}
+		w->skip_in_node = 0;
 
 		/* Multipath routes are dumped in one route with the
 		 * RTA_MULTIPATH attribute. Jump 'rt' to point to the
@@ -521,6 +528,7 @@ static int fib6_dump_table(struct fib6_table *table, struct sk_buff *skb,
 	if (cb->args[4] == 0) {
 		w->count = 0;
 		w->skip = 0;
+		w->skip_in_node = 0;
 
 		spin_lock_bh(&table->tb6_lock);
 		res = fib6_walk(net, w);
@@ -536,6 +544,7 @@ static int fib6_dump_table(struct fib6_table *table, struct sk_buff *skb,
 			w->state = FWS_INIT;
 			w->node = w->root;
 			w->skip = w->count;
+			w->skip_in_node = 0;
 		} else
 			w->skip = 0;
 
@@ -553,9 +562,10 @@ static int fib6_dump_table(struct fib6_table *table, struct sk_buff *skb,
 
 static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct rt6_rtnl_dump_arg arg = { .filter.dump_exceptions = true,
+					 .filter.dump_routes = true };
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
-	struct rt6_rtnl_dump_arg arg = {};
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct fib6_walker *w;
@@ -572,12 +582,9 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	} else if (nlmsg_len(nlh) >= sizeof(struct rtmsg)) {
 		struct rtmsg *rtm = nlmsg_data(nlh);
 
-		arg.filter.flags = rtm->rtm_flags & (RTM_F_PREFIX|RTM_F_CLONED);
+		if (rtm->rtm_flags & RTM_F_PREFIX)
+			arg.filter.flags = RTM_F_PREFIX;
 	}
-
-	/* fib entries are never clones */
-	if (arg.filter.flags & RTM_F_CLONED)
-		goto out;
 
 	w = (void *)cb->args[2];
 	if (!w) {
@@ -1589,7 +1596,8 @@ static struct fib6_node *fib6_locate_1(struct fib6_node *root,
 		if (plen == fn->fn_bit)
 			return fn;
 
-		prev = fn;
+		if (fn->fn_flags & RTN_RTINFO)
+			prev = fn;
 
 next:
 		/*
@@ -2096,6 +2104,7 @@ static void fib6_clean_tree(struct net *net, struct fib6_node *root,
 	c.w.func = fib6_clean_node;
 	c.w.count = 0;
 	c.w.skip = 0;
+	c.w.skip_in_node = 0;
 	c.func = func;
 	c.sernum = sernum;
 	c.arg = arg;
