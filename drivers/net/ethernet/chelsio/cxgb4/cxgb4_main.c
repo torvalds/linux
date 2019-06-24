@@ -449,9 +449,9 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
  *	Addresses are programmed to hash region, if tcam runs out of entries.
  *
  */
-static int cxgb4_change_mac(struct port_info *pi, unsigned int viid,
-			    int *tcam_idx, const u8 *addr, bool persist,
-			    u8 *smt_idx)
+int cxgb4_change_mac(struct port_info *pi, unsigned int viid,
+		     int *tcam_idx, const u8 *addr, bool persist,
+		     u8 *smt_idx)
 {
 	struct adapter *adapter = pi->adapter;
 	struct hash_mac_addr *entry, *new_entry;
@@ -505,8 +505,8 @@ static int link_start(struct net_device *dev)
 	ret = t4_set_rxmode(pi->adapter, mb, pi->viid, dev->mtu, -1, -1, -1,
 			    !!(dev->features & NETIF_F_HW_VLAN_CTAG_RX), true);
 	if (ret == 0)
-		ret = cxgb4_change_mac(pi, pi->viid, &pi->xact_addr_filt,
-				       dev->dev_addr, true, &pi->smt_idx);
+		ret = cxgb4_update_mac_filt(pi, pi->viid, &pi->xact_addr_filt,
+					    dev->dev_addr, true, &pi->smt_idx);
 	if (ret == 0)
 		ret = t4_link_l1cfg(pi->adapter, mb, pi->tx_chan,
 				    &pi->link_cfg);
@@ -3020,8 +3020,8 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ret = cxgb4_change_mac(pi, pi->viid, &pi->xact_addr_filt,
-			       addr->sa_data, true, &pi->smt_idx);
+	ret = cxgb4_update_mac_filt(pi, pi->viid, &pi->xact_addr_filt,
+				    addr->sa_data, true, &pi->smt_idx);
 	if (ret < 0)
 		return ret;
 

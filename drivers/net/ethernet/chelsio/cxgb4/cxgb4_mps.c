@@ -54,6 +54,21 @@ unlock:
 	return ret;
 }
 
+int cxgb4_update_mac_filt(struct port_info *pi, unsigned int viid,
+			  int *tcam_idx, const u8 *addr,
+			  bool persistent, u8 *smt_idx)
+{
+	int ret;
+
+	ret = cxgb4_change_mac(pi, viid, tcam_idx,
+			       addr, persistent, smt_idx);
+	if (ret < 0)
+		return ret;
+
+	cxgb4_mps_ref_inc(pi->adapter, addr, *tcam_idx, NULL);
+	return ret;
+}
+
 int cxgb4_free_raw_mac_filt(struct adapter *adap,
 			    unsigned int viid,
 			    const u8 *addr,
