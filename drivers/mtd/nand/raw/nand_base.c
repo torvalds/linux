@@ -4662,7 +4662,6 @@ static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
 	memorg = nanddev_get_memorg(&chip->base);
 	memorg->planes_per_lun = 1;
 	memorg->luns_per_target = 1;
-	memorg->ntargets = 1;
 
 	/*
 	 * Reset the chip, required by some chips (e.g. Micron MT29FxGxxxxx)
@@ -5026,6 +5025,8 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 	ret = nand_legacy_check_hooks(chip);
 	if (ret)
 		return ret;
+
+	memorg->ntargets = maxchips;
 
 	/* Read the flash type */
 	ret = nand_detect(chip, table);
