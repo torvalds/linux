@@ -396,19 +396,19 @@
 #define VPP_PREBLEND_CURRENT_XY 0x1d24
 #define VPP_POSTBLEND_CURRENT_XY 0x1d25
 #define VPP_MISC 0x1d26
-#define		VPP_PREBLEND_ENABLE	BIT(6)
-#define		VPP_POSTBLEND_ENABLE	BIT(7)
-#define		VPP_OSD2_ALPHA_PREMULT	BIT(8)
-#define		VPP_OSD1_ALPHA_PREMULT	BIT(9)
-#define		VPP_VD1_POSTBLEND	BIT(10)
-#define		VPP_VD2_POSTBLEND	BIT(11)
-#define		VPP_OSD1_POSTBLEND	BIT(12)
-#define		VPP_OSD2_POSTBLEND	BIT(13)
-#define		VPP_VD1_PREBLEND	BIT(14)
-#define		VPP_VD2_PREBLEND	BIT(15)
-#define		VPP_OSD1_PREBLEND	BIT(16)
-#define		VPP_OSD2_PREBLEND	BIT(17)
-#define		VPP_COLOR_MNG_ENABLE	BIT(28)
+#define		VPP_PREBLEND_ENABLE             BIT(6)
+#define		VPP_POSTBLEND_ENABLE            BIT(7)
+#define		VPP_OSD2_ALPHA_PREMULT          BIT(8)
+#define		VPP_OSD1_ALPHA_PREMULT          BIT(9)
+#define		VPP_VD1_POSTBLEND               BIT(10)
+#define		VPP_VD2_POSTBLEND               BIT(11)
+#define		VPP_OSD1_POSTBLEND              BIT(12)
+#define		VPP_OSD2_POSTBLEND              BIT(13)
+#define		VPP_VD1_PREBLEND                BIT(14)
+#define		VPP_VD2_PREBLEND                BIT(15)
+#define		VPP_OSD1_PREBLEND               BIT(16)
+#define		VPP_OSD2_PREBLEND               BIT(17)
+#define		VPP_COLOR_MNG_ENABLE            BIT(28)
 #define VPP_OFIFO_SIZE 0x1d27
 #define		VPP_OFIFO_SIZE_MASK             GENMASK(13, 0)
 #define		VPP_OFIFO_SIZE_DEFAULT          (0xfff << 20 | 0x1000)
@@ -619,6 +619,7 @@
 #define OSD34_SCI_WH_M1 0x3d29
 #define OSD34_SCO_H_START_END 0x3d2a
 #define OSD34_SCO_V_START_END 0x3d2b
+
 /* viu2 */
 #define VIU2_ADDR_START 0x1e00
 #define VIU2_ADDR_END 0x1eff
@@ -1601,7 +1602,6 @@
 #define OSD1_AFBCD_STATUS 0x31a8
 #define OSD1_AFBCD_PIXEL_HSCOPE 0x31a9
 #define OSD1_AFBCD_PIXEL_VSCOPE 0x31aa
-#define VIU_MISC_CTRL1 0x1a07
 
 /* add for gxm and 962e dv core2 */
 #define DOLBY_CORE2A_SWAP_CTRL1	0x3434
@@ -1616,8 +1616,6 @@
 #define VPU_MAFBC_COMMAND 0x3a05
 #define VPU_MAFBC_STATUS 0x3a06
 #define VPU_MAFBC_SURFACE_CFG 0x3a07
-
-/* osd afbc on g12a */
 #define VPU_MAFBC_HEADER_BUF_ADDR_LOW_S0 0x3a10
 #define VPU_MAFBC_HEADER_BUF_ADDR_HIGH_S0 0x3a11
 #define VPU_MAFBC_FORMAT_SPECIFIER_S0 0x3a12
@@ -1738,6 +1736,5 @@
 #define VPP_POST_BLEND_DUMMY_ALPHA 0x3969
 #define VPP_RDARB_MODE 0x3978
 #define VPP_RDARB_REQEN_SLV 0x3979
-#define VPU_RDARB_MODE_L2C1 0x279d
 
 #endif /* __MESON_REGISTERS_H */
