@@ -339,9 +339,11 @@ static inline erofs_off_t iloc(struct erofs_sb_info *sbi, erofs_nid_t nid)
 
 /* atomic flag definitions */
 #define EROFS_V_EA_INITED_BIT	0
+#define EROFS_V_Z_INITED_BIT	1
 
 /* bitlock definitions (arranged in reverse order) */
 #define EROFS_V_BL_XATTR_BIT	(BITS_PER_LONG - 1)
+#define EROFS_V_BL_Z_BIT	(BITS_PER_LONG - 2)
 
 struct erofs_vnode {
 	erofs_nid_t nid;
@@ -356,8 +358,17 @@ struct erofs_vnode {
 	unsigned xattr_shared_count;
 	unsigned *xattr_shared_xattrs;
 
-	erofs_blk_t raw_blkaddr;
-
+	union {
+		erofs_blk_t raw_blkaddr;
+#ifdef CONFIG_EROFS_FS_ZIP
+		struct {
+			unsigned short z_advise;
+			unsigned char  z_algorithmtype[2];
+			unsigned char  z_logical_clusterbits;
+			unsigned char  z_physical_clusterbits[2];
+		};
+#endif
+	};
 	/* the corresponding vfs inode */
 	struct inode vfs_inode;
 };
@@ -447,11 +458,14 @@ struct erofs_map_blocks {
 /* Flags used by erofs_map_blocks() */
 #define EROFS_GET_BLOCKS_RAW    0x0001
 
+/* zmap.c */
 #ifdef CONFIG_EROFS_FS_ZIP
+int z_erofs_fill_inode(struct inode *inode);
 int z_erofs_map_blocks_iter(struct inode *inode,
 			    struct erofs_map_blocks *map,
 			    int flags);
 #else
+static inline int z_erofs_fill_inode(struct inode *inode) { return -ENOTSUPP; }
 static inline int z_erofs_map_blocks_iter(struct inode *inode,
 					  struct erofs_map_blocks *map,
 					  int flags)

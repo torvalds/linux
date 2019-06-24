@@ -210,12 +210,7 @@ static int fill_inode(struct inode *inode, int isdir)
 		}
 
 		if (is_inode_layout_compression(inode)) {
-#ifdef CONFIG_EROFS_FS_ZIP
-			inode->i_mapping->a_ops =
-				&z_erofs_vle_normalaccess_aops;
-#else
-			err = -ENOTSUPP;
-#endif
+			err = z_erofs_fill_inode(inode);
 			goto out_unlock;
 		}
 
