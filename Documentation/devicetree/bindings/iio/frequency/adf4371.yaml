@@ -4,19 +4,21 @@
 $id: http://devicetree.org/schemas/iio/frequency/adf4371.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices ADF4371 Wideband Synthesizer
+title: Analog Devices ADF4371/ADF4372 Wideband Synthesizers
 
 maintainers:
   - Popa Stefan <stefan.popa@analog.com>
 
 description: |
-  Analog Devices ADF4371 SPI Wideband Synthesizer
+  Analog Devices ADF4371/ADF4372 SPI Wideband Synthesizers
   https://www.analog.com/media/en/technical-documentation/data-sheets/adf4371.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/adf4372.pdf
 
 properties:
   compatible:
     enum:
       - adi,adf4371
+      - adi,adf4372
 
   reg:
     maxItems: 1
