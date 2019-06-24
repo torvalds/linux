@@ -505,6 +505,8 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 
 			return PTR_ERR(dpaux->vdd);
 		}
+
+		dpaux->vdd = NULL;
 	}
 
 	platform_set_drvdata(pdev, dpaux);
@@ -698,12 +700,14 @@ int drm_dp_aux_attach(struct drm_dp_aux *aux, struct tegra_output *output)
 	output->connector.polled = DRM_CONNECTOR_POLL_HPD;
 	dpaux->output = output;
 
-	err = regulator_enable(dpaux->vdd);
-	if (err < 0)
-		return err;
-
 	if (output->panel) {
 		enum drm_connector_status status;
+
+		if (dpaux->vdd) {
+			err = regulator_enable(dpaux->vdd);
+			if (err < 0)
+				return err;
+		}
 
 		timeout = jiffies + msecs_to_jiffies(250);
 
@@ -732,12 +736,14 @@ int drm_dp_aux_detach(struct drm_dp_aux *aux)
 
 	disable_irq(dpaux->irq);
 
-	err = regulator_disable(dpaux->vdd);
-	if (err < 0)
-		return err;
-
 	if (dpaux->output->panel) {
 		enum drm_connector_status status;
+
+		if (dpaux->vdd) {
+			err = regulator_disable(dpaux->vdd);
+			if (err < 0)
+				return err;
+		}
 
 		timeout = jiffies + msecs_to_jiffies(250);
 
