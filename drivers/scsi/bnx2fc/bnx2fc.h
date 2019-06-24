@@ -457,6 +457,7 @@ struct bnx2fc_cmd {
 #define BNX2FC_FLAG_ELS_TIMEOUT		0xb
 #define BNX2FC_FLAG_CMD_LOST		0xc
 #define BNX2FC_FLAG_SRR_SENT		0xd
+#define BNX2FC_FLAG_ISSUE_CLEANUP_REQ	0xe
 	u8 rec_retry;
 	u8 srr_retry;
 	u32 srr_offset;
