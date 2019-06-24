@@ -8,13 +8,14 @@
  *	Seung-Woo Kim <sw0312.kim@samsung.com>
  */
 
-#include <drm/drmP.h>
+#include <linux/console.h>
+#include <linux/dma-mapping.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/exynos_drm.h>
-
-#include <linux/console.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
