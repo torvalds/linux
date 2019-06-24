@@ -17,21 +17,21 @@ static struct rc_map_table terratec_slim_2[] = {
 	{ 0x8001, KEY_MUTE },            /* MUTE */
 	{ 0x8002, KEY_VOLUMEDOWN },
 	{ 0x8003, KEY_CHANNELDOWN },
-	{ 0x8004, KEY_1 },
-	{ 0x8005, KEY_2 },
-	{ 0x8006, KEY_3 },
-	{ 0x8007, KEY_4 },
-	{ 0x8008, KEY_5 },
-	{ 0x8009, KEY_6 },
-	{ 0x800a, KEY_7 },
+	{ 0x8004, KEY_NUMERIC_1 },
+	{ 0x8005, KEY_NUMERIC_2 },
+	{ 0x8006, KEY_NUMERIC_3 },
+	{ 0x8007, KEY_NUMERIC_4 },
+	{ 0x8008, KEY_NUMERIC_5 },
+	{ 0x8009, KEY_NUMERIC_6 },
+	{ 0x800a, KEY_NUMERIC_7 },
 	{ 0x800c, KEY_ZOOM },            /* [fullscreen] */
-	{ 0x800d, KEY_0 },
+	{ 0x800d, KEY_NUMERIC_0 },
 	{ 0x800e, KEY_AGAIN },           /* [two arrows forming a circle] */
 	{ 0x8012, KEY_POWER2 },          /* [red power button] */
 	{ 0x801a, KEY_VOLUMEUP },
-	{ 0x801b, KEY_8 },
+	{ 0x801b, KEY_NUMERIC_8 },
 	{ 0x801e, KEY_CHANNELUP },
-	{ 0x801f, KEY_9 },
+	{ 0x801f, KEY_NUMERIC_9 },
 };
 
 static struct rc_map_list terratec_slim_2_map = {
