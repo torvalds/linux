@@ -43,14 +43,6 @@ struct vimc_stream {
 	u32 producer_pixfmt;
 };
 
-/**
- * vimc_streamer_s_streamer - start/stop the stream
- *
- * @stream:	the pointer to the stream to start or stop
- * @ved:	The last entity of the streamer pipeline
- * @enable:	any non-zero number start the stream, zero stop
- *
- */
 int vimc_streamer_s_stream(struct vimc_stream *stream,
 			   struct vimc_ent_device *ved,
 			   int enable);
