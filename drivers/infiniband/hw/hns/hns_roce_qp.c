@@ -853,7 +853,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	ret = hns_roce_mtr_attach(hr_dev, &hr_qp->mtr, buf_list,
 				  hr_qp->regions, hr_qp->region_cnt);
 	if (ret) {
-		dev_err(dev, "mtr attatch error for create qp\n");
+		dev_err(dev, "mtr attach error for create qp\n");
 		goto err_mtr;
 	}
 
