@@ -387,8 +387,8 @@ static int hns_roce_set_user_sq_size(struct hns_roce_dev *hr_dev,
 					     hr_qp->sq.wqe_shift), PAGE_SIZE);
 	} else {
 		page_size = 1 << (hr_dev->caps.mtt_buf_pg_sz + PAGE_SHIFT);
-		hr_qp->sge.sge_cnt =
-		       max(page_size / (1 << hr_qp->sge.sge_shift), ex_sge_num);
+		hr_qp->sge.sge_cnt = ex_sge_num ?
+		   max(page_size / (1 << hr_qp->sge.sge_shift), ex_sge_num) : 0;
 		hr_qp->buff_size = HNS_ROCE_ALOGN_UP((hr_qp->rq.wqe_cnt <<
 					     hr_qp->rq.wqe_shift), page_size) +
 				   HNS_ROCE_ALOGN_UP((hr_qp->sge.sge_cnt <<
