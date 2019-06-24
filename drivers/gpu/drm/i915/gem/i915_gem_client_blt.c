@@ -162,11 +162,12 @@ static void clear_pages_worker(struct work_struct *work)
 		goto out_signal;
 
 	if (obj->cache_dirty) {
-		obj->write_domain = 0;
 		if (i915_gem_object_has_struct_page(obj))
 			drm_clflush_sg(w->sleeve->pages);
 		obj->cache_dirty = false;
 	}
+	obj->read_domains = I915_GEM_GPU_DOMAINS;
+	obj->write_domain = 0;
 
 	/* XXX: we need to kill this */
 	mutex_lock(&i915->drm.struct_mutex);
