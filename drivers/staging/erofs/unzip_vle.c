@@ -897,12 +897,12 @@ static int z_erofs_vle_unzip(struct super_block *sb,
 	unsigned int sparsemem_pages = 0;
 	struct page *pages_onstack[Z_EROFS_VLE_VMAP_ONSTACK_PAGES];
 	struct page **pages, **compressed_pages, *page;
-	unsigned int i, llen;
+	unsigned int algorithm;
+	unsigned int i, outputsize;
 
 	enum z_erofs_page_type page_type;
 	bool overlapped;
 	struct z_erofs_vle_work *work;
-	void *vout;
 	int err;
 
 	might_sleep();
@@ -1009,43 +1009,26 @@ repeat:
 	if (unlikely(err))
 		goto out;
 
-	llen = (nr_pages << PAGE_SHIFT) - work->pageofs;
+	if (nr_pages << PAGE_SHIFT >= work->pageofs + grp->llen)
+		outputsize = grp->llen;
+	else
+		outputsize = (nr_pages << PAGE_SHIFT) - work->pageofs;
 
-	if (z_erofs_vle_workgrp_fmt(grp) == Z_EROFS_VLE_WORKGRP_FMT_PLAIN) {
-		err = z_erofs_vle_plain_copy(compressed_pages, clusterpages,
-					     pages, nr_pages, work->pageofs);
-		goto out;
-	}
+	if (z_erofs_vle_workgrp_fmt(grp) == Z_EROFS_VLE_WORKGRP_FMT_PLAIN)
+		algorithm = Z_EROFS_COMPRESSION_SHIFTED;
+	else
+		algorithm = Z_EROFS_COMPRESSION_LZ4;
 
-	if (llen > grp->llen)
-		llen = grp->llen;
-
-	err = z_erofs_vle_unzip_fast_percpu(compressed_pages, clusterpages,
-					    pages, llen, work->pageofs);
-	if (err != -ENOTSUPP)
-		goto out;
-
-	if (sparsemem_pages >= nr_pages)
-		goto skip_allocpage;
-
-	for (i = 0; i < nr_pages; ++i) {
-		if (pages[i])
-			continue;
-
-		pages[i] = __stagingpage_alloc(page_pool, GFP_NOFS);
-	}
-
-skip_allocpage:
-	vout = erofs_vmap(pages, nr_pages);
-	if (!vout) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	err = z_erofs_vle_unzip_vmap(compressed_pages, clusterpages, vout,
-				     llen, work->pageofs, overlapped);
-
-	erofs_vunmap(vout, nr_pages);
+	err = z_erofs_decompress(&(struct z_erofs_decompress_req) {
+					.sb = sb,
+					.in = compressed_pages,
+					.out = pages,
+					.pageofs_out = work->pageofs,
+					.inputsize = PAGE_SIZE,
+					.outputsize = outputsize,
+					.alg = algorithm,
+					.inplace_io = overlapped,
+					.partial_decoding = true }, page_pool);
 
 out:
 	/* must handle all compressed pages before endding pages */

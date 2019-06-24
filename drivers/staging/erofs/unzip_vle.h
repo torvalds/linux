@@ -16,6 +16,8 @@
 #include "internal.h"
 #include "unzip_pagevec.h"
 
+#define Z_EROFS_NR_INLINE_PAGEVECS      3
+
 /*
  * Structure fields follow one of the following exclusion rules.
  *
@@ -188,19 +190,6 @@ static inline void z_erofs_onlinepage_endio(struct page *page)
 #define Z_EROFS_VLE_VMAP_ONSTACK_PAGES	\
 	min_t(unsigned int, THREAD_SIZE / 8 / sizeof(struct page *), 96U)
 #define Z_EROFS_VLE_VMAP_GLOBAL_PAGES	2048
-
-/* unzip_vle_lz4.c */
-int z_erofs_vle_plain_copy(struct page **compressed_pages,
-			   unsigned int clusterpages, struct page **pages,
-			   unsigned int nr_pages, unsigned short pageofs);
-int z_erofs_vle_unzip_fast_percpu(struct page **compressed_pages,
-				  unsigned int clusterpages,
-				  struct page **pages, unsigned int outlen,
-				  unsigned short pageofs);
-int z_erofs_vle_unzip_vmap(struct page **compressed_pages,
-			   unsigned int clusterpages,
-			   void *vaddr, unsigned int llen,
-			   unsigned short pageofs, bool overlapped);
 
 #endif
 
