@@ -398,6 +398,8 @@ struct tegra_sor_ops {
 	const char *name;
 	int (*probe)(struct tegra_sor *sor);
 	int (*remove)(struct tegra_sor *sor);
+	void (*audio_enable)(struct tegra_sor *sor);
+	void (*audio_disable)(struct tegra_sor *sor);
 };
 
 struct tegra_sor {
@@ -3008,6 +3010,8 @@ static const struct tegra_sor_ops tegra_sor_hdmi_ops = {
 	.name = "HDMI",
 	.probe = tegra_sor_hdmi_probe,
 	.remove = tegra_sor_hdmi_remove,
+	.audio_enable = tegra_sor_hdmi_audio_enable,
+	.audio_disable = tegra_sor_hdmi_audio_disable,
 };
 
 static int tegra_sor_dp_probe(struct tegra_sor *sor)
@@ -3616,9 +3620,11 @@ static irqreturn_t tegra_sor_irq(int irq, void *data)
 
 			tegra_hda_parse_format(format, &sor->format);
 
-			tegra_sor_hdmi_audio_enable(sor);
+			if (sor->ops->audio_enable)
+				sor->ops->audio_enable(sor);
 		} else {
-			tegra_sor_hdmi_audio_disable(sor);
+			if (sor->ops->audio_disable)
+				sor->ops->audio_disable(sor);
 		}
 	}
 
