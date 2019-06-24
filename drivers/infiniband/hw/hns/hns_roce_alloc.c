@@ -257,7 +257,7 @@ int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 	for (i = start; i < end; i++)
 		if (buf->nbufs == 1)
 			bufs[total++] = buf->direct.map +
-					(i << buf->page_shift);
+					((dma_addr_t)i << buf->page_shift);
 		else
 			bufs[total++] = buf->page_list[i].map;
 
