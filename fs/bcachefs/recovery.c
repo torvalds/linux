@@ -379,7 +379,15 @@ static int journal_replay_entry_early(struct bch_fs *c,
 
 	switch (entry->type) {
 	case BCH_JSET_ENTRY_btree_root: {
-		struct btree_root *r = &c->btree_roots[entry->btree_id];
+		struct btree_root *r;
+
+		if (entry->btree_id >= BTREE_ID_NR) {
+			bch_err(c, "filesystem has unknown btree type %u",
+				entry->btree_id);
+			return -EINVAL;
+		}
+
+		r = &c->btree_roots[entry->btree_id];
 
 		if (entry->u64s) {
 			r->level = entry->level;
