@@ -2488,21 +2488,21 @@ out_destroy:
  * modification to the CBM if the default does not satisfy the
  * requirements.
  */
-static void cbm_ensure_valid(u32 *_val, struct rdt_resource *r)
+static u32 cbm_ensure_valid(u32 _val, struct rdt_resource *r)
 {
-	unsigned long val = *_val;
 	unsigned int cbm_len = r->cache.cbm_len;
 	unsigned long first_bit, zero_bit;
+	unsigned long val = _val;
 
-	if (val == 0)
-		return;
+	if (!val)
+		return 0;
 
 	first_bit = find_first_bit(&val, cbm_len);
 	zero_bit = find_next_zero_bit(&val, cbm_len, first_bit);
 
 	/* Clear any remaining bits to ensure contiguous region */
 	bitmap_clear(&val, zero_bit, cbm_len - zero_bit);
-	*_val = (u32)val;
+	return (u32)val;
 }
 
 /*
@@ -2560,7 +2560,7 @@ static int __init_one_rdt_domain(struct rdt_domain *d, struct rdt_resource *r,
 	 * Force the initial CBM to be valid, user can
 	 * modify the CBM based on system availability.
 	 */
-	cbm_ensure_valid(&d->new_ctrl, r);
+	d->new_ctrl = cbm_ensure_valid(d->new_ctrl, r);
 	/*
 	 * Assign the u32 CBM to an unsigned long to ensure that
 	 * bitmap_weight() does not access out-of-bound memory.
