@@ -1265,6 +1265,17 @@ void dcn20_pipe_control_lock(
 	if (pipe->plane_state != NULL)
 		flip_immediate = pipe->plane_state->flip_immediate;
 
+	if (flip_immediate && lock) {
+		while (pipe->plane_res.hubp->funcs->hubp_is_flip_pending(pipe->plane_res.hubp))	{
+			udelay(1);
+		}
+
+		if (pipe->bottom_pipe != NULL)
+			while (pipe->bottom_pipe->plane_res.hubp->funcs->hubp_is_flip_pending(pipe->bottom_pipe->plane_res.hubp))	{
+				udelay(1);
+			}
+	}
+
 	/* In flip immediate and pipe splitting case, we need to use GSL
 	 * for synchronization. Only do setup on locking and on flip type change.
 	 */
