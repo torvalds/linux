@@ -5,8 +5,11 @@ use strict;
 # Copyright (c) 2017-2019 Mauro Carvalho Chehab <mchehab@kernel.org>
 #
 
-my $conf = "Documentation/conf.py";
-my $requirement_file = "Documentation/sphinx/requirements.txt";
+my $prefix = "./";
+$prefix = "$ENV{'srctree'}/" if ($ENV{'srctree'});
+
+my $conf = $prefix . "Documentation/conf.py";
+my $requirement_file = $prefix . "Documentation/sphinx/requirements.txt";
 my $virtenv_prefix = "sphinx_";
 
 #
