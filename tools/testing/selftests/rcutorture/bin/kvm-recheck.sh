@@ -7,6 +7,8 @@
 #
 # Usage: kvm-recheck.sh resdir ...
 #
+# Returns status reflecting the success or not of the last run specified.
+#
 # Copyright (C) IBM Corporation, 2011
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
@@ -28,8 +30,16 @@ do
 		TORTURE_SUITE="`cat $i/../TORTURE_SUITE`"
 		rm -f $i/console.log.*.diags
 		kvm-recheck-${TORTURE_SUITE}.sh $i
-		if test -f "$i/console.log"
+		if test -f "$i/qemu-retval" && test "`cat $i/qemu-retval`" -ne 0 && test "`cat $i/qemu-retval`" -ne 137
 		then
+			echo QEMU error, output:
+			cat $i/qemu-output
+		elif test -f "$i/console.log"
+		then
+			if test -f "$i/qemu-retval" && test "`cat $i/qemu-retval`" -eq 137
+			then
+				echo QEMU killed
+			fi
 			configcheck.sh $i/.config $i/ConfigFragment
 			if test -r $i/Make.oldconfig.err
 			then
@@ -58,3 +68,4 @@ do
 		fi
 	done
 done
+EDITOR=echo kvm-find-errors.sh "${@: -1}" > /dev/null 2>&1
