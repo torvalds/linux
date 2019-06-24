@@ -4565,7 +4565,7 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 	    (hr_qp->ibqp.qp_type == IB_QPT_UD))
 		hns_roce_release_range_qp(hr_dev, hr_qp->qpn, 1);
 
-	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
+	hns_roce_mtr_cleanup(hr_dev, &hr_qp->mtr);
 
 	if (udata) {
 		struct hns_roce_ucontext *context =
