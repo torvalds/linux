@@ -136,11 +136,19 @@
 #define VIU_ADDR_START 0x1a00
 #define VIU_ADDR_END 0x1aff
 #define VIU_SW_RESET 0x1a01
+#define		VIU_SW_RESET_OSD1               BIT(0)
 #define VIU_MISC_CTRL0 0x1a06
+#define		VIU_CTRL0_VD1_AFBC_MASK         0x170000
 #define VIU_MISC_CTRL1 0x1a07
 #define D2D3_INTF_LENGTH 0x1a08
 #define D2D3_INTF_CTRL0 0x1a09
 #define VIU_OSD1_CTRL_STAT 0x1a10
+#define		VIU_OSD1_OSD_BLK_ENABLE         BIT(0)
+#define		VIU_OSD1_POSTBLD_SRC_VD1        (1 << 8)
+#define		VIU_OSD1_POSTBLD_SRC_VD2        (2 << 8)
+#define		VIU_OSD1_POSTBLD_SRC_OSD1       (3 << 8)
+#define		VIU_OSD1_POSTBLD_SRC_OSD2       (4 << 8)
+#define		VIU_OSD1_OSD_ENABLE             BIT(21)
 #define VIU_OSD1_CTRL_STAT2 0x1a2d
 #define VIU_OSD1_COLOR_ADDR 0x1a11
 #define VIU_OSD1_COLOR 0x1a12
@@ -229,6 +237,12 @@
 #define VIU_OSD3_PROT_CTRL 0x3d9e
 #define VIU_OSD3_MALI_UNPACK_CTRL 0x3d9f
 #define VIU_OSD3_DIMM_CTRL 0x3da0
+
+#define VIU_OSD_DDR_PRIORITY_URGENT      BIT(0)
+#define VIU_OSD_HOLD_FIFO_LINES(lines)   ((lines & 0x1f) << 5)
+#define VIU_OSD_FIFO_DEPTH_VAL(val)      ((val & 0x7f) << 12)
+#define VIU_OSD_WORDS_PER_BURST(words)   (((words & 0x4) >> 1) << 22)
+#define VIU_OSD_FIFO_LIMITS(size)        ((size & 0xf) << 24)
 
 #define VD1_IF0_GEN_REG 0x1a50
 #define VD1_IF0_CANVAS0 0x1a51
@@ -1610,10 +1624,18 @@
 #define VPU_MAFBC_PREFETCH_CFG_S3 0x3a7c
 
 #define DOLBY_PATH_CTRL 0x1a0c
+#define		DOLBY_BYPASS_EN(val)            (val & 0xf)
 #define OSD_PATH_MISC_CTRL 0x1a0e
 #define MALI_AFBCD_TOP_CTRL 0x1a0f
 
 #define VIU_OSD_BLEND_CTRL 0x39b0
+#define		VIU_OSD_BLEND_REORDER(dest, src)      ((src) << (dest * 4))
+#define		VIU_OSD_BLEND_DIN_EN(bits)            ((bits & 0xf) << 20)
+#define		VIU_OSD_BLEND1_DIN3_BYPASS_TO_DOUT1   BIT(24)
+#define		VIU_OSD_BLEND1_DOUT_BYPASS_TO_BLEND2  BIT(25)
+#define		VIU_OSD_BLEND_DIN0_BYPASS_TO_DOUT0    BIT(26)
+#define		VIU_OSD_BLEND_BLEN2_PREMULT_EN(input) ((input & 0x3) << 27)
+#define		VIU_OSD_BLEND_HOLD_LINES(lines)       ((lines & 0x7) << 29)
 #define VIU_OSD_BLEND_CTRL1 0x39c0
 #define VIU_OSD_BLEND_DIN0_SCOPE_H 0x39b1
 #define VIU_OSD_BLEND_DIN0_SCOPE_V 0x39b2
@@ -1655,6 +1677,11 @@
 #define		VD_BLEND_POSTBLD_PREMULT_EN     BIT(16)
 #define OSD1_BLEND_SRC_CTRL 0x1dfd
 #define OSD2_BLEND_SRC_CTRL 0x1dfe
+#define		OSD_BLEND_POSTBLD_SRC_VD1       (1 << 8)
+#define		OSD_BLEND_POSTBLD_SRC_VD2       (2 << 8)
+#define		OSD_BLEND_POSTBLD_SRC_OSD1      (3 << 8)
+#define		OSD_BLEND_POSTBLD_SRC_OSD2      (4 << 8)
+#define		OSD_BLEND_PATH_SEL_ENABLE       BIT(20)
 
 #define VPP_POST_BLEND_BLEND_DUMMY_DATA 0x3968
 #define VPP_POST_BLEND_DUMMY_ALPHA 0x3969
