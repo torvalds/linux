@@ -1919,5 +1919,21 @@ int cxgb4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
 			       u8 dip_hit, u8 lookup_type, bool sleep_ok);
 int cxgb4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
 			      int idx, bool sleep_ok);
+int cxgb4_free_raw_mac_filt(struct adapter *adap,
+			    unsigned int viid,
+			    const u8 *addr,
+			    const u8 *mask,
+			    unsigned int idx,
+			    u8 lookup_type,
+			    u8 port_id,
+			    bool sleep_ok);
+int cxgb4_alloc_raw_mac_filt(struct adapter *adap,
+			     unsigned int viid,
+			     const u8 *addr,
+			     const u8 *mask,
+			     unsigned int idx,
+			     u8 lookup_type,
+			     u8 port_id,
+			     bool sleep_ok);
 
 #endif /* __CXGB4_H__ */

@@ -54,6 +54,52 @@ unlock:
 	return ret;
 }
 
+int cxgb4_free_raw_mac_filt(struct adapter *adap,
+			    unsigned int viid,
+			    const u8 *addr,
+			    const u8 *mask,
+			    unsigned int idx,
+			    u8 lookup_type,
+			    u8 port_id,
+			    bool sleep_ok)
+{
+	int ret = 0;
+
+	if (!cxgb4_mps_ref_dec(adap, idx))
+		ret = t4_free_raw_mac_filt(adap, viid, addr,
+					   mask, idx, lookup_type,
+					   port_id, sleep_ok);
+
+	return ret;
+}
+
+int cxgb4_alloc_raw_mac_filt(struct adapter *adap,
+			     unsigned int viid,
+			     const u8 *addr,
+			     const u8 *mask,
+			     unsigned int idx,
+			     u8 lookup_type,
+			     u8 port_id,
+			     bool sleep_ok)
+{
+	int ret;
+
+	ret = t4_alloc_raw_mac_filt(adap, viid, addr,
+				    mask, idx, lookup_type,
+				    port_id, sleep_ok);
+	if (ret < 0)
+		return ret;
+
+	if (cxgb4_mps_ref_inc(adap, addr, ret, mask)) {
+		ret = -ENOMEM;
+		t4_free_raw_mac_filt(adap, viid, addr,
+				     mask, idx, lookup_type,
+				     port_id, sleep_ok);
+	}
+
+	return ret;
+}
+
 int cxgb4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
 			      int idx, bool sleep_ok)
 {
