@@ -73,7 +73,7 @@ int r8712_init_cmd_priv(struct cmd_priv *pcmdpriv)
 	return 0;
 }
 
-static sint _init_evt_priv(struct evt_priv *pevtpriv)
+int r8712_init_evt_priv(struct evt_priv *pevtpriv)
 {
 	/* allocate DMA-able/Non-Page memory for cmd_buf and rsp_buf */
 	pevtpriv->event_seq = 0;
@@ -133,11 +133,6 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 		list_del_init(&obj->list);
 	spin_unlock_irqrestore(&queue->lock, irqL);
 	return obj;
-}
-
-u32 r8712_init_evt_priv(struct evt_priv *pevtpriv)
-{
-	return _init_evt_priv(pevtpriv);
 }
 
 void r8712_free_evt_priv(struct evt_priv *pevtpriv)
