@@ -289,7 +289,7 @@ static void cpuid_mask(u32 *word, int wordnum)
 	*word &= boot_cpu_data.x86_capability[wordnum];
 }
 
-static void do_cpuid_1_ent(struct kvm_cpuid_entry2 *entry, u32 function,
+static void do_host_cpuid(struct kvm_cpuid_entry2 *entry, u32 function,
 			   u32 index)
 {
 	entry->function = function;
@@ -487,7 +487,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 	if (*nent >= maxnent)
 		goto out;
 
-	do_cpuid_1_ent(entry, function, 0);
+	do_host_cpuid(entry, function, 0);
 	++*nent;
 
 	switch (function) {
@@ -516,7 +516,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 			if (*nent >= maxnent)
 				goto out;
 
-			do_cpuid_1_ent(&entry[t], function, 0);
+			do_host_cpuid(&entry[t], function, 0);
 			++*nent;
 		}
 		break;
@@ -534,7 +534,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 			cache_type = entry[i - 1].eax & 0x1f;
 			if (!cache_type)
 				break;
-			do_cpuid_1_ent(&entry[i], function, i);
+			do_host_cpuid(&entry[i], function, i);
 			++*nent;
 		}
 		break;
@@ -557,7 +557,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 				goto out;
 
 			++i;
-			do_cpuid_1_ent(&entry[i], function, i);
+			do_host_cpuid(&entry[i], function, i);
 			++*nent;
 		}
 		break;
@@ -609,7 +609,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 			level_type = entry[i - 1].ecx & 0xff00;
 			if (!level_type)
 				break;
-			do_cpuid_1_ent(&entry[i], function, i);
+			do_host_cpuid(&entry[i], function, i);
 			++*nent;
 		}
 		break;
@@ -630,7 +630,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 			if (*nent >= maxnent)
 				goto out;
 
-			do_cpuid_1_ent(&entry[i], function, idx);
+			do_host_cpuid(&entry[i], function, idx);
 			if (idx == 1) {
 				entry[i].eax &= kvm_cpuid_D_1_eax_x86_features;
 				cpuid_mask(&entry[i].eax, CPUID_D_1_EAX);
@@ -662,7 +662,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		for (t = 1; t <= times; ++t) {
 			if (*nent >= maxnent)
 				goto out;
-			do_cpuid_1_ent(&entry[t], function, t);
+			do_host_cpuid(&entry[t], function, t);
 			++*nent;
 		}
 		break;
