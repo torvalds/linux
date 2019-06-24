@@ -1109,8 +1109,6 @@ static int __maybe_unused st_lsm6dsx_suspend(struct device *dev)
 {
 	struct st_lsm6dsx_hw *hw = dev_get_drvdata(dev);
 	struct st_lsm6dsx_sensor *sensor;
-	const struct st_lsm6dsx_reg *reg;
-	unsigned int data;
 	int i, err = 0;
 
 	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
@@ -1121,12 +1119,16 @@ static int __maybe_unused st_lsm6dsx_suspend(struct device *dev)
 		if (!(hw->enable_mask & BIT(sensor->id)))
 			continue;
 
-		reg = &st_lsm6dsx_odr_table[sensor->id].reg;
-		data = ST_LSM6DSX_SHIFT_VAL(0, reg->mask);
-		err = st_lsm6dsx_update_bits_locked(hw, reg->addr, reg->mask,
-						    data);
+		if (sensor->id == ST_LSM6DSX_ID_EXT0 ||
+		    sensor->id == ST_LSM6DSX_ID_EXT1 ||
+		    sensor->id == ST_LSM6DSX_ID_EXT2)
+			err = st_lsm6dsx_shub_set_enable(sensor, false);
+		else
+			err = st_lsm6dsx_sensor_set_enable(sensor, false);
 		if (err < 0)
 			return err;
+
+		hw->suspend_mask |= BIT(sensor->id);
 	}
 
 	if (hw->fifo_mode != ST_LSM6DSX_FIFO_BYPASS)
@@ -1146,12 +1148,19 @@ static int __maybe_unused st_lsm6dsx_resume(struct device *dev)
 			continue;
 
 		sensor = iio_priv(hw->iio_devs[i]);
-		if (!(hw->enable_mask & BIT(sensor->id)))
+		if (!(hw->suspend_mask & BIT(sensor->id)))
 			continue;
 
-		err = st_lsm6dsx_set_odr(sensor, sensor->odr);
+		if (sensor->id == ST_LSM6DSX_ID_EXT0 ||
+		    sensor->id == ST_LSM6DSX_ID_EXT1 ||
+		    sensor->id == ST_LSM6DSX_ID_EXT2)
+			err = st_lsm6dsx_shub_set_enable(sensor, true);
+		else
+			err = st_lsm6dsx_sensor_set_enable(sensor, true);
 		if (err < 0)
 			return err;
+
+		hw->suspend_mask &= ~BIT(sensor->id);
 	}
 
 	if (hw->enable_mask)

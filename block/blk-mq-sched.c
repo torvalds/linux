@@ -555,7 +555,6 @@ void blk_mq_sched_free_requests(struct request_queue *q)
 	int i;
 
 	lockdep_assert_held(&q->sysfs_lock);
-	WARN_ON(!q->elevator);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (hctx->sched_tags)

@@ -929,11 +929,15 @@ static int rsi_sdio_ta_reset(struct rsi_hw *adapter)
 	u32 addr;
 	u8 *data;
 
+	data = kzalloc(RSI_9116_REG_SIZE, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	status = rsi_sdio_master_access_msword(adapter, TA_BASE_ADDR);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE,
 			"Unable to set ms word to common reg\n");
-		return status;
+		goto err;
 	}
 
 	rsi_dbg(INIT_ZONE, "%s: Bring TA out of reset\n", __func__);
@@ -944,7 +948,7 @@ static int rsi_sdio_ta_reset(struct rsi_hw *adapter)
 						  RSI_9116_REG_SIZE);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to hold TA threads\n");
-		return status;
+		goto err;
 	}
 
 	put_unaligned_le32(TA_SOFT_RST_CLR, data);
@@ -954,7 +958,7 @@ static int rsi_sdio_ta_reset(struct rsi_hw *adapter)
 						  RSI_9116_REG_SIZE);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to get TA out of reset\n");
-		return status;
+		goto err;
 	}
 
 	put_unaligned_le32(TA_PC_ZERO, data);
@@ -964,7 +968,8 @@ static int rsi_sdio_ta_reset(struct rsi_hw *adapter)
 						  RSI_9116_REG_SIZE);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to Reset TA PC value\n");
-		return -EINVAL;
+		status = -EINVAL;
+		goto err;
 	}
 
 	put_unaligned_le32(TA_RELEASE_THREAD_VALUE, data);
@@ -974,17 +979,19 @@ static int rsi_sdio_ta_reset(struct rsi_hw *adapter)
 						  RSI_9116_REG_SIZE);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to release TA threads\n");
-		return status;
+		goto err;
 	}
 
 	status = rsi_sdio_master_access_msword(adapter, MISC_CFG_BASE_ADDR);
 	if (status < 0) {
 		rsi_dbg(ERR_ZONE, "Unable to set ms word to common reg\n");
-		return status;
+		goto err;
 	}
 	rsi_dbg(INIT_ZONE, "***** TA Reset done *****\n");
 
-	return 0;
+err:
+	kfree(data);
+	return status;
 }
 
 static struct rsi_host_intf_ops sdio_host_intf_ops = {

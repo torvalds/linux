@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/rtc/rtc-rx4581.c
  *
  * written by Torben Hohn <torbenh@linutronix.de>
@@ -7,10 +8,6 @@
  *
  * Copyright (C) 2006 8D Technologies inc.
  * Copyright (C) 2004 Compulab Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Driver for MAX6902 spi RTC
  *
@@ -22,13 +19,8 @@
  * Author: Martyn Welch <martyn.welch@ge.com>
  * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Based on: rtc-pcf8563.c (An I2C driver for the Philips PCF8563 RTC)
  * Copyright 2005-06 Tower Technologies
- *
  */
 
 #include <linux/module.h>

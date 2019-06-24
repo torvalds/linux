@@ -100,7 +100,9 @@ static void nfit_test_kill(void *_pgmap)
 {
 	struct dev_pagemap *pgmap = _pgmap;
 
+	WARN_ON(!pgmap || !pgmap->ref || !pgmap->kill || !pgmap->cleanup);
 	pgmap->kill(pgmap->ref);
+	pgmap->cleanup(pgmap->ref);
 }
 
 void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)

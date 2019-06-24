@@ -1062,6 +1062,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define NOA_DATA	    _MMIO(0x986C)
 #define NOA_WRITE	    _MMIO(0x9888)
+#define GEN10_NOA_WRITE_HIGH _MMIO(0x9884)
 
 #define _GEN7_PIPEA_DE_LOAD_SL	0x70068
 #define _GEN7_PIPEB_DE_LOAD_SL	0x71068

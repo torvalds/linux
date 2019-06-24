@@ -2492,7 +2492,7 @@ void amdgpu_pm_print_power_states(struct amdgpu_device *adev)
 
 int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_version)
 {
-	int r = -EINVAL;
+	int r;
 
 	if (adev->powerplay.pp_funcs && adev->powerplay.pp_funcs->load_firmware) {
 		r = adev->powerplay.pp_funcs->load_firmware(adev->powerplay.pp_handle);
@@ -2502,7 +2502,7 @@ int amdgpu_pm_load_smu_firmware(struct amdgpu_device *adev, uint32_t *smu_versio
 		}
 		*smu_version = adev->pm.fw_version;
 	}
-	return r;
+	return 0;
 }
 
 int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)

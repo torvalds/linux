@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arch/mach-ixp4xx/gateway7001-pci.c
  *
@@ -10,11 +11,6 @@
  *	Copyright (C) 2003 MontaVista Softwrae, Inc.
  *
  * Maintainer: Imre Kaloz <kaloz@openwrt.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>

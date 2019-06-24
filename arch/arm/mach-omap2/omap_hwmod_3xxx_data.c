@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap_hwmod_3xxx_data.c - hardware modules present on the OMAP3xxx chips
  *
  * Copyright (C) 2009-2011 Nokia Corporation
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The data in this file should be completely autogeneratable from
  * the TI hardware database or other technical documentation.

@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2007 Ivo van Doorn
  * Copyright 2009 Johannes Berg <johannes@sipsolutions.net>
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- */
 
 #ifndef __RFKILL_INPUT_H
 #define __RFKILL_INPUT_H

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap_hwmod implementation for OMAP2/3/4
  *
@@ -9,10 +10,6 @@
  * Created in collaboration with (alphabetical order): Thara Gopinath,
  * Tony Lindgren, Rajendra Nayak, Vikram Pandita, Sakari Poussa, Anand
  * Sawant, Santosh Shilimkar, Richard Woodruff
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Introduction
  * ------------

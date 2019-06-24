@@ -156,6 +156,9 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 	struct sg_table *sgt;
 	int ret;
 
+	if (WARN_ON(bo->is_mapped))
+		return 0;
+
 	sgt = drm_gem_shmem_get_pages_sgt(obj);
 	if (WARN_ON(IS_ERR(sgt)))
 		return PTR_ERR(sgt);
@@ -189,6 +192,7 @@ int panfrost_mmu_map(struct panfrost_gem_object *bo)
 
 	pm_runtime_mark_last_busy(pfdev->dev);
 	pm_runtime_put_autosuspend(pfdev->dev);
+	bo->is_mapped = true;
 
 	return 0;
 }
@@ -202,6 +206,9 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 	size_t len = bo->node.size << PAGE_SHIFT;
 	size_t unmapped_len = 0;
 	int ret;
+
+	if (WARN_ON(!bo->is_mapped))
+		return;
 
 	dev_dbg(pfdev->dev, "unmap: iova=%llx, len=%zx", iova, len);
 
@@ -230,6 +237,7 @@ void panfrost_mmu_unmap(struct panfrost_gem_object *bo)
 
 	pm_runtime_mark_last_busy(pfdev->dev);
 	pm_runtime_put_autosuspend(pfdev->dev);
+	bo->is_mapped = false;
 }
 
 static void mmu_tlb_inv_context_s1(void *cookie)

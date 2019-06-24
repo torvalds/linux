@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  User API methods for ACPI-WMI mapping driver
  *
  *  Copyright (C) 2017 Dell, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #ifndef _UAPI_LINUX_WMI_H
 #define _UAPI_LINUX_WMI_H

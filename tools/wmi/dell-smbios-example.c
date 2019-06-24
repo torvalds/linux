@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Sample application for SMBIOS communication over WMI interface
  *  Performs the following:
@@ -6,10 +7,6 @@
  *  - Simple activation of a token
  *
  *  Copyright (C) 2017 Dell, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <errno.h>

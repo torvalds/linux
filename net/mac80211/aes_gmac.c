@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AES-GMAC for IEEE 802.11 BIP-GMAC-128 and BIP-GMAC-256
  * Copyright 2015, Qualcomm Atheros, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>

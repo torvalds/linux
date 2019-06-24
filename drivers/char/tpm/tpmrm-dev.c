@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 James.Bottomley@HansenPartnership.com
- *
- * GPLv2
  */
 #include <linux/slab.h>
 #include "tpm-dev.h"

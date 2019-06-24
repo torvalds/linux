@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP1/OMAP7xx - specific DMA driver
  *
@@ -12,10 +13,6 @@
  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
  * Converted DMA library into platform driver
  *                   - G, Manjunath Kondaiah <manjugk@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>

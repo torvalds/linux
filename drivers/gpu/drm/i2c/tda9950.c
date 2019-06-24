@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  TDA9950 Consumer Electronics Control driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The NXP TDA9950 implements the HDMI Consumer Electronics Control
  * interface.  The host interface is similar to a mailbox: the data

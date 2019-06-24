@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/mm/proc-xscale.S
  *
  *  Author:	Nicolas Pitre
  *  Created:	November 2000
  *  Copyright:	(C) 2000, 2001 MontaVista Software Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * MMU functions for the Intel XScale CPUs
  *

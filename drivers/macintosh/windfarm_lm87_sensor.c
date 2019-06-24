@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Windfarm PowerMac thermal control. LM87 sensor
  *
  * Copyright 2012 Benjamin Herrenschmidt, IBM Corp.
- *
- * Released under the term of the GNU GPL v2.
- *
  */
 
 #include <linux/types.h>

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ip_vs_proto_ah_esp.c:	AH/ESP IPSec load balancing support for IPVS
  *
  * Authors:	Julian Anastasov <ja@ssi.bg>, February 2002
  *		Wensong Zhang <wensong@linuxvirtualserver.org>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		version 2 as published by the Free Software Foundation;
- *
  */
 
 #define KMSG_COMPONENT "IPVS"

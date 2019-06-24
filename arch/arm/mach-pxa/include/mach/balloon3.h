@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/include/asm-arm/arch-pxa/balloon3.h
  *
@@ -5,10 +6,6 @@
  *  Created:	Oct, 2005
  *  Copyright:	Toby Churchill Ltd
  *  Cribbed from mainstone.c, by Nicholas Pitre
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef ASM_ARCH_BALLOON3_H
