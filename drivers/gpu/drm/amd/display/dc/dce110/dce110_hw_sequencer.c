@@ -689,6 +689,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 							dmdata_dp : dmdata_hdmi);
 	}
 #endif
+	dce110_update_info_frame(pipe_ctx);
 
 	/* enable early control to avoid corruption on DP monitor*/
 	active_total_with_borders =
