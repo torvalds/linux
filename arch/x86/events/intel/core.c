@@ -4955,6 +4955,7 @@ __init int intel_pmu_init(void)
 
 	case INTEL_FAM6_SKYLAKE_X:
 		pmem = true;
+		/* fall through */
 	case INTEL_FAM6_SKYLAKE_MOBILE:
 	case INTEL_FAM6_SKYLAKE_DESKTOP:
 	case INTEL_FAM6_KABYLAKE_MOBILE:
@@ -5004,6 +5005,7 @@ __init int intel_pmu_init(void)
 	case INTEL_FAM6_ICELAKE_X:
 	case INTEL_FAM6_ICELAKE_XEON_D:
 		pmem = true;
+		/* fall through */
 	case INTEL_FAM6_ICELAKE_MOBILE:
 	case INTEL_FAM6_ICELAKE_DESKTOP:
 		x86_pmu.late_ack = true;
