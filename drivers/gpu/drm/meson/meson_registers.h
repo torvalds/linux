@@ -732,6 +732,25 @@
 #define VENC_UPSAMPLE_CTRL0 0x1b64
 #define VENC_UPSAMPLE_CTRL1 0x1b65
 #define VENC_UPSAMPLE_CTRL2 0x1b66
+#define		VENC_UPSAMPLE_CTRL_F0_2_CLK_RATIO        BIT(0)
+#define		VENC_UPSAMPLE_CTRL_F1_EN                 BIT(5)
+#define		VENC_UPSAMPLE_CTRL_F1_UPSAMPLE_EN        BIT(6)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_HIGH_LUMA   (0x0 << 12)
+#define		VENC_UPSAMPLE_CTRL_CVBS                  (0x1 << 12)
+#define		VENC_UPSAMPLE_CTRL_S_VIDEO_LUMA          (0x2 << 12)
+#define		VENC_UPSAMPLE_CTRL_S_VIDEO_CHROMA        (0x3 << 12)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_PB          (0x4 << 12)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_PR          (0x5 << 12)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_R           (0x6 << 12)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_G           (0x7 << 12)
+#define		VENC_UPSAMPLE_CTRL_INTERLACE_B           (0x8 << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_Y         (0x9 << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_PB        (0xa << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_PR        (0xb << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_R         (0xc << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_G         (0xd << 12)
+#define		VENC_UPSAMPLE_CTRL_PROGRESSIVE_B         (0xe << 12)
+#define		VENC_UPSAMPLE_CTRL_VDAC_TEST_VALUE       (0xf << 12)
 #define TCON_INVERT_CTL 0x1b67
 #define VENC_VIDEO_PROG_MODE 0x1b68
 #define VENC_ENCI_LINE 0x1b69
@@ -740,6 +759,7 @@
 #define VENC_ENCP_PIXEL 0x1b6c
 #define VENC_STATA 0x1b6d
 #define VENC_INTCTRL 0x1b6e
+#define		VENC_INTCTRL_ENCI_LNRST_INT_EN  BIT(1)
 #define VENC_INTFLAG 0x1b6f
 #define VENC_VIDEO_TST_EN 0x1b70
 #define VENC_VIDEO_TST_MDSEL 0x1b71
@@ -750,6 +770,7 @@
 #define VENC_VIDEO_TST_CLRBAR_WIDTH 0x1b76
 #define VENC_VIDEO_TST_VDCNT_STSET 0x1b77
 #define VENC_VDAC_DACSEL0 0x1b78
+#define		VENC_VDAC_SEL_ATV_DMD           BIT(5)
 #define VENC_VDAC_DACSEL1 0x1b79
 #define VENC_VDAC_DACSEL2 0x1b7a
 #define VENC_VDAC_DACSEL3 0x1b7b
@@ -770,6 +791,7 @@
 #define VENC_VDAC_DAC5_GAINCTRL 0x1bfa
 #define VENC_VDAC_DAC5_OFFSET 0x1bfb
 #define VENC_VDAC_FIFO_CTRL 0x1bfc
+#define		VENC_VDAC_FIFO_EN_ENCI_ENABLE   BIT(13)
 #define ENCL_TCON_INVERT_CTL 0x1bfd
 #define ENCP_VIDEO_EN 0x1b80
 #define ENCP_VIDEO_SYNC_MODE 0x1b81
@@ -785,6 +807,7 @@
 #define ENCP_VIDEO_SYNC_OFFST 0x1b8b
 #define ENCP_VIDEO_MACV_OFFST 0x1b8c
 #define ENCP_VIDEO_MODE 0x1b8d
+#define		ENCP_VIDEO_MODE_DE_V_HIGH       BIT(14)
 #define ENCP_VIDEO_MODE_ADV 0x1b8e
 #define ENCP_DBG_PX_RST 0x1b90
 #define ENCP_DBG_LN_RST 0x1b91
@@ -863,6 +886,11 @@
 #define C656_FS_LNED 0x1be7
 #define ENCI_VIDEO_MODE 0x1b00
 #define ENCI_VIDEO_MODE_ADV 0x1b01
+#define		ENCI_VIDEO_MODE_ADV_DMXMD(val)          (val & 0x3)
+#define		ENCI_VIDEO_MODE_ADV_VBICTL_LINE_17_22   BIT(2)
+#define		ENCI_VIDEO_MODE_ADV_YBW_MEDIUM          (0 << 4)
+#define		ENCI_VIDEO_MODE_ADV_YBW_LOW             (0x1 << 4)
+#define		ENCI_VIDEO_MODE_ADV_YBW_HIGH            (0x2 << 4)
 #define ENCI_VIDEO_FSC_ADJ 0x1b02
 #define ENCI_VIDEO_BRIGHT 0x1b03
 #define ENCI_VIDEO_CONT 0x1b04
@@ -933,13 +961,17 @@
 #define ENCI_DBG_MAXPX 0x1b4c
 #define ENCI_DBG_MAXLN 0x1b4d
 #define ENCI_MACV_MAX_AMP 0x1b50
+#define		ENCI_MACV_MAX_AMP_ENABLE_CHANGE BIT(15)
+#define		ENCI_MACV_MAX_AMP_VAL(val)      (val & 0x83ff)
 #define ENCI_MACV_PULSE_LO 0x1b51
 #define ENCI_MACV_PULSE_HI 0x1b52
 #define ENCI_MACV_BKP_MAX 0x1b53
 #define ENCI_CFILT_CTRL 0x1b54
+#define		ENCI_CFILT_CMPT_SEL_HIGH        BIT(1)
 #define ENCI_CFILT7 0x1b55
 #define ENCI_YC_DELAY 0x1b56
 #define ENCI_VIDEO_EN 0x1b57
+#define		ENCI_VIDEO_EN_ENABLE            BIT(0)
 #define ENCI_DVI_HSO_BEGIN 0x1c00
 #define ENCI_DVI_HSO_END 0x1c01
 #define ENCI_DVI_VSO_BLINE_EVN 0x1c02
@@ -951,6 +983,10 @@
 #define ENCI_DVI_VSO_END_EVN 0x1c08
 #define ENCI_DVI_VSO_END_ODD 0x1c09
 #define ENCI_CFILT_CTRL2 0x1c0a
+#define		ENCI_CFILT_CMPT_CR_DLY(delay)   (delay & 0xf)
+#define		ENCI_CFILT_CMPT_CB_DLY(delay)   ((delay & 0xf) << 4)
+#define		ENCI_CFILT_CVBS_CR_DLY(delay)   ((delay & 0xf) << 8)
+#define		ENCI_CFILT_CVBS_CB_DLY(delay)   ((delay & 0xf) << 12)
 #define ENCI_DACSEL_0 0x1c0b
 #define ENCI_DACSEL_1 0x1c0c
 #define ENCP_DACSEL_0 0x1c0d
@@ -965,6 +1001,8 @@
 #define ENCI_TST_CLRBAR_WIDTH 0x1c16
 #define ENCI_TST_VDCNT_STSET 0x1c17
 #define ENCI_VFIFO2VD_CTL 0x1c18
+#define		ENCI_VFIFO2VD_CTL_ENABLE        BIT(0)
+#define		ENCI_VFIFO2VD_CTL_VD_SEL(val)   ((val & 0xff) << 8)
 #define ENCI_VFIFO2VD_PIXEL_START 0x1c19
 #define ENCI_VFIFO2VD_PIXEL_END 0x1c1a
 #define ENCI_VFIFO2VD_LINE_TOP_START 0x1c1b
@@ -1027,6 +1065,7 @@
 #define VENC_VDAC_DAC5_FILT_CTRL0 0x1c56
 #define VENC_VDAC_DAC5_FILT_CTRL1 0x1c57
 #define VENC_VDAC_DAC0_FILT_CTRL0 0x1c58
+#define		VENC_VDAC_DAC0_FILT_CTRL0_EN    BIT(0)
 #define VENC_VDAC_DAC0_FILT_CTRL1 0x1c59
 #define VENC_VDAC_DAC1_FILT_CTRL0 0x1c5a
 #define VENC_VDAC_DAC1_FILT_CTRL1 0x1c5b
@@ -1432,6 +1471,18 @@
 #define		VIU2_SEL_VENC_ENCP	(2 << 2)
 #define		VIU2_SEL_VENC_ENCT	(3 << 2)
 #define VPU_HDMI_SETTING 0x271b
+#define		VPU_HDMI_ENCI_DATA_TO_HDMI      BIT(0)
+#define		VPU_HDMI_ENCP_DATA_TO_HDMI      BIT(1)
+#define		VPU_HDMI_INV_HSYNC              BIT(2)
+#define		VPU_HDMI_INV_VSYNC              BIT(3)
+#define		VPU_HDMI_OUTPUT_CRYCB           (0 << 5)
+#define		VPU_HDMI_OUTPUT_YCBCR           (1 << 5)
+#define		VPU_HDMI_OUTPUT_YCRCB           (2 << 5)
+#define		VPU_HDMI_OUTPUT_CBCRY           (3 << 5)
+#define		VPU_HDMI_OUTPUT_CBYCR           (4 << 5)
+#define		VPU_HDMI_OUTPUT_CRCBY           (5 << 5)
+#define		VPU_HDMI_WR_RATE(rate)          (((rate & 0x1f) - 1) << 8)
+#define		VPU_HDMI_RD_RATE(rate)          (((rate & 0x1f) - 1) << 12)
 #define ENCI_INFO_READ 0x271c
 #define ENCP_INFO_READ 0x271d
 #define ENCT_INFO_READ 0x271e
