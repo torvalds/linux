@@ -1957,7 +1957,7 @@ int fb_new_modelist(struct fb_info *info)
 	struct list_head *pos, *n;
 	struct fb_modelist *modelist;
 	struct fb_videomode *m, mode;
-	int err = 1;
+	int err;
 
 	list_for_each_safe(pos, n, &info->modelist) {
 		modelist = list_entry(pos, struct fb_modelist, list);
