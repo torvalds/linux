@@ -627,7 +627,9 @@ static void process_buffer_measurement(const void *buf, int size,
 	struct ima_template_entry *entry = NULL;
 	struct integrity_iint_cache iint = {};
 	struct ima_event_data event_data = {.iint = &iint,
-					    .filename = eventname};
+					    .filename = eventname,
+					    .buf = buf,
+					    .buf_len = size};
 	struct ima_template_desc *template_desc = NULL;
 	struct {
 		struct ima_digest_data hdr;
