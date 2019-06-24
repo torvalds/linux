@@ -87,6 +87,11 @@ enum {
 	ADF4371_CH_RF32
 };
 
+enum adf4371_variant {
+	ADF4371,
+	ADF4372
+};
+
 struct adf4371_pwrdown {
 	unsigned int reg;
 	unsigned int bit;
@@ -140,6 +145,11 @@ static const struct regmap_config adf4371_regmap_config = {
 	.read_flag_mask = BIT(7),
 };
 
+struct adf4371_chip_info {
+	unsigned int num_channels;
+	const struct iio_chan_spec *channels;
+};
+
 struct adf4371_state {
 	struct spi_device *spi;
 	struct regmap *regmap;
@@ -152,6 +162,7 @@ struct adf4371_state {
 	 * writes.
 	 */
 	struct mutex lock;
+	const struct adf4371_chip_info *chip_info;
 	unsigned long clkin_freq;
 	unsigned long fpfd;
 	unsigned int integer;
@@ -429,6 +440,17 @@ static const struct iio_chan_spec adf4371_chan[] = {
 	ADF4371_CHANNEL(ADF4371_CH_RF32),
 };
 
+static const struct adf4371_chip_info adf4371_chip_info[] = {
+	[ADF4371] = {
+		.channels = adf4371_chan,
+		.num_channels = 4,
+	},
+	[ADF4372] = {
+		.channels = adf4371_chan,
+		.num_channels = 3,
+	}
+};
+
 static int adf4371_reg_access(struct iio_dev *indio_dev,
 			      unsigned int reg,
 			      unsigned int writeval,
@@ -537,12 +559,13 @@ static int adf4371_probe(struct spi_device *spi)
 	st->regmap = regmap;
 	mutex_init(&st->lock);
 
+	st->chip_info = &adf4371_chip_info[id->driver_data];
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &adf4371_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = adf4371_chan;
-	indio_dev->num_channels = ARRAY_SIZE(adf4371_chan);
+	indio_dev->channels = st->chip_info->channels;
+	indio_dev->num_channels = st->chip_info->num_channels;
 
 	st->clkin = devm_clk_get(&spi->dev, "clkin");
 	if (IS_ERR(st->clkin))
@@ -568,13 +591,15 @@ static int adf4371_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id adf4371_id_table[] = {
-	{ "adf4371", 0 },
+	{ "adf4371", ADF4371 },
+	{ "adf4372", ADF4372 },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, adf4371_id_table);
 
 static const struct of_device_id adf4371_of_match[] = {
 	{ .compatible = "adi,adf4371" },
+	{ .compatible = "adi,adf4372" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adf4371_of_match);
