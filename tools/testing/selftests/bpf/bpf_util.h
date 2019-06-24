@@ -6,44 +6,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <libbpf.h> /* libbpf_num_possible_cpus */
 
 static inline unsigned int bpf_num_possible_cpus(void)
 {
-	static const char *fcpu = "/sys/devices/system/cpu/possible";
-	unsigned int start, end, possible_cpus = 0;
-	char buff[128];
-	FILE *fp;
-	int len, n, i, j = 0;
+	int possible_cpus = libbpf_num_possible_cpus();
 
-	fp = fopen(fcpu, "r");
-	if (!fp) {
-		printf("Failed to open %s: '%s'!\n", fcpu, strerror(errno));
+	if (possible_cpus < 0) {
+		printf("Failed to get # of possible cpus: '%s'!\n",
+		       strerror(-possible_cpus));
 		exit(1);
 	}
-
-	if (!fgets(buff, sizeof(buff), fp)) {
-		printf("Failed to read %s!\n", fcpu);
-		exit(1);
-	}
-
-	len = strlen(buff);
-	for (i = 0; i <= len; i++) {
-		if (buff[i] == ',' || buff[i] == '\0') {
-			buff[i] = '\0';
-			n = sscanf(&buff[j], "%u-%u", &start, &end);
-			if (n <= 0) {
-				printf("Failed to retrieve # possible CPUs!\n");
-				exit(1);
-			} else if (n == 1) {
-				end = start;
-			}
-			possible_cpus += end - start + 1;
-			j = i + 1;
-		}
-	}
-
-	fclose(fp);
-
 	return possible_cpus;
 }
 

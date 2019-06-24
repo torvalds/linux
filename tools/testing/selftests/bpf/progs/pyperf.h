@@ -220,7 +220,11 @@ static inline __attribute__((__always_inline__)) int __on_event(struct pt_regs *
 		int32_t* symbol_counter = bpf_map_lookup_elem(&symbolmap, &sym);
 		if (symbol_counter == NULL)
 			return 0;
-#pragma unroll
+#ifdef NO_UNROLL
+#pragma clang loop unroll(disable)
+#else
+#pragma clang loop unroll(full)
+#endif
 		/* Unwind python stack */
 		for (int i = 0; i < STACK_MAX_LEN; ++i) {
 			if (frame_ptr && get_frame_data(frame_ptr, pidData, &frame, &sym)) {

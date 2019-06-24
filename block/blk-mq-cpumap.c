@@ -42,8 +42,8 @@ int blk_mq_map_queues(struct blk_mq_queue_map *qmap)
 		/*
 		 * First do sequential mapping between CPUs and queues.
 		 * In case we still have CPUs to map, and we have some number of
-		 * threads per cores then map sibling threads to the same queue for
-		 * performace optimizations.
+		 * threads per cores then map sibling threads to the same queue
+		 * for performance optimizations.
 		 */
 		if (cpu < nr_queues) {
 			map[cpu] = cpu_to_queue_index(qmap, nr_queues, cpu);
@@ -60,7 +60,11 @@ int blk_mq_map_queues(struct blk_mq_queue_map *qmap)
 }
 EXPORT_SYMBOL_GPL(blk_mq_map_queues);
 
-/*
+/**
+ * blk_mq_hw_queue_to_node - Look up the memory node for a hardware queue index
+ * @qmap: CPU to hardware queue map.
+ * @index: hardware queue index.
+ *
  * We have no quick way of doing reverse lookups. This is only used at
  * queue init time, so runtime isn't important.
  */

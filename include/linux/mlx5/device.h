@@ -510,6 +510,10 @@ struct mlx5_cmd_layout {
 	u8		status_own;
 };
 
+enum mlx5_fatal_assert_bit_offsets {
+	MLX5_RFR_OFFSET = 31,
+};
+
 struct health_buffer {
 	__be32		assert_var[5];
 	__be32		rsvd0[3];
@@ -518,10 +522,14 @@ struct health_buffer {
 	__be32		rsvd1[2];
 	__be32		fw_ver;
 	__be32		hw_id;
-	__be32		rsvd2;
+	__be32		rfr;
 	u8		irisc_index;
 	u8		synd;
 	__be16		ext_synd;
+};
+
+enum mlx5_initializing_bit_offsets {
+	MLX5_FW_RESET_SUPPORTED_OFFSET = 30,
 };
 
 enum mlx5_cmd_addr_l_sz_offset {

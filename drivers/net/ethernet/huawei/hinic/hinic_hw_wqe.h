@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #ifndef HINIC_HW_WQE_H
@@ -238,6 +229,22 @@
 
 #define HINIC_GET_RX_PKT_TYPE(offload_type)	\
 			RQ_CQE_OFFOLAD_TYPE_GET(offload_type, PKT_TYPE)
+
+#define HINIC_RSS_TYPE_VALID_SHIFT			23
+#define HINIC_RSS_TYPE_TCP_IPV6_EXT_SHIFT		24
+#define HINIC_RSS_TYPE_IPV6_EXT_SHIFT			25
+#define HINIC_RSS_TYPE_TCP_IPV6_SHIFT			26
+#define HINIC_RSS_TYPE_IPV6_SHIFT			27
+#define HINIC_RSS_TYPE_TCP_IPV4_SHIFT			28
+#define HINIC_RSS_TYPE_IPV4_SHIFT			29
+#define HINIC_RSS_TYPE_UDP_IPV6_SHIFT			30
+#define HINIC_RSS_TYPE_UDP_IPV4_SHIFT			31
+
+#define HINIC_RSS_TYPE_SET(val, member)                        \
+		(((u32)(val) & 0x1) << HINIC_RSS_TYPE_##member##_SHIFT)
+
+#define HINIC_RSS_TYPE_GET(val, member)                        \
+		(((u32)(val) >> HINIC_RSS_TYPE_##member##_SHIFT) & 0x1)
 
 enum hinic_l4offload_type {
 	HINIC_L4_OFF_DISABLE            = 0,

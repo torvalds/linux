@@ -54,7 +54,8 @@ nfp_flower_compile_ext_meta(struct nfp_flower_ext_meta *frame, u32 key_ext)
 
 static int
 nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
-			bool mask_version, enum nfp_flower_tun_type tun_type)
+			bool mask_version, enum nfp_flower_tun_type tun_type,
+			struct netlink_ext_ack *extack)
 {
 	if (mask_version) {
 		frame->in_port = cpu_to_be32(~0);
@@ -64,8 +65,10 @@ nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
 	if (tun_type) {
 		frame->in_port = cpu_to_be32(NFP_FL_PORT_TYPE_TUN | tun_type);
 	} else {
-		if (!cmsg_port)
+		if (!cmsg_port) {
+			NL_SET_ERR_MSG_MOD(extack, "unsupported offload: invalid ingress interface for match offload");
 			return -EOPNOTSUPP;
+		}
 		frame->in_port = cpu_to_be32(cmsg_port);
 	}
 
@@ -324,7 +327,8 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow,
-				  enum nfp_flower_tun_type tun_type)
+				  enum nfp_flower_tun_type tun_type,
+				  struct netlink_ext_ack *extack)
 {
 	u32 port_id;
 	int err;
@@ -357,13 +361,13 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 
 	/* Populate Exact Port data. */
 	err = nfp_flower_compile_port((struct nfp_flower_in_port *)ext,
-				      port_id, false, tun_type);
+				      port_id, false, tun_type, extack);
 	if (err)
 		return err;
 
 	/* Populate Mask Port Data. */
 	err = nfp_flower_compile_port((struct nfp_flower_in_port *)msk,
-				      port_id, true, tun_type);
+				      port_id, true, tun_type, extack);
 	if (err)
 		return err;
 

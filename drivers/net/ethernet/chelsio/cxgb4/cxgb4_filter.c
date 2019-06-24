@@ -727,10 +727,8 @@ void clear_filter(struct adapter *adap, struct filter_entry *f)
 		cxgb4_smt_release(f->smt);
 
 	if (f->fs.val.encap_vld && f->fs.val.ovlan_vld)
-		if (atomic_dec_and_test(&adap->mps_encap[f->fs.val.ovlan &
-							 0x1ff].refcnt))
-			t4_free_encap_mac_filt(adap, pi->viid,
-					       f->fs.val.ovlan & 0x1ff, 0);
+		t4_free_encap_mac_filt(adap, pi->viid,
+				       f->fs.val.ovlan & 0x1ff, 0);
 
 	if ((f->fs.hash || is_t6(adap->params.chip)) && f->fs.type)
 		cxgb4_clip_release(f->dev, (const u32 *)&f->fs.val.lip, 1);
@@ -1177,7 +1175,6 @@ static int cxgb4_set_hash_filter(struct net_device *dev,
 			if (ret < 0)
 				goto free_atid;
 
-			atomic_inc(&adapter->mps_encap[ret].refcnt);
 			f->fs.val.ovlan = ret;
 			f->fs.mask.ovlan = 0xffff;
 			f->fs.val.ovlan_vld = 1;
@@ -1420,7 +1417,6 @@ int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 			if (ret < 0)
 				goto free_clip;
 
-			atomic_inc(&adapter->mps_encap[ret].refcnt);
 			f->fs.val.ovlan = ret;
 			f->fs.mask.ovlan = 0x1ff;
 			f->fs.val.ovlan_vld = 1;

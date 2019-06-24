@@ -13,6 +13,14 @@
 
 struct fsl_mc_io;
 
+/**
+ * Number of irq's
+ */
+#define DPRTC_MAX_IRQ_NUM	1
+#define DPRTC_IRQ_INDEX		0
+
+#define DPRTC_EVENT_PPS		0x08000000
+
 int dprtc_open(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,
 	       int dprtc_id,
@@ -22,24 +30,40 @@ int dprtc_close(struct fsl_mc_io *mc_io,
 		u32 cmd_flags,
 		u16 token);
 
-int dprtc_set_freq_compensation(struct fsl_mc_io *mc_io,
-				u32 cmd_flags,
-				u16 token,
-				u32 freq_compensation);
+int dprtc_set_irq_enable(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 token,
+			 u8 irq_index,
+			 u8 en);
 
-int dprtc_get_freq_compensation(struct fsl_mc_io *mc_io,
-				u32 cmd_flags,
-				u16 token,
-				u32 *freq_compensation);
+int dprtc_get_irq_enable(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 token,
+			 u8 irq_index,
+			 u8 *en);
 
-int dprtc_get_time(struct fsl_mc_io *mc_io,
-		   u32 cmd_flags,
-		   u16 token,
-		   uint64_t *time);
+int dprtc_set_irq_mask(struct fsl_mc_io *mc_io,
+		       u32 cmd_flags,
+		       u16 token,
+		       u8 irq_index,
+		       u32 mask);
 
-int dprtc_set_time(struct fsl_mc_io *mc_io,
-		   u32 cmd_flags,
-		   u16 token,
-		   uint64_t time);
+int dprtc_get_irq_mask(struct fsl_mc_io *mc_io,
+		       u32 cmd_flags,
+		       u16 token,
+		       u8 irq_index,
+		       u32 *mask);
+
+int dprtc_get_irq_status(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 token,
+			 u8 irq_index,
+			 u32 *status);
+
+int dprtc_clear_irq_status(struct fsl_mc_io *mc_io,
+			   u32 cmd_flags,
+			   u16 token,
+			   u8 irq_index,
+			   u32 status);
 
 #endif /* __FSL_DPRTC_H */

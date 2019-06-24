@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  PNX833x Hardware Watchdog Driver
  *  Copyright 2008 NXP Semiconductors
@@ -8,11 +9,6 @@
  *  A Hardware Watchdog Device for SGI IP22
  *
  * (c) Copyright 2002 Guido Guenther <agx@sigxcpu.org>, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * based on softdog.c by Alan Cox <alan@redhat.com>
  */

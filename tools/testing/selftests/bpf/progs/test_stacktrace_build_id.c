@@ -8,34 +8,50 @@
 #define PERF_MAX_STACK_DEPTH         127
 #endif
 
-struct bpf_map_def SEC("maps") control_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	__u32 *value;
+} control_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
 	.max_entries = 1,
 };
 
-struct bpf_map_def SEC("maps") stackid_hmap = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	__u32 *value;
+} stackid_hmap SEC(".maps") = {
 	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
 	.max_entries = 16384,
 };
 
-struct bpf_map_def SEC("maps") stackmap = {
+typedef struct bpf_stack_build_id stack_trace_t[PERF_MAX_STACK_DEPTH];
+
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 map_flags;
+	__u32 key_size;
+	__u32 value_size;
+} stackmap SEC(".maps") = {
 	.type = BPF_MAP_TYPE_STACK_TRACE,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct bpf_stack_build_id)
-		* PERF_MAX_STACK_DEPTH,
 	.max_entries = 128,
 	.map_flags = BPF_F_STACK_BUILD_ID,
+	.key_size = sizeof(__u32),
+	.value_size = sizeof(stack_trace_t),
 };
 
-struct bpf_map_def SEC("maps") stack_amap = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	/* there seems to be a bug in kernel not handling typedef properly */
+	struct bpf_stack_build_id (*value)[PERF_MAX_STACK_DEPTH];
+} stack_amap SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct bpf_stack_build_id)
-		* PERF_MAX_STACK_DEPTH,
 	.max_entries = 128,
 };
 

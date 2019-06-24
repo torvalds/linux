@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015 MediaTek Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <asm/barrier.h>
@@ -98,10 +90,6 @@ static void mtk_drm_finish_page_flip(struct mtk_drm_crtc *mtk_crtc)
 static void mtk_drm_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
-	int i;
-
-	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++)
-		clk_unprepare(mtk_crtc->ddp_comp[i]->clk);
 
 	mtk_disp_mutex_put(mtk_crtc->mutex);
 
@@ -194,7 +182,7 @@ static int mtk_crtc_ddp_clk_enable(struct mtk_drm_crtc *mtk_crtc)
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++) {
-		ret = clk_enable(mtk_crtc->ddp_comp[i]->clk);
+		ret = clk_prepare_enable(mtk_crtc->ddp_comp[i]->clk);
 		if (ret) {
 			DRM_ERROR("Failed to enable clock %d: %d\n", i, ret);
 			goto err;
@@ -204,7 +192,7 @@ static int mtk_crtc_ddp_clk_enable(struct mtk_drm_crtc *mtk_crtc)
 	return 0;
 err:
 	while (--i >= 0)
-		clk_disable(mtk_crtc->ddp_comp[i]->clk);
+		clk_disable_unprepare(mtk_crtc->ddp_comp[i]->clk);
 	return ret;
 }
 
@@ -214,7 +202,7 @@ static void mtk_crtc_ddp_clk_disable(struct mtk_drm_crtc *mtk_crtc)
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 	for (i = 0; i < mtk_crtc->ddp_comp_nr; i++)
-		clk_disable(mtk_crtc->ddp_comp[i]->clk);
+		clk_disable_unprepare(mtk_crtc->ddp_comp[i]->clk);
 }
 
 static int mtk_crtc_ddp_hw_init(struct mtk_drm_crtc *mtk_crtc)
@@ -585,15 +573,7 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 		if (!comp) {
 			dev_err(dev, "Component %pOF not initialized\n", node);
 			ret = -ENODEV;
-			goto unprepare;
-		}
-
-		ret = clk_prepare(comp->clk);
-		if (ret) {
-			dev_err(dev,
-				"Failed to prepare clock for component %pOF: %d\n",
-				node, ret);
-			goto unprepare;
+			return ret;
 		}
 
 		mtk_crtc->ddp_comp[i] = comp;
@@ -611,23 +591,17 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 		ret = mtk_plane_init(drm_dev, &mtk_crtc->planes[zpos],
 				     BIT(pipe), type);
 		if (ret)
-			goto unprepare;
+			return ret;
 	}
 
 	ret = mtk_drm_crtc_init(drm_dev, mtk_crtc, &mtk_crtc->planes[0],
 				mtk_crtc->layer_nr > 1 ? &mtk_crtc->planes[1] :
 				NULL, pipe);
 	if (ret < 0)
-		goto unprepare;
+		return ret;
 	drm_mode_crtc_set_gamma_size(&mtk_crtc->base, MTK_LUT_SIZE);
 	drm_crtc_enable_color_mgmt(&mtk_crtc->base, 0, false, MTK_LUT_SIZE);
 	priv->num_pipes++;
 
 	return 0;
-
-unprepare:
-	while (--i >= 0)
-		clk_unprepare(mtk_crtc->ddp_comp[i]->clk);
-
-	return ret;
 }

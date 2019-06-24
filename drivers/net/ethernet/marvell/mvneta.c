@@ -1119,7 +1119,7 @@ static void mvneta_bm_update_mtu(struct mvneta_port *pp, int mtu)
 			SKB_DATA_ALIGN(MVNETA_RX_BUF_SIZE(bm_pool->pkt_size));
 
 	/* Fill entire long pool */
-	num = hwbm_pool_add(hwbm_pool, hwbm_pool->size, GFP_ATOMIC);
+	num = hwbm_pool_add(hwbm_pool, hwbm_pool->size);
 	if (num != hwbm_pool->size) {
 		WARN(1, "pool %d: %d of %d allocated\n",
 		     bm_pool->id, num, hwbm_pool->size);

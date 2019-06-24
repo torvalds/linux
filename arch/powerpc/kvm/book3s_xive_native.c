@@ -109,12 +109,12 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 		return -EPERM;
 	if (vcpu->arch.irq_type != KVMPPC_IRQ_DEFAULT)
 		return -EBUSY;
-	if (server_num >= KVM_MAX_VCPUS) {
+	if (server_num >= (KVM_MAX_VCPUS * vcpu->kvm->arch.emul_smt_mode)) {
 		pr_devel("Out of bounds !\n");
 		return -EINVAL;
 	}
 
-	mutex_lock(&vcpu->kvm->lock);
+	mutex_lock(&xive->lock);
 
 	if (kvmppc_xive_find_server(vcpu->kvm, server_num)) {
 		pr_devel("Duplicate !\n");
@@ -159,7 +159,7 @@ int kvmppc_xive_native_connect_vcpu(struct kvm_device *dev,
 
 	/* TODO: reset all queues to a clean state ? */
 bail:
-	mutex_unlock(&vcpu->kvm->lock);
+	mutex_unlock(&xive->lock);
 	if (rc)
 		kvmppc_xive_native_cleanup_vcpu(vcpu);
 
@@ -172,6 +172,7 @@ bail:
 static int kvmppc_xive_native_reset_mapped(struct kvm *kvm, unsigned long irq)
 {
 	struct kvmppc_xive *xive = kvm->arch.xive;
+	pgoff_t esb_pgoff = KVM_XIVE_ESB_PAGE_OFFSET + irq * 2;
 
 	if (irq >= KVMPPC_XIVE_NR_IRQS)
 		return -EINVAL;
@@ -185,7 +186,7 @@ static int kvmppc_xive_native_reset_mapped(struct kvm *kvm, unsigned long irq)
 	mutex_lock(&xive->mapping_lock);
 	if (xive->mapping)
 		unmap_mapping_range(xive->mapping,
-				    irq * (2ull << PAGE_SHIFT),
+				    esb_pgoff << PAGE_SHIFT,
 				    2ull << PAGE_SHIFT, 1);
 	mutex_unlock(&xive->mapping_lock);
 	return 0;
@@ -535,6 +536,7 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 	struct xive_q *q;
 	gfn_t gfn;
 	unsigned long page_size;
+	int srcu_idx;
 
 	/*
 	 * Demangle priority/server tuple from the EQ identifier
@@ -565,24 +567,6 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 		 __func__, server, priority, kvm_eq.flags,
 		 kvm_eq.qshift, kvm_eq.qaddr, kvm_eq.qtoggle, kvm_eq.qindex);
 
-	/*
-	 * sPAPR specifies a "Unconditional Notify (n) flag" for the
-	 * H_INT_SET_QUEUE_CONFIG hcall which forces notification
-	 * without using the coalescing mechanisms provided by the
-	 * XIVE END ESBs. This is required on KVM as notification
-	 * using the END ESBs is not supported.
-	 */
-	if (kvm_eq.flags != KVM_XIVE_EQ_ALWAYS_NOTIFY) {
-		pr_err("invalid flags %d\n", kvm_eq.flags);
-		return -EINVAL;
-	}
-
-	rc = xive_native_validate_queue_size(kvm_eq.qshift);
-	if (rc) {
-		pr_err("invalid queue size %d\n", kvm_eq.qshift);
-		return rc;
-	}
-
 	/* reset queue and disable queueing */
 	if (!kvm_eq.qshift) {
 		q->guest_qaddr  = 0;
@@ -604,26 +588,48 @@ static int kvmppc_xive_native_set_queue_config(struct kvmppc_xive *xive,
 		return 0;
 	}
 
+	/*
+	 * sPAPR specifies a "Unconditional Notify (n) flag" for the
+	 * H_INT_SET_QUEUE_CONFIG hcall which forces notification
+	 * without using the coalescing mechanisms provided by the
+	 * XIVE END ESBs. This is required on KVM as notification
+	 * using the END ESBs is not supported.
+	 */
+	if (kvm_eq.flags != KVM_XIVE_EQ_ALWAYS_NOTIFY) {
+		pr_err("invalid flags %d\n", kvm_eq.flags);
+		return -EINVAL;
+	}
+
+	rc = xive_native_validate_queue_size(kvm_eq.qshift);
+	if (rc) {
+		pr_err("invalid queue size %d\n", kvm_eq.qshift);
+		return rc;
+	}
+
 	if (kvm_eq.qaddr & ((1ull << kvm_eq.qshift) - 1)) {
 		pr_err("queue page is not aligned %llx/%llx\n", kvm_eq.qaddr,
 		       1ull << kvm_eq.qshift);
 		return -EINVAL;
 	}
 
+	srcu_idx = srcu_read_lock(&kvm->srcu);
 	gfn = gpa_to_gfn(kvm_eq.qaddr);
 	page = gfn_to_page(kvm, gfn);
 	if (is_error_page(page)) {
+		srcu_read_unlock(&kvm->srcu, srcu_idx);
 		pr_err("Couldn't get queue page %llx!\n", kvm_eq.qaddr);
 		return -EINVAL;
 	}
 
 	page_size = kvm_host_page_size(kvm, gfn);
 	if (1ull << kvm_eq.qshift > page_size) {
+		srcu_read_unlock(&kvm->srcu, srcu_idx);
 		pr_warn("Incompatible host page size %lx!\n", page_size);
 		return -EINVAL;
 	}
 
 	qaddr = page_to_virt(page) + (kvm_eq.qaddr & ~PAGE_MASK);
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
 
 	/*
 	 * Backup the queue page guest address to the mark EQ page
@@ -772,7 +778,7 @@ static int kvmppc_xive_reset(struct kvmppc_xive *xive)
 
 	pr_devel("%s\n", __func__);
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&xive->lock);
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
@@ -810,7 +816,7 @@ static int kvmppc_xive_reset(struct kvmppc_xive *xive)
 		}
 	}
 
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&xive->lock);
 
 	return 0;
 }
@@ -854,6 +860,7 @@ static int kvmppc_xive_native_vcpu_eq_sync(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_xive_vcpu *xc = vcpu->arch.xive_vcpu;
 	unsigned int prio;
+	int srcu_idx;
 
 	if (!xc)
 		return -ENOENT;
@@ -865,7 +872,9 @@ static int kvmppc_xive_native_vcpu_eq_sync(struct kvm_vcpu *vcpu)
 			continue;
 
 		/* Mark EQ page dirty for migration */
+		srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 		mark_page_dirty(vcpu->kvm, gpa_to_gfn(q->guest_qaddr));
+		srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
 	}
 	return 0;
 }
@@ -878,7 +887,7 @@ static int kvmppc_xive_native_eq_sync(struct kvmppc_xive *xive)
 
 	pr_devel("%s\n", __func__);
 
-	mutex_lock(&kvm->lock);
+	mutex_lock(&xive->lock);
 	for (i = 0; i <= xive->max_sbid; i++) {
 		struct kvmppc_xive_src_block *sb = xive->src_blocks[i];
 
@@ -892,7 +901,7 @@ static int kvmppc_xive_native_eq_sync(struct kvmppc_xive *xive)
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		kvmppc_xive_native_vcpu_eq_sync(vcpu);
 	}
-	mutex_unlock(&kvm->lock);
+	mutex_unlock(&xive->lock);
 
 	return 0;
 }
@@ -965,7 +974,7 @@ static int kvmppc_xive_native_has_attr(struct kvm_device *dev,
 }
 
 /*
- * Called when device fd is closed
+ * Called when device fd is closed.  kvm->lock is held.
  */
 static void kvmppc_xive_native_release(struct kvm_device *dev)
 {
@@ -973,21 +982,18 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 	struct kvm *kvm = xive->kvm;
 	struct kvm_vcpu *vcpu;
 	int i;
-	int was_ready;
-
-	debugfs_remove(xive->dentry);
 
 	pr_devel("Releasing xive native device\n");
 
 	/*
-	 * Clearing mmu_ready temporarily while holding kvm->lock
-	 * is a way of ensuring that no vcpus can enter the guest
-	 * until we drop kvm->lock.  Doing kick_all_cpus_sync()
-	 * ensures that any vcpu executing inside the guest has
-	 * exited the guest.  Once kick_all_cpus_sync() has finished,
-	 * we know that no vcpu can be executing the XIVE push or
-	 * pull code or accessing the XIVE MMIO regions.
-	 *
+	 * Clear the KVM device file address_space which is used to
+	 * unmap the ESB pages when a device is passed-through.
+	 */
+	mutex_lock(&xive->mapping_lock);
+	xive->mapping = NULL;
+	mutex_unlock(&xive->mapping_lock);
+
+	/*
 	 * Since this is the device release function, we know that
 	 * userspace does not have any open fd or mmap referring to
 	 * the device.  Therefore there can not be any of the
@@ -996,9 +1002,8 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 	 * connect_vcpu and set/clr_mapped functions also cannot
 	 * be being executed.
 	 */
-	was_ready = kvm->arch.mmu_ready;
-	kvm->arch.mmu_ready = 0;
-	kick_all_cpus_sync();
+
+	debugfs_remove(xive->dentry);
 
 	/*
 	 * We should clean up the vCPU interrupt presenters first.
@@ -1007,12 +1012,22 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 		/*
 		 * Take vcpu->mutex to ensure that no one_reg get/set ioctl
 		 * (i.e. kvmppc_xive_native_[gs]et_vp) can be being done.
+		 * Holding the vcpu->mutex also means that the vcpu cannot
+		 * be executing the KVM_RUN ioctl, and therefore it cannot
+		 * be executing the XIVE push or pull code or accessing
+		 * the XIVE MMIO regions.
 		 */
 		mutex_lock(&vcpu->mutex);
 		kvmppc_xive_native_cleanup_vcpu(vcpu);
 		mutex_unlock(&vcpu->mutex);
 	}
 
+	/*
+	 * Now that we have cleared vcpu->arch.xive_vcpu, vcpu->arch.irq_type
+	 * and vcpu->arch.xive_esc_[vr]addr on each vcpu, we are safe
+	 * against xive code getting called during vcpu execution or
+	 * set/get one_reg operations.
+	 */
 	kvm->arch.xive = NULL;
 
 	for (i = 0; i <= xive->max_sbid; i++) {
@@ -1024,8 +1039,6 @@ static void kvmppc_xive_native_release(struct kvm_device *dev)
 
 	if (xive->vp_base != XIVE_INVALID_VP)
 		xive_native_free_vp_block(xive->vp_base);
-
-	kvm->arch.mmu_ready = was_ready;
 
 	/*
 	 * A reference of the kvmppc_xive pointer is now kept under
@@ -1060,6 +1073,7 @@ static int kvmppc_xive_native_create(struct kvm_device *dev, u32 type)
 	xive->kvm = kvm;
 	kvm->arch.xive = xive;
 	mutex_init(&xive->mapping_lock);
+	mutex_init(&xive->lock);
 
 	/*
 	 * Allocate a bunch of VPs. KVM_MAX_VCPUS is a large value for

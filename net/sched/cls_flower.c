@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/cls_flower.c		Flower classifier
  *
  * Copyright (c) 2015 Jiri Pirko <jiri@resnulli.us>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -31,7 +27,7 @@
 #include <net/dst_metadata.h>
 
 struct fl_flow_key {
-	int	indev_ifindex;
+	struct flow_dissector_key_meta meta;
 	struct flow_dissector_key_control control;
 	struct flow_dissector_key_control enc_control;
 	struct flow_dissector_key_basic basic;
@@ -288,7 +284,7 @@ static int fl_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	list_for_each_entry_rcu(mask, &head->masks, list) {
 		fl_clear_masked_range(&skb_key, mask);
 
-		skb_key.indev_ifindex = skb->skb_iif;
+		skb_flow_dissect_meta(skb, &mask->dissector, &skb_key);
 		/* skb_flow_dissect() does not set n_proto in case an unknown
 		 * protocol, so do it rather here.
 		 */
@@ -324,10 +320,13 @@ static int fl_init(struct tcf_proto *tp)
 	return rhashtable_init(&head->ht, &mask_ht_params);
 }
 
-static void fl_mask_free(struct fl_flow_mask *mask)
+static void fl_mask_free(struct fl_flow_mask *mask, bool mask_init_done)
 {
-	WARN_ON(!list_empty(&mask->filters));
-	rhashtable_destroy(&mask->ht);
+	/* temporary masks don't have their filters list and ht initialized */
+	if (mask_init_done) {
+		WARN_ON(!list_empty(&mask->filters));
+		rhashtable_destroy(&mask->ht);
+	}
 	kfree(mask);
 }
 
@@ -336,7 +335,15 @@ static void fl_mask_free_work(struct work_struct *work)
 	struct fl_flow_mask *mask = container_of(to_rcu_work(work),
 						 struct fl_flow_mask, rwork);
 
-	fl_mask_free(mask);
+	fl_mask_free(mask, true);
+}
+
+static void fl_uninit_mask_free_work(struct work_struct *work)
+{
+	struct fl_flow_mask *mask = container_of(to_rcu_work(work),
+						 struct fl_flow_mask, rwork);
+
+	fl_mask_free(mask, false);
 }
 
 static bool fl_mask_put(struct cls_fl_head *head, struct fl_flow_mask *mask)
@@ -1014,15 +1021,14 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 {
 	__be16 ethertype;
 	int ret = 0;
-#ifdef CONFIG_NET_CLS_IND
+
 	if (tb[TCA_FLOWER_INDEV]) {
 		int err = tcf_change_indev(net, tb[TCA_FLOWER_INDEV], extack);
 		if (err < 0)
 			return err;
-		key->indev_ifindex = err;
-		mask->indev_ifindex = 0xffffffff;
+		key->meta.ingress_ifindex = err;
+		mask->meta.ingress_ifindex = 0xffffffff;
 	}
-#endif
 
 	fl_set_key_val(tb, key->eth.dst, TCA_FLOWER_KEY_ETH_DST,
 		       mask->eth.dst, TCA_FLOWER_KEY_ETH_DST_MASK,
@@ -1275,6 +1281,8 @@ static void fl_init_dissector(struct flow_dissector *dissector,
 	struct flow_dissector_key keys[FLOW_DISSECTOR_KEY_MAX];
 	size_t cnt = 0;
 
+	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
+			     FLOW_DISSECTOR_KEY_META, meta);
 	FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_CONTROL, control);
 	FL_KEY_SET(keys, cnt, FLOW_DISSECTOR_KEY_BASIC, basic);
 	FL_KEY_SET_IF_MASKED(mask, keys, cnt,
@@ -1350,9 +1358,6 @@ static struct fl_flow_mask *fl_create_new_mask(struct cls_fl_head *head,
 	if (err)
 		goto errout_destroy;
 
-	/* Wait until any potential concurrent users of mask are finished */
-	synchronize_rcu();
-
 	spin_lock(&head->masks_lock);
 	list_add_tail_rcu(&newmask->list, &head->masks);
 	spin_unlock(&head->masks_lock);
@@ -1379,11 +1384,7 @@ static int fl_check_assign_mask(struct cls_fl_head *head,
 
 	/* Insert mask as temporary node to prevent concurrent creation of mask
 	 * with same key. Any concurrent lookups with same key will return
-	 * -EAGAIN because mask's refcnt is zero. It is safe to insert
-	 * stack-allocated 'mask' to masks hash table because we call
-	 * synchronize_rcu() before returning from this function (either in case
-	 * of error or after replacing it with heap-allocated mask in
-	 * fl_create_new_mask()).
+	 * -EAGAIN because mask's refcnt is zero.
 	 */
 	fnew->mask = rhashtable_lookup_get_insert_fast(&head->ht,
 						       &mask->ht_node,
@@ -1418,8 +1419,6 @@ static int fl_check_assign_mask(struct cls_fl_head *head,
 errout_cleanup:
 	rhashtable_remove_fast(&head->ht, &mask->ht_node,
 			       mask_ht_params);
-	/* Wait until any potential concurrent users of mask are finished */
-	synchronize_rcu();
 	return ret;
 }
 
@@ -1648,7 +1647,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	*arg = fnew;
 
 	kfree(tb);
-	kfree(mask);
+	tcf_queue_work(&mask->rwork, fl_uninit_mask_free_work);
 	return 0;
 
 errout_ht:
@@ -1668,7 +1667,7 @@ errout:
 errout_tb:
 	kfree(tb);
 errout_mask_alloc:
-	kfree(mask);
+	tcf_queue_work(&mask->rwork, fl_uninit_mask_free_work);
 errout_fold:
 	if (fold)
 		__fl_put(fold);
@@ -2125,10 +2124,10 @@ static int fl_dump_key_enc_opt(struct sk_buff *skb,
 static int fl_dump_key(struct sk_buff *skb, struct net *net,
 		       struct fl_flow_key *key, struct fl_flow_key *mask)
 {
-	if (mask->indev_ifindex) {
+	if (mask->meta.ingress_ifindex) {
 		struct net_device *dev;
 
-		dev = __dev_get_by_index(net, key->indev_ifindex);
+		dev = __dev_get_by_index(net, key->meta.ingress_ifindex);
 		if (dev && nla_put_string(skb, TCA_FLOWER_INDEV, dev->name))
 			goto nla_put_failure;
 	}

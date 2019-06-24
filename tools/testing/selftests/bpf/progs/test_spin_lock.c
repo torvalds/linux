@@ -10,29 +10,28 @@ struct hmap_elem {
 	int test_padding;
 };
 
-struct bpf_map_def SEC("maps") hmap = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	int *key;
+	struct hmap_elem *value;
+} hmap SEC(".maps") = {
 	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct hmap_elem),
 	.max_entries = 1,
 };
-
-BPF_ANNOTATE_KV_PAIR(hmap, int, struct hmap_elem);
-
 
 struct cls_elem {
 	struct bpf_spin_lock lock;
 	volatile int cnt;
 };
 
-struct bpf_map_def SEC("maps") cls_map = {
+struct {
+	__u32 type;
+	struct bpf_cgroup_storage_key *key;
+	struct cls_elem *value;
+} cls_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_CGROUP_STORAGE,
-	.key_size = sizeof(struct bpf_cgroup_storage_key),
-	.value_size = sizeof(struct cls_elem),
 };
-
-BPF_ANNOTATE_KV_PAIR(cls_map, struct bpf_cgroup_storage_key,
-		     struct cls_elem);
 
 struct bpf_vqueue {
 	struct bpf_spin_lock lock;
@@ -42,14 +41,16 @@ struct bpf_vqueue {
 	unsigned int rate;
 };
 
-struct bpf_map_def SEC("maps") vqueue = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	int *key;
+	struct bpf_vqueue *value;
+} vqueue SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct bpf_vqueue),
 	.max_entries = 1,
 };
 
-BPF_ANNOTATE_KV_PAIR(vqueue, int, struct bpf_vqueue);
 #define CREDIT_PER_NS(delta, rate) (((delta) * rate) >> 20)
 
 SEC("spin_lock_demo")

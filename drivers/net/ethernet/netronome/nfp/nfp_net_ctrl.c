@@ -99,6 +99,21 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 
 			caps->repr_cap = readl(data);
 			break;
+		case NFP_NET_CFG_TLV_TYPE_MBOX_CMSG_TYPES:
+			if (length >= 4)
+				caps->mbox_cmsg_types = readl(data);
+			break;
+		case NFP_NET_CFG_TLV_TYPE_CRYPTO_OPS:
+			if (length < 32) {
+				dev_err(dev,
+					"CRYPTO OPS TLV should be at least 32B, is %dB offset:%u\n",
+					length, offset);
+				return -EINVAL;
+			}
+
+			caps->crypto_ops = readl(data);
+			caps->crypto_enable_off = data - ctrl_mem + 16;
+			break;
 		default:
 			if (!FIELD_GET(NFP_NET_CFG_TLV_HEADER_REQUIRED, hdr))
 				break;

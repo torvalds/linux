@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Dynamic DMA mapping support for AMD Hammer.
  *
@@ -8,7 +9,6 @@
  * See Documentation/DMA-API-HOWTO.txt for the interface specification.
  *
  * Copyright 2002 Andi Kleen, SuSE Labs.
- * Subject to the GNU General Public License v2 only.
  */
 
 #include <linux/types.h>

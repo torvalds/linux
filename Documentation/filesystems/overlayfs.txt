@@ -336,8 +336,20 @@ the copied layers will fail the verification of the lower root file handle.
 Non-standard behavior
 ---------------------
 
-Overlayfs can now act as a POSIX compliant filesystem with the following
-features turned on:
+Current version of overlayfs can act as a mostly POSIX compliant
+filesystem.
+
+This is the list of cases that overlayfs doesn't currently handle:
+
+a) POSIX mandates updating st_atime for reads.  This is currently not
+done in the case when the file resides on a lower layer.
+
+b) If a file residing on a lower layer is opened for read-only and then
+memory mapped with MAP_SHARED, then subsequent changes to the file are not
+reflected in the memory mapping.
+
+The following options allow overlayfs to act more like a standards
+compliant filesystem:
 
 1) "redirect_dir"
 

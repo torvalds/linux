@@ -331,6 +331,38 @@ run_ping()
 	run_cmd ip netns exec h1 ${ping6} -q -M want -i 0.5 -c 10 -w 2 -s ${sz} ${H1_PING_ARG} ${H2_N2_IP6}
 }
 
+replace_route_new()
+{
+	# r1 to h2 via r2 and eth0
+	run_cmd ip -netns r1 nexthop replace id 1 via ${R2_N1_IP} dev eth0
+	run_cmd ip -netns r1 nexthop replace id 2 via ${R2_LLADDR} dev eth0
+}
+
+reset_route_new()
+{
+	run_cmd ip -netns r1 nexthop flush
+	run_cmd ip -netns h1 nexthop flush
+
+	initial_route_new
+}
+
+initial_route_new()
+{
+	# r1 to h2 via r2 and eth1
+	run_cmd ip -netns r1 nexthop add id 1 via ${R2_R1_N1_IP} dev eth1
+	run_cmd ip -netns r1 ro add ${H2_N2} nhid 1
+
+	run_cmd ip -netns r1 nexthop add id 2 via ${R2_R1_N1_IP6} dev eth1
+	run_cmd ip -netns r1 -6 ro add ${H2_N2_6} nhid 2
+
+	# h1 to h2 via r1
+	run_cmd ip -netns h1 nexthop add id 1 via ${R1_N1_IP} dev br0
+	run_cmd ip -netns h1 ro add ${H1_VRF_ARG} ${H2_N2} nhid 1
+
+	run_cmd ip -netns h1 nexthop add id 2 via ${R1_LLADDR} dev br0
+	run_cmd ip -netns h1 -6 ro add ${H1_VRF_ARG} ${H2_N2_6} nhid 2
+}
+
 replace_route_legacy()
 {
 	# r1 to h2 via r2 and eth0
@@ -478,6 +510,23 @@ log_section "Legacy routing with VRF"
 WITH_VRF=yes
 setup
 do_test "legacy"
+
+cleanup
+log_section "Routing with nexthop objects"
+ip nexthop ls >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+	WITH_VRF=no
+	setup
+	do_test "new"
+
+	cleanup
+	log_section "Routing with nexthop objects and VRF"
+	WITH_VRF=yes
+	setup
+	do_test "new"
+else
+	echo "Nexthop objects not supported; skipping tests"
+fi
 
 printf "\nTests passed: %3d\n" ${nsuccess}
 printf "Tests failed: %3d\n"   ${nfail}

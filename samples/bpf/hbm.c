@@ -50,8 +50,8 @@
 #include "cgroup_helpers.h"
 #include "hbm.h"
 #include "bpf_util.h"
-#include "bpf/bpf.h"
-#include "bpf/libbpf.h"
+#include "bpf.h"
+#include "libbpf.h"
 
 bool outFlag = true;
 int minRate = 1000;		/* cgroup rate limit in Mbps */
@@ -411,7 +411,7 @@ static void Usage(void)
 	       "    -l         also limit flows using loopback\n"
 	       "    -n <#>     to create cgroup \"/hbm#\" and attach prog\n"
 	       "               Default is /hbm1\n"
-	       "    --no_cn    disable CN notifcations\n"
+	       "    --no_cn    disable CN notifications\n"
 	       "    -r <rate>  Rate in Mbps\n"
 	       "    -s         Update HBM stats\n"
 	       "    -t <time>  Exit after specified seconds (default is 0)\n"

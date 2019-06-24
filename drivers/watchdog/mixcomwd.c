@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MixCom Watchdog: A Simple Hardware Watchdog Device
  * Based on Softdog driver by Alan Cox and PC Watchdog driver by Ken Hollis
@@ -5,11 +6,6 @@
  * Author: Gergely Madarasz <gorgo@itc.hu>
  *
  * Copyright (c) 1999 ITConsult-Pro Co. <info@itc.hu>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Version 0.1 (99/04/15):
  *		- first version
@@ -36,7 +32,6 @@
  *		- make mixcomwd_opened unsigned,
  *		  removed lock_kernel/unlock_kernel from mixcomwd_release,
  *		  modified ioctl a bit to conform to API
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

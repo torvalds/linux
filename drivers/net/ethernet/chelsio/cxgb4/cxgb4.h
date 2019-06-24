@@ -880,6 +880,7 @@ struct uld_msix_info {
 	unsigned short vec;
 	char desc[IFNAMSIZ + 10];
 	unsigned int idx;
+	cpumask_var_t aff_mask;
 };
 
 struct vf_info {
@@ -904,10 +905,6 @@ struct mbox_list {
 	struct list_head list;
 };
 
-struct mps_encap_entry {
-	atomic_t refcnt;
-};
-
 #if IS_ENABLED(CONFIG_THERMAL)
 struct ch_thermal {
 	struct thermal_zone_device *tzdev;
@@ -915,6 +912,14 @@ struct ch_thermal {
 	int trip_type;
 };
 #endif
+
+struct mps_entries_ref {
+	struct list_head list;
+	u8 addr[ETH_ALEN];
+	u8 mask[ETH_ALEN];
+	u16 idx;
+	refcount_t refcnt;
+};
 
 struct adapter {
 	void __iomem *regs;
@@ -940,9 +945,10 @@ struct adapter {
 	struct cxgb4_virt_res vres;
 	unsigned int swintr;
 
-	struct {
+	struct msix_info {
 		unsigned short vec;
 		char desc[IFNAMSIZ + 10];
+		cpumask_var_t aff_mask;
 	} msix_info[MAX_INGQ + 1];
 	struct uld_msix_info *msix_info_ulds; /* msix info for uld's */
 	struct uld_msix_bmap msix_bmap_ulds; /* msix bitmap for all uld */
@@ -967,7 +973,6 @@ struct adapter {
 	unsigned int rawf_start;
 	unsigned int rawf_cnt;
 	struct smt_data *smt;
-	struct mps_encap_entry *mps_encap;
 	struct cxgb4_uld_info *uld;
 	void *uld_handle[CXGB4_ULD_MAX];
 	unsigned int num_uld;
@@ -975,6 +980,8 @@ struct adapter {
 	struct list_head list_node;
 	struct list_head rcu_node;
 	struct list_head mac_hlist; /* list of MAC addresses in MPS Hash */
+	struct list_head mps_ref;
+	spinlock_t mps_ref_lock; /* lock for syncing mps ref/def activities */
 
 	void *iscsi_ppm;
 
@@ -1900,5 +1907,46 @@ int cxgb4_dcb_enabled(const struct net_device *dev);
 
 int cxgb4_thermal_init(struct adapter *adap);
 int cxgb4_thermal_remove(struct adapter *adap);
+int cxgb4_set_msix_aff(struct adapter *adap, unsigned short vec,
+		       cpumask_var_t *aff_mask, int idx);
+void cxgb4_clear_msix_aff(unsigned short vec, cpumask_var_t aff_mask);
+
+int cxgb4_change_mac(struct port_info *pi, unsigned int viid,
+		     int *tcam_idx, const u8 *addr,
+		     bool persistent, u8 *smt_idx);
+
+int cxgb4_alloc_mac_filt(struct adapter *adap, unsigned int viid,
+			 bool free, unsigned int naddr,
+			 const u8 **addr, u16 *idx,
+			 u64 *hash, bool sleep_ok);
+int cxgb4_free_mac_filt(struct adapter *adap, unsigned int viid,
+			unsigned int naddr, const u8 **addr, bool sleep_ok);
+int cxgb4_init_mps_ref_entries(struct adapter *adap);
+void cxgb4_free_mps_ref_entries(struct adapter *adap);
+int cxgb4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			       const u8 *addr, const u8 *mask,
+			       unsigned int vni, unsigned int vni_mask,
+			       u8 dip_hit, u8 lookup_type, bool sleep_ok);
+int cxgb4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			      int idx, bool sleep_ok);
+int cxgb4_free_raw_mac_filt(struct adapter *adap,
+			    unsigned int viid,
+			    const u8 *addr,
+			    const u8 *mask,
+			    unsigned int idx,
+			    u8 lookup_type,
+			    u8 port_id,
+			    bool sleep_ok);
+int cxgb4_alloc_raw_mac_filt(struct adapter *adap,
+			     unsigned int viid,
+			     const u8 *addr,
+			     const u8 *mask,
+			     unsigned int idx,
+			     u8 lookup_type,
+			     u8 port_id,
+			     bool sleep_ok);
+int cxgb4_update_mac_filt(struct port_info *pi, unsigned int viid,
+			  int *tcam_idx, const u8 *addr,
+			  bool persistent, u8 *smt_idx);
 
 #endif /* __CXGB4_H__ */

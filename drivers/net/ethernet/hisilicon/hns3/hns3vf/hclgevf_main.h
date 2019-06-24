@@ -12,9 +12,12 @@
 #define HCLGEVF_MOD_VERSION "1.0"
 #define HCLGEVF_DRIVER_NAME "hclgevf"
 
+#define HCLGEVF_MAX_VLAN_ID	4095
 #define HCLGEVF_MISC_VECTOR_NUM		0
 
 #define HCLGEVF_INVALID_VPORT		0xffff
+#define HCLGEVF_GENERAL_TASK_INTERVAL	  5
+#define HCLGEVF_KEEP_ALIVE_TASK_INTERVAL  2
 
 /* This number in actual depends upon the total number of VFs
  * created by physical function. But the maximum number of

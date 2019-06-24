@@ -8,3 +8,7 @@ sja1105-objs := \
     sja1105_clocking.o \
     sja1105_static_config.o \
     sja1105_dynamic_config.o \
+
+ifdef CONFIG_NET_DSA_SJA1105_PTP
+obj-$(CONFIG_NET_DSA_SJA1105) += sja1105_ptp.o
+endif

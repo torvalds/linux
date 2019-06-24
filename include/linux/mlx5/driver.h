@@ -53,6 +53,7 @@
 #include <linux/mlx5/eq.h>
 #include <linux/timecounter.h>
 #include <linux/ptp_clock_kernel.h>
+#include <net/devlink.h>
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
@@ -434,13 +435,18 @@ struct mlx5_core_health {
 	struct timer_list		timer;
 	u32				prev;
 	int				miss_counter;
-	bool				sick;
+	u8				synd;
+	u32				fatal_error;
+	u32				crdump_size;
 	/* wq spinlock to synchronize draining */
 	spinlock_t			wq_lock;
 	struct workqueue_struct	       *wq;
 	unsigned long			flags;
-	struct work_struct		work;
+	struct work_struct		fatal_report_work;
+	struct work_struct		report_work;
 	struct delayed_work		recover_work;
+	struct devlink_health_reporter *fw_reporter;
+	struct devlink_health_reporter *fw_fatal_reporter;
 };
 
 struct mlx5_qp_table {
@@ -581,6 +587,7 @@ struct mlx5_priv {
 };
 
 enum mlx5_device_state {
+	MLX5_DEVICE_STATE_UNINITIALIZED,
 	MLX5_DEVICE_STATE_UP,
 	MLX5_DEVICE_STATE_INTERNAL_ERROR,
 };
@@ -693,6 +700,7 @@ struct mlx5_core_dev {
 	struct mlx5_clock        clock;
 	struct mlx5_ib_clock_info  *clock_info;
 	struct mlx5_fw_tracer   *tracer;
+	u32                      vsc_addr;
 };
 
 struct mlx5_db {
@@ -904,7 +912,6 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev);
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health);
 void mlx5_drain_health_wq(struct mlx5_core_dev *dev);
 void mlx5_trigger_health_work(struct mlx5_core_dev *dev);
-void mlx5_drain_health_recovery(struct mlx5_core_dev *dev);
 int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 			struct mlx5_frag_buf *buf, int node);
 int mlx5_buf_alloc(struct mlx5_core_dev *dev,

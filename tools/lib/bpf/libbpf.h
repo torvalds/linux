@@ -98,15 +98,16 @@ struct bpf_object_load_attr {
 LIBBPF_API int bpf_object__load(struct bpf_object *obj);
 LIBBPF_API int bpf_object__load_xattr(struct bpf_object_load_attr *attr);
 LIBBPF_API int bpf_object__unload(struct bpf_object *obj);
-LIBBPF_API const char *bpf_object__name(struct bpf_object *obj);
-LIBBPF_API unsigned int bpf_object__kversion(struct bpf_object *obj);
+LIBBPF_API const char *bpf_object__name(const struct bpf_object *obj);
+LIBBPF_API unsigned int bpf_object__kversion(const struct bpf_object *obj);
 
 struct btf;
-LIBBPF_API struct btf *bpf_object__btf(struct bpf_object *obj);
+LIBBPF_API struct btf *bpf_object__btf(const struct bpf_object *obj);
 LIBBPF_API int bpf_object__btf_fd(const struct bpf_object *obj);
 
 LIBBPF_API struct bpf_program *
-bpf_object__find_program_by_title(struct bpf_object *obj, const char *title);
+bpf_object__find_program_by_title(const struct bpf_object *obj,
+				  const char *title);
 
 LIBBPF_API struct bpf_object *bpf_object__next(struct bpf_object *prev);
 #define bpf_object__for_each_safe(pos, tmp)			\
@@ -118,7 +119,7 @@ LIBBPF_API struct bpf_object *bpf_object__next(struct bpf_object *prev);
 typedef void (*bpf_object_clear_priv_t)(struct bpf_object *, void *);
 LIBBPF_API int bpf_object__set_priv(struct bpf_object *obj, void *priv,
 				    bpf_object_clear_priv_t clear_priv);
-LIBBPF_API void *bpf_object__priv(struct bpf_object *prog);
+LIBBPF_API void *bpf_object__priv(const struct bpf_object *prog);
 
 LIBBPF_API int
 libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
@@ -129,7 +130,7 @@ LIBBPF_API int libbpf_attach_type_by_name(const char *name,
 /* Accessors of bpf_program */
 struct bpf_program;
 LIBBPF_API struct bpf_program *bpf_program__next(struct bpf_program *prog,
-						 struct bpf_object *obj);
+						 const struct bpf_object *obj);
 
 #define bpf_object__for_each_program(pos, obj)		\
 	for ((pos) = bpf_program__next(NULL, (obj));	\
@@ -137,24 +138,23 @@ LIBBPF_API struct bpf_program *bpf_program__next(struct bpf_program *prog,
 	     (pos) = bpf_program__next((pos), (obj)))
 
 LIBBPF_API struct bpf_program *bpf_program__prev(struct bpf_program *prog,
-						 struct bpf_object *obj);
+						 const struct bpf_object *obj);
 
-typedef void (*bpf_program_clear_priv_t)(struct bpf_program *,
-					 void *);
+typedef void (*bpf_program_clear_priv_t)(struct bpf_program *, void *);
 
 LIBBPF_API int bpf_program__set_priv(struct bpf_program *prog, void *priv,
 				     bpf_program_clear_priv_t clear_priv);
 
-LIBBPF_API void *bpf_program__priv(struct bpf_program *prog);
+LIBBPF_API void *bpf_program__priv(const struct bpf_program *prog);
 LIBBPF_API void bpf_program__set_ifindex(struct bpf_program *prog,
 					 __u32 ifindex);
 
-LIBBPF_API const char *bpf_program__title(struct bpf_program *prog,
+LIBBPF_API const char *bpf_program__title(const struct bpf_program *prog,
 					  bool needs_copy);
 
 LIBBPF_API int bpf_program__load(struct bpf_program *prog, char *license,
 				 __u32 kern_version);
-LIBBPF_API int bpf_program__fd(struct bpf_program *prog);
+LIBBPF_API int bpf_program__fd(const struct bpf_program *prog);
 LIBBPF_API int bpf_program__pin_instance(struct bpf_program *prog,
 					 const char *path,
 					 int instance);
@@ -227,7 +227,7 @@ typedef int (*bpf_program_prep_t)(struct bpf_program *prog, int n,
 LIBBPF_API int bpf_program__set_prep(struct bpf_program *prog, int nr_instance,
 				     bpf_program_prep_t prep);
 
-LIBBPF_API int bpf_program__nth_fd(struct bpf_program *prog, int n);
+LIBBPF_API int bpf_program__nth_fd(const struct bpf_program *prog, int n);
 
 /*
  * Adjust type of BPF program. Default is kprobe.
@@ -246,14 +246,14 @@ LIBBPF_API void
 bpf_program__set_expected_attach_type(struct bpf_program *prog,
 				      enum bpf_attach_type type);
 
-LIBBPF_API bool bpf_program__is_socket_filter(struct bpf_program *prog);
-LIBBPF_API bool bpf_program__is_tracepoint(struct bpf_program *prog);
-LIBBPF_API bool bpf_program__is_raw_tracepoint(struct bpf_program *prog);
-LIBBPF_API bool bpf_program__is_kprobe(struct bpf_program *prog);
-LIBBPF_API bool bpf_program__is_sched_cls(struct bpf_program *prog);
-LIBBPF_API bool bpf_program__is_sched_act(struct bpf_program *prog);
-LIBBPF_API bool bpf_program__is_xdp(struct bpf_program *prog);
-LIBBPF_API bool bpf_program__is_perf_event(struct bpf_program *prog);
+LIBBPF_API bool bpf_program__is_socket_filter(const struct bpf_program *prog);
+LIBBPF_API bool bpf_program__is_tracepoint(const struct bpf_program *prog);
+LIBBPF_API bool bpf_program__is_raw_tracepoint(const struct bpf_program *prog);
+LIBBPF_API bool bpf_program__is_kprobe(const struct bpf_program *prog);
+LIBBPF_API bool bpf_program__is_sched_cls(const struct bpf_program *prog);
+LIBBPF_API bool bpf_program__is_sched_act(const struct bpf_program *prog);
+LIBBPF_API bool bpf_program__is_xdp(const struct bpf_program *prog);
+LIBBPF_API bool bpf_program__is_perf_event(const struct bpf_program *prog);
 
 /*
  * No need for __attribute__((packed)), all members of 'bpf_map_def'
@@ -275,10 +275,10 @@ struct bpf_map_def {
  */
 struct bpf_map;
 LIBBPF_API struct bpf_map *
-bpf_object__find_map_by_name(struct bpf_object *obj, const char *name);
+bpf_object__find_map_by_name(const struct bpf_object *obj, const char *name);
 
 LIBBPF_API int
-bpf_object__find_map_fd_by_name(struct bpf_object *obj, const char *name);
+bpf_object__find_map_fd_by_name(const struct bpf_object *obj, const char *name);
 
 /*
  * Get bpf_map through the offset of corresponding struct bpf_map_def
@@ -288,7 +288,7 @@ LIBBPF_API struct bpf_map *
 bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset);
 
 LIBBPF_API struct bpf_map *
-bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
+bpf_map__next(const struct bpf_map *map, const struct bpf_object *obj);
 #define bpf_object__for_each_map(pos, obj)		\
 	for ((pos) = bpf_map__next(NULL, (obj));	\
 	     (pos) != NULL;				\
@@ -296,22 +296,22 @@ bpf_map__next(struct bpf_map *map, struct bpf_object *obj);
 #define bpf_map__for_each bpf_object__for_each_map
 
 LIBBPF_API struct bpf_map *
-bpf_map__prev(struct bpf_map *map, struct bpf_object *obj);
+bpf_map__prev(const struct bpf_map *map, const struct bpf_object *obj);
 
-LIBBPF_API int bpf_map__fd(struct bpf_map *map);
-LIBBPF_API const struct bpf_map_def *bpf_map__def(struct bpf_map *map);
-LIBBPF_API const char *bpf_map__name(struct bpf_map *map);
+LIBBPF_API int bpf_map__fd(const struct bpf_map *map);
+LIBBPF_API const struct bpf_map_def *bpf_map__def(const struct bpf_map *map);
+LIBBPF_API const char *bpf_map__name(const struct bpf_map *map);
 LIBBPF_API __u32 bpf_map__btf_key_type_id(const struct bpf_map *map);
 LIBBPF_API __u32 bpf_map__btf_value_type_id(const struct bpf_map *map);
 
 typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
 LIBBPF_API int bpf_map__set_priv(struct bpf_map *map, void *priv,
 				 bpf_map_clear_priv_t clear_priv);
-LIBBPF_API void *bpf_map__priv(struct bpf_map *map);
+LIBBPF_API void *bpf_map__priv(const struct bpf_map *map);
 LIBBPF_API int bpf_map__reuse_fd(struct bpf_map *map, int fd);
 LIBBPF_API int bpf_map__resize(struct bpf_map *map, __u32 max_entries);
-LIBBPF_API bool bpf_map__is_offload_neutral(struct bpf_map *map);
-LIBBPF_API bool bpf_map__is_internal(struct bpf_map *map);
+LIBBPF_API bool bpf_map__is_offload_neutral(const struct bpf_map *map);
+LIBBPF_API bool bpf_map__is_internal(const struct bpf_map *map);
 LIBBPF_API void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex);
 LIBBPF_API int bpf_map__pin(struct bpf_map *map, const char *path);
 LIBBPF_API int bpf_map__unpin(struct bpf_map *map, const char *path);
@@ -453,6 +453,22 @@ bpf_program__bpil_addr_to_offs(struct bpf_prog_info_linear *info_linear);
 
 LIBBPF_API void
 bpf_program__bpil_offs_to_addr(struct bpf_prog_info_linear *info_linear);
+
+/*
+ * A helper function to get the number of possible CPUs before looking up
+ * per-CPU maps. Negative errno is returned on failure.
+ *
+ * Example usage:
+ *
+ *     int ncpus = libbpf_num_possible_cpus();
+ *     if (ncpus < 0) {
+ *          // error handling
+ *     }
+ *     long values[ncpus];
+ *     bpf_map_lookup_elem(per_cpu_map_fd, key, values);
+ *
+ */
+LIBBPF_API int libbpf_num_possible_cpus(void);
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -185,12 +185,14 @@ struct sfp {
 	int (*write)(struct sfp *, bool, u8, void *, size_t);
 
 	struct gpio_desc *gpio[GPIO_MAX];
+	int gpio_irq[GPIO_MAX];
 
 	bool attached;
+	struct mutex st_mutex;			/* Protects state */
 	unsigned int state;
 	struct delayed_work poll;
 	struct delayed_work timeout;
-	struct mutex sm_mutex;
+	struct mutex sm_mutex;			/* Protects state machine */
 	unsigned char sm_mod_state;
 	unsigned char sm_dev_state;
 	unsigned short sm_state;
@@ -282,6 +284,7 @@ static int sfp_i2c_read(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
 {
 	struct i2c_msg msgs[2];
 	u8 bus_addr = a2 ? 0x51 : 0x50;
+	size_t this_len;
 	int ret;
 
 	msgs[0].addr = bus_addr;
@@ -293,11 +296,26 @@ static int sfp_i2c_read(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
 	msgs[1].len = len;
 	msgs[1].buf = buf;
 
-	ret = i2c_transfer(sfp->i2c, msgs, ARRAY_SIZE(msgs));
-	if (ret < 0)
-		return ret;
+	while (len) {
+		this_len = len;
+		if (this_len > 16)
+			this_len = 16;
 
-	return ret == ARRAY_SIZE(msgs) ? len : 0;
+		msgs[1].len = this_len;
+
+		ret = i2c_transfer(sfp->i2c, msgs, ARRAY_SIZE(msgs));
+		if (ret < 0)
+			return ret;
+
+		if (ret != ARRAY_SIZE(msgs))
+			break;
+
+		msgs[1].buf += this_len;
+		dev_addr += this_len;
+		len -= this_len;
+	}
+
+	return msgs[1].buf - (u8 *)buf;
 }
 
 static int sfp_i2c_write(struct sfp *sfp, bool a2, u8 dev_addr, void *buf,
@@ -1704,6 +1722,7 @@ static void sfp_check_state(struct sfp *sfp)
 {
 	unsigned int state, i, changed;
 
+	mutex_lock(&sfp->st_mutex);
 	state = sfp_get_state(sfp);
 	changed = state ^ sfp->state;
 	changed &= SFP_F_PRESENT | SFP_F_LOS | SFP_F_TX_FAULT;
@@ -1729,6 +1748,7 @@ static void sfp_check_state(struct sfp *sfp)
 		sfp_sm_event(sfp, state & SFP_F_LOS ?
 				SFP_E_LOS_HIGH : SFP_E_LOS_LOW);
 	rtnl_unlock();
+	mutex_unlock(&sfp->st_mutex);
 }
 
 static irqreturn_t sfp_irq(int irq, void *data)
@@ -1759,6 +1779,7 @@ static struct sfp *sfp_alloc(struct device *dev)
 	sfp->dev = dev;
 
 	mutex_init(&sfp->sm_mutex);
+	mutex_init(&sfp->st_mutex);
 	INIT_DELAYED_WORK(&sfp->poll, sfp_poll);
 	INIT_DELAYED_WORK(&sfp->timeout, sfp_timeout);
 
@@ -1786,7 +1807,7 @@ static int sfp_probe(struct platform_device *pdev)
 	struct i2c_adapter *i2c;
 	struct sfp *sfp;
 	bool poll = false;
-	int irq, err, i;
+	int err, i;
 
 	sfp = sfp_alloc(&pdev->dev);
 	if (IS_ERR(sfp))
@@ -1827,7 +1848,7 @@ static int sfp_probe(struct platform_device *pdev)
 		int ret;
 
 		ret = acpi_node_get_property_reference(fw, "i2c-bus", 0, &args);
-		if (ACPI_FAILURE(ret) || !is_acpi_device_node(args.fwnode)) {
+		if (ret || !is_acpi_device_node(args.fwnode)) {
 			dev_err(&pdev->dev, "missing 'i2c-bus' property\n");
 			return -ENODEV;
 		}
@@ -1885,19 +1906,22 @@ static int sfp_probe(struct platform_device *pdev)
 		if (gpio_flags[i] != GPIOD_IN || !sfp->gpio[i])
 			continue;
 
-		irq = gpiod_to_irq(sfp->gpio[i]);
-		if (!irq) {
+		sfp->gpio_irq[i] = gpiod_to_irq(sfp->gpio[i]);
+		if (!sfp->gpio_irq[i]) {
 			poll = true;
 			continue;
 		}
 
-		err = devm_request_threaded_irq(sfp->dev, irq, NULL, sfp_irq,
+		err = devm_request_threaded_irq(sfp->dev, sfp->gpio_irq[i],
+						NULL, sfp_irq,
 						IRQF_ONESHOT |
 						IRQF_TRIGGER_RISING |
 						IRQF_TRIGGER_FALLING,
 						dev_name(sfp->dev), sfp);
-		if (err)
+		if (err) {
+			sfp->gpio_irq[i] = 0;
 			poll = true;
+		}
 	}
 
 	if (poll)
@@ -1928,9 +1952,26 @@ static int sfp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void sfp_shutdown(struct platform_device *pdev)
+{
+	struct sfp *sfp = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < GPIO_MAX; i++) {
+		if (!sfp->gpio_irq[i])
+			continue;
+
+		devm_free_irq(sfp->dev, sfp->gpio_irq[i], sfp);
+	}
+
+	cancel_delayed_work_sync(&sfp->poll);
+	cancel_delayed_work_sync(&sfp->timeout);
+}
+
 static struct platform_driver sfp_driver = {
 	.probe = sfp_probe,
 	.remove = sfp_remove,
+	.shutdown = sfp_shutdown,
 	.driver = {
 		.name = "sfp",
 		.of_match_table = sfp_of_match,

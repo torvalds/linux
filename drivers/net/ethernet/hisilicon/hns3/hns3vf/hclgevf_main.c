@@ -83,8 +83,7 @@ static const u32 tqp_intr_reg_addr_list[] = {HCLGEVF_TQP_INTR_CTRL_REG,
 					     HCLGEVF_TQP_INTR_GL2_REG,
 					     HCLGEVF_TQP_INTR_RL_REG};
 
-static inline struct hclgevf_dev *hclgevf_ae_get_hdev(
-	struct hnae3_handle *handle)
+static struct hclgevf_dev *hclgevf_ae_get_hdev(struct hnae3_handle *handle)
 {
 	if (!handle->client)
 		return container_of(handle, struct hclgevf_dev, nic);
@@ -232,7 +231,7 @@ static int hclgevf_get_tc_info(struct hclgevf_dev *hdev)
 	int status;
 
 	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_TCINFO, 0, NULL, 0,
-				      true, &resp_msg, sizeof(u8));
+				      true, &resp_msg, sizeof(resp_msg));
 	if (status) {
 		dev_err(&hdev->pdev->dev,
 			"VF request to get TC info from PF failed %d",
@@ -321,7 +320,8 @@ static u16 hclgevf_get_qid_global(struct hnae3_handle *handle, u16 queue_id)
 	memcpy(&msg_data[0], &queue_id, sizeof(queue_id));
 
 	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_QID_IN_PF, 0, msg_data,
-				   2, true, resp_data, 2);
+				   sizeof(msg_data), true, resp_data,
+				   sizeof(resp_data));
 	if (!ret)
 		qid_in_pf = *(u16 *)resp_data;
 
@@ -382,7 +382,7 @@ static int hclgevf_knic_setup(struct hclgevf_dev *hdev)
 	struct hnae3_handle *nic = &hdev->nic;
 	struct hnae3_knic_private_info *kinfo;
 	u16 new_tqps = hdev->num_tqps;
-	int i;
+	unsigned int i;
 
 	kinfo = &nic->kinfo;
 	kinfo->num_tc = 0;
@@ -418,7 +418,7 @@ static void hclgevf_request_link_info(struct hclgevf_dev *hdev)
 	u8 resp_msg;
 
 	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_STATUS, 0, NULL,
-				      0, false, &resp_msg, sizeof(u8));
+				      0, false, &resp_msg, sizeof(resp_msg));
 	if (status)
 		dev_err(&hdev->pdev->dev,
 			"VF failed to fetch link status(%d) from PF", status);
@@ -453,11 +453,13 @@ static void hclgevf_update_link_mode(struct hclgevf_dev *hdev)
 	u8 resp_msg;
 
 	send_msg = HCLGEVF_ADVERTISING;
-	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_MODE, 0, &send_msg,
-			     sizeof(u8), false, &resp_msg, sizeof(u8));
+	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_MODE, 0,
+			     &send_msg, sizeof(send_msg), false,
+			     &resp_msg, sizeof(resp_msg));
 	send_msg = HCLGEVF_SUPPORTED;
-	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_MODE, 0, &send_msg,
-			     sizeof(u8), false, &resp_msg, sizeof(u8));
+	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_LINK_MODE, 0,
+			     &send_msg, sizeof(send_msg), false,
+			     &resp_msg, sizeof(resp_msg));
 }
 
 static int hclgevf_set_handle_info(struct hclgevf_dev *hdev)
@@ -469,12 +471,6 @@ static int hclgevf_set_handle_info(struct hclgevf_dev *hdev)
 	nic->pdev = hdev->pdev;
 	nic->numa_node_mask = hdev->numa_node_mask;
 	nic->flags |= HNAE3_SUPPORT_VF;
-
-	if (hdev->ae_dev->dev_type != HNAE3_DEV_KNIC) {
-		dev_err(&hdev->pdev->dev, "unsupported device type %d\n",
-			hdev->ae_dev->dev_type);
-		return -EINVAL;
-	}
 
 	ret = hclgevf_knic_setup(hdev);
 	if (ret)
@@ -544,14 +540,16 @@ static int hclgevf_set_rss_algo_key(struct hclgevf_dev *hdev,
 				    const u8 hfunc, const u8 *key)
 {
 	struct hclgevf_rss_config_cmd *req;
+	unsigned int key_offset = 0;
 	struct hclgevf_desc desc;
-	int key_offset;
+	int key_counts;
 	int key_size;
 	int ret;
 
+	key_counts = HCLGEVF_RSS_KEY_SIZE;
 	req = (struct hclgevf_rss_config_cmd *)desc.data;
 
-	for (key_offset = 0; key_offset < 3; key_offset++) {
+	while (key_counts) {
 		hclgevf_cmd_setup_basic_desc(&desc,
 					     HCLGEVF_OPC_RSS_GENERIC_CONFIG,
 					     false);
@@ -560,15 +558,12 @@ static int hclgevf_set_rss_algo_key(struct hclgevf_dev *hdev,
 		req->hash_config |=
 			(key_offset << HCLGEVF_RSS_HASH_KEY_OFFSET_B);
 
-		if (key_offset == 2)
-			key_size =
-			HCLGEVF_RSS_KEY_SIZE - HCLGEVF_RSS_HASH_KEY_NUM * 2;
-		else
-			key_size = HCLGEVF_RSS_HASH_KEY_NUM;
-
+		key_size = min(HCLGEVF_RSS_HASH_KEY_NUM, key_counts);
 		memcpy(req->hash_key,
 		       key + key_offset * HCLGEVF_RSS_HASH_KEY_NUM, key_size);
 
+		key_counts -= key_size;
+		key_offset++;
 		ret = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
@@ -631,7 +626,7 @@ static int hclgevf_set_rss_tc_mode(struct hclgevf_dev *hdev,  u16 rss_size)
 	struct hclgevf_desc desc;
 	u16 roundup_size;
 	int status;
-	int i;
+	unsigned int i;
 
 	req = (struct hclgevf_rss_tc_mode_cmd *)desc.data;
 
@@ -1134,7 +1129,7 @@ static int hclgevf_set_promisc_mode(struct hclgevf_dev *hdev, bool en_bc_pmc)
 	return hclgevf_cmd_set_promisc_mode(hdev, en_bc_pmc);
 }
 
-static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, int tqp_id,
+static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, unsigned int tqp_id,
 			      int stream_id, bool enable)
 {
 	struct hclgevf_cfg_com_tqp_queue_cmd *req;
@@ -1147,7 +1142,8 @@ static int hclgevf_tqp_enable(struct hclgevf_dev *hdev, int tqp_id,
 				     false);
 	req->tqp_id = cpu_to_le16(tqp_id & HCLGEVF_RING_ID_MASK);
 	req->stream_id = cpu_to_le16(stream_id);
-	req->enable |= enable << HCLGEVF_TQP_ENABLE_B;
+	if (enable)
+		req->enable |= 1U << HCLGEVF_TQP_ENABLE_B;
 
 	status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
 	if (status)
@@ -1193,7 +1189,7 @@ static int hclgevf_set_mac_addr(struct hnae3_handle *handle, void *p,
 			HCLGE_MBX_MAC_VLAN_UC_MODIFY;
 
 	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_UNICAST,
-				      subcode, msg_data, ETH_ALEN * 2,
+				      subcode, msg_data, sizeof(msg_data),
 				      true, NULL, 0);
 	if (!status)
 		ether_addr_copy(hdev->hw.mac.mac_addr, new_mac_addr);
@@ -1249,7 +1245,7 @@ static int hclgevf_set_vlan_filter(struct hnae3_handle *handle,
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	u8 msg_data[HCLGEVF_VLAN_MBX_MSG_LEN];
 
-	if (vlan_id > 4095)
+	if (vlan_id > HCLGEVF_MAX_VLAN_ID)
 		return -EINVAL;
 
 	if (proto != htons(ETH_P_8021Q))
@@ -1280,7 +1276,7 @@ static int hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 	u8 msg_data[2];
 	int ret;
 
-	memcpy(&msg_data[0], &queue_id, sizeof(queue_id));
+	memcpy(msg_data, &queue_id, sizeof(queue_id));
 
 	/* disable vf queue before send queue reset msg to PF */
 	ret = hclgevf_tqp_enable(hdev, queue_id, 0, false);
@@ -1288,7 +1284,7 @@ static int hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 		return ret;
 
 	return hclgevf_send_mbx_msg(hdev, HCLGE_MBX_QUEUE_RESET, 0, msg_data,
-				    2, true, NULL, 0);
+				    sizeof(msg_data), true, NULL, 0);
 }
 
 static int hclgevf_set_mtu(struct hnae3_handle *handle, int new_mtu)
@@ -1658,7 +1654,8 @@ static void hclgevf_service_timer(struct timer_list *t)
 {
 	struct hclgevf_dev *hdev = from_timer(hdev, t, service_timer);
 
-	mod_timer(&hdev->service_timer, jiffies + 5 * HZ);
+	mod_timer(&hdev->service_timer, jiffies +
+		  HCLGEVF_GENERAL_TASK_INTERVAL * HZ);
 
 	hdev->stats_timer++;
 	hclgevf_task_schedule(hdev);
@@ -1678,9 +1675,9 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 	if (test_and_clear_bit(HCLGEVF_RESET_PENDING,
 			       &hdev->reset_state)) {
 		/* PF has initmated that it is about to reset the hardware.
-		 * We now have to poll & check if harware has actually completed
-		 * the reset sequence. On hardware reset completion, VF needs to
-		 * reset the client and ae device.
+		 * We now have to poll & check if hardware has actually
+		 * completed the reset sequence. On hardware reset completion,
+		 * VF needs to reset the client and ae device.
 		 */
 		hdev->reset_attempts = 0;
 
@@ -1696,7 +1693,7 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 	} else if (test_and_clear_bit(HCLGEVF_RESET_REQUESTED,
 				      &hdev->reset_state)) {
 		/* we could be here when either of below happens:
-		 * 1. reset was initiated due to watchdog timeout due to
+		 * 1. reset was initiated due to watchdog timeout caused by
 		 *    a. IMP was earlier reset and our TX got choked down and
 		 *       which resulted in watchdog reacting and inducing VF
 		 *       reset. This also means our cmdq would be unreliable.
@@ -1758,7 +1755,8 @@ static void hclgevf_keep_alive_timer(struct timer_list *t)
 	struct hclgevf_dev *hdev = from_timer(hdev, t, keep_alive_timer);
 
 	schedule_work(&hdev->keep_alive_task);
-	mod_timer(&hdev->keep_alive_timer, jiffies + 2 * HZ);
+	mod_timer(&hdev->keep_alive_timer, jiffies +
+		  HCLGEVF_KEEP_ALIVE_TASK_INTERVAL * HZ);
 }
 
 static void hclgevf_keep_alive_task(struct work_struct *work)
@@ -1773,7 +1771,7 @@ static void hclgevf_keep_alive_task(struct work_struct *work)
 		return;
 
 	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_KEEP_ALIVE, 0, NULL,
-				   0, false, &respmsg, sizeof(u8));
+				   0, false, &respmsg, sizeof(respmsg));
 	if (ret)
 		dev_err(&hdev->pdev->dev,
 			"VF sends keep alive cmd failed(=%d)\n", ret);
@@ -2005,7 +2003,7 @@ static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 
 	}
 
-	/* Initialize RSS indirect table for each vport */
+	/* Initialize RSS indirect table */
 	for (i = 0; i < HCLGEVF_RSS_IND_TBL_SIZE; i++)
 		rss_cfg->rss_indirection_tbl[i] = i % hdev->rss_size_max;
 
@@ -2018,9 +2016,6 @@ static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 
 static int hclgevf_init_vlan_config(struct hclgevf_dev *hdev)
 {
-	/* other vlan config(like, VLAN TX/RX offload) would also be added
-	 * here later
-	 */
 	return hclgevf_set_vlan_filter(&hdev->nic, htons(ETH_P_8021Q), 0,
 				       false);
 }
@@ -2042,7 +2037,6 @@ static int hclgevf_ae_start(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
-	/* reset tqp stats */
 	hclgevf_reset_tqp_stats(handle);
 
 	hclgevf_request_link_info(hdev);
@@ -2066,7 +2060,6 @@ static void hclgevf_ae_stop(struct hnae3_handle *handle)
 			if (hclgevf_reset_tqp(handle, i))
 				break;
 
-	/* reset tqp stats */
 	hclgevf_reset_tqp_stats(handle);
 	hclgevf_update_link_status(hdev, 0);
 }
@@ -2090,7 +2083,8 @@ static int hclgevf_client_start(struct hnae3_handle *handle)
 	if (ret)
 		return ret;
 
-	mod_timer(&hdev->keep_alive_timer, jiffies + 2 * HZ);
+	mod_timer(&hdev->keep_alive_timer, jiffies +
+		  HCLGEVF_KEEP_ALIVE_TASK_INTERVAL * HZ);
 
 	return 0;
 }
@@ -2322,16 +2316,6 @@ static int hclgevf_init_client_instance(struct hnae3_client *client,
 		if (ret)
 			goto clear_roce;
 
-		break;
-	case HNAE3_CLIENT_UNIC:
-		hdev->nic_client = client;
-		hdev->nic.client = client;
-
-		ret = client->ops->init_instance(&hdev->nic);
-		if (ret)
-			goto clear_nic;
-
-		hnae3_set_client_init_flag(client, ae_dev, 1);
 		break;
 	case HNAE3_CLIENT_ROCE:
 		if (hnae3_dev_roce_supported(hdev)) {

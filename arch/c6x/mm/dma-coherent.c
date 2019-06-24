@@ -1,18 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Port on Texas Instruments TMS320C6x architecture
  *
  *  Copyright (C) 2004, 2009, 2010, 2011 Texas Instruments Incorporated
  *  Author: Aurelien Jacquiot <aurelien.jacquiot@ti.com>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  *  DMA uncached mapping support.
  *
  *  Using code pulled from ARM
  *  Copyright (C) 2000-2004 Russell King
- *
  */
 #include <linux/slab.h>
 #include <linux/bitmap.h>

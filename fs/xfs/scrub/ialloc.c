@@ -252,7 +252,8 @@ xchk_iallocbt_check_cluster(
 	ir_holemask = (irec->ir_holemask & cluster_mask);
 	imap.im_blkno = XFS_AGB_TO_DADDR(mp, agno, agbno);
 	imap.im_len = XFS_FSB_TO_BB(mp, mp->m_blocks_per_cluster);
-	imap.im_boffset = XFS_INO_TO_OFFSET(mp, irec->ir_startino);
+	imap.im_boffset = XFS_INO_TO_OFFSET(mp, irec->ir_startino) <<
+			mp->m_sb.sb_inodelog;
 
 	if (imap.im_boffset != 0 && cluster_base != 0) {
 		ASSERT(imap.im_boffset == 0 || cluster_base == 0);

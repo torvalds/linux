@@ -169,38 +169,53 @@ struct eth_hdr {
 	unsigned short eth_proto;
 };
 
-struct bpf_map_def SEC("maps") vip_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	struct vip *key;
+	struct vip_meta *value;
+} vip_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(struct vip),
-	.value_size = sizeof(struct vip_meta),
 	.max_entries = MAX_VIPS,
 };
 
-struct bpf_map_def SEC("maps") ch_rings = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	__u32 *value;
+} ch_rings SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
 	.max_entries = CH_RINGS_SIZE,
 };
 
-struct bpf_map_def SEC("maps") reals = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct real_definition *value;
+} reals SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct real_definition),
 	.max_entries = MAX_REALS,
 };
 
-struct bpf_map_def SEC("maps") stats = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct vip_stats *value;
+} stats SEC(".maps") = {
 	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct vip_stats),
 	.max_entries = MAX_VIPS,
 };
 
-struct bpf_map_def SEC("maps") ctl_array = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct ctl_value *value;
+} ctl_array SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct ctl_value),
 	.max_entries = CTL_MAP_SIZE,
 };
 

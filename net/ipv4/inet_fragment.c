@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * inet fragments management
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * 		Authors:	Pavel Emelyanov <xemul@openvz.org>
  *				Started as consolidation of ipv4/ip_fragment.c,
@@ -149,10 +145,9 @@ static void inet_frags_free_cb(void *ptr, void *arg)
 		inet_frag_destroy(fq);
 }
 
-static void fqdir_rwork_fn(struct work_struct *work)
+static void fqdir_work_fn(struct work_struct *work)
 {
-	struct fqdir *fqdir = container_of(to_rcu_work(work),
-					   struct fqdir, destroy_rwork);
+	struct fqdir *fqdir = container_of(work, struct fqdir, destroy_work);
 	struct inet_frags *f = fqdir->f;
 
 	rhashtable_free_and_destroy(&fqdir->rhashtable, inet_frags_free_cb, NULL);
@@ -191,18 +186,8 @@ EXPORT_SYMBOL(fqdir_init);
 
 void fqdir_exit(struct fqdir *fqdir)
 {
-	fqdir->high_thresh = 0; /* prevent creation of new frags */
-
-	fqdir->dead = true;
-
-	/* call_rcu is supposed to provide memory barrier semantics,
-	 * separating the setting of fqdir->dead with the destruction
-	 * work.  This implicit barrier is paired with inet_frag_kill().
-	 */
-
-	INIT_RCU_WORK(&fqdir->destroy_rwork, fqdir_rwork_fn);
-	queue_rcu_work(system_wq, &fqdir->destroy_rwork);
-
+	INIT_WORK(&fqdir->destroy_work, fqdir_work_fn);
+	queue_work(system_wq, &fqdir->destroy_work);
 }
 EXPORT_SYMBOL(fqdir_exit);
 

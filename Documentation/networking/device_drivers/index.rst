@@ -21,6 +21,7 @@ Contents:
    intel/i40e
    intel/iavf
    intel/ice
+   mellanox/mlx5
 
 .. only::  subproject
 

@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <linux/bpf.h>
 #include <bpf/bpf.h>
-#include "bpf/libbpf.h"
+#include "libbpf.h"
 #include "sock_example.h"
 #include <unistd.h>
 #include <arpa/inet.h>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET  is implemented using the  BSD Socket
@@ -6,11 +7,6 @@
  *		Definitions for the Forwarding Information Base.
  *
  * Authors:	A.N.Kuznetsov, <kuznet@ms2.inr.ac.ru>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 #ifndef _NET_IP_FIB_H
@@ -44,6 +40,7 @@ struct fib_config {
 	u32			fc_flags;
 	u32			fc_priority;
 	__be32			fc_prefsrc;
+	u32			fc_nh_id;
 	struct nlattr		*fc_mx;
 	struct rtnexthop	*fc_mp;
 	int			fc_mx_len;
@@ -248,6 +245,8 @@ struct fib_dump_filter {
 	/* filter_set is an optimization that an entry is set */
 	bool			filter_set;
 	bool			dump_all_families;
+	bool			dump_routes;
+	bool			dump_exceptions;
 	unsigned char		protocol;
 	unsigned char		rt_type;
 	unsigned int		flags;

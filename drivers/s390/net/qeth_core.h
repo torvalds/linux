@@ -537,8 +537,6 @@ enum qeth_channel_states {
 	CH_STATE_DOWN,
 	CH_STATE_HALTED,
 	CH_STATE_STOPPED,
-	CH_STATE_RCD,
-	CH_STATE_RCD_DONE,
 };
 /**
  * card state machine
@@ -560,6 +558,7 @@ enum qeth_prot_versions {
 enum qeth_cmd_buffer_state {
 	BUF_STATE_FREE,
 	BUF_STATE_LOCKED,
+	BUF_STATE_MALLOC,
 };
 
 enum qeth_cq {
@@ -579,15 +578,21 @@ struct qeth_channel;
 
 struct qeth_cmd_buffer {
 	enum qeth_cmd_buffer_state state;
+	unsigned int length;
+	refcount_t ref_count;
 	struct qeth_channel *channel;
 	struct qeth_reply *reply;
 	long timeout;
 	unsigned char *data;
 	void (*finalize)(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 			 unsigned int length);
-	void (*callback)(struct qeth_card *card, struct qeth_channel *channel,
-			 struct qeth_cmd_buffer *iob);
+	void (*callback)(struct qeth_card *card, struct qeth_cmd_buffer *iob);
 };
+
+static inline void qeth_get_cmd(struct qeth_cmd_buffer *iob)
+{
+	refcount_inc(&iob->ref_count);
+}
 
 static inline struct qeth_ipa_cmd *__ipa_cmd(struct qeth_cmd_buffer *iob)
 {
@@ -608,6 +613,13 @@ struct qeth_channel {
 	atomic_t irq_pending;
 	int io_buf_no;
 };
+
+static inline struct ccw1 *__ccw_from_cmd(struct qeth_cmd_buffer *iob)
+{
+	if (iob->state != BUF_STATE_MALLOC)
+		return iob->channel->ccw;
+	return (struct ccw1 *)(iob->data + ALIGN(iob->length, 8));
+}
 
 static inline bool qeth_trylock_channel(struct qeth_channel *channel)
 {
@@ -665,6 +677,7 @@ struct qeth_card_info {
 	__u16 func_level;
 	char mcl_level[QETH_MCL_LENGTH + 1];
 	u8 open_when_online:1;
+	u8 use_v1_blkt:1;
 	u8 is_vm_nic:1;
 	int mac_bits;
 	enum qeth_card_types type;
@@ -764,6 +777,7 @@ struct qeth_card {
 	enum qeth_card_states state;
 	spinlock_t lock;
 	struct ccwgroup_device *gdev;
+	struct qeth_cmd_buffer *read_cmd;
 	struct qeth_channel read;
 	struct qeth_channel write;
 	struct qeth_channel data;
@@ -994,10 +1008,11 @@ void qeth_drain_output_queues(struct qeth_card *card);
 void qeth_setadp_promisc_mode(struct qeth_card *);
 int qeth_setadpparms_change_macaddr(struct qeth_card *);
 void qeth_tx_timeout(struct net_device *);
-void qeth_release_buffer(struct qeth_channel *, struct qeth_cmd_buffer *);
+void qeth_release_buffer(struct qeth_cmd_buffer *iob);
+void qeth_notify_reply(struct qeth_reply *reply, int reason);
 void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 			  u16 cmd_length);
-struct qeth_cmd_buffer *qeth_wait_for_buffer(struct qeth_channel *);
+struct qeth_cmd_buffer *qeth_get_buffer(struct qeth_channel *channel);
 int qeth_query_switch_attributes(struct qeth_card *card,
 				  struct qeth_switch_info *sw_info);
 int qeth_query_card_info(struct qeth_card *card,

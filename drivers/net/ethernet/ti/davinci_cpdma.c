@@ -134,6 +134,14 @@ struct cpdma_control_info {
 #define ACCESS_RW	(ACCESS_RO | ACCESS_WO)
 };
 
+struct submit_info {
+	struct cpdma_chan *chan;
+	int directed;
+	void *token;
+	void *data;
+	int len;
+};
+
 static struct cpdma_control_info controls[] = {
 	[CPDMA_TX_RLIM]		  = {CPDMA_DMACONTROL,	8,  0xffff, ACCESS_RW},
 	[CPDMA_CMD_IDLE]	  = {CPDMA_DMACONTROL,	3,  1,      ACCESS_WO},
@@ -1002,34 +1010,25 @@ static void __cpdma_chan_submit(struct cpdma_chan *chan,
 	}
 }
 
-int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
-		      int len, int directed)
+static int cpdma_chan_submit_si(struct submit_info *si)
 {
+	struct cpdma_chan		*chan = si->chan;
 	struct cpdma_ctlr		*ctlr = chan->ctlr;
+	int				len = si->len;
 	struct cpdma_desc __iomem	*desc;
 	dma_addr_t			buffer;
-	unsigned long			flags;
 	u32				mode;
-	int				ret = 0;
-
-	spin_lock_irqsave(&chan->lock, flags);
-
-	if (chan->state == CPDMA_STATE_TEARDOWN) {
-		ret = -EINVAL;
-		goto unlock_ret;
-	}
+	int				ret;
 
 	if (chan->count >= chan->desc_num)	{
 		chan->stats.desc_alloc_fail++;
-		ret = -ENOMEM;
-		goto unlock_ret;
+		return -ENOMEM;
 	}
 
 	desc = cpdma_desc_alloc(ctlr->pool);
 	if (!desc) {
 		chan->stats.desc_alloc_fail++;
-		ret = -ENOMEM;
-		goto unlock_ret;
+		return -ENOMEM;
 	}
 
 	if (len < ctlr->params.min_packet_size) {
@@ -1037,16 +1036,15 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 		chan->stats.runt_transmit_buff++;
 	}
 
-	buffer = dma_map_single(ctlr->dev, data, len, chan->dir);
+	buffer = dma_map_single(ctlr->dev, si->data, len, chan->dir);
 	ret = dma_mapping_error(ctlr->dev, buffer);
 	if (ret) {
 		cpdma_desc_free(ctlr->pool, desc, 1);
-		ret = -EINVAL;
-		goto unlock_ret;
+		return -EINVAL;
 	}
 
 	mode = CPDMA_DESC_OWNER | CPDMA_DESC_SOP | CPDMA_DESC_EOP;
-	cpdma_desc_to_port(chan, mode, directed);
+	cpdma_desc_to_port(chan, mode, si->directed);
 
 	/* Relaxed IO accessors can be used here as there is read barrier
 	 * at the end of write sequence.
@@ -1055,7 +1053,7 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 	writel_relaxed(buffer, &desc->hw_buffer);
 	writel_relaxed(len, &desc->hw_len);
 	writel_relaxed(mode | len, &desc->hw_mode);
-	writel_relaxed((uintptr_t)token, &desc->sw_token);
+	writel_relaxed((uintptr_t)si->token, &desc->sw_token);
 	writel_relaxed(buffer, &desc->sw_buffer);
 	writel_relaxed(len, &desc->sw_len);
 	desc_read(desc, sw_len);
@@ -1066,8 +1064,53 @@ int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
 		chan_write(chan, rxfree, 1);
 
 	chan->count++;
+	return 0;
+}
 
-unlock_ret:
+int cpdma_chan_idle_submit(struct cpdma_chan *chan, void *token, void *data,
+			   int len, int directed)
+{
+	struct submit_info si;
+	unsigned long flags;
+	int ret;
+
+	si.chan = chan;
+	si.token = token;
+	si.data = data;
+	si.len = len;
+	si.directed = directed;
+
+	spin_lock_irqsave(&chan->lock, flags);
+	if (chan->state == CPDMA_STATE_TEARDOWN) {
+		spin_unlock_irqrestore(&chan->lock, flags);
+		return -EINVAL;
+	}
+
+	ret = cpdma_chan_submit_si(&si);
+	spin_unlock_irqrestore(&chan->lock, flags);
+	return ret;
+}
+
+int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
+		      int len, int directed)
+{
+	struct submit_info si;
+	unsigned long flags;
+	int ret;
+
+	si.chan = chan;
+	si.token = token;
+	si.data = data;
+	si.len = len;
+	si.directed = directed;
+
+	spin_lock_irqsave(&chan->lock, flags);
+	if (chan->state != CPDMA_STATE_ACTIVE) {
+		spin_unlock_irqrestore(&chan->lock, flags);
+		return -EINVAL;
+	}
+
+	ret = cpdma_chan_submit_si(&si);
 	spin_unlock_irqrestore(&chan->lock, flags);
 	return ret;
 }

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TTL modification target for IP tables
  * (C) 2000,2005 by Harald Welte <laforge@netfilter.org>
  *
  * Hop Limit modification target for ip6tables
  * Maciej Soltysiak <solt@dns.toxicfilms.tv>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>

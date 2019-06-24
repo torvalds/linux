@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for MegaChips STDP4028 with GE B850v3 firmware (LVDS-DP)
  * Driver for MegaChips STDP2690 with GE B850v3 firmware (DP-DP++)
@@ -5,17 +6,6 @@
  * Copyright (c) 2017, Collabora Ltd.
  * Copyright (c) 2017, General Electric Company
 
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
-
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  * This driver creates a drm_bridge and a drm_connector for the LVDS to DP++
  * display bridge of the GE B850v3. There are two physical bridges on the video
@@ -27,7 +17,6 @@
  * signal pipeline is as follows:
  *
  *   Host -> LVDS|--(STDP4028)--|DP -> DP|--(STDP2690)--|DP++ -> Video output
- *
  */
 
 #include <linux/gpio.h>

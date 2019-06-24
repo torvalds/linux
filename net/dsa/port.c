@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Handling of a single switch port
  *
  * Copyright (c) 2017 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/if_bridge.h>
@@ -340,9 +336,6 @@ int dsa_port_vlan_add(struct dsa_port *dp,
 		.vlan = vlan,
 	};
 
-	/* Can be called from dsa_slave_port_obj_add() or
-	 * dsa_slave_vlan_rx_add_vid()
-	 */
 	if (!dp->bridge_dev || br_vlan_enabled(dp->bridge_dev))
 		return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
 
@@ -358,12 +351,6 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 		.vlan = vlan,
 	};
 
-	if (vlan->obj.orig_dev && netif_is_bridge_master(vlan->obj.orig_dev))
-		return -EOPNOTSUPP;
-
-	/* Can be called from dsa_slave_port_obj_del() or
-	 * dsa_slave_vlan_rx_kill_vid()
-	 */
 	if (!dp->bridge_dev || br_vlan_enabled(dp->bridge_dev))
 		return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
 
@@ -622,7 +609,7 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 	}
 
 	err = phylink_of_phy_connect(dp->pl, port_dn, 0);
-	if (err) {
+	if (err && err != -ENODEV) {
 		pr_err("could not attach to PHY: %d\n", err);
 		goto err_phy_connect;
 	}

@@ -93,7 +93,7 @@ struct vcap_data {
 	u32 counter_offset; /* Current counter offset */
 	u32 tg_value; /* Current type-group value */
 	u32 tg_mask; /* Current type-group mask */
-} vcap_data_t;
+};
 
 static u32 vcap_s2_read_update_ctrl(struct ocelot *oc)
 {
@@ -105,7 +105,6 @@ static void vcap_cmd(struct ocelot *oc, u16 ix, int cmd, int sel)
 	u32 value = (S2_CORE_UPDATE_CTRL_UPDATE_CMD(cmd) |
 		     S2_CORE_UPDATE_CTRL_UPDATE_ADDR(ix) |
 		     S2_CORE_UPDATE_CTRL_UPDATE_SHOT);
-	int rc;
 
 	if ((sel & VCAP_SEL_ENTRY) && ix >= vcap_is2.entry_count)
 		return;
@@ -120,7 +119,7 @@ static void vcap_cmd(struct ocelot *oc, u16 ix, int cmd, int sel)
 		value |= S2_CORE_UPDATE_CTRL_UPDATE_CNT_DIS;
 
 	ocelot_write(oc, value, S2_CORE_UPDATE_CTRL);
-	rc = readx_poll_timeout(vcap_s2_read_update_ctrl, oc, value,
+	readx_poll_timeout(vcap_s2_read_update_ctrl, oc, value,
 				(value & S2_CORE_UPDATE_CTRL_UPDATE_SHOT) == 0,
 				10, 100000);
 }

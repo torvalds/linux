@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="shared_block_test"
+ALL_TESTS="shared_block_test match_indev_test"
 NUM_NETIFS=4
 source tc_common.sh
 source lib.sh
@@ -68,6 +68,33 @@ shared_block_test()
 	tc filter del block 22 protocol ip pref 1 handle 101 flower
 
 	log_test "shared block ($tcflags)"
+}
+
+match_indev_test()
+{
+	RET=0
+
+	tc filter add block 22 protocol ip pref 1 handle 101 flower \
+		$tcflags indev $swp1 dst_mac $swmac action drop
+	tc filter add block 22 protocol ip pref 2 handle 102 flower \
+		$tcflags indev $swp2 dst_mac $swmac action drop
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $swmac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "block 22" 101 1
+	check_err $? "Did not match first incoming packet on a block"
+
+	$MZ $h2 -c 1 -p 64 -a $h2mac -b $swmac -A 192.0.2.1 -B 192.0.2.2 \
+		-t ip -q
+
+	tc_check_packets "block 22" 102 1
+	check_err $? "Did not match second incoming packet on a block"
+
+	tc filter del block 22 protocol ip pref 1 handle 101 flower
+	tc filter del block 22 protocol ip pref 2 handle 102 flower
+
+	log_test "indev match ($tcflags)"
 }
 
 setup_prepare()

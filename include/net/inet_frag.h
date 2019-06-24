@@ -20,7 +20,7 @@ struct fqdir {
 
 	/* Keep atomic mem on separate cachelines in structs that include it */
 	atomic_long_t		mem ____cacheline_aligned_in_smp;
-	struct rcu_work		destroy_rwork;
+	struct work_struct	destroy_work;
 };
 
 /**
@@ -113,6 +113,12 @@ int inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
 
 int fqdir_init(struct fqdir **fqdirp, struct inet_frags *f, struct net *net);
+
+static inline void fqdir_pre_exit(struct fqdir *fqdir)
+{
+	fqdir->high_thresh = 0; /* prevent creation of new frags */
+	fqdir->dead = true;
+}
 void fqdir_exit(struct fqdir *fqdir);
 
 void inet_frag_kill(struct inet_frag_queue *q);

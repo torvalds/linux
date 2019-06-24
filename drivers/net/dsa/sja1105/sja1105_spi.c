@@ -100,6 +100,7 @@ int sja1105_spi_send_packed_buf(const struct sja1105_private *priv,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sja1105_spi_send_packed_buf);
 
 /* If @rw is:
  * - SPI_WRITE: creates and sends an SPI write message at absolute
@@ -135,6 +136,7 @@ int sja1105_spi_send_int(const struct sja1105_private *priv,
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(sja1105_spi_send_int);
 
 /* Should be used if a @packed_buf larger than SJA1105_SIZE_SPI_MSG_MAXLEN
  * must be sent/received. Splitting the buffer into chunks and assembling
@@ -283,20 +285,22 @@ static int sja1105_cold_reset(const struct sja1105_private *priv)
 	return priv->info->reset_cmd(priv, &reset);
 }
 
-static int sja1105_inhibit_tx(const struct sja1105_private *priv,
-			      const unsigned long *port_bitmap)
+int sja1105_inhibit_tx(const struct sja1105_private *priv,
+		       unsigned long port_bitmap, bool tx_inhibited)
 {
 	const struct sja1105_regs *regs = priv->info->regs;
 	u64 inhibit_cmd;
-	int port, rc;
+	int rc;
 
 	rc = sja1105_spi_send_int(priv, SPI_READ, regs->port_control,
 				  &inhibit_cmd, SJA1105_SIZE_PORT_CTRL);
 	if (rc < 0)
 		return rc;
 
-	for_each_set_bit(port, port_bitmap, SJA1105_NUM_PORTS)
-		inhibit_cmd |= BIT(port);
+	if (tx_inhibited)
+		inhibit_cmd |= port_bitmap;
+	else
+		inhibit_cmd &= ~port_bitmap;
 
 	return sja1105_spi_send_int(priv, SPI_WRITE, regs->port_control,
 				    &inhibit_cmd, SJA1105_SIZE_PORT_CTRL);
@@ -413,7 +417,7 @@ int sja1105_static_config_upload(struct sja1105_private *priv)
 	 * Tx on all ports and waiting for current packet to drain.
 	 * Otherwise, the PHY will see an unterminated Ethernet packet.
 	 */
-	rc = sja1105_inhibit_tx(priv, &port_bitmap);
+	rc = sja1105_inhibit_tx(priv, port_bitmap, true);
 	if (rc < 0) {
 		dev_err(dev, "Failed to inhibit Tx on ports\n");
 		return -ENXIO;
@@ -478,7 +482,12 @@ int sja1105_static_config_upload(struct sja1105_private *priv)
 		dev_info(dev, "Succeeded after %d tried\n", RETRIES - retries);
 	}
 
+	rc = sja1105_ptp_reset(priv);
+	if (rc < 0)
+		dev_err(dev, "Failed to reset PTP clock: %d\n", rc);
+
 	dev_info(dev, "Reset switch and programmed static config\n");
+
 out:
 	kfree(config_buf);
 	return rc;
@@ -491,11 +500,10 @@ static struct sja1105_regs sja1105et_regs = {
 	.port_control = 0x11,
 	.config = 0x020000,
 	.rgu = 0x100440,
+	/* UM10944.pdf, Table 86, ACU Register overview */
 	.pad_mii_tx = {0x100800, 0x100802, 0x100804, 0x100806, 0x100808},
 	.rmii_pll1 = 0x10000A,
 	.cgu_idiv = {0x10000B, 0x10000C, 0x10000D, 0x10000E, 0x10000F},
-	/* UM10944.pdf, Table 86, ACU Register overview */
-	.rgmii_pad_mii_tx = {0x100800, 0x100802, 0x100804, 0x100806, 0x100808},
 	.mac = {0x200, 0x202, 0x204, 0x206, 0x208},
 	.mac_hl1 = {0x400, 0x410, 0x420, 0x430, 0x440},
 	.mac_hl2 = {0x600, 0x610, 0x620, 0x630, 0x640},
@@ -507,6 +515,11 @@ static struct sja1105_regs sja1105et_regs = {
 	.rgmii_tx_clk = {0x100016, 0x10001D, 0x100024, 0x10002B, 0x100032},
 	.rmii_ref_clk = {0x100015, 0x10001C, 0x100023, 0x10002A, 0x100031},
 	.rmii_ext_tx_clk = {0x100018, 0x10001F, 0x100026, 0x10002D, 0x100034},
+	.ptpegr_ts = {0xC0, 0xC2, 0xC4, 0xC6, 0xC8},
+	.ptp_control = 0x17,
+	.ptpclk = 0x18, /* Spans 0x18 to 0x19 */
+	.ptpclkrate = 0x1A,
+	.ptptsclk = 0x1B, /* Spans 0x1B to 0x1C */
 };
 
 static struct sja1105_regs sja1105pqrs_regs = {
@@ -516,11 +529,11 @@ static struct sja1105_regs sja1105pqrs_regs = {
 	.port_control = 0x12,
 	.config = 0x020000,
 	.rgu = 0x100440,
+	/* UM10944.pdf, Table 86, ACU Register overview */
 	.pad_mii_tx = {0x100800, 0x100802, 0x100804, 0x100806, 0x100808},
+	.pad_mii_id = {0x100810, 0x100811, 0x100812, 0x100813, 0x100814},
 	.rmii_pll1 = 0x10000A,
 	.cgu_idiv = {0x10000B, 0x10000C, 0x10000D, 0x10000E, 0x10000F},
-	/* UM10944.pdf, Table 86, ACU Register overview */
-	.rgmii_pad_mii_tx = {0x100800, 0x100802, 0x100804, 0x100806, 0x100808},
 	.mac = {0x200, 0x202, 0x204, 0x206, 0x208},
 	.mac_hl1 = {0x400, 0x410, 0x420, 0x430, 0x440},
 	.mac_hl2 = {0x600, 0x610, 0x620, 0x630, 0x640},
@@ -533,6 +546,11 @@ static struct sja1105_regs sja1105pqrs_regs = {
 	.rmii_ref_clk = {0x100015, 0x10001B, 0x100021, 0x100027, 0x10002D},
 	.rmii_ext_tx_clk = {0x100017, 0x10001D, 0x100023, 0x100029, 0x10002F},
 	.qlevel = {0x604, 0x614, 0x624, 0x634, 0x644},
+	.ptpegr_ts = {0xC0, 0xC4, 0xC8, 0xCC, 0xD0},
+	.ptp_control = 0x18,
+	.ptpclk = 0x19,
+	.ptpclkrate = 0x1B,
+	.ptptsclk = 0x1C,
 };
 
 struct sja1105_info sja1105e_info = {
@@ -540,9 +558,12 @@ struct sja1105_info sja1105e_info = {
 	.part_no		= SJA1105ET_PART_NO,
 	.static_ops		= sja1105e_table_ops,
 	.dyn_ops		= sja1105et_dyn_ops,
+	.ptp_ts_bits		= 24,
+	.ptpegr_ts_bytes	= 4,
 	.reset_cmd		= sja1105et_reset_cmd,
 	.fdb_add_cmd		= sja1105et_fdb_add,
 	.fdb_del_cmd		= sja1105et_fdb_del,
+	.ptp_cmd		= sja1105et_ptp_cmd,
 	.regs			= &sja1105et_regs,
 	.name			= "SJA1105E",
 };
@@ -551,9 +572,12 @@ struct sja1105_info sja1105t_info = {
 	.part_no		= SJA1105ET_PART_NO,
 	.static_ops		= sja1105t_table_ops,
 	.dyn_ops		= sja1105et_dyn_ops,
+	.ptp_ts_bits		= 24,
+	.ptpegr_ts_bytes	= 4,
 	.reset_cmd		= sja1105et_reset_cmd,
 	.fdb_add_cmd		= sja1105et_fdb_add,
 	.fdb_del_cmd		= sja1105et_fdb_del,
+	.ptp_cmd		= sja1105et_ptp_cmd,
 	.regs			= &sja1105et_regs,
 	.name			= "SJA1105T",
 };
@@ -562,9 +586,13 @@ struct sja1105_info sja1105p_info = {
 	.part_no		= SJA1105P_PART_NO,
 	.static_ops		= sja1105p_table_ops,
 	.dyn_ops		= sja1105pqrs_dyn_ops,
+	.ptp_ts_bits		= 32,
+	.ptpegr_ts_bytes	= 8,
+	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
+	.ptp_cmd		= sja1105pqrs_ptp_cmd,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105P",
 };
@@ -573,9 +601,13 @@ struct sja1105_info sja1105q_info = {
 	.part_no		= SJA1105Q_PART_NO,
 	.static_ops		= sja1105q_table_ops,
 	.dyn_ops		= sja1105pqrs_dyn_ops,
+	.ptp_ts_bits		= 32,
+	.ptpegr_ts_bytes	= 8,
+	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
+	.ptp_cmd		= sja1105pqrs_ptp_cmd,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105Q",
 };
@@ -584,9 +616,13 @@ struct sja1105_info sja1105r_info = {
 	.part_no		= SJA1105R_PART_NO,
 	.static_ops		= sja1105r_table_ops,
 	.dyn_ops		= sja1105pqrs_dyn_ops,
+	.ptp_ts_bits		= 32,
+	.ptpegr_ts_bytes	= 8,
+	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
+	.ptp_cmd		= sja1105pqrs_ptp_cmd,
 	.regs			= &sja1105pqrs_regs,
 	.name			= "SJA1105R",
 };
@@ -596,8 +632,12 @@ struct sja1105_info sja1105s_info = {
 	.static_ops		= sja1105s_table_ops,
 	.dyn_ops		= sja1105pqrs_dyn_ops,
 	.regs			= &sja1105pqrs_regs,
+	.ptp_ts_bits		= 32,
+	.ptpegr_ts_bytes	= 8,
+	.setup_rgmii_delay	= sja1105pqrs_setup_rgmii_delay,
 	.reset_cmd		= sja1105pqrs_reset_cmd,
 	.fdb_add_cmd		= sja1105pqrs_fdb_add,
 	.fdb_del_cmd		= sja1105pqrs_fdb_del,
+	.ptp_cmd		= sja1105pqrs_ptp_cmd,
 	.name			= "SJA1105S",
 };

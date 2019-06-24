@@ -26,10 +26,11 @@
 #include <memory.h>
 #include <unistd.h>
 #include <asm/unistd.h>
+#include <errno.h>
 #include <linux/bpf.h>
 #include "bpf.h"
 #include "libbpf.h"
-#include <errno.h>
+#include "libbpf_internal.h"
 
 /*
  * When building perf, unistd.h is overridden. __NR_bpf is
@@ -51,10 +52,6 @@
 # else
 #  error __NR_bpf not defined. libbpf does not support your arch.
 # endif
-#endif
-
-#ifndef min
-#define min(x, y) ((x) < (y) ? (x) : (y))
 #endif
 
 static inline __u64 ptr_to_u64(const void *ptr)

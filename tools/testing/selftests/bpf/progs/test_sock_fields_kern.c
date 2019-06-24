@@ -27,31 +27,43 @@ enum bpf_linum_array_idx {
 	__NR_BPF_LINUM_ARRAY_IDX,
 };
 
-struct bpf_map_def SEC("maps") addr_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct sockaddr_in6 *value;
+} addr_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct sockaddr_in6),
 	.max_entries = __NR_BPF_ADDR_ARRAY_IDX,
 };
 
-struct bpf_map_def SEC("maps") sock_result_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct bpf_sock *value;
+} sock_result_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct bpf_sock),
 	.max_entries = __NR_BPF_RESULT_ARRAY_IDX,
 };
 
-struct bpf_map_def SEC("maps") tcp_sock_result_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct bpf_tcp_sock *value;
+} tcp_sock_result_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct bpf_tcp_sock),
 	.max_entries = __NR_BPF_RESULT_ARRAY_IDX,
 };
 
-struct bpf_map_def SEC("maps") linum_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	__u32 *value;
+} linum_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
 	.max_entries = __NR_BPF_LINUM_ARRAY_IDX,
 };
 
@@ -60,25 +72,25 @@ struct bpf_spinlock_cnt {
 	__u32 cnt;
 };
 
-struct bpf_map_def SEC("maps") sk_pkt_out_cnt = {
+struct {
+	__u32 type;
+	__u32 map_flags;
+	int *key;
+	struct bpf_spinlock_cnt *value;
+} sk_pkt_out_cnt SEC(".maps") = {
 	.type = BPF_MAP_TYPE_SK_STORAGE,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct bpf_spinlock_cnt),
-	.max_entries = 0,
 	.map_flags = BPF_F_NO_PREALLOC,
 };
 
-BPF_ANNOTATE_KV_PAIR(sk_pkt_out_cnt, int, struct bpf_spinlock_cnt);
-
-struct bpf_map_def SEC("maps") sk_pkt_out_cnt10 = {
+struct {
+	__u32 type;
+	__u32 map_flags;
+	int *key;
+	struct bpf_spinlock_cnt *value;
+} sk_pkt_out_cnt10 SEC(".maps") = {
 	.type = BPF_MAP_TYPE_SK_STORAGE,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct bpf_spinlock_cnt),
-	.max_entries = 0,
 	.map_flags = BPF_F_NO_PREALLOC,
 };
-
-BPF_ANNOTATE_KV_PAIR(sk_pkt_out_cnt10, int, struct bpf_spinlock_cnt);
 
 static bool is_loopback6(__u32 *a6)
 {

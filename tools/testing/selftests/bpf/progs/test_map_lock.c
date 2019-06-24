@@ -11,28 +11,30 @@ struct hmap_elem {
 	int var[VAR_NUM];
 };
 
-struct bpf_map_def SEC("maps") hash_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct hmap_elem *value;
+} hash_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_HASH,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct hmap_elem),
 	.max_entries = 1,
 };
-
-BPF_ANNOTATE_KV_PAIR(hash_map, int, struct hmap_elem);
 
 struct array_elem {
 	struct bpf_spin_lock lock;
 	int var[VAR_NUM];
 };
 
-struct bpf_map_def SEC("maps") array_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	int *key;
+	struct array_elem *value;
+} array_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct array_elem),
 	.max_entries = 1,
 };
-
-BPF_ANNOTATE_KV_PAIR(array_map, int, struct array_elem);
 
 SEC("map_lock_demo")
 int bpf_map_lock_test(struct __sk_buff *skb)

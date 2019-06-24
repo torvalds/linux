@@ -639,6 +639,10 @@ cxgbi_check_route(struct sockaddr *dst_addr, int ifindex)
 
 	if (ndev->flags & IFF_LOOPBACK) {
 		ndev = ip_dev_find(&init_net, daddr->sin_addr.s_addr);
+		if (!ndev) {
+			err = -ENETUNREACH;
+			goto rel_neigh;
+		}
 		mtu = ndev->mtu;
 		pr_info("rt dev %s, loopback -> %s, mtu %u.\n",
 			n->dev->name, ndev->name, mtu);
@@ -1281,14 +1285,15 @@ EXPORT_SYMBOL_GPL(cxgbi_ddp_set_one_ppod);
 
 static unsigned char padding[4];
 
-void cxgbi_ddp_ppm_setup(void **ppm_pp, struct cxgbi_device *cdev,
-			 struct cxgbi_tag_format *tformat, unsigned int ppmax,
-			 unsigned int llimit, unsigned int start,
-			 unsigned int rsvd_factor)
+int cxgbi_ddp_ppm_setup(void **ppm_pp, struct cxgbi_device *cdev,
+			struct cxgbi_tag_format *tformat,
+			unsigned int iscsi_size, unsigned int llimit,
+			unsigned int start, unsigned int rsvd_factor,
+			unsigned int edram_start, unsigned int edram_size)
 {
 	int err = cxgbi_ppm_init(ppm_pp, cdev->ports[0], cdev->pdev,
-				cdev->lldev, tformat, ppmax, llimit, start,
-				rsvd_factor);
+				cdev->lldev, tformat, iscsi_size, llimit, start,
+				rsvd_factor, edram_start, edram_size);
 
 	if (err >= 0) {
 		struct cxgbi_ppm *ppm = (struct cxgbi_ppm *)(*ppm_pp);
@@ -1300,6 +1305,8 @@ void cxgbi_ddp_ppm_setup(void **ppm_pp, struct cxgbi_device *cdev,
 	} else {
 		cdev->flags |= CXGBI_FLAG_DDP_OFF;
 	}
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(cxgbi_ddp_ppm_setup);
 

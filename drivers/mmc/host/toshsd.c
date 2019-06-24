@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Toshiba PCI Secure Digital Host Controller Interface driver
  *
@@ -6,11 +7,6 @@
  *
  *	Based on asic3_mmc.c, copyright (c) 2005 SDG Systems, LLC and,
  *	sdhci.c, copyright (C) 2005-2006 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/delay.h>

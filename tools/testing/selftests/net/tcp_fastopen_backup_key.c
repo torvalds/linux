@@ -51,7 +51,7 @@ static const int PORT = 8891;
 static void get_keys(int fd, uint32_t *keys)
 {
 	char buf[128];
-	int len = KEY_LENGTH * 2;
+	socklen_t len = KEY_LENGTH * 2;
 
 	if (do_sockopt) {
 		if (getsockopt(fd, SOL_TCP, TCP_FASTOPEN_KEY, keys, &len))
@@ -210,14 +210,13 @@ static bool is_listen_fd(int fd)
 	return false;
 }
 
-static int rotate_key(int fd)
+static void rotate_key(int fd)
 {
 	static int iter;
 	static uint32_t new_key[4];
 	uint32_t keys[8];
 	uint32_t tmp_key[4];
 	int i;
-	int len = KEY_LENGTH * 2;
 
 	if (iter < N_LISTEN) {
 		/* first set new key as backups */

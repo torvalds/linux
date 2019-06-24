@@ -33,15 +33,16 @@ enum mvpp2_cls_engine {
 };
 
 #define MVPP22_CLS_HEK_OPT_MAC_DA	BIT(0)
-#define MVPP22_CLS_HEK_OPT_VLAN		BIT(1)
-#define MVPP22_CLS_HEK_OPT_L3_PROTO	BIT(2)
-#define MVPP22_CLS_HEK_OPT_IP4SA	BIT(3)
-#define MVPP22_CLS_HEK_OPT_IP4DA	BIT(4)
-#define MVPP22_CLS_HEK_OPT_IP6SA	BIT(5)
-#define MVPP22_CLS_HEK_OPT_IP6DA	BIT(6)
-#define MVPP22_CLS_HEK_OPT_L4SIP	BIT(7)
-#define MVPP22_CLS_HEK_OPT_L4DIP	BIT(8)
-#define MVPP22_CLS_HEK_N_FIELDS		9
+#define MVPP22_CLS_HEK_OPT_VLAN_PRI	BIT(1)
+#define MVPP22_CLS_HEK_OPT_VLAN		BIT(2)
+#define MVPP22_CLS_HEK_OPT_L3_PROTO	BIT(3)
+#define MVPP22_CLS_HEK_OPT_IP4SA	BIT(4)
+#define MVPP22_CLS_HEK_OPT_IP4DA	BIT(5)
+#define MVPP22_CLS_HEK_OPT_IP6SA	BIT(6)
+#define MVPP22_CLS_HEK_OPT_IP6DA	BIT(7)
+#define MVPP22_CLS_HEK_OPT_L4SIP	BIT(8)
+#define MVPP22_CLS_HEK_OPT_L4DIP	BIT(9)
+#define MVPP22_CLS_HEK_N_FIELDS		10
 
 #define MVPP22_CLS_HEK_L4_OPTS	(MVPP22_CLS_HEK_OPT_L4SIP | \
 				 MVPP22_CLS_HEK_OPT_L4DIP)
@@ -59,8 +60,12 @@ enum mvpp2_cls_engine {
 #define MVPP22_CLS_HEK_IP6_5T	(MVPP22_CLS_HEK_IP6_2T | \
 				 MVPP22_CLS_HEK_L4_OPTS)
 
+#define MVPP22_CLS_HEK_TAGGED	(MVPP22_CLS_HEK_OPT_VLAN | \
+				 MVPP22_CLS_HEK_OPT_VLAN_PRI)
+
 enum mvpp2_cls_field_id {
 	MVPP22_CLS_FIELD_MAC_DA = 0x03,
+	MVPP22_CLS_FIELD_VLAN_PRI = 0x05,
 	MVPP22_CLS_FIELD_VLAN = 0x06,
 	MVPP22_CLS_FIELD_L3_PROTO = 0x0f,
 	MVPP22_CLS_FIELD_IP4SA = 0x10,
@@ -179,6 +184,11 @@ enum mvpp2_prs_flow {
 
 /* LU Type defined for all engines, and specified in the flow table */
 #define MVPP2_CLS_LU_TYPE_MASK			0x3f
+
+enum mvpp2_cls_lu_type {
+	/* rule->loc is used as a lu-type for the entries 0 - 62. */
+	MVPP22_CLS_LU_TYPE_ALL = 63,
+};
 
 #define MVPP2_N_FLOWS		(MVPP2_FL_LAST - MVPP2_FL_START)
 

@@ -4,23 +4,25 @@
 #include <linux/version.h>
 #include "bpf_helpers.h"
 
-struct bpf_map_def SEC("maps") info_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	__u64 *value;
+} info_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u64),
 	.max_entries = 1,
 };
 
-BPF_ANNOTATE_KV_PAIR(info_map, __u32, __u64);
-
-struct bpf_map_def SEC("maps") status_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	__u64 *value;
+} status_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u64),
 	.max_entries = 1,
 };
-
-BPF_ANNOTATE_KV_PAIR(status_map, __u32, __u64);
 
 SEC("send_signal_demo")
 int bpf_send_signal_test(void *ctx)

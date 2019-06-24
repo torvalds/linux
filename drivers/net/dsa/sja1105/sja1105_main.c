@@ -70,8 +70,7 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 		/* Keep standard IFG of 12 bytes on egress. */
 		.ifg = 0,
 		/* Always put the MAC speed in automatic mode, where it can be
-		 * retrieved from the PHY object through phylib and
-		 * sja1105_adjust_port_config.
+		 * adjusted at runtime by PHYLINK.
 		 */
 		.speed = SJA1105_SPEED_AUTO,
 		/* No static correction for 1-step 1588 events */
@@ -116,7 +115,6 @@ static int sja1105_init_mac_settings(struct sja1105_private *priv)
 	if (!table->entries)
 		return -ENOMEM;
 
-	/* Override table based on phylib DT bindings */
 	table->entry_count = SJA1105_NUM_PORTS;
 
 	mac = table->entries;
@@ -157,7 +155,7 @@ static int sja1105_init_mii_settings(struct sja1105_private *priv,
 	if (!table->entries)
 		return -ENOMEM;
 
-	/* Override table based on phylib DT bindings */
+	/* Override table based on PHYLINK DT bindings */
 	table->entry_count = SJA1105_MAX_XMII_PARAMS_COUNT;
 
 	mii = table->entries;
@@ -389,14 +387,14 @@ static int sja1105_init_general_params(struct sja1105_private *priv)
 		.mirr_ptacu = 0,
 		.switchid = priv->ds->index,
 		/* Priority queue for link-local frames trapped to CPU */
-		.hostprio = 0,
+		.hostprio = 7,
 		.mac_fltres1 = SJA1105_LINKLOCAL_FILTER_A,
 		.mac_flt1    = SJA1105_LINKLOCAL_FILTER_A_MASK,
-		.incl_srcpt1 = true,
+		.incl_srcpt1 = false,
 		.send_meta1  = false,
 		.mac_fltres0 = SJA1105_LINKLOCAL_FILTER_B,
 		.mac_flt0    = SJA1105_LINKLOCAL_FILTER_B_MASK,
-		.incl_srcpt0 = true,
+		.incl_srcpt0 = false,
 		.send_meta0  = false,
 		/* The destination for traffic matching mac_fltres1 and
 		 * mac_fltres0 on all ports except host_port. Such traffic
@@ -508,6 +506,39 @@ static int sja1105_init_l2_policing(struct sja1105_private *priv)
 	return 0;
 }
 
+static int sja1105_init_avb_params(struct sja1105_private *priv,
+				   bool on)
+{
+	struct sja1105_avb_params_entry *avb;
+	struct sja1105_table *table;
+
+	table = &priv->static_config.tables[BLK_IDX_AVB_PARAMS];
+
+	/* Discard previous AVB Parameters Table */
+	if (table->entry_count) {
+		kfree(table->entries);
+		table->entry_count = 0;
+	}
+
+	/* Configure the reception of meta frames only if requested */
+	if (!on)
+		return 0;
+
+	table->entries = kcalloc(SJA1105_MAX_AVB_PARAMS_COUNT,
+				 table->ops->unpacked_entry_size, GFP_KERNEL);
+	if (!table->entries)
+		return -ENOMEM;
+
+	table->entry_count = SJA1105_MAX_AVB_PARAMS_COUNT;
+
+	avb = table->entries;
+
+	avb->destmeta = SJA1105_META_DMAC;
+	avb->srcmeta  = SJA1105_META_SMAC;
+
+	return 0;
+}
+
 static int sja1105_static_config_load(struct sja1105_private *priv,
 				      struct sja1105_dt_port *ports)
 {
@@ -546,6 +577,9 @@ static int sja1105_static_config_load(struct sja1105_private *priv,
 	if (rc < 0)
 		return rc;
 	rc = sja1105_init_general_params(priv);
+	if (rc < 0)
+		return rc;
+	rc = sja1105_init_avb_params(priv, false);
 	if (rc < 0)
 		return rc;
 
@@ -653,36 +687,18 @@ static int sja1105_parse_dt(struct sja1105_private *priv,
 	return rc;
 }
 
-/* Convert back and forth MAC speed from Mbps to SJA1105 encoding */
+/* Convert link speed from SJA1105 to ethtool encoding */
 static int sja1105_speed[] = {
-	[SJA1105_SPEED_AUTO]     = 0,
-	[SJA1105_SPEED_10MBPS]   = 10,
-	[SJA1105_SPEED_100MBPS]  = 100,
-	[SJA1105_SPEED_1000MBPS] = 1000,
+	[SJA1105_SPEED_AUTO]		= SPEED_UNKNOWN,
+	[SJA1105_SPEED_10MBPS]		= SPEED_10,
+	[SJA1105_SPEED_100MBPS]		= SPEED_100,
+	[SJA1105_SPEED_1000MBPS]	= SPEED_1000,
 };
 
-static sja1105_speed_t sja1105_get_speed_cfg(unsigned int speed_mbps)
-{
-	int i;
-
-	for (i = SJA1105_SPEED_AUTO; i <= SJA1105_SPEED_1000MBPS; i++)
-		if (sja1105_speed[i] == speed_mbps)
-			return i;
-	return -EINVAL;
-}
-
-/* Set link speed and enable/disable traffic I/O in the MAC configuration
- * for a specific port.
- *
- * @speed_mbps: If 0, leave the speed unchanged, else adapt MAC to PHY speed.
- * @enabled: Manage Rx and Tx settings for this port. If false, overrides the
- *	     settings from the STP state, but not persistently (does not
- *	     overwrite the static MAC info for this port).
- */
+/* Set link speed in the MAC configuration for a specific port. */
 static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
-				      int speed_mbps, bool enabled)
+				      int speed_mbps)
 {
-	struct sja1105_mac_config_entry dyn_mac;
 	struct sja1105_xmii_params_entry *mii;
 	struct sja1105_mac_config_entry *mac;
 	struct device *dev = priv->ds->dev;
@@ -690,38 +706,44 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	sja1105_speed_t speed;
 	int rc;
 
-	mii = priv->static_config.tables[BLK_IDX_XMII_PARAMS].entries;
-	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
-
-	speed = sja1105_get_speed_cfg(speed_mbps);
-	if (speed_mbps && speed < 0) {
-		dev_err(dev, "Invalid speed %iMbps\n", speed_mbps);
-		return -EINVAL;
-	}
-
-	/* If requested, overwrite SJA1105_SPEED_AUTO from the static MAC
-	 * configuration table, since this will be used for the clocking setup,
-	 * and we no longer need to store it in the static config (already told
-	 * hardware we want auto during upload phase).
-	 */
-	if (speed_mbps)
-		mac[port].speed = speed;
-	else
-		mac[port].speed = SJA1105_SPEED_AUTO;
-
 	/* On P/Q/R/S, one can read from the device via the MAC reconfiguration
 	 * tables. On E/T, MAC reconfig tables are not readable, only writable.
 	 * We have to *know* what the MAC looks like.  For the sake of keeping
 	 * the code common, we'll use the static configuration tables as a
 	 * reasonable approximation for both E/T and P/Q/R/S.
 	 */
-	dyn_mac = mac[port];
-	dyn_mac.ingress = enabled && mac[port].ingress;
-	dyn_mac.egress  = enabled && mac[port].egress;
+	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
+	mii = priv->static_config.tables[BLK_IDX_XMII_PARAMS].entries;
+
+	switch (speed_mbps) {
+	case SPEED_UNKNOWN:
+		/* No speed update requested */
+		speed = SJA1105_SPEED_AUTO;
+		break;
+	case SPEED_10:
+		speed = SJA1105_SPEED_10MBPS;
+		break;
+	case SPEED_100:
+		speed = SJA1105_SPEED_100MBPS;
+		break;
+	case SPEED_1000:
+		speed = SJA1105_SPEED_1000MBPS;
+		break;
+	default:
+		dev_err(dev, "Invalid speed %iMbps\n", speed_mbps);
+		return -EINVAL;
+	}
+
+	/* Overwrite SJA1105_SPEED_AUTO from the static MAC configuration
+	 * table, since this will be used for the clocking setup, and we no
+	 * longer need to store it in the static config (already told hardware
+	 * we want auto during upload phase).
+	 */
+	mac[port].speed = speed;
 
 	/* Write to the dynamic reconfiguration tables */
-	rc = sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG,
-					  port, &dyn_mac, true);
+	rc = sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
+					  &mac[port], true);
 	if (rc < 0) {
 		dev_err(dev, "Failed to write MAC config: %d\n", rc);
 		return rc;
@@ -733,9 +755,6 @@ static int sja1105_adjust_port_config(struct sja1105_private *priv, int port,
 	 * the clock setup does interrupt the clock signal for a certain time
 	 * which causes trouble for all PHYs relying on this signal.
 	 */
-	if (!enabled)
-		return 0;
-
 	phy_mode = mii->xmii_mode[port];
 	if (phy_mode != XMII_MODE_RGMII)
 		return 0;
@@ -750,9 +769,24 @@ static void sja1105_mac_config(struct dsa_switch *ds, int port,
 	struct sja1105_private *priv = ds->priv;
 
 	if (!state->link)
-		sja1105_adjust_port_config(priv, port, 0, false);
-	else
-		sja1105_adjust_port_config(priv, port, state->speed, true);
+		return;
+
+	sja1105_adjust_port_config(priv, port, state->speed);
+}
+
+static void sja1105_mac_link_down(struct dsa_switch *ds, int port,
+				  unsigned int mode,
+				  phy_interface_t interface)
+{
+	sja1105_inhibit_tx(ds->priv, BIT(port), true);
+}
+
+static void sja1105_mac_link_up(struct dsa_switch *ds, int port,
+				unsigned int mode,
+				phy_interface_t interface,
+				struct phy_device *phydev)
+{
+	sja1105_inhibit_tx(ds->priv, BIT(port), false);
 }
 
 static void sja1105_phylink_validate(struct dsa_switch *ds, int port,
@@ -1207,27 +1241,6 @@ static void sja1105_bridge_leave(struct dsa_switch *ds, int port,
 	sja1105_bridge_member(ds, port, br, false);
 }
 
-static u8 sja1105_stp_state_get(struct sja1105_private *priv, int port)
-{
-	struct sja1105_mac_config_entry *mac;
-
-	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
-
-	if (!mac[port].ingress && !mac[port].egress && !mac[port].dyn_learn)
-		return BR_STATE_BLOCKING;
-	if (mac[port].ingress && !mac[port].egress && !mac[port].dyn_learn)
-		return BR_STATE_LISTENING;
-	if (mac[port].ingress && !mac[port].egress && mac[port].dyn_learn)
-		return BR_STATE_LEARNING;
-	if (mac[port].ingress && mac[port].egress && mac[port].dyn_learn)
-		return BR_STATE_FORWARDING;
-	/* This is really an error condition if the MAC was in none of the STP
-	 * states above. But treating the port as disabled does nothing, which
-	 * is adequate, and it also resets the MAC to a known state later on.
-	 */
-	return BR_STATE_DISABLED;
-}
-
 /* For situations where we need to change a setting at runtime that is only
  * available through the static configuration, resetting the switch in order
  * to upload the new static config is unavoidable. Back up the settings we
@@ -1238,27 +1251,18 @@ static int sja1105_static_config_reload(struct sja1105_private *priv)
 {
 	struct sja1105_mac_config_entry *mac;
 	int speed_mbps[SJA1105_NUM_PORTS];
-	u8 stp_state[SJA1105_NUM_PORTS];
 	int rc, i;
 
 	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
 
-	/* Back up settings changed by sja1105_adjust_port_config and
-	 * sja1105_bridge_stp_state_set and restore their defaults.
+	/* Back up the dynamic link speed changed by sja1105_adjust_port_config
+	 * in order to temporarily restore it to SJA1105_SPEED_AUTO - which the
+	 * switch wants to see in the static config in order to allow us to
+	 * change it through the dynamic interface later.
 	 */
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
 		speed_mbps[i] = sja1105_speed[mac[i].speed];
 		mac[i].speed = SJA1105_SPEED_AUTO;
-		if (i == dsa_upstream_port(priv->ds, i)) {
-			mac[i].ingress = true;
-			mac[i].egress = true;
-			mac[i].dyn_learn = true;
-		} else {
-			stp_state[i] = sja1105_stp_state_get(priv, i);
-			mac[i].ingress = false;
-			mac[i].egress = false;
-			mac[i].dyn_learn = false;
-		}
 	}
 
 	/* Reset switch and send updated static configuration */
@@ -1275,35 +1279,12 @@ static int sja1105_static_config_reload(struct sja1105_private *priv)
 		goto out;
 
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
-		bool enabled = (speed_mbps[i] != 0);
-
-		if (i != dsa_upstream_port(priv->ds, i))
-			sja1105_bridge_stp_state_set(priv->ds, i, stp_state[i]);
-
-		rc = sja1105_adjust_port_config(priv, i, speed_mbps[i],
-						enabled);
+		rc = sja1105_adjust_port_config(priv, i, speed_mbps[i]);
 		if (rc < 0)
 			goto out;
 	}
 out:
 	return rc;
-}
-
-/* The TPID setting belongs to the General Parameters table,
- * which can only be partially reconfigured at runtime (and not the TPID).
- * So a switch reset is required.
- */
-static int sja1105_change_tpid(struct sja1105_private *priv,
-			       u16 tpid, u16 tpid2)
-{
-	struct sja1105_general_params_entry *general_params;
-	struct sja1105_table *table;
-
-	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
-	general_params = table->entries;
-	general_params->tpid = tpid;
-	general_params->tpid2 = tpid2;
-	return sja1105_static_config_reload(priv);
 }
 
 static int sja1105_pvid_apply(struct sja1105_private *priv, int port, u16 pvid)
@@ -1424,17 +1405,41 @@ static int sja1105_vlan_prepare(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+/* The TPID setting belongs to the General Parameters table,
+ * which can only be partially reconfigured at runtime (and not the TPID).
+ * So a switch reset is required.
+ */
 static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 {
+	struct sja1105_general_params_entry *general_params;
 	struct sja1105_private *priv = ds->priv;
+	struct sja1105_table *table;
+	u16 tpid, tpid2;
 	int rc;
 
-	if (enabled)
+	if (enabled) {
 		/* Enable VLAN filtering. */
-		rc = sja1105_change_tpid(priv, ETH_P_8021Q, ETH_P_8021AD);
-	else
+		tpid  = ETH_P_8021AD;
+		tpid2 = ETH_P_8021Q;
+	} else {
 		/* Disable VLAN filtering. */
-		rc = sja1105_change_tpid(priv, ETH_P_SJA1105, ETH_P_SJA1105);
+		tpid  = ETH_P_SJA1105;
+		tpid2 = ETH_P_SJA1105;
+	}
+
+	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
+	general_params = table->entries;
+	/* EtherType used to identify outer tagged (S-tag) VLAN traffic */
+	general_params->tpid = tpid;
+	/* EtherType used to identify inner tagged (C-tag) VLAN traffic */
+	general_params->tpid2 = tpid2;
+	/* When VLAN filtering is on, we need to at least be able to
+	 * decode management traffic through the "backup plan".
+	 */
+	general_params->incl_srcpt1 = enabled;
+	general_params->incl_srcpt0 = enabled;
+
+	rc = sja1105_static_config_reload(priv);
 	if (rc)
 		dev_err(ds->dev, "Failed to change VLAN Ethertype\n");
 
@@ -1523,6 +1528,11 @@ static int sja1105_setup(struct dsa_switch *ds)
 		return rc;
 	}
 
+	rc = sja1105_ptp_clock_register(priv);
+	if (rc < 0) {
+		dev_err(ds->dev, "Failed to register PTP clock: %d\n", rc);
+		return rc;
+	}
 	/* Create and send configuration down to device */
 	rc = sja1105_static_config_load(priv, ports);
 	if (rc < 0) {
@@ -1552,8 +1562,16 @@ static int sja1105_setup(struct dsa_switch *ds)
 	return sja1105_setup_8021q_tagging(ds, true);
 }
 
+static void sja1105_teardown(struct dsa_switch *ds)
+{
+	struct sja1105_private *priv = ds->priv;
+
+	cancel_work_sync(&priv->tagger_data.rxtstamp_work);
+	skb_queue_purge(&priv->tagger_data.skb_rxtstamp_queue);
+}
+
 static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
-			     struct sk_buff *skb)
+			     struct sk_buff *skb, bool takets)
 {
 	struct sja1105_mgmt_entry mgmt_route = {0};
 	struct sja1105_private *priv = ds->priv;
@@ -1566,6 +1584,8 @@ static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
 	mgmt_route.macaddr = ether_addr_to_u64(hdr->h_dest);
 	mgmt_route.destports = BIT(port);
 	mgmt_route.enfport = 1;
+	mgmt_route.tsreg = 0;
+	mgmt_route.takets = takets;
 
 	rc = sja1105_dynamic_config_write(priv, BLK_IDX_MGMT_ROUTE,
 					  slot, &mgmt_route, true);
@@ -1617,7 +1637,11 @@ static netdev_tx_t sja1105_port_deferred_xmit(struct dsa_switch *ds, int port,
 {
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_port *sp = &priv->ports[port];
+	struct skb_shared_hwtstamps shwt = {0};
 	int slot = sp->mgmt_slot;
+	struct sk_buff *clone;
+	u64 now, ts;
+	int rc;
 
 	/* The tragic fact about the switch having 4x2 slots for installing
 	 * management routes is that all of them except one are actually
@@ -1635,8 +1659,36 @@ static netdev_tx_t sja1105_port_deferred_xmit(struct dsa_switch *ds, int port,
 	 */
 	mutex_lock(&priv->mgmt_lock);
 
-	sja1105_mgmt_xmit(ds, port, slot, skb);
+	/* The clone, if there, was made by dsa_skb_tx_timestamp */
+	clone = DSA_SKB_CB(skb)->clone;
 
+	sja1105_mgmt_xmit(ds, port, slot, skb, !!clone);
+
+	if (!clone)
+		goto out;
+
+	skb_shinfo(clone)->tx_flags |= SKBTX_IN_PROGRESS;
+
+	mutex_lock(&priv->ptp_lock);
+
+	now = priv->tstamp_cc.read(&priv->tstamp_cc);
+
+	rc = sja1105_ptpegr_ts_poll(priv, slot, &ts);
+	if (rc < 0) {
+		dev_err(ds->dev, "xmit: timed out polling for tstamp\n");
+		kfree_skb(clone);
+		goto out_unlock_ptp;
+	}
+
+	ts = sja1105_tstamp_reconstruct(priv, now, ts);
+	ts = timecounter_cyc2time(&priv->tstamp_tc, ts);
+
+	shwt.hwtstamp = ns_to_ktime(ts);
+	skb_complete_tx_timestamp(clone, &shwt);
+
+out_unlock_ptp:
+	mutex_unlock(&priv->ptp_lock);
+out:
 	mutex_unlock(&priv->mgmt_lock);
 	return NETDEV_TX_OK;
 }
@@ -1665,15 +1717,180 @@ static int sja1105_set_ageing_time(struct dsa_switch *ds,
 	return sja1105_static_config_reload(priv);
 }
 
+/* Caller must hold priv->tagger_data.meta_lock */
+static int sja1105_change_rxtstamping(struct sja1105_private *priv,
+				      bool on)
+{
+	struct sja1105_general_params_entry *general_params;
+	struct sja1105_table *table;
+	int rc;
+
+	table = &priv->static_config.tables[BLK_IDX_GENERAL_PARAMS];
+	general_params = table->entries;
+	general_params->send_meta1 = on;
+	general_params->send_meta0 = on;
+
+	rc = sja1105_init_avb_params(priv, on);
+	if (rc < 0)
+		return rc;
+
+	/* Initialize the meta state machine to a known state */
+	if (priv->tagger_data.stampable_skb) {
+		kfree_skb(priv->tagger_data.stampable_skb);
+		priv->tagger_data.stampable_skb = NULL;
+	}
+
+	return sja1105_static_config_reload(priv);
+}
+
+static int sja1105_hwtstamp_set(struct dsa_switch *ds, int port,
+				struct ifreq *ifr)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct hwtstamp_config config;
+	bool rx_on;
+	int rc;
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	switch (config.tx_type) {
+	case HWTSTAMP_TX_OFF:
+		priv->ports[port].hwts_tx_en = false;
+		break;
+	case HWTSTAMP_TX_ON:
+		priv->ports[port].hwts_tx_en = true;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (config.rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		rx_on = false;
+		break;
+	default:
+		rx_on = true;
+		break;
+	}
+
+	if (rx_on != priv->tagger_data.hwts_rx_en) {
+		spin_lock(&priv->tagger_data.meta_lock);
+		rc = sja1105_change_rxtstamping(priv, rx_on);
+		spin_unlock(&priv->tagger_data.meta_lock);
+		if (rc < 0) {
+			dev_err(ds->dev,
+				"Failed to change RX timestamping: %d\n", rc);
+			return -EFAULT;
+		}
+		priv->tagger_data.hwts_rx_en = rx_on;
+	}
+
+	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
+		return -EFAULT;
+	return 0;
+}
+
+static int sja1105_hwtstamp_get(struct dsa_switch *ds, int port,
+				struct ifreq *ifr)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct hwtstamp_config config;
+
+	config.flags = 0;
+	if (priv->ports[port].hwts_tx_en)
+		config.tx_type = HWTSTAMP_TX_ON;
+	else
+		config.tx_type = HWTSTAMP_TX_OFF;
+	if (priv->tagger_data.hwts_rx_en)
+		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+	else
+		config.rx_filter = HWTSTAMP_FILTER_NONE;
+
+	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
+		-EFAULT : 0;
+}
+
+#define to_tagger(d) \
+	container_of((d), struct sja1105_tagger_data, rxtstamp_work)
+#define to_sja1105(d) \
+	container_of((d), struct sja1105_private, tagger_data)
+
+static void sja1105_rxtstamp_work(struct work_struct *work)
+{
+	struct sja1105_tagger_data *data = to_tagger(work);
+	struct sja1105_private *priv = to_sja1105(data);
+	struct sk_buff *skb;
+	u64 now;
+
+	mutex_lock(&priv->ptp_lock);
+
+	now = priv->tstamp_cc.read(&priv->tstamp_cc);
+
+	while ((skb = skb_dequeue(&data->skb_rxtstamp_queue)) != NULL) {
+		struct skb_shared_hwtstamps *shwt = skb_hwtstamps(skb);
+		u64 ts;
+
+		*shwt = (struct skb_shared_hwtstamps) {0};
+
+		ts = SJA1105_SKB_CB(skb)->meta_tstamp;
+		ts = sja1105_tstamp_reconstruct(priv, now, ts);
+		ts = timecounter_cyc2time(&priv->tstamp_tc, ts);
+
+		shwt->hwtstamp = ns_to_ktime(ts);
+		netif_rx_ni(skb);
+	}
+
+	mutex_unlock(&priv->ptp_lock);
+}
+
+/* Called from dsa_skb_defer_rx_timestamp */
+static bool sja1105_port_rxtstamp(struct dsa_switch *ds, int port,
+				  struct sk_buff *skb, unsigned int type)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct sja1105_tagger_data *data = &priv->tagger_data;
+
+	if (!data->hwts_rx_en)
+		return false;
+
+	/* We need to read the full PTP clock to reconstruct the Rx
+	 * timestamp. For that we need a sleepable context.
+	 */
+	skb_queue_tail(&data->skb_rxtstamp_queue, skb);
+	schedule_work(&data->rxtstamp_work);
+	return true;
+}
+
+/* Called from dsa_skb_tx_timestamp. This callback is just to make DSA clone
+ * the skb and have it available in DSA_SKB_CB in the .port_deferred_xmit
+ * callback, where we will timestamp it synchronously.
+ */
+static bool sja1105_port_txtstamp(struct dsa_switch *ds, int port,
+				  struct sk_buff *skb, unsigned int type)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct sja1105_port *sp = &priv->ports[port];
+
+	if (!sp->hwts_tx_en)
+		return false;
+
+	return true;
+}
+
 static const struct dsa_switch_ops sja1105_switch_ops = {
 	.get_tag_protocol	= sja1105_get_tag_protocol,
 	.setup			= sja1105_setup,
+	.teardown		= sja1105_teardown,
 	.set_ageing_time	= sja1105_set_ageing_time,
 	.phylink_validate	= sja1105_phylink_validate,
 	.phylink_mac_config	= sja1105_mac_config,
+	.phylink_mac_link_up	= sja1105_mac_link_up,
+	.phylink_mac_link_down	= sja1105_mac_link_down,
 	.get_strings		= sja1105_get_strings,
 	.get_ethtool_stats	= sja1105_get_ethtool_stats,
 	.get_sset_count		= sja1105_get_sset_count,
+	.get_ts_info		= sja1105_get_ts_info,
 	.port_fdb_dump		= sja1105_fdb_dump,
 	.port_fdb_add		= sja1105_fdb_add,
 	.port_fdb_del		= sja1105_fdb_del,
@@ -1688,6 +1905,10 @@ static const struct dsa_switch_ops sja1105_switch_ops = {
 	.port_mdb_add		= sja1105_mdb_add,
 	.port_mdb_del		= sja1105_mdb_del,
 	.port_deferred_xmit	= sja1105_port_deferred_xmit,
+	.port_hwtstamp_get	= sja1105_hwtstamp_get,
+	.port_hwtstamp_set	= sja1105_hwtstamp_set,
+	.port_rxtstamp		= sja1105_port_rxtstamp,
+	.port_txtstamp		= sja1105_port_txtstamp,
 };
 
 static int sja1105_check_device_id(struct sja1105_private *priv)
@@ -1728,6 +1949,7 @@ static int sja1105_check_device_id(struct sja1105_private *priv)
 
 static int sja1105_probe(struct spi_device *spi)
 {
+	struct sja1105_tagger_data *tagger_data;
 	struct device *dev = &spi->dev;
 	struct sja1105_private *priv;
 	struct dsa_switch *ds;
@@ -1782,12 +2004,17 @@ static int sja1105_probe(struct spi_device *spi)
 	ds->priv = priv;
 	priv->ds = ds;
 
+	tagger_data = &priv->tagger_data;
+	skb_queue_head_init(&tagger_data->skb_rxtstamp_queue);
+	INIT_WORK(&tagger_data->rxtstamp_work, sja1105_rxtstamp_work);
+
 	/* Connections between dsa_port and sja1105_port */
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
 		struct sja1105_port *sp = &priv->ports[i];
 
 		ds->ports[i].priv = sp;
 		sp->dp = &ds->ports[i];
+		sp->data = tagger_data;
 	}
 	mutex_init(&priv->mgmt_lock);
 
@@ -1798,6 +2025,7 @@ static int sja1105_remove(struct spi_device *spi)
 {
 	struct sja1105_private *priv = spi_get_drvdata(spi);
 
+	sja1105_ptp_clock_unregister(priv);
 	dsa_unregister_switch(priv->ds);
 	sja1105_static_config_free(&priv->static_config);
 	return 0;

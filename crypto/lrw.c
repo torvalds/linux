@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* LRW: as defined by Cyril Guyot in
  *	http://grouper.ieee.org/groups/1619/email/pdf00017.pdf
  *
@@ -5,11 +6,6 @@
  *
  * Based on ecb.c
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 /* This implementation is checked against the test vectors in the above
  * document and by a test vector provided by Ken Buchanan at

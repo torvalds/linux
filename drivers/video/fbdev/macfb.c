@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * macfb.c: Generic framebuffer for Macs whose colourmaps/modes we
  * don't know how to set.
@@ -17,10 +18,6 @@
  *
  * The VideoToolbox "Bugs" web page at
  * http://rajsky.psych.nyu.edu/Tips/VideoBugs.html
- *
- * This code is free software.  You may copy, modify, and distribute
- * it subject to the terms and conditions of the GNU General Public
- * License, version 2, or any later version, at your convenience.
  */
 
 #include <linux/module.h>

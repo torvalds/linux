@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* stk-sensor.c: Driver for ov96xx sensor (used in some Syntek webcams)
  *
  * Copyright 2007-2008 Jaime Velasco Juan <jsagarribay@gmail.com>
@@ -10,15 +11,6 @@
  * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
  *
  * This file may be distributed under the terms of the GNU General
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /* Controlling the sensor via the STK1125 vendor specific control interface:

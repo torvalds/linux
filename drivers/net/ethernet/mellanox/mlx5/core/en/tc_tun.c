@@ -24,24 +24,25 @@ static int get_route_and_out_devs(struct mlx5e_priv *priv,
 				  struct net_device **route_dev,
 				  struct net_device **out_dev)
 {
+	struct net_device *uplink_dev, *uplink_upper, *real_dev;
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct net_device *uplink_dev, *uplink_upper;
 	bool dst_is_lag_dev;
 
+	real_dev = is_vlan_dev(dev) ? vlan_dev_real_dev(dev) : dev;
 	uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
 	uplink_upper = netdev_master_upper_dev_get(uplink_dev);
 	dst_is_lag_dev = (uplink_upper &&
 			  netif_is_lag_master(uplink_upper) &&
-			  dev == uplink_upper &&
+			  real_dev == uplink_upper &&
 			  mlx5_lag_is_sriov(priv->mdev));
 
 	/* if the egress device isn't on the same HW e-switch or
 	 * it's a LAG device, use the uplink
 	 */
-	if (!netdev_port_same_parent_id(priv->netdev, dev) ||
+	if (!netdev_port_same_parent_id(priv->netdev, real_dev) ||
 	    dst_is_lag_dev) {
-		*route_dev = uplink_dev;
-		*out_dev = *route_dev;
+		*route_dev = dev;
+		*out_dev = uplink_dev;
 	} else {
 		*route_dev = dev;
 		if (is_vlan_dev(*route_dev))

@@ -180,6 +180,9 @@ enum hclge_opcode_type {
 	HCLGE_OPC_CFG_COM_TQP_QUEUE	= 0x0B20,
 	HCLGE_OPC_RESET_TQP_QUEUE	= 0x0B22,
 
+	/* PPU commands */
+	HCLGE_OPC_PPU_PF_OTHER_INT_DFX	= 0x0B4A,
+
 	/* TSO command */
 	HCLGE_OPC_TSO_GENERIC_CONFIG	= 0x0C01,
 	HCLGE_OPC_GRO_GENERIC_CONFIG    = 0x0C10,
@@ -268,6 +271,8 @@ enum hclge_opcode_type {
 	HCLGE_CONFIG_ROCEE_RAS_INT_EN	= 0x1580,
 	HCLGE_QUERY_CLEAR_ROCEE_RAS_INT = 0x1581,
 	HCLGE_ROCEE_PF_RAS_INT_CMD	= 0x1584,
+	HCLGE_QUERY_ROCEE_ECC_RAS_INFO_CMD	= 0x1585,
+	HCLGE_QUERY_ROCEE_AXI_RAS_INFO_CMD	= 0x1586,
 	HCLGE_IGU_EGU_TNL_INT_EN	= 0x1803,
 	HCLGE_IGU_COMMON_INT_EN		= 0x1806,
 	HCLGE_TM_QCN_MEM_INT_CFG	= 0x1A14,
@@ -644,6 +649,11 @@ enum hclge_mac_vlan_tbl_opcode {
 	HCLGE_MAC_VLAN_LKUP,    /* Lookup a entry through mac_vlan key */
 };
 
+enum hclge_mac_vlan_add_resp_code {
+	HCLGE_ADD_UC_OVERFLOW = 2,	/* ADD failed for UC overflow */
+	HCLGE_ADD_MC_OVERFLOW,		/* ADD failed for MC overflow */
+};
+
 #define HCLGE_MAC_VLAN_BIT0_EN_B	0
 #define HCLGE_MAC_VLAN_BIT1_EN_B	1
 #define HCLGE_MAC_EPORT_SW_EN_B		12
@@ -975,6 +985,20 @@ struct hclge_fd_ad_config_cmd {
 struct hclge_get_m7_bd_cmd {
 	__le32 bd_num;
 	u8 rsv[20];
+};
+
+struct hclge_query_ppu_pf_other_int_dfx_cmd {
+	__le16 over_8bd_no_fe_qid;
+	__le16 over_8bd_no_fe_vf_id;
+	__le16 tso_mss_cmp_min_err_qid;
+	__le16 tso_mss_cmp_min_err_vf_id;
+	__le16 tso_mss_cmp_max_err_qid;
+	__le16 tso_mss_cmp_max_err_vf_id;
+	__le16 tx_rd_fbd_poison_qid;
+	__le16 tx_rd_fbd_poison_vf_id;
+	__le16 rx_rd_fbd_poison_qid;
+	__le16 rx_rd_fbd_poison_vf_id;
+	u8 rsv[4];
 };
 
 int hclge_cmd_init(struct hclge_dev *hdev);

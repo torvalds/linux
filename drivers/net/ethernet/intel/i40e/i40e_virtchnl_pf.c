@@ -470,13 +470,14 @@ static int i40e_config_iwarp_qvlist(struct i40e_vf *vf,
 		qv_info = &qvlist_info->qv_info[i];
 		if (!qv_info)
 			continue;
-		v_idx = qv_info->v_idx;
 
 		/* Validate vector id belongs to this vf */
-		if (!i40e_vc_isvalid_vector_id(vf, v_idx)) {
+		if (!i40e_vc_isvalid_vector_id(vf, qv_info->v_idx)) {
 			ret = -EINVAL;
 			goto err_free;
 		}
+
+		v_idx = qv_info->v_idx;
 
 		vf->qvlist_info->qv_info[i] = *qv_info;
 
@@ -2135,8 +2136,13 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 			}
 		}
 
-		if (vf->adq_enabled)
+		if (vf->adq_enabled) {
+			if (idx >= ARRAY_SIZE(vf->ch)) {
+				aq_ret = I40E_ERR_NO_AVAILABLE_VSI;
+				goto error_param;
+			}
 			vsi_id = vf->ch[idx].vsi_id;
+		}
 
 		if (i40e_config_vsi_rx_queue(vf, vsi_id, vsi_queue_id,
 					     &qpi->rxq) ||
@@ -2152,6 +2158,10 @@ static int i40e_vc_config_queues_msg(struct i40e_vf *vf, u8 *msg)
 		 * to its appropriate VSIs based on TC mapping
 		 **/
 		if (vf->adq_enabled) {
+			if (idx >= ARRAY_SIZE(vf->ch)) {
+				aq_ret = I40E_ERR_NO_AVAILABLE_VSI;
+				goto error_param;
+			}
 			if (j == (vf->ch[idx].num_qps - 1)) {
 				idx++;
 				j = 0; /* resetting the queue count */
@@ -2318,7 +2328,6 @@ static int i40e_vc_enable_queues_msg(struct i40e_vf *vf, u8 *msg)
 	struct virtchnl_queue_select *vqs =
 	    (struct virtchnl_queue_select *)msg;
 	struct i40e_pf *pf = vf->pf;
-	u16 vsi_id = vqs->vsi_id;
 	i40e_status aq_ret = 0;
 	int i;
 
@@ -2327,7 +2336,7 @@ static int i40e_vc_enable_queues_msg(struct i40e_vf *vf, u8 *msg)
 		goto error_param;
 	}
 
-	if (!i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
+	if (!i40e_vc_isvalid_vsi_id(vf, vqs->vsi_id)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -2427,18 +2436,14 @@ static int i40e_vc_request_queues_msg(struct i40e_vf *vf, u8 *msg)
 {
 	struct virtchnl_vf_res_request *vfres =
 		(struct virtchnl_vf_res_request *)msg;
-	int req_pairs = vfres->num_queue_pairs;
-	int cur_pairs = vf->num_queue_pairs;
+	u16 req_pairs = vfres->num_queue_pairs;
+	u8 cur_pairs = vf->num_queue_pairs;
 	struct i40e_pf *pf = vf->pf;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states))
 		return -EINVAL;
 
-	if (req_pairs <= 0) {
-		dev_err(&pf->pdev->dev,
-			"VF %d tried to request %d queues.  Ignoring.\n",
-			vf->vf_id, req_pairs);
-	} else if (req_pairs > I40E_MAX_VF_QUEUES) {
+	if (req_pairs > I40E_MAX_VF_QUEUES) {
 		dev_err(&pf->pdev->dev,
 			"VF %d tried to request more than %d queues.\n",
 			vf->vf_id,
@@ -2509,7 +2514,7 @@ error_param:
  * MAC filters: 16 for multicast, 1 for MAC, 1 for broadcast
  */
 #define I40E_VC_MAX_MAC_ADDR_PER_VF (16 + 1 + 1)
-#define I40E_VC_MAX_VLAN_PER_VF 8
+#define I40E_VC_MAX_VLAN_PER_VF 16
 
 /**
  * i40e_check_vf_permission
@@ -2587,12 +2592,11 @@ static int i40e_vc_add_mac_addr_msg(struct i40e_vf *vf, u8 *msg)
 	    (struct virtchnl_ether_addr_list *)msg;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_vsi *vsi = NULL;
-	u16 vsi_id = al->vsi_id;
 	i40e_status ret = 0;
 	int i;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
-	    !i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
+	    !i40e_vc_isvalid_vsi_id(vf, al->vsi_id)) {
 		ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -2657,12 +2661,11 @@ static int i40e_vc_del_mac_addr_msg(struct i40e_vf *vf, u8 *msg)
 	    (struct virtchnl_ether_addr_list *)msg;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_vsi *vsi = NULL;
-	u16 vsi_id = al->vsi_id;
 	i40e_status ret = 0;
 	int i;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
-	    !i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
+	    !i40e_vc_isvalid_vsi_id(vf, al->vsi_id)) {
 		ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -2726,7 +2729,6 @@ static int i40e_vc_add_vlan_msg(struct i40e_vf *vf, u8 *msg)
 	    (struct virtchnl_vlan_filter_list *)msg;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_vsi *vsi = NULL;
-	u16 vsi_id = vfl->vsi_id;
 	i40e_status aq_ret = 0;
 	int i;
 
@@ -2737,7 +2739,7 @@ static int i40e_vc_add_vlan_msg(struct i40e_vf *vf, u8 *msg)
 		goto error_param;
 	}
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
-	    !i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
+	    !i40e_vc_isvalid_vsi_id(vf, vfl->vsi_id)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -2798,12 +2800,11 @@ static int i40e_vc_remove_vlan_msg(struct i40e_vf *vf, u8 *msg)
 	    (struct virtchnl_vlan_filter_list *)msg;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_vsi *vsi = NULL;
-	u16 vsi_id = vfl->vsi_id;
 	i40e_status aq_ret = 0;
 	int i;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
-	    !i40e_vc_isvalid_vsi_id(vf, vsi_id)) {
+	    !i40e_vc_isvalid_vsi_id(vf, vfl->vsi_id)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto error_param;
 	}
@@ -2920,11 +2921,10 @@ static int i40e_vc_config_rss_key(struct i40e_vf *vf, u8 *msg)
 		(struct virtchnl_rss_key *)msg;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_vsi *vsi = NULL;
-	u16 vsi_id = vrk->vsi_id;
 	i40e_status aq_ret = 0;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
-	    !i40e_vc_isvalid_vsi_id(vf, vsi_id) ||
+	    !i40e_vc_isvalid_vsi_id(vf, vrk->vsi_id) ||
 	    (vrk->key_len != I40E_HKEY_ARRAY_SIZE)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto err;
@@ -2951,15 +2951,21 @@ static int i40e_vc_config_rss_lut(struct i40e_vf *vf, u8 *msg)
 		(struct virtchnl_rss_lut *)msg;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_vsi *vsi = NULL;
-	u16 vsi_id = vrl->vsi_id;
 	i40e_status aq_ret = 0;
+	u16 i;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states) ||
-	    !i40e_vc_isvalid_vsi_id(vf, vsi_id) ||
+	    !i40e_vc_isvalid_vsi_id(vf, vrl->vsi_id) ||
 	    (vrl->lut_entries != I40E_VF_HLUT_ARRAY_SIZE)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto err;
 	}
+
+	for (i = 0; i < vrl->lut_entries; i++)
+		if (vrl->lut[i] >= vf->num_queue_pairs) {
+			aq_ret = I40E_ERR_PARAM;
+			goto err;
+		}
 
 	vsi = pf->vsi[vf->lan_vsi_idx];
 	aq_ret = i40e_config_rss(vsi, NULL, vrl->lut, I40E_VF_HLUT_ARRAY_SIZE);
@@ -3041,14 +3047,15 @@ err:
  **/
 static int i40e_vc_enable_vlan_stripping(struct i40e_vf *vf, u8 *msg)
 {
-	struct i40e_vsi *vsi = vf->pf->vsi[vf->lan_vsi_idx];
 	i40e_status aq_ret = 0;
+	struct i40e_vsi *vsi;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto err;
 	}
 
+	vsi = vf->pf->vsi[vf->lan_vsi_idx];
 	i40e_vlan_stripping_enable(vsi);
 
 	/* send the response to the VF */
@@ -3066,14 +3073,15 @@ err:
  **/
 static int i40e_vc_disable_vlan_stripping(struct i40e_vf *vf, u8 *msg)
 {
-	struct i40e_vsi *vsi = vf->pf->vsi[vf->lan_vsi_idx];
 	i40e_status aq_ret = 0;
+	struct i40e_vsi *vsi;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
 		goto err;
 	}
 
+	vsi = vf->pf->vsi[vf->lan_vsi_idx];
 	i40e_vlan_stripping_disable(vsi);
 
 	/* send the response to the VF */
@@ -3531,8 +3539,9 @@ static int i40e_vc_add_qch_msg(struct i40e_vf *vf, u8 *msg)
 		(struct virtchnl_tc_info *)msg;
 	struct i40e_pf *pf = vf->pf;
 	struct i40e_link_status *ls = &pf->hw.phy.link_info;
-	int i, adq_request_qps = 0, speed = 0;
+	int i, adq_request_qps = 0;
 	i40e_status aq_ret = 0;
+	u64 speed = 0;
 
 	if (!test_bit(I40E_VF_STATE_ACTIVE, &vf->vf_states)) {
 		aq_ret = I40E_ERR_PARAM;
@@ -3558,8 +3567,8 @@ static int i40e_vc_add_qch_msg(struct i40e_vf *vf, u8 *msg)
 	/* max number of traffic classes for VF currently capped at 4 */
 	if (!tci->num_tc || tci->num_tc > I40E_MAX_VF_VSI) {
 		dev_err(&pf->pdev->dev,
-			"VF %d trying to set %u TCs, valid range 1-4 TCs per VF\n",
-			vf->vf_id, tci->num_tc);
+			"VF %d trying to set %u TCs, valid range 1-%u TCs per VF\n",
+			vf->vf_id, tci->num_tc, I40E_MAX_VF_VSI);
 		aq_ret = I40E_ERR_PARAM;
 		goto err;
 	}
@@ -3569,8 +3578,9 @@ static int i40e_vc_add_qch_msg(struct i40e_vf *vf, u8 *msg)
 		if (!tci->list[i].count ||
 		    tci->list[i].count > I40E_DEFAULT_QUEUES_PER_VF) {
 			dev_err(&pf->pdev->dev,
-				"VF %d: TC %d trying to set %u queues, valid range 1-4 queues per TC\n",
-				vf->vf_id, i, tci->list[i].count);
+				"VF %d: TC %d trying to set %u queues, valid range 1-%u queues per TC\n",
+				vf->vf_id, i, tci->list[i].count,
+				I40E_DEFAULT_QUEUES_PER_VF);
 			aq_ret = I40E_ERR_PARAM;
 			goto err;
 		}
@@ -3729,19 +3739,6 @@ int i40e_vc_process_vf_msg(struct i40e_pf *pf, s16 vf_id, u32 v_opcode,
 
 	/* perform basic checks on the msg */
 	ret = virtchnl_vc_validate_vf_msg(&vf->vf_ver, v_opcode, msg, msglen);
-
-	/* perform additional checks specific to this driver */
-	if (v_opcode == VIRTCHNL_OP_CONFIG_RSS_KEY) {
-		struct virtchnl_rss_key *vrk = (struct virtchnl_rss_key *)msg;
-
-		if (vrk->key_len != I40E_HKEY_ARRAY_SIZE)
-			ret = -EINVAL;
-	} else if (v_opcode == VIRTCHNL_OP_CONFIG_RSS_LUT) {
-		struct virtchnl_rss_lut *vrl = (struct virtchnl_rss_lut *)msg;
-
-		if (vrl->lut_entries != I40E_VF_HLUT_ARRAY_SIZE)
-			ret = -EINVAL;
-	}
 
 	if (ret) {
 		i40e_vc_send_resp_to_vf(vf, v_opcode, I40E_ERR_PARAM);

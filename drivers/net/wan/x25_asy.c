@@ -602,8 +602,8 @@ static void x25_asy_close_tty(struct tty_struct *tty)
 
 	err = lapb_unregister(sl->dev);
 	if (err != LAPB_OK)
-		pr_err("x25_asy_close: lapb_unregister error: %d\n",
-		       err);
+		pr_err("%s: lapb_unregister error: %d\n",
+		       __func__, err);
 
 	tty->disc_data = NULL;
 	sl->tty = NULL;

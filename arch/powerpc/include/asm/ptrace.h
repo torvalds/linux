@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2001 PPC64 Team, IBM Corp
  *
@@ -14,11 +15,6 @@
  *
  * Note that the offsets of the fields in this struct correspond with
  * the PT_* values below.  This simplifies arch/powerpc/kernel/ptrace.c.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #ifndef _ASM_POWERPC_PTRACE_H
 #define _ASM_POWERPC_PTRACE_H

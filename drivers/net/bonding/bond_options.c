@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/bond/bond_options.c - bonding options
  * Copyright (c) 2013 Jiri Pirko <jiri@resnulli.us>
  * Copyright (c) 2013 Scott Feldman <sfeldma@cumulusnetworks.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/errno.h>
@@ -787,14 +783,12 @@ static int bond_option_active_slave_set(struct bonding *bond,
 
 	if (slave_dev) {
 		if (!netif_is_bond_slave(slave_dev)) {
-			netdev_err(bond->dev, "Device %s is not bonding slave\n",
-				   slave_dev->name);
+			slave_err(bond->dev, slave_dev, "Device is not bonding slave\n");
 			return -EINVAL;
 		}
 
 		if (bond->dev != netdev_master_upper_dev_get(slave_dev)) {
-			netdev_err(bond->dev, "Device %s is not our slave\n",
-				   slave_dev->name);
+			slave_err(bond->dev, slave_dev, "Device is not our slave\n");
 			return -EINVAL;
 		}
 	}
@@ -813,18 +807,15 @@ static int bond_option_active_slave_set(struct bonding *bond,
 
 		if (new_active == old_active) {
 			/* do nothing */
-			netdev_dbg(bond->dev, "%s is already the current active slave\n",
-				   new_active->dev->name);
+			slave_dbg(bond->dev, new_active->dev, "is already the current active slave\n");
 		} else {
 			if (old_active && (new_active->link == BOND_LINK_UP) &&
 			    bond_slave_is_up(new_active)) {
-				netdev_dbg(bond->dev, "Setting %s as active slave\n",
-					   new_active->dev->name);
+				slave_dbg(bond->dev, new_active->dev, "Setting as active slave\n");
 				bond_change_active_slave(bond, new_active);
 			} else {
-				netdev_err(bond->dev, "Could not set %s as active slave; either %s is down or the link is down\n",
-					   new_active->dev->name,
-					   new_active->dev->name);
+				slave_err(bond->dev, new_active->dev, "Could not set as active slave; either %s is down or the link is down\n",
+					  new_active->dev->name);
 				ret = -EINVAL;
 			}
 		}
@@ -1136,8 +1127,7 @@ static int bond_option_primary_set(struct bonding *bond,
 
 	bond_for_each_slave(bond, slave, iter) {
 		if (strncmp(slave->dev->name, primary, IFNAMSIZ) == 0) {
-			netdev_dbg(bond->dev, "Setting %s as primary slave\n",
-				   slave->dev->name);
+			slave_dbg(bond->dev, slave->dev, "Setting as primary slave\n");
 			rcu_assign_pointer(bond->primary_slave, slave);
 			strcpy(bond->params.primary, slave->dev->name);
 			bond->force_primary = true;
@@ -1154,8 +1144,8 @@ static int bond_option_primary_set(struct bonding *bond,
 	strncpy(bond->params.primary, primary, IFNAMSIZ);
 	bond->params.primary[IFNAMSIZ - 1] = 0;
 
-	netdev_dbg(bond->dev, "Recording %s as primary, but it has not been enslaved to %s yet\n",
-		   primary, bond->dev->name);
+	netdev_dbg(bond->dev, "Recording %s as primary, but it has not been enslaved yet\n",
+		   primary);
 
 out:
 	unblock_netpoll_tx();
@@ -1382,12 +1372,12 @@ static int bond_option_slaves_set(struct bonding *bond,
 
 	switch (command[0]) {
 	case '+':
-		netdev_dbg(bond->dev, "Adding slave %s\n", dev->name);
+		slave_dbg(bond->dev, dev, "Enslaving interface\n");
 		ret = bond_enslave(bond->dev, dev, NULL);
 		break;
 
 	case '-':
-		netdev_dbg(bond->dev, "Removing slave %s\n", dev->name);
+		slave_dbg(bond->dev, dev, "Releasing interface\n");
 		ret = bond_release(bond->dev, dev);
 		break;
 
@@ -1451,7 +1441,7 @@ static int bond_option_ad_actor_system_set(struct bonding *bond,
 	return 0;
 
 err:
-	netdev_err(bond->dev, "Invalid MAC address.\n");
+	netdev_err(bond->dev, "Invalid ad_actor_system MAC address.\n");
 	return -EINVAL;
 }
 

@@ -960,13 +960,13 @@ void __qede_unlock(struct qede_dev *edev)
 /* This version of the lock should be used when acquiring the RTNL lock is also
  * needed in addition to the internal qede lock.
  */
-void qede_lock(struct qede_dev *edev)
+static void qede_lock(struct qede_dev *edev)
 {
 	rtnl_lock();
 	__qede_lock(edev);
 }
 
-void qede_unlock(struct qede_dev *edev)
+static void qede_unlock(struct qede_dev *edev)
 {
 	__qede_unlock(edev);
 	rtnl_unlock();

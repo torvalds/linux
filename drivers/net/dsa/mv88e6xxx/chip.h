@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Marvell 88E6xxx Ethernet switch single-chip definition
  *
  * Copyright (c) 2008 Marvell Semiconductor
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _MV88E6XXX_CHIP_H
@@ -583,5 +579,15 @@ int mv88e6xxx_port_setup_mac(struct mv88e6xxx_chip *chip, int port, int link,
 			     int speed, int duplex, int pause,
 			     phy_interface_t mode);
 struct mii_bus *mv88e6xxx_default_mdio_bus(struct mv88e6xxx_chip *chip);
+
+static inline void mv88e6xxx_reg_lock(struct mv88e6xxx_chip *chip)
+{
+	mutex_lock(&chip->reg_lock);
+}
+
+static inline void mv88e6xxx_reg_unlock(struct mv88e6xxx_chip *chip)
+{
+	mutex_unlock(&chip->reg_lock);
+}
 
 #endif /* _MV88E6XXX_CHIP_H */

@@ -150,8 +150,9 @@ static const struct nfp_et_stat nfp_mac_et_stats[] = {
 
 #define NN_ET_GLOBAL_STATS_LEN ARRAY_SIZE(nfp_net_et_stats)
 #define NN_ET_SWITCH_STATS_LEN 9
-#define NN_RVEC_GATHER_STATS	9
+#define NN_RVEC_GATHER_STATS	13
 #define NN_RVEC_PER_Q_STATS	3
+#define NN_CTRL_PATH_STATS	1
 
 #define SFP_SFF_REV_COMPLIANCE	1
 
@@ -423,7 +424,8 @@ static unsigned int nfp_vnic_get_sw_stats_count(struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 
-	return NN_RVEC_GATHER_STATS + nn->max_r_vecs * NN_RVEC_PER_Q_STATS;
+	return NN_RVEC_GATHER_STATS + nn->max_r_vecs * NN_RVEC_PER_Q_STATS +
+		NN_CTRL_PATH_STATS;
 }
 
 static u8 *nfp_vnic_get_sw_stats_strings(struct net_device *netdev, u8 *data)
@@ -442,10 +444,16 @@ static u8 *nfp_vnic_get_sw_stats_strings(struct net_device *netdev, u8 *data)
 	data = nfp_pr_et(data, "hw_rx_csum_complete");
 	data = nfp_pr_et(data, "hw_rx_csum_err");
 	data = nfp_pr_et(data, "rx_replace_buf_alloc_fail");
+	data = nfp_pr_et(data, "rx_tls_decrypted");
 	data = nfp_pr_et(data, "hw_tx_csum");
 	data = nfp_pr_et(data, "hw_tx_inner_csum");
 	data = nfp_pr_et(data, "tx_gather");
 	data = nfp_pr_et(data, "tx_lso");
+	data = nfp_pr_et(data, "tx_tls_encrypted");
+	data = nfp_pr_et(data, "tx_tls_ooo");
+	data = nfp_pr_et(data, "tx_tls_drop_no_sync_data");
+
+	data = nfp_pr_et(data, "hw_tls_no_space");
 
 	return data;
 }
@@ -468,16 +476,20 @@ static u64 *nfp_vnic_get_sw_stats(struct net_device *netdev, u64 *data)
 			tmp[2] = nn->r_vecs[i].hw_csum_rx_complete;
 			tmp[3] = nn->r_vecs[i].hw_csum_rx_error;
 			tmp[4] = nn->r_vecs[i].rx_replace_buf_alloc_fail;
+			tmp[5] = nn->r_vecs[i].hw_tls_rx;
 		} while (u64_stats_fetch_retry(&nn->r_vecs[i].rx_sync, start));
 
 		do {
 			start = u64_stats_fetch_begin(&nn->r_vecs[i].tx_sync);
 			data[1] = nn->r_vecs[i].tx_pkts;
 			data[2] = nn->r_vecs[i].tx_busy;
-			tmp[5] = nn->r_vecs[i].hw_csum_tx;
-			tmp[6] = nn->r_vecs[i].hw_csum_tx_inner;
-			tmp[7] = nn->r_vecs[i].tx_gather;
-			tmp[8] = nn->r_vecs[i].tx_lso;
+			tmp[6] = nn->r_vecs[i].hw_csum_tx;
+			tmp[7] = nn->r_vecs[i].hw_csum_tx_inner;
+			tmp[8] = nn->r_vecs[i].tx_gather;
+			tmp[9] = nn->r_vecs[i].tx_lso;
+			tmp[10] = nn->r_vecs[i].hw_tls_tx;
+			tmp[11] = nn->r_vecs[i].tls_tx_fallback;
+			tmp[12] = nn->r_vecs[i].tls_tx_no_fallback;
 		} while (u64_stats_fetch_retry(&nn->r_vecs[i].tx_sync, start));
 
 		data += NN_RVEC_PER_Q_STATS;
@@ -488,6 +500,8 @@ static u64 *nfp_vnic_get_sw_stats(struct net_device *netdev, u64 *data)
 
 	for (j = 0; j < NN_RVEC_GATHER_STATS; j++)
 		*data++ = gathered_stats[j];
+
+	*data++ = atomic_read(&nn->ktls_no_space);
 
 	return data;
 }

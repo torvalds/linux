@@ -15,17 +15,25 @@ struct stack_trace_t {
 	struct bpf_stack_build_id user_stack_buildid[MAX_STACK_RAWTP];
 };
 
-struct bpf_map_def SEC("maps") perfmap = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 key_size;
+	__u32 value_size;
+} perfmap SEC(".maps") = {
 	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
+	.max_entries = 2,
 	.key_size = sizeof(int),
 	.value_size = sizeof(__u32),
-	.max_entries = 2,
 };
 
-struct bpf_map_def SEC("maps") stackdata_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct stack_trace_t *value;
+} stackdata_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct stack_trace_t),
 	.max_entries = 1,
 };
 
@@ -47,10 +55,13 @@ struct bpf_map_def SEC("maps") stackdata_map = {
  * issue and avoid complicated C programming massaging.
  * This is an acceptable workaround since there is one entry here.
  */
-struct bpf_map_def SEC("maps") rawdata_map = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	__u64 (*value)[2 * MAX_STACK_RAWTP];
+} rawdata_map SEC(".maps") = {
 	.type = BPF_MAP_TYPE_PERCPU_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = MAX_STACK_RAWTP * sizeof(__u64) * 2,
 	.max_entries = 1,
 };
 

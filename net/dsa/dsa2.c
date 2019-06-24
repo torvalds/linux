@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/dsa/dsa2.c - Hardware switch handling, binding version 2
  * Copyright (c) 2008-2009 Marvell Semiconductor
  * Copyright (c) 2013 Florian Fainelli <florian@openwrt.org>
  * Copyright (c) 2016 Andrew Lunn <andrew@lunn.ch>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/device.h>
@@ -411,6 +407,9 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 		mdiobus_unregister(ds->slave_mii_bus);
 
 	dsa_switch_unregister_notifier(ds);
+
+	if (ds->ops->teardown)
+		ds->ops->teardown(ds);
 
 	if (ds->devlink) {
 		devlink_unregister(ds->devlink);

@@ -83,6 +83,7 @@ config MLXSW_SPECTRUM
 	select PARMAN
 	select OBJAGG
 	select MLXFW
+	imply PTP_1588_CLOCK
 	default m
 	---help---
 	  This driver supports Mellanox Technologies Spectrum Ethernet

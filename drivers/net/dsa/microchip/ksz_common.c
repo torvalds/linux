@@ -83,6 +83,9 @@ static void ksz_mib_read_work(struct work_struct *work)
 	int i;
 
 	for (i = 0; i < dev->mib_port_cnt; i++) {
+		if (dsa_is_unused_port(dev->ds, i))
+			continue;
+
 		p = &dev->ports[i];
 		mib = &p->mib;
 		mutex_lock(&mib->cnt_mutex);
@@ -460,6 +463,8 @@ int ksz_switch_register(struct ksz_device *dev,
 		ret = of_get_phy_mode(dev->dev->of_node);
 		if (ret >= 0)
 			dev->interface = ret;
+		dev->synclko_125 = of_property_read_bool(dev->dev->of_node,
+							 "microchip,synclko-125");
 	}
 
 	ret = dsa_register_switch(dev->ds);

@@ -81,9 +81,10 @@
 #define HCLGE_IGU_EGU_TNL_INT_MASK	GENMASK(5, 0)
 #define HCLGE_PPP_MPF_INT_ST3_MASK	GENMASK(5, 0)
 #define HCLGE_PPU_MPF_INT_ST3_MASK	GENMASK(7, 0)
-#define HCLGE_PPU_MPF_INT_ST2_MSIX_MASK	GENMASK(29, 28)
+#define HCLGE_PPU_MPF_INT_ST2_MSIX_MASK	BIT(29)
 #define HCLGE_PPU_PF_INT_RAS_MASK	0x18
-#define HCLGE_PPU_PF_INT_MSIX_MASK	0x27
+#define HCLGE_PPU_PF_INT_MSIX_MASK	0x26
+#define HCLGE_PPU_PF_OVER_8BD_ERR_MASK	0x01
 #define HCLGE_QCN_FIFO_INT_MASK		GENMASK(17, 0)
 #define HCLGE_QCN_ECC_INT_MASK		GENMASK(21, 0)
 #define HCLGE_NCSI_ECC_INT_MASK		GENMASK(1, 0)
@@ -94,6 +95,7 @@
 #define HCLGE_ROCEE_RAS_CE_INT_EN_MASK		0x1
 #define HCLGE_ROCEE_RERR_INT_MASK		BIT(0)
 #define HCLGE_ROCEE_BERR_INT_MASK		BIT(1)
+#define HCLGE_ROCEE_AXI_ERR_INT_MASK		GENMASK(1, 0)
 #define HCLGE_ROCEE_ECC_INT_MASK		BIT(2)
 #define HCLGE_ROCEE_OVF_INT_MASK		BIT(3)
 #define HCLGE_ROCEE_OVF_ERR_INT_MASK		0x10000
@@ -121,6 +123,7 @@ struct hclge_hw_error {
 int hclge_config_mac_tnl_int(struct hclge_dev *hdev, bool en);
 int hclge_config_nic_hw_error(struct hclge_dev *hdev, bool state);
 int hclge_config_rocee_ras_interrupt(struct hclge_dev *hdev, bool en);
+void hclge_handle_all_hns_hw_errors(struct hnae3_ae_dev *ae_dev);
 pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev);
 int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 			       unsigned long *reset_requests);

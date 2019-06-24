@@ -1,9 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* net/sched/sch_ingress.c - Ingress and clsact qdisc
- *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
  *
  * Authors:     Jamal Hadi Salim 1999
  */
@@ -118,6 +114,7 @@ nla_put_failure:
 }
 
 static const struct Qdisc_class_ops ingress_class_ops = {
+	.flags		=	QDISC_CLASS_OPS_DOIT_UNLOCKED,
 	.leaf		=	ingress_leaf,
 	.find		=	ingress_find,
 	.walk		=	ingress_walk,
@@ -250,6 +247,7 @@ static void clsact_destroy(struct Qdisc *sch)
 }
 
 static const struct Qdisc_class_ops clsact_class_ops = {
+	.flags		=	QDISC_CLASS_OPS_DOIT_UNLOCKED,
 	.leaf		=	ingress_leaf,
 	.find		=	clsact_find,
 	.walk		=	ingress_walk,

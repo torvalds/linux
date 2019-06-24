@@ -11,7 +11,8 @@
 
 static struct dentry *hns3_dbgfs_root;
 
-static int hns3_dbg_queue_info(struct hnae3_handle *h, char *cmd_buf)
+static int hns3_dbg_queue_info(struct hnae3_handle *h,
+			       const char *cmd_buf)
 {
 	struct hns3_nic_priv *priv = h->priv;
 	struct hns3_nic_ring_data *ring_data;
@@ -155,7 +156,7 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h)
 	return 0;
 }
 
-static int hns3_dbg_bd_info(struct hnae3_handle *h, char *cmd_buf)
+static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 {
 	struct hns3_nic_priv *priv = h->priv;
 	struct hns3_nic_ring_data *ring_data;

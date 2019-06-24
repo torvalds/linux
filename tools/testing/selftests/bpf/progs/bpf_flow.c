@@ -57,17 +57,25 @@ struct frag_hdr {
 	__be32 identification;
 };
 
-struct bpf_map_def SEC("maps") jmp_table = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 key_size;
+	__u32 value_size;
+} jmp_table SEC(".maps") = {
 	.type = BPF_MAP_TYPE_PROG_ARRAY,
+	.max_entries = 8,
 	.key_size = sizeof(__u32),
 	.value_size = sizeof(__u32),
-	.max_entries = 8
 };
 
-struct bpf_map_def SEC("maps") last_dissection = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct bpf_flow_keys *value;
+} last_dissection SEC(".maps") = {
 	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct bpf_flow_keys),
 	.max_entries = 1,
 };
 

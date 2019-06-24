@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * H.323 extension for NAT alteration.
  *
  * Copyright (c) 2006 Jing Min Zhao <zhaojingmin@users.sourceforge.net>
  * Copyright (c) 2006-2012 Patrick McHardy <kaber@trash.net>
- *
- * This source code is licensed under General Public License version 2.
  *
  * Based on the 'brute force' H.323 NAT module by
  * Jozsef Kadlecsik <kadlec@netfilter.org>

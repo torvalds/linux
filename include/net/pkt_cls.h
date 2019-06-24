@@ -7,6 +7,7 @@
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 #include <net/flow_offload.h>
+#include <net/net_namespace.h>
 
 /* TC action not accessible from user space */
 #define TC_ACT_REINSERT		(TC_ACT_VALUE_MAX + 1)
@@ -576,9 +577,6 @@ static inline int tcf_valid_offset(const struct sk_buff *skb,
 		      (ptr <= (ptr + len)));
 }
 
-#ifdef CONFIG_NET_CLS_IND
-#include <net/net_namespace.h>
-
 static inline int
 tcf_change_indev(struct net *net, struct nlattr *indev_tlv,
 		 struct netlink_ext_ack *extack)
@@ -605,7 +603,6 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 		return false;
 	return ifindex == skb->skb_iif;
 }
-#endif /* CONFIG_NET_CLS_IND */
 
 int tc_setup_flow_action(struct flow_action *flow_action,
 			 const struct tcf_exts *exts);

@@ -143,6 +143,10 @@ static void ip_expire(struct timer_list *t)
 	net = qp->q.fqdir->net;
 
 	rcu_read_lock();
+
+	if (qp->q.fqdir->dead)
+		goto out_rcu_unlock;
+
 	spin_lock(&qp->q.lock);
 
 	if (qp->q.flags & INET_FRAG_COMPLETE)
@@ -676,6 +680,11 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 	return res;
 }
 
+static void __net_exit ipv4_frags_pre_exit_net(struct net *net)
+{
+	fqdir_pre_exit(net->ipv4.fqdir);
+}
+
 static void __net_exit ipv4_frags_exit_net(struct net *net)
 {
 	ip4_frags_ns_ctl_unregister(net);
@@ -683,8 +692,9 @@ static void __net_exit ipv4_frags_exit_net(struct net *net)
 }
 
 static struct pernet_operations ip4_frags_ops = {
-	.init = ipv4_frags_init_net,
-	.exit = ipv4_frags_exit_net,
+	.init		= ipv4_frags_init_net,
+	.pre_exit	= ipv4_frags_pre_exit_net,
+	.exit		= ipv4_frags_exit_net,
 };
 
 

@@ -292,6 +292,7 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	struct cxgb4_range ocq;
 	struct cxgb4_range key;
 	unsigned int ncrypto_fc;
+	struct cxgb4_range ppod_edram;
 };
 
 struct chcr_stats_debug {

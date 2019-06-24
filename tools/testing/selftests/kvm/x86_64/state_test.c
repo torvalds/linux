@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * KVM_GET/SET_* tests
  *
  * Copyright (C) 2018, Red Hat, Inc.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Tests for vCPU state save/restore, including nested guest state.
  */

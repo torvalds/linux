@@ -983,7 +983,7 @@ void iavf_enable_channels(struct iavf_adapter *adapter)
 		return;
 	}
 
-	len = (adapter->num_tc * sizeof(struct virtchnl_channel_info)) +
+	len = ((adapter->num_tc - 1) * sizeof(struct virtchnl_channel_info)) +
 	       sizeof(struct virtchnl_tc_info);
 
 	vti = kzalloc(len, GFP_KERNEL);
@@ -1238,7 +1238,7 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			if (!(adapter->flags & IAVF_FLAG_RESET_PENDING)) {
 				adapter->flags |= IAVF_FLAG_RESET_PENDING;
 				dev_info(&adapter->pdev->dev, "Scheduling reset task\n");
-				schedule_work(&adapter->reset_task);
+				queue_work(iavf_wq, &adapter->reset_task);
 			}
 			break;
 		default:

@@ -1,8 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2011-2014 PLUMgrid, http://plumgrid.com
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #ifndef _LINUX_BPF_VERIFIER_H
 #define _LINUX_BPF_VERIFIER_H 1
@@ -139,6 +136,8 @@ struct bpf_reg_state {
 	 */
 	s32 subreg_def;
 	enum bpf_reg_liveness live;
+	/* if (!precise && SCALAR_VALUE) min/max/tnum don't affect safety */
+	bool precise;
 };
 
 enum bpf_stack_slot_type {
@@ -190,14 +189,77 @@ struct bpf_func_state {
 	struct bpf_stack_state *stack;
 };
 
+struct bpf_idx_pair {
+	u32 prev_idx;
+	u32 idx;
+};
+
 #define MAX_CALL_FRAMES 8
 struct bpf_verifier_state {
 	/* call stack tracking */
 	struct bpf_func_state *frame[MAX_CALL_FRAMES];
+	struct bpf_verifier_state *parent;
+	/*
+	 * 'branches' field is the number of branches left to explore:
+	 * 0 - all possible paths from this state reached bpf_exit or
+	 * were safely pruned
+	 * 1 - at least one path is being explored.
+	 * This state hasn't reached bpf_exit
+	 * 2 - at least two paths are being explored.
+	 * This state is an immediate parent of two children.
+	 * One is fallthrough branch with branches==1 and another
+	 * state is pushed into stack (to be explored later) also with
+	 * branches==1. The parent of this state has branches==1.
+	 * The verifier state tree connected via 'parent' pointer looks like:
+	 * 1
+	 * 1
+	 * 2 -> 1 (first 'if' pushed into stack)
+	 * 1
+	 * 2 -> 1 (second 'if' pushed into stack)
+	 * 1
+	 * 1
+	 * 1 bpf_exit.
+	 *
+	 * Once do_check() reaches bpf_exit, it calls update_branch_counts()
+	 * and the verifier state tree will look:
+	 * 1
+	 * 1
+	 * 2 -> 1 (first 'if' pushed into stack)
+	 * 1
+	 * 1 -> 1 (second 'if' pushed into stack)
+	 * 0
+	 * 0
+	 * 0 bpf_exit.
+	 * After pop_stack() the do_check() will resume at second 'if'.
+	 *
+	 * If is_state_visited() sees a state with branches > 0 it means
+	 * there is a loop. If such state is exactly equal to the current state
+	 * it's an infinite loop. Note states_equal() checks for states
+	 * equvalency, so two states being 'states_equal' does not mean
+	 * infinite loop. The exact comparison is provided by
+	 * states_maybe_looping() function. It's a stronger pre-check and
+	 * much faster than states_equal().
+	 *
+	 * This algorithm may not find all possible infinite loops or
+	 * loop iteration count may be too high.
+	 * In such cases BPF_COMPLEXITY_LIMIT_INSNS limit kicks in.
+	 */
+	u32 branches;
 	u32 insn_idx;
 	u32 curframe;
 	u32 active_spin_lock;
 	bool speculative;
+
+	/* first and last insn idx of this verifier state */
+	u32 first_insn_idx;
+	u32 last_insn_idx;
+	/* jmp history recorded from first to last.
+	 * backtracking is using it to go from last to first.
+	 * For most states jmp_history_cnt is [0-3].
+	 * For loops can go up to ~40.
+	 */
+	struct bpf_idx_pair *jmp_history;
+	u32 jmp_history_cnt;
 };
 
 #define bpf_get_spilled_reg(slot, frame)				\
@@ -312,7 +374,9 @@ struct bpf_verifier_env {
 	} cfg;
 	u32 subprog_cnt;
 	/* number of instructions analyzed by the verifier */
-	u32 insn_processed;
+	u32 prev_insn_processed, insn_processed;
+	/* number of jmps, calls, exits analyzed so far */
+	u32 prev_jmps_processed, jmps_processed;
 	/* total verification time */
 	u64 verification_time;
 	/* maximum number of verifier states kept in 'branching' instructions */

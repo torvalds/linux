@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _ASM_X86_XOR_AVX_H
 #define _ASM_X86_XOR_AVX_H
 
@@ -8,11 +9,6 @@
  * Author: Jim Kukunas <james.t.kukunas@linux.intel.com>
  *
  * Based on Ingo Molnar and Zach Brown's respective MMX and SSE routines
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 
 #ifdef CONFIG_AS_AVX

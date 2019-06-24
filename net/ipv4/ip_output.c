@@ -994,7 +994,7 @@ static int __ip_append_data(struct sock *sk,
 		uarg = sock_zerocopy_realloc(sk, length, skb_zcopy(skb));
 		if (!uarg)
 			return -ENOBUFS;
-		extra_uref = !skb;	/* only extra ref if !MSG_MORE */
+		extra_uref = !skb_zcopy(skb);	/* only ref on new uarg */
 		if (rt->dst.dev->features & NETIF_F_SG &&
 		    csummode == CHECKSUM_PARTIAL) {
 			paged = true;
@@ -1632,7 +1632,7 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 			   const struct ip_options *sopt,
 			   __be32 daddr, __be32 saddr,
 			   const struct ip_reply_arg *arg,
-			   unsigned int len)
+			   unsigned int len, u64 transmit_time)
 {
 	struct ip_options_data replyopts;
 	struct ipcm_cookie ipc;
@@ -1648,6 +1648,7 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 
 	ipcm_init(&ipc);
 	ipc.addr = daddr;
+	ipc.sockc.transmit_time = transmit_time;
 
 	if (replyopts.opt.opt.optlen) {
 		ipc.opt = &replyopts.opt;

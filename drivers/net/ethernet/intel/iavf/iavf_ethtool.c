@@ -510,7 +510,7 @@ static int iavf_set_priv_flags(struct net_device *netdev, u32 flags)
 	if (changed_flags & IAVF_FLAG_LEGACY_RX) {
 		if (netif_running(netdev)) {
 			adapter->flags |= IAVF_FLAG_RESET_NEEDED;
-			schedule_work(&adapter->reset_task);
+			queue_work(iavf_wq, &adapter->reset_task);
 		}
 	}
 
@@ -622,7 +622,7 @@ static int iavf_set_ringparam(struct net_device *netdev,
 
 	if (netif_running(netdev)) {
 		adapter->flags |= IAVF_FLAG_RESET_NEEDED;
-		schedule_work(&adapter->reset_task);
+		queue_work(iavf_wq, &adapter->reset_task);
 	}
 
 	return 0;

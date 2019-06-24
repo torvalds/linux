@@ -160,7 +160,7 @@ struct nexthop *nexthop_mpath_select(const struct nexthop *nh, int nhsel)
 	/* for_nexthops macros in fib_semantics.c grabs a pointer to
 	 * the nexthop before checking nhsel
 	 */
-	if (nhsel > nhg->num_nh)
+	if (nhsel >= nhg->num_nh)
 		return NULL;
 
 	return nhg->nh_entries[nhsel].nh;
@@ -305,4 +305,8 @@ static inline void nexthop_path_fib6_result(struct fib6_result *res, int hash)
 		res->nh = &nhi->fib6_nh;
 	}
 }
+
+int nexthop_for_each_fib6_nh(struct nexthop *nh,
+			     int (*cb)(struct fib6_nh *nh, void *arg),
+			     void *arg);
 #endif

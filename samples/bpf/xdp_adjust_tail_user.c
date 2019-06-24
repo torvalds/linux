@@ -18,8 +18,8 @@
 #include <netinet/ether.h>
 #include <unistd.h>
 #include <time.h>
-#include "bpf/bpf.h"
-#include "bpf/libbpf.h"
+#include "bpf.h"
+#include "libbpf.h"
 
 #define STATS_INTERVAL_S 2U
 

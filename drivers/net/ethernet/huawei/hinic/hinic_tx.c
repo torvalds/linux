@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -92,6 +83,7 @@ void hinic_txq_clean_stats(struct hinic_txq *txq)
 	txq_stats->tx_busy = 0;
 	txq_stats->tx_wake = 0;
 	txq_stats->tx_dropped = 0;
+	txq_stats->big_frags_pkts = 0;
 	u64_stats_update_end(&txq_stats->syncp);
 }
 
@@ -113,6 +105,7 @@ void hinic_txq_get_stats(struct hinic_txq *txq, struct hinic_txq_stats *stats)
 		stats->tx_busy = txq_stats->tx_busy;
 		stats->tx_wake = txq_stats->tx_wake;
 		stats->tx_dropped = txq_stats->tx_dropped;
+		stats->big_frags_pkts = txq_stats->big_frags_pkts;
 	} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
 	u64_stats_update_end(&stats->syncp);
 }
@@ -473,6 +466,12 @@ netdev_tx_t hinic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	nr_sges = skb_shinfo(skb)->nr_frags + 1;
+	if (nr_sges > 17) {
+		u64_stats_update_begin(&txq->txq_stats.syncp);
+		txq->txq_stats.big_frags_pkts++;
+		u64_stats_update_end(&txq->txq_stats.syncp);
+	}
+
 	if (nr_sges > txq->max_sges) {
 		netdev_err(netdev, "Too many Tx sges\n");
 		goto skb_error;

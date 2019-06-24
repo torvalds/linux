@@ -7,17 +7,23 @@
 
 #include "bpf_helpers.h"
 
-struct bpf_map_def SEC("maps") result_number = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	__u64 *value;
+} result_number SEC(".maps") = {
 	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(__u32),
-	.value_size	= sizeof(__u64),
 	.max_entries	= 11,
 };
 
-struct bpf_map_def SEC("maps") result_string = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	const char (*value)[32];
+} result_string SEC(".maps") = {
 	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(__u32),
-	.value_size	= 32,
 	.max_entries	= 5,
 };
 
@@ -27,10 +33,13 @@ struct foo {
 	__u64 c;
 };
 
-struct bpf_map_def SEC("maps") result_struct = {
+struct {
+	__u32 type;
+	__u32 max_entries;
+	__u32 *key;
+	struct foo *value;
+} result_struct SEC(".maps") = {
 	.type		= BPF_MAP_TYPE_ARRAY,
-	.key_size	= sizeof(__u32),
-	.value_size	= sizeof(struct foo),
 	.max_entries	= 5,
 };
 

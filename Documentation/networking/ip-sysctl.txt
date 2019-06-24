@@ -80,6 +80,7 @@ fib_multipath_hash_policy - INTEGER
 	Possible values:
 	0 - Layer 3
 	1 - Layer 4
+	2 - Layer 3 or inner Layer 3 if present
 
 fib_sync_mem - UNSIGNED INTEGER
 	Amount of dirty memory from fib entries that can be backlogged before
@@ -254,6 +255,14 @@ tcp_base_mss - INTEGER
 	The initial value of search_low to be used by the packetization layer
 	Path MTU discovery (MTU probing).  If MTU probing is enabled,
 	this is the initial MSS used by the connection.
+
+tcp_min_snd_mss - INTEGER
+	TCP SYN and SYNACK messages usually advertise an ADVMSS option,
+	as described in RFC 1122 and RFC 6691.
+	If this ADVMSS option is smaller than tcp_min_snd_mss,
+	it is silently capped to tcp_min_snd_mss.
+
+	Default : 48 (at least 8 bytes of payload per segment)
 
 tcp_congestion_control - STRING
 	Set the congestion control algorithm to be used for new
@@ -791,6 +800,14 @@ tcp_challenge_ack_limit - INTEGER
 	Limits number of Challenge ACK sent per second, as recommended
 	in RFC 5961 (Improving TCP's Robustness to Blind In-Window Attacks)
 	Default: 100
+
+tcp_rx_skb_cache - BOOLEAN
+	Controls a per TCP socket cache of one skb, that might help
+	performance of some workloads. This might be dangerous
+	on systems with a lot of TCP sockets, since it increases
+	memory usage.
+
+	Default: 0 (disabled)
 
 UDP variables:
 
@@ -1429,14 +1446,24 @@ flowlabel_state_ranges - BOOLEAN
 	FALSE: disabled
 	Default: true
 
-flowlabel_reflect - BOOLEAN
-	Automatically reflect the flow label. Needed for Path MTU
+flowlabel_reflect - INTEGER
+	Control flow label reflection. Needed for Path MTU
 	Discovery to work with Equal Cost Multipath Routing in anycast
 	environments. See RFC 7690 and:
 	https://tools.ietf.org/html/draft-wang-6man-flow-label-reflection-01
-	TRUE: enabled
-	FALSE: disabled
-	Default: FALSE
+
+	This is a mask of two bits.
+	1: enabled for established flows
+
+	Note that this prevents automatic flowlabel changes, as done
+	in "tcp: change IPv6 flow-label upon receiving spurious retransmission"
+	and "tcp: Change txhash on every SYN and RTO retransmit"
+
+	2: enabled for TCP RESET packets (no active listener)
+	If set, a RST packet sent in response to a SYN packet on a closed
+	port will reflect the incoming flow label.
+
+	Default: 0
 
 fib_multipath_hash_policy - INTEGER
 	Controls which hash policy to use for multipath routes.

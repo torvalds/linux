@@ -26,9 +26,4 @@ enum {
 
 #define TCA_CTINFO_MAX (__TCA_CTINFO_MAX - 1)
 
-enum {
-	CTINFO_MODE_DSCP	= BIT(0),
-	CTINFO_MODE_CPMARK	= BIT(1)
-};
-
 #endif

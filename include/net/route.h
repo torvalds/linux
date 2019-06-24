@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET  is implemented using the  BSD Socket
@@ -15,11 +16,6 @@
  *		Alexey Kuznetsov:	Major changes for new routing code.
  *		Mike McLagan    :	Routing by source
  *		Robert Olsson   :	Added rt_cache statistics
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _ROUTE_H
 #define _ROUTE_H
@@ -233,6 +229,10 @@ void fib_modify_prefix_metric(struct in_ifaddr *ifa, u32 new_metric);
 
 void rt_add_uncached_list(struct rtable *rt);
 void rt_del_uncached_list(struct rtable *rt);
+
+int fib_dump_info_fnhe(struct sk_buff *skb, struct netlink_callback *cb,
+		       u32 table_id, struct fib_info *fi,
+		       int *fa_index, int fa_start);
 
 static inline void ip_rt_put(struct rtable *rt)
 {

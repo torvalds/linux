@@ -23,6 +23,11 @@ struct tcf_ctinfo {
 	u64 stats_cpmark_set;
 };
 
+enum {
+	CTINFO_MODE_DSCP	= BIT(0),
+	CTINFO_MODE_CPMARK	= BIT(1)
+};
+
 #define to_ctinfo(a) ((struct tcf_ctinfo *)a)
 
 #endif /* __NET_TC_CTINFO_H */

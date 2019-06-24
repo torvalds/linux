@@ -52,8 +52,7 @@ static ssize_t mlxsw_hwmon_temp_show(struct device *dev,
 			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	unsigned int temp;
-	int index;
+	int temp, index;
 	int err;
 
 	index = mlxsw_hwmon_get_attr_index(mlwsw_hwmon_attr->type_index,
@@ -65,7 +64,7 @@ static ssize_t mlxsw_hwmon_temp_show(struct device *dev,
 		return err;
 	}
 	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
-	return sprintf(buf, "%u\n", temp);
+	return sprintf(buf, "%d\n", temp);
 }
 
 static ssize_t mlxsw_hwmon_temp_max_show(struct device *dev,
@@ -76,8 +75,7 @@ static ssize_t mlxsw_hwmon_temp_max_show(struct device *dev,
 			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	unsigned int temp_max;
-	int index;
+	int temp_max, index;
 	int err;
 
 	index = mlxsw_hwmon_get_attr_index(mlwsw_hwmon_attr->type_index,
@@ -89,7 +87,7 @@ static ssize_t mlxsw_hwmon_temp_max_show(struct device *dev,
 		return err;
 	}
 	mlxsw_reg_mtmp_unpack(mtmp_pl, NULL, &temp_max, NULL);
-	return sprintf(buf, "%u\n", temp_max);
+	return sprintf(buf, "%d\n", temp_max);
 }
 
 static ssize_t mlxsw_hwmon_temp_rst_store(struct device *dev,
@@ -215,8 +213,8 @@ static ssize_t mlxsw_hwmon_module_temp_show(struct device *dev,
 			container_of(attr, struct mlxsw_hwmon_attr, dev_attr);
 	struct mlxsw_hwmon *mlxsw_hwmon = mlwsw_hwmon_attr->hwmon;
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
-	unsigned int temp;
 	u8 module;
+	int temp;
 	int err;
 
 	module = mlwsw_hwmon_attr->type_index - mlxsw_hwmon->sensor_count;
@@ -227,7 +225,7 @@ static ssize_t mlxsw_hwmon_module_temp_show(struct device *dev,
 		return err;
 	mlxsw_reg_mtmp_unpack(mtmp_pl, &temp, NULL, NULL);
 
-	return sprintf(buf, "%u\n", temp);
+	return sprintf(buf, "%d\n", temp);
 }
 
 static ssize_t mlxsw_hwmon_module_temp_fault_show(struct device *dev,

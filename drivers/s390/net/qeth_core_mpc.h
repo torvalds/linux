@@ -31,14 +31,12 @@ extern unsigned char IPA_PDU_HEADER[];
 
 #define QETH_CLEAR_CHANNEL_PARM	-10
 #define QETH_HALT_CHANNEL_PARM	-11
-#define QETH_RCD_PARM -12
 
 static inline bool qeth_intparm_is_iob(unsigned long intparm)
 {
 	switch (intparm) {
 	case QETH_CLEAR_CHANNEL_PARM:
 	case QETH_HALT_CHANNEL_PARM:
-	case QETH_RCD_PARM:
 	case 0:
 		return false;
 	}

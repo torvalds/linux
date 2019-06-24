@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -65,6 +56,9 @@ void hinic_rxq_clean_stats(struct hinic_rxq *rxq)
 	u64_stats_update_begin(&rxq_stats->syncp);
 	rxq_stats->pkts  = 0;
 	rxq_stats->bytes = 0;
+	rxq_stats->errors = 0;
+	rxq_stats->csum_errors = 0;
+	rxq_stats->other_errors = 0;
 	u64_stats_update_end(&rxq_stats->syncp);
 }
 
@@ -83,6 +77,10 @@ void hinic_rxq_get_stats(struct hinic_rxq *rxq, struct hinic_rxq_stats *stats)
 		start = u64_stats_fetch_begin(&rxq_stats->syncp);
 		stats->pkts = rxq_stats->pkts;
 		stats->bytes = rxq_stats->bytes;
+		stats->errors = rxq_stats->csum_errors +
+				rxq_stats->other_errors;
+		stats->csum_errors = rxq_stats->csum_errors;
+		stats->other_errors = rxq_stats->other_errors;
 	} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
 	u64_stats_update_end(&stats->syncp);
 }
@@ -110,10 +108,14 @@ static void rx_csum(struct hinic_rxq *rxq, u32 status,
 	if (!(netdev->features & NETIF_F_RXCSUM))
 		return;
 
-	if (!csum_err)
+	if (!csum_err) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	else
+	} else {
+		if (!(csum_err & (HINIC_RX_CSUM_HW_CHECK_NONE |
+			HINIC_RX_CSUM_IPSU_OTHER_ERR)))
+			rxq->rxq_stats.csum_errors++;
 		skb->ip_summed = CHECKSUM_NONE;
+	}
 }
 /**
  * rx_alloc_skb - allocate skb and map it to dma address
@@ -502,7 +504,7 @@ int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 		   struct net_device *netdev)
 {
 	struct hinic_qp *qp = container_of(rq, struct hinic_qp, rq);
-	int err, pkts, irqname_len;
+	int err, pkts;
 
 	rxq->netdev = netdev;
 	rxq->rq = rq;
@@ -511,12 +513,10 @@ int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 
 	rxq_stats_init(rxq);
 
-	irqname_len = snprintf(NULL, 0, "hinic_rxq%d", qp->q_id) + 1;
-	rxq->irq_name = devm_kzalloc(&netdev->dev, irqname_len, GFP_KERNEL);
+	rxq->irq_name = devm_kasprintf(&netdev->dev, GFP_KERNEL,
+				       "hinic_rxq%d", qp->q_id);
 	if (!rxq->irq_name)
 		return -ENOMEM;
-
-	sprintf(rxq->irq_name, "hinic_rxq%d", qp->q_id);
 
 	pkts = rx_alloc_pkts(rxq);
 	if (!pkts) {

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -80,138 +71,6 @@ static int set_features(struct hinic_dev *nic_dev,
 			netdev_features_t pre_features,
 			netdev_features_t features, bool force_change);
 
-static void set_link_speed(struct ethtool_link_ksettings *link_ksettings,
-			   enum hinic_speed speed)
-{
-	switch (speed) {
-	case HINIC_SPEED_10MB_LINK:
-		link_ksettings->base.speed = SPEED_10;
-		break;
-
-	case HINIC_SPEED_100MB_LINK:
-		link_ksettings->base.speed = SPEED_100;
-		break;
-
-	case HINIC_SPEED_1000MB_LINK:
-		link_ksettings->base.speed = SPEED_1000;
-		break;
-
-	case HINIC_SPEED_10GB_LINK:
-		link_ksettings->base.speed = SPEED_10000;
-		break;
-
-	case HINIC_SPEED_25GB_LINK:
-		link_ksettings->base.speed = SPEED_25000;
-		break;
-
-	case HINIC_SPEED_40GB_LINK:
-		link_ksettings->base.speed = SPEED_40000;
-		break;
-
-	case HINIC_SPEED_100GB_LINK:
-		link_ksettings->base.speed = SPEED_100000;
-		break;
-
-	default:
-		link_ksettings->base.speed = SPEED_UNKNOWN;
-		break;
-	}
-}
-
-static int hinic_get_link_ksettings(struct net_device *netdev,
-				    struct ethtool_link_ksettings
-				    *link_ksettings)
-{
-	struct hinic_dev *nic_dev = netdev_priv(netdev);
-	enum hinic_port_link_state link_state;
-	struct hinic_port_cap port_cap;
-	int err;
-
-	ethtool_link_ksettings_zero_link_mode(link_ksettings, advertising);
-	ethtool_link_ksettings_add_link_mode(link_ksettings, supported,
-					     Autoneg);
-
-	link_ksettings->base.speed   = SPEED_UNKNOWN;
-	link_ksettings->base.autoneg = AUTONEG_DISABLE;
-	link_ksettings->base.duplex  = DUPLEX_UNKNOWN;
-
-	err = hinic_port_get_cap(nic_dev, &port_cap);
-	if (err) {
-		netif_err(nic_dev, drv, netdev,
-			  "Failed to get port capabilities\n");
-		return err;
-	}
-
-	err = hinic_port_link_state(nic_dev, &link_state);
-	if (err) {
-		netif_err(nic_dev, drv, netdev,
-			  "Failed to get port link state\n");
-		return err;
-	}
-
-	if (link_state != HINIC_LINK_STATE_UP) {
-		netif_info(nic_dev, drv, netdev, "No link\n");
-		return err;
-	}
-
-	set_link_speed(link_ksettings, port_cap.speed);
-
-	if (!!(port_cap.autoneg_cap & HINIC_AUTONEG_SUPPORTED))
-		ethtool_link_ksettings_add_link_mode(link_ksettings,
-						     advertising, Autoneg);
-
-	if (port_cap.autoneg_state == HINIC_AUTONEG_ACTIVE)
-		link_ksettings->base.autoneg = AUTONEG_ENABLE;
-
-	link_ksettings->base.duplex = (port_cap.duplex == HINIC_DUPLEX_FULL) ?
-				       DUPLEX_FULL : DUPLEX_HALF;
-	return 0;
-}
-
-static void hinic_get_drvinfo(struct net_device *netdev,
-			      struct ethtool_drvinfo *info)
-{
-	struct hinic_dev *nic_dev = netdev_priv(netdev);
-	struct hinic_hwdev *hwdev = nic_dev->hwdev;
-	struct hinic_hwif *hwif = hwdev->hwif;
-
-	strlcpy(info->driver, HINIC_DRV_NAME, sizeof(info->driver));
-	strlcpy(info->bus_info, pci_name(hwif->pdev), sizeof(info->bus_info));
-}
-
-static void hinic_get_ringparam(struct net_device *netdev,
-				struct ethtool_ringparam *ring)
-{
-	ring->rx_max_pending = HINIC_RQ_DEPTH;
-	ring->tx_max_pending = HINIC_SQ_DEPTH;
-	ring->rx_pending = HINIC_RQ_DEPTH;
-	ring->tx_pending = HINIC_SQ_DEPTH;
-}
-
-static void hinic_get_channels(struct net_device *netdev,
-			       struct ethtool_channels *channels)
-{
-	struct hinic_dev *nic_dev = netdev_priv(netdev);
-	struct hinic_hwdev *hwdev = nic_dev->hwdev;
-
-	channels->max_rx = hwdev->nic_cap.max_qps;
-	channels->max_tx = hwdev->nic_cap.max_qps;
-	channels->max_other    = 0;
-	channels->max_combined = 0;
-	channels->rx_count = hinic_hwdev_num_qps(hwdev);
-	channels->tx_count = hinic_hwdev_num_qps(hwdev);
-	channels->other_count    = 0;
-	channels->combined_count = 0;
-}
-
-static const struct ethtool_ops hinic_ethtool_ops = {
-	.get_link_ksettings = hinic_get_link_ksettings,
-	.get_drvinfo = hinic_get_drvinfo,
-	.get_link = ethtool_op_get_link,
-	.get_ringparam = hinic_get_ringparam,
-	.get_channels = hinic_get_channels,
-};
-
 static void update_rx_stats(struct hinic_dev *nic_dev, struct hinic_rxq *rxq)
 {
 	struct hinic_rxq_stats *nic_rx_stats = &nic_dev->rx_stats;
@@ -224,6 +83,9 @@ static void update_rx_stats(struct hinic_dev *nic_dev, struct hinic_rxq *rxq)
 	u64_stats_update_begin(&nic_rx_stats->syncp);
 	nic_rx_stats->bytes += rx_stats.bytes;
 	nic_rx_stats->pkts  += rx_stats.pkts;
+	nic_rx_stats->errors += rx_stats.errors;
+	nic_rx_stats->csum_errors += rx_stats.csum_errors;
+	nic_rx_stats->other_errors += rx_stats.other_errors;
 	u64_stats_update_end(&nic_rx_stats->syncp);
 
 	hinic_rxq_clean_stats(rxq);
@@ -244,6 +106,7 @@ static void update_tx_stats(struct hinic_dev *nic_dev, struct hinic_txq *txq)
 	nic_tx_stats->tx_busy += tx_stats.tx_busy;
 	nic_tx_stats->tx_wake += tx_stats.tx_wake;
 	nic_tx_stats->tx_dropped += tx_stats.tx_dropped;
+	nic_tx_stats->big_frags_pkts += tx_stats.big_frags_pkts;
 	u64_stats_update_end(&nic_tx_stats->syncp);
 
 	hinic_txq_clean_stats(txq);
@@ -391,11 +254,118 @@ static int hinic_configure_max_qnum(struct hinic_dev *nic_dev)
 	return 0;
 }
 
+static int hinic_rss_init(struct hinic_dev *nic_dev)
+{
+	u32 indir_tbl[HINIC_RSS_INDIR_SIZE] = { 0 };
+	u8 default_rss_key[HINIC_RSS_KEY_SIZE];
+	u8 tmpl_idx = nic_dev->rss_tmpl_idx;
+	int err, i;
+
+	netdev_rss_key_fill(default_rss_key, sizeof(default_rss_key));
+	for (i = 0; i < HINIC_RSS_INDIR_SIZE; i++)
+		indir_tbl[i] = ethtool_rxfh_indir_default(i, nic_dev->num_rss);
+
+	err = hinic_rss_set_template_tbl(nic_dev, tmpl_idx, default_rss_key);
+	if (err)
+		return err;
+
+	err = hinic_rss_set_indir_tbl(nic_dev, tmpl_idx, indir_tbl);
+	if (err)
+		return err;
+
+	err = hinic_set_rss_type(nic_dev, tmpl_idx, nic_dev->rss_type);
+	if (err)
+		return err;
+
+	err = hinic_rss_set_hash_engine(nic_dev, tmpl_idx,
+					nic_dev->rss_hash_engine);
+	if (err)
+		return err;
+
+	err = hinic_rss_cfg(nic_dev, 1, tmpl_idx);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static void hinic_rss_deinit(struct hinic_dev *nic_dev)
+{
+	hinic_rss_cfg(nic_dev, 0, nic_dev->rss_tmpl_idx);
+}
+
+static void hinic_init_rss_parameters(struct hinic_dev *nic_dev)
+{
+	nic_dev->rss_hash_engine = HINIC_RSS_HASH_ENGINE_TYPE_XOR;
+	nic_dev->rss_type.tcp_ipv6_ext = 1;
+	nic_dev->rss_type.ipv6_ext = 1;
+	nic_dev->rss_type.tcp_ipv6 = 1;
+	nic_dev->rss_type.ipv6 = 1;
+	nic_dev->rss_type.tcp_ipv4 = 1;
+	nic_dev->rss_type.ipv4 = 1;
+	nic_dev->rss_type.udp_ipv6 = 1;
+	nic_dev->rss_type.udp_ipv4 = 1;
+}
+
+static void hinic_enable_rss(struct hinic_dev *nic_dev)
+{
+	struct net_device *netdev = nic_dev->netdev;
+	struct hinic_hwdev *hwdev = nic_dev->hwdev;
+	struct hinic_hwif *hwif = hwdev->hwif;
+	struct pci_dev *pdev = hwif->pdev;
+	int i, node, err = 0;
+	u16 num_cpus = 0;
+
+	nic_dev->max_qps = hinic_hwdev_max_num_qps(hwdev);
+	if (nic_dev->max_qps <= 1) {
+		nic_dev->flags &= ~HINIC_RSS_ENABLE;
+		nic_dev->rss_limit = nic_dev->max_qps;
+		nic_dev->num_qps = nic_dev->max_qps;
+		nic_dev->num_rss = nic_dev->max_qps;
+
+		return;
+	}
+
+	err = hinic_rss_template_alloc(nic_dev, &nic_dev->rss_tmpl_idx);
+	if (err) {
+		netif_err(nic_dev, drv, netdev,
+			  "Failed to alloc tmpl_idx for rss, can't enable rss for this function\n");
+		nic_dev->flags &= ~HINIC_RSS_ENABLE;
+		nic_dev->max_qps = 1;
+		nic_dev->rss_limit = nic_dev->max_qps;
+		nic_dev->num_qps = nic_dev->max_qps;
+		nic_dev->num_rss = nic_dev->max_qps;
+
+		return;
+	}
+
+	nic_dev->flags |= HINIC_RSS_ENABLE;
+
+	for (i = 0; i < num_online_cpus(); i++) {
+		node = cpu_to_node(i);
+		if (node == dev_to_node(&pdev->dev))
+			num_cpus++;
+	}
+
+	if (!num_cpus)
+		num_cpus = num_online_cpus();
+
+	nic_dev->num_qps = min_t(u16, nic_dev->max_qps, num_cpus);
+
+	nic_dev->rss_limit = nic_dev->num_qps;
+	nic_dev->num_rss = nic_dev->num_qps;
+
+	hinic_init_rss_parameters(nic_dev);
+	err = hinic_rss_init(nic_dev);
+	if (err)
+		netif_err(nic_dev, drv, netdev, "Failed to init rss\n");
+}
+
 static int hinic_open(struct net_device *netdev)
 {
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	enum hinic_port_link_state link_state;
-	int err, ret, num_qps;
+	int err, ret;
 
 	if (!(nic_dev->flags & HINIC_INTF_UP)) {
 		err = hinic_hwdev_ifup(nic_dev->hwdev);
@@ -420,6 +390,8 @@ static int hinic_open(struct net_device *netdev)
 		goto err_create_rxqs;
 	}
 
+	hinic_enable_rss(nic_dev);
+
 	err = hinic_configure_max_qnum(nic_dev);
 	if (err) {
 		netif_err(nic_dev, drv, nic_dev->netdev,
@@ -427,9 +399,8 @@ static int hinic_open(struct net_device *netdev)
 		goto err_port_state;
 	}
 
-	num_qps = hinic_hwdev_num_qps(nic_dev->hwdev);
-	netif_set_real_num_tx_queues(netdev, num_qps);
-	netif_set_real_num_rx_queues(netdev, num_qps);
+	netif_set_real_num_tx_queues(netdev, nic_dev->num_qps);
+	netif_set_real_num_rx_queues(netdev, nic_dev->num_qps);
 
 	err = hinic_port_set_state(nic_dev, HINIC_PORT_ENABLE);
 	if (err) {
@@ -485,9 +456,12 @@ err_func_port_state:
 	if (ret)
 		netif_warn(nic_dev, drv, netdev,
 			   "Failed to revert port state\n");
-
 err_port_state:
 	free_rxqs(nic_dev);
+	if (nic_dev->flags & HINIC_RSS_ENABLE) {
+		hinic_rss_deinit(nic_dev);
+		hinic_rss_template_free(nic_dev, nic_dev->rss_tmpl_idx);
+	}
 
 err_create_rxqs:
 	free_txqs(nic_dev);
@@ -529,6 +503,11 @@ static int hinic_close(struct net_device *netdev)
 		netif_err(nic_dev, drv, netdev, "Failed to set port state\n");
 		nic_dev->flags |= (flags & HINIC_INTF_UP);
 		return err;
+	}
+
+	if (nic_dev->flags & HINIC_RSS_ENABLE) {
+		hinic_rss_deinit(nic_dev);
+		hinic_rss_template_free(nic_dev, nic_dev->rss_tmpl_idx);
 	}
 
 	free_rxqs(nic_dev);
@@ -807,6 +786,7 @@ static void hinic_get_stats64(struct net_device *netdev,
 
 	stats->rx_bytes   = nic_rx_stats->bytes;
 	stats->rx_packets = nic_rx_stats->pkts;
+	stats->rx_errors  = nic_rx_stats->errors;
 
 	stats->tx_bytes   = nic_tx_stats->bytes;
 	stats->tx_packets = nic_tx_stats->pkts;
@@ -976,8 +956,8 @@ static int nic_dev_init(struct pci_dev *pdev)
 		goto err_alloc_etherdev;
 	}
 
+	hinic_set_ethtool_ops(netdev);
 	netdev->netdev_ops = &hinic_netdev_ops;
-	netdev->ethtool_ops = &hinic_ethtool_ops;
 	netdev->max_mtu = ETH_MAX_MTU;
 
 	nic_dev = netdev_priv(netdev);

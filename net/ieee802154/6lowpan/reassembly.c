@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*	6LoWPAN fragment reassembly
- *
  *
  *	Authors:
  *	Alexander Aring		<aar@pengutronix.de>
  *
  *	Based on: net/ipv6/reassembly.c
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "6LoWPAN: " fmt
@@ -464,6 +459,14 @@ static int __net_init lowpan_frags_init_net(struct net *net)
 	return res;
 }
 
+static void __net_exit lowpan_frags_pre_exit_net(struct net *net)
+{
+	struct netns_ieee802154_lowpan *ieee802154_lowpan =
+		net_ieee802154_lowpan(net);
+
+	fqdir_pre_exit(ieee802154_lowpan->fqdir);
+}
+
 static void __net_exit lowpan_frags_exit_net(struct net *net)
 {
 	struct netns_ieee802154_lowpan *ieee802154_lowpan =
@@ -474,8 +477,9 @@ static void __net_exit lowpan_frags_exit_net(struct net *net)
 }
 
 static struct pernet_operations lowpan_frags_ops = {
-	.init = lowpan_frags_init_net,
-	.exit = lowpan_frags_exit_net,
+	.init		= lowpan_frags_init_net,
+	.pre_exit	= lowpan_frags_pre_exit_net,
+	.exit		= lowpan_frags_exit_net,
 };
 
 static u32 lowpan_key_hashfn(const void *data, u32 len, u32 seed)

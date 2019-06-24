@@ -47,7 +47,7 @@ int enable_all_controllers(char *cgroup_path)
 	char buf[PATH_MAX];
 	char *c, *c2;
 	int fd, cfd;
-	size_t len;
+	ssize_t len;
 
 	snprintf(path, sizeof(path), "%s/cgroup.controllers", cgroup_path);
 	fd = open(path, O_RDONLY);

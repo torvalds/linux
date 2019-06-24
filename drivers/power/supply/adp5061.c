@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADP5061 I2C Programmable Linear Battery Charger
  *
  * Copyright 2018 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/init.h>

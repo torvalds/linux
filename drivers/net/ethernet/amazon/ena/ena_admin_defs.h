@@ -64,6 +64,7 @@ enum ena_admin_aq_feature_id {
 	ENA_ADMIN_LLQ                               = 4,
 	ENA_ADMIN_EXTRA_PROPERTIES_STRINGS          = 5,
 	ENA_ADMIN_EXTRA_PROPERTIES_FLAGS            = 6,
+	ENA_ADMIN_MAX_QUEUES_EXT                    = 7,
 	ENA_ADMIN_RSS_HASH_FUNCTION                 = 10,
 	ENA_ADMIN_STATELESS_OFFLOAD_CONFIG          = 11,
 	ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG      = 12,
@@ -425,7 +426,13 @@ struct ena_admin_get_set_feature_common_desc {
 	/* as appears in ena_admin_aq_feature_id */
 	u8 feature_id;
 
-	u16 reserved16;
+	/* The driver specifies the max feature version it supports and the
+	 * device responds with the currently supported feature version. The
+	 * field is zero based
+	 */
+	u8 feature_version;
+
+	u8 reserved8;
 };
 
 struct ena_admin_device_attr_feature_desc {
@@ -533,6 +540,34 @@ struct ena_admin_feature_llq_desc {
 	 * Set to 0 when there is no such limit.
 	 */
 	u32 max_tx_burst_size;
+};
+
+struct ena_admin_queue_ext_feature_fields {
+	u32 max_tx_sq_num;
+
+	u32 max_tx_cq_num;
+
+	u32 max_rx_sq_num;
+
+	u32 max_rx_cq_num;
+
+	u32 max_tx_sq_depth;
+
+	u32 max_tx_cq_depth;
+
+	u32 max_rx_sq_depth;
+
+	u32 max_rx_cq_depth;
+
+	u32 max_tx_header_size;
+
+	/* Maximum Descriptors number, including meta descriptor, allowed for
+	 * a single Tx packet
+	 */
+	u16 max_per_packet_tx_descs;
+
+	/* Maximum Descriptors number allowed for a single Rx packet */
+	u16 max_per_packet_rx_descs;
 };
 
 struct ena_admin_queue_feature_desc {
@@ -849,6 +884,19 @@ struct ena_admin_get_feat_cmd {
 	u32 raw[11];
 };
 
+struct ena_admin_queue_ext_feature_desc {
+	/* version */
+	u8 version;
+
+	u8 reserved1[3];
+
+	union {
+		struct ena_admin_queue_ext_feature_fields max_queue_ext;
+
+		u32 raw[10];
+	};
+};
+
 struct ena_admin_get_feat_resp {
 	struct ena_admin_acq_common_desc acq_common_desc;
 
@@ -860,6 +908,8 @@ struct ena_admin_get_feat_resp {
 		struct ena_admin_feature_llq_desc llq;
 
 		struct ena_admin_queue_feature_desc max_queue;
+
+		struct ena_admin_queue_ext_feature_desc max_queue_ext;
 
 		struct ena_admin_feature_aenq_desc aenq;
 
@@ -929,7 +979,9 @@ struct ena_admin_aenq_common_desc {
 
 	u16 syndrom;
 
-	/* 0 : phase */
+	/* 0 : phase
+	 * 7:1 : reserved - MBZ
+	 */
 	u8 flags;
 
 	u8 reserved1[3];

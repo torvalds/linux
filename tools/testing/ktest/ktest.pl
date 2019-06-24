@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Copyright 2010 - Steven Rostedt <srostedt@redhat.com>, Red Hat Inc.
-# Licensed under the terms of the GNU GPL License version 2
 #
 
 use strict;

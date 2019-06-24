@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Support for viafb GPIO ports.
  *
  * Copyright 2009 Jonathan Corbet <corbet@lwn.net>
- * Distributable under version 2 of the GNU General Public License.
  */
 
 #ifndef __VIA_GPIO_H__

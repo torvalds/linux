@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License
- *   as published by the Free Software Foundation; either version
- *   2 of the License, or (at your option) any later version.
  *
  *   Robert Olsson <robert.olsson@its.uu.se> Uppsala Universitet
  *     & Swedish University of Agricultural Sciences.
@@ -18,13 +15,10 @@
  * Stefan Nilsson and Matti Tikkanen. Algorithmica, 33(1):19-33, 2002.
  * http://www.csc.kth.se/~snilsson/software/dyntrie2/
  *
- *
  * IP-address lookup using LC-tries. Stefan Nilsson and Gunnar Karlsson
  * IEEE Journal on Selected Areas in Communications, 17(6):1083-1092, June 1999
  *
- *
  * Code from fib_hash has been reused which includes the following header:
- *
  *
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -32,13 +26,7 @@
  *
  *		IPv4 FIB: lookup engine and maintenance routines.
  *
- *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Substantial contributions to this work comes from:
  *
@@ -350,12 +338,18 @@ static struct tnode *tnode_alloc(int bits)
 
 static inline void empty_child_inc(struct key_vector *n)
 {
-	++tn_info(n)->empty_children ? : ++tn_info(n)->full_children;
+	tn_info(n)->empty_children++;
+
+	if (!tn_info(n)->empty_children)
+		tn_info(n)->full_children++;
 }
 
 static inline void empty_child_dec(struct key_vector *n)
 {
-	tn_info(n)->empty_children-- ? : tn_info(n)->full_children--;
+	if (!tn_info(n)->empty_children)
+		tn_info(n)->full_children--;
+
+	tn_info(n)->empty_children--;
 }
 
 static struct key_vector *leaf_new(t_key key, struct fib_alias *fa)
@@ -2096,21 +2090,25 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 {
 	unsigned int flags = NLM_F_MULTI;
 	__be32 xkey = htonl(l->key);
+	int i, s_i, i_fa, s_fa, err;
 	struct fib_alias *fa;
-	int i, s_i;
 
-	if (filter->filter_set)
+	if (filter->filter_set ||
+	    !filter->dump_exceptions || !filter->dump_routes)
 		flags |= NLM_F_DUMP_FILTERED;
 
 	s_i = cb->args[4];
+	s_fa = cb->args[5];
 	i = 0;
 
 	/* rcu_read_lock is hold by caller */
 	hlist_for_each_entry_rcu(fa, &l->leaf, fa_list) {
-		int err;
+		struct fib_info *fi = fa->fa_info;
 
 		if (i < s_i)
 			goto next;
+
+		i_fa = 0;
 
 		if (tb->tb_id != fa->tb_id)
 			goto next;
@@ -2120,29 +2118,43 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 				goto next;
 
 			if ((filter->protocol &&
-			     fa->fa_info->fib_protocol != filter->protocol))
+			     fi->fib_protocol != filter->protocol))
 				goto next;
 
 			if (filter->dev &&
-			    !fib_info_nh_uses_dev(fa->fa_info, filter->dev))
+			    !fib_info_nh_uses_dev(fi, filter->dev))
 				goto next;
 		}
 
-		err = fib_dump_info(skb, NETLINK_CB(cb->skb).portid,
-				    cb->nlh->nlmsg_seq, RTM_NEWROUTE,
-				    tb->tb_id, fa->fa_type,
-				    xkey, KEYLENGTH - fa->fa_slen,
-				    fa->fa_tos, fa->fa_info, flags);
-		if (err < 0) {
-			cb->args[4] = i;
-			return err;
+		if (filter->dump_routes && !s_fa) {
+			err = fib_dump_info(skb, NETLINK_CB(cb->skb).portid,
+					    cb->nlh->nlmsg_seq, RTM_NEWROUTE,
+					    tb->tb_id, fa->fa_type,
+					    xkey, KEYLENGTH - fa->fa_slen,
+					    fa->fa_tos, fi, flags);
+			if (err < 0)
+				goto stop;
+			i_fa++;
 		}
+
+		if (filter->dump_exceptions) {
+			err = fib_dump_info_fnhe(skb, cb, tb->tb_id, fi,
+						 &i_fa, s_fa);
+			if (err < 0)
+				goto stop;
+		}
+
 next:
 		i++;
 	}
 
 	cb->args[4] = i;
 	return skb->len;
+
+stop:
+	cb->args[4] = i;
+	cb->args[5] = i_fa;
+	return err;
 }
 
 /* rcu_read_lock needs to be hold by caller from readside */

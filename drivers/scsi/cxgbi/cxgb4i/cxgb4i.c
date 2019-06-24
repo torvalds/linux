@@ -2070,7 +2070,7 @@ static int cxgb4i_ddp_init(struct cxgbi_device *cdev)
 	struct net_device *ndev = cdev->ports[0];
 	struct cxgbi_tag_format tformat;
 	unsigned int ppmax;
-	int i;
+	int i, err;
 
 	if (!lldi->vr->iscsi.size) {
 		pr_warn("%s, iscsi NOT enabled, check config!\n", ndev->name);
@@ -2086,8 +2086,17 @@ static int cxgb4i_ddp_init(struct cxgbi_device *cdev)
 					 & 0xF;
 	cxgbi_tagmask_check(lldi->iscsi_tagmask, &tformat);
 
-	cxgbi_ddp_ppm_setup(lldi->iscsi_ppm, cdev, &tformat, ppmax,
-			    lldi->iscsi_llimit, lldi->vr->iscsi.start, 2);
+	pr_info("iscsi_edram.start 0x%x iscsi_edram.size 0x%x",
+		lldi->vr->ppod_edram.start, lldi->vr->ppod_edram.size);
+
+	err = cxgbi_ddp_ppm_setup(lldi->iscsi_ppm, cdev, &tformat,
+				  lldi->vr->iscsi.size, lldi->iscsi_llimit,
+				  lldi->vr->iscsi.start, 2,
+				  lldi->vr->ppod_edram.start,
+				  lldi->vr->ppod_edram.size);
+
+	if (err < 0)
+		return err;
 
 	cdev->csk_ddp_setup_digest = ddp_setup_conn_digest;
 	cdev->csk_ddp_setup_pgidx = ddp_setup_conn_pgidx;
@@ -2141,7 +2150,7 @@ static void *t4_uld_add(const struct cxgb4_lld_info *lldi)
 
 	rc = cxgb4i_ddp_init(cdev);
 	if (rc) {
-		pr_info("t4 0x%p ddp init failed.\n", cdev);
+		pr_info("t4 0x%p ddp init failed %d.\n", cdev, rc);
 		goto err_out;
 	}
 	rc = cxgb4i_ofld_init(cdev);

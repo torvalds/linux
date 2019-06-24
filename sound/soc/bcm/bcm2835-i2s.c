@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ALSA SoC I2S Audio Layer for Broadcom BCM2835 SoC
  *
@@ -20,15 +21,6 @@
  *	Freescale SSI ALSA SoC Digital Audio Interface (DAI) driver
  *	Author: Timur Tabi <timur@freescale.com>
  *	Copyright 2007-2010 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/bitops.h>

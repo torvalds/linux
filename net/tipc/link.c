@@ -249,9 +249,9 @@ static void tipc_link_build_bc_init_msg(struct tipc_link *l,
 					struct sk_buff_head *xmitq);
 static bool tipc_link_release_pkts(struct tipc_link *l, u16 to);
 static u16 tipc_build_gap_ack_blks(struct tipc_link *l, void *data);
-static void tipc_link_advance_transmq(struct tipc_link *l, u16 acked, u16 gap,
-				      struct tipc_gap_ack_blks *ga,
-				      struct sk_buff_head *xmitq);
+static int tipc_link_advance_transmq(struct tipc_link *l, u16 acked, u16 gap,
+				     struct tipc_gap_ack_blks *ga,
+				     struct sk_buff_head *xmitq);
 
 /*
  *  Simple non-static link routines (i.e. referenced outside this file)
@@ -1044,32 +1044,69 @@ static void tipc_link_advance_backlog(struct tipc_link *l,
 	l->snd_nxt = seqno;
 }
 
-static void link_retransmit_failure(struct tipc_link *l, struct sk_buff *skb)
+/**
+ * link_retransmit_failure() - Detect repeated retransmit failures
+ * @l: tipc link sender
+ * @r: tipc link receiver (= l in case of unicast)
+ * @from: seqno of the 1st packet in retransmit request
+ * @rc: returned code
+ *
+ * Return: true if the repeated retransmit failures happens, otherwise
+ * false
+ */
+static bool link_retransmit_failure(struct tipc_link *l, struct tipc_link *r,
+				    u16 from, int *rc)
 {
-	struct tipc_msg *hdr = buf_msg(skb);
+	struct sk_buff *skb = skb_peek(&l->transmq);
+	struct tipc_msg *hdr;
 
-	pr_warn("Retransmission failure on link <%s>\n", l->name);
-	link_print(l, "State of link ");
-	pr_info("Failed msg: usr %u, typ %u, len %u, err %u\n",
-		msg_user(hdr), msg_type(hdr), msg_size(hdr), msg_errcode(hdr));
-	pr_info("sqno %u, prev: %x, src: %x\n",
-		msg_seqno(hdr), msg_prevnode(hdr), msg_orignode(hdr));
+	if (!skb)
+		return false;
+	hdr = buf_msg(skb);
+
+	/* Detect repeated retransmit failures on same packet */
+	if (r->prev_from != from) {
+		r->prev_from = from;
+		r->stale_limit = jiffies + msecs_to_jiffies(r->tolerance);
+		r->stale_cnt = 0;
+	} else if (++r->stale_cnt > 99 && time_after(jiffies, r->stale_limit)) {
+		pr_warn("Retransmission failure on link <%s>\n", l->name);
+		link_print(l, "State of link ");
+		pr_info("Failed msg: usr %u, typ %u, len %u, err %u\n",
+			msg_user(hdr), msg_type(hdr), msg_size(hdr),
+			msg_errcode(hdr));
+		pr_info("sqno %u, prev: %x, src: %x\n",
+			msg_seqno(hdr), msg_prevnode(hdr), msg_orignode(hdr));
+
+		trace_tipc_list_dump(&l->transmq, true, "retrans failure!");
+		trace_tipc_link_dump(l, TIPC_DUMP_NONE, "retrans failure!");
+		trace_tipc_link_dump(r, TIPC_DUMP_NONE, "retrans failure!");
+
+		if (link_is_bc_sndlink(l))
+			*rc = TIPC_LINK_DOWN_EVT;
+
+		*rc = tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
+		return true;
+	}
+
+	return false;
 }
 
-/* tipc_link_retrans() - retransmit one or more packets
+/* tipc_link_bc_retrans() - retransmit zero or more packets
  * @l: the link to transmit on
  * @r: the receiving link ordering the retransmit. Same as l if unicast
  * @from: retransmit from (inclusive) this sequence number
  * @to: retransmit to (inclusive) this sequence number
  * xmitq: queue for accumulating the retransmitted packets
  */
-static int tipc_link_retrans(struct tipc_link *l, struct tipc_link *r,
-			     u16 from, u16 to, struct sk_buff_head *xmitq)
+static int tipc_link_bc_retrans(struct tipc_link *l, struct tipc_link *r,
+				u16 from, u16 to, struct sk_buff_head *xmitq)
 {
 	struct sk_buff *_skb, *skb = skb_peek(&l->transmq);
 	u16 bc_ack = l->bc_rcvlink->rcv_nxt - 1;
 	u16 ack = l->rcv_nxt - 1;
 	struct tipc_msg *hdr;
+	int rc = 0;
 
 	if (!skb)
 		return 0;
@@ -1077,20 +1114,9 @@ static int tipc_link_retrans(struct tipc_link *l, struct tipc_link *r,
 		return 0;
 
 	trace_tipc_link_retrans(r, from, to, &l->transmq);
-	/* Detect repeated retransmit failures on same packet */
-	if (r->prev_from != from) {
-		r->prev_from = from;
-		r->stale_limit = jiffies + msecs_to_jiffies(r->tolerance);
-		r->stale_cnt = 0;
-	} else if (++r->stale_cnt > 99 && time_after(jiffies, r->stale_limit)) {
-		link_retransmit_failure(l, skb);
-		trace_tipc_list_dump(&l->transmq, true, "retrans failure!");
-		trace_tipc_link_dump(l, TIPC_DUMP_NONE, "retrans failure!");
-		trace_tipc_link_dump(r, TIPC_DUMP_NONE, "retrans failure!");
-		if (link_is_bc_sndlink(l))
-			return TIPC_LINK_DOWN_EVT;
-		return tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
-	}
+
+	if (link_retransmit_failure(l, r, from, &rc))
+		return rc;
 
 	skb_queue_walk(&l->transmq, skb) {
 		hdr = buf_msg(skb);
@@ -1324,17 +1350,23 @@ exit:
  * @gap: # of gap packets
  * @ga: buffer pointer to Gap ACK blocks from peer
  * @xmitq: queue for accumulating the retransmitted packets if any
+ *
+ * In case of a repeated retransmit failures, the call will return shortly
+ * with a returned code (e.g. TIPC_LINK_DOWN_EVT)
  */
-static void tipc_link_advance_transmq(struct tipc_link *l, u16 acked, u16 gap,
-				      struct tipc_gap_ack_blks *ga,
-				      struct sk_buff_head *xmitq)
+static int tipc_link_advance_transmq(struct tipc_link *l, u16 acked, u16 gap,
+				     struct tipc_gap_ack_blks *ga,
+				     struct sk_buff_head *xmitq)
 {
 	struct sk_buff *skb, *_skb, *tmp;
 	struct tipc_msg *hdr;
 	u16 bc_ack = l->bc_rcvlink->rcv_nxt - 1;
 	u16 ack = l->rcv_nxt - 1;
-	u16 seqno;
-	u16 n = 0;
+	u16 seqno, n = 0;
+	int rc = 0;
+
+	if (gap && link_retransmit_failure(l, l, acked + 1, &rc))
+		return rc;
 
 	skb_queue_walk_safe(&l->transmq, skb, tmp) {
 		seqno = buf_seqno(skb);
@@ -1369,6 +1401,8 @@ next_gap_ack:
 			goto next_gap_ack;
 		}
 	}
+
+	return 0;
 }
 
 /* tipc_link_build_state_msg: prepare link state message for transmission
@@ -1728,7 +1762,6 @@ void tipc_link_failover_prepare(struct tipc_link *l, struct tipc_link *tnl,
 	 * node has entered SELF_DOWN_PEER_LEAVING and both peer nodes
 	 * would have to start over from scratch instead.
 	 */
-	WARN_ON(l && tipc_link_is_up(l));
 	tnl->drop_point = 1;
 	tnl->failover_reasm_skb = NULL;
 
@@ -1919,7 +1952,7 @@ static int tipc_link_proto_rcv(struct tipc_link *l, struct sk_buff *skb,
 			tipc_link_build_proto_msg(l, STATE_MSG, 0, reply,
 						  rcvgap, 0, 0, xmitq);
 
-		tipc_link_advance_transmq(l, ack, gap, ga, xmitq);
+		rc |= tipc_link_advance_transmq(l, ack, gap, ga, xmitq);
 
 		/* If NACK, retransmit will now start at right position */
 		if (gap)
@@ -2036,7 +2069,7 @@ int tipc_link_bc_sync_rcv(struct tipc_link *l, struct tipc_msg *hdr,
 	if (more(peers_snd_nxt, l->rcv_nxt + l->window))
 		return rc;
 
-	rc = tipc_link_retrans(snd_l, l, from, to, xmitq);
+	rc = tipc_link_bc_retrans(snd_l, l, from, to, xmitq);
 
 	l->snd_nxt = peers_snd_nxt;
 	if (link_bc_rcv_gap(l))
@@ -2132,7 +2165,7 @@ int tipc_link_bc_nack_rcv(struct tipc_link *l, struct sk_buff *skb,
 
 	if (dnode == tipc_own_addr(l->net)) {
 		tipc_link_bc_ack_rcv(l, acked, xmitq);
-		rc = tipc_link_retrans(l->bc_sndlink, l, from, to, xmitq);
+		rc = tipc_link_bc_retrans(l->bc_sndlink, l, from, to, xmitq);
 		l->stats.recv_nacks++;
 		return rc;
 	}

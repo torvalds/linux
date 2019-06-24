@@ -366,13 +366,19 @@ static int cxgb4_mac_sync(struct net_device *netdev, const u8 *mac_addr)
 	int ret;
 	u64 mhash = 0;
 	u64 uhash = 0;
+	/* idx stores the index of allocated filters,
+	 * its size should be modified based on the number of
+	 * MAC addresses that we allocate filters for
+	 */
+
+	u16 idx[1] = {};
 	bool free = false;
 	bool ucast = is_unicast_ether_addr(mac_addr);
 	const u8 *maclist[1] = {mac_addr};
 	struct hash_mac_addr *new_entry;
 
-	ret = t4_alloc_mac_filt(adap, adap->mbox, pi->viid, free, 1, maclist,
-				NULL, ucast ? &uhash : &mhash, false);
+	ret = cxgb4_alloc_mac_filt(adap, pi->viid, free, 1, maclist,
+				   idx, ucast ? &uhash : &mhash, false);
 	if (ret < 0)
 		goto out;
 	/* if hash != 0, then add the addr to hash addr list
@@ -410,7 +416,7 @@ static int cxgb4_mac_unsync(struct net_device *netdev, const u8 *mac_addr)
 		}
 	}
 
-	ret = t4_free_mac_filt(adap, adap->mbox, pi->viid, 1, maclist, false);
+	ret = cxgb4_free_mac_filt(adap, pi->viid, 1, maclist, false);
 	return ret < 0 ? -EINVAL : 0;
 }
 
@@ -449,9 +455,9 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
  *	Addresses are programmed to hash region, if tcam runs out of entries.
  *
  */
-static int cxgb4_change_mac(struct port_info *pi, unsigned int viid,
-			    int *tcam_idx, const u8 *addr, bool persist,
-			    u8 *smt_idx)
+int cxgb4_change_mac(struct port_info *pi, unsigned int viid,
+		     int *tcam_idx, const u8 *addr, bool persist,
+		     u8 *smt_idx)
 {
 	struct adapter *adapter = pi->adapter;
 	struct hash_mac_addr *entry, *new_entry;
@@ -505,8 +511,8 @@ static int link_start(struct net_device *dev)
 	ret = t4_set_rxmode(pi->adapter, mb, pi->viid, dev->mtu, -1, -1, -1,
 			    !!(dev->features & NETIF_F_HW_VLAN_CTAG_RX), true);
 	if (ret == 0)
-		ret = cxgb4_change_mac(pi, pi->viid, &pi->xact_addr_filt,
-				       dev->dev_addr, true, &pi->smt_idx);
+		ret = cxgb4_update_mac_filt(pi, pi->viid, &pi->xact_addr_filt,
+					    dev->dev_addr, true, &pi->smt_idx);
 	if (ret == 0)
 		ret = t4_link_l1cfg(pi->adapter, mb, pi->tx_chan,
 				    &pi->link_cfg);
@@ -702,9 +708,38 @@ static void name_msix_vecs(struct adapter *adap)
 	}
 }
 
+int cxgb4_set_msix_aff(struct adapter *adap, unsigned short vec,
+		       cpumask_var_t *aff_mask, int idx)
+{
+	int rv;
+
+	if (!zalloc_cpumask_var(aff_mask, GFP_KERNEL)) {
+		dev_err(adap->pdev_dev, "alloc_cpumask_var failed\n");
+		return -ENOMEM;
+	}
+
+	cpumask_set_cpu(cpumask_local_spread(idx, dev_to_node(adap->pdev_dev)),
+			*aff_mask);
+
+	rv = irq_set_affinity_hint(vec, *aff_mask);
+	if (rv)
+		dev_warn(adap->pdev_dev,
+			 "irq_set_affinity_hint %u failed %d\n",
+			 vec, rv);
+
+	return 0;
+}
+
+void cxgb4_clear_msix_aff(unsigned short vec, cpumask_var_t aff_mask)
+{
+	irq_set_affinity_hint(vec, NULL);
+	free_cpumask_var(aff_mask);
+}
+
 static int request_msix_queue_irqs(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
+	struct msix_info *minfo;
 	int err, ethqidx;
 	int msi_index = 2;
 
@@ -714,32 +749,77 @@ static int request_msix_queue_irqs(struct adapter *adap)
 		return err;
 
 	for_each_ethrxq(s, ethqidx) {
-		err = request_irq(adap->msix_info[msi_index].vec,
+		minfo = &adap->msix_info[msi_index];
+		err = request_irq(minfo->vec,
 				  t4_sge_intr_msix, 0,
-				  adap->msix_info[msi_index].desc,
+				  minfo->desc,
 				  &s->ethrxq[ethqidx].rspq);
 		if (err)
 			goto unwind;
+
+		cxgb4_set_msix_aff(adap, minfo->vec,
+				   &minfo->aff_mask, ethqidx);
 		msi_index++;
 	}
 	return 0;
 
 unwind:
-	while (--ethqidx >= 0)
-		free_irq(adap->msix_info[--msi_index].vec,
-			 &s->ethrxq[ethqidx].rspq);
+	while (--ethqidx >= 0) {
+		msi_index--;
+		minfo = &adap->msix_info[msi_index];
+		cxgb4_clear_msix_aff(minfo->vec, minfo->aff_mask);
+		free_irq(minfo->vec, &s->ethrxq[ethqidx].rspq);
+	}
 	free_irq(adap->msix_info[1].vec, &s->fw_evtq);
 	return err;
 }
 
 static void free_msix_queue_irqs(struct adapter *adap)
 {
-	int i, msi_index = 2;
 	struct sge *s = &adap->sge;
+	struct msix_info *minfo;
+	int i, msi_index = 2;
 
 	free_irq(adap->msix_info[1].vec, &s->fw_evtq);
-	for_each_ethrxq(s, i)
-		free_irq(adap->msix_info[msi_index++].vec, &s->ethrxq[i].rspq);
+	for_each_ethrxq(s, i) {
+		minfo = &adap->msix_info[msi_index++];
+		cxgb4_clear_msix_aff(minfo->vec, minfo->aff_mask);
+		free_irq(minfo->vec, &s->ethrxq[i].rspq);
+	}
+}
+
+static int setup_ppod_edram(struct adapter *adap)
+{
+	unsigned int param, val;
+	int ret;
+
+	/* Driver sends FW_PARAMS_PARAM_DEV_PPOD_EDRAM read command to check
+	 * if firmware supports ppod edram feature or not. If firmware
+	 * returns 1, then driver can enable this feature by sending
+	 * FW_PARAMS_PARAM_DEV_PPOD_EDRAM write command with value 1 to
+	 * enable ppod edram feature.
+	 */
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PPOD_EDRAM));
+
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+	if (ret < 0) {
+		dev_warn(adap->pdev_dev,
+			 "querying PPOD_EDRAM support failed: %d\n",
+			 ret);
+		return -1;
+	}
+
+	if (val != 1)
+		return -1;
+
+	ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+	if (ret < 0) {
+		dev_err(adap->pdev_dev,
+			"setting PPOD_EDRAM failed: %d\n", ret);
+		return -1;
+	}
+	return 0;
 }
 
 /**
@@ -2946,8 +3026,8 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ret = cxgb4_change_mac(pi, pi->viid, &pi->xact_addr_filt,
-			       addr->sa_data, true, &pi->smt_idx);
+	ret = cxgb4_update_mac_filt(pi, pi->viid, &pi->xact_addr_filt,
+				    addr->sa_data, true, &pi->smt_idx);
 	if (ret < 0)
 		return ret;
 
@@ -3199,8 +3279,6 @@ static void cxgb_del_udp_tunnel(struct net_device *netdev,
 				    i);
 			return;
 		}
-		atomic_dec(&adapter->mps_encap[adapter->rawf_start +
-			   pi->port_id].refcnt);
 	}
 }
 
@@ -3289,7 +3367,6 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 			cxgb_del_udp_tunnel(netdev, ti);
 			return;
 		}
-		atomic_inc(&adapter->mps_encap[ret].refcnt);
 	}
 }
 
@@ -4126,6 +4203,13 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 		dev_err(adapter->pdev_dev,
 			"HMA configuration failed with error %d\n", ret);
 
+	if (is_t6(adapter->params.chip)) {
+		ret = setup_ppod_edram(adapter);
+		if (!ret)
+			dev_info(adapter->pdev_dev, "Successfully enabled "
+				 "ppod edram feature\n");
+	}
+
 	/*
 	 * And finally tell the firmware to initialize itself using the
 	 * parameters from the Configuration File.
@@ -4749,6 +4833,22 @@ static int adap_init0(struct adapter *adap)
 			goto bye;
 		adap->vres.iscsi.start = val[0];
 		adap->vres.iscsi.size = val[1] - val[0] + 1;
+		if (is_t6(adap->params.chip)) {
+			params[0] = FW_PARAM_PFVF(PPOD_EDRAM_START);
+			params[1] = FW_PARAM_PFVF(PPOD_EDRAM_END);
+			ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
+					      params, val);
+			if (!ret) {
+				adap->vres.ppod_edram.start = val[0];
+				adap->vres.ppod_edram.size =
+					val[1] - val[0] + 1;
+
+				dev_info(adap->pdev_dev,
+					 "ppod edram start 0x%x end 0x%x size 0x%x\n",
+					 val[0], val[1],
+					 adap->vres.ppod_edram.size);
+			}
+		}
 		/* LIO target and cxgb4i initiaitor */
 		adap->num_ofld_uld += 2;
 	}
@@ -5349,7 +5449,6 @@ static void free_some_resources(struct adapter *adapter)
 {
 	unsigned int i;
 
-	kvfree(adapter->mps_encap);
 	kvfree(adapter->smt);
 	kvfree(adapter->l2t);
 	kvfree(adapter->srq);
@@ -5875,12 +5974,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->params.offload = 0;
 	}
 
-	adapter->mps_encap = kvcalloc(adapter->params.arch.mps_tcam_size,
-				      sizeof(struct mps_encap_entry),
-				      GFP_KERNEL);
-	if (!adapter->mps_encap)
-		dev_warn(&pdev->dev, "could not allocate MPS Encap entries, continuing\n");
-
 #if IS_ENABLED(CONFIG_IPV6)
 	if (chip_ver <= CHELSIO_T5 &&
 	    (!(t4_read_reg(adapter, LE_DB_CONFIG_A) & ASLIPCOMPEN_F))) {
@@ -5955,6 +6048,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* check for PCI Express bandwidth capabiltites */
 	pcie_print_link_status(pdev);
+
+	cxgb4_init_mps_ref_entries(adapter);
 
 	err = init_rss(adapter);
 	if (err)
@@ -6081,6 +6176,8 @@ static void remove_one(struct pci_dev *pdev)
 		adap_free_hma_mem(adapter);
 
 		disable_interrupts(adapter);
+
+		cxgb4_free_mps_ref_entries(adapter);
 
 		for_each_port(adapter, i)
 			if (adapter->port[i]->reg_state == NETREG_REGISTERED)

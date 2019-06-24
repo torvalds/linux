@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for
  *  Maxim MAX16065/MAX16066 12-Channel/8-Channel, Flash-Configurable
@@ -8,10 +9,6 @@
  *  Monitors with Nonvolatile Fault Registers
  *
  * Copyright (C) 2011 Ericsson AB.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/kernel.h>

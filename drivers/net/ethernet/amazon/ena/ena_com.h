@@ -101,6 +101,8 @@
 
 #define ENA_HW_HINTS_NO_TIMEOUT				0xFFFF
 
+#define ENA_FEATURE_MAX_QUEUE_EXT_VER	1
+
 enum ena_intr_moder_level {
 	ENA_INTR_MODER_LOWEST = 0,
 	ENA_INTR_MODER_LOW,
@@ -389,6 +391,7 @@ struct ena_com_dev {
 
 struct ena_com_dev_get_features_ctx {
 	struct ena_admin_queue_feature_desc max_queues;
+	struct ena_admin_queue_ext_feature_desc max_queue_ext;
 	struct ena_admin_device_attr_feature_desc dev_attr;
 	struct ena_admin_feature_aenq_desc aenq;
 	struct ena_admin_feature_offload_desc offload;

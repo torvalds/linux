@@ -102,13 +102,7 @@ enum hnae3_loop {
 
 enum hnae3_client_type {
 	HNAE3_CLIENT_KNIC,
-	HNAE3_CLIENT_UNIC,
 	HNAE3_CLIENT_ROCE,
-};
-
-enum hnae3_dev_type {
-	HNAE3_DEV_KNIC,
-	HNAE3_DEV_UNIC,
 };
 
 /* mac media type */
@@ -220,7 +214,7 @@ struct hnae3_ae_dev {
 	struct list_head node;
 	u32 flag;
 	u8 override_pci_need_reset; /* fix to stop multiple reset happening */
-	enum hnae3_dev_type dev_type;
+	unsigned long hw_err_reset_req;
 	enum hnae3_reset_type reset_type;
 	void *priv;
 };
@@ -466,6 +460,8 @@ struct hnae3_ae_ops {
 				  u16 vlan, u8 qos, __be16 proto);
 	int (*enable_hw_strip_rxvtag)(struct hnae3_handle *handle, bool enable);
 	void (*reset_event)(struct pci_dev *pdev, struct hnae3_handle *handle);
+	enum hnae3_reset_type (*get_reset_level)(struct hnae3_ae_dev *ae_dev,
+						 unsigned long *addr);
 	void (*set_default_reset_request)(struct hnae3_ae_dev *ae_dev,
 					  enum hnae3_reset_type rst_type);
 	void (*get_channels)(struct hnae3_handle *handle,
@@ -497,7 +493,7 @@ struct hnae3_ae_ops {
 	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
 	int (*add_arfs_entry)(struct hnae3_handle *handle, u16 queue_id,
 			      u16 flow_id, struct flow_keys *fkeys);
-	int (*dbg_run_cmd)(struct hnae3_handle *handle, char *cmd_buf);
+	int (*dbg_run_cmd)(struct hnae3_handle *handle, const char *cmd_buf);
 	pci_ers_result_t (*handle_hw_ras_error)(struct hnae3_ae_dev *ae_dev);
 	bool (*get_hw_reset_stat)(struct hnae3_handle *handle);
 	bool (*ae_dev_resetting)(struct hnae3_handle *handle);
@@ -649,5 +645,6 @@ void hnae3_unregister_client(struct hnae3_client *client);
 int hnae3_register_client(struct hnae3_client *client);
 
 void hnae3_set_client_init_flag(struct hnae3_client *client,
-				struct hnae3_ae_dev *ae_dev, int inited);
+				struct hnae3_ae_dev *ae_dev,
+				unsigned int inited);
 #endif

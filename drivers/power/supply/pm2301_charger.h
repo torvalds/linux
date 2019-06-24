@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) ST-Ericsson SA 2012
  *
  * PM2301 power supply interface
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef PM2301_CHARGER_H

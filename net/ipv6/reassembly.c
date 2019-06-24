@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IPv6 fragment reassembly
  *	Linux INET6 implementation
@@ -6,11 +7,6 @@
  *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	Based on: net/ipv4/ip_fragment.c
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -300,7 +296,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *skb,
 			   skb_network_header_len(skb));
 
 	rcu_read_lock();
-	__IP6_INC_STATS(net, __in6_dev_get(dev), IPSTATS_MIB_REASMOKS);
+	__IP6_INC_STATS(net, __in6_dev_stats_get(dev, skb), IPSTATS_MIB_REASMOKS);
 	rcu_read_unlock();
 	fq->q.rb_fragments = RB_ROOT;
 	fq->q.fragments_tail = NULL;
@@ -314,7 +310,7 @@ out_oom:
 	net_dbg_ratelimited("ip6_frag_reasm: no memory for reassembly\n");
 out_fail:
 	rcu_read_lock();
-	__IP6_INC_STATS(net, __in6_dev_get(dev), IPSTATS_MIB_REASMFAILS);
+	__IP6_INC_STATS(net, __in6_dev_stats_get(dev, skb), IPSTATS_MIB_REASMFAILS);
 	rcu_read_unlock();
 	inet_frag_kill(&fq->q);
 	return -1;
@@ -524,6 +520,11 @@ static int __net_init ipv6_frags_init_net(struct net *net)
 	return res;
 }
 
+static void __net_exit ipv6_frags_pre_exit_net(struct net *net)
+{
+	fqdir_pre_exit(net->ipv6.fqdir);
+}
+
 static void __net_exit ipv6_frags_exit_net(struct net *net)
 {
 	ip6_frags_ns_sysctl_unregister(net);
@@ -531,8 +532,9 @@ static void __net_exit ipv6_frags_exit_net(struct net *net)
 }
 
 static struct pernet_operations ip6_frags_ops = {
-	.init = ipv6_frags_init_net,
-	.exit = ipv6_frags_exit_net,
+	.init		= ipv6_frags_init_net,
+	.pre_exit	= ipv6_frags_pre_exit_net,
+	.exit		= ipv6_frags_exit_net,
 };
 
 static const struct rhashtable_params ip6_rhash_params = {

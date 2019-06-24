@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cs42l51.c
  *
@@ -6,15 +7,6 @@
  * Copyright (c) 2010 Arnaud Patard <apatard@mandriva.com>
  *
  * Based on cs4270.c - Copyright (c) Freescale Semiconductor
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * For now:
  *  - Only I2C is support. Not SPI

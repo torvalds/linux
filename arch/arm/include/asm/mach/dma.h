@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  arch/arm/include/asm/mach/dma.h
  *
  *  Copyright (C) 1998-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  This header file describes the interface between the generic DMA handler
  *  (dma.c) and the architecture-specific DMA backends (dma-*.c)
