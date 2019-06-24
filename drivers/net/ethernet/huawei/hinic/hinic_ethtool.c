@@ -438,6 +438,344 @@ static u32 hinic_get_rxfh_indir_size(struct net_device *netdev)
 	return HINIC_RSS_INDIR_SIZE;
 }
 
+#define ARRAY_LEN(arr) ((int)((int)sizeof(arr) / (int)sizeof(arr[0])))
+
+#define HINIC_NETDEV_STAT(_stat_item) { \
+	.name = #_stat_item, \
+	.size = FIELD_SIZEOF(struct rtnl_link_stats64, _stat_item), \
+	.offset = offsetof(struct rtnl_link_stats64, _stat_item) \
+}
+
+static struct hinic_stats hinic_netdev_stats[] = {
+	HINIC_NETDEV_STAT(rx_packets),
+	HINIC_NETDEV_STAT(tx_packets),
+	HINIC_NETDEV_STAT(rx_bytes),
+	HINIC_NETDEV_STAT(tx_bytes),
+	HINIC_NETDEV_STAT(rx_errors),
+	HINIC_NETDEV_STAT(tx_errors),
+	HINIC_NETDEV_STAT(rx_dropped),
+	HINIC_NETDEV_STAT(tx_dropped),
+	HINIC_NETDEV_STAT(multicast),
+	HINIC_NETDEV_STAT(collisions),
+	HINIC_NETDEV_STAT(rx_length_errors),
+	HINIC_NETDEV_STAT(rx_over_errors),
+	HINIC_NETDEV_STAT(rx_crc_errors),
+	HINIC_NETDEV_STAT(rx_frame_errors),
+	HINIC_NETDEV_STAT(rx_fifo_errors),
+	HINIC_NETDEV_STAT(rx_missed_errors),
+	HINIC_NETDEV_STAT(tx_aborted_errors),
+	HINIC_NETDEV_STAT(tx_carrier_errors),
+	HINIC_NETDEV_STAT(tx_fifo_errors),
+	HINIC_NETDEV_STAT(tx_heartbeat_errors),
+};
+
+#define HINIC_FUNC_STAT(_stat_item) {	\
+	.name = #_stat_item, \
+	.size = FIELD_SIZEOF(struct hinic_vport_stats, _stat_item), \
+	.offset = offsetof(struct hinic_vport_stats, _stat_item) \
+}
+
+static struct hinic_stats hinic_function_stats[] = {
+	HINIC_FUNC_STAT(tx_unicast_pkts_vport),
+	HINIC_FUNC_STAT(tx_unicast_bytes_vport),
+	HINIC_FUNC_STAT(tx_multicast_pkts_vport),
+	HINIC_FUNC_STAT(tx_multicast_bytes_vport),
+	HINIC_FUNC_STAT(tx_broadcast_pkts_vport),
+	HINIC_FUNC_STAT(tx_broadcast_bytes_vport),
+
+	HINIC_FUNC_STAT(rx_unicast_pkts_vport),
+	HINIC_FUNC_STAT(rx_unicast_bytes_vport),
+	HINIC_FUNC_STAT(rx_multicast_pkts_vport),
+	HINIC_FUNC_STAT(rx_multicast_bytes_vport),
+	HINIC_FUNC_STAT(rx_broadcast_pkts_vport),
+	HINIC_FUNC_STAT(rx_broadcast_bytes_vport),
+
+	HINIC_FUNC_STAT(tx_discard_vport),
+	HINIC_FUNC_STAT(rx_discard_vport),
+	HINIC_FUNC_STAT(tx_err_vport),
+	HINIC_FUNC_STAT(rx_err_vport),
+};
+
+#define HINIC_PORT_STAT(_stat_item) { \
+	.name = #_stat_item, \
+	.size = FIELD_SIZEOF(struct hinic_phy_port_stats, _stat_item), \
+	.offset = offsetof(struct hinic_phy_port_stats, _stat_item) \
+}
+
+static struct hinic_stats hinic_port_stats[] = {
+	HINIC_PORT_STAT(mac_rx_total_pkt_num),
+	HINIC_PORT_STAT(mac_rx_total_oct_num),
+	HINIC_PORT_STAT(mac_rx_bad_pkt_num),
+	HINIC_PORT_STAT(mac_rx_bad_oct_num),
+	HINIC_PORT_STAT(mac_rx_good_pkt_num),
+	HINIC_PORT_STAT(mac_rx_good_oct_num),
+	HINIC_PORT_STAT(mac_rx_uni_pkt_num),
+	HINIC_PORT_STAT(mac_rx_multi_pkt_num),
+	HINIC_PORT_STAT(mac_rx_broad_pkt_num),
+	HINIC_PORT_STAT(mac_tx_total_pkt_num),
+	HINIC_PORT_STAT(mac_tx_total_oct_num),
+	HINIC_PORT_STAT(mac_tx_bad_pkt_num),
+	HINIC_PORT_STAT(mac_tx_bad_oct_num),
+	HINIC_PORT_STAT(mac_tx_good_pkt_num),
+	HINIC_PORT_STAT(mac_tx_good_oct_num),
+	HINIC_PORT_STAT(mac_tx_uni_pkt_num),
+	HINIC_PORT_STAT(mac_tx_multi_pkt_num),
+	HINIC_PORT_STAT(mac_tx_broad_pkt_num),
+	HINIC_PORT_STAT(mac_rx_fragment_pkt_num),
+	HINIC_PORT_STAT(mac_rx_undersize_pkt_num),
+	HINIC_PORT_STAT(mac_rx_undermin_pkt_num),
+	HINIC_PORT_STAT(mac_rx_64_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_65_127_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_128_255_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_256_511_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_512_1023_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_1024_1518_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_1519_2047_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_2048_4095_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_4096_8191_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_8192_9216_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_9217_12287_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_12288_16383_oct_pkt_num),
+	HINIC_PORT_STAT(mac_rx_1519_max_good_pkt_num),
+	HINIC_PORT_STAT(mac_rx_1519_max_bad_pkt_num),
+	HINIC_PORT_STAT(mac_rx_oversize_pkt_num),
+	HINIC_PORT_STAT(mac_rx_jabber_pkt_num),
+	HINIC_PORT_STAT(mac_rx_pause_num),
+	HINIC_PORT_STAT(mac_rx_pfc_pkt_num),
+	HINIC_PORT_STAT(mac_rx_pfc_pri0_pkt_num),
+	HINIC_PORT_STAT(mac_rx_pfc_pri1_pkt_num),
+	HINIC_PORT_STAT(mac_rx_pfc_pri2_pkt_num),
+	HINIC_PORT_STAT(mac_rx_pfc_pri3_pkt_num),
+	HINIC_PORT_STAT(mac_rx_pfc_pri4_pkt_num),
+	HINIC_PORT_STAT(mac_rx_pfc_pri5_pkt_num),
+	HINIC_PORT_STAT(mac_rx_pfc_pri6_pkt_num),
+	HINIC_PORT_STAT(mac_rx_pfc_pri7_pkt_num),
+	HINIC_PORT_STAT(mac_rx_control_pkt_num),
+	HINIC_PORT_STAT(mac_rx_sym_err_pkt_num),
+	HINIC_PORT_STAT(mac_rx_fcs_err_pkt_num),
+	HINIC_PORT_STAT(mac_rx_send_app_good_pkt_num),
+	HINIC_PORT_STAT(mac_rx_send_app_bad_pkt_num),
+	HINIC_PORT_STAT(mac_tx_fragment_pkt_num),
+	HINIC_PORT_STAT(mac_tx_undersize_pkt_num),
+	HINIC_PORT_STAT(mac_tx_undermin_pkt_num),
+	HINIC_PORT_STAT(mac_tx_64_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_65_127_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_128_255_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_256_511_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_512_1023_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_1024_1518_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_1519_2047_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_2048_4095_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_4096_8191_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_8192_9216_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_9217_12287_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_12288_16383_oct_pkt_num),
+	HINIC_PORT_STAT(mac_tx_1519_max_good_pkt_num),
+	HINIC_PORT_STAT(mac_tx_1519_max_bad_pkt_num),
+	HINIC_PORT_STAT(mac_tx_oversize_pkt_num),
+	HINIC_PORT_STAT(mac_tx_jabber_pkt_num),
+	HINIC_PORT_STAT(mac_tx_pause_num),
+	HINIC_PORT_STAT(mac_tx_pfc_pkt_num),
+	HINIC_PORT_STAT(mac_tx_pfc_pri0_pkt_num),
+	HINIC_PORT_STAT(mac_tx_pfc_pri1_pkt_num),
+	HINIC_PORT_STAT(mac_tx_pfc_pri2_pkt_num),
+	HINIC_PORT_STAT(mac_tx_pfc_pri3_pkt_num),
+	HINIC_PORT_STAT(mac_tx_pfc_pri4_pkt_num),
+	HINIC_PORT_STAT(mac_tx_pfc_pri5_pkt_num),
+	HINIC_PORT_STAT(mac_tx_pfc_pri6_pkt_num),
+	HINIC_PORT_STAT(mac_tx_pfc_pri7_pkt_num),
+	HINIC_PORT_STAT(mac_tx_control_pkt_num),
+	HINIC_PORT_STAT(mac_tx_err_all_pkt_num),
+	HINIC_PORT_STAT(mac_tx_from_app_good_pkt_num),
+	HINIC_PORT_STAT(mac_tx_from_app_bad_pkt_num),
+};
+
+#define HINIC_TXQ_STAT(_stat_item) { \
+	.name = "txq%d_"#_stat_item, \
+	.size = FIELD_SIZEOF(struct hinic_txq_stats, _stat_item), \
+	.offset = offsetof(struct hinic_txq_stats, _stat_item) \
+}
+
+static struct hinic_stats hinic_tx_queue_stats[] = {
+	HINIC_TXQ_STAT(pkts),
+	HINIC_TXQ_STAT(bytes),
+	HINIC_TXQ_STAT(tx_busy),
+	HINIC_TXQ_STAT(tx_wake),
+	HINIC_TXQ_STAT(tx_dropped),
+	HINIC_TXQ_STAT(big_frags_pkts),
+};
+
+#define HINIC_RXQ_STAT(_stat_item) { \
+	.name = "rxq%d_"#_stat_item, \
+	.size = FIELD_SIZEOF(struct hinic_rxq_stats, _stat_item), \
+	.offset = offsetof(struct hinic_rxq_stats, _stat_item) \
+}
+
+static struct hinic_stats hinic_rx_queue_stats[] = {
+	HINIC_RXQ_STAT(pkts),
+	HINIC_RXQ_STAT(bytes),
+	HINIC_RXQ_STAT(errors),
+	HINIC_RXQ_STAT(csum_errors),
+	HINIC_RXQ_STAT(other_errors),
+};
+
+static void get_drv_queue_stats(struct hinic_dev *nic_dev, u64 *data)
+{
+	struct hinic_txq_stats txq_stats;
+	struct hinic_rxq_stats rxq_stats;
+	u16 i = 0, j = 0, qid = 0;
+	char *p;
+
+	for (qid = 0; qid < nic_dev->num_qps; qid++) {
+		if (!nic_dev->txqs)
+			break;
+
+		hinic_txq_get_stats(&nic_dev->txqs[qid], &txq_stats);
+		for (j = 0; j < ARRAY_LEN(hinic_tx_queue_stats); j++, i++) {
+			p = (char *)&txq_stats +
+				hinic_tx_queue_stats[j].offset;
+			data[i] = (hinic_tx_queue_stats[j].size ==
+					sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+		}
+	}
+
+	for (qid = 0; qid < nic_dev->num_qps; qid++) {
+		if (!nic_dev->rxqs)
+			break;
+
+		hinic_rxq_get_stats(&nic_dev->rxqs[qid], &rxq_stats);
+		for (j = 0; j < ARRAY_LEN(hinic_rx_queue_stats); j++, i++) {
+			p = (char *)&rxq_stats +
+				hinic_rx_queue_stats[j].offset;
+			data[i] = (hinic_rx_queue_stats[j].size ==
+					sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+		}
+	}
+}
+
+static void hinic_get_ethtool_stats(struct net_device *netdev,
+				    struct ethtool_stats *stats, u64 *data)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic_vport_stats vport_stats = {0};
+	const struct rtnl_link_stats64 *net_stats;
+	struct hinic_phy_port_stats *port_stats;
+	struct rtnl_link_stats64 temp;
+	u16 i = 0, j = 0;
+	char *p;
+	int err;
+
+	net_stats = dev_get_stats(netdev, &temp);
+	for (j = 0; j < ARRAY_LEN(hinic_netdev_stats); j++, i++) {
+		p = (char *)net_stats + hinic_netdev_stats[j].offset;
+		data[i] = (hinic_netdev_stats[j].size ==
+				sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+
+	err = hinic_get_vport_stats(nic_dev, &vport_stats);
+	if (err)
+		netif_err(nic_dev, drv, netdev,
+			  "Failed to get vport stats from firmware\n");
+
+	for (j = 0; j < ARRAY_LEN(hinic_function_stats); j++, i++) {
+		p = (char *)&vport_stats + hinic_function_stats[j].offset;
+		data[i] = (hinic_function_stats[j].size ==
+				sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+
+	port_stats = kzalloc(sizeof(*port_stats), GFP_KERNEL);
+	if (!port_stats) {
+		memset(&data[i], 0,
+		       ARRAY_LEN(hinic_port_stats) * sizeof(*data));
+		i += ARRAY_LEN(hinic_port_stats);
+		goto get_drv_stats;
+	}
+
+	err = hinic_get_phy_port_stats(nic_dev, port_stats);
+	if (err)
+		netif_err(nic_dev, drv, netdev,
+			  "Failed to get port stats from firmware\n");
+
+	for (j = 0; j < ARRAY_LEN(hinic_port_stats); j++, i++) {
+		p = (char *)port_stats + hinic_port_stats[j].offset;
+		data[i] = (hinic_port_stats[j].size ==
+				sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+	}
+
+	kfree(port_stats);
+
+get_drv_stats:
+	get_drv_queue_stats(nic_dev, data + i);
+}
+
+static int hinic_get_sset_count(struct net_device *netdev, int sset)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	int count, q_num;
+
+	switch (sset) {
+	case ETH_SS_STATS:
+		q_num = nic_dev->num_qps;
+		count = ARRAY_LEN(hinic_netdev_stats) +
+			ARRAY_LEN(hinic_function_stats) +
+			(ARRAY_LEN(hinic_tx_queue_stats) +
+			ARRAY_LEN(hinic_rx_queue_stats)) * q_num;
+
+		count += ARRAY_LEN(hinic_port_stats);
+
+		return count;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void hinic_get_strings(struct net_device *netdev,
+			      u32 stringset, u8 *data)
+{
+	struct hinic_dev *nic_dev = netdev_priv(netdev);
+	char *p = (char *)data;
+	u16 i, j;
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		for (i = 0; i < ARRAY_LEN(hinic_netdev_stats); i++) {
+			memcpy(p, hinic_netdev_stats[i].name,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+
+		for (i = 0; i < ARRAY_LEN(hinic_function_stats); i++) {
+			memcpy(p, hinic_function_stats[i].name,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+
+		for (i = 0; i < ARRAY_LEN(hinic_port_stats); i++) {
+			memcpy(p, hinic_port_stats[i].name,
+			       ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+
+		for (i = 0; i < nic_dev->num_qps; i++) {
+			for (j = 0; j < ARRAY_LEN(hinic_tx_queue_stats); j++) {
+				sprintf(p, hinic_tx_queue_stats[j].name, i);
+				p += ETH_GSTRING_LEN;
+			}
+		}
+
+		for (i = 0; i < nic_dev->num_qps; i++) {
+			for (j = 0; j < ARRAY_LEN(hinic_rx_queue_stats); j++) {
+				sprintf(p, hinic_rx_queue_stats[j].name, i);
+				p += ETH_GSTRING_LEN;
+			}
+		}
+
+		return;
+	default:
+		return;
+	}
+}
+
 static const struct ethtool_ops hinic_ethtool_ops = {
 	.get_link_ksettings = hinic_get_link_ksettings,
 	.get_drvinfo = hinic_get_drvinfo,
@@ -450,6 +788,9 @@ static const struct ethtool_ops hinic_ethtool_ops = {
 	.get_rxfh_indir_size = hinic_get_rxfh_indir_size,
 	.get_rxfh = hinic_get_rxfh,
 	.set_rxfh = hinic_set_rxfh,
+	.get_sset_count = hinic_get_sset_count,
+	.get_ethtool_stats = hinic_get_ethtool_stats,
+	.get_strings = hinic_get_strings,
 };
 
 void hinic_set_ethtool_ops(struct net_device *netdev)

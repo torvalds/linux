@@ -83,6 +83,9 @@ static void update_rx_stats(struct hinic_dev *nic_dev, struct hinic_rxq *rxq)
 	u64_stats_update_begin(&nic_rx_stats->syncp);
 	nic_rx_stats->bytes += rx_stats.bytes;
 	nic_rx_stats->pkts  += rx_stats.pkts;
+	nic_rx_stats->errors += rx_stats.errors;
+	nic_rx_stats->csum_errors += rx_stats.csum_errors;
+	nic_rx_stats->other_errors += rx_stats.other_errors;
 	u64_stats_update_end(&nic_rx_stats->syncp);
 
 	hinic_rxq_clean_stats(rxq);
@@ -103,6 +106,7 @@ static void update_tx_stats(struct hinic_dev *nic_dev, struct hinic_txq *txq)
 	nic_tx_stats->tx_busy += tx_stats.tx_busy;
 	nic_tx_stats->tx_wake += tx_stats.tx_wake;
 	nic_tx_stats->tx_dropped += tx_stats.tx_dropped;
+	nic_tx_stats->big_frags_pkts += tx_stats.big_frags_pkts;
 	u64_stats_update_end(&nic_tx_stats->syncp);
 
 	hinic_txq_clean_stats(txq);
@@ -782,6 +786,7 @@ static void hinic_get_stats64(struct net_device *netdev,
 
 	stats->rx_bytes   = nic_rx_stats->bytes;
 	stats->rx_packets = nic_rx_stats->pkts;
+	stats->rx_errors  = nic_rx_stats->errors;
 
 	stats->tx_bytes   = nic_tx_stats->bytes;
 	stats->tx_packets = nic_tx_stats->pkts;

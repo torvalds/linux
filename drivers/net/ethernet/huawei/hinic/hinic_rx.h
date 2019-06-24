@@ -21,7 +21,10 @@
 struct hinic_rxq_stats {
 	u64                     pkts;
 	u64                     bytes;
-
+	u64			errors;
+	u64			csum_errors;
+	u64			other_errors;
+	u64			alloc_skb_err;
 	struct u64_stats_sync   syncp;
 };
 

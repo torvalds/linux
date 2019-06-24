@@ -56,6 +56,9 @@ void hinic_rxq_clean_stats(struct hinic_rxq *rxq)
 	u64_stats_update_begin(&rxq_stats->syncp);
 	rxq_stats->pkts  = 0;
 	rxq_stats->bytes = 0;
+	rxq_stats->errors = 0;
+	rxq_stats->csum_errors = 0;
+	rxq_stats->other_errors = 0;
 	u64_stats_update_end(&rxq_stats->syncp);
 }
 
@@ -74,6 +77,10 @@ void hinic_rxq_get_stats(struct hinic_rxq *rxq, struct hinic_rxq_stats *stats)
 		start = u64_stats_fetch_begin(&rxq_stats->syncp);
 		stats->pkts = rxq_stats->pkts;
 		stats->bytes = rxq_stats->bytes;
+		stats->errors = rxq_stats->csum_errors +
+				rxq_stats->other_errors;
+		stats->csum_errors = rxq_stats->csum_errors;
+		stats->other_errors = rxq_stats->other_errors;
 	} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
 	u64_stats_update_end(&stats->syncp);
 }
@@ -101,10 +108,14 @@ static void rx_csum(struct hinic_rxq *rxq, u32 status,
 	if (!(netdev->features & NETIF_F_RXCSUM))
 		return;
 
-	if (!csum_err)
+	if (!csum_err) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	else
+	} else {
+		if (!(csum_err & (HINIC_RX_CSUM_HW_CHECK_NONE |
+			HINIC_RX_CSUM_IPSU_OTHER_ERR)))
+			rxq->rxq_stats.csum_errors++;
 		skb->ip_summed = CHECKSUM_NONE;
+	}
 }
 /**
  * rx_alloc_skb - allocate skb and map it to dma address
