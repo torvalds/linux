@@ -147,7 +147,6 @@ bool hubbub1_verify_allow_pstate_change_high(
 		forced_pstate_allow = false;
 	}
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_01
 	/* RV2:
 	 * dchubbubdebugind, at: 0xB
 	 * description
@@ -184,8 +183,6 @@ bool hubbub1_verify_allow_pstate_change_high(
 	 * 30:    Arbiter's allow_pstate_change
 	 * 31:    SOC pstate change request"
 	 */
-#else
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	/*DCN2.x:
 	HUBBUB:DCHUBBUB_TEST_ARB_DEBUG10 DCHUBBUBDEBUGIND:0xB
 	0: Pipe0 Plane0 Allow P-state Change
@@ -221,7 +218,6 @@ bool hubbub1_verify_allow_pstate_change_high(
 	30: Arbiter`s Allow P-state Change
 	31: SOC P-state Change request
 	*/
-#else
 	/* RV1:
 	 * dchubbubdebugind, at: 0x7
 	 * description "3-0:   Pipe0 cursor0 QOS
@@ -245,8 +241,6 @@ bool hubbub1_verify_allow_pstate_change_high(
 	 * 30:    Arbiter's allow_pstate_change
 	 * 31:    SOC pstate change request
 	 */
-#endif
-#endif
 
 	REG_WRITE(DCHUBBUB_TEST_DEBUG_INDEX, hubbub1->debug_test_index_pstate);
 
