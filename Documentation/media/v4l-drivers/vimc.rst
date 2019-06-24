@@ -96,3 +96,14 @@ those arguments to each subdevice, not to the vimc module. For example::
         Window size to calculate the mean. Note: the window size needs to be an
         odd number, as the main pixel stays in the center of the window,
         otherwise the next odd number is considered (the default value is 3).
+
+Source code documentation
+-------------------------
+
+vimc-streamer
+~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/media/platform/vimc/vimc-streamer.h
+   :internal:
+
+.. kernel-doc:: drivers/media/platform/vimc/vimc-streamer.c
