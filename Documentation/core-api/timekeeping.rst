@@ -105,7 +105,7 @@ Some additional variants exist for more specialized cases:
 		ktime_t ktime_get_coarse_clocktai( void )
 
 .. c:function:: u64 ktime_get_coarse_ns( void )
-		u64 ktime_get_coarse_boot_ns( void )
+		u64 ktime_get_coarse_boottime_ns( void )
 		u64 ktime_get_coarse_real_ns( void )
 		u64 ktime_get_coarse_clocktai_ns( void )
 
