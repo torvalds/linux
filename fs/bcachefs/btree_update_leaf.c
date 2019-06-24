@@ -542,6 +542,7 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bch_fs_usage_online *fs_usage = NULL;
 	struct btree_insert_entry *i;
+	bool saw_non_marked;
 	unsigned mark_flags = trans->flags & BTREE_INSERT_BUCKET_INVALIDATE
 		? BCH_BUCKET_MARK_BUCKET_INVALIDATE
 		: 0;
@@ -551,14 +552,28 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 		BUG_ON(i->iter->uptodate >= BTREE_ITER_NEED_RELOCK);
 
 	trans_for_each_update_iter(trans, i)
-		if (update_has_triggers(trans, i) &&
-		    update_triggers_transactional(trans, i)) {
-			ret = bch2_trans_mark_update(trans, i);
-			if (ret == -EINTR)
-				trace_trans_restart_mark(trans->ip);
-			if (ret)
-				goto out_clear_replicas;
+		i->marked = false;
+
+	do {
+		saw_non_marked = false;
+
+		trans_for_each_update_iter(trans, i) {
+			if (i->marked)
+				continue;
+
+			saw_non_marked = true;
+			i->marked = true;
+
+			if (update_has_triggers(trans, i) &&
+			    update_triggers_transactional(trans, i)) {
+				ret = bch2_trans_mark_update(trans, i->iter, i->k);
+				if (ret == -EINTR)
+					trace_trans_restart_mark(trans->ip);
+				if (ret)
+					goto out_clear_replicas;
+			}
 		}
+	} while (saw_non_marked);
 
 	btree_trans_lock_write(c, trans);
 

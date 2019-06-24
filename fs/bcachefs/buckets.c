@@ -1590,9 +1590,9 @@ int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c k,
 }
 
 int bch2_trans_mark_update(struct btree_trans *trans,
-			   struct btree_insert_entry *insert)
+			   struct btree_iter *iter,
+			   struct bkey_i *insert)
 {
-	struct btree_iter	*iter = insert->iter;
 	struct btree		*b = iter->l[0].b;
 	struct btree_node_iter	node_iter = iter->l[0].iter;
 	struct bkey_packed	*_k;
@@ -1602,9 +1602,9 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 		return 0;
 
 	ret = bch2_trans_mark_key(trans,
-			bkey_i_to_s_c(insert->k),
-			bpos_min(insert->k->k.p, b->key.k.p).offset -
-			bkey_start_offset(&insert->k->k),
+			bkey_i_to_s_c(insert),
+			bpos_min(insert->k.p, b->key.k.p).offset -
+			bkey_start_offset(&insert->k),
 			BCH_BUCKET_MARK_INSERT);
 	if (ret)
 		return ret;
@@ -1618,25 +1618,25 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 		k = bkey_disassemble(b, _k, &unpacked);
 
 		if (btree_node_is_extents(b)
-		    ? bkey_cmp(insert->k->k.p, bkey_start_pos(k.k)) <= 0
-		    : bkey_cmp(insert->k->k.p, k.k->p))
+		    ? bkey_cmp(insert->k.p, bkey_start_pos(k.k)) <= 0
+		    : bkey_cmp(insert->k.p, k.k->p))
 			break;
 
 		if (btree_node_is_extents(b)) {
-			switch (bch2_extent_overlap(&insert->k->k, k.k)) {
+			switch (bch2_extent_overlap(&insert->k, k.k)) {
 			case BCH_EXTENT_OVERLAP_ALL:
 				sectors = -((s64) k.k->size);
 				break;
 			case BCH_EXTENT_OVERLAP_BACK:
-				sectors = bkey_start_offset(&insert->k->k) -
+				sectors = bkey_start_offset(&insert->k) -
 					k.k->p.offset;
 				break;
 			case BCH_EXTENT_OVERLAP_FRONT:
 				sectors = bkey_start_offset(k.k) -
-					insert->k->k.p.offset;
+					insert->k.p.offset;
 				break;
 			case BCH_EXTENT_OVERLAP_MIDDLE:
-				sectors = k.k->p.offset - insert->k->k.p.offset;
+				sectors = k.k->p.offset - insert->k.p.offset;
 				BUG_ON(sectors <= 0);
 
 				ret = bch2_trans_mark_key(trans, k, sectors,
@@ -1644,7 +1644,7 @@ int bch2_trans_mark_update(struct btree_trans *trans,
 				if (ret)
 					return ret;
 
-				sectors = bkey_start_offset(&insert->k->k) -
+				sectors = bkey_start_offset(&insert->k) -
 					k.k->p.offset;
 				break;
 			}

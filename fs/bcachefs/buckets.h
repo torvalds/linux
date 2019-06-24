@@ -274,7 +274,8 @@ void bch2_replicas_delta_list_apply(struct bch_fs *,
 				    struct replicas_delta_list *);
 int bch2_trans_mark_key(struct btree_trans *, struct bkey_s_c, s64, unsigned);
 int bch2_trans_mark_update(struct btree_trans *,
-			   struct btree_insert_entry *);
+			   struct btree_iter *iter,
+			   struct bkey_i *insert);
 void bch2_trans_fs_usage_apply(struct btree_trans *, struct bch_fs_usage_online *);
 
 /* disk reservations: */
