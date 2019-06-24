@@ -87,7 +87,7 @@ int r8712_init_evt_priv(struct evt_priv *pevtpriv)
 	return 0;
 }
 
-static void _free_evt_priv(struct evt_priv *pevtpriv)
+void r8712_free_evt_priv(struct evt_priv *pevtpriv)
 {
 	kfree(pevtpriv->evt_allocated_buf);
 }
@@ -133,11 +133,6 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 		list_del_init(&obj->list);
 	spin_unlock_irqrestore(&queue->lock, irqL);
 	return obj;
-}
-
-void r8712_free_evt_priv(struct evt_priv *pevtpriv)
-{
-	_free_evt_priv(pevtpriv);
 }
 
 void r8712_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
