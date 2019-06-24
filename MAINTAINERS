@@ -17485,6 +17485,12 @@ Q:	https://patchwork.linuxtv.org/project/linux-media/list/
 S:	Maintained
 F:	drivers/media/dvb-frontends/zd1301_demod*
 
+ZHAOXIN PROCESSOR SUPPORT
+M:	Tony W Wang-oc <TonyWWang-oc@zhaoxin.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	arch/x86/kernel/cpu/zhaoxin.c
+
 ZPOOL COMPRESSED PAGE STORAGE API
 M:	Dan Streetman <ddstreet@ieee.org>
 L:	linux-mm@kvack.org
