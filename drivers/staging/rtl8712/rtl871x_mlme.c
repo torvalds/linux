@@ -129,8 +129,8 @@ static void free_network_nolock(struct mlme_priv *pmlmepriv,
  * Shall be called under atomic context...
  * to avoid possible racing condition...
  */
-static struct wlan_network *_r8712_find_network(struct  __queue *scanned_queue,
-					 u8 *addr)
+static struct wlan_network *r8712_find_network(struct  __queue *scanned_queue,
+					       u8 *addr)
 {
 	unsigned long irqL;
 	struct list_head *phead, *plist;
@@ -213,20 +213,6 @@ void r8712_free_mlme_priv(struct mlme_priv *pmlmepriv)
 static struct	wlan_network *alloc_network(struct mlme_priv *pmlmepriv)
 {
 	return _r8712_alloc_network(pmlmepriv);
-}
-
-/*
- * return the wlan_network with the matching addr
- * Shall be called under atomic context...
- * to avoid possible racing condition...
- */
-static struct wlan_network *r8712_find_network(struct  __queue *scanned_queue,
-					       u8 *addr)
-{
-	struct wlan_network *pnetwork = _r8712_find_network(scanned_queue,
-							    addr);
-
-	return pnetwork;
 }
 
 int r8712_is_same_ibss(struct _adapter *adapter, struct wlan_network *pnetwork)
