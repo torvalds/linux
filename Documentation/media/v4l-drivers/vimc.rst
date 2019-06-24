@@ -15,7 +15,7 @@ recompile the driver to achieve your own topology. This is the default topology:
 .. _vimc_topology_graph:
 
 .. kernel-figure:: vimc.dot
-    :alt:   vimc.dot
+    :alt:   Diagram of the default media pipeline topology
     :align: center
 
     Media pipeline graph on vimc
