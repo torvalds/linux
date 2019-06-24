@@ -366,13 +366,19 @@ static int cxgb4_mac_sync(struct net_device *netdev, const u8 *mac_addr)
 	int ret;
 	u64 mhash = 0;
 	u64 uhash = 0;
+	/* idx stores the index of allocated filters,
+	 * its size should be modified based on the number of
+	 * MAC addresses that we allocate filters for
+	 */
+
+	u16 idx[1] = {};
 	bool free = false;
 	bool ucast = is_unicast_ether_addr(mac_addr);
 	const u8 *maclist[1] = {mac_addr};
 	struct hash_mac_addr *new_entry;
 
-	ret = t4_alloc_mac_filt(adap, adap->mbox, pi->viid, free, 1, maclist,
-				NULL, ucast ? &uhash : &mhash, false);
+	ret = cxgb4_alloc_mac_filt(adap, pi->viid, free, 1, maclist,
+				   idx, ucast ? &uhash : &mhash, false);
 	if (ret < 0)
 		goto out;
 	/* if hash != 0, then add the addr to hash addr list
@@ -410,7 +416,7 @@ static int cxgb4_mac_unsync(struct net_device *netdev, const u8 *mac_addr)
 		}
 	}
 
-	ret = t4_free_mac_filt(adap, adap->mbox, pi->viid, 1, maclist, false);
+	ret = cxgb4_free_mac_filt(adap, pi->viid, 1, maclist, false);
 	return ret < 0 ? -EINVAL : 0;
 }
 
@@ -449,9 +455,9 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
  *	Addresses are programmed to hash region, if tcam runs out of entries.
  *
  */
-static int cxgb4_change_mac(struct port_info *pi, unsigned int viid,
-			    int *tcam_idx, const u8 *addr, bool persist,
-			    u8 *smt_idx)
+int cxgb4_change_mac(struct port_info *pi, unsigned int viid,
+		     int *tcam_idx, const u8 *addr, bool persist,
+		     u8 *smt_idx)
 {
 	struct adapter *adapter = pi->adapter;
 	struct hash_mac_addr *entry, *new_entry;
@@ -505,8 +511,8 @@ static int link_start(struct net_device *dev)
 	ret = t4_set_rxmode(pi->adapter, mb, pi->viid, dev->mtu, -1, -1, -1,
 			    !!(dev->features & NETIF_F_HW_VLAN_CTAG_RX), true);
 	if (ret == 0)
-		ret = cxgb4_change_mac(pi, pi->viid, &pi->xact_addr_filt,
-				       dev->dev_addr, true, &pi->smt_idx);
+		ret = cxgb4_update_mac_filt(pi, pi->viid, &pi->xact_addr_filt,
+					    dev->dev_addr, true, &pi->smt_idx);
 	if (ret == 0)
 		ret = t4_link_l1cfg(pi->adapter, mb, pi->tx_chan,
 				    &pi->link_cfg);
@@ -3020,8 +3026,8 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ret = cxgb4_change_mac(pi, pi->viid, &pi->xact_addr_filt,
-			       addr->sa_data, true, &pi->smt_idx);
+	ret = cxgb4_update_mac_filt(pi, pi->viid, &pi->xact_addr_filt,
+				    addr->sa_data, true, &pi->smt_idx);
 	if (ret < 0)
 		return ret;
 
@@ -3273,8 +3279,6 @@ static void cxgb_del_udp_tunnel(struct net_device *netdev,
 				    i);
 			return;
 		}
-		atomic_dec(&adapter->mps_encap[adapter->rawf_start +
-			   pi->port_id].refcnt);
 	}
 }
 
@@ -3363,7 +3367,6 @@ static void cxgb_add_udp_tunnel(struct net_device *netdev,
 			cxgb_del_udp_tunnel(netdev, ti);
 			return;
 		}
-		atomic_inc(&adapter->mps_encap[ret].refcnt);
 	}
 }
 
@@ -5446,7 +5449,6 @@ static void free_some_resources(struct adapter *adapter)
 {
 	unsigned int i;
 
-	kvfree(adapter->mps_encap);
 	kvfree(adapter->smt);
 	kvfree(adapter->l2t);
 	kvfree(adapter->srq);
@@ -5972,12 +5974,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->params.offload = 0;
 	}
 
-	adapter->mps_encap = kvcalloc(adapter->params.arch.mps_tcam_size,
-				      sizeof(struct mps_encap_entry),
-				      GFP_KERNEL);
-	if (!adapter->mps_encap)
-		dev_warn(&pdev->dev, "could not allocate MPS Encap entries, continuing\n");
-
 #if IS_ENABLED(CONFIG_IPV6)
 	if (chip_ver <= CHELSIO_T5 &&
 	    (!(t4_read_reg(adapter, LE_DB_CONFIG_A) & ASLIPCOMPEN_F))) {
@@ -6052,6 +6048,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* check for PCI Express bandwidth capabiltites */
 	pcie_print_link_status(pdev);
+
+	cxgb4_init_mps_ref_entries(adapter);
 
 	err = init_rss(adapter);
 	if (err)
@@ -6178,6 +6176,8 @@ static void remove_one(struct pci_dev *pdev)
 		adap_free_hma_mem(adapter);
 
 		disable_interrupts(adapter);
+
+		cxgb4_free_mps_ref_entries(adapter);
 
 		for_each_port(adapter, i)
 			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
