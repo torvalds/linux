@@ -188,6 +188,7 @@ properties:
               - fsl,imx7d-sdb             # i.MX7 SabreSD Board
               - novtech,imx7d-meerkat96   # i.MX7 Meerkat96 Board
               - tq,imx7d-mba7             # i.MX7D TQ MBa7 with TQMa7D SoM
+              - zii,imx7d-rmu2            # ZII RMU2 Board
               - zii,imx7d-rpu2            # ZII RPU2 Board
           - const: fsl,imx7d
 
