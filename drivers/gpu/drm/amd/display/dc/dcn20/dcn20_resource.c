@@ -2889,15 +2889,15 @@ static bool construct(
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.hw_3d_lut = true;
 
-	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
+	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV) {
 		dc->debug = debug_defaults_drv;
-	else if (dc->ctx->dce_environment == DCE_ENV_FPGA_MAXIMUS) {
-			pool->base.pipe_count = 4;
-
+	} else if (dc->ctx->dce_environment == DCE_ENV_FPGA_MAXIMUS) {
+		pool->base.pipe_count = 4;
 		pool->base.mpcc_count = pool->base.pipe_count;
 		dc->debug = debug_defaults_diags;
-	} else
+	} else {
 		dc->debug = debug_defaults_diags;
+	}
 	//dcn2.0x
 	dc->work_arounds.dedcn20_305_wa = true;
 
