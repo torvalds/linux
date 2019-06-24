@@ -5253,7 +5253,10 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 
 DRM DRIVERS FOR BRIDGE CHIPS
 M:	Andrzej Hajda <a.hajda@samsung.com>
+M:	Neil Armstrong <narmstrong@baylibre.com>
 R:	Laurent Pinchart <Laurent.pinchart@ideasonboard.com>
+R:	Jonas Karlman <jonas@kwiboo.se>
+R:	Jernej Skrabec <jernej.skrabec@siol.net>
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/bridge/
