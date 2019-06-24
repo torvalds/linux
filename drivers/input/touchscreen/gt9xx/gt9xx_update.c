@@ -2741,7 +2741,7 @@ static u32 gup_clk_count_get(void)
     s32 temp;
     s8  buf[4];
 
-    while ((ready == 0)) //Wait for measurement complete
+    while (ready == 0) //Wait for measurement complete
     {
         i2c_read_bytes(i2c_connect_client, _bRO_MISCTL__MEA_RDY, buf, 1);
         ready = buf[0];
