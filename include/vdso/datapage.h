@@ -2,8 +2,6 @@
 #ifndef __VDSO_DATAPAGE_H
 #define __VDSO_DATAPAGE_H
 
-#ifdef __KERNEL__
-
 #ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
@@ -115,7 +113,5 @@ extern struct vdso_data _vdso_data[CS_BASES] __attribute__((visibility("hidden")
 #endif /* ENABLE_COMPAT_VDSO */
 
 #endif /* !__ASSEMBLY__ */
-
-#endif /* __KERNEL__ */
 
 #endif /* __VDSO_DATAPAGE_H */
