@@ -3,6 +3,31 @@
 
 #include "cxgb4.h"
 
+static int cxgb4_mps_ref_dec_by_mac(struct adapter *adap,
+				    const u8 *addr, const u8 *mask)
+{
+	u8 bitmask[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	struct mps_entries_ref *mps_entry, *tmp;
+	int ret = -EINVAL;
+
+	spin_lock_bh(&adap->mps_ref_lock);
+	list_for_each_entry_safe(mps_entry, tmp, &adap->mps_ref, list) {
+		if (ether_addr_equal(mps_entry->addr, addr) &&
+		    ether_addr_equal(mps_entry->mask, mask ? mask : bitmask)) {
+			if (!refcount_dec_and_test(&mps_entry->refcnt)) {
+				spin_unlock_bh(&adap->mps_ref_lock);
+				return -EBUSY;
+			}
+			list_del(&mps_entry->list);
+			kfree(mps_entry);
+			ret = 0;
+			break;
+		}
+	}
+	spin_unlock_bh(&adap->mps_ref_lock);
+	return ret;
+}
+
 static int cxgb4_mps_ref_dec(struct adapter *adap, u16 idx)
 {
 	struct mps_entries_ref *mps_entry, *tmp;
@@ -51,6 +76,53 @@ static int cxgb4_mps_ref_inc(struct adapter *adap, const u8 *mac_addr,
 	list_add_tail(&mps_entry->list, &adap->mps_ref);
 unlock:
 	spin_unlock_bh(&adap->mps_ref_lock);
+	return ret;
+}
+
+int cxgb4_free_mac_filt(struct adapter *adap, unsigned int viid,
+			unsigned int naddr, const u8 **addr, bool sleep_ok)
+{
+	int ret, i;
+
+	for (i = 0; i < naddr; i++) {
+		if (!cxgb4_mps_ref_dec_by_mac(adap, addr[i], NULL)) {
+			ret = t4_free_mac_filt(adap, adap->mbox, viid,
+					       1, &addr[i], sleep_ok);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	/* return number of filters freed */
+	return naddr;
+}
+
+int cxgb4_alloc_mac_filt(struct adapter *adap, unsigned int viid,
+			 bool free, unsigned int naddr, const u8 **addr,
+			 u16 *idx, u64 *hash, bool sleep_ok)
+{
+	int ret, i;
+
+	ret = t4_alloc_mac_filt(adap, adap->mbox, viid, free,
+				naddr, addr, idx, hash, sleep_ok);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < naddr; i++) {
+		if (idx[i] != 0xffff) {
+			if (cxgb4_mps_ref_inc(adap, addr[i], idx[i], NULL)) {
+				ret = -ENOMEM;
+				goto error;
+			}
+		}
+	}
+
+	goto out;
+error:
+	cxgb4_free_mac_filt(adap, viid, naddr, addr, sleep_ok);
+
+out:
+	/* Returns a negative error number or the number of filters allocated */
 	return ret;
 }
 

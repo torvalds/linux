@@ -366,13 +366,19 @@ static int cxgb4_mac_sync(struct net_device *netdev, const u8 *mac_addr)
 	int ret;
 	u64 mhash = 0;
 	u64 uhash = 0;
+	/* idx stores the index of allocated filters,
+	 * its size should be modified based on the number of
+	 * MAC addresses that we allocate filters for
+	 */
+
+	u16 idx[1] = {};
 	bool free = false;
 	bool ucast = is_unicast_ether_addr(mac_addr);
 	const u8 *maclist[1] = {mac_addr};
 	struct hash_mac_addr *new_entry;
 
-	ret = t4_alloc_mac_filt(adap, adap->mbox, pi->viid, free, 1, maclist,
-				NULL, ucast ? &uhash : &mhash, false);
+	ret = cxgb4_alloc_mac_filt(adap, pi->viid, free, 1, maclist,
+				   idx, ucast ? &uhash : &mhash, false);
 	if (ret < 0)
 		goto out;
 	/* if hash != 0, then add the addr to hash addr list
@@ -410,7 +416,7 @@ static int cxgb4_mac_unsync(struct net_device *netdev, const u8 *mac_addr)
 		}
 	}
 
-	ret = t4_free_mac_filt(adap, adap->mbox, pi->viid, 1, maclist, false);
+	ret = cxgb4_free_mac_filt(adap, pi->viid, 1, maclist, false);
 	return ret < 0 ? -EINVAL : 0;
 }
 

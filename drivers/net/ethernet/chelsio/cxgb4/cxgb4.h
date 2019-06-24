@@ -1915,6 +1915,12 @@ int cxgb4_change_mac(struct port_info *pi, unsigned int viid,
 		     int *tcam_idx, const u8 *addr,
 		     bool persistent, u8 *smt_idx);
 
+int cxgb4_alloc_mac_filt(struct adapter *adap, unsigned int viid,
+			 bool free, unsigned int naddr,
+			 const u8 **addr, u16 *idx,
+			 u64 *hash, bool sleep_ok);
+int cxgb4_free_mac_filt(struct adapter *adap, unsigned int viid,
+			unsigned int naddr, const u8 **addr, bool sleep_ok);
 int cxgb4_init_mps_ref_entries(struct adapter *adap);
 void cxgb4_free_mps_ref_entries(struct adapter *adap);
 int cxgb4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
