@@ -791,7 +791,6 @@ static int do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 func,
 
 struct kvm_cpuid_param {
 	u32 func;
-	bool has_leaf_count;
 	bool (*qualifier)(const struct kvm_cpuid_param *param);
 };
 
@@ -835,11 +834,10 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 	int limit, nent = 0, r = -E2BIG, i;
 	u32 func;
 	static const struct kvm_cpuid_param param[] = {
-		{ .func = 0, .has_leaf_count = true },
-		{ .func = 0x80000000, .has_leaf_count = true },
-		{ .func = 0xC0000000, .qualifier = is_centaur_cpu, .has_leaf_count = true },
+		{ .func = 0 },
+		{ .func = 0x80000000 },
+		{ .func = 0xC0000000, .qualifier = is_centaur_cpu },
 		{ .func = KVM_CPUID_SIGNATURE },
-		{ .func = KVM_CPUID_FEATURES },
 	};
 
 	if (cpuid->nent < 1)
@@ -868,9 +866,6 @@ int kvm_dev_ioctl_get_cpuid(struct kvm_cpuid2 *cpuid,
 
 		if (r)
 			goto out_free;
-
-		if (!ent->has_leaf_count)
-			continue;
 
 		limit = cpuid_entries[nent - 1].eax;
 		for (func = ent->func + 1; func <= limit && nent < cpuid->nent && r == 0; ++func)
