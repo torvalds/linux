@@ -2002,6 +2002,30 @@ static void tegra_sor_audio_unprepare(struct tegra_sor *sor)
 	tegra_sor_writel(sor, 0, SOR_INT_ENABLE);
 }
 
+static void tegra_sor_audio_enable(struct tegra_sor *sor)
+{
+	u32 value;
+
+	value = tegra_sor_readl(sor, SOR_AUDIO_CNTRL);
+
+	/* select HDA audio input */
+	value &= ~SOR_AUDIO_CNTRL_SOURCE_SELECT(SOURCE_SELECT_MASK);
+	value |= SOR_AUDIO_CNTRL_SOURCE_SELECT(SOURCE_SELECT_HDA);
+
+	/* inject null samples */
+	if (sor->format.channels != 2)
+		value &= ~SOR_AUDIO_CNTRL_INJECT_NULLSMPL;
+	else
+		value |= SOR_AUDIO_CNTRL_INJECT_NULLSMPL;
+
+	value |= SOR_AUDIO_CNTRL_AFIFO_FLUSH;
+
+	tegra_sor_writel(sor, value, SOR_AUDIO_CNTRL);
+
+	/* enable advertising HBR capability */
+	tegra_sor_writel(sor, SOR_AUDIO_SPARE_HBR_ENABLE, SOR_AUDIO_SPARE);
+}
+
 static int tegra_sor_hdmi_enable_audio_infoframe(struct tegra_sor *sor)
 {
 	u8 buffer[HDMI_INFOFRAME_SIZE(AUDIO)];
@@ -2037,24 +2061,7 @@ static void tegra_sor_hdmi_audio_enable(struct tegra_sor *sor)
 {
 	u32 value;
 
-	value = tegra_sor_readl(sor, SOR_AUDIO_CNTRL);
-
-	/* select HDA audio input */
-	value &= ~SOR_AUDIO_CNTRL_SOURCE_SELECT(SOURCE_SELECT_MASK);
-	value |= SOR_AUDIO_CNTRL_SOURCE_SELECT(SOURCE_SELECT_HDA);
-
-	/* inject null samples */
-	if (sor->format.channels != 2)
-		value &= ~SOR_AUDIO_CNTRL_INJECT_NULLSMPL;
-	else
-		value |= SOR_AUDIO_CNTRL_INJECT_NULLSMPL;
-
-	value |= SOR_AUDIO_CNTRL_AFIFO_FLUSH;
-
-	tegra_sor_writel(sor, value, SOR_AUDIO_CNTRL);
-
-	/* enable advertising HBR capability */
-	tegra_sor_writel(sor, SOR_AUDIO_SPARE_HBR_ENABLE, SOR_AUDIO_SPARE);
+	tegra_sor_audio_enable(sor);
 
 	tegra_sor_writel(sor, 0, SOR_HDMI_ACR_CTRL);
 
