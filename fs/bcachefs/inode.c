@@ -246,6 +246,9 @@ const char *bch2_inode_generation_invalid(const struct bch_fs *c,
 void bch2_inode_generation_to_text(struct printbuf *out, struct bch_fs *c,
 				   struct bkey_s_c k)
 {
+	struct bkey_s_c_inode_generation gen = bkey_s_c_to_inode_generation(k);
+
+	pr_buf(out, "generation: %u", le32_to_cpu(gen.v->bi_generation));
 }
 
 void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
