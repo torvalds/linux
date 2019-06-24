@@ -480,6 +480,12 @@ enum {
 #define MT_LPON_BASE			0x24000
 #define MT_LPON(n)			(MT_LPON_BASE + (n))
 
+#define MT_LPON_T0CR			MT_LPON(0x010)
+#define MT_LPON_T0CR_MODE		GENMASK(1, 0)
+
+#define MT_LPON_UTTR0			MT_LPON(0x018)
+#define MT_LPON_UTTR1			MT_LPON(0x01c)
+
 #define MT_LPON_BTEIR			MT_LPON(0x020)
 #define MT_LPON_BTEIR_MBSS_MODE		GENMASK(31, 29)
 

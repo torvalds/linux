@@ -51,6 +51,11 @@ enum mt7603_bw {
 	MT_BW_80,
 };
 
+struct mt7603_rate_set {
+	struct ieee80211_tx_rate probe_rate;
+	struct ieee80211_tx_rate rates[4];
+};
+
 struct mt7603_sta {
 	struct mt76_wcid wcid; /* must be first */
 
@@ -58,7 +63,11 @@ struct mt7603_sta {
 
 	struct sk_buff_head psq;
 
-	struct ieee80211_tx_rate rates[8];
+	struct ieee80211_tx_rate rates[4];
+
+	struct mt7603_rate_set rateset[2];
+	u32 rate_set_tsf;
+
 	u8 rate_count;
 	u8 n_rates;
 
