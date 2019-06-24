@@ -1044,7 +1044,6 @@ static int smu_hw_init(void *handle)
 	return 0;
 
 failed:
-	mutex_unlock(&smu->mutex);
 	return ret;
 }
 
