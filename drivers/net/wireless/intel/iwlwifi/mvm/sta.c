@@ -2427,7 +2427,7 @@ int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 static void iwl_mvm_sync_rxq_del_ba(struct iwl_mvm *mvm, u8 baid)
 {
-	struct iwl_mvm_delba_notif notif = {
+	struct iwl_mvm_rss_sync_notif notif = {
 		.metadata.type = IWL_MVM_RXQ_NOTIF_DEL_BA,
 		.metadata.sync = 1,
 		.delba.baid = baid,

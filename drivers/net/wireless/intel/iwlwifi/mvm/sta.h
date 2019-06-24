@@ -343,9 +343,11 @@ struct iwl_mvm_delba_data {
 	u32 baid;
 } __packed;
 
-struct iwl_mvm_delba_notif {
+struct iwl_mvm_rss_sync_notif {
 	struct iwl_mvm_internal_rxq_notif metadata;
-	struct iwl_mvm_delba_data delba;
+	union {
+		struct iwl_mvm_delba_data delba;
+	};
 } __packed;
 
 /**
