@@ -161,7 +161,7 @@ static inline void pfn_array_idal_create_words(
 	idaws[0] += pa->pa_iova & (PAGE_SIZE - 1);
 }
 
-void convert_ccw0_to_ccw1(struct ccw1 *source, unsigned long len)
+static void convert_ccw0_to_ccw1(struct ccw1 *source, unsigned long len)
 {
 	struct ccw0 ccw0;
 	struct ccw1 *pccw1 = source;
