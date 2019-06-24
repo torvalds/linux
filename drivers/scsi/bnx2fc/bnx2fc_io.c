@@ -1097,16 +1097,16 @@ static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
 	time_left = wait_for_completion_timeout(&io_req->tm_done,
 						BNX2FC_FW_TIMEOUT);
 	io_req->wait_for_comp = 0;
-	if (!time_left)
+	if (!time_left) {
 		BNX2FC_IO_DBG(io_req, "%s(): Wait for cleanup timed out.\n",
 			      __func__);
 
-	/*
-	 * Release reference held by SCSI command the cleanup completion
-	 * hits the BNX2FC_CLEANUP case in bnx2fc_process_cq_compl() and
-	 * thus the SCSI command is not returnedi by bnx2fc_scsi_done().
-	 */
-	kref_put(&io_req->refcount, bnx2fc_cmd_release);
+		/*
+		 * Put the extra reference to the SCSI command since it would
+		 * not have been returned in this case.
+		 */
+		kref_put(&io_req->refcount, bnx2fc_cmd_release);
+	}
 
 	spin_lock_bh(&tgt->tgt_lock);
 	return SUCCESS;
