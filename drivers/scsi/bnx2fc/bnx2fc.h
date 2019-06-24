@@ -433,8 +433,10 @@ struct bnx2fc_cmd {
 	void (*cb_func)(struct bnx2fc_els_cb_arg *cb_arg);
 	struct bnx2fc_els_cb_arg *cb_arg;
 	struct delayed_work timeout_work; /* timer for ULP timeouts */
-	struct completion tm_done;
-	int wait_for_comp;
+	struct completion abts_done;
+	struct completion cleanup_done;
+	int wait_for_abts_comp;
+	int wait_for_cleanup_comp;
 	u16 xid;
 	struct fcoe_err_report_entry err_entry;
 	struct fcoe_task_ctx_entry *task;

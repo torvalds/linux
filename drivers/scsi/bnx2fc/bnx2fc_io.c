@@ -70,7 +70,7 @@ static void bnx2fc_cmd_timeout(struct work_struct *work)
 							&io_req->req_flags)) {
 			/* Handle eh_abort timeout */
 			BNX2FC_IO_DBG(io_req, "eh_abort timed out\n");
-			complete(&io_req->tm_done);
+			complete(&io_req->abts_done);
 		} else if (test_bit(BNX2FC_FLAG_ISSUE_ABTS,
 				    &io_req->req_flags)) {
 			/* Handle internally generated ABTS timeout */
@@ -775,31 +775,32 @@ retry_tmf:
 	io_req->on_tmf_queue = 1;
 	list_add_tail(&io_req->link, &tgt->active_tm_queue);
 
-	init_completion(&io_req->tm_done);
-	io_req->wait_for_comp = 1;
+	init_completion(&io_req->abts_done);
+	io_req->wait_for_abts_comp = 1;
 
 	/* Ring doorbell */
 	bnx2fc_ring_doorbell(tgt);
 	spin_unlock_bh(&tgt->tgt_lock);
 
-	rc = wait_for_completion_timeout(&io_req->tm_done,
+	rc = wait_for_completion_timeout(&io_req->abts_done,
 					 interface->tm_timeout * HZ);
 	spin_lock_bh(&tgt->tgt_lock);
 
-	io_req->wait_for_comp = 0;
+	io_req->wait_for_abts_comp = 0;
 	if (!(test_bit(BNX2FC_FLAG_TM_COMPL, &io_req->req_flags))) {
 		set_bit(BNX2FC_FLAG_TM_TIMEOUT, &io_req->req_flags);
 		if (io_req->on_tmf_queue) {
 			list_del_init(&io_req->link);
 			io_req->on_tmf_queue = 0;
 		}
-		io_req->wait_for_comp = 1;
+		io_req->wait_for_cleanup_comp = 1;
+		init_completion(&io_req->cleanup_done);
 		bnx2fc_initiate_cleanup(io_req);
 		spin_unlock_bh(&tgt->tgt_lock);
-		rc = wait_for_completion_timeout(&io_req->tm_done,
+		rc = wait_for_completion_timeout(&io_req->cleanup_done,
 						 BNX2FC_FW_TIMEOUT);
 		spin_lock_bh(&tgt->tgt_lock);
-		io_req->wait_for_comp = 0;
+		io_req->wait_for_cleanup_comp = 0;
 		if (!rc)
 			kref_put(&io_req->refcount, bnx2fc_cmd_release);
 	}
@@ -1085,7 +1086,8 @@ static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
 	struct bnx2fc_rport *tgt = io_req->tgt;
 	unsigned int time_left;
 
-	io_req->wait_for_comp = 1;
+	init_completion(&io_req->cleanup_done);
+	io_req->wait_for_cleanup_comp = 1;
 	bnx2fc_initiate_cleanup(io_req);
 
 	spin_unlock_bh(&tgt->tgt_lock);
@@ -1094,9 +1096,8 @@ static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
 	 * Can't wait forever on cleanup response lest we let the SCSI error
 	 * handler wait forever
 	 */
-	time_left = wait_for_completion_timeout(&io_req->tm_done,
+	time_left = wait_for_completion_timeout(&io_req->cleanup_done,
 						BNX2FC_FW_TIMEOUT);
-	io_req->wait_for_comp = 0;
 	if (!time_left) {
 		BNX2FC_IO_DBG(io_req, "%s(): Wait for cleanup timed out.\n",
 			      __func__);
@@ -1109,6 +1110,7 @@ static int bnx2fc_abts_cleanup(struct bnx2fc_cmd *io_req)
 	}
 
 	spin_lock_bh(&tgt->tgt_lock);
+	io_req->wait_for_cleanup_comp = 0;
 	return SUCCESS;
 }
 
@@ -1197,7 +1199,8 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	/* Move IO req to retire queue */
 	list_add_tail(&io_req->link, &tgt->io_retire_queue);
 
-	init_completion(&io_req->tm_done);
+	init_completion(&io_req->abts_done);
+	init_completion(&io_req->cleanup_done);
 
 	if (test_and_set_bit(BNX2FC_FLAG_ISSUE_ABTS, &io_req->req_flags)) {
 		printk(KERN_ERR PFX "eh_abort: io_req (xid = 0x%x) "
@@ -1225,26 +1228,28 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		kref_put(&io_req->refcount,
 			 bnx2fc_cmd_release); /* drop timer hold */
 	set_bit(BNX2FC_FLAG_EH_ABORT, &io_req->req_flags);
-	io_req->wait_for_comp = 1;
+	io_req->wait_for_abts_comp = 1;
 	rc = bnx2fc_initiate_abts(io_req);
 	if (rc == FAILED) {
+		io_req->wait_for_cleanup_comp = 1;
 		bnx2fc_initiate_cleanup(io_req);
 		spin_unlock_bh(&tgt->tgt_lock);
-		wait_for_completion(&io_req->tm_done);
+		wait_for_completion(&io_req->cleanup_done);
 		spin_lock_bh(&tgt->tgt_lock);
-		io_req->wait_for_comp = 0;
+		io_req->wait_for_cleanup_comp = 0;
 		goto done;
 	}
 	spin_unlock_bh(&tgt->tgt_lock);
 
 	/* Wait 2 * RA_TOV + 1 to be sure timeout function hasn't fired */
-	time_left = wait_for_completion_timeout(&io_req->tm_done,
-	    (2 * rp->r_a_tov + 1) * HZ);
+	time_left = wait_for_completion_timeout(&io_req->abts_done,
+						(2 * rp->r_a_tov + 1) * HZ);
 	if (time_left)
-		BNX2FC_IO_DBG(io_req, "Timed out in eh_abort waiting for tm_done");
+		BNX2FC_IO_DBG(io_req,
+			      "Timed out in eh_abort waiting for abts_done");
 
 	spin_lock_bh(&tgt->tgt_lock);
-	io_req->wait_for_comp = 0;
+	io_req->wait_for_abts_comp = 0;
 	if (test_bit(BNX2FC_FLAG_IO_COMPL, &io_req->req_flags)) {
 		BNX2FC_IO_DBG(io_req, "IO completed in a different context\n");
 		rc = SUCCESS;
@@ -1321,8 +1326,8 @@ void bnx2fc_process_cleanup_compl(struct bnx2fc_cmd *io_req,
 		   kref_read(&io_req->refcount), io_req->cmd_type);
 	bnx2fc_scsi_done(io_req, DID_ERROR);
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
-	if (io_req->wait_for_comp)
-		complete(&io_req->tm_done);
+	if (io_req->wait_for_cleanup_comp)
+		complete(&io_req->cleanup_done);
 }
 
 void bnx2fc_process_abts_compl(struct bnx2fc_cmd *io_req,
@@ -1390,10 +1395,10 @@ void bnx2fc_process_abts_compl(struct bnx2fc_cmd *io_req,
 	bnx2fc_cmd_timer_set(io_req, r_a_tov);
 
 io_compl:
-	if (io_req->wait_for_comp) {
+	if (io_req->wait_for_abts_comp) {
 		if (test_and_clear_bit(BNX2FC_FLAG_EH_ABORT,
 				       &io_req->req_flags))
-			complete(&io_req->tm_done);
+			complete(&io_req->abts_done);
 	} else {
 		/*
 		 * We end up here when ABTS is issued as
@@ -1577,9 +1582,9 @@ void bnx2fc_process_tm_compl(struct bnx2fc_cmd *io_req,
 	sc_cmd->scsi_done(sc_cmd);
 
 	kref_put(&io_req->refcount, bnx2fc_cmd_release);
-	if (io_req->wait_for_comp) {
+	if (io_req->wait_for_abts_comp) {
 		BNX2FC_IO_DBG(io_req, "tm_compl - wake up the waiter\n");
-		complete(&io_req->tm_done);
+		complete(&io_req->abts_done);
 	}
 }
 
@@ -1926,10 +1931,10 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 		 * between command abort and (late) completion.
 		 */
 		BNX2FC_IO_DBG(io_req, "xid not on active_cmd_queue\n");
-		if (io_req->wait_for_comp)
+		if (io_req->wait_for_abts_comp)
 			if (test_and_clear_bit(BNX2FC_FLAG_EH_ABORT,
 					       &io_req->req_flags))
-				complete(&io_req->tm_done);
+				complete(&io_req->abts_done);
 	}
 
 	bnx2fc_unmap_sg_list(io_req);
