@@ -2813,7 +2813,7 @@ _base_free_irq(struct MPT3SAS_ADAPTER *ioc)
 
 	list_for_each_entry_safe(reply_q, next, &ioc->reply_queue_list, list) {
 		list_del(&reply_q->list);
-		if (smp_affinity_enable)
+		if (ioc->smp_affinity_enable)
 			irq_set_affinity_hint(pci_irq_vector(ioc->pdev,
 			    reply_q->msix_index), NULL);
 		free_irq(pci_irq_vector(ioc->pdev, reply_q->msix_index),
@@ -2898,7 +2898,7 @@ _base_assign_reply_queues(struct MPT3SAS_ADAPTER *ioc)
 	if (!nr_msix)
 		return;
 
-	if (smp_affinity_enable) {
+	if (ioc->smp_affinity_enable) {
 
 		/*
 		 * set irq affinity to local numa node for those irqs
@@ -3033,7 +3033,7 @@ _base_alloc_irq_vectors(struct MPT3SAS_ADAPTER *ioc)
 	struct irq_affinity desc = { .pre_vectors = ioc->high_iops_queues };
 	struct irq_affinity *descp = &desc;
 
-	if (smp_affinity_enable)
+	if (ioc->smp_affinity_enable)
 		irq_flags |= PCI_IRQ_AFFINITY;
 	else
 		descp = NULL;
@@ -3091,7 +3091,7 @@ _base_enable_msix(struct MPT3SAS_ADAPTER *ioc)
 		goto try_ioapic;
 
 	if (ioc->msix_vector_count < ioc->cpu_count)
-		smp_affinity_enable = 0;
+		ioc->smp_affinity_enable = 0;
 
 	r = _base_alloc_irq_vectors(ioc);
 	if (r < 0) {
@@ -6896,6 +6896,8 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 			goto out_free_resources;
 		}
 	}
+
+	ioc->smp_affinity_enable = smp_affinity_enable;
 
 	ioc->rdpq_array_enable_assigned = 0;
 	ioc->dma_mask = 0;
