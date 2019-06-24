@@ -463,7 +463,7 @@ static bool iwl_mvm_is_dup(struct ieee80211_sta *sta, int queue,
 }
 
 int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
-			    const u8 *data, u32 count)
+			    const u8 *data, u32 count, bool async)
 {
 	u8 buf[sizeof(struct iwl_rxq_sync_cmd) +
 	       sizeof(struct iwl_mvm_rss_sync_notif)];
@@ -487,7 +487,7 @@ int iwl_mvm_notify_rx_queue(struct iwl_mvm *mvm, u32 rxq_mask,
 	ret = iwl_mvm_send_cmd_pdu(mvm,
 				   WIDE_ID(DATA_PATH_GROUP,
 					   TRIGGER_RX_QUEUES_NOTIF_CMD),
-				   0, data_size, cmd);
+				   async ? CMD_ASYNC : 0, data_size, cmd);
 
 	return ret;
 }
@@ -504,6 +504,18 @@ static bool iwl_mvm_is_sn_less(u16 sn1, u16 sn2, u16 buffer_size)
 	       !ieee80211_sn_less(sn1, sn2 - buffer_size);
 }
 
+static void iwl_mvm_sync_nssn(struct iwl_mvm *mvm, u8 baid, u16 nssn)
+{
+	struct iwl_mvm_rss_sync_notif notif = {
+		.metadata.type = IWL_MVM_RXQ_NSSN_SYNC,
+		.metadata.sync = 0,
+		.nssn_sync.baid = baid,
+		.nssn_sync.nssn = nssn,
+	};
+
+	iwl_mvm_sync_rx_queues_internal(mvm, (void *)&notif, sizeof(notif));
+}
+
 #define RX_REORDER_BUF_TIMEOUT_MQ (HZ / 10)
 
 static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
@@ -511,7 +523,7 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 				   struct napi_struct *napi,
 				   struct iwl_mvm_baid_data *baid_data,
 				   struct iwl_mvm_reorder_buffer *reorder_buf,
-				   u16 nssn)
+				   u16 nssn, bool sync_rss)
 {
 	struct iwl_mvm_reorder_buf_entry *entries =
 		&baid_data->entries[reorder_buf->queue *
@@ -530,6 +542,8 @@ static void iwl_mvm_release_frames(struct iwl_mvm *mvm,
 		struct sk_buff *skb;
 
 		ssn = ieee80211_sn_inc(ssn);
+		if (sync_rss && (ssn == 2048 || ssn == 0))
+			iwl_mvm_sync_nssn(mvm, baid_data->baid, ssn);
 
 		/*
 		 * Empty the list. Will have more than one frame for A-MSDU.
@@ -616,7 +630,8 @@ void iwl_mvm_reorder_timer_expired(struct timer_list *t)
 			     sta_id, sn);
 		iwl_mvm_event_frame_timeout_callback(buf->mvm, mvmsta->vif,
 						     sta, baid_data->tid);
-		iwl_mvm_release_frames(buf->mvm, sta, NULL, baid_data, buf, sn);
+		iwl_mvm_release_frames(buf->mvm, sta, NULL, baid_data,
+				       buf, sn, true);
 		rcu_read_unlock();
 	} else {
 		/*
@@ -658,7 +673,8 @@ static void iwl_mvm_del_ba(struct iwl_mvm *mvm, int queue,
 	spin_lock_bh(&reorder_buf->lock);
 	iwl_mvm_release_frames(mvm, sta, NULL, ba_data, reorder_buf,
 			       ieee80211_sn_add(reorder_buf->head_sn,
-						reorder_buf->buf_size));
+						reorder_buf->buf_size),
+			       false);
 	spin_unlock_bh(&reorder_buf->lock);
 	del_timer_sync(&reorder_buf->reorder_timer);
 
@@ -694,7 +710,8 @@ static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
 	reorder_buf = &ba_data->reorder_buf[queue];
 
 	spin_lock_bh(&reorder_buf->lock);
-	iwl_mvm_release_frames(mvm, sta, napi, ba_data, reorder_buf, nssn);
+	iwl_mvm_release_frames(mvm, sta, napi, ba_data,
+			       reorder_buf, nssn, false);
 	spin_unlock_bh(&reorder_buf->lock);
 
 out:
@@ -833,7 +850,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	}
 
 	if (ieee80211_is_back_req(hdr->frame_control)) {
-		iwl_mvm_release_frames(mvm, sta, napi, baid_data, buffer, nssn);
+		iwl_mvm_release_frames(mvm, sta, napi, baid_data,
+				       buffer, nssn, false);
 		goto drop;
 	}
 
@@ -842,7 +860,10 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	 * If the SN is smaller than the NSSN it might need to first go into
 	 * the reorder buffer, in which case we just release up to it and the
 	 * rest of the function will take care of storing it and releasing up to
-	 * the nssn
+	 * the nssn.
+	 * This should not happen. This queue has been lagging and it should
+	 * have been updated by a IWL_MVM_RXQ_NSSN_SYNC notification. Be nice
+	 * and update the other queues.
 	 */
 	if (!iwl_mvm_is_sn_less(nssn, buffer->head_sn + buffer->buf_size,
 				buffer->buf_size) ||
@@ -850,7 +871,7 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 		u16 min_sn = ieee80211_sn_less(sn, nssn) ? sn : nssn;
 
 		iwl_mvm_release_frames(mvm, sta, napi, baid_data, buffer,
-				       min_sn);
+				       min_sn, true);
 	}
 
 	/* drop any oudated packets */
@@ -861,8 +882,23 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	if (!buffer->num_stored && ieee80211_sn_less(sn, nssn)) {
 		if (iwl_mvm_is_sn_less(buffer->head_sn, nssn,
 				       buffer->buf_size) &&
-		   (!amsdu || last_subframe))
+		   (!amsdu || last_subframe)) {
+			/*
+			 * If we crossed the 2048 or 0 SN, notify all the
+			 * queues. This is done in order to avoid having a
+			 * head_sn that lags behind for too long. When that
+			 * happens, we can get to a situation where the head_sn
+			 * is within the interval [nssn - buf_size : nssn]
+			 * which will make us think that the nssn is a packet
+			 * that we already freed because of the reordering
+			 * buffer and we will ignore it. So maintain the
+			 * head_sn somewhat updated across all the queues:
+			 * when it crosses 0 and 2048.
+			 */
+			if (sn == 2048 || sn == 0)
+				iwl_mvm_sync_nssn(mvm, baid, sn);
 			buffer->head_sn = nssn;
+		}
 		/* No need to update AMSDU last SN - we are moving the head */
 		spin_unlock_bh(&buffer->lock);
 		return false;
@@ -877,8 +913,11 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	 * while technically there is no hole and we can move forward.
 	 */
 	if (!buffer->num_stored && sn == buffer->head_sn) {
-		if (!amsdu || last_subframe)
+		if (!amsdu || last_subframe) {
+			if (sn == 2048 || sn == 0)
+				iwl_mvm_sync_nssn(mvm, baid, sn);
 			buffer->head_sn = ieee80211_sn_inc(buffer->head_sn);
+		}
 		/* No need to update AMSDU last SN - we are moving the head */
 		spin_unlock_bh(&buffer->lock);
 		return false;
@@ -923,7 +962,8 @@ static bool iwl_mvm_reorder(struct iwl_mvm *mvm,
 	 * release notification with up to date NSSN.
 	 */
 	if (!amsdu || last_subframe)
-		iwl_mvm_release_frames(mvm, sta, napi, baid_data, buffer, nssn);
+		iwl_mvm_release_frames(mvm, sta, napi, baid_data,
+				       buffer, nssn, true);
 
 	spin_unlock_bh(&buffer->lock);
 	return true;
