@@ -92,7 +92,7 @@ void hns_roce_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 {
 	struct resource *res;
-	int ret = 0;
+	int ret;
 
 	/* Using bitmap to manager UAR index */
 	ret = hns_roce_bitmap_alloc(&hr_dev->uar_table.bitmap, &uar->logic_idx);

@@ -309,7 +309,7 @@ static int hns_roce_modify_port(struct ib_device *ib_dev, u8 port_num, int mask,
 static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
 				   struct ib_udata *udata)
 {
-	int ret = 0;
+	int ret;
 	struct hns_roce_ucontext *context = to_hr_ucontext(uctx);
 	struct hns_roce_ib_alloc_ucontext_resp resp = {};
 	struct hns_roce_dev *hr_dev = to_hr_dev(uctx->device);

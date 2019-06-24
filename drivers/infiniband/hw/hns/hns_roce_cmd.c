@@ -161,7 +161,7 @@ static int hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,
 				  u64 out_param, unsigned long in_modifier,
 				  u8 op_modifier, u16 op, unsigned long timeout)
 {
-	int ret = 0;
+	int ret;
 
 	down(&hr_dev->cmd.event_sem);
 	ret = __hns_roce_cmd_mbox_wait(hr_dev, in_param, out_param,

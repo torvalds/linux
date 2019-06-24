@@ -2018,7 +2018,7 @@ static int hns_roce_v2_chk_mbox(struct hns_roce_dev *hr_dev,
 				unsigned long timeout)
 {
 	struct device *dev = hr_dev->dev;
-	unsigned long end = 0;
+	unsigned long end;
 	u32 status;
 
 	end = msecs_to_jiffies(timeout) + jiffies;
@@ -3016,7 +3016,7 @@ static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 {
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_cmd_mailbox *mailbox;
-	int ret = 0;
+	int ret;
 	u16 op = 0xff;
 
 	if (!hns_roce_check_whether_mhop(hr_dev, table->type))
