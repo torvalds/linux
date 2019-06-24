@@ -9,6 +9,24 @@
 #ifndef __EROFS_FS_COMPRESS_H
 #define __EROFS_FS_COMPRESS_H
 
+#include "internal.h"
+
+enum {
+	Z_EROFS_COMPRESSION_SHIFTED = Z_EROFS_COMPRESSION_MAX,
+	Z_EROFS_COMPRESSION_RUNTIME_MAX
+};
+
+struct z_erofs_decompress_req {
+	struct page **in, **out;
+
+	unsigned short pageofs_out;
+	unsigned int inputsize, outputsize;
+
+	/* indicate the algorithm will be used for decompression */
+	unsigned int alg;
+	bool inplace_io, partial_decoding;
+};
+
 /*
  * - 0x5A110C8D ('sallocated', Z_EROFS_MAPPING_STAGING) -
  * used to mark temporary allocated pages from other
@@ -35,6 +53,9 @@ static inline bool z_erofs_put_stagingpage(struct list_head *pagepool,
 		list_add(&page->lru, pagepool);
 	return true;
 }
+
+int z_erofs_decompress(struct z_erofs_decompress_req *rq,
+		       struct list_head *pagepool);
 
 #endif
 
