@@ -267,10 +267,6 @@
 	status = "okay";
 };
 
-&snvs_pwrkey {
-	status = "disabled";
-};
-
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1 &pinctrl_uart1_ctrl1 &pinctrl_uart1_ctrl2>;
