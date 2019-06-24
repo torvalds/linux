@@ -117,7 +117,7 @@ static int mlx5_tx_health_report(struct devlink_health_reporter *tx_reporter,
 				 char *err_str,
 				 struct mlx5e_tx_err_ctx *err_ctx)
 {
-	if (IS_ERR_OR_NULL(tx_reporter)) {
+	if (!tx_reporter) {
 		netdev_err(err_ctx->sq->channel->netdev, err_str);
 		return err_ctx->recover(err_ctx->sq);
 	}
@@ -289,25 +289,27 @@ static const struct devlink_health_reporter_ops mlx5_tx_reporter_ops = {
 
 int mlx5e_tx_reporter_create(struct mlx5e_priv *priv)
 {
+	struct devlink_health_reporter *reporter;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct devlink *devlink = priv_to_devlink(mdev);
 
-	priv->tx_reporter =
+	reporter =
 		devlink_health_reporter_create(devlink, &mlx5_tx_reporter_ops,
 					       MLX5_REPORTER_TX_GRACEFUL_PERIOD,
 					       true, priv);
-	if (IS_ERR(priv->tx_reporter)) {
+	if (IS_ERR(reporter)) {
 		netdev_warn(priv->netdev,
 			    "Failed to create tx reporter, err = %ld\n",
-			    PTR_ERR(priv->tx_reporter));
-		return PTR_ERR(priv->tx_reporter);
+			    PTR_ERR(reporter));
+		return PTR_ERR(reporter);
 	}
+	priv->tx_reporter = reporter;
 	return 0;
 }
 
 void mlx5e_tx_reporter_destroy(struct mlx5e_priv *priv)
 {
-	if (IS_ERR_OR_NULL(priv->tx_reporter))
+	if (!priv->tx_reporter)
 		return;
 
 	devlink_health_reporter_destroy(priv->tx_reporter);
