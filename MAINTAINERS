@@ -7801,7 +7801,7 @@ INGENIC JZ4780 NAND DRIVER
 M:	Harvey Hunt <harveyhuntnexus@gmail.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
-F:	drivers/mtd/nand/raw/jz4780_*
+F:	drivers/mtd/nand/raw/ingenic/
 
 INOTIFY
 M:	Jan Kara <jack@suse.cz>
