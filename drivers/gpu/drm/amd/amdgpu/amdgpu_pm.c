@@ -689,12 +689,12 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 		if (ret)
 			return -EINVAL;
 	} else {
-		if (adev->powerplay.pp_funcs->odn_edit_dpm_table)
+		if (adev->powerplay.pp_funcs->odn_edit_dpm_table) {
 			ret = amdgpu_dpm_odn_edit_dpm_table(adev, type,
 						parameter, parameter_size);
-
-		if (ret)
-			return -EINVAL;
+			if (ret)
+				return -EINVAL;
+		}
 
 		if (type == PP_OD_COMMIT_DPM_TABLE) {
 			if (adev->powerplay.pp_funcs->dispatch_tasks) {
