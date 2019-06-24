@@ -1462,7 +1462,7 @@ static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	struct drm_device *ddev = adev->ddev;
 	int channel = to_sensor_dev_attr(attr)->index;
-	int r, temp, size = sizeof(temp);
+	int r, temp = 0, size = sizeof(temp);
 
 	/* Can't get temperature when the card is off */
 	if  ((adev->flags & AMD_IS_PX) &&
