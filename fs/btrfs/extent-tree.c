@@ -11137,13 +11137,11 @@ int btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info,
  * it while performing the free space search since we have already
  * held back allocations.
  */
-static int btrfs_trim_free_extents(struct btrfs_device *device,
-				   struct fstrim_range *range, u64 *trimmed)
+static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 {
-	u64 start, len = 0, end = 0;
+	u64 start = SZ_1M, len = 0, end = 0;
 	int ret;
 
-	start = max_t(u64, range->start, SZ_1M);
 	*trimmed = 0;
 
 	/* Discard not supported = nothing to do. */
@@ -11186,22 +11184,6 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 			break;
 		}
 
-		/* Keep going until we satisfy minlen or reach end of space */
-		if (len < range->minlen) {
-			mutex_unlock(&fs_info->chunk_mutex);
-			start += len;
-			continue;
-		}
-
-		/* If we are out of the passed range break */
-		if (start > range->start + range->len - 1) {
-			mutex_unlock(&fs_info->chunk_mutex);
-			break;
-		}
-
-		start = max(range->start, start);
-		len = min(range->len, len);
-
 		ret = btrfs_issue_discard(device->bdev, start, len,
 					  &bytes);
 		if (!ret)
@@ -11215,10 +11197,6 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 
 		start += len;
 		*trimmed += bytes;
-
-		/* We've trimmed enough */
-		if (*trimmed >= range->len)
-			break;
 
 		if (fatal_signal_pending(current)) {
 			ret = -ERESTARTSYS;
@@ -11303,7 +11281,7 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	devices = &fs_info->fs_devices->devices;
 	list_for_each_entry(device, devices, dev_list) {
-		ret = btrfs_trim_free_extents(device, range, &group_trimmed);
+		ret = btrfs_trim_free_extents(device, &group_trimmed);
 		if (ret) {
 			dev_failed++;
 			dev_ret = ret;

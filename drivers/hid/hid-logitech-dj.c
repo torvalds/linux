@@ -113,6 +113,7 @@ enum recvr_type {
 	recvr_type_dj,
 	recvr_type_hidpp,
 	recvr_type_gaming_hidpp,
+	recvr_type_mouse_only,
 	recvr_type_27mhz,
 	recvr_type_bluetooth,
 };
@@ -864,9 +865,12 @@ static void logi_dj_recv_queue_notification(struct dj_receiver_dev *djrcv_dev,
 	schedule_work(&djrcv_dev->work);
 }
 
-static void logi_hidpp_dev_conn_notif_equad(struct hidpp_event *hidpp_report,
+static void logi_hidpp_dev_conn_notif_equad(struct hid_device *hdev,
+					    struct hidpp_event *hidpp_report,
 					    struct dj_workitem *workitem)
 {
+	struct dj_receiver_dev *djrcv_dev = hid_get_drvdata(hdev);
+
 	workitem->type = WORKITEM_TYPE_PAIRED;
 	workitem->device_type = hidpp_report->params[HIDPP_PARAM_DEVICE_INFO] &
 				HIDPP_DEVICE_TYPE_MASK;
@@ -880,6 +884,8 @@ static void logi_hidpp_dev_conn_notif_equad(struct hidpp_event *hidpp_report,
 		break;
 	case REPORT_TYPE_MOUSE:
 		workitem->reports_supported |= STD_MOUSE | HIDPP;
+		if (djrcv_dev->type == recvr_type_mouse_only)
+			workitem->reports_supported |= MULTIMEDIA;
 		break;
 	}
 }
@@ -923,7 +929,7 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 	case 0x01:
 		device_type = "Bluetooth";
 		/* Bluetooth connect packet contents is the same as (e)QUAD */
-		logi_hidpp_dev_conn_notif_equad(hidpp_report, &workitem);
+		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
 		if (!(hidpp_report->params[HIDPP_PARAM_DEVICE_INFO] &
 						HIDPP_MANUFACTURER_MASK)) {
 			hid_info(hdev, "Non Logitech device connected on slot %d\n",
@@ -937,18 +943,18 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 		break;
 	case 0x03:
 		device_type = "QUAD or eQUAD";
-		logi_hidpp_dev_conn_notif_equad(hidpp_report, &workitem);
+		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
 		break;
 	case 0x04:
 		device_type = "eQUAD step 4 DJ";
-		logi_hidpp_dev_conn_notif_equad(hidpp_report, &workitem);
+		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
 		break;
 	case 0x05:
 		device_type = "DFU Lite";
 		break;
 	case 0x06:
 		device_type = "eQUAD step 4 Lite";
-		logi_hidpp_dev_conn_notif_equad(hidpp_report, &workitem);
+		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
 		break;
 	case 0x07:
 		device_type = "eQUAD step 4 Gaming";
@@ -958,11 +964,11 @@ static void logi_hidpp_recv_queue_notif(struct hid_device *hdev,
 		break;
 	case 0x0a:
 		device_type = "eQUAD nano Lite";
-		logi_hidpp_dev_conn_notif_equad(hidpp_report, &workitem);
+		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
 		break;
 	case 0x0c:
 		device_type = "eQUAD Lightspeed";
-		logi_hidpp_dev_conn_notif_equad(hidpp_report, &workitem);
+		logi_hidpp_dev_conn_notif_equad(hdev, hidpp_report, &workitem);
 		workitem.reports_supported |= STD_KEYBOARD;
 		break;
 	}
@@ -1313,7 +1319,8 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 	if (djdev->reports_supported & STD_MOUSE) {
 		dbg_hid("%s: sending a mouse descriptor, reports_supported: %llx\n",
 			__func__, djdev->reports_supported);
-		if (djdev->dj_receiver_dev->type == recvr_type_gaming_hidpp)
+		if (djdev->dj_receiver_dev->type == recvr_type_gaming_hidpp ||
+		    djdev->dj_receiver_dev->type == recvr_type_mouse_only)
 			rdcat(rdesc, &rsize, mse_high_res_descriptor,
 			      sizeof(mse_high_res_descriptor));
 		else if (djdev->dj_receiver_dev->type == recvr_type_27mhz)
@@ -1556,15 +1563,19 @@ static int logi_dj_raw_event(struct hid_device *hdev,
 			data[0] = data[1];
 			data[1] = 0;
 		}
-		/* The 27 MHz mouse-only receiver sends unnumbered mouse data */
+		/*
+		 * Mouse-only receivers send unnumbered mouse data. The 27 MHz
+		 * receiver uses 6 byte packets, the nano receiver 8 bytes.
+		 */
 		if (djrcv_dev->unnumbered_application == HID_GD_MOUSE &&
-		    size == 6) {
-			u8 mouse_report[7];
+		    size <= 8) {
+			u8 mouse_report[9];
 
 			/* Prepend report id */
 			mouse_report[0] = REPORT_TYPE_MOUSE;
-			memcpy(mouse_report + 1, data, 6);
-			logi_dj_recv_forward_input_report(hdev, mouse_report, 7);
+			memcpy(mouse_report + 1, data, size);
+			logi_dj_recv_forward_input_report(hdev, mouse_report,
+							  size + 1);
 		}
 
 		return false;
@@ -1635,6 +1646,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 	case recvr_type_dj:		no_dj_interfaces = 3; break;
 	case recvr_type_hidpp:		no_dj_interfaces = 2; break;
 	case recvr_type_gaming_hidpp:	no_dj_interfaces = 3; break;
+	case recvr_type_mouse_only:	no_dj_interfaces = 2; break;
 	case recvr_type_27mhz:		no_dj_interfaces = 2; break;
 	case recvr_type_bluetooth:	no_dj_interfaces = 2; break;
 	}
@@ -1808,10 +1820,10 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	{HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_UNIFYING_RECEIVER_2),
 	 .driver_data = recvr_type_dj},
-	{ /* Logitech Nano (non DJ) receiver */
+	{ /* Logitech Nano mouse only receiver */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_NANO_RECEIVER),
-	 .driver_data = recvr_type_hidpp},
+	 .driver_data = recvr_type_mouse_only},
 	{ /* Logitech Nano (non DJ) receiver */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 			 USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_2),
@@ -1835,6 +1847,14 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	{ /* Logitech MX5000 HID++ / bluetooth receiver mouse intf. */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		0xc70a),
+	 .driver_data = recvr_type_bluetooth},
+	{ /* Logitech MX5500 HID++ / bluetooth receiver keyboard intf. */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		0xc71b),
+	 .driver_data = recvr_type_bluetooth},
+	{ /* Logitech MX5500 HID++ / bluetooth receiver mouse intf. */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		0xc71c),
 	 .driver_data = recvr_type_bluetooth},
 	{}
 };

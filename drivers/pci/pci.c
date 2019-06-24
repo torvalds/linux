@@ -1004,15 +1004,10 @@ static void __pci_start_power_transition(struct pci_dev *dev, pci_power_t state)
 	if (state == PCI_D0) {
 		pci_platform_power_transition(dev, PCI_D0);
 		/*
-		 * Mandatory power management transition delays, see
-		 * PCI Express Base Specification Revision 2.0 Section
-		 * 6.6.1: Conventional Reset.  Do not delay for
-		 * devices powered on/off by corresponding bridge,
-		 * because have already delayed for the bridge.
+		 * Mandatory power management transition delays are
+		 * handled in the PCIe portdrv resume hooks.
 		 */
 		if (dev->runtime_d3cold) {
-			if (dev->d3cold_delay && !dev->imm_ready)
-				msleep(dev->d3cold_delay);
 			/*
 			 * When powering on a bridge from D3cold, the
 			 * whole hierarchy may be powered on into
@@ -2065,6 +2060,13 @@ static void pci_pme_list_scan(struct work_struct *work)
 			 */
 			if (bridge && bridge->current_state != PCI_D0)
 				continue;
+			/*
+			 * If the device is in D3cold it should not be
+			 * polled either.
+			 */
+			if (pme_dev->dev->current_state == PCI_D3cold)
+				continue;
+
 			pci_pme_wakeup(pme_dev->dev, NULL);
 		} else {
 			list_del(&pme_dev->list);
@@ -2459,45 +2461,56 @@ bool pci_dev_run_wake(struct pci_dev *dev)
 EXPORT_SYMBOL_GPL(pci_dev_run_wake);
 
 /**
- * pci_dev_keep_suspended - Check if the device can stay in the suspended state.
+ * pci_dev_need_resume - Check if it is necessary to resume the device.
  * @pci_dev: Device to check.
  *
- * Return 'true' if the device is runtime-suspended, it doesn't have to be
+ * Return 'true' if the device is not runtime-suspended or it has to be
  * reconfigured due to wakeup settings difference between system and runtime
- * suspend and the current power state of it is suitable for the upcoming
- * (system) transition.
- *
- * If the device is not configured for system wakeup, disable PME for it before
- * returning 'true' to prevent it from waking up the system unnecessarily.
+ * suspend, or the current power state of it is not suitable for the upcoming
+ * (system-wide) transition.
  */
-bool pci_dev_keep_suspended(struct pci_dev *pci_dev)
+bool pci_dev_need_resume(struct pci_dev *pci_dev)
 {
 	struct device *dev = &pci_dev->dev;
-	bool wakeup = device_may_wakeup(dev);
+	pci_power_t target_state;
 
-	if (!pm_runtime_suspended(dev)
-	    || pci_target_state(pci_dev, wakeup) != pci_dev->current_state
-	    || platform_pci_need_resume(pci_dev))
-		return false;
+	if (!pm_runtime_suspended(dev) || platform_pci_need_resume(pci_dev))
+		return true;
+
+	target_state = pci_target_state(pci_dev, device_may_wakeup(dev));
 
 	/*
-	 * At this point the device is good to go unless it's been configured
-	 * to generate PME at the runtime suspend time, but it is not supposed
-	 * to wake up the system.  In that case, simply disable PME for it
-	 * (it will have to be re-enabled on exit from system resume).
-	 *
-	 * If the device's power state is D3cold and the platform check above
-	 * hasn't triggered, the device's configuration is suitable and we don't
-	 * need to manipulate it at all.
+	 * If the earlier platform check has not triggered, D3cold is just power
+	 * removal on top of D3hot, so no need to resume the device in that
+	 * case.
 	 */
+	return target_state != pci_dev->current_state &&
+		target_state != PCI_D3cold &&
+		pci_dev->current_state != PCI_D3hot;
+}
+
+/**
+ * pci_dev_adjust_pme - Adjust PME setting for a suspended device.
+ * @pci_dev: Device to check.
+ *
+ * If the device is suspended and it is not configured for system wakeup,
+ * disable PME for it to prevent it from waking up the system unnecessarily.
+ *
+ * Note that if the device's power state is D3cold and the platform check in
+ * pci_dev_need_resume() has not triggered, the device's configuration need not
+ * be changed.
+ */
+void pci_dev_adjust_pme(struct pci_dev *pci_dev)
+{
+	struct device *dev = &pci_dev->dev;
+
 	spin_lock_irq(&dev->power.lock);
 
-	if (pm_runtime_suspended(dev) && pci_dev->current_state < PCI_D3cold &&
-	    !wakeup)
+	if (pm_runtime_suspended(dev) && !device_may_wakeup(dev) &&
+	    pci_dev->current_state < PCI_D3cold)
 		__pci_pme_active(pci_dev, false);
 
 	spin_unlock_irq(&dev->power.lock);
-	return true;
 }
 
 /**
@@ -4568,14 +4581,16 @@ static int pci_pm_reset(struct pci_dev *dev, int probe)
 
 	return pci_dev_wait(dev, "PM D3->D0", PCIE_RESET_READY_POLL_MS);
 }
+
 /**
- * pcie_wait_for_link - Wait until link is active or inactive
+ * pcie_wait_for_link_delay - Wait until link is active or inactive
  * @pdev: Bridge device
  * @active: waiting for active or inactive?
+ * @delay: Delay to wait after link has become active (in ms)
  *
  * Use this to wait till link becomes active or inactive.
  */
-bool pcie_wait_for_link(struct pci_dev *pdev, bool active)
+bool pcie_wait_for_link_delay(struct pci_dev *pdev, bool active, int delay)
 {
 	int timeout = 1000;
 	bool ret;
@@ -4612,11 +4627,23 @@ bool pcie_wait_for_link(struct pci_dev *pdev, bool active)
 		timeout -= 10;
 	}
 	if (active && ret)
-		msleep(100);
+		msleep(delay);
 	else if (ret != active)
 		pci_info(pdev, "Data Link Layer Link Active not %s in 1000 msec\n",
 			active ? "set" : "cleared");
 	return ret == active;
+}
+
+/**
+ * pcie_wait_for_link - Wait until link is active or inactive
+ * @pdev: Bridge device
+ * @active: waiting for active or inactive?
+ *
+ * Use this to wait till link becomes active or inactive.
+ */
+bool pcie_wait_for_link(struct pci_dev *pdev, bool active)
+{
+	return pcie_wait_for_link_delay(pdev, active, 100);
 }
 
 void pci_reset_secondary_bus(struct pci_dev *dev)

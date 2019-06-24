@@ -202,6 +202,15 @@ int __ref xen_swiotlb_init(int verbose, bool early)
 retry:
 	bytes = xen_set_nslabs(xen_io_tlb_nslabs);
 	order = get_order(xen_io_tlb_nslabs << IO_TLB_SHIFT);
+
+	/*
+	 * IO TLB memory already allocated. Just use it.
+	 */
+	if (io_tlb_start != 0) {
+		xen_io_tlb_start = phys_to_virt(io_tlb_start);
+		goto end;
+	}
+
 	/*
 	 * Get IO TLB memory from any location.
 	 */
@@ -231,7 +240,6 @@ retry:
 		m_ret = XEN_SWIOTLB_ENOMEM;
 		goto error;
 	}
-	xen_io_tlb_end = xen_io_tlb_start + bytes;
 	/*
 	 * And replace that memory with pages under 4GB.
 	 */
@@ -258,6 +266,8 @@ retry:
 	} else
 		rc = swiotlb_late_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs);
 
+end:
+	xen_io_tlb_end = xen_io_tlb_start + bytes;
 	if (!rc)
 		swiotlb_set_max_segment(PAGE_SIZE);
 

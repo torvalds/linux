@@ -101,7 +101,7 @@ static void rt5677_spi_reverse(u8 *dst, u32 dstlen, const u8 *src, u32 srclen)
 	u32 word_size = min_t(u32, dstlen, 8);
 
 	for (w = 0; w < dstlen; w += word_size) {
-		for (i = 0; i < word_size; i++) {
+		for (i = 0; i < word_size && i + w < dstlen; i++) {
 			si = w + word_size - i - 1;
 			dst[w + i] = si < srclen ? src[si] : 0;
 		}
@@ -152,8 +152,9 @@ int rt5677_spi_read(u32 addr, void *rxbuf, size_t len)
 		status |= spi_sync(g_spi, &m);
 		mutex_unlock(&spi_mutex);
 
+
 		/* Copy data back to caller buffer */
-		rt5677_spi_reverse(cb + offset, t[1].len, body, t[1].len);
+		rt5677_spi_reverse(cb + offset, len - offset, body, t[1].len);
 	}
 	return status;
 }

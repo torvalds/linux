@@ -13,6 +13,7 @@ static unsigned long byt_machine_id;
 
 #define BYT_THINKPAD_10  1
 #define BYT_POV_P1006W   2
+#define BYT_AEGEX_10     3
 
 static int byt_thinkpad10_quirk_cb(const struct dmi_system_id *id)
 {
@@ -23,6 +24,12 @@ static int byt_thinkpad10_quirk_cb(const struct dmi_system_id *id)
 static int byt_pov_p1006w_quirk_cb(const struct dmi_system_id *id)
 {
 	byt_machine_id = BYT_POV_P1006W;
+	return 1;
+}
+
+static int byt_aegex10_quirk_cb(const struct dmi_system_id *id)
+{
+	byt_machine_id = BYT_AEGEX_10;
 	return 1;
 }
 
@@ -66,9 +73,18 @@ static const struct dmi_system_id byt_table[] = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "0E57"),
 		},
 	},
+	{
+		/* Aegex 10 tablet (RU2) */
+		.callback = byt_aegex10_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "AEGEX"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "RU2"),
+		},
+	},
 	{ }
 };
 
+/* The Thinkapd 10 and Aegex 10 tablets have the same ID problem */
 static struct snd_soc_acpi_mach byt_thinkpad_10 = {
 	.id = "10EC5640",
 	.drv_name = "cht-bsw-rt5672",
@@ -95,6 +111,7 @@ static struct snd_soc_acpi_mach *byt_quirk(void *arg)
 
 	switch (byt_machine_id) {
 	case BYT_THINKPAD_10:
+	case BYT_AEGEX_10:
 		return &byt_thinkpad_10;
 	case BYT_POV_P1006W:
 		return &byt_pov_p1006w;
