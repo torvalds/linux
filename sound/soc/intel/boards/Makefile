@@ -1,3 +1,5 @@
+ccflags-y += -DDEBUG
+
 # SPDX-License-Identifier: GPL-2.0
 snd-soc-sst-haswell-objs := haswell.o
 snd-soc-sst-byt-rt5640-mach-objs := byt-rt5640.o
