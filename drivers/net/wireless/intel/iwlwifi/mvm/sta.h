@@ -343,10 +343,16 @@ struct iwl_mvm_delba_data {
 	u32 baid;
 } __packed;
 
+struct iwl_mvm_nssn_sync_data {
+	u32 baid;
+	u32 nssn;
+} __packed;
+
 struct iwl_mvm_rss_sync_notif {
 	struct iwl_mvm_internal_rxq_notif metadata;
 	union {
 		struct iwl_mvm_delba_data delba;
+		struct iwl_mvm_nssn_sync_data nssn_sync;
 	};
 } __packed;
 

@@ -665,8 +665,51 @@ out:
 	rcu_read_unlock();
 }
 
-void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-			    int queue)
+static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
+					      struct napi_struct *napi,
+					      u8 baid, u16 nssn, int queue)
+{
+	struct ieee80211_sta *sta;
+	struct iwl_mvm_reorder_buffer *reorder_buf;
+	struct iwl_mvm_baid_data *ba_data;
+
+	IWL_DEBUG_HT(mvm, "Frame release notification for BAID %u, NSSN %d\n",
+		     baid, nssn);
+
+	if (WARN_ON_ONCE(baid == IWL_RX_REORDER_DATA_INVALID_BAID ||
+			 baid >= ARRAY_SIZE(mvm->baid_map)))
+		return;
+
+	rcu_read_lock();
+
+	ba_data = rcu_dereference(mvm->baid_map[baid]);
+	if (WARN_ON_ONCE(!ba_data))
+		goto out;
+
+	sta = rcu_dereference(mvm->fw_id_to_mac_id[ba_data->sta_id]);
+	if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta)))
+		goto out;
+
+	reorder_buf = &ba_data->reorder_buf[queue];
+
+	spin_lock_bh(&reorder_buf->lock);
+	iwl_mvm_release_frames(mvm, sta, napi, ba_data, reorder_buf, nssn);
+	spin_unlock_bh(&reorder_buf->lock);
+
+out:
+	rcu_read_unlock();
+}
+
+static void iwl_mvm_nssn_sync(struct iwl_mvm *mvm,
+			      struct napi_struct *napi, int queue,
+			      const struct iwl_mvm_nssn_sync_data *data)
+{
+	iwl_mvm_release_frames_from_notif(mvm, napi, data->baid,
+					  data->nssn, queue);
+}
+
+void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct napi_struct *napi,
+			    struct iwl_rx_cmd_buffer *rxb, int queue)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rxq_sync_notification *notif;
@@ -686,6 +729,10 @@ void iwl_mvm_rx_queue_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 		break;
 	case IWL_MVM_RXQ_NOTIF_DEL_BA:
 		iwl_mvm_del_ba(mvm, queue, (void *)internal_notif->data);
+		break;
+	case IWL_MVM_RXQ_NSSN_SYNC:
+		iwl_mvm_nssn_sync(mvm, napi, queue,
+				  (void *)internal_notif->data);
 		break;
 	default:
 		WARN_ONCE(1, "Invalid identifier %d", internal_notif->type);
@@ -1840,40 +1887,13 @@ void iwl_mvm_rx_monitor_no_data(struct iwl_mvm *mvm, struct napi_struct *napi,
 out:
 	rcu_read_unlock();
 }
+
 void iwl_mvm_rx_frame_release(struct iwl_mvm *mvm, struct napi_struct *napi,
 			      struct iwl_rx_cmd_buffer *rxb, int queue)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_frame_release *release = (void *)pkt->data;
-	struct ieee80211_sta *sta;
-	struct iwl_mvm_reorder_buffer *reorder_buf;
-	struct iwl_mvm_baid_data *ba_data;
 
-	int baid = release->baid;
-
-	IWL_DEBUG_HT(mvm, "Frame release notification for BAID %u, NSSN %d\n",
-		     release->baid, le16_to_cpu(release->nssn));
-
-	if (WARN_ON_ONCE(baid == IWL_RX_REORDER_DATA_INVALID_BAID))
-		return;
-
-	rcu_read_lock();
-
-	ba_data = rcu_dereference(mvm->baid_map[baid]);
-	if (WARN_ON_ONCE(!ba_data))
-		goto out;
-
-	sta = rcu_dereference(mvm->fw_id_to_mac_id[ba_data->sta_id]);
-	if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta)))
-		goto out;
-
-	reorder_buf = &ba_data->reorder_buf[queue];
-
-	spin_lock_bh(&reorder_buf->lock);
-	iwl_mvm_release_frames(mvm, sta, napi, ba_data, reorder_buf,
-			       le16_to_cpu(release->nssn));
-	spin_unlock_bh(&reorder_buf->lock);
-
-out:
-	rcu_read_unlock();
+	iwl_mvm_release_frames_from_notif(mvm, napi, release->baid,
+					  le16_to_cpu(release->nssn), queue);
 }
