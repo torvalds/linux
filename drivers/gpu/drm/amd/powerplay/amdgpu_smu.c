@@ -233,6 +233,9 @@ int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 	case AMD_IP_BLOCK_TYPE_VCE:
 		ret = smu_dpm_set_vce_enable(smu, gate);
 		break;
+	case AMD_IP_BLOCK_TYPE_GFX:
+		ret = smu_gfx_off_control(smu, gate);
+		break;
 	default:
 		break;
 	}

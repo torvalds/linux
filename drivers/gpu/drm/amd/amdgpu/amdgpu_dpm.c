@@ -946,10 +946,19 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block
 
 	switch (block_type) {
 	case AMD_IP_BLOCK_TYPE_GFX:
+	case AMD_IP_BLOCK_TYPE_UVD:
+	case AMD_IP_BLOCK_TYPE_VCN:
+	case AMD_IP_BLOCK_TYPE_VCE:
 		if (swsmu)
-			ret = smu_gfx_off_control(&adev->smu, gate);
+			ret = smu_dpm_set_power_gate(&adev->smu, block_type, gate);
 		else
 			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+				(adev)->powerplay.pp_handle, block_type, gate));
+		break;
+	case AMD_IP_BLOCK_TYPE_GMC:
+	case AMD_IP_BLOCK_TYPE_ACP:
+	case AMD_IP_BLOCK_TYPE_SDMA:
+		ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
 				(adev)->powerplay.pp_handle, block_type, gate));
 		break;
 	default:
