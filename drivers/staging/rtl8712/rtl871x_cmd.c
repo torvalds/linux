@@ -55,7 +55,7 @@ int r8712_init_cmd_priv(struct cmd_priv *pcmdpriv)
 	pcmdpriv->cmd_allocated_buf = kmalloc(MAX_CMDSZ + CMDBUFF_ALIGN_SZ,
 					      GFP_ATOMIC);
 	if (!pcmdpriv->cmd_allocated_buf)
-		return _FAIL;
+		return -ENOMEM;
 	pcmdpriv->cmd_buf = pcmdpriv->cmd_allocated_buf  +  CMDBUFF_ALIGN_SZ -
 			    ((addr_t)(pcmdpriv->cmd_allocated_buf) &
 			    (CMDBUFF_ALIGN_SZ - 1));
@@ -63,14 +63,14 @@ int r8712_init_cmd_priv(struct cmd_priv *pcmdpriv)
 	if (!pcmdpriv->rsp_allocated_buf) {
 		kfree(pcmdpriv->cmd_allocated_buf);
 		pcmdpriv->cmd_allocated_buf = NULL;
-		return _FAIL;
+		return -ENOMEM;
 	}
 	pcmdpriv->rsp_buf = pcmdpriv->rsp_allocated_buf  +  4 -
 			    ((addr_t)(pcmdpriv->rsp_allocated_buf) & 3);
 	pcmdpriv->cmd_issued_cnt = 0;
 	pcmdpriv->cmd_done_cnt = 0;
 	pcmdpriv->rsp_cnt = 0;
-	return _SUCCESS;
+	return 0;
 }
 
 static sint _init_evt_priv(struct evt_priv *pevtpriv)
