@@ -44,7 +44,8 @@ Example of usage::
 
     dmatest.timeout=2000 dmatest.iterations=1 dmatest.channel=dma0chan0 dmatest.run=1
 
-Example of multi-channel test usage:
+Example of multi-channel test usage (new in the 5.0 kernel)::
+
     % modprobe dmatest
     % echo 2000 > /sys/module/dmatest/parameters/timeout
     % echo 1 > /sys/module/dmatest/parameters/iterations
@@ -53,15 +54,18 @@ Example of multi-channel test usage:
     % echo dma0chan2 > /sys/module/dmatest/parameters/channel
     % echo 1 > /sys/module/dmatest/parameters/run
 
-Note: the channel parameter should always be the last parameter set prior to
-running the test (setting run=1), this is because upon setting the channel
-parameter, that specific channel is requested using the dmaengine and a thread
-is created with the existing parameters. This thread is set as pending
-and will be executed once run is set to 1. Any parameters set after the thread
-is created are not applied.
+.. note::
+  For all tests, starting in the 5.0 kernel, either single- or multi-channel,
+  the channel parameter(s) must be set after all other parameters. It is at
+  that time that the existing parameter values are acquired for use by the
+  thread(s). All other parameters are shared. Therefore, if changes are made
+  to any of the other parameters, and an additional channel specified, the
+  (shared) parameters used for all threads will use the new values.
+  After the channels are specified, each thread is set as pending. All threads
+  begin execution when the run parameter is set to 1.
 
 .. hint::
-  available channel list could be extracted by running the following command::
+  A list of available channels can be found by running the following command::
 
     % ls -1 /sys/class/dma/
 
@@ -204,6 +208,7 @@ Releasing Channels
 Channels can be freed by setting run to 0.
 
 Example::
+
     % echo dma0chan1 > /sys/module/dmatest/parameters/channel
     dmatest: Added 1 threads using dma0chan1
     % cat /sys/class/dma/dma0chan1/in_use
