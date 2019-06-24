@@ -4251,7 +4251,11 @@ static irqreturn_t rk3308_codec_hpdet_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void rk3308_codec_set_jack_detect(struct snd_soc_codec *codec,
+void (*rk3308_codec_set_jack_detect_cb)(struct snd_soc_codec *codec,
+					struct snd_soc_jack *hpdet_jack);
+EXPORT_SYMBOL_GPL(rk3308_codec_set_jack_detect_cb);
+
+static void rk3308_codec_set_jack_detect(struct snd_soc_codec *codec,
 				  struct snd_soc_jack *hpdet_jack)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_codec_get_drvdata(codec);
@@ -4262,8 +4266,10 @@ void rk3308_codec_set_jack_detect(struct snd_soc_codec *codec,
 	disable_irq_nosync(rk3308->irq);
 	queue_delayed_work(system_power_efficient_wq,
 			   &rk3308->hpdet_work, msecs_to_jiffies(10));
+
+	dev_info(rk3308->plat_dev, "%s: Request detect hp jack once\n",
+		 __func__);
 }
-EXPORT_SYMBOL_GPL(rk3308_codec_set_jack_detect);
 
 static const struct regmap_config rk3308_codec_regmap_config = {
 	.reg_bits = 32,
@@ -4964,6 +4970,8 @@ static int rk3308_platform_probe(struct platform_device *pdev)
 				     (HPDET_BOTH_NEG_POS << 16) |
 				      HPDET_BOTH_NEG_POS);
 		}
+
+		rk3308_codec_set_jack_detect_cb = rk3308_codec_set_jack_detect;
 	}
 
 	if (rk3308->codec_ver == ACODEC_VERSION_A)

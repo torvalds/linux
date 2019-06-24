@@ -21,13 +21,8 @@
 #define __RK3308_CODEC_PROVIDER_H__
 
 #ifdef CONFIG_SND_SOC_RK3308
-void rk3308_codec_set_jack_detect(struct snd_soc_codec *codec,
-				  struct snd_soc_jack *hpdet_jack);
-#else
-static inline void rk3308_codec_set_jack_detect(struct snd_soc_codec *codec,
-						struct snd_soc_jack *hpdet_jack)
-{
-}
+extern void (*rk3308_codec_set_jack_detect_cb)(struct snd_soc_codec *codec,
+					       struct snd_soc_jack *hpdet_jack);
 #endif
 
 #endif /* __RK3308_CODEC_PROVIDER_H__ */
